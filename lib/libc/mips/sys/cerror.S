@@ -1,4 +1,4 @@
-/*	$NetBSD: cerror.S,v 1.13 2003/08/07 16:42:17 agc Exp $	*/
+/*	$NetBSD: cerror.S,v 1.14 2009/12/14 01:07:42 matt Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -37,35 +37,36 @@ __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 #if defined(LIBC_SCCS) && !defined(lint)
-	ASMSTR("from: @(#)cerror.s	8.1 (Berkeley) 6/16/93")
-	ASMSTR("$NetBSD: cerror.S,v 1.13 2003/08/07 16:42:17 agc Exp $")
+#if 0
+	RCSID("from: @(#)cerror.s	8.1 (Berkeley) 6/16/93")
+#else
+	RCSID("$NetBSD: cerror.S,v 1.14 2009/12/14 01:07:42 matt Exp $")
+#endif
 #endif /* LIBC_SCCS and not lint */
 
-
-	/*
-	 * The __error() function is thread aware. For non-threaded
-	 * programs and the initial threaded in threaded programs,
-	 * it returns a pointer to the global errno variable.
-	 */
-	.globl  _C_LABEL(__error)
-	.type   _C_LABEL(__error),%function
-
-LEAF(__cerror)
-	.frame sp, CALLFRAME_SIZ, ra
-	PIC_PROLOGUE(__cerror, t9)
-	subu	sp, sp, CALLFRAME_SIZ
+	.globl	_C_LABEL(__error)
+NESTED_NOPROFILE(__cerror, CALLFRAME_SIZ, ra)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
-	sw	ra, CALLFRAME_RA(sp)
-	sw	v0, 12(sp)		# save errno value
+	SETUP_GP
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	SETUP_GP64(CALLFRAME_GP, __cerror)
+	SAVE_GP(CALLFRAME_GP)
 
-	la	t9, _C_LABEL(__error)	# locate address of errno
-	jalr	t9
+	PTR_S		ra, CALLFRAME_RA(sp)
+	REG_S		v0, CALLFRAME_S0(sp)	# save errno value
 
-	lw	t0, 12(sp)
-	lw	ra, CALLFRAME_RA(sp)
-	sw	t0, 0(v0)		# update errno value
-	addiu	sp, sp, CALLFRAME_SIZ
-	li	v0, -1
-	li	v1, -1
-	j	ra
+	PTR_LA		t9, _C_LABEL(__error)	# locate address of errno
+	jalr		t9
+
+	REG_L		t0, CALLFRAME_S0(sp)
+	PTR_L		ra, CALLFRAME_RA(sp)
+	INT_S		t0, 0(v0)		# update errno value
+
+	RESTORE_GP64
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+
+	li		v0, -1
+	li		v1, -1
+
+	j		ra
 END(__cerror)
