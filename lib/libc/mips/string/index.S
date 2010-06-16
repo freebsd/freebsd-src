@@ -46,14 +46,14 @@ __FBSDID("$FreeBSD$");
 
 LEAF(index)
 1:
-	lbu	a2, 0(a0)		# get a byte
-	addu	a0, a0, 1
-	beq	a2, a1, fnd
-	bne	a2, zero, 1b
+	lbu		a2, 0(a0)		# get a byte
+	PTR_ADDU	a0, a0, 1
+	beq		a2, a1, fnd
+	bne		a2, zero, 1b
 notfnd:
-	move	v0, zero
-	j	ra
+	move		v0, zero
+	j		ra
 fnd:
-	subu	v0, a0, 1
-	j	ra
+	PTR_SUBU	v0, a0, 1
+	j		ra
 END(index)
