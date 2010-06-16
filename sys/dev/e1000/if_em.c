@@ -231,7 +231,7 @@ static void	em_enable_intr(struct adapter *);
 static void	em_disable_intr(struct adapter *);
 static void	em_update_stats_counters(struct adapter *);
 static bool	em_txeof(struct tx_ring *);
-static int	em_rxeof(struct rx_ring *, int);
+static bool	em_rxeof(struct rx_ring *, int, int *);
 #ifndef __NO_STRICT_ALIGNMENT
 static int	em_fixup_rx(struct rx_ring *);
 #endif
@@ -1356,12 +1356,13 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct adapter *adapter = ifp->if_softc;
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct rx_ring	*rxr = adapter->rx_rings;
-	u32		reg_icr, rx_done = 0;
+	u32		reg_icr;
+	int		rx_done;
 
 	EM_CORE_LOCK(adapter);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		EM_CORE_UNLOCK(adapter);
-		return (rx_done);
+		return (0);
 	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1376,7 +1377,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	EM_CORE_UNLOCK(adapter);
 
-	rx_done = em_rxeof(rxr, count);
+	em_rxeof(rxr, count, &rx_done);
 
 	EM_TX_LOCK(txr);
 	em_txeof(txr);
@@ -1448,14 +1449,15 @@ em_handle_que(void *context, int pending)
 	struct ifnet	*ifp = adapter->ifp;
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct rx_ring	*rxr = adapter->rx_rings;
-	bool		more_rx;
+	bool		more;
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		more_rx = em_rxeof(rxr, adapter->rx_process_limit);
+		more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 
 		EM_TX_LOCK(txr);
-		em_txeof(txr);
+		if (em_txeof(txr))
+			more = TRUE;
 #ifdef EM_MULTIQUEUE
 		if (!drbr_empty(ifp, txr->br))
 			em_mq_start_locked(ifp, txr, NULL);
@@ -1464,7 +1466,7 @@ em_handle_que(void *context, int pending)
 			em_start_locked(ifp, txr);
 #endif
 		EM_TX_UNLOCK(txr);
-		if (more_rx) {
+		if (more) {
 			taskqueue_enqueue(adapter->tq, &adapter->que_task);
 			return;
 		}
@@ -1513,7 +1515,7 @@ em_msix_rx(void *arg)
 	bool		more;
 
 	++rxr->rx_irq;
-	more = em_rxeof(rxr, adapter->rx_process_limit);
+	more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
 	else
@@ -1538,7 +1540,7 @@ em_msix_link(void *arg)
 
 	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 		adapter->hw.mac.get_link_status = 1;
-		taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
+		em_handle_link(adapter, 0);
 	} else
 		E1000_WRITE_REG(&adapter->hw, E1000_IMS,
 		    EM_MSIX_LINK | E1000_IMS_LSC);
@@ -1552,7 +1554,7 @@ em_handle_rx(void *context, int pending)
 	struct adapter	*adapter = rxr->adapter;
         bool            more;
 
-	more = em_rxeof(rxr, adapter->rx_process_limit);
+	more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
 	else
@@ -2428,11 +2430,6 @@ em_allocate_msix(struct adapter *adapter)
 	adapter->linkvec = vector;
 	adapter->ivars |=  (8 | vector) << 16;
 	adapter->ivars |= 0x80000000;
-	TASK_INIT(&adapter->link_task, 0, em_handle_link, adapter);
-	adapter->tq = taskqueue_create_fast("em_link", M_NOWAIT,
-	    taskqueue_thread_enqueue, &adapter->tq);
-	taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s linkq",
-	    device_get_nameunit(adapter->dev));
 
 	return (0);
 }
@@ -4087,8 +4084,8 @@ em_initialize_receive_unit(struct adapter *adapter)
  *  
  *  For polling we also now return the number of cleaned packets
  *********************************************************************/
-static int
-em_rxeof(struct rx_ring *rxr, int count)
+static bool
+em_rxeof(struct rx_ring *rxr, int count, int *done)
 {
 	struct adapter		*adapter = rxr->adapter;
 	struct ifnet		*ifp = adapter->ifp;
@@ -4215,13 +4212,11 @@ skip:
 	}
 
 	rxr->next_to_check = i;
+	if (done != NULL)
+		*done = rxdone;
 	EM_RX_UNLOCK(rxr);
 
-#ifdef DEVICE_POLLING
-	return (rxdone);
-#else
 	return ((status & E1000_RXD_STAT_DD) ? TRUE : FALSE);
-#endif
 }
 
 #ifndef __NO_STRICT_ALIGNMENT
