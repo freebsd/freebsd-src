@@ -41,32 +41,31 @@ __FBSDID("$FreeBSD$");
 	ASMSTR("$NetBSD: ptrace.S,v 1.9 2003/08/07 16:42:17 agc Exp $")
 #endif /* LIBC_SCCS and not lint */
 
-LEAF(ptrace)
-	.frame	sp, 40, ra
-	.mask	0x80000000, -8
-#ifdef __ABICALLS__
-	.set    noreorder
-	.cpload t9
-	.set    reorder
-#endif
-	subu	sp, sp, 40
-	sw	ra,  32(sp)
-#ifdef __ABICALLS__
-	.cprestore 16
-#endif
-	la	t9, _C_LABEL(__error)	# locate address of errno
-	jalr	t9
-#ifdef __ABICALLS__
-	lw	gp, 16(sp)
-#endif
-	sw	zero, 0(v0)
-	lw	ra, 32(sp)
-	addu	sp, sp, 40
-	li	v0, SYS_ptrace
+NESTED_NOPROFILE(ptrace, CALLFRAME_SIZ, ra)
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	SETUP_GP
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	SETUP_GP64(CALLFRAME_GP, ptrace)
+	SAVE_GP(CALLFRAME_GP)
+
+	PTR_S		ra, CALLFRAME_RA(sp)
+
+	PTR_LA		t9, _C_LABEL(__error)	# locate address of errno
+	jalr		t9
+
+	PTR_L		ra, CALLFRAME_RA(sp)
+	INT_S		zero, 0(v0)		# update errno value
+
+	li		v0, SYS_ptrace
 	syscall
-	bne	a3, zero, 1f
-	j	ra
-1:
-	la	t9, _C_LABEL(__cerror)
-	jr	t9
+
+	# Load __cerror's address using our gp, then restore it.
+	PTR_LA		t9, __cerror
+	RESTORE_GP64
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+
+	bne		a3, zero, 1f
+
+	j		ra
+1:	j		t9
 END(ptrace)
