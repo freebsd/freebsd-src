@@ -68,7 +68,8 @@ LEAF(rtld_start)
 	move	a0, s0			/* sp */
 	PTR_ADDU a1, sp, 2*PTR_SIZE	/* &our atexit function */
 	PTR_ADDU a2, sp, 3*PTR_SIZE	/* obj_main entry */
-	jal	_C_LABEL(_rtld)		/* v0 = _rtld(sp, cleanup, objp) */
+	PTR_LA	t9, _C_LABEL(_rtld)
+	jalr	t9			/* v0 = _rtld(sp, cleanup, objp) */
 	 nop
 
 	PTR_L	a1, 2*PTR_SIZE(sp)	/* our atexit function */
@@ -123,7 +124,7 @@ _rtld_bind_start:
 	move	s0, sp
 
 	move	a0, v1			/* old GP */
-	subu	a0, a0, 0x7ff0		/* The offset of $gp from the	*/
+	PTR_SUBU	a0, a0, 0x7ff0		/* The offset of $gp from the	*/
        					/* beginning of the .got section: */
 					/* $gp = .got + 0x7ff0, so	*/
 					/* .got = $gp - 0x7ff0		*/
@@ -136,7 +137,8 @@ _rtld_bind_start:
 	and	a0, a0, 0x7fffffff
 	move	a1, t8			/* symbol index */
 
-	jal	_C_LABEL(_mips_rtld_bind)
+	PTR_LA	t9, _C_LABEL(_mips_rtld_bind)
+	jalr	t9
 	 nop
 
 	move	sp, s0
