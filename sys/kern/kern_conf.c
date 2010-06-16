@@ -778,7 +778,7 @@ make_dev_p(int flags, struct cdev **cdev, struct cdevsw *devsw, int unit,
 	va_end(ap);
 
 	KASSERT((flags & MAKEDEV_NOWAIT) != 0 || res == 0,
-	    ("make_dev_credf: failed make_dev_credv"));
+	    ("make_dev_p: failed make_dev_credv"));
 	return (res);
 }
 
