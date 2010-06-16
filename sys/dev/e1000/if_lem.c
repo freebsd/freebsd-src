@@ -200,7 +200,7 @@ static void	lem_txeof(struct adapter *);
 static void	lem_tx_purge(struct adapter *);
 static int	lem_allocate_receive_structures(struct adapter *);
 static int	lem_allocate_transmit_structures(struct adapter *);
-static int	lem_rxeof(struct adapter *, int);
+static bool	lem_rxeof(struct adapter *, int, int *);
 #ifndef __NO_STRICT_ALIGNMENT
 static int	lem_fixup_rx(struct adapter *);
 #endif
@@ -1255,7 +1255,7 @@ lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	EM_CORE_UNLOCK(adapter);
 
-	rx_done = lem_rxeof(adapter, count);
+	lem_rxeof(adapter, count, &rx_done);
 
 	EM_TX_LOCK(adapter);
 	lem_txeof(adapter);
@@ -1308,7 +1308,7 @@ lem_intr(void *arg)
 
 	EM_TX_LOCK(adapter);
 	lem_txeof(adapter);
-	lem_rxeof(adapter, -1);
+	lem_rxeof(adapter, -1, NULL);
 	lem_txeof(adapter);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1350,7 +1350,7 @@ lem_handle_rxtx(void *context, int pending)
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		if (lem_rxeof(adapter, adapter->rx_process_limit) != 0)
+		if (lem_rxeof(adapter, adapter->rx_process_limit, NULL) != 0)
 			taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
 		EM_TX_LOCK(adapter);
 		lem_txeof(adapter);
@@ -3449,8 +3449,8 @@ lem_free_receive_structures(struct adapter *adapter)
  *  
  *  For polling we also now return the number of cleaned packets
  *********************************************************************/
-static int
-lem_rxeof(struct adapter *adapter, int count)
+static bool
+lem_rxeof(struct adapter *adapter, int count, int *done)
 {
 	struct ifnet	*ifp = adapter->ifp;;
 	struct mbuf	*mp;
@@ -3466,8 +3466,10 @@ lem_rxeof(struct adapter *adapter, int count)
 	    BUS_DMASYNC_POSTREAD);
 
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
+		if (done != NULL)
+			*done = rx_sent;
 		EM_RX_UNLOCK(adapter);
-		return (rx_sent);
+		return (FALSE);
 	}
 
 	while ((current_desc->status & E1000_RXD_STAT_DD) &&
@@ -3626,8 +3628,10 @@ discard:
 	if (--i < 0)
 		i = adapter->num_rx_desc - 1;
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), i);
+	if (done != NULL)
+		*done = rx_sent;
 	EM_RX_UNLOCK(adapter);
-	return (rx_sent);
+	return (current_desc->status & E1000_RXD_STAT_DD);
 }
 
 #ifndef __NO_STRICT_ALIGNMENT
