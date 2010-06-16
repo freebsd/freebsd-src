@@ -1,4 +1,4 @@
-/*	$NetBSD: bcopy.S,v 1.2 2005/12/27 11:23:53 tsutsui Exp $	*/
+/*	$NetBSD: bcopy.S,v 1.3 2009/12/14 00:39:00 matt Exp $	*/
 
 /*
  * Mach Operating System
@@ -38,9 +38,15 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#define _LOCORE		/* XXX not really, just assembly-code source */
+#include <machine/endian.h>
+
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 	ASMSTR("from: @(#)mips_bcopy.s	2.2 CMU 18/06/93")
-	ASMSTR("$NetBSD: bcopy.S,v 1.2 2005/12/27 11:23:53 tsutsui Exp $")
+#else
+	ASMSTR("$NetBSD: bcopy.S,v 1.3 2009/12/14 00:39:00 matt Exp $")
+#endif
 #endif /* LIBC_SCCS and not lint */
 
 #ifdef __ABICALLS__
@@ -99,71 +105,72 @@ LEAF(FUNCTION)
 	 *	copy is alignable.  eg if src and dest are both
 	 *	on a halfword boundary.
 	 */
-	andi	t1,DSTREG,3		# get last 3 bits of dest
-	bne	t1,zero,3f
-	andi	t0,SRCREG,3		# get last 3 bits of src
-	bne	t0,zero,5f
+	andi		t1,DSTREG,(SZREG-1)	# get last bits of dest
+	bne		t1,zero,3f		# dest unaligned
+	andi		t0,SRCREG,(SZREG-1)	# get last bits of src
+	bne		t0,zero,5f
 
 	/*
-	 *	Forward aligned->aligned copy, 8*4 bytes at a time.
+	 *	Forward aligned->aligned copy, 8 words at a time.
 	 */
-	li	AT,-32
-	and	t0,SIZEREG,AT		# count truncated to multiple of 32 */
-	addu	a3,SRCREG,t0		# run fast loop up to this address
-	sltu	AT,SRCREG,a3		# any work to do?
-	beq	AT,zero,2f
-	subu	SIZEREG,t0
+98:
+	li		AT,-(SZREG*8)
+	and		t0,SIZEREG,AT		# count truncated to multiples
+	PTR_ADDU	a3,SRCREG,t0		# run fast loop up to this addr
+	sltu		AT,SRCREG,a3		# any work to do?
+	beq		AT,zero,2f
+	PTR_SUBU	SIZEREG,t0
 
 	/*
 	 *	loop body
 	 */
 1:	# cp
-	lw	t3,0(SRCREG)
-	lw	v1,4(SRCREG)
-	lw	t0,8(SRCREG)
-	lw	t1,12(SRCREG)
-	addu	SRCREG,32
-	sw	t3,0(DSTREG)
-	sw	v1,4(DSTREG)
-	sw	t0,8(DSTREG)
-	sw	t1,12(DSTREG)
-	lw	t1,-4(SRCREG)
-	lw	t0,-8(SRCREG)
-	lw	v1,-12(SRCREG)
-	lw	t3,-16(SRCREG)
-	addu	DSTREG,32
-	sw	t1,-4(DSTREG)
-	sw	t0,-8(DSTREG)
-	sw	v1,-12(DSTREG)
-	bne	SRCREG,a3,1b
-	sw	t3,-16(DSTREG)
+	REG_L		t3,(0*SZREG)(SRCREG)
+	REG_L		v1,(1*SZREG)(SRCREG)
+	REG_L		t0,(2*SZREG)(SRCREG)
+	REG_L		t1,(3*SZREG)(SRCREG)
+	PTR_ADDU	SRCREG,SZREG*8
+	REG_S		t3,(0*SZREG)(DSTREG)
+	REG_S		v1,(1*SZREG)(DSTREG)
+	REG_S		t0,(2*SZREG)(DSTREG)
+	REG_S		t1,(3*SZREG)(DSTREG)
+	REG_L		t1,(-1*SZREG)(SRCREG)
+	REG_L		t0,(-2*SZREG)(SRCREG)
+	REG_L		v1,(-3*SZREG)(SRCREG)
+	REG_L		t3,(-4*SZREG)(SRCREG)
+	PTR_ADDU	DSTREG,SZREG*8
+	REG_S		t1,(-1*SZREG)(DSTREG)
+	REG_S		t0,(-2*SZREG)(DSTREG)
+	REG_S		v1,(-3*SZREG)(DSTREG)
+	bne		SRCREG,a3,1b
+	REG_S		t3,(-4*SZREG)(DSTREG)
 
 	/*
 	 *	Copy a word at a time, no loop unrolling.
 	 */
 2:	# wordcopy
-	andi	t2,SIZEREG,3		# get byte count / 4
-	subu	t2,SIZEREG,t2		# t2 = number of words to copy * 4
-	beq	t2,zero,3f
-	addu	t0,SRCREG,t2		# stop at t0
-	subu	SIZEREG,SIZEREG,t2
+	andi		t2,SIZEREG,(SZREG-1)	# get byte count / SZREG
+	PTR_SUBU	t2,SIZEREG,t2		# t2 = words to copy * SZREG
+	beq		t2,zero,3f
+	PTR_ADDU	t0,SRCREG,t2		# stop at t0
+	PTR_SUBU	SIZEREG,SIZEREG,t2
 1:
-	lw	t3,0(SRCREG)
-	addu	SRCREG,4
-	sw	t3,0(DSTREG)
-	bne	SRCREG,t0,1b
-	addu	DSTREG,4
+	REG_L		t3,0(SRCREG)
+	PTR_ADDU	SRCREG,SZREG
+	REG_S		t3,0(DSTREG)
+	bne		SRCREG,t0,1b
+	PTR_ADDU	DSTREG,SZREG
 
 3:	# bytecopy
-	beq	SIZEREG,zero,4f	# nothing left to do?
+	beq		SIZEREG,zero,4f		# nothing left to do?
 	nop
 1:
-	lb	t3,0(SRCREG)
-	addu	SRCREG,1
-	sb	t3,0(DSTREG)
-	subu	SIZEREG,1
-	bgtz	SIZEREG,1b
-	addu	DSTREG,1
+	lb		t3,0(SRCREG)
+	PTR_ADDU	SRCREG,1
+	sb		t3,0(DSTREG)
+	PTR_SUBU	SIZEREG,1
+	bgtz		SIZEREG,1b
+	PTR_ADDU	DSTREG,1
 
 4:	# copydone
 	j	ra
@@ -173,96 +180,91 @@ LEAF(FUNCTION)
 	 *	Copy from unaligned source to aligned dest.
 	 */
 5:	# destaligned
-	andi	t0,SIZEREG,3		# t0 = bytecount mod 4
-	subu	a3,SIZEREG,t0		# number of words to transfer
-	beq	a3,zero,3b
+	andi		t0,SIZEREG,(SZREG-1)	# t0 = bytecount mod SZREG
+	PTR_SUBU	a3,SIZEREG,t0		# number of words to transfer
+	beq		a3,zero,3b
 	nop
-	move	SIZEREG,t0		# this many to do after we are done
-	addu	a3,SRCREG,a3		# stop point
+	move		SIZEREG,t0		# this many to do after we are done
+	PTR_ADDU	a3,SRCREG,a3		# stop point
 
 1:
-#ifdef __MIPSEB__
-	lwl	t3,0(SRCREG)
-	lwr	t3,3(SRCREG)
-#else
-	lwr	t3,0(SRCREG)
-	lwl	t3,3(SRCREG)
-#endif
-	addi	SRCREG,4
-	sw	t3,0(DSTREG)
-	bne	SRCREG,a3,1b
-	addi	DSTREG,4
+	REG_LHI		t3,0(SRCREG)
+	REG_LLO		t3,SZREG-1(SRCREG)
+	PTR_ADDI	SRCREG,SZREG
+	REG_S		t3,0(DSTREG)
+	bne		SRCREG,a3,1b
+	PTR_ADDI	DSTREG,SZREG
 
-	j	3b
+	b		3b
 	nop
 
 6:	# backcopy -- based on above
-	addu	SRCREG,SIZEREG
-	addu	DSTREG,SIZEREG
-	andi	t1,DSTREG,3		# get last 3 bits of dest
-	bne	t1,zero,3f
-	andi	t0,SRCREG,3		# get last 3 bits of src
-	bne	t0,zero,5f
+	PTR_ADDU	SRCREG,SIZEREG
+	PTR_ADDU	DSTREG,SIZEREG
+	andi		t1,DSTREG,SZREG-1	# get last 3 bits of dest
+	bne		t1,zero,3f
+	andi		t0,SRCREG,SZREG-1	# get last 3 bits of src
+	bne		t0,zero,5f
 
 	/*
 	 *	Forward aligned->aligned copy, 8*4 bytes at a time.
 	 */
-	li	AT,-32
-	and	t0,SIZEREG,AT		# count truncated to multiple of 32
-	beq	t0,zero,2f		# any work to do?
-	subu	SIZEREG,t0
-	subu	a3,SRCREG,t0
+	li		AT,(-8*SZREG)
+	and		t0,SIZEREG,AT		# count truncated to multiple of 32
+	beq		t0,zero,2f		# any work to do?
+	PTR_SUBU	SIZEREG,t0
+	PTR_SUBU	a3,SRCREG,t0
 
 	/*
 	 *	loop body
 	 */
 1:	# cp
-	lw	t3,-16(SRCREG)
-	lw	v1,-12(SRCREG)
-	lw	t0,-8(SRCREG)
-	lw	t1,-4(SRCREG)
-	subu	SRCREG,32
-	sw	t3,-16(DSTREG)
-	sw	v1,-12(DSTREG)
-	sw	t0,-8(DSTREG)
-	sw	t1,-4(DSTREG)
-	lw	t1,12(SRCREG)
-	lw	t0,8(SRCREG)
-	lw	v1,4(SRCREG)
-	lw	t3,0(SRCREG)
-	subu	DSTREG,32
-	sw	t1,12(DSTREG)
-	sw	t0,8(DSTREG)
-	sw	v1,4(DSTREG)
-	bne	SRCREG,a3,1b
-	sw	t3,0(DSTREG)
+	REG_L		t3,(-4*SZREG)(SRCREG)
+	REG_L		v1,(-3*SZREG)(SRCREG)
+	REG_L		t0,(-2*SZREG)(SRCREG)
+	REG_L		t1,(-1*SZREG)(SRCREG)
+	PTR_SUBU	SRCREG,8*SZREG
+	REG_S		t3,(-4*SZREG)(DSTREG)
+	REG_S		v1,(-3*SZREG)(DSTREG)
+	REG_S		t0,(-2*SZREG)(DSTREG)
+	REG_S		t1,(-1*SZREG)(DSTREG)
+	REG_L		t1,(3*SZREG)(SRCREG)
+	REG_L		t0,(2*SZREG)(SRCREG)
+	REG_L		v1,(1*SZREG)(SRCREG)
+	REG_L		t3,(0*SZREG)(SRCREG)
+	PTR_SUBU	DSTREG,8*SZREG
+	REG_S		t1,(3*SZREG)(DSTREG)
+	REG_S		t0,(2*SZREG)(DSTREG)
+	REG_S		v1,(1*SZREG)(DSTREG)
+	bne		SRCREG,a3,1b
+	REG_S		t3,(0*SZREG)(DSTREG)
 
 	/*
 	 *	Copy a word at a time, no loop unrolling.
 	 */
 2:	# wordcopy
-	andi	t2,SIZEREG,3		# get byte count / 4
-	subu	t2,SIZEREG,t2		# t2 = number of words to copy * 4
-	beq	t2,zero,3f
-	subu	t0,SRCREG,t2		# stop at t0
-	subu	SIZEREG,SIZEREG,t2
+	andi		t2,SIZEREG,SZREG-1	# get byte count / 4
+	PTR_SUBU	t2,SIZEREG,t2		# t2 = number of words to copy
+	beq		t2,zero,3f
+	PTR_SUBU	t0,SRCREG,t2		# stop at t0
+	PTR_SUBU	SIZEREG,SIZEREG,t2
 1:
-	lw	t3,-4(SRCREG)
-	subu	SRCREG,4
-	sw	t3,-4(DSTREG)
-	bne	SRCREG,t0,1b
-	subu	DSTREG,4
+	REG_L		t3,-SZREG(SRCREG)
+	PTR_SUBU	SRCREG,SZREG
+	REG_S		t3,-SZREG(DSTREG)
+	bne		SRCREG,t0,1b
+	PTR_SUBU	DSTREG,SZREG
 
 3:	# bytecopy
-	beq	SIZEREG,zero,4f		# nothing left to do?
+	beq		SIZEREG,zero,4f		# nothing left to do?
 	nop
 1:
-	lb	t3,-1(SRCREG)
-	subu	SRCREG,1
-	sb	t3,-1(DSTREG)
-	subu	SIZEREG,1
-	bgtz	SIZEREG,1b
-	subu	DSTREG,1
+	lb		t3,-1(SRCREG)
+	PTR_SUBU	SRCREG,1
+	sb		t3,-1(DSTREG)
+	PTR_SUBU	SIZEREG,1
+	bgtz		SIZEREG,1b
+	PTR_SUBU	DSTREG,1
 
 4:	# copydone
 	j	ra
@@ -272,27 +274,22 @@ LEAF(FUNCTION)
 	 *	Copy from unaligned source to aligned dest.
 	 */
 5:	# destaligned
-	andi	t0,SIZEREG,3		# t0 = bytecount mod 4
-	subu	a3,SIZEREG,t0		# number of words to transfer
-	beq	a3,zero,3b
+	andi		t0,SIZEREG,SZREG-1	# t0 = bytecount mod 4
+	PTR_SUBU	a3,SIZEREG,t0		# number of words to transfer
+	beq		a3,zero,3b
 	nop
-	move	SIZEREG,t0		# this many to do after we are done
-	subu	a3,SRCREG,a3		# stop point
+	move		SIZEREG,t0		# this many to do after we are done
+	PTR_SUBU	a3,SRCREG,a3		# stop point
 
 1:
-#ifdef __MIPSEB__
-	lwl	t3,-4(SRCREG)
-	lwr	t3,-1(SRCREG)
-#else
-	lwr	t3,-4(SRCREG)
-	lwl	t3,-1(SRCREG)
-#endif
-	subu	SRCREG,4
-	sw	t3,-4(DSTREG)
-	bne	SRCREG,a3,1b
-	subu	DSTREG,4
+	REG_LHI		t3,-SZREG(SRCREG)
+	REG_LLO		t3,-1(SRCREG)
+	PTR_SUBU	SRCREG,SZREG
+	REG_S		t3,-SZREG(DSTREG)
+	bne		SRCREG,a3,1b
+	PTR_SUBU	DSTREG,SZREG
 
-	j	3b
+	b		3b
 	nop
 
 	.set	reorder
