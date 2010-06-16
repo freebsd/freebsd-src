@@ -435,7 +435,7 @@ main(int argc, char * argv[])
 	struct pidfh *pfh = NULL;
 	const char *pidfile = NULL;
 	int freq, curfreq, initfreq, *freqs, i, j, *mwatts, numfreqs, load;
-	int ch, mode, mode_ac, mode_battery, mode_none;
+	int ch, mode, mode_ac, mode_battery, mode_none, idle, to;
 	uint64_t mjoules_used;
 	size_t len;
 
@@ -548,9 +548,11 @@ main(int argc, char * argv[])
 	signal(SIGINT, handle_sigs);
 	signal(SIGTERM, handle_sigs);
 
-	freq = initfreq = get_freq();
+	freq = initfreq = curfreq = get_freq();
+	i = get_freq_id(curfreq, freqs, numfreqs);
 	if (freq < 1)
 		freq = 1;
+	idle = 0;
 	/* Main loop. */
 	for (;;) {
 		FD_ZERO(&fdset);
@@ -560,8 +562,14 @@ main(int argc, char * argv[])
 		} else {
 			nfds = 0;
 		}
-		timeout.tv_sec = poll_ival / 1000000;
-		timeout.tv_usec = poll_ival % 1000000;
+		if (mode == MODE_HIADAPTIVE || idle < 120)
+			to = poll_ival;
+		else if (idle < 360)
+			to = poll_ival * 2;
+		else
+			to = poll_ival * 4;
+		timeout.tv_sec = to / 1000000;
+		timeout.tv_usec = to % 1000000;
 		select(nfds, &fdset, NULL, &fdset, &timeout);
 
 		/* If the user requested we quit, print some statistics. */
@@ -590,11 +598,12 @@ main(int argc, char * argv[])
 		}
 
 		/* Read the current frequency. */
-		if ((curfreq = get_freq()) == 0)
-			continue;
-
-		i = get_freq_id(curfreq, freqs, numfreqs);
-	
+		if (idle % 32 == 0) {
+			if ((curfreq = get_freq()) == 0)
+				continue;
+			i = get_freq_id(curfreq, freqs, numfreqs);
+		}
+		idle++;
 		if (vflag) {
 			/* Keep a sum of all power actually used. */
 			if (mwatts[i] != -1)
@@ -611,6 +620,7 @@ main(int argc, char * argv[])
 					    "changing frequency to %d MHz\n",
 					    modes[acline_status], freq);
 				}
+				idle = 0;
 				if (set_freq(freq) != 0) {
 					warn("error setting CPU freq %d",
 					    freq);
@@ -629,6 +639,7 @@ main(int argc, char * argv[])
 					    "changing frequency to %d MHz\n",
 					    modes[acline_status], freq);
 				}
+				idle = 0;
 				if (set_freq(freq) != 0) {
 					warn("error setting CPU freq %d",
 				    	    freq);
@@ -689,6 +700,7 @@ main(int argc, char * argv[])
 				    " speed from %d MHz to %d MHz\n",
 				    freqs[i], freqs[j]);
 			}
+			idle = 0;
 			if (set_freq(freqs[j]))
 				warn("error setting CPU frequency %d",
 				    freqs[j]);
