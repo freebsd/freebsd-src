@@ -210,7 +210,7 @@ u_int options;
 int mx_dup_ck = MAX_DUP_CHK;
 char rcvd_tbl[MAX_DUP_CHK / 8];
 
-struct addrinfo *res;
+struct addrinfo *res = NULL;
 struct sockaddr_in6 dst;	/* who to ping6 */
 struct sockaddr_in6 src;	/* src addr of this packet */
 socklen_t srclen;
@@ -225,6 +225,13 @@ int ident;			/* process id to identify our packets */
 u_int8_t nonce[8];		/* nonce field for node information */
 int hoplimit = -1;		/* hoplimit */
 int pathmtu = 0;		/* path MTU for the destination.  0 = unspec. */
+u_char *packet = NULL;
+#ifdef HAVE_POLL_H
+struct pollfd fdmaskp[1];
+#else
+fd_set *fdmaskp = NULL;
+int fdmasks;
+#endif
 
 /* counters */
 long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
@@ -302,19 +309,14 @@ main(argc, argv)
 	struct timeval timeout, *tv;
 #endif
 	struct addrinfo hints;
-#ifdef HAVE_POLL_H
-	struct pollfd fdmaskp[1];
-#else
-	fd_set *fdmaskp;
-	int fdmasks;
-#endif
 	int cc, i;
 	int ch, hold, packlen, preload, optval, ret_ga;
-	u_char *datap, *packet;
+	u_char *datap;
 	char *e, *target, *ifname = NULL, *gateway = NULL;
 	int ip6optlen = 0;
 	struct cmsghdr *scmsgp = NULL;
-	struct cmsghdr *cm;
+	/* For control (ancillary) data received from recvmsg() */
+	struct cmsghdr cm[CONTROLLEN];
 #if defined(SO_SNDBUF) && defined(SO_RCVBUF)
 	u_long lsockbufsize;
 	int sockbufsize = 0;
@@ -529,6 +531,7 @@ main(argc, argv)
 			memcpy(&src, res->ai_addr, res->ai_addrlen);
 			srclen = res->ai_addrlen;
 			freeaddrinfo(res);
+			res = NULL;
 			options |= F_SRCADDR;
 			break;
 		case 's':		/* size of packet to send */
@@ -1081,11 +1084,6 @@ main(argc, argv)
 	seeninfo = 0;
 #endif
 
-	/* For control (ancillary) data received from recvmsg() */
-	cm = (struct cmsghdr *)malloc(CONTROLLEN);
-	if (cm == NULL)
-		err(1, "malloc");
-
 	for (;;) {
 		struct msghdr m;
 		struct iovec iov[2];
@@ -1199,6 +1197,18 @@ main(argc, argv)
 		}
 	}
 	summary();
+
+	if (res != NULL)
+		freeaddrinfo(res);
+
+        if(packet != NULL)
+                free(packet);
+
+#ifndef HAVE_POLL_H
+        if(fdmaskp != NULL)
+                free(fdmaskp);
+#endif
+
 	exit(nreceived == 0 ? 2 : 0);
 }
 
@@ -2254,6 +2264,17 @@ onint(notused)
 	int notused;
 {
 	summary();
+
+	if (res != NULL)
+		freeaddrinfo(res);
+
+        if(packet != NULL)
+                free(packet);
+
+#ifndef HAVE_POLL_H
+        if(fdmaskp != NULL)
+                free(fdmaskp);
+#endif
 
 	(void)signal(SIGINT, SIG_DFL);
 	(void)kill(getpid(), SIGINT);
