@@ -384,3 +384,15 @@ configurations may not work reliably.
 .Pp
 Drive configuration commands result in an excessive flood of messages on the
 console.
+.Pp
+The mpt version 1 API that is used by
+.Nm
+and 
+.Xr mpt 4
+doesn't support volumes above two terabytes.
+This is a limitation of the API.
+If you are using this adapter with volumes larger than two terabytes, use the adapter in JBOD mode.
+Utilize
+.Xr geom 8
+.Xr zfs 1M
+or another software volume manager to work around this limitation.
