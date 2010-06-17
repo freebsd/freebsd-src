@@ -295,6 +295,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		nv_free(nvout);
 		exit(EX_TEMPFAIL);
 	}
+	nv_free(nvout);
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
 		/* Exit on split-brain. */
@@ -687,7 +688,7 @@ send_thread(void *arg)
 			pjdlog_exit(EX_TEMPFAIL, "Unable to send reply.");
 		}
 		nv_free(nvout);
-		pjdlog_debug(2, "disk: (%p) Moving request to the free queue.",
+		pjdlog_debug(2, "send: (%p) Moving request to the free queue.",
 		    hio);
 		nv_free(hio->hio_nv);
 		hio->hio_error = 0;
