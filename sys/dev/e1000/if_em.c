@@ -4960,12 +4960,6 @@ em_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "xoff_txd",
 			CTLFLAG_RD, &adapter->stats.xofftxc,
 			"XOFF Transmitted");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_recvd",
-			CTLFLAG_RD, &adapter->stats.gprc,
-			"Good Packets Received");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
-			CTLFLAG_RD, &adapter->stats.gptc,
-			"Good Packets Transmitted");
 
 	/* Packet Reception Stats */
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_recvd",
