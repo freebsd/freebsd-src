@@ -153,6 +153,7 @@ mtx_assert(struct mtx *mp, int flag)
 }
 
 #define CTASSERT(foo)
+#define WITNESS_WARN(flags, lock, fmt, ...)	(void)0
 
 #endif /* USERLAND */
 
@@ -825,9 +826,9 @@ main(int argc __unused, const char **argv __unused)
 
 	memset(a, 0, sizeof a);
 
-	fprintf(stderr, "sizeof(struct unr) %d\n", sizeof (struct unr));
-	fprintf(stderr, "sizeof(struct unrb) %d\n", sizeof (struct unrb));
-	fprintf(stderr, "sizeof(struct unrhdr) %d\n", sizeof (struct unrhdr));
+	fprintf(stderr, "sizeof(struct unr) %zu\n", sizeof(struct unr));
+	fprintf(stderr, "sizeof(struct unrb) %zu\n", sizeof(struct unrb));
+	fprintf(stderr, "sizeof(struct unrhdr) %zu\n", sizeof(struct unrhdr));
 	fprintf(stderr, "NBITS %d\n", NBITS);
 	x = 1;
 	for (m = 0; m < NN * 100; m++) {
