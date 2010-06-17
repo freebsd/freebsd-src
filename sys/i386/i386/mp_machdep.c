@@ -166,6 +166,8 @@ u_long *ipi_invlpg_counts[MAXCPU];
 u_long *ipi_invlcache_counts[MAXCPU];
 u_long *ipi_rendezvous_counts[MAXCPU];
 u_long *ipi_lazypmap_counts[MAXCPU];
+static u_long *ipi_hardclock_counts[MAXCPU];
+static u_long *ipi_statclock_counts[MAXCPU];
 #endif
 
 /*
@@ -1266,19 +1268,24 @@ ipi_bitmap_handler(struct trapframe frame)
 #endif
 		sched_preempt(curthread);
 	}
-
 	if (ipi_bitmap & (1 << IPI_AST)) {
 #ifdef COUNT_IPIS
 		(*ipi_ast_counts[cpu])++;
 #endif
 		/* Nothing to do for AST */
 	}
-
-	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
+#ifdef COUNT_IPIS
+		(*ipi_hardclock_counts[cpu])++;
+#endif
 		hardclockintr(&frame); 
-
-	if (ipi_bitmap & (1 << IPI_STATCLOCK))
+	}
+	if (ipi_bitmap & (1 << IPI_STATCLOCK)) {
+#ifdef COUNT_IPIS
+		(*ipi_statclock_counts[cpu])++;
+#endif
 		statclockintr(&frame); 
+	}
 }
 
 /*
@@ -1574,20 +1581,24 @@ mp_ipi_intrcnt(void *dummy)
 	int i;
 
 	CPU_FOREACH(i) {
-		snprintf(buf, sizeof(buf), "cpu%d: invltlb", i);
+		snprintf(buf, sizeof(buf), "cpu%d:invltlb", i);
 		intrcnt_add(buf, &ipi_invltlb_counts[i]);
-		snprintf(buf, sizeof(buf), "cpu%d: invlrng", i);
+		snprintf(buf, sizeof(buf), "cpu%d:invlrng", i);
 		intrcnt_add(buf, &ipi_invlrng_counts[i]);
-		snprintf(buf, sizeof(buf), "cpu%d: invlpg", i);
+		snprintf(buf, sizeof(buf), "cpu%d:invlpg", i);
 		intrcnt_add(buf, &ipi_invlpg_counts[i]);
-		snprintf(buf, sizeof(buf), "cpu%d: preempt", i);
+		snprintf(buf, sizeof(buf), "cpu%d:preempt", i);
 		intrcnt_add(buf, &ipi_preempt_counts[i]);
-		snprintf(buf, sizeof(buf), "cpu%d: ast", i);
+		snprintf(buf, sizeof(buf), "cpu%d:ast", i);
 		intrcnt_add(buf, &ipi_ast_counts[i]);
-		snprintf(buf, sizeof(buf), "cpu%d: rendezvous", i);
+		snprintf(buf, sizeof(buf), "cpu%d:rendezvous", i);
 		intrcnt_add(buf, &ipi_rendezvous_counts[i]);
-		snprintf(buf, sizeof(buf), "cpu%d: lazypmap", i);
+		snprintf(buf, sizeof(buf), "cpu%d:lazypmap", i);
 		intrcnt_add(buf, &ipi_lazypmap_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:hardclock", i);
+		intrcnt_add(buf, &ipi_hardclock_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:statclock", i);
+		intrcnt_add(buf, &ipi_statclock_counts[i]);
 	}		
 }
 SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
