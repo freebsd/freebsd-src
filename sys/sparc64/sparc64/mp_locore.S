@@ -207,7 +207,7 @@ ENTRY(mp_startup)
 	bl	%icc, 2f
 	 nop
 	cmp	%l1, CPU_IMPL_ULTRASPARCIII
-	bl	%icc, 3f
+	bl	%icc, 4f
 	 nop
 2:	mov	CPU_STICKSYNC, %l2
 	membar	#StoreLoad
