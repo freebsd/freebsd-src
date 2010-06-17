@@ -766,14 +766,14 @@ make_dev_credf(int flags, struct cdevsw *devsw, int unit, struct ucred *cr,
 }
 
 int
-make_dev_p(int flags, struct cdev **cdev, struct cdevsw *devsw, int unit,
+make_dev_p(int flags, struct cdev **cdev, struct cdevsw *devsw,
     struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt, ...)
 {
 	va_list ap;
 	int res;
 
 	va_start(ap, fmt);
-	res = make_dev_credv(flags, cdev, devsw, unit, cr, uid, gid, mode,
+	res = make_dev_credv(flags, cdev, devsw, 0, cr, uid, gid, mode,
 	    fmt, ap);
 	va_end(ap);
 
