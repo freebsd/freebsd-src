@@ -598,7 +598,7 @@ lock_profile_release_lock(struct lock_object *lo)
 	struct lock_profile_object *l;
 	struct lock_prof_type *type;
 	struct lock_prof *lp;
-	u_int64_t holdtime;
+	u_int64_t curtime, holdtime;
 	struct lpohead *head;
 	int spin;
 
@@ -626,9 +626,11 @@ lock_profile_release_lock(struct lock_object *lo)
 	lp = lock_profile_lookup(lo, spin, l->lpo_file, l->lpo_line);
 	if (lp == NULL)
 		goto release;
-	holdtime = nanoseconds() - l->lpo_acqtime;
-	if (holdtime < 0)
+	curtime = nanoseconds();
+	if (curtime < l->lpo_acqtime)
 		goto release;
+	holdtime = curtime - l->lpo_acqtime;
+
 	/*
 	 * Record if the lock has been held longer now than ever
 	 * before.
