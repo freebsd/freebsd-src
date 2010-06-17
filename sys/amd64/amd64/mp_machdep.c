@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_mp_watchdog.h"
 #include "opt_sched.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -105,6 +106,20 @@ struct xpcb **stopxpcbs = NULL;
 vm_offset_t smp_tlb_addr1;
 vm_offset_t smp_tlb_addr2;
 volatile int smp_tlb_wait;
+
+#ifdef COUNT_IPIS
+/* Interrupt counts. */
+static u_long *ipi_preempt_counts[MAXCPU];
+static u_long *ipi_ast_counts[MAXCPU];
+u_long *ipi_invltlb_counts[MAXCPU];
+u_long *ipi_invlrng_counts[MAXCPU];
+u_long *ipi_invlpg_counts[MAXCPU];
+u_long *ipi_invlcache_counts[MAXCPU];
+u_long *ipi_rendezvous_counts[MAXCPU];
+u_long *ipi_lazypmap_counts[MAXCPU];
+static u_long *ipi_hardclock_counts[MAXCPU];
+static u_long *ipi_statclock_counts[MAXCPU];
+#endif
 
 extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
@@ -970,6 +985,42 @@ start_ap(int apic_id)
 	return 0;		/* return FAILURE */
 }
 
+#ifdef COUNT_XINVLTLB_HITS
+u_int xhits_gbl[MAXCPU];
+u_int xhits_pg[MAXCPU];
+u_int xhits_rng[MAXCPU];
+SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, global, CTLFLAG_RW, &xhits_gbl,
+    sizeof(xhits_gbl), "IU", "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, page, CTLFLAG_RW, &xhits_pg,
+    sizeof(xhits_pg), "IU", "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, range, CTLFLAG_RW, &xhits_rng,
+    sizeof(xhits_rng), "IU", "");
+
+u_int ipi_global;
+u_int ipi_page;
+u_int ipi_range;
+u_int ipi_range_size;
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_global, CTLFLAG_RW, &ipi_global, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_page, CTLFLAG_RW, &ipi_page, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range, CTLFLAG_RW, &ipi_range, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range_size, CTLFLAG_RW, &ipi_range_size,
+    0, "");
+
+u_int ipi_masked_global;
+u_int ipi_masked_page;
+u_int ipi_masked_range;
+u_int ipi_masked_range_size;
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_global, CTLFLAG_RW,
+    &ipi_masked_global, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_page, CTLFLAG_RW,
+    &ipi_masked_page, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range, CTLFLAG_RW,
+    &ipi_masked_range, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range_size, CTLFLAG_RW,
+    &ipi_masked_range_size, 0, "");
+#endif /* COUNT_XINVLTLB_HITS */
+
 /*
  * Flush the TLB on all other CPU's
  */
@@ -1047,6 +1098,9 @@ smp_invltlb(void)
 
 	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLTLB, 0, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_global++;
+#endif
 	}
 }
 
@@ -1054,8 +1108,12 @@ void
 smp_invlpg(vm_offset_t addr)
 {
 
-	if (smp_started)
+	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLPG, addr, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_page++;
+#endif
+	}
 }
 
 void
@@ -1064,6 +1122,10 @@ smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
 
 	if (smp_started) {
 		smp_tlb_shootdown(IPI_INVLRNG, addr1, addr2);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_range++;
+		ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
+#endif
 	}
 }
 
@@ -1073,6 +1135,9 @@ smp_masked_invltlb(cpumask_t mask)
 
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, 0, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_masked_global++;
+#endif
 	}
 }
 
@@ -1082,6 +1147,9 @@ smp_masked_invlpg(cpumask_t mask, vm_offset_t addr)
 
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, addr, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_masked_page++;
+#endif
 	}
 }
 
@@ -1091,6 +1159,10 @@ smp_masked_invlpg_range(cpumask_t mask, vm_offset_t addr1, vm_offset_t addr2)
 
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, addr1, addr2);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_masked_range++;
+		ipi_masked_range_size += (addr2 - addr1) / PAGE_SIZE;
+#endif
 	}
 }
 
@@ -1102,16 +1174,30 @@ ipi_bitmap_handler(struct trapframe frame)
 
 	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
 
-	if (ipi_bitmap & (1 << IPI_PREEMPT))
+	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
+#ifdef COUNT_IPIS
+		(*ipi_preempt_counts[cpu])++;
+#endif
 		sched_preempt(curthread);
-
-	/* Nothing to do for AST */
-
-	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
+	}
+	if (ipi_bitmap & (1 << IPI_AST)) {
+#ifdef COUNT_IPIS
+		(*ipi_ast_counts[cpu])++;
+#endif
+		/* Nothing to do for AST */
+	}
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
+#ifdef COUNT_IPIS
+		(*ipi_hardclock_counts[cpu])++;
+#endif
 		hardclockintr(&frame);
-
-	if (ipi_bitmap & (1 << IPI_STATCLOCK))
+	}
+	if (ipi_bitmap & (1 << IPI_STATCLOCK)) {
+#ifdef COUNT_IPIS
+		(*ipi_statclock_counts[cpu])++;
+#endif
 		statclockintr(&frame);
+	}
 }
 
 /*
@@ -1432,3 +1518,38 @@ mp_grab_cpu_hlt(void)
 		__asm __volatile("sti; hlt" : : : "memory");
 	return (retval);
 }
+
+#ifdef COUNT_IPIS
+/*
+ * Setup interrupt counters for IPI handlers.
+ */
+static void
+mp_ipi_intrcnt(void *dummy)
+{
+	char buf[64];
+	int i;
+
+	CPU_FOREACH(i) {
+		snprintf(buf, sizeof(buf), "cpu%d:invltlb", i);
+		intrcnt_add(buf, &ipi_invltlb_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:invlrng", i);
+		intrcnt_add(buf, &ipi_invlrng_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:invlpg", i);
+		intrcnt_add(buf, &ipi_invlpg_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:preempt", i);
+		intrcnt_add(buf, &ipi_preempt_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:ast", i);
+		intrcnt_add(buf, &ipi_ast_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:rendezvous", i);
+		intrcnt_add(buf, &ipi_rendezvous_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:lazypmap", i);
+		intrcnt_add(buf, &ipi_lazypmap_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:hardclock", i);
+		intrcnt_add(buf, &ipi_hardclock_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:statclock", i);
+		intrcnt_add(buf, &ipi_statclock_counts[i]);
+	}
+}
+SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
+#endif
+

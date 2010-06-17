@@ -30,6 +30,11 @@ device		mptable			# Optional MPSPEC mptable support
 #
 options 	MP_WATCHDOG
 
+# Debugging options.
+#
+options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
+options 	COUNT_IPIS		# Per-CPU IPI interrupt counters
+
 
 
 #####################################################################
