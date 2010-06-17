@@ -8,7 +8,6 @@ FILES=	100.clean-disks \
 	200.backup-passwd \
 	330.news \
 	400.status-disks \
-	404.status-zfs \
 	405.status-ata-raid \
 	406.status-gmirror \
 	407.status-graid3 \
@@ -51,6 +50,11 @@ FILES+=	150.clean-hoststat \
 	440.status-mailq \
 	460.status-mail-rejects \
 	500.queuerun
+.endif
+
+.if ${MK_ZFS} != "no"
+FILES+=	404.status-zfs \
+	800.scrub-zfs
 .endif
 
 .include <bsd.prog.mk>
