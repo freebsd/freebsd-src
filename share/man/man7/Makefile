@@ -29,7 +29,7 @@ MAN=	adding_user.7 \
 MLINKS=	intro.7 miscellaneous.7
 MLINKS+= security.7 securelevel.7
 MLINKS+= c99.7 c.7
-MLINKS+= c99.7 c79.7
+MLINKS+= c99.7 c78.7
 MLINKS+= c99.7 c89.7
 MLINKS+= c99.7 c90.7
 
