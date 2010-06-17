@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cache.h>
 #include <machine/md_var.h>
+#include <machine/tlb.h>
 
 #if defined(DIAGNOSTIC)
 #define	PMAP_DIAGNOSTIC
@@ -150,8 +151,6 @@ unsigned pmap_max_asid;		/* max ASID supported by the system */
 
 vm_offset_t kernel_vm_end;
 
-static struct tlb tlbstash[MAXCPU][MIPS_MAX_TLB_ENTRIES];
-
 static void pmap_asid_alloc(pmap_t pmap);
 
 /*
@@ -182,8 +181,6 @@ static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 static int init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot);
-static void pmap_TLB_invalidate_kernel(vm_offset_t);
-static void pmap_TLB_update_kernel(vm_offset_t, pt_entry_t);
 static vm_page_t pmap_alloc_pte_page(pmap_t, unsigned int, int, vm_offset_t *);
 static void pmap_release_pte_page(vm_page_t);
 
@@ -223,7 +220,7 @@ static struct local_sysmaps sysmap_lmem[MAXCPU];
 	intr = intr_disable();						\
 	sched_pin();							\
 	va = sysm->base;						\
-	npte = mips_paddr_to_tlbpfn(phys) |				\
+	npte = TLBLO_PA_TO_PFN(phys) |					\
 	    PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;			\
 	pte = pmap_pte(kernel_pmap, va);				\
 	*pte = npte;							\
@@ -241,11 +238,11 @@ static struct local_sysmaps sysmap_lmem[MAXCPU];
 	sched_pin();							\
 	va1 = sysm->base;						\
 	va2 = sysm->base + PAGE_SIZE;					\
-	npte = mips_paddr_to_tlbpfn(phys1) |				\
+	npte = TLBLO_PA_TO_PFN(phys1) |					\
 	    PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;			\
 	pte = pmap_pte(kernel_pmap, va1);				\
 	*pte = npte;							\
-	npte = mips_paddr_to_tlbpfn(phys2) |				\
+	npte =  TLBLO_PA_TO_PFN(phys2) |				\
 	    PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;			\
 	pte = pmap_pte(kernel_pmap, va2);				\
 	*pte = npte;							\
@@ -255,11 +252,11 @@ static struct local_sysmaps sysmap_lmem[MAXCPU];
 #define	PMAP_LMEM_UNMAP()						\
 	pte = pmap_pte(kernel_pmap, sysm->base);			\
 	*pte = PTE_G;							\
-	pmap_TLB_invalidate_kernel(sysm->base);				\
+	tlb_invalidate_address(kernel_pmap, sysm->base);		\
 	sysm->valid1 = 0;						\
 	pte = pmap_pte(kernel_pmap, sysm->base + PAGE_SIZE);		\
 	*pte = PTE_G;							\
-	pmap_TLB_invalidate_kernel(sysm->base + PAGE_SIZE);		\
+	tlb_invalidate_address(kernel_pmap, sysm->base + PAGE_SIZE);	\
 	sysm->valid2 = 0;						\
 	sched_unpin();							\
 	intr_restore(intr);						\
@@ -499,7 +496,7 @@ again:
 	kernel_pmap->pm_asid[0].asid = PMAP_ASID_RESERVED;
 	kernel_pmap->pm_asid[0].gen = 0;
 	pmap_max_asid = VMNUM_PIDS;
-	MachSetPID(0);
+	mips_wr_entryhi(0);
 }
 
 /*
@@ -576,9 +573,14 @@ pmap_invalidate_all_action(void *arg)
 
 #endif
 
-	if (pmap->pm_active & PCPU_GET(cpumask)) {
-		pmap_TLB_invalidate_all();
-	} else
+	if (pmap == kernel_pmap) {
+		tlb_invalidate_all();
+		return;
+	}
+
+	if (pmap->pm_active & PCPU_GET(cpumask))
+		tlb_invalidate_all_user(pmap);
+	else
 		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
 }
 
@@ -608,7 +610,7 @@ pmap_invalidate_page_action(void *arg)
 #endif
 
 	if (is_kernel_pmap(pmap)) {
-		pmap_TLB_invalidate_kernel(va);
+		tlb_invalidate_address(pmap, va);
 		return;
 	}
 	if (pmap->pm_asid[PCPU_GET(cpuid)].gen != PCPU_GET(asid_generation))
@@ -617,18 +619,7 @@ pmap_invalidate_page_action(void *arg)
 		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
 		return;
 	}
-	va = pmap_va_asid(pmap, (va & ~PAGE_MASK));
-	mips_TBIS(va);
-}
-
-static void
-pmap_TLB_invalidate_kernel(vm_offset_t va)
-{
-	u_int32_t pid;
-
-	MachTLBGetPID(pid);
-	va = va | (pid << VMTLB_PID_SHIFT);
-	mips_TBIS(va);
+	tlb_invalidate_address(pmap, va);
 }
 
 struct pmap_update_page_arg {
@@ -659,7 +650,7 @@ pmap_update_page_action(void *arg)
 
 #endif
 	if (is_kernel_pmap(pmap)) {
-		pmap_TLB_update_kernel(va, pte);
+		tlb_update(pmap, va, pte);
 		return;
 	}
 	if (pmap->pm_asid[PCPU_GET(cpuid)].gen != PCPU_GET(asid_generation))
@@ -668,21 +659,7 @@ pmap_update_page_action(void *arg)
 		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
 		return;
 	}
-	va = pmap_va_asid(pmap, (va & ~PAGE_MASK));
-	MachTLBUpdate(va, pte);
-}
-
-static void
-pmap_TLB_update_kernel(vm_offset_t va, pt_entry_t pte)
-{
-	u_int32_t pid;
-
-	va &= ~PAGE_MASK;
-
-	MachTLBGetPID(pid);
-	va = va | (pid << VMTLB_PID_SHIFT);
-
-	MachTLBUpdate(va, pte);
+	tlb_update(pmap, va, pte);
 }
 
 /*
@@ -700,7 +677,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	PMAP_LOCK(pmap);
 	pte = pmap_pte(pmap, va);
 	if (pte) {
-		retval = mips_tlbpfn_to_paddr(*pte) | (va & PAGE_MASK);
+		retval = TLBLO_PTE_TO_PA(*pte) | (va & PAGE_MASK);
 	}
 	PMAP_UNLOCK(pmap);
 	return retval;
@@ -727,10 +704,10 @@ retry:
 	pte = *pmap_pte(pmap, va);
 	if (pte != 0 && pmap_pte_v(&pte) &&
 	    ((pte & PTE_RW) || (prot & VM_PROT_WRITE) == 0)) {
-		if (vm_page_pa_tryrelock(pmap, mips_tlbpfn_to_paddr(pte), &pa))
+		if (vm_page_pa_tryrelock(pmap, TLBLO_PTE_TO_PA(pte), &pa))
 			goto retry;
 
-		m = PHYS_TO_VM_PAGE(mips_tlbpfn_to_paddr(pte));
+		m = PHYS_TO_VM_PAGE(TLBLO_PTE_TO_PA(pte));
 		vm_page_hold(m);
 	}
 	PA_UNLOCK_COND(pa);
@@ -754,7 +731,7 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 #ifdef PMAP_DEBUG
 	printf("pmap_kenter:  va: 0x%08x -> pa: 0x%08x\n", va, pa);
 #endif
-	npte = mips_paddr_to_tlbpfn(pa) | PTE_RW | PTE_V | PTE_G | PTE_W;
+	npte = TLBLO_PA_TO_PFN(pa) | PTE_RW | PTE_V | PTE_G | PTE_W;
 
 	if (is_cacheable_mem(pa))
 		npte |= PTE_CACHE;
@@ -1484,7 +1461,7 @@ pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va)
 		pmap->pm_stats.wired_count -= 1;
 
 	pmap->pm_stats.resident_count -= 1;
-	pa = mips_tlbpfn_to_paddr(oldpte);
+	pa = TLBLO_PTE_TO_PA(oldpte);
 
 	if (page_is_managed(pa)) {
 		m = PHYS_TO_VM_PAGE(pa);
@@ -1700,7 +1677,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		}
 retry:
 		obits = pbits = *pte;
-		pa = mips_tlbpfn_to_paddr(pbits);
+		pa = TLBLO_PTE_TO_PA(pbits);
 
 		if (page_is_managed(pa) && (pbits & PTE_M) != 0) {
 			m = PHYS_TO_VM_PAGE(pa);
@@ -1776,7 +1753,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pa = VM_PAGE_TO_PHYS(m);
 	om = NULL;
 	origpte = *pte;
-	opa = mips_tlbpfn_to_paddr(origpte);
+	opa = TLBLO_PTE_TO_PA(origpte);
 
 	/*
 	 * Mapping has not changed, must be protection or wiring change.
@@ -1873,7 +1850,7 @@ validate:
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
-	newpte = mips_paddr_to_tlbpfn(pa) | rw | PTE_V;
+	newpte = TLBLO_PA_TO_PFN(pa) | rw | PTE_V;
 
 	if (is_cacheable_mem(pa))
 		newpte |= PTE_CACHE;
@@ -2039,7 +2016,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	*pte = mips_paddr_to_tlbpfn(pa) | PTE_V;
+	*pte = TLBLO_PA_TO_PFN(pa) | PTE_V;
 
 	if (is_cacheable_mem(pa))
 		*pte |= PTE_CACHE;
@@ -2092,7 +2069,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		/* Since this is for the debugger, no locks or any other fun */
-		npte = mips_paddr_to_tlbpfn(pa) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
+		npte = TLBLO_PA_TO_PFN(pa) | PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;
 		pte = pmap_pte(kernel_pmap, sysm->base);
 		*pte = npte;
 		sysm->valid1 = 1;
@@ -2407,7 +2384,7 @@ pmap_remove_pages(pmap_t pmap)
 		}
 		*pte = is_kernel_pmap(pmap) ? PTE_G : 0;
 
-		m = PHYS_TO_VM_PAGE(mips_tlbpfn_to_paddr(tpte));
+		m = PHYS_TO_VM_PAGE(TLBLO_PTE_TO_PA(tpte));
 		KASSERT(m != NULL,
 		    ("pmap_remove_pages: bad tpte %x", tpte));
 
@@ -2814,7 +2791,7 @@ retry:
 	val = MINCORE_INCORE;
 	if ((pte & PTE_M) != 0)
 		val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
-	pa = mips_tlbpfn_to_paddr(pte);
+	pa = TLBLO_PTE_TO_PA(pte);
 	managed = page_is_managed(pa);
 	if (managed) {
 		/*
@@ -2856,7 +2833,7 @@ pmap_activate(struct thread *td)
 	pmap_asid_alloc(pmap);
 	if (td == curthread) {
 		PCPU_SET(segbase, pmap->pm_segtab);
-		MachSetPID(pmap->pm_asid[PCPU_GET(cpuid)].asid);
+		mips_wr_entryhi(pmap->pm_asid[PCPU_GET(cpuid)].asid);
 	}
 
 	PCPU_SET(curpmap, pmap);
@@ -2948,7 +2925,7 @@ pmap_pid_dump(int pid)
 							vm_offset_t pa;
 							vm_page_t m;
 
-							pa = mips_tlbpfn_to_paddr(*pte);
+							pa = TLBLO_PFN_TO_PA(*pte);
 							m = PHYS_TO_VM_PAGE(pa);
 							printf("va: %p, pt: %p, h: %d, w: %d, f: 0x%x",
 							    (void *)va,
@@ -3044,7 +3021,7 @@ pmap_asid_alloc(pmap)
 	    pmap->pm_asid[PCPU_GET(cpuid)].gen == PCPU_GET(asid_generation));
 	else {
 		if (PCPU_GET(next_asid) == pmap_max_asid) {
-			MIPS_TBIAP();
+			tlb_invalidate_all_user(NULL);
 			PCPU_SET(asid_generation,
 			    (PCPU_GET(asid_generation) + 1) & ASIDGEN_MASK);
 			if (PCPU_GET(asid_generation) == 0) {
@@ -3124,7 +3101,7 @@ pmap_kextract(vm_offset_t va)
 		if (curproc && curproc->p_vmspace) {
 			ptep = pmap_pte(&curproc->p_vmspace->vm_pmap, va);
 			if (ptep)
-				pa = mips_tlbpfn_to_paddr(*ptep) |
+				pa = TLBLO_PTE_TO_PA(*ptep) |
 				    (va & PAGE_MASK);
 		}
 	} else if (va >= MIPS_KSEG0_START &&
@@ -3140,9 +3117,11 @@ pmap_kextract(vm_offset_t va)
 		if (kernel_pmap->pm_active) {
 			/* Its inside the virtual address range */
 			ptep = pmap_pte(kernel_pmap, va);
-			if (ptep)
-				pa = mips_tlbpfn_to_paddr(*ptep) |
-				    (va & PAGE_MASK);
+			if (ptep) {
+				return (TLBLO_PTE_TO_PA(*ptep) |
+				    (va & PAGE_MASK));
+			}
+			return (0);
 		}
 	}
 	return pa;
@@ -3160,61 +3139,3 @@ pmap_flush_pvcache(vm_page_t m)
 		}
 	}
 }
-
-void
-pmap_save_tlb(void)
-{
-	int tlbno, cpu;
-
-	cpu = PCPU_GET(cpuid);
-
-	for (tlbno = 0; tlbno < num_tlbentries; ++tlbno)
-		MachTLBRead(tlbno, &tlbstash[cpu][tlbno]);
-}
-
-#ifdef DDB
-#include <ddb/ddb.h>
-
-DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
-{
-	int cpu, tlbno;
-	struct tlb *tlb;
-
-	if (have_addr)
-		cpu = ((addr >> 4) % 16) * 10 + (addr % 16);
-	else
-		cpu = PCPU_GET(cpuid);
-
-	if (cpu < 0 || cpu >= mp_ncpus) {
-		db_printf("Invalid CPU %d\n", cpu);
-		return;
-	} else
-		db_printf("CPU %d:\n", cpu);
-
-	if (cpu == PCPU_GET(cpuid))
-		pmap_save_tlb();
-
-	for (tlbno = 0; tlbno < num_tlbentries; ++tlbno) {
-		tlb = &tlbstash[cpu][tlbno];
-		if (tlb->tlb_lo0 & PTE_V || tlb->tlb_lo1 & PTE_V) {
-			printf("TLB %2d vad 0x%0lx ",
-				tlbno, (long)(tlb->tlb_hi & 0xffffff00));
-		} else {
-			printf("TLB*%2d vad 0x%0lx ",
-				tlbno, (long)(tlb->tlb_hi & 0xffffff00));
-		}
-		printf("0=0x%0lx ", pfn_to_vad((long)tlb->tlb_lo0));
-		printf("%c", tlb->tlb_lo0 & PTE_V ? 'V' : '-');
-		printf("%c", tlb->tlb_lo0 & PTE_M ? 'M' : '-');
-		printf("%c", tlb->tlb_lo0 & PTE_G ? 'G' : '-');
-		printf(" atr %x ", (tlb->tlb_lo0 >> 3) & 7);
-		printf("1=0x%0lx ", pfn_to_vad((long)tlb->tlb_lo1));
-		printf("%c", tlb->tlb_lo1 & PTE_V ? 'V' : '-');
-		printf("%c", tlb->tlb_lo1 & PTE_M ? 'M' : '-');
-		printf("%c", tlb->tlb_lo1 & PTE_G ? 'G' : '-');
-		printf(" atr %x ", (tlb->tlb_lo1 >> 3) & 7);
-		printf(" sz=%x pid=%x\n", tlb->tlb_mask,
-		       (tlb->tlb_hi & 0x000000ff));
-	}
-}
-#endif	/* DDB */
