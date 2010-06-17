@@ -396,7 +396,7 @@ trap(struct trapframe *trapframe)
 			}
 			*pte |= mips_pg_m_bit();
 			pmap_update_page(kernel_pmap, trapframe->badvaddr, *pte);
-			pa = mips_tlbpfn_to_paddr(*pte);
+			pa = TLBLO_PTE_TO_PA(*pte);
 			if (!page_is_managed(pa))
 				panic("trap: ktlbmod: unmanaged page");
 			pmap_set_modified(pa);
@@ -435,7 +435,7 @@ trap(struct trapframe *trapframe)
 			}
 			*pte |= mips_pg_m_bit();
 			pmap_update_page(pmap, trapframe->badvaddr, *pte);
-			pa = mips_tlbpfn_to_paddr(*pte);
+			pa = TLBLO_PTE_TO_PA(*pte);
 			if (!page_is_managed(pa))
 				panic("trap: utlbmod: unmanaged page");
 			pmap_set_modified(pa);
