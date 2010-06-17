@@ -44,7 +44,7 @@ mips/mips/vm_machdep.c		standard
 mips/mips/fp.S			standard
 mips/mips/pm_machdep.c		standard
 mips/mips/swtch.S		standard
-mips/mips/tlb.S			standard
+mips/mips/tlb.c			standard
 
 mips/mips/bus_space_generic.c 	standard
 mips/mips/busdma_machdep.c 	standard

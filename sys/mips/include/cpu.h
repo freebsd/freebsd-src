@@ -274,27 +274,6 @@
 #define	OPCODE_C1		0x11
 
 /*
- * The low part of the TLB entry.
- */
-#define	VMTLB_PF_NUM		0x3fffffc0
-#define	VMTLB_ATTR_MASK		0x00000038
-#define	VMTLB_MOD_BIT		0x00000004
-#define	VMTLB_VALID_BIT		0x00000002
-#define	VMTLB_GLOBAL_BIT	0x00000001
-
-#define	VMTLB_PHYS_PAGE_SHIFT	6
-
-/*
- * The high part of the TLB entry.
- */
-#define	VMTLB_VIRT_PAGE_NUM		0xffffe000
-#define	VMTLB_PID			0x000000ff
-#define	VMTLB_PID_R9K			0x00000fff
-#define	VMTLB_PID_SHIFT			0
-#define	VMTLB_VIRT_PAGE_SHIFT		12
-#define	VMTLB_VIRT_PAGE_SHIFT_R9K	13
-
-/*
  * The first TLB entry that write random hits.
  * TLB entry 0 maps the kernel stack of the currently running thread
  * TLB entry 1 maps the pcpu area of processor (only for SMP builds)
@@ -313,14 +292,6 @@
 #define	VMNUM_PIDS		256
 
 /*
- * TLB probe return codes.
- */
-#define	VMTLB_NOT_FOUND		0
-#define	VMTLB_FOUND		1
-#define	VMTLB_FOUND_WITH_PATCH	2
-#define	VMTLB_PROBE_ERROR	3
-
-/*
  * Exported definitions unique to mips cpu support.
  */
 
@@ -335,6 +306,7 @@
 #ifndef _LOCORE
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
+
 /*
  * Arguments to hardclock and gatherstats encapsulate the previous
  * machine state in an opaque clockframe.
@@ -455,12 +427,9 @@ extern union cpuprid cpu_id;
 #if defined(_KERNEL) && !defined(_LOCORE)
 extern union cpuprid fpu_id;
 
-struct tlb;
 struct user;
 
 int Mips_ConfigCache(void);
-void Mips_SetWIRED(int);
-void Mips_SetPID(int);
 
 void Mips_SyncCache(void);
 void Mips_SyncDCache(vm_offset_t, int);
@@ -471,12 +440,6 @@ void Mips_HitInvalidateDCache(vm_offset_t, int);
 void Mips_SyncICache(vm_offset_t, int);
 void Mips_InvalidateICache(vm_offset_t, int);
 
-void Mips_TLBFlush(int);
-void Mips_TLBFlushAddr(vm_offset_t);
-void Mips_TLBWriteIndexed(int, struct tlb *);
-void Mips_TLBUpdate(vm_offset_t, unsigned);
-void Mips_TLBRead(int, struct tlb *);
-void mips_TBIAP(int);
 void wbflush(void);
 
 extern u_int32_t cpu_counter_interval;	/* Number of counter ticks/tick */
@@ -516,16 +479,6 @@ extern int intr_nesting_level;
 			: "r" (func), "r" (arg0), "r" (arg1), "r" (arg2)  /* inputs */ \
 			: "$31", "$4", "$5", "$6");
 
-#define	MachSetPID			Mips_SetPID
-#define	MachTLBUpdate   		Mips_TLBUpdate
-#define	mips_TBIS			Mips_TLBFlushAddr
-#define	MIPS_TBIAP()			mips_TBIAP(num_tlbentries)
-#define	MachSetWIRED(index)		Mips_SetWIRED(index)
-#define	MachTLBFlush(count)		Mips_TLBFlush(count)
-#define	MachTLBGetPID(pid)		(pid = Mips_TLBGetPID())
-#define	MachTLBRead(tlbno, tlbp)	Mips_TLBRead(tlbno, tlbp)
-#define	MachFPTrap(sr, cause, pc)	MipsFPTrap(sr, cause, pc)
-
 /*
  * Enable realtime clock (always enabled).
  */
@@ -541,8 +494,6 @@ extern int intr_nesting_level;
 /*
  *  Low level access routines to CPU registers
  */
-
-int Mips_TLBGetPID(void);
 
 void swi_vm(void *);
 void cpu_halt(void);

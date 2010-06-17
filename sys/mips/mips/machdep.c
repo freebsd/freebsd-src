@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/tlb.h>
 #ifdef DDB
 #include <sys/kdb.h>
 #include <ddb/ddb.h>
@@ -118,7 +119,7 @@ vm_offset_t kstack0;
 /*
  * Each entry in the pcpu_space[] array is laid out in the following manner:
  * struct pcpu for cpu 'n'	pcpu_space[n]
- * boot stack for cpu 'n'	pcpu_space[n] + PAGE_SIZE * 2 - START_FRAME
+ * boot stack for cpu 'n'	pcpu_space[n] + PAGE_SIZE * 2 - CALLFRAME_SIZ
  *
  * Note that the boot stack grows downwards and we assume that we never
  * use enough stack space to trample over the 'struct pcpu' that is at
@@ -413,20 +414,17 @@ void
 mips_pcpu_tlb_init(struct pcpu *pcpu)
 {
 	vm_paddr_t pa;
-	struct tlb tlb;
-	int lobits;
+	pt_entry_t pte;
 
 	/*
 	 * Map the pcpu structure at the virtual address 'pcpup'.
 	 * We use a wired tlb index to do this one-time mapping.
 	 */
-	memset(&tlb, 0, sizeof(tlb));
 	pa = vtophys(pcpu);
-	lobits = PTE_RW | PTE_V | PTE_G | PTE_CACHE;
-	tlb.tlb_hi = (vm_offset_t)pcpup;
-	tlb.tlb_lo0 = mips_paddr_to_tlbpfn(pa) | lobits;
-	tlb.tlb_lo1 = mips_paddr_to_tlbpfn(pa + PAGE_SIZE) | lobits;
-	Mips_TLBWriteIndexed(PCPU_TLB_ENTRY, &tlb);
+	pte = PTE_RW | PTE_V | PTE_G | PTE_CACHE;
+	tlb_insert_wired(PCPU_TLB_ENTRY, (vm_offset_t)pcpup,
+			 TLBLO_PA_TO_PFN(pa) | pte,
+			 TLBLO_PA_TO_PFN(pa + PAGE_SIZE) | pte);
 }
 #endif
 
