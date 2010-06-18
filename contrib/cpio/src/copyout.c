@@ -836,9 +836,6 @@ process_copy_out ()
 		    continue;
 		  }
 		link_name[link_size] = 0;
-		cpio_safer_name_suffix (link_name, false,
-					abs_paths_flag, true);
-		link_size = strlen (link_name);
 		file_hdr.c_filesize = link_size;
 		if (archive_format == arf_tar || archive_format == arf_ustar)
 		  {
