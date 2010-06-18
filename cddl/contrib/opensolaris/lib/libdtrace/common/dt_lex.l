@@ -45,7 +45,7 @@
 #undef input
 #undef unput
 #else
-/* 
+/*
  * Define YY_INPUT for flex since input() can't be re-defined.
  */
 #define YY_INPUT(buf,result,max_size) \
@@ -60,6 +60,15 @@
 			buf[n] = *yypcb->pcb_strptr++; \
 		result = n; \
 	}
+/*
+ * Do not EOF let tokens to be put back. This does not work with flex.
+ * On the other hand, leaving current buffer in same state it was when
+ * last EOF was received guarantees that input() will keep returning EOF
+ * for all subsequent invocations, which is the effect desired.
+ */
+#undef  unput
+#define unput(c) \
+	if (c != EOF) yyunput( c, yytext_ptr )
 #endif
 
 static int id_or_type(const char *);
@@ -811,8 +820,7 @@ id_or_type(const char *s)
 			longjmp(yypcb->pcb_jmpbuf, EDT_NOMEM);
 	}
 
-	if (c0 != EOF)
-		unput(c0);
+	unput(c0);
 	return (ttok);
 }
 
