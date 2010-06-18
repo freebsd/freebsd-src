@@ -473,4 +473,17 @@ ixgbe_is_sfp(struct ixgbe_hw *hw)
 	}
 }
 
+/* Workaround to make 8.0 buildable */
+#if __FreeBSD_version < 800504
+static __inline int
+drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+        if (ALTQ_IS_ENABLED(&ifp->if_snd))
+                return (1);
+#endif
+        return (!buf_ring_empty(br));
+}
+#endif
+
 #endif /* _IXGBE_H_ */
