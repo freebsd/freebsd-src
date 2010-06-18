@@ -619,7 +619,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 			intr = intrs[i];
 			rv = ofw_bus_lookup_imap(node, &sc->sc_iinfo, &reg,
 			    sizeof(reg), &intr, sizeof(intr), &rintr,
-			    sizeof(rintr), maskbuf);
+			    sizeof(rintr), NULL, maskbuf);
 #ifndef SUN4V
 			if (rv != 0)
 				rintr = INTMAP_VEC(sc->sc_ign, rintr);

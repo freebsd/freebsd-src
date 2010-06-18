@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
  * OpenPIC attachment to ocpbus
  */
 static int	openpic_ocpbus_probe(device_t);
+static uint32_t	openpic_ocpbus_id(device_t);
 
 static device_method_t  openpic_ocpbus_methods[] = {
 	/* Device interface */
@@ -63,6 +64,7 @@ static device_method_t  openpic_ocpbus_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_unmask),
+	DEVMETHOD(pic_id,		openpic_ocpbus_id),
 
 	{ 0, 0 },
 };
@@ -93,3 +95,11 @@ openpic_ocpbus_probe (device_t dev)
 	device_set_desc(dev, OPENPIC_DEVSTR);
 	return (BUS_PROBE_DEFAULT);
 }
+
+static uint32_t
+openpic_ocpbus_id (device_t dev)
+{
+	return (OPIC_ID);
+}
+
+

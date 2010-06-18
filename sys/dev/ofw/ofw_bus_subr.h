@@ -63,9 +63,12 @@ bus_child_pnpinfo_str_t	ofw_bus_gen_child_pnpinfo_str;
 /* Routines for processing firmware interrupt maps */
 void	ofw_bus_setup_iinfo(phandle_t, struct ofw_bus_iinfo *, int);
 int	ofw_bus_lookup_imap(phandle_t, struct ofw_bus_iinfo *, void *, int,
-	    void *, int, void *, int, void *);
+	    void *, int, void *, int, phandle_t *, void *);
 int	ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,
-	    void *, void *, int);
+	    void *, void *, int, phandle_t *);
+
+/* Helper to get node's interrupt parent */
+void	ofw_bus_find_iparent(phandle_t);
 
 /* Helper routine for checking compat prop */
 int ofw_bus_is_compatible(device_t, const char *);
