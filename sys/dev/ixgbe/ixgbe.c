@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.2.0";
+char ixgbe_driver_version[] = "2.2.1";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -107,7 +107,7 @@ static void	ixgbe_qflush(struct ifnet *);
 #endif
 static int      ixgbe_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ixgbe_init(void *);
-static int	ixgbe_init_locked(struct adapter *);
+static void	ixgbe_init_locked(struct adapter *);
 static void     ixgbe_stop(void *);
 static void     ixgbe_media_status(struct ifnet *, struct ifmediareq *);
 static int      ixgbe_media_change(struct ifnet *);
@@ -255,10 +255,10 @@ static int ixgbe_enable_msix = 1;
 TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
 
 /*
- * Header split has seemed to be beneficial in
- * most circumstances tested, so its on by default
- * however this variable will allow it to be disabled
- * for some debug purposes.
+ * Header split: this causes the hardware to DMA
+ * the header into a seperate mbuf from the payload,
+ * it can be a performance win in some workloads, but
+ * in others it actually hurts, its off by default. 
  */
 static bool ixgbe_header_split = FALSE;
 TUNABLE_INT("hw.ixgbe.hdr_split", &ixgbe_header_split);
@@ -795,6 +795,7 @@ static int
 ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 {
 	struct adapter	*adapter = ifp->if_softc;
+	struct ix_queue	*que;
 	struct tx_ring	*txr;
 	int 		i = 0, err = 0;
 
@@ -803,12 +804,15 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
 
 	txr = &adapter->tx_rings[i];
+	que = &adapter->queues[i];
 
 	if (IXGBE_TX_TRYLOCK(txr)) {
 		err = ixgbe_mq_start_locked(ifp, txr, m);
 		IXGBE_TX_UNLOCK(txr);
-	} else
+	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
+		taskqueue_enqueue(que->tq, &que->que_task);
+	}
 
 	return (err);
 }
@@ -913,7 +917,7 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_mtu = ifr->ifr_mtu;
 			adapter->max_frame_size =
 				ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
-			error = ixgbe_init_locked(adapter);
+			ixgbe_init_locked(adapter);
 			IXGBE_CORE_UNLOCK(adapter);
 		}
 		break;
@@ -928,7 +932,7 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 					ixgbe_set_promisc(adapter);
                                 }
 			} else
-				error = ixgbe_init_locked(adapter);
+				ixgbe_init_locked(adapter);
 		} else
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ixgbe_stop(adapter);
@@ -965,7 +969,7 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			IXGBE_CORE_LOCK(adapter);
-			error = ixgbe_init_locked(adapter);
+			ixgbe_init_locked(adapter);
 			IXGBE_CORE_UNLOCK(adapter);
 		}
 		VLAN_CAPABILITIES(ifp);
@@ -993,7 +997,7 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
  **********************************************************************/
 #define IXGBE_MHADD_MFS_SHIFT 16
 
-static int
+static void
 ixgbe_init_locked(struct adapter *adapter)
 {
 	struct ifnet   *ifp = adapter->ifp;
@@ -1004,7 +1008,6 @@ ixgbe_init_locked(struct adapter *adapter)
 
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
 	INIT_DEBUGOUT("ixgbe_init: begin");
-	ixgbe_reset_hw(hw);
 	hw->adapter_stopped = FALSE;
 	ixgbe_stop_adapter(hw);
         callout_stop(&adapter->timer);
@@ -1022,10 +1025,10 @@ ixgbe_init_locked(struct adapter *adapter)
 	if (ixgbe_setup_transmit_structures(adapter)) {
 		device_printf(dev,"Could not setup transmit structures\n");
 		ixgbe_stop(adapter);
-		return (ENOMEM);
+		return;
 	}
 
-	ixgbe_init_hw(hw);
+	ixgbe_reset_hw(hw);
 	ixgbe_initialize_transmit_units(adapter);
 
 	/* Setup Multicast table */
@@ -1044,7 +1047,7 @@ ixgbe_init_locked(struct adapter *adapter)
 	if (ixgbe_setup_receive_structures(adapter)) {
 		device_printf(dev,"Could not setup receive structures\n");
 		ixgbe_stop(adapter);
-		return (ENOMEM);
+		return;
 	}
 
 	/* Configure RX settings */
@@ -1073,12 +1076,14 @@ ixgbe_init_locked(struct adapter *adapter)
 	ifp->if_hwassist = 0;
 	if (ifp->if_capenable & IFCAP_TSO4)
 		ifp->if_hwassist |= CSUM_TSO;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
+	if (ifp->if_capenable & IFCAP_TXCSUM) {
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
 #if __FreeBSD_version >= 800000
-	if (hw->mac.type == ixgbe_mac_82599EB)
-		ifp->if_hwassist |= CSUM_SCTP;
+		if (hw->mac.type == ixgbe_mac_82599EB)
+			ifp->if_hwassist |= CSUM_SCTP;
 #endif
+	}
+
 	/* Set MTU size */
 	if (ifp->if_mtu > ETHERMTU) {
 		mhadd = IXGBE_READ_REG(hw, IXGBE_MHADD);
@@ -1164,7 +1169,7 @@ ixgbe_init_locked(struct adapter *adapter)
 		if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
                 	device_printf(dev,
 			    "Unsupported SFP+ module type was detected.\n");
-			return (EIO);
+			return;
         	}
 	}
 
@@ -1181,7 +1186,7 @@ ixgbe_init_locked(struct adapter *adapter)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	return (0);
+	return;
 }
 
 static void
@@ -1360,7 +1365,6 @@ ixgbe_msix_que(void *arg)
 	bool		more_tx, more_rx;
 	u32		newitr = 0;
 
-	ixgbe_disable_queue(adapter, que->msix);
 	++que->irqs;
 
 	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
@@ -2116,6 +2120,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 			device_printf(dev, "Failed to register QUE handler");
 			return (error);
 		}
+#if __FreeBSD_version >= 800504
+		bus_describe_intr(dev, que->res, que->tag, "que %d", i);
+#endif
 		que->msix = vector;
         	adapter->que_mask |= (u64)(1 << que->msix);
 		/*
@@ -2150,6 +2157,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		device_printf(dev, "Failed to register LINK handler");
 		return (error);
 	}
+#if __FreeBSD_version >= 800504
+	bus_describe_intr(dev, adapter->res, adapter->tag, "link");
+#endif
 	adapter->linkvec = vector;
 	/* Tasklets for Link, SFP and Multispeed Fiber */
 	TASK_INIT(&adapter->link_task, 0, ixgbe_handle_link, adapter);
@@ -3632,9 +3642,11 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 			goto skip_head;
 
 		/* First the header */
-		rxbuf->m_head = m_gethdr(M_DONTWAIT, MT_DATA);
-		if (rxbuf->m_head == NULL)
+		rxbuf->m_head = m_gethdr(M_NOWAIT, MT_DATA);
+		if (rxbuf->m_head == NULL) {
+			error = ENOBUFS;
 			goto fail;
+		}
 		m_adj(rxbuf->m_head, ETHER_ALIGN);
 		mh = rxbuf->m_head;
 		mh->m_len = mh->m_pkthdr.len = MHLEN;
@@ -3652,10 +3664,12 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 
 skip_head:
 		/* Now the payload cluster */
-		rxbuf->m_pack = m_getjcl(M_DONTWAIT, MT_DATA,
+		rxbuf->m_pack = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
-		if (rxbuf->m_pack == NULL)
+		if (rxbuf->m_pack == NULL) {
+			error = ENOBUFS;
                         goto fail;
+		}
 		mp = rxbuf->m_pack;
 		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
 		/* Get the memory mapping */
@@ -4036,16 +4050,16 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 
 	IXGBE_RX_LOCK(rxr);
 
-	/* Sync the ring. */
-	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-
 	for (i = rxr->next_to_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
 		u32		rsc, ptype;
 		u16		hlen, plen, hdr, vtag;
 		bool		eop;
  
+		/* Sync the ring. */
+		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
 		cur = &rxr->rx_base[i];
 		staterr = le32toh(cur->wb.upper.status_error);
 
