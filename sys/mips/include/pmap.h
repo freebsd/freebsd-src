@@ -116,12 +116,6 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
-#define PMAP_LGMEM_LOCK_INIT(sysmap) mtx_init(&(sysmap)->lock, "pmap-lgmem", \
-				    "per-cpu-map", (MTX_DEF| MTX_DUPOK))
-#define PMAP_LGMEM_LOCK(sysmap) mtx_lock(&(sysmap)->lock)
-#define PMAP_LGMEM_UNLOCK(sysmap) mtx_unlock(&(sysmap)->lock)
-#define PMAP_LGMEM_DESTROY(sysmap) mtx_destroy(&(sysmap)->lock)
-
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
