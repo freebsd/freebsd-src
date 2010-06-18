@@ -641,12 +641,10 @@ smbfs_putpages(ap)
 
 	if (!error) {
 		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
-		vm_page_lock_queues();
 		for (i = 0; i < nwritten; i++) {
 			rtvals[i] = VM_PAGER_OK;
 			vm_page_undirty(pages[i]);
 		}
-		vm_page_unlock_queues();
 	}
 	return rtvals[0];
 #endif /* SMBFS_RWGENERIC */
