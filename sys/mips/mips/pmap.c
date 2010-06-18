@@ -195,7 +195,6 @@ static void *pmap_ptpgzone_allocf(uma_zone_t, int, u_int8_t *, int);
 static uma_zone_t ptpgzone;
 
 struct local_sysmaps {
-	struct mtx lock;
 	vm_offset_t base;
 	uint16_t valid1, valid2;
 };
@@ -214,11 +213,9 @@ static struct local_sysmaps sysmap_lmem[MAXCPU];
 	struct local_sysmaps *sysm;					\
 	pt_entry_t *pte, npte;						\
 									\
+	intr = intr_disable();						\
 	cpu = PCPU_GET(cpuid);						\
 	sysm = &sysmap_lmem[cpu];					\
-	PMAP_LGMEM_LOCK(sysm);						\
-	intr = intr_disable();						\
-	sched_pin();							\
 	va = sysm->base;						\
 	npte = TLBLO_PA_TO_PFN(phys) |					\
 	    PTE_RW | PTE_V | PTE_G | PTE_W | PTE_CACHE;			\
@@ -231,11 +228,9 @@ static struct local_sysmaps sysmap_lmem[MAXCPU];
 	struct local_sysmaps *sysm;					\
 	pt_entry_t *pte, npte;						\
 									\
+	intr = intr_disable();						\
 	cpu = PCPU_GET(cpuid);						\
 	sysm = &sysmap_lmem[cpu];					\
-	PMAP_LGMEM_LOCK(sysm);						\
-	intr = intr_disable();						\
-	sched_pin();							\
 	va1 = sysm->base;						\
 	va2 = sysm->base + PAGE_SIZE;					\
 	npte = TLBLO_PA_TO_PFN(phys1) |					\
@@ -258,9 +253,7 @@ static struct local_sysmaps sysmap_lmem[MAXCPU];
 	*pte = PTE_G;							\
 	tlb_invalidate_address(kernel_pmap, sysm->base + PAGE_SIZE);	\
 	sysm->valid2 = 0;						\
-	sched_unpin();							\
-	intr_restore(intr);						\
-	PMAP_LGMEM_UNLOCK(sysm);
+	intr_restore(intr)
 
 pd_entry_t
 pmap_segmap(pmap_t pmap, vm_offset_t va)
@@ -436,7 +429,6 @@ again:
 			sysmap_lmem[i].base = virtual_avail;
 			virtual_avail += PAGE_SIZE * 2;
 			sysmap_lmem[i].valid1 = sysmap_lmem[i].valid2 = 0;
-			PMAP_LGMEM_LOCK_INIT(&sysmap_lmem[i]);
 		}
 	}
 
