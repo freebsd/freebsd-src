@@ -899,7 +899,6 @@ static void
 serdes_regs_init(struct driver_data *priv)
 {
 	xlr_reg_t *mmio_gpio = (xlr_reg_t *) (xlr_io_base + XLR_IO_GPIO_OFFSET);
-	int i;
 
 	/* Initialize SERDES CONTROL Registers */
 	rge_mii_write_internal(priv->serdes_mmio, 26, 0, 0x6DB0);
@@ -915,14 +914,27 @@ serdes_regs_init(struct driver_data *priv)
 	rge_mii_write_internal(priv->serdes_mmio, 26, 10, 0x0000);
 
 	/*
-	 * For loop delay and GPIO programming crud from Linux driver,
+	 * GPIO setting which affect the serdes - needs figuring out
 	 */
-	for (i = 0; i < 10000000; i++) {
+	DELAY(100);
+	xlr_write_reg(mmio_gpio, 0x20, 0x7e6802);
+	xlr_write_reg(mmio_gpio, 0x10, 0x7104);
+	DELAY(100);
+	
+	/* 
+	 * This kludge is needed to setup serdes (?) clock correctly on some
+	 * XLS boards
+	 */
+	if ((xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XI ||
+	    xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XII) &&
+	    xlr_boot1_info.board_minor_version == 4) {
+		/* use 125 Mhz instead of 156.25Mhz ref clock */
+		DELAY(100);
+		xlr_write_reg(mmio_gpio, 0x10, 0x7103);
+		xlr_write_reg(mmio_gpio, 0x21, 0x7103);
+		DELAY(100);
 	}
-	mmio_gpio[0x20] = 0x7e6802;
-	mmio_gpio[0x10] = 0x7104;
-	for (i = 0; i < 100000000; i++) {
-	}
+
 	return;
 }
 
@@ -1085,7 +1097,7 @@ rmi_xlr_gmac_config_speed(struct driver_data *priv)
 	if (priv->speed == xlr_mac_speed_10) {
 		if (priv->mode != XLR_RGMII)
 			xlr_write_reg(mmio, R_INTERFACE_CONTROL, SGMII_SPEED_10);
-		xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7137);
+		xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7117);
 		xlr_write_reg(mmio, R_CORECONTROL, 0x02);
 		printf("%s: [10Mbps]\n", device_get_nameunit(sc->rge_dev));
 		sc->rge_mii.mii_media.ifm_media = IFM_ETHER | IFM_AUTO | IFM_10_T | IFM_FDX;
@@ -1094,7 +1106,7 @@ rmi_xlr_gmac_config_speed(struct driver_data *priv)
 	} else if (priv->speed == xlr_mac_speed_100) {
 		if (priv->mode != XLR_RGMII)
 			xlr_write_reg(mmio, R_INTERFACE_CONTROL, SGMII_SPEED_100);
-		xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7137);
+		xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7117);
 		xlr_write_reg(mmio, R_CORECONTROL, 0x01);
 		printf("%s: [100Mbps]\n", device_get_nameunit(sc->rge_dev));
 		sc->rge_mii.mii_media.ifm_media = IFM_ETHER | IFM_AUTO | IFM_100_TX | IFM_FDX;
@@ -1105,7 +1117,7 @@ rmi_xlr_gmac_config_speed(struct driver_data *priv)
 			if (priv->mode != XLR_RGMII)
 				xlr_write_reg(mmio, R_INTERFACE_CONTROL, SGMII_SPEED_100);
 			printf("PHY reported unknown MAC speed, defaulting to 100Mbps\n");
-			xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7137);
+			xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7117);
 			xlr_write_reg(mmio, R_CORECONTROL, 0x01);
 			sc->rge_mii.mii_media.ifm_media = IFM_ETHER | IFM_AUTO | IFM_100_TX | IFM_FDX;
 			sc->rge_mii.mii_media.ifm_cur->ifm_media = IFM_ETHER | IFM_AUTO | IFM_100_TX | IFM_FDX;
@@ -1113,7 +1125,7 @@ rmi_xlr_gmac_config_speed(struct driver_data *priv)
 		} else {
 			if (priv->mode != XLR_RGMII)
 				xlr_write_reg(mmio, R_INTERFACE_CONTROL, SGMII_SPEED_1000);
-			xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7237);
+			xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7217);
 			xlr_write_reg(mmio, R_CORECONTROL, 0x00);
 			printf("%s: [1000Mbps]\n", device_get_nameunit(sc->rge_dev));
 			sc->rge_mii.mii_media.ifm_media = IFM_ETHER | IFM_AUTO | IFM_1000_T | IFM_FDX;
@@ -1788,7 +1800,9 @@ rge_attach(device_t dev)
 		priv->instance = priv->id - xlr_board_info.gmacports;
 		priv->mmio = (xlr_reg_t *) (xlr_io_base + gmac_conf->baseaddr);
 	}
-	if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_VI) {
+	if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_VI ||
+	    (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XI &&
+	     priv->instance >=4)) {
 		dbg_msg("Arizona board - offset 4 \n");
 		priv->mii_mmio = (xlr_reg_t *) (xlr_io_base + XLR_IO_GMAC_4_OFFSET);
 	} else
@@ -1812,7 +1826,9 @@ rge_attach(device_t dev)
 
 	priv->mode = gmac_conf->mode;
 	if (xlr_board_info.is_xls == 0) {
-		if (xlr_board_atx_ii() && !xlr_board_atx_ii_b())
+		/* TODO - check II and IIB boards */
+		if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_II &&
+		    xlr_boot1_info.board_minor_version != 1)
 			priv->phy_addr = priv->instance - 2;
 		else
 			priv->phy_addr = priv->instance;
@@ -1824,7 +1840,12 @@ rge_attach(device_t dev)
 			priv->phy_addr = 0;
 		} else {
 			priv->mode = XLR_SGMII;
-			priv->phy_addr = priv->instance + 16;
+			/* Board 11 has SGMII daughter cards with the XLS chips, in this case
+			   the phy number is 0-3 for both GMAC blocks */
+			if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XI)
+				priv->phy_addr = priv->instance % 4 + 16;
+			else
+				priv->phy_addr = priv->instance + 16;
 		}
 	}
 
@@ -2088,8 +2109,8 @@ rge_intr(void *arg)
 	/* clear all interrupts and hope to make progress */
 	xlr_write_reg(mmio, R_INTREG, 0xffffffff);
 
-	/* on A0 and B0, xgmac interrupts are routed only to xgs_1 irq */
-	if ((xlr_revision_b0()) && (priv->type == XLR_XGMAC)) {
+	/* (not yet) on A0 and B0, xgmac interrupts are routed only to xgs_1 irq */
+	if ((xlr_revision() < 2) && (priv->type == XLR_XGMAC)) {
 		struct rge_softc *xgs0_dev = dev_mac[dev_mac_xgs0];
 		struct driver_data *xgs0_priv = &xgs0_dev->priv;
 		xlr_reg_t *xgs0_mmio = xgs0_priv->mmio;
