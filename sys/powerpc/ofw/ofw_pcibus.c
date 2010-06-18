@@ -219,7 +219,7 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 					powerpc_config_intr(intr[0],
 					    (intr[1] & 1) ? INTR_TRIGGER_LEVEL :
 					    INTR_TRIGGER_EDGE,
-					    INTR_POLARITY_HIGH);
+					    INTR_POLARITY_LOW);
 				}
 
 				resource_list_add(&dinfo->opd_dinfo.resources,
@@ -265,15 +265,27 @@ ofw_pcibus_enum_bus(device_t dev, u_int domain, u_int busno)
 
 			dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(
 			    pcib, domain, busno, s, f, sizeof(*dinfo));
-			if (dinfo != NULL) {
-				dinfo->opd_obdinfo.obd_node = -1;
+			if (dinfo == NULL)
+				continue;
 
-				dinfo->opd_obdinfo.obd_name = NULL;
-				dinfo->opd_obdinfo.obd_compat = NULL;
-				dinfo->opd_obdinfo.obd_type = NULL;
-				dinfo->opd_obdinfo.obd_model = NULL;
-				pci_add_child(dev, (struct pci_devinfo *)dinfo);
+			dinfo->opd_obdinfo.obd_node = -1;
+
+			dinfo->opd_obdinfo.obd_name = NULL;
+			dinfo->opd_obdinfo.obd_compat = NULL;
+			dinfo->opd_obdinfo.obd_type = NULL;
+			dinfo->opd_obdinfo.obd_model = NULL;
+
+			/*
+			 * For non OFW-devices, don't believe 0 
+			 * for an interrupt.
+			 */
+			if (dinfo->opd_dinfo.cfg.intline == 0) {
+				dinfo->opd_dinfo.cfg.intline = PCI_INVALID_IRQ;
+				PCIB_WRITE_CONFIG(pcib, busno, s, f, 
+				    PCIR_INTLINE, PCI_INVALID_IRQ, 1);
 			}
+
+			pci_add_child(dev, (struct pci_devinfo *)dinfo);
 		}
 	}
 }
@@ -311,7 +323,7 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 		 * spec will need to be studied.
 		 */
 
-		return (0);
+		return (PCI_INVALID_IRQ);
 
 #ifdef NOTYET
 		intr = pci_get_intpin(child);
