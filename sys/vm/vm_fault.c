@@ -361,9 +361,13 @@ RetryFault:;
 			 */
 			if ((fs.m->oflags & VPO_BUSY) || fs.m->busy) {
 				vm_page_unlock_queues();
-				VM_OBJECT_UNLOCK(fs.object);
 				if (fs.object != fs.first_object) {
-					VM_OBJECT_LOCK(fs.first_object);
+					if (!VM_OBJECT_TRYLOCK(
+					    fs.first_object)) {
+						VM_OBJECT_UNLOCK(fs.object);
+						VM_OBJECT_LOCK(fs.first_object);
+						VM_OBJECT_LOCK(fs.object);
+					}
 					vm_page_lock_queues();
 					vm_page_free(fs.first_m);
 					vm_page_unlock_queues();
@@ -372,7 +376,6 @@ RetryFault:;
 					fs.first_m = NULL;
 				}
 				unlock_map(&fs);
-				VM_OBJECT_LOCK(fs.object);
 				if (fs.m == vm_page_lookup(fs.object,
 				    fs.pindex)) {
 					vm_page_sleep_if_busy(fs.m, TRUE,
