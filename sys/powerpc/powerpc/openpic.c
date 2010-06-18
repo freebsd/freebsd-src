@@ -175,7 +175,7 @@ openpic_attach(device_t dev)
 	for (irq = 0; irq < sc->sc_nirq; irq++) {
 		x = irq;                /* irq == vector. */
 		x |= OPENPIC_IMASK;
-		x |= OPENPIC_POLARITY_POSITIVE;
+		x |= OPENPIC_POLARITY_NEGATIVE;
 		x |= OPENPIC_SENSE_LEVEL;
 		x |= 8 << OPENPIC_PRIORITY_SHIFT;
 		openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
