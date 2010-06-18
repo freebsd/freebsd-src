@@ -212,13 +212,16 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 				OF_getprop(iparent, "#interrupt-cells", &icells,
 				    sizeof(icells));
 
+				if (iparent != 0)
+					intr[0] = INTR_VEC(iparent, intr[0]);
+
 				if (iparent != 0 && icells > 1) {
 					powerpc_config_intr(intr[0],
 					    (intr[1] & 1) ? INTR_TRIGGER_LEVEL :
 					    INTR_TRIGGER_EDGE,
 					    INTR_POLARITY_HIGH);
 				}
-		
+
 				resource_list_add(&dinfo->opd_dinfo.resources,
 				    SYS_RES_IRQ, 0, intr[0], intr[0], 1);
 			}
@@ -293,7 +296,7 @@ static int
 ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 {
 	ofw_pci_intr_t intr;
-	phandle_t node;
+	phandle_t node, iparent;
 	int isz;
 
 	node = ofw_bus_get_node(child);
@@ -303,8 +306,8 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	
 		/*
 		 * XXX: Right now we don't have anything sensible to do here,
-		 * since the ofw_imap stuff relies on nodes have a reg
-		 * property. There exists ways around this, so the ePAPR
+		 * since the ofw_imap stuff relies on nodes having a reg
+		 * property. There exist ways around this, so the ePAPR
 		 * spec will need to be studied.
 		 */
 
@@ -318,18 +321,29 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	}
 	
 	/*
+	 * Try to determine the node's interrupt parent so we know which
+	 * PIC to use.
+	 */
+
+	iparent = -1;
+	if (OF_getprop(node, "interrupt-parent", &iparent, sizeof(iparent)) < 0)
+		iparent = -1;
+	
+	/*
 	 * Any AAPL,interrupts property gets priority and is
 	 * fully specified (i.e. does not need routing)
 	 */
 
 	isz = OF_getprop(node, "AAPL,interrupts", &intr, sizeof(intr));
-	if (isz == sizeof(intr)) {
-		return (intr);
-	}
+	if (isz == sizeof(intr))
+		return ((iparent == -1) ? intr : INTR_VEC(iparent, intr));
 
 	isz = OF_getprop(node, "interrupts", &intr, sizeof(intr));
-	if (isz != sizeof(intr)) {
-		/* No property; our best guess is the intpin. */
+	if (isz == sizeof(intr)) {
+		if (iparent != -1)
+			intr = INTR_VEC(iparent, intr);
+	} else {
+		/* No property: our best guess is the intpin. */
 		intr = pci_get_intpin(child);
 	}
 	
