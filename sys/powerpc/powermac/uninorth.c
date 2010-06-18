@@ -182,7 +182,7 @@ unin_chip_add_intr(phandle_t devnode, struct unin_chip_devinfo *dinfo)
 		if (icells > 1) {
 			powerpc_config_intr(INTR_VEC(iparent, intr[i]),
 			    (intr[i+1] & 1) ? INTR_TRIGGER_LEVEL :
-			    INTR_TRIGGER_EDGE, INTR_POLARITY_HIGH);
+			    INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
 		}
 
 		dinfo->udi_interrupts[dinfo->udi_ninterrupts] =
