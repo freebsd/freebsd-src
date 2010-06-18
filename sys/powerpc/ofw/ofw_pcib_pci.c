@@ -42,6 +42,8 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
 
+#include <machine/intr_machdep.h>
+
 #include "pcib_if.h"
 
 static int	ofw_pcib_pci_probe(device_t bus);
@@ -149,6 +151,7 @@ ofw_pcib_pci_route_interrupt(device_t bridge, device_t dev, int intpin)
 	struct ofw_bus_iinfo *ii;
 	struct ofw_pci_register reg;
 	cell_t pintr, mintr;
+	phandle_t iparent;
 	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bridge);
@@ -157,13 +160,13 @@ ofw_pcib_pci_route_interrupt(device_t bridge, device_t dev, int intpin)
 		pintr = intpin;
 		if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), ii, &reg,
 		    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-		    maskbuf)) {
+		    &iparent, maskbuf)) {
 			/*
 			 * If we've found a mapping, return it and don't map
 			 * it again on higher levels - that causes problems
 			 * in some cases, and never seems to be required.
 			 */
-			return (mintr);
+			return (INTR_VEC(iparent, mintr));
 		}
 	} else if (intpin >= 1 && intpin <= 4) {
 		/*

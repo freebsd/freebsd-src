@@ -792,7 +792,7 @@ pci_ocp_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		va = sc->sc_iomem_va;
 		break;
 	case SYS_RES_IRQ:
-		if (start < PIC_IRQ_START) {
+		if (INTR_IGN(start) == powerpc_ign_lookup(ATPIC_ID)) {
 			device_printf(dev, "%s requested ISA interrupt %lu\n",
 			    device_get_nameunit(child), start);
 		}

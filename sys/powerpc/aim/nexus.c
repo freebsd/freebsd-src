@@ -208,7 +208,7 @@ nexus_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	start = 0;
-	end = INTR_VECTORS - 1;
+	end = MAX_PICS*INTR_VECTORS - 1;
 
 	sc->sc_rman.rm_start = start;
 	sc->sc_rman.rm_end = end;
