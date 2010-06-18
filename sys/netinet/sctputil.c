@@ -3185,6 +3185,9 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 		/* event not enabled */
 		return;
 	}
+	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_CANT_READ) {
+		return;
+	}
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_pdapi_event), 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -4365,6 +4368,17 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 	}
 	if (inp_read_lock_held == 0)
 		SCTP_INP_READ_LOCK(inp);
+	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_CANT_READ) {
+		sctp_free_remote_addr(control->whoFrom);
+		if (control->data) {
+			sctp_m_freem(control->data);
+			control->data = NULL;
+		}
+		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), control);
+		if (inp_read_lock_held == 0)
+			SCTP_INP_READ_UNLOCK(inp);
+		return;
+	}
 	if (!(control->spec_flags & M_NOTIFICATION)) {
 		atomic_add_int(&inp->total_recvs, 1);
 		if (!control->do_not_ref_stcb) {
@@ -4405,6 +4419,8 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 		control->tail_mbuf = prev;
 	} else {
 		/* Everything got collapsed out?? */
+		sctp_free_remote_addr(control->whoFrom);
+		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), control);
 		if (inp_read_lock_held == 0)
 			SCTP_INP_READ_UNLOCK(inp);
 		return;
@@ -4476,6 +4492,10 @@ get_out:
 			SCTP_INP_READ_UNLOCK(inp);
 		}
 		return (-1);
+	}
+	if (inp && (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_CANT_READ)) {
+		SCTP_INP_READ_UNLOCK(inp);
+		return 0;
 	}
 	if (control->end_added) {
 		/* huh this one is complete? */
