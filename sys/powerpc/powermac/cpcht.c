@@ -31,6 +31,8 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/pciio.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
@@ -44,8 +46,6 @@
 #include <machine/openpicvar.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
-
-#include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -89,6 +89,16 @@ static void		cpcht_write_config(device_t, u_int, u_int, u_int,
 			    u_int, u_int32_t, int);
 static int		cpcht_route_interrupt(device_t bus, device_t dev,
 			    int pin);
+static int		cpcht_alloc_msi(device_t dev, device_t child,
+			    int count, int maxcount, int *irqs);
+static int		cpcht_release_msi(device_t dev, device_t child,
+			    int count, int *irqs);
+static int		cpcht_alloc_msix(device_t dev, device_t child,
+			    int *irq);
+static int		cpcht_release_msix(device_t dev, device_t child,
+			    int irq);
+static int		cpcht_map_msi(device_t dev, device_t child,
+			    int irq, uint64_t *addr, uint32_t *data);
 
 /*
  * ofw_bus interface
@@ -119,6 +129,11 @@ static device_method_t	cpcht_methods[] = {
 	DEVMETHOD(pcib_read_config,	cpcht_read_config),
 	DEVMETHOD(pcib_write_config,	cpcht_write_config),
 	DEVMETHOD(pcib_route_interrupt,	cpcht_route_interrupt),
+	DEVMETHOD(pcib_alloc_msi,	cpcht_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	cpcht_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	cpcht_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	cpcht_release_msix),
+	DEVMETHOD(pcib_map_msi,		cpcht_map_msi),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,     cpcht_get_node),
@@ -126,6 +141,10 @@ static device_method_t	cpcht_methods[] = {
 };
 
 struct cpcht_irq {
+	enum {
+	    IRQ_NONE, IRQ_HT, IRQ_MSI, IRQ_INTERNAL
+	}		irq_type; 
+
 	int		ht_source;
 
 	vm_offset_t	ht_base;
@@ -135,6 +154,7 @@ struct cpcht_irq {
 };
 
 static struct cpcht_irq *cpcht_irqmap = NULL;
+uint32_t cpcht_msipic = 0;
 
 struct cpcht_softc {
 	device_t		sc_dev;
@@ -144,6 +164,7 @@ struct cpcht_softc {
 	struct			rman sc_mem_rman;
 
 	struct cpcht_irq	htirq_map[128];
+	struct mtx		htirq_mtx;
 };
 
 static driver_t	cpcht_driver = {
@@ -199,7 +220,7 @@ cpcht_attach(device_t dev)
 	struct		cpcht_softc *sc;
 	phandle_t	node, child;
 	u_int32_t	reg[3];
-	int		error;
+	int		i, error;
 
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
@@ -228,6 +249,9 @@ cpcht_attach(device_t dev)
 	 */
 
 	bzero(sc->htirq_map, sizeof(sc->htirq_map));
+	mtx_init(&sc->htirq_mtx, "cpcht irq", NULL, MTX_DEF);
+	for (i = 0; i < 8; i++)
+		sc->htirq_map[i].irq_type = IRQ_INTERNAL;
 	for (child = OF_child(node); child != 0; child = OF_peer(child))
 		cpcht_configure_htbridge(dev, child);
 
@@ -336,6 +360,7 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 			    irq | HTAPIC_MASK, 4);
 			irq = (irq >> 16) & 0xff;
 
+			sc->htirq_map[irq].irq_type = IRQ_HT;
 			sc->htirq_map[irq].ht_source = i;
 			sc->htirq_map[irq].ht_base = sc->sc_data + 
 			    (((((s & 0x1f) << 3) | (f & 0x07)) << 8) | (ptr));
@@ -584,6 +609,129 @@ cpcht_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_deactivate_resource(res));
 }
 
+static int
+cpcht_alloc_msi(device_t dev, device_t child, int count, int maxcount,
+    int *irqs)
+{
+	struct cpcht_softc *sc;
+	int i, j;
+
+	sc = device_get_softc(dev);
+	j = 0;
+
+	/* Bail if no MSI PIC yet */
+	if (cpcht_msipic == 0)
+		return (ENXIO);
+
+	mtx_lock(&sc->htirq_mtx);
+	for (i = 8; i < 124 - count; i++) {
+		for (j = 0; j < count; j++) {
+			if (sc->htirq_map[i+j].irq_type != IRQ_NONE)
+				break;
+		}
+		if (j == count)
+			break;
+
+		i += j; /* We know there isn't a large enough run */
+	}
+
+	if (j != count) {
+		mtx_unlock(&sc->htirq_mtx);
+		return (ENXIO);
+	}
+
+	for (j = 0; j < count; j++) {
+		irqs[j] = INTR_VEC(cpcht_msipic, i+j);
+		sc->htirq_map[i+j].irq_type = IRQ_MSI;
+	}
+	mtx_unlock(&sc->htirq_mtx);
+
+	return (0);
+}
+
+static int
+cpcht_release_msi(device_t dev, device_t child, int count, int *irqs)
+{
+	struct cpcht_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->htirq_mtx);
+	for (i = 0; i < count; i++)
+		sc->htirq_map[irqs[i] & 0xff].irq_type = IRQ_NONE;
+	mtx_unlock(&sc->htirq_mtx);
+
+	return (0);
+}
+
+static int
+cpcht_alloc_msix(device_t dev, device_t child, int *irq)
+{
+	struct cpcht_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	/* Bail if no MSI PIC yet */
+	if (cpcht_msipic == 0)
+		return (ENXIO);
+
+	mtx_lock(&sc->htirq_mtx);
+	for (i = 8; i < 124; i++) {
+		if (sc->htirq_map[i].irq_type == IRQ_NONE) {
+			sc->htirq_map[i].irq_type = IRQ_MSI;
+			*irq = INTR_VEC(cpcht_msipic, i);
+
+			mtx_unlock(&sc->htirq_mtx);
+			return (0);
+		}
+	}
+	mtx_unlock(&sc->htirq_mtx);
+
+	return (ENXIO);
+}
+	
+static int
+cpcht_release_msix(device_t dev, device_t child, int irq)
+{
+	struct cpcht_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->htirq_mtx);
+	sc->htirq_map[irq & 0xff].irq_type = IRQ_NONE;
+	mtx_unlock(&sc->htirq_mtx);
+
+	return (0);
+}
+
+static int
+cpcht_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+	device_t pcib;
+	struct pci_devinfo *dinfo;
+	struct pcicfg_ht *ht = NULL;
+
+	for (pcib = child; pcib != dev; pcib =
+	    device_get_parent(device_get_parent(pcib))) {
+		dinfo = device_get_ivars(pcib);
+		ht = &dinfo->cfg.ht;
+
+		if (ht == NULL)
+			continue;
+	}
+
+	if (ht == NULL)
+		return (ENXIO);
+
+	*addr = ht->ht_msiaddr;
+	*data = irq & 0xff;
+
+	return (0);
+}
+
 /*
  * Driver for the integrated MPIC on U3/U4 (CPC925/CPC945)
  */
@@ -670,6 +818,15 @@ openpic_cpcht_attach(device_t dev)
 		openpic_config(dev, irq, INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 	for (irq = 4; irq < 124; irq++)
 		openpic_config(dev, irq, INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
+
+	/*
+	 * Use this PIC for MSI only if it is the root PIC. This may not
+	 * be necessary, but Linux does it, and I cannot find any U3 machines
+	 * with MSI devices to test.
+	 */
+	
+	if (dev == root_pic)
+		cpcht_msipic = PIC_ID(dev);
 
 	return (0);
 }
