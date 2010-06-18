@@ -35,7 +35,7 @@
 #define	INTR_INTLINE(irq) (irq & ((1 << IGN_SHIFT) - 1))
 #define	INTR_IGN(irq)	(irq >> IGN_SHIFT)
 
-#define	INTR_VEC(pic_id, irq) ((powerpc_ign_lookup(pic_id) << IGN_SHIFT) | irq)
+#define	INTR_VEC(pic_id, irq) ((powerpc_ign_lookup(pic_id) << IGN_SHIFT) | (irq))
 
 /*
  * Default base address for MSI messages on PowerPC
