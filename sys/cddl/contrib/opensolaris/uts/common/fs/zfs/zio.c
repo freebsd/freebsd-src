@@ -33,13 +33,9 @@
 #include <sys/zio_compress.h>
 #include <sys/zio_checksum.h>
 
-#if defined(__amd64__)
-static int zio_use_uma = 1;
-#else
-static int zio_use_uma = 0;
-#endif
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zio, CTLFLAG_RW, 0, "ZFS ZIO");
+static int zio_use_uma = 0;
 TUNABLE_INT("vfs.zfs.zio.use_uma", &zio_use_uma);
 SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, use_uma, CTLFLAG_RDTUN, &zio_use_uma, 0,
     "Use uma(9) for ZIO allocations");
