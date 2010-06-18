@@ -1252,8 +1252,25 @@ stat_to_cpio (struct cpio_file_stat *hdr, struct stat *st)
   hdr->c_uid = CPIO_UID (st->st_uid);
   hdr->c_gid = CPIO_GID (st->st_gid);
   hdr->c_nlink = st->st_nlink;
-  hdr->c_rdev_maj = major (st->st_rdev);
-  hdr->c_rdev_min = minor (st->st_rdev);
+
+  switch (hdr->c_mode & CP_IFMT)
+  {
+    case CP_IFBLK:
+    case CP_IFCHR:
+#ifdef CP_IFIFO
+    case CP_IFIFO:
+#endif
+#ifdef CP_IFSOCK
+    case CP_IFSOCK:
+#endif
+      hdr->c_rdev_maj = major (st->st_rdev);
+      hdr->c_rdev_min = minor (st->st_rdev);
+      break;
+    default:
+      hdr->c_rdev_maj = 0;
+      hdr->c_rdev_min = 0;
+      break;
+  }
   hdr->c_mtime = st->st_mtime;
   hdr->c_filesize = st->st_size;
   hdr->c_chksum = 0;
