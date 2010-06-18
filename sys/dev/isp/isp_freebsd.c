@@ -284,7 +284,7 @@ isp_detach(ispsoftc_t *isp)
 		config_intrhook_disestablish(&isp->isp_osinfo.ehook);
 		isp->isp_osinfo.ehook_active = 0;
 	}
-	if (isp->isp_osinfo.devq == NULL) {
+	if (isp->isp_osinfo.devq != NULL) {
 		cam_simq_free(isp->isp_osinfo.devq);
 		isp->isp_osinfo.devq = NULL;
 	}
@@ -1910,7 +1910,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	tstate_t *tptr;
 	struct ccb_accept_tio *atiop;
 	uint16_t nphdl;
-	atio_private_data_t *atp = NULL;
+	atio_private_data_t *atp;
 	inot_private_data_t *ntp;
 
 	/*
@@ -2063,9 +2063,6 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	rls_lun_statep(isp, tptr);
 	return;
 noresrc:
-	if (atp) {
-		isp_put_atpd(isp, tptr, atp);
-	}
 	ntp = isp_get_ntpd(isp, tptr);
 	if (ntp == NULL) {
 		rls_lun_statep(isp, tptr);
@@ -2500,7 +2497,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 			lun = inp->in_lun;
 		}
 		if (ISP_CAP_2KLOGIN(isp)) {
-			loopid = ((in_fcentry_e_t *)inot)->in_iid;
+			loopid = ((in_fcentry_e_t *)inp)->in_iid;
 		} else {
 			loopid = inp->in_iid;
 		}
