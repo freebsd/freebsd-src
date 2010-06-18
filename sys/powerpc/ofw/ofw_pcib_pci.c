@@ -76,6 +76,11 @@ static device_method_t ofw_pcib_pci_methods[] = {
 	DEVMETHOD(pcib_read_config,		pcib_read_config),
 	DEVMETHOD(pcib_write_config,	pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_pci_route_interrupt),
+	DEVMETHOD(pcib_alloc_msi,	pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	pcib_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
+	DEVMETHOD(pcib_map_msi,		pcib_map_msi),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,     ofw_pcib_pci_get_node),
