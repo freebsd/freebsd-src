@@ -35,10 +35,13 @@
 struct openpic_softc {
 	device_t	sc_dev;
 	struct resource	*sc_memr;
+	struct resource	*sc_intr;
 	bus_space_tag_t sc_bt;
 	bus_space_handle_t sc_bh;
 	char		*sc_version;
 	int		sc_rid;
+	int		sc_irq;
+	void		*sc_icookie;
 	u_int		sc_ncpu;
 	u_int		sc_nirq;
 	int		sc_psim;

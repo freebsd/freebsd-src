@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/intr_machdep.h>
+#include <machine/ocpbus.h>
 #include <machine/pio.h>
 
 #include <powerpc/mpc85xx/ocpbus.h>
@@ -79,6 +80,9 @@ static void atpic_eoi(device_t, u_int);
 static void atpic_ipi(device_t, u_int);
 static void atpic_mask(device_t, u_int);
 static void atpic_unmask(device_t, u_int);
+static uint32_t atpic_id (device_t dev);
+
+static device_t pic8259;
 
 static device_method_t atpic_isa_methods[] = {
 	/* Device interface */
@@ -94,6 +98,7 @@ static device_method_t atpic_isa_methods[] = {
 	DEVMETHOD(pic_ipi,		atpic_ipi),
 	DEVMETHOD(pic_mask,		atpic_mask),
 	DEVMETHOD(pic_unmask,		atpic_unmask),
+	DEVMETHOD(pic_id,		atpic_id),
 
 	{ 0, 0 },
 };
@@ -219,7 +224,8 @@ atpic_isa_attach(device_t dev)
 	atpic_init(sc, ATPIC_SLAVE);
 	atpic_init(sc, ATPIC_MASTER);
 
-	powerpc_register_8259(dev);
+	powerpc_register_pic(dev, 0x10);
+	pic8259 = dev;
 	return (0);
 
  fail:
@@ -328,3 +334,11 @@ atpic_unmask(device_t dev, u_int irq)
 		atpic_write(sc, ATPIC_MASTER, 1, sc->sc_mask[ATPIC_MASTER]);
 	}
 }
+
+static uint32_t
+atpic_id (device_t dev)
+{
+
+	return (ATPIC_ID);
+}
+

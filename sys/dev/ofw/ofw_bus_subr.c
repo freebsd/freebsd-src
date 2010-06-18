@@ -222,7 +222,7 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 int
 ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
     int regsz, void *pintr, int pintrsz, void *mintr, int mintrsz,
-    void *maskbuf)
+    phandle_t *iparent, void *maskbuf)
 {
 	int rv;
 
@@ -236,7 +236,7 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
 		panic("ofw_bus_lookup_imap: could not get reg property");
 	return (ofw_bus_search_intrmap(pintr, pintrsz, reg, ii->opi_addrc,
 	    ii->opi_imap, ii->opi_imapsz, ii->opi_imapmsk, maskbuf, mintr,
-	    mintrsz));
+	    mintrsz, iparent));
 }
 
 /*
@@ -259,7 +259,7 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
 int
 ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
     void *imap, int imapsz, void *imapmsk, void *maskbuf, void *result,
-    int rintrsz)
+    int rintrsz, phandle_t *iparent)
 {
 	phandle_t parent;
 	uint8_t *ref = maskbuf;
@@ -303,6 +303,9 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 		if (bcmp(ref, mptr, physsz + intrsz) == 0) {
 			bcopy(mptr + physsz + intrsz + sizeof(parent),
 			    result, rintrsz);
+
+			if (iparent != NULL)
+				*iparent = parent;
 			return (1);
 		}
 		mptr += tsz;

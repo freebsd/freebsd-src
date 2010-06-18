@@ -595,6 +595,7 @@ static void	openpic_cpcht_config(device_t, u_int irq,
 static void	openpic_cpcht_enable(device_t, u_int irq, u_int vector);
 static void	openpic_cpcht_unmask(device_t, u_int irq);
 static void	openpic_cpcht_eoi(device_t, u_int irq);
+static uint32_t	openpic_cpcht_id(device_t);
 
 static device_method_t  openpic_cpcht_methods[] = {
 	/* Device interface */
@@ -609,6 +610,7 @@ static device_method_t  openpic_cpcht_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_cpcht_unmask),
+	DEVMETHOD(pic_id,		openpic_cpcht_id),
 
 	{ 0, 0 },
 };
@@ -806,5 +808,11 @@ openpic_cpcht_eoi(device_t dev, u_int irq)
 	}
 
 	openpic_eoi(dev, irq);
+}
+
+static uint32_t
+openpic_cpcht_id(device_t dev)
+{
+	return (ofw_bus_get_node(dev));
 }
 

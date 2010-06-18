@@ -52,6 +52,7 @@ devclass_t openpic_devclass;
 /*
  * Local routines
  */
+static int openpic_intr(void *arg);
 
 static __inline uint32_t
 openpic_read(struct openpic_softc *sc, u_int reg)
@@ -99,6 +100,29 @@ openpic_attach(device_t dev)
 
 	sc->sc_bt = rman_get_bustag(sc->sc_memr);
 	sc->sc_bh = rman_get_bushandle(sc->sc_memr);
+
+	/* Reset the PIC */
+	x = openpic_read(sc, OPENPIC_CONFIG);
+	x |= OPENPIC_CONFIG_RESET;
+	openpic_write(sc, OPENPIC_CONFIG, x);
+
+	while (openpic_read(sc, OPENPIC_CONFIG) & OPENPIC_CONFIG_RESET) {
+		powerpc_sync();
+		DELAY(100);
+	}
+
+	/* Check if this is a cascaded PIC */
+	sc->sc_irq = 0;
+	sc->sc_intr = NULL;
+	if (resource_list_find(BUS_GET_RESOURCE_LIST(device_get_parent(dev),
+	    dev), SYS_RES_IRQ, 0) != NULL) {
+		sc->sc_intr = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &sc->sc_irq, RF_ACTIVE);
+
+		/* XXX Cascaded PICs pass NULL trapframes! */
+		bus_setup_intr(dev, sc->sc_intr, INTR_TYPE_MISC | INTR_MPSAFE,
+		    openpic_intr, NULL, dev, &sc->sc_icookie);
+	}
 
 	/* Reset the PIC */
 	x = openpic_read(sc, OPENPIC_CONFIG);
@@ -185,6 +209,10 @@ openpic_attach(device_t dev)
 
 	powerpc_register_pic(dev, sc->sc_nirq);
 
+	/* If this is not a cascaded PIC, it must be the root PIC */
+	if (sc->sc_intr == NULL)
+		root_pic = dev;
+
 	return (0);
 }
 
@@ -210,6 +238,17 @@ openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
 	else
 		x |= OPENPIC_SENSE_LEVEL;
 	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
+}
+
+static int
+openpic_intr(void *arg)
+{
+	device_t dev = (device_t)(arg);
+
+	/* XXX Cascaded PICs do not pass non-NULL trapframes! */
+	openpic_dispatch(dev, NULL);
+
+	return (FILTER_HANDLED);
 }
 
 void
