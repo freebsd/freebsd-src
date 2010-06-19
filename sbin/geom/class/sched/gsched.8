@@ -94,10 +94,9 @@ on an already existing provider.
 .Pp
 A subsequent 'destroy' will remove the newly created geom and
 hook the provider back to the original geom.
-.Ar algorithm
 .It Cm configure
 Configure existing scheduling provider.  It supports the same options
-as the 
+as the
 .Nm create
 command.
 .It Cm destroy
@@ -157,7 +156,8 @@ geom sched destroy -v ad0.sched.
 .Sh HISTORY
 The
 .Nm
-utility appeared in April 2010.
+utility first appeared in
+.Fx 9.0 .
 .Sh AUTHORS
 .An Fabio Checconi Aq fabio@FreeBSD.org
 .An Luigi Rizzo Aq luigi@FreeBSD.org
