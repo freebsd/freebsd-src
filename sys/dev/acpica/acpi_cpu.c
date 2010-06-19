@@ -937,7 +937,7 @@ acpi_cpu_idle()
 	AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
         end_time = acpi_TimerDelta(end_time, start_time);
 	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 +
-	    min(PM_USEC(end_time), 500000)) / 4;
+	    min(PM_USEC(end_time), 500000 / hz)) / 4;
 	return;
     }
 
