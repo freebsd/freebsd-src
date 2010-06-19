@@ -4184,7 +4184,7 @@ int
 isp_start(XS_T *xs)
 {
 	ispsoftc_t *isp;
-	uint32_t handle;
+	uint32_t handle, cdblen;
 	uint8_t local[QENTRY_LEN];
 	ispreq_t *reqp;
 	void *cdbp, *qep;
@@ -4369,11 +4369,17 @@ isp_start(XS_T *xs)
 
 	tptr = &reqp->req_time;
 
+	/*
+	 * NB: we do not support long CDBs
+	 */
+	cdblen = XS_CDBLEN(xs);
+
 	if (IS_SCSI(isp)) {
 		reqp->req_target = target | (XS_CHANNEL(xs) << 7);
 		reqp->req_lun_trn = XS_LUN(xs);
-		reqp->req_cdblen = XS_CDBLEN(xs);
+		cdblen = MIN(cdblen, sizeof (reqp->req_cdb));
 		cdbp = reqp->req_cdb;
+		reqp->req_cdblen = cdblen;
 	} else if (IS_24XX(isp)) {
 		ispreqt7_t *t7 = (ispreqt7_t *)local;
 		fcportdb_t *lp;
@@ -4388,25 +4394,29 @@ isp_start(XS_T *xs)
 			t7->req_lun[0] |= 0x40;
 		}
 		t7->req_lun[1] = XS_LUN(xs);
-		cdbp = t7->req_cdb;
 		tptr = &t7->req_time;
+		cdbp = t7->req_cdb;
+		cdblen = MIN(cdblen, sizeof (t7->req_cdb));
 	} else if (ISP_CAP_2KLOGIN(isp)) {
 		ispreqt2e_t *t2e = (ispreqt2e_t *)local;
 		t2e->req_target = target;
 		t2e->req_scclun = XS_LUN(xs);
 		cdbp = t2e->req_cdb;
+		cdblen = MIN(cdblen, sizeof (t2e->req_cdb));
 	} else if (ISP_CAP_SCCFW(isp)) {
 		ispreqt2_t *t2 = (ispreqt2_t *)local;
 		t2->req_target = target;
 		t2->req_scclun = XS_LUN(xs);
 		cdbp = t2->req_cdb;
+		cdblen = MIN(cdblen, sizeof (t2->req_cdb));
 	} else {
 		ispreqt2_t *t2 = (ispreqt2_t *)local;
 		t2->req_target = target;
 		t2->req_lun_trn = XS_LUN(xs);
 		cdbp = t2->req_cdb;
+		cdblen = MIN(cdblen, sizeof (t2->req_cdb));
 	}
-	ISP_MEMCPY(cdbp, XS_CDBP(xs), XS_CDBLEN(xs));
+	ISP_MEMCPY(cdbp, XS_CDBP(xs), cdblen);
 
 	*tptr = XS_TIME(xs) / 1000;
 	if (*tptr == 0 && XS_TIME(xs)) {
