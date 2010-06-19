@@ -109,13 +109,17 @@ extern uintptr_t dpcpu_off[];
 /*
  * Utility macros.
  */
-#define DPCPU_SUM(n, var, sum)						\
-do {									\
-	(sum) = 0;							\
-	u_int i;							\
-	CPU_FOREACH(i)							\
-		(sum) += (DPCPU_ID_PTR(i, n))->var;			\
-} while (0)
+#define	DPCPU_SUM(n, var) __extension__					\
+({									\
+	u_int _i;							\
+	__typeof((DPCPU_PTR(n))->var) sum;				\
+									\
+	sum = 0;							\
+	CPU_FOREACH(_i) {						\
+		sum += (DPCPU_ID_PTR(_i, n))->var;			\
+	}								\
+	sum;								\
+})
 
 /* 
  * XXXUPS remove as soon as we have per cpu variable
