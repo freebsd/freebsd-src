@@ -67,8 +67,12 @@
  * for all subsequent invocations, which is the effect desired.
  */
 #undef  unput
-#define unput(c) \
-	if (c != EOF) yyunput( c, yytext_ptr )
+#define unput(c)					\
+	do {						\
+		int _c = c;				\
+		if (_c != EOF)				\
+			yyunput(_c, yytext_ptr);	\
+	} while(0)
 #endif
 
 static int id_or_type(const char *);
