@@ -672,6 +672,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	vm_size_t	size, physsz, hwphyssz;
 	vm_offset_t	pa, va, off;
 	void		*dpcpu;
+	register_t	msr;
 
         /*
          * Set up BAT0 to map the lowest 256 MB area
@@ -702,12 +703,16 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	/*
 	 * Use an IBAT and a DBAT to map the bottom segment of memory
-	 * where we are.
+	 * where we are. Turn off instruction relocation temporarily
+	 * to prevent faults while reprogramming the IBAT.
 	 */
+	msr = mfmsr();
+	mtmsr(msr & ~PSL_IR);
 	__asm (".balign 32; \n"
 	       "mtibatu 0,%0; mtibatl 0,%1; isync; \n"
 	       "mtdbatu 0,%0; mtdbatl 0,%1; isync"
 	    :: "r"(battable[0].batu), "r"(battable[0].batl));
+	mtmsr(msr);
 
 	/* map pci space */
 	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
