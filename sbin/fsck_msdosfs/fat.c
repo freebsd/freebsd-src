@@ -87,7 +87,8 @@ checkdirty(int fs, struct bootblock *boot)
 		goto err;
 	}
 
-	if (read(fs, buffer, boot->bpbBytesPerSec) != boot->bpbBytesPerSec) {
+	if ((size_t)read(fs, buffer, boot->bpbBytesPerSec) !=
+	    boot->bpbBytesPerSec) {
 		perror("Unable to read FAT");
 		goto err;
 	}
