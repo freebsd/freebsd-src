@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/timeet.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -77,11 +78,6 @@ __FBSDID("$FreeBSD$");
 #define	SDT_APIC	SDT_SYS386IGT
 #define	SDT_APICT	SDT_SYS386TGT
 #define	GSEL_APIC	GSEL(GCODE_SEL, SEL_KPL)
-#endif
-
-#ifdef KDTRACE_HOOKS
-#include <sys/dtrace_bsd.h>
-cyclic_clock_func_t	cyclic_clock_func[MAXCPU];
 #endif
 
 /* Sanity checks on IDT vectors. */
@@ -119,6 +115,8 @@ struct lapic {
 	u_int la_cluster_id:2;
 	u_int la_present:1;
 	u_long *la_timer_count;
+	u_long la_timer_period;
+	u_int la_timer_mode;
 	/* Include IDT_SYSCALL to make indexing easier. */
 	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
 } static lapics[MAX_APIC_ID + 1];
@@ -155,16 +153,20 @@ extern inthand_t IDTVEC(rsvd);
 
 volatile lapic_t *lapic;
 vm_paddr_t lapic_paddr;
-static u_long lapic_timer_divisor, lapic_timer_period, lapic_timer_hz;
-static enum lapic_clock clockcoverage;
+static u_long lapic_timer_divisor;
+static struct eventtimer lapic_et;
 
 static void	lapic_enable(void);
 static void	lapic_resume(struct pic *pic);
 static void	lapic_timer_enable_intr(void);
 static void	lapic_timer_oneshot(u_int count);
 static void	lapic_timer_periodic(u_int count);
+static void	lapic_timer_stop(void);
 static void	lapic_timer_set_divisor(u_int divisor);
 static uint32_t	lvt_mode(struct lapic *la, u_int pin, uint32_t value);
+static int	lapic_et_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period);
+static int	lapic_et_stop(struct eventtimer *et);
 
 struct pic lapic_pic = { .pic_resume = lapic_resume };
 
@@ -215,6 +217,8 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 void
 lapic_init(vm_paddr_t addr)
 {
+	u_int regs[4];
+	int i, arat;
 
 	/* Map the local APIC and setup the spurious interrupt handler. */
 	KASSERT(trunc_page(addr) == addr,
@@ -240,6 +244,30 @@ lapic_init(vm_paddr_t addr)
 
 	/* Local APIC CMCI. */
 	setidt(APIC_CMC_INT, IDTVEC(cmcint), SDT_APICT, SEL_KPL, GSEL_APIC);
+
+	if ((resource_int_value("apic", 0, "clock", &i) != 0 || i != 0)) {
+		arat = 0;
+		/* Intel CPUID 0x06 EAX[2] set if APIC timer runs in C3. */
+		if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_high >= 6) {
+			do_cpuid(0x06, regs);
+			if (regs[0] & 0x4)
+				arat = 1;
+		}
+		bzero(&lapic_et, sizeof(lapic_et));
+		lapic_et.et_name = "LAPIC";
+		lapic_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
+		    ET_FLAGS_PERCPU;
+		lapic_et.et_quality = 600;
+		if (!arat) {
+			lapic_et.et_flags |= ET_FLAGS_C3STOP;
+			lapic_et.et_quality -= 100;
+		}
+		lapic_et.et_frequency = 0;
+		lapic_et.et_start = lapic_et_start;
+		lapic_et.et_stop = lapic_et_stop;
+		lapic_et.et_priv = NULL;
+		et_register(&lapic_et);
+	}
 }
 
 /*
@@ -328,16 +356,19 @@ lapic_setup(int boot)
 	/* Program timer LVT and setup handler. */
 	lapic->lvt_timer = lvt_mode(la, LVT_TIMER, lapic->lvt_timer);
 	if (boot) {
-		snprintf(buf, sizeof(buf), "cpu%d: timer", PCPU_GET(cpuid));
+		snprintf(buf, sizeof(buf), "cpu%d:timer", PCPU_GET(cpuid));
 		intrcnt_add(buf, &la->la_timer_count);
 	}
 
-	/* We don't setup the timer during boot on the BSP until later. */
-	if (!(boot && PCPU_GET(cpuid) == 0) && lapic_timer_hz != 0) {
-		KASSERT(lapic_timer_period != 0, ("lapic%u: zero divisor",
+	/* Setup the timer if configured. */
+	if (la->la_timer_mode != 0) {
+		KASSERT(la->la_timer_period != 0, ("lapic%u: zero divisor",
 		    lapic_id()));
 		lapic_timer_set_divisor(lapic_timer_divisor);
-		lapic_timer_periodic(lapic_timer_period);
+		if (la->la_timer_mode == 1)
+			lapic_timer_periodic(la->la_timer_period);
+		else
+			lapic_timer_oneshot(la->la_timer_period);
 		lapic_timer_enable_intr();
 	}
 
@@ -436,88 +467,66 @@ lapic_disable_pmc(void)
 #endif
 }
 
-/*
- * Called by cpu_initclocks() on the BSP to setup the local APIC timer so
- * that it can drive hardclock, statclock, and profclock. 
- */
-enum lapic_clock
-lapic_setup_clock(enum lapic_clock srcsdes)
+static int
+lapic_et_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period)
 {
+	struct lapic *la;
 	u_long value;
-	int i;
 
-	/* lapic_setup_clock() should not be called with LAPIC_CLOCK_NONE. */
-	MPASS(srcsdes != LAPIC_CLOCK_NONE);
-
-	/* Can't drive the timer without a local APIC. */
-	if (lapic == NULL ||
-	    (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0)) {
-		clockcoverage = LAPIC_CLOCK_NONE;
-		return (clockcoverage);
+	if (et->et_frequency == 0) {
+		/* Start off with a divisor of 2 (power on reset default). */
+		lapic_timer_divisor = 2;
+		/* Try to calibrate the local APIC timer. */
+		do {
+			lapic_timer_set_divisor(lapic_timer_divisor);
+			lapic_timer_oneshot(APIC_TIMER_MAX_COUNT);
+			DELAY(1000000);
+			value = APIC_TIMER_MAX_COUNT - lapic->ccr_timer;
+			if (value != APIC_TIMER_MAX_COUNT)
+				break;
+			lapic_timer_divisor <<= 1;
+		} while (lapic_timer_divisor <= 128);
+		if (lapic_timer_divisor > 128)
+			panic("lapic: Divisor too big");
+		if (bootverbose)
+			printf("lapic: Divisor %lu, Frequency %lu Hz\n",
+			    lapic_timer_divisor, value);
+		et->et_frequency = value;
 	}
-
-	/* Start off with a divisor of 2 (power on reset default). */
-	lapic_timer_divisor = 2;
-
-	/* Try to calibrate the local APIC timer. */
-	do {
-		lapic_timer_set_divisor(lapic_timer_divisor);
-		lapic_timer_oneshot(APIC_TIMER_MAX_COUNT);
-		DELAY(2000000);
-		value = APIC_TIMER_MAX_COUNT - lapic->ccr_timer;
-		if (value != APIC_TIMER_MAX_COUNT)
-			break;
-		lapic_timer_divisor <<= 1;
-	} while (lapic_timer_divisor <= 128);
-	if (lapic_timer_divisor > 128)
-		panic("lapic: Divisor too big");
-	value /= 2;
-	if (bootverbose)
-		printf("lapic: Divisor %lu, Frequency %lu Hz\n",
-		    lapic_timer_divisor, value);
-
-	/*
-	 * We want to run stathz in the neighborhood of 128hz.  We would
-	 * like profhz to run as often as possible, so we let it run on
-	 * each clock tick.  We try to honor the requested 'hz' value as
-	 * much as possible.
-	 *
-	 * If 'hz' is above 1500, then we just let the lapic timer
-	 * (and profhz) run at hz.  If 'hz' is below 1500 but above
-	 * 750, then we let the lapic timer run at 2 * 'hz'.  If 'hz'
-	 * is below 750 then we let the lapic timer run at 4 * 'hz'.
-	 *
-	 * Please note that stathz and profhz are set only if all the
-	 * clocks are handled through the local APIC.
-	 */
-	if (srcsdes == LAPIC_CLOCK_ALL) {
-		if (hz >= 1500)
-			lapic_timer_hz = hz;
-		else if (hz >= 750)
-			lapic_timer_hz = hz * 2;
-		else
-			lapic_timer_hz = hz * 4;
-	} else
-		lapic_timer_hz = hz;
-	lapic_timer_period = value / lapic_timer_hz;
-	timer1hz = lapic_timer_hz;
-	if (srcsdes == LAPIC_CLOCK_ALL) {
-		if (lapic_timer_hz < 128)
-			stathz = lapic_timer_hz;
-		else
-			stathz = lapic_timer_hz / (lapic_timer_hz / 128);
-		profhz = lapic_timer_hz;
-		timer2hz = 0;
-	}
-
+	la = &lapics[lapic_id()];
 	/*
 	 * Start up the timer on the BSP.  The APs will kick off their
 	 * timer during lapic_setup().
 	 */
-	lapic_timer_periodic(lapic_timer_period);
+	lapic_timer_set_divisor(lapic_timer_divisor);
+	if (period != NULL) {
+		la->la_timer_mode = 1;
+		la->la_timer_period =
+		    (et->et_frequency * (period->frac >> 32)) >> 32;
+		if (period->sec != 0)
+			la->la_timer_period += et->et_frequency * period->sec;
+		lapic_timer_periodic(la->la_timer_period);
+	} else {
+		la->la_timer_mode = 2;
+		la->la_timer_period =
+		    (et->et_frequency * (first->frac >> 32)) >> 32;
+		if (first->sec != 0)
+			la->la_timer_period += et->et_frequency * first->sec;
+		lapic_timer_oneshot(la->la_timer_period);
+	}
 	lapic_timer_enable_intr();
-	clockcoverage = srcsdes;
-	return (srcsdes);
+	return (0);
+}
+
+static int
+lapic_et_stop(struct eventtimer *et)
+{
+	struct lapic *la = &lapics[lapic_id()];
+
+	la->la_timer_mode = 0;
+	lapic_timer_stop();
+	return (0);
 }
 
 void
@@ -763,6 +772,8 @@ void
 lapic_handle_timer(struct trapframe *frame)
 {
 	struct lapic *la;
+	struct trapframe *oldframe;
+	struct thread *td;
 
 	/* Send EOI first thing. */
 	lapic_eoi();
@@ -787,19 +798,14 @@ lapic_handle_timer(struct trapframe *frame)
 	la = &lapics[PCPU_GET(apic_id)];
 	(*la->la_timer_count)++;
 	critical_enter();
-
-#ifdef KDTRACE_HOOKS
-	/*
-	 * If the DTrace hooks are configured and a callback function
-	 * has been registered, then call it to process the high speed
-	 * timers.
-	 */
-	int cpu = PCPU_GET(cpuid);
-	if (cyclic_clock_func[cpu] != NULL)
-		(*cyclic_clock_func[cpu])(frame);
-#endif
-
-	timer1clock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	if (lapic_et.et_active) {
+		td = curthread;
+		oldframe = td->td_intr_frame;
+		td->td_intr_frame = frame;
+		lapic_et.et_event_cb(&lapic_et,
+		    lapic_et.et_arg ? lapic_et.et_arg : frame);
+		td->td_intr_frame = oldframe;
+	}
 	critical_exit();
 }
 
@@ -835,6 +841,17 @@ lapic_timer_periodic(u_int count)
 	value |= APIC_LVTT_TM_PERIODIC;
 	lapic->lvt_timer = value;
 	lapic->icr_timer = count;
+}
+
+static void
+lapic_timer_stop(void)
+{
+	u_int32_t value;
+
+	value = lapic->lvt_timer;
+	value &= ~APIC_LVTT_TM;
+	value &= ~APIC_LVT_M;
+	lapic->lvt_timer = value;
 }
 
 static void
