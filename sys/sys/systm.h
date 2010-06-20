@@ -280,6 +280,8 @@ void	adjust_timeout_calltodo(struct timeval *time_change);
 /* Initialize the world */
 void	consinit(void);
 void	cpu_initclocks(void);
+void	cpu_initclocks_bsp(void);
+void	cpu_initclocks_ap(void);
 void	usrinfoinit(void);
 
 /* Finalize the world */

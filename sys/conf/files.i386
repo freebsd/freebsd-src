@@ -381,6 +381,7 @@ x86/cpufreq/smist.c		optional cpufreq
 x86/isa/atpic.c			optional atpic	
 x86/isa/atrtc.c			optional atpic
 x86/isa/clock.c			optional native
+x86/x86/timeevents.c		standard
 x86/isa/elcr.c			standard
 x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
