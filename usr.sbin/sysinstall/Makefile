@@ -14,7 +14,7 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 	system.c tcpip.c termcap.c ttys.c ufs.c usb.c user.c \
 	variable.c ${_wizard} keymap.h countries.h
 
-CFLAGS+= -DUSE_GZIP=1 -fno-strict-aliasing
+CFLAGS+= -DUSE_GZIP=1 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
