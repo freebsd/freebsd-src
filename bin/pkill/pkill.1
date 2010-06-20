@@ -156,14 +156,16 @@ The value
 matches processes not in jail.
 .It Fl l
 Long output.
-Print the process name in addition to the process ID for each matching
+For
+.Nm pgrep ,
+print the process name in addition to the process ID for each matching
 process.
 If used in conjunction with
 .Fl f ,
 print the process ID and the full argument list for each matching process.
-This option can only be used with the
-.Nm pgrep
-command.
+For
+.Nm pkill ,
+display the kill command used for each process killed.
 .It Fl n
 Select only the newest (most recently started) of the matching processes.
 .It Fl o
