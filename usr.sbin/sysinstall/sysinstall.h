@@ -755,7 +755,7 @@ extern dialogMenuItem *item_add(dialogMenuItem *list, char *prompt, char *title,
 				int (*checked)(dialogMenuItem *self),
 				int (*fire)(dialogMenuItem *self),
 				void (*selected)(dialogMenuItem *self, int is_selected),
-				void *data, int *aux, int *curr, int *max);
+				void *data, void *aux, int *curr, int *max);
 extern void	items_free(dialogMenuItem *list, int *curr, int *max);
 extern int	Mkdir(char *);
 extern int	Mkdir_command(char *key, void *data);
