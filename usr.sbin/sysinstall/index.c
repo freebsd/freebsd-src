@@ -650,8 +650,8 @@ index_menu(PkgNodePtr root, PkgNodePtr top, PkgNodePtr plist, int *pos, int *scr
 		SAFE_STRCPY(buf, kp->desc);
 	    if (strlen(buf) > (_MAX_DESC - maxname))
 		buf[_MAX_DESC - maxname] = '\0';
-	    nitems = item_add(nitems, kp->name, (char *)buf, pkg_checked, 
-			      pkg_fire, pkg_selected, kp, (int *)(&lists), 
+	    nitems = item_add(nitems, kp->name, buf, pkg_checked, 
+			      pkg_fire, pkg_selected, kp, &lists, 
 			      &curr, &max);
 	    ++n;
 	    kp = kp->next;
