@@ -879,6 +879,42 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 }
 
 /*
+ * Returns the given page's successor (by pindex) within the object if it is
+ * resident; if none is found, NULL is returned.
+ *
+ * The object must be locked.
+ */
+vm_page_t
+vm_page_next(vm_page_t m)
+{
+	vm_page_t next;
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((next = TAILQ_NEXT(m, listq)) != NULL &&
+	    next->pindex != m->pindex + 1)
+		next = NULL;
+	return (next);
+}
+
+/*
+ * Returns the given page's predecessor (by pindex) within the object if it is
+ * resident; if none is found, NULL is returned.
+ *
+ * The object must be locked.
+ */
+vm_page_t
+vm_page_prev(vm_page_t m)
+{
+	vm_page_t prev;
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
+	    prev->pindex != m->pindex - 1)
+		prev = NULL;
+	return (prev);
+}
+
+/*
  *	vm_page_rename:
  *
  *	Move the given memory entry from its
