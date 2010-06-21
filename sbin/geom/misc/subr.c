@@ -139,7 +139,7 @@ g_parse_lba(const char *lbastr, unsigned sectorsize, off_t *sectors)
 	assert(sectors != NULL);
 
 	number = (off_t)strtoimax(lbastr, &s, 0);
-	if (s == lbastr)
+	if (s == lbastr || number < 0)
 		return (EINVAL);
 
 	mult = 1;
@@ -187,7 +187,7 @@ sfx:
 	if (*s != '\0')
 		return (EINVAL);
 done:
-	if (mult * unit < mult || number * mult * unit < number)
+	if ((OFF_MAX / unit) < mult || (OFF_MAX / mult / unit) < number)
 		return (ERANGE);
 	number *= mult * unit;
 	if (number % sectorsize)
