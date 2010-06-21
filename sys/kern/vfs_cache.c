@@ -379,7 +379,7 @@ cache_lookup(dvp, vpp, cnp)
 	struct componentname *cnp;
 {
 	struct namecache *ncp;
-	u_int32_t hash;
+	uint32_t hash;
 	int error, ltype, wlocked;
 
 	if (!doingcache) {
@@ -602,7 +602,7 @@ cache_enter(dvp, vp, cnp)
 {
 	struct namecache *ncp, *n2;
 	struct nchashhead *ncpp;
-	u_int32_t hash;
+	uint32_t hash;
 	int flag;
 	int hold;
 	int zap;

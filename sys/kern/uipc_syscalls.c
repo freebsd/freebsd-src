@@ -2602,7 +2602,7 @@ sctp_generic_recvmsg(td, uap)
 	} */ *uap;
 {
 #if (defined(INET) || defined(INET6)) && defined(SCTP)
-	u_int8_t sockbufstore[256];
+	uint8_t sockbufstore[256];
 	struct uio auio;
 	struct iovec *iov, *tiov;
 	struct sctp_sndrcvinfo sinfo;

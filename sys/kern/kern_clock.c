@@ -790,7 +790,7 @@ static void
 watchdog_fire(void)
 {
 	int nintr;
-	u_int64_t inttotal;
+	uint64_t inttotal;
 	u_long *curintr;
 	char *curname;
 

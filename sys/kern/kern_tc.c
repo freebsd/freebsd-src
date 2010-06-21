@@ -51,7 +51,7 @@ struct timehands {
 	/* These fields must be initialized by the driver. */
 	struct timecounter	*th_counter;
 	int64_t			th_adjustment;
-	u_int64_t		th_scale;
+	uint64_t		th_scale;
 	u_int	 		th_offset_count;
 	struct bintime		th_offset;
 	struct timeval		th_microtime;
@@ -134,7 +134,7 @@ sysctl_kern_timecounter_get(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_timecounter_freq(SYSCTL_HANDLER_ARGS)
 {
-	u_int64_t freq;
+	uint64_t freq;
 	struct timecounter *tc = arg1;
 
 	freq = tc->tc_frequency;
@@ -362,7 +362,7 @@ tc_init(struct timecounter *tc)
 }
 
 /* Report the frequency of the current timecounter. */
-u_int64_t
+uint64_t
 tc_getfrequency(void)
 {
 
@@ -412,7 +412,7 @@ tc_windup(void)
 {
 	struct bintime bt;
 	struct timehands *th, *tho;
-	u_int64_t scale;
+	uint64_t scale;
 	u_int delta, ncount, ogen;
 	int i;
 	time_t t;
@@ -507,7 +507,7 @@ tc_windup(void)
 	 * to the goddess of code clarity.
 	 *
 	 */
-	scale = (u_int64_t)1 << 63;
+	scale = (uint64_t)1 << 63;
 	scale += (th->th_adjustment / 1024) * 2199;
 	scale /= th->th_counter->tc_frequency;
 	th->th_scale = scale * 2;
@@ -734,7 +734,7 @@ pps_event(struct pps_state *pps, int event)
 	}
 #ifdef PPS_SYNC
 	if (fhard) {
-		u_int64_t scale;
+		uint64_t scale;
 
 		/*
 		 * Feed the NTP PLL/FLL.
@@ -744,7 +744,7 @@ pps_event(struct pps_state *pps, int event)
 		tcount = pps->capcount - pps->ppscount[2];
 		pps->ppscount[2] = pps->capcount;
 		tcount &= pps->capth->th_counter->tc_counter_mask;
-		scale = (u_int64_t)1 << 63;
+		scale = (uint64_t)1 << 63;
 		scale /= pps->capth->th_counter->tc_frequency;
 		scale *= 2;
 		bt.sec = 0;
