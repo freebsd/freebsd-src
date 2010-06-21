@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #define	RTC_LOCK	mtx_lock_spin(&clock_lock)
 #define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
 
+int	atrtcclock_disable = 0;
+
 static	int	rtc_reg = -1;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR;
@@ -267,6 +269,7 @@ atrtc_attach(device_t dev)
 	clock_register(dev, 1000000);
 	bzero(&sc->et, sizeof(struct eventtimer));
 	if (haveirq &&
+	    !atrtcclock_disable &&
 	    (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	     "clock", &i) != 0 || i != 0)) {
 		sc->et.et_name = "RTC";
