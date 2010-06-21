@@ -39,7 +39,6 @@
 #define	G_TYPE_STRING	0x02
 #define	G_TYPE_NUMBER	0x03
 #define	G_TYPE_ASCNUM	0x04
-#define	G_TYPE_ASCLBA	0x05
 #define	G_TYPE_MASK	0x0f
 #define	G_TYPE_DONE	0x10
 
