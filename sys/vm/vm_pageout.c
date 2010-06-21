@@ -320,7 +320,7 @@ static int
 vm_pageout_clean(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t mc[2*vm_pageout_page_count];
+	vm_page_t mc[2*vm_pageout_page_count], pb, ps;
 	int pageout_count;
 	int ib, is, page_base;
 	vm_pindex_t pindex = m->pindex;
@@ -347,7 +347,7 @@ vm_pageout_clean(vm_page_t m)
 		return 0;
 	}
 
-	mc[vm_pageout_page_count] = m;
+	mc[vm_pageout_page_count] = pb = ps = m;
 	pageout_count = 1;
 	page_base = vm_pageout_page_count;
 	ib = 1;
@@ -382,11 +382,8 @@ more:
 			break;
 		}
 
-		if ((p = vm_page_lookup(object, pindex - ib)) == NULL) {
-			ib = 0;
-			break;
-		}
-		if ((p->oflags & VPO_BUSY) || p->busy) {
+		if ((p = vm_page_prev(pb)) == NULL ||
+		    (p->oflags & VPO_BUSY) != 0 || p->busy != 0) {
 			ib = 0;
 			break;
 		}
@@ -400,7 +397,7 @@ more:
 			break;
 		}
 		vm_page_unlock(p);
-		mc[--page_base] = p;
+		mc[--page_base] = pb = p;
 		++pageout_count;
 		++ib;
 		/*
@@ -415,11 +412,9 @@ more:
 	    pindex + is < object->size) {
 		vm_page_t p;
 
-		if ((p = vm_page_lookup(object, pindex + is)) == NULL)
+		if ((p = vm_page_next(ps)) == NULL ||
+		    (p->oflags & VPO_BUSY) != 0 || p->busy != 0)
 			break;
-		if ((p->oflags & VPO_BUSY) || p->busy) {
-			break;
-		}
 		vm_page_lock(p);
 		vm_page_test_dirty(p);
 		if (p->dirty == 0 ||
@@ -429,7 +424,7 @@ more:
 			break;
 		}
 		vm_page_unlock(p);
-		mc[page_base + pageout_count] = p;
+		mc[page_base + pageout_count] = ps = p;
 		++pageout_count;
 		++is;
 	}
