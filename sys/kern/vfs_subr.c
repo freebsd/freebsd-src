@@ -498,7 +498,7 @@ vfs_suser(struct mount *mp, struct thread *td)
 void
 vfs_getnewfsid(struct mount *mp)
 {
-	static u_int16_t mntid_base;
+	static uint16_t mntid_base;
 	struct mount *nmp;
 	fsid_t tfsid;
 	int mtype;
@@ -4018,7 +4018,7 @@ vfs_event_init(void *arg)
 SYSINIT(vfs_knlist, SI_SUB_VFS, SI_ORDER_ANY, vfs_event_init, NULL);
 
 void
-vfs_event_signal(fsid_t *fsid, u_int32_t event, intptr_t data __unused)
+vfs_event_signal(fsid_t *fsid, uint32_t event, intptr_t data __unused)
 {
 
 	KNOTE_UNLOCKED(&fs_knlist, event);

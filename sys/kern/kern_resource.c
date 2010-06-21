@@ -851,7 +851,7 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
     struct timeval *sp)
 {
 	/* {user, system, interrupt, total} {ticks, usec}: */
-	u_int64_t ut, uu, st, su, it, tt, tu;
+	uint64_t ut, uu, st, su, it, tt, tu;
 
 	ut = ruxp->rux_uticks;
 	st = ruxp->rux_sticks;
