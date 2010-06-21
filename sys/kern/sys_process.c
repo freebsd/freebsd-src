@@ -67,9 +67,9 @@ __FBSDID("$FreeBSD$");
 
 struct ptrace_io_desc32 {
 	int		piod_op;
-	u_int32_t	piod_offs;
-	u_int32_t	piod_addr;
-	u_int32_t	piod_len;
+	uint32_t	piod_offs;
+	uint32_t	piod_addr;
+	uint32_t	piod_len;
 };
 
 struct ptrace_vm_entry32 {
