@@ -32,6 +32,32 @@
 
 /* Stash the tar linkname in static storage.  */
 
+#undef FROM_OCTAL
+#define FROM_OCTAL(f)	tar_otoa(f, sizeof f)
+
+/* Convert the string of octal digits S into a number.
+ * Converted from GNU cpio 2.6 sources in
+ * order to fix tar breakage caused by using
+ * from_ascii.
+ */
+static unsigned long
+tar_otoa(const char *where, size_t digs)
+{
+  const char *s = where;
+  const char *end = s + digs;
+  unsigned long val = 0;
+
+  while (s < end && *s == ' ')
+    ++s;
+  while (s < end && *s >= '0' && *s <= '7')
+    val = 8 * val + *s++ - '0';
+  while (s < end && (*s == ' ' || *s == '\0'))
+    ++s;
+  if (s < end)
+	  error (0, 0, _("Malformed number %.*s"), digs, where);
+  return val;
+}
+
 static char *
 stash_tar_linkname (char *linkname)
 {
