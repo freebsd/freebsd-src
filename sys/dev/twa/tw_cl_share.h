@@ -76,7 +76,7 @@
  * of supporting only 255, since we want to keep one CL internal request
  * context packet always available for internal requests.
  */
-#define TW_CL_MAX_SIMULTANEOUS_REQUESTS	0xFF	/* max simult reqs supported */
+#define TW_CL_MAX_SIMULTANEOUS_REQUESTS	256	/* max simult reqs supported */
 
 #define TW_CL_MAX_32BIT_SG_ELEMENTS	109	/* max 32-bit sg elements */
 #define TW_CL_MAX_64BIT_SG_ELEMENTS	72	/* max 64-bit sg elements */
@@ -144,6 +144,7 @@ struct tw_cl_ctlr_handle {
 struct tw_cl_req_handle {
 	TW_VOID	*osl_req_ctxt;	/* OSL's request context */
 	TW_VOID	*cl_req_ctxt;	/* CL's request context */
+	TW_UINT8 is_io;		/* Only freeze/release simq for IOs */
 };
 
 
@@ -353,12 +354,6 @@ extern TW_VOID	tw_osl_ctlr_busy(struct tw_cl_ctlr_handle *ctlr_handle,
 #endif
 
 
-#ifndef tw_osl_ctlr_ready
-/* Called on cmd interrupt.  Allows re-submission of any pending requests. */
-extern TW_VOID	tw_osl_ctlr_ready(struct tw_cl_ctlr_handle *ctlr_handle);
-#endif
-
-
 #ifndef tw_osl_cur_func
 /* Text name of current function. */
 extern TW_INT8	*tw_osl_cur_func(TW_VOID);
@@ -526,10 +521,6 @@ extern TW_VOID tw_cl_create_event(struct tw_cl_ctlr_handle *ctlr_handle,
 
 /* Indicates whether a ctlr is supported by CL. */
 extern TW_INT32	tw_cl_ctlr_supported(TW_INT32 vendor_id, TW_INT32 device_id);
-
-
-/* Deferred interrupt handler. */
-extern TW_VOID	tw_cl_deferred_interrupt(struct tw_cl_ctlr_handle *ctlr_handle);
 
 
 /* Submit a firmware cmd packet. */
