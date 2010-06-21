@@ -2953,7 +2953,8 @@ sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	int new_val;
-	
+
+	new_val = num_cores;
 	error = sysctl_handle_int(oidp, &new_val, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
