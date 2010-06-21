@@ -138,7 +138,7 @@ _libsdp=	libsdp
 _libbsnmp=	libbsnmp
 .endif
 
-.if ${MK_CLANG} != "no"
+.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
 _clang=		clang
 .endif
 
