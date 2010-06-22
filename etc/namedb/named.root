@@ -13,8 +13,8 @@
 ;           on server           FTP.INTERNIC.NET
 ;       -OR-                    RS.INTERNIC.NET
 ;
-;       last update:    Dec 12, 2008
-;       related version of root zone:   2008121200
+;       last update:    Jun 17, 2010
+;       related version of root zone:   2010061700
 ;
 ; formerly NS.INTERNIC.NET
 ;
@@ -63,6 +63,7 @@ H.ROOT-SERVERS.NET.      3600000      AAAA  2001:500:1::803F:235
 ;
 .                        3600000      NS    I.ROOT-SERVERS.NET.
 I.ROOT-SERVERS.NET.      3600000      A     192.36.148.17
+I.ROOT-SERVERS.NET.      3600000      AAAA  2001:7FE::53
 ;
 ; OPERATED BY VERISIGN, INC.
 ;
