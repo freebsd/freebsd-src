@@ -893,7 +893,7 @@ struct scsi_target_group
 	uint8_t service_action;
 #define	STG_PDF_LENGTH		0x00
 #define	RPL_PDF_EXTENDED	0x20
-	uint8_t reserved1[3];
+	uint8_t reserved1[4];
 	uint8_t length[4];
 	uint8_t reserved2;
 	uint8_t control;
