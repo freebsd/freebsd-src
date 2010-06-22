@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Poul-Henning Kamp
+ * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,11 +73,13 @@ struct hpet_softc {
 	int			intr_rid;
 	int			irq;
 	int			useirq;
+	int			legacy_route;
 	struct resource		*mem_res;
 	struct resource		*intr_res;
 	void			*intr_handle;
 	ACPI_HANDLE		handle;
 	uint64_t		freq;
+	uint32_t		caps;
 	struct timecounter	tc;
 	struct hpet_timer {
 		struct eventtimer	et;
@@ -118,7 +121,10 @@ hpet_enable(struct hpet_softc *sc)
 	uint32_t val;
 
 	val = bus_read_4(sc->mem_res, HPET_CONFIG);
-	val &= ~HPET_CNF_LEG_RT;
+	if (sc->legacy_route)
+		val |= HPET_CNF_LEG_RT;
+	else
+		val &= ~HPET_CNF_LEG_RT;
 	val |= HPET_CNF_ENABLE;
 	bus_write_4(sc->mem_res, HPET_CONFIG, val);
 }
@@ -352,10 +358,10 @@ hpet_attach(device_t dev)
 	}
 
 	sc->freq = (1000000000000000LL + val / 2) / val;
-	val = bus_read_4(sc->mem_res, HPET_CAPABILITIES);
-	vendor = (val & HPET_CAP_VENDOR_ID) >> 16;
-	rev = val & HPET_CAP_REV_ID;
-	num_timers = 1 + ((val & HPET_CAP_NUM_TIM) >> 8);
+	sc->caps = bus_read_4(sc->mem_res, HPET_CAPABILITIES);
+	vendor = (sc->caps & HPET_CAP_VENDOR_ID) >> 16;
+	rev = sc->caps & HPET_CAP_REV_ID;
+	num_timers = 1 + ((sc->caps & HPET_CAP_NUM_TIM) >> 8);
 	/*
 	 * ATI/AMD violates IA-PC HPET (High Precision Event Timers)
 	 * Specification and provides an off by one number
@@ -368,11 +374,11 @@ hpet_attach(device_t dev)
 	if (bootverbose) {
 		device_printf(dev,
 		    "vendor 0x%x, rev 0x%x, %jdHz%s, %d timers,%s\n",
-		    vendor, rev,
-		    sc->freq, (val & HPET_CAP_COUNT_SIZE) ? " 64bit" : "",
-		    num_timers, (val & HPET_CAP_LEG_RT) ? " legacy route" : "");
+		    vendor, rev, sc->freq,
+		    (sc->caps & HPET_CAP_COUNT_SIZE) ? " 64bit" : "",
+		    num_timers,
+		    (sc->caps & HPET_CAP_LEG_RT) ? " legacy route" : "");
 	}
-	num_msi = 0;
 	for (i = 0; i < num_timers; i++) {
 		t = &sc->t[i];
 		t->sc = sc;
@@ -391,10 +397,6 @@ hpet_attach(device_t dev)
 			    (t->caps & HPET_TCAP_SIZE) ? ", 64bit" : "",
 			    (t->caps & HPET_TCAP_PER_INT) ? ", periodic" : "");
 		}
-#ifdef DEV_APIC
-		if (t->caps & HPET_TCAP_FSB_INT_DEL)
-			num_msi++;
-#endif
 	}
 	if (testenv("debug.acpi.hpet_test"))
 		hpet_test(sc);
@@ -425,10 +427,20 @@ hpet_attach(device_t dev)
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	     "clock", &i) == 0 && i == 0)
 	        return (0);
-	num_percpu_et = min(num_msi / mp_ncpus, 2);
-	num_percpu_t = num_percpu_et * mp_ncpus;
-	cur_cpu = CPU_FIRST();
-	pcpu_master = 0;
+
+	/* Check whether we can and want legacy routing. */
+	sc->legacy_route = 0;
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	     "legacy_route", &sc->legacy_route);
+	if ((sc->caps & HPET_CAP_LEG_RT) == 0)
+		sc->legacy_route = 0;
+	if (sc->legacy_route) {
+		sc->t[0].vectors = 0;
+		sc->t[1].vectors = 0;
+	}
+
+	num_msi = 0;
+	sc->useirq = 0;
 	/* Find common legacy IRQ vectors for all timers. */
 	cvectors = 0xffff0000;
 	/*
@@ -440,45 +452,65 @@ hpet_attach(device_t dev)
 	 */
 	if (vendor == HPET_VENDID_AMD)
 		cvectors = 0x00000000;
-	sc->useirq = 0;
 	for (i = 0; i < num_timers; i++) {
 		t = &sc->t[i];
+		if (sc->legacy_route && i < 2)
+			t->irq = (i == 0) ? 0 : 8;
 #ifdef DEV_APIC
-		if (t->caps & HPET_TCAP_FSB_INT_DEL) {
+		else if (t->caps & HPET_TCAP_FSB_INT_DEL) {
 			if ((j = PCIB_ALLOC_MSIX(
 			    device_get_parent(device_get_parent(dev)), dev,
 			    &t->irq))) {
 				device_printf(dev,
-				    "Can't allocate interrupt: %d.\n", j);
-			} else if (!(t->intr_res =
+				    "Can't allocate interrupt for t%d.\n", j);
+			}
+		}
+#endif
+		if (t->irq >= 0) {
+			if (!(t->intr_res =
 			    bus_alloc_resource(dev, SYS_RES_IRQ, &t->intr_rid,
-			    t->irq, t->irq, 1, RF_SHAREABLE | RF_ACTIVE))) {
-				device_printf(dev, "Can't map interrupt.\n");
+			    t->irq, t->irq, 1, RF_ACTIVE))) {
+				t->irq = -1;
+				device_printf(dev,
+				    "Can't map interrupt for t%d.\n", i);
 			} else if ((bus_setup_intr(dev, t->intr_res,
 			    INTR_MPSAFE | INTR_TYPE_CLK,
 			    (driver_filter_t *)hpet_intr_single, NULL,
 			    t, &t->intr_handle))) {
-				device_printf(dev, "Can't setup interrupt.\n");
+				t->irq = -1;
+				device_printf(dev,
+				    "Can't setup interrupt for t%d.\n", i);
 			} else {
 				bus_describe_intr(dev, t->intr_res,
 				    t->intr_handle, "t%d", i);
 				num_msi++;
-				if (num_percpu_t > 0) {
-					if (cur_cpu == CPU_FIRST())
-						pcpu_master = i;
-					t->pcpu_master = pcpu_master;
-					sc->t[pcpu_master].
-					    pcpu_slaves[cur_cpu] = i;
-					bus_bind_intr(dev, t->intr_res, cur_cpu);
-					cur_cpu = CPU_NEXT(cur_cpu);
-					num_percpu_t--;
-				}
 			}
-		} else
-#endif
-		if ((cvectors & t->vectors) != 0) {
+		}
+		if (t->irq < 0 && (cvectors & t->vectors) != 0) {
 			cvectors &= t->vectors;
 			sc->useirq |= (1 << i);
+		}
+	}
+	if (sc->legacy_route && sc->t[0].irq < 0 && sc->t[1].irq < 0)
+		sc->legacy_route = 0;
+	if (sc->legacy_route)
+		hpet_enable(sc);
+	/* Group timers for per-CPU operation. */
+	num_percpu_et = min(num_msi / mp_ncpus, 2);
+	num_percpu_t = num_percpu_et * mp_ncpus;
+	pcpu_master = 0;
+	cur_cpu = CPU_FIRST();
+	for (i = 0; i < num_timers; i++) {
+		t = &sc->t[i];
+		if (t->irq >= 0 && num_percpu_t > 0) {
+			if (cur_cpu == CPU_FIRST())
+				pcpu_master = i;
+			t->pcpu_master = pcpu_master;
+			sc->t[pcpu_master].
+			    pcpu_slaves[cur_cpu] = i;
+			bus_bind_intr(dev, t->intr_res, cur_cpu);
+			cur_cpu = CPU_NEXT(cur_cpu);
+			num_percpu_t--;
 		}
 	}
 	bus_write_4(sc->mem_res, HPET_ISR, 0xffffffff);
@@ -508,7 +540,11 @@ hpet_attach(device_t dev)
 		t = &sc->t[i];
 		t->caps &= ~(HPET_TCNF_FSB_EN | HPET_TCNF_INT_ROUTE);
 		t->caps &= ~(HPET_TCNF_VAL_SET | HPET_TCNF_INT_ENB);
+		t->caps &= ~(HPET_TCNF_INT_TYPE);
 		t->caps |= HPET_TCNF_32MODE;
+		if (t->irq >= 0 && sc->legacy_route && i < 2) {
+			/* Legacy route doesn't need more configuration. */
+		} else
 #ifdef DEV_APIC
 		if (t->irq >= 0) {
 			uint64_t addr;
@@ -599,7 +635,7 @@ hpet_resume(device_t dev)
 	for (i = 0; i < sc->num_timers; i++) {
 		t = &sc->t[i];
 #ifdef DEV_APIC
-		if (t->irq >= 0) {
+		if (t->irq >= 0 && (sc->legacy_route == 0 || i >= 2)) {
 			uint64_t addr;
 			uint32_t data;	
 			
