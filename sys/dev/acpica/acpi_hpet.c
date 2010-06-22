@@ -526,6 +526,7 @@ hpet_attach(device_t dev)
 				t->irq = -2;
 		} else
 #endif
+		if (sc->irq >= 0 && (t->vectors & (1 << sc->irq)))
 			t->caps |= (sc->irq << 9) | HPET_TCNF_INT_TYPE;
 		bus_write_4(sc->mem_res, HPET_TIMER_CAP_CNF(i), t->caps);
 		/* Skip event timers without set up IRQ. */
