@@ -29,6 +29,7 @@
 #define	_LINUX_NETDEVICE_H_
 
 #include <sys/socket.h>
+#include <sys/types.h>
 
 #include <net/if_types.h>
 #include <net/if.h>
@@ -40,6 +41,7 @@
 #include <linux/ethtool.h>
 #include <linux/workqueue.h>
 #include <linux/net.h>
+#include <linux/notifier.h>
 
 struct net {
 };

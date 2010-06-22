@@ -28,7 +28,11 @@
 #ifndef	_LINUX_BITOPS_H_
 #define	_LINUX_BITOPS_H_
 
-#define	BITS_PER_LONG		(sizeof(long) * 8)
+#ifdef __LP64__
+#define	BITS_PER_LONG		64
+#else
+#define	BITS_PER_LONG		32
+#endif
 #define	BIT_MASK(n)		(~0UL >> (BITS_PER_LONG - (n)))
 #define	BITS_TO_LONGS(n)	roundup2((n), BITS_PER_LONG)
 

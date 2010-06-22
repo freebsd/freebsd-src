@@ -25,56 +25,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef	_LINUX_KERNEL_H_
-#define	_LINUX_KERNEL_H_
 
-#include <sys/systm.h>
-#include <sys/param.h>
-#include <sys/libkern.h>
-#include <sys/stat.h>
+#ifndef	_LINUX_IO_H_
+#define	_LINUX_IO_H_
 
-#include <linux/bitops.h>
-#include <linux/compiler.h>
-#include <linux/errno.h>
-#include <linux/stddef.h>
-#include <linux/kthread.h>
-#include <linux/types.h>
-#include <linux/jiffies.h>
-#include <linux/wait.h>
-#include <linux/fs.h>
-#include <linux/notifier.h>
-#include <linux/log2.h>
-#include <asm/byteorder.h>
+static inline uint64_t
+__raw_readq(const volatile void *addr)
+{
+	return *(const volatile uint64_t *)addr;
+}
 
-#define BUG()				panic("BUG")
-#define BUG_ON(condition)		do { if (condition) BUG(); } while(0)
+static inline void
+__raw_writeq(uint64_t b, volatile void *addr)
+{
+	*(volatile uint64_t *)addr = b;
+}
 
-#undef	ALIGN
-#define	ALIGN(x, y)			roundup2((x), (y))
-
-#define	printk(X...)			printf(X)
-#define udelay(t)       		DELAY(t)
-
-#define container_of(ptr, type, member)				\
-({								\
-	__typeof(((type *)0)->member) *_p = (ptr);		\
-	(type *)((char *)_p - offsetof(type, member));		\
-})
-  
-#define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-
-#define	KERN_EMERG	"<0>"
-#define	KERN_ALERT	"<1>"
-#define	KERN_CRIT	"<2>"
-#define	KERN_ERR	"<3>"
-#define	KERN_WARNING	"<4>"
-#define	KERN_NOTICE	"<5>"
-#define	KERN_INFO	"<6>"
-#define	KERN_DEBUG	"<7>"
-
-#define	simple_strtoul	strtoul
-
-#define min_t(type, _x, _y)	(type)(_x) < (type)(_y) ? (type)(_x) : (_y)
-#define max_t(type, _x, _y)	(type)(_x) > (type)(_y) ? (type)(_x) : (_y)
-
-#endif	/* _LINUX_KERNEL_H_ */
+#endif	/* _LINUX_IO_H_ */
