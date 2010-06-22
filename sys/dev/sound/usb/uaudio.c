@@ -507,8 +507,8 @@ static const struct usb_config
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = UMIDI_BULK_SIZE,
-		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 4,	/* bytes */
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.proxy_buffer = 1,},
 		.callback = &umidi_bulk_read_callback,
 	},
 
@@ -3366,10 +3366,6 @@ umidi_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTF("actlen=%d bytes\n", actlen);
 
-		if (actlen == 0) {
-			/* should not happen */
-			goto tr_error;
-		}
 		pos = 0;
 		pc = usbd_xfer_get_frame(xfer, 0);
 
@@ -3404,8 +3400,6 @@ umidi_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		return;
 
 	default:
-tr_error:
-
 		DPRINTF("error=%s\n", usbd_errstr(error));
 
 		if (error != USB_ERR_CANCELLED) {
