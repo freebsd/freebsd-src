@@ -37,12 +37,15 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 
+#include <setjmp.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <libufs.h>
 #include <string.h>
 #include <strings.h>
+#include <sysexits.h>
 #include <err.h>
 #include <assert.h>
 
@@ -141,7 +144,10 @@ uint64_t freedir;
 uint64_t jbytes;
 uint64_t jrecs;
 
+static jmp_buf	jmpbuf;
+
 typedef void (*ino_visitor)(ino_t, ufs_lbn_t, ufs2_daddr_t, int);
+static void err_suj(const char *, ...) __dead2;
 static void ino_trunc(ino_t, off_t);
 static void ino_decr(ino_t);
 static void ino_adjust(struct suj_ino *);
@@ -155,8 +161,27 @@ errmalloc(size_t n)
 
 	a = malloc(n);
 	if (a == NULL)
-		errx(1, "malloc(%zu)", n);
+		err(EX_OSERR, "malloc(%zu)", n);
 	return (a);
+}
+
+/*
+ * When hit a fatal error in journalling check, print out
+ * the error and then offer to fallback to normal fsck.
+ */
+static void
+err_suj(const char * restrict fmt, ...)
+{
+	va_list ap;
+
+	if (preen)
+		(void)fprintf(stdout, "%s: ", cdevname);
+
+	va_start(ap, fmt);
+	(void)vfprintf(stdout, fmt, ap);
+	va_end(ap);
+
+	longjmp(jmpbuf, -1);
 }
 
 /*
@@ -169,9 +194,9 @@ opendisk(const char *devnam)
 		return;
 	disk = malloc(sizeof(*disk));
 	if (disk == NULL)
-		errx(1, "malloc(%zu)", sizeof(*disk));
+		err(EX_OSERR, "malloc(%zu)", sizeof(*disk));
 	if (ufs_disk_fillout(disk, devnam) == -1) {
-		err(1, "ufs_disk_fillout(%s) failed: %s", devnam,
+		err(EX_OSERR, "ufs_disk_fillout(%s) failed: %s", devnam,
 		    disk->d_error);
 	}
 	fs = &disk->d_fs;
@@ -203,9 +228,9 @@ closedisk(const char *devnam)
 	fs->fs_time = time(NULL);
 	fs->fs_mtime = time(NULL);
 	if (sbwrite(disk, 0) == -1)
-		err(1, "sbwrite(%s)", devnam);
+		err(EX_OSERR, "sbwrite(%s)", devnam);
 	if (ufs_disk_close(disk) == -1)
-		err(1, "ufs_disk_close(%s)", devnam);
+		err(EX_OSERR, "ufs_disk_close(%s)", devnam);
 	free(disk);
 	disk = NULL;
 	fs = NULL;
@@ -221,10 +246,8 @@ cg_lookup(int cgx)
 	struct cghd *hd;
 	struct suj_cg *sc;
 
-	if (cgx < 0 || cgx >= fs->fs_ncg) {
-		abort();
-		errx(1, "Bad cg number %d", cgx);
-	}
+	if (cgx < 0 || cgx >= fs->fs_ncg)
+		err_suj("Bad cg number %d\n", cgx);
 	if (lastcg && lastcg->sc_cgx == cgx)
 		return (lastcg);
 	hd = &cghash[SUJ_HASH(cgx)];
@@ -241,7 +264,7 @@ cg_lookup(int cgx)
 	LIST_INSERT_HEAD(hd, sc, sc_next);
 	if (bread(disk, fsbtodb(fs, cgtod(fs, sc->sc_cgx)), sc->sc_cgbuf,
 	    fs->fs_bsize) == -1)
-		err(1, "Unable to read cylinder group %d", sc->sc_cgx);
+		err_suj("Unable to read cylinder group %d\n", sc->sc_cgx);
 
 	return (sc);
 }
@@ -344,7 +367,7 @@ dblk_read(ufs2_daddr_t blk, int size)
 		dblk->db_buf = errmalloc(size);
 		dblk->db_size = size;
 		if (bread(disk, fsbtodb(fs, blk), dblk->db_buf, size) == -1)
-			err(1, "Failed to read data block %jd", blk);
+			err_suj("Failed to read data block %jd\n", blk);
 	}
 	return (dblk->db_buf);
 }
@@ -370,7 +393,7 @@ dblk_write(void)
 				continue;
 			if (bwrite(disk, fsbtodb(fs, dblk->db_blk),
 			    dblk->db_buf, dblk->db_size) == -1)
-				err(1, "Unable to write block %jd",
+				err_suj("Unable to write block %jd\n",
 				    dblk->db_blk);
 		}
 	}
@@ -403,7 +426,7 @@ ino_read(ino_t ino)
 	iblk->ib_blk = blk;
 	LIST_INSERT_HEAD(hd, iblk, ib_next);
 	if (bread(disk, fsbtodb(fs, blk), iblk->ib_buf, fs->fs_bsize) == -1)
-		err(1, "Failed to read inode block %jd", blk);
+		err_suj("Failed to read inode block %jd\n", blk);
 found:
 	sc->sc_lastiblk = iblk;
 	off = ino_to_fsbo(fs, ino);
@@ -447,7 +470,7 @@ iblk_write(struct ino_blk *iblk)
 		return;
 	if (bwrite(disk, fsbtodb(fs, iblk->ib_blk), iblk->ib_buf,
 	    fs->fs_bsize) == -1)
-		err(1, "Failed to write inode block %jd", iblk->ib_blk);
+		err_suj("Failed to write inode block %jd\n", iblk->ib_blk);
 }
 
 static int
@@ -679,9 +702,9 @@ indir_blkatoff(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t cur, ufs_lbn_t lbn)
 		return (0);
 	level = lbn_level(cur);
 	if (level == -1)
-		errx(1, "Invalid indir lbn %jd", lbn);
+		err_suj("Invalid indir lbn %jd\n", lbn);
 	if (level == 0 && lbn < 0)
-		errx(1, "Invalid lbn %jd", lbn);
+		err_suj("Invalid lbn %jd\n", lbn);
 	bap2 = (void *)dblk_read(blk, fs->fs_bsize);
 	bap1 = (void *)bap2;
 	lbnadd = 1;
@@ -693,7 +716,7 @@ indir_blkatoff(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t cur, ufs_lbn_t lbn)
 	else
 		i = (-lbn - base) / lbnadd;
 	if (i < 0 || i >= NINDIR(fs))
-		errx(1, "Invalid indirect index %d produced by lbn %jd",
+		err_suj("Invalid indirect index %d produced by lbn %jd\n",
 		    i, lbn);
 	if (level == 0)
 		cur = base + (i * lbnadd);
@@ -705,10 +728,8 @@ indir_blkatoff(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t cur, ufs_lbn_t lbn)
 		blk = bap2[i];
 	if (cur == lbn)
 		return (blk);
-	if (level == 0) {
-		abort();
-		errx(1, "Invalid lbn %jd at level 0", lbn);
-	}
+	if (level == 0)
+		err_suj("Invalid lbn %jd at level 0\n", lbn);
 	return indir_blkatoff(blk, ino, cur, lbn);
 }
 
@@ -762,7 +783,8 @@ ino_blkatoff(union dinode *ip, ino_t ino, ufs_lbn_t lbn, int *frags)
 			continue;
 		return indir_blkatoff(DIP(ip, di_ib[i]), ino, -cur - i, lbn);
 	}
-	errx(1, "lbn %jd not in ino", lbn);
+	err_suj("lbn %jd not in ino\n", lbn);
+	/* NOTREACHED */
 }
 
 /*
@@ -851,7 +873,7 @@ ino_isat(ino_t parent, off_t diroff, ino_t child, int *mode, int *isdot)
 		dpoff += dp->d_reclen;
 	} while (dpoff <= doff);
 	if (dpoff > fs->fs_bsize)
-		errx(1, "Corrupt directory block in dir ino %d", parent);
+		err_suj("Corrupt directory block in dir ino %d\n", parent);
 	/* Not found. */
 	if (dpoff != doff) {
 		if (debug)
@@ -907,7 +929,7 @@ indir_visit(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, uint64_t *frags,
 		return;
 	level = lbn_level(lbn);
 	if (level == -1)
-		errx(1, "Invalid level for lbn %jd", lbn);
+		err_suj("Invalid level for lbn %jd\n", lbn);
 	if ((flags & VISIT_ROOT) == 0 && blk_isindir(blk, ino, lbn) == 0) {
 		if (debug)
 			printf("blk %jd ino %d lbn %jd(%d) is not indir.\n",
@@ -1203,7 +1225,7 @@ ino_reclaim(union dinode *ip, ino_t ino, int mode)
 	uint32_t gen;
 
 	if (ino == ROOTINO)
-		errx(1, "Attempting to free ROOTINO");
+		err_suj("Attempting to free ROOTINO\n");
 	if (debug)
 		printf("Truncating and freeing ino %d, nlink %d, mode %o\n",
 		    ino, DIP(ip, di_nlink), DIP(ip, di_mode));
@@ -1240,9 +1262,9 @@ ino_decr(ino_t ino)
 	nlink = DIP(ip, di_nlink);
 	mode = DIP(ip, di_mode);
 	if (nlink < 1)
-		errx(1, "Inode %d link count %d invalid", ino, nlink);
+		err_suj("Inode %d link count %d invalid\n", ino, nlink);
 	if (mode == 0)
-		errx(1, "Inode %d has a link of %d with 0 mode.", ino, nlink);
+		err_suj("Inode %d has a link of %d with 0 mode\n", ino, nlink);
 	nlink--;
 	if ((mode & IFMT) == IFDIR)
 		reqlink = 2;
@@ -1300,8 +1322,8 @@ ino_adjust(struct suj_ino *sino)
 	ip = ino_read(ino);
 	mode = DIP(ip, di_mode) & IFMT;
 	if (nlink > LINK_MAX)
-		errx(1,
-		    "ino %d nlink manipulation error, new link %d, old link %d",
+		err_suj(
+		    "ino %d nlink manipulation error, new link %d, old link %d\n",
 		    ino, nlink, DIP(ip, di_nlink));
 	if (debug)
 		printf("Adjusting ino %d, nlink %d, old link %d lastmode %o\n",
@@ -1359,7 +1381,7 @@ indir_trunc(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, ufs_lbn_t lastlbn)
 	dirty = 0;
 	level = lbn_level(lbn);
 	if (level == -1)
-		errx(1, "Invalid level for lbn %jd", lbn);
+		err_suj("Invalid level for lbn %jd\n", lbn);
 	lbnadd = 1;
 	for (i = level; i > 0; i--)
 		lbnadd *= NINDIR(fs);
@@ -1488,7 +1510,7 @@ ino_trunc(ino_t ino, off_t size)
 
 		bn = DIP(ip, di_db[visitlbn]);
 		if (bn == 0)
-			errx(1, "Bad blk at ino %d lbn %jd\n", ino, visitlbn);
+			err_suj("Bad blk at ino %d lbn %jd\n", ino, visitlbn);
 		oldspace = sblksize(fs, cursize, visitlbn);
 		newspace = sblksize(fs, size, visitlbn);
 		if (oldspace != newspace) {
@@ -1512,7 +1534,7 @@ ino_trunc(ino_t ino, off_t size)
 
 		bn = ino_blkatoff(ip, ino, visitlbn, &frags);
 		if (bn == 0)
-			errx(1, "Block missing from ino %d at lbn %jd\n",
+			err_suj("Block missing from ino %d at lbn %jd\n",
 			    ino, visitlbn);
 		clrsize = frags * fs->fs_fsize;
 		buf = dblk_read(bn, clrsize);
@@ -1555,7 +1577,7 @@ ino_check(struct suj_ino *sino)
 		isat = ino_isat(rrec->jr_parent, rrec->jr_diroff, 
 		    rrec->jr_ino, &mode, &isdot);
 		if (isat && (mode & IFMT) != (rrec->jr_mode & IFMT))
-			errx(1, "Inode mode/directory type mismatch %o != %o",
+			err_suj("Inode mode/directory type mismatch %o != %o\n",
 			    mode, rrec->jr_mode);
 		if (debug)
 			printf("jrefrec: op %d ino %d, nlink %d, parent %d, "
@@ -1778,7 +1800,7 @@ cg_write(struct suj_cg *sc)
 	fs->fs_cs(fs, sc->sc_cgx) = cgp->cg_cs;
 	if (bwrite(disk, fsbtodb(fs, cgtod(fs, sc->sc_cgx)), sc->sc_cgbuf,
 	    fs->fs_bsize) == -1)
-		err(1, "Unable to write cylinder group %d", sc->sc_cgx);
+		err_suj("Unable to write cylinder group %d\n", sc->sc_cgx);
 }
 
 /*
@@ -1970,6 +1992,7 @@ ino_build_ref(struct suj_ino *sino, struct suj_rec *srec)
 				continue;
 			diroff = mvrec->jm_oldoff;
 			TAILQ_REMOVE(&sino->si_movs, srn, sr_next);
+			free(srn);
 			ino_dup_ref(sino, refrec, diroff);
 		}
 	}
@@ -2026,7 +2049,7 @@ ino_build_ref(struct suj_ino *sino, struct suj_rec *srec)
 			TAILQ_REMOVE(&sino->si_newrecs, srn, sr_next);
 			break;
 		default:
-			errx(1, "ino_build_ref: Unknown op %d",
+			err_suj("ino_build_ref: Unknown op %d\n",
 			    srn->sr_rec->rec_jrefrec.jr_op);
 		}
 	}
@@ -2056,7 +2079,7 @@ ino_build(struct suj_ino *sino)
 			TAILQ_INSERT_TAIL(&sino->si_movs, srec, sr_next);
 			break;
 		default:
-			errx(1, "ino_build: Unknown op %d",
+			err_suj("ino_build: Unknown op %d\n",
 			    srec->sr_rec->rec_jrefrec.jr_op);
 		}
 	}
@@ -2107,7 +2130,7 @@ blk_build(struct jblkrec *blkrec)
 	blkrec->jb_blkno -= frag;
 	blkrec->jb_oldfrags = frag;
 	if (blkrec->jb_oldfrags + blkrec->jb_frags > fs->fs_frag)
-		errx(1, "Invalid fragment count %d oldfrags %d",
+		err_suj("Invalid fragment count %d oldfrags %d\n",
 		    blkrec->jb_frags, frag);
 	/*
 	 * Detect dups.  If we detect a dup we always discard the oldest
@@ -2185,7 +2208,7 @@ suj_build(void)
 				ino_build_trunc((struct jtrncrec *)rec);
 				break;
 			default:
-				errx(1, "Unknown journal operation %d (%d)",
+				err_suj("Unknown journal operation %d (%d)\n",
 				    rec->rec_jrefrec.jr_op, off);
 			}
 			i++;
@@ -2233,9 +2256,10 @@ suj_prune(void)
 		newseq = seg->ss_rec.jsr_seq;
 		
 	}
-	if (newseq != oldseq)
-		errx(1, "Journal file sequence mismatch %jd != %jd",
+	if (newseq != oldseq) {
+		err_suj("Journal file sequence mismatch %jd != %jd\n",
 		    newseq, oldseq);
+	}
 	/*
 	 * The kernel may asynchronously write segments which can create
 	 * gaps in the sequence space.  Throw away any segments after the
@@ -2463,9 +2487,10 @@ restart:
 		/*
 		 * Read 1MB at a time and scan for records within this block.
 		 */
-		if (bread(disk, blk, &block, size) == -1)
-			err(1, "Error reading journal block %jd",
+		if (bread(disk, blk, &block, size) == -1) {
+			err_suj("Error reading journal block %jd\n",
 			    (intmax_t)blk);
+		}
 		for (rec = (void *)block; size; size -= recsize,
 		    rec = (struct jsegrec *)((uintptr_t)rec + recsize)) {
 			recsize = DEV_BSIZE;
@@ -2544,7 +2569,7 @@ suj_find(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 		return;
 	bytes = lfragtosize(fs, frags);
 	if (bread(disk, fsbtodb(fs, blk), block, bytes) <= 0)
-		err(1, "Failed to read ROOTINO directory block %jd", blk);
+		err_suj("Failed to read ROOTINO directory block %jd\n", blk);
 	for (off = 0; off < bytes; off += dp->d_reclen) {
 		dp = (struct direct *)&block[off];
 		if (dp->d_reclen == 0)
@@ -2569,17 +2594,43 @@ suj_check(const char *filesys)
 	union dinode *jip;
 	union dinode *ip;
 	uint64_t blocks;
+	int retval;
+	struct suj_seg *seg;
+	struct suj_seg *segn;
 
 	opendisk(filesys);
 	TAILQ_INIT(&allsegs);
+
+	/*
+	 * Set an exit point when SUJ check failed
+	 */
+	retval = setjmp(jmpbuf);
+	if (retval != 0) {
+		pwarn("UNEXPECTED SU+J INCONSISTENCY\n");
+		TAILQ_FOREACH_SAFE(seg, &allsegs, ss_next, segn) {
+			TAILQ_REMOVE(&allsegs, seg, ss_next);
+				free(seg->ss_blk);
+				free(seg);
+		}
+		if (reply("FALLBACK TO FULL FSCK") == 0) {
+			ckfini(0);
+			exit(EEXIT);
+		} else
+			return (-1);
+	}
+
 	/*
 	 * Find the journal inode.
 	 */
 	ip = ino_read(ROOTINO);
 	sujino = 0;
 	ino_visit(ip, ROOTINO, suj_find, 0);
-	if (sujino == 0)
-		errx(1, "Journal inode removed.  Use tunefs to re-create.");
+	if (sujino == 0) {
+		printf("Journal inode removed.  Use tunefs to re-create.\n");
+		sblock.fs_flags &= ~FS_SUJ;
+		sblock.fs_sujfree = 0;
+		return (-1);
+	}
 	/*
 	 * Fetch the journal inode and verify it.
 	 */
@@ -2595,8 +2646,10 @@ suj_check(const char *filesys)
 	    DIP(jip, di_size), sujino);
 	suj_jblocks = jblocks_create();
 	blocks = ino_visit(jip, sujino, suj_add_block, 0);
-	if (blocks != numfrags(fs, DIP(jip, di_size)))
-		errx(1, "Sparse journal inode %d.\n", sujino);
+	if (blocks != numfrags(fs, DIP(jip, di_size))) {
+		printf("Sparse journal inode %d.\n", sujino);
+		return (-1);
+	}
 	suj_read();
 	jblocks_destroy(suj_jblocks);
 	suj_jblocks = NULL;
@@ -2612,7 +2665,7 @@ suj_check(const char *filesys)
 		cg_apply(cg_check_blk);
 		cg_apply(cg_check_ino);
 	}
-	if (preen == 0 && reply("WRITE CHANGES") == 0)
+	if (preen == 0 && (jrecs > 0 || jbytes > 0) && reply("WRITE CHANGES") == 0)
 		return (0);
 	/*
 	 * To remain idempotent with partial truncations the free bitmaps
@@ -2625,10 +2678,12 @@ suj_check(const char *filesys)
 	cg_apply(cg_write_inos);
 	/* Write back superblock. */
 	closedisk(filesys);
-	printf("** %jd journal records in %jd bytes for %.2f%% utilization\n",
-	    jrecs, jbytes, ((float)jrecs / (float)(jbytes / JREC_SIZE)) * 100);
-	printf("** Freed %jd inodes (%jd dirs) %jd blocks, and %jd frags.\n",
-	    freeinos, freedir, freeblocks, freefrags);
+	if (jrecs > 0 || jbytes > 0) {
+		printf("** %jd journal records in %jd bytes for %.2f%% utilization\n",
+		    jrecs, jbytes, ((float)jrecs / (float)(jbytes / JREC_SIZE)) * 100);
+		printf("** Freed %jd inodes (%jd dirs) %jd blocks, and %jd frags.\n",
+		    freeinos, freedir, freeblocks, freefrags);
+	}
 
 	return (0);
 }
