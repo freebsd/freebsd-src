@@ -244,34 +244,35 @@ static int
 atrtc_attach(device_t dev)
 {
 	struct atrtc_softc *sc;
-	int i, diag, haveirq = 0;
+	int i, diag;
 
 	sc = device_get_softc(dev);
 	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
 	    &sc->port_rid, IO_RTC, IO_RTC + 1, 2, RF_ACTIVE)))
 		device_printf(dev,"Warning: Couldn't map I/O.\n");
-	if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-	    &sc->intr_rid, 8, 8, 1, RF_ACTIVE)))
-		device_printf(dev,"Couldn't map Interrupt.\n");
-	else if ((bus_setup_intr(dev, sc->intr_res,
-	    INTR_MPSAFE | INTR_TYPE_CLK, (driver_filter_t *)rtc_intr, NULL,
-	    sc, &sc->intr_handler))) {
-		device_printf(dev, "Can't setup interrupt.\n");
-	} else { 
-		haveirq = 1;
-		/* Bind IRQ to BSP to avoid live migration. */
-		bus_bind_intr(dev, sc->intr_res, 0);
-	}
 	diag = rtcin(RTC_DIAG);
 	if (diag != 0)
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
 	atrtc_start();
 	clock_register(dev, 1000000);
 	bzero(&sc->et, sizeof(struct eventtimer));
-	if (haveirq &&
-	    !atrtcclock_disable &&
+	if (!atrtcclock_disable &&
 	    (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	     "clock", &i) != 0 || i != 0)) {
+		if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
+		    &sc->intr_rid, 8, 8, 1, RF_ACTIVE))) {
+			device_printf(dev,"Can't map interrupt.\n");
+			return (0);
+		} else if ((bus_setup_intr(dev, sc->intr_res,
+		    INTR_MPSAFE | INTR_TYPE_CLK,
+		    (driver_filter_t *)rtc_intr, NULL,
+		    sc, &sc->intr_handler))) {
+			device_printf(dev, "Can't setup interrupt.\n");
+			return (0);
+		} else { 
+			/* Bind IRQ to BSP to avoid live migration. */
+			bus_bind_intr(dev, sc->intr_res, 0);
+		}
 		sc->et.et_name = "RTC";
 		sc->et.et_flags = ET_FLAGS_PERIODIC;
 		sc->et.et_quality = 0;
