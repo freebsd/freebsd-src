@@ -265,6 +265,8 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 
 		rc = dnode_read(spa, &fp->f_dnode,
 				fp->f_seekp, &mze, sizeof(mze));
+		if (rc)
+			return (rc);
 		fp->f_seekp += sizeof(mze);
 
 		if (!mze.mze_name[0])
