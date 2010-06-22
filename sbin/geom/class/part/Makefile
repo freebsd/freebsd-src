@@ -6,6 +6,4 @@ CLASS=	part
 
 LDADD=	-lutil
 
-WARNS?=	4
-
 .include <bsd.lib.mk>
