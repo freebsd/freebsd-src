@@ -30,7 +30,9 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/sched.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -72,11 +74,13 @@ openpic_set_priority(struct openpic_softc *sc, int pri)
 	u_int tpr;
 	uint32_t x;
 
+	sched_pin();
 	tpr = OPENPIC_PCPU_TPR(PCPU_GET(cpuid));
 	x = openpic_read(sc, tpr);
 	x &= ~OPENPIC_TPR_MASK;
 	x |= pri;
 	openpic_write(sc, tpr, x);
+	sched_unpin();
 }
 
 int
@@ -228,6 +232,19 @@ openpic_attach(device_t dev)
  */
 
 void
+openpic_bind(device_t dev, u_int irq, cpumask_t cpumask)
+{
+	struct openpic_softc *sc;
+
+	/* If we aren't directly connected to the CPU, this won't work */
+	if (dev != root_pic)
+		return;
+
+	sc = device_get_softc(dev);
+	openpic_write(sc, OPENPIC_IDEST(irq), cpumask);
+}
+
+void
 openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
@@ -313,8 +330,10 @@ openpic_ipi(device_t dev, u_int cpu)
 	struct openpic_softc *sc;
 
 	sc = device_get_softc(dev);
+	sched_pin();
 	openpic_write(sc, OPENPIC_PCPU_IPI_DISPATCH(PCPU_GET(cpuid), 0),
 	    1u << cpu);
+	sched_unpin();
 }
 
 void
