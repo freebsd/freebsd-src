@@ -119,6 +119,12 @@ static device_t nexus_add_child(device_t, int, const char *, int);
 static void	nexus_probe_nomatch(device_t, device_t);
 static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
+#ifdef SMP
+static int	nexus_bind_intr(device_t dev, device_t child,
+		    struct resource *irq, int cpu);
+#endif
+static int	nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+		    enum intr_polarity pol);
 static int	nexus_setup_intr(device_t, device_t, struct resource *, int,
 		    driver_filter_t *, driver_intr_t *, void *, void **);
 static int	nexus_teardown_intr(device_t, device_t, struct resource *,
@@ -162,6 +168,10 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_write_ivar,	nexus_write_ivar),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+#ifdef SMP
+	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
+#endif
+	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
@@ -361,6 +371,23 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *res,
 {
 
 	return (powerpc_teardown_intr(cookie));
+}
+
+#ifdef SMP
+static int
+nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
+{
+
+        return (powerpc_bind_intr(rman_get_start(irq), cpu));
+}
+#endif
+        
+static int
+nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+
+        return (powerpc_config_intr(irq, trig, pol));
 }
 
 /*

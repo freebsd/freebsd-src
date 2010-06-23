@@ -751,6 +751,7 @@ static device_method_t  openpic_cpcht_methods[] = {
 	DEVMETHOD(device_attach,	openpic_cpcht_attach),
 
 	/* PIC interface */
+	DEVMETHOD(pic_bind,		openpic_bind),
 	DEVMETHOD(pic_config,		openpic_cpcht_config),
 	DEVMETHOD(pic_dispatch,		openpic_dispatch),
 	DEVMETHOD(pic_enable,		openpic_cpcht_enable),
