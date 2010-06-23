@@ -284,7 +284,7 @@ vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
 	uint32_t offs;
 	void *buf;
 
-	buf = x86bios_alloc(&offs, sizeof(*vmode));
+	buf = x86bios_alloc(&offs, sizeof(*vmode), M_NOWAIT);
 	if (buf == NULL)
 		return (1);
 
@@ -367,7 +367,7 @@ vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 	u_char *p;
 	int i;
 
-	p = (u_char *)x86bios_alloc(&offs, colors * 4);
+	p = (u_char *)x86bios_alloc(&offs, colors * 4, M_NOWAIT);
 	if (p == NULL)
 		return (1);
 
@@ -407,7 +407,7 @@ vesa_bios_save_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	u_char *p;
 	int i;
 
-	p = (u_char *)x86bios_alloc(&offs, colors * 4);
+	p = (u_char *)x86bios_alloc(&offs, colors * 4, M_NOWAIT);
 	if (p == NULL)
 		return (1);
 
@@ -446,7 +446,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 	u_char *p;
 	int i;
 
-	p = (u_char *)x86bios_alloc(&offs, colors * 4);
+	p = (u_char *)x86bios_alloc(&offs, colors * 4, M_NOWAIT);
 	if (p == NULL)
 		return (1);
 
@@ -481,7 +481,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	u_char *p;
 	int i;
 
-	p = (u_char *)x86bios_alloc(&offs, colors * 4);
+	p = (u_char *)x86bios_alloc(&offs, colors * 4, M_NOWAIT);
 	if (p == NULL)
 		return (1);
 
@@ -535,7 +535,7 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	if (code != STATE_SAVE && code != STATE_LOAD)
 		return (1);
 
-	buf = x86bios_alloc(&offs, size);
+	buf = x86bios_alloc(&offs, size, M_NOWAIT);
 
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f04;
@@ -800,9 +800,7 @@ vesa_bios_init(void)
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f00;
 
-	vmbuf = x86bios_alloc(&offs, sizeof(*buf));
-	if (vmbuf == NULL)
-		return (1);
+	vmbuf = x86bios_alloc(&offs, sizeof(*buf), M_WAITOK);
 
 	regs.R_ES = X86BIOS_PHYSTOSEG(offs);
 	regs.R_DI = X86BIOS_PHYSTOOFF(offs);
