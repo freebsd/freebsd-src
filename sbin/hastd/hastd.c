@@ -200,7 +200,7 @@ listen_accept(void)
 
 	proto_local_address(conn, laddr, sizeof(laddr));
 	proto_remote_address(conn, raddr, sizeof(raddr));
-	pjdlog_info("Connection from %s to %s.", laddr, raddr);
+	pjdlog_info("Connection from %s to %s.", raddr, laddr);
 
 	/* Error in setting timeout is not critical, but why should it fail? */
 	if (proto_timeout(conn, HAST_TIMEOUT) < 0)
@@ -286,7 +286,7 @@ listen_accept(void)
 	if (token != NULL && memcmp(token, res->hr_token,
 	    sizeof(res->hr_token)) != 0) {
 		pjdlog_error("Token received from %s doesn't match.", raddr);
-		nv_add_stringf(nverr, "errmsg", "Toke doesn't match.");
+		nv_add_stringf(nverr, "errmsg", "Token doesn't match.");
 		goto fail;
 	}
 	/*
@@ -400,7 +400,11 @@ static void
 main_loop(void)
 {
 	fd_set rfds, wfds;
-	int fd, maxfd, ret;
+	int cfd, lfd, maxfd, ret;
+
+	cfd = proto_descriptor(cfg->hc_controlconn);
+	lfd = proto_descriptor(cfg->hc_listenconn);
+	maxfd = cfd > lfd ? cfd : lfd;
 
 	for (;;) {
 		if (sigchld_received) {
@@ -412,22 +416,13 @@ main_loop(void)
 			hastd_reload();
 		}
 
-		maxfd = 0;
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-
 		/* Setup descriptors for select(2). */
-#define	SETUP_FD(conn)	do {						\
-	fd = proto_descriptor(conn);					\
-	if (fd >= 0) {							\
-		maxfd = fd > maxfd ? fd : maxfd;			\
-		FD_SET(fd, &rfds);					\
-		FD_SET(fd, &wfds);					\
-	}								\
-} while (0)
-		SETUP_FD(cfg->hc_controlconn);
-		SETUP_FD(cfg->hc_listenconn);
-#undef	SETUP_FD
+		FD_ZERO(&rfds);
+		FD_SET(cfd, &rfds);
+		FD_SET(lfd, &rfds);
+		FD_ZERO(&wfds);
+		FD_SET(cfd, &wfds);
+		FD_SET(lfd, &wfds);
 
 		ret = select(maxfd + 1, &rfds, &wfds, NULL, NULL);
 		if (ret == -1) {
@@ -437,13 +432,10 @@ main_loop(void)
 			pjdlog_exit(EX_OSERR, "select() failed");
 		}
 
-#define	ISSET_FD(conn)	\
-	(FD_ISSET((fd = proto_descriptor(conn)), &rfds) || FD_ISSET(fd, &wfds))
-		if (ISSET_FD(cfg->hc_controlconn))
+		if (FD_ISSET(cfd, &rfds) || FD_ISSET(cfd, &wfds))
 			control_handle(cfg);
-		if (ISSET_FD(cfg->hc_listenconn))
+		if (FD_ISSET(lfd, &rfds) || FD_ISSET(lfd, &wfds))
 			listen_accept();
-#undef	ISSET_FD
 	}
 }
 
