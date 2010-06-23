@@ -3319,7 +3319,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	 *
 	 * XXX unpessimize most cases by only aligning when fxsave might be
 	 * called, although this requires knowing too much about
-	 * npxgetregs()'s internals.
+	 * npxgetuserregs()'s internals.
 	 */
 	addr = (union savefpu *)&mcp->mc_fpstate;
 	if (td == PCPU_GET(fpcurthread) &&
@@ -3372,10 +3372,6 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		if (cpu_fxsr)
 			addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
 #endif
-		/*
-		 * XXX we violate the dubious requirement that npxsetregs()
-		 * be called with interrupts disabled.
-		 */
 		npxsetuserregs(td, addr);
 #endif
 		/*
@@ -3400,12 +3396,12 @@ fpstate_drop(struct thread *td)
 #endif
 	/*
 	 * XXX force a full drop of the npx.  The above only drops it if we
-	 * owned it.  npxgetregs() has the same bug in the !cpu_fxsr case.
+	 * owned it.  npxgetuserregs() has the same bug in the !cpu_fxsr case.
 	 *
-	 * XXX I don't much like npxgetregs()'s semantics of doing a full
+	 * XXX I don't much like npxgetuserregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
 	 * We only need to drop to !PCB_INITDONE in sendsig().  But
-	 * sendsig() is the only caller of npxgetregs()... perhaps we just
+	 * sendsig() is the only caller of npxgetuserregs()... perhaps we just
 	 * have too many layers.
 	 */
 	curthread->td_pcb->pcb_flags &= ~(PCB_NPXINITDONE |
