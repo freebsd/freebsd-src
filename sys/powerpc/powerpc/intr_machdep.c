@@ -73,6 +73,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/smp.h>
 #include <sys/syslog.h>
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
@@ -96,6 +97,7 @@ struct powerpc_intr {
 	device_t pic;
 	u_int	intline;
 	u_int	vector;
+	cpumask_t cpu;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 };
@@ -127,6 +129,23 @@ intr_init(void *dummy __unused)
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 
+#ifdef SMP
+static void
+smp_intr_init(void *dummy __unused)
+{
+	struct powerpc_intr *i;
+	int vector;
+
+	for (vector = 0; vector < nvectors; vector++) {
+		i = powerpc_intrs[vector];
+		if (i != NULL && i->pic == root_pic)
+			PIC_BIND(i->pic, i->intline, i->cpu);
+	}
+}
+
+SYSINIT(smp_intr_init, SI_SUB_SMP, SI_ORDER_ANY, smp_intr_init, NULL);
+#endif
+
 static void
 intrcnt_setname(const char *name, int index)
 {
@@ -150,11 +169,12 @@ intr_lookup(u_int irq)
 			return (i);
 		}
 	}
-	mtx_unlock(&intr_table_lock);
 
 	i = malloc(sizeof(*i), M_INTR, M_NOWAIT);
-	if (i == NULL)
+	if (i == NULL) {
+		mtx_unlock(&intr_table_lock);
 		return (NULL);
+	}
 
 	i->event = NULL;
 	i->cntp = NULL;
@@ -164,7 +184,12 @@ intr_lookup(u_int irq)
 	i->pic = NULL;
 	i->vector = -1;
 
-	mtx_lock(&intr_table_lock);
+#ifdef SMP
+	i->cpu = all_cpus;
+#else
+	i->cpu = 1;
+#endif
+
 	for (vector = 0; vector < INTR_VECTORS && vector <= nvectors;
 	    vector++) {
 		iscan = powerpc_intrs[vector];
@@ -359,6 +384,9 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 		    i->pol != INTR_POLARITY_CONFORM))
 			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
+		if (!error && i->pic == root_pic)
+			PIC_BIND(i->pic, i->intline, i->cpu);
+
 		if (!error && enable)
 			PIC_ENABLE(i->pic, i->intline, i->vector);
 	}
@@ -371,6 +399,27 @@ powerpc_teardown_intr(void *cookie)
 
 	return (intr_event_remove_handler(cookie));
 }
+
+#ifdef SMP
+int
+powerpc_bind_intr(u_int irq, u_char cpu)
+{
+	struct powerpc_intr *i;
+
+	i = intr_lookup(irq);
+	if (i == NULL)
+		return (ENOMEM);
+
+	if (cpu == NOCPU)
+		i->cpu = all_cpus;
+	else
+		i->cpu = 1 << cpu;
+
+	PIC_BIND(i->pic, i->intline, i->cpu);
+
+	return (intr_event_bind(i->event, cpu));
+}
+#endif
 
 int
 powerpc_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)

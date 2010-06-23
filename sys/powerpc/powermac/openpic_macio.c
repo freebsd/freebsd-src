@@ -67,6 +67,7 @@ static device_method_t  openpic_macio_methods[] = {
 	DEVMETHOD(device_attach,	openpic_attach),
 
 	/* PIC interface */
+	DEVMETHOD(pic_bind,		openpic_bind),
 	DEVMETHOD(pic_config,		openpic_config),
 	DEVMETHOD(pic_dispatch,		openpic_dispatch),
 	DEVMETHOD(pic_enable,		openpic_enable),
