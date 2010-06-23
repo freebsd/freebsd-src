@@ -277,8 +277,15 @@ ocpbus_attach(device_t dev)
 		    ccsr_read4(OCP85XX_PORDEVSR),
 		    ccsr_read4(OCP85XX_PORDEVSR2));
 
-	for (i = INTR_VEC(OPIC_ID, 0); i < INTR_VEC(OPIC_ID, 4); i++)
-		powerpc_config_intr(i, INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
+	/*
+	 * Internal interrupt are always active-high. Since the sense cannot
+	 * be specified, we program as edge-triggered to make sure we write
+	 * a 0 value to the reserved bit in the OpenPIC compliant PIC. This
+	 * is not to say anything about the sense of any of the internal
+	 * interrupt sources.
+	 */
+	for (i = PIC_IRQ_INT(0); i < PIC_IRQ_INT(32); i++)
+		powerpc_config_intr(i, INTR_TRIGGER_EDGE, INTR_POLARITY_HIGH);
 
 	return (bus_generic_attach(dev));
 }
