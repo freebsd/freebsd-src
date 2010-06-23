@@ -164,7 +164,7 @@ static char *vesa_revstr = NULL;
 
 static int int10_set_mode(int mode);
 static int vesa_bios_post(void);
-static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode);
+static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode, int flags);
 static int vesa_bios_set_mode(int mode);
 #if 0
 static int vesa_bios_get_dac(void);
@@ -278,13 +278,13 @@ vesa_bios_post(void)
 
 /* VESA BIOS calls */
 static int
-vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
+vesa_bios_get_mode(int mode, struct vesa_mode *vmode, int flags)
 {
 	x86regs_t regs;
 	uint32_t offs;
 	void *buf;
 
-	buf = x86bios_alloc(&offs, sizeof(*vmode), M_NOWAIT);
+	buf = x86bios_alloc(&offs, sizeof(*vmode), flags);
 	if (buf == NULL)
 		return (1);
 
@@ -856,7 +856,7 @@ vesa_bios_init(void)
 	for (i = 0, modes = 0; (i < (M_VESA_MODE_MAX - M_VESA_BASE + 1)) &&
 	    (vesa_vmodetab[i] != 0xffff); ++i) {
 		vesa_vmodetab[i] = le16toh(vesa_vmodetab[i]);
-		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode))
+		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode, M_WAITOK))
 			continue;
 
 		vmode.v_modeattr = le16toh(vmode.v_modeattr);
@@ -1788,7 +1788,7 @@ vesa_bios_info(int level)
 	for (i = 0;
 		(i < (M_VESA_MODE_MAX - M_VESA_BASE + 1))
 		&& (vesa_vmodetab[i] != 0xffff); ++i) {
-		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode))
+		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode, M_NOWAIT))
 			continue;
 
 		/* print something for diagnostic purpose */
