@@ -327,7 +327,7 @@ trap(struct trapframe *trapframe)
 #ifdef SMP
 		printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
-		MachTLBGetPID(pid);
+		pid = mips_rd_entryhi() & TLBHI_ASID_MASK;
 		printf("badaddr = %#jx, pc = %#jx, ra = %#jx, sp = %#jx, sr = %jx, pid = %d, ASID = %u\n",
 		    (intmax_t)trapframe->badvaddr, (intmax_t)trapframe->pc, (intmax_t)trapframe->ra,
 		    (intmax_t)trapframe->sp, (intmax_t)trapframe->sr,
@@ -378,23 +378,23 @@ trap(struct trapframe *trapframe)
 				panic("trap: ktlbmod: can't find PTE");
 #ifdef SMP
 			/* It is possible that some other CPU changed m-bit */
-			if (!mips_pg_v(*pte) || (*pte & mips_pg_m_bit())) {
+			if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D)) {
 				pmap_update_page(kernel_pmap,
 				    trapframe->badvaddr, *pte);
 				PMAP_UNLOCK(kernel_pmap);
 				return (trapframe->pc);
 			}
 #else
-			if (!mips_pg_v(*pte) || (*pte & mips_pg_m_bit()))
+			if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D))
 				panic("trap: ktlbmod: invalid pte");
 #endif
-			if (*pte & mips_pg_ro_bit()) {
+			if (pte_test(pte, PTE_RO)) {
 				/* write to read only page in the kernel */
 				ftype = VM_PROT_WRITE;
 				PMAP_UNLOCK(kernel_pmap);
 				goto kernel_fault;
 			}
-			*pte |= mips_pg_m_bit();
+			pte_set(pte, PTE_D);
 			pmap_update_page(kernel_pmap, trapframe->badvaddr, *pte);
 			pa = TLBLO_PTE_TO_PA(*pte);
 			if (!page_is_managed(pa))
@@ -417,23 +417,23 @@ trap(struct trapframe *trapframe)
 				panic("trap: utlbmod: can't find PTE");
 #ifdef SMP
 			/* It is possible that some other CPU changed m-bit */
-			if (!mips_pg_v(*pte) || (*pte & mips_pg_m_bit())) {
+			if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D)) {
 				pmap_update_page(pmap, trapframe->badvaddr, *pte);
 				PMAP_UNLOCK(pmap);
 				goto out;
 			}
 #else
-			if (!mips_pg_v(*pte) || (*pte & mips_pg_m_bit()))
+			if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D))
 				panic("trap: utlbmod: invalid pte");
 #endif
 
-			if (*pte & mips_pg_ro_bit()) {
+			if (pte_test(pte, PTE_RO)) {
 				/* write to read only page */
 				ftype = VM_PROT_WRITE;
 				PMAP_UNLOCK(pmap);
 				goto dofault;
 			}
-			*pte |= mips_pg_m_bit();
+			pte_set(pte, PTE_D);
 			pmap_update_page(pmap, trapframe->badvaddr, *pte);
 			pa = TLBLO_PTE_TO_PA(*pte);
 			if (!page_is_managed(pa))

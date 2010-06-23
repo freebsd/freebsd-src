@@ -421,7 +421,7 @@ mips_pcpu_tlb_init(struct pcpu *pcpu)
 	 * We use a wired tlb index to do this one-time mapping.
 	 */
 	pa = vtophys(pcpu);
-	pte = PTE_RW | PTE_V | PTE_G | PTE_CACHE;
+	pte = PTE_D | PTE_V | PTE_G | PTE_C_CACHE;
 	tlb_insert_wired(PCPU_TLB_ENTRY, (vm_offset_t)pcpup,
 			 TLBLO_PA_TO_PFN(pa) | pte,
 			 TLBLO_PA_TO_PFN(pa + PAGE_SIZE) | pte);
