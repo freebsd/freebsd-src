@@ -173,15 +173,13 @@ getnum(const char *buf, int min, int max)
 	l = strtol(buf, &ep, 0);
 	if (*buf && !*ep && !errno) {
 		if (l < min || l > max) {
-			errx(1, "`%s': must be between %d and %d", 
+			errx(1, "%s: must be between %d and %d", 
 			     buf, min, max);
 		}
 		return (int)l;
-	} else if(errno) {
-		errx(1, "`%s': must be between %ld and %ld", 
-		     LONG_MIN, LONG_MAX);
-	}
-	errx(1, "`%s': parameter must be an integer");
+	} 
+
+	errx(1, "%s: parameter must be an integer", buf);
 }
 
 static void
