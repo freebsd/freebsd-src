@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifndef HZ
-#  if defined(__amd64__) || defined(__i386__) || defined(__ia64__) || defined(__sparc64__)
+#  if defined(__amd64__) || defined(__i386__) || defined(__ia64__) || defined(__sparc64__) || defined(__powerpc__)
 #    define	HZ 1000
 #  else
 #    define	HZ 100
