@@ -219,7 +219,7 @@ cpu_thread_swapin(struct thread *td)
 	 */
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
-		td->td_md.md_upte[i] = *pte & ~(PTE_RO|PTE_WIRED);
+		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
 	}
 }
 
@@ -241,7 +241,7 @@ cpu_thread_alloc(struct thread *td)
 
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
-		td->td_md.md_upte[i] = *pte & ~(PTE_RO|PTE_WIRED);
+		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
 	}
 }
 

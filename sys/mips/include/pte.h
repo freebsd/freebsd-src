@@ -32,7 +32,7 @@
 /*
  * TLB and PTE management.  Most things operate within the context of
  * EntryLo0,1, and begin with TLBLO_.  Things which work with EntryHi
- * start with TLBHI_.  PTE bits begin with PG_.
+ * start with TLBHI_.  PTE bits begin with PTE_.
  *
  * Note that we use the same size VM and TLB pages.
  */
@@ -63,7 +63,7 @@
 #define	TLBLO_PFN_TO_PA(pfn)	((vm_paddr_t)((pfn) >> TLBLO_PFN_SHIFT) << TLB_PAGE_SHIFT)
 #define	TLBLO_PTE_TO_PFN(pte)	((pte) & TLBLO_PFN_MASK)
 #define	TLBLO_PTE_TO_PA(pte)	(TLBLO_PFN_TO_PA(TLBLO_PTE_TO_PFN((pte))))
-  
+
 /*
  * VPN for EntryHi register.  Upper two bits select user, supervisor,
  * or kernel.  Bits 61 to 40 copy bit 63.  VPN2 is bits 39 and down to
@@ -76,54 +76,57 @@
 #define	TLBHI_ENTRY(va, asid)	(((va) & ~PAGE_MASK) | ((asid) & TLBHI_ASID_MASK))
 
 #ifndef _LOCORE
-typedef unsigned int pt_entry_t;
-typedef pt_entry_t *pd_entry_t;
+typedef	uint32_t pt_entry_t;
+typedef	pt_entry_t *pd_entry_t;
 #endif
 
 #define	PDESIZE		sizeof(pd_entry_t)	/* for assembly files */
 #define	PTESIZE		sizeof(pt_entry_t)	/* for assembly files */
 
-#define	PT_ENTRY_NULL	((pt_entry_t *) 0)
-
-#define	PTE_WIRED	0x80000000	/* SW */
-#define	PTE_W		PTE_WIRED
-#define	PTE_RO		0x40000000	/* SW */
-
-#define	PTE_G		0x00000001	/* HW */
-#define	PTE_V		0x00000002
-/*#define	PTE_NV		0x00000000       Not Used */
-#define	PTE_M		0x00000004
-#define	PTE_RW		PTE_M
-#define PTE_ODDPG       0x00001000 
-/*#define	PG_ATTR		0x0000003f  Not Used */
-#define	PTE_UNCACHED	0x00000010
-#ifdef CPU_SB1
-#define	PTE_CACHE	0x00000028	/* cacheable coherent */
+/*
+ * TLB flags managed in hardware:
+ * 	C:	Cache attribute.
+ * 	D:	Dirty bit.  This means a page is writable.  It is not
+ * 		set at first, and a write is trapped, and the dirty
+ * 		bit is set.  See also PTE_RO.
+ * 	V:	Valid bit.  Obvious, isn't it?
+ * 	G:	Global bit.  This means that this mapping is present
+ * 		in EVERY address space, and to ignore the ASID when
+ * 		it is matched.
+ */
+#define	PTE_C(attr)	((attr & 0x07) << 3)
+#define	PTE_C_UNCACHED	(PTE_C(0x02))
+/*
+ * The preferred cache attribute for cacheable pages, this can be 
+ * implementation dependent. We will use the standard value 0x3 as 
+ * default.
+ */
+#if defined(CPU_SB1)
+#define	PTE_C_CACHE	(PTE_C(0x05))
 #else
-#define	PTE_CACHE	0x00000018
+#define	PTE_C_CACHE	(PTE_C(0x03))
 #endif
-/*#define	PG_CACHEMODE	0x00000038 Not Used*/
-#define	PTE_ROPAGE	(PTE_V | PTE_RO | PTE_CACHE) /* Write protected */
-#define	PTE_RWPAGE	(PTE_V | PTE_M | PTE_CACHE)  /* Not wr-prot not clean */
-#define	PTE_CWPAGE	(PTE_V | PTE_CACHE)	   /* Not wr-prot but clean */
-#define	PTE_IOPAGE	(PTE_G | PTE_V | PTE_M | PTE_UNCACHED)
-#define	PTE_FRAME	0x3fffffc0
-#define PTE_HVPN        0xffffe000      /* Hardware page no mask */
-#define PTE_ASID        0x000000ff      /* Address space ID */
+#define	PTE_D		0x04
+#define	PTE_V		0x02
+#define	PTE_G		0x01
 
+/*
+ * VM flags managed in software:
+ * 	RO:	Read only.  Never set PTE_D on this page, and don't
+ * 		listen to requests to write to it.
+ * 	W:	Wired.  ???
+ */
+#define	PTE_RO	(0x01 << TLBLO_SWBITS_SHIFT)
+#define	PTE_W	(0x02 << TLBLO_SWBITS_SHIFT)
 
-/* User virtual to pte offset in page table */
-#define	vad_to_pte_offset(adr)	(((adr) >> PAGE_SHIFT) & (NPTEPG -1))
-
-#define	mips_pg_v(entry)	((entry) & PTE_V)
-#define	mips_pg_wired(entry)	((entry) & PTE_WIRED)
-#define	mips_pg_m_bit()		(PTE_M)
-#define	mips_pg_rw_bit()	(PTE_M)
-#define	mips_pg_ro_bit()	(PTE_RO)
-#define	mips_pg_ropage_bit()	(PTE_ROPAGE)
-#define	mips_pg_rwpage_bit()	(PTE_RWPAGE)
-#define	mips_pg_cwpage_bit()	(PTE_CWPAGE)
-#define	mips_pg_global_bit()	(PTE_G)
-#define	mips_pg_wired_bit()	(PTE_WIRED)
+/*
+ * PTE management functions for bits defined above.
+ *
+ * XXX Can make these atomics, but some users of them are using PTEs in local
+ * registers and such and don't need the overhead.
+ */
+#define	pte_clear(pte, bit)	(*(pte) &= ~(bit))
+#define	pte_set(pte, bit)	(*(pte) |= (bit))
+#define	pte_test(pte, bit)	((*(pte) & (bit)) == (bit))
 
 #endif /* !_MACHINE_PTE_H_ */
