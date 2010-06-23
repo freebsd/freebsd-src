@@ -142,7 +142,7 @@ typedef struct x86regs	x86regs_t;
 #define	X86BIOS_PHYSTOOFF(x)	((x) & 0x000f)
 
 __BEGIN_DECLS
-void	*x86bios_alloc(uint32_t *offset, size_t size);
+void	*x86bios_alloc(uint32_t *offset, size_t size, int flags);
 void	 x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off);
 void	 x86bios_free(void *addr, size_t size);
 uint32_t x86bios_get_intr(int intno);
