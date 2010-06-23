@@ -2719,9 +2719,8 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 static void
 fpstate_drop(struct thread *td)
 {
-	register_t s;
 
-	s = intr_disable();
+	critical_enter();
 #ifdef DEV_NPX
 	if (PCPU_GET(fpcurthread) == td)
 		npxdrop();
@@ -2737,7 +2736,7 @@ fpstate_drop(struct thread *td)
 	 * have too many layers.
 	 */
 	curthread->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
-	intr_restore(s);
+	critical_exit();
 }
 
 int
