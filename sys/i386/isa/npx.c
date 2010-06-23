@@ -85,11 +85,6 @@ __FBSDID("$FreeBSD$");
  * 387 and 287 Numeric Coprocessor Extension (NPX) Driver.
  */
 
-/* Configuration flags. */
-#define	NPX_DISABLE_I586_OPTIMIZED_BCOPY	(1 << 0)
-#define	NPX_DISABLE_I586_OPTIMIZED_BZERO	(1 << 1)
-#define	NPX_DISABLE_I586_OPTIMIZED_COPYIO	(1 << 2)
-
 #if defined(__GNUCLIKE_ASM) && !defined(lint)
 
 #define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
@@ -168,10 +163,6 @@ static	int	npx_attach(device_t dev);
 static	void	npx_identify(driver_t *driver, device_t parent);
 static	int	npx_intr(void *);
 static	int	npx_probe(device_t dev);
-#ifdef I586_CPU_XXX
-static	long	timezero(const char *funcname,
-		    void (*func)(void *buf, size_t len));
-#endif /* I586_CPU */
 
 int	hw_float;		/* XXX currently just alias for npx_exists */
 
@@ -442,22 +433,8 @@ npx_attach(dev)
 		bzero(npx_initialstate.sv_87.sv_ac,
 		    sizeof(npx_initialstate.sv_87.sv_ac));
 	intr_restore(s);
-#ifdef I586_CPU_XXX
-	if (cpu_class == CPUCLASS_586 && npx_ex16 &&
-	    timezero("i586_bzero()", i586_bzero) <
-	    timezero("bzero()", bzero) * 4 / 5) {
-		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY))
-			bcopy_vector = i586_bcopy;
-		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BZERO))
-			bzero_vector = i586_bzero;
-		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_COPYIO)) {
-			copyin_vector = i586_copyin;
-			copyout_vector = i586_copyout;
-		}
-	}
-#endif
 
-	return (0);		/* XXX unused */
+	return (0);
 }
 
 /*
@@ -1084,36 +1061,6 @@ fpurstor(addr)
 #endif
 		frstor(addr);
 }
-
-#ifdef I586_CPU_XXX
-static long
-timezero(funcname, func)
-	const char *funcname;
-	void (*func)(void *buf, size_t len);
-
-{
-	void *buf;
-#define	BUFSIZE		1048576
-	long usec;
-	struct timeval finish, start;
-
-	buf = malloc(BUFSIZE, M_TEMP, M_NOWAIT);
-	if (buf == NULL)
-		return (BUFSIZE);
-	microtime(&start);
-	(*func)(buf, BUFSIZE);
-	microtime(&finish);
-	usec = 1000000 * (finish.tv_sec - start.tv_sec) +
-	    finish.tv_usec - start.tv_usec;
-	if (usec <= 0)
-		usec = 1;
-	if (bootverbose)
-		printf("%s bandwidth = %u kBps\n", funcname,
-		    (u_int32_t)(((BUFSIZE >> 10) * 1000000) / usec));
-	free(buf, M_TEMP);
-	return (usec);
-}
-#endif /* I586_CPU */
 
 static device_method_t npx_methods[] = {
 	/* Device interface */
