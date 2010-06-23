@@ -259,6 +259,7 @@ atrtc_attach(device_t dev)
 	if (!atrtcclock_disable &&
 	    (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	     "clock", &i) != 0 || i != 0)) {
+	    	sc->intr_rid = -1;
 		if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
 		    &sc->intr_rid, 8, 8, 1, RF_ACTIVE))) {
 			device_printf(dev,"Can't map interrupt.\n");
