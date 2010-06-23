@@ -308,10 +308,9 @@ cleanup:
 static int
 npx_attach(device_t dev)
 {
-	register_t s;
 
 	npxinit();
-	s = intr_disable();
+	critical_enter();
 	stop_emulating();
 	fpusave(&npx_initialstate);
 	start_emulating();
@@ -331,7 +330,7 @@ npx_attach(device_t dev)
 #endif
 		bzero(npx_initialstate.sv_87.sv_ac,
 		    sizeof(npx_initialstate.sv_87.sv_ac));
-	intr_restore(s);
+	critical_exit();
 
 	return (0);
 }
@@ -352,6 +351,8 @@ npxinit(void)
 	 * fninit has the same h/w bugs as fnsave.  Use the detoxified
 	 * fnsave to throw away any junk in the fpu.  npxsave() initializes
 	 * the fpu and sets fpcurthread = NULL as important side effects.
+	 *
+	 * It is too early for critical_enter() to work on AP.
 	 */
 	savecrit = intr_disable();
 	npxsave(&dummy);
@@ -374,12 +375,11 @@ void
 npxexit(td)
 	struct thread *td;
 {
-	register_t savecrit;
 
-	savecrit = intr_disable();
+	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread))
 		npxsave(PCPU_GET(curpcb)->pcb_save);
-	intr_restore(savecrit);
+	critical_exit();
 #ifdef NPX_DEBUG
 	if (hw_float) {
 		u_int	masked_exceptions;
@@ -602,7 +602,6 @@ static char fpetable[128] = {
 int
 npxtrap()
 {
-	register_t savecrit;
 	u_short control, status;
 
 	if (!hw_float) {
@@ -610,7 +609,7 @@ npxtrap()
 		       PCPU_GET(fpcurthread), curthread, hw_float);
 		panic("npxtrap from nowhere");
 	}
-	savecrit = intr_disable();
+	critical_enter();
 
 	/*
 	 * Interrupt handling (for another interrupt) may have pushed the
@@ -627,7 +626,7 @@ npxtrap()
 
 	if (PCPU_GET(fpcurthread) == curthread)
 		fnclex();
-	intr_restore(savecrit);
+	critical_exit();
 	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
 }
 
@@ -645,14 +644,15 @@ int
 npxdna(void)
 {
 	struct pcb *pcb;
-	register_t s;
 
 	if (!hw_float)
 		return (0);
+	critical_enter();
 	if (PCPU_GET(fpcurthread) == curthread) {
 		printf("npxdna: fpcurthread == curthread %d times\n",
 		    ++err_count);
 		stop_emulating();
+		critical_exit();
 		return (1);
 	}
 	if (PCPU_GET(fpcurthread) != NULL) {
@@ -662,7 +662,6 @@ npxdna(void)
 		       curthread, curthread->td_proc->p_pid);
 		panic("npxdna");
 	}
-	s = intr_disable();
 	stop_emulating();
 	/*
 	 * Record new context early in case frstor causes an IRQ13.
@@ -704,7 +703,7 @@ npxdna(void)
 		 */
 		fpurstor(pcb->pcb_save);
 	}
-	intr_restore(s);
+	critical_exit();
 
 	return (1);
 }
@@ -744,10 +743,6 @@ npxsave(addr)
 	PCPU_SET(fpcurthread, NULL);
 }
 
-/*
- * This should be called with interrupts disabled and only when the owning
- * FPU thread is non-null.
- */
 void
 npxdrop()
 {
@@ -763,6 +758,8 @@ npxdrop()
 		fnclex();
 
 	td = PCPU_GET(fpcurthread);
+	KASSERT(td == curthread, ("fpudrop: fpcurthread != curthread"));
+	CRITICAL_ASSERT(td);
 	PCPU_SET(fpcurthread, NULL);
 	td->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
 	start_emulating();
@@ -776,7 +773,6 @@ int
 npxgetregs(struct thread *td, union savefpu *addr)
 {
 	struct pcb *pcb;
-	register_t s;
 
 	if (!hw_float)
 		return (_MC_FPOWNED_NONE);
@@ -787,7 +783,7 @@ npxgetregs(struct thread *td, union savefpu *addr)
 		SET_FPU_CW(addr, pcb->pcb_initial_npxcw);
 		return (_MC_FPOWNED_NONE);
 	}
-	s = intr_disable();
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread)) {
 		fpusave(addr);
 #ifdef CPU_ENABLE_SSE
@@ -799,10 +795,10 @@ npxgetregs(struct thread *td, union savefpu *addr)
 			 * starts with a clean state next time.
 			 */
 			npxdrop();
-		intr_restore(s);
+		critical_exit();
 		return (_MC_FPOWNED_FPU);
 	} else {
-		intr_restore(s);
+		critical_exit();
 		bcopy(pcb->pcb_save, addr, sizeof(*addr));
 		return (_MC_FPOWNED_PCB);
 	}
@@ -812,7 +808,6 @@ int
 npxgetuserregs(struct thread *td, union savefpu *addr)
 {
 	struct pcb *pcb;
-	register_t s;
 
 	if (!hw_float)
 		return (_MC_FPOWNED_NONE);
@@ -823,7 +818,7 @@ npxgetuserregs(struct thread *td, union savefpu *addr)
 		SET_FPU_CW(addr, pcb->pcb_initial_npxcw);
 		return (_MC_FPOWNED_NONE);
 	}
-	s = intr_disable();
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
 		fpusave(addr);
 #ifdef CPU_ENABLE_SSE
@@ -835,10 +830,10 @@ npxgetuserregs(struct thread *td, union savefpu *addr)
 			 * starts with a clean state next time.
 			 */
 			npxdrop();
-		intr_restore(s);
+		critical_exit();
 		return (_MC_FPOWNED_FPU);
 	} else {
-		intr_restore(s);
+		critical_exit();
 		bcopy(&pcb->pcb_user_save, addr, sizeof(*addr));
 		return (_MC_FPOWNED_PCB);
 	}
@@ -851,22 +846,21 @@ void
 npxsetregs(struct thread *td, union savefpu *addr)
 {
 	struct pcb *pcb;
-	register_t s;
 
 	if (!hw_float)
 		return;
 
 	pcb = td->td_pcb;
-	s = intr_disable();
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread)) {
 #ifdef CPU_ENABLE_SSE
 		if (!cpu_fxsr)
 #endif
 			fnclex();	/* As in npxdrop(). */
 		fpurstor(addr);
-		intr_restore(s);
+		critical_exit();
 	} else {
-		intr_restore(s);
+		critical_exit();
 		bcopy(addr, pcb->pcb_save, sizeof(*addr));
 	}
 	if (PCB_USER_FPU(pcb))
@@ -878,23 +872,22 @@ void
 npxsetuserregs(struct thread *td, union savefpu *addr)
 {
 	struct pcb *pcb;
-	register_t s;
 
 	if (!hw_float)
 		return;
 
 	pcb = td->td_pcb;
-	s = intr_disable();
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
 #ifdef CPU_ENABLE_SSE
 		if (!cpu_fxsr)
 #endif
 			fnclex();	/* As in npxdrop(). */
 		fpurstor(addr);
-		intr_restore(s);
+		critical_exit();
 		pcb->pcb_flags |= PCB_NPXUSERINITDONE | PCB_NPXINITDONE;
 	} else {
-		intr_restore(s);
+		critical_exit();
 		bcopy(addr, &pcb->pcb_user_save, sizeof(*addr));
 		if (PCB_USER_FPU(pcb))
 			pcb->pcb_flags |= PCB_NPXINITDONE;
@@ -1062,13 +1055,12 @@ int
 fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 {
 	struct pcb *pcb;
-	register_t savecrit;
 
 	pcb = td->td_pcb;
-	savecrit = intr_disable();
+	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread))
 		npxdrop();
-	intr_restore(savecrit);
+	critical_exit();
 	pcb->pcb_save = ctx->prev;
 	if (pcb->pcb_save == &pcb->pcb_user_save) {
 		if ((pcb->pcb_flags & PCB_NPXUSERINITDONE) != 0)
