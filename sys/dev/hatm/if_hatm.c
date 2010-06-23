@@ -1928,7 +1928,6 @@ hatm_attach(device_t dev)
 	ifp->if_flags = IFF_SIMPLEX;
 	ifp->if_ioctl = hatm_ioctl;
 	ifp->if_start = hatm_start;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = hatm_init;
 
 	utopia_attach(&sc->utopia, IFP2IFATM(sc->ifp), &sc->media, &sc->mtx,
