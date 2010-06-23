@@ -46,9 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
 #include "opt_kdtrace.h"
-#ifdef __i386__
-#include "opt_npx.h"
-#endif
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -75,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <machine/cpu.h>
-#include <machine/pcb.h>
 
 #ifdef XEN
 #include <vm/vm.h>
@@ -147,10 +143,6 @@ ast(struct trapframe *framep)
 	struct proc *p;
 	int flags;
 	int sig;
-#if defined(DEV_NPX) && !defined(SMP)
-	int ucode;
-	ksiginfo_t ksi;
-#endif
 
 	td = curthread;
 	p = td->td_proc;
@@ -190,19 +182,6 @@ ast(struct trapframe *framep)
 		psignal(p, SIGVTALRM);
 		PROC_UNLOCK(p);
 	}
-#if defined(DEV_NPX) && !defined(SMP)
-	if (PCPU_GET(curpcb)->pcb_flags & PCB_NPXTRAP) {
-		atomic_clear_int(&PCPU_GET(curpcb)->pcb_flags,
-		    PCB_NPXTRAP);
-		ucode = npxtrap();
-		if (ucode != -1) {
-			ksiginfo_init_trap(&ksi);
-			ksi.ksi_signo = SIGFPE;
-			ksi.ksi_code = ucode;
-			trapsignal(td, &ksi);
-		}
-	}
-#endif
 	if (flags & TDF_PROFPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGPROF);
