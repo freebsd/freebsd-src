@@ -1506,8 +1506,6 @@ static void
 mmu_booke_release(mmu_t mmu, pmap_t pmap)
 {
 
-	printf("mmu_booke_release: s\n");
-
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
