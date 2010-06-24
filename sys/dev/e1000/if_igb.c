@@ -4814,6 +4814,18 @@ igb_update_stats_counters(struct adapter *adapter)
 	/* Tx Errors */
 	ifp->if_oerrors = adapter->stats.ecol +
 	    adapter->stats.latecol + adapter->watchdog_events;
+
+	/* Driver specific counters */
+	adapter->device_control = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+	adapter->rx_control = E1000_READ_REG(&adapter->hw, E1000_RCTL);
+	adapter->int_mask = E1000_READ_REG(&adapter->hw, E1000_IMS);
+	adapter->eint_mask = E1000_READ_REG(&adapter->hw, E1000_EIMS);
+	adapter->packet_buf_alloc_tx = ((E1000_READ_REG(&adapter->hw, E1000_PBA)
+					& 0xffff0000) >> 16);
+
+	adapter->packet_buf_alloc_rx = (E1000_READ_REG(&adapter->hw, E1000_PBA) 
+					& 0xffff);
+
 }
 
 
@@ -4897,6 +4909,11 @@ igb_add_hw_stats(struct adapter *adapter)
 	}
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, 
+					    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
 		struct lro_ctrl *lro = &rxr->lro;
 
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
