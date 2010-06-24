@@ -49,7 +49,7 @@
 
 #include <machine/endian.h>
 
-#define MIPS_KSEG0_LARGEST_PHYS         0x20000000
+#define	MIPS_KSEG0_LARGEST_PHYS         (0x20000000)
 #define	MIPS_PHYS_MASK			(0x1fffffff)
 
 #define	MIPS_PHYS_TO_KSEG0(x)		((uintptr_t)(x) | MIPS_KSEG0_START)
@@ -162,11 +162,11 @@
 /*
  * Location of exception vectors.
  */
-#define	RESET_EXC_VEC		0xbfc00000
-#define	TLB_MISS_EXC_VEC	0x80000000
-#define	XTLB_MISS_EXC_VEC	0x80000080
-#define	CACHE_ERR_EXC_VEC	0x80000100
-#define	GEN_EXC_VEC		0x80000180
+#define	RESET_EXC_VEC		((intptr_t)(int32_t)0xbfc00000)
+#define	TLB_MISS_EXC_VEC	((intptr_t)(int32_t)0x80000000)
+#define	XTLB_MISS_EXC_VEC	((intptr_t)(int32_t)0x80000080)
+#define	CACHE_ERR_EXC_VEC	((intptr_t)(int32_t)0x80000100)
+#define	GEN_EXC_VEC		((intptr_t)(int32_t)0x80000180)
 
 /*
  * Coprocessor 0 registers:
