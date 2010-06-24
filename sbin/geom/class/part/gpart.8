@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2010
+.Dd June 24, 2010
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -121,6 +121,13 @@ utility:
 .Fl i Ar index
 .Op Fl l Ar label
 .Op Fl t Ar type
+.Op Fl f Ar flags
+.Ar geom
+.\" ==== RESIZE ====
+.Nm
+.Cm resize
+.Fl i Ar index
+.Op Fl s Ar size
 .Op Fl f Ar flags
 .Ar geom
 .\" ==== SET ====
@@ -334,6 +341,32 @@ See the section entitled
 below for a discussion
 about its use.
 .El
+.\" ==== RESIZE ====
+.It Cm resize
+Resize a partition from geom
+.Ar geom
+and further identified by the
+.Fl i Ar index
+option.
+New partition size is expressed in logical block
+numbers and can be given by the 
+.Fl s Ar size
+option.
+If
+.Fl s
+option is ommited then new size is automatically calculated
+to maximum available from given geom
+.Ar geom .
+.Pp
+Additional options include:
+.Bl -tag -width 10n
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.El
 .\" ==== SET ====
 .It Cm set
 Set the named attribute on the partition entry.
@@ -450,7 +483,7 @@ The scheme-specific types are
 .Qq Li "!FreeBSD-ZFS"
 for APM,
 .Qq Li "!516e7cba-6ecf-11d6-8ff8-00022d09712b"
- for GPT, and 0x0904 for VTOC8.
+for GPT, and 0x0904 for VTOC8.
 .It Cm mbr
 A partition that is sub-partitioned by a master boot record (MBR).
 This type is known as
