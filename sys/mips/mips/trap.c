@@ -625,6 +625,15 @@ dofault:
 			code = locr0->v0;
 
 			switch (code) {
+#if defined(__mips_n32) || defined(__mips_n64)
+			case SYS___syscall:
+				/*
+				 * Quads fit in a single register in
+				 * new ABIs.
+				 *
+				 * XXX o64?
+				 */
+#endif
 			case SYS_syscall:
 				/*
 				 * Code is first argument, followed by
@@ -635,8 +644,16 @@ dofault:
 				args[1] = locr0->a2;
 				args[2] = locr0->a3;
 				nsaved = 3;
+#if defined(__mips_n32) || defined(__mips_n64)
+				args[3] = locr0->t4;
+				args[4] = locr0->t5;
+				args[5] = locr0->t6;
+				args[6] = locr0->t7;
+				nsaved += 4;
+#endif
 				break;
 
+#if defined(__mips_o32)
 			case SYS___syscall:
 				/*
 				 * Like syscall, but code is a quad, so as
@@ -652,6 +669,7 @@ dofault:
 				args[1] = locr0->a3;
 				nsaved = 2;
 				break;
+#endif
 
 			default:
 				args[0] = locr0->a0;
@@ -659,6 +677,13 @@ dofault:
 				args[2] = locr0->a2;
 				args[3] = locr0->a3;
 				nsaved = 4;
+#if defined (__mips_n32) || defined(__mips_n64)
+				args[4] = locr0->t4;
+				args[5] = locr0->t5;
+				args[6] = locr0->t6;
+				args[7] = locr0->t7;
+				nsaved += 4;
+#endif
 			}
 #ifdef TRAP_DEBUG
 			printf("SYSCALL #%d pid:%u\n", code, p->p_pid);
@@ -675,6 +700,15 @@ dofault:
 			nargs = callp->sy_narg;
 
 			if (nargs > nsaved) {
+#if defined(__mips_n32) || defined(__mips_n64)
+				/*
+				 * XXX
+				 * Is this right for new ABIs?  I think the 4 there
+				 * should be 8, size there are 8 registers to skip,
+				 * not 4, but I'm not certain.
+				 */
+				printf("SYSCALL #%u pid:%u, nargs > nsaved.\n", code, p->p_pid);
+#endif
 				i = copyin((caddr_t)(intptr_t)(locr0->sp +
 				    4 * sizeof(register_t)), (caddr_t)&args[nsaved],
 				    (u_int)(nargs - nsaved) * sizeof(register_t));
@@ -688,6 +722,18 @@ dofault:
 					goto done;
 				}
 			}
+#ifdef TRAP_DEBUG
+			for (i = 0; i < nargs; i++) {
+				printf("args[%d] = %#jx\n", i, (intmax_t)args[i]);
+			}
+#endif
+#ifdef SYSCALL_TRACING
+			printf("%s(", syscallnames[code]);
+			for (i = 0; i < nargs; i++) {
+				printf("%s%#jx", i == 0 ? "" : ", ", (intmax_t)args[i]);
+			}
+			printf(")\n");
+#endif
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_SYSCALL))
 				ktrsyscall(code, nargs, args);
