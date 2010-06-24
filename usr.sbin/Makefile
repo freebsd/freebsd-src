@@ -125,6 +125,7 @@ SUBDIR=	${_ac} \
 	${_ntp} \
 	${_nvram} \
 	${_ofwdump} \
+	pc-sysinstall \
 	pciconf \
 	periodic \
 	${_pkg_install} \
