@@ -1,0 +1,132 @@
+This README is for OpenSM and the InfiniBand diagnostic utilities
+in this directory (management).
+
+The master source repository is
+git://git.openfabrics.org/~sashak/management.git and can be cloned by:
+
+  git clone git://git.openfabrics.org/~sashak/management.git
+
+
+Packages
+--------
+libibcommon - common stuff
+libibumad - interface to ib_umad module (user_mad) library
+libibmad - generic MAD handling library
+opensm - OpenSM
+infiniband-diags - various diagnostic tools
+
+
+Building
+--------
+To make this unpack tarballs and in directories libibcommon, libibumad,
+libibmad, opensm, infiniband-diags (in that order) run:
+
+  ./configure && make && make install
+
+(If you are building the cloned repository run also ./autogen.sh first)
+
+Typically the autogen and configure steps only need be done the first
+time unless configure.in or Makefile.am changes in the directories.
+
+Libraries are installed by default at /usr/local/lib and binaries at
+/usr/local/sbin.
+
+
+Running
+-------
+After compiling and installing, you can run opensm by invoking
+
+  /usr/local/sbin/opensm
+
+opensm must be run as root. Run 'opensm --help' to see the options.
+
+Note also that you must have udev mount /dev/infiniband or do it manually.
+See .../src/linux-kernel/docs/user_mad.txt. Also, ib_umad module must be
+loaded.
+
+opensm will run on the first existing port on the first IB device (HCA).
+You can override that by using "-g <portguid_in_hex>".
+Verify that the first port is active. This assumes the port is plugged
+into another IB device.
+
+In case of problems, run the opensm with -V and send the log file
+(/var/log/opensm.log).
+
+IMPORTANT:
+Don't forget to modprobe ib_umad and make sure udev is configured before
+using any of the userspace programs.
+
+
+OpenSM Limitations:
+1. Retry mechanism in SM is primitive and needs enhancing to deal with
+ports which are active but don't respond to SM MADs.
+2. Async events are not yet supported (by OpenSM). The only one supported
+is local LID change (and this is handled in the mthca driver). Future
+versions of OpenSM may need to act on more local events.
+
+
+Tuning OpenSM for Large Clusters
+--------------------------------
+Currently OpenSM is compiled with debug and no optimization. This
+should be changed to at least -O2 (and perhaps -O4) but I would start
+with -O2. This results in a 2x speedup for some code paths.
+
+OpenSM supports a pipelining mode for SMPs. The default is 4
+outstanding SMPs. -maxsmps <#> indicates the number of outstanding SMPs
+allowed and should speed up the initialization. Useful values of this
+are 16 and 32.
+
+Beyond this, there may be some issue with a link which is causing
+timeout and retries to kick in. The OpenSM log should have some messages
+in there indicating this.
+
+
+Other utilities (infiniband diagnostics)
+---------------------------------------
+ibstat - show host adapters status
+ibstatus - similar to ibstat but implemented as a script
+ibnetdiscover - scan topology
+ibaddr - shows the lid range and default GID of the target (default is
+	the local port)
+ibroute - display unicast and multicast forwarding tables of switches
+ibtracert - display unicast or multicast route from source to destination
+ibping - ping/pong between IB nodes (currently using vendor MADs)
+ibsysstat - obtain basic information for node (hostname, cpus, memory,
+	utilization) which may be remote
+sminfo - query the SMInfo attribute on a node
+smpdump - simple solicited SMP query tool. Output is hex dump
+	(unless requested otherwise, e.g. using -s)
+smpquery - formatted SMP query tool
+perfquery - dump (and optionally clear) the performance (including error)
+	counters of the destination port
+ibcheckport - perform some basic tests on the specified port
+ibchecknode - perform some basic tests on the specified node
+ibcheckerrs - check if the error counters of the port/node have passed
+	some predefined thresholds
+ibchecknet - perform port/node/errors check on the subnet. ibnetdiscover
+	output can be used as in input topology
+ibswitches - scan the net or use existing net topology file and list all
+	switches
+ibhosts - scan the net or use existing net topology file and list all hosts
+ibnodes - scan the net or use existing net topology file and list all nodes
+ibportstate - get the logical and physical port state of an IB port or
+	disable or enable the port (only on a switch)
+ibcheckwidth - perform port width check on the subnet. Used to find ports
+	with 1x link width.
+ibcheckportwidth - perform 1x port width check on specified port
+ibcheckstate - perform port state (and physical port state) check on
+	the subnet. Used to find ports not in LinkUp physical port state
+	and not Active port state
+ibcheckportstate - perform port state (and physical port state) check on
+	specified port
+ibcheckerrors - perform error check on subnet. Used to find ports with
+	error counters (PMA PortCounters) beyond the indicated thresholds
+ibclearerrors - clear all error counters on subnet
+ibclearcounters - clear all port counters on subnet
+ibdiscover.pl - takes output of ibnetdiscover and a map file and produces
+	a topology file (local node GUID and port connected to remote
+	node GUID and port)
+saquery - issue some SA queries
+
+Note that the above list is not up to date and the infiniband-diags
+subdirectory should be checked for the latest tools.

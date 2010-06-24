@@ -1,0 +1,33 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_SET_ADDR_NET 3  "May 21, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_set_addr_net \- set MAD address fields within umad buffer using network ordering
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_set_addr_net(void " "*umad" ", int " "dlid" ", int " "dqp" ", int " "sl" ", int " "qkey");
+.fi
+.SH "DESCRIPTION"
+.B umad_set_addr_net()
+sets the MAD address fields within the specified
+.I umad\fR
+buffer using the provided network ordered fields.
+.I dlid\fR
+is the destination LID.
+.I dqp\fR
+is the destination QP (queue pair).
+.I sl\fR
+is the SL (service level).
+.I qkey\fR
+is the Q_Key (queue key).
+.SH "RETURN VALUE"
+.B umad_set_addr_net()
+returns 0 on success, and a negative value on errors. Currently, there
+are no errors indicated.
+.SH "SEE ALSO"
+.BR umad_set_addr (3)
+.SH "AUTHOR"
+.TP
+Hal Rosenstock <halr@voltaire.com>
