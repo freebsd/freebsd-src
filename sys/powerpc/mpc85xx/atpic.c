@@ -82,8 +82,6 @@ static void atpic_mask(device_t, u_int);
 static void atpic_unmask(device_t, u_int);
 static uint32_t atpic_id (device_t dev);
 
-static device_t pic8259;
-
 static device_method_t atpic_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify, 	atpic_isa_identify),
@@ -140,7 +138,7 @@ static void
 atpic_intr(void *arg)
 {
 
-	atpic_dispatch(pic8259, arg);
+	atpic_dispatch(arg, NULL);
 }
 
 static void
@@ -217,7 +215,7 @@ atpic_isa_attach(device_t dev)
 		goto fail;
 
 	error = bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, atpic_intr, NULL, &sc->sc_icookie);
+	    NULL, atpic_intr, dev, &sc->sc_icookie);
 	if (error)
 		goto fail;
 
@@ -225,7 +223,6 @@ atpic_isa_attach(device_t dev)
 	atpic_init(sc, ATPIC_MASTER);
 
 	powerpc_register_pic(dev, 0x10);
-	pic8259 = dev;
 	return (0);
 
  fail:
