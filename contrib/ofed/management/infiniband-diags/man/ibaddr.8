@@ -1,0 +1,109 @@
+.TH IBADDR 8 "June 18, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibaddr \- query InfiniBand address(es)
+
+.SH SYNOPSIS
+.B ibaddr
+[\-d(ebug)] [\-D(irect)] [\-G(uid)] [\-l(id_show)] [\-g(id_show)] [\-C ca_name] [\-P ca_port] [\-t(imeout) timeout_ms] [\-V(ersion)] [\-h(elp)] [<lid | dr_path | guid>]
+
+.SH DESCRIPTION
+.PP
+Display the lid (and range) as well as the GID address of the
+port specified (by DR path, lid, or GUID) or the local port by default.
+.PP
+Note: this utility can be used as simple address resolver.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-G\fR, \fB\-\-Guid\fR
+show lid range and gid for GUID address
+.TP
+\fB\-l\fR, \fB\-\-lid_show\fR
+show lid range only
+.TP
+\fB\-L\fR, \fB\-\-Lid_show\fR
+show lid range (in decimal) only
+.TP
+\fB\-g\fR, \fB\-\-gid_show\fR
+show gid address only
+
+.SH COMMON OPTIONS
+
+Most OpenIB diagnostics take the following common flags. The exact list of
+supported flags per utility can be found in the usage message and can be shown
+using the util_name -h syntax.
+
+# Debugging flags
+.PP
+\-d      raise the IB debugging level.
+        May be used several times (-ddd or -d -d -d).
+.PP
+\-e      show send and receive errors (timeouts and others)
+.PP
+\-h      show the usage message
+.PP
+\-v      increase the application verbosity level.
+        May be used several times (-vv or -v -v -v)
+.PP
+\-V      show the version info.
+
+# Addressing flags
+.PP
+\-D      use directed path address arguments. The path
+        is a comma separated list of out ports.
+        Examples:
+        "0"             # self port
+        "0,1,2,1,4"     # out via port 1, then 2, ...
+.PP
+\-G      use GUID address argument. In most cases, it is the Port GUID.
+        Example:
+        "0x08f1040023"
+.PP
+\-s <smlid>      use 'smlid' as the target lid for SM/SA queries.
+
+# Other common flags:
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+Multiple CA/Multiple Port Support
+
+When no IB device or port is specified, the port to use is selected
+by the following criteria:
+.PP
+1. the first port that is ACTIVE.
+.PP
+2. if not found, the first port that is UP (physical link up).
+
+If a port and/or CA name is specified, the user request is
+attempted to be fulfilled, and will fail if it is not possible.
+
+.SH EXAMPLES
+
+.PP
+ibaddr                  # local port\'s address
+.PP
+ibaddr 32               # show lid range and gid of lid 32
+.PP
+ibaddr -G 0x8f1040023   # same but using guid address
+.PP
+ibaddr -l 32            # show lid range only
+.PP
+ibaddr -L 32            # show decimal lid range only
+.PP
+ibaddr -g 32            # show gid address only
+
+.SH SEE ALSO
+.BR ibroute (8),
+.BR ibtracert (8)
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

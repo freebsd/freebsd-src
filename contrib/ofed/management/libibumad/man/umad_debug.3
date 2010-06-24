@@ -1,0 +1,29 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_DEBUG 3  "May 21, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_debug \- set debug level
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_debug(int " "level" );
+.fi
+.SH "DESCRIPTION"
+.B umad_debug()
+sets the umad library internal debug level to
+.I level\fR.
+The following
+debug levels are supported: 0 - no debug (the default),
+1 - basic debug information, 2 - verbose debug information. Negative values are
+ignored in terms of set. Note that the current debug level can
+be queried by passing a negative value as
+.I level\fR.
+.SH "RETURN VALUE"
+.B umad_debug()
+returns the actual debug level.
+.SH "AUTHORS"
+.TP
+Hal Rosenstock <halr@voltaire.com>
+.TP
+Dotan Barak <dotanb@mellanox.co.il>

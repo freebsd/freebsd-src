@@ -1,0 +1,282 @@
+#!/usr/bin/perl -W
+#!/usr/bin/perl -W
+#
+#
+# Copyright (c) 2004, 2005 Voltaire, Inc. All rights reserved.
+# Copyright (c) 2002-2005 Mellanox Technologies LTD. All rights reserved.
+# Copyright (c) 1996-2003 Intel Corporation. All rights reserved.
+#
+# This software is available to you under a choice of one of two
+# licenses.  You may choose to be licensed under the terms of the GNU
+# General Public License (GPL) Version 2, available from the file
+# COPYING in the main directory of this source tree, or the
+# OpenIB.org BSD license below:
+#
+#     Redistribution and use in source and binary forms, with or
+#     without modification, are permitted provided that the following
+#     conditions are met:
+#
+#      - Redistributions of source code must retain the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer.
+#
+#      - Redistributions in binary form must reproduce the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer in the documentation and/or other materials
+#        provided with the distribution.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+#
+#
+#  Abstract:
+#  	Perl script for simple source code error checking.
+#
+#  Environment:
+#  	Linux User Mode
+#
+#  $Revision: 1.4 $
+#
+#
+#
+# DESCRIPTION:
+#
+# This script performs some simple conformance checks on the
+# OpenSM source code.  It does NOT attempt to act like a full
+# blown 'C' language parser, so it can be fooled.  Something
+# is better than nothing.  Running the 'osm_indent' script before
+# running this script will increase your chances of catching
+# problems.
+#
+#
+# The following checks are performed:
+# 1) Verify that the function name provided in a log statement
+# matches the name of the current function.
+#
+# 2) Verify that log statements are in the form that this script
+# can readily parse.  Improvements to the regular expressions
+# might make this unnecessary.
+#
+# 3) Verify that lower two digits of the error codes used in log
+# statements are unique within that file.
+#
+# 4) Verify that upper two digits of the error codes used in log
+# statements are not used by any other module.
+#
+# USAGE:
+#
+# In the OpenSM source directory, type:
+# osm_check.pl *.c
+#
+
+# Do necessary upfront initialization
+$verbose = 0;
+$in_c_comment = 0;
+
+if( !exists $ARGV[0] )
+{
+	print "ERROR: You must specify the files on which to operate, such as '*.c'\n";
+	osm_check_usage();
+	exit;
+}
+
+# loop through all the command line options
+do
+{
+	$doing_params = 0;
+
+	# First, look for command line options.
+	if( $ARGV[0] =~ /-[v|V]/ )
+	{
+		$verbose += 1;
+		shift;
+		print "Verbose mode on, level = $verbose.\n";
+		$doing_params = 1;
+	}
+
+	if( !exists $ARGV[0] )
+	{
+		print "ERROR: You must specify the files on which to operate, such as '*.c'\n";
+		osm_check_usage();
+		exit;
+	}
+}while( $doing_params == 1 );
+
+LINE: while( <> )
+{
+	# Skip C single line C style comments
+	# This line must come before the multi-line C comment check!
+	if( /\/\*.*\*\// )
+	{
+		$in_c_comment = 0;
+		next LINE;
+	}
+
+	# skip multi-line C style comments
+	if( /\/\*/ )
+	{
+		$in_c_comment = 1;
+		next LINE;
+	}
+
+	# end skipping of multi-line C style comments
+	if( /\*\// )
+	{
+		$in_c_comment = 0;
+		next LINE;
+	}
+
+	# We're still in a C comment, so ignore input
+	if( $in_c_comment == 1 )
+	{
+		next LINE;
+	}
+
+
+	# skip C++ style comment lines
+	if( /^\s*\/\// )
+	{
+		next LINE;
+	}
+
+	# check for bad PRIx64 usage
+	# It's a common mistake to forget the % before the PRIx64
+	if( /[^%]\"\s*PRIx64/ )
+	{
+		print "No % sign before PRx64!!: $ARGV $.\n";
+	}
+
+	# This simple script doesn't handle checking PRIx64 usage
+	# when PRIx64 starts the line.  Just give a warning.
+	if( /^\s*PRIx64/ )
+	{
+		print "Warning: PRIx64 at start of line.  $ARGV $.\n";
+	}
+
+	# Attempt to locate function names.
+	# Function names must start on the beginning of the line.
+	if( /^(\w+)\s*\(/ )
+	{
+		$current_func = $1;
+		if( $verbose == 1 )
+		{
+			print "Processing $ARGV: $current_func\n";
+		}
+	}
+
+	# Attempt to find OSM_LOG_ENTER entries.
+	# When found, verify that the function name provided matches
+	# the actual function.
+	if( /OSM_LOG_ENTER\s*\(\s*([\-\.\>\w]+)\s*,\s*(\w+)\s*\)/ )
+	{
+		$log_func = $2;
+		if( $current_func ne $log_func )
+		{
+			printf "MISMATCH!! $ARGV $.: $current_func != $log_func\n";
+		}
+	}
+
+	# Check for non-conforming log statements.
+	# Log statements must not start the log string on the same line
+	# as the osm_log function itself.
+	# Watch out for the #include "osm_log.h" statement as a false positive.
+	if( /osm_log\s*\(.*\"/ )
+	{
+		print "NON-CONFORMING LOG STATEMENT!! $ARGV $.\n";
+	}
+
+	# Attempt to find osm_log entries.
+	if( /^\s*\"(\w+):/ )
+	{
+		$log_func = $1;
+		if( $current_func ne $log_func )
+		{
+			print "MISMATCHED LOG FUNCTION!! $ARGV $.: $current_func != $log_func\n";
+		}
+	}
+
+	# Error logging must look like 'ERR 1234:'
+	# The upper two digits are error range assigned to that module.
+	# The lower two digits are the error code itself.
+	# Error codes are in hexadecimal.
+	if( /ERR(\s+)([0-9a-fA-F]{2})([0-9a-fA-F]{2})(..)/ )
+	{
+		# Check if we already established the error prefix for this module
+		$err_prefix = $module_err_prefixes{$ARGV};
+		if( $err_prefix )
+		{
+			if( $err_prefix ne $2 )
+			{
+				print "BAD ERR RANGE IN LOG ENTRY!! $ARGV $.: $current_func\n";
+				print "\tExpected $err_prefix but found $2\n";
+			}
+		}
+		else
+		{
+			# Create a new prefix for this module.
+			$module_err_prefixes{$ARGV} = $2;
+		}
+
+		$err_base = $module_err_bases{$3};
+		if( $err_base )
+		{
+			print "DUPLICATE ERR NUMBER IN LOG ENTRY!! $ARGV $.: $current_func: $3\n";
+			print "\tPrevious use on line $err_base.\n";
+		}
+		else
+		{
+			# Add this error code to the list used by this module
+			# The data stored in the line number on which it is used.
+			$module_err_bases{$3} = $.;
+			if( $verbose > 1 )
+			{
+				print "Adding new error: $1$2 in $ARGV.\n";
+			}
+		}
+
+		if( $4 ne ": " )
+		{
+			print "MALFORMED LOG STATEMENT!!  NEEDS ': ' $ARGV $.\n";
+		}
+
+		if( $1 ne " " )
+		{
+			print "USE ONLY 1 SPACE AFTER ERR!! $ARGV $.\n";
+		}
+	}
+
+	# verify expected use of sizeof() with pointers
+	if( /sizeof\s*\(\s*[h|p]_/ )
+	{
+		print "SUSPICIOUS USE OF SIZEOF(), DO YOU NEED AN '*' $ARGV $.\n";
+	}
+
+
+}
+continue
+{
+	# reset the module base error index when we finished out
+	# each source file.
+	if( eof )
+	{
+		# reset the base error value, since each module can
+		# repeat this range.
+		%module_err_bases = ();
+		# closing the file here resets the line number with each new file
+		close ARGV;
+	}
+}
+
+sub osm_check_usage
+{
+	print "Usage:\n";
+	print "osm_check.pl [-v|V] <file list>\n";
+	print "[-v|V] - enable verbose mode.\n\n";
+}

@@ -1,0 +1,63 @@
+.TH IBQUERYERRORS 8 "Jan 24, 2008" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibqueryerrors.pl \- query and report non-zero IB port counters
+
+.SH SYNOPSIS
+.B ibqueryerrors.pl
+[-a -c -r -R -C <ca_name> -P <ca_port> -s <err1,err2,...> -S <switch_guid> -D <direct_route> -d]
+
+.SH DESCRIPTION
+.PP
+ibqueryerrors.pl reports the port counters of switches.  This is similar to
+ibcheckerrors with the additional ability to filter out selected errors,
+include the optional transmit and receive data counters, report actions to
+remedy a non-zero count, and report full link information for the link
+reported.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-a\fR
+Report an action to take.  Some of the counters are not errors in and of
+themselves.  This reports some more information on what the counters mean and
+what actions can/should be taken if they are non-zero.
+.TP
+\fB\-c\fR
+Suppress some of the common "side effect" counters.  These counters usually do
+not indicate an error condition and can be usually be safely ignored.
+.TP
+\fB\-r\fR
+Report the port information.  This includes LID, port, external port (if
+applicable), link speed setting, remote GUID, remote port, remote external port
+(if applicable), and remote node description information.
+.TP
+\fB\-R\fR
+Recalculate the ibnetdiscover information, ie do not use the cached
+information.  This option is slower but should be used if the diag tools have
+not been used for some time or if there are other reasons to believe that
+the fabric has changed.
+.TP
+\fB\-s <err1,err2,...>\fR
+Suppress the errors listed in the comma separated list provided.
+.TP
+\fB\-S <switch_guid>\fR
+Report results only for the switch specified. (hex format)
+.TP
+\fB\-D <direct_route>\fR
+Report results only for the switch specified by the direct route path.
+.TP
+\fB\-d\fR
+Include the optional transmit and receive data counters.
+.TP
+\fB\-C <ca_name>\fR    use the specified ca_name for the search.
+.TP
+\fB\-P <ca_port>\fR    use the specified ca_port for the search.
+
+
+.SH AUTHOR
+.TP
+Ira Weiny
+.RI < weiny2@llnl.gov >
+
