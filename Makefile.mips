@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+# A bug in binutils prevents rescue from building, so override the user's
+# choice.
+MK_RESCUE=no
