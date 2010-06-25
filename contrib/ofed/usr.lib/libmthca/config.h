@@ -1,0 +1,9 @@
+#define	HAVE_IBV_DONTFORK_RANGE
+#define	HAVE_IBV_DOFORK_RANGE
+#define	HAVE_IBV_REGISTER_DRIVER
+#define	HAVE_IBV_READ_SYSFS_FILE
+#ifdef	__LP64__
+#define	SIZEOF_LONG	8
+#else
+#define	SIZEOF_LONG	4
+#endif
