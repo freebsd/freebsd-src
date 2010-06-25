@@ -46,12 +46,17 @@
 /*
  * Most distro's headers don't have these yet.
  */
+#ifdef	__linux__
 #ifndef MADV_DONTFORK
 #define MADV_DONTFORK	10
 #endif
 
 #ifndef MADV_DOFORK
 #define MADV_DOFORK	11
+#endif
+#else
+#define	MADV_DONTFORK	INHERIT_NONE
+#define	MADV_DOFORK	INHERIT_SHARE
 #endif
 
 struct ibv_mem_node {
@@ -72,8 +77,10 @@ static int too_late;
 
 int ibv_fork_init(void)
 {
+#ifdef __linux__
 	void *tmp;
 	int ret;
+#endif
 
 	if (mm_root)
 		return 0;
@@ -85,6 +92,7 @@ int ibv_fork_init(void)
 	if (page_size < 0)
 		return errno;
 
+#ifdef __linux__
 	if (posix_memalign(&tmp, page_size, page_size))
 		return ENOMEM;
 
@@ -95,6 +103,7 @@ int ibv_fork_init(void)
 
 	if (ret)
 		return ENOSYS;
+#endif
 
 	mm_root = malloc(sizeof *mm_root);
 	if (!mm_root)
@@ -569,10 +578,10 @@ again:
 			 * and that may lead to a spurious failure.
 			 */
 			if (start > node->start)
-				ret = madvise((void *) start, node->end - start + 1,
+				ret = minherit((void *) start, node->end - start + 1,
 					      advice);
 			else
-				ret = madvise((void *) node->start,
+				ret = minherit((void *) node->start,
 					      node->end - node->start + 1,
 					      advice);
 			if (ret) {

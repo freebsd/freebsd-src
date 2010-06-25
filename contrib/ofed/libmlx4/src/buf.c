@@ -65,7 +65,7 @@ int mlx4_alloc_buf(struct mlx4_buf *buf, size_t size, int page_size)
 
 	buf->length = align(size, page_size);
 	buf->buf = mmap(NULL, buf->length, PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			MAP_PRIVATE | MAP_ANON, -1, 0);
 	if (buf->buf == MAP_FAILED)
 		return errno;
 
