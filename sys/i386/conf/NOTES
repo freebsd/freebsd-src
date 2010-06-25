@@ -512,6 +512,9 @@ device		acpi_video
 # ACPI Docking Station
 device		acpi_dock
 
+# ACPI ASOC ATK0110 ASUSTeK AI Booster (voltage, temperature and fan sensors)
+device		aibs
+
 # The cpufreq(4) driver provides support for non-ACPI CPU frequency control
 device		cpufreq
 
