@@ -26,6 +26,7 @@ MAN=	aac.4 \
 	ahc.4 \
 	ahci.4 \
 	ahd.4 \
+	${_aibs.4} \
 	aio.4 \
 	alc.4 \
 	ale.4 \
@@ -633,6 +634,7 @@ _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
+_aibs.4=	aibs.4
 _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
