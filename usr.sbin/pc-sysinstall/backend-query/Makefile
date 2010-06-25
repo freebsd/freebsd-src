@@ -6,7 +6,7 @@ FILES=	detect-laptop.sh detect-nics.sh detect-vmware.sh disk-info.sh \
 	setup-ssh-keys.sh sys-mem.sh test-live.sh test-netup.sh \
 	update-part-list.sh xkeyboard-layouts.sh xkeyboard-models.sh \
 	xkeyboard-variants.sh
-
+FILESMODE=	${BINMODE}
 FILESDIR=${SHAREDIR}/pc-sysinstall/backend-query
 NO_OBJ=
 
