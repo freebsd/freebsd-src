@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 	.data
 _C_LABEL(__curbrk):
-	.word	_C_LABEL(_end)
+	PTR_WORD	_C_LABEL(_end)
 	.text
 
 LEAF(__sys_sbrk)
