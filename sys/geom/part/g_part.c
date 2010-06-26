@@ -91,6 +91,7 @@ struct g_part_alias_list {
 	{ "ms-ldm-data", G_PART_ALIAS_MS_LDM_DATA },
 	{ "ms-ldm-metadata", G_PART_ALIAS_MS_LDM_METADATA },
 	{ "ms-reserved", G_PART_ALIAS_MS_RESERVED },
+	{ "ntfs", G_PART_ALIAS_MS_NTFS },
 	{ "netbsd-ccd", G_PART_ALIAS_NETBSD_CCD },
 	{ "netbsd-cgd", G_PART_ALIAS_NETBSD_CGD },
 	{ "netbsd-ffs", G_PART_ALIAS_NETBSD_FFS },
