@@ -3443,9 +3443,13 @@ locate_dependency(const Obj_Entry *obj, const char *name)
 	if (object_match_name(needed->obj, name))
 	    return needed->obj;
     }
-    _rtld_error("%s: Unexpected inconsistency: dependency %s not found",
-	obj->path, name);
-    die();
+
+    /*
+     * GNU LD sometimes refers to version dependencies on objects to which 
+     * it does not actually link. Treat this as a non-fatal error, and
+     * ignore this dependency.
+     */
+    return NULL;
 }
 
 static int
@@ -3567,6 +3571,9 @@ rtld_verify_object_versions(Obj_Entry *obj)
     vn = obj->verneed;
     while (vn != NULL) {
 	depobj = locate_dependency(obj, obj->strtab + vn->vn_file);
+	if (depobj == NULL)
+	    break;
+
 	vna = (const Elf_Vernaux *) ((char *)vn + vn->vn_aux);
 	for (;;) {
 	    if (check_object_provided_version(obj, depobj, vna))
