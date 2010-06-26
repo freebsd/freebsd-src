@@ -59,6 +59,7 @@ enum g_part_alias {
 	G_PART_ALIAS_MS_LDM_DATA,	/* A Microsoft LDM Data part. entry. */
 	G_PART_ALIAS_MS_LDM_METADATA,	/* A Microsoft LDM Metadata entry. */
 	G_PART_ALIAS_MS_RESERVED,	/* A Microsoft Reserved part. entry. */
+	G_PART_ALIAS_MS_NTFS,		/* A Microsoft NTFS partition entry */
 	G_PART_ALIAS_NETBSD_CCD,	/* A NetBSD CCD partition entry. */
 	G_PART_ALIAS_NETBSD_CGD,	/* A NetBSD CGD partition entry. */
 	G_PART_ALIAS_NETBSD_FFS,	/* A NetBSD FFS partition entry. */
