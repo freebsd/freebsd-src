@@ -75,7 +75,6 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 	struct tftphdr *rp;
 	int n, i;
 	uint16_t block;
-	uint32_t amount;
 	struct sockaddr_storage serv;	/* valid server port number */
 	char recvbuffer[MAXPKTSIZE];
 	struct tftp_stats tftp_stats;
@@ -162,7 +161,7 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 	tftp_send(peer, &block, &tftp_stats);
 
 	read_close();
-	if (amount > 0)
+	if (tftp_stats.amount > 0)
 		printstats("Sent", verbose, &tftp_stats);
 
 	txrx_error = 1;
@@ -242,8 +241,6 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		warn("write_init");
 		return;
 	}
-
-	stats_init(&tftp_stats);
 
 	/*
 	 * If the first packet is an OACK packet instead of an DATA packet,
