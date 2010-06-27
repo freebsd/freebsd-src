@@ -612,7 +612,7 @@
 	 AH_PRIVATE((_ah))->ah_macRev == AR_XSREV_REVISION_MERLIN_20)
 #define	AR_SREV_MERLIN_20_OR_LATER(_ah) \
 	(AR_SREV_MERLIN_20(_ah) || \
-	 AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_MERLIN_20)
+	 AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_MERLIN)
 
 #define	AR_SREV_KITE(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_KITE)
