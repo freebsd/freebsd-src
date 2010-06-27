@@ -148,6 +148,14 @@ case $1 in
   list-components) ${QUERYDIR}/list-components.sh
   ;;
 
+  # Function which lists pc-sysinstall configuration
+  list-config) ${QUERYDIR}/list-config.sh
+  ;;
+
+  # Function which lists available FTP mirrors
+  list-mirrors) ${QUERYDIR}/list-mirrors.sh "${2}"
+  ;;
+
   # Function which lists available backups on a rsync/ssh server
   list-rsync-backups) ${QUERYDIR}/list-rsync-backups.sh "${2}" "${3}" "${4}"
   ;;

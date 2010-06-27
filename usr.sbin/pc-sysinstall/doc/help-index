@@ -28,8 +28,14 @@ System Query Commands
     detect-nics
 	Returns a listing of the detected network cards on this system
 
+    list-config
+        Returns a listing of the pc-sysinstall configuration
+
     list-components
 	Returns a listing of the available components which can be installed
+
+    list-mirrors
+	Returns a listing of the available FTP mirrors
 
     list-rsync-backups <user> <host> <port>
 	Returns a listing of available rsync-backups on the target server in the life-preserver/ dir
