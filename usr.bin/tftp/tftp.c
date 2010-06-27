@@ -229,7 +229,10 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		/* Otherwise it is a fatal error */
 		break;
 	}
-
+	if (i == 12) {
+		printf("Transfer timed out.\n");
+		return;
+	}
 	if (rp->th_opcode == ERROR) {
 		tftp_log(LOG_ERR, "Error code %d: %s", rp->th_code, rp->th_msg);
 		return;
