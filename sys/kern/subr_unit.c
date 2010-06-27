@@ -318,7 +318,7 @@ clean_unrhdr(struct unrhdr *uh)
 /*
  * Allocate a new unrheader set.
  *
- * Highest and lowest valid values given as paramters.
+ * Highest and lowest valid values given as parameters.
  */
 
 struct unrhdr *
