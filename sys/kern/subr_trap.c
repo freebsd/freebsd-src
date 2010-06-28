@@ -298,6 +298,9 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			if (error != 0)
 				goto retval;
 		}
+		error = syscall_thread_enter(td, sa->callp);
+		if (error != 0)
+			goto retval;
 
 #ifdef KDTRACE_HOOKS
 		/*
@@ -327,6 +330,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			(*systrace_probe_func)(sa->callp->sy_return, sa->code,
 			    sa->callp, sa->args);
 #endif
+		syscall_thread_exit(td, sa->callp);
 		CTR4(KTR_SYSC, "syscall: p=%p error=%d return %#lx %#lx",
 		    p, error, td->td_retval[0], td->td_retval[1]);
 	}
