@@ -1231,15 +1231,15 @@
         pc-sysinstall
             backend
             ..
-	    backend-partmanager
+            backend-partmanager
             ..
-	    backend-query
+            backend-query
             ..
-	    conf
+            conf
                 license
-		..
+                ..
             ..
-	    doc
+            doc
             ..
         ..
         security
