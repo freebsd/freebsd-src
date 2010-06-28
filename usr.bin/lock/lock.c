@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <errno.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -257,9 +258,9 @@ hi(int signo __unused)
 		if (no_timeout) {
 			(void)putchar('\n');
 		} else {
-			(void)printf("timeout in %ld:%ld minutes\n",
-			    (nexttime - timval.tv_sec) / 60,
-			    (nexttime - timval.tv_sec) % 60);
+			(void)printf("timeout in %jd:%jd minutes\n",
+			    (intmax_t)(nexttime - timval.tv_sec) / 60,
+			    (intmax_t)(nexttime - timval.tv_sec) % 60);
 		}
 	}
 }
