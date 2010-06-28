@@ -37,6 +37,7 @@
  * $FreeBSD$
  */
 
+#if 0
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
@@ -46,6 +47,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "@(#)locate.code.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
+#endif
 
 /*
  * PURPOSE:	sorted list compressor (works with a modified 'find'
@@ -122,14 +124,12 @@ int	bgindex(char *);
 void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register u_char *cp, *oldpath, *path;
+	u_char *cp, *oldpath, *path;
 	int ch, code, count, diffcount, oldcount;
+	u_int i, j;
 	FILE *fp;
-	register int i, j;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
@@ -256,10 +256,9 @@ main(argc, argv)
 
 #ifndef LOOKUP
 int
-bgindex(bg)			/* Return location of bg in bigrams or -1. */
-	char *bg;
+bgindex(char *bg)		/* Return location of bg in bigrams or -1. */
 {
-	register char bg0, bg1, *p;
+	char bg0, bg1, *p;
 
 	bg0 = bg[0];
 	bg1 = bg[1];
@@ -271,7 +270,7 @@ bgindex(bg)			/* Return location of bg in bigrams or -1. */
 #endif /* !LOOKUP */
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: locate.code common_bigrams < list > squozen_list\n");
