@@ -2057,8 +2057,8 @@ static void
 em_local_timer(void *arg)
 {
 	struct adapter	*adapter = arg;
-	struct ifnet	*ifp = adapter->ifp;
 	struct tx_ring	*txr = adapter->tx_rings;
+	struct ifnet *ifp = adapter->ifp;
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
@@ -3817,7 +3817,6 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	bus_dma_segment_t	seg[1];
 	int			rsize, nsegs, error;
 
-
 	/* Clear the ring contents */
 	EM_RX_LOCK(rxr);
 	rsize = roundup2(adapter->num_rx_desc *
@@ -3860,7 +3859,6 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		/* Update descriptor */
 		rxr->rx_base[j].buffer_addr = htole64(seg[0].ds_addr);
 	}
-
 
 	/* Setup our descriptor indices */
 	rxr->next_to_check = 0;
@@ -3984,6 +3982,7 @@ em_free_receive_buffers(struct rx_ring *rxr)
  *  Enable receive unit.
  *
  **********************************************************************/
+
 #define MAX_INTS_PER_SEC	8000
 #define DEFAULT_ITR	     1000000000/(MAX_INTS_PER_SEC * 256)
 
