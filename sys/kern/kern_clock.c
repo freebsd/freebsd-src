@@ -213,8 +213,10 @@ deadlkres(void)
 					MPASS(td->td_blocked != NULL);
 
 					/* Handle ticks wrap-up. */
-					if (ticks < td->td_blktick)
+					if (ticks < td->td_blktick) {
+						thread_unlock(td);
 						continue;
+					}
 					tticks = ticks - td->td_blktick;
 					thread_unlock(td);
 					if (tticks > blkticks) {
@@ -233,8 +235,10 @@ deadlkres(void)
 				} else if (TD_IS_SLEEPING(td)) {
 
 					/* Handle ticks wrap-up. */
-					if (ticks < td->td_blktick)
+					if (ticks < td->td_blktick) {
+						thread_unlock(td);
 						continue;
+					}
 
 					/*
 					 * Check if the thread is sleeping on a
