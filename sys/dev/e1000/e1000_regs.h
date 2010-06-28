@@ -236,7 +236,7 @@
 #define E1000_PRC64    0x0405C  /* Packets Rx (64 bytes) - R/clr */
 #define E1000_PRC127   0x04060  /* Packets Rx (65-127 bytes) - R/clr */
 #define E1000_PRC255   0x04064  /* Packets Rx (128-255 bytes) - R/clr */
-#define E1000_PRC511   0x04068  /* Packets Rx (256-511 bytes) - R/clr */
+#define E1000_PRC511   0x04068  /* Packets Rx (255-511 bytes) - R/clr */
 #define E1000_PRC1023  0x0406C  /* Packets Rx (512-1023 bytes) - R/clr */
 #define E1000_PRC1522  0x04070  /* Packets Rx (1024-1522 bytes) - R/clr */
 #define E1000_GPRC     0x04074  /* Good Packets Rx Count - R/clr */
