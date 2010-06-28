@@ -80,6 +80,32 @@ SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 static int ufs_lookup_(struct vnode *, struct vnode **, struct componentname *,
     ino_t *);
 
+#ifdef QUOTA
+static int
+ufs_lookup_upgrade_lock(struct vnode *vp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, __FUNCTION__);
+	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
+		return (0);
+
+	error = 0;
+
+	/*
+	 * Upgrade vnode lock, since getinoquota()
+	 * requires exclusive lock to modify inode.
+	 */
+	vhold(vp);
+	vn_lock(vp, LK_UPGRADE | LK_RETRY);
+	VI_LOCK(vp);
+	if (vp->v_iflag & VI_DOOMED)
+		error = ENOENT;
+	vdropl(vp);
+	return (error);
+}
+#endif
+
 static int
 ufs_delete_denied(struct vnode *vdp, struct vnode *tdp, struct ucred *cred,
     struct thread *td)
@@ -235,6 +261,13 @@ ufs_lookup_(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
 
 	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+#ifdef QUOTA
+	if ((nameiop == DELETE || nameiop == RENAME) && (flags & ISLASTCN)) {
+		error = ufs_lookup_upgrade_lock(vdp);
+		if (error != 0)
+			return (error);
+	}
+#endif
 
 restart:
 	bp = NULL;
