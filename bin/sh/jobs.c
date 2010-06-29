@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 STATIC struct job *jobtab;	/* array of jobs */
 STATIC int njobs;		/* size of array */
 MKINIT pid_t backgndpid = -1;	/* pid of last background process */
+MKINIT struct job *bgjob = NULL; /* last background process */
 #if JOBS
 STATIC struct job *jobmru;	/* most recently used job list */
 STATIC pid_t initialpgrp;	/* pgrp of shell on invocation */
@@ -183,6 +184,7 @@ INCLUDE <stdlib.h>
 
 SHELLPROC {
 	backgndpid = -1;
+	bgjob = NULL;
 #if JOBS
 	jobctl = 0;
 #endif
@@ -413,7 +415,11 @@ showjobs(int change, int mode)
 			continue;
 		showjob(jp, 0, mode);
 		jp->changed = 0;
-		if (jp->state == JOBDONE) {
+		/* Hack: discard jobs for which $! has not been referenced
+		 * in interactive mode when they terminate.
+		 */
+		if (jp->state == JOBDONE && !jp->remembered &&
+				(iflag || jp != bgjob)) {
 			freejob(jp);
 		}
 	}
@@ -431,6 +437,8 @@ freejob(struct job *jp)
 	int i;
 
 	INTOFF;
+	if (bgjob == jp)
+		bgjob = NULL;
 	for (i = jp->nprocs, ps = jp->ps ; --i >= 0 ; ps++) {
 		if (ps->cmd != nullstr)
 			ckfree(ps->cmd);
@@ -477,12 +485,27 @@ waitcmd(int argc, char **argv)
 #endif
 				else
 					retval = WTERMSIG(status) + 128;
-				if (! iflag)
+				if (! iflag || ! job->changed)
 					freejob(job);
+				else {
+					job->remembered = 0;
+					if (job == bgjob)
+						bgjob = NULL;
+				}
 				in_waitcmd--;
 				return retval;
 			}
 		} else {
+			for (jp = jobtab ; jp < jobtab + njobs; jp++)
+				if (jp->used && jp->state == JOBDONE) {
+					if (! iflag || ! jp->changed)
+						freejob(jp);
+					else {
+						jp->remembered = 0;
+						if (jp == bgjob)
+							bgjob = NULL;
+					}
+				}
 			for (jp = jobtab ; ; jp++) {
 				if (jp >= jobtab + njobs) {	/* no running procs */
 					in_waitcmd--;
@@ -623,6 +646,8 @@ makejob(union node *node __unused, int nprocs)
 						jp[i].next = &jp[jp[i].next -
 						    jobtab];
 #endif
+				if (bgjob != NULL)
+					bgjob = &jp[bgjob - jobtab];
 				/* Relocate `ps' pointers */
 				for (i = 0; i < njobs; i++)
 					if (jp[i].ps == &jobtab[i].ps0)
@@ -644,6 +669,7 @@ makejob(union node *node __unused, int nprocs)
 	jp->changed = 0;
 	jp->nprocs = 0;
 	jp->foreground = 0;
+	jp->remembered = 0;
 #if JOBS
 	jp->jobctl = jobctl;
 	jp->next = NULL;
@@ -821,8 +847,13 @@ forkshell(struct job *jp, union node *n, int mode)
 			pgrp = jp->ps[0].pid;
 		setpgid(pid, pgrp);
 	}
-	if (mode == FORK_BG)
+	if (mode == FORK_BG) {
+		if (bgjob != NULL && bgjob->state == JOBDONE &&
+		    !bgjob->remembered && !iflag)
+			freejob(bgjob);
 		backgndpid = pid;		/* set $! */
+		bgjob = jp;
+	}
 	if (jp) {
 		struct procstat *ps = &jp->ps[jp->nprocs++];
 		ps->pid = pid;
@@ -975,10 +1006,15 @@ dowait(int block, struct job *job)
 				if (jp->state != state) {
 					TRACE(("Job %d: changing state from %d to %d\n", jp - jobtab + 1, jp->state, state));
 					jp->state = state;
+					if (jp != job) {
+						if (done && !jp->remembered &&
+						    !iflag && jp != bgjob)
+							freejob(jp);
 #if JOBS
-					if (done)
-						deljob(jp);
+						else if (done)
+							deljob(jp);
 #endif
+					}
 				}
 			}
 		}
@@ -1073,6 +1109,21 @@ checkzombies(void)
 		;
 }
 
+
+int
+backgndpidset(void)
+{
+	return backgndpid != -1;
+}
+
+
+pid_t
+backgndpidval(void)
+{
+	if (bgjob != NULL)
+		bgjob->remembered = 1;
+	return backgndpid;
+}
 
 /*
  * Return a string identifying a command (to be printed by the
