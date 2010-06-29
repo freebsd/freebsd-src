@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2010
+.Dd June 29, 2010
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1106,6 +1106,10 @@ command executed from the current shell.
 For a
 pipeline, the process ID is that of the last command in the
 pipeline.
+If this parameter is referenced, the shell will remember
+the process ID and its exit status until the
+.Ic wait
+built-in command reports completion of the process.
 .It Li $0
 (zero) Expands to the name of the shell or shell script.
 .El
