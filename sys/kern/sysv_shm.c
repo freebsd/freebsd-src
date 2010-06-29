@@ -907,9 +907,7 @@ shminit()
 static int
 shmunload()
 {
-#ifdef MAC
 	int i;	
-#endif
 
 	if (shm_nused > 0)
 		return (EBUSY);
