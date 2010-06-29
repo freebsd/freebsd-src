@@ -732,7 +732,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 		p->p_oppid = 0;
 		proc_reparent(p, t);
 		PROC_UNLOCK(p);
-		tdsignal(t, NULL, SIGCHLD, p->p_ksi);
+		pksignal(t, SIGCHLD, p->p_ksi);
 		wakeup(t);
 		cv_broadcast(&p->p_pwait);
 		PROC_UNLOCK(t);
