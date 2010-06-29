@@ -2683,9 +2683,7 @@ xpt_action_default(union ccb *start_ccb)
 			xptedtmatch(cdm);
 			break;
 		case CAM_DEV_POS_PDRV:
-			xpt_lock_buses();
 			xptperiphlistmatch(cdm);
-			xpt_unlock_buses();
 			break;
 		default:
 			cdm->status = CAM_DEV_MATCH_ERROR;
