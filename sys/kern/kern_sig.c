@@ -107,6 +107,8 @@ static int	killpg1(struct thread *td, int sig, int pgid, int all,
 		    ksiginfo_t *ksi);
 static int	issignal(struct thread *td, int stop_allowed);
 static int	sigprop(int sig);
+static int	tdsendsignal(struct proc *p, struct thread *td, int sig,
+		    ksiginfo_t *ksi);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
 static void	sig_suspend_threads(struct thread *, struct proc *, int);
 static int	filt_sigattach(struct knote *kn);
@@ -1797,7 +1799,7 @@ sigqueue(struct thread *td, struct sigqueue_args *uap)
 		ksi.ksi_pid = td->td_proc->p_pid;
 		ksi.ksi_uid = td->td_ucred->cr_ruid;
 		ksi.ksi_value.sival_ptr = uap->value;
-		error = tdsignal(p, NULL, ksi.ksi_signo, &ksi);
+		error = pksignal(p, ksi.ksi_signo, &ksi);
 	}
 	PROC_UNLOCK(p);
 	return (error);
@@ -1907,7 +1909,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 		mtx_unlock(&ps->ps_mtx);
 		p->p_code = code;	/* XXX for core dump/debugger */
 		p->p_sig = sig;		/* XXX to verify code */
-		tdsignal(p, td, sig, ksi);
+		tdsendsignal(p, td, sig, ksi);
 	}
 	PROC_UNLOCK(p);
 }
@@ -1962,14 +1964,14 @@ psignal(struct proc *p, int sig)
 	ksiginfo_init(&ksi);
 	ksi.ksi_signo = sig;
 	ksi.ksi_code = SI_KERNEL;
-	(void) tdsignal(p, NULL, sig, &ksi);
+	(void) tdsendsignal(p, NULL, sig, &ksi);
 }
 
-void
+int
 pksignal(struct proc *p, int sig, ksiginfo_t *ksi)
 {
 
-	(void) tdsignal(p, NULL, sig, ksi);
+	return (tdsendsignal(p, NULL, sig, ksi));
 }
 
 int
@@ -1992,11 +1994,29 @@ psignal_event(struct proc *p, struct sigevent *sigev, ksiginfo_t *ksi)
 		if (td == NULL)
 			return (ESRCH);
 	}
-	return (tdsignal(p, td, ksi->ksi_signo, ksi));
+	return (tdsendsignal(p, td, ksi->ksi_signo, ksi));
 }
 
-int
-tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
+void
+tdsignal(struct thread *td, int sig)
+{
+	ksiginfo_t ksi;
+
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = SI_KERNEL;
+	(void) tdsendsignal(td->td_proc, td, sig, &ksi);
+}
+
+void
+tdksignal(struct thread *td, int sig, ksiginfo_t *ksi)
+{
+
+	(void) tdsendsignal(td->td_proc, td, sig, ksi);
+}
+
+static int
+tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 {
 	sig_t action;
 	sigqueue_t *sigqueue;
@@ -2882,7 +2902,7 @@ sigparent(struct proc *p, int reason, int status)
 		if (KSI_ONQ(p->p_ksi))
 			return;
 	}
-	tdsignal(p->p_pptr, NULL, SIGCHLD, p->p_ksi);
+	pksignal(p->p_pptr, SIGCHLD, p->p_ksi);
 }
 
 static void
