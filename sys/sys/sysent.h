@@ -151,10 +151,10 @@ struct syscall_module_data {
 
 #define	MAKE_SYSENT(syscallname)				\
 static struct sysent syscallname##_sysent = {			\
-	.sy_narg = (sizeof(struct syscallname ## _args )	\
+	(sizeof(struct syscallname ## _args )			\
 	    / sizeof(register_t)),				\
-	.sy_call = (sy_call_t *)& syscallname,			\
-	.sy_auevent = SYS_AUE_##syscallname,			\
+	(sy_call_t *)& syscallname,				\
+	SYS_AUE_##syscallname					\
 }
 
 #define SYSCALL_MODULE(name, offset, new_sysent, evh, arg)	\
