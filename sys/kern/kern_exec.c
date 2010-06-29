@@ -755,13 +755,13 @@ interpret:
 	/*
 	 * If tracing the process, trap to debugger so breakpoints
 	 * can be set before the program executes.
-	 * Use tdsignal to deliver signal to current thread, use
+	 * Use tdsignal to deliver signal to current thread, using
 	 * psignal may cause the signal to be delivered to wrong thread
 	 * because that thread will exit, remember we are going to enter
 	 * single thread mode.
 	 */
 	if (p->p_flag & P_TRACED)
-		tdsignal(p, td, SIGTRAP, NULL);
+		tdsignal(td, SIGTRAP);
 
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;
