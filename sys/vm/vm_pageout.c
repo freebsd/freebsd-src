@@ -325,8 +325,7 @@ vm_pageout_clean(vm_page_t m)
 	int ib, is, page_base;
 	vm_pindex_t pindex = m->pindex;
 
-	vm_page_lock_assert(m, MA_NOTOWNED);
-	vm_page_lock(m);
+	vm_page_lock_assert(m, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 
 	/*
@@ -341,11 +340,9 @@ vm_pageout_clean(vm_page_t m)
 	/*
 	 * Can't clean the page if it's busy or held.
 	 */
-	if ((m->hold_count != 0) ||
-	    ((m->busy != 0) || (m->oflags & VPO_BUSY))) {
-		vm_page_unlock(m);
-		return 0;
-	}
+	KASSERT(m->busy == 0 && (m->oflags & VPO_BUSY) == 0,
+	    ("vm_pageout_clean: page %p is busy", m));
+	KASSERT(m->hold_count == 0, ("vm_pageout_clean: page %p is held", m));
 
 	mc[vm_pageout_page_count] = pb = ps = m;
 	pageout_count = 1;
@@ -1060,7 +1057,6 @@ rescan0:
 					goto unlock_and_continue;
 				}
 			}
-			vm_page_unlock(m);
 
 			/*
 			 * If a page is dirty, then it is either being washed
