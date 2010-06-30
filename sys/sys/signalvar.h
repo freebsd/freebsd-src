@@ -357,10 +357,7 @@ void	tdksignal(struct thread *td, int sig, ksiginfo_t *ksi);
 void	tdsigcleanup(struct thread *td);
 void	tdsignal(struct thread *td, int sig);
 void	trapsignal(struct thread *td, ksiginfo_t *);
-int	kern_sigtimedwait(struct thread *, sigset_t,
-	    ksiginfo_t *, struct timespec *);
-int	kern_sigprocmask(struct thread *td, int how,
-	    sigset_t *set, sigset_t *oset, int flags);
+
 /*
  * Machine-dependent functions:
  */
