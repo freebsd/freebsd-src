@@ -381,6 +381,7 @@ struct adapter {
 	u32			link_speed;
 	bool			link_up;
 	u32 			linkvec;
+	int			advertise;
 
 	/* Mbuf cluster size */
 	u32			rx_mbuf_sz;
