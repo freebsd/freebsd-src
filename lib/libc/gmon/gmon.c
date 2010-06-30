@@ -111,7 +111,7 @@ monstartup(lowpc, highpc)
 
 	o = p->highpc - p->lowpc;
 	if (p->kcountsize < o) {
-#ifndef hp300
+#if !defined(__powerpc__)
 		s_scale = ((float)p->kcountsize / o ) * SCALE_1_TO_1;
 #else /* avoid floating point */
 		int quot = o / p->kcountsize;
