@@ -99,7 +99,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.9.6";
+char igb_driver_version[] = "version - 2.0.1";
 
 
 /*********************************************************************
@@ -128,6 +128,7 @@ static igb_vendor_info_t igb_vendor_info_array[] =
 						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82576_QUAD_COPPER,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82576_VF,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82580_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82580_FIBER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82580_SERDES,	PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -226,7 +227,11 @@ static void	igb_dma_free(struct adapter *, struct igb_dma_alloc *);
 static int	igb_sysctl_nvm_info(SYSCTL_HANDLER_ARGS);
 static void	igb_print_nvm_info(struct adapter *);
 static int 	igb_is_valid_ether_addr(u8 *);
-static void     igb_add_hw_stats(struct adapter *adapter);
+static void     igb_add_hw_stats(struct adapter *);
+
+static void	igb_vf_init_stats(struct adapter *);
+static void	igb_update_vf_stats_counters(struct adapter *);
+
 /* Management and WOL Support */
 static void	igb_init_manageability(struct adapter *);
 static void	igb_release_manageability(struct adapter *);
@@ -493,6 +498,17 @@ igb_attach(device_t dev)
 		error = ENOMEM;
 		goto err_pci;
 	}
+
+	/* Allocate the appropriate stats memory */
+	if (adapter->hw.mac.type == e1000_vfadapt) {
+		adapter->stats =
+		    (struct e1000_vf_stats *)malloc(sizeof \
+		    (struct e1000_vf_stats), M_DEVBUF, M_NOWAIT | M_ZERO);
+		igb_vf_init_stats(adapter);
+	} else
+		adapter->stats =
+		    (struct e1000_hw_stats *)malloc(sizeof \
+		    (struct e1000_hw_stats), M_DEVBUF, M_NOWAIT | M_ZERO);
 
 	/*
 	** Start from a known state, this is
@@ -1788,30 +1804,39 @@ static void
 igb_set_promisc(struct adapter *adapter)
 {
 	struct ifnet	*ifp = adapter->ifp;
-	uint32_t	reg_rctl;
+	struct e1000_hw *hw = &adapter->hw;
+	u32		reg;
 
-	reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
+	if (hw->mac.type == e1000_vfadapt) {
+		e1000_promisc_set_vf(hw, e1000_promisc_enabled);
+		return;
+	}
 
+	reg = E1000_READ_REG(hw, E1000_RCTL);
 	if (ifp->if_flags & IFF_PROMISC) {
-		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
+		reg |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
+		E1000_WRITE_REG(hw, E1000_RCTL, reg);
 	} else if (ifp->if_flags & IFF_ALLMULTI) {
-		reg_rctl |= E1000_RCTL_MPE;
-		reg_rctl &= ~E1000_RCTL_UPE;
-		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
+		reg |= E1000_RCTL_MPE;
+		reg &= ~E1000_RCTL_UPE;
+		E1000_WRITE_REG(hw, E1000_RCTL, reg);
 	}
 }
 
 static void
 igb_disable_promisc(struct adapter *adapter)
 {
-	uint32_t	reg_rctl;
+	struct e1000_hw *hw = &adapter->hw;
+	u32		reg;
 
-	reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
-
-	reg_rctl &=  (~E1000_RCTL_UPE);
-	reg_rctl &=  (~E1000_RCTL_MPE);
-	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
+	if (hw->mac.type == e1000_vfadapt) {
+		e1000_promisc_set_vf(hw, e1000_promisc_disabled);
+		return;
+	}
+	reg = E1000_READ_REG(hw, E1000_RCTL);
+	reg &=  (~E1000_RCTL_UPE);
+	reg &=  (~E1000_RCTL_MPE);
+	E1000_WRITE_REG(hw, E1000_RCTL, reg);
 }
 
 
@@ -1939,8 +1964,12 @@ igb_update_link_status(struct adapter *adapter)
                 e1000_check_for_link(hw);
                 link_check = adapter->hw.mac.serdes_has_link;
                 break;
-        default:
+	/* VF device is type_unknown */
         case e1000_media_type_unknown:
+                e1000_check_for_link(hw);
+		link_check = !hw->mac.get_link_status;
+		/* Fall thru */
+        default:
                 break;
         }
 
@@ -2025,8 +2054,8 @@ igb_identify_hardware(struct adapter *adapter)
 	adapter->hw.bus.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (!((adapter->hw.bus.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
 	    (adapter->hw.bus.pci_cmd_word & PCIM_CMD_MEMEN))) {
-		device_printf(dev, "Memory Access and/or Bus Master bits "
-		    "were not set!\n");
+		INIT_DEBUGOUT("Memory Access and/or Bus Master "
+		    "bits were not set!\n");
 		adapter->hw.bus.pci_cmd_word |=
 		(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
 		pci_write_config(dev, PCIR_COMMAND,
@@ -2041,12 +2070,6 @@ igb_identify_hardware(struct adapter *adapter)
 	    pci_read_config(dev, PCIR_SUBVEND_0, 2);
 	adapter->hw.subsystem_device_id =
 	    pci_read_config(dev, PCIR_SUBDEV_0, 2);
-
-	/* Do Shared Code Init and Setup */
-	if (e1000_set_mac_type(&adapter->hw)) {
-		device_printf(dev, "Setup init failure\n");
-		return;
-	}
 }
 
 static int
@@ -2225,6 +2248,7 @@ igb_configure_queues(struct adapter *adapter)
 	/* Turn on MSIX */
 	switch (adapter->hw.mac.type) {
 	case e1000_82580:
+	case e1000_vfadapt:
 		/* RX entries */
 		for (int i = 0; i < adapter->num_queues; i++) {
 			u32 index = i >> 1;
@@ -2446,6 +2470,10 @@ igb_setup_msix(struct adapter *adapter)
 	if ((adapter->hw.mac.type == e1000_82575) && (queues > 4))
 		queues = 4;
 
+	/* Limit the VF adapter to one queues */
+	if ((adapter->hw.mac.type == e1000_vfadapt) && (queues > 2))
+		queues = 1;
+
 	/*
 	** One vector (RX/TX pair) per queue
 	** plus an additional for Link interrupt
@@ -2503,6 +2531,7 @@ igb_reset(struct adapter *adapter)
 		pba = E1000_PBA_32K;
 		break;
 	case e1000_82576:
+	case e1000_vfadapt:
 		pba = E1000_PBA_64K;
 		break;
 	case e1000_82580:
@@ -3074,7 +3103,8 @@ igb_initialize_transmit_units(struct adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32		tctl, txdctl;
 
-	 INIT_DEBUGOUT("igb_initialize_transmit_units: begin");
+	INIT_DEBUGOUT("igb_initialize_transmit_units: begin");
+	tctl = txdctl = 0;
 
 	/* Setup the Tx Descriptor Rings */
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
@@ -3097,13 +3127,15 @@ igb_initialize_transmit_units(struct adapter *adapter)
 
 		txr->watchdog_check = FALSE;
 
-		txdctl = E1000_READ_REG(hw, E1000_TXDCTL(i));
 		txdctl |= IGB_TX_PTHRESH;
 		txdctl |= IGB_TX_HTHRESH << 8;
 		txdctl |= IGB_TX_WTHRESH << 16;
 		txdctl |= E1000_TXDCTL_QUEUE_ENABLE;
 		E1000_WRITE_REG(hw, E1000_TXDCTL(i), txdctl);
 	}
+
+	if (adapter->hw.mac.type == e1000_vfadapt)
+		return;
 
 	/* Program the Transmit Control Register */
 	tctl = E1000_READ_REG(hw, E1000_TCTL);
@@ -3505,7 +3537,7 @@ igb_txeof(struct tx_ring *txr)
 		/* All clean, turn off the watchdog */
                 if (txr->tx_avail == adapter->num_tx_desc) {
 			txr->watchdog_check = FALSE;
-			return FALSE;
+			return (FALSE);
 		}
         }
 
@@ -4504,23 +4536,32 @@ igb_setup_vlan_hw_support(struct adapter *adapter)
 	** we need to repopulate it now.
 	*/
 	for (int i = 0; i < IGB_VFTA_SIZE; i++)
-                if (igb_shadow_vfta[i] != 0)
-			E1000_WRITE_REG_ARRAY(hw, E1000_VFTA,
-                            i, igb_shadow_vfta[i]);
+                if (igb_shadow_vfta[i] != 0) {
+			if (hw->mac.type == e1000_vfadapt)
+				e1000_vfta_set_vf(hw, igb_shadow_vfta[i], TRUE);
+			else
+				E1000_WRITE_REG_ARRAY(hw, E1000_VFTA,
+                           	 i, igb_shadow_vfta[i]);
+		}
 
-	reg = E1000_READ_REG(hw, E1000_CTRL);
-	reg |= E1000_CTRL_VME;
-	E1000_WRITE_REG(hw, E1000_CTRL, reg);
+	if (hw->mac.type == e1000_vfadapt)
+		e1000_rlpml_set_vf(hw,
+		    adapter->max_frame_size + VLAN_TAG_SIZE);
+	else {
+		reg = E1000_READ_REG(hw, E1000_CTRL);
+		reg |= E1000_CTRL_VME;
+		E1000_WRITE_REG(hw, E1000_CTRL, reg);
 
-	/* Enable the Filter Table */
-	reg = E1000_READ_REG(hw, E1000_RCTL);
-	reg &= ~E1000_RCTL_CFIEN;
-	reg |= E1000_RCTL_VFE;
-	E1000_WRITE_REG(hw, E1000_RCTL, reg);
+		/* Enable the Filter Table */
+		reg = E1000_READ_REG(hw, E1000_RCTL);
+		reg &= ~E1000_RCTL_CFIEN;
+		reg |= E1000_RCTL_VFE;
+		E1000_WRITE_REG(hw, E1000_RCTL, reg);
 
-	/* Update the frame size */
-	E1000_WRITE_REG(&adapter->hw, E1000_RLPML,
-	    adapter->max_frame_size + VLAN_TAG_SIZE);
+		/* Update the frame size */
+		E1000_WRITE_REG(&adapter->hw, E1000_RLPML,
+		    adapter->max_frame_size + VLAN_TAG_SIZE);
+	}
 }
 
 static void
@@ -4610,6 +4651,9 @@ igb_get_hw_control(struct adapter *adapter)
 {
 	u32 ctrl_ext;
 
+	if (adapter->hw.mac.type == e1000_vfadapt)
+		return;
+
 	/* Let firmware know the driver has taken over */
 	ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
 	E1000_WRITE_REG(&adapter->hw, E1000_CTRL_EXT,
@@ -4626,6 +4670,9 @@ static void
 igb_release_hw_control(struct adapter *adapter)
 {
 	u32 ctrl_ext;
+
+	if (adapter->hw.mac.type == e1000_vfadapt)
+		return;
 
 	/* Let firmware taken over control of h/w */
 	ctrl_ext = E1000_READ_REG(&adapter->hw, E1000_CTRL_EXT);
@@ -4694,138 +4741,190 @@ igb_led_func(void *arg, int onoff)
 static void
 igb_update_stats_counters(struct adapter *adapter)
 {
-	struct ifnet   *ifp;
+	struct ifnet		*ifp;
+        struct e1000_hw		*hw = &adapter->hw;
+	struct e1000_hw_stats	*stats;
 
-	if (adapter->hw.phy.media_type == e1000_media_type_copper ||
-	   (E1000_READ_REG(&adapter->hw, E1000_STATUS) & E1000_STATUS_LU)) {
-		adapter->stats.symerrs +=
-		    E1000_READ_REG(&adapter->hw, E1000_SYMERRS);
-		adapter->stats.sec +=
-		    E1000_READ_REG(&adapter->hw, E1000_SEC);
+	/* 
+	** The virtual function adapter has only a
+	** small controlled set of stats, do only 
+	** those and return.
+	*/
+	if (adapter->hw.mac.type == e1000_vfadapt) {
+		igb_update_vf_stats_counters(adapter);
+		return;
 	}
-	adapter->stats.crcerrs += E1000_READ_REG(&adapter->hw, E1000_CRCERRS);
-	adapter->stats.mpc += E1000_READ_REG(&adapter->hw, E1000_MPC);
-	adapter->stats.scc += E1000_READ_REG(&adapter->hw, E1000_SCC);
-	adapter->stats.ecol += E1000_READ_REG(&adapter->hw, E1000_ECOL);
 
-	adapter->stats.mcc += E1000_READ_REG(&adapter->hw, E1000_MCC);
-	adapter->stats.latecol += E1000_READ_REG(&adapter->hw, E1000_LATECOL);
-	adapter->stats.colc += E1000_READ_REG(&adapter->hw, E1000_COLC);
-	adapter->stats.dc += E1000_READ_REG(&adapter->hw, E1000_DC);
-	adapter->stats.rlec += E1000_READ_REG(&adapter->hw, E1000_RLEC);
-	adapter->stats.xonrxc += E1000_READ_REG(&adapter->hw, E1000_XONRXC);
-	adapter->stats.xontxc += E1000_READ_REG(&adapter->hw, E1000_XONTXC);
-	adapter->stats.xoffrxc += E1000_READ_REG(&adapter->hw, E1000_XOFFRXC);
-	adapter->stats.xofftxc += E1000_READ_REG(&adapter->hw, E1000_XOFFTXC);
-	adapter->stats.fcruc += E1000_READ_REG(&adapter->hw, E1000_FCRUC);
-	adapter->stats.prc64 += E1000_READ_REG(&adapter->hw, E1000_PRC64);
-	adapter->stats.prc127 += E1000_READ_REG(&adapter->hw, E1000_PRC127);
-	adapter->stats.prc255 += E1000_READ_REG(&adapter->hw, E1000_PRC255);
-	adapter->stats.prc511 += E1000_READ_REG(&adapter->hw, E1000_PRC511);
-	adapter->stats.prc1023 += E1000_READ_REG(&adapter->hw, E1000_PRC1023);
-	adapter->stats.prc1522 += E1000_READ_REG(&adapter->hw, E1000_PRC1522);
-	adapter->stats.gprc += E1000_READ_REG(&adapter->hw, E1000_GPRC);
-	adapter->stats.bprc += E1000_READ_REG(&adapter->hw, E1000_BPRC);
-	adapter->stats.mprc += E1000_READ_REG(&adapter->hw, E1000_MPRC);
-	adapter->stats.gptc += E1000_READ_REG(&adapter->hw, E1000_GPTC);
+	stats = (struct e1000_hw_stats	*)adapter->stats;
+
+	if(adapter->hw.phy.media_type == e1000_media_type_copper ||
+	   (E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)) {
+		stats->symerrs +=
+		    E1000_READ_REG(hw,E1000_SYMERRS);
+		stats->sec += E1000_READ_REG(hw, E1000_SEC);
+	}
+
+	stats->crcerrs += E1000_READ_REG(hw, E1000_CRCERRS);
+	stats->mpc += E1000_READ_REG(hw, E1000_MPC);
+	stats->scc += E1000_READ_REG(hw, E1000_SCC);
+	stats->ecol += E1000_READ_REG(hw, E1000_ECOL);
+
+	stats->mcc += E1000_READ_REG(hw, E1000_MCC);
+	stats->latecol += E1000_READ_REG(hw, E1000_LATECOL);
+	stats->colc += E1000_READ_REG(hw, E1000_COLC);
+	stats->dc += E1000_READ_REG(hw, E1000_DC);
+	stats->rlec += E1000_READ_REG(hw, E1000_RLEC);
+	stats->xonrxc += E1000_READ_REG(hw, E1000_XONRXC);
+	stats->xontxc += E1000_READ_REG(hw, E1000_XONTXC);
+	stats->xoffrxc += E1000_READ_REG(hw, E1000_XOFFRXC);
+	stats->xofftxc += E1000_READ_REG(hw, E1000_XOFFTXC);
+	stats->fcruc += E1000_READ_REG(hw, E1000_FCRUC);
+	stats->prc64 += E1000_READ_REG(hw, E1000_PRC64);
+	stats->prc127 += E1000_READ_REG(hw, E1000_PRC127);
+	stats->prc255 += E1000_READ_REG(hw, E1000_PRC255);
+	stats->prc511 += E1000_READ_REG(hw, E1000_PRC511);
+	stats->prc1023 += E1000_READ_REG(hw, E1000_PRC1023);
+	stats->prc1522 += E1000_READ_REG(hw, E1000_PRC1522);
+	stats->gprc += E1000_READ_REG(hw, E1000_GPRC);
+	stats->bprc += E1000_READ_REG(hw, E1000_BPRC);
+	stats->mprc += E1000_READ_REG(hw, E1000_MPRC);
+	stats->gptc += E1000_READ_REG(hw, E1000_GPTC);
 
 	/* For the 64-bit byte counters the low dword must be read first. */
 	/* Both registers clear on the read of the high dword */
 
-	adapter->stats.gorc += E1000_READ_REG(&adapter->hw, E1000_GORCL) +
-	  ((u64)E1000_READ_REG(&adapter->hw, E1000_GORCH) << 32);
-	adapter->stats.gotc += E1000_READ_REG(&adapter->hw, E1000_GOTCL) +
-	  ((u64)E1000_READ_REG(&adapter->hw, E1000_GOTCH) << 32) ;
+	stats->gorc += E1000_READ_REG(hw, E1000_GORCL) +
+	  ((u64)E1000_READ_REG(hw, E1000_GORCH) << 32);
+	stats->gotc += E1000_READ_REG(hw, E1000_GOTCL) +
+	  ((u64)E1000_READ_REG(hw, E1000_GOTCH) << 32) ;
 
-	adapter->stats.rnbc += E1000_READ_REG(&adapter->hw, E1000_RNBC);
-	adapter->stats.ruc += E1000_READ_REG(&adapter->hw, E1000_RUC);
-	adapter->stats.rfc += E1000_READ_REG(&adapter->hw, E1000_RFC);
-	adapter->stats.roc += E1000_READ_REG(&adapter->hw, E1000_ROC);
-	adapter->stats.rjc += E1000_READ_REG(&adapter->hw, E1000_RJC);
+	stats->rnbc += E1000_READ_REG(hw, E1000_RNBC);
+	stats->ruc += E1000_READ_REG(hw, E1000_RUC);
+	stats->rfc += E1000_READ_REG(hw, E1000_RFC);
+	stats->roc += E1000_READ_REG(hw, E1000_ROC);
+	stats->rjc += E1000_READ_REG(hw, E1000_RJC);
 
-	adapter->stats.tor += E1000_READ_REG(&adapter->hw, E1000_TORH);
-	adapter->stats.tot += E1000_READ_REG(&adapter->hw, E1000_TOTH);
+	stats->tor += E1000_READ_REG(hw, E1000_TORH);
+	stats->tot += E1000_READ_REG(hw, E1000_TOTH);
 
-	adapter->stats.tpr += E1000_READ_REG(&adapter->hw, E1000_TPR);
-	adapter->stats.tpt += E1000_READ_REG(&adapter->hw, E1000_TPT);
-	adapter->stats.ptc64 += E1000_READ_REG(&adapter->hw, E1000_PTC64);
-	adapter->stats.ptc127 += E1000_READ_REG(&adapter->hw, E1000_PTC127);
-	adapter->stats.ptc255 += E1000_READ_REG(&adapter->hw, E1000_PTC255);
-	adapter->stats.ptc511 += E1000_READ_REG(&adapter->hw, E1000_PTC511);
-	adapter->stats.ptc1023 += E1000_READ_REG(&adapter->hw, E1000_PTC1023);
-	adapter->stats.ptc1522 += E1000_READ_REG(&adapter->hw, E1000_PTC1522);
-	adapter->stats.mptc += E1000_READ_REG(&adapter->hw, E1000_MPTC);
-	adapter->stats.bptc += E1000_READ_REG(&adapter->hw, E1000_BPTC);
+	stats->tpr += E1000_READ_REG(hw, E1000_TPR);
+	stats->tpt += E1000_READ_REG(hw, E1000_TPT);
+	stats->ptc64 += E1000_READ_REG(hw, E1000_PTC64);
+	stats->ptc127 += E1000_READ_REG(hw, E1000_PTC127);
+	stats->ptc255 += E1000_READ_REG(hw, E1000_PTC255);
+	stats->ptc511 += E1000_READ_REG(hw, E1000_PTC511);
+	stats->ptc1023 += E1000_READ_REG(hw, E1000_PTC1023);
+	stats->ptc1522 += E1000_READ_REG(hw, E1000_PTC1522);
+	stats->mptc += E1000_READ_REG(hw, E1000_MPTC);
+	stats->bptc += E1000_READ_REG(hw, E1000_BPTC);
 
 	/* Interrupt Counts */
 
-	adapter->stats.iac += E1000_READ_REG(&adapter->hw, E1000_IAC);
-	adapter->stats.icrxptc += E1000_READ_REG(&adapter->hw, E1000_ICRXPTC);
-	adapter->stats.icrxatc += E1000_READ_REG(&adapter->hw, E1000_ICRXATC);
-	adapter->stats.ictxptc += E1000_READ_REG(&adapter->hw, E1000_ICTXPTC);
-	adapter->stats.ictxatc += E1000_READ_REG(&adapter->hw, E1000_ICTXATC);
-	adapter->stats.ictxqec += E1000_READ_REG(&adapter->hw, E1000_ICTXQEC);
-	adapter->stats.ictxqmtc += E1000_READ_REG(&adapter->hw, E1000_ICTXQMTC);
-	adapter->stats.icrxdmtc += E1000_READ_REG(&adapter->hw, E1000_ICRXDMTC);
-	adapter->stats.icrxoc += E1000_READ_REG(&adapter->hw, E1000_ICRXOC);
+	stats->iac += E1000_READ_REG(hw, E1000_IAC);
+	stats->icrxptc += E1000_READ_REG(hw, E1000_ICRXPTC);
+	stats->icrxatc += E1000_READ_REG(hw, E1000_ICRXATC);
+	stats->ictxptc += E1000_READ_REG(hw, E1000_ICTXPTC);
+	stats->ictxatc += E1000_READ_REG(hw, E1000_ICTXATC);
+	stats->ictxqec += E1000_READ_REG(hw, E1000_ICTXQEC);
+	stats->ictxqmtc += E1000_READ_REG(hw, E1000_ICTXQMTC);
+	stats->icrxdmtc += E1000_READ_REG(hw, E1000_ICRXDMTC);
+	stats->icrxoc += E1000_READ_REG(hw, E1000_ICRXOC);
 
 	/* Host to Card Statistics */
 
-	adapter->stats.cbtmpc += E1000_READ_REG(&adapter->hw, E1000_CBTMPC);
-	adapter->stats.htdpmc += E1000_READ_REG(&adapter->hw, E1000_HTDPMC);
-	adapter->stats.cbrdpc += E1000_READ_REG(&adapter->hw, E1000_CBRDPC);
-	adapter->stats.cbrmpc += E1000_READ_REG(&adapter->hw, E1000_CBRMPC);
-	adapter->stats.rpthc += E1000_READ_REG(&adapter->hw, E1000_RPTHC);
-	adapter->stats.hgptc += E1000_READ_REG(&adapter->hw, E1000_HGPTC);
-	adapter->stats.htcbdpc += E1000_READ_REG(&adapter->hw, E1000_HTCBDPC);
-	adapter->stats.hgorc += (E1000_READ_REG(&adapter->hw, E1000_HGORCL) +
-				 ((u64)E1000_READ_REG(&adapter->hw, 
-						      E1000_HGORCH) << 32));
+	stats->cbtmpc += E1000_READ_REG(hw, E1000_CBTMPC);
+	stats->htdpmc += E1000_READ_REG(hw, E1000_HTDPMC);
+	stats->cbrdpc += E1000_READ_REG(hw, E1000_CBRDPC);
+	stats->cbrmpc += E1000_READ_REG(hw, E1000_CBRMPC);
+	stats->rpthc += E1000_READ_REG(hw, E1000_RPTHC);
+	stats->hgptc += E1000_READ_REG(hw, E1000_HGPTC);
+	stats->htcbdpc += E1000_READ_REG(hw, E1000_HTCBDPC);
+	stats->hgorc += (E1000_READ_REG(hw, E1000_HGORCL) +
+	    ((u64)E1000_READ_REG(hw, E1000_HGORCH) << 32));
+	stats->hgotc += (E1000_READ_REG(hw, E1000_HGOTCL) +
+	    ((u64)E1000_READ_REG(hw, E1000_HGOTCH) << 32));
+	stats->lenerrs += E1000_READ_REG(hw, E1000_LENERRS);
+	stats->scvpc += E1000_READ_REG(hw, E1000_SCVPC);
+	stats->hrmpc += E1000_READ_REG(hw, E1000_HRMPC);
 
-	adapter->stats.hgotc += (E1000_READ_REG(&adapter->hw, E1000_HGOTCL) +
-				 ((u64)E1000_READ_REG(&adapter->hw, 
-						      E1000_HGOTCH) << 32));
-	adapter->stats.lenerrs += E1000_READ_REG(&adapter->hw, E1000_LENERRS);
-	adapter->stats.scvpc += E1000_READ_REG(&adapter->hw, E1000_SCVPC);
-	adapter->stats.hrmpc += E1000_READ_REG(&adapter->hw, E1000_HRMPC);
-
-	adapter->stats.algnerrc += 
-		E1000_READ_REG(&adapter->hw, E1000_ALGNERRC);
-	adapter->stats.rxerrc += 
-		E1000_READ_REG(&adapter->hw, E1000_RXERRC);
-	adapter->stats.tncrs += 
-		E1000_READ_REG(&adapter->hw, E1000_TNCRS);
-	adapter->stats.cexterr += 
-		E1000_READ_REG(&adapter->hw, E1000_CEXTERR);
-	adapter->stats.tsctc += 
-		E1000_READ_REG(&adapter->hw, E1000_TSCTC);
-	adapter->stats.tsctfc += 
-		E1000_READ_REG(&adapter->hw, E1000_TSCTFC);
+	stats->algnerrc += E1000_READ_REG(hw, E1000_ALGNERRC);
+	stats->rxerrc += E1000_READ_REG(hw, E1000_RXERRC);
+	stats->tncrs += E1000_READ_REG(hw, E1000_TNCRS);
+	stats->cexterr += E1000_READ_REG(hw, E1000_CEXTERR);
+	stats->tsctc += E1000_READ_REG(hw, E1000_TSCTC);
+	stats->tsctfc += E1000_READ_REG(hw, E1000_TSCTFC);
 	ifp = adapter->ifp;
 
-	ifp->if_collisions = adapter->stats.colc;
+	ifp = adapter->ifp;
+	ifp->if_collisions = stats->colc;
 
 	/* Rx Errors */
-	ifp->if_ierrors = adapter->dropped_pkts + adapter->stats.rxerrc +
-	    adapter->stats.crcerrs + adapter->stats.algnerrc +
-	    adapter->stats.ruc + adapter->stats.roc +
-	    adapter->stats.mpc + adapter->stats.cexterr;
+	ifp->if_ierrors = adapter->dropped_pkts + stats->rxerrc +
+	    stats->crcerrs + stats->algnerrc +
+	    stats->ruc + stats->roc + stats->mpc + stats->cexterr;
 
 	/* Tx Errors */
-	ifp->if_oerrors = adapter->stats.ecol +
-	    adapter->stats.latecol + adapter->watchdog_events;
+	ifp->if_oerrors = stats->ecol +
+	    stats->latecol + adapter->watchdog_events;
 
 	/* Driver specific counters */
-	adapter->device_control = E1000_READ_REG(&adapter->hw, E1000_CTRL);
-	adapter->rx_control = E1000_READ_REG(&adapter->hw, E1000_RCTL);
-	adapter->int_mask = E1000_READ_REG(&adapter->hw, E1000_IMS);
-	adapter->eint_mask = E1000_READ_REG(&adapter->hw, E1000_EIMS);
-	adapter->packet_buf_alloc_tx = ((E1000_READ_REG(&adapter->hw, E1000_PBA)
-					& 0xffff0000) >> 16);
+	adapter->device_control = E1000_READ_REG(hw, E1000_CTRL);
+	adapter->rx_control = E1000_READ_REG(hw, E1000_RCTL);
+	adapter->int_mask = E1000_READ_REG(hw, E1000_IMS);
+	adapter->eint_mask = E1000_READ_REG(hw, E1000_EIMS);
+	adapter->packet_buf_alloc_tx =
+	    ((E1000_READ_REG(hw, E1000_PBA) & 0xffff0000) >> 16);
+	adapter->packet_buf_alloc_rx =
+	    ((E1000_READ_REG(hw, E1000_PBA) & 0xffff);
+}
 
-	adapter->packet_buf_alloc_rx = (E1000_READ_REG(&adapter->hw, E1000_PBA) 
-					& 0xffff);
 
+/**********************************************************************
+ *
+ *  Initialize the VF board statistics counters.
+ *
+ **********************************************************************/
+static void
+igb_vf_init_stats(struct adapter *adapter)
+{
+        struct e1000_hw *hw = &adapter->hw;
+	struct e1000_vf_stats	*stats;
+
+	stats = (struct e1000_vf_stats	*)adapter->stats;
+
+        stats->last_gprc = E1000_READ_REG(hw, E1000_VFGPRC);
+        stats->last_gorc = E1000_READ_REG(hw, E1000_VFGORC);
+        stats->last_gptc = E1000_READ_REG(hw, E1000_VFGPTC);
+        stats->last_gotc = E1000_READ_REG(hw, E1000_VFGOTC);
+        stats->last_mprc = E1000_READ_REG(hw, E1000_VFMPRC);
+}
+ 
+/**********************************************************************
+ *
+ *  Update the VF board statistics counters.
+ *
+ **********************************************************************/
+static void
+igb_update_vf_stats_counters(struct adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct e1000_vf_stats	*stats;
+
+	if (adapter->link_speed == 0)
+		return;
+
+	stats = (struct e1000_vf_stats	*)adapter->stats;
+
+	UPDATE_VF_REG(E1000_VFGPRC,
+	    stats->last_gprc, stats->gprc);
+	UPDATE_VF_REG(E1000_VFGORC,
+	    stats->last_gorc, stats->gorc);
+	UPDATE_VF_REG(E1000_VFGPTC,
+	    stats->last_gptc, stats->gptc);
+	UPDATE_VF_REG(E1000_VFGOTC,
+	    stats->last_gotc, stats->gotc);
+	UPDATE_VF_REG(E1000_VFMPRC,
+	    stats->last_mprc, stats->mprc);
 }
 
 
@@ -4895,10 +4994,14 @@ igb_add_hw_stats(struct adapter *adapter)
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "txd_head",
-				CTLFLAG_RD, &txr->tdh, 0,
+				CTLFLAG_RD,
+				E1000_READ_REG(&adapter->hw,
+				E1000_TDH(txr->me)), 0,
 				"Transmit Descriptor Head");
 		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "txd_tail",
-				CTLFLAG_RD, &txr->tdt, 0,
+				CTLFLAG_RD,
+				E1000_READ_REG(&adapter->hw,
+				E1000_TDT(txr->me))), 0,
 				"Transmit Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
@@ -4947,6 +5050,29 @@ igb_add_hw_stats(struct adapter *adapter)
 				    CTLFLAG_RD, NULL, "MAC Statistics");
 	stat_list = SYSCTL_CHILDREN(stat_node);
 
+	/*
+	** VF adapter has a very limited set of stats
+	** since its not managing the metal, so to speak.
+	*/
+	if (adapter->hw.mac.type == e1000_vfadapt) {
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_recvd",
+			CTLFLAG_RD, &adapter->stats.gprc,
+			"Good Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
+			CTLFLAG_RD, &adapter->stats.gptc,
+			"Good Packets Transmitted");
+ 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_recvd", 
+ 			CTLFLAG_RD, &adapter->stats.gorc, 
+ 			"Good Octets Received"); 
+ 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octest_txd", 
+ 			CTLFLAG_RD, &adapter->stats.gotc, 
+ 			"Good Octest Transmitted"); 
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_recvd",
+			CTLFLAG_RD, &adapter->stats.mprc,
+			"Multicast Packets Received");
+		return;
+	}
+
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "excess_coll", 
 			CTLFLAG_RD, &stats->ecol,
 			"Excessive collisions");
@@ -4989,12 +5115,6 @@ igb_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_jabber",
 			CTLFLAG_RD, &adapter->stats.rjc,
 			"Recevied Jabber");
-
-	/* RLEC is inaccurate on some hardware, calculate our own. */
-/* 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_len_errs", */
-/* 			CTLFLAG_RD, adapter->stats.roc + adapter->stats.ruc, */
-/* 			"Receive Length Errors"); */
-
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_errs",
 			CTLFLAG_RD, &adapter->stats.rxerrc,
 			"Receive Errors");
@@ -5200,9 +5320,9 @@ igb_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "header_redir_missed",
 			CTLFLAG_RD, &adapter->stats.hrmpc,
 			"Header Redirection Missed Packet Count");
-
-
 }
+
+
 /**********************************************************************
  *
  *  This routine provides a way to dump out the adapter eeprom,
