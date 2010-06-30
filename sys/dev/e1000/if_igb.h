@@ -316,6 +316,8 @@ struct tx_ring {
 
 	bool			watchdog_check;
 	int			watchdog_time;
+	int			tdt;
+	int			tdh;
 	u64			no_desc_avail;
 	u64			tx_packets;
 };
@@ -348,6 +350,8 @@ struct rx_ring {
 
 	u32			bytes;
 	u32			packets;
+	int			rdt;
+	int			rdh;
 
 	/* Soft stats */
 	u64			rx_split_packets;
@@ -503,6 +507,18 @@ struct igb_rx_buf {
 	cur &= 0xFFFFFFFF00000000LL;		\
 	cur |= new;				\
 }
+
+#if __FreeBSD_version < 800504
+static __inline int
+drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		return (1);
+#endif
+	return (!buf_ring_empty(br));
+}
+#endif
 
 #endif /* _IGB_H_DEFINED_ */
 
