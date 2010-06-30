@@ -376,6 +376,7 @@ struct adapter {
 
 	/* Info about the board itself */
 	u32			optics;
+	int			advertise;  /* link speeds */
 	bool			link_active;
 	u16			max_frame_size;
 	u32			link_speed;
