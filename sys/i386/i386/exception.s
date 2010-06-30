@@ -159,6 +159,7 @@ alltraps:
 	pushl	%fs
 alltraps_with_regs_pushed:
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 calltrap:
 	pushl	%esp
@@ -233,6 +234,7 @@ IDTVEC(lcall_syscall)
 	pushl	%es
 	pushl	%fs
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	call	syscall
@@ -256,6 +258,7 @@ IDTVEC(int0x80_syscall)
 	pushl	%es
 	pushl	%fs
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	call	syscall
