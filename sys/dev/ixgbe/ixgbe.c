@@ -239,6 +239,15 @@ static int ixgbe_flow_control = ixgbe_fc_full;
 TUNABLE_INT("hw.ixgbe.flow_control", &ixgbe_flow_control);
 
 /*
+** These adapters do not really autoneg, but slower
+** speed can be set by forcing the advertised value
+** to only 1G. Default to 0, set it to 1 to
+** force 1G link.
+*/
+static int ixgbe_force_speed = 0;
+TUNABLE_INT("hw.ixgbe.force_speed", &ixgbe_force_speed);
+
+/*
 ** Smart speed setting, default to on
 ** this only works as a compile option
 ** right now as its during attach, set
@@ -463,6 +472,11 @@ ixgbe_attach(device_t dev)
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 			OID_AUTO, "flow_control", CTLTYPE_INT | CTLFLAG_RW,
 			adapter, 0, ixgbe_set_flowcntl, "I", "Flow Control");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			OID_AUTO, "force_gig", CTLTYPE_INT | CTLFLAG_RW,
+			adapter, 0, ixgbe_set_gigspeed, "I", "Force 1G Speed");
 
         SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -4940,6 +4954,34 @@ ixgbe_sysctl_debug(SYSCTL_HANDLER_ARGS)
 	}
 	return error;
 }
+
+/*
+** Set link advertisement to 1G:
+** 	0 - off
+**	1 - off
+*/
+static int
+ixgbe_set_gigspeed(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *adapter;
+	struct ixgbe_hw *hw;
+	int error;
+
+	error = sysctl_handle_int(oidp, &ixgbe_force_speed, 0, req);
+
+	if (error)
+		return (error);
+
+	adapter = (struct adapter *) arg1;
+	hw = &adapter->hw;
+	if (ixgbe_force_speed)
+		 hw->phy.autoneg_advertised = IXGBE_LINK_SPEED_1GB_FULL;
+	else
+		 hw->phy.autoneg_advertised = IXGBE_LINK_SPEED_10GB_FULL;
+	
+	return error;
+}
+
 
 /*
 ** Set flow control using sysctl:
