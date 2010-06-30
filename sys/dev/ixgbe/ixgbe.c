@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.2.1";
+char ixgbe_driver_version[] = "2.2.3";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -154,6 +154,7 @@ static int      ixgbe_xmit(struct tx_ring *, struct mbuf **);
 static int      ixgbe_sysctl_stats(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_sysctl_debug(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS);
+static int	ixgbe_set_advertise(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_dma_malloc(struct adapter *, bus_size_t,
 		    struct ixgbe_dma_alloc *, int);
 static void     ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
@@ -237,15 +238,6 @@ TUNABLE_INT("hw.ixgbe.rx_process_limit", &ixgbe_rx_process_limit);
 /* Flow control setting, default to full */
 static int ixgbe_flow_control = ixgbe_fc_full;
 TUNABLE_INT("hw.ixgbe.flow_control", &ixgbe_flow_control);
-
-/*
-** These adapters do not really autoneg, but slower
-** speed can be set by forcing the advertised value
-** to only 1G. Default to 0, set it to 1 to
-** force 1G link.
-*/
-static int ixgbe_force_speed = 0;
-TUNABLE_INT("hw.ixgbe.force_speed", &ixgbe_force_speed);
 
 /*
 ** Smart speed setting, default to on
@@ -475,8 +467,8 @@ ixgbe_attach(device_t dev)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "force_gig", CTLTYPE_INT | CTLFLAG_RW,
-			adapter, 0, ixgbe_set_gigspeed, "I", "Force 1G Speed");
+			OID_AUTO, "advertise_gig", CTLTYPE_INT | CTLFLAG_RW,
+			adapter, 0, ixgbe_set_advertise, "I", "1G Link");
 
         SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -4956,34 +4948,6 @@ ixgbe_sysctl_debug(SYSCTL_HANDLER_ARGS)
 }
 
 /*
-** Set link advertisement to 1G:
-** 	0 - off
-**	1 - off
-*/
-static int
-ixgbe_set_gigspeed(SYSCTL_HANDLER_ARGS)
-{
-	struct adapter *adapter;
-	struct ixgbe_hw *hw;
-	int error;
-
-	error = sysctl_handle_int(oidp, &ixgbe_force_speed, 0, req);
-
-	if (error)
-		return (error);
-
-	adapter = (struct adapter *) arg1;
-	hw = &adapter->hw;
-	if (ixgbe_force_speed)
-		 hw->phy.autoneg_advertised = IXGBE_LINK_SPEED_1GB_FULL;
-	else
-		 hw->phy.autoneg_advertised = IXGBE_LINK_SPEED_10GB_FULL;
-	
-	return error;
-}
-
-
-/*
 ** Set flow control using sysctl:
 ** Flow control values:
 ** 	0 - off
@@ -5026,4 +4990,45 @@ ixgbe_add_rx_process_limit(struct adapter *adapter, const char *name,
         SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
             SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
             OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW, limit, value, description);
+}
+
+/*
+** Control link advertise speed:
+** 	0 - normal
+**	1 - advertise only 1G
+*/
+static int
+ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
+{
+	int			error;
+	struct adapter		*adapter;
+	struct ixgbe_hw		*hw;
+	ixgbe_link_speed	speed, last;
+
+	adapter = (struct adapter *) arg1;
+	hw = &adapter->hw;
+	last = hw->phy.autoneg_advertised;
+
+	error = sysctl_handle_int(oidp, &adapter->advertise, 0, req);
+
+	if ((error) || (adapter->advertise == -1))
+		return (error);
+
+	if (!((hw->phy.media_type == ixgbe_media_type_copper) ||
+            (hw->phy.multispeed_fiber)))
+		return (error);
+
+	if (adapter->advertise == 1)
+                speed = IXGBE_LINK_SPEED_1GB_FULL;
+	else
+                speed = IXGBE_LINK_SPEED_1GB_FULL |
+			IXGBE_LINK_SPEED_10GB_FULL;
+
+	if (speed == last) /* no change */
+		return (error);
+
+	hw->mac.autotry_restart = TRUE;
+	hw->mac.ops.setup_link(hw, speed, TRUE, TRUE);
+
+	return (error);
 }
