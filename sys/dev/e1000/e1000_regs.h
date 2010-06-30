@@ -282,6 +282,15 @@
 #define E1000_ICRXOC   0x04124  /* Interrupt Cause Receiver Overrun Count */
 #define E1000_CRC_OFFSET 0x05F50  /* CRC Offset register */
 
+#define E1000_VFGPRC   0x00F10
+#define E1000_VFGORC   0x00F18
+#define E1000_VFMPRC   0x00F3C
+#define E1000_VFGPTC   0x00F14
+#define E1000_VFGOTC   0x00F34
+#define E1000_VFGOTLBC 0x00F50
+#define E1000_VFGPTLBC 0x00F44
+#define E1000_VFGORLBC 0x00F48
+#define E1000_VFGPRLBC 0x00F40
 /* Virtualization statistical counters */
 #define E1000_PFVFGPRC(_n)   (0x010010 + (0x100 * (_n)))
 #define E1000_PFVFGPTC(_n)   (0x010014 + (0x100 * (_n)))
