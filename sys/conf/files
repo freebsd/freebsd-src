@@ -963,6 +963,10 @@ dev/e1000/e1000_nvm.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_phy.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_vf.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_mbx.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_osdep.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/et/if_et.c			optional et
