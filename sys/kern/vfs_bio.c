@@ -3336,7 +3336,7 @@ bufdone_finish(struct buf *bp)
 		vm_ooffset_t foff;
 		vm_page_t m;
 		vm_object_t obj;
-		int iosize;
+		int bogus, iosize;
 		struct vnode *vp = bp->b_vp;
 
 		obj = bp->b_bufobj->bo_object;
@@ -3374,6 +3374,7 @@ bufdone_finish(struct buf *bp)
 		    !(bp->b_ioflags & BIO_ERROR)) {
 			bp->b_flags |= B_CACHE;
 		}
+		bogus = 0;
 		for (i = 0; i < bp->b_npages; i++) {
 			int bogusflag = 0;
 			int resid;
@@ -3387,13 +3388,11 @@ bufdone_finish(struct buf *bp)
 			 */
 			m = bp->b_pages[i];
 			if (m == bogus_page) {
-				bogusflag = 1;
+				bogus = bogusflag = 1;
 				m = vm_page_lookup(obj, OFF_TO_IDX(foff));
 				if (m == NULL)
 					panic("biodone: page disappeared!");
 				bp->b_pages[i] = m;
-				pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
-				    bp->b_pages, bp->b_npages);
 			}
 #if defined(VFS_BIO_DEBUG)
 			if (OFF_TO_IDX(foff) != m->pindex) {
@@ -3447,6 +3446,9 @@ bufdone_finish(struct buf *bp)
 		}
 		vm_object_pip_wakeupn(obj, 0);
 		VM_OBJECT_UNLOCK(obj);
+		if (bogus)
+			pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
+			    bp->b_pages, bp->b_npages);
 	}
 
 	/*
