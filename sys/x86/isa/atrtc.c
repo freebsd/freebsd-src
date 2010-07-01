@@ -231,13 +231,13 @@ atrtc_probe(device_t dev)
 {
 	int result;
 	
-	device_set_desc(dev, "AT Real Time Clock");
 	result = ISA_PNP_PROBE(device_get_parent(dev), dev, atrtc_ids);
-	/* ENXIO if wrong PnP-ID, ENOENT ifno PnP-ID, zero if good PnP-iD */
-	if (result != ENOENT)
-		return(result);
-	/* All PC's have an RTC, and we're hosed without it, so... */
-	return (BUS_PROBE_LOW_PRIORITY);
+	/* ENOENT means no PnP-ID, device is hinted. */
+	if (result == ENOENT) {
+		device_set_desc(dev, "AT realtime clock");
+		return (BUS_PROBE_LOW_PRIORITY);
+	}
+	return (result);
 }
 
 static int
