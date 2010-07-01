@@ -511,7 +511,12 @@ attimer_probe(device_t dev)
 	int result;
 	
 	result = ISA_PNP_PROBE(device_get_parent(dev), dev, attimer_ids);
-	return(result);
+	/* ENOENT means no PnP-ID, device is hinted. */
+	if (result == ENOENT) {
+		device_set_desc(dev, "AT timer");
+		return (BUS_PROBE_LOW_PRIORITY);
+	}
+	return (result);
 }
 
 static int
