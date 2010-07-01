@@ -221,20 +221,21 @@ ng_ipfw_findhook1(node_p node, u_int16_t rulenum)
 static int
 ng_ipfw_rcvdata(hook_p hook, item_p item)
 {
-	struct ipfw_rule_ref	*tag;
+	struct m_tag *tag;
+	struct ipfw_rule_ref *r;
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
 
-	tag = (struct ipfw_rule_ref *)
-		m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
+	tag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
 	if (tag == NULL) {
 		NG_FREE_M(m);
 		return (EINVAL);	/* XXX: find smth better */
 	};
 
-	if (tag->info & IPFW_INFO_IN) {
+	r = (struct ipfw_rule_ref *)(tag + 1);
+	if (r->info & IPFW_INFO_IN) {
 		ip_input(m);
 		return (0);
 	} else {
