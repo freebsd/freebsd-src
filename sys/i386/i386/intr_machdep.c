@@ -334,8 +334,8 @@ intrcnt_register(struct intsrc *is)
 	mtx_lock_spin(&intrcnt_lock);
 	is->is_index = intrcnt_index;
 	intrcnt_index += 2;
-	snprintf(straystr, MAXCOMLEN + 1, "stray irq%d",
-	    is->is_pic->pic_vector(is));
+	snprintf(straystr, MAXCOMLEN + 1, "%s stray",
+	    is->is_event->ie_name);
 	intrcnt_updatename(is);
 	is->is_count = &intrcnt[is->is_index];
 	intrcnt_setname(straystr, is->is_index + 1);
