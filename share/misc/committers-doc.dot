@@ -61,6 +61,7 @@ linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2004/03/31"]
 manolis [label="Manolis Kiagias\nmanolis@FreeBSD.org\n2008/05/24"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
+maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2007/10/26"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
 nik [label="Nik Clayton\nnik@FreeBSD.org\n1998/02/26"]
@@ -70,6 +71,7 @@ remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
 roam [label="Peter Pentchev\nroam@FreeBSD.org\n2003/02/14"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2003/07/20"]
+taras [label="Taras Korenko\ntaras@FreeBSD.org\n2010/06/25"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/03/25"]
 
 # Here are the mentor/mentee relationships.
@@ -93,6 +95,7 @@ delphij -> loader
 
 gabor -> pgj
 gabor -> manolis
+gabor -> taras
 
 jesusr -> jcamou
 
@@ -109,6 +112,9 @@ keramida -> garys
 keramida -> pav
 
 marck -> bvs
+marck -> taras
+
+maxim -> taras
 
 mheinen -> jkois
 
