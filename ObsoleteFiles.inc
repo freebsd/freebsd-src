@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100701: [powerpc] removed <machine/intr.h>
+.if ${TARGET_ARCH} == "powerpc"
+OLD_FILES+=usr/include/machine/intr.h
+.endif
 # 20100514: library version bump for versioned symbols for liblzma
 OLD_LIBS+=usr/lib/liblzma.so.0
 .if ${TARGET_ARCH} == "amd64"
