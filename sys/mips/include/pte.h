@@ -73,7 +73,8 @@
  * Note that in FreeBSD, we map 2 TLB pages is equal to 1 VM page.
  */
 #define	TLBHI_ASID_MASK		(0xff)
-#define	TLBHI_ENTRY(va, asid)	(((va) & ~PAGE_MASK) | ((asid) & TLBHI_ASID_MASK))
+#define	TLBHI_PAGE_MASK		(2 * PAGE_SIZE - 1)
+#define	TLBHI_ENTRY(va, asid)	(((va) & ~TLBHI_PAGE_MASK) | ((asid) & TLBHI_ASID_MASK))
 
 #ifndef _LOCORE
 typedef	uint32_t pt_entry_t;
