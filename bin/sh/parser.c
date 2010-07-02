@@ -1734,7 +1734,8 @@ getprompt(void *unused __unused)
 {
 	static char ps[PROMPTLEN];
 	char *fmt;
-	int i, j, trim;
+	const char *pwd;
+	int i, trim;
 	static char internal_error[] = "<internal prompt error>";
 
 	/*
@@ -1785,17 +1786,15 @@ getprompt(void *unused __unused)
 				 */
 			case 'W':
 			case 'w':
-				ps[i] = '\0';
-				getcwd(&ps[i], PROMPTLEN - i);
-				if (*fmt == 'W' && ps[i + 1] != '\0') {
-					/* Final path component only. */
-					trim = 1;
-					for (j = i; ps[j] != '\0'; j++)
-					  if (ps[j] == '/')
-						trim = j + 1;
-					memmove(&ps[i], &ps[trim],
-					    j - trim + 1);
-				}
+				pwd = lookupvar("PWD");
+				if (pwd == NULL)
+					pwd = "?";
+				if (*fmt == 'W' &&
+				    *pwd == '/' && pwd[1] != '\0')
+					strlcpy(&ps[i], strrchr(pwd, '/') + 1,
+					    PROMPTLEN - i);
+				else
+					strlcpy(&ps[i], pwd, PROMPTLEN - i);
 				/* Skip to end of path. */
 				while (ps[i + 1] != '\0')
 					i++;
