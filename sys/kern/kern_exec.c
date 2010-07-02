@@ -935,7 +935,7 @@ exec_map_first_page(imgp)
 		if (initial_pagein > object->size)
 			initial_pagein = object->size;
 		for (i = 1; i < initial_pagein; i++) {
-			if ((ma[i] = vm_page_lookup(object, i)) != NULL) {
+			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
 				if (ma[i]->valid)
 					break;
 				if ((ma[i]->oflags & VPO_BUSY) || ma[i]->busy)
