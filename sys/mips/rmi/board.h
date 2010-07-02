@@ -77,7 +77,8 @@ xlr_is_xls(void)
 {
 	uint32_t prid = mips_rd_prid();
 
-	return (prid & 0xf000) == 0x8000 || (prid & 0xf000) == 0x4000;
+	return ((prid & 0xf000) == 0x8000 || (prid & 0xf000) == 0x4000 ||
+	    (prid & 0xf000) == 0xc000);
 }
 
 /*
@@ -107,6 +108,14 @@ xlr_board_pci(void)
 {
 	return ((xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_III) ||
 		(xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_V));
+}
+
+static __inline__ int
+xlr_is_xls1xx(void)
+{
+	uint32_t chipid = xlr_processor_id();
+
+	return (chipid == 0xce || chipid == 0xcf);
 }
 
 static __inline__ int
