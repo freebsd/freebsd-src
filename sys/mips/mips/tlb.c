@@ -91,13 +91,12 @@ static void tlb_invalidate_one(unsigned);
 void
 tlb_insert_wired(unsigned i, vm_offset_t va, pt_entry_t pte0, pt_entry_t pte1)
 {
-	register_t mask, asid;
+	register_t asid;
 	register_t s;
 
 	va &= ~PAGE_MASK;
 
 	s = intr_disable();
-	mask = mips_rd_pagemask();
 	asid = mips_rd_entryhi() & TLBHI_ASID_MASK;
 
 	mips_wr_index(i);
@@ -108,21 +107,19 @@ tlb_insert_wired(unsigned i, vm_offset_t va, pt_entry_t pte0, pt_entry_t pte1)
 	tlb_write_indexed();
 
 	mips_wr_entryhi(asid);
-	mips_wr_pagemask(mask);
 	intr_restore(s);
 }
 
 void
 tlb_invalidate_address(struct pmap *pmap, vm_offset_t va)
 {
-	register_t mask, asid;
+	register_t asid;
 	register_t s;
 	int i;
 
 	va &= ~PAGE_MASK;
 
 	s = intr_disable();
-	mask = mips_rd_pagemask();
 	asid = mips_rd_entryhi() & TLBHI_ASID_MASK;
 
 	mips_wr_pagemask(0);
@@ -133,38 +130,34 @@ tlb_invalidate_address(struct pmap *pmap, vm_offset_t va)
 		tlb_invalidate_one(i);
 
 	mips_wr_entryhi(asid);
-	mips_wr_pagemask(mask);
 	intr_restore(s);
 }
 
 void
 tlb_invalidate_all(void)
 {
-	register_t mask, asid;
+	register_t asid;
 	register_t s;
 	unsigned i;
 
 	s = intr_disable();
-	mask = mips_rd_pagemask();
 	asid = mips_rd_entryhi() & TLBHI_ASID_MASK;
 
 	for (i = mips_rd_wired(); i < num_tlbentries; i++)
 		tlb_invalidate_one(i);
 
 	mips_wr_entryhi(asid);
-	mips_wr_pagemask(mask);
 	intr_restore(s);
 }
 
 void
 tlb_invalidate_all_user(struct pmap *pmap)
 {
-	register_t mask, asid;
+	register_t asid;
 	register_t s;
 	unsigned i;
 
 	s = intr_disable();
-	mask = mips_rd_pagemask();
 	asid = mips_rd_entryhi() & TLBHI_ASID_MASK;
 
 	for (i = mips_rd_wired(); i < num_tlbentries; i++) {
@@ -191,7 +184,6 @@ tlb_invalidate_all_user(struct pmap *pmap)
 	}
 
 	mips_wr_entryhi(asid);
-	mips_wr_pagemask(mask);
 	intr_restore(s);
 }
 
@@ -217,7 +209,7 @@ tlb_save(void)
 void
 tlb_update(struct pmap *pmap, vm_offset_t va, pt_entry_t pte)
 {
-	register_t mask, asid;
+	register_t asid;
 	register_t s;
 	int i;
 
@@ -225,7 +217,6 @@ tlb_update(struct pmap *pmap, vm_offset_t va, pt_entry_t pte)
 	pte &= ~TLBLO_SWBITS_MASK;
 
 	s = intr_disable();
-	mask = mips_rd_pagemask();
 	asid = mips_rd_entryhi() & TLBHI_ASID_MASK;
 
 	mips_wr_pagemask(0);
@@ -244,7 +235,6 @@ tlb_update(struct pmap *pmap, vm_offset_t va, pt_entry_t pte)
 	}
 
 	mips_wr_entryhi(asid);
-	mips_wr_pagemask(mask);
 	intr_restore(s);
 }
 
