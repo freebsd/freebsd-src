@@ -153,18 +153,6 @@ struct vm_page {
 #define	PQ_HOLD		3
 #define	PQ_COUNT	4
 
-/* Returns the real queue a page is on. */
-#define VM_PAGE_GETQUEUE(m)	((m)->queue)
-
-/* Returns the well known queue a page is on. */
-#define VM_PAGE_GETKNOWNQUEUE2(m)	VM_PAGE_GETQUEUE(m)
-
-/* Returns true if the page is in the named well known queue. */
-#define VM_PAGE_INQUEUE2(m, q)	(VM_PAGE_GETKNOWNQUEUE2(m) == (q))
-
-/* Sets the queue a page is on. */
-#define VM_PAGE_SETQUEUE2(m, q)	(VM_PAGE_GETQUEUE(m) = (q))
-
 struct vpgqueues {
 	struct pglist pl;
 	int	*cnt;
