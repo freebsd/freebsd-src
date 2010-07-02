@@ -127,7 +127,7 @@ xlr_board_info_setup()
 
 		/* network block 1 */
 		xlr_board_info.gmac_block[1].type = XLR_GMAC;
-		xlr_board_info.gmac_block[1].enabled = 0xf;
+		xlr_board_info.gmac_block[1].enabled = xlr_is_xls1xx() ? 0 : 0xf;
 		if (xlr_is_xls4xx_lite()) {
 			xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_GPIO_OFFSET);
 			uint32_t tmp;
