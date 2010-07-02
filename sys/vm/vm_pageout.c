@@ -1355,7 +1355,6 @@ vm_pageout_page_stats()
 	static int fullintervalcount = 0;
 	int page_shortage;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	page_shortage = 
 	    (cnt.v_inactive_target + cnt.v_cache_max + cnt.v_free_min) -
 	    (cnt.v_free_count + cnt.v_inactive_count + cnt.v_cache_count);
@@ -1363,6 +1362,7 @@ vm_pageout_page_stats()
 	if (page_shortage <= 0)
 		return;
 
+	vm_page_lock_queues();
 	pcount = cnt.v_active_count;
 	fullintervalcount += vm_pageout_stats_interval;
 	if (fullintervalcount < vm_pageout_full_stats_interval) {
@@ -1448,6 +1448,7 @@ vm_pageout_page_stats()
 		VM_OBJECT_UNLOCK(object);
 		m = next;
 	}
+	vm_page_unlock_queues();
 }
 
 /*
@@ -1569,9 +1570,7 @@ vm_pageout()
 			if (error && !vm_pages_needed) {
 				mtx_unlock(&vm_page_queue_free_mtx);
 				pass = 0;
-				vm_page_lock_queues();
 				vm_pageout_page_stats();
-				vm_page_unlock_queues();
 				continue;
 			}
 		}
