@@ -592,7 +592,7 @@ vm_page_unhold(vm_page_t mem)
 	vm_page_lock_assert(mem, MA_OWNED);
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
-	if (mem->hold_count == 0 && VM_PAGE_INQUEUE2(mem, PQ_HOLD))
+	if (mem->hold_count == 0 && mem->queue == PQ_HOLD)
 		vm_page_free_toq(mem);
 }
 
@@ -1381,10 +1381,11 @@ vm_waitpfault(void)
 void
 vm_page_requeue(vm_page_t m)
 {
-	int queue = VM_PAGE_GETQUEUE(m);
 	struct vpgqueues *vpq;
+	int queue;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	queue = m->queue;
 	KASSERT(queue != PQ_NONE,
 	    ("vm_page_requeue: page %p is not queued", m));
 	vpq = &vm_page_queues[queue];
@@ -1422,12 +1423,12 @@ vm_page_queue_remove(int queue, vm_page_t m)
 void
 vm_pageq_remove(vm_page_t m)
 {
-	int queue = VM_PAGE_GETQUEUE(m);
+	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	if (queue != PQ_NONE) {
+	if ((queue = m->queue) != PQ_NONE) {
 		vm_page_lock_queues();
-		VM_PAGE_SETQUEUE2(m, PQ_NONE);
+		m->queue = PQ_NONE;
 		vm_page_queue_remove(queue, m);
 		vm_page_unlock_queues();
 	}
@@ -1446,7 +1447,7 @@ vm_page_enqueue(int queue, vm_page_t m)
 	struct vpgqueues *vpq;
 
 	vpq = &vm_page_queues[queue];
-	VM_PAGE_SETQUEUE2(m, queue);
+	m->queue = queue;
 	TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
 	++*vpq->cnt;
 }
@@ -1467,7 +1468,7 @@ vm_page_activate(vm_page_t m)
 	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	if ((queue = VM_PAGE_GETKNOWNQUEUE2(m)) != PQ_ACTIVE) {
+	if ((queue = m->queue) != PQ_ACTIVE) {
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
 				m->act_count = ACT_INIT;
@@ -1728,7 +1729,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	/*
 	 * Ignore if already inactive.
 	 */
-	if ((queue = VM_PAGE_GETKNOWNQUEUE2(m)) == PQ_INACTIVE)
+	if ((queue = m->queue) == PQ_INACTIVE)
 		return;
 	if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 		vm_page_lock_queues();
@@ -1741,7 +1742,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 		else
 			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m,
 			    pageq);
-		VM_PAGE_SETQUEUE2(m, PQ_INACTIVE);
+		m->queue = PQ_INACTIVE;
 		cnt.v_inactive_count++;
 		vm_page_unlock_queues();
 	}
@@ -1954,8 +1955,7 @@ vm_page_dontneed(vm_page_t m)
 	/*
 	 * Occasionally leave the page alone.
 	 */
-	if ((dnw & 0x01F0) == 0 ||
-	    VM_PAGE_INQUEUE2(m, PQ_INACTIVE)) {
+	if ((dnw & 0x01F0) == 0 || m->queue == PQ_INACTIVE) {
 		if (m->act_count >= ACT_INIT)
 			--m->act_count;
 		return;
