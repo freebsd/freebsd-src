@@ -773,9 +773,8 @@ rescan0:
 
 		cnt.v_pdpages++;
 
-		if (VM_PAGE_GETQUEUE(m) != PQ_INACTIVE) {
+		if (m->queue != PQ_INACTIVE)
 			goto rescan0;
-		}
 
 		next = TAILQ_NEXT(m, pageq);
 
@@ -1025,7 +1024,7 @@ rescan0:
 				 * above.  The page might have been freed and
 				 * reused for another vnode.
 				 */
-				if (VM_PAGE_GETQUEUE(m) != PQ_INACTIVE ||
+				if (m->queue != PQ_INACTIVE ||
 				    m->object != object ||
 				    TAILQ_NEXT(m, pageq) != &marker) {
 					vm_page_unlock(m);
@@ -1115,7 +1114,7 @@ unlock_and_continue:
 
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
 
-		KASSERT(VM_PAGE_INQUEUE2(m, PQ_ACTIVE),
+		KASSERT(m->queue == PQ_ACTIVE,
 		    ("vm_pageout_scan: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
@@ -1379,7 +1378,7 @@ vm_pageout_page_stats()
 	while ((m != NULL) && (pcount-- > 0)) {
 		int actcount;
 
-		KASSERT(VM_PAGE_INQUEUE2(m, PQ_ACTIVE),
+		KASSERT(m->queue == PQ_ACTIVE,
 		    ("vm_pageout_page_stats: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
