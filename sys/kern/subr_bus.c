@@ -539,7 +539,7 @@ devctl_process_running(void)
  * that @p data is allocated using the M_BUS malloc type.
  */
 void
-devctl_queue_data(char *data)
+devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
 	struct proc *p;
@@ -548,7 +548,7 @@ devctl_queue_data(char *data)
 		goto out;
 	if (devctl_queue_length == 0)
 		goto out;
-	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
+	n1 = malloc(sizeof(*n1), M_BUS, flags);
 	if (n1 == NULL)
 		goto out;
 	n1->dei_data = data;
@@ -588,12 +588,19 @@ out:
 	return;
 }
 
+void
+devctl_queue_data(char *data)
+{
+
+	devctl_queue_data_f(data, M_NOWAIT);
+}
+
 /**
  * @brief Send a 'notification' to userland, using standard ways
  */
 void
-devctl_notify(const char *system, const char *subsystem, const char *type,
-    const char *data)
+devctl_notify_f(const char *system, const char *subsystem, const char *type,
+    const char *data, int flags)
 {
 	int len = 0;
 	char *msg;
@@ -611,7 +618,7 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 	if (data != NULL)
 		len += strlen(data);
 	len += 3;	/* '!', '\n', and NUL */
-	msg = malloc(len, M_BUS, M_NOWAIT);
+	msg = malloc(len, M_BUS, flags);
 	if (msg == NULL)
 		return;		/* Drop it on the floor */
 	if (data != NULL)
@@ -620,7 +627,15 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 	else
 		snprintf(msg, len, "!system=%s subsystem=%s type=%s\n",
 		    system, subsystem, type);
-	devctl_queue_data(msg);
+	devctl_queue_data_f(msg, flags);
+}
+
+void
+devctl_notify(const char *system, const char *subsystem, const char *type,
+    const char *data)
+{
+
+	devctl_notify_f(system, subsystem, type, data, M_NOWAIT);
 }
 
 /*
