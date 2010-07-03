@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -60,8 +59,8 @@ static void printfile(int fileid, int verbose)
     if (kldstat(fileid, &stat) < 0)
 	warn("can't stat file id %d", fileid);
     else
-	printf("%2d %4d %p %-8jx %s",
-	       stat.id, stat.refs, stat.address, (uintmax_t)stat.size, 
+	printf("%2d %4d %p %-8zx %s",
+	       stat.id, stat.refs, stat.address, stat.size, 
 	       stat.name);
 
     if (verbose) {
