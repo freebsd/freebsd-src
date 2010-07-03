@@ -163,6 +163,8 @@ ia64_store_mca_state(void* arg)
 	sched_bind(td, pc->pc_cpuid);
 	thread_unlock(td);
 
+	ia64_mca_init_ap();
+
 	/*
 	 * Get and save the CPU specific MCA records. Should we get the
 	 * MCA state for each processor, or just the CMC state?
