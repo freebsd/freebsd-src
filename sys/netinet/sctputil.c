@@ -3694,6 +3694,10 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 	if (stcb == NULL) {
 		return;
 	}
+	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+		/* already being freed */
+		return;
+	}
 	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
@@ -3753,11 +3757,13 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 			stcb->asoc.stream_queue_cnt--;
 			TAILQ_REMOVE(&outs->outqueue, sp, next);
 			sctp_free_spbufspace(stcb, asoc, sp);
-			sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL, stcb,
-			    SCTP_NOTIFY_DATAGRAM_UNSENT, (void *)sp, so_locked);
 			if (sp->data) {
-				sctp_m_freem(sp->data);
-				sp->data = NULL;
+				sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL, stcb,
+				    SCTP_NOTIFY_DATAGRAM_UNSENT, (void *)sp, so_locked);
+				if (sp->data) {
+					sctp_m_freem(sp->data);
+					sp->data = NULL;
+				}
 			}
 			if (sp->net)
 				sctp_free_remote_addr(sp->net);
