@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2010
+.Dd July 3, 2010
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -103,6 +103,10 @@ can cause data loss on power failures and crashes.
 .It Va hint.atapci.X.msi
 set to 1 to allow Message Signalled Interrupts (MSI) to be used by
 specified PCI ATA controller, if supported.
+.It Va hint.ata.X.devX.mode
+limits initial ATA mode for specified device on specified channel.
+.It Va hint.ata.X.mode
+limits initial ATA mode for every device on specified channel.
 .It Va hint.ata.X.pm_level
 controls SATA interface Power Management for specified channel,
 allowing to save some power by the cost of additional command latency.
