@@ -415,7 +415,8 @@ powerpc_bind_intr(u_int irq, u_char cpu)
 	else
 		i->cpu = 1 << cpu;
 
-	PIC_BIND(i->pic, i->intline, i->cpu);
+	if (!cold && i->pic != NULL && i->pic == root_pic)
+		PIC_BIND(i->pic, i->intline, i->cpu);
 
 	return (intr_event_bind(i->event, cpu));
 }
