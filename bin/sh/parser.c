@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "shell.h"
 #include "parser.h"
