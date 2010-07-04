@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef COMPAT_FREEBSD32
 #include <sys/procfs.h>
+#include <compat/freebsd32/freebsd32_signal.h>
 
 struct ptrace_io_desc32 {
 	int		piod_op;
@@ -83,6 +84,15 @@ struct ptrace_vm_entry32 {
 	int32_t		pve_fileid;
 	u_int		pve_fsid;
 	uint32_t	pve_path;
+};
+
+struct ptrace_lwpinfo32 {
+	lwpid_t	pl_lwpid;	/* LWP described. */
+	int	pl_event;	/* Event that stopped the LWP. */
+	int	pl_flags;	/* LWP flags. */
+	sigset_t	pl_sigmask;	/* LWP signal mask */
+	sigset_t	pl_siglist;	/* LWP pending signal */
+	struct siginfo32 pl_siginfo;	/* siginfo for signal */
 };
 
 #endif
@@ -498,6 +508,19 @@ ptrace_vm_entry32(struct thread *td, struct proc *p,
 	pve32->pve_pathlen = pve.pve_pathlen;
 	return (error);
 }
+
+static void
+ptrace_lwpinfo_to32(const struct ptrace_lwpinfo *pl,
+    struct ptrace_lwpinfo32 *pl32)
+{
+
+	pl32->pl_lwpid = pl->pl_lwpid;
+	pl32->pl_event = pl->pl_event;
+	pl32->pl_flags = pl->pl_flags;
+	pl32->pl_sigmask = pl->pl_sigmask;
+	pl32->pl_siglist = pl->pl_siglist;
+	siginfo_to_siginfo32(&pl->pl_siginfo, &pl32->pl_siginfo);
+}
 #endif /* COMPAT_FREEBSD32 */
 
 /*
@@ -552,6 +575,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		struct fpreg32 fpreg32;
 		struct reg32 reg32;
 		struct ptrace_io_desc32 piod32;
+		struct ptrace_lwpinfo32 pl32;
 		struct ptrace_vm_entry32 pve32;
 #endif
 	} r;
@@ -662,6 +686,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 #ifdef COMPAT_FREEBSD32
 	int wrap32 = 0, safe = 0;
 	struct ptrace_io_desc32 *piod32 = NULL;
+	struct ptrace_lwpinfo32 *pl32 = NULL;
+	struct ptrace_lwpinfo plr;
 #endif
 
 	curp = td->td_proc;
@@ -1103,15 +1129,44 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_LWPINFO:
-		if (data <= 0 || data > sizeof(*pl)) {
+		if (data <= 0 ||
+#ifdef COMPAT_FREEBSD32
+		    (!wrap32 && data > sizeof(*pl)) ||
+		    (wrap32 && data > sizeof(*pl32))) {
+#else
+		    data > sizeof(*pl)) {
+#endif
 			error = EINVAL;
 			break;
 		}
+#ifdef COMPAT_FREEBSD32
+		if (wrap32) {
+			pl = &plr;
+			pl32 = addr;
+		} else
+#endif
 		pl = addr;
 		pl->pl_lwpid = td2->td_tid;
-		if (td2->td_dbgflags & TDB_XSIG)
-			pl->pl_event = PL_EVENT_SIGNAL;
 		pl->pl_flags = 0;
+		if (td2->td_dbgflags & TDB_XSIG) {
+			pl->pl_event = PL_EVENT_SIGNAL;
+			if (td2->td_dbgksi.ksi_signo != 0 &&
+#ifdef COMPAT_FREEBSD32
+			    ((!wrap32 && data >= offsetof(struct ptrace_lwpinfo,
+			    pl_siginfo) + sizeof(pl->pl_siginfo)) ||
+			    (wrap32 && data >= offsetof(struct ptrace_lwpinfo32,
+			    pl_siginfo) + sizeof(struct siginfo32)))
+#else
+			    data >= offsetof(struct ptrace_lwpinfo, pl_siginfo)
+			    + sizeof(pl->pl_siginfo)
+#endif
+			){
+				pl->pl_flags |= PL_FLAG_SI;
+				pl->pl_siginfo = td2->td_dbgksi.ksi_info;
+			}
+		}
+		if ((pl->pl_flags & PL_FLAG_SI) == 0)
+			bzero(&pl->pl_siginfo, sizeof(pl->pl_siginfo));
 		if (td2->td_dbgflags & TDB_SCE)
 			pl->pl_flags |= PL_FLAG_SCE;
 		else if (td2->td_dbgflags & TDB_SCX)
@@ -1120,6 +1175,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			pl->pl_flags |= PL_FLAG_EXEC;
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
+#ifdef COMPAT_FREEBSD32
+		if (wrap32)
+			ptrace_lwpinfo_to32(pl, pl32);
+#endif
 		break;
 
 	case PT_GETNUMLWPS:
