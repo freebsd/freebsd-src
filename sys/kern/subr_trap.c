@@ -245,10 +245,12 @@ const char *
 syscallname(struct proc *p, u_int code)
 {
 	static const char unknown[] = "unknown";
+	struct sysentvec *sv;
 
-	if (p->p_sysent->sv_syscallnames == NULL)
+	sv = p->p_sysent;
+	if (sv->sv_syscallnames == NULL || code >= sv->sv_size)
 		return (unknown);
-	return (p->p_sysent->sv_syscallnames[code]);
+	return (sv->sv_syscallnames[code]);
 }
 
 int
