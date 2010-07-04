@@ -222,17 +222,28 @@ mp_label(struct gctl_req *req)
 	}
 }
 
+
 static void
 mp_clear(struct gctl_req *req)
 {
 	const char *name;
-	int error;
+	int error, i, nargs;
 
-	name = gctl_get_ascii(req, "arg1");
-	error = g_metadata_clear(name, G_MULTIPATH_MAGIC);
-	if (error != 0) {
-		fprintf(stderr, "Can't clear metadata on %s: %s.\n", name, strerror(error));
-		gctl_error(req, "Not fully done.");
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
+		gctl_error(req, "Too few arguments.");
+		return;
+	}
+
+	for (i = 0; i < nargs; i++) {
+		name = gctl_get_ascii(req, "arg%d", i);
+		error = g_metadata_clear(name, G_MULTIPATH_MAGIC);
+		if (error != 0) {
+			fprintf(stderr, "Can't clear metadata on %s: %s.\n",
+			    name, strerror(error));
+			gctl_error(req, "Not fully done.");
+			continue;
+		}
 	}
 }
 
