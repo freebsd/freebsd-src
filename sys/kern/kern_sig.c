@@ -2522,7 +2522,6 @@ issignal(struct thread *td, int stop_allowed)
 	struct sigacts *ps;
 	struct sigqueue *queue;
 	sigset_t sigpending;
-	ksiginfo_t ksi;
 	int sig, prop, newsig;
 
 	p = td->td_proc;
@@ -2565,10 +2564,10 @@ issignal(struct thread *td, int stop_allowed)
 			 * be thrown away.
 			 */
 			queue = &td->td_sigqueue;
-			ksi.ksi_signo = 0;
-			if (sigqueue_get(queue, sig, &ksi) == 0) {
+			td->td_dbgksi.ksi_signo = 0;
+			if (sigqueue_get(queue, sig, &td->td_dbgksi) == 0) {
 				queue = &p->p_sigqueue;
-				sigqueue_get(queue, sig, &ksi);
+				sigqueue_get(queue, sig, &td->td_dbgksi);
 			}
 
 			mtx_unlock(&ps->ps_mtx);
@@ -2595,13 +2594,13 @@ issignal(struct thread *td, int stop_allowed)
 					continue;
 				signotify(td);
 			} else {
-				if (ksi.ksi_signo != 0) {
-					ksi.ksi_flags |= KSI_HEAD;
+				if (td->td_dbgksi.ksi_signo != 0) {
+					td->td_dbgksi.ksi_flags |= KSI_HEAD;
 					if (sigqueue_add(&td->td_sigqueue, sig,
-					    &ksi) != 0)
-						ksi.ksi_signo = 0;
+					    &td->td_dbgksi) != 0)
+						td->td_dbgksi.ksi_signo = 0;
 				}
-				if (ksi.ksi_signo == 0)
+				if (td->td_dbgksi.ksi_signo == 0)
 					sigqueue_add(&td->td_sigqueue, sig,
 					    NULL);
 			}
