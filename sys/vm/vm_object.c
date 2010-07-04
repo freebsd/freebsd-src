@@ -96,17 +96,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
-#define EASY_SCAN_FACTOR       8
-
-#define MSYNC_FLUSH_HARDSEQ	0x01
-#define MSYNC_FLUSH_SOFTSEQ	0x02
-
 static int old_msync;
 SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
     "Use old (insecure) msync behavior");
 
+static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p,
+		    int pagerflags);
 static void	vm_object_qcollapse(vm_object_t object);
-static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration, int pagerflags);
 static void	vm_object_vndeallocate(vm_object_t object);
 
 /*
@@ -764,10 +760,10 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 
 	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT(object->type == OBJT_VNODE, ("Not a vnode object"));
 	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0 ||
 	    object->resident_page_count == 0)
 		return;
-	KASSERT(object->type == OBJT_VNODE, ("Not a vnode object"));
 
 	pagerflags = (flags & (OBJPC_SYNC | OBJPC_INVAL)) != 0 ?
 	    VM_PAGER_PUT_SYNC : VM_PAGER_CLUSTER_OK;
@@ -798,10 +794,9 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 		vm_object_clear_flag(object, OBJ_MIGHTBEDIRTY);
 
 rescan:
-	p = vm_page_find_least(object, start);
 	curgeneration = object->generation;
 
-	for (; p != NULL; p = np) {
+	for (p = vm_page_find_least(object, start); p != NULL; p = np) {
 		pi = p->pindex;
 		if (pi >= tend)
 			break;
@@ -825,8 +820,7 @@ rescan:
 		    (p->oflags & VPO_NOSYNC) != 0)
 			continue;
 
-		n = vm_object_page_collect_flush(object, p,
-		    curgeneration, pagerflags);
+		n = vm_object_page_collect_flush(object, p, pagerflags);
 		KASSERT(n > 0, ("vm_object_page_collect_flush failed"));
 		if (object->generation != curgeneration)
 			goto rescan;
@@ -840,8 +834,7 @@ rescan:
 }
 
 static int
-vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
-    int pagerflags)
+vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags)
 {
 	int runlen;
 	int maxf;
