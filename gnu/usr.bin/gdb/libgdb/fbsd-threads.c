@@ -1299,6 +1299,7 @@ fbsd_thread_signal_cmd (char *exp, int from_tty)
   td_thrhandle_t th;
   td_thrinfo_t ti;
   td_err_e err;
+  const char *code;
 
   if (!fbsd_thread_active || !IS_THREAD(inferior_ptid))
     return;
@@ -1315,6 +1316,42 @@ fbsd_thread_signal_cmd (char *exp, int from_tty)
   fbsd_print_sigset(&ti.ti_sigmask);
   printf_filtered("signal pending:\n");
   fbsd_print_sigset(&ti.ti_pending);
+  if (ti.ti_siginfo.si_signo != 0) {
+   printf_filtered("si_signo %d si_errno %d", ti.ti_siginfo.si_signo,
+     ti.ti_siginfo.si_errno);
+   if (ti.ti_siginfo.si_errno != 0)
+    printf_filtered(" (%s)", strerror(ti.ti_siginfo.si_errno));
+   printf_filtered("\n");
+   switch (ti.ti_siginfo.si_code) {
+   case SI_NOINFO:
+	code = "NOINFO";
+	break;
+    case SI_USER:
+	code = "USER";
+	break;
+    case SI_QUEUE:
+	code = "QUEUE";
+	break;
+    case SI_TIMER:
+	code = "TIMER";
+	break;
+    case SI_ASYNCIO:
+	code = "ASYNCIO";
+	break;
+    case SI_MESGQ:
+	code = "MESGQ";
+	break;
+    case SI_KERNEL:
+	code = "KERNEL";
+	break;
+    default:
+	code = "UNKNOWN";
+	break;
+    }
+    printf_filtered("si_code %s si_pid %d si_uid %d si_status %x si_addr %p\n",
+      code, ti.ti_siginfo.si_pid, ti.ti_siginfo.si_uid, ti.ti_siginfo.si_status,
+      ti.ti_siginfo.si_addr);
+  }
 }
 
 static int
