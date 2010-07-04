@@ -94,14 +94,14 @@ structure is used to control various SCTP features
 and has the following format:
 .Bd -literal
 struct sctp_sndrcvinfo {
-	u_int16_t sinfo_stream;  /* Stream sending to */
-	u_int16_t sinfo_ssn;     /* valid for recv only */
-	u_int16_t sinfo_flags;   /* flags to control sending */
-	u_int32_t sinfo_ppid;    /* ppid field */
-	u_int32_t sinfo_context; /* context field */
-	u_int32_t sinfo_timetolive; /* timetolive for PR-SCTP */
-	u_int32_t sinfo_tsn;        /* valid for recv only */
-	u_int32_t sinfo_cumtsn;     /* valid for recv only */
+	uint16_t sinfo_stream;  /* Stream sending to */
+	uint16_t sinfo_ssn;     /* valid for recv only */
+	uint16_t sinfo_flags;   /* flags to control sending */
+	uint32_t sinfo_ppid;    /* ppid field */
+	uint32_t sinfo_context; /* context field */
+	uint32_t sinfo_timetolive; /* timetolive for PR-SCTP */
+	uint32_t sinfo_tsn;        /* valid for recv only */
+	uint32_t sinfo_cumtsn;     /* valid for recv only */
 	sctp_assoc_t sinfo_assoc_id; /* The association id */
 };
 .Ed
