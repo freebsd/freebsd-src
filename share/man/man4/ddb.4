@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2008
+.Dd May 24, 2010
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -1092,9 +1092,13 @@ for a list of signals.
 Note that the arguments are reversed relative to
 .Xr kill 2 .
 .Pp
-.It Ic reboot
-.It Ic reset
+.It Ic reboot Op Ar seconds
+.It Ic reset Op Ar seconds
 Hard reset the system.
+If the optional argument
+.Ar seconds
+is given, the debugger will wait for this long, at most a week,
+before rebooting.
 .Pp
 .It Ic help
 Print a short summary of the available commands and command
