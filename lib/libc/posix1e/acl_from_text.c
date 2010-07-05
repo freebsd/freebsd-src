@@ -271,9 +271,6 @@ error_label:
  * XXX NOT THREAD SAFE, RELIES ON GETPWNAM, GETGRNAM
  * XXX USES *PW* AND *GR* WHICH ARE STATEFUL AND THEREFORE THIS ROUTINE
  * MAY HAVE SIDE-EFFECTS
- *
- * XXX currently doesn't deal correctly with a numeric uid being passed
- * instead of a username.  What is correct behavior here?  Check chown.
  */
 static int
 _posix1e_acl_name_to_id(acl_tag_t tag, char *name, uid_t *id)
