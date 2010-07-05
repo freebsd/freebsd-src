@@ -2413,7 +2413,7 @@ sctp_generic_sendmsg (td, uap)
 	if (error)
 		goto sctp_bad;
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_STRUCT))
+	if (to && (KTRPOINT(td, KTR_STRUCT)))
 		ktrsockaddr(to);
 #endif
 
@@ -2527,7 +2527,7 @@ sctp_generic_sendmsg_iov(td, uap)
 	if (error)
 		goto sctp_bad1;
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_STRUCT))
+	if (to && (KTRPOINT(td, KTR_STRUCT)))
 		ktrsockaddr(to);
 #endif
 
@@ -2681,6 +2681,7 @@ sctp_generic_recvmsg(td, uap)
 	if (KTRPOINT(td, KTR_GENIO))
 		ktruio = cloneuio(&auio);
 #endif /* KTRACE */
+	memset(&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
 	CURVNET_SET(so->so_vnet);
 	error = sctp_sorecvmsg(so, &auio, (struct mbuf **)NULL,
 		    fromsa, fromlen, &msg_flags,
