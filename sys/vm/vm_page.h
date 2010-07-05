@@ -317,6 +317,11 @@ extern struct vpglocks vm_page_queue_lock;
 #define	VM_ALLOC_NOBUSY		0x0200	/* Do not busy the page */
 #define	VM_ALLOC_IFCACHED	0x0400	/* Fail if the page is not cached */
 #define	VM_ALLOC_IFNOTCACHED	0x0800	/* Fail if the page is cached */
+#define	VM_ALLOC_IGN_SBUSY	0x1000	/* vm_page_grab() only */
+
+#define	VM_ALLOC_COUNT_SHIFT	16
+#define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
+#define	VM_ALLOC_COUNT_MASK	VM_ALLOC_COUNT(0xffff)
 
 void vm_page_flag_set(vm_page_t m, unsigned short bits);
 void vm_page_flag_clear(vm_page_t m, unsigned short bits);
