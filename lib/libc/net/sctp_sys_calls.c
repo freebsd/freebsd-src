@@ -304,7 +304,7 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 			goto out_error;
 		}
 
-
+		sa = (struct sockaddr *)((caddr_t)sa + sz);
 	}
 	sa = addrs;
 	/*
