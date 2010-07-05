@@ -2038,11 +2038,13 @@ vm_page_t
 vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 	vm_page_t m;
+	u_int count;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
-		if ((m->oflags & VPO_BUSY) != 0 || m->busy != 0) {
+		if ((m->oflags & VPO_BUSY) != 0 ||
+		    ((allocflags & VM_ALLOC_IGN_SBUSY) == 0 && m->busy != 0)) {
 			if ((allocflags & VM_ALLOC_RETRY) != 0) {
 				/*
 				 * Reference the page before unlocking and
@@ -2067,9 +2069,13 @@ retrylookup:
 			return (m);
 		}
 	}
-	m = vm_page_alloc(object, pindex, allocflags & ~VM_ALLOC_RETRY);
+	m = vm_page_alloc(object, pindex, allocflags & ~(VM_ALLOC_RETRY |
+	    VM_ALLOC_IGN_SBUSY | VM_ALLOC_COUNT_MASK));
 	if (m == NULL) {
 		VM_OBJECT_UNLOCK(object);
+		count = (u_int)allocflags >> VM_ALLOC_COUNT_SHIFT;
+		if (count > 0)
+			atomic_add_int(&vm_pageout_deficit, count);
 		VM_WAIT;
 		VM_OBJECT_LOCK(object);
 		if ((allocflags & VM_ALLOC_RETRY) == 0)
