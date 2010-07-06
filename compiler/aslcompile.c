@@ -903,10 +903,19 @@ CmCleanupAndExit (
 
     /*
      * Delete intermediate ("combined") source file (if -ls flag not set)
+     * This file is created during normal ASL/AML compiles. It is not
+     * created by the data table compiler.
+     *
+     * If the -ls flag is set, then the .SRC file should not be deleted.
+     * In this case, Gbl_SourceOutputFlag is set to TRUE.
+     *
+     * Note: Handles are cleared by FlCloseFile above, so we look at the
+     * filename instead, to determine if the .SRC file was actually
+     * created.
      *
      * TBD: SourceOutput should be .TMP, then rename if we want to keep it?
      */
-    if (!Gbl_SourceOutputFlag)
+    if (!Gbl_SourceOutputFlag && Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename)
     {
         if (remove (Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename))
         {

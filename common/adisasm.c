@@ -153,10 +153,6 @@ AdCreateTableHeader (
     char                    *Filename,
     ACPI_TABLE_HEADER       *Table);
 
-void
-AdDisassemblerHeader (
-    char                    *Filename);
-
 ACPI_STATUS
 AdDeferredParse (
     ACPI_PARSE_OBJECT       *Op,
@@ -644,7 +640,7 @@ AdCreateTableHeader (
      */
     AdDisassemblerHeader (Filename);
 
-    AcpiOsPrintf (" *\n * Original Table Header:\n");
+    AcpiOsPrintf (" * Original Table Header:\n");
     AcpiOsPrintf (" *     Signature        \"%4.4s\"\n",    Table->Signature);
     AcpiOsPrintf (" *     Length           0x%8.8X (%u)\n", Table->Length, Table->Length);
 
@@ -689,7 +685,7 @@ AdCreateTableHeader (
     AcpiOsPrintf (" *     OEM Revision     0x%8.8X (%u)\n", Table->OemRevision, Table->OemRevision);
     AcpiOsPrintf (" *     Compiler ID      \"%.4s\"\n",     Table->AslCompilerId);
     AcpiOsPrintf (" *     Compiler Version 0x%8.8X (%u)\n", Table->AslCompilerRevision, Table->AslCompilerRevision);
-    AcpiOsPrintf (" */\n");
+    AcpiOsPrintf (" */\n\n");
 
     /* Create AML output filename based on input filename */
 

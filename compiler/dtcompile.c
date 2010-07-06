@@ -183,8 +183,10 @@ DtDoCompile (
         /* TBD: temporary error message. Msgs should come from function above */
 
         DtError (ASL_ERROR, ASL_MSG_SYNTAX, NULL,
-            "Could not parse input file");
-        return (AE_ERROR);
+            "Input file does not appear to be an ASL or data table source file");
+
+        Status = AE_ERROR;
+        goto CleanupAndExit;
     }
 
     Event = UtBeginEvent ("Compile parse tree");
@@ -203,6 +205,7 @@ DtDoCompile (
 
         DtError (ASL_ERROR, ASL_MSG_SYNTAX, NULL,
             "Could not compile input file");
+
         goto CleanupAndExit;
     }
 
@@ -244,6 +247,9 @@ static void
 DtInitialize (
     void)
 {
+
+    AcpiOsInitialize ();
+    AcpiUtInitGlobals ();
 
     Gbl_FieldList = NULL;
     Gbl_RootTable = NULL;
@@ -328,7 +334,9 @@ DtCompileDataTable (
     Signature = DtGetFieldValue (*FieldList, "Signature");
     if (!Signature)
     {
-        DtError (ASL_ERROR, ASL_MSG_TABLE_SIGNATURE, *FieldList, NULL);
+        sprintf (MsgBuffer, "Expected \"%s\"", "Signature");
+        DtNameError (ASL_ERROR, ASL_MSG_INVALID_FIELD_NAME,
+            *FieldList, MsgBuffer);
         return (AE_ERROR);
     }
 
@@ -362,6 +370,15 @@ DtCompileDataTable (
         return (AE_ERROR);
     }
 
+    /* Validate the signature via the ACPI table list */
+
+    TableData = AcpiDmGetTableData (Signature);
+    if (!TableData)
+    {
+        DtFatal (ASL_MSG_UNKNOWN_TABLE, *FieldList, Signature);
+        return (AE_ERROR);
+    }
+
     /*
      * All other tables must use the common ACPI table header. Insert the
      * current iASL IDs (name, version), and compile the header now.
@@ -377,14 +394,7 @@ DtCompileDataTable (
 
     DtPushSubtable (Gbl_RootTable);
 
-    /* Match signature and dispatch appropriately */
-
-    TableData = AcpiDmGetTableData (Signature);
-    if (!TableData)
-    {
-        DtFatal (ASL_MSG_UNKNOWN_TABLE, *FieldList, Signature);
-        return (AE_ERROR);
-    }
+    /* Dispatch to per-table compile */
 
     if (TableData->CmTableHandler)
     {
@@ -459,7 +469,6 @@ DtCompileTable (
     UINT8                   FieldType;
     UINT8                   *Buffer;
     UINT8                   *FlagBuffer = NULL;
-    UINT32                  FlagBitPosition = 0;
     ACPI_STATUS             Status;
 
 
@@ -530,7 +539,6 @@ DtCompileTable (
             LocalField = LocalField->Next;
             *Field = LocalField;
 
-            FlagBitPosition = 0;
             FlagBuffer = Buffer;
             break;
 
@@ -540,8 +548,7 @@ DtCompileTable (
 
             if (FlagBuffer)
             {
-                FlagBitPosition = DtCompileFlag (FlagBuffer,
-                     LocalField, Info, FlagBitPosition);
+                DtCompileFlag (FlagBuffer, LocalField, Info);
             }
             else
             {
@@ -575,6 +582,8 @@ DtCompileTable (
             {
                 goto Error;
             }
+
+            DtSetSubtableLength (InlineSubtable);
 
             ACPI_MEMCPY (Buffer, InlineSubtable->Buffer, FieldLength);
             ACPI_FREE (InlineSubtable->Buffer);

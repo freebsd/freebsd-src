@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20100528
+#define ACPI_CA_VERSION                 0x20100702
 
 #include "actypes.h"
 #include "actbl.h"
@@ -473,19 +473,23 @@ AcpiSetGpe (
 ACPI_STATUS
 AcpiEnableGpe (
     ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT8                   GpeType);
+    UINT32                  GpeNumber);
 
 ACPI_STATUS
 AcpiDisableGpe (
     ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT8                   GpeType);
+    UINT32                  GpeNumber);
 
 ACPI_STATUS
 AcpiClearGpe (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber);
+
+ACPI_STATUS
+AcpiGpeWakeup (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    UINT8                   Action);
 
 ACPI_STATUS
 AcpiGetGpeStatus (

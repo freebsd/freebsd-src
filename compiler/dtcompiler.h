@@ -290,12 +290,11 @@ DtCompileBuffer (
     DT_FIELD                *Field,
     UINT32                  ByteLength);
 
-UINT32
+void
 DtCompileFlag (
     UINT8                   *Buffer,
     DT_FIELD                *Field,
-    ACPI_DMTABLE_INFO       *Info,
-    UINT32                  BitPosition);
+    ACPI_DMTABLE_INFO       *Info);
 
 
 /* dtutils - Miscellaneous utilities */
@@ -447,6 +446,39 @@ ACPI_STATUS
 DtCompileXsdt (
     void                    **PFieldList);
 
+/* ACPI Table templates */
+
+extern const unsigned char  TemplateAsf[];
+extern const unsigned char  TemplateBoot[];
+extern const unsigned char  TemplateBert[];
+extern const unsigned char  TemplateCpep[];
+extern const unsigned char  TemplateDbgp[];
+extern const unsigned char  TemplateDmar[];
+extern const unsigned char  TemplateEcdt[];
+extern const unsigned char  TemplateEinj[];
+extern const unsigned char  TemplateErst[];
+extern const unsigned char  TemplateFadt[];
+extern const unsigned char  TemplateHest[];
+extern const unsigned char  TemplateHpet[];
+extern const unsigned char  TemplateIvrs[];
+extern const unsigned char  TemplateMadt[];
+extern const unsigned char  TemplateMcfg[];
+extern const unsigned char  TemplateMchi[];
+extern const unsigned char  TemplateMsct[];
+extern const unsigned char  TemplateRsdt[];
+extern const unsigned char  TemplateSbst[];
+extern const unsigned char  TemplateSlic[];
+extern const unsigned char  TemplateSlit[];
+extern const unsigned char  TemplateSpcr[];
+extern const unsigned char  TemplateSpmi[];
+extern const unsigned char  TemplateSrat[];
+extern const unsigned char  TemplateTcpa[];
+extern const unsigned char  TemplateUefi[];
+extern const unsigned char  TemplateWaet[];
+extern const unsigned char  TemplateWdat[];
+extern const unsigned char  TemplateWddt[];
+extern const unsigned char  TemplateWdrt[];
+extern const unsigned char  TemplateXsdt[];
 
 /* Debug */
 

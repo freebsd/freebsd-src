@@ -600,39 +600,19 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_MADT_PROCESSOR_APIC",            SRC_TYPE_STRUCT},
     {"ACPI_MCFG_ALLOCATION",                SRC_TYPE_STRUCT},
     {"ACPI_MSCT_PROXIMITY",                 SRC_TYPE_STRUCT},
+    {"ACPI_RSDP_COMMON",                    SRC_TYPE_STRUCT},
+    {"ACPI_RSDP_EXTENSION",                 SRC_TYPE_STRUCT},
     {"ACPI_SRAT_CPU_AFFINITY",              SRC_TYPE_STRUCT},
     {"ACPI_SRAT_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_SRAT_MEM_AFFINITY",              SRC_TYPE_STRUCT},
     {"ACPI_SRAT_X2APIC_CPU_AFFINITY",       SRC_TYPE_STRUCT},
     {"ACPI_WDAT_ENTRY",                     SRC_TYPE_STRUCT},
 
+    /* Data Table compiler */
 
-    /* Legacy names, should be removed  */
+    {"DT_FIELD",                            SRC_TYPE_STRUCT},
+    {"DT_SUBTABLE",                         SRC_TYPE_STRUCT},
 
-    {"EC_BOOT_RESOURCES",                   SRC_TYPE_STRUCT},
-    {"HPET_TABLE",                          SRC_TYPE_STRUCT},
-    {"MADT_ADDRESS_OVERRIDE",               SRC_TYPE_STRUCT},
-    {"MADT_INTERRUPT_OVERRIDE",             SRC_TYPE_STRUCT},
-    {"MADT_INTERRUPT_SOURCE",               SRC_TYPE_STRUCT},
-    {"MADT_IO_APIC",                        SRC_TYPE_STRUCT},
-    {"MADT_IO_SAPIC",                       SRC_TYPE_STRUCT},
-    {"MADT_LOCAL_APIC_NMI",                 SRC_TYPE_STRUCT},
-    {"MADT_LOCAL_SAPIC",                    SRC_TYPE_STRUCT},
-    {"MADT_NMI_SOURCE",                     SRC_TYPE_STRUCT},
-    {"MADT_PROCESSOR_APIC",                 SRC_TYPE_STRUCT},
-    {"MEMORY_AFFINITY",                     SRC_TYPE_STRUCT},
-    {"MULTIPLE_APIC_TABLE",                 SRC_TYPE_STRUCT},
-    {"SMART_BATTERY_TABLE",                 SRC_TYPE_STRUCT},
-    {"STATIC_RESOURCE_ALLOC",               SRC_TYPE_STRUCT},
-    {"SYSTEM_RESOURCE_AFFINITY",            SRC_TYPE_STRUCT},
-    {"SYSTEM_LOCALITY_INFO",                SRC_TYPE_STRUCT},
-    {"FACS_DESCRIPTOR",                     SRC_TYPE_STRUCT},
-    {"FADT_DESCRIPTOR_REV1",                SRC_TYPE_STRUCT},
-    {"FADT_DESCRIPTOR",                     SRC_TYPE_STRUCT},
-    {"FADT_DESCRIPTOR_REV2_MINUS",          SRC_TYPE_STRUCT},
-    {"RSDP_DESCRIPTOR",                     SRC_TYPE_STRUCT},
-    {"RSDT_DESCRIPTOR",                     SRC_TYPE_STRUCT},
-    {"XSDT_DESCRIPTOR",                     SRC_TYPE_STRUCT},
     {NULL, 0}
 };
 

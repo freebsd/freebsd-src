@@ -122,33 +122,43 @@
         ACPI_MODULE_NAME    ("dtio")
 
 
-/******************************************************************************
- *
- * FUNCTION:    DtIsComment
- *
- * PARAMETERS:  Line                - Current source code line
- *
- * RETURN:      TRUE if comment, FALSE otherwise
- *
- * DESCRIPTION: Detect a comment in the source module
- *
- *****************************************************************************/
+/* Local prototypes */
 
-/* TBD: Temporary: very simple code to detect comments */
+static char *
+DtTrim (
+    char                    *String);
 
-static int
-DtIsComment(
-    char                    *Line)
-{
+static void
+DtLinkField (
+    DT_FIELD                *Field);
 
-    if (!ACPI_STRNCMP (Line, "/*", 2) ||
-        !ACPI_STRNCMP (Line, " *", 2))
-    {
-        return 1;
-    }
+static void
+DtParseLine (
+    char                    *LineBuffer,
+    UINT32                  Line,
+    UINT32                  Offset);
 
-    return 0;
-}
+static UINT32
+DtGetNextLine (
+    FILE                    *Handle);
+
+static void
+DtWriteBinary (
+    DT_SUBTABLE             *Subtable,
+    void                    *Context,
+    void                    *ReturnValue);
+
+
+/* States for DtGetNextLine */
+
+#define DT_NORMAL_TEXT              0
+#define DT_START_QUOTED_STRING      1
+#define DT_START_COMMENT            2
+#define DT_SLASH_ASTERISK_COMMENT   3
+#define DT_SLASH_SLASH_COMMENT      4
+#define DT_END_COMMENT              5
+
+UINT32  Gbl_NextLineOffset;
 
 
 /******************************************************************************
@@ -308,7 +318,7 @@ DtParseLine (
     UINT32                  NameColumn;
 
 
-    if (!LineBuffer || DtIsComment (LineBuffer))
+    if (!LineBuffer)
     {
         return;
     }
@@ -417,13 +427,184 @@ DtParseLine (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtGetNextLine
+ *
+ * PARAMETERS:  Handle              - Open file handle for the source file
+ *
+ * RETURN:      Filled line buffer and offset of start-of-line (zero on EOF)
+ *
+ * DESCRIPTION: Get the next valid source line. Removes all comments.
+ *              Ignores empty lines.
+ *
+ * Handles both slash-asterisk and slash-slash comments.
+ * Also, quoted strings, but no escapes within.
+ *
+ * Line is returned in Gbl_CurrentLineBuffer.
+ * Line number in original file is returned in Gbl_CurrentLineNumber.
+ *
+ *****************************************************************************/
+
+static UINT32
+DtGetNextLine (
+    FILE                    *Handle)
+{
+    UINT32                  State = DT_NORMAL_TEXT;
+    UINT32                  CurrentLineOffset;
+    UINT32                  i;
+    char                    c;
+
+
+    for (i = 0; i < ASL_LINE_BUFFER_SIZE;)
+    {
+        c = (char) getc (Handle);
+        if (c == EOF)
+        {
+            return (0);
+        }
+
+        switch (State)
+        {
+        case DT_NORMAL_TEXT:
+
+            /* Normal text, insert char into line buffer */
+
+            Gbl_CurrentLineBuffer[i] = c;
+            switch (c)
+            {
+            case '/':
+                State = DT_START_COMMENT;
+                break;
+
+            case '"':
+                State = DT_START_QUOTED_STRING;
+                i++;
+                break;
+
+            case '\n':
+                CurrentLineOffset = Gbl_NextLineOffset;
+                Gbl_NextLineOffset = (UINT32) ftell (Handle);
+                Gbl_CurrentLineNumber++;
+
+                /* Exit if line is complete. Ignore blank lines */
+
+                if (i != 0)
+                {
+                    Gbl_CurrentLineBuffer[i+1] = 0; /* Terminate line */
+                    return (CurrentLineOffset);
+                }
+                break;
+
+            default:
+                i++;
+                break;
+            }
+            break;
+
+        case DT_START_QUOTED_STRING:
+
+            /* Insert raw chars until end of quoted string */
+
+            Gbl_CurrentLineBuffer[i] = c;
+            i++;
+
+            if (c == '"')
+            {
+                State = DT_NORMAL_TEXT;
+            }
+            break;
+
+        case DT_START_COMMENT:
+
+            /* Open comment if this character is an asterisk or slash */
+
+            switch (c)
+            {
+            case '*':
+                State = DT_SLASH_ASTERISK_COMMENT;
+                break;
+
+            case '/':
+                State = DT_SLASH_SLASH_COMMENT;
+                break;
+
+            default:    /* Not a comment */
+                i++;    /* Save the preceeding slash */
+                Gbl_CurrentLineBuffer[i] = c;
+                i++;
+                State = DT_NORMAL_TEXT;
+                break;
+            }
+            break;
+
+        case DT_SLASH_ASTERISK_COMMENT:
+
+            /* Ignore chars until an asterisk-slash is found */
+
+            switch (c)
+            {
+            case '\n':
+                Gbl_NextLineOffset = (UINT32) ftell (Handle);
+                Gbl_CurrentLineNumber++;
+                break;
+
+            case '*':
+                State = DT_END_COMMENT;
+                break;
+
+            default:
+                break;
+            }
+            break;
+
+        case DT_SLASH_SLASH_COMMENT:
+
+            /* Ignore chars until end-of-line */
+
+            if (c == '\n')
+            {
+                /* We will exit via the NORMAL_TEXT path */
+
+                ungetc (c, Handle);
+                State = DT_NORMAL_TEXT;
+            }
+            break;
+
+        case DT_END_COMMENT:
+
+            /* End comment if this char is a slash */
+
+            switch (c)
+            {
+            case '/':
+                State = DT_NORMAL_TEXT;
+                break;
+
+            default:
+                State = DT_SLASH_ASTERISK_COMMENT;
+                break;
+            }
+            break;
+
+        default:
+            DtFatal (ASL_MSG_COMPILER_INTERNAL, NULL, "Unknown input state");
+            return (0);
+        }
+    }
+
+    printf ("ERROR - Input line is too long (max %u)\n", ASL_LINE_BUFFER_SIZE);
+    return (0);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtScanFile
  *
  * PARAMETERS:  Handle              - Open file handle for the source file
  *
  * RETURN:      Pointer to start of the constructed parse tree.
  *
- * DESCRIPTION: Scan source file, link all field name and value
+ * DESCRIPTION: Scan source file, link all field names and values
  *              to the global parse tree: Gbl_FieldList
  *
  *****************************************************************************/
@@ -432,23 +613,28 @@ DT_FIELD *
 DtScanFile (
     FILE                    *Handle)
 {
-    UINT32                  Line = 0;
-    UINT32                  Offset = 0;
+    UINT32                  Offset;
+
+
+    ACPI_FUNCTION_NAME (DtScanFile);
 
 
     /* Get the file size */
 
     Gbl_InputByteCount = DtGetFileSize (Handle);
 
+    Gbl_CurrentLineNumber = 0;
+    Gbl_CurrentLineOffset = 0;
+    Gbl_NextLineOffset = 0;
+
     /* Scan line-by-line */
 
-    while (fgets (Gbl_CurrentLineBuffer, ASL_LINE_BUFFER_SIZE, Handle))
+    while ((Offset = DtGetNextLine (Handle)))
     {
-        Line++;
-        Gbl_CurrentLineNumber++;
-        DtParseLine (Gbl_CurrentLineBuffer, Line, Offset);
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Line %2.2u/%4.4X - %s",
+            Gbl_CurrentLineNumber, Offset, Gbl_CurrentLineBuffer));
 
-        Offset = (UINT32) ftell (Handle);
+        DtParseLine (Gbl_CurrentLineBuffer, Gbl_CurrentLineNumber, Offset);
     }
 
     return (Gbl_FieldList);

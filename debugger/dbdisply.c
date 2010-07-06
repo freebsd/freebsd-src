@@ -904,9 +904,9 @@ AcpiDbDisplayGpes (
                     }
 
                     AcpiOsPrintf (
-                        "        GPE %.2X: %p  RunRefs %2.2X   WakeRefs %2.2X Flags %2.2X (",
+                        "        GPE %.2X: %p  RunRefs %2.2X Flags %2.2X (",
                         GpeBlock->BlockBaseNumber + GpeIndex, GpeEventInfo,
-                        GpeEventInfo->RuntimeCount, GpeEventInfo->WakeupCount,
+                        GpeEventInfo->RuntimeCount,
                         GpeEventInfo->Flags);
 
                     /* Decode the flags byte */

@@ -182,6 +182,7 @@
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
 #define FILE_SUFFIX_ASM_INCLUDE     "inc"
 #define FILE_SUFFIX_C_INCLUDE       "h"
+#define FILE_SUFFIX_ASL_CODE        "asl"
 
 
 /* Types for input files */

@@ -189,8 +189,12 @@ AslPushInputFileStack (
     char                    *Filename);
 
 /*
- * aslstartup - called from main
+ * aslstartup - entered from main()
  */
+void
+AslInitializeGlobals (
+    void);
+
 ACPI_STATUS
 AslDoOnePathname (
     char                    *Pathname);
@@ -694,6 +698,10 @@ DbgPrint (
 #define ASL_TREE_OUTPUT     2
 
 void
+UtDisplaySupportedTables (
+    void);
+
+void
 UtDisplayConstantOpcodes (
     void);
 
@@ -1023,6 +1031,10 @@ RsDoWordBusNumberDescriptor (
 ACPI_STATUS
 DtDoCompile(
     void);
+
+ACPI_STATUS
+DtCreateTemplates (
+    char                    *Signature);
 
 #endif /*  __ASLCOMPILER_H */
 

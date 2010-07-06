@@ -237,7 +237,7 @@ AfInstallGpeBlock (
         Status = AcpiInstallGpeBlock (Handle2, &BlockAddress, 7, 8);
 
         AcpiInstallGpeHandler (Handle2, 8, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-        AcpiEnableGpe (Handle2, 8, ACPI_GPE_TYPE_RUNTIME);
+        AcpiEnableGpe (Handle2, 8);
 
         Status = AcpiGetGpeDevice (0x30, &GpeDevice);
         Status = AcpiGetGpeDevice (0x42, &GpeDevice);
@@ -531,30 +531,30 @@ AeMiscellaneousTests (
      * GPEs: Handlers, enable/disable, etc.
      */
     AcpiInstallGpeHandler (NULL, 0, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiEnableGpe (NULL, 0, ACPI_GPE_TYPE_RUNTIME);
+    AcpiEnableGpe (NULL, 0);
     AcpiRemoveGpeHandler (NULL, 0, AeGpeHandler);
 
     AcpiInstallGpeHandler (NULL, 0, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiEnableGpe (NULL, 0, ACPI_GPE_TYPE_RUNTIME);
+    AcpiEnableGpe (NULL, 0);
     AcpiSetGpe (NULL, 0, ACPI_GPE_DISABLE);
     AcpiSetGpe (NULL, 0, ACPI_GPE_ENABLE);
 
     AcpiInstallGpeHandler (NULL, 1, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
-    AcpiEnableGpe (NULL, 1, ACPI_GPE_TYPE_RUNTIME);
+    AcpiEnableGpe (NULL, 1);
 
     AcpiInstallGpeHandler (NULL, 2, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiEnableGpe (NULL, 2, ACPI_GPE_TYPE_RUNTIME);
+    AcpiEnableGpe (NULL, 2);
 
     AcpiInstallGpeHandler (NULL, 3, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
     AcpiInstallGpeHandler (NULL, 4, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
     AcpiInstallGpeHandler (NULL, 5, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
 
     AcpiInstallGpeHandler (NULL, 0x19, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiEnableGpe (NULL, 0x19, ACPI_GPE_TYPE_RUNTIME);
+    AcpiEnableGpe (NULL, 0x19);
 
     AcpiInstallGpeHandler (NULL, 0x62, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AcpiEnableGpe (NULL, 0x62, ACPI_GPE_TYPE_RUNTIME);
-    AcpiDisableGpe (NULL, 0x62, ACPI_GPE_TYPE_RUNTIME);
+    AcpiEnableGpe (NULL, 0x62);
+    AcpiDisableGpe (NULL, 0x62);
 
     AfInstallGpeBlock ();
 
