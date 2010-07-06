@@ -25,12 +25,17 @@
 #
 # $FreeBSD$
 
-pciconf -lv | grep -i vmware >/dev/null 2>/dev/null
-if [ "$?" = "0" ]
-then
-  echo "vmware: YES"
+case "$(kenv smbios.system.product)" in
+VirtualBox)
+  echo "emulation: VIRTUALBOX"
   exit 0
-else
-  echo "vmware: NO"
-  exit 1
-fi
+  ;;
+VMware*)
+  echo "emulation: VMWARE"
+  exit 0
+  ;;
+*)
+  echo "emulation: NO" 
+  exit 1 
+  ;;
+esac
