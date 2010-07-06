@@ -248,6 +248,8 @@ ufs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 		*vpp = NULL;
 
 	dp = VTOI(vdp);
+	if (dp->i_effnlink == 0)
+		return (ENOENT);
 
 	/*
 	 * Create a vm object if vmiodirenable is enabled.
