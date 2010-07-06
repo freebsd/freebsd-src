@@ -189,8 +189,12 @@ AslPushInputFileStack (
     char                    *Filename);
 
 /*
- * aslstartup - called from main
+ * aslstartup - entered from main()
  */
+void
+AslInitializeGlobals (
+    void);
+
 ACPI_STATUS
 AslDoOnePathname (
     char                    *Pathname);
@@ -221,6 +225,10 @@ CmDoOutputFiles (
 void
 CmCleanupAndExit (
     void);
+
+ACPI_STATUS
+FlCheckForAscii (
+    ASL_FILE_INFO           *FileInfo);
 
 
 /*
@@ -423,6 +431,16 @@ OptOptimizeNamePath (
 void
 CgGenerateAmlOutput (
     void);
+
+
+/*
+ * aslfile
+ */
+void
+FlOpenFile (
+    UINT32                  FileId,
+    char                    *Filename,
+    char                    *Mode);
 
 
 /*
@@ -678,6 +696,10 @@ DbgPrint (
 #define ASL_DEBUG_OUTPUT    0
 #define ASL_PARSE_OUTPUT    1
 #define ASL_TREE_OUTPUT     2
+
+void
+UtDisplaySupportedTables (
+    void);
 
 void
 UtDisplayConstantOpcodes (
@@ -1002,6 +1024,17 @@ ASL_RESOURCE_NODE *
 RsDoWordBusNumberDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset);
+
+/*
+ * Entry to data table compiler subsystem
+ */
+ACPI_STATUS
+DtDoCompile(
+    void);
+
+ACPI_STATUS
+DtCreateTemplates (
+    char                    *Signature);
 
 #endif /*  __ASLCOMPILER_H */
 

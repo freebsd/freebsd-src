@@ -279,11 +279,17 @@ typedef struct asl_listing_node
 
 /* Callback interface for a parse tree walk */
 
+/*
+ * TBD - another copy of this is in adisasm.h, fix
+ */
+#ifndef ASL_WALK_CALLBACK_DEFINED
 typedef
 ACPI_STATUS (*ASL_WALK_CALLBACK) (
     ACPI_PARSE_OBJECT           *Op,
     UINT32                      Level,
     void                        *Context);
+#define ASL_WALK_CALLBACK_DEFINED
+#endif
 
 
 typedef struct asl_event_info
@@ -429,14 +435,24 @@ typedef enum
     ASL_MSG_INVALID_GRANULARITY,
     ASL_MSG_INVALID_GRAN_FIXED,
     ASL_MSG_INVALID_ACCESS_SIZE,
-    ASL_MSG_INVALID_ADDR_FLAGS
+    ASL_MSG_INVALID_ADDR_FLAGS,
+    ASL_MSG_INVALID_FIELD_NAME,
+    ASL_MSG_INTEGER_SIZE,
+    ASL_MSG_INVALID_HEX_INTEGER,
+    ASL_MSG_BUFFER_ELEMENT,
+    ASL_MSG_RESERVED_VALUE,
+    ASL_MSG_FLAG_VALUE,
+    ASL_MSG_ZERO_VALUE,
+    ASL_MSG_UNKNOWN_TABLE,
+    ASL_MSG_UNKNOWN_SUBTABLE,
+    ASL_MSG_OEM_TABLE
 
 } ASL_MESSAGE_IDS;
 
 #ifdef ASL_EXCEPTIONS
 
 char                        *AslMessages [] = {
-/*    The zeroth message is resesrved */    "",
+/*    The zeroth message is reserved */    "",
 /*    ASL_MSG_ALPHANUMERIC_STRING */        "String must be entirely alphanumeric",
 /*    ASL_MSG_AML_NOT_IMPLEMENTED */        "Opcode is not implemented in compiler AML code generator",
 /*    ASL_MSG_ARG_COUNT_HI */               "Too many arguments",
@@ -558,7 +574,20 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_INVALID_GRANULARITY */        "Granularity must be zero or a power of two minus one",
 /*    ASL_MSG_INVALID_GRAN_FIXED */         "Granularity must be zero for fixed Min/Max",
 /*    ASL_MSG_INVALID_ACCESS_SIZE */        "Invalid AccessSize (Maximum is 4 - QWord access)",
-/*    ASL_MSG_INVALID_ADDR_FLAGS */         "Invalid combination of Length and Min/Max fixed flags"
+/*    ASL_MSG_INVALID_ADDR_FLAGS */         "Invalid combination of Length and Min/Max fixed flags",
+
+/* These messages are used by the data table compiler only */
+
+/*    ASL_MSG_INVALID_FIELD_NAME */         "Invalid Field Name",
+/*    ASL_MSG_INTEGER_SIZE */               "Integer too large for target",
+/*    ASL_MSG_INVALID_HEX_INTEGER */        "Invalid hex integer constant",
+/*    ASL_MSG_BUFFER_ELEMENT */             "Invalid element in buffer initializer list",
+/*    ASL_MSG_RESERVED_VALUE */             "Reserved field must be zero",
+/*    ASL_MSG_FLAG_VALUE */                 "Flag value is too large",
+/*    ASL_MSG_ZERO_VALUE */                 "Value must be non-zero",
+/*    ASL_MSG_UNKNOWN_TABLE */              "Unknown ACPI table signature",
+/*    ASL_MSG_UNKNOWN_SUBTABLE */           "Unknown subtable type",
+/*    ASL_MSG_OEM_TABLE */                  "OEM table - unknown contents"
 
 };
 

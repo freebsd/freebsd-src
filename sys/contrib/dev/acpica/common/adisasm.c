@@ -153,10 +153,6 @@ AdCreateTableHeader (
     char                    *Filename,
     ACPI_TABLE_HEADER       *Table);
 
-void
-AdDisassemblerHeader (
-    char                    *Filename);
-
 ACPI_STATUS
 AdDeferredParse (
     ACPI_PARSE_OBJECT       *Op,
@@ -502,7 +498,7 @@ AdAmlDisassemble (
         if (AcpiDmGetExternalMethodCount ())
         {
             fprintf (stderr,
-                "\nFound %d external control methods, reparsing with new information\n",
+                "\nFound %u external control methods, reparsing with new information\n",
                 AcpiDmGetExternalMethodCount ());
 
             /*
@@ -515,10 +511,11 @@ AdAmlDisassemble (
             AcpiGbl_RootNodeStruct.Name.Integer = ACPI_ROOT_NAME;
             AcpiGbl_RootNodeStruct.DescriptorType = ACPI_DESC_TYPE_NAMED;
             AcpiGbl_RootNodeStruct.Type         = ACPI_TYPE_DEVICE;
+            AcpiGbl_RootNodeStruct.Parent       = NULL;
             AcpiGbl_RootNodeStruct.Child        = NULL;
             AcpiGbl_RootNodeStruct.Peer         = NULL;
             AcpiGbl_RootNodeStruct.Object       = NULL;
-            AcpiGbl_RootNodeStruct.Flags        = ANOBJ_END_OF_PEER_LIST;
+            AcpiGbl_RootNodeStruct.Flags        = 0;
 
             Status = AcpiNsRootInitialize ();
             AcpiDmAddExternalsToNamespace ();
@@ -643,7 +640,7 @@ AdCreateTableHeader (
      */
     AdDisassemblerHeader (Filename);
 
-    AcpiOsPrintf (" *\n * Original Table Header:\n");
+    AcpiOsPrintf (" * Original Table Header:\n");
     AcpiOsPrintf (" *     Signature        \"%4.4s\"\n",    Table->Signature);
     AcpiOsPrintf (" *     Length           0x%8.8X (%u)\n", Table->Length, Table->Length);
 
@@ -688,7 +685,7 @@ AdCreateTableHeader (
     AcpiOsPrintf (" *     OEM Revision     0x%8.8X (%u)\n", Table->OemRevision, Table->OemRevision);
     AcpiOsPrintf (" *     Compiler ID      \"%.4s\"\n",     Table->AslCompilerId);
     AcpiOsPrintf (" *     Compiler Version 0x%8.8X (%u)\n", Table->AslCompilerRevision, Table->AslCompilerRevision);
-    AcpiOsPrintf (" */\n");
+    AcpiOsPrintf (" */\n\n");
 
     /* Create AML output filename based on input filename */
 
@@ -706,7 +703,7 @@ AdCreateTableHeader (
     /* Open the ASL definition block */
 
     AcpiOsPrintf (
-        "DefinitionBlock (\"%s\", \"%4.4s\", %hd, \"%.6s\", \"%.8s\", 0x%8.8X)\n",
+        "DefinitionBlock (\"%s\", \"%4.4s\", %hu, \"%.6s\", \"%.8s\", 0x%8.8X)\n",
         NewFilename, Table->Signature, Table->Revision,
         Table->OemId, Table->OemTableId, Table->OemRevision);
 
@@ -1018,7 +1015,7 @@ AdGetLocalTables (
          * is architecture-dependent.
          */
         NumTables = (NewTable->Length - sizeof (ACPI_TABLE_HEADER)) / PointerSize;
-        AcpiOsPrintf ("There are %d tables defined in the %4.4s\n\n",
+        AcpiOsPrintf ("There are %u tables defined in the %4.4s\n\n",
             NumTables, NewTable->Signature);
 
         /* Get the FADT */
