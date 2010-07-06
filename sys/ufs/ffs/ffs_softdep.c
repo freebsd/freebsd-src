@@ -5183,16 +5183,9 @@ softdep_setup_freeblocks(ip, length, flags)
 				    fs->fs_frag, needj);
 			lbn += tmpval;
 		}
-		/*
-		 * If the file was removed, then the space being freed was
-		 * accounted for then (see softdep_releasefile()). If the
-		 * file is merely being truncated, then we account for it now.
-		 */
-		if ((ip->i_flag & IN_SPACECOUNTED) == 0) {
-			UFS_LOCK(ip->i_ump);
-			fs->fs_pendingblocks += datablocks;
-			UFS_UNLOCK(ip->i_ump);
-		}
+		UFS_LOCK(ip->i_ump);
+		fs->fs_pendingblocks += datablocks;
+		UFS_UNLOCK(ip->i_ump);
 	}
 	if ((flags & IO_EXT) != 0) {
 		oldextsize = ip->i_din2->di_extsize;
@@ -5674,11 +5667,9 @@ softdep_freefile(pvp, ino, mode)
 	freefile->fx_oldinum = ino;
 	freefile->fx_devvp = ip->i_devvp;
 	LIST_INIT(&freefile->fx_jwork);
-	if ((ip->i_flag & IN_SPACECOUNTED) == 0) {
-		UFS_LOCK(ip->i_ump);
-		ip->i_fs->fs_pendinginodes += 1;
-		UFS_UNLOCK(ip->i_ump);
-	}
+	UFS_LOCK(ip->i_ump);
+	ip->i_fs->fs_pendinginodes += 1;
+	UFS_UNLOCK(ip->i_ump);
 
 	/*
 	 * If the inodedep does not exist, then the zero'ed inode has
@@ -7379,55 +7370,6 @@ softdep_change_linkcnt(ip)
 }
 
 /*
- * Called when the effective link count and the reference count
- * on an inode drops to zero. At this point there are no names
- * referencing the file in the filesystem and no active file
- * references. The space associated with the file will be freed
- * as soon as the necessary soft dependencies are cleared.
- */
-void
-softdep_releasefile(ip)
-	struct inode *ip;	/* inode with the zero effective link count */
-{
-	struct inodedep *inodedep;
-	struct fs *fs;
-	int extblocks;
-
-	if (ip->i_effnlink > 0)
-		panic("softdep_releasefile: file still referenced");
-	/*
-	 * We may be called several times as the on-disk link count
-	 * drops to zero. We only want to account for the space once.
-	 */
-	if (ip->i_flag & IN_SPACECOUNTED)
-		return;
-	/*
-	 * We have to deactivate a snapshot otherwise copyonwrites may
-	 * add blocks and the cleanup may remove blocks after we have
-	 * tried to account for them.
-	 */
-	if ((ip->i_flags & SF_SNAPSHOT) != 0)
-		ffs_snapremove(ITOV(ip));
-	/*
-	 * If we are tracking an nlinkdelta, we have to also remember
-	 * whether we accounted for the freed space yet.
-	 */
-	ACQUIRE_LOCK(&lk);
-	if ((inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, 0, &inodedep)))
-		inodedep->id_state |= SPACECOUNTED;
-	FREE_LOCK(&lk);
-	fs = ip->i_fs;
-	extblocks = 0;
-	if (fs->fs_magic == FS_UFS2_MAGIC)
-		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
-	UFS_LOCK(ip->i_ump);
-	ip->i_fs->fs_pendingblocks += DIP(ip, i_blocks) - extblocks;
-	ip->i_fs->fs_pendinginodes += 1;
-	UFS_UNLOCK(ip->i_ump);
-	ip->i_flag |= IN_SPACECOUNTED;
-}
-
-/*
  * Attach a sbdep dependency to the superblock buf so that we can keep
  * track of the head of the linked list of referenced but unlinked inodes.
  */
@@ -7735,7 +7677,6 @@ handle_workitem_remove(dirrem, xp)
 	struct dirrem *dirrem;
 	struct vnode *xp;
 {
-	struct thread *td = curthread;
 	struct inodedep *inodedep;
 	struct workhead dotdotwk;
 	struct worklist *wk;
@@ -7808,9 +7749,8 @@ handle_workitem_remove(dirrem, xp)
 	/*
 	 * Directory deletion. Decrement reference count for both the
 	 * just deleted parent directory entry and the reference for ".".
-	 * Next truncate the directory to length zero. When the
-	 * truncation completes, arrange to have the reference count on
-	 * the parent decremented to account for the loss of "..".
+	 * Arrange to have the reference count on the parent decremented
+	 * to account for the loss of "..".
 	 */
 	ip->i_nlink -= 2;
 	DIP_SET(ip, i_nlink, ip->i_nlink);
@@ -7820,10 +7760,6 @@ handle_workitem_remove(dirrem, xp)
 	if (ip->i_nlink == 0)
 		unlinked_inodedep(mp, inodedep);
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
-	FREE_LOCK(&lk);
-	if ((error = ffs_truncate(vp, (off_t)0, 0, td->td_ucred, td)) != 0)
-		softdep_error("handle_workitem_remove: truncate", error);
-	ACQUIRE_LOCK(&lk);
 	/*
 	 * Rename a directory to a new parent. Since, we are both deleting
 	 * and creating a new directory entry, the link count on the new
@@ -9899,8 +9835,6 @@ softdep_load_inodeblock(ip)
 		return;
 	}
 	ip->i_effnlink -= inodedep->id_nlinkdelta;
-	if (inodedep->id_state & SPACECOUNTED)
-		ip->i_flag |= IN_SPACECOUNTED;
 	FREE_LOCK(&lk);
 }
 
