@@ -25,9 +25,8 @@
 #
 # $FreeBSD$
 
-dmesgLine=`dmesg | grep "acpi_acad0"`
-if test "${dmesgLine}" = ""; then
-  echo "laptop: NO"
-else
+if devinfo | grep 'acpi_acad0' >/dev/null 2>/dev/null; then
   echo "laptop: YES"
-fi 
+else
+  echo "laptop: NO"
+fi

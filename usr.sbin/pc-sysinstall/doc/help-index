@@ -22,8 +22,8 @@ System Query Commands
     detect-laptop
 	Tests to see if this system is a laptop or desktop
 
-    detect-vmware
-	Tests to see if this system is actually a vmware session
+    detect-emulation
+	Tests to see if this system is actually running in an emulator such as VirtualBox
     
     detect-nics
 	Returns a listing of the detected network cards on this system
