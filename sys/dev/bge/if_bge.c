@@ -1834,8 +1834,12 @@ bge_blockinit(struct bge_softc *sc)
 		    BGE_RDMAMODE_MBUF_SBD_CRPT_ATTN;
 	if (sc->bge_flags & BGE_FLAG_PCIE)
 		val |= BGE_RDMAMODE_FIFO_LONG_BURST;
-	if (sc->bge_flags & BGE_FLAG_TSO)
+	if (sc->bge_flags & BGE_FLAG_TSO) {
 		val |= BGE_RDMAMODE_TSO4_ENABLE;
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM57780)
+			val |= BGE_RDMAMODE_TSO6_ENABLE;
+	}
 	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
 	DELAY(40);
 
