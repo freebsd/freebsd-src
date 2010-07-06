@@ -836,7 +836,7 @@ vesa_bios_init(void)
 		    "version 1.2 or later is required.\n",
 		    ((vers & 0xf000) >> 12) * 10 + ((vers & 0x0f00) >> 8),
 		    ((vers & 0x00f0) >> 4) * 10 + (vers & 0x000f));
-		return (1);
+		goto fail;
 	}
 
 	VESA_STRCPY(vesa_oemstr, buf->v_oemstr);
