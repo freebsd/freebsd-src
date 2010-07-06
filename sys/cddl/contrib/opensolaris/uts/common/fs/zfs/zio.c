@@ -33,13 +33,9 @@
 #include <sys/zio_compress.h>
 #include <sys/zio_checksum.h>
 
-#if defined(__amd64__)
-static int zio_use_uma = 1;
-#else
-static int zio_use_uma = 0;
-#endif
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zio, CTLFLAG_RW, 0, "ZFS ZIO");
+static int zio_use_uma = 0;
 TUNABLE_INT("vfs.zfs.zio.use_uma", &zio_use_uma);
 SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, use_uma, CTLFLAG_RDTUN, &zio_use_uma, 0,
     "Use uma(9) for ZIO allocations");
@@ -894,11 +890,11 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 	zio_type_t t = zio->io_type;
 
 	/*
-	 * If we're a config writer, the normal issue and interrupt threads
-	 * may all be blocked waiting for the config lock.  In this case,
-	 * select the otherwise-unused taskq for ZIO_TYPE_NULL.
+	 * If we're a config writer or a probe, the normal issue and
+	 * interrupt threads may all be blocked waiting for the config lock.
+	 * In this case, select the otherwise-unused taskq for ZIO_TYPE_NULL.
 	 */
-	if (zio->io_flags & ZIO_FLAG_CONFIG_WRITER)
+	if (zio->io_flags & (ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_PROBE))
 		t = ZIO_TYPE_NULL;
 
 	/*

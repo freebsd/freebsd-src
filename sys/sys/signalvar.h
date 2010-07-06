@@ -330,12 +330,15 @@ int	cursig(struct thread *td, int stop_allowed);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
 void	killproc(struct proc *p, char *why);
-void	pksignal(struct proc *p, int sig, ksiginfo_t *ksi);
+ksiginfo_t * ksiginfo_alloc(int);
+void	ksiginfo_free(ksiginfo_t *);
+int	pksignal(struct proc *p, int sig, ksiginfo_t *ksi);
 void	pgsigio(struct sigio **, int signum, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi);
 int	postsig(int sig);
 void	psignal(struct proc *p, int sig);
 int	psignal_event(struct proc *p, struct sigevent *, ksiginfo_t *);
+int	ptracestop(struct thread *td, int sig);
 struct sigacts *sigacts_alloc(void);
 void	sigacts_copy(struct sigacts *dest, struct sigacts *src);
 void	sigacts_free(struct sigacts *ps);
@@ -345,22 +348,16 @@ void	sigexit(struct thread *td, int signum) __dead2;
 int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
-void	tdsigcleanup(struct thread *td);
-int	tdsignal(struct proc *p, struct thread *td, int sig,
-	    ksiginfo_t *ksi);
-void	trapsignal(struct thread *td, ksiginfo_t *);
-int	ptracestop(struct thread *td, int sig);
-ksiginfo_t * ksiginfo_alloc(int);
-void	ksiginfo_free(ksiginfo_t *);
-void	sigqueue_init(struct sigqueue *queue, struct proc *p);
-void	sigqueue_flush(struct sigqueue *queue);
-void	sigqueue_delete_proc(struct proc *p, int sig);
 void	sigqueue_delete(struct sigqueue *queue, int sig);
+void	sigqueue_delete_proc(struct proc *p, int sig);
+void	sigqueue_flush(struct sigqueue *queue);
+void	sigqueue_init(struct sigqueue *queue, struct proc *p);
 void	sigqueue_take(ksiginfo_t *ksi);
-int	kern_sigtimedwait(struct thread *, sigset_t,
-	    ksiginfo_t *, struct timespec *);
-int	kern_sigprocmask(struct thread *td, int how,
-	    sigset_t *set, sigset_t *oset, int flags);
+void	tdksignal(struct thread *td, int sig, ksiginfo_t *ksi);
+void	tdsigcleanup(struct thread *td);
+void	tdsignal(struct thread *td, int sig);
+void	trapsignal(struct thread *td, ksiginfo_t *);
+
 /*
  * Machine-dependent functions:
  */

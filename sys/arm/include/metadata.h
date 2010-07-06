@@ -29,7 +29,12 @@
 #ifndef _MACHINE_METADATA_H_
 #define	_MACHINE_METADATA_H_
 
-#define	MODINFOMD_BOOTINFO	0x1001
-#define	MODINFOMD_DTBP		0x1002
+#define	MODINFOMD_DTBP		0x1001
+
+/*
+ * XXX this is for tinderbox compilation sake only and will go away once the
+ * FDT transition is complete.
+ */
+#define MODINFOMD_BOOTINFO	0x2000
 
 #endif /* !_MACHINE_METADATA_H_ */

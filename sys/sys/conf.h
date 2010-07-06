@@ -270,7 +270,11 @@ struct cdev *make_dev_credf(int _flags,
 		struct cdevsw *_devsw, int _unit,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
 		const char *_fmt, ...) __printflike(8, 9);
-struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...) __printflike(2, 3);
+int	make_dev_p(int _flags, struct cdev **_cdev, struct cdevsw *_devsw,
+		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
+		const char *_fmt, ...) __printflike(8, 9);
+struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...)
+		__printflike(2, 3);
 void	dev_lock(void);
 void	dev_unlock(void);
 void	setconf(void);

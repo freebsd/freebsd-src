@@ -1,8 +1,9 @@
 /*-
- * Copyright (C) 2007 MARVELL INTERNATIONAL LTD.
+ * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
- * Developed by Semihalf.
+ * This software was developed by Semihalf under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,14 +13,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of MARVELL nor the names of contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -34,48 +32,57 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/bus.h>
 
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
-#include <dev/uart/uart.h>
-#include <dev/uart/uart_bus.h>
-#include <dev/uart/uart_cpu.h>
+#include <machine/fdt.h>
 
-#include <arm/mv/mvvar.h>
+#include "ofw_bus_if.h"
 
-static int uart_mbus_probe(device_t dev);
+static void
+fdt_fixup_busfreq(phandle_t root)
+{
+	phandle_t sb;
+	pcell_t freq;
 
-static device_method_t uart_mbus_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		uart_mbus_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
-	{ 0, 0 }
-};
+	/*
+	 * This fixup sets the simple-bus bus-frequency property.
+	 */
 
-static driver_t uart_mbus_driver = {
-	uart_driver_name,
-	uart_mbus_methods,
-	sizeof(struct uart_softc),
+	if ((sb = fdt_find_compatible(root, "simple-bus", 1)) == 0)
+		return;
+
+	freq = cpu_to_fdt32(get_tclk());
+	OF_setprop(sb, "bus-frequency", (void *)&freq, sizeof(freq));
+}
+
+struct fdt_fixup_entry fdt_fixup_table[] = {
+	{ "mrvl,DB-88F6281", &fdt_fixup_busfreq },
+	{ NULL, NULL }
 };
 
 static int
-uart_mbus_probe(device_t dev)
+fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
+    int *pol)
 {
-	struct	uart_softc *sc;
-	int 	status;
 
-	sc = device_get_softc(dev);
-	sc->sc_class = &uart_ns8250_class;
-	status = uart_bus_probe(dev, 2, get_tclk(), 0, 0);
+	if (!fdt_is_compatible(node, "mrvl,pic"))
+		return (ENXIO);
 
-	return(status);
+	*interrupt = fdt32_to_cpu(intr[0]);
+	*trig = INTR_TRIGGER_CONFORM;
+	*pol = INTR_POLARITY_CONFORM;
+
+	return (0);
 }
 
-DRIVER_MODULE(uart, mbus, uart_mbus_driver, uart_devclass, 0, 0);
+fdt_pic_decode_t fdt_pic_table[] = {
+	&fdt_pic_decode_ic,
+	NULL
+};

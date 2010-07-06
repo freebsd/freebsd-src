@@ -505,6 +505,48 @@ AcpiUtStrupr (
 }
 
 
+#ifdef ACPI_ASL_COMPILER
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtStrlwr (strlwr)
+ *
+ * PARAMETERS:  SrcString       - The source string to convert
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Convert string to lowercase
+ *
+ * NOTE: This is not a POSIX function, so it appears here, not in utclib.c
+ *
+ ******************************************************************************/
+
+void
+AcpiUtStrlwr (
+    char                    *SrcString)
+{
+    char                    *String;
+
+
+    ACPI_FUNCTION_ENTRY ();
+
+
+    if (!SrcString)
+    {
+        return;
+    }
+
+    /* Walk entire string, lowercasing the letters */
+
+    for (String = SrcString; *String; String++)
+    {
+        *String = (char) ACPI_TOLOWER (*String);
+    }
+
+    return;
+}
+#endif
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtPrintString

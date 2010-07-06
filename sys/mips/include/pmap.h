@@ -49,15 +49,7 @@
 #include <machine/vmparam.h>
 #include <machine/pte.h>
 
-#define	VADDR(pdi, pti)	((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
-
 #define	NKPT		120	/* actual number of kernel page tables */
-
-#ifndef NKPDE
-#define	NKPDE		255	/* addressable number of page tables/pde's */
-#endif
-
-#define	KPTDI		(VM_MIN_KERNEL_ADDRESS >> SEGSHIFT)
 #define	NUSERPGTBLS	(VM_MAXUSER_ADDRESS >> SEGSHIFT)
 
 #ifndef LOCORE
@@ -109,6 +101,7 @@ pd_entry_t pmap_segmap(pmap_t pmap, vm_offset_t va);
 vm_offset_t pmap_kextract(vm_offset_t va);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+#define	pmap_asid(pmap)	(pmap)->pm_asid[PCPU_GET(cpuid)].asid
 
 extern struct pmap	kernel_pmap_store;
 #define kernel_pmap	(&kernel_pmap_store)
@@ -122,12 +115,6 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
-
-#define PMAP_LGMEM_LOCK_INIT(sysmap) mtx_init(&(sysmap)->lock, "pmap-lgmem", \
-				    "per-cpu-map", (MTX_DEF| MTX_DUPOK))
-#define PMAP_LGMEM_LOCK(sysmap) mtx_lock(&(sysmap)->lock)
-#define PMAP_LGMEM_UNLOCK(sysmap) mtx_unlock(&(sysmap)->lock)
-#define PMAP_LGMEM_DESTROY(sysmap) mtx_destroy(&(sysmap)->lock)
 
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
@@ -182,11 +169,6 @@ void pmap_kenter_temporary_free(vm_paddr_t pa);
 int pmap_compute_pages_to_dump(void);
 void pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte);
 void pmap_flush_pvcache(vm_page_t m);
-
-/*
- * Function to save TLB contents so that they may be inspected in the debugger.
- */
-extern void pmap_save_tlb(void);
 
 #endif				/* _KERNEL */
 

@@ -143,7 +143,6 @@ struct vm_page {
  */
 #define	VPO_BUSY	0x0001	/* page is in transit */
 #define	VPO_WANTED	0x0002	/* someone is waiting for page */
-#define	VPO_CLEANCHK	0x0100	/* page will be checked for cleaning */
 #define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
 #define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
 
@@ -152,18 +151,6 @@ struct vm_page {
 #define	PQ_ACTIVE	2
 #define	PQ_HOLD		3
 #define	PQ_COUNT	4
-
-/* Returns the real queue a page is on. */
-#define VM_PAGE_GETQUEUE(m)	((m)->queue)
-
-/* Returns the well known queue a page is on. */
-#define VM_PAGE_GETKNOWNQUEUE2(m)	VM_PAGE_GETQUEUE(m)
-
-/* Returns true if the page is in the named well known queue. */
-#define VM_PAGE_INQUEUE2(m, q)	(VM_PAGE_GETKNOWNQUEUE2(m) == (q))
-
-/* Sets the queue a page is on. */
-#define VM_PAGE_SETQUEUE2(m, q)	(VM_PAGE_GETQUEUE(m) = (q))
 
 struct vpgqueues {
 	struct pglist pl;
@@ -330,6 +317,11 @@ extern struct vpglocks vm_page_queue_lock;
 #define	VM_ALLOC_NOBUSY		0x0200	/* Do not busy the page */
 #define	VM_ALLOC_IFCACHED	0x0400	/* Fail if the page is not cached */
 #define	VM_ALLOC_IFNOTCACHED	0x0800	/* Fail if the page is cached */
+#define	VM_ALLOC_IGN_SBUSY	0x1000	/* vm_page_grab() only */
+
+#define	VM_ALLOC_COUNT_SHIFT	16
+#define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
+#define	VM_ALLOC_COUNT_MASK	VM_ALLOC_COUNT(0xffff)
 
 void vm_page_flag_set(vm_page_t m, unsigned short bits);
 void vm_page_flag_clear(vm_page_t m, unsigned short bits);
@@ -357,9 +349,12 @@ int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
 void vm_page_dontneed(vm_page_t);
 void vm_page_deactivate (vm_page_t);
+vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
+vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
+vm_page_t vm_page_prev(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_requeue(vm_page_t m);

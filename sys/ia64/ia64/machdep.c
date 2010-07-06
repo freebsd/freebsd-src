@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>

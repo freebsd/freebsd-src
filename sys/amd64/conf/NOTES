@@ -11,6 +11,12 @@
 # We want LINT to cover profiling as well.
 profile         2
 
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
 
 #####################################################################
 # SMP OPTIONS:
@@ -29,6 +35,11 @@ device		mptable			# Optional MPSPEC mptable support
 # Watchdog routines.
 #
 options 	MP_WATCHDOG
+
+# Debugging options.
+#
+options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
+options 	COUNT_IPIS		# Per-CPU IPI interrupt counters
 
 
 

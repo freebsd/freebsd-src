@@ -470,11 +470,11 @@ pci_ocp_route_int(struct pci_ocp_softc *sc, u_int bus, u_int slot, u_int func,
 
 	devfn = DEVFN(bus, slot, func);
 	if (devfn == sc->sc_devfn_via_ide)
-		intline = 14;
+		intline = INTR_VEC(ATPIC_ID, 14);
 	else if (devfn == sc->sc_devfn_via_ide + 1)
-		intline = 10;
+		intline = INTR_VEC(ATPIC_ID, 10);
 	else if (devfn == sc->sc_devfn_via_ide + 2)
-		intline = 10;
+		intline = INTR_VEC(ATPIC_ID, 10);
 	else {
 		if (intpin != 0) {
 			intline = intpin - 1;
@@ -792,7 +792,7 @@ pci_ocp_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		va = sc->sc_iomem_va;
 		break;
 	case SYS_RES_IRQ:
-		if (start < PIC_IRQ_START) {
+		if (INTR_IGN(start) == powerpc_ign_lookup(ATPIC_ID)) {
 			device_printf(dev, "%s requested ISA interrupt %lu\n",
 			    device_get_nameunit(child), start);
 		}

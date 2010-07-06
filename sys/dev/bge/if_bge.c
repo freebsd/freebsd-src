@@ -1760,15 +1760,19 @@ bge_blockinit(struct bge_softc *sc)
 	    BGE_ADDR_HI(sc->bge_ldata.bge_status_block_paddr));
 	CSR_WRITE_4(sc, BGE_HCC_STATUSBLK_ADDR_LO,
 	    BGE_ADDR_LO(sc->bge_ldata.bge_status_block_paddr));
-	sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx = 0;
-	sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx = 0;
 
 	/* Set up status block size. */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
-	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
+	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0) {
 		val = BGE_STATBLKSZ_FULL;
-	else
+		bzero(sc->bge_ldata.bge_status_block, BGE_STATUS_BLK_SZ);
+	} else {
 		val = BGE_STATBLKSZ_32BYTE;
+		bzero(sc->bge_ldata.bge_status_block, 32);
+	}
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/* Turn on host coalescing state machine */
 	CSR_WRITE_4(sc, BGE_HCC_MODE, val | BGE_HCCMODE_ENABLE);
@@ -1834,8 +1838,12 @@ bge_blockinit(struct bge_softc *sc)
 		    BGE_RDMAMODE_MBUF_SBD_CRPT_ATTN;
 	if (sc->bge_flags & BGE_FLAG_PCIE)
 		val |= BGE_RDMAMODE_FIFO_LONG_BURST;
-	if (sc->bge_flags & BGE_FLAG_TSO)
+	if (sc->bge_flags & BGE_FLAG_TSO) {
 		val |= BGE_RDMAMODE_TSO4_ENABLE;
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM57780)
+			val |= BGE_RDMAMODE_TSO6_ENABLE;
+	}
 	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
 	DELAY(40);
 

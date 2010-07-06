@@ -164,7 +164,7 @@ static char *vesa_revstr = NULL;
 
 static int int10_set_mode(int mode);
 static int vesa_bios_post(void);
-static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode);
+static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode, int flags);
 static int vesa_bios_set_mode(int mode);
 #if 0
 static int vesa_bios_get_dac(void);
@@ -278,13 +278,13 @@ vesa_bios_post(void)
 
 /* VESA BIOS calls */
 static int
-vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
+vesa_bios_get_mode(int mode, struct vesa_mode *vmode, int flags)
 {
 	x86regs_t regs;
 	uint32_t offs;
 	void *buf;
 
-	buf = x86bios_alloc(&offs, sizeof(*vmode));
+	buf = x86bios_alloc(&offs, sizeof(*vmode), flags);
 	if (buf == NULL)
 		return (1);
 
@@ -367,7 +367,7 @@ vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 	u_char *p;
 	int i;
 
-	p = (u_char *)x86bios_alloc(&offs, colors * 4);
+	p = (u_char *)x86bios_alloc(&offs, colors * 4, M_NOWAIT);
 	if (p == NULL)
 		return (1);
 
@@ -407,7 +407,7 @@ vesa_bios_save_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	u_char *p;
 	int i;
 
-	p = (u_char *)x86bios_alloc(&offs, colors * 4);
+	p = (u_char *)x86bios_alloc(&offs, colors * 4, M_NOWAIT);
 	if (p == NULL)
 		return (1);
 
@@ -446,7 +446,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 	u_char *p;
 	int i;
 
-	p = (u_char *)x86bios_alloc(&offs, colors * 4);
+	p = (u_char *)x86bios_alloc(&offs, colors * 4, M_NOWAIT);
 	if (p == NULL)
 		return (1);
 
@@ -481,7 +481,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	u_char *p;
 	int i;
 
-	p = (u_char *)x86bios_alloc(&offs, colors * 4);
+	p = (u_char *)x86bios_alloc(&offs, colors * 4, M_NOWAIT);
 	if (p == NULL)
 		return (1);
 
@@ -535,7 +535,9 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	if (code != STATE_SAVE && code != STATE_LOAD)
 		return (1);
 
-	buf = x86bios_alloc(&offs, size);
+	buf = x86bios_alloc(&offs, size, M_NOWAIT);
+	if (buf == NULL)
+		return (1);
 
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f04;
@@ -800,9 +802,7 @@ vesa_bios_init(void)
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f00;
 
-	vmbuf = x86bios_alloc(&offs, sizeof(*buf));
-	if (vmbuf == NULL)
-		return (1);
+	vmbuf = x86bios_alloc(&offs, sizeof(*buf), M_WAITOK);
 
 	regs.R_ES = X86BIOS_PHYSTOSEG(offs);
 	regs.R_DI = X86BIOS_PHYSTOOFF(offs);
@@ -836,7 +836,7 @@ vesa_bios_init(void)
 		    "version 1.2 or later is required.\n",
 		    ((vers & 0xf000) >> 12) * 10 + ((vers & 0x0f00) >> 8),
 		    ((vers & 0x00f0) >> 4) * 10 + (vers & 0x000f));
-		return (1);
+		goto fail;
 	}
 
 	VESA_STRCPY(vesa_oemstr, buf->v_oemstr);
@@ -858,7 +858,7 @@ vesa_bios_init(void)
 	for (i = 0, modes = 0; (i < (M_VESA_MODE_MAX - M_VESA_BASE + 1)) &&
 	    (vesa_vmodetab[i] != 0xffff); ++i) {
 		vesa_vmodetab[i] = le16toh(vesa_vmodetab[i]);
-		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode))
+		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode, M_WAITOK))
 			continue;
 
 		vmode.v_modeattr = le16toh(vmode.v_modeattr);
@@ -1790,7 +1790,7 @@ vesa_bios_info(int level)
 	for (i = 0;
 		(i < (M_VESA_MODE_MAX - M_VESA_BASE + 1))
 		&& (vesa_vmodetab[i] != 0xffff); ++i) {
-		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode))
+		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode, M_NOWAIT))
 			continue;
 
 		/* print something for diagnostic purpose */

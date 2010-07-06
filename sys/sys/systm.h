@@ -280,6 +280,8 @@ void	adjust_timeout_calltodo(struct timeval *time_change);
 /* Initialize the world */
 void	consinit(void);
 void	cpu_initclocks(void);
+void	cpu_initclocks_bsp(void);
+void	cpu_initclocks_ap(void);
 void	usrinfoinit(void);
 
 /* Finalize the world */
@@ -361,6 +363,7 @@ void delete_unrhdr(struct unrhdr *uh);
 void clean_unrhdr(struct unrhdr *uh);
 void clean_unrhdrl(struct unrhdr *uh);
 int alloc_unr(struct unrhdr *uh);
+int alloc_unr_specific(struct unrhdr *uh, u_int item);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 

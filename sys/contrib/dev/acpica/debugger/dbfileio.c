@@ -289,7 +289,7 @@ AcpiDbCheckTextModeCorruption (
      * meaning that we cannot simply replace CR/LF pairs with LFs.
      */
     AcpiOsPrintf ("Table has been corrupted by text mode conversion\n");
-    AcpiOsPrintf ("All LFs (%d) were changed to CR/LF pairs\n", Pairs);
+    AcpiOsPrintf ("All LFs (%u) were changed to CR/LF pairs\n", Pairs);
     AcpiOsPrintf ("Table cannot be repaired!\n");
     return (AE_BAD_VALUE);
 }

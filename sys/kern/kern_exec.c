@@ -755,13 +755,13 @@ interpret:
 	/*
 	 * If tracing the process, trap to debugger so breakpoints
 	 * can be set before the program executes.
-	 * Use tdsignal to deliver signal to current thread, use
+	 * Use tdsignal to deliver signal to current thread, using
 	 * psignal may cause the signal to be delivered to wrong thread
 	 * because that thread will exit, remember we are going to enter
 	 * single thread mode.
 	 */
 	if (p->p_flag & P_TRACED)
-		tdsignal(p, td, SIGTRAP, NULL);
+		tdsignal(td, SIGTRAP);
 
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;
@@ -935,7 +935,7 @@ exec_map_first_page(imgp)
 		if (initial_pagein > object->size)
 			initial_pagein = object->size;
 		for (i = 1; i < initial_pagein; i++) {
-			if ((ma[i] = vm_page_lookup(object, i)) != NULL) {
+			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
 				if (ma[i]->valid)
 					break;
 				if ((ma[i]->oflags & VPO_BUSY) || ma[i]->busy)

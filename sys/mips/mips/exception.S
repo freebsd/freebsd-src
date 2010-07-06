@@ -89,6 +89,15 @@
 #define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
 #define	HAZARD_DELAY	nop;nop;nop;nop;nop;
 
+/* Pointer size and mask for n64 */
+#if defined(__mips_n64)
+#define	PTRSHIFT	3
+#define	PTRMASK		0xff8
+#else
+#define	PTRSHIFT	2
+#define	PTRMASK		0xffc
+#endif
+
 /*
  *----------------------------------------------------------------------------
  *
@@ -126,12 +135,12 @@ VECTOR_END(MipsTLBMiss)
 	.set noat
 MipsDoTLBMiss:
 	bltz		k0, 1f				#02: k0<0 -> 1f (kernel fault)
-	PTR_SRL		k0, k0, SEGSHIFT - 2		#03: k0=seg offset (almost)
+	PTR_SRL		k0, k0, SEGSHIFT - PTRSHIFT	#03: k0=seg offset (almost)
 
 	GET_CPU_PCPU(k1)
 	PTR_L		k1, PC_SEGBASE(k1)
 	beqz		k1, 2f				#05: make sure segbase is not null
-	andi		k0, k0, 0xffc			#06: k0=seg offset (mask 0x3)
+	andi		k0, k0, PTRMASK			#06: k0=seg offset
 	PTR_ADDU	k1, k0, k1			#07: k1=seg entry address
 
 	PTR_L		k1, 0(k1)			#08: k1=seg entry
@@ -175,6 +184,9 @@ VECTOR(MipsException, unknown)
 	sll	k0, k0, 3			# shift user bit for cause index
 	and	k1, k1, CR_EXC_CODE		# Mask out the cause bits.
 	or	k1, k1, k0			# change index to user table
+#if defined(__mips_n64)
+	PTR_SLL	k1, k1, 1			# shift to get 8-byte offset
+#endif
 1:
 	PTR_LA	k0, _C_LABEL(machExceptionTable)  # get base of the jump table
 	PTR_ADDU k0, k0, k1			# Get the address of the
@@ -798,9 +810,9 @@ NLEAF(MipsTLBInvalidException)
 	beqz		k1, 3f
 	nop
 
-	PTR_SRL		k0, SEGSHIFT - 2		# k0=seg offset (almost)
+	PTR_SRL		k0, SEGSHIFT - PTRSHIFT		# k0=seg offset (almost)
 	beq		k1, zero, MipsKernGenException	# ==0 -- no seg tab
-	andi		k0, k0, 0xffc			# k0=seg offset (mask 0x3)
+	andi		k0, k0, PTRMASK			# k0=seg offset
 	PTR_ADDU	k1, k0, k1			# k1=seg entry address
 	PTR_L		k1, 0(k1)			# k1=seg entry
 
@@ -960,10 +972,10 @@ NLEAF(MipsTLBMissException)
 	sltu		k1, k1, k0			# upper bound of kernel_segmap
 	bnez		k1, MipsKernGenException	# out of bound
 	lui		k1, %hi(kernel_segmap)		# k1=hi of segbase
-	PTR_SRL		k0, SEGSHIFT - 2		# k0=seg offset (almost)
+	PTR_SRL		k0, SEGSHIFT - PTRSHIFT		# k0=seg offset (almost)
 	PTR_L		k1, %lo(kernel_segmap)(k1)	# k1=segment tab base
 	beq		k1, zero, MipsKernGenException	# ==0 -- no seg tab
-	andi		k0, k0, 0xffc			# k0=seg offset (mask 0x3)
+	andi		k0, k0, PTRMASK			# k0=seg offset
 	PTR_ADDU	k1, k0, k1			# k1=seg entry address
 	PTR_L		k1, 0(k1)			# k1=seg entry
 	MFC0		k0, COP_0_BAD_VADDR		# k0=bad address (again)

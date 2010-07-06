@@ -130,7 +130,7 @@ struct mqfs_node {
 	int			mn_refcount;
 	mqfs_type_t		mn_type;
 	int			mn_deleted;
-	u_int32_t		mn_fileno;
+	uint32_t		mn_fileno;
 	void			*mn_data;
 	struct timespec		mn_birth;
 	struct timespec		mn_ctime;

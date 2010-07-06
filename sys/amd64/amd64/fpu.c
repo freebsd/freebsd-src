@@ -115,6 +115,9 @@ fpuinit(void)
 	u_int mxcsr;
 	u_short control;
 
+	/*
+	 * It is too early for critical_enter() to work on AP.
+	 */
 	savecrit = intr_disable();
 	stop_emulating();
 	fninit();
@@ -141,16 +144,15 @@ fpuinit(void)
 void
 fpuexit(struct thread *td)
 {
-	register_t savecrit;
 
-	savecrit = intr_disable();
+	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread)) {
 		stop_emulating();
 		fxsave(PCPU_GET(curpcb)->pcb_save);
 		start_emulating();
 		PCPU_SET(fpcurthread, 0);
 	}
-	intr_restore(savecrit);
+	critical_exit();
 }
 
 int
@@ -351,10 +353,9 @@ static char fpetable[128] = {
 int
 fputrap()
 {
-	register_t savecrit;
 	u_short control, status;
 
-	savecrit = intr_disable();
+	critical_enter();
 
 	/*
 	 * Interrupt handling (for another interrupt) may have pushed the
@@ -371,7 +372,7 @@ fputrap()
 
 	if (PCPU_GET(fpcurthread) == curthread)
 		fnclex();
-	intr_restore(savecrit);
+	critical_exit();
 	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
 }
 
@@ -389,12 +390,13 @@ void
 fpudna(void)
 {
 	struct pcb *pcb;
-	register_t s;
 
+	critical_enter();
 	if (PCPU_GET(fpcurthread) == curthread) {
 		printf("fpudna: fpcurthread == curthread %d times\n",
 		    ++err_count);
 		stop_emulating();
+		critical_exit();
 		return;
 	}
 	if (PCPU_GET(fpcurthread) != NULL) {
@@ -404,7 +406,6 @@ fpudna(void)
 		       curthread, curthread->td_proc->p_pid);
 		panic("fpudna");
 	}
-	s = intr_disable();
 	stop_emulating();
 	/*
 	 * Record new context early in case frstor causes a trap.
@@ -428,19 +429,17 @@ fpudna(void)
 			pcb->pcb_flags |= PCB_USERFPUINITDONE;
 	} else
 		fxrstor(pcb->pcb_save);
-	intr_restore(s);
+	critical_exit();
 }
 
-/*
- * This should be called with interrupts disabled and only when the owning
- * FPU thread is non-null.
- */
 void
 fpudrop()
 {
 	struct thread *td;
 
 	td = PCPU_GET(fpcurthread);
+	KASSERT(td == curthread, ("fpudrop: fpcurthread != curthread"));
+	CRITICAL_ASSERT(td);
 	PCPU_SET(fpcurthread, NULL);
 	td->td_pcb->pcb_flags &= ~PCB_FPUINITDONE;
 	start_emulating();
@@ -454,7 +453,6 @@ int
 fpugetuserregs(struct thread *td, struct savefpu *addr)
 {
 	struct pcb *pcb;
-	register_t s;
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_USERFPUINITDONE) == 0) {
@@ -462,13 +460,13 @@ fpugetuserregs(struct thread *td, struct savefpu *addr)
 		addr->sv_env.en_cw = pcb->pcb_initial_fpucw;
 		return (_MC_FPOWNED_NONE);
 	}
-	s = intr_disable();
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
 		fxsave(addr);
-		intr_restore(s);
+		critical_exit();
 		return (_MC_FPOWNED_FPU);
 	} else {
-		intr_restore(s);
+		critical_exit();
 		bcopy(&pcb->pcb_user_save, addr, sizeof(*addr));
 		return (_MC_FPOWNED_PCB);
 	}
@@ -478,7 +476,6 @@ int
 fpugetregs(struct thread *td, struct savefpu *addr)
 {
 	struct pcb *pcb;
-	register_t s;
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_FPUINITDONE) == 0) {
@@ -486,13 +483,13 @@ fpugetregs(struct thread *td, struct savefpu *addr)
 		addr->sv_env.en_cw = pcb->pcb_initial_fpucw;
 		return (_MC_FPOWNED_NONE);
 	}
-	s = intr_disable();
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread)) {
 		fxsave(addr);
-		intr_restore(s);
+		critical_exit();
 		return (_MC_FPOWNED_FPU);
 	} else {
-		intr_restore(s);
+		critical_exit();
 		bcopy(pcb->pcb_save, addr, sizeof(*addr));
 		return (_MC_FPOWNED_PCB);
 	}
@@ -505,16 +502,15 @@ void
 fpusetuserregs(struct thread *td, struct savefpu *addr)
 {
 	struct pcb *pcb;
-	register_t s;
 
 	pcb = td->td_pcb;
-	s = intr_disable();
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
 		fxrstor(addr);
-		intr_restore(s);
+		critical_exit();
 		pcb->pcb_flags |= PCB_FPUINITDONE | PCB_USERFPUINITDONE;
 	} else {
-		intr_restore(s);
+		critical_exit();
 		bcopy(addr, &td->td_pcb->pcb_user_save, sizeof(*addr));
 		if (PCB_USER_FPU(pcb))
 			pcb->pcb_flags |= PCB_FPUINITDONE;
@@ -526,15 +522,14 @@ void
 fpusetregs(struct thread *td, struct savefpu *addr)
 {
 	struct pcb *pcb;
-	register_t s;
 
 	pcb = td->td_pcb;
-	s = intr_disable();
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread)) {
 		fxrstor(addr);
-		intr_restore(s);
+		critical_exit();
 	} else {
-		intr_restore(s);
+		critical_exit();
 		bcopy(addr, td->td_pcb->pcb_save, sizeof(*addr));
 	}
 	if (PCB_USER_FPU(pcb))
@@ -652,13 +647,12 @@ int
 fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 {
 	struct pcb *pcb;
-	register_t savecrit;
 
 	pcb = td->td_pcb;
-	savecrit = intr_disable();
+	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread))
 		fpudrop();
-	intr_restore(savecrit);
+	critical_exit();
 	pcb->pcb_save = ctx->prev;
 	if (pcb->pcb_save == &pcb->pcb_user_save) {
 		if ((pcb->pcb_flags & PCB_USERFPUINITDONE) != 0)

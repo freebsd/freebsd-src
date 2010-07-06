@@ -3164,7 +3164,7 @@ AslLocalAllocate (unsigned int Size)
     void                *Mem;
 
 
-    DbgPrint (ASL_PARSE_OUTPUT, "\nAslLocalAllocate: Expanding Stack to %d\n\n", Size);
+    DbgPrint (ASL_PARSE_OUTPUT, "\nAslLocalAllocate: Expanding Stack to %u\n\n", Size);
 
     Mem = ACPI_ALLOCATE_ZEROED (Size);
     if (!Mem)

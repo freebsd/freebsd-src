@@ -112,6 +112,31 @@ out:
 	return ret_val;
 }
 
+/**
+ *  e1000_init_mbx_params - Initialize mailbox function pointers
+ *  @hw: pointer to the HW structure
+ *
+ *  This function initializes the function pointers for the PHY
+ *  set of functions.  Called by drivers or by e1000_setup_init_funcs.
+ **/
+s32 e1000_init_mbx_params(struct e1000_hw *hw)
+{
+	s32 ret_val = E1000_SUCCESS;
+
+	if (hw->mbx.ops.init_params) {
+		ret_val = hw->mbx.ops.init_params(hw);
+		if (ret_val) {
+			DEBUGOUT("Mailbox Initialization Error\n");
+			goto out;
+		}
+	} else {
+		DEBUGOUT("mbx.init_mbx_params was NULL\n");
+		ret_val =  -E1000_ERR_CONFIG;
+	}
+
+out:
+	return ret_val;
+}
 
 /**
  *  e1000_set_mac_type - Sets MAC type
@@ -281,6 +306,9 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_82580_COPPER_DUAL:
 		mac->type = e1000_82580;
 		break;
+	case E1000_DEV_ID_82576_VF:
+		mac->type = e1000_vfadapt;
+		break;
 	default:
 		/* Should never have loaded on this device */
 		ret_val = -E1000_ERR_MAC_INIT;
@@ -326,6 +354,7 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	e1000_init_mac_ops_generic(hw);
 	e1000_init_phy_ops_generic(hw);
 	e1000_init_nvm_ops_generic(hw);
+	e1000_init_mbx_ops_generic(hw);
 
 	/*
 	 * Set up the init function pointers. These are functions within the
@@ -374,6 +403,9 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	case e1000_82580:
 		e1000_init_function_pointers_82575(hw);
 		break;
+	case e1000_vfadapt:
+		e1000_init_function_pointers_vf(hw);
+		break;
 	default:
 		DEBUGOUT("Hardware not supported\n");
 		ret_val = -E1000_ERR_CONFIG;
@@ -394,6 +426,10 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 			goto out;
 
 		ret_val = e1000_init_phy_params(hw);
+		if (ret_val)
+			goto out;
+
+		ret_val = e1000_init_mbx_params(hw);
 		if (ret_val)
 			goto out;
 	}

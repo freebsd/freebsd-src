@@ -720,9 +720,6 @@ mpt_pci_shutdown(device_t dev)
 static int
 mpt_dma_mem_alloc(struct mpt_softc *mpt)
 {
-	int i, error, nsegs;
-	uint8_t *vptr;
-	uint32_t pptr, end;
 	size_t len;
 	struct mpt_map_info mi;
 
@@ -795,82 +792,6 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	}
 	mpt->reply_phys = mi.phys;
 
-	/* Create a child tag for data buffers */
-
-	/*
-	 * XXX: we should say that nsegs is 'unrestricted, but that
-	 * XXX: tickles a horrible bug in the busdma code. Instead,
-	 * XXX: we'll derive a reasonable segment limit from MPT_MAXPHYS
-	 */
-	nsegs = (MPT_MAXPHYS / PAGE_SIZE) + 1;
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, 1,
-	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, MAXBSIZE, nsegs, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    &mpt->buffer_dmat) != 0) {
-		mpt_prt(mpt, "cannot create a dma tag for data buffers\n");
-		return (1);
-	}
-
-	/* Create a child tag for request buffers */
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-	    NULL, NULL, MPT_REQ_MEM_SIZE(mpt), 1, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    &mpt->request_dmat) != 0) {
-		mpt_prt(mpt, "cannot create a dma tag for requests\n");
-		return (1);
-	}
-
-	/* Allocate some DMA accessable memory for requests */
-	if (bus_dmamem_alloc(mpt->request_dmat, (void **)&mpt->request,
-	    BUS_DMA_NOWAIT, &mpt->request_dmap) != 0) {
-		mpt_prt(mpt, "cannot allocate %d bytes of request memory\n",
-		    MPT_REQ_MEM_SIZE(mpt));
-		return (1);
-	}
-
-	mi.mpt = mpt;
-	mi.error = 0;
-
-	/* Load and lock it into "bus space" */
-        bus_dmamap_load(mpt->request_dmat, mpt->request_dmap, mpt->request,
-	    MPT_REQ_MEM_SIZE(mpt), mpt_map_rquest, &mi, 0);
-
-	if (mi.error) {
-		mpt_prt(mpt, "error %d loading dma map for DMA request queue\n",
-		    mi.error);
-		return (1);
-	}
-	mpt->request_phys = mi.phys;
-
-	/*
-	 * Now create per-request dma maps
-	 */
-	i = 0;
-	pptr =  mpt->request_phys;
-	vptr =  mpt->request;
-	end = pptr + MPT_REQ_MEM_SIZE(mpt);
-	while(pptr < end) {
-		request_t *req = &mpt->request_pool[i];
-		req->index = i++;
-
-		/* Store location of Request Data */
-		req->req_pbuf = pptr;
-		req->req_vbuf = vptr;
-
-		pptr += MPT_REQUEST_AREA;
-		vptr += MPT_REQUEST_AREA;
-
-		req->sense_pbuf = (pptr - MPT_SENSE_SIZE);
-		req->sense_vbuf = (vptr - MPT_SENSE_SIZE);
-
-		error = bus_dmamap_create(mpt->buffer_dmat, 0, &req->dmap);
-		if (error) {
-			mpt_prt(mpt, "error %d creating per-cmd DMA maps\n",
-			    error);
-			return (1);
-		}
-	}
-
 	return (0);
 }
 
@@ -881,7 +802,6 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 static void
 mpt_dma_mem_free(struct mpt_softc *mpt)
 {
-	int i;
 
         /* Make sure we aren't double destroying */
         if (mpt->reply_dmat == 0) {
@@ -889,13 +809,6 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 		return;
         }
                 
-	for (i = 0; i < MPT_MAX_REQUESTS(mpt); i++) {
-		bus_dmamap_destroy(mpt->buffer_dmat, mpt->request_pool[i].dmap);
-	}
-	bus_dmamap_unload(mpt->request_dmat, mpt->request_dmap);
-	bus_dmamem_free(mpt->request_dmat, mpt->request, mpt->request_dmap);
-	bus_dma_tag_destroy(mpt->request_dmat);
-	bus_dma_tag_destroy(mpt->buffer_dmat);
 	bus_dmamap_unload(mpt->reply_dmat, mpt->reply_dmap);
 	bus_dmamem_free(mpt->reply_dmat, mpt->reply, mpt->reply_dmap);
 	bus_dma_tag_destroy(mpt->reply_dmat);

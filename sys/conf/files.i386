@@ -390,3 +390,4 @@ x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
 x86/x86/msi.c			optional apic pci
+x86/x86/timeevents.c		standard

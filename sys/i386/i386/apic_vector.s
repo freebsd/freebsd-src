@@ -56,6 +56,7 @@
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	SET_KERNEL_SREGS ;						\
+	cld ;								\
 	FAKE_MCOUNT(TF_EIP(%esp)) ;					\
 	movl	lapic, %edx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
@@ -103,6 +104,7 @@ IDTVEC(spuriousint)
 IDTVEC(timerint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	call	lapic_handle_timer
@@ -118,6 +120,7 @@ IDTVEC(timerint)
 IDTVEC(cmcint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	call	lapic_handle_cmc
 	MEXITCOUNT
@@ -131,6 +134,7 @@ IDTVEC(cmcint)
 IDTVEC(errorint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	call	lapic_handle_error
 	MEXITCOUNT
@@ -302,6 +306,7 @@ IDTVEC(invlcache)
 IDTVEC(ipi_intr_bitmap_handler)	
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -320,6 +325,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 IDTVEC(cpustop)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 
 	movl	lapic, %eax
 	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
@@ -339,6 +345,7 @@ IDTVEC(cpustop)
 IDTVEC(rendezvous)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 
 #ifdef COUNT_IPIS
 	movl	PCPU(CPUID), %eax
@@ -360,6 +367,7 @@ IDTVEC(rendezvous)
 IDTVEC(lazypmap)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 
 	call	pmap_lazyfix_action
 

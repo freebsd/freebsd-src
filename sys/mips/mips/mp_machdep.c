@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/cache.h>
+#include <machine/tlb.h>
 
 struct pcb stoppcbs[MAXCPU];
 
@@ -128,7 +129,7 @@ mips_ipi_handler(void *arg)
 			CTR0(KTR_SMP, "IPI_STOP or IPI_STOP_HARD");
 
 			savectx(&stoppcbs[cpu]);
-			pmap_save_tlb();
+			tlb_save();
 
 			/* Indicate we are stopped */
 			atomic_set_int(&stopped_cpus, cpumask);
@@ -238,9 +239,9 @@ void
 smp_init_secondary(u_int32_t cpuid)
 {
 	/* TLB */
-	Mips_SetWIRED(0);
-	Mips_TLBFlush(num_tlbentries);
-	Mips_SetWIRED(VMWIRED_ENTRIES);
+	mips_wr_wired(0);
+	tlb_invalidate_all();
+	mips_wr_wired(VMWIRED_ENTRIES);
 
 	/*
 	 * We assume that the L1 cache on the APs is identical to the one
@@ -251,7 +252,7 @@ smp_init_secondary(u_int32_t cpuid)
 
 	mips_sync();
 
-	MachSetPID(0);
+	mips_wr_entryhi(0);
 
 	pcpu_init(PCPU_ADDR(cpuid), cpuid, sizeof(struct pcpu));
 	dpcpu_init(dpcpu, cpuid);

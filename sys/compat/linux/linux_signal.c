@@ -501,7 +501,7 @@ linux_rt_sigtimedwait(struct thread *td,
 	/* Repost if we got an error. */
 	if (error && info.ksi_signo) {
 		PROC_LOCK(td->td_proc);
-		tdsignal(td->td_proc, td, info.ksi_signo, &info);
+		tdksignal(td, info.ksi_signo, &info);
 		PROC_UNLOCK(td->td_proc);
 	} else
 		td->td_retval[0] = info.ksi_signo; 
@@ -587,7 +587,7 @@ linux_do_tkill(struct thread *td, l_int tgid, l_int pid, l_int signum)
 	ksi.ksi_pid = proc->p_pid;
 	ksi.ksi_uid = proc->p_ucred->cr_ruid;
 
-	error = tdsignal(p, NULL, ksi.ksi_signo, &ksi);
+	error = pksignal(p, ksi.ksi_signo, &ksi);
 
 out:
 	PROC_UNLOCK(p);

@@ -537,7 +537,7 @@ AcpiNsDumpOneObject (
             return (AE_OK);
         }
 
-        AcpiOsPrintf ("(R%d)", ObjDesc->Common.ReferenceCount);
+        AcpiOsPrintf ("(R%u)", ObjDesc->Common.ReferenceCount);
 
         switch (Type)
         {

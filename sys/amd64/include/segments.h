@@ -74,6 +74,13 @@ struct	user_segment_descriptor {
 	u_int64_t sd_hibase:8;		/* segment base address  (msb) */
 } __packed;
 
+#define USD_GETBASE(_sd)	(((_sd)->sd_lobase) | (_sd)->sd_hibase << 24) 
+#define USD_SETBASE(_sd, _b)	(_sd)->sd_lobase = (_b); 	\
+				(_sd)->sd_hibase = ((_b) >> 24);
+#define USD_GETLIMIT(_sd)	(((_sd)->sd_lolimit) | (_sd)->sd_hilimit << 16)
+#define USD_SETLIMIT(_sd, _l)	(_sd)->sd_lolimit = (_l);	\
+				(_sd)->sd_hilimit = ((_l) >> 16);
+
 /*
  * System segment descriptors (128 bit wide)
  */
