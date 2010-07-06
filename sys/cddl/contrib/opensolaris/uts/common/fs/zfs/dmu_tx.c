@@ -582,9 +582,9 @@ dmu_tx_hold_zap(dmu_tx_t *tx, uint64_t object, int add, char *name)
 			txh->txh_space_tooverwrite += SPA_MAXBLOCKSIZE;
 		} else {
 			txh->txh_space_towrite += SPA_MAXBLOCKSIZE;
-			txh->txh_space_tounref +=
-			    BP_GET_ASIZE(dn->dn_phys->dn_blkptr);
 		}
+		if (dn->dn_phys->dn_blkptr[0].blk_birth)
+			txh->txh_space_tounref += SPA_MAXBLOCKSIZE;
 		return;
 	}
 

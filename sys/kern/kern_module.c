@@ -455,9 +455,9 @@ MODULE_VERSION(kernel, __FreeBSD_version);
 
 typedef union modspecific32 {
 	int		intval;
-	u_int32_t	uintval;
+	uint32_t	uintval;
 	int		longval;
-	u_int32_t	ulongval;
+	uint32_t	ulongval;
 } modspecific32_t;
 
 struct module_stat32 {

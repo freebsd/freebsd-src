@@ -37,11 +37,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+
 #include <machine/bus.h>
+#include <machine/fdt.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 #include <arm/mv/mvwin.h>
+
+#define MAX_CPU_WIN	5
+
+#define DEBUG
+#undef DEBUG
+
+#ifdef DEBUG
+#define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
+    printf(fmt,##args); } while (0)
+#else
+#define debugf(fmt, args...)
+#endif
+
+#ifdef DEBUG
+#define MV_DUMP_WIN	1
+#else
+#define MV_DUMP_WIN	0
+#endif
 
 static int win_eth_can_remap(int i);
 
@@ -51,36 +73,77 @@ static int decode_win_eth_valid(void);
 static int decode_win_pcie_valid(void);
 static int decode_win_sata_valid(void);
 static int decode_win_cesa_valid(void);
+static int decode_win_idma_valid(void);
+static int decode_win_xor_valid(void);
 
 static void decode_win_cpu_setup(void);
-static void decode_win_usb_setup(void);
-static void decode_win_eth_setup(uint32_t base);
-static void decode_win_pcie_setup(uint32_t base);
-static void decode_win_sata_setup(void);
-static void decode_win_cesa_setup(void);
+static void decode_win_usb_setup(u_long);
+static void decode_win_eth_setup(u_long);
+static void decode_win_pcie_setup(u_long);
+static void decode_win_sata_setup(u_long);
+static void decode_win_cesa_setup(u_long);
+static void decode_win_idma_setup(u_long);
+static void decode_win_xor_setup(u_long);
 
-static void decode_win_cesa_dump(void);
-static void decode_win_usb_dump(void);
+static void decode_win_cesa_dump(u_long);
+static void decode_win_usb_dump(u_long);
+static void decode_win_eth_dump(u_long base);
+static void decode_win_idma_dump(u_long base);
+static void decode_win_xor_dump(u_long base);
+
+static int fdt_get_ranges(const char *, void *, int, int *, int *);
+
+static int win_cpu_from_dt(void);
+static int fdt_win_setup(void);
 
 static uint32_t used_cpu_wins;
+static uint32_t dev_mask = 0;
+static int cpu_wins_no = 0;
+static int eth_port = 0;
+static int usb_port = 0;
+
+static struct decode_win cpu_win_tbl[MAX_CPU_WIN];
+
+static const struct decode_win *cpu_wins = cpu_win_tbl;
+
+typedef void (*decode_win_setup_t)(u_long);
+typedef void (*dump_win_t)(u_long);
+
+struct soc_node_spec {
+	const char		*compat;
+	decode_win_setup_t	decode_handler;
+	dump_win_t		dump_handler;
+};
+
+static struct soc_node_spec soc_nodes[] = {
+	{ "mrvl,cesa", &decode_win_cesa_setup, &decode_win_cesa_dump },
+	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump },
+	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
+	{ "mrvl,sata", &decode_win_sata_setup, NULL },
+	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump },
+	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump },
+	{ "mvrl,pcie", &decode_win_pcie_setup, NULL },
+	{ NULL, NULL, NULL },
+};
+
+struct fdt_pm_mask_entry fdt_pm_mask_table[] = {
+	{ "mrvl,ge",		CPU_PM_CTRL_GE(0) },
+	{ "mrvl,ge",		CPU_PM_CTRL_GE(1) },
+	{ "mrvl,usb-ehci",	CPU_PM_CTRL_USB(0) },
+	{ "mrvl,usb-ehci",	CPU_PM_CTRL_USB(1) },
+	{ "mrvl,usb-ehci",	CPU_PM_CTRL_USB(2) },
+	{ "mrvl,cesa",		CPU_PM_CTRL_CRYPTO },
+	{ "mrvl,xor",		CPU_PM_CTRL_XOR },
+	{ "mrvl,sata",		CPU_PM_CTRL_SATA },
+
+	{ NULL, 0 }
+};
 
 static __inline int
 pm_is_disabled(uint32_t mask)
 {
 
 	return (soc_power_ctrl_get(mask) == mask ? 0 : 1);
-}
-
-static __inline uint32_t
-obio_get_pm_mask(uint32_t base)
-{
-	struct obio_device *od;
-
-	for (od = obio_devices; od->od_name != NULL; od++)
-		if (od->od_base == base)
-			return (od->od_pwr_mask);
-
-	return (CPU_PM_CTRL_NONE);
 }
 
 /*
@@ -134,18 +197,45 @@ pm_disable_device(int mask)
 #endif
 }
 
+int
+fdt_pm(phandle_t node)
+{
+	uint32_t cpu_pm_ctrl;
+	int i, ena, compat;
+
+	ena = 1;
+	cpu_pm_ctrl = read_cpu_ctrl(CPU_PM_CTRL);
+	for (i = 0; fdt_pm_mask_table[i].compat != NULL; i++) {
+		if (dev_mask & (1 << i))
+			continue;
+
+		compat = fdt_is_compatible(node, fdt_pm_mask_table[i].compat);
+
+		if (compat && (~cpu_pm_ctrl & fdt_pm_mask_table[i].mask)) {
+			dev_mask |= (1 << i);
+			ena = 0;
+			break;
+		} else if (compat) {
+			dev_mask |= (1 << i);
+			break;
+		}
+	}
+
+	return (ena);
+}
+
 uint32_t
 read_cpu_ctrl(uint32_t reg)
 {
 
-	return (bus_space_read_4(obio_tag, MV_CPU_CONTROL_BASE, reg));
+	return (bus_space_read_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE, reg));
 }
 
 void
 write_cpu_ctrl(uint32_t reg, uint32_t val)
 {
 
-	bus_space_write_4(obio_tag, MV_CPU_CONTROL_BASE, reg, val);
+	bus_space_write_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE, reg, val);
 }
 
 void
@@ -217,11 +307,11 @@ soc_id(uint32_t *dev, uint32_t *rev)
 	 * possible) after the internal registers range has been mapped in via
 	 * pmap_devmap_bootstrap().
 	 */
-	*dev = bus_space_read_4(obio_tag, MV_PCIE_BASE, 0) >> 16;
-	*rev = bus_space_read_4(obio_tag, MV_PCIE_BASE, 8) & 0xff;
+	*dev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 0) >> 16;
+	*rev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 8) & 0xff;
 }
 
-void
+static void
 soc_identify(void)
 {
 	uint32_t d, r;
@@ -283,11 +373,25 @@ soc_identify(void)
 	/* TODO add info on currently set endianess */
 }
 
+static void
+platform_identify(void *dummy)
+{
+
+	soc_identify();
+
+	/*
+	 * XXX Board identification e.g. read out from FPGA or similar should
+	 * go here
+	 */
+}
+SYSINIT(platform_identify, SI_SUB_CPU, SI_ORDER_SECOND, platform_identify,
+    NULL);
+
 int
 soc_decode_win(void)
 {
 	uint32_t dev, rev;
-	int mask;
+	int mask, err;
 
 	mask = 0;
 	TUNABLE_INT_FETCH("hw.pm-disable-mask", &mask);
@@ -295,41 +399,27 @@ soc_decode_win(void)
 	if (mask != 0)
 		pm_disable_device(mask);
 
+	/* Retrieve data about physical addresses from device tree. */
+	if ((err = win_cpu_from_dt()) != 0)
+		return (err);
+
 	/* Retrieve our ID: some windows facilities vary between SoC models */
 	soc_id(&dev, &rev);
 
-	if (decode_win_cpu_valid() != 1 || decode_win_usb_valid() != 1 ||
-	    decode_win_eth_valid() != 1 || decode_win_idma_valid() != 1 ||
-	    decode_win_pcie_valid() != 1 || decode_win_sata_valid() != 1 ||
-	    decode_win_cesa_valid() != 1)
-		return(-1);
+	if (!decode_win_cpu_valid() || !decode_win_usb_valid() ||
+	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
+	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
+	    !decode_win_cesa_valid() || !decode_win_xor_valid())
+		return (EINVAL);
 
 	decode_win_cpu_setup();
-	decode_win_usb_setup();
-	decode_win_eth_setup(MV_ETH0_BASE);
-	if (dev == MV_DEV_MV78100 || dev == MV_DEV_MV78100_Z0)
-		decode_win_eth_setup(MV_ETH1_BASE);
-	if (dev == MV_DEV_88F6281 || dev == MV_DEV_MV78100 ||
-	    dev == MV_DEV_MV78100_Z0)
-		decode_win_cesa_setup();
+	if (MV_DUMP_WIN)
+		soc_dump_decode_win();
 
-	decode_win_idma_setup();
-	decode_win_xor_setup();
-
-	if (dev == MV_DEV_MV78100 || dev == MV_DEV_MV78100_Z0) {
-		decode_win_pcie_setup(MV_PCIE00_BASE);
-		decode_win_pcie_setup(MV_PCIE01_BASE);
-		decode_win_pcie_setup(MV_PCIE02_BASE);
-		decode_win_pcie_setup(MV_PCIE03_BASE);
-		decode_win_pcie_setup(MV_PCIE10_BASE);
-		decode_win_pcie_setup(MV_PCIE11_BASE);
-		decode_win_pcie_setup(MV_PCIE12_BASE);
-		decode_win_pcie_setup(MV_PCIE13_BASE);
-	} else
-		decode_win_pcie_setup(MV_PCIE_BASE);
-
-	if (dev != MV_DEV_88F5281)
-		decode_win_sata_setup();
+	eth_port = 0;
+	usb_port = 0;
+	if ((err = fdt_win_setup()) != 0)
+		return (err);
 
 	return (0);
 }
@@ -349,15 +439,15 @@ WIN_REG_IDX_WR(win_cpu, remap_h, MV_WIN_CPU_REMAP_HI, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_RD(ddr, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE)
 WIN_REG_IDX_RD(ddr, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE)
 
-WIN_REG_IDX_RD2(win_usb, cr, MV_WIN_USB_CTRL, MV_USB_AWR_BASE)
-WIN_REG_IDX_RD2(win_usb, br, MV_WIN_USB_BASE, MV_USB_AWR_BASE)
-WIN_REG_IDX_WR2(win_usb, cr, MV_WIN_USB_CTRL, MV_USB_AWR_BASE)
-WIN_REG_IDX_WR2(win_usb, br, MV_WIN_USB_BASE, MV_USB_AWR_BASE)
+WIN_REG_BASE_IDX_RD(win_usb, cr, MV_WIN_USB_CTRL)
+WIN_REG_BASE_IDX_RD(win_usb, br, MV_WIN_USB_BASE)
+WIN_REG_BASE_IDX_WR(win_usb, cr, MV_WIN_USB_CTRL)
+WIN_REG_BASE_IDX_WR(win_usb, br, MV_WIN_USB_BASE)
 
-WIN_REG_IDX_RD(win_cesa, cr, MV_WIN_CESA_CTRL, MV_CESA_BASE)
-WIN_REG_IDX_RD(win_cesa, br, MV_WIN_CESA_BASE, MV_CESA_BASE)
-WIN_REG_IDX_WR(win_cesa, cr, MV_WIN_CESA_CTRL, MV_CESA_BASE)
-WIN_REG_IDX_WR(win_cesa, br, MV_WIN_CESA_BASE, MV_CESA_BASE)
+WIN_REG_BASE_IDX_RD(win_cesa, cr, MV_WIN_CESA_CTRL)
+WIN_REG_BASE_IDX_RD(win_cesa, br, MV_WIN_CESA_BASE)
+WIN_REG_BASE_IDX_WR(win_cesa, cr, MV_WIN_CESA_CTRL)
+WIN_REG_BASE_IDX_WR(win_cesa, br, MV_WIN_CESA_BASE)
 
 WIN_REG_BASE_IDX_RD(win_eth, br, MV_WIN_ETH_BASE)
 WIN_REG_BASE_IDX_RD(win_eth, sz, MV_WIN_ETH_SIZE)
@@ -366,14 +456,14 @@ WIN_REG_BASE_IDX_WR(win_eth, br, MV_WIN_ETH_BASE)
 WIN_REG_BASE_IDX_WR(win_eth, sz, MV_WIN_ETH_SIZE)
 WIN_REG_BASE_IDX_WR(win_eth, har, MV_WIN_ETH_REMAP)
 
-WIN_REG_IDX_RD2(win_xor, br, MV_WIN_XOR_BASE, MV_XOR_BASE)
-WIN_REG_IDX_RD2(win_xor, sz, MV_WIN_XOR_SIZE, MV_XOR_BASE)
-WIN_REG_IDX_RD2(win_xor, har, MV_WIN_XOR_REMAP, MV_XOR_BASE)
-WIN_REG_IDX_RD2(win_xor, ctrl, MV_WIN_XOR_CTRL, MV_XOR_BASE)
-WIN_REG_IDX_WR2(win_xor, br, MV_WIN_XOR_BASE, MV_XOR_BASE)
-WIN_REG_IDX_WR2(win_xor, sz, MV_WIN_XOR_SIZE, MV_XOR_BASE)
-WIN_REG_IDX_WR2(win_xor, har, MV_WIN_XOR_REMAP, MV_XOR_BASE)
-WIN_REG_IDX_WR2(win_xor, ctrl, MV_WIN_XOR_CTRL, MV_XOR_BASE)
+WIN_REG_BASE_IDX_RD2(win_xor, br, MV_WIN_XOR_BASE)
+WIN_REG_BASE_IDX_RD2(win_xor, sz, MV_WIN_XOR_SIZE)
+WIN_REG_BASE_IDX_RD2(win_xor, har, MV_WIN_XOR_REMAP)
+WIN_REG_BASE_IDX_RD2(win_xor, ctrl, MV_WIN_XOR_CTRL)
+WIN_REG_BASE_IDX_WR2(win_xor, br, MV_WIN_XOR_BASE)
+WIN_REG_BASE_IDX_WR2(win_xor, sz, MV_WIN_XOR_SIZE)
+WIN_REG_BASE_IDX_WR2(win_xor, har, MV_WIN_XOR_REMAP)
+WIN_REG_BASE_IDX_WR2(win_xor, ctrl, MV_WIN_XOR_CTRL)
 
 WIN_REG_BASE_RD(win_eth, bare, 0x290)
 WIN_REG_BASE_RD(win_eth, epap, 0x294)
@@ -388,21 +478,21 @@ WIN_REG_BASE_IDX_WR(win_pcie, br, MV_WIN_PCIE_BASE);
 WIN_REG_BASE_IDX_WR(win_pcie, remap, MV_WIN_PCIE_REMAP);
 WIN_REG_BASE_IDX_WR(pcie, bar, MV_PCIE_BAR);
 
-WIN_REG_IDX_RD(win_idma, br, MV_WIN_IDMA_BASE, MV_IDMA_BASE)
-WIN_REG_IDX_RD(win_idma, sz, MV_WIN_IDMA_SIZE, MV_IDMA_BASE)
-WIN_REG_IDX_RD(win_idma, har, MV_WIN_IDMA_REMAP, MV_IDMA_BASE)
-WIN_REG_IDX_RD(win_idma, cap, MV_WIN_IDMA_CAP, MV_IDMA_BASE)
-WIN_REG_IDX_WR(win_idma, br, MV_WIN_IDMA_BASE, MV_IDMA_BASE)
-WIN_REG_IDX_WR(win_idma, sz, MV_WIN_IDMA_SIZE, MV_IDMA_BASE)
-WIN_REG_IDX_WR(win_idma, har, MV_WIN_IDMA_REMAP, MV_IDMA_BASE)
-WIN_REG_IDX_WR(win_idma, cap, MV_WIN_IDMA_CAP, MV_IDMA_BASE)
-WIN_REG_RD(win_idma, bare, 0xa80, MV_IDMA_BASE)
-WIN_REG_WR(win_idma, bare, 0xa80, MV_IDMA_BASE)
+WIN_REG_BASE_IDX_RD(win_idma, br, MV_WIN_IDMA_BASE)
+WIN_REG_BASE_IDX_RD(win_idma, sz, MV_WIN_IDMA_SIZE)
+WIN_REG_BASE_IDX_RD(win_idma, har, MV_WIN_IDMA_REMAP)
+WIN_REG_BASE_IDX_RD(win_idma, cap, MV_WIN_IDMA_CAP)
+WIN_REG_BASE_IDX_WR(win_idma, br, MV_WIN_IDMA_BASE)
+WIN_REG_BASE_IDX_WR(win_idma, sz, MV_WIN_IDMA_SIZE)
+WIN_REG_BASE_IDX_WR(win_idma, har, MV_WIN_IDMA_REMAP)
+WIN_REG_BASE_IDX_WR(win_idma, cap, MV_WIN_IDMA_CAP)
+WIN_REG_BASE_RD(win_idma, bare, 0xa80)
+WIN_REG_BASE_WR(win_idma, bare, 0xa80)
 
-WIN_REG_IDX_RD(win_sata, cr, MV_WIN_SATA_CTRL, MV_SATAHC_BASE);
-WIN_REG_IDX_RD(win_sata, br, MV_WIN_SATA_BASE, MV_SATAHC_BASE);
-WIN_REG_IDX_WR(win_sata, cr, MV_WIN_SATA_CTRL, MV_SATAHC_BASE);
-WIN_REG_IDX_WR(win_sata, br, MV_WIN_SATA_BASE, MV_SATAHC_BASE);
+WIN_REG_BASE_IDX_RD(win_sata, cr, MV_WIN_SATA_CTRL);
+WIN_REG_BASE_IDX_RD(win_sata, br, MV_WIN_SATA_BASE);
+WIN_REG_BASE_IDX_WR(win_sata, cr, MV_WIN_SATA_CTRL);
+WIN_REG_BASE_IDX_WR(win_sata, br, MV_WIN_SATA_BASE);
 
 /**************************************************************************
  * Decode windows helper routines
@@ -428,31 +518,11 @@ soc_dump_decode_win(void)
 		printf("\n");
 	}
 	printf("Internal regs base: 0x%08x\n",
-	    bus_space_read_4(obio_tag, MV_INTREGS_BASE, 0));
+	    bus_space_read_4(fdtbus_bs_tag, MV_INTREGS_BASE, 0));
 
 	for (i = 0; i < MV_WIN_DDR_MAX; i++)
 		printf("DDR CS#%d: b 0x%08x, s 0x%08x\n", i,
 		    ddr_br_read(i), ddr_sz_read(i));
-
-	for (i = 0; i < MV_WIN_ETH_MAX; i++) {
-		printf("ETH window#%d: b 0x%08x, s 0x%08x", i,
-		    win_eth_br_read(MV_ETH0_BASE, i),
-		    win_eth_sz_read(MV_ETH0_BASE, i));
-
-		if (win_eth_can_remap(i))
-			printf(", ha 0x%08x",
-			    win_eth_har_read(MV_ETH0_BASE, i));
-
-		printf("\n");
-	}
-	printf("ETH windows: bare 0x%08x, epap 0x%08x\n",
-	    win_eth_bare_read(MV_ETH0_BASE),
-	    win_eth_epap_read(MV_ETH0_BASE));
-
-	decode_win_idma_dump();
-	decode_win_cesa_dump();
-	decode_win_usb_dump();
-	printf("\n");
 }
 
 /**************************************************************************
@@ -511,7 +581,7 @@ decode_win_cpu_valid(void)
 
 	if (cpu_wins_no > MV_WIN_CPU_MAX) {
 		printf("CPU windows: too many entries: %d\n", cpu_wins_no);
-		return (-1);
+		return (0);
 	}
 
 	rv = 1;
@@ -564,7 +634,7 @@ decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
 	int win;
 
 	if (used_cpu_wins >= MV_WIN_CPU_MAX)
-		return (-1);
+		return (0);
 
 	win = used_cpu_wins++;
 
@@ -694,70 +764,59 @@ decode_win_usb_valid(void)
 	return (decode_win_can_cover_ddr(MV_WIN_USB_MAX));
 }
 
-static __inline int
-usb_max_ports(void)
-{
-	uint32_t dev, rev;
-
-	soc_id(&dev, &rev);
-	return ((dev == MV_DEV_MV78100 || dev == MV_DEV_MV78100_Z0) ? 3 : 1);
-}
-
 static void
-decode_win_usb_dump(void)
+decode_win_usb_dump(u_long base)
 {
-	int i, p, m;
+	int i;
 
-	m = usb_max_ports();
-	for (p = 0; p < m; p++)
-		for (i = 0; i < MV_WIN_USB_MAX; i++)
-			printf("USB window#%d: c 0x%08x, b 0x%08x\n", i,
-			    win_usb_cr_read(i, p), win_usb_br_read(i, p));
+	if (pm_is_disabled(CPU_PM_CTRL_USB(usb_port - 1)))
+		return;
+
+	for (i = 0; i < MV_WIN_USB_MAX; i++)
+		printf("USB window#%d: c 0x%08x, b 0x%08x\n", i,
+		    win_usb_cr_read(base, i), win_usb_br_read(base, i));
 }
 
 /*
  * Set USB decode windows.
  */
 static void
-decode_win_usb_setup(void)
+decode_win_usb_setup(u_long base)
 {
 	uint32_t br, cr;
-	int i, j, p, m;
+	int i, j;
 
-	/* Disable and clear all USB windows for all ports */
-	m = usb_max_ports();
 
-	for (p = 0; p < m; p++) {
+	if (pm_is_disabled(CPU_PM_CTRL_USB(usb_port)))
+		return;
 
-		if (pm_is_disabled(CPU_PM_CTRL_USB(p)))
-			continue;
+	usb_port++;
 
-		for (i = 0; i < MV_WIN_USB_MAX; i++) {
-			win_usb_cr_write(i, p, 0);
-			win_usb_br_write(i, p, 0);
-		}
+	for (i = 0; i < MV_WIN_USB_MAX; i++) {
+		win_usb_cr_write(base, i, 0);
+		win_usb_br_write(base, i, 0);
+	}
 
-		/* Only access to active DRAM banks is required */
-		for (i = 0; i < MV_WIN_DDR_MAX; i++) {
-			if (ddr_is_active(i)) {
-				br = ddr_base(i);
-				/*
-				 * XXX for 6281 we should handle Mbus write
-				 * burst limit field in the ctrl reg
-				 */
-				cr = (((ddr_size(i) - 1) & 0xffff0000) |
-				    (ddr_attr(i) << 8) |
-				    (ddr_target(i) << 4) | 1);
+	/* Only access to active DRAM banks is required */
+	for (i = 0; i < MV_WIN_DDR_MAX; i++) {
+		if (ddr_is_active(i)) {
+			br = ddr_base(i);
+			/*
+			 * XXX for 6281 we should handle Mbus write
+			 * burst limit field in the ctrl reg
+			 */
+			cr = (((ddr_size(i) - 1) & 0xffff0000) |
+			    (ddr_attr(i) << 8) |
+			    (ddr_target(i) << 4) | 1);
 
-				/* Set the first free USB window */
-				for (j = 0; j < MV_WIN_USB_MAX; j++) {
-					if (win_usb_cr_read(j, p) & 0x1)
-						continue;
+			/* Set the first free USB window */
+			for (j = 0; j < MV_WIN_USB_MAX; j++) {
+				if (win_usb_cr_read(base, j) & 0x1)
+					continue;
 
-					win_usb_br_write(j, p, br);
-					win_usb_cr_write(j, p, cr);
-					break;
-				}
+				win_usb_br_write(base, j, br);
+				win_usb_cr_write(base, j, cr);
+				break;
 			}
 		}
 	}
@@ -812,13 +871,39 @@ eth_epap_write(uint32_t base, int i, int val)
 }
 
 static void
-decode_win_eth_setup(uint32_t base)
+decode_win_eth_dump(u_long base)
+{
+	int i;
+
+	if (pm_is_disabled(CPU_PM_CTRL_GE(eth_port - 1)))
+		return;
+
+	for (i = 0; i < MV_WIN_ETH_MAX; i++) {
+		printf("ETH window#%d: b 0x%08x, s 0x%08x", i,
+		    win_eth_br_read(base, i),
+		    win_eth_sz_read(base, i));
+
+		if (win_eth_can_remap(i))
+			printf(", ha 0x%08x",
+			    win_eth_har_read(base, i));
+
+		printf("\n");
+	}
+	printf("ETH windows: bare 0x%08x, epap 0x%08x\n",
+	    win_eth_bare_read(base),
+	    win_eth_epap_read(base));
+}
+
+static void
+decode_win_eth_setup(u_long base)
 {
 	uint32_t br, sz;
 	int i, j;
 
-	if (pm_is_disabled(obio_get_pm_mask(base)))
+	if (pm_is_disabled(CPU_PM_CTRL_GE(eth_port)))
 		return;
+
+	eth_port++;
 
 	/* Disable, clear and revoke protection for all ETH windows */
 	for (i = 0; i < MV_WIN_ETH_MAX; i++) {
@@ -870,7 +955,7 @@ decode_win_eth_valid(void)
  **************************************************************************/
 
 static void
-decode_win_pcie_setup(uint32_t base)
+decode_win_pcie_setup(u_long base)
 {
 	uint32_t size = 0;
 	uint32_t cr, br;
@@ -926,51 +1011,51 @@ decode_win_pcie_valid(void)
  **************************************************************************/
 #if defined(SOC_MV_ORION) || defined(SOC_MV_DISCOVERY)
 static int
-idma_bare_read(int i)
+idma_bare_read(u_long base, int i)
 {
 	uint32_t v;
 
-	v = win_idma_bare_read();
+	v = win_idma_bare_read(base);
 	v &= (1 << i);
 
 	return (v >> i);
 }
 
 static void
-idma_bare_write(int i, int val)
+idma_bare_write(u_long base, int i, int val)
 {
 	uint32_t v;
 
-	v = win_idma_bare_read();
+	v = win_idma_bare_read(base);
 	v &= ~(1 << i);
 	v |= (val << i);
-	win_idma_bare_write(v);
+	win_idma_bare_write(base, v);
 }
 
 /*
  * Sets channel protection 'val' for window 'w' on channel 'c'
  */
 static void
-idma_cap_write(int c, int w, int val)
+idma_cap_write(u_long base, int c, int w, int val)
 {
 	uint32_t v;
 
-	v = win_idma_cap_read(c);
+	v = win_idma_cap_read(base, c);
 	v &= ~(0x3 << (w * 2));
 	v |= (val << (w * 2));
-	win_idma_cap_write(c, v);
+	win_idma_cap_write(base, c, v);
 }
 
 /*
  * Set protection 'val' on all channels for window 'w'
  */
 static void
-idma_set_prot(int w, int val)
+idma_set_prot(u_long base, int w, int val)
 {
 	int c;
 
 	for (c = 0; c < MV_IDMA_CHAN_MAX; c++)
-		idma_cap_write(c, w, val);
+		idma_cap_write(base, c, w, val);
 }
 
 static int
@@ -985,7 +1070,7 @@ win_idma_can_remap(int i)
 }
 
 void
-decode_win_idma_setup(void)
+decode_win_idma_setup(u_long base)
 {
 	uint32_t br, sz;
 	int i, j;
@@ -997,14 +1082,14 @@ decode_win_idma_setup(void)
 	 */
 	for (i = 0; i < MV_WIN_IDMA_MAX; i++) {
 
-		idma_bare_write(i, 1);
-		win_idma_br_write(i, 0);
-		win_idma_sz_write(i, 0);
+		idma_bare_write(base, i, 1);
+		win_idma_br_write(base, i, 0);
+		win_idma_sz_write(base, i, 0);
 		if (win_idma_can_remap(i) == 1)
-			win_idma_har_write(i, 0);
+			win_idma_har_write(base, i, 0);
 	}
 	for (i = 0; i < MV_IDMA_CHAN_MAX; i++)
-		win_idma_cap_write(i, 0);
+		win_idma_cap_write(base, i, 0);
 
 	/*
 	 * Set up access to all active DRAM banks
@@ -1017,17 +1102,17 @@ decode_win_idma_setup(void)
 			/* Place DDR entries in non-remapped windows */
 			for (j = 0; j < MV_WIN_IDMA_MAX; j++)
 				if (win_idma_can_remap(j) != 1 &&
-				    idma_bare_read(j) == 1) {
+				    idma_bare_read(base, j) == 1) {
 
 					/* Configure window */
-					win_idma_br_write(j, br);
-					win_idma_sz_write(j, sz);
+					win_idma_br_write(base, j, br);
+					win_idma_sz_write(base, j, sz);
 
 					/* Set protection RW on all channels */
-					idma_set_prot(j, 0x3);
+					idma_set_prot(base, j, 0x3);
 
 					/* Enable window */
-					idma_bare_write(j, 0);
+					idma_bare_write(base, j, 0);
 					break;
 				}
 		}
@@ -1043,21 +1128,22 @@ decode_win_idma_setup(void)
 
 			/* Set the first free IDMA window */
 			for (j = 0; j < MV_WIN_IDMA_MAX; j++) {
-				if (idma_bare_read(j) == 0)
+				if (idma_bare_read(base, j) == 0)
 					continue;
 
 				/* Configure window */
-				win_idma_br_write(j, br);
-				win_idma_sz_write(j, sz);
+				win_idma_br_write(base, j, br);
+				win_idma_sz_write(base, j, sz);
 				if (win_idma_can_remap(j) &&
 				    idma_wins[j].remap >= 0)
-					win_idma_har_write(j, idma_wins[j].remap);
+					win_idma_har_write(base, j,
+					    idma_wins[j].remap);
 
 				/* Set protection RW on all channels */
-				idma_set_prot(j, 0x3);
+				idma_set_prot(base, j, 0x3);
 
 				/* Enable window */
-				idma_bare_write(j, 0);
+				idma_bare_write(base, j, 0);
 				break;
 			}
 		}
@@ -1072,7 +1158,7 @@ decode_win_idma_valid(void)
 
 	if (idma_wins_no > MV_WIN_IDMA_MAX) {
 		printf("IDMA windows: too many entries: %d\n", idma_wins_no);
-		return (-1);
+		return (0);
 	}
 	for (i = 0, c = 0; i < MV_WIN_DDR_MAX; i++)
 		if (ddr_is_active(i))
@@ -1081,7 +1167,7 @@ decode_win_idma_valid(void)
 	if (idma_wins_no > (MV_WIN_IDMA_MAX - c)) {
 		printf("IDMA windows: too many entries: %d, available: %d\n",
 		    idma_wins_no, MV_WIN_IDMA_MAX - c);
-		return (-1);
+		return (0);
 	}
 
 	wintab = idma_wins;
@@ -1126,23 +1212,26 @@ decode_win_idma_valid(void)
 }
 
 void
-decode_win_idma_dump(void)
+decode_win_idma_dump(u_long base)
 {
 	int i;
 
+	if (pm_is_disabled(CPU_PM_CTRL_IDMA))
+		return;
+
 	for (i = 0; i < MV_WIN_IDMA_MAX; i++) {
 		printf("IDMA window#%d: b 0x%08x, s 0x%08x", i,
-		    win_idma_br_read(i), win_idma_sz_read(i));
+		    win_idma_br_read(base, i), win_idma_sz_read(base, i));
 		
 		if (win_idma_can_remap(i))
-			printf(", ha 0x%08x", win_idma_har_read(i));
+			printf(", ha 0x%08x", win_idma_har_read(base, i));
 
 		printf("\n");
 	}
 	for (i = 0; i < MV_IDMA_CHAN_MAX; i++)
 		printf("IDMA channel#%d: ap 0x%08x\n", i,
-		    win_idma_cap_read(i));
-	printf("IDMA windows: bare 0x%08x\n", win_idma_bare_read());
+		    win_idma_cap_read(base, i));
+	printf("IDMA windows: bare 0x%08x\n", win_idma_bare_read(base));
 }
 #else
 
@@ -1155,12 +1244,12 @@ decode_win_idma_valid(void)
 }
 
 void
-decode_win_idma_setup(void)
+decode_win_idma_setup(u_long base)
 {
 }
 
 void
-decode_win_idma_dump(void)
+decode_win_idma_dump(u_long base)
 {
 }
 #endif
@@ -1170,24 +1259,24 @@ decode_win_idma_dump(void)
  **************************************************************************/
 #if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 static int
-xor_ctrl_read(int i, int c, int e)
+xor_ctrl_read(u_long base, int i, int c, int e)
 {
 	uint32_t v;
-	v = win_xor_ctrl_read(c, e);
+	v = win_xor_ctrl_read(base, c, e);
 	v &= (1 << i);
 
 	return (v >> i);
 }
 
 static void
-xor_ctrl_write(int i, int c, int e, int val)
+xor_ctrl_write(u_long base, int i, int c, int e, int val)
 {
 	uint32_t v;
 
-	v = win_xor_ctrl_read(c, e);
+	v = win_xor_ctrl_read(base, c, e);
 	v &= ~(1 << i);
 	v |= (val << i);
-	win_xor_ctrl_write(c, e, v);
+	win_xor_ctrl_write(base, c, e, v);
 }
 
 /*
@@ -1195,26 +1284,26 @@ xor_ctrl_write(int i, int c, int e, int val)
  */
 
 static void
-xor_chan_write(int c, int e, int w, int val)
+xor_chan_write(u_long base, int c, int e, int w, int val)
 {
 	uint32_t v;
 
-	v = win_xor_ctrl_read(c, e);
+	v = win_xor_ctrl_read(base, c, e);
 	v &= ~(0x3 << (w * 2 + 16));
 	v |= (val << (w * 2 + 16));
-	win_xor_ctrl_write(c, e, v);
+	win_xor_ctrl_write(base, c, e, v);
 }
 
 /*
  * Set protection 'val' on all channels for window 'w' on engine 'e'
  */
 static void
-xor_set_prot(int w, int e, int val)
+xor_set_prot(u_long base, int w, int e, int val)
 {
 	int c;
 
 	for (c = 0; c < MV_XOR_CHAN_MAX; c++)
-		xor_chan_write(c, e, w, val);
+		xor_chan_write(base, c, e, w, val);
 }
 
 static int
@@ -1243,7 +1332,7 @@ xor_max_eng(void)
 }
 
 static void
-xor_active_dram(int c, int e, int *window)
+xor_active_dram(u_long base, int c, int e, int *window)
 {
 	uint32_t br, sz;
 	int i, m, w;
@@ -1261,17 +1350,17 @@ xor_active_dram(int c, int e, int *window)
 			/* Place DDR entries in non-remapped windows */
 			for (w = 0; w < MV_WIN_XOR_MAX; w++)
 				if (win_xor_can_remap(w) != 1 &&
-				    (xor_ctrl_read(w, c, e) == 0) &&
+				    (xor_ctrl_read(base, w, c, e) == 0) &&
 				    w > *window) {
 					/* Configure window */
-					win_xor_br_write(w, e, br);
-					win_xor_sz_write(w, e, sz);
+					win_xor_br_write(base, w, e, br);
+					win_xor_sz_write(base, w, e, sz);
 
 					/* Set protection RW on all channels */
-					xor_set_prot(w, e, 0x3);
+					xor_set_prot(base, w, e, 0x3);
 
 					/* Enable window */
-					xor_ctrl_write(w, c, e, 1);
+					xor_ctrl_write(base, w, c, e, 1);
 					(*window)++;
 					break;
 				}
@@ -1279,7 +1368,7 @@ xor_active_dram(int c, int e, int *window)
 }
 
 void
-decode_win_xor_setup(void)
+decode_win_xor_setup(u_long base)
 {
 	uint32_t br, sz;
 	int i, j, z, e = 1, m, window;
@@ -1298,16 +1387,16 @@ decode_win_xor_setup(void)
 		window = MV_XOR_NON_REMAP - 1;
 
 		for (i = 0; i < MV_WIN_XOR_MAX; i++) {
-			win_xor_br_write(i, e, 0);
-			win_xor_sz_write(i, e, 0);
+			win_xor_br_write(base, i, e, 0);
+			win_xor_sz_write(base, i, e, 0);
 		}
 
 		if (win_xor_can_remap(i) == 1)
-			win_xor_har_write(i, e, 0);
+			win_xor_har_write(base, i, e, 0);
 
 		for (i = 0; i < MV_XOR_CHAN_MAX; i++) {
-			win_xor_ctrl_write(i, e, 0);
-			xor_active_dram(i, e, &window);
+			win_xor_ctrl_write(base, i, e, 0);
+			xor_active_dram(base, i, e, &window);
 		}
 
 		/*
@@ -1322,24 +1411,24 @@ decode_win_xor_setup(void)
 
 				/* Set the first free XOR window */
 				for (z = 0; z < MV_WIN_XOR_MAX; z++) {
-					if (xor_ctrl_read(z, 0, e) &&
-					    xor_ctrl_read(z, 1, e))
+					if (xor_ctrl_read(base, z, 0, e) &&
+					    xor_ctrl_read(base, z, 1, e))
 						continue;
 
 					/* Configure window */
-					win_xor_br_write(z, e, br);
-					win_xor_sz_write(z, e, sz);
+					win_xor_br_write(base, z, e, br);
+					win_xor_sz_write(base, z, e, sz);
 					if (win_xor_can_remap(z) &&
 					    xor_wins[z].remap >= 0)
-						win_xor_har_write(z, e,
+						win_xor_har_write(base, z, e,
 						    xor_wins[z].remap);
 
 					/* Set protection RW on all channels */
-					xor_set_prot(z, e, 0x3);
+					xor_set_prot(base, z, e, 0x3);
 
 					/* Enable window */
-					xor_ctrl_write(z, 0, e, 1);
-					xor_ctrl_write(z, 1, e, 1);
+					xor_ctrl_write(base, z, 0, e, 1);
+					xor_ctrl_write(base, z, 1, e, 1);
 					break;
 				}
 			}
@@ -1355,7 +1444,7 @@ decode_win_xor_valid(void)
 
 	if (xor_wins_no > MV_WIN_XOR_MAX) {
 		printf("XOR windows: too many entries: %d\n", xor_wins_no);
-		return (-1);
+		return (0);
 	}
 	for (i = 0, c = 0; i < MV_WIN_DDR_MAX; i++)
 		if (ddr_is_active(i))
@@ -1364,7 +1453,7 @@ decode_win_xor_valid(void)
 	if (xor_wins_no > (MV_WIN_XOR_MAX - c)) {
 		printf("XOR windows: too many entries: %d, available: %d\n",
 		    xor_wins_no, MV_WIN_IDMA_MAX - c);
-		return (-1);
+		return (0);
 	}
 
 	wintab = xor_wins;
@@ -1411,43 +1500,46 @@ decode_win_xor_valid(void)
 }
 
 void
-decode_win_xor_dump(void)
+decode_win_xor_dump(u_long base)
 {
 	int i, j;
 	int e = 1;
 
+	if (pm_is_disabled(CPU_PM_CTRL_XOR))
+		return;
+
 	for (j = 0; j < xor_max_eng(); j++, e--) {
 		for (i = 0; i < MV_WIN_XOR_MAX; i++) {
 			printf("XOR window#%d: b 0x%08x, s 0x%08x", i,
-			    win_xor_br_read(i, e), win_xor_sz_read(i, e));
+			    win_xor_br_read(base, i, e), win_xor_sz_read(base, i, e));
 
 			if (win_xor_can_remap(i))
-				printf(", ha 0x%08x", win_xor_har_read(i, e));
+				printf(", ha 0x%08x", win_xor_har_read(base, i, e));
 
 			printf("\n");
 		}
 		for (i = 0; i < MV_XOR_CHAN_MAX; i++)
 			printf("XOR control#%d: 0x%08x\n", i,
-			    win_xor_ctrl_read(i, e));
+			    win_xor_ctrl_read(base, i, e));
 	}
 }
 
 #else
 /* Provide dummy functions to satisfy the build for SoCs not equipped with XOR */
-int
+static int
 decode_win_xor_valid(void)
 {
 
 	return (1);
 }
 
-void
-decode_win_xor_setup(void)
+static void
+decode_win_xor_setup(u_long base)
 {
 }
 
-void
-decode_win_xor_dump(void)
+static void
+decode_win_xor_dump(u_long base)
 {
 }
 #endif
@@ -1460,13 +1552,16 @@ decode_win_xor_dump(void)
  * Dump CESA TDMA decode windows.
  */
 static void
-decode_win_cesa_dump(void)
+decode_win_cesa_dump(u_long base)
 {
 	int i;
 
+	if (pm_is_disabled(CPU_PM_CTRL_CRYPTO))
+		return;
+
 	for (i = 0; i < MV_WIN_CESA_MAX; i++)
 		printf("CESA window#%d: c 0x%08x, b 0x%08x\n", i,
-		    win_cesa_cr_read(i), win_cesa_br_read(i));
+		    win_cesa_cr_read(base, i), win_cesa_br_read(base, i));
 }
 
 
@@ -1474,7 +1569,7 @@ decode_win_cesa_dump(void)
  * Set CESA TDMA decode windows.
  */
 static void
-decode_win_cesa_setup(void)
+decode_win_cesa_setup(u_long base)
 {
 	uint32_t br, cr;
 	int i, j;
@@ -1484,8 +1579,8 @@ decode_win_cesa_setup(void)
 
 	/* Disable and clear all CESA windows */
 	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
-		win_cesa_cr_write(i, 0);
-		win_cesa_br_write(i, 0);
+		win_cesa_cr_write(base, i, 0);
+		win_cesa_br_write(base, i, 0);
 	}
 
 	/* Only access to active DRAM banks is required. */
@@ -1497,11 +1592,11 @@ decode_win_cesa_setup(void)
 
 			/* Set the first available CESA window */
 			for (j = 0; j < MV_WIN_CESA_MAX; j++) {
-				if (win_cesa_cr_read(j) & 0x1)
+				if (win_cesa_cr_read(base, j) & 0x1)
 					continue;
 
-				win_cesa_br_write(j, br);
-				win_cesa_cr_write(j, cr);
+				win_cesa_br_write(base, j, br);
+				win_cesa_cr_write(base, j, cr);
 				break;
 			}
 		}
@@ -1523,20 +1618,20 @@ decode_win_cesa_valid(void)
  * CESA
  */
 
-int
+static int
 decode_win_cesa_valid(void)
 {
 
 	return (1);
 }
 
-void
-decode_win_cesa_setup(void)
+static void
+decode_win_cesa_setup(u_long base)
 {
 }
 
-void
-decode_win_cesa_dump(void)
+static void
+decode_win_cesa_dump(u_long base)
 {
 }
 #endif
@@ -1545,7 +1640,7 @@ decode_win_cesa_dump(void)
  * SATA windows routines
  **************************************************************************/
 static void
-decode_win_sata_setup(void)
+decode_win_sata_setup(u_long base)
 {
 	uint32_t cr, br;
 	int i, j;
@@ -1554,8 +1649,8 @@ decode_win_sata_setup(void)
 		return;
 
 	for (i = 0; i < MV_WIN_SATA_MAX; i++) {
-		win_sata_cr_write(i, 0);
-		win_sata_br_write(i, 0);
+		win_sata_cr_write(base, i, 0);
+		win_sata_br_write(base, i, 0);
 	}
 
 	for (i = 0; i < MV_WIN_DDR_MAX; i++)
@@ -1566,11 +1661,11 @@ decode_win_sata_setup(void)
 
 			/* Use the first available SATA window */
 			for (j = 0; j < MV_WIN_SATA_MAX; j++) {
-				if ((win_sata_cr_read(j) & 1) != 0)
+				if ((win_sata_cr_read(base, j) & 1) != 0)
 					continue;
 
-				win_sata_br_write(j, br);
-				win_sata_cr_write(j, cr);
+				win_sata_br_write(base, j, br);
+				win_sata_cr_write(base, j, cr);
 				break;
 			}
 		}
@@ -1586,4 +1681,156 @@ decode_win_sata_valid(void)
 		return (1);
 
 	return (decode_win_can_cover_ddr(MV_WIN_SATA_MAX));
+}
+
+/**************************************************************************
+ * FDT parsing routines.
+ **************************************************************************/
+
+static int
+fdt_get_ranges(const char *nodename, void *buf, int size, int *tuples,
+    int *tuplesize)
+{
+	phandle_t node;
+	pcell_t addr_cells, par_addr_cells, size_cells;
+	int len, tuple_size, tuples_count;
+
+	node = OF_finddevice(nodename);
+	if (node <= 0)
+		return (EINVAL);
+
+	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
+		return (ENXIO);
+
+	par_addr_cells = fdt_parent_addr_cells(node);
+	if (par_addr_cells > 2)
+		return (ERANGE);
+
+	tuple_size = sizeof(pcell_t) * (addr_cells + par_addr_cells +
+	    size_cells);
+
+	/* Note the OF_getprop_alloc() cannot be used at this early stage. */
+	len = OF_getprop(node, "ranges", buf, size);
+
+	/*
+	 * XXX this does not handle the empty 'ranges;' case, which is
+	 * legitimate and should be allowed.
+	 */
+	tuples_count = len / tuple_size;
+	if (tuples_count <= 0)
+		return (ERANGE);
+
+	if (fdt_ranges_verify(buf, tuples_count, par_addr_cells,
+	    addr_cells, size_cells) != 0)
+		return (ERANGE);
+
+	*tuples = tuples_count;
+	*tuplesize = tuple_size;
+	return (0);
+}
+
+static int
+win_cpu_from_dt(void)
+{
+	pcell_t ranges[48];
+	u_long sram_base, sram_size;
+	phandle_t node;
+	int i, entry_size, err, t, tuple_size, tuples;
+
+	/* Retrieve 'ranges' property of '/localbus' node. */
+	if ((err = fdt_get_ranges("/localbus", ranges, sizeof(ranges),
+	    &tuples, &tuple_size)) != 0)
+		return (err);
+
+	/*
+	 * Fill CPU decode windows table.
+	 */
+	bzero((void *)&cpu_win_tbl, sizeof(cpu_win_tbl));
+
+	entry_size = tuple_size / sizeof(pcell_t);
+	cpu_wins_no = tuples;
+
+	for (i = 0, t = 0; t < tuples; i += entry_size, t++) {
+		cpu_win_tbl[t].target = 1;
+		cpu_win_tbl[t].attr = fdt32_to_cpu(ranges[i + 1]);
+		cpu_win_tbl[t].base = fdt32_to_cpu(ranges[i + 2]);
+		cpu_win_tbl[t].size = fdt32_to_cpu(ranges[i + 3]);
+		cpu_win_tbl[t].remap = -1;
+		debugf("target = 0x%0x attr = 0x%0x base = 0x%0x "
+		    "size = 0x%0x remap = %d\n", cpu_win_tbl[t].target,
+		    cpu_win_tbl[t].attr, cpu_win_tbl[t].base,
+		    cpu_win_tbl[t].size, cpu_win_tbl[t].remap);
+	}
+
+	/*
+	 * Retrieve CESA SRAM data.
+	 */
+	if ((node = OF_finddevice("sram")) != 0)
+		if (fdt_is_compatible(node, "mrvl,cesa-sram"))
+			goto moveon;
+
+	if ((node = OF_finddevice("/")) == 0)
+		return (ENXIO);
+
+	if ((node = fdt_find_compatible(node, "mrvl,cesa-sram", 0)) == 0)
+		/* SRAM block is not always present. */
+		return (0);
+moveon:
+	sram_base = sram_size = 0;
+	if (fdt_regsize(node, &sram_base, &sram_size) != 0)
+		return (EINVAL);
+
+	cpu_win_tbl[++t].target = MV_WIN_CESA_TARGET;
+	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR;
+	cpu_win_tbl[t].base = sram_base;
+	cpu_win_tbl[t].size = sram_size;
+	cpu_win_tbl[t].remap = -1;
+	debugf("sram: base = 0x%0lx size = 0x%0lx\n", sram_base, sram_size);
+
+	return (0);
+}
+
+static int
+fdt_win_setup(void)
+{
+	phandle_t node, child;
+	struct soc_node_spec *soc_node;
+	u_long size, base;
+	int err, i;
+
+	node = OF_finddevice("/");
+	if (node == 0)
+		panic("fdt_win_setup: no root node");
+
+	node = fdt_find_compatible(node, "simple-bus", 1);
+	if (node == 0)
+		return (ENXIO);
+
+	/*
+	 * Traverse through all children of simple-bus node, and retrieve
+	 * decode windows data for devices (if applicable).
+	 */
+	for (child = OF_child(node); child != 0; child = OF_peer(child))
+		for (i = 0; soc_nodes[i].compat != NULL; i++) {
+
+			soc_node = &soc_nodes[i];
+
+			if (!fdt_is_compatible(child, soc_node->compat))
+				continue;
+
+			err = fdt_regsize(child, &base, &size);
+			if (err != 0)
+				return (err);
+
+			base += fdt_immr_va;
+			if (soc_node->decode_handler != NULL)
+				soc_node->decode_handler(base);
+			else
+				return (ENXIO);
+
+			if (MV_DUMP_WIN && (soc_node->dump_handler != NULL))
+				soc_node->dump_handler(base);
+		}
+
+	return (0);
 }

@@ -125,34 +125,34 @@ mb_reserve(struct mbchain *mbp, int size)
 }
 
 int
-mb_put_uint8(struct mbchain *mbp, u_int8_t x)
+mb_put_uint8(struct mbchain *mbp, uint8_t x)
 {
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
 int
-mb_put_uint16be(struct mbchain *mbp, u_int16_t x)
+mb_put_uint16be(struct mbchain *mbp, uint16_t x)
 {
 	x = htobe16(x);
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
 int
-mb_put_uint16le(struct mbchain *mbp, u_int16_t x)
+mb_put_uint16le(struct mbchain *mbp, uint16_t x)
 {
 	x = htole16(x);
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
 int
-mb_put_uint32be(struct mbchain *mbp, u_int32_t x)
+mb_put_uint32be(struct mbchain *mbp, uint32_t x)
 {
 	x = htobe32(x);
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
 }
 
 int
-mb_put_uint32le(struct mbchain *mbp, u_int32_t x)
+mb_put_uint32le(struct mbchain *mbp, uint32_t x)
 {
 	x = htole32(x);
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);
@@ -352,21 +352,21 @@ md_next_record(struct mdchain *mdp)
 }
 
 int
-md_get_uint8(struct mdchain *mdp, u_int8_t *x)
+md_get_uint8(struct mdchain *mdp, uint8_t *x)
 {
 	return md_get_mem(mdp, x, 1, MB_MINLINE);
 }
 
 int
-md_get_uint16(struct mdchain *mdp, u_int16_t *x)
+md_get_uint16(struct mdchain *mdp, uint16_t *x)
 {
 	return md_get_mem(mdp, (caddr_t)x, 2, MB_MINLINE);
 }
 
 int
-md_get_uint16le(struct mdchain *mdp, u_int16_t *x)
+md_get_uint16le(struct mdchain *mdp, uint16_t *x)
 {
-	u_int16_t v;
+	uint16_t v;
 	int error = md_get_uint16(mdp, &v);
 
 	if (x != NULL)
@@ -375,8 +375,9 @@ md_get_uint16le(struct mdchain *mdp, u_int16_t *x)
 }
 
 int
-md_get_uint16be(struct mdchain *mdp, u_int16_t *x) {
-	u_int16_t v;
+md_get_uint16be(struct mdchain *mdp, uint16_t *x)
+{
+	uint16_t v;
 	int error = md_get_uint16(mdp, &v);
 
 	if (x != NULL)
@@ -385,15 +386,15 @@ md_get_uint16be(struct mdchain *mdp, u_int16_t *x) {
 }
 
 int
-md_get_uint32(struct mdchain *mdp, u_int32_t *x)
+md_get_uint32(struct mdchain *mdp, uint32_t *x)
 {
 	return md_get_mem(mdp, (caddr_t)x, 4, MB_MINLINE);
 }
 
 int
-md_get_uint32be(struct mdchain *mdp, u_int32_t *x)
+md_get_uint32be(struct mdchain *mdp, uint32_t *x)
 {
-	u_int32_t v;
+	uint32_t v;
 	int error;
 
 	error = md_get_uint32(mdp, &v);
@@ -403,9 +404,9 @@ md_get_uint32be(struct mdchain *mdp, u_int32_t *x)
 }
 
 int
-md_get_uint32le(struct mdchain *mdp, u_int32_t *x)
+md_get_uint32le(struct mdchain *mdp, uint32_t *x)
 {
-	u_int32_t v;
+	uint32_t v;
 	int error;
 
 	error = md_get_uint32(mdp, &v);

@@ -35,6 +35,14 @@ extern int			mp_naps;
 extern int			boot_cpu_id;
 extern struct pcb		stoppcbs[];
 extern int			cpu_apic_ids[];
+#ifdef COUNT_IPIS
+extern u_long *ipi_invltlb_counts[MAXCPU];
+extern u_long *ipi_invlrng_counts[MAXCPU];
+extern u_long *ipi_invlpg_counts[MAXCPU];
+extern u_long *ipi_invlcache_counts[MAXCPU];
+extern u_long *ipi_rendezvous_counts[MAXCPU];
+extern u_long *ipi_lazypmap_counts[MAXCPU];
+#endif
 
 /* IPI handlers */
 inthand_t

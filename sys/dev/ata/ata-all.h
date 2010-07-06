@@ -625,6 +625,7 @@ void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
 char *ata_unit2str(struct ata_device *atadev);
 const char *ata_mode2str(int mode);
+int ata_str2mode(const char *str);
 const char *ata_satarev2str(int rev);
 int ata_atapi(device_t dev, int target);
 int ata_pmode(struct ata_params *ap);

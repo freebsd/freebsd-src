@@ -856,16 +856,11 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 {
 	struct ofwfb_softc *sc;
 	int i, j, k;
-	uint32_t *addr;
+	uint8_t *addr;
 	u_char fg, bg;
-	union {
-		uint32_t l[2];
-		uint8_t  c[8];
-	} ch;
-
 
 	sc = (struct ofwfb_softc *)adp;
-	addr = (u_int32_t *)((int)sc->sc_addr
+	addr = (u_int8_t *)((int)sc->sc_addr
 		+ (y + sc->sc_ymargin)*sc->sc_stride
 		+ x + sc->sc_xmargin);
 
@@ -873,12 +868,6 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 	bg = ofwfb_background(SC_NORM_ATTR);
 
 	for (i = 0; i < size && i+y < sc->sc_height - 2*sc->sc_ymargin; i++) {
-		/*
-		 * Use the current values for the line
-		 */
-		ch.l[0] = addr[0];
-		ch.l[1] = addr[1];
-
 		/*
 		 * Calculate 2 x 4-chars at a time, and then
 		 * write these out.
@@ -888,12 +877,10 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 				continue;
 
 			if (pixel_image[i] & (1 << k))
-				ch.c[j] = (ch.c[j] == fg) ? bg : fg;
+				addr[j] = (addr[j] == fg) ? bg : fg;
 		}
 
-		addr[0] = ch.l[0];
-		addr[1] = ch.l[1];
-		addr += (sc->sc_stride / sizeof(u_int32_t));
+		addr += (sc->sc_stride / sizeof(u_int8_t));
 	}
 
 	return (0);

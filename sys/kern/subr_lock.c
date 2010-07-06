@@ -139,8 +139,8 @@ struct lock_profile_object {
 	int		lpo_line;
 	uint16_t	lpo_ref;
 	uint16_t	lpo_cnt;
-	u_int64_t	lpo_acqtime;
-	u_int64_t	lpo_waittime;
+	uint64_t	lpo_acqtime;
+	uint64_t	lpo_waittime;
 	u_int		lpo_contest_locking;
 };
 
@@ -199,15 +199,15 @@ static int lock_prof_skipspin;
 static int lock_prof_skipcount;
 
 #ifndef USE_CPU_NANOSECONDS
-u_int64_t
+uint64_t
 nanoseconds(void)
 {
 	struct bintime bt;
-	u_int64_t ns;
+	uint64_t ns;
 
 	binuptime(&bt);
 	/* From bintime2timespec */
-	ns = bt.sec * (u_int64_t)1000000000;
+	ns = bt.sec * (uint64_t)1000000000;
 	ns += ((uint64_t)1000000000 * (uint32_t)(bt.frac >> 32)) >> 32;
 	return (ns);
 }
@@ -598,7 +598,7 @@ lock_profile_release_lock(struct lock_object *lo)
 	struct lock_profile_object *l;
 	struct lock_prof_type *type;
 	struct lock_prof *lp;
-	u_int64_t holdtime;
+	uint64_t curtime, holdtime;
 	struct lpohead *head;
 	int spin;
 
@@ -626,9 +626,11 @@ lock_profile_release_lock(struct lock_object *lo)
 	lp = lock_profile_lookup(lo, spin, l->lpo_file, l->lpo_line);
 	if (lp == NULL)
 		goto release;
-	holdtime = nanoseconds() - l->lpo_acqtime;
-	if (holdtime < 0)
+	curtime = nanoseconds();
+	if (curtime < l->lpo_acqtime)
 		goto release;
+	holdtime = curtime - l->lpo_acqtime;
+
 	/*
 	 * Record if the lock has been held longer now than ever
 	 * before.

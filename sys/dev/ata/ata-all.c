@@ -133,7 +133,9 @@ ata_attach(device_t dev)
     int error, rid;
 #ifdef ATA_CAM
     struct cam_devq *devq;
-    int i;
+    const char *res;
+    char buf[64];
+    int i, mode;
 #endif
 
     /* check that we have a virgin channel to attach */
@@ -152,6 +154,17 @@ ata_attach(device_t dev)
 #ifdef ATA_CAM
 	for (i = 0; i < 16; i++) {
 		ch->user[i].mode = 0;
+		snprintf(buf, sizeof(buf), "dev%d.mode", i);
+		if (resource_string_value(device_get_name(dev),
+		    device_get_unit(dev), buf, &res) == 0)
+			mode = ata_str2mode(res);
+		else if (resource_string_value(device_get_name(dev),
+		    device_get_unit(dev), "mode", &res) == 0)
+			mode = ata_str2mode(res);
+		else
+			mode = -1;
+		if (mode >= 0)
+			ch->user[i].mode = mode;
 		if (ch->flags & ATA_SATA)
 			ch->user[i].bytecount = 8192;
 		else
@@ -826,8 +839,10 @@ ata_getparam(struct ata_device *atadev, int init)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(atadev->dev));
     struct ata_request *request;
+    const char *res;
+    char buf[64];
     u_int8_t command = 0;
-    int error = ENOMEM, retries = 2;
+    int error = ENOMEM, retries = 2, mode = -1;
 
     if (ch->devices & (ATA_ATA_MASTER << atadev->unit))
 	command = ATA_ATA_IDENTIFY;
@@ -907,6 +922,15 @@ ata_getparam(struct ata_device *atadev, int init)
 		     ata_wmode(&atadev->param) > 0))
 		    atadev->mode = ATA_DMA_MAX;
 	    }
+	    snprintf(buf, sizeof(buf), "dev%d.mode", atadev->unit);
+	    if (resource_string_value(device_get_name(ch->dev),
+	        device_get_unit(ch->dev), buf, &res) == 0)
+		    mode = ata_str2mode(res);
+	    else if (resource_string_value(device_get_name(ch->dev),
+		device_get_unit(ch->dev), "mode", &res) == 0)
+		    mode = ata_str2mode(res);
+	    if (mode >= 0)
+		    atadev->mode = mode;
 	}
     }
     else {
@@ -1161,6 +1185,35 @@ ata_mode2str(int mode)
 	else
 	    return "BIOSPIO";
     }
+}
+
+int
+ata_str2mode(const char *str)
+{
+
+	if (!strcasecmp(str, "PIO0")) return (ATA_PIO0);
+	if (!strcasecmp(str, "PIO1")) return (ATA_PIO1);
+	if (!strcasecmp(str, "PIO2")) return (ATA_PIO2);
+	if (!strcasecmp(str, "PIO3")) return (ATA_PIO3);
+	if (!strcasecmp(str, "PIO4")) return (ATA_PIO4);
+	if (!strcasecmp(str, "WDMA0")) return (ATA_WDMA0);
+	if (!strcasecmp(str, "WDMA1")) return (ATA_WDMA1);
+	if (!strcasecmp(str, "WDMA2")) return (ATA_WDMA2);
+	if (!strcasecmp(str, "UDMA0")) return (ATA_UDMA0);
+	if (!strcasecmp(str, "UDMA16")) return (ATA_UDMA0);
+	if (!strcasecmp(str, "UDMA1")) return (ATA_UDMA1);
+	if (!strcasecmp(str, "UDMA25")) return (ATA_UDMA1);
+	if (!strcasecmp(str, "UDMA2")) return (ATA_UDMA2);
+	if (!strcasecmp(str, "UDMA33")) return (ATA_UDMA2);
+	if (!strcasecmp(str, "UDMA3")) return (ATA_UDMA3);
+	if (!strcasecmp(str, "UDMA44")) return (ATA_UDMA3);
+	if (!strcasecmp(str, "UDMA4")) return (ATA_UDMA4);
+	if (!strcasecmp(str, "UDMA66")) return (ATA_UDMA4);
+	if (!strcasecmp(str, "UDMA5")) return (ATA_UDMA5);
+	if (!strcasecmp(str, "UDMA100")) return (ATA_UDMA5);
+	if (!strcasecmp(str, "UDMA6")) return (ATA_UDMA6);
+	if (!strcasecmp(str, "UDMA133")) return (ATA_UDMA6);
+	return (-1);
 }
 
 const char *

@@ -49,7 +49,7 @@ bs_protos(generic);
 bs_protos(generic_armv4);
 
 /*
- * The obio bus space tag.  This is constant for all instances, so
+ * The bus space tag.  This is constant for all instances, so
  * we never have to explicitly "create" it.
  */
 static struct bus_space _base_tag = {
@@ -159,4 +159,4 @@ static struct bus_space _base_tag = {
 	NULL
 };
 
-bus_space_tag_t obio_tag = &_base_tag;
+bus_space_tag_t fdtbus_bs_tag = &_base_tag;

@@ -400,6 +400,7 @@ vendor ARASAN		0x07da	Arasan Chip Systems
 vendor ALLIEDCABLE	0x07e6	Allied Cable
 vendor STSN		0x07ef	STSN
 vendor CENTURY		0x07f7	Century Corp
+vendor UNKNOWN5		0x07ff	Unknown
 vendor ZOOM		0x0803	Zoom Telephonics
 vendor PCS		0x0810	Personal Communication Systems
 vendor ALPHASMART	0x081e	AlphaSmart, Inc.
@@ -3045,7 +3046,11 @@ product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
 /* Unknown vendors */
 product UNKNOWN4 USBMEMSTICK	0x6025	Flash Disk CBM
 
+/* Unknown vendors */
+product UNKNOWN5 USB2IDEBRIDGE	0x00ff	USB 2.0 ATA/SATA Bridge
+
 /* U.S. Robotics products */
+product USR USR5422		0x0118	USR5422 WLAN
 product USR USR5423		0x0121	USR5423 WLAN
 
 /* VIA Technologies products */

@@ -122,7 +122,6 @@ struct inode {
 #define	IN_MODIFIED	0x0008		/* Inode has been modified. */
 #define	IN_NEEDSYNC	0x0010		/* Inode requires fsync. */
 #define	IN_LAZYMOD	0x0040		/* Modified, but don't write yet. */
-#define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
 #define	IN_LAZYACCESS	0x0100		/* Process IN_ACCESS after the
 					   suspension finished */
 #define	IN_EA_LOCKED	0x0200

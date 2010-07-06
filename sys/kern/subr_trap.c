@@ -45,9 +45,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
-#ifdef __i386__
-#include "opt_npx.h"
-#endif
+#include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -64,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
@@ -74,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <machine/cpu.h>
-#include <machine/pcb.h>
 
 #ifdef XEN
 #include <vm/vm.h>
@@ -146,10 +144,6 @@ ast(struct trapframe *framep)
 	struct proc *p;
 	int flags;
 	int sig;
-#if defined(DEV_NPX) && !defined(SMP)
-	int ucode;
-	ksiginfo_t ksi;
-#endif
 
 	td = curthread;
 	p = td->td_proc;
@@ -189,19 +183,6 @@ ast(struct trapframe *framep)
 		psignal(p, SIGVTALRM);
 		PROC_UNLOCK(p);
 	}
-#if defined(DEV_NPX) && !defined(SMP)
-	if (PCPU_GET(curpcb)->pcb_flags & PCB_NPXTRAP) {
-		atomic_clear_int(&PCPU_GET(curpcb)->pcb_flags,
-		    PCB_NPXTRAP);
-		ucode = npxtrap();
-		if (ucode != -1) {
-			ksiginfo_init_trap(&ksi);
-			ksi.ksi_signo = SIGFPE;
-			ksi.ksi_code = ucode;
-			trapsignal(td, &ksi);
-		}
-	}
-#endif
 	if (flags & TDF_PROFPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGPROF);
@@ -264,10 +245,12 @@ const char *
 syscallname(struct proc *p, u_int code)
 {
 	static const char unknown[] = "unknown";
+	struct sysentvec *sv;
 
-	if (p->p_sysent->sv_syscallnames == NULL)
+	sv = p->p_sysent;
+	if (sv->sv_syscallnames == NULL || code >= sv->sv_size)
 		return (unknown);
-	return (p->p_sysent->sv_syscallnames[code]);
+	return (sv->sv_syscallnames[code]);
 }
 
 int
@@ -318,6 +301,9 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			if (error != 0)
 				goto retval;
 		}
+		error = syscall_thread_enter(td, sa->callp);
+		if (error != 0)
+			goto retval;
 
 #ifdef KDTRACE_HOOKS
 		/*
@@ -347,6 +333,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			(*systrace_probe_func)(sa->callp->sy_return, sa->code,
 			    sa->callp, sa->args);
 #endif
+		syscall_thread_exit(td, sa->callp);
 		CTR4(KTR_SYSC, "syscall: p=%p error=%d return %#lx %#lx",
 		    p, error, td->td_retval[0], td->td_retval[1]);
 	}

@@ -3285,8 +3285,8 @@ freebsd32_umtx_unlock(struct thread *td, struct freebsd32_umtx_unlock_args *uap)
 }
 
 struct timespec32 {
-	u_int32_t tv_sec;
-	u_int32_t tv_nsec;
+	uint32_t tv_sec;
+	uint32_t tv_nsec;
 };
 
 static inline int

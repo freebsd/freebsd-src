@@ -32,6 +32,12 @@
 
 INTERFACE pic;
 
+METHOD void bind {
+	device_t	dev;
+	u_int		irq;
+	cpumask_t	cpumask;
+};
+
 METHOD void config {
 	device_t	dev;
 	u_int		irq;
@@ -60,6 +66,10 @@ METHOD void ipi {
 	u_int		cpu;
 };
 
+METHOD uint32_t id {
+	device_t	dev;
+};
+
 METHOD void mask {
 	device_t	dev;
 	u_int		irq;
@@ -69,3 +79,4 @@ METHOD void unmask {
 	device_t	dev;
 	u_int		irq;
 };
+

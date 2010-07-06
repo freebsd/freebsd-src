@@ -159,6 +159,7 @@ AcpiDsBuildInternalObject (
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
+    ACPI_OBJECT_TYPE        Type;
 
 
     ACPI_FUNCTION_TRACE (DsBuildInternalObject);
@@ -241,7 +242,20 @@ AcpiDsBuildInternalObject (
                 return_ACPI_STATUS (Status);
             }
 
-            switch (Op->Common.Node->Type)
+            /*
+             * Special handling for Alias objects. We need to setup the type
+             * and the Op->Common.Node to point to the Alias target. Note,
+             * Alias has at most one level of indirection internally.
+             */
+            Type = Op->Common.Node->Type;
+            if (Type == ACPI_TYPE_LOCAL_ALIAS)
+            {
+                Type = ObjDesc->Common.Type;
+                Op->Common.Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
+                    Op->Common.Node->Object);
+            }
+
+            switch (Type)
             {
             /*
              * For these types, we need the actual node, not the subobject.

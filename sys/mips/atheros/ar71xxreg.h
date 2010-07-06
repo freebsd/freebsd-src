@@ -137,6 +137,29 @@
 #define		USB_CTRL_CONFIG_RESUME_UTMI_PLS_DIS	(1 << 1)
 #define		USB_CTRL_CONFIG_UTMI_BACKWARD_ENB	(1 << 0)
 
+#define	AR71XX_GPIO_BASE		0x18040000
+#define		AR71XX_GPIO_OE			0x00
+#define		AR71XX_GPIO_IN			0x04
+#define		AR71XX_GPIO_OUT			0x08
+#define		AR71XX_GPIO_SET			0x0c
+#define		AR71XX_GPIO_CLEAR		0x10
+#define		AR71XX_GPIO_INT			0x14
+#define		AR71XX_GPIO_INT_TYPE		0x18
+#define		AR71XX_GPIO_INT_POLARITY	0x1c
+#define		AR71XX_GPIO_INT_PENDING		0x20
+#define		AR71XX_GPIO_INT_MASK		0x24
+#define		AR71XX_GPIO_FUNCTION		0x28
+#define			GPIO_FUNC_STEREO_EN     (1 << 17)
+#define			GPIO_FUNC_SLIC_EN       (1 << 16)
+#define			GPIO_FUNC_SPI_CS1_EN    (1 << 15)
+				/* CS1 is shared with GPIO_1 */
+#define			GPIO_FUNC_SPI_CS0_EN    (1 << 14)
+				/* CS0 is shared with GPIO_0 */
+#define			GPIO_FUNC_SPI_EN        (1 << 13)
+#define			GPIO_FUNC_UART_EN       (1 << 8)
+#define			GPIO_FUNC_USB_OC_EN     (1 << 4)
+#define			GPIO_FUNC_USB_CLK_EN    (0)
+
 #define	AR71XX_BASE_FREQ		40000000
 #define	AR71XX_PLL_CPU_CONFIG		0x18050000
 #define		PLL_SW_UPDATE			(1 << 31)

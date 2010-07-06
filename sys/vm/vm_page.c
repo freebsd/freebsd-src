@@ -487,13 +487,12 @@ vm_page_flag_set(vm_page_t m, unsigned short bits)
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
-	 * For a managed page, the PG_WRITEABLE flag can be set only if
-	 * the page is VPO_BUSY.  Currently this flag is only set by
-	 * pmap_enter().
+	 * The PG_WRITEABLE flag can only be set if the page is managed and
+	 * VPO_BUSY.  Currently, this flag is only set by pmap_enter().
 	 */
 	KASSERT((bits & PG_WRITEABLE) == 0 ||
-	    (m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) != 0 ||
-	    (m->oflags & VPO_BUSY) != 0, ("PG_WRITEABLE and !VPO_BUSY"));
+	    ((m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) == 0 &&
+	    (m->oflags & VPO_BUSY) != 0), ("PG_WRITEABLE and !VPO_BUSY"));
 	m->flags |= bits;
 } 
 
@@ -502,6 +501,10 @@ vm_page_flag_clear(vm_page_t m, unsigned short bits)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	/*
+	 * The PG_REFERENCED flag can only be cleared if the object
+	 * containing the page is locked.
+	 */
 	KASSERT((bits & PG_REFERENCED) == 0 || VM_OBJECT_LOCKED(m->object),
 	    ("PG_REFERENCED and !VM_OBJECT_LOCKED"));
 	m->flags &= ~bits;
@@ -589,7 +592,7 @@ vm_page_unhold(vm_page_t mem)
 	vm_page_lock_assert(mem, MA_OWNED);
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
-	if (mem->hold_count == 0 && VM_PAGE_INQUEUE2(mem, PQ_HOLD))
+	if (mem->hold_count == 0 && mem->queue == PQ_HOLD)
 		vm_page_free_toq(mem);
 }
 
@@ -876,6 +879,67 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 }
 
 /*
+ *	vm_page_find_least:
+ *
+ *	Returns the page associated with the object with least pindex
+ *	greater than or equal to the parameter pindex, or NULL.
+ *
+ *	The object must be locked.
+ *	The routine may not block.
+ */
+vm_page_t
+vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
+{
+	vm_page_t m;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if ((m = TAILQ_FIRST(&object->memq)) != NULL) {
+		if (m->pindex < pindex) {
+			m = vm_page_splay(pindex, object->root);
+			if ((object->root = m)->pindex < pindex)
+				m = TAILQ_NEXT(m, listq);
+		}
+	}
+	return (m);
+}
+
+/*
+ * Returns the given page's successor (by pindex) within the object if it is
+ * resident; if none is found, NULL is returned.
+ *
+ * The object must be locked.
+ */
+vm_page_t
+vm_page_next(vm_page_t m)
+{
+	vm_page_t next;
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((next = TAILQ_NEXT(m, listq)) != NULL &&
+	    next->pindex != m->pindex + 1)
+		next = NULL;
+	return (next);
+}
+
+/*
+ * Returns the given page's predecessor (by pindex) within the object if it is
+ * resident; if none is found, NULL is returned.
+ *
+ * The object must be locked.
+ */
+vm_page_t
+vm_page_prev(vm_page_t m)
+{
+	vm_page_t prev;
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
+	    prev->pindex != m->pindex - 1)
+		prev = NULL;
+	return (prev);
+}
+
+/*
  *	vm_page_rename:
  *
  *	Move the given memory entry from its
@@ -1105,14 +1169,19 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
  *	Allocate and return a memory cell associated
  *	with this VM object/offset pair.
  *
- *	page_req classes:
+ *	The caller must always specify an allocation class.
+ *
+ *	allocation classes:
  *	VM_ALLOC_NORMAL		normal process request
  *	VM_ALLOC_SYSTEM		system *really* needs a page
  *	VM_ALLOC_INTERRUPT	interrupt time request
- *	VM_ALLOC_ZERO		zero page
+ *
+ *	optional allocation flags:
+ *	VM_ALLOC_ZERO		prefer a zeroed page
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_NOOBJ		page is not associated with a vm object
  *	VM_ALLOC_NOBUSY		do not set the page busy
+ *	VM_ALLOC_IFCACHED	return page only if it is cached
  *	VM_ALLOC_IFNOTCACHED	return NULL, do not reactivate if the page
  *				is cached
  *
@@ -1342,10 +1411,11 @@ vm_waitpfault(void)
 void
 vm_page_requeue(vm_page_t m)
 {
-	int queue = VM_PAGE_GETQUEUE(m);
 	struct vpgqueues *vpq;
+	int queue;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	queue = m->queue;
 	KASSERT(queue != PQ_NONE,
 	    ("vm_page_requeue: page %p is not queued", m));
 	vpq = &vm_page_queues[queue];
@@ -1383,12 +1453,12 @@ vm_page_queue_remove(int queue, vm_page_t m)
 void
 vm_pageq_remove(vm_page_t m)
 {
-	int queue = VM_PAGE_GETQUEUE(m);
+	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	if (queue != PQ_NONE) {
+	if ((queue = m->queue) != PQ_NONE) {
 		vm_page_lock_queues();
-		VM_PAGE_SETQUEUE2(m, PQ_NONE);
+		m->queue = PQ_NONE;
 		vm_page_queue_remove(queue, m);
 		vm_page_unlock_queues();
 	}
@@ -1407,7 +1477,7 @@ vm_page_enqueue(int queue, vm_page_t m)
 	struct vpgqueues *vpq;
 
 	vpq = &vm_page_queues[queue];
-	VM_PAGE_SETQUEUE2(m, queue);
+	m->queue = queue;
 	TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
 	++*vpq->cnt;
 }
@@ -1428,7 +1498,7 @@ vm_page_activate(vm_page_t m)
 	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	if ((queue = VM_PAGE_GETKNOWNQUEUE2(m)) != PQ_ACTIVE) {
+	if ((queue = m->queue) != PQ_ACTIVE) {
 		if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
 				m->act_count = ACT_INIT;
@@ -1582,6 +1652,8 @@ vm_page_free_toq(vm_page_t m)
  *	another map, removing it from paging queues
  *	as necessary.
  *
+ *	If the page is fictitious, then its wire count must remain one.
+ *
  *	The page must be locked.
  *	This routine may not block.
  */
@@ -1595,8 +1667,12 @@ vm_page_wire(vm_page_t m)
 	 * it is already off the queues).
 	 */
 	vm_page_lock_assert(m, MA_OWNED);
-	if (m->flags & PG_FICTITIOUS)
+	if ((m->flags & PG_FICTITIOUS) != 0) {
+		KASSERT(m->wire_count == 1,
+		    ("vm_page_wire: fictitious page %p's wire count isn't one",
+		    m));
 		return;
+	}
 	if (m->wire_count == 0) {
 		if ((m->flags & PG_UNMANAGED) == 0)
 			vm_pageq_remove(m);
@@ -1607,32 +1683,20 @@ vm_page_wire(vm_page_t m)
 }
 
 /*
- *	vm_page_unwire:
+ * vm_page_unwire:
  *
- *	Release one wiring of this page, potentially
- *	enabling it to be paged again.
+ * Release one wiring of the specified page, potentially enabling it to be
+ * paged again.  If paging is enabled, then the value of the parameter
+ * "activate" determines to which queue the page is added.  If "activate" is
+ * non-zero, then the page is added to the active queue.  Otherwise, it is
+ * added to the inactive queue.
  *
- *	Many pages placed on the inactive queue should actually go
- *	into the cache, but it is difficult to figure out which.  What
- *	we do instead, if the inactive target is well met, is to put
- *	clean pages at the head of the inactive queue instead of the tail.
- *	This will cause them to be moved to the cache more quickly and
- *	if not actively re-referenced, freed more quickly.  If we just
- *	stick these pages at the end of the inactive queue, heavy filesystem
- *	meta-data accesses can cause an unnecessary paging load on memory bound 
- *	processes.  This optimization causes one-time-use metadata to be
- *	reused more quickly.
+ * However, unless the page belongs to an object, it is not enqueued because
+ * it cannot be paged out.
  *
- *	BUT, if we are in a low-memory situation we have no choice but to
- *	put clean pages on the cache queue.
+ * If a page is fictitious, then its wire count must alway be one.
  *
- *	A number of routines use vm_page_unwire() to guarantee that the page
- *	will go into either the inactive or active queues, and will NEVER
- *	be placed in the cache - for example, just after dirtying a page.
- *	dirty pages in the cache are not allowed.
- *
- *	The page must be locked.
- *	This routine may not block.
+ * A managed page must be locked.
  */
 void
 vm_page_unwire(vm_page_t m, int activate)
@@ -1640,13 +1704,17 @@ vm_page_unwire(vm_page_t m, int activate)
 
 	if ((m->flags & PG_UNMANAGED) == 0)
 		vm_page_lock_assert(m, MA_OWNED);
-	if (m->flags & PG_FICTITIOUS)
+	if ((m->flags & PG_FICTITIOUS) != 0) {
+		KASSERT(m->wire_count == 1,
+	    ("vm_page_unwire: fictitious page %p's wire count isn't one", m));
 		return;
+	}
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
 			atomic_subtract_int(&cnt.v_wire_count, 1);
-			if ((m->flags & PG_UNMANAGED) != 0)
+			if ((m->flags & PG_UNMANAGED) != 0 ||
+			    m->object == NULL)
 				return;
 			vm_page_lock_queues();
 			if (activate)
@@ -1657,13 +1725,23 @@ vm_page_unwire(vm_page_t m, int activate)
 			}
 			vm_page_unlock_queues();
 		}
-	} else {
-		panic("vm_page_unwire: invalid wire count: %d", m->wire_count);
-	}
+	} else
+		panic("vm_page_unwire: page %p's wire count is zero", m);
 }
 
 /*
  * Move the specified page to the inactive queue.
+ *
+ * Many pages placed on the inactive queue should actually go
+ * into the cache, but it is difficult to figure out which.  What
+ * we do instead, if the inactive target is well met, is to put
+ * clean pages at the head of the inactive queue instead of the tail.
+ * This will cause them to be moved to the cache more quickly and
+ * if not actively re-referenced, reclaimed more quickly.  If we just
+ * stick these pages at the end of the inactive queue, heavy filesystem
+ * meta-data accesses can cause an unnecessary paging load on memory bound 
+ * processes.  This optimization causes one-time-use metadata to be
+ * reused more quickly.
  *
  * Normally athead is 0 resulting in LRU operation.  athead is set
  * to 1 if we want this page to be 'as if it were placed in the cache',
@@ -1681,7 +1759,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	/*
 	 * Ignore if already inactive.
 	 */
-	if ((queue = VM_PAGE_GETKNOWNQUEUE2(m)) == PQ_INACTIVE)
+	if ((queue = m->queue) == PQ_INACTIVE)
 		return;
 	if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 		vm_page_lock_queues();
@@ -1694,7 +1772,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 		else
 			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m,
 			    pageq);
-		VM_PAGE_SETQUEUE2(m, PQ_INACTIVE);
+		m->queue = PQ_INACTIVE;
 		cnt.v_inactive_count++;
 		vm_page_unlock_queues();
 	}
@@ -1907,8 +1985,7 @@ vm_page_dontneed(vm_page_t m)
 	/*
 	 * Occasionally leave the page alone.
 	 */
-	if ((dnw & 0x01F0) == 0 ||
-	    VM_PAGE_INQUEUE2(m, PQ_INACTIVE)) {
+	if ((dnw & 0x01F0) == 0 || m->queue == PQ_INACTIVE) {
 		if (m->act_count >= ACT_INIT)
 			--m->act_count;
 		return;
@@ -1961,11 +2038,13 @@ vm_page_t
 vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 	vm_page_t m;
+	u_int count;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
-		if ((m->oflags & VPO_BUSY) != 0 || m->busy != 0) {
+		if ((m->oflags & VPO_BUSY) != 0 ||
+		    ((allocflags & VM_ALLOC_IGN_SBUSY) == 0 && m->busy != 0)) {
 			if ((allocflags & VM_ALLOC_RETRY) != 0) {
 				/*
 				 * Reference the page before unlocking and
@@ -1990,9 +2069,13 @@ retrylookup:
 			return (m);
 		}
 	}
-	m = vm_page_alloc(object, pindex, allocflags & ~VM_ALLOC_RETRY);
+	m = vm_page_alloc(object, pindex, allocflags & ~(VM_ALLOC_RETRY |
+	    VM_ALLOC_IGN_SBUSY | VM_ALLOC_COUNT_MASK));
 	if (m == NULL) {
 		VM_OBJECT_UNLOCK(object);
+		count = (u_int)allocflags >> VM_ALLOC_COUNT_SHIFT;
+		if (count > 0)
+			atomic_add_int(&vm_pageout_deficit, count);
 		VM_WAIT;
 		VM_OBJECT_LOCK(object);
 		if ((allocflags & VM_ALLOC_RETRY) == 0)

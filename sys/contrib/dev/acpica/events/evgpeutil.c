@@ -114,7 +114,6 @@
  *****************************************************************************/
 
 
-
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acevents.h>

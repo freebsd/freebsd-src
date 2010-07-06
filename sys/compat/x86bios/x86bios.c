@@ -353,14 +353,14 @@ x86bios_emu_get_intr(struct x86emu *emu, int intno)
 }
 
 void *
-x86bios_alloc(uint32_t *offset, size_t size)
+x86bios_alloc(uint32_t *offset, size_t size, int flags)
 {
 	void *vaddr;
 
 	if (offset == NULL || size == 0)
 		return (NULL);
 
-	vaddr = contigmalloc(size, M_DEVBUF, M_NOWAIT, X86BIOS_RAM_BASE,
+	vaddr = contigmalloc(size, M_DEVBUF, flags, X86BIOS_RAM_BASE,
 	    x86bios_rom_phys, X86BIOS_PAGE_SIZE, 0);
 	if (vaddr != NULL) {
 		*offset = vtophys(vaddr);

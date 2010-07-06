@@ -2027,7 +2027,7 @@ mbprof_textify(void)
 {
 	int offset;
 	char *c;
-	u_int64_t *p;
+	uint64_t *p;
 	
 
 	p = &mbprof.wasted[0];
