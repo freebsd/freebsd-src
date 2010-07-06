@@ -30,6 +30,7 @@ types of dialog objects are currently supported:
 .BR yes/no " box," " menu" " box," " input" " box,"
 .BR message " box," " text" " box," " info" " box,"
 .BR checklist " box," " program" " box,"
+.BR radiolist " box,"
 .BR ftree " and " tree " boxes."
 .SH OPTIONS
 .TP
@@ -171,6 +172,15 @@ user. The initial on/off state of each entry is specified by
 On exit, a list of the
 .I tag
 strings of those entries that are turned on will be printed on
+.IR stderr "."
+.IP "\fB\-\-radiolist \fItext height width list-height \fR[ \fItag item status \fR] \fI..."
+.RB "A " radiolist " box is similar to a " checklist " but it only allows"
+a single entry to be selected. One entry may initially be turned on as
+specified by
+.IR status "."
+On exit, the
+.I tag
+string of the entry that is turned on will be printed on
 .IR stderr "."
 .IP "\fB\-\-ftree \fIfile FS text height width menu-height"
 .B ftree 
