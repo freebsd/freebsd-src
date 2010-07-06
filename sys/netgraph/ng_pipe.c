@@ -779,8 +779,9 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		    random() % 100 <= hinfo->cfg.duplicate) {
 			ngp_h = uma_zalloc(ngp_zone, M_NOWAIT);
 			KASSERT(ngp_h != NULL, ("ngp_h zalloc failed (3)"));
-			ngp_h->m = m_dup(m, M_NOWAIT);
-			KASSERT(ngp_h->m != NULL, ("m_dup failed"));
+			m = m_dup(m, M_NOWAIT);
+			KASSERT(m != NULL, ("m_dup failed"));
+			ngp_h->m = m;
 		} else {
 			TAILQ_REMOVE(&ngp_f->packet_head, ngp_h, ngp_link);
 			hinfo->run.qin_frames--;
