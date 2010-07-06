@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=	detect-laptop.sh detect-nics.sh detect-vmware.sh disk-info.sh \
+FILES=	detect-laptop.sh detect-nics.sh detect-emulation.sh disk-info.sh \
 	disk-list.sh disk-part.sh enable-net.sh list-config.sh list-components.sh \
 	list-mirrors.sh list-rsync-backups.sh list-tzones.sh query-langs.sh \
 	send-logs.sh setup-ssh-keys.sh sys-mem.sh test-live.sh test-netup.sh \
