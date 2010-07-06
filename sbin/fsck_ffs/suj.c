@@ -808,6 +808,44 @@ blk_isat(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int *frags)
 }
 
 /*
+ * Clear the directory entry at diroff that should point to child.  Minimal
+ * checking is done and it is assumed that this path was verified with isat.
+ */
+static void
+ino_clrat(ino_t parent, off_t diroff, ino_t child)
+{
+	union dinode *dip;
+	struct direct *dp;
+	ufs2_daddr_t blk;
+	uint8_t *block;
+	ufs_lbn_t lbn;
+	int blksize;
+	int frags;
+	int doff;
+
+	if (debug)
+		printf("Clearing inode %d from parent %d at offset %jd\n",
+		    child, parent, diroff);
+
+	lbn = lblkno(fs, diroff);
+	doff = blkoff(fs, diroff);
+	dip = ino_read(parent);
+	blk = ino_blkatoff(dip, parent, lbn, &frags);
+	blksize = sblksize(fs, DIP(dip, di_size), lbn);
+	block = dblk_read(blk, blksize);
+	dp = (struct direct *)&block[doff];
+	if (dp->d_ino != child)
+		errx(1, "Inode %d does not exist in %d at %jd",
+		    child, parent, diroff);
+	dp->d_ino = 0;
+	dblk_dirty(blk);
+	/*
+	 * The actual .. reference count will already have been removed
+	 * from the parent by the .. remref record.
+	 */
+}
+
+/*
  * Determines whether a pointer to an inode exists within a directory
  * at a specified offset.  Returns the mode of the found entry.
  */
@@ -1134,6 +1172,57 @@ ino_setskip(struct suj_ino *sino, ino_t parent)
 		sino->si_skipparent = 1;
 }
 
+static void
+ino_remref(ino_t parent, ino_t child, uint64_t diroff, int isdotdot)
+{
+	struct suj_ino *sino;
+	struct suj_rec *srec;
+	struct jrefrec *rrec;
+
+	/*
+	 * Lookup this inode to see if we have a record for it.
+	 */
+	sino = ino_lookup(child, 0);
+	/*
+	 * Tell any child directories we've already removed their
+	 * parent link cnt.  Don't try to adjust our link down again.
+	 */
+	if (sino != NULL && isdotdot == 0)
+		ino_setskip(sino, parent);
+	/*
+	 * No valid record for this inode.  Just drop the on-disk
+	 * link by one.
+	 */
+	if (sino == NULL || sino->si_hasrecs == 0) {
+		ino_decr(child);
+		return;
+	}
+	/*
+	 * Use ino_adjust() if ino_check() has already processed this
+	 * child.  If we lose the last non-dot reference to a
+	 * directory it will be discarded.
+	 */
+	if (sino->si_linkadj) {
+		sino->si_nlink--;
+		if (isdotdot)
+			sino->si_dotlinks--;
+		ino_adjust(sino);
+		return;
+	}
+	/*
+	 * If we haven't yet processed this inode we need to make
+	 * sure we will successfully discover the lost path.  If not
+	 * use nlinkadj to remember.
+	 */
+	TAILQ_FOREACH(srec, &sino->si_recs, sr_next) {
+		rrec = (struct jrefrec *)srec->sr_rec;
+		if (rrec->jr_parent == parent &&
+		    rrec->jr_diroff == diroff)
+			return;
+	}
+	sino->si_nlinkadj++;
+}
+
 /*
  * Free the children of a directory when the directory is discarded.
  */
@@ -1141,13 +1230,11 @@ static void
 ino_free_children(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 {
 	struct suj_ino *sino;
-	struct suj_rec *srec;
-	struct jrefrec *rrec;
 	struct direct *dp;
 	off_t diroff;
 	uint8_t *block;
 	int skipparent;
-	int isparent;
+	int isdotdot;
 	int dpoff;
 	int size;
 
@@ -1165,53 +1252,15 @@ ino_free_children(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 			continue;
 		if (dp->d_namlen == 1 && dp->d_name[0] == '.')
 			continue;
-		isparent = dp->d_namlen == 2 && dp->d_name[0] == '.' &&
+		isdotdot = dp->d_namlen == 2 && dp->d_name[0] == '.' &&
 		    dp->d_name[1] == '.';
-		if (isparent && skipparent == 1)
+		if (isdotdot && skipparent == 1)
 			continue;
 		if (debug)
 			printf("Directory %d removing ino %d name %s\n",
 			    ino, dp->d_ino, dp->d_name);
-		/*
-		 * Lookup this inode to see if we have a record for it.
-		 * If not, we've already adjusted it assuming this path
-		 * was valid and we have to adjust once more.
-		 */
-		sino = ino_lookup(dp->d_ino, 0);
-		if (sino == NULL || sino->si_hasrecs == 0) {
-			ino_decr(ino);
-			continue;
-		}
-		/*
-		 * Use ino_adjust() so if we lose the last non-dot reference
-		 * to a directory it can be discarded.
-		 */
-		if (sino->si_linkadj) {
-			sino->si_nlink--;
-			if (isparent)
-				sino->si_dotlinks--;
-			ino_adjust(sino);
-		}
-		/*
-		 * Tell any child directories we've already removed their
-		 * parent.  Don't try to adjust our link down again.
-		 */
-		if (isparent == 0)
-			ino_setskip(sino, ino);
-		/*
-		 * If we haven't yet processed this inode we need to make
-		 * sure we will successfully discover the lost path.  If not
-		 * use nlinkadj to remember.
-		 */
 		diroff = lblktosize(fs, lbn) + dpoff;
-		TAILQ_FOREACH(srec, &sino->si_recs, sr_next) {
-			rrec = (struct jrefrec *)srec->sr_rec;
-			if (rrec->jr_parent == ino &&
-			    rrec->jr_diroff == diroff)
-				break;
-		}
-		if (srec == NULL)
-			sino->si_nlinkadj++;
+		ino_remref(ino, dp->d_ino, diroff, isdotdot);
 	}
 }
 
@@ -1293,18 +1342,38 @@ ino_adjust(struct suj_ino *sino)
 	struct suj_ino *stmp;
 	union dinode *ip;
 	nlink_t nlink;
+	int recmode;
 	int reqlink;
+	int isdot;
 	int mode;
 	ino_t ino;
 
 	nlink = sino->si_nlink;
 	ino = sino->si_ino;
+	mode = sino->si_mode & IFMT;
+	/*
+	 * If it's a directory with no dot links, it was truncated before
+	 * the name was cleared.  We need to clear the dirent that
+	 * points at it.
+	 */
+	if (mode == IFDIR && nlink == 1 && sino->si_dotlinks == 0) {
+		sino->si_nlink = nlink = 0;
+		TAILQ_FOREACH(srec, &sino->si_recs, sr_next) {
+			rrec = (struct jrefrec *)srec->sr_rec;
+			if (ino_isat(rrec->jr_parent, rrec->jr_diroff, ino,
+			    &recmode, &isdot) == 0)
+				continue;
+			ino_clrat(rrec->jr_parent, rrec->jr_diroff, ino);
+			break;
+		}
+		if (srec == NULL)
+			errx(1, "Directory %d name not found", ino);
+	}
 	/*
 	 * If it's a directory with no real names pointing to it go ahead
 	 * and truncate it.  This will free any children.
 	 */
-	if ((sino->si_mode & IFMT) == IFDIR &&
-	    nlink - sino->si_dotlinks == 0) {
+	if (mode == IFDIR && nlink - sino->si_dotlinks == 0) {
 		sino->si_nlink = nlink = 0;
 		/*
 		 * Mark any .. links so they know not to free this inode
