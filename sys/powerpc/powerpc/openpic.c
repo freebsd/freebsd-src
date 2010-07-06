@@ -331,13 +331,12 @@ void
 openpic_ipi(device_t dev, u_int cpu)
 {
 	struct openpic_softc *sc;
-	u_int cpuid;
+
+	KASSERT(dev == root_pic, ("Cannot send IPIs from non-root OpenPIC"));
 
 	sc = device_get_softc(dev);
 	sched_pin();
-	cpuid = (dev == root_pic) ? PCPU_GET(cpuid) : 0;
-
-	openpic_write(sc, OPENPIC_PCPU_IPI_DISPATCH(cpuid, 0),
+	openpic_write(sc, OPENPIC_PCPU_IPI_DISPATCH(PCPU_GET(cpuid), 0),
 	    1u << cpu);
 	sched_unpin();
 }
