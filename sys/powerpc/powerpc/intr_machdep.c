@@ -239,19 +239,40 @@ powerpc_intr_eoi(void *arg)
 }
 
 static void
-powerpc_intr_mask(void *arg)
+powerpc_intr_pre_ithread(void *arg)
 {
 	struct powerpc_intr *i = arg;
 
 	PIC_MASK(i->pic, i->intline);
+	PIC_EOI(i->pic, i->intline);
 }
 
 static void
-powerpc_intr_unmask(void *arg)
+powerpc_intr_post_ithread(void *arg)
 {
 	struct powerpc_intr *i = arg;
 
 	PIC_UNMASK(i->pic, i->intline);
+}
+
+static int
+powerpc_assign_intr_cpu(void *arg, u_char cpu)
+{
+#ifdef SMP
+	struct powerpc_intr *i = arg;
+
+	if (cpu == NOCPU)
+		i->cpu = all_cpus;
+	else
+		i->cpu = 1 << cpu;
+
+	if (!cold && i->pic != NULL && i->pic == root_pic)
+		PIC_BIND(i->pic, i->intline, i->cpu);
+
+	return (0);
+#else
+	return (EOPNOTSUPP);
+#endif
 }
 
 void
@@ -360,8 +381,8 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 
 	if (i->event == NULL) {
 		error = intr_event_create(&i->event, (void *)i, 0, irq,
-		    powerpc_intr_mask, powerpc_intr_unmask, powerpc_intr_eoi,
-		    NULL, "irq%u:", irq);
+		    powerpc_intr_pre_ithread, powerpc_intr_post_ithread,
+		    powerpc_intr_eoi, powerpc_assign_intr_cpu, "irq%u:", irq);
 		if (error)
 			return (error);
 
@@ -409,14 +430,6 @@ powerpc_bind_intr(u_int irq, u_char cpu)
 	i = intr_lookup(irq);
 	if (i == NULL)
 		return (ENOMEM);
-
-	if (cpu == NOCPU)
-		i->cpu = all_cpus;
-	else
-		i->cpu = 1 << cpu;
-
-	if (!cold && i->pic != NULL && i->pic == root_pic)
-		PIC_BIND(i->pic, i->intline, i->cpu);
 
 	return (intr_event_bind(i->event, cpu));
 }

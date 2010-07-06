@@ -351,7 +351,6 @@ openpic_mask(device_t dev, u_int irq)
 		x |= OPENPIC_IMASK;
 		openpic_write(sc, OPENPIC_IPI_VECTOR(0), x);
 	}
-	openpic_write(sc, OPENPIC_PCPU_EOI(PCPU_GET(cpuid)), 0);
 }
 
 void
