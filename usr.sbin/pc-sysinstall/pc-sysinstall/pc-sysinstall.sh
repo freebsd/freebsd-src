@@ -124,8 +124,8 @@ case $1 in
   detect-nics) ${QUERYDIR}/detect-nics.sh
   ;;
   
-  # The user is wanting to check if we are in vmware
-  detect-vmware) ${QUERYDIR}/detect-vmware.sh
+  # The user is wanting to check if we are in emulation
+  detect-emulation) ${QUERYDIR}/detect-emulation.sh
   ;;
 
   # The user is wanting to query a disk's information
