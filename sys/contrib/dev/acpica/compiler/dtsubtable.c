@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acconfig.h - Global configuration constants
+ * Module Name: dtsubtable.c - handling of subtables within ACPI tables
  *
  *****************************************************************************/
 
@@ -113,171 +113,288 @@
  *
  *****************************************************************************/
 
-#ifndef _ACCONFIG_H
-#define _ACCONFIG_H
+#define __DTSUBTABLE_C__
+
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#include <contrib/dev/acpica/compiler/dtcompiler.h>
+
+#define _COMPONENT          DT_COMPILER
+        ACPI_MODULE_NAME    ("dtsubtable")
 
 
 /******************************************************************************
  *
- * Configuration options
+ * FUNCTION:    DtCreateSubtable
+ *
+ * PARAMETERS:  Buffer              - Input buffer
+ *              Length              - Buffer length
+ *              RetSubtable         - Returned newly created subtable
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Create a subtable that is not listed with ACPI_DMTABLE_INFO
+ *              For example, FACS has 24 bytes reserved at the end
+ *              and it's not listed at AcpiDmTableInfoFacs
  *
  *****************************************************************************/
 
-/*
- * ACPI_DEBUG_OUTPUT    - This switch enables all the debug facilities of the
- *                        ACPI subsystem.  This includes the DEBUG_PRINT output
- *                        statements.  When disabled, all DEBUG_PRINT
- *                        statements are compiled out.
- *
- * ACPI_APPLICATION     - Use this switch if the subsystem is going to be run
- *                        at the application level.
- *
- */
+void
+DtCreateSubtable (
+    UINT8                   *Buffer,
+    UINT32                  Length,
+    DT_SUBTABLE             **RetSubtable)
+{
+    DT_SUBTABLE             *Subtable;
 
-/*
- * OS name, used for the _OS object.  The _OS object is essentially obsolete,
- * but there is a large base of ASL/AML code in existing machines that check
- * for the string below.  The use of this string usually guarantees that
- * the ASL will execute down the most tested code path.  Also, there is some
- * code that will not execute the _OSI method unless _OS matches the string
- * below.  Therefore, change this string at your own risk.
- */
-#define ACPI_OS_NAME                    "Microsoft Windows NT"
 
-/* Maximum objects in the various object caches */
+    Subtable = UtLocalCalloc (sizeof (DT_SUBTABLE));
 
-#define ACPI_MAX_STATE_CACHE_DEPTH      96          /* State objects */
-#define ACPI_MAX_PARSE_CACHE_DEPTH      96          /* Parse tree objects */
-#define ACPI_MAX_EXTPARSE_CACHE_DEPTH   96          /* Parse tree objects */
-#define ACPI_MAX_OBJECT_CACHE_DEPTH     96          /* Interpreter operand objects */
-#define ACPI_MAX_NAMESPACE_CACHE_DEPTH  96          /* Namespace objects */
+    /* Create a new buffer for the subtable data */
 
-/*
- * Should the subsystem abort the loading of an ACPI table if the
- * table checksum is incorrect?
- */
-#define ACPI_CHECKSUM_ABORT             FALSE
+    Subtable->Buffer = UtLocalCalloc (Length);
+    ACPI_MEMCPY (Subtable->Buffer, Buffer, Length);
+
+    Subtable->Length = Length;
+    Subtable->TotalLength = Length;
+
+    *RetSubtable = Subtable;
+}
 
 
 /******************************************************************************
  *
- * Subsystem Constants
+ * FUNCTION:    DtInsertSubtable
+ *
+ * PARAMETERS:  ParentTable         - The Parent of the new subtable
+ *              Subtable            - The new subtable to insert
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Insert the new subtable to the parent table
  *
  *****************************************************************************/
 
-/* Version of ACPI supported */
+void
+DtInsertSubtable (
+    DT_SUBTABLE             *ParentTable,
+    DT_SUBTABLE             *Subtable)
+{
+    DT_SUBTABLE             *ChildTable;
 
-#define ACPI_CA_SUPPORT_LEVEL           3
 
-/* Maximum count for a semaphore object */
+    Subtable->Peer = NULL;
+    Subtable->Parent = ParentTable;
 
-#define ACPI_MAX_SEMAPHORE_COUNT        256
+    /* Link the new entry into the child list */
 
-/* Maximum object reference count (detects object deletion issues) */
+    if (!ParentTable->Child)
+    {
+        ParentTable->Child = Subtable;
+    }
+    else
+    {
+        /* Walk to the end of the child list */
 
-#define ACPI_MAX_REFERENCE_COUNT        0x800
+        ChildTable = ParentTable->Child;
+        while (ChildTable->Peer)
+        {
+            ChildTable = ChildTable->Peer;
+        }
 
-/* Default page size for use in mapping memory for operation regions */
+        /* Add new subtable at the end of the child list */
 
-#define ACPI_DEFAULT_PAGE_SIZE          4096    /* Must be power of 2 */
-
-/* OwnerId tracking. 8 entries allows for 255 OwnerIds */
-
-#define ACPI_NUM_OWNERID_MASKS          8
-
-/* Size of the root table array is increased by this increment */
-
-#define ACPI_ROOT_TABLE_SIZE_INCREMENT  4
-
-/* Maximum number of While() loop iterations before forced abort */
-
-#define ACPI_MAX_LOOP_ITERATIONS        0xFFFF
-
-/* Maximum sleep allowed via Sleep() operator */
-
-#define ACPI_MAX_SLEEP                  20000   /* Two seconds */
+        ChildTable->Peer = Subtable;
+    }
+}
 
 
 /******************************************************************************
  *
- * ACPI Specification constants (Do not change unless the specification changes)
+ * FUNCTION:    DtPushSubtable
+ *
+ * PARAMETERS:  Subtable            - Subtable to push
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Push a subtable onto a subtable stack
  *
  *****************************************************************************/
 
-/* Method info (in WALK_STATE), containing local variables and argumetns */
+void
+DtPushSubtable (
+    DT_SUBTABLE             *Subtable)
+{
 
-#define ACPI_METHOD_NUM_LOCALS          8
-#define ACPI_METHOD_MAX_LOCAL           7
-
-#define ACPI_METHOD_NUM_ARGS            7
-#define ACPI_METHOD_MAX_ARG             6
-
-/*
- * Operand Stack (in WALK_STATE), Must be large enough to contain METHOD_MAX_ARG
- */
-#define ACPI_OBJ_NUM_OPERANDS           8
-#define ACPI_OBJ_MAX_OPERAND            7
-
-/* Number of elements in the Result Stack frame, can be an arbitrary value */
-
-#define ACPI_RESULTS_FRAME_OBJ_NUM      8
-
-/*
- * Maximal number of elements the Result Stack can contain,
- * it may be an arbitray value not exceeding the types of
- * ResultSize and ResultCount (now UINT8).
- */
-#define ACPI_RESULTS_OBJ_NUM_MAX        255
-
-/* Constants used in searching for the RSDP in low memory */
-
-#define ACPI_EBDA_PTR_LOCATION          0x0000040E     /* Physical Address */
-#define ACPI_EBDA_PTR_LENGTH            2
-#define ACPI_EBDA_WINDOW_SIZE           1024
-#define ACPI_HI_RSDP_WINDOW_BASE        0x000E0000     /* Physical Address */
-#define ACPI_HI_RSDP_WINDOW_SIZE        0x00020000
-#define ACPI_RSDP_SCAN_STEP             16
-
-/* Operation regions */
-
-#define ACPI_NUM_PREDEFINED_REGIONS     9
-#define ACPI_USER_REGION_BEGIN          0x80
-
-/* Maximum SpaceIds for Operation Regions */
-
-#define ACPI_MAX_ADDRESS_SPACE          255
-
-/* Array sizes.  Used for range checking also */
-
-#define ACPI_MAX_MATCH_OPCODE           5
-
-/* RSDP checksums */
-
-#define ACPI_RSDP_CHECKSUM_LENGTH       20
-#define ACPI_RSDP_XCHECKSUM_LENGTH      36
-
-/* SMBus and IPMI bidirectional buffer size */
-
-#define ACPI_SMBUS_BUFFER_SIZE          34
-#define ACPI_IPMI_BUFFER_SIZE           66
-
-/* _SxD and _SxW control methods */
-
-#define ACPI_NUM_SxD_METHODS            4
-#define ACPI_NUM_SxW_METHODS            5
+    Subtable->StackTop = Gbl_SubtableStack;
+    Gbl_SubtableStack = Subtable;
+}
 
 
 /******************************************************************************
  *
- * ACPI AML Debugger
+ * FUNCTION:    DtPopSubtable
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Pop a subtable from a subtable stack. Uses global SubtableStack
  *
  *****************************************************************************/
 
-#define ACPI_DEBUGGER_MAX_ARGS          8  /* Must be max method args + 1 */
+void
+DtPopSubtable (
+    void)
+{
+    DT_SUBTABLE             *Subtable;
 
-#define ACPI_DEBUGGER_COMMAND_PROMPT    '-'
-#define ACPI_DEBUGGER_EXECUTE_PROMPT    '%'
+
+    Subtable = Gbl_SubtableStack;
+
+    if (Subtable)
+    {
+        Gbl_SubtableStack = Subtable->StackTop;
+    }
+}
 
 
-#endif /* _ACCONFIG_H */
+/******************************************************************************
+ *
+ * FUNCTION:    DtPeekSubtable
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      The subtable on top of stack
+ *
+ * DESCRIPTION: Get the subtable on top of stack
+ *
+ *****************************************************************************/
 
+DT_SUBTABLE *
+DtPeekSubtable (
+    void)
+{
+
+    return (Gbl_SubtableStack);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtGetNextSubtable
+ *
+ * PARAMETERS:  ParentTable         - Parent table whose children we are
+ *                                    getting
+ *              ChildTable          - Previous child that was found.
+ *                                    The NEXT child will be returned
+ *
+ * RETURN:      Pointer to the NEXT child or NULL if none is found.
+ *
+ * DESCRIPTION: Return the next peer subtable within the tree.
+ *
+ *****************************************************************************/
+
+DT_SUBTABLE *
+DtGetNextSubtable (
+    DT_SUBTABLE             *ParentTable,
+    DT_SUBTABLE             *ChildTable)
+{
+    ACPI_FUNCTION_ENTRY ();
+
+
+    if (!ChildTable)
+    {
+        /* It's really the parent's _scope_ that we want */
+
+        return (ParentTable->Child);
+    }
+
+    /* Otherwise just return the next peer (NULL if at end-of-list) */
+
+    return (ChildTable->Peer);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtGetParentSubtable
+ *
+ * PARAMETERS:  Subtable            - Current subtable
+ *
+ * RETURN:      Parent of the given subtable
+ *
+ * DESCRIPTION: Get the parent of the given subtable in the tree
+ *
+ *****************************************************************************/
+
+DT_SUBTABLE *
+DtGetParentSubtable (
+    DT_SUBTABLE             *Subtable)
+{
+
+    if (!Subtable)
+    {
+        return (NULL);
+    }
+
+    return (Subtable->Parent);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtGetSubtableLength
+ *
+ * PARAMETERS:  Field               - Current field list pointer
+ *              Info                - Data table info
+ *
+ * RETURN:      Subtable length
+ *
+ * DESCRIPTION: Get length of bytes needed to compile the subtable
+ *
+ *****************************************************************************/
+
+UINT32
+DtGetSubtableLength (
+    DT_FIELD                *Field,
+    ACPI_DMTABLE_INFO       *Info)
+{
+    UINT32                  ByteLength = 0;
+
+
+    /* Walk entire Info table; Null name terminates */
+
+    for (; Info->Name; Info++)
+    {
+        ByteLength += DtGetFieldLength (Field, Info);
+    }
+
+    return (ByteLength);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtSetSubtableLength
+ *
+ * PARAMETERS:  Subtable            - Subtable
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Set length of the subtable into its length field
+ *
+ *****************************************************************************/
+
+void
+DtSetSubtableLength (
+    DT_SUBTABLE             *Subtable)
+{
+
+    if (!Subtable->LengthField)
+    {
+        return;
+    }
+
+    ACPI_MEMCPY (Subtable->LengthField, &Subtable->TotalLength,
+        Subtable->SizeOfLengthField);
+}

@@ -117,6 +117,8 @@
 /*
  * These interfaces are required in order to compile the ASL compiler under
  * Linux or other Unix-like system.
+ *
+ * Note: Use #define __APPLE__ for OS X generation.
  */
 
 #include <stdio.h>
@@ -126,6 +128,7 @@
 #include <sys/time.h>
 #include <semaphore.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -528,8 +531,15 @@ AcpiOsCreateSemaphore (
         return (AE_BAD_PARAMETER);
     }
 
-    Sem = AcpiOsAllocate (sizeof (sem_t));
+#ifdef __APPLE__
+    Sem = sem_open (tmpnam (NULL), O_EXCL|O_CREAT, 0755, InitialUnits);
+    if (!Sem)
+    {
+        return (AE_NO_MEMORY);
+    }
 
+#else
+    Sem = AcpiOsAllocate (sizeof (sem_t));
     if (!Sem)
     {
         return (AE_NO_MEMORY);
@@ -540,6 +550,7 @@ AcpiOsCreateSemaphore (
         AcpiOsFree (Sem);
         return (AE_BAD_PARAMETER);
     }
+#endif
 
     *OutHandle = (ACPI_HANDLE) Sem;
     return (AE_OK);

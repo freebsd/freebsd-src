@@ -223,7 +223,7 @@ AcpiNsOneCompleteParse (
 
     /* Parse the AML */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "*PARSE* pass %d parse\n", PassNumber));
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "*PARSE* pass %u parse\n", PassNumber));
     Status = AcpiPsParseAml (WalkState);
 
 Cleanup:

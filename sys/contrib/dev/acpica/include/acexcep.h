@@ -293,7 +293,7 @@ char const   *AcpiGbl_ExceptionNames_Env[] =
     "AE_NO_GLOBAL_LOCK",
     "AE_ABORT_METHOD",
     "AE_SAME_HANDLER",
-    "AE_WAKE_ONLY_GPE",
+    "AE_NO_HANDLER",
     "AE_OWNER_ID_LIMIT"
 };
 
