@@ -536,6 +536,8 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 		return (1);
 
 	buf = x86bios_alloc(&offs, size, M_NOWAIT);
+	if (buf == NULL)
+		return (1);
 
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f04;
