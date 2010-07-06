@@ -537,7 +537,7 @@ AcpiDmFindOrphanDescending (
             }
 
             ArgCount = AcpiDmInspectPossibleArgs (3, 1, NextOp);
-            AcpiOsPrintf ("/* A-CHILDREN: %d Actual %d */\n", ArgCount, AcpiDmCountChildren (Op));
+            AcpiOsPrintf ("/* A-CHILDREN: %u Actual %u */\n", ArgCount, AcpiDmCountChildren (Op));
 
             if (ArgCount < 1)
             {

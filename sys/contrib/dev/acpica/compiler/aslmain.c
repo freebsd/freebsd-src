@@ -167,7 +167,7 @@ AslDoResponseFile (
 
 
 #define ASL_TOKEN_SEPARATORS    " \t\n"
-#define ASL_SUPPORTED_OPTIONS   "@:2b:c:d^e:fgh^i^I:l^no:p:r:s:t:v:w:x:"
+#define ASL_SUPPORTED_OPTIONS   "@:2b:c:d^e:fgh^i^I:l^no:p:r:s:t:T:v:w:x:z"
 
 
 /*******************************************************************************
@@ -218,6 +218,10 @@ Options (
     printf ("  -ln            Create namespace file (*.nsp)\n");
     printf ("  -ls            Create combined source file (expanded includes) (*.src)\n");
 
+    printf ("\nACPI Data Tables:\n");
+    printf ("  -T <Sig>       Create table template file for <Sig> (or \"ALL\")\n");
+    printf ("  -vt            Create verbose templates (full disassembly)\n");
+
     printf ("\nAML Disassembler:\n");
     printf ("  -d  [file]     Disassemble or decode binary ACPI table to file (*.dsl)\n");
     printf ("  -dc [file]     Disassemble AML and immediately compile it\n");
@@ -230,6 +234,7 @@ Options (
     printf ("  -h             Additional help and compiler debug options\n");
     printf ("  -hc            Display operators allowed in constant expressions\n");
     printf ("  -hr            Display ACPI reserved method names\n");
+    printf ("  -ht            Display currently supported ACPI table names\n");
 }
 
 
@@ -268,6 +273,7 @@ HelpMessage (
     printf ("  -n             Parse only, no output generation\n");
     printf ("  -ot            Display compile times\n");
     printf ("  -x<level>      Set debug level for trace output\n");
+    printf ("  -z             Do not insert new compiler ID for DataTables\n");
 }
 
 
@@ -580,6 +586,10 @@ AslDoOptions (
             ApDisplayReservedNames ();
             exit (0);
 
+        case 't':
+            UtDisplaySupportedTables ();
+            exit (0);
+
         default:
             printf ("Unknown option: -h%s\n", AcpiGbl_Optarg);
             return (-1);
@@ -767,6 +777,12 @@ AslDoOptions (
         break;
 
 
+    case 'T':
+        Gbl_DoTemplates = TRUE;
+        Gbl_TemplateSignature = AcpiGbl_Optarg;
+        break;
+
+
     case 'v':
 
         switch (AcpiGbl_Optarg[0])
@@ -793,6 +809,10 @@ AslDoOptions (
 
         case 's':
             Gbl_DoSignon = FALSE;
+            break;
+
+        case 't':
+            Gbl_VerboseTemplates = TRUE;
             break;
 
         default:
@@ -828,6 +848,12 @@ AslDoOptions (
     case 'x':
 
         AcpiDbgLevel = strtoul (AcpiGbl_Optarg, NULL, 16);
+        break;
+
+
+    case 'z':
+
+        Gbl_UseOriginalCompilerId = TRUE;
         break;
 
 
@@ -872,6 +898,12 @@ AslCommandLine (
     /* Process all command line options */
 
     BadCommandLine = AslDoOptions (argc, argv, FALSE);
+
+    if (Gbl_DoTemplates)
+    {
+        DtCreateTemplates (Gbl_TemplateSignature);
+        exit (1);
+    }
 
     /* Next parameter must be the input filename */
 
