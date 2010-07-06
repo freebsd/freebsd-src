@@ -265,11 +265,8 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 	 * Node must be loaded and corresponding hook must be present.
 	 */
 	if (fw_node == NULL || 
-	   (hook = ng_ipfw_findhook1(fw_node, fwa->rule.info)) == NULL) {
-		if (tee == 0)
-			m_freem(*m0);
+	   (hook = ng_ipfw_findhook1(fw_node, fwa->rule.info)) == NULL)
 		return (ESRCH);		/* no hook associated with this rule */
-	}
 
 	/*
 	 * We have two modes: in normal mode we add a tag to packet, which is
