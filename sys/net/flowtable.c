@@ -1626,7 +1626,7 @@ flowtable_init(const void *unused __unused)
 	    EVENTHANDLER_PRI_ANY);
 	flowclean_freq = 20*hz;
 }
-SYSINIT(flowtable_init, SI_SUB_SMP, SI_ORDER_MIDDLE,
+SYSINIT(flowtable_init, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST,
     flowtable_init, NULL);
 
 
