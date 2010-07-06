@@ -131,10 +131,6 @@ BOOLEAN                 AslToFile = TRUE;
 
 /* Local prototypes */
 
-static void
-AslInitializeGlobals (
-    void);
-
 static char **
 AsDoWildcard (
     char                    *DirectoryPathname,
@@ -158,7 +154,7 @@ AslDetectSourceFileType (
  *
  ******************************************************************************/
 
-static void
+void
 AslInitializeGlobals (
     void)
 {
@@ -187,6 +183,9 @@ AslInitializeGlobals (
 
     Gbl_Files[ASL_FILE_AML_OUTPUT].Filename = NULL;
     Gbl_Files[ASL_FILE_AML_OUTPUT].Handle = NULL;
+
+    Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename = NULL;
+    Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle = NULL;
 }
 
 
@@ -464,17 +463,6 @@ AslDoOneFile (
      */
     case ASL_INPUT_TYPE_ASCII_DATA:
 
-        /*
-         * Require use of command-line option to enable the data table
-         * compiler -- for now, until development of the compiler is
-         * complete.
-         */
-        if (!Gbl_DataTableCompilerAvailable)
-        {
-            printf ("Data Table Compiler is not available yet\n");
-            return (AE_SUPPORT);
-        }
-
         Status = DtDoCompile ();
 
         if (Gbl_Signature)
@@ -489,7 +477,6 @@ AslDoOneFile (
      * ASL Compilation (Optional)
      */
     case ASL_INPUT_TYPE_ASCII_ASL:
-
 
         /* ACPICA subsystem initialization */
 

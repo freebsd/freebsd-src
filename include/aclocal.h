@@ -563,7 +563,6 @@ typedef struct acpi_gpe_event_info
     UINT8                           Flags;          /* Misc info about this GPE */
     UINT8                           GpeNumber;      /* This GPE */
     UINT8                           RuntimeCount;   /* References to a run GPE */
-    UINT8                           WakeupCount;    /* References to a wake GPE */
 
 } ACPI_GPE_EVENT_INFO;
 

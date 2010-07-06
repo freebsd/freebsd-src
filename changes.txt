@@ -1,4 +1,80 @@
 ----------------------------------------
+02 July 2010. Summary of changes for version 20100702:
+
+This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+Implemented several updates to the recently added GPE reference count 
+support. The model for "wake" GPEs is changing to give the host OS complete 
+control of these GPEs. Eventually, the ACPICA core will not execute any _PRW 
+methods, since the host already must execute them. Also, additional changes 
+were made to help ensure that the reference counts are kept in proper 
+synchronization with reality. Rafael J. Wysocki.
+
+1) Ensure that GPEs are not enabled twice during initialization.
+2) Ensure that GPE enable masks stay in sync with the reference count.
+3) Do not inadvertently enable GPEs when writing GPE registers.
+4) Remove the internal wake reference counter and add new AcpiGpeWakeup 
+interface. This interface will set or clear individual GPEs for wakeup.
+5) Remove GpeType argument from AcpiEnable and AcpiDisable. These interfaces 
+are now used for "runtime" GPEs only.
+
+Changed the behavior of the GPE install/remove handler interfaces. The GPE is 
+no longer disabled during this process, as it was found to cause problems on 
+some machines. Rafael J. Wysocki.
+
+Reverted a change introduced in version 20100528 to enable Embedded 
+Controller multi-byte transfers. This change was found to cause problems with 
+Index Fields and possibly Bank Fields. It will be reintroduced when these 
+problems have been resolved.
+
+Fixed a problem with references to Alias objects within Package Objects. A 
+reference to an Alias within the definition of a Package was not always 
+resolved properly. Aliases to objects like Processors, Thermal zones, etc. 
+were resolved to the actual object instead of a reference to the object as it 
+should be. Package objects are only allowed to contain integer, string, 
+buffer, package, and reference objects. Redhat bugzilla 608648.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  88.3K Code, 18.8K Data, 107.1K Total
+    Debug Version:     164.1K Code, 51.5K Data, 215.6K Total
+  Current Release:
+    Non-Debug Version:  88.3K Code, 18.8K Data, 107.1K Total
+    Debug Version:     164.0K Code, 51.5K Data, 215.5K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented a new compiler subsystem to allow definition and 
+compilation of the non-AML ACPI tables such as FADT, MADT, SRAT, etc. These 
+are called "ACPI Data Tables", and the new compiler is the "Data Table 
+Compiler". This compiler is intended to simplify the existing error-prone 
+process of creating these tables for the BIOS, as well as allowing the 
+disassembly, modification, recompilation, and override of existing ACPI data 
+tables. See the iASL User Guide for detailed information.
+
+iASL: Implemented a new Template Generator option in support of the new Data 
+Table Compiler. This option will create examples of all known ACPI tables 
+that can be used as the basis for table development. See the iASL 
+documentation and the -T option.
+
+Disassembler and headers: Added support for the WDDT ACPI table (Watchdog 
+Descriptor Table).
+
+Updated the Linux makefiles for iASL and AcpiExec to place the generated 
+object files in the local directory so that there can be no collisions 
+between the shared files between them that are generated with different 
+options.
+
+Added support for Mac OS X in the Unix OSL used for iASL and AcpiExec. Use 
+the #define __APPLE__ to enable this support.
+
+----------------------------------------
 28 May 2010. Summary of changes for version 20100528:
 
 This release is available at www.acpica.org/downloads
