@@ -91,7 +91,12 @@ mca_sysctl_inject(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	/* For example: val=137 causes a fatal CPU error. */
+	/*
+	 * Example values for injecting PAL determined machine checks:
+	 *	corrected	9
+	 *	recoverable	73
+	 *	fatal		137
+	 */
 	res = ia64_call_pal_stacked(PAL_MC_ERROR_INJECT, val, 0, 0);
 	printf("%s: %#lx, %#lx, %#lx, %#lx\n", __func__, res.pal_status,
 	    res.pal_result[0], res.pal_result[1], res.pal_result[2]);
