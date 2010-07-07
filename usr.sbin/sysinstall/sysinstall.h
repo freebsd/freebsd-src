@@ -183,6 +183,7 @@
 #define VAR_SERIAL_SPEED		"serialSpeed"
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
+#define VAR_SYSLOG_SERVER		"syslogdServer"
 #define VAR_TRY_DHCP			"tryDHCP"
 #define VAR_TRY_RTSOL			"tryRTSOL"
 #define VAR_UFS_PATH			"ufs"
