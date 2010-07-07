@@ -294,6 +294,7 @@ device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 device		urio		# Diamond Rio 500 MP3 player
 # USB Serial devices
+device		u3g		# USB-based 3G modems (Option, Huawei, Sierra)
 device		uark		# Technologies ARK3116 based serial adapters
 device		ubsa		# Belkin F5U103 and compatible serial adapters
 device		uftdi		# For FTDI usb serial adapters
