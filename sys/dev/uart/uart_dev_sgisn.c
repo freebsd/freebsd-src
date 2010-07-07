@@ -84,8 +84,11 @@ static void
 sgisn_putc(struct uart_bas *bas, int c)
 {
 	struct ia64_sal_result result;
+	char buf[1];
 
-	result = ia64_sal_entry(SAL_SGISN_PUTC, c, 0, 0, 0, 0, 0, 0);
+	buf[0] = c;
+	result = ia64_sal_entry(SAL_SGISN_TXBUF, (uintptr_t)buf, 1UL, 0, 0, 0,
+	    0, 0);
 }
 
 static int
