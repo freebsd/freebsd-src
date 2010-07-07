@@ -25,7 +25,7 @@
 #
 # $FreeBSD$
 
-if devinfo | grep 'acpi_acad0' >/dev/null 2>/dev/null; then
+if devinfo | grep -q acpi_acad0; then
   echo "laptop: YES"
 else
   echo "laptop: NO"
