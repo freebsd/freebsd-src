@@ -103,6 +103,7 @@ static void ald_deactivate(struct alq *);
 
 /* Internal queue functions */
 static void alq_shutdown(struct alq *);
+static void alq_destroy(struct alq *);
 static int alq_doio(struct alq *);
 
 
@@ -263,6 +264,18 @@ alq_shutdown(struct alq *alq)
 	crfree(alq->aq_cred);
 }
 
+void
+alq_destroy(struct alq *alq)
+{
+	/* Drain all pending IO. */
+	alq_shutdown(alq);
+
+	mtx_destroy(&alq->aq_mtx);
+	free(alq->aq_first, M_ALD);
+	free(alq->aq_entbuf, M_ALD);
+	free(alq, M_ALD);
+}
+
 /*
  * Flush all pending data to disk.  This operation will block.
  */
@@ -420,8 +433,11 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 
 	alp->ae_next = alq->aq_first;
 
-	if ((error = ald_add(alq)) != 0)
+	if ((error = ald_add(alq)) != 0) {
+		alq_destroy(alq);
 		return (error);
+	}
+
 	*alqp = alq;
 
 	return (0);
@@ -525,22 +541,9 @@ alq_flush(struct alq *alq)
 void
 alq_close(struct alq *alq)
 {
-	/*
-	 * If we're already shuting down someone else will flush and close
-	 * the vnode.
-	 */
-	if (ald_rem(alq) != 0)
-		return;
-
-	/*
-	 * Drain all pending IO.
-	 */
-	alq_shutdown(alq);
-
-	mtx_destroy(&alq->aq_mtx);
-	free(alq->aq_first, M_ALD);
-	free(alq->aq_entbuf, M_ALD);
-	free(alq, M_ALD);
+	/* Only flush and destroy alq if not already shutting down. */
+	if (ald_rem(alq) == 0)
+		alq_destroy(alq);
 }
 
 static int
