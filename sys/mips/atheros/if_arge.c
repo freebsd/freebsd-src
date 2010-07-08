@@ -209,6 +209,14 @@ arge_attach_sysctl(device_t dev)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->arge_debug, 0,
 		"arge interface debugging flags");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tx_pkts_aligned", CTLFLAG_RW, &sc->stats.tx_pkts_aligned, 0,
+		"number of TX aligned packets");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned, 0,
+		"number of TX unaligned packets");
 }
 
 static int
@@ -876,13 +884,15 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	 */
 	m = *m_head;
 	if (! arge_mbuf_chain_is_tx_aligned(m)) {
+		sc->stats.tx_pkts_unaligned++;
 		m = m_defrag(*m_head, M_DONTWAIT);
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
 		*m_head = m;
-	}
+	} else
+		sc->stats.tx_pkts_aligned++;
 
 	prod = sc->arge_cdata.arge_tx_prod;
 	txd = &sc->arge_cdata.arge_txdesc[prod];
