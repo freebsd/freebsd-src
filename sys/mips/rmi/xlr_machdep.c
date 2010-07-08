@@ -265,7 +265,6 @@ mips_init(void)
 	init_param2(physmem);
 
 	/* XXX: Catch 22. Something touches the tlb. */
-
 	mips_cpu_init();
 	pmap_bootstrap();
 #ifdef DDB
@@ -294,13 +293,13 @@ platform_start(__register_t a0 __unused,
 #endif
 	/* XXX FIXME the code below is not 64 bit clean */
 	/* Save boot loader and other stuff from scratch regs */
-	xlr_boot1_info = *(struct boot1_info *)read_c0_register32(MIPS_COP_0_OSSCRATCH, 0);
+	xlr_boot1_info = *(struct boot1_info *)(intptr_t)(int)read_c0_register32(MIPS_COP_0_OSSCRATCH, 0);
 	cpu_mask_info = read_c0_register64(MIPS_COP_0_OSSCRATCH, 1);
 	xlr_online_cpumask = read_c0_register32(MIPS_COP_0_OSSCRATCH, 2);
 	xlr_run_mode = read_c0_register32(MIPS_COP_0_OSSCRATCH, 3);
 	xlr_argc = read_c0_register32(MIPS_COP_0_OSSCRATCH, 4);
-	xlr_argv = (char **)read_c0_register32(MIPS_COP_0_OSSCRATCH, 5);
-	xlr_envp = (char **)read_c0_register32(MIPS_COP_0_OSSCRATCH, 6);
+	xlr_argv = (char **)(intptr_t)(int)read_c0_register32(MIPS_COP_0_OSSCRATCH, 5);
+	xlr_envp = (char **)(intptr_t)(int)read_c0_register32(MIPS_COP_0_OSSCRATCH, 6);
 
 	/* TODO: Verify the magic number here */
 	/* FIXMELATER: xlr_boot1_info.magic_number */
@@ -387,9 +386,9 @@ platform_start(__register_t a0 __unused,
 					 * 64 bit > 4Gig and we are in 32 bit mode.
 					 */
 					phys_avail[j + 1] = 0xfffff000;
-					printf("boot map size was %llx\n", boot_map->physmem_map[i].size);
+					printf("boot map size was %jx\n", (intmax_t)boot_map->physmem_map[i].size);
 					boot_map->physmem_map[i].size = phys_avail[j + 1] - phys_avail[j];
-					printf("reduced to %llx\n", boot_map->physmem_map[i].size);
+					printf("reduced to %jx\n", (intmax_t)boot_map->physmem_map[i].size);
 				}
 				printf("Next segment : addr:%p -> %p \n",
 				       (void *)phys_avail[j], 
