@@ -679,6 +679,7 @@ extern int	installFixitUSB(dialogMenuItem *self);
 extern int	installFixitFloppy(dialogMenuItem *self);
 extern int	installFixupBase(dialogMenuItem *self);
 extern int	installFixupKernel(dialogMenuItem *self, int dists);
+extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
 extern void	installEnvironment(void);
