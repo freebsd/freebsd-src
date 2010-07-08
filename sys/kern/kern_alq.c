@@ -191,7 +191,7 @@ ald_daemon(void)
 	for (;;) {
 		while ((alq = LIST_FIRST(&ald_active)) == NULL &&
 		    !ald_shutingdown)
-			msleep(&ald_active, &ald_mtx, PWAIT, "aldslp", 0);
+			mtx_sleep(&ald_active, &ald_mtx, PWAIT, "aldslp", 0);
 
 		/* Don't shutdown until all active ALQs are flushed. */
 		if (ald_shutingdown && alq == NULL) {
@@ -234,12 +234,12 @@ ald_shutdown(void *arg, int howto)
 
 	/*
 	 * Wake ald_daemon so that it exits. It won't be able to do
-	 * anything until we msleep because we hold the ald_mtx.
+	 * anything until we mtx_sleep because we hold the ald_mtx.
 	 */
 	wakeup(&ald_active);
 
 	/* Wait for ald_daemon to exit. */
-	msleep(ald_proc, &ald_mtx, PWAIT, "aldslp", 0);
+	mtx_sleep(ald_proc, &ald_mtx, PWAIT, "aldslp", 0);
 
 	ALD_UNLOCK();
 }
