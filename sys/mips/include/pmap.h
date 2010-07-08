@@ -50,7 +50,6 @@
 #include <machine/pte.h>
 
 #define	NKPT		120	/* actual number of kernel page tables */
-#define	NUSERPGTBLS	(VM_MAXUSER_ADDRESS >> SEGSHIFT)
 
 #ifndef LOCORE
 
@@ -97,7 +96,6 @@ typedef struct pmap *pmap_t;
 #ifdef	_KERNEL
 
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
-pd_entry_t pmap_segmap(pmap_t pmap, vm_offset_t va);
 vm_offset_t pmap_kextract(vm_offset_t va);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
