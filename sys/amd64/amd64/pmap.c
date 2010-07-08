@@ -1574,6 +1574,7 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	pmap->pm_root = NULL;
 	pmap->pm_active = 0;
+	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -5008,6 +5009,7 @@ if (oldpmap)	/* XXX FIXME */
 	cr3 = DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4);
 	td->td_pcb->pcb_cr3 = cr3;
 	load_cr3(cr3);
+	PCPU_SET(curpmap, pmap);
 	critical_exit();
 }
 
