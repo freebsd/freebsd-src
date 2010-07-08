@@ -1769,7 +1769,6 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	enum ieee80211_state ostate = vap->iv_state;
 	struct bwi_softc *sc = ifp->if_softc;
 	struct bwi_mac *mac;
-	struct ieee80211_node *ni = vap->iv_bss;
 	int error;
 
 	BWI_LOCK(sc);
@@ -1817,10 +1816,6 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 #else
 		sc->sc_txpwrcb_type = BWI_TXPWR_CALIB;
 #endif
-		if (vap->iv_opmode == IEEE80211_M_STA) {
-			/* fake a join to init the tx rate */
-			ic->ic_newassoc(ni, 1);
-		}
 
 		callout_reset(&sc->sc_calib_ch, hz, bwi_calibrate, sc);
 	}
