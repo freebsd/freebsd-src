@@ -2012,14 +2012,15 @@ do {								\
 				     (1 << chain->map[f_pos]->set));
 				    f_pos++)
 				;
-			    /* prepare to enter the inner loop */
+			    /* Re-enter the inner loop at the skipto rule. */
 			    f = chain->map[f_pos];
 			    l = f->cmd_len;
 			    cmd = f->cmd;
 			    match = 1;
 			    cmdlen = 0;
 			    skip_or = 0;
-			    break;
+			    continue;
+			    break;	/* not reached */
 
 			case O_REJECT:
 				/*
