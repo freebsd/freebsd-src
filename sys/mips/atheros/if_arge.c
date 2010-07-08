@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/taskqueue.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -196,6 +197,18 @@ arge_probe(device_t dev)
 
 	device_set_desc(dev, "Atheros AR71xx built-in ethernet interface");
 	return (0);
+}
+
+static void
+arge_attach_sysctl(device_t dev)
+{
+	struct arge_softc *sc = device_get_softc(dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debug", CTLFLAG_RW, &sc->arge_debug, 0,
+		"arge interface debugging flags");
 }
 
 static int
@@ -456,6 +469,9 @@ arge_attach(device_t dev)
 		ether_ifdetach(ifp);
 		goto fail;
 	}
+
+	/* setup sysctl variables */
+	arge_attach_sysctl(dev);
 
 fail:
 	if (error) 
