@@ -229,7 +229,7 @@ METHOD int call_method {
 	int		_nargs;
 	int		_nreturns;
 
-	unsigned long	*_args_and_returns;
+	cell_t		*_args_and_returns;
 };
 
 /**
