@@ -118,14 +118,25 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Get PDEs and PTEs for user/kernel address space
+ *
+ * XXX The & for pmap_segshift() is wrong, as is the fact that it doesn't
+ *     trim off gratuitous bits of the address space.  By having the &
+ *     there, we break defining NUSERPGTBLS below because the address space
+ *     is defined such that it ends immediately after NPDEPG*NPTEPG*PAGE_SIZE,
+ *     so we end up getting NUSERPGTBLS of 0.
  */
-#define	pmap_pde(m, v)		(&((m)->pm_segtab[(vm_offset_t)(v) >> SEGSHIFT]))
-#define	segtab_pde(m, v)	(m[(vm_offset_t)(v) >> SEGSHIFT])
+#define	pmap_segshift(v)	(((v) >> SEGSHIFT) & (NPDEPG - 1))
+#define	segtab_pde(m, v)	((m)[pmap_segshift((v))])
 
-#define	MIPS_SEGSIZE		(1L << SEGSHIFT)
-#define	mips_segtrunc(va)	((va) & ~(MIPS_SEGSIZE-1))
+#define	NUSERPGTBLS		(pmap_segshift(VM_MAXUSER_ADDRESS))
+#define	mips_segtrunc(va)	((va) & ~SEGOFSET)
 #define	is_kernel_pmap(x)	((x) == kernel_pmap)
-#define	vad_to_pte_offset(adr)	(((adr) >> PAGE_SHIFT) & (NPTEPG -1))
+
+/*
+ * Given a virtual address, get the offset of its PTE within its page
+ * directory page.
+ */
+#define	PDE_OFFSET(va)	(((vm_offset_t)(va) >> PAGE_SHIFT) & (NPTEPG - 1))
 
 struct pmap kernel_pmap_store;
 pd_entry_t *kernel_segmap;
@@ -246,13 +257,13 @@ static struct local_sysmaps sysmap_lmem[MAXCPU];
 	sysm->valid2 = 0;						\
 	intr_restore(intr)
 
-pd_entry_t
+static inline pt_entry_t *
 pmap_segmap(pmap_t pmap, vm_offset_t va)
 {
-	if (pmap->pm_segtab)
-		return (pmap->pm_segtab[((vm_offset_t)(va) >> SEGSHIFT)]);
+	if (pmap->pm_segtab != NULL)
+		return (segtab_pde(pmap->pm_segtab, va));
 	else
-		return ((pd_entry_t)0);
+		return (NULL);
 }
 
 /*
@@ -267,9 +278,9 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 	pt_entry_t *pdeaddr;
 
 	if (pmap) {
-		pdeaddr = (pt_entry_t *)pmap_segmap(pmap, va);
+		pdeaddr = pmap_segmap(pmap, va);
 		if (pdeaddr) {
-			return pdeaddr + vad_to_pte_offset(va);
+			return pdeaddr + PDE_OFFSET(va);
 		}
 	}
 	return ((pt_entry_t *)0);
@@ -878,12 +889,12 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 		return (0);
 
 	if (mpte == NULL) {
-		ptepindex = (va >> SEGSHIFT);
+		ptepindex = pmap_segshift(va);
 		if (pmap->pm_ptphint &&
 		    (pmap->pm_ptphint->pindex == ptepindex)) {
 			mpte = pmap->pm_ptphint;
 		} else {
-			pteva = *pmap_pde(pmap, va);
+			pteva = pmap_segmap(pmap, va);
 			mpte = PHYS_TO_VM_PAGE(MIPS_KSEG0_TO_PHYS(pteva));
 			pmap->pm_ptphint = mpte;
 		}
@@ -1082,7 +1093,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags)
 	/*
 	 * Calculate pagetable page index
 	 */
-	ptepindex = va >> SEGSHIFT;
+	ptepindex = pmap_segshift(va);
 retry:
 	/*
 	 * Get the page directory entry
@@ -1205,7 +1216,7 @@ pmap_growkernel(vm_offset_t addr)
 
 		nkpt++;
 		pte = (pt_entry_t *)pageva;
-		segtab_pde(kernel_segmap, kernel_vm_end) = (pd_entry_t)pte;
+		segtab_pde(kernel_segmap, kernel_vm_end) = pte;
 
 		/*
 		 * The R[4-7]?00 stores only one copy of the Global bit in
@@ -1529,8 +1540,8 @@ pmap_remove(struct pmap *pmap, vm_offset_t sva, vm_offset_t eva)
 		goto out;
 	}
 	for (va = sva; va < eva; va = nva) {
-		if (!*pmap_pde(pmap, va)) {
-			nva = mips_segtrunc(va + MIPS_SEGSIZE);
+		if (pmap_segmap(pmap, va) == NULL) {
+			nva = mips_segtrunc(va + NBSEG);
 			continue;
 		}
 		pmap_remove_page(pmap, va);
@@ -1646,8 +1657,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		/*
 		 * If segment table entry is empty, skip this segment.
 		 */
-		if (!*pmap_pde(pmap, sva)) {
-			sva = mips_segtrunc(sva + MIPS_SEGSIZE);
+		if (pmap_segmap(pmap, sva) == NULL) {
+			sva = mips_segtrunc(sva + NBSEG);
 			continue;
 		}
 		/*
@@ -1934,7 +1945,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		/*
 		 * Calculate pagetable page index
 		 */
-		ptepindex = va >> SEGSHIFT;
+		ptepindex = pmap_segshift(va);
 		if (mpte && (mpte->pindex == ptepindex)) {
 			mpte->wire_count++;
 		} else {
@@ -2619,7 +2630,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 
 	rv = FALSE;
 	PMAP_LOCK(pmap);
-	if (*pmap_pde(pmap, addr)) {
+	if (pmap_segmap(pmap, addr) != NULL) {
 		pte = pmap_pte(pmap, addr);
 		rv = (*pte == 0);
 	}

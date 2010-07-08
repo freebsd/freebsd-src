@@ -29,6 +29,12 @@
 #ifndef	_MACHINE_PTE_H_
 #define	_MACHINE_PTE_H_
 
+#ifndef _LOCORE
+/* pt_entry_t is 32 bit for now, has to be made 64 bit for n64 */
+typedef	uint32_t pt_entry_t;
+typedef	pt_entry_t *pd_entry_t;
+#endif
+
 /*
  * TLB and PTE management.  Most things operate within the context of
  * EntryLo0,1, and begin with TLBLO_.  Things which work with EntryHi
@@ -65,24 +71,19 @@
 #define	TLBLO_PTE_TO_PA(pte)	(TLBLO_PFN_TO_PA(TLBLO_PTE_TO_PFN((pte))))
 
 /*
+ * XXX This comment is not correct for anything more modern than R4K.
+ *
  * VPN for EntryHi register.  Upper two bits select user, supervisor,
  * or kernel.  Bits 61 to 40 copy bit 63.  VPN2 is bits 39 and down to
  * as low as 13, down to PAGE_SHIFT, to index 2 TLB pages*.  From bit 12
  * to bit 8 there is a 5-bit 0 field.  Low byte is ASID.
  *
+ * XXX This comment is not correct for FreeBSD.
  * Note that in FreeBSD, we map 2 TLB pages is equal to 1 VM page.
  */
 #define	TLBHI_ASID_MASK		(0xff)
 #define	TLBHI_PAGE_MASK		(2 * PAGE_SIZE - 1)
 #define	TLBHI_ENTRY(va, asid)	(((va) & ~TLBHI_PAGE_MASK) | ((asid) & TLBHI_ASID_MASK))
-
-#ifndef _LOCORE
-typedef	uint32_t pt_entry_t;
-typedef	pt_entry_t *pd_entry_t;
-#endif
-
-#define	PDESIZE		sizeof(pd_entry_t)	/* for assembly files */
-#define	PTESIZE		sizeof(pt_entry_t)	/* for assembly files */
 
 /*
  * TLB flags managed in hardware:
