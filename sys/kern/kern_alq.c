@@ -253,7 +253,7 @@ alq_shutdown(struct alq *alq)
 	alq->aq_flags |= AQ_SHUTDOWN;
 
 	/* Drain IO */
-	while (alq->aq_flags & (AQ_FLUSHING|AQ_ACTIVE)) {
+	while (alq->aq_flags & AQ_ACTIVE) {
 		alq->aq_flags |= AQ_WANTED;
 		msleep_spin(alq, &alq->aq_mtx, "aldclose", 0);
 	}
