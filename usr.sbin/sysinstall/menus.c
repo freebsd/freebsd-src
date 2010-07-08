@@ -243,6 +243,7 @@ DMenu MenuIndex = {
 #endif /* WITH_SYSCONS */
       { " Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "tzsetup" },
       { " TTYs",		"Configure system ttys.",		NULL, configEtcTtys, NULL, "ttys" },
+      { " Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { " Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { " User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { NULL } },
@@ -274,6 +275,7 @@ DMenu MenuInitial = {
 #endif
       { "Options",	"View/Set various installation options",	NULL, optionsEditor },
       { "Fixit",	"Repair mode with CDROM/DVD/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
+      { "Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
       { "Load Config..","Load default install configuration",		NULL, dispatch_load_menu },
       { "Index",	"Glossary of functions",			NULL, dmenuSubmenu, NULL, &MenuIndex },
       { NULL } },

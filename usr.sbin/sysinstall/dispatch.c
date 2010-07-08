@@ -82,6 +82,7 @@ static struct _word {
     { "installCommit",		installCommit		},
     { "installExpress",		installExpress		},
     { "installStandard",	installStandard		},
+    { "installUpgrade",		installUpgrade		},
     { "installFixupBase",	installFixupBase	},
     { "installFixitHoloShell",	installFixitHoloShell	},
     { "installFixitCDROM",	installFixitCDROM	},
