@@ -235,10 +235,19 @@ SlowFault:
 #define	SAVE_REG(reg, offs, base) \
 	REG_S	reg, CALLFRAME_SIZ + (SZREG * offs) (base)
 
-#ifdef TARGET_OCTEON
+#if defined(TARGET_OCTEON)
 #define CLEAR_STATUS \
 	mfc0    a0, COP_0_STATUS_REG    ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
+	or      a0, a0, a2	        ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
+	and     a0, a0, a2              ; \
+        mtc0    a0, COP_0_STATUS_REG    ; \
+	ITLBNOPFIX
+#elif defined(TARGET_XLR_XLS)
+#define CLEAR_STATUS \
+	mfc0    a0, COP_0_STATUS_REG    ;\
+	li      a2, (MIPS_SR_KX | MIPS_SR_COP_2_BIT) ; \
 	or      a0, a0, a2	        ; \
 	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
@@ -475,8 +484,10 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 # Turn off fpu and enter kernel mode
 	and	t0, a0, ~(SR_COP_1_BIT | SR_EXL | SR_KSU_MASK | SR_INT_ENAB)
-#ifdef TARGET_OCTEON
+#if defined(TARGET_OCTEON)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS32_SR_PX)
+#elif defined(TARGET_XLR_XLS)	
+	or      t0, t0, (MIPS_SR_KX | MIPS_SR_COP_2_BIT)
 #endif	
 	mtc0	t0, COP_0_STATUS_REG
 	PTR_ADDU a0, k1, U_PCB_REGS
@@ -693,6 +704,8 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 	and	t0, a0, ~(SR_COP_1_BIT | SR_EXL | SR_INT_ENAB | SR_KSU_MASK)
 #ifdef TARGET_OCTEON
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS32_SR_PX)
+#elif defined(TARGET_XLR_XLS)	
+	or      t0, t0, (MIPS_SR_KX | MIPS_SR_COP_2_BIT)
 #endif	
 	mtc0	t0, COP_0_STATUS_REG
 	ITLBNOPFIX
