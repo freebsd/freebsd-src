@@ -324,7 +324,7 @@ TUNABLE_INT("hw.ath.debug", &ath_debug);
 	    (sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
 #define	DPRINTF(sc, m, fmt, ...) do {				\
 	if (sc->sc_debug & (m))					\
-		printf(fmt, __VA_ARGS__);			\
+		device_printf(sc->sc_dev, fmt, __VA_ARGS__);		\
 } while (0)
 #define	KEYPRINTF(sc, ix, hk, mac) do {				\
 	if (sc->sc_debug & ATH_DEBUG_KEYCACHE)			\
