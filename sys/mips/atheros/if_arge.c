@@ -834,6 +834,28 @@ arge_init_locked(struct arge_softc *sc)
 }
 
 /*
+ * Return whether the mbuf chain is correctly aligned
+ * for the arge TX engine.
+ *
+ * The TX engine requires each fragment to be aligned to a
+ * 4 byte boundary and the size of each fragment except
+ * the last to be a multiple of 4 bytes.
+ */
+static int
+arge_mbuf_chain_is_tx_aligned(struct mbuf *m0)
+{
+	struct mbuf *m;
+
+	for (m = m0; m != NULL; m = m->m_next) {
+		if((mtod(m, intptr_t) & 3) != 0)
+			return 0;
+		if ((m->m_next != NULL) && ((m->m_len & 0x03) != 0))
+			return 0;
+	}
+	return 1;
+}
+
+/*
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
@@ -853,7 +875,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	 * even 4 bytes
 	 */
 	m = *m_head;
-	if((mtod(m, intptr_t) & 3) != 0) {
+	if (! arge_mbuf_chain_is_tx_aligned(m)) {
 		m = m_defrag(*m_head, M_DONTWAIT);
 		if (m == NULL) {
 			*m_head = NULL;
