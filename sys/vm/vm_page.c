@@ -2032,6 +2032,9 @@ vm_page_dontneed(vm_page_t m)
  * to be in the object.  If the page doesn't exist, first allocate it
  * and then conditionally zero it.
  *
+ * The caller must always specify the VM_ALLOC_RETRY flag.  This is intended
+ * to facilitate its eventual removal.
+ *
  * This routine may block.
  */
 vm_page_t
@@ -2041,22 +2044,20 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 	u_int count;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT((allocflags & VM_ALLOC_RETRY) != 0,
+	    ("vm_page_grab: VM_ALLOC_RETRY is required"));
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
 		if ((m->oflags & VPO_BUSY) != 0 ||
 		    ((allocflags & VM_ALLOC_IGN_SBUSY) == 0 && m->busy != 0)) {
-			if ((allocflags & VM_ALLOC_RETRY) != 0) {
-				/*
-				 * Reference the page before unlocking and
-				 * sleeping so that the page daemon is less
-				 * likely to reclaim it. 
-				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(m, PG_REFERENCED);
-			}
+			/*
+			 * Reference the page before unlocking and
+			 * sleeping so that the page daemon is less
+			 * likely to reclaim it.
+			 */
+			vm_page_lock_queues();
+			vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_sleep(m, "pgrbwt");
-			if ((allocflags & VM_ALLOC_RETRY) == 0)
-				return (NULL);
 			goto retrylookup;
 		} else {
 			if ((allocflags & VM_ALLOC_WIRED) != 0) {
@@ -2078,8 +2079,6 @@ retrylookup:
 			atomic_add_int(&vm_pageout_deficit, count);
 		VM_WAIT;
 		VM_OBJECT_LOCK(object);
-		if ((allocflags & VM_ALLOC_RETRY) == 0)
-			return (NULL);
 		goto retrylookup;
 	} else if (m->valid != 0)
 		return (m);
