@@ -326,8 +326,8 @@ new_unrhdr(int low, int high, struct mtx *mutex)
 {
 	struct unrhdr *uh;
 
-	KASSERT(low <= high,
-	    ("UNR: use error: new_unrhdr(%u, %u)", low, high));
+	KASSERT(low >= 0 && high >= 0 && low <= high,
+	    ("UNR: use error: new_unrhdr(%d, %d)", low, high));
 	uh = Malloc(sizeof *uh);
 	if (mutex != NULL)
 		uh->mtx = mutex;
