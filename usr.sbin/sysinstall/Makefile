@@ -8,7 +8,7 @@ PROG=	sysinstall
 MAN=	sysinstall.8
 SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 	disks.c dispatch.c dist.c dmenu.c doc.c dos.c floppy.c \
-	ftp.c globals.c http.c index.c install.c installUpgrade.c keymap.c \
+	ftp.c globals.c http.c index.c install.c keymap.c \
 	label.c main.c makedevs.c media.c menus.c misc.c modules.c \
 	mouse.c msg.c network.c nfs.c options.c package.c \
 	system.c tcpip.c termcap.c ttys.c ufs.c usb.c user.c \
