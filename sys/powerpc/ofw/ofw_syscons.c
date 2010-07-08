@@ -216,7 +216,7 @@ ofwfb_configure(int flags)
         phandle_t chosen;
         ihandle_t stdout;
 	phandle_t node;
-	bus_addr_t fb_phys;
+	uint32_t fb_phys;
 	int depth;
 	int disable;
 	int len;
@@ -748,7 +748,7 @@ ofwfb_putc8(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
         row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
         col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
 	p = sc->sc_font + c*sc->sc_font_height;
-	addr = (u_int32_t *)((int)sc->sc_addr
+	addr = (u_int32_t *)((uintptr_t)sc->sc_addr
 		+ (row + sc->sc_ymargin)*sc->sc_stride
 		+ col + sc->sc_xmargin);
 
@@ -860,7 +860,7 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 	u_char fg, bg;
 
 	sc = (struct ofwfb_softc *)adp;
-	addr = (u_int8_t *)((int)sc->sc_addr
+	addr = (u_int8_t *)((uintptr_t)sc->sc_addr
 		+ (y + sc->sc_ymargin)*sc->sc_stride
 		+ x + sc->sc_xmargin);
 
