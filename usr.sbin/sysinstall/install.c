@@ -1032,13 +1032,11 @@ installFilesystems(dialogMenuItem *self)
     Device **devs;
     PartInfo *root;
     char dname[80];
-    Boolean upgrade = FALSE;
 
     /* If we've already done this, bail out */
     if (!variable_cmp(DISK_LABELLED, "written"))
 	return DITEM_SUCCESS;
 
-    upgrade = !variable_cmp(SYSTEM_STATE, "upgrade");
     if (!checkLabels(TRUE))
 	return DITEM_FAILURE;
 
@@ -1078,9 +1076,7 @@ installFilesystems(dialogMenuItem *self)
 	if (strcmp(root->mountpoint, "/"))
 	    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", RootChunk->name, root->mountpoint);
 
-	if (root->do_newfs && (!upgrade ||
-	    !msgNoYes("You are upgrading - are you SURE you want to newfs "
-	    "the root partition?"))) {
+	if (root->do_newfs) {
 	    int i;
 
 	    dialog_clear_norefresh();
@@ -1093,9 +1089,7 @@ installFilesystems(dialogMenuItem *self)
 	    }
 	}
 	else {
-	    if (!upgrade) {
-		msgConfirm("Warning:  Using existing root partition.");
-	    }
+	    msgConfirm("Warning:  Using existing root partition.");
 	    dialog_clear_norefresh();
 	    msgNotify("Checking integrity of existing %s filesystem.", dname);
 	    i = vsystem("fsck_ffs -y %s", dname);
@@ -1179,9 +1173,7 @@ installFilesystems(dialogMenuItem *self)
 			sprintf(dname, "%s/dev/%s",
 			    RunningAsInit ? "/mnt" : "", c2->name);
 
-			if (tmp->do_newfs && (!upgrade ||
-			    !msgNoYes("You are upgrading - are you SURE you"
-			    " want to newfs /dev/%s?", c2->name)))
+			if (tmp->do_newfs) 
 				performNewfs(tmp, dname, QUEUE_YES);
 			else
 			    command_shell_add(tmp->mountpoint,
@@ -1214,7 +1206,7 @@ installFilesystems(dialogMenuItem *self)
 		}
 	    }
 	    else if (c1->type == fat && c1->private_data &&
-		(root->do_newfs || upgrade)) {
+		(root->do_newfs)) {
 		char name[FILENAME_MAX];
 
 		sprintf(name, "%s/%s", RunningAsInit ? "/mnt" : "", ((PartInfo *)c1->private_data)->mountpoint);
@@ -1227,9 +1219,7 @@ installFilesystems(dialogMenuItem *self)
 		sprintf(dname, "%s/dev/%s", RunningAsInit ? "/mnt" : "",
 		    c1->name);
 
-		if (pi->do_newfs && (!upgrade ||
-		    !msgNoYes("You are upgrading - are you SURE you want to "
-		    "newfs /dev/%s?", c1->name)))
+		if (pi->do_newfs)
 			performNewfs(pi, dname, QUEUE_YES);
 
 		command_func_add(pi->mountpoint, Mount_msdosfs, c1->name);
