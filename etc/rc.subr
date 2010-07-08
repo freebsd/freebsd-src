@@ -381,9 +381,10 @@ wait_for_pids()
 #	If argument has a given prefix, then change the operation as follows:
 #		Prefix	Operation
 #		------	---------
-#		fast	Skip the pid check, and set rc_fast=yes
+#		fast	Skip the pid check, and set rc_fast=yes, rc_quiet=yes
 #		force	Set ${rcvar} to YES, and set rc_force=yes
 #		one	Set ${rcvar} to YES
+#		quiet	Don't output some diagnostics, and set rc_quiet=yes
 #
 #	The following globals are used:
 #
@@ -526,6 +527,8 @@ wait_for_pids()
 #
 #	rc_force	Not empty if "force" was provided (q.v.)
 #
+#	rc_quiet	Not empty if "quiet" was provided
+#
 #
 run_rc_command()
 {
@@ -546,6 +549,7 @@ run_rc_command()
 	fast*)				# "fast" prefix; don't check pid
 		rc_arg=${rc_arg#fast}
 		rc_fast=yes
+		rc_quiet=yes
 		;;
 	force*)				# "force prefix; always run
 		rc_force=yes
@@ -561,6 +565,11 @@ run_rc_command()
 		if [ -n "${rcvar}" ]; then
 			eval ${rcvar}=YES
 		fi
+		;;
+	quiet*)				# "quiet" prefix; omit some messages
+		_rc_prefix=quiet
+		rc_arg=${rc_arg#${_rc_prefix}}
+		rc_quiet=yes
 		;;
 	esac
 
@@ -616,7 +625,7 @@ run_rc_command()
 					#
 		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
-				if [ -n "$rc_fast" ]; then
+				if [ -n "${rc_quiet}" ]; then
 					return 0
 				fi
 				echo -n "Cannot '${rc_arg}' $name. Set ${rcvar} to "
