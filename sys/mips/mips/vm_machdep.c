@@ -148,7 +148,7 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	pcb2->pcb_context[PCB_REG_S0] = (register_t)(intptr_t)fork_return;
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td2;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td2->td_frame;
-	pcb2->pcb_context[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
+	pcb2->pcb_context[PCB_REG_SR] = (MIPS_SR_KX | SR_INT_MASK) & mips_rd_status();
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * Setup any other CPU-Specific registers (Not MIPS Standard)
@@ -162,7 +162,6 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 #ifdef TARGET_OCTEON
 	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
 #endif
-
 }
 
 /*
@@ -351,7 +350,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td->td_frame;
 	/* Dont set IE bit in SR. sched lock release will take care of it */
-	pcb2->pcb_context[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
+	pcb2->pcb_context[PCB_REG_SR] = (MIPS_SR_KX | SR_INT_MASK) & mips_rd_status();
 
 #ifdef TARGET_OCTEON
 	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT |
