@@ -95,7 +95,6 @@ static void cxgb_build_medialist(struct port_info *);
 static void cxgb_media_status(struct ifnet *, struct ifmediareq *);
 static int setup_sge_qsets(adapter_t *);
 static void cxgb_async_intr(void *);
-static void cxgb_ext_intr_handler(void *, int);
 static void cxgb_tick_handler(void *, int);
 static void cxgb_tick(void *);
 static void setup_rss(adapter_t *sc);
@@ -588,7 +587,6 @@ cxgb_controller_attach(device_t dev)
 
 	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(dev));
-	TASK_INIT(&sc->ext_intr_task, 0, cxgb_ext_intr_handler, sc);
 	TASK_INIT(&sc->tick_task, 0, cxgb_tick_handler, sc);
 
 	
@@ -1265,29 +1263,6 @@ void t3_os_phymod_changed(struct adapter *adap, int port_id)
 	}
 }
 
-/*
- * Interrupt-context handler for external (PHY) interrupts.
- */
-void
-t3_os_ext_intr_handler(adapter_t *sc)
-{
-	if (cxgb_debug)
-		printf("t3_os_ext_intr_handler\n");
-	/*
-	 * Schedule a task to handle external interrupts as they may be slow
-	 * and we use a mutex to protect MDIO registers.  We disable PHY
-	 * interrupts in the meantime and let the task reenable them when
-	 * it's done.
-	 */
-	if (sc->slow_intr_mask) {
-		ADAPTER_LOCK(sc);
-		sc->slow_intr_mask &= ~F_T3DBG;
-		t3_write_reg(sc, A_PL_INT_ENABLE0, sc->slow_intr_mask);
-		taskqueue_enqueue(sc->tq, &sc->ext_intr_task);
-		ADAPTER_UNLOCK(sc);
-	}
-}
-
 void
 t3_os_set_hw_addr(adapter_t *adapter, int port_idx, u8 hw_addr[])
 {
@@ -1937,7 +1912,6 @@ cxgb_uninit_synchronized(struct port_info *pi)
 	clrbit(&sc->open_device_map, pi->port_id);
 	t3_port_intr_disable(sc, pi->port_id);
 	taskqueue_drain(sc->tq, &sc->slow_intr_task);
-	taskqueue_drain(sc->tq, &sc->ext_intr_task);
 	taskqueue_drain(sc->tq, &sc->tick_task);
 
 	PORT_LOCK(pi);
@@ -2295,32 +2269,9 @@ cxgb_async_intr(void *data)
 {
 	adapter_t *sc = data;
 
-	if (cxgb_debug)
-		device_printf(sc->dev, "cxgb_async_intr\n");
-	/*
-	 * May need to sleep - defer to taskqueue
-	 */
+	t3_write_reg(sc, A_PL_INT_ENABLE0, 0);
+	(void) t3_read_reg(sc, A_PL_INT_ENABLE0);
 	taskqueue_enqueue(sc->tq, &sc->slow_intr_task);
-}
-
-static void
-cxgb_ext_intr_handler(void *arg, int count)
-{
-	adapter_t *sc = (adapter_t *)arg;
-
-	if (cxgb_debug)
-		printf("cxgb_ext_intr_handler\n");
-
-	t3_phy_intr_handler(sc);
-
-	/* Now reenable external interrupts */
-	ADAPTER_LOCK(sc);
-	if (sc->slow_intr_mask) {
-		sc->slow_intr_mask |= F_T3DBG;
-		t3_write_reg(sc, A_PL_INT_CAUSE0, F_T3DBG);
-		t3_write_reg(sc, A_PL_INT_ENABLE0, sc->slow_intr_mask);
-	}
-	ADAPTER_UNLOCK(sc);
 }
 
 static inline int

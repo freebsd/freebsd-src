@@ -2180,7 +2180,7 @@ static int mac_intr_handler(adapter_t *adap, unsigned int idx)
 /*
  * Interrupt handler for PHY events.
  */
-int t3_phy_intr_handler(adapter_t *adapter)
+static int phy_intr_handler(adapter_t *adapter)
 {
 	u32 i, cause = t3_read_reg(adapter, A_T3DBG_INT_CAUSE);
 
@@ -2262,7 +2262,7 @@ int t3_slow_intr_handler(adapter_t *adapter)
 	if (cause & F_XGMAC0_1)
 		mac_intr_handler(adapter, 1);
 	if (cause & F_T3DBG)
-		t3_os_ext_intr_handler(adapter);
+		phy_intr_handler(adapter);
 
 	/* Clear the interrupts just processed. */
 	t3_write_reg(adapter, A_PL_INT_CAUSE0, cause);
