@@ -3752,10 +3752,9 @@ tryagain:
 		 * process we are.
 		 */
 		p = vm_page_alloc(NULL, pg >> PAGE_SHIFT, VM_ALLOC_NOOBJ |
-		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED |
+		    VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT));
 		if (!p) {
-			atomic_add_int(&vm_pageout_deficit,
-			    (to - pg) >> PAGE_SHIFT);
 			VM_WAIT;
 			goto tryagain;
 		}
