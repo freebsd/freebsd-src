@@ -1169,14 +1169,17 @@ sk_ioctl(ifp, command, data)
 			break;
 		}
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if (IFCAP_HWCSUM & ifp->if_capenable &&
-			    IFCAP_HWCSUM & ifp->if_capabilities)
-				ifp->if_hwassist = SK_CSUM_FEATURES;
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				ifp->if_hwassist |= SK_CSUM_FEATURES;
 			else
-				ifp->if_hwassist = 0;
+				ifp->if_hwassist &= ~SK_CSUM_FEATURES;
 		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0) 
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 		SK_IF_UNLOCK(sc_if);
 		break;
 	default:
@@ -1363,13 +1366,23 @@ sk_attach(dev)
 	 * SK_GENESIS has a bug in checksum offload - From linux.
 	 */
 	if (sc_if->sk_softc->sk_type != SK_GENESIS) {
-		ifp->if_capabilities = IFCAP_HWCSUM;
-		ifp->if_hwassist = SK_CSUM_FEATURES;
+		ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_RXCSUM;
+		ifp->if_hwassist = 0;
 	} else {
 		ifp->if_capabilities = 0;
 		ifp->if_hwassist = 0;
 	}
 	ifp->if_capenable = ifp->if_capabilities;
+	/*
+	 * Some revision of Yukon controller generates corrupted
+	 * frame when TX checksum offloading is enabled.  The
+	 * frame has a valid checksum value so payload might be
+	 * modified during TX checksum calculation. Disable TX
+	 * checksum offloading but give users chance to enable it
+	 * when they know their controller works without problems
+	 * with TX checksum offloading.
+	 */
+	ifp->if_capenable &= ~IFCAP_TXCSUM;
 	ifp->if_ioctl = sk_ioctl;
 	ifp->if_start = sk_start;
 	ifp->if_init = sk_init;
