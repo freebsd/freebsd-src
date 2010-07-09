@@ -99,11 +99,11 @@ bs_remap_earlyboot(void)
 	int i;
 	vm_offset_t pa, spa;
 
-	if (hw_direct_map)
-		return;
-
 	for (i = 0; i < earlyboot_map_idx; i++) {
 		spa = earlyboot_mappings[i].addr;
+		if (pmap_dev_direct_mapped(spa, earlyboot_mappings[i].size)
+		    == 0)
+			continue;
 
 		pa = trunc_page(spa);
 		while (pa < spa + earlyboot_mappings[i].size) {
