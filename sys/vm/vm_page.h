@@ -321,7 +321,6 @@ extern struct vpglocks vm_page_queue_lock;
 
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
-#define	VM_ALLOC_COUNT_MASK	VM_ALLOC_COUNT(0xffff)
 
 void vm_page_flag_set(vm_page_t m, unsigned short bits);
 void vm_page_flag_clear(vm_page_t m, unsigned short bits);
