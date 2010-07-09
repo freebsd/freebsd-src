@@ -97,6 +97,8 @@ static int setup_sge_qsets(adapter_t *);
 static void cxgb_async_intr(void *);
 static void cxgb_tick_handler(void *, int);
 static void cxgb_tick(void *);
+static void link_check_callout(void *);
+static void check_link_status(void *, int);
 static void setup_rss(adapter_t *sc);
 static int alloc_filters(struct adapter *);
 static int setup_hw_filters(struct adapter *);
@@ -670,7 +672,7 @@ cxgb_controller_attach(device_t dev)
 		 sc->params.vpd.port_type[2], sc->params.vpd.port_type[3]);
 
 	device_printf(sc->dev, "Firmware Version %s\n", &sc->fw_version[0]);
-	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
+	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 	t3_add_attach_sysctls(sc);
 out:
 	if (error)
@@ -1006,6 +1008,9 @@ cxgb_port_attach(device_t dev)
 	snprintf(p->lockbuf, PORT_NAME_LEN, "cxgb port lock %d:%d",
 	    device_get_unit(device_get_parent(dev)), p->port_id);
 	PORT_LOCK_INIT(p, p->lockbuf);
+
+	callout_init(&p->link_check_ch, CALLOUT_MPSAFE);
+	TASK_INIT(&p->link_check_task, 0, check_link_status, p);
 
 	/* Allocate an ifnet object and set it up */
 	ifp = p->ifp = if_alloc(IFT_ETHER);
@@ -1827,8 +1832,6 @@ cxgb_init_locked(struct port_info *p)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	PORT_UNLOCK(p);
 
-	t3_link_changed(sc, p->port_id);
-
 	for (i = p->first_qset; i < p->first_qset + p->nqsets; i++) {
 		struct sge_qset *qs = &sc->sge.qs[i];
 		struct sge_txq *txq = &qs->txq[TXQ_ETH];
@@ -1839,6 +1842,9 @@ cxgb_init_locked(struct port_info *p)
 
 	/* all ok */
 	setbit(&sc->open_device_map, p->port_id);
+	callout_reset(&p->link_check_ch,
+	    p->phy.caps & SUPPORTED_LINK_IRQ ?  hz * 3 : hz / 4,
+	    link_check_callout, p);
 
 done:
 	if (may_sleep) {
@@ -1913,6 +1919,9 @@ cxgb_uninit_synchronized(struct port_info *pi)
 	t3_port_intr_disable(sc, pi->port_id);
 	taskqueue_drain(sc->tq, &sc->slow_intr_task);
 	taskqueue_drain(sc->tq, &sc->tick_task);
+
+	callout_drain(&pi->link_check_ch);
+	taskqueue_drain(sc->tq, &pi->link_check_task);
 
 	PORT_LOCK(pi);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -2274,33 +2283,42 @@ cxgb_async_intr(void *data)
 	taskqueue_enqueue(sc->tq, &sc->slow_intr_task);
 }
 
-static inline int
-link_poll_needed(struct port_info *p)
+static void
+link_check_callout(void *arg)
 {
-	struct cphy *phy = &p->phy;
+	struct port_info *pi = arg;
+	struct adapter *sc = pi->adapter;
 
-	if (phy->caps & POLL_LINK_1ST_TIME) {
-		p->phy.caps &= ~POLL_LINK_1ST_TIME;
-		return (1);
-	}
+	if (!isset(&sc->open_device_map, pi->port_id))
+		return;
 
-	return (p->link_fault || !(phy->caps & SUPPORTED_LINK_IRQ));
+	taskqueue_enqueue(sc->tq, &pi->link_check_task);
 }
 
 static void
-check_link_status(adapter_t *sc)
+check_link_status(void *arg, int pending)
 {
-	int i;
+	struct port_info *pi = arg;
+	struct adapter *sc = pi->adapter;
 
-	for (i = 0; i < (sc)->params.nports; ++i) {
-		struct port_info *p = &sc->port[i];
+	if (!isset(&sc->open_device_map, pi->port_id))
+		return;
 
-		if (!isset(&sc->open_device_map, p->port_id))
-			continue;
+	t3_link_changed(sc, pi->port_id);
 
-		if (link_poll_needed(p))
-			t3_link_changed(sc, i);
-	}
+	if (pi->link_fault || !(pi->phy.caps & SUPPORTED_LINK_IRQ))
+		callout_reset(&pi->link_check_ch, hz, link_check_callout, pi);
+}
+
+void
+t3_os_link_intr(struct port_info *pi)
+{
+	/*
+	 * Schedule a link check in the near future.  If the link is flapping
+	 * rapidly we'll keep resetting the callout and delaying the check until
+	 * things stabilize a bit.
+	 */
+	callout_reset(&pi->link_check_ch, hz / 4, link_check_callout, pi);
 }
 
 static void
@@ -2352,7 +2370,7 @@ cxgb_tick(void *arg)
 		return;
 
 	taskqueue_enqueue(sc->tq, &sc->tick_task);	
-	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
+	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 }
 
 static void
@@ -2365,8 +2383,6 @@ cxgb_tick_handler(void *arg, int count)
 
 	if (sc->flags & CXGB_SHUTDOWN || !(sc->flags & FULL_INIT_DONE))
 		return;
-
-	check_link_status(sc);
 
 	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
 		check_t3b2_mac(sc);
