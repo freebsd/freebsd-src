@@ -3086,7 +3086,6 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		if (!error) {
 			v = (uint32_t *)buf;
 
-			ioqs->bufsize -= 4 * sizeof(uint32_t);
 			ioqs->ioq_rx_enable = *v++;
 			ioqs->ioq_tx_enable = *v++;
 			ioqs->ioq_rx_status = *v++;
