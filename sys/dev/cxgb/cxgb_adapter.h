@@ -350,7 +350,6 @@ struct adapter {
 	struct filter_info      *filters;
 	
 	/* Tasks */
-	struct task		ext_intr_task;
 	struct task		slow_intr_task;
 	struct task		tick_task;
 	struct taskqueue	*tq;
@@ -500,7 +499,6 @@ void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
 void t3_os_phymod_changed(struct adapter *adap, int port_id);
 void t3_sge_err_intr_handler(adapter_t *adapter);
 int t3_offload_tx(struct t3cdev *, struct mbuf *);
-void t3_os_ext_intr_handler(adapter_t *adapter);
 void t3_os_set_hw_addr(adapter_t *adapter, int port_idx, u8 hw_addr[]);
 int t3_mgmt_tx(adapter_t *adap, struct mbuf *m);
 

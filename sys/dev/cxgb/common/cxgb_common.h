@@ -701,7 +701,6 @@ void t3_port_intr_enable(adapter_t *adapter, int idx);
 void t3_port_intr_disable(adapter_t *adapter, int idx);
 void t3_port_intr_clear(adapter_t *adapter, int idx);
 int t3_slow_intr_handler(adapter_t *adapter);
-int t3_phy_intr_handler(adapter_t *adapter);
 
 void t3_link_changed(adapter_t *adapter, int port_id);
 int t3_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc);
