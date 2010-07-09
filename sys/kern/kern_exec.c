@@ -753,10 +753,10 @@ interpret:
 	p->p_flag &= ~P_INEXEC;
 
 	/*
-	 * If tracing the process, trap to debugger so breakpoints
-	 * can be set before the program executes.  We have to use
-	 * tdsignal() to deliver the signal to the current thread
-	 * since any other threads in this process will exit if
+	 * If tracing the process, trap to the debugger so that
+	 * breakpoints can be set before the program executes.  We
+	 * have to use tdsignal() to deliver the signal to the current
+	 * thread since any other threads in this process will exit if
 	 * execve() succeeds.
 	 */
 	if (p->p_flag & P_TRACED)
