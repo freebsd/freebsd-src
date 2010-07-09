@@ -74,7 +74,6 @@
 #define TW_CLI_PCI_CONFIG_STATUS_OFFSET		0x6 /* status register offset */
 #endif /* TW_OSL_PCI_CONFIG_ACCESSIBLE */
 
-#pragma pack(1)
 
 #ifdef TW_OSL_DEBUG
 struct tw_cli_q_stats {
@@ -206,7 +205,6 @@ struct tw_cli_ctlr_context {
 #endif /* TW_OSL_DEBUG */
 };
 
-#pragma pack()
 
 
 /*
