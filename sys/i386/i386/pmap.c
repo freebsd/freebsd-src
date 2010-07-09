@@ -4180,7 +4180,7 @@ pmap_remove_pages(pmap_t pmap)
 	uint32_t inuse, bitmask;
 	int allfree;
 
-	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
+	if (pmap != PCPU_GET(curpmap)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
