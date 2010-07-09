@@ -60,7 +60,6 @@ enum {
 	/* skip 25 */
 	SUPPORTED_MISC_IRQ = 1 << 26,
 	SUPPORTED_IRQ      = (SUPPORTED_LINK_IRQ | SUPPORTED_MISC_IRQ),
-	POLL_LINK_1ST_TIME = 1 << 27
 };
 
 enum {                            /* adapter interrupt-maintained statistics */
