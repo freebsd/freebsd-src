@@ -1530,6 +1530,9 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
 
+	if (link_ok == 0)
+		pi->link_fault = LF_NO;
+
 	if (lc->requested_fc & PAUSE_AUTONEG)
 		fc &= lc->requested_fc;
 	else
@@ -1608,12 +1611,8 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 					 F_XGM_INT, 0);
 		}
 
-		if (!link_fault) {
-			if (is_10G(adapter))
-				pi->phy.ops->power_down(&pi->phy, 1);
+		if (!link_fault)
 			t3_mac_disable(mac, MAC_DIRECTION_RX);
-			t3_link_start(phy, mac, lc);
-		}
 
 		/*
 		 * Make sure Tx FIFO continues to drain, even as rxen is left
@@ -2160,13 +2159,14 @@ static int mac_intr_handler(adapter_t *adap, unsigned int idx)
 		mac->stats.xaui_pcs_ctc_err++;
 	if (cause & F_XAUIPCSALIGNCHANGE)
 		mac->stats.xaui_pcs_align_change++;
-	if (cause & F_XGM_INT) {
-		t3_set_reg_field(adap,
-				 A_XGM_INT_ENABLE + mac->offset,
-				 F_XGM_INT, 0);
+	if (cause & F_XGM_INT &
+	    t3_read_reg(adap, A_XGM_INT_ENABLE + mac->offset)) {
+		t3_set_reg_field(adap, A_XGM_INT_ENABLE + mac->offset,
+		    F_XGM_INT, 0);
 
 		/* link fault suspected */
 		pi->link_fault = LF_MAYBE;
+		t3_os_link_intr(pi);
 	}
 
 	t3_write_reg(adap, A_XGM_INT_CAUSE + mac->offset, cause);
@@ -2194,7 +2194,7 @@ static int phy_intr_handler(adapter_t *adapter)
 			int phy_cause = p->phy.ops->intr_handler(&p->phy);
 
 			if (phy_cause & cphy_cause_link_change)
-				t3_link_changed(adapter, i);
+				t3_os_link_intr(p);
 			if (phy_cause & cphy_cause_fifo_error)
 				p->phy.fifo_errors++;
 			if (phy_cause & cphy_cause_module_change)
