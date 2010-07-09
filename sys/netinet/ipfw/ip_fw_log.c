@@ -152,24 +152,17 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 
 	if (V_fw_verbose == 0) {
 #ifndef WITHOUT_BPF
-		struct mbuf m0;
 
 		if (log_if == NULL || log_if->if_bpf == NULL)
 			return;
 
-		/* BPF treats the "mbuf" as read-only */
-		bzero(&m0, sizeof(struct mbuf));
-		m0.m_hdr.mh_next = m;
-		m0.m_hdr.mh_len = ETHER_HDR_LEN;
-		if (args->eh) { /* layer2, use orig hdr */
-			m0.m_hdr.mh_data = (char *)args->eh;
-		} else {
-			/* add fake header. Later we will store
-			 * more info in the header
+		if (args->eh) /* layer2, use orig hdr */
+			BPF_MTAP2(log_if, args->eh, ETHER_HDR_LEN, m);
+		else
+			/* Add fake header. Later we will store
+			 * more info in the header.
 			 */
-			m0.m_hdr.mh_data = "DDDDDDSSSSSS\x08\x00";
-		}
-		BPF_MTAP(log_if, &m0);
+			BPF_MTAP2(log_if, "DDDDDDSSSSSS\x08\x00", ETHER_HDR_LEN, m);
 #endif /* !WITHOUT_BPF */
 		return;
 	}
