@@ -1264,7 +1264,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		 * Not allocatable, give up.
 		 */
 		mtx_unlock(&vm_page_queue_free_mtx);
-		atomic_add_int(&vm_pageout_deficit, 1);
+		atomic_add_int(&vm_pageout_deficit,
+		    MAX((u_int)req >> VM_ALLOC_COUNT_SHIFT, 1));
 		pagedaemon_wakeup();
 		return (NULL);
 	}
@@ -2041,7 +2042,6 @@ vm_page_t
 vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 	vm_page_t m;
-	u_int count;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT((allocflags & VM_ALLOC_RETRY) != 0,
@@ -2071,12 +2071,9 @@ retrylookup:
 		}
 	}
 	m = vm_page_alloc(object, pindex, allocflags & ~(VM_ALLOC_RETRY |
-	    VM_ALLOC_IGN_SBUSY | VM_ALLOC_COUNT_MASK));
+	    VM_ALLOC_IGN_SBUSY));
 	if (m == NULL) {
 		VM_OBJECT_UNLOCK(object);
-		count = (u_int)allocflags >> VM_ALLOC_COUNT_SHIFT;
-		if (count > 0)
-			atomic_add_int(&vm_pageout_deficit, count);
 		VM_WAIT;
 		VM_OBJECT_LOCK(object);
 		goto retrylookup;
