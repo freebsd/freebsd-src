@@ -7,6 +7,7 @@
     (${MACHINE_ARCH} == "mips" && !defined(TARGET_BIG_ENDIAN))
 TARGET_ENDIANNESS= 1234
 .elif ${MACHINE_ARCH} == "powerpc" || \
+    ${MACHINE_ARCH} == "powerpc64" || \
     ${MACHINE_ARCH} == "sparc64" || \
     ${MACHINE_ARCH} == "arm" || \
     ${MACHINE_ARCH} == "mips"
