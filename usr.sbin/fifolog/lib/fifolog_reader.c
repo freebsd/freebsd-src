@@ -304,8 +304,10 @@ fifolog_reader_process(struct fifolog_reader *fr, off_t from, fifolog_reader_ren
 			if (i == Z_STREAM_END) {
 				i = inflateReset(zs);
 			}
-			if (i != Z_OK)
+			if (i != Z_OK) {
 				fprintf(stderr, "inflate = %d\n", i);
+				exit (250);
+			}
 			assert(i == Z_OK);
 			if (zs->avail_out != fr->olen) {
 				q = fr->obuf + (fr->olen - zs->avail_out);
