@@ -30,10 +30,10 @@ CFLAGS+=	-mno-sse3
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-Os
 .endif
-.if ${MACHINE_ARCH} == "powerpc"
-CFLAGS+=	-msoft-float -D_STANDALONE
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-msoft-float -D_STANDALONE -DNETIF_DEBUG
 .endif
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
 CFLAGS+=	-m32 -I.
 .endif
 .if ${MACHINE_ARCH} == "arm"
@@ -55,8 +55,8 @@ SRCS+= ntoh.c
 # string functions from libc
 .PATH: ${.CURDIR}/../libc/string
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
-	${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "amd64" || \
-	${MACHINE_ARCH} == "arm"
+	${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "sparc64" || \
+	${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "arm"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
         memcpy.c memmove.c memset.c qdivrem.c rindex.c strcat.c strchr.c \
         strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
@@ -78,7 +78,7 @@ SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
 SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S
 SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
 .endif
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 .PATH: ${.CURDIR}/../libc/quad
 SRCS+=	ashldi3.c ashrdi3.c
 .PATH: ${.CURDIR}/../libc/powerpc/gen
@@ -92,6 +92,8 @@ SRCS+= uuid_equal.c uuid_is_nil.c
 # _setjmp/_longjmp
 .if ${MACHINE_ARCH} == "amd64"
 .PATH: ${.CURDIR}/i386
+.elif ${MACHINE_ARCH} == "powerpc64"
+.PATH: ${.CURDIR}/powerpc
 .else
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 .endif
