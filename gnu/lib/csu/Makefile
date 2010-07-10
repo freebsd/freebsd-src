@@ -31,7 +31,7 @@ CFLAGS+=	-x assembler-with-cpp	# Ugly hack
 CFLAGS+=	-include osreldate.h
 .undef SRCS				# hack for 'make depend'
 .endif
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm
 .endif
