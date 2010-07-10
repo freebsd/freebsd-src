@@ -249,8 +249,13 @@ __FBSDID("$FreeBSD$");
 #  define LG_SIZEOF_PTR		2
 #  define NO_TLS
 #endif
-#ifdef __powerpc__
+#ifdef __powerpc64__
 #  define LG_QUANTUM		4
+#  define LG_SIZEOF_PTR		3
+#  define TLS_MODEL		/* default */
+#elif defined(__powerpc__)
+#  define LG_QUANTUM		4
+#  define LG_SIZEOF_PTR		2
 #  define TLS_MODEL		/* default */
 #endif
 #ifdef __s390x__
