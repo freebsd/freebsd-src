@@ -781,6 +781,27 @@ typedef struct {
 #define	R_PPC_SECTOFF_HA	36
 
 /*
+ * 64-bit relocations
+ */
+#define	R_PPC64_ADDR64		38
+#define	R_PPC64_ADDR16_HIGHER	39
+#define	R_PPC64_ADDR16_HIGHERA	40
+#define	R_PPC64_ADDR16_HIGHEST	41
+#define	R_PPC64_ADDR16_HIGHESTA	42
+#define	R_PPC64_UADDR64		43
+#define	R_PPC64_REL64		44
+#define	R_PPC64_PLT64		45
+#define	R_PPC64_PLTREL64	46
+#define	R_PPC64_TOC16		47
+#define	R_PPC64_TOC16_LO	48
+#define	R_PPC64_TOC16_HI	49
+#define	R_PPC64_TOC16_HA	50
+#define	R_PPC64_TOC		51
+#define	R_PPC64_DTPMOD64	68
+#define	R_PPC64_TPREL64		73
+#define	R_PPC64_DTPREL64	78
+
+/*
  * TLS relocations
  */
 #define	R_PPC_TLS		67
