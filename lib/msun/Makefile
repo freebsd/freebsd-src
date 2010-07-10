@@ -14,6 +14,8 @@
 
 .if ${MACHINE_ARCH} == "i386"
 ARCH_SUBDIR= i387
+.elif ${MACHINE_ARCH} == "powerpc64"
+ARCH_SUBDIR= powerpc
 .else
 ARCH_SUBDIR= ${MACHINE_ARCH}
 .endif
