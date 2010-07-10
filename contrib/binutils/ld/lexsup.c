@@ -1145,8 +1145,11 @@ parse_args (unsigned argc, char **argv)
 	  whole_archive = TRUE;
 	  break;
 	case OPTION_AS_NEEDED:
+/* XXX: --as-needed is broken on powerpc64 */
+#ifndef __powerpc64__
 	  as_needed = TRUE;
 	  break;
+#endif
 	case OPTION_NO_AS_NEEDED:
 	  as_needed = FALSE;
 	  break;
