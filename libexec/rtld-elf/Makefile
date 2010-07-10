@@ -11,7 +11,11 @@ MAN=		rtld.1
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
 CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
+.if ${MACHINE_ARCH} == "powerpc64"
+LDFLAGS+=	-nostdlib -e _rtld_start
+.else
 LDFLAGS+=	-nostdlib -e .rtld_start
+.endif
 WARNS?=		2
 INSTALLFLAGS=	-C -b
 PRECIOUSPROG=
