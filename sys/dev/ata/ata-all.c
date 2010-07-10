@@ -105,7 +105,7 @@ SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RDTUN, &ata_dma, 0,
 	   "ATA disk DMA mode control");
 TUNABLE_INT("hw.ata.ata_dma_check_80pin", &ata_dma_check_80pin);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma_check_80pin,
-	   CTLFLAG_RDTUN, &ata_dma_check_80pin, 1,
+	   CTLFLAG_RW, &ata_dma_check_80pin, 1,
 	   "Check for 80pin cable before setting ATA DMA mode");
 TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
 SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RDTUN, &atapi_dma, 0,

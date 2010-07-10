@@ -336,7 +336,8 @@ ata_intel_new_setmode(device_t dev, int target, int mode)
 	u_int8_t utimings[] = { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
 
 	mode = min(mode, ctlr->chip->max_dma);
-	if (mode > ATA_UDMA2 && !(reg54 & (0x10 << devno))) {
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+	    !(reg54 & (0x10 << devno))) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;
 	}

@@ -470,7 +470,8 @@ ata_promise_setmode(device_t dev, int target, int mode)
     switch (ctlr->chip->cfg1) {
     case PR_OLD:
     case PR_NEW:
-	if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x50, 2) &
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+	    (pci_read_config(parent, 0x50, 2) &
 				 (ch->unit ? 1 << 11 : 1 << 10))) {
 	    ata_print_cable(dev, "controller");
 	    mode = ATA_UDMA2;
@@ -479,7 +480,7 @@ ata_promise_setmode(device_t dev, int target, int mode)
 
     case PR_TX:
 	ATA_IDX_OUTB(ch, ATA_BMDEVSPEC_0, 0x0b);
-	if (mode > ATA_UDMA2 &&
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
 	    ATA_IDX_INB(ch, ATA_BMDEVSPEC_1) & 0x04) {
 	    ata_print_cable(dev, "controller");
 	    mode = ATA_UDMA2;
@@ -487,7 +488,7 @@ ata_promise_setmode(device_t dev, int target, int mode)
 	break;
    
     case PR_MIO:
-	if (mode > ATA_UDMA2 &&
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
 	    (ATA_INL(ctlr->r_res2,
 		     (ctlr->chip->cfg2 & PR_SX4X ? 0x000c0260 : 0x0260) +
 		     (ch->unit << 7)) & 0x01000000)) {
