@@ -123,7 +123,7 @@ struct ctlname {
 #define REQ_WIRED	2	/* locked and wired */
 
 /* definitions for sysctl_req 'flags' member */
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__) || defined(__ia64__) || defined(__powerpc64__)
 #define	SCTL_MASK32	1	/* 32 bit emulation */
 #endif
 
