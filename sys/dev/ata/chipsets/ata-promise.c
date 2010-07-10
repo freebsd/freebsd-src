@@ -744,6 +744,8 @@ ata_promise_mio_reset(device_t dev)
 
 	    if (ata_sata_phy_reset(dev, -1, 1))
 		ata_generic_reset(dev);
+	    else
+		ch->devices = 0;
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x06c, (0x00000011 << ch->unit));

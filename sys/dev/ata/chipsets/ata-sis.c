@@ -228,8 +228,12 @@ ata_sis_ch_attach(device_t dev)
 static void
 ata_sis_reset(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
+    else
+	ch->devices = 0;
 }
 
 static int
