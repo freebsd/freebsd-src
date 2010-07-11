@@ -529,8 +529,8 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 		debugf("decoded intr = %d, trig = %d, pol = %d\n", interrupt,
 		    trig, pol);
 
-		intr_sl[intr_num].trig = trig;
-		intr_sl[intr_num].pol = pol;
+		intr_sl[i].trig = trig;
+		intr_sl[i].pol = pol;
 
 		resource_list_add(rl, SYS_RES_IRQ, i, interrupt, interrupt, 1);
 	}
