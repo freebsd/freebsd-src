@@ -325,8 +325,9 @@ fdt_pci_route_intr(int bus, int slot, int func, int pin,
 		debugf("decoded intr = %d, trig = %d, pol = %d\n", *interrupt,
 		    trig, pol);
 
-		/* XXX we should probably call powerpc_config() here... */
-
+#if defined(__powerpc__)
+		powerpc_config_intr(INTR_VEC(intr_par, *interrupt), trig, pol);
+#endif
 		return (0);
 
 next:

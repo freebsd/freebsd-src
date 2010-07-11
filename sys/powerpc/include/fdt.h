@@ -1,6 +1,9 @@
 /*-
- * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Semihalf under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,12 +29,26 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#ifndef _MACHINE_FDT_H_
+#define _MACHINE_FDT_H_
 
-#define	MODINFOMD_ENVP		0x1001
-#define	MODINFOMD_HOWTO		0x1002
-#define	MODINFOMD_KERNEND	0x1003
-#define	MODINFOMD_DTBP		0x1004
+#include <machine/bus.h>
+#include <machine/intr_machdep.h>
+#include <machine/platform.h>
+#include <machine/vmparam.h>
 
-#endif /* !_MACHINE_METADATA_H_ */
+/*
+ * This is the base virtual address the internal mem-mapped registers (IMMR)
+ * range is available at.
+ */
+#define FDT_IMMR_VA	CCSRBAR_VA
+
+/* Max interrupt number */
+#define FDT_INTR_MAX	INTR_VECTORS
+
+/*
+ * Bus space tag. XXX endianess info needs to be derived from the blob.
+ */
+#define fdtbus_bs_tag	(&bs_be_tag)
+
+#endif /* _MACHINE_FDT_H_ */

@@ -35,49 +35,39 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>   
 #include <sys/module.h>
-#include <sys/rman.h>
-#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 
 #include <dev/cfi/cfi_var.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
-#include <powerpc/mpc85xx/lbc.h>
+static int cfi_fdt_probe(device_t);
 
-static int cfi_lbc_probe(device_t);
-
-static device_method_t cfi_lbc_methods[] = {
+static device_method_t cfi_fdt_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,		cfi_lbc_probe),
+	DEVMETHOD(device_probe,		cfi_fdt_probe),
 	DEVMETHOD(device_attach,	cfi_attach),
 	DEVMETHOD(device_detach,	cfi_detach),
 
 	{0, 0}
 };
 
-static driver_t cfi_lbc_driver = {
+static driver_t cfi_fdt_driver = {
 	cfi_driver_name,
-	cfi_lbc_methods,
+	cfi_fdt_methods,
 	sizeof(struct cfi_softc),
 };
 
-DRIVER_MODULE (cfi, lbc, cfi_lbc_driver, cfi_devclass, 0, 0);
+DRIVER_MODULE (cfi, lbc, cfi_fdt_driver, cfi_devclass, 0, 0);
 
 static int
-cfi_lbc_probe(device_t dev)
+cfi_fdt_probe(device_t dev)
 {
-	uintptr_t devtype;
-	int error;
 
-	error = BUS_READ_IVAR(device_get_parent(dev), dev, LBC_IVAR_DEVTYPE,
-	    &devtype);
-	if (error)
-		return (error);
-
-	if (devtype != LBC_DEVTYPE_CFI)
-		return (EINVAL);
+	if (!ofw_bus_is_compatible(dev, "cfi-flash"))
+		return (ENXIO);
 
 	return (cfi_probe(dev));
 }

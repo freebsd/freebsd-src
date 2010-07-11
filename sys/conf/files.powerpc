@@ -14,7 +14,6 @@ font.h				optional	sc			\
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 #
-
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/bm/if_bm.c			optional	bm powermac
@@ -23,21 +22,23 @@ dev/adb/adb_kbd.c		optional	adb
 dev/adb/adb_mouse.c		optional	adb
 dev/adb/adb_hb_if.m		optional	adb
 dev/adb/adb_if.m		optional	adb
-dev/cfi/cfi_bus_lbc.c		optional	cfi
+dev/cfi/cfi_bus_fdt.c		optional	cfi fdt
 dev/fb/fb.c			optional	sc
+dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/kbd/kbd.c			optional	sc
-dev/ofw/openfirm.c		optional	aim
-dev/ofw/openfirmio.c		optional	aim
-dev/ofw/ofw_bus_if.m		optional	aim
-dev/ofw/ofw_if.m		optional	aim
-dev/ofw/ofw_bus_subr.c		optional	aim
+dev/ofw/openfirm.c		optional	aim | fdt
+dev/ofw/openfirmio.c		optional	aim | fdt
+dev/ofw/ofw_bus_if.m		optional	aim | fdt
+dev/ofw/ofw_if.m		optional	aim | fdt
+dev/ofw/ofw_bus_subr.c		optional	aim | fdt
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
+dev/ofw/ofw_fdt.c		optional	fdt
 dev/ofw/ofw_iicbus.c		optional	iicbus aim
 dev/ofw/ofw_standard.c		optional	aim
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
-dev/quicc/quicc_bfe_ocp.c	optional	quicc mpc85xx
+dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
 dev/scc/scc_bfe_macio.c		optional	scc powermac
 dev/sec/sec.c			optional	sec mpc85xx
 dev/sound/macio/aoa.c		optional	snd_davbus | snd_ai2s powermac
@@ -49,9 +50,8 @@ dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
-dev/tsec/if_tsec_ocp.c		optional	tsec mpc85xx
-dev/uart/uart_bus_ocp.c		optional	uart mpc85xx
-dev/uart/uart_cpu_powerpc.c	optional	uart
+dev/tsec/if_tsec_fdt.c		optional	tsec fdt
+dev/uart/uart_cpu_powerpc.c	optional	uart aim
 kern/syscalls.c			optional	ktr
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
@@ -63,6 +63,7 @@ libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/lshrdi3.c		standard
+libkern/memchr.c		optional	fdt
 libkern/memmove.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		standard
@@ -109,16 +110,15 @@ powerpc/fpu/fpu_mul.c		optional	fpu_emu
 powerpc/fpu/fpu_sqrt.c		optional	fpu_emu
 powerpc/fpu/fpu_subr.c		optional	fpu_emu
 powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
-powerpc/mpc85xx/ds1553_bus_lbc.c	optional	ds1553
+powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
-powerpc/mpc85xx/i2c.c		optional	iicbus mpc85xx
+powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
 powerpc/mpc85xx/mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/nexus.c		optional	mpc85xx
-powerpc/mpc85xx/ocpbus.c	optional	mpc85xx
-powerpc/mpc85xx/opic.c		optional	mpc85xx
-powerpc/mpc85xx/pci_ocp.c	optional	pci mpc85xx
+powerpc/mpc85xx/openpic_fdt.c	optional	fdt
+powerpc/mpc85xx/pci_fdt.c	optional	pci mpc85xx
 powerpc/ofw/ofw_cpu.c		optional	aim
 powerpc/ofw/ofw_pcibus.c	optional	pci aim
 powerpc/ofw/ofw_pcib_pci.c	optional	pci aim

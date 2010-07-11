@@ -1,5 +1,6 @@
 /*-
- * Copyright 2006 by Juniper Networks. All rights reserved.
+ * Copyright (c) 2006 Juniper Networks.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,7 +24,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 #include <sys/cdefs.h>
@@ -31,75 +31,60 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
-#include <sys/bus.h>
-
+#include <sys/tty.h>
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
-#include <machine/openpicvar.h>
-#include <machine/ocpbus.h>
 
-#include "pic_if.h"
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/quicc/quicc_bfe.h>
 
-/*
- * OpenPIC attachment to ocpbus
- */
-static int	openpic_ocpbus_probe(device_t);
-static uint32_t	openpic_ocpbus_id(device_t);
+static int quicc_fdt_probe(device_t dev);
 
-static device_method_t  openpic_ocpbus_methods[] = {
+static device_method_t quicc_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		openpic_ocpbus_probe),
-	DEVMETHOD(device_attach,	openpic_attach),
+	DEVMETHOD(device_probe,		quicc_fdt_probe),
+	DEVMETHOD(device_attach,	quicc_bfe_attach),
+	DEVMETHOD(device_detach,	quicc_bfe_detach),
 
-	/* PIC interface */
-	DEVMETHOD(pic_bind,		openpic_bind),
-	DEVMETHOD(pic_config,		openpic_config),
-	DEVMETHOD(pic_dispatch,		openpic_dispatch),
-	DEVMETHOD(pic_enable,		openpic_enable),
-	DEVMETHOD(pic_eoi,		openpic_eoi),
-	DEVMETHOD(pic_ipi,		openpic_ipi),
-	DEVMETHOD(pic_mask,		openpic_mask),
-	DEVMETHOD(pic_unmask,		openpic_unmask),
-	DEVMETHOD(pic_id,		openpic_ocpbus_id),
+	DEVMETHOD(bus_alloc_resource,	quicc_bus_alloc_resource),
+	DEVMETHOD(bus_release_resource,	quicc_bus_release_resource),
+	DEVMETHOD(bus_get_resource,	quicc_bus_get_resource),
+	DEVMETHOD(bus_read_ivar,	quicc_bus_read_ivar),
+	DEVMETHOD(bus_setup_intr,	quicc_bus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	quicc_bus_teardown_intr),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 
-	{ 0, 0 },
+	{ 0, 0 }
 };
 
-static driver_t openpic_ocpbus_driver = {
-	"openpic",
-	openpic_ocpbus_methods,
-	sizeof(struct openpic_softc)
+static driver_t quicc_fdt_driver = {
+	quicc_driver_name,
+	quicc_fdt_methods,
+	sizeof(struct quicc_softc),
 };
-
-DRIVER_MODULE(openpic, ocpbus, openpic_ocpbus_driver, openpic_devclass, 0, 0);
 
 static int
-openpic_ocpbus_probe (device_t dev)
+quicc_fdt_probe(device_t dev)
 {
-	device_t parent;
-	uintptr_t devtype;
-	int error;
+	phandle_t par;
+	pcell_t clock;
 
-	parent = device_get_parent(dev);
-
-	error = BUS_READ_IVAR(parent, dev, OCPBUS_IVAR_DEVTYPE, &devtype);
-	if (error)
-		return (error);
-	if (devtype != OCPBUS_DEVTYPE_PIC)
+	if (!ofw_bus_is_compatible(dev, "fsl,cpm2"))
 		return (ENXIO);
 
-	device_set_desc(dev, OPENPIC_DEVSTR);
-	return (BUS_PROBE_DEFAULT);
+	par = OF_parent(ofw_bus_get_node(dev));
+	if (OF_getprop(par, "bus-frequency", &clock, sizeof(clock)) <= 0)
+		clock = 0;
+
+	return (quicc_bfe_probe(dev, (uintptr_t)clock));
 }
 
-static uint32_t
-openpic_ocpbus_id (device_t dev)
-{
-	return (OPIC_ID);
-}
-
-
+DRIVER_MODULE(quicc, simplebus, quicc_fdt_driver, quicc_devclass, 0, 0);
