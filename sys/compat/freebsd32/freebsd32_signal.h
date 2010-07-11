@@ -96,6 +96,6 @@ struct sigevent32 {
 	} _sigev_un;
 };
 
-void siginfo_to_siginfo32(siginfo_t *src, struct siginfo32 *dst);
+void siginfo_to_siginfo32(const siginfo_t *src, struct siginfo32 *dst);
 
 #endif /* !_COMPAT_FREEBSD32_SIGNAL_H_ */
