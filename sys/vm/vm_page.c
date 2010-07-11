@@ -786,6 +786,31 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 }
 
 /*
+ *	vm_page_find_least:
+ *
+ *	Returns the page associated with the object with least pindex
+ *	greater than or equal to the parameter pindex, or NULL.
+ *
+ *	The object must be locked.
+ *	The routine may not block.
+ */
+vm_page_t
+vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
+{
+	vm_page_t m;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if ((m = TAILQ_FIRST(&object->memq)) != NULL) {
+		if (m->pindex < pindex) {
+			m = vm_page_splay(pindex, object->root);
+			if ((object->root = m)->pindex < pindex)
+				m = TAILQ_NEXT(m, listq);
+		}
+	}
+	return (m);
+}
+
+/*
  *	vm_page_rename:
  *
  *	Move the given memory entry from its
