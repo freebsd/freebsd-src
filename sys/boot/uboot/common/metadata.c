@@ -36,9 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/metadata.h>
-#if !defined(LOADER_FDT_SUPPORT)
-#include <machine/bootinfo.h>
-#endif
 
 #include "api_public.h"
 #include "bootstrap.h"
@@ -259,114 +256,6 @@ md_copymodules(vm_offset_t addr)
 	return(addr);
 }
 
-#if !defined(LOADER_FDT_SUPPORT)
-/*
- * Prepare the bootinfo structure. Put a ptr to the allocated struct in addr,
- * return size.
- */
-static int
-md_bootinfo(struct bootinfo **addr)
-{
-#define	TMP_MAX_ETH	8
-#define	TMP_MAX_MR	8
-	struct bootinfo		*bi;
-	struct bi_mem_region	tmp_mr[TMP_MAX_MR];
-	struct bi_eth_addr	tmp_eth[TMP_MAX_ETH];
-	struct sys_info		*si;
-	char			*str, *end;
-	const char		*env;
-	void			*ptr;
-	u_int8_t		tmp_addr[6];
-	int			i, n, mr_no, eth_no, size;
-
-	if ((si = ub_get_sys_info()) == NULL)
-		panic("can't retrieve U-Boot sysinfo");
-
-	/*
-	 * Handle mem regions (we only care about DRAM)
-	 */
-	for (i = 0, mr_no = 0; i < si->mr_no; i++) {
-		if (si->mr[i].flags == MR_ATTR_DRAM) {
-			if (mr_no >= TMP_MAX_MR) {
-				printf("too many memory regions: %d\n", mr_no);
-				break;
-			}
-			tmp_mr[mr_no].mem_base = si->mr[i].start;
-			tmp_mr[mr_no].mem_size = si->mr[i].size;
-			mr_no++;
-			continue;
-		}
-	}
-	if (mr_no == 0)
-		panic("can't retrieve RAM info");
-
-	size = (mr_no * sizeof(struct bi_mem_region) - sizeof(bi->bi_data));
-
-	/*
-	 * Handle Ethernet addresses: parse u-boot env for eth%daddr
-	 */
-	env = NULL;
-	eth_no = 0;
-	while ((env = ub_env_enum(env)) != NULL) {
-		if (strncmp(env, "eth", 3) == 0 &&
-		    strncmp(env + (strlen(env) - 4), "addr", 4) == 0) {
-
-			/* Extract interface number */
-			i = strtol(env + 3, &end, 10);
-			if (end == (env + 3))
-				/* 'ethaddr' means interface 0 address */
-				n = 0;
-			else
-				n = i;
-
-			if (n >= TMP_MAX_MR) {
-				printf("Ethernet interface number too high: %d. "
-				    "Skipping...\n");
-				continue;
-			}
-
-			str = ub_env_get(env);
-			for (i = 0; i < 6; i++) {
-				tmp_addr[i] = str ? strtol(str, &end, 16) : 0;
-				if (str)
-					str = (*end) ? end + 1 : end;
-
-				tmp_eth[n].mac_addr[i] = tmp_addr[i];
-			}
-
-			/* eth_no is 1-based number of all interfaces defined */
-			if (n + 1 > eth_no)
-				eth_no = n + 1;
-		}
-	}
-
-	size += (eth_no * sizeof(struct bi_eth_addr)) + sizeof(struct bootinfo);
-
-	/*
-	 * Once its whole size is calculated, allocate space for the bootinfo
-	 * and copy over the contents from temp containers.
-	 */
-	if ((bi = malloc(size)) == NULL)
-		panic("can't allocate mem for bootinfo");
-
-	ptr = (struct bi_mem_region *)bi->bi_data;
-	bcopy(tmp_mr, ptr, mr_no * sizeof(struct bi_mem_region));
-	ptr += mr_no * sizeof(struct bi_mem_region);
-	bcopy(tmp_eth, ptr, eth_no * sizeof(struct bi_eth_addr));
-
-	bi->bi_mem_reg_no = mr_no;
-	bi->bi_eth_addr_no = eth_no;
-	bi->bi_version = BI_VERSION;
-	bi->bi_bar_base = si->bar;
-	bi->bi_cpu_clk = si->clk_cpu;
-	bi->bi_bus_clk = si->clk_bus;
-
-	*addr = bi;
-
-	return (size);
-}
-#endif
-
 /*
  * Load the information expected by a kernel.
  *
@@ -390,7 +279,6 @@ md_load(char *args, vm_offset_t *modulep)
 	vm_offset_t		dtbp;
 	char			*rootdevname;
 	int			howto;
-	int			bisize;
 	int			i;
 
 	/*
@@ -434,11 +322,6 @@ md_load(char *args, vm_offset_t *modulep)
 	/* Pad to a page boundary */
 	addr = roundup(addr, PAGE_SIZE);
 
-#if !defined(LOADER_FDT_SUPPORT)
-	/* prepare bootinfo */
-	bisize = md_bootinfo(&bip);
-#endif
-
 	kernend = 0;
 	kfp = file_findfile(NULL, "elf32 kernel");
 	if (kfp == NULL)
@@ -457,8 +340,6 @@ md_load(char *args, vm_offset_t *modulep)
 
 	dtbp = bfp == NULL ? 0 : bfp->f_addr;
 	file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
-#else
-	file_addmetadata(kfp, MODINFOMD_BOOTINFO, bisize, bip);
 #endif
 
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
