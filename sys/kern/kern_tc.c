@@ -864,43 +864,21 @@ cpu_tick_calibrate(int reset)
 		t_delta = t_this;
 		bintime_sub(&t_delta, &t_last);
 		/*
-		 * Validate that 16 +/- 1/256 seconds passed. 
-		 * After division by 16 this gives us a precision of
-		 * roughly 250PPM which is sufficient
+		 * Headroom:
+		 * 	2^(64-20) / 16[s] =
+		 * 	2^(44) / 16[s] =
+		 * 	17.592.186.044.416 / 16 =
+		 * 	1.099.511.627.776 [Hz]
 		 */
-		if (t_delta.sec > 16 || (
-		    t_delta.sec == 16 && t_delta.frac >= (0x01LL << 56))) {
-			/* too long */
-			if (bootverbose)
-				printf("t_delta %ju.%016jx too long\n",
-				    (uintmax_t)t_delta.sec,
-				    (uintmax_t)t_delta.frac);
-		} else if (t_delta.sec < 15 ||
-		    (t_delta.sec == 15 && t_delta.frac <= (0xffLL << 56))) {
-			/* too short */
-			if (bootverbose)
-				printf("t_delta %ju.%016jx too short\n",
-				    (uintmax_t)t_delta.sec,
-				    (uintmax_t)t_delta.frac);
-		} else {
-			/* just right */
-			/*
-			 * Headroom:
-			 * 	2^(64-20) / 16[s] =
-			 * 	2^(44) / 16[s] =
-			 * 	17.592.186.044.416 / 16 =
-			 * 	1.099.511.627.776 [Hz]
-			 */
-			divi = t_delta.sec << 20;
-			divi |= t_delta.frac >> (64 - 20);
-			c_delta <<= 20;
-			c_delta /= divi;
-			if (c_delta  > cpu_tick_frequency) {
-				if (0 && bootverbose)
-					printf("cpu_tick increased to %ju Hz\n",
-					    c_delta);
-				cpu_tick_frequency = c_delta;
-			}
+		divi = t_delta.sec << 20;
+		divi |= t_delta.frac >> (64 - 20);
+		c_delta <<= 20;
+		c_delta /= divi;
+		if (c_delta > cpu_tick_frequency) {
+			if (0 && bootverbose)
+				printf("cpu_tick increased to %ju Hz\n",
+				    c_delta);
+			cpu_tick_frequency = c_delta;
 		}
 	}
 	c_last = c_this;
