@@ -23,6 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * From: FreeBSD: src/sys/powerpc/mpc85xx/ds1553_bus_lbc.c,v 1.2 2009/06/24 15:48:20 raj
  */
 
 #include <sys/cdefs.h>
@@ -43,9 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <powerpc/mpc85xx/ds1553_reg.h>
-#include <powerpc/mpc85xx/lbc.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
+#include "ds1553_reg.h"
 #include "clock_if.h"
 
 static devclass_t rtc_devclass;
@@ -76,20 +77,12 @@ DRIVER_MODULE(rtc, lbc, rtc_driver, rtc_devclass, 0, 0);
 static int
 rtc_probe(device_t dev)
 {
-	uintptr_t devtype;
-	int error;
 
-	error = BUS_READ_IVAR(device_get_parent(dev), dev, LBC_IVAR_DEVTYPE,
-	    &devtype);
-	if (error)
-		return (error);
-
-	if (devtype != LBC_DEVTYPE_RTC)
-		return (EINVAL);
+	if (!ofw_bus_is_compatible(dev, "dallas,ds1553"))
+		return (ENXIO);
 
 	device_set_desc(dev, "Dallas Semiconductor DS1553 RTC");
-
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

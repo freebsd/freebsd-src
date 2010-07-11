@@ -1,6 +1,6 @@
 /*-
- * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
- * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
+ * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski
+ * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,10 +22,12 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * From: FreeBSD: head/sys/dev/tsec/if_tsec_ocp.c 188712 2009-02-17 14:59:47Z raj
  */
 
 /*
- * OCP attachment driver for Freescale TSEC controller.
+ * FDT 'simple-bus' attachment for Freescale TSEC controller.
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -50,36 +52,37 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_arp.h>
 
+#include <dev/fdt/fdt_common.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-
-#include <machine/bootinfo.h>
-#include <machine/ocpbus.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <dev/tsec/if_tsec.h>
 #include <dev/tsec/if_tsecreg.h>
 
 #include "miibus_if.h"
 
-#define	OCP_TSEC_RID_TXIRQ	0
-#define	OCP_TSEC_RID_RXIRQ	1
-#define	OCP_TSEC_RID_ERRIRQ	2
+#define	TSEC_RID_TXIRQ	0
+#define	TSEC_RID_RXIRQ	1
+#define	TSEC_RID_ERRIRQ	2
 
 extern struct tsec_softc *tsec0_sc;
 
-static int	tsec_ocp_probe(device_t dev);
-static int	tsec_ocp_attach(device_t dev);
-static int	tsec_ocp_detach(device_t dev);
-static int	tsec_setup_intr(struct tsec_softc *sc, struct resource **ires,
+static int tsec_fdt_probe(device_t dev);
+static int tsec_fdt_attach(device_t dev);
+static int tsec_fdt_detach(device_t dev);
+static int tsec_setup_intr(struct tsec_softc *sc, struct resource **ires,
     void **ihand, int *irid, driver_intr_t handler, const char *iname);
-static void	tsec_release_intr(struct tsec_softc *sc, struct resource *ires,
+static void tsec_release_intr(struct tsec_softc *sc, struct resource *ires,
     void *ihand, int irid, const char *iname);
 
 static device_method_t tsec_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		tsec_ocp_probe),
-	DEVMETHOD(device_attach,	tsec_ocp_attach),
-	DEVMETHOD(device_detach,	tsec_ocp_detach),
+	DEVMETHOD(device_probe,		tsec_fdt_probe),
+	DEVMETHOD(device_attach,	tsec_fdt_attach),
+	DEVMETHOD(device_detach,	tsec_fdt_detach),
 
 	DEVMETHOD(device_shutdown,	tsec_shutdown),
 	DEVMETHOD(device_suspend,	tsec_suspend),
@@ -96,38 +99,30 @@ static device_method_t tsec_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t tsec_ocp_driver = {
+static driver_t tsec_fdt_driver = {
 	"tsec",
 	tsec_methods,
 	sizeof(struct tsec_softc),
 };
 
-DRIVER_MODULE(tsec, ocpbus, tsec_ocp_driver, tsec_devclass, 0, 0);
-MODULE_DEPEND(tsec, ocpbus, 1, 1, 1);
+DRIVER_MODULE(tsec, simplebus, tsec_fdt_driver, tsec_devclass, 0, 0);
+MODULE_DEPEND(tsec, simplebus, 1, 1, 1);
 MODULE_DEPEND(tsec, ether, 1, 1, 1);
 
 static int
-tsec_ocp_probe(device_t dev)
+tsec_fdt_probe(device_t dev)
 {
 	struct tsec_softc *sc;
-	device_t parent;
-	uintptr_t devtype;
-	int error;
 	uint32_t id;
 
-	parent = device_get_parent(dev);
-
-	error = BUS_READ_IVAR(parent, dev, OCPBUS_IVAR_DEVTYPE, &devtype);
-	if (error)
-		return (error);
-	if (devtype != OCPBUS_DEVTYPE_TSEC)
+	if (!ofw_bus_is_compatible(dev, "gianfar"))
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
 
 	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_rrid,
-	    0ul, ~0ul, TSEC_IO_SIZE, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rrid,
+	    RF_ACTIVE);
 	if (sc->sc_rres == NULL)
 		return (ENXIO);
 
@@ -155,17 +150,22 @@ tsec_ocp_probe(device_t dev)
 }
 
 static int
-tsec_ocp_attach(device_t dev)
+tsec_fdt_attach(device_t dev)
 {
 	struct tsec_softc *sc;
 	int error = 0;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->node = ofw_bus_get_node(dev);
 
 	/* XXX add comment on weird FSL's MII registers access design */
 	if (device_get_unit(dev) == 0)
 		tsec0_sc = sc;
+
+	/* Get phy address from fdt */
+	if (fdt_get_phyaddr(sc->node, &sc->phyaddr) != 0)
+		return (ENXIO);
 
 	/* Init timer */
 	callout_init(&sc->tsec_callout, 1);
@@ -177,11 +177,11 @@ tsec_ocp_attach(device_t dev)
 	    MTX_DEF);
 	mtx_init(&sc->ic_lock, device_get_nameunit(dev), "TSEC IC lock",
 	    MTX_DEF);
-	
+
 	/* Allocate IO memory for TSEC registers */
 	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_rrid,
-	    0ul, ~0ul, TSEC_IO_SIZE, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rrid,
+	    RF_ACTIVE);
 	if (sc->sc_rres == NULL) {
 		device_printf(dev, "could not allocate IO memory range!\n");
 		goto fail1;
@@ -196,21 +196,21 @@ tsec_ocp_attach(device_t dev)
 	}
 
 	/* Set up interrupts (TX/RX/ERR) */
-	sc->sc_transmit_irid = OCP_TSEC_RID_TXIRQ;
+	sc->sc_transmit_irid = TSEC_RID_TXIRQ;
 	error = tsec_setup_intr(sc, &sc->sc_transmit_ires,
 	    &sc->sc_transmit_ihand, &sc->sc_transmit_irid,
 	    tsec_transmit_intr, "TX");
 	if (error)
 		goto fail2;
 
-	sc->sc_receive_irid = OCP_TSEC_RID_RXIRQ;
+	sc->sc_receive_irid = TSEC_RID_RXIRQ;
 	error = tsec_setup_intr(sc, &sc->sc_receive_ires,
 	    &sc->sc_receive_ihand, &sc->sc_receive_irid,
 	    tsec_receive_intr, "RX");
 	if (error)
 		goto fail3;
 
-	sc->sc_error_irid = OCP_TSEC_RID_ERRIRQ;
+	sc->sc_error_irid = TSEC_RID_ERRIRQ;
 	error = tsec_setup_intr(sc, &sc->sc_error_ires,
 	    &sc->sc_error_ihand, &sc->sc_error_irid,
 	    tsec_error_intr, "ERR");
@@ -239,8 +239,8 @@ tsec_setup_intr(struct tsec_softc *sc, struct resource **ires, void **ihand,
 {
 	int error;
 
-	(*ires) = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, irid, RF_ACTIVE);
-	if ((*ires) == NULL) {
+	*ires = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, irid, RF_ACTIVE);
+	if (*ires == NULL) {
 		device_printf(sc->dev, "could not allocate %s IRQ\n", iname);
 		return (ENXIO);
 	}
@@ -250,7 +250,7 @@ tsec_setup_intr(struct tsec_softc *sc, struct resource **ires, void **ihand,
 		device_printf(sc->dev, "failed to set up %s IRQ\n", iname);
 		if (bus_release_resource(sc->dev, SYS_RES_IRQ, *irid, *ires))
 			device_printf(sc->dev, "could not release %s IRQ\n", iname);
-		(*ires) = NULL;
+		*ires = NULL;
 		return (error);
 	}
 	return (0);
@@ -277,7 +277,7 @@ tsec_release_intr(struct tsec_softc *sc, struct resource *ires, void *ihand,
 }
 
 static int
-tsec_ocp_detach(device_t dev)
+tsec_fdt_detach(device_t dev)
 {
 	struct tsec_softc *sc;
 	int error;
@@ -322,14 +322,15 @@ tsec_get_hwaddr(struct tsec_softc *sc, uint8_t *addr)
 		uint8_t addr[6];
 	} curmac;
 	uint32_t a[6];
-	device_t parent;
-	uintptr_t macaddr;
+	uint8_t lma[6];
 	int i;
 
-	parent = device_get_parent(sc->dev);
-	if (BUS_READ_IVAR(parent, sc->dev, OCPBUS_IVAR_MACADDR,
-	    &macaddr) == 0) {
-		bcopy((uint8_t *)macaddr, addr, 6);
+	/*
+	 * Retrieve hw address from the device tree.
+	 */
+	i = OF_getprop(sc->node, "local-mac-address", (void *)lma, 6);
+	if (i == 6) {
+		bcopy(lma, addr, 6);
 		return;
 	}
 
