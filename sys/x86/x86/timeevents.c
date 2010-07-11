@@ -309,6 +309,8 @@ cpu_initclocks_bsp(void)
 	timer[0] = et_find(timername[0], ET_FLAGS_PERIODIC, ET_FLAGS_PERIODIC);
 	if (timer[0] == NULL)
 		timer[0] = et_find(NULL, ET_FLAGS_PERIODIC, ET_FLAGS_PERIODIC);
+	if (timer[0] == NULL)
+		panic("No usable event timer found!");
 	et_init(timer[0], timer1cb, NULL, NULL);
 	timer[1] = et_find(timername[1][0] ? timername[1] : NULL,
 	    ET_FLAGS_PERIODIC, ET_FLAGS_PERIODIC);
