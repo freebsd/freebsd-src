@@ -930,12 +930,16 @@ acpi_cpu_idle()
 
     /*
      * Execute HLT (or equivalent) and wait for an interrupt.  We can't
-     * calculate the time spent in C1 since the place we wake up is an
-     * ISR.  Assume we slept half of quantum and return.
+     * precisely calculate the time spent in C1 since the place we wake up
+     * is an ISR.  Assume we slept no more then half of quantum.
      */
     if (cx_next->type == ACPI_STATE_C1) {
-	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + 500000 / hz) / 4;
+	AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
 	acpi_cpu_c1();
+	AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+        end_time = acpi_TimerDelta(end_time, start_time);
+	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 +
+	    min(PM_USEC(end_time), 500000 / hz)) / 4;
 	return;
     }
 
