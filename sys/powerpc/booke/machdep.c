@@ -130,13 +130,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/mmuvar.h>
 #include <machine/sigframe.h>
 #include <machine/metadata.h>
-#include <machine/bootinfo.h>
 #include <machine/platform.h>
 
 #include <sys/linker.h>
 #include <sys/reboot.h>
 
-#include <powerpc/mpc85xx/ocpbus.h>
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+
 #include <powerpc/mpc85xx/mpc85xx.h>
 
 #ifdef DDB
@@ -169,8 +170,6 @@ int cold = 1;
 long realmem = 0;
 long Maxmem = 0;
 
-struct bootinfo *bootinfo;
-
 char machine[] = "powerpc";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
@@ -185,7 +184,6 @@ static void cpu_e500_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
 
 void print_kernel_section_addr(void);
-void print_bootinfo(void);
 void print_kenv(void);
 u_int e500_init(u_int32_t, u_int32_t, void *);
 
@@ -259,40 +257,6 @@ print_kenv(void)
 }
 
 void
-print_bootinfo(void)
-{
-	struct bi_mem_region *mr;
-	struct bi_eth_addr *eth;
-	int i, j;
-
-	debugf("bootinfo:\n");
-	if (bootinfo == NULL) {
-		debugf(" no bootinfo, null ptr\n");
-		return;
-	}
-
-	debugf(" version = 0x%08x\n", bootinfo->bi_version);
-	debugf(" ccsrbar = 0x%08x\n", bootinfo->bi_bar_base);
-	debugf(" cpu_clk = 0x%08x\n", bootinfo->bi_cpu_clk);
-	debugf(" bus_clk = 0x%08x\n", bootinfo->bi_bus_clk);
-
-	debugf(" mem regions:\n");
-	mr = (struct bi_mem_region *)bootinfo->bi_data;
-	for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++)
-		debugf("    #%d, base = 0x%08x, size = 0x%08x\n", i,
-		    mr->mem_base, mr->mem_size);
-
-	debugf(" eth addresses:\n");
-	eth = (struct bi_eth_addr *)mr;
-	for (i = 0; i < bootinfo->bi_eth_addr_no; i++, eth++) {
-		debugf("    #%d, addr = ", i);
-		for (j = 0; j < 6; j++)
-			debugf("%02x ", eth->mac_addr[j]);
-		debugf("\n");
-	}
-}
-
-void
 print_kernel_section_addr(void)
 {
 
@@ -306,54 +270,29 @@ print_kernel_section_addr(void)
 	debugf(" _end           = 0x%08x\n", (uint32_t)_end);
 }
 
-struct bi_mem_region *
-bootinfo_mr(void)
-{
-
-	return ((struct bi_mem_region *)bootinfo->bi_data);
-}
-
-struct bi_eth_addr *
-bootinfo_eth(void)
-{
-	struct bi_mem_region *mr;
-	struct bi_eth_addr *eth;
-	int i;
-
-	/* Advance to the eth section */
-	mr = bootinfo_mr();
-	for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++)
-		;
-
-	eth = (struct bi_eth_addr *)mr;
-	return (eth);
-}
-
 u_int
 e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 {
 	struct pcpu *pc;
 	void *kmdp;
-	vm_offset_t end;
+	vm_offset_t dtbp, end;
 	uint32_t csr;
 
 	kmdp = NULL;
 
 	end = endkernel;
+	dtbp = (vm_offset_t)NULL;
 
 	/*
-	 * Parse metadata and fetch parameters. This must be done as the first
-	 * step as we need bootinfo data to at least init the console
+	 * Parse metadata and fetch parameters.
 	 */
 	if (mdp != NULL) {
 		preload_metadata = mdp;
 		kmdp = preload_search_by_type("elf kernel");
 		if (kmdp != NULL) {
-			bootinfo = (struct bootinfo *)preload_search_info(kmdp,
-			    MODINFO_METADATA | MODINFOMD_BOOTINFO);
-
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+			dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 #ifdef DDB
 			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
@@ -362,8 +301,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		}
 	} else {
 		/*
-		 * We should scream but how? - without CCSR bar (in bootinfo) 
-		 * cannot even output anything...
+		 * We should scream but how? Cannot even output anything...
 		 */
 
 		 /*
@@ -372,11 +310,22 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		  * restore everything as the TLB have all been reprogrammed
 		  * in the locore etc...)
 		  */
-		while(1);
+		while (1);
 	}
 
+	if (OF_install(OFW_FDT, 0) == FALSE)
+		while (1);
+
+	if (OF_init((void *)dtbp) != 0)
+		while (1);
+
+	if (fdt_immr_addr() != 0)
+		while (1);
+
+	OF_interpret("perform-fixup", 0);
+
 	/* Initialize TLB1 handling */
-	tlb1_init(bootinfo->bi_bar_base);
+	tlb1_init(fdt_immr_pa);
 
 	/* Reset Time Base */
 	mttb(0);
@@ -417,7 +366,8 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	csr = ccsr_read4(OCP85XX_L2CTL);
 	debugf(" L2CTL = 0x%08x\n", csr);
 
-	print_bootinfo();
+	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
+
 	print_kernel_section_addr();
 	print_kenv();
 	//tlb1_print_entries();

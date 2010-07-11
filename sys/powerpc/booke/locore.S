@@ -39,7 +39,6 @@
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 #include <machine/tlb.h>
-#include <machine/bootinfo.h>
 
 #define TMPSTACKSZ	16384
 
