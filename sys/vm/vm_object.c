@@ -1398,13 +1398,7 @@ vm_object_split(vm_map_entry_t entry)
 		orig_object->charge -= ptoa(size);
 	}
 retry:
-	if ((m = TAILQ_FIRST(&orig_object->memq)) != NULL) {
-		if (m->pindex < offidxstart) {
-			m = vm_page_splay(offidxstart, orig_object->root);
-			if ((orig_object->root = m)->pindex < offidxstart)
-				m = TAILQ_NEXT(m, listq);
-		}
-	}
+	m = vm_page_find_least(orig_object, offidxstart);
 	vm_page_lock_queues();
 	for (; m != NULL && (idx = m->pindex - offidxstart) < size;
 	    m = m_next) {
@@ -1909,13 +1903,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 
 	vm_object_pip_add(object, 1);
 again:
-	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-		if (p->pindex < start) {
-			p = vm_page_splay(start, object->root);
-			if ((object->root = p)->pindex < start)
-				p = TAILQ_NEXT(p, listq);
-		}
-	}
+	p = vm_page_find_least(object, start);
 	vm_page_lock_queues();
 	/*
 	 * Assert: the variable p is either (1) the page with the
