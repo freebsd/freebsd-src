@@ -343,6 +343,7 @@
 			compatible = "fsl,mpc8555-cpm", "fsl,cpm2";
 			reg = <0x80000 0x20000>;
 			interrupts = <46 2>;
+			interrupt-parent = <&mpic>;
 		};
 	};
 
