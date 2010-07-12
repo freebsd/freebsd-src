@@ -128,6 +128,7 @@ static void mpt_send_event_ack(struct mpt_softc *mpt, request_t *ack_req,
 static int mpt_send_event_request(struct mpt_softc *mpt, int onoff);
 static int mpt_soft_reset(struct mpt_softc *mpt);
 static void mpt_hard_reset(struct mpt_softc *mpt);
+static int mpt_dma_buf_alloc(struct mpt_softc *mpt);
 static void mpt_dma_buf_free(struct mpt_softc *mpt);
 static int mpt_configure_ioc(struct mpt_softc *mpt, int, int);
 static int mpt_enable_ioc(struct mpt_softc *mpt, int);
@@ -2475,7 +2476,7 @@ mpt_download_fw(struct mpt_softc *mpt)
 	return (0);
 }
 
-int
+static int
 mpt_dma_buf_alloc(struct mpt_softc *mpt)
 {
 	struct mpt_map_info mi;
@@ -2486,8 +2487,9 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 	/* Create a child tag for data buffers */
 	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, MAXBSIZE, mpt->max_cam_seg_cnt,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &mpt->buffer_dmat) != 0) {
+	    NULL, NULL, (mpt->max_cam_seg_cnt - 1) * PAGE_SIZE,
+	    mpt->max_cam_seg_cnt, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    &mpt->buffer_dmat) != 0) {
 		mpt_prt(mpt, "cannot create a dma tag for data buffers\n");
 		return (1);
 	}

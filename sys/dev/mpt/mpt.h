@@ -1279,7 +1279,6 @@ void		mpt_check_doorbell(struct mpt_softc *mpt);
 void		mpt_dump_reply_frame(struct mpt_softc *mpt,
 				     MSG_DEFAULT_REPLY *reply_frame);
 
-int		mpt_dma_buf_alloc(struct mpt_softc *mpt);
 void		mpt_set_config_regs(struct mpt_softc *);
 int		mpt_issue_cfg_req(struct mpt_softc */*mpt*/, request_t */*req*/,
 				  cfgparms_t *params,
