@@ -538,15 +538,6 @@ nfs_open(struct vop_open_args *ap)
 		np->n_mtime = vattr.va_mtime;
 		mtx_unlock(&np->n_mtx);
 	} else {
-		struct thread *td = curthread;
-
-		if (np->n_ac_ts_syscalls != td->td_syscalls ||
-		    np->n_ac_ts_tid != td->td_tid || 
-		    td->td_proc == NULL ||
-		    np->n_ac_ts_pid != td->td_proc->p_pid) {
-			np->n_attrstamp = 0;
-			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-		}
 		mtx_unlock(&np->n_mtx);						
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
@@ -1123,6 +1114,20 @@ nfs_lookup(struct vop_lookup_args *ap)
 			return (error);
 		}
 		newvp = NFSTOV(np);
+
+		/*
+		 * Flush the attribute cache when opening a leaf node
+		 * to ensure that fresh attributes are fetched in
+		 * nfs_open() if we are unable to fetch attributes
+		 * from the LOOKUP reply.
+		 */
+		if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+		    !(np->n_flag & NMODIFIED)) {
+			mtx_lock(&np->n_mtx);
+			np->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
+			mtx_unlock(&np->n_mtx);
+		}
 	}
 	if (v3) {
 		nfsm_postop_attr(newvp, attrflag);
