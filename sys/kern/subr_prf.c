@@ -813,7 +813,7 @@ number:
 
 			if (!ladjust && padc == '0')
 				dwidth = width - tmp;
-			width -= tmp + MAX(dwidth, n);
+			width -= tmp + imax(dwidth, n);
 			dwidth -= n;
 			if (!ladjust)
 				while (width-- > 0)
