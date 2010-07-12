@@ -1566,6 +1566,19 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	}
 
 	/*
+	** When doing checksum offload, it is critical to
+	** make sure the first mbuf has more than header,
+	** because that routine expects data to be present.
+	*/
+	if ((m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) &&
+	    (m_head->m_len < ETHER_HDR_LEN + sizeof(struct ip))) {
+		m_head = m_pullup(m_head, ETHER_HDR_LEN + sizeof(struct ip));
+		*m_headp = m_head;
+		if (m_head == NULL)
+			return (ENOBUFS);
+	}
+
+	/*
 	 * Map the packet for DMA
 	 *
 	 * Capture the first descriptor index,
@@ -2851,6 +2864,7 @@ lem_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 
 
 	cmd = hdr_len = ipproto = 0;
+	*txd_upper = *txd_lower = 0;
 	curr_txd = adapter->next_avail_tx_desc;
 
 	/*
@@ -2894,9 +2908,6 @@ lem_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 			*txd_upper |= E1000_TXD_POPTS_IXSM << 8;
 		}
 
-		if (mp->m_len < ehdrlen + ip_hlen)
-			return;	/* failure */
-
 		hdr_len = ehdrlen + ip_hlen;
 		ipproto = ip->ip_p;
 
@@ -2905,18 +2916,13 @@ lem_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
 		ip_hlen = sizeof(struct ip6_hdr); /* XXX: No header stacking. */
 
-		if (mp->m_len < ehdrlen + ip_hlen)
-			return;	/* failure */
-
 		/* IPv6 doesn't have a header checksum. */
 
 		hdr_len = ehdrlen + ip_hlen;
 		ipproto = ip6->ip6_nxt;
-
 		break;
+
 	default:
-		*txd_upper = 0;
-		*txd_lower = 0;
 		return;
 	}
 
@@ -2970,6 +2976,8 @@ lem_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 		break;
 	}
 
+	if (TXD == NULL)
+		return;
 	TXD->tcp_seg_setup.data = htole32(0);
 	TXD->cmd_and_length =
 	    htole32(adapter->txd_cmd | E1000_TXD_CMD_DEXT | cmd);
