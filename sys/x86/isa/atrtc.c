@@ -244,6 +244,7 @@ static int
 atrtc_attach(device_t dev)
 {
 	struct atrtc_softc *sc;
+	u_long s;
 	int i, diag;
 
 	sc = device_get_softc(dev);
@@ -260,7 +261,9 @@ atrtc_attach(device_t dev)
 	    (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	     "clock", &i) != 0 || i != 0)) {
 		sc->intr_rid = 0;
-		bus_delete_resource(dev, SYS_RES_IRQ, sc->intr_rid);
+		while (bus_get_resource(dev, SYS_RES_IRQ, sc->intr_rid,
+		    &s, NULL) == 0 && s != 8)
+			sc->intr_rid++;
 		if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
 		    &sc->intr_rid, 8, 8, 1, RF_ACTIVE))) {
 			device_printf(dev,"Can't map interrupt.\n");
