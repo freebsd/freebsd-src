@@ -82,8 +82,24 @@ typedef	pt_entry_t *pd_entry_t;
  * Note that in FreeBSD, we map 2 TLB pages is equal to 1 VM page.
  */
 #define	TLBHI_ASID_MASK		(0xff)
+#if defined(__mips_n64)
+#define	TLBHI_R_SHIFT		62
+#define	TLBHI_R_USER		(0x00UL << TLBHI_R_SHIFT)
+#define	TLBHI_R_SUPERVISOR	(0x01UL << TLBHI_R_SHIFT)
+#define	TLBHI_R_KERNEL		(0x03UL << TLBHI_R_SHIFT)
+#define	TLBHI_R_MASK		(0x03UL << TLBHI_R_SHIFT)
+#define	TLBHI_VA_R(va)		((va) & TLBHI_R_MASK)
+#define	TLBHI_FILL_SHIFT	40
+#define	TLBHI_VPN2_SHIFT	(TLB_PAGE_SHIFT + 1)
+#define	TLBHI_VPN2_MASK		(((~((1UL << TLBHI_VPN2_SHIFT) - 1)) << (63 - TLBHI_FILL_SHIFT)) >> (63 - TLBHI_FILL_SHIFT))
+#define	TLBHI_VA_TO_VPN2(va)	((va) & TLBHI_VPN2_MASK)
+#define	TLBHI_ENTRY(va, asid)	((TLBHI_VA_R((va))) /* Region. */ | \
+				 (TLBHI_VA_TO_VPN2((va))) /* VPN2. */ | \
+				 ((asid) & TLBHI_ASID_MASK))
+#else
 #define	TLBHI_PAGE_MASK		(2 * PAGE_SIZE - 1)
 #define	TLBHI_ENTRY(va, asid)	(((va) & ~TLBHI_PAGE_MASK) | ((asid) & TLBHI_ASID_MASK))
+#endif
 
 /*
  * TLB flags managed in hardware:
