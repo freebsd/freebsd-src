@@ -185,29 +185,28 @@ ata_attach(device_t dev)
     if (ch->dma.alloc)
 	ch->dma.alloc(dev);
 
-    mtx_lock(&ch->state_mtx);
     /* setup interrupt delivery */
     rid = ATA_IRQ_RID;
     ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 				       RF_SHAREABLE | RF_ACTIVE);
     if (!ch->r_irq) {
 	device_printf(dev, "unable to allocate interrupt\n");
-	mtx_unlock(&ch->state_mtx);
 	return ENXIO;
     }
     if ((error = bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS, NULL,
 				ata_interrupt, ch, &ch->ih))) {
+	bus_release_resource(dev, SYS_RES_IRQ, rid, ch->r_irq);
 	device_printf(dev, "unable to setup interrupt\n");
-	goto err1;
+	return error;
     }
 
 #ifndef ATA_CAM
-    mtx_unlock(&ch->state_mtx);
     /* probe and attach devices on this channel unless we are in early boot */
     if (!ata_delayed_attach)
 	ata_identify(dev);
     return (0);
 #else
+	mtx_lock(&ch->state_mtx);
 	/* Create the device queue for our SIM. */
 	devq = cam_simq_alloc(1);
 	if (devq == NULL) {
@@ -220,8 +219,9 @@ ata_attach(device_t dev)
 	    device_get_unit(dev), &ch->state_mtx, 1, 0, devq);
 	if (ch->sim == NULL) {
 		device_printf(dev, "unable to allocate sim\n");
+		cam_simq_free(devq);
 		error = ENOMEM;
-		goto err2;
+		goto err1;
 	}
 	if (xpt_bus_register(ch->sim, dev, 0) != CAM_SUCCESS) {
 		device_printf(dev, "unable to register xpt bus\n");
@@ -241,11 +241,12 @@ err3:
 	xpt_bus_deregister(cam_sim_path(ch->sim));
 err2:
 	cam_sim_free(ch->sim, /*free_devq*/TRUE);
-#endif
+	ch->sim = NULL;
 err1:
-	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
+	bus_release_resource(dev, SYS_RES_IRQ, rid, ch->r_irq);
 	mtx_unlock(&ch->state_mtx);
 	return (error);
+#endif
 }
 
 int
@@ -283,6 +284,7 @@ ata_detach(device_t dev)
 	xpt_free_path(ch->path);
 	xpt_bus_deregister(cam_sim_path(ch->sim));
 	cam_sim_free(ch->sim, /*free_devq*/TRUE);
+	ch->sim = NULL;
 	mtx_unlock(&ch->state_mtx);
 #endif
 
@@ -309,9 +311,12 @@ ata_conn_event(void *context, int dummy)
 	union ccb *ccb;
 
 	mtx_lock(&ch->state_mtx);
+	if (ch->sim == NULL) {
+		mtx_unlock(&ch->state_mtx);
+		return;
+	}
 	ata_reinit(dev);
-	mtx_unlock(&ch->state_mtx);
-	if ((ccb = xpt_alloc_ccb()) == NULL)
+	if ((ccb = xpt_alloc_ccb_nowait()) == NULL)
 		return;
 	if (xpt_create_path(&ccb->ccb_h.path, NULL,
 	    cam_sim_path(ch->sim),
@@ -320,6 +325,7 @@ ata_conn_event(void *context, int dummy)
 		return;
 	}
 	xpt_rescan(ccb);
+	mtx_unlock(&ch->state_mtx);
 #else
 	ata_reinit(dev);
 #endif
