@@ -29,7 +29,10 @@
 #if 0
 #include "ar5416/ar9160.ini"
 #endif
+/* XXX Temporary workaround so linux-9160.h can be a virgin copy of linux ath9k/initvals.h */
+#define	u32	uint32_t
 #include "ar5416/linux-9160.h"
+#undef u32
 #include "ar5416/ar9160-pcie.h"
 
 static const HAL_PERCAL_DATA ar9160_iq_cal = {		/* multi sample */
