@@ -59,6 +59,7 @@ struct ath_hal_5416 {
 	HAL_INI_ARRAY	ah_ini_bank2;
 	HAL_INI_ARRAY	ah_ini_bank3;
 	HAL_INI_ARRAY	ah_ini_bank6;
+	HAL_INI_ARRAY	ah_ini_bank6tpc;
 	HAL_INI_ARRAY	ah_ini_bank7;
 	HAL_INI_ARRAY	ah_ini_addac;
 	HAL_INI_ARRAY	ah_ini_pcieserdes;

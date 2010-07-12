@@ -38,6 +38,7 @@ struct ar2133State {
 	uint32_t	*Bank2Data;
 	uint32_t	*Bank3Data;
 	uint32_t	*Bank6Data;
+	uint32_t	*Bank6TPCData;
 	uint32_t	*Bank7Data;
 
 	/* NB: Bank*Data storage follows */
@@ -184,8 +185,8 @@ ar2133SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
 	ath_hal_ini_bank_setup(priv->Bank3Data, &AH5416(ah)->ah_ini_bank3, modesIndex);
 
 	/* Setup Bank 6 Write */
-	ath_hal_ini_bank_setup(priv->Bank6Data, &AH5416(ah)->ah_ini_bank6, modesIndex);
-	
+	ath_hal_ini_bank_setup(priv->Bank6Data, &AH5416(ah)->ah_ini_bank6tpc, modesIndex);
+
 	/* Only the 5 or 2 GHz OB/DB need to be set for a mode */
 	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
 		ar5416ModifyRfBuffer(priv->Bank6Data,
@@ -202,18 +203,12 @@ ar2133SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
 	ath_hal_ini_bank_setup(priv->Bank7Data, &AH5416(ah)->ah_ini_bank7, 1);
 
 	/* Write Analog registers */
-	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank0,
-	    priv->Bank0Data, 0);
-	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank1,
-	    priv->Bank1Data, writes);
-	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank2,
-	    priv->Bank2Data, writes);
-	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank3,
-	    priv->Bank3Data, writes);
-	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank6,
-	    priv->Bank6Data, writes);
-	(void) ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank7,
-	    priv->Bank7Data, writes);
+	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank0, priv->Bank0Data, 0);
+	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank1, priv->Bank1Data, writes);
+	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank2, priv->Bank2Data, writes);
+	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank3, priv->Bank3Data, writes);
+	writes = ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank6tpc, priv->Bank6Data, writes);
+	(void) ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank7, priv->Bank7Data, writes);
 
 	return AH_TRUE;
 #undef  RF_BANK_SETUP
@@ -424,6 +419,7 @@ ar2133RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 	    + AH5416(ah)->ah_ini_bank2.rows * sizeof(uint32_t)
 	    + AH5416(ah)->ah_ini_bank3.rows * sizeof(uint32_t)
 	    + AH5416(ah)->ah_ini_bank6.rows * sizeof(uint32_t)
+	    + AH5416(ah)->ah_ini_bank6tpc.rows * sizeof(uint32_t)
 	    + AH5416(ah)->ah_ini_bank7.rows * sizeof(uint32_t)
 	);
 	if (priv == AH_NULL) {
@@ -447,6 +443,7 @@ ar2133RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 	priv->Bank2Data = bankData, bankData += AH5416(ah)->ah_ini_bank2.rows;
 	priv->Bank3Data = bankData, bankData += AH5416(ah)->ah_ini_bank3.rows;
 	priv->Bank6Data = bankData, bankData += AH5416(ah)->ah_ini_bank6.rows;
+	priv->Bank6TPCData = bankData, bankData += AH5416(ah)->ah_ini_bank6tpc.rows;
 	priv->Bank7Data = bankData, bankData += AH5416(ah)->ah_ini_bank7.rows;
 
 	ahp->ah_pcdacTable = priv->pcdacTable;
