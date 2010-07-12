@@ -94,7 +94,8 @@ static	int	i8254_ticked;
 
 struct attimer_softc {
 	int intr_en;
-	int intr_rid;
+	int port_rid, intr_rid;
+	struct resource *port_res;
 	struct resource *intr_res;
 	void *intr_handler;
 	struct timecounter tc;
@@ -523,10 +524,14 @@ static int
 attimer_attach(device_t dev)
 {
 	struct attimer_softc *sc;
+	u_long s;
 	int i;
 
 	attimer_sc = sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct attimer_softc));
+	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
+	    &sc->port_rid, IO_TIMER1, IO_TIMER1 + 3, 4, RF_ACTIVE)))
+		device_printf(dev,"Warning: Couldn't map I/O.\n");
 	i8254_intsrc = intr_lookup_source(0);
 	if (i8254_intsrc != NULL)
 		i8254_pending = i8254_intsrc->is_pic->pic_source_pending;
@@ -541,7 +546,9 @@ attimer_attach(device_t dev)
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "clock", &i) != 0 || i != 0) {
 	    	sc->intr_rid = 0;
-		bus_delete_resource(dev, SYS_RES_IRQ, sc->intr_rid);
+		while (bus_get_resource(dev, SYS_RES_IRQ, sc->intr_rid,
+		    &s, NULL) == 0 && s != 0)
+			sc->intr_rid++;
 		if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
 		    &sc->intr_rid, 0, 0, 1, RF_ACTIVE))) {
 			device_printf(dev,"Can't map interrupt.\n");
