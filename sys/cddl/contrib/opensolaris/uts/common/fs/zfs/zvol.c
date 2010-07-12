@@ -72,6 +72,7 @@
 #include <sys/zfs_rlock.h>
 #include <sys/vdev_impl.h>
 #include <sys/zvol.h>
+#include <sys/zil_impl.h>
 #include <geom/geom.h>
 
 #include "zfs_namecheck.h"
@@ -115,7 +116,6 @@ typedef struct zvol_state {
 	uint32_t	zv_total_opens;	/* total open count */
 	zilog_t		*zv_zilog;	/* ZIL handle */
 	list_t		zv_extents;	/* List of extents for dump */
-	uint64_t	zv_txg_assign;	/* txg to assign during ZIL replay */
 	znode_t		zv_znode;	/* for range locking */
 	int		zv_state;
 	struct bio_queue_head zv_queue;
@@ -287,7 +287,15 @@ static void
 zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, offset_t off, ssize_t len)
 {
 	uint32_t blocksize = zv->zv_volblocksize;
+	zilog_t *zilog = zv->zv_zilog;
 	lr_write_t *lr;
+
+	if (zilog->zl_replay) {
+		dsl_dataset_dirty(dmu_objset_ds(zilog->zl_os), tx);
+		zilog->zl_replayed_seq[dmu_tx_get_txg(tx) & TXG_MASK] =
+		    zilog->zl_replaying_seq;
+		return;
+	}
 
 	while (len) {
 		ssize_t nbytes = MIN(len, blocksize - P2PHASE(off, blocksize));
@@ -303,7 +311,7 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, offset_t off, ssize_t len)
 		lr->lr_blkoff = off - P2ALIGN_TYPED(off, blocksize, uint64_t);
 		BP_ZERO(&lr->lr_blkptr);
 
-		(void) zil_itx_assign(zv->zv_zilog, itx, tx);
+		(void) zil_itx_assign(zilog, itx, tx);
 		len -= nbytes;
 		off += nbytes;
 	}
@@ -373,7 +381,8 @@ zvol_serve_one(zvol_state_t *zv, struct bio *bp)
 			size = volsize - off;
 
 		if (doread) {
-			error = dmu_read(os, ZVOL_OBJ, off, size, addr);
+			error = dmu_read(os, ZVOL_OBJ, off, size, addr,
+			    DMU_READ_PREFETCH);
 		} else {
 			dmu_tx_t *tx = dmu_tx_create(os);
 			dmu_tx_hold_write(tx, ZVOL_OBJ, off, size);
@@ -576,9 +585,13 @@ zvol_replay_write(zvol_state_t *zv, lr_write_t *lr, boolean_t byteswap)
 	if (byteswap)
 		byteswap_uint64_array(lr, sizeof (*lr));
 
+	/* If it's a dmu_sync() block get the data and write the whole block */
+	if (lr->lr_common.lrc_reclen == sizeof (lr_write_t))
+		zil_get_replay_data(dmu_objset_zil(os), lr);
+
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_write(tx, ZVOL_OBJ, off, len);
-	error = dmu_tx_assign(tx, zv->zv_txg_assign);
+	error = dmu_tx_assign(tx, TXG_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
 	} else {
@@ -614,6 +627,13 @@ zil_replay_func_t *zvol_replay_vector[TX_MAX_TYPE] = {
 	zvol_replay_err,	/* TX_TRUNCATE */
 	zvol_replay_err,	/* TX_SETATTR */
 	zvol_replay_err,	/* TX_ACL */
+	zvol_replay_err,	/* TX_CREATE_ACL */
+	zvol_replay_err,	/* TX_CREATE_ATTR */
+	zvol_replay_err,	/* TX_CREATE_ACL_ATTR */
+	zvol_replay_err,	/* TX_MKDIR_ACL */
+	zvol_replay_err,	/* TX_MKDIR_ATTR */
+	zvol_replay_err,	/* TX_MKDIR_ACL_ATTR */
+	zvol_replay_err,	/* TX_WRITE2 */
 };
 
 /*
@@ -678,7 +698,7 @@ zvol_create_minor(const char *name, major_t maj)
 	ASSERT(error == 0);
 	zv->zv_volblocksize = doi.doi_data_block_size;
 
-	zil_replay(os, zv, &zv->zv_txg_assign, zvol_replay_vector, NULL);
+	zil_replay(os, zv, zvol_replay_vector);
 
 	/* XXX this should handle the possible i/o error */
 	VERIFY(dsl_prop_register(dmu_objset_ds(zv->zv_objset),
@@ -983,7 +1003,8 @@ zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 	 * we don't have to write the data twice.
 	 */
 	if (buf != NULL) /* immediate write */
-		return (dmu_read(os, ZVOL_OBJ, lr->lr_offset, dlen, buf));
+		return (dmu_read(os, ZVOL_OBJ, lr->lr_offset, dlen, buf,
+		    DMU_READ_NO_PREFETCH));
 
 	zgd = (zgd_t *)kmem_alloc(sizeof (zgd_t), KM_SLEEP);
 	zgd->zgd_zilog = zv->zv_zilog;
@@ -1000,10 +1021,19 @@ zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 	zgd->zgd_rl = rl;
 
 	VERIFY(0 == dmu_buf_hold(os, ZVOL_OBJ, lr->lr_offset, zgd, &db));
+
 	error = dmu_sync(zio, db, &lr->lr_blkptr,
 	    lr->lr_common.lrc_txg, zvol_get_done, zgd);
-	if (error == 0)
+	if (error == 0) {
+		/*
+		 * dmu_sync() can compress a block of zeros to a null blkptr
+		 * but the block size still needs to be passed through to
+		 * replay.
+		 */
+		BP_SET_LSIZE(&lr->lr_blkptr, db->db_size);
 		zil_add_block(zv->zv_zilog, &lr->lr_blkptr);
+	}
+
 	/*
 	 * If we get EINPROGRESS, then we need to wait for a
 	 * write IO initiated by dmu_sync() to complete before
