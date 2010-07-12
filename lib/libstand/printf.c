@@ -151,7 +151,6 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
 static int
 kvprintf(char const *fmt, void (*func)(int), void *arg, int radix, va_list ap)
 {
-#define	MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define PCHAR(c) {int cc=(c); if (func) (*func)(cc); else *d++ = cc; retval++; }
 	char nbuf[MAXNBUF];
 	char *d;
@@ -422,7 +421,7 @@ number:
 
 			if (!ladjust && padc == '0')
 				dwidth = width - tmp;
-			width -= tmp + MAX(dwidth, n);
+			width -= tmp + imax(dwidth, n);
 			dwidth -= n;
 			if (!ladjust)
 				while (width-- > 0)
