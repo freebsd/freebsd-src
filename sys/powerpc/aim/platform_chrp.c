@@ -241,7 +241,7 @@ chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
 		case 2:
 			reset += 0x0f;
 			break;
-		case 4:
+		case 3:
 			reset += 0x10;
 			break;
 		default:
