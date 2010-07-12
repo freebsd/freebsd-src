@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-static const u32 ar5416Modes[][6] = {
+static const uint32_t ar5416Modes[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -80,7 +80,7 @@ static const u32 ar5416Modes[][6] = {
     { 0x0000a334, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
 };
 
-static const u32 ar5416Common[][2] = {
+static const uint32_t ar5416Common[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -457,12 +457,12 @@ static const u32 ar5416Common[][2] = {
     { 0x0000a3e0, 0x000001ce },
 };
 
-static const u32 ar5416Bank0[][2] = {
+static const uint32_t ar5416Bank0[][2] = {
     { 0x000098b0, 0x1e5795e5 },
     { 0x000098e0, 0x02008020 },
 };
 
-static const u32 ar5416BB_RfGain[][3] = {
+static const uint32_t ar5416BB_RfGain[][3] = {
     { 0x00009a00, 0x00000000, 0x00000000 },
     { 0x00009a04, 0x00000040, 0x00000040 },
     { 0x00009a08, 0x00000080, 0x00000080 },
@@ -529,21 +529,21 @@ static const u32 ar5416BB_RfGain[][3] = {
     { 0x00009afc, 0x000000f9, 0x000000f9 },
 };
 
-static const u32 ar5416Bank1[][2] = {
+static const uint32_t ar5416Bank1[][2] = {
     { 0x000098b0, 0x02108421 },
     { 0x000098ec, 0x00000008 },
 };
 
-static const u32 ar5416Bank2[][2] = {
+static const uint32_t ar5416Bank2[][2] = {
     { 0x000098b0, 0x0e73ff17 },
     { 0x000098e0, 0x00000420 },
 };
 
-static const u32 ar5416Bank3[][3] = {
+static const uint32_t ar5416Bank3[][3] = {
     { 0x000098f0, 0x01400018, 0x01c00018 },
 };
 
-static const u32 ar5416Bank6[][3] = {
+static const uint32_t ar5416Bank6[][3] = {
 
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -580,7 +580,7 @@ static const u32 ar5416Bank6[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank6TPC[][3] = {
+static const uint32_t ar5416Bank6TPC[][3] = {
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -616,13 +616,13 @@ static const u32 ar5416Bank6TPC[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank7[][2] = {
+static const uint32_t ar5416Bank7[][2] = {
     { 0x0000989c, 0x00000500 },
     { 0x0000989c, 0x00000800 },
     { 0x000098cc, 0x0000000e },
 };
 
-static const u32 ar5416Addac[][2] = {
+static const uint32_t ar5416Addac[][2] = {
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000003 },
     {0x0000989c,  0x00000000 },
@@ -662,7 +662,7 @@ static const u32 ar5416Addac[][2] = {
     {0x000098cc,  0x00000000 },
 };
 
-static const u32 ar5416Modes_9100[][6] = {
+static const uint32_t ar5416Modes_9100[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -736,7 +736,7 @@ static const u32 ar5416Modes_9100[][6] = {
     { 0x0000a334, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
 };
 
-static const u32 ar5416Common_9100[][2] = {
+static const uint32_t ar5416Common_9100[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -1110,12 +1110,12 @@ static const u32 ar5416Common_9100[][2] = {
     { 0x0000a3e0, 0x000001ce },
 };
 
-static const u32 ar5416Bank0_9100[][2] = {
+static const uint32_t ar5416Bank0_9100[][2] = {
     { 0x000098b0, 0x1e5795e5 },
     { 0x000098e0, 0x02008020 },
 };
 
-static const u32 ar5416BB_RfGain_9100[][3] = {
+static const uint32_t ar5416BB_RfGain_9100[][3] = {
     { 0x00009a00, 0x00000000, 0x00000000 },
     { 0x00009a04, 0x00000040, 0x00000040 },
     { 0x00009a08, 0x00000080, 0x00000080 },
@@ -1182,21 +1182,21 @@ static const u32 ar5416BB_RfGain_9100[][3] = {
     { 0x00009afc, 0x000000f9, 0x000000f9 },
 };
 
-static const u32 ar5416Bank1_9100[][2] = {
+static const uint32_t ar5416Bank1_9100[][2] = {
     { 0x000098b0, 0x02108421},
     { 0x000098ec, 0x00000008},
 };
 
-static const u32 ar5416Bank2_9100[][2] = {
+static const uint32_t ar5416Bank2_9100[][2] = {
     { 0x000098b0, 0x0e73ff17},
     { 0x000098e0, 0x00000420},
 };
 
-static const u32 ar5416Bank3_9100[][3] = {
+static const uint32_t ar5416Bank3_9100[][3] = {
     { 0x000098f0, 0x01400018, 0x01c00018 },
 };
 
-static const u32 ar5416Bank6_9100[][3] = {
+static const uint32_t ar5416Bank6_9100[][3] = {
 
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -1234,7 +1234,7 @@ static const u32 ar5416Bank6_9100[][3] = {
 };
 
 
-static const u32 ar5416Bank6TPC_9100[][3] = {
+static const uint32_t ar5416Bank6TPC_9100[][3] = {
 
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -1271,13 +1271,13 @@ static const u32 ar5416Bank6TPC_9100[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank7_9100[][2] = {
+static const uint32_t ar5416Bank7_9100[][2] = {
     { 0x0000989c, 0x00000500 },
     { 0x0000989c, 0x00000800 },
     { 0x000098cc, 0x0000000e },
 };
 
-static const u32 ar5416Addac_9100[][2] = {
+static const uint32_t ar5416Addac_9100[][2] = {
     {0x0000989c, 0x00000000 },
     {0x0000989c, 0x00000000 },
     {0x0000989c, 0x00000000 },
@@ -1312,7 +1312,7 @@ static const u32 ar5416Addac_9100[][2] = {
     {0x000098cc, 0x00000000 },
 };
 
-static const u32 ar5416Modes_9160[][6] = {
+static const uint32_t ar5416Modes_9160[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -1377,7 +1377,7 @@ static const u32 ar5416Modes_9160[][6] = {
     { 0x0000a334, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
 };
 
-static const u32 ar5416Common_9160[][2] = {
+static const uint32_t ar5416Common_9160[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -1755,12 +1755,12 @@ static const u32 ar5416Common_9160[][2] = {
     { 0x0000a3e0, 0x000001ce },
 };
 
-static const u32 ar5416Bank0_9160[][2] = {
+static const uint32_t ar5416Bank0_9160[][2] = {
     { 0x000098b0, 0x1e5795e5 },
     { 0x000098e0, 0x02008020 },
 };
 
-static const u32 ar5416BB_RfGain_9160[][3] = {
+static const uint32_t ar5416BB_RfGain_9160[][3] = {
     { 0x00009a00, 0x00000000, 0x00000000 },
     { 0x00009a04, 0x00000040, 0x00000040 },
     { 0x00009a08, 0x00000080, 0x00000080 },
@@ -1827,21 +1827,21 @@ static const u32 ar5416BB_RfGain_9160[][3] = {
     { 0x00009afc, 0x000000f9, 0x000000f9 },
 };
 
-static const u32 ar5416Bank1_9160[][2] = {
+static const uint32_t ar5416Bank1_9160[][2] = {
     { 0x000098b0, 0x02108421 },
     { 0x000098ec, 0x00000008 },
 };
 
-static const u32 ar5416Bank2_9160[][2] = {
+static const uint32_t ar5416Bank2_9160[][2] = {
     { 0x000098b0, 0x0e73ff17 },
     { 0x000098e0, 0x00000420 },
 };
 
-static const u32 ar5416Bank3_9160[][3] = {
+static const uint32_t ar5416Bank3_9160[][3] = {
     { 0x000098f0, 0x01400018, 0x01c00018 },
 };
 
-static const u32 ar5416Bank6_9160[][3] = {
+static const uint32_t ar5416Bank6_9160[][3] = {
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -1877,7 +1877,7 @@ static const u32 ar5416Bank6_9160[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank6TPC_9160[][3] = {
+static const uint32_t ar5416Bank6TPC_9160[][3] = {
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -1913,13 +1913,13 @@ static const u32 ar5416Bank6TPC_9160[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank7_9160[][2] = {
+static const uint32_t ar5416Bank7_9160[][2] = {
     { 0x0000989c, 0x00000500 },
     { 0x0000989c, 0x00000800 },
     { 0x000098cc, 0x0000000e },
 };
 
-static u32 ar5416Addac_9160[][2] = {
+static uint32_t ar5416Addac_9160[][2] = {
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000000 },
@@ -1954,7 +1954,7 @@ static u32 ar5416Addac_9160[][2] = {
     {0x000098cc,  0x00000000 },
 };
 
-static u32 ar5416Addac_91601_1[][2] = {
+static uint32_t ar5416Addac_91601_1[][2] = {
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000000 },
@@ -1990,7 +1990,7 @@ static u32 ar5416Addac_91601_1[][2] = {
 };
 
 /* XXX 9280 1 */
-static const u32 ar9280Modes_9280[][6] = {
+static const uint32_t ar9280Modes_9280[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -2192,7 +2192,7 @@ static const u32 ar9280Modes_9280[][6] = {
     { 0x0000788c, 0x00010000, 0x00010000, 0x00110000, 0x00110000, 0x00110000 },
 };
 
-static const u32 ar9280Common_9280[][2] = {
+static const uint32_t ar9280Common_9280[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -2540,7 +2540,7 @@ static const u32 ar9280Common_9280[][2] = {
 };
 
 /* XXX 9280 2 */
-static const u32 ar9280Modes_9280_2[][6] = {
+static const uint32_t ar9280Modes_9280_2[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -2595,7 +2595,7 @@ static const u32 ar9280Modes_9280_2[][6] = {
     { 0x00007894, 0x5a508000, 0x5a508000, 0x5a508000, 0x5a508000, 0x5a508000 },
 };
 
-static const u32 ar9280Common_9280_2[][2] = {
+static const uint32_t ar9280Common_9280_2[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -2933,7 +2933,7 @@ static const u32 ar9280Common_9280_2[][2] = {
     { 0x00007898, 0x2a850160 },
 };
 
-static const u32 ar9280Modes_fast_clock_9280_2[][3] = {
+static const uint32_t ar9280Modes_fast_clock_9280_2[][3] = {
     { 0x00001030, 0x00000268, 0x000004d0 },
     { 0x00001070, 0x0000018c, 0x00000318 },
     { 0x000010b0, 0x00000fd0, 0x00001fa0 },
@@ -2949,7 +2949,7 @@ static const u32 ar9280Modes_fast_clock_9280_2[][3] = {
     { 0x00009918, 0x0000000b, 0x00000016 },
 };
 
-static const u32 ar9280Modes_backoff_23db_rxgain_9280_2[][6] = {
+static const uint32_t ar9280Modes_backoff_23db_rxgain_9280_2[][6] = {
     { 0x00009a00, 0x00008184, 0x00008184, 0x00000290, 0x00000290, 0x00000290 },
     { 0x00009a04, 0x00008188, 0x00008188, 0x00000300, 0x00000300, 0x00000300 },
     { 0x00009a08, 0x0000818c, 0x0000818c, 0x00000304, 0x00000304, 0x00000304 },
@@ -3082,7 +3082,7 @@ static const u32 ar9280Modes_backoff_23db_rxgain_9280_2[][6] = {
     { 0x0000a848, 0x00001066, 0x00001066, 0x00001050, 0x00001050, 0x00001050 },
 };
 
-static const u32 ar9280Modes_original_rxgain_9280_2[][6] = {
+static const uint32_t ar9280Modes_original_rxgain_9280_2[][6] = {
     { 0x00009a00, 0x00008184, 0x00008184, 0x00000290, 0x00000290, 0x00000290 },
     { 0x00009a04, 0x00008188, 0x00008188, 0x00000300, 0x00000300, 0x00000300 },
     { 0x00009a08, 0x0000818c, 0x0000818c, 0x00000304, 0x00000304, 0x00000304 },
@@ -3215,7 +3215,7 @@ static const u32 ar9280Modes_original_rxgain_9280_2[][6] = {
     { 0x0000a848, 0x00001066, 0x00001066, 0x00001063, 0x00001063, 0x00001063 },
 };
 
-static const u32 ar9280Modes_backoff_13db_rxgain_9280_2[][6] = {
+static const uint32_t ar9280Modes_backoff_13db_rxgain_9280_2[][6] = {
     { 0x00009a00, 0x00008184, 0x00008184, 0x00000290, 0x00000290, 0x00000290 },
     { 0x00009a04, 0x00008188, 0x00008188, 0x00000300, 0x00000300, 0x00000300 },
     { 0x00009a08, 0x0000818c, 0x0000818c, 0x00000304, 0x00000304, 0x00000304 },
@@ -3348,7 +3348,7 @@ static const u32 ar9280Modes_backoff_13db_rxgain_9280_2[][6] = {
     { 0x0000a848, 0x00001066, 0x00001066, 0x0000105a, 0x0000105a, 0x0000105a },
 };
 
-static const u32 ar9280Modes_high_power_tx_gain_9280_2[][6] = {
+static const uint32_t ar9280Modes_high_power_tx_gain_9280_2[][6] = {
     { 0x0000a274, 0x0a19e652, 0x0a19e652, 0x0a1aa652, 0x0a1aa652, 0x0a1aa652 },
     { 0x0000a27c, 0x050739ce, 0x050739ce, 0x050739ce, 0x050739ce, 0x050739ce },
     { 0x0000a300, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
@@ -3381,7 +3381,7 @@ static const u32 ar9280Modes_high_power_tx_gain_9280_2[][6] = {
     { 0x00007844, 0xf258a480, 0xf258a480, 0xf258a480, 0xf258a480, 0xf258a480 },
 };
 
-static const u32 ar9280Modes_original_tx_gain_9280_2[][6] = {
+static const uint32_t ar9280Modes_original_tx_gain_9280_2[][6] = {
     { 0x0000a274, 0x0a19c652, 0x0a19c652, 0x0a1aa652, 0x0a1aa652, 0x0a1aa652 },
     { 0x0000a27c, 0x050701ce, 0x050701ce, 0x050701ce, 0x050701ce, 0x050701ce },
     { 0x0000a300, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
@@ -3414,7 +3414,7 @@ static const u32 ar9280Modes_original_tx_gain_9280_2[][6] = {
     { 0x00007844, 0x92592480, 0x92592480, 0x92592480, 0x92592480, 0x92592480 },
 };
 
-static const u32 ar9280PciePhy_clkreq_off_L1_9280[][2] = {
+static const uint32_t ar9280PciePhy_clkreq_off_L1_9280[][2] = {
     {0x00004040,  0x9248fd00 },
     {0x00004040,  0x24924924 },
     {0x00004040,  0xa8000019 },
@@ -3427,7 +3427,7 @@ static const u32 ar9280PciePhy_clkreq_off_L1_9280[][2] = {
     {0x00004044,  0x00000000 },
 };
 
-static const u32 ar9280PciePhy_clkreq_always_on_L1_9280[][2] = {
+static const uint32_t ar9280PciePhy_clkreq_always_on_L1_9280[][2] = {
     {0x00004040,  0x9248fd00 },
     {0x00004040,  0x24924924 },
     {0x00004040,  0xa8000019 },
@@ -7052,7 +7052,7 @@ static const u_int32_t ar9271Modes_9271_1_0_only[][6] = {
 };
 
 /* hand-crafted from code that does explicit register writes */
-static const u32 ar9160PciePhy[][2] = {
+static const uint32_t ar9160PciePhy[][2] = {
     { AR_PCIE_SERDES,  0x9248fc00 },
     { AR_PCIE_SERDES,  0x24924924 },
     { AR_PCIE_SERDES,  0x28000039 },
@@ -7081,7 +7081,7 @@ static const u32 ar9160PciePhy[][2] = {
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-static const u32 ar5416Modes[][6] = {
+static const uint32_t ar5416Modes[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -7147,7 +7147,7 @@ static const u32 ar5416Modes[][6] = {
     { 0x0000a334, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
 };
 
-static const u32 ar5416Common[][2] = {
+static const uint32_t ar5416Common[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -7524,12 +7524,12 @@ static const u32 ar5416Common[][2] = {
     { 0x0000a3e0, 0x000001ce },
 };
 
-static const u32 ar5416Bank0[][2] = {
+static const uint32_t ar5416Bank0[][2] = {
     { 0x000098b0, 0x1e5795e5 },
     { 0x000098e0, 0x02008020 },
 };
 
-static const u32 ar5416BB_RfGain[][3] = {
+static const uint32_t ar5416BB_RfGain[][3] = {
     { 0x00009a00, 0x00000000, 0x00000000 },
     { 0x00009a04, 0x00000040, 0x00000040 },
     { 0x00009a08, 0x00000080, 0x00000080 },
@@ -7596,21 +7596,21 @@ static const u32 ar5416BB_RfGain[][3] = {
     { 0x00009afc, 0x000000f9, 0x000000f9 },
 };
 
-static const u32 ar5416Bank1[][2] = {
+static const uint32_t ar5416Bank1[][2] = {
     { 0x000098b0, 0x02108421 },
     { 0x000098ec, 0x00000008 },
 };
 
-static const u32 ar5416Bank2[][2] = {
+static const uint32_t ar5416Bank2[][2] = {
     { 0x000098b0, 0x0e73ff17 },
     { 0x000098e0, 0x00000420 },
 };
 
-static const u32 ar5416Bank3[][3] = {
+static const uint32_t ar5416Bank3[][3] = {
     { 0x000098f0, 0x01400018, 0x01c00018 },
 };
 
-static const u32 ar5416Bank6[][3] = {
+static const uint32_t ar5416Bank6[][3] = {
 
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -7647,7 +7647,7 @@ static const u32 ar5416Bank6[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank6TPC[][3] = {
+static const uint32_t ar5416Bank6TPC[][3] = {
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -7683,13 +7683,13 @@ static const u32 ar5416Bank6TPC[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank7[][2] = {
+static const uint32_t ar5416Bank7[][2] = {
     { 0x0000989c, 0x00000500 },
     { 0x0000989c, 0x00000800 },
     { 0x000098cc, 0x0000000e },
 };
 
-static const u32 ar5416Addac[][2] = {
+static const uint32_t ar5416Addac[][2] = {
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000003 },
     {0x0000989c,  0x00000000 },
@@ -7729,7 +7729,7 @@ static const u32 ar5416Addac[][2] = {
     {0x000098cc,  0x00000000 },
 };
 
-static const u32 ar5416Modes_9100[][6] = {
+static const uint32_t ar5416Modes_9100[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -7803,7 +7803,7 @@ static const u32 ar5416Modes_9100[][6] = {
     { 0x0000a334, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
 };
 
-static const u32 ar5416Common_9100[][2] = {
+static const uint32_t ar5416Common_9100[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -8177,12 +8177,12 @@ static const u32 ar5416Common_9100[][2] = {
     { 0x0000a3e0, 0x000001ce },
 };
 
-static const u32 ar5416Bank0_9100[][2] = {
+static const uint32_t ar5416Bank0_9100[][2] = {
     { 0x000098b0, 0x1e5795e5 },
     { 0x000098e0, 0x02008020 },
 };
 
-static const u32 ar5416BB_RfGain_9100[][3] = {
+static const uint32_t ar5416BB_RfGain_9100[][3] = {
     { 0x00009a00, 0x00000000, 0x00000000 },
     { 0x00009a04, 0x00000040, 0x00000040 },
     { 0x00009a08, 0x00000080, 0x00000080 },
@@ -8249,21 +8249,21 @@ static const u32 ar5416BB_RfGain_9100[][3] = {
     { 0x00009afc, 0x000000f9, 0x000000f9 },
 };
 
-static const u32 ar5416Bank1_9100[][2] = {
+static const uint32_t ar5416Bank1_9100[][2] = {
     { 0x000098b0, 0x02108421},
     { 0x000098ec, 0x00000008},
 };
 
-static const u32 ar5416Bank2_9100[][2] = {
+static const uint32_t ar5416Bank2_9100[][2] = {
     { 0x000098b0, 0x0e73ff17},
     { 0x000098e0, 0x00000420},
 };
 
-static const u32 ar5416Bank3_9100[][3] = {
+static const uint32_t ar5416Bank3_9100[][3] = {
     { 0x000098f0, 0x01400018, 0x01c00018 },
 };
 
-static const u32 ar5416Bank6_9100[][3] = {
+static const uint32_t ar5416Bank6_9100[][3] = {
 
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -8301,7 +8301,7 @@ static const u32 ar5416Bank6_9100[][3] = {
 };
 
 
-static const u32 ar5416Bank6TPC_9100[][3] = {
+static const uint32_t ar5416Bank6TPC_9100[][3] = {
 
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -8338,13 +8338,13 @@ static const u32 ar5416Bank6TPC_9100[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank7_9100[][2] = {
+static const uint32_t ar5416Bank7_9100[][2] = {
     { 0x0000989c, 0x00000500 },
     { 0x0000989c, 0x00000800 },
     { 0x000098cc, 0x0000000e },
 };
 
-static const u32 ar5416Addac_9100[][2] = {
+static const uint32_t ar5416Addac_9100[][2] = {
     {0x0000989c, 0x00000000 },
     {0x0000989c, 0x00000000 },
     {0x0000989c, 0x00000000 },
@@ -8379,7 +8379,7 @@ static const u32 ar5416Addac_9100[][2] = {
     {0x000098cc, 0x00000000 },
 };
 
-static const u32 ar5416Modes_9160[][6] = {
+static const uint32_t ar5416Modes_9160[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -8444,7 +8444,7 @@ static const u32 ar5416Modes_9160[][6] = {
     { 0x0000a334, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
 };
 
-static const u32 ar5416Common_9160[][2] = {
+static const uint32_t ar5416Common_9160[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -8822,12 +8822,12 @@ static const u32 ar5416Common_9160[][2] = {
     { 0x0000a3e0, 0x000001ce },
 };
 
-static const u32 ar5416Bank0_9160[][2] = {
+static const uint32_t ar5416Bank0_9160[][2] = {
     { 0x000098b0, 0x1e5795e5 },
     { 0x000098e0, 0x02008020 },
 };
 
-static const u32 ar5416BB_RfGain_9160[][3] = {
+static const uint32_t ar5416BB_RfGain_9160[][3] = {
     { 0x00009a00, 0x00000000, 0x00000000 },
     { 0x00009a04, 0x00000040, 0x00000040 },
     { 0x00009a08, 0x00000080, 0x00000080 },
@@ -8894,21 +8894,21 @@ static const u32 ar5416BB_RfGain_9160[][3] = {
     { 0x00009afc, 0x000000f9, 0x000000f9 },
 };
 
-static const u32 ar5416Bank1_9160[][2] = {
+static const uint32_t ar5416Bank1_9160[][2] = {
     { 0x000098b0, 0x02108421 },
     { 0x000098ec, 0x00000008 },
 };
 
-static const u32 ar5416Bank2_9160[][2] = {
+static const uint32_t ar5416Bank2_9160[][2] = {
     { 0x000098b0, 0x0e73ff17 },
     { 0x000098e0, 0x00000420 },
 };
 
-static const u32 ar5416Bank3_9160[][3] = {
+static const uint32_t ar5416Bank3_9160[][3] = {
     { 0x000098f0, 0x01400018, 0x01c00018 },
 };
 
-static const u32 ar5416Bank6_9160[][3] = {
+static const uint32_t ar5416Bank6_9160[][3] = {
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -8944,7 +8944,7 @@ static const u32 ar5416Bank6_9160[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank6TPC_9160[][3] = {
+static const uint32_t ar5416Bank6TPC_9160[][3] = {
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
     { 0x0000989c, 0x00000000, 0x00000000 },
@@ -8980,13 +8980,13 @@ static const u32 ar5416Bank6TPC_9160[][3] = {
     { 0x000098d0, 0x0000000f, 0x0010000f },
 };
 
-static const u32 ar5416Bank7_9160[][2] = {
+static const uint32_t ar5416Bank7_9160[][2] = {
     { 0x0000989c, 0x00000500 },
     { 0x0000989c, 0x00000800 },
     { 0x000098cc, 0x0000000e },
 };
 
-static u32 ar5416Addac_9160[][2] = {
+static uint32_t ar5416Addac_9160[][2] = {
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000000 },
@@ -9021,7 +9021,7 @@ static u32 ar5416Addac_9160[][2] = {
     {0x000098cc,  0x00000000 },
 };
 
-static u32 ar5416Addac_91601_1[][2] = {
+static uint32_t ar5416Addac_91601_1[][2] = {
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000000 },
     {0x0000989c,  0x00000000 },
@@ -9057,7 +9057,7 @@ static u32 ar5416Addac_91601_1[][2] = {
 };
 
 /* XXX 9280 1 */
-static const u32 ar9280Modes_9280[][6] = {
+static const uint32_t ar9280Modes_9280[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -9259,7 +9259,7 @@ static const u32 ar9280Modes_9280[][6] = {
     { 0x0000788c, 0x00010000, 0x00010000, 0x00110000, 0x00110000, 0x00110000 },
 };
 
-static const u32 ar9280Common_9280[][2] = {
+static const uint32_t ar9280Common_9280[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -9607,7 +9607,7 @@ static const u32 ar9280Common_9280[][2] = {
 };
 
 /* XXX 9280 2 */
-static const u32 ar9280Modes_9280_2[][6] = {
+static const uint32_t ar9280Modes_9280_2[][6] = {
     { 0x00001030, 0x00000230, 0x00000460, 0x000002c0, 0x00000160, 0x000001e0 },
     { 0x00001070, 0x00000168, 0x000002d0, 0x00000318, 0x0000018c, 0x000001e0 },
     { 0x000010b0, 0x00000e60, 0x00001cc0, 0x00007c70, 0x00003e38, 0x00001180 },
@@ -9662,7 +9662,7 @@ static const u32 ar9280Modes_9280_2[][6] = {
     { 0x00007894, 0x5a508000, 0x5a508000, 0x5a508000, 0x5a508000, 0x5a508000 },
 };
 
-static const u32 ar9280Common_9280_2[][2] = {
+static const uint32_t ar9280Common_9280_2[][2] = {
     { 0x0000000c, 0x00000000 },
     { 0x00000030, 0x00020015 },
     { 0x00000034, 0x00000005 },
@@ -10000,7 +10000,7 @@ static const u32 ar9280Common_9280_2[][2] = {
     { 0x00007898, 0x2a850160 },
 };
 
-static const u32 ar9280Modes_fast_clock_9280_2[][3] = {
+static const uint32_t ar9280Modes_fast_clock_9280_2[][3] = {
     { 0x00001030, 0x00000268, 0x000004d0 },
     { 0x00001070, 0x0000018c, 0x00000318 },
     { 0x000010b0, 0x00000fd0, 0x00001fa0 },
@@ -10016,7 +10016,7 @@ static const u32 ar9280Modes_fast_clock_9280_2[][3] = {
     { 0x00009918, 0x0000000b, 0x00000016 },
 };
 
-static const u32 ar9280Modes_backoff_23db_rxgain_9280_2[][6] = {
+static const uint32_t ar9280Modes_backoff_23db_rxgain_9280_2[][6] = {
     { 0x00009a00, 0x00008184, 0x00008184, 0x00000290, 0x00000290, 0x00000290 },
     { 0x00009a04, 0x00008188, 0x00008188, 0x00000300, 0x00000300, 0x00000300 },
     { 0x00009a08, 0x0000818c, 0x0000818c, 0x00000304, 0x00000304, 0x00000304 },
@@ -10149,7 +10149,7 @@ static const u32 ar9280Modes_backoff_23db_rxgain_9280_2[][6] = {
     { 0x0000a848, 0x00001066, 0x00001066, 0x00001050, 0x00001050, 0x00001050 },
 };
 
-static const u32 ar9280Modes_original_rxgain_9280_2[][6] = {
+static const uint32_t ar9280Modes_original_rxgain_9280_2[][6] = {
     { 0x00009a00, 0x00008184, 0x00008184, 0x00000290, 0x00000290, 0x00000290 },
     { 0x00009a04, 0x00008188, 0x00008188, 0x00000300, 0x00000300, 0x00000300 },
     { 0x00009a08, 0x0000818c, 0x0000818c, 0x00000304, 0x00000304, 0x00000304 },
@@ -10282,7 +10282,7 @@ static const u32 ar9280Modes_original_rxgain_9280_2[][6] = {
     { 0x0000a848, 0x00001066, 0x00001066, 0x00001063, 0x00001063, 0x00001063 },
 };
 
-static const u32 ar9280Modes_backoff_13db_rxgain_9280_2[][6] = {
+static const uint32_t ar9280Modes_backoff_13db_rxgain_9280_2[][6] = {
     { 0x00009a00, 0x00008184, 0x00008184, 0x00000290, 0x00000290, 0x00000290 },
     { 0x00009a04, 0x00008188, 0x00008188, 0x00000300, 0x00000300, 0x00000300 },
     { 0x00009a08, 0x0000818c, 0x0000818c, 0x00000304, 0x00000304, 0x00000304 },
@@ -10415,7 +10415,7 @@ static const u32 ar9280Modes_backoff_13db_rxgain_9280_2[][6] = {
     { 0x0000a848, 0x00001066, 0x00001066, 0x0000105a, 0x0000105a, 0x0000105a },
 };
 
-static const u32 ar9280Modes_high_power_tx_gain_9280_2[][6] = {
+static const uint32_t ar9280Modes_high_power_tx_gain_9280_2[][6] = {
     { 0x0000a274, 0x0a19e652, 0x0a19e652, 0x0a1aa652, 0x0a1aa652, 0x0a1aa652 },
     { 0x0000a27c, 0x050739ce, 0x050739ce, 0x050739ce, 0x050739ce, 0x050739ce },
     { 0x0000a300, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
@@ -10448,7 +10448,7 @@ static const u32 ar9280Modes_high_power_tx_gain_9280_2[][6] = {
     { 0x00007844, 0xf258a480, 0xf258a480, 0xf258a480, 0xf258a480, 0xf258a480 },
 };
 
-static const u32 ar9280Modes_original_tx_gain_9280_2[][6] = {
+static const uint32_t ar9280Modes_original_tx_gain_9280_2[][6] = {
     { 0x0000a274, 0x0a19c652, 0x0a19c652, 0x0a1aa652, 0x0a1aa652, 0x0a1aa652 },
     { 0x0000a27c, 0x050701ce, 0x050701ce, 0x050701ce, 0x050701ce, 0x050701ce },
     { 0x0000a300, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
@@ -10481,7 +10481,7 @@ static const u32 ar9280Modes_original_tx_gain_9280_2[][6] = {
     { 0x00007844, 0x92592480, 0x92592480, 0x92592480, 0x92592480, 0x92592480 },
 };
 
-static const u32 ar9280PciePhy_clkreq_off_L1_9280[][2] = {
+static const uint32_t ar9280PciePhy_clkreq_off_L1_9280[][2] = {
     {0x00004040,  0x9248fd00 },
     {0x00004040,  0x24924924 },
     {0x00004040,  0xa8000019 },
@@ -10494,7 +10494,7 @@ static const u32 ar9280PciePhy_clkreq_off_L1_9280[][2] = {
     {0x00004044,  0x00000000 },
 };
 
-static const u32 ar9280PciePhy_clkreq_always_on_L1_9280[][2] = {
+static const uint32_t ar9280PciePhy_clkreq_always_on_L1_9280[][2] = {
     {0x00004040,  0x9248fd00 },
     {0x00004040,  0x24924924 },
     {0x00004040,  0xa8000019 },
