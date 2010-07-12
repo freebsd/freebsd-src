@@ -188,7 +188,7 @@ _libsmb=	libsmb
 _libvgl=	libvgl
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _libsmb=	libsmb
 .endif
 
