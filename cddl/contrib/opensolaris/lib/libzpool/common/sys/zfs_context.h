@@ -329,6 +329,7 @@ typedef void (task_func_t)(void *);
 #define	TASKQ_PREPOPULATE	0x0001
 #define	TASKQ_CPR_SAFE		0x0002	/* Use CPR safe protocol */
 #define	TASKQ_DYNAMIC		0x0004	/* Use dynamic thread scheduling */
+#define	TASKQ_THREADS_CPU_PCT	0x0008	/* Use dynamic thread scheduling */
 
 #define	TQ_SLEEP	KM_SLEEP	/* Can block for memory */
 #define	TQ_NOSLEEP	KM_NOSLEEP	/* cannot block for memory; may fail */
@@ -589,6 +590,8 @@ typedef struct ksiddomain {
 
 ksiddomain_t *ksid_lookupdomain(const char *);
 void ksiddomain_rele(ksiddomain_t *);
+
+typedef	uint32_t	idmap_rid_t;
 
 #define	SX_SYSINIT(name, lock, desc)
 

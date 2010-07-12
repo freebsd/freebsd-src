@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -42,6 +42,14 @@
 #endif
 
 static zprop_desc_t zfs_prop_table[ZFS_NUM_PROPS];
+
+/* Note this is indexed by zfs_userquota_prop_t, keep the order the same */
+const char *zfs_userquota_prop_prefixes[] = {
+	"userused@",
+	"userquota@",
+	"groupused@",
+	"groupquota@"
+};
 
 zprop_desc_t *
 zfs_prop_get_table(void)
@@ -133,6 +141,7 @@ zfs_prop_init(void)
 		{ "1",		1 },
 		{ "2",		2 },
 		{ "3",		3 },
+		{ "4",		4 },
 		{ "current",	ZPL_VERSION },
 		{ NULL }
 	};
@@ -218,7 +227,7 @@ zfs_prop_init(void)
 	/* default index properties */
 	register_index(ZFS_PROP_VERSION, "version", 0, PROP_DEFAULT,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT,
-	    "1 | 2 | 3 | current", "VERSION", version_table);
+	    "1 | 2 | 3 | 4 | current", "VERSION", version_table);
 	register_index(ZFS_PROP_CANMOUNT, "canmount", ZFS_CANMOUNT_ON,
 	    PROP_DEFAULT, ZFS_TYPE_FILESYSTEM, "on | off | noauto",
 	    "CANMOUNT", canmount_table);
@@ -307,6 +316,8 @@ zfs_prop_init(void)
 	    PROP_INHERIT, ZFS_TYPE_VOLUME, "ISCSIOPTIONS");
 	register_hidden(ZFS_PROP_GUID, "guid", PROP_TYPE_NUMBER, PROP_READONLY,
 	    ZFS_TYPE_DATASET, "GUID");
+	register_hidden(ZFS_PROP_USERACCOUNTING, "useraccounting",
+	    PROP_TYPE_NUMBER, PROP_READONLY, ZFS_TYPE_DATASET, NULL);
 
 	/* oddball properties */
 	register_impl(ZFS_PROP_CREATION, "creation", PROP_TYPE_NUMBER, 0, NULL,
@@ -329,7 +340,6 @@ zfs_name_to_prop(const char *propname)
 {
 	return (zprop_name_to_prop(propname, ZFS_TYPE_DATASET));
 }
-
 
 /*
  * For user property names, we allow all lowercase alphanumeric characters, plus
@@ -365,6 +375,26 @@ zfs_prop_user(const char *name)
 		return (B_FALSE);
 
 	return (B_TRUE);
+}
+
+/*
+ * Returns true if this is a valid userspace-type property (one with a '@').
+ * Note that after the @, any character is valid (eg, another @, for SID
+ * user@domain).
+ */
+boolean_t
+zfs_prop_userquota(const char *name)
+{
+	zfs_userquota_prop_t prop;
+
+	for (prop = 0; prop < ZFS_NUM_USERQUOTA_PROPS; prop++) {
+		if (strncmp(name, zfs_userquota_prop_prefixes[prop],
+		    strlen(zfs_userquota_prop_prefixes[prop])) == 0) {
+			return (B_TRUE);
+		}
+	}
+
+	return (B_FALSE);
 }
 
 /*

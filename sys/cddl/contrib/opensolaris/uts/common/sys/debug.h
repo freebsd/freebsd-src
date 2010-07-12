@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -30,8 +29,6 @@
 
 #ifndef _SYS_DEBUG_H
 #define	_SYS_DEBUG_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 
@@ -50,7 +47,7 @@ extern "C" {
 extern int assfail(const char *, const char *, int);
 #define	VERIFY(EX) ((void)((EX) || assfail(#EX, __FILE__, __LINE__)))
 #ifdef DEBUG
-#define	ASSERT(EX) VERIFY(EX)
+#define	ASSERT(EX) ((void)((EX) || assfail(#EX, __FILE__, __LINE__)))
 #else
 #define	ASSERT(x)  ((void)0)
 #endif
@@ -58,7 +55,7 @@ extern int assfail(const char *, const char *, int);
 extern int assfail();
 #define	VERIFY(EX) ((void)((EX) || assfail("EX", __FILE__, __LINE__)))
 #ifdef DEBUG
-#define	ASSERT(EX) VERIFY(EX)
+#define	ASSERT(EX) ((void)((EX) || assfail("EX", __FILE__, __LINE__)))
 #else
 #define	ASSERT(x)  ((void)0)
 #endif
@@ -98,9 +95,9 @@ _NOTE(CONSTCOND) } while (0)
 #define	VERIFY3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
 #define	VERIFY3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
 #ifdef DEBUG
-#define	ASSERT3S(x, y, z)	VERIFY3S(x, y, z)
-#define	ASSERT3U(x, y, z)	VERIFY3U(x, y, z)
-#define	ASSERT3P(x, y, z)	VERIFY3P(x, y, z)
+#define	ASSERT3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
+#define	ASSERT3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
+#define	ASSERT3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
 #else
 #define	ASSERT3S(x, y, z)	((void)0)
 #define	ASSERT3U(x, y, z)	((void)0)

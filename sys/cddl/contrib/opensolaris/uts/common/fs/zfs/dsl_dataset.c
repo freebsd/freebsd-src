@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -229,7 +229,7 @@ dsl_dataset_prev_snap_txg(dsl_dataset_t *ds)
 	return (MAX(ds->ds_phys->ds_prev_snap_txg, trysnap));
 }
 
-int
+boolean_t
 dsl_dataset_block_freeable(dsl_dataset_t *ds, uint64_t blk_birth)
 {
 	return (blk_birth > dsl_dataset_prev_snap_txg(ds));
@@ -525,7 +525,15 @@ dsl_dataset_hold_ref(dsl_dataset_t *ds, void *tag)
 			rw_enter(&dp->dp_config_rwlock, RW_READER);
 			return (ENOENT);
 		}
+		/*
+		 * The dp_config_rwlock lives above the ds_lock. And
+		 * we need to check DSL_DATASET_IS_DESTROYED() while
+		 * holding the ds_lock, so we have to drop and reacquire
+		 * the ds_lock here.
+		 */
+		mutex_exit(&ds->ds_lock);
 		rw_enter(&dp->dp_config_rwlock, RW_READER);
+		mutex_enter(&ds->ds_lock);
 	}
 	mutex_exit(&ds->ds_lock);
 	return (0);
@@ -981,6 +989,27 @@ dsl_dataset_destroy(dsl_dataset_t *ds, void *tag)
 		(void) dmu_free_object(os, obj);
 	}
 
+	/*
+	 * We need to sync out all in-flight IO before we try to evict
+	 * (the dataset evict func is trying to clear the cached entries
+	 * for this dataset in the ARC).
+	 */
+	txg_wait_synced(dd->dd_pool, 0);
+
+	/*
+	 * If we managed to free all the objects in open
+	 * context, the user space accounting should be zero.
+	 */
+	if (ds->ds_phys->ds_bp.blk_fill == 0 &&
+	    dmu_objset_userused_enabled(os->os)) {
+		uint64_t count;
+
+		ASSERT(zap_count(os, DMU_USERUSED_OBJECT, &count) != 0 ||
+		    count == 0);
+		ASSERT(zap_count(os, DMU_GROUPUSED_OBJECT, &count) != 0 ||
+		    count == 0);
+	}
+
 	dmu_objset_close(os);
 	if (err != ESRCH)
 		goto out;
@@ -1064,7 +1093,6 @@ dsl_dataset_get_user_ptr(dsl_dataset_t *ds)
 {
 	return (ds->ds_user_ptr);
 }
-
 
 blkptr_t *
 dsl_dataset_get_blkptr(dsl_dataset_t *ds)
@@ -1445,6 +1473,33 @@ dsl_dataset_drain_refs(dsl_dataset_t *ds, void *tag)
 	cv_destroy(&arg.cv);
 }
 
+static void
+remove_from_next_clones(dsl_dataset_t *ds, uint64_t obj, dmu_tx_t *tx)
+{
+	objset_t *mos = ds->ds_dir->dd_pool->dp_meta_objset;
+	uint64_t count;
+	int err;
+
+	ASSERT(ds->ds_phys->ds_num_children >= 2);
+	err = zap_remove_int(mos, ds->ds_phys->ds_next_clones_obj, obj, tx);
+	/*
+	 * The err should not be ENOENT, but a bug in a previous version
+	 * of the code could cause upgrade_clones_cb() to not set
+	 * ds_next_snap_obj when it should, leading to a missing entry.
+	 * If we knew that the pool was created after
+	 * SPA_VERSION_NEXT_CLONES, we could assert that it isn't
+	 * ENOENT.  However, at least we can check that we don't have
+	 * too many entries in the next_clones_obj even after failing to
+	 * remove this one.
+	 */
+	if (err != ENOENT) {
+		VERIFY3U(err, ==, 0);
+	}
+	ASSERT3U(0, ==, zap_count(mos, ds->ds_phys->ds_next_clones_obj,
+	    &count));
+	ASSERT3U(count, <=, ds->ds_phys->ds_num_children - 2);
+}
+
 void
 dsl_dataset_destroy_sync(void *arg1, void *tag, cred_t *cr, dmu_tx_t *tx)
 {
@@ -1495,8 +1550,7 @@ dsl_dataset_destroy_sync(void *arg1, void *tag, cred_t *cr, dmu_tx_t *tx)
 		dmu_buf_will_dirty(ds_prev->ds_dbuf, tx);
 		if (after_branch_point &&
 		    ds_prev->ds_phys->ds_next_clones_obj != 0) {
-			VERIFY(0 == zap_remove_int(mos,
-			    ds_prev->ds_phys->ds_next_clones_obj, obj, tx));
+			remove_from_next_clones(ds_prev, obj, tx);
 			if (ds->ds_phys->ds_next_snap_obj != 0) {
 				VERIFY(0 == zap_add_int(mos,
 				    ds_prev->ds_phys->ds_next_clones_obj,
@@ -1852,8 +1906,8 @@ dsl_dataset_snapshot_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 			    ds->ds_prev->ds_phys->ds_creation_txg);
 			ds->ds_prev->ds_phys->ds_next_snap_obj = dsobj;
 		} else if (next_clones_obj != 0) {
-			VERIFY3U(0, ==, zap_remove_int(mos,
-			    next_clones_obj, dsphys->ds_next_snap_obj, tx));
+			remove_from_next_clones(ds->ds_prev,
+			    dsphys->ds_next_snap_obj, tx);
 			VERIFY3U(0, ==, zap_add_int(mos,
 			    next_clones_obj, dsobj, tx));
 		}
@@ -1962,6 +2016,9 @@ dsl_dataset_fast_stat(dsl_dataset_t *ds, dmu_objset_stats_t *stat)
 	if (ds->ds_phys->ds_next_snap_obj) {
 		stat->dds_is_snapshot = B_TRUE;
 		stat->dds_num_clones = ds->ds_phys->ds_num_children - 1;
+	} else {
+		stat->dds_is_snapshot = B_FALSE;
+		stat->dds_num_clones = 0;
 	}
 
 	/* clone origin is really a dsl_dir thing... */
@@ -1973,6 +2030,8 @@ dsl_dataset_fast_stat(dsl_dataset_t *ds, dmu_objset_stats_t *stat)
 		    ds->ds_dir->dd_phys->dd_origin_obj, FTAG, &ods));
 		dsl_dataset_name(ods, stat->dds_origin);
 		dsl_dataset_drop_ref(ods, FTAG);
+	} else {
+		stat->dds_origin[0] = '\0';
 	}
 	rw_exit(&ds->ds_dir->dd_pool->dp_config_rwlock);
 }
@@ -2439,9 +2498,7 @@ dsl_dataset_promote_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 
 	/* change the origin's next clone */
 	if (origin_ds->ds_phys->ds_next_clones_obj) {
-		VERIFY3U(0, ==, zap_remove_int(dp->dp_meta_objset,
-		    origin_ds->ds_phys->ds_next_clones_obj,
-		    origin_ds->ds_phys->ds_next_snap_obj, tx));
+		remove_from_next_clones(origin_ds, snap->ds->ds_object, tx);
 		VERIFY3U(0, ==, zap_add_int(dp->dp_meta_objset,
 		    origin_ds->ds_phys->ds_next_clones_obj,
 		    oldnext_obj, tx));
@@ -3039,11 +3096,7 @@ dsl_dataset_set_reservation_check(void *arg1, void *arg2, dmu_tx_t *tx)
 	dsl_dataset_t *ds = arg1;
 	uint64_t *reservationp = arg2;
 	uint64_t new_reservation = *reservationp;
-	int64_t delta;
 	uint64_t unique;
-
-	if (new_reservation > INT64_MAX)
-		return (EOVERFLOW);
 
 	if (spa_version(ds->ds_dir->dd_pool->dp_spa) <
 	    SPA_VERSION_REFRESERVATION)
@@ -3061,15 +3114,18 @@ dsl_dataset_set_reservation_check(void *arg1, void *arg2, dmu_tx_t *tx)
 
 	mutex_enter(&ds->ds_lock);
 	unique = dsl_dataset_unique(ds);
-	delta = MAX(unique, new_reservation) - MAX(unique, ds->ds_reserved);
 	mutex_exit(&ds->ds_lock);
 
-	if (delta > 0 &&
-	    delta > dsl_dir_space_available(ds->ds_dir, NULL, 0, TRUE))
-		return (ENOSPC);
-	if (delta > 0 && ds->ds_quota > 0 &&
-	    new_reservation > ds->ds_quota)
-		return (ENOSPC);
+	if (MAX(unique, new_reservation) > MAX(unique, ds->ds_reserved)) {
+		uint64_t delta = MAX(unique, new_reservation) -
+		    MAX(unique, ds->ds_reserved);
+
+		if (delta > dsl_dir_space_available(ds->ds_dir, NULL, 0, TRUE))
+			return (ENOSPC);
+		if (ds->ds_quota > 0 &&
+		    new_reservation > ds->ds_quota)
+			return (ENOSPC);
+	}
 
 	return (0);
 }
