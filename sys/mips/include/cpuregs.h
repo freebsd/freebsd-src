@@ -78,6 +78,9 @@
  * Caching of mapped addresses is controlled by bits in the TLB entry.
  */
 
+#define	MIPS_KSEG0_LARGEST_PHYS         (0x20000000)
+#define	MIPS_PHYS_MASK			(0x1fffffff)
+
 #if !defined(_LOCORE)
 #define	MIPS_KUSEG_START		0x00000000
 #define	MIPS_KSEG0_START		((intptr_t)(int32_t)0x80000000)
@@ -91,7 +94,20 @@
 
 #define MIPS_KSEG2_START		MIPS_KSSEG_START
 #define MIPS_KSEG2_END			MIPS_KSSEG_END
-#endif
+
+#define	MIPS_PHYS_TO_KSEG0(x)		((uintptr_t)(x) | MIPS_KSEG0_START)
+#define	MIPS_PHYS_TO_KSEG1(x)		((uintptr_t)(x) | MIPS_KSEG1_START)
+#define	MIPS_KSEG0_TO_PHYS(x)		((uintptr_t)(x) & MIPS_PHYS_MASK)
+#define	MIPS_KSEG1_TO_PHYS(x)		((uintptr_t)(x) & MIPS_PHYS_MASK)
+
+#define	MIPS_IS_KSEG0_ADDR(x)					\
+	(((vm_offset_t)(x) >= MIPS_KSEG0_START) &&		\
+	    ((vm_offset_t)(x) <= MIPS_KSEG0_END))
+#define	MIPS_IS_KSEG1_ADDR(x)					\
+	(((vm_offset_t)(x) >= MIPS_KSEG1_START) &&		\
+	    ((vm_offset_t)(x) <= MIPS_KSEG1_END))
+#define	MIPS_IS_VALID_PTR(x)		(MIPS_IS_KSEG0_ADDR(x) || \
+					    MIPS_IS_KSEG1_ADDR(x))
 
 #define	MIPS_XKPHYS_START		0x8000000000000000
 #define	MIPS_XKPHYS_END			0xbfffffffffffffff
@@ -101,13 +117,20 @@
 
 #define	MIPS_PHYS_TO_XKPHYS(cca,x) \
 	((0x2ULL << 62) | ((unsigned long long)(cca) << 59) | (x))
-#define	MIPS_XKPHYS_TO_PHYS(x)	((x) & 0x07ffffffffffffffULL)
+#define	MIPS_PHYS_TO_XKPHYS_CACHED(x) \
+	((0x2ULL << 62) | ((unsigned long long)(MIPS_XKPHYS_CCA_CNC) << 59) | (x))
+#define	MIPS_PHYS_TO_XKPHYS_UNCACHED(x) \
+	((0x2ULL << 62) | ((unsigned long long)(MIPS_XKPHYS_CCA_UC) << 59) | (x))
+
+#define	MIPS_XKPHYS_TO_PHYS(x)		((x) & 0x07ffffffffffffffULL)
 
 #define	MIPS_XUSEG_START		0x0000000000000000
 #define	MIPS_XUSEG_END			0x0000010000000000
 
 #define	MIPS_XKSEG_START		0xc000000000000000
 #define	MIPS_XKSEG_END			0xc00000ff80000000
+
+#endif
 
 /* CPU dependent mtc0 hazard hook */
 #ifdef TARGET_OCTEON
