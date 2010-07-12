@@ -10,6 +10,7 @@ INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
 SRCS=		conf.c metadata.c vers.c start.c
+SRCS+=		ucmpdi2.c
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
@@ -62,9 +63,9 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 CFLAGS+=	-DNETIF_OPEN_CLOSE_ONCE
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
+.PATH:		${.CURDIR}/../../common ${.CURDIR}/../../../libkern
 .include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../..
 CFLAGS+=	-I.
 
 CLEANFILES+=	vers.c loader.help

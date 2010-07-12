@@ -13,12 +13,12 @@ SUBDIR+=		efi
 .endif
 
 # Build Open Firmware library.
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "sparc64"
 SUBDIR+=		ofw
 .endif
 
 # Build U-Boot library.
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "arm"
 SUBDIR+=		uboot
 .endif
 
@@ -31,7 +31,7 @@ SUBDIR+=		fdt
 .endif
 
 # Pick the machine-dependent subdir based on the target architecture.
-ADIR=			${MACHINE:S/amd64/i386/:S/sun4v/sparc64/}
+ADIR=			${MACHINE:S/amd64/i386/:S/sun4v/sparc64/:S/powerpc64/powerpc/}
 .if exists(${.CURDIR}/${ADIR}/.)
 SUBDIR+=		${ADIR}
 .endif

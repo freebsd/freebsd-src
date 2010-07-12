@@ -96,6 +96,7 @@ struct netif_driver *netif_drivers[] = {
 
 struct file_format *file_formats[] = {
     &ofw_elf,
+    &ofw_elf64,
     NULL
 };
 
