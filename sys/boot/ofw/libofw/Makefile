@@ -13,8 +13,9 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
 
 CFLAGS+=	-ffreestanding
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 CFLAGS+=	-msoft-float
+SRCS+=		ppc64_elf_freebsd.c
 .endif
 
 .ifdef(BOOT_DISK_DEBUG)
