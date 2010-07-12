@@ -729,17 +729,26 @@ zil_lwb_write_done(zio_t *zio)
 	ASSERT(zio->io_bp->blk_fill == 0);
 
 	/*
-	 * Now that we've written this log block, we have a stable pointer
-	 * to the next block in the chain, so it's OK to let the txg in
-	 * which we allocated the next block sync.
+	 * Ensure the lwb buffer pointer is cleared before releasing
+	 * the txg. If we have had an allocation failure and
+	 * the txg is waiting to sync then we want want zil_sync()
+	 * to remove the lwb so that it's not picked up as the next new
+	 * one in zil_commit_writer(). zil_sync() will only remove
+	 * the lwb if lwb_buf is null.
 	 */
-	txg_rele_to_sync(&lwb->lwb_txgh);
-
 	zio_buf_free(lwb->lwb_buf, lwb->lwb_sz);
 	mutex_enter(&zilog->zl_lock);
 	lwb->lwb_buf = NULL;
 	if (zio->io_error)
 		zilog->zl_log_error = B_TRUE;
+
+	/*
+	 * Now that we've written this log block, we have a stable pointer
+	 * to the next block in the chain, so it's OK to let the txg in
+	 * which we allocated the next block sync. We still have the
+	 * zl_lock to ensure zil_sync doesn't kmem free the lwb.
+	 */
+	txg_rele_to_sync(&lwb->lwb_txgh);
 	mutex_exit(&zilog->zl_lock);
 }
 
@@ -1226,20 +1235,26 @@ zil_sync(zilog_t *zilog, dmu_tx_t *tx)
 	spa_t *spa = zilog->zl_spa;
 	lwb_t *lwb;
 
+	/*
+	 * We don't zero out zl_destroy_txg, so make sure we don't try
+	 * to destroy it twice.
+	 */
+	if (spa_sync_pass(spa) != 1)
+		return;
+
 	mutex_enter(&zilog->zl_lock);
 
 	ASSERT(zilog->zl_stop_sync == 0);
 
-	zh->zh_replay_seq = zilog->zl_replay_seq[txg & TXG_MASK];
+	zh->zh_replay_seq = zilog->zl_replayed_seq[txg & TXG_MASK];
 
 	if (zilog->zl_destroy_txg == txg) {
 		blkptr_t blk = zh->zh_log;
 
 		ASSERT(list_head(&zilog->zl_lwb_list) == NULL);
-		ASSERT(spa_sync_pass(spa) == 1);
 
 		bzero(zh, sizeof (zil_header_t));
-		bzero(zilog->zl_replay_seq, sizeof (zilog->zl_replay_seq));
+		bzero(zilog->zl_replayed_seq, sizeof (zilog->zl_replayed_seq));
 
 		if (zilog->zl_keep_first) {
 			/*
@@ -1454,12 +1469,57 @@ zil_resume(zilog_t *zilog)
 	mutex_exit(&zilog->zl_lock);
 }
 
+/*
+ * Read in the data for the dmu_sync()ed block, and change the log
+ * record to write this whole block.
+ */
+void
+zil_get_replay_data(zilog_t *zilog, lr_write_t *lr)
+{
+	blkptr_t *wbp = &lr->lr_blkptr;
+	char *wbuf = (char *)(lr + 1); /* data follows lr_write_t */
+	uint64_t blksz;
+
+	if (BP_IS_HOLE(wbp)) {	/* compressed to a hole */
+		blksz = BP_GET_LSIZE(&lr->lr_blkptr);
+		/*
+		 * If the blksz is zero then we must be replaying a log
+		 * from an version prior to setting the blksize of null blocks.
+		 * So we just zero the actual write size reqeusted.
+		 */
+		if (blksz == 0) {
+			bzero(wbuf, lr->lr_length);
+			return;
+		}
+		bzero(wbuf, blksz);
+	} else {
+		/*
+		 * A subsequent write may have overwritten this block, in which
+		 * case wbp may have been been freed and reallocated, and our
+		 * read of wbp may fail with a checksum error.  We can safely
+		 * ignore this because the later write will provide the
+		 * correct data.
+		 */
+		zbookmark_t zb;
+
+		zb.zb_objset = dmu_objset_id(zilog->zl_os);
+		zb.zb_object = lr->lr_foid;
+		zb.zb_level = 0;
+		zb.zb_blkid = -1; /* unknown */
+
+		blksz = BP_GET_LSIZE(&lr->lr_blkptr);
+		(void) zio_wait(zio_read(NULL, zilog->zl_spa, wbp, wbuf, blksz,
+		    NULL, NULL, ZIO_PRIORITY_SYNC_READ,
+		    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE, &zb));
+	}
+	lr->lr_offset -= lr->lr_offset % blksz;
+	lr->lr_length = blksz;
+}
+
 typedef struct zil_replay_arg {
 	objset_t	*zr_os;
 	zil_replay_func_t **zr_replay;
-	zil_replay_cleaner_t *zr_replay_cleaner;
 	void		*zr_arg;
-	uint64_t	*zr_txgp;
 	boolean_t	zr_byteswap;
 	char		*zr_lrbuf;
 } zil_replay_arg_t;
@@ -1472,9 +1532,9 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 	uint64_t reclen = lr->lrc_reclen;
 	uint64_t txtype = lr->lrc_txtype;
 	char *name;
-	int pass, error, sunk;
+	int pass, error;
 
-	if (zilog->zl_stop_replay)
+	if (!zilog->zl_replay)			/* giving up */
 		return;
 
 	if (lr->lrc_txg < claim_txg)		/* already committed */
@@ -1485,6 +1545,11 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 
 	/* Strip case-insensitive bit, still present in log record */
 	txtype &= ~TX_CI;
+
+	if (txtype == 0 || txtype >= TX_MAX_TYPE) {
+		error = EINVAL;
+		goto bad;
+	}
 
 	/*
 	 * Make a copy of the data so we can revise and extend it.
@@ -1502,103 +1567,16 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 		byteswap_uint64_array(zr->zr_lrbuf, reclen);
 
 	/*
-	 * If this is a TX_WRITE with a blkptr, suck in the data.
-	 */
-	if (txtype == TX_WRITE && reclen == sizeof (lr_write_t)) {
-		lr_write_t *lrw = (lr_write_t *)lr;
-		blkptr_t *wbp = &lrw->lr_blkptr;
-		uint64_t wlen = lrw->lr_length;
-		char *wbuf = zr->zr_lrbuf + reclen;
-
-		if (BP_IS_HOLE(wbp)) {	/* compressed to a hole */
-			bzero(wbuf, wlen);
-		} else {
-			/*
-			 * A subsequent write may have overwritten this block,
-			 * in which case wbp may have been been freed and
-			 * reallocated, and our read of wbp may fail with a
-			 * checksum error.  We can safely ignore this because
-			 * the later write will provide the correct data.
-			 */
-			zbookmark_t zb;
-
-			zb.zb_objset = dmu_objset_id(zilog->zl_os);
-			zb.zb_object = lrw->lr_foid;
-			zb.zb_level = -1;
-			zb.zb_blkid = lrw->lr_offset / BP_GET_LSIZE(wbp);
-
-			(void) zio_wait(zio_read(NULL, zilog->zl_spa,
-			    wbp, wbuf, BP_GET_LSIZE(wbp), NULL, NULL,
-			    ZIO_PRIORITY_SYNC_READ,
-			    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE, &zb));
-			(void) memmove(wbuf, wbuf + lrw->lr_blkoff, wlen);
-		}
-	}
-
-	/*
-	 * Replay of large truncates can end up needing additional txs
-	 * and a different txg. If they are nested within the replay tx
-	 * as below then a hang is possible. So we do the truncate here
-	 * and redo the truncate later (a no-op) and update the sequence
-	 * number whilst in the replay tx. Fortunately, it's safe to repeat
-	 * a truncate if we crash and the truncate commits. A create over
-	 * an existing file will also come in as a TX_TRUNCATE record.
-	 *
-	 * Note, remove of large files and renames over large files is
-	 * handled by putting the deleted object on a stable list
-	 * and if necessary force deleting the object outside of the replay
-	 * transaction using the zr_replay_cleaner.
-	 */
-	if (txtype == TX_TRUNCATE) {
-		*zr->zr_txgp = TXG_NOWAIT;
-		error = zr->zr_replay[TX_TRUNCATE](zr->zr_arg, zr->zr_lrbuf,
-		    zr->zr_byteswap);
-		if (error)
-			goto bad;
-		zr->zr_byteswap = 0; /* only byteswap once */
-	}
-
-	/*
 	 * We must now do two things atomically: replay this log record,
-	 * and update the log header to reflect the fact that we did so.
-	 * We use the DMU's ability to assign into a specific txg to do this.
+	 * and update the log header sequence number to reflect the fact that
+	 * we did so. At the end of each replay function the sequence number
+	 * is updated if we are in replay mode.
 	 */
-	for (pass = 1, sunk = B_FALSE; /* CONSTANTCONDITION */; pass++) {
-		uint64_t replay_txg;
-		dmu_tx_t *replay_tx;
-
-		replay_tx = dmu_tx_create(zr->zr_os);
-		error = dmu_tx_assign(replay_tx, TXG_WAIT);
-		if (error) {
-			dmu_tx_abort(replay_tx);
-			break;
-		}
-
-		replay_txg = dmu_tx_get_txg(replay_tx);
-
-		if (txtype == 0 || txtype >= TX_MAX_TYPE) {
-			error = EINVAL;
-		} else {
-			/*
-			 * On the first pass, arrange for the replay vector
-			 * to fail its dmu_tx_assign().  That's the only way
-			 * to ensure that those code paths remain well tested.
-			 *
-			 * Only byteswap (if needed) on the 1st pass.
-			 */
-			*zr->zr_txgp = replay_txg - (pass == 1);
-			error = zr->zr_replay[txtype](zr->zr_arg, zr->zr_lrbuf,
-			    zr->zr_byteswap && pass == 1);
-			*zr->zr_txgp = TXG_NOWAIT;
-		}
-
-		if (error == 0) {
-			dsl_dataset_dirty(dmu_objset_ds(zr->zr_os), replay_tx);
-			zilog->zl_replay_seq[replay_txg & TXG_MASK] =
-			    lr->lrc_seq;
-		}
-
-		dmu_tx_commit(replay_tx);
+	for (pass = 1; pass <= 2; pass++) {
+		zilog->zl_replaying_seq = lr->lrc_seq;
+		/* Only byteswap (if needed) on the 1st pass.  */
+		error = zr->zr_replay[txtype](zr->zr_arg, zr->zr_lrbuf,
+		    zr->zr_byteswap && pass == 1);
 
 		if (!error)
 			return;
@@ -1606,37 +1584,22 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 		/*
 		 * The DMU's dnode layer doesn't see removes until the txg
 		 * commits, so a subsequent claim can spuriously fail with
-		 * EEXIST. So if we receive any error other than ERESTART
-		 * we try syncing out any removes then retrying the
-		 * transaction.
+		 * EEXIST. So if we receive any error we try syncing out
+		 * any removes then retry the transaction.
 		 */
-		if (error != ERESTART && !sunk) {
-			if (zr->zr_replay_cleaner)
-				zr->zr_replay_cleaner(zr->zr_arg);
+		if (pass == 1)
 			txg_wait_synced(spa_get_dsl(zilog->zl_spa), 0);
-			sunk = B_TRUE;
-			continue; /* retry */
-		}
-
-		if (error != ERESTART)
-			break;
-
-		if (pass != 1)
-			txg_wait_open(spa_get_dsl(zilog->zl_spa),
-			    replay_txg + 1);
-
-		dprintf("pass %d, retrying\n", pass);
 	}
 
 bad:
-	ASSERT(error && error != ERESTART);
+	ASSERT(error);
 	name = kmem_alloc(MAXNAMELEN, KM_SLEEP);
 	dmu_objset_name(zr->zr_os, name);
 	cmn_err(CE_WARN, "ZFS replay transaction error %d, "
 	    "dataset %s, seq 0x%llx, txtype %llu %s\n",
 	    error, name, (u_longlong_t)lr->lrc_seq, (u_longlong_t)txtype,
 	    (lr->lrc_txtype & TX_CI) ? "CI" : "");
-	zilog->zl_stop_replay = 1;
+	zilog->zl_replay = B_FALSE;
 	kmem_free(name, MAXNAMELEN);
 }
 
@@ -1651,9 +1614,7 @@ zil_incr_blks(zilog_t *zilog, blkptr_t *bp, void *arg, uint64_t claim_txg)
  * If this dataset has a non-empty intent log, replay it and destroy it.
  */
 void
-zil_replay(objset_t *os, void *arg, uint64_t *txgp,
-	zil_replay_func_t *replay_func[TX_MAX_TYPE],
-	zil_replay_cleaner_t *replay_cleaner)
+zil_replay(objset_t *os, void *arg, zil_replay_func_t *replay_func[TX_MAX_TYPE])
 {
 	zilog_t *zilog = dmu_objset_zil(os);
 	const zil_header_t *zh = zilog->zl_header;
@@ -1667,9 +1628,7 @@ zil_replay(objset_t *os, void *arg, uint64_t *txgp,
 
 	zr.zr_os = os;
 	zr.zr_replay = replay_func;
-	zr.zr_replay_cleaner = replay_cleaner;
 	zr.zr_arg = arg;
-	zr.zr_txgp = txgp;
 	zr.zr_byteswap = BP_SHOULD_BYTESWAP(&zh->zh_log);
 	zr.zr_lrbuf = kmem_alloc(2 * SPA_MAXBLOCKSIZE, KM_SLEEP);
 
@@ -1678,7 +1637,7 @@ zil_replay(objset_t *os, void *arg, uint64_t *txgp,
 	 */
 	txg_wait_synced(zilog->zl_dmu_pool, 0);
 
-	zilog->zl_stop_replay = 0;
+	zilog->zl_replay = B_TRUE;
 	zilog->zl_replay_time = LBOLT;
 	ASSERT(zilog->zl_replay_blks == 0);
 	(void) zil_parse(zilog, zil_incr_blks, zil_replay_log_record, &zr,
@@ -1687,6 +1646,7 @@ zil_replay(objset_t *os, void *arg, uint64_t *txgp,
 
 	zil_destroy(zilog, B_FALSE);
 	txg_wait_synced(zilog->zl_dmu_pool, zilog->zl_destroy_txg);
+	zilog->zl_replay = B_FALSE;
 	//printf("ZFS: Replay of ZIL on %s finished.\n", os->os->os_spa->spa_name);
 }
 

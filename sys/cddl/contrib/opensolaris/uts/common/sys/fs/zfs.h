@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -109,8 +109,19 @@ typedef enum {
 	ZFS_PROP_USEDDS,
 	ZFS_PROP_USEDCHILD,
 	ZFS_PROP_USEDREFRESERV,
+	ZFS_PROP_USERACCOUNTING,	/* not exposed to the user */
 	ZFS_NUM_PROPS
 } zfs_prop_t;
+
+typedef enum {
+	ZFS_PROP_USERUSED,
+	ZFS_PROP_USERQUOTA,
+	ZFS_PROP_GROUPUSED,
+	ZFS_PROP_GROUPQUOTA,
+	ZFS_NUM_USERQUOTA_PROPS
+} zfs_userquota_prop_t;
+
+extern const char *zfs_userquota_prop_prefixes[ZFS_NUM_USERQUOTA_PROPS];
 
 /*
  * Pool properties are identified by these constants and must be added to the
@@ -173,6 +184,7 @@ boolean_t zfs_prop_setonce(zfs_prop_t);
 const char *zfs_prop_to_name(zfs_prop_t);
 zfs_prop_t zfs_name_to_prop(const char *);
 boolean_t zfs_prop_user(const char *);
+boolean_t zfs_prop_userquota(const char *name);
 int zfs_prop_index_to_string(zfs_prop_t, uint64_t, const char **);
 int zfs_prop_string_to_index(zfs_prop_t, const char *, uint64_t *);
 boolean_t zfs_prop_valid_for_type(int, zfs_type_t);
@@ -217,6 +229,9 @@ typedef enum {
 #define	ZFS_DELEG_PERM_GID	"gid"
 #define	ZFS_DELEG_PERM_GROUPS	"groups"
 
+#define	ZFS_SMB_ACL_SRC		"src"
+#define	ZFS_SMB_ACL_TARGET	"target"
+
 typedef enum {
 	ZFS_CANMOUNT_OFF = 0,
 	ZFS_CANMOUNT_ON = 1,
@@ -229,6 +244,13 @@ typedef enum zfs_share_op {
 	ZFS_SHARE_SMB = 2,
 	ZFS_UNSHARE_SMB = 3
 } zfs_share_op_t;
+
+typedef enum zfs_smb_acl_op {
+	ZFS_SMB_ACL_ADD,
+	ZFS_SMB_ACL_REMOVE,
+	ZFS_SMB_ACL_RENAME,
+	ZFS_SMB_ACL_PURGE
+} zfs_smb_acl_op_t;
 
 typedef enum zfs_cache_type {
 	ZFS_CACHE_NONE = 0,
@@ -254,13 +276,15 @@ typedef enum zfs_cache_type {
 #define	SPA_VERSION_12			12ULL
 #define	SPA_VERSION_13			13ULL
 #define	SPA_VERSION_14			14ULL
+#define	SPA_VERSION_15			15ULL
 /*
  * When bumping up SPA_VERSION, make sure GRUB ZFS understands the on-disk
  * format change. Go to usr/src/grub/grub-0.95/stage2/{zfs-include/, fsys_zfs*},
- * and do the appropriate changes.
+ * and do the appropriate changes.  Also bump the version number in
+ * usr/src/grub/capability.
  */
-#define	SPA_VERSION			SPA_VERSION_14
-#define	SPA_VERSION_STRING		"14"
+#define	SPA_VERSION			SPA_VERSION_15
+#define	SPA_VERSION_STRING		"15"
 
 /*
  * Symbolic names for the changes that caused a SPA_VERSION switch.
@@ -296,6 +320,7 @@ typedef enum zfs_cache_type {
 #define	SPA_VERSION_SNAP_PROPS		SPA_VERSION_12
 #define	SPA_VERSION_USED_BREAKDOWN	SPA_VERSION_13
 #define	SPA_VERSION_PASSTHROUGH_X	SPA_VERSION_14
+#define	SPA_VERSION_USERSPACE		SPA_VERSION_15
 
 /*
  * ZPL version - rev'd whenever an incompatible on-disk format change
@@ -308,14 +333,16 @@ typedef enum zfs_cache_type {
 #define	ZPL_VERSION_1			1ULL
 #define	ZPL_VERSION_2			2ULL
 #define	ZPL_VERSION_3			3ULL
-#define	ZPL_VERSION			ZPL_VERSION_3
-#define	ZPL_VERSION_STRING		"3"
+#define	ZPL_VERSION_4			4ULL
+#define	ZPL_VERSION			ZPL_VERSION_4
+#define	ZPL_VERSION_STRING		"4"
 
 #define	ZPL_VERSION_INITIAL		ZPL_VERSION_1
 #define	ZPL_VERSION_DIRENT_TYPE		ZPL_VERSION_2
 #define	ZPL_VERSION_FUID		ZPL_VERSION_3
 #define	ZPL_VERSION_NORMALIZATION	ZPL_VERSION_3
 #define	ZPL_VERSION_SYSATTR		ZPL_VERSION_3
+#define	ZPL_VERSION_USERSPACE		ZPL_VERSION_4
 
 /*
  * The following are configuration names used in the nvlist describing a pool's
@@ -365,6 +392,7 @@ typedef enum zfs_cache_type {
 #define	ZPOOL_CONFIG_FAULTED		"faulted"
 #define	ZPOOL_CONFIG_DEGRADED		"degraded"
 #define	ZPOOL_CONFIG_REMOVED		"removed"
+#define	ZPOOL_CONFIG_FRU		"fru"
 
 #define	VDEV_TYPE_ROOT			"root"
 #define	VDEV_TYPE_MIRROR		"mirror"
@@ -568,6 +596,11 @@ typedef	unsigned long	zfs_ioc_t;
 #define	ZFS_IOC_INHERIT_PROP		_IOWR('Z', 46, struct zfs_cmd)
 #define	ZFS_IOC_JAIL			_IOWR('Z', 47, struct zfs_cmd)
 #define	ZFS_IOC_UNJAIL			_IOWR('Z', 48, struct zfs_cmd)
+#define	ZFS_IOC_SMB_ACL			_IOWR('Z', 49, struct zfs_cmd)
+#define	ZFS_IOC_USERSPACE_ONE		_IOWR('Z', 50, struct zfs_cmd)
+#define	ZFS_IOC_USERSPACE_MANY		_IOWR('Z', 51, struct zfs_cmd)
+#define	ZFS_IOC_USERSPACE_UPGRADE	_IOWR('Z', 52, struct zfs_cmd)
+#define	ZFS_IOC_SETFRU			_IOWR('Z', 53, struct zfs_cmd)
 
 /*
  * Internal SPA load state.  Used by FMA diagnosis engine.
