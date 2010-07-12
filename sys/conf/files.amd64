@@ -70,17 +70,26 @@ hptrr_lib.o			optional	hptrr			\
 amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
 amd64/acpica/acpi_switch.S	optional	acpi
-acpi_wakecode.h			optional acpi		\
-	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
-	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
+acpi_wakecode.o			optional	acpi			\
+	dependency	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
+	compile-with	"${NORMAL_S}"					\
 	no-obj no-implicit-rule before-depend				\
-	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
-#
-acpi_wakedata.h			optional acpi		\
-	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
-	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
-	no-obj no-implicit-rule before-depend				\
-	clean		"acpi_wakedata.h acpi_wakecode.o acpi_wakecode.bin"
+	clean		"acpi_wakecode.o"
+acpi_wakecode.bin		optional	acpi			\
+	dependency	"acpi_wakecode.o"				\
+	compile-with	"objcopy -S -O binary acpi_wakecode.o ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakecode.bin"
+acpi_wakecode.h			optional	acpi			\
+	dependency	"acpi_wakecode.bin"				\
+	compile-with	"file2c -sx 'static char wakecode[] = {' '};' < acpi_wakecode.bin > ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakecode.h"
+acpi_wakedata.h			optional	acpi			\
+	dependency	"acpi_wakecode.o"				\
+	compile-with	'nm -n --defined-only acpi_wakecode.o | while read offset dummy what; do echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}' \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakedata.h"
 #
 amd64/acpica/acpi_wakeup.c	optional	acpi
 amd64/acpica/madt.c		optional	acpi
