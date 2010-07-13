@@ -94,6 +94,20 @@ options(void)
 	SLIST_INSERT_HEAD(&opt, op, op_next);
 
 	read_options();
+
+	/* Fake the value of MACHINE_ARCH as an option if necessary */
+	SLIST_FOREACH(ol, &otab, o_next) {
+		if (strcasecmp(ol->o_name, machinearch) != 0)
+			continue;
+
+		op = (struct opt *)calloc(1, sizeof(*op));
+		if (op == NULL)
+			err(EXIT_FAILURE, "calloc");
+		op->op_name = ns(ol->o_name);
+		SLIST_INSERT_HEAD(&opt, op, op_next);
+		break;
+	}
+
 	SLIST_FOREACH(op, &opt, op_next) {
 		SLIST_FOREACH(ol, &otab, o_next) {
 			if (eq(op->op_name, ol->o_name) &&
