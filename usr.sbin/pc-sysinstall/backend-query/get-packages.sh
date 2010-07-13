@@ -25,13 +25,36 @@
 #
 # $FreeBSD$
 
+# Script which lists the available packages for this release
+###########################################################################
+
 . ${PROGDIR}/backend/functions.sh
-. ${PROGDIR}/backend/functions-ftp.sh
+. ${PROGDIR}/backend/functions-packages.sh
 
-# Backend script which lists all the available ftp mirrors for front-ends to display
-COUNTRY="${1}"
+DEFAULT_FTP_SERVER="ftp.freebsd.org"
+FTP_SERVER="${1}"
+ID=`id -u`
 
-get_ftp_mirrors "${COUNTRY}"
-show_mirrors "${VAL}"
+if [ "${ID}" -ne "0" ]
+then
+	echo "Error: must be root!" 
+	exit 1
+fi
 
-exit 0
+if [ -z "${FTP_SERVER}" ]
+then
+	FTP_SERVER="${DEFAULT_FTP_SERVER}"
+fi
+
+if [ ! -f "${PKGDIR}/INDEX" ]
+then
+	get_package_index "${FTP_SERVER}"
+fi
+
+if [ -f "${PKGDIR}/INDEX" ]
+then
+	echo "${PKGDIR}/INDEX"
+	exit 0
+fi
+
+exit 1
