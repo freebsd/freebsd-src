@@ -4270,7 +4270,7 @@ bge_init_locked(struct bge_softc *sc)
 	    (MCLBYTES - ETHER_ALIGN)) {
 		if (bge_init_rx_ring_jumbo(sc) != 0) {
 			device_printf(sc->bge_dev,
-			    "no memory for std Rx buffers.\n");
+			    "no memory for jumbo Rx buffers.\n");
 			bge_stop(sc);
 			return;
 		}
