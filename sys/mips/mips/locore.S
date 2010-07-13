@@ -134,25 +134,6 @@ VECTOR(_locore, unknown)
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 
-	/* Read and store the PrID FPU ID for CPU identification, if any. */
-	mfc0	t2, COP_0_STATUS_REG
-	mfc0	t0, MIPS_COP_0_PRID
-#ifdef CPU_HAVEFPU
-	and	t2, MIPS_SR_COP_1_BIT
-	beqz	t2, 1f
-	move	t1, zero
-	cfc1	t1, MIPS_FPU_ID
-1:
-#else
-	/*
-	 * This platform has no FPU, and attempting to detect one
-	 * using the official method causes an exception.
-	 */
-	move	t1, zero
-#endif
-	sw	t0, _C_LABEL(cpu_id)
-	sw	t1, _C_LABEL(fpu_id)
-
 	/*xxximp
 	 * now that we pass a0...a3 to the platform_init routine, do we need
 	 * to stash this stuff here?

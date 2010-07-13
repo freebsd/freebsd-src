@@ -52,15 +52,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/hwfunc.h>
 
-struct mips_cpuinfo cpuinfo;
+static void cpu_identify(void);
 
-union	cpuprid cpu_id;
-union	cpuprid fpu_id;
+struct mips_cpuinfo cpuinfo;
 
 /*
  * Attempt to identify the MIPS CPU as much as possible.
  *
- * XXX: Assumes the CPU is MIPS32 compliant.
+ * XXX: Assumes the CPU is MIPS{32,64}{,r2} compliant.
  * XXX: For now, skip config register selections 2 and 3
  * as we don't currently use L2/L3 cache or additional
  * MIPS32 processor features.
@@ -148,7 +147,7 @@ mips_cpu_init(void)
 	cpu_identify();
 }
 
-void
+static void
 cpu_identify(void)
 {
 	uint32_t cfg0, cfg1, cfg2, cfg3;
