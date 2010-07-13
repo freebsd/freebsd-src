@@ -12,7 +12,7 @@ KODIR?=		/boot/${KERNEL}
 LDSCRIPT_NAME?=	ldscript.$M
 LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 
-M=	${MACHINE_ARCH}
+M=	${MACHINE_CPUARCH}
 
 AWK?=		awk
 LINT?=		lint
