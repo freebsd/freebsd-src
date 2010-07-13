@@ -790,9 +790,8 @@ unsigned SelectionDAG::getEVTAlignment(EVT VT) const {
 }
 
 // EntryNode could meaningfully have debug info if we can find it...
-SelectionDAG::SelectionDAG(const TargetMachine &tm, FunctionLoweringInfo &fli)
+SelectionDAG::SelectionDAG(const TargetMachine &tm)
   : TM(tm), TLI(*tm.getTargetLowering()), TSI(*tm.getSelectionDAGInfo()),
-    FLI(fli),
     EntryNode(ISD::EntryToken, DebugLoc(), getVTList(MVT::Other)),
     Root(getEntryNode()), Ordering(0) {
   AllNodes.push_back(&EntryNode);
@@ -808,7 +807,6 @@ void SelectionDAG::init(MachineFunction &mf) {
 SelectionDAG::~SelectionDAG() {
   allnodes_clear();
   delete Ordering;
-  DbgInfo->clear();
   delete DbgInfo;
 }
 
@@ -835,11 +833,8 @@ void SelectionDAG::clear() {
   EntryNode.UseList = 0;
   AllNodes.push_back(&EntryNode);
   Root = getEntryNode();
-  delete Ordering;
-  Ordering = new SDNodeOrdering();
+  Ordering->clear();
   DbgInfo->clear();
-  delete DbgInfo;
-  DbgInfo = new SDDbgInfo();
 }
 
 SDValue SelectionDAG::getSExtOrTrunc(SDValue Op, DebugLoc DL, EVT VT) {
@@ -980,7 +975,7 @@ SDValue SelectionDAG::getConstantFP(double Val, EVT VT, bool isTarget) {
   }
 }
 
-SDValue SelectionDAG::getGlobalAddress(const GlobalValue *GV,
+SDValue SelectionDAG::getGlobalAddress(const GlobalValue *GV, DebugLoc DL,
                                        EVT VT, int64_t Offset,
                                        bool isTargetGA,
                                        unsigned char TargetFlags) {
@@ -1015,7 +1010,7 @@ SDValue SelectionDAG::getGlobalAddress(const GlobalValue *GV,
   if (SDNode *E = CSEMap.FindNodeOrInsertPos(ID, IP))
     return SDValue(E, 0);
 
-  SDNode *N = new (NodeAllocator) GlobalAddressSDNode(Opc, GV, VT,
+  SDNode *N = new (NodeAllocator) GlobalAddressSDNode(Opc, DL, GV, VT,
                                                       Offset, TargetFlags);
   CSEMap.InsertNode(N, IP);
   AllNodes.push_back(N);
@@ -2291,7 +2286,6 @@ bool SelectionDAG::isVerifiedDebugInfoDesc(SDValue Op) const {
 SDValue SelectionDAG::getShuffleScalarElt(const ShuffleVectorSDNode *N,
                                           unsigned i) {
   EVT VT = N->getValueType(0);
-  DebugLoc dl = N->getDebugLoc();
   if (N->getMaskElt(i) < 0)
     return getUNDEF(VT.getVectorElementType());
   unsigned Index = N->getMaskElt(i);
@@ -2475,9 +2469,18 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL,
             VT.getVectorNumElements() ==
             Operand.getValueType().getVectorNumElements()) &&
            "Vector element count mismatch!");
-    if (OpOpcode == ISD::ZERO_EXTEND || OpOpcode == ISD::SIGN_EXTEND)
+
+    if (OpOpcode == ISD::ZERO_EXTEND || OpOpcode == ISD::SIGN_EXTEND ||
+        OpOpcode == ISD::ANY_EXTEND)
       // (ext (zext x)) -> (zext x)  and  (ext (sext x)) -> (sext x)
       return getNode(OpOpcode, DL, VT, Operand.getNode()->getOperand(0));
+
+    // (ext (trunx x)) -> x
+    if (OpOpcode == ISD::TRUNCATE) {
+      SDValue OpOp = Operand.getNode()->getOperand(0);
+      if (OpOp.getValueType() == VT)
+        return OpOp;
+    }
     break;
   case ISD::TRUNCATE:
     assert(VT.isInteger() && Operand.getValueType().isInteger() &&
@@ -2622,7 +2625,7 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, EVT VT,
     if (N1.getOpcode() == ISD::BUILD_VECTOR &&
         N2.getOpcode() == ISD::BUILD_VECTOR) {
       SmallVector<SDValue, 16> Elts(N1.getNode()->op_begin(), N1.getNode()->op_end());
-      Elts.insert(Elts.end(), N2.getNode()->op_begin(), N2.getNode()->op_end());
+      Elts.append(N2.getNode()->op_begin(), N2.getNode()->op_end());
       return getNode(ISD::BUILD_VECTOR, DL, VT, &Elts[0], Elts.size());
     }
     break;
@@ -3011,7 +3014,6 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, EVT VT,
                               SDValue N1, SDValue N2, SDValue N3) {
   // Perform various simplifications.
   ConstantSDNode *N1C = dyn_cast<ConstantSDNode>(N1.getNode());
-  ConstantSDNode *N2C = dyn_cast<ConstantSDNode>(N2.getNode());
   switch (Opcode) {
   case ISD::CONCAT_VECTORS:
     // A CONCAT_VECTOR with all operands BUILD_VECTOR can be simplified to
@@ -3020,8 +3022,8 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, EVT VT,
         N2.getOpcode() == ISD::BUILD_VECTOR &&
         N3.getOpcode() == ISD::BUILD_VECTOR) {
       SmallVector<SDValue, 16> Elts(N1.getNode()->op_begin(), N1.getNode()->op_end());
-      Elts.insert(Elts.end(), N2.getNode()->op_begin(), N2.getNode()->op_end());
-      Elts.insert(Elts.end(), N3.getNode()->op_begin(), N3.getNode()->op_end());
+      Elts.append(N2.getNode()->op_begin(), N2.getNode()->op_end());
+      Elts.append(N3.getNode()->op_begin(), N3.getNode()->op_end());
       return getNode(ISD::BUILD_VECTOR, DL, VT, &Elts[0], Elts.size());
     }
     break;
@@ -3040,14 +3042,6 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, EVT VT,
     }
 
     if (N2 == N3) return N2;   // select C, X, X -> X
-    break;
-  case ISD::BRCOND:
-    if (N2C) {
-      if (N2C->getZExtValue()) // Unconditional branch
-        return getNode(ISD::BR, DL, MVT::Other, N1, N3);
-      else
-        return N1;         // Never-taken branch
-    }
     break;
   case ISD::VECTOR_SHUFFLE:
     llvm_unreachable("should use getVectorShuffle constructor!");
@@ -3267,6 +3261,15 @@ static bool FindOptimalMemOpLowering(std::vector<EVT> &MemOps,
     if (VT.bitsGT(LVT))
       VT = LVT;
   }
+  
+  // If we're optimizing for size, and there is a limit, bump the maximum number
+  // of operations inserted down to 4.  This is a wild guess that approximates
+  // the size of a call to memcpy or memset (3 arguments + call).
+  if (Limit != ~0U) {
+    const Function *F = DAG.getMachineFunction().getFunction();
+    if (F->hasFnAttr(Attribute::OptimizeForSize))
+      Limit = 4;
+  }
 
   unsigned NumMemOps = 0;
   while (Size != 0) {
@@ -3321,9 +3324,8 @@ static SDValue getMemcpyLoadsAndStores(SelectionDAG &DAG, DebugLoc dl,
   std::string Str;
   bool CopyFromStr = isMemSrcFromString(Src, Str);
   bool isZeroStr = CopyFromStr && Str.empty();
-  uint64_t Limit = -1ULL;
-  if (!AlwaysInline)
-    Limit = TLI.getMaxStoresPerMemcpy();
+  unsigned Limit = AlwaysInline ? ~0U : TLI.getMaxStoresPerMemcpy();
+  
   if (!FindOptimalMemOpLowering(MemOps, Limit, Size,
                                 (DstAlignCanChange ? 0 : Align),
                                 (isZeroStr ? 0 : SrcAlign),
@@ -3368,7 +3370,7 @@ static SDValue getMemcpyLoadsAndStores(SelectionDAG &DAG, DebugLoc dl,
       // FIXME does the case above also need this?
       EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), VT);
       assert(NVT.bitsGE(VT));
-      Value = DAG.getExtLoad(ISD::EXTLOAD, dl, NVT, Chain,
+      Value = DAG.getExtLoad(ISD::EXTLOAD, NVT, dl, Chain,
                              getMemBasePlusOffset(Src, SrcOff, DAG),
                              SrcSV, SrcSVOff + SrcOff, VT, isVol, false,
                              MinAlign(SrcAlign, SrcOff));
@@ -3401,9 +3403,6 @@ static SDValue getMemmoveLoadsAndStores(SelectionDAG &DAG, DebugLoc dl,
   // below a certain threshold.
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   std::vector<EVT> MemOps;
-  uint64_t Limit = -1ULL;
-  if (!AlwaysInline)
-    Limit = TLI.getMaxStoresPerMemmove();
   bool DstAlignCanChange = false;
   MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
   FrameIndexSDNode *FI = dyn_cast<FrameIndexSDNode>(Dst);
@@ -3412,6 +3411,7 @@ static SDValue getMemmoveLoadsAndStores(SelectionDAG &DAG, DebugLoc dl,
   unsigned SrcAlign = DAG.InferPtrAlignment(Src);
   if (Align > SrcAlign)
     SrcAlign = Align;
+  unsigned Limit = AlwaysInline ? ~0U : TLI.getMaxStoresPerMemmove();
 
   if (!FindOptimalMemOpLowering(MemOps, Limit, Size,
                                 (DstAlignCanChange ? 0 : Align),
@@ -3895,8 +3895,8 @@ SelectionDAG::getMemIntrinsicNode(unsigned Opcode, DebugLoc dl, SDVTList VTList,
 }
 
 SDValue
-SelectionDAG::getLoad(ISD::MemIndexedMode AM, DebugLoc dl,
-                      ISD::LoadExtType ExtType, EVT VT, SDValue Chain,
+SelectionDAG::getLoad(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType,
+                      EVT VT, DebugLoc dl, SDValue Chain,
                       SDValue Ptr, SDValue Offset,
                       const Value *SV, int SVOffset, EVT MemVT,
                       bool isVolatile, bool isNonTemporal,
@@ -3919,12 +3919,12 @@ SelectionDAG::getLoad(ISD::MemIndexedMode AM, DebugLoc dl,
   MachineMemOperand *MMO =
     MF.getMachineMemOperand(SV, Flags, SVOffset,
                             MemVT.getStoreSize(), Alignment);
-  return getLoad(AM, dl, ExtType, VT, Chain, Ptr, Offset, MemVT, MMO);
+  return getLoad(AM, ExtType, VT, dl, Chain, Ptr, Offset, MemVT, MMO);
 }
 
 SDValue
-SelectionDAG::getLoad(ISD::MemIndexedMode AM, DebugLoc dl,
-                      ISD::LoadExtType ExtType, EVT VT, SDValue Chain,
+SelectionDAG::getLoad(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType, 
+                      EVT VT, DebugLoc dl, SDValue Chain,
                       SDValue Ptr, SDValue Offset, EVT MemVT,
                       MachineMemOperand *MMO) {
   if (VT == MemVT) {
@@ -3974,18 +3974,18 @@ SDValue SelectionDAG::getLoad(EVT VT, DebugLoc dl,
                               bool isVolatile, bool isNonTemporal,
                               unsigned Alignment) {
   SDValue Undef = getUNDEF(Ptr.getValueType());
-  return getLoad(ISD::UNINDEXED, dl, ISD::NON_EXTLOAD, VT, Chain, Ptr, Undef,
+  return getLoad(ISD::UNINDEXED, ISD::NON_EXTLOAD, VT, dl, Chain, Ptr, Undef,
                  SV, SVOffset, VT, isVolatile, isNonTemporal, Alignment);
 }
 
-SDValue SelectionDAG::getExtLoad(ISD::LoadExtType ExtType, DebugLoc dl, EVT VT,
+SDValue SelectionDAG::getExtLoad(ISD::LoadExtType ExtType, EVT VT, DebugLoc dl,
                                  SDValue Chain, SDValue Ptr,
                                  const Value *SV,
                                  int SVOffset, EVT MemVT,
                                  bool isVolatile, bool isNonTemporal,
                                  unsigned Alignment) {
   SDValue Undef = getUNDEF(Ptr.getValueType());
-  return getLoad(ISD::UNINDEXED, dl, ExtType, VT, Chain, Ptr, Undef,
+  return getLoad(ISD::UNINDEXED, ExtType, VT, dl, Chain, Ptr, Undef,
                  SV, SVOffset, MemVT, isVolatile, isNonTemporal, Alignment);
 }
 
@@ -3995,7 +3995,7 @@ SelectionDAG::getIndexedLoad(SDValue OrigLoad, DebugLoc dl, SDValue Base,
   LoadSDNode *LD = cast<LoadSDNode>(OrigLoad);
   assert(LD->getOffset().getOpcode() == ISD::UNDEF &&
          "Load is already a indexed load!");
-  return getLoad(AM, dl, LD->getExtensionType(), OrigLoad.getValueType(),
+  return getLoad(AM, LD->getExtensionType(), OrigLoad.getValueType(), dl,
                  LD->getChain(), Base, Offset, LD->getSrcValue(),
                  LD->getSrcValueOffset(), LD->getMemoryVT(),
                  LD->isVolatile(), LD->isNonTemporal(), LD->getAlignment());
@@ -4141,9 +4141,10 @@ SelectionDAG::getIndexedStore(SDValue OrigStore, DebugLoc dl, SDValue Base,
 
 SDValue SelectionDAG::getVAArg(EVT VT, DebugLoc dl,
                                SDValue Chain, SDValue Ptr,
-                               SDValue SV) {
-  SDValue Ops[] = { Chain, Ptr, SV };
-  return getNode(ISD::VAARG, dl, getVTList(VT, MVT::Other), Ops, 3);
+                               SDValue SV,
+                               unsigned Align) {
+  SDValue Ops[] = { Chain, Ptr, SV, getTargetConstant(Align, MVT::i32) };
+  return getNode(ISD::VAARG, dl, getVTList(VT, MVT::Other), Ops, 4);
 }
 
 SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, EVT VT,
@@ -4425,17 +4426,16 @@ SDVTList SelectionDAG::getVTList(const EVT *VTs, unsigned NumVTs) {
 /// already exists.  If the resultant node does not exist in the DAG, the
 /// input node is returned.  As a degenerate case, if you specify the same
 /// input operands as the node already has, the input node is returned.
-SDValue SelectionDAG::UpdateNodeOperands(SDValue InN, SDValue Op) {
-  SDNode *N = InN.getNode();
+SDNode *SelectionDAG::UpdateNodeOperands(SDNode *N, SDValue Op) {
   assert(N->getNumOperands() == 1 && "Update with wrong number of operands");
 
   // Check to see if there is no change.
-  if (Op == N->getOperand(0)) return InN;
+  if (Op == N->getOperand(0)) return N;
 
   // See if the modified node already exists.
   void *InsertPos = 0;
   if (SDNode *Existing = FindModifiedNodeSlot(N, Op, InsertPos))
-    return SDValue(Existing, InN.getResNo());
+    return Existing;
 
   // Nope it doesn't.  Remove the node from its current place in the maps.
   if (InsertPos)
@@ -4447,22 +4447,20 @@ SDValue SelectionDAG::UpdateNodeOperands(SDValue InN, SDValue Op) {
 
   // If this gets put into a CSE map, add it.
   if (InsertPos) CSEMap.InsertNode(N, InsertPos);
-  return InN;
+  return N;
 }
 
-SDValue SelectionDAG::
-UpdateNodeOperands(SDValue InN, SDValue Op1, SDValue Op2) {
-  SDNode *N = InN.getNode();
+SDNode *SelectionDAG::UpdateNodeOperands(SDNode *N, SDValue Op1, SDValue Op2) {
   assert(N->getNumOperands() == 2 && "Update with wrong number of operands");
 
   // Check to see if there is no change.
   if (Op1 == N->getOperand(0) && Op2 == N->getOperand(1))
-    return InN;   // No operands changed, just return the input node.
+    return N;   // No operands changed, just return the input node.
 
   // See if the modified node already exists.
   void *InsertPos = 0;
   if (SDNode *Existing = FindModifiedNodeSlot(N, Op1, Op2, InsertPos))
-    return SDValue(Existing, InN.getResNo());
+    return Existing;
 
   // Nope it doesn't.  Remove the node from its current place in the maps.
   if (InsertPos)
@@ -4477,32 +4475,31 @@ UpdateNodeOperands(SDValue InN, SDValue Op1, SDValue Op2) {
 
   // If this gets put into a CSE map, add it.
   if (InsertPos) CSEMap.InsertNode(N, InsertPos);
-  return InN;
+  return N;
 }
 
-SDValue SelectionDAG::
-UpdateNodeOperands(SDValue N, SDValue Op1, SDValue Op2, SDValue Op3) {
+SDNode *SelectionDAG::
+UpdateNodeOperands(SDNode *N, SDValue Op1, SDValue Op2, SDValue Op3) {
   SDValue Ops[] = { Op1, Op2, Op3 };
   return UpdateNodeOperands(N, Ops, 3);
 }
 
-SDValue SelectionDAG::
-UpdateNodeOperands(SDValue N, SDValue Op1, SDValue Op2,
+SDNode *SelectionDAG::
+UpdateNodeOperands(SDNode *N, SDValue Op1, SDValue Op2,
                    SDValue Op3, SDValue Op4) {
   SDValue Ops[] = { Op1, Op2, Op3, Op4 };
   return UpdateNodeOperands(N, Ops, 4);
 }
 
-SDValue SelectionDAG::
-UpdateNodeOperands(SDValue N, SDValue Op1, SDValue Op2,
+SDNode *SelectionDAG::
+UpdateNodeOperands(SDNode *N, SDValue Op1, SDValue Op2,
                    SDValue Op3, SDValue Op4, SDValue Op5) {
   SDValue Ops[] = { Op1, Op2, Op3, Op4, Op5 };
   return UpdateNodeOperands(N, Ops, 5);
 }
 
-SDValue SelectionDAG::
-UpdateNodeOperands(SDValue InN, const SDValue *Ops, unsigned NumOps) {
-  SDNode *N = InN.getNode();
+SDNode *SelectionDAG::
+UpdateNodeOperands(SDNode *N, const SDValue *Ops, unsigned NumOps) {
   assert(N->getNumOperands() == NumOps &&
          "Update with wrong number of operands");
 
@@ -4516,12 +4513,12 @@ UpdateNodeOperands(SDValue InN, const SDValue *Ops, unsigned NumOps) {
   }
 
   // No operands changed, just return the input node.
-  if (!AnyChange) return InN;
+  if (!AnyChange) return N;
 
   // See if the modified node already exists.
   void *InsertPos = 0;
   if (SDNode *Existing = FindModifiedNodeSlot(N, Ops, NumOps, InsertPos))
-    return SDValue(Existing, InN.getResNo());
+    return Existing;
 
   // Nope it doesn't.  Remove the node from its current place in the maps.
   if (InsertPos)
@@ -4535,7 +4532,7 @@ UpdateNodeOperands(SDValue InN, const SDValue *Ops, unsigned NumOps) {
 
   // If this gets put into a CSE map, add it.
   if (InsertPos) CSEMap.InsertNode(N, InsertPos);
-  return InN;
+  return N;
 }
 
 /// DropOperands - Release the operands and set this node to have
@@ -5378,9 +5375,10 @@ HandleSDNode::~HandleSDNode() {
   DropOperands();
 }
 
-GlobalAddressSDNode::GlobalAddressSDNode(unsigned Opc, const GlobalValue *GA,
+GlobalAddressSDNode::GlobalAddressSDNode(unsigned Opc, DebugLoc DL,
+                                         const GlobalValue *GA,
                                          EVT VT, int64_t o, unsigned char TF)
-  : SDNode(Opc, DebugLoc(), getSDVTList(VT)), Offset(o), TargetFlags(TF) {
+  : SDNode(Opc, DL, getSDVTList(VT)), Offset(o), TargetFlags(TF) {
   TheGlobal = GA;
 }
 
@@ -5669,13 +5667,16 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::FSQRT:  return "fsqrt";
   case ISD::FSIN:   return "fsin";
   case ISD::FCOS:   return "fcos";
-  case ISD::FPOWI:  return "fpowi";
-  case ISD::FPOW:   return "fpow";
   case ISD::FTRUNC: return "ftrunc";
   case ISD::FFLOOR: return "ffloor";
   case ISD::FCEIL:  return "fceil";
   case ISD::FRINT:  return "frint";
   case ISD::FNEARBYINT: return "fnearbyint";
+  case ISD::FEXP:   return "fexp";
+  case ISD::FEXP2:  return "fexp2";
+  case ISD::FLOG:   return "flog";
+  case ISD::FLOG2:  return "flog2";
+  case ISD::FLOG10: return "flog10";
 
   // Binary operators
   case ISD::ADD:    return "add";
@@ -5706,7 +5707,9 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::FREM:   return "frem";
   case ISD::FCOPYSIGN: return "fcopysign";
   case ISD::FGETSIGN:  return "fgetsign";
+  case ISD::FPOW:   return "fpow";
 
+  case ISD::FPOWI:  return "fpowi";
   case ISD::SETCC:       return "setcc";
   case ISD::VSETCC:      return "vsetcc";
   case ISD::SELECT:      return "select";
@@ -6260,23 +6263,6 @@ unsigned SelectionDAG::InferPtrAlignment(SDValue Ptr) const {
     const MachineFrameInfo &MFI = *getMachineFunction().getFrameInfo();
     unsigned FIInfoAlign = MinAlign(MFI.getObjectAlignment(FrameIdx),
                                     FrameOffset);
-    if (MFI.isFixedObjectIndex(FrameIdx)) {
-      int64_t ObjectOffset = MFI.getObjectOffset(FrameIdx) + FrameOffset;
-
-      // The alignment of the frame index can be determined from its offset from
-      // the incoming frame position.  If the frame object is at offset 32 and
-      // the stack is guaranteed to be 16-byte aligned, then we know that the
-      // object is 16-byte aligned.
-      unsigned StackAlign = getTarget().getFrameInfo()->getStackAlignment();
-      unsigned Align = MinAlign(ObjectOffset, StackAlign);
-
-      // Finally, the frame object itself may have a known alignment.  Factor
-      // the alignment + offset into a new alignment.  For example, if we know
-      // the FI is 8 byte aligned, but the pointer is 4 off, we really have a
-      // 4-byte alignment of the resultant pointer.  Likewise align 4 + 4-byte
-      // offset = 4-byte alignment, align 4 + 1-byte offset = align 1, etc.
-      return std::max(Align, FIInfoAlign);
-    }
     return FIInfoAlign;
   }
 

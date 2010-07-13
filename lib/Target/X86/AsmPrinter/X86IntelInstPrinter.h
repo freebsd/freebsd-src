@@ -36,7 +36,6 @@ public:
 
   void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printMemReference(const MCInst *MI, unsigned Op, raw_ostream &O);
-  void printLeaMemReference(const MCInst *MI, unsigned Op, raw_ostream &O);
   void printSSECC(const MCInst *MI, unsigned Op, raw_ostream &O);
   void print_pcrel_imm(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   
@@ -81,17 +80,9 @@ public:
     O << "XMMWORD PTR ";
     printMemReference(MI, OpNo, O);
   }
-  void printlea32mem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
-    O << "DWORD PTR ";
-    printLeaMemReference(MI, OpNo, O);
-  }
-  void printlea64mem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
-    O << "QWORD PTR ";
-    printLeaMemReference(MI, OpNo, O);
-  }
-  void printlea64_32mem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
-    O << "QWORD PTR ";
-    printLeaMemReference(MI, OpNo, O);
+  void printf256mem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
+    O << "YMMWORD PTR ";
+    printMemReference(MI, OpNo, O);
   }
 };
   

@@ -152,10 +152,12 @@ bool LTOCodeGenerator::writeMergedModules(const char *path,
     
   // write bitcode to it
   WriteBitcodeToFile(_linker.getModule(), Out);
-  
+  Out.close();
+
   if (Out.has_error()) {
     errMsg = "could not write bitcode file: ";
     errMsg += path;
+    Out.clear_error();
     return true;
   }
   
@@ -181,16 +183,14 @@ const void* LTOCodeGenerator::compile(size_t* length, std::string& errMsg)
       genResult = this->generateAssemblyCode(asmFile, errMsg);
     }
     if ( genResult ) {
-        if ( uniqueAsmPath.exists() )
-            uniqueAsmPath.eraseFromDisk();
+        uniqueAsmPath.eraseFromDisk();
         return NULL;
     }
     
     // make unique temp .o file to put generated object file
     sys::PathWithStatus uniqueObjPath("lto-llvm.o");
     if ( uniqueObjPath.createTemporaryFileOnDisk(true, &errMsg) ) {
-        if ( uniqueAsmPath.exists() )
-            uniqueAsmPath.eraseFromDisk();
+        uniqueAsmPath.eraseFromDisk();
         return NULL;
     }
     sys::RemoveFileOnSignal(uniqueObjPath);

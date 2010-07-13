@@ -158,9 +158,9 @@ void PEI::calculateCallsInformation(MachineFunction &Fn) {
         AdjustsStack = true;
         FrameSDOps.push_back(I);
       } else if (I->isInlineAsm()) {
-        // An InlineAsm might be a call; assume it is to get the stack frame
-        // aligned correctly for calls.
-        AdjustsStack = true;
+        // Some inline asm's need a stack frame, as indicated by operand 1.
+        if (I->getOperand(1).getImm())
+          AdjustsStack = true;
       }
 
   MFI->setAdjustsStack(AdjustsStack);
@@ -202,22 +202,17 @@ void PEI::calculateCalleeSavedRegisters(MachineFunction &Fn) {
   if (Fn.getFunction()->hasFnAttr(Attribute::Naked))
     return;
 
-  // Figure out which *callee saved* registers are modified by the current
-  // function, thus needing to be saved and restored in the prolog/epilog.
-  const TargetRegisterClass * const *CSRegClasses =
-    RegInfo->getCalleeSavedRegClasses(&Fn);
-
   std::vector<CalleeSavedInfo> CSI;
   for (unsigned i = 0; CSRegs[i]; ++i) {
     unsigned Reg = CSRegs[i];
     if (Fn.getRegInfo().isPhysRegUsed(Reg)) {
       // If the reg is modified, save it!
-      CSI.push_back(CalleeSavedInfo(Reg, CSRegClasses[i]));
+      CSI.push_back(CalleeSavedInfo(Reg));
     } else {
       for (const unsigned *AliasSet = RegInfo->getAliasSet(Reg);
            *AliasSet; ++AliasSet) {  // Check alias registers too.
         if (Fn.getRegInfo().isPhysRegUsed(*AliasSet)) {
-          CSI.push_back(CalleeSavedInfo(Reg, CSRegClasses[i]));
+          CSI.push_back(CalleeSavedInfo(Reg));
           break;
         }
       }
@@ -236,7 +231,7 @@ void PEI::calculateCalleeSavedRegisters(MachineFunction &Fn) {
   for (std::vector<CalleeSavedInfo>::iterator
          I = CSI.begin(), E = CSI.end(); I != E; ++I) {
     unsigned Reg = I->getReg();
-    const TargetRegisterClass *RC = I->getRegClass();
+    const TargetRegisterClass *RC = RegInfo->getMinimalPhysRegClass(Reg);
 
     int FrameIdx;
     if (RegInfo->hasReservedSpillSlot(Fn, Reg, FrameIdx)) {
@@ -265,8 +260,7 @@ void PEI::calculateCalleeSavedRegisters(MachineFunction &Fn) {
       if ((unsigned)FrameIdx > MaxCSFrameIndex) MaxCSFrameIndex = FrameIdx;
     } else {
       // Spill it to the stack where we must.
-      FrameIdx = MFI->CreateFixedObject(RC->getSize(), FixedSlot->Offset,
-                                        true, false);
+      FrameIdx = MFI->CreateFixedObject(RC->getSize(), FixedSlot->Offset, true);
     }
 
     I->setFrameIdx(FrameIdx);
@@ -303,8 +297,10 @@ void PEI::insertCSRSpillsAndRestores(MachineFunction &Fn) {
         EntryBlock->addLiveIn(CSI[i].getReg());
 
         // Insert the spill to the stack frame.
-        TII.storeRegToStackSlot(*EntryBlock, I, CSI[i].getReg(), true,
-                                CSI[i].getFrameIdx(), CSI[i].getRegClass(),TRI);
+        unsigned Reg = CSI[i].getReg();
+        const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
+        TII.storeRegToStackSlot(*EntryBlock, I, Reg, true,
+                                CSI[i].getFrameIdx(), RC, TRI);
       }
     }
 
@@ -328,9 +324,11 @@ void PEI::insertCSRSpillsAndRestores(MachineFunction &Fn) {
       // terminators that preceed it.
       if (!TII.restoreCalleeSavedRegisters(*MBB, I, CSI, TRI)) {
         for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
-          TII.loadRegFromStackSlot(*MBB, I, CSI[i].getReg(),
+          unsigned Reg = CSI[i].getReg();
+          const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
+          TII.loadRegFromStackSlot(*MBB, I, Reg,
                                    CSI[i].getFrameIdx(),
-                                   CSI[i].getRegClass(), TRI);
+                                   RC, TRI);
           assert(I != MBB->begin() &&
                  "loadRegFromStackSlot didn't insert any code!");
           // Insert in reverse order.  loadRegFromStackSlot can insert
@@ -374,10 +372,12 @@ void PEI::insertCSRSpillsAndRestores(MachineFunction &Fn) {
       MBB->addLiveIn(blockCSI[i].getReg());
 
       // Insert the spill to the stack frame.
-      TII.storeRegToStackSlot(*MBB, I, blockCSI[i].getReg(),
+      unsigned Reg = blockCSI[i].getReg();
+      const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
+      TII.storeRegToStackSlot(*MBB, I, Reg,
                               true,
                               blockCSI[i].getFrameIdx(),
-                              blockCSI[i].getRegClass(), TRI);
+                              RC, TRI);
     }
   }
 
@@ -423,9 +423,11 @@ void PEI::insertCSRSpillsAndRestores(MachineFunction &Fn) {
     // Restore all registers immediately before the return and any
     // terminators that preceed it.
     for (unsigned i = 0, e = blockCSI.size(); i != e; ++i) {
-      TII.loadRegFromStackSlot(*MBB, I, blockCSI[i].getReg(),
+      unsigned Reg = blockCSI[i].getReg();
+      const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
+      TII.loadRegFromStackSlot(*MBB, I, Reg,
                                blockCSI[i].getFrameIdx(),
-                               blockCSI[i].getRegClass(), TRI);
+                               RC, TRI);
       assert(I != MBB->begin() &&
              "loadRegFromStackSlot didn't insert any code!");
       // Insert in reverse order.  loadRegFromStackSlot can insert
@@ -639,6 +641,9 @@ void PEI::replaceFrameIndices(MachineFunction &Fn) {
 
   for (MachineFunction::iterator BB = Fn.begin(),
          E = Fn.end(); BB != E; ++BB) {
+#ifndef NDEBUG
+    int SPAdjCount = 0; // frame setup / destroy count.
+#endif
     int SPAdj = 0;  // SP offset due to call frame setup / destroy.
     if (RS && !FrameIndexVirtualScavenging) RS->enterBasicBlock(BB);
 
@@ -646,6 +651,10 @@ void PEI::replaceFrameIndices(MachineFunction &Fn) {
 
       if (I->getOpcode() == FrameSetupOpcode ||
           I->getOpcode() == FrameDestroyOpcode) {
+#ifndef NDEBUG
+        // Track whether we see even pairs of them
+        SPAdjCount += I->getOpcode() == FrameSetupOpcode ? 1 : -1;
+#endif
         // Remember how much SP has been adjusted to create the call
         // frame.
         int Size = I->getOperand(0).getImm();
@@ -712,7 +721,13 @@ void PEI::replaceFrameIndices(MachineFunction &Fn) {
       if (RS && !FrameIndexVirtualScavenging && MI) RS->forward(MI);
     }
 
-    assert(SPAdj == 0 && "Unbalanced call frame setup / destroy pairs?");
+    // If we have evenly matched pairs of frame setup / destroy instructions,
+    // make sure the adjustments come out to zero. If we don't have matched
+    // pairs, we can't be sure the missing bit isn't in another basic block
+    // due to a custom inserter playing tricks, so just asserting SPAdj==0
+    // isn't sufficient. See tMOVCC on Thumb1, for example.
+    assert((SPAdjCount || SPAdj == 0) &&
+           "Unbalanced call frame setup / destroy pairs?");
   }
 }
 
@@ -870,11 +885,7 @@ void PEI::scavengeFrameVirtualRegs(MachineFunction &Fn) {
             // Scavenge a new scratch register
             CurrentVirtReg = Reg;
             const TargetRegisterClass *RC = Fn.getRegInfo().getRegClass(Reg);
-            CurrentScratchReg = RS->FindUnusedReg(RC);
-            if (CurrentScratchReg == 0)
-              // No register is "free". Scavenge a register.
-              CurrentScratchReg = RS->scavengeRegister(RC, I, SPAdj);
-
+            CurrentScratchReg = RS->scavengeRegister(RC, I, SPAdj);
             PrevValue = Value;
           }
           // replace this reference to the virtual register with the

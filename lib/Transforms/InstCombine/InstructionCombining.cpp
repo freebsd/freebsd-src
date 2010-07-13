@@ -710,8 +710,55 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   return 0;
 }
 
-Instruction *InstCombiner::visitFree(Instruction &FI) {
-  Value *Op = FI.getOperand(1);
+
+
+static bool IsOnlyNullComparedAndFreed(const Value &V) {
+  for (Value::const_use_iterator UI = V.use_begin(), UE = V.use_end();
+       UI != UE; ++UI) {
+    const User *U = *UI;
+    if (isFreeCall(U))
+      continue;
+    if (const ICmpInst *ICI = dyn_cast<ICmpInst>(U))
+      if (ICI->isEquality() && isa<ConstantPointerNull>(ICI->getOperand(1)))
+        continue;
+    return false;
+  }
+  return true;
+}
+
+Instruction *InstCombiner::visitMalloc(Instruction &MI) {
+  // If we have a malloc call which is only used in any amount of comparisons
+  // to null and free calls, delete the calls and replace the comparisons with
+  // true or false as appropriate.
+  if (IsOnlyNullComparedAndFreed(MI)) {
+    for (Value::use_iterator UI = MI.use_begin(), UE = MI.use_end();
+         UI != UE;) {
+      // We can assume that every remaining use is a free call or an icmp eq/ne
+      // to null, so the cast is safe.
+      Instruction *I = cast<Instruction>(*UI);
+
+      // Early increment here, as we're about to get rid of the user.
+      ++UI;
+
+      if (isFreeCall(I)) {
+        EraseInstFromFunction(*cast<CallInst>(I));
+        continue;
+      }
+      // Again, the cast is safe.
+      ICmpInst *C = cast<ICmpInst>(I);
+      ReplaceInstUsesWith(*C, ConstantInt::get(Type::getInt1Ty(C->getContext()),
+                                               C->isFalseWhenEqual()));
+      EraseInstFromFunction(*C);
+    }
+    return EraseInstFromFunction(MI);
+  }
+  return 0;
+}
+
+
+
+Instruction *InstCombiner::visitFree(CallInst &FI) {
+  Value *Op = FI.getArgOperand(0);
 
   // free undef -> unreachable.
   if (isa<UndefValue>(Op)) {
@@ -725,23 +772,6 @@ Instruction *InstCombiner::visitFree(Instruction &FI) {
   // when lots of inlining happens.
   if (isa<ConstantPointerNull>(Op))
     return EraseInstFromFunction(FI);
-
-  // If we have a malloc call whose only use is a free call, delete both.
-  if (isMalloc(Op)) {
-    if (CallInst* CI = extractMallocCallFromBitCast(Op)) {
-      if (Op->hasOneUse() && CI->hasOneUse()) {
-        EraseInstFromFunction(FI);
-        EraseInstFromFunction(*CI);
-        return EraseInstFromFunction(*cast<Instruction>(Op));
-      }
-    } else {
-      // Op is a call to malloc
-      if (Op->hasOneUse()) {
-        EraseInstFromFunction(FI);
-        return EraseInstFromFunction(*cast<Instruction>(Op));
-      }
-    }
-  }
 
   return 0;
 }
@@ -896,7 +926,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
   if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(Agg)) {
     // We're extracting from an intrinsic, see if we're the only user, which
     // allows us to simplify multiple result intrinsics to simpler things that
-    // just get one value..
+    // just get one value.
     if (II->hasOneUse()) {
       // Check if we're grabbing the overflow bit or the result of a 'with
       // overflow' intrinsic.  If it's the latter we can remove the intrinsic
@@ -905,7 +935,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       case Intrinsic::uadd_with_overflow:
       case Intrinsic::sadd_with_overflow:
         if (*EV.idx_begin() == 0) {  // Normal result.
-          Value *LHS = II->getOperand(1), *RHS = II->getOperand(2);
+          Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
           II->replaceAllUsesWith(UndefValue::get(II->getType()));
           EraseInstFromFunction(*II);
           return BinaryOperator::CreateAdd(LHS, RHS);
@@ -914,7 +944,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       case Intrinsic::usub_with_overflow:
       case Intrinsic::ssub_with_overflow:
         if (*EV.idx_begin() == 0) {  // Normal result.
-          Value *LHS = II->getOperand(1), *RHS = II->getOperand(2);
+          Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
           II->replaceAllUsesWith(UndefValue::get(II->getType()));
           EraseInstFromFunction(*II);
           return BinaryOperator::CreateSub(LHS, RHS);
@@ -923,7 +953,7 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       case Intrinsic::umul_with_overflow:
       case Intrinsic::smul_with_overflow:
         if (*EV.idx_begin() == 0) {  // Normal result.
-          Value *LHS = II->getOperand(1), *RHS = II->getOperand(2);
+          Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
           II->replaceAllUsesWith(UndefValue::get(II->getType()));
           EraseInstFromFunction(*II);
           return BinaryOperator::CreateMul(LHS, RHS);

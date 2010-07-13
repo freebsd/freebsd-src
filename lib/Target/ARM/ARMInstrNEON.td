@@ -98,17 +98,8 @@ def NEONfmin      : SDNode<"ARMISD::FMIN", SDTARMFMAX>;
 // NEON operand definitions
 //===----------------------------------------------------------------------===//
 
-def h8imm  : Operand<i8> {
-  let PrintMethod = "printHex8ImmOperand";
-}
-def h16imm : Operand<i16> {
-  let PrintMethod = "printHex16ImmOperand";
-}
-def h32imm : Operand<i32> {
-  let PrintMethod = "printHex32ImmOperand";
-}
-def h64imm : Operand<i64> {
-  let PrintMethod = "printHex64ImmOperand";
+def nModImm : Operand<i32> {
+  let PrintMethod = "printNEONModImmOperand";
 }
 
 //===----------------------------------------------------------------------===//
@@ -811,11 +802,6 @@ def DSubReg_i32_reg : SDNodeXForm<imm, [{
 def DSubReg_f64_reg : SDNodeXForm<imm, [{
   assert(ARM::dsub_7 == ARM::dsub_0+7 && "Unexpected subreg numbering");
   return CurDAG->getTargetConstant(ARM::dsub_0 + N->getZExtValue(), MVT::i32);
-}]>;
-def DSubReg_f64_other_reg : SDNodeXForm<imm, [{
-  assert(ARM::dsub_7 == ARM::dsub_0+7 && "Unexpected subreg numbering");
-  return CurDAG->getTargetConstant(ARM::dsub_0 + (1 - N->getZExtValue()),
-                                   MVT::i32);
 }]>;
 
 // Extract S sub-registers of Q/D registers.
@@ -2282,7 +2268,7 @@ def  VCEQfq   : N3VQ<0,0,0b00,0b1110,0, IIC_VBINQ, "vceq", "f32", v4i32, v4f32,
                      NEONvceq, 1>;
 // For disassembly only.
 defm VCEQz    : N2V_QHS_cmp<0b11, 0b11, 0b01, 0b00010, 0, "vceq", "i",
-                           "$dst, $src, #0">;
+                            "$dst, $src, #0">;
 
 //   VCGE     : Vector Compare Greater Than or Equal
 defm VCGEs    : N3V_QHS<0, 0, 0b0011, 1, IIC_VSUBi4D, IIC_VSUBi4D, IIC_VSUBi4Q,
@@ -2834,73 +2820,70 @@ def  VMOVQQQQ : PseudoInst<(outs QQQQPR:$dst), (ins QQQQPR:$src),
 
 // VMOV_get_imm8 xform function: convert build_vector to VMOV.i8 imm.
 def VMOV_get_imm8 : SDNodeXForm<build_vector, [{
-  return ARM::getVMOVImm(N, 1, *CurDAG);
+  return ARM::getNEONModImm(N, 1, true, *CurDAG);
 }]>;
 def vmovImm8 : PatLeaf<(build_vector), [{
-  return ARM::getVMOVImm(N, 1, *CurDAG).getNode() != 0;
+  return ARM::getNEONModImm(N, 1, true, *CurDAG).getNode() != 0;
 }], VMOV_get_imm8>;
 
 // VMOV_get_imm16 xform function: convert build_vector to VMOV.i16 imm.
 def VMOV_get_imm16 : SDNodeXForm<build_vector, [{
-  return ARM::getVMOVImm(N, 2, *CurDAG);
+  return ARM::getNEONModImm(N, 2, true, *CurDAG);
 }]>;
 def vmovImm16 : PatLeaf<(build_vector), [{
-  return ARM::getVMOVImm(N, 2, *CurDAG).getNode() != 0;
+  return ARM::getNEONModImm(N, 2, true, *CurDAG).getNode() != 0;
 }], VMOV_get_imm16>;
 
 // VMOV_get_imm32 xform function: convert build_vector to VMOV.i32 imm.
 def VMOV_get_imm32 : SDNodeXForm<build_vector, [{
-  return ARM::getVMOVImm(N, 4, *CurDAG);
+  return ARM::getNEONModImm(N, 4, true, *CurDAG);
 }]>;
 def vmovImm32 : PatLeaf<(build_vector), [{
-  return ARM::getVMOVImm(N, 4, *CurDAG).getNode() != 0;
+  return ARM::getNEONModImm(N, 4, true, *CurDAG).getNode() != 0;
 }], VMOV_get_imm32>;
 
 // VMOV_get_imm64 xform function: convert build_vector to VMOV.i64 imm.
 def VMOV_get_imm64 : SDNodeXForm<build_vector, [{
-  return ARM::getVMOVImm(N, 8, *CurDAG);
+  return ARM::getNEONModImm(N, 8, true, *CurDAG);
 }]>;
 def vmovImm64 : PatLeaf<(build_vector), [{
-  return ARM::getVMOVImm(N, 8, *CurDAG).getNode() != 0;
+  return ARM::getNEONModImm(N, 8, true, *CurDAG).getNode() != 0;
 }], VMOV_get_imm64>;
-
-// Note: Some of the cmode bits in the following VMOV instructions need to
-// be encoded based on the immed values.
 
 let isReMaterializable = 1 in {
 def VMOVv8i8  : N1ModImm<1, 0b000, 0b1110, 0, 0, 0, 1, (outs DPR:$dst),
-                         (ins h8imm:$SIMM), IIC_VMOVImm,
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
                          "vmov", "i8", "$dst, $SIMM", "",
                          [(set DPR:$dst, (v8i8 vmovImm8:$SIMM))]>;
 def VMOVv16i8 : N1ModImm<1, 0b000, 0b1110, 0, 1, 0, 1, (outs QPR:$dst),
-                         (ins h8imm:$SIMM), IIC_VMOVImm,
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
                          "vmov", "i8", "$dst, $SIMM", "",
                          [(set QPR:$dst, (v16i8 vmovImm8:$SIMM))]>;
 
-def VMOVv4i16 : N1ModImm<1, 0b000, {1,0,?,?}, 0, 0, {?}, 1, (outs DPR:$dst),
-                         (ins h16imm:$SIMM), IIC_VMOVImm,
+def VMOVv4i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 0, 0, 1, (outs DPR:$dst),
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
                          "vmov", "i16", "$dst, $SIMM", "",
                          [(set DPR:$dst, (v4i16 vmovImm16:$SIMM))]>;
-def VMOVv8i16 : N1ModImm<1, 0b000, {1,0,?,?}, 0, 1, {?}, 1, (outs QPR:$dst),
-                         (ins h16imm:$SIMM), IIC_VMOVImm,
+def VMOVv8i16 : N1ModImm<1, 0b000, {1,0,?,0}, 0, 1, 0, 1, (outs QPR:$dst),
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
                          "vmov", "i16", "$dst, $SIMM", "",
                          [(set QPR:$dst, (v8i16 vmovImm16:$SIMM))]>;
 
-def VMOVv2i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 0, {?}, 1, (outs DPR:$dst),
-                         (ins h32imm:$SIMM), IIC_VMOVImm,
+def VMOVv2i32 : N1ModImm<1, 0b000, {0,?,?,0}, 0, 0, 0, 1, (outs DPR:$dst),
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
                          "vmov", "i32", "$dst, $SIMM", "",
                          [(set DPR:$dst, (v2i32 vmovImm32:$SIMM))]>;
-def VMOVv4i32 : N1ModImm<1, 0b000, {?,?,?,?}, 0, 1, {?}, 1, (outs QPR:$dst),
-                         (ins h32imm:$SIMM), IIC_VMOVImm,
+def VMOVv4i32 : N1ModImm<1, 0b000, {0,?,?,0}, 0, 1, 0, 1, (outs QPR:$dst),
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
                          "vmov", "i32", "$dst, $SIMM", "",
                          [(set QPR:$dst, (v4i32 vmovImm32:$SIMM))]>;
 
 def VMOVv1i64 : N1ModImm<1, 0b000, 0b1110, 0, 0, 1, 1, (outs DPR:$dst),
-                         (ins h64imm:$SIMM), IIC_VMOVImm,
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
                          "vmov", "i64", "$dst, $SIMM", "",
                          [(set DPR:$dst, (v1i64 vmovImm64:$SIMM))]>;
 def VMOVv2i64 : N1ModImm<1, 0b000, 0b1110, 0, 1, 1, 1, (outs QPR:$dst),
-                         (ins h64imm:$SIMM), IIC_VMOVImm,
+                         (ins nModImm:$SIMM), IIC_VMOVImm,
                          "vmov", "i64", "$dst, $SIMM", "",
                          [(set QPR:$dst, (v2i64 vmovImm64:$SIMM))]>;
 } // isReMaterializable
@@ -3122,17 +3105,6 @@ def  VDUPfqf  : N2V<0b11, 0b11, {?,1}, {0,0}, 0b11000, 1, 0,
                     IIC_VMOVD, "vdup", "32", "$dst, ${src:lane}", "",
                     [(set QPR:$dst, (v4f32 (NEONvdup (f32 SPR:$src))))]>;
 
-def : Pat<(v2i64 (NEONvduplane (v2i64 QPR:$src), imm:$lane)),
-          (INSERT_SUBREG QPR:$src, 
-                         (i64 (EXTRACT_SUBREG QPR:$src,
-                               (DSubReg_f64_reg imm:$lane))),
-                         (DSubReg_f64_other_reg imm:$lane))>;
-def : Pat<(v2f64 (NEONvduplane (v2f64 QPR:$src), imm:$lane)),
-          (INSERT_SUBREG QPR:$src, 
-                         (f64 (EXTRACT_SUBREG QPR:$src,
-                               (DSubReg_f64_reg imm:$lane))),
-                         (DSubReg_f64_other_reg imm:$lane))>;
-
 //   VMOVN    : Vector Narrowing Move
 defm VMOVN    : N2VNInt_HSD<0b11,0b11,0b10,0b00100,0,0, IIC_VMOVD,
                             "vmovn", "i", int_arm_neon_vmovn>;
@@ -3319,22 +3291,16 @@ let hasExtraSrcRegAllocReq = 1 in {
 def  VTBL2
   : N3V<1,1,0b11,0b1001,0,0, (outs DPR:$dst),
         (ins DPR:$tbl1, DPR:$tbl2, DPR:$src), NVTBLFrm, IIC_VTB2,
-        "vtbl", "8", "$dst, \\{$tbl1, $tbl2\\}, $src", "",
-        [(set DPR:$dst, (v8i8 (int_arm_neon_vtbl2
-                               DPR:$tbl1, DPR:$tbl2, DPR:$src)))]>;
+        "vtbl", "8", "$dst, \\{$tbl1, $tbl2\\}, $src", "", []>;
 def  VTBL3
   : N3V<1,1,0b11,0b1010,0,0, (outs DPR:$dst),
         (ins DPR:$tbl1, DPR:$tbl2, DPR:$tbl3, DPR:$src), NVTBLFrm, IIC_VTB3,
-        "vtbl", "8", "$dst, \\{$tbl1, $tbl2, $tbl3\\}, $src", "",
-        [(set DPR:$dst, (v8i8 (int_arm_neon_vtbl3
-                               DPR:$tbl1, DPR:$tbl2, DPR:$tbl3, DPR:$src)))]>;
+        "vtbl", "8", "$dst, \\{$tbl1, $tbl2, $tbl3\\}, $src", "", []>;
 def  VTBL4
   : N3V<1,1,0b11,0b1011,0,0, (outs DPR:$dst),
         (ins DPR:$tbl1, DPR:$tbl2, DPR:$tbl3, DPR:$tbl4, DPR:$src),
         NVTBLFrm, IIC_VTB4,
-        "vtbl", "8", "$dst, \\{$tbl1, $tbl2, $tbl3, $tbl4\\}, $src", "",
-        [(set DPR:$dst, (v8i8 (int_arm_neon_vtbl4 DPR:$tbl1, DPR:$tbl2,
-                               DPR:$tbl3, DPR:$tbl4, DPR:$src)))]>;
+        "vtbl", "8", "$dst, \\{$tbl1, $tbl2, $tbl3, $tbl4\\}, $src", "", []>;
 } // hasExtraSrcRegAllocReq = 1
 
 //   VTBX     : Vector Table Extension
@@ -3348,23 +3314,18 @@ let hasExtraSrcRegAllocReq = 1 in {
 def  VTBX2
   : N3V<1,1,0b11,0b1001,1,0, (outs DPR:$dst),
         (ins DPR:$orig, DPR:$tbl1, DPR:$tbl2, DPR:$src), NVTBLFrm, IIC_VTBX2,
-        "vtbx", "8", "$dst, \\{$tbl1, $tbl2\\}, $src", "$orig = $dst",
-        [(set DPR:$dst, (v8i8 (int_arm_neon_vtbx2
-                               DPR:$orig, DPR:$tbl1, DPR:$tbl2, DPR:$src)))]>;
+        "vtbx", "8", "$dst, \\{$tbl1, $tbl2\\}, $src", "$orig = $dst", []>;
 def  VTBX3
   : N3V<1,1,0b11,0b1010,1,0, (outs DPR:$dst),
         (ins DPR:$orig, DPR:$tbl1, DPR:$tbl2, DPR:$tbl3, DPR:$src),
         NVTBLFrm, IIC_VTBX3,
-        "vtbx", "8", "$dst, \\{$tbl1, $tbl2, $tbl3\\}, $src", "$orig = $dst",
-        [(set DPR:$dst, (v8i8 (int_arm_neon_vtbx3 DPR:$orig, DPR:$tbl1,
-                               DPR:$tbl2, DPR:$tbl3, DPR:$src)))]>;
+        "vtbx", "8", "$dst, \\{$tbl1, $tbl2, $tbl3\\}, $src",
+        "$orig = $dst", []>;
 def  VTBX4
   : N3V<1,1,0b11,0b1011,1,0, (outs DPR:$dst), (ins DPR:$orig, DPR:$tbl1,
         DPR:$tbl2, DPR:$tbl3, DPR:$tbl4, DPR:$src), NVTBLFrm, IIC_VTBX4,
         "vtbx", "8", "$dst, \\{$tbl1, $tbl2, $tbl3, $tbl4\\}, $src",
-        "$orig = $dst",
-        [(set DPR:$dst, (v8i8 (int_arm_neon_vtbx4 DPR:$orig, DPR:$tbl1,
-                               DPR:$tbl2, DPR:$tbl3, DPR:$tbl4, DPR:$src)))]>;
+        "$orig = $dst", []>;
 } // hasExtraSrcRegAllocReq = 1
 
 //===----------------------------------------------------------------------===//

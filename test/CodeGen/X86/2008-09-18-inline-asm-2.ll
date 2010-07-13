@@ -1,6 +1,5 @@
-; RUN: llc < %s -march=x86 | grep "#%ebp %esi %edi 8(%edx) %eax (%ebx)"
-; RUN: llc < %s -march=x86 -regalloc=local | grep "#%edi %ebp %edx 8(%ebx) %eax (%esi)"
-; RUN: llc < %s -march=x86 -regalloc=fast  | grep "#%edi %ebp %edx 8(%ebx) %eax (%esi)"
+; RUN: llc < %s -march=x86 | grep "#%ebp %edi %ebx 8(%esi) %eax %dl"
+; RUN: llc < %s -march=x86 -regalloc=fast  | grep "#%ebx %esi %edi 8(%ebp) %eax %dl"
 
 ; The 1st, 2nd, 3rd and 5th registers above must all be different.  The registers
 ; referenced in the 4th and 6th operands must not be the same as the 1st or 5th

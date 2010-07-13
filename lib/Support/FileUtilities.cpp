@@ -51,7 +51,15 @@ static const char *BackupNumber(const char *Pos, const char *FirstChar) {
   if (!isNumberChar(*Pos)) return Pos;
 
   // Otherwise, return to the start of the number.
+  bool HasPeriod = false;
   while (Pos > FirstChar && isNumberChar(Pos[-1])) {
+    // Backup over at most one period.
+    if (Pos[-1] == '.') {
+      if (HasPeriod)
+        break;
+      HasPeriod = true;
+    }
+
     --Pos;
     if (Pos > FirstChar && isSignedChar(Pos[0]) && !isExponentChar(Pos[-1]))
       break;
@@ -204,16 +212,16 @@ int llvm::DiffFilesWithTolerance(const sys::PathWithStatus &FileA,
   const char *F1P = File1Start;
   const char *F2P = File2Start;
 
-  if (A_size == B_size) {
-    // Are the buffers identical?  Common case: Handle this efficiently.
-    if (std::memcmp(File1Start, File2Start, A_size) == 0)
-      return 0;
+  // Are the buffers identical?  Common case: Handle this efficiently.
+  if (A_size == B_size &&
+      std::memcmp(File1Start, File2Start, A_size) == 0)
+    return 0;
 
-    if (AbsTol == 0 && RelTol == 0) {
-      if (Error)
-        *Error = "Files differ without tolerance allowance";
-      return 1;   // Files different!
-    }
+  // Otherwise, we are done a tolerances are set.
+  if (AbsTol == 0 && RelTol == 0) {
+    if (Error)
+      *Error = "Files differ without tolerance allowance";
+    return 1;   // Files different!
   }
 
   bool CompareFailed = false;

@@ -68,21 +68,6 @@ void Thumb1RegisterInfo::emitLoadConstPool(MachineBasicBlock &MBB,
           .addConstantPoolIndex(Idx).addImm(Pred).addReg(PredReg);
 }
 
-const TargetRegisterClass*
-Thumb1RegisterInfo::getPhysicalRegisterRegClass(unsigned Reg, EVT VT) const {
-  if (isARMLowRegister(Reg))
-    return ARM::tGPRRegisterClass;
-  switch (Reg) {
-   default:
-    break;
-   case ARM::R8:  case ARM::R9:  case ARM::R10:  case ARM::R11:
-   case ARM::R12: case ARM::SP:  case ARM::LR:   case ARM::PC:
-    return ARM::GPRRegisterClass;
-  }
-
-  return TargetRegisterInfo::getPhysicalRegisterRegClass(Reg, VT);
-}
-
 bool Thumb1RegisterInfo::hasReservedCallFrame(MachineFunction &MF) const {
   const MachineFrameInfo *FFI = MF.getFrameInfo();
   unsigned CFSize = FFI->getMaxCallFrameSize();
@@ -410,6 +395,8 @@ Thumb1RegisterInfo::saveScavengerRegister(MachineBasicBlock &MBB,
   // before that instead and adjust the UseMI.
   bool done = false;
   for (MachineBasicBlock::iterator II = I; !done && II != UseMI ; ++II) {
+    if (II->isDebugValue())
+      continue;
     // If this instruction affects R12, adjust our restore point.
     for (unsigned i = 0, e = II->getNumOperands(); i != e; ++i) {
       const MachineOperand &MO = II->getOperand(i);

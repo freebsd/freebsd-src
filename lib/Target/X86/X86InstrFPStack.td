@@ -371,7 +371,7 @@ multiclass FPCMov<PatLeaf cc> {
                                         Requires<[HasCMov]>;
 }
 
-let Uses = [EFLAGS], isTwoAddress = 1 in {
+let Uses = [EFLAGS], Constraints = "$src1 = $dst" in {
 defm CMOVB  : FPCMov<X86_COND_B>;
 defm CMOVBE : FPCMov<X86_COND_BE>;
 defm CMOVE  : FPCMov<X86_COND_E>;
@@ -380,7 +380,7 @@ defm CMOVNB : FPCMov<X86_COND_AE>;
 defm CMOVNBE: FPCMov<X86_COND_A>;
 defm CMOVNE : FPCMov<X86_COND_NE>;
 defm CMOVNP : FPCMov<X86_COND_NP>;
-}
+} // Uses = [EFLAGS], Constraints = "$src1 = $dst"
 
 let Predicates = [HasCMov] in {
 // These are not factored because there's no clean way to pass DA/DB.
@@ -680,19 +680,19 @@ def : Pat<(X86fildflag addr:$src, i64), (ILD_Fp64m64 addr:$src)>;
 
 // FP extensions map onto simple pseudo-value conversions if they are to/from
 // the FP stack.
-def : Pat<(f64 (fextend RFP32:$src)), (MOV_Fp3264 RFP32:$src)>,
+def : Pat<(f64 (fextend RFP32:$src)), (COPY_TO_REGCLASS RFP32:$src, RFP64)>,
           Requires<[FPStackf32]>;
-def : Pat<(f80 (fextend RFP32:$src)), (MOV_Fp3280 RFP32:$src)>,
+def : Pat<(f80 (fextend RFP32:$src)), (COPY_TO_REGCLASS RFP32:$src, RFP80)>,
            Requires<[FPStackf32]>;
-def : Pat<(f80 (fextend RFP64:$src)), (MOV_Fp6480 RFP64:$src)>,
+def : Pat<(f80 (fextend RFP64:$src)), (COPY_TO_REGCLASS RFP64:$src, RFP80)>,
            Requires<[FPStackf64]>;
 
 // FP truncations map onto simple pseudo-value conversions if they are to/from
 // the FP stack.  We have validated that only value-preserving truncations make
 // it through isel.
-def : Pat<(f32 (fround RFP64:$src)), (MOV_Fp6432 RFP64:$src)>,
+def : Pat<(f32 (fround RFP64:$src)), (COPY_TO_REGCLASS RFP64:$src, RFP32)>,
           Requires<[FPStackf32]>;
-def : Pat<(f32 (fround RFP80:$src)), (MOV_Fp8032 RFP80:$src)>,
+def : Pat<(f32 (fround RFP80:$src)), (COPY_TO_REGCLASS RFP80:$src, RFP32)>,
            Requires<[FPStackf32]>;
-def : Pat<(f64 (fround RFP80:$src)), (MOV_Fp8064 RFP80:$src)>,
+def : Pat<(f64 (fround RFP80:$src)), (COPY_TO_REGCLASS RFP80:$src, RFP64)>,
            Requires<[FPStackf64]>;

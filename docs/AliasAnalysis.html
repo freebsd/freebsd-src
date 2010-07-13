@@ -31,6 +31,7 @@
     <li><a href="#chaining"><tt>AliasAnalysis</tt> chaining behavior</a></li>
     <li><a href="#updating">Updating analysis results for transformations</a></li>
     <li><a href="#implefficiency">Efficiency Issues</a></li>
+    <li><a href="#passmanager">Pass Manager Issues</a></li>
     </ul>
   </li>
 
@@ -116,6 +117,11 @@ as the actual <tt>call</tt> or <tt>invoke</tt> instructions that performs the
 call.  The <tt>AliasAnalysis</tt> interface also exposes some helper methods
 which allow you to get mod/ref information for arbitrary instructions.</p>
 
+<p>All <tt>AliasAnalysis</tt> interfaces require that in queries involving
+multiple values, values which are not
+<a href="LangRef.html#constants">constants</a> are all defined within the
+same function.</p>
+
 </div>
 
 <!-- ======================================================================= -->
@@ -180,9 +186,13 @@ that the accesses alias.</p>
 </div>
   
 <div class="doc_text">
-The <tt>alias</tt> method is the primary interface used to determine whether or
-not two memory objects alias each other.  It takes two memory objects as input
-and returns MustAlias, MayAlias, or NoAlias as appropriate.
+<p>The <tt>alias</tt> method is the primary interface used to determine whether
+or not two memory objects alias each other.  It takes two memory objects as
+input and returns MustAlias, MayAlias, or NoAlias as appropriate.</p>
+
+<p>Like all <tt>AliasAnalysis</tt> interfaces, the <tt>alias</tt> method requires
+that either the two pointer values be defined within the same function, or at
+least one of the values is a <a href="LangRef.html#constants">constant</a>.</p>
 </div>
 
 <!-- _______________________________________________________________________ -->
@@ -191,12 +201,18 @@ and returns MustAlias, MayAlias, or NoAlias as appropriate.
 </div>
 
 <div class="doc_text">
-<p>The NoAlias response is used when the two pointers refer to distinct objects,
-regardless of whether the pointers compare equal.  For example, freed pointers
-don't alias any pointers that were allocated afterwards.  As a degenerate case,
-pointers returned by malloc(0) have no bytes for an object, and are considered
-NoAlias even when malloc returns the same pointer.  The same rule applies to
-NULL pointers.</p>
+<p>The NoAlias response may be used when there is never an immediate dependence
+between any memory reference <i>based</i> on one pointer and any memory
+reference <i>based</i> the other. The most obvious example is when the two
+pointers point to non-overlapping memory ranges. Another is when the two
+pointers are only ever used for reading memory. Another is when the memory is
+freed and reallocated between accesses through one pointer and accesses through
+the other -- in this case, there is a dependence, but it's mediated by the free
+and reallocation.</p>
+
+<p>As an exception to this is with the
+<a href="LangRef.html#noalias"><tt>noalias</tt></a> keyword; the "irrelevant"
+dependencies are ignored.</p>
 
 <p>The MayAlias response is used whenever the two pointers might refer to the
 same object.  If the two memory objects overlap, but do not start at the same
@@ -502,6 +518,45 @@ method as possible (within reason).</p>
 
 </div>
 
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="passmanager">Pass Manager Issues</a>
+</div>
+
+<div class="doc_text">
+
+<p>PassManager support for alternative AliasAnalysis implementation
+has some issues.</p>
+
+<p>There is no way to override the default alias analysis. It would
+be very useful to be able to do something like "opt -my-aa -O2" and
+have it use -my-aa for all passes which need AliasAnalysis, but there
+is currently no support for that, short of changing the source code
+and recompiling. Similarly, there is also no way of setting a chain
+of analyses as the default.</p>
+
+<p>There is no way for transform passes to declare that they preserve
+<tt>AliasAnalysis</tt> implementations. The <tt>AliasAnalysis</tt>
+interface includes <tt>deleteValue</tt> and <tt>copyValue</tt> methods
+which are intended to allow a pass to keep an AliasAnalysis consistent,
+however there's no way for a pass to declare in its
+<tt>getAnalysisUsage</tt> that it does so. Some passes attempt to use
+<tt>AU.addPreserved&lt;AliasAnalysis&gt;</tt>, however this doesn't
+actually have any effect.</tt>
+
+<p><tt>AliasAnalysisCounter</tt> (<tt>-count-aa</tt>) and <tt>AliasDebugger</tt>
+(<tt>-debug-aa</tt>) are implemented as <tt>ModulePass</tt> classes, so if your
+alias analysis uses <tt>FunctionPass</tt>, it won't be able to use
+these utilities. If you try to use them, the pass manager will
+silently route alias analysis queries directly to
+<tt>BasicAliasAnalysis</tt> instead.</p>
+
+<p>Similarly, the <tt>opt -p</tt> option introduces <tt>ModulePass</tt>
+passes between each pass, which prevents the use of <tt>FunctionPass</tt>
+alias analysis passes.</p>
+
+</div>
+
 <!-- *********************************************************************** -->
 <div class="doc_section">
   <a name="using">Using alias analysis results</a>
@@ -749,6 +804,19 @@ module, it is not part of the LLVM core.</p>
 
 </div>
 
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">
+  <a name="scev-aa">The <tt>-scev-aa</tt> pass</a>
+</div>
+
+<div class="doc_text">
+
+<p>The <tt>-scev-aa</tt> pass implements AliasAnalysis queries by
+translating them into ScalarEvolution queries. This gives it a
+more complete understanding of <tt>getelementptr</tt> instructions
+and loop induction variables than other alias analyses have.</p>
+
+</div>
 
 <!-- ======================================================================= -->
 <div class="doc_subsection">
@@ -930,7 +998,7 @@ analysis directly.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  Last modified: $Date: 2010-07-07 16:27:09 +0200 (Wed, 07 Jul 2010) $
 </address>
 
 </body>

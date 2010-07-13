@@ -913,9 +913,6 @@ implementation in <tt>SparcRegisterInfo.cpp</tt>:
 <li><tt>getCalleeSavedRegs</tt> &mdash; Returns a list of callee-saved registers
     in the order of the desired callee-save stack frame offset.</li>
 
-<li><tt>getCalleeSavedRegClasses</tt> &mdash; Returns a list of preferred
-    register classes with which to spill each callee saved register.</li>
-
 <li><tt>getReservedRegs</tt> &mdash; Returns a bitset indexed by physical
     register numbers, indicating if a particular register is unavailable.</li>
 
@@ -1313,7 +1310,8 @@ implementation in <tt>SparcInstrInfo.cpp</tt>:
     a direct store to a stack slot, return the register number of the
     destination and the <tt>FrameIndex</tt> of the stack slot.</li>
 
-<li><tt>copyRegToReg</tt> &mdash; Copy values between a pair of registers.</li>
+<li><tt>copyPhysReg</tt> &mdash; Copy values between a pair of physical
+    registers.</li>
 
 <li><tt>storeRegToStackSlot</tt> &mdash; Store a register value to a stack
     slot.</li>
@@ -2554,7 +2552,7 @@ with assembler.
   <a href="http://www.woo.com">Mason Woo</a> and <a href="http://misha.brukman.net">Misha Brukman</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a>
   <br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  Last modified: $Date: 2010-07-11 19:01:17 +0200 (Sun, 11 Jul 2010) $
 </address>
 
 </body>

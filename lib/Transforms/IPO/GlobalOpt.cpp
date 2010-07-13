@@ -160,13 +160,12 @@ static bool SafeToDestroyConstant(const Constant *C) {
 static bool AnalyzeGlobal(const Value *V, GlobalStatus &GS,
                           SmallPtrSet<const PHINode*, 16> &PHIUsers) {
   for (Value::const_use_iterator UI = V->use_begin(), E = V->use_end(); UI != E;
-       ++UI)
-    if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(*UI)) {
+       ++UI) {
+    const User *U = *UI;
+    if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(U)) {
       GS.HasNonInstructionUser = true;
-
       if (AnalyzeGlobal(CE, GS, PHIUsers)) return true;
-
-    } else if (const Instruction *I = dyn_cast<Instruction>(*UI)) {
+    } else if (const Instruction *I = dyn_cast<Instruction>(U)) {
       if (!GS.HasMultipleAccessingFunctions) {
         const Function *F = I->getParent()->getParent();
         if (GS.AccessingFunction == 0)
@@ -221,18 +220,21 @@ static bool AnalyzeGlobal(const Value *V, GlobalStatus &GS,
           if (AnalyzeGlobal(I, GS, PHIUsers)) return true;
         GS.HasPHIUser = true;
       } else if (isa<CmpInst>(I)) {
+        // Nothing to analyse.
       } else if (isa<MemTransferInst>(I)) {
-        if (I->getOperand(1) == V)
+        const MemTransferInst *MTI = cast<MemTransferInst>(I);
+        if (MTI->getArgOperand(0) == V)
           GS.StoredType = GlobalStatus::isStored;
-        if (I->getOperand(2) == V)
+        if (MTI->getArgOperand(1) == V)
           GS.isLoaded = true;
       } else if (isa<MemSetInst>(I)) {
-        assert(I->getOperand(1) == V && "Memset only takes one pointer!");
+        assert(cast<MemSetInst>(I)->getArgOperand(0) == V &&
+               "Memset only takes one pointer!");
         GS.StoredType = GlobalStatus::isStored;
       } else {
         return true;  // Any other non-load instruction might take address!
       }
-    } else if (const Constant *C = dyn_cast<Constant>(*UI)) {
+    } else if (const Constant *C = dyn_cast<Constant>(U)) {
       GS.HasNonInstructionUser = true;
       // We might have a dead and dangling constant hanging off of here.
       if (!SafeToDestroyConstant(C))
@@ -242,6 +244,7 @@ static bool AnalyzeGlobal(const Value *V, GlobalStatus &GS,
       // Otherwise must be some other user.
       return true;
     }
+  }
 
   return false;
 }
@@ -1304,7 +1307,7 @@ static GlobalVariable *PerformHeapAllocSRoA(GlobalVariable *GV, CallInst *CI,
     const Type *IntPtrTy = TD->getIntPtrType(CI->getContext());
     Value *NMI = CallInst::CreateMalloc(CI, IntPtrTy, FieldTy,
                                         ConstantInt::get(IntPtrTy, TypeSize),
-                                        NElems,
+                                        NElems, 0,
                                         CI->getName() + ".f" + Twine(FieldNo));
     FieldMallocs.push_back(NMI);
     new StoreInst(NMI, NGV, CI);
@@ -1323,8 +1326,8 @@ static GlobalVariable *PerformHeapAllocSRoA(GlobalVariable *GV, CallInst *CI,
   //      if (F2) { free(F2); F2 = 0; }
   //    }
   // The malloc can also fail if its argument is too large.
-  Constant *ConstantZero = ConstantInt::get(CI->getOperand(1)->getType(), 0);
-  Value *RunningOr = new ICmpInst(CI, ICmpInst::ICMP_SLT, CI->getOperand(1),
+  Constant *ConstantZero = ConstantInt::get(CI->getArgOperand(0)->getType(), 0);
+  Value *RunningOr = new ICmpInst(CI, ICmpInst::ICMP_SLT, CI->getArgOperand(0),
                                   ConstantZero, "isneg");
   for (unsigned i = 0, e = FieldMallocs.size(); i != e; ++i) {
     Value *Cond = new ICmpInst(CI, ICmpInst::ICMP_EQ, FieldMallocs[i],
@@ -1511,10 +1514,10 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
 
   // If this is an allocation of a fixed size array of structs, analyze as a
   // variable size array.  malloc [100 x struct],1 -> malloc struct, 100
-  if (NElems == ConstantInt::get(CI->getOperand(1)->getType(), 1))
+  if (NElems == ConstantInt::get(CI->getArgOperand(0)->getType(), 1))
     if (const ArrayType *AT = dyn_cast<ArrayType>(AllocTy))
       AllocTy = AT->getElementType();
-  
+
   const StructType *AllocSTy = dyn_cast<StructType>(AllocTy);
   if (!AllocSTy)
     return false;
@@ -1533,7 +1536,7 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
       Value *NumElements = ConstantInt::get(IntPtrTy, AT->getNumElements());
       Instruction *Malloc = CallInst::CreateMalloc(CI, IntPtrTy, AllocSTy,
                                                    AllocSize, NumElements,
-                                                   CI->getName());
+                                                   0, CI->getName());
       Instruction *Cast = new BitCastInst(Malloc, CI->getType(), "tmp", CI);
       CI->replaceAllUsesWith(Cast);
       CI->eraseFromParent();
@@ -1597,13 +1600,15 @@ static bool TryToShrinkGlobalToBoolean(GlobalVariable *GV, Constant *OtherVal) {
       GVElType->isFloatingPointTy() ||
       GVElType->isPointerTy() || GVElType->isVectorTy())
     return false;
-  
+
   // Walk the use list of the global seeing if all the uses are load or store.
   // If there is anything else, bail out.
-  for (Value::use_iterator I = GV->use_begin(), E = GV->use_end(); I != E; ++I)
-    if (!isa<LoadInst>(I) && !isa<StoreInst>(I))
+  for (Value::use_iterator I = GV->use_begin(), E = GV->use_end(); I != E; ++I){
+    User *U = *I;
+    if (!isa<LoadInst>(U) && !isa<StoreInst>(U))
       return false;
-  
+  }
+
   DEBUG(dbgs() << "   *** SHRINKING TO BOOL: " << *GV);
   
   // Create the new global, initializing it to false.
@@ -1641,7 +1646,7 @@ static bool TryToShrinkGlobalToBoolean(GlobalVariable *GV, Constant *OtherVal) {
         // bool.
         Instruction *StoredVal = cast<Instruction>(SI->getOperand(0));
 
-        // If we're already replaced the input, StoredVal will be a cast or
+        // If we've already replaced the input, StoredVal will be a cast or
         // select instruction.  If not, it will be a load of the original
         // global.
         if (LoadInst *LI = dyn_cast<LoadInst>(StoredVal)) {
@@ -2260,8 +2265,7 @@ static bool EvaluateFunction(Function *F, Constant *&RetVal,
                                          getVal(Values, CI->getOperand(0)),
                                          CI->getType());
     } else if (SelectInst *SI = dyn_cast<SelectInst>(CurInst)) {
-      InstResult =
-            ConstantExpr::getSelect(getVal(Values, SI->getOperand(0)),
+      InstResult = ConstantExpr::getSelect(getVal(Values, SI->getOperand(0)),
                                            getVal(Values, SI->getOperand(1)),
                                            getVal(Values, SI->getOperand(2)));
     } else if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(CurInst)) {
@@ -2302,7 +2306,8 @@ static bool EvaluateFunction(Function *F, Constant *&RetVal,
       if (!Callee) return false;  // Cannot resolve.
 
       SmallVector<Constant*, 8> Formals;
-      for (User::op_iterator i = CI->op_begin() + 1, e = CI->op_end();
+      CallSite CS(CI);
+      for (User::op_iterator i = CS.arg_begin(), e = CS.arg_end();
            i != e; ++i)
         Formals.push_back(getVal(Values, *i));
 

@@ -34,7 +34,7 @@
 // This header file declares classes and functions used internally by
 // Google Test.  They are subject to change without notice.
 //
-// This file is #included in testing/base/internal/gtest-internal.h
+// This file is #included in <gtest/internal/gtest-internal.h>.
 // Do not include this header file separately!
 
 #ifndef GTEST_INCLUDE_GTEST_INTERNAL_GTEST_FILEPATH_H_
@@ -56,7 +56,7 @@ namespace internal {
 // Names are NOT checked for syntax correctness -- no checking for illegal
 // characters, malformed paths, etc.
 
-class FilePath {
+class GTEST_API_ FilePath {
  public:
   FilePath() : pathname_("") { }
   FilePath(const FilePath& rhs) : pathname_(rhs.pathname_) { }
@@ -92,6 +92,12 @@ class FilePath {
                                const FilePath& base_name,
                                int number,
                                const char* extension);
+
+  // Given directory = "dir", relative_path = "test.xml",
+  // returns "dir/test.xml".
+  // On Windows, uses \ as the separator rather than /.
+  static FilePath ConcatPaths(const FilePath& directory,
+                              const FilePath& relative_path);
 
   // Returns a pathname for a file that does not currently exist. The pathname
   // will be directory/base_name.extension or
@@ -164,6 +170,9 @@ class FilePath {
   // root directory per disk drive.)
   bool IsRootDirectory() const;
 
+  // Returns true if pathname describes an absolute path.
+  bool IsAbsolutePath() const;
+
  private:
   // Replaces multiple consecutive separators with a single separator.
   // For example, "bar///foo" becomes "bar/foo". Does not eliminate other
@@ -180,8 +189,17 @@ class FilePath {
   // particular, RemoveTrailingPathSeparator() only removes one separator, and
   // it is called in CreateDirectoriesRecursively() assuming that it will change
   // a pathname from directory syntax (trailing separator) to filename syntax.
+  //
+  // On Windows this method also replaces the alternate path separator '/' with
+  // the primary path separator '\\', so that for example "bar\\/\\foo" becomes
+  // "bar\\foo".
 
   void Normalize();
+
+  // Returns a pointer to the last occurence of a valid path separator in
+  // the FilePath. On Windows, for example, both '/' and '\' are valid path
+  // separators. Returns NULL if no path separator was found.
+  const char* FindLastPathSeparator() const;
 
   String pathname_;
 };  // class FilePath

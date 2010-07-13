@@ -56,7 +56,8 @@ namespace {
     }
     
     bool runOnBasicBlock(BasicBlock &BB);
-    bool handleFreeWithNonTrivialDependency(Instruction *F, MemDepResult Dep);
+    bool handleFreeWithNonTrivialDependency(const CallInst *F,
+                                            MemDepResult Dep);
     bool handleEndBlock(BasicBlock &BB);
     bool RemoveUndeadPointers(Value *Ptr, uint64_t killPointerSize,
                               BasicBlock::iterator &BBI,
@@ -73,7 +74,6 @@ namespace {
       AU.addRequired<AliasAnalysis>();
       AU.addRequired<MemoryDependenceAnalysis>();
       AU.addPreserved<DominatorTree>();
-      AU.addPreserved<AliasAnalysis>();
       AU.addPreserved<MemoryDependenceAnalysis>();
     }
 
@@ -123,14 +123,15 @@ static Value *getPointerOperand(Instruction *I) {
   if (StoreInst *SI = dyn_cast<StoreInst>(I))
     return SI->getPointerOperand();
   if (MemIntrinsic *MI = dyn_cast<MemIntrinsic>(I))
-    return MI->getOperand(1);
-  
-  switch (cast<IntrinsicInst>(I)->getIntrinsicID()) {
+    return MI->getArgOperand(0);
+
+  IntrinsicInst *II = cast<IntrinsicInst>(I);
+  switch (II->getIntrinsicID()) {
   default: assert(false && "Unexpected intrinsic!");
   case Intrinsic::init_trampoline:
-    return I->getOperand(1);
+    return II->getArgOperand(0);
   case Intrinsic::lifetime_end:
-    return I->getOperand(2);
+    return II->getArgOperand(1);
   }
 }
 
@@ -147,12 +148,13 @@ static unsigned getStoreSize(Instruction *I, const TargetData *TD) {
   if (MemIntrinsic *MI = dyn_cast<MemIntrinsic>(I)) {
     Len = MI->getLength();
   } else {
-    switch (cast<IntrinsicInst>(I)->getIntrinsicID()) {
+    IntrinsicInst *II = cast<IntrinsicInst>(I);
+    switch (II->getIntrinsicID()) {
     default: assert(false && "Unexpected intrinsic!");
     case Intrinsic::init_trampoline:
       return -1u;
     case Intrinsic::lifetime_end:
-      Len = I->getOperand(1);
+      Len = II->getArgOperand(0);
       break;
     }
   }
@@ -201,8 +203,8 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
     if (InstDep.isNonLocal()) continue;
   
     // Handle frees whose dependencies are non-trivial.
-    if (isFreeCall(Inst)) {
-      MadeChange |= handleFreeWithNonTrivialDependency(Inst, InstDep);
+    if (const CallInst *F = isFreeCall(Inst)) {
+      MadeChange |= handleFreeWithNonTrivialDependency(F, InstDep);
       continue;
     }
     
@@ -218,7 +220,7 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
           isElidable(DepStore)) {
         // Delete the store and now-dead instructions that feed it.
         DeleteDeadInstruction(DepStore);
-        NumFastStores++;
+        ++NumFastStores;
         MadeChange = true;
 
         // DeleteDeadInstruction can delete the current instruction in loop
@@ -249,7 +251,7 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
             BBI = BB.begin();
           else if (BBI != BB.begin())  // Revisit this instruction if possible.
             --BBI;
-          NumFastStores++;
+          ++NumFastStores;
           MadeChange = true;
           continue;
         }
@@ -270,7 +272,7 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
           BBI = BB.begin();
         else if (BBI != BB.begin())  // Revisit this instruction if possible.
           --BBI;
-        NumFastStores++;
+        ++NumFastStores;
         MadeChange = true;
         continue;
       }
@@ -287,7 +289,8 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
 
 /// handleFreeWithNonTrivialDependency - Handle frees of entire structures whose
 /// dependency is a store to a field of that structure.
-bool DSE::handleFreeWithNonTrivialDependency(Instruction *F, MemDepResult Dep) {
+bool DSE::handleFreeWithNonTrivialDependency(const CallInst *F,
+                                             MemDepResult Dep) {
   AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
   
   Instruction *Dependency = Dep.getInst();
@@ -297,13 +300,13 @@ bool DSE::handleFreeWithNonTrivialDependency(Instruction *F, MemDepResult Dep) {
   Value *DepPointer = getPointerOperand(Dependency)->getUnderlyingObject();
 
   // Check for aliasing.
-  if (AA.alias(F->getOperand(1), 1, DepPointer, 1) !=
+  if (AA.alias(F->getArgOperand(0), 1, DepPointer, 1) !=
          AliasAnalysis::MustAlias)
     return false;
   
   // DCE instructions only used to calculate that store
   DeleteDeadInstruction(Dependency);
-  NumFastStores++;
+  ++NumFastStores;
   return true;
 }
 
@@ -349,9 +352,9 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
         if (deadPointers.count(pointerOperand)) {
           // DCE instructions only used to calculate that store.
           Instruction *Dead = BBI;
-          BBI++;
+          ++BBI;
           DeleteDeadInstruction(Dead, &deadPointers);
-          NumFastStores++;
+          ++NumFastStores;
           MadeChange = true;
           continue;
         }
@@ -371,9 +374,9 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
       // However, if this load is unused and not volatile, we can go ahead and
       // remove it, and not have to worry about it making our pointer undead!
       if (L->use_empty() && !L->isVolatile()) {
-        BBI++;
+        ++BBI;
         DeleteDeadInstruction(L, &deadPointers);
-        NumFastOther++;
+        ++NumFastOther;
         MadeChange = true;
         continue;
       }
@@ -391,9 +394,9 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
       
       // Dead alloca's can be DCE'd when we reach them
       if (A->use_empty()) {
-        BBI++;
+        ++BBI;
         DeleteDeadInstruction(A, &deadPointers);
-        NumFastOther++;
+        ++NumFastOther;
         MadeChange = true;
       }
       
@@ -426,9 +429,9 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
                                                          getPointerSize(*I));
         
         if (A == AliasAnalysis::ModRef)
-          modRef++;
+          ++modRef;
         else
-          other++;
+          ++other;
         
         if (A == AliasAnalysis::ModRef || A == AliasAnalysis::Ref)
           dead.push_back(*I);
@@ -442,9 +445,9 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
     } else if (isInstructionTriviallyDead(BBI)) {
       // For any non-memory-affecting non-terminators, DCE them as we reach them
       Instruction *Inst = BBI;
-      BBI++;
+      ++BBI;
       DeleteDeadInstruction(Inst, &deadPointers);
-      NumFastOther++;
+      ++NumFastOther;
       MadeChange = true;
       continue;
     }
@@ -497,7 +500,7 @@ bool DSE::RemoveUndeadPointers(Value *killPointer, uint64_t killPointerSize,
       // Remove it!
       ++BBI;
       DeleteDeadInstruction(S, &deadPointers);
-      NumFastStores++;
+      ++NumFastStores;
       MadeChange = true;
 
       continue;

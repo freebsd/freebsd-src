@@ -66,7 +66,6 @@ echo DARWIN_VERS = $DARWIN_VERS
 DEVELOPER_DIR="${DEVELOPER_DIR-Developer}"
 if [ "$ARM_HOSTED_BUILD" = yes ]; then
     DT_HOME="$DEST_DIR/usr"
-    HOST_SDKROOT=$SDKROOT
 else
     DT_HOME="$DEST_DIR/$DEVELOPER_DIR/usr"
 fi
@@ -195,9 +194,10 @@ if [ "x$MAJ_VER" != "x4" -o "x$MIN_VER" != "x0" ]; then
 fi
 
 make $JOBS_FLAG $OPTIMIZE_OPTS UNIVERSAL=1 UNIVERSAL_ARCH="$HOSTS" \
-    UNIVERSAL_SDK_PATH=$HOST_SDKROOT \
+    UNIVERSAL_SDK_PATH=$SDKROOT \
     NO_RUNTIME_LIBS=1 \
     DISABLE_EDIS=1 \
+    DEBUG_SYMBOLS=1 \
     LLVM_SUBMIT_VERSION=$LLVM_SUBMIT_VERSION \
     LLVM_SUBMIT_SUBVERSION=$LLVM_SUBMIT_SUBVERSION \
     CXXFLAGS="-DLLVM_VERSION_INFO='\" Apple Build #$LLVM_VERSION\"'" \
@@ -223,6 +223,7 @@ cd $DIR/obj-llvm || exit 1
 make $LOCAL_MAKEFLAGS $OPTIMIZE_OPTS UNIVERSAL=1 UNIVERSAL_ARCH="$HOSTS" \
     NO_RUNTIME_LIBS=1 \
     DISABLE_EDIS=1 \
+    DEBUG_SYMBOLS=1 \
     LLVM_SUBMIT_VERSION=$LLVM_SUBMIT_VERSION \
     LLVM_SUBMIT_SUBVERSION=$LLVM_SUBMIT_SUBVERSION \
     OPTIMIZE_OPTION='-O3' VERBOSE=1 install
@@ -243,9 +244,12 @@ echo "#define LLVM_MINOR_VERSION ${RC_ProjectSourceSubversion}" >> $DEST_DIR$DES
 
 if [ "x$LLVM_DEBUG" != "x1" ]; then
     # Strip local symbols from llvm libraries.
-    strip -S $DEST_DIR$DEST_ROOT/lib/*.[oa]
+    #
+    # Use '-l' to strip i386 modules. N.B. that flag doesn't work with kext or
+    # PPC objects!
+    strip -Sl $DEST_DIR$DEST_ROOT/lib/*.[oa]
     for f in `ls $DEST_DIR$DEST_ROOT/lib/*.so`; do
-        strip -Sx $f
+        strip -Sxl $f
     done
 fi
 
@@ -269,16 +273,8 @@ else
         -exec lipo -extract ppc7400 -extract i386 -extract x86_64 {} -output {} \;
 fi
 
-cd $DEST_DIR$DEST_ROOT
-if [ "$INSTALL_LIBLTO" == yes ]; then
-  mkdir -p $DT_HOME/lib
-  mv lib/libLTO.dylib $DT_HOME/lib/libLTO.dylib
-  strip -S $DT_HOME/lib/libLTO.dylib
-fi
-rm -f lib/libLTO.a lib/libLTO.la
-
 # The Hello dylib is an example of how to build a pass. No need to install it.
-rm lib/libLLVMHello.dylib
+rm $DEST_DIR$DEST_ROOT/lib/libLLVMHello.dylib
 
 # Compress manpages
 MDIR=$DEST_DIR$DEST_ROOT/share/man/man1
@@ -324,10 +320,35 @@ find obj-* -name \*.\[chy\] -o -name \*.cpp -print \
     | cpio -pdml $SYM_DIR/src || exit 1
 
 ################################################################################
+# Install and strip libLTO.dylib
+
+cd $DEST_DIR$DEST_ROOT
+if [ "$INSTALL_LIBLTO" = "yes" ]; then
+  mkdir -p $DT_HOME/lib
+  mv lib/libLTO.dylib $DT_HOME/lib/libLTO.dylib
+
+  # Use '-l' to strip i386 modules. N.B. that flag doesn't work with kext or
+  # PPC objects!
+  strip -arch all -Sl $DT_HOME/lib/libLTO.dylib
+fi
+rm -f lib/libLTO.a lib/libLTO.la
+
+################################################################################
 # Remove debugging information from DEST_DIR.
+
+cd $DIR || exit 1
 
 find $DEST_DIR -name \*.a -print | xargs ranlib || exit 1
 find $DEST_DIR -name \*.dSYM -print | xargs rm -r || exit 1
+
+# Strip debugging information from files
+#
+# Use '-l' to strip i386 modules. N.B. that flag doesn't work with kext or
+# PPC objects!
+find $DEST_DIR -perm -0111 -type f \
+    ! \( -name '*.la' -o -name gccas -o -name gccld -o -name llvm-config \) \
+    -print | xargs -n 1 -P ${SYSCTL} strip -arch all -Sl
+
 chgrp -h -R wheel $DEST_DIR
 chgrp -R wheel $DEST_DIR
 
@@ -339,7 +360,7 @@ find $DEST_DIR -name html.tar.gz -exec rm {} \;
 ################################################################################
 # symlinks so that B&I can find things
 
-if [ "$INSTALL_LIBLTO" == yes ]; then
+if [ "$INSTALL_LIBLTO" = "yes" ]; then
   mkdir -p $DEST_DIR/usr/lib/
   cd $DEST_DIR/usr/lib && \
     ln -s ../../$DEVELOPER_DIR/usr/lib/libLTO.dylib ./libLTO.dylib

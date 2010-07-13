@@ -367,9 +367,9 @@ Value *BinaryExprAST::Codegen() {
   if (L == 0 || R == 0) return 0;
   
   switch (Op) {
-  case '+': return Builder.CreateAdd(L, R, "addtmp");
-  case '-': return Builder.CreateSub(L, R, "subtmp");
-  case '*': return Builder.CreateMul(L, R, "multmp");
+  case '+': return Builder.CreateFAdd(L, R, "addtmp");
+  case '-': return Builder.CreateFSub(L, R, "subtmp");
+  case '*': return Builder.CreateFMul(L, R, "multmp");
   case '<':
     L = Builder.CreateFCmpULT(L, R, "cmptmp");
     // Convert bool 0/1 to double 0.0 or 1.0
@@ -400,7 +400,7 @@ Value *CallExprAST::Codegen() {
 
 Function *PrototypeAST::Codegen() {
   // Make the function type:  double(double,double) etc.
-	std::vector<const Type*> Doubles(Args.size(),
+  std::vector<const Type*> Doubles(Args.size(),
                                    Type::getDoubleTy(getGlobalContext()));
   FunctionType *FT = FunctionType::get(Type::getDoubleTy(getGlobalContext()),
                                        Doubles, false);

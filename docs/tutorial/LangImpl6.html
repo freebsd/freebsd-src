@@ -277,9 +277,9 @@ Value *BinaryExprAST::Codegen() {
   if (L == 0 || R == 0) return 0;
   
   switch (Op) {
-  case '+': return Builder.CreateAdd(L, R, "addtmp");
-  case '-': return Builder.CreateSub(L, R, "subtmp");
-  case '*': return Builder.CreateMul(L, R, "multmp");
+  case '+': return Builder.CreateFAdd(L, R, "addtmp");
+  case '-': return Builder.CreateFSub(L, R, "subtmp");
+  case '*': return Builder.CreateFMul(L, R, "multmp");
   case '&lt;':
     L = Builder.CreateFCmpULT(L, R, "cmptmp");
     // Convert bool 0/1 to double 0.0 or 1.0
@@ -531,7 +531,7 @@ def unary!(v)
 def unary-(v)
   0-v;
 
-# Define &gt; with the same precedence as &gt;.
+# Define &gt; with the same precedence as &lt;.
 def binary&gt; 10 (LHS RHS)
   RHS &lt; LHS;
 
@@ -1392,9 +1392,9 @@ Value *BinaryExprAST::Codegen() {
   if (L == 0 || R == 0) return 0;
   
   switch (Op) {
-  case '+': return Builder.CreateAdd(L, R, "addtmp");
-  case '-': return Builder.CreateSub(L, R, "subtmp");
-  case '*': return Builder.CreateMul(L, R, "multmp");
+  case '+': return Builder.CreateFAdd(L, R, "addtmp");
+  case '-': return Builder.CreateFSub(L, R, "subtmp");
+  case '*': return Builder.CreateFMul(L, R, "multmp");
   case '&lt;':
     L = Builder.CreateFCmpULT(L, R, "cmptmp");
     // Convert bool 0/1 to double 0.0 or 1.0
@@ -1808,7 +1808,7 @@ int main() {
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  Last modified: $Date: 2010-06-21 22:31:30 +0200 (Mon, 21 Jun 2010) $
 </address>
 </body>
 </html>

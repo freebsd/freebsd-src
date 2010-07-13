@@ -29,7 +29,6 @@
 namespace llvm {
 
 class AliasAnalysis;
-class FunctionLoweringInfo;
 class MachineConstantPoolValue;
 class MachineFunction;
 class MDNode;
@@ -134,7 +133,6 @@ class SelectionDAG {
   const TargetLowering &TLI;
   const TargetSelectionDAGInfo &TSI;
   MachineFunction *MF;
-  FunctionLoweringInfo &FLI;
   LLVMContext *Context;
 
   /// EntryNode - The starting token.
@@ -187,7 +185,7 @@ class SelectionDAG {
   SelectionDAG(const SelectionDAG&);   // Do not implement.
 
 public:
-  SelectionDAG(const TargetMachine &TM, FunctionLoweringInfo &fli);
+  explicit SelectionDAG(const TargetMachine &TM);
   ~SelectionDAG();
 
   /// init - Prepare this SelectionDAG to process code in the given
@@ -204,7 +202,6 @@ public:
   const TargetMachine &getTarget() const { return TM; }
   const TargetLowering &getTargetLoweringInfo() const { return TLI; }
   const TargetSelectionDAGInfo &getSelectionDAGInfo() const { return TSI; }
-  FunctionLoweringInfo &getFunctionLoweringInfo() const { return FLI; }
   LLVMContext *getContext() const {return Context; }
 
   /// viewGraph - Pop up a GraphViz/gv window with the DAG rendered using 'dot'.
@@ -351,13 +348,13 @@ public:
   SDValue getTargetConstantFP(const ConstantFP &Val, EVT VT) {
     return getConstantFP(Val, VT, true);
   }
-  SDValue getGlobalAddress(const GlobalValue *GV, EVT VT,
+  SDValue getGlobalAddress(const GlobalValue *GV, DebugLoc DL, EVT VT,
                            int64_t offset = 0, bool isTargetGA = false,
                            unsigned char TargetFlags = 0);
-  SDValue getTargetGlobalAddress(const GlobalValue *GV, EVT VT,
+  SDValue getTargetGlobalAddress(const GlobalValue *GV, DebugLoc DL, EVT VT,
                                  int64_t offset = 0,
                                  unsigned char TargetFlags = 0) {
-    return getGlobalAddress(GV, VT, offset, true, TargetFlags);
+    return getGlobalAddress(GV, DL, VT, offset, true, TargetFlags);
   }
   SDValue getFrameIndex(int FI, EVT VT, bool isTarget = false);
   SDValue getTargetFrameIndex(int FI, EVT VT) {
@@ -585,7 +582,7 @@ public:
   /// getVAArg - VAArg produces a result and token chain, and takes a pointer
   /// and a source value as input.
   SDValue getVAArg(EVT VT, DebugLoc dl, SDValue Chain, SDValue Ptr,
-                   SDValue SV);
+                   SDValue SV, unsigned Align);
 
   /// getAtomic - Gets a node for an atomic op, produces result and chain and
   /// takes 3 operands
@@ -635,18 +632,20 @@ public:
   SDValue getLoad(EVT VT, DebugLoc dl, SDValue Chain, SDValue Ptr,
                   const Value *SV, int SVOffset, bool isVolatile,
                   bool isNonTemporal, unsigned Alignment);
-  SDValue getExtLoad(ISD::LoadExtType ExtType, DebugLoc dl, EVT VT,
+  SDValue getExtLoad(ISD::LoadExtType ExtType, EVT VT, DebugLoc dl,
                      SDValue Chain, SDValue Ptr, const Value *SV,
                      int SVOffset, EVT MemVT, bool isVolatile,
                      bool isNonTemporal, unsigned Alignment);
   SDValue getIndexedLoad(SDValue OrigLoad, DebugLoc dl, SDValue Base,
-                           SDValue Offset, ISD::MemIndexedMode AM);
-  SDValue getLoad(ISD::MemIndexedMode AM, DebugLoc dl, ISD::LoadExtType ExtType,
-                  EVT VT, SDValue Chain, SDValue Ptr, SDValue Offset,
+                         SDValue Offset, ISD::MemIndexedMode AM);
+  SDValue getLoad(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType,
+                  EVT VT, DebugLoc dl,
+                  SDValue Chain, SDValue Ptr, SDValue Offset,
                   const Value *SV, int SVOffset, EVT MemVT,
                   bool isVolatile, bool isNonTemporal, unsigned Alignment);
-  SDValue getLoad(ISD::MemIndexedMode AM, DebugLoc dl, ISD::LoadExtType ExtType,
-                  EVT VT, SDValue Chain, SDValue Ptr, SDValue Offset,
+  SDValue getLoad(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType,
+                  EVT VT, DebugLoc dl,
+                  SDValue Chain, SDValue Ptr, SDValue Offset,
                   EVT MemVT, MachineMemOperand *MMO);
 
   /// getStore - Helper function to build ISD::STORE nodes.
@@ -681,15 +680,15 @@ public:
   /// already exists.  If the resultant node does not exist in the DAG, the
   /// input node is returned.  As a degenerate case, if you specify the same
   /// input operands as the node already has, the input node is returned.
-  SDValue UpdateNodeOperands(SDValue N, SDValue Op);
-  SDValue UpdateNodeOperands(SDValue N, SDValue Op1, SDValue Op2);
-  SDValue UpdateNodeOperands(SDValue N, SDValue Op1, SDValue Op2,
+  SDNode *UpdateNodeOperands(SDNode *N, SDValue Op);
+  SDNode *UpdateNodeOperands(SDNode *N, SDValue Op1, SDValue Op2);
+  SDNode *UpdateNodeOperands(SDNode *N, SDValue Op1, SDValue Op2,
                                SDValue Op3);
-  SDValue UpdateNodeOperands(SDValue N, SDValue Op1, SDValue Op2,
+  SDNode *UpdateNodeOperands(SDNode *N, SDValue Op1, SDValue Op2,
                                SDValue Op3, SDValue Op4);
-  SDValue UpdateNodeOperands(SDValue N, SDValue Op1, SDValue Op2,
+  SDNode *UpdateNodeOperands(SDNode *N, SDValue Op1, SDValue Op2,
                                SDValue Op3, SDValue Op4, SDValue Op5);
-  SDValue UpdateNodeOperands(SDValue N,
+  SDNode *UpdateNodeOperands(SDNode *N,
                                const SDValue *Ops, unsigned NumOps);
 
   /// SelectNodeTo - These are used for target selectors to *mutate* the

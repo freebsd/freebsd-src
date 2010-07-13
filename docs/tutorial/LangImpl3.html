@@ -200,9 +200,9 @@ Value *BinaryExprAST::Codegen() {
   if (L == 0 || R == 0) return 0;
   
   switch (Op) {
-  case '+': return Builder.CreateAdd(L, R, "addtmp");
-  case '-': return Builder.CreateSub(L, R, "subtmp");
-  case '*': return Builder.CreateMul(L, R, "multmp");
+  case '+': return Builder.CreateFAdd(L, R, "addtmp");
+  case '-': return Builder.CreateFSub(L, R, "subtmp");
+  case '*': return Builder.CreateFMul(L, R, "multmp");
   case '&lt;':
     L = Builder.CreateFCmpULT(L, R, "cmptmp");
     // Convert bool 0/1 to double 0.0 or 1.0
@@ -574,8 +574,8 @@ ready&gt; <b>def bar(a) foo(a, 4.0) + bar(31337);</b>
 Read function definition:
 define double @bar(double %a) {
 entry:
-        %calltmp = call double @foo( double %a, double 4.000000e+00 )
-        %calltmp1 = call double @bar( double 3.133700e+04 )
+        %calltmp = call double @foo(double %a, double 4.000000e+00)
+        %calltmp1 = call double @bar(double 3.133700e+04)
         %addtmp = fadd double %calltmp, %calltmp1
         ret double %addtmp
 }
@@ -596,7 +596,7 @@ ready&gt; <b>cos(1.234);</b>
 Read top-level expression:
 define double @""() {
 entry:
-        %calltmp = call double @cos( double 1.234000e+00 )
+        %calltmp = call double @cos(double 1.234000e+00)
         ret double %calltmp
 }
 </pre>
@@ -629,8 +629,8 @@ entry:
 
 define double @bar(double %a) {
 entry:
-        %calltmp = call double @foo( double %a, double 4.000000e+00 )
-        %calltmp1 = call double @bar( double 3.133700e+04 )
+        %calltmp = call double @foo(double %a, double 4.000000e+00)
+        %calltmp1 = call double @bar(double 3.133700e+04)
         %addtmp = fadd double %calltmp, %calltmp1
         ret double %addtmp
 }
@@ -639,7 +639,7 @@ declare double @cos(double)
 
 define double @""() {
 entry:
-        %calltmp = call double @cos( double 1.234000e+00 )
+        %calltmp = call double @cos(double 1.234000e+00)
         ret double %calltmp
 }
 </pre>
@@ -1263,7 +1263,7 @@ int main() {
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  Last modified: $Date: 2010-06-14 08:09:39 +0200 (Mon, 14 Jun 2010) $
 </address>
 </body>
 </html>

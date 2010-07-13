@@ -141,6 +141,10 @@ void RegScavenger::forward() {
 
   // Find out which registers are early clobbered, killed, defined, and marked
   // def-dead in this instruction.
+  // FIXME: The scavenger is not predication aware. If the instruction is
+  // predicated, conservatively assume "kill" markers do not actually kill the
+  // register. Similarly ignores "dead" markers.
+  bool isPred = TII->isPredicated(MI);
   BitVector EarlyClobberRegs(NumPhysRegs);
   BitVector KillRegs(NumPhysRegs);
   BitVector DefRegs(NumPhysRegs);
@@ -155,11 +159,11 @@ void RegScavenger::forward() {
 
     if (MO.isUse()) {
       // Two-address operands implicitly kill.
-      if (MO.isKill() || MI->isRegTiedToDefOperand(i))
+      if (!isPred && (MO.isKill() || MI->isRegTiedToDefOperand(i)))
         addRegWithSubRegs(KillRegs, Reg);
     } else {
       assert(MO.isDef());
-      if (MO.isDead())
+      if (!isPred && MO.isDead())
         addRegWithSubRegs(DeadRegs, Reg);
       else
         addRegWithSubRegs(DefRegs, Reg);
@@ -238,8 +242,18 @@ unsigned RegScavenger::FindUnusedReg(const TargetRegisterClass *RC) const {
   return 0;
 }
 
+/// getRegsAvailable - Return all available registers in the register class
+/// in Mask.
+void RegScavenger::getRegsAvailable(const TargetRegisterClass *RC,
+                                    BitVector &Mask) {
+  for (TargetRegisterClass::iterator I = RC->begin(), E = RC->end();
+       I != E; ++I)
+    if (!isAliasUsed(*I))
+      Mask.set(*I);
+}
+
 /// findSurvivorReg - Return the candidate register that is unused for the
-/// longest after MBBI. UseMI is set to the instruction where the search
+/// longest after StargMII. UseMI is set to the instruction where the search
 /// stopped.
 ///
 /// No more than InstrLimit instructions are inspected.
@@ -258,6 +272,10 @@ unsigned RegScavenger::findSurvivorReg(MachineBasicBlock::iterator StartMI,
 
   bool inVirtLiveRange = false;
   for (++MI; InstrLimit > 0 && MI != ME; ++MI, --InstrLimit) {
+    if (MI->isDebugValue()) {
+      ++InstrLimit; // Don't count debug instructions
+      continue;
+    }
     bool isVirtKillInsn = false;
     bool isVirtDefInsn = false;
     // Remove any candidates touched by instruction.
@@ -321,13 +339,16 @@ unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
       Candidates.reset(MO.getReg());
   }
 
+  // Try to find a register that's unused if there is one, as then we won't
+  // have to spill.
+  if ((Candidates & RegsAvailable).any())
+     Candidates &= RegsAvailable;
+
   // Find the register whose use is furthest away.
   MachineBasicBlock::iterator UseMI;
   unsigned SReg = findSurvivorReg(I, Candidates, 25, UseMI);
 
-  // If we found an unused register there is no reason to spill it. We have
-  // probably found a callee-saved register that has been saved in the
-  // prologue, but happens to be unused at this point.
+  // If we found an unused register there is no reason to spill it.
   if (!isAliasUsed(SReg))
     return SReg;
 

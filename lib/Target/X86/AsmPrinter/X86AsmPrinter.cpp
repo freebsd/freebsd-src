@@ -200,6 +200,11 @@ void X86AsmPrinter::printSymbolOperand(const MachineOperand &MO,
   case X86II::MO_GOT:       O << "@GOT";       break;
   case X86II::MO_GOTOFF:    O << "@GOTOFF";    break;
   case X86II::MO_PLT:       O << "@PLT";       break;
+  case X86II::MO_TLVP:      O << "@TLVP";      break;
+  case X86II::MO_TLVP_PIC_BASE:
+    O << "@TLVP" << '-';
+    PrintPICBaseSymbol(O);
+    break;
   }
 }
 
@@ -383,6 +388,8 @@ bool X86AsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
       } 
       if (MO.isGlobal() || MO.isCPI() || MO.isJTI() || MO.isSymbol()) {
         printSymbolOperand(MO, O);
+        if (Subtarget->isPICStyleRIPRel())
+          O << "(%rip)";
         return false;
       }
       if (MO.isReg()) {

@@ -24,6 +24,7 @@
         <ol>
           <li><a href="#linkage_private">'<tt>private</tt>' Linkage</a></li>
           <li><a href="#linkage_linker_private">'<tt>linker_private</tt>' Linkage</a></li>
+          <li><a href="#linkage_linker_private_weak">'<tt>linker_private_weak</tt>' Linkage</a></li>
           <li><a href="#linkage_internal">'<tt>internal</tt>' Linkage</a></li>
           <li><a href="#linkage_available_externally">'<tt>available_externally</tt>' Linkage</a></li>
           <li><a href="#linkage_linkonce">'<tt>linkonce</tt>' Linkage</a></li>
@@ -369,11 +370,9 @@
    what is considered 'well formed'.  For example, the following instruction is
    syntactically okay, but not well formed:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 %x = <a href="#i_add">add</a> i32 1, %x
 </pre>
-</div>
 
 <p>because the definition of <tt>%x</tt> does not dominate all of its uses. The
    LLVM infrastructure provides a verification pass that may be used to verify
@@ -436,29 +435,23 @@
 
 <p>The easy way:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 %result = <a href="#i_mul">mul</a> i32 %X, 8
 </pre>
-</div>
 
 <p>After strength reduction:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 %result = <a href="#i_shl">shl</a> i32 %X, i8 3
 </pre>
-</div>
 
 <p>And the hard way:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 %0 = <a href="#i_add">add</a> i32 %X, %X           <i>; yields {i32}:%0</i>
 %1 = <a href="#i_add">add</a> i32 %0, %0           <i>; yields {i32}:%1</i>
 %result = <a href="#i_add">add</a> i32 %1, %1
 </pre>
-</div>
 
 <p>This last way of multiplying <tt>%X</tt> by 8 illustrates several important
    lexical features of LLVM:</p>
@@ -497,28 +490,26 @@
    forward declarations, and merges symbol table entries. Here is an example of
    the "hello world" module:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 <i>; Declare the string constant as a global constant.</i>
 <a href="#identifiers">@.LC0</a> = <a href="#linkage_internal">internal</a> <a href="#globalvars">constant</a> <a href="#t_array">[13 x i8]</a> c"hello world\0A\00"    <i>; [13 x i8]*</i>
 
 <i>; External declaration of the puts function</i>
-<a href="#functionstructure">declare</a> i32 @puts(i8 *)                                     <i>; i32(i8 *)* </i>
+<a href="#functionstructure">declare</a> i32 @puts(i8*)                                     <i>; i32 (i8*)* </i>
 
 <i>; Definition of main function</i>
 define i32 @main() {                                        <i>; i32()* </i>
   <i>; Convert [13 x i8]* to i8  *...</i>
-  %cast210 = <a href="#i_getelementptr">getelementptr</a> [13 x i8]* @.LC0, i64 0, i64 0   <i>; i8 *</i>
+  %cast210 = <a href="#i_getelementptr">getelementptr</a> [13 x i8]* @.LC0, i64 0, i64 0   <i>; i8*</i>
 
   <i>; Call puts function to write out the string to stdout.</i>
-  <a href="#i_call">call</a> i32 @puts(i8 * %cast210)                             <i>; i32</i>
+  <a href="#i_call">call</a> i32 @puts(i8* %cast210)                             <i>; i32</i>
   <a href="#i_ret">ret</a> i32 0<br>}
 
 <i>; Named metadata</i>
 !1 = metadata !{i32 41}
 !foo = !{!1, null}
 </pre>
-</div>
 
 <p>This example is made up of a <a href="#globalvars">global variable</a> named
    "<tt>.LC0</tt>", an external declaration of the "<tt>puts</tt>" function,
@@ -546,20 +537,24 @@ define i32 @main() {                                        <i>; i32()* </i>
 
 <dl>
   <dt><tt><b><a name="linkage_private">private</a></b></tt></dt>
-  <dd>Global values with private linkage are only directly accessible by objects
-      in the current module.  In particular, linking code into a module with an
-      private global value may cause the private to be renamed as necessary to
-      avoid collisions.  Because the symbol is private to the module, all
-      references can be updated. This doesn't show up in any symbol table in the
-      object file.</dd>
+  <dd>Global values with "<tt>private</tt>" linkage are only directly accessible
+      by objects in the current module. In particular, linking code into a
+      module with an private global value may cause the private to be renamed as
+      necessary to avoid collisions.  Because the symbol is private to the
+      module, all references can be updated. This doesn't show up in any symbol
+      table in the object file.</dd>
 
   <dt><tt><b><a name="linkage_linker_private">linker_private</a></b></tt></dt>
-  <dd>Similar to private, but the symbol is passed through the assembler and
-      removed by the linker after evaluation.  Note that (unlike private
-      symbols) linker_private symbols are subject to coalescing by the linker:
-      weak symbols get merged and redefinitions are rejected.  However, unlike
-      normal strong symbols, they are removed by the linker from the final
-      linked image (executable or dynamic library).</dd>
+  <dd>Similar to <tt>private</tt>, but the symbol is passed through the
+      assembler and evaluated by the linker. Unlike normal strong symbols, they
+      are removed by the linker from the final linked image (executable or
+      dynamic library).</dd>
+
+  <dt><tt><b><a name="linkage_linker_private_weak">linker_private_weak</a></b></tt></dt>
+  <dd>Similar to "<tt>linker_private</tt>", but the symbol is weak. Note that
+      <tt>linker_private_weak</tt> symbols are subject to coalescing by the
+      linker. The symbols are removed by the linker from the final linked image
+      (executable or dynamic library).</dd>
 
   <dt><tt><b><a name="linkage_internal">internal</a></b></tt></dt>
   <dd>Similar to private, but the value shows as a local symbol
@@ -623,8 +618,8 @@ define i32 @main() {                                        <i>; i32()* </i>
   <dt><tt><b><a name="linkage_weak_odr">weak_odr</a></b></tt></dt>
   <dd>Some languages allow differing globals to be merged, such as two functions
       with different semantics.  Other languages, such as <tt>C++</tt>, ensure
-      that only equivalent globals are ever merged (the "one definition rule" -
-      "ODR").  Such languages can use the <tt>linkonce_odr</tt>
+      that only equivalent globals are ever merged (the "one definition rule"
+      &mdash; "ODR").  Such languages can use the <tt>linkonce_odr</tt>
       and <tt>weak_odr</tt> linkage types to indicate that the global will only
       be merged with equivalent globals.  These linkage types are otherwise the
       same as their non-<tt>odr</tt> versions.</dd>
@@ -788,11 +783,9 @@ define i32 @main() {                                        <i>; i32()* </i>
    it easier to read the IR and make the IR more condensed (particularly when
    recursive types are involved).  An example of a name specification is:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 %mytype = type { %mytype*, i32 }
 </pre>
-</div>
 
 <p>You may give a name to any <a href="#typesystem">type</a> except
    "<a href="t_void">void</a>".  Type name aliases may be used anywhere a type
@@ -864,11 +857,9 @@ define i32 @main() {                                        <i>; i32()* </i>
 <p>For example, the following defines a global in a numbered address space with
    an initializer, section, and alignment:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 @G = addrspace(5) constant float 1.0, section "foo", align 4
 </pre>
-</div>
 
 </div>
 
@@ -921,15 +912,13 @@ define i32 @main() {                                        <i>; i32()* </i>
    alignments must be a power of 2.</p>
 
 <h5>Syntax:</h5>
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 define [<a href="#linkage">linkage</a>] [<a href="#visibility">visibility</a>]
        [<a href="#callingconv">cconv</a>] [<a href="#paramattrs">ret attrs</a>]
        &lt;ResultType&gt; @&lt;FunctionName&gt; ([argument list])
        [<a href="#fnattrs">fn Attrs</a>] [section "name"] [align N]
        [<a href="#gc">gc</a>] { ... }
 </pre>
-</div>
 
 </div>
 
@@ -946,11 +935,9 @@ define [<a href="#linkage">linkage</a>] [<a href="#visibility">visibility</a>]
    optional <a href="#visibility">visibility style</a>.</p>
 
 <h5>Syntax:</h5>
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 @&lt;Name&gt; = alias [Linkage] [Visibility] &lt;AliaseeTy&gt; @&lt;Aliasee&gt;
 </pre>
-</div>
 
 </div>
 
@@ -966,12 +953,10 @@ define [<a href="#linkage">linkage</a>] [<a href="#visibility">visibility</a>]
    a named metadata.</p>
 
 <h5>Syntax:</h5>
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 !1 = metadata !{metadata !"one"}
 !name = !{null, !1}
 </pre>
-</div>
 
 </div>
 
@@ -991,13 +976,11 @@ define [<a href="#linkage">linkage</a>] [<a href="#visibility">visibility</a>]
    multiple parameter attributes are needed, they are space separated. For
    example:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 declare i32 @printf(i8* noalias nocapture, ...)
 declare i32 @atoi(i8 zeroext)
 declare signext i8 @returns_signed_char()
 </pre>
-</div>
 
 <p>Note that any attributes for the function result (<tt>nounwind</tt>,
    <tt>readonly</tt>) come immediately after the argument list.</p>
@@ -1037,7 +1020,7 @@ declare signext i8 @returns_signed_char()
       generator that usually indicates a desired alignment for the synthesized
       stack slot.</dd>
 
-  <dt><tt><b>sret</b></tt></dt>
+  <dt><tt><b><a name="sret">sret</a></b></tt></dt>
   <dd>This indicates that the pointer parameter specifies the address of a
       structure that is the return value of the function in the source program.
       This pointer must be guaranteed by the caller to be valid: loads and
@@ -1045,22 +1028,34 @@ declare signext i8 @returns_signed_char()
       may only be applied to the first parameter. This is not a valid attribute
       for return values. </dd>
 
-  <dt><tt><b>noalias</b></tt></dt>
-  <dd>This indicates that the pointer does not alias any global or any other
-      parameter.  The caller is responsible for ensuring that this is the
-      case. On a function return value, <tt>noalias</tt> additionally indicates
-      that the pointer does not alias any other pointers visible to the
-      caller. For further details, please see the discussion of the NoAlias
-      response in
-      <a href="http://llvm.org/docs/AliasAnalysis.html#MustMayNo">alias
-      analysis</a>.</dd>
+  <dt><tt><b><a name="noalias">noalias</a></b></tt></dt>
+  <dd>This indicates that pointer values
+      <a href="#pointeraliasing"><i>based</i></a> on the argument or return
+      value do not alias pointer values which are not <i>based</i> on it,
+      ignoring certain "irrelevant" dependencies.
+      For a call to the parent function, dependencies between memory
+      references from before or after the call and from those during the call
+      are "irrelevant" to the <tt>noalias</tt> keyword for the arguments and
+      return value used in that call.
+      The caller shares the responsibility with the callee for ensuring that
+      these requirements are met.
+      For further details, please see the discussion of the NoAlias response in
+      <a href="AliasAnalysis.html#MustMayNo">alias analysis</a>.<br>
+<br>
+      Note that this definition of <tt>noalias</tt> is intentionally
+      similar to the definition of <tt>restrict</tt> in C99 for function
+      arguments, though it is slightly weaker.
+<br>
+      For function return values, C99's <tt>restrict</tt> is not meaningful,
+      while LLVM's <tt>noalias</tt> is.
+      </dd>
 
-  <dt><tt><b>nocapture</b></tt></dt>
+  <dt><tt><b><a name="nocapture">nocapture</a></b></tt></dt>
   <dd>This indicates that the callee does not make any copies of the pointer
       that outlive the callee itself. This is not a valid attribute for return
       values.</dd>
 
-  <dt><tt><b>nest</b></tt></dt>
+  <dt><tt><b><a name="nest">nest</a></b></tt></dt>
   <dd>This indicates that the pointer parameter can be excised using the
       <a href="#int_trampoline">trampoline intrinsics</a>. This is not a valid
       attribute for return values.</dd>
@@ -1078,11 +1073,9 @@ declare signext i8 @returns_signed_char()
 <p>Each function may specify a garbage collector name, which is simply a
    string:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 define void @f() gc "name" { ... }
 </pre>
-</div>
 
 <p>The compiler declares the supported values of <i>name</i>. Specifying a
    collector which will cause the compiler to alter its output in order to
@@ -1105,14 +1098,12 @@ define void @f() gc "name" { ... }
 <p>Function attributes are simple keywords that follow the type specified. If
    multiple attributes are needed, they are space separated. For example:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 define void @f() noinline { ... }
 define void @f() alwaysinline { ... }
 define void @f() alwaysinline optsize { ... }
 define void @f() optsize { ... }
 </pre>
-</div>
 
 <dl>
   <dt><tt><b>alignstack(&lt;<em>n</em>&gt;)</b></tt></dt>
@@ -1130,15 +1121,21 @@ define void @f() optsize { ... }
       this function is desirable (such as the "inline" keyword in C/C++).  It
       is just a hint; it imposes no requirements on the inliner.</dd>
 
+  <dt><tt><b>naked</b></tt></dt>
+  <dd>This attribute disables prologue / epilogue emission for the function.
+      This can have very system-specific consequences.</dd>
+
+  <dt><tt><b>noimplicitfloat</b></tt></dt>
+  <dd>This attributes disables implicit floating point instructions.</dd>
+
   <dt><tt><b>noinline</b></tt></dt>
   <dd>This attribute indicates that the inliner should never inline this
       function in any situation. This attribute may not be used together with
       the <tt>alwaysinline</tt> attribute.</dd>
 
-  <dt><tt><b>optsize</b></tt></dt>
-  <dd>This attribute suggests that optimization passes and code generator passes
-      make choices that keep the code size of this function low, and otherwise
-      do optimizations specifically to reduce code size.</dd>
+  <dt><tt><b>noredzone</b></tt></dt>
+  <dd>This attribute indicates that the code generator should not use a red
+      zone, even if the target-specific ABI normally permits it.</dd>
 
   <dt><tt><b>noreturn</b></tt></dt>
   <dd>This function attribute indicates that the function never returns
@@ -1149,6 +1146,11 @@ define void @f() optsize { ... }
   <dd>This function attribute indicates that the function never returns with an
       unwind or exceptional control flow.  If the function does unwind, its
       runtime behavior is undefined.</dd>
+
+  <dt><tt><b>optsize</b></tt></dt>
+  <dd>This attribute suggests that optimization passes and code generator passes
+      make choices that keep the code size of this function low, and otherwise
+      do optimizations specifically to reduce code size.</dd>
 
   <dt><tt><b>readnone</b></tt></dt>
   <dd>This attribute indicates that the function computes its result (or decides
@@ -1192,17 +1194,6 @@ define void @f() optsize { ... }
       function that doesn't have an <tt>sspreq</tt> attribute or which has
       an <tt>ssp</tt> attribute, then the resulting function will have
       an <tt>sspreq</tt> attribute.</dd>
-
-  <dt><tt><b>noredzone</b></tt></dt>
-  <dd>This attribute indicates that the code generator should not use a red
-      zone, even if the target-specific ABI normally permits it.</dd>
-
-  <dt><tt><b>noimplicitfloat</b></tt></dt>
-  <dd>This attributes disables implicit floating point instructions.</dd>
-
-  <dt><tt><b>naked</b></tt></dt>
-  <dd>This attribute disables prologue / epilogue emission for the function.
-      This can have very system-specific consequences.</dd>
 </dl>
 
 </div>
@@ -1219,12 +1210,10 @@ define void @f() optsize { ... }
    concatenated by LLVM and treated as a single unit, but may be separated in
    the <tt>.ll</tt> file if desired.  The syntax is very simple:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 module asm "inline asm code goes here"
 module asm "more can go here"
 </pre>
-</div>
 
 <p>The strings can contain any character by escaping non-printable characters.
    The escape sequence used is simply "\xx" where "xx" is the two digit hex code
@@ -1246,11 +1235,9 @@ module asm "more can go here"
    data is to be laid out in memory. The syntax for the data layout is
    simply:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 target datalayout = "<i>layout specification</i>"
 </pre>
-</div>
 
 <p>The <i>layout specification</i> consists of a list of specifications
    separated by the minus sign character ('-').  Each specification starts with
@@ -1283,8 +1270,10 @@ target datalayout = "<i>layout specification</i>"
 
   <dt><tt>f<i>size</i>:<i>abi</i>:<i>pref</i></tt></dt>
   <dd>This specifies the alignment for a floating point type of a given bit
-      <i>size</i>. The value of <i>size</i> must be either 32 (float) or 64
-      (double).</dd>
+      <i>size</i>. Only values of <i>size</i> that are supported by the target
+      will work.  32 (float) and 64 (double) are supported on all targets;
+      80 or 128 (different flavors of long double) are also supported on some
+      targets.
 
   <dt><tt>a<i>size</i>:<i>abi</i>:<i>pref</i></tt></dt>
   <dd>This specifies the alignment for an aggregate type of a given bit
@@ -1360,34 +1349,46 @@ is undefined. Pointer values are associated with address ranges
 according to the following rules:</p>
 
 <ul>
-  <li>A pointer value formed from a
-      <tt><a href="#i_getelementptr">getelementptr</a></tt> instruction
-      is associated with the addresses associated with the first operand
-      of the <tt>getelementptr</tt>.</li>
+  <li>A pointer value is associated with the addresses associated with
+      any value it is <i>based</i> on.
   <li>An address of a global variable is associated with the address
       range of the variable's storage.</li>
   <li>The result value of an allocation instruction is associated with
       the address range of the allocated storage.</li>
   <li>A null pointer in the default address-space is associated with
       no address.</li>
-  <li>A pointer value formed by an
-      <tt><a href="#i_inttoptr">inttoptr</a></tt> is associated with all
-      address ranges of all pointer values that contribute (directly or
-      indirectly) to the computation of the pointer's value.</li>
-  <li>The result value of a
-      <tt><a href="#i_bitcast">bitcast</a></tt> is associated with all
-      addresses associated with the operand of the <tt>bitcast</tt>.</li>
   <li>An integer constant other than zero or a pointer value returned
       from a function not defined within LLVM may be associated with address
       ranges allocated through mechanisms other than those provided by
       LLVM. Such ranges shall not overlap with any ranges of addresses
       allocated by mechanisms provided by LLVM.</li>
-  </ul>
+</ul>
+
+<p>A pointer value is <i>based</i> on another pointer value according
+   to the following rules:</p>
+
+<ul>
+  <li>A pointer value formed from a
+      <tt><a href="#i_getelementptr">getelementptr</a></tt> operation
+      is <i>based</i> on the first operand of the <tt>getelementptr</tt>.</li>
+  <li>The result value of a
+      <tt><a href="#i_bitcast">bitcast</a></tt> is <i>based</i> on the operand
+      of the <tt>bitcast</tt>.</li>
+  <li>A pointer value formed by an
+      <tt><a href="#i_inttoptr">inttoptr</a></tt> is <i>based</i> on all
+      pointer values that contribute (directly or indirectly) to the
+      computation of the pointer's value.</li>
+  <li>The "<i>based</i> on" relationship is transitive.</li>
+</ul>
+
+<p>Note that this definition of <i>"based"</i> is intentionally
+   similar to the definition of <i>"based"</i> in C99, though it is
+   slightly weaker.</p>
 
 <p>LLVM IR does not associate types with memory. The result type of a
 <tt><a href="#i_load">load</a></tt> merely indicates the size and
 alignment of the memory from which to load, as well as the
-interpretation of the value. The first operand of a
+interpretation of the value. The first operand type of a
 <tt><a href="#i_store">store</a></tt> similarly only indicates the size
 and alignment of the store.</p>
 
@@ -1629,8 +1630,6 @@ Classifications</a> </div>
   member types. <a href="#t_array">Arrays</a>,
   <a href="#t_struct">structs</a>, <a href="#t_vector">vectors</a> and
   <a href="#t_union">unions</a> are aggregate types.</p>
-
-</div>
 
 </div>
 
@@ -1900,7 +1899,7 @@ Classifications</a> </div>
                     href="#t_array">array</a> of four <tt>i32</tt> values.</td>
   </tr>
   <tr class="layout">
-    <td class="left"><tt>i32 (i32 *) *</tt></td>
+    <td class="left"><tt>i32 (i32*) *</tt></td>
     <td class="left"> A <a href="#t_pointer">pointer</a> to a <a
       href="#t_function">function</a> that takes an <tt>i32*</tt>, returning an
       <tt>i32</tt>.</td>
@@ -2167,13 +2166,11 @@ Classifications</a> </div>
    have <a href="#t_pointer">pointer</a> type. For example, the following is a
    legal LLVM file:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 @X = global i32 17
 @Y = global i32 42
 @Z = global [2 x i32*] [ i32* @X, i32* @Y ]
 </pre>
-</div>
 
 </div>
 
@@ -2192,8 +2189,7 @@ Classifications</a> </div>
    surprising) transformations that are valid (in pseudo IR):</p>
 
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
   %A = add %X, undef
   %B = sub %X, undef
   %C = xor %X, undef
@@ -2202,13 +2198,11 @@ Safe:
   %B = undef
   %C = undef
 </pre>
-</div>
 
 <p>This is safe because all of the output bits are affected by the undef bits.
 Any output bit can have a zero or one depending on the input bits.</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
   %A = or %X, undef
   %B = and %X, undef
 Safe:
@@ -2218,7 +2212,6 @@ Unsafe:
   %A = undef
   %B = undef
 </pre>
-</div>
 
 <p>These logical operations have bits that are not always affected by the input.
 For example, if "%X" has a zero bit, then the output of the 'and' operation will
@@ -2229,8 +2222,7 @@ optimize the and to 0.  Likewise, it is safe to assume that all the bits of
 the undef operand to the or could be set, allowing the or to be folded to
 -1.</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
   %A = select undef, %X, %Y
   %B = select undef, 42, %Y
   %C = select %X, %Y, undef
@@ -2243,7 +2235,6 @@ Unsafe:
   %B = undef
   %C = undef
 </pre>
-</div>
 
 <p>This set of examples show that undefined select (and conditional branch)
 conditions can go "either way" but they have to come from one of the two
@@ -2253,8 +2244,7 @@ the optimizer is allowed to assume that the undef operand could be the same as
 %Y, allowing the whole select to be eliminated.</p>
 
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
   %A = xor undef, undef
 
   %B = undef
@@ -2272,7 +2262,6 @@ Safe:
   %E = undef
   %F = undef
 </pre>
-</div>
 
 <p>This example points out that two undef operands are not necessarily the same.
 This can be surprising to people (and also matches C semantics) where they
@@ -2285,15 +2274,13 @@ so the value is not necessarily consistent over time.  In fact, %A and %C need
 to have the same semantics or the core LLVM "replace all uses with" concept
 would not hold.</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
   %A = fdiv undef, %X
   %B = fdiv %X, undef
 Safe:
   %A = undef
 b: unreachable
 </pre>
-</div>
 
 <p>These examples show the crucial difference between an <em>undefined
 value</em> and <em>undefined behavior</em>.  An undefined value (like undef) is
@@ -2308,15 +2295,13 @@ it: since the undefined operation "can't happen", the optimizer can assume that
 it occurs in dead code.
 </p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 a:  store undef -> %X
 b:  store %X -> undef
 Safe:
 a: &lt;deleted&gt;
 b: unreachable
 </pre>
-</div>
 
 <p>These examples reiterate the fdiv example: a store "of" an undefined value
 can be assumed to not have any effect: we can assume that the value is
@@ -2342,7 +2327,6 @@ has undefined behavior.</p>
 
 <p>Trap value behavior is defined in terms of value <i>dependence</i>:</p>
 
-<p>
 <ul>
 <li>Values other than <a href="#i_phi"><tt>phi</tt></a> nodes depend on
     their operands.</li>
@@ -2374,7 +2358,8 @@ has undefined behavior.</p>
 
 <li>An instruction with externally visible side effects depends on the most
     recent preceding instruction with externally visible side effects, following
-    the order in the IR. (This includes volatile loads and stores.)</li>
+    the order in the IR. (This includes
+    <a href="#volatile">volatile operations</a>.)</li>
 
 <li>An instruction <i>control-depends</i> on a
     <a href="#terminators">terminator instruction</a>
@@ -2385,7 +2370,6 @@ has undefined behavior.</p>
 <li>Dependence is transitive.</li>
 
 </ul>
-</p>
 
 <p>Whenever a trap value is generated, all values which depend on it evaluate
    to trap. If they have side effects, the evoke their side effects as if each
@@ -2394,8 +2378,7 @@ has undefined behavior.</p>
 
 <p>Here are some examples:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 entry:
   %trap = sub nuw i32 0, 1           ; Results in a trap value.
   %still_trap = and i32 %trap, 0     ; Whereas (and i32 undef, 0) would return 0.
@@ -2430,7 +2413,6 @@ end:
                                      ; so this is defined (ignoring earlier
                                      ; undefined behavior in this example).
 </pre>
-</div>
 
 </div>
 
@@ -2475,104 +2457,114 @@ end:
    supported).  The following is the syntax for constant expressions:</p>
 
 <dl>
-  <dt><b><tt>trunc ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>trunc (CST to TYPE)</tt></b></dt>
   <dd>Truncate a constant to another type. The bit size of CST must be larger
       than the bit size of TYPE. Both types must be integers.</dd>
 
-  <dt><b><tt>zext ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>zext (CST to TYPE)</tt></b></dt>
   <dd>Zero extend a constant to another type. The bit size of CST must be
-      smaller or equal to the bit size of TYPE.  Both types must be
-      integers.</dd>
+      smaller than the bit size of TYPE.  Both types must be integers.</dd>
 
-  <dt><b><tt>sext ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>sext (CST to TYPE)</tt></b></dt>
   <dd>Sign extend a constant to another type. The bit size of CST must be
-      smaller or equal to the bit size of TYPE.  Both types must be
-      integers.</dd>
+      smaller than the bit size of TYPE.  Both types must be integers.</dd>
 
-  <dt><b><tt>fptrunc ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>fptrunc (CST to TYPE)</tt></b></dt>
   <dd>Truncate a floating point constant to another floating point type. The
       size of CST must be larger than the size of TYPE. Both types must be
       floating point.</dd>
 
-  <dt><b><tt>fpext ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>fpext (CST to TYPE)</tt></b></dt>
   <dd>Floating point extend a constant to another type. The size of CST must be
       smaller or equal to the size of TYPE. Both types must be floating
       point.</dd>
 
-  <dt><b><tt>fptoui ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>fptoui (CST to TYPE)</tt></b></dt>
   <dd>Convert a floating point constant to the corresponding unsigned integer
       constant. TYPE must be a scalar or vector integer type. CST must be of
       scalar or vector floating point type. Both CST and TYPE must be scalars,
       or vectors of the same number of elements. If the value won't fit in the
       integer type, the results are undefined.</dd>
 
-  <dt><b><tt>fptosi ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>fptosi (CST to TYPE)</tt></b></dt>
   <dd>Convert a floating point constant to the corresponding signed integer
       constant.  TYPE must be a scalar or vector integer type. CST must be of
       scalar or vector floating point type. Both CST and TYPE must be scalars,
       or vectors of the same number of elements. If the value won't fit in the
       integer type, the results are undefined.</dd>
 
-  <dt><b><tt>uitofp ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>uitofp (CST to TYPE)</tt></b></dt>
   <dd>Convert an unsigned integer constant to the corresponding floating point
       constant. TYPE must be a scalar or vector floating point type. CST must be
       of scalar or vector integer type. Both CST and TYPE must be scalars, or
       vectors of the same number of elements. If the value won't fit in the
       floating point type, the results are undefined.</dd>
 
-  <dt><b><tt>sitofp ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>sitofp (CST to TYPE)</tt></b></dt>
   <dd>Convert a signed integer constant to the corresponding floating point
       constant. TYPE must be a scalar or vector floating point type. CST must be
       of scalar or vector integer type. Both CST and TYPE must be scalars, or
       vectors of the same number of elements. If the value won't fit in the
       floating point type, the results are undefined.</dd>
 
-  <dt><b><tt>ptrtoint ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>ptrtoint (CST to TYPE)</tt></b></dt>
   <dd>Convert a pointer typed constant to the corresponding integer constant
       <tt>TYPE</tt> must be an integer type. <tt>CST</tt> must be of pointer
       type. The <tt>CST</tt> value is zero extended, truncated, or unchanged to
       make it fit in <tt>TYPE</tt>.</dd>
 
-  <dt><b><tt>inttoptr ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>inttoptr (CST to TYPE)</tt></b></dt>
   <dd>Convert a integer constant to a pointer constant.  TYPE must be a pointer
       type.  CST must be of integer type. The CST value is zero extended,
       truncated, or unchanged to make it fit in a pointer size. This one is
       <i>really</i> dangerous!</dd>
 
-  <dt><b><tt>bitcast ( CST to TYPE )</tt></b></dt>
+  <dt><b><tt>bitcast (CST to TYPE)</tt></b></dt>
   <dd>Convert a constant, CST, to another TYPE. The constraints of the operands
       are the same as those for the <a href="#i_bitcast">bitcast
       instruction</a>.</dd>
 
-  <dt><b><tt>getelementptr ( CSTPTR, IDX0, IDX1, ... )</tt></b></dt>
-  <dt><b><tt>getelementptr inbounds ( CSTPTR, IDX0, IDX1, ... )</tt></b></dt>
+  <dt><b><tt>getelementptr (CSTPTR, IDX0, IDX1, ...)</tt></b></dt>
+  <dt><b><tt>getelementptr inbounds (CSTPTR, IDX0, IDX1, ...)</tt></b></dt>
   <dd>Perform the <a href="#i_getelementptr">getelementptr operation</a> on
       constants.  As with the <a href="#i_getelementptr">getelementptr</a>
       instruction, the index list may have zero or more indexes, which are
       required to make sense for the type of "CSTPTR".</dd>
 
-  <dt><b><tt>select ( COND, VAL1, VAL2 )</tt></b></dt>
+  <dt><b><tt>select (COND, VAL1, VAL2)</tt></b></dt>
   <dd>Perform the <a href="#i_select">select operation</a> on constants.</dd>
 
-  <dt><b><tt>icmp COND ( VAL1, VAL2 )</tt></b></dt>
+  <dt><b><tt>icmp COND (VAL1, VAL2)</tt></b></dt>
   <dd>Performs the <a href="#i_icmp">icmp operation</a> on constants.</dd>
 
-  <dt><b><tt>fcmp COND ( VAL1, VAL2 )</tt></b></dt>
+  <dt><b><tt>fcmp COND (VAL1, VAL2)</tt></b></dt>
   <dd>Performs the <a href="#i_fcmp">fcmp operation</a> on constants.</dd>
 
-  <dt><b><tt>extractelement ( VAL, IDX )</tt></b></dt>
+  <dt><b><tt>extractelement (VAL, IDX)</tt></b></dt>
   <dd>Perform the <a href="#i_extractelement">extractelement operation</a> on
       constants.</dd>
 
-  <dt><b><tt>insertelement ( VAL, ELT, IDX )</tt></b></dt>
+  <dt><b><tt>insertelement (VAL, ELT, IDX)</tt></b></dt>
   <dd>Perform the <a href="#i_insertelement">insertelement operation</a> on
     constants.</dd>
 
-  <dt><b><tt>shufflevector ( VEC1, VEC2, IDXMASK )</tt></b></dt>
+  <dt><b><tt>shufflevector (VEC1, VEC2, IDXMASK)</tt></b></dt>
   <dd>Perform the <a href="#i_shufflevector">shufflevector operation</a> on
       constants.</dd>
 
-  <dt><b><tt>OPCODE ( LHS, RHS )</tt></b></dt>
+  <dt><b><tt>extractvalue (VAL, IDX0, IDX1, ...)</tt></b></dt>
+  <dd>Perform the <a href="#i_extractvalue">extractvalue operation</a> on
+    constants. The index list is interpreted in a similar manner as indices in
+    a '<a href="#i_getelementptr">getelementptr</a>' operation. At least one
+    index value must be specified.</dd>
+
+  <dt><b><tt>insertvalue (VAL, ELT, IDX0, IDX1, ...)</tt></b></dt>
+  <dd>Perform the <a href="#i_insertvalue">insertvalue operation</a> on
+    constants. The index list is interpreted in a similar manner as indices in
+    a '<a href="#i_getelementptr">getelementptr</a>' operation. At least one
+    index value must be specified.</dd>
+
+  <dt><b><tt>OPCODE (LHS, RHS)</tt></b></dt>
   <dd>Perform the specified operation of the LHS and RHS constants. OPCODE may
       be any of the <a href="#binaryops">binary</a>
       or <a href="#bitwiseops">bitwise binary</a> operations.  The constraints
@@ -2602,31 +2594,25 @@ end:
    containing the asm needs to align its stack conservatively.  An example
    inline assembler expression is:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 i32 (i32) asm "bswap $0", "=r,r"
 </pre>
-</div>
 
 <p>Inline assembler expressions may <b>only</b> be used as the callee operand of
    a <a href="#i_call"><tt>call</tt> instruction</a>.  Thus, typically we
    have:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 %X = call i32 asm "<a href="#int_bswap">bswap</a> $0", "=r,r"(i32 %Y)
 </pre>
-</div>
 
 <p>Inline asms with side effects not visible in the constraint list must be
    marked as having side effects.  This is done through the use of the
    '<tt>sideeffect</tt>' keyword, like so:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 call void asm sideeffect "eieio", ""()
 </pre>
-</div>
 
 <p>In some cases inline asms will contain code that will not work unless the
    stack is aligned in some way, such as calls or SSE instructions on x86,
@@ -2635,11 +2621,9 @@ call void asm sideeffect "eieio", ""()
    contain and should generate its usual stack alignment code in the prologue
    if the '<tt>alignstack</tt>' keyword is present:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 call void asm alignstack "eieio", ""()
 </pre>
-</div>
 
 <p>If both keywords appear the '<tt>sideeffect</tt>' keyword must come
    first.</p>
@@ -2663,13 +2647,11 @@ call void asm alignstack "eieio", ""()
    front-end to correlate backend errors that occur with inline asm back to the
    source code that produced it.  For example:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 call void asm sideeffect "something bad", ""()<b>, !srcloc !42</b>
 ...
 !42 = !{ i32 1234567 }
 </pre>
-</div>
 
 <p>It is up to the front-end to make sense of the magic numbers it places in the
    IR.</p>
@@ -2704,22 +2686,18 @@ call void asm sideeffect "something bad", ""()<b>, !srcloc !42</b>
    example: "<tt>!foo =  metadata !{!4, !3}</tt>".
 
 <p>Metadata can be used as function arguments. Here <tt>llvm.dbg.value</tt> 
-   function is using two metadata arguments.
+   function is using two metadata arguments.</p>
 
-   <div class="doc_code">
-     <pre>
+     <pre class="doc_code">
        call void @llvm.dbg.value(metadata !24, i64 0, metadata !25)
      </pre>
-   </div></p>
 
 <p>Metadata can be attached with an instruction. Here metadata <tt>!21</tt> is
-   attached with <tt>add</tt> instruction using <tt>!dbg</tt> identifier.
+   attached with <tt>add</tt> instruction using <tt>!dbg</tt> identifier.</p>
 
-  <div class="doc_code">
-    <pre>
+    <pre class="doc_code">
       %indvar.next = add i64 %indvar, 1, !dbg !21
     </pre>
-  </div></p>
 </div>
 
 
@@ -3520,7 +3498,7 @@ Instruction</a> </div>
 
 <p>If the <tt>exact</tt> keyword is present, the result value of the
    <tt>sdiv</tt> is a <a href="#trapvalues">trap value</a> if the result would
-   be rounded or if overflow would occur.</p>
+   be rounded.</p>
 
 <h5>Example:</h5>
 <pre>
@@ -4239,7 +4217,7 @@ Instruction</a> </div>
 
 <h5>Syntax:</h5>
 <pre>
-  &lt;result&gt; = alloca &lt;type&gt;[, i32 &lt;NumElements&gt;][, align &lt;alignment&gt;]     <i>; yields {type*}:result</i>
+  &lt;result&gt; = alloca &lt;type&gt;[, &lt;ty&gt; &lt;NumElements&gt;][, align &lt;alignment&gt;]     <i>; yields {type*}:result</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -4347,8 +4325,8 @@ Instruction</a> </div>
 
 <h5>Syntax:</h5>
 <pre>
-  store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !<index>]                   <i>; yields {void}</i>
-  volatile store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !<index>]          <i>; yields {void}</i>
+  store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]                   <i>; yields {void}</i>
+  volatile store &lt;ty&gt; &lt;value&gt;, &lt;ty&gt;* &lt;pointer&gt;[, align &lt;alignment&gt;][, !nontemporal !&lt;index&gt;]          <i>; yields {void}</i>
 </pre>
 
 <h5>Overview:</h5>
@@ -4373,7 +4351,7 @@ Instruction</a> </div>
    produce less efficient code. An alignment of 1 is always safe.</p>
 
 <p>The optional !nontemporal metadata must reference a single metatadata
-   name <index> corresponding to a metadata node with one i32 entry of
+   name &lt;index&gt; corresponding to a metadata node with one i32 entry of
    value 1.  The existence of the !nontemporal metatadata on the
    instruction tells the optimizer and code generator that this load is
    not expected to be reused in the cache.  The code generator may
@@ -4440,8 +4418,7 @@ Instruction</a> </div>
 <p>For example, let's consider a C code fragment and how it gets compiled to
    LLVM:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 struct RT {
   char A;
   int B[10][20];
@@ -4457,12 +4434,10 @@ int *foo(struct ST *s) {
   return &amp;s[1].Z.B[5][13];
 }
 </pre>
-</div>
 
 <p>The LLVM code generated by the GCC frontend is:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 %RT = <a href="#namedtypes">type</a> { i8 , [10 x [20 x i32]], i8  }
 %ST = <a href="#namedtypes">type</a> { i32, double, %RT }
 
@@ -4472,7 +4447,6 @@ entry:
   ret i32* %reg
 }
 </pre>
-</div>
 
 <h5>Semantics:</h5>
 <p>In the example above, the first index is indexing into the '<tt>%ST*</tt>'
@@ -5406,7 +5380,7 @@ Loop:       ; Infinite loop that counts from 0 on up...
 <h5>Example:</h5>
 <pre>
   %retval = call i32 @test(i32 %argc)
-  call i32 (i8 *, ...)* @printf(i8 * %msg, i32 12, i8 42)      <i>; yields i32</i>
+  call i32 (i8*, ...)* @printf(i8* %msg, i32 12, i8 42)        <i>; yields i32</i>
   %X = tail call i32 @foo()                                    <i>; yields i32</i>
   %Y = tail call <a href="#callingconv">fastcc</a> i32 @foo()  <i>; yields i32</i>
   call void %foo(i8 97 signext)
@@ -5543,8 +5517,7 @@ freestanding environments and non-C-based languages.</p>
    instruction and the variable argument handling intrinsic functions are
    used.</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
 define i32 @test(i32 %X, ...) {
   ; Initialize variable argument processing
   %ap = alloca i8*
@@ -5569,7 +5542,6 @@ declare void @llvm.va_start(i8*)
 declare void @llvm.va_copy(i8*, i8*)
 declare void @llvm.va_end(i8*)
 </pre>
-</div>
 
 </div>
 
@@ -5839,7 +5811,7 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare i8 *@llvm.frameaddress(i32 &lt;level&gt;)
+  declare i8* @llvm.frameaddress(i32 &lt;level&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -5873,7 +5845,7 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare i8 *@llvm.stacksave()
+  declare i8* @llvm.stacksave()
 </pre>
 
 <h5>Overview:</h5>
@@ -5903,7 +5875,7 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare void @llvm.stackrestore(i8 * %ptr)
+  declare void @llvm.stackrestore(i8* %ptr)
 </pre>
 
 <h5>Overview:</h5>
@@ -5992,7 +5964,7 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare i64 @llvm.readcyclecounter( )
+  declare i64 @llvm.readcyclecounter()
 </pre>
 
 <h5>Overview:</h5>
@@ -6037,9 +6009,9 @@ LLVM</a>.</p>
    all bit widths however.</p>
 
 <pre>
-  declare void @llvm.memcpy.p0i8.p0i8.i32(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
+  declare void @llvm.memcpy.p0i8.p0i8.i32(i8* &lt;dest&gt;, i8* &lt;src&gt;,
                                           i32 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
-  declare void @llvm.memcpy.p0i8.p0i8.i64(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
+  declare void @llvm.memcpy.p0i8.p0i8.i64(i8* &lt;dest&gt;, i8* &lt;src&gt;,
                                           i64 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
 </pre>
 
@@ -6091,9 +6063,9 @@ LLVM</a>.</p>
    widths however.</p>
 
 <pre>
-  declare void @llvm.memmove.p0i8.p0i8.i32(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
+  declare void @llvm.memmove.p0i8.p0i8.i32(i8* &lt;dest&gt;, i8* &lt;src&gt;,
                                            i32 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
-  declare void @llvm.memmove.p0i8.p0i8.i64(i8 * &lt;dest&gt;, i8 * &lt;src&gt;,
+  declare void @llvm.memmove.p0i8.p0i8.i64(i8* &lt;dest&gt;, i8* &lt;src&gt;,
                                            i64 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
 </pre>
 
@@ -6147,9 +6119,9 @@ LLVM</a>.</p>
    widths however.</p>
 
 <pre>
-  declare void @llvm.memset.p0i8.i32(i8 * &lt;dest&gt;, i8 &lt;val&gt;,
+  declare void @llvm.memset.p0i8.i32(i8* &lt;dest&gt;, i8 &lt;val&gt;,
                                      i32 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
-  declare void @llvm.memset.p0i8.i64(i8 * &lt;dest&gt;, i8 &lt;val&gt;,
+  declare void @llvm.memset.p0i8.i64(i8* &lt;dest&gt;, i8 &lt;val&gt;,
                                      i64 &lt;len&gt;, i32 &lt;align&gt;, i1 &lt;isvolatile&gt;)
 </pre>
 
@@ -6922,7 +6894,8 @@ LLVM</a>.</p>
 <div class="doc_text">
 
 <p>This intrinsic makes it possible to excise one parameter, marked with
-   the <tt>nest</tt> attribute, from a function.  The result is a callable
+   the <a href="#nest"><tt>nest</tt></a> attribute, from a function.
+   The result is a callable
    function pointer lacking the nest parameter - the caller does not need to
    provide a value for it.  Instead, the value to use is stored in advance in a
    "trampoline", a block of memory usually allocated on the stack, which also
@@ -6934,17 +6907,15 @@ LLVM</a>.</p>
    pointer has signature <tt>i32 (i32, i32)*</tt>.  It can be created as
    follows:</p>
 
-<div class="doc_code">
-<pre>
+<pre class="doc_code">
   %tramp = alloca [10 x i8], align 4 ; size and alignment only correct for X86
   %tramp1 = getelementptr [10 x i8]* %tramp, i32 0, i32 0
-  %p = call i8* @llvm.init.trampoline( i8* %tramp1, i8* bitcast (i32 (i8* nest , i32, i32)* @f to i8*), i8* %nval )
+  %p = call i8* @llvm.init.trampoline(i8* %tramp1, i8* bitcast (i32 (i8* nest , i32, i32)* @f to i8*), i8* %nval)
   %fp = bitcast i8* %p to i32 (i32, i32)*
 </pre>
-</div>
 
-<p>The call <tt>%val = call i32 %fp( i32 %x, i32 %y )</tt> is then equivalent
-   to <tt>%val = call i32 %f( i8* %nval, i32 %x, i32 %y )</tt>.</p>
+<p>The call <tt>%val = call i32 %fp(i32 %x, i32 %y)</tt> is then equivalent
+   to <tt>%val = call i32 %f(i8* %nval, i32 %x, i32 %y)</tt>.</p>
 
 </div>
 
@@ -7024,7 +6995,7 @@ LLVM</a>.</p>
 <div class="doc_text">
 <h5>Syntax:</h5>
 <pre>
-  declare void @llvm.memory.barrier( i1 &lt;ll&gt;, i1 &lt;ls&gt;, i1 &lt;sl&gt;, i1 &lt;ss&gt;, i1 &lt;device&gt; )
+  declare void @llvm.memory.barrier(i1 &lt;ll&gt;, i1 &lt;ls&gt;, i1 &lt;sl&gt;, i1 &lt;ss&gt;, i1 &lt;device&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7081,7 +7052,7 @@ LLVM</a>.</p>
             store i32 4, %ptr
 
 %result1  = load i32* %ptr      <i>; yields {i32}:result1 = 4</i>
-            call void @llvm.memory.barrier( i1 false, i1 true, i1 false, i1 false )
+            call void @llvm.memory.barrier(i1 false, i1 true, i1 false, i1 false)
                                 <i>; guarantee the above finishes</i>
             store i32 8, %ptr   <i>; before this begins</i>
 </pre>
@@ -7101,10 +7072,10 @@ LLVM</a>.</p>
    support all bit widths however.</p>
 
 <pre>
-  declare i8 @llvm.atomic.cmp.swap.i8.p0i8( i8* &lt;ptr&gt;, i8 &lt;cmp&gt;, i8 &lt;val&gt; )
-  declare i16 @llvm.atomic.cmp.swap.i16.p0i16( i16* &lt;ptr&gt;, i16 &lt;cmp&gt;, i16 &lt;val&gt; )
-  declare i32 @llvm.atomic.cmp.swap.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;cmp&gt;, i32 &lt;val&gt; )
-  declare i64 @llvm.atomic.cmp.swap.i64.p0i64( i64* &lt;ptr&gt;, i64 &lt;cmp&gt;, i64 &lt;val&gt; )
+  declare i8 @llvm.atomic.cmp.swap.i8.p0i8(i8* &lt;ptr&gt;, i8 &lt;cmp&gt;, i8 &lt;val&gt;)
+  declare i16 @llvm.atomic.cmp.swap.i16.p0i16(i16* &lt;ptr&gt;, i16 &lt;cmp&gt;, i16 &lt;val&gt;)
+  declare i32 @llvm.atomic.cmp.swap.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;cmp&gt;, i32 &lt;val&gt;)
+  declare i64 @llvm.atomic.cmp.swap.i64.p0i64(i64* &lt;ptr&gt;, i64 &lt;cmp&gt;, i64 &lt;val&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7133,13 +7104,13 @@ LLVM</a>.</p>
             store i32 4, %ptr
 
 %val1     = add i32 4, 4
-%result1  = call i32 @llvm.atomic.cmp.swap.i32.p0i32( i32* %ptr, i32 4, %val1 )
+%result1  = call i32 @llvm.atomic.cmp.swap.i32.p0i32(i32* %ptr, i32 4, %val1)
                                           <i>; yields {i32}:result1 = 4</i>
 %stored1  = icmp eq i32 %result1, 4       <i>; yields {i1}:stored1 = true</i>
 %memval1  = load i32* %ptr                <i>; yields {i32}:memval1 = 8</i>
 
 %val2     = add i32 1, 1
-%result2  = call i32 @llvm.atomic.cmp.swap.i32.p0i32( i32* %ptr, i32 5, %val2 )
+%result2  = call i32 @llvm.atomic.cmp.swap.i32.p0i32(i32* %ptr, i32 5, %val2)
                                           <i>; yields {i32}:result2 = 8</i>
 %stored2  = icmp eq i32 %result2, 5       <i>; yields {i1}:stored2 = false</i>
 
@@ -7159,10 +7130,10 @@ LLVM</a>.</p>
    integer bit width. Not all targets support all bit widths however.</p>
 
 <pre>
-  declare i8 @llvm.atomic.swap.i8.p0i8( i8* &lt;ptr&gt;, i8 &lt;val&gt; )
-  declare i16 @llvm.atomic.swap.i16.p0i16( i16* &lt;ptr&gt;, i16 &lt;val&gt; )
-  declare i32 @llvm.atomic.swap.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;val&gt; )
-  declare i64 @llvm.atomic.swap.i64.p0i64( i64* &lt;ptr&gt;, i64 &lt;val&gt; )
+  declare i8 @llvm.atomic.swap.i8.p0i8(i8* &lt;ptr&gt;, i8 &lt;val&gt;)
+  declare i16 @llvm.atomic.swap.i16.p0i16(i16* &lt;ptr&gt;, i16 &lt;val&gt;)
+  declare i32 @llvm.atomic.swap.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;val&gt;)
+  declare i64 @llvm.atomic.swap.i64.p0i64(i64* &lt;ptr&gt;, i64 &lt;val&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7189,13 +7160,13 @@ LLVM</a>.</p>
             store i32 4, %ptr
 
 %val1     = add i32 4, 4
-%result1  = call i32 @llvm.atomic.swap.i32.p0i32( i32* %ptr, i32 %val1 )
+%result1  = call i32 @llvm.atomic.swap.i32.p0i32(i32* %ptr, i32 %val1)
                                         <i>; yields {i32}:result1 = 4</i>
 %stored1  = icmp eq i32 %result1, 4     <i>; yields {i1}:stored1 = true</i>
 %memval1  = load i32* %ptr              <i>; yields {i32}:memval1 = 8</i>
 
 %val2     = add i32 1, 1
-%result2  = call i32 @llvm.atomic.swap.i32.p0i32( i32* %ptr, i32 %val2 )
+%result2  = call i32 @llvm.atomic.swap.i32.p0i32(i32* %ptr, i32 %val2)
                                         <i>; yields {i32}:result2 = 8</i>
 
 %stored2  = icmp eq i32 %result2, 8     <i>; yields {i1}:stored2 = true</i>
@@ -7217,10 +7188,10 @@ LLVM</a>.</p>
    any integer bit width. Not all targets support all bit widths however.</p>
 
 <pre>
-  declare i8 @llvm.atomic.load.add.i8.p0i8( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.add.i16.p0i16( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.add.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.add.i64.p0i64( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.add.i8.p0i8(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.add.i16.p0i16(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.add.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.add.i64.p0i64(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7243,11 +7214,11 @@ LLVM</a>.</p>
 %mallocP  = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32* null, i32 1) to i32))
 %ptr      = bitcast i8* %mallocP to i32*
             store i32 4, %ptr
-%result1  = call i32 @llvm.atomic.load.add.i32.p0i32( i32* %ptr, i32 4 )
+%result1  = call i32 @llvm.atomic.load.add.i32.p0i32(i32* %ptr, i32 4)
                                 <i>; yields {i32}:result1 = 4</i>
-%result2  = call i32 @llvm.atomic.load.add.i32.p0i32( i32* %ptr, i32 2 )
+%result2  = call i32 @llvm.atomic.load.add.i32.p0i32(i32* %ptr, i32 2)
                                 <i>; yields {i32}:result2 = 8</i>
-%result3  = call i32 @llvm.atomic.load.add.i32.p0i32( i32* %ptr, i32 5 )
+%result3  = call i32 @llvm.atomic.load.add.i32.p0i32(i32* %ptr, i32 5)
                                 <i>; yields {i32}:result3 = 10</i>
 %memval1  = load i32* %ptr      <i>; yields {i32}:memval1 = 15</i>
 </pre>
@@ -7268,10 +7239,10 @@ LLVM</a>.</p>
    support all bit widths however.</p>
 
 <pre>
-  declare i8 @llvm.atomic.load.sub.i8.p0i32( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.sub.i16.p0i32( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.sub.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.sub.i64.p0i32( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.sub.i8.p0i32(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.sub.i16.p0i32(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.sub.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.sub.i64.p0i32(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7295,11 +7266,11 @@ LLVM</a>.</p>
 %mallocP  = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32* null, i32 1) to i32))
 %ptr      = bitcast i8* %mallocP to i32*
             store i32 8, %ptr
-%result1  = call i32 @llvm.atomic.load.sub.i32.p0i32( i32* %ptr, i32 4 )
+%result1  = call i32 @llvm.atomic.load.sub.i32.p0i32(i32* %ptr, i32 4)
                                 <i>; yields {i32}:result1 = 8</i>
-%result2  = call i32 @llvm.atomic.load.sub.i32.p0i32( i32* %ptr, i32 2 )
+%result2  = call i32 @llvm.atomic.load.sub.i32.p0i32(i32* %ptr, i32 2)
                                 <i>; yields {i32}:result2 = 4</i>
-%result3  = call i32 @llvm.atomic.load.sub.i32.p0i32( i32* %ptr, i32 5 )
+%result3  = call i32 @llvm.atomic.load.sub.i32.p0i32(i32* %ptr, i32 5)
                                 <i>; yields {i32}:result3 = 2</i>
 %memval1  = load i32* %ptr      <i>; yields {i32}:memval1 = -3</i>
 </pre>
@@ -7324,31 +7295,31 @@ LLVM</a>.</p>
   widths however.</p>
 
 <pre>
-  declare i8 @llvm.atomic.load.and.i8.p0i8( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.and.i16.p0i16( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.and.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.and.i64.p0i64( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.and.i8.p0i8(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.and.i16.p0i16(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.and.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.and.i64.p0i64(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <pre>
-  declare i8 @llvm.atomic.load.or.i8.p0i8( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.or.i16.p0i16( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.or.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.or.i64.p0i64( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.or.i8.p0i8(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.or.i16.p0i16(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.or.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.or.i64.p0i64(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <pre>
-  declare i8 @llvm.atomic.load.nand.i8.p0i32( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.nand.i16.p0i32( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.nand.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.nand.i64.p0i32( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.nand.i8.p0i32(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.nand.i16.p0i32(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.nand.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.nand.i64.p0i32(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <pre>
-  declare i8 @llvm.atomic.load.xor.i8.p0i32( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.xor.i16.p0i32( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.xor.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.xor.i64.p0i32( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.xor.i8.p0i32(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.xor.i16.p0i32(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.xor.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.xor.i64.p0i32(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7373,13 +7344,13 @@ LLVM</a>.</p>
 %mallocP  = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32* null, i32 1) to i32))
 %ptr      = bitcast i8* %mallocP to i32*
             store i32 0x0F0F, %ptr
-%result0  = call i32 @llvm.atomic.load.nand.i32.p0i32( i32* %ptr, i32 0xFF )
+%result0  = call i32 @llvm.atomic.load.nand.i32.p0i32(i32* %ptr, i32 0xFF)
                                 <i>; yields {i32}:result0 = 0x0F0F</i>
-%result1  = call i32 @llvm.atomic.load.and.i32.p0i32( i32* %ptr, i32 0xFF )
+%result1  = call i32 @llvm.atomic.load.and.i32.p0i32(i32* %ptr, i32 0xFF)
                                 <i>; yields {i32}:result1 = 0xFFFFFFF0</i>
-%result2  = call i32 @llvm.atomic.load.or.i32.p0i32( i32* %ptr, i32 0F )
+%result2  = call i32 @llvm.atomic.load.or.i32.p0i32(i32* %ptr, i32 0F)
                                 <i>; yields {i32}:result2 = 0xF0</i>
-%result3  = call i32 @llvm.atomic.load.xor.i32.p0i32( i32* %ptr, i32 0F )
+%result3  = call i32 @llvm.atomic.load.xor.i32.p0i32(i32* %ptr, i32 0F)
                                 <i>; yields {i32}:result3 = FF</i>
 %memval1  = load i32* %ptr      <i>; yields {i32}:memval1 = F0</i>
 </pre>
@@ -7403,31 +7374,31 @@ LLVM</a>.</p>
    address spaces. Not all targets support all bit widths however.</p>
 
 <pre>
-  declare i8 @llvm.atomic.load.max.i8.p0i8( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.max.i16.p0i16( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.max.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.max.i64.p0i64( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.max.i8.p0i8(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.max.i16.p0i16(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.max.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.max.i64.p0i64(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <pre>
-  declare i8 @llvm.atomic.load.min.i8.p0i8( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.min.i16.p0i16( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.min.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.min.i64.p0i64( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.min.i8.p0i8(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.min.i16.p0i16(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.min.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.min.i64.p0i64(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <pre>
-  declare i8 @llvm.atomic.load.umax.i8.p0i8( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.umax.i16.p0i16( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.umax.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.umax.i64.p0i64( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.umax.i8.p0i8(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.umax.i16.p0i16(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.umax.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.umax.i64.p0i64(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <pre>
-  declare i8 @llvm.atomic.load.umin.i8.p0i8( i8* &lt;ptr&gt;, i8 &lt;delta&gt; )
-  declare i16 @llvm.atomic.load.umin.i16.p0i16( i16* &lt;ptr&gt;, i16 &lt;delta&gt; )
-  declare i32 @llvm.atomic.load.umin.i32.p0i32( i32* &lt;ptr&gt;, i32 &lt;delta&gt; )
-  declare i64 @llvm.atomic.load.umin.i64.p0i64( i64* &lt;ptr&gt;, i64 &lt;delta&gt; )
+  declare i8 @llvm.atomic.load.umin.i8.p0i8(i8* &lt;ptr&gt;, i8 &lt;delta&gt;)
+  declare i16 @llvm.atomic.load.umin.i16.p0i16(i16* &lt;ptr&gt;, i16 &lt;delta&gt;)
+  declare i32 @llvm.atomic.load.umin.i32.p0i32(i32* &lt;ptr&gt;, i32 &lt;delta&gt;)
+  declare i64 @llvm.atomic.load.umin.i64.p0i64(i64* &lt;ptr&gt;, i64 &lt;delta&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7452,13 +7423,13 @@ LLVM</a>.</p>
 %mallocP  = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32* null, i32 1) to i32))
 %ptr      = bitcast i8* %mallocP to i32*
             store i32 7, %ptr
-%result0  = call i32 @llvm.atomic.load.min.i32.p0i32( i32* %ptr, i32 -2 )
+%result0  = call i32 @llvm.atomic.load.min.i32.p0i32(i32* %ptr, i32 -2)
                                 <i>; yields {i32}:result0 = 7</i>
-%result1  = call i32 @llvm.atomic.load.max.i32.p0i32( i32* %ptr, i32 8 )
+%result1  = call i32 @llvm.atomic.load.max.i32.p0i32(i32* %ptr, i32 8)
                                 <i>; yields {i32}:result1 = -2</i>
-%result2  = call i32 @llvm.atomic.load.umin.i32.p0i32( i32* %ptr, i32 10 )
+%result2  = call i32 @llvm.atomic.load.umin.i32.p0i32(i32* %ptr, i32 10)
                                 <i>; yields {i32}:result2 = 8</i>
-%result3  = call i32 @llvm.atomic.load.umax.i32.p0i32( i32* %ptr, i32 30 )
+%result3  = call i32 @llvm.atomic.load.umax.i32.p0i32(i32* %ptr, i32 30)
                                 <i>; yields {i32}:result3 = 8</i>
 %memval1  = load i32* %ptr      <i>; yields {i32}:memval1 = 30</i>
 </pre>
@@ -7613,7 +7584,7 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare void @llvm.var.annotation(i8* &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt; )
+  declare void @llvm.var.annotation(i8* &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7644,11 +7615,11 @@ LLVM</a>.</p>
    any integer bit width.</p>
 
 <pre>
-  declare i8 @llvm.annotation.i8(i8 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt; )
-  declare i16 @llvm.annotation.i16(i16 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt; )
-  declare i32 @llvm.annotation.i32(i32 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt; )
-  declare i64 @llvm.annotation.i64(i64 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt; )
-  declare i256 @llvm.annotation.i256(i256 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt; )
+  declare i8 @llvm.annotation.i8(i8 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt;)
+  declare i16 @llvm.annotation.i16(i16 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt;)
+  declare i32 @llvm.annotation.i32(i32 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt;)
+  declare i64 @llvm.annotation.i64(i64 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt;)
+  declare i256 @llvm.annotation.i256(i256 &lt;val&gt;, i8* &lt;str&gt;, i8* &lt;str&gt;, i32  &lt;int&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7702,7 +7673,7 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare void @llvm.stackprotector( i8* &lt;guard&gt;, i8** &lt;slot&gt; )
+  declare void @llvm.stackprotector(i8* &lt;guard&gt;, i8** &lt;slot&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7736,8 +7707,8 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <pre>
-  declare i32 @llvm.objectsize.i32( i8* &lt;object&gt;, i1 &lt;type&gt; )
-  declare i64 @llvm.objectsize.i64( i8* &lt;object&gt;, i1 &lt;type&gt; )
+  declare i32 @llvm.objectsize.i32(i8* &lt;object&gt;, i1 &lt;type&gt;)
+  declare i64 @llvm.objectsize.i64(i8* &lt;object&gt;, i1 &lt;type&gt;)
 </pre>
 
 <h5>Overview:</h5>
@@ -7773,7 +7744,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-05-26 23:56:15 +0200 (Wed, 26 May 2010) $
+  Last modified: $Date: 2010-07-13 14:26:09 +0200 (Tue, 13 Jul 2010) $
 </address>
 
 </body>

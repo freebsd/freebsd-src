@@ -109,38 +109,29 @@ unsigned SparcInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
 unsigned
 SparcInstrInfo::InsertBranch(MachineBasicBlock &MBB,MachineBasicBlock *TBB,
                              MachineBasicBlock *FBB,
-                             const SmallVectorImpl<MachineOperand> &Cond)const{
-  // FIXME this should probably take a DebugLoc argument
-  DebugLoc dl;
+                             const SmallVectorImpl<MachineOperand> &Cond,
+                             DebugLoc DL)const{
   // Can only insert uncond branches so far.
   assert(Cond.empty() && !FBB && TBB && "Can only handle uncond branches!");
-  BuildMI(&MBB, dl, get(SP::BA)).addMBB(TBB);
+  BuildMI(&MBB, DL, get(SP::BA)).addMBB(TBB);
   return 1;
 }
 
-bool SparcInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
-                                  MachineBasicBlock::iterator I,
-                                  unsigned DestReg, unsigned SrcReg,
-                                  const TargetRegisterClass *DestRC,
-                                  const TargetRegisterClass *SrcRC,
-                                  DebugLoc DL) const {
-  if (DestRC != SrcRC) {
-    // Not yet supported!
-    return false;
-  }
-
-  if (DestRC == SP::IntRegsRegisterClass)
-    BuildMI(MBB, I, DL, get(SP::ORrr), DestReg).addReg(SP::G0).addReg(SrcReg);
-  else if (DestRC == SP::FPRegsRegisterClass)
-    BuildMI(MBB, I, DL, get(SP::FMOVS), DestReg).addReg(SrcReg);
-  else if (DestRC == SP::DFPRegsRegisterClass)
-    BuildMI(MBB, I, DL, get(Subtarget.isV9() ? SP::FMOVD : SP::FpMOVD),DestReg)
-      .addReg(SrcReg);
+void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+                                 MachineBasicBlock::iterator I, DebugLoc DL,
+                                 unsigned DestReg, unsigned SrcReg,
+                                 bool KillSrc) const {
+  if (SP::IntRegsRegClass.contains(DestReg, SrcReg))
+    BuildMI(MBB, I, DL, get(SP::ORrr), DestReg).addReg(SP::G0)
+      .addReg(SrcReg, getKillRegState(KillSrc));
+  else if (SP::FPRegsRegClass.contains(DestReg, SrcReg))
+    BuildMI(MBB, I, DL, get(SP::FMOVS), DestReg)
+      .addReg(SrcReg, getKillRegState(KillSrc));
+  else if (SP::DFPRegsRegClass.contains(DestReg, SrcReg))
+    BuildMI(MBB, I, DL, get(Subtarget.isV9() ? SP::FMOVD : SP::FpMOVD), DestReg)
+      .addReg(SrcReg, getKillRegState(KillSrc));
   else
-    // Can't copy this register
-    return false;
-
-  return true;
+    llvm_unreachable("Impossible reg-to-reg copy");
 }
 
 void SparcInstrInfo::
@@ -181,61 +172,6 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     BuildMI(MBB, I, DL, get(SP::LDDFri), DestReg).addFrameIndex(FI).addImm(0);
   else
     llvm_unreachable("Can't load this register from stack slot");
-}
-
-MachineInstr *SparcInstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
-                                                    MachineInstr* MI,
-                                          const SmallVectorImpl<unsigned> &Ops,
-                                                    int FI) const {
-  if (Ops.size() != 1) return NULL;
-
-  unsigned OpNum = Ops[0];
-  bool isFloat = false;
-  MachineInstr *NewMI = NULL;
-  switch (MI->getOpcode()) {
-  case SP::ORrr:
-    if (MI->getOperand(1).isReg() && MI->getOperand(1).getReg() == SP::G0&&
-        MI->getOperand(0).isReg() && MI->getOperand(2).isReg()) {
-      if (OpNum == 0)    // COPY -> STORE
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(SP::STri))
-          .addFrameIndex(FI)
-          .addImm(0)
-          .addReg(MI->getOperand(2).getReg());
-      else               // COPY -> LOAD
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(SP::LDri),
-                        MI->getOperand(0).getReg())
-          .addFrameIndex(FI)
-          .addImm(0);
-    }
-    break;
-  case SP::FMOVS:
-    isFloat = true;
-    // FALLTHROUGH
-  case SP::FMOVD:
-    if (OpNum == 0) { // COPY -> STORE
-      unsigned SrcReg = MI->getOperand(1).getReg();
-      bool isKill = MI->getOperand(1).isKill();
-      bool isUndef = MI->getOperand(1).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(),
-                      get(isFloat ? SP::STFri : SP::STDFri))
-        .addFrameIndex(FI)
-        .addImm(0)
-        .addReg(SrcReg, getKillRegState(isKill) | getUndefRegState(isUndef));
-    } else {             // COPY -> LOAD
-      unsigned DstReg = MI->getOperand(0).getReg();
-      bool isDead = MI->getOperand(0).isDead();
-      bool isUndef = MI->getOperand(0).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(),
-                      get(isFloat ? SP::LDFri : SP::LDDFri))
-        .addReg(DstReg, RegState::Define |
-                getDeadRegState(isDead) | getUndefRegState(isUndef))
-        .addFrameIndex(FI)
-        .addImm(0);
-    }
-    break;
-  }
-
-  return NewMI;
 }
 
 unsigned SparcInstrInfo::getGlobalBaseReg(MachineFunction *MF) const

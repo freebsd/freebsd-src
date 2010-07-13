@@ -136,7 +136,7 @@ bool StackProtector::RequiresStackProtector() const {
 bool StackProtector::InsertStackProtectors() {
   BasicBlock *FailBB = 0;       // The basic block to jump to if check fails.
   AllocaInst *AI = 0;           // Place on stack that stores the stack guard.
-  Constant *StackGuardVar = 0;  // The stack guard variable.
+  Value *StackGuardVar = 0;  // The stack guard variable.
 
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ) {
     BasicBlock *BB = I++;
@@ -153,9 +153,17 @@ bool StackProtector::InsertStackProtectors() {
       //     StackGuard = load __stack_chk_guard
       //     call void @llvm.stackprotect.create(StackGuard, StackGuardSlot)
       // 
-      PointerType *PtrTy = PointerType::getUnqual(
-          Type::getInt8Ty(RI->getContext()));
-      StackGuardVar = M->getOrInsertGlobal("__stack_chk_guard", PtrTy);
+      const PointerType *PtrTy = Type::getInt8PtrTy(RI->getContext());
+      unsigned AddressSpace, Offset;
+      if (TLI->getStackCookieLocation(AddressSpace, Offset)) {
+        Constant *OffsetVal =
+          ConstantInt::get(Type::getInt32Ty(RI->getContext()), Offset);
+        
+        StackGuardVar = ConstantExpr::getIntToPtr(OffsetVal,
+                                      PointerType::get(PtrTy, AddressSpace));
+      } else {
+        StackGuardVar = M->getOrInsertGlobal("__stack_chk_guard", PtrTy); 
+      }
 
       BasicBlock &Entry = F->getEntryBlock();
       Instruction *InsPt = &Entry.front();

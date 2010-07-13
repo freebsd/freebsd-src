@@ -1,19 +1,21 @@
 ; RUN: llc < %s -mtriple=arm-apple-darwin | FileCheck %s
-; RUN: llc < %s -mtriple=thumbv6-apple-darwin
+; RUN: llc < %s -mtriple=thumbv6-apple-darwin | FileCheck %s
 ; rdar://8015977
 ; rdar://8020118
 
-define arm_apcscc i8* @rt0(i32 %x) nounwind readnone {
+define i8* @rt0(i32 %x) nounwind readnone {
 entry:
 ; CHECK: rt0:
+; CHECK: {r7, lr}
 ; CHECK: mov r0, lr
   %0 = tail call i8* @llvm.returnaddress(i32 0)
   ret i8* %0
 }
 
-define arm_apcscc i8* @rt2() nounwind readnone {
+define i8* @rt2() nounwind readnone {
 entry:
 ; CHECK: rt2:
+; CHECK: {r7, lr}
 ; CHECK: ldr r0, [r7]
 ; CHECK: ldr r0, [r0]
 ; CHECK: ldr r0, [r0, #4]

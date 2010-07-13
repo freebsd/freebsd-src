@@ -73,9 +73,7 @@ Module *BugDriver::deleteInstructionFromProgram(const Instruction *I,
   Instruction *TheInst = RI;              // Got the corresponding instruction!
 
   // If this instruction produces a value, replace any users with null values
-  if (TheInst->getType()->isStructTy())
-    TheInst->replaceAllUsesWith(UndefValue::get(TheInst->getType()));
-  else if (TheInst->getType() != Type::getVoidTy(I->getContext()))
+  if (!TheInst->getType()->isVoidTy())
     TheInst->replaceAllUsesWith(Constant::getNullValue(TheInst->getType()));
 
   // Remove the instruction from the program.
@@ -118,12 +116,13 @@ Module *BugDriver::performFinalCleanups(Module *M, bool MayModifySemantics) {
 
   std::vector<const PassInfo*> CleanupPasses;
   CleanupPasses.push_back(getPI(createGlobalDCEPass()));
-  CleanupPasses.push_back(getPI(createDeadTypeEliminationPass()));
 
   if (MayModifySemantics)
     CleanupPasses.push_back(getPI(createDeadArgHackingPass()));
   else
     CleanupPasses.push_back(getPI(createDeadArgEliminationPass()));
+
+  CleanupPasses.push_back(getPI(createDeadTypeEliminationPass()));
 
   Module *New = runPassesOn(M, CleanupPasses);
   if (New == 0) {
@@ -202,7 +201,7 @@ static Constant *GetTorInit(std::vector<std::pair<Function*, int> > &TorList) {
 /// static ctors/dtors, we need to add an llvm.global_[cd]tors global to M2, and
 /// prune appropriate entries out of M1s list.
 static void SplitStaticCtorDtor(const char *GlobalName, Module *M1, Module *M2,
-                                DenseMap<const Value*, Value*> ValueMap) {
+                                ValueMap<const Value*, Value*> VMap) {
   GlobalVariable *GV = M1->getNamedGlobal(GlobalName);
   if (!GV || GV->isDeclaration() || GV->hasLocalLinkage() ||
       !GV->use_empty()) return;
@@ -230,7 +229,7 @@ static void SplitStaticCtorDtor(const char *GlobalName, Module *M1, Module *M2,
           M1Tors.push_back(std::make_pair(F, Priority));
         else {
           // Map to M2's version of the function.
-          F = cast<Function>(ValueMap[F]);
+          F = cast<Function>(VMap[F]);
           M2Tors.push_back(std::make_pair(F, Priority));
         }
       }
@@ -265,7 +264,7 @@ static void SplitStaticCtorDtor(const char *GlobalName, Module *M1, Module *M2,
 Module *
 llvm::SplitFunctionsOutOfModule(Module *M,
                                 const std::vector<Function*> &F,
-                                DenseMap<const Value*, Value*> &ValueMap) {
+                                ValueMap<const Value*, Value*> &VMap) {
   // Make sure functions & globals are all external so that linkage
   // between the two modules will work.
   for (Module::iterator I = M->begin(), E = M->end(); I != E; ++I)
@@ -277,8 +276,8 @@ llvm::SplitFunctionsOutOfModule(Module *M,
     I->setLinkage(GlobalValue::ExternalLinkage);
   }
 
-  DenseMap<const Value*, Value*> NewValueMap;
-  Module *New = CloneModule(M, NewValueMap);
+  ValueMap<const Value*, Value*> NewVMap;
+  Module *New = CloneModule(M, NewVMap);
 
   // Make sure global initializers exist only in the safe module (CBE->.so)
   for (Module::global_iterator I = New->global_begin(), E = New->global_end();
@@ -288,11 +287,11 @@ llvm::SplitFunctionsOutOfModule(Module *M,
   // Remove the Test functions from the Safe module
   std::set<Function *> TestFunctions;
   for (unsigned i = 0, e = F.size(); i != e; ++i) {
-    Function *TNOF = cast<Function>(ValueMap[F[i]]);
+    Function *TNOF = cast<Function>(VMap[F[i]]);
     DEBUG(errs() << "Removing function ");
     DEBUG(WriteAsOperand(errs(), TNOF, false));
     DEBUG(errs() << "\n");
-    TestFunctions.insert(cast<Function>(NewValueMap[TNOF]));
+    TestFunctions.insert(cast<Function>(NewVMap[TNOF]));
     DeleteFunctionBody(TNOF);       // Function is now external in this module!
   }
 
@@ -305,8 +304,8 @@ llvm::SplitFunctionsOutOfModule(Module *M,
 
   // Make sure that there is a global ctor/dtor array in both halves of the
   // module if they both have static ctor/dtor functions.
-  SplitStaticCtorDtor("llvm.global_ctors", M, New, NewValueMap);
-  SplitStaticCtorDtor("llvm.global_dtors", M, New, NewValueMap);
+  SplitStaticCtorDtor("llvm.global_ctors", M, New, NewVMap);
+  SplitStaticCtorDtor("llvm.global_dtors", M, New, NewVMap);
   
   return New;
 }
@@ -365,8 +364,7 @@ Module *BugDriver::ExtractMappedBlocksFromModule(const
   PI.push_back(getPI(createBlockExtractorPass(EmptyBBs)));
   Module *Ret = runPassesOn(M, PI, false, 1, &ExtraArg);
 
-  if (uniqueFilename.exists())
-    uniqueFilename.eraseFromDisk(); // Free disk space
+  uniqueFilename.eraseFromDisk(); // Free disk space
 
   if (Ret == 0) {
     outs() << "*** Basic Block extraction failed, please report a bug!\n";

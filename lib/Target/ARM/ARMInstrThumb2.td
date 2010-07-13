@@ -637,8 +637,7 @@ multiclass T2I_st<bits<2> opcod, string opc, PatFrag opnode> {
 multiclass T2I_unary_rrot<bits<3> opcod, string opc, PatFrag opnode> {
   def r     : T2I<(outs GPR:$dst), (ins GPR:$src), IIC_iUNAr,
                   opc, ".w\t$dst, $src",
-                 [(set GPR:$dst, (opnode GPR:$src))]>,
-                 Requires<[HasT2ExtractPack]> {
+                 [(set GPR:$dst, (opnode GPR:$src))]> {
      let Inst{31-27} = 0b11111;
      let Inst{26-23} = 0b0100;
      let Inst{22-20} = opcod;
@@ -649,8 +648,7 @@ multiclass T2I_unary_rrot<bits<3> opcod, string opc, PatFrag opnode> {
    }
   def r_rot : T2I<(outs GPR:$dst), (ins GPR:$src, i32imm:$rot), IIC_iUNAsi,
                   opc, ".w\t$dst, $src, ror $rot",
-                 [(set GPR:$dst, (opnode (rotr GPR:$src, rot_imm:$rot)))]>,
-                 Requires<[HasT2ExtractPack]> {
+                 [(set GPR:$dst, (opnode (rotr GPR:$src, rot_imm:$rot)))]> {
      let Inst{31-27} = 0b11111;
      let Inst{26-23} = 0b0100;
      let Inst{22-20} = opcod;
@@ -661,8 +659,8 @@ multiclass T2I_unary_rrot<bits<3> opcod, string opc, PatFrag opnode> {
    }
 }
 
-// SXTB16 and UXTB16 do not need the .w qualifier.
-multiclass T2I_unary_rrot_nw<bits<3> opcod, string opc, PatFrag opnode> {
+// UXTB16 - Requres T2ExtractPack, does not need the .w qualifier.
+multiclass T2I_unary_rrot_uxtb16<bits<3> opcod, string opc, PatFrag opnode> {
   def r     : T2I<(outs GPR:$dst), (ins GPR:$src), IIC_iUNAr,
                   opc, "\t$dst, $src",
                  [(set GPR:$dst, (opnode GPR:$src))]>,
@@ -689,9 +687,9 @@ multiclass T2I_unary_rrot_nw<bits<3> opcod, string opc, PatFrag opnode> {
    }
 }
 
-// DO variant - disassembly only, no pattern
-
-multiclass T2I_unary_rrot_DO<bits<3> opcod, string opc> {
+// SXTB16 - Requres T2ExtractPack, does not need the .w qualifier, no pattern
+// supported yet.
+multiclass T2I_unary_rrot_sxtb16<bits<3> opcod, string opc> {
   def r     : T2I<(outs GPR:$dst), (ins GPR:$src), IIC_iUNAr,
                   opc, "\t$dst, $src", []> {
      let Inst{31-27} = 0b11111;
@@ -787,6 +785,7 @@ def t2LEApcrel : T2XI<(outs GPR:$dst), (ins i32imm:$label, pred:$p), IIC_iALUi,
   let Inst{19-16} = 0b1111; // Rn
   let Inst{15} = 0;
 }
+} // neverHasSideEffects
 def t2LEApcrelJT : T2XI<(outs GPR:$dst),
                         (ins i32imm:$label, nohash_imm:$id, pred:$p), IIC_iALUi,
                         "adr$p.w\t$dst, #${label}_${id}", []> {
@@ -798,7 +797,6 @@ def t2LEApcrelJT : T2XI<(outs GPR:$dst),
   let Inst{19-16} = 0b1111; // Rn
   let Inst{15} = 0;
 }
-} // neverHasSideEffects
 
 // ADD r, sp, {so_imm|i12}
 def t2ADDrSPi   : T2sI<(outs GPR:$dst), (ins GPR:$sp, t2_so_imm:$imm),
@@ -1330,7 +1328,7 @@ defm t2SXTB  : T2I_unary_rrot<0b100, "sxtb",
                               UnOpFrag<(sext_inreg node:$Src, i8)>>;
 defm t2SXTH  : T2I_unary_rrot<0b000, "sxth",
                               UnOpFrag<(sext_inreg node:$Src, i16)>>;
-defm t2SXTB16 : T2I_unary_rrot_DO<0b010, "sxtb16">;
+defm t2SXTB16 : T2I_unary_rrot_sxtb16<0b010, "sxtb16">;
 
 defm t2SXTAB : T2I_bin_rrot<0b100, "sxtab",
                         BinOpFrag<(add node:$LHS, (sext_inreg node:$RHS, i8))>>;
@@ -1347,13 +1345,13 @@ defm t2UXTB   : T2I_unary_rrot<0b101, "uxtb",
                                UnOpFrag<(and node:$Src, 0x000000FF)>>;
 defm t2UXTH   : T2I_unary_rrot<0b001, "uxth",
                                UnOpFrag<(and node:$Src, 0x0000FFFF)>>;
-defm t2UXTB16 : T2I_unary_rrot_nw<0b011, "uxtb16",
+defm t2UXTB16 : T2I_unary_rrot_uxtb16<0b011, "uxtb16",
                                UnOpFrag<(and node:$Src, 0x00FF00FF)>>;
 
 def : T2Pat<(and (shl GPR:$Src, (i32 8)), 0xFF00FF),
-            (t2UXTB16r_rot GPR:$Src, 24)>;
+            (t2UXTB16r_rot GPR:$Src, 24)>, Requires<[HasT2ExtractPack]>;
 def : T2Pat<(and (srl GPR:$Src, (i32 8)), 0xFF00FF),
-            (t2UXTB16r_rot GPR:$Src, 8)>;
+            (t2UXTB16r_rot GPR:$Src, 8)>, Requires<[HasT2ExtractPack]>;
 
 defm t2UXTAB : T2I_bin_rrot<0b101, "uxtab",
                            BinOpFrag<(add node:$LHS, (and node:$RHS, 0x00FF))>>;
@@ -2389,37 +2387,36 @@ let isCall = 1,
 //   except for our own input by listing the relevant registers in Defs. By
 //   doing so, we also cause the prologue/epilogue code to actively preserve
 //   all of the callee-saved resgisters, which is exactly what we want.
-//   The current SP is passed in $val, and we reuse the reg as a scratch.
+//   $val is a scratch register for our use.
 let Defs =
   [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7,  R8,  R9,  R10, R11, R12, LR,  D0,
     D1,  D2,  D3,  D4,  D5,  D6,  D7,  D8,  D9,  D10, D11, D12, D13, D14, D15,
     D16, D17, D18, D19, D20, D21, D22, D23, D24, D25, D26, D27, D28, D29, D30,
-    D31 ] in {
+    D31 ], hasSideEffects = 1, isBarrier = 1 in {
   def t2Int_eh_sjlj_setjmp : Thumb2XI<(outs), (ins GPR:$src, tGPR:$val),
                                AddrModeNone, SizeSpecial, NoItinerary,
-                               "str\t$val, [$src, #8]\t${:comment} begin eh.setjmp\n"
-                               "\tmov\t$val, pc\n"
-                               "\tadds\t$val, #7\n"
-                               "\tstr\t$val, [$src, #4]\n"
-                               "\tmovs\tr0, #0\n"
-                               "\tb\t1f\n"
-                               "\tmovs\tr0, #1\t${:comment} end eh.setjmp\n"
+                               "mov\t$val, pc\t${:comment} begin eh.setjmp\n\t"
+                               "adds\t$val, #7\n\t"
+                               "str\t$val, [$src, #4]\n\t"
+                               "movs\tr0, #0\n\t"
+                               "b\t1f\n\t"
+                               "movs\tr0, #1\t${:comment} end eh.setjmp\n\t"
                                "1:", "",
                           [(set R0, (ARMeh_sjlj_setjmp GPR:$src, tGPR:$val))]>,
                              Requires<[IsThumb2, HasVFP2]>;
 }
 
 let Defs =
-  [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7,  R8,  R9,  R10, R11, R12, LR ] in {
+  [ R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7,  R8,  R9,  R10, R11, R12, LR ],
+  hasSideEffects = 1, isBarrier = 1 in {
   def t2Int_eh_sjlj_setjmp_nofp : Thumb2XI<(outs), (ins GPR:$src, tGPR:$val),
                                AddrModeNone, SizeSpecial, NoItinerary,
-                               "str\t$val, [$src, #8]\t${:comment} begin eh.setjmp\n"
-                               "\tmov\t$val, pc\n"
-                               "\tadds\t$val, #7\n"
-                               "\tstr\t$val, [$src, #4]\n"
-                               "\tmovs\tr0, #0\n"
-                               "\tb\t1f\n"
-                               "\tmovs\tr0, #1\t${:comment} end eh.setjmp\n"
+                               "mov\t$val, pc\t${:comment} begin eh.setjmp\n\t"
+                               "adds\t$val, #7\n\t"
+                               "str\t$val, [$src, #4]\n\t"
+                               "movs\tr0, #0\n\t"
+                               "b\t1f\n\t"
+                               "movs\tr0, #1\t${:comment} end eh.setjmp\n\t"
                                "1:", "",
                           [(set R0, (ARMeh_sjlj_setjmp GPR:$src, tGPR:$val))]>,
                                   Requires<[IsThumb2, NoVFP]>;
@@ -2529,6 +2526,7 @@ def t2Bcc : T2I<(outs), (ins brtarget:$target), IIC_Br,
 
 
 // IT block
+let Defs = [ITSTATE] in
 def t2IT : Thumb2XI<(outs), (ins it_pred:$cc, it_mask:$mask),
                     AddrModeNone, Size2Bytes,  IIC_iALUx,
                     "it$mask\t$cc", "", []> {
@@ -2691,7 +2689,8 @@ def : T2Pat<(ARMWrapperJT tjumptable:$dst, imm:$id),
 // scheduling.
 let canFoldAsLoad = 1, isReMaterializable = 1 in
 def t2LDRpci_pic : PseudoInst<(outs GPR:$dst), (ins i32imm:$addr, pclabel:$cp),
-                   NoItinerary, "${:comment} ldr.w\t$dst, $addr\n$cp:\n\tadd\t$dst, pc",
+                   NoItinerary,
+                   "${:comment} ldr.w\t$dst, $addr\n$cp:\n\tadd\t$dst, pc",
                [(set GPR:$dst, (ARMpic_add (load (ARMWrapper tconstpool:$addr)),
                                            imm:$cp))]>,
                Requires<[IsThumb2]>;

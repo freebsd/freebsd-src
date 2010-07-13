@@ -667,9 +667,9 @@ Value *BinaryExprAST::Codegen() {
   if (L == 0 || R == 0) return 0;
   
   switch (Op) {
-  case '+': return Builder.CreateAdd(L, R, "addtmp");
-  case '-': return Builder.CreateSub(L, R, "subtmp");
-  case '*': return Builder.CreateMul(L, R, "multmp");
+  case '+': return Builder.CreateFAdd(L, R, "addtmp");
+  case '-': return Builder.CreateFSub(L, R, "subtmp");
+  case '*': return Builder.CreateFMul(L, R, "multmp");    
   case '<':
     L = Builder.CreateFCmpULT(L, R, "cmptmp");
     // Convert bool 0/1 to double 0.0 or 1.0
@@ -828,7 +828,7 @@ Value *ForExprAST::Codegen() {
   // Reload, increment, and restore the alloca.  This handles the case where
   // the body of the loop mutates the variable.
   Value *CurVar = Builder.CreateLoad(Alloca, VarName.c_str());
-  Value *NextVar = Builder.CreateAdd(CurVar, StepVal, "nextvar");
+  Value *NextVar = Builder.CreateFAdd(CurVar, StepVal, "nextvar");
   Builder.CreateStore(NextVar, Alloca);
   
   // Convert condition to a bool by comparing equal to 0.0.

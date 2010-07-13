@@ -467,6 +467,17 @@ void IndVarSimplify::EliminateIVRemainders() {
 }
 
 bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
+  // If LoopSimplify form is not available, stay out of trouble. Some notes:
+  //  - LSR currently only supports LoopSimplify-form loops. Indvars'
+  //    canonicalization can be a pessimization without LSR to "clean up"
+  //    afterwards.
+  //  - We depend on having a preheader; in particular,
+  //    Loop::getCanonicalInductionVariable only supports loops with preheaders,
+  //    and we're in trouble if we can't find the induction variable even when
+  //    we've manually inserted one.
+  if (!L->isLoopSimplifyForm())
+    return false;
+
   IU = &getAnalysis<IVUsers>();
   LI = &getAnalysis<LoopInfo>();
   SE = &getAnalysis<ScalarEvolution>();
@@ -760,8 +771,9 @@ void IndVarSimplify::SinkUnusedInvariants(Loop *L) {
     bool UsedInLoop = false;
     for (Value::use_iterator UI = I->use_begin(), UE = I->use_end();
          UI != UE; ++UI) {
-      BasicBlock *UseBB = cast<Instruction>(UI)->getParent();
-      if (PHINode *P = dyn_cast<PHINode>(UI)) {
+      User *U = *UI;
+      BasicBlock *UseBB = cast<Instruction>(U)->getParent();
+      if (PHINode *P = dyn_cast<PHINode>(U)) {
         unsigned i =
           PHINode::getIncomingValueNumForOperand(UI.getOperandNo());
         UseBB = P->getIncomingBlock(i);
