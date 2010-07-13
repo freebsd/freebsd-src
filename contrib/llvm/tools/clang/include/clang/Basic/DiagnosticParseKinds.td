@@ -24,7 +24,9 @@ def ext_empty_source_file : Extension<"ISO C forbids an empty source file">;
 def ext_top_level_semi : Extension<
   "extra ';' outside of a function">;
 def ext_extra_struct_semi : Extension<
-  "extra ';' inside a struct or union">;
+  "extra ';' inside a %0">;
+def ext_extra_ivar_semi : Extension<
+  "extra ';' inside instance variable list">;
 
 def ext_duplicate_declspec : Extension<"duplicate '%0' declaration specifier">;
 def ext_plain_complex : ExtWarn<
@@ -35,6 +37,7 @@ def ext_thread_before : Extension<"'__thread' before 'static'">;
 
 def ext_empty_struct_union_enum : Extension<"use of empty %0 extension">;
 
+def error_empty_enum : Error<"use of empty enum">;
 def err_invalid_sign_spec : Error<"'%0' cannot be signed or unsigned">;
 def err_invalid_short_spec : Error<"'short %0' is invalid">;
 def err_invalid_long_spec : Error<"'long %0' is invalid">;
@@ -103,7 +106,7 @@ def err_expected_fn_body : Error<
   "expected function body after function declarator">;
 def err_expected_method_body : Error<"expected method body">;
 def err_invalid_token_after_toplevel_declarator : Error<
-  "invalid token after top level declarator">;
+  "expected ';' after top level declarator">;
 def err_expected_statement : Error<"expected statement">;
 def err_expected_lparen_after : Error<"expected '(' after '%0'">;
 def err_expected_lparen_after_id : Error<"expected '(' after %0">;
@@ -168,11 +171,15 @@ def err_typename_invalid_functionspec : Error<
 def err_invalid_decl_spec_combination : Error<
   "cannot combine with previous '%0' declaration specifier">;
 def err_invalid_vector_decl_spec_combination : Error<
-  "cannot combine with previous '%0' declaration specifier. '__vector' must be first">;
+  "cannot combine with previous '%0' declaration specifier. "
+  "'__vector' must be first">;
 def err_invalid_pixel_decl_spec_combination : Error<
-  "'__pixel' must be preceded by '__vector'.  '%0' declaration specifier not allowed here">;
-def err_invalid_vector_double_decl_spec_combination : Error<
-  "cannot use 'double' with '__vector'">;
+  "'__pixel' must be preceded by '__vector'.  "
+  "'%0' declaration specifier not allowed here">;
+def err_invalid_vector_decl_spec : Error<
+  "cannot use '%0' with '__vector'">;
+def err_invalid_vector_bool_decl_spec : Error<
+  "cannot use '%0' with '__vector bool'">;
 def warn_vector_long_decl_spec_combination : Warning<
   "Use of 'long' with '__vector' is deprecated">, InGroup<Deprecated>;
 def err_friend_invalid_in_context : Error<

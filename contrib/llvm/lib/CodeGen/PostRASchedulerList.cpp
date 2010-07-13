@@ -22,8 +22,6 @@
 #include "AntiDepBreaker.h"
 #include "AggressiveAntiDepBreaker.h"
 #include "CriticalAntiDepBreaker.h"
-#include "ExactHazardRecognizer.h"
-#include "SimpleHazardRecognizer.h"
 #include "ScheduleDAGInstrs.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/LatencyPriorityQueue.h"
@@ -65,10 +63,6 @@ EnableAntiDepBreaking("break-anti-dependencies",
                       cl::desc("Break post-RA scheduling anti-dependencies: "
                                "\"critical\", \"all\", or \"none\""),
                       cl::init("none"), cl::Hidden);
-static cl::opt<bool>
-EnablePostRAHazardAvoidance("avoid-hazards",
-                      cl::desc("Enable exact hazard avoidance"),
-                      cl::init(true), cl::Hidden);
 
 // If DebugDiv > 0 then only schedule MBB with (ID % DebugDiv) == DebugMod
 static cl::opt<int>
@@ -85,6 +79,7 @@ AntiDepBreaker::~AntiDepBreaker() { }
 namespace {
   class PostRAScheduler : public MachineFunctionPass {
     AliasAnalysis *AA;
+    const TargetInstrInfo *TII;
     CodeGenOpt::Level OptLevel;
 
   public:
@@ -187,30 +182,9 @@ namespace {
   };
 }
 
-/// isSchedulingBoundary - Test if the given instruction should be
-/// considered a scheduling boundary. This primarily includes labels
-/// and terminators.
-///
-static bool isSchedulingBoundary(const MachineInstr *MI,
-                                 const MachineFunction &MF) {
-  // Terminators and labels can't be scheduled around.
-  if (MI->getDesc().isTerminator() || MI->isLabel())
-    return true;
-
-  // Don't attempt to schedule around any instruction that defines
-  // a stack-oriented pointer, as it's unlikely to be profitable. This
-  // saves compile time, because it doesn't require every single
-  // stack slot reference to depend on the instruction that does the
-  // modification.
-  const TargetLowering &TLI = *MF.getTarget().getTargetLowering();
-  if (MI->definesRegister(TLI.getStackPointerRegisterToSaveRestore()))
-    return true;
-
-  return false;
-}
-
 bool PostRAScheduler::runOnMachineFunction(MachineFunction &Fn) {
   AA = &getAnalysis<AliasAnalysis>();
+  TII = Fn.getTarget().getInstrInfo();
 
   // Check for explicit enable/disable of post-ra scheduling.
   TargetSubtarget::AntiDepBreakMode AntiDepMode = TargetSubtarget::ANTIDEP_NONE;
@@ -237,10 +211,10 @@ bool PostRAScheduler::runOnMachineFunction(MachineFunction &Fn) {
 
   const MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
   const MachineDominatorTree &MDT = getAnalysis<MachineDominatorTree>();
-  const InstrItineraryData &InstrItins = Fn.getTarget().getInstrItineraryData();
-  ScheduleHazardRecognizer *HR = EnablePostRAHazardAvoidance ?
-    (ScheduleHazardRecognizer *)new ExactHazardRecognizer(InstrItins) :
-    (ScheduleHazardRecognizer *)new SimpleHazardRecognizer();
+  const TargetMachine &TM = Fn.getTarget();
+  const InstrItineraryData &InstrItins = TM.getInstrItineraryData();
+  ScheduleHazardRecognizer *HR =
+    TM.getInstrInfo()->CreateTargetPostRAHazardRecognizer(InstrItins);
   AntiDepBreaker *ADB =
     ((AntiDepMode == TargetSubtarget::ANTIDEP_ALL) ?
      (AntiDepBreaker *)new AggressiveAntiDepBreaker(Fn, CriticalPathRCs) :
@@ -271,8 +245,8 @@ bool PostRAScheduler::runOnMachineFunction(MachineFunction &Fn) {
     MachineBasicBlock::iterator Current = MBB->end();
     unsigned Count = MBB->size(), CurrentCount = Count;
     for (MachineBasicBlock::iterator I = Current; I != MBB->begin(); ) {
-      MachineInstr *MI = prior(I);
-      if (isSchedulingBoundary(MI, Fn)) {
+      MachineInstr *MI = llvm::prior(I);
+      if (TII->isSchedulingBoundary(MI, MBB, Fn)) {
         Scheduler.Run(MBB, I, Current, CurrentCount);
         Scheduler.EmitSchedule();
         Current = MI;
@@ -680,15 +654,6 @@ void SchedulePostRATDList::ListScheduleTopDown() {
       ScheduleNodeTopDown(FoundSUnit, CurCycle);
       HazardRec->EmitInstruction(FoundSUnit);
       CycleHasInsts = true;
-
-      // If we are using the target-specific hazards, then don't
-      // advance the cycle time just because we schedule a node. If
-      // the target allows it we can schedule multiple nodes in the
-      // same cycle.
-      if (!EnablePostRAHazardAvoidance) {
-        if (FoundSUnit->Latency)  // Don't increment CurCycle for pseudo-ops!
-          ++CurCycle;
-      }
     } else {
       if (CycleHasInsts) {
         DEBUG(dbgs() << "*** Finished cycle " << CurCycle << '\n');

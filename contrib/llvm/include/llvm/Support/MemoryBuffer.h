@@ -26,17 +26,20 @@ namespace llvm {
 /// into a memory buffer.  In addition to basic access to the characters in the
 /// file, this interface guarantees you can read one character past the end of
 /// the file, and that this character will read as '\0'.
+///
+/// The '\0' guarantee is needed to support an optimization -- it's intended to
+/// be more efficient for clients which are reading all the data to stop
+/// reading when they encounter a '\0' than to continually check the file
+/// position to see if it has reached the end of the file.
 class MemoryBuffer {
   const char *BufferStart; // Start of the buffer.
   const char *BufferEnd;   // End of the buffer.
 
-  /// MustDeleteBuffer - True if we allocated this buffer.  If so, the
-  /// destructor must know the delete[] it.
-  bool MustDeleteBuffer;
+  MemoryBuffer(const MemoryBuffer &); // DO NOT IMPLEMENT
+  MemoryBuffer &operator=(const MemoryBuffer &); // DO NOT IMPLEMENT
 protected:
-  MemoryBuffer() : MustDeleteBuffer(false) {}
+  MemoryBuffer() {}
   void init(const char *BufStart, const char *BufEnd);
-  void initCopyOf(const char *BufStart, const char *BufEnd);
 public:
   virtual ~MemoryBuffer();
 
@@ -62,24 +65,27 @@ public:
                                std::string *ErrStr = 0,
                                int64_t FileSize = -1,
                                struct stat *FileInfo = 0);
+  static MemoryBuffer *getFile(const char *Filename,
+                               std::string *ErrStr = 0,
+                               int64_t FileSize = -1,
+                               struct stat *FileInfo = 0);
 
   /// getMemBuffer - Open the specified memory range as a MemoryBuffer.  Note
   /// that EndPtr[0] must be a null byte and be accessible!
   static MemoryBuffer *getMemBuffer(StringRef InputData,
-                                    const char *BufferName = "");
+                                    StringRef BufferName = "");
 
   /// getMemBufferCopy - Open the specified memory range as a MemoryBuffer,
   /// copying the contents and taking ownership of it.  This has no requirements
   /// on EndPtr[0].
   static MemoryBuffer *getMemBufferCopy(StringRef InputData,
-                                        const char *BufferName = "");
+                                        StringRef BufferName = "");
 
   /// getNewMemBuffer - Allocate a new MemoryBuffer of the specified size that
   /// is completely initialized to zeros.  Note that the caller should
   /// initialize the memory allocated by this method.  The memory is owned by
   /// the MemoryBuffer object.
-  static MemoryBuffer *getNewMemBuffer(size_t Size,
-                                       const char *BufferName = "");
+  static MemoryBuffer *getNewMemBuffer(size_t Size, StringRef BufferName = "");
 
   /// getNewUninitMemBuffer - Allocate a new MemoryBuffer of the specified size
   /// that is not initialized.  Note that the caller should initialize the
@@ -89,13 +95,18 @@ public:
                                              StringRef BufferName = "");
 
   /// getSTDIN - Read all of stdin into a file buffer, and return it.
-  static MemoryBuffer *getSTDIN();
+  /// If an error occurs, this returns null and fills in *ErrStr with a reason.
+  static MemoryBuffer *getSTDIN(std::string *ErrStr = 0);
 
 
   /// getFileOrSTDIN - Open the specified file as a MemoryBuffer, or open stdin
   /// if the Filename is "-".  If an error occurs, this returns null and fills
   /// in *ErrStr with a reason.
   static MemoryBuffer *getFileOrSTDIN(StringRef Filename,
+                                      std::string *ErrStr = 0,
+                                      int64_t FileSize = -1,
+                                      struct stat *FileInfo = 0);
+  static MemoryBuffer *getFileOrSTDIN(const char *Filename,
                                       std::string *ErrStr = 0,
                                       int64_t FileSize = -1,
                                       struct stat *FileInfo = 0);

@@ -1,10 +1,5 @@
 # Clang version information
 
-# Make sure that CMake reconfigures when the version changes.
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/VER
-  ${CMAKE_CURRENT_BINARY_DIR}/VER)
-
 set(CLANG_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(CLANG_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -28,17 +23,37 @@ if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR )
   endif()
 endif()
 
-# Compute the Clang version from the contents of VER
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/VER CLANG_VERSION_DATA)
+# Compute the Clang version from the LLVM version.
 string(REGEX MATCH "[0-9]+\\.[0-9]+(\\.[0-9]+)?" CLANG_VERSION 
-  ${CLANG_VERSION_DATA})
+  ${PACKAGE_VERSION})
 message(STATUS "Clang version: ${CLANG_VERSION}")
+
+string(REGEX REPLACE "([0-9]+)\\.[0-9]+(\\.[0-9]+)?" "\\1" CLANG_VERSION_MAJOR
+  ${CLANG_VERSION})
+string(REGEX REPLACE "[0-9]+\\.([0-9]+)(\\.[0-9]+)?" "\\1" CLANG_VERSION_MINOR
+  ${CLANG_VERSION})
+if (${CLANG_VERSION} MATCHES "[0-9]+\\.[0-9]+\\.[0-9]+")
+  set(CLANG_HAS_VERSION_PATCHLEVEL 1)
+  string(REGEX REPLACE "[0-9]+\\.[0-9]+\\.([0-9]+)" "\\1" CLANG_VERSION_PATCHLEVEL
+    ${CLANG_VERSION})
+else()
+  set(CLANG_HAS_VERSION_PATCHLEVEL 0)
+endif()
+
+# Configure the Version.inc file.
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/clang/Basic/Version.inc.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/clang/Basic/Version.inc)
 
 # Add appropriate flags for GCC
 if (CMAKE_COMPILER_IS_GNUCXX)
   # FIXME: Turn off exceptions, RTTI:
   # -fno-exceptions -fno-rtti
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -pedantic -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
+endif ()
+
+if (APPLE)
+  set(CMAKE_MODULE_LINKER_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
 endif ()
 
 macro(add_clang_library name)
@@ -54,7 +69,9 @@ macro(add_clang_library name)
       ../../include/clang${dir}/*.def)
     set(srcs ${srcs} ${headers})
   endif(MSVC_IDE OR XCODE)
-  if (SHARED_LIBRARY)
+  if (MODULE)
+    set(libkind MODULE)
+  elseif (SHARED_LIBRARY)
     set(libkind SHARED)
   else()
     set(libkind)

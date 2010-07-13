@@ -19,6 +19,7 @@
 #include "AsmWriterEmitter.h"
 #include "CallingConvEmitter.h"
 #include "ClangASTNodesEmitter.h"
+#include "ClangAttrEmitter.h"
 #include "ClangDiagnosticsEmitter.h"
 #include "CodeEmitterGen.h"
 #include "DAGISelEmitter.h"
@@ -29,6 +30,7 @@
 #include "InstrInfoEmitter.h"
 #include "IntrinsicEmitter.h"
 #include "LLVMCConfigurationEmitter.h"
+#include "NeonEmitter.h"
 #include "OptParserEmitter.h"
 #include "Record.h"
 #include "RegisterInfoEmitter.h"
@@ -52,8 +54,11 @@ enum ActionType {
   GenARMDecoder,
   GenDisassembler,
   GenCallingConv,
+  GenClangAttrClasses,
+  GenClangAttrList,
   GenClangDiagsDefs,
   GenClangDiagGroups,
+  GenClangDeclNodes,
   GenClangStmtNodes,
   GenDAGISel,
   GenFastISel,
@@ -63,6 +68,8 @@ enum ActionType {
   GenTgtIntrinsic,
   GenLLVMCConf,
   GenEDHeader, GenEDInfo,
+  GenArmNeon,
+  GenArmNeonSema,
   PrintEnums
 };
 
@@ -107,10 +114,16 @@ namespace {
                                "Generate intrinsic information"),
                     clEnumValN(GenTgtIntrinsic, "gen-tgt-intrinsic",
                                "Generate target intrinsic information"),
+                    clEnumValN(GenClangAttrClasses, "gen-clang-attr-classes",
+                               "Generate clang attribute clases"),
+                    clEnumValN(GenClangAttrList, "gen-clang-attr-list",
+                               "Generate a clang attribute list"),
                     clEnumValN(GenClangDiagsDefs, "gen-clang-diags-defs",
                                "Generate Clang diagnostics definitions"),
                     clEnumValN(GenClangDiagGroups, "gen-clang-diag-groups",
                                "Generate Clang diagnostic groups"),
+                    clEnumValN(GenClangDeclNodes, "gen-clang-decl-nodes",
+                               "Generate Clang AST statement nodes"),
                     clEnumValN(GenClangStmtNodes, "gen-clang-stmt-nodes",
                                "Generate Clang AST statement nodes"),
                     clEnumValN(GenLLVMCConf, "gen-llvmc",
@@ -119,6 +132,10 @@ namespace {
                                "Generate enhanced disassembly info header"),
                     clEnumValN(GenEDInfo, "gen-enhanced-disassembly-info",
                                "Generate enhanced disassembly info"),
+                    clEnumValN(GenArmNeon, "gen-arm-neon",
+                               "Generate arm_neon.h for clang"),
+                    clEnumValN(GenArmNeonSema, "gen-arm-neon-sema",
+                               "Generate ARM NEON sema support for clang"),
                     clEnumValN(PrintEnums, "print-enums",
                                "Print enum values for a class"),
                     clEnumValEnd));
@@ -191,105 +208,117 @@ int main(int argc, char **argv) {
   if (ParseFile(InputFilename, IncludeDirs, SrcMgr))
     return 1;
 
-  raw_ostream *Out = &outs();
-  if (OutputFilename != "-") {
-    std::string Error;
-    Out = new raw_fd_ostream(OutputFilename.c_str(), Error);
-
-    if (!Error.empty()) {
-      errs() << argv[0] << ": error opening " << OutputFilename
-             << ":" << Error << "\n";
-      return 1;
-    }
-
-    // Make sure the file gets removed if *gasp* tablegen crashes...
-    sys::RemoveFileOnSignal(sys::Path(OutputFilename));
+  std::string Error;
+  raw_fd_ostream Out(OutputFilename.c_str(), Error);
+  if (!Error.empty()) {
+    errs() << argv[0] << ": error opening " << OutputFilename
+           << ":" << Error << "\n";
+    return 1;
   }
+
+  // Make sure the file gets removed if *gasp* tablegen crashes...
+  sys::RemoveFileOnSignal(sys::Path(OutputFilename));
 
   try {
     switch (Action) {
     case PrintRecords:
-      *Out << Records;           // No argument, dump all contents
+      Out << Records;           // No argument, dump all contents
       break;
     case GenEmitter:
-      CodeEmitterGen(Records).run(*Out);
+      CodeEmitterGen(Records).run(Out);
       break;
 
     case GenRegisterEnums:
-      RegisterInfoEmitter(Records).runEnums(*Out);
+      RegisterInfoEmitter(Records).runEnums(Out);
       break;
     case GenRegister:
-      RegisterInfoEmitter(Records).run(*Out);
+      RegisterInfoEmitter(Records).run(Out);
       break;
     case GenRegisterHeader:
-      RegisterInfoEmitter(Records).runHeader(*Out);
+      RegisterInfoEmitter(Records).runHeader(Out);
       break;
     case GenInstrEnums:
-      InstrEnumEmitter(Records).run(*Out);
+      InstrEnumEmitter(Records).run(Out);
       break;
     case GenInstrs:
-      InstrInfoEmitter(Records).run(*Out);
+      InstrInfoEmitter(Records).run(Out);
       break;
     case GenCallingConv:
-      CallingConvEmitter(Records).run(*Out);
+      CallingConvEmitter(Records).run(Out);
       break;
     case GenAsmWriter:
-      AsmWriterEmitter(Records).run(*Out);
+      AsmWriterEmitter(Records).run(Out);
       break;
     case GenARMDecoder:
-      ARMDecoderEmitter(Records).run(*Out);
+      ARMDecoderEmitter(Records).run(Out);
       break;
     case GenAsmMatcher:
-      AsmMatcherEmitter(Records).run(*Out);
+      AsmMatcherEmitter(Records).run(Out);
+      break;
+    case GenClangAttrClasses:
+      ClangAttrClassEmitter(Records).run(Out);
+      break;
+    case GenClangAttrList:
+      ClangAttrListEmitter(Records).run(Out);
       break;
     case GenClangDiagsDefs:
-      ClangDiagsDefsEmitter(Records, ClangComponent).run(*Out);
+      ClangDiagsDefsEmitter(Records, ClangComponent).run(Out);
       break;
     case GenClangDiagGroups:
-      ClangDiagGroupsEmitter(Records).run(*Out);
+      ClangDiagGroupsEmitter(Records).run(Out);
+      break;
+    case GenClangDeclNodes:
+      ClangASTNodesEmitter(Records, "Decl", "Decl").run(Out);
+      ClangDeclContextEmitter(Records).run(Out);
       break;
     case GenClangStmtNodes:
-      ClangStmtNodesEmitter(Records).run(*Out);
+      ClangASTNodesEmitter(Records, "Stmt", "").run(Out);
       break;
     case GenDisassembler:
-      DisassemblerEmitter(Records).run(*Out);
+      DisassemblerEmitter(Records).run(Out);
       break;
     case GenOptParserDefs:
-      OptParserEmitter(Records, true).run(*Out);
+      OptParserEmitter(Records, true).run(Out);
       break;
     case GenOptParserImpl:
-      OptParserEmitter(Records, false).run(*Out);
+      OptParserEmitter(Records, false).run(Out);
       break;
     case GenDAGISel:
-      DAGISelEmitter(Records).run(*Out);
+      DAGISelEmitter(Records).run(Out);
       break;
     case GenFastISel:
-      FastISelEmitter(Records).run(*Out);
+      FastISelEmitter(Records).run(Out);
       break;
     case GenSubtarget:
-      SubtargetEmitter(Records).run(*Out);
+      SubtargetEmitter(Records).run(Out);
       break;
     case GenIntrinsic:
-      IntrinsicEmitter(Records).run(*Out);
+      IntrinsicEmitter(Records).run(Out);
       break;
     case GenTgtIntrinsic:
-      IntrinsicEmitter(Records, true).run(*Out);
+      IntrinsicEmitter(Records, true).run(Out);
       break;
     case GenLLVMCConf:
-      LLVMCConfigurationEmitter(Records).run(*Out);
+      LLVMCConfigurationEmitter(Records).run(Out);
       break;
     case GenEDHeader:
-      EDEmitter(Records).runHeader(*Out);
+      EDEmitter(Records).runHeader(Out);
       break;
     case GenEDInfo:
-      EDEmitter(Records).run(*Out);
+      EDEmitter(Records).run(Out);
+      break;
+    case GenArmNeon:
+      NeonEmitter(Records).run(Out);
+      break;
+    case GenArmNeonSema:
+      NeonEmitter(Records).runHeader(Out);
       break;
     case PrintEnums:
     {
       std::vector<Record*> Recs = Records.getAllDerivedDefinitions(Class);
       for (unsigned i = 0, e = Recs.size(); i != e; ++i)
-        *Out << Recs[i]->getName() << ", ";
-      *Out << "\n";
+        Out << Recs[i]->getName() << ", ";
+      Out << "\n";
       break;
     }
     default:
@@ -297,8 +326,6 @@ int main(int argc, char **argv) {
       return 1;
     }
 
-    if (Out != &outs())
-      delete Out;                               // Close the file
     return 0;
 
   } catch (const TGError &Error) {
@@ -313,9 +340,7 @@ int main(int argc, char **argv) {
     errs() << argv[0] << ": Unknown unexpected exception occurred.\n";
   }
 
-  if (Out != &outs()) {
-    delete Out;                             // Close the file
+  if (OutputFilename != "-")
     std::remove(OutputFilename.c_str());    // Remove the file, it's broken
-  }
   return 1;
 }

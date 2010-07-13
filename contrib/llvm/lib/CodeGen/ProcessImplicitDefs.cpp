@@ -46,14 +46,14 @@ bool ProcessImplicitDefs::CanTurnIntoImplicitDef(MachineInstr *MI,
                                                  const TargetInstrInfo *tii_) {
   unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
   if (tii_->isMoveInstr(*MI, SrcReg, DstReg, SrcSubReg, DstSubReg) &&
-      Reg == SrcReg && SrcSubReg == 0 && DstSubReg == 0)
+      Reg == SrcReg && DstSubReg == 0)
     return true;
 
-  if (OpIdx == 2 && MI->isSubregToReg())
-    return true;
-  if (OpIdx == 1 && MI->isExtractSubreg())
-    return true;
-  return false;
+  switch(OpIdx) {
+    case 1: return MI->isCopy() && MI->getOperand(0).getSubReg() == 0;
+    case 2: return MI->isSubregToReg() && MI->getOperand(0).getSubReg() == 0;
+    default: return false;
+  }
 }
 
 /// processImplicitDefs - Process IMPLICIT_DEF instructions and make sure
@@ -101,11 +101,10 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
         continue;
       }
 
-      if (MI->isInsertSubreg()) {
-        MachineOperand &MO = MI->getOperand(2);
+      // Eliminate %reg1032:sub<def> = COPY undef.
+      if (MI->isCopy() && MI->getOperand(0).getSubReg()) {
+        MachineOperand &MO = MI->getOperand(1);
         if (ImpDefRegs.count(MO.getReg())) {
-          // %reg1032<def> = INSERT_SUBREG %reg1032, undef, 2
-          // This is an identity copy, eliminate it now.
           if (MO.isKill()) {
             LiveVariables::VarInfo& vi = lv_->getVarInfo(MO.getReg());
             vi.removeKill(MI);
@@ -119,7 +118,7 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
       bool ChangedToImpDef = false;
       for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
         MachineOperand& MO = MI->getOperand(i);
-        if (!MO.isReg() || !MO.isUse() || MO.isUndef())
+        if (!MO.isReg() || (MO.isDef() && !MO.getSubReg()) || MO.isUndef())
           continue;
         unsigned Reg = MO.getReg();
         if (!Reg)
@@ -144,6 +143,12 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
 
         Changed = true;
         MO.setIsUndef();
+        // This is a partial register redef of an implicit def.
+        // Make sure the whole register is defined by the instruction.
+        if (MO.isDef()) {
+          MI->addRegisterDefined(Reg);
+          continue;
+        }
         if (MO.isKill() || MI->isRegTiedToDefOperand(i)) {
           // Make sure other uses of 
           for (unsigned j = i+1; j != e; ++j) {
@@ -219,8 +224,10 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &fn) {
 
         // Turn a copy use into an implicit_def.
         unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
-        if (tii_->isMoveInstr(*RMI, SrcReg, DstReg, SrcSubReg, DstSubReg) &&
-            Reg == SrcReg && SrcSubReg == 0 && DstSubReg == 0) {
+        if ((RMI->isCopy() && RMI->getOperand(1).getReg() == Reg &&
+             RMI->getOperand(0).getSubReg() == 0) ||
+            (tii_->isMoveInstr(*RMI, SrcReg, DstReg, SrcSubReg, DstSubReg) &&
+             Reg == SrcReg && DstSubReg == 0)) {
           RMI->setDesc(tii_->get(TargetOpcode::IMPLICIT_DEF));
 
           bool isKill = false;

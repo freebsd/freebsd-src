@@ -92,12 +92,6 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
   
   if (const CXXExprWithTemporaries *Temps = dyn_cast<CXXExprWithTemporaries>(E))
     E = Temps->getSubExpr();
-  if (const CXXZeroInitValueExpr *Zero = dyn_cast<CXXZeroInitValueExpr>(E)) {
-    if (const RecordType *RecordT = Zero->getType()->getAs<RecordType>())
-      if (CXXRecordDecl *RecordD = dyn_cast<CXXRecordDecl>(RecordT->getDecl()))
-        if (!RecordD->hasTrivialDestructor())
-          return;
-  }
       
   if (const CallExpr *CE = dyn_cast<CallExpr>(E)) {
     if (E->getType()->isVoidType())
@@ -304,7 +298,7 @@ Sema::ActOnIfStmt(SourceLocation IfLoc, FullExprArg CondVal, DeclPtrTy CondVar,
   DiagnoseUnusedExprResult(elseStmt);
 
   CondResult.release();
-  return Owned(new (Context) IfStmt(IfLoc, ConditionVar, ConditionExpr, 
+  return Owned(new (Context) IfStmt(Context, IfLoc, ConditionVar, ConditionExpr, 
                                     thenStmt, ElseLoc, elseStmt));
 }
 
@@ -400,122 +394,14 @@ static bool EqEnumVals(const std::pair<llvm::APSInt, EnumConstantDecl*>& lhs,
 /// GetTypeBeforeIntegralPromotion - Returns the pre-promotion type of
 /// potentially integral-promoted expression @p expr.
 static QualType GetTypeBeforeIntegralPromotion(const Expr* expr) {
-  const ImplicitCastExpr *ImplicitCast =
-      dyn_cast_or_null<ImplicitCastExpr>(expr);
-  if (ImplicitCast != NULL) {
+  if (const CastExpr *ImplicitCast = dyn_cast<ImplicitCastExpr>(expr)) {
     const Expr *ExprBeforePromotion = ImplicitCast->getSubExpr();
     QualType TypeBeforePromotion = ExprBeforePromotion->getType();
-    if (TypeBeforePromotion->isIntegralType()) {
+    if (TypeBeforePromotion->isIntegralOrEnumerationType()) {
       return TypeBeforePromotion;
     }
   }
   return expr->getType();
-}
-
-/// \brief Check (and possibly convert) the condition in a switch
-/// statement in C++.
-static bool CheckCXXSwitchCondition(Sema &S, SourceLocation SwitchLoc,
-                                    Expr *&CondExpr) {
-  if (CondExpr->isTypeDependent())
-    return false;
-
-  QualType CondType = CondExpr->getType();
-
-  // C++ 6.4.2.p2:
-  // The condition shall be of integral type, enumeration type, or of a class
-  // type for which a single conversion function to integral or enumeration
-  // type exists (12.3). If the condition is of class type, the condition is
-  // converted by calling that conversion function, and the result of the
-  // conversion is used in place of the original condition for the remainder
-  // of this section. Integral promotions are performed.
-
-  // Make sure that the condition expression has a complete type,
-  // otherwise we'll never find any conversions.
-  if (S.RequireCompleteType(SwitchLoc, CondType,
-                            S.PDiag(diag::err_switch_incomplete_class_type)
-                              << CondExpr->getSourceRange()))
-    return true;
-
-  UnresolvedSet<4> ViableConversions;
-  UnresolvedSet<4> ExplicitConversions;
-  if (const RecordType *RecordTy = CondType->getAs<RecordType>()) {
-    const UnresolvedSetImpl *Conversions
-      = cast<CXXRecordDecl>(RecordTy->getDecl())
-                                             ->getVisibleConversionFunctions();
-    for (UnresolvedSetImpl::iterator I = Conversions->begin(),
-           E = Conversions->end(); I != E; ++I) {
-      if (CXXConversionDecl *Conversion
-            = dyn_cast<CXXConversionDecl>((*I)->getUnderlyingDecl()))
-        if (Conversion->getConversionType().getNonReferenceType()
-              ->isIntegralType()) {
-          if (Conversion->isExplicit())
-            ExplicitConversions.addDecl(I.getDecl(), I.getAccess());
-          else
-            ViableConversions.addDecl(I.getDecl(), I.getAccess());
-        }
-    }
-
-    switch (ViableConversions.size()) {
-    case 0:
-      if (ExplicitConversions.size() == 1) {
-        DeclAccessPair Found = ExplicitConversions[0];
-        CXXConversionDecl *Conversion =
-          cast<CXXConversionDecl>(Found->getUnderlyingDecl());
-        // The user probably meant to invoke the given explicit
-        // conversion; use it.
-        QualType ConvTy
-          = Conversion->getConversionType().getNonReferenceType();
-        std::string TypeStr;
-        ConvTy.getAsStringInternal(TypeStr, S.Context.PrintingPolicy);
-
-        S.Diag(SwitchLoc, diag::err_switch_explicit_conversion)
-          << CondType << ConvTy << CondExpr->getSourceRange()
-          << FixItHint::CreateInsertion(CondExpr->getLocStart(),
-                                        "static_cast<" + TypeStr + ">(")
-          << FixItHint::CreateInsertion(
-                            S.PP.getLocForEndOfToken(CondExpr->getLocEnd()),
-                               ")");
-        S.Diag(Conversion->getLocation(), diag::note_switch_conversion)
-          << ConvTy->isEnumeralType() << ConvTy;
-
-        // If we aren't in a SFINAE context, build a call to the 
-        // explicit conversion function.
-        if (S.isSFINAEContext())
-          return true;
-
-        S.CheckMemberOperatorAccess(CondExpr->getExprLoc(),
-                                    CondExpr, 0, Found);
-        CondExpr = S.BuildCXXMemberCallExpr(CondExpr, Found, Conversion);
-      }
-
-      // We'll complain below about a non-integral condition type.
-      break;
-
-    case 1: {
-      // Apply this conversion.
-      DeclAccessPair Found = ViableConversions[0];
-      S.CheckMemberOperatorAccess(CondExpr->getExprLoc(),
-                                  CondExpr, 0, Found);
-      CondExpr = S.BuildCXXMemberCallExpr(CondExpr, Found,
-                        cast<CXXConversionDecl>(Found->getUnderlyingDecl()));
-      break;
-    }
-
-    default:
-      S.Diag(SwitchLoc, diag::err_switch_multiple_conversions)
-        << CondType << CondExpr->getSourceRange();
-      for (unsigned I = 0, N = ViableConversions.size(); I != N; ++I) {
-        CXXConversionDecl *Conv
-          = cast<CXXConversionDecl>(ViableConversions[I]->getUnderlyingDecl());
-        QualType ConvTy = Conv->getConversionType().getNonReferenceType();
-        S.Diag(Conv->getLocation(), diag::note_switch_conversion)
-          << ConvTy->isEnumeralType() << ConvTy;
-      }
-      return true;
-    }
-  } 
-
-  return false;
 }
 
 Action::OwningStmtResult
@@ -531,21 +417,32 @@ Sema::ActOnStartOfSwitchStmt(SourceLocation SwitchLoc, ExprArg Cond,
     Cond = move(CondE);
   }
   
-  Expr *CondExpr = Cond.takeAs<Expr>();
-  if (!CondExpr)
+  if (!Cond.get())
     return StmtError();
   
-  if (getLangOptions().CPlusPlus && 
-      CheckCXXSwitchCondition(*this, SwitchLoc, CondExpr))
-    return StmtError();  
-
+  Expr *CondExpr = static_cast<Expr *>(Cond.get());
+  OwningExprResult ConvertedCond 
+    = ConvertToIntegralOrEnumerationType(SwitchLoc, move(Cond), 
+                          PDiag(diag::err_typecheck_statement_requires_integer),
+                                   PDiag(diag::err_switch_incomplete_class_type)
+                                     << CondExpr->getSourceRange(),
+                                   PDiag(diag::err_switch_explicit_conversion),
+                                         PDiag(diag::note_switch_conversion),
+                                   PDiag(diag::err_switch_multiple_conversions),
+                                         PDiag(diag::note_switch_conversion),
+                                         PDiag(0));
+  if (ConvertedCond.isInvalid())
+    return StmtError();
+  
+  CondExpr = ConvertedCond.takeAs<Expr>();
+  
   if (!CondVar.get()) {
     CondExpr = MaybeCreateCXXExprWithTemporaries(CondExpr);
     if (!CondExpr)
       return StmtError();
   }
     
-  SwitchStmt *SS = new (Context) SwitchStmt(ConditionVar, CondExpr);
+  SwitchStmt *SS = new (Context) SwitchStmt(Context, ConditionVar, CondExpr);
   getSwitchStack().push_back(SS);
   return Owned(SS);
 }
@@ -584,11 +481,11 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, StmtArg Switch,
   // be represented by the promoted type.  Therefore we need to find
   // the pre-promotion type of the switch condition.
   if (!CondExpr->isTypeDependent()) {
-    if (!CondType->isIntegerType()) { // C99 6.8.4.2p1
-      Diag(SwitchLoc, diag::err_typecheck_statement_requires_integer)
-          << CondType << CondExpr->getSourceRange();
+    // We have already converted the expression to an integral or enumeration
+    // type, when we started the switch statement. If we don't have an 
+    // appropriate type now, just return an error.
+    if (!CondType->isIntegralOrEnumerationType())
       return StmtError();
-    }
 
     if (CondExpr->isKnownToHaveBooleanValue()) {
       // switch(bool_expr) {...} is often a programmer error, e.g.
@@ -838,6 +735,8 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, StmtArg Switch,
         llvm::APSInt Val = (*EDI)->getInitVal();
         if(Val.getBitWidth() < CondWidth)
           Val.extend(CondWidth);
+        else if (Val.getBitWidth() > CondWidth)
+          Val.trunc(CondWidth);
         Val.setIsSigned(CondIsSigned);
         EnumVals.push_back(std::make_pair(Val, (*EDI)));
       }
@@ -929,8 +828,8 @@ Sema::ActOnWhileStmt(SourceLocation WhileLoc, FullExprArg Cond,
   DiagnoseUnusedExprResult(bodyStmt);
 
   CondResult.release();
-  return Owned(new (Context) WhileStmt(ConditionVar, ConditionExpr, bodyStmt, 
-                                       WhileLoc));
+  return Owned(new (Context) WhileStmt(Context, ConditionVar, ConditionExpr,
+                                       bodyStmt, WhileLoc));
 }
 
 Action::OwningStmtResult
@@ -999,9 +898,10 @@ Sema::ActOnForStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
 
   first.release();
   body.release();
-  return Owned(new (Context) ForStmt(First, SecondResult.takeAs<Expr>(), 
-                                     ConditionVar, Third, Body, 
-                                     ForLoc, LParenLoc, RParenLoc));
+  return Owned(new (Context) ForStmt(Context, First, 
+                                     SecondResult.takeAs<Expr>(), ConditionVar, 
+                                     Third, Body, ForLoc, LParenLoc, 
+                                     RParenLoc));
 }
 
 Action::OwningStmtResult
@@ -1517,14 +1417,14 @@ Sema::OwningStmtResult Sema::ActOnAsmStmt(SourceLocation AsmLoc,
     
     if (InTy->isIntegerType() || InTy->isPointerType())
       InputDomain = AD_Int;
-    else if (InTy->isFloatingType())
+    else if (InTy->isRealFloatingType())
       InputDomain = AD_FP;
     else
       InputDomain = AD_Other;
 
     if (OutTy->isIntegerType() || OutTy->isPointerType())
       OutputDomain = AD_Int;
-    else if (OutTy->isFloatingType())
+    else if (OutTy->isRealFloatingType())
       OutputDomain = AD_FP;
     else
       OutputDomain = AD_Other;

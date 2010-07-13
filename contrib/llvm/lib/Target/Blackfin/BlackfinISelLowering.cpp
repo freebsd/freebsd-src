@@ -143,7 +143,7 @@ SDValue BlackfinTargetLowering::LowerGlobalAddress(SDValue Op,
   DebugLoc DL = Op.getDebugLoc();
   const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
 
-  Op = DAG.getTargetGlobalAddress(GV, MVT::i32);
+  Op = DAG.getTargetGlobalAddress(GV, DL, MVT::i32);
   return DAG.getNode(BFISD::Wrapper, DL, MVT::i32, Op);
 }
 
@@ -205,8 +205,7 @@ BlackfinTargetLowering::LowerFormalArguments(SDValue Chain,
     } else {
       assert(VA.isMemLoc() && "CCValAssign must be RegLoc or MemLoc");
       unsigned ObjSize = VA.getLocVT().getStoreSize();
-      int FI = MFI->CreateFixedObject(ObjSize, VA.getLocMemOffset(),
-                                      true, false);
+      int FI = MFI->CreateFixedObject(ObjSize, VA.getLocMemOffset(), true);
       SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
       InVals.push_back(DAG.getLoad(VA.getValVT(), dl, Chain, FIN, NULL, 0,
                                    false, false, 0));
@@ -220,6 +219,7 @@ SDValue
 BlackfinTargetLowering::LowerReturn(SDValue Chain,
                                     CallingConv::ID CallConv, bool isVarArg,
                                     const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                    const SmallVectorImpl<SDValue> &OutVals,
                                     DebugLoc dl, SelectionDAG &DAG) const {
 
   // CCValAssign - represent the assignment of the return value to locations.
@@ -245,7 +245,7 @@ BlackfinTargetLowering::LowerReturn(SDValue Chain,
   for (unsigned i = 0; i != RVLocs.size(); ++i) {
     CCValAssign &VA = RVLocs[i];
     assert(VA.isRegLoc() && "Can only return in registers!");
-    SDValue Opi = Outs[i].Val;
+    SDValue Opi = OutVals[i];
 
     // Expand to i32 if necessary
     switch (VA.getLocInfo()) {
@@ -278,6 +278,7 @@ BlackfinTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                   CallingConv::ID CallConv, bool isVarArg,
                                   bool &isTailCall,
                                   const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                  const SmallVectorImpl<SDValue> &OutVals,
                                   const SmallVectorImpl<ISD::InputArg> &Ins,
                                   DebugLoc dl, SelectionDAG &DAG,
                                   SmallVectorImpl<SDValue> &InVals) const {
@@ -301,7 +302,7 @@ BlackfinTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
   // Walk the register/memloc assignments, inserting copies/loads.
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
-    SDValue Arg = Outs[i].Val;
+    SDValue Arg = OutVals[i];
 
     // Promote the value if needed.
     switch (VA.getLocInfo()) {
@@ -357,7 +358,7 @@ BlackfinTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
   // turn it into a TargetGlobalAddress node so that legalize doesn't hack it.
   // Likewise ExternalSymbol -> TargetExternalSymbol.
   if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee))
-    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), MVT::i32);
+    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl, MVT::i32);
   else if (ExternalSymbolSDNode *E = dyn_cast<ExternalSymbolSDNode>(Callee))
     Callee = DAG.getTargetExternalSymbol(E->getSymbol(), MVT::i32);
 

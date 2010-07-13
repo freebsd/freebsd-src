@@ -27,6 +27,10 @@ MCContext::MCContext(const MCAsmInfo &mai) : MAI(mai), NextUniqueID(0) {
   MachOUniquingMap = 0;
   ELFUniquingMap = 0;
   COFFUniquingMap = 0;
+
+  SecureLogFile = getenv("AS_SECURE_LOG_FILE");
+  SecureLog = 0;
+  SecureLogUsed = false;
 }
 
 MCContext::~MCContext() {
@@ -37,6 +41,9 @@ MCContext::~MCContext() {
   delete (MachOUniqueMapTy*)MachOUniquingMap;
   delete (ELFUniqueMapTy*)ELFUniquingMap;
   delete (COFFUniqueMapTy*)COFFUniquingMap;
+
+  // If the stream for the .secure_log_unique directive was created free it.
+  delete (raw_ostream*)SecureLog;
 }
 
 //===----------------------------------------------------------------------===//
@@ -90,14 +97,14 @@ MCSymbol *MCContext::CreateDirectionalLocalSymbol(int64_t LocalLabelVal) {
   return GetOrCreateSymbol(Twine(MAI.getPrivateGlobalPrefix()) +
                            Twine(LocalLabelVal) +
                            "\2" +
-			   Twine(NextInstance(LocalLabelVal)));
+                           Twine(NextInstance(LocalLabelVal)));
 }
 MCSymbol *MCContext::GetDirectionalLocalSymbol(int64_t LocalLabelVal,
                                                int bORf) {
   return GetOrCreateSymbol(Twine(MAI.getPrivateGlobalPrefix()) +
                            Twine(LocalLabelVal) +
                            "\2" +
-			   Twine(GetInstance(LocalLabelVal) + bORf));
+                           Twine(GetInstance(LocalLabelVal) + bORf));
 }
 
 MCSymbol *MCContext::LookupSymbol(StringRef Name) const {

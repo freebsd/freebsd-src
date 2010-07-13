@@ -17,6 +17,7 @@
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclarationName.h"
+#include "clang/AST/TemplateBase.h"
 #include "clang/Frontend/PCHBitCodes.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
@@ -38,6 +39,7 @@ class CXXBaseOrMemberInitializer;
 class LabelStmt;
 class MacroDefinition;
 class MemorizeStatCalls;
+class PCHReader;
 class Preprocessor;
 class Sema;
 class SourceManager;
@@ -188,7 +190,11 @@ private:
 
   /// \brief Statements that we've encountered while serializing a
   /// declaration or type.
-  llvm::SmallVector<Stmt *, 8> StmtsToEmit;
+  llvm::SmallVector<Stmt *, 16> StmtsToEmit;
+  
+  /// \brief Statements collection to use for PCHWriter::AddStmt().
+  /// It will point to StmtsToEmit unless it is overriden. 
+  llvm::SmallVector<Stmt *, 16> *CollectedStmts;
 
   /// \brief Mapping from SwitchCase statements to IDs.
   std::map<SwitchCase *, unsigned> SwitchCaseIDs;
@@ -210,10 +216,13 @@ private:
   /// file.
   unsigned NumVisibleDeclContexts;
 
+  /// \brief Write the given subexpression to the bitstream.
+  void WriteSubStmt(Stmt *S);
+
   void WriteBlockInfoBlock();
-  void WriteMetadata(ASTContext &Context, const char *isysroot);
+  void WriteMetadata(ASTContext &Context, const PCHReader *Chain, const char *isysroot);
   void WriteLanguageOptions(const LangOptions &LangOpts);
-  void WriteStatCache(MemorizeStatCalls &StatCalls, const char* isysroot);
+  void WriteStatCache(MemorizeStatCalls &StatCalls);
   void WriteSourceManagerBlock(SourceManager &SourceMgr,
                                const Preprocessor &PP,
                                const char* isysroot);
@@ -229,6 +238,11 @@ private:
   unsigned ParmVarDeclAbbrev;
   void WriteDeclsBlockAbbrevs();
   void WriteDecl(ASTContext &Context, Decl *D);
+
+  void WritePCHCore(Sema &SemaRef, MemorizeStatCalls *StatCalls,
+                    const char* isysroot);
+  void WritePCHChain(Sema &SemaRef, MemorizeStatCalls *StatCalls,
+                     const PCHReader *Chain, const char* isysroot);
   
 public:
   /// \brief Create a new precompiled header writer that outputs to
@@ -249,7 +263,7 @@ public:
   /// \param PPRec Record of the preprocessing actions that occurred while
   /// preprocessing this file, e.g., macro instantiations
   void WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
-                const char* isysroot);
+                const PCHReader *Chain, const char* isysroot);
 
   /// \brief Emit a source location.
   void AddSourceLocation(SourceLocation Loc, RecordData &Record);
@@ -299,6 +313,11 @@ public:
   /// \brief Emits a reference to a declarator info.
   void AddTypeSourceInfo(TypeSourceInfo *TInfo, RecordData &Record);
 
+  /// \brief Emits a template argument location info.
+  void AddTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
+                                  const TemplateArgumentLocInfo &Arg,
+                                  RecordData &Record);
+
   /// \brief Emits a template argument location.
   void AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg,
                               RecordData &Record);
@@ -315,6 +334,26 @@ public:
 
   /// \brief Emit a nested name specifier.
   void AddNestedNameSpecifier(NestedNameSpecifier *NNS, RecordData &Record);
+  
+  /// \brief Emit a template name.
+  void AddTemplateName(TemplateName Name, RecordData &Record);
+
+  /// \brief Emit a template argument.
+  void AddTemplateArgument(const TemplateArgument &Arg, RecordData &Record);
+
+  /// \brief Emit a template parameter list.
+  void AddTemplateParameterList(const TemplateParameterList *TemplateParams,
+                                RecordData &Record);
+
+  /// \brief Emit a template argument list.
+  void AddTemplateArgumentList(const TemplateArgumentList *TemplateArgs,
+                                RecordData &Record);
+
+  /// \brief Emit a UnresolvedSet structure.
+  void AddUnresolvedSet(const UnresolvedSetImpl &Set, RecordData &Record);
+
+  /// brief Emit a C++ base specifier.
+  void AddCXXBaseSpecifier(const CXXBaseSpecifier &Base, RecordData &Record);
 
   /// \brief Add a string to the given record.
   void AddString(const std::string &Str, RecordData &Record);
@@ -335,10 +374,9 @@ public:
   /// type or declaration has been written, call FlushStmts() to write
   /// the corresponding statements just after the type or
   /// declaration.
-  void AddStmt(Stmt *S) { StmtsToEmit.push_back(S); }
-
-  /// \brief Write the given subexpression to the bitstream.
-  void WriteSubStmt(Stmt *S);
+  void AddStmt(Stmt *S) {
+      CollectedStmts->push_back(S);
+  }
 
   /// \brief Flush all of the statements and expressions that have
   /// been added to the queue via AddStmt().

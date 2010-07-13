@@ -26,7 +26,10 @@
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/raw_ostream.h"
 #include "clang/Basic/TargetBuiltins.h"
+#include "clang/Basic/TargetInfo.h"
 #include <limits>
 using namespace clang;
 
@@ -199,21 +202,119 @@ Sema::CheckBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
   case Builtin::BI__sync_bool_compare_and_swap:
   case Builtin::BI__sync_lock_test_and_set:
   case Builtin::BI__sync_lock_release:
-    if (SemaBuiltinAtomicOverloaded(TheCall))
-      return ExprError();
-    break;
-    
-  // Target specific builtins start here.
+    return SemaBuiltinAtomicOverloaded(move(TheCallResult));
+  }
+  
+  // Since the target specific builtins for each arch overlap, only check those
+  // of the arch we are compiling for.
+  if (BuiltinID >= Builtin::FirstTSBuiltin) {
+    switch (Context.Target.getTriple().getArch()) {
+      case llvm::Triple::arm:
+      case llvm::Triple::thumb:
+        if (CheckARMBuiltinFunctionCall(BuiltinID, TheCall))
+          return ExprError();
+        break;
+      case llvm::Triple::x86:
+      case llvm::Triple::x86_64:
+        if (CheckX86BuiltinFunctionCall(BuiltinID, TheCall))
+          return ExprError();
+        break;
+      default:
+        break;
+    }
+  }
+
+  return move(TheCallResult);
+}
+
+bool Sema::CheckX86BuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
+  switch (BuiltinID) {
   case X86::BI__builtin_ia32_palignr128:
   case X86::BI__builtin_ia32_palignr: {
     llvm::APSInt Result;
     if (SemaBuiltinConstantArg(TheCall, 2, Result))
-      return ExprError();
+      return true;
     break;
   }
   }
+  return false;
+}
 
-  return move(TheCallResult);
+// Get the valid immediate range for the specified NEON type code.
+static unsigned RFT(unsigned t, bool shift = false) {
+  bool quad = t & 0x10;
+  
+  switch (t & 0x7) {
+    case 0: // i8
+      return shift ? 7 : (8 << (int)quad) - 1;
+    case 1: // i16
+      return shift ? 15 : (4 << (int)quad) - 1;
+    case 2: // i32
+      return shift ? 31 : (2 << (int)quad) - 1;
+    case 3: // i64
+      return shift ? 63 : (1 << (int)quad) - 1;
+    case 4: // f32
+      assert(!shift && "cannot shift float types!");
+      return (2 << (int)quad) - 1;
+    case 5: // poly8
+      assert(!shift && "cannot shift polynomial types!");
+      return (8 << (int)quad) - 1;
+    case 6: // poly16
+      assert(!shift && "cannot shift polynomial types!");
+      return (4 << (int)quad) - 1;
+    case 7: // float16
+      assert(!shift && "cannot shift float types!");
+      return (4 << (int)quad) - 1;
+  }
+  return 0;
+}
+
+bool Sema::CheckARMBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
+  llvm::APSInt Result;
+
+  unsigned mask = 0;
+  unsigned TV = 0;
+  switch (BuiltinID) {
+#define GET_NEON_OVERLOAD_CHECK
+#include "clang/Basic/arm_neon.inc"
+#undef GET_NEON_OVERLOAD_CHECK
+  }
+  
+  // For NEON intrinsics which are overloaded on vector element type, validate
+  // the immediate which specifies which variant to emit.
+  if (mask) {
+    unsigned ArgNo = TheCall->getNumArgs()-1;
+    if (SemaBuiltinConstantArg(TheCall, ArgNo, Result))
+      return true;
+    
+    TV = Result.getLimitedValue(32);
+    if ((TV > 31) || (mask & (1 << TV)) == 0)
+      return Diag(TheCall->getLocStart(), diag::err_invalid_neon_type_code)
+        << TheCall->getArg(ArgNo)->getSourceRange();
+  }
+  
+  // For NEON intrinsics which take an immediate value as part of the 
+  // instruction, range check them here.
+  unsigned i = 0, l = 0, u = 0;
+  switch (BuiltinID) {
+  default: return false;
+#define GET_NEON_IMMEDIATE_CHECK
+#include "clang/Basic/arm_neon.inc"
+#undef GET_NEON_IMMEDIATE_CHECK
+  };
+
+  // Check that the immediate argument is actually a constant.
+  if (SemaBuiltinConstantArg(TheCall, i, Result))
+    return true;
+
+  // Range check against the upper/lower values for this isntruction.
+  unsigned Val = Result.getZExtValue();
+  if (Val < l || Val > (u + l))
+    return Diag(TheCall->getLocStart(), diag::err_argument_invalid_range)
+      << llvm::utostr(l) << llvm::utostr(u+l)  
+      << TheCall->getArg(i)->getSourceRange();
+
+  return false;
 }
 
 /// CheckFunctionCall - Check a direct function call for various correctness
@@ -279,32 +380,40 @@ bool Sema::CheckBlockCall(NamedDecl *NDecl, CallExpr *TheCall) {
 ///
 /// This function goes through and does final semantic checking for these
 /// builtins,
-bool Sema::SemaBuiltinAtomicOverloaded(CallExpr *TheCall) {
+Sema::OwningExprResult
+Sema::SemaBuiltinAtomicOverloaded(OwningExprResult TheCallResult) {
+  CallExpr *TheCall = (CallExpr *)TheCallResult.get();
   DeclRefExpr *DRE =cast<DeclRefExpr>(TheCall->getCallee()->IgnoreParenCasts());
   FunctionDecl *FDecl = cast<FunctionDecl>(DRE->getDecl());
 
   // Ensure that we have at least one argument to do type inference from.
-  if (TheCall->getNumArgs() < 1)
-    return Diag(TheCall->getLocEnd(),
-              diag::err_typecheck_call_too_few_args_at_least)
-              << 0 << 1 << TheCall->getNumArgs()
-              << TheCall->getCallee()->getSourceRange();
+  if (TheCall->getNumArgs() < 1) {
+    Diag(TheCall->getLocEnd(), diag::err_typecheck_call_too_few_args_at_least)
+      << 0 << 1 << TheCall->getNumArgs()
+      << TheCall->getCallee()->getSourceRange();
+    return ExprError();
+  }
 
   // Inspect the first argument of the atomic builtin.  This should always be
   // a pointer type, whose element is an integral scalar or pointer type.
   // Because it is a pointer type, we don't have to worry about any implicit
   // casts here.
+  // FIXME: We don't allow floating point scalars as input.
   Expr *FirstArg = TheCall->getArg(0);
-  if (!FirstArg->getType()->isPointerType())
-    return Diag(DRE->getLocStart(), diag::err_atomic_builtin_must_be_pointer)
-             << FirstArg->getType() << FirstArg->getSourceRange();
+  if (!FirstArg->getType()->isPointerType()) {
+    Diag(DRE->getLocStart(), diag::err_atomic_builtin_must_be_pointer)
+      << FirstArg->getType() << FirstArg->getSourceRange();
+    return ExprError();
+  }
 
-  QualType ValType = FirstArg->getType()->getAs<PointerType>()->getPointeeType();
+  QualType ValType =
+    FirstArg->getType()->getAs<PointerType>()->getPointeeType();
   if (!ValType->isIntegerType() && !ValType->isPointerType() &&
-      !ValType->isBlockPointerType())
-    return Diag(DRE->getLocStart(),
-                diag::err_atomic_builtin_must_be_pointer_intptr)
-             << FirstArg->getType() << FirstArg->getSourceRange();
+      !ValType->isBlockPointerType()) {
+    Diag(DRE->getLocStart(), diag::err_atomic_builtin_must_be_pointer_intptr)
+      << FirstArg->getType() << FirstArg->getSourceRange();
+    return ExprError();
+  }
 
   // We need to figure out which concrete builtin this maps onto.  For example,
   // __sync_fetch_and_add with a 2 byte object turns into
@@ -342,8 +451,9 @@ bool Sema::SemaBuiltinAtomicOverloaded(CallExpr *TheCall) {
   case 8: SizeIndex = 3; break;
   case 16: SizeIndex = 4; break;
   default:
-    return Diag(DRE->getLocStart(), diag::err_atomic_builtin_pointer_size)
-             << FirstArg->getType() << FirstArg->getSourceRange();
+    Diag(DRE->getLocStart(), diag::err_atomic_builtin_pointer_size)
+      << FirstArg->getType() << FirstArg->getSourceRange();
+    return ExprError();
   }
 
   // Each of these builtins has one pointer argument, followed by some number of
@@ -383,12 +493,12 @@ bool Sema::SemaBuiltinAtomicOverloaded(CallExpr *TheCall) {
 
   // Now that we know how many fixed arguments we expect, first check that we
   // have at least that many.
-  if (TheCall->getNumArgs() < 1+NumFixed)
-    return Diag(TheCall->getLocEnd(),
-            diag::err_typecheck_call_too_few_args_at_least)
-            << 0 << 1+NumFixed << TheCall->getNumArgs()
-            << TheCall->getCallee()->getSourceRange();
-
+  if (TheCall->getNumArgs() < 1+NumFixed) {
+    Diag(TheCall->getLocEnd(), diag::err_typecheck_call_too_few_args_at_least)
+      << 0 << 1+NumFixed << TheCall->getNumArgs()
+      << TheCall->getCallee()->getSourceRange();
+    return ExprError();
+  }
 
   // Get the decl for the concrete builtin from this, we can tell what the
   // concrete integer type we should convert to is.
@@ -400,6 +510,8 @@ bool Sema::SemaBuiltinAtomicOverloaded(CallExpr *TheCall) {
                                            TUScope, false, DRE->getLocStart()));
   const FunctionProtoType *BuiltinFT =
     NewBuiltinDecl->getType()->getAs<FunctionProtoType>();
+
+  QualType OrigValType = ValType;
   ValType = BuiltinFT->getArgType(0)->getAs<PointerType>()->getPointeeType();
 
   // If the first type needs to be converted (e.g. void** -> int*), do it now.
@@ -426,7 +538,7 @@ bool Sema::SemaBuiltinAtomicOverloaded(CallExpr *TheCall) {
     CastExpr::CastKind Kind = CastExpr::CK_Unknown;
     CXXBaseSpecifierArray BasePath;
     if (CheckCastTypes(Arg->getSourceRange(), ValType, Arg, Kind, BasePath))
-      return true;
+      return ExprError();
 
     // Okay, we have something that *can* be converted to the right type.  Check
     // to see if there is a potentially weird extension going on here.  This can
@@ -448,10 +560,30 @@ bool Sema::SemaBuiltinAtomicOverloaded(CallExpr *TheCall) {
   UsualUnaryConversions(PromotedCall);
   TheCall->setCallee(PromotedCall);
 
-
   // Change the result type of the call to match the result type of the decl.
-  TheCall->setType(NewBuiltinDecl->getResultType());
-  return false;
+  TheCall->setType(NewBuiltinDecl->getCallResultType());
+
+  // If the value type was converted to an integer when processing the
+  // arguments (e.g. void* -> int), we need to convert the result back.
+  if (!Context.hasSameUnqualifiedType(ValType, OrigValType)) {
+    Expr *E = TheCallResult.takeAs<Expr>();
+
+    assert(ValType->isIntegerType() &&
+           "We always convert atomic operation values to integers.");
+    // FIXME: Handle floating point value type here too.
+    CastExpr::CastKind Kind;
+    if (OrigValType->isIntegerType())
+      Kind = CastExpr::CK_IntegralCast;
+    else if (OrigValType->hasPointerRepresentation())
+      Kind = CastExpr::CK_IntegralToPointer;
+    else
+      llvm_unreachable("Unhandled original value type!");
+
+    ImpCastExprToType(E, OrigValType, Kind);
+    return Owned(E);
+  }
+
+  return move(TheCallResult);
 }
 
 
@@ -511,7 +643,7 @@ bool Sema::SemaBuiltinVAStart(CallExpr *TheCall) {
   BlockScopeInfo *CurBlock = getCurBlock();
   bool isVariadic;
   if (CurBlock)
-    isVariadic = CurBlock->isVariadic;
+    isVariadic = CurBlock->TheDecl->isVariadic();
   else if (FunctionDecl *FD = getCurFunctionDecl())
     isVariadic = FD->isVariadic();
   else
@@ -633,45 +765,54 @@ bool Sema::SemaBuiltinFPClassification(CallExpr *TheCall, unsigned NumArgs) {
 /// SemaBuiltinShuffleVector - Handle __builtin_shufflevector.
 // This is declared to take (...), so we have to check everything.
 Action::OwningExprResult Sema::SemaBuiltinShuffleVector(CallExpr *TheCall) {
-  if (TheCall->getNumArgs() < 3)
+  if (TheCall->getNumArgs() < 2)
     return ExprError(Diag(TheCall->getLocEnd(),
                           diag::err_typecheck_call_too_few_args_at_least)
-      << 0 /*function call*/ << 3 << TheCall->getNumArgs()
+      << 0 /*function call*/ << 2 << TheCall->getNumArgs()
       << TheCall->getSourceRange());
 
-  unsigned numElements = std::numeric_limits<unsigned>::max();
+  // Determine which of the following types of shufflevector we're checking:
+  // 1) unary, vector mask: (lhs, mask)
+  // 2) binary, vector mask: (lhs, rhs, mask)
+  // 3) binary, scalar mask: (lhs, rhs, index, ..., index)
+  QualType resType = TheCall->getArg(0)->getType();
+  unsigned numElements = 0;
+  
   if (!TheCall->getArg(0)->isTypeDependent() &&
       !TheCall->getArg(1)->isTypeDependent()) {
-    QualType FAType = TheCall->getArg(0)->getType();
-    QualType SAType = TheCall->getArg(1)->getType();
-
-    if (!FAType->isVectorType() || !SAType->isVectorType()) {
+    QualType LHSType = TheCall->getArg(0)->getType();
+    QualType RHSType = TheCall->getArg(1)->getType();
+    
+    if (!LHSType->isVectorType() || !RHSType->isVectorType()) {
       Diag(TheCall->getLocStart(), diag::err_shufflevector_non_vector)
         << SourceRange(TheCall->getArg(0)->getLocStart(),
                        TheCall->getArg(1)->getLocEnd());
       return ExprError();
     }
+    
+    numElements = LHSType->getAs<VectorType>()->getNumElements();
+    unsigned numResElements = TheCall->getNumArgs() - 2;
 
-    if (!Context.hasSameUnqualifiedType(FAType, SAType)) {
+    // Check to see if we have a call with 2 vector arguments, the unary shuffle
+    // with mask.  If so, verify that RHS is an integer vector type with the
+    // same number of elts as lhs.
+    if (TheCall->getNumArgs() == 2) {
+      if (!RHSType->isIntegerType() || 
+          RHSType->getAs<VectorType>()->getNumElements() != numElements)
+        Diag(TheCall->getLocStart(), diag::err_shufflevector_incompatible_vector)
+          << SourceRange(TheCall->getArg(1)->getLocStart(),
+                         TheCall->getArg(1)->getLocEnd());
+      numResElements = numElements;
+    }
+    else if (!Context.hasSameUnqualifiedType(LHSType, RHSType)) {
       Diag(TheCall->getLocStart(), diag::err_shufflevector_incompatible_vector)
         << SourceRange(TheCall->getArg(0)->getLocStart(),
                        TheCall->getArg(1)->getLocEnd());
       return ExprError();
-    }
-
-    numElements = FAType->getAs<VectorType>()->getNumElements();
-    if (TheCall->getNumArgs() != numElements+2) {
-      if (TheCall->getNumArgs() < numElements+2)
-        return ExprError(Diag(TheCall->getLocEnd(),
-                              diag::err_typecheck_call_too_few_args)
-                 << 0 /*function call*/ 
-                 << numElements+2 << TheCall->getNumArgs()
-                 << TheCall->getSourceRange());
-      return ExprError(Diag(TheCall->getLocEnd(),
-                            diag::err_typecheck_call_too_many_args)
-                 << 0 /*function call*/ 
-                 << numElements+2 << TheCall->getNumArgs()
-                 << TheCall->getSourceRange());
+    } else if (numElements != numResElements) {
+      QualType eltType = LHSType->getAs<VectorType>()->getElementType();
+      resType = Context.getVectorType(eltType, numResElements,
+                                      VectorType::NotAltiVec);
     }
   }
 
@@ -680,9 +821,11 @@ Action::OwningExprResult Sema::SemaBuiltinShuffleVector(CallExpr *TheCall) {
         TheCall->getArg(i)->isValueDependent())
       continue;
 
-    llvm::APSInt Result;
-    if (SemaBuiltinConstantArg(TheCall, i, Result))
-      return ExprError();
+    llvm::APSInt Result(32);
+    if (!TheCall->getArg(i)->isIntegerConstantExpr(Result, Context))
+      return ExprError(Diag(TheCall->getLocStart(),
+                  diag::err_shufflevector_nonconstant_argument)
+                << TheCall->getArg(i)->getSourceRange());
 
     if (Result.getActiveBits() > 64 || Result.getZExtValue() >= numElements*2)
       return ExprError(Diag(TheCall->getLocStart(),
@@ -698,7 +841,7 @@ Action::OwningExprResult Sema::SemaBuiltinShuffleVector(CallExpr *TheCall) {
   }
 
   return Owned(new (Context) ShuffleVectorExpr(Context, exprs.begin(),
-                                            exprs.size(), exprs[0]->getType(),
+                                            exprs.size(), resType,
                                             TheCall->getCallee()->getLocStart(),
                                             TheCall->getRParenLoc()));
 }
@@ -1081,15 +1224,23 @@ public:
                              unsigned specifierLen);
 private:
   SourceRange getFormatStringRange();
-  SourceRange getFormatSpecifierRange(const char *startSpecifier,
-                                      unsigned specifierLen);
+  CharSourceRange getFormatSpecifierRange(const char *startSpecifier,
+                                          unsigned specifierLen);
   SourceLocation getLocationOfByte(const char *x);
 
   bool HandleAmount(const analyze_printf::OptionalAmount &Amt, unsigned k,
                     const char *startSpecifier, unsigned specifierLen);
-  void HandleFlags(const analyze_printf::FormatSpecifier &FS,
-                   llvm::StringRef flag, llvm::StringRef cspec,
-                   const char *startSpecifier, unsigned specifierLen);
+  void HandleInvalidAmount(const analyze_printf::FormatSpecifier &FS,
+                           const analyze_printf::OptionalAmount &Amt,
+                           unsigned type,
+                           const char *startSpecifier, unsigned specifierLen);
+  void HandleFlag(const analyze_printf::FormatSpecifier &FS,
+                  const analyze_printf::OptionalFlag &flag,
+                  const char *startSpecifier, unsigned specifierLen);
+  void HandleIgnoredFlag(const analyze_printf::FormatSpecifier &FS,
+                         const analyze_printf::OptionalFlag &ignoredFlag,
+                         const analyze_printf::OptionalFlag &flag,
+                         const char *startSpecifier, unsigned specifierLen);
 
   const Expr *getDataArg(unsigned i) const;
 };
@@ -1099,10 +1250,15 @@ SourceRange CheckPrintfHandler::getFormatStringRange() {
   return OrigFormatExpr->getSourceRange();
 }
 
-SourceRange CheckPrintfHandler::
+CharSourceRange CheckPrintfHandler::
 getFormatSpecifierRange(const char *startSpecifier, unsigned specifierLen) {
-  return SourceRange(getLocationOfByte(startSpecifier),
-                     getLocationOfByte(startSpecifier+specifierLen-1));
+  SourceLocation Start = getLocationOfByte(startSpecifier);
+  SourceLocation End   = getLocationOfByte(startSpecifier + specifierLen - 1);
+
+  // Advance the end SourceLocation by one due to half-open ranges.
+  End = End.getFileLocWithOffset(1);
+
+  return CharSourceRange::getCharRange(Start, End);
 }
 
 SourceLocation CheckPrintfHandler::getLocationOfByte(const char *x) {
@@ -1174,16 +1330,6 @@ const Expr *CheckPrintfHandler::getDataArg(unsigned i) const {
   return TheCall->getArg(FirstDataArg + i);
 }
 
-void CheckPrintfHandler::HandleFlags(const analyze_printf::FormatSpecifier &FS,
-                                     llvm::StringRef flag,
-                                     llvm::StringRef cspec,
-                                     const char *startSpecifier,
-                                     unsigned specifierLen) {
-  const analyze_printf::ConversionSpecifier &CS = FS.getConversionSpecifier();
-  S.Diag(getLocationOfByte(CS.getStart()), diag::warn_printf_nonsensical_flag)
-    << flag << cspec << getFormatSpecifierRange(startSpecifier, specifierLen);
-}
-
 bool
 CheckPrintfHandler::HandleAmount(const analyze_printf::OptionalAmount &Amt,
                                  unsigned k, const char *startSpecifier,
@@ -1226,6 +1372,62 @@ CheckPrintfHandler::HandleAmount(const analyze_printf::OptionalAmount &Amt,
     }
   }
   return true;
+}
+
+void CheckPrintfHandler::HandleInvalidAmount(
+                                      const analyze_printf::FormatSpecifier &FS,
+                                      const analyze_printf::OptionalAmount &Amt,
+                                      unsigned type,
+                                      const char *startSpecifier,
+                                      unsigned specifierLen) {
+  const analyze_printf::ConversionSpecifier &CS = FS.getConversionSpecifier();
+  switch (Amt.getHowSpecified()) {
+  case analyze_printf::OptionalAmount::Constant:
+    S.Diag(getLocationOfByte(Amt.getStart()),
+        diag::warn_printf_nonsensical_optional_amount)
+      << type
+      << CS.toString()
+      << getFormatSpecifierRange(startSpecifier, specifierLen)
+      << FixItHint::CreateRemoval(getFormatSpecifierRange(Amt.getStart(),
+          Amt.getConstantLength()));
+    break;
+
+  default:
+    S.Diag(getLocationOfByte(Amt.getStart()),
+        diag::warn_printf_nonsensical_optional_amount)
+      << type
+      << CS.toString()
+      << getFormatSpecifierRange(startSpecifier, specifierLen);
+    break;
+  }
+}
+
+void CheckPrintfHandler::HandleFlag(const analyze_printf::FormatSpecifier &FS,
+                                    const analyze_printf::OptionalFlag &flag,
+                                    const char *startSpecifier,
+                                    unsigned specifierLen) {
+  // Warn about pointless flag with a fixit removal.
+  const analyze_printf::ConversionSpecifier &CS = FS.getConversionSpecifier();
+  S.Diag(getLocationOfByte(flag.getPosition()),
+      diag::warn_printf_nonsensical_flag)
+    << flag.toString() << CS.toString()
+    << getFormatSpecifierRange(startSpecifier, specifierLen)
+    << FixItHint::CreateRemoval(getFormatSpecifierRange(flag.getPosition(), 1));
+}
+
+void CheckPrintfHandler::HandleIgnoredFlag(
+                                const analyze_printf::FormatSpecifier &FS,
+                                const analyze_printf::OptionalFlag &ignoredFlag,
+                                const analyze_printf::OptionalFlag &flag,
+                                const char *startSpecifier,
+                                unsigned specifierLen) {
+  // Warn about ignored flag with a fixit removal.
+  S.Diag(getLocationOfByte(ignoredFlag.getPosition()),
+      diag::warn_printf_ignored_flag)
+    << ignoredFlag.toString() << flag.toString()
+    << getFormatSpecifierRange(startSpecifier, specifierLen)
+    << FixItHint::CreateRemoval(getFormatSpecifierRange(
+        ignoredFlag.getPosition(), 1));
 }
 
 bool
@@ -1315,32 +1517,55 @@ CheckPrintfHandler::HandleFormatSpecifier(const analyze_printf::FormatSpecifier
     return HandleInvalidConversionSpecifier(FS, startSpecifier, specifierLen);
   }
 
-  // Are we using '%n'?  Issue a warning about this being
-  // a possible security issue.
+  // Check for invalid use of field width
+  if (!FS.hasValidFieldWidth()) {
+    HandleInvalidAmount(FS, FS.getFieldWidth(), /* field width */ 0,
+        startSpecifier, specifierLen);
+  }
+
+  // Check for invalid use of precision
+  if (!FS.hasValidPrecision()) {
+    HandleInvalidAmount(FS, FS.getPrecision(), /* precision */ 1,
+        startSpecifier, specifierLen);
+  }
+
+  // Check each flag does not conflict with any other component.
+  if (!FS.hasValidLeadingZeros())
+    HandleFlag(FS, FS.hasLeadingZeros(), startSpecifier, specifierLen);
+  if (!FS.hasValidPlusPrefix())
+    HandleFlag(FS, FS.hasPlusPrefix(), startSpecifier, specifierLen);
+  if (!FS.hasValidSpacePrefix())
+    HandleFlag(FS, FS.hasSpacePrefix(), startSpecifier, specifierLen);
+  if (!FS.hasValidAlternativeForm())
+    HandleFlag(FS, FS.hasAlternativeForm(), startSpecifier, specifierLen);
+  if (!FS.hasValidLeftJustified())
+    HandleFlag(FS, FS.isLeftJustified(), startSpecifier, specifierLen);
+
+  // Check that flags are not ignored by another flag
+  if (FS.hasSpacePrefix() && FS.hasPlusPrefix()) // ' ' ignored by '+'
+    HandleIgnoredFlag(FS, FS.hasSpacePrefix(), FS.hasPlusPrefix(),
+        startSpecifier, specifierLen);
+  if (FS.hasLeadingZeros() && FS.isLeftJustified()) // '0' ignored by '-'
+    HandleIgnoredFlag(FS, FS.hasLeadingZeros(), FS.isLeftJustified(),
+            startSpecifier, specifierLen);
+
+  // Check the length modifier is valid with the given conversion specifier.
+  const LengthModifier &LM = FS.getLengthModifier();
+  if (!FS.hasValidLengthModifier())
+    S.Diag(getLocationOfByte(LM.getStart()),
+        diag::warn_printf_nonsensical_length)
+      << LM.toString() << CS.toString()
+      << getFormatSpecifierRange(startSpecifier, specifierLen)
+      << FixItHint::CreateRemoval(getFormatSpecifierRange(LM.getStart(),
+          LM.getLength()));
+
+  // Are we using '%n'?
   if (CS.getKind() == ConversionSpecifier::OutIntPtrArg) {
+    // Issue a warning about this being a possible security issue.
     S.Diag(getLocationOfByte(CS.getStart()), diag::warn_printf_write_back)
       << getFormatSpecifierRange(startSpecifier, specifierLen);
     // Continue checking the other format specifiers.
     return true;
-  }
-
-  if (CS.getKind() == ConversionSpecifier::VoidPtrArg) {
-    if (FS.getPrecision().getHowSpecified() != OptionalAmount::NotSpecified)
-      S.Diag(getLocationOfByte(CS.getStart()),
-             diag::warn_printf_nonsensical_precision)
-        << CS.getCharacters()
-        << getFormatSpecifierRange(startSpecifier, specifierLen);
-  }
-  if (CS.getKind() == ConversionSpecifier::VoidPtrArg ||
-      CS.getKind() == ConversionSpecifier::CStrArg) {
-    // FIXME: Instead of using "0", "+", etc., eventually get them from
-    // the FormatSpecifier.
-    if (FS.hasLeadingZeros())
-      HandleFlags(FS, "0", CS.getCharacters(), startSpecifier, specifierLen);
-    if (FS.hasPlusPrefix())
-      HandleFlags(FS, "+", CS.getCharacters(), startSpecifier, specifierLen);
-    if (FS.hasSpacePrefix())
-      HandleFlags(FS, " ", CS.getCharacters(), startSpecifier, specifierLen);
   }
 
   // The remaining checks depend on the data arguments.
@@ -1377,11 +1602,32 @@ CheckPrintfHandler::HandleFormatSpecifier(const analyze_printf::FormatSpecifier
         if (ATR.matchesType(S.Context, ICE->getSubExpr()->getType()))
           return true;
 
-    S.Diag(getLocationOfByte(CS.getStart()),
-           diag::warn_printf_conversion_argument_type_mismatch)
-      << ATR.getRepresentativeType(S.Context) << Ex->getType()
-      << getFormatSpecifierRange(startSpecifier, specifierLen)
-      << Ex->getSourceRange();
+    // We may be able to offer a FixItHint if it is a supported type.
+    FormatSpecifier fixedFS = FS;
+    bool success = fixedFS.fixType(Ex->getType());
+
+    if (success) {
+      // Get the fix string from the fixed format specifier
+      llvm::SmallString<128> buf;
+      llvm::raw_svector_ostream os(buf);
+      fixedFS.toString(os);
+
+      S.Diag(getLocationOfByte(CS.getStart()),
+          diag::warn_printf_conversion_argument_type_mismatch)
+        << ATR.getRepresentativeType(S.Context) << Ex->getType()
+        << getFormatSpecifierRange(startSpecifier, specifierLen)
+        << Ex->getSourceRange()
+        << FixItHint::CreateReplacement(
+            getFormatSpecifierRange(startSpecifier, specifierLen),
+            os.str());
+    }
+    else {
+      S.Diag(getLocationOfByte(CS.getStart()),
+             diag::warn_printf_conversion_argument_type_mismatch)
+        << ATR.getRepresentativeType(S.Context) << Ex->getType()
+        << getFormatSpecifierRange(startSpecifier, specifierLen)
+        << Ex->getSourceRange();
+    }
   }
 
   return true;

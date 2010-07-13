@@ -64,7 +64,21 @@ namespace clang {
 /// parse to complete accurately.  The MinimalAction class does this
 /// bare-minimum of tracking to implement this functionality.
 class Action : public ActionBase {
+  /// \brief The parser's current scope.
+  ///
+  /// The parser maintains this state here so that is accessible to \c Action 
+  /// subclasses via \c getCurScope().
+  Scope *CurScope;
+  
+protected:
+  friend class Parser;
+  
+  /// \brief Retrieve the parser's current scope.
+  Scope *getCurScope() const { return CurScope; }
+  
 public:
+  Action() : CurScope(0) { }
+  
   /// Out-of-line virtual destructor to provide home for this class.
   virtual ~Action();
 
@@ -1637,16 +1651,39 @@ public:
     return move(SubExpr);
   }
   
-  /// ActOnCXXNew - Parsed a C++ 'new' expression. UseGlobal is true if the
-  /// new was qualified (::new). In a full new like
-  /// @code new (p1, p2) type(c1, c2) @endcode
-  /// the p1 and p2 expressions will be in PlacementArgs and the c1 and c2
-  /// expressions in ConstructorArgs. The type is passed as a declarator.
+  /// \brief Parsed a C++ 'new' expression.
+  ///
+  /// \param StartLoc The start of the new expression, which is either the
+  /// "new" keyword or the "::" preceding it, depending on \p UseGlobal.
+  ///
+  /// \param UseGlobal True if the "new" was qualified with "::".
+  ///
+  /// \param PlacementLParen The location of the opening parenthesis ('(') for
+  /// the placement arguments, if any.
+  /// 
+  /// \param PlacementArgs The placement arguments, if any.
+  ///
+  /// \param PlacementRParen The location of the closing parenthesis (')') for
+  /// the placement arguments, if any.
+  ///
+  /// \param TypeIdParens If the type was expressed as a type-id in parentheses,
+  /// the source range covering the parenthesized type-id.
+  ///
+  /// \param D The parsed declarator, which may include an array size (for 
+  /// array new) as the first declarator.
+  ///
+  /// \param ConstructorLParen The location of the opening parenthesis ('(') for
+  /// the constructor arguments, if any.
+  ///
+  /// \param ConstructorArgs The constructor arguments, if any.
+  ///
+  /// \param ConstructorRParen The location of the closing parenthesis (')') for
+  /// the constructor arguments, if any.
   virtual OwningExprResult ActOnCXXNew(SourceLocation StartLoc, bool UseGlobal,
                                        SourceLocation PlacementLParen,
                                        MultiExprArg PlacementArgs,
                                        SourceLocation PlacementRParen,
-                                       bool ParenTypeId, Declarator &D,
+                                       SourceRange TypeIdParens, Declarator &D,
                                        SourceLocation ConstructorLParen,
                                        MultiExprArg ConstructorArgs,
                                        SourceLocation ConstructorRParen) {
@@ -1769,6 +1806,15 @@ public:
                                    unsigned NumBases) {
   }
 
+  /// ActOnAccessSpecifier - This is invoked when an access specifier
+  /// (and the colon following it) is found during the parsing of a
+  /// C++ class member declarator.
+  virtual DeclPtrTy ActOnAccessSpecifier(AccessSpecifier AS,
+                                         SourceLocation ASLoc,
+                                         SourceLocation ColonLoc) {
+    return DeclPtrTy();
+  }
+
   /// ActOnCXXMemberDeclarator - This is invoked when a C++ class member
   /// declarator is parsed. 'AS' is the access specifier, 'BitfieldWidth'
   /// specifies the bitfield width if there is one and 'Init' specifies the
@@ -1824,46 +1870,87 @@ public:
 
   //===---------------------------C++ Templates----------------------------===//
 
-  /// ActOnTypeParameter - Called when a C++ template type parameter
-  /// (e.g., "typename T") has been parsed. Typename specifies whether
-  /// the keyword "typename" was used to declare the type parameter
-  /// (otherwise, "class" was used), ellipsis specifies whether this is a
-  /// C++0x parameter pack, EllipsisLoc specifies the start of the ellipsis,
-  /// and KeyLoc is the location of the "class" or "typename" keyword.
-  //  ParamName is the name of the parameter (NULL indicates an unnamed template
-  //  parameter) and ParamNameLoc is the location of the parameter name (if any)
-  /// If the type parameter has a default argument, it will be added
-  /// later via ActOnTypeParameterDefault. Depth and Position provide
-  /// the number of enclosing templates (see
-  /// ActOnTemplateParameterList) and the number of previous
-  /// parameters within this template parameter list.
+  /// \brief Called when a C++ template type parameter(e.g., "typename T") has 
+  /// been parsed. 
+  ///
+  /// Given
+  ///
+  /// \code
+  /// template<typename T, typename U = T> struct pair;
+  /// \endcode
+  ///
+  /// this callback will be invoked twice: once for the type parameter \c T
+  /// with \p Depth=0 and \p Position=0, and once for the type parameter \c U
+  /// with \p Depth=0 and \p Position=1.
+  ///
+  /// \param Typename Specifies whether the keyword "typename" was used to 
+  /// declare the type parameter (otherwise, "class" was used).
+  ///
+  /// \param Ellipsis Specifies whether this is a C++0x parameter pack.
+  ///
+  /// \param EllipsisLoc Specifies the start of the ellipsis.
+  ///
+  /// \param KeyLoc The location of the "class" or "typename" keyword.
+  ///
+  /// \param ParamName The name of the parameter, where NULL indicates an 
+  /// unnamed template parameter.
+  ///
+  /// \param ParamNameLoc The location of the parameter name (if any).
+  ///
+  /// \param Depth The depth of this template parameter, e.g., the number of
+  /// template parameter lists that occurred outside the template parameter
+  /// list in which this template type parameter occurs.
+  ///
+  /// \param Position The zero-based position of this template parameter within
+  /// its template parameter list, which is also the number of template
+  /// parameters that precede this parameter in the template parameter list.
+  ///
+  /// \param EqualLoc The location of the '=' sign for the default template
+  /// argument, if any.
+  ///
+  /// \param DefaultArg The default argument, if provided.
   virtual DeclPtrTy ActOnTypeParameter(Scope *S, bool Typename, bool Ellipsis,
                                        SourceLocation EllipsisLoc,
                                        SourceLocation KeyLoc,
                                        IdentifierInfo *ParamName,
                                        SourceLocation ParamNameLoc,
-                                       unsigned Depth, unsigned Position) {
+                                       unsigned Depth, unsigned Position,
+                                       SourceLocation EqualLoc,
+                                       TypeTy *DefaultArg) {
     return DeclPtrTy();
   }
 
-  /// ActOnTypeParameterDefault - Adds a default argument (the type
-  /// Default) to the given template type parameter (TypeParam).
-  virtual void ActOnTypeParameterDefault(DeclPtrTy TypeParam,
-                                         SourceLocation EqualLoc,
-                                         SourceLocation DefaultLoc,
-                                         TypeTy *Default) {
-  }
-
-  /// ActOnNonTypeTemplateParameter - Called when a C++ non-type
-  /// template parameter (e.g., "int Size" in "template<int Size>
-  /// class Array") has been parsed. S is the current scope and D is
-  /// the parsed declarator. Depth and Position provide the number of
-  /// enclosing templates (see
-  /// ActOnTemplateParameterList) and the number of previous
-  /// parameters within this template parameter list.
+  /// \brief Called when a C++ non-type template parameter has been parsed.
+  ///
+  /// Given
+  ///
+  /// \code
+  /// template<int Size> class Array;
+  /// \endcode
+  ///
+  /// This callback will be invoked for the 'Size' non-type template parameter.
+  ///
+  /// \param S The current scope.
+  ///
+  /// \param D The parsed declarator.
+  ///
+  /// \param Depth The depth of this template parameter, e.g., the number of
+  /// template parameter lists that occurred outside the template parameter
+  /// list in which this template type parameter occurs.
+  ///
+  /// \param Position The zero-based position of this template parameter within
+  /// its template parameter list, which is also the number of template
+  /// parameters that precede this parameter in the template parameter list.
+  ///
+  /// \param EqualLoc The location of the '=' sign for the default template
+  /// argument, if any.
+  ///
+  /// \param DefaultArg The default argument, if provided.
   virtual DeclPtrTy ActOnNonTypeTemplateParameter(Scope *S, Declarator &D,
                                                   unsigned Depth,
-                                                  unsigned Position) {
+                                                  unsigned Position,
+                                                  SourceLocation EqualLoc,
+                                                  ExprArg DefaultArg) {
     return DeclPtrTy();
   }
 
@@ -1874,27 +1961,48 @@ public:
                                                     ExprArg Default) {
   }
 
-  /// ActOnTemplateTemplateParameter - Called when a C++ template template
-  /// parameter (e.g., "int T" in "template<template <typename> class T> class
-  /// Array") has been parsed. TmpLoc is the location of the "template" keyword,
-  /// TemplateParams is the sequence of parameters required by the template,
-  /// ParamName is the name of the parameter (null if unnamed), and ParamNameLoc
-  /// is the source location of the identifier (if given).
+  /// \brief Called when a C++ template template parameter has been parsed. 
+  ///
+  /// Given
+  ///
+  /// \code
+  /// template<template <typename> class T> class X;
+  /// \endcode
+  ///
+  /// this callback will be invoked for the template template parameter \c T.
+  ///
+  /// \param S The scope in which this template template parameter occurs.
+  ///
+  /// \param TmpLoc The location of the "template" keyword.
+  ///
+  /// \param TemplateParams The template parameters required by the template.
+  ///
+  /// \param ParamName The name of the parameter, or NULL if unnamed.
+  ///
+  /// \param ParamNameLoc The source location of the parameter name (if given).
+  ///
+  /// \param Depth The depth of this template parameter, e.g., the number of
+  /// template parameter lists that occurred outside the template parameter
+  /// list in which this template parameter occurs.
+  ///
+  /// \param Position The zero-based position of this template parameter within
+  /// its template parameter list, which is also the number of template
+  /// parameters that precede this parameter in the template parameter list.
+  ///
+  /// \param EqualLoc The location of the '=' sign for the default template
+  /// argument, if any.
+  ///
+  /// \param DefaultArg The default argument, if provided.
   virtual DeclPtrTy ActOnTemplateTemplateParameter(Scope *S,
                                                    SourceLocation TmpLoc,
                                                    TemplateParamsTy *Params,
                                                    IdentifierInfo *ParamName,
                                                    SourceLocation ParamNameLoc,
                                                    unsigned Depth,
-                                                   unsigned Position) {
+                                                   unsigned Position,
+                                                   SourceLocation EqualLoc,
+                                    const ParsedTemplateArgument &DefaultArg) {
     return DeclPtrTy();
-  }
-
-  /// \brief Adds a default argument to the given template template
-  /// parameter.
-  virtual void ActOnTemplateTemplateParameterDefault(DeclPtrTy TemplateParam,
-                                                     SourceLocation EqualLoc,
-                                        const ParsedTemplateArgument &Default) {
   }
 
   /// ActOnTemplateParameterList - Called when a complete template
@@ -1980,6 +2088,8 @@ public:
   /// SS will be "MetaFun::", \p TemplateKWLoc contains the location
   /// of the "template" keyword, and "apply" is the \p Name.
   ///
+  /// \param S The scope in which the dependent template name was parsed.
+  ///
   /// \param TemplateKWLoc the location of the "template" keyword (if any).
   ///
   /// \param SS the nested-name-specifier that precedes the "template" keyword
@@ -1995,12 +2105,21 @@ public:
   ///
   /// \param EnteringContext whether we are entering the context of this
   /// template.
-  virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
+  ///
+  /// \param Template Will be set to the dependent template name, on success.
+  ///
+  /// \returns The kind of template name that was produced. Generally, this will
+  /// be \c TNK_Dependent_template_name. However, if the nested-name-specifier
+  /// is not dependent, or refers to the current instantiation, then we may
+  /// be able to resolve the template kind more specifically.
+  virtual TemplateNameKind ActOnDependentTemplateName(Scope *S, 
+                                                SourceLocation TemplateKWLoc,
                                                 CXXScopeSpec &SS,
                                                 UnqualifiedId &Name,
                                                 TypeTy *ObjectType,
-                                                bool EnteringContext) {
-    return TemplateTy();
+                                                bool EnteringContext,
+                                                TemplateTy &Template) {
+    return TNK_Non_template;
   }
 
   /// \brief Process the declaration or definition of an explicit
@@ -2237,8 +2356,9 @@ public:
   /// \param II the identifier we're retrieving (e.g., 'type' in the example).
   /// \param IdLoc the location of the identifier.
   virtual TypeResult
-  ActOnTypenameType(SourceLocation TypenameLoc, const CXXScopeSpec &SS,
-                    const IdentifierInfo &II, SourceLocation IdLoc) {
+  ActOnTypenameType(Scope *S, SourceLocation TypenameLoc, 
+                    const CXXScopeSpec &SS, const IdentifierInfo &II, 
+                    SourceLocation IdLoc) {
     return TypeResult();
   }
 
@@ -2251,9 +2371,20 @@ public:
   /// \param TemplateLoc the location of the 'template' keyword, if any.
   /// \param Ty the type that the typename specifier refers to.
   virtual TypeResult
-  ActOnTypenameType(SourceLocation TypenameLoc, const CXXScopeSpec &SS,
-                    SourceLocation TemplateLoc, TypeTy *Ty) {
+  ActOnTypenameType(Scope *S, SourceLocation TypenameLoc, 
+                    const CXXScopeSpec &SS, SourceLocation TemplateLoc, 
+                    TypeTy *Ty) {
     return TypeResult();
+  }
+
+  /// \brief Called when the parser begins parsing a construct which should not
+  /// have access control applied to it.
+  virtual void ActOnStartSuppressingAccessChecks() {
+  }
+
+  /// \brief Called when the parser finishes parsing a construct which should
+  /// not have access control applied to it.
+  virtual void ActOnStopSuppressingAccessChecks() {
   }
 
   //===----------------------- Obj-C Declarations -------------------------===//
@@ -2565,7 +2696,9 @@ public:
   //===---------------------------- Pragmas -------------------------------===//
 
   enum PragmaOptionsAlignKind {
+    POAK_Native,  // #pragma options align=native
     POAK_Natural, // #pragma options align=natural
+    POAK_Packed,  // #pragma options align=packed
     POAK_Power,   // #pragma options align=power
     POAK_Mac68k,  // #pragma options align=mac68k
     POAK_Reset    // #pragma options align=reset
@@ -2727,7 +2860,27 @@ public:
   /// \param NumArgs the number of arguments in \p Args.
   virtual void CodeCompleteCall(Scope *S, ExprTy *Fn,
                                 ExprTy **Args, unsigned NumArgs) { }
-                                
+                 
+  /// \brief Code completion for the initializer of a variable declaration.
+  ///
+  /// \param S The scope in which the initializer occurs.
+  ///
+  /// \param D The declaration being initialized.
+  virtual void CodeCompleteInitializer(Scope *S, DeclPtrTy D) { }
+  
+  /// \brief Code completion after the "return" keyword within a function.
+  ///
+  /// \param S The scope in which the return statement occurs.
+  virtual void CodeCompleteReturn(Scope *S) { }
+  
+  /// \brief Code completion for the right-hand side of an assignment or
+  /// compound assignment operator.
+  ///
+  /// \param S The scope in which the assignment occurs.
+  ///
+  /// \param LHS The left-hand side of the assignment expression.
+  virtual void CodeCompleteAssignmentRHS(Scope *S, ExprTy *LHS) { }
+  
   /// \brief Code completion for a C++ nested-name-specifier that precedes a
   /// qualified-id of some form.
   ///
@@ -2851,6 +3004,14 @@ public:
                                               unsigned NumMethods) {
   }
 
+  /// \brief Code completion for the receiver in an Objective-C message send.
+  ///
+  /// This code completion action is invoked when we see a '[' that indicates
+  /// the start of an Objective-C message send.
+  ///
+  /// \param S The scope in which the Objective-C message send occurs.
+  virtual void CodeCompleteObjCMessageReceiver(Scope *S) { }
+  
   /// \brief Code completion for an ObjC message expression that sends
   /// a message to the superclass.
   ///
@@ -2905,7 +3066,7 @@ public:
   /// parsed.
   virtual void CodeCompleteObjCProtocolReferences(IdentifierLocPair *Protocols,
                                                   unsigned NumProtocols) { }
-
+  
   /// \brief Code completion for a protocol declaration or definition, after
   /// the @protocol but before any identifier.
   ///
@@ -2995,6 +3156,32 @@ public:
                                           TypeTy *ReturnType,
                                           DeclPtrTy IDecl) {
   }
+  
+  /// \brief Code completion for a selector identifier or argument name within
+  /// an Objective-C method declaration.
+  ///
+  /// \param S The scope in which this code completion occurs.
+  ///
+  /// \param IsInstanceMethod Whether we are parsing an instance method (or, 
+  /// if false, a class method).
+  ///
+  /// \param AtParameterName Whether the actual code completion point is at the
+  /// argument name.
+  ///
+  /// \param ReturnType If non-NULL, the specified return type of the method
+  /// being declared or defined.
+  ///
+  /// \param SelIdents The identifiers that occurred in the selector for the
+  /// method declaration prior to the code completion point.
+  ///
+  /// \param NumSelIdents The number of identifiers provided by SelIdents.
+  virtual void CodeCompleteObjCMethodDeclSelector(Scope *S, 
+                                                  bool IsInstanceMethod,
+                                                  bool AtParameterName,
+                                                  TypeTy *ReturnType,
+                                                  IdentifierInfo **SelIdents,
+                                                  unsigned NumSelIdents) { }
+  
   //@}
 };
 

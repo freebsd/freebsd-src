@@ -170,6 +170,7 @@ private:
   /*TST*/unsigned TypeSpecType : 5;
   bool TypeAltiVecVector : 1;
   bool TypeAltiVecPixel : 1;
+  bool TypeAltiVecBool : 1;
   bool TypeSpecOwned : 1;
 
   // type-qualifiers
@@ -237,6 +238,7 @@ public:
       TypeSpecType(TST_unspecified),
       TypeAltiVecVector(false),
       TypeAltiVecPixel(false),
+      TypeAltiVecBool(false),
       TypeSpecOwned(false),
       TypeQualifiers(TSS_unspecified),
       FS_inline_specified(false),
@@ -278,6 +280,7 @@ public:
   TST getTypeSpecType() const { return (TST)TypeSpecType; }
   bool isTypeAltiVecVector() const { return TypeAltiVecVector; }
   bool isTypeAltiVecPixel() const { return TypeAltiVecPixel; }
+  bool isTypeAltiVecBool() const { return TypeAltiVecBool; }
   bool isTypeSpecOwned() const { return TypeSpecOwned; }
   void *getTypeRep() const { return TypeRep; }
   CXXScopeSpec &getTypeSpecScope() { return TypeScope; }
@@ -885,6 +888,13 @@ struct DeclaratorChunk {
       delete[] Exceptions;
     }
 
+    /// isKNRPrototype - Return true if this is a K&R style identifier list,
+    /// like "void foo(a,b,c)".  In a function definition, this will be followed
+    /// by the argument type definitions.
+    bool isKNRPrototype() const {
+      return !hasPrototype && NumArgs != 0;
+    }
+    
     SourceLocation getEllipsisLoc() const {
       return SourceLocation::getFromRawEncoding(EllipsisLoc);
     }

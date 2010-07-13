@@ -549,6 +549,15 @@ public:
     return FoundNode;
   }
 
+  /// getFlaggedUser - If this node has a flag value with a user, return
+  /// the user (there is at most one). Otherwise return NULL.
+  SDNode *getFlaggedUser() const {
+    for (use_iterator UI = use_begin(), UE = use_end(); UI != UE; ++UI)
+      if (UI.getUse().get().getValueType() == MVT::Flag)
+        return *UI;
+    return 0;
+  }
+
   /// getNumValues - Return the number of values defined/returned by this
   /// operator.
   ///
@@ -1082,6 +1091,7 @@ public:
   uint64_t getZExtValue() const { return Value->getZExtValue(); }
   int64_t getSExtValue() const { return Value->getSExtValue(); }
 
+  bool isOne() const { return Value->isOne(); }
   bool isNullValue() const { return Value->isNullValue(); }
   bool isAllOnesValue() const { return Value->isAllOnesValue(); }
 
@@ -1130,7 +1140,7 @@ public:
   }
   bool isExactlyValue(const APFloat& V) const;
 
-  bool isValueValidForType(EVT VT, const APFloat& Val);
+  static bool isValueValidForType(EVT VT, const APFloat& Val);
 
   static bool classof(const ConstantFPSDNode *) { return true; }
   static bool classof(const SDNode *N) {
@@ -1144,7 +1154,7 @@ class GlobalAddressSDNode : public SDNode {
   int64_t Offset;
   unsigned char TargetFlags;
   friend class SelectionDAG;
-  GlobalAddressSDNode(unsigned Opc, const GlobalValue *GA, EVT VT,
+  GlobalAddressSDNode(unsigned Opc, DebugLoc DL, const GlobalValue *GA, EVT VT,
                       int64_t o, unsigned char TargetFlags);
 public:
 
@@ -1453,125 +1463,6 @@ public:
     return N->getOpcode() == ISD::CONVERT_RNDSAT;
   }
 };
-
-namespace ISD {
-  struct ArgFlagsTy {
-  private:
-    static const uint64_t NoFlagSet      = 0ULL;
-    static const uint64_t ZExt           = 1ULL<<0;  ///< Zero extended
-    static const uint64_t ZExtOffs       = 0;
-    static const uint64_t SExt           = 1ULL<<1;  ///< Sign extended
-    static const uint64_t SExtOffs       = 1;
-    static const uint64_t InReg          = 1ULL<<2;  ///< Passed in register
-    static const uint64_t InRegOffs      = 2;
-    static const uint64_t SRet           = 1ULL<<3;  ///< Hidden struct-ret ptr
-    static const uint64_t SRetOffs       = 3;
-    static const uint64_t ByVal          = 1ULL<<4;  ///< Struct passed by value
-    static const uint64_t ByValOffs      = 4;
-    static const uint64_t Nest           = 1ULL<<5;  ///< Nested fn static chain
-    static const uint64_t NestOffs       = 5;
-    static const uint64_t ByValAlign     = 0xFULL << 6; //< Struct alignment
-    static const uint64_t ByValAlignOffs = 6;
-    static const uint64_t Split          = 1ULL << 10;
-    static const uint64_t SplitOffs      = 10;
-    static const uint64_t OrigAlign      = 0x1FULL<<27;
-    static const uint64_t OrigAlignOffs  = 27;
-    static const uint64_t ByValSize      = 0xffffffffULL << 32; //< Struct size
-    static const uint64_t ByValSizeOffs  = 32;
-
-    static const uint64_t One            = 1ULL; //< 1 of this type, for shifts
-
-    uint64_t Flags;
-  public:
-    ArgFlagsTy() : Flags(0) { }
-
-    bool isZExt()   const { return Flags & ZExt; }
-    void setZExt()  { Flags |= One << ZExtOffs; }
-
-    bool isSExt()   const { return Flags & SExt; }
-    void setSExt()  { Flags |= One << SExtOffs; }
-
-    bool isInReg()  const { return Flags & InReg; }
-    void setInReg() { Flags |= One << InRegOffs; }
-
-    bool isSRet()   const { return Flags & SRet; }
-    void setSRet()  { Flags |= One << SRetOffs; }
-
-    bool isByVal()  const { return Flags & ByVal; }
-    void setByVal() { Flags |= One << ByValOffs; }
-
-    bool isNest()   const { return Flags & Nest; }
-    void setNest()  { Flags |= One << NestOffs; }
-
-    unsigned getByValAlign() const {
-      return (unsigned)
-        ((One << ((Flags & ByValAlign) >> ByValAlignOffs)) / 2);
-    }
-    void setByValAlign(unsigned A) {
-      Flags = (Flags & ~ByValAlign) |
-        (uint64_t(Log2_32(A) + 1) << ByValAlignOffs);
-    }
-
-    bool isSplit()   const { return Flags & Split; }
-    void setSplit()  { Flags |= One << SplitOffs; }
-
-    unsigned getOrigAlign() const {
-      return (unsigned)
-        ((One << ((Flags & OrigAlign) >> OrigAlignOffs)) / 2);
-    }
-    void setOrigAlign(unsigned A) {
-      Flags = (Flags & ~OrigAlign) |
-        (uint64_t(Log2_32(A) + 1) << OrigAlignOffs);
-    }
-
-    unsigned getByValSize() const {
-      return (unsigned)((Flags & ByValSize) >> ByValSizeOffs);
-    }
-    void setByValSize(unsigned S) {
-      Flags = (Flags & ~ByValSize) | (uint64_t(S) << ByValSizeOffs);
-    }
-
-    /// getArgFlagsString - Returns the flags as a string, eg: "zext align:4".
-    std::string getArgFlagsString();
-
-    /// getRawBits - Represent the flags as a bunch of bits.
-    uint64_t getRawBits() const { return Flags; }
-  };
-
-  /// InputArg - This struct carries flags and type information about a
-  /// single incoming (formal) argument or incoming (from the perspective
-  /// of the caller) return value virtual register.
-  ///
-  struct InputArg {
-    ArgFlagsTy Flags;
-    EVT VT;
-    bool Used;
-
-    InputArg() : VT(MVT::Other), Used(false) {}
-    InputArg(ISD::ArgFlagsTy flags, EVT vt, bool used)
-      : Flags(flags), VT(vt), Used(used) {
-      assert(VT.isSimple() &&
-             "InputArg value type must be Simple!");
-    }
-  };
-
-  /// OutputArg - This struct carries flags and a value for a
-  /// single outgoing (actual) argument or outgoing (from the perspective
-  /// of the caller) return value virtual register.
-  ///
-  struct OutputArg {
-    ArgFlagsTy Flags;
-    SDValue Val;
-    bool IsFixed;
-
-    OutputArg() : IsFixed(false) {}
-    OutputArg(ISD::ArgFlagsTy flags, SDValue val, bool isfixed)
-      : Flags(flags), Val(val), IsFixed(isfixed) {
-      assert(Val.getValueType().isSimple() &&
-             "OutputArg value type must be Simple!");
-    }
-  };
-}
 
 /// VTSDNode - This class is used to represent EVT's, which are used
 /// to parameterize some operations.

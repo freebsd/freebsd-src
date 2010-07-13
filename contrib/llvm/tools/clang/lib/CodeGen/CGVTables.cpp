@@ -87,112 +87,61 @@ private:
   /// MostDerivedClassLayout - the AST record layout of the most derived class.
   const ASTRecordLayout &MostDerivedClassLayout;
 
-  /// BaseSubobjectMethodPairTy - Uniquely identifies a member function
+  /// MethodBaseOffsetPairTy - Uniquely identifies a member function
   /// in a base subobject.
-  typedef std::pair<BaseSubobject, const CXXMethodDecl *>
-    BaseSubobjectMethodPairTy;
-  
-  typedef llvm::DenseMap<BaseSubobjectMethodPairTy,
+  typedef std::pair<const CXXMethodDecl *, uint64_t> MethodBaseOffsetPairTy;
+
+  typedef llvm::DenseMap<MethodBaseOffsetPairTy,
                          OverriderInfo> OverridersMapTy;
   
   /// OverridersMap - The final overriders for all virtual member functions of 
   /// all the base subobjects of the most derived class.
   OverridersMapTy OverridersMap;
   
-  /// VisitedVirtualBases - A set of all the visited virtual bases, used to
-  /// avoid visiting virtual bases more than once.
-  llvm::SmallPtrSet<const CXXRecordDecl *, 4> VisitedVirtualBases;
+  /// SubobjectsToOffsetsMapTy - A mapping from a base subobject (represented
+  /// as a record decl and a subobject number) and its offsets in the most
+  /// derived class as well as the layout class.
+  typedef llvm::DenseMap<std::pair<const CXXRecordDecl *, unsigned>, 
+                         uint64_t> SubobjectOffsetMapTy;
 
-  typedef llvm::DenseMap<BaseSubobjectMethodPairTy, BaseOffset>
-    AdjustmentOffsetsMapTy;
-
-  /// ReturnAdjustments - Holds return adjustments for all the overriders that 
-  /// need to perform return value adjustments.
-  AdjustmentOffsetsMapTy ReturnAdjustments;
-
-  // FIXME: We might be able to get away with making this a SmallSet.
-  typedef llvm::SmallSetVector<uint64_t, 2> OffsetSetVectorTy;
+  typedef llvm::DenseMap<const CXXRecordDecl *, unsigned> SubobjectCountMapTy;
   
-  /// SubobjectOffsetsMapTy - This map is used for keeping track of all the
-  /// base subobject offsets that a single class declaration might refer to.
-  ///
-  /// For example, in:
-  ///
-  /// struct A { virtual void f(); };
-  /// struct B1 : A { };
-  /// struct B2 : A { };
-  /// struct C : B1, B2 { virtual void f(); };
-  ///
-  /// when we determine that C::f() overrides A::f(), we need to update the
-  /// overriders map for both A-in-B1 and A-in-B2 and the subobject offsets map
-  /// will have the subobject offsets for both A copies.
-  typedef llvm::DenseMap<const CXXRecordDecl *, OffsetSetVectorTy>
-    SubobjectOffsetsMapTy;
-  
-  /// ComputeFinalOverriders - Compute the final overriders for a given base
-  /// subobject (and all its direct and indirect bases).
-  void ComputeFinalOverriders(BaseSubobject Base,
-                              bool BaseSubobjectIsVisitedVBase,
-                              uint64_t OffsetInLayoutClass,
-                              SubobjectOffsetsMapTy &Offsets);
-  
-  /// AddOverriders - Add the final overriders for this base subobject to the
-  /// map of final overriders.  
-  void AddOverriders(BaseSubobject Base, uint64_t OffsetInLayoutClass,
-                     SubobjectOffsetsMapTy &Offsets);
+  /// ComputeBaseOffsets - Compute the offsets for all base subobjects of the
+  /// given base.
+  void ComputeBaseOffsets(BaseSubobject Base, bool IsVirtual,
+                          uint64_t OffsetInLayoutClass,
+                          SubobjectOffsetMapTy &SubobjectOffsets,
+                          SubobjectOffsetMapTy &SubobjectLayoutClassOffsets,
+                          SubobjectCountMapTy &SubobjectCounts);
 
-  /// PropagateOverrider - Propagate the NewMD overrider to all the functions 
-  /// that OldMD overrides. For example, if we have:
-  ///
-  /// struct A { virtual void f(); };
-  /// struct B : A { virtual void f(); };
-  /// struct C : B { virtual void f(); };
-  ///
-  /// and we want to override B::f with C::f, we also need to override A::f with
-  /// C::f.
-  void PropagateOverrider(const CXXMethodDecl *OldMD,
-                          BaseSubobject NewBase,
-                          uint64_t OverriderOffsetInLayoutClass,
-                          const CXXMethodDecl *NewMD,
-                          SubobjectOffsetsMapTy &Offsets);
+  typedef llvm::SmallPtrSet<const CXXRecordDecl *, 4> VisitedVirtualBasesSetTy;
   
-  static void MergeSubobjectOffsets(const SubobjectOffsetsMapTy &NewOffsets,
-                                    SubobjectOffsetsMapTy &Offsets);
-
+  /// dump - dump the final overriders for a base subobject, and all its direct
+  /// and indirect base subobjects.
+  void dump(llvm::raw_ostream &Out, BaseSubobject Base,
+            VisitedVirtualBasesSetTy& VisitedVirtualBases);
+  
 public:
   FinalOverriders(const CXXRecordDecl *MostDerivedClass,
                   uint64_t MostDerivedClassOffset,
                   const CXXRecordDecl *LayoutClass);
 
   /// getOverrider - Get the final overrider for the given method declaration in
-  /// the given base subobject.
-  OverriderInfo getOverrider(BaseSubobject Base,
-                             const CXXMethodDecl *MD) const {
-    assert(OverridersMap.count(std::make_pair(Base, MD)) && 
+  /// the subobject with the given base offset. 
+  OverriderInfo getOverrider(const CXXMethodDecl *MD, 
+                             uint64_t BaseOffset) const {
+    assert(OverridersMap.count(std::make_pair(MD, BaseOffset)) && 
            "Did not find overrider!");
     
-    return OverridersMap.lookup(std::make_pair(Base, MD));
+    return OverridersMap.lookup(std::make_pair(MD, BaseOffset));
   }
   
-  /// getReturnAdjustmentOffset - Get the return adjustment offset for the
-  /// method decl in the given base subobject. Returns an empty base offset if
-  /// no adjustment is needed.
-  BaseOffset getReturnAdjustmentOffset(BaseSubobject Base,
-                                       const CXXMethodDecl *MD) const {
-    return ReturnAdjustments.lookup(std::make_pair(Base, MD));
-  }
-
   /// dump - dump the final overriders.
   void dump() {
-    assert(VisitedVirtualBases.empty() &&
-           "Visited virtual bases aren't empty!");
-    dump(llvm::errs(), BaseSubobject(MostDerivedClass, 0)); 
-    VisitedVirtualBases.clear();
+    VisitedVirtualBasesSetTy VisitedVirtualBases;
+    dump(llvm::errs(), BaseSubobject(MostDerivedClass, 0), VisitedVirtualBases);
   }
   
-  /// dump - dump the final overriders for a base subobject, and all its direct
-  /// and indirect base subobjects.
-  void dump(llvm::raw_ostream &Out, BaseSubobject Base);
 };
 
 #define DUMP_OVERRIDERS 0
@@ -204,54 +153,57 @@ FinalOverriders::FinalOverriders(const CXXRecordDecl *MostDerivedClass,
   MostDerivedClassOffset(MostDerivedClassOffset), LayoutClass(LayoutClass),
   Context(MostDerivedClass->getASTContext()),
   MostDerivedClassLayout(Context.getASTRecordLayout(MostDerivedClass)) {
-    
-  // Compute the final overriders.
-  SubobjectOffsetsMapTy Offsets;
-  ComputeFinalOverriders(BaseSubobject(MostDerivedClass, 0), 
-                         /*BaseSubobjectIsVisitedVBase=*/false, 
-                         MostDerivedClassOffset, Offsets);
-  VisitedVirtualBases.clear();
+
+  // Compute base offsets.
+  SubobjectOffsetMapTy SubobjectOffsets;
+  SubobjectOffsetMapTy SubobjectLayoutClassOffsets;
+  SubobjectCountMapTy SubobjectCounts;
+  ComputeBaseOffsets(BaseSubobject(MostDerivedClass, 0), /*IsVirtual=*/false,
+                     MostDerivedClassOffset, SubobjectOffsets, 
+                     SubobjectLayoutClassOffsets, SubobjectCounts);
+
+  // Get the the final overriders.
+  CXXFinalOverriderMap FinalOverriders;
+  MostDerivedClass->getFinalOverriders(FinalOverriders);
+
+  for (CXXFinalOverriderMap::const_iterator I = FinalOverriders.begin(),
+       E = FinalOverriders.end(); I != E; ++I) {
+    const CXXMethodDecl *MD = I->first;
+    const OverridingMethods& Methods = I->second;
+
+    for (OverridingMethods::const_iterator I = Methods.begin(),
+         E = Methods.end(); I != E; ++I) {
+      unsigned SubobjectNumber = I->first;
+      assert(SubobjectOffsets.count(std::make_pair(MD->getParent(), 
+                                                   SubobjectNumber)) &&
+             "Did not find subobject offset!");
+      
+      uint64_t BaseOffset = SubobjectOffsets[std::make_pair(MD->getParent(),
+                                                            SubobjectNumber)];
+
+      assert(I->second.size() == 1 && "Final overrider is not unique!");
+      const UniqueVirtualMethod &Method = I->second.front();
+
+      const CXXRecordDecl *OverriderRD = Method.Method->getParent();
+      assert(SubobjectLayoutClassOffsets.count(
+             std::make_pair(OverriderRD, Method.Subobject))
+             && "Did not find subobject offset!");
+      uint64_t OverriderOffset =
+        SubobjectLayoutClassOffsets[std::make_pair(OverriderRD, 
+                                                   Method.Subobject)];
+
+      OverriderInfo& Overrider = OverridersMap[std::make_pair(MD, BaseOffset)];
+      assert(!Overrider.Method && "Overrider should not exist yet!");
+      
+      Overrider.Offset = OverriderOffset;
+      Overrider.Method = Method.Method;
+    }
+  }
 
 #if DUMP_OVERRIDERS
   // And dump them (for now).
   dump();
-    
-  // Also dump the base offsets (for now).
-  for (SubobjectOffsetsMapTy::const_iterator I = Offsets.begin(),
-       E = Offsets.end(); I != E; ++I) {
-    const OffsetSetVectorTy& OffsetSetVector = I->second;
-
-    llvm::errs() << "Base offsets for ";
-    llvm::errs() << I->first->getQualifiedNameAsString() << '\n';
-
-    for (unsigned I = 0, E = OffsetSetVector.size(); I != E; ++I)
-      llvm::errs() << "  " << I << " - " << OffsetSetVector[I] / 8 << '\n';
-  }
 #endif
-}
-
-void FinalOverriders::AddOverriders(BaseSubobject Base,
-                                    uint64_t OffsetInLayoutClass,
-                                    SubobjectOffsetsMapTy &Offsets) {
-  const CXXRecordDecl *RD = Base.getBase();
-
-  for (CXXRecordDecl::method_iterator I = RD->method_begin(), 
-       E = RD->method_end(); I != E; ++I) {
-    const CXXMethodDecl *MD = *I;
-    
-    if (!MD->isVirtual())
-      continue;
-
-    // First, propagate the overrider.
-    PropagateOverrider(MD, Base, OffsetInLayoutClass, MD, Offsets);
-
-    // Add the overrider as the final overrider of itself.
-    OverriderInfo& Overrider = OverridersMap[std::make_pair(Base, MD)];
-    assert(!Overrider.Method && "Overrider should not exist yet!");
-
-    Overrider.Offset = OffsetInLayoutClass;
-    Overrider.Method = MD;
-  }
 }
 
 static BaseOffset ComputeBaseOffset(ASTContext &Context, 
@@ -365,153 +317,64 @@ ComputeReturnAdjustmentBaseOffset(ASTContext &Context,
   return ComputeBaseOffset(Context, BaseRD, DerivedRD);
 }
 
-void FinalOverriders::PropagateOverrider(const CXXMethodDecl *OldMD,
-                                         BaseSubobject NewBase,
-                                         uint64_t OverriderOffsetInLayoutClass,
-                                         const CXXMethodDecl *NewMD,
-                                         SubobjectOffsetsMapTy &Offsets) {
-  for (CXXMethodDecl::method_iterator I = OldMD->begin_overridden_methods(),
-       E = OldMD->end_overridden_methods(); I != E; ++I) {
-    const CXXMethodDecl *OverriddenMD = *I;
-    const CXXRecordDecl *OverriddenRD = OverriddenMD->getParent();
-
-    // We want to override OverriddenMD in all subobjects, for example:
-    //
-    /// struct A { virtual void f(); };
-    /// struct B1 : A { };
-    /// struct B2 : A { };
-    /// struct C : B1, B2 { virtual void f(); };
-    ///
-    /// When overriding A::f with C::f we need to do so in both A subobjects.
-    const OffsetSetVectorTy &OffsetVector = Offsets[OverriddenRD];
-    
-    // Go through all the subobjects.
-    for (unsigned I = 0, E = OffsetVector.size(); I != E; ++I) {
-      uint64_t Offset = OffsetVector[I];
-
-      BaseSubobject OverriddenSubobject = BaseSubobject(OverriddenRD, Offset);
-      BaseSubobjectMethodPairTy SubobjectAndMethod =
-        std::make_pair(OverriddenSubobject, OverriddenMD);
-      
-      OverriderInfo &Overrider = OverridersMap[SubobjectAndMethod];
-
-      assert(Overrider.Method && "Did not find existing overrider!");
-
-      // Check if we need return adjustments or base adjustments.
-      // (We don't want to do this for pure virtual member functions).
-      if (!NewMD->isPure()) {
-        // Get the return adjustment base offset.
-        BaseOffset ReturnBaseOffset =
-          ComputeReturnAdjustmentBaseOffset(Context, NewMD, OverriddenMD);
-
-        if (!ReturnBaseOffset.isEmpty()) {
-          // Store the return adjustment base offset.
-          ReturnAdjustments[SubobjectAndMethod] = ReturnBaseOffset;
-        }
-      }
-
-      // Set the new overrider.
-      Overrider.Offset = OverriderOffsetInLayoutClass;
-      Overrider.Method = NewMD;
-      
-      // And propagate it further.
-      PropagateOverrider(OverriddenMD, NewBase, OverriderOffsetInLayoutClass,
-                         NewMD, Offsets);
-    }
-  }
-}
-
 void 
-FinalOverriders::MergeSubobjectOffsets(const SubobjectOffsetsMapTy &NewOffsets,
-                                       SubobjectOffsetsMapTy &Offsets) {
-  // Iterate over the new offsets.
-  for (SubobjectOffsetsMapTy::const_iterator I = NewOffsets.begin(),
-       E = NewOffsets.end(); I != E; ++I) {
-    const CXXRecordDecl *NewRD = I->first;
-    const OffsetSetVectorTy& NewOffsetVector = I->second;
-    
-    OffsetSetVectorTy &OffsetVector = Offsets[NewRD];
-    
-    // Merge the new offsets set vector into the old.
-    OffsetVector.insert(NewOffsetVector.begin(), NewOffsetVector.end());
-  }
-}
-
-void FinalOverriders::ComputeFinalOverriders(BaseSubobject Base,
-                                             bool BaseSubobjectIsVisitedVBase,
-                                             uint64_t OffsetInLayoutClass,
-                                             SubobjectOffsetsMapTy &Offsets) {
+FinalOverriders::ComputeBaseOffsets(BaseSubobject Base, bool IsVirtual,
+                              uint64_t OffsetInLayoutClass,
+                              SubobjectOffsetMapTy &SubobjectOffsets,
+                              SubobjectOffsetMapTy &SubobjectLayoutClassOffsets,
+                              SubobjectCountMapTy &SubobjectCounts) {
   const CXXRecordDecl *RD = Base.getBase();
-  const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
   
-  SubobjectOffsetsMapTy NewOffsets;
+  unsigned SubobjectNumber = 0;
+  if (!IsVirtual)
+    SubobjectNumber = ++SubobjectCounts[RD];
+
+  // Set up the subobject to offset mapping.
+  assert(!SubobjectOffsets.count(std::make_pair(RD, SubobjectNumber))
+         && "Subobject offset already exists!");
+  assert(!SubobjectLayoutClassOffsets.count(std::make_pair(RD, SubobjectNumber)) 
+         && "Subobject offset already exists!");
+
+  SubobjectOffsets[std::make_pair(RD, SubobjectNumber)] =
+    Base.getBaseOffset();
+  SubobjectLayoutClassOffsets[std::make_pair(RD, SubobjectNumber)] =
+    OffsetInLayoutClass;
   
+  // Traverse our bases.
   for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
        E = RD->bases_end(); I != E; ++I) {
     const CXXRecordDecl *BaseDecl = 
       cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
-    
-    // Ignore bases that don't have any virtual member functions.
-    if (!BaseDecl->isPolymorphic())
-      continue;
-    
-    bool IsVisitedVirtualBase = BaseSubobjectIsVisitedVBase;
+
     uint64_t BaseOffset;
     uint64_t BaseOffsetInLayoutClass;
     if (I->isVirtual()) {
-      if (!VisitedVirtualBases.insert(BaseDecl))
-        IsVisitedVirtualBase = true;
-      BaseOffset = MostDerivedClassLayout.getVBaseClassOffset(BaseDecl);
-      
+      // Check if we've visited this virtual base before.
+      if (SubobjectOffsets.count(std::make_pair(BaseDecl, 0)))
+        continue;
+
       const ASTRecordLayout &LayoutClassLayout =
         Context.getASTRecordLayout(LayoutClass);
+
+      BaseOffset = MostDerivedClassLayout.getVBaseClassOffset(BaseDecl);
       BaseOffsetInLayoutClass = 
         LayoutClassLayout.getVBaseClassOffset(BaseDecl);
     } else {
-      BaseOffset = Layout.getBaseClassOffset(BaseDecl) + Base.getBaseOffset();
-      BaseOffsetInLayoutClass = Layout.getBaseClassOffset(BaseDecl) +
-        OffsetInLayoutClass;
-    }
+      const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
+      uint64_t Offset = Layout.getBaseClassOffset(BaseDecl);
     
-    // Compute the final overriders for this base.
-    // We always want to compute the final overriders, even if the base is a
-    // visited virtual base. Consider:
-    //
-    // struct A {
-    //   virtual void f();
-    //   virtual void g();
-    // };
-    //  
-    // struct B : virtual A {
-    //   void f();
-    // };
-    //
-    // struct C : virtual A {
-    //   void g ();
-    // };
-    //
-    // struct D : B, C { };
-    //
-    // Here, we still want to compute the overriders for A as a base of C, 
-    // because otherwise we'll miss that C::g overrides A::f.
-    ComputeFinalOverriders(BaseSubobject(BaseDecl, BaseOffset), 
-                           IsVisitedVirtualBase, BaseOffsetInLayoutClass, 
-                           NewOffsets);
+      BaseOffset = Base.getBaseOffset() + Offset;
+      BaseOffsetInLayoutClass = OffsetInLayoutClass + Offset;
+    }
+
+    ComputeBaseOffsets(BaseSubobject(BaseDecl, BaseOffset), I->isVirtual(),
+                       BaseOffsetInLayoutClass, SubobjectOffsets,
+                       SubobjectLayoutClassOffsets, SubobjectCounts);
   }
-
-  /// Now add the overriders for this particular subobject.
-  /// (We don't want to do this more than once for a virtual base).
-  if (!BaseSubobjectIsVisitedVBase)
-    AddOverriders(Base, OffsetInLayoutClass, NewOffsets);
-  
-  // And merge the newly discovered subobject offsets.
-  MergeSubobjectOffsets(NewOffsets, Offsets);
-
-  /// Finally, add the offset for our own subobject.
-  Offsets[RD].insert(Base.getBaseOffset());
 }
 
-void FinalOverriders::dump(llvm::raw_ostream &Out, BaseSubobject Base) {
+void FinalOverriders::dump(llvm::raw_ostream &Out, BaseSubobject Base,
+                           VisitedVirtualBasesSetTy &VisitedVirtualBases) {
   const CXXRecordDecl *RD = Base.getBase();
   const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
 
@@ -537,7 +400,7 @@ void FinalOverriders::dump(llvm::raw_ostream &Out, BaseSubobject Base) {
         Base.getBaseOffset();
     }
 
-    dump(Out, BaseSubobject(BaseDecl, BaseOffset));
+    dump(Out, BaseSubobject(BaseDecl, BaseOffset), VisitedVirtualBases);
   }
 
   Out << "Final overriders for (" << RD->getQualifiedNameAsString() << ", ";
@@ -551,17 +414,17 @@ void FinalOverriders::dump(llvm::raw_ostream &Out, BaseSubobject Base) {
     if (!MD->isVirtual())
       continue;
   
-    OverriderInfo Overrider = getOverrider(Base, MD);
+    OverriderInfo Overrider = getOverrider(MD, Base.getBaseOffset());
 
     Out << "  " << MD->getQualifiedNameAsString() << " - (";
     Out << Overrider.Method->getQualifiedNameAsString();
     Out << ", " << ", " << Overrider.Offset / 8 << ')';
 
-    AdjustmentOffsetsMapTy::const_iterator AI =
-      ReturnAdjustments.find(std::make_pair(Base, MD));
-    if (AI != ReturnAdjustments.end()) {
-      const BaseOffset &Offset = AI->second;
+    BaseOffset Offset;
+    if (!Overrider.Method->isPure())
+      Offset = ComputeReturnAdjustmentBaseOffset(Context, Overrider.Method, MD);
 
+    if (!Offset.isEmpty()) {
       Out << " [ret-adj: ";
       if (Offset.VirtualBase)
         Out << Offset.VirtualBase->getQualifiedNameAsString() << " vbase, ";
@@ -1013,7 +876,7 @@ void VCallAndVBaseOffsetBuilder::AddVCallOffsets(BaseSubobject Base,
     if (Overriders) {
       // Get the final overrider.
       FinalOverriders::OverriderInfo Overrider = 
-        Overriders->getOverrider(Base, MD);
+        Overriders->getOverrider(MD, Base.getBaseOffset());
       
       /// The vcall offset is the offset from the virtual base to the object 
       /// where the function was overridden.
@@ -1390,8 +1253,7 @@ void VTableBuilder::ComputeThisAdjustments() {
     
     // Get the final overrider for this method.
     FinalOverriders::OverriderInfo Overrider =
-      Overriders.getOverrider(BaseSubobject(MD->getParent(), 
-                                            MethodInfo.BaseOffset), MD);
+      Overriders.getOverrider(MD, MethodInfo.BaseOffset);
     
     // Check if we need an adjustment at all.
     if (MethodInfo.BaseOffsetInLayoutClass == Overrider.Offset) {
@@ -1763,7 +1625,7 @@ VTableBuilder::AddMethods(BaseSubobject Base, uint64_t BaseOffsetInLayoutClass,
 
     // Get the final overrider.
     FinalOverriders::OverriderInfo Overrider = 
-      Overriders.getOverrider(Base, MD);
+      Overriders.getOverrider(MD, Base.getBaseOffset());
 
     // Check if this virtual member function overrides a method in a primary
     // base. If this is the case, and the return type doesn't require adjustment
@@ -1828,8 +1690,12 @@ VTableBuilder::AddMethods(BaseSubobject Base, uint64_t BaseOffsetInLayoutClass,
     }
     
     // Check if this overrider needs a return adjustment.
-    BaseOffset ReturnAdjustmentOffset = 
-      Overriders.getReturnAdjustmentOffset(Base, MD);
+    // We don't want to do this for pure virtual member functions.
+    BaseOffset ReturnAdjustmentOffset;
+    if (!OverriderMD->isPure()) {
+      ReturnAdjustmentOffset = 
+        ComputeReturnAdjustmentBaseOffset(Context, OverriderMD, MD);
+    }
 
     ReturnAdjustment ReturnAdjustment = 
       ComputeReturnAdjustment(ReturnAdjustmentOffset);
@@ -2775,7 +2641,7 @@ void CodeGenVTables::EmitThunks(GlobalDecl GD)
   const CXXRecordDecl *RD = MD->getParent();
   
   // Compute VTable related info for this class.
-  ComputeVTableRelatedInformation(RD);
+  ComputeVTableRelatedInformation(RD, false);
   
   ThunksMapTy::const_iterator I = Thunks.find(MD);
   if (I == Thunks.end()) {
@@ -2788,24 +2654,30 @@ void CodeGenVTables::EmitThunks(GlobalDecl GD)
     EmitThunk(GD, ThunkInfoVector[I]);
 }
 
-void CodeGenVTables::ComputeVTableRelatedInformation(const CXXRecordDecl *RD) {
-  uint64_t *&LayoutData = VTableLayoutMap[RD];
-  
-  // Check if we've computed this information before.
-  if (LayoutData)
-    return;
+void CodeGenVTables::ComputeVTableRelatedInformation(const CXXRecordDecl *RD,
+                                                     bool RequireVTable) {
+  VTableLayoutData &Entry = VTableLayoutMap[RD];
 
   // We may need to generate a definition for this vtable.
-  if (!isKeyFunctionInAnotherTU(CGM.getContext(), RD) &&
-      RD->getTemplateSpecializationKind()
-                                      != TSK_ExplicitInstantiationDeclaration)
-    CGM.DeferredVTables.push_back(RD);
+  if (RequireVTable && !Entry.getInt()) {
+    if (!isKeyFunctionInAnotherTU(CGM.getContext(), RD) &&
+        RD->getTemplateSpecializationKind()
+          != TSK_ExplicitInstantiationDeclaration)
+      CGM.DeferredVTables.push_back(RD);
+
+    Entry.setInt(true);
+  }
+  
+  // Check if we've computed this information before.
+  if (Entry.getPointer())
+    return;
 
   VTableBuilder Builder(*this, RD, 0, /*MostDerivedClassIsVirtual=*/0, RD);
 
   // Add the VTable layout.
   uint64_t NumVTableComponents = Builder.getNumVTableComponents();
-  LayoutData = new uint64_t[NumVTableComponents + 1];
+  uint64_t *LayoutData = new uint64_t[NumVTableComponents + 1];
+  Entry.setPointer(LayoutData);
 
   // Store the number of components.
   LayoutData[0] = NumVTableComponents;
@@ -3020,7 +2892,7 @@ llvm::GlobalVariable *CodeGenVTables::GetAddrOfVTable(const CXXRecordDecl *RD) {
   CGM.getMangleContext().mangleCXXVTable(RD, OutName);
   llvm::StringRef Name = OutName.str();
 
-  ComputeVTableRelatedInformation(RD);
+  ComputeVTableRelatedInformation(RD, true);
   
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
   llvm::ArrayType *ArrayType = 
@@ -3054,6 +2926,9 @@ CodeGenVTables::EmitVTableDefinition(llvm::GlobalVariable *VTable,
   
   // Set the correct linkage.
   VTable->setLinkage(Linkage);
+  
+  // Set the right visibility.
+  CGM.setGlobalVisibility(VTable, RD);
 }
 
 llvm::GlobalVariable *

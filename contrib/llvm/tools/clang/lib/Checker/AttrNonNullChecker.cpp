@@ -60,9 +60,10 @@ void AttrNonNullChecker::PreVisitCallExpr(CheckerContext &C,
     if (!Att->isNonNull(idx))
       continue;
 
-    const SVal &V = state->getSVal(*I);
-    const DefinedSVal *DV = dyn_cast<DefinedSVal>(&V);
+    SVal V = state->getSVal(*I);
+    DefinedSVal *DV = dyn_cast<DefinedSVal>(&V);
 
+    // If the value is unknown or undefined, we can't perform this check.
     if (!DV)
       continue;
 

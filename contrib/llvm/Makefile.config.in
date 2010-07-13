@@ -222,8 +222,8 @@ RDYNAMIC := @RDYNAMIC@
 
 # When ENABLE_PROFILING is enabled, profile instrumentation is done
 # and output is put into the "<Flavor>+Profile" directories, where
-# <Flavor> is either Debug or Release depending on how other builkd
-# flags are set.. Otherwise, output is put in the <Flavor>
+# <Flavor> is either Debug or Release depending on how other build
+# flags are set. Otherwise, output is put in the <Flavor>
 # directories.
 #ENABLE_PROFILING = 1
 @ENABLE_PROFILING@
@@ -320,12 +320,6 @@ endif
 # Location of the plugin header file for gold.
 BINUTILS_INCDIR := @BINUTILS_INCDIR@
 
-C_INCLUDE_DIRS := @C_INCLUDE_DIRS@
-CXX_INCLUDE_ROOT := @CXX_INCLUDE_ROOT@
-CXX_INCLUDE_ARCH := @CXX_INCLUDE_ARCH@
-CXX_INCLUDE_32BIT_DIR = @CXX_INCLUDE_32BIT_DIR@
-CXX_INCLUDE_64BIT_DIR = @CXX_INCLUDE_64BIT_DIR@
-
 # When ENABLE_LLVMC_DYNAMIC is enabled, LLVMC will link libCompilerDriver
 # dynamically. This is needed to make dynamic plugins work on some targets
 # (Windows).
@@ -344,5 +338,5 @@ NO_MISSING_FIELD_INITIALIZERS = @NO_MISSING_FIELD_INITIALIZERS@
 NO_VARIADIC_MACROS = @NO_VARIADIC_MACROS@
 
 # Flags supported by the linker.
-# bfd ld / gold -retain-symbols-file file
-HAVE_LINK_RETAIN_SYMBOLS_FILE = @HAVE_LINK_RETAIN_SYMBOLS_FILE@
+# bfd ld / gold --version-script=file
+HAVE_LINK_VERSION_SCRIPT = @HAVE_LINK_VERSION_SCRIPT@

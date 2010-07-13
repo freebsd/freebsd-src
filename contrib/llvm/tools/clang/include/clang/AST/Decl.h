@@ -28,6 +28,8 @@ class FunctionTemplateDecl;
 class Stmt;
 class CompoundStmt;
 class StringLiteral;
+class NestedNameSpecifier;
+class TemplateParameterList;
 class TemplateArgumentList;
 class MemberSpecializationInfo;
 class FunctionTemplateSpecializationInfo;
@@ -216,7 +218,7 @@ public:
 
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const NamedDecl *D) { return true; }
-  static bool classofKind(Kind K) { return K >= NamedFirst && K <= NamedLast; }
+  static bool classofKind(Kind K) { return K >= firstNamed && K <= lastNamed; }
 };
 
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
@@ -342,6 +344,9 @@ public:
   static NamespaceDecl *castFromDeclContext(const DeclContext *DC) {
     return static_cast<NamespaceDecl *>(const_cast<DeclContext*>(DC));
   }
+  
+  friend class PCHDeclReader;
+  friend class PCHDeclWriter;
 };
 
 /// ValueDecl - Represent the declaration of a variable (in which case it is
@@ -361,7 +366,38 @@ public:
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const ValueDecl *D) { return true; }
-  static bool classofKind(Kind K) { return K >= ValueFirst && K <= ValueLast; }
+  static bool classofKind(Kind K) { return K >= firstValue && K <= lastValue; }
+};
+
+/// QualifierInfo - A struct with extended info about a syntactic
+/// name qualifier, to be used for the case of out-of-line declarations.
+struct QualifierInfo {
+  /// NNS - The syntactic name qualifier.
+  NestedNameSpecifier *NNS;
+  /// NNSRange - The source range for the qualifier.
+  SourceRange NNSRange;
+  /// NumTemplParamLists - The number of template parameter lists
+  /// that were matched against the template-ids occurring into the NNS.
+  unsigned NumTemplParamLists;
+  /// TemplParamLists - A new-allocated array of size NumTemplParamLists,
+  /// containing pointers to the matched template parameter lists.
+  TemplateParameterList** TemplParamLists;
+
+  /// Default constructor.
+  QualifierInfo()
+    : NNS(0), NNSRange(), NumTemplParamLists(0), TemplParamLists(0) {}
+  /// setTemplateParameterListsInfo - Sets info about matched template
+  /// parameter lists.
+  void setTemplateParameterListsInfo(ASTContext &Context,
+                                     unsigned NumTPLists,
+                                     TemplateParameterList **TPLists);
+  
+  void Destroy(ASTContext &Context);
+  
+private:
+  // Copy constructor and copy assignment are disabled.
+  QualifierInfo(const QualifierInfo&);
+  QualifierInfo& operator=(const QualifierInfo&);
 };
 
 /// \brief Represents a ValueDecl that came out of a declarator.
@@ -369,10 +405,8 @@ public:
 class DeclaratorDecl : public ValueDecl {
   // A struct representing both a TInfo and a syntactic qualifier,
   // to be used for the (uncommon) case of out-of-line declarations.
-  struct ExtInfo {
+  struct ExtInfo : public QualifierInfo {
     TypeSourceInfo *TInfo;
-    NestedNameSpecifier *NNS;
-    SourceRange NNSRange;
   };
 
   llvm::PointerUnion<TypeSourceInfo*, ExtInfo*> DeclInfo;
@@ -392,24 +426,47 @@ public:
 
   TypeSourceInfo *getTypeSourceInfo() const {
     return hasExtInfo()
-      ? DeclInfo.get<ExtInfo*>()->TInfo
+      ? getExtInfo()->TInfo
       : DeclInfo.get<TypeSourceInfo*>();
   }
   void setTypeSourceInfo(TypeSourceInfo *TI) {
     if (hasExtInfo())
-      DeclInfo.get<ExtInfo*>()->TInfo = TI;
+      getExtInfo()->TInfo = TI;
     else
       DeclInfo = TI;
   }
 
+  /// getInnerLocStart - Return SourceLocation representing start of source
+  /// range ignoring outer template declarations.
+  virtual SourceLocation getInnerLocStart() const { return getLocation(); }
+
+  /// getOuterLocStart - Return SourceLocation representing start of source
+  /// range taking into account any outer template declarations.
+  SourceLocation getOuterLocStart() const;
+  SourceRange getSourceRange() const {
+    return SourceRange(getOuterLocStart(), getLocation());
+  }
+
   NestedNameSpecifier *getQualifier() const {
-    return hasExtInfo() ? DeclInfo.get<ExtInfo*>()->NNS : 0;
+    return hasExtInfo() ? getExtInfo()->NNS : 0;
   }
   SourceRange getQualifierRange() const {
-    return hasExtInfo() ? DeclInfo.get<ExtInfo*>()->NNSRange : SourceRange();
+    return hasExtInfo() ? getExtInfo()->NNSRange : SourceRange();
   }
   void setQualifierInfo(NestedNameSpecifier *Qualifier,
                         SourceRange QualifierRange);
+
+  unsigned getNumTemplateParameterLists() const {
+    return hasExtInfo() ? getExtInfo()->NumTemplParamLists : 0;
+  }
+  TemplateParameterList *getTemplateParameterList(unsigned index) const {
+    assert(index < getNumTemplateParameterLists());
+    return getExtInfo()->TemplParamLists[index];
+  }
+  void setTemplateParameterListsInfo(ASTContext &Context, unsigned NumTPLists,
+                                     TemplateParameterList **TPLists) {
+    getExtInfo()->setTemplateParameterListsInfo(Context, NumTPLists, TPLists);
+  }
 
   SourceLocation getTypeSpecStartLoc() const;
 
@@ -417,7 +474,7 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const DeclaratorDecl *D) { return true; }
   static bool classofKind(Kind K) {
-    return K >= DeclaratorFirst && K <= DeclaratorLast;
+    return K >= firstDeclarator && K <= lastDeclarator;
   }
 };
 
@@ -555,6 +612,7 @@ public:
   virtual void Destroy(ASTContext& C);
   virtual ~VarDecl();
 
+  virtual SourceLocation getInnerLocStart() const;
   virtual SourceRange getSourceRange() const;
 
   StorageClass getStorageClass() const { return (StorageClass)SClass; }
@@ -908,7 +966,7 @@ public:
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const VarDecl *D) { return true; }
-  static bool classofKind(Kind K) { return K >= VarFirst && K <= VarLast; }
+  static bool classofKind(Kind K) { return K >= firstVar && K <= lastVar; }
 };
 
 class ImplicitParamDecl : public VarDecl {
@@ -1063,6 +1121,15 @@ public:
     None, Extern, Static, PrivateExtern
   };
 
+  /// \brief The kind of templated function a FunctionDecl can be.
+  enum TemplatedKind {
+    TK_NonTemplate,
+    TK_FunctionTemplate,
+    TK_MemberSpecialization,
+    TK_FunctionTemplateSpecialization,
+    TK_DependentFunctionTemplateSpecialization
+  };
+
 private:
   /// ParamInfo - new[]'d array of pointers to VarDecls for the formal
   /// parameters of this function.  This is null if a prototype or if there are
@@ -1154,10 +1221,22 @@ public:
                                     bool Qualified) const;
 
   virtual SourceRange getSourceRange() const {
-    return SourceRange(getLocation(), EndRangeLoc);
+    return SourceRange(getOuterLocStart(), EndRangeLoc);
   }
   void setLocEnd(SourceLocation E) {
     EndRangeLoc = E;
+  }
+
+  /// \brief Returns true if the function has a body (definition). The
+  /// function body might be in any of the (re-)declarations of this
+  /// function. The variant that accepts a FunctionDecl pointer will
+  /// set that function declaration to the actual declaration
+  /// containing the body (if there is one).
+  bool hasBody(const FunctionDecl *&Definition) const;
+
+  virtual bool hasBody() const {
+    const FunctionDecl* Definition;
+    return hasBody(Definition);
   }
 
   /// getBody - Retrieve the body (definition) of the function. The
@@ -1165,6 +1244,8 @@ public:
   /// function. The variant that accepts a FunctionDecl pointer will
   /// set that function declaration to the actual declaration
   /// containing the body (if there is one).
+  /// NOTE: For checking if there is a body, use hasBody() instead, to avoid
+  /// unnecessary PCH de-serialization of the body.
   Stmt *getBody(const FunctionDecl *&Definition) const;
 
   virtual Stmt *getBody() const {
@@ -1301,6 +1382,12 @@ public:
   QualType getResultType() const {
     return getType()->getAs<FunctionType>()->getResultType();
   }
+  
+  /// \brief Determine the type of an expression that calls this function.
+  QualType getCallResultType() const {
+    return getType()->getAs<FunctionType>()->getCallResultType(getASTContext());
+  }
+                       
   StorageClass getStorageClass() const { return StorageClass(SClass); }
   void setStorageClass(StorageClass SC) { SClass = SC; }
 
@@ -1355,6 +1442,9 @@ public:
   /// X<int>::A is required, it will be instantiated from the
   /// declaration returned by getInstantiatedFromMemberFunction().
   FunctionDecl *getInstantiatedFromMemberFunction() const;
+  
+  /// \brief What kind of templated function this is.
+  TemplatedKind getTemplatedKind() const;
 
   /// \brief If this function is an instantiation of a member function of a
   /// class template specialization, retrieves the member specialization
@@ -1437,8 +1527,6 @@ public:
   /// \brief Specify that this function declaration is actually a function
   /// template specialization.
   ///
-  /// \param Context the AST context in which this function resides.
-  ///
   /// \param Template the function template that this function template
   /// specialization specializes.
   ///
@@ -1450,11 +1538,53 @@ public:
   /// be inserted.
   ///
   /// \param TSK the kind of template specialization this is.
+  ///
+  /// \param TemplateArgsAsWritten location info of template arguments.
+  ///
+  /// \param PointOfInstantiation point at which the function template
+  /// specialization was first instantiated. 
   void setFunctionTemplateSpecialization(FunctionTemplateDecl *Template,
                                       const TemplateArgumentList *TemplateArgs,
                                          void *InsertPos,
                     TemplateSpecializationKind TSK = TSK_ImplicitInstantiation,
-                    const TemplateArgumentListInfo *TemplateArgsAsWritten = 0);
+                    const TemplateArgumentListInfo *TemplateArgsAsWritten = 0,
+                    SourceLocation PointOfInstantiation = SourceLocation());
+
+  /// \brief Specify that this function declaration is actually a function
+  /// template specialization.
+  ///
+  /// \param Template the function template that this function template
+  /// specialization specializes.
+  ///
+  /// \param NumTemplateArgs number of template arguments that produced this
+  /// function template specialization from the template.
+  ///
+  /// \param TemplateArgs array of template arguments that produced this
+  /// function template specialization from the template.
+  ///
+  /// \param TSK the kind of template specialization this is.
+  ///
+  /// \param NumTemplateArgsAsWritten number of template arguments that produced
+  /// this function template specialization from the template.
+  ///
+  /// \param TemplateArgsAsWritten array of location info for the template
+  /// arguments.
+  ///
+  /// \param LAngleLoc location of left angle token.
+  ///
+  /// \param RAngleLoc location of right angle token.
+  ///
+  /// \param PointOfInstantiation point at which the function template
+  /// specialization was first instantiated. 
+  void setFunctionTemplateSpecialization(FunctionTemplateDecl *Template,
+                                         unsigned NumTemplateArgs,
+                                         const TemplateArgument *TemplateArgs,
+                                         TemplateSpecializationKind TSK,
+                                         unsigned NumTemplateArgsAsWritten,
+                                     TemplateArgumentLoc *TemplateArgsAsWritten,
+                                          SourceLocation LAngleLoc,
+                                          SourceLocation RAngleLoc,
+                                          SourceLocation PointOfInstantiation);
 
   /// \brief Specifies that this function declaration is actually a
   /// dependent function template specialization.
@@ -1493,7 +1623,7 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const FunctionDecl *D) { return true; }
   static bool classofKind(Kind K) {
-    return K >= FunctionFirst && K <= FunctionLast;
+    return K >= firstFunction && K <= lastFunction;
   }
   static DeclContext *castToDeclContext(const FunctionDecl *D) {
     return static_cast<DeclContext *>(const_cast<FunctionDecl*>(D));
@@ -1501,6 +1631,9 @@ public:
   static FunctionDecl *castFromDeclContext(const DeclContext *DC) {
     return static_cast<FunctionDecl *>(const_cast<DeclContext*>(DC));
   }
+
+  friend class PCHDeclReader;
+  friend class PCHDeclWriter;
 };
 
 
@@ -1556,7 +1689,7 @@ public:
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const FieldDecl *D) { return true; }
-  static bool classofKind(Kind K) { return K >= FieldFirst && K <= FieldLast; }
+  static bool classofKind(Kind K) { return K >= firstField && K <= lastField; }
 };
 
 /// EnumConstantDecl - An instance of this object exists for each enum constant
@@ -1625,7 +1758,7 @@ public:
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const TypeDecl *D) { return true; }
-  static bool classofKind(Kind K) { return K >= TypeFirst && K <= TypeLast; }
+  static bool classofKind(Kind K) { return K >= firstType && K <= lastType; }
 };
 
 
@@ -1715,10 +1848,7 @@ private:
 
   // A struct representing syntactic qualifier info,
   // to be used for the (uncommon) case of out-of-line declarations.
-  struct ExtInfo {
-    NestedNameSpecifier *NNS;
-    SourceRange NNSRange;
-  };
+  typedef QualifierInfo ExtInfo;
 
   /// TypedefDeclOrQualifier - If the (out-of-line) tag declaration name
   /// is qualified, it points to the qualifier info (nns and range);
@@ -1767,6 +1897,13 @@ public:
   SourceLocation getTagKeywordLoc() const { return TagKeywordLoc; }
   void setTagKeywordLoc(SourceLocation TKL) { TagKeywordLoc = TKL; }
 
+  /// getInnerLocStart - Return SourceLocation representing start of source
+  /// range ignoring outer template declarations.
+  virtual SourceLocation getInnerLocStart() const { return TagKeywordLoc; }
+
+  /// getOuterLocStart - Return SourceLocation representing start of source
+  /// range taking into account any outer template declarations.
+  SourceLocation getOuterLocStart() const;
   virtual SourceRange getSourceRange() const;
 
   virtual TagDecl* getCanonicalDecl();
@@ -1830,24 +1967,34 @@ public:
   TypedefDecl *getTypedefForAnonDecl() const {
     return hasExtInfo() ? 0 : TypedefDeclOrQualifier.get<TypedefDecl*>();
   }
-    
+
   void setTypedefForAnonDecl(TypedefDecl *TDD);
-    
+
   NestedNameSpecifier *getQualifier() const {
-    return hasExtInfo() ? TypedefDeclOrQualifier.get<ExtInfo*>()->NNS : 0;
+    return hasExtInfo() ? getExtInfo()->NNS : 0;
   }
   SourceRange getQualifierRange() const {
-    return hasExtInfo()
-      ? TypedefDeclOrQualifier.get<ExtInfo*>()->NNSRange
-      : SourceRange();
+    return hasExtInfo() ? getExtInfo()->NNSRange : SourceRange();
   }
   void setQualifierInfo(NestedNameSpecifier *Qualifier,
                         SourceRange QualifierRange);
 
+  unsigned getNumTemplateParameterLists() const {
+    return hasExtInfo() ? getExtInfo()->NumTemplParamLists : 0;
+  }
+  TemplateParameterList *getTemplateParameterList(unsigned i) const {
+    assert(i < getNumTemplateParameterLists());
+    return getExtInfo()->TemplParamLists[i];
+  }
+  void setTemplateParameterListsInfo(ASTContext &Context, unsigned NumTPLists,
+                                     TemplateParameterList **TPLists) {
+    getExtInfo()->setTemplateParameterListsInfo(Context, NumTPLists, TPLists);
+  }
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const TagDecl *D) { return true; }
-  static bool classofKind(Kind K) { return K >= TagFirst && K <= TagLast; }
+  static bool classofKind(Kind K) { return K >= firstTag && K <= lastTag; }
 
   static DeclContext *castToDeclContext(const TagDecl *D) {
     return static_cast<DeclContext *>(const_cast<TagDecl*>(D));
@@ -1855,6 +2002,9 @@ public:
   static TagDecl *castFromDeclContext(const DeclContext *DC) {
     return static_cast<TagDecl *>(const_cast<DeclContext*>(DC));
   }
+
+  friend class PCHDeclReader;
+  friend class PCHDeclWriter;
 };
 
 /// EnumDecl - Represents an enum.  As an extension, we allow forward-declared
@@ -1896,9 +2046,17 @@ public:
     return cast<EnumDecl>(TagDecl::getCanonicalDecl());
   }
 
+  const EnumDecl *getPreviousDeclaration() const {
+    return cast_or_null<EnumDecl>(TagDecl::getPreviousDeclaration());
+  }
+  EnumDecl *getPreviousDeclaration() {
+    return cast_or_null<EnumDecl>(TagDecl::getPreviousDeclaration());
+  }
+
   static EnumDecl *Create(ASTContext &C, DeclContext *DC,
                           SourceLocation L, IdentifierInfo *Id,
                           SourceLocation TKL, EnumDecl *PrevDecl);
+  static EnumDecl *Create(ASTContext &C, EmptyShell Empty);
 
   virtual void Destroy(ASTContext& C);
 
@@ -1917,11 +2075,17 @@ public:
   typedef specific_decl_iterator<EnumConstantDecl> enumerator_iterator;
 
   enumerator_iterator enumerator_begin() const {
-    return enumerator_iterator(this->decls_begin());
+    const EnumDecl *E = cast_or_null<EnumDecl>(getDefinition());
+    if (!E)
+      E = this;
+    return enumerator_iterator(E->decls_begin());
   }
 
   enumerator_iterator enumerator_end() const {
-    return enumerator_iterator(this->decls_end());
+    const EnumDecl *E = cast_or_null<EnumDecl>(getDefinition());
+    if (!E)
+      E = this;
+    return enumerator_iterator(E->decls_end());
   }
 
   /// getPromotionType - Return the integer type that enumerators
@@ -2010,6 +2174,14 @@ public:
                             SourceLocation L, IdentifierInfo *Id,
                             SourceLocation TKL = SourceLocation(),
                             RecordDecl* PrevDecl = 0);
+  static RecordDecl *Create(ASTContext &C, EmptyShell Empty);
+
+  const RecordDecl *getPreviousDeclaration() const {
+    return cast_or_null<RecordDecl>(TagDecl::getPreviousDeclaration());
+  }
+  RecordDecl *getPreviousDeclaration() {
+    return cast_or_null<RecordDecl>(TagDecl::getPreviousDeclaration());
+  }
 
   virtual void Destroy(ASTContext& C);
 
@@ -2092,7 +2264,7 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const RecordDecl *D) { return true; }
   static bool classofKind(Kind K) {
-    return K >= RecordFirst && K <= RecordLast;
+    return K >= firstRecord && K <= lastRecord;
   }
 };
 
@@ -2127,11 +2299,13 @@ class BlockDecl : public Decl, public DeclContext {
   unsigned NumParams;
 
   Stmt *Body;
+  TypeSourceInfo *SignatureAsWritten;
 
 protected:
   BlockDecl(DeclContext *DC, SourceLocation CaretLoc)
     : Decl(Block, DC, CaretLoc), DeclContext(Block),
-      IsVariadic(false), ParamInfo(0), NumParams(0), Body(0) {}
+      IsVariadic(false), ParamInfo(0), NumParams(0), Body(0),
+      SignatureAsWritten(0) {}
 
   virtual ~BlockDecl();
   virtual void Destroy(ASTContext& C);
@@ -2147,6 +2321,9 @@ public:
   CompoundStmt *getCompoundBody() const { return (CompoundStmt*) Body; }
   Stmt *getBody() const { return (Stmt*) Body; }
   void setBody(CompoundStmt *B) { Body = (Stmt*) B; }
+
+  void setSignatureAsWritten(TypeSourceInfo *Sig) { SignatureAsWritten = Sig; }
+  TypeSourceInfo *getSignatureAsWritten() const { return SignatureAsWritten; }
 
   // Iterator access to formal parameters.
   unsigned param_size() const { return getNumParams(); }

@@ -78,9 +78,9 @@ static CXCursorKind GetCursorKind(const Attr *A) {
   assert(A && "Invalid arguments!");
   switch (A->getKind()) {
     default: break;
-    case Attr::IBActionKind: return CXCursor_IBActionAttr;
-    case Attr::IBOutletKind: return CXCursor_IBOutletAttr;
-    case Attr::IBOutletCollectionKind: return CXCursor_IBOutletCollectionAttr;
+    case attr::IBAction: return CXCursor_IBActionAttr;
+    case attr::IBOutlet: return CXCursor_IBOutletAttr;
+    case attr::IBOutletCollection: return CXCursor_IBOutletCollectionAttr;
   }
 
   return CXCursor_UnexposedAttr;
@@ -174,7 +174,7 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::CXXThisExprClass:            
   case Stmt::CXXThrowExprClass:           
   case Stmt::CXXDefaultArgExprClass:      
-  case Stmt::CXXZeroInitValueExprClass:   
+  case Stmt::CXXScalarValueInitExprClass:   
   case Stmt::CXXNewExprClass:             
   case Stmt::CXXDeleteExprClass:          
   case Stmt::CXXPseudoDestructorExprClass:

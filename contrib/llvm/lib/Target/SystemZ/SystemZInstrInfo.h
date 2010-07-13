@@ -60,11 +60,10 @@ public:
   ///
   virtual const SystemZRegisterInfo &getRegisterInfo() const { return RI; }
 
-  bool copyRegToReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
-                    unsigned DestReg, unsigned SrcReg,
-                    const TargetRegisterClass *DestRC,
-                    const TargetRegisterClass *SrcRC,
-                    DebugLoc DL) const;
+  virtual void copyPhysReg(MachineBasicBlock &MBB,
+                           MachineBasicBlock::iterator I, DebugLoc DL,
+                           unsigned DestReg, unsigned SrcReg,
+                           bool KillSrc) const;
 
   bool isMoveInstr(const MachineInstr& MI,
                    unsigned &SrcReg, unsigned &DstReg,
@@ -102,7 +101,8 @@ public:
                              bool AllowModify) const;
   virtual unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                                 MachineBasicBlock *FBB,
-                             const SmallVectorImpl<MachineOperand> &Cond) const;
+                                const SmallVectorImpl<MachineOperand> &Cond,
+                                DebugLoc DL) const;
   virtual unsigned RemoveBranch(MachineBasicBlock &MBB) const;
 
   SystemZCC::CondCodes getOppositeCondition(SystemZCC::CondCodes CC) const;

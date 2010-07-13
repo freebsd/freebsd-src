@@ -40,13 +40,18 @@ class Compilation {
   /// The original (untranslated) input argument list.
   InputArgList *Args;
 
+  /// The driver translated arguments. Note that toolchains may perform their
+  /// own argument translation.
+  DerivedArgList *TranslatedArgs;
+
   /// The list of actions.
   ActionList Actions;
 
   /// The root list of jobs.
   JobList Jobs;
 
-  /// Cache of translated arguments for a particular tool chain.
+  /// Cache of translated arguments for a particular tool chain and bound
+  /// architecture.
   llvm::DenseMap<std::pair<const ToolChain*, const char*>,
                  DerivedArgList*> TCArgs;
 
@@ -58,14 +63,16 @@ class Compilation {
 
 public:
   Compilation(const Driver &D, const ToolChain &DefaultToolChain,
-              InputArgList *Args);
+              InputArgList *Args, DerivedArgList *TranslatedArgs);
   ~Compilation();
 
   const Driver &getDriver() const { return TheDriver; }
 
   const ToolChain &getDefaultToolChain() const { return DefaultToolChain; }
 
-  const InputArgList &getArgs() const { return *Args; }
+  const InputArgList &getInputArgs() const { return *Args; }
+
+  const DerivedArgList &getArgs() const { return *TranslatedArgs; }
 
   ActionList &getActions() { return Actions; }
   const ActionList &getActions() const { return Actions; }

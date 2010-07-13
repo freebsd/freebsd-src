@@ -211,16 +211,18 @@ public:
 
   const GRState *bindLoc(SVal location, SVal V) const;
 
+  const GRState *bindDefault(SVal loc, SVal V) const;
+
   const GRState *unbindLoc(Loc LV) const;
 
   /// Get the lvalue for a variable reference.
-  SVal getLValue(const VarDecl *D, const LocationContext *LC) const;
+  Loc getLValue(const VarDecl *D, const LocationContext *LC) const;
 
   /// Get the lvalue for a StringLiteral.
-  SVal getLValue(const StringLiteral *literal) const;
+  Loc getLValue(const StringLiteral *literal) const;
 
-  SVal getLValue(const CompoundLiteralExpr *literal,
-                 const LocationContext *LC) const;
+  Loc getLValue(const CompoundLiteralExpr *literal, 
+                const LocationContext *LC) const;
 
   /// Get the lvalue for an ivar reference.
   SVal getLValue(const ObjCIvarDecl *decl, SVal base) const;
@@ -446,7 +448,7 @@ public:
   StoreManager& getStoreManager() { return *StoreMgr; }
   ConstraintManager& getConstraintManager() { return *ConstraintMgr; }
 
-  const GRState* RemoveDeadBindings(const GRState* St, Stmt* Loc,
+  const GRState* RemoveDeadBindings(const GRState* St,
                                     const StackFrameContext *LCtx,
                                     SymbolReaper& SymReaper);
 
@@ -467,9 +469,6 @@ public:
   }
 
   const GRState* getPersistentState(GRState& Impl);
-
-  bool isEqual(const GRState* state, const Expr* Ex, const llvm::APSInt& V);
-  bool isEqual(const GRState* state, const Expr* Ex, uint64_t);
 
   //==---------------------------------------------------------------------==//
   // Generic Data Map methods.
@@ -620,16 +619,22 @@ inline const GRState *GRState::bindLoc(SVal LV, SVal V) const {
   return !isa<Loc>(LV) ? this : bindLoc(cast<Loc>(LV), V);
 }
 
-inline SVal GRState::getLValue(const VarDecl* VD,
+inline const GRState *GRState::bindDefault(SVal loc, SVal V) const {
+  const MemRegion *R = cast<loc::MemRegionVal>(loc).getRegion();
+  Store new_store = getStateManager().StoreMgr->BindDefault(St, R, V);
+  return makeWithStore(new_store);
+}
+
+inline Loc GRState::getLValue(const VarDecl* VD,
                                const LocationContext *LC) const {
   return getStateManager().StoreMgr->getLValueVar(VD, LC);
 }
 
-inline SVal GRState::getLValue(const StringLiteral *literal) const {
+inline Loc GRState::getLValue(const StringLiteral *literal) const {
   return getStateManager().StoreMgr->getLValueString(literal);
 }
 
-inline SVal GRState::getLValue(const CompoundLiteralExpr *literal,
+inline Loc GRState::getLValue(const CompoundLiteralExpr *literal,
                                const LocationContext *LC) const {
   return getStateManager().StoreMgr->getLValueCompoundLiteral(literal, LC);
 }

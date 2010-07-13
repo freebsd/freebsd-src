@@ -246,22 +246,25 @@ protected:
     typename GraphT::NodeType* NewBBSucc = *GraphT::child_begin(NewBB);
 
     std::vector<typename GraphT::NodeType*> PredBlocks;
-    for (typename GraphTraits<Inverse<N> >::ChildIteratorType PI =
-         GraphTraits<Inverse<N> >::child_begin(NewBB),
-         PE = GraphTraits<Inverse<N> >::child_end(NewBB); PI != PE; ++PI)
+    typedef GraphTraits<Inverse<N> > InvTraits;
+    for (typename InvTraits::ChildIteratorType PI =
+         InvTraits::child_begin(NewBB),
+         PE = InvTraits::child_end(NewBB); PI != PE; ++PI)
       PredBlocks.push_back(*PI);
 
-    assert(!PredBlocks.empty() && "No predblocks??");
+    assert(!PredBlocks.empty() && "No predblocks?");
 
     bool NewBBDominatesNewBBSucc = true;
-    for (typename GraphTraits<Inverse<N> >::ChildIteratorType PI =
-         GraphTraits<Inverse<N> >::child_begin(NewBBSucc),
-         E = GraphTraits<Inverse<N> >::child_end(NewBBSucc); PI != E; ++PI)
-      if (*PI != NewBB && !DT.dominates(NewBBSucc, *PI) &&
-          DT.isReachableFromEntry(*PI)) {
+    for (typename InvTraits::ChildIteratorType PI =
+         InvTraits::child_begin(NewBBSucc),
+         E = InvTraits::child_end(NewBBSucc); PI != E; ++PI) {
+      typename InvTraits::NodeType *ND = *PI;
+      if (ND != NewBB && !DT.dominates(NewBBSucc, ND) &&
+          DT.isReachableFromEntry(ND)) {
         NewBBDominatesNewBBSucc = false;
         break;
       }
+    }
 
     // Find NewBB's immediate dominator and create new dominator tree node for
     // NewBB.
@@ -704,7 +707,6 @@ public:
   }
 
   ~DominatorTree() {
-    DT->releaseMemory();
     delete DT;
   }
 

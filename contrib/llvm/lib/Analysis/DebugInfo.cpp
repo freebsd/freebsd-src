@@ -73,6 +73,15 @@ GlobalVariable *DIDescriptor::getGlobalVariableField(unsigned Elt) const {
   return 0;
 }
 
+Function *DIDescriptor::getFunctionField(unsigned Elt) const {
+  if (DbgNode == 0)
+    return 0;
+
+  if (Elt < DbgNode->getNumOperands())
+      return dyn_cast_or_null<Function>(DbgNode->getOperand(Elt));
+  return 0;
+}
+
 unsigned DIVariable::getNumAddrElements() const {
   return DbgNode->getNumOperands()-6;
 }
@@ -397,6 +406,8 @@ bool DIVariable::isInlinedFnArgument(const Function *CurFn) {
 /// information for the function F.
 bool DISubprogram::describes(const Function *F) {
   assert(F && "Invalid function");
+  if (F == getFunction())
+    return true;
   StringRef Name = getLinkageName();
   if (Name.empty())
     Name = getName();
@@ -938,7 +949,8 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
                                          unsigned VK, unsigned VIndex,
                                          DIType ContainingType,
                                          bool isArtificial,
-                                         bool isOptimized) {
+                                         bool isOptimized,
+                                         Function *Fn) {
 
   Value *Elts[] = {
     GetTagConstant(dwarf::DW_TAG_subprogram),
@@ -956,9 +968,15 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
     ConstantInt::get(Type::getInt32Ty(VMContext), VIndex),
     ContainingType,
     ConstantInt::get(Type::getInt1Ty(VMContext), isArtificial),
-    ConstantInt::get(Type::getInt1Ty(VMContext), isOptimized)
+    ConstantInt::get(Type::getInt1Ty(VMContext), isOptimized),
+    Fn
   };
-  return DISubprogram(MDNode::get(VMContext, &Elts[0], 16));
+  MDNode *Node = MDNode::get(VMContext, &Elts[0], 17);
+
+  // Create a named metadata so that we do not lose this mdnode.
+  NamedMDNode *NMD = M.getOrInsertNamedMetadata("llvm.dbg.sp");
+  NMD->addOperand(Node);
+  return DISubprogram(Node);
 }
 
 /// CreateSubprogramDefinition - Create new subprogram descriptor for the
@@ -984,9 +1002,15 @@ DISubprogram DIFactory::CreateSubprogramDefinition(DISubprogram &SPDeclaration) 
     DeclNode->getOperand(12), // VIndex
     DeclNode->getOperand(13), // Containting Type
     DeclNode->getOperand(14), // isArtificial
-    DeclNode->getOperand(15)  // isOptimized
+    DeclNode->getOperand(15), // isOptimized
+    SPDeclaration.getFunction()
   };
-  return DISubprogram(MDNode::get(VMContext, &Elts[0], 16));
+  MDNode *Node =MDNode::get(VMContext, &Elts[0], 16);
+
+  // Create a named metadata so that we do not lose this mdnode.
+  NamedMDNode *NMD = M.getOrInsertNamedMetadata("llvm.dbg.sp");
+  NMD->addOperand(Node);
+  return DISubprogram(Node);
 }
 
 /// CreateGlobalVariable - Create a new descriptor for the specified global.
@@ -1042,8 +1066,18 @@ DIVariable DIFactory::CreateVariable(unsigned Tag, DIDescriptor Context,
     // The optimizer may remove local variable. If there is an interest
     // to preserve variable info in such situation then stash it in a
     // named mdnode.
-    NamedMDNode *NMD = M.getOrInsertNamedMetadata("llvm.dbg.lv");
-    NMD->addOperand(Node);
+    DISubprogram Fn(getDISubprogram(Context));
+    StringRef FName = "fn";
+    if (Fn.getFunction())
+      FName = Fn.getFunction()->getName();
+    char One = '\1';
+    if (FName.startswith(StringRef(&One, 1)))
+      FName = FName.substr(1);
+    NamedMDNode *FnLocals = M.getNamedMetadata(Twine("llvm.dbg.lv.", FName));
+    if (!FnLocals)
+      FnLocals = NamedMDNode::Create(VMContext, Twine("llvm.dbg.lv.", FName),
+                                     NULL, 0, &M);
+    FnLocals->addOperand(Node);
   }
   return DIVariable(Node);
 }
@@ -1106,18 +1140,6 @@ DILocation DIFactory::CreateLocation(unsigned LineNo, unsigned ColumnNo,
     ConstantInt::get(Type::getInt32Ty(VMContext), ColumnNo),
     S,
     OrigLoc,
-  };
-  return DILocation(MDNode::get(VMContext, &Elts[0], 4));
-}
-
-/// CreateLocation - Creates a debug info location.
-DILocation DIFactory::CreateLocation(unsigned LineNo, unsigned ColumnNo,
-                                     DIScope S, MDNode *OrigLoc) {
- Value *Elts[] = {
-    ConstantInt::get(Type::getInt32Ty(VMContext), LineNo),
-    ConstantInt::get(Type::getInt32Ty(VMContext), ColumnNo),
-    S,
-    OrigLoc
   };
   return DILocation(MDNode::get(VMContext, &Elts[0], 4));
 }
@@ -1218,17 +1240,19 @@ void DebugInfoFinder::processModule(Module &M) {
           processLocation(DILocation(IA));
       }
 
-  NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.gv");
-  if (!NMD)
-    return;
-
-  for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
-    DIGlobalVariable DIG(cast<MDNode>(NMD->getOperand(i)));
-    if (addGlobalVariable(DIG)) {
-      addCompileUnit(DIG.getCompileUnit());
-      processType(DIG.getType());
+  if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.gv")) {
+    for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
+      DIGlobalVariable DIG(cast<MDNode>(NMD->getOperand(i)));
+      if (addGlobalVariable(DIG)) {
+        addCompileUnit(DIG.getCompileUnit());
+        processType(DIG.getType());
+      }
     }
   }
+
+  if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.sp"))
+    for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i)
+      processSubprogram(DISubprogram(NMD->getOperand(i)));
 }
 
 /// processLocation - Process DILocation.

@@ -204,9 +204,9 @@ public:
     CALLSITE_DELEGATE_GETTER(isNoInline());
   }
   void setIsNoInline(bool Value = true) {
-    CALLSITE_DELEGATE_GETTER(setIsNoInline(Value));
+    CALLSITE_DELEGATE_SETTER(setIsNoInline(Value));
   }
-  
+
   /// @brief Determine if the call does not access memory.
   bool doesNotAccessMemory() const {
     CALLSITE_DELEGATE_GETTER(doesNotAccessMemory());
@@ -256,14 +256,14 @@ private:
   /// Returns the operand number of the first argument
   unsigned getArgumentOffset() const {
     if (isCall())
-      return 1; // Skip Function (ATM)
+      return CallInst::ArgOffset; // Skip Function (ATM)
     else
       return 0; // Args are at the front
   }
 
   unsigned getArgumentEndOffset() const {
     if (isCall())
-      return 0; // Unchanged (ATM)
+      return CallInst::ArgOffset ? 0 : 1; // Unchanged (ATM)
     else
       return 3; // Skip BB, BB, Function
   }
@@ -273,7 +273,9 @@ private:
       // of the op_*() functions here. See CallSite::getCallee.
       //
     if (isCall())
-      return getInstruction()->op_begin(); // Unchanged (ATM)
+      return CallInst::ArgOffset
+             ? getInstruction()->op_begin() // Unchanged
+             : getInstruction()->op_end() - 1; // Skip Function
     else
       return getInstruction()->op_end() - 3; // Skip BB, BB, Function
   }

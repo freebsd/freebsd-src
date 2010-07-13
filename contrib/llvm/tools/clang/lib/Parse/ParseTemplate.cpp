@@ -201,7 +201,7 @@ Parser::ParseSingleDeclarationAfterTemplate(
 
   if (Tok.is(tok::semi)) {
     DeclEnd = ConsumeToken();
-    DeclPtrTy Decl = Actions.ParsedFreeStandingDeclSpec(CurScope, AS, DS);
+    DeclPtrTy Decl = Actions.ParsedFreeStandingDeclSpec(getCurScope(), AS, DS);
     DS.complete(Decl);
     return Decl;
   }
@@ -238,7 +238,7 @@ Parser::ParseSingleDeclarationAfterTemplate(
   }
 
   if (DeclaratorInfo.isFunctionDeclarator() &&
-      isStartOfFunctionDefinition()) {
+      isStartOfFunctionDefinition(DeclaratorInfo)) {
     if (DS.getStorageClassSpec() == DeclSpec::SCS_typedef) {
       Diag(Tok, diag::err_function_declared_typedef);
 
@@ -341,8 +341,37 @@ Parser::ParseTemplateParameterList(unsigned Depth,
 /// \brief Determine whether the parser is at the start of a template
 /// type parameter.
 bool Parser::isStartOfTemplateTypeParameter() {
-  if (Tok.is(tok::kw_class))
-    return true;
+  if (Tok.is(tok::kw_class)) {
+    // "class" may be the start of an elaborated-type-specifier or a
+    // type-parameter. Per C++ [temp.param]p3, we prefer the type-parameter.
+    switch (NextToken().getKind()) {
+    case tok::equal:
+    case tok::comma:
+    case tok::greater:
+    case tok::greatergreater:
+    case tok::ellipsis:
+      return true;
+        
+    case tok::identifier:
+      // This may be either a type-parameter or an elaborated-type-specifier. 
+      // We have to look further.
+      break;
+        
+    default:
+      return false;
+    }
+    
+    switch (GetLookAheadToken(2).getKind()) {
+    case tok::equal:
+    case tok::comma:
+    case tok::greater:
+    case tok::greatergreater:
+      return true;
+      
+    default:
+      return false;
+    }
+  }
 
   if (Tok.isNot(tok::kw_typename))
     return false;
@@ -442,22 +471,19 @@ Parser::DeclPtrTy Parser::ParseTypeParameter(unsigned Depth, unsigned Position){
     return DeclPtrTy();
   }
 
-  DeclPtrTy TypeParam = Actions.ActOnTypeParameter(CurScope, TypenameKeyword,
-                                                   Ellipsis, EllipsisLoc,
-                                                   KeyLoc, ParamName, NameLoc,
-                                                   Depth, Position);
-
-  // Grab a default type id (if given).
+  // Grab a default argument (if available).
+  // Per C++0x [basic.scope.pdecl]p9, we parse the default argument before
+  // we introduce the type parameter into the local scope.
+  SourceLocation EqualLoc;
+  TypeTy *DefaultArg = 0;
   if (Tok.is(tok::equal)) {
-    SourceLocation EqualLoc = ConsumeToken();
-    SourceLocation DefaultLoc = Tok.getLocation();
-    TypeResult DefaultType = ParseTypeName();
-    if (!DefaultType.isInvalid())
-      Actions.ActOnTypeParameterDefault(TypeParam, EqualLoc, DefaultLoc,
-                                        DefaultType.get());
+    EqualLoc = ConsumeToken();
+    DefaultArg = ParseTypeName().get();
   }
-
-  return TypeParam;
+  
+  return Actions.ActOnTypeParameter(getCurScope(), TypenameKeyword, Ellipsis, 
+                                    EllipsisLoc, KeyLoc, ParamName, NameLoc,
+                                    Depth, Position, EqualLoc, DefaultArg);
 }
 
 /// ParseTemplateTemplateParameter - Handle the parsing of template
@@ -512,28 +538,28 @@ Parser::ParseTemplateTemplateParameter(unsigned Depth, unsigned Position) {
                                        TemplateParams.size(),
                                        RAngleLoc);
 
-  Parser::DeclPtrTy Param
-    = Actions.ActOnTemplateTemplateParameter(CurScope, TemplateLoc,
-                                             ParamList, ParamName,
-                                             NameLoc, Depth, Position);
-
-  // Get the a default value, if given.
+  // Grab a default argument (if available).
+  // Per C++0x [basic.scope.pdecl]p9, we parse the default argument before
+  // we introduce the template parameter into the local scope.
+  SourceLocation EqualLoc;
+  ParsedTemplateArgument DefaultArg;
   if (Tok.is(tok::equal)) {
-    SourceLocation EqualLoc = ConsumeToken();
-    ParsedTemplateArgument Default = ParseTemplateTemplateArgument();
-    if (Default.isInvalid()) {
+    EqualLoc = ConsumeToken();
+    DefaultArg = ParseTemplateTemplateArgument();
+    if (DefaultArg.isInvalid()) {
       Diag(Tok.getLocation(), 
            diag::err_default_template_template_parameter_not_template);
       static const tok::TokenKind EndToks[] = { 
         tok::comma, tok::greater, tok::greatergreater
       };
       SkipUntil(EndToks, 3, true, true);
-      return Param;
-    } else if (Param)
-      Actions.ActOnTemplateTemplateParameterDefault(Param, EqualLoc, Default);
+    }
   }
-
-  return Param;
+  
+  return Actions.ActOnTemplateTemplateParameter(getCurScope(), TemplateLoc,
+                                                ParamList, ParamName,
+                                                NameLoc, Depth, Position,
+                                                EqualLoc, DefaultArg);
 }
 
 /// ParseNonTypeTemplateParameter - Handle the parsing of non-type
@@ -542,13 +568,6 @@ Parser::ParseTemplateTemplateParameter(unsigned Depth, unsigned Position) {
 ///       template-parameter:
 ///         ...
 ///         parameter-declaration
-///
-/// NOTE: It would be ideal to simply call out to ParseParameterDeclaration(),
-/// but that didn't work out to well. Instead, this tries to recrate the basic
-/// parsing of parameter declarations, but tries to constrain it for template
-/// parameters.
-/// FIXME: We need to make a ParseParameterDeclaration that works for
-/// non-type template parameters and normal function parameters.
 Parser::DeclPtrTy
 Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
   SourceLocation StartLoc = Tok.getLocation();
@@ -572,13 +591,13 @@ Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
     return DeclPtrTy();
   }
 
-  // Create the parameter.
-  DeclPtrTy Param = Actions.ActOnNonTypeTemplateParameter(CurScope, ParamDecl,
-                                                          Depth, Position);
-
   // If there is a default value, parse it.
+  // Per C++0x [basic.scope.pdecl]p9, we parse the default argument before
+  // we introduce the template parameter into the local scope.
+  SourceLocation EqualLoc;
+  OwningExprResult DefaultArg(Actions);
   if (Tok.is(tok::equal)) {
-    SourceLocation EqualLoc = ConsumeToken();
+    EqualLoc = ConsumeToken();
 
     // C++ [temp.param]p15:
     //   When parsing a default template-argument for a non-type
@@ -587,15 +606,15 @@ Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
     //   operator.
     GreaterThanIsOperatorScope G(GreaterThanIsOperator, false);
 
-    OwningExprResult DefaultArg = ParseAssignmentExpression();
+    DefaultArg = ParseAssignmentExpression();
     if (DefaultArg.isInvalid())
       SkipUntil(tok::comma, tok::greater, true, true);
-    else if (Param)
-      Actions.ActOnNonTypeTemplateParameterDefault(Param, EqualLoc,
-                                                   move(DefaultArg));
   }
 
-  return Param;
+  // Create the parameter.
+  return Actions.ActOnNonTypeTemplateParameter(getCurScope(), ParamDecl, 
+                                               Depth, Position, EqualLoc, 
+                                               move(DefaultArg));
 }
 
 /// \brief Parses a template-id that after the template name has
@@ -885,15 +904,14 @@ ParsedTemplateArgument Parser::ParseTemplateTemplateArgument() {
       // If the next token signals the end of a template argument,
       // then we have a dependent template name that could be a template
       // template argument.
-      if (isEndOfTemplateArgument(Tok)) {
-        TemplateTy Template
-        = Actions.ActOnDependentTemplateName(TemplateLoc, SS, Name, 
+      TemplateTy Template;
+      if (isEndOfTemplateArgument(Tok) &&
+          Actions.ActOnDependentTemplateName(getCurScope(), TemplateLoc, SS, Name, 
                                              /*ObjectType=*/0,
-                                             /*EnteringContext=*/false);
-        if (Template.get())
-          return ParsedTemplateArgument(SS, Template, Name.StartLocation);
-      }
-    } 
+                                             /*EnteringContext=*/false,
+                                             Template))
+        return ParsedTemplateArgument(SS, Template, Name.StartLocation);
+    }
   } else if (Tok.is(tok::identifier)) {
     // We may have a (non-dependent) template name.
     TemplateTy Template;
@@ -903,7 +921,7 @@ ParsedTemplateArgument Parser::ParseTemplateTemplateArgument() {
     
     if (isEndOfTemplateArgument(Tok)) {
       bool MemberOfUnknownSpecialization;
-      TemplateNameKind TNK = Actions.isTemplateName(CurScope, SS, Name, 
+      TemplateNameKind TNK = Actions.isTemplateName(getCurScope(), SS, Name, 
                                                     /*ObjectType=*/0, 
                                                     /*EnteringContext=*/false, 
                                                     Template,

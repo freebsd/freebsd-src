@@ -133,9 +133,12 @@ INSTANTIATE_TEST_CASE_P(AnotherInstantiationName, FooTest, ValuesIn(pets));
 // in the given test case, whether their definitions come before or
 // AFTER the INSTANTIATE_TEST_CASE_P statement.
 //
-// Please also note that generator expressions are evaluated in
-// RUN_ALL_TESTS(), after main() has started. This allows evaluation of
-// parameter list based on command line parameters.
+// Please also note that generator expressions (including parameters to the
+// generators) are evaluated in InitGoogleTest(), after main() has started.
+// This allows the user on one hand, to adjust generator parameters in order
+// to dynamically determine a set of tests to run and on the other hand,
+// give the user a chance to inspect the generated tests with Google Test
+// reflection API before RUN_ALL_TESTS() is executed.
 //
 // You can see samples/sample7_unittest.cc and samples/sample8_unittest.cc
 // for more examples.
@@ -146,15 +149,19 @@ INSTANTIATE_TEST_CASE_P(AnotherInstantiationName, FooTest, ValuesIn(pets));
 
 #endif  // 0
 
-
-#include <utility>
-
 #include <gtest/internal/gtest-port.h>
 
-#ifdef GTEST_HAS_PARAM_TEST
+#if !GTEST_OS_SYMBIAN
+#include <utility>
+#endif
 
+// scripts/fuse_gtest.py depends on gtest's own header being #included
+// *unconditionally*.  Therefore these #includes cannot be moved
+// inside #if GTEST_HAS_PARAM_TEST.
 #include <gtest/internal/gtest-internal.h>
 #include <gtest/internal/gtest-param-util.h>
+
+#if GTEST_HAS_PARAM_TEST
 
 namespace testing {
 
@@ -1190,7 +1197,7 @@ inline internal::ParamGenerator<bool> Bool() {
   return Values(false, true);
 }
 
-#ifdef GTEST_HAS_COMBINE
+#if GTEST_HAS_COMBINE
 // Combine() allows the user to combine two or more sequences to produce
 // values of a Cartesian product of those sequences' elements.
 //

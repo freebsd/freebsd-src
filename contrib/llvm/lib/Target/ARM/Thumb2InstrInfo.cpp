@@ -17,14 +17,26 @@
 #include "ARMAddressingModes.h"
 #include "ARMGenInstrInfo.inc"
 #include "ARMMachineFunctionInfo.h"
+#include "Thumb2HazardRecognizer.h"
+#include "Thumb2InstrInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/ADT/SmallVector.h"
-#include "Thumb2InstrInfo.h"
+#include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
+
+static cl::opt<unsigned>
+IfCvtLimit("thumb2-ifcvt-limit", cl::Hidden,
+           cl::desc("Thumb2 if-conversion limit (default 3)"),
+           cl::init(3));
+
+static cl::opt<unsigned>
+IfCvtDiamondLimit("thumb2-ifcvt-diamond-limit", cl::Hidden,
+                  cl::desc("Thumb2 diamond if-conversion limit (default 3)"),
+                  cl::init(3));
 
 Thumb2InstrInfo::Thumb2InstrInfo(const ARMSubtarget &STI)
   : ARMBaseInstrInfo(STI), RI(*this, STI) {
@@ -35,33 +47,99 @@ unsigned Thumb2InstrInfo::getUnindexedOpcode(unsigned Opc) const {
   return 0;
 }
 
-bool
-Thumb2InstrInfo::copyRegToReg(MachineBasicBlock &MBB,
-                              MachineBasicBlock::iterator I,
-                              unsigned DestReg, unsigned SrcReg,
-                              const TargetRegisterClass *DestRC,
-                              const TargetRegisterClass *SrcRC,
-                              DebugLoc DL) const {
-  if (DestRC == ARM::GPRRegisterClass) {
-    if (SrcRC == ARM::GPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVgpr2gpr), DestReg).addReg(SrcReg);
-      return true;
-    } else if (SrcRC == ARM::tGPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVtgpr2gpr), DestReg).addReg(SrcReg);
-      return true;
-    }
-  } else if (DestRC == ARM::tGPRRegisterClass) {
-    if (SrcRC == ARM::GPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVgpr2tgpr), DestReg).addReg(SrcReg);
-      return true;
-    } else if (SrcRC == ARM::tGPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVr), DestReg).addReg(SrcReg);
-      return true;
-    }
+void
+Thumb2InstrInfo::ReplaceTailWithBranchTo(MachineBasicBlock::iterator Tail,
+                                         MachineBasicBlock *NewDest) const {
+  MachineBasicBlock *MBB = Tail->getParent();
+  ARMFunctionInfo *AFI = MBB->getParent()->getInfo<ARMFunctionInfo>();
+  if (!AFI->hasITBlocks()) {
+    TargetInstrInfoImpl::ReplaceTailWithBranchTo(Tail, NewDest);
+    return;
   }
 
+  // If the first instruction of Tail is predicated, we may have to update
+  // the IT instruction.
+  unsigned PredReg = 0;
+  ARMCC::CondCodes CC = llvm::getInstrPredicate(Tail, PredReg);
+  MachineBasicBlock::iterator MBBI = Tail;
+  if (CC != ARMCC::AL)
+    // Expecting at least the t2IT instruction before it.
+    --MBBI;
+
+  // Actually replace the tail.
+  TargetInstrInfoImpl::ReplaceTailWithBranchTo(Tail, NewDest);
+
+  // Fix up IT.
+  if (CC != ARMCC::AL) {
+    MachineBasicBlock::iterator E = MBB->begin();
+    unsigned Count = 4; // At most 4 instructions in an IT block.
+    while (Count && MBBI != E) {
+      if (MBBI->isDebugValue()) {
+        --MBBI;
+        continue;
+      }
+      if (MBBI->getOpcode() == ARM::t2IT) {
+        unsigned Mask = MBBI->getOperand(1).getImm();
+        if (Count == 4)
+          MBBI->eraseFromParent();
+        else {
+          unsigned MaskOn = 1 << Count;
+          unsigned MaskOff = ~(MaskOn - 1);
+          MBBI->getOperand(1).setImm((Mask & MaskOff) | MaskOn);
+        }
+        return;
+      }
+      --MBBI;
+      --Count;
+    }
+
+    // Ctrl flow can reach here if branch folding is run before IT block
+    // formation pass.
+  }
+}
+
+bool
+Thumb2InstrInfo::isLegalToSplitMBBAt(MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator MBBI) const {
+  unsigned PredReg = 0;
+  return llvm::getITInstrPredicate(MBBI, PredReg) == ARMCC::AL;
+}
+
+bool Thumb2InstrInfo::isProfitableToIfCvt(MachineBasicBlock &MBB,
+                                          unsigned NumInstrs) const {
+  return NumInstrs && NumInstrs <= IfCvtLimit;
+}
+  
+bool Thumb2InstrInfo::
+isProfitableToIfCvt(MachineBasicBlock &TMBB, unsigned NumT,
+                    MachineBasicBlock &FMBB, unsigned NumF) const {
+  // FIXME: Catch optimization such as:
+  //        r0 = movne
+  //        r0 = moveq
+  return NumT && NumF &&
+    NumT <= (IfCvtDiamondLimit) && NumF <= (IfCvtDiamondLimit);
+}
+
+void Thumb2InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+                                  MachineBasicBlock::iterator I, DebugLoc DL,
+                                  unsigned DestReg, unsigned SrcReg,
+                                  bool KillSrc) const {
   // Handle SPR, DPR, and QPR copies.
-  return ARMBaseInstrInfo::copyRegToReg(MBB, I, DestReg, SrcReg, DestRC, SrcRC, DL);
+  if (!ARM::GPRRegClass.contains(DestReg, SrcReg))
+    return ARMBaseInstrInfo::copyPhysReg(MBB, I, DL, DestReg, SrcReg, KillSrc);
+
+  bool tDest = ARM::tGPRRegClass.contains(DestReg);
+  bool tSrc  = ARM::tGPRRegClass.contains(SrcReg);
+  unsigned Opc = ARM::tMOVgpr2gpr;
+  if (tDest && tSrc)
+    Opc = ARM::tMOVr;
+  else if (tSrc)
+    Opc = ARM::tMOVtgpr2gpr;
+  else if (tDest)
+    Opc = ARM::tMOVgpr2tgpr;
+
+  BuildMI(MBB, I, DL, get(Opc), DestReg)
+    .addReg(SrcReg, getKillRegState(KillSrc));
 }
 
 void Thumb2InstrInfo::
@@ -69,7 +147,8 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     unsigned SrcReg, bool isKill, int FI,
                     const TargetRegisterClass *RC,
                     const TargetRegisterInfo *TRI) const {
-  if (RC == ARM::GPRRegisterClass || RC == ARM::tGPRRegisterClass) {
+  if (RC == ARM::GPRRegisterClass || RC == ARM::tGPRRegisterClass ||
+      RC == ARM::tcGPRRegisterClass) {
     DebugLoc DL;
     if (I != MBB.end()) DL = I->getDebugLoc();
 
@@ -94,7 +173,8 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      unsigned DestReg, int FI,
                      const TargetRegisterClass *RC,
                      const TargetRegisterInfo *TRI) const {
-  if (RC == ARM::GPRRegisterClass || RC == ARM::tGPRRegisterClass) {
+  if (RC == ARM::GPRRegisterClass || RC == ARM::tGPRRegisterClass ||
+      RC == ARM::tcGPRRegisterClass) {
     DebugLoc DL;
     if (I != MBB.end()) DL = I->getDebugLoc();
 
@@ -111,6 +191,11 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   }
 
   ARMBaseInstrInfo::loadRegFromStackSlot(MBB, I, DestReg, FI, RC, TRI);
+}
+
+ScheduleHazardRecognizer *Thumb2InstrInfo::
+CreateTargetPostRAHazardRecognizer(const InstrItineraryData &II) const {
+  return (ScheduleHazardRecognizer *)new Thumb2HazardRecognizer(II);
 }
 
 void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
@@ -131,14 +216,14 @@ void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
       // Use a movw to materialize the 16-bit constant.
       BuildMI(MBB, MBBI, dl, TII.get(ARM::t2MOVi16), DestReg)
         .addImm(NumBytes)
-        .addImm((unsigned)Pred).addReg(PredReg).addReg(0);
+        .addImm((unsigned)Pred).addReg(PredReg);
       Fits = true;
     } else if ((NumBytes & 0xffff) == 0) {
       // Use a movt to materialize the 32-bit constant.
       BuildMI(MBB, MBBI, dl, TII.get(ARM::t2MOVTi16), DestReg)
         .addReg(DestReg)
         .addImm(NumBytes >> 16)
-        .addImm((unsigned)Pred).addReg(PredReg).addReg(0);
+        .addImm((unsigned)Pred).addReg(PredReg);
       Fits = true;
     }
 
@@ -501,4 +586,55 @@ bool llvm::rewriteT2FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
 
   Offset = (isSub) ? -Offset : Offset;
   return Offset == 0;
+}
+
+/// scheduleTwoAddrSource - Schedule the copy / re-mat of the source of the
+/// two-addrss instruction inserted by two-address pass.
+void
+Thumb2InstrInfo::scheduleTwoAddrSource(MachineInstr *SrcMI,
+                                       MachineInstr *UseMI,
+                                       const TargetRegisterInfo &TRI) const {
+  if (SrcMI->getOpcode() != ARM::tMOVgpr2gpr ||
+      SrcMI->getOperand(1).isKill())
+    return;
+
+  unsigned PredReg = 0;
+  ARMCC::CondCodes CC = llvm::getInstrPredicate(UseMI, PredReg);
+  if (CC == ARMCC::AL || PredReg != ARM::CPSR)
+    return;
+
+  // Schedule the copy so it doesn't come between previous instructions
+  // and UseMI which can form an IT block.
+  unsigned SrcReg = SrcMI->getOperand(1).getReg();
+  ARMCC::CondCodes OCC = ARMCC::getOppositeCondition(CC);
+  MachineBasicBlock *MBB = UseMI->getParent();
+  MachineBasicBlock::iterator MBBI = SrcMI;
+  unsigned NumInsts = 0;
+  while (--MBBI != MBB->begin()) {
+    if (MBBI->isDebugValue())
+      continue;
+
+    MachineInstr *NMI = &*MBBI;
+    ARMCC::CondCodes NCC = llvm::getInstrPredicate(NMI, PredReg);
+    if (!(NCC == CC || NCC == OCC) ||
+        NMI->modifiesRegister(SrcReg, &TRI) ||
+        NMI->definesRegister(ARM::CPSR))
+      break;
+    if (++NumInsts == 4)
+      // Too many in a row!
+      return;
+  }
+
+  if (NumInsts) {
+    MBB->remove(SrcMI);
+    MBB->insert(++MBBI, SrcMI);
+  }
+}
+
+ARMCC::CondCodes
+llvm::getITInstrPredicate(const MachineInstr *MI, unsigned &PredReg) {
+  unsigned Opc = MI->getOpcode();
+  if (Opc == ARM::tBcc || Opc == ARM::t2Bcc)
+    return ARMCC::AL;
+  return llvm::getInstrPredicate(MI, PredReg);
 }

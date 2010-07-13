@@ -101,9 +101,9 @@ static Value *computeArraySize(const CallInst *CI, const TargetData *TD,
   if (const StructType *ST = dyn_cast<StructType>(T))
     ElementSize = TD->getStructLayout(ST)->getSizeInBytes();
 
-  // If malloc calls' arg can be determined to be a multiple of ElementSize,
+  // If malloc call's arg can be determined to be a multiple of ElementSize,
   // return the multiple.  Otherwise, return NULL.
-  Value *MallocArg = CI->getOperand(1);
+  Value *MallocArg = CI->getArgOperand(0);
   Value *Multiple = NULL;
   if (ComputeMultiple(MallocArg, ElementSize, Multiple,
                       LookThroughSExt))
@@ -120,7 +120,7 @@ const CallInst *llvm::isArrayMalloc(const Value *I, const TargetData *TD) {
   Value *ArraySize = computeArraySize(CI, TD);
 
   if (ArraySize &&
-      ArraySize != ConstantInt::get(CI->getOperand(1)->getType(), 1))
+      ArraySize != ConstantInt::get(CI->getArgOperand(0)->getType(), 1))
     return CI;
 
   // CI is a non-array malloc or we can't figure out that it is an array malloc.
@@ -183,25 +183,25 @@ Value *llvm::getMallocArraySize(CallInst *CI, const TargetData *TD,
 //  free Call Utility Functions.
 //
 
-/// isFreeCall - Returns true if the value is a call to the builtin free()
-bool llvm::isFreeCall(const Value *I) {
+/// isFreeCall - Returns non-null if the value is a call to the builtin free()
+const CallInst *llvm::isFreeCall(const Value *I) {
   const CallInst *CI = dyn_cast<CallInst>(I);
   if (!CI)
-    return false;
+    return 0;
   Function *Callee = CI->getCalledFunction();
   if (Callee == 0 || !Callee->isDeclaration() || Callee->getName() != "free")
-    return false;
+    return 0;
 
   // Check free prototype.
   // FIXME: workaround for PR5130, this will be obsolete when a nobuiltin 
   // attribute will exist.
   const FunctionType *FTy = Callee->getFunctionType();
   if (!FTy->getReturnType()->isVoidTy())
-    return false;
+    return 0;
   if (FTy->getNumParams() != 1)
-    return false;
+    return 0;
   if (FTy->param_begin()->get() != Type::getInt8PtrTy(Callee->getContext()))
-    return false;
+    return 0;
 
-  return true;
+  return CI;
 }

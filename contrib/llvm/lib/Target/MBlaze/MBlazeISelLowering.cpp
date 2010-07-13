@@ -234,6 +234,24 @@ MBlazeTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     MachineRegisterInfo &R = F->getRegInfo();
     MachineBasicBlock *loop = F->CreateMachineBasicBlock(LLVM_BB);
     MachineBasicBlock *finish = F->CreateMachineBasicBlock(LLVM_BB);
+    F->insert(It, loop);
+    F->insert(It, finish);
+
+    // Update machine-CFG edges by transfering adding all successors and
+    // remaining instructions from the current block to the new block which
+    // will contain the Phi node for the select.
+    finish->splice(finish->begin(), BB,
+                   llvm::next(MachineBasicBlock::iterator(MI)),
+                   BB->end());
+    finish->transferSuccessorsAndUpdatePHIs(BB);
+
+    // Add the true and fallthrough blocks as its successors.
+    BB->addSuccessor(loop);
+    BB->addSuccessor(finish);
+
+    // Next, add the finish block as a successor of the loop block
+    loop->addSuccessor(finish);
+    loop->addSuccessor(loop);
 
     unsigned IAMT = R.createVirtualRegister(MBlaze::CPURegsRegisterClass);
     BuildMI(BB, dl, TII->get(MBlaze::ANDI), IAMT)
@@ -248,26 +266,6 @@ MBlazeTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     BuildMI(BB, dl, TII->get(MBlaze::BEQID))
       .addReg(IAMT)
       .addMBB(finish);
-
-    F->insert(It, loop);
-    F->insert(It, finish);
-
-    // Update machine-CFG edges by first adding all successors of the current
-    // block to the new block which will contain the Phi node for the select.
-    for(MachineBasicBlock::succ_iterator i = BB->succ_begin(),
-          e = BB->succ_end(); i != e; ++i)
-      finish->addSuccessor(*i);
-
-    // Next, remove all successors of the current block, and add the true
-    // and fallthrough blocks as its successors.
-    while(!BB->succ_empty())
-      BB->removeSuccessor(BB->succ_begin());
-    BB->addSuccessor(loop);
-    BB->addSuccessor(finish);
-
-    // Next, add the finish block as a successor of the loop block
-    loop->addSuccessor(finish);
-    loop->addSuccessor(loop);
 
     unsigned DST = R.createVirtualRegister(MBlaze::CPURegsRegisterClass);
     unsigned NDST = R.createVirtualRegister(MBlaze::CPURegsRegisterClass);
@@ -298,12 +296,13 @@ MBlazeTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
       .addReg(NAMT)
       .addMBB(loop);
 
-    BuildMI(finish, dl, TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
+    BuildMI(*finish, finish->begin(), dl,
+            TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
       .addReg(IVAL).addMBB(BB)
       .addReg(NDST).addMBB(loop);
 
     // The pseudo instruction is no longer needed so remove it
-    F->DeleteMachineInstr(MI);
+    MI->eraseFromParent();
     return finish;
     }
 
@@ -338,26 +337,22 @@ MBlazeTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     case MBlazeCC::LE: Opc = MBlaze::BGTID; break;
     }
 
-    BuildMI(BB, dl, TII->get(Opc))
-      .addReg(MI->getOperand(3).getReg())
-      .addMBB(dneBB);
-
     F->insert(It, flsBB);
     F->insert(It, dneBB);
 
-    // Update machine-CFG edges by first adding all successors of the current
-    // block to the new block which will contain the Phi node for the select.
-    for(MachineBasicBlock::succ_iterator i = BB->succ_begin(),
-          e = BB->succ_end(); i != e; ++i)
-      dneBB->addSuccessor(*i);
+    // Transfer the remainder of BB and its successor edges to dneBB.
+    dneBB->splice(dneBB->begin(), BB,
+                  llvm::next(MachineBasicBlock::iterator(MI)),
+                  BB->end());
+    dneBB->transferSuccessorsAndUpdatePHIs(BB);
 
-    // Next, remove all successors of the current block, and add the true
-    // and fallthrough blocks as its successors.
-    while(!BB->succ_empty())
-      BB->removeSuccessor(BB->succ_begin());
     BB->addSuccessor(flsBB);
     BB->addSuccessor(dneBB);
     flsBB->addSuccessor(dneBB);
+
+    BuildMI(BB, dl, TII->get(Opc))
+      .addReg(MI->getOperand(3).getReg())
+      .addMBB(dneBB);
 
     //  sinkMBB:
     //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
@@ -366,11 +361,12 @@ MBlazeTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     //  .addReg(MI->getOperand(1).getReg()).addMBB(flsBB)
     //  .addReg(MI->getOperand(2).getReg()).addMBB(BB);
 
-    BuildMI(dneBB, dl, TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
+    BuildMI(*dneBB, dneBB->begin(), dl,
+            TII->get(MBlaze::PHI), MI->getOperand(0).getReg())
       .addReg(MI->getOperand(2).getReg()).addMBB(flsBB)
       .addReg(MI->getOperand(1).getReg()).addMBB(BB);
 
-    F->DeleteMachineInstr(MI);   // The pseudo instruction is gone now.
+    MI->eraseFromParent();   // The pseudo instruction is gone now.
     return dneBB;
   }
   }
@@ -408,7 +404,7 @@ LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const {
   // FIXME there isn't actually debug info here
   DebugLoc dl = Op.getDebugLoc();
   const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
-  SDValue GA = DAG.getTargetGlobalAddress(GV, MVT::i32);
+  SDValue GA = DAG.getTargetGlobalAddress(GV, dl, MVT::i32);
 
   return DAG.getNode(MBlazeISD::Wrap, dl, MVT::i32, GA);
 }
@@ -439,10 +435,8 @@ LowerJumpTable(SDValue Op, SelectionDAG &DAG) const {
 SDValue MBlazeTargetLowering::
 LowerConstantPool(SDValue Op, SelectionDAG &DAG) const {
   SDValue ResNode;
-  EVT PtrVT = Op.getValueType();
   ConstantPoolSDNode *N = cast<ConstantPoolSDNode>(Op);
   const Constant *C = N->getConstVal();
-  SDValue Zero = DAG.getConstant(0, PtrVT);
   DebugLoc dl = Op.getDebugLoc();
 
   SDValue CP = DAG.getTargetConstantPool(C, MVT::i32, N->getAlignment(),
@@ -531,6 +525,7 @@ SDValue MBlazeTargetLowering::
 LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
           bool isVarArg, bool &isTailCall,
           const SmallVectorImpl<ISD::OutputArg> &Outs,
+          const SmallVectorImpl<SDValue> &OutVals,
           const SmallVectorImpl<ISD::InputArg> &Ins,
           DebugLoc dl, SelectionDAG &DAG,
           SmallVectorImpl<SDValue> &InVals) const {
@@ -562,7 +557,7 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
     EVT RegVT = VA.getLocVT();
-    SDValue Arg = Outs[i].Val;
+    SDValue Arg = OutVals[i];
 
     // Promote the value if needed.
     switch (VA.getLocInfo()) {
@@ -590,7 +585,7 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
       // Create the frame index object for this incoming parameter
       LastArgStackLoc = (FirstStackArgLoc + VA.getLocMemOffset());
       int FI = MFI->CreateFixedObject(VA.getValVT().getSizeInBits()/8,
-                                      LastArgStackLoc, true, false);
+                                      LastArgStackLoc, true);
 
       SDValue PtrOff = DAG.getFrameIndex(FI,getPointerTy());
 
@@ -623,7 +618,7 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
   // node so that legalize doesn't hack it.
   unsigned char OpFlag = MBlazeII::MO_NO_FLAG;
   if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee))
-    Callee = DAG.getTargetGlobalAddress(G->getGlobal(),
+    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl,
                                 getPointerTy(), 0, OpFlag);
   else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(Callee))
     Callee = DAG.getTargetExternalSymbol(S->getSymbol(),
@@ -779,7 +774,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
       // offset on PEI::calculateFrameObjectOffsets.
       // Arguments are always 32-bit.
       unsigned ArgSize = VA.getLocVT().getSizeInBits()/8;
-      int FI = MFI->CreateFixedObject(ArgSize, 0, true, false);
+      int FI = MFI->CreateFixedObject(ArgSize, 0, true);
       MBlazeFI->recordLoadArgsFI(FI, -(ArgSize+
         (FirstStackArgLoc + VA.getLocMemOffset())));
 
@@ -810,7 +805,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
       unsigned LiveReg = MF.addLiveIn(Reg, RC);
       SDValue ArgValue = DAG.getCopyFromReg(Chain, dl, LiveReg, MVT::i32);
 
-      int FI = MFI->CreateFixedObject(4, 0, true, false);
+      int FI = MFI->CreateFixedObject(4, 0, true);
       MBlazeFI->recordStoreVarArgsFI(FI, -(4+(StackLoc*4)));
       SDValue PtrOff = DAG.getFrameIndex(FI, getPointerTy());
       OutChains.push_back(DAG.getStore(Chain, dl, ArgValue, PtrOff, NULL, 0,
@@ -841,6 +836,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
 SDValue MBlazeTargetLowering::
 LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
             const SmallVectorImpl<ISD::OutputArg> &Outs,
+            const SmallVectorImpl<SDValue> &OutVals,
             DebugLoc dl, SelectionDAG &DAG) const {
   // CCValAssign - represent the assignment of
   // the return value to a location
@@ -869,7 +865,7 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     assert(VA.isRegLoc() && "Can only return in registers!");
 
     Chain = DAG.getCopyToReg(Chain, dl, VA.getLocReg(),
-                             Outs[i].Val, Flag);
+                             OutVals[i], Flag);
 
     // guarantee that all emitted copies are
     // stuck together, avoiding something bad
