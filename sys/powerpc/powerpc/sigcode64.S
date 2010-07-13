@@ -1,3 +1,6 @@
+/* $FreeBSD$ */
+/* $NetBSD: sigcode.S,v 1.1 1999/11/17 14:56:11 kleink Exp $	*/
+
 /*-
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
@@ -27,40 +30,37 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$NetBSD: proc.h,v 1.2 1997/04/16 22:57:48 thorpej Exp $
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_PROC_H_
-#define	_MACHINE_PROC_H_
+#include <machine/asm.h>
+#include <sys/syscall.h>
+#include "assym.s"
 
 /*
- * Machine-dependent part of the proc structure
+ * The following code gets copied to the top of the user stack on process
+ * execution.  It does signal trampolining on signal delivery.
+ *
+ * On entry r1 points to a struct sigframe at bottom of current stack.
+ * All other registers are unchanged.
  */
-struct mdthread {
-	int	md_spinlock_count;	/* (k) */
-	register_t md_saved_msr;	/* (k) */
-};
+	.globl	CNAME(sigcode64),CNAME(szsigcode64)
+CNAME(sigcode64):
+	addi	1,1,-48			/* reserved space for callee */
+	mflr	2			/* resolve function descriptor */
+	ld	0,0(2)			
+	ld	2,8(2)
+	mtlr	0
 
-struct mdproc {
-};
+	blrl
 
-#ifdef __powerpc64__
-#define	KINFO_PROC_SIZE 1088
-#define	KINFO_PROC32_SIZE 768
-#else
-#define	KINFO_PROC_SIZE 768
-#endif
-
-#ifdef _KERNEL
-struct syscall_args {
-	u_int code;
-	struct sysent *callp;
-	register_t args[10];
-	int narg;
-};
-#define	HAVE_SYSCALL_ARGS_DEF 1
-#endif
-
-#endif /* !_MACHINE_PROC_H_ */
+	addi	3,1,48+SF_UC		/* restore sp, and get &frame->sf_uc */
+	li	0,SYS_sigreturn
+	sc				/* sigreturn(scp) */
+	li	0,SYS_exit
+	sc				/* exit(errno) */
+	nop				/* align to doubleword */
+endsigcode64:
+	
+	.data
+CNAME(szsigcode64):
+	.long	endsigcode64 - CNAME(sigcode64)

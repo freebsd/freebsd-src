@@ -208,7 +208,7 @@ cpu_e500_startup(void *dummy)
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
 			size = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08x - 0x%08x, %d bytes (%d pages)\n",
+			printf("0x%08x - 0x%08x, %d bytes (%ld pages)\n",
 			    phys_avail[indx], phys_avail[indx + 1] - 1,
 			    size, size / PAGE_SIZE);
 		}

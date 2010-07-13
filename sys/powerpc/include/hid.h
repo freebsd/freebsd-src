@@ -161,6 +161,7 @@
 #define HID0_E500_DEFAULT_SET	(HID0_EMCP | HID0_E500_TBEN)
 #define HID1_E500_DEFAULT_SET	(HID1_E500_ABE | HID1_E500_ASTME)
 
-#define HID5_970_DCBZ_SIZE_HI	0x01000000	/* dcbz does a 32-byte store */
+#define HID5_970_DCBZ_SIZE_HI	0x00000080UL	/* dcbz does a 32-byte store */
+#define HID4_970_DISABLE_LG_PG	0x00000004ULL	/* disables large pages */
 
 #endif /* _POWERPC_HID_H_ */

@@ -24,6 +24,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 
 
 20100713:
+	Due to the import of powerpc64 support, all existing powerpc kernel
+	configuration files must be updated with a machine directive like this:
+	    machine powerpc powerpc
+
+	In addition, an updated config(8) is required to build powerpc kernels
+	after this change.
+
+20100713:
 	A new version of ZFS (version 15) has been merged to -HEAD.
 	This version uses a python library for the following subcommands:
 	zfs allow, zfs unallow, zfs groupspace, zfs userspace.
