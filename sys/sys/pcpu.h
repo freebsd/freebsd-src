@@ -133,6 +133,15 @@ extern uintptr_t dpcpu_off[];
 	sum;								\
 })
 
+#define	DPCPU_ZERO(n) do {						\
+	u_int _i;							\
+									\
+	CPU_FOREACH(_i) {						\
+		bzero(DPCPU_ID_PTR(_i, n),				\
+		    sizeof(__typeof(DPCPU_PTR(n))));			\
+	}								\
+} while(0)
+
 /* 
  * XXXUPS remove as soon as we have per cpu variable
  * linker sets and can define rm_queue in _rm_lock.h
