@@ -71,16 +71,13 @@ AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
 
     switch (Width) {
     case 8:
-        *(u_int8_t *)Value = bus_space_read_1(ACPI_BUS_SPACE_IO,
-	    ACPI_BUS_HANDLE, InPort);
+	*Value = bus_space_read_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
         break;
     case 16:
-        *(u_int16_t *)Value = bus_space_read_2(ACPI_BUS_SPACE_IO,
-	    ACPI_BUS_HANDLE, InPort);
+	*Value = bus_space_read_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
         break;
     case 32:
-        *(u_int32_t *)Value = bus_space_read_4(ACPI_BUS_SPACE_IO,
-	    ACPI_BUS_HANDLE, InPort);
+	*Value = bus_space_read_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
         break;
     default:
         /* debug trap goes here */
