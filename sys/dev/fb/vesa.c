@@ -986,9 +986,9 @@ vesa_bios_init(void)
 
 	x86bios_free(vmbuf, sizeof(*buf));
 
+	vesa_state_buf_size = vesa_bios_state_buf_size();
 	vesa_palette = x86bios_alloc(&vesa_palette_offs,
 	    VESA_PALETTE_SIZE + vesa_state_buf_size, M_WAITOK);
-	vesa_state_buf_size = vesa_bios_state_buf_size();
 	if (vesa_state_buf_size > 0) {
 		vesa_state_buf = vesa_palette + VESA_PALETTE_SIZE;
 		vesa_state_buf_offs = vesa_palette_offs + VESA_PALETTE_SIZE;
