@@ -230,7 +230,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 #endif
 
 	if ((time_second - np->n_attrstamp) >= timeo &&
-	    mustflush != 0) {
+	    (mustflush != 0 || np->n_attrstamp == 0)) {
 		newnfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
 #ifdef NFS_ACDEBUG
