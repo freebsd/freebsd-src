@@ -66,7 +66,6 @@ void	mips_generic_reset(void);
 #endif
 
 void	mips_vector_init(void);
-void	cpu_identify(void);
 void	mips_cpu_init(void);
 void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
