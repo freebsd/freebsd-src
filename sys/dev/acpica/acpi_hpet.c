@@ -216,10 +216,8 @@ hpet_intr_single(void *arg)
 	} else if (t->mode == 2)
 		t->mode = 0;
 	mt = (t->pcpu_master < 0) ? t : &sc->t[t->pcpu_master];
-	if (mt->et.et_active) {
-		mt->et.et_event_cb(&mt->et,
-		    mt->et.et_arg ? mt->et.et_arg : curthread->td_intr_frame);
-	}
+	if (mt->et.et_active)
+		mt->et.et_event_cb(&mt->et, mt->et.et_arg);
 	return (FILTER_HANDLED);
 }
 
