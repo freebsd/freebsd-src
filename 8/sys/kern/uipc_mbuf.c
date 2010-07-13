@@ -302,6 +302,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 	n->m_ext.ext_type = m->m_ext.ext_type;
 	n->m_flags |= M_EXT;
+	n->m_flags |= m->m_flags & M_RDONLY;
 }
 
 /*
@@ -948,9 +949,8 @@ m_adj(struct mbuf *mp, int req_len)
 				len = 0;
 			}
 		}
-		m = mp;
 		if (mp->m_flags & M_PKTHDR)
-			m->m_pkthdr.len -= (req_len - len);
+			mp->m_pkthdr.len -= (req_len - len);
 	} else {
 		/*
 		 * Trim from tail.  Scan the mbuf chain,

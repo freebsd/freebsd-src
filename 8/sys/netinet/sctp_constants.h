@@ -87,10 +87,6 @@ __FBSDID("$FreeBSD$");
 /* #define SCTP_AUDITING_ENABLED 1 used for debug/auditing */
 #define SCTP_AUDIT_SIZE 256
 
-/* temporary disabled since it does not work with VNET. */
-#if 0
-#define SCTP_USE_THREAD_BASED_ITERATOR 1
-#endif
 
 #define SCTP_KTRHEAD_NAME "sctp_iterator"
 #define SCTP_KTHREAD_PAGES 0
@@ -276,28 +272,16 @@ __FBSDID("$FreeBSD$");
 #define SCTP_SCALE_FOR_ADDR	2
 
 /* default AUTO_ASCONF mode enable(1)/disable(0) value (sysctl) */
-#if defined (__APPLE__) && !defined(SCTP_APPLE_AUTO_ASCONF)
-#define SCTP_DEFAULT_AUTO_ASCONF        0
-#else
 #define SCTP_DEFAULT_AUTO_ASCONF	1
-#endif
 
 /* default MULTIPLE_ASCONF mode enable(1)/disable(0) value (sysctl) */
 #define SCTP_DEFAULT_MULTIPLE_ASCONFS	0
 
 /* default MOBILITY_BASE mode enable(1)/disable(0) value (sysctl) */
-#if defined (__APPLE__) && !defined(SCTP_APPLE_MOBILITY_BASE)
-#define SCTP_DEFAULT_MOBILITY_BASE      0
-#else
 #define SCTP_DEFAULT_MOBILITY_BASE	0
-#endif
 
 /* default MOBILITY_FASTHANDOFF mode enable(1)/disable(0) value (sysctl) */
-#if defined (__APPLE__) && !defined(SCTP_APPLE_MOBILITY_FASTHANDOFF)
 #define SCTP_DEFAULT_MOBILITY_FASTHANDOFF	0
-#else
-#define SCTP_DEFAULT_MOBILITY_FASTHANDOFF	0
-#endif
 
 /*
  * Theshold for rwnd updates, we have to read (sb_hiwat >>
@@ -373,14 +357,6 @@ __FBSDID("$FreeBSD$");
 						 * hit this value) */
 #define SCTP_DATAGRAM_RESEND		4
 #define SCTP_DATAGRAM_ACKED		10010
-/* EY
- * If a tsn is nr-gapped, its first tagged as NR_MARKED and then NR_ACKED
- * When yet another nr-sack is received, if a particular TSN's sent tag
- * is observed to be NR_ACKED after gap-ack info is processed, this implies
- * that particular TSN is reneged
-*/
-#define SCTP_DATAGRAM_NR_ACKED 		10020
-#define SCTP_DATAGRAM_NR_MARKED		20005
 #define SCTP_DATAGRAM_MARKED		20010
 #define SCTP_FORWARD_TSN_SKIP		30010
 
@@ -510,6 +486,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_STATE_ABOUT_TO_BE_FREED    0x0200
 #define SCTP_STATE_PARTIAL_MSG_LEFT     0x0400
 #define SCTP_STATE_WAS_ABORTED          0x0800
+#define SCTP_STATE_IN_ACCEPT_QUEUE      0x1000
 #define SCTP_STATE_MASK			0x007f
 
 #define SCTP_GET_STATE(asoc)	((asoc)->state & SCTP_STATE_MASK)
@@ -556,13 +533,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_INITIAL_MAPPING_ARRAY  16
 /* how much we grow the mapping array each call */
 #define SCTP_MAPPING_ARRAY_INCR     32
-/* EY 05/13/08 - nr_sack version of the previous 3 constants */
-/* Maximum the nr mapping array will  grow to (TSN mapping array) */
-#define SCTP_NR_MAPPING_ARRAY	512
-/* size of the inital malloc on the nr mapping array */
-#define SCTP_INITIAL_NR_MAPPING_ARRAY  16
-/* how much we grow the nr mapping array each call */
-#define SCTP_NR_MAPPING_ARRAY_INCR     32
+
 /*
  * Here we define the timer types used by the implementation as arguments in
  * the set/get timer type calls.
@@ -597,7 +568,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_TIMER_TYPE_EVENTWAKE	13
 #define SCTP_TIMER_TYPE_STRRESET        14
 #define SCTP_TIMER_TYPE_INPKILL         15
-#define SCTP_TIMER_TYPE_ITERATOR        16
 #define SCTP_TIMER_TYPE_EARLYFR         17
 #define SCTP_TIMER_TYPE_ASOCKILL        18
 #define SCTP_TIMER_TYPE_ADDR_WQ         19
@@ -924,7 +894,7 @@ __FBSDID("$FreeBSD$");
 /* third argument */
 #define SCTP_CALLED_DIRECTLY_NOCMPSET     0
 #define SCTP_CALLED_AFTER_CMPSET_OFCLOSE  1
-
+#define SCTP_CALLED_FROM_INPKILL_TIMER    2
 /* second argument */
 #define SCTP_FREE_SHOULD_USE_ABORT          1
 #define SCTP_FREE_SHOULD_USE_GRACEFUL_CLOSE 0
@@ -945,6 +915,13 @@ __FBSDID("$FreeBSD$");
 #define SCTP_IS_TSN_PRESENT(arry, gap) ((arry[(gap >> 3)] >> (gap & 0x07)) & 0x01)
 #define SCTP_SET_TSN_PRESENT(arry, gap) (arry[(gap >> 3)] |= (0x01 << ((gap & 0x07))))
 #define SCTP_UNSET_TSN_PRESENT(arry, gap) (arry[(gap >> 3)] &= ((~(0x01 << ((gap & 0x07)))) & 0xff))
+#define SCTP_CALC_TSN_TO_GAP(gap, tsn, mapping_tsn) do { \
+	                if (tsn >= mapping_tsn) { \
+						gap = tsn - mapping_tsn; \
+					} else { \
+						gap = (MAX_TSN - mapping_tsn) + tsn + 1; \
+					} \
+                  } while(0)
 
 
 #define SCTP_RETRAN_DONE -1

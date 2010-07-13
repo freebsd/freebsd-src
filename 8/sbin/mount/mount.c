@@ -91,7 +91,7 @@ char   *flags2opts(int);
 
 /* Map from mount options to printable formats. */
 static struct opt {
-	int o_opt;
+	uint64_t o_opt;
 	const char *o_name;
 } optnames[] = {
 	{ MNT_ASYNC,		"asynchronous" },
@@ -111,6 +111,7 @@ static struct opt {
 	{ MNT_SOFTDEP,		"soft-updates" },
 	{ MNT_MULTILABEL,	"multilabel" },
 	{ MNT_ACLS,		"acls" },
+	{ MNT_NFS4ACLS,		"nfsv4acls" },
 	{ MNT_GJOURNAL,		"gjournal" },
 	{ 0, NULL }
 };
@@ -611,7 +612,7 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 void
 prmount(struct statfs *sfp)
 {
-	int flags;
+	uint64_t flags;
 	unsigned int i;
 	struct opt *o;
 	struct passwd *pw;
@@ -620,7 +621,7 @@ prmount(struct statfs *sfp)
 	    sfp->f_fstypename);
 
 	flags = sfp->f_flags & MNT_VISFLAGMASK;
-	for (o = optnames; flags && o->o_opt; o++)
+	for (o = optnames; flags != 0 && o->o_opt != 0; o++)
 		if (flags & o->o_opt) {
 			(void)printf(", %s", o->o_name);
 			flags &= ~o->o_opt;
@@ -918,6 +919,7 @@ flags2opts(int flags)
 	if (flags & MNT_SUIDDIR)	res = catopt(res, "suiddir");
 	if (flags & MNT_MULTILABEL)	res = catopt(res, "multilabel");
 	if (flags & MNT_ACLS)		res = catopt(res, "acls");
+	if (flags & MNT_NFS4ACLS)	res = catopt(res, "nfsv4acls");
 
 	return (res);
 }

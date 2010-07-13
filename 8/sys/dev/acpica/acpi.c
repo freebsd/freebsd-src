@@ -162,6 +162,7 @@ static int	acpi_sname2sstate(const char *sname);
 static const char *acpi_sstate2sname(int sstate);
 static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
+static int	acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_pm_func(u_long cmd, void *arg, ...);
 static int	acpi_child_location_str_method(device_t acdev, device_t child,
 					       char *buf, size_t buflen);
@@ -252,6 +253,19 @@ SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
  */
 static int acpi_serialize_methods;
 TUNABLE_INT("hw.acpi.serialize_methods", &acpi_serialize_methods);
+
+/* Allow users to dump Debug objects without ACPI debugger. */
+static int acpi_debug_objects;
+TUNABLE_INT("debug.acpi.enable_debug_objects", &acpi_debug_objects);
+SYSCTL_PROC(_debug_acpi, OID_AUTO, enable_debug_objects,
+    CTLFLAG_RW | CTLTYPE_INT, NULL, 0, acpi_debug_objects_sysctl, "I",
+    "Enable Debug objects");
+
+/* Allow the interpreter to ignore common mistakes in BIOS. */
+static int acpi_interpreter_slack = 1;
+TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
+SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
+    &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
 
 /* Power devices off and on in suspend and resume.  XXX Remove once tested. */
 static int acpi_do_powerstate = 1;
@@ -452,8 +466,17 @@ acpi_attach(device_t dev)
      * Set the globals from our tunables.  This is needed because ACPI-CA
      * uses UINT8 for some values and we have no tunable_byte.
      */
-    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods;
-    AcpiGbl_EnableInterpreterSlack = TRUE;
+    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods ? TRUE : FALSE;
+    AcpiGbl_EnableInterpreterSlack = acpi_interpreter_slack ? TRUE : FALSE;
+    AcpiGbl_EnableAmlDebugObject = acpi_debug_objects ? TRUE : FALSE;
+
+#ifndef ACPI_DEBUG
+    /*
+     * Disable all debugging layers and levels.
+     */
+    AcpiDbgLayer = 0;
+    AcpiDbgLevel = 0;
+#endif
 
     /* Start up the ACPI CA subsystem. */
     status = AcpiInitializeSubsystem();
@@ -864,24 +887,20 @@ static int
 acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
-    ACPI_BUFFER adbuf = {ACPI_ALLOCATE_BUFFER, NULL}; 
-    ACPI_DEVICE_INFO *adinfo;
     struct acpi_device *dinfo = device_get_ivars(child);
-    char *end;
-    int error;
+    ACPI_DEVICE_INFO *adinfo;
 
-    error = AcpiGetObjectInfo(dinfo->ad_handle, &adbuf);
-    adinfo = (ACPI_DEVICE_INFO *) adbuf.Pointer;
-    if (error)
+    if (ACPI_FAILURE(AcpiGetObjectInfo(dinfo->ad_handle, &adinfo))) {
 	snprintf(buf, buflen, "unknown");
-    else
-	snprintf(buf, buflen, "_HID=%s _UID=%lu",
-		 (adinfo->Valid & ACPI_VALID_HID) ?
-		 adinfo->HardwareId.Value : "none",
-		 (adinfo->Valid & ACPI_VALID_UID) ?
-		 strtoul(adinfo->UniqueId.Value, &end, 10) : 0);
-    if (adinfo)
-	AcpiOsFree(adinfo);
+	return (0);
+    }
+
+    snprintf(buf, buflen, "_HID=%s _UID=%lu",
+	(adinfo->Valid & ACPI_VALID_HID) ?
+	adinfo->HardwareId.String : "none",
+	(adinfo->Valid & ACPI_VALID_UID) ?
+	strtoul(adinfo->UniqueId.String, NULL, 10) : 0UL);
+    AcpiOsFree(adinfo);
 
     return (0);
 }
@@ -1315,31 +1334,21 @@ static uint32_t
 acpi_isa_get_logicalid(device_t dev)
 {
     ACPI_DEVICE_INFO	*devinfo;
-    ACPI_BUFFER		buf;
     ACPI_HANDLE		h;
-    ACPI_STATUS		error;
-    u_int32_t		pnpid;
+    uint32_t		pnpid;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    pnpid = 0;
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
-
     /* Fetch and validate the HID. */
-    if ((h = acpi_get_handle(dev)) == NULL)
-	goto out;
-    error = AcpiGetObjectInfo(h, &buf);
-    if (ACPI_FAILURE(error))
-	goto out;
-    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
+    if ((h = acpi_get_handle(dev)) == NULL ||
+	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
+	return_VALUE (0);
 
-    if ((devinfo->Valid & ACPI_VALID_HID) != 0)
-	pnpid = PNP_EISAID(devinfo->HardwareId.Value);
+    pnpid = (devinfo->Valid & ACPI_VALID_HID) != 0 &&
+	devinfo->HardwareId.Length >= ACPI_EISAID_STRING_SIZE ?
+	PNP_EISAID(devinfo->HardwareId.String) : 0;
+    AcpiOsFree(devinfo);
 
-out:
-    if (buf.Pointer != NULL)
-	AcpiOsFree(buf.Pointer);
     return_VALUE (pnpid);
 }
 
@@ -1347,41 +1356,36 @@ static int
 acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count)
 {
     ACPI_DEVICE_INFO	*devinfo;
-    ACPI_BUFFER		buf;
+    ACPI_DEVICE_ID	*ids;
     ACPI_HANDLE		h;
-    ACPI_STATUS		error;
     uint32_t		*pnpid;
-    int			valid, i;
+    int			i, valid;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     pnpid = cids;
-    valid = 0;
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
 
     /* Fetch and validate the CID */
-    if ((h = acpi_get_handle(dev)) == NULL)
-	goto out;
-    error = AcpiGetObjectInfo(h, &buf);
-    if (ACPI_FAILURE(error))
-	goto out;
-    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
-    if ((devinfo->Valid & ACPI_VALID_CID) == 0)
-	goto out;
+    if ((h = acpi_get_handle(dev)) == NULL ||
+	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
+	return_VALUE (0);
 
-    if (devinfo->CompatibilityId.Count < count)
-	count = devinfo->CompatibilityId.Count;
-    for (i = 0; i < count; i++) {
-	if (strncmp(devinfo->CompatibilityId.Id[i].Value, "PNP", 3) != 0)
-	    continue;
-	*pnpid++ = PNP_EISAID(devinfo->CompatibilityId.Id[i].Value);
-	valid++;
+    if ((devinfo->Valid & ACPI_VALID_CID) == 0) {
+	AcpiOsFree(devinfo);
+	return_VALUE (0);
     }
 
-out:
-    if (buf.Pointer != NULL)
-	AcpiOsFree(buf.Pointer);
+    if (devinfo->CompatibleIdList.Count < count)
+	count = devinfo->CompatibleIdList.Count;
+    ids = devinfo->CompatibleIdList.Ids;
+    for (i = 0, valid = 0; i < count; i++)
+	if (ids[i].Length >= ACPI_EISAID_STRING_SIZE &&
+	    strncmp(ids[i].String, "PNP", 3) == 0) {
+	    *pnpid++ = PNP_EISAID(ids[i].String);
+	    valid++;
+	}
+    AcpiOsFree(devinfo);
+
     return_VALUE (valid);
 }
 
@@ -1389,10 +1393,14 @@ static char *
 acpi_device_id_probe(device_t bus, device_t dev, char **ids) 
 {
     ACPI_HANDLE h;
+    ACPI_OBJECT_TYPE t;
     int i;
 
     h = acpi_get_handle(dev);
-    if (ids == NULL || h == NULL || acpi_get_type(dev) != ACPI_TYPE_DEVICE)
+    if (ids == NULL || h == NULL)
+	return (NULL);
+    t = acpi_get_type(dev);
+    if (t != ACPI_TYPE_DEVICE && t != ACPI_TYPE_PROCESSOR)
 	return (NULL);
 
     /* Try to match one of the array of IDs with a HID or CID. */
@@ -1538,7 +1546,7 @@ acpi_device_scan_children(device_t bus, device_t dev, int max_depth,
     ctx.arg = arg;
     ctx.parent = h;
     return (AcpiWalkNamespace(ACPI_TYPE_ANY, h, max_depth,
-	acpi_device_scan_cb, &ctx, NULL));
+	acpi_device_scan_cb, NULL, &ctx, NULL));
 }
 
 /*
@@ -1664,7 +1672,7 @@ acpi_probe_children(device_t bus)
      */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "namespace scan\n"));
     AcpiWalkNamespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, 100, acpi_probe_child,
-	bus, NULL);
+	NULL, bus, NULL);
 
     /* Pre-allocate resources for our rman from any sysresource devices. */
     acpi_sysres_alloc(bus);
@@ -1674,14 +1682,7 @@ acpi_probe_children(device_t bus)
     bus_generic_probe(bus);
 
     /* Probe/attach all children, created staticly and from the namespace. */
-    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "first bus_generic_attach\n"));
-    bus_generic_attach(bus);
-
-    /*
-     * Some of these children may have attached others as part of their attach
-     * process (eg. the root PCI bus driver), so rescan.
-     */
-    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "second bus_generic_attach\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "acpi bus_generic_attach\n"));
     bus_generic_attach(bus);
 
     /* Attach wake sysctls. */
@@ -1706,14 +1707,14 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
      * 100000. CPUs
      */
     AcpiGetType(handle, &type);
-    if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
+    if (type == ACPI_TYPE_PROCESSOR)
 	*order = 1;
-    else if (acpi_MatchHid(handle, "PNP0C09"))
+    else if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
 	*order = 2;
-    else if (acpi_MatchHid(handle, "PNP0C0F"))
+    else if (acpi_MatchHid(handle, "PNP0C09"))
 	*order = 3;
-    else if (type == ACPI_TYPE_PROCESSOR)
-	*order = 100000;
+    else if (acpi_MatchHid(handle, "PNP0C0F"))
+	*order = 4;
 }
 
 /*
@@ -1821,7 +1822,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
  * placeholder object handler so we can store a device_t in an ACPI_HANDLE.
  */
 void
-acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data)
+acpi_fake_objhandler(ACPI_HANDLE h, void *data)
 {
 }
 
@@ -1910,30 +1911,18 @@ acpi_DeviceIsPresent(device_t dev)
 {
     ACPI_DEVICE_INFO	*devinfo;
     ACPI_HANDLE		h;
-    ACPI_BUFFER		buf;
-    ACPI_STATUS		error;
-    int			ret;
+    BOOLEAN		present;
 
-    ret = FALSE;
-    if ((h = acpi_get_handle(dev)) == NULL)
+    if ((h = acpi_get_handle(dev)) == NULL ||
+	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
 	return (FALSE);
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
-    error = AcpiGetObjectInfo(h, &buf);
-    if (ACPI_FAILURE(error))
-	return (FALSE);
-    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
     /* If no _STA method, must be present */
-    if ((devinfo->Valid & ACPI_VALID_STA) == 0)
-	ret = TRUE;
+    present = (devinfo->Valid & ACPI_VALID_STA) == 0 ||
+	ACPI_DEVICE_PRESENT(devinfo->CurrentStatus) ? TRUE : FALSE;
 
-    /* Return true for 'present' and 'functioning' */
-    if (ACPI_DEVICE_PRESENT(devinfo->CurrentStatus))
-	ret = TRUE;
-
-    AcpiOsFree(buf.Pointer);
-    return (ret);
+    AcpiOsFree(devinfo);
+    return (present);
 }
 
 /*
@@ -1944,30 +1933,18 @@ acpi_BatteryIsPresent(device_t dev)
 {
     ACPI_DEVICE_INFO	*devinfo;
     ACPI_HANDLE		h;
-    ACPI_BUFFER		buf;
-    ACPI_STATUS		error;
-    int			ret;
+    BOOLEAN		present;
 
-    ret = FALSE;
-    if ((h = acpi_get_handle(dev)) == NULL)
+    if ((h = acpi_get_handle(dev)) == NULL ||
+	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
 	return (FALSE);
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
-    error = AcpiGetObjectInfo(h, &buf);
-    if (ACPI_FAILURE(error))
-	return (FALSE);
-    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
     /* If no _STA method, must be present */
-    if ((devinfo->Valid & ACPI_VALID_STA) == 0)
-	ret = TRUE;
+    present = (devinfo->Valid & ACPI_VALID_STA) == 0 ||
+	ACPI_BATTERY_PRESENT(devinfo->CurrentStatus) ? TRUE : FALSE;
 
-    /* Return true for 'present', 'battery present', and 'functioning' */
-    if (ACPI_BATTERY_PRESENT(devinfo->CurrentStatus))
-	ret = TRUE;
-
-    AcpiOsFree(buf.Pointer);
-    return (ret);
+    AcpiOsFree(devinfo);
+    return (present);
 }
 
 /*
@@ -1977,33 +1954,26 @@ static BOOLEAN
 acpi_MatchHid(ACPI_HANDLE h, const char *hid) 
 {
     ACPI_DEVICE_INFO	*devinfo;
-    ACPI_BUFFER		buf;
-    ACPI_STATUS		error;
-    int			ret, i;
+    BOOLEAN		ret;
+    int			i;
+
+    if (hid == NULL || h == NULL ||
+	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
+	return (FALSE);
 
     ret = FALSE;
-    if (hid == NULL || h == NULL)
-	return (ret);
-    buf.Pointer = NULL;
-    buf.Length = ACPI_ALLOCATE_BUFFER;
-    error = AcpiGetObjectInfo(h, &buf);
-    if (ACPI_FAILURE(error))
-	return (ret);
-    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
-
     if ((devinfo->Valid & ACPI_VALID_HID) != 0 &&
-	strcmp(hid, devinfo->HardwareId.Value) == 0)
+	strcmp(hid, devinfo->HardwareId.String) == 0)
 	    ret = TRUE;
-    else if ((devinfo->Valid & ACPI_VALID_CID) != 0) {
-	for (i = 0; i < devinfo->CompatibilityId.Count; i++) {
-	    if (strcmp(hid, devinfo->CompatibilityId.Id[i].Value) == 0) {
+    else if ((devinfo->Valid & ACPI_VALID_CID) != 0)
+	for (i = 0; i < devinfo->CompatibleIdList.Count; i++) {
+	    if (strcmp(hid, devinfo->CompatibleIdList.Ids[i].String) == 0) {
 		ret = TRUE;
 		break;
 	    }
 	}
-    }
 
-    AcpiOsFree(buf.Pointer);
+    AcpiOsFree(devinfo);
     return (ret);
 }
 
@@ -2386,7 +2356,7 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 	clone->notify_status = APM_EV_NONE;
 	if ((clone->flags & ACPI_EVF_DEVD) == 0) {
 	    selwakeuppri(&clone->sel_read, PZERO);
-	    KNOTE_UNLOCKED(&clone->sel_read.si_note, 0);
+	    KNOTE_LOCKED(&clone->sel_read.si_note, 0);
 	}
     }
 #endif
@@ -2682,25 +2652,6 @@ acpi_resync_clock(struct acpi_softc *sc)
     inittodr(time_second + sc->acpi_sleep_delay);
 }
 
-/* Initialize a device's wake GPE. */
-int
-acpi_wake_init(device_t dev, int type)
-{
-    struct acpi_prw_data prw;
-
-    /* Evaluate _PRW to find the GPE. */
-    if (acpi_parse_prw(acpi_get_handle(dev), &prw) != 0)
-	return (ENXIO);
-
-    /* Set the requested type for the GPE (runtime, wake, or both). */
-    if (ACPI_FAILURE(AcpiSetGpeType(prw.gpe_handle, prw.gpe_bit, type))) {
-	device_printf(dev, "set GPE type failed\n");
-	return (ENXIO);
-    }
-
-    return (0);
-}
-
 /* Enable or disable the device's wake GPE. */
 int
 acpi_wake_set_enable(device_t dev, int enable)
@@ -2715,14 +2666,16 @@ acpi_wake_set_enable(device_t dev, int enable)
 
     flags = acpi_get_flags(dev);
     if (enable) {
-	status = AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	status = AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit,
+	    ACPI_GPE_TYPE_WAKE_RUN);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "enable wake failed\n");
 	    return (ENXIO);
 	}
 	acpi_set_flags(dev, flags | ACPI_FLAG_WAKE_ENABLED);
     } else {
-	status = AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	status = AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit,
+	    ACPI_GPE_TYPE_WAKE);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "disable wake failed\n");
 	    return (ENXIO);
@@ -2752,7 +2705,7 @@ acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate)
      * and set _PSW.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_TYPE_WAKE);
 	if (bootverbose)
 	    device_printf(dev, "wake_prep disabled wake for %s (S%d)\n",
 		acpi_name(handle), sstate);
@@ -2789,7 +2742,7 @@ acpi_wake_run_prep(ACPI_HANDLE handle, int sstate)
      * clear _PSW and turn off any power resources it used.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_TYPE_WAKE_RUN);
 	if (bootverbose)
 	    device_printf(dev, "run_prep re-enabled %s\n", acpi_name(handle));
     } else {
@@ -2825,7 +2778,7 @@ acpi_wake_prep_walk(int sstate)
 
     if (ACPI_SUCCESS(AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sb_handle)))
 	AcpiWalkNamespace(ACPI_TYPE_DEVICE, sb_handle, 100,
-	    acpi_wake_prep, &sstate, NULL);
+	    acpi_wake_prep, NULL, &sstate, NULL);
     return (0);
 }
 
@@ -3586,6 +3539,26 @@ SYSCTL_PROC(_debug_acpi, OID_AUTO, layer, CTLFLAG_RW | CTLTYPE_STRING,
 SYSCTL_PROC(_debug_acpi, OID_AUTO, level, CTLFLAG_RW | CTLTYPE_STRING,
 	    "debug.acpi.level", 0, acpi_debug_sysctl, "A", "");
 #endif /* ACPI_DEBUG */
+
+static int
+acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int	error;
+	int	old;
+
+	old = acpi_debug_objects;
+	error = sysctl_handle_int(oidp, &acpi_debug_objects, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (old == acpi_debug_objects || (old && acpi_debug_objects))
+		return (0);
+
+	ACPI_SERIAL_BEGIN(acpi);
+	AcpiGbl_EnableAmlDebugObject = acpi_debug_objects ? TRUE : FALSE;
+	ACPI_SERIAL_END(acpi);
+
+	return (0);
+}
 
 static int
 acpi_pm_func(u_long cmd, void *arg, ...)

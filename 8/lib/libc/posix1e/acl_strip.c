@@ -46,7 +46,7 @@ static acl_t
 _nfs4_acl_strip_np(const acl_t aclp, int recalculate_mask)
 {
 	acl_t newacl;
-	mode_t mode;
+	mode_t mode = 0;
 
 	newacl = acl_init(ACL_MAX_ENTRIES);
 	if (newacl == NULL) {

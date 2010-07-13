@@ -428,8 +428,6 @@ spa_add(const char *name, const char *altroot)
 
 	spa = kmem_zalloc(sizeof (spa_t), KM_SLEEP);
 
-	rw_init(&spa->spa_traverse_lock, NULL, RW_DEFAULT, NULL);
-
 	mutex_init(&spa->spa_async_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_async_root_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_scrub_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -512,8 +510,6 @@ spa_remove(spa_t *spa)
 	refcount_destroy(&spa->spa_refcount);
 
 	spa_config_lock_destroy(spa);
-
-	rw_destroy(&spa->spa_traverse_lock);
 
 	cv_destroy(&spa->spa_async_cv);
 	cv_destroy(&spa->spa_async_root_cv);
@@ -1127,16 +1123,10 @@ zfs_panic_recover(const char *fmt, ...)
  * ==========================================================================
  */
 
-krwlock_t *
-spa_traverse_rwlock(spa_t *spa)
-{
-	return (&spa->spa_traverse_lock);
-}
-
 boolean_t
-spa_traverse_wanted(spa_t *spa)
+spa_shutting_down(spa_t *spa)
 {
-	return (spa->spa_traverse_wanted);
+	return (spa->spa_async_suspended);
 }
 
 dsl_pool_t *
@@ -1205,7 +1195,7 @@ spa_first_txg(spa_t *spa)
 	return (spa->spa_first_txg);
 }
 
-int
+pool_state_t
 spa_state(spa_t *spa)
 {
 	return (spa->spa_state);

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -184,12 +184,12 @@ AcpiUtTerminate (
  *
  * FUNCTION:    AcpiUtSubsystemShutdown
  *
- * PARAMETERS:  none
+ * PARAMETERS:  None
  *
- * RETURN:      none
+ * RETURN:      None
  *
- * DESCRIPTION: Shutdown the various subsystems.  Don't delete the mutex
- *              objects here -- because the AML debugger may be still running.
+ * DESCRIPTION: Shutdown the various components. Do not delete the mutex
+ *              objects here, because the AML debugger may be still running.
  *
  ******************************************************************************/
 
@@ -197,24 +197,8 @@ void
 AcpiUtSubsystemShutdown (
     void)
 {
-
     ACPI_FUNCTION_TRACE (UtSubsystemShutdown);
 
-    /* Just exit if subsystem is already shutdown */
-
-    if (AcpiGbl_Shutdown)
-    {
-        ACPI_ERROR ((AE_INFO,
-            "ACPI Subsystem is already terminated"));
-        return_VOID;
-    }
-
-    /* Subsystem appears active, go ahead and shut it down */
-
-    AcpiGbl_Shutdown = TRUE;
-    AcpiGbl_StartupFlags = 0;
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "Shutting down ACPI Subsystem\n"));
 
 #ifndef ACPI_ASL_COMPILER
 

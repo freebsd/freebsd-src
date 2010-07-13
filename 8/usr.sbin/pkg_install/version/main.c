@@ -127,7 +127,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "%s\n%s\n%s\n",
 	"usage: pkg_version [-hIoqv] [-l limchar] [-L limchar] [[-X] -s string] [-O origin] [index]",

@@ -60,16 +60,29 @@ typedef u_int lun_id_t;
 struct cam_periph;
 
 /*
- * Priority information for a CAM structure.  The generation number is
- * incremented everytime a new entry is entered into the queue giving round
- * robin per priority level scheduling.
+ * Priority information for a CAM structure. 
+ */
+typedef enum {
+    CAM_RL_HOST,
+    CAM_RL_BUS,
+    CAM_RL_XPT,
+    CAM_RL_DEV,
+    CAM_RL_NORMAL,
+    CAM_RL_VALUES
+} cam_rl;
+/*
+ * The generation number is incremented everytime a new entry is entered into
+ * the queue giving round robin per priority level scheduling.
  */
 typedef struct {
 	u_int32_t priority;
-#define CAM_PRIORITY_BUS	0
-#define CAM_PRIORITY_DEV	0
-#define CAM_PRIORITY_NORMAL	1
+#define CAM_PRIORITY_HOST	((CAM_RL_HOST << 8) + 0x80)
+#define CAM_PRIORITY_BUS	((CAM_RL_BUS << 8) + 0x80)
+#define CAM_PRIORITY_XPT	((CAM_RL_XPT << 8) + 0x80)
+#define CAM_PRIORITY_DEV	((CAM_RL_DEV << 8) + 0x80)
+#define CAM_PRIORITY_NORMAL	((CAM_RL_NORMAL << 8) + 0x80)
 #define CAM_PRIORITY_NONE	(u_int32_t)-1
+#define CAM_PRIORITY_TO_RL(x)	((x) >> 8)
 	u_int32_t generation;
 	int       index;
 #define CAM_UNQUEUED_INDEX	-1

@@ -98,13 +98,10 @@ static void	*usb_temp_get_config_desc(struct usb_device *, uint16_t *,
 static const void *usb_temp_get_string_desc(struct usb_device *, uint16_t,
 		    uint8_t);
 static const void *usb_temp_get_vendor_desc(struct usb_device *,
-		    const struct usb_device_request *);
+		    const struct usb_device_request *, uint16_t *plen);
 static const void *usb_temp_get_hub_desc(struct usb_device *);
 static usb_error_t usb_temp_get_desc(struct usb_device *,
 		    struct usb_device_request *, const void **, uint16_t *);
-static usb_error_t usb_temp_setup(struct usb_device *,
-		    const struct usb_temp_device_desc *);
-static void	usb_temp_unsetup(struct usb_device *);
 static usb_error_t usb_temp_setup_by_index(struct usb_device *,
 		    uint16_t index);
 static void	usb_temp_init(void *);
@@ -165,15 +162,23 @@ usb_make_endpoint_desc(struct usb_temp_setup *temp,
 	const void **rd;
 	uint16_t old_size;
 	uint16_t mps;
-	uint8_t ea = 0;			/* Endpoint Address */
-	uint8_t et = 0;			/* Endpiont Type */
+	uint8_t ea;			/* Endpoint Address */
+	uint8_t et;			/* Endpiont Type */
 
 	/* Reserve memory */
 	old_size = temp->size;
-	temp->size += sizeof(*ed);
+
+	ea = (ted->bEndpointAddress & (UE_ADDR | UE_DIR_IN | UE_DIR_OUT));
+	et = (ted->bmAttributes & UE_XFERTYPE);
+
+	if (et == UE_ISOCHRONOUS) {
+		/* account for extra byte fields */
+		temp->size += sizeof(*ed) + 2;
+	} else {
+		temp->size += sizeof(*ed);
+	}
 
 	/* Scan all Raw Descriptors first */
-
 	rd = ted->ppRawDesc;
 	if (rd) {
 		while (*rd) {
@@ -195,8 +200,6 @@ usb_make_endpoint_desc(struct usb_temp_setup *temp,
 		/* escape for Zero Max Packet Size */
 		mps = 0;
 	}
-	ea = (ted->bEndpointAddress & (UE_ADDR | UE_DIR_IN | UE_DIR_OUT));
-	et = (ted->bmAttributes & UE_XFERTYPE);
 
 	/*
 	 * Fill out the real USB endpoint descriptor
@@ -204,7 +207,10 @@ usb_make_endpoint_desc(struct usb_temp_setup *temp,
 	 */
 	if (temp->buf) {
 		ed = USB_ADD_BYTES(temp->buf, old_size);
-		ed->bLength = sizeof(*ed);
+		if (et == UE_ISOCHRONOUS)
+			ed->bLength = sizeof(*ed) + 2;
+		else
+			ed->bLength = sizeof(*ed);
 		ed->bDescriptorType = UDESC_ENDPOINT;
 		ed->bEndpointAddress = ea;
 		ed->bmAttributes = ted->bmAttributes;
@@ -1035,7 +1041,7 @@ usb_temp_get_config_desc(struct usb_device *udev,
  *------------------------------------------------------------------------*/
 static const void *
 usb_temp_get_vendor_desc(struct usb_device *udev,
-    const struct usb_device_request *req)
+    const struct usb_device_request *req, uint16_t *plen)
 {
 	const struct usb_temp_device_desc *tdd;
 
@@ -1046,7 +1052,7 @@ usb_temp_get_vendor_desc(struct usb_device *udev,
 	if (tdd->getVendorDesc == NULL) {
 		return (NULL);
 	}
-	return ((tdd->getVendorDesc) (req));
+	return ((tdd->getVendorDesc) (req, plen));
 }
 
 /*------------------------------------------------------------------------*
@@ -1109,7 +1115,6 @@ usb_temp_get_desc(struct usb_device *udev, struct usb_device_request *req,
 		default:
 			goto tr_stalled;
 		}
-		break;
 	case UT_READ_CLASS_DEVICE:
 		switch (req->bRequest) {
 		case UR_GET_DESCRIPTOR:
@@ -1117,11 +1122,6 @@ usb_temp_get_desc(struct usb_device *udev, struct usb_device_request *req,
 		default:
 			goto tr_stalled;
 		}
-		break;
-	case UT_READ_VENDOR_DEVICE:
-	case UT_READ_VENDOR_OTHER:
-		buf = usb_temp_get_vendor_desc(udev, req);
-		goto tr_valid;
 	default:
 		goto tr_stalled;
 	}
@@ -1158,7 +1158,6 @@ tr_handle_get_descriptor:
 	default:
 		goto tr_stalled;
 	}
-	goto tr_stalled;
 
 tr_handle_get_class_descriptor:
 	if (req->wValue[0]) {
@@ -1168,17 +1167,20 @@ tr_handle_get_class_descriptor:
 	goto tr_valid;
 
 tr_valid:
-	if (buf == NULL) {
+	if (buf == NULL)
 		goto tr_stalled;
-	}
-	if (len == 0) {
+	if (len == 0)
 		len = buf[0];
-	}
 	*pPtr = buf;
 	*pLength = len;
 	return (0);	/* success */
 
 tr_stalled:
+	/* try to get a vendor specific descriptor */
+	len = 0;
+	buf = usb_temp_get_vendor_desc(udev, req, &len);
+	if (buf != NULL)
+		goto tr_valid;
 	*pPtr = NULL;
 	*pLength = 0;
 	return (0);	/* we ignore failures */
@@ -1195,7 +1197,7 @@ tr_stalled:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static usb_error_t
+usb_error_t
 usb_temp_setup(struct usb_device *udev,
     const struct usb_temp_device_desc *tdd)
 {
@@ -1285,7 +1287,7 @@ error:
  * This function frees any memory associated with the currently
  * setup template, if any.
  *------------------------------------------------------------------------*/
-static void
+void
 usb_temp_unsetup(struct usb_device *udev)
 {
 	if (udev->usb_template_ptr) {

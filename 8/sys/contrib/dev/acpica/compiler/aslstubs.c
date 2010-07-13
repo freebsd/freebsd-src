@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,6 +119,7 @@
 #include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/include/acevents.h>
 #include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslstubs")
@@ -134,6 +135,12 @@ AeLocalGetRootPointer (
     void)
 {
     return 0;
+}
+
+void
+AcpiNsExecModuleCodeList (
+    void)
+{
 }
 
 ACPI_STATUS
@@ -236,11 +243,13 @@ AcpiEvInitializeRegion (
     return (AE_OK);
 }
 
-ACPI_STATUS
-AcpiEvCheckForWakeOnlyGpe (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo)
+void
+AcpiExDoDebugObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    UINT32                  Level,
+    UINT32                  Index)
 {
-    return (AE_OK);
+    return;
 }
 
 ACPI_STATUS
@@ -268,7 +277,6 @@ AcpiExLoadTableOp (
 {
     return (AE_SUPPORT);
 }
-
 
 ACPI_STATUS
 AcpiExUnloadTable (

@@ -92,6 +92,7 @@ int oldstyle_local = 0;
 int verboselog = 0;
 
 char **hosts = NULL;
+struct sockaddr **bound_sa;
 int ipv6_only = 0;
 int nhosts = 0;
 int on = 1;
@@ -119,6 +120,7 @@ static void rbllist_add(rpcprog_t, rpcvers_t, struct netconfig *,
 			     struct netbuf *);
 static void terminate(int);
 static void parseargs(int, char *[]);
+static void update_bound_sa(void);
 
 int
 main(int argc, char *argv[])
@@ -129,6 +131,8 @@ main(int argc, char *argv[])
 	int maxrec = RPC_MAXDATASIZE;
 
 	parseargs(argc, argv);
+
+	update_bound_sa();
 
 	/* Check that another rpcbind isn't already running. */
 	if ((rpcbindlockfd = (open(RPCBINDDLOCK,
@@ -323,8 +327,7 @@ init_transport(struct netconfig *nconf)
 	     * If no hosts were specified, just bind to INADDR_ANY.
 	     * Otherwise  make sure 127.0.0.1 is added to the list.
 	     */
-	    nhostsbak = nhosts;
-	    nhostsbak++;
+	    nhostsbak = nhosts + 1;
 	    hosts = realloc(hosts, nhostsbak * sizeof(char *));
 	    if (nhostsbak == 1)
 	        hosts[0] = "*";
@@ -655,6 +658,75 @@ init_transport(struct netconfig *nconf)
 error:
 	close(fd);
 	return (1);
+}
+
+/*
+ * Create the list of addresses that we're bound to.  Normally, this
+ * list is empty because we're listening on the wildcard address
+ * (nhost == 0).  If -h is specified on the command line, then
+ * bound_sa will have a list of the addresses that the program binds
+ * to specifically.  This function takes that list and converts them to
+ * struct sockaddr * and stores them in bound_sa.
+ */
+static void
+update_bound_sa(void)
+{
+	struct addrinfo hints, *res = NULL;
+	int i;
+
+	if (nhosts == 0)
+		return;
+	bound_sa = malloc(sizeof(*bound_sa) * nhosts);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	for (i = 0; i < nhosts; i++)  {
+		if (getaddrinfo(hosts[i], NULL, &hints, &res) != 0)
+			continue;
+		bound_sa[i] = malloc(res->ai_addrlen);
+		memcpy(bound_sa[i], res->ai_addr, res->ai_addrlen);
+	}
+}
+
+/*
+ * Match the sa against the list of addresses we've bound to.  If
+ * we've not specifically bound to anything, we match everything.
+ * Otherwise, if the IPv4 or IPv6 address matches one of the addresses
+ * in bound_sa, we return true.  If not, we return false.
+ */
+int
+listen_addr(const struct sockaddr *sa)
+{
+	int i;
+
+	/*
+	 * If nhosts == 0, then there were no -h options on the
+	 * command line, so all addresses are addresses we're
+	 * listening to.
+	 */
+	if (nhosts == 0)
+		return 1;
+	for (i = 0; i < nhosts; i++) {
+		if (bound_sa[i] == NULL ||
+		    sa->sa_family != bound_sa[i]->sa_family)
+			continue;
+		switch (sa->sa_family) {
+		case AF_INET:
+		  	if (memcmp(&SA2SINADDR(sa), &SA2SINADDR(bound_sa[i]),
+			    sizeof(struct in_addr)) == 0)
+				return (1);
+			break;
+#ifdef INET6
+		case AF_INET6:
+		  	if (memcmp(&SA2SIN6ADDR(sa), &SA2SIN6ADDR(bound_sa[i]),
+			    sizeof(struct in6_addr)) == 0)
+				return (1);
+			break;
+#endif
+		default:
+			break;
+		}
+	}
+	return (0);
 }
 
 static void

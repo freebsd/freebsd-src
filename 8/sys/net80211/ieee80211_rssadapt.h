@@ -43,7 +43,7 @@
 #define	IEEE80211_RSSADAPT_BKTPOWER	3	/* 2**_BKTPOWER */
 
 struct ieee80211_rssadapt {
-	struct ieee80211vap *vap;
+	const struct ieee80211vap *vap;
 	int	interval;			/* update interval (ticks) */
 };
 
@@ -66,36 +66,6 @@ struct ieee80211_rssadapt_node {
 					      [IEEE80211_RATE_SIZE];
 };
 
-void	ieee80211_rssadapt_init(struct ieee80211_rssadapt *,
-	    struct ieee80211vap *, int);
-void	ieee80211_rssadapt_cleanup(struct ieee80211_rssadapt *);
-void	ieee80211_rssadapt_setinterval(struct ieee80211_rssadapt *, int);
-void	ieee80211_rssadapt_node_init(struct ieee80211_rssadapt *,
-	    struct ieee80211_rssadapt_node *, struct ieee80211_node *);
-int	ieee80211_rssadapt_choose(struct ieee80211_node *,
-	    struct ieee80211_rssadapt_node *, u_int);
-
-/* NB: these are public only for the inline below */
-void	ieee80211_rssadapt_raise_rate(struct ieee80211_rssadapt_node *,
-	    int pktlen, int rssi);
-void	ieee80211_rssadapt_lower_rate(struct ieee80211_rssadapt_node *,
-	    int pktlen, int rssi);
-
 #define	IEEE80211_RSSADAPT_SUCCESS	1
 #define	IEEE80211_RSSADAPT_FAILURE	0
-
-static __inline void
-ieee80211_rssadapt_tx_complete(struct ieee80211_rssadapt_node *ra,
-    int success, int pktlen, int rssi)
-{
-	if (success) {
-		ra->ra_nok++;
-		if ((ra->ra_rix + 1) < ra->ra_rates.rs_nrates &&
-		    (ticks - ra->ra_last_raise) >= ra->ra_raise_interval)
-			ieee80211_rssadapt_raise_rate(ra, pktlen, rssi);
-	} else {
-		ra->ra_nfail++;
-		ieee80211_rssadapt_lower_rate(ra, pktlen, rssi);
-	}
-}
 #endif /* _NET80211_IEEE80211_RSSADAPT_H_ */

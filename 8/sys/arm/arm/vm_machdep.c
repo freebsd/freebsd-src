@@ -171,6 +171,9 @@ sf_buf_free(struct sf_buf *sf)
 	 if (sf->ref_count == 0) {
 		 TAILQ_INSERT_TAIL(&sf_buf_freelist, sf, free_entry);
 		 nsfbufsused--;
+		 pmap_kremove(sf->kva);
+		 sf->m = NULL;
+		 LIST_REMOVE(sf, list_entry);
 		 if (sf_buf_alloc_want > 0)
 			 wakeup_one(&sf_buf_freelist);
 	 }
@@ -502,9 +505,12 @@ arm_unmap_nocache(void *addr, vm_size_t size)
 
 	size = round_page(size);
 	i = (raddr - arm_nocache_startaddr) / (PAGE_SIZE);
-	for (; size > 0; size -= PAGE_SIZE, i++)
+	for (; size > 0; size -= PAGE_SIZE, i++) {
 		arm_nocache_allocated[i / BITS_PER_INT] &= ~(1 << (i % 
 		    BITS_PER_INT));
+		pmap_kremove(raddr);
+		raddr += PAGE_SIZE;
+	}
 }
 
 #ifdef ARM_USE_SMALL_ALLOC

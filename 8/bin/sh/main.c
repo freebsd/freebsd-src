@@ -157,6 +157,8 @@ main(int argc, char *argv[])
 		out2str("sh: cannot determine working directory\n");
 	if (getpwd() != NULL)
 		setvar ("PWD", getpwd(), VEXPORT);
+	if (iflag)
+		chkmail(1);
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
 		read_profile("/etc/profile");
@@ -315,16 +317,12 @@ find_dot_file(char *basename)
 int
 dotcmd(int argc, char **argv)
 {
-	struct strlist *sp;
 	char *fullname;
 
 	if (argc < 2)
 		error("missing filename");
 
 	exitstatus = 0;
-
-	for (sp = cmdenviron; sp ; sp = sp->next)
-		setvareq(savestr(sp->text), VSTRFIXED|VTEXTFIXED);
 
 	fullname = find_dot_file(argv[1]);
 	setinputfile(fullname, 1);

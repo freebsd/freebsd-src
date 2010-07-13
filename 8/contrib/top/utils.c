@@ -476,7 +476,7 @@ int amt;
 
 char *format_k2(amt)
 
-int amt;
+unsigned long long amt;
 
 {
     static char retarray[NUM_STRINGS][16];
@@ -499,7 +499,7 @@ int amt;
 	}
     }
 
-    p = strecpy(p, itoa(amt));
+    p = strecpy(p, itoa((int)amt));
     *p++ = tag;
     *p = '\0';
 

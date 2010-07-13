@@ -188,10 +188,6 @@ tun_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		/* No preexisting struct cdev *, create one */
 		dev = make_dev(&tun_cdevsw, unit,
 		    UID_UUCP, GID_DIALER, 0600, "%s%d", ifc->ifc_name, unit);
-		if (dev != NULL) {
-			dev_ref(dev);
-			dev->si_flags |= SI_CHEAPCLONE;
-		}
 	}
 	tuncreate(ifc->ifc_name, dev);
 
@@ -237,12 +233,8 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 			name = devname;
 		}
 		/* No preexisting struct cdev *, create one */
-		*dev = make_dev(&tun_cdevsw, u,
+		*dev = make_dev_credf(MAKEDEV_REF, &tun_cdevsw, u, cred,
 		    UID_UUCP, GID_DIALER, 0600, "%s", name);
-		if (*dev != NULL) {
-			dev_ref(*dev);
-			(*dev)->si_flags |= SI_CHEAPCLONE;
-		}
 	}
 
 	if_clone_create(name, namelen, NULL);
@@ -303,6 +295,7 @@ tunmodevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		if_clone_detach(&tun_cloner);
 		EVENTHANDLER_DEREGISTER(dev_clone, tag);
+		drain_dev_clone_events();
 
 		mtx_lock(&tunmtx);
 		while ((tp = TAILQ_FIRST(&tunhead)) != NULL) {
@@ -393,6 +386,8 @@ tuncreate(const char *name, struct cdev *dev)
 	ifp->if_snd.ifq_drv_maxlen = 0;
 	IFQ_SET_READY(&ifp->if_snd);
 	knlist_init_mtx(&sc->tun_rsel.si_note, NULL);
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));

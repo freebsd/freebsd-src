@@ -30,11 +30,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 1996
+.Dd January 23, 2010
 .Dt PTHREAD_JOIN 3
 .Os
 .Sh NAME
-.Nm pthread_join
+.Nm pthread_join ,
+.Nm pthread_timedjoin_np
 .Nd wait for thread termination
 .Sh LIBRARY
 .Lb libpthread
@@ -42,6 +43,8 @@
 .In pthread.h
 .Ft int
 .Fn pthread_join "pthread_t thread" "void **value_ptr"
+.Ft int
+.Fn pthread_timedjoin_np "pthread_t thread" "void **value_ptr" "const struct timespec *abstime"
 .Sh DESCRIPTION
 The
 .Fn pthread_join
@@ -70,18 +73,30 @@ If the thread calling
 .Fn pthread_join
 is cancelled, then the target thread is not detached.
 .Pp
+The
+.Fn pthread_timedjoin_np
+function is equivalent to the
+.Fn pthread_join
+function except it will return
+.Er ETIMEDOUT
+if target thread does not exit before specified absolute time passes.
+.Pp
 A thread that has exited but remains unjoined counts against
 [_POSIX_THREAD_THREADS_MAX].
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_join
-function will return zero.
+and
+.Fn pthread_timedjoin_np
+functions will return zero.
 Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
 The
 .Fn pthread_join
-function will fail if:
+and
+.Fn pthread_timedjoin_np
+functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The implementation has detected that the value specified by
@@ -95,6 +110,19 @@ thread ID,
 A deadlock was detected or the value of
 .Fa thread
 specifies the calling thread.
+.It Bq Er EOPNOTSUPP
+The implementation detected that another caller is already waiting on
+.Fa thread .
+.El
+.Pp
+Additionally, the
+.Fn pthread_join
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er ETIMEDOUT
+The specified absolute time passed while
+.Fn pthread_timedjoin_np
+waited for thread exit.
 .El
 .Sh SEE ALSO
 .Xr wait 2 ,
@@ -104,3 +132,9 @@ The
 .Fn pthread_join
 function conforms to
 .St -p1003.1-96 .
+The
+.Fn pthread_timedjoin_np
+is
+.Fx
+extension, first appeared in
+.Fx 6.1 .

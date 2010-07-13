@@ -165,39 +165,16 @@ agp_via_attach(device_t dev)
 	struct agp_gatt *gatt;
 	int error;
 	u_int32_t agpsel;
+	u_int32_t capid;
 
-	/* XXX: This should be keying off of whether the bridge is AGP3 capable,
-	 * rather than a bunch of device ids for chipsets that happen to do 8x.
-	 */
-	switch (pci_get_devid(dev)) {
-	case 0x01981106:
-	case 0x02591106:
-	case 0x02691106:
-	case 0x02961106:
-	case 0x03141106:
-	case 0x03241106:
-	case 0x03271106:
-	case 0x03641106:
-	case 0x31231106:
-	case 0x31681106:
-	case 0x31891106:
-	case 0x32051106:
-	case 0x32581106:
-	case 0xb1981106:
-		/* The newer VIA chipsets will select the AGP version based on
-		 * what AGP versions the card supports.  We still have to
-		 * program it using the v2 registers if it has chosen to use
-		 * compatibility mode.
-		 */
+	sc->regs = via_v2_regs;
+
+	/* Look at the capability register to see if we handle AGP3 */
+	capid = pci_read_config(dev, agp_find_caps(dev) + AGP_CAPID, 4);
+	if (((capid >> 20) & 0x0f) >= 3) { 
 		agpsel = pci_read_config(dev, AGP_VIA_AGPSEL, 1);
 		if ((agpsel & (1 << 1)) == 0)
 			sc->regs = via_v3_regs;
-		else
-			sc->regs = via_v2_regs;
-		break;
-	default:
-		sc->regs = via_v2_regs;
-		break;
 	}
 	
 	error = agp_generic_attach(dev);
@@ -235,7 +212,7 @@ agp_via_attach(device_t dev)
 		pci_write_config(dev, sc->regs[REG_ATTBASE], gatt->ag_physical, 4);
 		
 		/* Enable the aperture. */
-		gartctrl = pci_read_config(dev, sc->regs[REG_ATTBASE], 4);
+		gartctrl = pci_read_config(dev, sc->regs[REG_GARTCTRL], 4);
 		pci_write_config(dev, sc->regs[REG_GARTCTRL], gartctrl | (3 << 7), 4);
 	}
 
@@ -268,7 +245,7 @@ agp_via_get_aperture(device_t dev)
 	u_int32_t apsize;
 
 	if (sc->regs == via_v2_regs) {
-		apsize = pci_read_config(dev, sc->regs[REG_APSIZE], 1) & 0x1f;
+		apsize = pci_read_config(dev, sc->regs[REG_APSIZE], 1);
 
 		/*
 		 * The size is determined by the number of low bits of
@@ -295,8 +272,14 @@ agp_via_get_aperture(device_t dev)
 			return 0x04000000;
 		case 0xf38:
 			return 0x02000000;
+		case 0xf3c:
+			return 0x01000000;
+		case 0xf3e:
+			return 0x00800000;
+		case 0xf3f:
+			return 0x00400000;
 		default:
-			device_printf(dev, "Invalid aperture setting 0x%x",
+			device_printf(dev, "Invalid aperture setting 0x%x\n",
 			    pci_read_config(dev, sc->regs[REG_APSIZE], 2));
 			return 0;
 		}
@@ -344,6 +327,15 @@ agp_via_set_aperture(device_t dev, u_int32_t aperture)
 			break;
 		case 0x02000000:
 			key = 0xf38;
+			break;
+		case 0x01000000:
+			key = 0xf3c;
+			break;
+		case 0x00800000:
+			key = 0xf3e;
+			break;
+		case 0x00400000:
+			key = 0xf3f;
 			break;
 		default:
 			device_printf(dev, "Invalid aperture size (%dMb)\n",

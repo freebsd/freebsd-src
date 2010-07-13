@@ -68,6 +68,9 @@
 /* Define if your snprintf is busted */
 #undef BROKEN_SNPRINTF
 
+/* tcgetattr with ICANON may hang */
+#undef BROKEN_TCGETATTR_ICANON
+
 /* updwtmpx is broken (if present) */
 #undef BROKEN_UPDWTMPX
 
@@ -119,11 +122,17 @@
 /* Define if you don't want to use wtmpx */
 #undef DISABLE_WTMPX
 
+/* Enable for PKCS#11 support */
+#undef ENABLE_PKCS11
+
 /* Builtin PRNG command timeout */
 #undef ENTROPY_TIMEOUT_MSEC
 
-/* f_fsid has members */
+/* fsid_t has member val */
 #undef FSID_HAS_VAL
+
+/* fsid_t has member __val */
+#undef FSID_HAS___VAL
 
 /* Define to 1 if the `getpgrp' function requires zero arguments. */
 #undef GETPGRP_VOID
@@ -455,6 +464,9 @@
 /* Define to 1 if you have the <glob.h> header file. */
 #undef HAVE_GLOB_H
 
+/* Define to 1 if you have the `group_from_gid' function. */
+#undef HAVE_GROUP_FROM_GID
+
 /* Define to 1 if you have the <gssapi_generic.h> header file. */
 #undef HAVE_GSSAPI_GENERIC_H
 
@@ -518,6 +530,9 @@
 /* Define to 1 if the system has the type `in_addr_t'. */
 #undef HAVE_IN_ADDR_T
 
+/* Define to 1 if the system has the type `in_port_t'. */
+#undef HAVE_IN_PORT_T
+
 /* Define to 1 if you have the <lastlog.h> header file. */
 #undef HAVE_LASTLOG_H
 
@@ -541,9 +556,6 @@
 
 /* Define to 1 if you have the `pam' library (-lpam). */
 #undef HAVE_LIBPAM
-
-/* Define to 1 if you have the `sectok' library (-lsectok). */
-#undef HAVE_LIBSECTOK
 
 /* Define to 1 if you have the `socket' library (-lsocket). */
 #undef HAVE_LIBSOCKET
@@ -726,9 +738,6 @@
 /* define if you have sa_family_t data type */
 #undef HAVE_SA_FAMILY_T
 
-/* Define to 1 if you have the <sectok.h> header file. */
-#undef HAVE_SECTOK_H
-
 /* Define if you have SecureWare-based protected password database */
 #undef HAVE_SECUREWARE
 
@@ -753,6 +762,9 @@
 /* Define to 1 if you have the `seteuid' function. */
 #undef HAVE_SETEUID
 
+/* Define to 1 if you have the `setgroupent' function. */
+#undef HAVE_SETGROUPENT
+
 /* Define to 1 if you have the `setgroups' function. */
 #undef HAVE_SETGROUPS
 
@@ -761,6 +773,9 @@
 
 /* Define to 1 if you have the `setluid' function. */
 #undef HAVE_SETLUID
+
+/* Define to 1 if you have the `setpassent' function. */
+#undef HAVE_SETPASSENT
 
 /* Define to 1 if you have the `setpcred' function. */
 #undef HAVE_SETPCRED
@@ -1065,6 +1080,9 @@
 /* Define to 1 if you have the <usersec.h> header file. */
 #undef HAVE_USERSEC_H
 
+/* Define to 1 if you have the `user_from_uid' function. */
+#undef HAVE_USER_FROM_UID
+
 /* Define to 1 if you have the <util.h> header file. */
 #undef HAVE_UTIL_H
 
@@ -1174,6 +1192,9 @@
    EOPNOTSUPP. */
 #undef LINK_OPNOTSUPP_ERRNO
 
+/* Adjust Linux out-of-memory killer */
+#undef LINUX_OOM_ADJUST
+
 /* max value of long long calculated by configure */
 #undef LLONG_MAX
 
@@ -1225,6 +1246,9 @@
 
 /* Define if X11 doesn't support AF_UNIX sockets on that system */
 #undef NO_X11_UNIX_SOCKETS
+
+/* Define if EVP_DigestUpdate returns void */
+#undef OPENSSL_EVP_DIGESTUPDATE_VOID
 
 /* libcrypto is missing AES 192 and 256 bit functions */
 #undef OPENSSL_LOBOTOMISED_AES
@@ -1290,9 +1314,6 @@
 /* Define if your skeychallenge() function takes 4 arguments (NetBSD) */
 #undef SKEYCHALLENGE_4ARG
 
-/* Define if you want smartcard support */
-#undef SMARTCARD
-
 /* Define as const if snprintf() can declare const char *fmt */
 #undef SNPRINTF_CONST
 
@@ -1308,6 +1329,9 @@
 
 /* Use audit debugging module */
 #undef SSH_AUDIT_EVENTS
+
+/* Windows is sensitive to read buffer size */
+#undef SSH_IOBUFSZ
 
 /* non-privileged user for privilege separation */
 #undef SSH_PRIVSEP_USER
@@ -1357,9 +1381,6 @@
 /* Use libedit for sftp */
 #undef USE_LIBEDIT
 
-/* Define if you want smartcard support using OpenSC */
-#undef USE_OPENSC
-
 /* Enable OpenSSL engine support */
 #undef USE_OPENSSL_ENGINE
 
@@ -1368,9 +1389,6 @@
 
 /* Use PIPES instead of a socketpair() */
 #undef USE_PIPES
-
-/* Define if you want smartcard support using sectok */
-#undef USE_SECTOK
 
 /* Define if you have Solaris process contracts */
 #undef USE_SOLARIS_PROCESS_CONTRACTS

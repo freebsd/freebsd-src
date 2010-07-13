@@ -2896,7 +2896,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 				free(sa, M_SONAME);
 			}
 			if (so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa)
-			    == 00 && sa->sa_len <= sizeof(kif->kf_sa_peer)) {
+			    == 0 && sa->sa_len <= sizeof(kif->kf_sa_peer)) {
 				bcopy(sa, &kif->kf_sa_peer, sa->sa_len);
 				free(sa, M_SONAME);
 			}
@@ -3149,7 +3149,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 				free(sa, M_SONAME);
 			}
 			if (so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa)
-			    == 00 && sa->sa_len <= sizeof(kif->kf_sa_peer)) {
+			    == 0 && sa->sa_len <= sizeof(kif->kf_sa_peer)) {
 				bcopy(sa, &kif->kf_sa_peer, sa->sa_len);
 				free(sa, M_SONAME);
 			}

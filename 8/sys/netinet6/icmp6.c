@@ -113,22 +113,21 @@ __FBSDID("$FreeBSD$");
 
 extern struct domain inet6domain;
 
+VNET_DEFINE(struct icmp6stat, icmp6stat);
+
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 VNET_DECLARE(struct inpcbhead, ripcb);
 VNET_DECLARE(int, icmp6errppslim);
+static VNET_DEFINE(int, icmp6errpps_count) = 0;
+static VNET_DEFINE(struct timeval, icmp6errppslim_last);
 VNET_DECLARE(int, icmp6_nodeinfo);
 
 #define	V_ripcbinfo			VNET(ripcbinfo)
 #define	V_ripcb				VNET(ripcb)
 #define	V_icmp6errppslim		VNET(icmp6errppslim)
+#define	V_icmp6errpps_count		VNET(icmp6errpps_count)
+#define	V_icmp6errppslim_last		VNET(icmp6errppslim_last)
 #define	V_icmp6_nodeinfo		VNET(icmp6_nodeinfo)
-
-VNET_DEFINE(struct icmp6stat, icmp6stat);
-static VNET_DEFINE(int, icmp6errpps_count);
-static VNET_DEFINE(struct timeval, icmp6errppslim_last);
-
-#define	V_icmp6errpps_count	VNET(icmp6errpps_count)
-#define	V_icmp6errppslim_last	VNET(icmp6errppslim_last)
 
 static void icmp6_errcount(struct icmp6errstat *, int, int);
 static int icmp6_rip6_input(struct mbuf **, int);
@@ -143,14 +142,6 @@ static int ni6_addrs __P((struct icmp6_nodeinfo *, struct mbuf *,
 static int ni6_store_addrs __P((struct icmp6_nodeinfo *, struct icmp6_nodeinfo *,
 				struct ifnet *, int));
 static int icmp6_notify_error(struct mbuf **, int, int, int);
-
-
-void
-icmp6_init(void)
-{
-
-	V_icmp6errpps_count = 0;
-}
 
 /*
  * Kernel module interface for updating icmp6stat.  The argument is an index

@@ -1,11 +1,36 @@
+# Copyright (c) 2008, 2009 Edward Tomasz Napierała <trasz@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
 # This is a tools-level test for POSIX.1e ACL functionality.  Run it as root
 # using ACL-enabled kernel:
 #
 # /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-posix.test
 #
 # WARNING: Creates files in unsafe way.
-#
-# $FreeBSD$
 
 $ whoami
 > root
@@ -13,7 +38,7 @@ $ umask 022
 
 # Smoke test for getfacl(1).
 $ touch xxx
-$ getfacl xxx
+$ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
@@ -27,7 +52,7 @@ $ getfacl -q xxx
 > other::r--
 
 $ setfacl -m u:42:r,g:43:w xxx
-$ getfacl xxx
+$ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
@@ -77,9 +102,8 @@ $ getfacl -h lll
 > mask::rwx
 > other::r-x
 
-# XXX: Why doesn't ls(1) print '+' for symbolic links with ACL set?
 $ ls -l lll | cut -d' ' -f1
-> lrwxrwxr-x
+> lrwxrwxr-x+
 
 # Check whether the original file is left untouched.
 $ ls -l xxx | cut -d' ' -f1
@@ -99,8 +123,32 @@ $ getfacl xxx
 > mask::rw-
 > other::r--
 
+$ setfacl -m u:42:r xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> user:42:r--
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+# Test removing entries by number.
+$ setfacl -x 1 xxx
+$ getfacl -n xxx
+> # file: xxx
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
 $ setfacl -m g:43:r xxx
-$ getfacl xxx
+$ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
@@ -118,7 +166,7 @@ $ ls -l yyy | cut -d' ' -f1
 # Make sure it does with the "-p" flag.
 $ rm yyy
 $ cp -p xxx yyy
-$ getfacl yyy
+$ getfacl -n yyy
 > # file: yyy
 > # owner: root
 > # group: wheel
@@ -133,7 +181,7 @@ $ rm yyy
 # Test removing entries by...  by example?
 $ setfacl -m u:42:r,g:43:w xxx
 $ setfacl -x u:42: xxx
-$ getfacl xxx
+$ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
@@ -145,7 +193,7 @@ $ getfacl xxx
 
 # Test setfacl -b.
 $ setfacl -b xxx
-$ getfacl xxx
+$ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
@@ -158,7 +206,7 @@ $ ls -l xxx | cut -d' ' -f1
 > -rw-r--r--+
 
 $ setfacl -nb xxx
-$ getfacl xxx
+$ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
@@ -178,7 +226,7 @@ $ ls -l xxx yyy zzz | cut -d' ' -f1
 > -rw-r--r--
 
 $ setfacl -m u:42:x,g:43:w nnn xxx yyy zzz
-> setfacl: stat() of nnn failed: No such file or directory
+> setfacl: nnn: stat() failed: No such file or directory
 
 $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > ls: nnn: No such file or directory
@@ -186,8 +234,8 @@ $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > -rw-rwxr--+
 > -rw-rwxr--+
 
-$ getfacl -q nnn xxx yyy zzz
-> getfacl: nnn: No such file or directory
+$ getfacl -nq nnn xxx yyy zzz
+> getfacl: nnn: stat() failed: No such file or directory
 > user::rw-
 > user:42:--x
 > group::r--
@@ -210,7 +258,7 @@ $ getfacl -q nnn xxx yyy zzz
 > other::r--
 
 $ setfacl -b nnn xxx yyy zzz
-> setfacl: stat() of nnn failed: No such file or directory
+> setfacl: nnn: stat() failed: No such file or directory
 
 $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > ls: nnn: No such file or directory
@@ -219,7 +267,7 @@ $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > -rw-r--r--+
 
 $ setfacl -bn nnn xxx yyy zzz
-> setfacl: stat() of nnn failed: No such file or directory
+> setfacl: nnn: stat() failed: No such file or directory
 
 $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > ls: nnn: No such file or directory
@@ -233,7 +281,7 @@ $ rm xxx yyy zzz
 $ touch xxx
 $ setfacl -m u:42:rwx,g:43:rwx xxx
 $ chmod 600 xxx
-$ getfacl xxx
+$ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
@@ -245,7 +293,7 @@ $ getfacl xxx
 > other::---
 
 $ chmod 060 xxx
-$ getfacl xxx
+$ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
@@ -259,7 +307,7 @@ $ getfacl xxx
 # Test default ACLs.
 $ umask 022
 $ mkdir ddd
-$ getfacl -q ddd
+$ getfacl -qn ddd
 > user::rwx
 > group::r-x
 > other::r-x
@@ -269,7 +317,7 @@ $ ls -l | grep ddd | cut -d' ' -f1
 
 $ getfacl -dq ddd
 $ setfacl -dm u::rwx,g::rx,o::rx,mask::rwx ddd
-$ getfacl -dq ddd
+$ getfacl -dqn ddd
 > user::rwx
 > group::r-x
 > mask::rwx
@@ -281,7 +329,7 @@ $ ls -l | grep ddd | cut -d' ' -f1
 
 $ setfacl -dm g:42:rwx,u:42:r ddd
 $ setfacl -dm g::w ddd
-$ getfacl -dq ddd
+$ getfacl -dqn ddd
 > user::rwx
 > user:42:r--
 > group::-w-
@@ -290,7 +338,7 @@ $ getfacl -dq ddd
 > other::r-x
 
 $ setfacl -dx group:42: ddd
-$ getfacl -dq ddd
+$ getfacl -dqn ddd
 > user::rwx
 > user:42:r--
 > group::-w-
@@ -387,3 +435,19 @@ $ ls -l fff | cut -d' ' -f1
 
 $ rm fff
 
+# Test if we deal properly with device files.
+$ mknod bbb b 1 1
+$ setfacl -m u:42:r,g:43:w bbb
+> setfacl: bbb: acl_get_file() failed: Operation not supported
+$ ls -l bbb | cut -d' ' -f1
+> brw-r--r--
+
+$ rm bbb
+
+$ mknod ccc c 1 1
+$ setfacl -m u:42:r,g:43:w ccc
+> setfacl: ccc: acl_get_file() failed: Operation not supported
+$ ls -l ccc | cut -d' ' -f1
+> crw-r--r--
+
+$ rm ccc

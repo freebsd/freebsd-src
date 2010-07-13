@@ -448,10 +448,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	int seqcount;
 	int nra, error = 0, n = 0, on = 0;
 
-#ifdef DIAGNOSTIC
-	if (uio->uio_rw != UIO_READ)
-		panic("nfs_read mode");
-#endif
+	KASSERT(uio->uio_rw == UIO_READ, ("nfs_read mode"));
 	if (uio->uio_resid == 0)
 		return (0);
 	if (uio->uio_offset < 0)	/* XXX VDIR cookies can be negative */
@@ -871,12 +868,9 @@ nfs_write(struct vop_write_args *ap)
 	int n, on, error = 0;
 	struct proc *p = td?td->td_proc:NULL;
 
-#ifdef DIAGNOSTIC
-	if (uio->uio_rw != UIO_WRITE)
-		panic("nfs_write mode");
-	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_td != curthread)
-		panic("nfs_write proc");
-#endif
+	KASSERT(uio->uio_rw == UIO_WRITE, ("nfs_write mode"));
+	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
+	    ("nfs_write proc"));
 	if (vp->v_type != VREG)
 		return (EIO);
 	mtx_lock(&np->n_mtx);
@@ -1377,7 +1371,7 @@ again:
 	 * Find a free iod to process this request.
 	 */
 	for (iod = 0; iod < nfs_numasync; iod++)
-		if (nfs_iodwant[iod]) {
+		if (nfs_iodwant[iod] == NFSIOD_AVAILABLE) {
 			gotiod = TRUE;
 			break;
 		}
@@ -1386,7 +1380,7 @@ again:
 	 * Try to create one if none are free.
 	 */
 	if (!gotiod) {
-		iod = nfs_nfsiodnew();
+		iod = nfs_nfsiodnew(1);
 		if (iod != -1)
 			gotiod = TRUE;
 	}
@@ -1398,7 +1392,7 @@ again:
 		 */
 		NFS_DPF(ASYNCIO, ("nfs_asyncio: waking iod %d for mount %p\n",
 		    iod, nmp));
-		nfs_iodwant[iod] = NULL;
+		nfs_iodwant[iod] = NFSIOD_NOT_AVAILABLE;
 		nfs_iodmount[iod] = nmp;
 		nmp->nm_bufqiods++;
 		wakeup(&nfs_iodwant[iod]);

@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.46 2007/06/07 19:37:34 pvalchev Exp $ */
+/* $OpenBSD: kex.h,v 1.49 2010/02/26 20:29:54 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -30,10 +30,13 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 
+#define KEX_COOKIE_LEN	16
+
 #define	KEX_DH1			"diffie-hellman-group1-sha1"
 #define	KEX_DH14		"diffie-hellman-group14-sha1"
 #define	KEX_DHGEX_SHA1		"diffie-hellman-group-exchange-sha1"
 #define	KEX_DHGEX_SHA256	"diffie-hellman-group-exchange-sha256"
+#define	KEX_RESUME		"resume@appgate.com"
 
 #define COMP_NONE	0
 #define COMP_ZLIB	1
@@ -114,6 +117,7 @@ struct Kex {
 	char	*name;
 	int	hostkey_type;
 	int	kex_type;
+	int	roaming;
 	Buffer	my;
 	Buffer	peer;
 	sig_atomic_t done;
@@ -122,7 +126,8 @@ struct Kex {
 	char	*client_version_string;
 	char	*server_version_string;
 	int	(*verify_host_key)(Key *);
-	Key	*(*load_host_key)(int);
+	Key	*(*load_host_public_key)(int);
+	Key	*(*load_host_private_key)(int);
 	int	(*host_key_index)(Key *);
 	void	(*kex[KEX_MAX])(Kex *);
 };

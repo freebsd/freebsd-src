@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.93.120.2 2009/01/29 23:47:44 tbox Exp $ */
+/* $Id: server.h,v 1.93.120.3 2009/07/11 04:23:53 marka Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
@@ -276,7 +276,8 @@ ns_server_tsigdelete(ns_server_t *server, char *command, isc_buffer_t *text);
  * Enable or disable updates for a zone.
  */
 isc_result_t
-ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args);
+ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
+		 isc_buffer_t *text);
 
 /*%
  * Dump the current recursive queries.

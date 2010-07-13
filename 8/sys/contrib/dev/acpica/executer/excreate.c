@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -402,11 +402,11 @@ AcpiExCreateRegion (
     if ((RegionSpace >= ACPI_NUM_PREDEFINED_REGIONS) &&
         (RegionSpace < ACPI_USER_REGION_BEGIN))
     {
-        ACPI_ERROR ((AE_INFO, "Invalid AddressSpace type %X", RegionSpace));
+        ACPI_ERROR ((AE_INFO, "Invalid AddressSpace type 0x%X", RegionSpace));
         return_ACPI_STATUS (AE_AML_INVALID_SPACE_ID);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "Region Type - %s (%X)\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "Region Type - %s (0x%X)\n",
         AcpiUtGetRegionName (RegionSpace), RegionSpace));
 
     /* Create the region descriptor */

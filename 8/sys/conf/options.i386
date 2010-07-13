@@ -12,6 +12,7 @@ I586_PMC_GUPROF		opt_i586_guprof.h
 MAXMEM
 MPTABLE_FORCE_HTT
 MP_WATCHDOG
+NKPT			opt_pmap.h
 PERFMON
 PMAP_SHPGPERPROC	opt_pmap.h
 POWERFAIL_NMI		opt_trap.h
@@ -105,6 +106,7 @@ NETGRAPH_CRONYX		opt_ng_cronyx.h
 
 # Device options
 DEV_APIC		opt_apic.h
+DEV_ATPIC		opt_atpic.h
 DEV_NPX			opt_npx.h
 ASR_COMPAT		opt_asr.h
 

@@ -116,7 +116,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int umodem_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
@@ -312,11 +312,16 @@ umodem_attach(device_t dev)
 		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
 
 		if ((cud == NULL) || (cud->bLength < sizeof(*cud))) {
-			device_printf(dev, "no CM or union descriptor\n");
-			goto detach;
+			device_printf(dev, "Missing descriptor. "
+			    "Assuming data interface is next.\n");
+			if (sc->sc_ctrl_iface_no == 0xFF)
+				goto detach;
+			else
+				sc->sc_data_iface_no = 
+				    sc->sc_ctrl_iface_no + 1;
+		} else {
+			sc->sc_data_iface_no = cud->bSlaveInterface[0];
 		}
-
-		sc->sc_data_iface_no = cud->bSlaveInterface[0];
 	} else {
 		sc->sc_data_iface_no = cmd->bDataInterface;
 	}

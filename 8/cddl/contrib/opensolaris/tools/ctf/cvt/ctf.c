@@ -355,14 +355,21 @@ write_type(void *arg1, void *arg2)
 		for (i = 0, ep = tp->t_emem; ep != NULL; ep = ep->el_next)
 			i++; /* count up enum members */
 
+		if (i > CTF_MAX_VLEN) {
+			warning("enum %s has too many values: %d > %d\n",
+			    tdesc_name(tp), i, CTF_MAX_VLEN);
+			i = CTF_MAX_VLEN;
+		}
+
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_ENUM, isroot, i);
 		write_sized_type_rec(b, &ctt, tp->t_size);
 
-		for (ep = tp->t_emem; ep != NULL; ep = ep->el_next) {
+		for (ep = tp->t_emem; ep != NULL && i > 0; ep = ep->el_next) {
 			offset = strtab_insert(&b->ctb_strtab, ep->el_name);
 			cte.cte_name = CTF_TYPE_NAME(CTF_STRTAB_0, offset);
 			cte.cte_value = ep->el_number;
 			ctf_buf_write(b, &cte, sizeof (cte));
+			i--;
 		}
 		break;
 

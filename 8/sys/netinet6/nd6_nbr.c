@@ -89,9 +89,8 @@ static void nd6_dad_ns_output(struct dadq *, struct ifaddr *);
 static void nd6_dad_ns_input(struct ifaddr *);
 static void nd6_dad_na_input(struct ifaddr *);
 
-VNET_DEFINE(int, dad_ignore_ns);
-VNET_DEFINE(int, dad_maxtry);
-
+VNET_DEFINE(int, dad_ignore_ns) = 0;	/* ignore NS in DAD - specwise incorrect*/
+VNET_DEFINE(int, dad_maxtry) = 15;	/* max # of *tries* to transmit DAD packet */
 #define	V_dad_ignore_ns			VNET(dad_ignore_ns)
 #define	V_dad_maxtry			VNET(dad_maxtry)
 
@@ -1124,9 +1123,8 @@ struct dadq {
 };
 
 static VNET_DEFINE(TAILQ_HEAD(, dadq), dadq);
+VNET_DEFINE(int, dad_init) = 0;
 #define	V_dadq				VNET(dadq)
-
-VNET_DEFINE(int, dad_init);
 #define	V_dad_init			VNET(dad_init)
 
 static struct dadq *

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2010
+.Dd March 13, 2010
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -32,7 +32,8 @@
 .Nd merge configuration files, et al during an upgrade
 .Sh SYNOPSIS
 .Nm
-.Op Fl scrvahipFCPU
+.Op Fl scrvhpCP
+.Op Fl a|iFU
 .Op Fl m Ar /path/to/sources
 .Op Fl t Ar /path/to/temp/root
 .Op Fl d
@@ -168,7 +169,7 @@ and therefore can override both files.
 When the comparison is done if there are any files remaining
 in the temproot directory they will be listed, and if the
 .Fl a
-option is not in use the user will be given the option of 
+option is not in use the user will be given the option of
 deleting the temproot directory.
 If there are no files remaining in the temproot directory
 it will be deleted.
@@ -206,9 +207,11 @@ If the
 directory exists, it creates a new one in a previously
 non-existent directory.
 This option unsets the verbose flag,
-but other than
-.Fl U
-it is compatible with all other options.
+and is not compatible with
+.Fl i ,
+.Fl F ,
+or
+.Fl U .
 Setting
 .Fl a
 makes

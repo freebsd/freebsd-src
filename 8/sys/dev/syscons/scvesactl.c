@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fbio.h>
 #include <sys/consio.h>
 
-#include <machine/pc/vesa.h>
+#include <dev/fb/vesa.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>

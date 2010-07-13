@@ -441,6 +441,7 @@ INTERRUPT(int_instr_storage)
 INTERRUPT(int_external_input)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_EXI)
+	addi	%r3, %r1, 8
 	bl	CNAME(powerpc_extr_interrupt)
 	b	trapexit
 

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -363,7 +363,7 @@ AcpiDsMethodDataGetNode (
         if (Index > ACPI_METHOD_MAX_LOCAL)
         {
             ACPI_ERROR ((AE_INFO,
-                "Local index %d is invalid (max %d)",
+                "Local index %u is invalid (max %u)",
                 Index, ACPI_METHOD_MAX_LOCAL));
             return_ACPI_STATUS (AE_AML_INVALID_INDEX);
         }
@@ -378,7 +378,7 @@ AcpiDsMethodDataGetNode (
         if (Index > ACPI_METHOD_MAX_ARG)
         {
             ACPI_ERROR ((AE_INFO,
-                "Arg index %d is invalid (max %d)",
+                "Arg index %u is invalid (max %u)",
                 Index, ACPI_METHOD_MAX_ARG));
             return_ACPI_STATUS (AE_AML_INVALID_INDEX);
         }
@@ -389,7 +389,7 @@ AcpiDsMethodDataGetNode (
         break;
 
     default:
-        ACPI_ERROR ((AE_INFO, "Type %d is invalid", Type));
+        ACPI_ERROR ((AE_INFO, "Type %u is invalid", Type));
         return_ACPI_STATUS (AE_TYPE);
     }
 
@@ -524,13 +524,12 @@ AcpiDsMethodDataGetValue (
 
         if (AcpiGbl_EnableInterpreterSlack)
         {
-            Object = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+            Object = AcpiUtCreateIntegerObject ((UINT64) 0);
             if (!Object)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
             }
 
-            Object->Integer.Value = 0;
             Node->Object = Object;
         }
 
@@ -541,21 +540,22 @@ AcpiDsMethodDataGetValue (
         case ACPI_REFCLASS_ARG:
 
             ACPI_ERROR ((AE_INFO,
-                "Uninitialized Arg[%d] at node %p",
+                "Uninitialized Arg[%u] at node %p",
                 Index, Node));
 
             return_ACPI_STATUS (AE_AML_UNINITIALIZED_ARG);
 
         case ACPI_REFCLASS_LOCAL:
 
-            ACPI_ERROR ((AE_INFO,
-                "Uninitialized Local[%d] at node %p", Index, Node));
-
+            /*
+             * No error message for this case, will be trapped again later to
+             * detect and ignore cases of Store(LocalX,LocalX)
+             */
             return_ACPI_STATUS (AE_AML_UNINITIALIZED_LOCAL);
 
         default:
 
-            ACPI_ERROR ((AE_INFO, "Not a Arg/Local opcode: %X", Type));
+            ACPI_ERROR ((AE_INFO, "Not a Arg/Local opcode: 0x%X", Type));
             return_ACPI_STATUS (AE_AML_INTERNAL);
         }
     }

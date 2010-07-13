@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2008
+.Dd February 10, 2010
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -120,11 +120,14 @@ takes effect.
 The following options are available:
 .Bl -tag -width indent
 .It Cm acls
-Enable Access Control Lists, or ACLS, which can be customized via the
+Enable POSIX.1e Access Control Lists, or ACLs, which can be customized via the
 .Xr setfacl 1
 and
 .Xr getfacl 1
 commands.
+This flag is mutually exclusive with
+.Cm nfsv4acls
+flag.
 .It Cm async
 All
 .Tn I/O
@@ -186,6 +189,15 @@ See
 .Xr mac 4
 for more information, which cause the multilabel mount flag to be set
 automatically at mount-time.
+.It Cm nfsv4acls
+Enable NFSv4 ACLs, which can be customized via the
+.Xr setfacl 1
+and
+.Xr getfacl 1
+commands.
+This flag is mutually exclusive with
+.Cm acls
+flag.
 .It Cm noasync
 Metadata I/O should be done synchronously, while data I/O should be done
 asynchronously.
@@ -421,8 +433,8 @@ However, for the following file system types:
 .Cm cd9660 ,
 .Cm mfs ,
 .Cm msdosfs ,
+.Cm newnfs ,
 .Cm nfs ,
-.Cm nfs4 ,
 .Cm ntfs ,
 .Cm nwfs ,
 .Cm nullfs ,
@@ -513,6 +525,7 @@ support for a particular file system might be provided either on a static
 .Xr nmount 2 ,
 .Xr acl 3 ,
 .Xr mac 4 ,
+.Xr devfs 5 ,
 .Xr ext2fs 5 ,
 .Xr fstab 5 ,
 .Xr procfs 5 ,
@@ -527,7 +540,9 @@ support for a particular file system might be provided either on a static
 .Xr mount_smbfs 8 ,
 .Xr mount_udf 8 ,
 .Xr mount_unionfs 8 ,
-.Xr umount 8
+.Xr umount 8 ,
+.Xr zfs 8 ,
+.Xr zpool 8
 .Sh CAVEATS
 After a successful
 .Nm ,

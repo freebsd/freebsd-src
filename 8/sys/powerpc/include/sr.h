@@ -45,6 +45,7 @@
 #define	USER_SR		12
 #define	KERNEL_SR	13
 #define	KERNEL2_SR	14
+#define	KERNEL3_SR	15
 #define	KERNEL_VSIDBITS	0xfffff
 #define	KERNEL_SEGMENT	(0xfffff0 + KERNEL_SR)
 #define	KERNEL2_SEGMENT	(0xfffff0 + KERNEL2_SR)

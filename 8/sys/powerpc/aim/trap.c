@@ -82,6 +82,7 @@ static void	printtrap(u_int vector, struct trapframe *frame, int isfatal,
 		    int user);
 static int	trap_pfault(struct trapframe *frame, int user);
 static int	fix_unaligned(struct thread *td, struct trapframe *frame);
+static int	ppc_instr_emulate(struct trapframe *frame);
 static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
 
@@ -211,7 +212,9 @@ trap(struct trapframe *frame)
 			/* Identify the trap reason */
 			if (frame->srr1 & EXC_PGM_TRAP)
 				sig = SIGTRAP;
- 			else
+ 			else if (ppc_instr_emulate(frame) == 0)
+				frame->srr0 += 4;
+			else
 				sig = SIGILL;
 			break;
 
@@ -632,3 +635,21 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 
 	return -1;
 }
+
+static int
+ppc_instr_emulate(struct trapframe *frame)
+{
+	uint32_t instr;
+	int reg;
+
+	instr = fuword32((void *)frame->srr0);
+
+	if ((instr & 0xfc1fffff) == 0x7c1f42a6) {	/* mfpvr */
+		reg = (instr & ~0xfc1fffff) >> 21;
+		frame->fixreg[reg] = mfpvr();
+		return (0);
+	}
+
+	return (-1);
+}
+

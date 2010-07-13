@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,10 +128,11 @@ FlOpenFile (
     char                    *Filename,
     char                    *Mode);
 
-static FILE *
-FlOpenLocalFile (
-    char                    *LocalName,
-    char                    *Mode);
+FILE *
+FlOpenIncludeWithPrefix (
+    char                    *PrefixDir,
+    char                    *Filename);
+
 
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 ACPI_STATUS
@@ -167,45 +168,6 @@ AslAbort (
     }
 
     exit (1);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    FlOpenLocalFile
- *
- * PARAMETERS:  LocalName           - Single filename (not a pathname)
- *              Mode                - Open mode for fopen
- *
- * RETURN:      File descriptor
- *
- * DESCRIPTION: Build a complete pathname for the input filename and open
- *              the file.
- *
- ******************************************************************************/
-
-static FILE *
-FlOpenLocalFile (
-    char                    *LocalName,
-    char                    *Mode)
-{
-
-    StringBuffer[0] = 0;
-
-    /* Check for an absolute pathname */
-
-    if ((LocalName[0] != '/') &&        /* Forward slash */
-        (LocalName[0] != '\\') &&       /* backslash (Win) */
-        (LocalName[1] != ':'))          /* Device name (Win) */
-    {
-        /* The include file path is relative, prepend the directory path */
-
-        strcat (StringBuffer, Gbl_DirectoryPath);
-    }
-    strcat (StringBuffer, LocalName);
-
-    DbgPrint (ASL_PARSE_OUTPUT, "FlOpenLocalFile: %s\n", StringBuffer);
-    return (fopen (StringBuffer, (const char *) Mode));
 }
 
 
@@ -481,6 +443,122 @@ FlSetLineNumber (
 
 /*******************************************************************************
  *
+ * FUNCTION:    FlAddIncludeDirectory
+ *
+ * PARAMETERS:  Dir             - Directory pathname string
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Add a directory the list of include prefix directories.
+ *
+ ******************************************************************************/
+
+void
+FlAddIncludeDirectory (
+    char                    *Dir)
+{
+    ASL_INCLUDE_DIR         *NewDir;
+    ASL_INCLUDE_DIR         *NextDir;
+    ASL_INCLUDE_DIR         *PrevDir = NULL;
+    UINT32                  NeedsSeparator = 0;
+    size_t                  DirLength;
+
+
+    DirLength = strlen (Dir);
+    if (!DirLength)
+    {
+        return;
+    }
+
+    /* Make sure that the pathname ends with a path separator */
+
+    if ((Dir[DirLength-1] != '/') &&
+        (Dir[DirLength-1] != '\\'))
+    {
+        NeedsSeparator = 1;
+    }
+
+    NewDir = ACPI_ALLOCATE_ZEROED (sizeof (ASL_INCLUDE_DIR));
+    NewDir->Dir = ACPI_ALLOCATE (DirLength + 1 + NeedsSeparator);
+    strcpy (NewDir->Dir, Dir);
+    if (NeedsSeparator)
+    {
+        strcat (NewDir->Dir, "/");
+    }
+
+    /*
+     * Preserve command line ordering of -I options by adding new elements
+     * at the end of the list
+     */
+    NextDir = Gbl_IncludeDirList;
+    while (NextDir)
+    {
+        PrevDir = NextDir;
+        NextDir = NextDir->Next;
+    }
+
+    if (PrevDir)
+    {
+        PrevDir->Next = NewDir;
+    }
+    else
+    {
+        Gbl_IncludeDirList = NewDir;
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlOpenIncludeWithPrefix
+ *
+ * PARAMETERS:  PrefixDir       - Prefix directory pathname. Can be a zero
+ *                                length string.
+ *              Filename        - The include filename from the source ASL.
+ *
+ * RETURN:      Valid file descriptor if successful. Null otherwise.
+ *
+ * DESCRIPTION: Open an include file and push it on the input file stack.
+ *
+ ******************************************************************************/
+
+FILE *
+FlOpenIncludeWithPrefix (
+    char                    *PrefixDir,
+    char                    *Filename)
+{
+    FILE                    *IncludeFile;
+    char                    *Pathname;
+
+
+    /* Build the full pathname to the file */
+
+    Pathname = ACPI_ALLOCATE (strlen (PrefixDir) + strlen (Filename) + 1);
+
+    strcpy (Pathname, PrefixDir);
+    strcat (Pathname, Filename);
+
+    DbgPrint (ASL_PARSE_OUTPUT, "\nAttempt to open include file: path %s\n\n",
+        Pathname);
+
+    /* Attempt to open the file, push if successful */
+
+    IncludeFile = fopen (Pathname, "r");
+    if (IncludeFile)
+    {
+        /* Push the include file on the open input file stack */
+
+        AslPushInputFileStack (IncludeFile, Pathname);
+        return (IncludeFile);
+    }
+
+    ACPI_FREE (Pathname);
+    return (NULL);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    FlOpenIncludeFile
  *
  * PARAMETERS:  Op        - Parse node for the INCLUDE ASL statement
@@ -495,7 +573,8 @@ void
 FlOpenIncludeFile (
     ACPI_PARSE_OBJECT       *Op)
 {
-    FILE                    *IncFile;
+    FILE                    *IncludeFile;
+    ASL_INCLUDE_DIR         *NextDir;
 
 
     /* Op must be valid */
@@ -518,21 +597,58 @@ FlOpenIncludeFile (
     FlPrintFile (ASL_FILE_SOURCE_OUTPUT, "\n");
     Gbl_CurrentLineOffset++;
 
-    /* Prepend the directory pathname and open the include file */
 
-    DbgPrint (ASL_PARSE_OUTPUT, "\nOpen include file: path %s\n\n",
-        Op->Asl.Value.String);
-    IncFile = FlOpenLocalFile (Op->Asl.Value.String, "r");
-    if (!IncFile)
+    /* Attempt to open the include file */
+
+    /* If the file specifies an absolute path, just open it */
+
+    if ((Op->Asl.Value.String[0] == '/')  ||
+        (Op->Asl.Value.String[0] == '\\') ||
+        (Op->Asl.Value.String[1] == ':'))
     {
-        sprintf (MsgBuffer, "%s (%s)", Op->Asl.Value.String, strerror (errno));
-        AslError (ASL_ERROR, ASL_MSG_INCLUDE_FILE_OPEN, Op, MsgBuffer);
+        IncludeFile = FlOpenIncludeWithPrefix ("", Op->Asl.Value.String);
+        if (!IncludeFile)
+        {
+            goto ErrorExit;
+        }
         return;
     }
 
-    /* Push the include file on the open input file stack */
+    /*
+     * The include filename is not an absolute path.
+     *
+     * First, search for the file within the "local" directory -- meaning
+     * the same directory that contains the source file.
+     *
+     * Construct the file pathname from the global directory name.
+     */
+    IncludeFile = FlOpenIncludeWithPrefix (Gbl_DirectoryPath, Op->Asl.Value.String);
+    if (IncludeFile)
+    {
+        return;
+    }
 
-    AslPushInputFileStack (IncFile, Op->Asl.Value.String);
+    /*
+     * Second, search for the file within the (possibly multiple) directories
+     * specified by the -I option on the command line.
+     */
+    NextDir = Gbl_IncludeDirList;
+    while (NextDir)
+    {
+        IncludeFile = FlOpenIncludeWithPrefix (NextDir->Dir, Op->Asl.Value.String);
+        if (IncludeFile)
+        {
+            return;
+        }
+
+        NextDir = NextDir->Next;
+    }
+
+    /* We could not open the include file after trying very hard */
+
+ErrorExit:
+    sprintf (MsgBuffer, "%s, %s", Op->Asl.Value.String, strerror (errno));
+    AslError (ASL_ERROR, ASL_MSG_INCLUDE_FILE_OPEN, Op, MsgBuffer);
 }
 
 

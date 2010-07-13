@@ -73,7 +73,7 @@
 static sem_t sem_alloc(unsigned int value, semid_t semid, int system_sem);
 static void  sem_free(sem_t sem);
 
-static LIST_HEAD(, sem) named_sems = LIST_HEAD_INITIALIZER(&named_sems);
+static LIST_HEAD(, sem) named_sems = LIST_HEAD_INITIALIZER(named_sems);
 static pthread_mutex_t named_sems_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 __weak_reference(__sem_init, sem_init);

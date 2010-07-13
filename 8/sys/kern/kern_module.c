@@ -446,7 +446,7 @@ modfind(struct thread *td, struct modfind_args *uap)
 
 MODULE_VERSION(kernel, __FreeBSD_version);
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <compat/freebsd32/freebsd32_util.h>

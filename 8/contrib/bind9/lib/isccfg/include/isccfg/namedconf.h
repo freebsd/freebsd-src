@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.h,v 1.9 2007/06/19 23:47:22 tbox Exp $ */
+/* $Id: namedconf.h,v 1.9.332.2 2009/06/25 23:47:28 tbox Exp $ */
 
 #ifndef ISCCFG_NAMEDCONF_H
 #define ISCCFG_NAMEDCONF_H 1
@@ -42,4 +42,4 @@ LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_rndckey;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_keyref;
 /*%< A key reference, used as an ACL element */
 
-#endif /* ISCCFG_CFG_H */
+#endif /* ISCCFG_NAMEDCONF_H */

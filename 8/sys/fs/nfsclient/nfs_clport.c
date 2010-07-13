@@ -978,6 +978,8 @@ newnfs_copyincred(struct ucred *cr, struct nfscred *nfscr)
 {
 	int i;
 
+	KASSERT(cr->cr_ngroups >= 0,
+	    ("newnfs_copyincred: negative cr_ngroups"));
 	nfscr->nfsc_uid = cr->cr_uid;
 	nfscr->nfsc_ngroups = MIN(cr->cr_ngroups, NFS_MAXGRPS + 1);
 	for (i = 0; i < nfscr->nfsc_ngroups; i++)
@@ -1273,4 +1275,6 @@ DECLARE_MODULE(nfscl, nfscl_mod, SI_SUB_VFS, SI_ORDER_FIRST);
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfscl, 1);
 MODULE_DEPEND(nfscl, nfscommon, 1, 1, 1);
+MODULE_DEPEND(nfscl, krpc, 1, 1, 1);
+MODULE_DEPEND(nfscl, nfssvc, 1, 1, 1);
 

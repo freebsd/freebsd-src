@@ -107,7 +107,7 @@ This restriction can be removed by setting the
 .Va vfs.usermount
 .Xr sysctl 8
 variable
-to a non-zero value.
+to a non-zero value; see the BUGS section for more information.
 .Pp
 The following
 .Fa flags
@@ -370,3 +370,10 @@ functions appeared in
 .At v6 .
 .Sh BUGS
 Some of the error codes need translation to more obvious messages.
+.Pp
+Allowing untrusted users to mount arbitrary media, e.g. by enabling
+.Va vfs.usermount ,
+should not be considered safe.
+Most file systems in
+.Fx
+were not built to safeguard against malicious devices.

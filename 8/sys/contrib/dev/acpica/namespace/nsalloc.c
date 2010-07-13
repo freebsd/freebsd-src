@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -181,7 +181,10 @@ AcpiNsCreateNode (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Delete a namespace node
+ * DESCRIPTION: Delete a namespace node. All node deletions must come through
+ *              here. Detaches any attached objects, including any attached
+ *              data. If a handler is associated with attached data, it is
+ *              invoked before the node is deleted.
  *
  ******************************************************************************/
 
@@ -189,12 +192,67 @@ void
 AcpiNsDeleteNode (
     ACPI_NAMESPACE_NODE     *Node)
 {
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+
+
+    ACPI_FUNCTION_NAME (NsDeleteNode);
+
+
+    /* Detach an object if there is one */
+
+    AcpiNsDetachObject (Node);
+
+    /*
+     * Delete an attached data object if present (an object that was created
+     * and attached via AcpiAttachData). Note: After any normal object is
+     * detached above, the only possible remaining object is a data object.
+     */
+    ObjDesc = Node->Object;
+    if (ObjDesc &&
+        (ObjDesc->Common.Type == ACPI_TYPE_LOCAL_DATA))
+    {
+        /* Invoke the attached data deletion handler if present */
+
+        if (ObjDesc->Data.Handler)
+        {
+            ObjDesc->Data.Handler (Node, ObjDesc->Data.Pointer);
+        }
+
+        AcpiUtRemoveReference (ObjDesc);
+    }
+
+    /* Now we can delete the node */
+
+    (void) AcpiOsReleaseObject (AcpiGbl_NamespaceCache, Node);
+
+    ACPI_MEM_TRACKING (AcpiGbl_NsNodeList->TotalFreed++);
+    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Node %p, Remaining %X\n",
+        Node, AcpiGbl_CurrentNodeCount));
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsRemoveNode
+ *
+ * PARAMETERS:  Node            - Node to be removed/deleted
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Remove (unlink) and delete a namespace node
+ *
+ ******************************************************************************/
+
+void
+AcpiNsRemoveNode (
+    ACPI_NAMESPACE_NODE     *Node)
+{
     ACPI_NAMESPACE_NODE     *ParentNode;
     ACPI_NAMESPACE_NODE     *PrevNode;
     ACPI_NAMESPACE_NODE     *NextNode;
 
 
-    ACPI_FUNCTION_TRACE_PTR (NsDeleteNode, Node);
+    ACPI_FUNCTION_TRACE_PTR (NsRemoveNode, Node);
 
 
     ParentNode = AcpiNsGetParentNode (Node);
@@ -237,12 +295,9 @@ AcpiNsDeleteNode (
         }
     }
 
-    ACPI_MEM_TRACKING (AcpiGbl_NsNodeList->TotalFreed++);
+    /* Delete the node and any attached objects */
 
-    /* Detach an object if there is one, then delete the node */
-
-    AcpiNsDetachObject (Node);
-    (void) AcpiOsReleaseObject (AcpiGbl_NamespaceCache, Node);
+    AcpiNsDeleteNode (Node);
     return_VOID;
 }
 
@@ -385,23 +440,11 @@ AcpiNsDeleteChildren (
                 ParentNode, ChildNode));
         }
 
-        /* Now we can free this child object */
-
-        ACPI_MEM_TRACKING (AcpiGbl_NsNodeList->TotalFreed++);
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Object %p, Remaining %X\n",
-            ChildNode, AcpiGbl_CurrentNodeCount));
-
-        /* Detach an object if there is one, then free the child node */
-
-        AcpiNsDetachObject (ChildNode);
-
-        /* Now we can delete the node */
-
-        (void) AcpiOsReleaseObject (AcpiGbl_NamespaceCache, ChildNode);
-
-        /* And move on to the next child in the list */
-
+        /*
+         * Delete this child node and move on to the next child in the list.
+         * No need to unlink the node since we are deleting the entire branch.
+         */
+        AcpiNsDeleteNode (ChildNode);
         ChildNode = NextNode;
 
     } while (!(Flags & ANOBJ_END_OF_PEER_LIST));
@@ -561,7 +604,7 @@ AcpiNsDeleteNamespaceByOwner (
         if (DeletionNode)
         {
             AcpiNsDeleteChildren (DeletionNode);
-            AcpiNsDeleteNode (DeletionNode);
+            AcpiNsRemoveNode (DeletionNode);
             DeletionNode = NULL;
         }
 

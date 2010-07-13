@@ -47,6 +47,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -410,9 +411,9 @@ correct_mss(struct tcphdr *tc, int hlen, uint16_t maxmss, int flags)
 {
 	int olen, optlen;
 	u_char *opt;
-	uint16_t *mss;
 	int accumulate;
 	int res = 0;
+	uint16_t sum;
 
 	for (olen = hlen - sizeof(struct tcphdr), opt = (u_char *)(tc + 1);
 	     olen > 0; olen -= optlen, opt += optlen) {
@@ -427,13 +428,15 @@ correct_mss(struct tcphdr *tc, int hlen, uint16_t maxmss, int flags)
 			if (*opt == TCPOPT_MAXSEG) {
 				if (optlen != TCPOLEN_MAXSEG)
 					continue;
-				mss = (uint16_t *)(opt + 2);
-				if (ntohs(*mss) > maxmss) {
-					accumulate = *mss;
-					*mss = htons(maxmss);
-					accumulate -= *mss;
-					if ((flags & CSUM_TCP) == 0)
-						TCPMSS_ADJUST_CHECKSUM(accumulate, tc->th_sum);
+				accumulate = be16dec(opt + 2);
+				if (accumulate > maxmss) {
+					if ((flags & CSUM_TCP) == 0) {
+						accumulate -= maxmss;
+						sum = be16dec(&tc->th_sum);
+						TCPMSS_ADJUST_CHECKSUM(accumulate, sum);
+						be16enc(&tc->th_sum, sum);
+					}
+					be16enc(opt + 2, maxmss);
 					res = 1;
 				}
 			}

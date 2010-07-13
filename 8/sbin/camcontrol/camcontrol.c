@@ -123,7 +123,7 @@ struct camcontrol_opts {
 };
 
 #ifndef MINIMALISTIC
-static const char scsicmd_opts[] = "a:c:i:o:r";
+static const char scsicmd_opts[] = "a:c:dfi:o:r";
 static const char readdefect_opts[] = "f:GP";
 static const char negotiate_opts[] = "acD:M:O:qR:T:UW:";
 #endif
@@ -1010,8 +1010,10 @@ camxferrate(struct cam_device *device)
 		printf(" (");
 		if (ata->valid & CTS_ATA_VALID_MODE)
 			printf("%s, ", ata_mode2string(ata->mode));
+		if ((ata->valid & CTS_ATA_VALID_ATAPI) && ata->atapi != 0)
+			printf("ATAPI %dbytes, ", ata->atapi);
 		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
-			printf("PIO size %dbytes", ata->bytecount);
+			printf("PIO %dbytes", ata->bytecount);
 		printf(")");
 	} else if (ccb->cts.transport == XPORT_SATA) {
 		struct ccb_trans_settings_sata *sata =
@@ -1020,10 +1022,14 @@ camxferrate(struct cam_device *device)
 		printf(" (");
 		if (sata->valid & CTS_SATA_VALID_REVISION)
 			printf("SATA %d.x, ", sata->revision);
+		else
+			printf("SATA, ");
 		if (sata->valid & CTS_SATA_VALID_MODE)
 			printf("%s, ", ata_mode2string(sata->mode));
+		if ((sata->valid & CTS_SATA_VALID_ATAPI) && sata->atapi != 0)
+			printf("ATAPI %dbytes, ", sata->atapi);
 		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
-			printf("PIO size %dbytes", sata->bytecount);
+			printf("PIO %dbytes", sata->bytecount);
 		printf(")");
 	}
 
@@ -1166,8 +1172,6 @@ atacapprint(struct ata_params *parm)
 	}
 	printf("\n");
 
-	printf("overlap%ssupported\n",
-		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
 	if (parm->media_rotation_rate == 1) {
 		printf("media RPM             non-rotating\n");
 	} else if (parm->media_rotation_rate >= 0x0401 &&
@@ -1187,20 +1191,26 @@ atacapprint(struct ata_params *parm)
 	printf("flush cache                    %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no");
-	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
-		printf("Native Command Queuing (NCQ)   %s	"
-			"	%d/0x%02X\n",
-			parm->satacapabilities & ATA_SUPPORT_NCQ ?
-				"yes" : "no",
-			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
-				ATA_QUEUE_LEN(parm->queue) : 0,
-			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
-				ATA_QUEUE_LEN(parm->queue) : 0);
-	}
-	printf("Tagged Command Queuing (TCQ)   %s	%s	%d/0x%02X\n",
+	printf("overlap                        %s\n",
+		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? "yes" : "no");
+	printf("Tagged Command Queuing (TCQ)   %s	%s",
 		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-		ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));
+		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no");
+		if (parm->support.command2 & ATA_SUPPORT_QUEUED) {
+			printf("	%d tags\n",
+			    ATA_QUEUE_LEN(parm->queue) + 1);
+		} else
+			printf("\n");
+	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
+		printf("Native Command Queuing (NCQ)   %s	",
+			parm->satacapabilities & ATA_SUPPORT_NCQ ?
+				"yes" : "no");
+		if (parm->satacapabilities & ATA_SUPPORT_NCQ) {
+			printf("	%d tags\n",
+			    ATA_QUEUE_LEN(parm->queue) + 1);
+		} else
+			printf("\n");
+	}
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_SMART ? "yes" : "no");
@@ -1241,6 +1251,8 @@ atacapprint(struct ata_params *parm)
 	printf("free-fall                      %s	%s\n",
 		parm->support2 & ATA_SUPPORT_FREEFALL ? "yes" : "no",
 		parm->enabled2 & ATA_SUPPORT_FREEFALL ? "yes" : "no");
+	printf("data set management (TRIM)     %s\n",
+		parm->support_dsm & ATA_SUPPORT_DSM_TRIM ? "yes" : "no");
 }
 
 
@@ -1327,8 +1339,18 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 
 	for (i = 0; i < sizeof(struct ata_params) / 2; i++)
 		ptr[i] = le16toh(ptr[i]);
+	if (arglist & CAM_ARG_VERBOSE) {
+		fprintf(stdout, "%s%d: Raw identify data:\n",
+		    device->device_name, device->dev_unit_num);
+		for (i = 0; i < sizeof(struct ata_params) / 2; i++) {
+			if ((i % 8) == 0)
+			    fprintf(stdout, " %3d: ", i);
+			fprintf(stdout, "%04x ", (uint16_t)ptr[i]);
+			if ((i % 8) == 7)
+			    fprintf(stdout, "\n");
+		}
+	}
 	ident_buf = (struct ata_params *)ptr;
-
 	if (strncmp(ident_buf->model, "FX", 2) &&
 	    strncmp(ident_buf->model, "NEC", 3) &&
 	    strncmp(ident_buf->model, "Pioneer", 7) &&
@@ -2162,6 +2184,8 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	int c, data_bytes = 0;
 	int cdb_len = 0;
 	int atacmd_len = 0;
+	int dmacmd = 0;
+	int fpdmacmd = 0;
 	int need_res = 0;
 	char *datastr = NULL, *tstr, *resstr = NULL;
 	int error = 0;
@@ -2223,6 +2247,12 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			 * the list.
 			 */
 			optind += hook.got;
+			break;
+		case 'd':
+			dmacmd = 1;
+			break;
+		case 'f':
+			fpdmacmd = 1;
 			break;
 		case 'i':
 			if (arglist & CAM_ARG_CMD_OUT) {
@@ -2286,6 +2316,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 				error = 1;
 				goto scsicmd_bailout;
 			}
+			bzero(data_ptr, data_bytes);
 			/*
 			 * If the user supplied "-" instead of a format, he
 			 * wants the data to be read from stdin.
@@ -2399,6 +2430,10 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		bcopy(atacmd, &ccb->ataio.cmd.command, atacmd_len);
 		if (need_res)
 			ccb->ataio.cmd.flags |= CAM_ATAIO_NEEDRESULT;
+		if (dmacmd)
+			ccb->ataio.cmd.flags |= CAM_ATAIO_DMA;
+		if (fpdmacmd)
+			ccb->ataio.cmd.flags |= CAM_ATAIO_FPDMA;
 
 		cam_fill_ataio(&ccb->ataio,
 		      /*retries*/ retry_count,
@@ -2783,6 +2818,10 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 			fprintf(stdout, "%sATA mode: %s\n", pathstr,
 				ata_mode2string(ata->mode));
 		}
+		if ((ata->valid & CTS_ATA_VALID_ATAPI) != 0) {
+			fprintf(stdout, "%sATAPI packet length: %d\n", pathstr,
+				ata->atapi);
+		}
 		if ((ata->valid & CTS_ATA_VALID_BYTECOUNT) != 0) {
 			fprintf(stdout, "%sPIO transaction length: %d\n",
 				pathstr, ata->bytecount);
@@ -2800,6 +2839,10 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 			fprintf(stdout, "%sATA mode: %s\n", pathstr,
 				ata_mode2string(sata->mode));
 		}
+		if ((sata->valid & CTS_SATA_VALID_ATAPI) != 0) {
+			fprintf(stdout, "%sATAPI packet length: %d\n", pathstr,
+				sata->atapi);
+		}
 		if ((sata->valid & CTS_SATA_VALID_BYTECOUNT) != 0) {
 			fprintf(stdout, "%sPIO transaction length: %d\n",
 				pathstr, sata->bytecount);
@@ -2811,6 +2854,10 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 		if ((sata->valid & CTS_SATA_VALID_TAGS) != 0) {
 			fprintf(stdout, "%sNumber of tags: %d\n", pathstr,
 				sata->tags);
+		}
+		if ((sata->valid & CTS_SATA_VALID_CAPS) != 0) {
+			fprintf(stdout, "%sSATA capabilities: %08x\n", pathstr,
+				sata->caps);
 		}
 	}
 	if (cts->protocol == PROTO_SCSI) {
@@ -4305,7 +4352,7 @@ usage(int verbose)
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
-"        camcontrol identify   [dev_id][generic args]\n"
+"        camcontrol identify   [dev_id][generic args] [-v]\n"
 "        camcontrol reportluns [dev_id][generic args] [-c] [-l] [-r report]\n"
 "        camcontrol readcap    [dev_id][generic args] [-b] [-h] [-H] [-N]\n"
 "                              [-q] [-s]\n"
@@ -4322,7 +4369,7 @@ usage(int verbose)
 "                              [-P pagectl][-e | -b][-d]\n"
 "        camcontrol cmd        [dev_id][generic args]\n"
 "                              <-a cmd [args] | -c cmd [args]>\n"
-"                              [-i len fmt|-o len fmt [args]] [-r fmt]\n"
+"                              [-d] [-f] [-i len fmt|-o len fmt [args]] [-r fmt]\n"
 "        camcontrol debug      [-I][-P][-T][-S][-X][-c]\n"
 "                              <all|bus[:target[:lun]]|off>\n"
 "        camcontrol tags       [dev_id][generic args] [-N tags] [-q] [-v]\n"

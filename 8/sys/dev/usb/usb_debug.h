@@ -34,7 +34,7 @@ extern int usb_debug;
 
 /* Check if USB debugging is enabled. */
 #ifdef USB_DEBUG_VAR
-#if (USB_DEBUG != 0)
+#ifdef USB_DEBUG
 #define	DPRINTFN(n,fmt,...) do {		\
   if ((USB_DEBUG_VAR) >= (n)) {			\
     printf("%s: " fmt,				\

@@ -335,8 +335,13 @@ setvareq(char *s, int flags)
 			/*
 			 * We could roll this to a function, to handle it as
 			 * a regular variable function callback, but why bother?
+			 *
+			 * Note: this assumes iflag is not set to 1 initially.
+			 * As part of init(), this is called before arguments
+			 * are looked at.
 			 */
-			if (vp == &vmpath || (vp == &vmail && ! mpathset()))
+			if ((vp == &vmpath || (vp == &vmail && ! mpathset())) &&
+			    iflag == 1)
 				chkmail(1);
 			if ((vp->flags & VEXPORT) && localevar(s)) {
 				change_env(s, 1);
@@ -604,7 +609,6 @@ exportcmd(int argc, char **argv)
 
 	if (values && argc != 0)
 		error("-p requires no arguments");
-	listsetvar(cmdenviron);
 	if (argc != 0) {
 		while ((name = *argv++) != NULL) {
 			if ((p = strchr(name, '=')) != NULL) {

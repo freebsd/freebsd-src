@@ -46,6 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/uio.h>
 
+#ifdef __sparc64__
+#include <dev/ofw/openfirm.h>
+#include <machine/ofw_machdep.h>
+#endif
+
 #include <dev/isp/isp_freebsd.h>
 
 static uint32_t isp_pci_rd_reg(ispsoftc_t *, int);
@@ -517,7 +522,11 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		if (IS_FC(isp)) {
 			ISP_FC_PC(isp, chan)->default_id = 109 - chan;
 		} else {
+#ifdef __sparc64__
+			ISP_SPI_PC(isp, chan)->iid = OF_getscsinitid(dev);
+#else
 			ISP_SPI_PC(isp, chan)->iid = 7;
+#endif
 		}
 	} else {
 		if (IS_FC(isp)) {
@@ -547,10 +556,10 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 
 	if (IS_SCSI(isp)) {
-		ISP_SPI_PC(isp, chan)->role = tval;
+		ISP_SPI_PC(isp, chan)->def_role = tval;
 		return;
 	}
-	ISP_FC_PC(isp, chan)->role = tval;
+	ISP_FC_PC(isp, chan)->def_role = tval;
 
 	tval = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "fullduplex", &tval) == 0 && tval != 0) {
@@ -632,7 +641,7 @@ isp_pci_attach(device_t dev)
 	int isp_nvports = 0;
 	uint32_t data, cmd, linesz, did;
 	struct isp_pcisoftc *pcs;
-	ispsoftc_t *isp = NULL;
+	ispsoftc_t *isp;
 	size_t psize, xsize;
 	char fwname[32];
 
@@ -833,7 +842,7 @@ isp_pci_attach(device_t dev)
 	 * The 'it' suffix really only matters for SCSI cards in target mode.
 	 */
 	isp->isp_osinfo.fw = NULL;
-	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->role & ISP_ROLE_TARGET)) {
+	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->def_role & ISP_ROLE_TARGET)) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
 	} else if (IS_24XX(isp) && (isp->isp_nchan > 1 || isp->isp_osinfo.forcemulti)) {
@@ -957,30 +966,28 @@ isp_pci_attach(device_t dev)
 	return (0);
 
 bad:
-	if (pcs && pcs->ih) {
+	if (pcs->ih) {
 		(void) bus_teardown_intr(dev, irq, pcs->ih);
 	}
-	if (locksetup && isp) {
+	if (locksetup) {
 		mtx_destroy(&isp->isp_osinfo.lock);
 	}
 	if (irq) {
 		(void) bus_release_resource(dev, SYS_RES_IRQ, iqd, irq);
 	}
-	if (pcs && pcs->msicount) {
+	if (pcs->msicount) {
 		pci_release_msi(dev);
 	}
 	if (regs) {
 		(void) bus_release_resource(dev, rtp, rgd, regs);
 	}
-	if (pcs) {
-		if (pcs->pci_isp.isp_param) {
-			free(pcs->pci_isp.isp_param, M_DEVBUF);
-			pcs->pci_isp.isp_param = NULL;
-		}
-		if (pcs->pci_isp.isp_osinfo.pc.ptr) {
-			free(pcs->pci_isp.isp_osinfo.pc.ptr, M_DEVBUF);
-			pcs->pci_isp.isp_osinfo.pc.ptr = NULL;
-		}
+	if (pcs->pci_isp.isp_param) {
+		free(pcs->pci_isp.isp_param, M_DEVBUF);
+		pcs->pci_isp.isp_param = NULL;
+	}
+	if (pcs->pci_isp.isp_osinfo.pc.ptr) {
+		free(pcs->pci_isp.isp_osinfo.pc.ptr, M_DEVBUF);
+		pcs->pci_isp.isp_osinfo.pc.ptr = NULL;
 	}
 	return (ENXIO);
 }
@@ -1068,8 +1075,7 @@ isp_pci_rd_isr(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbp)
 }
 
 static int
-isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp,
-    uint16_t *semap, uint16_t *mbox0p)
+isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbox0p)
 {
 	uint32_t hccr;
 	uint32_t r2hisr;
@@ -1096,7 +1102,7 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp,
 		return (1);
 	case ISPR2HST_RIO_16:
 		*isrp = r2hisr & 0xffff;
-		*mbox0p = ASYNC_RIO1;
+		*mbox0p = ASYNC_RIO16_1;
 		*semap = 1;
 		return (1);
 	case ISPR2HST_FPOST:
@@ -1118,21 +1124,17 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp,
 		hccr = ISP_READ(isp, HCCR);
 		if (hccr & HCCR_PAUSE) {
 			ISP_WRITE(isp, HCCR, HCCR_RESET);
-			isp_prt(isp, ISP_LOGERR,
-			    "RISC paused at interrupt (%x->%x)", hccr,
-			    ISP_READ(isp, HCCR));
+			isp_prt(isp, ISP_LOGERR, "RISC paused at interrupt (%x->%x)", hccr, ISP_READ(isp, HCCR));
 			ISP_WRITE(isp, BIU_ICR, 0);
 		} else {
-			isp_prt(isp, ISP_LOGERR, "unknown interrupt 0x%x\n",
-			    r2hisr);
+			isp_prt(isp, ISP_LOGERR, "unknown interrupt 0x%x\n", r2hisr);
 		}
 		return (0);
 	}
 }
 
 static int
-isp_pci_rd_isr_2400(ispsoftc_t *isp, uint32_t *isrp,
-    uint16_t *semap, uint16_t *mbox0p)
+isp_pci_rd_isr_2400(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbox0p)
 {
 	uint32_t r2hisr;
 
@@ -1177,8 +1179,7 @@ isp_pci_rd_reg(ispsoftc_t *isp, int regoff)
 		 * We will assume that someone has paused the RISC processor.
 		 */
 		oldconf = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
-		BXW2(isp, IspVirt2Off(isp, BIU_CONF1),
-		    oldconf | BIU_PCI_CONF1_SXP);
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oldconf | BIU_PCI_CONF1_SXP);
 		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
 	rv = BXR2(isp, IspVirt2Off(isp, regoff));
@@ -1516,17 +1517,21 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		return (1);
 	}
 
-	len = sizeof (XS_T **) * isp->isp_maxcmds;
-	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
+	isp->isp_xflist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_xflist == NULL) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		ISP_LOCK(isp);
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
 		return (1);
 	}
+	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
+		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
+	}
+	isp->isp_xffree = isp->isp_xflist;
 #ifdef	ISP_TARGET_MODE
-	len = sizeof (void **) * isp->isp_maxcmds;
-	isp->isp_tgtlist = (void **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
+	isp->isp_tgtlist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_tgtlist == NULL) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
@@ -1534,6 +1539,10 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		isp_prt(isp, ISP_LOGERR, "cannot alloc tgtlist array");
 		return (1);
 	}
+	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
+		isp->isp_tgtlist[len].cmd = &isp->isp_tgtlist[len+1];
+	}
+	isp->isp_tgtfree = isp->isp_tgtlist;
 #endif
 
 	/*
@@ -1714,6 +1723,8 @@ tdma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
 			ddir = ISP_FROM_DEVICE;
 		} else {
+			dm_segs = NULL;
+			nseg = 0;
 			ddir = ISP_NOXFR;
 		}
 	} else {

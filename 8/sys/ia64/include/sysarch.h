@@ -32,15 +32,6 @@
 #ifndef _MACHINE_SYSARCH_H_
 #define	_MACHINE_SYSARCH_H_
 
-#define	IA64_IORD	0
-#define	IA64_IOWR	1
-
-struct ia64_iodesc {
-	int port;
-	int width;
-	unsigned long val;
-};
-
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 

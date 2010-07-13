@@ -672,9 +672,11 @@ printcpuinfo(void)
 	    cpu_vendor_id == CPU_VENDOR_NSC ||
 		(cpu_vendor_id == CPU_VENDOR_CYRIX &&
 		 ((cpu_id & 0xf00) > 0x500))) {
-		printf("  Stepping = %u", cpu_id & 0xf);
+		printf("  Family = %x", CPUID_TO_FAMILY(cpu_id));
+		printf("  Model = %x", CPUID_TO_MODEL(cpu_id));
+		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
 		if (cpu_vendor_id == CPU_VENDOR_CYRIX)
-			printf("  DIR=0x%04x", cyrix_did);
+			printf("\n  DIR=0x%04x", cyrix_did);
 		if (cpu_high > 0) {
 
 			/*
@@ -725,7 +727,7 @@ printcpuinfo(void)
 				printf("\n  Features2=0x%b", cpu_feature2,
 				"\020"
 				"\001SSE3"	/* SSE3 */
-				"\002<b1>"
+				"\002PCLMULQDQ"	/* Carry-Less Mul Quadword */
 				"\003DTES64"	/* 64-bit Debug Trace */
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
@@ -749,7 +751,7 @@ printcpuinfo(void)
 				"\027MOVBE"
 				"\030POPCNT"
 				"\031<b24>"
-				"\032<b25>"
+				"\032AESNI"	/* AES Crypto*/
 				"\033XSAVE"
 				"\034OSXSAVE"
 				"\035<b28>"

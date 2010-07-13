@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2010 Marcel Moolenaar <marcel@FreeBSD.org>
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
  *
@@ -24,9 +25,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD$
- *
  */
 
-extern int		pci_cfgregopen(void);
-extern u_int32_t	pci_cfgregread(int bus, int slot, int func, int reg, int bytes);
-extern void		pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes);
+#ifndef _MACHINE_PCI_CFGREG_H_
+#define	_MACHINE_PCI_CFGREG_H_
+
+int	pci_cfgregopen(void);
+uint32_t pci_cfgregread(int bus, int slot, int func, int reg, int len);
+void	pci_cfgregwrite(int bus, int slot, int func, int reg, uint32_t data,
+    int bytes);
+
+#endif /* _MACHINE_PCI_CFGREG_H_ */

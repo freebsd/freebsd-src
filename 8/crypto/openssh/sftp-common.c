@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-common.c,v 1.20 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: sftp-common.c,v 1.23 2010/01/15 09:24:23 markus Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Damien Miller.  All rights reserved.
@@ -36,6 +36,9 @@
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
+#ifdef HAVE_UTIL_H
+#include <util.h>
+#endif
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -184,24 +187,23 @@ fx2txt(int status)
  * drwxr-xr-x    5 markus   markus       1024 Jan 13 18:39 .ssh
  */
 char *
-ls_file(const char *name, const struct stat *st, int remote)
+ls_file(const char *name, const struct stat *st, int remote, int si_units)
 {
 	int ulen, glen, sz = 0;
-	struct passwd *pw;
-	struct group *gr;
 	struct tm *ltime = localtime(&st->st_mtime);
 	char *user, *group;
 	char buf[1024], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
+	char sbuf[FMT_SCALED_STRSIZE];
 
 	strmode(st->st_mode, mode);
-	if (!remote && (pw = getpwuid(st->st_uid)) != NULL) {
-		user = pw->pw_name;
+	if (!remote) {
+		user = user_from_uid(st->st_uid, 0);
 	} else {
 		snprintf(ubuf, sizeof ubuf, "%u", (u_int)st->st_uid);
 		user = ubuf;
 	}
-	if (!remote && (gr = getgrgid(st->st_gid)) != NULL) {
-		group = gr->gr_name;
+	if (!remote) {
+		group = group_from_gid(st->st_gid, 0);
 	} else {
 		snprintf(gbuf, sizeof gbuf, "%u", (u_int)st->st_gid);
 		group = gbuf;
@@ -216,8 +218,15 @@ ls_file(const char *name, const struct stat *st, int remote)
 		tbuf[0] = '\0';
 	ulen = MAX(strlen(user), 8);
 	glen = MAX(strlen(group), 8);
-	snprintf(buf, sizeof buf, "%s %3u %-*s %-*s %8llu %s %s", mode,
-	    (u_int)st->st_nlink, ulen, user, glen, group,
-	    (unsigned long long)st->st_size, tbuf, name);
+	if (si_units) {
+		fmt_scaled((long long)st->st_size, sbuf);
+		snprintf(buf, sizeof buf, "%s %3u %-*s %-*s %8s %s %s", mode,
+		    (u_int)st->st_nlink, ulen, user, glen, group,
+		    sbuf, tbuf, name);
+	} else {
+		snprintf(buf, sizeof buf, "%s %3u %-*s %-*s %8llu %s %s", mode,
+		    (u_int)st->st_nlink, ulen, user, glen, group,
+		    (unsigned long long)st->st_size, tbuf, name);
+	}
 	return xstrdup(buf);
 }

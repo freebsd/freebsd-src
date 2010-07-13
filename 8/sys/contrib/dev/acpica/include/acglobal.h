@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -186,6 +186,19 @@ UINT8       ACPI_INIT_GLOBAL (AcpiGbl_LeaveWakeGpesDisabled, TRUE);
  */
 UINT8       ACPI_INIT_GLOBAL (AcpiGbl_UseDefaultRegisterWidths, TRUE);
 
+/*
+ * Optionally enable output from the AML Debug Object.
+ */
+UINT8       ACPI_INIT_GLOBAL (AcpiGbl_EnableAmlDebugObject, FALSE);
+
+/*
+ * Optionally copy the entire DSDT to local memory (instead of simply
+ * mapping it.) There are some BIOSs that corrupt or replace the original
+ * DSDT, creating the need for this option. Default is FALSE, do not copy
+ * the DSDT.
+ */
+UINT8       ACPI_INIT_GLOBAL (AcpiGbl_CopyDsdtLocally, FALSE);
+
 
 /* AcpiGbl_FADT is a local copy of the FADT, converted to a common format. */
 
@@ -217,6 +230,11 @@ ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1aEnable;
 
 ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1bStatus;
 ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1bEnable;
+
+/* DSDT information. Used to check for DSDT corruption */
+
+ACPI_EXTERN ACPI_TABLE_HEADER          *AcpiGbl_DSDT;
+ACPI_EXTERN ACPI_TABLE_HEADER           AcpiGbl_OriginalDsdtHeader;
 
 /*
  * Handle both ACPI 1.0 and ACPI 2.0 Integer widths. The integer width is
@@ -324,7 +342,8 @@ extern char const                       *AcpiGbl_ExceptionNames_Ctrl[];
 extern BOOLEAN                          AcpiGbl_Shutdown;
 extern UINT32                           AcpiGbl_StartupFlags;
 extern const char                      *AcpiGbl_SleepStateNames[ACPI_S_STATE_COUNT];
-extern const char                      *AcpiGbl_HighestDstateNames[4];
+extern const char                      *AcpiGbl_LowestDstateNames[ACPI_NUM_SxW_METHODS];
+extern const char                      *AcpiGbl_HighestDstateNames[ACPI_NUM_SxD_METHODS];
 extern const ACPI_OPCODE_INFO           AcpiGbl_AmlOpInfo[AML_NUM_OPCODES];
 extern const char                      *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS];
 #endif
@@ -355,6 +374,8 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_DisplayFinalMemStats;
 ACPI_EXTERN ACPI_NAMESPACE_NODE         AcpiGbl_RootNodeStruct;
 ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_RootNode;
 ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_FadtGpeDevice;
+ACPI_EXTERN ACPI_OPERAND_OBJECT        *AcpiGbl_ModuleCodeList;
+
 
 extern const UINT8                      AcpiGbl_NsProperties [ACPI_NUM_NS_TYPES];
 extern const ACPI_PREDEFINED_NAMES      AcpiGbl_PreDefinedNames [NUM_PREDEFINED_NAMES];
@@ -443,6 +464,7 @@ ACPI_EXTERN UINT8                       AcpiGbl_DbOutputFlags;
 
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_disasm;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_verbose;
+ACPI_EXTERN ACPI_EXTERNAL_LIST         *AcpiGbl_ExternalList;
 #endif
 
 

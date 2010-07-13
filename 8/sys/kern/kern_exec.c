@@ -326,7 +326,7 @@ do_execve(td, args, mac_p)
 	struct ucred *newcred = NULL, *oldcred;
 	struct uidinfo *euip;
 	register_t *stack_base;
-	int error, len = 0, i;
+	int error, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
 	int (*img_first)(struct image_params *);
@@ -602,18 +602,12 @@ interpret:
 	execsigs(p);
 
 	/* name this process - nameiexec(p, ndp) */
-	if (args->fname) {
-		len = min(nd.ni_cnd.cn_namelen,MAXCOMLEN);
-		bcopy(nd.ni_cnd.cn_nameptr, p->p_comm, len);
-	} else {
-		if (vn_commname(binvp, p->p_comm, MAXCOMLEN + 1) == 0)
-			len = MAXCOMLEN;
-		else {
-			len = sizeof(fexecv_proc_title);
-			bcopy(fexecv_proc_title, p->p_comm, len);
-		}
-	}
-	p->p_comm[len] = 0;
+	bzero(p->p_comm, sizeof(p->p_comm));
+	if (args->fname)
+		bcopy(nd.ni_cnd.cn_nameptr, p->p_comm,
+		    min(nd.ni_cnd.cn_namelen, MAXCOMLEN));
+	else if (vn_commname(binvp, p->p_comm, sizeof(p->p_comm)) != 0)
+		bcopy(fexecv_proc_title, p->p_comm, sizeof(fexecv_proc_title));
 	bcopy(p->p_comm, td->td_name, sizeof(td->td_name));
 
 	/*

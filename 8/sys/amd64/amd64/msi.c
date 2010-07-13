@@ -288,7 +288,7 @@ msi_init(void)
 	mtx_init(&msi_lock, "msi", NULL, MTX_DEF);
 }
 
-void
+static void
 msi_create_source(void)
 {
 	struct msi_intsrc *msi;

@@ -143,6 +143,8 @@ USB access library (libusb -lusb)
 .Ft int
 .Fn libusb20_dev_reset "struct libusb20_device *pdev"
 .Ft int
+.Fn libusb20_dev_check_connected "struct libusb20_device *pdev"
+.Ft int
 .Fn libusb20_dev_set_power_mode "struct libusb20_device *pdev" "uint8_t power_mode"
 .Ft uint8_t
 .Fn libusb20_dev_get_power_mode "struct libusb20_device *pdev"
@@ -676,6 +678,15 @@ the last set USB configuration.
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
 returned.
+.
+.
+.Pp
+.
+.Fn libusb20_dev_check_connected
+will check if an opened USB device is still connected.
+.
+This function returns zero if the device is still connected else a LIBUSB20_ERROR value is returned.
+.
 .
 .Pp
 .

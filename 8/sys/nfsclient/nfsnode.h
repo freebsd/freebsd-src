@@ -114,6 +114,7 @@ struct nfsnode {
 	struct timespec		n_mtime;	/* Prev modify time. */
 	time_t			n_ctime;	/* Prev create time. */
 	time_t			n_dmtime;	/* Prev dir modify time. */
+	int			n_dmtime_ticks;	/* Tick of -ve cache entry */
 	time_t			n_expiry;	/* Lease expiry time */
 	nfsfh_t			*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
@@ -176,10 +177,23 @@ struct nfsnode {
 #define NFS_TIMESPEC_COMPARE(T1, T2)	(((T1)->tv_sec != (T2)->tv_sec) || ((T1)->tv_nsec != (T2)->tv_nsec))
 
 /*
+ * NFS iod threads can be in one of these three states once spawned.
+ * NFSIOD_NOT_AVAILABLE - Cannot be assigned an I/O operation at this time.
+ * NFSIOD_AVAILABLE - Available to be assigned an I/O operation.
+ * NFSIOD_CREATED_FOR_NFS_ASYNCIO - Newly created for nfs_asyncio() and
+ *	will be used by the thread that called nfs_asyncio().
+ */
+enum nfsiod_state {
+	NFSIOD_NOT_AVAILABLE = 0,
+	NFSIOD_AVAILABLE = 1,
+	NFSIOD_CREATED_FOR_NFS_ASYNCIO = 2,
+};
+
+/*
  * Queue head for nfsiod's
  */
 extern TAILQ_HEAD(nfs_bufq, buf) nfs_bufq;
-extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
+extern enum nfsiod_state nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 
 #if defined(_KERNEL)

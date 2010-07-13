@@ -99,13 +99,14 @@ dev/fe/if_fe_cbus.c		optional fe isa
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
 dev/hwpmc/hwpmc_intel.c		optional hwpmc
 dev/hwpmc/hwpmc_core.c		optional hwpmc
+dev/hwpmc/hwpmc_uncore.c	optional hwpmc
 dev/hwpmc/hwpmc_pentium.c	optional hwpmc
 dev/hwpmc/hwpmc_piv.c		optional hwpmc
 dev/hwpmc/hwpmc_ppro.c		optional hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional hwpmc
 dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/io/iodev.c			optional io
-dev/kbd/kbd.c			optional pckbd | sc | ukbd | usb2_input_kbd
+dev/kbd/kbd.c			optional pckbd | sc | ukbd
 dev/le/if_le_cbus.c		optional le isa
 dev/lindev/full.c		optional lindev
 dev/lindev/lindev.c		optional lindev
@@ -194,7 +195,7 @@ i386/ibcs2/ibcs2_util.c		optional ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
-i386/isa/atpic.c		standard
+i386/isa/atpic.c		optional atpic	
 #i386/isa/atpic_vector.s		standard
 i386/isa/elink.c		optional ep | ie
 i386/isa/isa.c			optional isa
@@ -240,7 +241,7 @@ pc98/cbus/gdc.c			optional gdc
 pc98/cbus/nmi.c			standard
 pc98/cbus/olpt.c		optional olpt
 pc98/cbus/pckbd.c		optional pckbd
-pc98/cbus/pcrtc.c		standard
+pc98/cbus/pcrtc.c		optional atpic
 pc98/cbus/pmc.c			optional pmc
 pc98/cbus/scgdcrndr.c		optional sc gdc
 pc98/cbus/scterm-sck.c		optional sc

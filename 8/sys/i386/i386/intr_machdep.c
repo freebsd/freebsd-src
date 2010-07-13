@@ -366,6 +366,23 @@ intr_init(void *dummy __unused)
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 
+/* Add a description to an active interrupt handler. */
+int
+intr_describe(u_int vector, void *ih, const char *descr)
+{
+	struct intsrc *isrc;
+	int error;
+
+	isrc = intr_lookup_source(vector);
+	if (isrc == NULL)
+		return (EINVAL);
+	error = intr_event_describe_handler(isrc->is_event, ih, descr);
+	if (error)
+		return (error);
+	intrcnt_updatename(isrc);
+	return (0);
+}
+
 #ifdef DDB
 /*
  * Dump data about interrupt handlers
@@ -485,7 +502,7 @@ intr_shuffle_irqs(void *arg __unused)
 			 */
 			if (isrc->is_event->ie_cpu != NOCPU)
 				(void)isrc->is_pic->pic_assign_cpu(isrc,
-				    isrc->is_event->ie_cpu);
+				    cpu_apic_ids[isrc->is_event->ie_cpu]);
 			else if (isrc->is_pic->pic_assign_cpu(isrc,
 				cpu_apic_ids[current_cpu]) == 0)
 				(void)intr_next_cpu();

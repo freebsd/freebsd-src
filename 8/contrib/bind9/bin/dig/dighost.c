@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.311.70.8 2009/02/25 02:39:21 marka Exp $ */
+/* $Id: dighost.c,v 1.311.70.11 2009/11/10 17:27:13 each Exp $ */
 
 /*! \file
  *  \note
@@ -1048,7 +1048,9 @@ setup_system(void) {
 		debug("ndots is %d.", ndots);
 	}
 
-	copy_server_list(lwconf, &server_list);
+	/* If user doesn't specify server use nameservers from resolv.conf. */
+	if (ISC_LIST_EMPTY(server_list))
+		copy_server_list(lwconf, &server_list);
 
 	/* If we don't find a nameserver fall back to localhost */
 	if (ISC_LIST_EMPTY(server_list)) {
@@ -2397,11 +2399,9 @@ connect_timeout(isc_task_t *task, isc_event_t *event) {
 		if (!l->tcp_mode)
 			send_udp(ISC_LIST_NEXT(cq, link));
 		else {
-			isc_socket_cancel(query->sock, NULL,
-					  ISC_SOCKCANCEL_ALL);
-			isc_socket_detach(&query->sock);
-			sockcount--;
-			debug("sockcount=%d", sockcount);
+			if (query->sock != NULL)
+				isc_socket_cancel(query->sock, NULL,
+						  ISC_SOCKCANCEL_ALL);
 			send_tcp_connect(ISC_LIST_NEXT(cq, link));
 		}
 		UNLOCK_LOOKUP;
@@ -2604,12 +2604,10 @@ connect_done(isc_task_t *task, isc_event_t *event) {
 
 	if (sevent->result == ISC_R_CANCELED) {
 		debug("in cancel handler");
-		if (query->sock != NULL) {
-			isc_socket_detach(&query->sock);
-			sockcount--;
-			INSIST(sockcount >= 0);
-			debug("sockcount=%d", sockcount);
-		}
+		isc_socket_detach(&query->sock);
+		INSIST(sockcount > 0);
+		sockcount--;
+		debug("sockcount=%d", sockcount);
 		query->waiting_connect = ISC_FALSE;
 		isc_event_free(&event);
 		l = query->lookup;

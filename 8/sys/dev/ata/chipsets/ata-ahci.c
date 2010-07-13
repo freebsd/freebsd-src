@@ -656,9 +656,9 @@ ata_ahci_pm_write(device_t dev, int port, int reg, u_int32_t value)
     ctp->cfis[3] = reg;
     ctp->cfis[7] = port | ATA_D_LBA;
     ctp->cfis[12] = value & 0xff;
-    ctp->cfis[4] = (value >> 8) & 0xff;;
-    ctp->cfis[5] = (value >> 16) & 0xff;;
-    ctp->cfis[6] = (value >> 24) & 0xff;;
+    ctp->cfis[4] = (value >> 8) & 0xff;
+    ctp->cfis[5] = (value >> 16) & 0xff;
+    ctp->cfis[6] = (value >> 24) & 0xff;
     ctp->cfis[15] = ATA_A_4BIT;
 
     if (ata_ahci_issue_cmd(dev, 0, 100)) {

@@ -30,8 +30,8 @@
  */
 
 struct report_desc {
-	unsigned int size;
-	unsigned char data[1];
+	uint32_t size;
+	uint8_t data[1];
 };
 
 /* internal backwards compatibility functions */

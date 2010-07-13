@@ -215,6 +215,8 @@ ehci_pci_match(device_t self)
 		return "NVIDIA nForce3 250 USB 2.0 controller";
 	case 0x005b10de:
 		return "NVIDIA nForce4 USB 2.0 controller";
+	case 0x036d10de:
+		return "NVIDIA nForce MCP55 USB 2.0 controller";
 	case 0x03f210de:
 		return "NVIDIA nForce MCP61 USB 2.0 controller";
 	case 0x0aa610de:
@@ -461,6 +463,19 @@ ehci_pci_attach(device_t self)
 		if (bootverbose)
 			device_printf(self,
 			    "Dropped interrupts workaround enabled\n");
+		break;
+	default:
+		break;
+	}
+
+	/* Doorbell feature workaround */
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_NVIDIA:
+	case PCI_EHCI_VENDORID_NVIDIA2:
+		sc->sc_flags |= EHCI_SCFLG_IAADBUG;
+		if (bootverbose)
+			device_printf(self,
+			    "Doorbell workaround enabled\n");
 		break;
 	default:
 		break;

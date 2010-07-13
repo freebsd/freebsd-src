@@ -37,6 +37,16 @@
 #include <sys/selinfo.h>
 #include <geom/geom_disk.h>
 
+#define	AAC_TYPE_DEVO			1
+#define	AAC_TYPE_ALPHA			2
+#define	AAC_TYPE_BETA			3
+#define	AAC_TYPE_RELEASE		4
+
+#define	AAC_DRIVER_MAJOR_VERSION	2
+#define	AAC_DRIVER_MINOR_VERSION	1
+#define	AAC_DRIVER_BUGFIX_LEVEL		9
+#define	AAC_DRIVER_TYPE			AAC_TYPE_RELEASE
+
 #ifndef AAC_DRIVER_BUILD
 # define AAC_DRIVER_BUILD 1
 #endif
@@ -319,7 +329,6 @@ struct aac_softc
 	int			aac_hwif;
 #define AAC_HWIF_I960RX		0
 #define AAC_HWIF_STRONGARM	1
-#define AAC_HWIF_FALCON		2
 #define AAC_HWIF_RKT		3
 #define	AAC_HWIF_NARK		4
 #define AAC_HWIF_UNKNOWN	-1
@@ -441,7 +450,7 @@ extern int		aac_shutdown(device_t dev);
 extern int		aac_suspend(device_t dev); 
 extern int		aac_resume(device_t dev);
 extern void		aac_new_intr(void *arg);
-extern int		aac_fast_intr(void *arg);
+extern int		aac_filter(void *arg);
 extern void		aac_submit_bio(struct bio *bp);
 extern void		aac_biodone(struct bio *bp);
 extern void		aac_startio(struct aac_softc *sc);

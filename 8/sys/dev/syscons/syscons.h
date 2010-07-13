@@ -191,7 +191,7 @@ struct tty;
 typedef struct sc_softc {
 	int		unit;			/* unit # */
 	int		config;			/* configuration flags */
-#define SC_VESA800X600	(1 << 7)
+#define SC_VESAMODE	(1 << 7)
 #define SC_AUTODETECT_KBD (1 << 8)
 #define SC_KERNEL_CONSOLE (1 << 9)
 
@@ -245,7 +245,10 @@ typedef struct sc_softc {
 #endif
 
 #ifndef SC_NO_PALETTE_LOADING
-	u_char        	palette[256*3];
+	u_char		palette[256 * 3];
+#ifdef SC_PIXEL_MODE
+	u_char		palette2[256 * 3];
+#endif
 #endif
 
 #ifndef SC_NO_FONT_LOADING
@@ -616,6 +619,7 @@ int		sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode,
 int		sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode);
 int		sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize,
 				  int ysize, int fontsize, int font_width);
+int		sc_support_pixel_mode(void *arg);
 int		sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data,
 			     struct thread *td);
 

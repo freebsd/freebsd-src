@@ -123,29 +123,28 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 
 VNET_DECLARE(struct uma_zone *, sack_hole_zone);
-VNET_DEFINE(int, tcp_do_sack);
-VNET_DEFINE(int, tcp_sack_maxholes);
-VNET_DEFINE(int, tcp_sack_globalmaxholes);
-VNET_DEFINE(int, tcp_sack_globalholes);
-
 #define	V_sack_hole_zone		VNET(sack_hole_zone)
-#define	V_tcp_do_sack			VNET(tcp_do_sack)
-#define	V_tcp_sack_maxholes		VNET(tcp_sack_maxholes)
-#define	V_tcp_sack_globalmaxholes	VNET(tcp_sack_globalmaxholes)
-#define	V_tcp_sack_globalholes		VNET(tcp_sack_globalholes)
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW, 0, "TCP SACK");
+VNET_DEFINE(int, tcp_do_sack) = 1;
+#define	V_tcp_do_sack			VNET(tcp_do_sack)
 SYSCTL_VNET_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_RW,
     &VNET_NAME(tcp_do_sack), 0, "Enable/Disable TCP SACK support");
 
+VNET_DEFINE(int, tcp_sack_maxholes) = 128;
+#define	V_tcp_sack_maxholes		VNET(tcp_sack_maxholes)
 SYSCTL_VNET_INT(_net_inet_tcp_sack, OID_AUTO, maxholes, CTLFLAG_RW,
     &VNET_NAME(tcp_sack_maxholes), 0,
     "Maximum number of TCP SACK holes allowed per connection");
 
+VNET_DEFINE(int, tcp_sack_globalmaxholes) = 65536;
+#define	V_tcp_sack_globalmaxholes	VNET(tcp_sack_globalmaxholes)
 SYSCTL_VNET_INT(_net_inet_tcp_sack, OID_AUTO, globalmaxholes, CTLFLAG_RW,
     &VNET_NAME(tcp_sack_globalmaxholes), 0, 
     "Global maximum number of TCP SACK holes");
 
+VNET_DEFINE(int, tcp_sack_globalholes) = 0;
+#define	V_tcp_sack_globalholes		VNET(tcp_sack_globalholes)
 SYSCTL_VNET_INT(_net_inet_tcp_sack, OID_AUTO, globalholes, CTLFLAG_RD,
     &VNET_NAME(tcp_sack_globalholes), 0,
     "Global number of TCP SACK holes currently allocated");

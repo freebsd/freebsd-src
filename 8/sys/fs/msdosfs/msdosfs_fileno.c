@@ -51,16 +51,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 
 #include <fs/msdosfs/bpb.h>
 #include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
 static MALLOC_DEFINE(M_MSDOSFSFILENO, "msdosfs_fileno", "MSDOSFS fileno mapping node");
-
-static struct mtx fileno_mtx;
-MTX_SYSINIT(fileno, &fileno_mtx, "MSDOSFS fileno", MTX_DEF);
 
 RB_PROTOTYPE(msdosfs_filenotree, msdosfs_fileno, mf_tree,
     msdosfs_fileno_compare)
@@ -117,30 +113,30 @@ msdosfs_fileno_map(mp, fileno)
 	}
 	if (fileno < FILENO_FIRST_DYN)
 		return ((uint32_t)fileno);
-	mtx_lock(&fileno_mtx);
+	MSDOSFS_LOCK_MP(pmp);
 	key.mf_fileno64 = fileno;
 	mf = RB_FIND(msdosfs_filenotree, &pmp->pm_filenos, &key);
 	if (mf != NULL) {
 		mapped = mf->mf_fileno32;
-		mtx_unlock(&fileno_mtx);
+		MSDOSFS_UNLOCK_MP(pmp);
 		return (mapped);
 	}
 	if (pmp->pm_nfileno < FILENO_FIRST_DYN)
 		panic("msdosfs_fileno_map: wraparound");
-	mtx_unlock(&fileno_mtx);
+	MSDOSFS_UNLOCK_MP(pmp);
 	mf = malloc(sizeof(*mf), M_MSDOSFSFILENO, M_WAITOK);
-	mtx_lock(&fileno_mtx);
+	MSDOSFS_LOCK_MP(pmp);
 	tmf = RB_FIND(msdosfs_filenotree, &pmp->pm_filenos, &key);
 	if (tmf != NULL) {
 		mapped = tmf->mf_fileno32;
-		mtx_unlock(&fileno_mtx);
+		MSDOSFS_UNLOCK_MP(pmp);
 		free(mf, M_MSDOSFSFILENO);
 		return (mapped);
 	}
 	mf->mf_fileno64 = fileno;
 	mapped = mf->mf_fileno32 = pmp->pm_nfileno++;
 	RB_INSERT(msdosfs_filenotree, &pmp->pm_filenos, mf);
-	mtx_unlock(&fileno_mtx);
+	MSDOSFS_UNLOCK_MP(pmp);
 	return (mapped);
 }
 

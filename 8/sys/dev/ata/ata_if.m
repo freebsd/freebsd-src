@@ -71,10 +71,17 @@ METHOD int setmode {
     int		mode;
 }  DEFAULT ata_null_setmode;
 
+CODE {
+	static int ata_null_getrev(device_t dev, int target)
+	{
+		return (0);
+	}
+};
+
 METHOD int getrev {
     device_t    dev;
     int		target;
-};
+} DEFAULT ata_null_getrev;
 
 METHOD void reset {
     device_t    channel;

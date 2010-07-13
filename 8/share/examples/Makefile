@@ -13,7 +13,9 @@ LDIRS=	BSD_daemon \
 	drivers \
 	etc \
 	find_interface \
+	hast \
 	ibcs2 \
+	indent \
 	ipfw \
 	kld \
 	libvgl \
@@ -24,13 +26,9 @@ LDIRS=	BSD_daemon \
 	portal \
 	ppi \
 	ppp \
-	pppd \
 	printing \
 	ses \
 	scsi_target \
-	slattach \
-	sliplogin \
-	startslip \
 	sunrpc
 
 XFILES=	BSD_daemon/FreeBSD.pfa \
@@ -73,8 +71,14 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	find_interface/Makefile \
 	find_interface/README \
 	find_interface/find_interface.c \
+	hast/ucarp.sh \
+	hast/ucarp_down.sh \
+	hast/ucarp_up.sh \
+	hast/vip-down.sh \
+	hast/vip-up.sh \
 	ibcs2/README \
 	ibcs2/hello.uu \
+	indent/indent.pro \
 	ipfw/change_rules.sh \
 	kld/Makefile \
 	kld/cdev/Makefile \
@@ -135,16 +139,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	ppp/ppp.secret.sample \
 	ppp/ppp.secret.span-isp \
 	ppp/ppp.secret.span-isp.working \
-	pppd/auth-down.sample \
-	pppd/auth-up.sample \
-	pppd/chap-secrets.sample \
-	pppd/chat.sh.sample \
-	pppd/ip-down.sample \
-	pppd/ip-up.sample \
-	pppd/options.sample \
-	pppd/pap-secrets.sample \
-	pppd/ppp.deny.sample \
-	pppd/ppp.shells.sample \
 	printing/README \
 	printing/diablo-if-net \
 	printing/hpdf \
@@ -187,14 +181,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	scsi_target/scsi_target.h \
 	scsi_target/scsi_target.8 \
 	scsi_target/scsi_cmds.c \
-	slattach/unit-command.sh \
-	sliplogin/slip.hosts \
-	sliplogin/slip.login \
-	sliplogin/slip.logout \
-	sliplogin/slip.slparms \
-	startslip/sldown.sh \
-	startslip/slip.sh \
-	startslip/slup.sh \
 	sunrpc/Makefile \
 	sunrpc/dir/Makefile \
 	sunrpc/dir/dir.x \

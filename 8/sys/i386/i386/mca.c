@@ -60,10 +60,19 @@ static int mca_count;		/* Number of records stored. */
 
 SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL, "Machine Check Architecture");
 
-static int mca_enabled = 0;
+static int mca_enabled = 1;
 TUNABLE_INT("hw.mca.enabled", &mca_enabled);
 SYSCTL_INT(_hw_mca, OID_AUTO, enabled, CTLFLAG_RDTUN, &mca_enabled, 0,
     "Administrative toggle for machine check support");
+
+static int amd10h_L1TP = 1;
+TUNABLE_INT("hw.mca.amd10h_L1TP", &amd10h_L1TP);
+SYSCTL_INT(_hw_mca, OID_AUTO, amd10h_L1TP, CTLFLAG_RDTUN, &amd10h_L1TP, 0,
+    "Administrative toggle for logging of level one TLB parity (L1TP) errors");
+
+int workaround_erratum383;
+SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RD, &workaround_erratum383, 0,
+    "Is the workaround for Erratum 383 on AMD Family 10h processors enabled?");
 
 static STAILQ_HEAD(, mca_internal) mca_records;
 static struct callout mca_timer;
@@ -177,19 +186,46 @@ mca_error_request(uint16_t mca_error)
 	return ("???");
 }
 
+static const char *
+mca_error_mmtype(uint16_t mca_error)
+{
+
+	switch ((mca_error & 0x70) >> 4) {
+	case 0x0:
+		return ("GEN");
+	case 0x1:
+		return ("RD");
+	case 0x2:
+		return ("WR");
+	case 0x3:
+		return ("AC");
+	case 0x4:
+		return ("MS");
+	}
+	return ("???");
+}
+
 /* Dump details about a single machine check. */
 static void __nonnull(1)
 mca_log(const struct mca_record *rec)
 {
 	uint16_t mca_error;
 
-	printf("MCA: bank %d, status 0x%016llx\n", rec->mr_bank,
+	printf("MCA: Bank %d, Status 0x%016llx\n", rec->mr_bank,
 	    (long long)rec->mr_status);
-	printf("MCA: CPU %d ", rec->mr_apic_id);
+	printf("MCA: Global Cap 0x%016llx, Status 0x%016llx\n",
+	    (long long)rec->mr_mcg_cap, (long long)rec->mr_mcg_status);
+	printf("MCA: Vendor \"%s\", ID 0x%x, APIC ID %d\n", cpu_vendor,
+	    rec->mr_cpu_id, rec->mr_apic_id);
+	printf("MCA: CPU %d ", rec->mr_cpu);
 	if (rec->mr_status & MC_STATUS_UC)
 		printf("UNCOR ");
-	else
+	else {
 		printf("COR ");
+		if (rec->mr_mcg_cap & MCG_CAP_TES_P)
+			printf("(%lld) ", ((long long)rec->mr_status &
+			    MC_STATUS_COR_COUNT) >> 38);
+	}
 	if (rec->mr_status & MC_STATUS_PCC)
 		printf("PCC ");
 	if (rec->mr_status & MC_STATUS_OVER)
@@ -211,6 +247,9 @@ mca_log(const struct mca_record *rec)
 		break;
 	case 0x0004:
 		printf("FRC error");
+		break;
+	case 0x0005:
+		printf("internal parity error");
 		break;
 	case 0x0400:
 		printf("internal timer error");
@@ -236,6 +275,17 @@ mca_log(const struct mca_record *rec)
 			break;
 		}
 
+		/* Memory controller error. */
+		if ((mca_error & 0xef80) == 0x0080) {
+			printf("%s channel ", mca_error_mmtype(mca_error));
+			if ((mca_error & 0x000f) != 0x000f)
+				printf("%d", mca_error & 0x000f);
+			else
+				printf("??");
+			printf(" memory error");
+			break;
+		}
+		
 		/* Cache error. */
 		if ((mca_error & 0xef00) == 0x0100) {
 			printf("%sCACHE %s %s error",
@@ -288,6 +338,8 @@ mca_log(const struct mca_record *rec)
 	printf("\n");
 	if (rec->mr_status & MC_STATUS_ADDRV)
 		printf("MCA: Address 0x%llx\n", (long long)rec->mr_addr);
+	if (rec->mr_status & MC_STATUS_MISCV)
+		printf("MCA: Misc 0x%llx\n", (long long)rec->mr_misc);
 }
 
 static int __nonnull(2)
@@ -311,6 +363,11 @@ mca_check_status(int bank, struct mca_record *rec)
 		rec->mr_misc = rdmsr(MSR_MC_MISC(bank));
 	rec->mr_tsc = rdtsc();
 	rec->mr_apic_id = PCPU_GET(apic_id);
+	rec->mr_mcg_cap = rdmsr(MSR_MCG_CAP);
+	rec->mr_mcg_status = rdmsr(MSR_MCG_STATUS);
+	rec->mr_cpu_id = cpu_id;
+	rec->mr_cpu_vendor_id = cpu_vendor_id;
+	rec->mr_cpu = PCPU_GET(cpuid);
 
 	/*
 	 * Clear machine check.  Don't do this for uncorrectable
@@ -479,13 +536,22 @@ void
 mca_init(void)
 {
 	uint64_t mcg_cap;
-	uint64_t ctl;
+	uint64_t ctl, mask;
 	int skip;
 	int i;
 
 	/* MCE is required. */
 	if (!mca_enabled || !(cpu_feature & CPUID_MCE))
 		return;
+
+	/*
+	 * On AMD Family 10h processors, unless logging of level one TLB
+	 * parity (L1TP) errors is disabled, enable the recommended workaround
+	 * for Erratum 383.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x10 && amd10h_L1TP)
+		workaround_erratum383 = 1;
 
 	if (cpu_feature & CPUID_MCA) {
 		if (PCPU_GET(cpuid) == 0)
@@ -497,6 +563,19 @@ mca_init(void)
 			/* Enable MCA features. */
 			wrmsr(MSR_MCG_CTL, MCG_CTL_ENABLE);
 
+		/*
+		 * Disable logging of level one TLB parity (L1TP) errors by
+		 * the data cache as an alternative workaround for AMD Family
+		 * 10h Erratum 383.  Unlike the recommended workaround, there
+		 * is no performance penalty to this workaround.  However,
+		 * L1TP errors will go unreported.
+		 */
+		if (cpu_vendor_id == CPU_VENDOR_AMD &&
+		    CPUID_TO_FAMILY(cpu_id) == 0x10 && !amd10h_L1TP) {
+			mask = rdmsr(MSR_MC0_CTL_MASK);
+			if ((mask & (1UL << 5)) == 0)
+				wrmsr(MSR_MC0_CTL_MASK, mask | (1UL << 5));
+		}
 		for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
 			/* By default enable logging of all errors. */
 			ctl = 0xffffffffffffffffUL;

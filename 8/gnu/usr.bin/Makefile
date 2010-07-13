@@ -5,7 +5,6 @@
 SUBDIR= bc \
 	${_binutils} \
 	${_cc} \
-	${_cpio} \
 	${_cvs} \
 	dc \
 	dialog \
@@ -34,10 +33,6 @@ _groff=		groff
 .endif
 .endif
 
-.if ${MK_GNU_CPIO} == "yes"
-_cpio=		cpio
-.endif
-
 .if ${MK_CVS} != "no"
 _cvs=		cvs
 .endif
@@ -50,7 +45,7 @@ _grep=		grep
 _texinfo=	texinfo
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 _man=		man
 .endif
 

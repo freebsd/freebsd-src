@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/ata/ata_all.h>
 
+#include <machine/md_var.h>	/* geometry translation */
+
 #ifdef _KERNEL
 
 #define ATA_MAX_28BIT_LBA               268435455UL
@@ -123,7 +125,6 @@ struct ada_softc {
 	int	 trim_running;
 	struct	 disk_params params;
 	struct	 disk *disk;
-	union	 ccb saved_ccb;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
@@ -179,6 +180,13 @@ static void		adashutdown(void *arg, int howto);
 #define	ADA_DEFAULT_SEND_ORDERED	1
 #endif
 
+/*
+ * Most platforms map firmware geometry to actual, but some don't.  If
+ * not overridden, default to nothing.
+ */
+#ifndef ata_disk_firmware_geom_adjust
+#define	ata_disk_firmware_geom_adjust(disk)
+#endif
 
 static int ada_retry_count = ADA_DEFAULT_RETRY;
 static int ada_default_timeout = ADA_DEFAULT_TIMEOUT;
@@ -687,14 +695,10 @@ adaregister(struct cam_periph *periph, void *arg)
 	else
 		softc->quirks = ADA_Q_NONE;
 
-	/* Check if the SIM does not want queued commands */
 	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
-	if (cpi.ccb_h.status != CAM_REQ_CMP ||
-	    (cpi.hba_inquiry & PI_TAG_ABLE) == 0)
-		softc->flags &= ~ADA_FLAG_CAN_NCQ;
 
 	TASK_INIT(&softc->sysctl_task, 0, adasysctlinit, periph);
 
@@ -742,9 +746,9 @@ adaregister(struct cam_periph *periph, void *arg)
 		    ata_logical_sector_offset(&cgd->ident_data)) %
 		    softc->disk->d_stripesize;
 	}
-	/* XXX: these are not actually "firmware" values, so they may be wrong */
 	softc->disk->d_fwsectors = softc->params.secs_per_track;
 	softc->disk->d_fwheads = softc->params.heads;
+	ata_disk_firmware_geom_adjust(softc->disk);
 
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
@@ -1098,8 +1102,7 @@ adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct ada_softc *)periph->softc;
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags,
-				&softc->saved_ccb));
+	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
 }
 
 static void

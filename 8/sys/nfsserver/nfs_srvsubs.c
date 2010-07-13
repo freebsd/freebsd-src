@@ -560,6 +560,7 @@ DECLARE_MODULE(nfsserver, nfsserver_mod, SI_SUB_VFS, SI_ORDER_ANY);
 MODULE_VERSION(nfsserver, 1);
 MODULE_DEPEND(nfsserver, nfssvc, 1, 1, 1);
 MODULE_DEPEND(nfsserver, krpc, 1, 1, 1);
+MODULE_DEPEND(nfsserver, nfs_common, 1, 1, 1);
 
 /*
  * Set up nameidata for a lookup() call and do it.
@@ -1127,6 +1128,9 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 		}
 	}
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
+	if (error != 0)
+		/* Make sure the server replies ESTALE to the client. */
+		error = ESTALE;
 	vfs_unbusy(mp);
 	if (error)
 		goto out;

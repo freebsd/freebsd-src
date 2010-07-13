@@ -38,6 +38,7 @@ the latest updates.
 4. Read cf/README.
 
 Sendmail is a trademark of Sendmail, Inc.
+US Patent Numbers 6865671, 6986037.
 
 +-----------------------+
 | DIRECTORY PERMISSIONS |
@@ -464,4 +465,4 @@ sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
 vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
 
-$Revision: 8.94 $, Last updated $Date: 2008/02/12 16:40:05 $
+$Revision: 8.95 $, Last updated $Date: 2009/04/10 17:49:18 $

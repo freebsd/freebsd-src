@@ -67,9 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
-#ifdef DEV_APIC
 #include <machine/apicvar.h>
-#endif
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
 #include <machine/smp.h>
@@ -95,13 +93,16 @@ TUNABLE_INT("hw.i8254.freq", &i8254_freq);
 int	i8254_max_count;
 static int i8254_real_max_count;
 
+static int lapic_allclocks = 1;
+TUNABLE_INT("machdep.lapic_allclocks", &lapic_allclocks);
+
 static	struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
 static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
-static	int	using_lapic_timer;
+static	enum lapic_clock using_lapic_timer = LAPIC_CLOCK_NONE;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -164,7 +165,8 @@ clkintr(struct trapframe *frame)
 		clkintr_pending = 0;
 		mtx_unlock_spin(&clock_lock);
 	}
-	KASSERT(!using_lapic_timer, ("clk interrupt enabled with lapic timer"));
+	KASSERT(using_lapic_timer == LAPIC_CLOCK_NONE,
+	    ("clk interrupt enabled with lapic timer"));
 
 #ifdef KDTRACE_HOOKS
 	/*
@@ -360,7 +362,7 @@ set_i8254_freq(u_int freq, int intr_freq)
 	i8254_timecounter.tc_frequency = freq;
 	mtx_lock_spin(&clock_lock);
 	i8254_freq = freq;
-	if (using_lapic_timer)
+	if (using_lapic_timer != LAPIC_CLOCK_NONE)
 		new_i8254_real_max_count = 0x10000;
 	else
 		new_i8254_real_max_count = TIMER_DIV(intr_freq);
@@ -433,9 +435,11 @@ startrtclock()
 void
 cpu_initclocks()
 {
+#if defined(DEV_APIC)
+	enum lapic_clock tlsca;
 
-#ifdef DEV_APIC
-	using_lapic_timer = lapic_setup_clock();
+	tlsca = lapic_allclocks == 0 ? LAPIC_CLOCK_HARDCLOCK : LAPIC_CLOCK_ALL;
+	using_lapic_timer = lapic_setup_clock(tlsca);
 #endif
 	/*
 	 * If we aren't using the local APIC timer to drive the kernel
@@ -443,7 +447,7 @@ cpu_initclocks()
 	 * that it can drive hardclock().  Otherwise, change the 8254
 	 * timecounter to user a simpler algorithm.
 	 */
-	if (!using_lapic_timer) {
+	if (using_lapic_timer == LAPIC_CLOCK_NONE) {
 		intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL,
 		    NULL, INTR_TYPE_CLK, NULL);
 		i8254_intsrc = intr_lookup_source(0);

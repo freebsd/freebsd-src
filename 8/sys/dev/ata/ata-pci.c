@@ -544,6 +544,16 @@ ata_pci_dmafini(device_t dev)
     ata_dmafini(dev);
 }
 
+int
+ata_pci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+
+	snprintf(buf, buflen, "channel=%d",
+	    (int)(intptr_t)device_get_ivars(child));
+	return (0);
+}
+
 static device_method_t ata_pci_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,             ata_pci_probe),
@@ -564,6 +574,7 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr),
     DEVMETHOD(pci_read_config,		ata_pci_read_config),
     DEVMETHOD(pci_write_config,		ata_pci_write_config),
+    DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str),
 
     { 0, 0 }
 };
@@ -714,10 +725,14 @@ static int
 ata_pcichannel_getrev(device_t dev, int target)
 {
 	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	struct ata_channel *ch = device_get_softc(dev);
 
-	if (ctlr->getrev)
-		return (ctlr->getrev(dev, target));
-	else
+	if (ch->flags & ATA_SATA) {
+		if (ctlr->getrev)
+			return (ctlr->getrev(dev, target));
+		else 
+			return (0xff);
+	} else
 		return (0);
 }
 
@@ -877,6 +892,7 @@ ata_pcivendor2str(device_t dev)
     case ATA_ITE_ID:            return "ITE";
     case ATA_JMICRON_ID:        return "JMicron";
     case ATA_MARVELL_ID:        return "Marvell";
+    case ATA_MARVELL2_ID:       return "Marvell";
     case ATA_NATIONAL_ID:       return "National";
     case ATA_NETCELL_ID:        return "Netcell";
     case ATA_NVIDIA_ID:         return "nVidia";

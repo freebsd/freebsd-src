@@ -87,8 +87,6 @@ uint32_t	nfsclient_nfs3_start_probes[NFS_NPROCS];
 uint32_t	nfsclient_nfs3_done_probes[NFS_NPROCS];
 #endif
 
-static int	nfs_realign_test;
-static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
 static int	nfs3_jukebox_delay = 10;
@@ -97,17 +95,15 @@ static int	fake_wchan;
 
 SYSCTL_DECL(_vfs_nfs);
 
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test, 0,
-    "Number of realign tests done");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 0,
-    "Number of mbuf realignments done");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0,
     "Buffer reservation size 2 < x < 64");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
     "Number of times the nfs client has had to reconnect");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW, &nfs3_jukebox_delay, 0,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW,
+    &nfs3_jukebox_delay, 0,
     "Number of seconds to delay a retry after receiving EJUKEBOX");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW, &nfs_skip_wcc_data_onerr, 0,
+SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW,
+    &nfs_skip_wcc_data_onerr, 0,
     "Disable weak cache consistency checking when server returns an error");
 
 static void	nfs_down(struct nfsmount *, struct thread *, const char *,
@@ -160,7 +156,8 @@ static enum nfs_rto_timer_t nfs_proct[NFS_NPROCS] = {
 static inline enum nfs_rto_timer_t
 nfs_rto_timer(u_int32_t procnum)
 {
-	return nfs_proct[procnum];
+
+	return (nfs_proct[procnum]);
 }
 
 /*
@@ -225,7 +222,7 @@ nfs_connect(struct nfsmount *nmp)
 			nconf = getnetconfigent("udp6");
 		else
 			nconf = getnetconfigent("tcp6");
-			
+
 	/*
 	 * Get buffer reservation size from sysctl, but impose reasonable
 	 * limits.
@@ -273,9 +270,8 @@ nfs_connect(struct nfsmount *nmp)
 		 * Someone else already connected.
 		 */
 		CLNT_RELEASE(client);
-	} else {
+	} else
 		nmp->nm_client = client;
-	}
 
 	/*
 	 * Protocols that do not require connections may be optionally left
@@ -284,22 +280,21 @@ nfs_connect(struct nfsmount *nmp)
 	if (!(nmp->nm_flag & NFSMNT_NOCONN)) {
 		mtx_unlock(&nmp->nm_mtx);
 		CLNT_CONTROL(client, CLSET_CONNECT, &one);
-	} else {
+	} else
 		mtx_unlock(&nmp->nm_mtx);
-	}
 
 	/* Restore current thread's credentials. */
 	td->td_ucred = origcred;
 
 	mtx_lock(&nmp->nm_mtx);
-	/* Initialize other non-zero congestion variables */
+	/* Initialize other non-zero congestion variables. */
 	nfs_init_rtt(nmp);
 	mtx_unlock(&nmp->nm_mtx);
 	return (0);
 }
 
 /*
- * NFS disconnect. Clean up and unlink.
+ * NFS disconnect.  Clean up and unlink.
  */
 void
 nfs_disconnect(struct nfsmount *nmp)
@@ -316,9 +311,8 @@ nfs_disconnect(struct nfsmount *nmp)
 #endif
 		CLNT_CLOSE(client);
 		CLNT_RELEASE(client);
-	} else {
+	} else
 		mtx_unlock(&nmp->nm_mtx);
-	}
 }
 
 void
@@ -341,11 +335,10 @@ nfs_getauth(struct nfsmount *nmp, struct ucred *cred)
 	case RPCSEC_GSS_KRB5:
 	case RPCSEC_GSS_KRB5I:
 	case RPCSEC_GSS_KRB5P:
-		if (!nmp->nm_mech_oid) {
+		if (!nmp->nm_mech_oid)
 			if (!rpc_gss_mech_to_oid("kerberosv5",
-				&nmp->nm_mech_oid))
+			    &nmp->nm_mech_oid))
 				return (NULL);
-		}
 		if (nmp->nm_secflavor == RPCSEC_GSS_KRB5)
 			svc = rpc_gss_svc_none;
 		else if (nmp->nm_secflavor == RPCSEC_GSS_KRB5I)
@@ -404,65 +397,6 @@ nfs_feedback(int type, int proc, void *arg)
 }
 
 /*
- *	nfs_realign:
- *
- *	Check for badly aligned mbuf data and realign by copying the unaligned
- *	portion of the data into a new mbuf chain and freeing the portions
- *	of the old chain that were replaced.
- *
- *	We cannot simply realign the data within the existing mbuf chain
- *	because the underlying buffers may contain other rpc commands and
- *	we cannot afford to overwrite them.
- *
- *	We would prefer to avoid this situation entirely.  The situation does
- *	not occur with NFS/UDP and is supposed to only occassionally occur
- *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
- *
- */
-static int
-nfs_realign(struct mbuf **pm, int hsiz)
-{
-	struct mbuf *m, *n;
-	int off, space;
-
-	++nfs_realign_test;
-	while ((m = *pm) != NULL) {
-		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			/*
-			 * NB: we can't depend on m_pkthdr.len to help us
-			 * decide what to do here.  May not be worth doing
-			 * the m_length calculation as m_copyback will
-			 * expand the mbuf chain below as needed.
-			 */
-			space = m_length(m, NULL);
-			if (space >= MINCLSIZE) {
-				/* NB: m_copyback handles space > MCLBYTES */
-				n = m_getcl(M_DONTWAIT, MT_DATA, 0);
-			} else
-				n = m_get(M_DONTWAIT, MT_DATA);
-			if (n == NULL)
-				return (ENOMEM);
-			/*
-			 * Align the remainder of the mbuf chain.
-			 */
-			n->m_len = 0;
-			off = 0;
-			while (m != NULL) {
-				m_copyback(n, off, m->m_len, mtod(m, caddr_t));
-				off += m->m_len;
-				m = m->m_next;
-			}
-			m_freem(*pm);
-			*pm = n;
-			++nfs_realign_count;
-			break;
-		}
-		pm = &m->m_next;
-	}
-	return (0);
-}
-
-/*
  * nfs_request - goes something like this
  *	- fill in request struct
  *	- links it into list
@@ -503,10 +437,10 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 	nf.nf_td = td;
 	getmicrouptime(&now);
 	nf.nf_lastmsg = now.tv_sec -
-		((nmp->nm_tprintf_delay) - (nmp->nm_tprintf_initial_delay));
+	    ((nmp->nm_tprintf_delay) - (nmp->nm_tprintf_initial_delay));
 
 	/*
-	 * XXX if not already connected call nfs_connect now. Longer
+	 * XXX if not already connected call nfs_connect now.  Longer
 	 * term, change nfs_mount to call nfs_connect unconditionally
 	 * and let clnt_reconnect_create handle reconnects.
 	 */
@@ -526,18 +460,17 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 
 	/*
 	 * Use a conservative timeout for RPCs other than getattr,
-	 * lookup, read or write. The justification for doing "other"
+	 * lookup, read or write.  The justification for doing "other"
 	 * this way is that these RPCs happen so infrequently that
 	 * timer est. would probably be stale.  Also, since many of
 	 * these RPCs are non-idempotent, a conservative timeout is
 	 * desired.
 	 */
 	timer = nfs_rto_timer(procnum);
-	if (timer != NFS_DEFAULT_TIMER) {
+	if (timer != NFS_DEFAULT_TIMER)
 		ext.rc_timers = &nmp->nm_timers[timer - 1];
-	} else {
+	else
 		ext.rc_timers = NULL;
-	}
 
 #ifdef KDTRACE_HOOKS
 	if (dtrace_nfsclient_nfs23_start_probe != NULL) {
@@ -570,17 +503,16 @@ tryagain:
 	 * If there was a successful reply and a tprintf msg.
 	 * tprintf a response.
 	 */
-	if (stat == RPC_SUCCESS) {
+	if (stat == RPC_SUCCESS)
 		error = 0;
-	} else if (stat == RPC_TIMEDOUT) {
+	else if (stat == RPC_TIMEDOUT)
 		error = ETIMEDOUT;
-	} else if (stat == RPC_VERSMISMATCH) {
+	else if (stat == RPC_VERSMISMATCH)
 		error = EOPNOTSUPP;
-	} else if (stat == RPC_PROGVERSMISMATCH) {
+	else if (stat == RPC_PROGVERSMISMATCH)
 		error = EPROTONOSUPPORT;
-	} else {
+	else
 		error = EACCES;
-	}
 	if (error)
 		goto nfsmout;
 
@@ -592,7 +524,7 @@ tryagain:
 	 * These could cause pointer alignment problems, so copy them to
 	 * well aligned mbufs.
 	 */
-	error = nfs_realign(&mrep, 2 * NFSX_UNSIGNED);
+	error = nfs_realign(&mrep, M_DONTWAIT);
 	if (error == ENOMEM) {
 		m_freem(mrep);
 		AUTH_DESTROY(auth);
@@ -609,9 +541,9 @@ tryagain:
 			m_freem(mrep);
 			error = 0;
 			waituntil = time_second + nfs3_jukebox_delay;
-			while (time_second < waituntil) {
-				(void) tsleep(&fake_wchan, PSOCK, "nqnfstry", hz);
-			}
+			while (time_second < waituntil)
+				(void)tsleep(&fake_wchan, PSOCK, "nqnfstry",
+				    hz);
 			goto tryagain;
 		}
 
@@ -622,12 +554,13 @@ tryagain:
 		if (error == ESTALE)
 			nfs_purgecache(vp);
 		/*
-		 * Skip wcc data on NFS errors for now. NetApp filers
+		 * Skip wcc data on NFS errors for now.  NetApp filers
 		 * return corrupt postop attrs in the wcc data for NFS
-		 * err EROFS. Not sure if they could return corrupt
+		 * err EROFS.  Not sure if they could return corrupt
 		 * postop attrs for others errors.
 		 */
-		if ((nmp->nm_flag & NFSMNT_NFSV3) && !nfs_skip_wcc_data_onerr) {
+		if ((nmp->nm_flag & NFSMNT_NFSV3) &&
+		    !nfs_skip_wcc_data_onerr) {
 			*mrp = mrep;
 			*mdp = md;
 			*dposp = dpos;
@@ -689,7 +622,7 @@ nfsmout:
 
 /*
  * Mark all of an nfs mount's outstanding requests with R_SOFTTERM and
- * wait for all requests to complete. This is used by forced unmounts
+ * wait for all requests to complete.  This is used by forced unmounts
  * to terminate any outstanding RPCs.
  */
 int
@@ -703,7 +636,7 @@ nfs_nmcancelreqs(struct nfsmount *nmp)
 
 /*
  * Any signal that can interrupt an NFS operation in an intr mount
- * should be added to this set. SIGSTOP and SIGKILL cannot be masked.
+ * should be added to this set.  SIGSTOP and SIGKILL cannot be masked.
  */
 int nfs_sig_set[] = {
 	SIGINT,
@@ -722,16 +655,16 @@ static int
 nfs_sig_pending(sigset_t set)
 {
 	int i;
-	
+
 	for (i = 0 ; i < sizeof(nfs_sig_set)/sizeof(int) ; i++)
 		if (SIGISMEMBER(set, nfs_sig_set[i]))
 			return (1);
 	return (0);
 }
- 
+
 /*
  * The set/restore sigmask functions are used to (temporarily) overwrite
- * the process p_sigmask during an RPC call (for example). These are also
+ * the process p_sigmask during an RPC call (for example).  These are also
  * used in other places in the NFS client that might tsleep().
  */
 void
@@ -740,18 +673,18 @@ nfs_set_sigmask(struct thread *td, sigset_t *oldset)
 	sigset_t newset;
 	int i;
 	struct proc *p;
-	
+
 	SIGFILLSET(newset);
 	if (td == NULL)
 		td = curthread; /* XXX */
 	p = td->td_proc;
-	/* Remove the NFS set of signals from newset */
+	/* Remove the NFS set of signals from newset. */
 	PROC_LOCK(p);
 	mtx_lock(&p->p_sigacts->ps_mtx);
 	for (i = 0 ; i < sizeof(nfs_sig_set)/sizeof(int) ; i++) {
 		/*
 		 * But make sure we leave the ones already masked
-		 * by the process, ie. remove the signal from the
+		 * by the process, i.e. remove the signal from the
 		 * temporary signalmask only if it wasn't already
 		 * in p_sigmask.
 		 */
@@ -777,12 +710,13 @@ nfs_restore_sigmask(struct thread *td, sigset_t *set)
  * old one after msleep() returns.
  */
 int
-nfs_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority, char *wmesg, int timo)
+nfs_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority,
+    char *wmesg, int timo)
 {
 	sigset_t oldset;
 	int error;
 	struct proc *p;
-	
+
 	if ((priority & PCATCH) == 0)
 		return msleep(ident, mtx, priority, wmesg, timo);
 	if (td == NULL)
@@ -803,7 +737,7 @@ nfs_sigintr(struct nfsmount *nmp, struct thread *td)
 {
 	struct proc *p;
 	sigset_t tmpset;
-	
+
 	/* Terminate all requests while attempting a forced unmount. */
 	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
 		return (EIO);
@@ -834,12 +768,11 @@ nfs_msg(struct thread *td, const char *server, const char *msg, int error)
 	struct proc *p;
 
 	p = td ? td->td_proc : NULL;
-	if (error) {
+	if (error)
 		tprintf(p, LOG_INFO, "nfs server %s: %s, error %d\n", server,
 		    msg, error);
-	} else {
+	else
 		tprintf(p, LOG_INFO, "nfs server %s: %s\n", server, msg);
-	}
 	return (0);
 }
 
@@ -858,7 +791,8 @@ nfs_down(struct nfsmount *nmp, struct thread *td, const char *msg,
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 	mtx_lock(&nmp->nm_mtx);
-	if ((flags & NFSSTA_LOCKTIMEO) && !(nmp->nm_state & NFSSTA_LOCKTIMEO)) {
+	if ((flags & NFSSTA_LOCKTIMEO) &&
+	    !(nmp->nm_state & NFSSTA_LOCKTIMEO)) {
 		nmp->nm_state |= NFSSTA_LOCKTIMEO;
 		mtx_unlock(&nmp->nm_mtx);
 		vfs_event_signal(&nmp->nm_mountp->mnt_stat.f_fsid,
@@ -874,9 +808,8 @@ nfs_up(struct nfsmount *nmp, struct thread *td, const char *msg,
 {
 	if (nmp == NULL)
 		return;
-	if (tprintfmsg) {
+	if (tprintfmsg)
 		nfs_msg(td, nmp->nm_mountp->mnt_stat.f_mntfromname, msg, 0);
-	}
 
 	mtx_lock(&nmp->nm_mtx);
 	if ((flags & NFSSTA_TIMEO) && (nmp->nm_state & NFSSTA_TIMEO)) {
@@ -886,9 +819,10 @@ nfs_up(struct nfsmount *nmp, struct thread *td, const char *msg,
 		    VQ_NOTRESP, 1);
 	} else
 		mtx_unlock(&nmp->nm_mtx);
-	
+
 	mtx_lock(&nmp->nm_mtx);
-	if ((flags & NFSSTA_LOCKTIMEO) && (nmp->nm_state & NFSSTA_LOCKTIMEO)) {
+	if ((flags & NFSSTA_LOCKTIMEO) &&
+	    (nmp->nm_state & NFSSTA_LOCKTIMEO)) {
 		nmp->nm_state &= ~NFSSTA_LOCKTIMEO;
 		mtx_unlock(&nmp->nm_mtx);
 		vfs_event_signal(&nmp->nm_mountp->mnt_stat.f_fsid,

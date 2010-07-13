@@ -165,6 +165,7 @@ ndisusb_attach(device_t self)
 	driver_object		*drv;
 	int			devidx = 0;
 
+	device_set_usb_desc(self);
 	db = uaa->driver_ivar;
 	sc = (struct ndis_softc *)dummy;
 	sc->ndis_dev = self;
@@ -204,7 +205,7 @@ ndisusb_detach(device_t self)
 {
 	int i;
 	struct ndis_softc       *sc = device_get_softc(self);
-	struct ndisusb_ep	*ne;;
+	struct ndisusb_ep	*ne;
 
 	sc->ndisusb_status |= NDISUSB_STATUS_DETACH;
 

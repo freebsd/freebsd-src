@@ -192,10 +192,6 @@ tap_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if (i) {
 		dev = make_dev(&tap_cdevsw, unit | extra,
 		     UID_ROOT, GID_WHEEL, 0600, "%s%d", ifc->ifc_name, unit);
-		if (dev != NULL) {
-			dev_ref(dev);
-			dev->si_flags |= SI_CHEAPCLONE;
-		}
 	}
 
 	tapcreate(dev);
@@ -300,6 +296,7 @@ tapmodevent(module_t mod, int type, void *data)
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
 		if_clone_detach(&tap_cloner);
 		if_clone_detach(&vmnet_cloner);
+		drain_dev_clone_events();
 
 		mtx_lock(&tapmtx);
 		while ((tp = SLIST_FIRST(&taphead)) != NULL) {
@@ -381,12 +378,8 @@ tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **d
 			name = devname;
 		}
 
-		*dev = make_dev(&tap_cdevsw, unit | extra,
-		     UID_ROOT, GID_WHEEL, 0600, "%s", name);
-		if (*dev != NULL) {
-			dev_ref(*dev);
-			(*dev)->si_flags |= SI_CHEAPCLONE;
-		}
+		*dev = make_dev_credf(MAKEDEV_REF, &tap_cdevsw, unit | extra,
+		     cred, UID_ROOT, GID_WHEEL, 0600, "%s", name);
 	}
 
 	if_clone_create(name, namelen, NULL);
@@ -450,6 +443,8 @@ tapcreate(struct cdev *dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	dev->si_drv1 = tp;
 	tp->tap_dev = dev;
@@ -509,6 +504,7 @@ tapopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	if (tapuponopen)
 		ifp->if_flags |= IFF_UP;
+	if_link_state_change(ifp, LINK_STATE_UP);
 	splx(s);
 
 	TAPDEBUG("%s is open. minor = %#x\n", ifp->if_xname, dev2unit(dev));
@@ -554,6 +550,7 @@ tapclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	} else
 		mtx_unlock(&tp->tap_mtx);
 
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 	funsetown(&tp->tap_sigio);
 	selwakeuppri(&tp->tap_rsel, PZERO+1);
 	KNOTE_UNLOCKED(&tp->tap_rsel.si_note, 0);

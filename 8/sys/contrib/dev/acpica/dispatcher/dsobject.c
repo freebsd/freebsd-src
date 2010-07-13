@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -365,7 +365,7 @@ AcpiDsBuildInternalBufferObj (
         if (ByteList->Common.AmlOpcode != AML_INT_BYTELIST_OP)
         {
             ACPI_ERROR ((AE_INFO,
-                "Expecting bytelist, got AML opcode %X in op %p",
+                "Expecting bytelist, found AML opcode 0x%X in op %p",
                 ByteList->Common.AmlOpcode, ByteList));
 
             AcpiUtRemoveReference (ObjDesc);
@@ -570,23 +570,36 @@ AcpiDsBuildInternalPackageObj (
     {
         /*
          * NumElements was exhausted, but there are remaining elements in the
-         * PackageList.
+         * PackageList. Truncate the package to NumElements.
          *
          * Note: technically, this is an error, from ACPI spec: "It is an error
          * for NumElements to be less than the number of elements in the
-         * PackageList". However, for now, we just print an error message and
-         * no exception is returned.
+         * PackageList". However, we just print a message and
+         * no exception is returned. This provides Windows compatibility. Some
+         * BIOSs will alter the NumElements on the fly, creating this type
+         * of ill-formed package object.
          */
         while (Arg)
         {
+            /*
+             * We must delete any package elements that were created earlier
+             * and are not going to be used because of the package truncation.
+             */
+            if (Arg->Common.Node)
+            {
+                AcpiUtRemoveReference (
+                    ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Arg->Common.Node));
+                Arg->Common.Node = NULL;
+            }
+
             /* Find out how many elements there really are */
 
             i++;
             Arg = Arg->Common.Next;
         }
 
-        ACPI_ERROR ((AE_INFO,
-            "Package List length (%X) larger than NumElements count (%X), truncated\n",
+        ACPI_INFO ((AE_INFO,
+            "Actual Package length (%u) is larger than NumElements field (%u), truncated\n",
             i, ElementCount));
     }
     else if (i < ElementCount)
@@ -596,7 +609,7 @@ AcpiDsBuildInternalPackageObj (
          * Note: this is not an error, the package is padded out with NULLs.
          */
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "Package List length (%X) smaller than NumElements count (%X), padded with null elements\n",
+            "Package List length (%u) smaller than NumElements count (%u), padded with null elements\n",
             i, ElementCount));
     }
 
@@ -774,7 +787,7 @@ AcpiDsInitObjectFromOp (
 
             case AML_ONES_OP:
 
-                ObjDesc->Integer.Value = ACPI_INTEGER_MAX;
+                ObjDesc->Integer.Value = ACPI_UINT64_MAX;
 
                 /* Truncate value if we are executing from a 32-bit ACPI table */
 
@@ -791,7 +804,7 @@ AcpiDsInitObjectFromOp (
             default:
 
                 ACPI_ERROR ((AE_INFO,
-                    "Unknown constant opcode %X", Opcode));
+                    "Unknown constant opcode 0x%X", Opcode));
                 Status = AE_AML_OPERAND_TYPE;
                 break;
             }
@@ -808,7 +821,7 @@ AcpiDsInitObjectFromOp (
 
 
         default:
-            ACPI_ERROR ((AE_INFO, "Unknown Integer type %X",
+            ACPI_ERROR ((AE_INFO, "Unknown Integer type 0x%X",
                 OpInfo->Type));
             Status = AE_AML_OPERAND_TYPE;
             break;
@@ -889,7 +902,7 @@ AcpiDsInitObjectFromOp (
             default:
 
                 ACPI_ERROR ((AE_INFO,
-                    "Unimplemented reference type for AML opcode: %4.4X", Opcode));
+                    "Unimplemented reference type for AML opcode: 0x%4.4X", Opcode));
                 return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
             }
             break;
@@ -899,7 +912,7 @@ AcpiDsInitObjectFromOp (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unimplemented data type: %X",
+        ACPI_ERROR ((AE_INFO, "Unimplemented data type: 0x%X",
             ObjDesc->Common.Type));
 
         Status = AE_AML_OPERAND_TYPE;

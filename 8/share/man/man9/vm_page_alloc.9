@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2001
+.Dd February 27, 2010
 .Dt VM_PAGE_ALLOC 9
 .Os
 .Sh NAME
@@ -48,16 +48,26 @@ within
 .Fa object .
 It is assumed that a page has not already been allocated at
 .Fa pindex .
-The page returned is inserted into the object, but is not inserted
-into the pmap.
+The page returned is inserted into the object, unless
+.Dv VM_ALLOC_NOOBJ
+is specified in the
+.Fa page_req ,
+but is not inserted into a pmap.
+The page may exists in the vm object cache, in which case it will
+be reactivated instead, moving from the cache into the object page list.
 .Pp
 .Fn vm_page_alloc
-will not block.
+will not sleep.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa page_req"
 .It Fa object
 The VM object to allocate the page for.
+The
+.Fa object
+must be locked if
+.Dv VM_ALLOC_NOOBJ
+is not specified.
 .It Fa pindex
 The index into the object at which the page should be inserted.
 .It Fa page_req
@@ -82,12 +92,24 @@ than zero.
 .It Dv VM_ALLOC_ZERO
 Indicate a preference for a pre-zeroed page.
 There is no guarantee that the page thus returned will be zeroed, but
-it will be marked as such.
+it will be marked by
+.Dv PG_ZERO
+flag if it is zeroed.
 .It Dv VM_ALLOC_NOOBJ
-The page is associated with an unmanaged memory region, that is, there
-is no backing VM object.
-This is typically used to allocate pages within the kernel virtual
-address space.
+Do not associate the allocated page with a vm object.
+The
+.Fa object
+argument is ignored.
+.It Dv VM_ALLOC_NOBUSY
+The page returned will not be busied.
+.It Dv VM_ALLOC_WIRED
+The returned page is wired.
+.It Dv VM_ALLOC_IFNOTCACHED
+Only allocate the page if it is not cached in the
+.Fa object .
+If the page at the specified
+.Fa pindex
+is cached, NULL is returned instead.
 .El
 .El
 .Sh RETURN VALUES

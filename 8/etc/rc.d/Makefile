@@ -12,10 +12,10 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	encswap \
 	fsck ftp-proxy ftpd \
 	gbde geli geli2 gssd \
-	hcsecd \
+	hastd hcsecd \
 	hostapd hostid hostid_save hostname \
 	inetd initrandom \
-	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
+	ip6addrctl ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted \
 	jail \
 	kadmind kerberos keyserv kldxref kpasswdd \
@@ -30,7 +30,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	powerd power_profile ppp pppoed pwcheck \
 	quota \
 	random rarpd resolv rfcomm_pppd_server root \
-	route6d routed routing rpcbind rtadvd rwho \
+	route6d routed routing rpcbind rtadvd rtsold rwho \
 	savecore sdpd securelevel sendmail \
 	serial sppp statd static_arp swap1 \
 	syscons sysctl syslogd \
@@ -48,6 +48,10 @@ FILES+=	sshd
 
 .if ${MK_NS_CACHING} != "no"
 FILES+= nscd
+.endif
+
+.if ${MK_BLUETOOTH} != "no"
+FILES+=	ubthidhci
 .endif
 
 FILESDIR=	/etc/rc.d

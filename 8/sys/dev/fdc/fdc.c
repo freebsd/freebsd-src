@@ -864,7 +864,7 @@ fdc_worker(struct fdc_data *fdc)
 		fd->flags |= FD_NEWDISK;
 		mtx_unlock(&fdc->fdc_mtx);
 		g_topology_lock();
-		g_orphan_provider(fd->fd_provider, EXDEV);
+		g_orphan_provider(fd->fd_provider, ENXIO);
 		fd->fd_provider->flags |= G_PF_WITHER;
 		fd->fd_provider =
 		    g_new_providerf(fd->fd_geom, fd->fd_geom->name);

@@ -88,15 +88,8 @@ struct rt2661_rx_ring {
 	int			next;
 };
 
-struct rt2661_node {
-	struct ieee80211_node	ni;
-	struct ieee80211_amrr_node amrr;
-};
-#define	RT2661_NODE(ni)		((struct rt2661_node *)(ni))
-
 struct rt2661_vap {
 	struct ieee80211vap	ral_vap;
-	struct ieee80211_amrr	amrr;
 
 	int			(*ral_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);

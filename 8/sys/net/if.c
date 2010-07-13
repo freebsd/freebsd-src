@@ -34,6 +34,7 @@
 #include "opt_inet6.h"
 #include "opt_inet.h"
 #include "opt_carp.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -61,6 +62,10 @@
 #include <sys/jail.h>
 #include <machine/stdarg.h>
 #include <vm/uma.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -108,6 +113,18 @@ SYSCTL_INT(_net_link, OID_AUTO, log_link_state_change, CTLFLAG_RW,
 	&log_link_state_change, 0,
 	"log interface link state change events");
 
+/* Interface description */
+static unsigned int ifdescr_maxlen = 1024;
+SYSCTL_UINT(_net, OID_AUTO, ifdescr_maxlen, CTLFLAG_RW,
+	&ifdescr_maxlen, 0,
+	"administrative maximum length for interface description");
+
+MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
+
+/* global sx for non-critical path ifdescr */
+static struct sx ifdescr_sx;
+SX_SYSINIT(ifdescr_sx, &ifdescr_sx, "ifnet descr");
+
 void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
@@ -150,9 +167,11 @@ static void	if_detach_internal(struct ifnet *, int);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
+VNET_DEFINE(int, if_index);
+int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
-VNET_DEFINE(int, if_index);
+
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
@@ -160,8 +179,6 @@ static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
-
-int	ifqmaxlen = IFQ_MAXLEN;
 
 /*
  * The global network interface list (V_ifnet) and related state (such as
@@ -463,6 +480,8 @@ if_free_internal(struct ifnet *ifp)
 #ifdef MAC
 	mac_ifnet_destroy(ifp);
 #endif /* MAC */
+	if (ifp->if_description != NULL)
+		free(ifp->if_description, M_IFDESCR);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	ifq_delete(&ifp->if_snd);
@@ -773,9 +792,10 @@ if_purgeaddrs(struct ifnet *ifp)
 }
 
 /*
- * Remove any multicast network addresses from an interface.
+ * Remove any multicast network addresses from an interface when an ifnet
+ * is going away.
  */
-void
+static void
 if_purgemaddrs(struct ifnet *ifp)
 {
 	struct ifmultiaddr *ifma;
@@ -827,7 +847,8 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	IFNET_WUNLOCK();
 	if (!found) {
 		if (vmove)
-			panic("interface not in it's own ifnet list");
+			panic("%s: ifp=%p not on the ifnet tailq %p",
+			    __func__, ifp, &V_ifnet);
 		else
 			return; /* XXX this should panic as well? */
 	}
@@ -909,14 +930,20 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
 	if_delgroups(ifp);
 
+	/*
+	 * We cannot hold the lock over dom_ifdetach calls as they might
+	 * sleep, for example trying to drain a callout, thus open up the
+	 * theoretical race with re-attaching.
+	 */
 	IF_AFDATA_LOCK(ifp);
-	for (dp = domains; dp; dp = dp->dom_next) {
+	i = ifp->if_afdata_initialized;
+	ifp->if_afdata_initialized = 0;
+	IF_AFDATA_UNLOCK(ifp);
+	for (dp = domains; i > 0 && dp; dp = dp->dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family])
 			(*dp->dom_ifdetach)(ifp,
 			    ifp->if_afdata[dp->dom_family]);
 	}
-	ifp->if_afdata_initialized = 0;
-	IF_AFDATA_UNLOCK(ifp);
 }
 
 #ifdef VIMAGE
@@ -1609,7 +1636,7 @@ done:
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1641,7 +1668,8 @@ ifa_ifwithnet(struct sockaddr *addr)
 
 			if (ifa->ifa_addr->sa_family != af)
 next:				continue;
-			if (af == AF_INET && ifp->if_flags & IFF_POINTOPOINT) {
+			if (af == AF_INET && 
+			    ifp->if_flags & IFF_POINTOPOINT && !ignore_ptp) {
 				/*
 				 * This is a bit broken as it doesn't
 				 * take into account that the remote end may
@@ -1878,19 +1906,12 @@ do_link_state_change(void *arg, int pending)
 {
 	struct ifnet *ifp = (struct ifnet *)arg;
 	int link_state = ifp->if_link_state;
-	int link;
 	CURVNET_SET(ifp->if_vnet);
 
 	/* Notify that the link state has changed. */
 	rt_ifmsg(ifp);
-	if (link_state == LINK_STATE_UP)
-		link = NOTE_LINKUP;
-	else if (link_state == LINK_STATE_DOWN)
-		link = NOTE_LINKDOWN;
-	else
-		link = NOTE_LINKINV;
 	if (ifp->if_vlantrunk != NULL)
-		(*vlan_link_state_p)(ifp, link);
+		(*vlan_link_state_p)(ifp, 0);
 
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
 	    IFP2AC(ifp)->ac_netgraph != NULL)
@@ -2051,6 +2072,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	int error = 0;
 	int new_flags, temp_flags;
 	size_t namelen, onamelen;
+	size_t descrlen;
+	char *descrbuf, *odescrbuf;
 	char new_name[IFNAMSIZ];
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
@@ -2088,6 +2111,59 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	case SIOCGIFPHYS:
 		ifr->ifr_phys = ifp->if_physical;
+		break;
+
+	case SIOCGIFDESCR:
+		error = 0;
+		sx_slock(&ifdescr_sx);
+		if (ifp->if_description == NULL)
+			error = ENOMSG;
+		else {
+			/* space for terminating nul */
+			descrlen = strlen(ifp->if_description) + 1;
+			if (ifr->ifr_buffer.length < descrlen)
+				ifr->ifr_buffer.buffer = NULL;
+			else
+				error = copyout(ifp->if_description,
+				    ifr->ifr_buffer.buffer, descrlen);
+			ifr->ifr_buffer.length = descrlen;
+		}
+		sx_sunlock(&ifdescr_sx);
+		break;
+
+	case SIOCSIFDESCR:
+		error = priv_check(td, PRIV_NET_SETIFDESCR);
+		if (error)
+			return (error);
+
+		/*
+		 * Copy only (length-1) bytes to make sure that
+		 * if_description is always nul terminated.  The
+		 * length parameter is supposed to count the
+		 * terminating nul in.
+		 */
+		if (ifr->ifr_buffer.length > ifdescr_maxlen)
+			return (ENAMETOOLONG);
+		else if (ifr->ifr_buffer.length == 0)
+			descrbuf = NULL;
+		else {
+			descrbuf = malloc(ifr->ifr_buffer.length, M_IFDESCR,
+			    M_WAITOK | M_ZERO);
+			error = copyin(ifr->ifr_buffer.buffer, descrbuf,
+			    ifr->ifr_buffer.length - 1);
+			if (error) {
+				free(descrbuf, M_IFDESCR);
+				break;
+			}
+		}
+
+		sx_xlock(&ifdescr_sx);
+		odescrbuf = ifp->if_description;
+		ifp->if_description = descrbuf;
+		sx_xunlock(&ifdescr_sx);
+
+		getmicrotime(&ifp->if_lastchange);
+		free(odescrbuf, M_IFDESCR);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -2341,6 +2417,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		error = if_setlladdr(ifp,
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
+		EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		break;
 
 	case SIOCAIFGROUP:
@@ -3012,6 +3089,22 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 }
 
 /*
+ * Delete all multicast group membership for an interface.
+ * Should be used to quickly flush all multicast filters.
+ */
+void
+if_delallmulti(struct ifnet *ifp)
+{
+	struct ifmultiaddr *ifma;
+	struct ifmultiaddr *next;
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next)
+		if_delmulti_locked(ifp, ifma, 0);
+	IF_ADDR_UNLOCK(ifp);
+}
+
+/*
  * Delete a multicast group membership by group membership pointer.
  * Network-layer protocol domains must use this routine.
  *
@@ -3315,3 +3408,78 @@ if_deregister_com_alloc(u_char type)
 	if_com_alloc[type] = NULL;
 	if_com_free[type] = NULL;
 }
+
+#ifdef DDB
+static void
+if_show_ifnet(struct ifnet *ifp)
+{
+
+	if (ifp == NULL)
+		return;
+	db_printf("%s:\n", ifp->if_xname);
+#define	IF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, ifp->e);
+	IF_DB_PRINTF("%s", if_dname);
+	IF_DB_PRINTF("%d", if_dunit);
+	IF_DB_PRINTF("%s", if_description);
+	IF_DB_PRINTF("%u", if_index);
+	IF_DB_PRINTF("%u", if_refcount);
+	IF_DB_PRINTF("%p", if_softc);
+	IF_DB_PRINTF("%p", if_l2com);
+	IF_DB_PRINTF("%p", if_vnet);
+	IF_DB_PRINTF("%p", if_home_vnet);
+	IF_DB_PRINTF("%p", if_addr);
+	IF_DB_PRINTF("%p", if_llsoftc);
+	IF_DB_PRINTF("%p", if_label);
+	IF_DB_PRINTF("%u", if_pcount);
+	IF_DB_PRINTF("0x%08x", if_flags);
+	IF_DB_PRINTF("0x%08x", if_drv_flags);
+	IF_DB_PRINTF("0x%08x", if_capabilities);
+	IF_DB_PRINTF("0x%08x", if_capenable);
+	IF_DB_PRINTF("%p", if_snd.ifq_head);
+	IF_DB_PRINTF("%p", if_snd.ifq_tail);
+	IF_DB_PRINTF("%d", if_snd.ifq_len);
+	IF_DB_PRINTF("%d", if_snd.ifq_maxlen);
+	IF_DB_PRINTF("%d", if_snd.ifq_drops);
+	IF_DB_PRINTF("%p", if_snd.ifq_drv_head);
+	IF_DB_PRINTF("%p", if_snd.ifq_drv_tail);
+	IF_DB_PRINTF("%d", if_snd.ifq_drv_len);
+	IF_DB_PRINTF("%d", if_snd.ifq_drv_maxlen);
+	IF_DB_PRINTF("%d", if_snd.altq_type);
+	IF_DB_PRINTF("%x", if_snd.altq_flags);
+#undef IF_DB_PRINTF
+}
+
+DB_SHOW_COMMAND(ifnet, db_show_ifnet)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show ifnet <struct ifnet *>\n");
+		return;
+	}
+
+	if_show_ifnet((struct ifnet *)addr);
+}
+
+DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+	struct ifnet *ifp;
+	u_short idx;
+
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET_QUIET(vnet_iter);
+#ifdef VIMAGE
+		db_printf("vnet=%p\n", curvnet);
+#endif
+		for (idx = 1; idx <= V_if_index; idx++) {
+			ifp = V_ifindex_table[idx].ife_ifnet;
+			if (ifp == NULL)
+				continue;
+			db_printf( "%20s ifp=%p\n", ifp->if_xname, ifp);
+			if (db_pager_quit)
+				break;
+		}
+		CURVNET_RESTORE();
+	}
+}
+#endif

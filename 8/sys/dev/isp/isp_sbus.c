@@ -41,8 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
+#include <machine/ofw_machdep.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 #include <sparc64/sbus/sbusvar.h>
@@ -195,7 +197,7 @@ isp_sbus_attach(device_t dev)
 	isp->isp_revision = 0;	/* XXX */
 	isp->isp_dev = dev;
 	isp->isp_nchan = 1;
-	ISP_SET_PC(isp, 0, role, role);
+	ISP_SET_PC(isp, 0, def_role, role);
 
 	/*
 	 * Get the clock frequency and convert it from HZ to MHz,
@@ -264,11 +266,7 @@ isp_sbus_attach(device_t dev)
 		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
 	}
 	if (default_id == -1) {
-		/*
-		 * XXX: should be a way to get properties w/o having
-		 * XXX: to call OF_xxx functions
-		 */
-		default_id = 7;
+		default_id = OF_getscsinitid(dev);
 	}
 	ISP_SPI_PC(isp, 0)->iid = default_id;
 
@@ -455,13 +453,17 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 		return (1);
 	}
 
-	len = sizeof (XS_T **) * isp->isp_maxcmds;
-	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	len = sizeof (isp_hdl_t *) * isp->isp_maxcmds;
+	isp->isp_xflist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
 		ISP_LOCK(isp);
 		return (1);
 	}
+	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
+		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
+	}
+	isp->isp_xffree = isp->isp_xflist;
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
 
 	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_SBD(isp)), 1,

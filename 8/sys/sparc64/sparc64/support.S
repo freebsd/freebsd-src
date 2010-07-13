@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/ktr.h>
 #include <machine/pcb.h>
 #include <machine/pstate.h>
+#include <machine/wstate.h>
 
 #include "assym.s"
 
@@ -751,11 +752,20 @@ ENTRY(ofw_entry)
 	save	%sp, -CCFSZ, %sp
 	SET(ofw_vec, %l7, %l6)
 	ldx	[%l6], %l6
-	rdpr	%pil, %l7
-	wrpr	%g0, PIL_TICK, %pil
-	call	%l6
+	rdpr	%pstate, %l7
+	andn	%l7, PSTATE_AM | PSTATE_IE, %l5
+	wrpr	%l5, 0, %pstate
+	SET(tba_taken_over, %l5, %l4)
+	brz,pn	%l4, 1f
+	 rdpr	%wstate, %l5
+	andn	%l5, WSTATE_PROM_MASK, %l3
+	wrpr	%l3, WSTATE_PROM_KMIX, %wstate
+1:	call	%l6
 	 mov	%i0, %o0
-	wrpr	%l7, 0, %pil
+	brz,pn	%l4, 1f
+	 nop
+	wrpr	%g0, %l5, %wstate
+1:	wrpr	%l7, 0, %pstate
 	ret
 	 restore %o0, %g0, %o0
 END(ofw_entry)
@@ -766,9 +776,14 @@ END(ofw_entry)
 ENTRY(ofw_exit)
 	save	%sp, -CCFSZ, %sp
 	flushw
-	wrpr	%g0, PIL_TICK, %pil
 	SET(ofw_tba, %l7, %l5)
 	ldx	[%l5], %l5
+	rdpr	%pstate, %l7
+	andn	%l7, PSTATE_AM | PSTATE_IE, %l7
+	wrpr	%l7, 0, %pstate
+	rdpr	%wstate, %l7
+	andn	%l7, WSTATE_PROM_MASK, %l7
+	wrpr	%l7, WSTATE_PROM_KMIX, %wstate
 	wrpr	%l5, 0, %tba			! restore the OFW trap table
 	SET(ofw_vec, %l7, %l6)
 	ldx	[%l6], %l6

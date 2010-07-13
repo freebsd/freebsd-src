@@ -128,6 +128,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
 	struct route iproute;
+	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag = NULL;
@@ -151,14 +152,20 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		bzero(ro, sizeof (*ro));
 
 #ifdef FLOWTABLE
-		/*
-		 * The flow table returns route entries valid for up to 30
-		 * seconds; we rely on the remainder of ip_output() taking no
-		 * longer than that long for the stability of ro_rt.  The
-		 * flow ID assignment must have happened before this point.
-		 */
-		if (flowtable_lookup(V_ip_ft, m, ro, M_GETFIB(m)) == 0)
-			nortfree = 1;
+		{
+			struct flentry *fle;
+			
+			/*
+			 * The flow table returns route entries valid for up to 30
+			 * seconds; we rely on the remainder of ip_output() taking no
+			 * longer than that long for the stability of ro_rt.  The
+			 * flow ID assignment must have happened before this point.
+			 */
+			if ((fle = flowtable_lookup_mbuf(V_ip_ft, m, AF_INET)) != NULL) {
+				flow_to_route(fle, ro);
+				nortfree = 1;
+			}
+		}
 #endif
 	}
 
@@ -199,18 +206,21 @@ again:
 	 * The address family should also be checked in case of sharing the
 	 * cache with IPv6.
 	 */
-	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+	rte = ro->ro_rt;
+	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
+		    rte->rt_ifp == NULL ||
+		    !RT_LINK_IS_UP(rte->rt_ifp) ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
 		if (!nortfree)
-			RTFREE(ro->ro_rt);
-		ro->ro_rt = (struct rtentry *)NULL;
+			RTFREE(rte);
+		rte = ro->ro_rt = (struct rtentry *)NULL;
 		ro->ro_lle = (struct llentry *)NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
-	if (ro->ro_rt == NULL && fwd_tag == NULL) {
+	if (rte == NULL && fwd_tag == NULL) {
 #else
-	if (ro->ro_rt == NULL) {
+	if (rte == NULL) {
 #endif
 		bzero(dst, sizeof(*dst));
 		dst->sin_family = AF_INET;
@@ -237,7 +247,7 @@ again:
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
 		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst)))) == NULL) {
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -260,7 +270,7 @@ again:
 		 * as this is probably required in all cases for correct
 		 * operation (as it is for ARP).
 		 */
-		if (ro->ro_rt == NULL)
+		if (rte == NULL) {
 #ifdef RADIX_MPATH
 			rtalloc_mpath_fib(ro,
 			    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr),
@@ -269,7 +279,11 @@ again:
 			in_rtalloc_ign(ro, 0,
 			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
 #endif
-		if (ro->ro_rt == NULL) {
+			rte = ro->ro_rt;
+		}
+		if (rte == NULL ||
+		    rte->rt_ifp == NULL ||
+		    !RT_LINK_IS_UP(rte->rt_ifp)) {
 #ifdef IPSEC
 			/*
 			 * There is no route for this packet, but it is
@@ -283,14 +297,14 @@ again:
 			error = EHOSTUNREACH;
 			goto bad;
 		}
-		ia = ifatoia(ro->ro_rt->rt_ifa);
+		ia = ifatoia(rte->rt_ifa);
 		ifa_ref(&ia->ia_ifa);
-		ifp = ro->ro_rt->rt_ifp;
-		ro->ro_rt->rt_rmx.rmx_pksent++;
-		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
-			dst = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
-		if (ro->ro_rt->rt_flags & RTF_HOST)
-			isbroadcast = (ro->ro_rt->rt_flags & RTF_BROADCAST);
+		ifp = rte->rt_ifp;
+		rte->rt_rmx.rmx_pksent++;
+		if (rte->rt_flags & RTF_GATEWAY)
+			dst = (struct sockaddr_in *)rte->rt_gateway;
+		if (rte->rt_flags & RTF_HOST)
+			isbroadcast = (rte->rt_flags & RTF_BROADCAST);
 		else
 			isbroadcast = in_broadcast(dst->sin_addr, ifp);
 	}
@@ -298,7 +312,7 @@ again:
 	 * Calculate MTU.  If we have a route that is up, use that,
 	 * otherwise use the interface's MTU.
 	 */
-	if (ro->ro_rt != NULL && (ro->ro_rt->rt_flags & (RTF_UP|RTF_HOST))) {
+	if (rte != NULL && (rte->rt_flags & (RTF_UP|RTF_HOST))) {
 		/*
 		 * This case can happen if the user changed the MTU
 		 * of an interface after enabling IP on it.  Because
@@ -306,9 +320,9 @@ again:
 		 * them, there is no way for one to update all its
 		 * routes when the MTU is changed.
 		 */
-		if (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)
-			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
-		mtu = ro->ro_rt->rt_rmx.rmx_mtu;
+		if (rte->rt_rmx.rmx_mtu > ifp->if_mtu)
+			rte->rt_rmx.rmx_mtu = ifp->if_mtu;
+		mtu = rte->rt_rmx.rmx_mtu;
 	} else {
 		mtu = ifp->if_mtu;
 	}
@@ -489,12 +503,12 @@ sendit:
 #endif /* IPSEC */
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passout;
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	error = pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
+	error = pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
 
@@ -575,7 +589,7 @@ passout:
 	}
 #ifdef SCTP
 	if (sw_csum & CSUM_SCTP) {
-		sctp_delayed_cksum(m);
+		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		sw_csum &= ~CSUM_SCTP;
 	}
 #endif
@@ -717,7 +731,7 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 #ifdef SCTP
 	if (m0->m_pkthdr.csum_flags & CSUM_SCTP &&
 	    (if_hwassist_flags & CSUM_IP_FRAGS) == 0) {
-		sctp_delayed_cksum(m0);
+		sctp_delayed_cksum(m0, hlen);
 		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
 #endif

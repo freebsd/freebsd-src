@@ -171,9 +171,9 @@ struct sbus_softc {
 	void			*sc_pf_ihand;
 };
 
-#define	SYSIO_READ8(sc, off) \
+#define	SYSIO_READ8(sc, off)						\
 	bus_read_8((sc)->sc_sysio_res, (off))
-#define	SYSIO_WRITE8(sc, off, v) \
+#define	SYSIO_WRITE8(sc, off, v)					\
 	bus_write_8((sc)->sc_sysio_res, (off), (v))
 
 static device_probe_t sbus_probe;
@@ -697,7 +697,7 @@ sbus_intr_clear(void *arg)
 	struct intr_vector *iv = arg;
 	struct sbus_icarg *sica = iv->iv_icarg;
 
-	SYSIO_WRITE8(sica->sica_sc, sica->sica_clr, 0);
+	SYSIO_WRITE8(sica->sica_sc, sica->sica_clr, INTCLR_IDLE);
 }
 
 static int

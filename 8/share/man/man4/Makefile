@@ -29,8 +29,10 @@ MAN=	aac.4 \
 	aio.4 \
 	alc.4 \
 	ale.4 \
+	alpm.4 \
 	altq.4 \
 	amd.4 \
+	amdpm.4 \
 	${_amdsmb.4} \
 	${_amdtemp.4} \
 	amr.4 \
@@ -58,6 +60,7 @@ MAN=	aac.4 \
 	bridge.4 \
 	bt.4 \
 	bwi.4 \
+	bwn.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
@@ -86,6 +89,7 @@ MAN=	aac.4 \
 	digi.4 \
 	disc.4 \
 	divert.4 \
+	${_dpms.4} \
 	dpt.4 \
 	dummynet.4 \
 	ed.4 \
@@ -117,6 +121,7 @@ MAN=	aac.4 \
 	geom_linux_lvm.4 \
 	geom_uzip.4 \
 	gif.4 \
+	gpib.4 \
 	gre.4 \
 	harp.4 \
 	hatm.4 \
@@ -153,10 +158,12 @@ MAN=	aac.4 \
 	ips.4 \
 	ipsec.4 \
 	ipw.4 \
+	ipwfw.4 \
 	iscsi_initiator.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
+	iwifw.4 \
 	iwn.4 \
 	iwnfw.4 \
 	ixgb.4 \
@@ -193,6 +200,7 @@ MAN=	aac.4 \
 	mac_stub.4 \
 	mac_test.4 \
 	malo.4 \
+	mcd.4 \
 	md.4 \
 	mem.4 \
 	meteor.4 \
@@ -210,6 +218,7 @@ MAN=	aac.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
+	mvs.4 \
 	mwl.4 \
 	mwlfw.4 \
 	mxge.4 \
@@ -263,6 +272,7 @@ MAN=	aac.4 \
 	ng_nat.4 \
 	ng_netflow.4 \
 	ng_one2many.4 \
+	ng_patch.4 \
 	ng_ppp.4 \
 	ng_pppoe.4 \
 	ng_pptpgre.4 \
@@ -287,16 +297,20 @@ MAN=	aac.4 \
 	nsp.4 \
 	null.4 \
 	${_nve.4} \
+	${_nvram.4} \
 	${_nxge.4} \
 	ohci.4 \
 	orm.4 \
+	${_padlock.4} \
 	pass.4 \
 	patm.4 \
 	pccard.4 \
 	pccbb.4 \
+	pcf.4 \
 	pci.4 \
 	pcib.4 \
 	pcic.4 \
+	pcii.4 \
 	pcm.4 \
 	pcn.4 \
 	pim.4 \
@@ -325,6 +339,7 @@ MAN=	aac.4 \
 	sbp.4 \
 	sbp_targ.4 \
 	scc.4 \
+	scd.4 \
 	sched_4bsd.4 \
 	sched_ule.4 \
 	screen.4 \
@@ -334,6 +349,7 @@ MAN=	aac.4 \
 	sem.4 \
 	ses.4 \
 	sf.4 \
+	sge.4 \
 	si.4 \
 	sio.4 \
 	siis.4 \
@@ -394,6 +410,7 @@ MAN=	aac.4 \
 	textdump.4 \
 	ti.4 \
 	tl.4 \
+	tnt4882.4 \
 	trm.4 \
 	tty.4 \
 	tun.4 \
@@ -415,6 +432,7 @@ MAN=	aac.4 \
 	udav.4 \
 	udbp.4 \
 	udp.4 \
+	uep.4 \
 	ufm.4 \
 	ufoma.4 \
 	uftdi.4 \
@@ -442,6 +460,7 @@ MAN=	aac.4 \
 	uvscom.4 \
 	vga.4 \
 	vge.4 \
+	viapm.4 \
 	vinum.4 \
 	vkbd.4 \
 	vlan.4 \
@@ -615,6 +634,7 @@ _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
+_dpms.4=	dpms.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
@@ -633,7 +653,9 @@ _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
+_nvram.4=	nvram.4
 _nxge.4=	nxge.4
+_padlock.4=	padlock.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4

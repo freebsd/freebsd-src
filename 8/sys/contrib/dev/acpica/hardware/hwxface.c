@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -157,9 +157,23 @@ AcpiReset (
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
-    /* Write the reset value to the reset register */
+    if (ResetReg->SpaceId == ACPI_ADR_SPACE_SYSTEM_IO)
+    {
+        /*
+         * For I/O space, write directly to the OSL. This bypasses the port
+         * validation mechanism, which may block a valid write to the reset
+         * register.
+         */
+        Status = AcpiOsWritePort ((ACPI_IO_ADDRESS) ResetReg->Address,
+                    AcpiGbl_FADT.ResetValue, ResetReg->BitWidth);
+    }
+    else
+    {
+        /* Write the reset value to the reset register */
 
-    Status = AcpiWrite (AcpiGbl_FADT.ResetValue, ResetReg);
+        Status = AcpiHwWrite (AcpiGbl_FADT.ResetValue, ResetReg);
+    }
+
     return_ACPI_STATUS (Status);
 }
 
@@ -177,13 +191,20 @@ ACPI_EXPORT_SYMBOL (AcpiReset)
  *
  * DESCRIPTION: Read from either memory or IO space.
  *
+ * LIMITATIONS: <These limitations also apply to AcpiWrite>
+ *      BitWidth must be exactly 8, 16, 32, or 64.
+ *      SpaceID must be SystemMemory or SystemIO.
+ *      BitOffset and AccessWidth are currently ignored, as there has
+ *          not been a need to implement these.
+ *
  ******************************************************************************/
 
 ACPI_STATUS
 AcpiRead (
-    UINT32                  *Value,
+    UINT64                  *ReturnValue,
     ACPI_GENERIC_ADDRESS    *Reg)
 {
+    UINT32                  Value;
     UINT32                  Width;
     UINT64                  Address;
     ACPI_STATUS             Status;
@@ -192,63 +213,85 @@ AcpiRead (
     ACPI_FUNCTION_NAME (AcpiRead);
 
 
-    /*
-     * Must have a valid pointer to a GAS structure, and a non-zero address
-     * within.
-     */
-    if (!Reg)
+    if (!ReturnValue)
     {
         return (AE_BAD_PARAMETER);
     }
 
-    /* Get a local copy of the address. Handles possible alignment issues */
+    /* Validate contents of the GAS register. Allow 64-bit transfers */
 
-    ACPI_MOVE_64_TO_64 (&Address, &Reg->Address);
-    if (!Address)
+    Status = AcpiHwValidateRegister (Reg, 64, &Address);
+    if (ACPI_FAILURE (Status))
     {
-        return (AE_BAD_ADDRESS);
+        return (Status);
     }
-
-    /* Supported widths are 8/16/32 */
 
     Width = Reg->BitWidth;
-    if ((Width != 8) && (Width != 16) && (Width != 32))
+    if (Width == 64)
     {
-        return (AE_SUPPORT);
+        Width = 32; /* Break into two 32-bit transfers */
     }
 
-    /* Initialize entire 32-bit return value to zero */
+    /* Initialize entire 64-bit return value to zero */
 
-    *Value = 0;
+    *ReturnValue = 0;
+    Value = 0;
 
     /*
      * Two address spaces supported: Memory or IO. PCI_Config is
      * not supported here because the GAS structure is insufficient
      */
-    switch (Reg->SpaceId)
+    if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
     {
-    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+        Status = AcpiOsReadMemory ((ACPI_PHYSICAL_ADDRESS)
+                    Address, &Value, Width);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+        *ReturnValue = Value;
 
-        Status = AcpiOsReadMemory (
-                    (ACPI_PHYSICAL_ADDRESS) Address, Value, Width);
-        break;
+        if (Reg->BitWidth == 64)
+        {
+            /* Read the top 32 bits */
 
+            Status = AcpiOsReadMemory ((ACPI_PHYSICAL_ADDRESS)
+                        (Address + 4), &Value, 32);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+            *ReturnValue |= ((UINT64) Value << 32);
+        }
+    }
+    else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
+    {
+        Status = AcpiHwReadPort ((ACPI_IO_ADDRESS)
+                    Address, &Value, Width);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+        *ReturnValue = Value;
 
-    case ACPI_ADR_SPACE_SYSTEM_IO:
+        if (Reg->BitWidth == 64)
+        {
+            /* Read the top 32 bits */
 
-        Status = AcpiHwReadPort ((ACPI_IO_ADDRESS) Address, Value, Width);
-        break;
-
-
-    default:
-        ACPI_ERROR ((AE_INFO,
-            "Unsupported address space: %X", Reg->SpaceId));
-        return (AE_BAD_PARAMETER);
+            Status = AcpiHwReadPort ((ACPI_IO_ADDRESS)
+                        (Address + 4), &Value, 32);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+            *ReturnValue |= ((UINT64) Value << 32);
+        }
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO,
-        "Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
-        *Value, Width, ACPI_FORMAT_UINT64 (Address),
+        "Read:  %8.8X%8.8X width %2d from %8.8X%8.8X (%s)\n",
+        ACPI_FORMAT_UINT64 (*ReturnValue), Reg->BitWidth,
+        ACPI_FORMAT_UINT64 (Address),
         AcpiUtGetRegionName (Reg->SpaceId)));
 
     return (Status);
@@ -261,7 +304,7 @@ ACPI_EXPORT_SYMBOL (AcpiRead)
  *
  * FUNCTION:    AcpiWrite
  *
- * PARAMETERS:  Value               - To be written
+ * PARAMETERS:  Value               - Value to be written
  *              Reg                 - GAS register structure
  *
  * RETURN:      Status
@@ -272,7 +315,7 @@ ACPI_EXPORT_SYMBOL (AcpiRead)
 
 ACPI_STATUS
 AcpiWrite (
-    UINT32                  Value,
+    UINT64                  Value,
     ACPI_GENERIC_ADDRESS    *Reg)
 {
     UINT32                  Width;
@@ -283,60 +326,67 @@ AcpiWrite (
     ACPI_FUNCTION_NAME (AcpiWrite);
 
 
-    /*
-     * Must have a valid pointer to a GAS structure, and a non-zero address
-     * within.
-     */
-    if (!Reg)
+    /* Validate contents of the GAS register. Allow 64-bit transfers */
+
+    Status = AcpiHwValidateRegister (Reg, 64, &Address);
+    if (ACPI_FAILURE (Status))
     {
-        return (AE_BAD_PARAMETER);
+        return (Status);
     }
-
-    /* Get a local copy of the address. Handles possible alignment issues */
-
-    ACPI_MOVE_64_TO_64 (&Address, &Reg->Address);
-    if (!Address)
-    {
-        return (AE_BAD_ADDRESS);
-    }
-
-    /* Supported widths are 8/16/32 */
 
     Width = Reg->BitWidth;
-    if ((Width != 8) && (Width != 16) && (Width != 32))
+    if (Width == 64)
     {
-        return (AE_SUPPORT);
+        Width = 32; /* Break into two 32-bit transfers */
     }
 
     /*
-     * Two address spaces supported: Memory or IO.
-     * PCI_Config is not supported here because the GAS struct is insufficient
+     * Two address spaces supported: Memory or IO. PCI_Config is
+     * not supported here because the GAS structure is insufficient
      */
-    switch (Reg->SpaceId)
+    if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
     {
-    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+        Status = AcpiOsWriteMemory ((ACPI_PHYSICAL_ADDRESS)
+                    Address, ACPI_LODWORD (Value), Width);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
 
-        Status = AcpiOsWriteMemory (
-                    (ACPI_PHYSICAL_ADDRESS) Address, Value, Width);
-        break;
+        if (Reg->BitWidth == 64)
+        {
+            Status = AcpiOsWriteMemory ((ACPI_PHYSICAL_ADDRESS)
+                        (Address + 4), ACPI_HIDWORD (Value), 32);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+        }
+    }
+    else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
+    {
+        Status = AcpiHwWritePort ((ACPI_IO_ADDRESS)
+                    Address, ACPI_LODWORD (Value), Width);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
 
-
-    case ACPI_ADR_SPACE_SYSTEM_IO:
-
-        Status = AcpiHwWritePort (
-                    (ACPI_IO_ADDRESS) Address, Value, Width);
-        break;
-
-
-    default:
-        ACPI_ERROR ((AE_INFO,
-            "Unsupported address space: %X", Reg->SpaceId));
-        return (AE_BAD_PARAMETER);
+        if (Reg->BitWidth == 64)
+        {
+            Status = AcpiHwWritePort ((ACPI_IO_ADDRESS)
+                        (Address + 4), ACPI_HIDWORD (Value), 32);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+        }
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO,
-        "Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
-        Value, Width, ACPI_FORMAT_UINT64 (Address),
+        "Wrote: %8.8X%8.8X width %2d   to %8.8X%8.8X (%s)\n",
+        ACPI_FORMAT_UINT64 (Value), Reg->BitWidth,
+        ACPI_FORMAT_UINT64 (Address),
         AcpiUtGetRegionName (Reg->SpaceId)));
 
     return (Status);

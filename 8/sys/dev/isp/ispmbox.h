@@ -26,6 +26,7 @@
  *  SUCH DAMAGE.
  * 
  */
+
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  */
@@ -222,6 +223,8 @@
 #define	ASYNC_SECURITY_UPDATE		0x801B
 #define	ASYNC_CMD_CMPLT			0x8020
 #define	ASYNC_CTIO_DONE			0x8021
+#define	ASYNC_RIO32_1			0x8021
+#define	ASYNC_RIO32_2			0x8022
 #define	ASYNC_IP_XMIT_DONE		0x8022
 #define	ASYNC_IP_RECV_DONE		0x8023
 #define	ASYNC_IP_BROADCAST		0x8024
@@ -229,27 +232,53 @@
 #define	ASYNC_IP_RCVQ_EMPTY		0x8026
 #define	ASYNC_IP_RECV_DONE_ALIGNED	0x8027
 #define	ASYNC_PTPMODE			0x8030
-#define	ASYNC_RIO1			0x8031
-#define	ASYNC_RIO2			0x8032
-#define	ASYNC_RIO3			0x8033
-#define	ASYNC_RIO4			0x8034
-#define	ASYNC_RIO5			0x8035
+#define	ASYNC_RIO16_1			0x8031
+#define	ASYNC_RIO16_2			0x8032
+#define	ASYNC_RIO16_3			0x8033
+#define	ASYNC_RIO16_4			0x8034
+#define	ASYNC_RIO16_5			0x8035
 #define	ASYNC_CONNMODE			0x8036
 #define		ISP_CONN_LOOP		1
 #define		ISP_CONN_PTP		2
 #define		ISP_CONN_BADLIP		3
 #define		ISP_CONN_FATAL		4
 #define		ISP_CONN_LOOPBACK	5
-#define	ASYNC_RIO_RESP			0x8040
-#define	ASYNC_RIO_COMP			0x8042
+#define	ASYNC_RIOZIO_STALL		0x8040	/* there's a RIO/ZIO entry that hasn't been serviced */
+#define	ASYNC_RIO32_2_2200		0x8042	/* same as ASYNC_RIO32_2, but for 2100/2200 */
 #define	ASYNC_RCV_ERR			0x8048
 
+/*
+ * Firmware Options. There are a lot of them.
+ *
+ * IFCOPTN - ISP Fibre Channel Option Word N
+ */
+#define	IFCOPT1_EQFQASYNC	(1 << 13)	/* enable QFULL notification */
+#define	IFCOPT1_EAABSRCVD	(1 << 12)
+#define	IFCOPT1_RJTASYNC	(1 << 11)	/* enable 8018 notification */
+#define	IFCOPT1_ENAPURE		(1 << 10)
+#define	IFCOPT1_ENA8017		(1 << 7)
+#define	IFCOPT1_DISGPIO67	(1 << 6)
+#define	IFCOPT1_LIPLOSSIMM	(1 << 5)
+#define	IFCOPT1_DISF7SWTCH	(1 << 4)
+#define	IFCOPT1_CTIO_RETRY	(1 << 3)
+#define	IFCOPT1_LIPASYNC	(1 << 1)
+#define	IFCOPT1_LIPF8		(1 << 0)
+
+#define	IFCOPT2_LOOPBACK	(1 << 1)
+#define	IFCOPT2_ATIO3_ONLY	(1 << 0)
+
+#define	IFCOPT3_NOPRLI		(1 << 4)	/* disable automatic sending of PRLI on local loops */
+#define	IFCOPT3_RNDASYNC	(1 << 1)
 /*
  * 2.01.31 2200 Only. Need Bit 13 in Mailbox 1 for Set Firmware Options
  * mailbox command to enable this.
  */
 #define	ASYNC_QFULL_SENT		0x8049
 
+/*
+ * Needs to be enabled
+ */
+#define	ASYNC_AUTO_PLOGI_RJT		0x8018
 /*
  * 24XX only
  */
@@ -259,11 +288,6 @@
  * All IOCB Queue entries are this size
  */
 #define	QENTRY_LEN			64
-
-/*
- * Special Internal Handle for IOCBs
- */
-#define	ISP_SPCL_HANDLE			0xa5dead5a
 
 /*
  * Command Structure Definitions
@@ -838,7 +862,7 @@ typedef struct {
 	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
 
 /*
- * Reduced Interrupt Operation Response Queue Entreis
+ * Reduced Interrupt Operation Response Queue Entries
  */
 
 typedef struct {

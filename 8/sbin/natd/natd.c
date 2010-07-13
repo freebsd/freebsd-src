@@ -68,7 +68,7 @@ struct instance {
 	int			divertInOut;
 };
 
-static LIST_HEAD(, instance) root = LIST_HEAD_INITIALIZER(&root);
+static LIST_HEAD(, instance) root = LIST_HEAD_INITIALIZER(root);
 
 struct libalias *mla;
 struct instance *mip;

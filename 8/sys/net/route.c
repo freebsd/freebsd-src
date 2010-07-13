@@ -88,15 +88,14 @@ SYSCTL_INT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
     &rt_add_addr_allfibs, 0, "");
 TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
-VNET_DEFINE(struct radix_node_head *, rt_tables);
-static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
-VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 VNET_DEFINE(struct rtstat, rtstat);
-
-#define	V_rt_tables	VNET(rt_tables)
-#define	V_rtzone	VNET(rtzone)
-#define	V_rttrash	VNET(rttrash)
 #define	V_rtstat	VNET(rtstat)
+
+VNET_DEFINE(struct radix_node_head *, rt_tables);
+#define	V_rt_tables	VNET(rt_tables)
+
+VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
+#define	V_rttrash	VNET(rttrash)
 
 
 /* compare two sockaddr structures */
@@ -113,6 +112,9 @@ VNET_DEFINE(struct rtstat, rtstat);
  * do not cast explicitly, but always use the macro below.
  */
 #define RNTORT(p)	((struct rtentry *)(p))
+
+static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
+#define	V_rtzone	VNET(rtzone)
 
 #if 0
 /* default fib for tunnels to use */
@@ -169,13 +171,20 @@ rt_tables_get_rnh(int table, int fam)
 static void
 route_init(void)
 {
+	struct domain *dom;
+	int max_keylen = 0;
 
 	/* whack the tunable ints into  line. */
 	if (rt_numfibs > RT_MAXFIBS)
 		rt_numfibs = RT_MAXFIBS;
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
-	rn_init();	/* initialize all zeroes, all ones, mask table */
+
+	for (dom = domains; dom; dom = dom->dom_next)
+		if (dom->dom_maxrtkey > max_keylen)
+			max_keylen = dom->dom_maxrtkey;
+
+	rn_init(max_keylen);	/* init all zeroes, all ones, mask table */
 }
 SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);
 
@@ -510,7 +519,7 @@ rtredirect_fib(struct sockaddr *dst,
 	}
 
 	/* verify the gateway is directly reachable */
-	if ((ifa = ifa_ifwithnet(gateway)) == NULL) {
+	if ((ifa = ifa_ifwithnet(gateway, 0)) == NULL) {
 		error = ENETUNREACH;
 		goto out;
 	}
@@ -677,7 +686,7 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		ifa = ifa_ifwithdstaddr(gateway);
 	}
 	if (ifa == NULL)
-		ifa = ifa_ifwithnet(gateway);
+		ifa = ifa_ifwithnet(gateway, 0);
 	if (ifa == NULL) {
 		struct rtentry *rt = rtalloc1_fib(gateway, 0, RTF_RNH_LOCKED, fibnum);
 		if (rt == NULL)
@@ -788,7 +797,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK &&
-	    (ifa = ifa_ifwithnet(ifpaddr)) != NULL) {
+	    (ifa = ifa_ifwithnet(ifpaddr, 0)) != NULL) {
 		info->rti_ifp = ifa->ifa_ifp;
 		ifa_free(ifa);
 	}
@@ -823,7 +832,13 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 int
 rtexpunge(struct rtentry *rt)
 {
+#if !defined(RADIX_MPATH)
 	struct radix_node *rn;
+#else
+	struct rt_addrinfo info;
+	int fib;
+	struct rtentry *rt0;
+#endif
 	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	int error = 0;
@@ -836,14 +851,26 @@ rtexpunge(struct rtentry *rt)
 	if (rnh == NULL)
 		return (EAFNOSUPPORT);
 	RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
-#if 0
-	/*
-	 * We cannot assume anything about the reference count
-	 * because protocols call us in many situations; often
-	 * before unwinding references to the table entry.
-	 */
-	KASSERT(rt->rt_refcnt <= 1, ("bogus refcnt %ld", rt->rt_refcnt));
-#endif
+
+#ifdef RADIX_MPATH
+	fib = rt->rt_fibnum;
+	bzero(&info, sizeof(info));
+	info.rti_ifp = rt->rt_ifp;
+	info.rti_flags = RTF_RNH_LOCKED;
+	info.rti_info[RTAX_DST] = rt_key(rt);
+	info.rti_info[RTAX_GATEWAY] = rt->rt_ifa->ifa_addr;
+
+	RT_UNLOCK(rt);
+	error = rtrequest1_fib(RTM_DELETE, &info, &rt0, fib);
+
+	if (error == 0 && rt0 != NULL) {
+		rt = rt0;
+		RT_LOCK(rt);
+	} else if (error != 0) {
+		RT_LOCK(rt);
+		return (error);
+	}
+#else
 	/*
 	 * Remove the item from the tree; it should be there,
 	 * but when callers invoke us blindly it may not (sigh).
@@ -857,6 +884,7 @@ rtexpunge(struct rtentry *rt)
 		("unexpected flags 0x%x", rn->rn_flags));
 	KASSERT(rt == RNTORT(rn),
 		("lookup mismatch, rt %p rn %p", rt, rn));
+#endif /* RADIX_MPATH */
 
 	rt->rt_flags &= ~RTF_UP;
 
@@ -879,7 +907,9 @@ rtexpunge(struct rtentry *rt)
 	 * linked to the routing table.
 	 */
 	V_rttrash++;
+#if !defined(RADIX_MPATH)
 bad:
+#endif
 	return (error);
 }
 
@@ -1037,6 +1067,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			 */
 			if (error != ENOENT)
 				goto bad;
+			error = 0;
 		}
 #endif
 		/*

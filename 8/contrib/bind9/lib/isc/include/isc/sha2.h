@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sha2.h,v 1.9 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: sha2.h,v 1.9.332.2 2010/01/15 23:47:34 tbox Exp $ */
 
 /*	$FreeBSD$	*/
 /*	$KAME: sha2.h,v 1.3 2001/03/12 08:27:48 itojun Exp $	*/
@@ -39,7 +39,7 @@
  * 3. Neither the name of the copyright holder nor the names of contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) AND CONTRIBUTOR(S) ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -104,24 +104,28 @@ typedef isc_sha512_t isc_sha384_t;
 /*** SHA-224/256/384/512 Function Prototypes ******************************/
 
 void isc_sha224_init (isc_sha224_t *);
+void isc_sha224_invalidate (isc_sha224_t *);
 void isc_sha224_update (isc_sha224_t *, const isc_uint8_t *, size_t);
 void isc_sha224_final (isc_uint8_t[ISC_SHA224_DIGESTLENGTH], isc_sha224_t *);
 char *isc_sha224_end (isc_sha224_t *, char[ISC_SHA224_DIGESTSTRINGLENGTH]);
 char *isc_sha224_data (const isc_uint8_t *, size_t, char[ISC_SHA224_DIGESTSTRINGLENGTH]);
 
 void isc_sha256_init (isc_sha256_t *);
+void isc_sha256_invalidate (isc_sha256_t *);
 void isc_sha256_update (isc_sha256_t *, const isc_uint8_t *, size_t);
 void isc_sha256_final (isc_uint8_t[ISC_SHA256_DIGESTLENGTH], isc_sha256_t *);
 char *isc_sha256_end (isc_sha256_t *, char[ISC_SHA256_DIGESTSTRINGLENGTH]);
 char *isc_sha256_data (const isc_uint8_t *, size_t, char[ISC_SHA256_DIGESTSTRINGLENGTH]);
 
 void isc_sha384_init (isc_sha384_t *);
+void isc_sha384_invalidate (isc_sha384_t *);
 void isc_sha384_update (isc_sha384_t *, const isc_uint8_t *, size_t);
 void isc_sha384_final (isc_uint8_t[ISC_SHA384_DIGESTLENGTH], isc_sha384_t *);
 char *isc_sha384_end (isc_sha384_t *, char[ISC_SHA384_DIGESTSTRINGLENGTH]);
 char *isc_sha384_data (const isc_uint8_t *, size_t, char[ISC_SHA384_DIGESTSTRINGLENGTH]);
 
 void isc_sha512_init (isc_sha512_t *);
+void isc_sha512_invalidate (isc_sha512_t *);
 void isc_sha512_update (isc_sha512_t *, const isc_uint8_t *, size_t);
 void isc_sha512_final (isc_uint8_t[ISC_SHA512_DIGESTLENGTH], isc_sha512_t *);
 char *isc_sha512_end (isc_sha512_t *, char[ISC_SHA512_DIGESTSTRINGLENGTH]);

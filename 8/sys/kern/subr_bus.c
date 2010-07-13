@@ -539,21 +539,22 @@ devctl_process_running(void)
  * that @p data is allocated using the M_BUS malloc type.
  */
 void
-devctl_queue_data(char *data)
+devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
 	struct proc *p;
 
 	if (strlen(data) == 0)
-		return;
+		goto out;
 	if (devctl_queue_length == 0)
-		return;
-	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
+		goto out;
+	n1 = malloc(sizeof(*n1), M_BUS, flags);
 	if (n1 == NULL)
-		return;
+		goto out;
 	n1->dei_data = data;
 	mtx_lock(&devsoftc.mtx);
 	if (devctl_queue_length == 0) {
+		mtx_unlock(&devsoftc.mtx);
 		free(n1->dei_data, M_BUS);
 		free(n1, M_BUS);
 		return;
@@ -577,14 +578,29 @@ devctl_queue_data(char *data)
 		psignal(p, SIGIO);
 		PROC_UNLOCK(p);
 	}
+	return;
+out:
+	/*
+	 * We have to free data on all error paths since the caller
+	 * assumes it will be free'd when this item is dequeued.
+	 */
+	free(data, M_BUS);
+	return;
+}
+
+void
+devctl_queue_data(char *data)
+{
+
+	devctl_queue_data_f(data, M_NOWAIT);
 }
 
 /**
  * @brief Send a 'notification' to userland, using standard ways
  */
 void
-devctl_notify(const char *system, const char *subsystem, const char *type,
-    const char *data)
+devctl_notify_f(const char *system, const char *subsystem, const char *type,
+    const char *data, int flags)
 {
 	int len = 0;
 	char *msg;
@@ -602,7 +618,7 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 	if (data != NULL)
 		len += strlen(data);
 	len += 3;	/* '!', '\n', and NUL */
-	msg = malloc(len, M_BUS, M_NOWAIT);
+	msg = malloc(len, M_BUS, flags);
 	if (msg == NULL)
 		return;		/* Drop it on the floor */
 	if (data != NULL)
@@ -611,7 +627,15 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 	else
 		snprintf(msg, len, "!system=%s subsystem=%s type=%s\n",
 		    system, subsystem, type);
-	devctl_queue_data(msg);
+	devctl_queue_data_f(msg, flags);
+}
+
+void
+devctl_notify(const char *system, const char *subsystem, const char *type,
+    const char *data)
+{
+
+	devctl_notify_f(system, subsystem, type, data, M_NOWAIT);
 }
 
 /*
@@ -3530,6 +3554,24 @@ bus_generic_config_intr(device_t dev, int irq, enum intr_trigger trig,
 }
 
 /**
+ * @brief Helper function for implementing BUS_DESCRIBE_INTR().
+ *
+ * This simple implementation of BUS_DESCRIBE_INTR() simply calls the
+ * BUS_DESCRIBE_INTR() method of the parent of @p dev.
+ */
+int
+bus_generic_describe_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie, const char *descr)
+{
+
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_DESCRIBE_INTR(dev->parent, child, irq, cookie,
+		    descr));
+	return (EINVAL);
+}
+
+/**
  * @brief Helper function for implementing BUS_GET_DMA_TAG().
  *
  * This simple implementation of BUS_GET_DMA_TAG() simply calls the
@@ -3831,6 +3873,28 @@ bus_bind_intr(device_t dev, struct resource *r, int cpu)
 	if (dev->parent == NULL)
 		return (EINVAL);
 	return (BUS_BIND_INTR(dev->parent, dev, r, cpu));
+}
+
+/**
+ * @brief Wrapper function for BUS_DESCRIBE_INTR().
+ *
+ * This function first formats the requested description into a
+ * temporary buffer and then calls the BUS_DESCRIBE_INTR() method of
+ * the parent of @p dev.
+ */
+int
+bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
+    const char *fmt, ...)
+{
+	va_list ap;
+	char descr[MAXCOMLEN + 1];
+
+	if (dev->parent == NULL)
+		return (EINVAL);
+	va_start(ap, fmt);
+	vsnprintf(descr, sizeof(descr), fmt, ap);
+	va_end(ap);
+	return (BUS_DESCRIBE_INTR(dev->parent, dev, irq, cookie, descr));
 }
 
 /**

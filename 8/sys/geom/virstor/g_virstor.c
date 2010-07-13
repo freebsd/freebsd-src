@@ -311,6 +311,11 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 
 		snprintf(aname, sizeof aname, "arg%d", i);
 		prov_name = gctl_get_asciiparam(req, aname);
+		if (prov_name == NULL) {
+			gctl_error(req, "Error fetching argument '%s'", aname);
+			g_topology_unlock();
+			return;
+		}
 		if (strncmp(prov_name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 			prov_name += strlen(_PATH_DEV);
 
@@ -565,6 +570,10 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 
 		sprintf(param, "arg%d", i);
 		prov_name = gctl_get_asciiparam(req, param);
+		if (prov_name == NULL) {
+			gctl_error(req, "Error fetching argument '%s'", param);
+			return;
+		}
 		if (strncmp(prov_name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 			prov_name += strlen(_PATH_DEV);
 

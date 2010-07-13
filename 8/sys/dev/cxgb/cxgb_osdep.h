@@ -41,9 +41,6 @@ $FreeBSD$
 
 #include <dev/mii/mii.h>
 
-#define	CONFIG_CHELSIO_T3_CORE
-#include <common/cxgb_version.h>
-
 #ifndef _CXGB_OSDEP_H_
 #define _CXGB_OSDEP_H_
 
@@ -90,33 +87,6 @@ struct t3_mbuf_hdr {
 #define	KTR_CXGB	KTR_SPARE2
 
 #define MT_DONTFREE  128
-
-#if __FreeBSD_version > 700030
-#define INTR_FILTERS
-#define FIRMWARE_LATEST
-#endif
-
-#if ((__FreeBSD_version > 602103) && (__FreeBSD_version < 700000))
-#define FIRMWARE_LATEST
-#endif
-
-#if __FreeBSD_version > 700000
-#define MSI_SUPPORTED
-#define TSO_SUPPORTED
-#define VLAN_SUPPORTED
-#define TASKQUEUE_CURRENT
-#else
-#define if_name(ifp) (ifp)->if_xname
-#define M_SANITY(m, n)
-#endif
-
-#if __FreeBSD_version >= 701000
-#include "opt_inet.h"
-#ifdef INET
-#define LRO_SUPPORTED
-#define TOE_SUPPORTED
-#endif
-#endif
 
 #if __FreeBSD_version < 800054
 #if defined (__GNUC__)

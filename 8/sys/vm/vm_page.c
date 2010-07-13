@@ -786,6 +786,31 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 }
 
 /*
+ *	vm_page_find_least:
+ *
+ *	Returns the page associated with the object with least pindex
+ *	greater than or equal to the parameter pindex, or NULL.
+ *
+ *	The object must be locked.
+ *	The routine may not block.
+ */
+vm_page_t
+vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
+{
+	vm_page_t m;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if ((m = TAILQ_FIRST(&object->memq)) != NULL) {
+		if (m->pindex < pindex) {
+			m = vm_page_splay(pindex, object->root);
+			if ((object->root = m)->pindex < pindex)
+				m = TAILQ_NEXT(m, listq);
+		}
+	}
+	return (m);
+}
+
+/*
  *	vm_page_rename:
  *
  *	Move the given memory entry from its
@@ -1020,8 +1045,13 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
  *	VM_ALLOC_SYSTEM		system *really* needs a page
  *	VM_ALLOC_INTERRUPT	interrupt time request
  *	VM_ALLOC_ZERO		zero page
+ *	VM_ALLOC_WIRED		wire the allocated page
+ *	VM_ALLOC_NOOBJ		page is not associated with a vm object
+ *	VM_ALLOC_NOBUSY		do not set the page busy
+ *	VM_ALLOC_IFNOTCACHED	return NULL, do not reactivate if the page
+ *				is cached
  *
- *	This routine may not block.
+ *	This routine may not sleep.
  */
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
@@ -1079,6 +1109,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			return (NULL);
 #if VM_NRESERVLEVEL > 0
 		} else if (object == NULL || object->type == OBJT_DEVICE ||
+		    object->type == OBJT_SG ||
 		    (object->flags & OBJ_COLORED) == 0 ||
 		    (m = vm_reserv_alloc_page(object, pindex)) == NULL) {
 #else

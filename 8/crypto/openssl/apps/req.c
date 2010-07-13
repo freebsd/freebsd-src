@@ -1433,11 +1433,17 @@ start2:			for (;;)
 
 				BIO_snprintf(buf,sizeof buf,"%s_min",type);
 				if (!NCONF_get_number(req_conf,attr_sect,buf, &n_min))
+					{
+					ERR_clear_error();
 					n_min = -1;
+					}
 
 				BIO_snprintf(buf,sizeof buf,"%s_max",type);
 				if (!NCONF_get_number(req_conf,attr_sect,buf, &n_max))
+					{
+					ERR_clear_error();
 					n_max = -1;
+					}
 
 				if (!add_attribute_object(req,
 					v->value,def,value,nid,n_min,n_max, chtype))
@@ -1538,7 +1544,8 @@ start:
 		buf[0]='\0';
 		if (!batch)
 			{
-			fgets(buf,sizeof buf,stdin);
+			if (!fgets(buf,sizeof buf,stdin))
+				return 0;
 			}
 		else
 			{
@@ -1596,7 +1603,8 @@ start:
 		buf[0]='\0';
 		if (!batch)
 			{
-			fgets(buf,sizeof buf,stdin);
+			if (!fgets(buf,sizeof buf,stdin))
+				return 0;
 			}
 		else
 			{

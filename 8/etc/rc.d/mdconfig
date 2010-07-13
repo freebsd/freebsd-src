@@ -49,7 +49,7 @@ is_readonly()
 		*" ${_mp} "*read-only*)
 			echo "yes"
 			;;
-		
+
 		*)
 			;;
 		esac;
@@ -139,7 +139,7 @@ mdconfig_start()
 				if ! eval ${_fsck_cmd} -p ${_dev} >/dev/null; then
 					echo "Fsck failed on ${_dev}, not mounting the filesystem."
 					continue
-					
+
 				fi
 			else
 				newfs ${_newfs} ${_dev} >/dev/null
@@ -194,5 +194,5 @@ if [ -z "${_mdconfig_list}" ]; then
 		fi
 	done
 fi
-	
+
 run_rc_command "${_mdconfig_cmd}"

@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.84 2008/06/26 06:10:09 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.91 2010/01/13 01:40:16 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -69,6 +69,9 @@ Buffer oqueue;
 
 /* Version of client */
 int version;
+
+/* Disable writes */
+int readonly;
 
 /* portable attributes, etc. */
 
@@ -553,16 +556,21 @@ process_open(void)
 	mode = (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) ? a->perm : 0666;
 	logit("open \"%s\" flags %s mode 0%o",
 	    name, string_from_portable(pflags), mode);
-	fd = open(name, flags, mode);
-	if (fd < 0) {
-		status = errno_to_portable(errno);
-	} else {
-		handle = handle_new(HANDLE_FILE, name, fd, NULL);
-		if (handle < 0) {
-			close(fd);
+	if (readonly &&
+	    ((flags & O_ACCMODE) == O_WRONLY || (flags & O_ACCMODE) == O_RDWR))
+		status = SSH2_FX_PERMISSION_DENIED;
+	else {
+		fd = open(name, flags, mode);
+		if (fd < 0) {
+			status = errno_to_portable(errno);
 		} else {
-			send_handle(id, handle);
-			status = SSH2_FX_OK;
+			handle = handle_new(HANDLE_FILE, name, fd, NULL);
+			if (handle < 0) {
+				close(fd);
+			} else {
+				send_handle(id, handle);
+				status = SSH2_FX_OK;
+			}
 		}
 	}
 	if (status != SSH2_FX_OK)
@@ -632,7 +640,7 @@ process_write(void)
 	u_int32_t id;
 	u_int64_t off;
 	u_int len;
-	int handle, fd, ret, status = SSH2_FX_FAILURE;
+	int handle, fd, ret, status;
 	char *data;
 
 	id = get_int();
@@ -643,7 +651,12 @@ process_write(void)
 	debug("request %u: write \"%s\" (handle %d) off %llu len %d",
 	    id, handle_to_name(handle), handle, (unsigned long long)off, len);
 	fd = handle_to_fd(handle);
-	if (fd >= 0) {
+	
+	if (fd < 0)
+		status = SSH2_FX_FAILURE;
+	else if (readonly)
+		status = SSH2_FX_PERMISSION_DENIED;
+	else {
 		if (lseek(fd, off, SEEK_SET) < 0) {
 			status = errno_to_portable(errno);
 			error("process_write: seek failed");
@@ -658,6 +671,7 @@ process_write(void)
 				handle_update_write(handle, ret);
 			} else {
 				debug2("nothing at all written");
+				status = SSH2_FX_FAILURE;
 			}
 		}
 	}
@@ -754,6 +768,10 @@ process_setstat(void)
 	name = get_string(NULL);
 	a = get_attrib();
 	debug("request %u: setstat name \"%s\"", id, name);
+	if (readonly) {
+		status = SSH2_FX_PERMISSION_DENIED;
+		a->flags = 0;
+	}
 	if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
 		logit("set \"%s\" size %llu",
 		    name, (unsigned long long)a->size);
@@ -802,9 +820,11 @@ process_fsetstat(void)
 	a = get_attrib();
 	debug("request %u: fsetstat handle %d", id, handle);
 	fd = handle_to_fd(handle);
-	if (fd < 0) {
+	if (fd < 0)
 		status = SSH2_FX_FAILURE;
-	} else {
+	else if (readonly)
+		status = SSH2_FX_PERMISSION_DENIED;
+	else {
 		char *name = handle_to_name(handle);
 
 		if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
@@ -920,7 +940,7 @@ process_readdir(void)
 				continue;
 			stat_to_attrib(&st, &(stats[count].attrib));
 			stats[count].name = xstrdup(dp->d_name);
-			stats[count].long_name = ls_file(dp->d_name, &st, 0);
+			stats[count].long_name = ls_file(dp->d_name, &st, 0, 0);
 			count++;
 			/* send up to 100 entries in one message */
 			/* XXX check packet size instead */
@@ -952,8 +972,12 @@ process_remove(void)
 	name = get_string(NULL);
 	debug3("request %u: remove", id);
 	logit("remove name \"%s\"", name);
-	ret = unlink(name);
-	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	if (readonly)
+		status = SSH2_FX_PERMISSION_DENIED;
+	else {
+		ret = unlink(name);
+		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	}
 	send_status(id, status);
 	xfree(name);
 }
@@ -973,8 +997,12 @@ process_mkdir(void)
 	    a->perm & 07777 : 0777;
 	debug3("request %u: mkdir", id);
 	logit("mkdir name \"%s\" mode 0%o", name, mode);
-	ret = mkdir(name, mode);
-	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	if (readonly)
+		status = SSH2_FX_PERMISSION_DENIED;
+	else {
+		ret = mkdir(name, mode);
+		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	}
 	send_status(id, status);
 	xfree(name);
 }
@@ -990,8 +1018,12 @@ process_rmdir(void)
 	name = get_string(NULL);
 	debug3("request %u: rmdir", id);
 	logit("rmdir name \"%s\"", name);
-	ret = rmdir(name);
-	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	if (readonly)
+		status = SSH2_FX_PERMISSION_DENIED;
+	else {
+		ret = rmdir(name);
+		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	}
 	send_status(id, status);
 	xfree(name);
 }
@@ -1036,12 +1068,14 @@ process_rename(void)
 	debug3("request %u: rename", id);
 	logit("rename old \"%s\" new \"%s\"", oldpath, newpath);
 	status = SSH2_FX_FAILURE;
-	if (lstat(oldpath, &sb) == -1)
+	if (readonly)
+		status = SSH2_FX_PERMISSION_DENIED;
+	else if (lstat(oldpath, &sb) == -1)
 		status = errno_to_portable(errno);
 	else if (S_ISREG(sb.st_mode)) {
 		/* Race-free rename of regular files */
 		if (link(oldpath, newpath) == -1) {
-			if (errno == EOPNOTSUPP
+			if (errno == EOPNOTSUPP || errno == ENOSYS
 #ifdef EXDEV
 			    || errno == EXDEV
 #endif
@@ -1120,8 +1154,12 @@ process_symlink(void)
 	debug3("request %u: symlink", id);
 	logit("symlink old \"%s\" new \"%s\"", oldpath, newpath);
 	/* this will fail if 'newpath' exists */
-	ret = symlink(oldpath, newpath);
-	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	if (readonly)
+		status = SSH2_FX_PERMISSION_DENIED;
+	else {
+		ret = symlink(oldpath, newpath);
+		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	}
 	send_status(id, status);
 	xfree(oldpath);
 	xfree(newpath);
@@ -1131,15 +1169,19 @@ static void
 process_extended_posix_rename(u_int32_t id)
 {
 	char *oldpath, *newpath;
+	int ret, status;
 
 	oldpath = get_string(NULL);
 	newpath = get_string(NULL);
 	debug3("request %u: posix-rename", id);
 	logit("posix-rename old \"%s\" new \"%s\"", oldpath, newpath);
-	if (rename(oldpath, newpath) == -1)
-		send_status(id, errno_to_portable(errno));
-	else
-		send_status(id, SSH2_FX_OK);
+	if (readonly)
+		status = SSH2_FX_PERMISSION_DENIED;
+	else {
+		ret = rename(oldpath, newpath);
+		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	}
+	send_status(id, status);
 	xfree(oldpath);
 	xfree(newpath);
 }
@@ -1322,7 +1364,8 @@ sftp_server_usage(void)
 	extern char *__progname;
 
 	fprintf(stderr,
-	    "usage: %s [-he] [-l log_level] [-f log_facility]\n", __progname);
+	    "usage: %s [-ehR] [-f log_facility] [-l log_level] [-u umask]\n",
+	    __progname);
 	exit(1);
 }
 
@@ -1334,6 +1377,8 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	ssize_t len, olen, set_size;
 	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
 	char *cp, buf[4*4096];
+	const char *errmsg;
+	mode_t mask;
 
 	extern char *optarg;
 	extern char *__progname;
@@ -1341,8 +1386,11 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	__progname = ssh_get_progname(argv[0]);
 	log_init(__progname, log_level, log_facility, log_stderr);
 
-	while (!skipargs && (ch = getopt(argc, argv, "C:f:l:che")) != -1) {
+	while (!skipargs && (ch = getopt(argc, argv, "f:l:u:cehR")) != -1) {
 		switch (ch) {
+		case 'R':
+			readonly = 1;
+			break;
 		case 'c':
 			/*
 			 * Ignore all arguments if we are invoked as a
@@ -1362,6 +1410,13 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 			log_facility = log_facility_number(optarg);
 			if (log_facility == SYSLOG_FACILITY_NOT_SET)
 				error("Invalid log facility \"%s\"", optarg);
+			break;
+		case 'u':
+			mask = (mode_t)strtonum(optarg, 0, 0777, &errmsg);
+			if (errmsg != NULL)
+				fatal("Invalid umask \"%s\": %s",
+				    optarg, errmsg);
+			(void)umask(mask);
 			break;
 		case 'h':
 		default:
@@ -1387,8 +1442,8 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	logit("session opened for local user %s from [%s]",
 	    pw->pw_name, client_addr);
 
-	in = dup(STDIN_FILENO);
-	out = dup(STDOUT_FILENO);
+	in = STDIN_FILENO;
+	out = STDOUT_FILENO;
 
 #ifdef HAVE_CYGWIN
 	setmode(in, O_BINARY);

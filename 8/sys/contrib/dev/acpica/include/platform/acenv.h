@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -262,11 +262,11 @@
 /* Global Lock acquire/release */
 
 #ifndef ACPI_ACQUIRE_GLOBAL_LOCK
-#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) Acq = 1
+#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acquired) Acquired = 1
 #endif
 
 #ifndef ACPI_RELEASE_GLOBAL_LOCK
-#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq) Acq = 0
+#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Pending) Pending = 0
 #endif
 
 /* Flush CPU cache - used when going to sleep. Wbinvd or similar. */
@@ -424,8 +424,8 @@ typedef char *va_list;
 #define ACPI_MEMCMP(s1,s2,n)    AcpiUtMemcmp((const char *)(s1), (const char *)(s2), (ACPI_SIZE)(n))
 #define ACPI_MEMCPY(d,s,n)      (void) AcpiUtMemcpy ((d), (s), (ACPI_SIZE)(n))
 #define ACPI_MEMSET(d,v,n)      (void) AcpiUtMemset ((d), (v), (ACPI_SIZE)(n))
-#define ACPI_TOUPPER            AcpiUtToUpper
-#define ACPI_TOLOWER            AcpiUtToLower
+#define ACPI_TOUPPER(c)         AcpiUtToUpper ((int) (c))
+#define ACPI_TOLOWER(c)         AcpiUtToLower ((int) (c))
 
 #endif /* ACPI_USE_SYSTEM_CLIBRARY */
 

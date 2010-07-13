@@ -152,7 +152,7 @@ MCARG		[^(), \t]+
 %%
 
 int
-mmwrap()
+mmwrap(void)
 {
 	stop("EOF encountered in macro call", EX_DATAERR);
 	return (1);

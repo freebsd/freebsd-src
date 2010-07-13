@@ -99,13 +99,13 @@ struct oldacl {
  * Current "struct acl".
  */
 struct acl_entry {
-	acl_tag_t	ae_tag;
-	uid_t		ae_id;
-	acl_perm_t	ae_perm;
-	/* "allow" or "deny".  Unused in POSIX ACLs. */
+	acl_tag_t		ae_tag;
+	uid_t			ae_id;
+	acl_perm_t		ae_perm;
+	/* NFSv4 entry type, "allow" or "deny".  Unused in POSIX.1e ACLs. */
 	acl_entry_type_t	ae_entry_type;
-	/* Flags control inheritance.  Unused in POSIX ACLs. */
-	acl_flag_t	ae_flags;
+	/* NFSv4 ACL inheritance.  Unused in POSIX.1e ACLs. */
+	acl_flag_t		ae_flags;
 };
 typedef struct acl_entry	*acl_entry_t;
 

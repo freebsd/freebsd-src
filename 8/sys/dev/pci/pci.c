@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/stdarg.h>
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 #include <machine/intr_machdep.h>
 #endif
 
@@ -274,7 +274,11 @@ TUNABLE_INT("hw.pci.honor_msi_blacklist", &pci_honor_msi_blacklist);
 SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RD,
     &pci_honor_msi_blacklist, 1, "Honor chipset blacklist for MSI");
 
+#if defined(__i386__) || defined(__amd64__)
 static int pci_usb_takeover = 1;
+#else
+static int pci_usb_takeover = 0;
+#endif
 TUNABLE_INT("hw.pci.usb_early_takeover", &pci_usb_takeover);
 SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RD | CTLFLAG_TUN,
     &pci_usb_takeover, 1, "Enable early takeover of USB controllers.\n\
@@ -525,7 +529,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
 #define	WREG(n, v, w)	PCIB_WRITE_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, v, w)
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 	uint64_t addr;
 #endif
 	uint32_t val;
@@ -569,7 +573,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 					cfg->pp.pp_data = ptr + PCIR_POWER_DATA;
 			}
 			break;
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 		case PCIY_HT:		/* HyperTransport */
 			/* Determine HT-specific capability type. */
 			val = REG(ptr + PCIR_HT_COMMAND, 2);
@@ -1590,6 +1594,40 @@ pci_ht_map_msi(device_t dev, uint64_t addr)
 		pci_write_config(dev, ht->ht_msimap + PCIR_HT_COMMAND,
 		    ht->ht_msictrl, 2);
 	}
+}
+
+int
+pci_get_max_read_req(device_t dev)
+{
+	int cap;
+	uint16_t val;
+
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) != 0)
+		return (0);
+	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
+	val &= PCIM_EXP_CTL_MAX_READ_REQUEST;
+	val >>= 12;
+	return (1 << (val + 7));
+}
+
+int
+pci_set_max_read_req(device_t dev, int size)
+{
+	int cap;
+	uint16_t val;
+
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) != 0)
+		return (0);
+	if (size < 128)
+		size = 128;
+	if (size > 4096)
+		size = 4096;
+	size = (1 << (fls(size) - 1));
+	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
+	val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
+	val |= (fls(size) - 8) << 12;
+	pci_write_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
+	return (size);
 }
 
 /*

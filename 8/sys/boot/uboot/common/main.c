@@ -117,6 +117,7 @@ main(void)
 {
 	struct api_signature *sig = NULL;
 	int i;
+	struct open_file f;
 
 	if (!api_search_sig(&sig))
 		return (-1);
@@ -168,18 +169,28 @@ main(void)
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 	meminfo();
 
-	/* XXX only support netbooting for now */
-	for (i = 0; devsw[i] != NULL; i++)
+	for (i = 0; devsw[i] != NULL; i++) {
+		printf("\nDevice %d: %s\n", i, devsw[i]->dv_name);
+
+		currdev.d_dev = devsw[i];
+		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.d_unit = 0;
+
+		if (strncmp(devsw[i]->dv_name, "disk",
+		    strlen(devsw[i]->dv_name)) == 0) {
+			f.f_devdata = &currdev;
+			currdev.d_disk.pnum = 0;
+			if (devsw[i]->dv_open(&f,&currdev) == 0)
+				break;
+		}
+
 		if (strncmp(devsw[i]->dv_name, "net",
 		    strlen(devsw[i]->dv_name)) == 0)
 			break;
+	}
 
 	if (devsw[i] == NULL)
-		panic("no network devices?!");
-
-	currdev.d_dev = devsw[i];
-	currdev.d_type = currdev.d_dev->dv_type;
-	currdev.d_unit = 0;
+		panic("No boot device found!");
 
 	env_setenv("currdev", EV_VOLATILE, uboot_fmtdev(&currdev),
 	    uboot_setcurrdev, env_nounset);

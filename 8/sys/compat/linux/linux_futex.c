@@ -493,7 +493,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			return (error);
 		if (f == NULL) {
 			td->td_retval[0] = 0;
-			return (error);;
+			return (error);
 		}
 		td->td_retval[0] = futex_wake(f, args->val);
 		futex_put(f, NULL);

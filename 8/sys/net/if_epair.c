@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2008 The FreeBSD Foundation
- * Copyright (c) 2009 Bjoern A. Zeeb <bz@FreeBSD.org>
+ * Copyright (c) 2009-2010 Bjoern A. Zeeb <bz@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by CK Software GmbH under sponsorship
@@ -256,6 +256,9 @@ epair_nh_sintr(struct mbuf *m)
 	(*ifp->if_input)(ifp, m);
 	sc = ifp->if_softc;
 	EPAIR_REFCOUNT_RELEASE(&sc->refcount);
+	EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
+	    ("%s: ifp=%p sc->refcount not >= 1: %d",
+	    __func__, ifp, sc->refcount));
 	DPRINTF("ifp=%p refcount=%u\n", ifp, sc->refcount);
 }
 
@@ -292,8 +295,16 @@ epair_nh_drainedcpu(u_int cpuid)
 
 		IFQ_LOCK(&ifp->if_snd);
 		if (IFQ_IS_EMPTY(&ifp->if_snd)) {
+			struct epair_softc *sc;
+
 			STAILQ_REMOVE(&epair_dpcpu->epair_ifp_drain_list,
 			    elm, epair_ifp_drain, ifp_next);
+			/* The cached ifp goes off the list. */
+			sc = ifp->if_softc;
+			EPAIR_REFCOUNT_RELEASE(&sc->refcount);
+			EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
+			    ("%s: ifp=%p sc->refcount not >= 1: %d",
+			    __func__, ifp, sc->refcount));
 			free(elm, M_EPAIR);
 		}
 		IFQ_UNLOCK(&ifp->if_snd);
@@ -312,14 +323,50 @@ epair_nh_drainedcpu(u_int cpuid)
 /*
  * Network interface (`if') related functions.
  */
+static void
+epair_remove_ifp_from_draining(struct ifnet *ifp)
+{
+	struct epair_dpcpu *epair_dpcpu;
+	struct epair_ifp_drain *elm, *tvar;
+	u_int cpuid;
+
+	for (cpuid = 0; cpuid <= mp_maxid; cpuid++) {
+		if (CPU_ABSENT(cpuid))
+			continue;
+
+		epair_dpcpu = DPCPU_ID_PTR(cpuid, epair_dpcpu);
+		EPAIR_LOCK(epair_dpcpu);
+		STAILQ_FOREACH_SAFE(elm, &epair_dpcpu->epair_ifp_drain_list,
+		    ifp_next, tvar) {
+			if (ifp == elm->ifp) {
+				struct epair_softc *sc;
+
+				STAILQ_REMOVE(
+				    &epair_dpcpu->epair_ifp_drain_list, elm,
+				    epair_ifp_drain, ifp_next);
+				/* The cached ifp goes off the list. */
+				sc = ifp->if_softc;
+				EPAIR_REFCOUNT_RELEASE(&sc->refcount);
+				EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
+				    ("%s: ifp=%p sc->refcount not >= 1: %d",
+				    __func__, ifp, sc->refcount));
+				free(elm, M_EPAIR);
+			}
+		}
+		EPAIR_UNLOCK(epair_dpcpu);
+	}
+}
+
 static int
 epair_add_ifp_for_draining(struct ifnet *ifp)
 {
 	struct epair_dpcpu *epair_dpcpu;
-	struct epair_softc *sc = sc = ifp->if_softc;
+	struct epair_softc *sc;
 	struct epair_ifp_drain *elm = NULL;
 
+	sc = ifp->if_softc;
 	epair_dpcpu = DPCPU_ID_PTR(sc->cpuid, epair_dpcpu);
+	EPAIR_LOCK_ASSERT(epair_dpcpu);
 	STAILQ_FOREACH(elm, &epair_dpcpu->epair_ifp_drain_list, ifp_next)
 		if (elm->ifp == ifp)
 			break;
@@ -332,6 +379,8 @@ epair_add_ifp_for_draining(struct ifnet *ifp)
 		return (ENOMEM);
 
 	elm->ifp = ifp;
+	/* Add a reference for the ifp pointer on the list. */
+	EPAIR_REFCOUNT_AQUIRE(&sc->refcount);
 	STAILQ_INSERT_TAIL(&epair_dpcpu->epair_ifp_drain_list, elm, ifp_next);
 
 	return (0);
@@ -395,13 +444,15 @@ epair_start_locked(struct ifnet *ifp)
 			/* Someone else received the packet. */
 			oifp->if_ipackets++;
 		} else {
+			/* The packet was freed already. */
 			epair_dpcpu->epair_drv_flags |= IFF_DRV_OACTIVE;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			if (epair_add_ifp_for_draining(ifp)) {
-				ifp->if_oerrors++;
-				m_freem(m);
-			}
+			(void) epair_add_ifp_for_draining(ifp);
+			ifp->if_oerrors++;
 			EPAIR_REFCOUNT_RELEASE(&sc->refcount);
+			EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
+			    ("%s: ifp=%p sc->refcount not >= 1: %d",
+			    __func__, oifp, sc->refcount));
 		}
 	}
 }
@@ -524,9 +575,13 @@ epair_transmit_locked(struct ifnet *ifp, struct mbuf *m)
 		oifp->if_ipackets++;
 	} else {
 		/* The packet was freed already. */
-		EPAIR_REFCOUNT_RELEASE(&sc->refcount);
 		epair_dpcpu->epair_drv_flags |= IFF_DRV_OACTIVE;
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		ifp->if_oerrors++;
+		EPAIR_REFCOUNT_RELEASE(&sc->refcount);
+		EPAIR_REFCOUNT_ASSERT((int)sc->refcount >= 1,
+		    ("%s: ifp=%p sc->refcount not >= 1: %d",
+		    __func__, oifp, sc->refcount));
 	}
 
 	return (error);
@@ -548,22 +603,18 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 static void
 epair_qflush(struct ifnet *ifp)
 {
-	struct epair_dpcpu *epair_dpcpu;
 	struct epair_softc *sc;
-	struct ifaltq *ifq;
 	
 	sc = ifp->if_softc;
-	epair_dpcpu = DPCPU_ID_PTR(sc->cpuid, epair_dpcpu);
-	EPAIR_LOCK(epair_dpcpu);
-	ifq = &ifp->if_snd;
-	DPRINTF("ifp=%p sc refcnt=%u ifq_len=%u\n",
-	    ifp, sc->refcount, ifq->ifq_len);
+	KASSERT(sc != NULL, ("%s: ifp=%p, epair_softc gone? sc=%p\n",
+	    __func__, ifp, sc));
 	/*
-	 * Instead of calling EPAIR_REFCOUNT_RELEASE(&sc->refcount);
-	 * n times, just subtract for the cleanup.
+	 * Remove this ifp from all backpointer lists. The interface will not
+	 * usable for flushing anyway nor should it have anything to flush
+	 * after if_qflush().
 	 */
-	sc->refcount -= ifq->ifq_len;
-	EPAIR_UNLOCK(epair_dpcpu);
+	epair_remove_ifp_from_draining(ifp);
+
 	if (sc->if_qflush)
 		sc->if_qflush(ifp);
 }
@@ -828,8 +879,8 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	 */
 	DPRINTF("sca refcnt=%u scb refcnt=%u\n", sca->refcount, scb->refcount);
 	EPAIR_REFCOUNT_ASSERT(sca->refcount == 1 && scb->refcount == 1,
-	    ("%s: sca->refcount!=1: %d || scb->refcount!=1: %d",
-	    __func__, sca->refcount, scb->refcount));
+	    ("%s: ifp=%p sca->refcount!=1: %d || ifp=%p scb->refcount!=1: %d",
+	    __func__, ifp, sca->refcount, oifp, scb->refcount));
 
 	/*
 	 * Get rid of our second half.

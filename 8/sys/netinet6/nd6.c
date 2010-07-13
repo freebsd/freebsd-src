@@ -81,21 +81,31 @@ __FBSDID("$FreeBSD$");
 
 #define SIN6(s) ((struct sockaddr_in6 *)s)
 
-VNET_DEFINE(int, nd6_prune);
-VNET_DEFINE(int, nd6_delay);
-VNET_DEFINE(int, nd6_umaxtries);
-VNET_DEFINE(int, nd6_mmaxtries);
-VNET_DEFINE(int, nd6_useloopback);
-VNET_DEFINE(int, nd6_gctimer);
+/* timer values */
+VNET_DEFINE(int, nd6_prune)	= 1;	/* walk list every 1 seconds */
+VNET_DEFINE(int, nd6_delay)	= 5;	/* delay first probe time 5 second */
+VNET_DEFINE(int, nd6_umaxtries)	= 3;	/* maximum unicast query */
+VNET_DEFINE(int, nd6_mmaxtries)	= 3;	/* maximum multicast query */
+VNET_DEFINE(int, nd6_useloopback) = 1;	/* use loopback interface for
+					 * local traffic */
+VNET_DEFINE(int, nd6_gctimer)	= (60 * 60 * 24); /* 1 day: garbage
+					 * collection timer */
 
 /* preventing too many loops in ND option parsing */
-static VNET_DEFINE(int, nd6_maxndopt);
-VNET_DEFINE(int, nd6_maxnudhint);
-static VNET_DEFINE(int, nd6_maxqueuelen);
+static VNET_DEFINE(int, nd6_maxndopt) = 10; /* max # of ND options allowed */
+
+VNET_DEFINE(int, nd6_maxnudhint) = 0;	/* max # of subsequent upper
+					 * layer hints */
+static VNET_DEFINE(int, nd6_maxqueuelen) = 1; /* max pkts cached in unresolved
+					 * ND entries */
 #define	V_nd6_maxndopt			VNET(nd6_maxndopt)
 #define	V_nd6_maxqueuelen		VNET(nd6_maxqueuelen)
 
-VNET_DEFINE(int, nd6_debug);
+#ifdef ND6_DEBUG
+VNET_DEFINE(int, nd6_debug) = 1;
+#else
+VNET_DEFINE(int, nd6_debug) = 0;
+#endif
 
 /* for debugging? */
 #if 0
@@ -105,7 +115,7 @@ static int nd6_inuse, nd6_allocated;
 VNET_DEFINE(struct nd_drhead, nd_defrouter);
 VNET_DEFINE(struct nd_prhead, nd_prefix);
 
-VNET_DEFINE(int, nd6_recalc_reachtm_interval);
+VNET_DEFINE(int, nd6_recalc_reachtm_interval) = ND6_RECALC_REACHTM_INTERVAL;
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
 
 static struct sockaddr_in6 all1_sa;
@@ -124,55 +134,12 @@ static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
 
 VNET_DEFINE(struct callout, nd6_timer_ch);
 
-VNET_DECLARE(int, dad_ignore_ns);
-VNET_DECLARE(int, dad_maxtry);
-#define	V_dad_ignore_ns			VNET(dad_ignore_ns)
-#define	V_dad_maxtry			VNET(dad_maxtry)
-
 void
 nd6_init(void)
 {
 	int i;
 
-	V_nd6_prune	= 1;	/* walk list every 1 seconds */
-	V_nd6_delay	= 5;	/* delay first probe time 5 second */
-	V_nd6_umaxtries	= 3;	/* maximum unicast query */
-	V_nd6_mmaxtries	= 3;	/* maximum multicast query */
-	V_nd6_useloopback = 1;	/* use loopback interface for local traffic */
-	V_nd6_gctimer	= (60 * 60 * 24); /* 1 day: garbage collection timer */
-
-	/* preventing too many loops in ND option parsing */
-	V_nd6_maxndopt = 10;	/* max # of ND options allowed */
-
-	V_nd6_maxnudhint = 0;	/* max # of subsequent upper layer hints */
-	V_nd6_maxqueuelen = 1;	/* max pkts cached in unresolved ND entries */
-
-#ifdef ND6_DEBUG
-	V_nd6_debug = 1;
-#else
-	V_nd6_debug = 0;
-#endif
-
-	V_nd6_recalc_reachtm_interval = ND6_RECALC_REACHTM_INTERVAL;
-
-	V_dad_ignore_ns = 0;	/* ignore NS in DAD - specwise incorrect*/
-	V_dad_maxtry = 15;	/* max # of *tries* to transmit DAD packet */
-
-	/*
-	 * XXX just to get this to compile KMM
-	 */
-#ifdef notyet
-	V_llinfo_nd6.ln_next = &V_llinfo_nd6;
-	V_llinfo_nd6.ln_prev = &V_llinfo_nd6;
-#endif
 	LIST_INIT(&V_nd_prefix);
-
-	V_ip6_use_tempaddr = 0;
-	V_ip6_temp_preferred_lifetime = DEF_TEMP_PREFERRED_LIFETIME;
-	V_ip6_temp_valid_lifetime = DEF_TEMP_VALID_LIFETIME;
-	V_ip6_temp_regen_advance = TEMPADDR_REGEN_ADVANCE;
-
-	V_ip6_desync_factor = 0;
 
 	all1_sa.sin6_family = AF_INET6;
 	all1_sa.sin6_len = sizeof(struct sockaddr_in6);
@@ -181,12 +148,12 @@ nd6_init(void)
 
 	/* initialization of the default router list */
 	TAILQ_INIT(&V_nd_defrouter);
+
 	/* start timer */
 	callout_init(&V_nd6_slowtimo_ch, 0);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
 }
-
 
 #ifdef VIMAGE
 void
@@ -759,22 +726,25 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		 */
 		if (!IFA6_IS_DEPRECATED(it6))
 		    public_ifa6 = it6;
+
+		if (public_ifa6 != NULL)
+			ifa_ref(&public_ifa6->ia_ifa);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (public_ifa6 != NULL) {
 		int e;
 
 		if ((e = in6_tmpifadd(public_ifa6, 0, 0)) != 0) {
-			IF_ADDR_UNLOCK(ifp);
+			ifa_free(&public_ifa6->ia_ifa);
 			log(LOG_NOTICE, "regen_tmpaddr: failed to create a new"
 			    " tmp addr,errno=%d\n", e);
 			return (-1);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		ifa_free(&public_ifa6->ia_ifa);
 		return (0);
 	}
 
-	IF_ADDR_UNLOCK(ifp);
 	return (-1);
 }
 
@@ -1121,6 +1091,7 @@ nd6_free(struct llentry *ln, int gc)
 	ifp = ln->lle_tbl->llt_ifp;
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(ln);
+	LLE_REMREF(ln);
 	llentry_free(ln);
 	IF_AFDATA_UNLOCK(ifp);
 
@@ -1164,7 +1135,7 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 
  	ln->ln_state = ND6_LLINFO_REACHABLE;
 	if (!ND6_LLINFO_PERMANENT(ln)) {
-		nd6_llinfo_settimer(ln,
+		nd6_llinfo_settimer_locked(ln,
 		    (long)ND_IFINFO(rt->rt_ifp)->reachable * hz);
 	}
 done:

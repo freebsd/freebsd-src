@@ -485,7 +485,7 @@ _mtx_lock_spin_failed(struct mtx *m)
 	printf( "spin lock %p (%s) held by %p (tid %d) too long\n",
 	    m, m->lock_object.lo_name, td, td->td_tid);
 #ifdef WITNESS
-	witness_display_spinlock(&m->lock_object, td);
+	witness_display_spinlock(&m->lock_object, td, printf);
 #endif
 	panic("spin lock held too long");
 }
@@ -616,7 +616,6 @@ thread_lock_block(struct thread *td)
 {
 	struct mtx *lock;
 
-	spinlock_enter();
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	lock = td->td_lock;
 	td->td_lock = &blocked_lock;
@@ -631,7 +630,6 @@ thread_lock_unblock(struct thread *td, struct mtx *new)
 	mtx_assert(new, MA_OWNED);
 	MPASS(td->td_lock == &blocked_lock);
 	atomic_store_rel_ptr((volatile void *)&td->td_lock, (uintptr_t)new);
-	spinlock_exit();
 }
 
 void

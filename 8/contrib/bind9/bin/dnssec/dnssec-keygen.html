@@ -1,8 +1,8 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2008 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007-2010 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  - 
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: dnssec-keygen.html,v 1.32 2008/10/15 01:11:35 tbox Exp $ -->
+<!-- $Id: dnssec-keygen.html,v 1.32.44.4 2010/01/16 01:55:32 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -32,23 +32,31 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-keygen</code>  {-a <em class="replaceable"><code>algorithm</code></em>} {-b <em class="replaceable"><code>keysize</code></em>} {-n <em class="replaceable"><code>nametype</code></em>} [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-e</code>] [<code class="option">-f <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-g <em class="replaceable"><code>generator</code></em></code>] [<code class="option">-h</code>] [<code class="option">-k</code>] [<code class="option">-p <em class="replaceable"><code>protocol</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-s <em class="replaceable"><code>strength</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] {name}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543477"></a><h2>DESCRIPTION</h2>
+<a name="id2543483"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-keygen</strong></span>
       generates keys for DNSSEC (Secure DNS), as defined in RFC 2535
       and RFC 4034.  It can also generate keys for use with
       TSIG (Transaction Signatures), as defined in RFC 2845.
     </p>
+<p>
+      The <code class="option">name</code> of the key is specified on the command
+      line.  For DNSSEC keys, this must match the name of the zone for
+      which the key is being generated.
+    </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543489"></a><h2>OPTIONS</h2>
+<a name="id2543501"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a <em class="replaceable"><code>algorithm</code></em></span></dt>
 <dd>
 <p>
-            Selects the cryptographic algorithm.  The value of
-            <code class="option">algorithm</code> must be one of RSAMD5 (RSA) or RSASHA1,
-	    DSA, NSEC3RSASHA1, NSEC3DSA, DH (Diffie Hellman), or HMAC-MD5.
-	    These values are case insensitive.
+            Selects the cryptographic algorithm.  For DNSSEC keys, the value
+            of <code class="option">algorithm</code> must be one of RSAMD5, RSASHA1,
+            DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256 or RSASHA512.
+            For TSIG/TKEY, the value must
+            be DH (Diffie Hellman), HMAC-MD5, HMAC-SHA1, HMAC-SHA224,
+            HMAC-SHA256, HMAC-SHA384, or HMAC-SHA512.  These values are
+            case insensitive.
           </p>
 <p>
             Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement
@@ -62,11 +70,10 @@
 <dt><span class="term">-b <em class="replaceable"><code>keysize</code></em></span></dt>
 <dd><p>
             Specifies the number of bits in the key.  The choice of key
-            size depends on the algorithm used.  RSAMD5 / RSASHA1 keys must be
-            between
-            512 and 2048 bits.  Diffie Hellman keys must be between
+            size depends on the algorithm used.  RSA keys must be
+            between 512 and 2048 bits.  Diffie Hellman keys must be between
             128 and 4096 bits.  DSA keys must be between 512 and 1024
-            bits and an exact multiple of 64.  HMAC-MD5 keys must be
+            bits and an exact multiple of 64.  HMAC keys must be
             between 1 and 512 bits.
           </p></dd>
 <dt><span class="term">-n <em class="replaceable"><code>nametype</code></em></span></dt>
@@ -148,7 +155,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543824"></a><h2>GENERATED KEYS</h2>
+<a name="id2543836"></a><h2>GENERATED KEYS</h2>
 <p>
       When <span><strong class="command">dnssec-keygen</strong></span> completes
       successfully,
@@ -194,7 +201,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543906"></a><h2>EXAMPLE</h2>
+<a name="id2543918"></a><h2>EXAMPLE</h2>
 <p>
       To generate a 768-bit DSA key for the domain
       <strong class="userinput"><code>example.com</code></strong>, the following command would be
@@ -215,16 +222,16 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543949"></a><h2>SEE ALSO</h2>
+<a name="id2544030"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 2539</em>,
       <em class="citetitle">RFC 2845</em>,
-      <em class="citetitle">RFC 4033</em>.
+      <em class="citetitle">RFC 4034</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544049"></a><h2>AUTHOR</h2>
+<a name="id2544061"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

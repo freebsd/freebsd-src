@@ -106,8 +106,10 @@ readdumptimes(FILE *df)
 
 	for (;;) {
 		dtwalk = (struct dumptime *)calloc(1, sizeof (struct dumptime));
-		if (getrecord(df, &(dtwalk->dt_value)) < 0)
+		if (getrecord(df, &(dtwalk->dt_value)) < 0) {
+			free(dtwalk);
 			break;
+		}
 		nddates++;
 		SLIST_INSERT_HEAD(&dthead, dtwalk, dt_list);
 	}

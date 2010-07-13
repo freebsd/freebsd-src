@@ -42,7 +42,7 @@
 #endif
 
 struct _gss_mech_switch_list _gss_mechs =
-	SLIST_HEAD_INITIALIZER(&_gss_mechs);
+	SLIST_HEAD_INITIALIZER(_gss_mechs);
 gss_OID_set _gss_mech_oids;
 
 /*

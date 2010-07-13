@@ -20,6 +20,7 @@ SUBDIR=	${_3dfx} \
 	aio \
 	alc \
 	ale \
+	alq \
 	${_amd} \
 	${_amdsbwd} \
 	${_amdtemp} \
@@ -41,6 +42,7 @@ SUBDIR=	${_3dfx} \
 	${_bktr} \
 	${_bm} \
 	bridgestp \
+	bwn \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -185,14 +187,16 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	mvs \
 	mwl \
 	mxge \
 	my \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
-	netgraph \
+	${_netgraph} \
 	${_nfe} \
+	nfs_common \
 	nfscl \
 	nfsclient \
 	nfscommon \
@@ -237,6 +241,7 @@ SUBDIR=	${_3dfx} \
 	re \
 	reiserfs \
 	rl \
+	runfw \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
@@ -246,6 +251,8 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
+	sge \
+	siba_bwn \
 	siis \
 	sis \
 	sk \
@@ -299,6 +306,7 @@ SUBDIR=	${_3dfx} \
 	wlan_xauth \
 	${_wpi} \
 	${_wpifw} \
+	${_x86bios} \
 	${_xe} \
 	xfs \
 	xl \
@@ -322,6 +330,10 @@ _random=	random
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
+_netgraph=	netgraph
 .endif
 
 .if ${MK_PF} != "no" || defined(ALL_MODULES)
@@ -451,13 +463,12 @@ _nxge=		nxge
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
+_x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
@@ -485,6 +496,7 @@ _cpufreq=	cpufreq
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _cyclic=	cyclic
 .endif
+_dpms=		dpms
 _drm=		drm
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
@@ -508,6 +520,8 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
+_iwi=		iwi
+_iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
@@ -525,20 +539,22 @@ _nxge=		nxge
 _opensolaris=	opensolaris
 .endif
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
 .endif
 _pccard=	pccard
 _rdma=		rdma	
+_s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
+_splash=	splash
 _sppp=		sppp
 _tmpfs=		tmpfs
 _twa=		twa
+_vesa=		vesa
+_x86bios=	x86bios
 _wi=		wi
 _wpi=		wpi
 _wpifw=		wpifw
@@ -548,10 +564,7 @@ _zfs=		zfs
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
-# Modules not enabled on ia64 (as compared to i386) include:
-#	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
-#	nsp s3 sbni stg vesa
-# acpi is not enabled because it is broken as a module on ia64
+_aac=		aac
 _aic=		aic
 _an=		an
 _arcnet=	arcnet
@@ -564,12 +577,17 @@ _cm=		cm
 _cmx=		cmx
 _coff=		coff
 _cpufreq=	cpufreq
+_dpt=		dpt
 _em=		em
 _ep=		ep
+_et=		et
 _exca=		exca
 _fe=		fe
+_hptiop=	hptiop
+_ida=		ida
 _igb=		igb
 _iir=		iir
+_ips=		ips
 _mly=		mly
 _pccard=	pccard
 _scsi_low=	scsi_low
@@ -578,6 +596,7 @@ _sound=		sound
 _splash=	splash
 _sppp=		sppp
 _streams=	streams
+_twa=		twa
 _wi=		wi
 _xe=		xe
 .endif

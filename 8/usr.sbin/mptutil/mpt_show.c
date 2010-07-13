@@ -78,6 +78,7 @@ show_adapter(int ac, char **av)
 	CONFIG_PAGE_MANUFACTURING_0 *man0;
 	CONFIG_PAGE_IOC_2 *ioc2;
 	CONFIG_PAGE_IOC_6 *ioc6;
+	U16 IOCStatus;
 	int fd, comma;
 
 	if (ac != 1) {
@@ -108,7 +109,7 @@ show_adapter(int ac, char **av)
 
 	free(man0);
 
-	ioc2 = mpt_read_ioc_page(fd, 2, NULL);
+	ioc2 = mpt_read_ioc_page(fd, 2, &IOCStatus);
 	if (ioc2 != NULL) {
 		printf("      RAID Levels:");
 		comma = 0;
@@ -151,9 +152,11 @@ show_adapter(int ac, char **av)
 			printf(" none");
 		printf("\n");
 		free(ioc2);
-	}
+	} else if ((IOCStatus & MPI_IOCSTATUS_MASK) !=
+	    MPI_IOCSTATUS_CONFIG_INVALID_PAGE)
+		warnx("mpt_read_ioc_page(2): %s", mpt_ioc_status(IOCStatus));
 
-	ioc6 = mpt_read_ioc_page(fd, 6, NULL);
+	ioc6 = mpt_read_ioc_page(fd, 6, &IOCStatus);
 	if (ioc6 != NULL) {
 		display_stripe_map("    RAID0 Stripes",
 		    ioc6->SupportedStripeSizeMapIS);
@@ -172,7 +175,9 @@ show_adapter(int ac, char **av)
 			printf("-%u", ioc6->MaxDrivesIME);
 		printf("\n");
 		free(ioc6);
-	}
+	} else if ((IOCStatus & MPI_IOCSTATUS_MASK) !=
+	    MPI_IOCSTATUS_CONFIG_INVALID_PAGE)
+		warnx("mpt_read_ioc_page(6): %s", mpt_ioc_status(IOCStatus));
 
 	/* TODO: Add an ioctl to fetch IOC_FACTS and print firmware version. */
 
@@ -541,7 +546,8 @@ show_physdisks(int ac, char **av)
 	for (i = 0; i <= 0xff; i++) {
 		pinfo = mpt_pd_info(fd, i, &IOCStatus);
 		if (pinfo == NULL) {
-			if (IOCStatus != MPI_IOCSTATUS_CONFIG_INVALID_PAGE)
+			if ((IOCStatus & MPI_IOCSTATUS_MASK) !=
+			    MPI_IOCSTATUS_CONFIG_INVALID_PAGE)
 				warnx("mpt_pd_info(%d): %s", i,
 				    mpt_ioc_status(IOCStatus));
 			continue;

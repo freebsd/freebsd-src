@@ -330,7 +330,7 @@ xenbus_devices_changed(struct xenbus_watch *watch,
 	device_t dev = sc->xs_dev;
 	char *node, *bus, *type, *id, *p;
 
-	node = strdup(vec[XS_WATCH_PATH], M_DEVBUF);;
+	node = strdup(vec[XS_WATCH_PATH], M_DEVBUF);
 	p = strchr(node, '/');
 	if (!p)
 		goto out;

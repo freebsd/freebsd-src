@@ -407,7 +407,6 @@ MK_${var}:=	yes
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
-    GNU_CPIO \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
@@ -468,6 +467,11 @@ MK_MAILWRAPPER:= no
 MK_SENDMAIL:=	no
 .endif
 
+.if ${MK_NETGRAPH} == "no"
+MK_ATM:=	no
+MK_BLUETOOTH:=	no
+.endif
+
 .if ${MK_OPENSSL} == "no"
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
@@ -520,7 +524,8 @@ MK_${var}_SUPPORT:= yes
 # MK_* options whose default value depends on another option.
 #
 .for vv in \
-    GSSAPI/KERBEROS
+    GSSAPI/KERBEROS \
+    MAN_UTILS/MAN
 .if defined(WITH_${vv:H}) && defined(WITHOUT_${vv:H})
 .error WITH_${vv:H} and WITHOUT_${vv:H} can't both be set.
 .endif

@@ -216,7 +216,10 @@ error:
 		g_free(sector);
 }
 
-const struct g_label_desc g_label_msdosfs = {
+struct g_label_desc g_label_msdosfs = {
 	.ld_taste = g_label_msdosfs_taste,
-	.ld_dir = G_LABEL_MSDOSFS_DIR
+	.ld_dir = G_LABEL_MSDOSFS_DIR,
+	.ld_enabled = 1
 };
+
+G_LABEL_INIT(msdosfs, g_label_msdosfs, "Create device nodes for MSDOSFS volumes");

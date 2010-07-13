@@ -53,6 +53,9 @@
 
 #ifdef _KERNEL
 
+#include <sys/types.h>
+#include <sys/lock.h>
+#include <sys/lockmgr.h>
 #include <sys/tree.h>
 
 #ifdef MALLOC_DECLARE
@@ -106,7 +109,9 @@ struct msdosfsmount {
 	void *pm_u2d;	/* Unicode->DOS iconv handle */
 	void *pm_d2u;	/* DOS->Local iconv handle */
 	u_int32_t pm_nfileno;	/* next 32-bit fileno */
-	RB_HEAD(msdosfs_filenotree, msdosfs_fileno) pm_filenos; /* 64<->32-bit fileno mapping */
+	RB_HEAD(msdosfs_filenotree, msdosfs_fileno)
+	    pm_filenos; /* 64<->32-bit fileno mapping */
+	struct lock pm_fatlock;	/* lockmgr protecting allocations and rb tree */
 };
 
 /*
@@ -214,6 +219,13 @@ struct msdosfs_fileno {
 void msdosfs_fileno_init(struct mount *);
 void msdosfs_fileno_free(struct mount *);
 uint32_t msdosfs_fileno_map(struct mount *, uint64_t);
+
+#define	MSDOSFS_LOCK_MP(pmp) \
+	lockmgr(&(pmp)->pm_fatlock, LK_EXCLUSIVE, NULL)
+#define	MSDOSFS_UNLOCK_MP(pmp) \
+	lockmgr(&(pmp)->pm_fatlock, LK_RELEASE, NULL)
+#define	MSDOSFS_ASSERT_MP_LOCKED(pmp) \
+	lockmgr_assert(&(pmp)->pm_fatlock, KA_XLOCKED)
 
 #endif /* _KERNEL */
 

@@ -293,6 +293,8 @@ init_hash(HTAB *hashp, const char *file, const HASHINFO *info)
 		if (stat(file, &statbuf))
 			return (NULL);
 		hashp->BSIZE = statbuf.st_blksize;
+		if (hashp->BSIZE > MAX_BSIZE)
+			hashp->BSIZE = MAX_BSIZE;
 		hashp->BSHIFT = __log2(hashp->BSIZE);
 	}
 

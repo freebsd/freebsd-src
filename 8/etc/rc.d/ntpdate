@@ -19,7 +19,9 @@ ntpdate_start()
 	if [ -z "$ntpdate_hosts" -a -f ${ntpdate_config} ]; then
 		ntpdate_hosts=`awk '
 			/^server[ \t]*127.127/      {next}
-			/^(server|peer)/            {print $2}
+			/^(server|peer)/            {
+			    if ($2 ~/^-/)           {print $3}
+			    else                    {print $2}}
 		' < ${ntpdate_config}`
 	fi
 	if [ -n "$ntpdate_hosts" -o -n "$rc_flags" ]; then

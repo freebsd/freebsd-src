@@ -38,4 +38,7 @@ struct mdproc {
 	int		__dummy;	/* Avoid having an empty struct. */
 };
 
+#define	KINFO_PROC_SIZE 1088
+#define	KINFO_PROC32_SIZE 768
+
 #endif /* !_MACHINE_PROC_H_ */

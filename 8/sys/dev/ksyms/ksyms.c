@@ -94,7 +94,7 @@ struct ksyms_softc {
 static struct mtx 		 ksyms_mtx;
 static struct cdev 		*ksyms_dev;
 static LIST_HEAD(, ksyms_softc)	 ksyms_list = 
-	LIST_HEAD_INITIALIZER(&ksyms_list);
+	LIST_HEAD_INITIALIZER(ksyms_list);
 
 static const char 	ksyms_shstrtab[] = 
 	"\0" STR_SYMTAB "\0" STR_STRTAB "\0" STR_SHSTRTAB "\0";

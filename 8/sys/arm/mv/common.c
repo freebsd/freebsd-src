@@ -261,6 +261,8 @@ soc_identify(void)
 			rev = "Z0";
 		else if (r == 2)
 			rev = "A0";
+		else if (r == 3)
+			rev = "A1";
 		break;
 	case MV_DEV_MV78100_Z0:
 		dev = "Marvell MV78100 Z0";

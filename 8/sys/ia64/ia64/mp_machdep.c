@@ -46,11 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uuid.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
-
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/fpu.h>
@@ -59,17 +54,21 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pal.h>
 #include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/sal.h>
 #include <machine/smp.h>
-#include <i386/include/specialreg.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
 MALLOC_DEFINE(M_SMP, "SMP", "SMP related allocations");
 
 void ia64_ap_startup(void);
 
-#define	LID_SAPIC_ID(x)		((int)((x) >> 24) & 0xff)
-#define	LID_SAPIC_EID(x)	((int)((x) >> 16) & 0xff)
+#define	LID_SAPIC(x)		((u_int)((x) >> 16))
+#define	LID_SAPIC_ID(x)		((u_int)((x) >> 24) & 0xff)
+#define	LID_SAPIC_EID(x)	((u_int)((x) >> 16) & 0xff)
 #define	LID_SAPIC_SET(id,eid)	(((id & 0xff) << 8 | (eid & 0xff)) << 16);
 #define	LID_SAPIC_MASK		0xffff0000UL
 
@@ -80,7 +79,68 @@ volatile int ap_delay;
 volatile int ap_awake;
 volatile int ap_spin;
 
-static void cpu_mp_unleash(void *);
+int ia64_ipi_ast;
+int ia64_ipi_highfp;
+int ia64_ipi_nmi;
+int ia64_ipi_preempt;
+int ia64_ipi_rndzvs;
+int ia64_ipi_stop;
+
+static u_int
+ia64_ih_ast(struct thread *td, u_int xiv, struct trapframe *tf)
+{
+
+	PCPU_INC(md.stats.pcs_nasts);
+	CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
+	return (0);
+}
+
+static u_int
+ia64_ih_highfp(struct thread *td, u_int xiv, struct trapframe *tf)
+{
+
+	PCPU_INC(md.stats.pcs_nhighfps);
+	ia64_highfp_save_ipi();
+	return (0);
+}
+
+static u_int
+ia64_ih_preempt(struct thread *td, u_int xiv, struct trapframe *tf)
+{
+
+	PCPU_INC(md.stats.pcs_npreempts);
+	CTR1(KTR_SMP, "IPI_PREEMPT, cpuid=%d", PCPU_GET(cpuid));
+	sched_preempt(curthread);
+	return (0);
+}
+
+static u_int
+ia64_ih_rndzvs(struct thread *td, u_int xiv, struct trapframe *tf)
+{
+
+	PCPU_INC(md.stats.pcs_nrdvs);
+	CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
+	smp_rendezvous_action();
+	return (0);
+}
+
+static u_int
+ia64_ih_stop(struct thread *td, u_int xiv, struct trapframe *tf)
+{
+	cpumask_t mybit;
+
+	PCPU_INC(md.stats.pcs_nstops);
+	mybit = PCPU_GET(cpumask);
+
+	savectx(PCPU_PTR(md.pcb));
+
+	atomic_set_int(&stopped_cpus, mybit);
+	while ((started_cpus & mybit) == 0)
+		cpu_spinwait();
+	atomic_clear_int(&started_cpus, mybit);
+	atomic_clear_int(&stopped_cpus, mybit);
+	return (0);
+}
 
 struct cpu_group *
 cpu_topo(void)
@@ -114,9 +174,7 @@ ia64_store_mca_state(void* arg)
 void
 ia64_ap_startup(void)
 {
-	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
 	uint64_t vhpt;
-	int vector;
 
 	pcpup = ap_pcpu;
 	ia64_set_k4((intptr_t)pcpup);
@@ -148,24 +206,11 @@ ia64_ap_startup(void)
 
 	CTR1(KTR_SMP, "SMP: cpu%d launched", PCPU_GET(cpuid));
 
-	/* Acknowledge and EOI all interrupts. */
-	vector = ia64_get_ivr();
-	while (vector != 15) {
-		ia64_srlz_d();
-		if (vector == 0)
-			vector = (int)ib->ib_inta;
-		ia64_set_eoi(0);
-		ia64_srlz_d();
-		vector = ia64_get_ivr();
-	}
-	ia64_srlz_d();
-
-	/* kick off the clock on this AP */
-	pcpu_initclock();
-
+	/* Mask interval timer interrupts on APs. */
+	ia64_set_itv(0x10000);
 	ia64_set_tpr(0);
 	ia64_srlz_d();
-	enable_intr();
+	ia64_enable_intr();
 
 	sched_throw(NULL);
 	/* NOTREACHED */
@@ -200,7 +245,7 @@ cpu_mp_probe(void)
 	 * case we can have multiple processors, but we simply can't wake
 	 * them up...
 	 */
-	return (mp_ncpus > 1 && ipi_vector[IPI_AP_WAKEUP] != 0);
+	return (mp_ncpus > 1 && ia64_ipi_wakeup != 0);
 }
 
 void
@@ -276,7 +321,7 @@ cpu_mp_start()
 			if (bootverbose)
 				printf("SMP: waking up cpu%d\n", pc->pc_cpuid);
 
-			ipi_send(pc, IPI_AP_WAKEUP);
+			ipi_send(pc, ia64_ipi_wakeup);
 
 			do {
 				DELAY(1000);
@@ -299,6 +344,18 @@ cpu_mp_unleash(void *dummy)
 
 	if (mp_ncpus <= 1)
 		return;
+
+	/* Allocate XIVs for IPIs */
+	ia64_ipi_ast = ia64_xiv_alloc(PI_DULL, IA64_XIV_IPI, ia64_ih_ast);
+	ia64_ipi_highfp = ia64_xiv_alloc(PI_AV, IA64_XIV_IPI, ia64_ih_highfp);
+	ia64_ipi_preempt = ia64_xiv_alloc(PI_SOFT, IA64_XIV_IPI,
+	    ia64_ih_preempt);
+	ia64_ipi_rndzvs = ia64_xiv_alloc(PI_AV, IA64_XIV_IPI, ia64_ih_rndzvs);
+	ia64_ipi_stop = ia64_xiv_alloc(PI_REALTIME, IA64_XIV_IPI, ia64_ih_stop);
+
+	/* Reserve the NMI vector for IPI_STOP_HARD if possible */
+	ia64_ipi_nmi = (ia64_xiv_reserve(2, IA64_XIV_IPI, ia64_ih_stop) != 0)
+	    ? ia64_ipi_stop : 0x400;	/* DM=NMI, Vector=n/a */
 
 	cpus = 0;
 	smp_cpus = 0;
@@ -325,6 +382,12 @@ cpu_mp_unleash(void *dummy)
 
 	smp_active = 1;
 	smp_started = 1;
+
+	/*
+	 * Now that all CPUs are up and running, bind interrupts to each of
+	 * them.
+	 */
+	ia64_bind_intr();
 }
 
 /*
@@ -361,18 +424,18 @@ ipi_all_but_self(int ipi)
  * fields are used here.
  */
 void
-ipi_send(struct pcpu *cpu, int ipi)
+ipi_send(struct pcpu *cpu, int xiv)
 {
-	volatile uint64_t *pipi;
-	uint64_t vector;
+	u_int lid;
 
-	pipi = (void *)IA64_PHYS_TO_RR6(ia64_lapic_address |
-	    ((cpu->pc_md.lid & LID_SAPIC_MASK) >> 12));
-	vector = (uint64_t)(ipi_vector[ipi] & 0xff);
-	KASSERT(vector != 0, ("IPI %d is not assigned a vector", ipi));
-	*pipi = vector;
-	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector,
-	    PCPU_GET(cpuid));
+	KASSERT(xiv != 0, ("ipi_send"));
+
+	lid = LID_SAPIC(cpu->pc_md.lid);
+
+	ia64_mf();
+	ia64_st8(&(ia64_pib->ib_ipi[lid][0]), xiv);
+	ia64_mf_a();
+	CTR3(KTR_SMP, "ipi_send(%p, %d): cpuid=%d", cpu, xiv, PCPU_GET(cpuid));
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);

@@ -105,6 +105,7 @@ static struct _devname {
     NETWORK("bfe",	"Broadcom BCM440x PCI Ethernet card"),
     NETWORK("bge",	"Broadcom BCM570x PCI Gigabit Ethernet card"),
     NETWORK("bm",	"Apple BMAC Built-in Ethernet"),
+    NETWORK("bwn",	"Broadcom BCM43xx IEEE 802.11 wireless adapter"),
     NETWORK("cas",	"Sun Cassini/Cassini+ or NS DP83065 Saturn Ethernet"),
     NETWORK("cue",	"CATC USB Ethernet adapter"),
     NETWORK("cxgb",	"Chelsio T3 10Gb Ethernet card"),
@@ -149,6 +150,7 @@ static struct _devname {
     NETWORK("rue",	"RealTek USB Ethernet card"),
     NETWORK("rum",	"Ralink Technology USB IEEE 802.11 wireless adapter"),
     NETWORK("sf",	"Adaptec AIC-6915 PCI Ethernet card"),
+    NETWORK("sge",	"Silicon Integrated Systems SiS190/191 Ethernet"),
     NETWORK("sis",	"SiS 900/SiS 7016 PCI Ethernet card"),
 #ifdef PC98
     NETWORK("snc",	"SONIC Ethernet card"),

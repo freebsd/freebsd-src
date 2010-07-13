@@ -232,6 +232,8 @@ dsl_pool_close(dsl_pool_t *dp)
 	mutex_destroy(&dp->dp_lock);
 	mutex_destroy(&dp->dp_scrub_cancel_lock);
 	taskq_destroy(dp->dp_vnrele_taskq);
+	if (dp->dp_blkstats)
+		kmem_free(dp->dp_blkstats, sizeof (zfs_all_blkstats_t));
 	kmem_free(dp, sizeof (dsl_pool_t));
 }
 
@@ -300,6 +302,7 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 	tx = dmu_tx_create_assigned(dp, txg);
 
 	dp->dp_read_overhead = 0;
+	start = gethrtime();
 	zio = zio_root(dp->dp_spa, NULL, NULL, ZIO_FLAG_MUSTSUCCEED);
 	while (ds = txg_list_remove(&dp->dp_dirty_datasets, txg)) {
 		if (!list_link_active(&ds->ds_synced_link))
@@ -310,7 +313,6 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 	}
 	DTRACE_PROBE(pool_sync__1setup);
 
-	start = gethrtime();
 	err = zio_wait(zio);
 	write_time = gethrtime() - start;
 	ASSERT(err == 0);

@@ -270,7 +270,8 @@ rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
 	 * XXX we don't attempt to lookup cached route again; what should
 	 * be done for sendto(3) case?
 	 */
-	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP))
+	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP)
+	    && RT_LINK_IS_UP(ro->ro_rt->rt_ifp))
 		return;				 
 	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, 0, fibnum);
 

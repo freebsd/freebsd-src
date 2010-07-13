@@ -17,6 +17,14 @@ FBSD_1.0 {
 	sigvec;
 };
 
+FBSD_1.2 {
+	sighold;
+	sigignore;
+	sigrelse;
+	sigset;
+	xsi_sigpause;
+};
+
 FBSDprivate_1.0 {
 	__creat;
 	_creat;

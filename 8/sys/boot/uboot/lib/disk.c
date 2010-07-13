@@ -376,6 +376,14 @@ stor_open_gpt(struct open_dev *od, struct uboot_devdesc *dev)
 	}
 
 	dev->d_disk.ptype = PTYPE_GPT;
+	/*
+	 * If index of partition to open (dev->d_disk.pnum) is not defined
+	 * we set it to the index of the first existing partition. This
+	 * handles cases when only a disk device is specified (without full
+	 * partition information) by the caller.
+	 */
+	if ((od->od_nparts > 0) && (dev->d_disk.pnum == 0))
+		dev->d_disk.pnum = od->od_partitions[0].gp_index;
 
 	for (i = 0; i < od->od_nparts; i++)
 		if (od->od_partitions[i].gp_index == dev->d_disk.pnum)

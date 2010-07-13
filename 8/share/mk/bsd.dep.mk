@@ -58,14 +58,14 @@ DEPENDFILE?=	.depend
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
 tags: ${SRCS}
-.if ${CTAGS:T} == "ctags"
-	@${CTAGS} ${CTAGSFLAGS} -f /dev/stdout \
-	    ${.ALLSRC:N*.h} | sed "s;${.CURDIR}/;;" > ${.TARGET}
-.elif ${CTAGS:T} == "gtags"
+.if ${CTAGS:T} == "gtags"
 	@cd ${.CURDIR} && ${CTAGS} ${GTAGSFLAGS} ${.OBJDIR}
 .if defined(HTML)
 	@cd ${.CURDIR} && htags ${HTAGSFLAGS} -d ${.OBJDIR} ${.OBJDIR}
 .endif
+.else
+	@${CTAGS} ${CTAGSFLAGS} -f /dev/stdout \
+	    ${.ALLSRC:N*.h} | sed "s;${.CURDIR}/;;" > ${.TARGET}
 .endif
 .endif
 
@@ -175,13 +175,13 @@ afterdepend:
 .if !target(cleandepend)
 cleandepend:
 .if defined(SRCS)
-.if ${CTAGS:T} == "ctags"
-	rm -f ${DEPENDFILE} tags
-.elif ${CTAGS:T} == "gtags"
+.if ${CTAGS:T} == "gtags"
 	rm -f ${DEPENDFILE} GPATH GRTAGS GSYMS GTAGS
 .if defined(HTML)
 	rm -rf HTML
 .endif
+.else
+	rm -f ${DEPENDFILE} tags
 .endif
 .endif
 .endif

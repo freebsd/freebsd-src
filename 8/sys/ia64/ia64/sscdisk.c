@@ -76,7 +76,7 @@ MALLOC_DEFINE(M_SSC, "ssc_disk", "Simulator Disk");
 
 static d_strategy_t sscstrategy;
 
-static LIST_HEAD(, ssc_s) ssc_softc_list = LIST_HEAD_INITIALIZER(&ssc_softc_list);
+static LIST_HEAD(, ssc_s) ssc_softc_list = LIST_HEAD_INITIALIZER(ssc_softc_list);
 
 struct ssc_s {
 	int unit;

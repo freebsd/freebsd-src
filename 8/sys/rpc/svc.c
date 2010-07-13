@@ -819,9 +819,11 @@ svc_getreq(SVCXPRT *xprt, struct svc_req **rqstp_ret)
 					free(r->rq_addr, M_SONAME);
 					r->rq_addr = NULL;
 				}
+				m_freem(args);
 				goto call_done;
 
 			default:
+				m_freem(args);
 				goto call_done;
 			}
 		}

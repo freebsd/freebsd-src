@@ -141,6 +141,8 @@ sta_beacon_miss(struct ieee80211vap *vap)
 			vap->iv_bss->ni_essid, vap->iv_bss->ni_esslen);
 		return;
 	}
+
+	callout_stop(&vap->iv_swbmiss);
 	vap->iv_bmiss_count = 0;
 	vap->iv_stats.is_beacon_miss++;
 	if (vap->iv_roaming == IEEE80211_ROAMING_AUTO) {
@@ -759,7 +761,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 
 		/* copy to listener after decrypt */
 		if (ieee80211_radiotap_active_vap(vap))
-			ieee80211_radiotap_tx(vap, m);
+			ieee80211_radiotap_rx(vap, m);
 		need_tap = 0;
 
 		/*

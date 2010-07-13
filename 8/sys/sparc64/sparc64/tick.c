@@ -120,7 +120,8 @@ cpu_initclocks(void)
 		 */
 	} else {
 		clock = PCPU_GET(clock);
-		intr_setup(PIL_TICK, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+		intr_setup(PIL_TICK, PCPU_GET(impl) >= CPU_IMPL_ULTRASPARCI &&
+		    PCPU_GET(impl) < CPU_IMPL_ULTRASPARCIII ?
 		    tick_hardclock_bbwar : tick_hardclock, -1, NULL, NULL);
 		set_cputicker(tick_cputicks, clock, 0);
 	}
@@ -322,19 +323,21 @@ tick_start(void)
 }
 
 void
-tick_clear(void)
+tick_clear(u_int cpu_impl)
 {
 
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		wrstick(0, 0);
 	wrpr(tick, 0, 0);
 }
 
 void
-tick_stop(void)
+tick_stop(u_int cpu_impl)
 {
 
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		wrstickcmpr(1L << 63, 0);
 	wrtickcmpr(1L << 63, 0);
 }

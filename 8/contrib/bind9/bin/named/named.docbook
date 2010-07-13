@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +18,10 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.docbook,v 1.23 2008/11/06 05:30:24 marka Exp $ -->
+<!-- $Id: named.docbook,v 1.23.14.2 2009/12/03 04:49:32 tbox Exp $ -->
 <refentry id="man.named">
   <refentryinfo>
-    <date>June 30, 2000</date>
+    <date>May 21, 2009</date>
   </refentryinfo>
 
   <refmeta>
@@ -42,6 +42,7 @@
       <year>2006</year>
       <year>2007</year>
       <year>2008</year>
+      <year>2009</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -374,6 +375,16 @@
       in the
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
     </para>
+
+    <para>
+      <command>named</command> inherits the <function>umask</function>
+      (file creation mode mask) from the parent process. If files
+      created by <command>named</command>, such as journal files,
+      need to have custom permissions, the <function>umask</function>
+      should be set explicitly in the script used to start the
+      <command>named</command> process.
+    </para>
+
   </refsect1>
 
   <refsect1>

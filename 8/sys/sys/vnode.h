@@ -524,17 +524,17 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
 
 #else /* !DEBUG_VFS_LOCKS */
 
-#define	ASSERT_VI_LOCKED(vp, str)
-#define	ASSERT_VI_UNLOCKED(vp, str)
-#define	ASSERT_VOP_ELOCKED(vp, str)
+#define	ASSERT_VI_LOCKED(vp, str)	((void)0)
+#define	ASSERT_VI_UNLOCKED(vp, str)	((void)0)
+#define	ASSERT_VOP_ELOCKED(vp, str)	((void)0)
 #if 0
 #define	ASSERT_VOP_ELOCKED_OTHER(vp, str)
 #endif
-#define	ASSERT_VOP_LOCKED(vp, str)
+#define	ASSERT_VOP_LOCKED(vp, str)	((void)0)
 #if 0
 #define	ASSERT_VOP_SLOCKED(vp, str)
 #endif
-#define	ASSERT_VOP_UNLOCKED(vp, str)
+#define	ASSERT_VOP_UNLOCKED(vp, str)	((void)0)
 #endif /* DEBUG_VFS_LOCKS */
 
 
@@ -613,6 +613,9 @@ int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred,
 	    int *privused);
+int	vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
+	    struct acl *aclp, accmode_t accmode, struct ucred *cred,
+	    int *privused);
 int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 	    gid_t file_gid, struct acl *acl, accmode_t accmode,
 	    struct ucred *cred, int *privused);
@@ -629,6 +632,7 @@ void	vholdl(struct vnode *);
 int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
 int	vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
 	    off_t length, int blksize);
+void	vunref(struct vnode *);
 void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);
 #define vprint(label, vp) vn_printf((vp), "%s\n", (label))
 int	vrecycle(struct vnode *vp, struct thread *td);
@@ -681,6 +685,7 @@ int	vop_stdlock(struct vop_lock1_args *);
 int	vop_stdputpages(struct vop_putpages_args *);
 int	vop_stdunlock(struct vop_unlock_args *);
 int	vop_nopoll(struct vop_poll_args *);
+int	vop_stdaccess(struct vop_access_args *ap);
 int	vop_stdaccessx(struct vop_accessx_args *ap);
 int	vop_stdadvlock(struct vop_advlock_args *ap);
 int	vop_stdadvlockasync(struct vop_advlockasync_args *ap);
@@ -714,6 +719,8 @@ void	vop_strategy_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
 void	vop_unlock_post(void *a, int rc);
 void	vop_unlock_pre(void *a);
+
+void	vop_rename_fail(struct vop_rename_args *ap);
 
 #define	VOP_WRITE_PRE(ap)						\
 	struct vattr va;						\

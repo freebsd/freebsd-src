@@ -3992,7 +3992,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 			msgptr[msglen++] = MSG_EXT_SDTR_LEN;
 			msgptr[msglen++] = MSG_EXT_SDTR;
 			msgptr[msglen++] = tp->tinfo.goal.period;
-			msgptr[msglen++] = tp->tinfo.goal.offset;;
+			msgptr[msglen++] = tp->tinfo.goal.offset;
 			if (DEBUG_FLAGS & DEBUG_NEGO) {
 				PRINT_ADDR(ccb);
 				printf ("sync msgout: ");

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -129,6 +129,7 @@
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbcmds")
+
 
 /* Local prototypes */
 
@@ -382,7 +383,7 @@ AcpiDbFindReferences (
     /* Search all nodes in namespace */
 
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                    AcpiDbWalkForReferences, (void *) ObjDesc, NULL);
+                    AcpiDbWalkForReferences, NULL, (void *) ObjDesc, NULL);
 }
 
 
@@ -474,7 +475,7 @@ AcpiDbCheckPredefinedNames (
     /* Search all nodes in namespace */
 
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                AcpiDbWalkForPredefinedNames, (void *) &Count, NULL);
+                AcpiDbWalkForPredefinedNames, NULL, (void *) &Count, NULL);
 
     AcpiOsPrintf ("Found %d predefined names in the namespace\n", Count);
 }
@@ -500,17 +501,16 @@ AcpiDbWalkForExecute (
     void                    *Context,
     void                    **ReturnValue)
 {
-    ACPI_NAMESPACE_NODE         *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
-    UINT32                      *Count = (UINT32 *) Context;
-    const ACPI_PREDEFINED_INFO  *Predefined;
-    ACPI_BUFFER                 ReturnObj;
-    ACPI_STATUS                 Status;
-    char                        *Pathname;
-    ACPI_BUFFER             Buffer;
+    ACPI_NAMESPACE_NODE     *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
+    ACPI_EXECUTE_WALK       *Info = (ACPI_EXECUTE_WALK *) Context;
+    ACPI_BUFFER             ReturnObj;
+    ACPI_STATUS             Status;
+    char                    *Pathname;
     UINT32                  i;
     ACPI_DEVICE_INFO        *ObjInfo;
     ACPI_OBJECT_LIST        ParamObjects;
     ACPI_OBJECT             Params[ACPI_METHOD_NUM_ARGS];
+    const ACPI_PREDEFINED_INFO *Predefined;
 
 
     Predefined = AcpiNsCheckForPredefinedName (Node);
@@ -532,8 +532,7 @@ AcpiDbWalkForExecute (
 
     /* Get the object info for number of method parameters */
 
-    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiGetObjectInfo (ObjHandle, &Buffer);
+    Status = AcpiGetObjectInfo (ObjHandle, &ObjInfo);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -542,10 +541,8 @@ AcpiDbWalkForExecute (
     ParamObjects.Pointer = NULL;
     ParamObjects.Count   = 0;
 
-    ObjInfo = Buffer.Pointer;
     if (ObjInfo->Type == ACPI_TYPE_METHOD)
     {
-
         /* Setup default parameters */
 
         for (i = 0; i < ObjInfo->ParamCount; i++)
@@ -558,11 +555,9 @@ AcpiDbWalkForExecute (
         ParamObjects.Count       = ObjInfo->ParamCount;
     }
 
-    ACPI_FREE (Buffer.Pointer);
-
+    ACPI_FREE (ObjInfo);
     ReturnObj.Pointer = NULL;
     ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
-
 
     /* Do the actual method execution */
 
@@ -572,11 +567,21 @@ AcpiDbWalkForExecute (
 
     AcpiOsPrintf ("%-32s returned %s\n", Pathname, AcpiFormatException (Status));
     AcpiGbl_MethodExecuting = FALSE;
-
     ACPI_FREE (Pathname);
-    (*Count)++;
 
-    return (AE_OK);
+    /* Ignore status from method execution */
+
+    Status = AE_OK;
+
+    /* Update count, check if we have executed enough methods */
+
+    Info->Count++;
+    if (Info->Count >= Info->MaxCount)
+    {
+        Status = AE_CTRL_TERMINATE;
+    }
+
+    return (Status);
 }
 
 
@@ -584,27 +589,37 @@ AcpiDbWalkForExecute (
  *
  * FUNCTION:    AcpiDbBatchExecute
  *
- * PARAMETERS:  None
+ * PARAMETERS:  CountArg            - Max number of methods to execute
  *
  * RETURN:      None
  *
- * DESCRIPTION: Namespace batch execution.
+ * DESCRIPTION: Namespace batch execution. Execute predefined names in the
+ *              namespace, up to the max count, if specified.
  *
  ******************************************************************************/
 
 void
 AcpiDbBatchExecute (
-    void)
+    char                    *CountArg)
 {
-    UINT32                  Count = 0;
+    ACPI_EXECUTE_WALK       Info;
+
+
+    Info.Count = 0;
+    Info.MaxCount = ACPI_UINT32_MAX;
+
+    if (CountArg)
+    {
+        Info.MaxCount = ACPI_STRTOUL (CountArg, NULL, 0);
+    }
 
 
     /* Search all nodes in namespace */
 
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                AcpiDbWalkForExecute, (void *) &Count, NULL);
+                AcpiDbWalkForExecute, NULL, (void *) &Info, NULL);
 
-    AcpiOsPrintf ("Executed %d predefined names in the namespace\n", Count);
+    AcpiOsPrintf ("Executed %d predefined names in the namespace\n", Info.Count);
 }
 
 
@@ -1150,14 +1165,12 @@ AcpiDbSetMethodData (
 
     /* Create and initialize the new object */
 
-    ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+    ObjDesc = AcpiUtCreateIntegerObject ((UINT64) Value);
     if (!ObjDesc)
     {
         AcpiOsPrintf ("Could not create an internal object\n");
         return;
     }
-
-    ObjDesc->Integer.Value = Value;
 
     /* Store the new object into the target */
 
@@ -1310,7 +1323,7 @@ AcpiDbDisplayObjects (
     /* Walk the namespace from the root */
 
     (void) AcpiWalkNamespace (Type, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                AcpiDbWalkForSpecificObjects, (void *) &Info, NULL);
+                AcpiDbWalkForSpecificObjects, NULL, (void *) &Info, NULL);
 
     AcpiOsPrintf (
         "\nFound %u objects of type [%s] in the current ACPI Namespace\n",
@@ -1426,7 +1439,7 @@ AcpiDbFindNameInNamespace (
     /* Walk the namespace from the root */
 
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                        AcpiDbWalkAndMatchName, AcpiName, NULL);
+                        AcpiDbWalkAndMatchName, NULL, AcpiName, NULL);
 
     AcpiDbSetOutputDestination (ACPI_DB_CONSOLE_OUTPUT);
     return (AE_OK);
@@ -1927,7 +1940,7 @@ AcpiDbCheckIntegrity (
     /* Search all nodes in namespace */
 
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                    AcpiDbIntegrityWalk, (void *) &Info, NULL);
+                    AcpiDbIntegrityWalk, NULL, (void *) &Info, NULL);
 
     AcpiOsPrintf ("Verified %d namespace nodes with %d Objects\n",
         Info.Nodes, Info.Objects);
@@ -1997,11 +2010,16 @@ AcpiDbBusWalk (
     ACPI_NAMESPACE_NODE     *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
     ACPI_STATUS             Status;
     ACPI_BUFFER             Buffer;
-    ACPI_INTEGER            ADR;
-    ACPI_DEVICE_ID          Id;
-    ACPI_COMPATIBLE_ID_LIST *Cid;
     ACPI_NAMESPACE_NODE     *TempNode;
+    ACPI_DEVICE_INFO        *Info;
+    UINT32                  i;
 
+
+    if ((Node->Type != ACPI_TYPE_DEVICE) &&
+        (Node->Type != ACPI_TYPE_PROCESSOR))
+    {
+        return (AE_OK);
+    }
 
     /* Exit if there is no _PRT under this device */
 
@@ -2022,57 +2040,70 @@ AcpiDbBusWalk (
         return (AE_OK);
     }
 
+    Status = AcpiGetObjectInfo (ObjHandle, &Info);
+    if (ACPI_FAILURE (Status))
+    {
+        return (AE_OK);
+    }
+
     /* Display the full path */
 
-    AcpiOsPrintf ("%-32s", (char *) Buffer.Pointer);
+    AcpiOsPrintf ("%-32s Type %X", (char *) Buffer.Pointer, Node->Type);
     ACPI_FREE (Buffer.Pointer);
+
+    if (Info->Flags & ACPI_PCI_ROOT_BRIDGE)
+    {
+        AcpiOsPrintf ("  - Is PCI Root Bridge");
+    }
+    AcpiOsPrintf ("\n");
 
     /* _PRT info */
 
-    AcpiOsPrintf ("_PRT=%p", TempNode);
+    AcpiOsPrintf ("_PRT: %p\n", TempNode);
 
-    /* Get the _ADR value */
+    /* Dump _ADR, _HID, _UID, _CID */
 
-    Status = AcpiUtEvaluateNumericObject (METHOD_NAME__ADR, Node, &ADR);
-    if (ACPI_FAILURE (Status))
+    if (Info->Valid & ACPI_VALID_ADR)
     {
-        AcpiOsPrintf (" No _ADR      ");
+        AcpiOsPrintf ("_ADR: %8.8X%8.8X\n", ACPI_FORMAT_UINT64 (Info->Address));
     }
     else
     {
-        AcpiOsPrintf (" _ADR=%8.8X", (UINT32) ADR);
+        AcpiOsPrintf ("_ADR: <Not Present>\n");
     }
 
-    /* Get the _HID if present */
-
-    Status = AcpiUtExecute_HID (Node, &Id);
-    if (ACPI_SUCCESS (Status))
+    if (Info->Valid & ACPI_VALID_HID)
     {
-        AcpiOsPrintf (" _HID=%s", Id.Value);
+        AcpiOsPrintf ("_HID: %s\n", Info->HardwareId.String);
     }
     else
     {
-        AcpiOsPrintf ("             ");
+        AcpiOsPrintf ("_HID: <Not Present>\n");
     }
 
-    /* Get the _UID if present */
-
-    Status = AcpiUtExecute_UID (Node, &Id);
-    if (ACPI_SUCCESS (Status))
+    if (Info->Valid & ACPI_VALID_UID)
     {
-        AcpiOsPrintf (" _UID=%s", Id.Value);
+        AcpiOsPrintf ("_UID: %s\n", Info->UniqueId.String);
     }
-
-    /* Get the _CID if present */
-
-    Status = AcpiUtExecute_CID (Node, &Cid);
-    if (ACPI_SUCCESS (Status))
+    else
     {
-        AcpiOsPrintf (" _CID=%s", Cid->Id[0].Value);
-        ACPI_FREE (Cid);
+        AcpiOsPrintf ("_UID: <Not Present>\n");
     }
 
-    AcpiOsPrintf ("\n");
+    if (Info->Valid & ACPI_VALID_CID)
+    {
+        for (i = 0; i < Info->CompatibleIdList.Count; i++)
+        {
+            AcpiOsPrintf ("_CID: %s\n",
+                Info->CompatibleIdList.Ids[i].String);
+        }
+    }
+    else
+    {
+        AcpiOsPrintf ("_CID: <Not Present>\n");
+    }
+
+    ACPI_FREE (Info);
     return (AE_OK);
 }
 
@@ -2095,8 +2126,8 @@ AcpiDbGetBusInfo (
 {
     /* Search all nodes in namespace */
 
-    (void) AcpiWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                    AcpiDbBusWalk, NULL, NULL);
+    (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+                    AcpiDbBusWalk, NULL, NULL, NULL);
 }
 
 #endif /* ACPI_DEBUGGER */

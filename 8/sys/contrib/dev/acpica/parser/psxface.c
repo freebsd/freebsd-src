@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -120,6 +120,7 @@
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 
 
@@ -334,6 +335,10 @@ AcpiPsExecuteMethod (
     ACPI_FUNCTION_TRACE (PsExecuteMethod);
 
 
+    /* Quick validation of DSDT header */
+
+    AcpiTbCheckDsdtHeader ();
+
     /* Validate the Info and method Node */
 
     if (!Info || !Info->ResolvedNode)
@@ -394,11 +399,16 @@ AcpiPsExecuteMethod (
         goto Cleanup;
     }
 
+    if (Info->ObjDesc->Method.Flags & AOPOBJ_MODULE_LEVEL)
+    {
+        WalkState->ParseFlags |= ACPI_PARSE_MODULE_LEVEL;
+    }
+
     /* Invoke an internal method if necessary */
 
     if (Info->ObjDesc->Method.MethodFlags & AML_METHOD_INTERNAL_ONLY)
     {
-        Status = Info->ObjDesc->Method.Implementation (WalkState);
+        Status = Info->ObjDesc->Method.Extra.Implementation (WalkState);
         Info->ReturnObject = WalkState->ReturnDesc;
 
         /* Cleanup states */
@@ -417,15 +427,13 @@ AcpiPsExecuteMethod (
     if (AcpiGbl_EnableInterpreterSlack)
     {
         WalkState->ImplicitReturnObj =
-            AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+            AcpiUtCreateIntegerObject ((UINT64) 0);
         if (!WalkState->ImplicitReturnObj)
         {
             Status = AE_NO_MEMORY;
             AcpiDsDeleteWalkState (WalkState);
             goto Cleanup;
         }
-
-        WalkState->ImplicitReturnObj->Integer.Value = 0;
     }
 
     /* Parse the AML */

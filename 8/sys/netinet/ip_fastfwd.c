@@ -351,10 +351,11 @@ ip_fastforward(struct mbuf *m)
 	/*
 	 * Run through list of ipfilter hooks for input packets
 	 */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passin;
 
-	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL) ||
+	if (pfil_run_hooks(
+	    &V_inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL) ||
 	    m == NULL)
 		goto drop;
 
@@ -438,10 +439,10 @@ passin:
 	/*
 	 * Run through list of hooks for output packets.
 	 */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passout;
 
-	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT, NULL) || m == NULL) {
+	if (pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, NULL) || m == NULL) {
 		goto drop;
 	}
 

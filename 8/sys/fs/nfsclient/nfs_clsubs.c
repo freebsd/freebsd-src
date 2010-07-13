@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 extern struct mtx ncl_iod_mutex;
-extern struct proc *ncl_iodwant[NFS_MAXRAHEAD];
+extern enum nfsiod_state ncl_iodwant[NFS_MAXRAHEAD];
 extern struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
 extern int ncl_numasync;
 extern unsigned int ncl_iodmax;
@@ -100,7 +100,7 @@ ncl_uninit(struct vfsconf *vfsp)
 	mtx_lock(&ncl_iod_mutex);
 	ncl_iodmax = 0;
 	for (i = 0; i < ncl_numasync; i++)
-		if (ncl_iodwant[i])
+		if (ncl_iodwant[i] == NFSIOD_AVAILABLE)
 			wakeup(&ncl_iodwant[i]);
 	/* The last nfsiod to exit will wake us up when ncl_numasync hits 0 */
 	while (ncl_numasync)
@@ -188,11 +188,12 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	struct nfsnode *np;
 	struct vattr *vap;
 	struct nfsmount *nmp;
-	int timeo;
+	int timeo, mustflush;
 	
 	np = VTONFS(vp);
 	vap = &np->n_vattr.na_vattr;
 	nmp = VFSTONFS(vp->v_mount);
+	mustflush = nfscl_mustflush(vp);	/* must be before mtx_lock() */
 #ifdef NFS_ACDEBUG
 	mtx_lock(&Giant);	/* ncl_printf() */
 #endif
@@ -228,9 +229,13 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 			   (time_second - np->n_attrstamp), timeo);
 #endif
 
-	if ((time_second - np->n_attrstamp) >= timeo) {
+	if ((time_second - np->n_attrstamp) >= timeo &&
+	    mustflush != 0) {
 		newnfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
+#ifdef NFS_ACDEBUG
+		mtx_unlock(&Giant);	/* ncl_printf() */
+#endif
 		return( ENOENT);
 	}
 	newnfsstats.attrcache_hits++;
@@ -277,10 +282,7 @@ ncl_getcookie(struct nfsnode *np, off_t off, int add)
 	
 	pos = (uoff_t)off / NFS_DIRBLKSIZ;
 	if (pos == 0 || off < 0) {
-#ifdef DIAGNOSTIC
-		if (add)
-			panic("nfs getcookie add at <= 0");
-#endif
+		KASSERT(!add, ("nfs getcookie add at <= 0"));
 		return (&nfs_nullcookie);
 	}
 	pos--;
@@ -331,10 +333,7 @@ ncl_invaldir(struct vnode *vp)
 {
 	struct nfsnode *np = VTONFS(vp);
 
-#ifdef DIAGNOSTIC
-	if (vp->v_type != VDIR)
-		panic("nfs: invaldir not dir");
-#endif
+	KASSERT(vp->v_type == VDIR, ("nfs: invaldir not dir"));
 	ncl_dircookie_lock(np);
 	np->n_direofoffset = 0;
 	np->n_cookieverf.nfsuquad[0] = 0;
@@ -396,7 +395,7 @@ ncl_init(struct vfsconf *vfsp)
 
 	/* Ensure async daemons disabled */
 	for (i = 0; i < NFS_MAXRAHEAD; i++) {
-		ncl_iodwant[i] = NULL;
+		ncl_iodwant[i] = NFSIOD_NOT_AVAILABLE;
 		ncl_iodmount[i] = NULL;
 	}
 	ncl_nhinit();			/* Init the nfsnode table */

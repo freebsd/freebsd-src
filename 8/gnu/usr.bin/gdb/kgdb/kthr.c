@@ -58,6 +58,7 @@ kgdb_lookup(const char *sym)
 {
 	struct nlist nl[2];
 
+	nl[0].n_type = N_UNDF;
 	nl[0].n_name = (char *)(uintptr_t)sym;
 	nl[1].n_name = NULL;
 	if (kvm_nlist(kvm, nl) != 0)

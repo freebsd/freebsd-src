@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_atpic.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 
@@ -115,14 +116,12 @@ struct lapic {
 	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
 } static lapics[MAX_APIC_ID + 1];
 
-/* XXX: should thermal be an NMI? */
-
 /* Global defaults for local APIC LVT entries. */
 static struct lvt lvts[LVT_MAX + 1] = {
 	{ 1, 1, 1, 1, APIC_LVT_DM_EXTINT, 0 },	/* LINT0: masked ExtINT */
 	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* LINT1: NMI */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_TIMER_INT },	/* Timer */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
+	{ 1, 1, 0, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
 	{ 1, 1, 1, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
 };
@@ -149,6 +148,7 @@ extern inthand_t IDTVEC(rsvd);
 volatile lapic_t *lapic;
 vm_paddr_t lapic_paddr;
 static u_long lapic_timer_divisor, lapic_timer_period, lapic_timer_hz;
+static enum lapic_clock clockcoverage;
 
 static void	lapic_enable(void);
 static void	lapic_resume(struct pic *pic);
@@ -226,7 +226,11 @@ lapic_init(vm_paddr_t addr)
 	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 
-	/* XXX: error/thermal interrupts */
+	/* Local APIC error interrupt. */
+	setidt(APIC_ERROR_INT, IDTVEC(errorint), SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+
+	/* XXX: Thermal interrupt */
 }
 
 /*
@@ -279,7 +283,7 @@ lapic_dump(const char* str)
 	    lapic->id, lapic->version, lapic->ldr, lapic->dfr);
 	printf("  lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
 	    lapic->lvt_lint0, lapic->lvt_lint1, lapic->tpr, lapic->svr);
-	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pcm: 0x%08x\n",
+	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pmc: 0x%08x\n",
 	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
 	    lapic->lvt_pcint);
 }
@@ -327,7 +331,11 @@ lapic_setup(int boot)
 		lapic_timer_enable_intr();
 	}
 
-	/* XXX: Error and thermal LVTs */
+	/* Program error LVT and clear any existing errors. */
+	lapic->lvt_error = lvt_mode(la, LVT_ERROR, lapic->lvt_error);
+	lapic->esr = 0;
+
+	/* XXX: Thermal LVT */
 
 	intr_restore(eflags);
 }
@@ -416,22 +424,23 @@ lapic_disable_pmc(void)
 
 /*
  * Called by cpu_initclocks() on the BSP to setup the local APIC timer so
- * that it can drive hardclock, statclock, and profclock.  This function
- * returns true if it is able to use the local APIC timer to drive the
- * clocks and false if it is not able.
+ * that it can drive hardclock, statclock, and profclock. 
  */
-int
-lapic_setup_clock(void)
+enum lapic_clock
+lapic_setup_clock(enum lapic_clock srcsdes)
 {
 	u_long value;
 	int i;
 
-	/* Can't drive the timer without a local APIC. */
-	if (lapic == NULL)
-		return (0);
+	/* lapic_setup_clock() should not be called with LAPIC_CLOCK_NONE. */
+	MPASS(srcsdes != LAPIC_CLOCK_NONE);
 
-	if (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0)
-		return (0);
+	/* Can't drive the timer without a local APIC. */
+	if (lapic == NULL ||
+	    (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0)) {
+		clockcoverage = LAPIC_CLOCK_NONE;
+		return (clockcoverage);
+	}
 
 	/* Start off with a divisor of 2 (power on reset default). */
 	lapic_timer_divisor = 2;
@@ -450,7 +459,7 @@ lapic_setup_clock(void)
 		panic("lapic: Divisor too big");
 	value /= 2;
 	if (bootverbose)
-		printf("lapic: Divisor %lu, Frequency %lu hz\n",
+		printf("lapic: Divisor %lu, Frequency %lu Hz\n",
 		    lapic_timer_divisor, value);
 
 	/*
@@ -463,19 +472,27 @@ lapic_setup_clock(void)
 	 * (and profhz) run at hz.  If 'hz' is below 1500 but above
 	 * 750, then we let the lapic timer run at 2 * 'hz'.  If 'hz'
 	 * is below 750 then we let the lapic timer run at 4 * 'hz'.
+	 *
+	 * Please note that stathz and profhz are set only if all the
+	 * clocks are handled through the local APIC.
 	 */
-	if (hz >= 1500)
+	if (srcsdes == LAPIC_CLOCK_ALL) {
+		if (hz >= 1500)
+			lapic_timer_hz = hz;
+		else if (hz >= 750)
+			lapic_timer_hz = hz * 2;
+		else
+			lapic_timer_hz = hz * 4;
+	} else
 		lapic_timer_hz = hz;
-	else if (hz >= 750)
-		lapic_timer_hz = hz * 2;
-	else
-		lapic_timer_hz = hz * 4;
-	if (lapic_timer_hz < 128)
-		stathz = lapic_timer_hz;
-	else
-		stathz = lapic_timer_hz / (lapic_timer_hz / 128);
-	profhz = lapic_timer_hz;
 	lapic_timer_period = value / lapic_timer_hz;
+	if (srcsdes == LAPIC_CLOCK_ALL) {
+		if (lapic_timer_hz < 128)
+			stathz = lapic_timer_hz;
+		else
+			stathz = lapic_timer_hz / (lapic_timer_hz / 128);
+		profhz = lapic_timer_hz;
+	}
 
 	/*
 	 * Start up the timer on the BSP.  The APs will kick off their
@@ -483,7 +500,8 @@ lapic_setup_clock(void)
 	 */
 	lapic_timer_periodic(lapic_timer_period);
 	lapic_timer_enable_intr();
-	return (1);
+	clockcoverage = srcsdes;
+	return (srcsdes);
 }
 
 void
@@ -713,18 +731,6 @@ lapic_eoi(void)
 	lapic->eoi = 0;
 }
 
-/*
- * Read the contents of the error status register.  We have to write
- * to the register first before reading from it.
- */
-u_int
-lapic_error(void)
-{
-
-	lapic->esr = 0;
-	return (lapic->esr);
-}
-
 void
 lapic_handle_intr(int vector, struct trapframe *frame)
 {
@@ -786,20 +792,23 @@ lapic_handle_timer(struct trapframe *frame)
 		else
 			hardclock_cpu(TRAPF_USERMODE(frame));
 	}
+	if (clockcoverage == LAPIC_CLOCK_ALL) {
 
-	/* Fire statclock at stathz. */
-	la->la_stat_ticks += stathz;
-	if (la->la_stat_ticks >= lapic_timer_hz) {
-		la->la_stat_ticks -= lapic_timer_hz;
-		statclock(TRAPF_USERMODE(frame));
-	}
+		/* Fire statclock at stathz. */
+		la->la_stat_ticks += stathz;
+		if (la->la_stat_ticks >= lapic_timer_hz) {
+			la->la_stat_ticks -= lapic_timer_hz;
+			statclock(TRAPF_USERMODE(frame));
+		}
 
-	/* Fire profclock at profhz, but only when needed. */
-	la->la_prof_ticks += profhz;
-	if (la->la_prof_ticks >= lapic_timer_hz) {
-		la->la_prof_ticks -= lapic_timer_hz;
-		if (profprocs != 0)
-			profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+		/* Fire profclock at profhz, but only when needed. */
+		la->la_prof_ticks += profhz;
+		if (la->la_prof_ticks >= lapic_timer_hz) {
+			la->la_prof_ticks -= lapic_timer_hz;
+			if (profprocs != 0)
+				profclock(TRAPF_USERMODE(frame),
+				    TRAPF_PC(frame));
+		}
 	}
 	critical_exit();
 }
@@ -846,6 +855,24 @@ lapic_timer_enable_intr(void)
 	value = lapic->lvt_timer;
 	value &= ~APIC_LVT_M;
 	lapic->lvt_timer = value;
+}
+
+void
+lapic_handle_error(void)
+{
+	u_int32_t esr;
+
+	/*
+	 * Read the contents of the error status register.  Write to
+	 * the register first before reading from it to force the APIC
+	 * to update its value to indicate any errors that have
+	 * occurred since the previous write to the register.
+	 */
+	lapic->esr = 0;
+	esr = lapic->esr;
+
+	printf("CPU%d: local APIC error 0x%x\n", PCPU_GET(cpuid), esr);
+	lapic_eoi();
 }
 
 u_int

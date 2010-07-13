@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2000, 2008 Sendmail, Inc. and its suppliers.
 .\"	 All rights reserved.
 .\"
 .\" By using this file, you agree to the terms and conditions set
@@ -6,9 +6,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: praliases.8,v 8.17 2000/12/15 19:53:45 gshapiro Exp $
+.\"	$Id: praliases.8,v 8.19 2008/07/10 20:13:10 ca Exp $
 .\"
-.TH PRALIASES 8 "$Date: 2000/12/15 19:53:45 $"
+.TH PRALIASES 8 "$Date: 2008/07/10 20:13:10 $"
 .SH NAME
 praliases
 \- display system mail aliases
@@ -30,12 +30,12 @@ The special internal @:@ alias will be displayed if present.
 .PP
 The options are as follows:
 .TP
-.B \-C
+.BI "\-C " file
 Read the specified sendmail configuration file instead of the default
 .B sendmail
 configuration file.
 .TP 
-.B \-f
+.BI "\-f " file
 Read the specified file instead of the configured
 .B sendmail
 system aliases file(s).

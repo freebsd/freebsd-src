@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -485,6 +485,7 @@ typedef enum
     REGION_SMBUS,
     REGION_CMOS,
     REGION_PCI_BAR,
+    REGION_IPMI,
     REGION_DATA_TABLE,              /* Internal use only */
     REGION_FIXED_HW                 = 0x7F
 

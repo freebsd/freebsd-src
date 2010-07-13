@@ -95,7 +95,6 @@ main(int argc, char *argv[])
 
 	if (argc < 3)
 		usage();
-	Aflag = aflag = eflag = fflag = jflag = Jflag = Lflag = lflag = 0;
 	mflag = Nflag = nflag = oflag = pflag = sflag = 0;
 	avalue = jvalue = Jvalue = Lvalue = lvalue = Nvalue = nvalue = NULL;
 	evalue = fvalue = mvalue = ovalue = svalue = Svalue = 0;
@@ -111,7 +110,7 @@ main(int argc, char *argv[])
 
 		case 'a':
 			found_arg = 1;
-			name = "ACLs";
+			name = "POSIX.1e ACLs";
 			avalue = optarg;
 			if (strcmp(avalue, "enable") &&
 			    strcmp(avalue, "disable")) {
@@ -205,6 +204,18 @@ main(int argc, char *argv[])
 			mflag = 1;
 			break;
 
+		case 'N':
+			found_arg = 1;
+			name = "NFSv4 ACLs";
+			Nvalue = optarg;
+			if (strcmp(Nvalue, "enable") &&
+			    strcmp(Nvalue, "disable")) {
+				errx(10, "bad %s (options are %s)",
+				    name, "`enable' or `disable'");
+			}
+			Nflag = 1;
+			break;
+
 		case 'n':
 			found_arg = 1;
 			name = "soft updates";
@@ -283,10 +294,13 @@ main(int argc, char *argv[])
 		strlcpy(sblock.fs_volname, Lvalue, MAXVOLLEN);
 	}
 	if (aflag) {
-		name = "ACLs";
+		name = "POSIX.1e ACLs";
 		if (strcmp(avalue, "enable") == 0) {
 			if (sblock.fs_flags & FS_ACLS) {
 				warnx("%s remains unchanged as enabled", name);
+			} else if (sblock.fs_flags & FS_NFS4ACLS) {
+				warnx("%s and NFSv4 ACLs are mutually "
+				    "exclusive", name);
 			} else {
 				sblock.fs_flags |= FS_ACLS;
 				warnx("%s set", name);
@@ -314,7 +328,7 @@ main(int argc, char *argv[])
 	}
 	if (fflag) {
 		name = "average file size";
-		if (sblock.fs_avgfilesize == fvalue) {
+		if (sblock.fs_avgfilesize == (unsigned)fvalue) {
 			warnx("%s remains unchanged as %d", name, fvalue);
 		}
 		else {
@@ -404,6 +418,29 @@ main(int argc, char *argv[])
 				warnx(OPTWARN, "space", "<", MINFREE);
 		}
 	}
+	if (Nflag) {
+		name = "NFSv4 ACLs";
+		if (strcmp(Nvalue, "enable") == 0) {
+			if (sblock.fs_flags & FS_NFS4ACLS) {
+				warnx("%s remains unchanged as enabled", name);
+			} else if (sblock.fs_flags & FS_ACLS) {
+				warnx("%s and POSIX.1e ACLs are mutually "
+				    "exclusive", name);
+			} else {
+				sblock.fs_flags |= FS_NFS4ACLS;
+				warnx("%s set", name);
+			}
+		} else if (strcmp(Nvalue, "disable") == 0) {
+			if ((~sblock.fs_flags & FS_NFS4ACLS) ==
+			    FS_NFS4ACLS) {
+				warnx("%s remains unchanged as disabled",
+				    name);
+			} else {
+				sblock.fs_flags &= ~FS_NFS4ACLS;
+				warnx("%s cleared", name);
+			}
+		}
+	}
 	if (nflag) {
  		name = "soft updates";
  		if (strcmp(nvalue, "enable") == 0) {
@@ -444,7 +481,7 @@ main(int argc, char *argv[])
 	}
 	if (sflag) {
 		name = "expected number of files per directory";
-		if (sblock.fs_avgfpdir == svalue) {
+		if (sblock.fs_avgfpdir == (unsigned)svalue) {
 			warnx("%s remains unchanged as %d", name, svalue);
 		}
 		else {
@@ -965,16 +1002,18 @@ usage(void)
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
 "              [-J enable | disable ] [-L volname] [-l enable | disable]",
-"              [-m minfree] [-n enable | disable] [-o space | time] [-p]",
-"              [-s avgfpdir] special | filesystem");
+"              [-m minfree] [-N enable | disable] [-n enable | disable]",
+"              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
 	exit(2);
 }
 
 void
 printfs(void)
 {
-	warnx("ACLs: (-a)                                         %s",
+	warnx("POSIX.1e ACLs: (-a)                                %s",
 		(sblock.fs_flags & FS_ACLS)? "enabled" : "disabled");
+	warnx("NFSv4 ACLs: (-N)                                   %s",
+		(sblock.fs_flags & FS_NFS4ACLS)? "enabled" : "disabled");
 	warnx("MAC multilabel: (-l)                               %s",
 		(sblock.fs_flags & FS_MULTILABEL)? "enabled" : "disabled");
 	warnx("soft updates: (-n)                                 %s", 

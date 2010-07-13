@@ -57,6 +57,8 @@
 
 #include "port-aix.h"
 
+static char *lastlogin_msg = NULL;
+
 # ifdef HAVE_SETAUTHDB
 static char old_registry[REGISTRY_SIZE] = "";
 # endif
@@ -276,21 +278,28 @@ sys_auth_record_login(const char *user, const char *host, const char *ttynm,
     Buffer *loginmsg)
 {
 	char *msg = NULL;
-	static int msg_done = 0;
 	int success = 0;
 
 	aix_setauthdb(user);
 	if (loginsuccess((char *)user, (char *)host, (char *)ttynm, &msg) == 0) {
 		success = 1;
-		if (msg != NULL && loginmsg != NULL && !msg_done) {
+		if (msg != NULL) {
 			debug("AIX/loginsuccess: msg %s", msg);
-			buffer_append(loginmsg, msg, strlen(msg));
-			xfree(msg);
-			msg_done = 1;
+			if (lastlogin_msg == NULL)
+				lastlogin_msg = msg;
 		}
 	}
 	aix_restoreauthdb();
 	return (success);
+}
+
+char *
+sys_auth_get_lastlogin_msg(const char *user, uid_t uid)
+{
+	char *msg = lastlogin_msg;
+
+	lastlogin_msg = NULL;
+	return msg;
 }
 
 #  ifdef CUSTOM_FAILED_LOGIN
@@ -364,6 +373,31 @@ aix_restoreauthdb(void)
 }
 
 # endif /* WITH_AIXAUTHENTICATE */
+
+# ifdef USE_AIX_KRB_NAME
+/*
+ * aix_krb5_get_principal_name: returns the user's kerberos client principal name if
+ * configured, otherwise NULL.  Caller must free returned string.
+ */
+char *
+aix_krb5_get_principal_name(char *pw_name)
+{
+	char *authname = NULL, *authdomain = NULL, *principal = NULL;
+
+	setuserdb(S_READ);
+	if (getuserattr(pw_name, S_AUTHDOMAIN, &authdomain, SEC_CHAR) != 0)
+		debug("AIX getuserattr S_AUTHDOMAIN: %s", strerror(errno));
+	if (getuserattr(pw_name, S_AUTHNAME, &authname, SEC_CHAR) != 0)
+		debug("AIX getuserattr S_AUTHNAME: %s", strerror(errno));
+
+	if (authdomain != NULL)
+		xasprintf(&principal, "%s@%s", authname ? authname : pw_name, authdomain);
+	else if (authname != NULL)
+		principal = xstrdup(authname);
+	enduserdb();
+	return principal;
+}
+# endif /* USE_AIX_KRB_NAME */
 
 # if defined(AIX_GETNAMEINFO_HACK) && !defined(BROKEN_ADDRINFO)
 # undef getnameinfo

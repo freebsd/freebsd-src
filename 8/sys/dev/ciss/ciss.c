@@ -173,8 +173,6 @@ static void	ciss_unmap_request(struct ciss_request *cr);
 static int	ciss_cam_init(struct ciss_softc *sc);
 static void	ciss_cam_rescan_target(struct ciss_softc *sc,
 				       int bus, int target);
-static void	ciss_cam_rescan_all(struct ciss_softc *sc);
-static void	ciss_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb);
 static void	ciss_cam_action(struct cam_sim *sim, union ccb *ccb);
 static int	ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio);
 static int	ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio);
@@ -419,6 +417,7 @@ ciss_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->ciss_dev = dev;
     mtx_init(&sc->ciss_mtx, "cissmtx", NULL, MTX_DEF);
+    callout_init_mtx(&sc->ciss_periodic, &sc->ciss_mtx, 0);
 
     /*
      * Do PCI-specific init.
@@ -431,7 +430,6 @@ ciss_attach(device_t dev)
      */
     ciss_initq_free(sc);
     ciss_initq_notify(sc);
-    callout_init_mtx(&sc->ciss_periodic, &sc->ciss_mtx, 0);
 
     /*
      * Initalize device sysctls.
@@ -1355,7 +1353,7 @@ ciss_init_logical(struct ciss_softc *sc)
 
     /* sanity-check reply */
     ndrives = (ntohl(cll->list_size) / sizeof(union ciss_device_address));
-    if ((ndrives < 0) || (ndrives >= CISS_MAX_LOGICAL)) {
+    if ((ndrives < 0) || (ndrives > CISS_MAX_LOGICAL)) {
 	ciss_printf(sc, "adapter claims to report absurd number of logical drives (%d > %d)\n",
 		    ndrives, CISS_MAX_LOGICAL);
 	error = ENXIO;
@@ -2793,7 +2791,7 @@ ciss_cam_init(struct ciss_softc *sc)
      * Allocate a devq.  We can reuse this for the masked physical
      * devices if we decide to export these as well.
      */
-    if ((sc->ciss_cam_devq = cam_simq_alloc(sc->ciss_max_requests)) == NULL) {
+    if ((sc->ciss_cam_devq = cam_simq_alloc(sc->ciss_max_requests - 2)) == NULL) {
 	ciss_printf(sc, "can't allocate CAM SIM queue\n");
 	return(ENOMEM);
     }
@@ -2863,13 +2861,6 @@ ciss_cam_init(struct ciss_softc *sc)
 	mtx_unlock(&sc->ciss_mtx);
     }
 
-    /*
-     * Initiate a rescan of the bus.
-     */
-    mtx_lock(&sc->ciss_mtx);
-    ciss_cam_rescan_all(sc);
-    mtx_unlock(&sc->ciss_mtx);
-
     return(0);
 }
 
@@ -2879,51 +2870,24 @@ ciss_cam_init(struct ciss_softc *sc)
 static void
 ciss_cam_rescan_target(struct ciss_softc *sc, int bus, int target)
 {
-    struct cam_path	*path;
     union ccb		*ccb;
 
     debug_called(1);
 
-    if ((ccb = malloc(sizeof(union ccb), CISS_MALLOC_CLASS, M_NOWAIT | M_ZERO)) == NULL) {
+    if ((ccb = xpt_alloc_ccb_nowait()) == NULL) {
 	ciss_printf(sc, "rescan failed (can't allocate CCB)\n");
 	return;
     }
 
-    if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->ciss_cam_sim[bus]),
-			target, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+	    cam_sim_path(sc->ciss_cam_sim[bus]),
+	    target, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 	ciss_printf(sc, "rescan failed (can't create path)\n");
-	free(ccb, CISS_MALLOC_CLASS);
+	xpt_free_ccb(ccb);
 	return;
     }
-
-    xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
-    ccb->ccb_h.func_code = XPT_SCAN_BUS;
-    ccb->ccb_h.cbfcnp = ciss_cam_rescan_callback;
-    ccb->crcn.flags = CAM_FLAG_NONE;
-    xpt_action(ccb);
-
+    xpt_rescan(ccb);
     /* scan is now in progress */
-}
-
-static void
-ciss_cam_rescan_all(struct ciss_softc *sc)
-{
-    int i;
-
-    /* Rescan the logical buses */
-    for (i = 0; i < sc->ciss_max_logical_bus; i++)
-	ciss_cam_rescan_target(sc, i, CAM_TARGET_WILDCARD);
-    /* Rescan the physical buses */
-    for (i = CISS_PHYSICAL_BASE; i < sc->ciss_max_physical_bus +
-	 CISS_PHYSICAL_BASE; i++)
-	ciss_cam_rescan_target(sc, i, CAM_TARGET_WILDCARD);
-}
-
-static void
-ciss_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-    xpt_free_path(ccb->ccb_h.path);
-    free(ccb, CISS_MALLOC_CLASS);
 }
 
 /************************************************************************
@@ -3101,6 +3065,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      */
     if ((error = ciss_get_request(sc, &cr)) != 0) {
 	xpt_freeze_simq(sim, 1);
+	sc->ciss_flags |= CISS_FLAG_BUSY;
 	csio->ccb_h.status |= CAM_REQUEUE_REQ;
 	return(error);
     }
@@ -3152,8 +3117,8 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      */
     if ((error = ciss_start(cr)) != 0) {
 	xpt_freeze_simq(sim, 1);
+	csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	if (error == EINPROGRESS) {
-	    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	    error = 0;
 	} else {
 	    csio->ccb_h.status |= CAM_REQUEUE_REQ;
@@ -3181,7 +3146,7 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 
     if (CISS_IS_PHYSICAL(bus)) {
 	if (sc->ciss_physical[CISS_CAM_TO_PBUS(bus)][target].cp_online != 1) {
-	    csio->ccb_h.status = CAM_SEL_TIMEOUT;
+	    csio->ccb_h.status |= CAM_SEL_TIMEOUT;
 	    xpt_done((union ccb *)csio);
 	    return(1);
 	} else
@@ -3194,7 +3159,7 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
      * Other errors might be better.
      */
     if (sc->ciss_logical[bus][target].cl_status != CISS_LD_ONLINE) {
-	csio->ccb_h.status = CAM_SEL_TIMEOUT;
+	csio->ccb_h.status |= CAM_SEL_TIMEOUT;
 	xpt_done((union ccb *)csio);
 	return(1);
     }
@@ -3208,7 +3173,7 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	if (((csio->ccb_h.flags & CAM_CDB_POINTER) ?
 	     *(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0]) == SYNCHRONIZE_CACHE) {
 	    ciss_flush_adapter(sc);
-	    csio->ccb_h.status = CAM_REQ_CMP;
+	    csio->ccb_h.status |= CAM_REQ_CMP;
 	    xpt_done((union ccb *)csio);
 	    return(1);
 	}
@@ -3269,13 +3234,13 @@ ciss_cam_complete(struct ciss_request *cr)
 	/* no status due to adapter error */
     case -1:
 	debug(0, "adapter error");
-	csio->ccb_h.status = CAM_REQ_CMP_ERR;
+	csio->ccb_h.status |= CAM_REQ_CMP_ERR;
 	break;
 
 	/* no status due to command completed OK */
     case SCSI_STATUS_OK:		/* CISS_SCSI_STATUS_GOOD */
 	debug(2, "SCSI_STATUS_OK");
-	csio->ccb_h.status = CAM_REQ_CMP;
+	csio->ccb_h.status |= CAM_REQ_CMP;
 	break;
 
 	/* check condition, sense data included */
@@ -3286,7 +3251,7 @@ ciss_cam_complete(struct ciss_request *cr)
 	bcopy(&ce->sense_info[0], &csio->sense_data, ce->sense_length);
 	csio->sense_len = ce->sense_length;
 	csio->resid = ce->residual_count;
-	csio->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
+	csio->ccb_h.status |= CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 #ifdef CISS_DEBUG
 	{
 	    struct scsi_sense_data	*sns = (struct scsi_sense_data *)&ce->sense_info[0];
@@ -3297,22 +3262,26 @@ ciss_cam_complete(struct ciss_request *cr)
 
     case SCSI_STATUS_BUSY:		/* CISS_SCSI_STATUS_BUSY */
 	debug(0, "SCSI_STATUS_BUSY");
-	csio->ccb_h.status = CAM_SCSI_BUSY;
+	csio->ccb_h.status |= CAM_SCSI_BUSY;
 	break;
 
     default:
 	debug(0, "unknown status 0x%x", csio->scsi_status);
-	csio->ccb_h.status = CAM_REQ_CMP_ERR;
+	csio->ccb_h.status |= CAM_REQ_CMP_ERR;
 	break;
     }
 
     /* handle post-command fixup */
     ciss_cam_complete_fixup(sc, csio);
 
-    /* tell CAM we're ready for more commands */
-    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
-
     ciss_release_request(cr);
+    if (sc->ciss_flags & CISS_FLAG_BUSY) {
+	sc->ciss_flags &= ~CISS_FLAG_BUSY;
+	if (csio->ccb_h.status & CAM_RELEASE_SIMQ)
+	    xpt_release_simq(xpt_path_sim(csio->ccb_h.path), 0);
+	else
+	    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
+    }
     xpt_done((union ccb *)csio);
 }
 
@@ -3324,10 +3293,15 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 {
     struct scsi_inquiry_data	*inq;
     struct ciss_ldrive		*cl;
+    uint8_t			*cdb;
     int				bus, target;
 
-    if (((csio->ccb_h.flags & CAM_CDB_POINTER) ?
-	 *(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0]) == INQUIRY) {
+    cdb = (csio->ccb_h.flags & CAM_CDB_POINTER) ?
+	 (uint8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes;
+    if (cdb[0] == INQUIRY && 
+	(cdb[1] & SI_EVPD) == 0 &&
+	(csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
+	csio->dxfer_len >= SHORT_INQUIRY_LENGTH) {
 
 	inq = (struct scsi_inquiry_data *)csio->data_ptr;
 	target = csio->ccb_h.target_id;

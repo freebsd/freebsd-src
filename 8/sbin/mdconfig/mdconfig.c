@@ -454,14 +454,15 @@ static void
 md_prthumanval(char *length)
 {
 	char buf[6];
-	uint64_t bytes;
+	uintmax_t bytes;
 	char *endptr;
 
-	bytes = strtoul(length, &endptr, 10);
-	if (bytes == (unsigned)ULONG_MAX || *endptr != '\0')
+	errno = 0;
+	bytes = strtoumax(length, &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || bytes > INT64_MAX)
 		return;
-	humanize_number(buf, sizeof(buf) - (bytes < 0 ? 0 : 1),
-	    bytes, "", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+	humanize_number(buf, sizeof(buf), (int64_t)bytes, "",
+	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 	(void)printf("%6s", buf);
 }
 

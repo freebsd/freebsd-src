@@ -508,7 +508,6 @@ void SSL_free(SSL *s)
 	if (s->cert != NULL) ssl_cert_free(s->cert);
 	/* Free up if allocated */
 
-	if (s->ctx) SSL_CTX_free(s->ctx);
 #ifndef OPENSSL_NO_TLSEXT
 	if (s->tlsext_hostname)
 		OPENSSL_free(s->tlsext_hostname);
@@ -525,6 +524,8 @@ void SSL_free(SSL *s)
 		sk_X509_NAME_pop_free(s->client_CA,X509_NAME_free);
 
 	if (s->method != NULL) s->method->ssl_free(s);
+
+	if (s->ctx) SSL_CTX_free(s->ctx);
 
 #ifndef	OPENSSL_NO_KRB5
 	if (s->kssl_ctx != NULL)
@@ -986,8 +987,12 @@ long SSL_ctrl(SSL *s,int cmd,long larg,void *parg)
 
 	case SSL_CTRL_OPTIONS:
 		return(s->options|=larg);
+	case SSL_CTRL_CLEAR_OPTIONS:
+		return(s->options&=~larg);
 	case SSL_CTRL_MODE:
 		return(s->mode|=larg);
+	case SSL_CTRL_CLEAR_MODE:
+		return(s->mode &=~larg);
 	case SSL_CTRL_GET_MAX_CERT_LIST:
 		return(s->max_cert_list);
 	case SSL_CTRL_SET_MAX_CERT_LIST:
@@ -995,12 +1000,17 @@ long SSL_ctrl(SSL *s,int cmd,long larg,void *parg)
 		s->max_cert_list=larg;
 		return(l);
 	case SSL_CTRL_SET_MTU:
-		if (SSL_version(s) == DTLS1_VERSION)
+		if (SSL_version(s) == DTLS1_VERSION ||
+		    SSL_version(s) == DTLS1_BAD_VER)
 			{
 			s->d1->mtu = larg;
 			return larg;
 			}
 		return 0;
+	case SSL_CTRL_GET_RI_SUPPORT:
+		if (s->s3)
+			return s->s3->send_connection_binding;
+		else return 0;
 	default:
 		return(s->method->ssl_ctrl(s,cmd,larg,parg));
 		}
@@ -1087,8 +1097,12 @@ long SSL_CTX_ctrl(SSL_CTX *ctx,int cmd,long larg,void *parg)
 		return(ctx->stats.sess_cache_full);
 	case SSL_CTRL_OPTIONS:
 		return(ctx->options|=larg);
+	case SSL_CTRL_CLEAR_OPTIONS:
+		return(ctx->options&=~larg);
 	case SSL_CTRL_MODE:
 		return(ctx->mode|=larg);
+	case SSL_CTRL_CLEAR_MODE:
+		return(ctx->mode&=~larg);
 	default:
 		return(ctx->method->ssl_ctx_ctrl(ctx,cmd,larg,parg));
 		}
@@ -1285,6 +1299,22 @@ int ssl_cipher_list_to_bytes(SSL *s,STACK_OF(SSL_CIPHER) *sk,unsigned char *p,
 		j = put_cb ? put_cb(c,p) : ssl_put_cipher_by_char(s,c,p);
 		p+=j;
 		}
+	/* If p == q, no ciphers and caller indicates an error. Otherwise
+	 * add SCSV if not renegotiating.
+	 */
+	if (p != q && !s->new_session)
+		{
+		static SSL_CIPHER scsv =
+			{
+			0, NULL, SSL3_CK_SCSV, 0, 0, 0, 0, 0, 0, 0,
+			};
+		j = put_cb ? put_cb(&scsv,p) : ssl_put_cipher_by_char(s,&scsv,p);
+		p+=j;
+#ifdef OPENSSL_RI_DEBUG
+		fprintf(stderr, "SCSV sent by client\n");
+#endif
+		}
+
 	return(p-q);
 	}
 
@@ -1294,6 +1324,8 @@ STACK_OF(SSL_CIPHER) *ssl_bytes_to_cipher_list(SSL *s,unsigned char *p,int num,
 	SSL_CIPHER *c;
 	STACK_OF(SSL_CIPHER) *sk;
 	int i,n;
+	if (s->s3)
+		s->s3->send_connection_binding = 0;
 
 	n=ssl_put_cipher_by_char(s,NULL,NULL);
 	if ((num%n) != 0)
@@ -1311,6 +1343,26 @@ STACK_OF(SSL_CIPHER) *ssl_bytes_to_cipher_list(SSL *s,unsigned char *p,int num,
 
 	for (i=0; i<num; i+=n)
 		{
+		/* Check for SCSV */
+		if (s->s3 && (n != 3 || !p[0]) &&
+			(p[n-2] == ((SSL3_CK_SCSV >> 8) & 0xff)) &&
+			(p[n-1] == (SSL3_CK_SCSV & 0xff)))
+			{
+			/* SCSV fatal if renegotiating */
+			if (s->new_session)
+				{
+				SSLerr(SSL_F_SSL_BYTES_TO_CIPHER_LIST,SSL_R_SCSV_RECEIVED_WHEN_RENEGOTIATING);
+				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_HANDSHAKE_FAILURE); 
+				goto err;
+				}
+			s->s3->send_connection_binding = 1;
+			p += n;
+#ifdef OPENSSL_RI_DEBUG
+			fprintf(stderr, "SCSV received by server\n");
+#endif
+			continue;
+			}
+
 		c=ssl_get_cipher_by_char(s,p);
 		p+=n;
 		if (c != NULL)
@@ -1546,6 +1598,10 @@ SSL_CTX *SSL_CTX_new(SSL_METHOD *meth)
 	}
 #endif
 #endif
+	/* Default is to connect to non-RI servers. When RI is more widely
+	 * deployed might change this.
+	 */
+	ret->options |= SSL_OP_LEGACY_SERVER_CONNECT;
 
 	return(ret);
 err:

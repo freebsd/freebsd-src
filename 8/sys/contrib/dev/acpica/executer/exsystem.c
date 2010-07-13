@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -265,7 +265,7 @@ AcpiExSystemDoStall (
          * (ACPI specifies 100 usec as max, but this gives some slack in
          * order to support existing BIOSs)
          */
-        ACPI_ERROR ((AE_INFO, "Time parameter is too large (%d)",
+        ACPI_ERROR ((AE_INFO, "Time parameter is too large (%u)",
             HowLong));
         Status = AE_AML_OPERAND_VALUE;
     }
@@ -293,7 +293,7 @@ AcpiExSystemDoStall (
 
 ACPI_STATUS
 AcpiExSystemDoSuspend (
-    ACPI_INTEGER            HowLong)
+    UINT64                  HowLong)
 {
     ACPI_FUNCTION_ENTRY ();
 

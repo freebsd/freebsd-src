@@ -45,6 +45,7 @@ extern int	hflag;	/* show counters in human readable format */
 extern int	iflag;	/* show interfaces */
 extern int	Lflag;	/* show size of listen queues */
 extern int	mflag;	/* show memory stats */
+extern int	noutputs;	/* how much outputs before we exit */
 extern int	numeric_addr;	/* show addresses numerically */
 extern int	numeric_port;	/* show ports numerically */
 extern int	rflag;	/* show routing tables (or routing stats) */
@@ -75,6 +76,7 @@ void	udp_stats(u_long, const char *, int, int);
 void	sctp_protopr(u_long, const char *, int, int);
 void	sctp_stats(u_long, const char *, int, int);
 #endif
+void	arp_stats(u_long, const char *, int, int);
 void	ip_stats(u_long, const char *, int, int);
 void	icmp_stats(u_long, const char *, int, int);
 void	igmp_stats(u_long, const char *, int, int);

@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -142,7 +142,7 @@ static ACPI_STATUS
 UtStrtoul64 (
     char                    *String,
     UINT32                  Base,
-    ACPI_INTEGER            *RetInteger);
+    UINT64                  *RetInteger);
 
 static void
 UtPadNameWithUnderscores (
@@ -846,12 +846,12 @@ UtAttachNamepathToOwner (
  *
  ******************************************************************************/
 
-ACPI_INTEGER
+UINT64
 UtDoConstant (
     char                    *String)
 {
     ACPI_STATUS             Status;
-    ACPI_INTEGER            Converted;
+    UINT64                  Converted;
     char                    ErrBuf[64];
 
 
@@ -888,11 +888,11 @@ static ACPI_STATUS
 UtStrtoul64 (
     char                    *String,
     UINT32                  Base,
-    ACPI_INTEGER            *RetInteger)
+    UINT64                  *RetInteger)
 {
     UINT32                  Index;
     UINT32                  Sign;
-    ACPI_INTEGER            ReturnValue = 0;
+    UINT64                  ReturnValue = 0;
     ACPI_STATUS             Status = AE_OK;
 
 
@@ -916,7 +916,7 @@ UtStrtoul64 (
 
     /* Skip over any white space in the buffer: */
 
-    while (isspace (*String) || *String == '\t')
+    while (isspace ((int) *String) || *String == '\t')
     {
         ++String;
     }
@@ -948,7 +948,7 @@ UtStrtoul64 (
     {
         if (*String == '0')
         {
-            if (tolower (*(++String)) == 'x')
+            if (tolower ((int) *(++String)) == 'x')
             {
                 Base = 16;
                 ++String;
@@ -975,7 +975,7 @@ UtStrtoul64 (
 
     if (Base == 16 &&
         *String == '0' &&
-        tolower (*(++String)) == 'x')
+        tolower ((int) *(++String)) == 'x')
     {
         String++;
     }
@@ -984,14 +984,14 @@ UtStrtoul64 (
 
     while (*String)
     {
-        if (isdigit (*String))
+        if (isdigit ((int) *String))
         {
             Index = ((UINT8) *String) - '0';
         }
         else
         {
-            Index = (UINT8) toupper (*String);
-            if (isupper ((char) Index))
+            Index = (UINT8) toupper ((int) *String);
+            if (isupper ((int) Index))
             {
                 Index = Index - 'A' + 10;
             }
@@ -1008,8 +1008,8 @@ UtStrtoul64 (
 
         /* Check to see if value is out of range: */
 
-        if (ReturnValue > ((ACPI_INTEGER_MAX - (ACPI_INTEGER) Index) /
-                            (ACPI_INTEGER) Base))
+        if (ReturnValue > ((ACPI_UINT64_MAX - (UINT64) Index) /
+                            (UINT64) Base))
         {
             goto ErrorExit;
         }

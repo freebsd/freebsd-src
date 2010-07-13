@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -187,7 +187,7 @@ AcpiGetTimer (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    Status = AcpiRead (Ticks, &AcpiGbl_FADT.XPmTimerBlock);
+    Status = AcpiHwRead (Ticks, &AcpiGbl_FADT.XPmTimerBlock);
 
     return_ACPI_STATUS (Status);
 }
@@ -232,7 +232,7 @@ AcpiGetTimerDuration (
 {
     ACPI_STATUS             Status;
     UINT32                  DeltaTicks;
-    ACPI_INTEGER            Quotient;
+    UINT64                  Quotient;
 
 
     ACPI_FUNCTION_TRACE (AcpiGetTimerDuration);

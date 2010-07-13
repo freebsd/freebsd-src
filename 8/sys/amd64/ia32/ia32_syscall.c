@@ -88,101 +88,136 @@ extern const char *freebsd32_syscallnames[];
 
 void ia32_syscall(struct trapframe *frame);	/* Called from asm code */
 
-void
-ia32_syscall(struct trapframe *frame)
-{
-	caddr_t params;
-	int i;
-	struct sysent *callp;
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
-	register_t orig_tf_rflags;
-	int error;
-	int narg;
-	u_int32_t args[8];
-	u_int64_t args64[8];
+struct ia32_syscall_args {
 	u_int code;
-	ksiginfo_t ksi;
+	caddr_t params;
+	struct sysent *callp;
+	u_int64_t args64[8];
+	int narg;
+};
 
-	PCPU_INC(cnt.v_syscall);
-	td->td_pticks = 0;
-	td->td_frame = frame;
-	if (td->td_ucred != p->p_ucred) 
-		cred_update_thread(td);
-	params = (caddr_t)frame->tf_rsp + sizeof(u_int32_t);
-	code = frame->tf_rax;
-	orig_tf_rflags = frame->tf_rflags;
+static int
+fetch_ia32_syscall_args(struct thread *td, struct ia32_syscall_args *sa)
+{
+	struct proc *p;
+	struct trapframe *frame;
+	u_int32_t args[8];
+	int error, i;
+
+	p = td->td_proc;
+	frame = td->td_frame;
+
+	sa->params = (caddr_t)frame->tf_rsp + sizeof(u_int32_t);
+	sa->code = frame->tf_rax;
 
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
 		 * The prep code is MP aware.
 		 */
-		(*p->p_sysent->sv_prepsyscall)(frame, args, &code, &params);
+		(*p->p_sysent->sv_prepsyscall)(frame, args, &sa->code,
+		    &sa->params);
 	} else {
 		/*
 		 * Need to check if this is a 32 bit or 64 bit syscall.
 		 * fuword is MP aware.
 		 */
-		if (code == SYS_syscall) {
+		if (sa->code == SYS_syscall) {
 			/*
 			 * Code is first argument, followed by actual args.
 			 */
-			code = fuword32(params);
-			params += sizeof(int);
-		} else if (code == SYS___syscall) {
+			sa->code = fuword32(sa->params);
+			sa->params += sizeof(int);
+		} else if (sa->code == SYS___syscall) {
 			/*
 			 * Like syscall, but code is a quad, so as to maintain
 			 * quad alignment for the rest of the arguments.
 			 * We use a 32-bit fetch in case params is not
 			 * aligned.
 			 */
-			code = fuword32(params);
-			params += sizeof(quad_t);
+			sa->code = fuword32(sa->params);
+			sa->params += sizeof(quad_t);
 		}
 	}
-
  	if (p->p_sysent->sv_mask)
- 		code &= p->p_sysent->sv_mask;
-
- 	if (code >= p->p_sysent->sv_size)
- 		callp = &p->p_sysent->sv_table[0];
+ 		sa->code &= p->p_sysent->sv_mask;
+ 	if (sa->code >= p->p_sysent->sv_size)
+ 		sa->callp = &p->p_sysent->sv_table[0];
   	else
- 		callp = &p->p_sysent->sv_table[code];
+ 		sa->callp = &p->p_sysent->sv_table[sa->code];
+	sa->narg = sa->callp->sy_narg;
 
-	narg = callp->sy_narg;
-
-	/*
-	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
-	 */
-	if (params != NULL && narg != 0)
-		error = copyin(params, (caddr_t)args,
-		    (u_int)(narg * sizeof(int)));
+	if (sa->params != NULL && sa->narg != 0)
+		error = copyin(sa->params, (caddr_t)args,
+		    (u_int)(sa->narg * sizeof(int)));
 	else
 		error = 0;
 
-	for (i = 0; i < narg; i++)
-		args64[i] = args[i];
+	for (i = 0; i < sa->narg; i++)
+		sa->args64[i] = args[i];
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
-		ktrsyscall(code, narg, args64);
+		ktrsyscall(sa->code, sa->narg, sa->args64);
 #endif
+
+	return (error);
+}
+
+void
+ia32_syscall(struct trapframe *frame)
+{
+	struct thread *td;
+	struct proc *p;
+	struct ia32_syscall_args sa;
+	register_t orig_tf_rflags;
+	int error;
+	ksiginfo_t ksi;
+
+	PCPU_INC(cnt.v_syscall);
+	td = curthread;
+	p = td->td_proc;
+	td->td_syscalls++;
+
+	td->td_pticks = 0;
+	td->td_frame = frame;
+	if (td->td_ucred != p->p_ucred) 
+		cred_update_thread(td);
+	orig_tf_rflags = frame->tf_rflags;
+	if (p->p_flag & P_TRACED) {
+		PROC_LOCK(p);
+		td->td_dbgflags &= ~TDB_USERWR;
+		PROC_UNLOCK(p);
+	}
+	error = fetch_ia32_syscall_args(td, &sa);
+
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+	    td->td_proc->p_pid, td->td_name, sa.code);
 
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = frame->tf_rdx;
 
-		STOPEVENT(p, S_SCE, narg);
-
+		STOPEVENT(p, S_SCE, sa.narg);
 		PTRACESTOP_SC(p, td, S_PT_SCE);
+		if (td->td_dbgflags & TDB_USERWR) {
+			/*
+			 * Reread syscall number and arguments if
+			 * debugger modified registers or memory.
+			 */
+			error = fetch_ia32_syscall_args(td, &sa);
+			if (error != 0)
+				goto retval;
+			td->td_retval[1] = frame->tf_rdx;
+		}
 
-		AUDIT_SYSCALL_ENTER(code, td);
-		error = (*callp->sy_call)(td, args64);
+		AUDIT_SYSCALL_ENTER(sa.code, td);
+		error = (*sa.callp->sy_call)(td, sa.args64);
 		AUDIT_SYSCALL_EXIT(error, td);
-	}
 
+		/* Save the latest error return value. */
+		td->td_errno = error;
+	}
+ retval:
 	cpu_set_syscall_retval(td, error);
 
 	/*
@@ -201,14 +236,16 @@ ia32_syscall(struct trapframe *frame)
 	 * Check for misbehavior.
 	 */
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? freebsd32_syscallnames[code] : "???");
+	    (sa.code >= 0 && sa.code < SYS_MAXSYSCALL) ?
+	     freebsd32_syscallnames[sa.code] : "???");
 	KASSERT(td->td_critnest == 0,
 	    ("System call %s returning in a critical section",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? freebsd32_syscallnames[code] : "???"));
+	    (sa.code >= 0 && sa.code < SYS_MAXSYSCALL) ?
+	     freebsd32_syscallnames[sa.code] : "???"));
 	KASSERT(td->td_locks == 0,
 	    ("System call %s returning with %d locks held",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? freebsd32_syscallnames[code] : "???",
-	    td->td_locks));
+	    (sa.code >= 0 && sa.code < SYS_MAXSYSCALL) ?
+	     freebsd32_syscallnames[sa.code] : "???", td->td_locks));
 
 	/*
 	 * Handle reschedule and other end-of-syscall issues
@@ -216,10 +253,10 @@ ia32_syscall(struct trapframe *frame)
 	userret(td, frame);
 
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+	    td->td_proc->p_pid, td->td_proc->p_comm, sa.code);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(code, error, td->td_retval[0]);
+		ktrsysret(sa.code, error, td->td_retval[0]);
 #endif
 
 	/*
@@ -227,7 +264,7 @@ ia32_syscall(struct trapframe *frame)
 	 * register set.  If we ever support an emulation where this
 	 * is not the case, this code will need to be revisited.
 	 */
-	STOPEVENT(p, S_SCX, code);
+	STOPEVENT(p, S_SCX, sa.code);
  
 	PTRACESTOP_SC(p, td, S_PT_SCX);
 }

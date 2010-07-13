@@ -339,8 +339,10 @@ void ENGINE_load_ubsec(void);
 void ENGINE_load_cryptodev(void);
 void ENGINE_load_padlock(void);
 void ENGINE_load_builtin_engines(void);
+#ifdef OPENSSL_SYS_WIN32
 #ifndef OPENSSL_NO_CAPIENG
 void ENGINE_load_capi(void);
+#endif
 #endif
 
 /* Get and set global flags (ENGINE_TABLE_FLAG_***) for the implementation
@@ -767,6 +769,7 @@ void ERR_load_ENGINE_strings(void);
 #define ENGINE_R_DSO_FAILURE				 104
 #define ENGINE_R_DSO_NOT_FOUND				 132
 #define ENGINE_R_ENGINES_SECTION_ERROR			 148
+#define ENGINE_R_ENGINE_CONFIGURATION_ERROR		 101
 #define ENGINE_R_ENGINE_IS_NOT_IN_LIST			 105
 #define ENGINE_R_ENGINE_SECTION_ERROR			 149
 #define ENGINE_R_FAILED_LOADING_PRIVATE_KEY		 128

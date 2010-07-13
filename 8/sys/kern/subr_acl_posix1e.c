@@ -61,6 +61,9 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	accmode_t acl_mask_granted;
 	int group_matched, i;
 
+	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND)) == 0,
+	    ("invalid bit in accmode"));
+
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
 	 * as requested.  If it exists, go with that.  Otherwise, attempt to

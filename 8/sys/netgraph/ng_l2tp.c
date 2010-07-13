@@ -790,7 +790,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 		NG_FREE_ITEM(item);
 		ERROUT(EINVAL);
 	}
-	hdr = ntohs(*mtod(m, u_int16_t *));
+	hdr = (mtod(m, uint8_t *)[0] << 8) + mtod(m, uint8_t *)[1];
 	m_adj(m, 2);
 
 	/* Check required header bits and minimum length */
@@ -819,7 +819,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 			NG_FREE_ITEM(item);
 			ERROUT(EINVAL);
 		}
-		len = (u_int16_t)ntohs(*mtod(m, u_int16_t *)) - 4;
+		len = (mtod(m, uint8_t *)[0] << 8) + mtod(m, uint8_t *)[1] - 4;
 		m_adj(m, 2);
 		if (len < 0 || len > m->m_pkthdr.len) {
 			priv->stats.recvInvalid++;
@@ -1095,9 +1095,10 @@ ng_l2tp_rcvdata(hook_p hook, item_p item)
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	const hookpriv_p hpriv = NG_HOOK_PRIVATE(hook);
 	struct mbuf *m;
+	uint8_t *p;
 	u_int16_t hdr;
 	int error;
-	int i = 1;
+	int i = 2;
 
 	/* Sanity check */
 	L2TP_SEQ_CHECK(&priv->seq);
@@ -1129,20 +1130,27 @@ ng_l2tp_rcvdata(hook_p hook, item_p item)
 		NG_FREE_ITEM(item);
 		ERROUT(ENOBUFS);
 	}
+	p = mtod(m, uint8_t *);
 	hdr = L2TP_DATA_HDR;
 	if (hpriv->conf.include_length) {
 		hdr |= L2TP_HDR_LEN;
-		mtod(m, u_int16_t *)[i++] = htons(m->m_pkthdr.len);
+		p[i++] = m->m_pkthdr.len >> 8;
+		p[i++] = m->m_pkthdr.len & 0xff;
 	}
-	mtod(m, u_int16_t *)[i++] = htons(priv->conf.peer_id);
-	mtod(m, u_int16_t *)[i++] = htons(hpriv->conf.peer_id);
+	p[i++] = priv->conf.peer_id >> 8;
+	p[i++] = priv->conf.peer_id & 0xff;
+	p[i++] = hpriv->conf.peer_id >> 8;
+	p[i++] = hpriv->conf.peer_id & 0xff;
 	if (hpriv->conf.enable_dseq) {
 		hdr |= L2TP_HDR_SEQ;
-		mtod(m, u_int16_t *)[i++] = htons(hpriv->ns);
-		mtod(m, u_int16_t *)[i++] = htons(hpriv->nr);
+		p[i++] = hpriv->ns >> 8;
+		p[i++] = hpriv->ns & 0xff;
+		p[i++] = hpriv->nr >> 8;
+		p[i++] = hpriv->nr & 0xff;
 		hpriv->ns++;
 	}
-	mtod(m, u_int16_t *)[0] = htons(hdr);
+	p[0] = hdr >> 8;
+	p[1] = hdr & 0xff;
 
 	/* Update per session stats. */
 	hpriv->stats.xmitPackets++;
@@ -1496,6 +1504,7 @@ static int
 ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 {
 	struct l2tp_seq *const seq = &priv->seq;
+	uint8_t *p;
 	u_int16_t session_id = 0;
 	int error;
 
@@ -1540,12 +1549,19 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	}
 
 	/* Fill in L2TP header */
-	mtod(m, u_int16_t *)[0] = htons(L2TP_CTRL_HDR);
-	mtod(m, u_int16_t *)[1] = htons(m->m_pkthdr.len);
-	mtod(m, u_int16_t *)[2] = htons(priv->conf.peer_id);
-	mtod(m, u_int16_t *)[3] = htons(session_id);
-	mtod(m, u_int16_t *)[4] = htons(ns);
-	mtod(m, u_int16_t *)[5] = htons(seq->nr);
+	p = mtod(m, u_int8_t *);
+	p[0] = L2TP_CTRL_HDR >> 8;
+	p[1] = L2TP_CTRL_HDR & 0xff;
+	p[2] = m->m_pkthdr.len >> 8;
+	p[3] = m->m_pkthdr.len & 0xff;
+	p[4] = priv->conf.peer_id >> 8;
+	p[5] = priv->conf.peer_id & 0xff;
+	p[6] = session_id >> 8;
+	p[7] = session_id & 0xff;
+	p[8] = ns >> 8;
+	p[9] = ns & 0xff;
+	p[10] = seq->nr >> 8;
+	p[11] = seq->nr & 0xff;
 
 	/* Update sequence number info and stats */
 	priv->stats.xmitPackets++;

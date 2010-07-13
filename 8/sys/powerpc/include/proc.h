@@ -46,4 +46,6 @@ struct mdthread {
 struct mdproc {
 };
 
+#define	KINFO_PROC_SIZE 768
+
 #endif /* !_MACHINE_PROC_H_ */

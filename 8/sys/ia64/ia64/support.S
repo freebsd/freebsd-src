@@ -227,14 +227,14 @@ ENTRY(casuword, 3)
 	nop		0
 	;;
 }
-{	.mfb
+{	.mib
 	st8.rel		[r15]=r0		// Clear onfault
 	nop		0
 	br.ret.sptk	rp
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -277,14 +277,14 @@ ENTRY(casuword32, 3)
 	nop		0
 	;;
 }
-{	.mfb
+{	.mib
 	st8.rel		[r15]=r0		// Clear onfault
 	nop		0
 	br.ret.sptk	rp
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -338,7 +338,7 @@ ENTRY(subyte, 2)
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -384,7 +384,7 @@ ENTRY(suword16, 2)
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -430,7 +430,7 @@ ENTRY(suword32, 2)
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -477,7 +477,7 @@ XENTRY(suword)
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -531,7 +531,7 @@ ENTRY(fubyte, 1)
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -577,7 +577,7 @@ ENTRY(fuword16, 2)
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -623,7 +623,7 @@ ENTRY(fuword32, 2)
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -670,7 +670,7 @@ XENTRY(fuword)
 	;;
 }
 1:
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -684,7 +684,7 @@ END(fuword64)
  */
 
 ENTRY(fuswintr, 1)
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp
@@ -693,7 +693,7 @@ ENTRY(fuswintr, 1)
 END(fuswintr)
 
 ENTRY(suswintr, 0)
-{	.mfb
+{	.mib
 	add		ret0=-1,r0
 	nop		0
 	br.ret.sptk	rp

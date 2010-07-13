@@ -72,6 +72,7 @@ COMPAT_FREEBSD6	opt_compat.h
 COMPAT_FREEBSD7	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
+DEADLKRES	opt_watchdog.h
 DIRECTIO
 FULL_PREEMPTION	opt_sched.h
 IPI_PREEMPTION	opt_sched.h
@@ -434,6 +435,7 @@ SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
 SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
 SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
+SCTP_USE_PERCPU_STAT    opt_sctp.h # Use per cpu stats.
 #
 #
 #
@@ -482,6 +484,7 @@ NETGRAPH_MPPC_ENCRYPTION	opt_netgraph.h
 NETGRAPH_NAT		opt_netgraph.h
 NETGRAPH_NETFLOW	opt_netgraph.h
 NETGRAPH_ONE2MANY	opt_netgraph.h
+NETGRAPH_PATCH		opt_netgraph.h
 NETGRAPH_PIPE		opt_netgraph.h
 NETGRAPH_PPP		opt_netgraph.h
 NETGRAPH_PPPOE		opt_netgraph.h
@@ -634,6 +637,7 @@ BUS_DEBUG		opt_bus.h
 
 # options for USB support
 USB_DEBUG		opt_usb.h
+USB_REQ_DEBUG		opt_usb.h
 USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
@@ -840,3 +844,5 @@ SND_FEEDER_FULL_MULTIFORMAT	opt_snd.h
 SND_FEEDER_RATE_HP	opt_snd.h
 SND_PCM_64		opt_snd.h
 SND_OLDSTEREO		opt_snd.h
+
+X86BIOS

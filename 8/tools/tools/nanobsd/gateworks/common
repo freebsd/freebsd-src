@@ -37,7 +37,7 @@ NANO_CUSTOMIZE="$NANO_CUSTOMIZE cust_install_files cust_install_machine_files"
 buildenv()
 {
 	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} __MAKE_CONF=${NANO_MAKE_CONF} \
+	env TARGET_ARCH=${NANO_ARCH} __MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
 	    DESTDIR=${NANO_WORLDDIR} make buildenv
 }
 
@@ -146,21 +146,8 @@ WITHOUT_TCSH=true
 CONF_INSTALL="$CONF_BUILD
 WITHOUT_TOOLCHAIN=true
 WITHOUT_INSTALLLIB=true
+INSTALL_NODEBUG=true
 "
-
-# NB: override to suppress install of kernel.symbols
-install_kernel()
-{
-	pprint 2 "install kernel"
-	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.ik"
-
-	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} installkernel \
-		INSTALL_NODEBUG=true \
-		DESTDIR=${NANO_WORLDDIR} \
-		__MAKE_CONF=${NANO_MAKE_CONF} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${MAKEOBJDIRPREFIX}/_.ik 2>&1
-}
 
 # NB: override to force / on s1 instead of s1a
 setup_nanobsd_etc()

@@ -819,20 +819,25 @@ cd9660_vptofh(ap)
 		struct fid *a_fhp;
 	} */ *ap;
 {
+	struct ifid ifh;
 	struct iso_node *ip = VTOI(ap->a_vp);
-	struct ifid *ifhp;
 
-	ifhp = (struct ifid *)ap->a_fhp;
-	ifhp->ifid_len = sizeof(struct ifid);
+	ifh.ifid_len = sizeof(struct ifid);
 
-	ifhp->ifid_ino = ip->i_number;
-	ifhp->ifid_start = ip->iso_start;
+	ifh.ifid_ino = ip->i_number;
+	ifh.ifid_start = ip->iso_start;
+	/*
+	 * This intentionally uses sizeof(ifh) in order to not copy stack
+	 * garbage on ILP32.
+	 */
+	memcpy(ap->a_fhp, &ifh, sizeof(ifh));
 
 #ifdef	ISOFS_DBG
 	printf("vptofh: ino %d, start %ld\n",
-	       ifhp->ifid_ino,ifhp->ifid_start);
+	    ifh.ifid_ino, ifh.ifid_start);
 #endif
-	return 0;
+
+	return (0);
 }
 
 /*

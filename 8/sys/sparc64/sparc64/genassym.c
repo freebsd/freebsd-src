@@ -139,7 +139,7 @@ ASSYM(TD_W, TD_W);
 ASSYM(TS_MIN, TS_MIN);
 ASSYM(TS_MAX, TS_MAX);
 ASSYM(TLB_DAR_SLOT_SHIFT, TLB_DAR_SLOT_SHIFT);
-ASSYM(TLB_PCXR_PGSZ_MASK, TLB_PCXR_PGSZ_MASK);
+ASSYM(TLB_CXR_PGSZ_MASK, TLB_CXR_PGSZ_MASK);
 ASSYM(TLB_DIRECT_TO_TTE_MASK, TLB_DIRECT_TO_TTE_MASK);
 ASSYM(TV_SIZE_BITS, TV_SIZE_BITS);
 #endif
@@ -239,6 +239,7 @@ ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
+ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));

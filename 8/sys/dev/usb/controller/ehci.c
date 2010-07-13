@@ -89,18 +89,26 @@ __FBSDID("$FreeBSD$");
    ((ehci_softc_t *)(((uint8_t *)(bus)) - \
     ((uint8_t *)&(((ehci_softc_t *)0)->sc_bus))))
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ehcidebug = 0;
 static int ehcinohighspeed = 0;
+static int ehciiaadbug = 0;
+static int ehcilostintrbug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,
     &ehcidebug, 0, "Debug level");
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
     &ehcinohighspeed, 0, "Disable High Speed USB");
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, iaadbug, CTLFLAG_RW,
+    &ehciiaadbug, 0, "Enable doorbell bug workaround");
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, lostintrbug, CTLFLAG_RW,
+    &ehcilostintrbug, 0, "Enable lost interrupt bug workaround");
 
 TUNABLE_INT("hw.usb.ehci.debug", &ehcidebug);
 TUNABLE_INT("hw.usb.ehci.no_hs", &ehcinohighspeed);
+TUNABLE_INT("hw.usb.ehci.iaadbug", &ehciiaadbug);
+TUNABLE_INT("hw.usb.ehci.lostintrbug", &ehcilostintrbug);
 
 static void ehci_dump_regs(ehci_softc_t *sc);
 static void ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *sqh);
@@ -250,7 +258,11 @@ ehci_init(ehci_softc_t *sc)
 	usb_callout_init_mtx(&sc->sc_tmo_pcd, &sc->sc_bus.bus_mtx, 0);
 	usb_callout_init_mtx(&sc->sc_tmo_poll, &sc->sc_bus.bus_mtx, 0);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
+	if (ehciiaadbug)
+		sc->sc_flags |= EHCI_SCFLG_IAADBUG;
+	if (ehcilostintrbug)
+		sc->sc_flags |= EHCI_SCFLG_LOSTINTRBUG;
 	if (ehcidebug > 2) {
 		ehci_dump_regs(sc);
 	}
@@ -474,7 +486,7 @@ ehci_init(ehci_softc_t *sc)
 
 	usb_bus_mem_flush_all(&sc->sc_bus, &ehci_iterate_hw_softc);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ehcidebug) {
 		ehci_dump_sqh(sc, sc->sc_async_p_last);
 	}
@@ -673,7 +685,7 @@ ehci_shutdown(ehci_softc_t *sc)
 	}
 }
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static void
 ehci_dump_regs(ehci_softc_t *sc)
 {
@@ -1217,7 +1229,7 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 
 	xfer->td_transfer_cache = td;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (status & EHCI_QTD_STATERRS) {
 		DPRINTFN(11, "error, addr=%d, endpt=0x%02x, frame=0x%02x"
 		    "status=%s%s%s%s%s%s%s%s\n",
@@ -1248,7 +1260,7 @@ ehci_non_isoc_done(struct usb_xfer *xfer)
 	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
 	    xfer, xfer->endpoint);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ehcidebug > 10) {
 		ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
 
@@ -1343,22 +1355,29 @@ ehci_check_transfer(struct usb_xfer *xfer)
 
 		/* isochronous high speed transfer */
 
+		/* check last transfer */
 		td = xfer->td_transfer_last;
 		usb_pc_cpu_invalidate(td->page_cache);
-		status =
-		    td->itd_status[0] | td->itd_status[1] |
-		    td->itd_status[2] | td->itd_status[3] |
-		    td->itd_status[4] | td->itd_status[5] |
-		    td->itd_status[6] | td->itd_status[7];
+		status = td->itd_status[0];
+		status |= td->itd_status[1];
+		status |= td->itd_status[2];
+		status |= td->itd_status[3];
+		status |= td->itd_status[4];
+		status |= td->itd_status[5];
+		status |= td->itd_status[6];
+		status |= td->itd_status[7];
 
 		/* also check first transfer */
 		td = xfer->td_transfer_first;
 		usb_pc_cpu_invalidate(td->page_cache);
-		status |=
-		    td->itd_status[0] | td->itd_status[1] |
-		    td->itd_status[2] | td->itd_status[3] |
-		    td->itd_status[4] | td->itd_status[5] |
-		    td->itd_status[6] | td->itd_status[7];
+		status |= td->itd_status[0];
+		status |= td->itd_status[1];
+		status |= td->itd_status[2];
+		status |= td->itd_status[3];
+		status |= td->itd_status[4];
+		status |= td->itd_status[5];
+		status |= td->itd_status[6];
+		status |= td->itd_status[7];
 
 		/* if no transactions are active we continue */
 		if (!(status & htohc32(sc, EHCI_ITD_ACTIVE))) {
@@ -1518,7 +1537,7 @@ ehci_interrupt(ehci_softc_t *sc)
 
 	DPRINTFN(16, "real interrupt\n");
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ehcidebug > 15) {
 		ehci_dump_regs(sc);
 	}
@@ -1539,7 +1558,7 @@ ehci_interrupt(ehci_softc_t *sc)
 	if (status & EHCI_STS_HSE) {
 		printf("%s: unrecoverable error, "
 		    "controller halted\n", __FUNCTION__);
-#if USB_DEBUG
+#ifdef USB_DEBUG
 		ehci_dump_regs(sc);
 		ehci_dump_isoc(sc);
 #endif
@@ -1969,7 +1988,7 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 
 	xfer->td_transfer_last = td;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ehcidebug > 8) {
 		DPRINTF("nexttog=%d; data before transfer:\n",
 		    xfer->endpoint->toggle_next);
@@ -2097,7 +2116,7 @@ ehci_isoc_fs_done(ehci_softc_t *sc, struct usb_xfer *xfer)
 		if (pp_last >= &sc->sc_isoc_fs_p_last[EHCI_VIRTUAL_FRAMELIST_COUNT]) {
 			pp_last = &sc->sc_isoc_fs_p_last[0];
 		}
-#if USB_DEBUG
+#ifdef USB_DEBUG
 		if (ehcidebug > 15) {
 			DPRINTF("isoc FS-TD\n");
 			ehci_dump_sitd(sc, td);
@@ -2151,7 +2170,7 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb_xfer *xfer)
 		if (pp_last >= &sc->sc_isoc_hs_p_last[EHCI_VIRTUAL_FRAMELIST_COUNT]) {
 			pp_last = &sc->sc_isoc_hs_p_last[0];
 		}
-#if USB_DEBUG
+#ifdef USB_DEBUG
 		if (ehcidebug > 15) {
 			DPRINTF("isoc HS-TD\n");
 			ehci_dump_itd(sc, td);
@@ -2215,7 +2234,7 @@ ehci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 	if ((methods == &ehci_device_bulk_methods) ||
 	    (methods == &ehci_device_ctrl_methods)) {
-#if USB_DEBUG
+#ifdef USB_DEBUG
 		if (ehcidebug > 8) {
 			DPRINTF("nexttog=%d; data after transfer:\n",
 			    xfer->endpoint->toggle_next);
@@ -2282,6 +2301,13 @@ ehci_device_bulk_start(struct usb_xfer *xfer)
 
 	/* put transfer on interrupt queue */
 	ehci_transfer_intr_enqueue(xfer);
+
+	/* 
+	 * XXX Certain nVidia chipsets choke when using the IAAD
+	 * feature too frequently.
+	 */
+	if (sc->sc_flags & EHCI_SCFLG_IAADBUG)
+		return;
 
 	/* XXX Performance quirk: Some Host Controllers have a too low
 	 * interrupt rate. Issue an IAAD to stimulate the Host
@@ -2493,7 +2519,7 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	uint8_t sb;
 	uint8_t error;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	uint8_t once = 1;
 
 #endif
@@ -2577,7 +2603,7 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 		/* reuse sitd_portaddr and sitd_back from last transfer */
 
 		if (*plen > xfer->max_frame_size) {
-#if USB_DEBUG
+#ifdef USB_DEBUG
 			if (once) {
 				once = 0;
 				printf("%s: frame length(%d) exceeds %d "
@@ -2667,7 +2693,7 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 		}
 		usb_pc_cpu_flush(td->page_cache);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 		if (ehcidebug > 15) {
 			DPRINTF("FS-TD %d\n", nframes);
 			ehci_dump_sitd(sc, td);
@@ -2783,14 +2809,15 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	uint8_t x;
 	uint8_t td_no;
 	uint8_t page_no;
+	uint8_t shift = usbd_xfer_get_fps_shift(xfer);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	uint8_t once = 1;
 
 #endif
 
-	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
-	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
+	DPRINTFN(6, "xfer=%p next=%d nframes=%d shift=%d\n",
+	    xfer, xfer->endpoint->isoc_next, xfer->nframes, (int)shift);
 
 	/* get the current frame index */
 
@@ -2804,7 +2831,7 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
 
 	if ((xfer->endpoint->is_synced == 0) ||
-	    (buf_offset < ((xfer->nframes + 7) / 8))) {
+	    (buf_offset < (((xfer->nframes << shift) + 7) / 8))) {
 		/*
 		 * If there is data underflow or the pipe queue is empty we
 		 * schedule the transfer a few frames ahead of the current
@@ -2828,7 +2855,7 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	 */
 	xfer->isoc_time_complete =
 	    usb_isoc_time_expand(&sc->sc_bus, nframes) + buf_offset +
-	    ((xfer->nframes + 7) / 8);
+	    (((xfer->nframes << shift) + 7) / 8);
 
 	/* get the real number of frames */
 
@@ -2862,7 +2889,7 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 		}
 		/* range check */
 		if (*plen > xfer->max_frame_size) {
-#if USB_DEBUG
+#ifdef USB_DEBUG
 			if (once) {
 				once = 0;
 				printf("%s: frame length(%d) exceeds %d bytes "
@@ -2946,7 +2973,7 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 				td->itd_status[td_no - 1] |= htohc32(sc, EHCI_ITD_IOC);
 			}
 			usb_pc_cpu_flush(td->page_cache);
-#if USB_DEBUG
+#ifdef USB_DEBUG
 			if (ehcidebug > 15) {
 				DPRINTF("HS-TD %d\n", nframes);
 				ehci_dump_itd(sc, td);
@@ -3382,7 +3409,7 @@ ehci_roothub_exec(struct usb_device *udev,
 			break;
 		case UHF_PORT_RESET:
 			DPRINTFN(6, "reset port %d\n", index);
-#if USB_DEBUG
+#ifdef USB_DEBUG
 			if (ehcinohighspeed) {
 				/*
 				 * Connect USB device to companion

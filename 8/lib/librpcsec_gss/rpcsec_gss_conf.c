@@ -55,7 +55,7 @@ struct mech_info {
 };
 SLIST_HEAD(mech_info_list, mech_info);
 
-static struct mech_info_list mechs = SLIST_HEAD_INITIALIZER(&mechs);
+static struct mech_info_list mechs = SLIST_HEAD_INITIALIZER(mechs);
 static const char **mech_names;
 
 struct qop_info {
@@ -66,7 +66,7 @@ struct qop_info {
 };
 SLIST_HEAD(qop_info_list, qop_info);
 
-static struct qop_info_list qops = SLIST_HEAD_INITIALIZER(&qops);
+static struct qop_info_list qops = SLIST_HEAD_INITIALIZER(qops);
 
 static int
 _rpc_gss_string_to_oid(const char* s, gss_OID oid)

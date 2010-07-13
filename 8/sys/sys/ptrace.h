@@ -34,6 +34,7 @@
 #define	_SYS_PTRACE_H_
 
 #include <sys/_sigset.h>
+#include <machine/reg.h>
 
 #define	PT_TRACE_ME	0	/* child declares it's being traced */
 #define	PT_READ_I	1	/* read word in child's I space */
@@ -67,6 +68,10 @@
 #define PT_SETFPREGS    36	/* set floating-point registers */
 #define PT_GETDBREGS    37	/* get debugging registers */
 #define PT_SETDBREGS    38	/* set debugging registers */
+
+#define	PT_VM_TIMESTAMP	40	/* Get VM version (timestamp) */
+#define	PT_VM_ENTRY	41	/* Get VM map (entry) */
+
 #define PT_FIRSTMACH    64	/* for machine-specific requests */
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
 
@@ -96,6 +101,20 @@ struct ptrace_lwpinfo {
 #define	PL_FLAG_BOUND	0x02	/* M:N bound thread */
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
+};
+
+/* Argument structure for PT_VM_ENTRY. */
+struct ptrace_vm_entry {
+	int		pve_entry;	/* Entry number used for iteration. */
+	int		pve_timestamp;	/* Generation number of VM map. */
+	u_long		pve_start;	/* Start VA of range. */
+	u_long		pve_end;	/* End VA of range (incl). */
+	u_long		pve_offset;	/* Offset in backing object. */
+	u_int		pve_prot;	/* Protection of memory range. */
+	u_int		pve_pathlen;	/* Size of path. */
+	long		pve_fileid;	/* File ID. */
+	uint32_t	pve_fsid;	/* File system ID. */
+	char		*pve_path;	/* Path name of object. */
 };
 
 #ifdef _KERNEL
@@ -139,7 +158,7 @@ int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_sstep(struct thread *_td);
 int	proc_rwmem(struct proc *_p, struct uio *_uio);
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 struct reg32;
 struct fpreg32;
 struct dbreg32;

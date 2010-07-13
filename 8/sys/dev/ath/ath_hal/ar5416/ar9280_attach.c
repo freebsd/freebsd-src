@@ -64,8 +64,6 @@ static void ar9280ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
 static HAL_BOOL ar9280FillCapabilityInfo(struct ath_hal *ah);
 static void ar9280WriteIni(struct ath_hal *ah,
 	const struct ieee80211_channel *chan);
-static void ar9280SpurMitigate(struct ath_hal *ah,
-	const struct ieee80211_channel *chan);
 
 static void
 ar9280AniSetup(struct ath_hal *ah)
@@ -360,7 +358,7 @@ ar9280WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 #define	AR_SPUR_FEEQ_BOUND_HT40	19
 #define	AR_SPUR_FEEQ_BOUND_HT20	10
 
-static void
+void
 ar9280SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
     static const int pilot_mask_reg[4] = { AR_PHY_TIMING7, AR_PHY_TIMING8,

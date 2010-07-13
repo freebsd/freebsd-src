@@ -2675,16 +2675,16 @@ pmc_start(struct pmc *pm)
 			PMCDBG(PMC,OPS,1, "po=%p in global list", po);
 		}
 		po->po_sscount++;
-	}
 
-	/*
-	 * Log mapping information for all existing processes in the
-	 * system.  Subsequent mappings are logged as they happen;
-	 * see pmc_process_mmap().
-	 */
-	if (po->po_logprocmaps == 0) {
-		pmc_log_all_process_mappings(po);
-		po->po_logprocmaps = 1;
+		/*
+		 * Log mapping information for all existing processes in the
+		 * system.  Subsequent mappings are logged as they happen;
+		 * see pmc_process_mmap().
+		 */
+		if (po->po_logprocmaps == 0) {
+			pmc_log_all_process_mappings(po);
+			po->po_logprocmaps = 1;
+		}
 	}
 
 	/*
@@ -3972,9 +3972,11 @@ pmc_post_callchain_callback(void)
 
 	td = curthread;
 
-	KASSERT((td->td_pflags & TDP_CALLCHAIN) == 0,
-	    ("[pmc,%d] thread %p already marked for callchain capture",
-		__LINE__, (void *) td));
+	/*
+	 * If there is multiple PMCs for the same interrupt ignore new post
+	 */
+	if (td->td_pflags & TDP_CALLCHAIN)
+		return;
 
 	/*
 	 * Mark this thread as needing callchain capture.

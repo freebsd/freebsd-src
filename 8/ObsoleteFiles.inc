@@ -14,6 +14,59 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100327: fusword.9 and susword.9 removed
+OLD_FILES+=usr/share/man/man9/fusword.9.gz
+OLD_FILES+=usr/share/man/man9/susword.9.gz
+# 20100408: unify rc.firewall and rc.firewall6.
+OLD_FILES+=etc/rc.d/ip6fw
+OLD_FILES+=etc/rc.firewall6
+OLD_FILES+=usr/share/examples/etc/rc.firewall6
+# 20100330: [ia64] Sync with 9-current
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=usr/include/machine/nexusvar.h
+OLD_FILES+=usr/include/machine/sapicreg.h
+OLD_FILES+=usr/include/machine/sapicvar.h
+.endif
+# 20100329: gcpio removal
+OLD_FILES+=usr/bin/gcpio
+OLD_FILES+=usr/share/info/cpio.info.gz
+OLD_FILES+=usr/share/man/man1/gcpio.1.gz
+# 20100301: vesa and dpms promoted to be i386/amd64 common
+OLD_FILES+=usr/include/machine/pc/vesa.h
+OLD_FILES+=usr/share/man/man4/i386/dpms.4.gz
+# 20100208: man pages moved
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/share/man/man4/i386/alpm.4.gz
+OLD_FILES+=usr/share/man/man4/i386/amdpm.4.gz
+OLD_FILES+=usr/share/man/man4/i386/mcd.4.gz
+OLD_FILES+=usr/share/man/man4/i386/padlock.4.gz
+OLD_FILES+=usr/share/man/man4/i386/pcf.4.gz
+OLD_FILES+=usr/share/man/man4/i386/scd.4.gz
+OLD_FILES+=usr/share/man/man4/i386/viapm.4.gz
+.endif
+# 20091229: remove no longer relevant examples
+OLD_FILES+=usr/share/examples/pppd/auth-down.sample
+OLD_FILES+=usr/share/examples/pppd/auth-up.sample
+OLD_FILES+=usr/share/examples/pppd/chap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/chat.sh.sample
+OLD_FILES+=usr/share/examples/pppd/ip-down.sample
+OLD_FILES+=usr/share/examples/pppd/ip-up.sample
+OLD_FILES+=usr/share/examples/pppd/options.sample
+OLD_FILES+=usr/share/examples/pppd/pap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.deny.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.shells.sample
+OLD_DIRS+=usr/share/examples/pppd
+OLD_FILES+=usr/share/examples/slattach/unit-command.sh
+OLD_DIRS+=usr/share/examples/slattach
+OLD_FILES+=usr/share/examples/sliplogin/slip.hosts
+OLD_FILES+=usr/share/examples/sliplogin/slip.login
+OLD_FILES+=usr/share/examples/sliplogin/slip.logout
+OLD_FILES+=usr/share/examples/sliplogin/slip.slparms
+OLD_DIRS+=usr/share/examples/sliplogin
+OLD_FILES+=usr/share/examples/startslip/sldown.sh
+OLD_FILES+=usr/share/examples/startslip/slip.sh
+OLD_FILES+=usr/share/examples/startslip/slup.sh
+OLD_DIRS+=usr/share/examples/startslip
 # 20091218: removal of rc.early(8) link
 OLD_FILES+=usr/share/man/man8/rc.early.8.gz
 # 20091027: pselect.3 implemented as syscall
@@ -23,6 +76,49 @@ OLD_FILES+=usr/libexec/lukemftpd
 OLD_FILES+=usr/share/man/man5/ftpd.conf.5.gz
 OLD_FILES+=usr/share/man/man5/ftpusers.5.gz
 OLD_FILES+=usr/share/man/man8/lukemftpd.8.gz
+# 20090812: net80211 documentation overhaul
+OLD_FILES+=usr/share/man/man9/ieee80211_add_rates.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_add_xrates.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_alloc_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_begin_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_cfgget.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_cfgset.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_chan2ieee.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_chan2mode.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_create_ibss.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_crypto_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_crypto_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_decap.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_dump_pkt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_dup_bss.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_encap.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_end_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_find_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_fix_rate.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_free_allnodes.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_ieee2mhz.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_ioctl.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_lookup_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media2rate.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_change.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_init.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_status.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_mhz2ieee.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_next_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_lateattach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_print_essid.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_proto_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_proto_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_rate2media.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_recv_mgmt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_send_mgmt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_setmode.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_timeout_nodes.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_watchdog.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_wep_crypt.9.gz
 # 20090801: vimage.h removed in favour of vnet.h
 OLD_FILES+=usr/include/sys/vimage.h
 # 20090719: library version bump for 8.0

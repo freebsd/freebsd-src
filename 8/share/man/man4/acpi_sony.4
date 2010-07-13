@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2005
+.Dd February 7, 2010
 .Dt ACPI_SONY 4 i386
 .Os
 .Sh NAME
@@ -48,15 +48,24 @@ acpi_sony_load="YES"
 The
 .Nm
 driver provides support for the notebook controller in Sony laptops.
+Note that not all features will work on all laptop models.
 .Sh SYSCTLS
-The following sysctl is currently implemented:
+The following sysctl nodes are currently implemented:
 .Bl -tag -width indent
 .It Va dev.acpi_sony.0.brightness
 Current brightness level of the display.
+.It Va dev.acpi_sony.0.brightness_default
+Default brightness level of the display (survives reboot).
+.It Va dev.acpi_sony.0.contrast
+Current contrast level of the display.
+.It Va dev.acpi_sony.0.bass_gain
+Enable or disable the Bass Gain feature.
 .It Va dev.acpi_sony.0.cdp
 Turns the CD power on or off.
 .It Va dev.acpi_sony.0.azp
 Turns the audio power on or off.
+.It Va dev.acpi_sony.0.lnp
+Turns the wired network interface power on or off.
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,

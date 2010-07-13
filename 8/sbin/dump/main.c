@@ -767,7 +767,8 @@ obsolete(int *argcp, char **argvp[])
 	if (flags) {
 		*p = '\0';
 		*nargv++ = flagsp;
-	}
+	} else
+		free(flagsp);
 
 	/* Copy remaining arguments. */
 	while ((*nargv++ = *argv++));

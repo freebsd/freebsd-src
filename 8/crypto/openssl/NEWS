@@ -5,6 +5,27 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 0.9.8m and OpenSSL 0.9.8n:
+
+      o CFB cipher definition fixes.
+      o Fix security issues CVE-2010-0740 and CVE-2010-0433.
+
+  Major changes between OpenSSL 0.9.8l and OpenSSL 0.9.8m:
+
+      o Cipher definition fixes.
+      o Workaround for slow RAND_poll() on some WIN32 versions.
+      o Remove MD2 from algorithm tables.
+      o SPKAC handling fixes.
+      o Support for RFC5746 TLS renegotiation extension.
+      o Compression memory leak fixed.
+      o Compression session resumption fixed.
+      o Ticket and SNI coexistence fixes.
+      o Many fixes to DTLS handling. 
+
+  Major changes between OpenSSL 0.9.8k and OpenSSL 0.9.8l:
+
+      o Temporary work around for CVE-2009-3555: disable renegotiation.
+
   Major changes between OpenSSL 0.9.8j and OpenSSL 0.9.8k:
 
       o Fix various build issues.

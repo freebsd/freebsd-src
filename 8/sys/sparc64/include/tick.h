@@ -31,8 +31,8 @@
 
 extern u_int hardclock_use_stick;
 
-void	tick_clear(void);
+void	tick_clear(u_int cpu_impl);
 void	tick_start(void);
-void	tick_stop(void);
+void	tick_stop(u_int cpu_impl);
 
 #endif

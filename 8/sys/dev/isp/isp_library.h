@@ -43,10 +43,10 @@ int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t);
  *
  * These handles are associate with a command.
  */
-int isp_save_xs(ispsoftc_t *, XS_T *, uint32_t *);
+int isp_allocate_xs(ispsoftc_t *, XS_T *, uint32_t *);
 XS_T * isp_find_xs(ispsoftc_t *, uint32_t);
 uint32_t isp_find_handle(ispsoftc_t *, XS_T *);
-uint32_t isp_handle_index(uint32_t);
+uint32_t isp_handle_index(ispsoftc_t *, uint32_t);
 void isp_destroy_handle(ispsoftc_t *, uint32_t);
 
 /*
@@ -108,6 +108,7 @@ void isp_put_cont64_req(ispsoftc_t *, ispcontreq64_t *, ispcontreq64_t *);
 void isp_get_response(ispsoftc_t *, ispstatusreq_t *, ispstatusreq_t *);
 void isp_get_24xx_response(ispsoftc_t *, isp24xx_statusreq_t *, isp24xx_statusreq_t *);
 void isp_get_24xx_abrt(ispsoftc_t *, isp24xx_abrt_t *, isp24xx_abrt_t *);
+void isp_get_rio1(ispsoftc_t *, isp_rio1_t *, isp_rio1_t *);
 void isp_get_rio2(ispsoftc_t *, isp_rio2_t *, isp_rio2_t *);
 void isp_put_icb(ispsoftc_t *, isp_icb_t *, isp_icb_t *);
 void isp_put_icb_2400(ispsoftc_t *, isp_icb_2400_t *, isp_icb_2400_t *);
@@ -156,9 +157,7 @@ void isp_put_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 
 int isp_send_tgt_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, void *, uint32_t);
 
-#define IS_TARGET_HANDLE(x)     ((x) & 0x8000)
-
-int isp_save_xs_tgt(ispsoftc_t *, void *, uint32_t *);
+int isp_allocate_xs_tgt(ispsoftc_t *, void *, uint32_t *);
 void *isp_find_xs_tgt(ispsoftc_t *, uint32_t);
 uint32_t isp_find_tgt_handle(ispsoftc_t *, void *);
 void isp_destroy_tgt_handle(ispsoftc_t *, uint32_t);

@@ -53,6 +53,9 @@ struct mdproc {
 	struct system_segment_descriptor md_ldt_sd;
 };
 
+#define	KINFO_PROC_SIZE 1088
+#define	KINFO_PROC32_SIZE 768
+
 #ifdef	_KERNEL
 
 /* Get the current kernel thread stack usage. */

@@ -262,6 +262,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
+	bzero(&newtd->td_rux, sizeof(newtd->td_rux));
 /* XXX check if we should zero. */
 	bcopy(&oldtd->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
@@ -385,7 +386,7 @@ kthread_suspend_check(struct thread *td)
 int
 kproc_kthread_add(void (*func)(void *), void *arg,
             struct proc **procptr, struct thread **tdptr,
-            int flags, int pages, char * procname, const char *fmt, ...) 
+            int flags, int pages, const char *procname, const char *fmt, ...) 
 {
 	int error;
 	va_list ap;

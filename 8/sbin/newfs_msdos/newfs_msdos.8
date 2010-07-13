@@ -38,14 +38,14 @@
 .Op Fl B Ar boot
 .Op Fl C Ar create-size
 .Op Fl F Ar FAT-type
-.Op Fl I Ar volid
+.Op Fl I Ar VolumeId
 .Op Fl L Ar label
 .Op Fl O Ar OEM
 .Op Fl S Ar sector-size
 .Op Fl a Ar FAT-size
 .Op Fl b Ar block-size
 .Op Fl c Ar cluster-size
-.Op Fl e Ar dirents
+.Op Fl e Ar DirEnts
 .Op Fl f Ar format
 .Op Fl h Ar heads
 .Op Fl i Ar info
@@ -103,7 +103,7 @@ If the file system supports sparse files, the space occupied on disk may be
 smaller than the size specified as parameter.
 .It Fl F Ar FAT-type
 FAT type (one of 12, 16, or 32).
-.It Fl I Ar volid
+.It Fl I Ar VolumeID
 Volume ID, a 32 bit number in decimal or hexadecimal (0x...) format.
 .It Fl L Ar label
 Volume label (up to 11 characters).
@@ -116,7 +116,7 @@ The default is
 .It Fl S Ar sector-size
 Number of bytes per sector.
 Acceptable values are powers of 2
-in the range 128 through 32768.
+in the range 512 through 32768.
 .It Fl a Ar FAT-size
 Number of sectors per FAT.
 .It Fl b Ar block-size
@@ -130,7 +130,7 @@ Acceptable values are powers of 2 in the range
 If the block or cluster size are not specified, the code
 uses a cluster between 512 bytes and 32K depending on
 the filesystem size.
-.It Fl e Ar dirents
+.It Fl e Ar DirEnts
 Number of root directory entries (FAT12 and FAT16 only).
 .It Fl f Ar format
 Specify a standard (floppy disk) format.

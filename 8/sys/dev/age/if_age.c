@@ -74,9 +74,6 @@ __FBSDID("$FreeBSD$");
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-#ifndef	IFCAP_VLAN_HWTSO
-#define	IFCAP_VLAN_HWTSO	0
-#endif
 #define	AGE_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
 MODULE_DEPEND(age, pci, 1, 1, 1);
@@ -633,8 +630,8 @@ age_attach(device_t dev)
 	ether_ifattach(ifp, sc->age_eaddr);
 
 	/* VLAN capability setup. */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+	    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Tell the upper layer(s) we support long frames. */
@@ -1632,22 +1629,8 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 	}
 
 	m = *m_head;
-	/* Configure Tx IP/TCP/UDP checksum offload. */
-	if ((m->m_pkthdr.csum_flags & AGE_CSUM_FEATURES) != 0) {
-		cflags |= AGE_TD_CSUM;
-		if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
-			cflags |= AGE_TD_TCPCSUM;
-		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
-			cflags |= AGE_TD_UDPCSUM;
-		/* Set checksum start offset. */
-		cflags |= (poff << AGE_TD_CSUM_PLOADOFFSET_SHIFT);
-		/* Set checksum insertion position of TCP/UDP. */
-		cflags |= ((poff + m->m_pkthdr.csum_data) <<
-		    AGE_TD_CSUM_XSUMOFFSET_SHIFT);
-	}
-
-	/* Configure TSO. */
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		/* Configure TSO. */
 		if (poff + (tcp->th_off << 2) == m->m_pkthdr.len) {
 			/* Not TSO but IP/TCP checksum offload. */
 			cflags |= AGE_TD_IPCSUM | AGE_TD_TCPCSUM;
@@ -1663,6 +1646,18 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 		/* Set IP/TCP header size. */
 		cflags |= ip->ip_hl << AGE_TD_IPHDR_LEN_SHIFT;
 		cflags |= tcp->th_off << AGE_TD_TSO_TCPHDR_LEN_SHIFT;
+	} else if ((m->m_pkthdr.csum_flags & AGE_CSUM_FEATURES) != 0) {
+		/* Configure Tx IP/TCP/UDP checksum offload. */
+		cflags |= AGE_TD_CSUM;
+		if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
+			cflags |= AGE_TD_TCPCSUM;
+		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+			cflags |= AGE_TD_UDPCSUM;
+		/* Set checksum start offset. */
+		cflags |= (poff << AGE_TD_CSUM_PLOADOFFSET_SHIFT);
+		/* Set checksum insertion position of TCP/UDP. */
+		cflags |= ((poff + m->m_pkthdr.csum_data) <<
+		    AGE_TD_CSUM_XSUMOFFSET_SHIFT);
 	}
 
 	/* Configure VLAN hardware tag insertion. */
@@ -1892,29 +1887,19 @@ age_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
 		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
 			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
-
-		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			age_rxvlan(sc);
-		}
 		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
 		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
-		/*
-		 * VLAN hardware tagging is required to do checksum
-		 * offload or TSO on VLAN interface. Checksum offload
-		 * on VLAN interface also requires hardware assistance
-		 * of parent interface.
-		 */
-		if ((ifp->if_capenable & IFCAP_TXCSUM) == 0)
-			ifp->if_capenable &= ~IFCAP_VLAN_HWCSUM;
-		if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
-			ifp->if_capenable &=
-			    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+			age_rxvlan(sc);
+		}
 		AGE_UNLOCK(sc);
 		VLAN_CAPABILITIES(ifp);
 		break;

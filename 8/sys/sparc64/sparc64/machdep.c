@@ -89,10 +89,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cache.h>
 #include <machine/clock.h>
+#include <machine/cmt.h>
 #include <machine/cpu.h>
+#include <machine/fireplane.h>
 #include <machine/fp.h>
 #include <machine/fsr.h>
 #include <machine/intr_machdep.h>
+#include <machine/jbus.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
@@ -135,6 +138,7 @@ struct kva_md_info kmi;
 
 u_long ofw_vec;
 u_long ofw_tba;
+u_int tba_taken_over;
 
 char sparc64_model[32];
 
@@ -143,11 +147,12 @@ static int cpu_use_vis = 1;
 cpu_block_copy_t *cpu_block_copy;
 cpu_block_zero_t *cpu_block_zero;
 
+static phandle_t find_bsp(phandle_t node, uint32_t bspid, u_int cpu_impl);
 void sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3,
     ofw_vec_t *vec);
-void sparc64_shutdown_final(void *dummy, int howto);
+static void sparc64_shutdown_final(void *dummy, int howto);
 
-static void cpu_startup(void *);
+static void cpu_startup(void *arg);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 CTASSERT((1 << INT_SHIFT) == sizeof(int));
@@ -236,18 +241,97 @@ spinlock_exit(void)
 		wrpr(pil, td->td_md.md_saved_pil, 0);
 }
 
+static phandle_t
+find_bsp(phandle_t node, uint32_t bspid, u_int cpu_impl)
+{
+	char type[sizeof("cpu")];
+	phandle_t child;
+	uint32_t cpuid;
+
+	for (; node != 0; node = OF_peer(node)) {
+		child = OF_child(node);
+		if (child > 0) {
+			child = find_bsp(child, bspid, cpu_impl);
+			if (child > 0)
+				return (child);
+		} else {
+			if (OF_getprop(node, "device_type", type,
+			    sizeof(type)) <= 0)
+				continue;
+			if (strcmp(type, "cpu") != 0)
+				continue;
+			if (OF_getprop(node, cpu_cpuid_prop(cpu_impl), &cpuid,
+			    sizeof(cpuid)) <= 0)
+				continue;
+			if (cpuid == bspid)
+				return (node);
+		}
+	}
+	return (0);
+}
+
+const char *
+cpu_cpuid_prop(u_int cpu_impl)
+{
+
+	switch (cpu_impl) {
+	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
+	case CPU_IMPL_ULTRASPARCI:
+	case CPU_IMPL_ULTRASPARCII:
+	case CPU_IMPL_ULTRASPARCIIi:
+	case CPU_IMPL_ULTRASPARCIIe:
+		return ("upa-portid");
+	case CPU_IMPL_ULTRASPARCIII:
+	case CPU_IMPL_ULTRASPARCIIIp:
+	case CPU_IMPL_ULTRASPARCIIIi:
+	case CPU_IMPL_ULTRASPARCIIIip:
+		return ("portid");
+	case CPU_IMPL_ULTRASPARCIV:
+	case CPU_IMPL_ULTRASPARCIVp:
+		return ("cpuid");
+	default:
+		return ("");
+	}
+}
+
+uint32_t
+cpu_get_mid(u_int cpu_impl)
+{
+
+	switch (cpu_impl) {
+	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
+	case CPU_IMPL_ULTRASPARCI:
+	case CPU_IMPL_ULTRASPARCII:
+	case CPU_IMPL_ULTRASPARCIIi:
+	case CPU_IMPL_ULTRASPARCIIe:
+		return (UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG)));
+	case CPU_IMPL_ULTRASPARCIII:
+	case CPU_IMPL_ULTRASPARCIIIp:
+		return (FIREPLANE_CR_GET_AID(ldxa(AA_FIREPLANE_CONFIG,
+		    ASI_FIREPLANE_CONFIG_REG)));
+	case CPU_IMPL_ULTRASPARCIIIi:
+	case CPU_IMPL_ULTRASPARCIIIip:
+		return (JBUS_CR_GET_JID(ldxa(0, ASI_JBUS_CONFIG_REG)));
+	case CPU_IMPL_ULTRASPARCIV:
+	case CPU_IMPL_ULTRASPARCIVp:
+		return (INTR_ID_GET_ID(ldxa(AA_INTR_ID, ASI_INTR_ID)));
+	default:
+		return (0);
+	}
+}
+
 void
 sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 {
-	char type[8];
 	char *env;
 	struct pcpu *pc;
 	vm_offset_t end;
 	vm_offset_t va;
 	caddr_t kmdp;
-	phandle_t child;
 	phandle_t root;
-	uint32_t portid;
+	u_int cpu_impl;
 
 	end = 0;
 	kmdp = NULL;
@@ -259,15 +343,16 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cpu_impl = VER_IMPL(rdpr(ver));
 
 	/*
-	 * Do CPU-specific Initialization.
+	 * Do CPU-specific initialization.
 	 */
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-		cheetah_init();
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+		cheetah_init(cpu_impl);
 
 	/*
 	 * Clear (S)TICK timer (including NPT).
 	 */
-	tick_clear();
+	tick_clear(cpu_impl);
 
 	/*
 	 * UltraSparc II[e,i] based systems come up with the tick interrupt
@@ -277,7 +362,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * enabled, causing an interrupt storm on startup since they are not
 	 * handled.
 	 */
-	tick_stop();
+	tick_stop(cpu_impl);
 
 	/*
 	 * Set up Open Firmware entry points.
@@ -319,7 +404,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_addr = (vm_offset_t)pcpu0;
-	pc->pc_mid = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
+	pc->pc_impl = cpu_impl;
+	pc->pc_mid = cpu_get_mid(cpu_impl);
 	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;
@@ -328,24 +414,11 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Determine the OFW node and frequency of the BSP (and ensure the
 	 * BSP is in the device tree in the first place).
 	 */
-	pc->pc_node = 0;
 	root = OF_peer(0);
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "device_type", type, sizeof(type)) <= 0)
-			continue;
-		if (strcmp(type, "cpu") != 0)
-			continue;
-		if (OF_getprop(child, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
-		    "upa-portid" : "portid", &portid, sizeof(portid)) <= 0)
-			continue;
-		if (portid == pc->pc_mid) {
-			pc->pc_node = child;
-			break;
-		}
-	}
+	pc->pc_node = find_bsp(root, pc->pc_mid, cpu_impl);
 	if (pc->pc_node == 0)
 		OF_exit();
-	if (OF_getprop(child, "clock-frequency", &pc->pc_clock,
+	if (OF_getprop(pc->pc_node, "clock-frequency", &pc->pc_clock,
 	    sizeof(pc->pc_clock)) <= 0)
 		OF_exit();
 
@@ -397,7 +470,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Determine the TLB slot maxima, which are expected to be
 	 * equal across all CPUs.
-	 * NB: for Cheetah-class CPUs, these properties only refer
+	 * NB: for cheetah-class CPUs, these properties only refer
 	 * to the t16s.
 	 */
 	if (OF_getprop(pc->pc_node, "#dtlb-entries", &dtlb_slots,
@@ -407,8 +480,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	    sizeof(itlb_slots)) == -1)
 		panic("sparc64_init: cannot determine number of iTLB slots");
 
+	/*
+	 * Initialize and enable the caches.  Note that his may include
+	 * applying workarounds.
+	 */
 	cache_init(pc);
-	cache_enable();
+	cache_enable(cpu_impl);
 	uma_set_align(pc->pc_cache.dc_linesize - 1);
 
 	cpu_block_copy = bcopy;
@@ -417,6 +494,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	if (cpu_use_vis) {
 		switch (cpu_impl) {
 		case CPU_IMPL_SPARC64:
+		case CPU_IMPL_SPARC64V:
 		case CPU_IMPL_ULTRASPARCI:
 		case CPU_IMPL_ULTRASPARCII:
 		case CPU_IMPL_ULTRASPARCIIi:
@@ -434,13 +512,13 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 
 #ifdef SMP
-	mp_init();
+	mp_init(cpu_impl);
 #endif
 
 	/*
 	 * Initialize virtual memory and calculate physmem.
 	 */
-	pmap_bootstrap();
+	pmap_bootstrap(cpu_impl);
 
 	/*
 	 * Initialize tunables.
@@ -498,8 +576,18 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	dpcpu_init(dpcpu0, 0);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
+	/*
+	 * Initialize mutexes.
+	 */
 	mutex_init();
+
+	/*
+	 * Finish the interrupt initialization now that mutexes work and
+	 * enable them.
+	 */
 	intr_init2();
+	wrpr(pil, 0, PIL_TICK);
+	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	/*
 	 * Finish pmap initialization now that we're ready for mutexes.
@@ -838,7 +926,7 @@ cpu_halt(void)
 	cpu_shutdown(&args);
 }
 
-void
+static void
 sparc64_shutdown_final(void *dummy, int howto)
 {
 	static struct {

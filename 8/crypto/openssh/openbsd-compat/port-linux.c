@@ -1,4 +1,4 @@
-/* $Id: port-linux.c,v 1.5 2008/03/26 20:27:21 dtucker Exp $ */
+/* $Id: port-linux.c,v 1.8 2010/03/01 04:52:50 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Daniel Walsh <dwalsh@redhat.com>
@@ -23,14 +23,17 @@
 
 #include "includes.h"
 
+#if defined(WITH_SELINUX) || defined(LINUX_OOM_ADJUST)
 #include <errno.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdio.h>
 
-#ifdef WITH_SELINUX
 #include "log.h"
+#include "xmalloc.h"
 #include "port-linux.h"
 
+#ifdef WITH_SELINUX
 #include <selinux/selinux.h>
 #include <selinux/flask.h>
 #include <selinux/get_context_list.h>
@@ -168,4 +171,95 @@ ssh_selinux_setup_pty(char *pwname, const char *tty)
 		freecon(user_ctx);
 	debug3("%s: done", __func__);
 }
+
+void
+ssh_selinux_change_context(const char *newname)
+{
+	int len, newlen;
+	char *oldctx, *newctx, *cx;
+
+	if (!ssh_selinux_enabled())
+		return;
+
+	if (getcon((security_context_t *)&oldctx) < 0) {
+		logit("%s: getcon failed with %s", __func__, strerror (errno));
+		return;
+	}
+	if ((cx = index(oldctx, ':')) == NULL || (cx = index(cx + 1, ':')) ==
+	    NULL) {
+		logit ("%s: unparseable context %s", __func__, oldctx);
+		return;
+	}
+
+	newlen = strlen(oldctx) + strlen(newname) + 1;
+	newctx = xmalloc(newlen);
+	len = cx - oldctx + 1;
+	memcpy(newctx, oldctx, len);
+	strlcpy(newctx + len, newname, newlen - len);
+	if ((cx = index(cx + 1, ':')))
+		strlcat(newctx, cx, newlen);
+	debug3("%s: setting context from '%s' to '%s'", __func__, oldctx,
+	    newctx);
+	if (setcon(newctx) < 0)
+		logit("%s: setcon failed with %s", __func__, strerror (errno));
+	xfree(oldctx);
+	xfree(newctx);
+}
 #endif /* WITH_SELINUX */
+
+#ifdef LINUX_OOM_ADJUST
+#define OOM_ADJ_PATH	"/proc/self/oom_adj"
+/*
+ * The magic "don't kill me", as documented in eg:
+ * http://lxr.linux.no/#linux+v2.6.32/Documentation/filesystems/proc.txt
+ */
+#define OOM_ADJ_NOKILL	-17
+
+static int oom_adj_save = INT_MIN;
+
+/*
+ * Tell the kernel's out-of-memory killer to avoid sshd.
+ * Returns the previous oom_adj value or zero.
+ */
+void
+oom_adjust_setup(void)
+{
+	FILE *fp;
+
+	debug3("%s", __func__);
+	if ((fp = fopen(OOM_ADJ_PATH, "r+")) != NULL) {
+		if (fscanf(fp, "%d", &oom_adj_save) != 1)
+			verbose("error reading %s: %s", OOM_ADJ_PATH, strerror(errno));
+		else {
+			rewind(fp);
+			if (fprintf(fp, "%d\n", OOM_ADJ_NOKILL) <= 0)
+				verbose("error writing %s: %s",
+				    OOM_ADJ_PATH, strerror(errno));
+			else
+				verbose("Set %s from %d to %d",
+				    OOM_ADJ_PATH, oom_adj_save, OOM_ADJ_NOKILL);
+		}
+		fclose(fp);
+	}
+}
+
+/* Restore the saved OOM adjustment */
+void
+oom_adjust_restore(void)
+{
+	FILE *fp;
+
+	debug3("%s", __func__);
+	if (oom_adj_save == INT_MIN || (fp = fopen(OOM_ADJ_PATH, "w")) == NULL)
+		return;
+
+	if (fprintf(fp, "%d\n", oom_adj_save) <= 0)
+		verbose("error writing %s: %s", OOM_ADJ_PATH, strerror(errno));
+	else
+		verbose("Set %s to %d", OOM_ADJ_PATH, oom_adj_save);
+
+	fclose(fp);
+	return;
+}
+#endif /* LINUX_OOM_ADJUST */
+#endif /* WITH_SELINUX || LINUX_OOM_ADJUST */

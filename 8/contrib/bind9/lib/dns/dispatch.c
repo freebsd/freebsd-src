@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.155.12.7 2009/04/28 21:39:45 jinmei Exp $ */
+/* $Id: dispatch.c,v 1.155.12.11 2009/12/02 23:26:28 marka Exp $ */
 
 /*! \file */
 
@@ -746,13 +746,19 @@ new_portentry(dns_dispatch_t *disp, in_port_t port) {
 	return (portentry);
 }
 
+/*%
+ * The caller must not hold the qid->lock.
+ */
 static void
 deref_portentry(dns_dispatch_t *disp, dispportentry_t **portentryp) {
 	dispportentry_t *portentry = *portentryp;
+	dns_qid_t *qid;
 
 	REQUIRE(disp->port_table != NULL);
 	REQUIRE(portentry != NULL && portentry->refs > 0);
 
+	qid = DNS_QID(disp);
+	LOCK(&qid->lock);
 	portentry->refs--;
 	if (portentry->refs == 0) {
 		ISC_LIST_UNLINK(disp->port_table[portentry->port %
@@ -762,6 +768,7 @@ deref_portentry(dns_dispatch_t *disp, dispportentry_t **portentryp) {
 	}
 
 	*portentryp = NULL;
+	UNLOCK(&qid->lock);
 }
 
 /*%
@@ -779,8 +786,9 @@ socket_search(dns_qid_t *qid, isc_sockaddr_t *dest, in_port_t port,
 	dispsock = ISC_LIST_HEAD(qid->sock_table[bucket]);
 
 	while (dispsock != NULL) {
-		if (isc_sockaddr_equal(dest, &dispsock->host) &&
-		    dispsock->portentry->port == port)
+		if (dispsock->portentry != NULL &&
+		    dispsock->portentry->port == port &&
+		    isc_sockaddr_equal(dest, &dispsock->host))
 			return (dispsock);
 		dispsock = ISC_LIST_NEXT(dispsock, blink);
 	}
@@ -2048,8 +2056,18 @@ dns_dispatchmgr_setudp(dns_dispatchmgr_t *mgr,
 
 	/* Create or adjust buffer pool */
 	if (mgr->bpool != NULL) {
-		isc_mempool_setmaxalloc(mgr->bpool, maxbuffers);
-		mgr->maxbuffers = maxbuffers;
+		/*
+		 * We only increase the maxbuffers to avoid accidental buffer
+		 * shortage.  Ideally we'd separate the manager-wide maximum
+		 * from per-dispatch limits and respect the latter within the
+		 * global limit.  But at this moment that's deemed to be
+		 * overkilling and isn't worth additional implementation
+		 * complexity.
+		 */
+		if (maxbuffers > mgr->maxbuffers) {
+			isc_mempool_setmaxalloc(mgr->bpool, maxbuffers);
+			mgr->maxbuffers = maxbuffers;
+		}
 	} else {
 		result = isc_mempool_create(mgr->mctx, buffersize, &mgr->bpool);
 		if (result != ISC_R_SUCCESS) {

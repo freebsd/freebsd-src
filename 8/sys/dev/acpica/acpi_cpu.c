@@ -345,27 +345,10 @@ acpi_cpu_attach(device_t dev)
     }
 
     /*
-     * CPU capabilities are specified as a buffer of 32-bit integers:
-     * revision, count, and one or more capabilities.  The revision of
-     * "1" is not specified anywhere but seems to match Linux.
+     * CPU capabilities are specified in
+     * Intel Processor Vendor-Specific ACPI Interface Specification.
      */
     if (sc->cpu_features) {
-	arglist.Pointer = arg;
-	arglist.Count = 1;
-	arg[0].Type = ACPI_TYPE_BUFFER;
-	arg[0].Buffer.Length = sizeof(cap_set);
-	arg[0].Buffer.Pointer = (uint8_t *)cap_set;
-	cap_set[0] = 1; /* revision */
-	cap_set[1] = 1; /* number of capabilities integers */
-	cap_set[2] = sc->cpu_features;
-	AcpiEvaluateObject(sc->cpu_handle, "_PDC", &arglist, NULL);
-
-	/*
-	 * On some systems we need to evaluate _OSC so that the ASL
-	 * loads the _PSS and/or _PDC methods at runtime.
-	 *
-	 * TODO: evaluate failure of _OSC.
-	 */
 	arglist.Pointer = arg;
 	arglist.Count = 4;
 	arg[0].Type = ACPI_TYPE_BUFFER;
@@ -378,19 +361,53 @@ acpi_cpu_attach(device_t dev)
 	arg[3].Type = ACPI_TYPE_BUFFER;
 	arg[3].Buffer.Length = sizeof(cap_set);	/* Capabilities buffer */
 	arg[3].Buffer.Pointer = (uint8_t *)cap_set;
-	cap_set[0] = 0;
-	AcpiEvaluateObject(sc->cpu_handle, "_OSC", &arglist, NULL);
+	cap_set[0] = 0;				/* status */
+	cap_set[1] = sc->cpu_features;
+	status = AcpiEvaluateObject(sc->cpu_handle, "_OSC", &arglist, NULL);
+	if (ACPI_SUCCESS(status)) {
+	    if (cap_set[0] != 0)
+		device_printf(dev, "_OSC returned status %#x\n", cap_set[0]);
+	}
+	else {
+	    arglist.Pointer = arg;
+	    arglist.Count = 1;
+	    arg[0].Type = ACPI_TYPE_BUFFER;
+	    arg[0].Buffer.Length = sizeof(cap_set);
+	    arg[0].Buffer.Pointer = (uint8_t *)cap_set;
+	    cap_set[0] = 1; /* revision */
+	    cap_set[1] = 1; /* number of capabilities integers */
+	    cap_set[2] = sc->cpu_features;
+	    AcpiEvaluateObject(sc->cpu_handle, "_PDC", &arglist, NULL);
+	}
     }
 
     /* Probe for Cx state support. */
     acpi_cpu_cx_probe(sc);
 
-    /* Finally,  call identify and probe/attach for child devices. */
-    bus_generic_probe(dev);
-    bus_generic_attach(dev);
-
     return (0);
 }
+
+static void
+acpi_cpu_postattach(void *unused __unused)
+{
+    device_t *devices;
+    int err;
+    int i, n;
+
+    err = devclass_get_devices(acpi_cpu_devclass, &devices, &n);
+    if (err != 0) {
+	printf("devclass_get_devices(acpi_cpu_devclass) failed\n");
+	return;
+    }
+    for (i = 0; i < n; i++)
+	bus_generic_probe(devices[i]);
+    for (i = 0; i < n; i++)
+	bus_generic_attach(devices[i]);
+    free(devices, M_TEMP);
+}
+
+SYSINIT(acpi_cpu, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
+    acpi_cpu_postattach, NULL);
 
 /*
  * Disable any entry to the idle function during suspend and re-enable it
@@ -913,12 +930,16 @@ acpi_cpu_idle()
 
     /*
      * Execute HLT (or equivalent) and wait for an interrupt.  We can't
-     * calculate the time spent in C1 since the place we wake up is an
-     * ISR.  Assume we slept half of quantum and return.
+     * precisely calculate the time spent in C1 since the place we wake up
+     * is an ISR.  Assume we slept no more then half of quantum.
      */
     if (cx_next->type == ACPI_STATE_C1) {
-	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + 500000 / hz) / 4;
+	AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
 	acpi_cpu_c1();
+	AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+        end_time = acpi_TimerDelta(end_time, start_time);
+	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 +
+	    min(PM_USEC(end_time), 500000 / hz)) / 4;
 	return;
     }
 
@@ -940,7 +961,7 @@ acpi_cpu_idle()
      * get the time very close to the CPU start/stop clock logic, this
      * is the only reliable time source.
      */
-    AcpiRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
     CPU_GET_REG(cx_next->p_lvlx, 1);
 
     /*
@@ -949,8 +970,8 @@ acpi_cpu_idle()
      * the processor has stopped.  Doing it again provides enough
      * margin that we are certain to have a correct value.
      */
-    AcpiRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
-    AcpiRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
 
     /* Enable bus master arbitration and disable bus master wakeup. */
     if (cx_next->type == ACPI_STATE_C3 &&
@@ -992,6 +1013,8 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	if (isc->cpu_cx_count > cpu_cx_count)
 	    cpu_cx_count = isc->cpu_cx_count;
     }
+    if (sc->cpu_cx_lowest < cpu_cx_lowest)
+	acpi_cpu_set_cx_lowest(sc, min(cpu_cx_lowest, sc->cpu_cx_count - 1));
     ACPI_SERIAL_END(cpu);
 }
 
@@ -1187,7 +1210,7 @@ acpi_cpu_global_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS)
     ACPI_SERIAL_BEGIN(cpu);
     for (i = 0; i < cpu_ndevices; i++) {
 	sc = device_get_softc(cpu_devices[i]);
-	acpi_cpu_set_cx_lowest(sc, val);
+	acpi_cpu_set_cx_lowest(sc, min(val, sc->cpu_cx_count - 1));
     }
     ACPI_SERIAL_END(cpu);
 

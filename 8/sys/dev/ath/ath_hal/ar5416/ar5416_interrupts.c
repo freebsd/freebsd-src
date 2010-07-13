@@ -104,7 +104,7 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		isr = OS_REG_READ(ah, AR_ISR_RAC);
 		if (isr == 0xffffffff) {
 			*masked = 0;
-			return AH_FALSE;;
+			return AH_FALSE;
 		}
 
 		*masked = isr & HAL_INT_COMMON;
@@ -118,6 +118,13 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			isr1 = OS_REG_READ(ah, AR_ISR_S1_S);
 			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXERR);
 			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXEOL);
+		}
+
+		if (AR_SREV_MERLIN(ah) || AR_SREV_KITE(ah)) {
+			uint32_t isr5;
+			isr5 = OS_REG_READ(ah, AR_ISR_S5_S);
+			if (isr5 & AR_ISR_S5_TIM_TIMER)
+				*masked |= HAL_INT_TIM_TIMER;
 		}
 
 		/* Interrupt Mitigation on AR5416 */

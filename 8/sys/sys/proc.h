@@ -172,6 +172,27 @@ struct kdtrace_thread;
 struct cpuset;
 
 /*
+ * XXX: Does this belong in resource.h or resourcevar.h instead?
+ * Resource usage extension.  The times in rusage structs in the kernel are
+ * never up to date.  The actual times are kept as runtimes and tick counts
+ * (with control info in the "previous" times), and are converted when
+ * userland asks for rusage info.  Backwards compatibility prevents putting
+ * this directly in the user-visible rusage struct.
+ *
+ * Locking for p_rux: (cj) means (j) for p_rux and (c) for p_crux.
+ * Locking for td_rux: (t) for all fields.
+ */
+struct rusage_ext {
+	u_int64_t	rux_runtime;    /* (cj) Real time. */
+	u_int64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
+	u_int64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
+	u_int64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
+	u_int64_t	rux_uu;         /* (c) Previous user time in usec. */
+	u_int64_t	rux_su;         /* (c) Previous sys time in usec. */
+	u_int64_t	rux_tu;         /* (c) Previous total time in usec. */
+};
+
+/*
  * Kernel runnable context (thread).
  * This is what is put to sleep and reactivated.
  * Thread context.  Processes may have multiple threads.
@@ -216,8 +237,9 @@ struct thread {
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
-	u_int		td_slptick;	/* (t) Time at sleep. */
-	struct rusage	td_ru;		/* (t) rusage information */
+	int		td_slptick;	/* (t) Time at sleep. */
+	int		td_blktick;	/* (t) Time spent blocked. */
+	struct rusage	td_ru;		/* (t) rusage information. */
 	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
 	uint64_t	td_runtime;	/* (t) How many cpu ticks we've run. */
 	u_int 		td_pticks;	/* (t) Statclock hits for profiling */
@@ -280,6 +302,7 @@ struct thread {
 	int		td_errno;	/* Error returned by last syscall. */
 	struct vnet	*td_vnet;	/* (k) Effective vnet. */
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
+	struct rusage_ext td_rux;	/* (t) Internal rusage information. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -342,6 +365,7 @@ do {									\
 /* Userland debug flags */
 #define	TDB_SUSPEND	0x00000001 /* Thread is suspended by debugger */
 #define	TDB_XSIG	0x00000002 /* Thread is exchanging signal under trace */
+#define	TDB_USERWR	0x00000004 /* Debugger modified memory or registers */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -424,26 +448,6 @@ do {									\
 #define	TD_SET_RUNNING(td)	(td)->td_state = TDS_RUNNING
 #define	TD_SET_RUNQ(td)		(td)->td_state = TDS_RUNQ
 #define	TD_SET_CAN_RUN(td)	(td)->td_state = TDS_CAN_RUN
-
-/*
- * XXX: Does this belong in resource.h or resourcevar.h instead?
- * Resource usage extension.  The times in rusage structs in the kernel are
- * never up to date.  The actual times are kept as runtimes and tick counts
- * (with control info in the "previous" times), and are converted when
- * userland asks for rusage info.  Backwards compatibility prevents putting
- * this directly in the user-visible rusage struct.
- *
- * Locking: (cj) means (j) for p_rux and (c) for p_crux.
- */
-struct rusage_ext {
-	u_int64_t	rux_runtime;    /* (cj) Real time. */
-	u_int64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
-	u_int64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
-	u_int64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
-	u_int64_t	rux_uu;         /* (c) Previous user time in usec. */
-	u_int64_t	rux_su;         /* (c) Previous sys time in usec. */
-	u_int64_t	rux_tu;         /* (c) Previous total time in usec. */
-};
 
 /*
  * Process structure.
@@ -573,7 +577,7 @@ struct proc {
 #define	P_WAITED	0x01000	/* Someone is waiting for us. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
-#define	P_UNUSED8000	0x08000	/* available. */
+#define	P_WKILLED	0x08000	/* Killed, go to kernel/user boundary ASAP. */
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
 #define	P_STOPPED_SIG	0x20000	/* Stopped due to SIGSTOP/SIGTSTP. */
 #define	P_STOPPED_TRACE	0x40000	/* Stopped because of tracing. */
@@ -592,6 +596,7 @@ struct proc {
 
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
 #define	P_SHOULDSTOP(p)	((p)->p_flag & P_STOPPED)
+#define	P_KILLED(p)	((p)->p_flag & P_WKILLED)
 
 /*
  * These were process status values (p_stat), now they are only used in

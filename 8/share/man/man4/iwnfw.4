@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2009
+.Dd October 25, 2009
 .Dt IWNFW 4
 .Os
 .Sh NAME
@@ -36,15 +36,26 @@ kernel configuration file:
 .Cd "device iwnfw"
 .Ed
 .Pp
+This will include three firmware images inside the kernel.
+If you want to pick only the firmware image for your network adapter choose one
+of the following:
+.Bd -ragged -offset indent
+.Cd "device iwn4965fw"
+.Cd "device iwn5000fw"
+.Cd "device iwn5100fw"
+.Ed
+.Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-iwnfw_load="YES"
+iwn4965fw_load="YES"
+iwn5000fw_load="YES"
+iwn5100fw_load="YES"
 .Ed
 .Sh DESCRIPTION
 This module provides access to firmware sets for the
-Intel Wireless WiFi Link 4965AGN IEEE 802.11n adapters.
+Intel Wireless WiFi Link 4965 and 5000 series of IEEE 802.11n adapters.
 It may be
 statically linked into the kernel, or loaded as a module.
 .Sh SEE ALSO

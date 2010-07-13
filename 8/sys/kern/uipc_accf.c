@@ -54,7 +54,7 @@ MTX_SYSINIT(accept_filter, &accept_filter_mtx, "accept_filter_mtx",
 #define	ACCEPT_FILTER_UNLOCK()	mtx_unlock(&accept_filter_mtx)
 
 static SLIST_HEAD(, accept_filter) accept_filtlsthd =
-	SLIST_HEAD_INITIALIZER(&accept_filtlsthd);
+	SLIST_HEAD_INITIALIZER(accept_filtlsthd);
 
 MALLOC_DEFINE(M_ACCF, "accf", "accept filter data");
 

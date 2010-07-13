@@ -82,6 +82,7 @@ LIBLN?=		"don't use LIBLN, use LIBL"
 .if ${MK_BIND} != "no"
 LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a
 .endif
+LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
 LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
@@ -150,7 +151,7 @@ LIBUFS?=	${DESTDIR}${LIBDIR}/libufs.a
 LIBUGIDFW?=	${DESTDIR}${LIBDIR}/libugidfw.a
 LIBUMEM?=	${DESTDIR}${LIBDIR}/libumem.a
 LIBUSBHID?=	${DESTDIR}${LIBDIR}/libusbhid.a
-LIBUSB20?=	${DESTDIR}${LIBDIR}/libusb20.a
+LIBUSB?=	${DESTDIR}${LIBDIR}/libusb.a
 LIBUTIL?=	${DESTDIR}${LIBDIR}/libutil.a
 LIBUUTIL?=	${DESTDIR}${LIBDIR}/libuutil.a
 LIBVGL?=	${DESTDIR}${LIBDIR}/libvgl.a

@@ -85,6 +85,7 @@ struct	nfsmount {
 	struct rpc_timers nm_timers[NFS_MAX_TIMER]; /* RTT Timers for rpcs */
 	char	nm_principal[MNAMELEN];	/* GSS-API principal of server */
 	gss_OID	nm_mech_oid;		/* OID of selected GSS-API mechanism */
+	int	nm_negnametimeo;	/* timeout for -ve entries (sec) */
 
 	/* NFSv4 */
 	uint64_t nm_clientid;
@@ -105,6 +106,10 @@ struct	nfsmount {
 
 #ifndef NFS_TPRINTF_DELAY
 #define NFS_TPRINTF_DELAY               30
+#endif
+
+#ifndef NFS_DEFAULT_NEGNAMETIMEO
+#define NFS_DEFAULT_NEGNAMETIMEO	60
 #endif
 
 #define	NFS_PCATCH	(PCATCH | PBDRY)

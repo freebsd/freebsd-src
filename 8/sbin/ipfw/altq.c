@@ -39,6 +39,7 @@
 
 #include <net/if.h>		/* IFNAMSIZ */
 #include <net/pfvar.h>
+#include <netinet/in.h>	/* in_addr */
 #include <netinet/ip_fw.h>
 
 /*

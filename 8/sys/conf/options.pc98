@@ -90,6 +90,7 @@ PC98			opt_global.h
 
 # Device options
 DEV_APIC		opt_apic.h
+DEV_ATPIC		opt_atpic.h
 DEV_MECIA		opt_mecia.h
 DEV_NPX			opt_npx.h
 

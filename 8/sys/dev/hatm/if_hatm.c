@@ -836,7 +836,7 @@ hatm_init_rx_buffer_pool(struct hatm_softc *sc,
 	uint32_t lbuf_addr;	/* address of current buffer */
 	u_int i;
 
-	row_size = sc->bytes_per_row;;
+	row_size = sc->bytes_per_row;
 	row_addr = start * row_size;
 	lbuf_size = sc->cells_per_lbuf * 48;
 	lbufs_per_row = sc->cells_per_row / sc->cells_per_lbuf;
@@ -889,7 +889,7 @@ hatm_init_tx_buffer_pool(struct hatm_softc *sc,
 	uint32_t lbuf_addr;	/* address of current buffer */
 	u_int i;
 
-	row_size = sc->bytes_per_row;;
+	row_size = sc->bytes_per_row;
 	row_addr = start * row_size;
 	lbuf_size = sc->cells_per_lbuf * 48;
 	lbufs_per_row = sc->cells_per_row / sc->cells_per_lbuf;
@@ -1928,7 +1928,6 @@ hatm_attach(device_t dev)
 	ifp->if_flags = IFF_SIMPLEX;
 	ifp->if_ioctl = hatm_ioctl;
 	ifp->if_start = hatm_start;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = hatm_init;
 
 	utopia_attach(&sc->utopia, IFP2IFATM(sc->ifp), &sc->media, &sc->mtx,

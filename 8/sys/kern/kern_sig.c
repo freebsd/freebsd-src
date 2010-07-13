@@ -275,7 +275,7 @@ sigqueue_init(sigqueue_t *list, struct proc *p)
  * 	0	-	signal not found
  *	others	-	signal number
  */ 
-int
+static int
 sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 {
 	struct proc *p = sq->sq_proc;
@@ -337,7 +337,7 @@ sigqueue_take(ksiginfo_t *ksi)
 		SIGDELSET(sq->sq_signals, ksi->ksi_signo);
 }
 
-int
+static int
 sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 {
 	struct proc *p = sq->sq_proc;
@@ -353,7 +353,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 
 	/* directly insert the ksi, don't copy it */
 	if (si->ksi_flags & KSI_INS) {
-		TAILQ_INSERT_TAIL(&sq->sq_list, si, ksi_link);
+		if (si->ksi_flags & KSI_HEAD)
+			TAILQ_INSERT_HEAD(&sq->sq_list, si, ksi_link);
+		else
+			TAILQ_INSERT_TAIL(&sq->sq_list, si, ksi_link);
 		si->ksi_sigq = sq;
 		goto out_set_bit;
 	}
@@ -374,7 +377,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 			p->p_pendingcnt++;
 		ksiginfo_copy(si, ksi);
 		ksi->ksi_signo = signo;
-		TAILQ_INSERT_TAIL(&sq->sq_list, ksi, ksi_link);
+		if (si->ksi_flags & KSI_HEAD)
+			TAILQ_INSERT_HEAD(&sq->sq_list, ksi, ksi_link);
+		else
+			TAILQ_INSERT_TAIL(&sq->sq_list, ksi, ksi_link);
 		ksi->ksi_sigq = sq;
 	}
 
@@ -416,7 +422,7 @@ sigqueue_flush(sigqueue_t *sq)
 	SIGEMPTYSET(sq->sq_kill);
 }
 
-void
+static void
 sigqueue_collect_set(sigqueue_t *sq, sigset_t *set)
 {
 	ksiginfo_t *ksi;
@@ -428,7 +434,7 @@ sigqueue_collect_set(sigqueue_t *sq, sigset_t *set)
 	SIGSETOR(*set, sq->sq_kill);
 }
 
-void
+static void
 sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 {
 	sigset_t tmp, set;
@@ -472,7 +478,7 @@ sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 	sigqueue_collect_set(src, &src->sq_signals);
 }
 
-void
+static void
 sigqueue_move(sigqueue_t *src, sigqueue_t *dst, int signo)
 {
 	sigset_t set;
@@ -482,7 +488,7 @@ sigqueue_move(sigqueue_t *src, sigqueue_t *dst, int signo)
 	sigqueue_move_set(src, dst, &set);
 }
 
-void
+static void
 sigqueue_delete_set(sigqueue_t *sq, sigset_t *set)
 {
 	struct proc *p = sq->sq_proc;
@@ -516,7 +522,7 @@ sigqueue_delete(sigqueue_t *sq, int signo)
 }
 
 /* Remove a set of signals for a process */
-void
+static void
 sigqueue_delete_set_proc(struct proc *p, sigset_t *set)
 {
 	sigqueue_t worklist;
@@ -543,7 +549,7 @@ sigqueue_delete_proc(struct proc *p, int signo)
 	sigqueue_delete_set_proc(p, &set);
 }
 
-void
+static void
 sigqueue_delete_stopmask_proc(struct proc *p)
 {
 	sigset_t set;
@@ -2488,6 +2494,7 @@ issignal(struct thread *td, int stop_allowed)
 	struct sigacts *ps;
 	struct sigqueue *queue;
 	sigset_t sigpending;
+	ksiginfo_t ksi;
 	int sig, prop, newsig;
 
 	p = td->td_proc;
@@ -2525,24 +2532,22 @@ issignal(struct thread *td, int stop_allowed)
 		if (p->p_flag & P_TRACED && (p->p_flag & P_PPWAIT) == 0) {
 			/*
 			 * If traced, always stop.
+			 * Remove old signal from queue before the stop.
+			 * XXX shrug off debugger, it causes siginfo to
+			 * be thrown away.
 			 */
+			queue = &td->td_sigqueue;
+			ksi.ksi_signo = 0;
+			if (sigqueue_get(queue, sig, &ksi) == 0) {
+				queue = &p->p_sigqueue;
+				sigqueue_get(queue, sig, &ksi);
+			}
+
 			mtx_unlock(&ps->ps_mtx);
 			newsig = ptracestop(td, sig);
 			mtx_lock(&ps->ps_mtx);
 
 			if (sig != newsig) {
-				ksiginfo_t ksi;
-
-				queue = &td->td_sigqueue;
-				/*
-				 * clear old signal.
-				 * XXX shrug off debugger, it causes siginfo to
-				 * be thrown away.
-				 */
-				if (sigqueue_get(queue, sig, &ksi) == 0) {
-					queue = &p->p_sigqueue;
-					sigqueue_get(queue, sig, &ksi);
-				}
 
 				/*
 				 * If parent wants us to take the signal,
@@ -2557,10 +2562,20 @@ issignal(struct thread *td, int stop_allowed)
 				 * Put the new signal into td_sigqueue. If the
 				 * signal is being masked, look for other signals.
 				 */
-				SIGADDSET(queue->sq_signals, sig);
+				sigqueue_add(queue, sig, NULL);
 				if (SIGISMEMBER(td->td_sigmask, sig))
 					continue;
 				signotify(td);
+			} else {
+				if (ksi.ksi_signo != 0) {
+					ksi.ksi_flags |= KSI_HEAD;
+					if (sigqueue_add(&td->td_sigqueue, sig,
+					    &ksi) != 0)
+						ksi.ksi_signo = 0;
+				}
+				if (ksi.ksi_signo == 0)
+					sigqueue_add(&td->td_sigqueue, sig,
+					    NULL);
 			}
 
 			/*
@@ -2786,6 +2801,7 @@ killproc(p, why)
 		p, p->p_pid, p->p_comm);
 	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid, p->p_comm,
 		p->p_ucred ? p->p_ucred->cr_uid : -1, why);
+	p->p_flag |= P_WKILLED;
 	psignal(p, SIGKILL);
 }
 

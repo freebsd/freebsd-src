@@ -144,6 +144,7 @@ tkip_setkey(struct ieee80211_key *k)
 		return 0;
 	}
 	k->wk_keytsc = 1;		/* TSC starts at 1 */
+	ctx->rx_phase1_done = 0;
 	return 1;
 }
 

@@ -552,6 +552,13 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
 
+	/*
+	 * Bypass source address selection and use the primary jail IP
+	 * if requested.
+	 */
+	if (cred != NULL && !prison_saddrsel_ip4(cred, laddr))
+		return (0);
+
 	error = 0;
 	bzero(&sro, sizeof(sro));
 
@@ -583,7 +590,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 		ia = ifatoia(ifa_ifwithdstaddr((struct sockaddr *)sin));
 		if (ia == NULL)
-			ia = ifatoia(ifa_ifwithnet((struct sockaddr *)sin));
+			ia = ifatoia(ifa_ifwithnet((struct sockaddr *)sin, 0));
 		if (ia == NULL) {
 			error = ENETUNREACH;
 			goto done;
@@ -700,7 +707,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 		ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sain)));
 		if (ia == NULL)
-			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
+			ia = ifatoia(ifa_ifwithnet(sintosa(&sain), 0));
 		if (ia == NULL)
 			ia = ifatoia(ifa_ifwithaddr(sintosa(&sain)));
 

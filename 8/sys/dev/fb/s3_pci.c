@@ -54,9 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <machine/md_var.h>
-#include <machine/vm86.h>
 #include <machine/pc/bios.h>
-#include <machine/pc/vesa.h>
+#include <dev/fb/vesa.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/vgareg.h>

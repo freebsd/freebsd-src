@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -362,7 +362,7 @@ AcpiExDecodeFieldAccess (
         /* Invalid field access type */
 
         ACPI_ERROR ((AE_INFO,
-            "Unknown field access type %X",
+            "Unknown field access type 0x%X",
             Access));
         return_UINT32 (0);
     }
@@ -533,7 +533,7 @@ AcpiExPrepFieldValue (
         if (Type != ACPI_TYPE_REGION)
         {
             ACPI_ERROR ((AE_INFO,
-                "Needed Region, found type %X (%s)",
+                "Needed Region, found type 0x%X (%s)",
                 Type, AcpiUtGetTypeName (Type)));
 
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);

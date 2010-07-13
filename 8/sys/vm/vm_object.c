@@ -1162,7 +1162,8 @@ shadowlookup:
 			    (tobject->flags & OBJ_ONEMAPPING) == 0) {
 				goto unlock_tobject;
 			}
-		}
+		} else if (tobject->type == OBJT_PHYS)
+			goto unlock_tobject;
 		m = vm_page_lookup(tobject, tpindex);
 		if (m == NULL && advise == MADV_WILLNEED) {
 			/*
@@ -1189,28 +1190,30 @@ shadowlookup:
 				VM_OBJECT_UNLOCK(tobject);
 			tobject = backing_object;
 			goto shadowlookup;
-		}
+		} else if (m->valid != VM_PAGE_BITS_ALL)
+			goto unlock_tobject;
 		/*
-		 * If the page is busy or not in a normal active state,
-		 * we skip it.  If the page is not managed there are no
-		 * page queues to mess with.  Things can break if we mess
-		 * with pages in any of the below states.
+		 * If the page is not in a normal state, skip it.
 		 */
 		vm_page_lock_queues();
-		if (m->hold_count ||
-		    m->wire_count ||
-		    (m->flags & PG_UNMANAGED) ||
-		    m->valid != VM_PAGE_BITS_ALL) {
+		if (m->hold_count != 0 || m->wire_count != 0) {
 			vm_page_unlock_queues();
 			goto unlock_tobject;
 		}
 		if ((m->oflags & VPO_BUSY) || m->busy) {
-			vm_page_flag_set(m, PG_REFERENCED);
+			if (advise == MADV_WILLNEED)
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it. 
+				 */
+				vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
 			if (object != tobject)
 				VM_OBJECT_UNLOCK(object);
 			m->oflags |= VPO_WANTED;
-			msleep(m, VM_OBJECT_MTX(tobject), PDROP | PVM, "madvpo", 0);
+			msleep(m, VM_OBJECT_MTX(tobject), PDROP | PVM, "madvpo",
+			    0);
 			VM_OBJECT_LOCK(object);
   			goto relookup;
 		}
@@ -1395,13 +1398,7 @@ vm_object_split(vm_map_entry_t entry)
 		orig_object->charge -= ptoa(size);
 	}
 retry:
-	if ((m = TAILQ_FIRST(&orig_object->memq)) != NULL) {
-		if (m->pindex < offidxstart) {
-			m = vm_page_splay(offidxstart, orig_object->root);
-			if ((orig_object->root = m)->pindex < offidxstart)
-				m = TAILQ_NEXT(m, listq);
-		}
-	}
+	m = vm_page_find_least(orig_object, offidxstart);
 	vm_page_lock_queues();
 	for (; m != NULL && (idx = m->pindex - offidxstart) < size;
 	    m = m_next) {
@@ -1415,7 +1412,6 @@ retry:
 		 * not be changed by this operation.
 		 */
 		if ((m->oflags & VPO_BUSY) || m->busy) {
-			vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(new_object);
 			m->oflags |= VPO_WANTED;
@@ -1553,9 +1549,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 				}
 			} else if (op & OBSC_COLLAPSE_WAIT) {
 				if ((p->oflags & VPO_BUSY) || p->busy) {
-					vm_page_lock_queues();
-					vm_page_flag_set(p, PG_REFERENCED);
-					vm_page_unlock_queues();
 					VM_OBJECT_UNLOCK(object);
 					p->oflags |= VPO_WANTED;
 					msleep(p, VM_OBJECT_MTX(backing_object),
@@ -1883,7 +1876,8 @@ vm_object_collapse(vm_object_t object)
  *	that contain managed pages.  There are two exceptions.  First,
  *	it may be performed on the kernel and kmem objects.  Second,
  *	it may be used by msync(..., MS_INVALIDATE) to invalidate
- *	device-backed pages.
+ *	device-backed pages.  In both of these cases, "clean_only"
+ *	must be FALSE.
  *
  *	The object must be locked.
  */
@@ -1909,13 +1903,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 
 	vm_object_pip_add(object, 1);
 again:
-	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-		if (p->pindex < start) {
-			p = vm_page_splay(start, object->root);
-			if ((object->root = p)->pindex < start)
-				p = TAILQ_NEXT(p, listq);
-		}
-	}
+	p = vm_page_find_least(object, start);
 	vm_page_lock_queues();
 	/*
 	 * Assert: the variable p is either (1) the page with the

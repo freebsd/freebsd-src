@@ -356,7 +356,9 @@ struct siis_device {
 	int			revision;
 	int			mode;
 	u_int			bytecount;
+	u_int			atapi;
 	u_int			tags;
+	u_int			caps;
 };
 
 /* structure describing an ATA channel */

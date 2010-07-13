@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.130.50.3.12.1 2009/11/18 23:58:04 marka Exp $ */
+/* $Id: types.h,v 1.130.50.5 2009/12/30 08:34:30 jinmei Exp $ */
 
 #ifndef DNS_TYPES_H
 #define DNS_TYPES_H 1
@@ -300,6 +300,8 @@ enum {
 };
 
 #define DNS_TRUST_PENDING(x)		((x) == dns_trust_pending_answer || \
+					 (x) == dns_trust_pending_additional)
+#define DNS_TRUST_ADDITIONAL(x)		((x) == dns_trust_additional || \
 					 (x) == dns_trust_pending_additional)
 #define DNS_TRUST_GLUE(x)		((x) == dns_trust_glue)
 

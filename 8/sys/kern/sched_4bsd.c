@@ -920,9 +920,11 @@ sched_sleep(struct thread *td, int pri)
 void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
+	struct mtx *tmtx;
 	struct td_sched *ts;
 	struct proc *p;
 
+	tmtx = NULL;
 	ts = td->td_sched;
 	p = td->td_proc;
 
@@ -931,17 +933,20 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	/* 
 	 * Switch to the sched lock to fix things up and pick
 	 * a new thread.
+	 * Block the td_lock in order to avoid breaking the critical path.
 	 */
 	if (td->td_lock != &sched_lock) {
 		mtx_lock_spin(&sched_lock);
-		thread_unlock(td);
+		tmtx = thread_lock_block(td);
 	}
 
 	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
 
-	if (newtd)
+	if (newtd) {
+		MPASS(newtd->td_lock == &sched_lock);
 		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
+	}
 
 	td->td_lastcpu = td->td_oncpu;
 	td->td_flags &= ~TDF_NEEDRESCHED;
@@ -984,8 +989,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			sched_load_add();
 	} else {
 		newtd = choosethread();
+		MPASS(newtd->td_lock == &sched_lock);
 	}
-	MPASS(newtd->td_lock == &sched_lock);
 
 	if (td != newtd) {
 #ifdef	HWPMC_HOOKS
@@ -1004,7 +1009,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			(*dtrace_vtime_switch_func)(newtd);
 #endif
 
-		cpu_switch(td, newtd, td->td_lock);
+		cpu_switch(td, newtd, tmtx != NULL ? tmtx : td->td_lock);
 		lock_profile_obtain_lock_success(&sched_lock.lock_object,
 		    0, 0, __FILE__, __LINE__);
 		/*
@@ -1050,7 +1055,7 @@ sched_wakeup(struct thread *td)
 		updatepri(td);
 		resetpriority(td);
 	}
-	td->td_slptick = ticks;
+	td->td_slptick = 0;
 	ts->ts_slptime = 0;
 	sched_add(td, SRQ_BORING);
 }
@@ -1457,9 +1462,8 @@ sched_bind(struct thread *td, int cpu)
 {
 	struct td_sched *ts;
 
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	KASSERT(TD_IS_RUNNING(td),
-	    ("sched_bind: cannot bind non-running thread"));
+	THREAD_LOCK_ASSERT(td, MA_OWNED|MA_NOTRECURSED);
+	KASSERT(td == curthread, ("sched_bind: can only bind curthread"));
 
 	ts = td->td_sched;
 
@@ -1477,6 +1481,7 @@ void
 sched_unbind(struct thread* td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT(td == curthread, ("sched_unbind: can only bind curthread"));
 	td->td_flags &= ~TDF_BOUND;
 }
 

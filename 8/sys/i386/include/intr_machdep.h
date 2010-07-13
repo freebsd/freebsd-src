@@ -138,6 +138,7 @@ int	intr_bind(u_int vector, u_char cpu);
 #endif
 int	intr_config_intr(int vector, enum intr_trigger trig,
     enum intr_polarity pol);
+int	intr_describe(u_int vector, void *ih, const char *descr);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(void);
 struct intsrc *intr_lookup_source(int vector);

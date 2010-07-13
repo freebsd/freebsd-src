@@ -1239,7 +1239,8 @@ exhaust_unnamed_sems(void)
 		return;
 	}
 
-	if (child_worker(exhaust_unnamed_child, (void *)nsems_max, &stat))
+	if (child_worker(exhaust_unnamed_child, (void *)(uintptr_t)nsems_max,
+	    &stat))
 		return;
 	errno = CSTAT_ERROR(stat);
 	switch (CSTAT_CLASS(stat)) {
@@ -1293,7 +1294,8 @@ exhaust_named_sems(void)
 		return;
 	}
 
-	if (child_worker(exhaust_named_child, (void *)nsems_max, &stat) < 0)
+	if (child_worker(exhaust_named_child, (void *)(uintptr_t)nsems_max,
+	    &stat) < 0)
 		return;
 	errno = CSTAT_ERROR(stat);
 	switch (CSTAT_CLASS(stat)) {
@@ -1351,7 +1353,8 @@ fdlimit_unnamed_sems(void)
 	int nsems_max, stat;
 
 	nsems_max = 10;
-	if (child_worker(fdlimit_unnamed_child, (void *)nsems_max, &stat))
+	if (child_worker(fdlimit_unnamed_child, (void *)(uintptr_t)nsems_max,
+	    &stat))
 		return;
 	errno = CSTAT_ERROR(stat);
 	switch (CSTAT_CLASS(stat)) {
@@ -1395,7 +1398,8 @@ fdlimit_named_sems(void)
 	int i, nsems_max, stat;
 
 	nsems_max = 10;
-	if (child_worker(fdlimit_named_child, (void *)nsems_max, &stat) < 0)
+	if (child_worker(fdlimit_named_child, (void *)(uintptr_t)nsems_max,
+	    &stat) < 0)
 		return;
 	errno = CSTAT_ERROR(stat);
 	switch (CSTAT_CLASS(stat)) {

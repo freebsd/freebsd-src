@@ -205,7 +205,8 @@ struct ifnet {
 	 * be used with care where binary compatibility is required.
 	 */
 	char	 if_cspare[3];
-	void	*if_pspare[8];
+	char	*if_description;	/* interface description */
+	void	*if_pspare[7];
 	int	if_ispare[4];
 };
 
@@ -341,6 +342,9 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
 } while(0)
 
 #ifdef _KERNEL
+/* interface link layer address change event */
+typedef void (*iflladdr_event_handler_t)(void *, struct ifnet *);
+EVENTHANDLER_DECLARE(iflladdr_event, iflladdr_event_handler_t);
 /* interface address change event */
 typedef void (*ifaddr_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifaddr_event, ifaddr_event_handler_t);
@@ -601,12 +605,8 @@ drbr_flush(struct ifnet *ifp, struct buf_ring *br)
 	struct mbuf *m;
 
 #ifdef ALTQ
-	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		while (!IFQ_IS_EMPTY(&ifp->if_snd)) {
-			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-			m_freem(m);
-		}
-	}
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd))
+		IFQ_PURGE(&ifp->if_snd);
 #endif	
 	while ((m = buf_ring_dequeue_sc(br)) != NULL)
 		m_freem(m);
@@ -627,7 +627,7 @@ drbr_dequeue(struct ifnet *ifp, struct buf_ring *br)
 	struct mbuf *m;
 
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {	
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		IFQ_DEQUEUE(&ifp->if_snd, m);
 		return (m);
 	}
 #endif
@@ -640,11 +640,15 @@ drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
 {
 	struct mbuf *m;
 #ifdef ALTQ
-	/*
-	 * XXX need to evaluate / requeue 
-	 */
-	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {	
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		IFQ_LOCK(&ifp->if_snd);
+		IFQ_POLL_NOLOCK(&ifp->if_snd, m);
+		if (m != NULL && func(m, arg) == 0) {
+			IFQ_UNLOCK(&ifp->if_snd);
+			return (NULL);
+		}
+		IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
+		IFQ_UNLOCK(&ifp->if_snd);
 		return (m);
 	}
 #endif
@@ -660,9 +664,19 @@ drbr_empty(struct ifnet *ifp, struct buf_ring *br)
 {
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(&ifp->if_snd))
-		return (IFQ_DRV_IS_EMPTY(&ifp->if_snd));
+		return (IFQ_IS_EMPTY(&ifp->if_snd));
 #endif
 	return (buf_ring_empty(br));
+}
+
+static __inline int
+drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		return (1);
+#endif
+	return (!buf_ring_empty(br));
 }
 
 static __inline int
@@ -832,7 +846,7 @@ void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);
 void	if_vmove(struct ifnet *, struct vnet *);
 void	if_purgeaddrs(struct ifnet *);
-void	if_purgemaddrs(struct ifnet *);
+void	if_delallmulti(struct ifnet *);
 void	if_down(struct ifnet *);
 struct ifmultiaddr *
 	if_findmulti(struct ifnet *, struct sockaddr *);
@@ -861,7 +875,7 @@ struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
 int		ifa_ifwithaddr_check(struct sockaddr *);
 struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
-struct	ifaddr *ifa_ifwithnet(struct sockaddr *);
+struct	ifaddr *ifa_ifwithnet(struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *);
 struct	ifaddr *ifa_ifwithroute_fib(int, struct sockaddr *, struct sockaddr *, u_int);
 

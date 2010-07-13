@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/serial/usb_serial.h>
 #include <dev/usb/serial/uftdi_reg.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uftdi_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
@@ -91,8 +91,6 @@ SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
 #define	UFTDI_CONFIG_INDEX	0
 #define	UFTDI_IFACE_INDEX	0
 
-#define	UFTDI_IBUFSIZE 64		/* bytes, maximum number of bytes per
-					 * frame */
 #define	UFTDI_OBUFSIZE 64		/* bytes, cannot be increased due to
 					 * do size encoding */
 
@@ -173,7 +171,7 @@ static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = UFTDI_IBUFSIZE,
+		.bufsize = 0,		/* use wMaxPacketSize */
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &uftdi_read_callback,
 	},
@@ -221,9 +219,11 @@ static struct usb_device_id uftdi_devs[] = {
 	UFTDI_DEV(ATMEL, STK541, 8U232AM),
 	UFTDI_DEV(DRESDENELEKTRONIK, SENSORTERMINALBOARD, 8U232AM),
 	UFTDI_DEV(DRESDENELEKTRONIK, WIRELESSHANDHELDTERMINAL, 8U232AM),
+	UFTDI_DEV(FTDI, GAMMASCOUT, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U100AX, SIO),
 	UFTDI_DEV(FTDI, SERIAL_2232C, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_2232D, 8U232AM),
+	UFTDI_DEV(FTDI, SERIAL_4232H, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U232AM, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U232AM4, 8U232AM),
 	UFTDI_DEV(FTDI, SEMC_DSS20, 8U232AM),

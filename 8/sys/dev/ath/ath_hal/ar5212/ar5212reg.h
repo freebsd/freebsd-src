@@ -700,6 +700,7 @@
 #define	AR_SCR_SLDWP		0x00080000 /* sleep duration write policy */
 #define	AR_SCR_SLEPOL		0x00100000 /* sleep policy mode */
 #define	AR_SCR_MIBIE		0x00200000 /* sleep perf cntrs MIB intr ena */
+#define	AR_SCR_UNKNOWN		0x00400000
 
 #define	AR_INTPEND_TRUE		0x00000001 /* interrupt pending */
 

@@ -190,7 +190,7 @@ acpi_smbus_read_2(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
     uint16_t *ptr)
 {
 	int error, to;
-	ACPI_INTEGER val;
+	UINT64 val;
 
 	ACPI_SERIAL_ASSERT(smbat);
 
@@ -257,7 +257,7 @@ static int
 acpi_smbus_read_multi_1(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
     uint8_t *ptr, uint16_t len)
 {
-	ACPI_INTEGER val;
+	UINT64 val;
 	uint8_t	to;
 	int error;
 

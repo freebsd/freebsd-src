@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "shell.h"
 #include "parser.h"
@@ -365,7 +366,9 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1 = (union node *)stalloc(sizeof (struct nfor));
 		n1->type = NFOR;
 		n1->nfor.var = wordtext;
-		if (readtoken() == TWORD && ! quoteflag && equal(wordtext, "in")) {
+		while (readtoken() == TNL)
+			;
+		if (lasttoken == TWORD && ! quoteflag && equal(wordtext, "in")) {
 			app = &ap;
 			while (readtoken() == TWORD) {
 				n2 = (union node *)stalloc(sizeof (struct narg));
@@ -1631,7 +1634,7 @@ getprompt(void *unused __unused)
 			case 'w':
 				ps[i] = '\0';
 				getcwd(&ps[i], PROMPTLEN - i);
-				if (*fmt == 'W') {
+				if (*fmt == 'W' && ps[i + 1] != '\0') {
 					/* Final path component only. */
 					trim = 1;
 					for (j = i; ps[j] != '\0'; j++)

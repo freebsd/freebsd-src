@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -31,7 +31,7 @@
 
 /*%
  * Principal Author: Brian Wellington
- * $Id: dst_parse.c,v 1.14.120.2 2009/03/02 23:47:11 tbox Exp $
+ * $Id: dst_parse.c,v 1.14.120.6 2010/01/15 19:38:53 each Exp $
  */
 
 #include <config.h>
@@ -480,6 +480,18 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 	case DST_ALG_RSASHA1:
 		fprintf(fp, "(RSASHA1)\n");
 		break;
+	case DST_ALG_NSEC3DSA:
+		fprintf(fp, "(NSEC3DSA)\n");
+		break;
+	case DST_ALG_NSEC3RSASHA1:
+		fprintf(fp, "(NSEC3RSASHA1)\n");
+		break;
+	case DST_ALG_RSASHA256:
+		fprintf(fp, "(RSASHA256)\n");
+		break;
+	case DST_ALG_RSASHA512:
+		fprintf(fp, "(RSASHA512)\n");
+		break;
 	case DST_ALG_HMACMD5:
 		fprintf(fp, "(HMAC_MD5)\n");
 		break;
@@ -521,7 +533,7 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 		isc_buffer_usedregion(&b, &r);
 
 		fprintf(fp, "%s ", s);
-		fwrite(r.base, 1, r.length, fp);
+		isc_util_fwrite(r.base, 1, r.length, fp);
 		fprintf(fp, "\n");
 	}
 

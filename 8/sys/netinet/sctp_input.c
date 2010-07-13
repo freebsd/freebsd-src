@@ -343,11 +343,6 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 	asoc->str_reset_seq_in = asoc->asconf_seq_in + 1;
 
 	asoc->mapping_array_base_tsn = ntohl(init->initial_tsn);
-	/*
-	 * EY 05/13/08 - nr_sack: initialize nr_mapping array's base tsn
-	 * like above
-	 */
-	asoc->nr_mapping_array_base_tsn = ntohl(init->initial_tsn);
 	asoc->tsn_last_delivered = asoc->cumulative_tsn = asoc->asconf_seq_in;
 	asoc->last_echo_tsn = asoc->asconf_seq_in;
 	asoc->advanced_peer_ack_point = asoc->last_acked_seq;
@@ -918,7 +913,8 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 
 static void
 sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp,
-    struct sctp_tcb *stcb, struct sctp_nets *net)
+    struct sctp_tcb *stcb,
+    struct sctp_nets *net)
 {
 	struct sctp_association *asoc;
 
@@ -934,6 +930,13 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp,
 
 	asoc = &stcb->asoc;
 	/* process according to association state */
+	if ((SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_WAIT) ||
+	    (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED)) {
+		/* unexpected SHUTDOWN-ACK... do OOTB handling... */
+		sctp_send_shutdown_complete(stcb, net, 1);
+		SCTP_TCB_UNLOCK(stcb);
+		return;
+	}
 	if ((SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) &&
 	    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
 		/* unexpected SHUTDOWN-ACK... so ignore... */
@@ -975,7 +978,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp,
 	/* stop the timer */
 	sctp_timer_stop(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_9);
 	/* send SHUTDOWN-COMPLETE */
-	sctp_send_shutdown_complete(stcb, net);
+	sctp_send_shutdown_complete(stcb, net, 0);
 	/* notify upper layer protocol */
 	if (stcb->sctp_socket) {
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_DOWN, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
@@ -1852,11 +1855,9 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			memset(asoc->mapping_array, 0,
 			    asoc->mapping_array_size);
 		}
-		/* EY 05/13/08 - nr_sack version of the above if statement */
-		if (asoc->nr_mapping_array && SCTP_BASE_SYSCTL(sctp_nr_sack_on_off)
-		    && asoc->peer_supports_nr_sack) {
+		if (asoc->nr_mapping_array) {
 			memset(asoc->nr_mapping_array, 0,
-			    asoc->nr_mapping_array_size);
+			    asoc->mapping_array_size);
 		}
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_INFO_WLOCK();
@@ -2021,7 +2022,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	 * socket is unbound and we must do an implicit bind. Since we are
 	 * getting a cookie, we cannot be unbound.
 	 */
-	stcb = sctp_aloc_assoc(inp, init_src, 0, &error,
+	stcb = sctp_aloc_assoc(inp, init_src, &error,
 	    ntohl(initack_cp->init.initiate_tag), vrf_id,
 	    (struct thread *)NULL
 	    );
@@ -2742,6 +2743,14 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			 * Now we must move it from one hash table to
 			 * another and get the tcb in the right place.
 			 */
+
+			/*
+			 * This is where the one-2-one socket is put into
+			 * the accept state waiting for the accept!
+			 */
+			if (*stcb) {
+				(*stcb)->asoc.state |= SCTP_STATE_IN_ACCEPT_QUEUE;
+			}
 			sctp_move_pcb_and_assoc(*inp_p, inp, *stcb);
 
 			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
@@ -3058,7 +3067,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
     struct sctp_nets *net, uint8_t flg)
 {
 	switch (desc->chunk_type) {
-		case SCTP_DATA:
+	case SCTP_DATA:
 		/* find the tsn to resend (possibly */
 		{
 			uint32_t tsn;
@@ -3230,12 +3239,9 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 		}
 		break;
 	case SCTP_SELECTIVE_ACK:
+	case SCTP_NR_SELECTIVE_ACK:
 		/* resend the sack */
 		sctp_send_sack(stcb);
-		break;
-		/* EY for nr_sacks */
-	case SCTP_NR_SELECTIVE_ACK:
-		sctp_send_nr_sack(stcb);	/* EY resend the nr-sack */
 		break;
 	case SCTP_HEARTBEAT_REQUEST:
 		/* resend a demand HB */
@@ -3507,16 +3513,9 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 					stcb->asoc.mapping_array_base_tsn = ntohl(resp->senders_next_tsn);
 					memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
 
-					/*
-					 * EY 05/13/08 - nr_sack: to keep
-					 * nr_mapping array be consistent
-					 * with mapping_array
-					 */
-					if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack) {
-						stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
-						stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.mapping_array_base_tsn;
-						memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
-					}
+					stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
+					memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.mapping_array_size);
+
 					stcb->asoc.sending_seq = ntohl(resp->receivers_next_tsn);
 					stcb->asoc.last_acked_seq = stcb->asoc.cumulative_tsn;
 
@@ -3623,15 +3622,8 @@ sctp_handle_str_reset_request_tsn(struct sctp_tcb *stcb,
 		stcb->asoc.tsn_last_delivered = stcb->asoc.cumulative_tsn = stcb->asoc.highest_tsn_inside_map;
 		stcb->asoc.mapping_array_base_tsn = stcb->asoc.highest_tsn_inside_map + 1;
 		memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
-		/*
-		 * EY 05/13/08 -nr_sack: to keep nr_mapping array consistent
-		 * with mapping array
-		 */
-		if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack) {
-			stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
-			stcb->asoc.nr_mapping_array_base_tsn = stcb->asoc.highest_tsn_inside_map + 1;
-			memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.nr_mapping_array_size);
-		}
+		stcb->asoc.highest_tsn_inside_nr_map = stcb->asoc.highest_tsn_inside_map;
+		memset(stcb->asoc.nr_mapping_array, 0, stcb->asoc.mapping_array_size);
 		atomic_add_int(&stcb->asoc.sending_seq, 1);
 		/* save off historical data for retrans */
 		stcb->asoc.last_sending_seq[1] = stcb->asoc.last_sending_seq[0];
@@ -4542,7 +4534,8 @@ process_control_chunks:
 				if ((stcb) && (stcb->asoc.total_output_queue_size)) {
 					;
 				} else {
-					if (locked_tcb) {
+					if (locked_tcb != stcb) {
+						/* Very unlikely */
 						SCTP_TCB_UNLOCK(locked_tcb);
 					}
 					*offset = length;
@@ -4599,16 +4592,18 @@ process_control_chunks:
 				struct sctp_sack_chunk *sack;
 				int abort_now = 0;
 				uint32_t a_rwnd, cum_ack;
-				uint16_t num_seg;
+				uint16_t num_seg, num_dup;
+				uint8_t flags;
+				int offset_seg, offset_dup;
 				int nonce_sum_flag;
 
-				if ((stcb == NULL) || (chk_length < sizeof(struct sctp_sack_chunk))) {
-					SCTPDBG(SCTP_DEBUG_INDATA1, "Bad size on sack chunk, too small\n");
-					*offset = length;
-					if (locked_tcb) {
-						SCTP_TCB_UNLOCK(locked_tcb);
-					}
-					return (NULL);
+				if (stcb == NULL) {
+					SCTPDBG(SCTP_DEBUG_INDATA1, "No stcb when processing SACK chunk\n");
+					break;
+				}
+				if (chk_length < sizeof(struct sctp_sack_chunk)) {
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Bad size on SACK chunk, too small\n");
+					break;
 				}
 				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_ACK_SENT) {
 					/*-
@@ -4619,15 +4614,22 @@ process_control_chunks:
 					break;
 				}
 				sack = (struct sctp_sack_chunk *)ch;
-				nonce_sum_flag = ch->chunk_flags & SCTP_SACK_NONCE_SUM;
+				flags = ch->chunk_flags;
+				nonce_sum_flag = flags & SCTP_SACK_NONCE_SUM;
 				cum_ack = ntohl(sack->sack.cum_tsn_ack);
 				num_seg = ntohs(sack->sack.num_gap_ack_blks);
+				num_dup = ntohs(sack->sack.num_dup_tsns);
 				a_rwnd = (uint32_t) ntohl(sack->sack.a_rwnd);
+				if (sizeof(struct sctp_sack_chunk) +
+				    num_seg * sizeof(struct sctp_gap_ack_block) +
+				    num_dup * sizeof(uint32_t) != chk_length) {
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Bad size of SACK chunk\n");
+					break;
+				}
+				offset_seg = *offset + sizeof(struct sctp_sack_chunk);
+				offset_dup = offset_seg + num_seg * sizeof(struct sctp_gap_ack_block);
 				SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SACK process cum_ack:%x num_seg:%d a_rwnd:%d\n",
-				    cum_ack,
-				    num_seg,
-				    a_rwnd
-				    );
+				    cum_ack, num_seg, a_rwnd);
 				stcb->asoc.seen_a_sack_this_pkt = 1;
 				if ((stcb->asoc.pr_sctp_cnt == 0) &&
 				    (num_seg == 0) &&
@@ -4649,18 +4651,20 @@ process_control_chunks:
 					    &abort_now);
 				} else {
 					if (netp && *netp)
-						sctp_handle_sack(m, *offset,
-						    sack, stcb, *netp, &abort_now, chk_length, a_rwnd);
-				}
-				if (TAILQ_EMPTY(&stcb->asoc.send_queue) &&
-				    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
-				    (stcb->asoc.stream_queue_cnt == 0)) {
-					sctp_ulp_notify(SCTP_NOTIFY_SENDER_DRY, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
+						sctp_handle_sack(m, offset_seg, offset_dup,
+						    stcb, *netp,
+						    num_seg, 0, num_dup, &abort_now, flags,
+						    cum_ack, a_rwnd);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
 					*offset = length;
 					return (NULL);
+				}
+				if (TAILQ_EMPTY(&stcb->asoc.send_queue) &&
+				    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
+				    (stcb->asoc.stream_queue_cnt == 0)) {
+					sctp_ulp_notify(SCTP_NOTIFY_SENDER_DRY, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 				}
 			}
 			break;
@@ -4675,25 +4679,27 @@ process_control_chunks:
 				struct sctp_nr_sack_chunk *nr_sack;
 				int abort_now = 0;
 				uint32_t a_rwnd, cum_ack;
-				uint16_t num_seg, num_nr_seg;
+				uint16_t num_seg, num_nr_seg, num_dup;
+				uint8_t flags;
+				int offset_seg, offset_dup;
 				int nonce_sum_flag;
 
-				if ((stcb == NULL) || (chk_length < sizeof(struct sctp_nr_sack_chunk))) {
-					SCTPDBG(SCTP_DEBUG_INDATA1, "Bad size on nr_sack chunk, too small\n");
-			ignore_nr_sack:
-					*offset = length;
-					if (locked_tcb) {
-						SCTP_TCB_UNLOCK(locked_tcb);
-					}
-					return (NULL);
-				}
 				/*
 				 * EY nr_sacks have not been negotiated but
 				 * the peer end sent an nr_sack, silently
 				 * discard the chunk
 				 */
-				if (!(SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && stcb->asoc.peer_supports_nr_sack)) {
+				if (!(SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) &&
+				    stcb->asoc.peer_supports_nr_sack)) {
 					goto unknown_chunk;
+				}
+				if (stcb == NULL) {
+					SCTPDBG(SCTP_DEBUG_INDATA1, "No stcb when processing NR-SACK chunk\n");
+					break;
+				}
+				if (chk_length < sizeof(struct sctp_nr_sack_chunk)) {
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Bad size on NR-SACK chunk, too small\n");
+					break;
 				}
 				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_ACK_SENT) {
 					/*-
@@ -4701,53 +4707,61 @@ process_control_chunks:
 					 * attention to a sack sent in to us since
 					 * we don't care anymore.
 					 */
-					goto ignore_nr_sack;
+					break;
 				}
 				nr_sack = (struct sctp_nr_sack_chunk *)ch;
-				nonce_sum_flag = ch->chunk_flags & SCTP_SACK_NONCE_SUM;
+				flags = ch->chunk_flags;
+				nonce_sum_flag = flags & SCTP_SACK_NONCE_SUM;
 
 				cum_ack = ntohl(nr_sack->nr_sack.cum_tsn_ack);
 				num_seg = ntohs(nr_sack->nr_sack.num_gap_ack_blks);
 				num_nr_seg = ntohs(nr_sack->nr_sack.num_nr_gap_ack_blks);
+				num_dup = ntohs(nr_sack->nr_sack.num_dup_tsns);
 				a_rwnd = (uint32_t) ntohl(nr_sack->nr_sack.a_rwnd);
+				if (sizeof(struct sctp_nr_sack_chunk) +
+				    (num_seg + num_nr_seg) * sizeof(struct sctp_gap_ack_block) +
+				    num_dup * sizeof(uint32_t) != chk_length) {
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Bad size of NR_SACK chunk\n");
+					break;
+				}
+				offset_seg = *offset + sizeof(struct sctp_nr_sack_chunk);
+				offset_dup = offset_seg + num_seg * sizeof(struct sctp_gap_ack_block);
 				SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_NR_SACK process cum_ack:%x num_seg:%d a_rwnd:%d\n",
-				    cum_ack,
-				    num_seg,
-				    a_rwnd
-				    );
+				    cum_ack, num_seg, a_rwnd);
 				stcb->asoc.seen_a_sack_this_pkt = 1;
 				if ((stcb->asoc.pr_sctp_cnt == 0) &&
-				    (num_seg == 0) &&
+				    (num_seg == 0) && (num_nr_seg == 0) &&
 				    ((compare_with_wrap(cum_ack, stcb->asoc.last_acked_seq, MAX_TSN)) ||
 				    (cum_ack == stcb->asoc.last_acked_seq)) &&
 				    (stcb->asoc.saw_sack_with_frags == 0) &&
-				    (!TAILQ_EMPTY(&stcb->asoc.sent_queue))
-				    ) {
+				    (!TAILQ_EMPTY(&stcb->asoc.sent_queue))) {
 					/*
 					 * We have a SIMPLE sack having no
 					 * prior segments and data on sent
-					 * queue to be acked.. Use the
-					 * faster path sack processing. We
-					 * also allow window update sacks
-					 * with no missing segments to go
-					 * this way too.
+					 * queue to be acked. Use the faster
+					 * path sack processing. We also
+					 * allow window update sacks with no
+					 * missing segments to go this way
+					 * too.
 					 */
-					sctp_express_handle_nr_sack(stcb, cum_ack, a_rwnd, nonce_sum_flag,
+					sctp_express_handle_sack(stcb, cum_ack, a_rwnd, nonce_sum_flag,
 					    &abort_now);
 				} else {
 					if (netp && *netp)
-						sctp_handle_nr_sack(m, *offset,
-						    nr_sack, stcb, *netp, &abort_now, chk_length, a_rwnd);
-				}
-				if (TAILQ_EMPTY(&stcb->asoc.send_queue) &&
-				    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
-				    (stcb->asoc.stream_queue_cnt == 0)) {
-					sctp_ulp_notify(SCTP_NOTIFY_SENDER_DRY, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
+						sctp_handle_sack(m, offset_seg, offset_dup,
+						    stcb, *netp,
+						    num_seg, num_nr_seg, num_dup, &abort_now, flags,
+						    cum_ack, a_rwnd);
 				}
 				if (abort_now) {
 					/* ABORT signal from sack processing */
 					*offset = length;
 					return (NULL);
+				}
+				if (TAILQ_EMPTY(&stcb->asoc.send_queue) &&
+				    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
+				    (stcb->asoc.stream_queue_cnt == 0)) {
+					sctp_ulp_notify(SCTP_NOTIFY_SENDER_DRY, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 				}
 			}
 			break;
@@ -4848,14 +4862,18 @@ process_control_chunks:
 			} else {
 				if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 					/* We are not interested anymore */
+			abend:
+					if (stcb) {
+						SCTP_TCB_UNLOCK(stcb);
+					}
 					*offset = length;
 					return (NULL);
 				}
 			}
 			/*
 			 * First are we accepting? We do this again here
-			 * sincen it is possible that a previous endpoint
-			 * WAS listening responded to a INIT-ACK and then
+			 * since it is possible that a previous endpoint WAS
+			 * listening responded to a INIT-ACK and then
 			 * closed. We opened and bound.. and are now no
 			 * longer listening.
 			 */
@@ -4895,6 +4913,11 @@ process_control_chunks:
 
 				if (linp) {
 					SCTP_ASOC_CREATE_LOCK(linp);
+					if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
+					    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
+						SCTP_ASOC_CREATE_UNLOCK(linp);
+						goto abend;
+					}
 				}
 				if (netp) {
 					ret_buf =
@@ -5395,15 +5418,24 @@ sctp_process_ecn_marked_b(struct sctp_tcb *stcb, struct sctp_nets *net,
 }
 
 #ifdef INVARIANTS
-static void
-sctp_validate_no_locks(struct sctp_inpcb *inp)
+#ifdef __GNUC__
+__attribute__((noinline))
+#endif
+	void
+	     sctp_validate_no_locks(struct sctp_inpcb *inp)
 {
-	struct sctp_tcb *stcb;
+	struct sctp_tcb *lstcb;
 
-	LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
-		if (mtx_owned(&stcb->tcb_mtx)) {
+	LIST_FOREACH(lstcb, &inp->sctp_asoc_list, sctp_tcblist) {
+		if (mtx_owned(&lstcb->tcb_mtx)) {
 			panic("Own lock on stcb at return from input");
 		}
+	}
+	if (mtx_owned(&inp->inp_create_mtx)) {
+		panic("Own create lock on inp");
+	}
+	if (mtx_owned(&inp->inp_mtx)) {
+		panic("Own inp lock on inp");
 	}
 }
 
@@ -5621,7 +5653,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 			was_a_gap = 1;
 		}
 		stcb->asoc.send_sack = 1;
-		sctp_sack_check(stcb, 1, was_a_gap, &abort_flag);
+		sctp_sack_check(stcb, was_a_gap, &abort_flag);
 		if (abort_flag) {
 			/* Again, we aborted so NO UNLOCK needed */
 			goto out_now;
@@ -5785,6 +5817,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	}
 	sh->checksum = 0;	/* prepare for calc */
 	calc_check = sctp_calculate_cksum(m, iphlen);
+	sh->checksum = check;
 	SCTP_STAT_INCR(sctps_recvswcrc);
 	if (calc_check != check) {
 		SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
@@ -5810,7 +5843,6 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 		SCTP_STAT_INCR_COUNTER32(sctps_checksumerrors);
 		goto bad;
 	}
-	sh->checksum = calc_check;
 sctp_skip_csum_4:
 	/* destination port of 0 is illegal, based on RFC2960. */
 	if (sh->dest_port == 0) {

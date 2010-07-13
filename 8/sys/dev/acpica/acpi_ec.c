@@ -223,7 +223,7 @@ static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function,
 				void *Context, void **return_Context);
 static ACPI_STATUS	EcSpaceHandler(UINT32 Function,
 				ACPI_PHYSICAL_ADDRESS Address,
-				UINT32 width, ACPI_INTEGER *Value,
+				UINT32 width, UINT64 *Value,
 				void *Context, void *RegionContext);
 static ACPI_STATUS	EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event,
 				u_int gen_count);
@@ -238,9 +238,9 @@ static int		acpi_ec_suspend(device_t dev);
 static int		acpi_ec_resume(device_t dev);
 static int		acpi_ec_shutdown(device_t dev);
 static int		acpi_ec_read_method(device_t dev, u_int addr,
-				ACPI_INTEGER *val, int width);
+				UINT64 *val, int width);
 static int		acpi_ec_write_method(device_t dev, u_int addr,
-				ACPI_INTEGER val, int width);
+				UINT64 val, int width);
 
 static device_method_t acpi_ec_methods[] = {
     /* Device interface */
@@ -366,8 +366,7 @@ acpi_ec_probe(device_t dev)
     if (params != NULL) {
 	ecdt = 1;
 	ret = 0;
-    } else if (!acpi_disabled("ec") &&
-	ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
+    } else if (ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
 	params = malloc(sizeof(struct acpi_ec_params), M_TEMP,
 			M_WAITOK | M_ZERO);
 	h = acpi_get_handle(dev);
@@ -469,6 +468,7 @@ acpi_ec_attach(device_t dev)
     sc->ec_gpehandle = params->gpe_handle;
     sc->ec_uid = params->uid;
     sc->ec_suspending = FALSE;
+    acpi_set_private(dev, NULL);
     free(params, M_TEMP);
 
     /* Attach bus resources for data and command/status ports. */
@@ -518,14 +518,8 @@ acpi_ec_attach(device_t dev)
     }
 
     /* Enable runtime GPEs for the handler. */
-    Status = AcpiSetGpeType(sc->ec_gpehandle, sc->ec_gpebit,
-			    ACPI_GPE_TYPE_RUNTIME);
-    if (ACPI_FAILURE(Status)) {
-	device_printf(dev, "AcpiSetGpeType failed: %s\n",
-		      AcpiFormatException(Status));
-	goto error;
-    }
-    Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
+    Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit,
+	ACPI_GPE_TYPE_RUNTIME);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "AcpiEnableGpe failed: %s\n",
 		      AcpiFormatException(Status));
@@ -575,13 +569,13 @@ acpi_ec_shutdown(device_t dev)
 
     /* Disable the GPE so we don't get EC events during shutdown. */
     sc = device_get_softc(dev);
-    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
+    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_GPE_TYPE_RUNTIME);
     return (0);
 }
 
 /* Methods to allow other devices (e.g., smbat) to read/write EC space. */
 static int
-acpi_ec_read_method(device_t dev, u_int addr, ACPI_INTEGER *val, int width)
+acpi_ec_read_method(device_t dev, u_int addr, UINT64 *val, int width)
 {
     struct acpi_ec_softc *sc;
     ACPI_STATUS status;
@@ -594,7 +588,7 @@ acpi_ec_read_method(device_t dev, u_int addr, ACPI_INTEGER *val, int width)
 }
 
 static int
-acpi_ec_write_method(device_t dev, u_int addr, ACPI_INTEGER val, int width)
+acpi_ec_write_method(device_t dev, u_int addr, UINT64 val, int width)
 {
     struct acpi_ec_softc *sc;
     ACPI_STATUS status;
@@ -724,7 +718,7 @@ EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context,
 
 static ACPI_STATUS
 EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
-	       ACPI_INTEGER *Value, void *Context, void *RegionContext)
+	       UINT64 *Value, void *Context, void *RegionContext)
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     ACPI_STATUS			Status;
@@ -765,7 +759,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
 	case ACPI_READ:
 	    Status = EcRead(sc, EcAddr, &EcData);
 	    if (ACPI_SUCCESS(Status))
-		*Value |= ((ACPI_INTEGER)EcData) << i;
+		*Value |= ((UINT64)EcData) << i;
 	    break;
 	case ACPI_WRITE:
 	    EcData = (UINT8)((*Value) >> i);

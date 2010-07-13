@@ -91,7 +91,7 @@ SUBDIR=	${_ac} \
 	mailwrapper \
 	makefs \
 	${_makemap} \
-	manctl \
+	${_manctl} \
 	memcontrol \
 	mergemaster \
 	mfiutil \
@@ -168,6 +168,7 @@ SUBDIR=	${_ac} \
 	${_sade} \
 	${_sendmail} \
 	service \
+	services_mkdb \
 	setfib \
 	setfmac \
 	setpmac \
@@ -321,6 +322,10 @@ _nscd=		nscd
 
 .if ${MK_LPR} != "no"
 _lpr=		lpr
+.endif
+
+.if ${MK_MAN_UTILS} != "no"
+_manctl=	manctl
 .endif
 
 .if ${MK_NETGRAPH} != "no"

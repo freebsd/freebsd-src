@@ -134,7 +134,7 @@ PPLEVEL=3
 #######################################################################
 # Not a variable at this time
 
-NANO_ARCH=i386
+NANO_ARCH=`uname -p`
 
 #######################################################################
 #
@@ -238,6 +238,9 @@ install_etc ( ) (
 	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${NANO_OBJ}/_.etc 2>&1
+	# make.conf doesn't get created by default, but some ports need it
+	# so they can spam it.
+	cp /dev/null ${NANO_WORLDDIR}/etc/make.conf
 )
 
 install_kernel ( ) (
@@ -439,7 +442,7 @@ create_i386_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	fi
 
-	trap "df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
+	trap "echo 'Running exit trap code' ; df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
 	fdisk -i -f ${NANO_OBJ}/_.fdisk ${MD}
 	fdisk ${MD}
@@ -491,7 +494,15 @@ create_i386_diskimage ( ) (
 	echo "Writing out _.disk.image..."
 	dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	mdconfig -d -u $MD
+
+	trap - 1 2 15 EXIT
+
 	) > ${NANO_OBJ}/_.di 2>&1
+)
+
+# i386 and amd64 are identical for disk images
+create_amd64_diskimage ( ) (
+	create_i386_diskimage
 )
 
 last_orders () (

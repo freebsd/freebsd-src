@@ -25,11 +25,11 @@ SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c dsobject.c	\
 	dswstate.c
 
 # interpreter/executer
-SRCS+=	exconfig.c exconvrt.c excreate.c exdump.c exfield.c	\
-	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c	\
-	exoparg2.c exoparg3.c exoparg6.c exprep.c exregion.c	\
-	exresnte.c exresolv.c exresop.c exstore.c exstoren.c	\
-	exstorob.c exsystem.c exutils.c
+SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c	\
+	exfield.c exfldio.c exmisc.c exmutex.c exnames.c	\
+	exoparg1.c exoparg2.c exoparg3.c exoparg6.c exprep.c	\
+	exregion.c exresnte.c exresolv.c exresop.c exstore.c	\
+	exstoren.c exstorob.c exsystem.c exutils.c
 
 # interpreter/parser
 SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\
@@ -38,8 +38,8 @@ SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\
 # namespace
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c		\
 	nsload.c nsnames.c nsobject.c nsparse.c nspredef.c	\
-	nssearch.c nsutils.c nswalk.c nsxfeval.c nsxfname.c	\
-	nsxfobj.c
+	nsrepair.c nsrepair2.c nssearch.c nsutils.c nswalk.c	\
+	nsxfeval.c nsxfname.c nsxfobj.c
 
 # resources
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c		\
@@ -52,9 +52,9 @@ SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
 
 # utilities
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
-	uteval.c utglobal.c utinit.c utlock.c utmath.c utmisc.c	\
-	utmutex.c utobject.c utresrc.c utstate.c uttrack.c	\
-	utxface.c
+	uteval.c utglobal.c utids.c utinit.c utlock.c utmath.c	\
+	utmisc.c utmutex.c utobject.c utresrc.c utstate.c	\
+	uttrack.c utxface.c
 
 MAN=	acpidb.8
 WARNS?=	2

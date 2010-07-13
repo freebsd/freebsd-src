@@ -318,15 +318,7 @@ do_authloop(Authctxt *authctxt)
 		}
 #endif /* _UNICOS */
 
-#ifdef HAVE_CYGWIN
-		if (authenticated &&
-		    !check_nt_auth(type == SSH_CMSG_AUTH_PASSWORD,
-		    authctxt->pw)) {
-			packet_disconnect("Authentication rejected for uid %d.",
-			    authctxt->pw == NULL ? -1 : authctxt->pw->pw_uid);
-			authenticated = 0;
-		}
-#else
+#ifndef HAVE_CYGWIN
 		/* Special handling for root */
 		if (authenticated && authctxt->pw->pw_uid == 0 &&
 		    !auth_root_allowed(meth->name)) {

@@ -113,14 +113,14 @@ static int	cflags = REG_EXTENDED;
 static kvm_t	*kd;
 static pid_t	mypid;
 
-static struct listhead euidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead ruidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead rgidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead pgrplist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead ppidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead tdevlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead sidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead jidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead euidlist = SLIST_HEAD_INITIALIZER(euidlist);
+static struct listhead ruidlist = SLIST_HEAD_INITIALIZER(ruidlist);
+static struct listhead rgidlist = SLIST_HEAD_INITIALIZER(rgidlist);
+static struct listhead pgrplist = SLIST_HEAD_INITIALIZER(pgrplist);
+static struct listhead ppidlist = SLIST_HEAD_INITIALIZER(ppidlist);
+static struct listhead tdevlist = SLIST_HEAD_INITIALIZER(tdevlist);
+static struct listhead sidlist = SLIST_HEAD_INITIALIZER(sidlist);
+static struct listhead jidlist = SLIST_HEAD_INITIALIZER(jidlist);
 
 static void	usage(void) __attribute__((__noreturn__));
 static int	killact(const struct kinfo_proc *);
@@ -133,7 +133,7 @@ main(int argc, char **argv)
 {
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q, *pidfile;
 	const char *execf, *coref;
-	int ancestors, debug_opt;
+	int ancestors, debug_opt, did_action;
 	int i, ch, bestidx, rv, criteria, pidfromfile, pidfilelock;
 	size_t jsz;
 	int (*action)(const struct kinfo_proc *);
@@ -180,7 +180,8 @@ main(int argc, char **argv)
 	debug_opt = 0;
 	pidfile = NULL;
 	pidfilelock = 0;
-	execf = coref = _PATH_DEVNULL;
+	execf = NULL;
+	coref = _PATH_DEVNULL;
 
 	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:ad:fg:ij:lnos:t:u:vx")) != -1)
 		switch (ch) {
@@ -245,8 +246,6 @@ main(int argc, char **argv)
 			criteria = 1;
 			break;
 		case 'l':
-			if (!pgrep)
-				usage();
 			longfmt = 1;
 			break;
 		case 'n':
@@ -528,16 +527,24 @@ main(int argc, char **argv)
 	/*
 	 * Take the appropriate action for each matched process, if any.
 	 */
+	did_action = 0;
 	for (i = 0, rv = 0, kp = plist; i < nproc; i++, kp++) {
 		if (PSKIP(kp))
 			continue;
 		if (selected[i]) {
+			if (longfmt && !pgrep) {
+				did_action = 1;
+				printf("kill -%d %d\n", signum, kp->ki_pid);
+			}
 			if (inverse)
 				continue;
 		} else if (!inverse)
 			continue;
 		rv |= (*action)(kp);
 	}
+	if (!did_action && !pgrep && longfmt)
+		fprintf(stderr,
+		    "No matching processes belonging to you were found\n");
 
 	exit(rv ? STATUS_MATCH : STATUS_NOMATCH);
 }
@@ -550,7 +557,7 @@ usage(void)
 	if (pgrep)
 		ustr = "[-LSfilnovx] [-d delim]";
 	else
-		ustr = "[-signal] [-ILfinovx]";
+		ustr = "[-signal] [-ILfilnovx]";
 
 	fprintf(stderr,
 		"usage: %s %s [-F pidfile] [-G gid] [-M core] [-N system]\n"

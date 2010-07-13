@@ -435,7 +435,7 @@ usb_submit_urb(struct urb *urb, uint16_t mem_flags)
 	    uhe->bsd_xfer[1]) {
 		/* we are ready! */
 
-		TAILQ_INSERT_HEAD(&uhe->bsd_urb_list, urb, bsd_urb_list);
+		TAILQ_INSERT_TAIL(&uhe->bsd_urb_list, urb, bsd_urb_list);
 
 		urb->status = -EINPROGRESS;
 
@@ -908,6 +908,7 @@ usb_linux_create_usb_device(struct usb_device *udev, device_t dev)
 				if (p_uhe) {
 					bcopy(ed, &p_uhe->desc, sizeof(p_uhe->desc));
 					p_uhe->bsd_iface_index = iface_index - 1;
+					TAILQ_INIT(&p_uhe->bsd_urb_list);
 					p_uhe++;
 				}
 				if (p_uhi) {
@@ -970,7 +971,7 @@ usb_linux_create_usb_device(struct usb_device *udev, device_t dev)
 			udev->devnum = device_get_unit(dev);
 			bcopy(&udev->ddesc, &udev->descriptor,
 			    sizeof(udev->descriptor));
-			bcopy(udev->default_ep.edesc, &udev->ep0.desc,
+			bcopy(udev->ctrl_ep.edesc, &udev->ep0.desc,
 			    sizeof(udev->ep0.desc));
 		}
 	}

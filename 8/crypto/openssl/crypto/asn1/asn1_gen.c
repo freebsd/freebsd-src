@@ -227,6 +227,8 @@ ASN1_TYPE *ASN1_generate_v3(char *str, X509V3_CTX *cnf)
 	/* Allocate buffer for new encoding */
 
 	new_der = OPENSSL_malloc(len);
+	if (!new_der)
+		goto err;
 
 	/* Generate tagged encoding */
 
@@ -446,6 +448,8 @@ static ASN1_TYPE *asn1_multi(int utype, const char *section, X509V3_CTX *cnf)
 	int derlen;
 	int i, is_set;
 	sk = sk_ASN1_TYPE_new_null();
+	if (!sk)
+		goto bad;
 	if (section)
 		{
 		if (!cnf)
@@ -458,7 +462,8 @@ static ASN1_TYPE *asn1_multi(int utype, const char *section, X509V3_CTX *cnf)
 			typ = ASN1_generate_v3(sk_CONF_VALUE_value(sect, i)->value, cnf);
 			if (!typ)
 				goto bad;
-			sk_ASN1_TYPE_push(sk, typ);
+			if (!sk_ASN1_TYPE_push(sk, typ))
+				goto bad;
 			typ = NULL;
 			}
 		}
@@ -474,6 +479,8 @@ static ASN1_TYPE *asn1_multi(int utype, const char *section, X509V3_CTX *cnf)
 	derlen = i2d_ASN1_SET_OF_ASN1_TYPE(sk, NULL, i2d_ASN1_TYPE, utype,
 					   V_ASN1_UNIVERSAL, is_set);
 	der = OPENSSL_malloc(derlen);
+	if (!der)
+		goto bad;
 	p = der;
 	i2d_ASN1_SET_OF_ASN1_TYPE(sk, &p, i2d_ASN1_TYPE, utype,
 				  V_ASN1_UNIVERSAL, is_set);

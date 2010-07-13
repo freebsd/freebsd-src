@@ -1991,6 +1991,17 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 				error = EINVAL;
 				goto out_inp_locked;
 			}
+			/*
+			 * MCAST_JOIN_GROUP on an existing exclusive
+			 * membership is an error; return EADDRINUSE
+			 * to preserve 4.4BSD API idempotence, and
+			 * avoid tedious detour to code below.
+			 * NOTE: This is bending RFC 3678 a bit.
+			 */
+			if (imf->imf_st[1] == MCAST_EXCLUDE) {
+				error = EADDRINUSE;
+				goto out_inp_locked;
+			}
 		}
 	}
 
@@ -2161,7 +2172,14 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 			ssa->sin.sin_addr = mreqs.imr_sourceaddr;
 		}
 
-		if (!in_nullhost(gsa->sin.sin_addr))
+		/*
+		 * Attempt to look up hinted ifp from interface address.
+		 * Fallthrough with null ifp iff lookup fails, to
+		 * preserve 4.4BSD mcast API idempotence.
+		 * XXX NOTE WELL: The RFC 3678 API is preferred because
+		 * using an IPv4 address as a key is racy.
+		 */
+		if (!in_nullhost(mreqs.imr_interface))
 			INADDR_TO_IFP(mreqs.imr_interface, ifp);
 
 		CTR3(KTR_IGMPV3, "%s: imr_interface = %s, ifp = %p",
@@ -2197,6 +2215,9 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 			return (EADDRNOTAVAIL);
 
 		ifp = ifnet_byindex(gsr.gsr_interface);
+
+		if (ifp == NULL)
+			return (EADDRNOTAVAIL);
 		break;
 
 	default:
@@ -2208,9 +2229,6 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
-
-	if (ifp == NULL)
-		return (EADDRNOTAVAIL);
 
 	/*
 	 * Find the membership in the membership array.

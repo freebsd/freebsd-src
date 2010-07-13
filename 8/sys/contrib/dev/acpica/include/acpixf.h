@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20090521
+#define ACPI_CA_VERSION                 0x20100331
 
 #include <contrib/dev/acpica/include/actypes.h>
 #include <contrib/dev/acpica/include/actbl.h>
@@ -145,6 +145,8 @@ extern UINT8                AcpiGbl_LeaveWakeGpesDisabled;
 extern UINT8                AcpiGbl_UseDefaultRegisterWidths;
 extern ACPI_NAME            AcpiGbl_TraceMethodName;
 extern UINT32               AcpiGbl_TraceFlags;
+extern UINT8                AcpiGbl_EnableAmlDebugObject;
+extern UINT8                AcpiGbl_CopyDsdtLocally;
 
 
 /*
@@ -267,7 +269,8 @@ AcpiWalkNamespace (
     ACPI_OBJECT_TYPE        Type,
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
-    ACPI_WALK_CALLBACK      UserFunction,
+    ACPI_WALK_CALLBACK      PreOrderVisit,
+    ACPI_WALK_CALLBACK      PostOrderVisit,
     void                    *Context,
     void                    **ReturnValue);
 
@@ -336,7 +339,7 @@ AcpiEvaluateObjectTyped (
 ACPI_STATUS
 AcpiGetObjectInfo (
     ACPI_HANDLE             Handle,
-    ACPI_BUFFER             *ReturnBuffer);
+    ACPI_DEVICE_INFO        **ReturnBuffer);
 
 ACPI_STATUS
 AcpiInstallMethod (
@@ -461,34 +464,32 @@ AcpiGetEventStatus (
  * GPE Interfaces
  */
 ACPI_STATUS
-AcpiSetGpeType (
+AcpiSetGpe (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    UINT8                   Type);
+    UINT8                   Action);
 
 ACPI_STATUS
 AcpiEnableGpe (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    UINT32                  Flags);
+    UINT8                   GpeType);
 
 ACPI_STATUS
 AcpiDisableGpe (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    UINT32                  Flags);
+    UINT8                   GpeType);
 
 ACPI_STATUS
 AcpiClearGpe (
     ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT32                  Flags);
+    UINT32                  GpeNumber);
 
 ACPI_STATUS
 AcpiGetGpeStatus (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    UINT32                  Flags,
     ACPI_EVENT_STATUS       *EventStatus);
 
 ACPI_STATUS
@@ -573,12 +574,12 @@ AcpiReset (
 
 ACPI_STATUS
 AcpiRead (
-    UINT32                  *Value,
+    UINT64                  *Value,
     ACPI_GENERIC_ADDRESS    *Reg);
 
 ACPI_STATUS
 AcpiWrite (
-    UINT32                  Value,
+    UINT64                  Value,
     ACPI_GENERIC_ADDRESS    *Reg);
 
 ACPI_STATUS

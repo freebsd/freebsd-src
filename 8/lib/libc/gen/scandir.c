@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "un-namespace.h"
 
+static int alphasort_thunk(void *thunk, const void *p1, const void *p2);
+
 /*
  * The DIRSIZ macro is the minimum record length which will hold the directory
  * entry.  This requires the amount of space in struct dirent without the
@@ -58,11 +60,9 @@ __FBSDID("$FreeBSD$");
 	    (((dp)->d_namlen + 1 + 3) &~ 3))
 
 int
-scandir(dirname, namelist, select, dcomp)
-	const char *dirname;
-	struct dirent ***namelist;
-	int (*select)(struct dirent *);
-	int (*dcomp)(const void *, const void *);
+scandir(const char *dirname, struct dirent ***namelist,
+    int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
+	const struct dirent **))
 {
 	struct dirent *d, *p, **names = NULL;
 	size_t nitems = 0;
@@ -111,26 +111,35 @@ scandir(dirname, namelist, select, dcomp)
 	}
 	closedir(dirp);
 	if (nitems && dcomp != NULL)
-		qsort(names, nitems, sizeof(struct dirent *), dcomp);
+		qsort_r(names, nitems, sizeof(struct dirent *),
+		    &dcomp, alphasort_thunk);
 	*namelist = names;
-	return(nitems);
+	return (nitems);
 
 fail:
 	while (nitems > 0)
 		free(names[--nitems]);
 	free(names);
 	closedir(dirp);
-	return -1;
+	return (-1);
 }
 
 /*
  * Alphabetic order comparison routine for those who want it.
+ * POSIX 2008 requires that alphasort() uses strcoll().
  */
 int
-alphasort(d1, d2)
-	const void *d1;
-	const void *d2;
+alphasort(const struct dirent **d1, const struct dirent **d2)
 {
-	return(strcmp((*(struct dirent **)d1)->d_name,
-	    (*(struct dirent **)d2)->d_name));
+
+	return (strcoll((*d1)->d_name, (*d2)->d_name));
+}
+
+static int
+alphasort_thunk(void *thunk, const void *p1, const void *p2)
+{
+	int (*dc)(const struct dirent **, const struct dirent **);
+
+	dc = *(int (**)(const struct dirent **, const struct dirent **))thunk;
+	return (dc((const struct dirent **)p1, (const struct dirent **)p2));
 }

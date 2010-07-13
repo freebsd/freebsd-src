@@ -80,14 +80,18 @@ VNET_DEFINE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo		VNET(ripcbinfo)
 
 /*
- * Control and data hooks for ipfw and dummynet.
+ * Control and data hooks for ipfw, dummynet, divert and so on.
  * The data hooks are not used here but it is convenient
  * to keep them all in one place.
  */
-int (*ip_fw_ctl_ptr)(struct sockopt *) = NULL;
-int (*ip_dn_ctl_ptr)(struct sockopt *) = NULL;
-int (*ip_fw_chk_ptr)(struct ip_fw_args *args) = NULL;
-int (*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa) = NULL;
+VNET_DEFINE(ip_fw_chk_ptr_t, ip_fw_chk_ptr) = NULL;
+VNET_DEFINE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr) = NULL;
+
+int	(*ip_dn_ctl_ptr)(struct sockopt *);
+int	(*ip_dn_io_ptr)(struct mbuf **, int, struct ip_fw_args *);
+void	(*ip_divert_ptr)(struct mbuf *, int);
+int	(*ng_ipfw_input_p)(struct mbuf **, int,
+			struct ip_fw_args *, int);
 
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not
@@ -437,11 +441,24 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
 		ip->ip_src = inp->inp_laddr;
-		error = prison_get_ip4(inp->inp_cred, &ip->ip_src);
-		if (error != 0) {
-			INP_RUNLOCK(inp);
-			m_freem(m);
-			return (error);
+		if (jailed(inp->inp_cred)) {
+			/*
+			 * prison_local_ip4() would be good enough but would
+			 * let a source of INADDR_ANY pass, which we do not
+			 * want to see from jails. We do not go through the
+			 * pain of in_pcbladdr() for raw sockets.
+			 */
+			if (ip->ip_src.s_addr == INADDR_ANY)
+				error = prison_get_ip4(inp->inp_cred,
+				    &ip->ip_src);
+			else
+				error = prison_local_ip4(inp->inp_cred,
+				    &ip->ip_src);
+			if (error != 0) {
+				INP_RUNLOCK(inp);
+				m_freem(m);
+				return (error);
+			}
 		}
 		ip->ip_dst.s_addr = dst;
 		ip->ip_ttl = inp->inp_ip_ttl;
@@ -542,8 +559,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_LIST:
 		case IP_FW_NAT_GET_CONFIG:
 		case IP_FW_NAT_GET_LOG:
-			if (ip_fw_ctl_ptr != NULL)
-				error = ip_fw_ctl_ptr(sopt);
+			if (V_ip_fw_ctl_ptr != NULL)
+				error = V_ip_fw_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT;
 			break;
@@ -605,8 +622,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_FLUSH:
 		case IP_FW_NAT_CFG:
 		case IP_FW_NAT_DEL:
-			if (ip_fw_ctl_ptr != NULL)
-				error = ip_fw_ctl_ptr(sopt);
+			if (V_ip_fw_ctl_ptr != NULL)
+				error = V_ip_fw_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT;
 			break;
@@ -1021,13 +1038,13 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	for (inp = LIST_FIRST(V_ripcbinfo.ipi_listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		INP_RLOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
 		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
-			/* XXX held references? */
+			in_pcbref(inp);
 			inp_list[i++] = inp;
 		}
-		INP_RUNLOCK(inp);
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
 	n = i;
@@ -1050,6 +1067,15 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
+	INP_INFO_WLOCK(&V_ripcbinfo);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_WLOCK(inp);
+		if (!in_pcbrele(inp))
+			INP_WUNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(&V_ripcbinfo);
+
 	if (!error) {
 		/*
 		 * Give the user an updated idea of our state.  If the

@@ -47,6 +47,13 @@
                         ((u_int32_t)(x) + 0x10000) : (u_int32_t)(x)) >> 16)
 #define _ppc_la(x) ((u_int32_t)(x) & 0xffff)
 
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+
+#define PLT_EXTENDED_BEGIN	(1 << 13)
+#define JMPTAB_BASE(N)		(18 + N*2 + ((N > PLT_EXTENDED_BEGIN) ? \
+				    (N - PLT_EXTENDED_BEGIN)*2 : 0))
+
 /*
  * Process the R_PPC_COPY relocations
  */
@@ -313,7 +320,6 @@ done:
 	return (r);
 }
 
-
 /*
  * Initialise a PLT slot to the resolving trampoline
  */
@@ -321,27 +327,43 @@ static int
 reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 {
 	Elf_Word *where = (Elf_Word *)(obj->relocbase + rela->r_offset);
-	Elf_Addr *pltresolve;
+	Elf_Addr *pltresolve, *pltlongresolve, *jmptab;
 	Elf_Addr distance;
+	int N = obj->pltrelasize / sizeof(Elf_Rela);
 	int reloff;
 
 	reloff = rela - obj->pltrela;
 
-	if ((reloff < 0) || (reloff >= 0x8000)) {
+	if (reloff < 0)
 		return (-1);
-	}
 
-	pltresolve = obj->pltgot + 8;
+	pltlongresolve = obj->pltgot + 5;
+	pltresolve = pltlongresolve + 5;
 
 	distance = (Elf_Addr)pltresolve - (Elf_Addr)(where + 1);
 
 	dbg(" reloc_plt_object: where=%p,pltres=%p,reloff=%x,distance=%x",
 	    (void *)where, (void *)pltresolve, reloff, distance);
 
-	/* li   r11,reloff  */
-	/* b    pltresolve  */
-	where[0] = 0x39600000 | reloff;
-	where[1] = 0x48000000 | (distance & 0x03fffffc);
+	if (reloff < PLT_EXTENDED_BEGIN) {
+		/* li   r11,reloff  */
+		/* b    pltresolve  */
+		where[0] = 0x39600000 | reloff;
+		where[1] = 0x48000000 | (distance & 0x03fffffc);
+	} else {
+		jmptab = obj->pltgot + JMPTAB_BASE(N);
+		jmptab[reloff] = (u_int)pltlongresolve;
+
+		/* lis	r11,jmptab[reloff]@ha */
+		/* lwzu	r12,jmptab[reloff]@l(r11) */
+		/* mtctr r12 */
+		/* bctr */
+		where[0] = 0x3d600000 | _ppc_ha(&jmptab[reloff]);
+		where[1] = 0x858b0000 | _ppc_la(&jmptab[reloff]);
+		where[2] = 0x7d8903a6;
+		where[3] = 0x4e800420;
+	}
+		
 
 	/*
 	 * The icache will be sync'd in init_pltgot, which is called
@@ -453,25 +475,28 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 		int N = obj->pltrelasize / sizeof(Elf_Rela);
 		int reloff = rela - obj->pltrela;
 
-		if ((reloff < 0) || (reloff >= 0x8000)) {
+		if (reloff < 0)
 			return (-1);
-		}
 
 		pltcall = obj->pltgot;
 
-		dbg(" reloc_jmpslot: indir, reloff=%d, N=%d\n",
+		dbg(" reloc_jmpslot: indir, reloff=%x, N=%x\n",
 		    reloff, N);
 
-		jmptab = obj->pltgot + 18 + N * 2;
+		jmptab = obj->pltgot + JMPTAB_BASE(N);
 		jmptab[reloff] = target;
 
-		distance = (Elf_Addr)pltcall - (Elf_Addr)(wherep + 1);
+		if (reloff < PLT_EXTENDED_BEGIN) {
+			/* for extended PLT entries, we keep the old code */
 
-		/* li   r11,reloff */
-		/* b    pltcall  # use indirect pltcall routine */
-		wherep[0] = 0x39600000 | reloff;
-		wherep[1] = 0x48000000 | (distance & 0x03fffffc);
-		__syncicache(wherep, 8);
+			distance = (Elf_Addr)pltcall - (Elf_Addr)(wherep + 1);
+
+			/* li   r11,reloff */
+			/* b    pltcall  # use indirect pltcall routine */
+			wherep[0] = 0x39600000 | reloff;
+			wherep[1] = 0x48000000 | (distance & 0x03fffffc);
+			__syncicache(wherep, 8);
+		}
 	}
 
 	return (target);
@@ -481,13 +506,14 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 /*
  * Setup the plt glue routines.
  */
-#define PLTCALL_SIZE    20
-#define PLTRESOLVE_SIZE 24
+#define PLTCALL_SIZE	   	20
+#define PLTLONGRESOLVE_SIZE	20
+#define PLTRESOLVE_SIZE		24
 
 void
 init_pltgot(Obj_Entry *obj)
 {
-	Elf_Word *pltcall, *pltresolve;
+	Elf_Word *pltcall, *pltresolve, *pltlongresolve;
 	Elf_Word *jmptab;
 	int N = obj->pltrelasize / sizeof(Elf_Rela);
 
@@ -524,18 +550,27 @@ init_pltgot(Obj_Entry *obj)
 	 * of the jumptable into the absolute-call assembler code so it
 	 * can determine this address.
 	 */
-	jmptab = pltcall + 18 + N * 2;
+	jmptab = obj->pltgot + JMPTAB_BASE(N);
 	pltcall[1] |= _ppc_ha(jmptab);	   /* addis 11,11,jmptab@ha */
 	pltcall[2] |= _ppc_la(jmptab);     /* lwz   11,jmptab@l(11) */
 
 	/*
-	 * Skip down 32 bytes into the initial reserved area and copy
+	 * Skip down 20 bytes into the initial reserved area and copy
 	 * in the standard resolving assembler call. Into this assembler,
 	 * insert the absolute address of the _rtld_bind_start routine
 	 * and the address of the relocation object.
+	 *
+	 * We place pltlongresolve first, so it can fix up its arguments
+	 * and then fall through to the regular PLT resolver.
 	 */
-	pltresolve = obj->pltgot + 8;
+	pltlongresolve = obj->pltgot + 5;
 
+	memcpy(pltlongresolve, _rtld_powerpc_pltlongresolve,
+	    PLTLONGRESOLVE_SIZE);
+	pltlongresolve[0] |= _ppc_ha(jmptab);	/* lis	12,jmptab@ha	*/
+	pltlongresolve[1] |= _ppc_la(jmptab);	/* addi	12,12,jmptab@l	*/
+
+	pltresolve = pltlongresolve + PLTLONGRESOLVE_SIZE/sizeof(uint32_t);
 	memcpy(pltresolve, _rtld_powerpc_pltresolve, PLTRESOLVE_SIZE);
 	pltresolve[0] |= _ppc_ha(_rtld_bind_start);
 	pltresolve[1] |= _ppc_la(_rtld_bind_start);

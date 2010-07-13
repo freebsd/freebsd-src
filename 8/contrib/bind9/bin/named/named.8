@@ -1,7 +1,7 @@
-.\" Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001, 2003 Internet Software Consortium.
 .\" 
-.\" Permission to use, copy, modify, and distribute this software for any
+.\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
 .\" 
@@ -13,18 +13,18 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.8,v 1.38 2008/11/07 01:11:19 tbox Exp $
+.\" $Id: named.8,v 1.38.14.2 2009/12/03 05:06:38 tbox Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: named
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 30, 2000
+.\"      Date: May 21, 2009
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "NAMED" "8" "June 30, 2000" "BIND9" "BIND9"
+.TH "NAMED" "8" "May 21, 2009" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -224,6 +224,16 @@ The
 \fBnamed\fR
 configuration file is too complex to describe in detail here. A complete description is provided in the
 BIND 9 Administrator Reference Manual.
+.PP
+\fBnamed\fR
+inherits the
+\fBumask\fR
+(file creation mode mask) from the parent process. If files created by
+\fBnamed\fR, such as journal files, need to have custom permissions, the
+\fBumask\fR
+should be set explicitly in the script used to start the
+\fBnamed\fR
+process.
 .SH "FILES"
 .PP
 \fI/etc/named.conf\fR
@@ -250,7 +260,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2008 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2009 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000, 2001, 2003 Internet Software Consortium.
 .br

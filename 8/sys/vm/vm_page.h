@@ -312,6 +312,7 @@ int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
 void vm_page_dontneed(vm_page_t);
 void vm_page_deactivate (vm_page_t);
+vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 void vm_page_remove (vm_page_t);

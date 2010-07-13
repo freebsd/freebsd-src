@@ -149,7 +149,7 @@ static struct syscall_module_data name##_syscall_mod = {	\
 };								\
 								\
 static moduledata_t name##_mod = {				\
-	#name,							\
+	"sys/" #name,						\
 	syscall_module_handler,					\
 	&name##_syscall_mod					\
 };								\
@@ -166,10 +166,34 @@ SYSCALL_MODULE(syscallname,					\
 	(sysent[SYS_##syscallname].sy_call != (sy_call_t *)lkmnosys &&	\
 	sysent[SYS_##syscallname].sy_call != (sy_call_t *)lkmressys)
 
+/*
+ * Syscall registration helpers with resource allocation handling.
+ */
+struct syscall_helper_data {
+	struct sysent new_sysent;
+	struct sysent old_sysent;
+	int syscall_no;
+	int registered;
+};
+#define SYSCALL_INIT_HELPER(syscallname) {			\
+    .new_sysent = {						\
+	.sy_narg = (sizeof(struct syscallname ## _args )	\
+	    / sizeof(register_t)),				\
+	.sy_call = (sy_call_t *)& syscallname,			\
+	.sy_auevent = SYS_AUE_##syscallname			\
+    },								\
+    .syscall_no = SYS_##syscallname				\
+}
+#define SYSCALL_INIT_LAST {					\
+    .syscall_no = NO_SYSCALL					\
+}
+
 int	syscall_register(int *offset, struct sysent *new_sysent,
 	    struct sysent *old_sysent);
 int	syscall_deregister(int *offset, struct sysent *old_sysent);
 int	syscall_module_handler(struct module *mod, int what, void *arg);
+int	syscall_helper_register(struct syscall_helper_data *sd);
+int	syscall_helper_unregister(struct syscall_helper_data *sd);
 
 /* Special purpose system call functions. */
 struct nosys_args;

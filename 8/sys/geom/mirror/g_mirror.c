@@ -868,8 +868,8 @@ g_mirror_done(struct bio *bp)
 	bp->bio_cflags = G_MIRROR_BIO_FLAG_REGULAR;
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
-	wakeup(sc);
 	mtx_unlock(&sc->sc_queue_mtx);
+	wakeup(sc);
 }
 
 static void
@@ -954,9 +954,9 @@ g_mirror_regular_request(struct bio *bp)
 			pbp->bio_error = 0;
 			mtx_lock(&sc->sc_queue_mtx);
 			bioq_disksort(&sc->sc_queue, pbp);
+			mtx_unlock(&sc->sc_queue_mtx);
 			G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
 			wakeup(sc);
-			mtx_unlock(&sc->sc_queue_mtx);
 		}
 		break;
 	case BIO_DELETE:
@@ -994,8 +994,8 @@ g_mirror_sync_done(struct bio *bp)
 	bp->bio_cflags = G_MIRROR_BIO_FLAG_SYNC;
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
-	wakeup(sc);
 	mtx_unlock(&sc->sc_queue_mtx);
+	wakeup(sc);
 }
 
 static void
@@ -1107,9 +1107,9 @@ g_mirror_start(struct bio *bp)
 	}
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_disksort(&sc->sc_queue, bp);
+	mtx_unlock(&sc->sc_queue_mtx);
 	G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
 	wakeup(sc);
-	mtx_unlock(&sc->sc_queue_mtx);
 }
 
 /*

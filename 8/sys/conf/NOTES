@@ -377,6 +377,11 @@ options 	KDTRACE_HOOKS
 options 	SYSCTL_DEBUG
 
 #
+# NO_SYSCTL_DESCR omits the sysctl node descriptions to save space in the
+# resulting kernel.
+options		NO_SYSCTL_DESCR
+
+#
 # DEBUG_MEMGUARD builds and enables memguard(9), a replacement allocator
 # for the kernel used to detect modify-after-free scenarios.  See the
 # memguard(9) man page for more information on usage.
@@ -693,6 +698,7 @@ options 	NETGRAPH_MPPC_ENCRYPTION
 options 	NETGRAPH_NETFLOW
 options 	NETGRAPH_NAT
 options 	NETGRAPH_ONE2MANY
+options 	NETGRAPH_PATCH
 options 	NETGRAPH_PIPE
 options 	NETGRAPH_PPP
 options 	NETGRAPH_PPPOE
@@ -973,6 +979,7 @@ options 	NFSSERVER		#Network File System server
 options 	NFSLOCKD		#Network Lock Manager
 options 	NFSCL			#experimental NFS client with NFSv4
 options 	NFSD			#experimental NFS server with NFSv4
+options 	KGSSAPI			#Kernel GSSAPI implementaion
 
 # NT File System. Read-mostly, see mount_ntfs(8) for details.
 # For a full read-write NTFS support consider sysutils/fusefs-ntfs
@@ -1645,12 +1652,14 @@ device		twe		# 3ware ATA RAID
 # Serial ATA host controllers:
 #
 # ahci: Advanced Host Controller Interface (AHCI) compatible
+# mvs:  Marvell 88SX50XX/88SX60XX/88SX70XX/SoC controllers
 # siis: SiliconImage SiI3124/SiI3132/SiI3531 controllers
 #
 # These drivers are part of cam(4) subsystem. They supersede less featured
 # ata(4) subsystem drivers, supporting same hardware.
 
 device		ahci
+device		mvs
 device		siis
 
 #
@@ -1900,6 +1909,7 @@ device		miibus
 #       This includes dual and quad port cards, as well as one 100baseFX card.
 #       Most of these are 64-bit PCI devices, except for one single port
 #       card which is 32-bit.
+# sge:  Silicon Integrated Systems SiS190/191 Fast/Gigabit Ethernet adapter
 # sis:  Support for NICs based on the Silicon Integrated Systems SiS 900,
 #       SiS 7016 and NS DP83815 PCI fast ethernet controller chips.
 # sk:   Support for the SysKonnect SK-984x series PCI gigabit ethernet NICs.
@@ -1994,6 +2004,7 @@ device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
 device		pcn		# AMD Am79C97x PCI 10/100 NICs
 device		sf		# Adaptec AIC-6915 (``Starfire'')
+device		sge		# Silicon Integrated Systems SiS190/191
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
@@ -2473,6 +2484,11 @@ options 	BOOTP_BLOCKSIZE=8192 # Override NFS block size
 options 	SW_WATCHDOG
 
 #
+# Add the software deadlock resolver thread.
+#
+options		DEADLKRES
+
+#
 # Disable swapping of stack pages.  This option removes all
 # code which actually performs swapping, so it's not possible to turn
 # it back on at run-time.
@@ -2524,14 +2540,18 @@ device		uhid
 device		ukbd
 # USB printer
 device		ulpt
-# USB Iomega Zip 100 Drive (Requires scbus and da)
+# USB mass storage driver (Requires scbus and da)
 device		umass
+# USB mass storage driver for device-side mode
+device		usfs
 # USB support for Belkin F5U109 and Magic Control Technology serial adapters
 device		umct
 # USB modem support
 device		umodem
 # USB mouse
 device		ums
+# eGalax USB touch screen
+device		uep
 # Diamond Rio 500 MP3 player
 device		urio
 #
@@ -2809,3 +2829,4 @@ options 	AAC_DEBUG	# Debugging levels:
 ##options 	BKTR_ALLOC_PAGES=(217*4+1)
 options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
+

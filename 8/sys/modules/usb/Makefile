@@ -27,7 +27,7 @@
 
 SUBDIR = usb
 SUBDIR += ehci musb ohci uhci uss820dci ${_at91dci} ${_atmegadci}
-SUBDIR += rum uath upgt ural zyd ${_urtw}
+SUBDIR += rum run uath upgt ural zyd ${_urtw}
 SUBDIR += atp uhid ukbd ums udbp ufm
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umodem umoscom uplcom uslcom uvisor uvscom

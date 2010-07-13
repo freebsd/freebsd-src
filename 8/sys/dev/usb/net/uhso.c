@@ -1339,7 +1339,7 @@ uhso_ucom_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	if (onoff)
 		sc->sc_line |= UCDC_LINE_DTR;
 	else
-		sc->sc_line &= UCDC_LINE_DTR;
+		sc->sc_line &= ~UCDC_LINE_DTR;
 
 	uhso_bs_cfg(sc);
 }
@@ -1355,7 +1355,7 @@ uhso_ucom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	if (onoff)
 		sc->sc_line |= UCDC_LINE_RTS;
 	else
-		sc->sc_line &= UCDC_LINE_DTR;
+		sc->sc_line &= ~UCDC_LINE_RTS;
 
 	uhso_bs_cfg(sc);
 }

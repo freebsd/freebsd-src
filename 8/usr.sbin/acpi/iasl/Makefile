@@ -5,16 +5,17 @@ SRCS=	adfile.c adisasm.c adwalk.c
 SRCS+=	osunixxf.c
 
 # common
-SRCS+=	dmrestag.c dmtable.c dmtbdump.c	dmtbinfo.c getopt.c
+SRCS+=	dmextern.c dmrestag.c dmtable.c dmtbdump.c dmtbinfo.c	\
+	getopt.c
 
 # compiler
 SRCS+=	aslanalyze.c aslcodegen.c aslcompile.c aslcompiler.y.h	\
 	aslcompilerlex.l aslcompilerparse.y aslerror.c		\
 	aslfiles.c aslfold.c asllength.c asllisting.c		\
 	aslload.c asllookup.c aslmain.c aslmap.c aslopcodes.c	\
-	asloperands.c aslopt.c aslresource.c aslrestype1.c	\
-	aslrestype2.c aslstartup.c aslstubs.c asltransform.c	\
-	asltree.c aslutils.c
+	asloperands.c aslopt.c aslpredef.c aslresource.c	\
+	aslrestype1.c aslrestype2.c aslstartup.c aslstubs.c	\
+	asltransform.c asltree.c aslutils.c
 
 # debugger
 SRCS+=	dbfileio.c

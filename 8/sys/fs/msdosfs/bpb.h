@@ -17,6 +17,9 @@
  * October 1992
  */
 
+#ifndef _FS_MSDOSFS_BPB_H_
+#define	_FS_MSDOSFS_BPB_H_
+
 /*
  * BIOS Parameter Block (BPB) for DOS 3.3
  */
@@ -78,7 +81,7 @@ struct bpb710 {
 	u_int32_t	bpbRootClust;	/* start cluster for root directory */
 	u_int16_t	bpbFSInfo;	/* filesystem info structure sector */
 	u_int16_t	bpbBackup;	/* backup boot sector */
-	/* There is a 12 byte filler here, but we ignore it */
+	u_int8_t	bpbReserved[12]; /* reserved for future expansion */
 };
 
 /*
@@ -153,7 +156,7 @@ struct byte_bpb710 {
 	u_int8_t bpbRootClust[4];	/* start cluster for root directory */
 	u_int8_t bpbFSInfo[2];		/* filesystem info structure sector */
 	u_int8_t bpbBackup[2];		/* backup boot sector */
-	/* There is a 12 byte filler here, but we ignore it */
+	u_int8_t bpbReserved[12];	/* reserved for future expansion */
 };
 
 /*
@@ -168,3 +171,4 @@ struct fsinfo {
 	u_int8_t fsifill2[12];
 	u_int8_t fsisig3[4];
 };
+#endif /* !_FS_MSDOSFS_BPB_H_ */

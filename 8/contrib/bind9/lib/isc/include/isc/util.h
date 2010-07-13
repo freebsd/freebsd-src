@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: util.h,v 1.30 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: util.h,v 1.30.332.2 2010/01/11 23:47:22 tbox Exp $ */
 
 #ifndef ISC_UTIL_H
 #define ISC_UTIL_H 1
@@ -229,5 +229,15 @@
  * Time
  */
 #define TIME_NOW(tp) 	RUNTIME_CHECK(isc_time_now((tp)) == ISC_R_SUCCESS)
+
+/*%
+ * Prevent Linux spurious warnings
+ */
+#if defined(__GNUC__) && (__GNUC__ > 3)
+#define isc_util_fwrite(a, b, c, d)	\
+	__builtin_expect(fwrite((a), (b), (c), (d)), (c))
+#else
+#define isc_util_fwrite(a, b, c, d)	fwrite((a), (b), (c), (d))
+#endif
 
 #endif /* ISC_UTIL_H */

@@ -86,7 +86,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20091113_0138"
+#define HDA_DRV_TEST_REV	"20100226_0142"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -619,10 +619,14 @@ static const struct {
 #define HDA_CODEC_ALC267	HDA_CODEC_CONSTRUCT(REALTEK, 0x0267)
 #define HDA_CODEC_ALC268	HDA_CODEC_CONSTRUCT(REALTEK, 0x0268)
 #define HDA_CODEC_ALC269	HDA_CODEC_CONSTRUCT(REALTEK, 0x0269)
+#define HDA_CODEC_ALC270	HDA_CODEC_CONSTRUCT(REALTEK, 0x0270)
 #define HDA_CODEC_ALC272	HDA_CODEC_CONSTRUCT(REALTEK, 0x0272)
+#define HDA_CODEC_ALC273	HDA_CODEC_CONSTRUCT(REALTEK, 0x0273)
+#define HDA_CODEC_ALC275	HDA_CODEC_CONSTRUCT(REALTEK, 0x0275)
 #define HDA_CODEC_ALC660	HDA_CODEC_CONSTRUCT(REALTEK, 0x0660)
 #define HDA_CODEC_ALC662	HDA_CODEC_CONSTRUCT(REALTEK, 0x0662)
 #define HDA_CODEC_ALC663	HDA_CODEC_CONSTRUCT(REALTEK, 0x0663)
+#define HDA_CODEC_ALC665	HDA_CODEC_CONSTRUCT(REALTEK, 0x0665)
 #define HDA_CODEC_ALC861	HDA_CODEC_CONSTRUCT(REALTEK, 0x0861)
 #define HDA_CODEC_ALC861VD	HDA_CODEC_CONSTRUCT(REALTEK, 0x0862)
 #define HDA_CODEC_ALC880	HDA_CODEC_CONSTRUCT(REALTEK, 0x0880)
@@ -632,6 +636,7 @@ static const struct {
 #define HDA_CODEC_ALC887	HDA_CODEC_CONSTRUCT(REALTEK, 0x0887)
 #define HDA_CODEC_ALC888	HDA_CODEC_CONSTRUCT(REALTEK, 0x0888)
 #define HDA_CODEC_ALC889	HDA_CODEC_CONSTRUCT(REALTEK, 0x0889)
+#define HDA_CODEC_ALC892	HDA_CODEC_CONSTRUCT(REALTEK, 0x0892)
 #define HDA_CODEC_ALCXXXX	HDA_CODEC_CONSTRUCT(REALTEK, 0xffff)
 
 /* Analog Devices */
@@ -735,6 +740,7 @@ static const struct {
 #define HDA_CODEC_CX20551	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5047)
 #define HDA_CODEC_CX20561	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5051)
 #define HDA_CODEC_CX20582	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5066)
+#define HDA_CODEC_CX20583	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5067)
 #define HDA_CODEC_CXXXXX	HDA_CODEC_CONSTRUCT(CONEXANT, 0xffff)
 
 /* VIA */
@@ -805,7 +811,8 @@ static const struct {
 #define HDA_CODEC_INTELG45_1	HDA_CODEC_CONSTRUCT(INTEL, 0x2801)
 #define HDA_CODEC_INTELG45_2	HDA_CODEC_CONSTRUCT(INTEL, 0x2802)
 #define HDA_CODEC_INTELG45_3	HDA_CODEC_CONSTRUCT(INTEL, 0x2803)
-#define HDA_CODEC_INTELG45_4	HDA_CODEC_CONSTRUCT(INTEL, 0x29fb)
+#define HDA_CODEC_INTELG45_4	HDA_CODEC_CONSTRUCT(INTEL, 0x2804)
+#define HDA_CODEC_INTELG45_5	HDA_CODEC_CONSTRUCT(INTEL, 0x29fb)
 #define HDA_CODEC_INTELQ57	HDA_CODEC_CONSTRUCT(INTEL, 0x0054)
 #define HDA_CODEC_INTELXXXX	HDA_CODEC_CONSTRUCT(INTEL, 0xffff)
 
@@ -821,10 +828,14 @@ static const struct {
 	{ HDA_CODEC_ALC267,    "Realtek ALC267" },
 	{ HDA_CODEC_ALC268,    "Realtek ALC268" },
 	{ HDA_CODEC_ALC269,    "Realtek ALC269" },
+	{ HDA_CODEC_ALC270,    "Realtek ALC270" },
 	{ HDA_CODEC_ALC272,    "Realtek ALC272" },
+	{ HDA_CODEC_ALC273,    "Realtek ALC273" },
+	{ HDA_CODEC_ALC275,    "Realtek ALC275" },
 	{ HDA_CODEC_ALC660,    "Realtek ALC660" },
 	{ HDA_CODEC_ALC662,    "Realtek ALC662" },
 	{ HDA_CODEC_ALC663,    "Realtek ALC663" },
+	{ HDA_CODEC_ALC665,    "Realtek ALC665" },
 	{ HDA_CODEC_ALC861,    "Realtek ALC861" },
 	{ HDA_CODEC_ALC861VD,  "Realtek ALC861-VD" },
 	{ HDA_CODEC_ALC880,    "Realtek ALC880" },
@@ -834,6 +845,7 @@ static const struct {
 	{ HDA_CODEC_ALC887,    "Realtek ALC887" },
 	{ HDA_CODEC_ALC888,    "Realtek ALC888" },
 	{ HDA_CODEC_ALC889,    "Realtek ALC889" },
+	{ HDA_CODEC_ALC892,    "Realtek ALC892" },
 	{ HDA_CODEC_AD1882,    "Analog Devices AD1882" },
 	{ HDA_CODEC_AD1882A,   "Analog Devices AD1882A" },
 	{ HDA_CODEC_AD1883,    "Analog Devices AD1883" },
@@ -907,6 +919,7 @@ static const struct {
 	{ HDA_CODEC_CX20551,   "Conexant CX20551 (Waikiki)" },
 	{ HDA_CODEC_CX20561,   "Conexant CX20561 (Hermosa)" },
 	{ HDA_CODEC_CX20582,   "Conexant CX20582 (Pebble)" },
+	{ HDA_CODEC_CX20583,   "Conexant CX20583 (Pebble HSF)" },
 	{ HDA_CODEC_VT1708_8,  "VIA VT1708_8" },
 	{ HDA_CODEC_VT1708_9,  "VIA VT1708_9" },
 	{ HDA_CODEC_VT1708_A,  "VIA VT1708_A" },
@@ -966,6 +979,7 @@ static const struct {
 	{ HDA_CODEC_INTELG45_2, "Intel G45 HDMI" },
 	{ HDA_CODEC_INTELG45_3, "Intel G45 HDMI" },
 	{ HDA_CODEC_INTELG45_4, "Intel G45 HDMI" },
+	{ HDA_CODEC_INTELG45_5, "Intel G45 HDMI" },
 	{ HDA_CODEC_INTELQ57, "Intel Q57 HDMI" },
 	{ HDA_CODEC_SII1390,   "Silicon Image SiI1390 HDMI" },
 	{ HDA_CODEC_SII1392,   "Silicon Image SiI1392 HDMI" },
@@ -3455,7 +3469,11 @@ hdac_stream_setup(struct hdac_chan *ch)
 	int i, chn, totalchn, c;
 	nid_t cad = ch->devinfo->codec->cad;
 	uint16_t fmt, dfmt;
+	uint16_t chmap[2][5] = {{ 0x0010, 0x0001, 0x0201, 0x0231, 0x0231 }, /* 5.1 */
+				{ 0x0010, 0x0001, 0x2001, 0x2031, 0x2431 }};/* 7.1 */
+	int map = -1;
 
+	totalchn = AFMT_CHANNEL(ch->fmt);
 	HDA_BOOTHVERBOSE(
 		device_printf(ch->pdevinfo->dev,
 		    "PCMDIR_%s: Stream setup fmt=%08x speed=%d\n",
@@ -3469,7 +3487,6 @@ hdac_stream_setup(struct hdac_chan *ch)
 		fmt |= ch->bit32 << 4;
 	else
 		fmt |= 1 << 4;
-
 	for (i = 0; i < HDA_RATE_TAB_LEN; i++) {
 		if (hda_rate_tab[i].valid && ch->spd == hda_rate_tab[i].rate) {
 			fmt |= hda_rate_tab[i].base;
@@ -3478,10 +3495,13 @@ hdac_stream_setup(struct hdac_chan *ch)
 			break;
 		}
 	}
+	fmt |= (totalchn - 1);
 
-	totalchn = AFMT_CHANNEL(ch->fmt);
-	if (totalchn > 1)
-		fmt |= 1;
+	/* Set channel mapping for known speaker setups. */
+	if (as->pinset == 0x0007 || as->pinset == 0x0013) /* Standard 5.1 */
+		map = 0;
+	else if (as->pinset == 0x0017) /* Standard 7.1 */
+		map = 1;
 
 	HDAC_WRITE_2(&sc->mem, ch->off + HDAC_SDFMT, fmt);
 		
@@ -3495,14 +3515,26 @@ hdac_stream_setup(struct hdac_chan *ch)
 		if (w == NULL)
 			continue;
 
-		if (as->hpredir >= 0 && i == as->pincnt)
-			chn = 0;
+		/* If HP redirection is enabled, but failed to use same
+		   DAC, make last DAC to duplicate first one. */
+		if (as->fakeredir && i == (as->pincnt - 1)) {
+			c = (ch->sid << 4);
+		} else {
+			if (map >= 0) /* Map known speaker setups. */
+				chn = (((chmap[map][totalchn / 2] >> i * 4) &
+				    0xf) - 1) * 2;
+			if (chn < 0 || chn >= totalchn) {
+				c = 0;
+			} else {
+				c = (ch->sid << 4) | chn;
+			}
+		}
 		HDA_BOOTHVERBOSE(
 			device_printf(ch->pdevinfo->dev,
 			    "PCMDIR_%s: Stream setup nid=%d: "
-			    "fmt=0x%04x, dfmt=0x%04x\n",
+			    "fmt=0x%04x, dfmt=0x%04x, chan=0x%04x\n",
 			    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC",
-			    ch->io[i], fmt, dfmt);
+			    ch->io[i], fmt, dfmt, c);
 		);
 		hdac_command(sc,
 		    HDA_CMD_SET_CONV_FMT(cad, ch->io[i], fmt), cad);
@@ -3510,17 +3542,6 @@ hdac_stream_setup(struct hdac_chan *ch)
 			hdac_command(sc,
 			    HDA_CMD_SET_DIGITAL_CONV_FMT1(cad, ch->io[i], dfmt),
 			    cad);
-		}
-		/* If HP redirection is enabled, but failed to use same
-		   DAC make last DAC one to duplicate first one. */
-		if (as->hpredir >= 0 && i == as->pincnt) {
-			c = (ch->sid << 4);
-		} else if (chn >= totalchn) {
-			/* This is until OSS will support multichannel.
-			   Should be: c = 0; to disable unused DAC */
-			c = (ch->sid << 4);
-		}else {
-			c = (ch->sid << 4) | chn;
 		}
 		hdac_command(sc,
 		    HDA_CMD_SET_CONV_STREAM_CHAN(cad, ch->io[i], c), cad);
@@ -3532,10 +3553,34 @@ hdac_stream_setup(struct hdac_chan *ch)
 		hdac_command(sc,
 		    HDA_CMD_SET_HDMI_CHAN_SLOT(cad, ch->io[i], 0x11), cad);
 #endif
-		chn +=
-		    HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap) ?
-		    2 : 1;
+		chn += HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap) + 1;
 	}
+}
+
+/*
+ * Greatest Common Divisor.
+ */
+static unsigned
+gcd(unsigned a, unsigned b)
+{
+	u_int c;
+
+	while (b != 0) {
+		c = a;
+		a = b;
+		b = (c % b);
+	}
+	return (a);
+}
+
+/*
+ * Least Common Multiple.
+ */
+static unsigned
+lcm(unsigned a, unsigned b)
+{
+
+	return ((a * b) / gcd(a, b));
 }
 
 static int
@@ -3545,7 +3590,7 @@ hdac_channel_setfragments(kobj_t obj, void *data,
 	struct hdac_chan *ch = data;
 	struct hdac_softc *sc = ch->devinfo->codec->sc;
 
-	blksz &= HDA_BLK_ALIGN;
+	blksz -= blksz % lcm(HDAC_DMA_ALIGNMENT, sndbuf_getalign(ch->b));
 
 	if (blksz > (sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN))
 		blksz = sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN;
@@ -3903,8 +3948,8 @@ hdac_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 				rvol = rvol * pdevinfo->right[j] / 100;
 			}
 		}
-		mute = (left == 0) ? HDA_AMP_MUTE_LEFT : 0;
-		mute |= (right == 0) ? HDA_AMP_MUTE_RIGHT : 0;
+		mute = (lvol == 0) ? HDA_AMP_MUTE_LEFT : 0;
+		mute |= (rvol == 0) ? HDA_AMP_MUTE_RIGHT : 0;
 		lvol = (lvol * ctl->step + 50) / 100;
 		rvol = (rvol * ctl->step + 50) / 100;
 		hdac_audio_ctl_amp_set(ctl, mute, lvol, rvol);
@@ -4726,37 +4771,6 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 	}
 
 	switch (id) {
-#if 0
-	case HDA_CODEC_ALC883:
-		/*
-		 * nid: 24/25 = External (jack) or Internal (fixed) Mic.
-		 *              Clear vref cap for jack connectivity.
-		 */
-		w = hdac_widget_get(devinfo, 24);
-		if (w != NULL && w->enable != 0 && w->type ==
-		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
-		    (w->wclass.pin.config &
-		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) ==
-		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK)
-			w->wclass.pin.cap &= ~(
-			    HDA_PARAM_PIN_CAP_VREF_CTRL_100_MASK |
-			    HDA_PARAM_PIN_CAP_VREF_CTRL_80_MASK |
-			    HDA_PARAM_PIN_CAP_VREF_CTRL_50_MASK);
-		w = hdac_widget_get(devinfo, 25);
-		if (w != NULL && w->enable != 0 && w->type ==
-		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
-		    (w->wclass.pin.config &
-		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) ==
-		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK)
-			w->wclass.pin.cap &= ~(
-			    HDA_PARAM_PIN_CAP_VREF_CTRL_100_MASK |
-			    HDA_PARAM_PIN_CAP_VREF_CTRL_80_MASK |
-			    HDA_PARAM_PIN_CAP_VREF_CTRL_50_MASK);
-		/*
-		 * nid: 26 = Line-in, leave it alone.
-		 */
-		break;
-#endif
 	case HDA_CODEC_AD1983:
 		/*
 		 * This codec has several possible usages, but none
@@ -4869,10 +4883,19 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		w = hdac_widget_get(devinfo, 31);
 		if (w != NULL)
 			w->enable = 0;
-		/* Disable playback mixer, use direct bypass. */
-		w = hdac_widget_get(devinfo, 14);
+		/* Disable direct playback, use mixer. */
+		w = hdac_widget_get(devinfo, 5);
 		if (w != NULL)
-			w->enable = 0;
+			w->connsenable[0] = 0;
+		w = hdac_widget_get(devinfo, 6);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		w = hdac_widget_get(devinfo, 9);
+		if (w != NULL)
+			w->connsenable[0] = 0;
+		w = hdac_widget_get(devinfo, 24);
+		if (w != NULL)
+			w->connsenable[0] = 0;
 		break;
 	}
 }
@@ -5248,6 +5271,8 @@ hdac_audio_trace_to_out(struct hdac_devinfo *devinfo, nid_t nid, int depth)
 				    " %*snid %d found output association %d\n",
 					depth + 1, "", w->nid, w->bindas);
 			);
+			if (w->bindas >= 0)
+				w->pflags |= HDA_ADC_MONITOR;
 			return (1);
 		} else {
 			HDA_BOOTHVERBOSE(
@@ -5290,7 +5315,7 @@ hdac_audio_trace_to_out(struct hdac_devinfo *devinfo, nid_t nid, int depth)
 		}
 		break;
 	}
-	if (res)
+	if (res && w->bindas == -1)
 		w->bindas = -2;
 
 	HDA_BOOTHVERBOSE(
@@ -5337,8 +5362,36 @@ hdac_audio_trace_as_extra(struct hdac_devinfo *devinfo)
 				    " nid %d is input monitor\n",
 					w->nid);
 			);
-			w->pflags |= HDA_ADC_MONITOR;
 			w->ossdev = SOUND_MIXER_IMIX;
+		}
+	}
+
+	/* Other inputs monitor */
+	/* Find input pins supplying signal for output associations.
+	   Hope it will be input monitoring. */
+	HDA_BOOTVERBOSE(
+		device_printf(devinfo->codec->sc->dev,
+		    "Tracing other input monitors\n");
+	);
+	for (j = devinfo->startnode; j < devinfo->endnode; j++) {
+		w = hdac_widget_get(devinfo, j);
+		if (w == NULL || w->enable == 0)
+			continue;
+		if (w->type != HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+			continue;
+		if (w->bindas < 0 || as[w->bindas].dir != HDA_CTL_IN)
+			continue;
+		HDA_BOOTVERBOSE(
+			device_printf(devinfo->codec->sc->dev,
+			    " Tracing nid %d to out\n",
+			    j);
+		);
+		if (hdac_audio_trace_to_out(devinfo, w->nid, 0)) {
+			HDA_BOOTVERBOSE(
+				device_printf(devinfo->codec->sc->dev,
+				    " nid %d is input monitor\n",
+					w->nid);
+			);
 		}
 	}
 
@@ -5717,6 +5770,7 @@ hdac_audio_disable_notselected(struct hdac_devinfo *devinfo)
 static void
 hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 {
+	struct hdac_audio_as *ases = devinfo->function.audio.as;
 	struct hdac_widget *w, *cw;
 	struct hdac_audio_ctl *ctl;
 	int i, j;
@@ -5739,7 +5793,10 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 			cw = hdac_widget_get(devinfo, w->conns[j]);
 			if (cw == NULL || w->enable == 0)
 				continue;
-			if (cw->bindas == -2)
+			if (cw->bindas == -2 || 
+			    ((w->pflags & HDA_ADC_MONITOR) &&
+			     cw->bindas >= 0 &&
+			     ases[cw->bindas].dir == HDA_CTL_IN))
 				continue;
 			if (w->bindas == cw->bindas &&
 			    (w->bindseqmask & cw->bindseqmask) != 0)
@@ -5758,8 +5815,12 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 	while ((ctl = hdac_audio_ctl_each(devinfo, &i)) != NULL) {
 		if (ctl->enable == 0 || ctl->childwidget == NULL)
 			continue;
-		if (ctl->widget->bindas == -2 ||
-		    ctl->childwidget->bindas == -2)
+		if (ctl->widget->bindas == -2) 
+			continue;
+		if (ctl->childwidget->bindas == -2 ||
+		    ((ctl->widget->pflags & HDA_ADC_MONITOR) &&
+		     ctl->childwidget->bindas >= 0 &&
+		     ases[ctl->childwidget->bindas].dir == HDA_CTL_IN))
 			continue;
 		if (ctl->widget->bindas != ctl->childwidget->bindas ||
 		    (ctl->widget->bindseqmask & ctl->childwidget->bindseqmask) == 0) {
@@ -5878,7 +5939,7 @@ hdac_audio_ctl_source_amp(struct hdac_devinfo *devinfo, nid_t nid, int index,
  * Find controls to control amplification for destination.
  */
 static void
-hdac_audio_ctl_dest_amp(struct hdac_devinfo *devinfo, nid_t nid,
+hdac_audio_ctl_dest_amp(struct hdac_devinfo *devinfo, nid_t nid, int index,
     int ossdev, int depth, int need)
 {
 	struct hdac_audio_as *as = devinfo->function.audio.as;
@@ -5937,6 +5998,8 @@ hdac_audio_ctl_dest_amp(struct hdac_devinfo *devinfo, nid_t nid,
 		int tneed = need;
 		if (w->connsenable[i] == 0)
 			continue;
+		if (index >= 0 && i != index)
+			continue;
 		ctl = hdac_audio_ctl_amp_get(devinfo, w->nid,
 		    HDA_CTL_IN, i, 1);
 		if (ctl) {
@@ -5946,7 +6009,7 @@ hdac_audio_ctl_dest_amp(struct hdac_devinfo *devinfo, nid_t nid,
 				ctl->possmask |= (1 << ossdev);
 			tneed &= ~HDA_CTL_GIVE(ctl);
 		}
-		hdac_audio_ctl_dest_amp(devinfo, w->conns[i], ossdev,
+		hdac_audio_ctl_dest_amp(devinfo, w->conns[i], -1, ossdev,
 		    depth + 1, tneed);
 	}
 }
@@ -6153,8 +6216,8 @@ hdac_audio_assign_mixers(struct hdac_devinfo *devinfo)
 {
 	struct hdac_audio_as *as = devinfo->function.audio.as;
 	struct hdac_audio_ctl *ctl;
-	struct hdac_widget *w;
-	int i;
+	struct hdac_widget *w, *cw;
+	int i, j;
 
 	/* Assign mixers to the tree. */
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
@@ -6169,23 +6232,38 @@ hdac_audio_assign_mixers(struct hdac_devinfo *devinfo)
 				continue;
 			hdac_audio_ctl_source_amp(devinfo, w->nid, -1,
 			    w->ossdev, 1, 0, 1);
-		} else if ((w->pflags & HDA_ADC_MONITOR) != 0) {
-			if (w->ossdev < 0)
-				continue;
+		} else if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT) {
+			hdac_audio_ctl_dest_amp(devinfo, w->nid, -1,
+			    SOUND_MIXER_RECLEV, 0, 1);
+		} else if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
+		    as[w->bindas].dir == HDA_CTL_OUT) {
+			hdac_audio_ctl_dest_amp(devinfo, w->nid, -1,
+			    SOUND_MIXER_VOLUME, 0, 1);
+		}
+		if (w->ossdev == SOUND_MIXER_IMIX) {
 			if (hdac_audio_ctl_source_amp(devinfo, w->nid, -1,
 			    w->ossdev, 1, 0, 1)) {
 				/* If we are unable to control input monitor
 				   as source - try to control it as destination. */
-				hdac_audio_ctl_dest_amp(devinfo, w->nid,
+				hdac_audio_ctl_dest_amp(devinfo, w->nid, -1,
 				    w->ossdev, 0, 1);
 			}
-		} else if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT) {
-			hdac_audio_ctl_dest_amp(devinfo, w->nid,
-			    SOUND_MIXER_RECLEV, 0, 1);
-		} else if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
-		    as[w->bindas].dir == HDA_CTL_OUT) {
-			hdac_audio_ctl_dest_amp(devinfo, w->nid,
-			    SOUND_MIXER_VOLUME, 0, 1);
+		}
+		if (w->pflags & HDA_ADC_MONITOR) {
+			for (j = 0; j < w->nconns; j++) {
+				if (!w->connsenable[j])
+				    continue;
+				cw = hdac_widget_get(devinfo, w->conns[j]);
+				if (cw == NULL || cw->enable == 0)
+				    continue;
+				if (cw->bindas == -1)
+				    continue;
+				if (cw->bindas >= 0 &&
+				    as[cw->bindas].dir != HDA_CTL_IN)
+					continue;
+				hdac_audio_ctl_dest_amp(devinfo,
+				    w->nid, j, SOUND_MIXER_IGAIN, 0, 1);
+			}
 		}
 	}
 	/* Treat unrequired as possible. */
@@ -6436,7 +6514,8 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 	struct hdac_audio_as *as = devinfo->function.audio.as;
 	struct hdac_widget *w;
 	uint32_t cap, fmtcap, pcmcap;
-	int i, j, ret, max;
+	int i, j, ret, channels, onlystereo;
+	uint16_t pinset;
 
 	ch->caps = hdac_caps;
 	ch->caps.fmtlist = ch->fmtlist;
@@ -6446,11 +6525,13 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 	ch->pcmrates[1] = 0;
 
 	ret = 0;
+	channels = 0;
+	onlystereo = 1;
+	pinset = 0;
 	fmtcap = devinfo->function.audio.supp_stream_formats;
 	pcmcap = devinfo->function.audio.supp_pcm_size_rate;
-	max = (sizeof(ch->io) / sizeof(ch->io[0])) - 1;
 
-	for (i = 0; i < 16 && ret < max; i++) {
+	for (i = 0; i < 16; i++) {
 		/* Check as is correct */
 		if (ch->as < 0)
 			break;
@@ -6468,15 +6549,11 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 		w = hdac_widget_get(devinfo, as[ch->as].dacs[i]);
 		if (w == NULL || w->enable == 0)
 			continue;
-		if (!HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap))
-			continue;
 		cap = w->param.supp_stream_formats;
-		/*if (HDA_PARAM_SUPP_STREAM_FORMATS_FLOAT32(cap)) {
-		}*/
 		if (!HDA_PARAM_SUPP_STREAM_FORMATS_PCM(cap) &&
 		    !HDA_PARAM_SUPP_STREAM_FORMATS_AC3(cap))
 			continue;
-		/* Many codec does not declare AC3 support on SPDIF.
+		/* Many CODECs does not declare AC3 support on SPDIF.
 		   I don't beleave that they doesn't support it! */
 		if (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap))
 			cap |= HDA_PARAM_SUPP_STREAM_FORMATS_AC3_MASK;
@@ -6488,8 +6565,23 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 			pcmcap &= w->param.supp_pcm_size_rate;
 		}
 		ch->io[ret++] = as[ch->as].dacs[i];
+		/* Do not count redirection pin/dac channels. */
+		if (i == 15 && as[ch->as].hpredir >= 0)
+			continue;
+		channels += HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap) + 1;
+		if (HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap) != 1)
+			onlystereo = 0;
+		pinset |= (1 << i);
 	}
 	ch->io[ret] = -1;
+
+	if (as[ch->as].fakeredir)
+		ret--;
+	/* Standard speaks only about stereo pins and playback, ... */
+	if ((!onlystereo) || as[ch->as].dir != HDA_CTL_OUT)
+		pinset = 0;
+	/* ..., but there it gives us info about speakers layout. */
+	as[ch->as].pinset = pinset;
 
 	ch->supp_stream_formats = fmtcap;
 	ch->supp_pcm_size_rate = pcmcap;
@@ -6514,17 +6606,34 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 				ch->bit32 = 3;
 			else if (HDA_PARAM_SUPP_PCM_SIZE_RATE_20BIT(pcmcap))
 				ch->bit32 = 2;
-			if (!(devinfo->function.audio.quirks & HDA_QUIRK_FORCESTEREO))
-				ch->fmtlist[i++] =
-				    SND_FORMAT(AFMT_S16_LE, 1, 0);
-			ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 2, 0);
-			if (ch->bit32 > 0) {
-				if (!(devinfo->function.audio.quirks &
-				    HDA_QUIRK_FORCESTEREO))
-					ch->fmtlist[i++] =
-					    SND_FORMAT(AFMT_S32_LE, 1, 0);
-				ch->fmtlist[i++] =
-				    SND_FORMAT(AFMT_S32_LE, 2, 0);
+			if (!(devinfo->function.audio.quirks & HDA_QUIRK_FORCESTEREO)) {
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 1, 0);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 1, 0);
+			}
+			if (channels >= 2) {
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 2, 0);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 2, 0);
+			}
+			if (channels == 4 || /* Any 4-channel */
+			    pinset == 0x0007 || /* 5.1 */
+			    pinset == 0x0013 || /* 5.1 */
+			    pinset == 0x0017) {  /* 7.1 */
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 4, 0);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 4, 0);
+			}
+			if (channels == 6 || /* Any 6-channel */
+			    pinset == 0x0017) {  /* 7.1 */
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 6, 1);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 6, 1);
+			}
+			if (channels == 8) { /* Any 8-channel */
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 8, 1);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 8, 1);
 			}
 		}
 		if (HDA_PARAM_SUPP_STREAM_FORMATS_AC3(fmtcap)) {
@@ -6653,8 +6762,8 @@ hdac_dump_ctls(struct hdac_pcm_devinfo *pdevinfo, const char *banner, uint32_t f
 	if (flag == 0) {
 		flag = ~(SOUND_MASK_VOLUME | SOUND_MASK_PCM |
 		    SOUND_MASK_CD | SOUND_MASK_LINE | SOUND_MASK_RECLEV |
-		    SOUND_MASK_MIC | SOUND_MASK_SPEAKER | SOUND_MASK_OGAIN |
-		    SOUND_MASK_IMIX | SOUND_MASK_MONITOR);
+		    SOUND_MASK_MIC | SOUND_MASK_SPEAKER | SOUND_MASK_IGAIN |
+		    SOUND_MASK_OGAIN | SOUND_MASK_IMIX | SOUND_MASK_MONITOR);
 	}
 
 	for (j = 0; j < SOUND_MIXER_NRDEVICES; j++) {
@@ -7029,19 +7138,19 @@ hdac_dump_dac(struct hdac_pcm_devinfo *pdevinfo)
 {
 	struct hdac_devinfo *devinfo = pdevinfo->devinfo;
 	struct hdac_softc *sc = devinfo->codec->sc;
+	struct hdac_audio_as *as;
 	struct hdac_widget *w;
 	int i, printed = 0;
 
 	if (pdevinfo->play < 0)
 		return;
 
-	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
-		w = hdac_widget_get(devinfo, i);
+	as = &devinfo->function.audio.as[sc->chans[pdevinfo->play].as];
+	for (i = 0; i < 16; i++) {
+		if (as->pins[i] <= 0)
+			continue;
+		w = hdac_widget_get(devinfo, as->pins[i]);
 		if (w == NULL || w->enable == 0)
-			continue;
-		if (w->type != HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
-			continue;
-		if (w->bindas != sc->chans[pdevinfo->play].as)
 			continue;
 		if (printed == 0) {
 			printed = 1;
@@ -7049,7 +7158,7 @@ hdac_dump_dac(struct hdac_pcm_devinfo *pdevinfo)
 			device_printf(pdevinfo->dev, "Playback:\n");
 		}
 		device_printf(pdevinfo->dev, "\n");
-		hdac_dump_dst_nid(pdevinfo, i, 0);
+		hdac_dump_dst_nid(pdevinfo, as->pins[i], 0);
 	}
 }
 
@@ -7098,7 +7207,7 @@ hdac_dump_mix(struct hdac_pcm_devinfo *pdevinfo)
 		w = hdac_widget_get(devinfo, i);
 		if (w == NULL || w->enable == 0)
 			continue;
-		if ((w->pflags & HDA_ADC_MONITOR) == 0)
+		if (w->ossdev != SOUND_MIXER_IMIX)
 			continue;
 		if (printed == 0) {
 			printed = 1;
@@ -8065,6 +8174,7 @@ hdac_pcm_attach(device_t dev)
 		hdac_dump_ctls(pdevinfo, "Speaker/Beep Volume", SOUND_MASK_SPEAKER);
 		hdac_dump_ctls(pdevinfo, "Recording Level", SOUND_MASK_RECLEV);
 		hdac_dump_ctls(pdevinfo, "Input Mix Level", SOUND_MASK_IMIX);
+		hdac_dump_ctls(pdevinfo, "Input Monitoring Level", SOUND_MASK_IGAIN);
 		hdac_dump_ctls(pdevinfo, NULL, 0);
 		device_printf(dev, "\n");
 	);

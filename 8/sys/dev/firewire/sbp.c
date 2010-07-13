@@ -1573,7 +1573,7 @@ END_DEBUG
 		bcopy(&sbp_cmd_status->s_keydep[0],
 		    &sense->sense_key_spec[0], 3);
 
-		ocb->ccb->csio.scsi_status = sbp_cmd_status->status;;
+		ocb->ccb->csio.scsi_status = sbp_cmd_status->status;
 		ocb->ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
 							| CAM_AUTOSNS_VALID;
 /*
@@ -2148,7 +2148,7 @@ sbp_free_target(struct sbp_target *target)
 	}
 	STAILQ_INIT(&target->xferlist);
 	free(target->luns, M_SBP);
-	target->num_lun = 0;;
+	target->num_lun = 0;
 	target->luns = NULL;
 	target->fwdev = NULL;
 }
@@ -2318,7 +2318,7 @@ sbp_timeout(void *arg)
 		sbp_cam_detach_target(target);
 		if (target->luns != NULL)
 			free(target->luns, M_SBP);
-		target->num_lun = 0;;
+		target->num_lun = 0;
 		target->luns = NULL;
 		target->fwdev = NULL;
 #endif

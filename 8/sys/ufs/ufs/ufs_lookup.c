@@ -77,6 +77,87 @@ SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 /* true if old FS format...*/
 #define OFSFMT(vp)	((vp)->v_mount->mnt_maxsymlinklen <= 0)
 
+#ifdef QUOTA
+static int
+ufs_lookup_upgrade_lock(struct vnode *vp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, __FUNCTION__);
+	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
+		return (0);
+
+	error = 0;
+
+	/*
+	 * Upgrade vnode lock, since getinoquota()
+	 * requires exclusive lock to modify inode.
+	 */
+	vhold(vp);
+	vn_lock(vp, LK_UPGRADE | LK_RETRY);
+	VI_LOCK(vp);
+	if (vp->v_iflag & VI_DOOMED)
+		error = ENOENT;
+	vdropl(vp);
+	return (error);
+}
+#endif
+
+static int
+ufs_delete_denied(struct vnode *vdp, struct vnode *tdp, struct ucred *cred,
+    struct thread *td)
+{
+	int error;
+
+#ifdef UFS_ACL
+	/*
+	 * NFSv4 Minor Version 1, draft-ietf-nfsv4-minorversion1-03.txt
+	 *
+	 * 3.16.2.1. ACE4_DELETE vs. ACE4_DELETE_CHILD
+	 */
+
+	/*
+	 * XXX: Is this check required?
+	 */
+	error = VOP_ACCESS(vdp, VEXEC, cred, td);
+	if (error)
+		return (error);
+
+	error = VOP_ACCESSX(tdp, VDELETE, cred, td);
+	if (error == 0)
+		return (0);
+
+	error = VOP_ACCESSX(vdp, VDELETE_CHILD, cred, td);
+	if (error == 0)
+		return (0);
+
+	error = VOP_ACCESSX(vdp, VEXPLICIT_DENY | VDELETE_CHILD, cred, td);
+	if (error)
+		return (error);
+
+#endif /* !UFS_ACL */
+
+	/*
+	 * Standard Unix access control - delete access requires VWRITE.
+	 */
+	error = VOP_ACCESS(vdp, VWRITE, cred, td);
+	if (error)
+		return (error);
+
+	/*
+	 * If directory is "sticky", then user must own
+	 * the directory, or the file in it, else she
+	 * may not delete it (unless she's root). This
+	 * implements append-only directories.
+	 */
+	if ((VTOI(vdp)->i_mode & ISVTX) &&
+	    VOP_ACCESS(vdp, VADMIN, cred, td) &&
+	    VOP_ACCESS(tdp, VADMIN, cred, td))
+		return (EPERM);
+
+	return (0);
+}
+
 /*
  * Convert a component of a pathname into a pointer to a locked inode.
  * This is a very central and rather complicated routine.
@@ -177,6 +258,13 @@ ufs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
 
 	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+#ifdef QUOTA
+	if ((nameiop == DELETE || nameiop == RENAME) && (flags & ISLASTCN)) {
+		error = ufs_lookup_upgrade_lock(vdp);
+		if (error != 0)
+			return (error);
+	}
+#endif
 
 restart:
 	bp = NULL;
@@ -407,8 +495,13 @@ notfound:
 		/*
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
+		 *
+		 * XXX: Fix the comment above.
 		 */
-		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
+		if (flags & WILLBEDIR)
+			error = VOP_ACCESSX(vdp, VWRITE | VAPPEND, cred, cnp->cn_thread);
+		else
+			error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
 		if (error)
 			return (error);
 		/*
@@ -492,12 +585,17 @@ found:
 	if (nameiop == DELETE && (flags & ISLASTCN)) {
 		if (flags & LOCKPARENT)
 			ASSERT_VOP_ELOCKED(vdp, __FUNCTION__);
-		/*
-		 * Write access to directory required to delete files.
-		 */
-		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
-		if (error)
+		if ((error = VFS_VGET(vdp->v_mount, ino,
+		    LK_EXCLUSIVE, &tdp)) != 0)
 			return (error);
+
+		error = ufs_delete_denied(vdp, tdp, cred, cnp->cn_thread);
+		if (error) {
+			vput(tdp);
+			return (error);
+		}
+
+
 		/*
 		 * Return pointer to current entry in dp->i_offset,
 		 * and distance past previous entry (if there
@@ -519,23 +617,10 @@ found:
 		if (dp->i_number == ino) {
 			VREF(vdp);
 			*vpp = vdp;
+			vput(tdp);
 			return (0);
 		}
-		if ((error = VFS_VGET(vdp->v_mount, ino,
-		    LK_EXCLUSIVE, &tdp)) != 0)
-			return (error);
-		/*
-		 * If directory is "sticky", then user must own
-		 * the directory, or the file in it, else she
-		 * may not delete it (unless she's root). This
-		 * implements append-only directories.
-		 */
-		if ((dp->i_mode & ISVTX) &&
-		    VOP_ACCESS(vdp, VADMIN, cred, cnp->cn_thread) &&
-		    VOP_ACCESS(tdp, VADMIN, cred, cnp->cn_thread)) {
-			vput(tdp);
-			return (EPERM);
-		}
+
 		*vpp = tdp;
 		return (0);
 	}
@@ -547,7 +632,11 @@ found:
 	 * regular file, or empty directory.
 	 */
 	if (nameiop == RENAME && (flags & ISLASTCN)) {
-		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)))
+		if (flags & WILLBEDIR)
+			error = VOP_ACCESSX(vdp, VWRITE | VAPPEND, cred, cnp->cn_thread);
+		else
+			error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
+		if (error)
 			return (error);
 		/*
 		 * Careful about locking second inode.
@@ -561,6 +650,33 @@ found:
 		if ((error = VFS_VGET(vdp->v_mount, ino,
 		    LK_EXCLUSIVE, &tdp)) != 0)
 			return (error);
+
+		error = ufs_delete_denied(vdp, tdp, cred, cnp->cn_thread);
+		if (error) {
+			vput(tdp);
+			return (error);
+		}
+
+#ifdef SunOS_doesnt_do_that
+		/*
+		 * The only purpose of this check is to return the correct
+		 * error.  Assume that we want to rename directory "a"
+		 * to a file "b", and that we have no ACL_WRITE_DATA on
+		 * a containing directory, but we _do_ have ACL_APPEND_DATA. 
+		 * In that case, the VOP_ACCESS check above will return 0,
+		 * and the operation will fail with ENOTDIR instead
+		 * of EACCESS.
+		 */
+		if (tdp->v_type == VDIR)
+			error = VOP_ACCESSX(vdp, VWRITE | VAPPEND, cred, cnp->cn_thread);
+		else
+			error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
+		if (error) {
+			vput(tdp);
+			return (error);
+		}
+#endif
+
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
 		return (0);
@@ -621,6 +737,14 @@ found:
 				vn_lock(vdp, LK_UPGRADE | LK_RETRY);
 			else /* if (ltype == LK_SHARED) */
 				vn_lock(vdp, LK_DOWNGRADE | LK_RETRY);
+			/*
+			 * Relock for the "." case may left us with
+			 * reclaimed vnode.
+			 */
+			if (vdp->v_iflag & VI_DOOMED) {
+				vrele(vdp);
+				return (ENOENT);
+			}
 		}
 		*vpp = vdp;
 	} else {

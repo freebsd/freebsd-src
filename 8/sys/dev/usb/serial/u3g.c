@@ -63,7 +63,7 @@
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int u3g_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
@@ -71,7 +71,7 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
     &u3g_debug, 0, "Debug level");
 #endif
 
-#define	U3G_MAXPORTS		8
+#define	U3G_MAXPORTS		12
 #define	U3G_CONFIG_INDEX	0
 #define	U3G_BSIZE		2048
 
@@ -92,6 +92,7 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GINIT_CMOTECH		6	/* Requires CMOTECH SCSI command */
 #define	U3GINIT_WAIT		7	/* Device reappears after a delay */
 #define	U3GINIT_SAEL_M460	8	/* Requires vendor init */
+#define	U3GINIT_HUAWEISCSI	9	/* Requires Huawei SCSI init command */
 
 enum {
 	U3G_BULK_WR,
@@ -281,6 +282,7 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(HUAWEI, E220, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220BIS, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, MOBILE, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E1752, U3GINIT_HUAWEISCSI),
 	U3G_DEV(KYOCERA2, CDMA_MSM_K, 0),
 	U3G_DEV(KYOCERA2, KPC680, 0),
 	U3G_DEV(MERLIN, V620, 0),
@@ -362,7 +364,6 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(QUALCOMMINC, E0012, 0),
 	U3G_DEV(QUALCOMMINC, E0013, 0),
 	U3G_DEV(QUALCOMMINC, E0014, 0),
-	U3G_DEV(QUALCOMMINC, E0016, 0),
 	U3G_DEV(QUALCOMMINC, E0017, 0),
 	U3G_DEV(QUALCOMMINC, E0018, 0),
 	U3G_DEV(QUALCOMMINC, E0019, 0),
@@ -409,6 +410,7 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(QUALCOMMINC, E2003, 0),
 	U3G_DEV(QUALCOMMINC, MF626, 0),
 	U3G_DEV(QUALCOMMINC, MF628, 0),
+	U3G_DEV(QUALCOMMINC, MF633R, 0),
 	U3G_DEV(QUANTA, GKE, 0),
 	U3G_DEV(QUANTA, GLE, 0),
 	U3G_DEV(QUANTA, GLX, 0),
@@ -498,6 +500,8 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(NOVATEL, ZEROCD, U3GINIT_SCSIEJECT),
 	U3G_DEV(OPTION, GTICON322, U3GINIT_REZERO),
 	U3G_DEV(QUALCOMMINC, ZTE_STOR, U3GINIT_ZTESTOR),
+	U3G_DEV(QUALCOMMINC, ZTE_STOR2, U3GINIT_SCSIEJECT),
+	U3G_DEV(QUANTA, Q101_STOR, U3GINIT_SCSIEJECT),
 	U3G_DEV(SIERRA, TRUINSTALL, U3GINIT_SIERRA),
 #undef	U3G_DEV
 };
@@ -647,6 +651,9 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 	switch (USB_GET_DRIVER_INFO(uaa)) {
 		case U3GINIT_HUAWEI:
 			error = u3g_huawei_init(udev);
+			break;
+		case U3GINIT_HUAWEISCSI:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI);
 			break;
 		case U3GINIT_SCSIEJECT:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);

@@ -649,7 +649,8 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		KASSERT(map->allocbuffer == vaddr,
 		    ("Trying to freeing the wrong DMA buffer"));
 		vaddr = map->origbuffer;
-		arm_unmap_nocache(map->allocbuffer, dmat->maxsize);
+		arm_unmap_nocache(map->allocbuffer,
+		    dmat->maxsize + ((vm_offset_t)vaddr & PAGE_MASK));
 	}
         if (dmat->maxsize <= PAGE_SIZE &&
 	   dmat->alignment < dmat->maxsize &&

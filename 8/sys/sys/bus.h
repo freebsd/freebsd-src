@@ -85,8 +85,11 @@ struct u_device {
  * included in case devctl_notify isn't sufficiently general.
  */
 boolean_t devctl_process_running(void);
+void devctl_notify_f(const char *__system, const char *__subsystem,
+    const char *__type, const char *__data, int __flags);
 void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
+void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
 
 /**
@@ -292,6 +295,9 @@ int	bus_generic_bind_intr(device_t dev, device_t child,
 int	bus_generic_child_present(device_t dev, device_t child);
 int	bus_generic_config_intr(device_t, int, enum intr_trigger,
 				enum intr_polarity);
+int	bus_generic_describe_intr(device_t dev, device_t child,
+				  struct resource *irq, void *cookie,
+				  const char *descr);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
@@ -363,6 +369,8 @@ int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
 int	bus_bind_intr(device_t dev, struct resource *r, int cpu);
+int	bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
+			  const char *fmt, ...);
 int	bus_set_resource(device_t dev, int type, int rid,
 			 u_long start, u_long count);
 int	bus_get_resource(device_t dev, int type, int rid,

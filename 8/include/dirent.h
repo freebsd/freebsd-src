@@ -93,9 +93,11 @@ typedef	void *	DIR;
 #ifndef _KERNEL
 
 __BEGIN_DECLS
+#if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE >= 700
+int	 alphasort(const struct dirent **, const struct dirent **);
+#endif
 #if __BSD_VISIBLE
 DIR	*__opendir2(const char *, int);
-int	 alphasort(const void *, const void *);
 int	 getdents(int, char *, int);
 int	 getdirentries(int, char *, int, long *);
 #endif
@@ -107,9 +109,10 @@ struct dirent *
 int	 readdir_r(DIR *, struct dirent *, struct dirent **);
 #endif
 void	 rewinddir(DIR *);
-#if __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE >= 700
 int	 scandir(const char *, struct dirent ***,
-	    int (*)(struct dirent *), int (*)(const void *, const void *));
+	    int (*)(const struct dirent *), int (*)(const struct dirent **,
+	    const struct dirent **));
 #endif
 #if __XSI_VISIBLE
 void	 seekdir(DIR *, long);

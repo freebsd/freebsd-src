@@ -76,7 +76,6 @@ struct pmap {
 	struct mtx		pm_mtx;
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	u_int32_t		pm_rid[5];	/* base RID for pmap */
-	int			pm_active;	/* active flag */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 };
 
@@ -132,7 +131,7 @@ vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	pmap_setdevram(unsigned long long basea, vm_offset_t sizea);
 int	pmap_uses_prom_console(void);
-void	*pmap_mapdev(vm_offset_t, vm_size_t);
+void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 unsigned *pmap_pte(pmap_t, vm_offset_t) __pure2;
 void	pmap_set_opt	(unsigned *);

@@ -166,7 +166,6 @@ int ssl3_accept(SSL *s)
 	BUF_MEM *buf;
 	unsigned long l,Time=(unsigned long)time(NULL);
 	void (*cb)(const SSL *ssl,int type,int val)=NULL;
-	long num1;
 	int ret= -1;
 	int new_state,state,skip=0;
 
@@ -247,6 +246,18 @@ int ssl3_accept(SSL *s)
 				ssl3_init_finished_mac(s);
 				s->state=SSL3_ST_SR_CLNT_HELLO_A;
 				s->ctx->stats.sess_accept++;
+				}
+			else if (!s->s3->send_connection_binding &&
+				!(s->options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION))
+				{
+				/* Server attempting to renegotiate with
+				 * client that doesn't support secure
+				 * renegotiation.
+				 */
+				SSLerr(SSL_F_SSL3_ACCEPT, SSL_R_UNSAFE_LEGACY_RENEGOTIATION_DISABLED);
+				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_HANDSHAKE_FAILURE);
+				ret = -1;
+				goto end;
 				}
 			else
 				{
@@ -435,15 +446,24 @@ int ssl3_accept(SSL *s)
 			break;
 		
 		case SSL3_ST_SW_FLUSH:
-			/* number of bytes to be flushed */
-			num1=BIO_ctrl(s->wbio,BIO_CTRL_INFO,0,NULL);
-			if (num1 > 0)
+
+			/* This code originally checked to see if
+			 * any data was pending using BIO_CTRL_INFO
+			 * and then flushed. This caused problems
+			 * as documented in PR#1939. The proposed
+			 * fix doesn't completely resolve this issue
+			 * as buggy implementations of BIO_CTRL_PENDING
+			 * still exist. So instead we just flush
+			 * unconditionally.
+			 */
+
+			s->rwstate=SSL_WRITING;
+			if (BIO_flush(s->wbio) <= 0)
 				{
-				s->rwstate=SSL_WRITING;
-				num1=BIO_flush(s->wbio);
-				if (num1 <= 0) { ret= -1; goto end; }
-				s->rwstate=SSL_NOTHING;
+				ret= -1;
+				goto end;
 				}
+			s->rwstate=SSL_NOTHING;
 
 			s->state=s->s3->tmp.next_state;
 			break;
@@ -718,13 +738,6 @@ int ssl3_get_client_hello(SSL *s)
 #endif
 	STACK_OF(SSL_CIPHER) *ciphers=NULL;
 
-	if (s->new_session)
-		{
-		al=SSL_AD_HANDSHAKE_FAILURE;
-		SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, ERR_R_INTERNAL_ERROR);
-		goto f_err;
-		}
-
 	/* We do this so that we will respond with our native type.
 	 * If we are TLSv1 and we get SSLv3, we will respond with TLSv1,
 	 * This down switching should be handled by a different method.
@@ -763,6 +776,21 @@ int ssl3_get_client_hello(SSL *s)
 			}
 		al = SSL_AD_PROTOCOL_VERSION;
 		goto f_err;
+		}
+
+	/* If we require cookies and this ClientHello doesn't
+	 * contain one, just return since we do not want to
+	 * allocate any memory yet. So check cookie length...
+	 */
+	if (SSL_get_options(s) & SSL_OP_COOKIE_EXCHANGE)
+		{
+		unsigned int session_length, cookie_length;
+		
+		session_length = *(p + SSL3_RANDOM_SIZE);
+		cookie_length = *(p + SSL3_RANDOM_SIZE + session_length + 1);
+
+		if (cookie_length == 0)
+			return 1;
 		}
 
 	/* load the client random */
@@ -804,22 +832,10 @@ int ssl3_get_client_hello(SSL *s)
 
 	p+=j;
 
-	if (s->version == DTLS1_VERSION)
+	if (s->version == DTLS1_VERSION || s->version == DTLS1_BAD_VER)
 		{
 		/* cookie stuff */
 		cookie_len = *(p++);
-
-		if ( (SSL_get_options(s) & SSL_OP_COOKIE_EXCHANGE) &&
-			s->d1->send_cookie == 0)
-			{
-			/* HelloVerifyMessage has already been sent */
-			if ( cookie_len != s->d1->cookie_len)
-				{
-				al = SSL_AD_HANDSHAKE_FAILURE;
-				SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_COOKIE_MISMATCH);
-				goto f_err;
-				}
-			}
 
 		/* 
 		 * The ClientHello may contain a cookie even if the
@@ -835,7 +851,7 @@ int ssl3_get_client_hello(SSL *s)
 			}
 
 		/* verify the cookie if appropriate option is set. */
-		if ( (SSL_get_options(s) & SSL_OP_COOKIE_EXCHANGE) &&
+		if ((SSL_get_options(s) & SSL_OP_COOKIE_EXCHANGE) &&
 			cookie_len > 0)
 			{
 			memcpy(s->d1->rcvd_cookie, p, cookie_len);
@@ -860,6 +876,8 @@ int ssl3_get_client_hello(SSL *s)
 						SSL_R_COOKIE_MISMATCH);
 					goto f_err;
 				}
+
+			ret = 2;
 			}
 
 		p += cookie_len;
@@ -959,7 +977,7 @@ int ssl3_get_client_hello(SSL *s)
 
 #ifndef OPENSSL_NO_TLSEXT
 	/* TLS extensions*/
-	if (s->version > SSL3_VERSION)
+	if (s->version >= SSL3_VERSION)
 		{
 		if (!ssl_parse_clienthello_tlsext(s,&p,d,n, &al))
 			{
@@ -1094,7 +1112,7 @@ int ssl3_get_client_hello(SSL *s)
 	 * s->tmp.new_cipher	- the new cipher to use.
 	 */
 
-	ret=1;
+	if (ret < 0) ret=1;
 	if (0)
 		{
 f_err:
@@ -2718,6 +2736,7 @@ int ssl3_send_newsession_ticket(SSL *s)
 		unsigned int hlen;
 		EVP_CIPHER_CTX ctx;
 		HMAC_CTX hctx;
+		SSL_CTX *tctx = s->initial_ctx;
 		unsigned char iv[EVP_MAX_IV_LENGTH];
 		unsigned char key_name[16];
 
@@ -2756,9 +2775,9 @@ int ssl3_send_newsession_ticket(SSL *s)
 		 * it does all the work otherwise use generated values
 		 * from parent ctx.
 		 */
-		if (s->ctx->tlsext_ticket_key_cb)
+		if (tctx->tlsext_ticket_key_cb)
 			{
-			if (s->ctx->tlsext_ticket_key_cb(s, key_name, iv, &ctx,
+			if (tctx->tlsext_ticket_key_cb(s, key_name, iv, &ctx,
 							 &hctx, 1) < 0)
 				{
 				OPENSSL_free(senc);
@@ -2769,10 +2788,10 @@ int ssl3_send_newsession_ticket(SSL *s)
 			{
 			RAND_pseudo_bytes(iv, 16);
 			EVP_EncryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
-					s->ctx->tlsext_tick_aes_key, iv);
-			HMAC_Init_ex(&hctx, s->ctx->tlsext_tick_hmac_key, 16,
+					tctx->tlsext_tick_aes_key, iv);
+			HMAC_Init_ex(&hctx, tctx->tlsext_tick_hmac_key, 16,
 					tlsext_tick_md(), NULL);
-			memcpy(key_name, s->ctx->tlsext_tick_key_name, 16);
+			memcpy(key_name, tctx->tlsext_tick_key_name, 16);
 			}
 		l2n(s->session->tlsext_tick_lifetime_hint, p);
 		/* Skip ticket length for now */

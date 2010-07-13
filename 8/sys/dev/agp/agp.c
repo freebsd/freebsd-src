@@ -537,8 +537,8 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 
 	/*
 	 * Allocate the pages early, before acquiring the lock,
-	 * because vm_page_grab() used with VM_ALLOC_RETRY may
-	 * block and we can't hold a mutex while blocking.
+	 * because vm_page_grab() may sleep and we can't hold a mutex
+	 * while sleeping.
 	 */
 	VM_OBJECT_LOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
@@ -763,7 +763,7 @@ agp_allocate_user(device_t dev, agp_allocate *alloc)
 static int
 agp_deallocate_user(device_t dev, int id)
 {
-	struct agp_memory *mem = agp_find_memory(dev, id);;
+	struct agp_memory *mem = agp_find_memory(dev, id);
 
 	if (mem) {
 		AGP_FREE_MEMORY(dev, mem);

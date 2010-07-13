@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
 #define VERBOSE 0
 
-int DESTest(EVP_CIPHER_CTX *ctx,
+static int DESTest(EVP_CIPHER_CTX *ctx,
 	    char *amode, int akeysz, unsigned char *aKey, 
 	    unsigned char *iVec, 
 	    int dir,  /* 0 = decrypt, 1 = encrypt */
@@ -110,15 +110,10 @@ int DESTest(EVP_CIPHER_CTX *ctx,
 	cipher = EVP_des_ede3_cfb64();
     else if (strncasecmp(amode, "OFB", 3) == 0)
 	cipher = EVP_des_ede3_ofb();
-#if 0
-    else if(!strcasecmp(amode,"CFB1"))
-	{
-	ctx->cbits = 1;
-	ctx->cmode = EVP_CIPH_CFB_MODE;
-	}
-#endif
     else if(!strcasecmp(amode,"CFB8"))
 	cipher = EVP_des_ede3_cfb8();
+    else if(!strcasecmp(amode,"CFB1"))
+	cipher = EVP_des_ede3_cfb1();
     else
 	{
 	printf("Unknown mode: %s\n", amode);
@@ -127,20 +122,22 @@ int DESTest(EVP_CIPHER_CTX *ctx,
 
     if (EVP_CipherInit_ex(ctx, cipher, NULL, aKey, iVec, dir) <= 0)
 	return 0;
+    if(!strcasecmp(amode,"CFB1"))
+	M_EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS);
     EVP_Cipher(ctx, out, in, len);
 
     return 1;
     }
-
-void DebugValue(char *tag, unsigned char *val, int len)
+#if 0
+static void DebugValue(char *tag, unsigned char *val, int len)
     {
     char obuf[2048];
     int olen;
     olen = bin2hex(val, len, obuf);
     printf("%s = %.*s\n", tag, olen, obuf);
     }
-
-void shiftin(unsigned char *dst,unsigned char *src,int nbits)
+#endif
+static void shiftin(unsigned char *dst,unsigned char *src,int nbits)
     {
     int n;
 
@@ -160,7 +157,7 @@ char *t_mode[6] = {"CBC","ECB","OFB","CFB1","CFB8","CFB64"};
 enum Mode {CBC, ECB, OFB, CFB1, CFB8, CFB64};
 int Sizes[6]={64,64,64,1,8,64};
 
-void do_mct(char *amode, 
+static void do_mct(char *amode, 
 	    int akeysz, int numkeys, unsigned char *akey,unsigned char *ivec,
 	    int dir, unsigned char *text, int len,
 	    FILE *rfp)
@@ -200,11 +197,11 @@ void do_mct(char *amode,
 	if(imode != ECB)
 	    OutputValue("IV",ivec,8,rfp,0);
 	OutputValue(t_tag[dir^1],text,len,rfp,imode == CFB1);
-
+#if 0
 	/* compensate for endianness */
 	if(imode == CFB1)
 	    text[0]<<=7;
-
+#endif
 	memcpy(text0,text,8);
 
 	for(j=0 ; j < 10000 ; ++j)
@@ -267,7 +264,7 @@ void do_mct(char *amode,
 	}
     }
     
-int proc_file(char *rqfile, char *rspfile)
+static int proc_file(char *rqfile, char *rspfile)
     {
     char afn[256], rfn[256];
     FILE *afp = NULL, *rfp = NULL;
@@ -535,7 +532,7 @@ int proc_file(char *rqfile, char *rspfile)
 		    err =1;
 		    break;
 		    }
-		if (len >= sizeof(plaintext))
+		if (len >= (int)sizeof(plaintext))
 		    {
 		    printf("Buffer overflow\n");
 		    }

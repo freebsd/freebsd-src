@@ -433,6 +433,9 @@ struct ieee80211vap {
 	const struct ieee80211_aclator *iv_acl;	/* acl glue */
 	void			*iv_as;		/* private aclator state */
 
+	const struct ieee80211_ratectl *iv_rate;
+	void			*iv_rs;		/* private ratectl state */
+
 	struct ieee80211_tdma_state *iv_tdma;	/* tdma state */
 	struct ieee80211_mesh_state *iv_mesh;	/* MBSS state */
 	struct ieee80211_hwmp_state *iv_hwmp;	/* HWMP state */
@@ -468,7 +471,7 @@ struct ieee80211vap {
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    struct sockaddr *, struct route *);
-	uint64_t		iv_spare[8];
+	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
 
@@ -545,11 +548,12 @@ MALLOC_DECLARE(M_80211_VAP);
 /* NB: immutable: should be set only when creating a vap */
 #define	IEEE80211_FEXT_WDSLEGACY 0x00010000	/* CONF: legacy WDS operation */
 #define	IEEE80211_FEXT_PROBECHAN 0x00020000	/* CONF: probe passive channel*/
+#define	IEEE80211_FEXT_UNIQMAC	 0x00040000	/* CONF: user or computed mac */
 
 #define	IEEE80211_FEXT_BITS \
 	"\20\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
 	"\0114ADDR\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\16STATEWAIT\17REINIT" \
-	"\20BPF\21WDSLEGACY\22PROBECHAN"
+	"\20BPF\21WDSLEGACY\22PROBECHAN\23UNIQMAC"
 
 /* ic_flags_ht/iv_flags_ht */
 #define	IEEE80211_FHT_NONHT_PR	 0x00000001	/* STATUS: non-HT sta present */
@@ -848,10 +852,10 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 	if (ieee80211_msg(_vap, _m))					\
 		ieee80211_note_frame(_vap, _wh, _fmt, __VA_ARGS__);	\
 } while (0)
-void	ieee80211_note(struct ieee80211vap *, const char *, ...);
-void	ieee80211_note_mac(struct ieee80211vap *,
+void	ieee80211_note(const struct ieee80211vap *, const char *, ...);
+void	ieee80211_note_mac(const struct ieee80211vap *,
 		const uint8_t mac[IEEE80211_ADDR_LEN], const char *, ...);
-void	ieee80211_note_frame(struct ieee80211vap *,
+void	ieee80211_note_frame(const struct ieee80211vap *,
 		const struct ieee80211_frame *, const char *, ...);
 #define	ieee80211_msg_debug(_vap) \
 	((_vap)->iv_debug & IEEE80211_MSG_DEBUG)
@@ -889,11 +893,11 @@ void	ieee80211_note_frame(struct ieee80211vap *,
 		ieee80211_discard_mac(_vap, _mac, _type, _fmt, __VA_ARGS__);\
 } while (0)
 
-void ieee80211_discard_frame(struct ieee80211vap *,
+void ieee80211_discard_frame(const struct ieee80211vap *,
 	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
-void ieee80211_discard_ie(struct ieee80211vap *,
+void ieee80211_discard_ie(const struct ieee80211vap *,
 	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
-void ieee80211_discard_mac(struct ieee80211vap *,
+void ieee80211_discard_mac(const struct ieee80211vap *,
 	const uint8_t mac[IEEE80211_ADDR_LEN], const char *type,
 	const char *fmt, ...);
 #else

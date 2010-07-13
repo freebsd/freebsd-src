@@ -27,6 +27,10 @@ $rm='del /Q';
 
 $zlib_lib="zlib1.lib";
 
+# Santize -L options for ms link
+$l_flags =~ s/-L("\[^"]+")/\/libpath:$1/g;
+$l_flags =~ s/-L(\S+)/\/libpath:$1/g;
+
 # C compiler stuff
 $cc='cl';
 if ($FLAVOR =~ /WIN64/)
@@ -145,6 +149,18 @@ if ($no_sock)		{ $ex_libs=''; }
 elsif ($FLAVOR =~ /CE/)	{ $ex_libs='winsock.lib'; }
 else			{ $ex_libs='wsock32.lib'; }
 
+my $oflow;
+
+
+if ($FLAVOR =~ /WIN64/ and `cl 2>&1` =~ /14\.00\.4[0-9]{4}\./)
+	{
+	$oflow=' bufferoverflowu.lib';
+	}
+else
+	{
+	$oflow="";
+	}
+
 if ($FLAVOR =~ /CE/)
 	{
 	$ex_libs.=' $(WCECOMPAT)/lib/wcecompatex.lib';
@@ -153,7 +169,8 @@ if ($FLAVOR =~ /CE/)
 else
 	{
 	$ex_libs.=' gdi32.lib crypt32.lib advapi32.lib user32.lib';
-	$ex_libs.=' bufferoverflowu.lib' if ($FLAVOR =~ /WIN64/);
+	$ex_libs.= $oflow;
+
 	}
 
 # As native NT API is pure UNICODE, our WIN-NT build defaults to UNICODE,
@@ -338,7 +355,7 @@ sub do_lib_rule
 
 		if ($name eq "")
 			{
-			$ex.=' bufferoverflowu.lib' if ($FLAVOR =~ /WIN64/);
+			$ex.= $oflow;
 			if ($target =~ /capi/)
 				{
 				$ex.=' crypt32.lib advapi32.lib';
@@ -353,7 +370,7 @@ sub do_lib_rule
 			$ex.=' unicows.lib' if ($FLAVOR =~ /NT/);
 			$ex.=' wsock32.lib gdi32.lib advapi32.lib user32.lib';
 			$ex.=' crypt32.lib';
-			$ex.=' bufferoverflowu.lib' if ($FLAVOR =~ /WIN64/);
+			$ex.= $oflow;
 			}
 		$ex.=" $zlib_lib" if $zlib_opt == 1 && $target =~ /O_CRYPTO/;
 

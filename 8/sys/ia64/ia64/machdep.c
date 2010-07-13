@@ -80,11 +80,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/bootinfo.h>
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/fpu.h>
+#include <machine/intr.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/mutex.h>
@@ -98,8 +98,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/unwind.h>
 #include <machine/vmparam.h>
-
-#include <i386/include/specialreg.h>
 
 SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
 SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
@@ -133,6 +131,10 @@ struct fpswa_iface *fpswa_iface;
 
 u_int64_t ia64_pal_base;
 u_int64_t ia64_port_base;
+
+u_int64_t ia64_lapic_addr = PAL_PIB_DEFAULT_ADDR;
+
+struct ia64_pib *ia64_pib;
 
 static int ia64_sync_icache_needed;
 
@@ -308,6 +310,8 @@ cpu_startup(void *dummy)
 	 * information.
 	 */
 	ia64_probe_sapics();
+	ia64_pib = pmap_mapdev(ia64_lapic_addr, sizeof(*ia64_pib));
+
 	ia64_mca_init();
 
 	/*
@@ -367,17 +371,10 @@ cpu_startup(void *dummy)
 		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
 		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
 		    "nstrays", CTLFLAG_RD, &pcs->pcs_nstrays,
-		    "Number of stray vectors");
+		    "Number of stray interrupts");
 	}
 }
 SYSINIT(cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
-
-void
-cpu_boot(int howto)
-{
-
-	efi_reset_system();
-}
 
 void
 cpu_flush_dcache(void *ptr, size_t len)
@@ -434,7 +431,7 @@ void
 cpu_reset()
 {
 
-	cpu_boot(0);
+	efi_reset_system();
 }
 
 void
@@ -443,25 +440,29 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 	struct pcb *oldpcb, *newpcb;
 
 	oldpcb = old->td_pcb;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	ia32_savectx(oldpcb);
 #endif
 	if (PCPU_GET(fpcurthread) == old)
 		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
-		old->td_lock = mtx;
-#if defined(SCHED_ULE) && defined(SMP)
-		/* td_lock is volatile */
-		while (new->td_lock == &blocked_lock)
-			;
-#endif
+		atomic_store_rel_ptr(&old->td_lock, mtx);
+
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
+
+#if defined(SCHED_ULE) && defined(SMP)
+		while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
+			cpu_spinwait();
+#endif
+
 		PCPU_SET(curthread, new);
-#ifdef COMPAT_IA32
+
+#ifdef COMPAT_FREEBSD32
 		ia32_restorectx(newpcb);
 #endif
+
 		if (PCPU_GET(fpcurthread) == new)
 			new->td_frame->tf_special.psr &= ~IA64_PSR_DFH;
 		restorectx(newpcb);
@@ -478,10 +479,18 @@ cpu_throw(struct thread *old __unused, struct thread *new)
 
 	newpcb = new->td_pcb;
 	(void)pmap_switch(newpcb->pcb_current_pmap);
+
+#if defined(SCHED_ULE) && defined(SMP)
+	while (atomic_load_acq_ptr(&new->td_lock) == &blocked_lock)
+		cpu_spinwait();
+#endif
+
 	PCPU_SET(curthread, new);
-#ifdef COMPAT_IA32
+
+#ifdef COMPAT_FREEBSD32
 	ia32_restorectx(newpcb);
 #endif
+
 	restorectx(newpcb);
 	/* We should not get here. */
 	panic("cpu_throw: restorectx() returned");
@@ -684,7 +693,8 @@ ia64_init(void)
 	for (md = efi_md_first(); md != NULL; md = efi_md_next(md)) {
 		switch (md->md_type) {
 		case EFI_MD_TYPE_IOPORT:
-			ia64_port_base = IA64_PHYS_TO_RR6(md->md_phys);
+			ia64_port_base = (uintptr_t)pmap_mapdev(md->md_phys,
+			    md->md_pages * EFI_PAGE_SIZE);
 			break;
 		case EFI_MD_TYPE_PALCODE:
 			ia64_pal_base = md->md_phys;
@@ -707,16 +717,6 @@ ia64_init(void)
 	 * Look at arguments passed to us and compute boothowto.
 	 */
 	boothowto = bootinfo.bi_boothowto;
-
-	/*
-	 * Catch case of boot_verbose set in environment.
-	 */
-	if ((p = getenv("boot_verbose")) != NULL) {
-		if (strcmp(p, "yes") == 0 || strcmp(p, "YES") == 0) {
-			boothowto |= RB_VERBOSE;
-		}
-		freeenv(p);
-	}
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose = 1;
@@ -771,6 +771,7 @@ ia64_init(void)
 	 */
 	map_pal_code();
 	efi_boot_minimal(bootinfo.bi_systab);
+	ia64_xiv_init();
 	ia64_sal_init();
 	calculate_frequencies();
 
@@ -785,7 +786,7 @@ ia64_init(void)
 	init_param1();
 
 	p = getenv("kernelname");
-	if (p) {
+	if (p != NULL) {
 		strncpy(kernelname, p, sizeof(kernelname) - 1);
 		freeenv(p);
 	}

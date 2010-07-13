@@ -105,29 +105,6 @@ struct save87 {
 	u_char	sv_pad[64];	/* padding; used by emulators */
 };
 
-
-/*
- * Alternative layouts for <sys/procfs.h>
- * Used in core dumps, the reason for this file existing.
- */
-struct prstatus32 {
-	int	pr_version;
-	u_int	pr_statussz;
-	u_int	pr_gregsetsz;
-	u_int	pr_fpregsetsz;
-	int	pr_osreldate;
-	int	pr_cursig;
-	pid_t	pr_pid;
-	struct reg32 pr_reg;
-};
-
-struct prpsinfo32 {
-	int	pr_version;
-	u_int	pr_psinfosz;
-	char	pr_fname[PRFNAMESZ+1];
-	char	pr_psargs[PRARGSZ+1];
-};
-
 /*
  * Wrappers and converters.
  */

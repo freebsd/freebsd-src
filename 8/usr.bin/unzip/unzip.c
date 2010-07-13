@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009 Joerg Sonnenberger <joerg@NetBSD.org>
  * Copyright (c) 2007-2008 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
@@ -51,15 +52,19 @@
 
 /* command-line options */
 static int		 a_opt;		/* convert EOL */
+static int		 C_opt;		/* match case-insensitively */
+static int		 c_opt;		/* extract to stdout */
 static const char	*d_arg;		/* directory */
+static int		 f_opt;		/* update existing files only */
 static int		 j_opt;		/* junk directories */
 static int		 L_opt;		/* lowercase names */
-static int		 l_opt;		/* list */
 static int		 n_opt;		/* never overwrite */
 static int		 o_opt;		/* always overwrite */
+static int		 p_opt;		/* extract to stdout, quiet */
 static int		 q_opt;		/* quiet */
 static int		 t_opt;		/* test */
 static int		 u_opt;		/* update */
+static int		 v_opt;		/* verbose/list */
 
 /* time when unzip started */
 static time_t		 now;
@@ -69,9 +74,6 @@ static int		 unzip_debug;
 
 /* running on tty? */
 static int		 tty;
-
-/* error flag for -t */
-static int		 test_failed;
 
 /* convenience macro */
 /* XXX should differentiate between ARCHIVE_{WARN,FAIL,RETRY} */
@@ -162,7 +164,6 @@ static void
 info(const char *fmt, ...)
 {
 	va_list ap;
-	int i;
 
 	if (q_opt && !unzip_debug)
 		return;
@@ -171,9 +172,10 @@ info(const char *fmt, ...)
 	va_end(ap);
 	fflush(stdout);
 
-	for (i = 0; fmt[i] != '\0'; ++i)
-		/* nothing */ ;
-	noeol = !(i && fmt[i - 1] == '\n');
+	if (*fmt == '\0')
+		noeol = 1;
+	else
+		noeol = fmt[strlen(fmt) - 1] != '\n';
 }
 
 /* debug message (if unzip_debug) */
@@ -181,7 +183,6 @@ static void
 debug(const char *fmt, ...)
 {
 	va_list ap;
-	int i;
 
 	if (!unzip_debug)
 		return;
@@ -190,9 +191,10 @@ debug(const char *fmt, ...)
 	va_end(ap);
 	fflush(stderr);
 
-	for (i = 0; fmt[i] != '\0'; ++i)
-		/* nothing */ ;
-	noeol = !(i && fmt[i - 1] == '\n');
+	if (*fmt == '\0')
+		noeol = 1;
+	else
+		noeol = fmt[strlen(fmt) - 1] != '\n';
 }
 
 /* duplicate a path name, possibly converting to lower case */
@@ -200,7 +202,7 @@ static char *
 pathdup(const char *path)
 {
 	char *str;
-	int len;
+	size_t i, len;
 
 	len = strlen(path);
 	while (len && path[len - 1] == '/')
@@ -209,8 +211,12 @@ pathdup(const char *path)
 		errno = ENOMEM;
 		error("malloc()");
 	}
-	for (int i = 0; i < len; ++i)
-		str[i] = L_opt ? tolower(path[i]) : path[i];
+	if (L_opt) {
+		for (i = 0; i < len; ++i)
+			str[i] = tolower((unsigned char)path[i]);
+	} else {
+		memcpy(str, path, len);
+	}
 	str[len] = '\0';
 
 	return (str);
@@ -221,7 +227,7 @@ static char *
 pathcat(const char *prefix, const char *path)
 {
 	char *str;
-	int prelen, len;
+	size_t prelen, len;
 
 	prelen = prefix ? strlen(prefix) + 1 : 0;
 	len = strlen(path) + 1;
@@ -257,7 +263,7 @@ static void
 add_pattern(struct pattern_list *list, const char *pattern)
 {
 	struct pattern *entry;
-	int len;
+	size_t len;
 
 	debug("adding pattern '%s'\n", pattern);
 	len = strlen(pattern);
@@ -265,7 +271,6 @@ add_pattern(struct pattern_list *list, const char *pattern)
 		errno = ENOMEM;
 		error("malloc()");
 	}
-	memset(&entry->link, 0, sizeof entry->link);
 	memcpy(entry->pattern, pattern, len + 1);
 	STAILQ_INSERT_TAIL(list, entry, link);
 }
@@ -279,7 +284,7 @@ match_pattern(struct pattern_list *list, const char *str)
 	struct pattern *entry;
 
 	STAILQ_FOREACH(entry, list, link) {
-		if (fnmatch(entry->pattern, str, 0) == 0)
+		if (fnmatch(entry->pattern, str, C_opt ? FNM_CASEFOLD : 0) == 0)
 			return (1);
 	}
 	return (0);
@@ -378,7 +383,7 @@ extract_dir(struct archive *a, struct archive_entry *e, const char *path)
 {
 	int mode;
 
-	mode = archive_entry_filetype(e) & 0777;
+	mode = archive_entry_mode(e) & 0777;
 	if (mode == 0)
 		mode = 0755;
 
@@ -406,49 +411,104 @@ extract_dir(struct archive *a, struct archive_entry *e, const char *path)
 static unsigned char buffer[8192];
 static char spinner[] = { '|', '/', '-', '\\' };
 
+static int
+handle_existing_file(char **path)
+{
+	size_t alen;
+	ssize_t len;
+	char buf[4];
+
+	for (;;) {
+		fprintf(stderr,
+		    "replace %s? [y]es, [n]o, [A]ll, [N]one, [r]ename: ",
+		    *path);
+		if (fgets(buf, sizeof(buf), stdin) == 0) {
+			clearerr(stdin);
+			printf("NULL\n(EOF or read error, "
+			    "treating as \"[N]one\"...)\n");
+			n_opt = 1;
+			return -1;
+		}
+		switch (*buf) {
+		case 'A':
+			o_opt = 1;
+			/* FALLTHROUGH */
+		case 'y':
+		case 'Y':
+			(void)unlink(*path);
+			return 1;
+		case 'N':
+			n_opt = 1;			
+			/* FALLTHROUGH */
+		case 'n':
+			return -1;
+		case 'r':
+		case 'R':
+			printf("New name: ");
+			fflush(stdout);
+			free(*path);
+			*path = NULL;
+			alen = 0;
+			len = getdelim(path, &alen, '\n', stdin);
+			if ((*path)[len - 1] == '\n')
+				(*path)[len - 1] = '\0';
+			return 0;
+		default:
+			break;
+		}
+	}
+}
+
 /*
  * Extract a regular file.
  */
 static void
-extract_file(struct archive *a, struct archive_entry *e, const char *path)
+extract_file(struct archive *a, struct archive_entry *e, char **path)
 {
 	int mode;
 	time_t mtime;
 	struct stat sb;
 	struct timeval tv[2];
-	int cr, fd, text, warn;
+	int cr, fd, text, warn, check;
 	ssize_t len;
 	unsigned char *p, *q, *end;
 
-	mode = archive_entry_filetype(e) & 0777;
+	mode = archive_entry_mode(e) & 0777;
 	if (mode == 0)
 		mode = 0644;
 	mtime = archive_entry_mtime(e);
 
 	/* look for existing file of same name */
-	if (lstat(path, &sb) == 0) {
-		if (u_opt) {
+recheck:
+	if (lstat(*path, &sb) == 0) {
+		if (u_opt || f_opt) {
 			/* check if up-to-date */
-			if (S_ISREG(sb.st_mode) && sb.st_mtime > mtime)
+			if (S_ISREG(sb.st_mode) && sb.st_mtime >= mtime)
 				return;
-			(void)unlink(path);
+			(void)unlink(*path);
 		} else if (o_opt) {
 			/* overwrite */
-			(void)unlink(path);
+			(void)unlink(*path);
 		} else if (n_opt) {
 			/* do not overwrite */
 			return;
 		} else {
-			/* XXX ask user */
-			errorx("not implemented");
+			check = handle_existing_file(path);
+			if (check == 0)
+				goto recheck;
+			if (check == -1)
+				return; /* do not overwrite */
 		}
+	} else {
+		if (f_opt)
+			return;
 	}
 
-	if ((fd = open(path, O_RDWR|O_CREAT|O_TRUNC, mode)) < 0)
-		error("open('%s')", path);
+	if ((fd = open(*path, O_RDWR|O_CREAT|O_TRUNC, mode)) < 0)
+		error("open('%s')", *path);
 
 	/* loop over file contents and write to disk */
-	info("x %s", path);
+	info(" extracting: %s", *path);
 	text = a_opt;
 	warn = 0;
 	cr = 0;
@@ -465,7 +525,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 		if (a_opt && cr) {
 			if (len == 0 || buffer[0] != '\n')
 				if (write(fd, "\r", 1) != 1)
-					error("write('%s')", path);
+					error("write('%s')", *path);
 			cr = 0;
 		}
 
@@ -496,7 +556,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 		/* simple case */
 		if (!a_opt || !text) {
 			if (write(fd, buffer, len) != len)
-				error("write('%s')", path);
+				error("write('%s')", *path);
 			continue;
 		}
 
@@ -506,7 +566,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 				if (!warn && !isascii(*q)) {
 					warningx("%s may be corrupted due"
 					    " to weak text file detection"
-					    " heuristic", path);
+					    " heuristic", *path);
 					warn = 1;
 				}
 				if (q[0] != '\r')
@@ -519,7 +579,7 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 					break;
 			}
 			if (write(fd, p, q - p) != q - p)
-				error("write('%s')", path);
+				error("write('%s')", *path);
 		}
 	}
 	if (tty)
@@ -534,9 +594,9 @@ extract_file(struct archive *a, struct archive_entry *e, const char *path)
 	tv[1].tv_sec = mtime;
 	tv[1].tv_usec = 0;
 	if (futimes(fd, tv) != 0)
-		error("utimes('%s')", path);
+		error("utimes('%s')", *path);
 	if (close(fd) != 0)
-		error("close('%s')", path);
+		error("close('%s')", *path);
 }
 
 /*
@@ -612,9 +672,121 @@ extract(struct archive *a, struct archive_entry *e)
 	if (S_ISDIR(filetype))
 		extract_dir(a, e, realpathname);
 	else
-		extract_file(a, e, realpathname);
+		extract_file(a, e, &realpathname);
 
 	free(realpathname);
+	free(pathname);
+}
+
+static void
+extract_stdout(struct archive *a, struct archive_entry *e)
+{
+	char *pathname;
+	mode_t filetype;
+	int cr, text, warn;
+	ssize_t len;
+	unsigned char *p, *q, *end;
+
+	pathname = pathdup(archive_entry_pathname(e));
+	filetype = archive_entry_filetype(e);
+
+	/* I don't think this can happen in a zipfile.. */
+	if (!S_ISDIR(filetype) && !S_ISREG(filetype)) {
+		warningx("skipping non-regular entry '%s'", pathname);
+		ac(archive_read_data_skip(a));
+		free(pathname);
+		return;
+	}
+
+	/* skip directories in -j case */
+	if (S_ISDIR(filetype)) {
+		ac(archive_read_data_skip(a));
+		free(pathname);
+		return;
+	}
+
+	/* apply include / exclude patterns */
+	if (!accept_pathname(pathname)) {
+		ac(archive_read_data_skip(a));
+		free(pathname);
+		return;
+	}
+
+	if (c_opt)
+		info("x %s\n", pathname);
+
+	text = a_opt;
+	warn = 0;
+	cr = 0;
+	for (int n = 0; ; n++) {
+		len = archive_read_data(a, buffer, sizeof buffer);
+
+		if (len < 0)
+			ac(len);
+
+		/* left over CR from previous buffer */
+		if (a_opt && cr) {
+			if (len == 0 || buffer[0] != '\n') {
+				if (fwrite("\r", 1, 1, stderr) != 1)
+					error("write('%s')", pathname);
+			}
+			cr = 0;
+		}
+
+		/* EOF */
+		if (len == 0)
+			break;
+		end = buffer + len;
+
+		/*
+		 * Detect whether this is a text file.  The correct way to
+		 * do this is to check the least significant bit of the
+		 * "internal file attributes" field of the corresponding
+		 * file header in the central directory, but libarchive
+		 * does not read the central directory, so we have to
+		 * guess by looking for non-ASCII characters in the
+		 * buffer.  Hopefully we won't guess wrong.  If we do
+		 * guess wrong, we print a warning message later.
+		 */
+		if (a_opt && n == 0) {
+			for (p = buffer; p < end; ++p) {
+				if (!isascii((unsigned char)*p)) {
+					text = 0;
+					break;
+				}
+			}
+		}
+
+		/* simple case */
+		if (!a_opt || !text) {
+			if (fwrite(buffer, 1, len, stdout) != (size_t)len)
+				error("write('%s')", pathname);
+			continue;
+		}
+
+		/* hard case: convert \r\n to \n (sigh...) */
+		for (p = buffer; p < end; p = q + 1) {
+			for (q = p; q < end; q++) {
+				if (!warn && !isascii(*q)) {
+					warningx("%s may be corrupted due"
+					    " to weak text file detection"
+					    " heuristic", pathname);
+					warn = 1;
+				}
+				if (q[0] != '\r')
+					continue;
+				if (&q[1] == end) {
+					cr = 1;
+					break;
+				}
+				if (q[1] == '\n')
+					break;
+			}
+			if (fwrite(p, 1, q - p, stdout) != (size_t)(q - p))
+				error("write('%s')", pathname);
+		}
+	}
+
 	free(pathname);
 }
 
@@ -624,34 +796,54 @@ extract(struct archive *a, struct archive_entry *e)
 static void
 list(struct archive *a, struct archive_entry *e)
 {
+	char buf[20];
+	time_t mtime;
 
-	printf("%s\n", archive_entry_pathname(e));
+	mtime = archive_entry_mtime(e);
+	strftime(buf, sizeof(buf), "%m-%d-%g %R", localtime(&mtime));
+
+	if (v_opt == 1) {
+		printf(" %8ju  %s   %s\n",
+		    (uintmax_t)archive_entry_size(e),
+		    buf, archive_entry_pathname(e));
+	} else if (v_opt == 2) {
+		printf("%8ju  Stored  %7ju   0%%  %s  %08x  %s\n",
+		    (uintmax_t)archive_entry_size(e),
+		    (uintmax_t)archive_entry_size(e),
+		    buf,
+		    0U,
+		    archive_entry_pathname(e));
+	}
 	ac(archive_read_data_skip(a));
 }
 
 /*
  * Extract to memory to check CRC
  */
-static void
+static int
 test(struct archive *a, struct archive_entry *e)
 {
 	ssize_t len;
+	int error_count;
 
+	error_count = 0;
 	if (S_ISDIR(archive_entry_filetype(e)))
-		return;
+		return 0;
 
-	info("%s ", archive_entry_pathname(e));
+	info("    testing: %s\t", archive_entry_pathname(e));
 	while ((len = archive_read_data(a, buffer, sizeof buffer)) > 0)
 		/* nothing */;
 	if (len < 0) {
-		info("%s\n", archive_error_string(a));
-		++test_failed;
+		info(" %s\n", archive_error_string(a));
+		++error_count;
 	} else {
-		info("OK\n");
+		info(" OK\n");
 	}
 
 	/* shouldn't be necessary, but it doesn't hurt */
 	ac(archive_read_data_skip(a));
+
+	return error_count;
 }
 
 
@@ -665,6 +857,7 @@ unzip(const char *fn)
 	struct archive *a;
 	struct archive_entry *e;
 	int fd, ret;
+	uintmax_t total_size, file_count, error_count;
 
 	if ((fd = open(fn, O_RDONLY)) < 0)
 		error("%s", fn);
@@ -673,33 +866,70 @@ unzip(const char *fn)
 	ac(archive_read_support_format_zip(a));
 	ac(archive_read_open_fd(a, fd, 8192));
 
+	if (!p_opt && !q_opt)
+		printf("Archive:  %s\n", fn);
+	if (v_opt == 1) {
+		printf("  Length     Date   Time    Name\n");
+		printf(" --------    ----   ----    ----\n");
+	} else if (v_opt == 2) {
+		printf(" Length   Method    Size  Ratio   Date   Time   CRC-32    Name\n");
+		printf("--------  ------  ------- -----   ----   ----   ------    ----\n");
+	}
+
+	total_size = 0;
+	file_count = 0;
+	error_count = 0;
 	for (;;) {
 		ret = archive_read_next_header(a, &e);
 		if (ret == ARCHIVE_EOF)
 			break;
 		ac(ret);
 		if (t_opt)
-			test(a, e);
-		else if (l_opt)
+			error_count += test(a, e);
+		else if (v_opt)
 			list(a, e);
+		else if (p_opt || c_opt)
+			extract_stdout(a, e);
 		else
 			extract(a, e);
+
+		total_size += archive_entry_size(e);
+		++file_count;
+	}
+
+	if (v_opt == 1) {
+		printf(" --------                   -------\n");
+		printf(" %8ju                   %ju file%s\n",
+		    total_size, file_count, file_count != 1 ? "s" : "");
+	} else if (v_opt == 2) {
+		printf("--------          -------  ---                            -------\n");
+		printf("%8ju          %7ju   0%%                            %ju file%s\n",
+		    total_size, total_size, file_count,
+		    file_count != 1 ? "s" : "");
 	}
 
 	ac(archive_read_close(a));
 	(void)archive_read_finish(a);
+
 	if (close(fd) != 0)
 		error("%s", fn);
 
-	if (t_opt && test_failed)
-		errorx("%d checksum error(s) found.", test_failed);
+	if (t_opt) {
+		if (error_count > 0) {
+			errorx("%d checksum error(s) found.", error_count);
+		}
+		else {
+			printf("No errors detected in compressed data of %s.\n",
+			       fn);
+		}
+	}
 }
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: unzip [-ajLlnoqtu] [-d dir] zipfile\n");
+	fprintf(stderr, "usage: unzip [-aCcfjLlnopqtuv] [-d dir] [-x pattern] zipfile\n");
 	exit(1);
 }
 
@@ -709,13 +939,22 @@ getopts(int argc, char *argv[])
 	int opt;
 
 	optreset = optind = 1;
-	while ((opt = getopt(argc, argv, "ad:jLlnoqtux:")) != -1)
+	while ((opt = getopt(argc, argv, "aCcd:fjLlnopqtuvx:")) != -1)
 		switch (opt) {
 		case 'a':
 			a_opt = 1;
 			break;
+		case 'C':
+			C_opt = 1;
+			break;
+		case 'c':
+			c_opt = 1;
+			break;
 		case 'd':
 			d_arg = optarg;
+			break;
+		case 'f':
+			f_opt = 1;
 			break;
 		case 'j':
 			j_opt = 1;
@@ -724,13 +963,18 @@ getopts(int argc, char *argv[])
 			L_opt = 1;
 			break;
 		case 'l':
-			l_opt = 1;
+			if (v_opt == 0)
+				v_opt = 1;
 			break;
 		case 'n':
 			n_opt = 1;
 			break;
 		case 'o':
 			o_opt = 1;
+			q_opt = 1;
+			break;
+		case 'p':
+			p_opt = 1;
 			break;
 		case 'q':
 			q_opt = 1;
@@ -740,6 +984,9 @@ getopts(int argc, char *argv[])
 			break;
 		case 'u':
 			u_opt = 1;
+			break;
+		case 'v':
+			v_opt = 2;
 			break;
 		case 'x':
 			add_pattern(&exclude, optarg);

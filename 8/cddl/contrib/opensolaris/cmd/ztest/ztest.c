@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -77,7 +77,6 @@
 #include <sys/dmu.h>
 #include <sys/txg.h>
 #include <sys/zap.h>
-#include <sys/dmu_traverse.h>
 #include <sys/dmu_objset.h>
 #include <sys/poll.h>
 #include <sys/stat.h>
@@ -93,6 +92,7 @@
 #include <sys/vdev_file.h>
 #include <sys/spa_impl.h>
 #include <sys/dsl_prop.h>
+#include <sys/dsl_dataset.h>
 #include <sys/refcount.h>
 #include <stdio.h>
 #include <stdio_ext.h>
@@ -150,7 +150,6 @@ typedef struct ztest_args {
 	hrtime_t	za_start;
 	hrtime_t	za_stop;
 	hrtime_t	za_kill;
-	traverse_handle_t *za_th;
 	/*
 	 * Thread-local variables can go here to aid debugging.
 	 */
@@ -174,6 +173,7 @@ ztest_func_t ztest_traverse;
 ztest_func_t ztest_dsl_prop_get_set;
 ztest_func_t ztest_dmu_objset_create_destroy;
 ztest_func_t ztest_dmu_snapshot_create_destroy;
+ztest_func_t ztest_dsl_dataset_promote_busy;
 ztest_func_t ztest_spa_create_destroy;
 ztest_func_t ztest_fault_inject;
 ztest_func_t ztest_spa_rename;
@@ -204,10 +204,10 @@ ztest_info_t ztest_info[] = {
 	{ ztest_dmu_object_alloc_free,		1,	&zopt_always	},
 	{ ztest_zap,				30,	&zopt_always	},
 	{ ztest_zap_parallel,			100,	&zopt_always	},
-	{ ztest_traverse,			1,	&zopt_often	},
 	{ ztest_dsl_prop_get_set,		1,	&zopt_sometimes	},
 	{ ztest_dmu_objset_create_destroy,	1,	&zopt_sometimes },
 	{ ztest_dmu_snapshot_create_destroy,	1,	&zopt_sometimes },
+	{ ztest_dsl_dataset_promote_busy,	1,	&zopt_sometimes },
 	{ ztest_spa_create_destroy,		1,	&zopt_sometimes },
 	{ ztest_fault_inject,			1,	&zopt_sometimes	},
 	{ ztest_spa_rename,			1,	&zopt_rarely	},
@@ -1444,150 +1444,107 @@ ztest_dmu_snapshot_create_destroy(ztest_args_t *za)
 	(void) rw_unlock(&ztest_shared->zs_name_lock);
 }
 
-#define	ZTEST_TRAVERSE_BLOCKS	1000
-
-static int
-ztest_blk_cb(traverse_blk_cache_t *bc, spa_t *spa, void *arg)
-{
-	ztest_args_t *za = arg;
-	zbookmark_t *zb = &bc->bc_bookmark;
-	blkptr_t *bp = &bc->bc_blkptr;
-	dnode_phys_t *dnp = bc->bc_dnode;
-	traverse_handle_t *th = za->za_th;
-	uint64_t size = BP_GET_LSIZE(bp);
-
-	/*
-	 * Level -1 indicates the objset_phys_t or something in its intent log.
-	 */
-	if (zb->zb_level == -1) {
-		if (BP_GET_TYPE(bp) == DMU_OT_OBJSET) {
-			ASSERT3U(zb->zb_object, ==, 0);
-			ASSERT3U(zb->zb_blkid, ==, 0);
-			ASSERT3U(size, ==, sizeof (objset_phys_t));
-			za->za_zil_seq = 0;
-		} else if (BP_GET_TYPE(bp) == DMU_OT_INTENT_LOG) {
-			ASSERT3U(zb->zb_object, ==, 0);
-			ASSERT3U(zb->zb_blkid, >, za->za_zil_seq);
-			za->za_zil_seq = zb->zb_blkid;
-		} else {
-			ASSERT3U(zb->zb_object, !=, 0);	/* lr_write_t */
-		}
-
-		return (0);
-	}
-
-	ASSERT(dnp != NULL);
-
-	if (bc->bc_errno)
-		return (ERESTART);
-
-	/*
-	 * Once in a while, abort the traverse.   We only do this to odd
-	 * instance numbers to ensure that even ones can run to completion.
-	 */
-	if ((za->za_instance & 1) && ztest_random(10000) == 0)
-		return (EINTR);
-
-	if (bp->blk_birth == 0) {
-		ASSERT(th->th_advance & ADVANCE_HOLES);
-		return (0);
-	}
-
-	if (zb->zb_level == 0 && !(th->th_advance & ADVANCE_DATA) &&
-	    bc == &th->th_cache[ZB_DN_CACHE][0]) {
-		ASSERT(bc->bc_data == NULL);
-		return (0);
-	}
-
-	ASSERT(bc->bc_data != NULL);
-
-	/*
-	 * This is an expensive question, so don't ask it too often.
-	 */
-	if (((za->za_random ^ th->th_callbacks) & 0xff) == 0) {
-		void *xbuf = umem_alloc(size, UMEM_NOFAIL);
-		if (arc_tryread(spa, bp, xbuf) == 0) {
-			ASSERT(bcmp(bc->bc_data, xbuf, size) == 0);
-		}
-		umem_free(xbuf, size);
-	}
-
-	if (zb->zb_level > 0) {
-		ASSERT3U(size, ==, 1ULL << dnp->dn_indblkshift);
-		return (0);
-	}
-
-	ASSERT(zb->zb_level == 0);
-	ASSERT3U(size, ==, dnp->dn_datablkszsec << DEV_BSHIFT);
-
-	return (0);
-}
-
 /*
- * Verify that live pool traversal works.
+ * Verify dsl_dataset_promote handles EBUSY
  */
 void
-ztest_traverse(ztest_args_t *za)
+ztest_dsl_dataset_promote_busy(ztest_args_t *za)
 {
-	spa_t *spa = za->za_spa;
-	traverse_handle_t *th = za->za_th;
-	int rc, advance;
-	uint64_t cbstart, cblimit;
+	int error;
+	objset_t *os = za->za_os;
+	objset_t *clone;
+	dsl_dataset_t *ds;
+	char snap1name[100];
+	char clone1name[100];
+	char snap2name[100];
+	char clone2name[100];
+	char snap3name[100];
+	char osname[MAXNAMELEN];
+	static uint64_t uniq = 0;
+	uint64_t curval;
 
-	if (th == NULL) {
-		advance = 0;
+	curval = atomic_add_64_nv(&uniq, 5) - 5;
 
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_PRE;
+	(void) rw_rdlock(&ztest_shared->zs_name_lock);
 
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_PRUNE;
+	dmu_objset_name(os, osname);
+	(void) snprintf(snap1name, 100, "%s@s1_%llu", osname, curval++);
+	(void) snprintf(clone1name, 100, "%s/c1_%llu", osname, curval++);
+	(void) snprintf(snap2name, 100, "%s@s2_%llu", clone1name, curval++);
+	(void) snprintf(clone2name, 100, "%s/c2_%llu", osname, curval++);
+	(void) snprintf(snap3name, 100, "%s@s3_%llu", clone1name, curval++);
 
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_DATA;
+	error = dmu_objset_snapshot(osname, strchr(snap1name, '@')+1, FALSE);
+	if (error == ENOSPC)
+		ztest_record_enospc("dmu_take_snapshot");
+	else if (error != 0 && error != EEXIST)
+		fatal(0, "dmu_take_snapshot = %d", error);
 
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_HOLES;
+	error = dmu_objset_open(snap1name, DMU_OST_OTHER,
+	    DS_MODE_USER | DS_MODE_READONLY, &clone);
+	if (error)
+		fatal(0, "dmu_open_snapshot(%s) = %d", snap1name, error);
 
-		if (ztest_random(2) == 0)
-			advance |= ADVANCE_ZIL;
+	error = dmu_objset_create(clone1name, DMU_OST_OTHER, clone, 0,
+	    NULL, NULL);
+	if (error)
+		fatal(0, "dmu_objset_create(%s) = %d", clone1name, error);
+	dmu_objset_close(clone);
 
-		th = za->za_th = traverse_init(spa, ztest_blk_cb, za, advance,
-		    ZIO_FLAG_CANFAIL);
+	error = dmu_objset_snapshot(clone1name, strchr(snap2name, '@')+1,
+	    FALSE);
+	if (error == ENOSPC)
+		ztest_record_enospc("dmu_take_snapshot");
+	else if (error != 0 && error != EEXIST)
+		fatal(0, "dmu_take_snapshot = %d", error);
 
-		traverse_add_pool(th, 0, -1ULL);
-	}
+	error = dmu_objset_snapshot(clone1name, strchr(snap3name, '@')+1,
+	    FALSE);
+	if (error == ENOSPC)
+		ztest_record_enospc("dmu_take_snapshot");
+	else if (error != 0 && error != EEXIST)
+		fatal(0, "dmu_take_snapshot = %d", error);
 
-	advance = th->th_advance;
-	cbstart = th->th_callbacks;
-	cblimit = cbstart + ((advance & ADVANCE_DATA) ? 100 : 1000);
+	error = dmu_objset_open(snap3name, DMU_OST_OTHER,
+	    DS_MODE_USER | DS_MODE_READONLY, &clone);
+	if (error)
+		fatal(0, "dmu_open_snapshot(%s) = %d", snap3name, error);
 
-	while ((rc = traverse_more(th)) == EAGAIN && th->th_callbacks < cblimit)
-		continue;
+	error = dmu_objset_create(clone2name, DMU_OST_OTHER, clone, 0,
+	    NULL, NULL);
+	if (error)
+		fatal(0, "dmu_objset_create(%s) = %d", clone2name, error);
+	dmu_objset_close(clone);
 
-	if (zopt_verbose >= 5)
-		(void) printf("traverse %s%s%s%s %llu blocks to "
-		    "<%llu, %llu, %lld, %llx>%s\n",
-		    (advance & ADVANCE_PRE) ? "pre" : "post",
-		    (advance & ADVANCE_PRUNE) ? "|prune" : "",
-		    (advance & ADVANCE_DATA) ? "|data" : "",
-		    (advance & ADVANCE_HOLES) ? "|holes" : "",
-		    (u_longlong_t)(th->th_callbacks - cbstart),
-		    (u_longlong_t)th->th_lastcb.zb_objset,
-		    (u_longlong_t)th->th_lastcb.zb_object,
-		    (u_longlong_t)th->th_lastcb.zb_level,
-		    (u_longlong_t)th->th_lastcb.zb_blkid,
-		    rc == 0 ? " [done]" :
-		    rc == EINTR ? " [aborted]" :
-		    rc == EAGAIN ? "" :
-		    strerror(rc));
+	error = dsl_dataset_own(snap1name, 0, FTAG, &ds);
+	if (error)
+		fatal(0, "dsl_dataset_own(%s) = %d", snap1name, error);
+	error = dsl_dataset_promote(clone2name);
+	if (error != EBUSY)
+		fatal(0, "dsl_dataset_promote(%s), %d, not EBUSY", clone2name,
+		    error);
+	dsl_dataset_disown(ds, FTAG);
 
-	if (rc != EAGAIN) {
-		if (rc != 0 && rc != EINTR)
-			fatal(0, "traverse_more(%p) = %d", th, rc);
-		traverse_fini(th);
-		za->za_th = NULL;
-	}
+	error = dmu_objset_destroy(clone2name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", clone2name, error);
+
+	error = dmu_objset_destroy(snap3name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", snap2name, error);
+
+	error = dmu_objset_destroy(snap2name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", snap2name, error);
+
+	error = dmu_objset_destroy(clone1name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", clone1name, error);
+	error = dmu_objset_destroy(snap1name);
+	if (error)
+		fatal(0, "dmu_objset_destroy(%s) = %d", snap1name, error);
+
+	(void) rw_unlock(&ztest_shared->zs_name_lock);
 }
 
 /*
@@ -2961,12 +2918,12 @@ ztest_verify_blocks(char *pool)
 	isa = strdup(isa);
 	/* LINTED */
 	(void) sprintf(bin,
-	    "/usr/sbin%.*s/zdb -bc%s%s -U /tmp/zpool.cache -O %s %s",
+	    "/usr/sbin%.*s/zdb -bc%s%s -U /tmp/zpool.cache %s",
 	    isalen,
 	    isa,
 	    zopt_verbose >= 3 ? "s" : "",
 	    zopt_verbose >= 4 ? "v" : "",
-	    ztest_random(2) == 0 ? "pre" : "post", pool);
+	    pool);
 	free(isa);
 
 	if (zopt_verbose >= 5)
@@ -3039,7 +2996,7 @@ ztest_spa_import_export(char *oldname, char *newname)
 	/*
 	 * Export it.
 	 */
-	error = spa_export(oldname, &config, B_FALSE);
+	error = spa_export(oldname, &config, B_FALSE, B_FALSE);
 	if (error)
 		fatal(0, "spa_export('%s') = %d", oldname, error);
 
@@ -3332,8 +3289,6 @@ ztest_run(char *pool)
 
 	while (--t >= 0) {
 		VERIFY(thr_join(za[t].za_thread, NULL, NULL) == 0);
-		if (za[t].za_th)
-			traverse_fini(za[t].za_th);
 		if (t < zopt_datasets) {
 			zil_close(za[t].za_zilog);
 			dmu_objset_close(za[t].za_os);

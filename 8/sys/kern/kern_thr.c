@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 
 static inline int
 suword_lwpid(void *addr, lwpid_t lwpid)
@@ -199,6 +199,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
+	bzero(&newtd->td_rux, sizeof(newtd->td_rux));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
@@ -303,12 +304,18 @@ int
 thr_kill(struct thread *td, struct thr_kill_args *uap)
     /* long id, int sig */
 {
+	ksiginfo_t ksi;
 	struct thread *ttd;
 	struct proc *p;
 	int error;
 
 	p = td->td_proc;
 	error = 0;
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = uap->sig;
+	ksi.ksi_code = SI_USER;
+	ksi.ksi_pid = p->p_pid;
+	ksi.ksi_uid = td->td_ucred->cr_ruid;
 	PROC_LOCK(p);
 	if (uap->id == -1) {
 		if (uap->sig != 0 && !_SIG_VALID(uap->sig)) {
@@ -320,7 +327,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 					error = 0;
 					if (uap->sig == 0)
 						break;
-					tdsignal(p, ttd, uap->sig, NULL);
+					tdsignal(p, ttd, uap->sig, &ksi);
 				}
 			}
 		}
@@ -336,7 +343,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 		else if (!_SIG_VALID(uap->sig))
 			error = EINVAL;
 		else
-			tdsignal(p, ttd, uap->sig, NULL);
+			tdsignal(p, ttd, uap->sig, &ksi);
 	}
 	PROC_UNLOCK(p);
 	return (error);
@@ -346,6 +353,7 @@ int
 thr_kill2(struct thread *td, struct thr_kill2_args *uap)
     /* pid_t pid, long id, int sig */
 {
+	ksiginfo_t ksi;
 	struct thread *ttd;
 	struct proc *p;
 	int error;
@@ -362,6 +370,11 @@ thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 
 	error = p_cansignal(td, p, uap->sig);
 	if (error == 0) {
+		ksiginfo_init(&ksi);
+		ksi.ksi_signo = uap->sig;
+		ksi.ksi_code = SI_USER;
+		ksi.ksi_pid = td->td_proc->p_pid;
+		ksi.ksi_uid = td->td_ucred->cr_ruid;
 		if (uap->id == -1) {
 			if (uap->sig != 0 && !_SIG_VALID(uap->sig)) {
 				error = EINVAL;
@@ -372,7 +385,8 @@ thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 						error = 0;
 						if (uap->sig == 0)
 							break;
-						tdsignal(p, ttd, uap->sig, NULL);
+						tdsignal(p, ttd, uap->sig,
+						    &ksi);
 					}
 				}
 			}
@@ -388,7 +402,7 @@ thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 			else if (!_SIG_VALID(uap->sig))
 				error = EINVAL;
 			else
-				tdsignal(p, ttd, uap->sig, NULL);
+				tdsignal(p, ttd, uap->sig, &ksi);
 		}
 	}
 	PROC_UNLOCK(p);

@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -452,8 +452,32 @@ ACPI_OBJECT_TYPE
 AslMapNamedOpcodeToDataType (
     UINT16                  Opcode);
 
+
+/*
+ * aslpredef - ACPI predefined names support
+ */
 void
-MpDisplayReservedNames (
+ApCheckForPredefinedMethod (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo);
+
+void
+ApCheckPredefinedReturnValue (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo);
+
+UINT32
+ApCheckForPredefinedName (
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Name);
+
+void
+ApCheckForPredefinedObject (
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Name);
+
+void
+ApDisplayReservedNames (
     void);
 
 
@@ -511,7 +535,7 @@ TrCreateLeafNode (
 ACPI_PARSE_OBJECT *
 TrCreateValuedLeafNode (
     UINT32                  ParseOpcode,
-    ACPI_INTEGER            Value);
+    UINT64                  Value);
 
 ACPI_PARSE_OBJECT *
 TrLinkChildren (
@@ -554,6 +578,10 @@ TrLinkPeerNodes (
 void
 AslAbort (
     void);
+
+void
+FlAddIncludeDirectory (
+    char                    *Dir);
 
 void
 FlOpenIncludeFile (
@@ -714,7 +742,7 @@ UtCheckIntegerRange (
     UINT32                  LowValue,
     UINT32                  HighValue);
 
-ACPI_INTEGER
+UINT64
 UtDoConstant (
     char                    *String);
 

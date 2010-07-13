@@ -28,10 +28,18 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <opt_xtrace.h>
+#include "opt_xtrace.h"
 
 #include <machine/pte.h>
 #include <assym.s>
+
+/*
+ * Nested TLB restart tokens. These are used by the
+ * nested TLB handler for jumping back to the code
+ * where the nested TLB was caused.
+ */
+#define	NTLBRT_SAVE	0x12c12c
+#define	NTLBRT_RESTORE  0x12c12d
 
 /*
  * ar.k7 = kernel memory stack
@@ -81,10 +89,10 @@ xhead:	data8	xtrace
 	addl	r29=1024*5*8,r0 ;;		\
 (p15)	sub	r27=r28,r29 ;;			\
 } ;						\
-{	.mib ;					\
+{	.mmi ;					\
 	st8	[r28]=r27 ;			\
-	mov	pr=r25,0x1ffff ;		\
-	nop	0 ;;				\
+	nop	0 ;				\
+	mov	pr=r25,0x1ffff ;;		\
 }
 
 #else
@@ -140,9 +148,10 @@ ENTRY_NOPROFILE(exception_save, 0)
 	add		r31=8,r30
 	;;
 }
-{	.mlx
+{	.mmi
 	mov		r22=cr.iip
-	movl		r26=exception_save_restart
+	nop		0
+	addl		r29=NTLBRT_SAVE,r0	// 22-bit restart token.
 	;;
 }
 
@@ -157,10 +166,31 @@ ENTRY_NOPROFILE(exception_save, 0)
 	 * that are currently alive:
 	 *	r16,r17=arguments
 	 *	r18=pr, r19=length, r20=unat, r21=rsc, r22=iip, r23=TOS
-	 *	r26=restart point
+	 *	r29=restart point
 	 *	r30,r31=trapframe pointers
 	 *	p14,p15=memory stack switch
 	 */
+
+	/* PTC.G enter non-exclusive */
+	mov	r24 = ar.ccv
+	movl	r25 = pmap_ptc_g_sem
+	;;
+.ptc_g_0:
+	ld8.acq	r26 = [r25]
+	;;
+	tbit.nz	p12, p0 = r26, 63
+(p12)	br.cond.spnt.few .ptc_g_0
+	;;
+	mov	ar.ccv = r26
+	adds	r27 = 1, r26
+	;;
+	cmpxchg8.rel	r27 = [r25], r27, ar.ccv
+	;;
+	cmp.ne	p12, p0 = r26, r27
+(p12)	br.cond.spnt.few .ptc_g_0
+	;;
+	mov	ar.ccv = r24
+
 exception_save_restart:
 {	.mmi
 	st8		[r30]=r19,16		// length
@@ -226,7 +256,7 @@ exception_save_restart:
 	nop		0
 	;;
 }
-{	.mmb
+{	.mmi
 (p13)	mov		ar.rnat=r19
 	mov		r18=ar.bsp
 	nop		0
@@ -239,7 +269,7 @@ exception_save_restart:
 	;;
 }
 	// r19=ifs, r22=iip
-{	.mmb
+{	.mmi
 	st8		[r31]=r18,16		// ndirty
 	st8		[r30]=r19,16		// cfm
 	nop		0
@@ -251,7 +281,7 @@ exception_save_restart:
 	add		r29=16,r30
 	;;
 }
-{	.mmb
+{	.mmi
 	st8		[r30]=r17,24		// ifa
 	st8		[r31]=r18,24		// isr
 	nop		0
@@ -398,7 +428,24 @@ exception_save_restart:
 	movl		gp=__gp
 	;;
 }
-{	.mfb
+
+	/* PTC.G leave non-exclusive */
+	srlz.d
+	movl	r25 = pmap_ptc_g_sem
+	;;
+.ptc_g_1:
+	ld8.acq r26 = [r25]
+	;;
+	mov	ar.ccv = r26
+	adds	r27 = -1, r26
+	;;
+	cmpxchg8.rel	r27 = [r25], r27, ar.ccv
+	;;
+	cmp.ne	p12, p0 = r26, r27
+(p12)	br.cond.spnt.few .ptc_g_1
+	;;
+
+{	.mib
 	srlz.d
 	nop		0
 	br.sptk		b7
@@ -543,7 +590,7 @@ ENTRY_NOPROFILE(exception_restore, 0)
 	ld8		r21=[r31],24		// rnat
 	mov		ar.pfs=r28
 	;;
-	ld8.fill	r29=[r30],16		// tp
+	ld8.fill	r26=[r30],16		// tp
 	ld8		r22=[r31],16		// rsc
 	;;
 {	.mmi
@@ -554,21 +601,21 @@ ENTRY_NOPROFILE(exception_restore, 0)
 }
 {	.mmi
 	ld8.fill	r1=[r30],16		// gp
-	ld8		r25=[r31],16		// ndirty
+	ld8		r27=[r31],16		// ndirty
 	cmp.le		p14,p15=5,r28
 	;;
 }
-{	.mmb
-	ld8		r26=[r30]		// cfm
+{	.mmi
+	ld8		r25=[r30]		// cfm
 	ld8		r19=[r31]		// ip
 	nop		0
 	;;
 }
-{	.mib
+{	.mii
 	// Switch register stack
 	alloc		r30=ar.pfs,0,0,0,0	// discard current frame
-	shl		r31=r25,16		// value for ar.rsc
-	nop		0
+	shl		r31=r27,16		// value for ar.rsc
+(p15)	mov		r13=r26
 	;;
 }
 	// The loadrs can fault if the backing store is not currently
@@ -579,7 +626,7 @@ ENTRY_NOPROFILE(exception_restore, 0)
 {	.mmi
 	mov		ar.rsc=r31		// setup for loadrs
 	mov		ar.k7=r16
-(p15)	mov		r13=r29
+	addl		r29=NTLBRT_RESTORE,r0	// 22-bit restart token 
 	;;
 }
 exception_restore_restart:
@@ -597,20 +644,20 @@ exception_restore_restart:
 	dep		r31=0,r31,0,13		// 8KB aligned
 	;;
 }
-{	.mmb
+{	.mmi
 	mov		ar.k6=r31
 	mov		ar.rnat=r21
 	nop		0
 	;;
 }
-{	.mmb
+{	.mmi
 	mov		ar.unat=r17
 	mov		cr.iip=r19
 	nop		0
 }
 {	.mmi
 	mov		cr.ipsr=r24
-	mov		cr.ifs=r26
+	mov		cr.ifs=r25
 	mov		pr=r18,0x1ffff
 	;;
 }
@@ -647,7 +694,7 @@ END(exception_restore)
 	add		out1=16,sp ;		\
 	br.call.sptk	rp=_func_ ;;		\
 } ;						\
-{	.mfb ;					\
+{	.mib ;					\
 	nop		0 ;			\
 	nop		0 ;			\
 	br.sptk		exception_restore ;;	\
@@ -667,7 +714,7 @@ ivt_##name:					\
 #define	IVT_END(name)				\
 	.endp	ivt_##name
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #define	IA32_TRAP	ia32_trap
 #else
 #define	IA32_TRAP	trap
@@ -943,7 +990,7 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 }
 {	.mii
 	ld8		r27=[r27]				// dir L0 page
-	extr.u		r29=r30,2*PAGE_SHIFT-5, PAGE_SHIFT-3	// dir L1 index
+	extr.u		r26=r30,2*PAGE_SHIFT-5, PAGE_SHIFT-3	// dir L1 index
 	;;
 	dep		r27=0,r27,61,3
 	;;
@@ -956,16 +1003,16 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 	;;
 }
 {	.mmi
-	shladd		r27=r29,3,r27
+	shladd		r27=r26,3,r27
 	;;
-	mov		r29=rr[r30]
+	mov		r26=rr[r30]
 	dep		r27=0,r27,61,3
 	;;
 }
 {	.mii
 	ld8		r27=[r27]				// pte page
 	shl		r28=r28,5
-	dep		r29=0,r29,0,2
+	dep		r26=0,r26,0,2
 	;;
 }
 {	.mmi
@@ -978,28 +1025,54 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 {	.mmi
 	ld8		r28=[r27]		// pte
 	;;
-	mov		cr.itir=r29
+	mov		cr.itir=r26
 	or		r28=PTE_DIRTY+PTE_ACCESSED,r28
 	;;
 }
-{	.mlx
+{	.mmi
 	st8		[r27]=r28
-	movl		r29=exception_save_restart
 	;;
+	addl		r26=NTLBRT_SAVE,r0
+	addl		r27=NTLBRT_RESTORE,r0
 }
 {	.mmi
 	itc.d		r28
 	;;
 	ssm		psr.dt
-	cmp.eq		p12,p13=r26,r29
+	cmp.eq		p12,p0=r29,r26
 	;;
 }
-{	.mbb
+{	.mib
 	srlz.d
+	cmp.eq		p13,p0=r29,r27
 (p12)	br.sptk		exception_save_restart
+	;;
+}
+{	.mib
+	nop		0
+	nop		0
 (p13)	br.sptk		exception_restore_restart
 	;;
 }
+{	.mlx
+	mov		r26=ar.bsp
+	movl		r27=kstack
+	;;
+}
+{	.mmi
+	mov		r28=sp
+	nop		0
+	addl		r27=KSTACK_PAGES*PAGE_SIZE-16,r0
+	;;
+}
+{	.mmi
+	mov		sp=r27
+	;;
+	mov		r27=ar.bspstore
+	nop		0
+	;;
+}
+	CALL(trap, 5, r30)
 IVT_END(Data_Nested_TLB)
 
 IVT_ENTRY(Instruction_Key_Miss, 0x1800)
@@ -1252,13 +1325,13 @@ IVT_ENTRY(Break_Instruction, 0x2c00)
 (p11)	srlz.d
 	add		out1=16,sp
 }
-{	.mfb
+{	.mib
 	nop		0
 	nop		0
 	br.call.sptk	rp=trap
 	;;
 }
-{	.mfb
+{	.mib
 	nop		0
 	nop		0
 	br.sptk		exception_restore
@@ -1268,24 +1341,24 @@ IVT_END(Break_Instruction)
 
 IVT_ENTRY(External_Interrupt, 0x3000)
 {	.mib
-	mov		r17=cr.ivr	// Put the vector in the trap frame.
+	mov		r17=ar.itc	// Put the ITC in the trapframe.
 	mov		r16=ip
 	br.sptk		exception_save
 	;;
 }
-{	.mfb
+{	.mmi
 	alloc		r15=ar.pfs,0,0,1,0
 	nop		0
 	nop		0
 	;;
 }
-{	.mfb
+{	.mib
 	add		out0=16,sp
 	nop		0
-	br.call.sptk	rp=interrupt
+	br.call.sptk	rp=ia64_handle_intr
 	;;
 }
-{	.mfb
+{	.mib
 	nop		0
 	nop		0
 	br.sptk		exception_restore

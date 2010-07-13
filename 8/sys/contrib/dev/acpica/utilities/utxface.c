@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -360,6 +360,16 @@ AcpiInitializeObjects (
     }
 
     /*
+     * Execute any module-level code that was detected during the table load
+     * phase. Although illegal since ACPI 2.0, there are many machines that
+     * contain this type of code. Each block of detected executable AML code
+     * outside of any control method is wrapped with a temporary control
+     * method object and placed on a global list. The methods on this list
+     * are executed below.
+     */
+    AcpiNsExecModuleCodeList ();
+
+    /*
      * Initialize the objects that remain uninitialized. This runs the
      * executable AML that may be part of the declaration of these objects:
      * OperationRegions, BufferFields, Buffers, and Packages.
@@ -437,7 +447,7 @@ ACPI_EXPORT_SYMBOL (AcpiInitializeObjects)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Shutdown the ACPI subsystem.  Release all resources.
+ * DESCRIPTION: Shutdown the ACPICA subsystem and release all resources.
  *
  ******************************************************************************/
 
@@ -451,14 +461,27 @@ AcpiTerminate (
     ACPI_FUNCTION_TRACE (AcpiTerminate);
 
 
+    /* Just exit if subsystem is already shutdown */
+
+    if (AcpiGbl_Shutdown)
+    {
+        ACPI_ERROR ((AE_INFO, "ACPI Subsystem is already terminated"));
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /* Subsystem appears active, go ahead and shut it down */
+
+    AcpiGbl_Shutdown = TRUE;
+    AcpiGbl_StartupFlags = 0;
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
+
     /* Terminate the AML Debugger if present */
 
-    ACPI_DEBUGGER_EXEC(AcpiGbl_DbTerminateThreads = TRUE);
+    ACPI_DEBUGGER_EXEC (AcpiGbl_DbTerminateThreads = TRUE);
 
     /* Shutdown and free all resources */
 
     AcpiUtSubsystemShutdown ();
-
 
     /* Free the mutex objects */
 
@@ -480,8 +503,8 @@ AcpiTerminate (
 
 ACPI_EXPORT_SYMBOL (AcpiTerminate)
 
-#ifndef ACPI_ASL_COMPILER
 
+#ifndef ACPI_ASL_COMPILER
 /*******************************************************************************
  *
  * FUNCTION:    AcpiSubsystemStatus

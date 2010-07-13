@@ -102,7 +102,7 @@ auth_password(Authctxt *authctxt, const char *password)
 	}
 #endif
 #ifdef HAVE_CYGWIN
-	if (is_winnt) {
+	{
 		HANDLE hToken = cygwin_logon_user(pw, password);
 
 		if (hToken == INVALID_HANDLE_VALUE)

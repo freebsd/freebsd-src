@@ -50,7 +50,7 @@
 enum { UNSET, CREATE, DESTROY, LIST, RESCUE } action = UNSET;
 
 static const char *path = NULL;
-static int unit = -1;
+static int unit = G_GATE_UNIT_AUTO;
 static unsigned flags = 0;
 static int force = 0;
 static unsigned queue_size = G_GATE_QUEUE_SIZE;

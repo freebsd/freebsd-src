@@ -1058,12 +1058,13 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 static int
 mpt_set_initial_config_spi(struct mpt_softc *mpt)
 {
-	int i, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
-	int error;
+	int error, i, pp1val;
 
 	mpt->mpt_disc_enable = 0xff;
 	mpt->mpt_tag_enable = 0;
 
+	pp1val = ((1 << mpt->mpt_ini_id) <<
+	    MPI_SCSIPORTPAGE1_CFG_SHIFT_PORT_RESPONSE_ID) | mpt->mpt_ini_id;
 	if (mpt->mpt_port_page1.Configuration != pp1val) {
 		CONFIG_PAGE_SCSI_PORT_1 tmp;
 
@@ -1208,14 +1209,18 @@ mpt_cam_detach(struct mpt_softc *mpt)
 
 	if (mpt->sim != NULL) {
 		xpt_free_path(mpt->path);
+		MPT_LOCK(mpt);
 		xpt_bus_deregister(cam_sim_path(mpt->sim));
+		MPT_UNLOCK(mpt);
 		cam_sim_free(mpt->sim, TRUE);
 		mpt->sim = NULL;
 	}
 
 	if (mpt->phydisk_sim != NULL) {
 		xpt_free_path(mpt->phydisk_path);
+		MPT_LOCK(mpt);
 		xpt_bus_deregister(cam_sim_path(mpt->phydisk_sim));
+		MPT_UNLOCK(mpt);
 		cam_sim_free(mpt->phydisk_sim, TRUE);
 		mpt->phydisk_sim = NULL;
 	}
@@ -1245,7 +1250,10 @@ mpt_timeout(void *arg)
 	ccb = (union ccb *)arg;
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 
+#if __FreeBSD_version < 500000
 	MPT_LOCK(mpt);
+#endif
+	MPT_LOCK_ASSERT(mpt);
 	req = ccb->ccb_h.ccb_req_ptr;
 	mpt_prt(mpt, "request %p:%u timed out for ccb %p (req->ccb %p)\n", req,
 	    req->serno, ccb, req->ccb);
@@ -1256,7 +1264,9 @@ mpt_timeout(void *arg)
 		req->state |= REQ_STATE_TIMEDOUT;
 		mpt_wakeup_recovery_thread(mpt);
 	}
+#if __FreeBSD_version < 500000
 	MPT_UNLOCK(mpt);
+#endif
 }
 
 /*
@@ -2553,6 +2563,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			}
 			xpt_setup_ccb(&crs.ccb_h, tmppath, 5);
 			crs.ccb_h.func_code = XPT_REL_SIMQ;
+			crs.ccb_h.flags = CAM_DEV_QFREEZE;
 			crs.release_flags = RELSIM_ADJUST_OPENINGS;
 			crs.openings = pqf->CurrentDepth - 1;
 			xpt_action((union ccb *)&crs);
@@ -2564,6 +2575,10 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		CAMLOCK_2_MPTLOCK(mpt);
 		break;
 	}
+	case MPI_EVENT_IR_RESYNC_UPDATE:
+		mpt_prt(mpt, "IR resync update %d completed\n",
+		    (data0 >> 16) & 0xff);
+		break;
 	case MPI_EVENT_EVENT_CHANGE:
 	case MPI_EVENT_INTEGRATED_RAID:
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:

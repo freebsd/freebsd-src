@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.82.50.2 2009/01/18 23:47:40 tbox Exp $ */
+/* $Id: rdataset.c,v 1.82.50.2.22.2 2010/02/25 10:57:12 tbox Exp $ */
 
 /*! \file */
 
@@ -176,6 +176,8 @@ static dns_rdatasetmethods_t question_methods = {
 	question_current,
 	question_clone,
 	question_count,
+	NULL,
+	NULL,
 	NULL,
 	NULL,
 	NULL,
@@ -732,3 +734,22 @@ dns_rdataset_putadditional(dns_acache_t *acache,
 	return (ISC_R_FAILURE);
 }
 
+void
+dns_rdataset_settrust(dns_rdataset_t *rdataset, dns_trust_t trust) {
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(rdataset->methods != NULL);
+
+	if (rdataset->methods->settrust != NULL)
+		(rdataset->methods->settrust)(rdataset, trust);
+	else
+		rdataset->trust = trust;
+}
+
+void
+dns_rdataset_expire(dns_rdataset_t *rdataset) {
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(rdataset->methods != NULL);
+
+	if (rdataset->methods->expire != NULL)
+		(rdataset->methods->expire)(rdataset);
+}

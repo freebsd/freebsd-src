@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -493,6 +493,24 @@ typedef union acpi_predefined_info
 
 } ACPI_PREDEFINED_INFO;
 
+
+/* Data block used during object validation */
+
+typedef struct acpi_predefined_data
+{
+    char                        *Pathname;
+    const ACPI_PREDEFINED_INFO  *Predefined;
+    union acpi_operand_object   *ParentPackage;
+    UINT32                      Flags;
+    UINT8                       NodeFlags;
+
+} ACPI_PREDEFINED_DATA;
+
+/* Defines for Flags field above */
+
+#define ACPI_OBJECT_REPAIRED    1
+
+
 /*
  * Bitmapped return value types
  * Note: the actual data types must be contiguous, a loop in nspredef.c
@@ -543,6 +561,8 @@ typedef struct acpi_gpe_event_info
     struct acpi_gpe_register_info   *RegisterInfo;  /* Backpointer to register info */
     UINT8                           Flags;          /* Misc info about this GPE */
     UINT8                           GpeNumber;      /* This GPE */
+    UINT8                           RuntimeCount;   /* References to a run GPE */
+    UINT8                           WakeupCount;    /* References to a wake GPE */
 
 } ACPI_GPE_EVENT_INFO;
 
@@ -572,6 +592,7 @@ typedef struct acpi_gpe_block_info
     ACPI_GPE_EVENT_INFO             *EventInfo;     /* One for each GPE */
     ACPI_GENERIC_ADDRESS            BlockAddress;   /* Base address of the block */
     UINT32                          RegisterCount;  /* Number of register pairs in block */
+    UINT16                          GpeCount;       /* Number of individual GPEs in block */
     UINT8                           BlockBaseNumber;/* Base GPE number for this block */
 
 } ACPI_GPE_BLOCK_INFO;
@@ -835,8 +856,7 @@ typedef struct acpi_opcode_info
 
 typedef union acpi_parse_value
 {
-    ACPI_INTEGER                    Integer;        /* Integer constant (Up to 64 bits) */
-    UINT64_STRUCT                   Integer64;      /* Structure overlay for 2 32-bit Dwords */
+    UINT64                          Integer;        /* Integer constant (Up to 64 bits) */
     UINT32                          Size;           /* bytelist or field size */
     char                            *String;        /* NULL terminated string */
     UINT8                           *Buffer;        /* buffer or string */
@@ -1110,6 +1130,9 @@ typedef struct acpi_bit_register_info
 #define ACPI_OSI_WIN_XP_SP2             0x05
 #define ACPI_OSI_WINSRV_2003_SP1        0x06
 #define ACPI_OSI_WIN_VISTA              0x07
+#define ACPI_OSI_WINSRV_2008            0x08
+#define ACPI_OSI_WIN_VISTA_SP1          0x09
+#define ACPI_OSI_WIN_7                  0x0A
 
 #define ACPI_ALWAYS_ILLEGAL             0x00
 
@@ -1194,6 +1217,29 @@ typedef struct acpi_port_info
  ****************************************************************************/
 
 #define ACPI_ASCII_ZERO                 0x30
+
+
+/*****************************************************************************
+ *
+ * Disassembler
+ *
+ ****************************************************************************/
+
+typedef struct acpi_external_list
+{
+    char                        *Path;
+    char                        *InternalPath;
+    struct acpi_external_list   *Next;
+    UINT32                      Value;
+    UINT16                      Length;
+    UINT8                       Type;
+    UINT8                       Flags;
+
+} ACPI_EXTERNAL_LIST;
+
+/* Values for Flags field above */
+
+#define ACPI_IPATH_ALLOCATED    0x01
 
 
 /*****************************************************************************

@@ -67,7 +67,7 @@ struct opened_dev {
 	SLIST_ENTRY(opened_dev)	link;
 };
 
-SLIST_HEAD(, opened_dev) opened_devs = SLIST_HEAD_INITIALIZER(opened_dev);
+SLIST_HEAD(, opened_dev) opened_devs = SLIST_HEAD_INITIALIZER(opened_devs);
 
 static int
 ofwd_init(void)

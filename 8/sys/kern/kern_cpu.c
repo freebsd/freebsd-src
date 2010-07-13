@@ -935,8 +935,10 @@ cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS)
 	/* Get settings from the device and generate the output string. */
 	count = CF_MAX_LEVELS;
 	levels = malloc(count * sizeof(*levels), M_TEMP, M_NOWAIT);
-	if (levels == NULL)
+	if (levels == NULL) {
+		sbuf_delete(&sb);
 		return (ENOMEM);
+	}
 	error = CPUFREQ_LEVELS(sc->dev, levels, &count);
 	if (error) {
 		if (error == E2BIG)
@@ -974,8 +976,10 @@ cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS)
 	/* Get settings from the device and generate the output string. */
 	set_count = MAX_SETTINGS;
 	sets = malloc(set_count * sizeof(*sets), M_TEMP, M_NOWAIT);
-	if (sets == NULL)
+	if (sets == NULL) {
+		sbuf_delete(&sb);
 		return (ENOMEM);
+	}
 	error = CPUFREQ_DRV_SETTINGS(dev, sets, &set_count);
 	if (error)
 		goto out;

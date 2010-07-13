@@ -128,7 +128,6 @@ ef_attach(struct efnet *sc)
 	struct ifnet *ifp = sc->ef_ifp;
 
 	ifp->if_start = ef_start;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = ef_init;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);

@@ -69,10 +69,9 @@ struct	nfsmount {
 	u_int64_t nm_maxfilesize;	/* maximum file size */
 	int	nm_tprintf_initial_delay; /* initial delay */
 	int	nm_tprintf_delay;	/* interval for messages */
+	int	nm_negnametimeo;	/* timeout for -ve entries (sec) */
 
 	/* Newnfs additions */
-	int	nm_iothreadcnt;
-	struct proc *nm_iodwant[NFS_MAXRAHEAD];
 	struct	nfsclclient *nm_clp;
 	uid_t	nm_uid;			/* Uid for SetClientID etc. */
 	u_int64_t nm_clval;		/* identifies which clientid */
@@ -100,6 +99,10 @@ struct	nfsmount {
  * Convert mount ptr to nfsmount ptr.
  */
 #define	VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
+
+#ifndef NFS_DEFAULT_NEGNAMETIMEO
+#define NFS_DEFAULT_NEGNAMETIMEO	60
+#endif
 
 #endif	/* _KERNEL */
 

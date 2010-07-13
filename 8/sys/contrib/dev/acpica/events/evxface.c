@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -232,7 +232,7 @@ AcpiInstallFixedEventHandler (
     Status = AcpiEnableEvent (Event, 0);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_WARNING ((AE_INFO, "Could not enable fixed event %X", Event));
+        ACPI_WARNING ((AE_INFO, "Could not enable fixed event 0x%X", Event));
 
         /* Remove the handler */
 
@@ -303,7 +303,7 @@ AcpiRemoveFixedEventHandler (
     if (ACPI_FAILURE (Status))
     {
         ACPI_WARNING ((AE_INFO,
-            "Could not write to fixed event enable register %X", Event));
+            "Could not write to fixed event enable register 0x%X", Event));
     }
     else
     {
@@ -368,7 +368,7 @@ AcpiInstallNotifyHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (Device);
+    Node = AcpiNsValidateHandle (Device);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -555,7 +555,7 @@ AcpiRemoveNotifyHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (Device);
+    Node = AcpiNsValidateHandle (Device);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -705,7 +705,7 @@ AcpiInstallGpeHandler (
 
     /* Parameter validation */
 
-    if ((!Address) || (Type > ACPI_GPE_XRUPT_TYPE_MASK))
+    if ((!Address) || (Type & ~ACPI_GPE_XRUPT_TYPE_MASK))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }

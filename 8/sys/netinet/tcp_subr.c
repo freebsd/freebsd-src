@@ -111,28 +111,10 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-VNET_DEFINE(int, tcp_mssdflt);
+VNET_DEFINE(int, tcp_mssdflt) = TCP_MSS;
 #ifdef INET6
-VNET_DEFINE(int, tcp_v6mssdflt);
+VNET_DEFINE(int, tcp_v6mssdflt) = TCP6_MSS;
 #endif
-VNET_DEFINE(int, tcp_minmss);
-VNET_DEFINE(int, tcp_do_rfc1323);
-
-static VNET_DEFINE(int, icmp_may_rst);
-static VNET_DEFINE(int, tcp_isn_reseed_interval);
-static VNET_DEFINE(int, tcp_inflight_enable);
-static VNET_DEFINE(int, tcp_inflight_rttthresh);
-static VNET_DEFINE(int, tcp_inflight_min);
-static VNET_DEFINE(int, tcp_inflight_max);
-static VNET_DEFINE(int, tcp_inflight_stab);
-
-#define	V_icmp_may_rst			VNET(icmp_may_rst)
-#define	V_tcp_isn_reseed_interval	VNET(tcp_isn_reseed_interval)
-#define	V_tcp_inflight_enable		VNET(tcp_inflight_enable)
-#define	V_tcp_inflight_rttthresh	VNET(tcp_inflight_rttthresh)
-#define	V_tcp_inflight_min		VNET(tcp_inflight_min)
-#define	V_tcp_inflight_max		VNET(tcp_inflight_max)
-#define	V_tcp_inflight_stab		VNET(tcp_inflight_stab)
 
 static int
 sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
@@ -194,10 +176,12 @@ vnet_sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
  * with packet generation and sending. Set to zero to disable MINMSS
  * checking. This setting prevents us from sending too small packets.
  */
+VNET_DEFINE(int, tcp_minmss) = TCP_MINMSS;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_RW,
      &VNET_NAME(tcp_minmss), 0,
     "Minmum TCP Maximum Segment Size");
 
+VNET_DEFINE(int, tcp_do_rfc1323) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc1323), 0,
     "Enable rfc1323 (high performance TCP) extensions");
@@ -217,10 +201,14 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD,
     &VNET_NAME(tcbinfo.ipi_count), 0, "Number of active PCBs");
 
+static VNET_DEFINE(int, icmp_may_rst) = 1;
+#define	V_icmp_may_rst			VNET(icmp_may_rst)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW,
     &VNET_NAME(icmp_may_rst), 0,
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
+static VNET_DEFINE(int, tcp_isn_reseed_interval) = 0;
+#define	V_tcp_isn_reseed_interval	VNET(tcp_isn_reseed_interval)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &VNET_NAME(tcp_isn_reseed_interval), 0,
     "Seconds between reseeding of ISN secret");
@@ -233,6 +221,8 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, inflight, CTLFLAG_RW, 0,
     "TCP inflight data limiting");
 
+static VNET_DEFINE(int, tcp_inflight_enable) = 1;
+#define	V_tcp_inflight_enable		VNET(tcp_inflight_enable)
 SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, enable, CTLFLAG_RW,
     &VNET_NAME(tcp_inflight_enable), 0,
     "Enable automatic TCP inflight data limiting");
@@ -242,19 +232,27 @@ SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, debug, CTLFLAG_RW,
     &tcp_inflight_debug, 0,
     "Debug TCP inflight calculations");
 
+static VNET_DEFINE(int, tcp_inflight_rttthresh);
+#define	V_tcp_inflight_rttthresh	VNET(tcp_inflight_rttthresh)
 SYSCTL_VNET_PROC(_net_inet_tcp_inflight, OID_AUTO, rttthresh,
     CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(tcp_inflight_rttthresh), 0,
     vnet_sysctl_msec_to_ticks, "I",
     "RTT threshold below which inflight will deactivate itself");
 
+static VNET_DEFINE(int, tcp_inflight_min) = 6144;
+#define	V_tcp_inflight_min		VNET(tcp_inflight_min)
 SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, min, CTLFLAG_RW,
     &VNET_NAME(tcp_inflight_min), 0,
     "Lower-bound for TCP inflight window");
 
+static VNET_DEFINE(int, tcp_inflight_max) = TCP_MAXWIN << TCP_MAX_WINSHIFT;
+#define	V_tcp_inflight_max		VNET(tcp_inflight_max)
 SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, max, CTLFLAG_RW,
     &VNET_NAME(tcp_inflight_max), 0,
     "Upper-bound for TCP inflight window");
 
+static VNET_DEFINE(int, tcp_inflight_stab) = 20;
+#define	V_tcp_inflight_stab		VNET(tcp_inflight_stab)
 SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, stab, CTLFLAG_RW,
     &VNET_NAME(tcp_inflight_stab), 0,
     "Inflight Algorithm Stabilization 20 = 2 packets");
@@ -323,53 +321,6 @@ tcp_init(void)
 {
 	int hashsize;
 
-	V_blackhole = 0;
-	V_tcp_delack_enabled = 1;
-	V_drop_synfin = 0;
-	V_tcp_do_rfc3042 = 1;
-	V_tcp_do_rfc3390 = 1;
-	V_tcp_do_ecn = 0;
-	V_tcp_ecn_maxretries = 1;
-	V_tcp_insecure_rst = 0;
-	V_tcp_do_autorcvbuf = 1;
-	V_tcp_autorcvbuf_inc = 16*1024;
-	V_tcp_autorcvbuf_max = 256*1024;
-	V_tcp_do_rfc3465 = 1;
-	V_tcp_abc_l_var = 2;
-
-	V_tcp_mssdflt = TCP_MSS;
-#ifdef INET6
-	V_tcp_v6mssdflt = TCP6_MSS;
-#endif
-	V_tcp_minmss = TCP_MINMSS;
-	V_tcp_do_rfc1323 = 1;
-	V_icmp_may_rst = 1;
-	V_tcp_isn_reseed_interval = 0;
-	V_tcp_inflight_enable = 1;
-	V_tcp_inflight_min = 6144;
-	V_tcp_inflight_max = TCP_MAXWIN << TCP_MAX_WINSHIFT;
-	V_tcp_inflight_stab = 20;
-
-	V_path_mtu_discovery = 1;
-	V_ss_fltsz = 1;
-	V_ss_fltsz_local = 4;
-	V_tcp_do_newreno = 1;
-	V_tcp_do_tso = 1;
-	V_tcp_do_autosndbuf = 1;
-	V_tcp_autosndbuf_inc = 8*1024;
-	V_tcp_autosndbuf_max = 256*1024;
-
-	V_nolocaltimewait = 0;
-
-	V_tcp_do_sack = 1;
-	V_tcp_sack_maxholes = 128;
-	V_tcp_sack_globalmaxholes = 65536;
-	V_tcp_sack_globalholes = 0;
-
-	V_tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
-
-	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
-
 	INP_INFO_LOCK_INIT(&V_tcbinfo, "tcp");
 	LIST_INIT(&V_tcb);
 #ifdef VIMAGE
@@ -389,16 +340,21 @@ tcp_init(void)
 	V_tcbinfo.ipi_zone = uma_zcreate("tcp_inpcb", sizeof(struct inpcb),
 	    NULL, NULL, tcp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
+	V_tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
+
 	/*
 	 * These have to be type stable for the benefit of the timers.
 	 */
 	V_tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_tcpcb_zone, maxsockets);
+
 	tcp_tw_init();
 	syncache_init();
 	tcp_hc_init();
 	tcp_reass_init();
+
+	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 
@@ -445,15 +401,21 @@ void
 tcp_destroy(void)
 {
 
-	tcp_tw_destroy();
+	tcp_reass_destroy();
 	tcp_hc_destroy();
 	syncache_destroy();
+	tcp_tw_destroy();
 
 	/* XXX check that hashes are empty! */
 	hashdestroy(V_tcbinfo.ipi_hashbase, M_PCB,
 	    V_tcbinfo.ipi_hashmask);
 	hashdestroy(V_tcbinfo.ipi_porthashbase, M_PCB,
 	    V_tcbinfo.ipi_porthashmask);
+
+	uma_zdestroy(V_sack_hole_zone);
+	uma_zdestroy(V_tcpcb_zone);
+	uma_zdestroy(V_tcbinfo.ipi_zone);
+
 	INP_INFO_LOCK_DESTROY(&V_tcbinfo);
 }
 #endif
@@ -1096,7 +1058,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	INP_INFO_RLOCK(&V_tcbinfo);
 	for (inp = LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
 	    inp != NULL && i < n; inp = LIST_NEXT(inp, inp_list)) {
-		INP_RLOCK(inp);
+		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			/*
 			 * XXX: This use of cr_cansee(), introduced with
@@ -1111,10 +1073,12 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 					error = EINVAL;	/* Skip this inp. */
 			} else
 				error = cr_canseeinpcb(req->td->td_ucred, inp);
-			if (error == 0)
+			if (error == 0) {
+				in_pcbref(inp);
 				inp_list[i++] = inp;
+			}
 		}
-		INP_RUNLOCK(inp);
+		INP_WUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	n = i;
@@ -1150,8 +1114,16 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
 		} else
 			INP_RUNLOCK(inp);
-	
 	}
+	INP_INFO_WLOCK(&V_tcbinfo);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_WLOCK(inp);
+		if (!in_pcbrele(inp))
+			INP_WUNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(&V_tcbinfo);
+
 	if (!error) {
 		/*
 		 * Give the user an updated idea of our state.

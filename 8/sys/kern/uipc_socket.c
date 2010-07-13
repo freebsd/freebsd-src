@@ -136,7 +136,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <sys/sysent.h>
 #include <compat/freebsd32/freebsd32.h>
@@ -656,8 +656,11 @@ soclose(struct socket *so)
 	if (so->so_state & SS_ISCONNECTED) {
 		if ((so->so_state & SS_ISDISCONNECTING) == 0) {
 			error = sodisconnect(so);
-			if (error)
+			if (error) {
+				if (error == ENOTCONN)
+					error = 0;
 				goto drop;
+			}
 		}
 		if (so->so_options & SO_LINGER) {
 			if ((so->so_state & SS_ISDISCONNECTING) &&
@@ -764,6 +767,8 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (so->so_options & SO_ACCEPTCONN)
 		return (EOPNOTSUPP);
+
+	CURVNET_SET(so->so_vnet);
 	/*
 	 * If protocol is connection-based, can only connect once.
 	 * Otherwise, if connected, try to disconnect first.  This allows
@@ -779,10 +784,9 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * biting us.
 		 */
 		so->so_error = 0;
-		CURVNET_SET(so->so_vnet);
 		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
-		CURVNET_RESTORE();
 	}
+	CURVNET_RESTORE();
 
 	return (error);
 }
@@ -2495,7 +2499,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 
 		case SO_SNDTIMEO:
 		case SO_RCVTIMEO:
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
 
@@ -2676,7 +2680,7 @@ integer:
 
 			tv.tv_sec = optval / hz;
 			tv.tv_usec = (optval % hz) * tick;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
 

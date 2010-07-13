@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.520.12.7 2009/01/30 03:53:38 marka Exp $ */
+/* $Id: server.c,v 1.520.12.11.8.2 2010/02/25 10:57:11 tbox Exp $ */
 
 /*! \file */
 
@@ -2826,7 +2826,7 @@ set_limit(const cfg_obj_t **maps, const char *configname,
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
 		      result == ISC_R_SUCCESS ?
 			ISC_LOG_DEBUG(3) : ISC_LOG_WARNING,
-		      "set maximum %s to %" ISC_PRINT_QUADFORMAT "d: %s",
+		      "set maximum %s to %" ISC_PRINT_QUADFORMAT "u: %s",
 		      description, value, isc_result_totext(result));
 }
 
@@ -4337,6 +4337,8 @@ zone_from_args(ns_server_t *server, char *args, dns_zone_t **zonep) {
 	/* Partial match? */
 	if (result != ISC_R_SUCCESS && *zonep != NULL)
 		dns_zone_detach(zonep);
+	if (result == DNS_R_PARTIALMATCH)
+		result = ISC_R_NOTFOUND;
  fail1:
 	return (result);
 }
@@ -4724,6 +4726,8 @@ dumpdone(void *arg, isc_result_t result) {
 	}
 	if (dctx->cache != NULL) {
 		dns_adb_dump(dctx->view->view->adb, dctx->fp);
+		dns_resolver_printbadcache(dctx->view->view->resolver,
+					   dctx->fp);
 		dns_db_detach(&dctx->cache);
 	}
 	if (dctx->dumpzones) {
@@ -5401,7 +5405,9 @@ ns_server_tsiglist(ns_server_t *server, isc_buffer_t *text) {
  * Act on a "freeze" or "thaw" command from the command channel.
  */
 isc_result_t
-ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args) {
+ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
+		 isc_buffer_t *text)
+{
 	isc_result_t result, tresult;
 	dns_zone_t *zone = NULL;
 	dns_zonetype_t type;
@@ -5411,6 +5417,7 @@ ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args) {
 	char *journal;
 	const char *vname, *sep;
 	isc_boolean_t frozen;
+	const char *msg = NULL;
 
 	result = zone_from_args(server, args, &zone);
 	if (result != ISC_R_SUCCESS)
@@ -5441,27 +5448,52 @@ ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args) {
 		return (ISC_R_NOTFOUND);
 	}
 
+	result = isc_task_beginexclusive(server->task);
+	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 	frozen = dns_zone_getupdatedisabled(zone);
 	if (freeze) {
-		if (frozen)
+		if (frozen) {
+			msg = "WARNING: The zone was already frozen.\n"
+			      "Someone else may be editing it or "
+			      "it may still be re-loading.";
 			result = DNS_R_FROZEN;
-		if (result == ISC_R_SUCCESS)
+		}
+		if (result == ISC_R_SUCCESS) {
 			result = dns_zone_flush(zone);
+			if (result != ISC_R_SUCCESS)
+				msg = "Flushing the zone updates to "
+				      "disk failed.";
+		}
 		if (result == ISC_R_SUCCESS) {
 			journal = dns_zone_getjournal(zone);
 			if (journal != NULL)
 				(void)isc_file_remove(journal);
 		}
+		if (result == ISC_R_SUCCESS)
+			dns_zone_setupdatedisabled(zone, freeze);
 	} else {
 		if (frozen) {
-			result = dns_zone_load(zone);
-			if (result == DNS_R_CONTINUE ||
-			    result == DNS_R_UPTODATE)
+			result = dns_zone_loadandthaw(zone);
+			switch (result) {
+			case ISC_R_SUCCESS:
+			case DNS_R_UPTODATE:
+				msg = "The zone reload and thaw was "
+				      "successful.";
 				result = ISC_R_SUCCESS;
+				break;
+			case DNS_R_CONTINUE:
+				msg = "A zone reload and thaw was started.\n"
+				      "Check the logs to see the result.";
+				result = ISC_R_SUCCESS;
+				break;
+			}
 		}
 	}
-	if (result == ISC_R_SUCCESS)
-		dns_zone_setupdatedisabled(zone, freeze);
+	isc_task_endexclusive(server->task);
+
+	if (msg != NULL && strlen(msg) < isc_buffer_availablelength(text))
+		isc_buffer_putmem(text, (const unsigned char *)msg,
+				  strlen(msg) + 1);
 
 	view = dns_zone_getview(zone);
 	if (strcmp(view->name, "_bind") == 0 ||

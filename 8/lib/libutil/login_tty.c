@@ -50,7 +50,7 @@ login_tty(int fd)
 
 	s = setsid();
 	if (s == -1)
-		return (-1);
+		s = getsid(0);
 	if (tcsetsid(fd, s) == -1)
 		return (-1);
 	(void) dup2(fd, 0);

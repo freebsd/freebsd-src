@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -141,6 +141,22 @@ AcpiHwGetMode (
 /*
  * hwregs - ACPI Register I/O
  */
+ACPI_STATUS
+AcpiHwValidateRegister (
+    ACPI_GENERIC_ADDRESS    *Reg,
+    UINT8                   MaxBitWidth,
+    UINT64                  *Address);
+
+ACPI_STATUS
+AcpiHwRead (
+    UINT32                  *Value,
+    ACPI_GENERIC_ADDRESS    *Reg);
+
+ACPI_STATUS
+AcpiHwWrite (
+    UINT32                  Value,
+    ACPI_GENERIC_ADDRESS    *Reg);
+
 ACPI_BIT_REGISTER_INFO *
 AcpiHwGetBitRegisterInfo (
     UINT32                  RegisterId);

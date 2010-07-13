@@ -258,7 +258,7 @@ clnt_dg_create(
 		rpc_createerr.cf_error.re_errno = 0;
 		goto err2;
 	}
-	cu->cu_mcalllen = XDR_GETPOS(&xdrs);;
+	cu->cu_mcalllen = XDR_GETPOS(&xdrs);
 
 	/*
 	 * By default, closeit is always FALSE. It is users responsibility

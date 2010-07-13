@@ -213,8 +213,6 @@ fill_dbregs32(struct thread *td, struct dbreg32 *regs)
 	err = fill_dbregs(td, &dr);
 	for (i = 0; i < 8; i++)
 		regs->dr[i] = dr.dr[i];
-	for (i = 8; i < 16; i++)
-		regs->dr[i] = 0;
 	return (err);
 }
 

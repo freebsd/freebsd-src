@@ -376,7 +376,7 @@ chregister(struct cam_periph *periph, void *arg)
 	 * This first call can't block
 	 */
 	(void)cam_periph_hold(periph, PRIBIO);
-	xpt_schedule(periph, /*priority*/5);
+	xpt_schedule(periph, CAM_PRIORITY_DEV);
 
 	return(CAM_REQ_CMP);
 }

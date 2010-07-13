@@ -83,6 +83,7 @@ SRCS+=	ar5413.c
 #
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal/ar5416
 SRCS+=	ah_eeprom_v14.c \
+	ah_eeprom_v4k.c \
 	ar5416_ani.c ar5416_attach.c ar5416_beacon.c ar5416_cal.c \
 	ar5416_cal_iq.c ar5416_cal_adcgain.c ar5416_cal_adcdc.c \
 	ar5416_eeprom.c ar5416_gpio.c ar5416_interrupts.c ar5416_keycache.c \
@@ -91,6 +92,8 @@ SRCS+=	ah_eeprom_v14.c \
 SRCS+=	ar9160_attach.c
 # RF backend for 5416 and 9160
 SRCS+=	ar2133.c
+SRCS+=	ar9280.c ar9280_attach.c
+SRCS+=	ar9285.c ar9285_reset.c ar9285_attach.c
 
 # NB: rate control is bound to the driver by symbol names so only pick one
 .if ${ATH_RATE} == "sample"

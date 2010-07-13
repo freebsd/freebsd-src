@@ -1028,17 +1028,19 @@ int BN_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
 			assert(j <= al || j <= bl);
 			k = j+j;
 			t = BN_CTX_get(ctx);
+			if (t == NULL)
+				goto err;
 			if (al > j || bl > j)
 				{
-				bn_wexpand(t,k*4);
-				bn_wexpand(rr,k*4);
+				if (bn_wexpand(t,k*4) == NULL) goto err;
+				if (bn_wexpand(rr,k*4) == NULL) goto err;
 				bn_mul_part_recursive(rr->d,a->d,b->d,
 					j,al-j,bl-j,t->d);
 				}
 			else	/* al <= j || bl <= j */
 				{
-				bn_wexpand(t,k*2);
-				bn_wexpand(rr,k*2);
+				if (bn_wexpand(t,k*2) == NULL) goto err;
+				if (bn_wexpand(rr,k*2) == NULL) goto err;
 				bn_mul_recursive(rr->d,a->d,b->d,
 					j,al-j,bl-j,t->d);
 				}

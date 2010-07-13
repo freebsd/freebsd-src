@@ -38,15 +38,15 @@
 
 #include "procstat.h"
 
-static int aflag, bflag, cflag, fflag, kflag, sflag, tflag, vflag;
-int	hflag;
+static int aflag, bflag, cflag, fflag, iflag, jflag, kflag, sflag, tflag, vflag;
+int	hflag, nflag;
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: procstat [-h] [-w interval] [-b | -c | -f | "
-	    "-k | -s | -t | -v]\n");
+	fprintf(stderr, "usage: procstat [-h] [-n] [-w interval] [-b | -c | -f | "
+	    "-i | -j | -k | -s | -t | -v]\n");
 	fprintf(stderr, "                [-a | pid ...]\n");
 	exit(EX_USAGE);
 }
@@ -61,6 +61,10 @@ procstat(pid_t pid, struct kinfo_proc *kipp)
 		procstat_args(pid, kipp);
 	else if (fflag)
 		procstat_files(pid, kipp);
+	else if (iflag)
+		procstat_sigs(pid, kipp);
+	else if (jflag)
+		procstat_threads_sigs(pid, kipp);
 	else if (kflag)
 		procstat_kstack(pid, kipp, kflag);
 	else if (sflag)
@@ -109,7 +113,7 @@ main(int argc, char *argv[])
 	char *dummy;
 
 	interval = 0;
-	while ((ch = getopt(argc, argv, "abcfkhstvw:")) != -1) {
+	while ((ch = getopt(argc, argv, "abcfijknhstvw:")) != -1) {
 		switch (ch) {
 		case 'a':
 			aflag++;
@@ -127,8 +131,20 @@ main(int argc, char *argv[])
 			fflag++;
 			break;
 
+		case 'i':
+			iflag++;
+			break;
+
+		case 'j':
+			jflag++;
+			break;
+
 		case 'k':
 			kflag++;
+			break;
+
+		case 'n':
+			nflag++;
 			break;
 
 		case 'h':

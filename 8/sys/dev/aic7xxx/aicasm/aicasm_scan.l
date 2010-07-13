@@ -590,7 +590,7 @@ next_substitution(struct symbol *mac_symbol, const char *body_pos,
 }
 
 int
-yywrap()
+yywrap(void)
 {
 	include_t *include;
 

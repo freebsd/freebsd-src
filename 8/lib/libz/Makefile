@@ -19,6 +19,18 @@ SRCS = adler32.c compress.c crc32.c gzio.c uncompr.c deflate.c trees.c \
        zutil.c inflate.c inftrees.c inffast.c zopen.c infback.c
 INCS=		zconf.h zlib.h
 
+.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
+.PATH:		${.CURDIR}/contrib/asm686
+SRCS+=		match.S
+CFLAGS+=	-DASMV -DNO_UNDERLINE
+.endif
+
+.if ${MACHINE_ARCH} == "amd64"
+.PATH:		${.CURDIR}/contrib/gcc_gvmat64
+SRCS+=		gvmat64.S
+CFLAGS+=	-DASMV -DNO_UNDERLINE
+.endif
+
 minigzip:	all minigzip.o
 	$(CC) -o minigzip minigzip.o -L. -lz
 

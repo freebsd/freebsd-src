@@ -158,7 +158,8 @@ main(int argc, char *argv[])
 	}
 
 	dropgid = 0;
-	memf = nlistf = _PATH_DEVNULL;
+	memf = _PATH_DEVNULL;
+	nlistf = NULL;
 	while ((ch = getopt(argc, argv, p)) != -1)
 		switch (ch) {
 		case 'd':

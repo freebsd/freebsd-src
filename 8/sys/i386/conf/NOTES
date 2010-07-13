@@ -361,6 +361,9 @@ options 	VESA_DEBUG
 
 device		dpms		# DPMS suspend & resume via VESA BIOS
 
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+options		X86BIOS
+
 #
 # The Numeric Processing eXtension driver.  This is non-optional.
 device		npx
@@ -443,6 +446,9 @@ options 	VGA_WIDTH90		# support 90 column modes
 
 # Debugging.
 options 	VGA_DEBUG
+
+# Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
+device		s3pci
 
 # 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
 # the /dev/3dfx0 device to work with glide implementations.  This should get
@@ -826,6 +832,15 @@ options 	PMAP_SHPGPERPROC=201
 # PAE kernels default to a value of 512.
 #
 options 	KVA_PAGES=260
+
+#
+# Number of initial kernel page table pages used for early bootstrap.
+# This number should include enough pages to map the kernel, any
+# modules or other data loaded with the kernel by the loader, and data
+# structures allocated before the VM system is initialized such as the
+# vm_page_t array.  Each page table page maps 4MB (2MB with PAE).
+#
+options 	NKPT=31
 
 
 #####################################################################

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2010, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -171,13 +171,11 @@ AcpiEvQueueNotifyRequest (
  */
 ACPI_STATUS
 AcpiEvUpdateGpeEnableMasks (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
-    UINT8                   Type);
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
 ACPI_STATUS
 AcpiEvEnableGpe (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
-    BOOLEAN                 WriteToHardware);
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
 
 ACPI_STATUS
 AcpiEvDisableGpe (
@@ -187,6 +185,11 @@ ACPI_GPE_EVENT_INFO *
 AcpiEvGetGpeEventInfo (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber);
+
+ACPI_GPE_EVENT_INFO *
+AcpiEvLowGetGpeInfo (
+    UINT32                  GpeNumber,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock);
 
 
 /*
@@ -235,15 +238,6 @@ AcpiEvGpeDetect (
     ACPI_GPE_XRUPT_INFO     *GpeXruptList);
 
 ACPI_STATUS
-AcpiEvSetGpeType (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
-    UINT8                   Type);
-
-ACPI_STATUS
-AcpiEvCheckForWakeOnlyGpe (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo);
-
-ACPI_STATUS
 AcpiEvGpeInitialize (
     void);
 
@@ -265,7 +259,7 @@ AcpiEvAddressSpaceDispatch (
     UINT32                  Function,
     UINT32                  RegionOffset,
     UINT32                  BitWidth,
-    ACPI_INTEGER            *Value);
+    UINT64                  *Value);
 
 ACPI_STATUS
 AcpiEvAttachRegion (

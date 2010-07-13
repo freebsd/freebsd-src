@@ -211,7 +211,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct	aac_cam *camsc;
 	struct	aac_softc *sc;
-	struct	aac_srb32 *srb;
+	struct	aac_srb *srb;
 	struct	aac_fib *fib;
 	struct	aac_command *cm;
 
@@ -354,7 +354,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 	}
 
 	fib = cm->cm_fib;
-	srb = (struct aac_srb32 *)&fib->data[0];
+	srb = (struct aac_srb *)&fib->data[0];
 	cm->cm_datalen = 0;
 
 	switch (ccb->ccb_h.flags & CAM_DIR_MASK) {
@@ -405,10 +405,10 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 				if (ccb->ccb_h.flags & CAM_DATA_PHYS) {
 					/* Send a 32bit command */
 					fib->Header.Command = ScsiPortCommand;
-					srb->sg_map32.SgCount = 1;
-					srb->sg_map32.SgEntry[0].SgAddress =
+					srb->sg_map.SgCount = 1;
+					srb->sg_map.SgEntry[0].SgAddress =
 					    (uint32_t)(uintptr_t)csio->data_ptr;
-					srb->sg_map32.SgEntry[0].SgByteCount =
+					srb->sg_map.SgEntry[0].SgByteCount =
 					    csio->dxfer_len;
 				} else {
 					/*
@@ -417,15 +417,15 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 					 */
 					cm->cm_data = (void *)csio->data_ptr;
 					cm->cm_datalen = csio->dxfer_len;
-					cm->cm_sgtable = &srb->sg_map32;
+					cm->cm_sgtable = &srb->sg_map;
 				}
 			} else {
 				/* XXX Need to handle multiple s/g elements */
 				panic("aac_cam: multiple s/g elements");
 			}
 		} else {
-			srb->sg_map32.SgCount = 0;
-			srb->sg_map32.SgEntry[0].SgByteCount = 0;
+			srb->sg_map.SgCount = 0;
+			srb->sg_map.SgEntry[0].SgByteCount = 0;
 			srb->data_len = 0;
 		}
 
@@ -453,7 +453,6 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cm->cm_complete = aac_cam_complete;
 	cm->cm_private = ccb;
 	cm->cm_timestamp = time_uptime;
-	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 
 	fib->Header.XferState =
 	    AAC_FIBSTATE_HOSTOWNED	|
@@ -462,7 +461,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 	    AAC_FIBSTATE_REXPECTED	|
 	    AAC_FIBSTATE_NORM;
 	fib->Header.Size = sizeof(struct aac_fib_header) +
-	    sizeof(struct aac_srb32);
+	    sizeof(struct aac_srb);
 
 	aac_enqueue_ready(cm);
 	aac_startio(cm->cm_sc);

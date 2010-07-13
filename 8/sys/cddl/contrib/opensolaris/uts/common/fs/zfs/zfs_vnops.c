@@ -1209,15 +1209,17 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 			ltype = VOP_ISLOCKED(dvp);
 			VOP_UNLOCK(dvp, 0);
 		}
+		ZFS_EXIT(zfsvfs);
 		error = vn_lock(*vpp, cnp->cn_lkflags);
 		if (cnp->cn_flags & ISDOTDOT)
 			vn_lock(dvp, ltype | LK_RETRY);
 		if (error != 0) {
 			VN_RELE(*vpp);
 			*vpp = NULL;
-			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
+	} else {
+		ZFS_EXIT(zfsvfs);
 	}
 
 #ifdef FREEBSD_NAMECACHE
@@ -1236,8 +1238,6 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		}
 	}
 #endif
-
-	ZFS_EXIT(zfsvfs);
 
 	return (error);
 }
@@ -2344,8 +2344,6 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	ZFS_VERIFY_ZP(zp);
 	pzp = zp->z_phys;
 
-	mutex_enter(&zp->z_lock);
-
 	/*
 	 * If ACL is trivial don't bother looking for ACE_READ_ATTRIBUTES.
 	 * Also, if we are the owner don't bother, since owner should
@@ -2355,7 +2353,6 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	    (pzp->zp_uid != crgetuid(cr))) {
 		if (error = zfs_zaccess(zp, ACE_READ_ATTRIBUTES, 0,
 		    skipaclchk, cr)) {
-			mutex_exit(&zp->z_lock);
 			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
@@ -2366,6 +2363,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	 * than to determine whether we were asked the question.
 	 */
 
+	mutex_enter(&zp->z_lock);
 	vap->va_type = IFTOVT(pzp->zp_mode);
 	vap->va_mode = pzp->zp_mode & ~S_IFMT;
 	zfs_fuid_map_ids(zp, cr, &vap->va_uid, &vap->va_gid);
@@ -3208,6 +3206,15 @@ top:
 		}
 	}
 
+	/*
+	 * If the source and destination directories are the same, we should
+	 * grab the z_name_lock of that directory only once.
+	 */
+	if (sdzp == tdzp) {
+		zflg |= ZHAVELOCK;
+		rw_enter(&sdzp->z_name_lock, RW_READER);
+	}
+
 	if (cmp < 0) {
 		serr = zfs_dirent_lock(&sdl, sdzp, snm, &szp,
 		    ZEXISTS | zflg, NULL, NULL);
@@ -3230,6 +3237,10 @@ top:
 			if (tzp)
 				VN_RELE(ZTOV(tzp));
 		}
+
+		if (sdzp == tdzp)
+			rw_exit(&sdzp->z_name_lock);
+
 		if (strcmp(snm, ".") == 0 || strcmp(snm, "..") == 0)
 			serr = EINVAL;
 		ZFS_EXIT(zfsvfs);
@@ -3238,6 +3249,10 @@ top:
 	if (terr) {
 		zfs_dirent_unlock(sdl);
 		VN_RELE(ZTOV(szp));
+
+		if (sdzp == tdzp)
+			rw_exit(&sdzp->z_name_lock);
+
 		if (strcmp(tnm, "..") == 0)
 			terr = EINVAL;
 		ZFS_EXIT(zfsvfs);
@@ -3320,6 +3335,10 @@ top:
 			zfs_rename_unlock(&zl);
 		zfs_dirent_unlock(sdl);
 		zfs_dirent_unlock(tdl);
+
+		if (sdzp == tdzp)
+			rw_exit(&sdzp->z_name_lock);
+
 		VN_RELE(ZTOV(szp));
 		if (tzp)
 			VN_RELE(ZTOV(tzp));
@@ -3366,6 +3385,9 @@ out:
 
 	zfs_dirent_unlock(sdl);
 	zfs_dirent_unlock(tdl);
+
+	if (sdzp == tdzp)
+		rw_exit(&sdzp->z_name_lock);
 
 	VN_RELE(ZTOV(szp));
 	if (tzp)
@@ -3851,7 +3873,15 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 #endif
 
 	case _PC_ACL_EXTENDED:
-		*valp = 0;	/* TODO */
+		*valp = 0;
+		return (0);
+
+	case _PC_ACL_NFS4:
+		*valp = 1;
+		return (0);
+
+	case _PC_ACL_PATH_MAX:
+		*valp = ACL_MAX_ENTRIES;
 		return (0);
 
 	case _PC_MIN_HOLE_SIZE:
@@ -4471,6 +4501,26 @@ zfs_freebsd_pathconf(ap)
 	return (error);
 }
 
+static int
+zfs_freebsd_fifo_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		register_t *a_retval;
+	} */ *ap;
+{
+
+	switch (ap->a_name) {
+	case _PC_ACL_EXTENDED:
+	case _PC_ACL_NFS4:
+	case _PC_ACL_PATH_MAX:
+	case _PC_MAC_PRESENT:
+		return (zfs_freebsd_pathconf(ap));
+	default:
+		return (fifo_specops.vop_pathconf(ap));
+	}
+}
+
 /*
  * FreeBSD's extended attributes namespace defines file name prefix for ZFS'
  * extended attribute name:
@@ -4865,7 +4915,7 @@ zfs_freebsd_getacl(ap)
 	vsecattr_t      vsecattr;
 
 	if (ap->a_type != ACL_TYPE_NFS4)
-		return (EOPNOTSUPP);
+		return (EINVAL);
 
 	vsecattr.vsa_mask = VSA_ACE | VSA_ACECNT;
 	if (error = zfs_getsecattr(ap->a_vp, &vsecattr, 0, ap->a_cred, NULL))
@@ -4894,19 +4944,23 @@ zfs_freebsd_setacl(ap)
 	aclent_t	*aaclp;
 
 	if (ap->a_type != ACL_TYPE_NFS4)
-		return (EOPNOTSUPP);
+		return (EINVAL);
 
 	if (ap->a_aclp->acl_cnt < 1 || ap->a_aclp->acl_cnt > MAX_ACL_ENTRIES)
 		return (EINVAL);
 
 	/*
-	 * With NFS4 ACLs, chmod(2) may need to add additional entries,
+	 * With NFSv4 ACLs, chmod(2) may need to add additional entries,
 	 * splitting every entry into two and appending "canonical six"
 	 * entries at the end.  Don't allow for setting an ACL that would
 	 * cause chmod(2) to run out of ACL entries.
 	 */
 	if (ap->a_aclp->acl_cnt * 2 + 6 > ACL_MAX_ENTRIES)
 		return (ENOSPC);
+
+	error = acl_nfs4_check(ap->a_aclp, ap->a_vp->v_type == VDIR);
+	if (error != 0)
+		return (error);
 
 	vsecattr.vsa_mask = VSA_ACE;
 	aclbsize = ap->a_aclp->acl_cnt * sizeof(ace_t);
@@ -4974,11 +5028,9 @@ struct vop_vector zfs_vnodeops = {
 	.vop_deleteextattr =	zfs_deleteextattr,
 	.vop_setextattr =	zfs_setextattr,
 	.vop_listextattr =	zfs_listextattr,
-#ifdef notyet
 	.vop_getacl =		zfs_freebsd_getacl,
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
-#endif
 };
 
 struct vop_vector zfs_fifoops = {
@@ -4991,10 +5043,9 @@ struct vop_vector zfs_fifoops = {
 	.vop_reclaim =		zfs_freebsd_reclaim,
 	.vop_setattr =		zfs_freebsd_setattr,
 	.vop_write =		VOP_PANIC,
+	.vop_pathconf = 	zfs_freebsd_fifo_pathconf,
 	.vop_fid =		zfs_freebsd_fid,
-#ifdef notyet
 	.vop_getacl =		zfs_freebsd_getacl,
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
-#endif
 };
