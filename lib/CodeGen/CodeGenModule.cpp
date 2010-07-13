@@ -18,11 +18,12 @@
 #include "CGObjCRuntime.h"
 #include "Mangle.h"
 #include "TargetInfo.h"
-#include "clang/CodeGen/CodeGenOptions.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/Diagnostic.h"
@@ -86,8 +87,10 @@ void CodeGenModule::createObjCRuntime() {
 }
 
 void CodeGenModule::createCXXABI() {
-  // For now, just create an Itanium ABI.
-  ABI = CreateItaniumCXXABI(*this);
+  if (Context.Target.getCXXABI() == "microsoft")
+    ABI = CreateMicrosoftCXXABI(*this);
+  else
+    ABI = CreateItaniumCXXABI(*this);
 }
 
 void CodeGenModule::Release() {
@@ -101,6 +104,9 @@ void CodeGenModule::Release() {
   EmitCtorList(GlobalDtors, "llvm.global_dtors");
   EmitAnnotations();
   EmitLLVMUsed();
+
+  if (getCodeGenOpts().EmitDeclMetadata)
+    EmitDeclMetadata();
 }
 
 bool CodeGenModule::isTargetDarwin() const {
@@ -149,7 +155,38 @@ CodeGenModule::getDeclVisibilityMode(const Decl *D) const {
       return LangOptions::Protected;
     }
   }
+  
+  if (getLangOptions().CPlusPlus) {
+    // Entities subject to an explicit instantiation declaration get default
+    // visibility.
+    if (const FunctionDecl *Function = dyn_cast<FunctionDecl>(D)) {
+      if (Function->getTemplateSpecializationKind()
+                                        == TSK_ExplicitInstantiationDeclaration)
+        return LangOptions::Default;
+    } else if (const ClassTemplateSpecializationDecl *ClassSpec
+                              = dyn_cast<ClassTemplateSpecializationDecl>(D)) {
+      if (ClassSpec->getSpecializationKind()
+                                        == TSK_ExplicitInstantiationDeclaration)
+        return LangOptions::Default;
+    } else if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(D)) {
+      if (Record->getTemplateSpecializationKind()
+                                        == TSK_ExplicitInstantiationDeclaration)
+        return LangOptions::Default;
+    } else if (const VarDecl *Var = dyn_cast<VarDecl>(D)) {
+      if (Var->isStaticDataMember() &&
+          (Var->getTemplateSpecializationKind()
+                                      == TSK_ExplicitInstantiationDeclaration))
+        return LangOptions::Default;
+    }
 
+    // If -fvisibility-inlines-hidden was provided, then inline C++ member
+    // functions get "hidden" visibility by default.
+    if (getLangOptions().InlineVisibilityHidden)
+      if (const CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(D))
+        if (Method->isInlined())
+          return LangOptions::Hidden;
+  }
+           
   // This decl should have the same visibility as its parent.
   if (const DeclContext *DC = D->getDeclContext()) 
     return getDeclVisibilityMode(cast<Decl>(DC));
@@ -176,32 +213,44 @@ void CodeGenModule::setGlobalVisibility(llvm::GlobalValue *GV,
   }
 }
 
-void CodeGenModule::getMangledName(MangleBuffer &Buffer, GlobalDecl GD) {
+llvm::StringRef CodeGenModule::getMangledName(GlobalDecl GD) {
   const NamedDecl *ND = cast<NamedDecl>(GD.getDecl());
 
-  if (const CXXConstructorDecl *D = dyn_cast<CXXConstructorDecl>(ND))
-    return getMangledCXXCtorName(Buffer, D, GD.getCtorType());
-  if (const CXXDestructorDecl *D = dyn_cast<CXXDestructorDecl>(ND))
-    return getMangledCXXDtorName(Buffer, D, GD.getDtorType());
+  llvm::StringRef &Str = MangledDeclNames[GD.getCanonicalDecl()];
+  if (!Str.empty())
+    return Str;
 
-  return getMangledName(Buffer, ND);
+  if (!getMangleContext().shouldMangleDeclName(ND)) {
+    IdentifierInfo *II = ND->getIdentifier();
+    assert(II && "Attempt to mangle unnamed decl.");
+
+    Str = II->getName();
+    return Str;
+  }
+  
+  llvm::SmallString<256> Buffer;
+  if (const CXXConstructorDecl *D = dyn_cast<CXXConstructorDecl>(ND))
+    getMangleContext().mangleCXXCtor(D, GD.getCtorType(), Buffer);
+  else if (const CXXDestructorDecl *D = dyn_cast<CXXDestructorDecl>(ND))
+    getMangleContext().mangleCXXDtor(D, GD.getDtorType(), Buffer);
+  else if (const BlockDecl *BD = dyn_cast<BlockDecl>(ND))
+    getMangleContext().mangleBlock(GD, BD, Buffer);
+  else
+    getMangleContext().mangleName(ND, Buffer);
+
+  // Allocate space for the mangled name.
+  size_t Length = Buffer.size();
+  char *Name = MangledNamesAllocator.Allocate<char>(Length);
+  std::copy(Buffer.begin(), Buffer.end(), Name);
+  
+  Str = llvm::StringRef(Name, Length);
+  
+  return Str;
 }
 
-/// \brief Retrieves the mangled name for the given declaration.
-///
-/// If the given declaration requires a mangled name, returns an
-/// const char* containing the mangled name.  Otherwise, returns
-/// the unmangled name.
-///
-void CodeGenModule::getMangledName(MangleBuffer &Buffer,
-                                   const NamedDecl *ND) {
-  if (!getMangleContext().shouldMangleDeclName(ND)) {
-    assert(ND->getIdentifier() && "Attempt to mangle unnamed decl.");
-    Buffer.setString(ND->getNameAsCString());
-    return;
-  }
-
-  getMangleContext().mangleName(ND, Buffer.getBuffer());
+void CodeGenModule::getMangledName(GlobalDecl GD, MangleBuffer &Buffer,
+                                   const BlockDecl *BD) {
+  getMangleContext().mangleBlock(GD, BD, Buffer.getBuffer());
 }
 
 llvm::GlobalValue *CodeGenModule::GetGlobalValue(llvm::StringRef Name) {
@@ -333,35 +382,39 @@ llvm::GlobalValue::LinkageTypes
 CodeGenModule::getFunctionLinkage(const FunctionDecl *D) {
   GVALinkage Linkage = GetLinkageForFunction(getContext(), D, Features);
 
-  if (Linkage == GVA_Internal) {
+  if (Linkage == GVA_Internal)
     return llvm::Function::InternalLinkage;
-  } else if (D->hasAttr<DLLExportAttr>()) {
+  
+  if (D->hasAttr<DLLExportAttr>())
     return llvm::Function::DLLExportLinkage;
-  } else if (D->hasAttr<WeakAttr>()) {
+  
+  if (D->hasAttr<WeakAttr>())
     return llvm::Function::WeakAnyLinkage;
-  } else if (Linkage == GVA_C99Inline) {
-    // In C99 mode, 'inline' functions are guaranteed to have a strong
-    // definition somewhere else, so we can use available_externally linkage.
+  
+  // In C99 mode, 'inline' functions are guaranteed to have a strong
+  // definition somewhere else, so we can use available_externally linkage.
+  if (Linkage == GVA_C99Inline)
     return llvm::Function::AvailableExternallyLinkage;
-  } else if (Linkage == GVA_CXXInline || Linkage == GVA_TemplateInstantiation) {
-    // In C++, the compiler has to emit a definition in every translation unit
-    // that references the function.  We should use linkonce_odr because
-    // a) if all references in this translation unit are optimized away, we
-    // don't need to codegen it.  b) if the function persists, it needs to be
-    // merged with other definitions. c) C++ has the ODR, so we know the
-    // definition is dependable.
+  
+  // In C++, the compiler has to emit a definition in every translation unit
+  // that references the function.  We should use linkonce_odr because
+  // a) if all references in this translation unit are optimized away, we
+  // don't need to codegen it.  b) if the function persists, it needs to be
+  // merged with other definitions. c) C++ has the ODR, so we know the
+  // definition is dependable.
+  if (Linkage == GVA_CXXInline || Linkage == GVA_TemplateInstantiation)
     return llvm::Function::LinkOnceODRLinkage;
-  } else if (Linkage == GVA_ExplicitTemplateInstantiation) {
-    // An explicit instantiation of a template has weak linkage, since
-    // explicit instantiations can occur in multiple translation units
-    // and must all be equivalent. However, we are not allowed to
-    // throw away these explicit instantiations.
+  
+  // An explicit instantiation of a template has weak linkage, since
+  // explicit instantiations can occur in multiple translation units
+  // and must all be equivalent. However, we are not allowed to
+  // throw away these explicit instantiations.
+  if (Linkage == GVA_ExplicitTemplateInstantiation)
     return llvm::Function::WeakODRLinkage;
-  } else {
-    assert(Linkage == GVA_StrongExternal);
-    // Otherwise, we have strong external linkage.
-    return llvm::Function::ExternalLinkage;
-  }
+  
+  // Otherwise, we have strong external linkage.
+  assert(Linkage == GVA_StrongExternal);
+  return llvm::Function::ExternalLinkage;
 }
 
 
@@ -521,8 +574,7 @@ void CodeGenModule::EmitDeferred() {
     // ignore these cases.
     //
     // TODO: That said, looking this up multiple times is very wasteful.
-    MangleBuffer Name;
-    getMangledName(Name, D);
+    llvm::StringRef Name = getMangledName(D);
     llvm::GlobalValue *CGRef = GetGlobalValue(Name);
     assert(CGRef && "Deferred decl wasn't referenced?");
 
@@ -586,6 +638,47 @@ llvm::Constant *CodeGenModule::EmitAnnotateAttr(llvm::GlobalValue *GV,
   return llvm::ConstantStruct::get(VMContext, Fields, 4, false);
 }
 
+static CodeGenModule::GVALinkage
+GetLinkageForVariable(ASTContext &Context, const VarDecl *VD) {
+  // If this is a static data member, compute the kind of template
+  // specialization. Otherwise, this variable is not part of a
+  // template.
+  TemplateSpecializationKind TSK = TSK_Undeclared;
+  if (VD->isStaticDataMember())
+    TSK = VD->getTemplateSpecializationKind();
+
+  Linkage L = VD->getLinkage();
+  if (L == ExternalLinkage && Context.getLangOptions().CPlusPlus &&
+      VD->getType()->getLinkage() == UniqueExternalLinkage)
+    L = UniqueExternalLinkage;
+
+  switch (L) {
+  case NoLinkage:
+  case InternalLinkage:
+  case UniqueExternalLinkage:
+    return CodeGenModule::GVA_Internal;
+
+  case ExternalLinkage:
+    switch (TSK) {
+    case TSK_Undeclared:
+    case TSK_ExplicitSpecialization:
+      return CodeGenModule::GVA_StrongExternal;
+
+    case TSK_ExplicitInstantiationDeclaration:
+      llvm_unreachable("Variable should not be instantiated");
+      // Fall through to treat this like any other instantiation.
+        
+    case TSK_ExplicitInstantiationDefinition:
+      return CodeGenModule::GVA_ExplicitTemplateInstantiation;
+
+    case TSK_ImplicitInstantiation:
+      return CodeGenModule::GVA_TemplateInstantiation;      
+    }
+  }
+
+  return CodeGenModule::GVA_StrongExternal;
+}
+
 bool CodeGenModule::MayDeferGeneration(const ValueDecl *Global) {
   // Never defer when EmitAllDecls is specified or the decl has
   // attribute used.
@@ -634,24 +727,10 @@ bool CodeGenModule::MayDeferGeneration(const ValueDecl *Global) {
     }
   }
       
-  // Static data may be deferred, but out-of-line static data members
-  // cannot be.
-  Linkage L = VD->getLinkage();
-  if (L == ExternalLinkage && getContext().getLangOptions().CPlusPlus &&
-      VD->getType()->getLinkage() == UniqueExternalLinkage)
-    L = UniqueExternalLinkage;
-
-  switch (L) {
-  case NoLinkage:
-  case InternalLinkage:
-  case UniqueExternalLinkage:
-    // Initializer has side effects?
-    if (VD->getInit() && VD->getInit()->HasSideEffects(Context))
-      return false;
-    return !(VD->isStaticDataMember() && VD->isOutOfLine());
-
-  case ExternalLinkage:
-    break;
+  GVALinkage L = GetLinkageForVariable(getContext(), VD);
+  if (L == GVA_Internal || L == GVA_TemplateInstantiation) {
+    if (!(VD->getInit() && VD->getInit()->HasSideEffects(Context)))
+      return true;
   }
 
   return false;
@@ -716,8 +795,7 @@ void CodeGenModule::EmitGlobal(GlobalDecl GD) {
   
   // If the value has already been used, add it directly to the
   // DeferredDeclsToEmit list.
-  MangleBuffer MangledName;
-  getMangledName(MangledName, GD);
+  llvm::StringRef MangledName = getMangledName(GD);
   if (GetGlobalValue(MangledName))
     DeferredDeclsToEmit.push_back(GD);
   else {
@@ -735,18 +813,27 @@ void CodeGenModule::EmitGlobalDefinition(GlobalDecl GD) {
                                  Context.getSourceManager(),
                                  "Generating code for declaration");
   
-  if (const CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(D))
-    if (Method->isVirtual())
-      getVTables().EmitThunks(GD);
+  if (const FunctionDecl *Function = dyn_cast<FunctionDecl>(D)) {
+    // At -O0, don't generate IR for functions with available_externally 
+    // linkage.
+    if (CodeGenOpts.OptimizationLevel == 0 &&
+        getFunctionLinkage(Function) 
+                                  == llvm::Function::AvailableExternallyLinkage)
+      return;
 
-  if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(D))
-    return EmitCXXConstructor(CD, GD.getCtorType());
+    if (const CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(D)) {
+      if (Method->isVirtual())
+        getVTables().EmitThunks(GD);
+
+      if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(Method))
+        return EmitCXXConstructor(CD, GD.getCtorType());
   
-  if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(D))
-    return EmitCXXDestructor(DD, GD.getDtorType());
+      if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(Method))
+        return EmitCXXDestructor(DD, GD.getDtorType());
+    }
 
-  if (isa<FunctionDecl>(D))
     return EmitGlobalFunctionDefinition(GD);
+  }
   
   if (const VarDecl *VD = dyn_cast<VarDecl>(D))
     return EmitGlobalVarDefinition(VD);
@@ -797,6 +884,7 @@ CodeGenModule::GetOrCreateLLVMFunction(llvm::StringRef MangledName,
                                   std::vector<const llvm::Type*>(), false);
     IsIncompleteFunction = true;
   }
+  
   llvm::Function *F = llvm::Function::Create(FTy,
                                              llvm::Function::ExternalLinkage,
                                              MangledName, &getModule());
@@ -857,8 +945,8 @@ llvm::Constant *CodeGenModule::GetAddrOfFunction(GlobalDecl GD,
   // If there was no specific requested type, just convert it now.
   if (!Ty)
     Ty = getTypes().ConvertType(cast<ValueDecl>(GD.getDecl())->getType());
-  MangleBuffer MangledName;
-  getMangledName(MangledName, GD);
+  
+  llvm::StringRef MangledName = getMangledName(GD);
   return GetOrCreateLLVMFunction(MangledName, Ty, GD);
 }
 
@@ -961,8 +1049,7 @@ llvm::Constant *CodeGenModule::GetAddrOfGlobalVar(const VarDecl *D,
   const llvm::PointerType *PTy =
     llvm::PointerType::get(Ty, ASTTy.getAddressSpace());
 
-  MangleBuffer MangledName;
-  getMangledName(MangledName, D);
+  llvm::StringRef MangledName = getMangledName(D);
   return GetOrCreateLLVMGlobal(MangledName, PTy, D);
 }
 
@@ -981,8 +1068,7 @@ void CodeGenModule::EmitTentativeDefinition(const VarDecl *D) {
     // If we have not seen a reference to this variable yet, place it
     // into the deferred declarations table to be emitted if needed
     // later.
-    MangleBuffer MangledName;
-    getMangledName(MangledName, D);
+    llvm::StringRef MangledName = getMangledName(D);
     if (!GetGlobalValue(MangledName)) {
       DeferredDecls[MangledName] = D;
       return;
@@ -1008,7 +1094,7 @@ CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
     // If this class has a key function, use that to determine the linkage of
     // the vtable.
     const FunctionDecl *Def = 0;
-    if (KeyFunction->getBody(Def))
+    if (KeyFunction->hasBody(Def))
       KeyFunction = cast<CXXMethodDecl>(Def);
     
     switch (KeyFunction->getTemplateSpecializationKind()) {
@@ -1047,47 +1133,6 @@ CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   
   // Silence GCC warning.
   return llvm::GlobalVariable::WeakODRLinkage;
-}
-
-static CodeGenModule::GVALinkage
-GetLinkageForVariable(ASTContext &Context, const VarDecl *VD) {
-  // If this is a static data member, compute the kind of template
-  // specialization. Otherwise, this variable is not part of a
-  // template.
-  TemplateSpecializationKind TSK = TSK_Undeclared;
-  if (VD->isStaticDataMember())
-    TSK = VD->getTemplateSpecializationKind();
-
-  Linkage L = VD->getLinkage();
-  if (L == ExternalLinkage && Context.getLangOptions().CPlusPlus &&
-      VD->getType()->getLinkage() == UniqueExternalLinkage)
-    L = UniqueExternalLinkage;
-
-  switch (L) {
-  case NoLinkage:
-  case InternalLinkage:
-  case UniqueExternalLinkage:
-    return CodeGenModule::GVA_Internal;
-
-  case ExternalLinkage:
-    switch (TSK) {
-    case TSK_Undeclared:
-    case TSK_ExplicitSpecialization:
-      return CodeGenModule::GVA_StrongExternal;
-
-    case TSK_ExplicitInstantiationDeclaration:
-      llvm_unreachable("Variable should not be instantiated");
-      // Fall through to treat this like any other instantiation.
-        
-    case TSK_ExplicitInstantiationDefinition:
-      return CodeGenModule::GVA_ExplicitTemplateInstantiation;
-
-    case TSK_ImplicitInstantiation:
-      return CodeGenModule::GVA_TemplateInstantiation;      
-    }
-  }
-
-  return CodeGenModule::GVA_StrongExternal;
 }
 
 CharUnits CodeGenModule::GetTargetTypeStoreSize(const llvm::Type *Ty) const {
@@ -1367,8 +1412,7 @@ void CodeGenModule::EmitAliasDefinition(GlobalDecl GD) {
   const AliasAttr *AA = D->getAttr<AliasAttr>();
   assert(AA && "Not an alias?");
 
-  MangleBuffer MangledName;
-  getMangledName(MangledName, GD);
+  llvm::StringRef MangledName = getMangledName(GD);
 
   // If there is a definition in the module, then it wins over the alias.
   // This is dubious, but allow it to be safe.  Just ignore the alias.
@@ -1409,7 +1453,7 @@ void CodeGenModule::EmitAliasDefinition(GlobalDecl GD) {
                                                           Entry->getType()));
     Entry->eraseFromParent();
   } else {
-    GA->setName(MangledName.getString());
+    GA->setName(MangledName);
   }
 
   // Set attributes which are particular to an alias; this is a
@@ -1418,7 +1462,7 @@ void CodeGenModule::EmitAliasDefinition(GlobalDecl GD) {
   if (D->hasAttr<DLLExportAttr>()) {
     if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
       // The dllexport attribute is ignored for undefined symbols.
-      if (FD->getBody())
+      if (FD->hasBody())
         GA->setLinkage(llvm::Function::DLLExportLinkage);
     } else {
       GA->setLinkage(llvm::Function::DLLExportLinkage);
@@ -2002,5 +2046,75 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
     // non-top-level decl.  FIXME: Would be nice to have an isTopLevelDeclKind
     // function. Need to recode Decl::Kind to do that easily.
     assert(isa<TypeDecl>(D) && "Unsupported decl kind");
+  }
+}
+
+/// Turns the given pointer into a constant.
+static llvm::Constant *GetPointerConstant(llvm::LLVMContext &Context,
+                                          const void *Ptr) {
+  uintptr_t PtrInt = reinterpret_cast<uintptr_t>(Ptr);
+  const llvm::Type *i64 = llvm::Type::getInt64Ty(Context);
+  return llvm::ConstantInt::get(i64, PtrInt);
+}
+
+static void EmitGlobalDeclMetadata(CodeGenModule &CGM,
+                                   llvm::NamedMDNode *&GlobalMetadata,
+                                   GlobalDecl D,
+                                   llvm::GlobalValue *Addr) {
+  if (!GlobalMetadata)
+    GlobalMetadata =
+      CGM.getModule().getOrInsertNamedMetadata("clang.global.decl.ptrs");
+
+  // TODO: should we report variant information for ctors/dtors?
+  llvm::Value *Ops[] = {
+    Addr,
+    GetPointerConstant(CGM.getLLVMContext(), D.getDecl())
+  };
+  GlobalMetadata->addOperand(llvm::MDNode::get(CGM.getLLVMContext(), Ops, 2));
+}
+
+/// Emits metadata nodes associating all the global values in the
+/// current module with the Decls they came from.  This is useful for
+/// projects using IR gen as a subroutine.
+///
+/// Since there's currently no way to associate an MDNode directly
+/// with an llvm::GlobalValue, we create a global named metadata
+/// with the name 'clang.global.decl.ptrs'.
+void CodeGenModule::EmitDeclMetadata() {
+  llvm::NamedMDNode *GlobalMetadata = 0;
+
+  // StaticLocalDeclMap
+  for (llvm::DenseMap<GlobalDecl,llvm::StringRef>::iterator
+         I = MangledDeclNames.begin(), E = MangledDeclNames.end();
+       I != E; ++I) {
+    llvm::GlobalValue *Addr = getModule().getNamedValue(I->second);
+    EmitGlobalDeclMetadata(*this, GlobalMetadata, I->first, Addr);
+  }
+}
+
+/// Emits metadata nodes for all the local variables in the current
+/// function.
+void CodeGenFunction::EmitDeclMetadata() {
+  if (LocalDeclMap.empty()) return;
+
+  llvm::LLVMContext &Context = getLLVMContext();
+
+  // Find the unique metadata ID for this name.
+  unsigned DeclPtrKind = Context.getMDKindID("clang.decl.ptr");
+
+  llvm::NamedMDNode *GlobalMetadata = 0;
+
+  for (llvm::DenseMap<const Decl*, llvm::Value*>::iterator
+         I = LocalDeclMap.begin(), E = LocalDeclMap.end(); I != E; ++I) {
+    const Decl *D = I->first;
+    llvm::Value *Addr = I->second;
+
+    if (llvm::AllocaInst *Alloca = dyn_cast<llvm::AllocaInst>(Addr)) {
+      llvm::Value *DAddr = GetPointerConstant(getLLVMContext(), D);
+      Alloca->setMetadata(DeclPtrKind, llvm::MDNode::get(Context, &DAddr, 1));
+    } else if (llvm::GlobalValue *GV = dyn_cast<llvm::GlobalValue>(Addr)) {
+      GlobalDecl GD = GlobalDecl(cast<VarDecl>(D));
+      EmitGlobalDeclMetadata(CGM, GlobalMetadata, GD, GV);
+    }
   }
 }

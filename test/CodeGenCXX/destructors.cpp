@@ -32,6 +32,26 @@ struct C {
 
 C::~C() { }
 
+namespace PR7526 {
+  extern void foo();
+  struct allocator {
+    ~allocator() throw();
+  };
+
+  struct allocator_derived : allocator { };
+
+  // CHECK: define void @_ZN6PR75269allocatorD2Ev
+  // CHECK: call void @__cxa_call_unexpected
+  allocator::~allocator() throw() { foo(); }
+
+  // CHECK: define linkonce_odr void @_ZN6PR752617allocator_derivedD1Ev
+  // CHECK-NOT: call void @__cxa_call_unexpected
+  // CHECK:     }
+  void foo() {
+    allocator_derived ad;
+  }
+}
+
 // PR5084
 template<typename T>
 class A1 {
@@ -168,15 +188,92 @@ namespace test3 {
   // Checked at top of file:
   // @_ZN5test312_GLOBAL__N_11CD1Ev = alias internal {{.*}} @_ZN5test312_GLOBAL__N_11CD2Ev
 
+  // More checks at end of file.
+
+}
+
+namespace test4 {
+  struct A { ~A(); };
+
+  // CHECK: define void @_ZN5test43fooEv()
+  // CHECK: call void @_ZN5test41AD1Ev
+  // CHECK: ret void
+  void foo() {
+    {
+      A a;
+      goto failure;
+    }
+
+  failure:
+    return;
+  }
+
+  // CHECK: define void @_ZN5test43barEi(
+  // CHECK:      [[X:%.*]] = alloca i32
+  // CHECK-NEXT: [[A:%.*]] = alloca
+  // CHECK:      br label
+  // CHECK:      [[TMP:%.*]] = load i32* [[X]]
+  // CHECK-NEXT: [[CMP:%.*]] = icmp ne i32 [[TMP]], 0
+  // CHECK-NEXT: br i1
+  // CHECK:      call void @_ZN5test41AD1Ev(
+  // CHECK:      br label
+  // CHECK:      [[TMP:%.*]] = load i32* [[X]]
+  // CHECK:      [[TMP2:%.*]] = add nsw i32 [[TMP]], -1
+  // CHECK:      store i32 [[TMP2]], i32* [[X]]
+  // CHECK:      br label
+  // CHECK:      ret void
+  void bar(int x) {
+    for (A a; x; ) {
+      x--;
+    }
+  }
+}
+
+// PR7575
+namespace test5 {
+  struct A { ~A(); };
+
+  // This is really unnecessarily verbose; we should be using phis,
+  // even at -O0.
+
+  // CHECK: define void @_ZN5test53fooEv()
+  // CHECK:      [[ELEMS:%.*]] = alloca [5 x [[A:%.*]]], align
+  // CHECK-NEXT: [[IVAR:%.*]] = alloca i64
+  // CHECK:      [[ELEMSARRAY:%.*]] = bitcast [5 x [[A]]]* [[ELEMS]] to [[A]]
+  // CHECK-NEXT: store i64 5, i64* [[IVAR]]
+  // CHECK-NEXT: br label
+  // CHECK:      [[I:%.*]] = load i64* [[IVAR]]
+  // CHECK-NEXT: icmp ne i64 [[I]], 0
+  // CHECK-NEXT: br i1
+  // CHECK:      [[I:%.*]] = load i64* [[IVAR]]
+  // CHECK-NEXT: [[I2:%.*]] = sub i64 [[I]], 1
+  // CHECK-NEXT: getelementptr inbounds [[A]]* [[ELEMSARRAY]], i64 [[I2]]
+  // CHECK-NEXT: call void @_ZN5test51AD1Ev(
+  // CHECK-NEXT: br label
+  // CHECK:      [[I:%.*]] = load i64* [[IVAR]]
+  // CHECK-NEXT: [[I1:%.*]] = sub i64 [[I]], 1
+  // CHECK-NEXT: store i64 [[I1]], i64* [[IVAR]]
+  // CHECK-NEXT: br label
+  // CHECK:      ret void
+  void foo() {
+    A elems[5];
+  }
+}
+
+// Checks from test3:
+
   // CHECK: define internal void @_ZN5test312_GLOBAL__N_11CD2Ev(
   // CHECK: call void @_ZN5test31BD2Ev(
   // CHECK: call void @_ZN5test31AD2Ev(
   // CHECK: ret void
 
   // CHECK: define internal void @_ZN5test312_GLOBAL__N_11DD0Ev(
-  // CHECK: call void @_ZN5test312_GLOBAL__N_11DD1Ev(
-  // CHECK: call void @_ZdlPv(
+  // CHECK: invoke void @_ZN5test312_GLOBAL__N_11DD1Ev(
+  // CHECK: call void @_ZdlPv({{.*}}) nounwind
   // CHECK: ret void
+  // CHECK: call i8* @llvm.eh.exception(
+  // CHECK: call void @_ZdlPv({{.*}}) nounwind
+  // CHECK: call void @_Unwind_Resume_or_Rethrow
 
   // Checked at top of file:
   // @_ZN5test312_GLOBAL__N_11DD1Ev = alias internal {{.*}} @_ZN5test312_GLOBAL__N_11DD2Ev
@@ -196,9 +293,12 @@ namespace test3 {
   // CHECK: declare void @_ZN5test31AD2Ev(
 
   // CHECK: define internal void @_ZN5test312_GLOBAL__N_11CD0Ev(
-  // CHECK: call void @_ZN5test312_GLOBAL__N_11CD1Ev(
-  // CHECK: call void @_ZdlPv(
+  // CHECK: invoke void @_ZN5test312_GLOBAL__N_11CD1Ev(
+  // CHECK: call void @_ZdlPv({{.*}}) nounwind
   // CHECK: ret void
+  // CHECK: call i8* @llvm.eh.exception()
+  // CHECK: call void @_ZdlPv({{.*}}) nounwind
+  // CHECK: call void @_Unwind_Resume_or_Rethrow(
 
   // CHECK: define internal void @_ZThn8_N5test312_GLOBAL__N_11CD1Ev(
   // CHECK: getelementptr inbounds i8* {{.*}}, i64 -8
@@ -209,4 +309,3 @@ namespace test3 {
   // CHECK: getelementptr inbounds i8* {{.*}}, i64 -8
   // CHECK: call void @_ZN5test312_GLOBAL__N_11CD0Ev(
   // CHECK: ret void
-}

@@ -1,8 +1,10 @@
 // RUN: %clang_cc1 -fsyntax-only -pedantic -std=c++98 -verify -triple x86_64-apple-darwin %s
-enum E {
+enum E { // expected-note{{previous definition is here}}
   Val1,
   Val2
 };
+
+enum E; // expected-warning{{redeclaration of already-defined enum 'E' is a GNU extension}}
 
 int& enumerator_type(int);
 float& enumerator_type(E);
@@ -79,3 +81,7 @@ namespace PR7051 {
     e |= 1; // expected-error{{assigning to 'PR7051::E' from incompatible type 'int'}}
   }
 }
+
+// PR7466
+enum { }; // expected-warning{{declaration does not declare anything}}
+typedef enum { }; // expected-warning{{typedef requires a name}}

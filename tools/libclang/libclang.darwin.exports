@@ -41,6 +41,7 @@ _clang_getCursorLinkage
 _clang_getCursorLocation
 _clang_getCursorReferenced
 _clang_getCursorSpelling
+_clang_getCursorResultType
 _clang_getCursorType
 _clang_getCursorUSR
 _clang_getDefinitionSpellingAndExtent
@@ -67,6 +68,7 @@ _clang_getPointeeType
 _clang_getRange
 _clang_getRangeEnd
 _clang_getRangeStart
+_clang_getResultType
 _clang_getTokenExtent
 _clang_getTokenKind
 _clang_getTokenLocation
@@ -78,7 +80,6 @@ _clang_getTypeKindSpelling
 _clang_isCursorDefinition
 _clang_isDeclaration
 _clang_isExpression
-_clang_isFromMainFile
 _clang_isInvalid
 _clang_isPreprocessing
 _clang_isReference

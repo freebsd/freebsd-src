@@ -17,6 +17,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/APFloat.h"
+#include "clang/Sema/ExternalSemaSource.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
@@ -43,7 +44,10 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   TUScope = S;
   PushDeclContext(S, Context.getTranslationUnitDecl());
 
-  if (PP.getTargetInfo().getPointerWidth(0) >= 64) {
+  VAListTagName = PP.getIdentifierInfo("__va_list_tag");
+
+  if (!Context.isInt128Installed() && // May be set by PCHReader.
+      PP.getTargetInfo().getPointerWidth(0) >= 64) {
     TypeSourceInfo *TInfo;
 
     // Install [u]int128_t for 64-bit targets.
@@ -58,6 +62,7 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
                                           SourceLocation(),
                                           &Context.Idents.get("__uint128_t"),
                                           TInfo), TUScope);
+    Context.setInt128Installed();
   }
 
 
@@ -122,8 +127,8 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
     IdResolver(pp.getLangOptions()), StdNamespace(0), StdBadAlloc(0),
     GlobalNewDeleteDeclared(false), 
     CompleteTranslationUnit(CompleteTranslationUnit),
-    NumSFINAEErrors(0), NonInstantiationEntries(0), 
-    CurrentInstantiationScope(0), TyposCorrected(0),
+    NumSFINAEErrors(0), SuppressAccessChecking(false),
+    NonInstantiationEntries(0), CurrentInstantiationScope(0), TyposCorrected(0),
     AnalysisWarnings(*this)
 {
   TUScope = 0;
@@ -223,7 +228,8 @@ void Sema::ActOnEndOfTranslationUnit() {
   // Remove functions that turned out to be used.
   UnusedStaticFuncs.erase(std::remove_if(UnusedStaticFuncs.begin(), 
                                          UnusedStaticFuncs.end(), 
-                                         std::mem_fun(&FunctionDecl::isUsed)), 
+                             std::bind2nd(std::mem_fun(&FunctionDecl::isUsed),
+                                          true)), 
                           UnusedStaticFuncs.end());
 
   // Check for #pragma weak identifiers that were never declared
@@ -381,6 +387,34 @@ Sema::Diag(SourceLocation Loc, const PartialDiagnostic& PD) {
   return Builder;
 }
 
+/// \brief Determines the active Scope associated with the given declaration
+/// context.
+///
+/// This routine maps a declaration context to the active Scope object that
+/// represents that declaration context in the parser. It is typically used
+/// from "scope-less" code (e.g., template instantiation, lazy creation of
+/// declarations) that injects a name for name-lookup purposes and, therefore,
+/// must update the Scope.
+///
+/// \returns The scope corresponding to the given declaraion context, or NULL
+/// if no such scope is open.
+Scope *Sema::getScopeForContext(DeclContext *Ctx) {
+  
+  if (!Ctx)
+    return 0;
+  
+  Ctx = Ctx->getPrimaryContext();
+  for (Scope *S = getCurScope(); S; S = S->getParent()) {
+    // Ignore scopes that cannot have declarations. This is important for
+    // out-of-line definitions of static class members.
+    if (S->getFlags() & (Scope::DeclScope | Scope::TemplateParamScope))
+      if (DeclContext *Entity = static_cast<DeclContext *> (S->getEntity()))
+        if (Ctx == Entity->getPrimaryContext())
+          return S;
+  }
+  
+  return 0;
+}
 
 /// \brief Enter a new function scope
 void Sema::PushFunctionScope() {
@@ -425,3 +459,6 @@ BlockScopeInfo *Sema::getCurBlock() {
   
   return dyn_cast<BlockScopeInfo>(FunctionScopes.back());  
 }
+
+// Pin this vtable to this file.
+ExternalSemaSource::~ExternalSemaSource() {}

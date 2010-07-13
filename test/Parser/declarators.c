@@ -83,3 +83,14 @@ void test12() {
 
 // rdar://7608537
 struct test13 { int a; } (test13x);
+
+// <rdar://problem/8044088>
+struct X<foo::int> { }; // expected-error{{expected identifier or '('}}
+
+
+// PR7617 - error recovery on missing ;.
+
+void test14()  // expected-error {{expected ';' after top level declarator}}
+
+void test14a();
+void *test14b = (void*)test14a; // Make sure test14a didn't get skipped.

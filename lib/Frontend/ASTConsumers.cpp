@@ -13,7 +13,6 @@
 
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/DocumentXML.h"
-#include "clang/Frontend/PathDiagnosticClients.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
@@ -22,7 +21,6 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/PrettyPrinter.h"
-#include "clang/CodeGen/ModuleBuilder.h"
 #include "llvm/Module.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
@@ -111,23 +109,12 @@ namespace {
 }
 
 void ASTViewer::HandleTopLevelSingleDecl(Decl *D) {
-  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-    FD->print(llvm::errs());
-
-    if (Stmt *Body = FD->getBody()) {
+  if (isa<FunctionDecl>(D) || isa<ObjCMethodDecl>(D)) {
+    D->print(llvm::errs());
+  
+    if (Stmt *Body = D->getBody()) {
       llvm::errs() << '\n';
       Body->viewAST();
-      llvm::errs() << '\n';
-    }
-    return;
-  }
-
-  if (ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
-    MD->print(llvm::errs());
-
-    if (MD->getBody()) {
-      llvm::errs() << '\n';
-      MD->getBody()->viewAST();
       llvm::errs() << '\n';
     }
   }

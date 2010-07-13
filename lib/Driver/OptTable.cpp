@@ -169,12 +169,12 @@ Option *OptTable::CreateOption(unsigned id) const {
   if (info.Flags & RenderJoined) {
     assert((info.Kind == Option::JoinedOrSeparateClass ||
             info.Kind == Option::SeparateClass) && "Invalid option.");
-    Opt->setForceJoinedRender(true);
+    Opt->setRenderStyle(Option::RenderJoinedStyle);
   }
   if (info.Flags & RenderSeparate) {
     assert((info.Kind == Option::JoinedOrSeparateClass ||
             info.Kind == Option::JoinedClass) && "Invalid option.");
-    Opt->setForceSeparateRender(true);
+    Opt->setRenderStyle(Option::RenderSeparateStyle);
   }
   if (info.Flags & Unsupported)
     Opt->setUnsupported(true);
@@ -182,13 +182,13 @@ Option *OptTable::CreateOption(unsigned id) const {
   return Opt;
 }
 
-Arg *OptTable::ParseOneArg(const InputArgList &Args, unsigned &Index) const {
+Arg *OptTable::ParseOneArg(const ArgList &Args, unsigned &Index) const {
   unsigned Prev = Index;
   const char *Str = Args.getArgString(Index);
 
   // Anything that doesn't start with '-' is an input, as is '-' itself.
   if (Str[0] != '-' || Str[1] == '\0')
-    return new PositionalArg(TheInputOption, Index++);
+    return new Arg(TheInputOption, Index++, Str);
 
   const Info *Start = OptionInfos + FirstSearchableIndex;
   const Info *End = OptionInfos + getNumOptions();
@@ -221,7 +221,7 @@ Arg *OptTable::ParseOneArg(const InputArgList &Args, unsigned &Index) const {
       return 0;
   }
 
-  return new PositionalArg(TheUnknownOption, Index++);
+  return new Arg(TheUnknownOption, Index++, Str);
 }
 
 InputArgList *OptTable::ParseArgs(const char **ArgBegin, const char **ArgEnd,
@@ -267,7 +267,7 @@ static std::string getOptionHelpName(const OptTable &Opts, OptSpecifier Id) {
   case Option::GroupClass: case Option::InputClass: case Option::UnknownClass:
     assert(0 && "Invalid option with help text.");
 
-  case Option::MultiArgClass: case Option::JoinedAndSeparateClass:
+  case Option::MultiArgClass:
     assert(0 && "Cannot print metavar for this kind of option.");
 
   case Option::FlagClass:
@@ -277,6 +277,7 @@ static std::string getOptionHelpName(const OptTable &Opts, OptSpecifier Id) {
     Name += ' ';
     // FALLTHROUGH
   case Option::JoinedClass: case Option::CommaJoinedClass:
+  case Option::JoinedAndSeparateClass:
     if (const char *MetaVarName = Opts.getOptionMetaVar(Id))
       Name += MetaVarName;
     else

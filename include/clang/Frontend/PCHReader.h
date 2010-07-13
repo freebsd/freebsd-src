@@ -321,7 +321,7 @@ private:
   /// file.
   llvm::SmallVector<uint64_t, 16> TentativeDefinitions;
       
-  /// \brief The set of tentative definitions stored in the the PCH
+  /// \brief The set of unused static functions stored in the the PCH
   /// file.
   llvm::SmallVector<uint64_t, 16> UnusedStaticFuncs;
 
@@ -332,6 +332,12 @@ private:
   /// \brief The set of ext_vector type declarations stored in the the
   /// PCH file.
   llvm::SmallVector<uint64_t, 4> ExtVectorDecls;
+
+  /// \brief The set of VTable uses of CXXRecordDecls stored in the PCH file.
+  llvm::SmallVector<uint64_t, 64> VTableUses;
+
+  /// \brief The set of dynamic CXXRecord declarations stored in the PCH file.
+  llvm::SmallVector<uint64_t, 16> DynamicClasses;
 
   /// \brief The set of Objective-C category definitions stored in the
   /// the PCH file.
@@ -447,7 +453,35 @@ private:
   /// "Interesting" declarations are those that have data that may
   /// need to be emitted, such as inline function definitions or
   /// Objective-C protocols.
-  llvm::SmallVector<Decl *, 16> InterestingDecls;
+  std::deque<Decl *> InterestingDecls;
+
+  /// \brief When reading a Stmt tree, Stmt operands are placed in this stack.
+  llvm::SmallVector<Stmt *, 16> StmtStack;
+
+  /// \brief What kind of records we are reading.
+  enum ReadingKind {
+    Read_Decl, Read_Type, Read_Stmt
+  };
+
+  /// \brief What kind of records we are reading. 
+  ReadingKind ReadingKind;
+
+  /// \brief RAII object to change the reading kind.
+  class ReadingKindTracker {
+    PCHReader &Reader;
+    enum ReadingKind PrevKind;
+
+    ReadingKindTracker(const ReadingKindTracker&); // do not implement
+    ReadingKindTracker &operator=(const ReadingKindTracker&);// do not implement
+
+  public:
+    ReadingKindTracker(enum ReadingKind newKind, PCHReader &reader)
+      : Reader(reader), PrevKind(Reader.ReadingKind) {
+      Reader.ReadingKind = newKind;
+    }
+
+    ~ReadingKindTracker() { Reader.ReadingKind = PrevKind; }
+  };
 
   /// \brief The file ID for the predefines buffer in the PCH file.
   FileID PCHPredefinesBufferID;
@@ -469,6 +503,9 @@ private:
   /// predefines buffer may contain additional definitions.
   std::string SuggestedPredefines;
 
+  /// \brief Reads a statement from the specified cursor.
+  Stmt *ReadStmtFromStream(llvm::BitstreamCursor &Cursor);
+
   void MaybeAddSystemRootToFilename(std::string &Filename);
 
   PCHReadResult ReadPCHBlock();
@@ -481,6 +518,8 @@ private:
   QualType ReadTypeRecord(uint64_t Offset);
   void LoadedDecl(unsigned Index, Decl *D);
   Decl *ReadDeclRecord(uint64_t Offset, unsigned Index);
+
+  void PassInterestingDeclsToConsumer();
 
   /// \brief Produce an error diagnostic and return true.
   ///
@@ -544,7 +583,7 @@ public:
   void InitializeContext(ASTContext &Context);
 
   /// \brief Retrieve the name of the PCH file
-  const std::string &getFileName() { return FileName; }
+  const std::string &getFileName() const { return FileName; }
 
   /// \brief Retrieve the name of the original source file name
   const std::string &getOriginalSourceFile() { return OriginalFileName; }
@@ -569,29 +608,44 @@ public:
   GetTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
                              const RecordData &Record, unsigned &Idx);
 
+  /// \brief Reads a TemplateArgumentLoc.
+  TemplateArgumentLoc ReadTemplateArgumentLoc(const RecordData &Record,
+                                              unsigned &Idx);
+
   /// \brief Reads a declarator info from the given record.
-  virtual TypeSourceInfo *GetTypeSourceInfo(const RecordData &Record,
-                                            unsigned &Idx);
+  TypeSourceInfo *GetTypeSourceInfo(const RecordData &Record,
+                                    unsigned &Idx);
+
+  /// \brief Resolve and return the translation unit declaration.
+  TranslationUnitDecl *GetTranslationUnitDecl();
 
   /// \brief Resolve a type ID into a type, potentially building a new
   /// type.
-  virtual QualType GetType(pch::TypeID ID);
+  QualType GetType(pch::TypeID ID);
 
   /// \brief Resolve a declaration ID into a declaration, potentially
   /// building a new declaration.
-  virtual Decl *GetDecl(pch::DeclID ID);
+  Decl *GetDecl(pch::DeclID ID);
+  virtual Decl *GetExternalDecl(uint32_t ID);
 
   /// \brief Resolve the offset of a statement into a statement.
   ///
   /// This operation will read a new statement from the external
   /// source each time it is called, and is meant to be used via a
   /// LazyOffsetPtr (which is used by Decls for the body of functions, etc).
-  virtual Stmt *GetDeclStmt(uint64_t Offset);
+  virtual Stmt *GetExternalDeclStmt(uint64_t Offset);
 
   /// ReadBlockAbbrevs - Enter a subblock of the specified BlockID with the
   /// specified cursor.  Read the abbreviations that are at the top of the block
   /// and then leave the cursor pointing into the block.
   bool ReadBlockAbbrevs(llvm::BitstreamCursor &Cursor, unsigned BlockID);
+
+  /// \brief Finds all the visible declarations with a given name.
+  /// The current implementation of this method just loads the entire
+  /// lookup table as unmaterialized references.
+  virtual DeclContext::lookup_result
+  FindExternalVisibleDeclsByName(const DeclContext *DC,
+                                 DeclarationName Name);
 
   /// \brief Read all of the declarations lexically stored in a
   /// declaration context.
@@ -606,27 +660,8 @@ public:
   ///
   /// \returns true if there was an error while reading the
   /// declarations for this declaration context.
-  virtual bool ReadDeclsLexicallyInContext(DeclContext *DC,
-                                 llvm::SmallVectorImpl<pch::DeclID> &Decls);
-
-  /// \brief Read all of the declarations visible from a declaration
-  /// context.
-  ///
-  /// \param DC The declaration context whose visible declarations
-  /// will be read.
-  ///
-  /// \param Decls A vector of visible declaration structures,
-  /// providing the mapping from each name visible in the declaration
-  /// context to the declaration IDs of declarations with that name.
-  ///
-  /// \returns true if there was an error while reading the
-  /// declarations for this declaration context.
-  ///
-  /// FIXME: Using this intermediate data structure results in an
-  /// extraneous copying of the data. Could we pass in a reference to
-  /// the StoredDeclsMap instead?
-  virtual bool ReadDeclsVisibleInContext(DeclContext *DC,
-                       llvm::SmallVectorImpl<VisibleDeclaration> & Decls);
+  virtual bool FindExternalLexicalDecls(const DeclContext *DC,
+                                        llvm::SmallVectorImpl<Decl*> &Decls);
 
   /// \brief Function that will be invoked when we begin parsing a new
   /// translation unit involving this external AST source.
@@ -691,8 +726,8 @@ public:
 
   Selector DecodeSelector(unsigned Idx);
 
-  virtual Selector GetSelector(uint32_t ID);
-  virtual uint32_t GetNumKnownSelectors();
+  virtual Selector GetExternalSelector(uint32_t ID);
+  uint32_t GetNumExternalSelectors();
 
   Selector GetSelector(const RecordData &Record, unsigned &Idx) {
     return DecodeSelector(Record[Idx++]);
@@ -703,6 +738,28 @@ public:
 
   NestedNameSpecifier *ReadNestedNameSpecifier(const RecordData &Record,
                                                unsigned &Idx);
+
+  /// \brief Read a template name.
+  TemplateName ReadTemplateName(const RecordData &Record, unsigned &Idx);
+
+  /// \brief Read a template argument.
+  TemplateArgument ReadTemplateArgument(const RecordData &Record,unsigned &Idx);
+  
+  /// \brief Read a template parameter list.
+  TemplateParameterList *ReadTemplateParameterList(const RecordData &Record,
+                                                   unsigned &Idx);
+  
+  /// \brief Read a template argument array.
+  void
+  ReadTemplateArgumentList(llvm::SmallVector<TemplateArgument, 8> &TemplArgs,
+                           const RecordData &Record, unsigned &Idx);
+
+  /// \brief Read a UnresolvedSet structure.
+  void ReadUnresolvedSet(UnresolvedSetImpl &Set,
+                         const RecordData &Record, unsigned &Idx);
+
+  /// \brief Read a C++ base specifier.
+  CXXBaseSpecifier ReadCXXBaseSpecifier(const RecordData &Record,unsigned &Idx);
 
   /// \brief Read a source location.
   SourceLocation ReadSourceLocation(const RecordData &Record, unsigned& Idx) {
@@ -729,19 +786,24 @@ public:
   /// \brief Reads attributes from the current stream position.
   Attr *ReadAttributes();
 
-  /// \brief ReadDeclExpr - Reads an expression from the current decl cursor.
-  Expr *ReadDeclExpr();
+  /// \brief Reads a statement.
+  Stmt *ReadStmt();
 
-  /// \brief ReadTypeExpr - Reads an expression from the current type cursor.
-  Expr *ReadTypeExpr();
+  /// \brief Reads an expression.
+  Expr *ReadExpr();
 
-  /// \brief Reads a statement from the specified cursor.
-  Stmt *ReadStmt(llvm::BitstreamCursor &Cursor);
-
-  /// \brief Read a statement from the current DeclCursor.
-  Stmt *ReadDeclStmt() {
-    return ReadStmt(DeclsCursor);
+  /// \brief Reads a sub-statement operand during statement reading.
+  Stmt *ReadSubStmt() {
+    assert(ReadingKind == Read_Stmt &&
+           "Should be called only during statement reading!");
+    // Subexpressions are stored from last to first, so the next Stmt we need
+    // is at the back of the stack.
+    assert(!StmtStack.empty() && "Read too many sub statements!");
+    return StmtStack.pop_back_val();
   }
+
+  /// \brief Reads a sub-expression operand during statement reading.
+  Expr *ReadSubExpr();
 
   /// \brief Reads the macro record located at the given offset.
   void ReadMacroRecord(uint64_t Offset);

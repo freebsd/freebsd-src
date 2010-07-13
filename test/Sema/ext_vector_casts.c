@@ -43,3 +43,10 @@ static void test() {
     ivec4 |= ivec4;
     ivec4 += ptr; // expected-error {{can't convert between vector values of different size ('int4' and 'int *')}}
 }
+
+typedef __attribute__(( ext_vector_type(2) )) float2 vecfloat2; // expected-error{{invalid vector element type 'float2'}}
+
+void inc(float2 f2) {
+  f2++; // expected-error{{cannot increment value of type 'float2'}}
+  __real f2; // expected-error{{invalid type 'float2' to __real operator}}
+}

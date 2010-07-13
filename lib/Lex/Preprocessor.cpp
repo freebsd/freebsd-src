@@ -87,7 +87,7 @@ Preprocessor::Preprocessor(Diagnostic &diags, const LangOptions &opts,
   (Ident__VA_ARGS__ = getIdentifierInfo("__VA_ARGS__"))->setIsPoisoned();
 
   // Initialize the pragma handlers.
-  PragmaHandlers = new PragmaNamespace(0);
+  PragmaHandlers = new PragmaNamespace(llvm::StringRef());
   RegisterBuiltinPragmas();
 
   // Initialize builtin macros like __LINE__ and friends.
@@ -112,6 +112,14 @@ Preprocessor::~Preprocessor() {
     // memory alocated by MacroInfo.
     I->second->Destroy(BP);
     I->first->setHasMacroDefinition(false);
+  }
+  for (std::vector<MacroInfo*>::iterator I = MICache.begin(),
+                                         E = MICache.end(); I != E; ++I) {
+    // We don't need to free the MacroInfo objects directly.  These
+    // will be released when the BumpPtrAllocator 'BP' object gets
+    // destroyed.  We still need to run the dtor, however, to free
+    // memory alocated by MacroInfo.
+    (*I)->Destroy(BP);
   }
 
   // Free any cached macro expanders.

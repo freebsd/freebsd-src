@@ -925,7 +925,7 @@ public:
     // statement (if it doesn't already exist).
     // FIXME: Should handle CXXTryStmt if analyser starts supporting C++.
     if (const CompoundStmt *CS =
-          PDB.getCodeDecl().getCompoundBody())
+          dyn_cast_or_null<CompoundStmt>(PDB.getCodeDecl().getBody()))
       if (!CS->body_empty()) {
         SourceLocation Loc = (*CS->body_begin())->getLocStart();
         rawAddEdge(PathDiagnosticLocation(Loc, PDB.getSourceManager()));
@@ -1403,7 +1403,7 @@ MakeReportGraph(const ExplodedGraph* G,
 
   // Create a new (third!) graph with a single path.  This is the graph
   // that will be returned to the caller.
-  ExplodedGraph *GNew = new ExplodedGraph(GTrim->getContext());
+  ExplodedGraph *GNew = new ExplodedGraph();
 
   // Sometimes the trimmed graph can contain a cycle.  Perform a reverse BFS
   // to the root node, and then construct a new graph that contains only

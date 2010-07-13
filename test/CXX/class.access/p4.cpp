@@ -160,7 +160,7 @@ namespace test4 {
   private:
     operator Private(); // expected-note 4 {{declared private here}}
   public:
-    operator Public();
+    operator Public(); // expected-note 2{{member is declared here}}
   };
 
   class Derived1 : private Base { // expected-note 2 {{declared private here}} \
@@ -267,7 +267,7 @@ namespace test8 {
 // Don't silently upgrade forbidden-access paths to private.
 namespace test9 {
   class A {
-    public: static int x;
+  public: static int x; // expected-note {{member is declared here}}
   };
   class B : private A { // expected-note {{constrained by private inheritance here}}
   };
@@ -419,4 +419,11 @@ namespace test15 {
 
   template class B<int>;  // expected-note {{in instantiation}}
   template class B<long>; // expected-note 4 {{in instantiation}}
+}
+
+// PR7281
+namespace test16 {
+  class A { ~A(); }; // expected-note 2{{declared private here}}
+  void b() { throw A(); } // expected-error{{temporary of type 'test16::A' has private destructor}} \
+  // expected-error{{exception object of type 'test16::A' has private destructor}}
 }

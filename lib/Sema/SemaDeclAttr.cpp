@@ -913,7 +913,7 @@ static void HandleWeakImportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
   if (VarDecl *VD = dyn_cast<VarDecl>(D)) {
     isDef = (!VD->hasExternalStorage() || VD->getInit());
   } else if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-    isDef = FD->getBody();
+    isDef = FD->hasBody();
   } else if (isa<ObjCPropertyDecl>(D) || isa<ObjCMethodDecl>(D)) {
     // We ignore weak import on properties and methods
     return;
@@ -1180,6 +1180,54 @@ static FormatAttrKind getFormatAttrKind(llvm::StringRef Format) {
   return InvalidFormat;
 }
 
+/// Handle __attribute__((init_priority(priority))) attributes based on
+/// http://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Attributes.html
+static void HandleInitPriorityAttr(Decl *d, const AttributeList &Attr, 
+                                   Sema &S) {
+  if (!S.getLangOptions().CPlusPlus) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_ignored) << Attr.getName();
+    return;
+  }
+  
+  if (!isa<VarDecl>(d) || S.getCurFunctionOrMethodDecl()) {
+    S.Diag(Attr.getLoc(), diag::err_init_priority_object_attr);
+    Attr.setInvalid();
+    return;
+  }
+  QualType T = dyn_cast<VarDecl>(d)->getType();
+  if (S.Context.getAsArrayType(T))
+    T = S.Context.getBaseElementType(T);
+  if (!T->getAs<RecordType>()) {
+    S.Diag(Attr.getLoc(), diag::err_init_priority_object_attr);
+    Attr.setInvalid();
+    return;
+  }
+  
+  if (Attr.getNumArgs() != 1) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 1;
+    Attr.setInvalid();
+    return;
+  }
+  Expr *priorityExpr = static_cast<Expr *>(Attr.getArg(0));
+  
+  llvm::APSInt priority(32);
+  if (priorityExpr->isTypeDependent() || priorityExpr->isValueDependent() ||
+      !priorityExpr->isIntegerConstantExpr(priority, S.Context)) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_argument_not_int)
+    << "init_priority" << priorityExpr->getSourceRange();
+    Attr.setInvalid();
+    return;
+  }
+  unsigned prioritynum = priority.getZExtValue();
+  if (prioritynum < 101 || prioritynum > 65535) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_argument_outof_range)
+    <<  priorityExpr->getSourceRange();
+    Attr.setInvalid();
+    return;
+  }
+  d->addAttr(::new (S.Context) InitPriorityAttr(prioritynum));
+}
+
 /// Handle __attribute__((format(type,idx,firstarg))) attributes based on
 /// http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html
 static void HandleFormatAttr(Decl *d, const AttributeList &Attr, Sema &S) {
@@ -1362,9 +1410,10 @@ static void HandleTransparentUnionAttr(Decl *d, const AttributeList &Attr,
 
   FieldDecl *FirstField = *Field;
   QualType FirstType = FirstField->getType();
-  if (FirstType->isFloatingType() || FirstType->isVectorType()) {
+  if (FirstType->hasFloatingRepresentation() || FirstType->isVectorType()) {
     S.Diag(FirstField->getLocation(),
-           diag::warn_transparent_union_attribute_floating);
+           diag::warn_transparent_union_attribute_floating)
+      << FirstType->isVectorType() << FirstType;
     return;
   }
 
@@ -1410,7 +1459,7 @@ static void HandleAnnotateAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   d->addAttr(::new (S.Context) AnnotateAttr(S.Context, SE->getString()));
 }
 
-static void HandleAlignedAttr(Decl *d, const AttributeList &Attr, Sema &S) {
+static void HandleAlignedAttr(Decl *D, const AttributeList &Attr, Sema &S) {
   // check the attribute arguments.
   if (Attr.getNumArgs() > 1) {
     S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 1;
@@ -1421,30 +1470,36 @@ static void HandleAlignedAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   //       than GNU's, and should error out when it is used to specify a
   //       weaker alignment, rather than being silently ignored.
 
-  unsigned Align = 0;
   if (Attr.getNumArgs() == 0) {
     // FIXME: This should be the target specific maximum alignment.
     // (For now we just use 128 bits which is the maximum on X86).
-    Align = 128;
-    d->addAttr(::new (S.Context) AlignedAttr(Align));
+    D->addAttr(::new (S.Context) AlignedAttr(128));
     return;
   }
 
-  Expr *alignmentExpr = static_cast<Expr *>(Attr.getArg(0));
+  S.AddAlignedAttr(Attr.getLoc(), D, static_cast<Expr *>(Attr.getArg(0)));
+}
+
+void Sema::AddAlignedAttr(SourceLocation AttrLoc, Decl *D, Expr *E) {
+  if (E->isTypeDependent() || E->isValueDependent()) {
+    // Save dependent expressions in the AST to be instantiated.
+    D->addAttr(::new (Context) AlignedAttr(E));
+    return;
+  }
+
   llvm::APSInt Alignment(32);
-  if (alignmentExpr->isTypeDependent() || alignmentExpr->isValueDependent() ||
-      !alignmentExpr->isIntegerConstantExpr(Alignment, S.Context)) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_argument_not_int)
-      << "aligned" << alignmentExpr->getSourceRange();
+  if (!E->isIntegerConstantExpr(Alignment, Context)) {
+    Diag(AttrLoc, diag::err_attribute_argument_not_int)
+      << "aligned" << E->getSourceRange();
     return;
   }
   if (!llvm::isPowerOf2_64(Alignment.getZExtValue())) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_aligned_not_power_of_two)
-      << alignmentExpr->getSourceRange();
+    Diag(AttrLoc, diag::err_attribute_aligned_not_power_of_two)
+      << E->getSourceRange();
     return;
   }
 
-  d->addAttr(::new (S.Context) AlignedAttr(Alignment.getZExtValue() * 8));
+  D->addAttr(::new (Context) AlignedAttr(Alignment.getZExtValue() * 8));
 }
 
 /// HandleModeAttr - This attribute modifies the width of a decl with primitive
@@ -1525,7 +1580,7 @@ static void HandleModeAttr(Decl *D, const AttributeList &Attr, Sema &S) {
   if (!OldTy->getAs<BuiltinType>() && !OldTy->isComplexType())
     S.Diag(Attr.getLoc(), diag::err_mode_not_primitive);
   else if (IntegerMode) {
-    if (!OldTy->isIntegralType())
+    if (!OldTy->isIntegralOrEnumerationType())
       S.Diag(Attr.getLoc(), diag::err_mode_wrong_type);
   } else if (ComplexMode) {
     if (!OldTy->isComplexType())
@@ -1648,6 +1703,23 @@ static void HandleNoInlineAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   }
 
   d->addAttr(::new (S.Context) NoInlineAttr());
+}
+
+static void HandleNoInstrumentFunctionAttr(Decl *d, const AttributeList &Attr,
+                                           Sema &S) {
+  // check the attribute arguments.
+  if (Attr.getNumArgs() != 0) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
+    return;
+  }
+
+  if (!isa<FunctionDecl>(d)) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+    << Attr.getName() << 0 /*function*/;
+    return;
+  }
+
+  d->addAttr(::new (S.Context) NoInstrumentFunctionAttr());
 }
 
 static void HandleGNUInlineAttr(Decl *d, const AttributeList &Attr, Sema &S) {
@@ -1951,6 +2023,9 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
   case AttributeList::AT_reqd_wg_size:
     HandleReqdWorkGroupSize(D, Attr, S); break;
 
+  case AttributeList::AT_init_priority: 
+      HandleInitPriorityAttr(D, Attr, S); break;
+      
   case AttributeList::AT_packed:      HandlePackedAttr      (D, Attr, S); break;
   case AttributeList::AT_section:     HandleSectionAttr     (D, Attr, S); break;
   case AttributeList::AT_unavailable: HandleUnavailableAttr (D, Attr, S); break;
@@ -1979,8 +2054,10 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
   case AttributeList::AT_noinline:    HandleNoInlineAttr    (D, Attr, S); break;
   case AttributeList::AT_regparm:     HandleRegparmAttr     (D, Attr, S); break;
   case AttributeList::IgnoredAttribute:
-  case AttributeList::AT_no_instrument_function:  // Interacts with -pg.
     // Just ignore
+    break;
+  case AttributeList::AT_no_instrument_function:  // Interacts with -pg.
+    HandleNoInstrumentFunctionAttr(D, Attr, S);
     break;
   case AttributeList::AT_stdcall:
   case AttributeList::AT_cdecl:
@@ -1992,7 +2069,8 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
     // Ask target about the attribute.
     const TargetAttributesSema &TargetAttrs = S.getTargetAttributesSema();
     if (!TargetAttrs.ProcessDeclAttribute(scope, D, Attr, S))
-      S.Diag(Attr.getLoc(), diag::warn_attribute_ignored) << Attr.getName();
+      S.Diag(Attr.getLoc(), diag::warn_unknown_attribute_ignored)
+        << Attr.getName();
     break;
   }
 }

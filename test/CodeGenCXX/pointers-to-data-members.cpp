@@ -68,11 +68,11 @@ void f() {
   // CHECK: store i64 -1, i64* @_ZN5Casts2paE
   pa = 0;
 
-  // CHECK: [[ADJ:%[a-zA-Z0-9\.]+]] = add i64 {{.*}}, 4
+  // CHECK: [[ADJ:%[a-zA-Z0-9\.]+]] = add nsw i64 {{.*}}, 4
   // CHECK: store i64 [[ADJ]], i64* @_ZN5Casts2pcE
   pc = pa;
 
-  // CHECK: [[ADJ:%[a-zA-Z0-9\.]+]] = sub i64 {{.*}}, 4
+  // CHECK: [[ADJ:%[a-zA-Z0-9\.]+]] = sub nsw i64 {{.*}}, 4
   // CHECK: store i64 [[ADJ]], i64* @_ZN5Casts2paE
   pa = static_cast<int A::*>(pc);
 }
@@ -149,5 +149,37 @@ bool check2() {
   // CHECK-O3: ret i1 true
   return ptr_to_member_type() == 0;
 }
+
+}
+
+namespace VirtualBases {
+
+struct A {
+  char c;
+  int A::*i;
+};
+
+// FIXME: A::i should be initialized to -1 here.
+struct B : virtual A { };
+B b;
+
+// FIXME: A::i should be initialized to -1 here.
+struct C : virtual A { int A::*i; };
+C c;
+
+// FIXME: C::A::i should be initialized to -1 here.
+struct D : C { int A::*i; };
+D d;
+
+}
+
+namespace Test1 {
+
+// Don't crash when A contains a bit-field.
+struct A {
+  int A::* a;
+  int b : 10;
+};
+A a;
 
 }

@@ -211,9 +211,11 @@ void StmtProfiler::VisitExpr(Expr *S) {
 
 void StmtProfiler::VisitDeclRefExpr(DeclRefExpr *S) {
   VisitExpr(S);
-  VisitNestedNameSpecifier(S->getQualifier());
+  if (!Canonical)
+    VisitNestedNameSpecifier(S->getQualifier());
   VisitDecl(S->getDecl());
-  VisitTemplateArguments(S->getTemplateArgs(), S->getNumTemplateArgs());
+  if (!Canonical)
+    VisitTemplateArguments(S->getTemplateArgs(), S->getNumTemplateArgs());
 }
 
 void StmtProfiler::VisitPredefinedExpr(PredefinedExpr *S) {
@@ -307,7 +309,8 @@ void StmtProfiler::VisitCallExpr(CallExpr *S) {
 void StmtProfiler::VisitMemberExpr(MemberExpr *S) {
   VisitExpr(S);
   VisitDecl(S->getMemberDecl());
-  VisitNestedNameSpecifier(S->getQualifier());
+  if (!Canonical)
+    VisitNestedNameSpecifier(S->getQualifier());
   ID.AddBoolean(S->isArrow());
 }
 
@@ -428,6 +431,8 @@ void StmtProfiler::VisitBlockDeclRefExpr(BlockDeclRefExpr *S) {
   VisitDecl(S->getDecl());
   ID.AddBoolean(S->isByRef());
   ID.AddBoolean(S->isConstQualAdded());
+  if (S->getCopyConstructorExpr())
+    Visit(S->getCopyConstructorExpr());
 }
 
 static Stmt::StmtClass DecodeOperatorCall(CXXOperatorCallExpr *S,
@@ -719,7 +724,7 @@ void StmtProfiler::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *S) {
   VisitCXXConstructExpr(S);
 }
 
-void StmtProfiler::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *S) {
+void StmtProfiler::VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *S) {
   VisitExpr(S);
 }
 

@@ -6,9 +6,6 @@
 //   its friends, if any, by way of friend declarations. Such declarations give
 //   special access rights to the friends, but they do not make the nominated
 //   friends members of the befriending class.
-//
-// FIXME: Add tests for access control when implemented. Currently we only test
-// for parsing.
 
 struct S { static void f(); };
 S* g() { return 0; }
@@ -124,7 +121,7 @@ namespace test2 {
     friend struct ilist_walker_bad;
     X *Prev;
   protected:
-    X *getPrev() { return Prev; }
+    X *getPrev() { return Prev; } // expected-note{{member is declared here}}
   };
 
   class ilist_node : private ilist_half_node { // expected-note {{declared private here}} expected-note {{constrained by private inheritance here}}
@@ -286,4 +283,26 @@ namespace test9 {
   class B {
     friend class test9;
   };
+}
+
+// PR7230
+namespace test10 {
+  extern "C" void f(void);
+  extern "C" void g(void);
+
+  namespace NS {
+    class C {
+      void foo(void); // expected-note {{declared private here}}
+      friend void test10::f(void);
+    };
+    static C* bar;
+  }
+
+  void f(void) {
+    NS::bar->foo();
+  }
+
+  void g(void) {
+    NS::bar->foo(); // expected-error {{private member}}
+  }
 }

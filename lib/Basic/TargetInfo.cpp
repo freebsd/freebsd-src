@@ -34,6 +34,8 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   DoubleAlign = 64;
   LongDoubleWidth = 64;
   LongDoubleAlign = 64;
+  LargeArrayMinWidth = 0;
+  LargeArrayAlign = 0;
   SizeType = UnsignedLong;
   PtrDiffType = SignedLong;
   IntMaxType = SignedLongLong;
@@ -282,6 +284,8 @@ bool TargetInfo::validateOutputConstraint(ConstraintInfo &Info) const {
       Info.setAllowsRegister();
       Info.setAllowsMemory();
       break;
+    case ',': // FIXME: Until we handle multiple alternative constraints,
+      return true;  // ignore everything after the first comma.
     }
 
     Name++;
@@ -375,6 +379,8 @@ bool TargetInfo::validateInputConstraint(ConstraintInfo *OutputConstraints,
       Info.setAllowsRegister();
       Info.setAllowsMemory();
       break;
+    case ',': // FIXME: Until we handle multiple alternative constraints,
+      return true;  // ignore everything after the first comma.
     }
 
     Name++;

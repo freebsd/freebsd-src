@@ -45,7 +45,7 @@ void f7(e7 a0) {
 // Test merging/passing of upper eightbyte with X87 class.
 //
 // CHECK: define %0 @f8_1()
-// CHECK: define void @f8_2(%0)
+// CHECK: define void @f8_2(i64 %a0.coerce0, double %a0.coerce1)
 union u8 {
   long double a;
   int b;
@@ -56,7 +56,7 @@ void f8_2(union u8 a0) {}
 // CHECK: define i64 @f9()
 struct s9 { int a; int b; int : 0; } f9(void) { while (1) {} }
 
-// CHECK: define void @f10(i64)
+// CHECK: define void @f10(i64 %a0.coerce)
 struct s10 { int a; int b; int : 0; };
 void f10(struct s10 a0) {}
 
@@ -64,14 +64,14 @@ void f10(struct s10 a0) {}
 union { long double a; float b; } f11() { while (1) {} }
 
 // CHECK: define i64 @f12_0()
-// CHECK: define void @f12_1(i64)
+// CHECK: define void @f12_1(i64 %a0.coerce)
 struct s12 { int a __attribute__((aligned(16))); };
 struct s12 f12_0(void) { while (1) {} }
 void f12_1(struct s12 a0) {}
 
 // Check that sret parameter is accounted for when checking available integer
 // registers.
-// CHECK: define void @f13(%struct.s13_0* sret %agg.result, i32 %a, i32 %b, i32 %c, i32 %d, %struct.s13_1* byval %e, i32 %f)
+// CHECK: define void @f13(%struct.s13_0* sret %agg.result, i32 %a, i32 %b, i32 %c, i32 %d, {{.*}}* byval %e, i32 %f)
 
 struct s13_0 { long long f0[3]; };
 struct s13_1 { long long f0[2]; };
@@ -92,10 +92,10 @@ void f16(float a, float b, float c, float d, float e, float f, float g, float h,
 void f17(float a, float b, float c, float d, float e, float f, float g, float h,
          long double X) {}
 
-// Check for valid coercion.
-// CHECK: [[f18_t0:%.*]] = bitcast i64* {{.*}} to %struct.f18_s0*
-// CHECK: [[f18_t1:%.*]] = load %struct.f18_s0* [[f18_t0]], align 1
-// CHECK: store %struct.f18_s0 [[f18_t1]], %struct.f18_s0* %f18_arg1
+// Check for valid coercion.  The struct should be passed/returned as i32, not
+// as i64 for better code quality.
+// rdar://8135035
+// CHECK: define void @f18(i32 %a, i32 %f18_arg1.coerce) 
 struct f18_s0 { int f0; };
 void f18(int a, struct f18_s0 f18_arg1) { while (1) {} }
 
@@ -113,3 +113,21 @@ struct __attribute__((aligned(32))) s20 {
   int y;
 };
 void f20(struct s20 x) {}
+
+struct StringRef {
+  long x;
+  const char *Ptr;
+};
+
+// rdar://7375902
+// CHECK: define i8* @f21(i64 %S.coerce0, i8* %S.coerce1) 
+const char *f21(struct StringRef S) { return S.x+S.Ptr; }
+
+// PR7567
+typedef __attribute__ ((aligned(16))) struct f22s { unsigned long long x[2]; } L;
+void f22(L x, L y) { }
+// CHECK: @f22
+// CHECK: %x = alloca{{.*}}, align 16
+// CHECK: %y = alloca{{.*}}, align 16
+
+

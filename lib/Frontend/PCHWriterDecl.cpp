@@ -25,7 +25,7 @@ using namespace clang;
 // Declaration serialization
 //===----------------------------------------------------------------------===//
 
-namespace {
+namespace clang {
   class PCHDeclWriter : public DeclVisitor<PCHDeclWriter, void> {
 
     PCHWriter &Writer;
@@ -40,6 +40,8 @@ namespace {
                   PCHWriter::RecordData &Record)
       : Writer(Writer), Context(Context), Record(Record) {
     }
+    
+    void Visit(Decl *D);
 
     void VisitDecl(Decl *D);
     void VisitTranslationUnitDecl(TranslationUnitDecl *D);
@@ -49,7 +51,7 @@ namespace {
     void VisitNamespaceAliasDecl(NamespaceAliasDecl *D);
     void VisitTypeDecl(TypeDecl *D);
     void VisitTypedefDecl(TypedefDecl *D);
-    void VisitUnresolvedUsingTypename(UnresolvedUsingTypenameDecl *D);
+    void VisitUnresolvedUsingTypenameDecl(UnresolvedUsingTypenameDecl *D);
     void VisitTagDecl(TagDecl *D);
     void VisitEnumDecl(EnumDecl *D);
     void VisitRecordDecl(RecordDecl *D);
@@ -61,7 +63,7 @@ namespace {
     void VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D);
     void VisitValueDecl(ValueDecl *D);
     void VisitEnumConstantDecl(EnumConstantDecl *D);
-    void VisitUnresolvedUsingValue(UnresolvedUsingValueDecl *D);
+    void VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D);
     void VisitDeclaratorDecl(DeclaratorDecl *D);
     void VisitFunctionDecl(FunctionDecl *D);
     void VisitCXXMethodDecl(CXXMethodDecl *D);
@@ -75,12 +77,14 @@ namespace {
     void VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D);
     void VisitTemplateDecl(TemplateDecl *D);
     void VisitClassTemplateDecl(ClassTemplateDecl *D);
-    void visitFunctionTemplateDecl(FunctionTemplateDecl *D);
+    void VisitFunctionTemplateDecl(FunctionTemplateDecl *D);
     void VisitTemplateTemplateParmDecl(TemplateTemplateParmDecl *D);
-    void VisitUsing(UsingDecl *D);
-    void VisitUsingShadow(UsingShadowDecl *D);
+    void VisitUsingDecl(UsingDecl *D);
+    void VisitUsingShadowDecl(UsingShadowDecl *D);
     void VisitLinkageSpecDecl(LinkageSpecDecl *D);
     void VisitFileScopeAsmDecl(FileScopeAsmDecl *D);
+    void VisitAccessSpecDecl(AccessSpecDecl *D);
+    void VisitFriendDecl(FriendDecl *D);
     void VisitFriendTemplateDecl(FriendTemplateDecl *D);
     void VisitStaticAssertDecl(StaticAssertDecl *D);
     void VisitBlockDecl(BlockDecl *D);
@@ -89,7 +93,7 @@ namespace {
                           uint64_t VisibleOffset);
 
 
-    // FIXME: Put in the same order is DeclNodes.def?
+    // FIXME: Put in the same order is DeclNodes.td?
     void VisitObjCMethodDecl(ObjCMethodDecl *D);
     void VisitObjCContainerDecl(ObjCContainerDecl *D);
     void VisitObjCInterfaceDecl(ObjCInterfaceDecl *D);
@@ -108,6 +112,19 @@ namespace {
   };
 }
 
+void PCHDeclWriter::Visit(Decl *D) {
+  DeclVisitor<PCHDeclWriter>::Visit(D);
+
+  // Handle FunctionDecl's body here and write it after all other Stmts/Exprs
+  // have been written. We want it last because we will not read it back when
+  // retrieving it from the PCH, we'll just lazily set the offset. 
+  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    Record.push_back(FD->isThisDeclarationADefinition());
+    if (FD->isThisDeclarationADefinition())
+      Writer.AddStmt(FD->getBody());
+  }
+}
+
 void PCHDeclWriter::VisitDecl(Decl *D) {
   Writer.AddDeclRef(cast_or_null<Decl>(D->getDeclContext()), Record);
   Writer.AddDeclRef(cast_or_null<Decl>(D->getLexicalDeclContext()), Record);
@@ -115,7 +132,7 @@ void PCHDeclWriter::VisitDecl(Decl *D) {
   Record.push_back(D->isInvalidDecl());
   Record.push_back(D->hasAttrs());
   Record.push_back(D->isImplicit());
-  Record.push_back(D->isUsed());
+  Record.push_back(D->isUsed(false));
   Record.push_back(D->getAccess());
   Record.push_back(D->getPCHLevel());
 }
@@ -144,6 +161,7 @@ void PCHDeclWriter::VisitTypedefDecl(TypedefDecl *D) {
 
 void PCHDeclWriter::VisitTagDecl(TagDecl *D) {
   VisitTypeDecl(D);
+  Record.push_back(D->getIdentifierNamespace());
   Writer.AddDeclRef(D->getPreviousDeclaration(), Record);
   Record.push_back((unsigned)D->getTagKind()); // FIXME: stable encoding
   Record.push_back(D->isDefinition());
@@ -160,7 +178,7 @@ void PCHDeclWriter::VisitEnumDecl(EnumDecl *D) {
   Writer.AddTypeRef(D->getPromotionType(), Record);
   Record.push_back(D->getNumPositiveBits());
   Record.push_back(D->getNumNegativeBits());
-  // FIXME: C++ InstantiatedFrom
+  Writer.AddDeclRef(D->getInstantiatedFromMemberEnum(), Record);
   Code = pch::DECL_ENUM;
 }
 
@@ -195,9 +213,70 @@ void PCHDeclWriter::VisitDeclaratorDecl(DeclaratorDecl *D) {
 void PCHDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
   VisitDeclaratorDecl(D);
 
-  Record.push_back(D->isThisDeclarationADefinition());
-  if (D->isThisDeclarationADefinition())
-    Writer.AddStmt(D->getBody());
+  Record.push_back(D->getIdentifierNamespace());
+  Record.push_back(D->getTemplatedKind());
+  switch (D->getTemplatedKind()) {
+  default: assert(false && "Unhandled TemplatedKind!");
+    break;
+  case FunctionDecl::TK_NonTemplate:
+    break;
+  case FunctionDecl::TK_FunctionTemplate:
+    Writer.AddDeclRef(D->getDescribedFunctionTemplate(), Record);
+    break;
+  case FunctionDecl::TK_MemberSpecialization: {
+    MemberSpecializationInfo *MemberInfo = D->getMemberSpecializationInfo();
+    Writer.AddDeclRef(MemberInfo->getInstantiatedFrom(), Record);
+    Record.push_back(MemberInfo->getTemplateSpecializationKind());
+    Writer.AddSourceLocation(MemberInfo->getPointOfInstantiation(), Record);
+    break;
+  }
+  case FunctionDecl::TK_FunctionTemplateSpecialization: {
+    FunctionTemplateSpecializationInfo *
+      FTSInfo = D->getTemplateSpecializationInfo();
+    // We want it canonical to guarantee that it has a Common*.
+    Writer.AddDeclRef(FTSInfo->getTemplate()->getCanonicalDecl(), Record);
+    Record.push_back(FTSInfo->getTemplateSpecializationKind());
+    
+    // Template arguments.
+    Writer.AddTemplateArgumentList(FTSInfo->TemplateArguments, Record);
+    
+    // Template args as written.
+    Record.push_back(FTSInfo->TemplateArgumentsAsWritten != 0);
+    if (FTSInfo->TemplateArgumentsAsWritten) {
+      Record.push_back(FTSInfo->TemplateArgumentsAsWritten->size());
+      for (int i=0, e = FTSInfo->TemplateArgumentsAsWritten->size(); i!=e; ++i)
+        Writer.AddTemplateArgumentLoc((*FTSInfo->TemplateArgumentsAsWritten)[i],
+                                      Record);
+      Writer.AddSourceLocation(FTSInfo->TemplateArgumentsAsWritten->getLAngleLoc(),
+                               Record);
+      Writer.AddSourceLocation(FTSInfo->TemplateArgumentsAsWritten->getRAngleLoc(),
+                               Record);
+    }
+    
+    Writer.AddSourceLocation(FTSInfo->getPointOfInstantiation(), Record);
+    break;
+  }
+  case FunctionDecl::TK_DependentFunctionTemplateSpecialization: {
+    DependentFunctionTemplateSpecializationInfo *
+      DFTSInfo = D->getDependentSpecializationInfo();
+    
+    // Templates.
+    Record.push_back(DFTSInfo->getNumTemplates());
+    for (int i=0, e = DFTSInfo->getNumTemplates(); i != e; ++i)
+      Writer.AddDeclRef(DFTSInfo->getTemplate(i), Record);
+    
+    // Templates args.
+    Record.push_back(DFTSInfo->getNumTemplateArgs());
+    for (int i=0, e = DFTSInfo->getNumTemplateArgs(); i != e; ++i)
+      Writer.AddTemplateArgumentLoc(DFTSInfo->getTemplateArg(i), Record);
+    Writer.AddSourceLocation(DFTSInfo->getLAngleLoc(), Record);
+    Writer.AddSourceLocation(DFTSInfo->getRAngleLoc(), Record);
+    break;
+  }
+  }
+
+  // FunctionDecl's body is handled last at PCHWriterDecl::Visit,
+  // after everything else is written.
 
   Writer.AddDeclRef(D->getPreviousDeclaration(), Record);
   Record.push_back(D->getStorageClass()); // FIXME: stable encoding
@@ -211,7 +290,6 @@ void PCHDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
   Record.push_back(D->isTrivial());
   Record.push_back(D->isCopyAssignment());
   Record.push_back(D->hasImplicitReturnZero());
-  // FIXME: C++ TemplateOrInstantiation???
   Writer.AddSourceLocation(D->getLocEnd(), Record);
 
   Record.push_back(D->param_size());
@@ -357,9 +435,10 @@ void PCHDeclWriter::VisitObjCCompatibleAliasDecl(ObjCCompatibleAliasDecl *D) {
 void PCHDeclWriter::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
   VisitNamedDecl(D);
   Writer.AddSourceLocation(D->getAtLoc(), Record);
-  Writer.AddTypeRef(D->getType(), Record);
+  Writer.AddTypeSourceInfo(D->getTypeSourceInfo(), Record);
   // FIXME: stable encoding
   Record.push_back((unsigned)D->getPropertyAttributes());
+  Record.push_back((unsigned)D->getPropertyAttributesAsWritten());
   // FIXME: stable encoding
   Record.push_back((unsigned)D->getPropertyImplementation());
   Writer.AddDeclarationName(D->getGetterName(), Record);
@@ -404,6 +483,8 @@ void PCHDeclWriter::VisitFieldDecl(FieldDecl *D) {
   Record.push_back(D->getBitWidth()? 1 : 0);
   if (D->getBitWidth())
     Writer.AddStmt(D->getBitWidth());
+  if (!D->getDeclName())
+    Writer.AddDeclRef(Context.getInstantiatedFromUnnamedFieldDecl(D), Record);
   Code = pch::DECL_FIELD;
 }
 
@@ -420,6 +501,16 @@ void PCHDeclWriter::VisitVarDecl(VarDecl *D) {
   Record.push_back(D->getInit() ? 1 : 0);
   if (D->getInit())
     Writer.AddStmt(D->getInit());
+
+  MemberSpecializationInfo *SpecInfo
+    = D->isStaticDataMember() ? D->getMemberSpecializationInfo() : 0;
+  Record.push_back(SpecInfo != 0);
+  if (SpecInfo) {
+    Writer.AddDeclRef(SpecInfo->getInstantiatedFrom(), Record);
+    Record.push_back(SpecInfo->getTemplateSpecializationKind());
+    Writer.AddSourceLocation(SpecInfo->getPointOfInstantiation(), Record);
+  }
+
   Code = pch::DECL_VAR;
 }
 
@@ -432,6 +523,9 @@ void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   VisitVarDecl(D);
   Record.push_back(D->getObjCDeclQualifier()); // FIXME: stable encoding
   Record.push_back(D->hasInheritedDefaultArg());
+  Record.push_back(D->hasUninstantiatedDefaultArg());
+  if (D->hasUninstantiatedDefaultArg())
+    Writer.AddStmt(D->getUninstantiatedDefaultArg());
   Code = pch::DECL_PARM_VAR;
 
   // If the assumptions about the DECL_PARM_VAR abbrev are true, use it.  Here
@@ -440,14 +534,15 @@ void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   if (!D->getTypeSourceInfo() &&
       !D->hasAttrs() &&
       !D->isImplicit() &&
-      !D->isUsed() &&
+      !D->isUsed(false) &&
       D->getAccess() == AS_none &&
       D->getPCHLevel() == 0 &&
       D->getStorageClass() == 0 &&
       !D->hasCXXDirectInitializer() && // Can params have this ever?
       D->getObjCDeclQualifier() == 0 &&
       !D->hasInheritedDefaultArg() &&
-      D->getInit() == 0)  // No default expr.
+      D->getInit() == 0 &&
+      !D->hasUninstantiatedDefaultArg())  // No default expr.
     AbbrevToUse = Writer.getParmVarDeclAbbrev();
 
   // Check things we know are true of *every* PARM_VAR_DECL, which is more than
@@ -458,6 +553,8 @@ void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   assert(!D->isDeclaredInCondition() && "PARM_VAR_DECL can't be in condition");
   assert(!D->isExceptionVariable() && "PARM_VAR_DECL can't be exception var");
   assert(D->getPreviousDeclaration() == 0 && "PARM_VAR_DECL can't be redecl");
+  assert(!D->isStaticDataMember() &&
+         "PARM_VAR_DECL can't be static data member");
 }
 
 void PCHDeclWriter::VisitFileScopeAsmDecl(FileScopeAsmDecl *D) {
@@ -469,6 +566,7 @@ void PCHDeclWriter::VisitFileScopeAsmDecl(FileScopeAsmDecl *D) {
 void PCHDeclWriter::VisitBlockDecl(BlockDecl *D) {
   VisitDecl(D);
   Writer.AddStmt(D->getBody());
+  Writer.AddTypeSourceInfo(D->getSignatureAsWritten(), Record);
   Record.push_back(D->param_size());
   for (FunctionDecl::param_iterator P = D->param_begin(), PEnd = D->param_end();
        P != PEnd; ++P)
@@ -510,7 +608,7 @@ void PCHDeclWriter::VisitNamespaceAliasDecl(NamespaceAliasDecl *D) {
   Code = pch::DECL_NAMESPACE_ALIAS;
 }
 
-void PCHDeclWriter::VisitUsing(UsingDecl *D) {
+void PCHDeclWriter::VisitUsingDecl(UsingDecl *D) {
   VisitNamedDecl(D);
   Writer.AddSourceRange(D->getNestedNameRange(), Record);
   Writer.AddSourceLocation(D->getUsingLocation(), Record);
@@ -520,13 +618,15 @@ void PCHDeclWriter::VisitUsing(UsingDecl *D) {
        PEnd = D->shadow_end(); P != PEnd; ++P)
     Writer.AddDeclRef(*P, Record);
   Record.push_back(D->isTypeName());
+  Writer.AddDeclRef(Context.getInstantiatedFromUsingDecl(D), Record);
   Code = pch::DECL_USING;
 }
 
-void PCHDeclWriter::VisitUsingShadow(UsingShadowDecl *D) {
+void PCHDeclWriter::VisitUsingShadowDecl(UsingShadowDecl *D) {
   VisitNamedDecl(D);
   Writer.AddDeclRef(D->getTargetDecl(), Record);
   Writer.AddDeclRef(D->getUsingDecl(), Record);
+  Writer.AddDeclRef(Context.getInstantiatedFromUsingShadowDecl(D), Record);
   Code = pch::DECL_USING_SHADOW;
 }
 
@@ -541,7 +641,7 @@ void PCHDeclWriter::VisitUsingDirectiveDecl(UsingDirectiveDecl *D) {
   Code = pch::DECL_USING_DIRECTIVE;
 }
 
-void PCHDeclWriter::VisitUnresolvedUsingValue(UnresolvedUsingValueDecl *D) {
+void PCHDeclWriter::VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D) {
   VisitValueDecl(D);
   Writer.AddSourceRange(D->getTargetNestedNameRange(), Record);
   Writer.AddSourceLocation(D->getUsingLoc(), Record);
@@ -549,7 +649,7 @@ void PCHDeclWriter::VisitUnresolvedUsingValue(UnresolvedUsingValueDecl *D) {
   Code = pch::DECL_UNRESOLVED_USING_VALUE;
 }
 
-void PCHDeclWriter::VisitUnresolvedUsingTypename(
+void PCHDeclWriter::VisitUnresolvedUsingTypenameDecl(
                                                UnresolvedUsingTypenameDecl *D) {
   VisitTypeDecl(D);
   Writer.AddSourceRange(D->getTargetNestedNameRange(), Record);
@@ -560,33 +660,160 @@ void PCHDeclWriter::VisitUnresolvedUsingTypename(
 }
 
 void PCHDeclWriter::VisitCXXRecordDecl(CXXRecordDecl *D) {
-  // assert(false && "cannot write CXXRecordDecl");
+  // See comments at PCHDeclReader::VisitCXXRecordDecl about why this happens
+  // before VisitRecordDecl.
+  enum { Data_NoDefData, Data_Owner, Data_NotOwner };
+  bool OwnsDefinitionData = false;
+  if (D->DefinitionData) {
+    assert(D->DefinitionData->Definition &&
+           "DefinitionData don't point to a definition decl!");
+    OwnsDefinitionData = D->DefinitionData->Definition == D;
+    if (OwnsDefinitionData) {
+      Record.push_back(Data_Owner);
+    } else {
+      Record.push_back(Data_NotOwner);
+      Writer.AddDeclRef(D->DefinitionData->Definition, Record);
+    }
+  } else
+    Record.push_back(Data_NoDefData);
+
   VisitRecordDecl(D);
+
+  if (OwnsDefinitionData) {
+    assert(D->DefinitionData);
+    struct CXXRecordDecl::DefinitionData &Data = *D->DefinitionData;
+
+    Record.push_back(Data.UserDeclaredConstructor);
+    Record.push_back(Data.UserDeclaredCopyConstructor);
+    Record.push_back(Data.UserDeclaredCopyAssignment);
+    Record.push_back(Data.UserDeclaredDestructor);
+    Record.push_back(Data.Aggregate);
+    Record.push_back(Data.PlainOldData);
+    Record.push_back(Data.Empty);
+    Record.push_back(Data.Polymorphic);
+    Record.push_back(Data.Abstract);
+    Record.push_back(Data.HasTrivialConstructor);
+    Record.push_back(Data.HasTrivialCopyConstructor);
+    Record.push_back(Data.HasTrivialCopyAssignment);
+    Record.push_back(Data.HasTrivialDestructor);
+    Record.push_back(Data.ComputedVisibleConversions);
+    Record.push_back(Data.DeclaredDefaultConstructor);
+    Record.push_back(Data.DeclaredCopyConstructor);
+    Record.push_back(Data.DeclaredCopyAssignment);
+    Record.push_back(Data.DeclaredDestructor);
+
+    Record.push_back(D->getNumBases());
+    for (CXXRecordDecl::base_class_iterator I = D->bases_begin(),
+           E = D->bases_end(); I != E; ++I)
+      Writer.AddCXXBaseSpecifier(*I, Record);
+
+    // FIXME: Make VBases lazily computed when needed to avoid storing them.
+    Record.push_back(D->getNumVBases());
+    for (CXXRecordDecl::base_class_iterator I = D->vbases_begin(),
+           E = D->vbases_end(); I != E; ++I)
+      Writer.AddCXXBaseSpecifier(*I, Record);
+
+    Writer.AddUnresolvedSet(Data.Conversions, Record);
+    Writer.AddUnresolvedSet(Data.VisibleConversions, Record);
+    // Data.Definition is written at the top. 
+    Writer.AddDeclRef(Data.FirstFriend, Record);
+  }
+
+  enum {
+    CXXRecNotTemplate = 0, CXXRecTemplate, CXXRecMemberSpecialization
+  };
+  if (ClassTemplateDecl *TemplD = D->getDescribedClassTemplate()) {
+    Record.push_back(CXXRecTemplate);
+    Writer.AddDeclRef(TemplD, Record);
+  } else if (MemberSpecializationInfo *MSInfo
+               = D->getMemberSpecializationInfo()) {
+    Record.push_back(CXXRecMemberSpecialization);
+    Writer.AddDeclRef(MSInfo->getInstantiatedFrom(), Record);
+    Record.push_back(MSInfo->getTemplateSpecializationKind());
+    Writer.AddSourceLocation(MSInfo->getPointOfInstantiation(), Record);
+  } else {
+    Record.push_back(CXXRecNotTemplate);
+  }
+
   Code = pch::DECL_CXX_RECORD;
 }
 
 void PCHDeclWriter::VisitCXXMethodDecl(CXXMethodDecl *D) {
-  // assert(false && "cannot write CXXMethodDecl");
   VisitFunctionDecl(D);
+  Record.push_back(D->size_overridden_methods());
+  for (CXXMethodDecl::method_iterator
+         I = D->begin_overridden_methods(), E = D->end_overridden_methods();
+         I != E; ++I)
+    Writer.AddDeclRef(*I, Record);
   Code = pch::DECL_CXX_METHOD;
 }
 
 void PCHDeclWriter::VisitCXXConstructorDecl(CXXConstructorDecl *D) {
-  // assert(false && "cannot write CXXConstructorDecl");
   VisitCXXMethodDecl(D);
+
+  Record.push_back(D->IsExplicitSpecified);
+  Record.push_back(D->ImplicitlyDefined);
+  
+  Record.push_back(D->NumBaseOrMemberInitializers);
+  for (unsigned i=0; i != D->NumBaseOrMemberInitializers; ++i) {
+    CXXBaseOrMemberInitializer *Init = D->BaseOrMemberInitializers[i];
+
+    Record.push_back(Init->isBaseInitializer());
+    if (Init->isBaseInitializer()) {
+      Writer.AddTypeSourceInfo(Init->getBaseClassInfo(), Record);
+      Record.push_back(Init->isBaseVirtual());
+    } else {
+      Writer.AddDeclRef(Init->getMember(), Record);
+    }
+    Writer.AddSourceLocation(Init->getMemberLocation(), Record);
+    Writer.AddStmt(Init->getInit());
+    Writer.AddDeclRef(Init->getAnonUnionMember(), Record);
+    Writer.AddSourceLocation(Init->getLParenLoc(), Record);
+    Writer.AddSourceLocation(Init->getRParenLoc(), Record);
+    Record.push_back(Init->isWritten());
+    if (Init->isWritten()) {
+      Record.push_back(Init->getSourceOrder());
+    } else {
+      Record.push_back(Init->getNumArrayIndices());
+      for (unsigned i=0, e=Init->getNumArrayIndices(); i != e; ++i)
+        Writer.AddDeclRef(Init->getArrayIndex(i), Record);
+    }
+  }
+
   Code = pch::DECL_CXX_CONSTRUCTOR;
 }
 
 void PCHDeclWriter::VisitCXXDestructorDecl(CXXDestructorDecl *D) {
-  // assert(false && "cannot write CXXDestructorDecl");
   VisitCXXMethodDecl(D);
+
+  Record.push_back(D->ImplicitlyDefined);
+  Writer.AddDeclRef(D->OperatorDelete, Record);
+
   Code = pch::DECL_CXX_DESTRUCTOR;
 }
 
 void PCHDeclWriter::VisitCXXConversionDecl(CXXConversionDecl *D) {
-  // assert(false && "cannot write CXXConversionDecl");
   VisitCXXMethodDecl(D);
+  Record.push_back(D->IsExplicitSpecified);
   Code = pch::DECL_CXX_CONVERSION;
+}
+
+void PCHDeclWriter::VisitAccessSpecDecl(AccessSpecDecl *D) {
+  VisitDecl(D);
+  Writer.AddSourceLocation(D->getColonLoc(), Record);
+  Code = pch::DECL_ACCESS_SPEC;
+}
+
+void PCHDeclWriter::VisitFriendDecl(FriendDecl *D) {
+  VisitDecl(D);
+  Record.push_back(D->Friend.is<TypeSourceInfo*>());
+  if (D->Friend.is<TypeSourceInfo*>())
+    Writer.AddTypeSourceInfo(D->Friend.get<TypeSourceInfo*>(), Record);
+  else
+    Writer.AddDeclRef(D->Friend.get<NamedDecl*>(), Record);
+  Writer.AddDeclRef(D->NextFriend, Record);
+  Writer.AddSourceLocation(D->FriendLoc, Record);
+  Code = pch::DECL_FRIEND;
 }
 
 void PCHDeclWriter::VisitFriendTemplateDecl(FriendTemplateDecl *D) {
@@ -594,37 +821,163 @@ void PCHDeclWriter::VisitFriendTemplateDecl(FriendTemplateDecl *D) {
 }
 
 void PCHDeclWriter::VisitTemplateDecl(TemplateDecl *D) {
-  assert(false && "cannot write TemplateDecl");
+  VisitNamedDecl(D);
+
+  Writer.AddDeclRef(D->getTemplatedDecl(), Record);
+  Writer.AddTemplateParameterList(D->getTemplateParameters(), Record);
+}
+
+static bool IsKeptInFoldingSet(ClassTemplateSpecializationDecl *D) {
+  return D->getTypeForDecl()->getAsCXXRecordDecl() == D;
 }
 
 void PCHDeclWriter::VisitClassTemplateDecl(ClassTemplateDecl *D) {
-  assert(false && "cannot write ClassTemplateDecl");
+  VisitTemplateDecl(D);
+
+  Record.push_back(D->getIdentifierNamespace());
+  Writer.AddDeclRef(D->getPreviousDeclaration(), Record);
+  if (D->getPreviousDeclaration() == 0) {
+    // This ClassTemplateDecl owns the CommonPtr; write it.
+    assert(D->isCanonicalDecl());
+
+    typedef llvm::FoldingSet<ClassTemplateSpecializationDecl> CTSDSetTy;
+    CTSDSetTy &CTSDSet = D->getSpecializations();
+    Record.push_back(CTSDSet.size());
+    for (CTSDSetTy::iterator I=CTSDSet.begin(), E = CTSDSet.end(); I!=E; ++I) {
+      assert(IsKeptInFoldingSet(&*I));
+      Writer.AddDeclRef(&*I, Record);
+    }
+
+    typedef llvm::FoldingSet<ClassTemplatePartialSpecializationDecl> CTPSDSetTy;
+    CTPSDSetTy &CTPSDSet = D->getPartialSpecializations();
+    Record.push_back(CTPSDSet.size());
+    for (CTPSDSetTy::iterator I=CTPSDSet.begin(), E=CTPSDSet.end(); I!=E; ++I) {
+      assert(IsKeptInFoldingSet(&*I));
+      Writer.AddDeclRef(&*I, Record); 
+    }
+
+    // InjectedClassNameType is computed, no need to write it.
+
+    Writer.AddDeclRef(D->getInstantiatedFromMemberTemplate(), Record);
+    if (D->getInstantiatedFromMemberTemplate())
+      Record.push_back(D->isMemberSpecialization());
+  }
+  Code = pch::DECL_CLASS_TEMPLATE;
 }
 
 void PCHDeclWriter::VisitClassTemplateSpecializationDecl(
                                            ClassTemplateSpecializationDecl *D) {
-  assert(false && "cannot write ClassTemplateSpecializationDecl");
+  VisitCXXRecordDecl(D);
+
+  llvm::PointerUnion<ClassTemplateDecl *,
+                     ClassTemplatePartialSpecializationDecl *> InstFrom
+    = D->getSpecializedTemplateOrPartial();
+  if (InstFrom.is<ClassTemplateDecl *>()) {
+    Writer.AddDeclRef(InstFrom.get<ClassTemplateDecl *>(), Record);
+  } else {
+    Writer.AddDeclRef(InstFrom.get<ClassTemplatePartialSpecializationDecl *>(),
+                      Record);
+    Writer.AddTemplateArgumentList(&D->getTemplateInstantiationArgs(), Record);
+  }
+
+  // Explicit info.
+  Writer.AddTypeSourceInfo(D->getTypeAsWritten(), Record);
+  if (D->getTypeAsWritten()) {
+    Writer.AddSourceLocation(D->getExternLoc(), Record);
+    Writer.AddSourceLocation(D->getTemplateKeywordLoc(), Record);
+  }
+
+  Writer.AddTemplateArgumentList(&D->getTemplateArgs(), Record);
+  Writer.AddSourceLocation(D->getPointOfInstantiation(), Record);
+  Record.push_back(D->getSpecializationKind());
+
+  bool IsInInFoldingSet = IsKeptInFoldingSet(D);
+  Record.push_back(IsInInFoldingSet);
+  if (IsInInFoldingSet) {
+    // When reading, we'll add it to the folding set of this one. 
+    Writer.AddDeclRef(D->getSpecializedTemplate()->getCanonicalDecl(), Record);
+  }
+
+  Code = pch::DECL_CLASS_TEMPLATE_SPECIALIZATION;
 }
 
 void PCHDeclWriter::VisitClassTemplatePartialSpecializationDecl(
                                     ClassTemplatePartialSpecializationDecl *D) {
-  assert(false && "cannot write ClassTemplatePartialSpecializationDecl");
+  VisitClassTemplateSpecializationDecl(D);
+
+  Writer.AddTemplateParameterList(D->getTemplateParameters(), Record);
+
+  Record.push_back(D->getNumTemplateArgsAsWritten());
+  for (int i = 0, e = D->getNumTemplateArgsAsWritten(); i != e; ++i)
+    Writer.AddTemplateArgumentLoc(D->getTemplateArgsAsWritten()[i], Record);
+
+  Record.push_back(D->getSequenceNumber());
+
+  // These are read/set from/to the first declaration.
+  if (D->getPreviousDeclaration() == 0) {
+    Writer.AddDeclRef(D->getInstantiatedFromMember(), Record);
+    Record.push_back(D->isMemberSpecialization());
+  }
+
+  Code = pch::DECL_CLASS_TEMPLATE_PARTIAL_SPECIALIZATION;
 }
 
-void PCHDeclWriter::visitFunctionTemplateDecl(FunctionTemplateDecl *D) {
-  assert(false && "cannot write FunctionTemplateDecl");
+void PCHDeclWriter::VisitFunctionTemplateDecl(FunctionTemplateDecl *D) {
+  VisitTemplateDecl(D);
+
+  Record.push_back(D->getIdentifierNamespace());
+  Writer.AddDeclRef(D->getPreviousDeclaration(), Record);
+  if (D->getPreviousDeclaration() == 0) {
+    // This FunctionTemplateDecl owns the CommonPtr; write it.
+
+    // Write the function specialization declarations.
+    Record.push_back(D->getSpecializations().size());
+    for (llvm::FoldingSet<FunctionTemplateSpecializationInfo>::iterator
+           I = D->getSpecializations().begin(),
+           E = D->getSpecializations().end()   ; I != E; ++I)
+      Writer.AddDeclRef(I->Function, Record);
+
+    Writer.AddDeclRef(D->getInstantiatedFromMemberTemplate(), Record);
+    if (D->getInstantiatedFromMemberTemplate())
+      Record.push_back(D->isMemberSpecialization());
+  }
+  Code = pch::DECL_FUNCTION_TEMPLATE;
 }
 
 void PCHDeclWriter::VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D) {
-  assert(false && "cannot write TemplateTypeParmDecl");
+  VisitTypeDecl(D);
+
+  Record.push_back(D->wasDeclaredWithTypename());
+  Record.push_back(D->isParameterPack());
+  Record.push_back(D->defaultArgumentWasInherited());
+  Writer.AddTypeSourceInfo(D->getDefaultArgumentInfo(), Record);
+
+  Code = pch::DECL_TEMPLATE_TYPE_PARM;
 }
 
 void PCHDeclWriter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
-  assert(false && "cannot write NonTypeTemplateParmDecl");
+  VisitVarDecl(D);
+  // TemplateParmPosition.
+  Record.push_back(D->getDepth());
+  Record.push_back(D->getPosition());
+  // Rest of NonTypeTemplateParmDecl.
+  Record.push_back(D->getDefaultArgument() != 0);
+  if (D->getDefaultArgument()) {
+    Writer.AddStmt(D->getDefaultArgument());
+    Record.push_back(D->defaultArgumentWasInherited());
+  }
+  Code = pch::DECL_NON_TYPE_TEMPLATE_PARM;
 }
 
 void PCHDeclWriter::VisitTemplateTemplateParmDecl(TemplateTemplateParmDecl *D) {
-  assert(false && "cannot write TemplateTemplateParmDecl");
+  VisitTemplateDecl(D);
+  // TemplateParmPosition.
+  Record.push_back(D->getDepth());
+  Record.push_back(D->getPosition());
+  // Rest of TemplateTemplateParmDecl.
+  Writer.AddTemplateArgumentLoc(D->getDefaultArgument(), Record);
+  Record.push_back(D->defaultArgumentWasInherited());
+  Code = pch::DECL_TEMPLATE_TEMPLATE_PARM;
 }
 
 void PCHDeclWriter::VisitStaticAssertDecl(StaticAssertDecl *D) {
@@ -687,9 +1040,11 @@ void PCHWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // isNRVOVariable
   Abv->Add(BitCodeAbbrevOp(0));                       // PrevDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // HasInit
+  Abv->Add(BitCodeAbbrevOp(0));                   // HasMemberSpecializationInfo
   // ParmVarDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // ObjCDeclQualifier
   Abv->Add(BitCodeAbbrevOp(0));                       // HasInheritedDefaultArg
+  Abv->Add(BitCodeAbbrevOp(0));                   // HasUninstantiatedDefaultArg
 
   ParmVarDeclAbbrev = Stream.EmitAbbrev(Abv);
 }

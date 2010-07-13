@@ -2,6 +2,7 @@
 
 typedef __typeof(sizeof(int)) size_t;
 void *malloc(size_t);
+void *calloc(size_t, size_t);
 
 char f1() {
   char* s = "abcd";
@@ -35,4 +36,38 @@ void f4() {
   p[0] = a; // no-warning
   p[1] = a; // no-warning
   p[2] = a; // expected-warning{{Access out-of-bound array element (buffer overflow)}}
+}
+
+void f5() {
+  char *p = calloc(2,2);
+  p[3] = '.'; // no-warning
+  p[4] = '!'; // expected-warning{{out-of-bound}}
+}
+
+void f6() {
+  char a[2];
+  int *b = (int*)a;
+  b[1] = 3; // expected-warning{{out-of-bound}}
+}
+
+void f7() {
+  struct three_words a;
+  a.c[3] = 1; // expected-warning{{out-of-bound}}
+}
+
+void vla(int a) {
+  if (a == 5) {
+    int x[a];
+    x[4] = 4; // no-warning
+    x[5] = 5; // expected-warning{{out-of-bound}}
+  }
+}
+
+void sizeof_vla(int a) {
+  if (a == 5) {
+    char x[a];
+    int y[sizeof(x)];
+    y[4] = 4; // no-warning
+    y[5] = 5; // expected-warning{{out-of-bound}}
+  }
 }
