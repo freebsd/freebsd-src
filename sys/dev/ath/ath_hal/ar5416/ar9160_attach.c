@@ -26,14 +26,7 @@
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
-#if 0
 #include "ar5416/ar9160.ini"
-#endif
-/* XXX Temporary workaround so linux-9160.h can be a virgin copy of linux ath9k/initvals.h */
-#define	u32	uint32_t
-#include "ar5416/linux-9160.h"
-#undef u32
-#include "ar5416/ar9160-pcie.h"
 
 static const HAL_PERCAL_DATA ar9160_iq_cal = {		/* multi sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,
@@ -156,22 +149,22 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	AH_PRIVATE(ah)->ah_ispcie = (val & AR_XSREV_TYPE_HOST_MODE) == 0;
 
 	/* setup common ini data; rf backends handle remainder */
-	HAL_INI_INIT(&ahp->ah_ini_modes, ar5416Modes_9160, 6);
-	HAL_INI_INIT(&ahp->ah_ini_common, ar5416Common_9160, 2);
+	HAL_INI_INIT(&ahp->ah_ini_modes, ar9160Modes, 6);
+	HAL_INI_INIT(&ahp->ah_ini_common, ar9160Common, 2);
 
-	HAL_INI_INIT(&AH5416(ah)->ah_ini_bb_rfgain, ar5416BB_RfGain_9160, 3);
-	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank0, ar5416Bank0_9160, 2);
-	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank1, ar5416Bank1_9160, 2);
-	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank2, ar5416Bank2_9160, 2);
-	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank3, ar5416Bank3_9160, 3);
-	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank6, ar5416Bank6_9160, 3);
-	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank6tpc, ar5416Bank6TPC_9160, 3);
-	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank7, ar5416Bank7_9160, 2);
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_bb_rfgain, ar9160BB_RfGain, 3);
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank0, ar9160Bank0, 2);
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank1, ar9160Bank1, 2);
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank2, ar9160Bank2, 2);
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank3, ar9160Bank3, 3);
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank6, ar9160Bank6, 3);
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank6tpc, ar9160Bank6TPC, 3);
+	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank7, ar9160Bank7, 2);
 
 	if (AR_SREV_SOWL_11(ah))
-		HAL_INI_INIT(&AH5416(ah)->ah_ini_addac, ar5416Addac_91601_1, 2);
+		HAL_INI_INIT(&AH5416(ah)->ah_ini_addac, ar9160Addac_1_1, 2);
 	else
-		HAL_INI_INIT(&AH5416(ah)->ah_ini_addac, ar5416Addac_9160, 2);
+		HAL_INI_INIT(&AH5416(ah)->ah_ini_addac, ar9160Addac, 2);
 
 	ecode = ath_hal_v14EepromAttach(ah);
 	if (ecode != HAL_OK)
