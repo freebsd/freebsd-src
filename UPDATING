@@ -15,6 +15,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20100713:		FreeBSD-SA-10:07.mbuf
+	Correctly copy the M_RDONLY flag when duplicating a reference
+	to an mbuf external buffer.
+
 20100502:
 	The config(8) command has been updated to maintain compatibility
 	with config files from 8.0-RELEASE.  You will need a new version
