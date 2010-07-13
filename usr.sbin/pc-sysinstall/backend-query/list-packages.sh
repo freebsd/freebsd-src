@@ -25,13 +25,50 @@
 #
 # $FreeBSD$
 
+# Script which lists the available packages for this release
+###########################################################################
+
 . ${PROGDIR}/backend/functions.sh
-. ${PROGDIR}/backend/functions-ftp.sh
+. ${PROGDIR}/backend/functions-packages.sh
 
-# Backend script which lists all the available ftp mirrors for front-ends to display
-COUNTRY="${1}"
+PACKAGE_CATEGORY="${1}"
+PACKAGE_NAME="${2}"
+NARGS=0
 
-get_ftp_mirrors "${COUNTRY}"
-show_mirrors "${VAL}"
+if [ ! -f "${PKGDIR}/INDEX" ]
+then
+	echo "Error: please fetch package index with get-packages!"
+	exit 1
+fi
 
-exit 0
+if [ ! -f "${PKGDIR}/INDEX.parsed" ]
+then
+	parse_package_index
+fi
+
+if [ -n "${PACKAGE_CATEGORY}" ]
+then
+	NARGS=$((NARGS+1))
+fi
+
+if [ -n "${PACKAGE_NAME}" ]
+then
+	NARGS=$((NARGS+1))
+fi
+
+echo "Available Packages:"
+if [ "${NARGS}" -eq "0" ]
+then
+	show_packages
+
+elif [ "${NARGS}" -eq "1" ]
+then
+	show_packages_by_category "${PACKAGE_CATEGORY}"
+
+elif [ "${NARGS}" -eq "2" ]
+then
+	show_package_by_name "${PACKAGE_CATEGORY}" "${PACKAGE_NAME}"
+
+else
+	show_packages
+fi
