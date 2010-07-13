@@ -112,7 +112,7 @@ extern uintptr_t dpcpu_off[];
 #define	DPCPU_SUM(n) __extension__					\
 ({									\
 	u_int _i;							\
-	__typeof(DPCPU_PTR(n)) sum;					\
+	__typeof(*DPCPU_PTR(n)) sum;					\
 									\
 	sum = 0;							\
 	CPU_FOREACH(_i) {						\
@@ -137,8 +137,7 @@ extern uintptr_t dpcpu_off[];
 	u_int _i;							\
 									\
 	CPU_FOREACH(_i) {						\
-		bzero(DPCPU_ID_PTR(_i, n),				\
-		    sizeof(__typeof(DPCPU_PTR(n))));			\
+		bzero(DPCPU_ID_PTR(_i, n), sizeof(*DPCPU_PTR(n)));	\
 	}								\
 } while(0)
 
