@@ -3963,7 +3963,7 @@ revoke(td, uap)
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (vp->v_type != VCHR) {
+	if (vp->v_type != VCHR || vp->v_rdev == NULL) {
 		error = EINVAL;
 		goto out;
 	}
