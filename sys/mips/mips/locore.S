@@ -85,8 +85,8 @@ GLOBAL(fenvp)
 GLOBAL(btext)
 ASM_ENTRY(_start)
 VECTOR(_locore, unknown)
-	/* UNSAFE TO USE a0..a3, since some bootloaders pass that to us */
-	mtc0	zero, COP_0_CAUSE_REG	# Clear soft interrupts
+	/* UNSAFE TO USE a0..a3, need to preserve the args from boot loader */
+	mtc0	zero, MIPS_COP_0_CAUSE	# Clear soft interrupts
 	
 #if defined(TARGET_OCTEON)
 	/*
@@ -123,14 +123,14 @@ VECTOR(_locore, unknown)
 	 * preserved (namely, clearing interrupt bits), and set
 	 * bits we want to explicitly set.
 	 */
-	mfc0	t2, COP_0_STATUS_REG
+	mfc0	t2, MIPS_COP_0_STATUS
 	and	t2, t0
 	or	t2, t1
-	mtc0	t2, COP_0_STATUS_REG
+	mtc0	t2, MIPS_COP_0_STATUS
 	COP0_SYNC
 
 	/* Make sure KSEG0 is cached */
-	li	t0, CFG_K0_CACHED
+	li	t0, MIPS_CCA_CNC
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 
