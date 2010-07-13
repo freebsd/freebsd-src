@@ -436,6 +436,7 @@ static int bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 static void bge_sig_post_reset(struct bge_softc *, int);
 static void bge_sig_legacy(struct bge_softc *, int);
 static void bge_sig_pre_reset(struct bge_softc *, int);
+static void bge_stop_fw(struct bge_softc *);
 static int bge_reset(struct bge_softc *);
 static void bge_link_upd(struct bge_softc *);
 
@@ -1237,10 +1238,9 @@ bge_setvlan(struct bge_softc *sc)
 }
 
 static void
-bge_sig_pre_reset(sc, type)
-	struct bge_softc *sc;
-	int type;
+bge_sig_pre_reset(struct bge_softc *sc, int type)
 {
+
 	/*
 	 * Some chips don't like this so only do this if ASF is enabled
 	 */
@@ -1260,10 +1260,9 @@ bge_sig_pre_reset(sc, type)
 }
 
 static void
-bge_sig_post_reset(sc, type)
-	struct bge_softc *sc;
-	int type;
+bge_sig_post_reset(struct bge_softc *sc, int type)
 {
+
 	if (sc->bge_asf_mode & ASF_NEW_HANDSHAKE) {
 		switch (type) {
 		case BGE_RESET_START:
@@ -1278,10 +1277,9 @@ bge_sig_post_reset(sc, type)
 }
 
 static void
-bge_sig_legacy(sc, type)
-	struct bge_softc *sc;
-	int type;
+bge_sig_legacy(struct bge_softc *sc, int type)
 {
+
 	if (sc->bge_asf_mode) {
 		switch (type) {
 		case BGE_RESET_START:
@@ -1294,10 +1292,8 @@ bge_sig_legacy(sc, type)
 	}
 }
 
-void bge_stop_fw(struct bge_softc *);
-void
-bge_stop_fw(sc)
-	struct bge_softc *sc;
+static void
+bge_stop_fw(struct bge_softc *sc)
 {
 	int i;
 
