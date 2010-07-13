@@ -1233,6 +1233,8 @@ siftr_manage_ops(uint8_t action)
 
 		STAILQ_INIT(&pkt_queue);
 
+		DPCPU_ZERO(ss);
+
 		siftr_exit_pkt_manager_thread = 0;
 
 		ret = kthread_add(&siftr_pkt_manager_thread, NULL, NULL,
