@@ -208,7 +208,7 @@ static bool IsConstantOffsetFromGlobal(Constant *C, GlobalValue *&GV,
          i != e; ++i, ++GTI) {
       ConstantInt *CI = dyn_cast<ConstantInt>(*i);
       if (!CI) return false;  // Index isn't a simple constant?
-      if (CI->getZExtValue() == 0) continue;  // Not adding anything.
+      if (CI->isZero()) continue;  // Not adding anything.
       
       if (const StructType *ST = dyn_cast<StructType>(*GTI)) {
         // N = N + Offset
@@ -436,8 +436,10 @@ Constant *llvm::ConstantFoldLoadFromConstPtr(Constant *C,
     unsigned StrLen = Str.length();
     const Type *Ty = cast<PointerType>(CE->getType())->getElementType();
     unsigned NumBits = Ty->getPrimitiveSizeInBits();
-    // Replace LI with immediate integer store.
-    if ((NumBits >> 3) == StrLen + 1) {
+    // Replace load with immediate integer if the result is an integer or fp
+    // value.
+    if ((NumBits >> 3) == StrLen + 1 && (NumBits & 7) == 0 &&
+        (isa<IntegerType>(Ty) || Ty->isFloatingPointTy())) {
       APInt StrVal(NumBits, 0);
       APInt SingleChar(NumBits, 0);
       if (TD->isLittleEndian()) {
@@ -454,7 +456,11 @@ Constant *llvm::ConstantFoldLoadFromConstPtr(Constant *C,
         SingleChar = 0;
         StrVal = (StrVal << 8) | SingleChar;
       }
-      return ConstantInt::get(CE->getContext(), StrVal);
+      
+      Constant *Res = ConstantInt::get(CE->getContext(), StrVal);
+      if (Ty->isFloatingPointTy())
+        Res = ConstantExpr::getBitCast(Res, Ty);
+      return Res;
     }
   }
   
@@ -772,9 +778,9 @@ Constant *llvm::ConstantFoldInstOperands(unsigned Opcode, const Type *DestTy,
   case Instruction::ICmp:
   case Instruction::FCmp: assert(0 && "Invalid for compares");
   case Instruction::Call:
-    if (Function *F = dyn_cast<Function>(Ops[0]))
+    if (Function *F = dyn_cast<Function>(Ops[CallInst::ArgOffset ? 0:NumOps-1]))
       if (canConstantFoldCallTo(F))
-        return ConstantFoldCall(F, Ops+1, NumOps-1);
+        return ConstantFoldCall(F, Ops+CallInst::ArgOffset, NumOps-1);
     return 0;
   case Instruction::PtrToInt:
     // If the input is a inttoptr, eliminate the pair.  This requires knowing

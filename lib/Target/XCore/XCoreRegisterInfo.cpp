@@ -82,18 +82,6 @@ const unsigned* XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
   return CalleeSavedRegs;
 }
 
-const TargetRegisterClass* const*
-XCoreRegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
-  static const TargetRegisterClass * const CalleeSavedRegClasses[] = {
-    XCore::GRRegsRegisterClass, XCore::GRRegsRegisterClass,
-    XCore::GRRegsRegisterClass, XCore::GRRegsRegisterClass,
-    XCore::GRRegsRegisterClass, XCore::GRRegsRegisterClass,
-    XCore::GRRegsRegisterClass, XCore::RRegsRegisterClass,
-    0
-  };
-  return CalleeSavedRegClasses;
-}
-
 BitVector XCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
   Reserved.set(XCore::CP);
@@ -320,7 +308,7 @@ XCoreRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
     int FrameIdx;
     if (! isVarArg) {
       // A fixed offset of 0 allows us to save / restore LR using entsp / retsp.
-      FrameIdx = MFI->CreateFixedObject(RC->getSize(), 0, true, false);
+      FrameIdx = MFI->CreateFixedObject(RC->getSize(), 0, true);
     } else {
       FrameIdx = MFI->CreateStackObject(RC->getSize(), RC->getAlignment(),
                                         false);

@@ -251,10 +251,10 @@ int ReduceMiscompilingFunctions::TestFuncs(const std::vector<Function*> &Funcs,
   outs() << '\n';
 
   // Split the module into the two halves of the program we want.
-  DenseMap<const Value*, Value*> ValueMap;
-  Module *ToNotOptimize = CloneModule(BD.getProgram(), ValueMap);
+  ValueMap<const Value*, Value*> VMap;
+  Module *ToNotOptimize = CloneModule(BD.getProgram(), VMap);
   Module *ToOptimize = SplitFunctionsOutOfModule(ToNotOptimize, Funcs,
-                                                 ValueMap);
+                                                 VMap);
 
   // Run the predicate, note that the predicate will delete both input modules.
   return TestFn(BD, ToOptimize, ToNotOptimize, Error);
@@ -285,11 +285,11 @@ static bool ExtractLoops(BugDriver &BD,
   while (1) {
     if (BugpointIsInterrupted) return MadeChange;
     
-    DenseMap<const Value*, Value*> ValueMap;
-    Module *ToNotOptimize = CloneModule(BD.getProgram(), ValueMap);
+    ValueMap<const Value*, Value*> VMap;
+    Module *ToNotOptimize = CloneModule(BD.getProgram(), VMap);
     Module *ToOptimize = SplitFunctionsOutOfModule(ToNotOptimize,
                                                    MiscompiledFunctions,
-                                                   ValueMap);
+                                                   VMap);
     Module *ToOptimizeLoopExtracted = BD.ExtractLoop(ToOptimize);
     if (!ToOptimizeLoopExtracted) {
       // If the loop extractor crashed or if there were no extractible loops,
@@ -448,11 +448,11 @@ bool ReduceMiscompiledBlocks::TestFuncs(const std::vector<BasicBlock*> &BBs,
   outs() << '\n';
 
   // Split the module into the two halves of the program we want.
-  DenseMap<const Value*, Value*> ValueMap;
-  Module *ToNotOptimize = CloneModule(BD.getProgram(), ValueMap);
+  ValueMap<const Value*, Value*> VMap;
+  Module *ToNotOptimize = CloneModule(BD.getProgram(), VMap);
   Module *ToOptimize = SplitFunctionsOutOfModule(ToNotOptimize,
                                                  FunctionsBeingTested,
-                                                 ValueMap);
+                                                 VMap);
 
   // Try the extraction.  If it doesn't work, then the block extractor crashed
   // or something, in which case bugpoint can't chase down this possibility.
@@ -505,11 +505,11 @@ static bool ExtractBlocks(BugDriver &BD,
       return false;
   }
 
-  DenseMap<const Value*, Value*> ValueMap;
-  Module *ProgClone = CloneModule(BD.getProgram(), ValueMap);
+  ValueMap<const Value*, Value*> VMap;
+  Module *ProgClone = CloneModule(BD.getProgram(), VMap);
   Module *ToExtract = SplitFunctionsOutOfModule(ProgClone,
                                                 MiscompiledFunctions,
-                                                ValueMap);
+                                                VMap);
   Module *Extracted = BD.ExtractMappedBlocksFromModule(Blocks, ToExtract);
   if (Extracted == 0) {
     // Weird, extraction should have worked.
@@ -687,11 +687,11 @@ void BugDriver::debugMiscompilation(std::string *Error) {
 
   // Output a bunch of bitcode files for the user...
   outs() << "Outputting reduced bitcode files which expose the problem:\n";
-  DenseMap<const Value*, Value*> ValueMap;
-  Module *ToNotOptimize = CloneModule(getProgram(), ValueMap);
+  ValueMap<const Value*, Value*> VMap;
+  Module *ToNotOptimize = CloneModule(getProgram(), VMap);
   Module *ToOptimize = SplitFunctionsOutOfModule(ToNotOptimize,
                                                  MiscompiledFunctions,
-                                                 ValueMap);
+                                                 VMap);
 
   outs() << "  Non-optimized portion: ";
   ToNotOptimize = swapProgramIn(ToNotOptimize);
@@ -848,7 +848,7 @@ static void CleanupAndPrepareModules(BugDriver &BD, Module *&Test,
             Args.push_back(i);
 
           // Pass on the arguments to the real function, return its result
-          if (F->getReturnType() == Type::getVoidTy(F->getContext())) {
+          if (F->getReturnType()->isVoidTy()) {
             CallInst::Create(FuncPtr, Args.begin(), Args.end(), "", DoCallBB);
             ReturnInst::Create(F->getContext(), DoCallBB);
           } else {
@@ -894,6 +894,8 @@ static bool TestCodeGenerator(BugDriver &BD, Module *Test, Module *Safe,
   }
   delete Test;
 
+  FileRemover TestModuleBCRemover(TestModuleBC, !SaveTemps);
+
   // Make the shared library
   sys::Path SafeModuleBC("bugpoint.safe.bc");
   if (SafeModuleBC.makeUnique(true, &ErrMsg)) {
@@ -907,10 +909,15 @@ static bool TestCodeGenerator(BugDriver &BD, Module *Test, Module *Safe,
            << "'\nExiting.";
     exit(1);
   }
+
+  FileRemover SafeModuleBCRemover(SafeModuleBC, !SaveTemps);
+
   std::string SharedObject = BD.compileSharedObject(SafeModuleBC.str(), Error);
   if (!Error.empty())
     return false;
   delete Safe;
+
+  FileRemover SharedObjectRemover(sys::Path(SharedObject), !SaveTemps);
 
   // Run the code generator on the `Test' code, loading the shared library.
   // The function returns whether or not the new output differs from reference.
@@ -922,9 +929,6 @@ static bool TestCodeGenerator(BugDriver &BD, Module *Test, Module *Safe,
     errs() << ": still failing!\n";
   else
     errs() << ": didn't fail.\n";
-  TestModuleBC.eraseFromDisk();
-  SafeModuleBC.eraseFromDisk();
-  sys::Path(SharedObject).eraseFromDisk();
 
   return Result;
 }
@@ -956,9 +960,9 @@ bool BugDriver::debugCodeGenerator(std::string *Error) {
     return true;
 
   // Split the module into the two halves of the program we want.
-  DenseMap<const Value*, Value*> ValueMap;
-  Module *ToNotCodeGen = CloneModule(getProgram(), ValueMap);
-  Module *ToCodeGen = SplitFunctionsOutOfModule(ToNotCodeGen, Funcs, ValueMap);
+  ValueMap<const Value*, Value*> VMap;
+  Module *ToNotCodeGen = CloneModule(getProgram(), VMap);
+  Module *ToCodeGen = SplitFunctionsOutOfModule(ToNotCodeGen, Funcs, VMap);
 
   // Condition the modules
   CleanupAndPrepareModules(*this, ToCodeGen, ToNotCodeGen);

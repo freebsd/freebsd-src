@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "function-lowering-info"
-#include "FunctionLoweringInfo.h"
+#include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
@@ -30,7 +30,6 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetFrameInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetIntrinsicInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/Debug.h"
@@ -47,9 +46,11 @@ static bool isUsedOutsideOfDefiningBlock(const Instruction *I) {
   if (isa<PHINode>(I)) return true;
   const BasicBlock *BB = I->getParent();
   for (Value::const_use_iterator UI = I->use_begin(), E = I->use_end();
-        UI != E; ++UI)
-    if (cast<Instruction>(*UI)->getParent() != BB || isa<PHINode>(*UI))
+        UI != E; ++UI) {
+    const User *U = *UI;
+    if (cast<Instruction>(U)->getParent() != BB || isa<PHINode>(U))
       return true;
+  }
   return false;
 }
 
@@ -64,9 +65,11 @@ static bool isOnlyUsedInEntryBlock(const Argument *A, bool EnableFastISel) {
 
   const BasicBlock *Entry = A->getParent()->begin();
   for (Value::const_use_iterator UI = A->use_begin(), E = A->use_end();
-       UI != E; ++UI)
-    if (cast<Instruction>(*UI)->getParent() != Entry || isa<SwitchInst>(*UI))
+       UI != E; ++UI) {
+    const User *U = *UI;
+    if (cast<Instruction>(U)->getParent() != Entry || isa<SwitchInst>(U))
       return false;  // Use not in entry block.
+  }
   return true;
 }
 
@@ -74,11 +77,17 @@ FunctionLoweringInfo::FunctionLoweringInfo(const TargetLowering &tli)
   : TLI(tli) {
 }
 
-void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf,
-                               bool EnableFastISel) {
+void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
   Fn = &fn;
   MF = &mf;
   RegInfo = &MF->getRegInfo();
+
+  // Check whether the function can return without sret-demotion.
+  SmallVector<ISD::OutputArg, 4> Outs;
+  GetReturnInfo(Fn->getReturnType(),
+                Fn->getAttributes().getRetAttributes(), Outs, TLI);
+  CanLowerReturn = TLI.CanLowerReturn(Fn->getCallingConv(), Fn->isVarArg(),
+                                      Outs, Fn->getContext());
 
   // Create a vreg for each argument register that is not dead and is used
   // outside of the entry block for the function.
@@ -172,31 +181,33 @@ void FunctionLoweringInfo::clear() {
 #endif
   LiveOutRegInfo.clear();
   ArgDbgValues.clear();
+  RegFixups.clear();
 }
 
-unsigned FunctionLoweringInfo::MakeReg(EVT VT) {
+/// CreateReg - Allocate a single virtual register for the given type.
+unsigned FunctionLoweringInfo::CreateReg(EVT VT) {
   return RegInfo->createVirtualRegister(TLI.getRegClassFor(VT));
 }
 
-/// CreateRegForValue - Allocate the appropriate number of virtual registers of
+/// CreateRegs - Allocate the appropriate number of virtual registers of
 /// the correctly promoted or expanded types.  Assign these registers
 /// consecutive vreg numbers and return the first assigned number.
 ///
 /// In the case that the given value has struct or array type, this function
 /// will assign registers for each member or element.
 ///
-unsigned FunctionLoweringInfo::CreateRegForValue(const Value *V) {
+unsigned FunctionLoweringInfo::CreateRegs(const Type *Ty) {
   SmallVector<EVT, 4> ValueVTs;
-  ComputeValueVTs(TLI, V->getType(), ValueVTs);
+  ComputeValueVTs(TLI, Ty, ValueVTs);
 
   unsigned FirstReg = 0;
   for (unsigned Value = 0, e = ValueVTs.size(); Value != e; ++Value) {
     EVT ValueVT = ValueVTs[Value];
-    EVT RegisterVT = TLI.getRegisterType(V->getContext(), ValueVT);
+    EVT RegisterVT = TLI.getRegisterType(Ty->getContext(), ValueVT);
 
-    unsigned NumRegs = TLI.getNumRegisters(V->getContext(), ValueVT);
+    unsigned NumRegs = TLI.getNumRegisters(Ty->getContext(), ValueVT);
     for (unsigned i = 0; i != NumRegs; ++i) {
-      unsigned R = MakeReg(RegisterVT);
+      unsigned R = CreateReg(RegisterVT);
       if (!FirstReg) FirstReg = R;
     }
   }
@@ -208,7 +219,7 @@ unsigned FunctionLoweringInfo::CreateRegForValue(const Value *V) {
 void llvm::AddCatchInfo(const CallInst &I, MachineModuleInfo *MMI,
                         MachineBasicBlock *MBB) {
   // Inform the MachineModuleInfo of the personality for this landing pad.
-  const ConstantExpr *CE = cast<ConstantExpr>(I.getOperand(2));
+  const ConstantExpr *CE = cast<ConstantExpr>(I.getArgOperand(1));
   assert(CE->getOpcode() == Instruction::BitCast &&
          isa<Function>(CE->getOperand(0)) &&
          "Personality should be a function");
@@ -217,18 +228,18 @@ void llvm::AddCatchInfo(const CallInst &I, MachineModuleInfo *MMI,
   // Gather all the type infos for this landing pad and pass them along to
   // MachineModuleInfo.
   std::vector<const GlobalVariable *> TyInfo;
-  unsigned N = I.getNumOperands();
+  unsigned N = I.getNumArgOperands();
 
-  for (unsigned i = N - 1; i > 2; --i) {
-    if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand(i))) {
+  for (unsigned i = N - 1; i > 1; --i) {
+    if (const ConstantInt *CI = dyn_cast<ConstantInt>(I.getArgOperand(i))) {
       unsigned FilterLength = CI->getZExtValue();
       unsigned FirstCatch = i + FilterLength + !FilterLength;
-      assert (FirstCatch <= N && "Invalid filter length");
+      assert(FirstCatch <= N && "Invalid filter length");
 
       if (FirstCatch < N) {
         TyInfo.reserve(N - FirstCatch);
         for (unsigned j = FirstCatch; j < N; ++j)
-          TyInfo.push_back(ExtractTypeInfo(I.getOperand(j)));
+          TyInfo.push_back(ExtractTypeInfo(I.getArgOperand(j)));
         MMI->addCatchTypeInfo(MBB, TyInfo);
         TyInfo.clear();
       }
@@ -240,7 +251,7 @@ void llvm::AddCatchInfo(const CallInst &I, MachineModuleInfo *MMI,
         // Filter.
         TyInfo.reserve(FilterLength - 1);
         for (unsigned j = i + 1; j < FirstCatch; ++j)
-          TyInfo.push_back(ExtractTypeInfo(I.getOperand(j)));
+          TyInfo.push_back(ExtractTypeInfo(I.getArgOperand(j)));
         MMI->addFilterTypeInfo(MBB, TyInfo);
         TyInfo.clear();
       }
@@ -249,10 +260,10 @@ void llvm::AddCatchInfo(const CallInst &I, MachineModuleInfo *MMI,
     }
   }
 
-  if (N > 3) {
-    TyInfo.reserve(N - 3);
-    for (unsigned j = 3; j < N; ++j)
-      TyInfo.push_back(ExtractTypeInfo(I.getOperand(j)));
+  if (N > 2) {
+    TyInfo.reserve(N - 2);
+    for (unsigned j = 2; j < N; ++j)
+      TyInfo.push_back(ExtractTypeInfo(I.getArgOperand(j)));
     MMI->addCatchTypeInfo(MBB, TyInfo);
   }
 }

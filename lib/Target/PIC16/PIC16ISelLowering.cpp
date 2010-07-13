@@ -672,7 +672,8 @@ SDValue PIC16TargetLowering::ExpandGlobalAddress(SDNode *N,
   // FIXME there isn't really debug info here
   DebugLoc dl = G->getDebugLoc();
   
-  SDValue TGA = DAG.getTargetGlobalAddress(G->getGlobal(), MVT::i8,
+  SDValue TGA = DAG.getTargetGlobalAddress(G->getGlobal(), N->getDebugLoc(),
+                                           MVT::i8,
                                            G->getOffset());
 
   SDValue Offset = DAG.getConstant(0, MVT::i8);
@@ -1120,6 +1121,7 @@ SDValue PIC16TargetLowering::
 LowerIndirectCallArguments(SDValue Chain, SDValue InFlag,
                            SDValue DataAddr_Lo, SDValue DataAddr_Hi,
                            const SmallVectorImpl<ISD::OutputArg> &Outs,
+                           const SmallVectorImpl<SDValue> &OutVals,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
                            DebugLoc dl, SelectionDAG &DAG) const {
   unsigned NumOps = Outs.size();
@@ -1136,7 +1138,7 @@ LowerIndirectCallArguments(SDValue Chain, SDValue InFlag,
   unsigned RetVals = Ins.size();
   for (unsigned i = 0, ArgOffset = RetVals; i < NumOps; i++) {
     // Get the arguments
-    Arg = Outs[i].Val;
+    Arg = OutVals[i];
     
     Ops.clear();
     Ops.push_back(Chain);
@@ -1158,6 +1160,7 @@ LowerIndirectCallArguments(SDValue Chain, SDValue InFlag,
 SDValue PIC16TargetLowering::
 LowerDirectCallArguments(SDValue ArgLabel, SDValue Chain, SDValue InFlag,
                          const SmallVectorImpl<ISD::OutputArg> &Outs,
+                         const SmallVectorImpl<SDValue> &OutVals,
                          DebugLoc dl, SelectionDAG &DAG) const {
   unsigned NumOps = Outs.size();
   std::string Name;
@@ -1183,7 +1186,7 @@ LowerDirectCallArguments(SDValue ArgLabel, SDValue Chain, SDValue InFlag,
   SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Flag);
   for (unsigned i=0, Offset = 0; i<NumOps; i++) {
     // Get the argument
-    Arg = Outs[i].Val;
+    Arg = OutVals[i];
     StoreOffset = (Offset + AddressOffset);
    
     // Store the argument on frame
@@ -1282,6 +1285,7 @@ SDValue
 PIC16TargetLowering::LowerReturn(SDValue Chain,
                                  CallingConv::ID CallConv, bool isVarArg,
                                  const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                 const SmallVectorImpl<SDValue> &OutVals,
                                  DebugLoc dl, SelectionDAG &DAG) const {
 
   // Number of values to return 
@@ -1298,7 +1302,7 @@ PIC16TargetLowering::LowerReturn(SDValue Chain,
   SDValue BS = DAG.getConstant(1, MVT::i8);
   SDValue RetVal;
   for(unsigned i=0;i<NumRet; ++i) {
-    RetVal = Outs[i].Val;
+    RetVal = OutVals[i];
     Chain =  DAG.getNode (PIC16ISD::PIC16Store, dl, MVT::Other, Chain, RetVal,
                         ES, BS,
                         DAG.getConstant (i, MVT::i8));
@@ -1374,6 +1378,7 @@ PIC16TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                CallingConv::ID CallConv, bool isVarArg,
                                bool &isTailCall,
                                const SmallVectorImpl<ISD::OutputArg> &Outs,
+                               const SmallVectorImpl<SDValue> &OutVals,
                                const SmallVectorImpl<ISD::InputArg> &Ins,
                                DebugLoc dl, SelectionDAG &DAG,
                                SmallVectorImpl<SDValue> &InVals) const {
@@ -1428,7 +1433,7 @@ PIC16TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
        // Considering the GlobalAddressNode case here.
        if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
           const GlobalValue *GV = G->getGlobal();
-          Callee = DAG.getTargetGlobalAddress(GV, MVT::i8);
+          Callee = DAG.getTargetGlobalAddress(GV, dl, MVT::i8);
           Name = G->getGlobal()->getName();
        } else {// Considering the ExternalSymbol case here
           ExternalSymbolSDNode *ES = dyn_cast<ExternalSymbolSDNode>(Callee);
@@ -1461,12 +1466,13 @@ PIC16TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     SDValue CallArgs;
     if (IsDirectCall) {
       CallArgs = LowerDirectCallArguments(ArgLabel, Chain, OperFlag,
-                                          Outs, dl, DAG);
+                                          Outs, OutVals, dl, DAG);
       Chain = getChain(CallArgs);
       OperFlag = getOutFlag(CallArgs);
     } else {
       CallArgs = LowerIndirectCallArguments(Chain, OperFlag, DataAddr_Lo,
-                                            DataAddr_Hi, Outs, Ins, dl, DAG);
+                                            DataAddr_Hi, Outs, OutVals, Ins,
+                                            dl, DAG);
       Chain = getChain(CallArgs);
       OperFlag = getOutFlag(CallArgs);
     }
@@ -1791,14 +1797,14 @@ static PIC16CC::CondCodes IntCCToPIC16CC(ISD::CondCode CC) {
 static void LookThroughSetCC(SDValue &LHS, SDValue &RHS,
                              ISD::CondCode CC, unsigned &SPCC) {
   if (isa<ConstantSDNode>(RHS) &&
-      cast<ConstantSDNode>(RHS)->getZExtValue() == 0 &&
+      cast<ConstantSDNode>(RHS)->isNullValue() &&
       CC == ISD::SETNE &&
       (LHS.getOpcode() == PIC16ISD::SELECT_ICC &&
         LHS.getOperand(3).getOpcode() == PIC16ISD::SUBCC) &&
       isa<ConstantSDNode>(LHS.getOperand(0)) &&
       isa<ConstantSDNode>(LHS.getOperand(1)) &&
-      cast<ConstantSDNode>(LHS.getOperand(0))->getZExtValue() == 1 &&
-      cast<ConstantSDNode>(LHS.getOperand(1))->getZExtValue() == 0) {
+      cast<ConstantSDNode>(LHS.getOperand(0))->isOne() &&
+      cast<ConstantSDNode>(LHS.getOperand(1))->isNullValue()) {
     SDValue CMPCC = LHS.getOperand(3);
     SPCC = cast<ConstantSDNode>(LHS.getOperand(2))->getZExtValue();
     LHS = CMPCC.getOperand(0);
@@ -1928,15 +1934,12 @@ PIC16TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   F->insert(It, copy0MBB);
   F->insert(It, sinkMBB);
 
-  // Update machine-CFG edges by first adding all successors of the current
-  // block to the new block which will contain the Phi node for the select.
-  for (MachineBasicBlock::succ_iterator I = BB->succ_begin(), 
-         E = BB->succ_end(); I != E; ++I)
-    sinkMBB->addSuccessor(*I);
-  // Next, remove all successors of the current block, and add the true
-  // and fallthrough blocks as its successors.
-  while (!BB->succ_empty())
-    BB->removeSuccessor(BB->succ_begin());
+  // Transfer the remainder of BB and its successor edges to sinkMBB.
+  sinkMBB->splice(sinkMBB->begin(), BB,
+                  llvm::next(MachineBasicBlock::iterator(MI)),
+                  BB->end());
+  sinkMBB->transferSuccessorsAndUpdatePHIs(BB);
+
   // Next, add the true and fallthrough blocks as its successors.
   BB->addSuccessor(copy0MBB);
   BB->addSuccessor(sinkMBB);
@@ -1953,11 +1956,12 @@ PIC16TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
   //  ...
   BB = sinkMBB;
-  BuildMI(BB, dl, TII.get(PIC16::PHI), MI->getOperand(0).getReg())
+  BuildMI(*BB, BB->begin(), dl,
+          TII.get(PIC16::PHI), MI->getOperand(0).getReg())
     .addReg(MI->getOperand(2).getReg()).addMBB(copy0MBB)
     .addReg(MI->getOperand(1).getReg()).addMBB(thisMBB);
 
-  F->DeleteMachineInstr(MI);   // The pseudo instruction is gone now.
+  MI->eraseFromParent();   // The pseudo instruction is gone now.
   return BB;
 }
 

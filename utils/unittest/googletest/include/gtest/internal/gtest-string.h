@@ -35,32 +35,34 @@
 // Google Test.  They are subject to change without notice. They should not used
 // by code external to Google Test.
 //
-// This header file is #included by testing/base/internal/gtest-internal.h.
+// This header file is #included by <gtest/internal/gtest-internal.h>.
 // It should not be #included by other files.
 
 #ifndef GTEST_INCLUDE_GTEST_INTERNAL_GTEST_STRING_H_
 #define GTEST_INCLUDE_GTEST_INTERNAL_GTEST_STRING_H_
 
+#ifdef __BORLANDC__
+// string.h is not guaranteed to provide strcpy on C++ Builder.
+#include <mem.h>
+#endif
+
 #include <string.h>
 #include <gtest/internal/gtest-port.h>
 
-#if GTEST_HAS_GLOBAL_STRING || GTEST_HAS_STD_STRING
 #include <string>
-#endif  // GTEST_HAS_GLOBAL_STRING || GTEST_HAS_STD_STRING
 
 namespace testing {
 namespace internal {
 
 // String - a UTF-8 string class.
 //
-// We cannot use std::string as Microsoft's STL implementation in
-// Visual C++ 7.1 has problems when exception is disabled.  There is a
-// hack to work around this, but we've seen cases where the hack fails
-// to work.
+// For historic reasons, we don't use std::string.
 //
-// Also, String is different from std::string in that it can represent
-// both NULL and the empty string, while std::string cannot represent
-// NULL.
+// TODO(wan@google.com): replace this class with std::string or
+// implement it in terms of the latter.
+//
+// Note that String can represent both NULL and the empty string,
+// while std::string cannot represent NULL.
 //
 // NULL and the empty string are considered different.  NULL is less
 // than anything (including the empty string) except itself.
@@ -76,22 +78,9 @@ namespace internal {
 //
 // In order to make the representation efficient, the d'tor of String
 // is not virtual.  Therefore DO NOT INHERIT FROM String.
-class String {
+class GTEST_API_ String {
  public:
   // Static utility methods
-
-  // Returns the input if it's not NULL, otherwise returns "(null)".
-  // This function serves two purposes:
-  //
-  // 1. ShowCString(NULL) has type 'const char *', instead of the
-  // type of NULL (which is int).
-  //
-  // 2. In MSVC, streaming a null char pointer to StrStream generates
-  // an access violation, so we need to convert NULL to "(null)"
-  // before streaming it.
-  static inline const char* ShowCString(const char* c_str) {
-    return c_str ? c_str : "(null)";
-  }
 
   // Returns the input enclosed in double quotes if it's not NULL;
   // otherwise returns "(null)".  For example, "\"Hello\"" is returned
@@ -111,7 +100,7 @@ class String {
   // memory using malloc().
   static const char* CloneCString(const char* c_str);
 
-#ifdef _WIN32_WCE
+#if GTEST_OS_WINDOWS_MOBILE
   // Windows CE does not have the 'ANSI' versions of Win32 APIs. To be
   // able to pass strings to Win32 APIs on CE we need to convert them
   // to 'Unicode', UTF-16.
@@ -200,22 +189,29 @@ class String {
   // C'tors
 
   // The default c'tor constructs a NULL string.
-  String() : c_str_(NULL) {}
+  String() : c_str_(NULL), length_(0) {}
 
   // Constructs a String by cloning a 0-terminated C string.
-  String(const char* c_str) : c_str_(NULL) {  // NOLINT
-    *this = c_str;
+  String(const char* a_c_str) {  // NOLINT
+    if (a_c_str == NULL) {
+      c_str_ = NULL;
+      length_ = 0;
+    } else {
+      ConstructNonNull(a_c_str, strlen(a_c_str));
+    }
   }
 
   // Constructs a String by copying a given number of chars from a
-  // buffer.  E.g. String("hello", 3) will create the string "hel".
-  String(const char* buffer, size_t len);
+  // buffer.  E.g. String("hello", 3) creates the string "hel",
+  // String("a\0bcd", 4) creates "a\0bc", String(NULL, 0) creates "",
+  // and String(NULL, 1) results in access violation.
+  String(const char* buffer, size_t a_length) {
+    ConstructNonNull(buffer, a_length);
+  }
 
   // The copy c'tor creates a new copy of the string.  The two
   // String objects do not share content.
-  String(const String& str) : c_str_(NULL) {
-    *this = str;
-  }
+  String(const String& str) : c_str_(NULL), length_(0) { *this = str; }
 
   // D'tor.  String is intended to be a final class, so the d'tor
   // doesn't need to be virtual.
@@ -227,22 +223,22 @@ class String {
   // Converting a ::std::string or ::string containing an embedded NUL
   // character to a String will result in the prefix up to the first
   // NUL character.
-#if GTEST_HAS_STD_STRING
-  String(const ::std::string& str) : c_str_(NULL) { *this = str.c_str(); }
+  String(const ::std::string& str) {
+    ConstructNonNull(str.c_str(), str.length());
+  }
 
-  operator ::std::string() const { return ::std::string(c_str_); }
-#endif  // GTEST_HAS_STD_STRING
+  operator ::std::string() const { return ::std::string(c_str(), length()); }
 
 #if GTEST_HAS_GLOBAL_STRING
-  String(const ::string& str) : c_str_(NULL) { *this = str.c_str(); }
+  String(const ::string& str) {
+    ConstructNonNull(str.c_str(), str.length());
+  }
 
-  operator ::string() const { return ::string(c_str_); }
+  operator ::string() const { return ::string(c_str(), length()); }
 #endif  // GTEST_HAS_GLOBAL_STRING
 
   // Returns true iff this is an empty string (i.e. "").
-  bool empty() const {
-    return (c_str_ != NULL) && (*c_str_ == '\0');
-  }
+  bool empty() const { return (c_str() != NULL) && (length() == 0); }
 
   // Compares this with another String.
   // Returns < 0 if this is less than rhs, 0 if this is equal to rhs, or > 0
@@ -251,19 +247,15 @@ class String {
 
   // Returns true iff this String equals the given C string.  A NULL
   // string and a non-NULL string are considered not equal.
-  bool operator==(const char* c_str) const {
-    return CStringEquals(c_str_, c_str);
-  }
+  bool operator==(const char* a_c_str) const { return Compare(a_c_str) == 0; }
 
-  // Returns true iff this String is less than the given C string.  A NULL
-  // string is considered less than "".
+  // Returns true iff this String is less than the given String.  A
+  // NULL string is considered less than "".
   bool operator<(const String& rhs) const { return Compare(rhs) < 0; }
 
   // Returns true iff this String doesn't equal the given C string.  A NULL
   // string and a non-NULL string are considered not equal.
-  bool operator!=(const char* c_str) const {
-    return !CStringEquals(c_str_, c_str);
-  }
+  bool operator!=(const char* a_c_str) const { return !(*this == a_c_str); }
 
   // Returns true iff this String ends with the given suffix.  *Any*
   // String is considered to end with a NULL or empty suffix.
@@ -273,50 +265,73 @@ class String {
   // case. Any String is considered to end with a NULL or empty suffix.
   bool EndsWithCaseInsensitive(const char* suffix) const;
 
-  // Returns the length of the encapsulated string, or -1 if the
+  // Returns the length of the encapsulated string, or 0 if the
   // string is NULL.
-  int GetLength() const {
-    return c_str_ ? static_cast<int>(strlen(c_str_)) : -1;
-  }
+  size_t length() const { return length_; }
 
   // Gets the 0-terminated C string this String object represents.
   // The String object still owns the string.  Therefore the caller
   // should NOT delete the return value.
   const char* c_str() const { return c_str_; }
 
-  // Sets the 0-terminated C string this String object represents.
-  // The old string in this object is deleted, and this object will
-  // own a clone of the input string.  This function copies only up to
-  // length bytes (plus a terminating null byte), or until the first
-  // null byte, whichever comes first.
-  //
-  // This function works even when the c_str parameter has the same
-  // value as that of the c_str_ field.
-  void Set(const char* c_str, size_t length);
-
   // Assigns a C string to this object.  Self-assignment works.
-  const String& operator=(const char* c_str);
+  const String& operator=(const char* a_c_str) {
+    return *this = String(a_c_str);
+  }
 
   // Assigns a String object to this object.  Self-assignment works.
-  const String& operator=(const String &rhs) {
-    *this = rhs.c_str_;
+  const String& operator=(const String& rhs) {
+    if (this != &rhs) {
+      delete[] c_str_;
+      if (rhs.c_str() == NULL) {
+        c_str_ = NULL;
+        length_ = 0;
+      } else {
+        ConstructNonNull(rhs.c_str(), rhs.length());
+      }
+    }
+
     return *this;
   }
 
  private:
-  const char* c_str_;
-};
+  // Constructs a non-NULL String from the given content.  This
+  // function can only be called when data_ has not been allocated.
+  // ConstructNonNull(NULL, 0) results in an empty string ("").
+  // ConstructNonNull(NULL, non_zero) is undefined behavior.
+  void ConstructNonNull(const char* buffer, size_t a_length) {
+    char* const str = new char[a_length + 1];
+    memcpy(str, buffer, a_length);
+    str[a_length] = '\0';
+    c_str_ = str;
+    length_ = a_length;
+  }
 
-// Streams a String to an ostream.
-inline ::std::ostream& operator <<(::std::ostream& os, const String& str) {
-  // We call String::ShowCString() to convert NULL to "(null)".
-  // Otherwise we'll get an access violation on Windows.
-  return os << String::ShowCString(str.c_str());
+  const char* c_str_;
+  size_t length_;
+};  // class String
+
+// Streams a String to an ostream.  Each '\0' character in the String
+// is replaced with "\\0".
+inline ::std::ostream& operator<<(::std::ostream& os, const String& str) {
+  if (str.c_str() == NULL) {
+    os << "(null)";
+  } else {
+    const char* const c_str = str.c_str();
+    for (size_t i = 0; i != str.length(); i++) {
+      if (c_str[i] == '\0') {
+        os << "\\0";
+      } else {
+        os << c_str[i];
+      }
+    }
+  }
+  return os;
 }
 
 // Gets the content of the StrStream's buffer as a String.  Each '\0'
 // character in the buffer is replaced with "\\0".
-String StrStreamToString(StrStream* stream);
+GTEST_API_ String StrStreamToString(StrStream* stream);
 
 // Converts a streamable value to a String.  A NULL pointer is
 // converted to "(null)".  When the input value is a ::string,

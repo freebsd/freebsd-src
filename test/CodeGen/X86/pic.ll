@@ -78,8 +78,8 @@ entry:
 ; LINUX: 	call	.L3$pb
 ; LINUX-NEXT: .L3$pb:
 ; LINUX: 	popl
-; LINUX: 	addl	$_GLOBAL_OFFSET_TABLE_+(.L{{.*}}-.L3$pb),
-; LINUX: 	movl	pfoo@GOT(%esi),
+; LINUX: 	addl	$_GLOBAL_OFFSET_TABLE_+(.L{{.*}}-.L3$pb), %[[REG3:e..]]
+; LINUX: 	movl	pfoo@GOT(%[[REG3]]),
 ; LINUX: 	call	afoo@PLT
 ; LINUX: 	call	*
 }
@@ -189,7 +189,7 @@ bb12:
 ; LINUX:   call	.L7$pb
 ; LINUX: .L7$pb:
 ; LINUX:   addl	$_GLOBAL_OFFSET_TABLE_+(.L{{.*}}-.L7$pb),
-; LINUX:   addl	.LJTI7_0@GOTOFF(
+; LINUX:   .LJTI7_0@GOTOFF(
 ; LINUX:   jmpl	*
 
 ; LINUX: .LJTI7_0:

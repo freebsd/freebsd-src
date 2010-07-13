@@ -341,3 +341,49 @@ if.end12:                                         ; preds = %if.then, %lbl_51
   ret void
 }
 
+
+
+; PR7356
+define i32 @test13(i32* %P, i8* %Ptr) {
+entry:
+  indirectbr i8* %Ptr, [label %BrBlock, label %B2]
+  
+B2:
+  store i32 4, i32 *%P
+  br label %BrBlock
+
+BrBlock:
+  %L = load i32* %P
+  %C = icmp eq i32 %L, 42
+  br i1 %C, label %T, label %F
+  
+T:
+  ret i32 123
+F:
+  ret i32 1422
+}
+
+
+; PR7498
+define void @test14() nounwind {
+entry:
+  %cmp33 = icmp slt i8 undef, 0                   ; <i1> [#uses=1]
+  %tobool = icmp eq i8 undef, 0                   ; <i1> [#uses=1]
+  br i1 %tobool, label %land.end69, label %land.rhs
+
+land.rhs:                                         ; preds = %entry
+  br label %land.end69
+
+land.end69:                                       ; preds = %land.rhs, %entry
+  %0 = phi i1 [ undef, %land.rhs ], [ true, %entry ] ; <i1> [#uses=1]
+  %cmp71 = or i1 true, %0                         ; <i1> [#uses=1]
+  %cmp73 = xor i1 %cmp33, %cmp71                  ; <i1> [#uses=1]
+  br i1 %cmp73, label %if.then, label %if.end
+
+if.then:                                          ; preds = %land.end69
+  ret void
+
+if.end:                                           ; preds = %land.end69
+  ret void
+}
+

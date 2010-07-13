@@ -398,12 +398,11 @@ endif
 
 # If DISABLE_ASSERTIONS=1 is specified (make command line or configured),
 # then disable assertions by defining the appropriate preprocessor symbols.
-ifdef DISABLE_ASSERTIONS
-  # Indicate that assertions are turned off using a minus sign
-  BuildMode := $(BuildMode)-Asserts
-  CPP.Defines += -DNDEBUG
-else
+ifndef DISABLE_ASSERTIONS
+  BuildMode := $(BuildMode)+Asserts
   CPP.Defines += -D_DEBUG
+else
+  CPP.Defines += -DNDEBUG
 endif
 
 # If ENABLE_EXPENSIVE_CHECKS=1 is specified (make command line or
@@ -807,7 +806,8 @@ SubDirs += $(DIRS)
 ifneq ($(PROJ_SRC_ROOT),$(PROJ_OBJ_ROOT))
 $(RecursiveTargets)::
 	$(Verb) for dir in $(DIRS); do \
-	  if [ ! -f $$dir/Makefile ]; then \
+	  if ([ ! -f $$dir/Makefile ] || \
+	      command test $$dir/Makefile -ot $(PROJ_SRC_DIR)/$$dir/Makefile ); then \
 	    $(MKDIR) $$dir; \
 	    $(CP) $(PROJ_SRC_DIR)/$$dir/Makefile $$dir/Makefile; \
 	  fi; \
@@ -829,7 +829,8 @@ endif
 ifdef EXPERIMENTAL_DIRS
 $(RecursiveTargets)::
 	$(Verb) for dir in $(EXPERIMENTAL_DIRS); do \
-	  if [ ! -f $$dir/Makefile ]; then \
+	  if ([ ! -f $$dir/Makefile ] || \
+	      command test $$dir/Makefile -ot $(PROJ_SRC_DIR)/$$dir/Makefile ); then \
 	    $(MKDIR) $$dir; \
 	    $(CP) $(PROJ_SRC_DIR)/$$dir/Makefile $$dir/Makefile; \
 	  fi; \
@@ -863,7 +864,9 @@ unitcheck:: $(addsuffix /.makeunitcheck,$(PARALLEL_DIRS))
 ParallelTargets := $(foreach T,$(RecursiveTargets),%/.make$(T))
 
 $(ParallelTargets) :
-	$(Verb) if [ ! -f $(@D)/Makefile ]; then \
+	$(Verb) if ([ ! -f $(@D)/Makefile ] || \
+	            command test $(@D)/Makefile -ot \
+                      $(PROJ_SRC_DIR)/$(@D)/Makefile ); then \
 	  $(MKDIR) $(@D); \
 	  $(CP) $(PROJ_SRC_DIR)/$(@D)/Makefile $(@D)/Makefile; \
 	fi; \
@@ -882,7 +885,8 @@ ifneq ($(PROJ_SRC_ROOT),$(PROJ_OBJ_ROOT))
 $(RecursiveTargets)::
 	$(Verb) for dir in $(OPTIONAL_DIRS); do \
 	  if [ -d $(PROJ_SRC_DIR)/$$dir ]; then\
-	    if [ ! -f $$dir/Makefile ]; then \
+	    if ([ ! -f $$dir/Makefile ] || \
+	        command test $$dir/Makefile -ot $(PROJ_SRC_DIR)/$$dir/Makefile ); then \
 	      $(MKDIR) $$dir; \
 	      $(CP) $(PROJ_SRC_DIR)/$$dir/Makefile $$dir/Makefile; \
 	    fi; \
@@ -930,7 +934,7 @@ endif
 endif
 
 ###############################################################################
-# Set up variables for building libararies
+# Set up variables for building libraries
 ###############################################################################
 
 #---------------------------------------------------------
@@ -986,11 +990,24 @@ ifeq ($(HOST_OS),Darwin)
 # Darwin convention prefixes symbols with underscores.
 NativeExportsFile := $(ObjDir)/$(notdir $(EXPORTED_SYMBOL_FILE)).sed
 $(NativeExportsFile): $(EXPORTED_SYMBOL_FILE) $(ObjDir)/.dir
-	$(Verb) sed -e 's/[[:<:]]/_/' < $< > $@
+	$(Verb) sed -e 's/^/_/' < $< > $@
+clean-local::
+	-$(Verb) $(RM) -f $(NativeExportsFile)
+else
+ifeq ($(HAVE_LINK_VERSION_SCRIPT),1)
+# Gold and BFD ld require a version script rather than a plain list.
+NativeExportsFile := $(ObjDir)/$(notdir $(EXPORTED_SYMBOL_FILE)).map
+$(NativeExportsFile): $(EXPORTED_SYMBOL_FILE) $(ObjDir)/.dir
+	$(Verb) echo "{" > $@
+	$(Verb) grep -q "\<" $< && echo "  global:" >> $@ || :
+	$(Verb) sed -e 's/$$/;/' -e 's/^/    /' < $< >> $@
+	$(Verb) echo "  local: *;" >> $@
+	$(Verb) echo "};" >> $@
 clean-local::
 	-$(Verb) $(RM) -f $(NativeExportsFile)
 else
 NativeExportsFile := $(EXPORTED_SYMBOL_FILE)
+endif
 endif
 
 # Now add the linker command-line options to use the native export file.
@@ -1000,8 +1017,8 @@ LLVMLibsOptions += -Wl,-exported_symbols_list,$(NativeExportsFile)
 endif
 
 # gold, bfd ld, etc.
-ifeq ($(HAVE_LINK_RETAIN_SYMBOLS_FILE),1)
-LLVMLibsOptions += -Wl,-retain-symbols-file,$(NativeExportsFile)
+ifeq ($(HAVE_LINK_VERSION_SCRIPT),1)
+LLVMLibsOptions += -Wl,--version-script,$(NativeExportsFile)
 endif
 
 endif
@@ -1113,7 +1130,7 @@ $(LibName.SO): $(ObjectsO) $(ProjLibsPaths) $(LLVMLibsPaths) $(LibDir)/.dir
 	  $(ProjLibsOptions) $(LLVMLibsOptions) $(LIBS)
 else
 $(LibName.SO): $(ObjectsO) $(LibDir)/.dir
-	$(Echo) Linking $(BuildMode) Shared Library $(LIBRARYNAME)$(SHLIBEXT)
+	$(Echo) Linking $(BuildMode) Shared Library $(basename $@)
 	$(Verb) $(Link) $(SharedLinkOptions) -o $@ $(ObjectsO)
 endif
 

@@ -387,7 +387,7 @@ entry:
 ready&gt; <b>testfunc(4, 10);</b>
 define double @""() {
 entry:
-        %calltmp = call double @testfunc( double 4.000000e+00, double 1.000000e+01 )
+        %calltmp = call double @testfunc(double 4.000000e+00, double 1.000000e+01)
         ret double %calltmp
 }
 
@@ -426,9 +426,9 @@ ready&gt; <b>def foo(x) sin(x)*sin(x) + cos(x)*cos(x);</b>
 Read function definition:
 define double @foo(double %x) {
 entry:
-        %calltmp = call double @sin( double %x )
+        %calltmp = call double @sin(double %x)
         %multmp = fmul double %calltmp, %calltmp
-        %calltmp2 = call double @cos( double %x )
+        %calltmp2 = call double @cos(double %x)
         %multmp4 = fmul double %calltmp2, %calltmp2
         %addtmp = fadd double %multmp, %multmp4
         ret double %addtmp
@@ -1023,7 +1023,7 @@ extern double putchard(double X) {
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="mailto:idadesub@users.sourceforge.net">Erick Tryzelaar</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  Last modified: $Date: 2010-05-28 19:07:41 +0200 (Fri, 28 May 2010) $
 </address>
 </body>
 </html>

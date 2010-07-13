@@ -69,6 +69,31 @@ Value *llvm::EmitStrChr(Value *Ptr, char C, IRBuilder<> &B,
   return CI;
 }
 
+/// EmitStrNCmp - Emit a call to the strncmp function to the builder.
+Value *llvm::EmitStrNCmp(Value *Ptr1, Value *Ptr2, Value *Len,
+                         IRBuilder<> &B, const TargetData *TD) {
+  Module *M = B.GetInsertBlock()->getParent()->getParent();
+  AttributeWithIndex AWI[3];
+  AWI[0] = AttributeWithIndex::get(1, Attribute::NoCapture);
+  AWI[1] = AttributeWithIndex::get(2, Attribute::NoCapture);
+  AWI[2] = AttributeWithIndex::get(~0u, Attribute::ReadOnly |
+                                   Attribute::NoUnwind);
+
+  LLVMContext &Context = B.GetInsertBlock()->getContext();
+  Value *StrNCmp = M->getOrInsertFunction("strncmp", AttrListPtr::get(AWI, 3),
+                                          B.getInt32Ty(),
+                                          B.getInt8PtrTy(),
+                                          B.getInt8PtrTy(),
+                                          TD->getIntPtrType(Context), NULL);
+  CallInst *CI = B.CreateCall3(StrNCmp, CastToCStr(Ptr1, B),
+                               CastToCStr(Ptr2, B), Len, "strncmp");
+
+  if (const Function *F = dyn_cast<Function>(StrNCmp->stripPointerCasts()))
+    CI->setCallingConv(F->getCallingConv());
+
+  return CI;
+}
+
 /// EmitStrCpy - Emit a call to the strcpy function to the builder, for the
 /// specified pointer arguments.
 Value *llvm::EmitStrCpy(Value *Dst, Value *Src, IRBuilder<> &B,
@@ -112,10 +137,10 @@ Value *llvm::EmitStrNCpy(Value *Dst, Value *Src, Value *Len,
 Value *llvm::EmitMemCpy(Value *Dst, Value *Src, Value *Len, unsigned Align,
                         bool isVolatile, IRBuilder<> &B, const TargetData *TD) {
   Module *M = B.GetInsertBlock()->getParent()->getParent();
-  const Type *ArgTys[3] = { Dst->getType(), Src->getType(), Len->getType() };
-  Value *MemCpy = Intrinsic::getDeclaration(M, Intrinsic::memcpy, ArgTys, 3);
   Dst = CastToCStr(Dst, B);
   Src = CastToCStr(Src, B);
+  const Type *ArgTys[3] = { Dst->getType(), Src->getType(), Len->getType() };
+  Value *MemCpy = Intrinsic::getDeclaration(M, Intrinsic::memcpy, ArgTys, 3);
   return B.CreateCall5(MemCpy, Dst, Src, Len,
                        ConstantInt::get(B.getInt32Ty(), Align),
                        ConstantInt::get(B.getInt1Ty(), isVolatile));
@@ -395,11 +420,11 @@ bool SimplifyFortifiedLibCalls::fold(CallInst *CI, const TargetData *TD) {
         FT->getParamType(2) != TD->getIntPtrType(Context) ||
         FT->getParamType(3) != TD->getIntPtrType(Context))
       return false;
-    
-    if (isFoldable(4, 3, false)) {
-      EmitMemCpy(CI->getOperand(1), CI->getOperand(2), CI->getOperand(3),
+
+    if (isFoldable(3 + CallInst::ArgOffset, 2 + CallInst::ArgOffset, false)) {
+      EmitMemCpy(CI->getArgOperand(0), CI->getArgOperand(1), CI->getArgOperand(2),
                  1, false, B, TD);
-      replaceCall(CI->getOperand(1));
+      replaceCall(CI->getArgOperand(0));
       return true;
     }
     return false;
@@ -418,11 +443,11 @@ bool SimplifyFortifiedLibCalls::fold(CallInst *CI, const TargetData *TD) {
         FT->getParamType(2) != TD->getIntPtrType(Context) ||
         FT->getParamType(3) != TD->getIntPtrType(Context))
       return false;
-    
-    if (isFoldable(4, 3, false)) {
-      EmitMemMove(CI->getOperand(1), CI->getOperand(2), CI->getOperand(3),
+
+    if (isFoldable(3 + CallInst::ArgOffset, 2 + CallInst::ArgOffset, false)) {
+      EmitMemMove(CI->getArgOperand(0), CI->getArgOperand(1), CI->getArgOperand(2),
                   1, false, B, TD);
-      replaceCall(CI->getOperand(1));
+      replaceCall(CI->getArgOperand(0));
       return true;
     }
     return false;
@@ -436,12 +461,12 @@ bool SimplifyFortifiedLibCalls::fold(CallInst *CI, const TargetData *TD) {
         FT->getParamType(2) != TD->getIntPtrType(Context) ||
         FT->getParamType(3) != TD->getIntPtrType(Context))
       return false;
-    
-    if (isFoldable(4, 3, false)) {
-      Value *Val = B.CreateIntCast(CI->getOperand(2), B.getInt8Ty(),
+
+    if (isFoldable(3 + CallInst::ArgOffset, 2 + CallInst::ArgOffset, false)) {
+      Value *Val = B.CreateIntCast(CI->getArgOperand(1), B.getInt8Ty(),
                                    false);
-      EmitMemSet(CI->getOperand(1), Val,  CI->getOperand(3), false, B, TD);
-      replaceCall(CI->getOperand(1));
+      EmitMemSet(CI->getArgOperand(0), Val,  CI->getArgOperand(2), false, B, TD);
+      replaceCall(CI->getArgOperand(0));
       return true;
     }
     return false;
@@ -462,8 +487,8 @@ bool SimplifyFortifiedLibCalls::fold(CallInst *CI, const TargetData *TD) {
     // st[rp]cpy_chk call which may fail at runtime if the size is too long.
     // TODO: It might be nice to get a maximum length out of the possible
     // string lengths for varying.
-    if (isFoldable(3, 2, true)) {
-      Value *Ret = EmitStrCpy(CI->getOperand(1), CI->getOperand(2), B, TD,
+    if (isFoldable(2 + CallInst::ArgOffset, 1 + CallInst::ArgOffset, true)) {
+      Value *Ret = EmitStrCpy(CI->getArgOperand(0), CI->getArgOperand(1), B, TD,
                               Name.substr(2, 6));
       replaceCall(Ret);
       return true;
@@ -479,10 +504,10 @@ bool SimplifyFortifiedLibCalls::fold(CallInst *CI, const TargetData *TD) {
         !FT->getParamType(2)->isIntegerTy() ||
         FT->getParamType(3) != TD->getIntPtrType(Context))
       return false;
-    
-    if (isFoldable(4, 3, false)) {
-      Value *Ret = EmitStrNCpy(CI->getOperand(1), CI->getOperand(2),
-                               CI->getOperand(3), B, TD, Name.substr(2, 7));
+
+    if (isFoldable(3 + CallInst::ArgOffset, 2 + CallInst::ArgOffset, false)) {
+      Value *Ret = EmitStrNCpy(CI->getArgOperand(0), CI->getArgOperand(1),
+                               CI->getArgOperand(2), B, TD, Name.substr(2, 7));
       replaceCall(Ret);
       return true;
     }

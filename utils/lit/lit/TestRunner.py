@@ -13,11 +13,13 @@ class InternalShellError(Exception):
         self.command = command
         self.message = message
 
+kIsWindows = platform.system() == 'Windows'
+
 # Don't use close_fds on Windows.
-kUseCloseFDs = platform.system() != 'Windows'
+kUseCloseFDs = not kIsWindows
 
 # Use temporary files to replace /dev/null on Windows.
-kAvoidDevNull = platform.system() == 'Windows'
+kAvoidDevNull = kIsWindows
 
 def executeCommand(command, cwd=None, env=None):
     p = subprocess.Popen(command, cwd=cwd,
@@ -64,6 +66,7 @@ def executeShCmd(cmd, cfg, cwd, results):
     input = subprocess.PIPE
     stderrTempFiles = []
     opened_files = []
+    named_temp_files = []
     # To avoid deadlock, we use a single stderr stream for piped
     # output. This is null until we have seen some output using
     # stderr.
@@ -146,6 +149,15 @@ def executeShCmd(cmd, cfg, cwd, results):
         if not args[0]:
             raise InternalShellError(j, '%r: command not found' % j.args[0])
 
+        # Replace uses of /dev/null with temporary files.
+        if kAvoidDevNull:
+            for i,arg in enumerate(args):
+                if arg == "/dev/null":
+                    f = tempfile.NamedTemporaryFile(delete=False)
+                    f.close()
+                    named_temp_files.append(f.name)
+                    args[i] = f.name
+
         procs.append(subprocess.Popen(args, cwd=cwd,
                                       stdin = stdin,
                                       stdout = stdout,
@@ -206,6 +218,13 @@ def executeShCmd(cmd, cfg, cwd, results):
     # Explicitly close any redirected files.
     for f in opened_files:
         f.close()
+
+    # Remove any named temporary files we created.
+    for f in named_temp_files:
+        try:
+            os.remove(f)
+        except OSError:
+            pass
 
     if cmd.negate:
         exitCode = not exitCode
@@ -364,7 +383,7 @@ def isExpectedFail(xfails, xtargets, target_triple):
 
     return True
 
-def parseIntegratedTestScript(test):
+def parseIntegratedTestScript(test, normalize_slashes=False):
     """parseIntegratedTestScript - Scan an LLVM/Clang style integrated test
     script and extract the lines to 'RUN' as well as 'XFAIL' and 'XTARGET'
     information. The RUN lines also will have variable substitution performed.
@@ -375,18 +394,25 @@ def parseIntegratedTestScript(test):
     #
     # FIXME: This should not be here?
     sourcepath = test.getSourcePath()
+    sourcedir = os.path.dirname(sourcepath)
     execpath = test.getExecPath()
     execdir,execbase = os.path.split(execpath)
     tmpBase = os.path.join(execdir, 'Output', execbase)
     if test.index is not None:
         tmpBase += '_%d' % test.index
 
+    # Normalize slashes, if requested.
+    if normalize_slashes:
+        sourcepath = sourcepath.replace('\\', '/')
+        sourcedir = sourcedir.replace('\\', '/')
+        tmpBase = tmpBase.replace('\\', '/')
+
     # We use #_MARKER_# to hide %% while we do the other substitutions.
     substitutions = [('%%', '#_MARKER_#')]
     substitutions.extend(test.config.substitutions)
     substitutions.extend([('%s', sourcepath),
-                          ('%S', os.path.dirname(sourcepath)),
-                          ('%p', os.path.dirname(sourcepath)),
+                          ('%S', sourcedir),
+                          ('%p', sourcedir),
                           ('%t', tmpBase + '.tmp'),
                           # FIXME: Remove this once we kill DejaGNU.
                           ('%abs_tmp', tmpBase + '.tmp'),
@@ -462,7 +488,9 @@ def executeTclTest(test, litConfig):
     if test.config.unsupported:
         return (Test.UNSUPPORTED, 'Test is unsupported')
 
-    res = parseIntegratedTestScript(test)
+    # Parse the test script, normalizing slashes in substitutions on Windows
+    # (since otherwise Tcl style lexing will treat them as escapes).
+    res = parseIntegratedTestScript(test, normalize_slashes=kIsWindows)
     if len(res) == 2:
         return res
 

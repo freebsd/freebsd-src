@@ -33,8 +33,6 @@ class AsmLexer : public MCAsmLexer {
   const char *CurPtr;
   const MemoryBuffer *CurBuf;
   
-  const char *TokStart;
-  
   void operator=(const AsmLexer&); // DO NOT IMPLEMENT
   AsmLexer(const AsmLexer&);       // DO NOT IMPLEMENT
 
@@ -48,9 +46,7 @@ public:
   
   void setBuffer(const MemoryBuffer *buf, const char *ptr = NULL);
   
-  SMLoc getLoc() const;
-  
-  StringRef LexUntilEndOfStatement();
+  virtual StringRef LexUntilEndOfStatement();
 
   bool isAtStartOfComment(char Char);
   

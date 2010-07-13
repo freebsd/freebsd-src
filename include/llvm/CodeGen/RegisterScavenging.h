@@ -98,6 +98,10 @@ public:
   /// getRegsUsed - return all registers currently in use in used.
   void getRegsUsed(BitVector &used, bool includeReserved);
 
+  /// getRegsAvailable - Return all available registers in the register class
+  /// in Mask.
+  void getRegsAvailable(const TargetRegisterClass *RC, BitVector &Mask);
+
   /// FindUnusedReg - Find a unused register of the specified register class.
   /// Return 0 if none is found.
   unsigned FindUnusedReg(const TargetRegisterClass *RegClass) const;
@@ -147,7 +151,12 @@ private:
   /// Add Reg and its aliases to BV.
   void addRegWithAliases(BitVector &BV, unsigned Reg);
 
-  unsigned findSurvivorReg(MachineBasicBlock::iterator MI,
+  /// findSurvivorReg - Return the candidate register that is unused for the
+  /// longest after StartMI. UseMI is set to the instruction where the search
+  /// stopped.
+  ///
+  /// No more than InstrLimit instructions are inspected.
+  unsigned findSurvivorReg(MachineBasicBlock::iterator StartMI,
                            BitVector &Candidates,
                            unsigned InstrLimit,
                            MachineBasicBlock::iterator &UseMI);

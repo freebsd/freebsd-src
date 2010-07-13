@@ -651,7 +651,7 @@ entry:
 loop:    ; preds = %loop, %entry
   %i = phi double [ 1.000000e+00, %entry ], [ %nextvar, %loop ]
         ; body
-  %calltmp = call double @putchard( double 4.200000e+01 )
+  %calltmp = call double @putchard(double 4.200000e+01)
         ; increment
   %nextvar = fadd double %i, 1.000000e+00
 
@@ -1563,7 +1563,7 @@ operators</a>
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="mailto:idadesub@users.sourceforge.net">Erick Tryzelaar</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  Last modified: $Date: 2010-05-28 19:07:41 +0200 (Fri, 28 May 2010) $
 </address>
 </body>
 </html>

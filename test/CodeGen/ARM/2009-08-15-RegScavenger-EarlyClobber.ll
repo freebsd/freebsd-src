@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=arm
+; RUN: llc < %s -mtriple=arm-linux-gnueabi
 ; PR4528
 
 ; Inline asm is allowed to contain operands "=&r", "0".
@@ -6,7 +6,7 @@
 %struct.device_dma_parameters = type { i32, i32 }
 %struct.iovec = type { i8*, i32 }
 
-define arm_aapcscc i32 @generic_segment_checks(%struct.iovec* nocapture %iov, i32* nocapture %nr_segs, i32* nocapture %count, i32 %access_flags) nounwind optsize {
+define i32 @generic_segment_checks(%struct.iovec* nocapture %iov, i32* nocapture %nr_segs, i32* nocapture %count, i32 %access_flags) nounwind optsize {
 entry:
   br label %bb8
 

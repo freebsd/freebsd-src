@@ -427,10 +427,9 @@ raw_fd_ostream::~raw_fd_ostream() {
 void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
   assert(FD >= 0 && "File already closed.");
   pos += Size;
-  ssize_t ret;
 
   do {
-    ret = ::write(FD, Ptr, Size);
+    ssize_t ret = ::write(FD, Ptr, Size);
 
     if (ret < 0) {
       // If it's a recoverable error, swallow it and retry the write.
@@ -482,7 +481,7 @@ uint64_t raw_fd_ostream::seek(uint64_t off) {
 }
 
 size_t raw_fd_ostream::preferred_buffer_size() const {
-#if !defined(_MSC_VER) && !defined(__MINGW32__) && !defined(_MINIX)
+#if !defined(_MSC_VER) && !defined(__MINGW32__) && !defined(__minix)
   // Windows and Minix have no st_blksize.
   assert(FD >= 0 && "File not yet open!");
   struct stat statbuf;
@@ -496,8 +495,9 @@ size_t raw_fd_ostream::preferred_buffer_size() const {
     return 0;
   // Return the preferred block size.
   return statbuf.st_blksize;
-#endif
+#else
   return raw_ostream::preferred_buffer_size();
+#endif
 }
 
 raw_ostream &raw_fd_ostream::changeColor(enum Colors colors, bool bold,

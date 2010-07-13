@@ -30,9 +30,7 @@ using namespace llvm;
 
 STATISTIC(NumCoalesces, "Number of copies coalesced");
 STATISTIC(NumCSEs,      "Number of common subexpression eliminated");
-
-static cl::opt<bool> CSEPhysDef("machine-cse-phys-defs",
-                                cl::init(false), cl::Hidden);
+STATISTIC(NumPhysCSEs,  "Number of phyreg defining common subexpr eliminated");
 
 namespace {
   class MachineCSE : public MachineFunctionPass {
@@ -128,6 +126,28 @@ bool MachineCSE::PerformTrivialCoalescing(MachineInstr *MI,
       ++NumCoalesces;
       Changed = true;
     }
+
+    if (!DefMI->isCopy())
+      continue;
+    SrcReg = DefMI->getOperand(1).getReg();
+    if (!TargetRegisterInfo::isVirtualRegister(SrcReg))
+      continue;
+    if (DefMI->getOperand(0).getSubReg() || DefMI->getOperand(1).getSubReg())
+      continue;
+    const TargetRegisterClass *SRC   = MRI->getRegClass(SrcReg);
+    const TargetRegisterClass *RC    = MRI->getRegClass(Reg);
+    const TargetRegisterClass *NewRC = getCommonSubClass(RC, SRC);
+    if (!NewRC)
+      continue;
+    DEBUG(dbgs() << "Coalescing: " << *DefMI);
+    DEBUG(dbgs() << "*** to: " << *MI);
+    MO.setReg(SrcReg);
+    MRI->clearKillFlags(SrcReg);
+    if (NewRC != SRC)
+      MRI->setRegClass(SrcReg, NewRC);
+    DefMI->eraseFromParent();
+    ++NumCoalesces;
+    Changed = true;
   }
 
   return Changed;
@@ -172,7 +192,8 @@ MachineCSE::isPhysDefTriviallyDead(unsigned Reg,
 
 /// hasLivePhysRegDefUse - Return true if the specified instruction read / write
 /// physical registers (except for dead defs of physical registers). It also
-/// returns the physical register def by reference if it's the only one.
+/// returns the physical register def by reference if it's the only one and the
+/// instruction does not uses a physical register.
 bool MachineCSE::hasLivePhysRegDefUse(const MachineInstr *MI,
                                       const MachineBasicBlock *MBB,
                                       unsigned &PhysDef) const {
@@ -186,9 +207,11 @@ bool MachineCSE::hasLivePhysRegDefUse(const MachineInstr *MI,
       continue;
     if (TargetRegisterInfo::isVirtualRegister(Reg))
       continue;
-    if (MO.isUse())
+    if (MO.isUse()) {
       // Can't touch anything to read a physical register.
+      PhysDef = 0;
       return true;
+    }
     if (MO.isDead())
       // If the def is dead, it's ok.
       continue;
@@ -240,8 +263,8 @@ bool MachineCSE::PhysRegDefReaches(MachineInstr *CSMI, MachineInstr *MI,
 
 static bool isCopy(const MachineInstr *MI, const TargetInstrInfo *TII) {
   unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
-  return TII->isMoveInstr(*MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx) ||
-    MI->isExtractSubreg() || MI->isInsertSubreg() || MI->isSubregToReg();
+  return MI->isCopyLike() ||
+    TII->isMoveInstr(*MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx);
 }
 
 bool MachineCSE::isCSECandidate(MachineInstr *MI) {
@@ -356,6 +379,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
     if (!isCSECandidate(MI))
       continue;
 
+    bool DefPhys = false;
     bool FoundCSE = VNT.count(MI);
     if (!FoundCSE) {
       // Look for trivial copy coalescing opportunities.
@@ -376,11 +400,13 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
 
       // ... Unless the CS is local and it also defines the physical register
       // which is not clobbered in between.
-      if (PhysDef && CSEPhysDef) {
+      if (PhysDef) {
         unsigned CSVN = VNT.lookup(MI);
         MachineInstr *CSMI = Exps[CSVN];
-        if (PhysRegDefReaches(CSMI, MI, PhysDef))
+        if (PhysRegDefReaches(CSMI, MI, PhysDef)) {
           FoundCSE = true;
+          DefPhys = true;
+        }
       }
     }
 
@@ -426,6 +452,8 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       }
       MI->eraseFromParent();
       ++NumCSEs;
+      if (DefPhys)
+        ++NumPhysCSEs;
     } else {
       DEBUG(dbgs() << "*** Not profitable, avoid CSE!\n");
       VNT.insert(MI, CurrVN++);

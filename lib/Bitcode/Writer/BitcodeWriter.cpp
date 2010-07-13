@@ -313,6 +313,7 @@ static unsigned getEncodedLinkage(const GlobalValue *GV) {
   case GlobalValue::LinkOnceODRLinkage:         return 11;
   case GlobalValue::AvailableExternallyLinkage: return 12;
   case GlobalValue::LinkerPrivateLinkage:       return 13;
+  case GlobalValue::LinkerPrivateWeakLinkage:   return 14;
   }
 }
 
@@ -577,10 +578,9 @@ static void WriteFunctionLocalMetadata(const Function &F,
                                        BitstreamWriter &Stream) {
   bool StartedMetadataBlock = false;
   SmallVector<uint64_t, 64> Record;
-  const ValueEnumerator::ValueList &Vals = VE.getMDValues();
-  
+  const SmallVector<const MDNode *, 8> &Vals = VE.getFunctionLocalMDValues();
   for (unsigned i = 0, e = Vals.size(); i != e; ++i)
-    if (const MDNode *N = dyn_cast<MDNode>(Vals[i].first))
+    if (const MDNode *N = Vals[i])
       if (N->isFunctionLocal() && N->getFunction() == &F) {
         if (!StartedMetadataBlock) {
           Stream.EnterSubblock(bitc::METADATA_BLOCK_ID, 3);
@@ -588,7 +588,7 @@ static void WriteFunctionLocalMetadata(const Function &F,
         }
         WriteMDNode(N, VE, Stream, Record);
       }
-
+      
   if (StartedMetadataBlock)
     Stream.ExitBlock();
 }
@@ -1114,6 +1114,7 @@ static void WriteInstruction(const Instruction &I, unsigned InstID,
   case Instruction::Alloca:
     Code = bitc::FUNC_CODE_INST_ALLOCA;
     Vals.push_back(VE.getTypeID(I.getType()));
+    Vals.push_back(VE.getTypeID(I.getOperand(0)->getType()));
     Vals.push_back(VE.getValueID(I.getOperand(0))); // size.
     Vals.push_back(Log2_32(cast<AllocaInst>(I).getAlignment())+1);
     break;
@@ -1134,26 +1135,25 @@ static void WriteInstruction(const Instruction &I, unsigned InstID,
     Vals.push_back(cast<StoreInst>(I).isVolatile());
     break;
   case Instruction::Call: {
-    const PointerType *PTy = cast<PointerType>(I.getOperand(0)->getType());
+    const CallInst &CI = cast<CallInst>(I);
+    const PointerType *PTy = cast<PointerType>(CI.getCalledValue()->getType());
     const FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
 
     Code = bitc::FUNC_CODE_INST_CALL;
 
-    const CallInst *CI = cast<CallInst>(&I);
-    Vals.push_back(VE.getAttributeID(CI->getAttributes()));
-    Vals.push_back((CI->getCallingConv() << 1) | unsigned(CI->isTailCall()));
-    PushValueAndType(CI->getOperand(0), InstID, Vals, VE);  // Callee
+    Vals.push_back(VE.getAttributeID(CI.getAttributes()));
+    Vals.push_back((CI.getCallingConv() << 1) | unsigned(CI.isTailCall()));
+    PushValueAndType(CI.getCalledValue(), InstID, Vals, VE);  // Callee
 
     // Emit value #'s for the fixed parameters.
     for (unsigned i = 0, e = FTy->getNumParams(); i != e; ++i)
-      Vals.push_back(VE.getValueID(I.getOperand(i+1)));  // fixed param.
+      Vals.push_back(VE.getValueID(CI.getArgOperand(i)));  // fixed param.
 
     // Emit type/value pairs for varargs params.
     if (FTy->isVarArg()) {
-      unsigned NumVarargs = I.getNumOperands()-1-FTy->getNumParams();
-      for (unsigned i = I.getNumOperands()-NumVarargs, e = I.getNumOperands();
+      for (unsigned i = FTy->getNumParams(), e = CI.getNumArgOperands();
            i != e; ++i)
-        PushValueAndType(I.getOperand(i), InstID, Vals, VE);  // varargs
+        PushValueAndType(CI.getArgOperand(i), InstID, Vals, VE);  // varargs
     }
     break;
   }
@@ -1662,15 +1662,8 @@ void llvm::WriteBitcodeToFile(const Module *M, raw_ostream &Out) {
 
   WriteBitcodeToStream( M, Stream );
 
-  // If writing to stdout, set binary mode.
-  if (&llvm::outs() == &Out)
-    sys::Program::ChangeStdoutToBinary();
-
   // Write the generated bitstream to "Out".
   Out.write((char*)&Buffer.front(), Buffer.size());
-
-  // Make sure it hits disk now.
-  Out.flush();
 }
 
 /// WriteBitcodeToStream - Write the specified module to the specified output

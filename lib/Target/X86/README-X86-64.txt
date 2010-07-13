@@ -1,27 +1,5 @@
 //===- README_X86_64.txt - Notes for X86-64 code gen ----------------------===//
 
-Implement different PIC models? Right now we only support Mac OS X with small
-PIC code model.
-
-//===---------------------------------------------------------------------===//
-
-For this:
-
-extern void xx(void);
-void bar(void) {
-  xx();
-}
-
-gcc compiles to:
-
-.globl _bar
-_bar:
-	jmp	_xx
-
-We need to do the tailcall optimization as well.
-
-//===---------------------------------------------------------------------===//
-
 AMD64 Optimization Manual 8.2 has some nice information about optimizing integer
 multiplication by a constant. How much of it applies to Intel's X86-64
 implementation? There are definite trade-offs to consider: latency vs. register
@@ -96,123 +74,14 @@ gcc:
 	movq	%rax, (%rdx)
 	ret
 
-//===---------------------------------------------------------------------===//
+And the codegen is even worse for the following
+(from http://gcc.gnu.org/bugzilla/show_bug.cgi?id=33103):
+  void fill1(char *s, int a)
+  {
+    __builtin_memset(s, a, 15);
+  }
 
-Vararg function prologue can be further optimized. Currently all XMM registers
-are stored into register save area. Most of them can be eliminated since the
-upper bound of the number of XMM registers used are passed in %al. gcc produces
-something like the following:
-
-	movzbl	%al, %edx
-	leaq	0(,%rdx,4), %rax
-	leaq	4+L2(%rip), %rdx
-	leaq	239(%rsp), %rax
-       	jmp	*%rdx
-	movaps	%xmm7, -15(%rax)
-	movaps	%xmm6, -31(%rax)
-	movaps	%xmm5, -47(%rax)
-	movaps	%xmm4, -63(%rax)
-	movaps	%xmm3, -79(%rax)
-	movaps	%xmm2, -95(%rax)
-	movaps	%xmm1, -111(%rax)
-	movaps	%xmm0, -127(%rax)
-L2:
-
-It jumps over the movaps that do not need to be stored. Hard to see this being
-significant as it added 5 instruciton (including a indirect branch) to avoid
-executing 0 to 8 stores in the function prologue.
-
-Perhaps we can optimize for the common case where no XMM registers are used for
-parameter passing. i.e. is %al == 0 jump over all stores. Or in the case of a
-leaf function where we can determine that no XMM input parameter is need, avoid
-emitting the stores at all.
-
-//===---------------------------------------------------------------------===//
-
-AMD64 has a complex calling convention for aggregate passing by value:
-
-1. If the size of an object is larger than two eightbytes, or in C++, is a non- 
-   POD structure or union type, or contains unaligned fields, it has class 
-   MEMORY.
-2. Both eightbytes get initialized to class NO_CLASS. 
-3. Each field of an object is classified recursively so that always two fields
-   are considered. The resulting class is calculated according to the classes
-   of the fields in the eightbyte: 
-   (a) If both classes are equal, this is the resulting class. 
-   (b) If one of the classes is NO_CLASS, the resulting class is the other 
-       class. 
-   (c) If one of the classes is MEMORY, the result is the MEMORY class. 
-   (d) If one of the classes is INTEGER, the result is the INTEGER. 
-   (e) If one of the classes is X87, X87UP, COMPLEX_X87 class, MEMORY is used as
-      class. 
-   (f) Otherwise class SSE is used. 
-4. Then a post merger cleanup is done: 
-   (a) If one of the classes is MEMORY, the whole argument is passed in memory. 
-   (b) If SSEUP is not preceeded by SSE, it is converted to SSE.
-
-Currently llvm frontend does not handle this correctly.
-
-Problem 1:
-    typedef struct { int i; double d; } QuadWordS;
-It is currently passed in two i64 integer registers. However, gcc compiled
-callee expects the second element 'd' to be passed in XMM0.
-
-Problem 2:
-    typedef struct { int32_t i; float j; double d; } QuadWordS;
-The size of the first two fields == i64 so they will be combined and passed in
-a integer register RDI. The third field is still passed in XMM0.
-
-Problem 3:
-    typedef struct { int64_t i; int8_t j; int64_t d; } S;
-    void test(S s)
-The size of this aggregate is greater than two i64 so it should be passed in 
-memory. Currently llvm breaks this down and passed it in three integer
-registers.
-
-Problem 4:
-Taking problem 3 one step ahead where a function expects a aggregate value
-in memory followed by more parameter(s) passed in register(s).
-    void test(S s, int b)
-
-LLVM IR does not allow parameter passing by aggregates, therefore it must break
-the aggregates value (in problem 3 and 4) into a number of scalar values:
-    void %test(long %s.i, byte %s.j, long %s.d);
-
-However, if the backend were to lower this code literally it would pass the 3
-values in integer registers. To force it be passed in memory, the frontend
-should change the function signiture to:
-    void %test(long %undef1, long %undef2, long %undef3, long %undef4, 
-               long %undef5, long %undef6,
-               long %s.i, byte %s.j, long %s.d);
-And the callee would look something like this:
-    call void %test( undef, undef, undef, undef, undef, undef,
-                     %tmp.s.i, %tmp.s.j, %tmp.s.d );
-The first 6 undef parameters would exhaust the 6 integer registers used for
-parameter passing. The following three integer values would then be forced into
-memory.
-
-For problem 4, the parameter 'd' would be moved to the front of the parameter
-list so it will be passed in register:
-    void %test(int %d,
-               long %undef1, long %undef2, long %undef3, long %undef4, 
-               long %undef5, long %undef6,
-               long %s.i, byte %s.j, long %s.d);
-
-//===---------------------------------------------------------------------===//
-
-Right now the asm printer assumes GlobalAddress are accessed via RIP relative
-addressing. Therefore, it is not possible to generate this:
-        movabsq $__ZTV10polynomialIdE+16, %rax
-
-That is ok for now since we currently only support small model. So the above
-is selected as
-        leaq __ZTV10polynomialIdE+16(%rip), %rax
-
-This is probably slightly slower but is much shorter than movabsq. However, if
-we were to support medium or larger code models, we need to use the movabs
-instruction. We should probably introduce something like AbsoluteAddress to
-distinguish it from GlobalAddress so the asm printer and JIT code emitter can
-do the right thing.
+For this version, we duplicate the computation of the constant to store.
 
 //===---------------------------------------------------------------------===//
 
@@ -296,5 +165,109 @@ bb2: 0x203afb0, LLVM BB @0x1e02340, ID#3:
 so we'd have to know that IMUL32rri8 leaves the high word zero extended and to
 be able to recognize the zero extend.  This could also presumably be implemented
 if we have whole-function selectiondags.
+
+//===---------------------------------------------------------------------===//
+
+Take the following C code
+(from http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43640):
+
+struct u1
+{
+        float x;
+        float y;
+};
+
+float foo(struct u1 u)
+{
+        return u.x + u.y;
+}
+
+Optimizes to the following IR:
+define float @foo(double %u.0) nounwind readnone {
+entry:
+  %tmp8 = bitcast double %u.0 to i64              ; <i64> [#uses=2]
+  %tmp6 = trunc i64 %tmp8 to i32                  ; <i32> [#uses=1]
+  %tmp7 = bitcast i32 %tmp6 to float              ; <float> [#uses=1]
+  %tmp2 = lshr i64 %tmp8, 32                      ; <i64> [#uses=1]
+  %tmp3 = trunc i64 %tmp2 to i32                  ; <i32> [#uses=1]
+  %tmp4 = bitcast i32 %tmp3 to float              ; <float> [#uses=1]
+  %0 = fadd float %tmp7, %tmp4                    ; <float> [#uses=1]
+  ret float %0
+}
+
+And current llvm-gcc/clang output:
+	movd	%xmm0, %rax
+	movd	%eax, %xmm1
+	shrq	$32, %rax
+	movd	%eax, %xmm0
+	addss	%xmm1, %xmm0
+	ret
+
+We really shouldn't move the floats to RAX, only to immediately move them
+straight back to the XMM registers.
+
+There really isn't any good way to handle this purely in IR optimizers; it
+could possibly be handled by changing the output of the fronted, though.  It
+would also be feasible to add a x86-specific DAGCombine to optimize the
+bitcast+trunc+(lshr+)bitcast combination.
+
+//===---------------------------------------------------------------------===//
+
+Take the following code
+(from http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34653):
+extern unsigned long table[];
+unsigned long foo(unsigned char *p) {
+  unsigned long tag = *p;
+  return table[tag >> 4] + table[tag & 0xf];
+}
+
+Current code generated:
+	movzbl	(%rdi), %eax
+	movq	%rax, %rcx
+	andq	$240, %rcx
+	shrq	%rcx
+	andq	$15, %rax
+	movq	table(,%rax,8), %rax
+	addq	table(%rcx), %rax
+	ret
+
+Issues:
+1. First movq should be movl; saves a byte.
+2. Both andq's should be andl; saves another two bytes.  I think this was
+   implemented at one point, but subsequently regressed.
+3. shrq should be shrl; saves another byte.
+4. The first andq can be completely eliminated by using a slightly more
+   expensive addressing mode.
+
+//===---------------------------------------------------------------------===//
+
+Consider the following (contrived testcase, but contains common factors):
+
+#include <stdarg.h>
+int test(int x, ...) {
+  int sum, i;
+  va_list l;
+  va_start(l, x);
+  for (i = 0; i < x; i++)
+    sum += va_arg(l, int);
+  va_end(l);
+  return sum;
+}
+
+Testcase given in C because fixing it will likely involve changing the IR
+generated for it.  The primary issue with the result is that it doesn't do any
+of the optimizations which are possible if we know the address of a va_list
+in the current function is never taken:
+1. We shouldn't spill the XMM registers because we only call va_arg with "int".
+2. It would be nice if we could scalarrepl the va_list.
+3. Probably overkill, but it'd be cool if we could peel off the first five
+iterations of the loop.
+
+Other optimizations involving functions which use va_arg on floats which don't
+have the address of a va_list taken:
+1. Conversely to the above, we shouldn't spill general registers if we only
+   call va_arg on "double".
+2. If we know nothing more than 64 bits wide is read from the XMM registers,
+   we can change the spilling code to reduce the amount of stack used by half.
 
 //===---------------------------------------------------------------------===//

@@ -38,11 +38,13 @@
 // included, or there will be a compiler error.  This trick is to
 // prevent a user from accidentally including gtest-internal-inl.h in
 // his code.
-#define GTEST_IMPLEMENTATION
+#define GTEST_IMPLEMENTATION_ 1
 #include "gtest/internal/gtest-internal-inl.h"
-#undef GTEST_IMPLEMENTATION
+#undef GTEST_IMPLEMENTATION_
 
 namespace testing {
+
+using internal::GetUnitTestImpl;
 
 // Gets the summary of the failure message by omitting the stack trace
 // in it.
@@ -54,61 +56,45 @@ internal::String TestPartResult::ExtractSummary(const char* message) {
 
 // Prints a TestPartResult object.
 std::ostream& operator<<(std::ostream& os, const TestPartResult& result) {
-  return os << result.file_name() << ":"
-            << result.line_number() << ": "
-            << (result.type() == TPRT_SUCCESS ? "Success" :
-                result.type() == TPRT_FATAL_FAILURE ? "Fatal failure" :
-                "Non-fatal failure") << ":\n"
-            << result.message() << std::endl;
-}
-
-// Constructs an empty TestPartResultArray.
-TestPartResultArray::TestPartResultArray()
-    : list_(new internal::List<TestPartResult>) {
-}
-
-// Destructs a TestPartResultArray.
-TestPartResultArray::~TestPartResultArray() {
-  delete list_;
+  return os
+      << result.file_name() << ":" << result.line_number() << ": "
+      << (result.type() == TestPartResult::kSuccess ? "Success" :
+          result.type() == TestPartResult::kFatalFailure ? "Fatal failure" :
+          "Non-fatal failure") << ":\n"
+      << result.message() << std::endl;
 }
 
 // Appends a TestPartResult to the array.
 void TestPartResultArray::Append(const TestPartResult& result) {
-  list_->PushBack(result);
+  array_.push_back(result);
 }
 
 // Returns the TestPartResult at the given index (0-based).
 const TestPartResult& TestPartResultArray::GetTestPartResult(int index) const {
   if (index < 0 || index >= size()) {
     printf("\nInvalid index (%d) into TestPartResultArray.\n", index);
-    internal::abort();
+    internal::posix::Abort();
   }
 
-  const internal::ListNode<TestPartResult>* p = list_->Head();
-  for (int i = 0; i < index; i++) {
-    p = p->next();
-  }
-
-  return p->element();
+  return array_[index];
 }
 
 // Returns the number of TestPartResult objects in the array.
 int TestPartResultArray::size() const {
-  return list_->size();
+  return static_cast<int>(array_.size());
 }
 
 namespace internal {
 
 HasNewFatalFailureHelper::HasNewFatalFailureHelper()
     : has_new_fatal_failure_(false),
-      original_reporter_(UnitTest::GetInstance()->impl()->
+      original_reporter_(GetUnitTestImpl()->
                          GetTestPartResultReporterForCurrentThread()) {
-  UnitTest::GetInstance()->impl()->SetTestPartResultReporterForCurrentThread(
-      this);
+  GetUnitTestImpl()->SetTestPartResultReporterForCurrentThread(this);
 }
 
 HasNewFatalFailureHelper::~HasNewFatalFailureHelper() {
-  UnitTest::GetInstance()->impl()->SetTestPartResultReporterForCurrentThread(
+  GetUnitTestImpl()->SetTestPartResultReporterForCurrentThread(
       original_reporter_);
 }
 

@@ -8,7 +8,7 @@
 %struct.__neon_int16x8x2_t = type { <8 x i16>, <8 x i16> }
 %struct.__neon_int32x4x2_t = type { <4 x i32>, <4 x i32> }
 
-define arm_apcscc void @t1(i16* %i_ptr, i16* %o_ptr, %struct.int32x4_t* nocapture %vT0ptr, %struct.int32x4_t* nocapture %vT1ptr) nounwind {
+define void @t1(i16* %i_ptr, i16* %o_ptr, %struct.int32x4_t* nocapture %vT0ptr, %struct.int32x4_t* nocapture %vT1ptr) nounwind {
 entry:
 ; CHECK:        t1:
 ; CHECK:        vld1.16
@@ -41,13 +41,13 @@ entry:
   ret void
 }
 
-define arm_apcscc void @t2(i16* %i_ptr, i16* %o_ptr, %struct.int16x8_t* nocapture %vT0ptr, %struct.int16x8_t* nocapture %vT1ptr) nounwind {
+define void @t2(i16* %i_ptr, i16* %o_ptr, %struct.int16x8_t* nocapture %vT0ptr, %struct.int16x8_t* nocapture %vT1ptr) nounwind {
 entry:
 ; CHECK:        t2:
 ; CHECK:        vld1.16
-; CHECK:        vld1.16
-; CHECK-NOT:    vmov
 ; CHECK:        vmul.i16
+; CHECK-NOT:    vmov
+; CHECK:        vld1.16
 ; CHECK:        vmul.i16
 ; CHECK-NOT:    vmov
 ; CHECK:        vst1.16
@@ -88,7 +88,7 @@ define <8 x i8> @t3(i8* %A, i8* %B) nounwind {
   ret <8 x i8> %tmp4
 }
 
-define arm_apcscc void @t4(i32* %in, i32* %out) nounwind {
+define void @t4(i32* %in, i32* %out) nounwind {
 entry:
 ; CHECK:        t4:
 ; CHECK:        vld2.32
@@ -163,7 +163,7 @@ define <8 x i8> @t6(i8* %A, <8 x i8>* %B) nounwind {
   ret <8 x i8> %tmp5
 }
 
-define arm_apcscc void @t7(i32* %iptr, i32* %optr) nounwind {
+define void @t7(i32* %iptr, i32* %optr) nounwind {
 entry:
 ; CHECK:        t7:
 ; CHECK:        vld2.32
@@ -238,9 +238,10 @@ bb14:                                             ; preds = %bb6
 define arm_aapcs_vfpcc float @t9(%0* nocapture, %3* nocapture) nounwind {
 ; CHECK:        t9:
 ; CHECK:        vldr.64
+; CHECK-NOT:    vmov d{{.*}}, d0
 ; CHECK:        vmov.i8 d1
-; CHECK-NEXT:   vstmia r0, {d2,d3}
-; CHECK-NEXT:   vstmia r0, {d0,d1}
+; CHECK-NEXT:   vstmia r0, {d0, d1}
+; CHECK-NEXT:   vstmia r0, {d0, d1}
   %3 = bitcast double 0.000000e+00 to <2 x float> ; <<2 x float>> [#uses=2]
   %4 = shufflevector <2 x float> %3, <2 x float> undef, <4 x i32> <i32 0, i32 1, i32 2, i32 3> ; <<4 x float>> [#uses=1]
   store <4 x float> %4, <4 x float>* undef, align 16
@@ -249,13 +250,13 @@ define arm_aapcs_vfpcc float @t9(%0* nocapture, %3* nocapture) nounwind {
   br label %8
 
 ; <label>:6                                       ; preds = %8
-  br i1 undef, label %7, label %10
+  br label %7
 
 ; <label>:7                                       ; preds = %6
   br label %8
 
 ; <label>:8                                       ; preds = %7, %2
-  br i1 undef, label %6, label %9
+  br label %6
 
 ; <label>:9                                       ; preds = %8
   ret float undef
@@ -269,7 +270,6 @@ define arm_aapcs_vfpcc i32 @t10() nounwind {
 entry:
 ; CHECK: t10:
 ; CHECK: vmov.i32 q1, #0x3F000000
-; CHECK: vdup.32 q0, d0[0]
 ; CHECK: vmov d0, d1
 ; CHECK: vmla.f32 q0, q0, d0[0]
   %0 = shufflevector <4 x float> zeroinitializer, <4 x float> undef, <4 x i32> zeroinitializer ; <<4 x float>> [#uses=1]

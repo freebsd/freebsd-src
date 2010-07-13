@@ -83,7 +83,8 @@ namespace {
   // pressure, it can caused fewer GPRs to be held in the queue.
   static cl::opt<unsigned>
   NumRecentlyUsedRegs("linearscan-skip-count",
-                      cl::desc("Number of registers for linearscan to remember to skip."),
+                      cl::desc("Number of registers for linearscan to remember"
+                               "to skip."),
                       cl::init(0),
                       cl::Hidden);
  
@@ -421,9 +422,10 @@ unsigned RALinScan::attemptTrivialCoalescing(LiveInterval &cur, unsigned Reg) {
     unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
     if (vni->def != SlotIndex() && vni->isDefAccurate() &&
         (CopyMI = li_->getInstructionFromIndex(vni->def)) &&
-        tii_->isMoveInstr(*CopyMI, SrcReg, DstReg, SrcSubReg, DstSubReg))
+        (CopyMI->isCopy() ||
+         tii_->isMoveInstr(*CopyMI, SrcReg, DstReg, SrcSubReg, DstSubReg)))
       // Defined by a copy, try to extend SrcReg forward
-      CandReg = SrcReg;
+      CandReg = CopyMI->isCopy() ? CopyMI->getOperand(1).getReg() : SrcReg;
     else if (TrivCoalesceEnds &&
              (CopyMI =
               li_->getInstructionFromIndex(range.end.getBaseIndex())) &&
@@ -992,6 +994,24 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur) {
           if (Reg && allocatableRegs_[Reg] && RC->contains(Reg))
             mri_->setRegAllocationHint(cur->reg, 0, Reg);
         }
+      } else if (CopyMI && CopyMI->isCopy()) {
+        DstReg = CopyMI->getOperand(0).getReg();
+        DstSubReg = CopyMI->getOperand(0).getSubReg();
+        SrcReg = CopyMI->getOperand(1).getReg();
+        SrcSubReg = CopyMI->getOperand(1).getSubReg();
+        unsigned Reg = 0;
+        if (TargetRegisterInfo::isPhysicalRegister(SrcReg))
+          Reg = SrcReg;
+        else if (vrm_->isAssignedReg(SrcReg))
+          Reg = vrm_->getPhys(SrcReg);
+        if (Reg) {
+          if (SrcSubReg)
+            Reg = tri_->getSubReg(Reg, SrcSubReg);
+          if (DstSubReg)
+            Reg = tri_->getMatchingSuperReg(Reg, DstSubReg, RC);
+          if (Reg && allocatableRegs_[Reg] && RC->contains(Reg))
+            mri_->setRegAllocationHint(cur->reg, 0, Reg);
+        }
       }
     }
   }
@@ -1206,8 +1226,7 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur) {
     DEBUG(dbgs() << "\t\t\tspilling(c): " << *cur << '\n');
     SmallVector<LiveInterval*, 8> spillIs;
     std::vector<LiveInterval*> added;
-    
-    added = spiller_->spill(cur, spillIs); 
+    spiller_->spill(cur, added, spillIs);
 
     std::sort(added.begin(), added.end(), LISorter());
     addStackInterval(cur, ls_, li_, mri_, *vrm_);
@@ -1285,10 +1304,8 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur) {
     if (sli->beginIndex() < earliestStart)
       earliestStart = sli->beginIndex();
        
-    std::vector<LiveInterval*> newIs;
-    newIs = spiller_->spill(sli, spillIs, &earliestStart);
+    spiller_->spill(sli, added, spillIs, &earliestStart);
     addStackInterval(sli, ls_, li_, mri_, *vrm_);
-    std::copy(newIs.begin(), newIs.end(), std::back_inserter(added));
     spilled.insert(sli->reg);
   }
 
