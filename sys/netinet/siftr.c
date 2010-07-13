@@ -1282,16 +1282,16 @@ siftr_manage_ops(uint8_t action)
 		siftr_pkt_manager_thr = NULL;
 		mtx_unlock(&siftr_pkt_mgr_mtx);
 
-		totalss.n_in = DPCPU_SUM(ss, n_in);
-		totalss.n_out = DPCPU_SUM(ss, n_out);
-		totalss.nskip_in_malloc = DPCPU_SUM(ss, nskip_in_malloc);
-		totalss.nskip_out_malloc = DPCPU_SUM(ss, nskip_out_malloc);
-		totalss.nskip_in_mtx = DPCPU_SUM(ss, nskip_in_mtx);
-		totalss.nskip_out_mtx = DPCPU_SUM(ss, nskip_out_mtx);
-		totalss.nskip_in_tcpcb = DPCPU_SUM(ss, nskip_in_tcpcb);
-		totalss.nskip_out_tcpcb = DPCPU_SUM(ss, nskip_out_tcpcb);
-		totalss.nskip_in_inpcb = DPCPU_SUM(ss, nskip_in_inpcb);
-		totalss.nskip_out_inpcb = DPCPU_SUM(ss, nskip_out_inpcb);
+		totalss.n_in = DPCPU_VARSUM(ss, n_in);
+		totalss.n_out = DPCPU_VARSUM(ss, n_out);
+		totalss.nskip_in_malloc = DPCPU_VARSUM(ss, nskip_in_malloc);
+		totalss.nskip_out_malloc = DPCPU_VARSUM(ss, nskip_out_malloc);
+		totalss.nskip_in_mtx = DPCPU_VARSUM(ss, nskip_in_mtx);
+		totalss.nskip_out_mtx = DPCPU_VARSUM(ss, nskip_out_mtx);
+		totalss.nskip_in_tcpcb = DPCPU_VARSUM(ss, nskip_in_tcpcb);
+		totalss.nskip_out_tcpcb = DPCPU_VARSUM(ss, nskip_out_tcpcb);
+		totalss.nskip_in_inpcb = DPCPU_VARSUM(ss, nskip_in_inpcb);
+		totalss.nskip_out_inpcb = DPCPU_VARSUM(ss, nskip_out_inpcb);
 
 		total_skipped_pkts = totalss.nskip_in_malloc +
 		    totalss.nskip_out_malloc + totalss.nskip_in_mtx +
