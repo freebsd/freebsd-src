@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../../contrib/llvm/tools/clang/lib/Headers
 
-INCSDIR=${INCLUDEDIR}/clang/2.0
+INCSDIR=${INCLUDEDIR}/clang/2.8
 
 INCS=	emmintrin.h mm_malloc.h mmintrin.h pmmintrin.h tmmintrin.h xmmintrin.h
 

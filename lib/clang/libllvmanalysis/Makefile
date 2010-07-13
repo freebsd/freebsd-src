@@ -11,14 +11,15 @@ SRCS=	AliasAnalysis.cpp AliasAnalysisCounter.cpp \
 	InstCount.cpp InstructionSimplify.cpp Interval.cpp \
 	IntervalPartition.cpp LazyValueInfo.cpp \
 	LibCallAliasAnalysis.cpp LibCallSemantics.cpp Lint.cpp \
-	LiveValues.cpp LoopDependenceAnalysis.cpp LoopInfo.cpp \
+	LiveValues.cpp Loads.cpp LoopDependenceAnalysis.cpp LoopInfo.cpp \
 	LoopPass.cpp MemoryBuiltins.cpp MemoryDependenceAnalysis.cpp \
-	ModuleDebugInfoPrinter.cpp PHITransAddr.cpp PointerTracking.cpp PostDominators.cpp \
-	ProfileEstimatorPass.cpp ProfileInfo.cpp ProfileInfoLoader.cpp \
-	ProfileInfoLoaderPass.cpp ProfileVerifierPass.cpp \
-	ScalarEvolution.cpp ScalarEvolutionAliasAnalysis.cpp \
-	ScalarEvolutionExpander.cpp ScalarEvolutionNormalization.cpp \
-	SparsePropagation.cpp Trace.cpp ValueTracking.cpp
+	ModuleDebugInfoPrinter.cpp PHITransAddr.cpp PointerTracking.cpp \
+	PostDominators.cpp ProfileEstimatorPass.cpp ProfileInfo.cpp \
+	ProfileInfoLoader.cpp ProfileInfoLoaderPass.cpp \
+	ProfileVerifierPass.cpp ScalarEvolution.cpp \
+	ScalarEvolutionAliasAnalysis.cpp ScalarEvolutionExpander.cpp \
+	ScalarEvolutionNormalization.cpp SparsePropagation.cpp Trace.cpp \
+	ValueTracking.cpp
 
 TGHDRS=	Intrinsics
 

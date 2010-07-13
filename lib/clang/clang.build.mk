@@ -28,8 +28,8 @@ CFLAGS+= -O1
 TARGET_ARCH?=	${MACHINE_ARCH}
 # XXX: 8.0, to keep __FreeBSD_cc_version happy
 CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\" \
-	-DCLANG_VENDOR=\"FreeBSD\ \" -DSVN_REVISION=\"104832\" \
-	-DCLANG_VENDOR_SUFFIX=\"\ 20100614\"
+	-DCLANG_VENDOR=\"FreeBSD\ \" -DSVN_REVISION=\"108243\" \
+	-DCLANG_VENDOR_SUFFIX=\"\ 20100713\"
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
@@ -59,6 +59,28 @@ ${arch:T}Gen${hdr:H:C/$/.inc.h/}: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
 		${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td > ${.TARGET}
 . endfor
 .endfor
+
+Attrs.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
+	  -gen-clang-attr-classes ${.ALLSRC} > ${.TARGET}
+
+AttrList.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
+	  -gen-clang-attr-list ${.ALLSRC} > ${.TARGET}
+
+DeclNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/DeclNodes.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
+	  -gen-clang-decl-nodes ${.ALLSRC} > ${.TARGET}
+
+StmtNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/StmtNodes.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/AST \
+	  -gen-clang-stmt-nodes ${.ALLSRC} > ${.TARGET}
+
+arm_neon.inc.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
+	  -gen-arm-neon-sema ${.ALLSRC} > ${.TARGET}
+
+
 DiagnosticGroups.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
 		-gen-clang-diag-groups \
@@ -83,11 +105,6 @@ CC1AsOptions.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td
 	${TBLGEN} -I${CLANG_SRCS}/include/clang/Driver \
 	   -gen-opt-parser-defs \
 	   ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td > ${.TARGET}
-
-StmtNodes.inc.h: ${CLANG_SRCS}/include/clang/AST/StmtNodes.td
-	${TBLGEN} -I${CLANG_SRCS}/include/clang/AST \
-	   -gen-clang-stmt-nodes \
-	   ${CLANG_SRCS}/include/clang/AST/StmtNodes.td > ${.TARGET}
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
 DPADD+=		${TGHDRS:C/$/.inc.h/}

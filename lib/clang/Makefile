@@ -13,6 +13,7 @@ SUBDIR=	libclanganalysis \
 	libclangsema \
 	\
 	libllvmanalysis \
+	libllvmasmparser \
 	libllvmasmprinter \
 	libllvmbitreader \
 	libllvmbitwriter \

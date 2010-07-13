@@ -1,0 +1,7 @@
+/* $FreeBSD$ */
+#define CLANG_VERSION 2.8
+#define CLANG_VERSION_MAJOR 2
+#define CLANG_VERSION_MINOR 8
+#if 0
+#define CLANG_VERSION_PATCHLEVEL 
+#endif
