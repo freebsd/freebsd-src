@@ -252,7 +252,7 @@ dimension(off_t size)
 {
 	off_t rcnt;
 	struct indir *ip;
-	int i, layer;
+	int layer;
 
 	rcnt = size;
 	layer = 0;
@@ -260,9 +260,6 @@ dimension(off_t size)
 		rcnt /= NINDIR;
 		layer++;
 	}
-	/* figure out log2(NINDIR) */
-	for (i = NINDIR, nshift = -1; i; nshift++)
-		i >>= 1;
 
 	/*
 	 * XXX: the top layer is probably not fully populated, so we allocate
@@ -1203,6 +1200,11 @@ g_md_init(struct g_class *mp __unused)
 	caddr_t c;
 	u_char *ptr, *name, *type;
 	unsigned len;
+	int i;
+
+	/* figure out log2(NINDIR) */
+	for (i = NINDIR, nshift = -1; i; nshift++)
+		i >>= 1;
 
 	mod = NULL;
 	sx_init(&md_sx, "MD config lock");
