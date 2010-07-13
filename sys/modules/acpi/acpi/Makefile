@@ -99,7 +99,10 @@ SRCS+=	assym.s madt.c
 CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
 
 .if ${MACHINE_ARCH} == "amd64"
-SRCS+=	acpi_switch.S acpi_wakedata.h opt_global.h
+.if !defined(KERNBUILDDIR)
+CFLAGS+=-DSMP
+.endif
+SRCS+=	acpi_switch.S acpi_wakedata.h
 CLEANFILES+=	acpi_wakedata.h
 ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
 acpi_switch.o:	acpi_switch.S
