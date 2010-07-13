@@ -833,7 +833,7 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5906 &&
 	    (reg == BRGPHY_MII_1000CTL || reg == BRGPHY_MII_AUXCTL))
-		return(0);
+		return (0);
 
 	/* Reading with autopolling on may trigger PCI errors */
 	autopoll = CSR_READ_4(sc, BGE_MI_MODE);
@@ -3088,7 +3088,7 @@ bge_reset(struct bge_softc *sc)
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5752 ||
 	    BGE_IS_5755_PLUS(sc)) {
 		if (bootverbose)
-			device_printf(sc->bge_dev, "Disabling fastboot\n");
+			device_printf(dev, "Disabling fastboot\n");
 		CSR_WRITE_4(sc, BGE_FASTBOOT_PC, 0x0);
 	}
 
@@ -3209,7 +3209,7 @@ bge_reset(struct bge_softc *sc)
 			DELAY(100);
 		}
 		if (i == BGE_TIMEOUT) {
-			device_printf(sc->bge_dev, "reset timed out\n");
+			device_printf(dev, "reset timed out\n");
 			return (1);
 		}
 	} else {
@@ -3227,8 +3227,9 @@ bge_reset(struct bge_softc *sc)
 		}
 
 		if ((sc->bge_flags & BGE_FLAG_EADDR) && i == BGE_TIMEOUT)
-			device_printf(sc->bge_dev, "firmware handshake timed out, "
-			    "found 0x%08x\n", val);
+			device_printf(dev,
+			    "firmware handshake timed out, found 0x%08x\n",
+			    val);
 	}
 
 	/*
@@ -3280,7 +3281,7 @@ bge_reset(struct bge_softc *sc)
 	}
 	DELAY(10000);
 
-	return(0);
+	return (0);
 }
 
 static __inline void
@@ -4268,7 +4269,8 @@ bge_init_locked(struct bge_softc *sc)
 	if (ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN >
 	    (MCLBYTES - ETHER_ALIGN)) {
 		if (bge_init_rx_ring_jumbo(sc) != 0) {
-			device_printf(sc->bge_dev, "no memory for std Rx buffers.\n");
+			device_printf(sc->bge_dev,
+			    "no memory for std Rx buffers.\n");
 			bge_stop(sc);
 			return;
 		}
