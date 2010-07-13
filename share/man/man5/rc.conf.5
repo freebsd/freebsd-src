@@ -1151,9 +1151,10 @@ To create a vlan device named
 .Li em0.101
 on
 .Li em0
-with the vlan tag 101:
+with the vlan tag 101 and the optional the IPv4 address 192.0.2.1/24:
 .Bd -literal
 vlans_em0="101"
+ifconfig_em0_101="inet 192.0.2.1/24"
 .Ed
 .Pp
 To create a vlan device named
