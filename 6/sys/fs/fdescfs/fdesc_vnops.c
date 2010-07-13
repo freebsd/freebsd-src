@@ -440,11 +440,10 @@ fdesc_readdir(ap)
 
 	FILEDESC_LOCK_FAST(fdp);
 	while (i < fdp->fd_nfiles + 2 && uio->uio_resid >= UIO_MX) {
+		bzero((caddr_t)dp, UIO_MX);
 		switch (i) {
 		case 0:	/* `.' */
 		case 1: /* `..' */
-			bzero((caddr_t)dp, UIO_MX);
-
 			dp->d_fileno = i + FD_ROOT;
 			dp->d_namlen = i + 1;
 			dp->d_reclen = UIO_MX;
@@ -453,26 +452,24 @@ fdesc_readdir(ap)
 			dp->d_type = DT_DIR;
 			break;
 		default:
-			if (fdp->fd_ofiles[fcnt] == NULL) {
-				FILEDESC_UNLOCK_FAST(fdp);
-				goto done;
-			}
-
-			bzero((caddr_t) dp, UIO_MX);
+			if (fdp->fd_ofiles[fcnt] == NULL)
+				break;
 			dp->d_namlen = sprintf(dp->d_name, "%d", fcnt);
 			dp->d_reclen = UIO_MX;
 			dp->d_type = DT_UNKNOWN;
 			dp->d_fileno = i + FD_DESC;
 			break;
 		}
-		/*
-		 * And ship to userland
-		 */
-		FILEDESC_UNLOCK_FAST(fdp);
-		error = uiomove(dp, UIO_MX, uio);
-		if (error)
-			goto done;
-		FILEDESC_LOCK_FAST(fdp);
+		if (dp->d_namlen != 0) {
+			/*
+			 * And ship to userland
+			 */
+			FILEDESC_UNLOCK_FAST(fdp);
+			error = uiomove(dp, UIO_MX, uio);
+			if (error)
+				goto done;
+			FILEDESC_LOCK_FAST(fdp);
+		}
 		i++;
 		fcnt++;
 	}

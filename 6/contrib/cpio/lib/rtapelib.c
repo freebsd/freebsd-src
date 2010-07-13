@@ -570,7 +570,8 @@ rmt_read__ (int handle, char *buffer, size_t length)
 
   sprintf (command_buffer, "R%lu\n", (unsigned long) length);
   if (do_command (handle, command_buffer) == -1
-      || (status = get_status (handle)) == SAFE_READ_ERROR)
+      || (status = get_status (handle)) == SAFE_READ_ERROR
+      || status > length)
     return SAFE_READ_ERROR;
 
   for (counter = 0; counter < status; counter += rlen, buffer += rlen)

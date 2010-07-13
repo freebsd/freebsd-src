@@ -53,6 +53,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#ifdef FPU_DEBUG
+#include <stdio.h>
+#endif
+
 #include <machine/frame.h>
 #include <machine/fp.h>
 #include <machine/fsr.h>
@@ -202,7 +206,6 @@ __fpu_ftoi(fe, fp)
 
 	sign = fp->fp_sign;
 	switch (fp->fp_class) {
-
 	case FPC_ZERO:
 		return (0);
 
@@ -252,10 +255,9 @@ __fpu_ftox(fe, fp, res)
 
 	sign = fp->fp_sign;
 	switch (fp->fp_class) {
-
 	case FPC_ZERO:
-		res[1] = 0;
-		return (0);
+		i = 0;
+		goto done;
 
 	case FPC_NUM:
 		/*
@@ -279,15 +281,17 @@ __fpu_ftox(fe, fp, res)
 			break;
 		if (sign)
 			i = -i;
-		res[1] = (int)i;
-		return (i >> 32);
+		goto done;
 
 	default:		/* Inf, qNaN, sNaN */
 		break;
 	}
 	/* overflow: replace any inexact exception with invalid */
 	fe->fe_cx = (fe->fe_cx & ~FSR_NX) | FSR_NV;
-	return (0x7fffffffffffffffLL + sign);
+	i = 0x7fffffffffffffffLL + sign;
+done:
+	res[1] = i & 0xffffffff;
+	return (i >> 32);
 }
 
 /*
@@ -329,8 +333,9 @@ __fpu_ftos(fe, fp)
 	 * right to introduce leading zeroes.  Rounding then acts
 	 * differently for normals and subnormals: the largest subnormal
 	 * may round to the smallest normal (1.0 x 2^minexp), or may
-	 * remain subnormal.  In the latter case, signal an underflow
-	 * if the result was inexact or if underflow traps are enabled.
+	 * remain subnormal.  A number that is subnormal before rounding
+	 * will signal an underflow if the result is inexact or if underflow
+	 * traps are enabled.
 	 *
 	 * Rounding a normal, on the other hand, always produces another
 	 * normal (although either way the result might be too big for
@@ -345,8 +350,10 @@ __fpu_ftos(fe, fp)
 	if ((exp = fp->fp_exp + SNG_EXP_BIAS) <= 0) {	/* subnormal */
 		/* -NG for g,r; -SNG_FRACBITS-exp for fraction */
 		(void) __fpu_shr(fp, FP_NMANT - FP_NG - SNG_FRACBITS - exp);
-		if (fpround(fe, fp) && fp->fp_mant[3] == SNG_EXP(1))
+		if (fpround(fe, fp) && fp->fp_mant[3] == SNG_EXP(1)) {
+			fe->fe_cx |= FSR_UF;
 			return (sign | SNG_EXP(1) | 0);
+		}
 		if ((fe->fe_cx & FSR_NX) ||
 		    (fe->fe_fsr & (FSR_UF << FSR_TEM_SHIFT)))
 			fe->fe_cx |= FSR_UF;
@@ -407,6 +414,7 @@ zero:		res[1] = 0;
 	if ((exp = fp->fp_exp + DBL_EXP_BIAS) <= 0) {
 		(void) __fpu_shr(fp, FP_NMANT - FP_NG - DBL_FRACBITS - exp);
 		if (fpround(fe, fp) && fp->fp_mant[2] == DBL_EXP(1)) {
+			fe->fe_cx |= FSR_UF;
 			res[1] = 0;
 			return (sign | DBL_EXP(1) | 0);
 		}
@@ -426,7 +434,7 @@ zero:		res[1] = 0;
 			return (sign | DBL_EXP(DBL_EXP_INFNAN) | 0);
 		}
 		res[1] = ~0;
-		return (sign | DBL_EXP(DBL_EXP_INFNAN) | DBL_MASK);
+		return (sign | DBL_EXP(DBL_EXP_INFNAN - 1) | DBL_MASK);
 	}
 done:
 	res[1] = fp->fp_mant[3];
@@ -468,6 +476,7 @@ zero:		res[1] = res[2] = res[3] = 0;
 	if ((exp = fp->fp_exp + EXT_EXP_BIAS) <= 0) {
 		(void) __fpu_shr(fp, FP_NMANT - FP_NG - EXT_FRACBITS - exp);
 		if (fpround(fe, fp) && fp->fp_mant[0] == EXT_EXP(1)) {
+			fe->fe_cx |= FSR_UF;
 			res[1] = res[2] = res[3] = 0;
 			return (sign | EXT_EXP(1) | 0);
 		}
@@ -487,7 +496,7 @@ zero:		res[1] = res[2] = res[3] = 0;
 			return (sign | EXT_EXP(EXT_EXP_INFNAN) | 0);
 		}
 		res[1] = res[2] = res[3] = ~0;
-		return (sign | EXT_EXP(EXT_EXP_INFNAN) | EXT_MASK);
+		return (sign | EXT_EXP(EXT_EXP_INFNAN - 1) | EXT_MASK);
 	}
 done:
 	res[1] = fp->fp_mant[1];
@@ -508,7 +517,6 @@ __fpu_implode(fe, fp, type, space)
 {
 
 	switch (type) {
-
 	case FTYPE_LNG:
 		space[0] = __fpu_ftox(fe, fp, space);
 		break;

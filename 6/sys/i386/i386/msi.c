@@ -301,6 +301,7 @@ again:
 	for (i = 0; i < count; i++) {
 		msi = (struct msi_intsrc *)intr_lookup_source(irqs[i]);
 		msi->msi_dev = dev;
+		msi->msi_cpu = PCPU_GET(apic_id);
 		msi->msi_vector = vector + i;
 		if (bootverbose)
 			printf("msi: routing MSI IRQ %d to vector %u\n",
@@ -458,6 +459,7 @@ again:
 	/* Setup source. */
 	msi->msi_dev = dev;
 	msi->msi_vector = vector;
+	msi->msi_cpu = PCPU_GET(apic_id);
 	msi->msi_msix = 1;
 
 	/* XXX: Somewhat gross. */

@@ -1,4 +1,4 @@
-# @(#)asia	8.44
+# @(#)asia	8.60
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -196,6 +196,39 @@ Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Al Manamah
 # http://www.thaindian.com/newsportal/business/bangladesh-to-continue-indefinitely-with-advanced-time_100259987.html
 # </a>
 
+# From Alexander Krivenyshev (2009-12-24):
+# According to Bangladesh newspaper "The Daily Star,"
+# Bangladesh will change its clock back to Standard Time on Dec 31, 2009.
+#
+# Clock goes back 1-hr on Dec 31 night.
+# <a href="http://www.thedailystar.net/newDesign/news-details.php?nid=119228">
+# http://www.thedailystar.net/newDesign/news-details.php?nid=119228
+# </a>
+# and
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_bangladesh05.html">
+# http://www.worldtimezone.com/dst_news/dst_news_bangladesh05.html
+# </a>
+#
+# "...The government yesterday decided to put the clock back by one hour
+# on December 31 midnight and the new time will continue until March 31,
+# 2010 midnight. The decision came at a cabinet meeting at the Prime
+# Minister's Office last night..."
+
+# From Alexander Krivenyshev (2010-03-22):
+# According to Bangladesh newspaper "The Daily Star,"
+# Cabinet cancels Daylight Saving Time 
+# <a href="http://www.thedailystar.net/newDesign/latest_news.php?nid=22817">
+# http://www.thedailystar.net/newDesign/latest_news.php?nid=22817
+# </a>
+# or
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_bangladesh06.html">
+# http://www.worldtimezone.com/dst_news/dst_news_bangladesh06.html
+# </a>
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Dhaka	2009	only	-	Jun	19	23:00	1:00	S
+Rule	Dhaka	2009	only	-	Dec	31	23:59	0	-
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dhaka	6:01:40 -	LMT	1890
 			5:53:20	-	HMT	1941 Oct    # Howrah Mean Time?
@@ -203,8 +236,8 @@ Zone	Asia/Dhaka	6:01:40 -	LMT	1890
 			5:30	-	IST	1942 Sep
 			6:30	-	BURT	1951 Sep 30
 			6:00	-	DACT	1971 Mar 26 # Dacca Time
-			6:00	-	BDT	2009 Jun 19 23:00 # Bangladesh Time
-			6:00	1:00	BDST
+			6:00	-	BDT	2009
+			6:00	Dhaka	BD%sT
 
 # Bhutan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -363,6 +396,69 @@ Zone	Asia/Urumqi	5:50:20	-	LMT	1928 # or Urumchi
 # West Xinjiang, including Aksu, Atushi, Yining, Hetian, Cele, Luopu, Nileke,
 # Zhaosu, Tekesi, Gongliu, Chabuchaer, Huocheng, Bole, Pishan, Suiding,
 # and Yarkand.
+
+# From Luther Ma (2009-10-17):
+# Almost all (>99.9%) ethnic Chinese (properly ethnic Han) living in
+# Xinjiang use Chinese Standard Time. Some are aware of Xinjiang time,
+# but have no need of it. All planes, trains, and schools function on
+# what is called "Beijing time." When Han make an appointment in Chinese
+# they implicitly use Beijing time.
+#
+# On the other hand, ethnic Uyghurs, who make up about half the
+# population of Xinjiang, typically use "Xinjiang time" which is two
+# hours behind Beijing time, or UTC +0600. The government of the Xinjiang
+# Uyghur Autonomous Region, (XAUR, or just Xinjiang for short) as well as
+# local governments such as the Urumqi city government use both times in
+# publications, referring to what is popularly called Xinjiang time as
+# "Urumqi time." When Uyghurs make an appointment in the Uyghur language
+# they almost invariably use Xinjiang time.
+#
+# (Their ethnic Han compatriots would typically have no clue of its
+# widespread use, however, because so extremely few of them are fluent in
+# Uyghur, comparable to the number of Anglo-Americans fluent in Navajo.)
+#
+# (...As with the rest of China there was a brief interval ending in 1990
+# or 1991 when summer time was in use.  The confusion was severe, with
+# the province not having dual times but four times in use at the same
+# time. Some areas remained on standard Xinjiang time or Beijing time and
+# others moving their clocks ahead.)
+#
+# ...an example of an official website using of Urumqi time.
+#
+# The first few lines of the Google translation of
+# <a href="http://www.fjysgl.gov.cn/show.aspx?id=2379&cid=39">
+# http://www.fjysgl.gov.cn/show.aspx?id=2379&cid=39
+# </a>
+# (retrieved 2009-10-13)
+# > Urumqi fire seven people are missing the alleged losses of at least
+# > 500 million yuan
+# >
+# > (Reporter Dong Liu) the day before 20:20 or so (Urumqi Time 18:20),
+# > Urumqi City Department of International Plaza Luther Qiantang River
+# > burst fire. As of yesterday, 18:30, Urumqi City Fire officers and men
+# > have worked continuously for 22 hours...
+
+# From Luther Ma (2009-11-19):
+# With the risk of being redundant to previous answers these are the most common
+# English "transliterations" (w/o using non-English symbols):
+#
+# 1. Wulumuqi...
+# 2. Kashi...
+# 3. Urumqi...
+# 4. Kashgar...
+# ...
+# 5. It seems that Uyghurs in Urumqi has been using Xinjiang since at least the
+# 1960's. I know of one Han, now over 50, who grew up in the surrounding
+# countryside and used Xinjiang time as a child.
+#
+# 6. Likewise for Kashgar and the rest of south Xinjiang I don't know of any
+# start date for Xinjiang time.
+#
+# Without having access to local historical records, nor the ability to legally
+# publish them, I would go with October 1, 1949, when Xinjiang became the Uyghur
+# Autonomous Region under the PRC. (Before that Uyghurs, of course, would also
+# not be using Beijing time, but some local time.)
+
 Zone	Asia/Kashgar	5:03:56	-	LMT	1928 # or Kashi or Kaxgar
 			5:30	-	KAST	1940	 # Kashgar Time
 			5:00	-	KAST	1980 May
@@ -370,8 +466,8 @@ Zone	Asia/Kashgar	5:03:56	-	LMT	1928 # or Kashi or Kaxgar
 
 
 # From Lee Yiu Chung (2009-10-24):
-# I found there are some mistakes for the historial DST rule for Hong
-# Kong. Accoring to the DST record from Hong Kong Observatory (actually,
+# I found there are some mistakes for the...DST rule for Hong
+# Kong. [According] to the DST record from Hong Kong Observatory (actually,
 # it is not [an] observatory, but the official meteorological agency of HK,
 # and also serves as the official timing agency), there are some missing
 # and incorrect rules. Although the exact switch over time is missing, I
@@ -470,6 +566,28 @@ Zone	Asia/Hong_Kong	7:36:36 -	LMT	1904 Oct 30
 # was still controlled by Japan.  This is hard to believe, but we don't
 # have any other information.
 
+# From smallufo (2010-04-03):
+# According to Taiwan's CWB,
+# <a href="http://www.cwb.gov.tw/V6/astronomy/cdata/summert.htm">
+# http://www.cwb.gov.tw/V6/astronomy/cdata/summert.htm
+# </a>
+# Taipei has DST in 1979 between July 1st and Sep 30.
+
+# From Arthur David Olson (2010-04-07):
+# Here's Google's translation of the table at the bottom of the "summert.htm" page:
+# Decade 	                                                    Name                      Start and end date
+# Republic of China 34 years to 40 years (AD 1945-1951 years) Summer Time               May 1 to September 30 
+# 41 years of the Republic of China (AD 1952)                 Daylight Saving Time      March 1 to October 31 
+# Republic of China 42 years to 43 years (AD 1953-1954 years) Daylight Saving Time      April 1 to October 31 
+# In the 44 years to 45 years (AD 1955-1956 years)            Daylight Saving Time      April 1 to September 30 
+# Republic of China 46 years to 48 years (AD 1957-1959)       Summer Time               April 1 to September 30 
+# Republic of China 49 years to 50 years (AD 1960-1961)       Summer Time               June 1 to September 30 
+# Republic of China 51 years to 62 years (AD 1962-1973 years) Stop Summer Time 
+# Republic of China 63 years to 64 years (1974-1975 AD)       Daylight Saving Time      April 1 to September 30 
+# Republic of China 65 years to 67 years (1976-1978 AD)       Stop Daylight Saving Time 
+# Republic of China 68 years (AD 1979)                        Daylight Saving Time      July 1 to September 30 
+# Republic of China since 69 years (AD 1980)                  Stop Daylight Saving Time
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Taiwan	1945	1951	-	May	1	0:00	1:00	D
 Rule	Taiwan	1945	1951	-	Oct	1	0:00	0	S
@@ -480,8 +598,9 @@ Rule	Taiwan	1955	1961	-	Oct	1	0:00	0	S
 Rule	Taiwan	1960	1961	-	Jun	1	0:00	1:00	D
 Rule	Taiwan	1974	1975	-	Apr	1	0:00	1:00	D
 Rule	Taiwan	1974	1975	-	Oct	1	0:00	0	S
-Rule	Taiwan	1980	only	-	Jun	30	0:00	1:00	D
-Rule	Taiwan	1980	only	-	Sep	30	0:00	0	S
+Rule	Taiwan	1979	only	-	Jun	30	0:00	1:00	D
+Rule	Taiwan	1979	only	-	Sep	30	0:00	0	S
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Taipei	8:06:00 -	LMT	1896 # or Taibei or T'ai-pei
 			8:00	Taiwan	C%sT
@@ -1816,13 +1935,35 @@ Zone	Asia/Muscat	3:54:20 -	LMT	1920
 # [T]he German Consulate General in Karachi reported me today that Pakistan
 # will go back to standard time on 1st of November.
 
+# From Steffen Thorsen (2010-03-26):
+# Steffen Thorsen wrote:
+# > On Thursday (2010-03-25) it was announced that DST would start in
+# > Pakistan on 2010-04-01.
+# >
+# > Then today, the president said that they might have to revert the
+# > decision if it is not supported by the parliament. So at the time
+# > being, it seems unclear if DST will be actually observed or not - but
+# > April 1 could be a more likely date than April 15.
+# Now, it seems that the decision to not observe DST in final:
+#
+# "Govt Withdraws Plan To Advance Clocks"
+# <a href="http://www.apakistannews.com/govt-withdraws-plan-to-advance-clocks-172041">
+# http://www.apakistannews.com/govt-withdraws-plan-to-advance-clocks-172041
+# </a>
+#
+# "People laud PM's announcement to end DST"
+# <a href="http://www.app.com.pk/en_/index.php?option=com_content&task=view&id=99374&Itemid=2">
+# http://www.app.com.pk/en_/index.php?option=com_content&task=view&id=99374&Itemid=2
+# </a>
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Pakistan	2002	only	-	Apr	Sun>=2	0:01	1:00	S
 Rule Pakistan	2002	only	-	Oct	Sun>=2	0:01	0	-
 Rule Pakistan	2008	only	-	Jun	1	0:00	1:00	S
 Rule Pakistan	2008	only	-	Nov	1	0:00	0	-
-Rule Pakistan	2009	max	-	Apr	15	0:00	1:00	S
-Rule Pakistan	2009	max	-	Nov	1	0:00	0	-
+Rule Pakistan	2009	only	-	Apr	15	0:00	1:00	S
+Rule Pakistan	2009	only	-	Nov	1	0:00	0	-
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	-	IST	1942 Sep
@@ -2011,6 +2152,32 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # http://www.worldtimezone.com/dst_news/dst_news_gazastrip02.html
 # </a>
 
+# From Alexander Krivenyshev (2010-03-19):
+# According to Voice of Palestine DST will last for 191 days, from March
+# 26, 2010 till "the last Sunday before the tenth day of Tishri
+# (October), each year" (October 03, 2010?)
+#
+# <a href="http://palvoice.org/forums/showthread.php?t=245697">
+# http://palvoice.org/forums/showthread.php?t=245697
+# </a>
+# (in Arabic)
+# or
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_westbank03.html">
+# http://www.worldtimezone.com/dst_news/dst_news_westbank03.html
+# </a>
+
+# From Steffen Thorsen (2010-03-24):
+# ...Ma'an News Agency reports that Hamas cabinet has decided it will
+# start one day later, at 12:01am. Not sure if they really mean 12:01am or
+# noon though:
+#
+# <a href="http://www.maannews.net/eng/ViewDetails.aspx?ID=271178">
+# http://www.maannews.net/eng/ViewDetails.aspx?ID=271178
+# </a>
+# (Ma'an News Agency)
+# "At 12:01am Friday, clocks in Israel and the West Bank will change to
+# 1:01am, while Gaza clocks will change at 12:01am Saturday morning."
+
 # The rules for Egypt are stolen from the `africa' file.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule EgyptAsia	1957	only	-	May	10	0:00	1:00	S
@@ -2028,7 +2195,8 @@ Rule Palestine	2006	2008	-	Apr	 1	0:00	1:00	S
 Rule Palestine	2006	only	-	Sep	22	0:00	0	-
 Rule Palestine	2007	only	-	Sep	Thu>=8	2:00	0	-
 Rule Palestine	2008	only	-	Aug	lastFri	2:00	0	-
-Rule Palestine	2009	max	-	Mar	lastFri	0:00	1:00	S
+Rule Palestine	2009	only	-	Mar	lastFri	0:00	1:00	S
+Rule Palestine	2010	max	-	Mar	lastSat	0:01	1:00	S
 Rule Palestine	2009	max	-	Sep	Fri>=1	2:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -2320,9 +2488,18 @@ Rule	Syria	2007	only	-	Nov	 Fri>=1	0:00	0	-
 # Thursday of the month or the start of the last Friday of the month or
 # something else. For now, use the start of the last Friday.
 
+# From Steffen Thorsen (2010-03-17):
+# The "Syrian News Station" reported on 2010-03-16 that the Council of
+# Ministers has decided that Syria will start DST on midnight Thursday
+# 2010-04-01: (midnight between Thursday and Friday):
+# <a href="http://sns.sy/sns/?path=news/read/11421">
+# http://sns.sy/sns/?path=news/read/11421 (Arabic)
+# </a>
+
 Rule	Syria	2008	only	-	Apr	Fri>=1	0:00	1:00	S
 Rule	Syria	2008	only	-	Nov	1	0:00	0	-
-Rule	Syria	2009	max	-	Mar	lastFri	0:00	1:00	S
+Rule	Syria	2009	only	-	Mar	lastFri	0:00	1:00	S
+Rule	Syria	2010	max	-	Apr	Fri>=1	0:00	1:00	S
 Rule	Syria	2009	max	-	Oct	lastFri	0:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]

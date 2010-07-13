@@ -83,6 +83,9 @@ extern int vm_pageout_page_count;
 #define VM_SWAP_NORMAL 1
 #define VM_SWAP_IDLE 2
 
+#define	VM_OOM_MEM	1
+#define	VM_OOM_SWAPZ	2
+
 /*
  *	Exported routines.
  */
@@ -99,5 +102,6 @@ extern void vm_waitpfault(void);
 
 #ifdef _KERNEL
 int vm_pageout_flush(vm_page_t *, int, int);
+void vm_pageout_oom(int shortage);
 #endif
 #endif	/* _VM_VM_PAGEOUT_H_ */

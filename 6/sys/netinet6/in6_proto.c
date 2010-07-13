@@ -182,7 +182,6 @@ struct ip6protosw inet6sw[] = {
 	.pr_ctloutput =		tcp_ctloutput,
 #ifndef INET	/* don't call initialization and timeout routines twice */
 	.pr_init =		tcp_init,
-	.pr_fasttimo =		tcp_fasttimo,
 	.pr_slowtimo =		tcp_slowtimo,
 #endif
 	.pr_drain =		tcp_drain,

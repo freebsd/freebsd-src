@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2003,2009 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: mbdb.c,v 1.40 2003/12/10 03:19:07 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mbdb.c,v 1.41 2009/06/19 22:02:26 guenther Exp $")
 
 #include <sys/param.h>
 
@@ -564,7 +564,20 @@ mbdb_ldap_lookup(name, user)
 	entry = ldap_first_entry(LDAPLMAP.ldap_ld, LDAPLMAP.ldap_res);
 	if (entry == NULL)
 	{
-		save_errno = sm_ldap_geterrno(LDAPLMAP.ldap_ld);
+		int rc;
+
+		/*  
+		**  We may have gotten an LDAP_RES_SEARCH_RESULT response
+		**  with an error inside it, so we have to extract that
+		**  with ldap_parse_result().  This can happen when talking
+		**  to an LDAP proxy whose backend has gone down.
+		*/
+
+		save_errno = ldap_parse_result(LDAPLMAP.ldap_ld,
+					       LDAPLMAP.ldap_res, &rc, NULL,
+					       NULL, NULL, NULL, 0);
+		if (save_errno == LDAP_SUCCESS)
+			save_errno = rc;
 		if (save_errno == LDAP_SUCCESS)
 		{
 			errno = ENOENT;

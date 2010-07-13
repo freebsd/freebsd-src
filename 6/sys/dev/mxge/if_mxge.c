@@ -4329,8 +4329,6 @@ mxge_attach(device_t dev)
 		err = ENOMEM;
 		goto abort_with_nothing;
 	}
-	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
-				device_get_nameunit(sc->dev));
 
 	err = bus_dma_tag_create(NULL,			/* parent */
 				 1,			/* alignment */
@@ -4436,7 +4434,7 @@ mxge_attach(device_t dev)
 	err = mxge_alloc_rings(sc);
 	if (err != 0) {
 		device_printf(sc->dev, "failed to allocate rings\n");
-		goto abort_with_dmabench;
+		goto abort_with_slices;
 	}
 
 	err = mxge_add_irq(sc);
@@ -4482,6 +4480,8 @@ mxge_attach(device_t dev)
 		mxge_change_mtu(sc, mxge_initial_mtu);
 
 	mxge_add_sysctls(sc);
+	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
+				device_get_nameunit(sc->dev));
 	callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 	return 0;
 

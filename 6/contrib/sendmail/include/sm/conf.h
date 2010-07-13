@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2009 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.134 2007/09/24 23:05:37 ca Exp $
+ *	$Id: conf.h,v 1.139 2009/06/16 23:41:32 ca Exp $
  */
 
 /*
@@ -460,6 +460,7 @@ typedef int		pid_t;
 #   endif /* SOLARIS >= 21000 || (SOLARIS < 10000 && SOLARIS >= 210) */
 #   if SOLARIS >= 21100 || (SOLARIS < 10000 && SOLARIS >= 211)
 #    define GETLDAPALIASBYNAME_VERSION 2	/* changed in S11 */
+#    define HAVE_NANOSLEEP	1	/* moved from librt to libc in S11 */
 #   endif /* SOLARIS >= 21100 || (SOLARIS < 10000 && SOLARIS >= 211) */
 #   ifndef HASGETUSERSHELL
 #    define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps pre-2.7 */
@@ -1021,6 +1022,10 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #      define SMRSH_PATH	"/bin:/usr/bin"
 #     endif /* ! SMRSH_PATH */
 #    endif /* __FreeBSD_version >= 330000 */
+#    if __FreeBSD_version >= 430000	/* 4.3.0-release and later */
+#     define SOCKADDR_LEN_T	socklen_t	/* e.g., arg#3 to accept, getsockname */
+#     define SOCKOPT_LEN_T	socklen_t	/* arg#5 to getsockopt */
+#    endif /* __FreeBSD_version >= 430000 */
 #    define USESYSCTL		1	/* use sysctl(3) for getting ncpus */
 #    include <sys/sysctl.h>
 #   endif /* __FreeBSD__ >= 2 */
@@ -2799,6 +2804,20 @@ struct utsname
 # if !defined(MAXHOSTNAMELEN) && !defined(_SCO_unix_) && !defined(NonStop_UX_BXX) && !defined(ALTOS_SYSTEM_V)
 #  define MAXHOSTNAMELEN	256
 # endif /* !defined(MAXHOSTNAMELEN) && !defined(_SCO_unix_) && !defined(NonStop_UX_BXX) && !defined(ALTOS_SYSTEM_V) */
+
+
+# if _FFR_LINUX_MHNL && defined(__linux__) && MAXHOSTNAMELEN < 255
+   /*
+   **  override Linux wierdness: a FQHN can be 255 chars long
+   **  SUSv3 requires HOST_NAME_MAX ("Maximum length of a host
+   **  name (not including the terminating null) as returned from the
+   **  gethostname() function.") to be at least 255.  c.f.:
+   **  http://www.opengroup.org/onlinepubs/009695399
+   **  but Linux defines that to 64 too.
+   */
+#  undef MAXHOSTNAMELEN
+#  define MAXHOSTNAMELEN	256
+# endif /* _FFR_LINUX_MHNL && defined(__linux__) && MAXHOSTNAMELEN < 255 */
 
 # if !defined(SIGCHLD) && defined(SIGCLD)
 #  define SIGCHLD	SIGCLD

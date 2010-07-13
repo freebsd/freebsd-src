@@ -53,6 +53,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#ifdef FPU_DEBUG
+#include <stdio.h>
+#endif
+
 #include <machine/frame.h>
 #include <machine/fp.h>
 #include <machine/fsr.h>
@@ -139,9 +143,9 @@ __fpu_xtof(fp, i)
 	 * a signed or unsigned entity.
 	 */
 	if (fp->fp_sign && (int64_t)i < 0)
-		*((int64_t*)fp->fp_mant) = -i;
+		*((int64_t *)fp->fp_mant) = -i;
 	else
-		*((int64_t*)fp->fp_mant) = i;
+		*((int64_t *)fp->fp_mant) = i;
 	fp->fp_mant[2] = 0;
 	fp->fp_mant[3] = 0;
 	__fpu_norm(fp);
@@ -262,13 +266,12 @@ __fpu_explode(fe, fp, type, reg)
 	struct fpn *fp;
 	int type, reg;
 {
-	u_int32_t s, *sp;
-	u_int64_t l[2];
+	u_int64_t l0, l1;
+	u_int32_t s;
 
 	if (type == FTYPE_LNG || type == FTYPE_DBL || type == FTYPE_EXT) {
-		l[0] = __fpu_getreg64(reg & ~1);
-		sp = (u_int32_t *)l;
-		fp->fp_sign = sp[0] >> 31;
+		l0 = __fpu_getreg64(reg & ~1);
+		fp->fp_sign = l0 >> 63;
 	} else {
 		s = __fpu_getreg(reg);
 		fp->fp_sign = s >> 31;
@@ -276,7 +279,7 @@ __fpu_explode(fe, fp, type, reg)
 	fp->fp_sticky = 0;
 	switch (type) {
 	case FTYPE_LNG:
-		s = __fpu_xtof(fp, l[0]);
+		s = __fpu_xtof(fp, l0);
 		break;
 
 	case FTYPE_INT:
@@ -288,12 +291,13 @@ __fpu_explode(fe, fp, type, reg)
 		break;
 
 	case FTYPE_DBL:
-		s = __fpu_dtof(fp, sp[0], sp[1]);
+		s = __fpu_dtof(fp, l0 >> 32, l0 & 0xffffffff);
 		break;
 
 	case FTYPE_EXT:
-		l[1] = __fpu_getreg64((reg & ~1) + 2);
-		s = __fpu_qtof(fp, sp[0], sp[1], sp[2], sp[3]);
+		l1 = __fpu_getreg64((reg & ~1) + 2);
+		s = __fpu_qtof(fp, l0 >> 32, l0 & 0xffffffff, l1 >> 32,
+		    l1 & 0xffffffff);
 		break;
 
 	default:

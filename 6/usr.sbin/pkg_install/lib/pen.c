@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 
 /* For keeping track of where we are */
 static char PenLocation[FILENAME_MAX];
-static char Previous[FILENAME_MAX];
 
 char *
 where_playpen(void)
@@ -76,12 +75,14 @@ find_play_pen(char *pen, off_t sz)
 static char *pstack[MAX_STACK];
 static int pdepth = -1;
 
-static void
+static const char *
 pushPen(const char *pen)
 {
     if (++pdepth == MAX_STACK)
 	errx(2, "%s: stack overflow.\n", __func__);
     pstack[pdepth] = strdup(pen);
+
+    return pstack[pdepth];
 }
 
 static void
@@ -99,10 +100,11 @@ popPen(char *pen)
  * Make a temporary directory to play in and chdir() to it, returning
  * pathname of previous working directory.
  */
-char *
+const char *
 make_playpen(char *pen, off_t sz)
 {
     char humbuf1[6], humbuf2[6];
+    char cwd[FILENAME_MAX];
 
     if (!find_play_pen(pen, sz))
 	return NULL;
@@ -134,7 +136,7 @@ make_playpen(char *pen, off_t sz)
 	     "with more space and\ntry the command again", __func__, pen);
     }
 
-    if (!getcwd(Previous, FILENAME_MAX)) {
+    if (!getcwd(cwd, FILENAME_MAX)) {
 	upchuck("getcwd");
 	return NULL;
     }
@@ -144,34 +146,35 @@ make_playpen(char *pen, off_t sz)
 	errx(2, "%s: can't chdir to '%s'", __func__, pen);
     }
 
-    if (PenLocation[0])
-	pushPen(PenLocation);
-
     strcpy(PenLocation, pen);
-    return Previous;
+    return pushPen(cwd);
 }
 
 /* Convenience routine for getting out of playpen */
-void
+int
 leave_playpen()
 {
+    static char left[FILENAME_MAX];
     void (*oldsig)(int);
+
+    if (!PenLocation[0])
+	return 0;
 
     /* Don't interrupt while we're cleaning up */
     oldsig = signal(SIGINT, SIG_IGN);
-    if (Previous[0]) {
-	if (chdir(Previous) == FAIL) {
-	    cleanup(0);
-	    errx(2, "%s: can't chdir back to '%s'", __func__, Previous);
-	}
-	Previous[0] = '\0';
+    strcpy(left, PenLocation);
+    popPen(PenLocation);
+
+    if (chdir(PenLocation) == FAIL) {
+	cleanup(0);
+	errx(2, "%s: can't chdir back to '%s'", __func__, PenLocation);
     }
-    if (PenLocation[0]) {
-	if (PenLocation[0] == '/' && vsystem("/bin/rm -rf %s", PenLocation))
-	    warnx("couldn't remove temporary dir '%s'", PenLocation);
-	popPen(PenLocation);
-    }
+
+    if (left[0] == '/' && vsystem("/bin/rm -rf %s", left))
+	warnx("couldn't remove temporary dir '%s'", left);
     signal(SIGINT, oldsig);
+
+    return 1;
 }
 
 off_t

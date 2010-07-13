@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2007, 2009 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include "map.h"
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.680 2008/02/14 00:20:26 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.683 2009/12/18 01:12:40 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -199,7 +199,7 @@ getrequests(e)
 	if (tTd(15, 1))
 	{
 		for (idx = 0; idx < NDaemons; idx++)
-			sm_dprintf("getrequests: daemon %s: %d\n",
+			sm_dprintf("getrequests: daemon %s: socket %d\n",
 				Daemons[idx].d_name,
 				Daemons[idx].d_socket);
 	}
@@ -2161,7 +2161,8 @@ makeconnection(host, port, mci, e, enough)
 		  case AF_INET:
 			clt_addr.sin.sin_addr.s_addr = inet_addr(p);
 			if (clt_addr.sin.sin_addr.s_addr != INADDR_NONE &&
-			    clt_addr.sin.sin_addr.s_addr != INADDR_LOOPBACK)
+			    clt_addr.sin.sin_addr.s_addr !=
+				htonl(INADDR_LOOPBACK))
 			{
 				clt_bind = true;
 				socksize = sizeof(struct sockaddr_in);
@@ -2342,7 +2343,7 @@ makeconnection(host, port, mci, e, enough)
 			}
 		}
 gothostent:
-		if (hp == NULL)
+		if (hp == NULL || hp->h_addr == NULL)
 		{
 #if NAMED_BIND
 			/* check for name server timeouts */

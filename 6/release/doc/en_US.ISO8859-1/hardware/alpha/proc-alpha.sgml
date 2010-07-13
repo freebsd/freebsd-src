@@ -13,6 +13,20 @@
 
   <title>Supported processors and motherboards</title>
 
+  <para><emphasis>NOTE NOTE NOTE</emphasis></para>
+
+  <para>&os; 6 is the last release of &os; to support the Alpha
+  platform.  I have been asked which Alpha system models have the 
+  best chance of working, given the more and more limited testing performed
+  on a more and more restricted set of different machine types.</para>
+
+  <para>The binary distributions of &os; /alpha were built on a DS10 machine.
+  By coincidence I had a DS20L available for testing too.  All in all this
+  makes DS10, DS10L or DS20L your best best bet.  DS20 and DS20E are
+  also fairly safe.  Loosely speaking these models are the last EV6 based systems
+  released.  Systems to explicitely avoid are the old AS2100 and AS2100A.
+  This also applies to the neat DS15, it was never supported.</para>
+
   <para>Additions, corrections and constructive criticism are invited. In 
   particular, information on system quirks is more than welcome.</para>
 

@@ -3,7 +3,7 @@
 ## Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
 ##	All rights reserved.
 ##
-## $Id: qtool.pl,v 8.29 2007/02/16 01:12:08 ca Exp $
+## $Id: qtool.pl,v 8.30 2009/03/04 16:57:30 ca Exp $
 ##
 use strict;
 use File::Basename;
@@ -450,7 +450,7 @@ sub unlock_file
 ##
 ##	Parameters:
 ##		src_name -- The name of the file to be move.
-##		dst_nome -- The name of the place to move it to.
+##		dst_name -- The name of the place to move it to.
 ##
 ##	Returns:
 ##		error_string -- If undef then no problem. Otherwise it is a 
@@ -1193,7 +1193,7 @@ sub bounce
 ##
 ##	This Condition Class checks the modification time of the
 ##	source file and returns true if the file's modification time is
-##	older than the number of seconds the class was initialzed with.
+##	older than the number of seconds the class was initialized with.
 ##
 
 package OlderThan;
@@ -1286,7 +1286,7 @@ sub check_move
 ## Eval
 ##
 ##	Takes a perl expression and evaluates it. The ControlFile object
-##	for the source QueuedMessage is avaliable through the name '$msg'.
+##	for the source QueuedMessage is available through the name '$msg'.
 ##
 
 package Eval;
