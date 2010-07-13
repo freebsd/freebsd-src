@@ -148,10 +148,8 @@ clkintr(void *arg)
 		mtx_unlock_spin(&clock_lock);
 	}
 
-	if (sc && sc->et.et_active) {
-		sc->et.et_event_cb(&sc->et,
-		    sc->et.et_arg ? sc->et.et_arg : curthread->td_intr_frame);
-	}
+	if (sc && sc->et.et_active)
+		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
 #ifdef DEV_MCA
 	/* Reset clock interrupt by asserting bit 7 of port 0x61 */

@@ -165,7 +165,7 @@ timer1cb(struct eventtimer *et, void *arg)
 			}
 		}
 	}
-	hardclockhandler((struct trapframe *)arg);
+	hardclockhandler(curthread->td_intr_frame);
 }
 
 /* timer2 callback. */
@@ -188,7 +188,7 @@ timer2cb(struct eventtimer *et, void *arg)
 			}
 		}
 	}
-	statclockhandler((struct trapframe *)arg);
+	statclockhandler(curthread->td_intr_frame);
 }
 
 /*

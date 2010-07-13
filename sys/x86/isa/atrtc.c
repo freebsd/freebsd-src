@@ -209,11 +209,8 @@ rtc_intr(void *arg)
 
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		flag = 1;
-		if (sc->et.et_active) {
-			sc->et.et_event_cb(&sc->et,
-			    sc->et.et_arg ? sc->et.et_arg :
-			    curthread->td_intr_frame);
-		}
+		if (sc->et.et_active)
+			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 	}
 	return(flag ? FILTER_HANDLED : FILTER_STRAY);
 }
