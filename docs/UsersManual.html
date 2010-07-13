@@ -36,7 +36,7 @@ td {
    <ul>
    <li><a href="#diagnostics_display">Controlling How Clang Displays Diagnostics</a></li>
    <li><a href="#diagnostics_mappings">Diagnostic Mappings</a></li>
-   <li><a href="#diagnostics_categories">Diagnostic Categories</a><li>
+   <li><a href="#diagnostics_categories">Diagnostic Categories</a></li>
    <li><a href="#diagnostics_commandline">Controlling Diagnostics via Command Line Flags</a></li>
    <li><a href="#diagnostics_pragmas">Controlling Diagnostics via Pragmas</a></li>
    </ul>
@@ -52,16 +52,6 @@ td {
   <li><a href="#c_unsupp_gcc">Intentionally unsupported GCC extensions</a></li>
   <li><a href="#c_ms">Microsoft extensions</a></li>
   </ul>
-</li>
-<li><a href="#objc">Objective-C Language Features</a>
-  <ul>
-  <li><a href="#objc_incompatibilities">Intentional Incompatibilities with
-      GCC</a></li>
-  </ul>
-</li>
-<li><a href="#cxx">C++ Language Features</a>
-</li>
-<li><a href="#objcxx">Objective C++ Language Features</a>
 </li>
 <li><a href="#target_features">Target-Specific Features and Limitations</a>
   <ul>
@@ -261,11 +251,28 @@ when this is enabled, Clang will print something like:</p>
 <p>When this is disabled, Clang will just print:</p>
 
 <pre>
-  test.c:28:8: warning: extra tokens at end of #endif directive [-Wextra-tokens]
+  <b><font color="black">test.c:28:8: <font color="magenta">warning</font>: extra tokens at end of #endif directive [-Wextra-tokens]</font></b>
+  #endif bad
+         <font color="green">^</font>
+         <font color="green">//</font>
 </pre>
 
 </dd>
 
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<dt id="opt_fcolor_diagnostics"><b>-f[no-]color-diagnostics</b>: </dt>
+<dd>This option, which defaults to on when a color-capable terminal is
+  detected, controls whether or not Clang prints diagnostics in color.
+  When this option is enabled, Clang will use colors to highlight
+  specific parts of the diagnostic, e.g.,
+ 
+<pre>
+<test.c:2:8: warning: extra tokens at end of #endif directive [-Wextra-tokens]
+#endif bad
+       ^
+       //
+</pre>
+</dd>'
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <dt id="opt_fdiagnostics-show-option"><b>-f[no-]diagnostics-show-option</b>:
 Enable <tt>[-Woption]</tt> information in diagnostic line.</dt>
@@ -384,6 +391,66 @@ by commenting them out.</p>
 
 <p>This option is also enabled by <a href="">-Wfoo</a>, <a href="">-Wbar</a>,
  and <a href="">-Wbaz</a>.</p>
+</dd>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<dt id="opt_Wambiguous-member-template"><b>-Wambiguous-member-template</b>:
+Warn about unqualified uses of a member template whose name resolves
+to another template at the location of the use.</dt>
+<dd>This option, which defaults to on, enables a warning in the
+following code:</p>
+
+<pre>
+template&lt;typename T> struct set{};
+template&lt;typename T> struct trait { typedef const T& type; };
+struct Value {
+  template&lt;typename T> void set(typename trait&lt;T>::type value) {}
+};
+void foo() {
+  Value v;
+  v.set&lt;double>(3.2);
+}
+</pre>
+
+<p>C++ [basic.lookup.classref] requires this to be an error, but,
+because it's hard to work around, Clang downgrades it to a warning as
+an extension.</p>
+</dd>
+
+<!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+<dt id="opt_Wbind-to-temporary-copy"><b>-Wbind-to-temporary-copy</b>: Warn about
+an unusable copy constructor when binding a reference to a temporary.</dt>
+<dd>This option, which defaults to on, enables warnings about binding a
+reference to a temporary when the temporary doesn't have a usable copy
+constructor.  For example:</p>
+
+<pre>
+  struct NonCopyable {
+    NonCopyable();
+  private:
+    NonCopyable(const NonCopyable&);
+  };
+  void foo(const NonCopyable&);
+  void bar() {
+    foo(NonCopyable());  // Disallowed in C++98; allowed in C++0x.
+  }
+</pre>
+<pre>
+  struct NonCopyable2 {
+    NonCopyable2();
+    NonCopyable2(NonCopyable2&);
+  };
+  void foo(const NonCopyable2&);
+  void bar() {
+    foo(NonCopyable2());  // Disallowed in C++98; allowed in C++0x.
+  }
+</pre>
+
+<p>Note that if <tt>NonCopyable2::NonCopyable2()</tt> has a default
+argument whose instantiation produces a compile error, that error will
+still be a hard error in C++98 mode even if this warning is turned
+off.</p>
+
 </dd>
 
 </dl>
@@ -717,11 +784,6 @@ extensions are not implemented yet:</p>
 a relatively small feature, so it is likely to be implemented relatively
 soon.</li>
 
-<li>clang does not support attributes on function pointers
-(<a href="http://llvm.org/bugs/show_bug.cgi?id=2461">bug 2461</a>). This is
-a relatively important feature, so it is likely to be implemented relatively
-soon.</li>
-
 <li>clang does not support #pragma weak
 (<a href="http://llvm.org/bugs/show_bug.cgi?id=3679">bug 3679</a>). Due to
 the uses described in the bug, this is likely to be implemented at some
@@ -823,45 +885,6 @@ record members can be declared using user defined typedefs.</li>
 controlling record layout. GCC also contains support for this feature,
 however where MSVC and GCC are incompatible clang follows the MSVC
 definition.</li>
-
-<!-- ======================================================================= -->
-<h2 id="objc">Objective-C Language Features</h2>
-<!-- ======================================================================= -->
-
-
-<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
-<h3 id="objc_incompatibilities">Intentional Incompatibilities with GCC</h3>
-<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
-
-<p>No cast of super, no lvalue casts.</p>
-
-
-
-<!-- ======================================================================= -->
-<h2 id="cxx">C++ Language Features</h2>
-<!-- ======================================================================= -->
-
-<p>At this point, Clang C++ is not production-quality and is not recommended for use beyond experimentation.  However, Clang C++ support
-is under active development and is progressing rapidly.  Please see the <a
-href="http://clang.llvm.org/cxx_status.html">C++ Status</a> page for details or
-ask on the mailing list about how you can help.</p>
-
-<p>Note that released Clang compilers will refuse to even try to use clang to compile C++ code unless you pass the <tt>-ccc-clang-cxx</tt> option to the driver. To turn on Clang's C++ support, please pass that flag. Clang compilers built from the Subversion trunk enable C++ support by default, and do not require the <tt>-ccc-clang-cxx</tt> flag.</p>
- 
-<p>Clang strives to strictly conform to the C++ standard.  That means
-it will reject invalid C++ code that another compiler may accept.  If
-Clang reports errors in your code, please check
-the <a href="http://clang.llvm.org/cxx_compatibility.html">C++
-Compatibility</a> page to see whether they are C++-conformance bugs
-and how you can fix them.</p>
-
-<!-- ======================================================================= -->
-<h2 id="objcxx">Objective C++ Language Features</h2>
-<!-- ======================================================================= -->
-
-<p>At this point, Clang C++ support is not generally useful (and therefore,
-neither is Objective-C++).  Please see the <a href="#cxx">C++ section</a> for
-more information.</p>
 
 <!-- ======================================================================= -->
 <h2 id="target_features">Target-Specific Features and Limitations</h2>

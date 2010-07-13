@@ -74,6 +74,10 @@ void SymbolDerived::dumpToStream(llvm::raw_ostream& os) const {
      << getParentSymbol() << ',' << getRegion() << '}';
 }
 
+void SymbolExtent::dumpToStream(llvm::raw_ostream& os) const {
+  os << "extent_$" << getSymbolID() << '{' << getRegion() << '}';
+}
+
 void SymbolRegionValue::dumpToStream(llvm::raw_ostream& os) const {
   os << "reg_$" << getSymbolID() << "<" << R << ">";
 }
@@ -130,6 +134,22 @@ SymbolManager::getDerivedSymbol(SymbolRef parentSymbol,
   return cast<SymbolDerived>(SD);
 }
 
+const SymbolExtent*
+SymbolManager::getExtentSymbol(const SubRegion *R) {
+  llvm::FoldingSetNodeID profile;
+  SymbolExtent::Profile(profile, R);
+  void* InsertPos;
+  SymExpr *SD = DataSet.FindNodeOrInsertPos(profile, InsertPos);
+  if (!SD) {
+    SD = (SymExpr*) BPAlloc.Allocate<SymbolExtent>();
+    new (SD) SymbolExtent(SymbolCounter, R);
+    DataSet.InsertNode(SD, InsertPos);
+    ++SymbolCounter;
+  }
+
+  return cast<SymbolExtent>(SD);
+}
+
 const SymIntExpr *SymbolManager::getSymIntExpr(const SymExpr *lhs,
                                                BinaryOperator::Opcode op,
                                                const llvm::APSInt& v,
@@ -170,9 +190,12 @@ QualType SymbolConjured::getType(ASTContext&) const {
   return T;
 }
 
-
 QualType SymbolDerived::getType(ASTContext& Ctx) const {
   return R->getValueType(Ctx);
+}
+
+QualType SymbolExtent::getType(ASTContext& Ctx) const {
+  return Ctx.getSizeType();
 }
 
 QualType SymbolRegionValue::getType(ASTContext& C) const {
@@ -210,16 +233,25 @@ bool SymbolReaper::isLive(SymbolRef sym) {
     return false;
   }
 
+  if (const SymbolExtent *extent = dyn_cast<SymbolExtent>(sym)) {
+    const MemRegion *Base = extent->getRegion()->getBaseRegion();
+    if (const VarRegion *VR = dyn_cast<VarRegion>(Base))
+      return isLive(VR);
+    if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(Base))
+      return isLive(SR->getSymbol());
+    return false;
+  }
+
   // Interogate the symbol.  It may derive from an input value to
   // the analyzed function/method.
   return isa<SymbolRegionValue>(sym);
 }
 
-bool SymbolReaper::isLive(const Stmt* Loc, const Stmt* ExprVal) const {
+bool SymbolReaper::isLive(const Stmt* ExprVal) const {
   return LCtx->getLiveVariables()->isLive(Loc, ExprVal);
 }
 
-bool SymbolReaper::isLive(const Stmt *Loc, const VarRegion *VR) const {
+bool SymbolReaper::isLive(const VarRegion *VR) const {
   const StackFrameContext *SFC = VR->getStackFrame();
 
   if (SFC == LCtx->getCurrentStackFrame())

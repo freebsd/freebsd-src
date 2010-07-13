@@ -11,17 +11,9 @@
 #
 ##===----------------------------------------------------------------------===##
 
-LEVEL = ../../../..
-include $(LEVEL)/Makefile.config
-
+CLANG_LEVEL := ../..
 LIBRARYNAME := clangIndex
 BUILD_ARCHIVE = 1
 
-ifeq ($(ARCH),PowerPC)
-CXX.Flags += -maltivec
-endif
-
-CPP.Flags += -I$(PROJ_SRC_DIR)/../../include -I$(PROJ_OBJ_DIR)/../../include
-
-include $(LEVEL)/Makefile.common
+include $(CLANG_LEVEL)/Makefile
 

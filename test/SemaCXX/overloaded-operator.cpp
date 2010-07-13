@@ -49,6 +49,13 @@ struct B {
   }
 };
 
+// we shouldn't see warnings about self-comparison,
+// this is a member function, we dunno what it'll do
+bool i(B b)
+{
+  return b == b;
+}
+
 enum Enum1 { };
 enum Enum2 { };
 
@@ -150,7 +157,7 @@ bool& operator,(X, Y);
 
 void test_comma(X x, Y y) {
   bool& b1 = (x, y);
-  X& xr = (x, x);
+  X& xr = (x, x); // expected-warning {{expression result unused}}
 }
 
 struct Callable {

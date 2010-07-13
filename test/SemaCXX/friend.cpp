@@ -44,6 +44,21 @@ namespace test2 {
 // PR5134
 namespace test3 {
   class Foo {
-    friend const int getInt(int inInt = 0);
+    friend const int getInt(int inInt = 0);   // expected-warning{{'const' type qualifier on return type has no effect}}
+
   };
+}
+
+namespace test4 {
+  class T4A {
+    friend class T4B;
+  
+  public:
+    T4A(class T4B *);
+
+  protected:
+    T4B *mB;          // error here
+  };
+ 
+  class T4B {};
 }

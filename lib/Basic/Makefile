@@ -11,16 +11,11 @@
 #
 ##===----------------------------------------------------------------------===##
 
-LEVEL = ../../../..
+CLANG_LEVEL := ../..
 LIBRARYNAME := clangBasic
 BUILD_ARCHIVE = 1
 
-CPPFLAGS += -I$(PROJ_SRC_DIR)/../../include -I$(PROJ_OBJ_DIR)/../../include
-ifdef CLANG_VENDOR
-CPPFLAGS += -DCLANG_VENDOR='"$(CLANG_VENDOR) "'
-endif
-
-include $(LEVEL)/Makefile.common
+include $(CLANG_LEVEL)/Makefile
 
 SVN_REVISION := $(shell $(LLVM_SRC_ROOT)/utils/GetSourceVersion $(PROJ_SRC_DIR)/../..)
 

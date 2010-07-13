@@ -89,3 +89,31 @@ struct test7s { int a; int b; } test7[] = {
 struct test8s { int f0; char f1; } test8g = {};
 
 
+// PR7519
+
+struct S {
+  void (*x) (struct S *);
+};
+
+extern struct S *global_dc;
+void cp_diagnostic_starter(struct S *);
+
+void init_error(void) {
+  global_dc->x = cp_diagnostic_starter;
+}
+
+
+
+// rdar://8147692 - ABI crash in recursive struct-through-function-pointer.
+typedef struct {
+  int x5a;
+} x5;
+
+typedef struct x2 *x0;
+typedef long (*x1)(x0 x0a, x5 x6);
+struct x2 {
+  x1 x4;
+};
+long x3(x0 x0a, x5 a) {
+  return x0a->x4(x0a, a);
+}

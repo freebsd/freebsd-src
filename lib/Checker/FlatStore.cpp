@@ -44,7 +44,7 @@ public:
   }
 
   SVal ArrayToPointer(Loc Array);
-  const GRState *RemoveDeadBindings(GRState &state, Stmt* Loc, 
+  const GRState *RemoveDeadBindings(GRState &state, 
                            const StackFrameContext *LCtx,
                            SymbolReaper& SymReaper,
                          llvm::SmallVectorImpl<const MemRegion*>& RegionRoots){
@@ -59,6 +59,11 @@ public:
   
   Store InvalidateRegion(Store store, const MemRegion *R, const Expr *E, 
                          unsigned Count, InvalidatedSymbols *IS);
+  
+  Store InvalidateRegions(Store store, const MemRegion * const *I,
+                          const MemRegion * const *E, const Expr *Ex,
+                          unsigned Count, InvalidatedSymbols *IS,
+                          bool invalidateGlobals);
 
   void print(Store store, llvm::raw_ostream& Out, const char* nl, 
              const char *sep);
@@ -141,9 +146,20 @@ Store FlatStoreManager::BindDeclWithNoInit(Store store, const VarRegion *VR) {
   return store;
 }
 
+Store FlatStoreManager::InvalidateRegions(Store store,
+                                            const MemRegion * const *I,
+                                            const MemRegion * const *E,
+                                            const Expr *Ex, unsigned Count,
+                                            InvalidatedSymbols *IS,
+                                            bool invalidateGlobals) {
+  assert(false && "Not implemented");
+  return store;
+}
+
 Store FlatStoreManager::InvalidateRegion(Store store, const MemRegion *R,
                                          const Expr *E, unsigned Count,
                                          InvalidatedSymbols *IS) {
+  assert(false && "Not implemented");
   return store;
 }
 

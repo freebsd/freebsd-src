@@ -68,7 +68,7 @@ void bad_news(int *ip)
   (void)new int[1.1]; // expected-error {{array size expression must have integral or enumerated type, not 'double'}}
   (void)new int[1][i]; // expected-error {{only the first dimension}}
   (void)new (int[1][i]); // expected-error {{only the first dimension}}
-  (void)new (int[i]); // expected-error {{when type is in parentheses}}
+  (void)new (int[i]); // expected-warning {{when type is in parentheses}}
   (void)new int(*(S*)0); // expected-error {{no viable conversion from 'S' to 'int'}}
   (void)new int(1, 2); // expected-error {{excess elements in scalar initializer}}
   (void)new S(1); // expected-error {{no matching constructor}}
@@ -261,5 +261,52 @@ void h(unsigned i) {
 }
 template void h<unsigned>(unsigned);
 template void h<unsigned[10]>(unsigned); // expected-note {{in instantiation of function template specialization 'Test1::h<unsigned int [10]>' requested here}}
+
+}
+
+// Don't diagnose access for overload candidates that aren't selected.
+namespace PR7436 {
+struct S1 {
+  void* operator new(size_t);
+  void operator delete(void* p);
+
+private:
+  void* operator new(size_t, void*); // expected-note {{declared private here}}
+  void operator delete(void*, void*);
+};
+class S2 {
+  void* operator new(size_t); // expected-note {{declared private here}}
+  void operator delete(void* p); // expected-note {{declared private here}}
+};
+
+void test(S1* s1, S2* s2) { 
+  delete s1;
+  delete s2; // expected-error {{is a private member}}
+  (void)new S1();
+  (void)new (0L) S1(); // expected-error {{is a private member}}
+  (void)new S2(); // expected-error {{is a private member}}
+}
+}
+
+namespace rdar8018245 {
+  struct X0 {
+    static const int value = 17;
+  };
+
+  const int X0::value;
+
+  struct X1 {
+    static int value;
+  };
+
+  int X1::value;
+
+  template<typename T>
+  int *f() {
+    return new (int[T::value]); // expected-warning{{when type is in parentheses, array cannot have dynamic size}}
+  }
+
+  template int *f<X0>();
+  template int *f<X1>(); // expected-note{{in instantiation of}}
 
 }

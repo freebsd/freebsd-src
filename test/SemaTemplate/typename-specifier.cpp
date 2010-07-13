@@ -15,19 +15,22 @@ namespace N {
 
 int i;
 
-typename N::A::type *ip1 = &i;
-typename N::B::type *ip2 = &i; // expected-error{{no type named 'type' in 'N::B'}}
-typename N::C::type *ip3 = &i; // expected-error{{typename specifier refers to non-type member 'type'}}
+typename N::A::type *ip1 = &i; // expected-warning{{'typename' occurs outside of a template}}
+typename N::B::type *ip2 = &i; // expected-error{{no type named 'type' in 'N::B'}} \
+// expected-warning{{'typename' occurs outside of a template}}
+typename N::C::type *ip3 = &i; // expected-error{{typename specifier refers to non-type member 'type'}} \
+// expected-warning{{'typename' occurs outside of a template}}
 
 void test(double d) {
-  typename N::A::type f(typename N::A::type(a)); // expected-warning{{parentheses were disambiguated as a function declarator}}
+  typename N::A::type f(typename N::A::type(a)); // expected-warning{{parentheses were disambiguated as a function declarator}} \
+  // expected-warning 2{{'typename' occurs outside of a template}}
   int five = f(5);
   
   using namespace N;
-  for (typename A::type i = 0; i < 10; ++i)
+  for (typename A::type i = 0; i < 10; ++i) // expected-warning{{'typename' occurs outside of a template}}
     five += 1;
 
-  const typename N::A::type f2(d);
+  const typename N::A::type f2(d); // expected-warning{{'typename' occurs outside of a template}}
 }
 
 namespace N {

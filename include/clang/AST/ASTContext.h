@@ -62,6 +62,7 @@ namespace clang {
   class RecordDecl;
   class StoredDeclsMap;
   class TagDecl;
+  class TemplateTemplateParmDecl;
   class TemplateTypeParmDecl;
   class TranslationUnitDecl;
   class TypeDecl;
@@ -75,6 +76,8 @@ namespace clang {
 /// ASTContext - This class holds long-lived AST nodes (such as types and
 /// decls) that can be referred to throughout the semantic analysis of a file.
 class ASTContext {
+  ASTContext &this_() { return *this; }
+
   std::vector<Type*> Types;
   llvm::FoldingSet<ExtQuals> ExtQualNodes;
   llvm::FoldingSet<ComplexType> ComplexTypes;
@@ -95,9 +98,12 @@ class ASTContext {
   llvm::FoldingSet<DependentDecltypeType> DependentDecltypeTypes;
   llvm::FoldingSet<TemplateTypeParmType> TemplateTypeParmTypes;
   llvm::FoldingSet<SubstTemplateTypeParmType> SubstTemplateTypeParmTypes;
-  llvm::FoldingSet<TemplateSpecializationType> TemplateSpecializationTypes;
+  llvm::ContextualFoldingSet<TemplateSpecializationType, ASTContext&>
+    TemplateSpecializationTypes;
   llvm::FoldingSet<ElaboratedType> ElaboratedTypes;
   llvm::FoldingSet<DependentNameType> DependentNameTypes;
+  llvm::ContextualFoldingSet<DependentTemplateSpecializationType, ASTContext&>
+    DependentTemplateSpecializationTypes;
   llvm::FoldingSet<ObjCObjectTypeImpl> ObjCObjectTypes;
   llvm::FoldingSet<ObjCObjectPointerType> ObjCObjectPointerTypes;
 
@@ -121,6 +127,30 @@ class ASTContext {
   
   /// \brief Mapping from ObjCContainers to their ObjCImplementations.
   llvm::DenseMap<ObjCContainerDecl*, ObjCImplDecl*> ObjCImpls;
+
+  /// \brief Representation of a "canonical" template template parameter that
+  /// is used in canonical template names.
+  class CanonicalTemplateTemplateParm : public llvm::FoldingSetNode {
+    TemplateTemplateParmDecl *Parm;
+    
+  public:
+    CanonicalTemplateTemplateParm(TemplateTemplateParmDecl *Parm) 
+      : Parm(Parm) { }
+    
+    TemplateTemplateParmDecl *getParam() const { return Parm; }
+    
+    void Profile(llvm::FoldingSetNodeID &ID) { Profile(ID, Parm); }
+    
+    static void Profile(llvm::FoldingSetNodeID &ID, 
+                        TemplateTemplateParmDecl *Parm);
+  };
+  llvm::FoldingSet<CanonicalTemplateTemplateParm> CanonTemplateTemplateParms;
+  
+  TemplateTemplateParmDecl *getCanonicalTemplateTemplateParmDecl(
+                                               TemplateTemplateParmDecl *TTP);
+
+  /// \brief Whether __[u]int128_t identifier is installed.
+  bool IsInt128Installed;
 
   /// BuiltinVaListType - built-in va list type.
   /// This is initially null and set by Sema::LazilyCreateBuiltin when
@@ -161,6 +191,8 @@ class ASTContext {
 
   /// \brief Type for the Block descriptor for Blocks CodeGen.
   RecordDecl *BlockDescriptorExtendedType;
+
+  TypeSourceInfo NullTypeSourceInfo;
 
   /// \brief Keeps track of all declaration attributes.
   ///
@@ -302,7 +334,8 @@ public:
   /// \brief Note that the static data member \p Inst is an instantiation of
   /// the static data member template \p Tmpl of a class template.
   void setInstantiatedFromStaticDataMember(VarDecl *Inst, VarDecl *Tmpl,
-                                           TemplateSpecializationKind TSK);
+                                           TemplateSpecializationKind TSK,
+                        SourceLocation PointOfInstantiation = SourceLocation());
 
   /// \brief If the given using decl is an instantiation of a
   /// (possibly unresolved) using decl from a template instantiation,
@@ -328,6 +361,8 @@ public:
 
   overridden_cxx_method_iterator
   overridden_methods_end(const CXXMethodDecl *Method) const;
+
+  unsigned overridden_methods_size(const CXXMethodDecl *Method) const;
 
   /// \brief Note that the given C++ \p Method overrides the given \p
   /// Overridden method.
@@ -534,7 +569,7 @@ public:
   /// getVectorType - Return the unique reference to a vector type of
   /// the specified element type and size. VectorType must be a built-in type.
   QualType getVectorType(QualType VectorType, unsigned NumElts,
-                         bool AltiVec, bool IsPixel);
+                         VectorType::AltiVecSpecific AltiVecSpec);
 
   /// getExtVectorType - Return the unique reference to an extended vector type
   /// of the specified element type and size.  VectorType must be a built-in
@@ -585,7 +620,11 @@ public:
 
   /// getTypedefType - Return the unique reference to the type for the
   /// specified typename decl.
-  QualType getTypedefType(const TypedefDecl *Decl);
+  QualType getTypedefType(const TypedefDecl *Decl, QualType Canon = QualType());
+
+  QualType getRecordType(const RecordDecl *Decl);
+
+  QualType getEnumType(const EnumDecl *Decl);
 
   QualType getInjectedClassNameType(CXXRecordDecl *Decl, QualType TST);
 
@@ -599,13 +638,15 @@ public:
   QualType getTemplateSpecializationType(TemplateName T,
                                          const TemplateArgument *Args,
                                          unsigned NumArgs,
-                                         QualType Canon = QualType(),
-                                         bool IsCurrentInstantiation = false);
+                                         QualType Canon = QualType());
+
+  QualType getCanonicalTemplateSpecializationType(TemplateName T,
+                                                  const TemplateArgument *Args,
+                                                  unsigned NumArgs);
 
   QualType getTemplateSpecializationType(TemplateName T,
                                          const TemplateArgumentListInfo &Args,
-                                         QualType Canon = QualType(),
-                                         bool IsCurrentInstantiation = false);
+                                         QualType Canon = QualType());
 
   TypeSourceInfo *
   getTemplateSpecializationTypeInfo(TemplateName T, SourceLocation TLoc,
@@ -619,10 +660,16 @@ public:
                                 NestedNameSpecifier *NNS,
                                 const IdentifierInfo *Name,
                                 QualType Canon = QualType());
-  QualType getDependentNameType(ElaboratedTypeKeyword Keyword,
-                                NestedNameSpecifier *NNS,
-                                const TemplateSpecializationType *TemplateId,
-                                QualType Canon = QualType());
+
+  QualType getDependentTemplateSpecializationType(ElaboratedTypeKeyword Keyword,
+                                                  NestedNameSpecifier *NNS,
+                                                  const IdentifierInfo *Name,
+                                          const TemplateArgumentListInfo &Args);
+  QualType getDependentTemplateSpecializationType(ElaboratedTypeKeyword Keyword,
+                                                  NestedNameSpecifier *NNS,
+                                                  const IdentifierInfo *Name,
+                                                  unsigned NumArgs,
+                                                  const TemplateArgument *Args);
 
   QualType getObjCInterfaceType(const ObjCInterfaceDecl *Decl);
 
@@ -779,6 +826,10 @@ public:
   /// getObjCEncodingTypeSize returns size of type for objective-c encoding
   /// purpose in characters.
   CharUnits getObjCEncodingTypeSize(QualType t);
+
+  /// \brief Whether __[u]int128_t identifier is installed.
+  bool isInt128Installed() const { return IsInt128Installed; }
+  void setInt128Installed() { IsInt128Installed = true; }
 
   /// This setter/getter represents the ObjC 'id' type. It is setup lazily, by
   /// Sema.  id is always a (typedef for a) pointer type, a pointer to a struct.
@@ -943,8 +994,9 @@ public:
   const ASTRecordLayout &
   getASTObjCImplementationLayout(const ObjCImplementationDecl *D);
 
-  /// getKeyFunction - Get the key function for the given record decl. 
-  /// The key function is, according to the Itanium C++ ABI section 5.2.3:
+  /// getKeyFunction - Get the key function for the given record decl, or NULL
+  /// if there isn't one.  The key function is, according to the Itanium C++ ABI
+  /// section 5.2.3:
   ///
   /// ...the first non-pure virtual function that is not inline at the point
   /// of class definition.
@@ -1013,6 +1065,8 @@ public:
     return UnqualT1 == UnqualT2;
   }
 
+  bool UnwrapSimilarPointerTypes(QualType &T1, QualType &T2);
+  
   /// \brief Retrieves the "canonical" declaration of
 
   /// \brief Retrieves the "canonical" nested name specifier for a
@@ -1272,6 +1326,8 @@ public:
   TypeSourceInfo *
   getTrivialTypeSourceInfo(QualType T, SourceLocation Loc = SourceLocation());
 
+  TypeSourceInfo *getNullTypeSourceInfo() { return &NullTypeSourceInfo; }
+
   /// \brief Add a deallocation callback that will be invoked when the 
   /// ASTContext is destroyed.
   ///
@@ -1280,6 +1336,38 @@ public:
   /// \brief Data Pointer data that will be provided to the callback function
   /// when it is called.
   void AddDeallocation(void (*Callback)(void*), void *Data);
+
+  //===--------------------------------------------------------------------===//
+  //                    Statistics
+  //===--------------------------------------------------------------------===//
+
+  /// \brief The number of implicitly-declared default constructors.
+  static unsigned NumImplicitDefaultConstructors;
+  
+  /// \brief The number of implicitly-declared default constructors for 
+  /// which declarations were built.
+  static unsigned NumImplicitDefaultConstructorsDeclared;
+
+  /// \brief The number of implicitly-declared copy constructors.
+  static unsigned NumImplicitCopyConstructors;
+  
+  /// \brief The number of implicitly-declared copy constructors for 
+  /// which declarations were built.
+  static unsigned NumImplicitCopyConstructorsDeclared;
+
+  /// \brief The number of implicitly-declared copy assignment operators.
+  static unsigned NumImplicitCopyAssignmentOperators;
+  
+  /// \brief The number of implicitly-declared copy assignment operators for 
+  /// which declarations were built.
+  static unsigned NumImplicitCopyAssignmentOperatorsDeclared;
+
+  /// \brief The number of implicitly-declared destructors.
+  static unsigned NumImplicitDestructors;
+  
+  /// \brief The number of implicitly-declared destructors for which 
+  /// declarations were built.
+  static unsigned NumImplicitDestructorsDeclared;
   
 private:
   ASTContext(const ASTContext&); // DO NOT IMPLEMENT
@@ -1308,6 +1396,11 @@ private:
   // by DeclContext objects.  This probably should not be in ASTContext,
   // but we include it here so that ASTContext can quickly deallocate them.
   llvm::PointerIntPair<StoredDeclsMap*,1> LastSDM;
+
+  /// \brief A counter used to uniquely identify "blocks".
+  unsigned int UniqueBlockByRefTypeID;
+  unsigned int UniqueBlockParmTypeID;
+  
   friend class DeclContext;
   friend class DeclarationNameTable;
   void ReleaseDeclContextMaps();

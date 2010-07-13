@@ -15,8 +15,6 @@
 #include <vector>
 
 namespace clang {
-class FixItRewriter;
-class FixItPathRewriter;
 
 //===----------------------------------------------------------------------===//
 // Custom Consumer Actions
@@ -37,12 +35,6 @@ public:
 //===----------------------------------------------------------------------===//
 // AST Consumer Actions
 //===----------------------------------------------------------------------===//
-
-class AnalysisAction : public ASTFrontendAction {
-protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
-};
 
 class ASTPrintAction : public ASTFrontendAction {
 protected:
@@ -74,26 +66,6 @@ protected:
                                          llvm::StringRef InFile);
 };
 
-class FixItAction : public ASTFrontendAction {
-protected:
-  llvm::OwningPtr<FixItRewriter> Rewriter;
-  llvm::OwningPtr<FixItPathRewriter> PathRewriter;
-
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
-
-  virtual bool BeginSourceFileAction(CompilerInstance &CI,
-                                     llvm::StringRef Filename);
-
-  virtual void EndSourceFileAction();
-
-  virtual bool hasASTSupport() const { return false; }
-
-public:
-  FixItAction();
-  ~FixItAction();
-};
-
 class GeneratePCHAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
@@ -101,22 +73,10 @@ protected:
 
   virtual bool usesCompleteTranslationUnit() { return false; }
 
-  virtual bool hasASTSupport() const { return false; }
-};
-
-class HTMLPrintAction : public ASTFrontendAction {
-protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+  virtual bool hasASTFileSupport() const { return false; }
 };
 
 class InheritanceViewAction : public ASTFrontendAction {
-protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
-};
-
-class RewriteObjCAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
                                          llvm::StringRef InFile);
@@ -170,7 +130,7 @@ public:
   virtual bool usesPreprocessorOnly() const;
   virtual bool usesCompleteTranslationUnit();
   virtual bool hasPCHSupport() const;
-  virtual bool hasASTSupport() const;
+  virtual bool hasASTFileSupport() const;
   virtual bool hasCodeCompletionSupport() const;
 };
 
@@ -213,16 +173,6 @@ protected:
   void ExecuteAction();
 
   virtual bool hasPCHSupport() const { return true; }
-};
-
-class RewriteMacrosAction : public PreprocessorFrontendAction {
-protected:
-  void ExecuteAction();
-};
-
-class RewriteTestAction : public PreprocessorFrontendAction {
-protected:
-  void ExecuteAction();
 };
 
 }  // end namespace clang

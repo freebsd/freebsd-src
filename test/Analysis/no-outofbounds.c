@@ -12,3 +12,20 @@ void f() {
   short *z = (short*) &x;
   short s = z[0] + z[1]; // no-warning
 }
+
+void g() {
+  int a[2];
+  char *b = (char*)a;
+  b[3] = 'c'; // no-warning
+}
+
+typedef typeof(sizeof(int)) size_t;
+void *malloc(size_t);
+void free(void *);
+
+void field() {
+  struct vec { size_t len; int data[0]; };
+  struct vec *a = malloc(sizeof(struct vec) + 10);
+  a->len = 10;
+  a->data[1] = 5; // no-warning
+}

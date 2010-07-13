@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -emit-llvm -o -
+// RUN: %clang_cc1 -triple x86_64-unknown-unknown %s -emit-llvm -o - | FileCheck %s
 
 // PR1895
 // sizeof function
@@ -118,4 +118,30 @@ void f9(struct S *x) {
 
 void f10() {
   __builtin_sin(0);
+}
+
+// rdar://7530813
+// CHECK: define i32 @f11
+int f11(long X) {
+  int A[100];
+  return A[X];
+
+// CHECK: [[Xaddr:%[^ ]+]] = alloca i64, align 8
+// CHECK: load {{.*}}* [[Xaddr]]
+// CHECK-NEXT: getelementptr inbounds [100 x i32]* %A, i32 0, 
+// CHECK-NEXT: load i32*
+}
+
+int f12() {
+  // PR3150
+  // CHECK: define i32 @f12
+  // CHECK: ret i32 1
+  return 1||1;
+}
+
+// Make sure negate of fp uses -0.0 for proper -0 handling.
+double f13(double X) {
+  // CHECK: define double @f13
+  // CHECK: fsub double -0.0
+  return -X;
 }

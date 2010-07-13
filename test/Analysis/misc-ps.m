@@ -582,7 +582,7 @@ void pr4781(unsigned long *raw1) {
 - (id) foo {
   if (self)
     return self;
-  *((int *) 0x0) = 0xDEADBEEF; // no-warning
+  *((volatile int *) 0x0) = 0xDEADBEEF; // no-warning
   return self;
 }
 @end
@@ -969,5 +969,54 @@ void pr6938_b() {
 
 void r7979430(id x) {
   @synchronized(x) {}
+}
+
+//===----------------------------------------------------------------------===
+// PR 7361 - Test that functions wrapped in macro instantiations are analyzed.
+//===----------------------------------------------------------------------===
+#define MAKE_TEST_FN() \
+  void test_pr7361 (char a) {\
+    char* b = 0x0;  *b = a;\
+  }
+
+MAKE_TEST_FN() // expected-warning{{null pointer}}
+
+//===----------------------------------------------------------------------===
+// PR 7491 - Test that symbolic expressions can be used as conditions.
+//===----------------------------------------------------------------------===
+
+void pr7491 () {
+  extern int getint();
+  int a = getint()-1;
+  if (a) {
+    return;
+  }
+  if (!a) {
+    return;
+  } else {
+    // Should be unreachable
+    (void)*(char*)0; // no-warning
+  }
+}
+
+//===----------------------------------------------------------------------===
+// PR 7475 - Test that assumptions about global variables are reset after
+//  calling a global function.
+//===----------------------------------------------------------------------===
+
+int *pr7475_someGlobal;
+void pr7475_setUpGlobal();
+
+void pr7475() {
+  if (pr7475_someGlobal == 0)
+    pr7475_setUpGlobal();
+  *pr7475_someGlobal = 0; // no-warning
+}
+
+void pr7475_warn() {
+  static int *someStatic = 0;
+  if (someStatic == 0)
+    pr7475_setUpGlobal();
+  *someStatic = 0; // expected-warning{{null pointer}}
 }
 

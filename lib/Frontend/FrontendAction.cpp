@@ -25,25 +25,28 @@ FrontendAction::FrontendAction() : Instance(0) {}
 
 FrontendAction::~FrontendAction() {}
 
-void FrontendAction::setCurrentFile(llvm::StringRef Value, ASTUnit *AST) {
+void FrontendAction::setCurrentFile(llvm::StringRef Value, InputKind Kind,
+                                    ASTUnit *AST) {
   CurrentFile = Value;
+  CurrentFileKind = Kind;
   CurrentASTUnit.reset(AST);
 }
 
 bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
                                      llvm::StringRef Filename,
-                                     bool IsAST) {
+                                     InputKind InputKind) {
   assert(!Instance && "Already processing a source file!");
   assert(!Filename.empty() && "Unexpected empty filename!");
-  setCurrentFile(Filename);
+  setCurrentFile(Filename, InputKind);
   setCompilerInstance(&CI);
 
   // AST files follow a very different path, since they share objects via the
   // AST unit.
-  if (IsAST) {
+  if (InputKind == IK_AST) {
     assert(!usesPreprocessorOnly() &&
            "Attempt to pass AST file to preprocessor only action!");
-    assert(hasASTSupport() && "This action does not have AST support!");
+    assert(hasASTFileSupport() &&
+           "This action does not have AST file support!");
 
     llvm::IntrusiveRefCntPtr<Diagnostic> Diags(&CI.getDiagnostics());
     std::string Error;
@@ -51,7 +54,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     if (!AST)
       goto failure;
 
-    setCurrentFile(Filename, AST);
+    setCurrentFile(Filename, InputKind, AST);
 
     // Set the shared objects, these are reset when we finish processing the
     // file, otherwise the CompilerInstance will happily destroy them.
@@ -72,6 +75,30 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     return true;
   }
 
+  // Set up the file and source managers, if needed.
+  if (!CI.hasFileManager())
+    CI.createFileManager();
+  if (!CI.hasSourceManager())
+    CI.createSourceManager();
+
+  // IR files bypass the rest of initialization.
+  if (InputKind == IK_LLVM_IR) {
+    assert(hasIRSupport() &&
+           "This action does not have IR file support!");
+
+    // Inform the diagnostic client we are processing a source file.
+    CI.getDiagnosticClient().BeginSourceFile(CI.getLangOpts(), 0);
+
+    // Initialize the action.
+    if (!BeginSourceFileAction(CI, Filename))
+      goto failure;
+
+    return true;
+  }
+
+  // Set up the preprocessor.
+  CI.createPreprocessor();
+
   // Inform the diagnostic client we are processing a source file.
   CI.getDiagnosticClient().BeginSourceFile(CI.getLangOpts(),
                                            &CI.getPreprocessor());
@@ -84,11 +111,10 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   /// action.
   if (!usesPreprocessorOnly()) {
     CI.createASTContext();
-    CI.setASTConsumer(CreateASTConsumer(CI, Filename));
-    if (!CI.hasASTConsumer())
-      goto failure;
 
-    /// Use PCH?
+    /// Use PCH? If so, we want the PCHReader active before the consumer
+    /// is created, because the consumer might be interested in the reader
+    /// (e.g. the PCH writer for chaining).
     if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
       assert(hasPCHSupport() && "This action does not have PCH support!");
       CI.createPCHExternalASTSource(
@@ -96,6 +122,10 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
       if (!CI.getASTContext().getExternalSource())
         goto failure;
     }
+
+    CI.setASTConsumer(CreateASTConsumer(CI, Filename));
+    if (!CI.hasASTConsumer())
+      goto failure;
   }
 
   // Initialize builtin info as long as we aren't using an external AST
@@ -119,7 +149,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   }
 
   CI.getDiagnosticClient().EndSourceFile();
-  setCurrentFile("");
+  setCurrentFile("", IK_None);
   setCompilerInstance(0);
   return false;
 }
@@ -198,7 +228,7 @@ void FrontendAction::EndSourceFile() {
   }
 
   setCompilerInstance(0);
-  setCurrentFile("");
+  setCurrentFile("", IK_None);
 }
 
 //===----------------------------------------------------------------------===//

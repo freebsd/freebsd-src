@@ -24,7 +24,6 @@
 
 namespace llvm {
   template <typename T> class SmallVectorImpl;
-  class raw_ostream;
 }
 
 namespace clang {
@@ -36,8 +35,6 @@ namespace clang {
   class LangOptions;
   class PartialDiagnostic;
   class Preprocessor;
-  class SourceManager;
-  class SourceRange;
 
   // Import the diagnostic enums themselves.
   namespace diag {
@@ -98,8 +95,8 @@ namespace clang {
 /// compilation.
 class FixItHint {
 public:
-  /// \brief Tokens that should be removed to correct the error.
-  SourceRange RemoveRange;
+  /// \brief Code that should be removed to correct the error.
+  CharSourceRange RemoveRange;
 
   /// \brief The location at which we should insert code to correct
   /// the error.
@@ -129,21 +126,29 @@ public:
 
   /// \brief Create a code modification hint that removes the given
   /// source range.
-  static FixItHint CreateRemoval(SourceRange RemoveRange) {
+  static FixItHint CreateRemoval(CharSourceRange RemoveRange) {
     FixItHint Hint;
     Hint.RemoveRange = RemoveRange;
     return Hint;
   }
-
+  static FixItHint CreateRemoval(SourceRange RemoveRange) {
+    return CreateRemoval(CharSourceRange::getTokenRange(RemoveRange));
+  }
+  
   /// \brief Create a code modification hint that replaces the given
   /// source range with the given code string.
-  static FixItHint CreateReplacement(SourceRange RemoveRange,
+  static FixItHint CreateReplacement(CharSourceRange RemoveRange,
                                      llvm::StringRef Code) {
     FixItHint Hint;
     Hint.RemoveRange = RemoveRange;
     Hint.InsertionLoc = RemoveRange.getBegin();
     Hint.CodeToInsert = Code;
     return Hint;
+  }
+  
+  static FixItHint CreateReplacement(SourceRange RemoveRange,
+                                     llvm::StringRef Code) {
+    return CreateReplacement(CharSourceRange::getTokenRange(RemoveRange), Code);
   }
 };
 
@@ -176,7 +181,14 @@ public:
     ak_nestednamespec,  // NestedNameSpecifier *
     ak_declcontext      // DeclContext *
   };
-  
+
+  /// Specifies which overload candidates to display when overload resolution
+  /// fails.
+  enum OverloadsShown {
+    Ovl_All,  ///< Show all overloads.
+    Ovl_Best  ///< Show just the "best" overload candidates.
+  };
+
   /// ArgumentValue - This typedef represents on argument value, which is a
   /// union discriminated by ArgumentKind, with a value.
   typedef std::pair<ArgumentKind, intptr_t> ArgumentValue;
@@ -188,6 +200,7 @@ private:
   bool ErrorsAsFatal;            // Treat errors like fatal errors.
   bool SuppressSystemWarnings;   // Suppress warnings in system headers.
   bool SuppressAllDiagnostics;   // Suppress all diagnostics.
+  OverloadsShown ShowOverloads;  // Which overload candidates to show.
   unsigned ErrorLimit;           // Cap of # errors emitted, 0 -> no limit.
   unsigned TemplateBacktraceLimit; // Cap on depth of template backtrace stack,
                                    // 0 -> no limit.
@@ -317,6 +330,13 @@ public:
     SuppressAllDiagnostics = Val; 
   }
   bool getSuppressAllDiagnostics() const { return SuppressAllDiagnostics; }
+  
+  /// \brief Specify which overload candidates to show when overload resolution
+  /// fails.  By default, we show all candidates.
+  void setShowOverloads(OverloadsShown Val) {
+    ShowOverloads = Val;
+  }
+  OverloadsShown getShowOverloads() const { return ShowOverloads; }
   
   /// \brief Pretend that the last diagnostic issued was ignored. This can
   /// be used by clients who suppress diagnostics themselves.
@@ -582,7 +602,7 @@ private:
 
   /// DiagRanges - The list of ranges added to this diagnostic.  It currently
   /// only support 10 ranges, could easily be extended if needed.
-  SourceRange DiagRanges[10];
+  CharSourceRange DiagRanges[10];
 
   enum { MaxFixItHints = 3 };
 
@@ -681,7 +701,7 @@ public:
     }
   }
 
-  void AddSourceRange(const SourceRange &R) const {
+  void AddSourceRange(const CharSourceRange &R) const {
     assert(NumRanges <
            sizeof(DiagObj->DiagRanges)/sizeof(DiagObj->DiagRanges[0]) &&
            "Too many arguments to diagnostic!");
@@ -752,10 +772,16 @@ operator<<(const DiagnosticBuilder &DB, T *DC) {
   
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                            const SourceRange &R) {
-  DB.AddSourceRange(R);
+  DB.AddSourceRange(CharSourceRange::getTokenRange(R));
   return DB;
 }
 
+inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
+                                           const CharSourceRange &R) {
+  DB.AddSourceRange(R);
+  return DB;
+}
+  
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                            const FixItHint &Hint) {
   DB.AddFixItHint(Hint);
@@ -849,7 +875,7 @@ public:
     return DiagObj->NumDiagRanges;
   }
 
-  SourceRange getRange(unsigned Idx) const {
+  const CharSourceRange &getRange(unsigned Idx) const {
     assert(Idx < DiagObj->NumDiagRanges && "Invalid diagnostic range index!");
     return DiagObj->DiagRanges[Idx];
   }
@@ -886,7 +912,7 @@ class StoredDiagnostic {
   Diagnostic::Level Level;
   FullSourceLoc Loc;
   std::string Message;
-  std::vector<SourceRange> Ranges;
+  std::vector<CharSourceRange> Ranges;
   std::vector<FixItHint> FixIts;
 
 public:
@@ -902,7 +928,7 @@ public:
   const FullSourceLoc &getLocation() const { return Loc; }
   llvm::StringRef getMessage() const { return Message; }
   
-  typedef std::vector<SourceRange>::const_iterator range_iterator;
+  typedef std::vector<CharSourceRange>::const_iterator range_iterator;
   range_iterator range_begin() const { return Ranges.begin(); }
   range_iterator range_end() const { return Ranges.end(); }
   unsigned range_size() const { return Ranges.size(); }

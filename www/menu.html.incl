@@ -9,6 +9,7 @@
     <a href="/features.html">Features</a>
     <a href="/comparison.html">Comparisons</a>
     <a href="/docs/UsersManual.html">Users Manual</a>
+    <a href="/compatibility.html">Language&nbsp;Compatibility</a>
     <a href="/docs/LanguageExtensions.html">Language&nbsp;Extensions</a>
     <a href="/cxx_status.html">C++ Status</a>
   </div>
@@ -46,8 +47,8 @@
 
   <div class="submenu">
     <label>Quick Links</label>
-    <a href="http://t1.minormatter.com/~ddunbar/clang-cov/">Testing Coverage</a>
-    <a href="http://t1.minormatter.com/~ddunbar/references.html">Spec. References</a>
+    <a href="http://test.minormatter.com/~ddunbar/clang-cov/">Testing Coverage</a>
+    <a href="http://test.minormatter.com/~ddunbar/references.html">Spec. References</a>
   </div>
   
   <div class="submenu">

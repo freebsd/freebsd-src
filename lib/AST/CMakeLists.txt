@@ -18,6 +18,7 @@ add_clang_library(clangAST
   DeclPrinter.cpp
   DeclTemplate.cpp
   Expr.cpp
+  ExprClassification.cpp
   ExprConstant.cpp
   ExprCXX.cpp
   FullExpr.cpp
@@ -39,4 +40,5 @@ add_clang_library(clangAST
   TypePrinter.cpp
   )
 
-add_dependencies(clangAST ClangDiagnosticAST ClangStmtNodes)
+add_dependencies(clangAST ClangARMNeon ClangAttrClasses ClangAttrList 
+                 ClangDiagnosticAST ClangDeclNodes ClangStmtNodes)

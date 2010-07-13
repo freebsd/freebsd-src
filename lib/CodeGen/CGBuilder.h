@@ -14,12 +14,14 @@
 
 namespace clang {
 namespace CodeGen {
-  // Don't preserve names on values in an optimized build.
+
+// Don't preserve names on values in an optimized build.
 #ifdef NDEBUG
-  typedef llvm::IRBuilder<false> CGBuilderTy;
+typedef llvm::IRBuilder<false> CGBuilderTy;
 #else
-  typedef llvm::IRBuilder<> CGBuilderTy;
+typedef llvm::IRBuilder<> CGBuilderTy;
 #endif
+
 }  // end namespace CodeGen
 }  // end namespace clang
 

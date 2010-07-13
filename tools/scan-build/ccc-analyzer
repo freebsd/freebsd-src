@@ -315,11 +315,13 @@ sub Analyze {
 my %CompileOptionMap = (
   '-nostdinc' => 0,
   '-fblocks' => 0,
+  '-fno-builtin' => 0,
   '-fobjc-gc-only' => 0,
   '-fobjc-gc' => 0,
   '-ffreestanding' => 0,
   '-include' => 1,
   '-idirafter' => 1,
+  '-imacros' => 1,
   '-iprefix' => 1,
   '-iquote' => 1,
   '-isystem' => 1,
@@ -364,6 +366,7 @@ my %IgnoredOptionMap = (
 
 my %LangMap = (
   'c'   => 'c',
+  'cp'  => 'c++',
   'cpp' => 'c++',
   'cc'  => 'c++',
   'i'   => 'c-cpp-output',

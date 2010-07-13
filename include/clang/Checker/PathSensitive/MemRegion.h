@@ -34,7 +34,9 @@ class MemRegionManager;
 class MemSpaceRegion;
 class LocationContext;
 class StackFrameContext;
+class ValueManager;
 class VarRegion;
+class CodeTextRegion;
 
 //===----------------------------------------------------------------------===//
 // Base region classes.
@@ -46,14 +48,17 @@ class MemRegion : public llvm::FoldingSetNode {
 public:
   enum Kind {
     // Memory spaces.
-    BEG_MEMSPACES,
-    GenericMemSpaceRegionKind = BEG_MEMSPACES,
+    GenericMemSpaceRegionKind,
     StackLocalsSpaceRegionKind,
     StackArgumentsSpaceRegionKind,
     HeapSpaceRegionKind,
     UnknownSpaceRegionKind,
-    GlobalsSpaceRegionKind,
-    END_MEMSPACES = GlobalsSpaceRegionKind,
+    NonStaticGlobalSpaceRegionKind,
+    StaticGlobalSpaceRegionKind,
+    BEG_GLOBAL_MEMSPACES = NonStaticGlobalSpaceRegionKind,
+    END_GLOBAL_MEMSPACES = StaticGlobalSpaceRegionKind,
+    BEG_MEMSPACES = GenericMemSpaceRegionKind,
+    END_MEMSPACES = StaticGlobalSpaceRegionKind,
     // Untyped regions.
     SymbolicRegionKind,
     AllocaRegionKind,
@@ -146,13 +151,48 @@ public:
 };
   
 class GlobalsSpaceRegion : public MemSpaceRegion {
-  friend class MemRegionManager;
-
-  GlobalsSpaceRegion(MemRegionManager *mgr)
-    : MemSpaceRegion(mgr, GlobalsSpaceRegionKind) {}
+protected:
+  GlobalsSpaceRegion(MemRegionManager *mgr, Kind k)
+    : MemSpaceRegion(mgr, k) {}
 public:
   static bool classof(const MemRegion *R) {
-    return R->getKind() == GlobalsSpaceRegionKind;
+    Kind k = R->getKind();
+    return k >= BEG_GLOBAL_MEMSPACES && k <= END_GLOBAL_MEMSPACES;
+  }
+};
+  
+class StaticGlobalSpaceRegion : public GlobalsSpaceRegion {
+  friend class MemRegionManager;
+
+  const CodeTextRegion *CR;
+  
+  StaticGlobalSpaceRegion(MemRegionManager *mgr, const CodeTextRegion *cr)
+    : GlobalsSpaceRegion(mgr, StaticGlobalSpaceRegionKind), CR(cr) {}
+
+public:
+  void Profile(llvm::FoldingSetNodeID &ID) const;
+  
+  void dumpToStream(llvm::raw_ostream& os) const;
+
+  const CodeTextRegion *getCodeRegion() const { return CR; }
+
+  static bool classof(const MemRegion *R) {
+    return R->getKind() == StaticGlobalSpaceRegionKind;
+  }
+};
+  
+class NonStaticGlobalSpaceRegion : public GlobalsSpaceRegion {
+  friend class MemRegionManager;
+  
+  NonStaticGlobalSpaceRegion(MemRegionManager *mgr)
+    : GlobalsSpaceRegion(mgr, NonStaticGlobalSpaceRegionKind) {}
+  
+public:
+
+  void dumpToStream(llvm::raw_ostream& os) const;
+
+  static bool classof(const MemRegion *R) {
+    return R->getKind() == NonStaticGlobalSpaceRegionKind;
   }
 };
   
@@ -232,6 +272,11 @@ public:
     return superRegion;
   }
 
+  /// getExtent - Returns the size of the region in bytes.
+  virtual DefinedOrUnknownSVal getExtent(ValueManager& ValMgr) const {
+    return UnknownVal();
+  }
+
   MemRegionManager* getMemRegionManager() const;
 
   bool isSubRegionOf(const MemRegion* R) const;
@@ -287,6 +332,8 @@ public:
   const Expr* getExpr() const { return Ex; }
 
   bool isBoundable() const { return true; }
+
+  DefinedOrUnknownSVal getExtent(ValueManager& ValMgr) const;
 
   void Profile(llvm::FoldingSetNodeID& ID) const;
 
@@ -502,6 +549,8 @@ public:
 
   bool isBoundable() const { return true; }
 
+  DefinedOrUnknownSVal getExtent(ValueManager& ValMgr) const;
+
   void Profile(llvm::FoldingSetNodeID& ID) const;
 
   static void ProfileRegion(llvm::FoldingSetNodeID& ID,
@@ -535,6 +584,8 @@ public:
   QualType getValueType(ASTContext& C) const {
     return Str->getType();
   }
+
+  DefinedOrUnknownSVal getExtent(ValueManager& ValMgr) const;
 
   bool isBoundable() const { return false; }
 
@@ -594,6 +645,8 @@ protected:
 public:
   const Decl* getDecl() const { return D; }
   void Profile(llvm::FoldingSetNodeID& ID) const;
+
+  DefinedOrUnknownSVal getExtent(ValueManager& ValMgr) const;
 
   static bool classof(const MemRegion* R) {
     unsigned k = R->getKind();
@@ -678,6 +731,8 @@ public:
     // FIXME: We can cache this if needed.
     return C.getCanonicalType(getDecl()->getType());
   }
+
+  DefinedOrUnknownSVal getExtent(ValueManager& ValMgr) const;
 
   static void ProfileRegion(llvm::FoldingSetNodeID& ID, const FieldDecl* FD,
                             const MemRegion* superRegion) {
@@ -793,12 +848,14 @@ class MemRegionManager {
   llvm::BumpPtrAllocator& A;
   llvm::FoldingSet<MemRegion> Regions;
 
-  GlobalsSpaceRegion *globals;
+  NonStaticGlobalSpaceRegion *globals;
   
   llvm::DenseMap<const StackFrameContext *, StackLocalsSpaceRegion *> 
     StackLocalsSpaceRegions;
   llvm::DenseMap<const StackFrameContext *, StackArgumentsSpaceRegion *>
     StackArgumentsSpaceRegions;
+  llvm::DenseMap<const CodeTextRegion *, StaticGlobalSpaceRegion *>
+    StaticsGlobalSpaceRegions;
 
   HeapSpaceRegion *heap;
   UnknownSpaceRegion *unknown;
@@ -825,8 +882,8 @@ public:
   getStackArgumentsRegion(const StackFrameContext *STC);
 
   /// getGlobalsRegion - Retrieve the memory region associated with
-  ///  all global variables.
-  const GlobalsSpaceRegion *getGlobalsRegion();
+  ///  global variables.
+  const GlobalsSpaceRegion *getGlobalsRegion(const CodeTextRegion *R = 0);
 
   /// getHeapRegion - Retrieve the memory region associated with the
   ///  generic "heap".

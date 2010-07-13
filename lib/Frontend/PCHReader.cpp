@@ -93,7 +93,7 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   PARSE_LANGOPT_IMPORTANT(Blocks, diag::warn_pch_blocks);
   PARSE_LANGOPT_BENIGN(EmitAllDecls);
   PARSE_LANGOPT_IMPORTANT(MathErrno, diag::warn_pch_math_errno);
-  PARSE_LANGOPT_IMPORTANT(OverflowChecking, diag::warn_pch_overflow_checking);
+  PARSE_LANGOPT_BENIGN(getSignedOverflowBehavior());
   PARSE_LANGOPT_IMPORTANT(HeinousExtensions,
                           diag::warn_pch_heinous_extensions);
   // FIXME: Most of the options below are benign if the macro wasn't
@@ -124,6 +124,7 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   PARSE_LANGOPT_IMPORTANT(OpenCL, diag::warn_pch_opencl);
   PARSE_LANGOPT_BENIGN(CatchUndefined);
   PARSE_LANGOPT_IMPORTANT(ElideConstructors, diag::warn_pch_elide_constructors);
+  PARSE_LANGOPT_BENIGN(SpellChecking);
 #undef PARSE_LANGOPT_IMPORTANT
 #undef PARSE_LANGOPT_BENIGN
 
@@ -359,14 +360,6 @@ PCHReader::PCHReader(SourceManager &SourceMgr, FileManager &FileMgr,
 }
 
 PCHReader::~PCHReader() {}
-
-Expr *PCHReader::ReadDeclExpr() {
-  return dyn_cast_or_null<Expr>(ReadStmt(DeclsCursor));
-}
-
-Expr *PCHReader::ReadTypeExpr() {
-  return dyn_cast_or_null<Expr>(ReadStmt(DeclsCursor));
-}
 
 
 namespace {
@@ -667,16 +660,17 @@ bool PCHReader::ParseLineTable(llvm::SmallVectorImpl<uint64_t> &Record) {
   // Parse the line entries
   std::vector<LineEntry> Entries;
   while (Idx < Record.size()) {
-    int FID = FileIDs[Record[Idx++]];
+    int FID = Record[Idx++];
 
     // Extract the line entries
     unsigned NumEntries = Record[Idx++];
+    assert(NumEntries && "Numentries is 00000");
     Entries.clear();
     Entries.reserve(NumEntries);
     for (unsigned I = 0; I != NumEntries; ++I) {
       unsigned FileOffset = Record[Idx++];
       unsigned LineNo = Record[Idx++];
-      int FilenameID = Record[Idx++];
+      int FilenameID = FileIDs[Record[Idx++]];
       SrcMgr::CharacteristicKind FileKind
         = (SrcMgr::CharacteristicKind)Record[Idx++];
       unsigned IncludeOffset = Record[Idx++];
@@ -1512,6 +1506,22 @@ PCHReader::ReadPCHBlock() {
       ExtVectorDecls.swap(Record);
       break;
 
+    case pch::VTABLE_USES:
+      if (!VTableUses.empty()) {
+        Error("duplicate VTABLE_USES record in PCH file");
+        return Failure;
+      }
+      VTableUses.swap(Record);
+      break;
+
+    case pch::DYNAMIC_CLASSES:
+      if (!DynamicClasses.empty()) {
+        Error("duplicate DYNAMIC_CLASSES record in PCH file");
+        return Failure;
+      }
+      DynamicClasses.swap(Record);
+      break;
+
     case pch::ORIGINAL_FILE_NAME:
       ActualOriginalFileName.assign(BlobStart, BlobLen);
       OriginalFileName = ActualOriginalFileName;
@@ -1693,7 +1703,7 @@ void PCHReader::InitializeContext(ASTContext &Ctx) {
   PP->setExternalSource(this);
 
   // Load the translation unit declaration
-  ReadDeclRecord(DeclOffsets[0], 0);
+  GetTranslationUnitDecl();
 
   // Load the special types.
   Context->setBuiltinVaListType(
@@ -1776,6 +1786,9 @@ void PCHReader::InitializeContext(ASTContext &Ctx) {
     Context->ObjCSelRedefinitionType = GetType(ObjCSelRedef);
   if (unsigned String = SpecialTypes[pch::SPECIAL_TYPE_NS_CONSTANT_STRING])
     Context->setNSConstantStringType(GetType(String));
+
+  if (SpecialTypes[pch::SPECIAL_TYPE_INT128_INSTALLED])
+    Context->setInt128Installed();
 }
 
 /// \brief Retrieve the name of the original source file name
@@ -1915,7 +1928,8 @@ bool PCHReader::ParseLanguageOptions(
     PARSE_LANGOPT(Blocks);
     PARSE_LANGOPT(EmitAllDecls);
     PARSE_LANGOPT(MathErrno);
-    PARSE_LANGOPT(OverflowChecking);
+    LangOpts.setSignedOverflowBehavior((LangOptions::SignedOverflowBehaviorTy)
+                                       Record[Idx++]);
     PARSE_LANGOPT(HeinousExtensions);
     PARSE_LANGOPT(Optimize);
     PARSE_LANGOPT(OptimizeSize);
@@ -1926,13 +1940,10 @@ bool PCHReader::ParseLanguageOptions(
     PARSE_LANGOPT(AccessControl);
     PARSE_LANGOPT(CharIsSigned);
     PARSE_LANGOPT(ShortWChar);
-    LangOpts.setGCMode((LangOptions::GCMode)Record[Idx]);
-    ++Idx;
-    LangOpts.setVisibilityMode((LangOptions::VisibilityMode)Record[Idx]);
-    ++Idx;
+    LangOpts.setGCMode((LangOptions::GCMode)Record[Idx++]);
+    LangOpts.setVisibilityMode((LangOptions::VisibilityMode)Record[Idx++]);
     LangOpts.setStackProtectorMode((LangOptions::StackProtectorMode)
-                                   Record[Idx]);
-    ++Idx;
+                                   Record[Idx++]);
     PARSE_LANGOPT(InstantiationDepth);
     PARSE_LANGOPT(OpenCL);
     PARSE_LANGOPT(CatchUndefined);
@@ -1959,6 +1970,8 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
   // after reading this type.
   SavedStreamPosition SavedPosition(DeclsCursor);
 
+  ReadingKindTracker ReadingKind(Read_Type, *this);
+  
   // Note that we are loading a type record.
   LoadingTypeOrDecl Loading(*this);
 
@@ -2022,7 +2035,7 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
   }
 
   case pch::TYPE_MEMBER_POINTER: {
-    if (Record.size() != 1) {
+    if (Record.size() != 2) {
       Error("Incorrect encoding of member pointer type");
       return QualType();
     }
@@ -2054,26 +2067,26 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
     unsigned IndexTypeQuals = Record[2];
     SourceLocation LBLoc = SourceLocation::getFromRawEncoding(Record[3]);
     SourceLocation RBLoc = SourceLocation::getFromRawEncoding(Record[4]);
-    return Context->getVariableArrayType(ElementType, ReadTypeExpr(),
+    return Context->getVariableArrayType(ElementType, ReadExpr(),
                                          ASM, IndexTypeQuals,
                                          SourceRange(LBLoc, RBLoc));
   }
 
   case pch::TYPE_VECTOR: {
-    if (Record.size() != 4) {
+    if (Record.size() != 3) {
       Error("incorrect encoding of vector type in PCH file");
       return QualType();
     }
 
     QualType ElementType = GetType(Record[0]);
     unsigned NumElements = Record[1];
-    bool AltiVec = Record[2];
-    bool Pixel = Record[3];
-    return Context->getVectorType(ElementType, NumElements, AltiVec, Pixel);
+    unsigned AltiVecSpec = Record[2];
+    return Context->getVectorType(ElementType, NumElements,
+                                  (VectorType::AltiVecSpecific)AltiVecSpec);
   }
 
   case pch::TYPE_EXT_VECTOR: {
-    if (Record.size() != 4) {
+    if (Record.size() != 3) {
       Error("incorrect encoding of extended vector type in PCH file");
       return QualType();
     }
@@ -2123,15 +2136,18 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
     return Context->getTypeDeclType(
              cast<UnresolvedUsingTypenameDecl>(GetDecl(Record[0])));
 
-  case pch::TYPE_TYPEDEF:
-    if (Record.size() != 1) {
+  case pch::TYPE_TYPEDEF: {
+    if (Record.size() != 2) {
       Error("incorrect encoding of typedef type");
       return QualType();
     }
-    return Context->getTypeDeclType(cast<TypedefDecl>(GetDecl(Record[0])));
+    TypedefDecl *Decl = cast<TypedefDecl>(GetDecl(Record[0]));
+    QualType Canonical = GetType(Record[1]);
+    return Context->getTypedefType(Decl, Canonical);
+  }
 
   case pch::TYPE_TYPEOF_EXPR:
-    return Context->getTypeOfExprType(ReadTypeExpr());
+    return Context->getTypeOfExprType(ReadExpr());
 
   case pch::TYPE_TYPEOF: {
     if (Record.size() != 1) {
@@ -2143,32 +2159,36 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
   }
 
   case pch::TYPE_DECLTYPE:
-    return Context->getDecltypeType(ReadTypeExpr());
+    return Context->getDecltypeType(ReadExpr());
 
-  case pch::TYPE_RECORD:
-    if (Record.size() != 1) {
+  case pch::TYPE_RECORD: {
+    if (Record.size() != 2) {
       Error("incorrect encoding of record type");
       return QualType();
     }
-    return Context->getTypeDeclType(cast<RecordDecl>(GetDecl(Record[0])));
+    bool IsDependent = Record[0];
+    QualType T = Context->getRecordType(cast<RecordDecl>(GetDecl(Record[1])));
+    T->Dependent = IsDependent;
+    return T;
+  }
 
-  case pch::TYPE_ENUM:
-    if (Record.size() != 1) {
+  case pch::TYPE_ENUM: {
+    if (Record.size() != 2) {
       Error("incorrect encoding of enum type");
       return QualType();
     }
-    return Context->getTypeDeclType(cast<EnumDecl>(GetDecl(Record[0])));
+    bool IsDependent = Record[0];
+    QualType T = Context->getEnumType(cast<EnumDecl>(GetDecl(Record[1])));
+    T->Dependent = IsDependent;
+    return T;
+  }
 
   case pch::TYPE_ELABORATED: {
-    if (Record.size() != 2) {
-      Error("incorrect encoding of elaborated type");
-      return QualType();
-    }
-    unsigned Tag = Record[1];
-    // FIXME: Deserialize the qualifier (C++ only)
-    return Context->getElaboratedType((ElaboratedTypeKeyword) Tag,
-                                      /* NNS */ 0,
-                                      GetType(Record[0]));
+    unsigned Idx = 0;
+    ElaboratedTypeKeyword Keyword = (ElaboratedTypeKeyword)Record[Idx++];
+    NestedNameSpecifier *NNS = ReadNestedNameSpecifier(Record, Idx);
+    QualType NamedType = GetType(Record[Idx++]);
+    return Context->getElaboratedType(Keyword, NNS, NamedType);
   }
 
   case pch::TYPE_OBJC_INTERFACE: {
@@ -2205,7 +2225,77 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
   case pch::TYPE_INJECTED_CLASS_NAME: {
     CXXRecordDecl *D = cast<CXXRecordDecl>(GetDecl(Record[0]));
     QualType TST = GetType(Record[1]); // probably derivable
-    return Context->getInjectedClassNameType(D, TST);
+    // FIXME: ASTContext::getInjectedClassNameType is not currently suitable
+    // for PCH reading, too much interdependencies.
+    return
+      QualType(new (*Context, TypeAlignment) InjectedClassNameType(D, TST), 0);
+  }
+  
+  case pch::TYPE_TEMPLATE_TYPE_PARM: {
+    unsigned Idx = 0;
+    unsigned Depth = Record[Idx++];
+    unsigned Index = Record[Idx++];
+    bool Pack = Record[Idx++];
+    IdentifierInfo *Name = GetIdentifierInfo(Record, Idx);
+    return Context->getTemplateTypeParmType(Depth, Index, Pack, Name);
+  }
+  
+  case pch::TYPE_DEPENDENT_NAME: {
+    unsigned Idx = 0;
+    ElaboratedTypeKeyword Keyword = (ElaboratedTypeKeyword)Record[Idx++];
+    NestedNameSpecifier *NNS = ReadNestedNameSpecifier(Record, Idx);
+    const IdentifierInfo *Name = this->GetIdentifierInfo(Record, Idx);
+    QualType Canon = GetType(Record[Idx++]);
+    return Context->getDependentNameType(Keyword, NNS, Name, Canon);
+  }
+  
+  case pch::TYPE_DEPENDENT_TEMPLATE_SPECIALIZATION: {
+    unsigned Idx = 0;
+    ElaboratedTypeKeyword Keyword = (ElaboratedTypeKeyword)Record[Idx++];
+    NestedNameSpecifier *NNS = ReadNestedNameSpecifier(Record, Idx);
+    const IdentifierInfo *Name = this->GetIdentifierInfo(Record, Idx);
+    unsigned NumArgs = Record[Idx++];
+    llvm::SmallVector<TemplateArgument, 8> Args;
+    Args.reserve(NumArgs);
+    while (NumArgs--)
+      Args.push_back(ReadTemplateArgument(Record, Idx));
+    return Context->getDependentTemplateSpecializationType(Keyword, NNS, Name,
+                                                      Args.size(), Args.data());
+  }
+  
+  case pch::TYPE_DEPENDENT_SIZED_ARRAY: {
+    unsigned Idx = 0;
+
+    // ArrayType
+    QualType ElementType = GetType(Record[Idx++]);
+    ArrayType::ArraySizeModifier ASM
+      = (ArrayType::ArraySizeModifier)Record[Idx++];
+    unsigned IndexTypeQuals = Record[Idx++];
+
+    // DependentSizedArrayType
+    Expr *NumElts = ReadExpr();
+    SourceRange Brackets = ReadSourceRange(Record, Idx);
+
+    return Context->getDependentSizedArrayType(ElementType, NumElts, ASM,
+                                               IndexTypeQuals, Brackets);
+  }
+
+  case pch::TYPE_TEMPLATE_SPECIALIZATION: {
+    unsigned Idx = 0;
+    bool IsDependent = Record[Idx++];
+    TemplateName Name = ReadTemplateName(Record, Idx);
+    llvm::SmallVector<TemplateArgument, 8> Args;
+    ReadTemplateArgumentList(Args, Record, Idx);
+    QualType Canon = GetType(Record[Idx++]);
+    QualType T;
+    if (Canon.isNull())
+      T = Context->getCanonicalTemplateSpecializationType(Name, Args.data(),
+                                                          Args.size());
+    else
+      T = Context->getTemplateSpecializationType(Name, Args.data(),
+                                                 Args.size(), Canon);
+    T->Dependent = IsDependent;
+    return T;
   }
   }
   // Suppress a GCC warning
@@ -2272,7 +2362,7 @@ void TypeLocReader::VisitArrayTypeLoc(ArrayTypeLoc TL) {
   TL.setLBracketLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   TL.setRBracketLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   if (Record[Idx++])
-    TL.setSizeExpr(Reader.ReadDeclExpr());
+    TL.setSizeExpr(Reader.ReadExpr());
   else
     TL.setSizeExpr(0);
 }
@@ -2367,6 +2457,18 @@ void TypeLocReader::VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
   TL.setQualifierRange(Reader.ReadSourceRange(Record, Idx));
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
+void TypeLocReader::VisitDependentTemplateSpecializationTypeLoc(
+       DependentTemplateSpecializationTypeLoc TL) {
+  TL.setKeywordLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setQualifierRange(Reader.ReadSourceRange(Record, Idx));
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setLAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setRAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  for (unsigned I = 0, E = TL.getNumArgs(); I != E; ++I)
+    TL.setArgLocInfo(I,
+        Reader.GetTemplateArgumentLocInfo(TL.getTypePtr()->getArg(I).getKind(),
+                                          Record, Idx));
+}
 void TypeLocReader::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
@@ -2455,16 +2557,13 @@ PCHReader::GetTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
                                       unsigned &Index) {
   switch (Kind) {
   case TemplateArgument::Expression:
-    return ReadDeclExpr();
+    return ReadExpr();
   case TemplateArgument::Type:
     return GetTypeSourceInfo(Record, Index);
   case TemplateArgument::Template: {
-    SourceLocation
-      QualStart = SourceLocation::getFromRawEncoding(Record[Index++]),
-      QualEnd = SourceLocation::getFromRawEncoding(Record[Index++]),
-      TemplateNameLoc = SourceLocation::getFromRawEncoding(Record[Index++]);
-    return TemplateArgumentLocInfo(SourceRange(QualStart, QualEnd),
-                                   TemplateNameLoc);
+    SourceRange QualifierRange = ReadSourceRange(Record, Index);
+    SourceLocation TemplateNameLoc = ReadSourceLocation(Record, Index);
+    return TemplateArgumentLocInfo(QualifierRange, TemplateNameLoc);
   }
   case TemplateArgument::Null:
   case TemplateArgument::Integral:
@@ -2474,6 +2573,29 @@ PCHReader::GetTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
   }
   llvm_unreachable("unexpected template argument loc");
   return TemplateArgumentLocInfo();
+}
+
+TemplateArgumentLoc
+PCHReader::ReadTemplateArgumentLoc(const RecordData &Record, unsigned &Index) {
+  TemplateArgument Arg = ReadTemplateArgument(Record, Index);
+
+  if (Arg.getKind() == TemplateArgument::Expression) {
+    if (Record[Index++]) // bool InfoHasSameExpr.
+      return TemplateArgumentLoc(Arg, TemplateArgumentLocInfo(Arg.getAsExpr()));
+  }
+  return TemplateArgumentLoc(Arg, GetTemplateArgumentLocInfo(Arg.getKind(),
+                                                             Record, Index));
+}
+
+Decl *PCHReader::GetExternalDecl(uint32_t ID) {
+  return GetDecl(ID);
+}
+
+TranslationUnitDecl *PCHReader::GetTranslationUnitDecl() {
+  if (!DeclsLoaded[0])
+    ReadDeclRecord(DeclOffsets[0], 0);
+
+  return cast<TranslationUnitDecl>(DeclsLoaded[0]);
 }
 
 Decl *PCHReader::GetDecl(pch::DeclID ID) {
@@ -2497,15 +2619,15 @@ Decl *PCHReader::GetDecl(pch::DeclID ID) {
 /// This operation will read a new statement from the external
 /// source each time it is called, and is meant to be used via a
 /// LazyOffsetPtr (which is used by Decls for the body of functions, etc).
-Stmt *PCHReader::GetDeclStmt(uint64_t Offset) {
+Stmt *PCHReader::GetExternalDeclStmt(uint64_t Offset) {
   // Since we know tha this statement is part of a decl, make sure to use the
   // decl cursor to read it.
   DeclsCursor.JumpToBit(Offset);
-  return ReadStmt(DeclsCursor);
+  return ReadStmtFromStream(DeclsCursor);
 }
 
-bool PCHReader::ReadDeclsLexicallyInContext(DeclContext *DC,
-                                  llvm::SmallVectorImpl<pch::DeclID> &Decls) {
+bool PCHReader::FindExternalLexicalDecls(const DeclContext *DC,
+                                         llvm::SmallVectorImpl<Decl*> &Decls) {
   assert(DC->hasExternalLexicalStorage() &&
          "DeclContext has no lexical decls in storage");
 
@@ -2531,20 +2653,22 @@ bool PCHReader::ReadDeclsLexicallyInContext(DeclContext *DC,
   }
 
   // Load all of the declaration IDs
-  Decls.clear();
-  Decls.insert(Decls.end(), Record.begin(), Record.end());
+  for (RecordData::iterator I = Record.begin(), E = Record.end(); I != E; ++I)
+    Decls.push_back(GetDecl(*I));
   ++NumLexicalDeclContextsRead;
   return false;
 }
 
-bool PCHReader::ReadDeclsVisibleInContext(DeclContext *DC,
-                           llvm::SmallVectorImpl<VisibleDeclaration> &Decls) {
+DeclContext::lookup_result
+PCHReader::FindExternalVisibleDeclsByName(const DeclContext *DC,
+                                          DeclarationName Name) {
   assert(DC->hasExternalVisibleStorage() &&
          "DeclContext has no visible decls in storage");
   uint64_t Offset = DeclContextOffsets[DC].second;
   if (Offset == 0) {
     Error("DeclContext has no visible decls in storage");
-    return true;
+    return DeclContext::lookup_result(DeclContext::lookup_iterator(),
+                                      DeclContext::lookup_iterator());
   }
 
   // Keep track of where we are in the stream, then jump back there
@@ -2559,13 +2683,16 @@ bool PCHReader::ReadDeclsVisibleInContext(DeclContext *DC,
   unsigned RecCode = DeclsCursor.ReadRecord(Code, Record);
   if (RecCode != pch::DECL_CONTEXT_VISIBLE) {
     Error("Expected visible block");
-    return true;
+    return DeclContext::lookup_result(DeclContext::lookup_iterator(),
+                                      DeclContext::lookup_iterator());
   }
 
-  if (Record.size() == 0)
-    return false;
-
-  Decls.clear();
+  llvm::SmallVector<VisibleDeclaration, 64> Decls;
+  if (Record.empty()) {
+    SetExternalVisibleDecls(DC, Decls);
+    return DeclContext::lookup_result(DeclContext::lookup_iterator(),
+                                      DeclContext::lookup_iterator());
+  }
 
   unsigned Idx = 0;
   while (Idx < Record.size()) {
@@ -2580,7 +2707,18 @@ bool PCHReader::ReadDeclsVisibleInContext(DeclContext *DC,
   }
 
   ++NumVisibleDeclContextsRead;
-  return false;
+
+  SetExternalVisibleDecls(DC, Decls);
+  return const_cast<DeclContext*>(DC)->lookup(Name);
+}
+
+void PCHReader::PassInterestingDeclsToConsumer() {
+  assert(Consumer);
+  while (!InterestingDecls.empty()) {
+    DeclGroupRef DG(InterestingDecls.front());
+    InterestingDecls.pop_front();
+    Consumer->HandleTopLevelDecl(DG);
+  }
 }
 
 void PCHReader::StartTranslationUnit(ASTConsumer *Consumer) {
@@ -2590,15 +2728,12 @@ void PCHReader::StartTranslationUnit(ASTConsumer *Consumer) {
     return;
 
   for (unsigned I = 0, N = ExternalDefinitions.size(); I != N; ++I) {
-    // Force deserialization of this decl, which will cause it to be passed to
-    // the consumer (or queued).
+    // Force deserialization of this decl, which will cause it to be queued for
+    // passing to the consumer.
     GetDecl(ExternalDefinitions[I]);
   }
 
-  for (unsigned I = 0, N = InterestingDecls.size(); I != N; ++I) {
-    DeclGroupRef DG(InterestingDecls[I]);
-    Consumer->HandleTopLevelDecl(DG);
-  }
+  PassInterestingDeclsToConsumer();
 }
 
 void PCHReader::PrintStats() {
@@ -2708,6 +2843,26 @@ void PCHReader::InitializeSema(Sema &S) {
   for (unsigned I = 0, N = ExtVectorDecls.size(); I != N; ++I)
     SemaObj->ExtVectorDecls.push_back(
                                cast<TypedefDecl>(GetDecl(ExtVectorDecls[I])));
+
+  // FIXME: Do VTable uses and dynamic classes deserialize too much ?
+  // Can we cut them down before writing them ?
+
+  // If there were any VTable uses, deserialize the information and add it
+  // to Sema's vector and map of VTable uses.
+  unsigned Idx = 0;
+  for (unsigned I = 0, N = VTableUses[Idx++]; I != N; ++I) {
+    CXXRecordDecl *Class = cast<CXXRecordDecl>(GetDecl(VTableUses[Idx++]));
+    SourceLocation Loc = ReadSourceLocation(VTableUses, Idx);
+    bool DefinitionRequired = VTableUses[Idx++];
+    SemaObj->VTableUses.push_back(std::make_pair(Class, Loc));
+    SemaObj->VTablesUsed[Class] = DefinitionRequired;
+  }
+
+  // If there were any dynamic classes declarations, deserialize them
+  // and add them to Sema's vector of such declarations.
+  for (unsigned I = 0, N = DynamicClasses.size(); I != N; ++I)
+    SemaObj->DynamicClasses.push_back(
+                               cast<CXXRecordDecl>(GetDecl(DynamicClasses[I])));
 }
 
 IdentifierInfo* PCHReader::get(const char *NameStart, const char *NameEnd) {
@@ -2853,11 +3008,11 @@ Selector PCHReader::DecodeSelector(unsigned ID) {
   return SelectorsLoaded[Index];
 }
 
-Selector PCHReader::GetSelector(uint32_t ID) { 
+Selector PCHReader::GetExternalSelector(uint32_t ID) { 
   return DecodeSelector(ID);
 }
 
-uint32_t PCHReader::GetNumKnownSelectors() {
+uint32_t PCHReader::GetNumExternalSelectors() {
   return TotalNumSelectors + 1;
 }
 
@@ -2901,6 +3056,126 @@ PCHReader::ReadDeclarationName(const RecordData &Record, unsigned &Idx) {
   return DeclarationName();
 }
 
+TemplateName
+PCHReader::ReadTemplateName(const RecordData &Record, unsigned &Idx) {
+  TemplateName::NameKind Kind = (TemplateName::NameKind)Record[Idx++]; 
+  switch (Kind) {
+  case TemplateName::Template:
+    return TemplateName(cast_or_null<TemplateDecl>(GetDecl(Record[Idx++])));
+
+  case TemplateName::OverloadedTemplate: {
+    unsigned size = Record[Idx++];
+    UnresolvedSet<8> Decls;
+    while (size--)
+      Decls.addDecl(cast<NamedDecl>(GetDecl(Record[Idx++])));
+
+    return Context->getOverloadedTemplateName(Decls.begin(), Decls.end());
+  }
+    
+  case TemplateName::QualifiedTemplate: {
+    NestedNameSpecifier *NNS = ReadNestedNameSpecifier(Record, Idx);
+    bool hasTemplKeyword = Record[Idx++];
+    TemplateDecl *Template = cast<TemplateDecl>(GetDecl(Record[Idx++]));
+    return Context->getQualifiedTemplateName(NNS, hasTemplKeyword, Template);
+  }
+    
+  case TemplateName::DependentTemplate: {
+    NestedNameSpecifier *NNS = ReadNestedNameSpecifier(Record, Idx);
+    if (Record[Idx++])  // isIdentifier
+      return Context->getDependentTemplateName(NNS,
+                                               GetIdentifierInfo(Record, Idx));
+    return Context->getDependentTemplateName(NNS,
+                                         (OverloadedOperatorKind)Record[Idx++]);
+  }
+  }
+  
+  assert(0 && "Unhandled template name kind!");
+  return TemplateName();
+}
+
+TemplateArgument
+PCHReader::ReadTemplateArgument(const RecordData &Record, unsigned &Idx) {
+  switch ((TemplateArgument::ArgKind)Record[Idx++]) {
+  case TemplateArgument::Null:
+    return TemplateArgument();
+  case TemplateArgument::Type:
+    return TemplateArgument(GetType(Record[Idx++]));
+  case TemplateArgument::Declaration:
+    return TemplateArgument(GetDecl(Record[Idx++]));
+  case TemplateArgument::Integral: {
+    llvm::APSInt Value = ReadAPSInt(Record, Idx);
+    QualType T = GetType(Record[Idx++]);
+    return TemplateArgument(Value, T);
+  }
+  case TemplateArgument::Template:
+    return TemplateArgument(ReadTemplateName(Record, Idx));
+  case TemplateArgument::Expression:
+    return TemplateArgument(ReadExpr());
+  case TemplateArgument::Pack: {
+    unsigned NumArgs = Record[Idx++];
+    llvm::SmallVector<TemplateArgument, 8> Args;
+    Args.reserve(NumArgs);
+    while (NumArgs--)
+      Args.push_back(ReadTemplateArgument(Record, Idx));
+    TemplateArgument TemplArg;
+    TemplArg.setArgumentPack(Args.data(), Args.size(), /*CopyArgs=*/true);
+    return TemplArg;
+  }
+  }
+  
+  assert(0 && "Unhandled template argument kind!");
+  return TemplateArgument();
+}
+
+TemplateParameterList *
+PCHReader::ReadTemplateParameterList(const RecordData &Record, unsigned &Idx) {
+  SourceLocation TemplateLoc = ReadSourceLocation(Record, Idx);
+  SourceLocation LAngleLoc = ReadSourceLocation(Record, Idx);
+  SourceLocation RAngleLoc = ReadSourceLocation(Record, Idx);
+
+  unsigned NumParams = Record[Idx++];
+  llvm::SmallVector<NamedDecl *, 16> Params;
+  Params.reserve(NumParams);
+  while (NumParams--)
+    Params.push_back(cast<NamedDecl>(GetDecl(Record[Idx++])));
+    
+  TemplateParameterList* TemplateParams = 
+    TemplateParameterList::Create(*Context, TemplateLoc, LAngleLoc,
+                                  Params.data(), Params.size(), RAngleLoc);
+  return TemplateParams;
+}
+
+void
+PCHReader::
+ReadTemplateArgumentList(llvm::SmallVector<TemplateArgument, 8> &TemplArgs,
+                         const RecordData &Record, unsigned &Idx) {
+  unsigned NumTemplateArgs = Record[Idx++];
+  TemplArgs.reserve(NumTemplateArgs);
+  while (NumTemplateArgs--)
+    TemplArgs.push_back(ReadTemplateArgument(Record, Idx));
+}
+
+/// \brief Read a UnresolvedSet structure.
+void PCHReader::ReadUnresolvedSet(UnresolvedSetImpl &Set,
+                                  const RecordData &Record, unsigned &Idx) {
+  unsigned NumDecls = Record[Idx++];
+  while (NumDecls--) {
+    NamedDecl *D = cast<NamedDecl>(GetDecl(Record[Idx++]));
+    AccessSpecifier AS = (AccessSpecifier)Record[Idx++];
+    Set.addDecl(D, AS);
+  }
+}
+
+CXXBaseSpecifier
+PCHReader::ReadCXXBaseSpecifier(const RecordData &Record, unsigned &Idx) {
+  bool isVirtual = static_cast<bool>(Record[Idx++]);
+  bool isBaseOfClass = static_cast<bool>(Record[Idx++]);
+  AccessSpecifier AS = static_cast<AccessSpecifier>(Record[Idx++]);
+  QualType T = GetType(Record[Idx++]);
+  SourceRange Range = ReadSourceRange(Record, Idx);
+  return CXXBaseSpecifier(Range, isVirtual, isBaseOfClass, AS, T);
+}
+
 NestedNameSpecifier *
 PCHReader::ReadNestedNameSpecifier(const RecordData &Record, unsigned &Idx) {
   unsigned N = Record[Idx++];
@@ -2934,16 +3209,17 @@ PCHReader::ReadNestedNameSpecifier(const RecordData &Record, unsigned &Idx) {
       // No associated value, and there can't be a prefix.
       break;
     }
-    Prev = NNS;
     }
+    Prev = NNS;
   }
   return NNS;
 }
 
 SourceRange
 PCHReader::ReadSourceRange(const RecordData &Record, unsigned &Idx) {
-  return SourceRange(SourceLocation::getFromRawEncoding(Record[Idx++]),
-                     SourceLocation::getFromRawEncoding(Record[Idx++]));
+  SourceLocation beg = SourceLocation::getFromRawEncoding(Record[Idx++]);
+  SourceLocation end = SourceLocation::getFromRawEncoding(Record[Idx++]);
+  return SourceRange(beg, end);
 }
 
 /// \brief Read an integral value
@@ -3090,6 +3366,11 @@ PCHReader::LoadingTypeOrDecl::~LoadingTypeOrDecl() {
                                      true);
       Reader.PendingIdentifierInfos.pop_front();
     }
+
+    // We are not in recursive loading, so it's safe to pass the "interesting"
+    // decls to the consumer.
+    if (Reader.Consumer)
+      Reader.PassInterestingDeclsToConsumer();
   }
 
   Reader.CurrentlyLoadingTypeOrDecl = Parent;

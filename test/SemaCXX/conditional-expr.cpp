@@ -199,17 +199,24 @@ void test()
 }
 
 namespace PR6595 {
+  struct OtherString {
+    OtherString();
+    OtherString(const char*);
+  };
+
   struct String {
     String(const char *);
+    String(const OtherString&);
     operator const char*() const;
   };
 
-  void f(bool Cond, String S) {
+  void f(bool Cond, String S, OtherString OS) {
     (void)(Cond? S : "");
     (void)(Cond? "" : S);
     const char a[1] = {'a'};
     (void)(Cond? S : a);
     (void)(Cond? a : S);
+    (void)(Cond? OS : S);
   }
 }
 
@@ -274,4 +281,26 @@ namespace rdar7998817 {
     (void)(B? x // expected-error{{calling a private constructor of class 'rdar7998817::X'}}
            : X());
   }
+}
+
+namespace PR7598 {
+  enum Enum {
+    v = 1,
+  };
+
+  const Enum g() { // expected-warning{{type qualifier on return type has no effect}}
+    return v;
+  }
+
+  const volatile Enum g2() { // expected-warning{{'const volatile' type qualifiers on return type have no effect}}
+    return v;
+  }
+
+  void f() {
+    const Enum v2 = v;
+    Enum e = false ? g() : v;
+    Enum e2 = false ? v2 : v;
+    Enum e3 = false ? g2() : v;
+  }
+
 }

@@ -39,9 +39,10 @@ int main() {
   Q(inff, ());
   Q(infl, ());
 
+  P(fpclassify, (0, 1, 2, 3, 4, 1.0));
+  P(fpclassify, (0, 1, 2, 3, 4, 1.0f));
+  P(fpclassify, (0, 1, 2, 3, 4, 1.0l));
   // FIXME:
-  // XXX note funny semantics for the (last) argument
-  //  P(fpclassify, (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, 1.0));
   //  P(isinf_sign, (1.0));
 
   Q(nan, (""));
@@ -195,3 +196,10 @@ void test_float_builtins(float F, double D, long double LD) {
   // CHECK: and i1
 }
 
+// CHECK: define void @test_builtin_longjmp
+void test_builtin_longjmp(void **buffer) {
+  // CHECK: [[BITCAST:%.*]] = bitcast
+  // CHECK-NEXT: call void @llvm.eh.sjlj.longjmp(i8* [[BITCAST]])
+  __builtin_longjmp(buffer, 1);
+  // CHECK-NEXT: unreachable
+}

@@ -51,12 +51,14 @@ protected:
   unsigned char FloatWidth, FloatAlign;
   unsigned char DoubleWidth, DoubleAlign;
   unsigned char LongDoubleWidth, LongDoubleAlign;
+  unsigned char LargeArrayMinWidth, LargeArrayAlign;
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
   const char *DescriptionString;
   const char *UserLabelPrefix;
   const llvm::fltSemantics *FloatFormat, *DoubleFormat, *LongDoubleFormat;
   unsigned char RegParmMax, SSERegParmMax;
+  std::string CXXABI;
 
   unsigned HasAlignMac68kSupport : 1;
 
@@ -193,6 +195,11 @@ public:
   const llvm::fltSemantics &getLongDoubleFormat() const {
     return *LongDoubleFormat;
   }
+
+  // getLargeArrayMinWidth/Align - Return the minimum array size that is
+  // 'large' and its alignment.
+  unsigned getLargeArrayMinWidth() const { return LargeArrayMinWidth; }
+  unsigned getLargeArrayAlign() const { return LargeArrayAlign; }
 
   /// getIntMaxTWidth - Return the size of intmax_t and uintmax_t for this
   /// target, in bits.
@@ -390,6 +397,11 @@ public:
     return "";
   }
 
+  /// getCXXABI - Get the C++ ABI in use.
+  virtual llvm::StringRef getCXXABI() const {
+    return CXXABI;
+  }
+
   /// setCPU - Target the specific CPU.
   ///
   /// \return - False on error (invalid CPU name).
@@ -404,6 +416,16 @@ public:
   /// \return - False on error (invalid ABI name).
   virtual bool setABI(const std::string &Name) {
     return false;
+  }
+
+  /// setCXXABI - Use this specific C++ ABI.
+  ///
+  /// \return - False on error (invalid ABI name).
+  virtual bool setCXXABI(const std::string &Name) {
+    if (Name != "itanium" && Name != "microsoft")
+      return false;
+    CXXABI = Name;
+    return true;
   }
 
   /// setFeatureEnabled - Enable or disable a specific target feature,
@@ -450,7 +472,12 @@ public:
     return -1; 
   }
   
-
+  /// getStaticInitSectionSpecifier - Return the section to use for C++ static 
+  /// initialization functions.
+  virtual const char *getStaticInitSectionSpecifier() const {
+    return 0;
+  }
+  
 protected:
   virtual uint64_t getPointerWidthV(unsigned AddrSpace) const {
     return PointerWidth;

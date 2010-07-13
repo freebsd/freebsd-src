@@ -118,8 +118,8 @@ classes somewhere else, or introduce some other solution.</p>
 <p>The Clang Diagnostics subsystem is an important part of how the compiler
 communicates with the human.  Diagnostics are the warnings and errors produced
 when the code is incorrect or dubious.  In Clang, each diagnostic produced has
-(at the minimum) a unique ID, a <a href="#SourceLocation">SourceLocation</a> to
-"put the caret", an English translation associated with it, and a severity (e.g.
+(at the minimum) a unique ID, an English translation associated with it, a <a
+href="#SourceLocation">SourceLocation</a> to "put the caret", and a severity (e.g.
 <tt>WARNING</tt> or <tt>ERROR</tt>).  They can also optionally include a number
 of arguments to the dianostic (which fill in "%0"'s in the string) as well as a
 number of source ranges that related to the diagnostic.</p>
@@ -127,7 +127,7 @@ number of source ranges that related to the diagnostic.</p>
 <p>In this section, we'll be giving examples produced by the Clang command line
 driver, but diagnostics can be <a href="#DiagnosticClient">rendered in many
 different ways</a> depending on how the DiagnosticClient interface is
-implemented.  A representative example of a diagonstic is:</p>
+implemented.  A representative example of a diagnostic is:</p>
 
 <pre>
 t.c:38:15: error: invalid operands to binary expression ('int *' and '_Complex float')
@@ -709,7 +709,7 @@ be the location of the "c" identifier.</li>
 
 <li><b>void* "AnnotationValue"</b> - This contains an opaque object that the
 parser gets from Sema through an Actions module, it is passed around and Sema
-intepretes it, based on the type of annotation token.</li>
+interprets it, based on the type of annotation token.</li>
 
 <li><b>TokenKind "Kind"</b> - This indicates the kind of Annotation token this
 is.  See below for the different valid kinds.</li>

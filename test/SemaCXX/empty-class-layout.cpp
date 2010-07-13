@@ -84,3 +84,63 @@ class F : D, E { };
 SA(0, sizeof(F) == 24);
 
 }
+
+namespace Test2 {
+
+// Test that B::a isn't laid out at offset 0.
+struct Empty { };
+struct A : Empty { };
+struct B : Empty {
+  A a;
+};
+
+SA(0, sizeof(B) == 2);
+
+}
+
+namespace Test3 {
+
+// Test that B::a isn't laid out at offset 0.
+struct Empty { };
+struct A { Empty e; };
+struct B : Empty { A a; };
+SA(0, sizeof(B) == 2);
+
+}
+
+namespace Test4 {
+
+// Test that C::Empty isn't laid out at offset 0.
+struct Empty { };
+struct A : Empty { };
+struct B { A a; };
+struct C : B, Empty { };
+SA(0, sizeof(C) == 2);
+
+}
+
+namespace Test5 {
+
+// Test that B::Empty isn't laid out at offset 0.
+struct Empty { };
+struct Field : virtual Empty { };
+struct A {
+  Field f;
+};
+struct B : A, Empty { };
+SA(0, sizeof(B) == 16);
+
+}
+
+namespace Test6 {
+
+// Test that B::A isn't laid out at offset 0.
+struct Empty { };
+struct Field : virtual Empty { };
+struct A {
+  Field f;
+};
+struct B : Empty, A { };
+SA(0, sizeof(B) == 16);
+
+}

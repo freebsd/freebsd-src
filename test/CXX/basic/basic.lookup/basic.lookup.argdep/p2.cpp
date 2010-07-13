@@ -86,3 +86,25 @@ namespace P {
   }
 }
 
+namespace test5 {
+  namespace NS {
+    struct A;
+    void foo(void (*)(A&));
+  }
+  void bar(NS::A& a);
+
+  void test() {
+    foo(&bar);
+  }
+}
+
+// PR6762: __builtin_va_list should be invisible to ADL on all platforms.
+void test6_function(__builtin_va_list &argv);
+namespace test6 {
+  void test6_function(__builtin_va_list &argv);
+
+  void test() {
+    __builtin_va_list args;
+    test6_function(args);
+  }
+}

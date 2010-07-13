@@ -106,7 +106,7 @@ def err_invalid_pth_file : Error<
 //===----------------------------------------------------------------------===//
 // Preprocessor Diagnostics
 //===----------------------------------------------------------------------===//
-def pp_hash_warning : Warning<"#warning%0">, InGroup<DiagGroup<"#warnings">>;
+def pp_hash_warning : Warning<"#warning%0">, InGroup<PoundWarning>;
 def pp_include_next_in_primary : Warning<
   "#include_next in primary source file">;
 def pp_include_macros_out_of_predefines : Error<
@@ -225,6 +225,9 @@ def err__Pragma_malformed : Error<
   "_Pragma takes a parenthesized string literal">;
 def err_pragma_comment_malformed : Error<
   "pragma comment requires parenthesized identifier and optional string">;
+def err_pragma_message_malformed : Error<
+  "pragma message requires parenthesized string">;
+def warn_pragma_message : Warning<"%0">;
 def warn_pragma_ignored : Warning<"unknown pragma ignored">,
    InGroup<UnknownPragmas>, DefaultIgnore;
 def ext_stdc_pragma_ignored : ExtWarn<"unknown pragma in STDC namespace">,

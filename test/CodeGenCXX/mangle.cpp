@@ -477,3 +477,22 @@ namespace test10 {
   // CHECK: define weak_odr void @_ZN6test101fILc3EEEvNS_1SIXquLb0ELc97ET_EEE(
   template void f<(char) 3>(struct S<3>);
 }
+
+namespace test11 {
+  // CHECK: @_ZN6test111fEz
+  void f(...) { }
+
+  struct A {
+    void f(...);
+  };
+  
+  // CHECK: @_ZN6test111A1fEz
+  void A::f(...) { }
+}
+
+namespace test12 {
+
+  // CHECK: _ZN6test121fENS_1AILt33000EEE
+  template <unsigned short> struct A { };
+  void f(A<33000>) { }
+}

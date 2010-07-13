@@ -54,6 +54,7 @@ double* k(bool);
 
 void test_k() {
   int* ip1 = k("foo"); // expected-warning{{conversion from string literal to 'char *' is deprecated}}
+  int* ip2 = k(("foo")); // expected-warning{{conversion from string literal to 'char *' is deprecated}}
   double* dp1 = k(L"foo");
 }
 
@@ -218,6 +219,12 @@ void test_derived(B* b, B const* bc, C* c, const C* cc, void* v, D* d) {
   char* d8 = derived3(d);
 }
 
+void derived4(C*); // expected-note{{candidate function not viable: cannot convert from base class pointer 'A *' to derived class pointer 'C *' for 1st argument}}
+
+void test_base(A* a) {
+  derived4(a); // expected-error{{no matching function for call to 'derived4}}
+}
+
 // Test overloading of references. 
 // (FIXME: tests binding to determine candidate sets, not overload 
 //  resolution per se).
@@ -227,6 +234,12 @@ float* intref(const int&);
 void intref_test() {
   float* ir1 = intref(5);
   float* ir2 = intref(5.5);
+}
+
+void derived5(C&); // expected-note{{candidate function not viable: cannot bind base class object of type 'A' to derived class reference 'C &' for 1st argument}}
+
+void test_base(A& a) {
+  derived5(a); // expected-error{{no matching function for call to 'derived5}}
 }
 
 // Test reference binding vs. standard conversions.
@@ -458,5 +471,22 @@ namespace PR7224 {
     B const *const d2 = 0;
     int &ir = foo(d);
     float &fr = foo(d2);
+  }
+}
+
+namespace NontrivialSubsequence {
+  struct X0;
+
+  class A {
+    operator X0 *();
+  public:
+    operator const X0 *();
+  };
+ 
+  A a;
+  void foo( void const * );
+
+  void g() {
+    foo(a);
   }
 }

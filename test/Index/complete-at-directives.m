@@ -6,7 +6,7 @@
 @end
 
 // RUN: c-index-test -code-completion-at=%s:2:2 -Xclang -code-completion-patterns %s | FileCheck -check-prefix=CHECK-CC1 %s
-// CHECK-CC1: {TypedText class}{HorizontalSpace  }{Placeholder identifier}
+// CHECK-CC1: {TypedText class}{HorizontalSpace  }{Placeholder name}
 // CHECK-CC1: {TypedText compatibility_alias}{HorizontalSpace  }{Placeholder alias}{HorizontalSpace  }{Placeholder class}
 // CHECK-CC1: {TypedText implementation}{HorizontalSpace  }{Placeholder class}
 // CHECK-CC1: {TypedText interface}{HorizontalSpace  }{Placeholder class}
@@ -24,7 +24,7 @@
 // CHECK-CC3: {TypedText synthesize}{HorizontalSpace  }{Placeholder property}
 
 // RUN: c-index-test -code-completion-at=%s:2:1 -Xclang -code-completion-patterns %s | FileCheck -check-prefix=CHECK-CC4 %s
-// CHECK-CC4: NotImplemented:{TypedText @class}{HorizontalSpace  }{Placeholder identifier}
+// CHECK-CC4: NotImplemented:{TypedText @class}{HorizontalSpace  }{Placeholder name}
 // CHECK-CC4: NotImplemented:{TypedText @compatibility_alias}{HorizontalSpace  }{Placeholder alias}{HorizontalSpace  }{Placeholder class}
 // CHECK-CC4: NotImplemented:{TypedText @implementation}{HorizontalSpace  }{Placeholder class}
 // CHECK-CC4: NotImplemented:{TypedText @interface}{HorizontalSpace  }{Placeholder class}
@@ -39,11 +39,6 @@
 // CHECK-CC5: {TypedText @optional}
 // CHECK-CC5: {TypedText @property}
 // CHECK-CC5: {TypedText @required}
-// CHECK-CC5: NotImplemented:{TypedText _Bool}
-// CHECK-CC5: TypedefDecl:{TypedText Class}
-// CHECK-CC5: TypedefDecl:{TypedText id}
-// CHECK-CC5: ObjCInterfaceDecl:{TypedText MyClass}
-// CHECK-CC5: TypedefDecl:{TypedText SEL}
 
 // RUN: c-index-test -code-completion-at=%s:2:23 -Xclang -code-completion-patterns %s | FileCheck -check-prefix=CHECK-CC6 %s
 // CHECK-CC6: NotImplemented:{TypedText package}

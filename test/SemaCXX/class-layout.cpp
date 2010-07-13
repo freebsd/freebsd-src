@@ -71,3 +71,34 @@ struct D : C { bool iv0 : 1; };
 SA(10, sizeof(D) == 2);
 
 }
+
+namespace Test1 {
+
+// Test that we don't assert on this hierarchy.
+struct A { };
+struct B : A { virtual void b(); };
+class C : virtual A { int c; };
+struct D : virtual B { };
+struct E : C, virtual D { };
+class F : virtual E { };
+struct G : virtual E, F { };
+
+SA(0, sizeof(G) == 24);
+
+}
+
+namespace Test2 {
+
+// Test that this somewhat complex class structure is laid out correctly.
+struct A { };
+struct B : A { virtual void b(); };
+struct C : virtual B { };
+struct D : virtual A { };
+struct E : virtual B, D { };
+struct F : E, virtual C { };
+struct G : virtual F, A { };
+struct H { G g; };
+
+SA(0, sizeof(H) == 24);
+
+}
