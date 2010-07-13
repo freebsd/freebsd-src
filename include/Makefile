@@ -56,7 +56,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 
 LSUBSUBDIRS=	dev/mpt/mpilib
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 _dev_powermac_nvram=	dev/powermac_nvram
 .endif
 
@@ -189,7 +189,7 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/machine/pc
 .endif
-.if defined(_MARCH)
+.if defined(_MARCH) && exists(${.CURDIR}/../sys/${_MARCH}/include)
 	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
@@ -276,7 +276,7 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/machine/pc; \
 	done
 .endif
-.if defined(_MARCH)
+.if defined(_MARCH) && exists(${.CURDIR}/../sys/${_MARCH}/include)
 	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
