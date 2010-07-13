@@ -278,12 +278,6 @@
  * Exported definitions unique to mips cpu support.
  */
 
-/*
- * definitions of cpu-dependent requirements
- * referenced in generic code
- */
-#define	COPY_SIGCODE		/* copy sigcode above user stack in exec */
-
 #define	cpu_swapout(p)		panic("cpu_swapout: can't get here");
 
 #ifndef _LOCORE
