@@ -36,7 +36,7 @@ dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
 dev/ofw/ofw_fdt.c		optional	fdt
 dev/ofw/ofw_iicbus.c		optional	iicbus aim
-dev/ofw/ofw_standard.c		optional	aim
+dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
 dev/scc/scc_bfe_macio.c		optional	scc powermac
@@ -53,37 +53,39 @@ dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
 dev/uart/uart_cpu_powerpc.c	optional	uart aim
 kern/syscalls.c			optional	ktr
-libkern/ashldi3.c		standard
-libkern/ashrdi3.c		standard
+libkern/ashldi3.c		optional	powerpc
+libkern/ashrdi3.c		optional	powerpc
 libkern/bcmp.c			standard
-libkern/cmpdi2.c		standard
-libkern/divdi3.c		standard
+libkern/cmpdi2.c		optional	powerpc
+libkern/divdi3.c		optional	powerpc
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
-libkern/lshrdi3.c		standard
+libkern/lshrdi3.c		optional	powerpc
 libkern/memchr.c		optional	fdt
 libkern/memmove.c		standard
 libkern/memset.c		standard
-libkern/moddi3.c		standard
-libkern/qdivrem.c		standard
-libkern/ucmpdi2.c		standard
-libkern/udivdi3.c		standard
-libkern/umoddi3.c		standard
+libkern/moddi3.c		optional	powerpc
+libkern/qdivrem.c		optional	powerpc
+libkern/ucmpdi2.c		optional	powerpc
+libkern/udivdi3.c		optional	powerpc
+libkern/umoddi3.c		optional	powerpc
 powerpc/aim/clock.c		optional	aim
 powerpc/aim/copyinout.c		optional	aim
 powerpc/aim/interrupt.c		optional	aim
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/machdep.c		optional	aim
-powerpc/aim/mmu_oea.c		optional	aim
+powerpc/aim/mmu_oea.c		optional	aim powerpc
 powerpc/aim/mmu_oea64.c		optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/nexus.c		optional	aim
 powerpc/aim/ofw_machdep.c	optional	aim
 powerpc/aim/ofwmagic.S		optional	aim
 powerpc/aim/platform_chrp.c	optional	aim
-powerpc/aim/swtch.S		optional	aim
+powerpc/aim/slb.c		optional	aim powerpc64
+powerpc/aim/swtch32.S		optional	aim powerpc
+powerpc/aim/swtch64.S		optional	aim powerpc64
 powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
 powerpc/aim/vm_machdep.c	optional	aim
@@ -156,7 +158,8 @@ powerpc/powerpc/db_hwwatch.c	optional	ddb
 powerpc/powerpc/db_interface.c	optional	ddb
 powerpc/powerpc/db_trace.c	optional	ddb
 powerpc/powerpc/dump_machdep.c	standard
-powerpc/powerpc/elf_machdep.c	standard
+powerpc/powerpc/elf32_machdep.c	optional	powerpc | compat_freebsd32
+powerpc/powerpc/elf64_machdep.c	optional	powerpc64
 powerpc/powerpc/exec_machdep.c	standard
 powerpc/powerpc/fpu.c		optional	aim
 powerpc/powerpc/fuswintr.c	standard
@@ -173,7 +176,8 @@ powerpc/powerpc/platform.c	standard
 powerpc/powerpc/platform_if.m	standard
 powerpc/powerpc/sc_machdep.c	optional	sc
 powerpc/powerpc/setjmp.S	standard
-powerpc/powerpc/sigcode.S	standard
+powerpc/powerpc/sigcode32.S	optional	powerpc | compat_freebsd32
+powerpc/powerpc/sigcode64.S	optional	powerpc64
 powerpc/powerpc/stack_machdep.c	optional	ddb | stack
 powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/syncicache.c	standard
@@ -183,3 +187,10 @@ powerpc/psim/iobus.c 		optional	psim
 powerpc/psim/ata_iobus.c	optional	ata psim
 powerpc/psim/openpic_iobus.c	optional	psim
 powerpc/psim/uart_iobus.c	optional	uart psim
+
+compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
+kern/imgact_elf32.c			optional	compat_freebsd32
+

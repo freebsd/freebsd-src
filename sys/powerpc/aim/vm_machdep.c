@@ -81,7 +81,6 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/sf_buf.h>
-#include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
@@ -131,6 +130,10 @@ static u_int sf_buf_alloc_want;
  */
 static struct mtx sf_buf_lock;
 
+#ifdef __powerpc64__
+extern uintptr_t tocbase;
+#endif
+
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -147,7 +150,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	KASSERT(td1 == curthread || td1 == &thread0,
 	    ("cpu_fork: p1 not curproc and not proc0"));
-	CTR3(KTR_PROC, "cpu_fork: called td1=%08x p2=%08x flags=%x", (u_int)td1, (u_int)p2, flags);
+	CTR3(KTR_PROC, "cpu_fork: called td1=%p p2=%p flags=%x",
+	    td1, p2, flags);
 
 	if ((flags & RFPROC) == 0)
 		return;
@@ -155,7 +159,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	p1 = td1->td_proc;
 
 	pcb = (struct pcb *)((td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fU);
+	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fUL);
 	td2->td_pcb = pcb;
 
 	/* Copy the pcb */
@@ -178,13 +182,22 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	cf = (struct callframe *)tf - 1;
 	memset(cf, 0, sizeof(struct callframe));
+	#ifdef __powerpc64__
+	cf->cf_toc = tocbase;
+	#endif
 	cf->cf_func = (register_t)fork_return;
 	cf->cf_arg0 = (register_t)td2;
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb->pcb_sp = (register_t)cf;
+	#ifdef __powerpc64__
+	pcb->pcb_lr = ((register_t *)fork_trampoline)[0];
+	pcb->pcb_toc = ((register_t *)fork_trampoline)[1];
+	#else
 	pcb->pcb_lr = (register_t)fork_trampoline;
-	pcb->pcb_cpu.aim.usr = kernel_pmap->pm_sr[USER_SR];
+	#endif
+	pcb->pcb_cpu.aim.usr_vsid = 0;
+	pcb->pcb_cpu.aim.usr_esid = 0;
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
@@ -209,8 +222,8 @@ cpu_set_fork_handler(td, func, arg)
 {
 	struct	callframe *cf;
 
-	CTR4(KTR_PROC, "%s called with td=%08x func=%08x arg=%08x",
-	    __func__, (u_int)td, (u_int)func, (u_int)arg);
+	CTR4(KTR_PROC, "%s called with td=%p func=%p arg=%p",
+	    __func__, td, func, arg);
 
 	cf = (struct callframe *)td->td_pcb->pcb_sp;
 
@@ -384,7 +397,9 @@ is_physical_memory(addr)
 }
 
 /*
- * Threading functions
+ * CPU threading functions related to the VM layer. These could be used
+ * to map the SLB bits required for the kernel stack instead of forcing a
+ * fixed-size KVA.
  */
 
 void

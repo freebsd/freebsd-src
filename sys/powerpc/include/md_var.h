@@ -33,9 +33,14 @@
  * Miscellaneous machine-dependent declarations.
  */
 
-extern	char	sigcode[];
-extern	char	esigcode[];
-extern	int	szsigcode;
+extern	char	sigcode32[];
+extern	int	szsigcode32;
+
+#ifdef __powerpc64__
+extern	char	sigcode64[];
+extern	int	szsigcode64;
+#endif
+
 extern	long	Maxmem;
 extern	int	busdma_swi_pending;
 

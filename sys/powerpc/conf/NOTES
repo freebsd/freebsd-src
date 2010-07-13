@@ -8,6 +8,8 @@
 #####################################################################
 # CPU OPTIONS
 
+machine		powerpc powerpc
+
 #
 # You must specify at least one CPU (the one you intend to run on).
 cpu		AIM

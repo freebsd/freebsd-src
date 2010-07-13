@@ -92,6 +92,28 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
+#ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32_signal.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+
+typedef struct __ucontext32 {
+	sigset_t		uc_sigmask;
+	mcontext32_t		uc_mcontext;
+	uint32_t		uc_link;
+	struct sigaltstack32    uc_stack;
+	uint32_t		uc_flags;
+	uint32_t		__spare__[4];
+} ucontext32_t;
+
+struct sigframe32 {
+	ucontext32_t		sf_uc;
+	struct siginfo32	sf_si;
+};
+
+static int	grab_mcontext32(struct thread *td, mcontext32_t *, int flags);
+#endif
+
 static int	grab_mcontext(struct thread *, mcontext_t *, int);
 
 void
@@ -102,6 +124,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigframe sf;
 	struct thread *td;
 	struct proc *p;
+	#ifdef COMPAT_FREEBSD32
+	struct siginfo32 siginfo32;
+	struct sigframe32 sf32;
+	#endif
 	size_t sfpsize;
 	caddr_t sfp, usfp;
 	int oonstack, rndfsize;
@@ -129,25 +155,61 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	    tf->cpu.booke.dear : tf->srr0);
 	#endif
 
-	sig = ksi->ksi_signo;
-	code = ksi->ksi_code;
-	sfp = (caddr_t)&sf;
-	sfpsize = sizeof(sf);
-	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
+	#ifdef COMPAT_FREEBSD32
+	if (p->p_sysent->sv_flags & SV_ILP32) {
+		siginfo_to_siginfo32(&ksi->ksi_info, &siginfo32);
+		sig = siginfo32.si_signo;
+		code = siginfo32.si_code;
+		sfp = (caddr_t)&sf32;
+		sfpsize = sizeof(sf32);
+		rndfsize = ((sizeof(sf32) + 15) / 16) * 16;
 
-	/*
-	 * Save user context
-	 */
+		/*
+		 * Save user context
+		 */
 
-	memset(&sf, 0, sizeof(sf));
-	grab_mcontext(td, &sf.sf_uc.uc_mcontext, 0);
+		memset(&sf32, 0, sizeof(sf32));
+		grab_mcontext32(td, &sf32.sf_uc.uc_mcontext, 0);
 
-	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack = td->td_sigstk;
-	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
-	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+		sf32.sf_uc.uc_sigmask = *mask;
+		sf32.sf_uc.uc_stack.ss_sp = (uintptr_t)td->td_sigstk.ss_sp;
+		sf32.sf_uc.uc_stack.ss_size = (uint32_t)td->td_sigstk.ss_size;
+		sf32.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
+		    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 
-	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
+		sf32.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
+	} else {
+	#endif
+		sig = ksi->ksi_signo;
+		code = ksi->ksi_code;
+		sfp = (caddr_t)&sf;
+		sfpsize = sizeof(sf);
+		#ifdef __powerpc64__
+		/*
+		 * 64-bit PPC defines a 288 byte scratch region
+		 * below the stack.
+		 */
+		rndfsize = 288 + ((sizeof(sf) + 47) / 48) * 48;
+		#else
+		rndfsize = ((sizeof(sf) + 15) / 16) * 16;
+		#endif
+
+		/*
+		 * Save user context
+		 */
+
+		memset(&sf, 0, sizeof(sf));
+		grab_mcontext(td, &sf.sf_uc.uc_mcontext, 0);
+
+		sf.sf_uc.uc_sigmask = *mask;
+		sf.sf_uc.uc_stack = td->td_sigstk;
+		sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
+		    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+
+		sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
+	#ifdef COMPAT_FREEBSD32
+	}
+	#endif
 
 	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
 	     catcher, sig);
@@ -187,15 +249,33 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	tf->lr = (register_t)catcher;
 	tf->fixreg[1] = (register_t)usfp;
 	tf->fixreg[FIRSTARG] = sig;
+	#ifdef COMPAT_FREEBSD32
+	tf->fixreg[FIRSTARG+2] = (register_t)usfp +
+	    (p->p_sysent->sv_flags & SV_ILP32) ?
+	    offsetof(struct sigframe32, sf_uc) :
+	    offsetof(struct sigframe, sf_uc);
+	#else
 	tf->fixreg[FIRSTARG+2] = (register_t)usfp +
 	    offsetof(struct sigframe, sf_uc);
+	#endif
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/*
 		 * Signal handler installed with SA_SIGINFO.
 		 */
+		#ifdef COMPAT_FREEBSD32
+		if (p->p_sysent->sv_flags & SV_ILP32) {
+			sf32.sf_si = siginfo32;
+			tf->fixreg[FIRSTARG+1] = (register_t)usfp +
+			    offsetof(struct sigframe32, sf_si);
+			sf32.sf_si = siginfo32;
+		} else  {
+		#endif
 			tf->fixreg[FIRSTARG+1] = (register_t)usfp +
 			    offsetof(struct sigframe, sf_si);
 			sf.sf_si = ksi->ksi_info;
+		#ifdef COMPAT_FREEBSD32
+		}
+		#endif
 	} else {
 		/* Old FreeBSD-style arguments. */
 		tf->fixreg[FIRSTARG+1] = code;
@@ -380,7 +460,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 
 	memcpy(tf, mcp->mc_frame, sizeof(mcp->mc_frame));
 
-	#ifdef AIM
+#ifdef AIM
 	if (mcp->mc_flags & _MC_FP_VALID) {
 		if ((pcb->pcb_flags & PCB_FPU) != PCB_FPU) {
 			critical_enter();
@@ -401,7 +481,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		pcb->pcb_vec.vrsave = mcp->mc_vrsave;
 		memcpy(pcb->pcb_vec.vr, mcp->mc_avec, sizeof(mcp->mc_avec));
 	}
-	#endif
+#endif
 
 	return (0);
 }
@@ -414,10 +494,17 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe	*tf;
 	register_t		argc;
+	#ifdef __powerpc64__
+	register_t		entry_desc[3];
+	#endif
 
 	tf = trapframe(td);
 	bzero(tf, sizeof *tf);
+	#ifdef __powerpc64__
+	tf->fixreg[1] = -roundup(-stack + 48, 16);
+	#else
 	tf->fixreg[1] = -roundup(-stack + 8, 16);
+	#endif
 
 	/*
 	 * Set up arguments for _start():
@@ -452,11 +539,59 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->fixreg[7] = 0;				/* termination vector */
 	tf->fixreg[8] = (register_t)imgp->ps_strings;	/* NetBSD extension */
 
+	#ifdef __powerpc64__
+	/*
+	 * For 64-bit, we need to disentangle the function descriptor
+	 * 
+	 * 0. entry point
+	 * 1. TOC value (r2)
+	 * 2. Environment pointer (r11)
+	 */
+
+	(void)copyin((void *)imgp->entry_addr, entry_desc, sizeof(entry_desc));
+	tf->srr0 = entry_desc[0] + imgp->reloc_base;
+	tf->fixreg[2] = entry_desc[1] + imgp->reloc_base;
+	tf->fixreg[11] = entry_desc[2] + imgp->reloc_base;
+	tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
+	if (mfmsr() & PSL_HV)
+		tf->srr1 |= PSL_HV;
+	#else
 	tf->srr0 = imgp->entry_addr;
 	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
+	#endif
 	td->td_pcb->pcb_flags = 0;
 }
 
+#ifdef COMPAT_FREEBSD32
+void
+ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
+{
+	struct trapframe	*tf;
+	uint32_t		argc;
+
+	tf = trapframe(td);
+	bzero(tf, sizeof *tf);
+	tf->fixreg[1] = -roundup(-stack + 8, 16);
+
+	argc = fuword32((void *)stack);
+
+        td->td_retval[0] = argc;
+        td->td_retval[1] = stack + sizeof(uint32_t);
+	tf->fixreg[3] = argc;
+	tf->fixreg[4] = stack + sizeof(uint32_t);
+	tf->fixreg[5] = stack + (2 + argc)*sizeof(uint32_t);
+	tf->fixreg[6] = 0;				/* auxillary vector */
+	tf->fixreg[7] = 0;				/* termination vector */
+	tf->fixreg[8] = (register_t)imgp->ps_strings;	/* NetBSD extension */
+
+	tf->srr0 = imgp->entry_addr;
+	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+	tf->srr1 &= ~PSL_SF;
+	if (mfmsr() & PSL_HV)
+		tf->srr1 |= PSL_HV;
+	td->td_pcb->pcb_flags = 0;
+}
+#endif
 
 int
 fill_regs(struct thread *td, struct reg *regs)
@@ -524,7 +659,204 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 	return (0);
 }
 
+#ifdef COMPAT_FREEBSD32
+int
+set_regs32(struct thread *td, struct reg32 *regs)
+{
+	struct trapframe *tf;
+	int i;
 
+	tf = td->td_frame;
+	for (i = 0; i < 32; i++)
+		tf->fixreg[i] = regs->fixreg[i];
+	tf->lr = regs->lr;
+	tf->cr = regs->cr;
+	tf->xer = regs->xer;
+	tf->ctr = regs->ctr;
+	tf->srr0 = regs->pc;
+
+	return (0);
+}
+
+int
+fill_regs32(struct thread *td, struct reg32 *regs)
+{
+	struct trapframe *tf;
+	int i;
+
+	tf = td->td_frame;
+	for (i = 0; i < 32; i++)
+		regs->fixreg[i] = tf->fixreg[i];
+	regs->lr = tf->lr;
+	regs->cr = tf->cr;
+	regs->xer = tf->xer;
+	regs->ctr = tf->ctr;
+	regs->pc = tf->srr0;
+
+	return (0);
+}
+
+static int
+grab_mcontext32(struct thread *td, mcontext32_t *mcp, int flags)
+{
+	mcontext_t mcp64;
+	int i, error;
+
+	error = grab_mcontext(td, &mcp64, flags);
+	if (error != 0)
+		return (error);
+	
+	mcp->mc_vers = mcp64.mc_vers;
+	mcp->mc_flags = mcp64.mc_flags;
+	mcp->mc_onstack = mcp64.mc_onstack;
+	mcp->mc_len = mcp64.mc_len;
+	memcpy(mcp->mc_avec,mcp64.mc_avec,sizeof(mcp64.mc_avec));
+	memcpy(mcp->mc_av,mcp64.mc_av,sizeof(mcp64.mc_av));
+	for (i = 0; i < 42; i++)
+		mcp->mc_frame[i] = mcp64.mc_frame[i];
+	memcpy(mcp->mc_fpreg,mcp64.mc_fpreg,sizeof(mcp64.mc_fpreg));
+
+	return (0);
+}
+
+static int
+get_mcontext32(struct thread *td, mcontext32_t *mcp, int flags)
+{
+	int error;
+
+	error = grab_mcontext32(td, mcp, flags);
+	if (error == 0) {
+		PROC_LOCK(curthread->td_proc);
+		mcp->mc_onstack = sigonstack(td->td_frame->fixreg[1]);
+		PROC_UNLOCK(curthread->td_proc);
+	}
+
+	return (error);
+}
+
+static int
+set_mcontext32(struct thread *td, const mcontext32_t *mcp)
+{
+	mcontext_t mcp64;
+	int i, error;
+
+	mcp64.mc_vers = mcp->mc_vers;
+	mcp64.mc_flags = mcp->mc_flags;
+	mcp64.mc_onstack = mcp->mc_onstack;
+	mcp64.mc_len = mcp->mc_len;
+	memcpy(mcp64.mc_avec,mcp->mc_avec,sizeof(mcp64.mc_avec));
+	memcpy(mcp64.mc_av,mcp->mc_av,sizeof(mcp64.mc_av));
+	for (i = 0; i < 42; i++)
+		mcp64.mc_frame[i] = mcp->mc_frame[i];
+	memcpy(mcp64.mc_fpreg,mcp->mc_fpreg,sizeof(mcp64.mc_fpreg));
+
+	error = set_mcontext(td, &mcp64);
+
+	return (error);
+}
+#endif
+
+#ifdef COMPAT_FREEBSD32
+int
+freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
+{
+	ucontext32_t uc;
+	int error;
+
+	CTR2(KTR_SIG, "sigreturn: td=%p ucp=%p", td, uap->sigcntxp);
+
+	if (copyin(uap->sigcntxp, &uc, sizeof(uc)) != 0) {
+		CTR1(KTR_SIG, "sigreturn: efault td=%p", td);
+		return (EFAULT);
+	}
+
+	error = set_mcontext32(td, &uc.uc_mcontext);
+	if (error != 0)
+		return (error);
+
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
+
+	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
+	     td, uc.uc_mcontext.mc_srr0, uc.uc_mcontext.mc_gpr[1]);
+
+	return (EJUSTRETURN);
+}
+
+/*
+ * The first two fields of a ucontext_t are the signal mask and the machine
+ * context.  The next field is uc_link; we want to avoid destroying the link
+ * when copying out contexts.
+ */
+#define	UC32_COPY_SIZE	offsetof(ucontext32_t, uc_link)
+
+int
+freebsd32_getcontext(struct thread *td, struct freebsd32_getcontext_args *uap)
+{
+	ucontext32_t uc;
+	int ret;
+
+	if (uap->ucp == NULL)
+		ret = EINVAL;
+	else {
+		get_mcontext32(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
+		PROC_LOCK(td->td_proc);
+		uc.uc_sigmask = td->td_sigmask;
+		PROC_UNLOCK(td->td_proc);
+		ret = copyout(&uc, uap->ucp, UC32_COPY_SIZE);
+	}
+	return (ret);
+}
+
+int
+freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
+{
+	ucontext32_t uc;
+	int ret;	
+
+	if (uap->ucp == NULL)
+		ret = EINVAL;
+	else {
+		ret = copyin(uap->ucp, &uc, UC32_COPY_SIZE);
+		if (ret == 0) {
+			ret = set_mcontext32(td, &uc.uc_mcontext);
+			if (ret == 0) {
+				kern_sigprocmask(td, SIG_SETMASK,
+				    &uc.uc_sigmask, NULL, 0);
+			}
+		}
+	}
+	return (ret == 0 ? EJUSTRETURN : ret);
+}
+
+int
+freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
+{
+	ucontext32_t uc;
+	int ret;
+
+	if (uap->oucp == NULL || uap->ucp == NULL)
+		ret = EINVAL;
+	else {
+		get_mcontext32(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
+		PROC_LOCK(td->td_proc);
+		uc.uc_sigmask = td->td_sigmask;
+		PROC_UNLOCK(td->td_proc);
+		ret = copyout(&uc, uap->oucp, UC32_COPY_SIZE);
+		if (ret == 0) {
+			ret = copyin(uap->ucp, &uc, UC32_COPY_SIZE);
+			if (ret == 0) {
+				ret = set_mcontext32(td, &uc.uc_mcontext);
+				if (ret == 0) {
+					kern_sigprocmask(td, SIG_SETMASK,
+					    &uc.uc_sigmask, NULL, 0);
+				}
+			}
+		}
+	}
+	return (ret == 0 ? EJUSTRETURN : ret);
+}
+
+#endif
 
 void
 cpu_set_syscall_retval(struct thread *td, int error)
@@ -539,7 +871,8 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	p = td->td_proc;
 	tf = td->td_frame;
 
-	if (tf->fixreg[0] == SYS___syscall) {
+	if (tf->fixreg[0] == SYS___syscall &&
+	    (p->p_sysent->sv_flags & SV_ILP32)) {
 		int code = tf->fixreg[FIRSTARG + 1];
 		if (p->p_sysent->sv_mask)
 			code &= p->p_sysent->sv_mask;
@@ -612,7 +945,10 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	td->td_frame->fixreg[2] = (register_t)tls_base + 0x7008;
+	if (td->td_proc->p_sysent->sv_flags & SV_LP64) 
+		td->td_frame->fixreg[13] = (register_t)tls_base + 0x7010;
+	else
+		td->td_frame->fixreg[2] = (register_t)tls_base + 0x7008;
 	return (0);
 }
 
@@ -643,8 +979,14 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb2->pcb_sp = (register_t)cf;
+	#ifdef __powerpc64__
+	pcb2->pcb_lr = ((register_t *)fork_trampoline)[0];
+	pcb2->pcb_toc = ((register_t *)fork_trampoline)[1];
+	#else
 	pcb2->pcb_lr = (register_t)fork_trampoline;
-	pcb2->pcb_cpu.aim.usr = 0;
+	#endif
+	pcb2->pcb_cpu.aim.usr_vsid = 0;
+	pcb2->pcb_cpu.aim.usr_esid = 0;
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
@@ -660,19 +1002,39 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 
 	tf = td->td_frame;
 	/* align stack and alloc space for frame ptr and saved LR */
+	#ifdef __powerpc64__
+	sp = ((uintptr_t)stack->ss_sp + stack->ss_size - 48) &
+	    ~0x1f;
+	#else
 	sp = ((uintptr_t)stack->ss_sp + stack->ss_size - 8) &
 	    ~0x1f;
+	#endif
 	bzero(tf, sizeof(struct trapframe));
 
 	tf->fixreg[1] = (register_t)sp;
 	tf->fixreg[3] = (register_t)arg;
-	tf->srr0 = (register_t)entry;
-    #ifdef AIM
-	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
-    #else
-	tf->srr1 = PSL_USERSET;
-    #endif
+	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
+		tf->srr0 = (register_t)entry;
+	    #ifdef AIM
+		tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+	    #else
+		tf->srr1 = PSL_USERSET;
+	    #endif
+	} else {
+	    #ifdef __powerpc64__
+		register_t entry_desc[3];
+		(void)copyin((void *)entry, entry_desc, sizeof(entry_desc));
+		tf->srr0 = entry_desc[0];
+		tf->fixreg[2] = entry_desc[1];
+		tf->fixreg[11] = entry_desc[2];
+		tf->srr1 = PSL_SF | PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+	    #endif
+	}
 
+	#ifdef __powerpc64__
+	if (mfmsr() & PSL_HV)
+		tf->srr1 |= PSL_HV;
+	#endif
 	td->td_pcb->pcb_flags = 0;
 
 	td->td_retval[0] = (register_t)entry;
