@@ -131,9 +131,19 @@ _thread_cleanupspecific(void)
 				curthread->specific[key].data = NULL;
 				curthread->specific_data_count--;
 			}
+			else if (curthread->specific[key].data != NULL) {
+				/* 
+				 * This can happen if the key is deleted via
+				 * pthread_key_delete without first setting the value
+				 * to NULL in all threads.  POSIX says that the
+				 * destructor is not invoked in this case.
+				 */
+				curthread->specific[key].data = NULL;
+				curthread->specific_data_count--;
+			}
 
 			/*
-			 * If there is a destructore, call it
+			 * If there is a destructor, call it
 			 * with the key table entry unlocked:
 			 */
 			if (destructor != NULL) {

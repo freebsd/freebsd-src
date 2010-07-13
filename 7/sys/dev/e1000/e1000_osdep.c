@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -41,13 +41,13 @@
  */
 
 void
-e1000_write_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
+e1000_write_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value)
 {
 	pci_write_config(((struct e1000_osdep *)hw->back)->dev, reg, *value, 2);
 }
 
 void
-e1000_read_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
+e1000_read_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value)
 {
 	*value = pci_read_config(((struct e1000_osdep *)hw->back)->dev, reg, 2);
 }
@@ -70,12 +70,26 @@ e1000_pci_clear_mwi(struct e1000_hw *hw)
  * Read the PCI Express capabilities
  */
 int32_t
-e1000_read_pcie_cap_reg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
+e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 {
-	u32	result;
+	device_t dev = ((struct e1000_osdep *)hw->back)->dev;
+	u32	offset;
 
-	pci_find_extcap(((struct e1000_osdep *)hw->back)->dev,
-	    reg, &result);
-	*value = (u16)result;
+	pci_find_extcap(dev, PCIY_EXPRESS, &offset);
+	*value = pci_read_config(dev, offset + reg, 2);
+	return (E1000_SUCCESS);
+}
+
+/*
+ * Write the PCI Express capabilities
+ */
+int32_t
+e1000_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
+{
+	device_t dev = ((struct e1000_osdep *)hw->back)->dev;
+	u32	offset;
+
+	pci_find_extcap(dev, PCIY_EXPRESS, &offset);
+	pci_write_config(dev, offset + reg, *value, 2);
 	return (E1000_SUCCESS);
 }

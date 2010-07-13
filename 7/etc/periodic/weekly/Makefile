@@ -11,7 +11,7 @@ FILES=	340.noid \
 FILES+=	310.locate
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 FILES+=	320.whatis 330.catman
 .endif
 

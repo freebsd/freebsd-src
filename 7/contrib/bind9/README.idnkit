@@ -55,7 +55,7 @@ at least specify `--with-idn' option to enable IDN support.
 
 	`--with-libiconv' assumes that your C compiler has `-R'
 	option, and that the option adds the specified run-time path
-	to an exacutable binary.  If `-R' option of your compiler has
+	to an executable binary.  If `-R' option of your compiler has
 	different meaning, or your compiler lacks the option, you
 	should use `--with-iconv' option instead.  Binary command
 	without run-time path information might be unexecutable.
@@ -68,7 +68,7 @@ at least specify `--with-idn' option to enable IDN support.
 	specified, `--with-iconv' is prior to `--with-libiconv'.
 
     --with-iconv=ICONV_LIBSPEC
-	If your libc doens't provide iconv(), you need to specify the
+	If your libc doesn't provide iconv(), you need to specify the
 	library containing iconv() with this option.  `ICONV_LIBSPEC'
 	is the argument(s) to `cc' or `ld' to link the library, for
 	example, `--with-iconv="-L/usr/local/lib -liconv"'.
@@ -82,7 +82,7 @@ at least specify `--with-idn' option to enable IDN support.
 	this option is not specified, `-L${PREFIX}/lib -lidnkit' is
 	assumed, where ${PREFIX} is the installation prefix specified
 	with `--with-idn' option above.  You may need to use this
-	option to specify extra argments, for example,
+	option to specify extra arguments, for example,
 	`--with-idnlib="-L/usr/local/lib -R/usr/local/lib -lidnkit"'.
 
 Please consult `README' for other configuration options.
@@ -109,4 +109,4 @@ about idnkit and this patch.
 Bug reports and comments on this kit should be sent to
 mdnkit-bugs@nic.ad.jp and idn-cmt@nic.ad.jp, respectively.
 
-; $Id: README.idnkit,v 1.2.2.2 2005/09/12 02:12:08 marka Exp $
+; $Id: README.idnkit,v 1.2.2.3 2009/01/19 00:36:25 marka Exp $

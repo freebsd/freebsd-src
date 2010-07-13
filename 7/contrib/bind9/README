@@ -27,8 +27,8 @@ BIND 9
 		- Improved Portability Architecture
 
 
-	BIND version 9 development has been underwritten by the following
-	organizations:
+	BIND version 9 development has been under written by the following
+	organisations:
 
 		Sun Microsystems, Inc.
 		Hewlett Packard
@@ -41,6 +41,16 @@ BIND 9
 		USENIX Association
 		Stichting NLnet - NLnet Foundation
 		Nominum, Inc.
+
+BIND 9.4-ESV (Extended Support Version)
+
+	BIND 9.4-ESV is the Extended Support Version of BIND 9.4
+	and incorporates the final maintenance release fixing bugs
+	in BIND 9.4.3.
+
+	BIND 9.4-ESV will be supported until December 31, 2010, at
+	which time you will need to upgrade to the current release
+	of BIND.
 
 BIND 9.4.3
 
@@ -67,7 +77,7 @@ BIND 9.4.0
 	Implemented "additional section caching" (or "acache"), an
 	internal cache framework for additional section content to
 	improve response performance.  Several configuration options
-	were provided to control the behavior.
+	were provided to control the behaviour.
 
 	New notify type 'master-only'.  Enable notify for master
 	zones only.
@@ -76,13 +86,14 @@ BIND 9.4.0
 
 	rndc now allows addresses to be set in the server clauses.
 
-	New option "allow-query-cache".  This lets allow-query be
-	used to specify the default zone access level rather than
-	having to have every zone override the global value.
-	allow-query-cache can be set at both the options and view
-	levels. If allow-query-cache is not set then allow-recursion
-	is used if set, otherwise allow-query is used if set, otherwise
-	the default (localhost; localnets;) is used.
+	New option "allow-query-cache".  This lets "allow-query"
+	be used to specify the default zone access level rather
+	than having to have every zone override the global value.
+	"allow-query-cache" can be set at both the options and view
+	levels.  If "allow-query-cache" is not set then "allow-recursion"
+	is used if set, otherwise "allow-query" is used if set
+	unless "recursion no;" is set in which case "none;" is used,
+	otherwise the default (localhost; localnets;) is used.
 
 	rndc: the source address can now be specified.
 
@@ -150,12 +161,12 @@ BIND 9.4.0
 	options for dnssec-signzone specify the input and output
 	formats.
 
-	dnssec-signzone can now randomize signature end times
+	dnssec-signzone can now randomise signature end times
 	(dnssec-signzone -j jitter).
 
 	Add support for CH A record.
 
-	Add additional zone data consistancy checks.  named-checkzone
+	Add additional zone data consistency checks.  named-checkzone
 	has extended checking of NS, MX and SRV record and the hosts
 	they reference.  named has extended post zone load checks.
 	New zone options: check-mx and integrity-check.

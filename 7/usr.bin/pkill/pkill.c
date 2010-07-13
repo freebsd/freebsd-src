@@ -180,7 +180,8 @@ main(int argc, char **argv)
 	debug_opt = 0;
 	pidfile = NULL;
 	pidfilelock = 0;
-	execf = coref = _PATH_DEVNULL;
+	execf = NULL;
+	coref = _PATH_DEVNULL;
 
 	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:ad:fg:ij:lnos:t:u:vx")) != -1)
 		switch (ch) {

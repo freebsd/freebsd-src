@@ -114,6 +114,10 @@ struct	nfsmount {
 #define NFS_TPRINTF_DELAY               30
 #endif
 
+#ifndef NFS_DEFAULT_NEGNAMETIMEO
+#define NFS_DEFAULT_NEGNAMETIMEO	60
+#endif
+
 #endif
 
 #endif

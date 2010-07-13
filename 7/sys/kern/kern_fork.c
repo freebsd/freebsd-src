@@ -294,7 +294,7 @@ norfproc_fail:
 #ifdef MAC
 	mac_init_proc(newproc);
 #endif
-	knlist_init(&newproc->p_klist, &newproc->p_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
 	STAILQ_INIT(&newproc->p_ktr);
 
 	/* We have to lock the process tree while we look for a pid. */

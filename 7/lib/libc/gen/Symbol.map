@@ -341,6 +341,10 @@ FBSD_1.1 {
 	semctl;
 };
 
+FBSD_1.2 {
+	getpagesizes;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;

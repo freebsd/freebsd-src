@@ -33,7 +33,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _NFS_NFS_COMMON_H_
 #define _NFS_NFS_COMMON_H_
 
@@ -86,7 +85,7 @@ do { \
 		goto nfsmout; \
 	} \
 } while (0)
-		
+
 #define	nfsm_dissect(c, s) \
 ({ \
 	void *ret; \

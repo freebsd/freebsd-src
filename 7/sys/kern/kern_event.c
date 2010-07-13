@@ -206,11 +206,13 @@ SYSCTL_INT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 } while (0)
 #ifdef INVARIANTS
 #define	KNL_ASSERT_LOCKED(knl) do {					\
-	if (!knl->kl_locked((knl)->kl_lockarg))				\
+	if (knl->kl_locked != NULL &&					\
+	    !knl->kl_locked((knl)->kl_lockarg))				\
 			panic("knlist not locked, but should be");	\
 } while (0)
 #define	KNL_ASSERT_UNLOCKED(knl) do {				\
-	if (knl->kl_locked((knl)->kl_lockarg))				\
+	if (knl->kl_locked != NULL &&					\
+	    knl->kl_locked((knl)->kl_lockarg))				\
 		panic("knlist locked, but should not be");		\
 } while (0)
 #else /* !INVARIANTS */
@@ -321,8 +323,10 @@ filt_procattach(struct knote *kn)
 
 	if (p == NULL)
 		return (ESRCH);
-	if ((error = p_cansee(curthread, p)))
+	if ((error = p_cansee(curthread, p))) {
+		PROC_UNLOCK(p);
 		return (error);
+	}
 
 	kn->kn_ptr.p_proc = p;
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
@@ -576,7 +580,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
 	TAILQ_INIT(&kq->kq_head);
 	kq->kq_fdp = fdp;
-	knlist_init(&kq->kq_sel.si_note, &kq->kq_lock, NULL, NULL, NULL);
+	knlist_init_mtx(&kq->kq_sel.si_note, &kq->kq_lock);
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
 	FILEDESC_XLOCK(fdp);
@@ -1106,7 +1110,7 @@ static int
 kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 	int waitok)
 {
-	struct klist *list, *tmp_knhash;
+	struct klist *list, *tmp_knhash, *to_free;
 	u_long tmp_knhashmask;
 	int size;
 	int fd;
@@ -1114,6 +1118,7 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 
 	KQ_NOTOWNED(kq);
 
+	to_free = NULL;
 	if (fops->f_isfd) {
 		fd = ident;
 		if (kq->kq_knlistsize <= fd) {
@@ -1126,13 +1131,13 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 				return ENOMEM;
 			KQ_LOCK(kq);
 			if (kq->kq_knlistsize > fd) {
-				FREE(list, M_KQUEUE);
+				to_free = list;
 				list = NULL;
 			} else {
 				if (kq->kq_knlist != NULL) {
 					bcopy(kq->kq_knlist, list,
 					    kq->kq_knlistsize * sizeof list);
-					FREE(kq->kq_knlist, M_KQUEUE);
+					to_free = kq->kq_knlist;
 					kq->kq_knlist = NULL;
 				}
 				bzero((caddr_t)list +
@@ -1154,11 +1159,12 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 				kq->kq_knhash = tmp_knhash;
 				kq->kq_knhashmask = tmp_knhashmask;
 			} else {
-				free(tmp_knhash, M_KQUEUE);
+				to_free = tmp_knhash;
 			}
 			KQ_UNLOCK(kq);
 		}
 	}
+	free(to_free, M_KQUEUE);
 
 	KQ_NOTOWNED(kq);
 	return 0;
@@ -1774,12 +1780,19 @@ knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
 		knl->kl_unlock = knlist_mtx_unlock;
 	else
 		knl->kl_unlock = kl_unlock;
-	if (kl_locked == NULL)
+	if (kl_locked == NULL && kl_lock == NULL && kl_unlock == NULL)
 		knl->kl_locked = knlist_mtx_locked;
 	else
 		knl->kl_locked = kl_locked;
 
 	SLIST_INIT(&knl->kl_list);
+}
+
+void
+knlist_init_mtx(struct knlist *knl, struct mtx *lock)
+{
+
+	knlist_init(knl, lock, NULL, NULL, NULL);
 }
 
 void

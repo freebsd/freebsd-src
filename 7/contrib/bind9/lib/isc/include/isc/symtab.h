@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1996-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: symtab.h,v 1.17.18.4 2006/03/02 00:37:22 marka Exp $ */
+/* $Id: symtab.h,v 1.17.18.6 2009/01/19 23:46:16 tbox Exp $ */
 
 #ifndef ISC_SYMTAB_H
 #define ISC_SYMTAB_H 1
@@ -27,7 +27,7 @@
 /*! \file
  * \brief Provides a simple memory-based symbol table.
  *
- * Keys are C strings, and key comparisons are case-insenstive.  A type may
+ * Keys are C strings, and key comparisons are case-insensitive.  A type may
  * be specified when looking up, defining, or undefining.  A type value of
  * 0 means "match any type"; any other value will only match the given
  * type.

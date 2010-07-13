@@ -33,11 +33,12 @@ manext = 1
 .c.o:
 	${CC} -I. ${CFLAGS_COMPILE_ONLY} -DBINDIR=\"${bindir}\" -DSYSDIR=\"${sysconfdir}\" ${CPPFLAGS} ${CFLAGS} $<
 
-OBJ =	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
-	command.${O} decode.${O} edit.${O} filename.${O} forwback.${O} \
+OBJ = \
+	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
+	command.${O} cvt.${O} decode.${O} edit.${O} filename.${O} forwback.${O} \
 	help.${O} ifile.${O} input.${O} jump.${O} line.${O} linenum.${O} \
 	lsystem.${O} mark.${O} optfunc.${O} option.${O} opttbl.${O} os.${O} \
-	output.${O} position.${O} prompt.${O} search.${O} signal.${O} \
+	output.${O} pattern.${O} position.${O} prompt.${O} search.${O} signal.${O} \
 	tags.${O} ttyin.${O} version.${O}
 
 all: less lesskey lessecho

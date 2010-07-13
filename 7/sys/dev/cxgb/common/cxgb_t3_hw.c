@@ -192,6 +192,62 @@ int t3_mc7_bd_read(struct mc7 *mc7, unsigned int start, unsigned int n,
 }
 
 /*
+ * Low-level I2C read and write routines.  These simply read and write a
+ * single byte with the option of indicating a "continue" if another operation
+ * is to be chained.  Generally most code will use higher-level routines to
+ * read and write to I2C Slave Devices.
+ */
+#define I2C_ATTEMPTS 100
+
+/*
+ * Read an 8-bit value from the I2C bus.  If the "chained" parameter is
+ * non-zero then a STOP bit will not be written after the read command.  On
+ * error (the read timed out, etc.), a negative errno will be returned (e.g.
+ * -EAGAIN, etc.).  On success, the 8-bit value read from the I2C bus is
+ * stored into the buffer *valp and the value of the I2C ACK bit is returned
+ * as a 0/1 value.
+ */
+int t3_i2c_read8(adapter_t *adapter, int chained, u8 *valp)
+{
+	int ret;
+	u32 opval;
+	MDIO_LOCK(adapter);
+	t3_write_reg(adapter, A_I2C_OP,
+		     F_I2C_READ | (chained ? F_I2C_CONT : 0));
+	ret = t3_wait_op_done_val(adapter, A_I2C_OP, F_I2C_BUSY, 0,
+				  I2C_ATTEMPTS, 10, &opval);
+	if (ret >= 0) {
+		ret = ((opval & F_I2C_ACK) == F_I2C_ACK);
+		*valp = G_I2C_DATA(t3_read_reg(adapter, A_I2C_DATA));
+	}
+	MDIO_UNLOCK(adapter);
+	return ret;
+}
+
+/*
+ * Write an 8-bit value to the I2C bus.  If the "chained" parameter is
+ * non-zero, then a STOP bit will not be written after the write command.  On
+ * error (the write timed out, etc.), a negative errno will be returned (e.g.
+ * -EAGAIN, etc.).  On success, the value of the I2C ACK bit is returned as a
+ * 0/1 value.
+ */
+int t3_i2c_write8(adapter_t *adapter, int chained, u8 val)
+{
+	int ret;
+	u32 opval;
+	MDIO_LOCK(adapter);
+	t3_write_reg(adapter, A_I2C_DATA, V_I2C_DATA(val));
+	t3_write_reg(adapter, A_I2C_OP,
+		     F_I2C_WRITE | (chained ? F_I2C_CONT : 0));
+	ret = t3_wait_op_done_val(adapter, A_I2C_OP, F_I2C_BUSY, 0,
+				  I2C_ATTEMPTS, 10, &opval);
+	if (ret >= 0)
+		ret = ((opval & F_I2C_ACK) == F_I2C_ACK);
+	MDIO_UNLOCK(adapter);
+	return ret;
+}
+
+/*
  * Initialize MI1.
  */
 static void mi1_init(adapter_t *adap, const struct adapter_info *ai)
@@ -518,7 +574,12 @@ static struct adapter_info t3_adap_info[] = {
 	  F_GPIO1_OEN | F_GPIO2_OEN | F_GPIO4_OEN | F_GPIO6_OEN | F_GPIO7_OEN |
 	  F_GPIO10_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
 	  { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
-	  &mi1_mdio_ext_ops, "Chelsio N310" }
+	  &mi1_mdio_ext_ops, "Chelsio T310" },
+	{ 1, 0, 0,
+	  F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN | 
+	  F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL,
+	  { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
+	  &mi1_mdio_ext_ops, "Chelsio N320E-G2" },
 };
 
 /*
@@ -531,7 +592,7 @@ const struct adapter_info *t3_get_adapter_info(unsigned int id)
 }
 
 struct port_type_info {
-	int (*phy_prep)(struct cphy *phy, adapter_t *adapter, int phy_addr,
+	int (*phy_prep)(pinfo_t *pinfo, int phy_addr,
 			const struct mdio_ops *ops);
 };
 
@@ -545,6 +606,8 @@ static struct port_type_info port_types[] = {
 	{ t3_qt2045_phy_prep },
 	{ t3_ael1006_phy_prep },
 	{ t3_tn1010_phy_prep },
+	{ t3_aq100x_phy_prep },
+	{ t3_ael2020_phy_prep },
 };
 
 #define VPD_ENTRY(name, len) \
@@ -671,6 +734,125 @@ static unsigned int hex2int(unsigned char c)
 {
 	return isdigit(c) ? c - '0' : toupper(c) - 'A' + 10;
 }
+
+/**
+ * 	get_desc_len - get the length of a vpd descriptor.
+ *	@adapter: the adapter
+ *	@offset: first byte offset of the vpd descriptor
+ *
+ *	Retrieves the length of the small/large resource
+ *	data type starting at offset.
+ */
+static int get_desc_len(adapter_t *adapter, u32 offset)
+{
+	u32 read_offset, tmp, shift, len = 0;
+	u8 tag, buf[8];
+	int ret;
+
+	read_offset = offset & 0xfffffffc;
+	shift = offset & 0x03;
+
+	ret = t3_seeprom_read(adapter, read_offset, &tmp);
+	if (ret < 0)
+		return ret;
+
+	*((u32 *)buf) = cpu_to_le32(tmp);
+
+	tag = buf[shift];
+	if (tag & 0x80) {
+		ret = t3_seeprom_read(adapter, read_offset + 4, &tmp);
+		if (ret < 0)
+			return ret;
+
+		*((u32 *)(&buf[4])) = cpu_to_le32(tmp);
+		len = (buf[shift + 1] & 0xff) +
+		      ((buf[shift+2] << 8) & 0xff00) + 3;
+	} else
+		len = (tag & 0x07) + 1;
+
+	return len;
+}
+
+/**
+ *	is_end_tag - Check if a vpd tag is the end tag.
+ *	@adapter: the adapter
+ *	@offset: first byte offset of the tag
+ *
+ *	Checks if the tag located at offset is the end tag.
+ */
+static int is_end_tag(adapter_t * adapter, u32 offset)
+{
+	u32 read_offset, shift, ret, tmp;
+	u8 buf[4];
+
+	read_offset = offset & 0xfffffffc;
+	shift = offset & 0x03;
+
+	ret = t3_seeprom_read(adapter, read_offset, &tmp);
+	if (ret)
+		return ret;
+	*((u32 *)buf) = cpu_to_le32(tmp);
+
+	if (buf[shift] == 0x78)
+		return 1;
+	else
+		return 0;
+}
+
+/**
+ *	t3_get_vpd_len - computes the length of a vpd structure
+ *	@adapter: the adapter
+ *	@vpd: contains the offset of first byte of vpd
+ *
+ *	Computes the lentgh of the vpd structure starting at vpd->offset.
+ */
+
+int t3_get_vpd_len(adapter_t * adapter, struct generic_vpd *vpd)
+{
+	u32 len=0, offset;
+	int inc, ret;
+
+	offset = vpd->offset;
+
+	while (offset < (vpd->offset + MAX_VPD_BYTES)) {
+		ret = is_end_tag(adapter, offset);
+		if (ret < 0)
+			return ret;
+		else if (ret == 1)
+			break;
+
+		inc = get_desc_len(adapter, offset);
+		if (inc < 0)
+			return inc;
+		len += inc;
+		offset += inc;
+	}
+	return (len + 1);
+}
+
+/**
+ *	t3_read_vpd - reads the stream of bytes containing a vpd structure
+ *	@adapter: the adapter
+ *	@vpd: contains a buffer that would hold the stream of bytes
+ *
+ *	Reads the vpd structure starting at vpd->offset into vpd->data,
+ *	the length of the byte stream to read is vpd->len.
+ */
+
+int t3_read_vpd(adapter_t *adapter, struct generic_vpd *vpd)
+{
+	u32 i, ret;
+
+	for (i = 0; i < vpd->len; i += 4) {
+		ret = t3_seeprom_read(adapter, vpd->offset + i,
+				      (u32 *) &(vpd->data[i]));
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 
 /**
  *	get_vpd_params - read VPD parameters from VPD EEPROM
@@ -1316,11 +1498,6 @@ static void t3_clear_faults(adapter_t *adapter, int port_id)
 	struct port_info *pi = adap2pinfo(adapter, port_id);
 	struct cmac *mac = &pi->mac;
 
-	t3_set_reg_field(adapter, A_XGM_TXFIFO_CFG + mac->offset,
-			 F_ENDROPPKT, 0);
-	t3_mac_enable(mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
-	t3_set_reg_field(adapter, A_XGM_STAT_CTRL + mac->offset, F_CLRSTATS, 1);
-
 	if (adapter->params.nports <= 2) {
 		t3_xgm_intr_disable(adapter, pi->port_id);
 		t3_read_reg(adapter, A_XGM_INT_STATUS + mac->offset);
@@ -1342,7 +1519,7 @@ static void t3_clear_faults(adapter_t *adapter, int port_id)
  */
 void t3_link_changed(adapter_t *adapter, int port_id)
 {
-	int link_ok, speed, duplex, fc, link_fault, link_change;
+	int link_ok, speed, duplex, fc, link_fault;
 	struct port_info *pi = adap2pinfo(adapter, port_id);
 	struct cphy *phy = &pi->phy;
 	struct cmac *mac = &pi->mac;
@@ -1355,6 +1532,16 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 	link_fault = 0;
 
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
+
+	if (lc->requested_fc & PAUSE_AUTONEG)
+		fc &= lc->requested_fc;
+	else
+		fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
+
+	/* Update mac speed before checking for link fault. */
+	if (link_ok && speed >= 0 && lc->autoneg == AUTONEG_ENABLE &&
+	    (speed != lc->speed || duplex != lc->duplex || fc != lc->fc))
+		t3_mac_set_speed_duplex_fc(mac, speed, duplex, fc);
 
 	/*
 	 * Check for link faults if any of these is true:
@@ -1371,11 +1558,8 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 				pi->link_fault = LF_YES;
 			}
 
-			/* Don't report link up or any other change */
+			/* Don't report link up */
 			link_ok = 0;
-			speed = lc->speed;
-			duplex = lc->duplex;
-			fc = lc->fc;
 		} else {
 			/* clear faults here if this was a false alarm. */
 			if (pi->link_fault == LF_MAYBE &&
@@ -1386,37 +1570,29 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 		}
 	}
 
-	if (lc->requested_fc & PAUSE_AUTONEG)
-		fc &= lc->requested_fc;
-	else
-		fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
-
 	if (link_ok == lc->link_ok && speed == lc->speed &&
 	    duplex == lc->duplex && fc == lc->fc)
 		return;                            /* nothing changed */
 
-	link_change = link_ok != lc->link_ok;
 	lc->link_ok = (unsigned char)link_ok;
 	lc->speed = speed < 0 ? SPEED_INVALID : speed;
 	lc->duplex = duplex < 0 ? DUPLEX_INVALID : duplex;
+	lc->fc = fc;
 
 	if (link_ok) {
 
 		/* down -> up, or up -> up with changed settings */
 
-		if (link_change && adapter->params.rev > 0 &&
-		    uses_xaui(adapter)) {
-			t3b_pcs_reset(mac);
+		if (adapter->params.rev > 0 && uses_xaui(adapter)) {
 			t3_write_reg(adapter, A_XGM_XAUI_ACT_CTRL + mac->offset,
 				     F_TXACTENABLE | F_RXEN);
 		}
 
-		if (speed >= 0 && lc->autoneg == AUTONEG_ENABLE) {
-			/* Set MAC settings to match PHY. */
-			t3_mac_set_speed_duplex_fc(mac, speed, duplex, fc);
-			lc->fc = (unsigned char)fc;
-		}
-
+		t3_set_reg_field(adapter, A_XGM_TXFIFO_CFG + mac->offset,
+				 F_ENDROPPKT, 0);
+		t3_mac_enable(mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
+		t3_set_reg_field(adapter, A_XGM_STAT_CTRL + mac->offset,
+				 F_CLRSTATS, 1);
 		t3_clear_faults(adapter, port_id);
 
 	} else {
@@ -1453,7 +1629,9 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 		t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, F_RXEN);
 	}
 
-	t3_os_link_changed(adapter, port_id, link_ok, speed, duplex, fc);
+	t3_os_link_changed(adapter, port_id, link_ok, speed, duplex, fc,
+	    mac->was_reset);
+	mac->was_reset = 0;
 }
 
 /**
@@ -1481,6 +1659,7 @@ int t3_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc)
 			if (fc & PAUSE_RX)
 				lc->advertising |= ADVERTISED_Pause;
 		}
+
 		phy->ops->advertise(phy, lc->advertising);
 
 		if (lc->autoneg == AUTONEG_DISABLE) {
@@ -1493,7 +1672,7 @@ int t3_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc)
 			phy->ops->set_speed_duplex(phy, lc->speed, lc->duplex);
 			/* PR 5666. Power phy up when doing an ifup */
 			if (!is_10G(phy->adapter))
-                                phy->ops->power_down(phy, 0);
+				phy->ops->power_down(phy, 0);
 		} else
 			phy->ops->autoneg_enable(phy);
 	} else {
@@ -2025,6 +2204,10 @@ int t3_phy_intr_handler(adapter_t *adapter)
 				p->phy.fifo_errors++;
 			if (phy_cause & cphy_cause_module_change)
 				t3_os_phymod_changed(adapter, i);
+			if (phy_cause & cphy_cause_alarm)
+				CH_WARN(adapter, "Operation affected due to "
+				    "adverse environment.  Check the spec "
+				    "sheet for corrective action.");
 		}
 	}
 
@@ -3876,7 +4059,7 @@ static void config_pcie(adapter_t *adap)
 		{ 201, 321, 258, 450, 834, 1602 }
 	};
 
-	u16 val;
+	u16 val, devid;
 	unsigned int log2_width, pldsize;
 	unsigned int fst_trn_rx, fst_trn_tx, acklat, rpllmt;
 
@@ -3884,6 +4067,18 @@ static void config_pcie(adapter_t *adap)
 				adap->params.pci.pcie_cap_addr + PCI_EXP_DEVCTL,
 				&val);
 	pldsize = (val & PCI_EXP_DEVCTL_PAYLOAD) >> 5;
+
+	/*
+	 * Gen2 adapter pcie bridge compatibility requires minimum
+	 * Max_Read_Request_size
+	 */
+	t3_os_pci_read_config_2(adap, 0x2, &devid);
+	if (devid == 0x37) {
+		t3_os_pci_write_config_2(adap,
+		    adap->params.pci.pcie_cap_addr + PCI_EXP_DEVCTL,
+		    val & ~PCI_EXP_DEVCTL_READRQ & ~PCI_EXP_DEVCTL_PAYLOAD);
+		pldsize = 0;
+	}
 
 	t3_os_pci_read_config_2(adap,
 				adap->params.pci.pcie_cap_addr + PCI_EXP_LNKCTL,
@@ -3939,7 +4134,7 @@ int t3_init_hw(adapter_t *adapter, u32 fw_params)
 		goto out_err;
 
 	if (adapter->params.nports > 2)
-		t3_mac_reset(&adap2pinfo(adapter, 0)->mac);
+		t3_mac_init(&adap2pinfo(adapter, 0)->mac);
 
 	if (vpd->mclk) {
 		partition_mem(adapter, &adapter->params.tp);
@@ -4103,14 +4298,24 @@ static void __devinit mc7_prep(adapter_t *adapter, struct mc7 *mc7,
 
 void mac_prep(struct cmac *mac, adapter_t *adapter, int index)
 {
+	u16 devid;
+
 	mac->adapter = adapter;
 	mac->multiport = adapter->params.nports > 2;
 	if (mac->multiport) {
 		mac->ext_port = (unsigned char)index;
 		mac->nucast = 8;
-		index = 0;
 	} else
 		mac->nucast = 1;
+
+	/* Gen2 adapter uses VPD xauicfg[] to notify driver which MAC
+	   is connected to each port, its suppose to be using xgmac0 for both ports
+	 */
+	t3_os_pci_read_config_2(adapter, 0x2, &devid);
+
+	if (mac->multiport ||
+		(!adapter->params.vpd.xauicfg[1] && (devid==0x37)))
+			index  = 0;
 
 	mac->offset = (XGMAC0_1_BASE_ADDR - XGMAC0_0_BASE_ADDR) * index;
 
@@ -4243,7 +4448,7 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 
 	adapter->params.info = ai;
 	adapter->params.nports = ai->nports0 + ai->nports1;
-	adapter->params.chan_map = !!ai->nports0 | (!!ai->nports1 << 1);
+	adapter->params.chan_map = (!!ai->nports0) | (!!ai->nports1 << 1);
 	adapter->params.rev = t3_read_reg(adapter, A_PL_REV);
 
 	/*
@@ -4341,7 +4546,7 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 			if (j >= ARRAY_SIZE(adapter->params.vpd.port_type))
 				return -EINVAL;
 		}
-		ret = pti->phy_prep(&p->phy, adapter, ai->phy_base_addr + j,
+		ret = pti->phy_prep(p, ai->phy_base_addr + j,
 				    ai->mdio_ops);
 		if (ret)
 			return ret;
@@ -4413,7 +4618,7 @@ int t3_reinit_adapter(adapter_t *adap)
 			if (j >= ARRAY_SIZE(adap->params.vpd.port_type))
 				return -EINVAL;
 		}
-		ret = pti->phy_prep(&p->phy, adap, p->phy.addr, NULL);
+		ret = pti->phy_prep(p, p->phy.addr, NULL);
 		if (ret)
 			return ret;
 		p->phy.ops->power_down(&p->phy, 1);

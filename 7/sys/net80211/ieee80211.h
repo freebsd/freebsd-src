@@ -531,10 +531,10 @@ struct ieee80211_ie_htcap {
 #define	IEEE80211_HTCAP_LDPC		0x0001	/* LDPC supported */
 #define	IEEE80211_HTCAP_CHWIDTH40	0x0002	/* 20/40 supported */
 #define	IEEE80211_HTCAP_SMPS		0x000c	/* SM Power Save mode */
-#define	IEEE80211_HTCAP_SMPS_OFF	0x0000	/* none (static mode) */
+#define	IEEE80211_HTCAP_SMPS_OFF	0x000c	/* disabled */
 #define	IEEE80211_HTCAP_SMPS_DYNAMIC	0x0004	/* send RTS first */
 /* NB: SMPS value 2 is reserved */
-#define	IEEE80211_HTCAP_SMPS_ENA	0x000c	/* enabled */
+#define	IEEE80211_HTCAP_SMPS_ENA	0x0000	/* enabled (static mode) */
 #define	IEEE80211_HTCAP_GREENFIELD	0x0010	/* Greenfield supported */
 #define	IEEE80211_HTCAP_SHORTGI20	0x0020	/* Short GI in 20MHz */
 #define	IEEE80211_HTCAP_SHORTGI40	0x0040	/* Short GI in 40MHz */

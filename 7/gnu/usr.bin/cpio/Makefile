@@ -25,6 +25,7 @@ SRCS=   copyin.c \
 	argp-fs-xinl.c \
 	argp-help.c \
 	argp-parse.c \
+	argp-pin.c \
 	argp-pv.c \
 	argp-pvh.c \
 	argp-xinl.c \
@@ -32,10 +33,17 @@ SRCS=   copyin.c \
 	dirname.c \
 	error.c \
 	exitfail.c \
+	fatal.c \
 	full-write.c \
 	getopt.c \
 	getopt1.c \
+	hash.c \
 	mempcpy.c \
+	paxerror.c \
+	paxexit.c \
+	paxnames.c \
+	quote.c \
+	quotearg.c \
 	rtapelib.c \
 	safe-read.c \
 	safe-write.c \
@@ -43,8 +51,11 @@ SRCS=   copyin.c \
 	stripslash.c \
 	strndup.c \
 	strnlen.c \
+	umaxtostr.c \
+	utimens.c \
 	xalloc-die.c \
 	xmalloc.c \
+	xstrndup.c \
 	alloca.h \
 	getopt.h
 
@@ -56,7 +67,7 @@ getopt.h: getopt_.h
 alloca.h: alloca_.h
 	ln -fs ${.ALLSRC} ${.TARGET}
 
-CFLAGS+=-I${.OBJDIR} -I${.CURDIR} -I${CPIODIR}/lib -DHAVE_CONFIG_H \
-	-DHAVE_MKFIFO -DHAVE_SETLOCALE -DHAVE_LSTAT
+CFLAGS+=-I${.OBJDIR} -I${.CURDIR} -I${CPIODIR}/lib -I${CPIODIR}/src \
+	-DHAVE_CONFIG_H -DHAVE_MKFIFO -DHAVE_SETLOCALE -DHAVE_LSTAT
 
 .include <bsd.prog.mk>

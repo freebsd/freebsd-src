@@ -364,8 +364,7 @@ acpi_ec_probe(device_t dev)
     if (params != NULL) {
 	ecdt = 1;
 	ret = 0;
-    } else if (!acpi_disabled("ec") &&
-	ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
+    } else if (ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
 	params = malloc(sizeof(struct acpi_ec_params), M_TEMP,
 			M_WAITOK | M_ZERO);
 	h = acpi_get_handle(dev);
@@ -467,6 +466,7 @@ acpi_ec_attach(device_t dev)
     sc->ec_gpehandle = params->gpe_handle;
     sc->ec_uid = params->uid;
     sc->ec_suspending = FALSE;
+    acpi_set_private(dev, NULL);
     free(params, M_TEMP);
 
     /* Attach bus resources for data and command/status ports. */

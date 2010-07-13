@@ -1,8 +1,8 @@
 /*
- * Portions Copyright (C) 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2005, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dlz.h,v 1.2.2.2 2005/09/06 03:47:18 marka Exp $ */
+/* $Id: dlz.h,v 1.2.2.4 2009/01/19 23:46:15 tbox Exp $ */
 
 /*! \file */
 
@@ -133,7 +133,7 @@ typedef void
 /*%<
  * Method prototype.  Drivers implementing the DLZ interface MUST
  * supply a destroy method.  This method is called when the DNS server
- * is shuting down and no longer needs the driver.
+ * is shutting down and no longer needs the driver.
  */
 
 typedef isc_result_t
@@ -157,7 +157,7 @@ typedef isc_result_t
  * \li	3) we run out of domain name labels. I.E. we have tried the
  *	   shortest domain name
  * \li	4) the number of labels in the domain name is less than
- *	   min_lables for dns_dlzfindzone
+ *	   min_labels for dns_dlzfindzone
  *
  * The driver's find zone method should return ISC_R_SUCCESS and a
  * database pointer to the name server if the zone is supported by the
@@ -202,7 +202,7 @@ dns_dlzallowzonexfr(dns_view_t *view, dns_name_t *name,
 
 /*%<
  * This method is called when the DNS server is performing a zone
- * transfer query.  It will call the DLZ driver's allow zone tranfer
+ * transfer query.  It will call the DLZ driver's allow zone transfer
  * method.
  */
 
@@ -223,7 +223,7 @@ void
 dns_dlzdestroy(dns_dlzdb_t **dbp);
 
 /*%<
- * This method is called when the DNS server is shuting down and no
+ * This method is called when the DNS server is shutting down and no
  * longer needs the driver.  If the DLZ driver supplies a destroy
  * methods, this function will call it.
  */

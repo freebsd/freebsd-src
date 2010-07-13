@@ -1,5 +1,5 @@
 /* Error handler for noninteractive utilities
-   Copyright (C) 1990-1998, 2000-2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 1990-1998, 2000-2005, 2006 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    This program is free software; you can redistribute it and/or modify
@@ -14,11 +14,11 @@
 
    You should have received a copy of the GNU General Public License along
    with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Written by David MacKenzie <djm@gnu.ai.mit.edu>.  */
 
-#ifdef HAVE_CONFIG_H
+#if !_LIBC
 # include <config.h>
 #endif
 
@@ -29,13 +29,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _LIBC
-# include <libintl.h>
-#else
+#if !_LIBC && ENABLE_NLS
 # include "gettext.h"
 #endif
 
 #ifdef _LIBC
+# include <libintl.h>
+# include <stdbool.h>
+# include <stdint.h>
 # include <wchar.h>
 # define mbsrtowcs __mbsrtowcs
 #endif
@@ -61,6 +62,7 @@ unsigned int error_message_count;
 
 # define program_name program_invocation_name
 # include <errno.h>
+# include <limits.h>
 # include <libio/libioP.h>
 
 /* In GNU libc we want do not want to use the common name `error' directly.
@@ -90,23 +92,19 @@ extern void __error_at_line (int status, int errnum, const char *file_name,
 char *strerror_r ();
 # endif
 
-# ifndef SIZE_MAX
-#  define SIZE_MAX ((size_t) -1)
-# endif
-
 /* The calling program should define program_name and set it to the
    name of the executing program.  */
 extern char *program_name;
 
 # if HAVE_STRERROR_R || defined strerror_r
 #  define __strerror_r strerror_r
-# endif
+# endif	/* HAVE_STRERROR_R || defined strerror_r */
 #endif	/* not _LIBC */
 
 static void
 print_errno_message (int errnum)
 {
-  char const *s = NULL;
+  char const *s;
 
 #if defined HAVE_STRERROR_R || _LIBC
   char errbuf[1024];
@@ -115,23 +113,23 @@ print_errno_message (int errnum)
 # else
   if (__strerror_r (errnum, errbuf, sizeof errbuf) == 0)
     s = errbuf;
+  else
+    s = 0;
 # endif
+#else
+  s = strerror (errnum);
 #endif
 
 #if !_LIBC
-  if (! s && ! (s = strerror (errnum)))
+  if (! s)
     s = _("Unknown system error");
 #endif
 
 #if _LIBC
-  if (_IO_fwide (stderr, 0) > 0)
-    {
-      __fwprintf (stderr, L": %s", s);
-      return;
-    }
-#endif
-
+  __fxprintf (NULL, ": %s", s);
+#else
   fprintf (stderr, ": %s", s);
+#endif
 }
 
 static void
@@ -142,26 +140,65 @@ error_tail (int status, int errnum, const char *message, va_list args)
     {
 # define ALLOCA_LIMIT 2000
       size_t len = strlen (message) + 1;
-      const wchar_t *wmessage = L"out of memory";
-      wchar_t *wbuf = (len < ALLOCA_LIMIT
-		       ? alloca (len * sizeof *wbuf)
-		       : len <= SIZE_MAX / sizeof *wbuf
-		       ? malloc (len * sizeof *wbuf)
-		       : NULL);
+      wchar_t *wmessage = NULL;
+      mbstate_t st;
+      size_t res;
+      const char *tmp;
+      bool use_malloc = false;
 
-      if (wbuf)
+      while (1)
 	{
-	  size_t res;
-	  mbstate_t st;
-	  const char *tmp = message;
+	  if (__libc_use_alloca (len * sizeof (wchar_t)))
+	    wmessage = (wchar_t *) alloca (len * sizeof (wchar_t));
+	  else
+	    {
+	      if (!use_malloc)
+		wmessage = NULL;
+
+	      wchar_t *p = (wchar_t *) realloc (wmessage,
+						len * sizeof (wchar_t));
+	      if (p == NULL)
+		{
+		  free (wmessage);
+		  fputws_unlocked (L"out of memory\n", stderr);
+		  return;
+		}
+	      wmessage = p;
+	      use_malloc = true;
+	    }
+
 	  memset (&st, '\0', sizeof (st));
-	  res = mbsrtowcs (wbuf, &tmp, len, &st);
-	  wmessage = res == (size_t) -1 ? L"???" : wbuf;
+	  tmp = message;
+
+	  res = mbsrtowcs (wmessage, &tmp, len, &st);
+	  if (res != len)
+	    break;
+
+	  if (__builtin_expect (len >= SIZE_MAX / 2, 0))
+	    {
+	      /* This really should not happen if everything is fine.  */
+	      res = (size_t) -1;
+	      break;
+	    }
+
+	  len *= 2;
+	}
+
+      if (res == (size_t) -1)
+	{
+	  /* The string cannot be converted.  */
+	  if (use_malloc)
+	    {
+	      free (wmessage);
+	      use_malloc = false;
+	    }
+	  wmessage = (wchar_t *) L"???";
 	}
 
       __vfwprintf (stderr, wmessage, args);
-      if (! (len < ALLOCA_LIMIT))
-	free (wbuf);
+
+      if (use_malloc)
+	free (wmessage);
     }
   else
 #endif
@@ -172,11 +209,10 @@ error_tail (int status, int errnum, const char *message, va_list args)
   if (errnum)
     print_errno_message (errnum);
 #if _LIBC
-  if (_IO_fwide (stderr, 0) > 0)
-    putwc (L'\n', stderr);
-  else
+  __fxprintf (NULL, "\n");
+#else
+  putc ('\n', stderr);
 #endif
-    putc ('\n', stderr);
   fflush (stderr);
   if (status)
     exit (status);
@@ -209,11 +245,10 @@ error (int status, int errnum, const char *message, ...)
   else
     {
 #if _LIBC
-      if (_IO_fwide (stderr, 0) > 0)
-	__fwprintf (stderr, L"%s: ", program_name);
-      else
+      __fxprintf (NULL, "%s: ", program_name);
+#else
+      fprintf (stderr, "%s: ", program_name);
 #endif
-	fprintf (stderr, "%s: ", program_name);
     }
 
   va_start (args, message);
@@ -269,22 +304,19 @@ error_at_line (int status, int errnum, const char *file_name,
   else
     {
 #if _LIBC
-      if (_IO_fwide (stderr, 0) > 0)
-	__fwprintf (stderr, L"%s: ", program_name);
-      else
+      __fxprintf (NULL, "%s:", program_name);
+#else
+      fprintf (stderr, "%s:", program_name);
 #endif
-	fprintf (stderr, "%s:", program_name);
     }
 
-  if (file_name != NULL)
-    {
 #if _LIBC
-      if (_IO_fwide (stderr, 0) > 0)
-	__fwprintf (stderr, L"%s:%d: ", file_name, line_number);
-      else
+  __fxprintf (NULL, file_name != NULL ? "%s:%d: " : " ",
+	      file_name, line_number);
+#else
+  fprintf (stderr, file_name != NULL ? "%s:%d: " : " ",
+	   file_name, line_number);
 #endif
-	fprintf (stderr, "%s:%d: ", file_name, line_number);
-    }
 
   va_start (args, message);
   error_tail (status, errnum, message, args);

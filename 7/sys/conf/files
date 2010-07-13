@@ -689,6 +689,7 @@ dev/cxgb/common/cxgb_mc5.c	optional cxgb pci
 dev/cxgb/common/cxgb_vsc7323.c	optional cxgb pci
 dev/cxgb/common/cxgb_vsc8211.c	optional cxgb pci
 dev/cxgb/common/cxgb_ael1002.c	optional cxgb pci
+dev/cxgb/common/cxgb_aq100x.c	optional cxgb pci
 dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci
 dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci
 dev/cxgb/common/cxgb_t3_hw.c	optional cxgb pci
@@ -780,6 +781,8 @@ dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
 dev/e1000/if_em.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/if_lem.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/if_igb.c		optional igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
@@ -1109,6 +1112,7 @@ dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
 dev/sdhci/sdhci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
+dev/sge/if_sge.c		optional sge pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
 dev/si/si3_t225.c		optional si
@@ -1930,6 +1934,7 @@ netgraph/ng_mppc.c		optional netgraph_mppc_compression | \
 netgraph/ng_nat.c		optional netgraph_nat
 netgraph/ng_one2many.c		optional netgraph_one2many
 netgraph/ng_parse.c		optional netgraph
+netgraph/ng_patch.c		optional netgraph_patch
 netgraph/ng_ppp.c		optional netgraph_ppp
 netgraph/ng_pppoe.c		optional netgraph_pppoe
 netgraph/ng_pptpgre.c		optional netgraph_pptpgre

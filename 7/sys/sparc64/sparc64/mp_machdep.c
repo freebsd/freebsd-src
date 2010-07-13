@@ -119,7 +119,11 @@ static u_int cpuid_to_mid[MAXCPU];
 static int isjbus;
 static volatile u_int shutdown_cpus;
 
+static void ap_count(phandle_t node, u_int mid, u_int cpu_impl);
+static void ap_start(phandle_t node, u_int mid, u_int cpu_impl);
 static void cpu_mp_unleash(void *v);
+static void foreach_ap(phandle_t node, void (*func)(phandle_t node,
+    u_int mid, u_int cpu_impl));
 static void spitfire_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
 static void sun4u_startcpu(phandle_t cpu, void *func, u_long arg);
 
@@ -133,7 +137,7 @@ CTASSERT(MAXCPU <= sizeof(u_int) * NBBY);
 CTASSERT(MAXCPU <= sizeof(int) * NBBY);
 
 void
-mp_init(void)
+mp_init(u_int cpu_impl)
 {
 	struct tte *tp;
 	int i;
@@ -160,31 +164,70 @@ mp_init(void)
 	if (cpu_impl == CPU_IMPL_ULTRASPARCIIIi ||
 	    cpu_impl == CPU_IMPL_ULTRASPARCIIIip)
 		isjbus = 1;
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		cpu_ipi_selected = cheetah_ipi_selected;
 	else
 		cpu_ipi_selected = spitfire_ipi_selected;
+}
+
+static void
+foreach_ap(phandle_t node, void (*func)(phandle_t node, u_int mid,
+    u_int cpu_impl))
+{
+	char type[sizeof("cpu")];
+	phandle_t child;
+	u_int cpuid;
+	uint32_t cpu_impl;
+ 
+	/* There's no need to traverse the whole OFW tree twice. */
+	if (mp_maxid > 0 && mp_ncpus >= mp_maxid + 1)
+		return;
+
+	for (; node != 0; node = OF_peer(node)) {
+		child = OF_child(node);
+		if (child > 0)
+			foreach_ap(child, func);
+		else {
+			if (OF_getprop(node, "device_type", type,
+			    sizeof(type)) <= 0)
+				continue;
+			if (strcmp(type, "cpu") != 0)
+				continue;
+			if (OF_getprop(node, "implementation#", &cpu_impl,
+			    sizeof(cpu_impl)) <= 0)
+				panic("%s: couldn't determine CPU "
+				    "implementation", __func__);
+			if (OF_getprop(node, cpu_cpuid_prop(cpu_impl), &cpuid,
+			     sizeof(cpuid)) <= 0)
+				panic("%s: couldn't determine CPU module ID",
+				    __func__);
+			if (cpuid == PCPU_GET(mid))
+				continue;
+			(*func)(node, cpuid, cpu_impl);
+		}
+	}
 }
 
 /*
  * Probe for other CPUs.
  */
 void
-cpu_mp_setmaxid(void)
+cpu_mp_setmaxid()
 {
-	char buf[128];
-	phandle_t child;
-	u_int cpus;
 
 	all_cpus = 1 << curcpu;
 	mp_ncpus = 1;
+	mp_maxid = 0;
 
-	cpus = 0;
-	for (child = OF_child(OF_peer(0)); child != 0; child = OF_peer(child))
-		if (OF_getprop(child, "device_type", buf, sizeof(buf)) > 0 &&
-		    strcmp(buf, "cpu") == 0)
-			cpus++;
-	mp_maxid = cpus - 1;
+	foreach_ap(OF_child(OF_peer(0)), ap_count);
+}
+
+static void
+ap_count(phandle_t node __unused, u_int mid __unused, u_int cpu_impl __unused)
+{
+
+	mp_maxid++;
 }
 
 int
@@ -221,15 +264,6 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 void
 cpu_mp_start(void)
 {
-	char buf[128];
-	volatile struct cpu_start_args *csa;
-	struct pcpu *pc;
-	register_t s;
-	vm_offset_t va;
-	phandle_t child;
-	u_int mid;
-	u_int clock;
-	u_int cpuid;
 
 	mtx_init(&ipi_mtx, "ipi", NULL, MTX_SPIN);
 
@@ -241,63 +275,69 @@ cpu_mp_start(void)
 
 	cpuid_to_mid[curcpu] = PCPU_GET(mid);
 
-	csa = &cpu_start_args;
-	for (child = OF_child(OF_peer(0)); child != 0 && mp_ncpus <= MAXCPU;
-	    child = OF_peer(child)) {
-		if (OF_getprop(child, "device_type", buf, sizeof(buf)) <= 0 ||
-		    strcmp(buf, "cpu") != 0)
-			continue;
-		if (OF_getprop(child, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
-		    "upa-portid" : "portid", &mid, sizeof(mid)) <= 0)
-			panic("%s: can't get module ID", __func__);
-		if (mid == PCPU_GET(mid))
-			continue;
-		if (OF_getprop(child, "clock-frequency", &clock,
-		    sizeof(clock)) <= 0)
-			panic("%s: can't get clock", __func__);
-		if (clock != PCPU_GET(clock))
-			hardclock_use_stick = 1;
-
-		csa->csa_state = 0;
-		sun4u_startcpu(child, (void *)mp_tramp, 0);
-		s = intr_disable();
-		while (csa->csa_state != CPU_TICKSYNC)
-			;
-		membar(StoreLoad);
-		csa->csa_tick = rd(tick);
-		if (cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
-			while (csa->csa_state != CPU_STICKSYNC)
-				;
-			membar(StoreLoad);
-			csa->csa_stick = rdstick();
-		}
-		while (csa->csa_state != CPU_INIT)
-			;
-		csa->csa_tick = csa->csa_stick = 0;
-		intr_restore(s);
-
-		cpuid = mp_ncpus++;
-		cpuid_to_mid[cpuid] = mid;
-		cpu_identify(csa->csa_ver, clock, cpuid);
-
-		va = kmem_alloc(kernel_map, PCPU_PAGES * PAGE_SIZE);
-		pc = (struct pcpu *)(va + (PCPU_PAGES * PAGE_SIZE)) - 1;
-		pcpu_init(pc, cpuid, sizeof(*pc));
-		pc->pc_addr = va;
-		pc->pc_clock = clock;
-		pc->pc_mid = mid;
-		pc->pc_node = child;
-
-		cache_init(pc);
-
-		all_cpus |= 1 << cpuid;
-		intr_add_cpu(cpuid);
-	}
+	foreach_ap(OF_child(OF_peer(0)), ap_start);
 	KASSERT(!isjbus || mp_ncpus <= IDR_JALAPENO_MAX_BN_PAIRS,
 	    ("%s: can only IPI a maximum of %d JBus-CPUs",
 	    __func__, IDR_JALAPENO_MAX_BN_PAIRS));
 	PCPU_SET(other_cpus, all_cpus & ~(1 << curcpu));
 	smp_active = 1;
+}
+
+static void
+ap_start(phandle_t node, u_int mid, u_int cpu_impl)
+{
+	volatile struct cpu_start_args *csa;
+	struct pcpu *pc;
+	register_t s;
+	vm_offset_t va;
+	u_int cpuid;
+	uint32_t clock;
+
+	if (mp_ncpus > MAXCPU)
+		return;
+
+	if (OF_getprop(node, "clock-frequency", &clock, sizeof(clock)) <= 0)
+		panic("%s: couldn't determine CPU frequency", __func__);
+	if (clock != PCPU_GET(clock))
+		hardclock_use_stick = 1;
+
+	csa = &cpu_start_args;
+	csa->csa_state = 0;
+	sun4u_startcpu(node, (void *)mp_tramp, 0);
+	s = intr_disable();
+	while (csa->csa_state != CPU_TICKSYNC)
+		;
+	membar(StoreLoad);
+	csa->csa_tick = rd(tick);
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
+		while (csa->csa_state != CPU_STICKSYNC)
+			;
+		membar(StoreLoad);
+		csa->csa_stick = rdstick();
+	}
+	while (csa->csa_state != CPU_INIT)
+		;
+	csa->csa_tick = csa->csa_stick = 0;
+	intr_restore(s);
+
+	cpuid = mp_ncpus++;
+	cpuid_to_mid[cpuid] = mid;
+	cpu_identify(csa->csa_ver, clock, cpuid);
+
+	va = kmem_alloc(kernel_map, PCPU_PAGES * PAGE_SIZE);
+	pc = (struct pcpu *)(va + (PCPU_PAGES * PAGE_SIZE)) - 1;
+	pcpu_init(pc, cpuid, sizeof(*pc));
+	pc->pc_addr = va;
+	pc->pc_clock = clock;
+	pc->pc_impl = cpu_impl;
+	pc->pc_mid = mid;
+	pc->pc_node = node;
+
+	cache_init(pc);
+
+	all_cpus |= 1 << cpuid;
+	intr_add_cpu(cpuid);
 }
 
 void
@@ -363,16 +403,33 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	volatile struct cpu_start_args *csa;
 
 	csa = &cpu_start_args;
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-		cheetah_init();
-	cache_enable();
+
+	/* Do CPU-specific initialization. */
+	if (pc->pc_impl == CPU_IMPL_SPARC64V ||
+	    pc->pc_impl >= CPU_IMPL_ULTRASPARCIII)
+		cheetah_init(pc->pc_impl);
+	/*
+	 * Enable the caches.  Note that his may include applying workarounds.
+	 */
+	cache_enable(pc->pc_impl);
+
+	/* Lock the kernel TSB in the TLB. */
 	pmap_map_tsb();
+
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
 	 * firmware.
 	 */
 	tlb_flush_nonlocked();
+
+	/* Initialize global registers. */
 	cpu_setregs(pc);
+
+	/* Enable interrupts. */
+	wrpr(pil, 0, PIL_TICK);
+	wrpr(pstate, 0, PSTATE_KERNEL);
+
+	/* Start the (S)TICK interrupts. */
 	tick_start();
 
 	smp_cpus++;

@@ -1,7 +1,8 @@
 /* $FreeBSD$ */
 
 /* userspec.c -- Parse a user and group string.
-   Copyright (C) 1989, 1990, 1991, 1992, 2001, 2004 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1990, 1991, 1992, 2001, 
+   2004, 2005 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +14,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the Free
+   Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301 USA.  */
 
 /* Written by David MacKenzie <djm@gnu.ai.mit.edu>.  */
 
@@ -74,7 +76,7 @@ extern struct group *getgrgid (gid_t gid);
    otherwise return 0. */
 
 static int
-cpio_isnumber (const char *str)
+isnumber_p (const char *str)
 {
   for (; *str; str++)
     if (!isdigit (*str))
@@ -113,9 +115,9 @@ parse_user_spec (const char *spec_arg, uid_t *uid, gid_t *gid,
   V_STRDUP (spec, spec_arg);
 
   /* Find the separator if there is one.  */
-  separator = index (spec, ':');
+  separator = strchr (spec, ':');
   if (separator == NULL)
-    separator = index (spec, '.');
+    separator = strchr (spec, '.');
 
   /* Replace separator with a NUL.  */
   if (separator != NULL)
@@ -138,7 +140,7 @@ parse_user_spec (const char *spec_arg, uid_t *uid, gid_t *gid,
       if (pwd == NULL)
 	{
 
-	  if (!cpio_isnumber (u))
+	  if (!isnumber_p (u))
 	    error_msg = _("invalid user");
 	  else
 	    {
@@ -184,7 +186,7 @@ parse_user_spec (const char *spec_arg, uid_t *uid, gid_t *gid,
       grp = getgrnam (g);
       if (grp == NULL)
 	{
-	  if (!cpio_isnumber (g))
+	  if (!isnumber_p (g))
 	    error_msg = _("invalid group");
 	  else
 	    *gid = atoi (g);

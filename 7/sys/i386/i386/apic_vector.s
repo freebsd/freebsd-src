@@ -110,6 +110,19 @@ IDTVEC(timerint)
 	MEXITCOUNT
 	jmp	doreti
 
+/*
+ * Local APIC error interrupt handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(errorint)
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	FAKE_MCOUNT(TF_EIP(%esp))
+	call	lapic_handle_error
+	MEXITCOUNT
+	jmp	doreti
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.

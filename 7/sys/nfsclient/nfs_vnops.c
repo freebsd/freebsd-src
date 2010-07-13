@@ -225,6 +225,10 @@ int nfs_directio_enable = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
 	   &nfs_directio_enable, 0, "Enable NFS directio");
 
+static u_int	negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
+SYSCTL_UINT(_vfs_nfs, OID_AUTO, negative_name_timeout, CTLFLAG_RW,
+	   &negnametimeo, 0, "Negative name cache entry timeout");
+
 /*
  * This sysctl allows other processes to mmap a file that has been opened
  * O_DIRECT by a process.  In general, having processes mmap the file while
@@ -871,7 +875,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct mbuf *mreq, *mrep, *md, *mb;
 	long len;
 	nfsfh_t *fhp;
-	struct nfsnode *np;
+	struct nfsnode *np, *newnp;
 	int error = 0, attrflag, fhsize;
 	int v3 = NFS_ISV3(dvp);
 	struct thread *td = cnp->cn_thread;
@@ -897,10 +901,26 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * change time of the file matches our cached copy.
 		 * Otherwise, we discard the cache entry and fallback
 		 * to doing a lookup RPC.
+		 *
+		 * To better handle stale file handles and attributes,
+		 * clear the attribute cache of this node if it is a
+		 * leaf component, part of an open() call, and not
+		 * locally modified before fetching the attributes.
+		 * This should allow stale file handles to be detected
+		 * here where we can fall back to a LOOKUP RPC to
+		 * recover rather than having nfs_open() detect the
+		 * stale file handle and failing open(2) with ESTALE.
 		 */
 		newvp = *vpp;
-		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td)
-		    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+		newnp = VTONFS(newvp);
+		if ((cnp->cn_flags & (ISLASTCN | ISOPEN)) ==
+		    (ISLASTCN | ISOPEN) && !(newnp->n_flag & NMODIFIED)) {
+			mtx_lock(&newnp->n_mtx);
+			newnp->n_attrstamp = 0;
+			mtx_unlock(&newnp->n_mtx);
+		}
+		if (VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td) == 0 &&
+		    vattr.va_ctime.tv_sec == newnp->n_ctime) {
 			nfsstats.lookupcache_hits++;
 			if (cnp->cn_nameiop != LOOKUP &&
 			    (flags & ISLASTCN))
@@ -918,9 +938,12 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * We only accept a negative hit in the cache if the
 		 * modification time of the parent directory matches
 		 * our cached copy.  Otherwise, we discard all of the
-		 * negative cache entries for this directory.
+		 * negative cache entries for this directory. We also
+		 * only trust -ve cache entries for less than
+		 * negnametimeo seconds.
 		 */
-		if (VOP_GETATTR(dvp, &vattr, cnp->cn_cred, td) == 0 &&
+		if ((u_int)(ticks - np->n_dmtime_ticks) < (negnametimeo * hz) &&
+		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred, td) == 0 &&
 		    vattr.va_mtime.tv_sec == np->n_dmtime) {
 			nfsstats.lookupcache_hits++;
 			return (ENOENT);
@@ -1063,8 +1086,10 @@ nfsmout:
 			 */
 			mtx_lock(&np->n_mtx);
 			if (np->n_dmtime <= dmtime) {
-				if (np->n_dmtime == 0)
+				if (np->n_dmtime == 0) {
 					np->n_dmtime = dmtime;
+					np->n_dmtime_ticks = ticks;
+				}
 				mtx_unlock(&np->n_mtx);
 				cache_enter(dvp, NULL, cnp);
 			} else

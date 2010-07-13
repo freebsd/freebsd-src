@@ -215,9 +215,6 @@ struct denode {
 	     ((dep)->de_Attributes & ATTR_DIRECTORY) ? 0 : (dep)->de_FileSize), \
 	 putushort((dp)->deHighClust, (dep)->de_StartCluster >> 16))
 
-#define	de_forw		de_chain[0]
-#define	de_back		de_chain[1]
-
 #ifdef _KERNEL
 
 #define	VTODE(vp)	((struct denode *)(vp)->v_data)

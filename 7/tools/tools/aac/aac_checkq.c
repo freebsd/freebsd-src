@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
 
 /*
  * Simple program to print out the queue stats on the given queue index.

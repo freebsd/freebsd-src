@@ -1,5 +1,5 @@
 /* Declarations for getopt.
-   Copyright (C) 1989-1994,1996-1999,2001,2003,2004
+   Copyright (C) 1989-1994,1996-1999,2001,2003,2004,2005,2006,2007
    Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License along
    with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _GETOPT_H
 
@@ -34,9 +34,7 @@
 #if defined __GETOPT_PREFIX && !defined __need_getopt
 # include <stdlib.h>
 # include <stdio.h>
-# if HAVE_UNISTD_H
-#  include <unistd.h>
-# endif
+# include <unistd.h>
 # undef __need_getopt
 # undef getopt
 # undef getopt_long
@@ -67,14 +65,14 @@
    but it caused redefinition warnings if both unistd.h and getopt.h were
    included, since unistd.h includes getopt.h having previously defined
    __need_getopt.
-   
+
    The only place where __getopt_argv_const is used is in definitions
    of getopt_long and getopt_long_only below, but these are visible
    only if __need_getopt is not defined, so it is quite safe to rewrite
    the conditional as follows:
 */
 #if !defined __need_getopt
-# if defined __GETOPT_PREFIX 
+# if defined __GETOPT_PREFIX
 #  define __getopt_argv_const /* empty */
 # else
 #  define __getopt_argv_const const
@@ -103,7 +101,7 @@
 # endif
 #endif
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -198,9 +196,10 @@ struct option
    scanning, explicitly telling `getopt' that there are no more
    options.
 
-   If OPTS begins with `--', then non-option arguments are treated as
-   arguments to the option '\0'.  This behavior is specific to the GNU
-   `getopt'.  */
+   If OPTS begins with `-', then non-option arguments are treated as
+   arguments to the option '\1'.  This behavior is specific to the GNU
+   `getopt'.  If OPTS begins with `+', or POSIXLY_CORRECT is set in
+   the environment, then do not permute arguments.  */
 
 extern int getopt (int ___argc, char *const *___argv, const char *__shortopts)
        __THROW;
@@ -217,7 +216,7 @@ extern int getopt_long_only (int ___argc, char *__getopt_argv_const *___argv,
 
 #endif
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 

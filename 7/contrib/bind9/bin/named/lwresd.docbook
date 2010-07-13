@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: lwresd.docbook,v 1.7.18.10 2008/10/16 23:46:00 tbox Exp $ -->
+<!-- $Id: lwresd.docbook,v 1.7.18.12 2009/01/22 23:46:00 tbox Exp $ -->
 <refentry>
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -41,6 +41,7 @@
       <year>2005</year>
       <year>2007</year>
       <year>2008</year>
+      <year>2009</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -87,7 +88,7 @@
       listens for resolver queries on a
       UDP port on the IPv4 loopback interface, 127.0.0.1.  This
       means that <command>lwresd</command> can only be used by
-      processes running on the local machine.  By default UDP port
+      processes running on the local machine.  By default, UDP port
       number 921 is used for lightweight resolver requests and
       responses.
     </para>

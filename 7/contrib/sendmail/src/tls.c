@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2006, 2008, 2009 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.107 2006/10/12 21:35:11 ca Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.114 2009/08/10 15:11:09 ca Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -486,6 +486,7 @@ tls_safe_f(var, sff, srv)
 **	Parameters:
 **		ctx -- pointer to context
 **		req -- requirements for initialization (see sendmail.h)
+**		options -- options
 **		srv -- server side?
 **		certfile -- filename of certificate
 **		keyfile -- filename of private key
@@ -514,9 +515,10 @@ static char server_session_id_context[] = "sendmail8";
 #endif
 
 bool
-inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
+inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 	SSL_CTX **ctx;
 	unsigned long req;
+	long options;
 	bool srv;
 	char *certfile, *keyfile, *cacertpath, *cacertfile, *dhparam;
 {
@@ -525,7 +527,7 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 # endif /* !NO_DH */
 	int r;
 	bool ok;
-	long sff, status, options;
+	long sff, status;
 	char *who;
 # if _FFR_TLS_1
 	char *cf2, *kf2;
@@ -643,7 +645,10 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 			}
 		}
 		if (dhparam == NULL)
+		{
 			dhparam = srv ? "1" : "5";
+			req |= (srv ? TLS_I_DH1024 : TLS_I_DH512);
+		}
 		else if (*dhparam == '/')
 		{
 			TLS_OK_F(dhparam, "DHParameters",
@@ -913,7 +918,6 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 
 	/* SSL_CTX_set_quiet_shutdown(*ctx, 1); violation of standard? */
 
-	options = SSL_OP_ALL;	/* bug compatibility? */
 #if SM_SSL_OP_TLS_BLOCK_PADDING_BUG
 
 	/*
@@ -1196,23 +1200,62 @@ tls_get_info(ssl, srv, host, mac, certreq)
 	if (cert != NULL)
 	{
 		unsigned int n;
+		X509_NAME *subj, *issuer;
 		unsigned char md[EVP_MAX_MD_SIZE];
 		char buf[MAXNAME];
 
-		X509_NAME_oneline(X509_get_subject_name(cert),
-				  buf, sizeof(buf));
+		subj = X509_get_subject_name(cert);
+		issuer = X509_get_issuer_name(cert);
+		X509_NAME_oneline(subj, buf, sizeof(buf));
 		macdefine(mac, A_TEMP, macid("{cert_subject}"),
 			 xtextify(buf, "<>\")"));
-		X509_NAME_oneline(X509_get_issuer_name(cert),
-				  buf, sizeof(buf));
+		X509_NAME_oneline(issuer, buf, sizeof(buf));
 		macdefine(mac, A_TEMP, macid("{cert_issuer}"),
 			 xtextify(buf, "<>\")"));
-		X509_NAME_get_text_by_NID(X509_get_subject_name(cert),
-					  NID_commonName, buf, sizeof(buf));
+
+#define CHECK_X509_NAME(which)	\
+	do {	\
+		if (r == -1)	\
+		{		\
+			sm_strlcpy(buf, "BadCertificateUnknown", sizeof(buf)); \
+			if (LogLevel > 7)	\
+				sm_syslog(LOG_INFO, NOQID,	\
+					"STARTTLS=%s, relay=%.100s, field=%s, status=failed to extract CN",	\
+					who,	\
+					host == NULL ? "local" : host,	\
+					which);	\
+		}		\
+		else if ((size_t)r >= sizeof(buf) - 1)	\
+		{		\
+			sm_strlcpy(buf, "BadCertificateTooLong", sizeof(buf)); \
+			if (LogLevel > 7)	\
+				sm_syslog(LOG_INFO, NOQID,	\
+					"STARTTLS=%s, relay=%.100s, field=%s, status=CN too long",	\
+					who,	\
+					host == NULL ? "local" : host,	\
+					which);	\
+		}		\
+		else if ((size_t)r > strlen(buf))	\
+		{		\
+			sm_strlcpy(buf, "BadCertificateContainsNUL",	\
+				sizeof(buf));	\
+			if (LogLevel > 7)	\
+				sm_syslog(LOG_INFO, NOQID,	\
+					"STARTTLS=%s, relay=%.100s, field=%s, status=CN contains NUL",	\
+					who,	\
+					host == NULL ? "local" : host,	\
+					which);	\
+		}		\
+	} while (0)
+
+		r = X509_NAME_get_text_by_NID(subj, NID_commonName, buf,
+			sizeof buf);
+		CHECK_X509_NAME("cn_subject");
 		macdefine(mac, A_TEMP, macid("{cn_subject}"),
 			 xtextify(buf, "<>\")"));
-		X509_NAME_get_text_by_NID(X509_get_issuer_name(cert),
-					  NID_commonName, buf, sizeof(buf));
+		r = X509_NAME_get_text_by_NID(issuer, NID_commonName, buf,
+			sizeof buf);
+		CHECK_X509_NAME("cn_issuer");
 		macdefine(mac, A_TEMP, macid("{cn_issuer}"),
 			 xtextify(buf, "<>\")"));
 		n = 0;
@@ -1596,14 +1639,19 @@ tls_verify_cb(ctx, unused)
 {
 	int ok;
 
+	/*
+	**  man SSL_CTX_set_cert_verify_callback():
+	**  callback should return 1 to indicate verification success
+	**  and 0 to indicate verification failure.
+	*/
+
 	ok = X509_verify_cert(ctx);
-	if (ok == 0)
+	if (ok <= 0)
 	{
 		if (LogLevel > 13)
 			return tls_verify_log(ok, ctx, "TLS");
-		return 1;	/* override it */
 	}
-	return ok;
+	return 1;
 }
 /*
 **  TLSLOGERR -- log the errors from the TLS error stack

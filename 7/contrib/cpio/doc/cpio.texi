@@ -3,94 +3,70 @@
 @setfilename cpio.info
 @settitle cpio
 @setchapternewpage off
-@set VERSION GNU cpio 2.5
-@set RELEASEDATE June 2002
 @c %**end of header
 
-@ifinfo
-@format
-START-INFO-DIR-ENTRY
-* cpio: (cpio).                 Making tape (or disk) archives.
-END-INFO-DIR-ENTRY
-@end format
-@end ifinfo
+@dircategory Archiving
+@direntry
+* Cpio: (cpio).                 Copy-in-copy-out archiver to tape or disk.
+@end direntry
 
-@ifinfo
-This file documents @value{VERSION}.
+@include version.texi
 
-Copyright (C) 1995, 2001, 2002 Free Software Foundation, Inc.
+@copying
+This manual documents GNU cpio (version @value{VERSION}, @value{UPDATED}).
 
-Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+Copyright @copyright{} 1995, 2001, 2002, 2004 Free Software Foundation, Inc.
+@sp 1
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.2 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with the Front-Cover texts being ``A GNU Manual'',
+and with the Back-Cover Texts as in (a) below.  A copy of the license
+is included in the section entitled ``GNU Free Documentation License''.
 
-@ignore
-Permission is granted to process this file through TeX and print the
-results, provided the printed document carries copying permission
-notice identical to this one except for the removal of this paragraph
-
-
-@end ignore
-Permission is granted to copy and distribute modified versions of this
-manual under the conditions for verbatim copying, provided that the entire
-resulting derived work is distributed under the terms of a permission
-notice identical to this one.
-
-Permission is granted to copy and distribute translations of this manual
-into another language, under the above conditions for modified versions,
-except that this permission notice may be stated in a translation approved
-by the Foundation.
-@end ifinfo
-
+(a) The FSF's Back-Cover Text is: ``You have freedom to copy and modify
+this GNU Manual, like GNU software.  Copies published by the Free
+Software Foundation raise funds for GNU development.''
+@end quotation
+@end copying
 
 @titlepage
 @title GNU CPIO
-@subtitle @value{VERSION} @value{RELEASEDATE}
+@subtitle @value{VERSION} @value{UPDATED}
 @author by Robert Carleton
 @c copyright page
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1995, 2001, 2002 Free Software Foundation, Inc.
-@sp 2
-This is the first edition of the GNU cpio documentation,@*
-and is consistent with @value{VERSION}.@*
+@insertcopying
 @sp 2
 Published by the Free Software Foundation @*
-59 Temple Place - Suite 330, @*
-Boston, MA 02111-1307, USA @*
-
-Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
-
-Permission is granted to copy and distribute modified versions of this
-manual under the conditions for verbatim copying, provided that the entire
-resulting derived work is distributed under the terms of a permission
-notice identical to this one.
-
-Permission is granted to copy and distribute translations of this manual
-into another language, under the above conditions for modified versions,
-except that this permission notice may be stated in a translation
-approved by the Free Software Foundation.
+51 Franklin Street, Fifth Floor, @*
+Boston, MA 02110-1301, USA @*
 @end titlepage
 
-@ifinfo
 @node Top, Introduction, (dir), (dir)
 @comment  node-name,  next,  previous,  up
+
+@ifinfo
 @top
 
 GNU cpio is a tool for creating and extracting archives, or copying
 files from one place to another.  It handles a number of cpio formats as
 well as reading and writing tar files.  This is the first edition of the 
-GNU cpio documentation and is consistant with @value{VERSION}.
+GNU cpio documentation and is consistent with @value{VERSION}.
+
+@end ifinfo
 
 @menu
 * Introduction::                
 * Tutorial::                    Getting started.
-* Invoking `cpio'::             How to invoke `cpio'.
+* Invoking cpio::               How to invoke @command{cpio}.
 * Media::                       Using tapes and other archive media.
+* Reports::                     Reporting bugs or suggestions
 * Concept Index::               Concept index.
 
+@detailmenu
  --- The Detailed Node Listing ---
 
 Invoking cpio
@@ -99,9 +75,9 @@ Invoking cpio
 * Copy-in mode::                
 * Copy-pass mode::              
 * Options::                     
-@end menu
 
-@end ifinfo
+@end detailmenu
+@end menu
 
 @node Introduction, Tutorial, Top, Top
 @comment  node-name,  next,  previous,  up
@@ -112,13 +88,13 @@ can be another file on the disk, a magnetic tape, or a pipe.
 
 GNU cpio supports the following archive formats: binary, old ASCII, new
 ASCII, crc, HPUX binary, HPUX old ASCII, old tar, and POSIX.1 tar.  The
-tar format is provided for compatability with the tar program. By
+tar format is provided for compatibility with the tar program. By
 default, cpio creates binary format archives, for compatibility with
 older cpio programs.  When extracting from archives, cpio automatically
 recognizes which kind of archive it is reading and can read archives
 created on machines with a different byte-order.
 
-@node Tutorial, Invoking `cpio', Introduction, Top
+@node Tutorial, Invoking cpio, Introduction, Top
 @comment  node-name,  next,  previous,  up
 @chapter Tutorial
 @cindex creating a cpio archive
@@ -134,7 +110,7 @@ disks, or one or more tapes.
 
 When creating an archive, cpio takes the list of files to be processed
 from the standard input, and then sends the archive to the standard
-output, or to the device defined by the @samp{-F} option.
+output, or to the device defined by the @option{-F} option.
 @xref{Copy-out mode}.  Usually find or ls is used to provide this list
 to the standard input.  In the following example you can see the
 possibilities for archiving the contents of a single directory.
@@ -146,9 +122,9 @@ possibilities for archiving the contents of a single directory.
 @end cartouche
 @end example
 
-The @samp{-o} option creates the archive, and the @samp{-v} option
+The @option{-o} option creates the archive, and the @option{-v} option
 prints the names of the files archived as they are added.  Notice that
-the options can be put together after a single @samp{-} or can be placed
+the options can be put together after a single @option{-} or can be placed
 separately on the command line.  The @samp{>} redirects the cpio output
 to the file @samp{directory.cpio}.
 
@@ -165,12 +141,12 @@ provide the file list to cpio:
 
 
 This will take all the files in the current directory, the directories
-below and place them in the archive tree.cpio.  Again the @samp{-o}
-creates an archive, and the @samp{-v} option shows you the name of the
-files as they are archived.  @xref{Copy-out mode}.  Using the `.' in the
+below and place them in the archive tree.cpio.  Again the @option{-o}
+creates an archive, and the @option{-v} option shows you the name of the
+files as they are archived.  @xref{Copy-out mode}.  Using the @samp{.} in the
 find statement will give you more flexibility when doing restores, as it
 will save file names with a relative path vice a hard wired, absolute
-path.  The @samp{-depth} option forces @samp{find} to print of the
+path.  The @option{-depth} option forces @samp{find} to print of the
 entries in a directory before printing the directory itself.  This
 limits the effects of restrictive directory permissions by printing the
 directory entries in a directory before the directory name itself.
@@ -190,10 +166,10 @@ overwrite existing files unless you tell it to.
 @end example
 
 This will retrieve the files archived in the file directory.cpio and
-place them in the present directory.  The @samp{-i} option extracts the
-archive and the @samp{-v} shows the file names as they are extracted.
+place them in the present directory.  The @option{-i} option extracts the
+archive and the @option{-v} shows the file names as they are extracted.
 If you are dealing with an archived directory tree, you need to use the
-@samp{-d} option to create directories as necessary, something like:
+@option{-d} option to create directories as necessary, something like:
 
 @example
 @cartouche
@@ -223,13 +199,13 @@ argument.  @xref{Copy-pass mode}.
 
 The example shows copying the files of the present directory, and
 sub-directories to a new directory called new-dir.  Some new options are
-the @samp{-print0} available with GNU find, combined with the
-@samp{--null} option of cpio.  These two options act together to send
+the @option{-print0} available with GNU find, combined with the
+@option{--null} option of cpio.  These two options act together to send
 file names between find and cpio, even if special characters are
-embedded in the file names.  Another is @samp{-p}, which tells cpio to
+embedded in the file names.  Another is @option{-p}, which tells cpio to
 pass the files it finds to the directory @samp{new-dir}.
 
-@node Invoking `cpio', Media, Tutorial, Top
+@node Invoking cpio, Media, Tutorial, Top
 @comment  node-name,  next,  previous,  up
 @chapter Invoking cpio
 @cindex invoking cpio
@@ -242,7 +218,7 @@ pass the files it finds to the directory @samp{new-dir}.
 * Options::                     
 @end menu
 
-@node Copy-out mode, Copy-in mode, Invoking `cpio', Invoking `cpio'
+@node Copy-out mode, Copy-in mode, Invoking cpio, Invoking cpio
 @comment  node-name,  next,  previous,  up
 @section Copy-out mode
 
@@ -264,7 +240,7 @@ cpio @{-o|--create@} [-0acvABLV] [-C bytes] [-H format]
 < name-list [> archive]
 @end example
 
-@node Copy-in mode, Copy-pass mode, Copy-out mode, Invoking `cpio'
+@node Copy-in mode, Copy-pass mode, Copy-out mode, Invoking cpio
 @comment  node-name,  next,  previous,  up
 @section Copy-in mode
 
@@ -272,8 +248,8 @@ In copy-in mode, cpio copies files out of an archive or lists the
 archive contents.  It reads the archive from the standard input.  Any
 non-option command line arguments are shell globbing patterns; only
 files in the archive whose names match one or more of those patterns are
-copied from the archive.  Unlike in the shell, an initial `.' in a
-filename does match a wildcard at the start of a pattern, and a `/' in a
+copied from the archive.  Unlike in the shell, an initial @samp{.} in a
+filename does match a wildcard at the start of a pattern, and a @samp{/} in a
 filename can match wildcards.  If no patterns are given, all files are
 extracted.  @xref{Options}.
 
@@ -292,7 +268,7 @@ cpio @{-i|--extract@} [-bcdfmnrtsuvBSV] [-C bytes] [-E file]
 [--rsh-command=command] [pattern...] [< archive]
 @end example
 
-@node Copy-pass mode, Options, Copy-in mode, Invoking `cpio'
+@node Copy-pass mode, Options, Copy-in mode, Invoking cpio
 @comment  node-name,  next,  previous,  up
 @section Copy-pass mode
 
@@ -314,7 +290,7 @@ cpio @{-p|--pass-through@} [-0adlmuvLV] [-R [user][:.][group]]
 
 
 
-@node Options,  , Copy-pass mode, Invoking `cpio'
+@node Options,  , Copy-pass mode, Invoking cpio
 @comment  node-name,  next,  previous,  up
 @section Options
 
@@ -322,22 +298,26 @@ cpio @{-p|--pass-through@} [-0adlmuvLV] [-R [user][:.][group]]
 @table @code
 
 
-@item -0, --null
+@item -0
+@itemx --null
 Read a list of filenames terminated by a null character, instead of a
 newline, so that files whose names contain newlines can be archived.
 GNU find is one way to produce a list of null-terminated filenames.
 This option may be used in copy-out and copy-pass modes.
 
-@item -a, --reset-access-time
+@item -a
+@itemx --reset-access-time
 Reset the access times of files after reading them, so
 that it does not look like they have just been read.
 
-@item -A, --append
+@item -A
+@itemx --append
 Append to an existing archive.  Only works in copy-out
 mode.  The archive must be a disk file specified with
-the -O or -F (--file) option.
+the @option{-O} or @option{-F} (@option{--file}) option.
 
-@item -b, --swap
+@item -b
+@itemx --swap
 Swap both halfwords of words and bytes of halfwords in the data.
 Equivalent to -sS.  This option may be used in copy-in mode.  Use this
 option to convert 32-bit integers between big-endian and little-endian
@@ -347,42 +327,49 @@ machines.
 Set the I/O block size to 5120 bytes.  Initially the
 block size is 512 bytes.
 
-@item --block-size=BLOCK-SIZE
-Set the I/O block size to BLOCK-SIZE * 512 bytes.
+@item --block-size=@var{block-size}
+Set the I/O block size to @var{block-size} * 512 bytes.
 
 @item -c
 Use the old portable (ASCII) archive format.
 
-@item -C IO-SIZE, --io-size=IO-SIZE
-Set the I/O block size to IO-SIZE bytes.
+@item -C @var{io-size}
+@itemx --io-size=@var{io-size}
+Set the I/O block size to @var{io-size} bytes.
 
-@item -d, --make-directories
+@item -d
+@itemx --make-directories
 Create leading directories where needed.
 
-@item -E FILE, --pattern-file=FILE
+@item -E @var{file}
+@itemx --pattern-file=@var{file}
 Read additional patterns specifying filenames to extract or list from
-FILE.  The lines of FILE are treated as if they had been non-option
+@var{file}.  The lines of @var{file} are treated as if they had been non-option
 arguments to cpio.  This option is used in copy-in mode,
 
-@item -f, --nonmatching
+@item -f
+@itemx --nonmatching
 Only copy files that do not match any of the given
 patterns.
 
-@item -F, --file=archive
+@item -F @var{archive}
+@itemx --file=@var{archive}
 Archive filename to use instead of standard input or output.  To use a
 tape drive on another machine as the archive, use a filename that starts
-with `HOSTNAME:'.  The hostname can be preceded by a username and an
-`@@' to access the remote tape drive as that user, if you have
-permission to do so (typically an entry in that user's `~/.rhosts'
+with @samp{@var{hostname}:}, where @var{hostname} is the name or IP
+address of the machine.  The hostname can be preceded by a username and an
+@samp{@@} to access the remote tape drive as that user, if you have
+permission to do so (typically an entry in that user's @file{~/.rhosts}
 file).
 
 @item --force-local
-With -F, -I, or -O, take the archive file name to be a
+With @option{-F}, @option{-I}, or @option{-O}, take the archive file name to be a
 local file even if it contains a colon, which would
 ordinarily indicate a remote host name.
 
-@item -H FORMAT, --format=FORMAT
-Use archive format FORMAT.  The valid formats are listed below; the same
+@item -H @var{format}
+@itemx --format=@var{format}
+Use archive format @var{format}.  The valid formats are listed below; the same
 names are also recognized in all-caps.  The default in copy-in mode is
 to automatically detect the archive format, and in copy-out mode is
 @samp{bin}.
@@ -417,39 +404,46 @@ The portable format used by HPUX's cpio (which stores device files
 differently).
 @end table
 
-@item -i, --extract
+@item -i
+@itemx --extract
 Run in copy-in mode.
 @xref{Copy-in mode}.
 
-@item -I archive
+@item -I @var{archive}
 Archive filename to use instead of standard input.  To use a tape drive
 on another machine as the archive, use a filename that starts with
-`HOSTNAME:'.  The hostname can be preceded by a username and an `@@' to
+@samp{@var{hostname}:}, where @var{hostname} is the name or IP address
+of the remote host.  The hostname can be preceded by a username and an @samp{@@} to
 access the remote tape drive as that user, if you have permission to do
-so (typically an entry in that user's `~/.rhosts' file).
+so (typically an entry in that user's @file{~/.rhosts} file).
 
 @item -k
 Ignored; for compatibility with other versions of cpio.
 
-@item -l, --link
+@item -l
+@itemx --link
 Link files instead of copying them, when possible.
 
-@item -L, --dereference
+@item -L
+@itemx --dereference
 Copy the file that a symbolic link points to, rather than the symbolic
 link itself.
 
-@item -m, --preserve-modification-time
+@item -m
+@itemx --preserve-modification-time
 Retain previous file modification times when creating files.
 
-@item -M MESSAGE, --message=MESSAGE
-Print MESSAGE when the end of a volume of the backup media (such as a
+@item -M @var{message}
+@itemx --message=@var{message}
+Print @var{message} when the end of a volume of the backup media (such as a
 tape or a floppy disk) is reached, to prompt the user to insert a new
-volume.  If MESSAGE contains the string "%d", it is replaced by the
+volume.  If @var{message} contains the string @samp{%d}, it is replaced by the
 current volume number (starting at 1).
 
-@item -n, --numeric-uid-gid
+@item -n
+@itemx --numeric-uid-gid
 Show numeric UID and GID instead of translating them into names when using the
-@samp{--verbose option}.
+@option{--verbose} option.
 
 @item --absolute-filenames
 Do not strip leading file name components that contain ".." and
@@ -461,47 +455,72 @@ extracting them.  This is the default for non-root users, so that users
 on System V don't inadvertantly give away files.  This option can be
 used in copy-in mode and copy-pass mode
 
-@item -o, --create
+@item -o
+@itemx --create
 Run in copy-out mode.
 @xref{Copy-out mode}.
 
-@item -O archive
+@item -O @var{archive}
 Archive filename to use instead of standard output.  To use a tape drive
 on another machine as the archive, use a filename that starts with
-`HOSTNAME:'.  The hostname can be preceded by a username and an `@@' to
+@samp{@var{hostname}:}, where @var{hostname} is the name or IP address
+of the machine.  The hostname can be preceded by a username and an @samp{@@} to
 access the remote tape drive as that user, if you have permission to do
-so (typically an entry in that user's `~/.rhosts' file).
+so (typically an entry in that user's @file{~/.rhosts} file).
 
 @item --only-verify-crc
 Verify the CRC's of each file in the archive, when reading a CRC format
 archive. Don't actually extract the files.
 
-@item -p, --pass-through
+@item -p
+@itemx --pass-through
 Run in copy-pass mode.
 @xref{Copy-pass mode}.
 
 @item --quiet
 Do not print the number of blocks copied.
 
-@item -r, --rename
+@item -r
+@itemx --rename
 Interactively rename files.
 
-@item -R [user][:.][group], --owner [user][:.][group]
-Set the ownership of all files created to the specified user and/or
-group in copy-out and copy-pass modes.  Either the user, the group, or
-both, must be present.  If the group is omitted but the ":" or "."
-separator is given, use the given user's login group.  Only the
-super-user can change files' ownership.
+@item -R @var{owner}
+@itemx --owner @var{owner}
 
-@item --rsh-command=COMMAND
-Notifies cpio that is should use COMMAND to communicate with remote
+In copy-in and copy-pass mode, set the ownership of all files created
+to the specified @var{owner} (this operation is allowed only for the
+super-user). In copy-out mode, store the supplied owner information in
+the archive. 
+
+The argument can be either the user name or the user name
+and group name, separated by a dot or a colon, or the group name,
+preceeded by a dot or a colon, as shown in the examples below:
+
+@smallexample
+@group
+cpio --owner smith
+cpio --owner smith:
+cpio --owner smith:users
+cpio --owner :users
+@end group
+@end smallexample
+
+@noindent
+If the group is omitted but the @samp{:} or @samp{.} separator is
+given, as in the second example. the given user's login group will be
+used.  
+
+@item --rsh-command=@var{command}
+Notifies cpio that is should use @var{command} to communicate with remote
 devices.
 
-@item -s, --swap-bytes
-Swap the bytes of each halfword (pair of bytes) in the files.This option
+@item -s
+@itemx --swap-bytes
+Swap the bytes of each halfword (pair of bytes) in the files. This option
 can be used in copy-in mode.
 
-@item -S, --swap-halfwords
+@item -S
+@itemx --swap-halfwords
 Swap the halfwords of each word (4 bytes) in the files.  This option may
 be used in copy-in mode.
 
@@ -509,29 +528,33 @@ be used in copy-in mode.
 Write files with large blocks of zeros as sparse files.  This option is
 used in copy-in and copy-pass modes.
 
-@item -t, --list
+@item -t
+@itemx --list
 Print a table of contents of the input.
 
-@item -u, --unconditional
+@item -u
+@itemx --unconditional
 Replace all files, without asking whether to replace
 existing newer files with older files.
 
-@item -v, --verbose
-List the files processed, or with @samp{-t}, give an @samp{ls -l} style
+@item -v
+@itemx --verbose
+List the files processed, or with @option{-t}, give an @samp{ls -l} style
 table of contents listing.  In a verbose table of contents of a ustar
 archive, user and group names in the archive that do not exist on the
 local system are replaced by the names that correspond locally to the
 numeric UID and GID stored in the archive.
 
-@item -V --dot
-Print a @kbd{.} for each file processed.
+@item -V
+@itemx --dot
+Print a @samp{.} for each file processed.
 
 @item --version
 Print the cpio program version number and exit.
 @end table
 
 
-@node Media, Concept Index, Invoking `cpio', Top
+@node Media, Reports, Invoking cpio, Top
 @comment  node-name,  next,  previous,  up
 @chapter Magnetic Media
 @cindex magnetic media
@@ -554,8 +577,24 @@ be protected from such fields to avoid damage to stored data.  Sticking
 a floppy disk to a filing cabinet using a magnet is probably not a good
 idea.
 
+@node Reports, Concept Index, Media, Top
+@chapter Reporting bugs or suggestions
 
-@node Concept Index,  , Media, Top
+It is possible you will encounter a bug in @command{cpio}.
+If this happens, we would like to hear about it. As the purpose of bug
+reporting is to improve software, please be sure to include maximum
+information when reporting a bug. The information needed is:
+
+@itemize @bullet
+@item Version of the package you are using.
+@item Compilation options used when configuring the package.
+@item Conditions under which the bug appears.
+@end itemize 
+
+Send your report to <bug-cpio@@gnu.org>. Allow us a couple of
+days to answer.
+
+@node Concept Index, , Reports, Top
 @comment  node-name,  next,  previous,  up
 @unnumbered Concept Index
 @printindex cp

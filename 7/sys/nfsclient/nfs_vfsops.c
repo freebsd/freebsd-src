@@ -951,7 +951,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 	}
 	if (vfs_getopt(mp->mnt_optnew, "maxgroups", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.maxgrouplist);
-		if (ret != 1 || args.timeo <= 0) {
+		if (ret != 1 || args.maxgrouplist <= 0) {
 			vfs_mount_error(mp, "illegal maxgroups: %s",
 			    opt);
 			error = EINVAL;
@@ -1000,6 +1000,11 @@ nfs_mount(struct mount *mp, struct thread *td)
 		    (nmp->nm_flag &
 			(NFSMNT_NFSV3 | NFSMNT_NOLOCKD /*|NFSMNT_XLATECOOKIE*/));
 		nfs_decode_args(mp, nmp, &args, NULL);
+		goto out;
+	}
+	if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX) {
+		vfs_mount_error(mp, "Bad file handle");
+		error = EINVAL;
 		goto out;
 	}
 

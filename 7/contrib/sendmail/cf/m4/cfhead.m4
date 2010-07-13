@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004, 2009 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -49,7 +49,7 @@ define(`OSTYPE',
 	define(`_ARG_', $2)
 	include(_CF_DIR_`'ostype/$1.m4)POPDIVERT`'')
 ## helpful functions
-define(`lower', `translit(`$1', `ABCDEFGHIJKLMNOPQRSTUVWXYZ', `abcdefghijklmnopqrstuvwx')')
+define(`lower', `translit(`$1', `ABCDEFGHIJKLMNOPQRSTUVWXYZ', `abcdefghijklmnopqrstuvwxyz')')
 define(`strcasecmp', `ifelse(lower($1), lower($2), `1', `0')')
 ## access to further arguments in FEATURE/HACK
 define(`_ACC_ARG_1_',`$1')
@@ -308,4 +308,4 @@ define(`confMILTER_MACROS_EOM', `{msg_id}')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.116 2004/01/28 22:02:22 ca Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.120 2009/01/23 22:39:21 ca Exp $')

@@ -116,6 +116,7 @@ static bus_alloc_resource_t psycho_alloc_resource;
 static bus_activate_resource_t psycho_activate_resource;
 static bus_deactivate_resource_t psycho_deactivate_resource;
 static bus_release_resource_t psycho_release_resource;
+static bus_describe_intr_t psycho_describe_intr;
 static bus_get_dma_tag_t psycho_get_dma_tag;
 static pcib_maxslots_t psycho_maxslots;
 static pcib_read_config_t psycho_read_config;
@@ -140,6 +141,7 @@ static device_method_t psycho_methods[] = {
 	DEVMETHOD(bus_activate_resource,	psycho_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	psycho_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	psycho_release_resource),
+	DEVMETHOD(bus_describe_intr,	psycho_describe_intr),
 	DEVMETHOD(bus_get_dma_tag,	psycho_get_dma_tag),
 
 	/* pcib interface */
@@ -187,13 +189,13 @@ struct psycho_dma_sync {
 	uint8_t			pds_func;	/* func. of farest PCI dev. */
 };
 
-#define	PSYCHO_READ8(sc, off) \
+#define	PSYCHO_READ8(sc, off)						\
 	bus_read_8((sc)->sc_mem_res, (off))
-#define	PSYCHO_WRITE8(sc, off, v) \
+#define	PSYCHO_WRITE8(sc, off, v)					\
 	bus_write_8((sc)->sc_mem_res, (off), (v))
-#define	PCICTL_READ8(sc, off) \
+#define	PCICTL_READ8(sc, off)						\
 	PSYCHO_READ8((sc), (sc)->sc_pcictl + (off))
-#define	PCICTL_WRITE8(sc, off, v) \
+#define	PCICTL_WRITE8(sc, off, v)					\
 	PSYCHO_WRITE8((sc), (sc)->sc_pcictl + (off), (v))
 
 /*
@@ -522,7 +524,7 @@ psycho_attach(device_t dev)
 			    (u_long)intrmap, (u_long)PSYCHO_READ8(sc,
 			    intrmap), (u_long)intrclr);
 			PSYCHO_WRITE8(sc, intrmap, INTMAP_VEC(sc->sc_ign, i));
-			PSYCHO_WRITE8(sc, intrclr, 0);
+			PSYCHO_WRITE8(sc, intrclr, INTCLR_IDLE);
 			PSYCHO_WRITE8(sc, intrmap,
 			    INTMAP_ENABLE(INTMAP_VEC(sc->sc_ign, i),
 			    PCPU_GET(mid)));
@@ -807,7 +809,7 @@ psycho_ue(void *arg)
 	if ((afsr & UEAFSR_P_DTE) != 0)
 		iommu_decode_fault(sc->sc_is, afar);
 	panic("%s: uncorrectable DMA error AFAR %#lx AFSR %#lx",
-	    device_get_name(sc->sc_dev), (u_long)afar, (u_long)afsr);
+	    device_get_nameunit(sc->sc_dev), (u_long)afar, (u_long)afsr);
 	return (FILTER_HANDLED);
 }
 
@@ -837,7 +839,7 @@ psycho_pci_bus(void *arg)
 	afar = PCICTL_READ8(sc, PCR_AFA);
 	afsr = PCICTL_READ8(sc, PCR_AFS);
 	panic("%s: PCI bus %c error AFAR %#lx AFSR %#lx",
-	    device_get_name(sc->sc_dev), 'A' + sc->sc_half, (u_long)afar,
+	    device_get_nameunit(sc->sc_dev), 'A' + sc->sc_half, (u_long)afar,
 	    (u_long)afsr);
 	return (FILTER_HANDLED);
 }
@@ -1136,7 +1138,7 @@ psycho_intr_clear(void *arg)
 	struct intr_vector *iv = arg;
 	struct psycho_icarg *pica = iv->iv_icarg;
 
-	PSYCHO_WRITE8(pica->pica_sc, pica->pica_clr, 0);
+	PSYCHO_WRITE8(pica->pica_sc, pica->pica_clr, INTCLR_IDLE);
 }
 
 static int
@@ -1260,6 +1262,18 @@ psycho_teardown_intr(device_t dev, device_t child, struct resource *vec,
 		return (error);
 	}
 	return (bus_generic_teardown_intr(dev, child, vec, cookie));
+}
+
+static int
+psycho_describe_intr(device_t dev, device_t child, struct resource *vec,
+    void *cookie, const char *descr)
+{
+	struct psycho_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->sc_mode == PSYCHO_MODE_SABRE)
+		cookie = ((struct psycho_dma_sync *)cookie)->pds_cookie;
+	return (bus_generic_describe_intr(dev, child, vec, cookie, descr));
 }
 
 static struct resource *

@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2005, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2006, 2009  Internet Systems Consortium, Inc. ("ISC")
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sha2.c,v 1.2.2.12 2006/08/16 03:18:14 marka Exp $ */
+/* $Id: sha2.c,v 1.2.2.14 2009/01/19 23:46:16 tbox Exp $ */
 
 /*	$FreeBSD$	*/
 /*	$KAME: sha2.c,v 1.8 2001/11/08 01:07:52 itojun Exp $	*/
@@ -39,7 +39,7 @@
  * 3. Neither the name of the copyright holder nor the names of contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) AND CONTRIBUTOR(S) ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -83,7 +83,7 @@
  * Please make sure that your system defines BYTE_ORDER.  If your
  * architecture is little-endian, make sure it also defines
  * LITTLE_ENDIAN and that the two (BYTE_ORDER and LITTLE_ENDIAN) are
- * equivilent.
+ * equivalent.
  *
  * If your system does not define the above, then you can do so by
  * hand like this:
@@ -93,7 +93,7 @@
  *
  * And for little-endian machines, add:
  *
- *   #define BYTE_ORDER LITTLE_ENDIAN 
+ *   #define BYTE_ORDER LITTLE_ENDIAN
  *
  * Or for big-endian machines:
  *
@@ -414,12 +414,12 @@ isc_sha224_init(isc_sha224_t *context) {
 	context->bitcount = 0;
 }
 
-void 
+void
 isc_sha224_update(isc_sha224_t *context, const isc_uint8_t* data, size_t len) {
 	isc_sha256_update((isc_sha256_t *)context, data, len);
 }
 
-void 
+void
 isc_sha224_final(isc_uint8_t digest[], isc_sha224_t *context) {
 	isc_uint8_t sha256_digest[ISC_SHA256_DIGESTLENGTH];
 	isc_sha256_final(sha256_digest, (isc_sha256_t *)context);
@@ -453,7 +453,7 @@ isc_sha224_end(isc_sha224_t *context, char buffer[]) {
 
 char*
 isc_sha224_data(const isc_uint8_t *data, size_t len,
-	        char digest[ISC_SHA224_DIGESTSTRINGLENGTH])
+		char digest[ISC_SHA224_DIGESTSTRINGLENGTH])
 {
 	isc_sha224_t context;
 
@@ -483,7 +483,7 @@ isc_sha256_init(isc_sha256_t *context) {
 #define ROUND256_0_TO_15(a,b,c,d,e,f,g,h)	\
 	REVERSE32(*data++, W256[j]); \
 	T1 = (h) + Sigma1_256(e) + Ch((e), (f), (g)) + \
-             K256[j] + W256[j]; \
+	     K256[j] + W256[j]; \
 	(d) += T1; \
 	(h) = T1 + Sigma0_256(a) + Maj((a), (b), (c)); \
 	j++
@@ -615,11 +615,11 @@ isc_sha256_transform(isc_sha256_t *context, const isc_uint32_t* data) {
 		/* Part of the message block expansion: */
 		s0 = W256[(j+1)&0x0f];
 		s0 = sigma0_256(s0);
-		s1 = W256[(j+14)&0x0f];	
+		s1 = W256[(j+14)&0x0f];
 		s1 = sigma1_256(s1);
 
 		/* Apply the SHA-256 compression function to update a..h */
-		T1 = h + Sigma1_256(e) + Ch(e, f, g) + K256[j] + 
+		T1 = h + Sigma1_256(e) + Ch(e, f, g) + K256[j] +
 		     (W256[j&0x0f] += s1 + W256[(j+9)&0x0f] + s0);
 		T2 = Sigma0_256(a) + Maj(a, b, c);
 		h = g;
@@ -828,7 +828,7 @@ isc_sha512_init(isc_sha512_t *context) {
 #define ROUND512_0_TO_15(a,b,c,d,e,f,g,h)	\
 	REVERSE64(*data++, W512[j]); \
 	T1 = (h) + Sigma1_512(e) + Ch((e), (f), (g)) + \
-             K512[j] + W512[j]; \
+	     K512[j] + W512[j]; \
 	(d) += T1, \
 	(h) = T1 + Sigma0_512(a) + Maj((a), (b), (c)), \
 	j++
@@ -838,7 +838,7 @@ isc_sha512_init(isc_sha512_t *context) {
 
 #define ROUND512_0_TO_15(a,b,c,d,e,f,g,h)	\
 	T1 = (h) + Sigma1_512(e) + Ch((e), (f), (g)) + \
-             K512[j] + (W512[j] = *data++); \
+	     K512[j] + (W512[j] = *data++); \
 	(d) += T1; \
 	(h) = T1 + Sigma0_512(a) + Maj((a), (b), (c)); \
 	j++
@@ -851,7 +851,7 @@ isc_sha512_init(isc_sha512_t *context) {
 	s1 = W512[(j+14)&0x0f]; \
 	s1 = sigma1_512(s1); \
 	T1 = (h) + Sigma1_512(e) + Ch((e), (f), (g)) + K512[j] + \
-             (W512[j&0x0f] += s1 + W512[(j+9)&0x0f] + s0); \
+	     (W512[j&0x0f] += s1 + W512[(j+9)&0x0f] + s0); \
 	(d) += T1; \
 	(h) = T1 + Sigma0_512(a) + Maj((a), (b), (c)); \
 	j++
@@ -1163,12 +1163,12 @@ isc_sha384_init(isc_sha384_t *context) {
 	context->bitcount[0] = context->bitcount[1] = 0;
 }
 
-void 
+void
 isc_sha384_update(isc_sha384_t *context, const isc_uint8_t* data, size_t len) {
 	isc_sha512_update((isc_sha512_t *)context, data, len);
 }
 
-void 
+void
 isc_sha384_final(isc_uint8_t digest[], isc_sha384_t *context) {
 	isc_uint64_t	*d = (isc_uint64_t*)digest;
 
@@ -1224,7 +1224,7 @@ isc_sha384_end(isc_sha384_t *context, char buffer[]) {
 
 char*
 isc_sha384_data(const isc_uint8_t *data, size_t len,
-	        char digest[ISC_SHA384_DIGESTSTRINGLENGTH])
+		char digest[ISC_SHA384_DIGESTSTRINGLENGTH])
 {
 	isc_sha384_t context;
 

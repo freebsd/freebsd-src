@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +18,33 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.355.18.85 $)
+AC_REVISION($Revision: 1.355.18.98 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.59)
+
+#
+# build libbind?
+#
+AC_ARG_ENABLE(libbind,
+       [  --enable-libbind        build libbind (deprecated) [[default=no]]])
+
+
+case "$enable_libbind" in
+       yes)
+               AC_MSG_WARN([The version of libbind included with BIND 9.4
+is no longer maintained.  While '--enable-libbind' will still compile
+and may work, we are no longer supporting it within the BIND
+framework.  Anyone planning to use libbind should download
+and use the separate libbind package.  Please see
+https://www.isc.org/software/libbind for details.
+])
+               LIBBIND=lib/bind
+               AC_SUBST(LIBBIND)
+               ;;
+       no|'')
+               ;;
+esac
 
 AC_CONFIG_HEADER(config.h)
 AC_CONFIG_SUBDIRS(lib/bind)
@@ -29,7 +52,20 @@ AC_CONFIG_SUBDIRS(lib/bind)
 AC_CANONICAL_HOST
 
 AC_PROG_MAKE_SET
-AC_PROG_RANLIB
+
+#
+# GNU libtool support
+#
+case $build_os in
+sunos*)
+    # Just set the maximum command line length for sunos as it otherwise
+    # takes a exceptionally long time to work it out. Required for libtool.
+     
+    lt_cv_sys_max_cmd_len=4096;
+    ;;
+esac
+
+AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 AC_PROG_LN_S
 
@@ -41,7 +77,7 @@ AC_SUBST(CCOPT)
 #
 # Make very sure that these are the first files processed by
 # config.status, since we use the processed output as the input for
-# AC_SUBST_FILE() subsitutions in other files.
+# AC_SUBST_FILE() substitutions in other files.
 #
 AC_CONFIG_FILES([make/rules make/includes])
 
@@ -215,7 +251,7 @@ fi
 # OS dependent CC flags
 #
 case "$host" in
-	# OSF 5.0: recv/send are only avaliable with -D_POSIX_PII_SOCKET or
+	# OSF 5.0: recv/send are only available with -D_POSIX_PII_SOCKET or
 	# -D_XOPEN_SOURCE_EXTENDED.
 	*-dec-osf*)
 		STD_CDEFINES="$STD_CDEFINES -D_POSIX_PII_SOCKET"
@@ -355,10 +391,10 @@ AC_SUBST(ISC_PLATFORM_HAVEKQUEUE)
 # so we need to try running the code, not just test its existence.
 #
 AC_ARG_ENABLE(epoll,
-	[  --enable-epoll          use Linux epoll when available [[default=yes]]],
-	      want_epoll="$enableval",  want_epoll="yes")
+[  --enable-epoll          use Linux epoll when available [[default=auto]]],
+	      want_epoll="$enableval",  want_epoll="auto")
 case $want_epoll in
-yes)
+auto)
 	AC_MSG_CHECKING(epoll support)
 	AC_TRY_RUN([
 #include <sys/epoll.h>
@@ -372,6 +408,9 @@ int main() {
 	ISC_PLATFORM_HAVEEPOLL="#define ISC_PLATFORM_HAVEEPOLL 1"],
 	[AC_MSG_RESULT(no)
 	ISC_PLATFORM_HAVEEPOLL="#undef ISC_PLATFORM_HAVEEPOLL"])
+	;;
+yes)
+	ISC_PLATFORM_HAVEEPOLL="#define ISC_PLATFORM_HAVEEPOLL 1"
 	;;
 *)
 	ISC_PLATFORM_HAVEEPOLL="#undef ISC_PLATFORM_HAVEEPOLL"
@@ -451,7 +490,7 @@ AC_C_BIGENDIAN
 OPENSSL_WARNING=
 AC_MSG_CHECKING(for OpenSSL library)
 AC_ARG_WITH(openssl,
-[  --with-openssl[=PATH]   Build with OpenSSL [yes|no|path].
+[  --with-openssl[=PATH]     Build with OpenSSL [yes|no|path].
                           (Required for DNSSEC)],
     use_openssl="$withval", use_openssl="auto")
 
@@ -496,6 +535,9 @@ case "$use_openssl" in
 				AC_MSG_ERROR(
 [OpenSSL was not found in any of $openssldirs; use --with-openssl=/path])
 			fi
+		elif ! test -f "$use_openssl"/include/openssl/opensslv.h
+		then
+			AC_MSG_ERROR(["$use_openssl/include/openssl/opensslv.h" not found])
 		fi
 		USE_OPENSSL='-DOPENSSL'
 		if test "$use_openssl" = "/usr"
@@ -671,7 +713,7 @@ AC_SUBST(DNS_CRYPTO_LIBS)
 #
 AC_MSG_CHECKING(for random device)
 AC_ARG_WITH(randomdev,
-[  --with-randomdev=PATH Specify path for random device],
+[  --with-randomdev=PATH   Specify path for random device],
     use_randomdev="$withval", use_randomdev="unspec")
 
 case "$use_randomdev" in
@@ -966,7 +1008,6 @@ AC_CHECK_FUNC(catgets, AC_DEFINE(HAVE_CATGETS),)
 #
 # AC_CHECK_LIB(xnet, socket, ,
 #    AC_CHECK_LIB(socket, socket)
-#    AC_CHECK_LIB(nsl, inet_ntoa)
 # )
 #
 # Use this for now, instead:
@@ -974,9 +1015,11 @@ AC_CHECK_FUNC(catgets, AC_DEFINE(HAVE_CATGETS),)
 case "$host" in
 	mips-sgi-irix*)
 		;;
+	*-linux*)
+		;;
 	*)
 		AC_CHECK_LIB(socket, socket)
-		AC_CHECK_LIB(nsl, inet_ntoa)
+		AC_CHECK_LIB(nsl, inet_addr)
 		;;
 esac
 
@@ -995,7 +1038,7 @@ esac
 #
 AC_MSG_CHECKING(whether to use purify)
 AC_ARG_WITH(purify,
-	[  --with-purify[=PATH]	use Rational purify],
+	[  --with-purify[=PATH]      use Rational purify],
 	use_purify="$withval", use_purify="no")
 
 case "$use_purify" in
@@ -1032,19 +1075,9 @@ esac
 
 AC_SUBST(PURIFY)
 
-#
-# GNU libtool support
-#
-case $build_os in
-sunos*)
-    # Just set the maximum command line length for sunos as it otherwise
-    # takes a exceptionally long time to work it out. Required for libtool.
-    lt_cv_sys_max_cmd_len=4096;
-    ;;
-esac
 
 AC_ARG_WITH(libtool,
-	    [  --with-libtool	use GNU libtool (following indented options supported)],
+	    [  --with-libtool          use GNU libtool],
 	    use_libtool="$withval", use_libtool="no")
 
 case $use_libtool in
@@ -1095,31 +1128,15 @@ AC_SUBST(LIBTOOL_ALLOW_UNDEFINED)
 AC_SUBST(LIBTOOL_IN_MAIN)
 
 #
-# build libbind?
-#
-AC_ARG_ENABLE(libbind,
-	[  --enable-libbind		build libbind [default=no]])
-
-case "$enable_libbind" in
-	yes)
-		LIBBIND=lib/bind
-		AC_SUBST(LIBBIND)
-		;;
-	no|'')
-		;;
-esac
-
-
-#
 # Here begins a very long section to determine the system's networking
-# capabilities.  The order of the tests is signficant.
+# capabilities.  The order of the tests is significant.
 #
 
 #
 # IPv6
 #
 AC_ARG_ENABLE(ipv6,
-	[  --enable-ipv6		use IPv6 [default=autodetect]])
+	[  --enable-ipv6           use IPv6 [default=autodetect]])
 
 case "$enable_ipv6" in
 	yes|''|autodetect)
@@ -1150,7 +1167,7 @@ AC_TRY_COMPILE([
 #
 AC_MSG_CHECKING(for Kame IPv6 support)
 AC_ARG_WITH(kame,
-	[  --with-kame[=PATH]	use Kame IPv6 [default path /usr/local/v6]],
+	[  --with-kame[=PATH]	  use Kame IPv6 [default path /usr/local/v6]],
 	use_kame="$withval", use_kame="no")
 
 case "$use_kame" in
@@ -1430,23 +1447,8 @@ main() { char a[16]; return (inet_pton(AF_INET, "1.2.3", a) == 1 ? 1 :
         [AC_MSG_RESULT(assuming target platform has working inet_pton)
         ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"])
 
-AC_MSG_CHECKING([for inet_aton])
-AC_TRY_LINK([
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>],
-        [struct in_addr in; inet_aton(0, &in); return (0);],
-        [AC_MSG_RESULT(yes)
-        ISC_PLATFORM_NEEDATON="#undef ISC_PLATFORM_NEEDATON"],
-
-        [AC_MSG_RESULT(no)
-        ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_aton.$O"
-        ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_aton.c"
-        ISC_PLATFORM_NEEDATON="#define ISC_PLATFORM_NEEDATON 1"])
-
 AC_SUBST(ISC_PLATFORM_NEEDNTOP)
 AC_SUBST(ISC_PLATFORM_NEEDPTON)
-AC_SUBST(ISC_PLATFORM_NEEDATON)
 
 #
 # Look for a 4.4BSD-style sa_len member in struct sockaddr.
@@ -1754,7 +1756,7 @@ AC_SUBST(ISC_EXTRA_SRCS)
 # values of type isc_int64_t. This will normally be "ll", but where
 # the compiler treats "long long" as a alias for "long" and printf
 # doesn't know about "long long" use "l".  Hopefully the sprintf
-# will produce a inconsistant result in the later case.  If the compiler
+# will produce a inconsistent result in the later case.  If the compiler
 # fails due to seeing "%lld" we fall back to "l".
 #
 # Digital Unix 4.0 (gcc?) (long long) is 64 bits as is its long. It uses
@@ -1790,9 +1792,19 @@ AC_SUBST(LWRES_PLATFORM_QUADFORMAT)
 #
 # Security Stuff
 #
-AC_CHECK_FUNC(chroot, AC_DEFINE(HAVE_CHROOT))
+# Note it is very recommended to *not* disable chroot(),
+# this is only because chroot() was made obsolete by Posix.
+AC_ARG_ENABLE(chroot,
+	[  --disable-chroot        disable chroot])
+case "$enable_chroot" in
+	yes|'')
+		AC_CHECK_FUNCS(chroot)
+		;;
+	no)
+		;;
+esac
 AC_ARG_ENABLE(linux-caps,
-	[  --disable-linux-caps	disable linux capabilities])
+	[  --disable-linux-caps	  disable linux capabilities])
 case "$enable_linux_caps" in
 	yes|'')
 		AC_CHECK_HEADERS(linux/capability.h sys/capability.h)
@@ -1826,7 +1838,7 @@ esac
 #
 AC_CHECK_FUNC(tzset, AC_DEFINE(HAVE_TZSET))
 
-AC_MSG_CHECKING(for optarg decarartion)
+AC_MSG_CHECKING(for optarg declaration)
 AC_TRY_COMPILE([
 #include <unistd.h>
 ],
@@ -1953,7 +1965,7 @@ case "$host" in
 		hack_shutup_pthreadonceinit=yes
 		;;
 	*-solaris2.1[[0-9]])
-		hack_shutup_pthreadonceinit=yes
+		AC_TRY_COMPILE([ #include <pthread.h> ], [ static pthread_once_t once_test = { PTHREAD_ONCE_INIT }; ], [hack_shutup_pthreadonceinit=yes], )
 		;;
 esac
 
@@ -2025,12 +2037,14 @@ yes)
 esac
 AC_SUBST(ISC_PLATFORM_HAVEIFNAMETOINDEX)
 
+AC_CHECK_FUNCS(nanosleep)
+
 #
 # Machine architecture dependent features
 #
 AC_ARG_ENABLE(atomic,
-	[  --enable-atomic	enable machine specific atomic operations
-                        [[default=autodetect]]],
+	[  --enable-atomic	  enable machine specific atomic operations
+			  [[default=autodetect]]],
 			enable_atomic="$enableval",
 			enable_atomic="autodetect")
 case "$enable_atomic" in
@@ -2060,7 +2074,7 @@ main() {
 		[arch=x86_32],
 	        [arch=x86_32])
 	;;
-	x86_64-*)
+	x86_64-*|amd64-*)
 		arch=x86_64
 	;;
 	alpha*-*)
@@ -2282,7 +2296,7 @@ AC_SUBST($1)
 #
 AC_MSG_CHECKING(for Docbook-XSL path)
 AC_ARG_WITH(docbook-xsl,
-[  --with-docbook-xsl=PATH    Specify path for Docbook-XSL stylesheets],
+[  --with-docbook-xsl=PATH Specify path for Docbook-XSL stylesheets],
    docbook_path="$withval", docbook_path="auto")
 case "$docbook_path" in
 auto)
@@ -2350,7 +2364,7 @@ AC_SUBST(XSLT_DB2LATEX_ADMONITIONS)
 # IDN support
 #
 AC_ARG_WITH(idn,
-	[  --with-idn[=MPREFIX]   enable IDN support using idnkit [default PREFIX]],
+	[  --with-idn[=MPREFIX]      enable IDN support using idnkit [default PREFIX]],
 	use_idn="$withval", use_idn="no")
 case "$use_idn" in
 yes)
@@ -2370,7 +2384,7 @@ esac
 iconvinc=
 iconvlib=
 AC_ARG_WITH(libiconv,
-	[  --with-libiconv[=IPREFIX]   GNU libiconv are in IPREFIX [default PREFIX]],
+	[  --with-libiconv[=IPREFIX] GNU libiconv are in IPREFIX [default PREFIX]],
 	use_libiconv="$withval", use_libiconv="no")
 case "$use_libiconv" in
 yes)
@@ -2389,7 +2403,7 @@ no)
 esac
 
 AC_ARG_WITH(iconv,
-	[  --with-iconv[=LIBSPEC]   specify iconv library [default -liconv]],
+	[  --with-iconv[=LIBSPEC]    specify iconv library [default -liconv]],
 	iconvlib="$withval")
 case "$iconvlib" in
 no)
@@ -2401,7 +2415,7 @@ yes)
 esac
 
 AC_ARG_WITH(idnlib,
-	[  --with-idnlib=ARG    specify libidnkit],
+	[  --with-idnlib=ARG       specify libidnkit],
 	idnlib="$withval", idnlib="no")
 if test "$idnlib" = yes; then
 	AC_MSG_ERROR([You must specify ARG for --with-idnlib.])
@@ -2457,7 +2471,7 @@ AC_SUBST_FILE(BIND9_MAKE_RULES)
 BIND9_MAKE_RULES=$BIND9_TOP_BUILDDIR/make/rules
 
 . $srcdir/version
-BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}.${PATCHVER}${RELEASETYPE}${RELEASEVER}"
+BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}"
 AC_SUBST(BIND9_VERSION)
 
 AC_SUBST_FILE(LIBISC_API)

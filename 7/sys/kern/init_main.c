@@ -435,7 +435,7 @@ proc0_init(void *dummy __unused)
 	p->p_sysent = &null_sysvec;
 	p->p_flag = P_SYSTEM | P_INMEM;
 	p->p_state = PRS_NORMAL;
-	knlist_init(&p->p_klist, &p->p_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&p->p_klist, &p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
 	td->td_tid = PID_MAX + 1;

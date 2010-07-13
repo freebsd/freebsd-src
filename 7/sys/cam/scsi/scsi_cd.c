@@ -2523,7 +2523,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 
 			error = cdgetmode(periph, &params, AUDIO_PAGE);
 			if (error) {
-				free(&params, M_SCSICD);
+				free(params.mode_buf, M_SCSICD);
 				cam_periph_unlock(periph);
 				break;
 			}
@@ -2773,8 +2773,12 @@ cdcheckmedia(struct cam_periph *periph)
 		softc->flags &= ~(CD_FLAG_VALID_MEDIA|CD_FLAG_VALID_TOC);
 		cdprevent(periph, PR_ALLOW);
 		return (error);
-	} else
+	} else {
 		softc->flags |= CD_FLAG_VALID_MEDIA;
+		softc->disk->d_sectorsize = softc->params.blksize;
+		softc->disk->d_mediasize =
+		    (off_t)softc->params.blksize * softc->params.disksize;
+	}
 
 	/*
 	 * Now we check the table of contents.  This (currently) is only
@@ -2864,9 +2868,6 @@ cdcheckmedia(struct cam_periph *periph)
 
 	softc->flags |= CD_FLAG_VALID_TOC;
 	softc->disk->d_maxsize = DFLTPHYS;
-	softc->disk->d_sectorsize = softc->params.blksize;
-	softc->disk->d_mediasize =
-	    (off_t)softc->params.blksize * softc->params.disksize;
 
 bailout:
 

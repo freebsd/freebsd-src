@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2009  Internet Systems Consortium, Inc. ("ISC")
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: atomic.h,v 1.2.2.2 2005/06/16 22:01:01 jinmei Exp $ */
+/* $Id: atomic.h,v 1.2.2.4 2009/04/08 06:46:30 tbox Exp $ */
 
 /*
  * This code was written based on FreeBSD's kernel source whose copyright
@@ -62,16 +62,20 @@
 
 /*
  * This routine atomically increments the value stored in 'p' by 'val', and
- * returns the previous value.
+ * returns the previous value.  Memory access ordering around this function
+ * can be critical, so we add explicit memory block instructions at the
+ * beginning and the end of it (same for other functions).
  */
-static inline isc_int32_t 
+static inline isc_int32_t
 isc_atomic_xadd(isc_int32_t *p, isc_int32_t val) {
-	return (asm("1:"
+	return (asm("mb;"
+		    "1:"
 		    "ldl_l %t0, 0(%a0);"	/* load old value */
 		    "mov %t0, %v0;"		/* copy the old value */
 		    "addl %t0, %a1, %t0;"	/* calculate new value */
 		    "stl_c %t0, 0(%a0);"	/* attempt to store */
-		    "beq %t0, 1b;",		/* spin if failed */
+		    "beq %t0, 1b;"		/* spin if failed */
+		    "mb;",
 		    p, val));
 }
 
@@ -80,11 +84,13 @@ isc_atomic_xadd(isc_int32_t *p, isc_int32_t val) {
  */
 static inline void
 isc_atomic_store(isc_int32_t *p, isc_int32_t val) {
-	(void)asm("1:"
+	(void)asm("mb;"
+		  "1:"
 		  "ldl_l %t0, 0(%a0);"		/* load old value */
 		  "mov %a1, %t0;"		/* value to store */
 		  "stl_c %t0, 0(%a0);"		/* attempt to store */
-		  "beq %t0, 1b;",		/* spin if failed */
+		  "beq %t0, 1b;"		/* spin if failed */
+		  "mb;",
 		  p, val);
 }
 
@@ -96,7 +102,8 @@ isc_atomic_store(isc_int32_t *p, isc_int32_t val) {
 static inline isc_int32_t
 isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val) {
 
-	return(asm("1:"
+	return(asm("mb;"
+		   "1:"
 		   "ldl_l %t0, 0(%a0);"		/* load old value */
 		   "mov %t0, %v0;"		/* copy the old value */
 		   "cmpeq %t0, %a1, %t0;"	/* compare */
@@ -104,22 +111,25 @@ isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val) {
 		   "mov %a2, %t0;"		/* value to store */
 		   "stl_c %t0, 0(%a0);"		/* attempt to store */
 		   "beq %t0, 1b;"		/* if it failed, spin */
-		   "2:",
+		   "2:"
+		   "mb;",
 		   p, cmpval, val));
 }
 #elif defined (ISC_PLATFORM_USEGCCASM)
-static inline isc_int32_t 
+static inline isc_int32_t
 isc_atomic_xadd(isc_int32_t *p, isc_int32_t val) {
 	isc_int32_t temp, prev;
 
 	__asm__ volatile(
+		"mb;"
 		"1:"
 		"ldl_l %0, %1;"			/* load old value */
 		"mov %0, %2;"			/* copy the old value */
 		"addl %0, %3, %0;"		/* calculate new value */
 		"stl_c %0, %1;"			/* attempt to store */
 		"beq %0, 1b;"			/* spin if failed */
-		: "=&r"(temp), "+m"(*p), "=r"(prev)
+		"mb;"
+		: "=&r"(temp), "+m"(*p), "=&r"(prev)
 		: "r"(val)
 		: "memory");
 
@@ -131,11 +141,13 @@ isc_atomic_store(isc_int32_t *p, isc_int32_t val) {
 	isc_int32_t temp;
 
 	__asm__ volatile(
+		"mb;"
 		"1:"
 		"ldl_l %0, %1;"			/* load old value */
 		"mov %2, %0;"			/* value to store */
 		"stl_c %0, %1;"			/* attempt to store */
 		"beq %0, 1b;"			/* if it failed, spin */
+		"mb;"
 		: "=&r"(temp), "+m"(*p)
 		: "r"(val)
 		: "memory");
@@ -146,6 +158,7 @@ isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val) {
 	isc_int32_t temp, prev;
 
 	__asm__ volatile(
+		"mb;"
 		"1:"
 		"ldl_l %0, %1;"			/* load old value */
 		"mov %0, %2;"			/* copy the old value */
@@ -155,7 +168,8 @@ isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val) {
 		"stl_c %0, %1;"			/* attempt to store */
 		"beq %0, 1b;"			/* if it failed, spin */
 		"2:"
-		: "=&r"(temp), "+m"(*p), "=r"(prev)
+		"mb;"
+		: "=&r"(temp), "+m"(*p), "=&r"(prev)
 		: "r"(cmpval), "r"(val)
 		: "memory");
 

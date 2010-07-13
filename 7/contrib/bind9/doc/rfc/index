@@ -20,6 +20,7 @@
 1750:	Randomness Recommendations for Security
 1876:	A Means for Expressing Location Information in the Domain Name System
 1886:	DNS Extensions to support IP version 6
+1912:	Common DNS Operational and Configuration Errors
 1982:	Serial Number Arithmetic
 1995:	Incremental Zone Transfer in DNS
 1996:	A Mechanism for Prompt Notification of Zone Changes (DNS NOTIFY)
@@ -91,6 +92,7 @@
 	 Secret Key Transaction Authentication for DNS (GSS-TSIG)
 3655:	Redefinition of DNS Authenticated Data (AD) bit
 3658:	Delegation Signer (DS) Resource Record (RR)
+3755:	Legacy Resolver Compatibility for Delegation Signer (DS)
 3757:	Domain Name System KEY (DNSKEY) Resource Record (RR)
 	 Secure Entry Point (SEP) Flag
 3833:	Threat Analysis of the Domain Name System (DNS)
@@ -104,6 +106,8 @@
 4159:	Deprecation of "ip6.int"
 4193:	Unique Local IPv6 Unicast Addresses
 4255:	Using DNS to Securely Publish Secure Shell (SSH) Key Fingerprints
+4294:	IPv6 Node Requirements
+4339:	IPv6 Host Configuration of DNS Server Information Approaches
 4343:	Domain Name System (DNS) Case Insensitivity Clarification
 4367:	What's in a Name: False Assumptions about DNS Names
 4398:	Storing Certificates in the Domain Name System (DNS)
@@ -111,9 +115,26 @@
 4408:	Sender Policy Framework (SPF) for Authorizing Use of Domains
 	 in E-Mail, Version 1
 4470:	Minimally Covering NSEC Records and DNSSEC On-line Signing
+4471:	Derivation of DNS Name Predecessor and Successor
+4472:	Operational Considerations and Issues with IPv6 DNS
+4509:	Use of SHA-256 in DNSSEC Delegation Signer (DS) Resource Records (RRs)
 4634:	US Secure Hash Algorithms (SHA and HMAC-SHA)
+4635:	HMAC SHA TSIG Algorithm Identifiers
 4641:	DNSSEC Operational Practices
 4648:	The Base16, Base32, and Base64 Data Encodings
+4697:	Observed DNS Resolution Misbehavior
 4701:	A DNS Resource Record (RR) for Encoding
          Dynamic Host Configuration Protocol (DHCP) Information (DHCID RR)
+4892:	Requirements for a Mechanism Identifying a Name Server Instance
+4955:	DNS Security (DNSSEC) Experiments
+4956:	DNS Security (DNSSEC) Opt-In
+5001:	DNS Name Server Identifier (NSID) Option
+5011:	Automated Updates of DNS Security (DNSSEC) Trust Anchors
 5155:	DNS Security (DNSSEC) Hashed Authenticated Denial of Existence
+5205:	Host Identity Protocol (HIP) Domain Name System (DNS) Extension
+5395:	Domain Name System (DNS) IANA Considerations
+5452:	Measures for Making DNS More Resilient against Forged Answers
+5507:	Design Choices When Expanding the DNS
+5625:	DNS Proxy Implementation Guidelines
+5702:   Use of SHA-2 Algorithms with RSA in
+         DNSKEY and RRSIG Resource Records for DNSSEC

@@ -316,15 +316,6 @@ END(tl1_kstack_fault)
 #define	RSF_FILL_INC	tl0_ret_fill_end - tl0_ret_fill
 
 /*
- * Retry a spill or fill with a different wstate due to an alignment fault.
- * We may just be using the wrong stack offset.
- */
-#define	RSF_ALIGN_RETRY(ws) \
-	wrpr	%g0, (ws), %wstate ; \
-	retry ; \
-	.align	16
-
-/*
  * Generate a T_SPILL or T_FILL trap if the window operation fails.
  */
 #define	RSF_TRAP(type) \
@@ -1716,6 +1707,19 @@ END(tl1_dmmu_prot_trap)
 	RSF_SPILL_TOPCB
 	.endm
 
+	.macro	tl1_spill_7_n
+	btst	1, %sp
+	bnz,a,pn %xcc, tl1_spill_0_n
+	 nop
+	srl	%sp, 0, %sp
+	SPILL(stw, %sp, 4, EMPTY)
+	saved
+	retry
+	.align	32
+	RSF_FATAL(T_SPILL)
+	RSF_FATAL(T_SPILL)
+	.endm
+
 	.macro	tl1_spill_0_o
 	wr	%g0, ASI_AIUP, %asi
 	SPILL(stxa, %sp + SPOFF, 8, %asi)
@@ -1768,6 +1772,19 @@ END(tl1_dmmu_prot_trap)
 	.align 32
 	RSF_FILL_MAGIC
 	RSF_FILL_MAGIC
+	.endm
+
+	.macro	tl1_fill_7_n
+	btst	1, %sp
+	bnz,a,pt %xcc, tl1_fill_0_n
+	 nop
+	srl	%sp, 0, %sp
+	FILL(lduw, %sp, 4, EMPTY)
+	restored
+	retry
+	.align	32
+	RSF_FATAL(T_FILL)
+	RSF_FATAL(T_FILL)
 	.endm
 
 /*
@@ -2016,8 +2033,10 @@ tl1_spill_0_n:
 tl1_spill_2_n:
 	tl1_spill_2_n					! 0x288
 tl1_spill_3_n:
-	tl1_spill_3_n					! 0x29c
-	tl1_spill_bad	4				! 0x290-0x29f
+	tl1_spill_3_n					! 0x28c
+	tl1_spill_bad	3				! 0x290-0x29b
+tl1_spill_7_n:
+	tl1_spill_7_n					! 0x29c
 tl1_spill_0_o:
 	tl1_spill_0_o					! 0x2a0
 tl1_spill_1_o:
@@ -2029,10 +2048,13 @@ tl1_fill_0_n:
 	tl1_fill_0_n					! 0x2c0
 	tl1_fill_bad	1				! 0x2c4
 tl1_fill_2_n:
-	tl1_fill_2_n					! 0x2d0
+	tl1_fill_2_n					! 0x2c8
 tl1_fill_3_n:
-	tl1_fill_3_n					! 0x2d4
-	tl1_fill_bad	12				! 0x2d8-0x2ff
+	tl1_fill_3_n					! 0x2cc
+	tl1_fill_bad	3				! 0x2d0-0x2db
+tl1_fill_7_n:
+	tl1_fill_7_n					! 0x2dc
+	tl1_fill_bad	8				! 0x2e0-0x2ff
 	tl1_reserved	1				! 0x300
 tl1_breakpoint:
 	tl1_gen		T_BREAKPOINT			! 0x301
@@ -2649,7 +2671,7 @@ END(tl0_ret)
  * Kernel trap entry point
  *
  * void tl1_trap(u_int type, u_long o1, u_long o2, u_long tar, u_long sfar,
- *      u_int sfsr)
+ *     u_int sfsr)
  *
  * This is easy because the stack is already setup and the windows don't need
  * to be split.  We build a trapframe and call trap(), the same as above, but

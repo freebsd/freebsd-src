@@ -238,6 +238,10 @@ struct md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
+/*
+ * The kernel virtual address (KVA) of the level 4 page table page is always
+ * within the direct map (DMAP) region.
+ */
 struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */

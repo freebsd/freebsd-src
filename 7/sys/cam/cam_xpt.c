@@ -3150,6 +3150,10 @@ xpt_action(union ccb *start_ccb)
 	case XPT_NOTIFY_ACK:
 	case XPT_GET_TRAN_SETTINGS:
 	case XPT_RESET_BUS:
+	case XPT_IMMEDIATE_NOTIFY:
+	case XPT_NOTIFY_ACKNOWLEDGE:
+	case XPT_GET_SIM_KNOB:
+	case XPT_SET_SIM_KNOB:
 	{
 		struct cam_sim *sim;
 

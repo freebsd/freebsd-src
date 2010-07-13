@@ -414,6 +414,31 @@ inthand_remove(int vec, void *cookie)
 	return (error);
 }
 
+/* Add a description to an active interrupt handler. */
+int
+intr_describe(int vec, void *ih, const char *descr)
+{
+	struct intr_vector *iv;
+	int error;
+
+	if (vec < 0 || vec >= IV_MAX)
+		return (EINVAL);
+	sx_xlock(&intr_table_lock);
+	iv = &intr_vectors[vec];
+	if (iv == NULL) {
+		sx_xunlock(&intr_table_lock);
+		return (EINVAL);
+	}
+	error = intr_event_describe_handler(iv->iv_event, ih, descr);
+	if (error) {
+		sx_xunlock(&intr_table_lock);
+		return (error);
+	}
+	intrcnt_updatename(vec, iv->iv_event->ie_fullname, 0);
+	sx_xunlock(&intr_table_lock);
+	return (error);
+}
+
 #ifdef SMP
 /*
  * Support for balancing interrupt sources across CPUs.  For now we just

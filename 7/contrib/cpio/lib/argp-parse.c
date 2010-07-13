@@ -15,13 +15,14 @@
 
    You should have received a copy of the GNU General Public License along
    with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
 #endif
 
 #include <alloca.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -37,10 +38,13 @@
 #else
 # include "gettext.h"
 #endif
-#define N_(msgid) (msgid)
+#define N_(msgid) msgid
 
 #include "argp.h"
 #include "argp-namefrob.h"
+
+#define alignof(type) offsetof (struct { char c; type x; }, x)
+#define alignto(n, d) ((((n) + (d) - 1) / (d)) * (d))
 
 /* Getopt return values.  */
 #define KEY_END (-1)		/* The end of the options.  */
@@ -75,11 +79,11 @@ static volatile int _argp_hang;
 
 static const struct argp_option argp_default_options[] =
 {
-  {"help",	  '?',    	0, 0,  N_("Give this help list"), -1},
-  {"usage",	  OPT_USAGE,	0, 0,  N_("Give a short usage message"), 0},
-  {"program-name",OPT_PROGNAME,"NAME", OPTION_HIDDEN, N_("Set the program name"), 0},
-  {"HANG",	  OPT_HANG,    "SECS", OPTION_ARG_OPTIONAL | OPTION_HIDDEN,
-     N_("Hang for SECS seconds (default 3600)"), 0},
+  {"help",	  '?',    	0, 0,  N_("give this help list"), -1},
+  {"usage",	  OPT_USAGE,	0, 0,  N_("give a short usage message"), 0},
+  {"program-name",OPT_PROGNAME,N_("NAME"), OPTION_HIDDEN, N_("set the program name"), 0},
+  {"HANG",	  OPT_HANG,    N_("SECS"), OPTION_ARG_OPTIONAL | OPTION_HIDDEN,
+     N_("hang for SECS seconds (default 3600)"), 0},
   {NULL, 0, 0, 0, NULL, 0}
 };
 
@@ -93,7 +97,7 @@ argp_default_parser (int key, char *arg, struct argp_state *state)
       break;
     case OPT_USAGE:
       __argp_state_help (state, state->out_stream,
-		       ARGP_HELP_USAGE | ARGP_HELP_EXIT_OK);
+			 ARGP_HELP_USAGE | ARGP_HELP_EXIT_OK);
       break;
 
     case OPT_PROGNAME:		/* Set the program name.  */
@@ -105,11 +109,7 @@ argp_default_parser (int key, char *arg, struct argp_state *state)
 	 to be that, so we have to be a bit careful here.]  */
 
       /* Update what we use for messages.  */
-      state->name = strrchr (arg, '/');
-      if (state->name)
-	state->name++;
-      else
-	state->name = arg;
+      state->name = __argp_base_name (arg);
 
 #if defined _LIBC || HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME
       program_invocation_short_name = state->name;
@@ -140,7 +140,7 @@ static const struct argp argp_default_argp =
 
 static const struct argp_option argp_version_options[] =
 {
-  {"version",	  'V',    	0, 0,  N_("Print program version"), -1},
+  {"version",	  'V',    	0, 0,  N_("print program version"), -1},
   {NULL, 0, 0, 0, NULL, 0}
 };
 
@@ -462,6 +462,11 @@ parser_init (struct parser *parser, const struct argp *argp,
   struct group *group;
   struct parser_sizes szs;
   struct _getopt_data opt_data = _GETOPT_DATA_INITIALIZER;
+  char *storage;
+  size_t glen, gsum;
+  size_t clen, csum;
+  size_t llen, lsum;
+  size_t slen, ssum;
 
   szs.short_len = (flags & ARGP_NO_ARGS) ? 0 : 1;
   szs.long_len = 0;
@@ -472,22 +477,33 @@ parser_init (struct parser *parser, const struct argp *argp,
     calc_sizes (argp, &szs);
 
   /* Lengths of the various bits of storage used by PARSER.  */
-#define GLEN (szs.num_groups + 1) * sizeof (struct group)
-#define CLEN (szs.num_child_inputs * sizeof (void *))
-#define LLEN ((szs.long_len + 1) * sizeof (struct option))
-#define SLEN (szs.short_len + 1)
+  glen = (szs.num_groups + 1) * sizeof (struct group);
+  clen = szs.num_child_inputs * sizeof (void *);
+  llen = (szs.long_len + 1) * sizeof (struct option);
+  slen = szs.short_len + 1;
 
-  parser->storage = malloc (GLEN + CLEN + LLEN + SLEN);
+  /* Sums of previous lengths, properly aligned.  There's no need to
+     align gsum, since struct group is aligned at least as strictly as
+     void * (since it contains a void * member).  And there's no need
+     to align lsum, since struct option is aligned at least as
+     strictly as char.  */
+  gsum = glen;
+  csum = alignto (gsum + clen, alignof (struct option));
+  lsum = csum + llen;
+  ssum = lsum + slen;
+
+  parser->storage = malloc (ssum);
   if (! parser->storage)
     return ENOMEM;
 
+  storage = parser->storage;
   parser->groups = parser->storage;
-  parser->child_inputs = parser->storage + GLEN;
-  parser->long_opts = parser->storage + GLEN + CLEN;
-  parser->short_opts = parser->storage + GLEN + CLEN + LLEN;
+  parser->child_inputs = (void **) (storage + gsum);
+  parser->long_opts = (struct option *) (storage + csum);
+  parser->short_opts = storage + lsum;
   parser->opt_data = opt_data;
 
-  memset (parser->child_inputs, 0, szs.num_child_inputs * sizeof (void *));
+  memset (parser->child_inputs, 0, clen);
   parser_convert (parser, argp, flags);
 
   memset (&parser->state, 0, sizeof (struct argp_state));
@@ -542,10 +558,7 @@ parser_init (struct parser *parser, const struct argp *argp,
 
   if (parser->state.argv == argv && argv[0])
     /* There's an argv[0]; use it for messages.  */
-    {
-      char *short_name = strrchr (argv[0], '/');
-      parser->state.name = short_name ? short_name + 1 : argv[0];
-    }
+    parser->state.name = __argp_base_name (argv[0]);
   else
     parser->state.name = __argp_short_program_name ();
 
@@ -864,6 +877,20 @@ __argp_parse (const struct argp *argp, int argc, char **argv, unsigned flags,
      to be parsed (which in some cases isn't actually an error).  */
   int arg_ebadkey = 0;
 
+#ifndef _LIBC
+  if (!(flags & ARGP_PARSE_ARGV0))
+    {
+#ifdef HAVE_DECL_PROGRAM_INVOCATION_NAME
+      if (!program_invocation_name)
+	program_invocation_name = argv[0];
+#endif
+#ifdef HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME
+      if (!program_invocation_short_name)
+	program_invocation_short_name = __argp_base_name (argv[0]);
+#endif
+    }
+#endif
+	
   if (! (flags & ARGP_NO_HELP))
     /* Add our own options.  */
     {

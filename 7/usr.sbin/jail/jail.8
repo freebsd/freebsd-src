@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2009
+.Dd January 17, 2010
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -532,6 +532,15 @@ and interact with various network subsystems, extra caution should be used
 where privileged access to jails is given out to untrusted parties.
 As such,
 by default this option is disabled.
+.It Va security.jail.ip4_saddrsel
+This flag changes how IPv4 source address selection works and can disable
+it for all prisons in favour of forcing the primary IPv4 address of each
+jail to be used for unbound outgoing connections.
+Source address selection is enabled by default for all jails.
+.It Va security.jail.ip6_saddrsel
+IPv6 equivalent to the
+.Va security.jail.ip4_saddrsel
+option.
 .It Va security.jail.enforce_statfs
 This MIB entry determines which information processes in a jail are
 able to get about mount-points.

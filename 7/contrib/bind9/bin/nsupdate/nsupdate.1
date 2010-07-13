@@ -1,7 +1,7 @@
-.\" Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
-.\" Permission to use, copy, modify, and distribute this software for any
+.\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
 .\" 
@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: nsupdate.1,v 1.1.4.2 2008/09/01 02:29:00 tbox Exp $
+.\" $Id: nsupdate.1,v 1.1.4.4 2009/07/11 01:31:45 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -96,7 +96,7 @@ The
 \fB\-k\fR
 may also be used to specify a SIG(0) key used to authenticate Dynamic DNS update requests. In this case, the key specified is not an HMAC\-MD5 key.
 .PP
-By default
+By default,
 \fBnsupdate\fR
 uses UDP to send update requests to the name server unless they are too large to fit in a UDP request in which case TCP will be used. The
 \fB\-v\fR
@@ -342,7 +342,7 @@ base\-64 encoding of HMAC\-MD5 key created by
 .PP
 The TSIG key is redundantly stored in two separate files. This is a consequence of nsupdate using the DST library for its cryptographic operations, and may change in future releases.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2008 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2009 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

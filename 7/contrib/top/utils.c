@@ -476,7 +476,7 @@ int amt;
 
 char *format_k2(amt)
 
-int amt;
+unsigned long long amt;
 
 {
     static char retarray[NUM_STRINGS][16];

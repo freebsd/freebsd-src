@@ -151,7 +151,7 @@ main(int argc, char **argv)
 	else
 		speed = atoi(env_speed) * 177;
 	if (speed <= 0)
-		errx(EX_USAGE, "Invalid speed: %s", optarg);
+		errx(EX_USAGE, "Invalid speed: %s", env_speed);
 
 	if (argc == 0)
 		usage();

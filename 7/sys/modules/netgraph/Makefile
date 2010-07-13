@@ -34,6 +34,7 @@ SUBDIR=	async \
 	netflow \
 	netgraph \
 	one2many \
+	patch \
 	ppp \
 	pppoe \
 	pptpgre \

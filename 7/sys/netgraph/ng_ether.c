@@ -343,9 +343,6 @@ ng_ether_link_state(struct ifnet *ifp, int state)
 	struct ng_mesg *msg;
 	int cmd, dummy_error = 0;
 
-	if (priv->lower == NULL)
-                return;
-
 	if (state == LINK_STATE_UP)
 		cmd = NGM_LINK_IS_UP;
 	else if (state == LINK_STATE_DOWN)
@@ -353,9 +350,16 @@ ng_ether_link_state(struct ifnet *ifp, int state)
 	else
 		return;
 
-	NG_MKMESSAGE(msg, NGM_FLOW_COOKIE, cmd, 0, M_NOWAIT);
-	if (msg != NULL)
-		NG_SEND_MSG_HOOK(dummy_error, node, msg, priv->lower, 0);
+	if (priv->lower != NULL) {
+		NG_MKMESSAGE(msg, NGM_FLOW_COOKIE, cmd, 0, M_NOWAIT);
+		if (msg != NULL)
+			NG_SEND_MSG_HOOK(dummy_error, node, msg, priv->lower, 0);
+	}
+	if (priv->orphan != NULL) {
+		NG_MKMESSAGE(msg, NGM_FLOW_COOKIE, cmd, 0, M_NOWAIT);
+		if (msg != NULL)
+			NG_SEND_MSG_HOOK(dummy_error, node, msg, priv->orphan, 0);
+	}
 }
 
 /******************************************************************

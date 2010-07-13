@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -554,6 +554,7 @@ dsl_dataset_own_obj(dsl_pool_t *dp, uint64_t dsobj, int flags, void *owner,
 		return (err);
 	if (!dsl_dataset_tryown(*dsp, DS_MODE_IS_INCONSISTENT(flags), owner)) {
 		dsl_dataset_rele(*dsp, owner);
+		*dsp = NULL;
 		return (EBUSY);
 	}
 	return (0);
@@ -1267,8 +1268,7 @@ dsl_dataset_rollback_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 		(void) zio_wait(zio);
 	}
 
-	ASSERT(!(ds->ds_phys->ds_flags & DS_FLAG_UNIQUE_ACCURATE) ||
-	    ds->ds_phys->ds_unique_bytes == 0);
+	ASSERT(!DS_UNIQUE_IS_ACCURATE(ds) || ds->ds_phys->ds_unique_bytes == 0);
 
 	if (ds->ds_prev && ds->ds_prev != ds->ds_dir->dd_pool->dp_origin_snap) {
 		/* Change our contents to that of the prev snapshot */
@@ -1660,7 +1660,7 @@ dsl_dataset_destroy_sync(void *arg1, void *tag, cred_t *cr, dmu_tx_t *tx)
 		err = traverse_dsl_dataset(ds, ds->ds_phys->ds_prev_snap_txg,
 		    ADVANCE_POST, kill_blkptr, &ka);
 		ASSERT3U(err, ==, 0);
-		ASSERT(spa_version(dp->dp_spa) < SPA_VERSION_UNIQUE_ACCURATE ||
+		ASSERT(!DS_UNIQUE_IS_ACCURATE(ds) ||
 		    ds->ds_phys->ds_unique_bytes == 0);
 	}
 
@@ -2205,6 +2205,12 @@ dsl_dataset_rename(char *oldname, const char *newname, boolean_t recursive)
 	err = dsl_dir_open(oldname, FTAG, &dd, &tail);
 	if (err)
 		return (err);
+	/*
+	 * If there are more than 2 references there may be holds
+	 * hanging around that haven't been cleared out yet.
+	 */
+	if (dmu_buf_refcount(dd->dd_dbuf) > 2)
+		txg_wait_synced(dd->dd_pool, 0);
 	if (tail == NULL) {
 		int delta = strlen(newname) - strlen(oldname);
 
@@ -2578,7 +2584,7 @@ snaplist_destroy(list_t *l, boolean_t own)
 {
 	struct promotenode *snap;
 
-	if (!list_link_active(&l->list_head))
+	if (!l || !list_link_active(&l->list_head))
 		return;
 
 	while ((snap = list_tail(l)) != NULL) {

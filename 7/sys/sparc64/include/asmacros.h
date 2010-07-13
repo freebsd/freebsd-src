@@ -107,7 +107,7 @@
 
 #ifdef INVARIANTS
 #define	KASSERT(r1, msg) \
-	brnz	r1, 8f ; \
+	brnz,pt	r1, 8f ; \
 	 nop ; \
 	PANIC(msg, r1) ; \
 8:

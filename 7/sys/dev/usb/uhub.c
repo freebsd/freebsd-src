@@ -435,7 +435,7 @@ uhub_explore(usbd_device_handle dev)
 #if 0 && defined(DIAGNOSTIC)
 			if (up->device == NULL &&
 			    (status & UPS_CURRENT_CONNECT_STATUS))
-				deivce_printf(sc->sc_dev,
+				device_printf(sc->sc_dev,
 				    "connected, no device\n");
 #endif
 			continue;

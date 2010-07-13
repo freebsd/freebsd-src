@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkzone.docbook,v 1.11.18.21 2007/08/28 07:19:55 tbox Exp $ -->
+<!-- $Id: named-checkzone.docbook,v 1.11.18.23 2009/01/22 23:45:59 tbox Exp $ -->
 <refentry id="man.named-checkzone">
   <refentryinfo>
     <date>June 13, 2000</date>
@@ -36,6 +36,7 @@
       <year>2005</year>
       <year>2006</year>
       <year>2007</year>
+      <year>2009</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -168,7 +169,7 @@
         <term>-c <replaceable class="parameter">class</replaceable></term>
         <listitem>
           <para>
-            Specify the class of the zone.  If not specified "IN" is assumed.
+            Specify the class of the zone.  If not specified, "IN" is assumed.
           </para>
         </listitem>
       </varlistentry>

@@ -1058,12 +1058,13 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 static int
 mpt_set_initial_config_spi(struct mpt_softc *mpt)
 {
-	int i, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
-	int error;
+	int error, i, pp1val;
 
 	mpt->mpt_disc_enable = 0xff;
 	mpt->mpt_tag_enable = 0;
 
+	pp1val = ((1 << mpt->mpt_ini_id) <<
+	    MPI_SCSIPORTPAGE1_CFG_SHIFT_PORT_RESPONSE_ID) | mpt->mpt_ini_id;
 	if (mpt->mpt_port_page1.Configuration != pp1val) {
 		CONFIG_PAGE_SCSI_PORT_1 tmp;
 
@@ -1208,14 +1209,18 @@ mpt_cam_detach(struct mpt_softc *mpt)
 
 	if (mpt->sim != NULL) {
 		xpt_free_path(mpt->path);
+		MPT_LOCK(mpt);
 		xpt_bus_deregister(cam_sim_path(mpt->sim));
+		MPT_UNLOCK(mpt);
 		cam_sim_free(mpt->sim, TRUE);
 		mpt->sim = NULL;
 	}
 
 	if (mpt->phydisk_sim != NULL) {
 		xpt_free_path(mpt->phydisk_path);
+		MPT_LOCK(mpt);
 		xpt_bus_deregister(cam_sim_path(mpt->phydisk_sim));
+		MPT_UNLOCK(mpt);
 		cam_sim_free(mpt->phydisk_sim, TRUE);
 		mpt->phydisk_sim = NULL;
 	}

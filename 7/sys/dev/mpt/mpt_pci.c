@@ -460,6 +460,11 @@ mpt_pci_attach(device_t dev)
 	mpt->raid_queue_depth = MPT_RAID_QUEUE_DEPTH_DEFAULT;
 	mpt->verbose = MPT_PRT_NONE;
 	mpt->role = MPT_ROLE_NONE;
+	mpt->mpt_ini_id = MPT_INI_ID_NONE;
+#ifdef __sparc64__
+	if (mpt->is_spi)
+		mpt->mpt_ini_id = OF_getscsinitid(dev);
+#endif
 	mpt_set_options(mpt);
 	if (mpt->verbose == MPT_PRT_NONE) {
 		mpt->verbose = MPT_PRT_WARN;

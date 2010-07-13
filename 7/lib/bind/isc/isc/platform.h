@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: platform.h.in,v 1.34.18.11 2008/06/24 23:45:55 tbox Exp $ */
+/* $Id: platform.h.in,v 1.34.18.12 2008/12/01 04:02:15 marka Exp $ */
 
 #ifndef ISC_PLATFORM_H
 #define ISC_PLATFORM_H 1
@@ -99,11 +99,6 @@
  * If this system needs inet_pton(), ISC_PLATFORM_NEEDPTON will be defined.
  */
 #undef ISC_PLATFORM_NEEDPTON
-
-/*! \brief
- * If this system needs inet_aton(), ISC_PLATFORM_NEEDATON will be defined.
- */
-#undef ISC_PLATFORM_NEEDATON
 
 /*! \brief
  * If this system needs in_port_t, ISC_PLATFORM_NEEDPORTT will be defined.

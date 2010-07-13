@@ -106,7 +106,7 @@ struct reg_info sge_regs[] = {
 		{ "Packet_Too_Big", 3, 1 },
 		{ "Packet_Mismatch", 4, 1 },
 	{ "SG_RESPACCUTIMER", 0xc0, 0 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info mc3_regs[] = {
@@ -196,7 +196,7 @@ struct reg_info mc3_regs[] = {
 		{ "MC3_Uncorr_Err", 1, 1 },
 		{ "MC3_Parity_Err", 2, 8 },
 		{ "MC3_Addr_Err", 10, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info mc4_regs[] = {
@@ -276,7 +276,7 @@ struct reg_info mc4_regs[] = {
 		{ "MC4_Corr_Err", 0, 1 },
 		{ "MC4_Uncorr_Err", 1, 1 },
 		{ "MC4_Addr_Err", 2, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info tpi_regs[] = {
@@ -290,7 +290,7 @@ struct reg_info tpi_regs[] = {
 		{ "INT_DIR", 31, 1 },
 	{ "TPI_PAR", 0x29c, 0 },
 		{ "TPIPAR", 0, 7 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info tp_regs[] = {
@@ -509,7 +509,7 @@ struct reg_info tp_regs[] = {
 		{ "DROP_TICKS_CNT", 4, 26 },
 		{ "NUM_PKTS_DROPPED", 0, 4 },
 	{ "TP_TX_DROP_COUNT", 0x4bc, 0 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info rat_regs[] = {
@@ -532,7 +532,7 @@ struct reg_info rat_regs[] = {
 		{ "CspiFramingError", 1, 1 },
 		{ "SgeFramingError", 2, 1 },
 		{ "TpFramingError", 3, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info cspi_regs[] = {
@@ -560,7 +560,7 @@ struct reg_info cspi_regs[] = {
 		{ "TXDrop", 2, 1 },
 		{ "RXOverflow", 3, 1 },
 		{ "RAMParityErr", 4, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info espi_regs[] = {
@@ -660,7 +660,7 @@ struct reg_info espi_regs[] = {
 		{ "Error_Ack", 9, 1 },
 		{ "Unmapped_Err", 10, 1 },
 		{ "Transaction_Timer", 16, 8 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info ulp_regs[] = {
@@ -682,7 +682,7 @@ struct reg_info ulp_regs[] = {
 		{ "Pm_E2C_Wrt_Full", 24, 1 },
 		{ "Pm_C2E_Wrt_Full", 25, 1 },
 	{ "ULP_PIO_CTRL", 0x998, 0 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info pl_regs[] = {
@@ -712,7 +712,7 @@ struct reg_info pl_regs[] = {
 		{ "PL_Intr_CSPI", 9, 1 },
 		{ "PL_Intr_PCIX", 10, 1 },
 		{ "PL_Intr_EXT", 11, 1 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };
 
 struct reg_info mc5_regs[] = {
@@ -833,5 +833,5 @@ struct reg_info mc5_regs[] = {
 	{ "MC5_DATA_WRITE_CMD", 0xcf4, 0 },
 	{ "MC5_DATA_READ_CMD", 0xcf8, 0 },
 	{ "MC5_MASK_WRITE_CMD", 0xcfc, 0 },
-	{ NULL }
+	{ NULL, 0, 0 }
 };

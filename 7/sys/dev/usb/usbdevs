@@ -624,6 +624,7 @@ vendor AMIT		0x18c5	AMIT
 vendor QCOM		0x18e8	Qcom
 vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
+vendor MATRIXORBITAL	0x1b3d	Matrix Orbital
 vendor STELERA		0x1a8d	Stelera Wireless
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor DLINK		0x2001	D-Link
@@ -1175,7 +1176,10 @@ product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
 /* DrayTek products */
 product DRAYTEK VIGOR550	0x0550	Vigor550
 
-/* dresden elektronik products */
+/* Matrix Orbital products */
+product MATRIXORBITAL MOUA	0x0153	Martrix Orbital MOU-Axxxx LCD displays
+
+/* Dresden Elektronik products */
 product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
 product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Terminal
 
@@ -1917,6 +1921,7 @@ product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
 product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
+product OPTION GTM382		0x7601	GTM382
 
 /* OQO */
 product OQO WIFI01		0x0002	model 01 WiFi interface

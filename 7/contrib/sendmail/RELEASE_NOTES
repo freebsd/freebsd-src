@@ -1,10 +1,95 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1926 2008/05/03 03:34:26 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1963 2009/12/23 04:43:46 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.14.4/8.14.4	2009/12/30
+	SECURITY: Handle bogus certificates containing NUL characters
+		in CNs by placing a string indicating a bad certificate
+		in the {cn_subject} or {cn_issuer} macro.  Patch inspired
+		by Matthias Andree's changes for fetchmail.
+	During the generation of a queue identifier an integer overflow
+		could occur which might result in bogus characters
+		being used.  Based on patch from John Vannoy of
+		Pepperdine University.
+	The value of headers, e.g., Precedence, Content-Type, et.al.,
+		was not processed correctly.  Patch from Per Hedeland.
+	Between 8.11.7 and 8.12.0 the length limitation on a return
+		path was erroneously reduced from MAXNAME (256) to
+		MAXSHORTSTR (203).  Patch from John Gardiner Myers
+		of Proofpoint; the problem was also noted by Steve
+		Hubert of University of Washington.
+	Prevent a crash when a hostname lookup returns a seemingly
+		valid result which contains a NULL pointer (this seems
+		to be happening on some Linux versions).
+	The process title was missing the current load average when
+		the MTA was delaying connections due to DelayLA.
+		Patch from Dick St.Peters of NetHeaven.
+	Do not reset the number of queue entries in shared memory if
+		only some of them are processed.
+	Fix overflow of an internal array when parsing some replies
+		from a milter.  Problem found by Scott Rotondo
+		of Sun Microsystems.
+	If STARTTLS is turned off in the server (via M=S) then it
+		would not be initialized for use in the client either.
+		Patch from Kazuteru Okahashi of IIJ.
+	If a Diffie-Hellman cipher is selected for STARTTLS, the
+		handshake could fail with some TLS implementations
+		because the prime used by the server is not long enough.
+		Note: the initialization of the DSA/DH parameters for
+		the server can take a significant amount of time on slow
+		machines. This can be turned off by setting DHParameters
+		to none or a file (see doc/op/op.me).  Patch from
+		Petr Lampa of the Brno University of Technology.
+	Fix handling of `b' modifier for DaemonPortOptions on little
+		endian machines for loopback address.  Patch from
+		John Beck of Sun Microsystems.
+	Fix a potential memory leak in libsmdb/smdb1.c found by parfait.
+		Based on patch from Jonathan Gray of OpenBSD.
+	If a milter sets the reply code to "421" during the transfer
+		of the body, the SMTP server will terminate the SMTP session
+		with that error to match the behavior of the other callbacks.
+	Return EX_IOERR (instead of 0) if a mail submission fails due to
+		missing disk space in the mail queue.  Based on patch
+		from Martin Poole of RedHat.
+	CONFIG: Using FEATURE(`ldap_routing')'s `nodomain' argument would
+		cause addresses not found in LDAP to be misparsed.
+	CONFIG: Using a CN restriction did not work for TLS_Clt as it
+		referred to a wrong macro.  Patch from John Gardiner
+		Myers of Proofpoint.
+	CONFIG: The option relaytofulladdress of FEATURE(`access_db')
+		did not work if FEATURE(`relay_hosts_only') is used too.
+		Problem noted by Kristian Shaw.
+	CONFIG: The internal function lower() was broken and hence
+		strcasecmp() did not work either, which could cause
+		problems for some FEATURE()s if upper case arguments
+		were used.  Patch from Vesa-Matti J Kari of the
+		University of Helsinki.
+	LIBMILTER: Fix internal check whether a milter application
+		is compiled against the same version of libmilter as
+		it is linked against (especially useful for dynamic
+		libraries).
+	LIBMILTER: Fix memory leak that occurred when smfi_setsymlist()
+		was used.  Based on patch by Dan Lukes.
+	LIBMILTER: Document the effect of SMFIP_HDR_LEADSPC for filters
+		which add, insert, or replace headers.  From Benjamin
+		Pineau.
+	LIBMILTER: Fix error messages which refer to "select()" to be
+		correct if SM_CONF_POLL is used.  Based on patch from
+		John Nemeth.
+	LIBSM: Fix handling of LDAP search failures where the error is
+		carried in the search result itself, such as seen with
+		OpenLDAP proxy servers.
+	VACATION: Do not refer to a local variable outside its scope.
+		Based on patch from Mark Costlow of Southwest Cyberport.
+	Portability:
+		Enable HAVE_NANOSLEEP for SunOS 5.11. Patch from
+		John Beck of Sun Microsystems.
+		Drop NISPLUS from default SunOS 5.11 map definitions.
+		Patch from John Beck of Sun Microsystems.
 
 8.14.3/8.14.3	2008/05/03
 	During ruleset processing the generation of a key for a map
@@ -37,7 +122,7 @@ summary of the changes in that release.
 		Support shared libraries in Darwin 8 and 9.  Patch from
 		Chris Behrens of Concentric.
 		Add support for SCO OpenServer 6, patch from Boyd Gerber.
-	DEVTOOLS: Clarify that confSHAREDLIBDIR requires a trailing path.
+	DEVTOOLS: Clarify that confSHAREDLIBDIR requires a trailing slash.
 	Added Files:
 		devtools/OS/Darwin.9.x
 		devtools/OS/OSR.i386

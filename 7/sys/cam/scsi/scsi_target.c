@@ -194,7 +194,7 @@ targopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	TAILQ_INIT(&softc->work_queue);
 	TAILQ_INIT(&softc->abort_queue);
 	TAILQ_INIT(&softc->user_ccb_queue);
-	knlist_init(&softc->read_select.si_note, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&softc->read_select.si_note, NULL);
 
 	return (0);
 }

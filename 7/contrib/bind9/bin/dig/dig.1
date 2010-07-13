@@ -1,7 +1,7 @@
-.\" Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
-.\" Permission to use, copy, modify, and distribute this software for any
+.\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
 .\" 
@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dig.1,v 1.23.18.24 2008/10/14 01:30:11 tbox Exp $
+.\" $Id: dig.1,v 1.23.18.27 2009/07/11 01:31:43 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -291,7 +291,7 @@ A synonym for
 .PP
 \fB+[no]adflag\fR
 .RS 4
-Set [do not set] the AD (authentic data) bit in the query. The AD bit currently has a standard meaning only in responses, not in queries, but the ability to set the bit in the query is provided for completeness.
+Set [do not set] the AD (authentic data) bit in the query. This requests the server to return whether all of the answer and authority sections have all been validated as secure according to the security policy of the server. AD=1 indicates that all records have been validated as secure and the answer is not from a OPT\-OUT range. AD=0 indicate that some part of the answer was insecure or not validated.
 .RE
 .PP
 \fB+[no]cdflag\fR
@@ -480,7 +480,7 @@ Chase DNSSEC signature chains. Requires dig be compiled with \-DDIG_SIGCHASE.
 Specifies a file containing trusted keys to be used with
 \fB+sigchase\fR. Each DNSKEY record must be on its own line.
 .sp
-If not specified
+If not specified,
 \fBdig\fR
 will look for
 \fI/etc/trusted\-key.key\fR
@@ -557,7 +557,7 @@ RFC1035.
 .PP
 There are probably too many query options.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2008 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2009 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

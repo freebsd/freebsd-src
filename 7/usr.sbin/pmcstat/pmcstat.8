@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2007 Joseph Koshy
+.\" Copyright (c) 2003-2008 Joseph Koshy
 .\" Copyright (c) 2007 The FreeBSD Foundation
 .\" All rights reserved.
 .\"
@@ -36,6 +36,7 @@
 .Op Fl C
 .Op Fl D Ar pathname
 .Op Fl E
+.Op Fl F Ar pathname
 .Op Fl G Ar pathname
 .Op Fl M Ar mapfilename
 .Op Fl N
@@ -43,9 +44,11 @@
 .Op Fl P Ar event-spec
 .Op Fl R Ar logfilename
 .Op Fl S Ar event-spec
+.Op Fl T
 .Op Fl W
 .Op Fl c Ar cpu-spec
 .Op Fl d
+.Op Fl f Ar pluginopt
 .Op Fl g
 .Op Fl k Ar kerneldir
 .Op Fl m Ar pathname
@@ -129,6 +132,16 @@ complex pipeline of processes when used in conjunction with the
 .Fl d
 option.
 The default is to not to enable per-process tracking.
+.It Fl F Ar pathname
+Print calltree (Kcachegrind) information to file
+.Ar pathname .
+If argument
+.Ar pathname
+is a
+.Dq Li -
+this information is sent to the output file specified by the
+.Fl o
+option.
 .It Fl G Ar pathname
 Print callchain information to file
 .Ar pathname .
@@ -195,6 +208,12 @@ Perform offline analysis using sampling data in file
 Allocate a system mode sampling PMC measuring hardware events
 specified in
 .Ar event-spec .
+.It Fl T
+Use a top like mode for sampling PMCs. The following hotkeys
+can be used: 'c+a' switch to accumulative mode, 'c+d' switch
+to delta mode, 'm' merge PMCs, 'n' change view, 'p' show next
+PMC, ' ' pause, 'q' quit. calltree only: 'f' cost under threshold
+is seen as a dot.
 .It Fl W
 Toggle logging the incremental counts seen by the threads of a
 tracked process each time they are scheduled on a CPU.
@@ -218,6 +237,12 @@ Toggle between process mode PMCs measuring events for the target
 process' current and future children or only measuring events for
 the target process.
 The default is to measure events for the target process alone.
+.It Fl f Ar pluginopt
+Pass option string to the active plugin.
+.br
+threshold=<float> do not display cost under specified value (Top).
+.br
+skiplink=0|1 replace node with cost under threshold by a dot (Top).
 .It Fl g
 Produce profiles in a format compatible with
 .Xr gprof 1 .
@@ -286,7 +311,8 @@ regular expression for selecting processes based on their command names.
 .It Fl v
 Increase verbosity.
 .It Fl w Ar secs
-Print the values of all counting mode PMCs every
+Print the values of all counting mode PMCs or sampling mode PMCs
+for top mode every
 .Ar secs
 seconds.
 The argument
@@ -357,6 +383,40 @@ To print a system-wide profile with callgraphs to file
 use:
 .Dl "pmcstat -R /tmp/sample.out -G foo.graph"
 .Sh DIAGNOSTICS
+If option
+.Fl v
+is specified,
+.Nm
+may issue the following diagnostic messages:
+.Bl -diag -width indent
+.It "#callchain/dubious-frames"
+The number of callchain records that had an
+.Dq impossible
+value for a return address.
+.It "#exec handling errors"
+The number of
+.Xr exec 2
+events in the log file that named executables that could not be
+analyzed.
+.It "#exec/elf"
+The number of
+.Xr exec 2
+events that named ELF executables.
+.It "#exec/unknown"
+The number of
+.Xr exec 2
+events that named executables with unrecognized formats.
+.It "#samples/total"
+The total number of samples in the log file.
+.It "#samples/unclaimed"
+The number of samples that could not be correlated to a known
+executable object (i.e., to an executable, shared library, the
+kernel or the runtime loader).
+.It "#samples/unknown-object"
+The number of samples that were associated with an executable
+with an unrecognized object format.
+.El
+.Pp
 .Ex -std
 .Sh COMPATIBILITY
 Due to the limitations of the

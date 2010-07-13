@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.89 2007/02/20 14:11:17 jmc Exp $ */
+/* $OpenBSD: netcat.c,v 1.93 2009/06/05 00:18:10 claudio Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -36,6 +36,7 @@
 #include <sys/limits.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/un.h>
 
@@ -50,6 +51,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <netdb.h>
 #include <poll.h>
 #include <stdarg.h>
@@ -78,6 +80,7 @@ int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
 int	nflag;					/* Don't do name look up */
 int	oflag;					/* Once only: stop on EOF */
+int	FreeBSD_Oflag;				/* Do not use TCP options */
 char   *Pflag;					/* Proxy username */
 char   *pflag;					/* Localport flag */
 int	rflag;					/* Random ports flag */
@@ -88,8 +91,11 @@ int	vflag;					/* Verbosity */
 int	xflag;					/* Socks proxy */
 int	zflag;					/* Port Scan Flag */
 int	Dflag;					/* sodebug */
+int	Iflag;					/* TCP receive buffer size */
+int	Oflag;					/* TCP send buffer size */
 int	Sflag;					/* TCP MD5 signature option */
 int	Tflag = -1;				/* IP Type of Service */
+u_int	rdomain;
 
 int timeout = -1;
 int family = AF_UNSPEC;
@@ -120,6 +126,8 @@ int
 main(int argc, char *argv[])
 {
 	int ch, s, ret, socksv, ipsec_count;
+	int numfibs;
+	size_t intsize = sizeof(int);
 	char *host, *uport;
 	struct addrinfo hints;
 	struct servent *sv;
@@ -128,7 +136,12 @@ main(int argc, char *argv[])
 	char *proxy;
 	const char *errstr, *proxyhost = "", *proxyport = NULL;
 	struct addrinfo proxyhints;
+	struct option longopts[] = {
+		{ "no-tcpopt",	no_argument,	&FreeBSD_Oflag,	1 },
+		{ NULL,		0,		NULL,		0 }
+	};
 
+	rdomain = 0;
 	ret = 1;
 	ipsec_count = 0;
 	s = 0;
@@ -137,8 +150,9 @@ main(int argc, char *argv[])
 	uport = NULL;
 	sv = NULL;
 
-	while ((ch = getopt(argc, argv,
-	    "46e:DEdhi:jklnoP:p:rSs:tT:Uuvw:X:x:z")) != -1) {
+	while ((ch = getopt_long(argc, argv,
+	    "46DdEe:hI:i:jklnO:oP:p:rSs:tT:UuV:vw:X:x:z",
+	    longopts, NULL)) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -220,6 +234,14 @@ main(int argc, char *argv[])
 		case 'u':
 			uflag = 1;
 			break;
+		case 'V':
+			if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
+				errx(1, "Multiple FIBS not supported");
+			rdomain = (unsigned int)strtonum(optarg, 0,
+			    numfibs - 1, &errstr);
+			if (errstr)
+				errx(1, "FIB %s: %s", errstr, optarg);
+			break;
 		case 'v':
 			vflag = 1;
 			break;
@@ -240,11 +262,27 @@ main(int argc, char *argv[])
 		case 'D':
 			Dflag = 1;
 			break;
+		case 'I':
+			Iflag = strtonum(optarg, 1, 65536 << 14, &errstr);
+			if (errstr != NULL)
+				errx(1, "TCP receive window %s: %s",
+				    errstr, optarg);
+			break;
+		case 'O':
+			Oflag = strtonum(optarg, 1, 65536 << 14, &errstr);
+			if (errstr != NULL) {
+			    if (strcmp(errstr, "invalid") != 0)
+				errx(1, "TCP send window %s: %s",
+				    errstr, optarg);
+			}
+			break;
 		case 'S':
 			Sflag = 1;
 			break;
 		case 'T':
 			Tflag = parse_iptos(optarg);
+			break;
+		case 0:
 			break;
 		default:
 			usage(1);
@@ -508,7 +546,7 @@ int
 remote_connect(const char *host, const char *port, struct addrinfo hints)
 {
 	struct addrinfo *res, *res0;
-	int s, error;
+	int s, error, on = 1;
 
 	if ((error = getaddrinfo(host, port, &hints, &res)))
 		errx(1, "getaddrinfo: %s", gai_strerror(error));
@@ -525,10 +563,19 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 			add_ipsec_policy(s, ipsec_policy[1]);
 #endif
 
+		if (rdomain) {
+			if (setfib(rdomain) == -1)
+				err(1, "setfib");
+		}
+
 		/* Bind to a local port or source address if specified. */
 		if (sflag || pflag) {
 			struct addrinfo ahints, *ares;
 
+#ifdef SO_BINDANY
+			/* try SO_BINDANY, but don't insist */
+			setsockopt(s, SOL_SOCKET, SO_BINDANY, &on, sizeof(on));
+#endif
 			memset(&ahints, 0, sizeof(struct addrinfo));
 			ahints.ai_family = res0->ai_family;
 			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
@@ -591,6 +638,11 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		    res0->ai_protocol)) < 0)
 			continue;
 
+		if (rdomain) {
+			if (setfib(rdomain) == -1)
+				err(1, "setfib");
+		}
+
 		ret = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &x, sizeof(x));
 		if (ret == -1)
 			err(1, NULL);
@@ -600,6 +652,11 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		if (ipsec_policy[1] != NULL)
 			add_ipsec_policy(s, ipsec_policy[1]);
 #endif
+		if (FreeBSD_Oflag) {
+			if (setsockopt(s, IPPROTO_TCP, TCP_NOOPT,
+			    &FreeBSD_Oflag, sizeof(FreeBSD_Oflag)) == -1)
+				err(1, "disable TCP options");
+		}
 
 		if (bind(s, (struct sockaddr *)res0->ai_addr,
 		    res0->ai_addrlen) == 0)
@@ -829,6 +886,21 @@ set_common_sockopts(int s)
 		    &Tflag, sizeof(Tflag)) == -1)
 			err(1, "set IP ToS");
 	}
+	if (Iflag) {
+		if (setsockopt(s, SOL_SOCKET, SO_RCVBUF,
+		    &Iflag, sizeof(Iflag)) == -1)
+			err(1, "set TCP receive buffer size");
+	}
+	if (Oflag) {
+		if (setsockopt(s, SOL_SOCKET, SO_SNDBUF,
+		    &Oflag, sizeof(Oflag)) == -1)
+			err(1, "set TCP send buffer size");
+	}
+	if (FreeBSD_Oflag) {
+		if (setsockopt(s, IPPROTO_TCP, TCP_NOOPT,
+		    &FreeBSD_Oflag, sizeof(FreeBSD_Oflag)) == -1)
+			err(1, "disable TCP options");
+	}
 }
 
 int
@@ -854,20 +926,24 @@ help(void)
 	usage(0);
 	fprintf(stderr, "\tCommand Summary:\n\
 	\t-4		Use IPv4\n\
-	\t-6            Use IPv6\n");
+	\t-6		Use IPv6\n\
+	\t-D		Enable the debug socket option\n\
+	\t-d		Detach from stdin\n");
 #ifdef IPSEC
 	fprintf(stderr, "\
-	\t-e policy     Use specified IPsec policy\n\
-	\t-E            Use IPsec ESP\n");
+	\t-E		Use IPsec ESP\n\
+	\t-e policy	Use specified IPsec policy\n");
 #endif
 	fprintf(stderr, "\
-	\t-D		Enable the debug socket option\n\
-	\t-d		Detach from stdin\n\
 	\t-h		This help text\n\
+	\t-I length	TCP receive buffer length\n\
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-k		Keep inbound sockets open for multiple connects\n\
 	\t-l		Listen mode, for inbound connects\n\
 	\t-n		Suppress name/port resolutions\n\
+	\t--no-tcpopt	Disable TCP options\n\
+	\t-O length	TCP send buffer length\n\
+	\t-o		Terminate on EOF on input\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
 	\t-p port\t	Specify local port for remote connects\n\
 	\t-r		Randomize remote ports\n\
@@ -877,6 +953,7 @@ help(void)
 	\t-t		Answer TELNET negotiation\n\
 	\t-U		Use UNIX domain socket\n\
 	\t-u		UDP mode\n\
+	\t-V fib	Specify alternate routing table (FIB)\n\
 	\t-v		Verbose\n\
 	\t-w secs\t	Timeout for connects and final net reads\n\
 	\t-X proto	Proxy protocol: \"4\", \"5\" (SOCKS) or \"connect\"\n\
@@ -914,13 +991,15 @@ add_ipsec_policy(int s, char *policy)
 void
 usage(int ret)
 {
+	fprintf(stderr,
 #ifdef IPSEC
-	fprintf(stderr, "usage: nc [-46DEdhklnrStUuvz] [-e policy] [-i interval] [-P proxy_username] [-p source_port]\n");
+	    "usage: nc [-46DdEhklnorStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
 #else
-	fprintf(stderr, "usage: nc [-46DdhklnrStUuvz] [-i interval] [-P proxy_username] [-p source_port]\n");
+	    "usage: nc [-46DdhklnorStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
-	fprintf(stderr, "\t  [-s source_ip_address] [-T ToS] [-w timeout] [-X proxy_protocol]\n");
-	fprintf(stderr, "\t  [-x proxy_address[:port]] [hostname] [port[s]]\n");
+	    "\t  [-P proxy_username] [-p source_port] [-s source_ip_address] [-T ToS]\n"
+	    "\t  [-V fib] [-w timeout] [-X proxy_protocol]\n"
+	    "\t  [-x proxy_address[:port]] [hostname] [port]\n");
 	if (ret)
 		exit(1);
 }

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: file.c,v 1.47.18.2 2005/04/29 00:17:07 marka Exp $ */
+/* $Id: file.c,v 1.47.18.4 2009/02/16 23:46:03 tbox Exp $ */
 
 /*! \file */
 
@@ -67,6 +67,7 @@
 
 #include <isc/dir.h>
 #include <isc/file.h>
+#include <isc/log.h>
 #include <isc/random.h>
 #include <isc/string.h>
 #include <isc/time.h>
@@ -235,7 +236,9 @@ isc_file_renameunique(const char *file, char *templet) {
 			}
 		}
 	}
-	(void)unlink(file);
+	if (unlink(file) < 0)
+		if (errno != ENOENT)
+			return (isc__errno2result(errno));
 	return (ISC_R_SUCCESS);
 }
 
@@ -287,7 +290,11 @@ isc_file_openunique(char *templet, FILE **fp) {
 	f = fdopen(fd, "w+");
 	if (f == NULL) {
 		result = isc__errno2result(errno);
-		(void)remove(templet);
+		if (remove(templet) < 0) {
+			isc_log_write(isc_lctx, ISC_LOGCATEGORY_GENERAL,
+				      ISC_LOGMODULE_FILE, ISC_LOG_ERROR,
+				      "remove '%s': failed", templet);
+		}
 		(void)close(fd);
 	} else
 		*fp = f;
@@ -386,7 +393,7 @@ isc_file_progname(const char *filename, char *buf, size_t buflen) {
 
 /*
  * Put the absolute name of the current directory into 'dirname', which is
- * a buffer of at least 'length' characters.  End the string with the 
+ * a buffer of at least 'length' characters.  End the string with the
  * appropriate path separator, such that the final product could be
  * concatenated with a relative pathname to make a valid pathname string.
  */
@@ -431,7 +438,7 @@ isc_result_t
 isc_file_truncate(const char *filename, isc_offset_t size) {
 	isc_result_t result = ISC_R_SUCCESS;
 
-	if (truncate(filename, size) < 0) 
+	if (truncate(filename, size) < 0)
 		result = isc__errno2result(errno);
 	return (result);
 }

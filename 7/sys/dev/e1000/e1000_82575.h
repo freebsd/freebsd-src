@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -49,12 +49,16 @@
  * For 82576, there are an additional set of RARs that begin at an offset
  * separate from the first set of RARs.
  */
-#define E1000_RAR_ENTRIES_82575   16
-#define E1000_RAR_ENTRIES_82576   24
+#define E1000_RAR_ENTRIES_82575        16
+#define E1000_RAR_ENTRIES_82576        24
+#define E1000_RAR_ENTRIES_82580        24
+#define E1000_SW_SYNCH_MB              0x00000100
+#define E1000_STAT_DEV_RST_SET         0x00100000
+#define E1000_CTRL_DEV_RST             0x20000000
 
 #ifdef E1000_BIT_FIELDS
 struct e1000_adv_data_desc {
-	u64 buffer_addr;    /* Address of the descriptor's data buffer */
+	__le64 buffer_addr;    /* Address of the descriptor's data buffer */
 	union {
 		u32 data;
 		struct {
@@ -128,6 +132,8 @@ struct e1000_adv_context_desc {
 #define E1000_SRRCTL_DESCTYPE_HDR_REPLICATION           0x06000000
 #define E1000_SRRCTL_DESCTYPE_HDR_REPLICATION_LARGE_PKT 0x08000000
 #define E1000_SRRCTL_DESCTYPE_MASK                      0x0E000000
+#define E1000_SRRCTL_TIMESTAMP                          0x40000000
+#define E1000_SRRCTL_DROP_EN                            0x80000000
 
 #define E1000_SRRCTL_BSIZEPKT_MASK      0x0000007F
 #define E1000_SRRCTL_BSIZEHDR_MASK      0x00003F00
@@ -137,9 +143,11 @@ struct e1000_adv_context_desc {
 
 #define E1000_MRQC_ENABLE_RSS_4Q            0x00000002
 #define E1000_MRQC_ENABLE_VMDQ              0x00000003
+#define E1000_MRQC_ENABLE_VMDQ_RSS_2Q       0x00000005
 #define E1000_MRQC_RSS_FIELD_IPV4_UDP       0x00400000
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP       0x00800000
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP_EX    0x01000000
+#define E1000_MRQC_ENABLE_RSS_8Q            0x00000002
 
 #define E1000_VMRCTL_MIRROR_PORT_SHIFT      8
 #define E1000_VMRCTL_MIRROR_DSTPORT_MASK    (7 << E1000_VMRCTL_MIRROR_PORT_SHIFT)
@@ -183,41 +191,43 @@ struct e1000_adv_context_desc {
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
 	struct {
-		u64 pkt_addr;             /* Packet buffer address */
-		u64 hdr_addr;             /* Header buffer address */
+		__le64 pkt_addr;             /* Packet buffer address */
+		__le64 hdr_addr;             /* Header buffer address */
 	} read;
 	struct {
 		struct {
 			union {
-				u32 data;
+				__le32 data;
 				struct {
-					u16 pkt_info; /* RSS type, Packet type */
-					u16 hdr_info; /* Split Header,
-				        	       * header buffer length */
+					__le16 pkt_info; /*RSS type, Pkt type*/
+					__le16 hdr_info; /* Split Header,
+				        	          * header buffer len*/
 				} hs_rss;
 			} lo_dword;
 			union {
-				u32 rss;          /* RSS Hash */
+				__le32 rss;          /* RSS Hash */
 				struct {
-					u16 ip_id;    /* IP id */
-					u16 csum;     /* Packet Checksum */
+					__le16 ip_id;    /* IP id */
+					__le16 csum;     /* Packet Checksum */
 				} csum_ip;
 			} hi_dword;
 		} lower;
 		struct {
-			u32 status_error;     /* ext status/error */
-			u16 length;           /* Packet length */
-			u16 vlan;             /* VLAN tag */
+			__le32 status_error;     /* ext status/error */
+			__le16 length;           /* Packet length */
+			__le16 vlan;             /* VLAN tag */
 		} upper;
 	} wb;  /* writeback */
 };
 
-#define E1000_RXDADV_RSSTYPE_MASK        0x0000F000
+#define E1000_RXDADV_RSSTYPE_MASK        0x0000000F
 #define E1000_RXDADV_RSSTYPE_SHIFT       12
 #define E1000_RXDADV_HDRBUFLEN_MASK      0x7FE0
 #define E1000_RXDADV_HDRBUFLEN_SHIFT     5
 #define E1000_RXDADV_SPLITHEADER_EN      0x00001000
 #define E1000_RXDADV_SPH                 0x8000
+#define E1000_RXDADV_STAT_TS             0x10000 /* Pkt was time stamped */
+#define E1000_RXDADV_STAT_TSIP           0x08000 /* timestamp in packet */
 #define E1000_RXDADV_ERR_HBO             0x00800000
 
 /* RSS Hash results */
@@ -267,14 +277,14 @@ union e1000_adv_rx_desc {
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
 	struct {
-		u64 buffer_addr;    /* Address of descriptor's data buf */
-		u32 cmd_type_len;
-		u32 olinfo_status;
+		__le64 buffer_addr;    /* Address of descriptor's data buf */
+		__le32 cmd_type_len;
+		__le32 olinfo_status;
 	} read;
 	struct {
-		u64 rsvd;       /* Reserved */
-		u32 nxtseq_seed;
-		u32 status;
+		__le64 rsvd;       /* Reserved */
+		__le32 nxtseq_seed;
+		__le32 status;
 	} wb;
 };
 
@@ -301,10 +311,10 @@ union e1000_adv_tx_desc {
 
 /* Context descriptors */
 struct e1000_adv_tx_context_desc {
-	u32 vlan_macip_lens;
-	u32 seqnum_seed;
-	u32 type_tucmd_mlhl;
-	u32 mss_l4len_idx;
+	__le32 vlan_macip_lens;
+	__le32 seqnum_seed;
+	__le32 type_tucmd_mlhl;
+	__le32 mss_l4len_idx;
 };
 
 #define E1000_ADVTXD_MACLEN_SHIFT    9  /* Adv ctxt desc mac len shift */
@@ -313,6 +323,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_ADVTXD_TUCMD_IPV6    0x00000000  /* IP Packet Type: 0=IPv6 */
 #define E1000_ADVTXD_TUCMD_L4T_UDP 0x00000000  /* L4 Packet TYPE of UDP */
 #define E1000_ADVTXD_TUCMD_L4T_TCP 0x00000800  /* L4 Packet TYPE of TCP */
+#define E1000_ADVTXD_TUCMD_L4T_SCTP 0x00001000  /* L4 Packet TYPE of SCTP */
 #define E1000_ADVTXD_TUCMD_IPSEC_TYPE_ESP    0x00002000 /* IPSec Type ESP */
 /* IPSec Encrypt Enable for ESP */
 #define E1000_ADVTXD_TUCMD_IPSEC_ENCRYPT_EN  0x00004000
@@ -375,12 +386,22 @@ struct e1000_adv_tx_context_desc {
  */
 #define E1000_ETQF_FILTER_EAPOL          0
 
+#define E1000_FTQF_VF_BP               0x00008000
+#define E1000_FTQF_1588_TIME_STAMP     0x08000000
+#define E1000_FTQF_MASK                0xF0000000
+#define E1000_FTQF_MASK_PROTO_BP       0x10000000
+#define E1000_FTQF_MASK_SOURCE_ADDR_BP 0x20000000
+#define E1000_FTQF_MASK_DEST_ADDR_BP   0x40000000
+#define E1000_FTQF_MASK_SOURCE_PORT_BP 0x80000000
+
 #define E1000_NVM_APME_82575          0x0400
 #define MAX_NUM_VFS                   8
 
 #define E1000_DTXSWC_MAC_SPOOF_MASK   0x000000FF /* Per VF MAC spoof control */
 #define E1000_DTXSWC_VLAN_SPOOF_MASK  0x0000FF00 /* Per VF VLAN spoof control */
 #define E1000_DTXSWC_LLE_MASK         0x00FF0000 /* Per VF Local LB enables */
+#define E1000_DTXSWC_VLAN_SPOOF_SHIFT 8
+#define E1000_DTXSWC_LLE_SHIFT        16
 #define E1000_DTXSWC_VMDQ_LOOPBACK_EN (1 << 31)  /* global VF LB enable */
 
 /* Easy defines for setting default pool, would normally be left a zero */
@@ -393,82 +414,50 @@ struct e1000_adv_tx_context_desc {
 #define E1000_VT_CTL_VM_REPL_EN         (1 << 30)
 
 /* Per VM Offload register setup */
+#define E1000_VMOLR_RLPML_MASK 0x00003FFF /* Long Packet Maximum Length mask */
 #define E1000_VMOLR_LPE        0x00010000 /* Accept Long packet */
+#define E1000_VMOLR_RSSE       0x00020000 /* Enable RSS */
 #define E1000_VMOLR_AUPE       0x01000000 /* Accept untagged packets */
+#define E1000_VMOLR_ROMPE      0x02000000 /* Accept overflow multicast */
+#define E1000_VMOLR_ROPE       0x04000000 /* Accept overflow unicast */
 #define E1000_VMOLR_BAM        0x08000000 /* Accept Broadcast packets */
 #define E1000_VMOLR_MPME       0x10000000 /* Multicast promiscuous mode */
 #define E1000_VMOLR_STRVLAN    0x40000000 /* Vlan stripping enable */
+#define E1000_VMOLR_STRCRC     0x80000000 /* CRC stripping enable */
 
-#define E1000_V2PMAILBOX_REQ   0x00000001 /* Request for PF Ready bit */
-#define E1000_V2PMAILBOX_ACK   0x00000002 /* Ack PF message received */
-#define E1000_V2PMAILBOX_VFU   0x00000004 /* VF owns the mailbox buffer */
-#define E1000_V2PMAILBOX_PFU   0x00000008 /* PF owns the mailbox buffer */
-#define E1000_V2PMAILBOX_PFSTS 0x00000010 /* PF wrote a message in the MB */
-#define E1000_V2PMAILBOX_PFACK 0x00000020 /* PF ack the previous VF msg */
-#define E1000_V2PMAILBOX_RSTI  0x00000040 /* PF has reset indication */
 
-#define E1000_P2VMAILBOX_STS   0x00000001 /* Initiate message send to VF */
-#define E1000_P2VMAILBOX_ACK   0x00000002 /* Ack message recv'd from VF */
-#define E1000_P2VMAILBOX_VFU   0x00000004 /* VF owns the mailbox buffer */
-#define E1000_P2VMAILBOX_PFU   0x00000008 /* PF owns the mailbox buffer */
-#define E1000_P2VMAILBOX_RVFU  0x00000010 /* Reset VFU - used when VF stuck */
+#define E1000_VLVF_ARRAY_SIZE     32
+#define E1000_VLVF_VLANID_MASK    0x00000FFF
+#define E1000_VLVF_POOLSEL_SHIFT  12
+#define E1000_VLVF_POOLSEL_MASK   (0xFF << E1000_VLVF_POOLSEL_SHIFT)
+#define E1000_VLVF_LVLAN          0x00100000
+#define E1000_VLVF_VLANID_ENABLE  0x80000000
 
-#define E1000_VFMAILBOX_SIZE   16 /* 16 32 bit words - 64 bytes */
+#define E1000_VMVIR_VLANA_DEFAULT 0x40000000 /* Always use default VLAN */
+#define E1000_VMVIR_VLANA_NEVER   0x80000000 /* Never insert VLAN tag */
 
-/* If it's a E1000_VF_* msg then it originates in the VF and is sent to the
- * PF.  The reverse is TRUE if it is E1000_PF_*.
- * Message ACK's are the value or'd with 0xF0000000
- */
-#define E1000_VT_MSGTYPE_ACK      0xF0000000  /* Messages below or'd with
-                                               * this are the ACK */
-#define E1000_VT_MSGTYPE_NACK     0xFF000000  /* Messages below or'd with
-                                               * this are the NACK */
-#define E1000_VT_MSGINFO_SHIFT    16
-/* bits 23:16 are used for exra info for certain messages */
-#define E1000_VT_MSGINFO_MASK     (0xFF << E1000_VT_MSGINFO_SHIFT)
+#define E1000_VF_INIT_TIMEOUT 200 /* Number of retries to clear RSTI */
 
-#define E1000_VF_MSGTYPE_REQ_MAC  1 /* VF needs to know its MAC */
-#define E1000_VF_MSGTYPE_VFLR     2 /* VF notifies VFLR to PF */
-#define E1000_VF_SET_MULTICAST    3 /* VF requests PF to set MC addr */
-#define E1000_VF_SET_VLAN         4 /* VF requests PF to set VLAN */
+#define E1000_IOVCTL 0x05BBC
+#define E1000_IOVCTL_REUSE_VFQ 0x00000001
 
-/* Add 100h to all PF msgs, leaves room for up to 255 discrete message types
- * from VF to PF - way more than we'll ever need */
-#define E1000_PF_MSGTYPE_RESET    (1 + 0x100) /* PF notifies global reset
-                                               * imminent to VF */
-#define E1000_PF_MSGTYPE_LSC      (2 + 0x100) /* PF notifies VF of LSC... VF
-                                               * will see extra msg info for
-                                               * status */
+#define E1000_RPLOLR_STRVLAN   0x40000000
+#define E1000_RPLOLR_STRCRC    0x80000000
 
-#define E1000_PF_MSG_LSCDOWN      (1 << E1000_VT_MSGINFO_SHIFT)
-#define E1000_PF_MSG_LSCUP        (2 << E1000_VT_MSGINFO_SHIFT)
+#define E1000_TCTL_EXT_COLD       0x000FFC00
+#define E1000_TCTL_EXT_COLD_SHIFT 10
+
+#define E1000_DTXCTL_8023LL     0x0004
+#define E1000_DTXCTL_VLAN_ADDED 0x0008
+#define E1000_DTXCTL_OOS_ENABLE 0x0010
+#define E1000_DTXCTL_MDP_EN     0x0020
+#define E1000_DTXCTL_SPOOF_INT  0x0040
 
 #define ALL_QUEUES   0xFFFF
 
-s32  e1000_send_mail_to_pf_vf(struct e1000_hw *hw, u32 *msg,
-                              s16 size);
-s32  e1000_receive_mail_from_pf_vf(struct e1000_hw *hw,
-                                   u32 *msg, s16 size);
-s32  e1000_send_mail_to_vf(struct e1000_hw *hw, u32 *msg,
-                           u32 vf_number, s16 size);
-s32  e1000_receive_mail_from_vf(struct e1000_hw *hw, u32 *msg,
-                                u32 vf_number, s16 size);
-void e1000_vmdq_loopback_enable_vf(struct e1000_hw *hw);
-void e1000_vmdq_loopback_disable_vf(struct e1000_hw *hw);
-void e1000_vmdq_replication_enable_vf(struct e1000_hw *hw, u32 enables);
-void e1000_vmdq_replication_disable_vf(struct e1000_hw *hw);
-void e1000_vmdq_enable_replication_mode_vf(struct e1000_hw *hw);
-void e1000_vmdq_broadcast_replication_enable_vf(struct e1000_hw *hw,
-						u32 enables);
-void e1000_vmdq_multicast_replication_enable_vf(struct e1000_hw *hw,
-						u32 enables);
-void e1000_vmdq_broadcast_replication_disable_vf(struct e1000_hw *hw,
-						u32 disables);
-void e1000_vmdq_multicast_replication_disable_vf(struct e1000_hw *hw,
-						u32 disables);
-bool e1000_check_for_pf_ack_vf(struct e1000_hw *hw);
-
-bool e1000_check_for_pf_mail_vf(struct e1000_hw *hw, u32*);
-
-
-#endif
+/* RX packet buffer size defines */
+#define E1000_RXPBS_SIZE_MASK_82576  0x0000007F
+void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable);
+void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable);
+u16 e1000_rxpbs_adjust_82580(u32 data);
+#endif /* _E1000_82575_H_ */

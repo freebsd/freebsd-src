@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context.h,v 1.15.18.2 2005/04/29 00:17:21 marka Exp $ */
+/* $Id: context.h,v 1.15.18.4 2008/12/17 23:46:01 tbox Exp $ */
 
 #ifndef LWRES_CONTEXT_H
 #define LWRES_CONTEXT_H 1
@@ -57,8 +57,15 @@ typedef void (*lwres_free_t)(void *arg, void *mem, size_t length);
  * _SERVERMODE
  *	Don't allocate and connect a socket to the server, since the
  *	caller _is_ a server.
+ *
+ * _USEIPV4, _USEIPV6
+ *	Use IPv4 and IPv6 transactions with remote servers, respectively.
+ *	For backward compatibility, regard both flags as being set when both
+ *	are cleared.
  */
 #define LWRES_CONTEXT_SERVERMODE	0x00000001U
+#define LWRES_CONTEXT_USEIPV4		0x00000002U
+#define LWRES_CONTEXT_USEIPV6		0x00000004U
 
 lwres_result_t
 lwres_context_create(lwres_context_t **contextp, void *arg,

@@ -231,7 +231,7 @@ msi_init(void)
 	mtx_init(&msi_lock, "msi", NULL, MTX_DEF);
 }
 
-void
+static void
 msi_create_source(void)
 {
 	struct msi_intsrc *msi;
@@ -321,6 +321,7 @@ again:
 	for (i = 0; i < count; i++) {
 		msi = (struct msi_intsrc *)intr_lookup_source(irqs[i]);
 		msi->msi_dev = dev;
+		msi->msi_cpu = PCPU_GET(apic_id);
 		msi->msi_vector = vector + i;
 		if (bootverbose)
 			printf("msi: routing MSI IRQ %d to vector %u\n",
@@ -477,6 +478,7 @@ again:
 	/* Setup source. */
 	msi->msi_dev = dev;
 	msi->msi_vector = vector;
+	msi->msi_cpu = PCPU_GET(apic_id);
 	msi->msi_msix = 1;
 
 	KASSERT(msi->msi_intsrc.is_handlers == 0, ("dead MSI-X has handlers"));

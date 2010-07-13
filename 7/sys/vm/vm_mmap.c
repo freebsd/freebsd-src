@@ -232,7 +232,7 @@ mmap(td, uap)
 	fp = NULL;
 	/* make sure mapping fits into numeric range etc */
 	if ((ssize_t) uap->len < 0 ||
-	    ((flags & MAP_ANON) && uap->fd != -1))
+	    ((flags & MAP_ANON) && (uap->fd != -1 || pos != 0)))
 		return (EINVAL);
 
 	if (flags & MAP_STACK) {
@@ -298,7 +298,6 @@ mmap(td, uap)
 		handle = NULL;
 		handle_type = OBJT_DEFAULT;
 		maxprot = VM_PROT_ALL;
-		pos = 0;
 	} else {
 		/*
 		 * Mapping file, get fp for validation. Obtain vnode and make

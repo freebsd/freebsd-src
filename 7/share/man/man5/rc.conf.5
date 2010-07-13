@@ -501,6 +501,10 @@ specifies a filename.
 .Pq Vt str
 The IPv6 equivalent of
 .Va firewall_flags .
+.It Va firewall_coscripts
+.Pq Vt str
+List of executables and/or rc scripts to run after firewall starts/stops.
+Default is empty.
 .\" ----- firewall_nat_enable setting --------------------------------
 .It Va firewall_nat_enable
 .Pq Vt bool
@@ -3455,6 +3459,13 @@ to
 .Dq Li YES
 by default for every jail in
 .Va jail_list .
+.It Va jail_exec_prestart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestart Ns Aq Ar N
+for every jail in
+.Va jail_list .
 .It Va jail_exec_start
 .Pq Vt str
 Unset by default.
@@ -3469,10 +3480,31 @@ When set, use as default value for
 .Va jail_ Ns Ao Ar jname Ac Ns Va _exec_afterstart Ns Aq Ar N
 for every jail in
 .Va jail_list .
+.It Va jail_exec_poststart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststart Ns Aq Ar N
+for every jail in
+.Va jail_list .
+.It Va jail_exec_prestop Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestop Ns Aq Ar N
+for every jail in
+.Va jail_list .
 .It Va jail_exec_stop
 Unset by default.
 When set, use as default value for
 .Va jail_ Ns Ao Ar jname Ac Ns Va _exec_stop
+for every jail in
+.Va jail_list .
+.It Va jail_exec_poststop Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststop Ns Aq Ar N
 for every jail in
 .Va jail_list .
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _rootdir
@@ -3589,13 +3621,33 @@ When set to
 mount the process file system inside jail
 .Ar jname
 at jail startup.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+This is the command run as
+.Ar N Ns
+th command
+before jail startup, where
+.Ar N
+is 0, 1, and so on.
+It is run outside the jail.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_start
 .Pq Vt str
 Set to
 .Dq Li /bin/sh /etc/rc
 by default.
-This is the command executed at jail startup.
+This is the command executed in a jail at jail startup.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_afterstart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+This is the command run as
+.Ar N Ns
+th command
+in a jail
+after jail startup, where
+.Ar N
+is 1, 2, and so on.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststart Ns Aq Ar N
 .Pq Vt str
 Unset by default.
 This is the command run as
@@ -3603,13 +3655,34 @@ This is the command run as
 th command
 after jail startup, where
 .Ar N
-is 1, 2, and so on.
+is 0, 1, and so on.
+It is run outside the jail.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestop Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+This is the command run as
+.Ar N Ns
+th command
+before jail shutdown, where
+.Ar N
+is 0, 1, and so on.
+It is run outside the jail.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_stop
 .Pq Vt str
 Set to
 .Dq Li /bin/sh /etc/rc.shutdown
 by default.
-This is the command executed at jail shutdown.
+This is the command executed in a jail at jail shutdown.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststop Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+This is the command run as
+.Ar N Ns
+th command
+after jail shutdown, where
+.Ar N
+is 0, 1, and so on.
+It is run outside the jail.
 .It Va jail_set_hostname_allow
 .Pq Vt bool
 If set to

@@ -1,6 +1,7 @@
-/*	$OpenBSD: atomicio.h,v 1.1 2005/05/24 20:13:28 avsm Exp $	*/
+/* $OpenBSD: atomicio.h,v 1.2 2007/09/07 14:50:44 tobias Exp $ */
 
 /*
+ * Copyright (c) 2006 Damien Miller.  All rights reserved.
  * Copyright (c) 1995,1999 Theo de Raadt.  All rights reserved.
  * All rights reserved.
  *
@@ -25,9 +26,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _ATOMICIO_H
+#define _ATOMICIO_H
+
 /*
  * Ensure all of data on socket comes through. f==read || f==vwrite
  */
 size_t	atomicio(ssize_t (*)(int, void *, size_t), int, void *, size_t);
 
 #define vwrite (ssize_t (*)(int, void *, size_t))write
+
+#endif /* _ATOMICIO_H */

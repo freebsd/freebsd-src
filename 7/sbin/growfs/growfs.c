@@ -174,10 +174,9 @@ static void
 growfs(int fsi, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("growfs")
-	int	i;
-	int	cylno, j;
 	time_t	utime;
-	int	width;
+	uint	cylno;
+	int	i, j, width;
 	char	tmpbuf[100];
 #ifdef FSIRAND
 	static int	randinit=0;
@@ -373,11 +372,11 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("initcg")
 	static void *iobuf;
-	long d, dlower, dupper, blkno, start;
+	long blkno, start;
 	ufs2_daddr_t i, cbase, dmax;
 	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
 	struct csum *cs;
+	uint d, dupper, dlower;
 
 	if (iobuf == NULL && (iobuf = malloc(sblock.fs_bsize)) == NULL) {
 		errx(37, "panic: cannot allocate I/O buffer");
@@ -432,7 +431,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		acg.cg_nextfreeoff = acg.cg_clusteroff +
 		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
-	if (acg.cg_nextfreeoff > sblock.fs_cgsize) {
+	if (acg.cg_nextfreeoff > (unsigned)sblock.fs_cgsize) {
 		/*
 		 * This should never happen as we would have had that panic
 		 * already on file system creation
@@ -446,25 +445,18 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 			acg.cg_cs.cs_nifree--;
 		}
 	/*
-	 * XXX Newfs writes out two blocks of initialized inodes
-	 *     unconditionally.  Should we check here to make sure that they
-	 *     were actually written?
+	 * For the old file system, we have to initialize all the inodes.
 	 */
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		bzero(iobuf, sblock.fs_bsize);
-		for (i = 2 * sblock.fs_frag; i < sblock.fs_ipg / INOPF(&sblock);
+		for (i = 0; i < sblock.fs_ipg / INOPF(&sblock);
 		     i += sblock.fs_frag) {
 			dp1 = (struct ufs1_dinode *)iobuf;
-			dp2 = (struct ufs2_dinode *)iobuf;
 #ifdef FSIRAND
-			for (j = 0; j < INOPB(&sblock); j++)
-				if (sblock.fs_magic == FS_UFS1_MAGIC) {
-					dp1->di_gen = random();
-					dp1++;
-				} else {
-					dp2->di_gen = random();
-					dp2++;
-				}
+			for (j = 0; j < INOPB(&sblock); j++) {
+				dp1->di_gen = random();
+				dp1++;
+			}
 #endif
 			wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
 			    sblock.fs_bsize, iobuf, fso, Nflag);
@@ -752,7 +744,7 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 	 * needed, update the free space in the superblock.
 	 */
 	acg.cg_time = utime;
-	if (cylno == sblock.fs_ncg - 1) {
+	if ((unsigned)cylno == sblock.fs_ncg - 1) {
 		/*
 		 * This is still the last cylinder group.
 		 */
@@ -946,8 +938,8 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 	int	ocscg, ncscg;
 	int	blocks;
 	ufs2_daddr_t	cbase, dupper, odupper, d, f, g;
-	int	ind;
-	int	cylno, inc;
+	int	ind, inc;
+	uint	cylno;
 	struct gfs_bpp	*bp;
 	int	i, l;
 	int	lcs=0;

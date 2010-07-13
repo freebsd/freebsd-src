@@ -38,7 +38,7 @@ _cvs=		cvs
 _texinfo=	texinfo
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 _man=		man
 .endif
 

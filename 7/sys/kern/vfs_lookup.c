@@ -191,10 +191,26 @@ namei(struct nameidata *ndp)
 	ndp->ni_rootdir = fdp->fd_rdir;
 	ndp->ni_topdir = fdp->fd_jdir;
 
-	dp = fdp->fd_cdir;
+	if (ndp->ni_startdir != NULL) {
+		dp = ndp->ni_startdir;
+		FILEDESC_SUNLOCK(fdp);
+		if (dp->v_type != VDIR) {
+			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
+			vrele(dp);
+			VFS_UNLOCK_GIANT(vfslocked);
+			uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+			cnp->cn_pnbuf = NULL;
+			cnp->cn_nameptr = NULL;
+#endif
+			return (ENOTDIR);
+		}
+	} else {
+		dp = fdp->fd_cdir;
+		VREF(dp);
+		FILEDESC_SUNLOCK(fdp);
+	}
 	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
-	VREF(dp);
-	FILEDESC_SUNLOCK(fdp);
 	for (;;) {
 		/*
 		 * Check if root directory should replace current directory.
@@ -320,6 +336,41 @@ compute_cn_lkflags(struct mount *mp, int lkflags)
 		lkflags |= LK_EXCLUSIVE;
 	}
 	return lkflags;
+}
+
+static __inline int
+needs_exclusive_leaf(struct mount *mp, int flags)
+{
+
+	/*
+	 * Intermediate nodes can use shared locks, we only need to
+	 * force an exclusive lock for leaf nodes.
+	 */
+	if ((flags & (ISLASTCN | LOCKLEAF)) != (ISLASTCN | LOCKLEAF))
+		return (0);
+
+	/* Always use exclusive locks if LOCKSHARED isn't set. */
+	if (!(flags & LOCKSHARED))
+		return (1);
+
+	/*
+	 * For lookups during open(), if the mount point supports
+	 * extended shared operations, then use a shared lock for the
+	 * leaf node, otherwise use an exclusive lock.
+	 */
+	if (flags & ISOPEN) {
+		if (mp != NULL &&
+		    (mp->mnt_kern_flag & MNTK_EXTENDED_SHARED))
+			return (0);
+		else
+			return (1);
+	}
+
+	/*
+	 * Lookup requests outside of open() that specify LOCKSHARED
+	 * only need a shared lock on the leaf vnode.
+	 */
+	return (0);
 }
 
 /*
@@ -580,8 +631,7 @@ unionlookup:
 	 * If we're looking up the last component and we need an exclusive
 	 * lock, adjust our lkflags.
 	 */
-	if ((cnp->cn_flags & (ISLASTCN|LOCKSHARED|LOCKLEAF)) ==
-	    (ISLASTCN|LOCKLEAF))
+	if (needs_exclusive_leaf(dp->v_mount, cnp->cn_flags))
 		cnp->cn_lkflags = LK_EXCLUSIVE;
 #ifdef NAMEI_DIAGNOSTIC
 	vprint("lookup in", dp);
@@ -778,8 +828,8 @@ success:
 	 * Because of lookup_shared we may have the vnode shared locked, but
 	 * the caller may want it to be exclusively locked.
 	 */
-	if ((cnp->cn_flags & (ISLASTCN | LOCKSHARED | LOCKLEAF)) ==
-	    (ISLASTCN | LOCKLEAF) && VOP_ISLOCKED(dp, td) != LK_EXCLUSIVE) {
+	if (needs_exclusive_leaf(dp->v_mount, cnp->cn_flags) &&
+	    VOP_ISLOCKED(dp, td) != LK_EXCLUSIVE) {
 		vn_lock(dp, LK_UPGRADE | LK_RETRY, td);
 		if (dp->v_iflag & VI_DOOMED) {
 			error = ENOENT;

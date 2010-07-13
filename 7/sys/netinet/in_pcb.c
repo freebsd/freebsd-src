@@ -552,6 +552,13 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
 
+	/*
+	 * Bypass source address selection and use the primary jail IP
+	 * if requested.
+	 */
+	if (cred != NULL && !prison_saddrsel_ip4(cred, laddr))
+		return (0);
+
 	error = 0;
 	ia = NULL;
 	bzero(&sro, sizeof(sro));

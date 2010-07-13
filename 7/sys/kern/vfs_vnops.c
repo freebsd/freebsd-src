@@ -185,6 +185,8 @@ restart:
 		ndp->ni_cnd.cn_flags = ISOPEN |
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
 		    LOCKLEAF | MPSAFE | AUDITVNODE1;
+		if (!(fmode & FWRITE))
+			ndp->ni_cnd.cn_flags |= LOCKSHARED;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		if (!mpsafe)
@@ -235,7 +237,7 @@ restart:
 	if (fmode & FWRITE)
 		vp->v_writecount++;
 	*flagp = fmode;
-	ASSERT_VOP_ELOCKED(vp, "vn_open_cred");
+	ASSERT_VOP_LOCKED(vp, "vn_open_cred");
 	if (!mpsafe)
 		VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
@@ -280,12 +282,18 @@ vn_close(vp, flags, file_cred, td)
 	struct thread *td;
 {
 	struct mount *mp;
-	int error;
+	int error, lock_flags;
+
+	if (!(flags & FWRITE) && vp->v_mount != NULL &&
+	    vp->v_mount->mnt_kern_flag & MNTK_EXTENDED_SHARED)
+		lock_flags = LK_SHARED;
+	else
+		lock_flags = LK_EXCLUSIVE;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 
 	vn_start_write(vp, &mp, V_WAIT);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, lock_flags | LK_RETRY, td);
 	if (flags & FWRITE) {
 		VNASSERT(vp->v_writecount > 0, vp, 
 		    ("vn_close: negative writecount"));
@@ -362,26 +370,15 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
 				return (error);
-			if (mp != NULL &&
-			    (mp->mnt_kern_flag & MNTK_SHARED_WRITES)) {
-				/*
-				 * XXX See the next comment what should
-				 * be done here too.
-				 */
-				lock_flags = LK_EXCLUSIVE;
+			if (MNT_SHARED_WRITES(mp) ||
+			    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) {
+				lock_flags = LK_SHARED;
 			} else {
 				lock_flags = LK_EXCLUSIVE;
 			}
 			vn_lock(vp, lock_flags | LK_RETRY, td);
-		} else {
-			/*
-			 * XXX This should be LK_SHARED but the VFS in releng7
-			 * needs some patches before this can be done.
-			 * The same applies to the lock_flags above and to a
-			 * similar place below.
-			 */
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		}
+		} else
+			vn_lock(vp, LK_SHARED | LK_RETRY, td);
 
 	}
 	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
@@ -586,15 +583,10 @@ vn_write(fp, uio, active_cred, flags, td)
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
  
-	if (vp->v_mount != NULL &&
-	    (vp->v_mount->mnt_kern_flag & MNTK_SHARED_WRITES) &&
+	if ((MNT_SHARED_WRITES(mp) ||
+	    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) &&
 	    (flags & FOF_OFFSET) != 0) {
-		/*
-		 * XXX This should be LK_SHARED but the VFS in releng7
-		 * needs some patches before this can be done.
-		 * See the similar comment above.
-		 */
-		lock_flags = LK_EXCLUSIVE;
+		lock_flags = LK_SHARED;
 	} else {
 		lock_flags = LK_EXCLUSIVE;
 	}
@@ -737,11 +729,10 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	 *   "a filesystem-specific preferred I/O block size for this 
 	 *    object.  In some filesystem types, this may vary from file
 	 *    to file"
-	 * Default to PAGE_SIZE after much discussion.
-	 * XXX: min(PAGE_SIZE, vp->v_bufobj.bo_bsize) may be more correct.
+	 * Use miminum/default of PAGE_SIZE (e.g. for VCHR).
 	 */
 
-	sb->st_blksize = PAGE_SIZE;
+	sb->st_blksize = max(PAGE_SIZE, vap->va_blocksize);
 	
 	sb->st_flags = vap->va_flags;
 	if (priv_check(td, PRIV_VFS_GENERATION))

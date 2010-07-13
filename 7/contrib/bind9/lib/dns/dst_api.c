@@ -1,9 +1,9 @@
 /*
- * Portions Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2006, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_api.c,v 1.1.6.7 2006/01/27 23:57:44 marka Exp $
+ * $Id: dst_api.c,v 1.1.6.15 2009/09/25 01:48:28 marka Exp $
  */
 
 /*! \file */
@@ -110,19 +110,21 @@ static isc_result_t	addsuffix(char *filename, unsigned int len,
 			return (_r);		\
 	} while (0);				\
 
+#ifdef OPENSSL
 static void *
 default_memalloc(void *arg, size_t size) {
-        UNUSED(arg);
-        if (size == 0U)
-                size = 1;
-        return (malloc(size));
+	UNUSED(arg);
+	if (size == 0U)
+		size = 1;
+	return (malloc(size));
 }
 
 static void
 default_memfree(void *arg, void *ptr) {
-        UNUSED(arg);
-        free(ptr);
+	UNUSED(arg);
+	free(ptr);
 }
+#endif
 
 isc_result_t
 dst_lib_init(isc_mem_t *mctx, isc_entropy_t *ectx, unsigned int eflags) {
@@ -925,6 +927,13 @@ dst_key_read_public(const char *filename, int type,
 	NEXTTOKEN(lex, opt, &token);
 	if (token.type != isc_tokentype_string)
 		BADTOKEN();
+
+	/*
+	 * We don't support "@" in .key files.
+	 */
+	if (!strcmp(DST_AS_STR(token), "@"))
+		BADTOKEN();
+
 	dns_fixedname_init(&name);
 	isc_buffer_init(&b, DST_AS_STR(token), strlen(DST_AS_STR(token)));
 	isc_buffer_add(&b, strlen(DST_AS_STR(token)));
@@ -935,6 +944,9 @@ dst_key_read_public(const char *filename, int type,
 
 	/* Read the next word: either TTL, class, or 'KEY' */
 	NEXTTOKEN(lex, opt, &token);
+
+	if (token.type != isc_tokentype_string)
+		BADTOKEN();
 
 	/* If it's a TTL, read the next one */
 	result = dns_ttl_fromtext(&token.value.as_textregion, &ttl);
@@ -1080,9 +1092,12 @@ write_public_key(const dst_key_t *key, int type, const char *directory) {
 	fwrite(r.base, 1, r.length, fp);
 
 	fputc('\n', fp);
+	fflush(fp);
+	if (ferror(fp))
+		ret = DST_R_WRITEERROR;
 	fclose(fp);
 
-	return (ISC_R_SUCCESS);
+	return (ret);
 }
 
 static isc_result_t
@@ -1208,6 +1223,8 @@ addsuffix(char *filename, unsigned int len, const char *ofilename,
 
 	n = snprintf(filename, len, "%.*s%s", olen, ofilename, suffix);
 	if (n < 0)
+		return (ISC_R_FAILURE);
+	if ((unsigned int)n >= len)
 		return (ISC_R_NOSPACE);
 	return (ISC_R_SUCCESS);
 }

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.c,v 1.115.18.8 2006/03/05 23:58:51 marka Exp $ */
+/* $Id: xfrout.c,v 1.115.18.13 2009/01/19 00:36:26 marka Exp $ */
 
 #include <config.h>
 
@@ -51,7 +51,7 @@
 #include <named/server.h>
 #include <named/xfrout.h>
 
-/*! \file 
+/*! \file
  * \brief
  * Outgoing AXFR and IXFR.
  */
@@ -86,7 +86,7 @@
 		ns_client_log(client, DNS_LOGCATEGORY_XFER_OUT, \
 			   NS_LOGMODULE_XFER_OUT, ISC_LOG_INFO, \
 			   "bad zone transfer request: %s (%s)", \
-		      	   msg, isc_result_totext(code));	\
+			   msg, isc_result_totext(code));	\
 		if (result != ISC_R_SUCCESS) goto failure;	\
 	} while (0)
 
@@ -100,12 +100,12 @@
 		ns_client_log(client, DNS_LOGCATEGORY_XFER_OUT, \
 			   NS_LOGMODULE_XFER_OUT, ISC_LOG_INFO, \
 			   "bad zone transfer request: '%s/%s': %s (%s)", \
-		      	   _buf1, _buf2, msg, isc_result_totext(code));	\
+			   _buf1, _buf2, msg, isc_result_totext(code));	\
 		if (result != ISC_R_SUCCESS) goto failure;	\
 	} while (0)
 
 #define CHECK(op) \
-     	do { result = (op); 					\
+	do { result = (op); 					\
 		if (result != ISC_R_SUCCESS) goto failure; 	\
 	} while (0)
 
@@ -121,12 +121,12 @@ typedef struct db_rr_iterator db_rr_iterator_t;
 struct db_rr_iterator {
 	isc_result_t		result;
 	dns_db_t		*db;
-    	dns_dbiterator_t 	*dbit;
+	dns_dbiterator_t 	*dbit;
 	dns_dbversion_t 	*ver;
 	isc_stdtime_t		now;
 	dns_dbnode_t		*node;
 	dns_fixedname_t		fixedname;
-    	dns_rdatasetiter_t 	*rdatasetit;
+	dns_rdatasetiter_t 	*rdatasetit;
 	dns_rdataset_t 		rdataset;
 	dns_rdata_t		rdata;
 };
@@ -303,6 +303,11 @@ log_rr(dns_name_t *name, dns_rdata_t *rdata, isc_uint32_t ttl) {
 	rdl.type = rdata->type;
 	rdl.rdclass = rdata->rdclass;
 	rdl.ttl = ttl;
+	if (rdata->type == dns_rdatatype_sig ||
+	    rdata->type == dns_rdatatype_rrsig)
+		rdl.covers = dns_rdata_covers(rdata);
+	else
+		rdl.covers = dns_rdatatype_none;
 	ISC_LIST_INIT(rdl.rdata);
 	ISC_LINK_INIT(&rdl, link);
 	dns_rdataset_init(&rds);
@@ -326,7 +331,7 @@ log_rr(dns_name_t *name, dns_rdata_t *rdata, isc_uint32_t ttl) {
 		INSIST(buf.used >= 1 &&
 		       ((char *) buf.base)[buf.used - 1] == '\n');
 		buf.used--;
-		
+
 		isc_log_write(XFROUT_RR_LOGARGS, "%.*s",
 			      (int)isc_buffer_usedlength(&buf),
 			      (char *)isc_buffer_base(&buf));
@@ -969,7 +974,7 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 		/*
 		 * Normal zone table does not have a match.  Try the DLZ database
 		 */
-	    	if (client->view->dlzdatabase != NULL) {
+		if (client->view->dlzdatabase != NULL) {
 			result = dns_dlzallowzonexfr(client->view,
 						     question_name, &client->peeraddr,
 						     &db);
@@ -1006,7 +1011,7 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 
 		} else {
 			/*
-		 	 * not DLZ and not in normal zone table, we are
+			 * not DLZ and not in normal zone table, we are
 			 * not authoritative
 			 */
 			FAILQ(DNS_R_NOTAUTH, "non-authoritative zone",
@@ -1191,7 +1196,7 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 	}
 
 	/*
-	 * Bracket the the data stream with SOAs.
+	 * Bracket the data stream with SOAs.
 	 */
 	CHECK(soa_rrstream_create(mctx, db, ver, &soa_stream));
 	CHECK(compound_rrstream_create(mctx, &soa_stream, &data_stream,
@@ -1210,26 +1215,26 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 
 #ifdef DLZ
 	if (is_dlz)
- 		CHECK(xfrout_ctx_create(mctx, client, request->id, question_name,
- 					reqtype, question_class, db, ver, quota,
- 					stream, dns_message_gettsigkey(request),
- 					tsigbuf,
- 					3600,
- 					3600,
- 					(format == dns_many_answers) ?
-  					ISC_TRUE : ISC_FALSE,
- 					&xfr));
- 	else
+		CHECK(xfrout_ctx_create(mctx, client, request->id, question_name,
+					reqtype, question_class, db, ver, quota,
+					stream, dns_message_gettsigkey(request),
+					tsigbuf,
+					3600,
+					3600,
+					(format == dns_many_answers) ?
+					ISC_TRUE : ISC_FALSE,
+					&xfr));
+	else
 #endif
- 		CHECK(xfrout_ctx_create(mctx, client, request->id, question_name,
- 					reqtype, question_class, db, ver, quota,
- 					stream, dns_message_gettsigkey(request),
- 					tsigbuf,
- 					dns_zone_getmaxxfrout(zone),
- 					dns_zone_getidleout(zone),
- 					(format == dns_many_answers) ?
- 					ISC_TRUE : ISC_FALSE,
- 					&xfr));
+		CHECK(xfrout_ctx_create(mctx, client, request->id, question_name,
+					reqtype, question_class, db, ver, quota,
+					stream, dns_message_gettsigkey(request),
+					tsigbuf,
+					dns_zone_getmaxxfrout(zone),
+					dns_zone_getidleout(zone),
+					(format == dns_many_answers) ?
+					ISC_TRUE : ISC_FALSE,
+					&xfr));
 
 	xfr->mnemonic = mnemonic;
 	stream = NULL;
@@ -1399,7 +1404,7 @@ failure:
  *
  * Requires:
  *	The stream iterator is initialized and points at an RR,
- *      or possiby at the end of the stream (that is, the
+ *      or possibly at the end of the stream (that is, the
  *      _first method of the iterator has been called).
  */
 static void
@@ -1573,6 +1578,11 @@ sendstream(xfrout_ctx_t *xfr) {
 		msgrdl->type = rdata->type;
 		msgrdl->rdclass = rdata->rdclass;
 		msgrdl->ttl = ttl;
+		if (rdata->type == dns_rdatatype_sig ||
+		    rdata->type == dns_rdatatype_rrsig)
+			msgrdl->covers = dns_rdata_covers(rdata);
+		else
+			msgrdl->covers = dns_rdatatype_none;
 		ISC_LINK_INIT(msgrdl, link);
 		ISC_LIST_INIT(msgrdl->rdata);
 		ISC_LIST_APPEND(msgrdl->rdata, msgrdata, link);
@@ -1663,7 +1673,7 @@ sendstream(xfrout_ctx_t *xfr) {
 	 * iterators before returning from the event handler.
 	 */
 	xfr->stream->methods->pause(xfr->stream);
-	
+
 	if (result == ISC_R_SUCCESS)
 		return;
 

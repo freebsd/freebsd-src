@@ -101,8 +101,9 @@ main(int argc, char *argv[])
 	int Hflag, Lflag, Pflag, ch, fts_options, r, have_trailing_slash;
 	char *target;
 
+	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	Hflag = Lflag = Pflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRafilnprv")) != -1)
+	while ((ch = getopt(argc, argv, "HLPRafilnprvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -150,6 +151,9 @@ main(int argc, char *argv[])
 		case 'v':
 			vflag = 1;
 			break;
+		case 'x':
+			fts_options |= FTS_XDEV;
+			break;
 		default:
 			usage();
 			break;
@@ -160,7 +164,6 @@ main(int argc, char *argv[])
 	if (argc < 2)
 		usage();
 
-	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	if (Rflag && rflag)
 		errx(1, "the -R and -r options may not be specified together");
 	if (rflag)

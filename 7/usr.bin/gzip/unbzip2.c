@@ -1,4 +1,4 @@
-/*	$NetBSD: unbzip2.c,v 1.12 2009/10/11 05:17:20 mrg Exp $	*/
+/*	$NetBSD: unbzip2.c,v 1.13 2009/12/05 03:23:37 mrg Exp $	*/
 
 /*-
  * Copyright (c) 2006 The NetBSD Foundation, Inc.

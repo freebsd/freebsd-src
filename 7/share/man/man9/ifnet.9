@@ -233,11 +233,15 @@ The name of the interface,
 .Dq Li fxp0
 or
 .Dq Li lo0 ) .
-(Initialized by driver.)
+(Initialized by driver
+(usually via
+.Fn if_initname ) . )
 .It Va if_dname
 .Pq Vt "const char *"
 The name of the driver.
-(Initialized by driver.)
+(Initialized by driver
+(usually via
+.Fn if_initname ) . )
 .It Va if_dunit
 .Pq Vt int
 A unique number assigned to each interface managed by a particular
@@ -245,7 +249,9 @@ driver.
 Drivers may choose to set this to
 .Dv IF_DUNIT_NONE
 if a unit number is not associated with the device.
-(Initialized by driver.)
+(Initialized by driver
+(usually via
+.Fn if_initname ) . )
 .It Va if_addrhead
 .Pq Vt "struct ifaddrhead"
 The head of the
@@ -285,7 +291,11 @@ decremented by generic watchdog code.)
 .It Va if_flags
 .Pq Vt int
 Flags describing operational parameters of this interface (see below).
-(Manipulated by both driver and generic code.)
+(Manipulated by generic code.)
+.It Va if_drv_flags
+.Pq Vt int
+Flags describing operational status of this interface (see below).
+(Manipulated by driver.)
 .It Va if_capabilities
 .Pq Vt int
 Flags describing the capabilities the interface supports (see below).
@@ -358,10 +368,10 @@ order to provide for some interface classes to share a
 among all drivers.
 .Fn if_start
 may only be called when the
-.Dv IFF_OACTIVE
+.Dv IFF_DRV_OACTIVE
 flag is not set.
 (Thus,
-.Dv IFF_OACTIVE
+.Dv IFF_DRV_OACTIVE
 does not literally mean that output is active, but rather that the
 device's internal output queue is full.)
 .It Fn if_done
@@ -399,7 +409,7 @@ Initialize and bring up the hardware,
 e.g., reset the chip and the watchdog timer and enable the receiver unit.
 Should mark the interface running,
 but not active
-.Dv ( IFF_RUNNING , ~IIF_OACTIVE ) .
+.Dv ( IFF_DRV_RUNNING , ~IIF_DRV_OACTIVE ) .
 .It Fn if_resolvemulti
 Check the requested multicast group membership,
 .Fa addr ,
@@ -418,6 +428,12 @@ Flags of the former kind are marked
 .Aq S
 in this table; the latter are marked
 .Aq D .
+Flags which begin with
+.Dq IFF_DRV_
+are stored in
+.Va if_drv_flags ;
+all other flags are stored in
+.Va if_flags .
 .Pp
 The macro
 .Dv IFF_CANTCHANGE
@@ -447,7 +463,7 @@ The interface is a loopback device.
 The interface is point-to-point;
 .Dq broadcast
 address is actually the address of the other end.
-.It Dv IFF_RUNNING
+.It Dv IFF_DRV_RUNNING
 .Aq D*
 The interface has been configured and dynamic resources were
 successfully allocated.
@@ -466,7 +482,7 @@ This interface is in the permanently promiscuous mode (implies
 .It Dv IFF_ALLMULTI
 .Aq D*
 This interface is in all-multicasts mode (used by multicast routers).
-.It Dv IFF_OACTIVE
+.It Dv IFF_DRV_OACTIVE
 .Aq D*
 The interface's hardware output queue (if any) is full; output packets
 are to be queued.

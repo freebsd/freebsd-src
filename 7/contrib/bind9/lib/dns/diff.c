@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: diff.c,v 1.9.18.3 2005/04/27 05:01:15 sra Exp $ */
+/* $Id: diff.c,v 1.9.18.6 2009/01/06 23:45:56 tbox Exp $ */
 
 /*! \file */
 
@@ -269,7 +269,7 @@ diff_apply(dns_diff_t *diff, dns_db_t *db, dns_dbversion_t *ver,
 						      sizeof(classbuf));
 				if (t->ttl != rdl.ttl && warn)
 					isc_log_write(DIFF_COMMON_LOGARGS,
-					      	ISC_LOG_WARNING,
+						ISC_LOG_WARNING,
 						"'%s/%s/%s': TTL differs in "
 						"rdataset, adjusting "
 						"%lu -> %lu",
@@ -306,7 +306,7 @@ diff_apply(dns_diff_t *diff, dns_db_t *db, dns_dbversion_t *ver,
 				INSIST(0);
 			}
 			if (result == DNS_R_UNCHANGED) {
-			  	/*
+				/*
 				 * This will not happen when executing a
 				 * dynamic update, because that code will
 				 * generate strictly minimal diffs.
@@ -455,7 +455,7 @@ dns_diff_sort(dns_diff_t *diff, dns_diff_compare_func *compare) {
 
 /*
  * Create an rdataset containing the single RR of the given
- * tuple.  The caller must allocate the the rdata, rdataset and
+ * tuple.  The caller must allocate the rdata, rdataset and
  * an rdatalist structure for it to refer to.
  */
 

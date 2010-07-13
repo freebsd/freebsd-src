@@ -227,7 +227,7 @@ setup(void)
 	volno = 1;
 	setdumpnum();
 	FLUSHTAPEBUF();
-	if (!pipein && !bflag)
+	if (!pipein && !pipecmdin && !bflag)
 		findtapeblksize();
 	if (gethead(&spcl) == FAIL) {
 		fprintf(stderr, "Tape is not a dump tape\n");
@@ -333,10 +333,6 @@ getvol(long nextvol)
 		}
 		if (volno == 1)
 			return;
-		if (pipecmdin) {
-			closemt();
-			goto getpipecmdhdr;
-		}
 		goto gethdr;
 	}
 again:
@@ -400,7 +396,6 @@ again:
 	if (pipecmdin) {
 		char volno[sizeof("2147483647")];
 
-getpipecmdhdr:
 		(void)sprintf(volno, "%d", newvol);
 		if (setenv("RESTORE_VOLUME", volno, 1) == -1) {
 			fprintf(stderr, "Cannot set $RESTORE_VOLUME: %s\n",
@@ -1204,17 +1199,17 @@ getmore:
 	 * Check for mid-tape short read error.
 	 * If found, skip rest of buffer and start with the next.
 	 */
-	if (!pipein && numtrec < ntrec && i > 0) {
+	if (!pipein && !pipecmdin && numtrec < ntrec && i > 0) {
 		dprintf(stdout, "mid-media short read error.\n");
 		numtrec = ntrec;
 	}
 	/*
 	 * Handle partial block read.
 	 */
-	if (pipein && i == 0 && rd > 0)
+	if ((pipein || pipecmdin) && i == 0 && rd > 0)
 		i = rd;
 	else if (i > 0 && i != ntrec * TP_BSIZE) {
-		if (pipein) {
+		if (pipein || pipecmdin) {
 			rd += i;
 			cnt -= i;
 			if (cnt > 0)

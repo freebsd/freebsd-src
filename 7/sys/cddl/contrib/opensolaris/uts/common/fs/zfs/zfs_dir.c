@@ -557,9 +557,6 @@ zfs_rmnode(znode_t *zp)
 	dmu_tx_t	*tx;
 	uint64_t	acl_obj;
 	int		error;
-	int		vfslocked;
-
-	vfslocked = VFS_LOCK_GIANT(zfsvfs->z_vfs);
 
 	ASSERT(zp->z_phys->zp_links == 0);
 
@@ -593,7 +590,6 @@ zfs_rmnode(znode_t *zp)
 			 */
 			zfs_znode_dmu_fini(zp);
 			zfs_znode_free(zp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			return;
 		}
 	}
@@ -666,7 +662,6 @@ zfs_rmnode(znode_t *zp)
 out:
 	if (xzp)
 		VN_RELE(ZTOV(xzp));
-	VFS_UNLOCK_GIANT(vfslocked);
 }
 
 static uint64_t
@@ -831,8 +826,14 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, vnode_t **xvpp, cred_t *cr)
 
 	*xvpp = NULL;
 
+	/*
+	 * In FreeBSD, access checking for creating an EA is being done
+	 * in zfs_setextattr(),
+	 */
+#ifndef __FreeBSD__
 	if (error = zfs_zaccess(zp, ACE_WRITE_NAMED_ATTRS, 0, B_FALSE, cr))
 		return (error);
+#endif
 
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_bonus(tx, zp->z_id);
@@ -906,12 +907,14 @@ top:
 
 	ASSERT(zp->z_phys->zp_xattr == 0);
 
-#ifdef TODO
 	if (!(flags & CREATE_XATTR_DIR)) {
 		zfs_dirent_unlock(dl);
+#ifdef __FreeBSD__
+		return (ENOATTR);
+#else
 		return (ENOENT);
-	}
 #endif
+	}
 
 	if (zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) {
 		zfs_dirent_unlock(dl);

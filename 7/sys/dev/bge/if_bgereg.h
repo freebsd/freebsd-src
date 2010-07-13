@@ -2138,6 +2138,7 @@ struct bge_status_block {
 #define	BCOM_DEVICEID_BCM5754M		0x1672
 #define	BCOM_DEVICEID_BCM5755		0x167B
 #define	BCOM_DEVICEID_BCM5755M		0x1673
+#define	BCOM_DEVICEID_BCM5756		0x1674
 #define	BCOM_DEVICEID_BCM5761		0x1681
 #define	BCOM_DEVICEID_BCM5761E		0x1680
 #define	BCOM_DEVICEID_BCM5761S		0x1688
@@ -2560,6 +2561,8 @@ struct bge_chain_data {
 	struct mbuf		*bge_tx_chain[BGE_TX_RING_CNT];
 	struct mbuf		*bge_rx_std_chain[BGE_STD_RX_RING_CNT];
 	struct mbuf		*bge_rx_jumbo_chain[BGE_JUMBO_RX_RING_CNT];
+	int			bge_rx_std_seglen[BGE_STD_RX_RING_CNT];
+	int			bge_rx_jumbo_seglen[BGE_JUMBO_RX_RING_CNT][4];
 };
 
 struct bge_dmamap_arg {
@@ -2602,6 +2605,7 @@ struct bge_softc {
 #define	BGE_FLAG_JUMBO		0x00000002
 #define	BGE_FLAG_WIRESPEED	0x00000004
 #define	BGE_FLAG_EADDR		0x00000008
+#define	BGE_FLAG_MII_SERDES	0x00000010
 #define	BGE_FLAG_MSI		0x00000100
 #define	BGE_FLAG_PCIX		0x00000200
 #define	BGE_FLAG_PCIE		0x00000400

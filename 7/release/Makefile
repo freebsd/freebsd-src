@@ -24,11 +24,11 @@
 # Set these, release builder!
 #
 # Fixed version:
-#BUILDNAME=7.2-STABLE
+#BUILDNAME=7.3-STABLE
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
-BASE = 7.2
+BASE = 7.3
 BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 #CHROOTDIR=/junk/release
@@ -169,7 +169,7 @@ NOPORTSATALL=	YES
 
 #
 # Doing 'make index' in /usr/ports requires Perl.
-MAKEINDEXPORTS=	lang/perl5.8
+MAKEINDEXPORTS=	lang/perl5.10
 # By default, documentation (Handbook, FAQ, etc.) is built for all
 # the languages.  To speed up building, set the DOC_LANG to just
 # the languages you need.  (The language for the release notes is
@@ -576,7 +576,7 @@ release rerelease:
 	echo "	for i in ${MAKEINDEXPORTS}"	>> ${_MK}
 	echo "	do"			>> ${_MK}
 	echo "		cd /usr/ports/\$${i}"	>> ${_MK}
-	echo "		env -i FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \\" >> ${_MK}
+	echo "		env -i HTTP_PROXY=$${HTTP_PROXY} FTP_PROXY=$${FTP_PROXY} FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \\" >> ${_MK}
 	echo "		make all install clean BATCH=yes FORCE_PKG_REGISTER=yes" >> ${_MK}
 	echo "	done"				>> ${_MK}
 	echo "	cd /usr/ports"			>> ${_MK}

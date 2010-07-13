@@ -29,9 +29,12 @@
 #define _MACHINE_OFW_MACHDEP_H_
 
 #include <sys/bus.h>
+#include <machine/bus.h>
+#include <dev/ofw/openfirm.h>
 
 int  OF_decode_addr(phandle_t, int, int *, bus_addr_t *);
 void OF_getetheraddr(device_t, u_char *);
+u_int OF_getscsinitid(device_t);
 void cpu_shutdown(void *);
 void openfirmware_exit(void *);
 

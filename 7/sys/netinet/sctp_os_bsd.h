@@ -168,7 +168,6 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
  *
  */
 #define USER_ADDR_NULL	(NULL)	/* FIX ME: temp */
-#define SCTP_LIST_EMPTY(list)	LIST_EMPTY(list)
 
 #if defined(SCTP_DEBUG)
 #define SCTPDBG(level, params...)					\

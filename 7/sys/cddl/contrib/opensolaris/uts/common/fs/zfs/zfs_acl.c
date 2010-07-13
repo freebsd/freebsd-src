@@ -2227,11 +2227,24 @@ zfs_zaccess_common(znode_t *zp, uint32_t v4_mode, uint32_t *working_mode,
 		return (EPERM);
 	}
 
+#ifdef sun
 	if ((v4_mode & (ACE_DELETE | ACE_DELETE_CHILD)) &&
 	    (zp->z_phys->zp_flags & ZFS_NOUNLINK)) {
 		*check_privs = B_FALSE;
 		return (EPERM);
 	}
+#else
+	/*
+	 * In FreeBSD we allow to modify directory's content is ZFS_NOUNLINK
+	 * (sunlnk) is set. We just don't allow directory removal, which is
+	 * handled in zfs_zaccess_delete().
+	 */
+	if ((v4_mode & ACE_DELETE) &&
+	    (zp->z_phys->zp_flags & ZFS_NOUNLINK)) {
+		*check_privs = B_FALSE;
+		return (EPERM);
+	}
+#endif
 
 	if (((v4_mode & (ACE_READ_DATA|ACE_EXECUTE)) &&
 	    (zp->z_phys->zp_flags & ZFS_AV_QUARANTINED))) {
@@ -2364,6 +2377,15 @@ zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr)
 	is_attr = ((zp->z_phys->zp_flags & ZFS_XATTR) &&
 	    (ZTOV(zp)->v_type == VDIR));
 
+#ifdef __FreeBSD__
+	/*
+	 * In FreeBSD, we don't care about permissions of individual ADS.
+	 * Note that not checking them is not just an optimization - without
+	 * this shortcut, EA operations may bogusly fail with EACCES.
+	 */
+	if (zp->z_phys->zp_flags & ZFS_XATTR)
+		return (0);
+#else
 	/*
 	 * If attribute then validate against base file
 	 */
@@ -2389,6 +2411,7 @@ zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr)
 			mode |= ACE_READ_NAMED_ATTRS;
 		}
 	}
+#endif
 
 	if ((error = zfs_zaccess_common(check_zp, mode, &working_mode,
 	    &check_privs, skipaclchk, cr)) == 0) {
