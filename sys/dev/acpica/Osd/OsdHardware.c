@@ -53,16 +53,16 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifdef __i386__
-#define ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
-#define ACPI_BUS_HANDLE		0
+#define	ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
+#define	ACPI_BUS_HANDLE		0
 #endif
 #ifdef __ia64__
-#define ACPI_BUS_SPACE_IO	IA64_BUS_SPACE_IO
-#define ACPI_BUS_HANDLE		0
+#define	ACPI_BUS_SPACE_IO	IA64_BUS_SPACE_IO
+#define	ACPI_BUS_HANDLE		0
 #endif
 #ifdef __amd64__
-#define ACPI_BUS_SPACE_IO	AMD64_BUS_SPACE_IO
-#define ACPI_BUS_HANDLE		0
+#define	ACPI_BUS_SPACE_IO	AMD64_BUS_SPACE_IO
+#define	ACPI_BUS_HANDLE		0
 #endif
 
 ACPI_STATUS
@@ -72,15 +72,15 @@ AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
     switch (Width) {
     case 8:
 	*Value = bus_space_read_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
-        break;
+	break;
     case 16:
 	*Value = bus_space_read_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
-        break;
+	break;
     case 32:
 	*Value = bus_space_read_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
-        break;
+	break;
     default:
-        /* debug trap goes here */
+	/* debug trap goes here */
 	break;
     }
 
@@ -93,16 +93,16 @@ AcpiOsWritePort(ACPI_IO_ADDRESS OutPort, UINT32	Value, UINT32 Width)
 
     switch (Width) {
     case 8:
-        bus_space_write_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
-        break;
+	bus_space_write_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
+	break;
     case 16:
-        bus_space_write_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
-        break;
+	bus_space_write_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
+	break;
     case 32:
-        bus_space_write_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
-        break;
+	bus_space_write_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
+	break;
     default:
-        /* debug trap goes here */
+	/* debug trap goes here */
 	break;
     }
 
@@ -117,7 +117,7 @@ AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId, UINT32 Register, void *Value,
     u_int32_t	val;
 
     if (!pci_cfgregopen())
-        return (AE_NOT_EXIST);
+	return (AE_NOT_EXIST);
 
     val = pci_cfgregread(PciId->Bus, PciId->Device, PciId->Function, Register,
 	byte_width);
