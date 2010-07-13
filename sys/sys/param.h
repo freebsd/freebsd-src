@@ -69,7 +69,6 @@
  * Redefined constants are from POSIX 1003.1 limits file.
  *
  * MAXCOMLEN should be >= sizeof(ac_comm) (see <acct.h>)
- * MAXLOGNAME should be == UT_NAMESIZE+1 (see <utmp.h>)
  */
 #include <sys/syslimits.h>
 
