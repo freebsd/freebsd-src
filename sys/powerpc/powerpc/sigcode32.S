@@ -43,8 +43,8 @@
  * On entry r1 points to a struct sigframe at bottom of current stack.
  * All other registers are unchanged.
  */
-	.globl	CNAME(sigcode),CNAME(szsigcode)
-CNAME(sigcode):
+	.globl	CNAME(sigcode32),CNAME(szsigcode32)
+CNAME(sigcode32):
 	addi	1,1,-16			/* reserved space for callee */
 	blrl
 	addi	3,1,16+SF_UC		/* restore sp, and get &frame->sf_uc */
@@ -52,8 +52,8 @@ CNAME(sigcode):
 	sc				/* sigreturn(scp) */
 	li	0,SYS_exit
 	sc				/* exit(errno) */
-endsigcode:
+endsigcode32:
 	
 	.data
-CNAME(szsigcode):
-	.long	endsigcode - CNAME(sigcode)
+CNAME(szsigcode32):
+	.long	endsigcode32 - CNAME(sigcode32)

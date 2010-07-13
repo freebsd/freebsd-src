@@ -48,6 +48,7 @@ struct cpuref {
 };
 
 void	pmap_cpu_bootstrap(int);
+void	cpudep_ap_early_bootstrap(void);
 uintptr_t cpudep_ap_bootstrap(void);
 void	cpudep_ap_setup(void);
 void	machdep_ap_bootstrap(void);

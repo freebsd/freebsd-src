@@ -380,7 +380,7 @@ is_physical_memory(vm_offset_t addr)
 }
 
 /*
- * Thread functions
+ * CPU threading functions related to VM.
  */
 
 void

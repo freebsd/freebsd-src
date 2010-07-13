@@ -28,6 +28,9 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+
+#define __ELF_WORD_SIZE 32
+
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/malloc.h>
@@ -46,11 +49,23 @@
 
 #include <machine/cpu.h>
 #include <machine/elf.h>
+#include <machine/reg.h>
 #include <machine/md_var.h>
+
+#ifdef __powerpc64__
+#include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32_util.h>
+
+extern const char *freebsd32_syscallnames[];
+#endif
 
 struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
+#ifdef __powerpc64__
+	.sv_table	= freebsd32_sysent,
+#else
 	.sv_table	= sysent,
+#endif
 	.sv_mask	= 0,
 	.sv_sigsize	= 0,
 	.sv_sigtbl	= NULL,
@@ -59,8 +74,8 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_transtrap	= NULL,
 	.sv_fixup	= __elfN(freebsd_fixup),
 	.sv_sendsig	= sendsig,
-	.sv_sigcode	= sigcode,
-	.sv_szsigcode	= &szsigcode,
+	.sv_sigcode	= sigcode32,
+	.sv_szsigcode	= &szsigcode32,
 	.sv_prepsyscall	= NULL,
 	.sv_name	= "FreeBSD ELF32",
 	.sv_coredump	= __elfN(coredump),
@@ -68,18 +83,27 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_pagesize	= PAGE_SIZE,
 	.sv_minuser	= VM_MIN_ADDRESS,
+	.sv_stackprot	= VM_PROT_ALL,
+#ifdef __powerpc64__
+	.sv_maxuser	= VM_MAXUSER_ADDRESS,
+	.sv_usrstack	= FREEBSD32_USRSTACK,
+	.sv_psstrings	= FREEBSD32_PS_STRINGS,
+	.sv_copyout_strings = freebsd32_copyout_strings,
+	.sv_setregs	= ppc32_setregs,
+	.sv_syscallnames = freebsd32_syscallnames,
+#else
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
 	.sv_usrstack	= USRSTACK,
 	.sv_psstrings	= PS_STRINGS,
-	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_strings = exec_copyout_strings,
 	.sv_setregs	= exec_setregs,
+	.sv_syscallnames = syscallnames,
+#endif
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
-	.sv_syscallnames = syscallnames,
 };
 
 static Elf32_Brandinfo freebsd_brand_info = {
@@ -89,7 +113,11 @@ static Elf32_Brandinfo freebsd_brand_info = {
 	.emul_path	= NULL,
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf32_freebsd_sysvec,
+#ifdef __powerpc64__
+	.interp_newpath	= "/libexec/ld-elf32.so.1",
+#else
 	.interp_newpath	= NULL,
+#endif
 	.brand_note	= &elf32_freebsd_brandnote,
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
@@ -114,14 +142,13 @@ SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&freebsd_brand_oinfo);
 
-
 void
 elf32_dump_thread(struct thread *td __unused, void *dst __unused,
     size_t *off __unused)
 {
 }
 
-
+#ifndef __powerpc64__
 /* Process one elf relocation with addend. */
 static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
@@ -140,8 +167,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
-		where = (Elf_Addr *) (relocbase + rela->r_offset);
-		hwhere = (Elf_Half *) (relocbase + rela->r_offset);
+		where = (Elf_Addr *) ((uintptr_t)relocbase + rela->r_offset);
+		hwhere = (Elf_Half *) ((uintptr_t)relocbase + rela->r_offset);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
 		symidx = ELF_R_SYM(rela->r_info);
@@ -239,3 +266,4 @@ elf_cpu_unload_file(linker_file_t lf __unused)
 
 	return (0);
 }
+#endif

@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 
+#include <machine/_inttypes.h>
 #include <machine/altivec.h>
 #include <machine/cpu.h>
 #include <machine/db_machdep.h>
@@ -86,6 +87,10 @@ static int	ppc_instr_emulate(struct trapframe *frame);
 static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
 
+#ifdef __powerpc64__
+static int	handle_slb_spill(pmap_t pm, vm_offset_t addr);
+#endif
+
 int	setfault(faultbuf);		/* defined in locore.S */
 
 /* Why are these not defined in a header? */
@@ -101,7 +106,9 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ 0x0100, "system reset" },
 	{ 0x0200, "machine check" },
 	{ 0x0300, "data storage interrupt" },
+	{ 0x0380, "data segment exception" },
 	{ 0x0400, "instruction storage interrupt" },
+	{ 0x0480, "instruction segment exception" },
 	{ 0x0500, "external interrupt" },
 	{ 0x0600, "alignment" },
 	{ 0x0700, "program" },
@@ -171,6 +178,15 @@ trap(struct trapframe *frame)
 			sig = SIGTRAP;
 			break;
 
+#ifdef __powerpc64__
+		case EXC_ISE:
+		case EXC_DSE:
+			if (handle_slb_spill(&p->p_vmspace->vm_pmap,
+			    (type == EXC_ISE) ? frame->srr0 :
+			    frame->cpu.aim.dar) != 0)
+				sig = SIGSEGV;
+			break;
+#endif
 		case EXC_DSI:
 		case EXC_ISI:
 			sig = trap_pfault(frame, 1);
@@ -227,6 +243,15 @@ trap(struct trapframe *frame)
 			if (trap_pfault(frame, 0) == 0)
  				return;
 			break;
+#ifdef __powerpc64__
+		case EXC_ISE:
+		case EXC_DSE:
+			if (handle_slb_spill(kernel_pmap,
+			    (type == EXC_ISE) ? frame->srr0 :
+			    frame->cpu.aim.dar) != 0)
+				panic("Fault handling kernel SLB miss");
+			return;
+#endif
 		case EXC_MCHK:
 			if (handle_onfault(frame))
  				return;
@@ -276,16 +301,19 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	printf("   exception       = 0x%x (%s)\n", vector >> 8,
 	    trapname(vector));
 	switch (vector) {
+	case EXC_DSE:
 	case EXC_DSI:
-		printf("   virtual address = 0x%x\n", frame->cpu.aim.dar);
+		printf("   virtual address = 0x%" PRIxPTR "\n",
+		    frame->cpu.aim.dar);
 		break;
+	case EXC_ISE:
 	case EXC_ISI:
-		printf("   virtual address = 0x%x\n", frame->srr0);
+		printf("   virtual address = 0x%" PRIxPTR "\n", frame->srr0);
 		break;
 	}
-	printf("   srr0            = 0x%x\n", frame->srr0);
-	printf("   srr1            = 0x%x\n", frame->srr1);
-	printf("   lr              = 0x%x\n", frame->lr);
+	printf("   srr0            = 0x%" PRIxPTR "\n", frame->srr0);
+	printf("   srr1            = 0x%" PRIxPTR "\n", frame->srr1);
+	printf("   lr              = 0x%" PRIxPTR "\n", frame->lr);
 	printf("   curthread       = %p\n", curthread);
 	if (curthread != NULL)
 		printf("          pid = %d, comm = %s\n",
@@ -324,7 +352,8 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	struct proc *p;
 	struct trapframe *frame;
 	caddr_t	params;
-	int error, n;
+	size_t argsz;
+	int error, n, i;
 
 	p = td->td_proc;
 	frame = td->td_frame;
@@ -338,7 +367,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		 * code is first argument,
 		 * followed by actual args.
 		 */
-		sa->code = *(u_int *) params;
+		sa->code = *(register_t *) params;
 		params += sizeof(register_t);
 		n -= 1;
 	} else if (sa->code == SYS___syscall) {
@@ -347,10 +376,16 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		 * so as to maintain quad alignment
 		 * for the rest of the args.
 		 */
-		params += sizeof(register_t);
-		sa->code = *(u_int *) params;
-		params += sizeof(register_t);
-		n -= 2;
+		if (p->p_sysent->sv_flags & SV_ILP32) {
+			params += sizeof(register_t);
+			sa->code = *(register_t *) params;
+			params += sizeof(register_t);
+			n -= 2;
+		} else {
+			sa->code = *(register_t *) params;
+			params += sizeof(register_t);
+			n -= 1;
+		}
 	}
 
  	if (p->p_sysent->sv_mask)
@@ -362,12 +397,33 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 
 	sa->narg = sa->callp->sy_narg;
 
-	bcopy(params, sa->args, n * sizeof(register_t));
-	if (sa->narg > n) {
+	if (p->p_sysent->sv_flags & SV_ILP32) {
+		argsz = sizeof(uint32_t);
+
+		for (i = 0; i < n; i++)
+			sa->args[i] = ((u_register_t *)(params))[i] &
+			    0xffffffff;
+	} else {
+		argsz = sizeof(uint64_t);
+
+		for (i = 0; i < n; i++)
+			sa->args[i] = ((u_register_t *)(params))[i];
+	}
+
+	if (sa->narg > n)
 		error = copyin(MOREARGS(frame->fixreg[1]), sa->args + n,
-		    (sa->narg - n) * sizeof(register_t));
-	} else
+			       (sa->narg - n) * argsz);
+	else
 		error = 0;
+
+#ifdef __powerpc64__
+	if (p->p_sysent->sv_flags & SV_ILP32 && sa->narg > n) {
+		/* Expand the size of arguments copied from the stack */
+
+		for (i = sa->narg; i >= n; i--)
+			sa->args[i] = ((uint32_t *)(&sa->args[n]))[i-n];
+	}
+#endif
 
 	if (error == 0) {
 		td->td_retval[0] = 0;
@@ -390,6 +446,44 @@ syscall(struct trapframe *frame)
 	syscallret(td, error, &sa);
 }
 
+#ifdef __powerpc64__
+static int 
+handle_slb_spill(pmap_t pm, vm_offset_t addr)
+{
+	struct slb slb_entry;
+	int error, i;
+
+	if (pm == kernel_pmap) {
+		error = va_to_slb_entry(pm, addr, &slb_entry);
+		if (error)
+			return (error);
+
+		slb_insert(pm, PCPU_GET(slb), &slb_entry);
+		return (0);
+	}
+
+	PMAP_LOCK(pm);
+	error = va_to_slb_entry(pm, addr, &slb_entry);
+	if (error != 0)
+		(void)allocate_vsid(pm, (uintptr_t)addr >> ADDR_SR_SHFT, 0);
+	else {
+		/*
+		 * Check that another CPU has not already mapped this.
+		 * XXX: Per-thread SLB caches would be better.
+		 */
+		for (i = 0; i < 64; i++)
+			if (pm->pm_slb[i].slbe == (slb_entry.slbe | i))
+				break;
+
+		if (i == 64)
+			slb_insert(pm, pm->pm_slb, &slb_entry);
+	}
+	PMAP_UNLOCK(pm);
+
+	return (0);
+}
+#endif
+
 static int
 trap_pfault(struct trapframe *frame, int user)
 {
@@ -399,7 +493,7 @@ trap_pfault(struct trapframe *frame, int user)
 	vm_map_t	map;
 	vm_prot_t	ftype;
 	int		rv;
-	u_int		user_sr;
+	register_t	user_sr;
 
 	td = curthread;
 	p = td->td_proc;
@@ -417,16 +511,33 @@ trap_pfault(struct trapframe *frame, int user)
 	if (user) {
 		map = &p->p_vmspace->vm_map;
 	} else {
-		if ((eva >> ADDR_SR_SHFT) == USER_SR) {
+		if ((eva >> ADDR_SR_SHFT) == (USER_ADDR >> ADDR_SR_SHFT)) {
 			if (p->p_vmspace == NULL)
 				return (SIGSEGV);
 
+			map = &p->p_vmspace->vm_map;
+
+			#ifdef __powerpc64__
+			user_sr = 0;
+			__asm ("slbmfev %0, %1"
+			    : "=r"(user_sr)
+			    : "r"(USER_SR));
+
+			PMAP_LOCK(&p->p_vmspace->vm_pmap);
+			user_sr >>= SLBV_VSID_SHIFT;
+			rv = vsid_to_esid(&p->p_vmspace->vm_pmap, user_sr,
+			    &user_sr);
+			PMAP_UNLOCK(&p->p_vmspace->vm_pmap);
+
+			if (rv != 0) 
+				return (SIGSEGV);
+			#else
 			__asm ("mfsr %0, %1"
 			    : "=r"(user_sr)
 			    : "K"(USER_SR));
+			#endif
 			eva &= ADDR_PIDX | ADDR_POFF;
 			eva |= user_sr << ADDR_SR_SHFT;
-			map = &p->p_vmspace->vm_map;
 		} else {
 			map = kernel_map;
 		}
@@ -502,7 +613,7 @@ badaddr_read(void *addr, size_t size, int *rptr)
 		x = *(volatile int32_t *)addr;
 		break;
 	default:
-		panic("badaddr: invalid size (%d)", size);
+		panic("badaddr: invalid size (%zd)", size);
 	}
 
 	/* Make sure we took the machine check, if we caused one. */

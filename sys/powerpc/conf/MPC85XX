@@ -7,6 +7,8 @@
 cpu		E500
 ident		MPC85XX
 
+machine		powerpc	powerpc
+
 makeoptions	DEBUG="-Wa,-me500 -g"
 makeoptions	NO_MODULES=yes
 
