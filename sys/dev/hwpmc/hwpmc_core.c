@@ -147,6 +147,7 @@ core_pcpu_fini(struct pmc_mdep *md, int cpu)
 	int core_ri, n, npmc;
 	struct pmc_cpu *pc;
 	struct core_cpu *cc;
+	uint64_t msr = 0;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] insane cpu number (%d)", __LINE__, cpu));
@@ -166,11 +167,14 @@ core_pcpu_fini(struct pmc_mdep *md, int cpu)
 	npmc = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAP].pcd_num;
 	core_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAP].pcd_ri;
 
-	for (n = 0; n < npmc; n++)
-		wrmsr(IAP_EVSEL0 + n, 0);
+	for (n = 0; n < npmc; n++) {
+		msr = rdmsr(IAP_EVSEL0 + n);
+		wrmsr(IAP_EVSEL0 + n, msr & ~IAP_EVSEL_MASK);
+	}
 
 	if (core_cputype != PMC_CPU_INTEL_CORE) {
-		wrmsr(IAF_CTRL, 0);
+		msr = rdmsr(IAF_CTRL);
+		wrmsr(IAF_CTRL, msr & ~IAF_CTRL_MASK);
 		npmc += md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAF].pcd_num;
 	}
 
@@ -374,6 +378,7 @@ iaf_start_pmc(int cpu, int ri)
 {
 	struct pmc *pm;
 	struct core_cpu *iafc;
+	uint64_t msr = 0;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] illegal CPU value %d", __LINE__, cpu));
@@ -387,12 +392,15 @@ iaf_start_pmc(int cpu, int ri)
 
 	iafc->pc_iafctrl |= pm->pm_md.pm_iaf.pm_iaf_ctrl;
 
-	wrmsr(IAF_CTRL, iafc->pc_iafctrl);
+ 	msr = rdmsr(IAF_CTRL);
+ 	wrmsr(IAF_CTRL, msr | (iafc->pc_iafctrl & IAF_CTRL_MASK));
 
 	do {
 		iafc->pc_resync = 0;
 		iafc->pc_globalctrl |= (1ULL << (ri + IAF_OFFSET));
-		wrmsr(IA_GLOBAL_CTRL, iafc->pc_globalctrl);
+ 		msr = rdmsr(IA_GLOBAL_CTRL);
+ 		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl & 
+ 					     IAF_GLOBAL_CTRL_MASK));
 	} while (iafc->pc_resync != 0);
 
 	PMCDBG(MDP,STA,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
@@ -407,6 +415,7 @@ iaf_stop_pmc(int cpu, int ri)
 {
 	uint32_t fc;
 	struct core_cpu *iafc;
+	uint64_t msr = 0;
 
 	PMCDBG(MDP,STO,1,"iaf-stop cpu=%d ri=%d", cpu, ri);
 
@@ -425,12 +434,15 @@ iaf_stop_pmc(int cpu, int ri)
 	iafc->pc_iafctrl &= ~fc;
 
 	PMCDBG(MDP,STO,1,"iaf-stop iafctrl=%x", iafc->pc_iafctrl);
-	wrmsr(IAF_CTRL, iafc->pc_iafctrl);
+ 	msr = rdmsr(IAF_CTRL);
+ 	wrmsr(IAF_CTRL, msr | (iafc->pc_iafctrl & IAF_CTRL_MASK));
 
 	do {
 		iafc->pc_resync = 0;
 		iafc->pc_globalctrl &= ~(1ULL << (ri + IAF_OFFSET));
-		wrmsr(IA_GLOBAL_CTRL, iafc->pc_globalctrl);
+ 		msr = rdmsr(IA_GLOBAL_CTRL);
+ 		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl &
+ 					     IAF_GLOBAL_CTRL_MASK));
 	} while (iafc->pc_resync != 0);
 
 	PMCDBG(MDP,STO,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
@@ -445,6 +457,7 @@ iaf_write_pmc(int cpu, int ri, pmc_value_t v)
 {
 	struct core_cpu *cc;
 	struct pmc *pm;
+	uint64_t msr;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] illegal cpu value %d", __LINE__, cpu));
@@ -460,9 +473,11 @@ iaf_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = iaf_reload_count_to_perfctr_value(v);
 
-	wrmsr(IAF_CTRL, 0);	/* Turn off fixed counters */
-	wrmsr(IAF_CTR0 + ri, v);
-	wrmsr(IAF_CTRL, cc->pc_iafctrl);
+	msr = rdmsr(IAF_CTRL);
+	wrmsr(IAF_CTRL, msr & ~IAF_CTRL_MASK);
+	wrmsr(IAF_CTR0 + ri, v & ((1ULL << core_iaf_width) - 1));
+	msr = rdmsr(IAF_CTRL);
+	wrmsr(IAF_CTRL, msr | (cc->pc_iafctrl & IAF_CTRL_MASK));
 
 	PMCDBG(MDP,WRI,1, "iaf-write cpu=%d ri=%d msr=0x%x v=%jx iafctrl=%jx "
 	    "pmc=%jx", cpu, ri, IAF_RI_TO_MSR(ri), v,
@@ -1879,6 +1894,7 @@ iap_stop_pmc(int cpu, int ri)
 {
 	struct pmc *pm;
 	struct core_cpu *cc;
+	uint64_t msr;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] illegal cpu value %d", __LINE__, cpu));
@@ -1894,7 +1910,8 @@ iap_stop_pmc(int cpu, int ri)
 
 	PMCDBG(MDP,STO,1, "iap-stop cpu=%d ri=%d", cpu, ri);
 
-	wrmsr(IAP_EVSEL0 + ri, 0);	/* stop hw */
+	msr = rdmsr(IAP_EVSEL0 + ri);
+	wrmsr(IAP_EVSEL0 + ri, msr & IAP_EVSEL_MASK);	/* stop hw */
 
 	if (core_cputype == PMC_CPU_INTEL_CORE)
 		return (0);
@@ -1937,7 +1954,7 @@ iap_write_pmc(int cpu, int ri, pmc_value_t v)
 	 * a stopped state when the pcd_write() entry point is called.
 	 */
 
-	wrmsr(IAP_PMC0 + ri, v);
+	wrmsr(IAP_PMC0 + ri, v & ((1ULL << core_iap_width) - 1));
 
 	return (0);
 }
@@ -1987,6 +2004,7 @@ core_intr(int cpu, struct trapframe *tf)
 	struct pmc *pm;
 	struct core_cpu *cc;
 	int error, found_interrupt, ri;
+	uint64_t msr = 0;
 
 	PMCDBG(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
@@ -2018,7 +2036,8 @@ core_intr(int cpu, struct trapframe *tf)
 		 * Stop the counter, reload it but only restart it if
 		 * the PMC is not stalled.
 		 */
-		wrmsr(IAP_EVSEL0 + ri, 0);
+		msr = rdmsr(IAP_EVSEL0 + ri);
+		wrmsr(IAP_EVSEL0 + ri, msr & ~IAP_EVSEL_MASK);
 		wrmsr(IAP_PMC0 + ri, v);
 
 		if (error)
