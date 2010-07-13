@@ -2533,7 +2533,7 @@ bge_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = BGE_PCI_BAR0;
+	rid = PCIR_BAR(0);
 	sc->bge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 
@@ -3044,7 +3044,7 @@ bge_release_resources(struct bge_softc *sc)
 
 	if (sc->bge_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    BGE_PCI_BAR0, sc->bge_res);
+		    PCIR_BAR(0), sc->bge_res);
 
 	if (sc->bge_ifp != NULL)
 		if_free(sc->bge_ifp);
