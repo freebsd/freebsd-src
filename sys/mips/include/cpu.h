@@ -393,16 +393,7 @@ union cpuprid {
 #define	MIPS_RM52XX	0x28	/* QED RM52X0 based FPU		ISA IV	 */
 #define	MIPS_VR5400	0x54	/* NEC Vr5400 FPU		ISA IV+	 */
 
-#ifndef _LOCORE
-extern union cpuprid cpu_id;
-
-#define	mips_proc_type()      ((cpu_id.cpu.cp_vendor << 8) | cpu_id.cpu.cp_imp)
-#define	mips_set_proc_type(type)	(cpu_id.cpu.cp_vendor = (type)  >> 8, \
-					 cpu_id.cpu.cp_imp = ((type) & 0x00ff))
-#endif				/* !_LOCORE */
-
 #if defined(_KERNEL) && !defined(_LOCORE)
-extern union cpuprid fpu_id;
 
 struct user;
 
