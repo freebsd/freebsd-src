@@ -220,7 +220,7 @@ cpu_setup(u_int cpuid)
 	}
 
 	if (cpu_est_clockrate(0, &cps) == 0)
-		printf(", %lld.%02lld MHz", cps / 1000000, (cps / 10000) % 100);
+		printf(", %jd.%02jd MHz", cps / 1000000, (cps / 10000) % 100);
 	printf("\n");
 
 	cpu_features |= cp->features;

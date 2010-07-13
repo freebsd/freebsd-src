@@ -1,3 +1,6 @@
+/* $FreeBSD$ */
+/* $NetBSD: locore.S,v 1.24 2000/05/31 05:09:17 thorpej Exp $ */
+
 /*-
  * Copyright (C) 2001 Benno Rice
  * All rights reserved.
@@ -21,11 +24,6 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	from: $NetBSD: locore.S,v 1.24 2000/05/31 05:09:17 thorpej Exp $
- *	from: $FreeBSD$
- *
- * $FreeBSD$
  */
 /*-
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
@@ -64,96 +62,146 @@
 
 #include <machine/trap.h>
 #include <machine/param.h>
-#include <machine/asm.h>
 #include <machine/spr.h>
+#include <machine/asm.h>
+
+/* Locate the per-CPU data structure */
+#define GET_CPUINFO(r)  \
+        mfsprg0  r
 
 /*
- * void cpu_throw(struct thread *old, struct thread *new)
+ * Compiled KERNBASE location and the kernel load address
  */
-ENTRY(cpu_throw)
-	mr	%r15, %r4
-	b	cpu_switchin
+        .globl  kernbase
+        .set    kernbase, KERNBASE
+
+#define	TMPSTKSZ	8192		/* 8K temporary stack */
 
 /*
- * void cpu_switch(struct thread *old, struct thread *new, struct mutex *mtx);)
+ * Globals
+ */
+	.data
+	.align	4
+GLOBAL(tmpstk)
+	.space	TMPSTKSZ
+GLOBAL(esym)
+	.long	0			/* end of symbol table */
+
+GLOBAL(ofmsr)
+	.long	0, 0, 0, 0, 0		/* msr/sprg0-3 used in Open Firmware */
+
+#define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
+GLOBAL(intrnames)
+	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+GLOBAL(eintrnames)
+	.align 4
+GLOBAL(intrcnt)
+	.space	INTRCNT_COUNT * 4 * 2
+GLOBAL(eintrcnt)
+
+/*
+ * File-scope for locore.S
+ */
+idle_u:
+	.long	0			/* fake uarea during idle after exit */
+openfirmware_entry:
+	.long	0			/* Open Firmware entry point */
+srsave:
+	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+	.text
+	.globl	btext
+btext:
+
+/*
+ * This symbol is here for the benefit of kvm_mkdb, and is supposed to
+ * mark the start of kernel text.
+ */
+	.globl	kernel_text
+kernel_text:
+
+/*
+ * Startup entry.  Note, this must be the first thing in the text
+ * segment!
+ */
+	.text
+	.globl	__start
+__start:
+	li	8,0
+	li	9,0x100
+	mtctr	9
+1:
+	dcbf	0,8
+	icbi	0,8
+	addi	8,8,0x20
+	bdnz	1b
+	sync
+	isync
+
+	/* Save the argument pointer and length */
+	mr	20,6
+	mr	21,7
+
+	lis	8,openfirmware_entry@ha
+	stw	5,openfirmware_entry@l(8) /* save client interface handler */
+
+	lis	1,(tmpstk+TMPSTKSZ-16)@ha
+	addi	1,1,(tmpstk+TMPSTKSZ-16)@l
+
+	mfmsr	0
+	lis	9,ofmsr@ha
+	stwu	0,ofmsr@l(9)
+
+	mfsprg0	0			/* save SPRG0-3 */
+	stw	0,4(9)			/* ofmsr[1] = sprg0 */
+	mfsprg1 0
+	stw	0,8(9)			/* ofmsr[2] = sprg1 */
+	mfsprg2 0
+	stw	0,12(9)			/* ofmsr[3] = sprg2 */
+	mfsprg3 0
+	stw	0,16(9)			/* ofmsr[4] = sprg3 */
+	
+	bl	OF_initial_setup
+
+	lis	4,end@ha
+	addi	4,4,end@l
+	mr	5,4
+
+	lis	3,kernel_text@ha
+	addi	3,3,kernel_text@l
+
+	/* Restore the argument pointer and length */
+	mr	6,20
+	mr	7,21
+
+	bl	powerpc_init
+	mr	%r1, %r3
+	li	%r3, 0
+	stw	%r3, 0(%r1)
+	bl	mi_startup
+	b	OF_exit
+
+/*
+ * int setfault()
  *
- * Switch to a new thread saving the current state in the old thread.
+ * Similar to setjmp to setup for handling faults on accesses to user memory.
+ * Any routine using this may only call bcopy, either the form below,
+ * or the (currently used) C code optimized, so it doesn't use any non-volatile
+ * registers.
  */
-ENTRY(cpu_switch)
-	stw	%r5, TD_LOCK(%r3)
-
-	lwz	%r5, TD_PCB(%r3)	/* Get the old thread's PCB ptr */
-
-	mr	%r12, %r2	
-	stmw	%r12, PCB_CONTEXT(%r5)	/* Save the non-volatile GP regs.
-					   These can now be used for scratch */
-
-	mfcr	%r16			/* Save the condition register */
-	stw	%r16, PCB_CR(%r5)
-	mflr	%r16			/* Save the link register */
-	stw	%r16, PCB_LR(%r5)
-	mfctr	%r16
-	stw	%r16, PCB_BOOKE_CTR(%r5)
-	mfxer	%r16
-	stw	%r16, PCB_BOOKE_XER(%r5)
-	mfspr	%r16, SPR_DBCR0
-	stw	%r16, PCB_BOOKE_DBCR0(%r5)
-
-	stw	%r1, PCB_SP(%r5)	/* Save the stack pointer */
-
-	mr	%r14, %r3		/* Copy the old thread ptr... */
-	mr	%r15, %r4		/* and the new thread ptr in scratch */
-
-	bl	pmap_deactivate		/* Deactivate the current pmap */
-
-cpu_switchin:
-	mr	%r3, %r15		/* Get new thread ptr */
-	bl	pmap_activate		/* Activate the new address space */
-
-	mfsprg	%r7, 0			/* Get the pcpu pointer */
-	stw	%r15, PC_CURTHREAD(%r7)	/* Store new current thread */
-	lwz	%r17, TD_PCB(%r15)	/* Store new current PCB */
-	stw	%r17, PC_CURPCB(%r7)
-
-	mr	%r3, %r17		/* Recover PCB ptr */
-	lmw	%r12, PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
-	mr	%r2, %r12
-	lwz	%r5, PCB_CR(%r3)	/* Load the condition register */
-	mtcr	%r5
-	lwz	%r5, PCB_LR(%r3)	/* Load the link register */
-	mtlr	%r5
-	lwz	%r5, PCB_BOOKE_CTR(%r3)
-	mtctr	%r5
-	lwz	%r5, PCB_BOOKE_XER(%r3)
-	mtxer	%r5
-	lwz	%r5, PCB_BOOKE_DBCR0(%r3)
-	mtspr	SPR_DBCR0, %r5
-
-	lwz	%r1, PCB_SP(%r3)	/* Load the stack pointer */
+	.globl	setfault
+setfault:
+	mflr	0
+	mfcr	12
+	mfsprg	4,0
+	lwz	4,PC_CURTHREAD(4)
+	lwz	4,TD_PCB(4)
+	stw	3,PCB_ONFAULT(4)
+	stw	0,0(3)
+	stw	1,4(3)
+	stw	2,8(3)
+	stmw	12,12(3)
+	xor	3,3,3
 	blr
 
-/*
- * savectx(pcb)
- * Update pcb, saving current processor state
- */
-ENTRY(savectx)
-	mr	%r12, %r2
-	stmw	%r12, PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
-	mfcr	%r4			/* Save the condition register */
-	stw	%r4, PCB_CONTEXT(%r3)
-	blr
-
-/*
- * fork_trampoline()
- * Set up the return from cpu_fork()
- */
-ENTRY(fork_trampoline)
-	lwz	%r3, CF_FUNC(%r1)
-	lwz	%r4, CF_ARG0(%r1)
-	lwz	%r5, CF_ARG1(%r1)
-	bl	fork_exit
-	addi	%r1, %r1, CF_SIZE-FSP	/* Allow 8 bytes in front of
-					   trapframe to simulate FRAME_SETUP
-					   does when allocating space for
-					   a frame pointer/saved LR */
-	b	trapexit
+#include <powerpc/aim/trap_subr32.S>

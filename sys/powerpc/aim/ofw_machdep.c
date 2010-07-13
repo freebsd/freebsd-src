@@ -63,12 +63,7 @@ __FBSDID("$FreeBSD$");
 #define	OFMEM_REGIONS	32
 static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
 static struct mem_region OFfree[OFMEM_REGIONS + 3];
-
-struct mem_region64 {
-        vm_offset_t     mr_start_hi;
-        vm_offset_t     mr_start_lo;
-        vm_size_t       mr_size;
-};	
+static int nOFmem;
 
 extern register_t ofmsr[5];
 extern struct	pmap ofw_pmap;
@@ -76,6 +71,7 @@ static int	(*ofwcall)(void *);
 static void	*fdt;
 int		ofw_real_mode;
 
+int		ofw_32bit_mode_entry(void *);
 static void	ofw_quiesce(void);
 static int	openfirmware(void *args);
 
@@ -133,10 +129,119 @@ memr_overlap(struct mem_region *r1, struct mem_region *r2)
 static void
 memr_merge(struct mem_region *from, struct mem_region *to)
 {
-	int end;
-	end = imax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
-	to->mr_start = imin(from->mr_start, to->mr_start);
+	vm_offset_t end;
+	end = ulmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
+	to->mr_start = ulmin(from->mr_start, to->mr_start);
 	to->mr_size = end - to->mr_start;
+}
+
+static int
+parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
+{
+	cell_t address_cells, size_cells;
+	cell_t OFmem[4*(OFMEM_REGIONS + 1)];
+	int sz, i, j;
+	int apple_hack_mode;
+	phandle_t phandle;
+
+	sz = 0;
+	apple_hack_mode = 0;
+
+	/*
+	 * Get #address-cells from root node, defaulting to 1 if it cannot
+	 * be found.
+	 */
+	phandle = OF_finddevice("/");
+	if (OF_getprop(phandle, "#address-cells", &address_cells, 
+	    sizeof(address_cells)) < sizeof(address_cells))
+		address_cells = 1;
+	if (OF_getprop(phandle, "#size-cells", &size_cells, 
+	    sizeof(size_cells)) < sizeof(size_cells))
+		size_cells = 1;
+
+	/*
+	 * On Apple hardware, address_cells is always 1 for "available",
+	 * even when it is explicitly set to 2. Then all memory above 4 GB
+	 * should be added by hand to the available list. Detect Apple hardware
+	 * by seeing if ofw_real_mode is set -- only Apple seems to use
+	 * virtual-mode OF.
+	 */
+	if (strcmp(prop, "available") == 0 && !ofw_real_mode)
+		apple_hack_mode = 1;
+	
+	if (apple_hack_mode)
+		address_cells = 1;
+
+	/*
+	 * Get memory.
+	 */
+	if ((node == -1) || (sz = OF_getprop(node, prop,
+	    OFmem, sizeof(OFmem[0]) * 4 * OFMEM_REGIONS)) <= 0)
+		panic("Physical memory map not found");
+
+	i = 0;
+	j = 0;
+	while (i < sz/sizeof(cell_t)) {
+	      #ifndef __powerpc64__
+		/* On 32-bit PPC, ignore regions starting above 4 GB */
+		if (address_cells > 1 && OFmem[i] > 0) {
+			i += address_cells + size_cells;
+			continue;
+		}
+	      #endif
+
+		output[j].mr_start = OFmem[i++];
+		if (address_cells == 2) {
+			#ifdef __powerpc64__
+			output[j].mr_start <<= 32;
+			#endif
+			output[j].mr_start += OFmem[i++];
+		}
+			
+		output[j].mr_size = OFmem[i++];
+		if (size_cells == 2) {
+			#ifdef __powerpc64__
+			output[j].mr_size <<= 32;
+			#endif
+			output[j].mr_size += OFmem[i++];
+		}
+
+	      #ifndef __powerpc64__
+		/*
+		 * Check for memory regions extending above 32-bit
+		 * memory space, and restrict them to stay there.
+		 */
+		if (((uint64_t)output[j].mr_start +
+		    (uint64_t)output[j].mr_size) >
+		    BUS_SPACE_MAXADDR_32BIT) {
+			output[j].mr_size = BUS_SPACE_MAXADDR_32BIT -
+			    output[j].mr_start;
+		}
+	      #endif
+
+		j++;
+	}
+	sz = j*sizeof(output[0]);
+
+	#ifdef __powerpc64__
+	if (apple_hack_mode) {
+		/* Add in regions above 4 GB to the available list */
+		struct mem_region himem[OFMEM_REGIONS];
+		int hisz;
+
+		hisz = parse_ofw_memory(node, "reg", himem);
+		for (i = 0; i < hisz/sizeof(himem[0]); i++) {
+			if (himem[i].mr_start > BUS_SPACE_MAXADDR_32BIT) {
+				output[j].mr_start = himem[i].mr_start;
+				output[j].mr_size = himem[i].mr_size;
+				j++;
+			}
+		}
+		sz = j*sizeof(output[0]);
+	}
+	#endif
+
+	return (sz);
 }
 
 /*
@@ -154,83 +259,23 @@ ofw_mem_regions(struct mem_region **memp, int *memsz,
 	int asz, msz, fsz;
 	int i, j;
 	int still_merging;
-	cell_t address_cells;
 
 	asz = msz = 0;
 
 	/*
-	 * Get #address-cells from root node, defaulting to 1 if it cannot
-	 * be found.
-	 */
-	phandle = OF_finddevice("/");
-	if (OF_getprop(phandle, "#address-cells", &address_cells, 
-	    sizeof(address_cells)) < sizeof(address_cells))
-		address_cells = 1;
-	
-	/*
 	 * Get memory.
 	 */
-	if ((phandle = OF_finddevice("/memory")) == -1
-	    || (asz = OF_getprop(phandle, "available",
-		  OFavail, sizeof OFavail[0] * OFMEM_REGIONS)) <= 0)
-	{
-		if (ofw_real_mode) {
-			/* XXX MAMBO */
-			printf("Physical memory unknown -- guessing 128 MB\n");
+	phandle = OF_finddevice("/memory");
+	if (phandle == -1)
+		phandle = OF_finddevice("/memory@0");
 
-			/* Leave the first 0xA000000 bytes for the kernel */
-			OFavail[0].mr_start = 0xA00000;
-			OFavail[0].mr_size = 0x75FFFFF;
-			asz = sizeof(OFavail[0]);
-		} else {
-			panic("no memory?");
-		}
-	}
-
-	if (address_cells == 2) {
-	    struct mem_region64 OFmem64[OFMEM_REGIONS + 1];
-	    if ((phandle == -1) || (msz = OF_getprop(phandle, "reg",
-			  OFmem64, sizeof OFmem64[0] * OFMEM_REGIONS)) <= 0) {
-		if (ofw_real_mode) {
-			/* XXX MAMBO */
-			OFmem64[0].mr_start_hi = 0;
-			OFmem64[0].mr_start_lo = 0x0;
-			OFmem64[0].mr_size = 0x7FFFFFF;
-			msz = sizeof(OFmem64[0]);
-		} else {
-			panic("Physical memory map not found");
-		}
-	    }
-
-	    for (i = 0, j = 0; i < msz/sizeof(OFmem64[0]); i++) {
-		if (OFmem64[i].mr_start_hi == 0) {
-			OFmem[i].mr_start = OFmem64[i].mr_start_lo;
-			OFmem[i].mr_size = OFmem64[i].mr_size;
-
-			/*
-			 * Check for memory regions extending above 32-bit
-			 * memory space, and restrict them to stay there.
-			 */
-			if (((uint64_t)OFmem[i].mr_start +
-			    (uint64_t)OFmem[i].mr_size) >
-			    BUS_SPACE_MAXADDR_32BIT) {
-				OFmem[i].mr_size = BUS_SPACE_MAXADDR_32BIT -
-				    OFmem[i].mr_start;
-			}
-			j++;
-		}
-	    }
-	    msz = j*sizeof(OFmem[0]);
-	} else {
-	    if ((msz = OF_getprop(phandle, "reg",
-			  OFmem, sizeof OFmem[0] * OFMEM_REGIONS)) <= 0)
-		panic("Physical memory map not found");
-	}
+	msz = parse_ofw_memory(phandle, "reg", OFmem);
+	nOFmem = msz / sizeof(struct mem_region);
+	asz = parse_ofw_memory(phandle, "available", OFavail);
 
 	*memp = OFmem;
-	*memsz = msz / sizeof(struct mem_region);
+	*memsz = nOFmem;
 	
-
 	/*
 	 * OFavail may have overlapping regions - collapse these
 	 * and copy out remaining regions to OFfree
@@ -274,7 +319,19 @@ OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 	else
 		ofw_real_mode = 1;
 
-	ofwcall = openfirm;
+	ofwcall = NULL;
+
+	#ifdef __powerpc64__
+		/*
+		 * For PPC64, we need to use some hand-written
+		 * asm trampolines to get to OF.
+		 */
+		if (openfirm != NULL)
+			ofwcall = ofw_32bit_mode_entry;
+	#else
+		ofwcall = openfirm;
+	#endif
+
 	fdt = fdt_ptr;
 }
 
@@ -284,10 +341,15 @@ OF_bootstrap()
 	boolean_t status = FALSE;
 
 	if (ofwcall != NULL) {
-		if (ofw_real_mode)
+		if (ofw_real_mode) {
 			status = OF_install(OFW_STD_REAL, 0);
-		else
+		} else {
+			#ifdef __powerpc64__
+			status = OF_install(OFW_STD_32BIT, 0);
+			#else
 			status = OF_install(OFW_STD_DIRECT, 0);
+			#endif
+		}
 
 		if (status != TRUE)
 			return status;
@@ -347,26 +409,28 @@ ofw_quiesce(void)
 static int
 openfirmware_core(void *args)
 {
-	long	oldmsr;
-	int	result;
-	u_int	srsave[16];
-	u_int   i;
+	int		result;
+	register_t	oldmsr;
+	#ifndef __powerpc64__
+	register_t	srsave[16];
+	u_int		i;
+	#endif
 
-	__asm __volatile(	"\t"
-		"sync\n\t"
-		"mfmsr  %0\n\t"
-		"mtmsr  %1\n\t"
-		"isync\n"
-		: "=r" (oldmsr)
-		: "r" (ofmsr[0])
-	);
+	/*
+	 * Turn off exceptions - we really don't want to end up
+	 * anywhere unexpected with PCPU set to something strange,
+	 * the stack pointer wrong, or the OFW mapping enabled.
+	 */
+	oldmsr = intr_disable();
 
 	ofw_sprg_prepare();
 
+      #ifndef __powerpc64__
 	if (pmap_bootstrapped && !ofw_real_mode) {
 		/*
 		 * Swap the kernel's address space with Open Firmware's
 		 */
+
 		for (i = 0; i < 16; i++) {
 			srsave[i] = mfsrin(i << ADDR_SR_SHFT);
 			mtsrin(i << ADDR_SR_SHFT, ofw_pmap.pm_sr[i]);
@@ -381,28 +445,28 @@ openfirmware_core(void *args)
 		}
 		isync();
 	}
+      #endif
 
        	result = ofwcall(args);
 
+      #ifndef __powerpc64__
 	if (pmap_bootstrapped && !ofw_real_mode) {
 		/*
 		 * Restore the kernel's addr space. The isync() doesn;t
 		 * work outside the loop unless mtsrin() is open-coded
 		 * in an asm statement :(
 		 */
+
 		for (i = 0; i < 16; i++) {
 			mtsrin(i << ADDR_SR_SHFT, srsave[i]);
 			isync();
 		}
 	}
+      #endif
 
 	ofw_sprg_restore();
 
-	__asm(	"\t"
-		"mtmsr  %0\n\t"
-		"isync\n"
-		: : "r" (oldmsr)
-	);
+	intr_restore(oldmsr);
 
 	return (result);
 }
@@ -626,7 +690,7 @@ mem_valid(vm_offset_t addr, int len)
 {
 	int i;
 
-	for (i = 0; i < OFMEM_REGIONS; i++)
+	for (i = 0; i < nOFmem; i++)
 		if ((addr >= OFmem[i].mr_start) 
 		    && (addr + len < OFmem[i].mr_start + OFmem[i].mr_size))
 			return (0);

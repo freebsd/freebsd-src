@@ -55,6 +55,31 @@ static register_t bsp_state[8] __aligned(8);
 static void cpudep_save_config(void *dummy);
 SYSINIT(cpu_save_config, SI_SUB_CPU, SI_ORDER_ANY, cpudep_save_config, NULL);
 
+void
+cpudep_ap_early_bootstrap(void)
+{
+	register_t reg;
+
+	__asm __volatile("mtsprg 0, %0" :: "r"(ap_pcpu));
+	powerpc_sync();
+
+	switch (mfpvr() >> 16) {
+	case IBM970:
+	case IBM970FX:
+	case IBM970MP:
+		/* Restore HID4 and HID5, which are necessary for the MMU */
+
+		__asm __volatile("ld %0, 16(%2); sync; isync;	\
+		    mtspr %1, %0; sync; isync;"
+		    : "=r"(reg) : "K"(SPR_HID4), "r"(bsp_state));
+		__asm __volatile("ld %0, 24(%2); sync; isync;	\
+		    mtspr %1, %0; sync; isync;"
+		    : "=r"(reg) : "K"(SPR_HID5), "r"(bsp_state));
+		powerpc_sync();
+		break;
+	}
+}
+
 uintptr_t
 cpudep_ap_bootstrap(void)
 {
@@ -63,9 +88,6 @@ cpudep_ap_bootstrap(void)
 	msr = PSL_KERNSET & ~PSL_EE;
 	mtmsr(msr);
 	isync();
-
-	__asm __volatile("mtsprg 0, %0" :: "r"(ap_pcpu));
-	powerpc_sync();
 
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	pcpup->pc_curpcb = pcpup->pc_curthread->td_pcb;
@@ -187,6 +209,12 @@ cpudep_save_config(void *dummy)
 	case IBM970:
 	case IBM970FX:
 	case IBM970MP:
+		#ifdef __powerpc64__
+		bsp_state[0] = mfspr(SPR_HID0);
+		bsp_state[1] = mfspr(SPR_HID1);
+		bsp_state[2] = mfspr(SPR_HID4);
+		bsp_state[3] = mfspr(SPR_HID5);
+		#else
 		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
 		    : "=r" (bsp_state[0]),"=r" (bsp_state[1]) : "K" (SPR_HID0));
 		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
@@ -195,6 +223,7 @@ cpudep_save_config(void *dummy)
 		    : "=r" (bsp_state[4]),"=r" (bsp_state[5]) : "K" (SPR_HID4));
 		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
 		    : "=r" (bsp_state[6]),"=r" (bsp_state[7]) : "K" (SPR_HID5));
+		#endif
 
 		powerpc_sync();
 
