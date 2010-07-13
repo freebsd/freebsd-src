@@ -303,28 +303,6 @@
  */
 #define	get_cyclecount()	mips_rd_count()
 
-/*
- * CPU identification, from PRID register.
- */
-union cpuprid {
-	int cpuprid;
-	struct {
-#if BYTE_ORDER == BIG_ENDIAN
-		u_int pad1:8;	/* reserved */
-		u_int cp_vendor:8;	/* company identifier */
-		u_int cp_imp:8;	/* implementation identifier */
-		u_int cp_majrev:4;	/* major revision identifier */
-		u_int cp_minrev:4;	/* minor revision identifier */
-#else
-		u_int cp_minrev:4;	/* minor revision identifier */
-		u_int cp_majrev:4;	/* major revision identifier */
-		u_int cp_imp:8;	/* implementation identifier */
-		u_int cp_vendor:8;	/* company identifier */
-		u_int pad1:8;	/* reserved */
-#endif
-	}      cpu;
-};
-
 #endif				/* !_LOCORE */
 
 /*
