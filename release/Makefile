@@ -203,10 +203,16 @@ DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS}
 # Build and package both GENERIC and SMP kernels if the target
 # has both configuration files.  Otherwise only GENERIC is done.
 #
-.if exists(${.CURDIR}/../sys/${TARGET}/conf/SMP)
-KERNELS_BASE?=	GENERIC SMP
+.if ${TARGET_ARCH} == "powerpc64"
+KERN_GENERIC?=	GENERIC64
 .else
-KERNELS_BASE?=	GENERIC
+KERN_GENERIC?=	GENERIC
+.endif
+
+.if exists(${.CURDIR}/../sys/${TARGET}/conf/SMP)
+KERNELS_BASE?=	${KERN_GENERIC} SMP
+.else
+KERNELS_BASE?=	${KERN_GENERIC}
 .endif
 
 # mountpoint for filesystems.
@@ -851,7 +857,7 @@ SMALLMFSROOTFLOPPYSET=	${RD}/floppyset/mfsroot-small/mfsroot.gz
 
 # Build boot and install floppies.
 floppies.1:
-	@${ZIPPER} -c ${RD}/kernels/GENERIC/kernel > ${RD}/kernels/kernel.gz
+	@${ZIPPER} -c ${RD}/kernels/${KERN_GENERIC}/kernel > ${RD}/kernels/kernel.gz
 	@echo "Making the kernel boot floppies..."
 	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=kern \
 	    FLOPPYDESC="Kernel" SPLITFILE=${RD}/kernels/kernel.gz
@@ -985,7 +991,7 @@ cdrom.1:
 	done
 .endif
 	@echo "Copy GENERIC kernel to boot area"
-	@cp -Rp ${RD}/kernels/GENERIC/ ${CD_LIVEFS}/boot/kernel
+	@cp -Rp ${RD}/kernels/${KERN_GENERIC}/ ${CD_LIVEFS}/boot/kernel
 	@rm -f ${CD_LIVEFS}/boot/kernel/*.symbols
 	@rm -f ${CD_LIVEFS}/.profile
 	@cp ${.CURDIR}/fixit.profile ${CD_LIVEFS}/.profile
@@ -1003,7 +1009,7 @@ cdrom.1:
 .endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
 .if defined(MAKE_DVD)
-	@cp -Rp ${RD}/kernels/GENERIC/ ${CD_DVD1}/boot/kernel
+	@cp -Rp ${RD}/kernels/${KERN_GENERIC}/ ${CD_DVD1}/boot/kernel
 	@rm -f ${CD_DVD1}/boot/kernel/*.symbols
 	@rm -f ${CD_DVD1}/.profile
 	@cp ${.CURDIR}/fixit.profile ${CD_DVD1}/.profile
@@ -1321,7 +1327,7 @@ makeFloppySet:
 IMAGEDIR=	${RD}/image.${FSIMAGE}
 BOOTDIR=	${RD}/trees/base/boot
 HINTSFILE=	${BOOTDIR}/device.hints
-ACPI_KO=	${RD}/kernels/GENERIC/acpi.ko
+ACPI_KO=	${RD}/kernels/${KERN_GENERIC}/acpi.ko
 IMAGEFILE=	${RD}/floppies/${FSIMAGE}.flp
 .if defined(FDSIZE) && ${FDSIZE} == "SMALL"
 FLPSIZE=	${SMALLFLOPPYSIZE}
