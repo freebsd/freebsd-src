@@ -678,8 +678,8 @@ MLINKS+=lindev.4 full.4
 _atp.4=		atp.4
 .endif
 
-.if exists(${.CURDIR}/man4.${MACHINE_ARCH})
-SUBDIR=	man4.${MACHINE_ARCH}
+.if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
+SUBDIR=	man4.${MACHINE_CPUARCH}
 .endif
 
 .include <bsd.prog.mk>
