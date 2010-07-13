@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100706: removed pc-sysinstall's detect-vmware.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-vmware.sh
 # 20100701: [powerpc] removed <machine/intr.h>
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=usr/include/machine/intr.h
