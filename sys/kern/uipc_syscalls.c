@@ -811,7 +811,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
 		    !(flags & MSG_NOSIGNAL)) {
 			PROC_LOCK(td->td_proc);
-			psignal(td->td_proc, SIGPIPE);
+			tdsignal(td->td_proc, td, SIGPIPE, NULL);
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
@@ -2417,7 +2417,7 @@ sctp_generic_sendmsg (td, uap)
 		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
 		    !(uap->flags & MSG_NOSIGNAL)) {
 			PROC_LOCK(td->td_proc);
-			psignal(td->td_proc, SIGPIPE);
+			tdsignal(td->td_proc, td, SIGPIPE, NULL);
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
@@ -2528,7 +2528,7 @@ sctp_generic_sendmsg_iov(td, uap)
 		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
 		    !(uap->flags & MSG_NOSIGNAL)) {
 			PROC_LOCK(td->td_proc);
-			psignal(td->td_proc, SIGPIPE);
+			tdsignal(td->td_proc, td, SIGPIPE, NULL);
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
