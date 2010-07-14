@@ -230,6 +230,7 @@ dev/wpi/if_wpi.c		optional	wpi
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/link_elf_obj.c		standard
+kern/timeevents.c		standard
 #
 # IA32 binary support
 #
@@ -315,4 +316,4 @@ x86/x86/io_apic.c		standard
 x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard
 x86/x86/msi.c			optional	pci
-x86/x86/timeevents.c		standard
+

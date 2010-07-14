@@ -215,6 +215,7 @@ i386/svr4/svr4_machdep.c	optional compat_svr4
 #
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
+kern/timeevents.c		standard
 libkern/divdi3.c		standard
 libkern/ffsl.c			standard
 libkern/flsl.c			standard
@@ -258,4 +259,3 @@ x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
 x86/x86/msi.c			optional apic pci
-x86/x86/timeevents.c		standard
