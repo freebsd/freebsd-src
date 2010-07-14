@@ -143,7 +143,7 @@ ffs_mount(struct mount *mp)
 	struct ufsmount *ump = 0;
 	struct fs *fs;
 	int error, flags;
-	u_int mntorflags, mntandnotflags;
+	u_int mntorflags;
 	accmode_t accmode;
 	struct nameidata ndp;
 	char *fspec;
@@ -171,7 +171,6 @@ ffs_mount(struct mount *mp)
 		return (error);
 
 	mntorflags = 0;
-	mntandnotflags = 0;
 	if (vfs_getopt(mp->mnt_optnew, "acls", NULL, NULL) == 0)
 		mntorflags |= MNT_ACLS;
 
@@ -195,7 +194,7 @@ ffs_mount(struct mount *mp)
 	}
 
 	MNT_ILOCK(mp);
-	mp->mnt_flag = (mp->mnt_flag | mntorflags) & ~mntandnotflags;
+	mp->mnt_flag |= mntorflags;
 	MNT_IUNLOCK(mp);
 	/*
 	 * If updating, check whether changing from read-only to
@@ -1957,6 +1956,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 	struct vnode *vp;
 	int error;
 	struct buf *tbp;
+	int nocopy;
 
 	vp = bo->__bo_vnode;
 	if (bp->b_iocmd == BIO_WRITE) {
@@ -1964,8 +1964,9 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
 		    (bp->b_vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
 			panic("ffs_geom_strategy: bad I/O");
-		bp->b_flags &= ~B_VALIDSUSPWRT;
-		if ((vp->v_vflag & VV_COPYONWRITE) &&
+		nocopy = bp->b_flags & B_NOCOPY;
+		bp->b_flags &= ~(B_VALIDSUSPWRT | B_NOCOPY);
+		if ((vp->v_vflag & VV_COPYONWRITE) && nocopy == 0 &&
 		    vp->v_rdev->si_snapdata != NULL) {
 			if ((bp->b_flags & B_CLUSTER) != 0) {
 				runningbufwakeup(bp);

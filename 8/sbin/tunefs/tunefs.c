@@ -95,6 +95,7 @@ main(int argc, char *argv[])
 
 	if (argc < 3)
 		usage();
+	Aflag = aflag = eflag = fflag = jflag = Jflag = Lflag = lflag = 0;
 	mflag = Nflag = nflag = oflag = pflag = sflag = 0;
 	avalue = jvalue = Jvalue = Lvalue = lvalue = Nvalue = nvalue = NULL;
 	evalue = fvalue = mvalue = ovalue = svalue = Svalue = 0;
@@ -279,9 +280,9 @@ main(int argc, char *argv[])
 	if (ufs_disk_fillout(&disk, special) == -1)
 		goto err;
 	if (disk.d_name != special) {
-		special = disk.d_name;
-		if (statfs(special, &stfs) == 0 &&
-		    strcmp(special, stfs.f_mntonname) == 0)
+		if (statfs(special, &stfs) != 0)
+			warn("Can't stat %s", special);
+		if (strcmp(special, stfs.f_mntonname) == 0)
 			active = 1;
 	}
 
@@ -357,10 +358,12 @@ main(int argc, char *argv[])
 				warnx("%s remains unchanged as disabled", name);
 			} else {
 				journal_clear();
- 				sblock.fs_flags &= ~(FS_DOSOFTDEP | FS_SUJ);
+ 				sblock.fs_flags &= ~FS_SUJ;
 				sblock.fs_sujfree = 0;
- 				warnx("%s cleared, "
-				    "remove .sujournal to reclaim space", name);
+ 				warnx("%s cleared but soft updates still set.",
+				    name);
+
+				warnx("remove .sujournal to reclaim space");
 			}
  		}
 	}
@@ -525,6 +528,7 @@ journal_balloc(void)
 	ufs2_daddr_t blk;
 	struct cg *cgp;
 	int valid;
+	static int contig = 1;
 
 	cgp = &disk.d_cg;
 	for (;;) {
@@ -544,11 +548,23 @@ journal_balloc(void)
 			 * Try to minimize fragmentation by requiring a minimum
 			 * number of blocks present.
 			 */
-			if (cgp->cg_cs.cs_nbfree > blocks / 8)
+			if (cgp->cg_cs.cs_nbfree > 256 * 1024)
+				break;
+			if (contig == 0 && cgp->cg_cs.cs_nbfree)
 				break;
 		}
 		if (valid)
 			continue;
+		/*
+		 * Try once through looking only for large contiguous regions
+		 * and again taking any space we can find.
+		 */
+		if (contig) {
+			contig = 0;
+			disk.d_ccg = 0;
+			warnx("Journal file fragmented.");
+			continue;
+		}
 		warnx("Failed to find sufficient free blocks for the journal");
 		return -1;
 	}
@@ -892,6 +908,8 @@ journal_alloc(int64_t size)
 		if (size / sblock.fs_fsize > sblock.fs_fpg)
 			size = sblock.fs_fpg * sblock.fs_fsize;
 		size = MAX(SUJ_MIN, size);
+		/* fsck does not support fragments in journal files. */
+		size = roundup(size, sblock.fs_bsize);
 	}
 	resid = blocks = size / sblock.fs_bsize;
 	if (sblock.fs_cstotal.cs_nbfree < blocks) {
@@ -904,12 +922,6 @@ journal_alloc(int64_t size)
 	 */
 	while (cgread(&disk) == 1) {
 		if (cgp->cg_cs.cs_nifree == 0)
-			continue;
-		/*
-		 * Try to minimize fragmentation by requiring at least a
-		 * 1/16th of the blocks be present in each cg we use.
-		 */
-		if (cgp->cg_cs.cs_nbfree < blocks / 16)
 			continue;
 		ino = cgialloc(&disk);
 		if (ino <= 0)
@@ -991,7 +1003,7 @@ journal_alloc(int64_t size)
 		sblock.fs_sujfree = 0;
 		return (0);
 	}
-	warnx("Insufficient contiguous free space for the journal.");
+	warnx("Insufficient free space for the journal.");
 out:
 	return (-1);
 }
@@ -999,10 +1011,11 @@ out:
 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
-"              [-J enable | disable ] [-L volname] [-l enable | disable]",
-"              [-m minfree] [-N enable | disable] [-n enable | disable]",
+"              [-J enable | disable] [-j enable | disable]", 
+"              [-L volname] [-l enable | disable] [-m minfree]",
+"              [-N enable | disable] [-n enable | disable]",
 "              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
 	exit(2);
 }

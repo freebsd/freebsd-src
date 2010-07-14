@@ -60,6 +60,9 @@
  * $FreeBSD$
  */
 
+#ifndef _FSCK_H_
+#define	_FSCK_H_
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -389,3 +392,5 @@ void		setinodebuf(ino_t);
 int		setup(char *dev);
 void		gjournal_check(const char *filesys);
 int		suj_check(const char *filesys);
+
+#endif	/* !_FSCK_H_ */

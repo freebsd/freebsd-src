@@ -36,12 +36,14 @@ static const char sccsid[] = "@(#)pass2.c	8.9 (Berkeley) 4/28/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -49,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #define MINDIRSIZE	(sizeof (struct dirtemplate))
 
+static int fix_extraneous(struct inoinfo *, struct inodesc *);
+static int deleteentry(struct inodesc *);
 static int blksort(const void *, const void *);
 static int pass2check(struct inodesc *);
 
@@ -212,9 +216,48 @@ pass2(void)
 			inoinfo(inp->i_parent)->ino_linkcnt--;
 			continue;
 		}
-		fileerror(inp->i_parent, inp->i_number,
-		    "BAD INODE NUMBER FOR '..'");
-		if (reply("FIX") == 0)
+		/*
+		 * Here we have:
+		 *    inp->i_number is directory with bad ".." in it.
+		 *    inp->i_dotdot is current value of "..".
+		 *    inp->i_parent is directory to which ".." should point.
+		 */
+		getpathname(pathbuf, inp->i_parent, inp->i_number);
+		printf("BAD INODE NUMBER FOR '..' in DIR I=%d (%s)\n",
+		    inp->i_number, pathbuf);
+		getpathname(pathbuf, inp->i_dotdot, inp->i_dotdot);
+		printf("CURRENTLY POINTS TO I=%d (%s), ", inp->i_dotdot,
+		    pathbuf);
+		getpathname(pathbuf, inp->i_parent, inp->i_parent);
+		printf("SHOULD POINT TO I=%d (%s)", inp->i_parent, pathbuf);
+		if (cursnapshot != 0) {
+			/*
+			 * We need to:
+			 *    setcwd(inp->i_number);
+			 *    setdotdot(inp->i_dotdot, inp->i_parent);
+			 */
+			cmd.value = inp->i_number;
+			if (sysctlbyname("vfs.ffs.setcwd", 0, 0,
+			    &cmd, sizeof cmd) == -1) {
+				/* kernel lacks support for these functions */
+				printf(" (IGNORED)\n");
+				continue;
+			}
+			cmd.value = inp->i_dotdot; /* verify same value */
+			cmd.size = inp->i_parent;  /* new parent */
+			if (sysctlbyname("vfs.ffs.setdotdot", 0, 0,
+			    &cmd, sizeof cmd) == -1) {
+				printf(" (FIX FAILED: %s)\n", strerror(errno));
+				continue;
+			}
+			printf(" (FIXED)\n");
+			inoinfo(inp->i_parent)->ino_linkcnt--;
+			inp->i_dotdot = inp->i_parent;
+			continue;
+		}
+		if (preen)
+			printf(" (FIXED)\n");
+		else if (reply("FIX") == 0)
 			continue;
 		inoinfo(inp->i_dotdot)->ino_linkcnt++;
 		inoinfo(inp->i_parent)->ino_linkcnt--;
@@ -231,13 +274,12 @@ static int
 pass2check(struct inodesc *idesc)
 {
 	struct direct *dirp = idesc->id_dirp;
+	char dirname[MAXPATHLEN + 1];
 	struct inoinfo *inp;
 	int n, entrysize, ret = 0;
 	union dinode *dp;
 	const char *errmsg;
 	struct direct proto;
-	char namebuf[MAXPATHLEN + 1];
-	char pathbuf[MAXPATHLEN + 1];
 
 	/*
 	 * check for "."
@@ -395,8 +437,36 @@ again:
 				errmsg = "DUP/BAD";
 			else if (!preen && !usedsoftdep)
 				errmsg = "ZERO LENGTH DIRECTORY";
-			else {
+			else if (cursnapshot == 0) {
 				n = 1;
+				break;
+			} else {
+				getpathname(dirname, idesc->id_number,
+				    dirp->d_ino);
+				pwarn("ZERO LENGTH DIRECTORY %s I=%d",
+					dirname, dirp->d_ino);
+				/*
+				 * We need to:
+				 *    setcwd(idesc->id_parent);
+				 *    rmdir(dirp->d_name);
+				 */
+				cmd.value = idesc->id_number;
+				if (sysctlbyname("vfs.ffs.setcwd", 0, 0,
+				    &cmd, sizeof cmd) == -1) {
+					/* kernel lacks support */
+					printf(" (IGNORED)\n");
+					n = 1;
+					break;
+				}
+				if (rmdir(dirp->d_name) == -1) {
+					printf(" (REMOVAL FAILED: %s)\n",
+					    strerror(errno));
+					n = 1;
+					break;
+				}
+				/* ".." reference to parent is removed */
+				inoinfo(idesc->id_number)->ino_linkcnt--;
+				printf(" (REMOVED)\n");
 				break;
 			}
 			fileerror(idesc->id_number, dirp->d_ino, errmsg);
@@ -416,27 +486,12 @@ again:
 
 		case DFOUND:
 			inp = getinoinfo(dirp->d_ino);
-			if (inp->i_parent != 0 && idesc->id_entryno > 2) {
-				getpathname(pathbuf, idesc->id_number,
-				    idesc->id_number);
-				getpathname(namebuf, dirp->d_ino, dirp->d_ino);
-				pwarn("%s%s%s %s %s\n", pathbuf,
-				    (strcmp(pathbuf, "/") == 0 ? "" : "/"),
-				    dirp->d_name,
-				    "IS AN EXTRANEOUS HARD LINK TO DIRECTORY",
-				    namebuf);
-				if (cursnapshot != 0)
-					break;
-				if (preen) {
-					printf(" (REMOVED)\n");
-					n = 1;
-					break;
-				}
-				if ((n = reply("REMOVE")) == 1)
+			if (idesc->id_entryno > 2) {
+				if (inp->i_parent == 0)
+					inp->i_parent = idesc->id_number;
+				else if ((n = fix_extraneous(inp, idesc)) == 1)
 					break;
 			}
-			if (idesc->id_entryno > 2)
-				inp->i_parent = idesc->id_number;
 			/* FALLTHROUGH */
 
 		case FSTATE:
@@ -460,6 +515,143 @@ again:
 		return (ret|KEEPON);
 	dirp->d_ino = 0;
 	return (ret|KEEPON|ALTERED);
+}
+
+static int
+fix_extraneous(struct inoinfo *inp, struct inodesc *idesc)
+{
+	char *cp;
+	struct inodesc dotdesc;
+	char oldname[MAXPATHLEN + 1];
+	char newname[MAXPATHLEN + 1];
+	
+	/*
+	 * If we have not yet found "..", look it up now so we know
+	 * which inode the directory itself believes is its parent.
+	 */
+	if (inp->i_dotdot == 0) {
+		memset(&dotdesc, 0, sizeof(struct inodesc));
+		dotdesc.id_type = DATA;
+		dotdesc.id_number = idesc->id_dirp->d_ino;
+		dotdesc.id_func = findino;
+		dotdesc.id_name = strdup("..");
+		if ((ckinode(ginode(dotdesc.id_number), &dotdesc) & FOUND))
+			inp->i_dotdot = dotdesc.id_parent;
+	}
+	/*
+	 * We have the previously found old name (inp->i_parent) and the
+	 * just found new name (idesc->id_number). We have five cases:
+	 * 1)  ".." is missing - can remove either name, choose to delete
+	 *     new one and let fsck create ".." pointing to old name.
+	 * 2) Both new and old are in same directory, choose to delete
+	 *    the new name and let fsck fix ".." if it is wrong.
+	 * 3) ".." does not point to the new name, so delete it and let
+	 *    fsck fix ".." to point to the old one if it is wrong.
+	 * 4) ".." points to the old name only, so delete the new one.
+	 * 5) ".." points to the new name only, so delete the old one.
+	 *
+	 * For cases 1-4 we eliminate the new name;
+	 * for case 5 we eliminate the old name.
+	 */
+	if (inp->i_dotdot == 0 ||		    /* Case 1 */
+	    idesc->id_number == inp->i_parent ||    /* Case 2 */
+	    inp->i_dotdot != idesc->id_number ||    /* Case 3 */
+	    inp->i_dotdot == inp->i_parent) {	    /* Case 4 */
+		getpathname(newname, idesc->id_number, idesc->id_number);
+		if (strcmp(newname, "/") != 0)
+			strcat (newname, "/");
+		strcat(newname, idesc->id_dirp->d_name);
+		getpathname(oldname, inp->i_number, inp->i_number);
+		pwarn("%s IS AN EXTRANEOUS HARD LINK TO DIRECTORY %s",
+		    newname, oldname);
+		if (cursnapshot != 0) {
+			/*
+			 * We need to
+			 *    setcwd(idesc->id_number);
+			 *    unlink(idesc->id_dirp->d_name);
+			 */
+			cmd.value = idesc->id_number;
+			if (sysctlbyname("vfs.ffs.setcwd", 0, 0,
+			    &cmd, sizeof cmd) == -1) {
+				printf(" (IGNORED)\n");
+				return (0);
+			}
+			cmd.value = (intptr_t)idesc->id_dirp->d_name;
+			cmd.size = inp->i_number; /* verify same name */
+			if (sysctlbyname("vfs.ffs.unlink", 0, 0,
+			    &cmd, sizeof cmd) == -1) {
+				printf(" (UNLINK FAILED: %s)\n",
+				    strerror(errno));
+				return (0);
+			}
+			printf(" (REMOVED)\n");
+			return (0);
+		}
+		if (preen) {
+			printf(" (REMOVED)\n");
+			return (1);
+		}
+		return (reply("REMOVE"));
+	}
+	/*
+	 * None of the first four cases above, so must be case (5).
+	 * Eliminate the old name and make the new the name the parent.
+	 */
+	getpathname(oldname, inp->i_parent, inp->i_number);
+	getpathname(newname, inp->i_number, inp->i_number);
+	pwarn("%s IS AN EXTRANEOUS HARD LINK TO DIRECTORY %s", oldname,
+	    newname);
+	if (cursnapshot != 0) {
+		/*
+		 * We need to
+		 *    setcwd(inp->i_parent);
+		 *    unlink(last component of oldname pathname);
+		 */
+		cmd.value = inp->i_parent;
+		if (sysctlbyname("vfs.ffs.setcwd", 0, 0,
+		    &cmd, sizeof cmd) == -1) {
+			printf(" (IGNORED)\n");
+			return (0);
+		}
+		if ((cp = rindex(oldname, '/')) == NULL) {
+			printf(" (IGNORED)\n");
+			return (0);
+		}
+		cmd.value = (intptr_t)(cp + 1);
+		cmd.size = inp->i_number; /* verify same name */
+		if (sysctlbyname("vfs.ffs.unlink", 0, 0,
+		    &cmd, sizeof cmd) == -1) {
+			printf(" (UNLINK FAILED: %s)\n",
+			    strerror(errno));
+			return (0);
+		}
+		printf(" (REMOVED)\n");
+		inp->i_parent = idesc->id_number;  /* reparent to correct dir */
+		return (0);
+	}
+	if (!preen && !reply("REMOVE"))
+		return (0);
+	memset(&dotdesc, 0, sizeof(struct inodesc));
+	dotdesc.id_type = DATA;
+	dotdesc.id_number = inp->i_parent; /* directory in which name appears */
+	dotdesc.id_parent = inp->i_number; /* inode number in entry to delete */
+	dotdesc.id_func = deleteentry;
+	if ((ckinode(ginode(dotdesc.id_number), &dotdesc) & FOUND) && preen)
+		printf(" (REMOVED)\n");
+	inp->i_parent = idesc->id_number;  /* reparent to correct directory */
+	inoinfo(inp->i_number)->ino_linkcnt++; /* name gone, return reference */
+	return (0);
+}
+
+static int
+deleteentry(struct inodesc *idesc)
+{
+	struct direct *dirp = idesc->id_dirp;
+
+	if (idesc->id_entryno++ < 2 || dirp->d_ino != idesc->id_parent)
+		return (KEEPON);
+	dirp->d_ino = 0;
+	return (ALTERED|STOP|FOUND);
 }
 
 /*
