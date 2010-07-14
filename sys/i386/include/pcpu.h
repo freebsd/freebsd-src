@@ -87,7 +87,8 @@ struct shadow_time_info {
 	int	pc_currentldt;						\
 	u_int   pc_acpi_id;		/* ACPI CPU id */		\
 	u_int	pc_apic_id;						\
-	int	pc_private_tss		/* Flag indicating private tss */\
+	int	pc_private_tss;		/* Flag indicating private tss*/\
+	u_int	pc_cmci_mask		/* MCx banks for CMCI */	\
 	PCPU_XEN_FIELDS
 
 #ifdef _KERNEL

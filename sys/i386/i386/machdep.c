@@ -328,7 +328,6 @@ cpu_startup(dummy)
 #ifndef XEN
 	cpu_setregs();
 #endif
-	mca_init();
 }
 
 /*
