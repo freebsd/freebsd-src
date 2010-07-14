@@ -174,11 +174,13 @@ rw_init(krwlock_t *rwlp, char *name, int type, void *arg)
 	rwlock_init(&rwlp->rw_lock, USYNC_THREAD, NULL);
 	rwlp->rw_owner = NULL;
 	rwlp->initialized = B_TRUE;
+	rwlp->rw_count = 0;
 }
 
 void
 rw_destroy(krwlock_t *rwlp)
 {
+	ASSERT(rwlp->rw_count == 0);
 	rwlock_destroy(&rwlp->rw_lock);
 	rwlp->rw_owner = (void *)-1UL;
 	rwlp->initialized = B_FALSE;
