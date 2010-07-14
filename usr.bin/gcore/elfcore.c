@@ -488,12 +488,17 @@ readmap(pid_t pid)
 		kve = &vmentl[i];
 
 		/*
-		 * Ignore segments of the wrong kind and ones which are not
-		 * readable and writable.
+		 * Ignore 'malformed' segments or ones representing memory
+		 * mapping with MAP_NOCORE on.
+		 * If the 'full' support is disabled, just dump the most
+		 * meaningful data segments.
 		 */
-		if ((kve->kve_protection & KVME_PROT_WRITE) == 0 ||
-		    (kve->kve_protection & KVME_PROT_READ) == 0 ||
-		    (kve->kve_type != KVME_TYPE_DEFAULT &&
+		if ((kve->kve_protection & KVME_PROT_READ) == 0 ||
+		    (kve->kve_flags & KVME_FLAG_NOCOREDUMP) != 0 ||
+		    kve->kve_type == KVME_TYPE_DEAD ||
+		    kve->kve_type == KVME_TYPE_UNKNOWN ||
+		    ((pflags & PFLAGS_FULL) == 0 &&
+		    kve->kve_type != KVME_TYPE_DEFAULT &&
 		    kve->kve_type != KVME_TYPE_VNODE &&
 		    kve->kve_type != KVME_TYPE_SWAP))
 			continue;
