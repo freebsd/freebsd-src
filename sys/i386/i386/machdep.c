@@ -291,7 +291,6 @@ cpu_startup(dummy)
 	vm_pager_bufferinit();
 
 	cpu_setregs();
-	mca_init();
 }
 
 /*
