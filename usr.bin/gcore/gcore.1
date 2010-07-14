@@ -64,11 +64,11 @@ Write the core file to the specified file instead of
 .Dq Pa core.<pid> .
 .It Fl f
 Dumps all the available segments, excluding only the malformed ones and
-un-dumpable ones. Differently from the default invocation, it also dumps
-device-mapped and sglist-mapped areas that may invalidate the state of
-some transactions. This flag, then, may be used very carefully, when the
-full behaviour of the application is full-understood and the fallouts can
-be easilly controlled.
+un-dumpable ones. Unlike the default invocation, it also dumps
+device- and sglist-mapped areas that may invalidate the state of
+some transactions. This flag must be used very carefully, when the
+behavior of the application is fully understood and the fallouts can
+be easily controlled.
 .It Fl s
 Stop the process while gathering the core image, and resume it
 when done.
