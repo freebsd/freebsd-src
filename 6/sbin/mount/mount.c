@@ -106,7 +106,6 @@ static struct opt {
 	{ MNT_SOFTDEP,		"soft-updates" },
 	{ MNT_MULTILABEL,	"multilabel" },
 	{ MNT_ACLS,		"acls" },
-	{ MNT_SUJ,		"journal" }, /* always soft-updates, journal */
 	{ 0, NULL }
 };
 
