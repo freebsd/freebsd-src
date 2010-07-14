@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #ifndef DEBUG
 #define DEBUG
 #endif
-#define	SUJ_DEBUG
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -121,6 +120,21 @@ softdep_uninitialize()
 {
 
 	return;
+}
+
+void
+softdep_unmount(mp)
+	struct mount *mp;
+{
+
+}
+
+void
+softdep_setup_sbupdate(ump, fs, bp)
+	struct ufsmount *ump;
+	struct fs *fs;
+	struct buf *bp;
+{
 }
 
 void
@@ -233,7 +247,8 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 }
 
 void 
-softdep_change_directoryentry_offset(dp, base, oldloc, newloc, entrysize)
+softdep_change_directoryentry_offset(bp, dp, base, oldloc, newloc, entrysize)
+	struct buf *bp;
 	struct inode *dp;
 	caddr_t base;
 	caddr_t oldloc;
@@ -265,6 +280,162 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 {
 
 	panic("softdep_setup_directory_change called");
+}
+
+void *
+softdep_setup_trunc(vp, length, flags)
+	struct vnode *vp;
+	off_t length;
+	int flags;
+{
+
+	panic("%s called", __FUNCTION__);
+
+	return (NULL);
+}
+
+int
+softdep_complete_trunc(vp, cookie)
+	struct vnode *vp;
+	void *cookie;
+{
+
+	panic("%s called", __FUNCTION__);
+
+	return (0);
+}
+
+void
+softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
+	struct mount *mp;
+	struct buf *bp;
+	ufs2_daddr_t blkno;
+	int frags;
+	struct workhead *wkhd;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_inofree(mp, bp, ino, wkhd)
+	struct mount *mp;
+	struct buf *bp;
+	ino_t ino;
+	struct workhead *wkhd;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_unlink(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_link(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_revert_link(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_rmdir(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_revert_rmdir(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_create(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_revert_create(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_mkdir(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_revert_mkdir(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+void
+softdep_setup_dotdot_link(dp, ip)
+	struct inode *dp;
+	struct inode *ip;
+{
+
+	panic("%s called", __FUNCTION__);
+}
+
+int
+softdep_prealloc(vp, waitok)
+	struct vnode *vp;
+	int waitok;
+{
+
+	panic("%s called", __FUNCTION__);
+
+	return (0);
+}
+
+int
+softdep_journal_lookup(mp, vpp)
+	struct mount *mp;
+	struct vnode **vpp;
+{
+
+	return (ENOENT);
 }
 
 void
@@ -1036,6 +1207,7 @@ softdep_flush(void)
 	struct ufsmount *ump;
 	struct thread *td;
 	int remaining;
+	int progress;
 	int vfslocked;
 
 	td = curthread;
@@ -1060,7 +1232,7 @@ softdep_flush(void)
 		}
 		FREE_LOCK(&lk);
 		VFS_UNLOCK_GIANT(vfslocked);
-		remaining = 0;
+		remaining = progress = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp)  {
 			nmp = TAILQ_NEXT(mp, mnt_list);
@@ -1069,7 +1241,7 @@ softdep_flush(void)
 			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td))
 				continue;
 			vfslocked = VFS_LOCK_GIANT(mp);
-			softdep_process_worklist(mp, 0);
+			progress += softdep_process_worklist(mp, 0);
 			ump = VFSTOUFS(mp);
 			remaining += ump->softdep_on_worklist -
 				ump->softdep_on_worklist_inprogress;
@@ -1079,7 +1251,7 @@ softdep_flush(void)
 			vfs_unbusy(mp, td);
 		}
 		mtx_unlock(&mountlist_mtx);
-		if (remaining)
+		if (remaining && progress)
 			continue;
 		ACQUIRE_LOCK(&lk);
 		if (!req_pending)
@@ -1285,7 +1457,7 @@ process_worklist_item(mp, flags)
 	struct mount *mp;
 	int flags;
 {
-	struct worklist *wk, *wkXXX;
+	struct worklist *wk;
 	struct ufsmount *ump;
 	struct vnode *vp;
 	int matchcnt = 0;
@@ -1308,11 +1480,8 @@ process_worklist_item(mp, flags)
 	vp = NULL;
 	ump = VFSTOUFS(mp);
 	LIST_FOREACH(wk, &ump->softdep_workitem_pending, wk_list) {
-		if (wk->wk_state & INPROGRESS) {
-			wkXXX = wk;
+		if (wk->wk_state & INPROGRESS)
 			continue;
-		}
-		wkXXX = wk;	/* Record the last valid wk pointer. */
 		if ((flags & LK_NOWAIT) == 0 || wk->wk_type != D_DIRREM)
 			break;
 		wk->wk_state |= INPROGRESS;
@@ -2060,27 +2229,16 @@ jblocks_add(jblocks, daddr, blocks)
 	return;
 }
 
-/*
- * Open and verify the journal file.
- */
-static int
-journal_mount(mp, fs, cred)
+int
+softdep_journal_lookup(mp, vpp)
 	struct mount *mp;
-	struct fs *fs;
-	struct ucred *cred;
+	struct vnode **vpp;
 {
 	struct componentname cnp;
-	struct jblocks *jblocks;
 	struct vnode *dvp;
-	struct vnode *vp;
-	struct inode *ip;
-	ufs2_daddr_t blkno;
 	ino_t sujournal;
-	int bcount;
 	int error;
-	int i;
 
-	mp->mnt_kern_flag |= MNTK_SUJ;
 	error = VFS_VGET(mp, ROOTINO, LK_EXCLUSIVE, &dvp);
 	if (error)
 		return (error);
@@ -2094,13 +2252,35 @@ journal_mount(mp, fs, cred)
 	cnp.cn_namelen = strlen(SUJ_FILE);
 	error = ufs_lookup_ino(dvp, NULL, &cnp, &sujournal);
 	vput(dvp);
+	if (error != 0)
+		return (error);
+	error = VFS_VGET(mp, sujournal, LK_EXCLUSIVE, vpp);
+	return (error);
+}
+
+/*
+ * Open and verify the journal file.
+ */
+static int
+journal_mount(mp, fs, cred)
+	struct mount *mp;
+	struct fs *fs;
+	struct ucred *cred;
+{
+	struct jblocks *jblocks;
+	struct vnode *vp;
+	struct inode *ip;
+	ufs2_daddr_t blkno;
+	int bcount;
+	int error;
+	int i;
+
+	mp->mnt_kern_flag |= MNTK_SUJ;
+	error = softdep_journal_lookup(mp, &vp);
 	if (error != 0) {
 		printf("Failed to find journal.  Use tunefs to create one\n");
 		return (error);
 	}
-	error = VFS_VGET(mp, sujournal, LK_EXCLUSIVE, &vp);
-	if (error)
-		return (error);
 	ip = VTOI(vp);
 	if (ip->i_size < SUJ_MIN) {
 		error = ENOSPC;
@@ -2189,7 +2369,7 @@ remove_from_journal(wk)
 
 	mtx_assert(&lk, MA_OWNED);
 	ump = VFSTOUFS(wk->wk_mp);
-#ifdef DEBUG	/* XXX Expensive, temporary. */
+#ifdef SUJ_DEBUG
 	{
 		struct worklist *wkn;
 
@@ -2226,16 +2406,15 @@ journal_space(ump, thresh)
 	struct jblocks *jblocks;
 	int avail;
 
+	jblocks = ump->softdep_jblocks;
+	if (jblocks == NULL)
+		return (1);
 	/*
 	 * We use a tighter restriction here to prevent request_cleanup()
 	 * running in threads from running into locks we currently hold.
 	 */
 	if (num_inodedep > (max_softdeps / 10) * 9)
 		return (0);
-
-	jblocks = ump->softdep_jblocks;
-	if (jblocks == NULL)
-		return (1);
 	if (thresh)
 		thresh = jblocks->jb_min;
 	else
@@ -2300,7 +2479,8 @@ softdep_prealloc(vp, waitok)
 	 * Attempt to sync this vnode once to flush any journal
 	 * work attached to it.
 	 */
-	ffs_syncvnode(vp, waitok);
+	if ((curthread->td_pflags & TDP_COWINPROGRESS) == 0)
+		ffs_syncvnode(vp, waitok);
 	ACQUIRE_LOCK(&lk);
 	process_removes(vp);
 	if (journal_space(ump, 0) == 0) {
@@ -2551,7 +2731,7 @@ softdep_process_journal(mp, flags)
 				break;
 			printf("softdep: Out of journal space!\n");
 			softdep_speedup();
-			msleep(jblocks, &lk, PRIBIO, "jblocks", 1);
+			msleep(jblocks, &lk, PRIBIO, "jblocks", hz);
 		}
 		FREE_LOCK(&lk);
 		jseg = malloc(sizeof(*jseg), M_JSEG, M_SOFTDEP_FLAGS);
@@ -2596,6 +2776,7 @@ softdep_process_journal(mp, flags)
 		bp->b_bcount = size;
 		bp->b_bufobj = &ump->um_devvp->v_bufobj;
 		bp->b_flags &= ~B_INVAL;
+		bp->b_flags |= B_VALIDSUSPWRT | B_NOCOPY;
 		/*
 		 * Initialize our jseg with cnt records.  Assign the next
 		 * sequence number to it and link it in-order.
@@ -3078,12 +3259,8 @@ newjmvref(dp, ino, oldoff, newoff)
  * the jsegdep when we're done.
  */
 static struct jremref *
-newjremref(dirrem, dp, ip, diroff, nlink)
-	struct dirrem *dirrem;
-	struct inode *dp;
-	struct inode *ip;
-	off_t diroff;
-	nlink_t nlink;
+newjremref(struct dirrem *dirrem, struct inode *dp, struct inode *ip,
+    off_t diroff, nlink_t nlink)
 {
 	struct jremref *jremref;
 
@@ -3098,13 +3275,8 @@ newjremref(dirrem, dp, ip, diroff, nlink)
 }
 
 static inline void
-newinoref(inoref, ino, parent, diroff, nlink, mode)
-	struct inoref *inoref;
-	ino_t ino;
-	ino_t parent;
-	off_t diroff;
-	nlink_t nlink;
-	uint16_t mode;
+newinoref(struct inoref *inoref, ino_t ino, ino_t parent, off_t diroff,
+    nlink_t nlink, uint16_t mode)
 {
 
 	inoref->if_jsegdep = newjsegdep(&inoref->if_list);
@@ -3123,12 +3295,8 @@ newinoref(inoref, ino, parent, diroff, nlink, mode)
  * to have the correct FMT.
  */
 static struct jaddref *
-newjaddref(dp, ino, diroff, nlink, mode)
-	struct inode *dp;
-	ino_t ino;
-	off_t diroff;
-	int16_t nlink;
-	uint16_t mode;
+newjaddref(struct inode *dp, ino_t ino, off_t diroff, int16_t nlink,
+    uint16_t mode)
 {
 	struct jaddref *jaddref;
 
@@ -3328,7 +3496,8 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 		WORKLIST_INSERT(wkhd, &jsegdep->jd_list);
 	} else {
 		free_jsegdep(jsegdep);
-		remove_from_journal(&jaddref->ja_list);
+		if (jaddref->ja_state & DEPCOMPLETE)
+			remove_from_journal(&jaddref->ja_list);
 	}
 	/*
 	 * Leave NEWBLOCK jaddrefs on the inodedep so handle_workitem_remove
@@ -5021,16 +5190,9 @@ softdep_setup_freeblocks(ip, length, flags)
 				    fs->fs_frag, needj);
 			lbn += tmpval;
 		}
-		/*
-		 * If the file was removed, then the space being freed was
-		 * accounted for then (see softdep_releasefile()). If the
-		 * file is merely being truncated, then we account for it now.
-		 */
-		if ((ip->i_flag & IN_SPACECOUNTED) == 0) {
-			UFS_LOCK(ip->i_ump);
-			fs->fs_pendingblocks += datablocks;
-			UFS_UNLOCK(ip->i_ump);
-		}
+		UFS_LOCK(ip->i_ump);
+		fs->fs_pendingblocks += datablocks;
+		UFS_UNLOCK(ip->i_ump);
 	}
 	if ((flags & IO_EXT) != 0) {
 		oldextsize = ip->i_din2->di_extsize;
@@ -5511,11 +5673,9 @@ softdep_freefile(pvp, ino, mode)
 	freefile->fx_oldinum = ino;
 	freefile->fx_devvp = ip->i_devvp;
 	LIST_INIT(&freefile->fx_jwork);
-	if ((ip->i_flag & IN_SPACECOUNTED) == 0) {
-		UFS_LOCK(ip->i_ump);
-		ip->i_fs->fs_pendinginodes += 1;
-		UFS_UNLOCK(ip->i_ump);
-	}
+	UFS_LOCK(ip->i_ump);
+	ip->i_fs->fs_pendinginodes += 1;
+	UFS_UNLOCK(ip->i_ump);
 
 	/*
 	 * If the inodedep does not exist, then the zero'ed inode has
@@ -7216,55 +7376,6 @@ softdep_change_linkcnt(ip)
 }
 
 /*
- * Called when the effective link count and the reference count
- * on an inode drops to zero. At this point there are no names
- * referencing the file in the filesystem and no active file
- * references. The space associated with the file will be freed
- * as soon as the necessary soft dependencies are cleared.
- */
-void
-softdep_releasefile(ip)
-	struct inode *ip;	/* inode with the zero effective link count */
-{
-	struct inodedep *inodedep;
-	struct fs *fs;
-	int extblocks;
-
-	if (ip->i_effnlink > 0)
-		panic("softdep_releasefile: file still referenced");
-	/*
-	 * We may be called several times as the on-disk link count
-	 * drops to zero. We only want to account for the space once.
-	 */
-	if (ip->i_flag & IN_SPACECOUNTED)
-		return;
-	/*
-	 * We have to deactivate a snapshot otherwise copyonwrites may
-	 * add blocks and the cleanup may remove blocks after we have
-	 * tried to account for them.
-	 */
-	if ((ip->i_flags & SF_SNAPSHOT) != 0)
-		ffs_snapremove(ITOV(ip));
-	/*
-	 * If we are tracking an nlinkdelta, we have to also remember
-	 * whether we accounted for the freed space yet.
-	 */
-	ACQUIRE_LOCK(&lk);
-	if ((inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, 0, &inodedep)))
-		inodedep->id_state |= SPACECOUNTED;
-	FREE_LOCK(&lk);
-	fs = ip->i_fs;
-	extblocks = 0;
-	if (fs->fs_magic == FS_UFS2_MAGIC)
-		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
-	UFS_LOCK(ip->i_ump);
-	ip->i_fs->fs_pendingblocks += DIP(ip, i_blocks) - extblocks;
-	ip->i_fs->fs_pendinginodes += 1;
-	UFS_UNLOCK(ip->i_ump);
-	ip->i_flag |= IN_SPACECOUNTED;
-}
-
-/*
  * Attach a sbdep dependency to the superblock buf so that we can keep
  * track of the head of the linked list of referenced but unlinked inodes.
  */
@@ -7572,7 +7683,6 @@ handle_workitem_remove(dirrem, xp)
 	struct dirrem *dirrem;
 	struct vnode *xp;
 {
-	struct thread *td = curthread;
 	struct inodedep *inodedep;
 	struct workhead dotdotwk;
 	struct worklist *wk;
@@ -7645,9 +7755,8 @@ handle_workitem_remove(dirrem, xp)
 	/*
 	 * Directory deletion. Decrement reference count for both the
 	 * just deleted parent directory entry and the reference for ".".
-	 * Next truncate the directory to length zero. When the
-	 * truncation completes, arrange to have the reference count on
-	 * the parent decremented to account for the loss of "..".
+	 * Arrange to have the reference count on the parent decremented
+	 * to account for the loss of "..".
 	 */
 	ip->i_nlink -= 2;
 	DIP_SET(ip, i_nlink, ip->i_nlink);
@@ -7657,10 +7766,6 @@ handle_workitem_remove(dirrem, xp)
 	if (ip->i_nlink == 0)
 		unlinked_inodedep(mp, inodedep);
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
-	FREE_LOCK(&lk);
-	if ((error = ffs_truncate(vp, (off_t)0, 0, td->td_ucred, td)) != 0)
-		softdep_error("handle_workitem_remove: truncate", error);
-	ACQUIRE_LOCK(&lk);
 	/*
 	 * Rename a directory to a new parent. Since, we are both deleting
 	 * and creating a new directory entry, the link count on the new
@@ -9122,7 +9227,7 @@ handle_written_inodeblock(inodedep, bp)
 			hadchanges = 1;
 	}
 	/* Leave this inodeblock dirty until it's in the list. */
-	if ((inodedep->id_state & (UNLINKED | DEPCOMPLETE)) == UNLINKED)
+	if ((inodedep->id_state & (UNLINKED | UNLINKONLIST)) == UNLINKED)
 		hadchanges = 1;
 	/*
 	 * If we had to rollback the inode allocation because of
@@ -9736,8 +9841,6 @@ softdep_load_inodeblock(ip)
 		return;
 	}
 	ip->i_effnlink -= inodedep->id_nlinkdelta;
-	if (inodedep->id_state & SPACECOUNTED)
-		ip->i_flag |= IN_SPACECOUNTED;
 	FREE_LOCK(&lk);
 }
 
@@ -10666,18 +10769,29 @@ int
 softdep_slowdown(vp)
 	struct vnode *vp;
 {
+	struct ufsmount *ump;
+	int jlow;
 	int max_softdeps_hard;
 
 	ACQUIRE_LOCK(&lk);
+	jlow = 0;
+	/*
+	 * Check for journal space if needed.
+	 */
+	if (DOINGSUJ(vp)) {
+		ump = VFSTOUFS(vp->v_mount);
+		if (journal_space(ump, 0) == 0)
+			jlow = 1;
+	}
 	max_softdeps_hard = max_softdeps * 11 / 10;
 	if (num_dirrem < max_softdeps_hard / 2 &&
 	    num_inodedep < max_softdeps_hard &&
 	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps &&
-	    num_freeblkdep < max_softdeps_hard) {
+	    num_freeblkdep < max_softdeps_hard && jlow == 0) {
 		FREE_LOCK(&lk);
   		return (0);
 	}
-	if (VFSTOUFS(vp->v_mount)->um_numindirdeps >= maxindirdeps)
+	if (VFSTOUFS(vp->v_mount)->um_numindirdeps >= maxindirdeps || jlow)
 		softdep_speedup();
 	stat_sync_limit_hit += 1;
 	FREE_LOCK(&lk);

@@ -95,10 +95,16 @@ pass1(void)
 		getblk(&cgblk, cgtod(&sblock, c), sblock.fs_cgsize);
 		if (sblock.fs_magic == FS_UFS2_MAGIC) {
 			inosused = cgrp.cg_initediblk;
-			if (inosused > sblock.fs_ipg)
+			if (inosused > sblock.fs_ipg) {
+				pfatal("%s (%d > %d) %s %d\nReset to %d\n",
+				    "Too many initialized inodes", inosused,
+				    sblock.fs_ipg, "in cylinder group", c,
+				    sblock.fs_ipg);
 				inosused = sblock.fs_ipg;
-		} else
+			}
+		} else {
 			inosused = sblock.fs_ipg;
+		}
 		if (got_siginfo) {
 			printf("%s: phase 1: cyl group %d of %d (%d%%)\n",
 			    cdevname, c, sblock.fs_ncg,

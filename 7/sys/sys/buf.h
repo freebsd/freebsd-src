@@ -215,7 +215,7 @@ struct buf {
 #define	B_DIRTY		0x00200000	/* Needs writing later (in EXT2FS). */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_00800000	0x00800000	/* Available flag. */
-#define	B_01000000	0x01000000	/* Available flag. */
+#define	B_NOCOPY	0x01000000	/* Don't copy-on-write this buf. */
 #define	B_NEEDSGIANT	0x02000000	/* Buffer's vnode needs giant. */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
 #define B_MANAGED	0x08000000	/* Managed by FS. */
