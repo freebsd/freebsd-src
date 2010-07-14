@@ -311,7 +311,7 @@ ptrace_single_step(struct thread *td)
 	unsigned va;
 	struct trapframe *locr0 = td->td_frame;
 	int i;
-	int bpinstr = BREAK_SSTEP;
+	int bpinstr = MIPS_BREAK_SSTEP;
 	int curinstr;
 	struct proc *p;
 
@@ -484,13 +484,13 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	td->td_frame->sp = ((register_t) stack) & ~(sizeof(__int64_t) - 1);
 	td->td_frame->pc = imgp->entry_addr & ~3;
 	td->td_frame->t9 = imgp->entry_addr & ~3; /* abicall req */
-	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB |
-	    (mips_rd_status() & ALL_INT_MASK);
+	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
+	    (mips_rd_status() & MIPS_SR_INT_MASK);
 #if defined(__mips_n32) || defined(__mips_n64)
-	td->td_frame->sr |= SR_PX;
+	td->td_frame->sr |= MIPS_SR_PX;
 #endif
 #ifdef TARGET_OCTEON
-	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX |
+	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS_SR_PX | MIPS_SR_UX |
 	    MIPS_SR_KX | MIPS_SR_SX;
 #endif
 	/*
