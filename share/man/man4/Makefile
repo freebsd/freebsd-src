@@ -110,6 +110,8 @@ MAN=	aac.4 \
 	fatm.4 \
 	fd.4 \
 	fdc.4 \
+	fdt.4 \
+	fdtbus.4 \
 	firewire.4 \
 	fpa.4 \
 	fwe.4 \
@@ -358,6 +360,7 @@ MAN=	aac.4 \
 	siba.4 \
 	siftr.4 \
 	siis.4 \
+	simplebus.4 \
 	sio.4 \
 	sis.4 \
 	sk.4 \
@@ -527,6 +530,7 @@ MLINKS+=fatm.4 if_fatm.4
 MLINKS+=fd.4 stderr.4 \
 	fd.4 stdin.4 \
 	fd.4 stdout.4
+MLINKS+=fdt.4 FDT.4
 MLINKS+=firewire.4 ieee1394.4
 MLINKS+=fpa.4 fea.4
 MLINKS+=fwe.4 if_fwe.4
