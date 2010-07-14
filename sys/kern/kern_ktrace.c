@@ -596,9 +596,8 @@ ktrcsw(out, user)
 }
 
 void
-ktrstruct(name, namelen, data, datalen)
+ktrstruct(name, data, datalen)
 	const char *name;
-	size_t namelen;
 	void *data;
 	size_t datalen;
 {
@@ -608,11 +607,10 @@ ktrstruct(name, namelen, data, datalen)
 
 	if (!data)
 		datalen = 0;
-	buflen = namelen + 1 + datalen;
+	buflen = strlen(name) + 1 + datalen;
 	buf = malloc(buflen, M_KTRACE, M_WAITOK);
-	bcopy(name, buf, namelen);
-	buf[namelen] = '\0';
-	bcopy(data, buf + namelen + 1, datalen);
+	strcpy(buf, name);
+	bcopy(data, buf + strlen(name) + 1, datalen);
 	if ((req = ktr_getrequest(KTR_STRUCT)) == NULL) {
 		free(buf, M_KTRACE);
 		return;
