@@ -289,7 +289,7 @@ trap(struct trapframe *trapframe)
 
 	trapdebug_enter(trapframe, 0);
 	
-	type = (trapframe->cause & CR_EXC_CODE) >> CR_EXC_CODE_SHIFT;
+	type = (trapframe->cause & MIPS3_CR_EXC_CODE) >> MIPS_CR_EXC_CODE_SHIFT;
 	if (TRAPF_USERMODE(trapframe)) {
 		type |= T_USER;
 		usermode = 1;
@@ -302,8 +302,8 @@ trap(struct trapframe *trapframe)
 	 * was off disable all so we don't accidently enable it when doing a
 	 * return to userland.
 	 */
-	if (trapframe->sr & SR_INT_ENAB) {
-		set_intr_mask(~(trapframe->sr & ALL_INT_MASK));
+	if (trapframe->sr & MIPS_SR_INT_IE) {
+		set_intr_mask(~(trapframe->sr & MIPS_SR_INT_MASK));
 		intr_enable();
 	} else {
 		intr_disable();
@@ -827,7 +827,8 @@ dofault:
 			    p->p_comm, p->p_pid, instr, trapframe->pc,
 			    p->p_md.md_ss_addr, p->p_md.md_ss_instr);	/* XXX */
 #endif
-			if (td->td_md.md_ss_addr != va || instr != BREAK_SSTEP) {
+			if (td->td_md.md_ss_addr != va ||
+			    instr != MIPS_BREAK_SSTEP) {
 				i = SIGTRAP;
 				addr = trapframe->pc;
 				break;
@@ -897,13 +898,13 @@ dofault:
 	case T_COP_UNUSABLE + T_USER:
 #if !defined(CPU_HAVEFPU)
 		/* FP (COP1) instruction */
-		if ((trapframe->cause & CR_COP_ERR) == 0x10000000) {
+		if ((trapframe->cause & MIPS_CR_COP_ERR) == 0x10000000) {
 			log_illegal_instruction("COP1_UNUSABLE", trapframe);
 			i = SIGILL;
 			break;
 		}
 #endif
-		if ((trapframe->cause & CR_COP_ERR) != 0x10000000) {
+		if ((trapframe->cause & MIPS_CR_COP_ERR) != 0x10000000) {
 			log_illegal_instruction("COPn_UNUSABLE", trapframe);
 			i = SIGILL;	/* only FPU instructions allowed */
 			break;
@@ -911,7 +912,7 @@ dofault:
 		addr = trapframe->pc;
 		MipsSwitchFPState(PCPU_GET(fpcurthread), td->td_frame);
 		PCPU_SET(fpcurthread, td);
-		td->td_frame->sr |= SR_COP_1_BIT;
+		td->td_frame->sr |= MIPS_SR_COP_1_BIT;
 		td->td_md.md_flags |= MDTD_FPUSED;
 		goto out;
 
@@ -1047,10 +1048,13 @@ trapDump(char *msg)
 			break;
 
 		printf("%s: ADR %jx PC %jx CR %jx SR %jx\n",
-		    trap_type[(trp->cause & CR_EXC_CODE) >> CR_EXC_CODE_SHIFT],
-		    (intmax_t)trp->vadr, (intmax_t)trp->pc, (intmax_t)trp->cause, (intmax_t)trp->status);
+		    trap_type[(trp->cause & MIPS3_CR_EXC_CODE) >> 
+			MIPS_CR_EXC_CODE_SHIFT],
+		    (intmax_t)trp->vadr, (intmax_t)trp->pc,
+		    (intmax_t)trp->cause, (intmax_t)trp->status);
 
-		printf("   RA %jx SP %jx code %d\n", (intmax_t)trp->ra, (intmax_t)trp->sp, (int)trp->code);
+		printf("   RA %jx SP %jx code %d\n", (intmax_t)trp->ra,
+		    (intmax_t)trp->sp, (int)trp->code);
 	}
 	intr_restore(s);
 }
@@ -1178,9 +1182,9 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 		case OP_BCx:
 		case OP_BCy:
 			if ((inst.RType.rt & COPz_BC_TF_MASK) == COPz_BC_TRUE)
-				condition = fpcCSR & FPC_COND_BIT;
+				condition = fpcCSR & MIPS_FPU_COND_BIT;
 			else
-				condition = !(fpcCSR & FPC_COND_BIT);
+				condition = !(fpcCSR & MIPS_FPU_COND_BIT);
 			if (condition)
 				retAddr = GetBranchDest(instPC, inst);
 			else
