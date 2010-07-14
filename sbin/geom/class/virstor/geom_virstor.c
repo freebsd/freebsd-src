@@ -459,9 +459,9 @@ virstor_label(struct gctl_req *req)
 				strlcpy(md.provider, name, sizeof(md.provider));
 		}
 		sect = malloc(ssize);
-		bzero(sect, ssize);
 		if (sect == NULL)
 			err(1, "Cannot allocate sector of %zu bytes", ssize);
+		bzero(sect, ssize);
 		virstor_metadata_encode(&md, sect);
 		error = my_g_metadata_store(name, sect, ssize);
 		free(sect);
