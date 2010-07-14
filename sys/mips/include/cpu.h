@@ -49,212 +49,17 @@
 
 #include <machine/endian.h>
 
-/*
- *  Status register.
- */
-#define	SR_COP_USABILITY	0xf0000000
-#define	SR_COP_0_BIT		0x10000000
-#define	SR_COP_1_BIT		0x20000000
-#define	SR_COP_2_BIT		0x40000000
-#define	SR_RP			0x08000000
-#define	SR_FR_32		0x04000000
-#define	SR_RE			0x02000000
-#define	SR_PX			0x00800000
-#define	SR_BOOT_EXC_VEC		0x00400000
-#define	SR_TLB_SHUTDOWN		0x00200000
-#define	SR_SOFT_RESET		0x00100000
-#define	SR_DIAG_CH		0x00040000
-#define	SR_DIAG_CE		0x00020000
-#define	SR_DIAG_DE		0x00010000
-#define	SR_KX			0x00000080
-#define	SR_SX			0x00000040
-#define	SR_UX			0x00000020
+/* BEGIN: these are going away */
+
 #define	SR_KSU_MASK		0x00000018
 #define	SR_KSU_USER		0x00000010
 #define	SR_KSU_SUPER		0x00000008
 #define	SR_KSU_KERNEL		0x00000000
-#define	SR_ERL			0x00000004
-#define	SR_EXL			0x00000002
-#define	SR_INT_ENAB		0x00000001
-
-#define	SR_INT_MASK		0x0000ff00
-#define	SOFT_INT_MASK_0		0x00000100
-#define	SOFT_INT_MASK_1		0x00000200
-#define	SR_INT_MASK_0		0x00000400
-#define	SR_INT_MASK_1		0x00000800
-#define	SR_INT_MASK_2		0x00001000
-#define	SR_INT_MASK_3		0x00002000
-#define	SR_INT_MASK_4		0x00004000
-#define	SR_INT_MASK_5		0x00008000
-#define	ALL_INT_MASK		SR_INT_MASK
-#define	SOFT_INT_MASK		(SOFT_INT_MASK_0 | SOFT_INT_MASK_1)
-#define	HW_INT_MASK		(ALL_INT_MASK & ~SOFT_INT_MASK)
 
 #define	soft_int_mask(softintr)	(1 << ((softintr) + 8))
 #define	hard_int_mask(hardintr)	(1 << ((hardintr) + 10))
 
-/*
- * The bits in the cause register.
- *
- *	CR_BR_DELAY	Exception happened in branch delay slot.
- *	CR_COP_ERR	Coprocessor error.
- *	CR_IP		Interrupt pending bits defined below.
- *	CR_EXC_CODE	The exception type (see exception codes below).
- */
-#define	CR_BR_DELAY		0x80000000
-#define	CR_COP_ERR		0x30000000
-#define	CR_EXC_CODE		0x0000007c
-#define	CR_EXC_CODE_SHIFT	2
-#define	CR_IPEND		0x0000ff00
-
-/*
- * Cause Register Format:
- *
- *   31  30  29 28 27  26  25  24 23                   8  7 6       2  1  0
- *  ----------------------------------------------------------------------
- * | BD | 0| CE   | 0| W2| W1| IV|	IP15 - IP0	| 0| Exc Code | 0|
- * |______________________________________________________________________
- */
-
-#define	CR_INT_SOFT0		0x00000100
-#define	CR_INT_SOFT1		0x00000200
-#define	CR_INT_0		0x00000400
-#define	CR_INT_1		0x00000800
-#define	CR_INT_2		0x00001000
-#define	CR_INT_3		0x00002000
-#define	CR_INT_4		0x00004000
-#define	CR_INT_5		0x00008000
-
-#define	CR_INT_UART	CR_INT_1
-#define	CR_INT_IPI	CR_INT_2
-#define	CR_INT_CLOCK	CR_INT_5
-
-/*
- * The bits in the CONFIG register
- */
-#define CFG_K0_UNCACHED	2
-#define	CFG_K0_CACHED	3
-#define	CFG_K0_MASK	0x7
-
-/*
- * The bits in the context register.
- */
-#define	CNTXT_PTE_BASE		0xff800000
-#define	CNTXT_BAD_VPN2		0x007ffff0
-
-/*
- * Location of exception vectors.
- */
-#define	RESET_EXC_VEC		((intptr_t)(int32_t)0xbfc00000)
-#define	TLB_MISS_EXC_VEC	((intptr_t)(int32_t)0x80000000)
-#define	XTLB_MISS_EXC_VEC	((intptr_t)(int32_t)0x80000080)
-#define	CACHE_ERR_EXC_VEC	((intptr_t)(int32_t)0x80000100)
-#define	GEN_EXC_VEC		((intptr_t)(int32_t)0x80000180)
-
-/*
- * Coprocessor 0 registers:
- */
-#define	COP_0_TLB_INDEX		$0
-#define	COP_0_TLB_RANDOM	$1
-#define	COP_0_TLB_LO0		$2
-#define	COP_0_TLB_LO1		$3
-#define	COP_0_TLB_CONTEXT	$4
-#define	COP_0_TLB_PG_MASK	$5
-#define	COP_0_TLB_WIRED		$6
-#define	COP_0_INFO		$7
-#define	COP_0_BAD_VADDR		$8
-#define	COP_0_COUNT		$9
-#define	COP_0_TLB_HI		$10
-#define	COP_0_COMPARE		$11
-#define	COP_0_STATUS_REG	$12
-#define	COP_0_CAUSE_REG		$13
-#define	COP_0_EXC_PC		$14
-#define	COP_0_PRID		$15
-#define	COP_0_CONFIG		$16
-#define	COP_0_LLADDR		$17
-#define	COP_0_WATCH_LO		$18
-#define	COP_0_WATCH_HI		$19
-#define	COP_0_TLB_XCONTEXT	$20
-#define	COP_0_ECC		$26
-#define	COP_0_CACHE_ERR		$27
-#define	COP_0_TAG_LO		$28
-#define	COP_0_TAG_HI		$29
-#define	COP_0_ERROR_PC		$30
-
-/*
- *  Coprocessor 0 Set 1
- */
-#define	C0P_1_IPLLO	$18
-#define	C0P_1_IPLHI	$19
-#define	C0P_1_INTCTL	$20
-#define	C0P_1_DERRADDR0	$26
-#define	C0P_1_DERRADDR1	$27
-
-/*
- * Values for the code field in a break instruction.
- */
-#define	BREAK_INSTR		0x0000000d
-#define	BREAK_VAL_MASK		0x03ffffc0
-#define	BREAK_VAL_SHIFT		16
-#define	BREAK_KDB_VAL		512
-#define	BREAK_SSTEP_VAL		513
-#define	BREAK_BRKPT_VAL		514
-#define	BREAK_SOVER_VAL		515
-#define	BREAK_DDB_VAL		516
-#define	BREAK_KDB	(BREAK_INSTR | (BREAK_KDB_VAL << BREAK_VAL_SHIFT))
-#define	BREAK_SSTEP	(BREAK_INSTR | (BREAK_SSTEP_VAL << BREAK_VAL_SHIFT))
-#define	BREAK_BRKPT	(BREAK_INSTR | (BREAK_BRKPT_VAL << BREAK_VAL_SHIFT))
-#define	BREAK_SOVER	(BREAK_INSTR | (BREAK_SOVER_VAL << BREAK_VAL_SHIFT))
-#define	BREAK_DDB	(BREAK_INSTR | (BREAK_DDB_VAL << BREAK_VAL_SHIFT))
-
-/*
- * Mininum and maximum cache sizes.
- */
-#define	MIN_CACHE_SIZE		(16 * 1024)
-#define	MAX_CACHE_SIZE		(256 * 1024)
-
-/*
- * The floating point version and status registers.
- */
-#define	FPC_ID			$0
-#define	FPC_CSR			$31
-
-/*
- * The floating point coprocessor status register bits.
- */
-#define	FPC_ROUNDING_BITS		0x00000003
-#define	FPC_ROUND_RN			0x00000000
-#define	FPC_ROUND_RZ			0x00000001
-#define	FPC_ROUND_RP			0x00000002
-#define	FPC_ROUND_RM			0x00000003
-#define	FPC_STICKY_BITS			0x0000007c
-#define	FPC_STICKY_INEXACT		0x00000004
-#define	FPC_STICKY_UNDERFLOW		0x00000008
-#define	FPC_STICKY_OVERFLOW		0x00000010
-#define	FPC_STICKY_DIV0			0x00000020
-#define	FPC_STICKY_INVALID		0x00000040
-#define	FPC_ENABLE_BITS			0x00000f80
-#define	FPC_ENABLE_INEXACT		0x00000080
-#define	FPC_ENABLE_UNDERFLOW		0x00000100
-#define	FPC_ENABLE_OVERFLOW		0x00000200
-#define	FPC_ENABLE_DIV0			0x00000400
-#define	FPC_ENABLE_INVALID		0x00000800
-#define	FPC_EXCEPTION_BITS		0x0003f000
-#define	FPC_EXCEPTION_INEXACT		0x00001000
-#define	FPC_EXCEPTION_UNDERFLOW		0x00002000
-#define	FPC_EXCEPTION_OVERFLOW		0x00004000
-#define	FPC_EXCEPTION_DIV0		0x00008000
-#define	FPC_EXCEPTION_INVALID		0x00010000
-#define	FPC_EXCEPTION_UNIMPL		0x00020000
-#define	FPC_COND_BIT			0x00800000
-#define	FPC_FLUSH_BIT			0x01000000
-#define	FPC_MBZ_BITS			0xfe7c0000
-
-/*
- * Constants to determine if have a floating point instruction.
- */
-#define	OPCODE_SHIFT		26
-#define	OPCODE_C1		0x11
+/* END: These are going away */
 
 /*
  * The first TLB entry that write random hits.
@@ -302,7 +107,6 @@
  * A machine-independent interface to the CPU's counter.
  */
 #define	get_cyclecount()	mips_rd_count()
-
 #endif				/* !_LOCORE */
 
 /*
@@ -372,7 +176,6 @@
 #define	MIPS_VR5400	0x54	/* NEC Vr5400 FPU		ISA IV+	 */
 
 #if defined(_KERNEL) && !defined(_LOCORE)
-
 struct user;
 
 int Mips_ConfigCache(void);
