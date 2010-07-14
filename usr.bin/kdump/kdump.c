@@ -1372,6 +1372,6 @@ void
 usage(void)
 {
 	fprintf(stderr, "usage: kdump [-dEnlHRrsT] [-f trfile] "
-	    "[-m maxdata] [-p pid] [-t [cnistuw]]\n");
+	    "[-m maxdata] [-p pid] [-t trstr]\n");
 	exit(1);
 }
