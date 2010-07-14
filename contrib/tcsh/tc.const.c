@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.const.c,v 3.84 2006/10/29 19:02:17 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.const.c,v 3.91 2009/06/19 16:35:33 christos Exp $ */
 /*
  * sh.const.c: String constants for tcsh.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.const.c,v 3.84 2006/10/29 19:02:17 christos Exp $")
+RCSID("$tcsh: tc.const.c,v 3.91 2009/06/19 16:35:33 christos Exp $")
 
 Char STRlogout[]	= { 'l', 'o', 'g', 'o', 'u', 't', '\0' };
 Char STRautologout[]	= { 'a', 'u', 't', 'o', 'l', 'o', 'g', 'o', 'u', 't', 
@@ -177,7 +177,7 @@ Char STRLANGBIG5[]	= { 'z', 'h', '_', 'T', 'W', '.', 'B', 'i', 'g', '5',
 			    '\0' };
 Char STRLANGEUCZH[]	= { '\0' };
 Char STRLANGEUCZHB[]	= { '\0' };
-#  elif (defined(__FreeBSD__) || defined(__NetBSD__))
+#  elif (defined(__FreeBSD__) || defined(__NetBSD__)) || defined(__MidnightBSD__)
 Char STRLANGEUCJP[]	= { 'j', 'a', '_', 'J', 'P', '.', 'e', 'u', 'c', 'J',
 			    'P', '\0' };
 Char STRLANGEUCJPB[]	= { 'j', 'a', '_', 'J', 'P', '.', 'E', 'U', 'C', '\0' };
@@ -326,7 +326,6 @@ Char STRspLarrowsp[]	= { ' ', '<', ' ', '\0' };
 Char STRspRarrow2[]	= { ' ', '>', '>', '\0' };
 Char STRspRarrow[]	= { ' ', '>', '\0' };
 Char STRgt[]		= { '>', '\0' };
-Char STRsp3dots[]	= { ' ', '.', '.', '.', '\0' };
 Char STRcent2[]		= { '%', '%', '\0' };
 Char STRcentplus[]	= { '%', '+', '\0' };
 Char STRcentminus[]	= { '%', '-', '\0' };
@@ -353,6 +352,8 @@ Char STRKTERM[]		= { 'T', 'E', 'R', 'M', '\0' };
 Char STRKHOME[]		= { 'H', 'O', 'M', 'E', '\0' };
 Char STRbackslash_quote[] = { 'b', 'a', 'c', 'k', 's', 'l', 'a', 's', 'h', '_',
 			     'q', 'u', 'o', 't', 'e', '\0' };
+Char STRcompat_expr[]	= { 'c', 'o', 'm', 'p', 'a', 't', '_', 'e', 'x', 'p',
+			     'r', '\0' };
 Char STRRparen[]	= { ')', '\0' };
 Char STRmail[]		= { 'm', 'a', 'i', 'l', '\0' };
 #ifndef HAVENOUTMP
@@ -450,8 +451,12 @@ Char STRTERMCAP[]	= { 'T', 'E', 'R', 'M', 'C', 'A', 'P', '\0'};
 #endif /* SIG_WINDOW  || _VMS_POSIX */
 
 #if defined (_OSD_POSIX)  /* BS2000 needs this variable set to "SHELL" */
-Char STRPROGRAM_ENVIRONMENT[]		= { 'P', 'R', 'O', 'G', 'R', 'A', 'M', '_', 'E', 'N', 'V', 'I', 'R', 'O', 'N', 'M', 'E', 'N', 'T', '\0'};
+Char STRPROGRAM_ENVIRONMENT[] = { 'P', 'R', 'O', 'G', 'R', 'A', 'M',
+			    '_', 'E', 'N', 'V', 'I', 'R', 'O', 'N', 'M',
+			    'E', 'N', 'T', '\0'};
 #endif /* _OSD_POSIX */
+Char STRCOMMAND_LINE[]	= { 'C', 'O', 'M', 'M', 'A', 'N', 'D', '_', 'L', 'I',
+			    'N', 'E', '\0' };
 
 #ifdef WARP
 Char STRwarp[]		= { 'w', 'a', 'r', 'p', '\0' };
@@ -498,3 +503,5 @@ Char STRshwordsep[]	= { ' ', '\t', '&', '|', ';', '<', '>', '(', ')', '\0' };
 Char STRrepeat[]	= { 'r', 'e', 'p', 'e', 'a', 't', '\0' };
 
 Char STReof[]		= { '^', 'D', '\b', '\b', '\0' };
+Char STRonlyhistory[]	= { 'o', 'n', 'l', 'y', 'h', 'i', 's', 't', 'o', 'r',
+			    'y', '\0' };

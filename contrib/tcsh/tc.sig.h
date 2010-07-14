@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.sig.h,v 3.32 2006/03/11 15:32:00 mitr Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.sig.h,v 3.33 2007/07/05 14:13:06 christos Exp $ */
 /*
  * tc.sig.h: Signal handling
  *
@@ -34,7 +34,7 @@
 #ifndef _h_tc_sig
 #define _h_tc_sig
 
-#if (SYSVREL > 0) || defined(BSD4_4) || defined(_MINIX) || defined(DGUX) || defined(WINNT_NATIVE)
+#if (SYSVREL > 0) || defined(BSD4_4) || defined(_MINIX) || defined(DGUX) || defined(WINNT_NATIVE) || defined(__QNXNTO__)
 # include <signal.h>
 # ifndef SIGCHLD
 #  define SIGCHLD SIGCLD

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.set.c,v 3.70 2006/08/24 20:56:31 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.set.c,v 3.72 2007/09/28 21:02:03 christos Exp $ */
 /*
  * sh.set.c: Setting and Clearing of variables
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.set.c,v 3.70 2006/08/24 20:56:31 christos Exp $")
+RCSID("$tcsh: sh.set.c,v 3.72 2007/09/28 21:02:03 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -173,6 +173,9 @@ update_vars(Char *vp)
     } 
     else if (eq(vp, STRbackslash_quote)) {
 	bslash_quote = 1;
+    }
+    else if (eq(vp, STRcompat_expr)) {
+	compat_expr = 1;
     }
     else if (eq(vp, STRdirstack)) {
 	dsetstack();
@@ -525,6 +528,7 @@ getn(Char *cp)
 {
     int n;
     int     sign;
+    int base;
 
     if (!cp)			/* PWP: extra error checking */
 	stderror(ERR_NAME | ERR_BADNUM);
@@ -538,9 +542,19 @@ getn(Char *cp)
 	if (!Isdigit(*cp))
 	    stderror(ERR_NAME | ERR_BADNUM);
     }
+
+    if (cp[0] == '0' && cp[1])
+	base = 8;
+    else
+	base = 10;
+
     n = 0;
     while (Isdigit(*cp))
-	n = n * 10 + *cp++ - '0';
+    {
+	if (base == 8 && *cp >= '8')
+	    stderror(ERR_NAME | ERR_BADNUM);
+	n = n * base + *cp++ - '0';
+    }
     if (*cp)
 	stderror(ERR_NAME | ERR_BADNUM);
     return (sign ? -n : n);
@@ -750,6 +764,8 @@ unset(Char **v, struct command *c)
 	editing = 0;
     if (adrof(STRbackslash_quote) == 0)
 	bslash_quote = 0;
+    if (adrof(STRcompat_expr) == 0)
+	compat_expr = 0;
     if (adrof(STRsymlinks) == 0)
 	symlinks = 0;
     if (adrof(STRimplicitcd) == 0)

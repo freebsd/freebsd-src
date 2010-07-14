@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.proc.c,v 3.104 2006/09/27 16:59:04 mitr Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.proc.c,v 3.109 2009/06/25 21:15:37 christos Exp $ */
 /*
  * sh.proc.c: Job manipulations
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.proc.c,v 3.104 2006/09/27 16:59:04 mitr Exp $")
+RCSID("$tcsh: sh.proc.c,v 3.109 2009/06/25 21:15:37 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -126,6 +126,7 @@ static	void		 pflushall	(void);
 static	void		 pflush		(struct process *);
 static	void		 pfree		(struct process *);
 static	void		 pclrcurr	(struct process *);
+static	void		 morecommand	(size_t);
 static	void		 padd		(struct command *);
 static	int		 pprint		(struct process *, int);
 static	void		 ptprint	(struct process *);
@@ -485,7 +486,7 @@ pjwait(struct process *pp)
 
     do {
 	if ((fp->p_flags & (PFOREGND | PRUNNING)) == PRUNNING)
-	  xprintf(CGETS(17, 1, "BUG: waiting for background job!\n"));
+	  xprintf("%s", CGETS(17, 1, "BUG: waiting for background job!\n"));
     } while ((fp = fp->p_friends) != pp);
     /*
      * Now keep pausing as long as we are not interrupted (SIGINT), and the
@@ -518,7 +519,7 @@ pjwait(struct process *pp)
 	(void) tcsetpgrp(FSHTTY, tpgrp);
 #endif /* BSDJOBS */
     if ((jobflags & (PSIGNALED | PSTOPPED | PTIME)) ||
-	!eq(dcwd->di_name, fp->p_cwd->di_name)) {
+	fp->p_cwd == NULL || !eq(dcwd->di_name, fp->p_cwd->di_name)) {
 	if (jobflags & PSTOPPED) {
 	    xputchar('\n');
 	    if (adrof(STRlistjobs)) {
@@ -626,7 +627,7 @@ pflush(struct process *pp)
     int idx;
 
     if (pp->p_procid == 0) {
-	xprintf(CGETS(17, 3, "BUG: process flushed twice"));
+	xprintf("%s", CGETS(17, 3, "BUG: process flushed twice"));
 	return;
     }
     while (pp->p_procid != pp->p_jobid)
@@ -670,9 +671,25 @@ pclrcurr(struct process *pp)
 }
 
 /* +4 here is 1 for '\0', 1 ea for << >& >> */
-static Char command[PMAXLEN + 4];
+static Char *cmdstr;
+static size_t cmdmax;
 static size_t cmdlen;
 static Char *cmdp;
+#define CMD_INIT 1024
+#define CMD_INCR 64
+
+static void
+morecommand(size_t s)
+{
+    Char *ncmdstr;
+    ptrdiff_t d;
+
+    cmdmax += s;
+    ncmdstr = xrealloc(cmdstr, cmdmax * sizeof(*cmdstr));
+    d = ncmdstr - cmdstr;
+    cmdstr = ncmdstr;
+    cmdp += d;
+}
 
 /* GrP
  * unparse - Export padd() functionality 
@@ -680,11 +697,13 @@ static Char *cmdp;
 Char *
 unparse(struct command *t)
 {
-    cmdp = command;
+    if (cmdmax == 0)
+	morecommand(CMD_INIT);
+    cmdp = cmdstr;
     cmdlen = 0;
     padd(t);
     *cmdp++ = '\0';
-    return Strsave(command);
+    return Strsave(cmdstr);
 }
 
 
@@ -707,7 +726,9 @@ palloc(pid_t pid, struct command *t)
 	pp->p_flags |= PBACKQ;
     if (t->t_dflg & F_HUP)
 	pp->p_flags |= PHUP;
-    cmdp = command;
+    if (cmdmax == 0)
+	morecommand(CMD_INIT);
+    cmdp = cmdstr;
     cmdlen = 0;
     padd(t);
     *cmdp++ = 0;
@@ -716,7 +737,7 @@ palloc(pid_t pid, struct command *t)
 	if (t->t_dflg & F_STDERR)
 	    pp->p_flags |= PDIAG;
     }
-    pp->p_command = Strsave(command);
+    pp->p_command = Strsave(cmdstr);
     if (pcurrjob) {
 	struct process *fp;
 
@@ -839,7 +860,7 @@ padd(struct command *t)
 static void
 pads(Char *cp)
 {
-    size_t i;
+    size_t i, len;
 
     /*
      * Avoid the Quoted Space alias hack! Reported by:
@@ -850,14 +871,9 @@ pads(Char *cp)
 
     i = Strlen(cp);
 
-    if (cmdlen >= PMAXLEN)
-	return;
-    if (cmdlen + i >= PMAXLEN) {
-	(void) Strcpy(cmdp, STRsp3dots);
-	cmdlen = PMAXLEN;
-	cmdp += 4;
-	return;
-    }
+    len = cmdlen + i + CMD_INCR;
+    if (len >= cmdmax)
+	morecommand(len);
     (void) Strcpy(cmdp, cp);
     cmdp += i;
     cmdlen += i;
@@ -1074,13 +1090,13 @@ prcomd:
 		xprintf("&");
 	}
 	if (flag & (REASON | AREASON) && pp->p_flags & PDUMPED)
-	    xprintf(CGETS(17, 9, " (core dumped)"));
+	    xprintf("%s", CGETS(17, 9, " (core dumped)"));
 	if (tp == pp->p_friends) {
 	    if (flag & AMPERSAND)
 		xprintf(" &");
 	    if (flag & JOBDIR &&
 		!eq(tp->p_cwd->di_name, dcwd->di_name)) {
-		xprintf(CGETS(17, 10, " (wd: "));
+		xprintf("%s", CGETS(17, 10, " (wd: "));
 		dtildepr(tp->p_cwd->di_name);
 		xprintf(")");
 	    }
@@ -1111,7 +1127,7 @@ prcomd:
 	    if (linp != linbuf)
 		xputchar('\n');
 	    if (flag & SHELLDIR && !eq(tp->p_cwd->di_name, dcwd->di_name)) {
-		xprintf(CGETS(17, 11, "(wd now: "));
+		xprintf("%s", CGETS(17, 11, "(wd now: "));
 		dtildepr(dcwd->di_name);
 		xprintf(")\n");
 	    }

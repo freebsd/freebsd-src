@@ -82,7 +82,7 @@
  **********************************************************************
  */
 #include "sh.h"
-RCSID("$tcsh: ma.setp.c,v 1.18 2006/03/02 18:46:44 christos Exp $")
+RCSID("$tcsh: ma.setp.c,v 1.19 2007/11/20 20:03:51 christos Exp $")
 
 #ifdef MACH
 
@@ -135,7 +135,7 @@ static int eflag;
 static int initpaths	(char **);
 static void savepaths	(char **);
 static void freepaths	(void);
-static void rcmd	(char *);
+static void tcsh_rcmd	(char *);
 static void icmd	(char *, char *);
 static void iacmd	(char *, char *);
 static void ibcmd	(char *, char *);
@@ -173,7 +173,7 @@ setpath(char **paths, char **cmds, char *localsyspath, int dosuffix,
 	case 'r':
 	    if (cmd[2] != '\0')
 		INVALID;
-	    rcmd(localsyspath);
+	    tcsh_rcmd(localsyspath);
 	    break;
 	case 'i':
 	    if (cmd[2] == '\0') {
@@ -342,7 +342,7 @@ freepaths(void)
  ***********************************************/
 
 static void
-rcmd(char *localsyspath)	/* reset path with localsyspath */
+tcsh_rcmd(char *localsyspath)	/* reset path with localsyspath */
 {
     int n, done;
     char *new, *p;

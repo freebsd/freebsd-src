@@ -1,5 +1,5 @@
 newcode	:
-/* $Header: /p/tcsh/cvsroot/tcsh/host.defs,v 1.43 2006/03/02 18:46:44 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/host.defs,v 1.46 2008/09/25 14:41:05 christos Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -33,7 +33,7 @@ newcode	:
  */
 #include "sh.h"
 
-RCSID("$tcsh: host.defs,v 1.43 2006/03/02 18:46:44 christos Exp $")
+RCSID("$tcsh: host.defs,v 1.46 2008/09/25 14:41:05 christos Exp $")
 
 endcode	:
 
@@ -520,6 +520,15 @@ machtype: defined(M_i386)				: "i386"
 enddef	:
 
 
+newdef  : defined(__MidnightBSD__)
+comment : MidnightBSD
+vendor  : defined(M_intel)                              : "intel"
+hosttype:                                               : "MidnightBSD"
+ostype  :                                               : "MidnightBSD"
+machtype: defined(M_i386)                               : "i386"
+enddef  :
+
+
 newdef	: defined(__386BSD__)
 comment	: Bill Jolitz's 386BSD
 vendor	: defined(M_intel)				: "intel"
@@ -1003,6 +1012,9 @@ hosttype:						: "clipper"
 machtype:						: "clipper"
 enddef	:
 
+newdef : defined(__QNX__)
+ostype :						: "qnx"
+enddef :
 
 newdef	: (defined(SNI) || defined(sinix)) && !defined(_OSD_POSIX)
 comment	: Fujitsu Siemens Computers (former "Siemens Nixdorf Informationssysteme"): SINIX aka. ReliantUNIX, a SVR4 derivative
@@ -1059,6 +1071,12 @@ vendor	:						: "fujitsu"
 hosttype:						: "ds90"
 ostype	:						: "sysv4"
 machtype:						: "sparc"
+enddef	:
+
+newdef	: defined(__CYGWIN__)
+comment	: Cygwin
+hosttype:						: "i386-cygwin"
+ostype	:						: "cygwin"
 enddef	:
 
 newdef  : defined(_UWIN)

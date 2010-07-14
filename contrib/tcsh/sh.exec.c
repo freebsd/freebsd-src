@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.exec.c,v 3.73 2006/08/24 20:56:31 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.exec.c,v 3.75 2009/06/25 21:15:37 christos Exp $ */
 /*
  * sh.exec.c: Search, find, and execute a command!
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.exec.c,v 3.73 2006/08/24 20:56:31 christos Exp $")
+RCSID("$tcsh: sh.exec.c,v 3.75 2009/06/25 21:15:37 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -402,9 +402,6 @@ texec(Char *sf, Char **st)
 	 */
 	if ((fd = xopen(f, O_RDONLY|O_LARGEFILE)) != -1) {
 	    int nread;
-#ifdef O_TEXT
-	    setmode(fd, O_TEXT);
-#endif
 	    if ((nread = xread(fd, pref, 2)) == 2) {
 		if (!isprint((unsigned char)pref[0]) &&
 		    (pref[0] != '\n' && pref[0] != '\t')) {
@@ -1069,7 +1066,7 @@ find_cmd(Char *cmd, int prt)
     int hashval, i, ex, rval = 0;
 
     if (prt && any(short2str(cmd), '/')) {
-	xprintf(CGETS(13, 7, "where: / in command makes no sense\n"));
+	xprintf("%s", CGETS(13, 7, "where: / in command makes no sense\n"));
 	return rval;
     }
 
@@ -1132,7 +1129,7 @@ find_cmd(Char *cmd, int prt)
 	ex = executable(*pv, sv, 0);
 #ifdef FASTHASH
 	if (!ex && (hashdebug & 2)) {
-	    xprintf(CGETS(13, 10, "hash miss: "));
+	    xprintf("%s", CGETS(13, 10, "hash miss: "));
 	    ex = 1;	/* Force printing */
 	}
 #endif /* FASTHASH */
