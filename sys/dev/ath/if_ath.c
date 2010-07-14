@@ -2824,6 +2824,7 @@ ath_beacon_proc(void *arg, int pending)
 	 */
 	if (ath_hal_numtxpending(ah, sc->sc_bhalq) != 0) {
 		sc->sc_bmisscount++;
+		sc->sc_stats.ast_be_missed++;
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
