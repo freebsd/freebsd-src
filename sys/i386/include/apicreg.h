@@ -89,7 +89,7 @@
  * 2C0             Reserved
  * 2D0             Reserved
  * 2E0             Reserved
- * 2F0             Reserved
+ * 2F0             Local Vector Table (CMCI)       R/W
  * 300 ICR_LOW     Interrupt Command Reg. (0-31)   R/W
  * 310 ICR_HI      Interrupt Command Reg. (32-63)  R/W
  * 320             Local Vector Table (Timer)      R/W
@@ -172,7 +172,7 @@ struct LAPIC {
 	/* reserved */		PAD4;
 	/* reserved */		PAD4;
 	/* reserved */		PAD4;
-	/* reserved */		PAD4;
+	u_int32_t lvt_cmci;	PAD3;
 	u_int32_t icr_lo;	PAD3;
 	u_int32_t icr_hi;	PAD3;
 	u_int32_t lvt_timer;	PAD3;

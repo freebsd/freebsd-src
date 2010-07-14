@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
+#include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
@@ -119,6 +120,7 @@ static struct lvt lvts[LVT_MAX + 1] = {
 	{ 1, 1, 0, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
 	{ 1, 1, 1, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
+	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_CMC_INT },	/* CMCI */
 };
 
 static inthand_t *ioint_handlers[] = {
@@ -226,6 +228,9 @@ lapic_init(vm_paddr_t addr)
 	setidt(APIC_ERROR_INT, IDTVEC(errorint), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* XXX: Thermal interrupt */
+
+	/* Local APIC CMCI. */
+	setidt(APIC_CMC_INT, IDTVEC(cmcint), SDT_SYSIGT, SEL_KPL, 0);
 }
 
 /*
@@ -251,7 +256,7 @@ lapic_create(u_int apic_id, int boot_cpu)
 	 */
 	lapics[apic_id].la_present = 1;
 	lapics[apic_id].la_id = apic_id;
-	for (i = 0; i < LVT_MAX; i++) {
+	for (i = 0; i <= LVT_MAX; i++) {
 		lapics[apic_id].la_lvts[i] = lvts[i];
 		lapics[apic_id].la_lvts[i].lvt_active = 0;
 	}
@@ -276,6 +281,7 @@ lapic_dump(const char* str)
 	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pmc: 0x%08x\n",
 	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
 	    lapic->lvt_pcint);
+	printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
 }
 
 void
@@ -350,6 +356,10 @@ lapic_setup(int boot)
 		}
 	}
 
+	/* Program the CMCI LVT entry if present. */
+	if (maxlvt >= LVT_CMCI)
+		lapic->lvt_cmci = lvt_mode(la, LVT_CMCI, lapic->lvt_cmci);
+	    
 	intr_restore(eflags);
 }
 
@@ -850,6 +860,34 @@ lapic_timer_enable_intr(void)
 	value = lapic->lvt_timer;
 	value &= ~APIC_LVT_M;
 	lapic->lvt_timer = value;
+}
+
+void
+lapic_handle_cmc(void)
+{
+
+	lapic_eoi();
+	cmc_intr();
+}
+
+/*
+ * Called from the mca_init() to activate the CMC interrupt if this CPU is
+ * responsible for monitoring any MC banks for CMC events.  Since mca_init()
+ * is called prior to lapic_setup() during boot, this just needs to unmask
+ * this CPU's LVT_CMCI entry.
+ */
+void
+lapic_enable_cmc(void)
+{
+	u_int apic_id;
+
+	apic_id = PCPU_GET(apic_id);
+	KASSERT(lapics[apic_id].la_present,
+	    ("%s: missing APIC %u", __func__, apic_id));
+	lapics[apic_id].la_lvts[LVT_CMCI].lvt_masked = 0;
+	lapics[apic_id].la_lvts[LVT_CMCI].lvt_active = 1;
+	if (bootverbose)
+		printf("lapic%u: CMCI unmasked\n", apic_id);
 }
 
 void
