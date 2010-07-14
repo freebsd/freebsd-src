@@ -108,7 +108,8 @@
 #define	APIC_LOCAL_INTS	240
 #define	APIC_ERROR_INT	APIC_LOCAL_INTS
 #define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
-#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
+#define	APIC_CMC_INT	(APIC_LOCAL_INTS + 2)
+#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 3)
 
 #define	IPI_RENDEZVOUS		(APIC_IPI_INTS)	/* Inter-CPU rendezvous. */
 #define	IPI_INVLTLB		(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
@@ -136,7 +137,8 @@
 #define	APIC_LOCAL_INTS	240
 #define	APIC_ERROR_INT	APIC_LOCAL_INTS
 #define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
-#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
+#define	APIC_CMC_INT	(APIC_LOCAL_INTS + 2)
+#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 3)
 
 #define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
 #define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
@@ -172,7 +174,8 @@
 #define	LVT_ERROR	3
 #define	LVT_PMC		4
 #define	LVT_THERMAL	5
-#define	LVT_MAX		LVT_THERMAL
+#define	LVT_CMCI	6
+#define	LVT_MAX		LVT_CMCI
 
 #ifndef LOCORE
 
@@ -208,8 +211,8 @@ struct apic_enumerator {
 inthand_t
 	IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
 	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
-	IDTVEC(apic_isr7), IDTVEC(errorint), IDTVEC(spuriousint),
-	IDTVEC(timerint);
+	IDTVEC(apic_isr7), IDTVEC(cmcint), IDTVEC(errorint),
+	IDTVEC(spuriousint), IDTVEC(timerint);
 
 extern vm_paddr_t lapic_paddr;
 extern int apic_cpuids[];
@@ -239,6 +242,7 @@ void	lapic_create(u_int apic_id, int boot_cpu);
 void	lapic_disable(void);
 void	lapic_disable_pmc(void);
 void	lapic_dump(const char *str);
+void	lapic_enable_cmc(void);
 int	lapic_enable_pmc(void);
 void	lapic_eoi(void);
 int	lapic_id(void);
@@ -247,6 +251,7 @@ int	lapic_intr_pending(u_int vector);
 void	lapic_ipi_raw(register_t icrlo, u_int dest);
 void	lapic_ipi_vectored(u_int vector, int dest);
 int	lapic_ipi_wait(int delay);
+void	lapic_handle_cmc(void);
 void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
