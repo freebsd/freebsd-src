@@ -2514,7 +2514,7 @@ sched_pctcpu(struct thread *td)
 	if (ts == NULL)
 		return (0);
 
-	thread_lock(td);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (ts->ts_ticks) {
 		int rtick;
 
@@ -2523,7 +2523,6 @@ sched_pctcpu(struct thread *td)
 		rtick = min(SCHED_TICK_HZ(ts) / SCHED_TICK_SECS, hz);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
 	}
-	thread_unlock(td);
 
 	return (pctcpu);
 }

@@ -1407,6 +1407,7 @@ sched_pctcpu(struct thread *td)
 {
 	struct td_sched *ts;
 
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
 	return (ts->ts_pctcpu);
 }
