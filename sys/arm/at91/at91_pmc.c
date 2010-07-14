@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr.h>
 #include <arm/at91/at91rm92reg.h>
+#include <arm/at91/at91sam9g20reg.h>
 
 #include <arm/at91/at91_pmcreg.h>
 #include <arm/at91/at91_pmcvar.h>
@@ -119,19 +120,53 @@ static struct at91_pmc_clock mck = {
 	.refcnt = 0,
 };
 
+#ifdef AT91SAM9G20
+#define IRQ_UDP AT91SAM9G20_IRQ_UDP
+#define IRQ_UHP	AT91SAM9G20_IRQ_UHP
+#else
+#define IRQ_UDP AT91RM92_IRQ_UDP
+#define IRQ_UHP AT91RM92_IRQ_UHP
+#endif /* AT91SAM9G20 */
+
 static struct at91_pmc_clock udc_clk = {
 	.name = "udc_clk",
 	.parent = &mck,
-	.pmc_mask = 1 << AT91RM92_IRQ_UDP,
+	.pmc_mask = 1 << IRQ_UDP,
 	.set_mode = &at91_pmc_set_periph_mode
 };
 
 static struct at91_pmc_clock ohci_clk = {
 	.name = "ohci_clk",
 	.parent = &mck,
-	.pmc_mask = 1 << AT91RM92_IRQ_UHP,
+	.pmc_mask = 1 << IRQ_UHP,
 	.set_mode = &at91_pmc_set_periph_mode
 };
+
+#ifdef AT91SAM9G20
+static struct at91_pmc_clock macb_clk = {
+	.name = "macb_clk",
+	.parent = &mck,
+
+	.pmc_mask = 1 << 21,
+	.set_mode = &at91_pmc_set_periph_mode
+};
+
+static struct at91_pmc_clock spi0_clk = {
+	.name = "spi0_clk",
+	.parent = &mck,
+
+	.pmc_mask = 1 << 12,
+	.set_mode = &at91_pmc_set_periph_mode
+};
+
+static struct at91_pmc_clock spi1_clk = {
+	.name = "spi1_clk",
+	.parent = &mck,
+	.pmc_mask = 1 << 13,
+	.set_mode = &at91_pmc_set_periph_mode
+};
+
+#endif /* AT91SAM9G20 */
 
 static struct at91_pmc_clock *const clock_list[] = {
 	&slck,
@@ -142,6 +177,11 @@ static struct at91_pmc_clock *const clock_list[] = {
 	&uhpck,
 	&mck,
 	&udc_clk,
+#ifdef AT91SAM9G20
+	&macb_clk,
+	&spi0_clk,
+	&spi1_clk,
+#endif /* AT91SAM9G20 */
 	&ohci_clk
 };
 
@@ -257,15 +297,24 @@ at91_pmc_pll_rate(int freq, uint32_t reg, int is_pllb)
 	uint32_t mul, div;
 
 	div = reg & 0xff;
+#ifdef AT91SAM9G20
+	if (is_pllb)
+		mul = (reg >> 16) & 0x3f;
+	else
+		mul = (reg >> 16) & 0xff;
+#else
 	mul = (reg >> 16) & 0x7ff;
+#endif
 	if (div != 0 && mul != 0) {
 		freq /= div;
 		freq *= mul + 1;
 	} else {
 		freq = 0;
 	}
+#ifndef AT91SAM9G20
 	if (is_pllb && (reg & (1 << 28)))
 		freq >>= 1;
+#endif
 	return (freq);
 }
 
@@ -328,10 +377,12 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 	 */
 	sc->pllb_init = at91_pmc_pll_calc(main_clock, 48000000 * 2) |0x10000000;
 	pllb.hz = at91_pmc_pll_rate(main_clock, sc->pllb_init, 1);
-	WR4(sc, PMC_PCDR, (1 << AT91RM92_IRQ_UHP) | (1 << AT91RM92_IRQ_UDP));
+	WR4(sc, PMC_PCDR, (1 << IRQ_UHP) | (1 << IRQ_UDP));
 	WR4(sc, PMC_SCDR, PMC_SCER_UHP | PMC_SCER_UDP);
 	WR4(sc, CKGR_PLLBR, 0);
+#ifndef AT91SAM9G20
 	WR4(sc, PMC_SCER, PMC_SCER_MCKUDP);
+#endif
 
 	/*
 	 * MCK and PCU derive from one of the primary clocks.  Initialize
