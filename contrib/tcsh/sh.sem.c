@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.sem.c,v 3.78 2006/10/14 17:23:39 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.sem.c,v 3.80 2009/06/25 21:27:38 christos Exp $ */
 /*
  * sh.sem.c: I/O redirections and job forking. A touchy issue!
  *	     Most stuff with builtins is incorrect
@@ -33,7 +33,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.sem.c,v 3.78 2006/10/14 17:23:39 christos Exp $")
+RCSID("$tcsh: sh.sem.c,v 3.80 2009/06/25 21:27:38 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -326,7 +326,14 @@ execute(struct command *t, volatile int wanttty, int *pipein, int *pipeout,
 	 * Don't run if we're not in a tty
 	 * Don't run if we're not really executing 
 	 */
-	if (t->t_dtyp == NODE_COMMAND && !bifunc && !noexec && intty) {
+	/*
+	 * CR  -  Charles Ross Aug 2005
+	 * added "isoutatty".
+	 * The new behavior is that the jobcmd won't be executed
+	 * if stdout (SHOUT) isnt attached to a tty.. IE when
+	 * redirecting, or using backquotes etc..
+	 */
+	if (t->t_dtyp == NODE_COMMAND && !bifunc && !noexec && intty && isoutatty) {
 	    Char *cmd = unparse(t);
 
 	    cleanup_push(cmd, xfree);
@@ -833,7 +840,7 @@ doio(struct command *t, int *pipein, int *pipeout)
 	}
 	else if (flags & F_PIPEIN) {
 	    xclose(0);
-	    (void) dup(pipein[0]);
+	    IGNORE(dup(pipein[0]));
 	    xclose(pipein[0]);
 	    xclose(pipein[1]);
 	}
@@ -843,7 +850,7 @@ doio(struct command *t, int *pipein, int *pipeout)
 	}
 	else {
 	    xclose(0);
-	    (void) dup(OLDSTD);
+	    IGNORE(dup(OLDSTD));
 #if defined(CLOSE_ON_EXEC) && defined(CLEX_DUPS)
 	    /*
 	     * PWP: Unlike Bezerkeley 4.3, FIONCLEX for Pyramid is preserved
@@ -896,12 +903,12 @@ doio(struct command *t, int *pipein, int *pipeout)
     }
     else if (flags & F_PIPEOUT) {
 	xclose(1);
-	(void) dup(pipeout[1]);
+	IGNORE(dup(pipeout[1]));
 	is1atty = 0;
     }
     else {
 	xclose(1);
-	(void) dup(SHOUT);
+	IGNORE(dup(SHOUT));
 	is1atty = isoutatty;
 # if defined(CLOSE_ON_EXEC) && defined(CLEX_DUPS)
 	(void) close_on_exec(1, 0);
@@ -910,11 +917,11 @@ doio(struct command *t, int *pipein, int *pipeout)
 
     xclose(2);
     if (flags & F_STDERR) {
-	(void) dup(1);
+	IGNORE(dup(1));
 	is2atty = is1atty;
     }
     else {
-	(void) dup(SHDIAG);
+	IGNORE(dup(SHDIAG));
 	is2atty = isdiagatty;
 # if defined(CLOSE_ON_EXEC) && defined(CLEX_DUPS)
 	(void) close_on_exec(2, 0);

@@ -9,7 +9,7 @@ dnl Written by Kaveh Ghazi (ghazi@caip.rutgers.edu) 5/11/96.
 dnl
 
 AC_PREREQ([2.59])dnl Minimum Autoconf version required.
-AC_INIT([tcsh], [6.15.00], [http://bugs.gw.com/])
+AC_INIT([tcsh], [6.17.00], [http://bugs.gw.com/])
 AC_CONFIG_SRCDIR([tc.vers.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_TESTDIR([.], [.])
@@ -98,6 +98,16 @@ case "${host}" in
 
   ## FreeBSD systems
   *-*-freebsd*)
+    tcsh_config_file=bsd4.4
+  ;;
+
+  ## MidnightBSD systems
+  *-*-midnightbsd*)
+    tcsh_config_file=bsd4.4
+  ;;
+  
+  ## DragonFlyBSD systems
+  *-*-dragonfly*)
     tcsh_config_file=bsd4.4
   ;;
 
@@ -231,6 +241,11 @@ case "${host}" in
   ## Apollo Domain/OS
   *-apollo-*)
     tcsh_config_file=apollo
+  ;;
+
+  ## QNX6
+  *-qnx6*)
+    tcsh_config_file=qnx6
   ;;
 
   * )

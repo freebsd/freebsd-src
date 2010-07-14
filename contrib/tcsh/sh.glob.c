@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.glob.c,v 3.74 2006/10/14 17:57:21 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.glob.c,v 3.76 2008/06/19 15:20:56 christos Exp $ */
 /*
  * sh.glob.c: Regular expression expansion
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.glob.c,v 3.74 2006/10/14 17:57:21 christos Exp $")
+RCSID("$tcsh: sh.glob.c,v 3.76 2008/06/19 15:20:56 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -667,6 +667,7 @@ dobackp(Char *cp, int literal)
 	    }
 	if (!*rp) {
 	oops:
+	    cleanup_until(&bb);
 	    stderror(ERR_UNMATCHED, '`');
 	}
 	ep = Strnsave(lp, rp - lp);
@@ -842,10 +843,10 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
 	    c = (*ip++ & TRIM);
 	    if (c == 0)
 		break;
-#ifdef WINNT_NATIVE
+#if defined(WINNT_NATIVE) || defined(__CYGWIN__)
 	    if (c == '\r')
 	    	c = ' ';
-#endif /* WINNT_NATIVE */
+#endif /* WINNT_NATIVE || __CYGWIN__ */
 	    if (c == '\n') {
 		/*
 		 * Continue around the loop one more time, so that we can eat
