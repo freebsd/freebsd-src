@@ -1987,6 +1987,24 @@ psignal_event(struct proc *p, struct sigevent *sigev, ksiginfo_t *ksi)
 	return (tdsignal(p, td, ksi->ksi_signo, ksi));
 }
 
+void
+tdksignal(struct thread *td, int sig, ksiginfo_t *ksi)
+{
+	ksiginfo_t ksi_thunk;
+
+	/*
+	 * If ksi is NULL, use ksi_thunk and provide semantics
+	 * identical to tdsignal() in 9.0+.
+	 */
+	if (ksi == NULL) {
+		ksi = &ksi_thunk;
+		ksiginfo_init(ksi);
+		ksi->ksi_signo = sig;
+		ksi->ksi_code = SI_KERNEL;
+	}
+	(void) tdsignal(td->td_proc, td, sig, ksi);
+}
+
 int
 tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 {

@@ -345,6 +345,7 @@ void	sigexit(struct thread *td, int signum) __dead2;
 int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
+void	tdksignal(struct thread *td, int sig, ksiginfo_t *ksi);
 void	tdsigcleanup(struct thread *td);
 int	tdsignal(struct proc *p, struct thread *td, int sig,
 	    ksiginfo_t *ksi);
