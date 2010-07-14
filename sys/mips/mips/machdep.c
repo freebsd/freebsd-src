@@ -344,19 +344,19 @@ mips_vector_init(void)
 	if (MipsCacheEnd - MipsCache > 0x80)
 		panic("startup: Cache error code too large");
 
-	bcopy(MipsTLBMiss, (void *)TLB_MISS_EXC_VEC,
+	bcopy(MipsTLBMiss, (void *)MIPS_UTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
 #if defined(TARGET_OCTEON) || defined(TARGET_XLR_XLS)
 /* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
-	bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
+	bcopy(MipsTLBMiss, (void *)MIPS3_XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 #endif
 
-	bcopy(MipsException, (void *)GEN_EXC_VEC,
+	bcopy(MipsException, (void *)MIPS3_GEN_EXC_VEC,
 	      MipsExceptionEnd - MipsException);
 
-	bcopy(MipsCache, (void *)CACHE_ERR_EXC_VEC,
+	bcopy(MipsCache, (void *)MIPS3_CACHE_ERR_EXC_VEC,
 	      MipsCacheEnd - MipsCache);
 
 	/*
@@ -369,10 +369,10 @@ mips_vector_init(void)
 	 * Mask all interrupts. Each interrupt will be enabled
 	 * when handler is installed for it
 	 */
-	set_intr_mask(ALL_INT_MASK);
+	set_intr_mask(MIPS_SR_INT_MASK);
 
 	/* Clear BEV in SR so we start handling our own exceptions */
-	mips_wr_status(mips_rd_status() & ~SR_BOOT_EXC_VEC);
+	mips_wr_status(mips_rd_status() & ~MIPS_SR_BEV);
 }
 
 /*
@@ -489,7 +489,7 @@ spinlock_exit(void)
 void
 cpu_idle(int busy)
 {
-	if (mips_rd_status() & SR_INT_ENAB)
+	if (mips_rd_status() & MIPS_SR_INT_IE)
 		__asm __volatile ("wait");
 	else
 		panic("ints disabled in idleproc!");
