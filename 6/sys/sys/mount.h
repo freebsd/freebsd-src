@@ -176,6 +176,7 @@ struct mount {
 	int		mnt_secondary_writes;   /* (i) # of secondary writes */
 #define	mnt_endzero2	mnt_secondary_accwrites
 	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
+	struct thread	*mnt_susp_owner;	/* (i) thread owning suspension. */
 	int		mnt_ref;		/* (i) Reference count */
 	int		mnt_gen;		/* struct mount generation */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */

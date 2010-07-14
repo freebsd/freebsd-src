@@ -242,26 +242,6 @@ checkfilesys(char *filesys)
 			exit(7);	/* Filesystem clean, report it now */
 		exit(0);
 	}
-	if (ckclean && skipclean) {
-		/*
-		 * If file system is su+j, check it here.
-		 */
-		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
-			exit(3);	/* Cannot read superblock */
-		close(fsreadfd);
-#if 0
-		if ((sblock.fs_flags & FS_SUJ) != 0) {
-			if (sblock.fs_clean == 1) {
-				pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
-				exit(0);
-			}
-			suj_check(filesys);
-			if (chkdoreload(mntp) == 0)
-				exit(0);
-			exit(4);
-		}
-#endif
-	}
 	/*
 	 * If we are to do a background check:
 	 *	Get the mount point information of the file system
@@ -364,13 +344,17 @@ checkfilesys(char *filesys)
 	/*
 	 * Determine if we can and should do journal recovery.
 	 */
-	if ((sblock.fs_flags & (FS_SUJ | FS_NEEDSFSCK)) == FS_SUJ) {
-		if (preen || reply("USE JOURNAL?")) {
-			if (suj_check(filesys) == 0)
-				goto out;
-			/* suj_check failed, fall through. */
+	if ((sblock.fs_flags & FS_SUJ) == FS_SUJ) {
+		if ((sblock.fs_flags & FS_NEEDSFSCK) != FS_NEEDSFSCK && skipclean) {
+			if (preen || reply("USE JOURNAL?")) {
+				if (suj_check(filesys) == 0) {
++                                       printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
+					goto out;
+				}
+				/* suj_check failed, fall through. */
+			}
+			printf("** Skipping journal, falling through to full fsck\n");
 		}
-		printf("** Skipping journal, falling through to full fsck\n");
 		/*
 		 * Write the superblock so we don't try to recover the
 		 * journal on another pass.
@@ -400,7 +384,10 @@ checkfilesys(char *filesys)
 	 */
 	if (duplist) {
 		if (preen || usedsoftdep)
-			pfatal("INTERNAL ERROR: dups with -p");
+			pfatal("INTERNAL ERROR: dups with %s%s%s",
+			    preen ? "-p" : "",
+			    (preen && usedsoftdep) ? " and " : "",
+			    usedsoftdep ? "softupdates" : "");
 		printf("** Phase 1b - Rescan For More DUPS\n");
 		pass1b();
 	}

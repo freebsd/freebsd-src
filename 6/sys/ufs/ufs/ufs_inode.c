@@ -73,8 +73,11 @@ ufs_inactive(ap)
 	struct thread *td = ap->a_td;
 	mode_t mode;
 	int error = 0;
+	int isize;
+	int rdonly;
 	struct mount *mp;
 
+	rdonly = (vp->v_mount->mnt_flag & MNT_RDONLY);
 	mp = NULL;
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_inactive: pushing active", vp);
@@ -84,8 +87,7 @@ ufs_inactive(ap)
 	if (ip->i_mode == 0)
 		goto out;
 	if ((ip->i_effnlink == 0 && DOINGSOFTDEP(vp)) ||
-	    (ip->i_nlink <= 0 &&
-	     (vp->v_mount->mnt_flag & MNT_RDONLY) == 0)) {
+	    (ip->i_nlink <= 0 && !rdonly)) {
 	loop:
 		if (vn_start_secondary_write(vp, &mp, V_NOWAIT) != 0) {
 			/* Cannot delete file while file system is suspended */
@@ -113,18 +115,21 @@ ufs_inactive(ap)
 			}
 		}
 	}
-	if (ip->i_effnlink == 0 && DOINGSOFTDEP(vp))
-		softdep_releasefile(ip);
-	if (ip->i_nlink <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
+	isize = ip->i_size;
+	if (ip->i_ump->um_fstype == UFS2)
+		isize += ip->i_din2->di_extsize;
+	if (ip->i_effnlink <= 0 && isize && !rdonly) {
 #ifdef QUOTA
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, FORCE);
 #endif
+		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL,
+		    NOCRED, td);
+	}
+	if (ip->i_nlink <= 0 && ip->i_mode && !rdonly) {
 #ifdef UFS_EXTATTR
 		ufs_extattr_vnode_inactive(vp, td);
 #endif
-		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL,
-		    NOCRED, td);
 		/*
 		 * Setting the mode to zero needs to wait for the inode
 		 * to be written just as does a change to the link count.

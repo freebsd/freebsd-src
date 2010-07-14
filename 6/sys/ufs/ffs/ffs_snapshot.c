@@ -136,7 +136,7 @@ struct snapdata {
 static int cgaccount(int, struct vnode *, struct buf *, int);
 static int expunge_ufs1(struct vnode *, struct inode *, struct fs *,
     int (*)(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *, struct fs *,
-    ufs_lbn_t, int), int);
+    ufs_lbn_t, int), int, int);
 static int indiracct_ufs1(struct vnode *, struct vnode *, int,
     ufs1_daddr_t, ufs_lbn_t, ufs_lbn_t, ufs_lbn_t, ufs_lbn_t, struct fs *,
     int (*)(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *, struct fs *,
@@ -149,7 +149,7 @@ static int mapacct_ufs1(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *,
     struct fs *, ufs_lbn_t, int);
 static int expunge_ufs2(struct vnode *, struct inode *, struct fs *,
     int (*)(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *, struct fs *,
-    ufs_lbn_t, int), int);
+    ufs_lbn_t, int), int, int);
 static int indiracct_ufs2(struct vnode *, struct vnode *, int,
     ufs2_daddr_t, ufs_lbn_t, ufs_lbn_t, ufs_lbn_t, ufs_lbn_t, struct fs *,
     int (*)(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *, struct fs *,
@@ -580,10 +580,10 @@ loop:
 		snaplistsize += 1;
 		if (xp->i_ump->um_fstype == UFS1)
 			error = expunge_ufs1(vp, xp, copy_fs, fullacct_ufs1,
-			    BLK_NOCOPY);
+			    BLK_NOCOPY, 1);
 		else
 			error = expunge_ufs2(vp, xp, copy_fs, fullacct_ufs2,
-			    BLK_NOCOPY);
+			    BLK_NOCOPY, 1);
 		if (blkno)
 			DIP_SET(xp, i_db[loc], blkno);
 		if (!error)
@@ -601,6 +601,26 @@ loop:
 		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);
+	/*
+	 * Erase the journal file from the snapshot.
+	 */
+	if (fs->fs_flags & FS_SUJ) {
+		error = softdep_journal_lookup(mp, &xvp);
+		if (error) {
+			free(copy_fs->fs_csp, M_UFSMNT);
+			bawrite(sbp);
+			sbp = NULL;
+			goto out1;
+		}
+		xp = VTOI(xvp);
+		if (xp->i_ump->um_fstype == UFS1)
+			error = expunge_ufs1(vp, xp, copy_fs, fullacct_ufs1,
+			    BLK_NOCOPY, 0);
+		else
+			error = expunge_ufs2(vp, xp, copy_fs, fullacct_ufs2,
+			    BLK_NOCOPY, 0);
+		vput(xvp);
+	}
 	/*
 	 * If there already exist snapshots on this filesystem, grab a
 	 * reference to their shared lock. If this is the first snapshot
@@ -699,10 +719,10 @@ out1:
 			break;
 		if (xp->i_ump->um_fstype == UFS1)
 			error = expunge_ufs1(vp, xp, fs, snapacct_ufs1,
-			    BLK_SNAP);
+			    BLK_SNAP, 0);
 		else
 			error = expunge_ufs2(vp, xp, fs, snapacct_ufs2,
-			    BLK_SNAP);
+			    BLK_SNAP, 0);
 		if (error == 0 && xp->i_effnlink == 0) {
 			error = ffs_freefile(ump,
 					     copy_fs,
@@ -727,9 +747,11 @@ out1:
 	 * the list of allocated blocks in i_snapblklist.
 	 */
 	if (ip->i_ump->um_fstype == UFS1)
-		error = expunge_ufs1(vp, ip, copy_fs, mapacct_ufs1, BLK_SNAP);
+		error = expunge_ufs1(vp, ip, copy_fs, mapacct_ufs1,
+		    BLK_SNAP, 0);
 	else
-		error = expunge_ufs2(vp, ip, copy_fs, mapacct_ufs2, BLK_SNAP);
+		error = expunge_ufs2(vp, ip, copy_fs, mapacct_ufs2,
+		    BLK_SNAP, 0);
 	if (error) {
 		fs->fs_snapinum[snaploc] = 0;
 		FREE(snapblklist, M_UFSMNT);
@@ -954,13 +976,14 @@ cgaccount(cg, vp, nbp, passno)
  * is reproduced once each for UFS1 and UFS2.
  */
 static int
-expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
+expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 	struct vnode *snapvp;
 	struct inode *cancelip;
 	struct fs *fs;
 	int (*acctfunc)(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *,
 	    struct fs *, ufs_lbn_t, int);
 	int expungetype;
+	int clearmode;
 {
 	int i, error, indiroff;
 	ufs_lbn_t lbn, rlbn;
@@ -978,6 +1001,8 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 	if (lbn < NDADDR) {
 		blkno = VTOI(snapvp)->i_din1->di_db[lbn];
 	} else {
+		if (DOINGSOFTDEP(snapvp))
+			softdep_prealloc(snapvp, MNT_WAIT);
 		td->td_pflags |= TDP_COWINPROGRESS;
 		error = ffs_balloc_ufs1(snapvp, lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
@@ -1005,7 +1030,7 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 	 */
 	dip = (struct ufs1_dinode *)bp->b_data +
 	    ino_to_fsbo(fs, cancelip->i_number);
-	if (expungetype == BLK_NOCOPY || cancelip->i_effnlink == 0)
+	if (clearmode || cancelip->i_effnlink == 0)
 		dip->di_mode = 0;
 	dip->di_size = 0;
 	dip->di_blocks = 0;
@@ -1234,13 +1259,14 @@ mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
  * is reproduced once each for UFS1 and UFS2.
  */
 static int
-expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
+expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 	struct vnode *snapvp;
 	struct inode *cancelip;
 	struct fs *fs;
 	int (*acctfunc)(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
 	    struct fs *, ufs_lbn_t, int);
 	int expungetype;
+	int clearmode;
 {
 	int i, error, indiroff;
 	ufs_lbn_t lbn, rlbn;
@@ -1258,6 +1284,8 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
 	if (lbn < NDADDR) {
 		blkno = VTOI(snapvp)->i_din2->di_db[lbn];
 	} else {
+		if (DOINGSOFTDEP(snapvp))
+			softdep_prealloc(snapvp, MNT_WAIT);
 		td->td_pflags |= TDP_COWINPROGRESS;
 		error = ffs_balloc_ufs2(snapvp, lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
@@ -1285,7 +1313,7 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
 	 */
 	dip = (struct ufs2_dinode *)bp->b_data +
 	    ino_to_fsbo(fs, cancelip->i_number);
-	if (expungetype == BLK_NOCOPY)
+	if (clearmode || cancelip->i_effnlink == 0)
 		dip->di_mode = 0;
 	dip->di_size = 0;
 	dip->di_blocks = 0;
@@ -1660,6 +1688,13 @@ ffs_snapremove(vp)
 	ip->i_flags &= ~SF_SNAPSHOT;
 	DIP_SET(ip, i_flags, ip->i_flags);
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
+	/*
+	 * The dirtied indirects must be written out before
+	 * softdep_setup_freeblocks() is called.  Otherwise indir_trunc()
+	 * may find indirect pointers using the magic BLK_* values.
+	 */
+	if (DOINGSOFTDEP(vp))
+		ffs_syncvnode(vp, MNT_WAIT);
 #ifdef QUOTA
 	/*
 	 * Reenable disk quotas for ex-snapshot file.
@@ -1718,6 +1753,8 @@ retry:
 		goto retry;
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
+		if (DOINGSOFTDEP(vp))
+			softdep_prealloc(vp, MNT_WAIT);
 		/*
 		 * Lookup block being written.
 		 */
@@ -2264,6 +2301,8 @@ ffs_copyonwrite(devvp, bp)
 	}
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
+		if (DOINGSOFTDEP(vp))
+			softdep_prealloc(vp, MNT_WAIT);
 		/*
 		 * We ensure that everything of our own that needs to be
 		 * copied will be done at the time that ffs_snapshot is

@@ -905,7 +905,8 @@ vn_start_write(vp, mpp, flags)
 	/*
 	 * Check on status of suspension.
 	 */
-	while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
+	while (mp->mnt_susp_owner != curthread &&
+	    (mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
 		if (flags & V_NOWAIT) {
 			error = EWOULDBLOCK;
 			goto unlock;
@@ -1087,11 +1088,16 @@ vfs_write_suspend(mp)
 	int error;
 
 	MNT_ILOCK(mp);
+	if (mp->mnt_susp_owner == curthread) {
+		MNT_IUNLOCK(mp);
+		return (EALREADY);
+	}
 	if (mp->mnt_kern_flag & MNTK_SUSPEND) {
 		MNT_IUNLOCK(mp);
 		return (0);
 	}
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
+	mp->mnt_susp_owner = curthread;
 	if (mp->mnt_writeopcount > 0)
 		(void) msleep(&mp->mnt_writeopcount, 
 		    MNT_MTX(mp), (PUSER - 1)|PDROP, "suspwt", 0);
@@ -1114,6 +1120,7 @@ vfs_write_resume(mp)
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
 		mp->mnt_kern_flag &= ~(MNTK_SUSPEND | MNTK_SUSPEND2 |
 				       MNTK_SUSPENDED);
+		mp->mnt_susp_owner = NULL;
 		wakeup(&mp->mnt_writeopcount);
 		wakeup(&mp->mnt_flag);
 	}

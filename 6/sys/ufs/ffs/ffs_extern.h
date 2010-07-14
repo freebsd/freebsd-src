@@ -142,5 +142,6 @@ int     softdep_process_worklist(struct mount *, int);
 int     softdep_fsync(struct vnode *);
 int	softdep_waitidle(struct mount *);
 int	softdep_prealloc(struct vnode *, int);
+int	softdep_journal_lookup(struct mount *, struct vnode **);
 
 #endif /* !_UFS_FFS_EXTERN_H */

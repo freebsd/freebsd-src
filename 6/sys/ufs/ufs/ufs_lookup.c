@@ -162,13 +162,14 @@ ufs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 	int nameiop = cnp->cn_nameiop;
 	struct thread *td = cnp->cn_thread;
 	ino_t saved_ino;
-	ino_t ino, ino1;
-	int ltype;
+	ino_t ino;
 
 	if (vpp != NULL)
 		*vpp = NULL;
 
 	dp = VTOI(vdp);
+	if (dp->i_effnlink == 0)
+		return (ENOENT);
 
 	/*
 	 * Create a vm object if vmiodirenable is enabled.
@@ -180,7 +181,6 @@ ufs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
 
 	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
 
-restart:
 	bp = NULL;
 	slotoffset = -1;
 
