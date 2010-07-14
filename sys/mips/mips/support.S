@@ -1251,11 +1251,13 @@ END(atomic_subtract_8)
 	/*
 	 * I don't know if these routines have the right number of
 	 * NOPs in it for all processors.  XXX
+	 *
+	 * Maybe it would be better to just leave this undefined in that case.
 	 */
 LEAF(atomic_store_64)
-	mfc0	t1, COP_0_STATUS_REG
-	and	t2, t1, ~SR_INT_ENAB
-	mtc0	t2, COP_0_STATUS_REG
+	mfc0	t1, MIPS_COP_0_STATUS
+	and	t2, t1, ~MIPS_SR_INT_IE
+	mtc0	t2, MIPS_COP_0_STATUS
 	nop
 	nop
 	nop
@@ -1266,7 +1268,7 @@ LEAF(atomic_store_64)
 	sd	t0, (a0)
 	nop
 	nop
-	mtc0	t1,COP_0_STATUS_REG
+	mtc0	t1,MIPS_COP_0_STATUS
 	nop
 	nop
 	nop
@@ -1276,9 +1278,9 @@ LEAF(atomic_store_64)
 END(atomic_store_64)
 
 LEAF(atomic_load_64)
-	mfc0	t1, COP_0_STATUS_REG
-	and	t2, t1, ~SR_INT_ENAB
-	mtc0	t2, COP_0_STATUS_REG
+	mfc0	t1, MIPS_COP_0_STATUS
+	and	t2, t1, ~MIPS_SR_INT_IE
+	mtc0	t2, MIPS_COP_0_STATUS
 	nop
 	nop
 	nop
@@ -1289,7 +1291,7 @@ LEAF(atomic_load_64)
 	sd	t0, (a1)
 	nop
 	nop
-	mtc0	t1,COP_0_STATUS_REG
+	mtc0	t1,MIPS_COP_0_STATUS
 	nop
 	nop
 	nop
@@ -1355,13 +1357,13 @@ esym:	.word	0
 
 	.text
 LEAF(breakpoint)
-	break	BREAK_SOVER_VAL
+	break	MIPS_BREAK_SOVER_VAL
 	jr	ra
 	nop
 	END(breakpoint)
 
 LEAF(setjmp)
-	mfc0	v0, COP_0_STATUS_REG	# Later the "real" spl value!
+	mfc0	v0, MIPS_COP_0_STATUS	# Later the "real" spl value!
 	REG_S	s0, (SZREG * PREG_S0)(a0)
 	REG_S	s1, (SZREG * PREG_S1)(a0)
 	REG_S	s2, (SZREG * PREG_S2)(a0)
@@ -1391,7 +1393,7 @@ LEAF(longjmp)
 	REG_L	s7, (SZREG * PREG_S7)(a0)
 	REG_L	s8, (SZREG * PREG_S8)(a0)
 	REG_L	sp, (SZREG * PREG_SP)(a0)
-	mtc0	v0, COP_0_STATUS_REG	# Later the "real" spl value!
+	mtc0	v0, MIPS_COP_0_STATUS	# Later the "real" spl value!
 	ITLBNOPFIX
 	jr	ra
 	li	v0, 1			# longjmp return
@@ -1438,14 +1440,14 @@ END(casuptr)
  */	
 LEAF(octeon_enable_shadow)
 	li      t1, 0x0000000f
-	mtc0	t1, COP_0_INFO
+	mtc0	t1, MIPS_COP_0_INFO
 	jr	ra
 	nop
 END(octeon_enable_shadow)
 
 	
 LEAF(octeon_get_shadow)
-	mfc0	v0, COP_0_INFO
+	mfc0	v0, MIPS_COP_0_INFO
 	jr	ra
 	nop
 END(octeon_get_shadow)
