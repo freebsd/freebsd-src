@@ -1448,6 +1448,7 @@ scratch_ram {
 		mask	EXIT_MSG_LOOP		0x08
 		mask	CONT_MSG_LOOP		0x04
 		mask	CONT_TARG_SESSION	0x02
+		mask	SPARE			0x01
 		alias	RETURN_1
 	}
 	ARG_2 {
