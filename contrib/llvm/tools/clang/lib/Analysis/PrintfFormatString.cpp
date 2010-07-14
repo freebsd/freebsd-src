@@ -553,6 +553,7 @@ ArgTypeResult OptionalAmount::getArgType(ASTContext &Ctx) const {
 //===----------------------------------------------------------------------===//
 const char *ConversionSpecifier::toString() const {
   switch (kind) {
+  case bArg: return "b";
   case dArg: return "d";
   case iArg: return "i";
   case oArg: return "o";
