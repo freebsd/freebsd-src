@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 /* XEN has own timer routines now. */
 #ifndef XEN
 
-#include "opt_clock.h"
 #include "opt_kdtrace.h"
 
 #include <sys/param.h>
@@ -53,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/intr_machdep.h>
-#include <machine/md_var.h>
 #include <machine/smp.h>
 
 #ifdef KDTRACE_HOOKS
