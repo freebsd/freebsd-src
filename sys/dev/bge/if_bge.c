@@ -3246,11 +3246,6 @@ bge_reset(struct bge_softc *sc)
 		DELAY(10);
 	}
 
-	if (sc->bge_flags & BGE_FLAG_PCIE) {
-		reset = bge_readmem_ind(sc, 0x7C00);
-		bge_writemem_ind(sc, 0x7C00, reset | (1 << 25));
-	}
-
 	/* Fix up byte swapping. */
 	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_DMA_SWAP_OPTIONS |
 	    BGE_MODECTL_BYTESWAP_DATA);
@@ -3275,7 +3270,9 @@ bge_reset(struct bge_softc *sc)
 
 	/* XXX: Broadcom Linux driver. */
 	if (sc->bge_flags & BGE_FLAG_PCIE &&
-	    sc->bge_chipid != BGE_CHIPID_BCM5750_A0) {
+	    sc->bge_chipid != BGE_CHIPID_BCM5750_A0 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5785) {
+		/* Enable Data FIFO protection. */
 		val = CSR_READ_4(sc, 0x7C00);
 		CSR_WRITE_4(sc, 0x7C00, val | (1 << 25));
 	}
