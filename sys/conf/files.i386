@@ -349,6 +349,7 @@ isa/syscons_isa.c		optional sc
 isa/vga_isa.c			optional vga
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
+kern/timeevents.c		standard
 libkern/divdi3.c		standard
 libkern/ffsl.c			standard
 libkern/flsl.c			standard
@@ -390,4 +391,3 @@ x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
 x86/x86/msi.c			optional apic pci
-x86/x86/timeevents.c		standard
