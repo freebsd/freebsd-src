@@ -170,7 +170,7 @@ errmalloc(size_t n)
  * the error and then offer to fallback to normal fsck.
  */
 static void
-err_suj(const char * restrict fmt, ...)
+err_suj(const char *fmt, ...)
 {
 	va_list ap;
 
