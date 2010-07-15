@@ -542,7 +542,6 @@ nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 	 * file.
 	 */
 	NFSLOCKV4ROOTMUTEX();
-	nfsv4_relref(&nfsv4rootfs_lock);
 	do {
 		igotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
 		    NFSV4ROOTLOCKMUTEXPTR);
