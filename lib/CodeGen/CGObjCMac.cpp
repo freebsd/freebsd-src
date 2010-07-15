@@ -32,6 +32,7 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Support/CallSite.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetData.h"
 #include <cstdio>
@@ -1649,29 +1650,17 @@ CGObjCCommonMac::EmitLegacyMessageSend(CodeGen::CodeGenFunction &CGF,
            "Result type mismatch!");
 
   llvm::Constant *Fn = NULL;
-  if (CGM.ReturnTypeUsesSret(FnInfo)) {
+  if (CGM.ReturnTypeUsesSRet(FnInfo)) {
     Fn = (ObjCABI == 2) ?  ObjCTypes.getSendStretFn2(IsSuper)
       : ObjCTypes.getSendStretFn(IsSuper);
-  } else if (ResultType->isRealFloatingType()) {
-    if (ObjCABI == 2) {
-      if (const BuiltinType *BT = ResultType->getAs<BuiltinType>()) {
-        BuiltinType::Kind k = BT->getKind();
-        Fn = (k == BuiltinType::LongDouble) ? ObjCTypes.getSendFpretFn2(IsSuper)
-          : ObjCTypes.getSendFn2(IsSuper);
-      } else {
-        Fn = ObjCTypes.getSendFn2(IsSuper);
-      }
-    } else
-      // FIXME. This currently matches gcc's API for x86-32. May need to change
-      // for others if we have their API.
-      Fn = ObjCTypes.getSendFpretFn(IsSuper);
+  } else if (CGM.ReturnTypeUsesFPRet(ResultType)) {
+    Fn = (ObjCABI == 2) ? ObjCTypes.getSendFpretFn2(IsSuper)
+      : ObjCTypes.getSendFpretFn(IsSuper);
   } else {
     Fn = (ObjCABI == 2) ? ObjCTypes.getSendFn2(IsSuper)
       : ObjCTypes.getSendFn(IsSuper);
   }
-  assert(Fn && "EmitLegacyMessageSend - unknown API");
-  Fn = llvm::ConstantExpr::getBitCast(Fn,
-                                      llvm::PointerType::getUnqual(FTy));
+  Fn = llvm::ConstantExpr::getBitCast(Fn, llvm::PointerType::getUnqual(FTy));
   return CGF.EmitCall(FnInfo, Fn, Return, ActualArgs);
 }
 
@@ -2697,8 +2686,7 @@ void CGObjCMac::EmitTryOrSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
 
   // Push a normal cleanup to leave the try scope.
   {
-    CodeGenFunction::CleanupBlock
-      FinallyScope(CGF, CodeGenFunction::NormalCleanup);
+    CodeGenFunction::CleanupBlock FinallyScope(CGF, NormalCleanup);
 
     // Check whether we need to call objc_exception_try_exit.
     // In optimized code, this branch will always be folded.
@@ -5295,7 +5283,7 @@ CodeGen::RValue CGObjCNonFragileABIMac::EmitMessageSend(
                               FunctionType::ExtInfo());
   llvm::Constant *Fn = 0;
   std::string Name("\01l_");
-  if (CGM.ReturnTypeUsesSret(FnInfo)) {
+  if (CGM.ReturnTypeUsesSRet(FnInfo)) {
 #if 0
     // unlike what is documented. gcc never generates this API!!
     if (Receiver->getType() == ObjCTypes.ObjectPtrTy) {
@@ -5312,14 +5300,9 @@ CodeGen::RValue CGObjCNonFragileABIMac::EmitMessageSend(
         Fn = ObjCTypes.getMessageSendStretFixupFn();
         Name += "objc_msgSend_stret_fixup";
       }
-  } else if (!IsSuper && ResultType->isRealFloatingType()) {
-    if (ResultType->isSpecificBuiltinType(BuiltinType::LongDouble)) {
-      Fn = ObjCTypes.getMessageSendFpretFixupFn();
-      Name += "objc_msgSend_fpret_fixup";
-    } else {
-      Fn = ObjCTypes.getMessageSendFixupFn();
-      Name += "objc_msgSend_fixup";
-    }
+  } else if (!IsSuper && CGM.ReturnTypeUsesFPRet(ResultType)) {
+    Fn = ObjCTypes.getMessageSendFpretFixupFn();
+    Name += "objc_msgSend_fpret_fixup";
   } else {
 #if 0
 // unlike what is documented. gcc never generates this API!!
@@ -5693,8 +5676,7 @@ CGObjCNonFragileABIMac::EmitSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
 
   // Register an all-paths cleanup to release the lock.
   {
-    CodeGenFunction::CleanupBlock
-      ReleaseScope(CGF, CodeGenFunction::NormalAndEHCleanup);
+    CodeGenFunction::CleanupBlock ReleaseScope(CGF, NormalAndEHCleanup);
 
     CGF.Builder.CreateCall(ObjCTypes.getSyncExitFn(), SyncArg)
       ->setDoesNotThrow();
@@ -5713,6 +5695,22 @@ namespace {
     const Stmt *Body;
     llvm::BasicBlock *Block;
     llvm::Value *TypeInfo;
+  };
+
+  struct CallObjCEndCatch : EHScopeStack::LazyCleanup {
+    CallObjCEndCatch(bool MightThrow, llvm::Value *Fn) :
+      MightThrow(MightThrow), Fn(Fn) {}
+    bool MightThrow;
+    llvm::Value *Fn;
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      if (!MightThrow) {
+        CGF.Builder.CreateCall(Fn)->setDoesNotThrow();
+        return;
+      }
+
+      CGF.EmitCallOrInvoke(Fn, 0, 0);
+    }
   };
 }
 
@@ -5803,14 +5801,10 @@ void CGObjCNonFragileABIMac::EmitTryStmt(CodeGen::CodeGenFunction &CGF,
     Exn->setDoesNotThrow();
 
     // Add a cleanup to leave the catch.
-    {
-      CodeGenFunction::CleanupBlock
-        EndCatchBlock(CGF, CodeGenFunction::NormalAndEHCleanup);
-
-      // __objc_end_catch never throws.
-      CGF.Builder.CreateCall(ObjCTypes.getObjCEndCatchFn())
-        ->setDoesNotThrow();
-    }
+    bool EndCatchMightThrow = (Handler.Variable == 0);
+    CGF.EHStack.pushLazyCleanup<CallObjCEndCatch>(NormalAndEHCleanup,
+                                                  EndCatchMightThrow,
+                                                  ObjCTypes.getObjCEndCatchFn());
 
     // Bind the catch parameter if it exists.
     if (const VarDecl *CatchParam = Handler.Variable) {

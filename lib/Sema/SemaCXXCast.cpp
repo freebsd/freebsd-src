@@ -153,7 +153,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
   case tok::kw_const_cast:
     if (!TypeDependent)
       CheckConstCast(*this, Ex, DestType, OpRange, DestRange);
-    return Owned(new (Context) CXXConstCastExpr(DestType.getNonReferenceType(),
+    return Owned(new (Context) CXXConstCastExpr(
+                                        DestType.getNonLValueExprType(Context),
                                                 Ex, DestTInfo, OpLoc));
 
   case tok::kw_dynamic_cast: {
@@ -161,7 +162,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     CXXBaseSpecifierArray BasePath;
     if (!TypeDependent)
       CheckDynamicCast(*this, Ex, DestType, OpRange, DestRange, Kind, BasePath);
-    return Owned(new (Context)CXXDynamicCastExpr(DestType.getNonReferenceType(),
+    return Owned(new (Context)CXXDynamicCastExpr(
+                                          DestType.getNonLValueExprType(Context),
                                                  Kind, Ex, BasePath, DestTInfo,
                                                  OpLoc));
   }
@@ -170,7 +172,7 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     if (!TypeDependent)
       CheckReinterpretCast(*this, Ex, DestType, OpRange, DestRange, Kind);
     return Owned(new (Context) CXXReinterpretCastExpr(
-                                  DestType.getNonReferenceType(),
+                                  DestType.getNonLValueExprType(Context),
                                   Kind, Ex, CXXBaseSpecifierArray(), 
                                   DestTInfo, OpLoc));
   }
@@ -180,7 +182,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     if (!TypeDependent)
       CheckStaticCast(*this, Ex, DestType, OpRange, Kind, BasePath);
     
-    return Owned(new (Context) CXXStaticCastExpr(DestType.getNonReferenceType(),
+    return Owned(new (Context) CXXStaticCastExpr(
+                                         DestType.getNonLValueExprType(Context),
                                                  Kind, Ex, BasePath,
                                                  DestTInfo, OpLoc));
   }
@@ -1049,6 +1052,8 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
                                         const SourceRange &OpRange,
                                         unsigned &msg,
                                         CastExpr::CastKind &Kind) {
+  bool IsLValueCast = false;
+  
   DestType = Self.Context.getCanonicalType(DestType);
   QualType SrcType = SrcExpr->getType();
   if (const ReferenceType *DestTypeTmp = DestType->getAs<ReferenceType>()) {
@@ -1066,6 +1071,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     // This code does this transformation for the checked types.
     DestType = Self.Context.getPointerType(DestTypeTmp->getPointeeType());
     SrcType = Self.Context.getPointerType(SrcType);
+    IsLValueCast = true;
   }
 
   // Canonicalize source for comparison.
@@ -1092,7 +1098,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     }
 
     // A valid member pointer cast.
-    Kind = CastExpr::CK_BitCast;
+    Kind = IsLValueCast? CastExpr::CK_LValueBitCast : CastExpr::CK_BitCast;
     return TC_Success;
   }
 
@@ -1209,7 +1215,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     
   // Not casting away constness, so the only remaining check is for compatible
   // pointer categories.
-  Kind = CastExpr::CK_BitCast;
+  Kind = IsLValueCast? CastExpr::CK_LValueBitCast : CastExpr::CK_BitCast;
 
   if (SrcType->isFunctionPointerType()) {
     if (DestType->isFunctionPointerType()) {
