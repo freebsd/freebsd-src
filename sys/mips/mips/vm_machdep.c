@@ -543,14 +543,6 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	return (0);
 }
 
-void
-cpu_throw(struct thread *old, struct thread *new)
-{
-
-	func_2args_asmmacro(&mips_cpu_throw, old, new);
-	panic("mips_cpu_throw() returned");
-}
-
 #ifdef DDB
 #include <ddb/ddb.h>
 
