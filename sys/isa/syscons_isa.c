@@ -141,10 +141,16 @@ scresume(device_t dev)
 
 	sc = &main_softc;
 
+	if (sc->cur_scp == NULL)
+		return (0);
+
 	sc->suspend_in_progress--;
-	if (sc->suspend_in_progress == 0)
+	if (sc->suspend_in_progress == 0) {
 		if (!sc_no_suspend_vtswitch && sc_cur_scr != 0)
 			sc_switch_scr(sc, sc_cur_scr);
+		else
+			mark_all(sc->cur_scp);
+	}
 
 	return (0);
 }
