@@ -52,18 +52,22 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
     cast<ObjCContainerDecl>(ClassCategory.getAs<Decl>());
 
   if (ObjCCategoryDecl *CDecl = dyn_cast<ObjCCategoryDecl>(ClassDecl))
-    if (CDecl->IsClassExtension())
-      return HandlePropertyInClassExtension(S, CDecl, AtLoc,
-                                            FD, GetterSel, SetterSel,
-                                            isAssign, isReadWrite,
-                                            Attributes,
-                                            isOverridingProperty, TSI,
-                                            MethodImplKind);
-
+    if (CDecl->IsClassExtension()) {
+      DeclPtrTy Res = HandlePropertyInClassExtension(S, CDecl, AtLoc,
+                                           FD, GetterSel, SetterSel,
+                                           isAssign, isReadWrite,
+                                           Attributes,
+                                           isOverridingProperty, TSI,
+                                           MethodImplKind);
+      if (Res)
+        CheckObjCPropertyAttributes(Res, AtLoc, Attributes);
+      return Res;
+    }
+  
   DeclPtrTy Res =  DeclPtrTy::make(CreatePropertyDecl(S, ClassDecl, AtLoc, FD,
-                                            GetterSel, SetterSel,
-                                            isAssign, isReadWrite,
-                                            Attributes, TSI, MethodImplKind));
+                                              GetterSel, SetterSel,
+                                              isAssign, isReadWrite,
+                                              Attributes, TSI, MethodImplKind));
   // Validate the attributes on the @property.
   CheckObjCPropertyAttributes(Res, AtLoc, Attributes);
   return Res;
@@ -926,6 +930,10 @@ void Sema::DefaultSynthesizeProperties (Scope *S, ObjCImplDecl* IMPDecl,
         Prop->getPropertyImplementation() == ObjCPropertyDecl::Optional ||
         IMPDecl->FindPropertyImplIvarDecl(Prop->getIdentifier()))
       continue;
+    // Property may have been synthesized by user.
+    if (IMPDecl->FindPropertyImplDecl(Prop->getIdentifier()))
+      continue;
+
     ActOnPropertyImplDecl(S, IMPDecl->getLocation(), IMPDecl->getLocation(),
                           true, DeclPtrTy::make(IMPDecl),
                           Prop->getIdentifier(), Prop->getIdentifier());

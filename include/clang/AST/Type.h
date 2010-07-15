@@ -629,13 +629,15 @@ public:
   bool isAtLeastAsQualifiedAs(QualType Other) const;
   QualType getNonReferenceType() const;
 
-  /// \brief Determine the type of an expression that calls a function of
-  /// with the given result type.
+  /// \brief Determine the type of a (typically non-lvalue) expression with the
+  /// specified result type.
   ///                       
-  /// This routine removes a top-level reference (since there are no 
+  /// This routine should be used for expressions for which the return type is
+  /// explicitly specified (e.g., in a cast or call) and isn't necessarily
+  /// an lvalue. It removes a top-level reference (since there are no 
   /// expressions of reference type) and deletes top-level cvr-qualifiers
   /// from non-class types (in C++) or all types (in C).
-  QualType getCallResultType(ASTContext &Context) const;
+  QualType getNonLValueExprType(ASTContext &Context) const;
   
   /// getDesugaredType - Return the specified type with any "sugar" removed from
   /// the type.  This takes off typedefs, typeof's etc.  If the outer level of
@@ -784,25 +786,36 @@ private:
   
   /// \brief Linkage of this type.
   mutable unsigned CachedLinkage : 2;
-  
+
+  /// \brief FromPCH - Whether this type comes from a PCH file.
+  mutable bool FromPCH : 1;
+
+  /// \brief Set whether this type comes from a PCH file.
+  void setFromPCH(bool V = true) const { 
+    FromPCH = V;
+  }
+
 protected:
   /// \brief Compute the linkage of this type.
   virtual Linkage getLinkageImpl() const;
   
-  enum { BitsRemainingInType = 20 };
+  enum { BitsRemainingInType = 19 };
 
   // silence VC++ warning C4355: 'this' : used in base member initializer list
   Type *this_() { return this; }
   Type(TypeClass tc, QualType Canonical, bool dependent)
     : CanonicalType(Canonical.isNull() ? QualType(this_(), 0) : Canonical),
       TC(tc), Dependent(dependent), LinkageKnown(false), 
-      CachedLinkage(NoLinkage) {}
+      CachedLinkage(NoLinkage), FromPCH(false) {}
   virtual ~Type() {}
   virtual void Destroy(ASTContext& C);
   friend class ASTContext;
 
 public:
   TypeClass getTypeClass() const { return static_cast<TypeClass>(TC); }
+
+  /// \brief Whether this type comes from a PCH file.
+  bool isFromPCH() const { return FromPCH; }
 
   bool isCanonicalUnqualified() const {
     return CanonicalType.getTypePtr() == this;
@@ -1907,7 +1920,7 @@ public:
   /// \brief Determine the type of an expression that calls a function of
   /// this type.
   QualType getCallResultType(ASTContext &Context) const { 
-    return getResultType().getCallResultType(Context);
+    return getResultType().getNonLValueExprType(Context);
   }
 
   static llvm::StringRef getNameForCallConv(CallingConv CC);

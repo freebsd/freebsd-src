@@ -62,11 +62,36 @@ EHScopeStack::getEnclosingEHCleanup(iterator it) const {
         return stabilize(it);
       return cast<EHCleanupScope>(*it).getEnclosingEHCleanup();
     }
+    if (isa<EHLazyCleanupScope>(*it)) {
+      if (cast<EHLazyCleanupScope>(*it).isEHCleanup())
+        return stabilize(it);
+      return cast<EHLazyCleanupScope>(*it).getEnclosingEHCleanup();
+    }
     ++it;
   } while (it != end());
   return stable_end();
 }
 
+
+void *EHScopeStack::pushLazyCleanup(CleanupKind Kind, size_t Size) {
+  assert(((Size % sizeof(void*)) == 0) && "cleanup type is misaligned");
+  char *Buffer = allocate(EHLazyCleanupScope::getSizeForCleanupSize(Size));
+  bool IsNormalCleanup = Kind != EHCleanup;
+  bool IsEHCleanup = Kind != NormalCleanup;
+  EHLazyCleanupScope *Scope =
+    new (Buffer) EHLazyCleanupScope(IsNormalCleanup,
+                                    IsEHCleanup,
+                                    Size,
+                                    BranchFixups.size(),
+                                    InnermostNormalCleanup,
+                                    InnermostEHCleanup);
+  if (IsNormalCleanup)
+    InnermostNormalCleanup = stable_begin();
+  if (IsEHCleanup)
+    InnermostEHCleanup = stable_begin();
+
+  return Scope->getCleanupBuffer();
+}
 
 void EHScopeStack::pushCleanup(llvm::BasicBlock *NormalEntry,
                                llvm::BasicBlock *NormalExit,
@@ -86,11 +111,18 @@ void EHScopeStack::pushCleanup(llvm::BasicBlock *NormalEntry,
 void EHScopeStack::popCleanup() {
   assert(!empty() && "popping exception stack when not empty");
 
-  assert(isa<EHCleanupScope>(*begin()));
-  EHCleanupScope &Cleanup = cast<EHCleanupScope>(*begin());
-  InnermostNormalCleanup = Cleanup.getEnclosingNormalCleanup();
-  InnermostEHCleanup = Cleanup.getEnclosingEHCleanup();
-  StartOfData += EHCleanupScope::getSize();
+  if (isa<EHLazyCleanupScope>(*begin())) {
+    EHLazyCleanupScope &Cleanup = cast<EHLazyCleanupScope>(*begin());
+    InnermostNormalCleanup = Cleanup.getEnclosingNormalCleanup();
+    InnermostEHCleanup = Cleanup.getEnclosingEHCleanup();
+    StartOfData += Cleanup.getAllocatedSize();
+  } else {
+    assert(isa<EHCleanupScope>(*begin()));
+    EHCleanupScope &Cleanup = cast<EHCleanupScope>(*begin());
+    InnermostNormalCleanup = Cleanup.getEnclosingNormalCleanup();
+    InnermostEHCleanup = Cleanup.getEnclosingEHCleanup();
+    StartOfData += EHCleanupScope::getSize();
+  }
 
   // Check whether we can shrink the branch-fixups stack.
   if (!BranchFixups.empty()) {
@@ -144,7 +176,11 @@ void EHScopeStack::popNullFixups() {
   assert(hasNormalCleanups());
 
   EHScopeStack::iterator it = find(InnermostNormalCleanup);
-  unsigned MinSize = cast<EHCleanupScope>(*it).getFixupDepth();
+  unsigned MinSize;
+  if (isa<EHCleanupScope>(*it))
+    MinSize = cast<EHCleanupScope>(*it).getFixupDepth();
+  else
+    MinSize = cast<EHLazyCleanupScope>(*it).getFixupDepth();
   assert(BranchFixups.size() >= MinSize && "fixup stack out of order");
 
   while (BranchFixups.size() > MinSize &&
@@ -364,6 +400,33 @@ static llvm::Constant *getCleanupValue(CodeGenFunction &CGF) {
   return llvm::ConstantInt::get(CGF.Builder.getInt32Ty(), 0);
 }
 
+namespace {
+  /// A cleanup to free the exception object if its initialization
+  /// throws.
+  struct FreeExceptionCleanup : EHScopeStack::LazyCleanup {
+    FreeExceptionCleanup(llvm::Value *ShouldFreeVar,
+                         llvm::Value *ExnLocVar)
+      : ShouldFreeVar(ShouldFreeVar), ExnLocVar(ExnLocVar) {}
+
+    llvm::Value *ShouldFreeVar;
+    llvm::Value *ExnLocVar;
+    
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      llvm::BasicBlock *FreeBB = CGF.createBasicBlock("free-exnobj");
+      llvm::BasicBlock *DoneBB = CGF.createBasicBlock("free-exnobj.done");
+
+      llvm::Value *ShouldFree = CGF.Builder.CreateLoad(ShouldFreeVar,
+                                                       "should-free-exnobj");
+      CGF.Builder.CreateCondBr(ShouldFree, FreeBB, DoneBB);
+      CGF.EmitBlock(FreeBB);
+      llvm::Value *ExnLocLocal = CGF.Builder.CreateLoad(ExnLocVar, "exnobj");
+      CGF.Builder.CreateCall(getFreeExceptionFn(CGF), ExnLocLocal)
+        ->setDoesNotThrow();
+      CGF.EmitBlock(DoneBB);
+    }
+  };
+}
+
 // Emits an exception expression into the given location.  This
 // differs from EmitAnyExprToMem only in that, if a final copy-ctor
 // call is required, an exception within that copy ctor causes
@@ -388,22 +451,11 @@ static void EmitAnyExprToExn(CodeGenFunction &CGF, const Expr *E,
 
   // Make sure the exception object is cleaned up if there's an
   // exception during initialization.
-  // FIXME: StmtExprs probably force this to include a non-EH
-  // handler.
-  {
-    CodeGenFunction::CleanupBlock Cleanup(CGF, CodeGenFunction::EHCleanup);
-    llvm::BasicBlock *FreeBB = CGF.createBasicBlock("free-exnobj");
-    llvm::BasicBlock *DoneBB = CGF.createBasicBlock("free-exnobj.done");
-
-    llvm::Value *ShouldFree = CGF.Builder.CreateLoad(ShouldFreeVar,
-                                                     "should-free-exnobj");
-    CGF.Builder.CreateCondBr(ShouldFree, FreeBB, DoneBB);
-    CGF.EmitBlock(FreeBB);
-    llvm::Value *ExnLocLocal = CGF.Builder.CreateLoad(ExnLocVar, "exnobj");
-    CGF.Builder.CreateCall(getFreeExceptionFn(CGF), ExnLocLocal)
-      ->setDoesNotThrow();
-    CGF.EmitBlock(DoneBB);
-  }
+  // FIXME: stmt expressions might require this to be a normal
+  // cleanup, too.
+  CGF.EHStack.pushLazyCleanup<FreeExceptionCleanup>(EHCleanup,
+                                                    ShouldFreeVar,
+                                                    ExnLocVar);
   EHScopeStack::stable_iterator Cleanup = CGF.EHStack.stable_begin();
 
   CGF.Builder.CreateStore(ExnLoc, ExnLocVar);
@@ -598,12 +650,27 @@ void CodeGenFunction::EnterCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
 /// affect exception handling.  Currently, the only non-EH scopes are
 /// normal-only cleanup scopes.
 static bool isNonEHScope(const EHScope &S) {
-  return isa<EHCleanupScope>(S) && !cast<EHCleanupScope>(S).isEHCleanup();
+  switch (S.getKind()) {
+  case EHScope::Cleanup:
+    return !cast<EHCleanupScope>(S).isEHCleanup();
+  case EHScope::LazyCleanup:
+    return !cast<EHLazyCleanupScope>(S).isEHCleanup();
+  case EHScope::Filter:
+  case EHScope::Catch:
+  case EHScope::Terminate:
+    return false;
+  }
+
+  // Suppress warning.
+  return false;
 }
 
 llvm::BasicBlock *CodeGenFunction::getInvokeDestImpl() {
   assert(EHStack.requiresLandingPad());
   assert(!EHStack.empty());
+
+  if (!Exceptions)
+    return 0;
 
   // Check the innermost scope for a cached landing pad.  If this is
   // a non-EH cleanup, we'll check enclosing scopes in EmitLandingPad.
@@ -713,6 +780,12 @@ llvm::BasicBlock *CodeGenFunction::EmitLandingPad() {
          I != E; ++I) {
 
     switch (I->getKind()) {
+    case EHScope::LazyCleanup:
+      if (!HasEHCleanup)
+        HasEHCleanup = cast<EHLazyCleanupScope>(*I).isEHCleanup();
+      // We otherwise don't care about cleanups.
+      continue;
+
     case EHScope::Cleanup:
       if (!HasEHCleanup)
         HasEHCleanup = cast<EHCleanupScope>(*I).isEHCleanup();
@@ -947,19 +1020,45 @@ llvm::BasicBlock *CodeGenFunction::EmitLandingPad() {
   return LP;
 }
 
+namespace {
+  /// A cleanup to call __cxa_end_catch.  In many cases, the caught
+  /// exception type lets us state definitively that the thrown exception
+  /// type does not have a destructor.  In particular:
+  ///   - Catch-alls tell us nothing, so we have to conservatively
+  ///     assume that the thrown exception might have a destructor.
+  ///   - Catches by reference behave according to their base types.
+  ///   - Catches of non-record types will only trigger for exceptions
+  ///     of non-record types, which never have destructors.
+  ///   - Catches of record types can trigger for arbitrary subclasses
+  ///     of the caught type, so we have to assume the actual thrown
+  ///     exception type might have a throwing destructor, even if the
+  ///     caught type's destructor is trivial or nothrow.
+  struct CallEndCatch : EHScopeStack::LazyCleanup {
+    CallEndCatch(bool MightThrow) : MightThrow(MightThrow) {}
+    bool MightThrow;
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      if (!MightThrow) {
+        CGF.Builder.CreateCall(getEndCatchFn(CGF))->setDoesNotThrow();
+        return;
+      }
+
+      CGF.EmitCallOrInvoke(getEndCatchFn(CGF), 0, 0);
+    }
+  };
+}
+
 /// Emits a call to __cxa_begin_catch and enters a cleanup to call
 /// __cxa_end_catch.
-static llvm::Value *CallBeginCatch(CodeGenFunction &CGF, llvm::Value *Exn) {
+///
+/// \param EndMightThrow - true if __cxa_end_catch might throw
+static llvm::Value *CallBeginCatch(CodeGenFunction &CGF,
+                                   llvm::Value *Exn,
+                                   bool EndMightThrow) {
   llvm::CallInst *Call = CGF.Builder.CreateCall(getBeginCatchFn(CGF), Exn);
   Call->setDoesNotThrow();
 
-  {
-    CodeGenFunction::CleanupBlock EndCatchCleanup(CGF,
-                                  CodeGenFunction::NormalAndEHCleanup);
-
-    // __cxa_end_catch never throws, so this can just be a call.
-    CGF.Builder.CreateCall(getEndCatchFn(CGF))->setDoesNotThrow();
-  }
+  CGF.EHStack.pushLazyCleanup<CallEndCatch>(NormalAndEHCleanup, EndMightThrow);
 
   return Call;
 }
@@ -979,8 +1078,11 @@ static void InitCatchParam(CodeGenFunction &CGF,
   // If we're catching by reference, we can just cast the object
   // pointer to the appropriate pointer.
   if (isa<ReferenceType>(CatchType)) {
+    bool EndCatchMightThrow = cast<ReferenceType>(CatchType)->getPointeeType()
+      ->isRecordType();
+
     // __cxa_begin_catch returns the adjusted object pointer.
-    llvm::Value *AdjustedExn = CallBeginCatch(CGF, Exn);
+    llvm::Value *AdjustedExn = CallBeginCatch(CGF, Exn, EndCatchMightThrow);
     llvm::Value *ExnCast =
       CGF.Builder.CreateBitCast(AdjustedExn, LLVMCatchTy, "exn.byref");
     CGF.Builder.CreateStore(ExnCast, ParamAddr);
@@ -991,7 +1093,7 @@ static void InitCatchParam(CodeGenFunction &CGF,
   bool IsComplex = false;
   if (!CGF.hasAggregateLLVMType(CatchType) ||
       (IsComplex = CatchType->isAnyComplexType())) {
-    llvm::Value *AdjustedExn = CallBeginCatch(CGF, Exn);
+    llvm::Value *AdjustedExn = CallBeginCatch(CGF, Exn, false);
     
     // If the catch type is a pointer type, __cxa_begin_catch returns
     // the pointer by value.
@@ -1026,7 +1128,7 @@ static void InitCatchParam(CodeGenFunction &CGF,
   const llvm::Type *PtrTy = LLVMCatchTy->getPointerTo(0); // addrspace 0 ok
 
   if (RD->hasTrivialCopyConstructor()) {
-    llvm::Value *AdjustedExn = CallBeginCatch(CGF, Exn);
+    llvm::Value *AdjustedExn = CallBeginCatch(CGF, Exn, true);
     llvm::Value *Cast = CGF.Builder.CreateBitCast(AdjustedExn, PtrTy);
     CGF.EmitAggregateCopy(ParamAddr, Cast, CatchType);
     return;
@@ -1059,7 +1161,7 @@ static void InitCatchParam(CodeGenFunction &CGF,
   CGF.EHStack.popTerminate();
 
   // Finally we can call __cxa_begin_catch.
-  CallBeginCatch(CGF, Exn);
+  CallBeginCatch(CGF, Exn, true);
 }
 
 /// Begins a catch statement by initializing the catch variable and
@@ -1092,12 +1194,20 @@ static void BeginCatch(CodeGenFunction &CGF,
   VarDecl *CatchParam = S->getExceptionDecl();
   if (!CatchParam) {
     llvm::Value *Exn = CGF.Builder.CreateLoad(CGF.getExceptionSlot(), "exn");
-    CallBeginCatch(CGF, Exn);
+    CallBeginCatch(CGF, Exn, true);
     return;
   }
 
   // Emit the local.
   CGF.EmitLocalBlockVarDecl(*CatchParam, &InitCatchParam);
+}
+
+namespace {
+  struct CallRethrow : EHScopeStack::LazyCleanup {
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      CGF.EmitCallOrInvoke(getReThrowFn(CGF), 0, 0);
+    }
+  };
 }
 
 void CodeGenFunction::ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
@@ -1140,12 +1250,10 @@ void CodeGenFunction::ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
     BeginCatch(*this, C);
 
     // If there's an implicit rethrow, push a normal "cleanup" to call
-    // _cxa_rethrow.  This needs to happen before _cxa_end_catch is
-    // called.
-    if (ImplicitRethrow) {
-      CleanupBlock Rethrow(*this, NormalCleanup);
-      EmitCallOrInvoke(getReThrowFn(*this), 0, 0);
-    }
+    // _cxa_rethrow.  This needs to happen before __cxa_end_catch is
+    // called, and so it is pushed after BeginCatch.
+    if (ImplicitRethrow)
+      EHStack.pushLazyCleanup<CallRethrow>(NormalCleanup);
 
     // Perform the body of the catch.
     EmitStmt(C->getHandlerBlock());
@@ -1213,13 +1321,11 @@ CodeGenFunction::EnterFinallyBlock(const Stmt *Body,
 
   // Enter a normal cleanup which will perform the @finally block.
   {
-    CodeGenFunction::CleanupBlock
-      NormalCleanup(*this, CodeGenFunction::NormalCleanup);
+    CodeGenFunction::CleanupBlock Cleanup(*this, NormalCleanup);
 
     // Enter a cleanup to call the end-catch function if one was provided.
     if (EndCatchFn) {
-      CodeGenFunction::CleanupBlock
-        FinallyExitCleanup(CGF, CodeGenFunction::NormalAndEHCleanup);
+      CodeGenFunction::CleanupBlock FinallyExitCleanup(CGF, NormalAndEHCleanup);
 
       llvm::BasicBlock *EndCatchBB = createBasicBlock("finally.endcatch");
       llvm::BasicBlock *CleanupContBB = createBasicBlock("finally.cleanup.cont");
@@ -1228,7 +1334,7 @@ CodeGenFunction::EnterFinallyBlock(const Stmt *Body,
         Builder.CreateLoad(ForEHVar, "finally.endcatch");
       Builder.CreateCondBr(ShouldEndCatch, EndCatchBB, CleanupContBB);
       EmitBlock(EndCatchBB);
-      Builder.CreateCall(EndCatchFn)->setDoesNotThrow();
+      EmitCallOrInvoke(EndCatchFn, 0, 0); // catch-all, so might throw
       EmitBlock(CleanupContBB);
     }
 
@@ -1435,3 +1541,6 @@ CodeGenFunction::CleanupBlock::~CleanupBlock() {
   CGF.Builder.restoreIP(SavedIP);
 }
 
+EHScopeStack::LazyCleanup::~LazyCleanup() {
+  llvm_unreachable("LazyCleanup is indestructable");
+}
