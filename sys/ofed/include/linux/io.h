@@ -29,6 +29,22 @@
 #ifndef	_LINUX_IO_H_
 #define	_LINUX_IO_H_
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/pmap.h>
+
+static inline uint32_t
+__raw_readl(const volatile void *addr)
+{
+	return *(const volatile uint32_t *)addr;
+}
+
+static inline void
+__raw_writel(uint32_t b, volatile void *addr)
+{
+	*(volatile uint32_t *)addr = b;
+}
+
 static inline uint64_t
 __raw_readq(const volatile void *addr)
 {
@@ -40,5 +56,45 @@ __raw_writeq(uint64_t b, volatile void *addr)
 {
 	*(volatile uint64_t *)addr = b;
 }
+
+/*
+ * XXX This is all x86 specific.  It should be bus space access.
+ */
+#define mmiowb()
+
+#undef writel
+static inline void
+writel(uint32_t b, void *addr)
+{
+        *(volatile uint32_t *)addr = b;
+}
+
+#undef writeq
+static inline void
+writeq(uint64_t b, void *addr)
+{
+        *(volatile uint64_t *)addr = b;
+}
+
+#undef writeb
+static inline void
+writeb(uint8_t b, void *addr)
+{
+        *(volatile uint8_t *)addr = b;
+}
+
+#undef writew
+static inline void
+writew(uint16_t b, void *addr)
+{
+        *(volatile uint16_t *)addr = b;
+}
+
+#define	ioremap	pmap_mapdev
+
+/*
+ * iounmap is not defined as pmap_unmapdev requires a length that can
+ * not easily be determined on BSD.
+ */
 
 #endif	/* _LINUX_IO_H_ */
