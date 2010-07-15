@@ -216,7 +216,7 @@ LEAF(savectx)
 	move	v0, zero
 END(savectx)
 
-NON_LEAF(mips_cpu_throw, CALLFRAME_SIZ, ra)
+NON_LEAF(cpu_throw, CALLFRAME_SIZ, ra)
 	mfc0	t0, MIPS_COP_0_STATUS		# t0 = saved status register
 	nop
 	nop
@@ -227,7 +227,7 @@ NON_LEAF(mips_cpu_throw, CALLFRAME_SIZ, ra)
 						# thread's context, so jump 
 						# right to action
 	nop					# BDSLOT
-END(mips_cpu_throw)
+END(cpu_throw)
 
 /*
  * cpu_switch(struct thread *old, struct thread *new, struct mutex *mtx);
