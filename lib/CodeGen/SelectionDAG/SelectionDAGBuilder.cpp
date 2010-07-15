@@ -820,7 +820,7 @@ SDValue SelectionDAGBuilder::getValue(const Value *V) {
     unsigned InReg = It->second;
     RegsForValue RFV(*DAG.getContext(), TLI, InReg, V->getType());
     SDValue Chain = DAG.getEntryNode();
-    return N = RFV.getCopyFromRegs(DAG, FuncInfo, getCurDebugLoc(), Chain, NULL);
+    return N = RFV.getCopyFromRegs(DAG, FuncInfo, getCurDebugLoc(), Chain,NULL);
   }
 
   // Otherwise create a new SDValue and remember it.
@@ -3955,7 +3955,8 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
     if (AA->alias(I.getArgOperand(0), Size, I.getArgOperand(1), Size) ==
         AliasAnalysis::NoAlias) {
       DAG.setRoot(DAG.getMemcpy(getRoot(), dl, Op1, Op2, Op3, Align, isVol, 
-                                false, I.getArgOperand(0), 0, I.getArgOperand(1), 0));
+                                false, I.getArgOperand(0), 0,
+                                I.getArgOperand(1), 0));
       return 0;
     }
 
@@ -5522,10 +5523,12 @@ void SelectionDAGBuilder::visitInlineAsm(ImmutableCallSite CS) {
         break;
       }
 
-      if (OpInfo.ConstraintType == TargetLowering::C_Other) {
-        assert(!OpInfo.isIndirect &&
-               "Don't know how to handle indirect other inputs yet!");
+      // Treat indirect 'X' constraint as memory.
+      if (OpInfo.ConstraintType == TargetLowering::C_Other && 
+          OpInfo.isIndirect) 
+        OpInfo.ConstraintType = TargetLowering::C_Memory;
 
+      if (OpInfo.ConstraintType == TargetLowering::C_Other) {
         std::vector<SDValue> Ops;
         TLI.LowerAsmOperandForConstraint(InOperandVal, OpInfo.ConstraintCode[0],
                                          Ops, DAG);

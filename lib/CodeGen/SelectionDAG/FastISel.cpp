@@ -135,7 +135,7 @@ unsigned FastISel::getRegForValue(const Value *V) {
        !FuncInfo.StaticAllocaMap.count(cast<AllocaInst>(V))))
     return FuncInfo.InitializeRegForValue(V);
 
-  MachineBasicBlock::iterator SaveInsertPt = enterLocalValueArea();
+  SavePoint SaveInsertPt = enterLocalValueArea();
 
   // Materialize the value in a register. Emit any instructions in the
   // local value area.
@@ -286,18 +286,22 @@ void FastISel::recomputeInsertPt() {
     ++FuncInfo.InsertPt;
 }
 
-MachineBasicBlock::iterator FastISel::enterLocalValueArea() {
+FastISel::SavePoint FastISel::enterLocalValueArea() {
   MachineBasicBlock::iterator OldInsertPt = FuncInfo.InsertPt;
+  DebugLoc OldDL = DL;
   recomputeInsertPt();
-  return OldInsertPt;
+  DL = DebugLoc();
+  SavePoint SP = { OldInsertPt, OldDL };
+  return SP;
 }
 
-void FastISel::leaveLocalValueArea(MachineBasicBlock::iterator OldInsertPt) {
+void FastISel::leaveLocalValueArea(SavePoint OldInsertPt) {
   if (FuncInfo.InsertPt != FuncInfo.MBB->begin())
     LastLocalValue = llvm::prior(FuncInfo.InsertPt);
 
   // Restore the previous insert position.
-  FuncInfo.InsertPt = OldInsertPt;
+  FuncInfo.InsertPt = OldInsertPt.InsertPt;
+  DL = OldInsertPt.DL;
 }
 
 /// SelectBinaryOp - Select and emit code for a binary operator instruction,
@@ -779,39 +783,8 @@ FastISel::SelectFNeg(const User *I) {
 }
 
 bool
-FastISel::SelectLoad(const User *I) {
-  LoadInst *LI = const_cast<LoadInst *>(cast<LoadInst>(I));
-
-  // For a load from an alloca, make a limited effort to find the value
-  // already available in a register, avoiding redundant loads.
-  if (!LI->isVolatile() && isa<AllocaInst>(LI->getPointerOperand())) {
-    BasicBlock::iterator ScanFrom = LI;
-    if (const Value *V = FindAvailableLoadedValue(LI->getPointerOperand(),
-                                                  LI->getParent(), ScanFrom)) {
-      if (!V->use_empty() &&
-          (!isa<Instruction>(V) ||
-           cast<Instruction>(V)->getParent() == LI->getParent() ||
-           (isa<AllocaInst>(V) &&
-            FuncInfo.StaticAllocaMap.count(cast<AllocaInst>(V)))) &&
-          (!isa<Argument>(V) ||
-           LI->getParent() == &LI->getParent()->getParent()->getEntryBlock())) {
-      unsigned ResultReg = getRegForValue(V);
-      if (ResultReg != 0) {
-        UpdateValueMap(I, ResultReg);
-        return true;
-      }
-      }
-    }
-  }
-
-  return false;
-}
-
-bool
 FastISel::SelectOperator(const User *I, unsigned Opcode) {
   switch (Opcode) {
-  case Instruction::Load:
-    return SelectLoad(I);
   case Instruction::Add:
     return SelectBinaryOp(I, ISD::ADD);
   case Instruction::FAdd:

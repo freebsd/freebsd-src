@@ -2458,17 +2458,23 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
     // If the tailcall address may be in a register, then make sure it's
     // possible to register allocate for it. In 32-bit, the call address can
     // only target EAX, EDX, or ECX since the tail call must be scheduled after
-    // callee-saved registers are restored. In 64-bit, it's RAX, RCX, RDX, RSI,
-    // RDI, R8, R9, R11.
-    if (!isa<GlobalAddressSDNode>(Callee) &&
+    // callee-saved registers are restored. These happen to be the same
+    // registers used to pass 'inreg' arguments so watch out for those.
+    if (!Subtarget->is64Bit() &&
+        !isa<GlobalAddressSDNode>(Callee) &&
         !isa<ExternalSymbolSDNode>(Callee)) {
-      unsigned Limit = Subtarget->is64Bit() ? 8 : 3;
       unsigned NumInRegs = 0;
       for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
         CCValAssign &VA = ArgLocs[i];
-        if (VA.isRegLoc()) {
-          if (++NumInRegs == Limit)
+        if (!VA.isRegLoc())
+          continue;
+        unsigned Reg = VA.getLocReg();
+        switch (Reg) {
+        default: break;
+        case X86::EAX: case X86::EDX: case X86::ECX:
+          if (++NumInRegs == 3)
             return false;
+          break;
         }
       }
     }
@@ -7993,7 +7999,6 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
                                                        unsigned immOpc,
                                                        unsigned LoadOpc,
                                                        unsigned CXchgOpc,
-                                                       unsigned copyOpc,
                                                        unsigned notOpc,
                                                        unsigned EAXreg,
                                                        TargetRegisterClass *RC,
@@ -8070,7 +8075,7 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
   MIB.addReg(tt);
   (*MIB).addOperand(*argOpers[valArgIndx]);
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), EAXreg);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), EAXreg);
   MIB.addReg(t1);
 
   MIB = BuildMI(newMBB, dl, TII->get(CXchgOpc));
@@ -8081,7 +8086,7 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
   (*MIB).setMemRefs(bInstr->memoperands_begin(),
                     bInstr->memoperands_end());
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), destOper.getReg());
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), destOper.getReg());
   MIB.addReg(EAXreg);
 
   // insert branch
@@ -8117,7 +8122,6 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
 
   const TargetRegisterClass *RC = X86::GR32RegisterClass;
   const unsigned LoadOpc = X86::MOV32rm;
-  const unsigned copyOpc = X86::MOV32rr;
   const unsigned NotOpc = X86::NOT32r;
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   const BasicBlock *LLVM_BB = MBB->getBasicBlock();
@@ -8227,14 +8231,14 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
     MIB.addReg(t2);
   (*MIB).addOperand(*argOpers[valArgIndx + 1]);
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), X86::EAX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EAX);
   MIB.addReg(t1);
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), X86::EDX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EDX);
   MIB.addReg(t2);
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), X86::EBX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EBX);
   MIB.addReg(t5);
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), X86::ECX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::ECX);
   MIB.addReg(t6);
 
   MIB = BuildMI(newMBB, dl, TII->get(X86::LCMPXCHG8B));
@@ -8245,9 +8249,9 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
   (*MIB).setMemRefs(bInstr->memoperands_begin(),
                     bInstr->memoperands_end());
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), t3);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), t3);
   MIB.addReg(X86::EAX);
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), t4);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), t4);
   MIB.addReg(X86::EDX);
 
   // insert branch
@@ -8326,12 +8330,12 @@ X86TargetLowering::EmitAtomicMinMaxWithCustomInserter(MachineInstr *mInstr,
 
   unsigned t2 = F->getRegInfo().createVirtualRegister(X86::GR32RegisterClass);
   if (argOpers[valArgIndx]->isReg())
-    MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rr), t2);
+    MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), t2);
   else
     MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rr), t2);
   (*MIB).addOperand(*argOpers[valArgIndx]);
 
-  MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rr), X86::EAX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EAX);
   MIB.addReg(t1);
 
   MIB = BuildMI(newMBB, dl, TII->get(X86::CMP32rr));
@@ -8353,7 +8357,7 @@ X86TargetLowering::EmitAtomicMinMaxWithCustomInserter(MachineInstr *mInstr,
   (*MIB).setMemRefs(mInstr->memoperands_begin(),
                     mInstr->memoperands_end());
 
-  MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rr), destOper.getReg());
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), destOper.getReg());
   MIB.addReg(X86::EAX);
 
   // insert branch
@@ -8735,25 +8739,25 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::ATOMAND32:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND32rr,
                                                X86::AND32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32, X86::MOV32rr,
+                                               X86::LCMPXCHG32,
                                                X86::NOT32r, X86::EAX,
                                                X86::GR32RegisterClass);
   case X86::ATOMOR32:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR32rr,
                                                X86::OR32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32, X86::MOV32rr,
+                                               X86::LCMPXCHG32,
                                                X86::NOT32r, X86::EAX,
                                                X86::GR32RegisterClass);
   case X86::ATOMXOR32:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR32rr,
                                                X86::XOR32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32, X86::MOV32rr,
+                                               X86::LCMPXCHG32,
                                                X86::NOT32r, X86::EAX,
                                                X86::GR32RegisterClass);
   case X86::ATOMNAND32:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND32rr,
                                                X86::AND32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32, X86::MOV32rr,
+                                               X86::LCMPXCHG32,
                                                X86::NOT32r, X86::EAX,
                                                X86::GR32RegisterClass, true);
   case X86::ATOMMIN32:
@@ -8768,25 +8772,25 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::ATOMAND16:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND16rr,
                                                X86::AND16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16, X86::MOV16rr,
+                                               X86::LCMPXCHG16,
                                                X86::NOT16r, X86::AX,
                                                X86::GR16RegisterClass);
   case X86::ATOMOR16:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR16rr,
                                                X86::OR16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16, X86::MOV16rr,
+                                               X86::LCMPXCHG16,
                                                X86::NOT16r, X86::AX,
                                                X86::GR16RegisterClass);
   case X86::ATOMXOR16:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR16rr,
                                                X86::XOR16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16, X86::MOV16rr,
+                                               X86::LCMPXCHG16,
                                                X86::NOT16r, X86::AX,
                                                X86::GR16RegisterClass);
   case X86::ATOMNAND16:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND16rr,
                                                X86::AND16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16, X86::MOV16rr,
+                                               X86::LCMPXCHG16,
                                                X86::NOT16r, X86::AX,
                                                X86::GR16RegisterClass, true);
   case X86::ATOMMIN16:
@@ -8801,25 +8805,25 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::ATOMAND8:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND8rr,
                                                X86::AND8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8, X86::MOV8rr,
+                                               X86::LCMPXCHG8,
                                                X86::NOT8r, X86::AL,
                                                X86::GR8RegisterClass);
   case X86::ATOMOR8:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR8rr,
                                                X86::OR8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8, X86::MOV8rr,
+                                               X86::LCMPXCHG8,
                                                X86::NOT8r, X86::AL,
                                                X86::GR8RegisterClass);
   case X86::ATOMXOR8:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR8rr,
                                                X86::XOR8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8, X86::MOV8rr,
+                                               X86::LCMPXCHG8,
                                                X86::NOT8r, X86::AL,
                                                X86::GR8RegisterClass);
   case X86::ATOMNAND8:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND8rr,
                                                X86::AND8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8, X86::MOV8rr,
+                                               X86::LCMPXCHG8,
                                                X86::NOT8r, X86::AL,
                                                X86::GR8RegisterClass, true);
   // FIXME: There are no CMOV8 instructions; MIN/MAX need some other way.
@@ -8827,25 +8831,25 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::ATOMAND64:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND64rr,
                                                X86::AND64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64, X86::MOV64rr,
+                                               X86::LCMPXCHG64,
                                                X86::NOT64r, X86::RAX,
                                                X86::GR64RegisterClass);
   case X86::ATOMOR64:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR64rr,
                                                X86::OR64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64, X86::MOV64rr,
+                                               X86::LCMPXCHG64,
                                                X86::NOT64r, X86::RAX,
                                                X86::GR64RegisterClass);
   case X86::ATOMXOR64:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR64rr,
                                                X86::XOR64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64, X86::MOV64rr,
+                                               X86::LCMPXCHG64,
                                                X86::NOT64r, X86::RAX,
                                                X86::GR64RegisterClass);
   case X86::ATOMNAND64:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND64rr,
                                                X86::AND64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64, X86::MOV64rr,
+                                               X86::LCMPXCHG64,
                                                X86::NOT64r, X86::RAX,
                                                X86::GR64RegisterClass, true);
   case X86::ATOMMIN64:
