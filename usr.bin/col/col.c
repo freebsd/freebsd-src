@@ -461,7 +461,7 @@ flush_line(LINE *l)
 
 			if (compress_spaces && nspace > 1) {
 				while (1) {
-					int tab_col, tab_size;;
+					int tab_col, tab_size;
 
 					tab_col = (last_col + 8) & ~7;
 					if (tab_col > this_col)
