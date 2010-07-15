@@ -310,7 +310,6 @@ static const struct iwn_ident iwn_ident_table [] = {
 	{ 0x8086, 0x423D, "Intel(R) PRO/Wireless 5150" },
 	{ 0x8086, 0x4235, "Intel(R) PRO/Wireless 5300" },
 	{ 0x8086, 0x4236, "Intel(R) PRO/Wireless 5300" },
-	{ 0x8086, 0x4236, "Intel(R) PRO/Wireless 5350" },
 	{ 0x8086, 0x423A, "Intel(R) PRO/Wireless 5350" },
 	{ 0x8086, 0x423B, "Intel(R) PRO/Wireless 5350" },
 	{ 0x8086, 0x0083, "Intel(R) PRO/Wireless 1000" },
