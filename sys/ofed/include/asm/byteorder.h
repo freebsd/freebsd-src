@@ -31,6 +31,12 @@
 #include <sys/types.h>
 #include <sys/endian.h>
 
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define	__LITTLE_ENDIAN
+#else
+#define	__BIG_ENDIAN
+#endif
+
 #define	cpu_to_le64	htole64
 #define	le64_to_cpu	le64toh
 #define	cpu_to_le32	htole32
@@ -45,30 +51,34 @@
 #define	be16_to_cpu	be16toh
 #define	__be16_to_cpu	be16toh
 
-#define	cpu_to_le64p(x)	htole64(*(x))
-#define	le64_to_cpup(x)	le64toh(*(x))
-#define	cpu_to_le32p(x)	htole32(*(x))
-#define	le32_to_cpup(x)	le32toh(*(x))
-#define	cpu_to_le16p(x)	htole16(*(x))
-#define	le16_to_cpup(x)	le16toh(*(x))
-#define	cpu_to_be64p(x)	htobe64(*(x))
-#define	be64_to_cpup(x)	be64toh(*(x))
-#define	cpu_to_be32p(x)	htobe32(*(x))
-#define	be32_to_cpup(x)	be32toh(*(x))
-#define	cpu_to_be16p(x)	htobe16(*(x))
-#define	be16_to_cpup(x)	be16toh(*(x))
+#define	cpu_to_le64p(x)	htole64(*((uint64_t *)x))
+#define	le64_to_cpup(x)	le64toh(*((uint64_t *)x))
+#define	cpu_to_le32p(x)	htole32(*((uint32_t *)x))
+#define	le32_to_cpup(x)	le32toh(*((uint32_t *)x))
+#define	cpu_to_le16p(x)	htole16(*((uint16_t *)x))
+#define	le16_to_cpup(x)	le16toh(*((uint16_t *)x))
+#define	cpu_to_be64p(x)	htobe64(*((uint64_t *)x))
+#define	be64_to_cpup(x)	be64toh(*((uint64_t *)x))
+#define	cpu_to_be32p(x)	htobe32(*((uint32_t *)x))
+#define	be32_to_cpup(x)	be32toh(*((uint32_t *)x))
+#define	cpu_to_be16p(x)	htobe16(*((uint16_t *)x))
+#define	be16_to_cpup(x)	be16toh(*((uint16_t *)x))
 
-#define	cpu_to_le64s(x)	do { *(x) = cpu_to_le64p((x)) } while (0)
-#define	le64_to_cpus(x)	do { *(x) = le64_to_cpup((x)) } while (0)
-#define	cpu_to_le32s(x)	do { *(x) = cpu_to_le32p((x)) } while (0)
-#define	le32_to_cpus(x)	do { *(x) = le32_to_cpup((x)) } while (0)
-#define	cpu_to_le16s(x)	do { *(x) = cpu_to_le16p((x)) } while (0)
-#define	le16_to_cpus(x)	do { *(x) = le16_to_cpup((x)) } while (0)
-#define	cpu_to_be64s(x)	do { *(x) = cpu_to_be64p((x)) } while (0)
-#define	be64_to_cpus(x)	do { *(x) = be64_to_cpup((x)) } while (0)
-#define	cpu_to_be32s(x)	do { *(x) = cpu_to_be32p((x)) } while (0)
-#define	be32_to_cpus(x)	do { *(x) = be32_to_cpup((x)) } while (0)
-#define	cpu_to_be16s(x)	do { *(x) = cpu_to_be16p((x)) } while (0)
-#define	be16_to_cpus(x)	do { *(x) = be16_to_cpup((x)) } while (0)
+#define	cpu_to_le64s(x)	do { *((uint64_t *)x) = cpu_to_le64p((x)) } while (0)
+#define	le64_to_cpus(x)	do { *((uint64_t *)x) = le64_to_cpup((x)) } while (0)
+#define	cpu_to_le32s(x)	do { *((uint32_t *)x) = cpu_to_le32p((x)) } while (0)
+#define	le32_to_cpus(x)	do { *((uint32_t *)x) = le32_to_cpup((x)) } while (0)
+#define	cpu_to_le16s(x)	do { *((uint16_t *)x) = cpu_to_le16p((x)) } while (0)
+#define	le16_to_cpus(x)	do { *((uint16_t *)x) = le16_to_cpup((x)) } while (0)
+#define	cpu_to_be64s(x)	do { *((uint64_t *)x) = cpu_to_be64p((x)) } while (0)
+#define	be64_to_cpus(x)	do { *((uint64_t *)x) = be64_to_cpup((x)) } while (0)
+#define	cpu_to_be32s(x)	do { *((uint32_t *)x) = cpu_to_be32p((x)) } while (0)
+#define	be32_to_cpus(x)	do { *((uint32_t *)x) = be32_to_cpup((x)) } while (0)
+#define	cpu_to_be16s(x)	do { *((uint16_t *)x) = cpu_to_be16p((x)) } while (0)
+#define	be16_to_cpus(x)	do { *((uint16_t *)x) = be16_to_cpup((x)) } while (0)
+
+#define	swab16	bswap16
+#define	swab32	bswap32
+#define	swab64	bswap64
 
 #endif	/* _ASM_BYTEORDER_H_ */
