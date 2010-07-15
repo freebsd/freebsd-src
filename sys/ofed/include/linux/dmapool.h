@@ -26,40 +26,18 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_MISCDEVICE_H_
-#define	_LINUX_MISCDEVICE_H_
+#ifndef _LINUX_DMAPOOL_H_
+#define	_LINUX_DMAPOOL_H_
 
-#define	MISC_DYNAMIC_MINOR	-1
-
+#include <linux/io.h>
+#include <linux/scatterlist.h>
 #include <linux/device.h>
 
-struct miscdevice  {
-	const char	*name;
-	struct device	*this_device;
-	const struct file_operations *fops;
-	int		minor;
-};
+struct dma_pool *dma_pool_create(const char *name, struct linux_device *dev,
+	    size_t size, size_t align, size_t allocation);
+void	dma_pool_destroy(struct dma_pool *pool);
+void	*dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
+	    dma_addr_t *handle);
+void	dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t addr);
 
-extern struct class	miscclass;
-extern struct device	miscroot;
-
-/*
- * XXX Missing cdev.
- */
-static inline int
-misc_register(struct miscdevice *misc)
-{
-	misc->this_device = device_create(&miscclass, &miscroot, 0, misc, 
-	    misc->name);
-	return (0);
-}
-
-static inline int
-misc_deregister(struct miscdevice *misc)
-{
-	device_destroy(&miscclass, misc->this_device->devt);
-	return (0);
-}
-
-
-#endif	/* _LINUX_MISCDEVICE_H_ */
+#endif /* _LINUX_DMAPOOL_H_ */

@@ -28,15 +28,22 @@
 #ifndef	_LINUX_DMA_MAPPING_H_
 #define _LINUX_DMA_MAPPING_H_
 
-#include <sys/cdefs.h>
-#include <sys/types.h>
-#include <sys/systm.h>
-
+#include <linux/types.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/dma-attrs.h>
 #include <linux/scatterlist.h>
 #include <linux/page.h>
+
+#include <sys/systm.h>
+#include <sys/malloc.h>
+
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/pmap.h>
+
+#include <machine/bus.h>
+#include <machine/pmap.h>
 
 enum dma_data_direction {
 	DMA_BIDIRECTIONAL = 0,
@@ -78,42 +85,80 @@ struct dma_map_ops {
 	int is_phys;
 };
 
+#define	DMA_BIT_MASK(n)	(((n) == 64) ? ~0ULL : ((1ULL << (n)) - 1))
+
 static inline int
 dma_supported(struct device *dev, u64 mask)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
+
+	/* XXX busdma takes care of this elsewhere. */
+	return (1);
 }
  
 static inline int
 dma_set_mask(struct device *dev, u64 dma_mask)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
+
+	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+		return -EIO;
+
+	*dev->dma_mask = dma_mask;
 }
+
+MALLOC_DECLARE(M_LINUX_DMA);
 
 static inline void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
     gfp_t flag)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
+	vm_paddr_t high;
+	void *mem;
+
+	if (dev->dma_mask)
+		high = *dev->dma_mask;
+	else
+		high = BUS_SPACE_MAXADDR_32BIT;
+
+	mem = contigmalloc(size, M_LINUX_DMA, flag, 0, high, 1, 0);
+	if (mem)
+		*dma_handle = vtophys(mem);
+	else
+		*dma_handle = 0;
+	return (mem);
 }
                        
 static inline void
 dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
     dma_addr_t dma_handle)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
+	contigfree(cpu_addr, size, M_LINUX_DMA);
 }
- 
+
+/* XXX This only works with no iommu. */
 static inline dma_addr_t
-dma_map_single(struct device *dev, void *cpu_addr, size_t size,
-    enum dma_data_direction direction)
+dma_map_single_attrs(struct device *dev, void *ptr, size_t size,
+    enum dma_data_direction dir, struct dma_attrs *attrs)
+{
+
+	return vtophys(ptr);
+}
+
+static inline void
+dma_unmap_single_attrs(struct device *dev, dma_addr_t addr, size_t size,
+    enum dma_data_direction dir, struct dma_attrs *attrs)
+{
+}
+
+static inline int
+dma_map_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
+    enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	KASSERT(0, ("%s", __FUNCTION__));
 }
- 
+
 static inline void
-dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
-    enum dma_data_direction direction)
+dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
+    enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	KASSERT(0, ("%s", __FUNCTION__));
 }
@@ -122,93 +167,61 @@ static inline dma_addr_t
 dma_map_page(struct device *dev, struct page *page,
     unsigned long offset, size_t size, enum dma_data_direction direction)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
-;
+
+	return  VM_PAGE_TO_PHYS(page) + offset;
 }
 
 static inline void
 dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
     enum dma_data_direction direction)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
-}
- 
-static inline int
-dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
-    enum dma_data_direction direction)
-{
-	KASSERT(0, ("%s", __FUNCTION__));
 }
 
-static inline void
-dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
-    enum dma_data_direction direction)
-{  
-	KASSERT(0, ("%s", __FUNCTION__));
-}
-
+/* XXX This is x86 specific, no syncs required. */ 
 static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
     enum dma_data_direction direction)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
+}
+
+static inline void
+dma_sync_single(struct device *dev, dma_addr_t addr, size_t size,
+    enum dma_data_direction dir)
+{
+	dma_sync_single_for_cpu(dev, addr, size, dir);
 }
 
 static inline void
 dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
     size_t size, enum dma_data_direction direction)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
 }
 
 static inline void
 dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
     enum dma_data_direction direction)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
 }
 
 static inline void
 dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
     enum dma_data_direction direction)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
 }
 
 static inline int
 dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
-}
 
-static inline dma_addr_t dma_map_single_attrs(struct device *dev, void *ptr,
-    size_t size, enum dma_data_direction dir, struct dma_attrs *attrs)
-{
-	KASSERT(0, ("%s", __FUNCTION__));
-}
-
-static inline void dma_unmap_single_attrs(struct device *dev, dma_addr_t addr,
-    size_t size, enum dma_data_direction dir, struct dma_attrs *attrs)
-{
-	KASSERT(0, ("%s", __FUNCTION__));
-}
-
-static inline int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
-    int nents, enum dma_data_direction dir, struct dma_attrs *attrs)
-{
-	KASSERT(0, ("%s", __FUNCTION__));
-}
-
-static inline void dma_unmap_sg_attrs(struct device *dev,
-    struct scatterlist *sg, int nents, enum dma_data_direction dir,
-    struct dma_attrs *attrs)
-{
-	KASSERT(0, ("%s", __FUNCTION__));
+	return (0);
 }
 
 #define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, NULL)
 #define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, NULL)
 #define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, NULL)
 #define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, NULL)
+
+extern int uma_align_cache;
+#define	dma_get_cache_alignment()	uma_align_cache
 
 #endif	/* _LINUX_DMA_MAPPING_H_ */
