@@ -5,6 +5,9 @@
 
 .include <bsd.own.mk>
 
+# backwards compat option for older systems.
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
 KERNEL?=	kernel
@@ -151,6 +154,7 @@ SYSTEM_DEP+= ${LDSCRIPT}
 # them.
 
 MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
+MKMODULESENV+=	MACHINE_CPUARCH=${MACHINE_CPUARCH}
 .if (${KERN_IDENT} == LINT)
 MKMODULESENV+=	ALL_MODULES=LINT
 .endif
