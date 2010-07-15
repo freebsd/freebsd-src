@@ -153,6 +153,82 @@ find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
 	return (bit);
 }
 
+static inline unsigned long
+find_next_zero_bit(unsigned long *addr, unsigned long size,
+    unsigned long offset)
+{
+	int mask;
+	int offs;
+	int bit;
+	int pos;
+
+	pos = offset / BITS_PER_LONG;
+	offs = size % BITS_PER_LONG;
+	bit = BITS_PER_LONG * pos;
+	addr += pos;
+	if (offs) {
+		mask = ~(*addr) & ~BIT_MASK(offs);
+		if (mask)
+			return (bit + __ffsl(mask));
+		bit += BITS_PER_LONG;
+		addr++;
+	}
+	for (size -= bit; size >= BITS_PER_LONG;
+	    size -= BITS_PER_LONG, bit += BITS_PER_LONG, addr++) {
+		if (~(*addr) == 0)
+			continue;
+		return (bit + __ffsl(~(*addr)));
+	}
+	if (size) {
+		mask = ~(*addr) & BIT_MASK(size);
+		if (mask)
+			bit += __ffsl(mask);
+		else
+			bit += size;
+	}
+	return (bit);
+}
+
+static inline void
+bitmap_zero(unsigned long *addr, int size)
+{
+	int len;
+
+	len = BITS_TO_LONGS(size) * sizeof(*addr);
+	memset(addr, 0, len);
+}
+
+static inline void
+bitmap_fill(unsigned long *addr, int size)
+{
+	int tail;
+	int len;
+
+	len = BITS_TO_LONGS(size) * sizeof(*addr);
+	memset(addr, 0xff, len);
+	tail = size & (BITS_PER_LONG - 1);
+	if (tail) 
+		addr[len - 1] = ((unsigned long)-1) >> (BITS_PER_LONG - tail);
+}
+
+static inline int
+bitmap_full(unsigned long *addr, int size)
+{
+	int tail;
+	int len;
+	int i;
+
+	len = size / BITS_PER_LONG;
+	for (i = 0; i < len; i++)
+		if (addr[i] != (unsigned long)-1)
+			return (0);
+	tail = size & (BITS_PER_LONG - 1);
+	if (tail)
+		if (addr[i] != ((unsigned long)-1) >> (BITS_PER_LONG - tail))
+			return (0);
+	return (1);
+}
+
 #define	NBINT	(NBBY * sizeof(int))
 
 #define	set_bit(i, a)							\
