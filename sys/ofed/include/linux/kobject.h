@@ -29,6 +29,8 @@
 #define	_LINUX_KOBJECT_H_
 
 #include <machine/stdarg.h>
+
+#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
 
@@ -47,30 +49,41 @@ struct kobject {
 	struct kobj_type	*ktype;
 };
 
-static inline int
-kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
-    struct kobject *parent, const char *fmt, ...)
-{
-
-	kref_init(&kobj->kref);
-	kobj->ktype = ktype;
-	kobj->name = NULL;
-	kobj->parent = NULL;
-	return 0;
-}
-
 static inline void
 kobject_init(struct kobject *kobj, struct kobj_type *ktype)
 {
+
 	kref_init(&kobj->kref);
 	kobj->ktype = ktype;
 	kobj->name = NULL;
 	kobj->parent = NULL;
+}
+
+static inline void
+kobject_release(struct kref *kref)
+{
+	struct kobject *kobj;
+
+	kobj = container_of(kref, struct kobject, kref);
+	if (kobj->ktype && kobj->ktype->release)
+		kobj->ktype->release(kobj);
 }
 
 static inline void
 kobject_put(struct kobject *kobj)
 {
+
+	if (kobj)
+		kref_put(&kobj->kref, kobject_release);
+}
+
+static inline struct kobject *
+kobject_get(struct kobject *kobj)
+{
+
+	if (kobj)
+		kref_get(&kobj->kref);
+	return kobj;
 }
 
 static inline int
@@ -117,6 +130,8 @@ kobject_name(const struct kobject *kobj)
 	return kobj->name;
 }
 
-int kobject_set_name(struct kobject *kobj, const char *fmt, ...);
+int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
+int	kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
+	    struct kobject *parent, const char *fmt, ...);
 
 #endif /* _LINUX_KOBJECT_H_ */
