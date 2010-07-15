@@ -58,8 +58,6 @@
 #ifndef _MIPS_CPUREGS_H_
 #define	_MIPS_CPUREGS_H_
 
-#include <sys/cdefs.h>		/* For __CONCAT() */
-
 #if defined(_KERNEL_OPT)
 #include "opt_cputype.h"
 #endif
