@@ -1940,27 +1940,44 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	IWN_LOCK(sc);
 	callout_stop(&sc->sc_timer_to);
 
-	if (nstate == IEEE80211_S_AUTH && vap->iv_state != IEEE80211_S_AUTH) {
-		/* !AUTH -> AUTH requires adapter config */
-		/* Reset state to handle reassociations correctly. */
+	switch (nstate) {
+	case IEEE80211_S_ASSOC:
+		if (vap->iv_state != IEEE80211_S_RUN)
+			break;
+		/* FALLTHROUGH */
+	case IEEE80211_S_AUTH:
+		if (vap->iv_state == IEEE80211_S_AUTH)
+			break;
+
+		/*
+		 * !AUTH -> AUTH transition requires state reset to handle
+		 * reassociations correctly.
+		 */
 		sc->rxon.associd = 0;
 		sc->rxon.filter &= ~htole32(IWN_FILTER_BSS);
 		iwn_calib_reset(sc);
 		error = iwn_auth(sc, vap);
-	}
-	if (nstate == IEEE80211_S_RUN && vap->iv_state != IEEE80211_S_RUN) {
+		break;
+
+	case IEEE80211_S_RUN:
+		/*
+		 * RUN -> RUN transition; Just restart the timers.
+		 */
+		if (vap->iv_state == IEEE80211_S_RUN) {
+			iwn_calib_reset(sc);
+			break;
+		}
+
 		/*
 		 * !RUN -> RUN requires setting the association id
 		 * which is done with a firmware cmd.  We also defer
 		 * starting the timers until that work is done.
 		 */
 		error = iwn_run(sc, vap);
-	}
-	if (nstate == IEEE80211_S_RUN) {
-		/*
-		 * RUN -> RUN transition; just restart the timers.
-		 */
-		iwn_calib_reset(sc);
+		break;
+
+	default:
+		break;
 	}
 	IWN_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
