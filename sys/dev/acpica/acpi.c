@@ -2317,25 +2317,26 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 {
 #if defined(__amd64__) || defined(__i386__)
     struct apm_clone_data *clone;
+    ACPI_STATUS status;
 
     if (state < ACPI_STATE_S1 || state > ACPI_S_STATES_MAX)
 	return (EINVAL);
     if (!acpi_sleep_states[state])
 	return (EOPNOTSUPP);
 
-    /* S5 (soft-off) should be entered directly with no waiting. */
-    if (state == ACPI_STATE_S5) {
-	if (ACPI_SUCCESS(acpi_EnterSleepState(sc, state)))
-	    return (0);
-	else
-	    return (ENXIO);
-    }
+    ACPI_LOCK(acpi);
 
     /* If a suspend request is already in progress, just return. */
-    ACPI_LOCK(acpi);
     if (sc->acpi_next_sstate != 0) {
     	ACPI_UNLOCK(acpi);
 	return (0);
+    }
+
+    /* S5 (soft-off) should be entered directly with no waiting. */
+    if (state == ACPI_STATE_S5) {
+    	ACPI_UNLOCK(acpi);
+	status = acpi_EnterSleepState(sc, state);
+	return (ACPI_SUCCESS(status) ? 0 : ENXIO);
     }
 
     /* Record the pending state and notify all apm devices. */
@@ -2351,11 +2352,8 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
     /* If devd(8) is not running, immediately enter the sleep state. */
     if (!devctl_process_running()) {
 	ACPI_UNLOCK(acpi);
-	if (ACPI_SUCCESS(acpi_EnterSleepState(sc, sc->acpi_next_sstate))) {
-	    return (0);
-	} else {
-	    return (ENXIO);
-	}
+	status = acpi_EnterSleepState(sc, state);
+	return (ACPI_SUCCESS(status) ? 0 : ENXIO);
     }
 
     /*
@@ -2592,7 +2590,6 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
      * process.  This handles both the error and success cases.
      */
 backout:
-    sc->acpi_next_sstate = 0;
     if (slp_state >= ACPI_SS_GPE_SET) {
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
@@ -2603,6 +2600,7 @@ backout:
 	DEVICE_RESUME(root_bus);
     if (slp_state >= ACPI_SS_SLEPT)
 	acpi_enable_fixed_events(sc);
+    sc->acpi_next_sstate = 0;
 
     mtx_unlock(&Giant);
 
