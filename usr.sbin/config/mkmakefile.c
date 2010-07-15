@@ -98,8 +98,30 @@ new_fent(void)
 	struct file_list *fp;
 
 	fp = (struct file_list *) calloc(1, sizeof *fp);
+	if (fp == NULL)
+		err(EXIT_FAILURE, "calloc");
 	STAILQ_INSERT_TAIL(&ftab, fp, f_next);
 	return (fp);
+}
+
+/*
+ * Open the correct Makefile and return it, or error out.
+ */
+FILE *
+open_makefile_template(void)
+{
+	FILE *ifp;
+	char line[BUFSIZ];
+
+	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
+	ifp = fopen(line, "r");
+	if (ifp == 0) {
+		snprintf(line, sizeof(line), "Makefile.%s", machinename);
+		ifp = fopen(line, "r");
+	}
+	if (ifp == 0)
+		err(1, "%s", line);
+	return (ifp);
 }
 
 /*
@@ -111,18 +133,9 @@ makefile(void)
 	FILE *ifp, *ofp;
 	char line[BUFSIZ];
 	struct opt *op, *t;
-	int versreq;
 
 	read_files();
-	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
-	ifp = fopen(line, "r");
-	if (ifp == 0) {
-		snprintf(line, sizeof(line), "Makefile.%s", machinename);
-		ifp = fopen(line, "r");
-	}
-	if (ifp == 0)
-		err(1, "%s", line);
-
+	ifp = open_makefile_template();
 	ofp = fopen(path("Makefile.new"), "w");
 	if (ofp == 0)
 		err(1, "%s", path("Makefile.new"));
@@ -154,23 +167,9 @@ makefile(void)
 			do_rules(ofp);
 		else if (eq(line, "%CLEAN\n"))
 			do_clean(ofp);
-		else if (strncmp(line, "%VERSREQ=", sizeof("%VERSREQ=") - 1) == 0) {
-			versreq = atoi(line + sizeof("%VERSREQ=") - 1);
-			if (MAJOR_VERS(versreq) != MAJOR_VERS(CONFIGVERS) ||
-			    versreq > CONFIGVERS) {
-				fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
-				fprintf(stderr, "config version = %d, ", CONFIGVERS);
-				fprintf(stderr, "version required = %d\n\n", versreq);
-				fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
-				fprintf(stderr, "with your /usr/src/sys and install a new config binary\n");
-				fprintf(stderr, "before trying this again.\n\n");
-				fprintf(stderr, "If running the new config fails check your config\n");
-				fprintf(stderr, "file against the GENERIC or LINT config files for\n");
-				fprintf(stderr, "changes in config syntax, or option/device naming\n");
-				fprintf(stderr, "conventions\n\n");
-				exit(1);
-			}
-		} else
+		else if (strncmp(line, "%VERSREQ=", 9) == 0)
+			line[0] = '\0'; /* handled elsewhere */
+		else
 			fprintf(stderr,
 			    "Unknown %% construct in generic makefile: %s",
 			    line);
@@ -684,6 +683,7 @@ do_rules(FILE *f)
 	char *cp, *np, och;
 	struct file_list *ftp;
 	char *compilewith;
+	char cmd[128];
 
 	STAILQ_FOREACH(ftp, &ftab, f_next) {
 		if (ftp->f_warn)
@@ -721,26 +721,23 @@ do_rules(FILE *f)
 		compilewith = ftp->f_compilewith;
 		if (compilewith == 0) {
 			const char *ftype = NULL;
-			static char cmd[128];
 
 			switch (ftp->f_type) {
-
 			case NORMAL:
 				ftype = "NORMAL";
 				break;
-
 			case PROFILING:
 				if (!profiling)
 					continue;
 				ftype = "PROFILE";
 				break;
-
 			default:
 				printf("config: don't know rules for %s\n", np);
 				break;
 			}
 			snprintf(cmd, sizeof(cmd), "${%s_%c%s}\n"
-			    ".if defined(NORMAL_CTFCONVERT) && !empty(NORMAL_CTFCONVERT)\n"
+			    ".if defined(NORMAL_CTFCONVERT) && "
+			    "!empty(NORMAL_CTFCONVERT)\n"
 			    "\t${NORMAL_CTFCONVERT}\n.endif", ftype,
 			    toupper(och),
 			    ftp->f_flags & NOWERROR ? "_NOWERROR" : "");
