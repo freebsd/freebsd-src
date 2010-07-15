@@ -53,6 +53,8 @@ namespace llvm {
       CMOV,         // ARM conditional move instructions.
       CNEG,         // ARM conditional negate instructions.
 
+      BCC_i64,
+
       RBIT,         // ARM bitreverse instruction
 
       FTOSI,        // FP to sint within a FP register.
@@ -122,6 +124,10 @@ namespace llvm {
       VGETLANEu,    // zero-extend vector extract element
       VGETLANEs,    // sign-extend vector extract element
 
+      // Vector move immediate and move negated immediate:
+      VMOVIMM,
+      VMVNIMM,
+
       // Vector duplicate:
       VDUP,
       VDUPLANE,
@@ -150,13 +156,6 @@ namespace llvm {
 
   /// Define some predicates that are used for node matching.
   namespace ARM {
-    /// getNEONModImm - If this is a valid vector constant for a NEON
-    /// instruction with a "modified immediate" operand (e.g., VMOV) of the
-    /// specified element size, return the encoded value for that immediate.
-    /// The ByteSize field indicates the number of bytes of each element [1248].
-    SDValue getNEONModImm(SDNode *N, unsigned ByteSize, bool isVMOV,
-                          SelectionDAG &DAG);
-
     /// getVFPf32Imm / getVFPf64Imm - If the given fp immediate can be
     /// materialized with a VMOV.f32 / VMOV.f64 (i.e. fconsts / fconstd)
     /// instruction, returns its 8-bit integer representation. Otherwise,
@@ -363,9 +362,11 @@ namespace llvm {
                   DebugLoc dl, SelectionDAG &DAG) const;
 
     SDValue getARMCmp(SDValue LHS, SDValue RHS, ISD::CondCode CC,
-                      SDValue &ARMCC, SelectionDAG &DAG, DebugLoc dl) const;
-    SDValue getVFPCmp(SDValue &LHS, SDValue &RHS, ISD::CondCode CC,
-                      SDValue &ARMCC, SelectionDAG &DAG, DebugLoc dl) const;
+                      SDValue &ARMcc, SelectionDAG &DAG, DebugLoc dl) const;
+    SDValue getVFPCmp(SDValue LHS, SDValue RHS,
+                      SelectionDAG &DAG, DebugLoc dl) const;
+
+    SDValue OptimizeVFPBrcond(SDValue Op, SelectionDAG &DAG) const;
 
     MachineBasicBlock *EmitAtomicCmpSwap(MachineInstr *MI,
                                          MachineBasicBlock *BB,

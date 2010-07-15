@@ -164,7 +164,7 @@ void Sema::DiagnoseSentinelCalls(NamedDecl *D, SourceLocation Loc,
   if (!sentinelExpr) return;
   if (sentinelExpr->isTypeDependent()) return;
   if (sentinelExpr->isValueDependent()) return;
-  if (sentinelExpr->getType()->isPointerType() &&
+  if (sentinelExpr->getType()->isAnyPointerType() &&
       sentinelExpr->IgnoreParenCasts()->isNullPointerConstant(Context,
                                             Expr::NPC_ValueDependentIsNull))
     return;
@@ -475,6 +475,7 @@ Sema::BuildDeclRefExpr(ValueDecl *D, QualType Ty, SourceLocation Loc,
     if (isa<NonTypeTemplateParmDecl>(VD)) {
       // Non-type template parameters can be referenced anywhere they are
       // visible.
+      Ty = Ty.getNonLValueExprType(Context);
     } else if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(CurContext)) {
       if (const FunctionDecl *FD = MD->getParent()->isLocalClass()) {
         if (VD->hasLocalStorage() && VD->getDeclContext() != CurContext) {
@@ -4008,7 +4009,8 @@ Sema::BuildCStyleCastExpr(SourceLocation LParenLoc, TypeSourceInfo *Ty,
     return ExprError();
 
   Op.release();
-  return Owned(new (Context) CStyleCastExpr(Ty->getType().getNonReferenceType(),
+  return Owned(new (Context) CStyleCastExpr(
+                                    Ty->getType().getNonLValueExprType(Context),
                                             Kind, castExpr, BasePath, Ty,
                                             LParenLoc, RParenLoc));
 }
@@ -4904,7 +4906,7 @@ Sema::CheckSingleAssignmentConstraints(QualType lhsType, Expr *&rExpr) {
   // The getNonReferenceType() call makes sure that the resulting expression
   // does not have reference type.
   if (result != Incompatible && rExpr->getType() != lhsType)
-    ImpCastExprToType(rExpr, lhsType.getNonReferenceType(),
+    ImpCastExprToType(rExpr, lhsType.getNonLValueExprType(Context),
                       CastExpr::CK_Unknown);
   return result;
 }
@@ -5733,7 +5735,25 @@ inline QualType Sema::CheckBitwiseOperands(
 }
 
 inline QualType Sema::CheckLogicalOperands( // C99 6.5.[13,14]
-  Expr *&lex, Expr *&rex, SourceLocation Loc) {
+  Expr *&lex, Expr *&rex, SourceLocation Loc, unsigned Opc) {
+  
+  // Diagnose cases where the user write a logical and/or but probably meant a
+  // bitwise one.  We do this when the LHS is a non-bool integer and the RHS
+  // is a constant.
+  if (lex->getType()->isIntegerType() && !lex->getType()->isBooleanType() &&
+      rex->getType()->isIntegerType() && rex->isEvaluatable(Context) &&
+      // Don't warn if the RHS is a (constant folded) boolean expression like
+      // "sizeof(int) == 4".
+      !rex->isKnownToHaveBooleanValue() &&
+      // Don't warn in macros.
+      !Loc.isMacroID())
+    Diag(Loc, diag::warn_logical_instead_of_bitwise)
+     << rex->getSourceRange()
+      << (Opc == BinaryOperator::LAnd ? "&&" : "||")
+      << (Opc == BinaryOperator::LAnd ? "&" : "|");
+  
+  
+  
   if (!Context.getLangOptions().CPlusPlus) {
     UsualUnaryConversions(lex);
     UsualUnaryConversions(rex);
@@ -6361,7 +6381,7 @@ Action::OwningExprResult Sema::CreateBuiltinBinOp(SourceLocation OpLoc,
     break;
   case BinaryOperator::LAnd:
   case BinaryOperator::LOr:
-    ResultTy = CheckLogicalOperands(lhs, rhs, OpLoc);
+    ResultTy = CheckLogicalOperands(lhs, rhs, OpLoc, Opc);
     break;
   case BinaryOperator::MulAssign:
   case BinaryOperator::DivAssign:
@@ -7348,7 +7368,8 @@ Sema::OwningExprResult Sema::ActOnVAArg(SourceLocation BuiltinLoc,
   // FIXME: Warn if a non-POD type is passed in.
 
   expr.release();
-  return Owned(new (Context) VAArgExpr(BuiltinLoc, E, T.getNonReferenceType(),
+  return Owned(new (Context) VAArgExpr(BuiltinLoc, E, 
+                                       T.getNonLValueExprType(Context),
                                        RPLoc));
 }
 

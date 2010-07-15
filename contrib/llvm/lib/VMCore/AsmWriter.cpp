@@ -90,8 +90,7 @@ enum PrefixType {
 /// PrintLLVMName - Turn the specified name into an 'LLVM name', which is either
 /// prefixed with % (if the string only contains simple characters) or is
 /// surrounded with ""'s (if it has special chars in it).  Print it out.
-static void PrintLLVMName(raw_ostream &OS, const StringRef &Name,
-                          PrefixType Prefix) {
+static void PrintLLVMName(raw_ostream &OS, StringRef Name, PrefixType Prefix) {
   assert(Name.data() && "Cannot get empty name!");
   switch (Prefix) {
   default: llvm_unreachable("Bad prefix!");
@@ -855,8 +854,9 @@ static void WriteOptimizationInfo(raw_ostream &Out, const User *U) {
   }
 }
 
-static void WriteConstantInt(raw_ostream &Out, const Constant *CV,
-                             TypePrinting &TypePrinter, SlotTracker *Machine) {
+static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
+                                  TypePrinting &TypePrinter,
+                                  SlotTracker *Machine) {
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
     if (CI->getType()->isIntegerTy(1)) {
       Out << (CI->getZExtValue() ? "true" : "false");
@@ -1147,7 +1147,7 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
   const Constant *CV = dyn_cast<Constant>(V);
   if (CV && !isa<GlobalValue>(CV)) {
     assert(TypePrinter && "Constants require TypePrinting!");
-    WriteConstantInt(Out, CV, *TypePrinter, Machine);
+    WriteConstantInternal(Out, CV, *TypePrinter, Machine);
     return;
   }
 
@@ -2128,7 +2128,7 @@ void Value::print(raw_ostream &ROS, AssemblyAnnotationWriter *AAW) const {
   } else if (const MDNode *N = dyn_cast<MDNode>(this)) {
     const Function *F = N->getFunction();
     SlotTracker SlotTable(F);
-    AssemblyWriter W(OS, SlotTable, F ? getModuleFromVal(F) : 0, AAW);
+    AssemblyWriter W(OS, SlotTable, F ? F->getParent() : 0, AAW);
     W.printMDNodeBody(N);
   } else if (const NamedMDNode *N = dyn_cast<NamedMDNode>(this)) {
     SlotTracker SlotTable(N->getParent());
@@ -2138,7 +2138,7 @@ void Value::print(raw_ostream &ROS, AssemblyAnnotationWriter *AAW) const {
     TypePrinting TypePrinter;
     TypePrinter.print(C->getType(), OS);
     OS << ' ';
-    WriteConstantInt(OS, C, TypePrinter, 0);
+    WriteConstantInternal(OS, C, TypePrinter, 0);
   } else if (isa<InlineAsm>(this) || isa<MDString>(this) ||
              isa<Argument>(this)) {
     WriteAsOperand(OS, this, true, 0);

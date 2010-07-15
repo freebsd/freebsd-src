@@ -59,11 +59,21 @@ class GotoStmt;
 class LabelStmt;
 class MacroDefinition;
 class NamedDecl;
+class PCHDeserializationListener;
 class Preprocessor;
 class Sema;
 class SwitchCase;
 class PCHReader;
 struct HeaderFileInfo;
+
+struct PCHPredefinesBlock {
+  /// \brief The file ID for this predefines buffer in a PCH file.
+  FileID BufferID;
+
+  /// \brief This predefines buffer in a PCH file.
+  llvm::StringRef Data;
+};
+typedef llvm::SmallVector<PCHPredefinesBlock, 2> PCHPredefinesBlocks;
 
 /// \brief Abstract interface for callback invocations by the PCHReader.
 ///
@@ -91,10 +101,7 @@ public:
 
   /// \brief Receives the contents of the predefines buffer.
   ///
-  /// \param PCHPredef The start of the predefines buffer in the PCH
-  /// file.
-  ///
-  /// \param PCHBufferID The FileID for the PCH predefines buffer.
+  /// \param Buffers Information about the predefines buffers.
   ///
   /// \param OriginalFileName The original file name for the PCH, which will
   /// appear as an entry in the predefines buffer.
@@ -103,8 +110,7 @@ public:
   /// here.
   ///
   /// \returns true to indicate the predefines are invalid or false otherwise.
-  virtual bool ReadPredefinesBuffer(llvm::StringRef PCHPredef,
-                                    FileID PCHBufferID,
+  virtual bool ReadPredefinesBuffer(const PCHPredefinesBlocks &Buffers,
                                     llvm::StringRef OriginalFileName,
                                     std::string &SuggestedPredefines) {
     return false;
@@ -131,8 +137,7 @@ public:
 
   virtual bool ReadLanguageOptions(const LangOptions &LangOpts);
   virtual bool ReadTargetTriple(llvm::StringRef Triple);
-  virtual bool ReadPredefinesBuffer(llvm::StringRef PCHPredef,
-                                    FileID PCHBufferID,
+  virtual bool ReadPredefinesBuffer(const PCHPredefinesBlocks &Buffers,
                                     llvm::StringRef OriginalFileName,
                                     std::string &SuggestedPredefines);
   virtual void ReadHeaderFileInfo(const HeaderFileInfo &HFI, unsigned ID);
@@ -165,8 +170,11 @@ public:
   enum PCHReadResult { Success, Failure, IgnorePCH };
   friend class PCHValidator;
 private:
-  /// \ brief The receiver of some callbacks invoked by PCHReader.
+  /// \brief The receiver of some callbacks invoked by PCHReader.
   llvm::OwningPtr<PCHReaderListener> Listener;
+
+  /// \brief The receiver of deserialization events.
+  PCHDeserializationListener *DeserializationListener;
 
   SourceManager &SourceMgr;
   FileManager &FileMgr;
@@ -483,15 +491,9 @@ private:
     ~ReadingKindTracker() { Reader.ReadingKind = PrevKind; }
   };
 
-  /// \brief The file ID for the predefines buffer in the PCH file.
-  FileID PCHPredefinesBufferID;
-
-  /// \brief Pointer to the beginning of the predefines buffer in the
-  /// PCH file.
-  const char *PCHPredefines;
-
-  /// \brief Length of the predefines buffer in the PCH file.
-  unsigned PCHPredefinesLen;
+  /// \brief All predefines buffers in all PCH files, to be treated as if
+  /// concatenated.
+  PCHPredefinesBlocks PCHPredefinesBuffers;
 
   /// \brief Suggested contents of the predefines buffer, after this
   /// PCH file has been processed.
@@ -509,7 +511,7 @@ private:
   void MaybeAddSystemRootToFilename(std::string &Filename);
 
   PCHReadResult ReadPCHBlock();
-  bool CheckPredefinesBuffer(llvm::StringRef PCHPredef, FileID PCHBufferID);
+  bool CheckPredefinesBuffers();
   bool ParseLineTable(llvm::SmallVectorImpl<uint64_t> &Record);
   PCHReadResult ReadSourceManagerBlock();
   PCHReadResult ReadSLocEntryRecord(unsigned ID);
@@ -576,6 +578,10 @@ public:
     Listener.reset(listener);
   }
 
+  void setDeserializationListener(PCHDeserializationListener *Listener) {
+    DeserializationListener = Listener;
+  }
+
   /// \brief Set the Preprocessor to use.
   void setPreprocessor(Preprocessor &pp);
 
@@ -601,6 +607,16 @@ public:
       
   /// \brief Read preprocessed entities into the 
   virtual void ReadPreprocessedEntities();
+
+  /// \brief Returns the number of types found in this file.
+  unsigned getTotalNumTypes() const {
+    return static_cast<unsigned>(TypesLoaded.size());
+  }
+
+  /// \brief Returns the number of declarations found in this file.
+  unsigned getTotalNumDecls() const {
+    return static_cast<unsigned>(DeclsLoaded.size());
+  }
 
   /// \brief Reads a TemplateArgumentLocInfo appropriate for the
   /// given TemplateArgument kind.

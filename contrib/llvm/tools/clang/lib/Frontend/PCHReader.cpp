@@ -13,6 +13,7 @@
 
 #include "clang/Frontend/PCHReader.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Frontend/PCHDeserializationListener.h"
 #include "clang/Frontend/Utils.h"
 #include "../Sema/Sema.h" // FIXME: move Sema headers elsewhere
 #include "clang/AST/ASTConsumer.h"
@@ -140,8 +141,86 @@ bool PCHValidator::ReadTargetTriple(llvm::StringRef Triple) {
   return true;
 }
 
-bool PCHValidator::ReadPredefinesBuffer(llvm::StringRef PCHPredef,
-                                        FileID PCHBufferID,
+struct EmptyStringRef {
+  bool operator ()(llvm::StringRef r) const { return r.empty(); }
+};
+struct EmptyBlock {
+  bool operator ()(const PCHPredefinesBlock &r) const { return r.Data.empty(); }
+};
+
+static bool EqualConcatenations(llvm::SmallVector<llvm::StringRef, 2> L,
+                                PCHPredefinesBlocks R) {
+  // First, sum up the lengths.
+  unsigned LL = 0, RL = 0;
+  for (unsigned I = 0, N = L.size(); I != N; ++I) {
+    LL += L[I].size();
+  }
+  for (unsigned I = 0, N = R.size(); I != N; ++I) {
+    RL += R[I].Data.size();
+  }
+  if (LL != RL)
+    return false;
+  if (LL == 0 && RL == 0)
+    return true;
+
+  // Kick out empty parts, they confuse the algorithm below.
+  L.erase(std::remove_if(L.begin(), L.end(), EmptyStringRef()), L.end());
+  R.erase(std::remove_if(R.begin(), R.end(), EmptyBlock()), R.end());
+
+  // Do it the hard way. At this point, both vectors must be non-empty.
+  llvm::StringRef LR = L[0], RR = R[0].Data;
+  unsigned LI = 0, RI = 0, LN = L.size(), RN = R.size();
+  for (;;) {
+    // Compare the current pieces.
+    if (LR.size() == RR.size()) {
+      // If they're the same length, it's pretty easy.
+      if (LR != RR)
+        return false;
+      // Both pieces are done, advance.
+      ++LI;
+      ++RI;
+      // If either string is done, they're both done, since they're the same
+      // length.
+      if (LI == LN) {
+        assert(RI == RN && "Strings not the same length after all?");
+        return true;
+      }
+      LR = L[LI];
+      RR = R[RI].Data;
+    } else if (LR.size() < RR.size()) {
+      // Right piece is longer.
+      if (!RR.startswith(LR))
+        return false;
+      ++LI;
+      assert(LI != LN && "Strings not the same length after all?");
+      RR = RR.substr(LR.size());
+      LR = L[LI];
+    } else {
+      // Left piece is longer.
+      if (!LR.startswith(RR))
+        return false;
+      ++RI;
+      assert(RI != RN && "Strings not the same length after all?");
+      LR = LR.substr(RR.size());
+      RR = R[RI].Data;
+    }
+  }
+}
+
+static std::pair<FileID, llvm::StringRef::size_type>
+FindMacro(const PCHPredefinesBlocks &Buffers, llvm::StringRef MacroDef) {
+  std::pair<FileID, llvm::StringRef::size_type> Res;
+  for (unsigned I = 0, N = Buffers.size(); I != N; ++I) {
+    Res.second = Buffers[I].Data.find(MacroDef);
+    if (Res.second != llvm::StringRef::npos) {
+      Res.first = Buffers[I].BufferID;
+      break;
+    }
+  }
+  return Res;
+}
+
+bool PCHValidator::ReadPredefinesBuffer(const PCHPredefinesBlocks &Buffers,
                                         llvm::StringRef OriginalFileName,
                                         std::string &SuggestedPredefines) {
   // We are in the context of an implicit include, so the predefines buffer will
@@ -160,9 +239,15 @@ bool PCHValidator::ReadPredefinesBuffer(llvm::StringRef PCHPredef,
     return true;
   }
 
-  // If the predefines is equal to the joined left and right halves, we're done!
-  if (Left.size() + Right.size() == PCHPredef.size() &&
-      PCHPredef.startswith(Left) && PCHPredef.endswith(Right))
+  // If the concatenation of all the PCH buffers is equal to the adjusted
+  // command line, we're done.
+  // We build a SmallVector of the command line here, because we'll eventually
+  // need to support an arbitrary amount of pieces anyway (when we have chained
+  // PCH reading).
+  llvm::SmallVector<llvm::StringRef, 2> CommandLine;
+  CommandLine.push_back(Left);
+  CommandLine.push_back(Right);
+  if (EqualConcatenations(CommandLine, Buffers))
     return false;
 
   SourceManager &SourceMgr = PP.getSourceManager();
@@ -170,7 +255,8 @@ bool PCHValidator::ReadPredefinesBuffer(llvm::StringRef PCHPredef,
   // The predefines buffers are different. Determine what the differences are,
   // and whether they require us to reject the PCH file.
   llvm::SmallVector<llvm::StringRef, 8> PCHLines;
-  PCHPredef.split(PCHLines, "\n", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
+  for (unsigned I = 0, N = Buffers.size(); I != N; ++I)
+    Buffers[I].Data.split(PCHLines, "\n", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
 
   llvm::SmallVector<llvm::StringRef, 8> CmdLineLines;
   Left.split(CmdLineLines, "\n", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
@@ -235,10 +321,12 @@ bool PCHValidator::ReadPredefinesBuffer(llvm::StringRef PCHPredef,
           << MacroName;
 
       // Show the definition of this macro within the PCH file.
-      llvm::StringRef::size_type Offset = PCHPredef.find(Missing);
-      assert(Offset != llvm::StringRef::npos && "Unable to find macro!");
-      SourceLocation PCHMissingLoc = SourceMgr.getLocForStartOfFile(PCHBufferID)
-        .getFileLocWithOffset(Offset);
+      std::pair<FileID, llvm::StringRef::size_type> MacroLoc =
+          FindMacro(Buffers, Missing);
+      assert(MacroLoc.second!=llvm::StringRef::npos && "Unable to find macro!");
+      SourceLocation PCHMissingLoc =
+          SourceMgr.getLocForStartOfFile(MacroLoc.first)
+            .getFileLocWithOffset(MacroLoc.second);
       Reader.Diag(PCHMissingLoc, diag::note_pch_macro_defined_as) << MacroName;
 
       ConflictingDefines = true;
@@ -256,10 +344,12 @@ bool PCHValidator::ReadPredefinesBuffer(llvm::StringRef PCHPredef,
     }
 
     // Show the definition of this macro within the PCH file.
-    llvm::StringRef::size_type Offset = PCHPredef.find(Missing);
-    assert(Offset != llvm::StringRef::npos && "Unable to find macro!");
-    SourceLocation PCHMissingLoc = SourceMgr.getLocForStartOfFile(PCHBufferID)
-      .getFileLocWithOffset(Offset);
+    std::pair<FileID, llvm::StringRef::size_type> MacroLoc =
+        FindMacro(Buffers, Missing);
+    assert(MacroLoc.second!=llvm::StringRef::npos && "Unable to find macro!");
+    SourceLocation PCHMissingLoc =
+        SourceMgr.getLocForStartOfFile(MacroLoc.first)
+          .getFileLocWithOffset(MacroLoc.second);
     Reader.Diag(PCHMissingLoc, diag::note_using_macro_def_from_pch);
   }
 
@@ -324,10 +414,10 @@ void PCHValidator::ReadCounter(unsigned Value) {
 
 PCHReader::PCHReader(Preprocessor &PP, ASTContext *Context,
                      const char *isysroot)
-  : Listener(new PCHValidator(PP, *this)), SourceMgr(PP.getSourceManager()),
-    FileMgr(PP.getFileManager()), Diags(PP.getDiagnostics()),
-    SemaObj(0), PP(&PP), Context(Context), StatCache(0), Consumer(0),
-    IdentifierTableData(0), IdentifierLookupTable(0),
+  : Listener(new PCHValidator(PP, *this)), DeserializationListener(0),
+    SourceMgr(PP.getSourceManager()), FileMgr(PP.getFileManager()),
+    Diags(PP.getDiagnostics()), SemaObj(0), PP(&PP), Context(Context),
+    StatCache(0), Consumer(0), IdentifierTableData(0), IdentifierLookupTable(0),
     IdentifierOffsets(0),
     MethodPoolLookupTable(0), MethodPoolLookupTableData(0),
     TotalSelectorsInMethodPool(0), SelectorOffsets(0),
@@ -343,8 +433,8 @@ PCHReader::PCHReader(Preprocessor &PP, ASTContext *Context,
 
 PCHReader::PCHReader(SourceManager &SourceMgr, FileManager &FileMgr,
                      Diagnostic &Diags, const char *isysroot)
-  : SourceMgr(SourceMgr), FileMgr(FileMgr), Diags(Diags),
-    SemaObj(0), PP(0), Context(0), StatCache(0), Consumer(0),
+  : DeserializationListener(0), SourceMgr(SourceMgr), FileMgr(FileMgr),
+    Diags(Diags), SemaObj(0), PP(0), Context(0), StatCache(0), Consumer(0),
     IdentifierTableData(0), IdentifierLookupTable(0),
     IdentifierOffsets(0),
     MethodPoolLookupTable(0), MethodPoolLookupTableData(0),
@@ -609,27 +699,18 @@ void PCHReader::Error(const char *Msg) {
   Diag(diag::err_fe_pch_malformed) << Msg;
 }
 
-/// \brief Check the contents of the predefines buffer against the
-/// contents of the predefines buffer used to build the PCH file.
+/// \brief Check the contents of the concatenation of all predefines buffers in
+/// the PCH chain against the contents of the predefines buffer of the current
+/// compiler invocation.
 ///
-/// The contents of the two predefines buffers should be the same. If
-/// not, then some command-line option changed the preprocessor state
-/// and we must reject the PCH file.
-///
-/// \param PCHPredef The start of the predefines buffer in the PCH
-/// file.
-///
-/// \param PCHPredefLen The length of the predefines buffer in the PCH
-/// file.
-///
-/// \param PCHBufferID The FileID for the PCH predefines buffer.
+/// The contents should be the same. If not, then some command-line option
+/// changed the preprocessor state and we must probably reject the PCH file.
 ///
 /// \returns true if there was a mismatch (in which case the PCH file
 /// should be ignored), or false otherwise.
-bool PCHReader::CheckPredefinesBuffer(llvm::StringRef PCHPredef,
-                                      FileID PCHBufferID) {
+bool PCHReader::CheckPredefinesBuffers() {
   if (Listener)
-    return Listener->ReadPredefinesBuffer(PCHPredef, PCHBufferID,
+    return Listener->ReadPredefinesBuffer(PCHPredefinesBuffers,
                                           ActualOriginalFileName,
                                           SuggestedPredefines);
   return false;
@@ -958,9 +1039,11 @@ PCHReader::PCHReadResult PCHReader::ReadSLocEntryRecord(unsigned ID) {
     FileID BufferID = SourceMgr.createFileIDForMemBuffer(Buffer, ID, Offset);
 
     if (strcmp(Name, "<built-in>") == 0) {
-      PCHPredefinesBufferID = BufferID;
-      PCHPredefines = BlobStart;
-      PCHPredefinesLen = BlobLen - 1;
+      PCHPredefinesBlock Block = {
+        BufferID,
+        llvm::StringRef(BlobStart, BlobLen - 1)
+      };
+      PCHPredefinesBuffers.push_back(Block);
     }
 
     break;
@@ -1636,8 +1719,7 @@ PCHReader::PCHReadResult PCHReader::ReadPCH(const std::string &FileName) {
   }
 
   // Check the predefines buffer.
-  if (CheckPredefinesBuffer(llvm::StringRef(PCHPredefines, PCHPredefinesLen),
-                            PCHPredefinesBufferID))
+  if (CheckPredefinesBuffers())
     return IgnorePCH;
 
   if (PP) {
@@ -2545,8 +2627,12 @@ QualType PCHReader::GetType(pch::TypeID ID) {
 
   Index -= pch::NUM_PREDEF_TYPE_IDS;
   //assert(Index < TypesLoaded.size() && "Type index out-of-range");
-  if (TypesLoaded[Index].isNull())
+  if (TypesLoaded[Index].isNull()) {
     TypesLoaded[Index] = ReadTypeRecord(TypeOffsets[Index]);
+    TypesLoaded[Index]->setFromPCH();
+    if (DeserializationListener)
+      DeserializationListener->TypeRead(ID, TypesLoaded[Index]);
+  }
 
   return TypesLoaded[Index].withFastQualifiers(FastQuals);
 }
@@ -2592,8 +2678,11 @@ Decl *PCHReader::GetExternalDecl(uint32_t ID) {
 }
 
 TranslationUnitDecl *PCHReader::GetTranslationUnitDecl() {
-  if (!DeclsLoaded[0])
+  if (!DeclsLoaded[0]) {
     ReadDeclRecord(DeclOffsets[0], 0);
+    if (DeserializationListener)
+      DeserializationListener->DeclRead(0, DeclsLoaded[0]);
+  }
 
   return cast<TranslationUnitDecl>(DeclsLoaded[0]);
 }
@@ -2608,8 +2697,11 @@ Decl *PCHReader::GetDecl(pch::DeclID ID) {
   }
 
   unsigned Index = ID - 1;
-  if (!DeclsLoaded[Index])
+  if (!DeclsLoaded[Index]) {
     ReadDeclRecord(DeclOffsets[Index], Index);
+    if (DeserializationListener)
+      DeserializationListener->DeclRead(ID, DeclsLoaded[Index]);
+  }
 
   return DeclsLoaded[Index];
 }
