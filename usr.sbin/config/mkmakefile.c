@@ -683,6 +683,7 @@ do_rules(FILE *f)
 	char *cp, *np, och;
 	struct file_list *ftp;
 	char *compilewith;
+	char cmd[128];
 
 	STAILQ_FOREACH(ftp, &ftab, f_next) {
 		if (ftp->f_warn)
@@ -720,25 +721,24 @@ do_rules(FILE *f)
 		compilewith = ftp->f_compilewith;
 		if (compilewith == 0) {
 			const char *ftype = NULL;
-			static char cmd[128];
 
 			switch (ftp->f_type) {
-
 			case NORMAL:
 				ftype = "NORMAL";
 				break;
-
 			case PROFILING:
 				if (!profiling)
 					continue;
 				ftype = "PROFILE";
 				break;
-
 			default:
 				printf("config: don't know rules for %s\n", np);
 				break;
 			}
-			snprintf(cmd, sizeof(cmd), "${%s_%c%s}\n.if defined(NORMAL_CTFCONVERT) && !empty(NORMAL_CTFCONVERT)\n\t${NORMAL_CTFCONVERT}\n.endif", ftype,
+			snprintf(cmd, sizeof(cmd),
+			    "${%s_%c%s}\n.if defined(NORMAL_CTFCONVERT) && "
+			    "!empty(NORMAL_CTFCONVERT)\n"
+			    "\t${NORMAL_CTFCONVERT}\n.endif", ftype,
 			    toupper(och),
 			    ftp->f_flags & NOWERROR ? "_NOWERROR" : "");
 			compilewith = cmd;
