@@ -105,9 +105,11 @@ SVNBRANCH=	head
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
-TARGET?=	${MACHINE}
+TARGET?=		${MACHINE}
+TARGET_CPUARCH?=	${MACHINE_CPUARCH}
 .else
-TARGET?=	${TARGET_ARCH}
+TARGET?=		${TARGET_ARCH}
+TARGET_CPUARCH?=	${TARGET_ARCH}
 .endif
 CROSSENV=	TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 CROSSMAKE=	${MAKE} ${CROSSENV}
@@ -194,7 +196,7 @@ DIST_DOCS_ARCH_DEP=
 #
 OTHER_DISTS?=	catpages manpages games proflibs dict info doc ${ARCH_DISTS}
 BASE_DISTS?=	base
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 ARCH_DISTS?=	lib32
 .endif
 DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS}
@@ -271,6 +273,12 @@ SPLIT_MFSROOT=
 .elif ${TARGET_ARCH} == "powerpc"
 DISKLABEL=		""
 MFSSIZE=		4096
+MFSINODE=		8192
+MFSLABEL=		auto
+SEPARATE_LIVEFS=
+.elif ${TARGET_ARCH} == "powerpc64"
+DISKLABEL=		""
+MFSSIZE=		8192
 MFSINODE=		8192
 MFSLABEL=		auto
 SEPARATE_LIVEFS=
@@ -550,6 +558,7 @@ release rerelease:
 	SEPARATE_LIVEFS \
 	TARGET \
 	TARGET_ARCH \
+	TARGET_CPUARCH \
 	WORLD_FLAGS
 .if defined(${var})
 	echo "export ${var}=\"${${var}}\""	>> ${_MK}
@@ -829,7 +838,7 @@ release.8:
 	-test -f ${.CURDIR}/install.cfg \
 	    && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
-.if ${TARGET_ARCH} != "ia64" && ${TARGET_ARCH} != "powerpc"
+.if ${TARGET_ARCH} != "ia64" && ${TARGET_CPUARCH} != "powerpc"
 	@cp ${RD}/trees/base/boot/boot* ${RD}/mfsfd/boot
 .endif
 .if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
@@ -1129,35 +1138,35 @@ CD_DVD1_PKGS=	${CD_PACKAGE_TREE}/dvd1
 .endif
 
 iso.1:
-.if exists(${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh)
+.if exists(${.CURDIR}/${TARGET_CPUARCH}/mkisoimages.sh)
 	@echo "Creating ISO images..."
 .if defined(CD_BOOT)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	@sh ${.CURDIR}/${TARGET_CPUARCH}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_bootonly \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-bootonly.iso ${CD_BOOT}
 .endif
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	@sh ${.CURDIR}/${TARGET_CPUARCH}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_Install \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
 	    ${CD_DISC1_PKGS}
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
+	@sh ${.CURDIR}/${TARGET_CPUARCH}/mkisoimages.sh \
 	    FreeBSD_Packages \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2} \
 	    ${CD_DISC2_PKGS}
 .if defined(MAKE_DVD)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	@sh ${.CURDIR}/${TARGET_CPUARCH}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_Install \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-dvd1.iso ${CD_DVD1} \
 	    ${CD_DVD1_PKGS}
 .endif
 .if !defined(NODOC)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
+	@sh ${.CURDIR}/${TARGET_CPUARCH}/mkisoimages.sh \
 	    FreeBSD_Documentation \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-disc3.iso ${CD_DOCS} \
 	    ${CD_DOCS_PKGS}
 .endif
 .if defined(SEPARATE_LIVEFS)
-	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	@sh ${.CURDIR}/${TARGET_CPUARCH}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_LiveFS \
 	    ${CD}/FreeBSD-${BUILDNAME}-${TARGET}-livefs.iso ${CD_LIVEFS}
 .endif
@@ -1166,7 +1175,7 @@ iso.1:
 	@(cd ${CD} && sha256 *.iso > FreeBSD-${BUILDNAME}-${TARGET}-iso.CHECKSUM.SHA256)
 	touch ${.TARGET}
 .else
-	@echo "Do not know how to create an ISO for ${TARGET_ARCH}."
+	@echo "Do not know how to create an ISO for ${TARGET_CPUARCH}."
 .endif
 
 #
