@@ -90,6 +90,7 @@ static void get_srcdir(void);
 static void usage(void);
 static void cleanheaders(char *);
 static void kernconfdump(const char *);
+static void checkversion(void);
 
 struct hdr_list {
 	char *h_name;
@@ -109,18 +110,23 @@ main(int argc, char **argv)
 	char *p;
 	char xxx[MAXPATHLEN];
 	char *kernfile;
+	int printmachine;
 
+	printmachine = 0;
 	kernfile = NULL;
-	while ((ch = getopt(argc, argv, "Cd:gpVx:")) != -1)
+	while ((ch = getopt(argc, argv, "Cd:gmpVx:")) != -1)
 		switch (ch) {
 		case 'C':
 			filebased = 1;
+			break;
+		case 'm':
+			printmachine = 1;
 			break;
 		case 'd':
 			if (*destdir == '\0')
 				strlcpy(destdir, optarg, sizeof(destdir));
 			else
-				errx(2, "directory already set");
+				errx(EXIT_FAILURE, "directory already set");
 			break;
 		case 'g':
 			debugging++;
@@ -168,13 +174,6 @@ main(int argc, char **argv)
 		strlcat(destdir, PREFIX, sizeof(destdir));
 	}
 
-	p = path((char *)NULL);
-	if (stat(p, &buf)) {
-		if (mkdir(p, 0777))
-			err(2, "%s", p);
-	} else if (!S_ISDIR(buf.st_mode))
-		errx(2, "%s isn't a directory", p);
-
 	SLIST_INIT(&cputype);
 	SLIST_INIT(&mkopt);
 	SLIST_INIT(&opt);
@@ -202,6 +201,20 @@ main(int argc, char **argv)
 		printf("cpu type must be specified\n");
 		exit(1);
 	}
+	checkversion();
+
+	if (printmachine) {
+		printf("%s\t%s\n",machinename,machinearch);
+		exit(0);
+	}
+
+	/* Make compile directory */
+	p = path((char *)NULL);
+	if (stat(p, &buf)) {
+		if (mkdir(p, 0777))
+			err(2, "%s", p);
+	} else if (!S_ISDIR(buf.st_mode))
+		errx(EXIT_FAILURE, "%s isn't a directory", p);
 
 	/*
 	 * make symbolic links in compilation directory
@@ -254,7 +267,7 @@ get_srcdir(void)
 	int i;
 
 	if (realpath("../..", srcdir) == NULL)
-		errx(2, "Unable to find root of source tree");
+		err(EXIT_FAILURE, "Unable to find root of source tree");
 	if ((pwd = getenv("PWD")) != NULL && *pwd == '/' &&
 	    (pwd = strdup(pwd)) != NULL) {
 		/* Remove the last two path components. */
@@ -276,7 +289,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: config [-CgpV] [-d destdir] sysname\n");
+	fprintf(stderr, "usage: config [-CgmpV] [-d destdir] sysname\n");
 	fprintf(stderr, "       config -x kernel\n");
 	exit(EX_USAGE);
 }
@@ -464,6 +477,11 @@ configfile_filebased(struct sbuf *sb)
 	struct cfgfile *cf;
 	int i;
 
+	/*
+	 * Try to read all configuration files. Since those will be present as
+	 * C string in the macro, we have to slash their ends then the line
+	 * wraps.
+	 */
 	STAILQ_FOREACH(cf, &cfgfiles, cfg_next) {
 		cff = fopen(cf->cfg_path, "r");
 		if (cff == NULL) {
@@ -498,11 +516,6 @@ configfile(void)
 	sb = sbuf_new(NULL, NULL, 2048, SBUF_AUTOEXTEND);
 	assert(sb != NULL);
 	sbuf_clear(sb);
-	/*
-	 * Try to read all configuration files. Since those will be present as
-	 * C string in the macro, we have to slash their ends then the line
-	 * wraps.
-	 */
 	if (filebased) {
 		/* Is needed, can be used for backward compatibility. */
 		configfile_filebased(sb);
@@ -511,7 +524,7 @@ configfile(void)
 	}
 	sbuf_finish(sb);
 	/* 
-	 * We print first part of the tamplate, replace our tag with
+	 * We print first part of the template, replace our tag with
 	 * configuration files content and later continue writing our
 	 * template.
 	 */
@@ -563,9 +576,6 @@ moveifchanged(const char *from_name, const char *to_name)
 
 	if (!changed) {
 		p = mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
-#ifndef MAP_FAILED
-#define MAP_FAILED ((caddr_t) -1)
-#endif
 		if (p == MAP_FAILED)
 			err(EX_OSERR, "mmap %s", from_name);
 		q = mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
@@ -651,6 +661,8 @@ remember(const char *file)
 		}
 	}
 	hl = calloc(1, sizeof(*hl));
+	if (hl == NULL)
+		err(EXIT_FAILURE, "calloc");
 	hl->h_name = s;
 	hl->h_next = htab;
 	htab = hl;
@@ -672,19 +684,19 @@ kernconfdump(const char *file)
 
 	r = open(file, O_RDONLY);
 	if (r == -1)
-		errx(EXIT_FAILURE, "Couldn't open file '%s'", file);
+		err(EXIT_FAILURE, "Couldn't open file '%s'", file);
 	error = fstat(r, &st);
 	if (error == -1)
-		errx(EXIT_FAILURE, "fstat() failed");
+		err(EXIT_FAILURE, "fstat() failed");
 	if (S_ISDIR(st.st_mode))
 		errx(EXIT_FAILURE, "'%s' is a directory", file);
 	fp = fdopen(r, "r");
 	if (fp == NULL)
-		errx(EXIT_FAILURE, "fdopen() failed");
+		err(EXIT_FAILURE, "fdopen() failed");
 	osz = 1024;
 	o = calloc(1, osz);
 	if (o == NULL)
-		errx(EXIT_FAILURE, "Couldn't allocate memory");
+		err(EXIT_FAILURE, "Couldn't allocate memory");
 	/* ELF note section header. */
 	asprintf(&cmd, "/usr/bin/elfdump -c %s | grep -A 8 kern_conf"
 	    "| tail -5 | cut -d ' ' -f 2 | paste - - - - -", file);
@@ -704,7 +716,7 @@ kernconfdump(const char *file)
 		    "INCLUDE_CONFIG_FILE", file);
 	r = fseek(fp, off, SEEK_CUR);
 	if (r != 0)
-		errx(EXIT_FAILURE, "fseek() failed");
+		err(EXIT_FAILURE, "fseek() failed");
 	for (i = 0; i < size; i++) {
 		r = fgetc(fp);
 		if (r == EOF)
@@ -723,4 +735,42 @@ kernconfdump(const char *file)
 		fputc(r, stdout);
 	}
 	fclose(fp);
+}
+
+static void 
+badversion(int versreq)
+{
+	fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
+	fprintf(stderr, "config version = %d, ", CONFIGVERS);
+	fprintf(stderr, "version required = %d\n\n", versreq);
+	fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
+	fprintf(stderr, "with your /usr/src/sys and install a new config binary\n");
+	fprintf(stderr, "before trying this again.\n\n");
+	fprintf(stderr, "If running the new config fails check your config\n");
+	fprintf(stderr, "file against the GENERIC or LINT config files for\n");
+	fprintf(stderr, "changes in config syntax, or option/device naming\n");
+	fprintf(stderr, "conventions\n\n");
+	exit(1);
+}
+
+static void
+checkversion(void)
+{
+	FILE *ifp;
+	char line[BUFSIZ];
+	int versreq;
+
+	ifp = open_makefile_template();
+	while (fgets(line, BUFSIZ, ifp) != 0) {
+		if (*line != '%')
+			continue;
+		if (strncmp(line, "%VERSREQ=", 9) != 0)
+			continue;
+		versreq = atoi(line + 9);
+		if (MAJOR_VERS(versreq) == MAJOR_VERS(CONFIGVERS) &&
+		    versreq <= CONFIGVERS)
+			continue;
+		badversion(versreq);
+	}
+	fclose(ifp);
 }
