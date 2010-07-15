@@ -218,7 +218,7 @@ xgetblk(mbl_t **mbp, size_t s)
 			frmblks = mb->nxt;
 		}
 		mb->ffree = mb->blk;
-		mb->nfree = mb->size;;
+		mb->nfree = mb->size;
 		mb->nxt = *mbp;
 		*mbp = mb;
 	}
