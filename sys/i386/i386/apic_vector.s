@@ -120,6 +120,7 @@ IDTVEC(timerint)
 IDTVEC(cmcint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	call	lapic_handle_cmc
 	MEXITCOUNT
