@@ -562,7 +562,7 @@ sidewaysintpr(int interval1, u_long off)
 			interesting = ip;
 			interesting_off = off;
 		}
-		snprintf(ip->ift_name, sizeof(ip->ift_name), "(%s)", name);;
+		snprintf(ip->ift_name, sizeof(ip->ift_name), "(%s)", name);
 		if ((ipn = malloc(sizeof(struct iftot))) == NULL) {
 			printf("malloc failed\n");
 			exit(1);
