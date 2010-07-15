@@ -96,7 +96,6 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td->td_oncpu = NOCPU;
 
 	td->td_tid = alloc_unr(tid_unrhdr);
-	td->td_syscalls = 0;
 
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
