@@ -1477,8 +1477,12 @@ _xi-links:
 DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
 
 .if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
-FDT_DTS_FILE!= awk '/^makeoptions[[:space:]]+FDT_DTS_FILE/ {FS="=|[ \t]+"; print $$3}' \
+.if exists(${KERNCONFDIR}/${KERNCONF})
+FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
 	${KERNCONFDIR}/${KERNCONF}
+.else
+.error ERROR: kernel config file not found.
+.endif
 .endif
 
 .endif
