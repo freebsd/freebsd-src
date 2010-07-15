@@ -168,9 +168,9 @@ loop:
 		subr = (uintptr_t)MipsTLBInvalidException;
 	else if (pcBetween(fork_trampoline, savectx))
 		subr = (uintptr_t)fork_trampoline;
-	else if (pcBetween(savectx, mips_cpu_throw))
+	else if (pcBetween(savectx, cpu_throw))
 		subr = (uintptr_t)savectx;
-	else if (pcBetween(mips_cpu_throw, cpu_switch))
+	else if (pcBetween(cpu_throw, cpu_switch))
 		subr = (uintptr_t)cpu_throw;
 	else if (pcBetween(cpu_switch, MipsSwitchFPState))
 		subr = (uintptr_t)cpu_switch;
