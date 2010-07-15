@@ -79,9 +79,6 @@ AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
     case 32:
 	*Value = bus_space_read_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
 	break;
-    default:
-	/* debug trap goes here */
-	break;
     }
 
     return (AE_OK);
@@ -101,9 +98,6 @@ AcpiOsWritePort(ACPI_IO_ADDRESS OutPort, UINT32	Value, UINT32 Width)
     case 32:
 	bus_space_write_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
 	break;
-    default:
-	/* debug trap goes here */
-	break;
     }
 
     return (AE_OK);
@@ -113,28 +107,15 @@ ACPI_STATUS
 AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId, UINT32 Register, void *Value,
     UINT32 Width)
 {
-    u_int32_t	byte_width = Width / 8;
-    u_int32_t	val;
+
+    if (Width == 64)
+	return (AE_SUPPORT);
 
     if (!pci_cfgregopen())
 	return (AE_NOT_EXIST);
 
-    val = pci_cfgregread(PciId->Bus, PciId->Device, PciId->Function, Register,
-	byte_width);
-    switch (Width) {
-    case 8:
-	*(u_int8_t *)Value = val & 0xff;
-	break;
-    case 16:
-	*(u_int16_t *)Value = val & 0xffff;
-	break;
-    case 32:
-	*(u_int32_t *)Value = val;
-	break;
-    default:
-	/* debug trap goes here */
-	break;
-    }
+    *(UINT64 *)Value = pci_cfgregread(PciId->Bus, PciId->Device,
+	PciId->Function, Register, Width / 8);
 
     return (AE_OK);
 }
@@ -144,13 +125,15 @@ ACPI_STATUS
 AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
     UINT64 Value, UINT32 Width)
 {
-    u_int32_t	byte_width = Width / 8;
+
+    if (Width == 64)
+	return (AE_SUPPORT);
 
     if (!pci_cfgregopen())
     	return (AE_NOT_EXIST);
 
     pci_cfgregwrite(PciId->Bus, PciId->Device, PciId->Function, Register,
-	Value, byte_width);
+	Value, Width / 8);
 
     return (AE_OK);
 }
