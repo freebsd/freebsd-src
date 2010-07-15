@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_iwnvar.h,v 1.17 2010/02/17 18:23:00 damien Exp $	*/
+/*	$OpenBSD: if_iwnvar.h,v 1.18 2010/04/30 16:06:46 damien Exp $	*/
 
 /*-
  * Copyright (c) 2007, 2008
@@ -150,7 +150,8 @@ struct iwn_fw_part {
 };
 
 struct iwn_fw_info {
-	u_char			*data;
+	const uint8_t		*data;
+	size_t			size;
 	struct iwn_fw_part	init;
 	struct iwn_fw_part	main;
 	struct iwn_fw_part	boot;
