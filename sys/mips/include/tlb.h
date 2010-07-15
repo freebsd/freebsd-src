@@ -35,5 +35,6 @@ void tlb_invalidate_all(void);
 void tlb_invalidate_all_user(struct pmap *);
 void tlb_save(void);
 void tlb_update(struct pmap *, vm_offset_t, pt_entry_t);
+extern int num_tlbentries;
 
 #endif /* !_MACHINE_TLB_H_ */
