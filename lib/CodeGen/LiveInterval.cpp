@@ -119,6 +119,7 @@ bool LiveInterval::killedInRange(SlotIndex Start, SlotIndex End) const {
 //
 bool LiveInterval::overlapsFrom(const LiveInterval& other,
                                 const_iterator StartPos) const {
+  assert(!empty() && "empty interval");
   const_iterator i = begin();
   const_iterator ie = end();
   const_iterator j = StartPos;
@@ -161,16 +162,8 @@ bool LiveInterval::overlapsFrom(const LiveInterval& other,
 /// by [Start, End).
 bool LiveInterval::overlaps(SlotIndex Start, SlotIndex End) const {
   assert(Start < End && "Invalid range");
-  const_iterator I  = begin();
-  const_iterator E  = end();
-  const_iterator si = std::upper_bound(I, E, Start);
-  const_iterator ei = std::upper_bound(I, E, End);
-  if (si != ei)
-    return true;
-  if (si == I)
-    return false;
-  --si;
-  return si->contains(Start);
+  const_iterator I = std::lower_bound(begin(), end(), End);
+  return I != begin() && (--I)->end > Start;
 }
 
 /// extendIntervalEndTo - This method is used when we want to extend the range
@@ -868,6 +861,10 @@ void LiveInterval::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
           OS << "?";
         else
           OS << vni->def;
+        if (vni->hasPHIKill())
+          OS << "-phikill";
+        if (vni->hasRedefByEC())
+          OS << "-ec";
       }
     }
   }
