@@ -253,23 +253,8 @@ cpu_halt(void)
 		;
 }
 
-SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo, CTLFLAG_RD, &bootinfo,
+SYSCTL_STRUCT(_machdep, OID_AUTO, bootinfo, CTLFLAG_RD, &bootinfo,
     bootinfo, "Bootinfo struct: kernel filename, BIOS harddisk geometry, etc");
-
-#ifdef PORT_TO_JMIPS
-static int
-sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
-{
-}
-
-SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT | CTLFLAG_RW,
-    &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
-    "Local offset from GMT in seconds");
-SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set, CTLFLAG_RW,
-    &disable_rtc_set, 0, "Disable setting the real time clock to system time");
-SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock, CTLFLAG_RW,
-    &wall_cmos_clock, 0, "Wall CMOS clock assumed");
-#endif	/* PORT_TO_JMIPS */
 
 /*
  * Initialize per cpu data structures, include curthread.
