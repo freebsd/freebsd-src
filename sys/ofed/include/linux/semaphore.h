@@ -42,4 +42,12 @@ struct semaphore {
 #define	down_trylock(_rw)		!sx_try_xlock(&(_rw)->sx)
 #define	up(_rw)				sx_xunlock(&(_rw)->sx)
 
+static inline void
+sema_init(struct semaphore *sem, int val)
+{
+	init_MUTEX(sem);
+	if (val == 0)
+		down(sem);
+}
+
 #endif /* _LINUX_SEMAPHORE_H_ */

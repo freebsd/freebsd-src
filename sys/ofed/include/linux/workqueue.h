@@ -28,9 +28,12 @@
 #ifndef	_LINUX_WORKQUEUE_H_
 #define	_LINUX_WORKQUEUE_H_
 
-#include <sys/taskqueue.h>
+#include <linux/types.h>
+#include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
+
+#include <sys/taskqueue.h>
 
 struct workqueue_struct {
 	struct taskqueue	*taskqueue;
@@ -46,6 +49,14 @@ struct delayed_work {
 	struct work_struct	work;
 	struct callout		timer;
 };
+
+static inline struct delayed_work *
+to_delayed_work(struct work_struct *work)
+{
+
+ 	return container_of(work, struct delayed_work, work);
+}
+
 
 static inline void
 _work_fn(void *context, int pending)
@@ -68,6 +79,8 @@ do {									\
 	INIT_WORK(&(_work)->work, func);				\
 	callout_init(&(_work)->timer, CALLOUT_MPSAFE);			\
 } while (0)
+
+#define	INIT_DELAYED_WORK_DEFERRABLE	INIT_DELAYED_WORK
 
 #define	schedule_work(work)						\
 do {									\

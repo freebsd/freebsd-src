@@ -28,14 +28,19 @@
 #ifndef _LINUX_TIMER_H_
 #define _LINUX_TIMER_H_
 
-#include <sys/types.h>
+#include <linux/types.h>
+
+#include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/callout.h>
 
 struct timer_list {
 	struct callout	timer_callout;
-	void		(*fn)(unsigned long);
+	void		(*function)(unsigned long);
         unsigned long	data;
 };
+
+#define	expires	timer_callout.c_time
 
 static inline void
 _timer_fn(void *context)
@@ -43,20 +48,37 @@ _timer_fn(void *context)
 	struct timer_list *timer;
 
 	timer = context;
-	timer->fn(timer->data);
+	timer->function(timer->data);
 }
 
 #define	setup_timer(timer, func, dat)					\
 do {									\
-	(timer)->fn = (func);						\
+	(timer)->function = (func);					\
 	(timer)->data = (dat);						\
+	callout_init(&(timer)->timer_callout, CALLOUT_MPSAFE);		\
+} while (0)
+
+#define	init_timer(timer)						\
+do {									\
+	(timer)->function = NULL;					\
+	(timer)->data = 0;						\
 	callout_init(&(timer)->timer_callout, CALLOUT_MPSAFE);		\
 } while (0)
 
 #define	mod_timer(timer, expire)					\
 	callout_reset(&(timer)->timer_callout, (expire), _timer_fn, (timer))
 
+#define	add_timer(timer)						\
+	callout_reset(&(timer)->timer_callout,				\
+	    (timer)->timer_callout.c_time, _timer_fn, (timer))
+
 #define	del_timer(timer)	callout_stop(&(timer)->timer_callout)
 #define	del_timer_sync(timer)	callout_drain(&(timer)->timer_callout)
+
+static inline unsigned long
+round_jiffies(unsigned long j)
+{
+	return roundup(j, hz);
+}
 
 #endif /* _LINUX_TIMER_H_ */
