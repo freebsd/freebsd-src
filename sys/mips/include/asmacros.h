@@ -34,8 +34,11 @@
 
 #include <sys/cdefs.h>
 
+/*
+ * This appears to be a verbatim copy of an old version of amd64's
+ * asmacros.h and has no prayer of acatually working on mips.
+ */
 #if 0
-/* XXX too much duplication in various asm*.h's. */
 
 /*
  * CNAME and HIDENAME manage the relationship between symbol names in C
