@@ -1480,8 +1480,6 @@ DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
 .if exists(${KERNCONFDIR}/${KERNCONF})
 FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
 	${KERNCONFDIR}/${KERNCONF}
-.else
-.error ERROR: kernel config file not found.
 .endif
 .endif
 
