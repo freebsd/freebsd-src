@@ -231,6 +231,10 @@ static int	iwn4965_load_firmware(struct iwn_softc *);
 static int	iwn5000_load_firmware_section(struct iwn_softc *, uint32_t,
 		    const uint8_t *, int);
 static int	iwn5000_load_firmware(struct iwn_softc *);
+static int	iwn_read_firmware_leg(struct iwn_softc *,
+		    struct iwn_fw_info *);
+static int	iwn_read_firmware_tlv(struct iwn_softc *,
+		    struct iwn_fw_info *, uint16_t);
 static int	iwn_read_firmware(struct iwn_softc *);
 static int	iwn_clock_wait(struct iwn_softc *);
 static int	iwn_apm_init(struct iwn_softc *);
@@ -5644,16 +5648,158 @@ iwn5000_load_firmware(struct iwn_softc *sc)
 	return 0;
 }
 
+/*
+ * Extract text and data sections from a legacy firmware image.
+ */
+static int
+iwn_read_firmware_leg(struct iwn_softc *sc, struct iwn_fw_info *fw)
+{
+	const uint32_t *ptr;
+	size_t hdrlen = 24;
+	uint32_t rev;
+
+	ptr = (const uint32_t *)sc->fw_fp->data;
+	rev = le32toh(*ptr++);
+
+	/* Check firmware API version. */
+	if (IWN_FW_API(rev) <= 1) {
+		device_printf(sc->sc_dev,
+		    "%s: bad firmware, need API version >=2\n", __func__);
+		return EINVAL;
+	}
+	if (IWN_FW_API(rev) >= 3) {
+		/* Skip build number (version 2 header). */
+		hdrlen += 4;
+		ptr++;
+	}
+	if (fw->size < hdrlen) {
+		device_printf(sc->sc_dev,
+		    "%s: firmware file too short: %zu bytes\n",
+		    __func__, fw->size);
+		return EINVAL;
+	}
+	fw->main.textsz = le32toh(*ptr++);
+	fw->main.datasz = le32toh(*ptr++);
+	fw->init.textsz = le32toh(*ptr++);
+	fw->init.datasz = le32toh(*ptr++);
+	fw->boot.textsz = le32toh(*ptr++);
+
+	/* Check that all firmware sections fit. */
+	if (fw->size < hdrlen + fw->main.textsz + fw->main.datasz +
+	    fw->init.textsz + fw->init.datasz + fw->boot.textsz) {
+		device_printf(sc->sc_dev,
+		    "%s: firmware file too short: %zu bytes\n",
+		    __func__, fw->size);
+		return EINVAL;
+	}
+
+	/* Get pointers to firmware sections. */
+	fw->main.text = (const uint8_t *)ptr;
+	fw->main.data = fw->main.text + fw->main.textsz;
+	fw->init.text = fw->main.data + fw->main.datasz;
+	fw->init.data = fw->init.text + fw->init.textsz;
+	fw->boot.text = fw->init.data + fw->init.datasz;
+
+	return 0;
+}
+
+/*
+ * Extract text and data sections from a TLV firmware image.
+ */
+int
+iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
+    uint16_t alt)
+{
+	const struct iwn_fw_tlv_hdr *hdr;
+	const struct iwn_fw_tlv *tlv;
+	const uint8_t *ptr, *end;
+	uint64_t altmask;
+	uint32_t len;
+
+	if (fw->size < sizeof (*hdr)) {
+		device_printf(sc->sc_dev,
+		    "%s: firmware file too short: %zu bytes\n",
+		    __func__, fw->size);
+		return EINVAL;
+	}
+	hdr = (const struct iwn_fw_tlv_hdr *)fw->data;
+	if (hdr->signature != htole32(IWN_FW_SIGNATURE)) {
+		device_printf(sc->sc_dev,
+		    "%s: bad firmware file signature 0x%08x\n",
+		    __func__, le32toh(hdr->signature));
+		return EINVAL;
+	}
+
+	/*
+	 * Select the closest supported alternative that is less than
+	 * or equal to the specified one.
+	 */
+	altmask = le64toh(hdr->altmask);
+	while (alt > 0 && !(altmask & (1ULL << alt)))
+		alt--;	/* Downgrade. */
+
+	ptr = (const uint8_t *)(hdr + 1);
+	end = (const uint8_t *)(fw->data + fw->size);
+
+	/* Parse type-length-value fields. */
+	while (ptr + sizeof (*tlv) <= end) {
+		tlv = (const struct iwn_fw_tlv *)ptr;
+		len = le32toh(tlv->len);
+
+		ptr += sizeof (*tlv);
+		if (ptr + len > end) {
+			device_printf(sc->sc_dev,
+			    "%s: firmware file too short: %zu bytes\n",
+			    __func__, fw->size);
+			return EINVAL;
+		}
+		/* Skip other alternatives. */
+		if (tlv->alt != 0 && tlv->alt != htole16(alt))
+			goto next;
+
+		switch (le16toh(tlv->type)) {
+		case IWN_FW_TLV_MAIN_TEXT:
+			fw->main.text = ptr;
+			fw->main.textsz = len;
+			break;
+		case IWN_FW_TLV_MAIN_DATA:
+			fw->main.data = ptr;
+			fw->main.datasz = len;
+			break;
+		case IWN_FW_TLV_INIT_TEXT:
+			fw->init.text = ptr;
+			fw->init.textsz = len;
+			break;
+		case IWN_FW_TLV_INIT_DATA:
+			fw->init.data = ptr;
+			fw->init.datasz = len;
+			break;
+		case IWN_FW_TLV_BOOT_TEXT:
+			fw->boot.text = ptr;
+			fw->boot.textsz = len;
+			break;
+		default:
+			DPRINTF(sc, IWN_DEBUG_RESET,
+			    "%s: TLV type %d not handled\n",
+			    __func__, le16toh(tlv->type));
+			break;
+		}
+next:		/* TLV fields are 32-bit aligned. */
+		ptr += (len + 3) & ~3;
+	}
+	return 0;
+}
+
 static int
 iwn_read_firmware(struct iwn_softc *sc)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
 	struct iwn_fw_info *fw = &sc->fw;
-	const uint32_t *ptr;
-	uint32_t rev;
-	size_t size;
+	int error;
 
 	IWN_UNLOCK(sc);
+
+	memset(fw, 0, sizeof (*fw));
 
 	/* Read firmware image from filesystem. */
 	sc->fw_fp = firmware_get(sc->fwname);
@@ -5666,63 +5812,39 @@ iwn_read_firmware(struct iwn_softc *sc)
 	}
 	IWN_LOCK(sc);
 
-	size = sc->fw_fp->datasize;
-	if (size < 28) {
+	fw->size = sc->fw_fp->datasize;
+	fw->data = (const uint8_t *)sc->fw_fp->data;
+	if (fw->size < sizeof (uint32_t)) {
 		device_printf(sc->sc_dev,
-		    "%s: truncated firmware header: %zu bytes\n",
-		    __func__, size);
+		    "%s: firmware file too short: %zu bytes\n",
+		    __func__, fw->size);
 		return EINVAL;
 	}
 
-	/* Process firmware header. */
-	ptr = (const uint32_t *)sc->fw_fp->data;
-	rev = le32toh(*ptr++);
-	/* Check firmware API version. */
-	if (IWN_FW_API(rev) <= 1) {
+	/* Retrieve text and data sections. */
+	if (*(const uint32_t *)fw->data != 0)	/* Legacy image. */
+		error = iwn_read_firmware_leg(sc, fw);
+	else
+		error = iwn_read_firmware_tlv(sc, fw, 1);
+	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: bad firmware, need API version >=2\n", __func__);
-		return EINVAL;
+		    "%s: could not read firmware sections\n", __func__);
+		return error;
 	}
-	if (IWN_FW_API(rev) >= 3) {
-		/* Skip build number (version 2 header). */
-		size -= 4;
-		ptr++;
-	}
-	fw->main.textsz = le32toh(*ptr++);
-	fw->main.datasz = le32toh(*ptr++);
-	fw->init.textsz = le32toh(*ptr++);
-	fw->init.datasz = le32toh(*ptr++);
-	fw->boot.textsz = le32toh(*ptr++);
-	size -= 24;
 
-	/* Sanity-check firmware header. */
+	/* Make sure text and data sections fit in hardware memory. */
 	if (fw->main.textsz > hal->fw_text_maxsz ||
 	    fw->main.datasz > hal->fw_data_maxsz ||
 	    fw->init.textsz > hal->fw_text_maxsz ||
 	    fw->init.datasz > hal->fw_data_maxsz ||
 	    fw->boot.textsz > IWN_FW_BOOT_TEXT_MAXSZ ||
 	    (fw->boot.textsz & 3) != 0) {
-		device_printf(sc->sc_dev, "%s: invalid firmware header\n",
-		    __func__);
-		return EINVAL;
-	}
-
-	/* Check that all firmware sections fit. */
-	if (fw->main.textsz + fw->main.datasz + fw->init.textsz +
-	    fw->init.datasz + fw->boot.textsz > size) {
 		device_printf(sc->sc_dev,
-		    "%s: firmware file too short: %zu bytes\n",
-		    __func__, size);
+		    "%s: firmware sections too large\n", __func__);
 		return EINVAL;
 	}
 
-	/* Get pointers to firmware sections. */
-	fw->main.text = (const uint8_t *)ptr;
-	fw->main.data = fw->main.text + fw->main.textsz;
-	fw->init.text = fw->main.data + fw->main.datasz;
-	fw->init.data = fw->init.text + fw->init.textsz;
-	fw->boot.text = fw->init.data + fw->init.datasz;
-
+	/* We can proceed with loading the firmware. */
 	return 0;
 }
 
