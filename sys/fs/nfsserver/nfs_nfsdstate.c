@@ -1015,7 +1015,6 @@ nfsrv_freedeleg(struct nfsstate *stp)
 
 /*
  * This function frees an open owner and all associated opens.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_freeopenowner(struct nfsstate *stp, int cansleep, NFSPROC_T *p)
@@ -1161,7 +1160,6 @@ nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
 
 /*
  * Free an nfslock structure.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_freenfslock(struct nfslock *lop)
@@ -1178,7 +1176,6 @@ nfsrv_freenfslock(struct nfslock *lop)
 
 /*
  * This function frees an nfslockfile structure.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_freenfslockfile(struct nfslockfile *lfp)
@@ -1358,11 +1355,6 @@ tryagain:
 		}
 	}
 
-	/*
-	 * Since the code is manipulating lists that are also
-	 * manipulated by nfsrv_servertimer(), soft clock interrupts
-	 * must be masked off.
-	 */
 	if (specialid == 0) {
 	    if (new_stp->ls_flags & NFSLCK_TEST) {
 		/*
@@ -1971,9 +1963,6 @@ tryagain:
 	NFSLOCKSTATE();
 	/*
 	 * Get the nfsclient structure.
-	 * Since the code is manipulating lists that are also
-	 * manipulated by nfsrv_servertimer(), soft clock interrupts
-	 * must be masked off.
 	 */
 	error = nfsrv_getclient(clientid, CLOPS_RENEW, &clp,
 	    (nfsquad_t)((u_quad_t)0), NULL, p);
@@ -3176,7 +3165,6 @@ nfsrv_getlockfile(u_short flags, struct nfslockfile **new_lfpp,
  * This function adds a nfslock lock structure to the list for the associated
  * nfsstate and nfslockfile structures. It will be inserted after the
  * entry pointed at by insert_lop.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_insertlock(struct nfslock *new_lop, struct nfslock *insert_lop,
@@ -3228,7 +3216,6 @@ nfsrv_insertlock(struct nfslock *new_lop, struct nfslock *insert_lop,
  * are NFSLCK_READ or NFSLCK_WRITE and non-overlapping (aka POSIX style).
  * It always adds new_lop to the list and sometimes uses the one pointed
  * at by other_lopp.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_updatelock(struct nfsstate *stp, struct nfslock **new_lopp,
