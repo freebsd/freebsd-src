@@ -769,7 +769,8 @@ DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, 0, 0);
 int
 ata_legacy(device_t dev)
 {
-    return (((pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV)&&
+    return (((pci_read_config(dev, PCIR_SUBCLASS, 1) == PCIS_STORAGE_IDE) &&
+	     (pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV)&&
 	     ((pci_read_config(dev, PCIR_PROGIF, 1) &
 	       (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)) !=
 	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC))) ||
