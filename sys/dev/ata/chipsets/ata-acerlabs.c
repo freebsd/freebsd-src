@@ -133,6 +133,7 @@ ata_ali_chipinit(device_t dev)
 				bus_release_resource(dev, SYS_RES_IOPORT,
 				    PCIR_BAR(i), res->bars[i]);
 			free(res, M_TEMP);
+			return ENXIO;
 		}
 	}
 	ctlr->chipset_data = res;
