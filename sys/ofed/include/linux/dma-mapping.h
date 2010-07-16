@@ -150,17 +150,22 @@ dma_unmap_single_attrs(struct device *dev, dma_addr_t addr, size_t size,
 }
 
 static inline int
-dma_map_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
+dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
+	struct scatterlist *sg;
+	int i;
+	
+	for_each_sg(sgl, sg, nents, i)
+		sg_dma_address(sg) = sg_phys(sg);
+
+	return (nents);
 }
 
 static inline void
 dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
-	KASSERT(0, ("%s", __FUNCTION__));
 }
  
 static inline dma_addr_t
@@ -177,7 +182,6 @@ dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 {
 }
 
-/* XXX This is x86 specific, no syncs required. */ 
 static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
     enum dma_data_direction direction)

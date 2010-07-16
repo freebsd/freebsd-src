@@ -29,11 +29,69 @@
 #define	_LINUX_SCATTERLIST_H_
 
 #include <linux/string.h>
+#include <linux/page.h>
 
 struct scatterlist {
+	union {
+		struct page		*page;
+		struct scatterlist	*sg;
+	} sl_un;
+	unsigned long	address;
+	unsigned long	offset;
+	uint32_t	length;
+	uint32_t	flags;
 };
 
-#define	sg_dma_address(sg)	0
-#define	sg_dma_len(sg)		0
+#define	sg_dma_address(sg)	(sg)->address
+#define	sg_dma_len(sg)		(sg)->length
+#define	sg_page(sg)		(sg)->sl_un.page
+#define	sg_scatternext(sg)	(sg)->sl_un.sg
+
+#define	SG_END		0x01
+#define	SG_CHAIN	0x02
+
+static inline void
+sg_set_page(struct scatterlist *sg, struct page *page, unsigned int len,
+    unsigned int offset)
+{
+	sg_page(sg) = page;
+	sg_dma_len(sg) = len;
+	sg_dma_address(sg) = 0;
+	sg->offset = offset;
+}
+
+static inline void
+sg_set_buf(struct scatterlist *sg, const void *buf, unsigned int buflen)
+{
+	sg_set_page(sg, PHYS_TO_VM_PAGE(vtophys(buf)), buflen,
+	    ((uintptr_t)buf) & PAGE_MASK);
+}
+
+static inline void
+sg_init_table(struct scatterlist *sg, unsigned int nents)
+{
+	bzero(sg, sizeof(*sg) * nents);
+	sg[nents].flags = SG_END;
+}
+
+static inline struct scatterlist *
+sg_next(struct scatterlist *sg)
+{
+	if (sg->flags & SG_END)
+		return (NULL);
+	sg++;
+	if (sg->flags & SG_CHAIN)
+		sg = sg_scatternext(sg);
+	return (sg);
+}
+
+static inline vm_paddr_t
+sg_phys(struct scatterlist *sg)
+{
+	return sg_page(sg)->phys_addr + sg->offset;
+}
+
+#define	for_each_sg(sglist, sg, sgmax, _itr)				\
+	for (_itr = 0, sg = (sglist); _itr < (sgmax); _itr++, sg = sg_next(sg))
 
 #endif	/* _LINUX_SCATTERLIST_H_ */
