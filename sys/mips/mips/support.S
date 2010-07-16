@@ -1353,8 +1353,6 @@ esym:	.word	0
 #endif /* DDB */
 #endif /* DDB || DEBUG */
 
-#define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
-
 	.text
 LEAF(breakpoint)
 	break	MIPS_BREAK_SOVER_VAL

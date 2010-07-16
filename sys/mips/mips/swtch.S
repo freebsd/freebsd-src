@@ -67,17 +67,6 @@
 
 	.set	noreorder			# Noreorder is default style!
 
-/*
- * FREEBSD_DEVELOPERS_FIXME
- * Some MIPS CPU may need delays using nops between executing CP0 Instructions
- */
-
-#if 1
-#define	HAZARD_DELAY			nop ; nop ; nop ; nop
-#else
-#define	HAZARD_DELAY
-#endif
-
 #define	SAVE_U_PCB_REG(reg, offs, base) \
 	REG_S	reg, U_PCB_REGS + (SZREG * offs) (base)
 
@@ -101,8 +90,6 @@
 
 #define	RESTORE_U_PCB_CONTEXT(reg, offs, base) \
 	REG_L	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
-
-#define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
 
 /*
  * Setup for and return to user.
