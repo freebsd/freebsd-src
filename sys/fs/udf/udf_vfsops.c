@@ -710,11 +710,8 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		break;
 	}
 
-	if (vp->v_type != VFIFO) {
-		VI_LOCK(vp);
+	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
-		VI_UNLOCK(vp);
-	}
 
 	if (ino == udf_getid(&udfmp->root_icb))
 		vp->v_vflag |= VV_ROOT;
