@@ -566,11 +566,8 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz)
 		}
 		break;
 	}
-	if (vp->v_type != VFIFO) {
-		VI_LOCK(vp);
+	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
-		VI_UNLOCK(vp);
-	}
 
 	mutex_enter(&zfsvfs->z_znodes_lock);
 	list_insert_tail(&zfsvfs->z_all_znodes, zp);
