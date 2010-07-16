@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <machine/bus.h>
+#include <machine/iodev.h>
 #include <machine/pci_cfgreg.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/pci/pcireg.h>
@@ -48,22 +48,7 @@ __FBSDID("$FreeBSD$");
  *
  * In order to deal with this, we ignore resource ownership entirely, and simply
  * use the native I/O space accessor functionality.  This is Evil, but it works.
- *
- * XXX use an intermediate #define for the tag/handle
  */
-
-#ifdef __i386__
-#define	ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
-#define	ACPI_BUS_HANDLE		0
-#endif
-#ifdef __ia64__
-#define	ACPI_BUS_SPACE_IO	IA64_BUS_SPACE_IO
-#define	ACPI_BUS_HANDLE		0
-#endif
-#ifdef __amd64__
-#define	ACPI_BUS_SPACE_IO	AMD64_BUS_SPACE_IO
-#define	ACPI_BUS_HANDLE		0
-#endif
 
 ACPI_STATUS
 AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
@@ -71,13 +56,13 @@ AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
 
     switch (Width) {
     case 8:
-	*Value = bus_space_read_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
+	*Value = iodev_read_1(InPort);
 	break;
     case 16:
-	*Value = bus_space_read_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
+	*Value = iodev_read_2(InPort);
 	break;
     case 32:
-	*Value = bus_space_read_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, InPort);
+	*Value = iodev_read_4(InPort);
 	break;
     }
 
@@ -90,13 +75,13 @@ AcpiOsWritePort(ACPI_IO_ADDRESS OutPort, UINT32	Value, UINT32 Width)
 
     switch (Width) {
     case 8:
-	bus_space_write_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
+	iodev_write_1(OutPort, Value);
 	break;
     case 16:
-	bus_space_write_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
+	iodev_write_2(OutPort, Value);
 	break;
     case 32:
-	bus_space_write_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
+	iodev_write_4(OutPort, Value);
 	break;
     }
 
