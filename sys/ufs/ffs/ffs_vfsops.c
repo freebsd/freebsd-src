@@ -1519,7 +1519,9 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	 */
 	if (vp->v_type != VFIFO) {
 		/* FFS supports shared locking for all files except fifos. */
+		VI_LOCK(vp);
 		VN_LOCK_ASHARE(vp);
+		VI_UNLOCK(vp);
 	}
 
 	/*
