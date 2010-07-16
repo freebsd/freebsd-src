@@ -692,7 +692,7 @@ nodisks:
 		   "may do so by typing: /usr/sbin/sysinstall.");
     }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	if (!msgYesNo("Would you like to configure any Ethernet or SLIP/PPP network devices?")) {
+	if (!msgYesNo("Would you like to configure any Ethernet network devices?")) {
 	    Device *tmp = tcpDeviceSelect();
 
 	    if (tmp && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
