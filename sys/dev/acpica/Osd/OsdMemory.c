@@ -97,7 +97,7 @@ AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 *Value, UINT32 Width)
 {
     void	*LogicalAddress;
 
-    LogicalAddress = AcpiOsMapMemory(Address, Width / 8);
+    LogicalAddress = pmap_mapdev(Address, Width / 8);
     if (LogicalAddress == NULL)
 	return (AE_NOT_EXIST);
 
@@ -113,7 +113,7 @@ AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 *Value, UINT32 Width)
 	break;
     }
 
-    AcpiOsUnmapMemory(LogicalAddress, Width / 8);
+    pmap_unmapdev((vm_offset_t)LogicalAddress, Width / 8);
 
     return (AE_OK);
 }
@@ -123,7 +123,7 @@ AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 Value, UINT32 Width)
 {
     void	*LogicalAddress;
 
-    LogicalAddress = AcpiOsMapMemory(Address, Width / 8);
+    LogicalAddress = pmap_mapdev(Address, Width / 8);
     if (LogicalAddress == NULL)
 	return (AE_NOT_EXIST);
 
@@ -139,7 +139,7 @@ AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 Value, UINT32 Width)
 	break;
     }
 
-    AcpiOsUnmapMemory(LogicalAddress, Width / 8);
+    pmap_unmapdev((vm_offset_t)LogicalAddress, Width / 8);
 
     return (AE_OK);
 }
