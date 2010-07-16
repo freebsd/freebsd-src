@@ -303,11 +303,11 @@ mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
 	 * Sanity checks
 	 */
 	KASSERT(count % sc->sc_sectorsize == 0,
-	    ("count for BIO_WRITE is not sector size (%d bytes) aligned",
+	    ("count for BIO_READ is not sector size (%d bytes) aligned",
 		sc->sc_sectorsize));
 
 	KASSERT(offset % sc->sc_sectorsize == 0,
-	    ("offset for BIO_WRITE is not sector size (%d bytes) aligned",
+	    ("offset for BIO_READ is not sector size (%d bytes) aligned",
 		sc->sc_sectorsize));
 
 	txBuf[0] = CMD_FAST_READ;
