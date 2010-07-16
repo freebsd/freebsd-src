@@ -78,11 +78,7 @@
 /*
  * A machine-independent interface to the CPU's counter.
  */
-static __inline uint64_t
-get_cyclecount(void)
-{
-	return (mips_rd_count());
-}
+#define get_cyclecount()	mips_rd_count()
 #endif				/* !_LOCORE */
 
 #if defined(_KERNEL) && !defined(_LOCORE)
