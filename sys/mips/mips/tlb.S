@@ -97,14 +97,6 @@
 	.set	mips3
 #endif
 
-#define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
-
-/*
- * FREEBSD_DEVELOPERS_FIXME
- * Some MIPS CPU may need delays using nops between executing CP0 Instructions
- */
-#define	MIPS_CPU_NOP_DELAY	nop;nop;nop;nop;
-
 /*--------------------------------------------------------------------------
  *
  * Mips_TLBWriteIndexed(unsigned index, tlb *tlb);
@@ -134,9 +126,9 @@ LEAF(Mips_TLBWriteIndexed)
 	mtc0	a0, COP_0_TLB_INDEX		# Set the index.
 	_MTC0	a2, COP_0_TLB_PG_MASK		# Set up entry mask.
 	_MTC0	a3, COP_0_TLB_HI		# Set up entry high.
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbwi					# Write the TLB
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 
 	_MTC0	t0, COP_0_TLB_HI		# Restore the PID.
 	nop
@@ -252,9 +244,9 @@ LEAF(Mips_TLBFlush)
 	_MTC0	v0, COP_0_TLB_HI		# Mark entry high as invalid
 	addu	t1, t1, 1			# Increment index.
 	addu	v0, v0, 8 * 1024
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbwi					# Write the TLB entry.
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	bne	t1, a0, 1b
 	nop
 	_MTC0	t0, COP_0_TLB_HI		# Restore the PID
@@ -288,9 +280,9 @@ LEAF(Mips_TLBFlushAddr)
 	_MFC0	t0, COP_0_TLB_HI		# Get current PID
 	mfc0	t3, COP_0_TLB_PG_MASK		# Save current pgMask
 	_MTC0	a0, COP_0_TLB_HI		# look for addr & PID
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbp					# Probe for the entry.
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	mfc0	v0, COP_0_TLB_INDEX		# See what we got
 	li	t1, MIPS_KSEG0_START
 	bltz	v0, 1f				# index < 0 => !found
@@ -305,9 +297,9 @@ LEAF(Mips_TLBFlushAddr)
 
 	_MTC0	zero, COP_0_TLB_LO0		# Zero out low entry.
 	_MTC0	zero, COP_0_TLB_LO1		# Zero out low entry.
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbwi
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 1:
 	_MTC0	t0, COP_0_TLB_HI		# restore PID
 	mtc0	t3, COP_0_TLB_PG_MASK		# Restore pgMask
@@ -341,7 +333,7 @@ LEAF(Mips_TLBUpdate)
 	_MFC0	t0, COP_0_TLB_HI		# Save current PID
 	_MTC0	a0, COP_0_TLB_HI		# Init high reg
 	and	a2, a1, PTE_G			# Copy global bit
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbp					# Probe for the entry.
 	_SLL	a1, a1, WIRED_SHIFT
 	_SRL	a1, a1, WIRED_SHIFT
@@ -351,12 +343,12 @@ LEAF(Mips_TLBUpdate)
 # EVEN
 	nop
 	bltz	v0, 1f				# index < 0 => !found
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 
 	tlbr					# update, read entry first
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	_MTC0	a1, COP_0_TLB_LO0		# init low reg0.
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbwi					# update slot found
 	b	4f
 	nop
@@ -365,23 +357,23 @@ LEAF(Mips_TLBUpdate)
 	_MTC0	a0, COP_0_TLB_HI		# init high reg.
 	_MTC0	a1, COP_0_TLB_LO0		# init low reg0.
 	_MTC0	a2, COP_0_TLB_LO1		# init low reg1.
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbwr					# enter into a random slot
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	b	4f
 	nop
 # ODD
 2:
 	nop
 	bltz	v0, 3f				# index < 0 => !found
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 
 	tlbr					# read the entry first
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	_MTC0	a1, COP_0_TLB_LO1		# init low reg1.
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbwi					# update slot found
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	b	4f
 	nop
 3:
@@ -389,11 +381,11 @@ LEAF(Mips_TLBUpdate)
 	_MTC0	a0, COP_0_TLB_HI		# init high reg.
 	_MTC0	a2, COP_0_TLB_LO0		# init low reg0.
 	_MTC0	a1, COP_0_TLB_LO1		# init low reg1.
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbwr					# enter into a random slot
 
 4:						# Make shure pipeline
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	_MTC0	t0, COP_0_TLB_HI		# restore PID
 	mtc0	v1, COP_0_STATUS_REG		# Restore the status register
 	ITLBNOPFIX
@@ -422,15 +414,15 @@ LEAF(Mips_TLBRead)
 	_MFC0	t0, COP_0_TLB_HI		# Get current PID
 
 	mtc0	a0, COP_0_TLB_INDEX		# Set the index register
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbr					# Read from the TLB
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	mfc0	t2, COP_0_TLB_PG_MASK		# fetch the hi entry
 	_MFC0	t3, COP_0_TLB_HI		# fetch the hi entry
 	_MFC0	ta0, COP_0_TLB_LO0		# See what we got
 	_MFC0	ta1, COP_0_TLB_LO1		# See what we got
 	_MTC0	t0, COP_0_TLB_HI		# restore PID
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	mtc0	v1, COP_0_STATUS_REG		# Restore the status register
 	ITLBNOPFIX
 	sw	t2, 0(a1)
@@ -491,9 +483,9 @@ LEAF(mips_TBIAP)
 	# do {} while (t1 < t2)
 1:
 	mtc0	t1, COP_0_TLB_INDEX		# set index
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbr					# obtain an entry
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	_MFC0	a0, COP_0_TLB_LO1
 	and	a0, a0, PTE_G			# check to see it has G bit
 	bnez	a0, 2f
@@ -503,7 +495,7 @@ LEAF(mips_TBIAP)
 	_MTC0	zero, COP_0_TLB_LO0		# zero out entryLo0
 	_MTC0	zero, COP_0_TLB_LO1		# zero out entryLo1
 	mtc0	zero, COP_0_TLB_PG_MASK		# zero out mask entry
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	tlbwi					# invalidate the TLB entry
 2:
 	addu	t1, t1, 1
@@ -513,7 +505,7 @@ LEAF(mips_TBIAP)
 
 	_MTC0	ta0, COP_0_TLB_HI		# restore PID
 	mtc0	t3, COP_0_TLB_PG_MASK		# restore pgMask
-	MIPS_CPU_NOP_DELAY
+	HAZARD_DELAY
 	mtc0	v1, COP_0_STATUS_REG		# restore status register
 	j	ra				# new ASID will be set soon
 	nop
