@@ -103,6 +103,17 @@ dma_set_mask(struct device *dev, u64 dma_mask)
 		return -EIO;
 
 	*dev->dma_mask = dma_mask;
+	return (0);
+}
+
+static inline int
+dma_set_coherent_mask(struct device *dev, u64 mask)
+{
+
+	if (!dma_supported(dev, mask))
+		return -EIO;
+	/* XXX Currently we don't support a seperate coherent mask. */
+	return 0;
 }
 
 MALLOC_DECLARE(M_LINUX_DMA);
