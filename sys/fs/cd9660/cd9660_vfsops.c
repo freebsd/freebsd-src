@@ -821,7 +821,9 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		vp->v_op = &cd9660_fifoops;
 		break;
 	default:
-		vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
+		VI_LOCK(vp);
+		VN_LOCK_ASHARE(vp);
+		VI_UNLOCK(vp);
 		break;
 	}
 
