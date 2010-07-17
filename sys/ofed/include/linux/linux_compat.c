@@ -51,7 +51,8 @@ MALLOC_DEFINE(M_LINUX_DMA, "lnxdma", "Linux DMA compat");
 #define	RB_ROOT(head)	(head)->rbh_root
 
 struct class miscclass;
-struct linux_device miscroot;
+struct device miscroot;
+struct list_head pci_drivers;
 
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
@@ -118,6 +119,7 @@ linux_compat_init(void)
 	miscclass.name = "misc";
 	class_register(&miscclass);
 	miscroot.bsddev = root_bus;
+	INIT_LIST_HEAD(&pci_drivers);
 }
 
 module_init(linux_compat_init);

@@ -27,7 +27,8 @@
  */
 #ifndef	_LINUX_JIFFIES_H_
 #define	_LINUX_JIFFIES_H_
-#include <sys/types.h>
+#include <linux/types.h>
+
 #include <sys/time.h>
 #include <sys/kernel.h>
 
@@ -48,5 +49,6 @@ msecs_to_jiffies(int msec)
 #define	time_after_eq(a, b)	((long)(a) - (long)(b) >= 0)
 #define	time_before_eq(a, b)	time_after_eq(b, a)
 
+#define	HZ	hz
 
 #endif	/* _LINUX_JIFFIES_H_ */

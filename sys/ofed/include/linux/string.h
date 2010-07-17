@@ -29,11 +29,11 @@
 #ifndef	_LINUX_STRING_H_
 #define	_LINUX_STRING_H_
 
-#include <sys/types.h>
-#include <sys/libkern.h>
 #include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+
+#include <sys/libkern.h>
 
 static inline void *
 kmemdup(const void *src, size_t len, gfp_t gfp)

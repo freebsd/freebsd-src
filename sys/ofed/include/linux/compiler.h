@@ -46,6 +46,7 @@
 #define	__bitwise
 #define __devinitdata
 #define __init
+#define	__devinit
 #define __exit
 #define	__stringify(x)			#x
 #define	__attribute_const__		__attribute__((__const__))
@@ -53,5 +54,7 @@
 #define	likely(x)			__builtin_expect(!!(x), 1)
 #define	unlikely(x)			__builtin_expect(!!(x), 0)
 #define typeof(x)			__typeof(x)
+
+#define	uninitialized_var(x)		x = x
 
 #endif	/* _LINUX_COMPILER_H_ */

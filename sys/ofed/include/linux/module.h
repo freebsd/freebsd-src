@@ -37,10 +37,12 @@
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)
 #define MODULE_LICENSE(name)
+#define	MODULE_VERSION(name)
 
 #define	THIS_MODULE	((struct module *)0)
 
 #define	EXPORT_SYMBOL(name)
+#define	EXPORT_SYMBOL_GPL(name)
 
 #define	module_init(fn)						\
 	SYSINIT(fn, SI_SUB_DRIVERS, SI_ORDER_ANY, (fn), NULL)

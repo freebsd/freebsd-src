@@ -41,4 +41,11 @@ struct sysfs_ops {
 	    size_t);
 };
 
+struct attribute_group {
+	const char		*name;
+	mode_t                  (*is_visible)(struct kobject *,
+				    struct attribute *, int);
+	struct attribute	**attrs;
+};
+
 #endif	/* _LINUX_SYSFS_H_ */

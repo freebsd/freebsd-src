@@ -28,10 +28,15 @@
 #ifndef	_LINUX_KTHREAD_H_
 #define	_LINUX_KTHREAD_H_
 
-#include <linux/slab.h>
-#include <linux/sched.h>
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/sleepqueue.h>
+
+#include <linux/slab.h>
+#include <linux/sched.h>
 
 static inline void
 _kthread_fn(void *arg)

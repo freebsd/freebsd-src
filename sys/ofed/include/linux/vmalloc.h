@@ -26,35 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_LOG2_H_
-#define	_LINUX_LOG2_H_
+#ifndef _LINUX_VMALLOC_H_
+#define	_LINUX_VMALLOC_H_
 
-#include <linux/types.h>
-
-#include <sys/libkern.h>
-
-static inline unsigned long
-roundup_pow_of_two(unsigned long x)
-{
-	return (1UL << flsl(x - 1));
-}
-
-static inline int
-is_power_of_2(unsigned long n)
-{
-	return (n == roundup_pow_of_two(n));
-}
-
-static inline unsigned long
-rounddown_pow_of_two(unsigned long x)
-{
-        return (1UL << (flsl(x) - 1));
-}
-
-static inline unsigned long
-ilog2(unsigned long x)
-{
-	return (flsl(x) - 1);
-}
-
-#endif	/* _LINUX_LOG2_H_ */
+#endif	/* _LINUX_VMALLOC_H_ */

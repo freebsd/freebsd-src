@@ -28,7 +28,8 @@
 #ifndef	_LINUX_IF_ETHER_H_
 #define	_LINUX_IF_ETHER_H_
 
-#include <sys/types.h>
+#include <linux/types.h>
+
 #include <net/ethernet.h>
 
 #define	ETH_P_8021Q	ETHERTYPE_VLAN

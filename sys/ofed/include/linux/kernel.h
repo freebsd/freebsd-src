@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/libkern.h>
 #include <sys/stat.h>
+#include <sys/smp.h>
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
@@ -48,9 +49,11 @@
 
 #define BUG()				panic("BUG")
 #define BUG_ON(condition)		do { if (condition) BUG(); } while(0)
+#define	WARN_ON				BUG_ON
 
 #undef	ALIGN
 #define	ALIGN(x, y)			roundup2((x), (y))
+#define	DIV_ROUND_UP			howmany
 
 #define	printk(X...)			printf(X)
 #define udelay(t)       		DELAY(t)
@@ -76,5 +79,7 @@
 
 #define min_t(type, _x, _y)	(type)(_x) < (type)(_y) ? (type)(_x) : (_y)
 #define max_t(type, _x, _y)	(type)(_x) > (type)(_y) ? (type)(_x) : (_y)
+
+#define	num_possible_cpus()	mp_ncpus
 
 #endif	/* _LINUX_KERNEL_H_ */

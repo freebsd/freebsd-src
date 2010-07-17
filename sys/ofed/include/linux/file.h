@@ -29,12 +29,18 @@
 #define	_LINUX_FILE_H_
 
 #include <sys/param.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/refcount.h>
+#include <sys/proc.h>
+
+#include <linux/fs.h>
 
 struct linux_file;
 
 #undef file
 
-struct fileops linuxfileops;
+extern struct fileops linuxfileops;
 
 static inline struct linux_file *
 linux_fget(unsigned int fd)
@@ -67,9 +73,9 @@ put_unused_fd(unsigned int fd)
 }
 
 static inline void
-fd_install(unsigned int fd, struct file *file)
+fd_install(unsigned int fd, struct linux_file *filp)
 {
-	file->f_ops = &linuxfileops;
+	filp->_file->f_ops = &linuxfileops;
 }
 
 #define	file	linux_file

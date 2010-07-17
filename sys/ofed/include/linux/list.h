@@ -33,8 +33,9 @@
  * FreeBSD header which requires it here so it is resolved with the correct
  * definition prior to the undef.
  */
+#include <linux/types.h>
+
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
@@ -42,11 +43,15 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/conf.h>
-
 #include <sys/socket.h>
+
 #include <net/if_types.h>
+
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+
+#include <vm/vm.h>
+#include <vm/vm_object.h>
 
 #define	prefetch(x)
 

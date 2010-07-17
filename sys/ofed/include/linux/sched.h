@@ -100,4 +100,6 @@ do {									\
 		kick_proc0();						\
 } while (0)
 
+#define	cond_resched()	sched_relinquish(curthread)
+
 #endif	/* _LINUX_SCHED_H_ */

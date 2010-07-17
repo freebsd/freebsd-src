@@ -29,4 +29,53 @@
 #ifndef	_LINUX_INTERRUPT_H_
 #define	_LINUX_INTERRUPT_H_
 
+#include <linux/device.h>
+
+#include <sys/bus.h>
+#include <sys/rman.h>
+
+typedef	irqreturn_t	(*irq_handler_t)(int, void *);
+
+#define	IRQ_RETVAL(x)	((x) != IRQ_NONE)
+
+#define	IRQF_SHARED	RF_SHAREABLE
+
+static void
+_irq_handler(void *device)
+{
+	struct device *dev;
+
+	dev = device;
+	dev->irqhandler(0, dev);
+}
+
+static inline int
+request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
+    const char *name, void *device)
+{
+	struct resource *res;
+	struct device *dev;
+	int error;
+	int rid;
+
+	dev = device;
+	rid = 0;
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, flags | RF_ACTIVE);
+	if (res == NULL)
+		return (-ENXIO);
+	error = bus_setup_intr(dev, res, INTR_TYPE_NET | INTR_MPSAFE, NULL,
+	    _irq_handler, dev, &dev->irqtag);
+	if (error)
+		return (-error);
+	dev->irqhandler = handler;
+
+	return 0;
+}
+
+static inline void
+free_irq(unsigned int irq, void *device)
+{
+	/* XXX */
+}
+
 #endif	/* _LINUX_INTERRUPT_H_ */

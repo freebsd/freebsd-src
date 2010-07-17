@@ -30,12 +30,12 @@
 
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/types.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/semaphore.h>
 
 struct module;
 struct kiocb;
@@ -52,6 +52,8 @@ struct files_struct;
 #define	i_cdev	v_rdev
 
 #define	S_IRUGO	(S_IRUSR | S_IRGRP | S_IROTH)
+#define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
+
 
 typedef struct files_struct *fl_owner_t;
 

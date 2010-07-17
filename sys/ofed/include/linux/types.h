@@ -28,6 +28,7 @@
 #ifndef	_LINUX_TYPES_H_
 #define	_LINUX_TYPES_H_
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <linux/compiler.h>
 #include <asm/types.h>

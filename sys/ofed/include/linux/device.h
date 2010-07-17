@@ -41,24 +41,30 @@
 
 #include <sys/bus.h>
 
+enum irqreturn	{ IRQ_NONE = 0, IRQ_HANDLED, IRQ_WAKE_THREAD, };
+typedef enum irqreturn	irqreturn_t;
+
 struct class {
 	const char	*name;
 	struct module	*owner;
 	devclass_t	bsdclass;
 };
 
-struct linux_device {
-	struct linux_device *parent;
+struct device {
+	struct device	*parent;
 	device_t	bsddev;
 	dev_t		devt;
 	struct class	*class;
-	void		(*release)(struct linux_device *dev);
+	void		(*release)(struct device *dev);
+	irqreturn_t	(*irqhandler)(int, void *);
+	void		*irqtag;
 	struct kobject	kobj;
 	uint64_t	*dma_mask;
 	void		*driver_data;
+
 };
 
-#define	device	linux_device
+/* #define	device	linux_device */
 
 struct class_attribute {
 	struct attribute	attr;

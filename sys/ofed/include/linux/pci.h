@@ -31,12 +31,12 @@
 
 #include <linux/types.h>
 
-#include <sys/pciio.h>
-#include <sys/kobj.h>
+#include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/pciio.h>
 #include <sys/rman.h>
-#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pci_private.h>
 
 #include <machine/resource.h>
@@ -84,12 +84,12 @@ struct pci_driver {
 	devclass_t			bsdclass;
 };
 
-struct list_head pci_drivers;
+extern struct list_head pci_drivers;
 
 #define	__devexit_p(x)	x
 
 struct pci_dev {
-	struct linux_device	dev;
+	struct device		dev;
 	struct pci_driver	*pdrv;
 	uint64_t		dma_mask;
 	uint16_t		device;
@@ -97,16 +97,23 @@ struct pci_dev {
 };
 
 static inline struct resource_list_entry *
-_pci_get_rle(struct pci_dev *pdev, int bar)
+_pci_get_rle(struct pci_dev *pdev, int type, int rid)
 {
 	struct pci_devinfo *dinfo;
 	struct resource_list *rl;
-	struct resource_list_entry *rle;
 
 	dinfo = device_get_ivars(pdev->dev.bsddev);
 	rl = &dinfo->resources;
-	if ((rle = resource_list_find(rl, SYS_RES_MEMORY, bar)) == NULL)
-		rle = resource_list_find(rl, SYS_RES_IOPORT, bar);
+	return resource_list_find(rl, type, rid);
+}
+
+static inline struct resource_list_entry *
+_pci_get_bar(struct pci_dev *pdev, int bar)
+{
+	struct resource_list_entry *rle;
+
+	if ((rle = _pci_get_rle(pdev, SYS_RES_MEMORY, bar)) == NULL)
+		rle = _pci_get_rle(pdev, SYS_RES_IOPORT, bar);
 	return (rle);
 }
 
@@ -115,7 +122,7 @@ pci_resource_start(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_rle(pdev, bar)) == NULL)
+	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
 		return (0);
 	return rle->start;
 }
@@ -125,7 +132,7 @@ pci_resource_len(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_rle(pdev, bar)) == NULL)
+	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
 		return (0);
 	return rle->count;
 }
@@ -138,7 +145,7 @@ pci_resource_flags(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_rle(pdev, bar)) == NULL)
+	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
 		return (0);
 	return rle->type;
 }
@@ -193,7 +200,6 @@ pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 	int type;
 
 	type = pci_resource_flags(pdev, bar);
-
 	rid = PCIR_BAR(bar);
 	if (bus_alloc_resource_any(pdev->dev.bsddev, type, &rid,
 	    RF_ACTIVE) == NULL)
@@ -206,7 +212,7 @@ pci_release_region(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_rle(pdev, bar)) == NULL)
+	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
 		return;
 	bus_release_resource(pdev->dev.bsddev, rle->type, rle->rid, rle->res);
 }
@@ -255,6 +261,7 @@ linux_pci_probe(device_t dev)
 static inline int
 linux_pci_attach(device_t dev)
 {
+	struct resource_list_entry *rle;
 	struct pci_dev *pdev;
 	struct pci_driver *pdrv;
 	struct pci_device_id *id;
@@ -268,6 +275,9 @@ linux_pci_attach(device_t dev)
 	pdev->pdrv = pdrv;
 	kobject_init(&pdev->dev.kobj, NULL);
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
+	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 0);
+	if (rle)
+		pdev->irq = rle->start;
 	error = pdrv->probe(pdev, id);
 	if (error)
 		return (-error);
@@ -297,8 +307,6 @@ pci_register_driver(struct pci_driver *pdrv)
 	devclass_t bus;
 	int error;
 
-	if (pci_drivers.prev == NULL && pci_drivers.next == NULL)
-		INIT_LIST_HEAD(&pci_drivers);
 	list_add(&pdrv->links, &pci_drivers);
 	bus = devclass_find("pci");
 	pdrv->driver.name = pdrv->name;

@@ -28,8 +28,9 @@
 #ifndef	_LINUX_NETDEVICE_H_
 #define	_LINUX_NETDEVICE_H_
 
+#include <linux/types.h>
+
 #include <sys/socket.h>
-#include <sys/types.h>
 
 #include <net/if_types.h>
 #include <net/if.h>
@@ -54,5 +55,8 @@ extern struct net init_net;
 
 #define	dev_get_by_index(n, idx)	ifnet_byindex_ref((idx))
 #define	dev_put(d)	if_rele((d))
+
+#define	netif_running(dev)	!!(dev->if_drv_flags & IFF_DRV_RUNNING)
+#define	netif_oper_up(dev)	!!(dev->if_flags & IFF_UP)
 
 #endif	/* _LINUX_NETDEVICE_H_ */

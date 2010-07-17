@@ -40,7 +40,7 @@ struct dma_pool {
 };
 
 static inline struct dma_pool *
-dma_pool_create(char *name, struct linux_device *dev, size_t size,
+dma_pool_create(char *name, struct device *dev, size_t size,
     size_t align, size_t boundary)
 {
 	struct dma_pool *pool;
