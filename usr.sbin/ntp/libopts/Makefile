@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/libopts/Makefile,v 1.1.6.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/libopts 
 

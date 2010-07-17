@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)redir.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/redir.h,v 1.10.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /* flags passed to redirect */

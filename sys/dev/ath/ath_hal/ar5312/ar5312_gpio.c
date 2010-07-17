@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ath/ath_hal/ar5312/ar5312_gpio.c,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #include "opt_ah.h"
 

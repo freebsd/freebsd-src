@@ -23,7 +23,7 @@
  *	+1-313-764-2278
  *	netatalk@umich.edu
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/ddp_var.h,v 1.9.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _NETATALK_DDP_VAR_H_

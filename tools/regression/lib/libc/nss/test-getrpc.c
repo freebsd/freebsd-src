@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/nss/test-getrpc.c,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <arpa/inet.h>
 #include <rpc/rpc.h>

@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/netstat/mroute.c,v 1.34.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Print multicast routing structures and statistics.

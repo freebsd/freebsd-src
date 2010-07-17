@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/exec.h,v 1.32.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _SYS_EXEC_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/iscontrol/Makefile,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 SRCS= iscontrol.c pdu.c fsm.c config.c login.c auth_subr.c misc.c
 PROG= iscontrol

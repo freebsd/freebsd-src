@@ -33,7 +33,7 @@
 
 /* @(#)exp.c	8.1 (Berkeley) 6/4/93 */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/bsdsrc/b_exp.c,v 1.8.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 
 /* EXP(X)

@@ -38,7 +38,7 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/neomagic.c,v 1.38.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /* -------------------------------------------------------------------- */
 

@@ -24,7 +24,7 @@
  */
 
 #include "cpio_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/matching.c,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>

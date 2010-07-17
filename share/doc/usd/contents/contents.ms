@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)00.contents	8.2 (Berkeley) 4/20/94
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/usd/contents/contents.ms,v 1.3.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 .\"
 .de ND
 .KE

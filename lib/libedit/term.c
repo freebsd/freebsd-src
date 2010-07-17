@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/term.c,v 1.21.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * term.c: Editor/termcap-curses interface

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/mca.h,v 1.1.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef __MACHINE_MCA_H__

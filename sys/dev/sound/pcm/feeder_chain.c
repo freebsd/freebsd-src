@@ -32,7 +32,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_chain.c,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /* chain state */
 struct feeder_chain_state {

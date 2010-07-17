@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/release/picobsd/tinyware/login/pico-login.c,v 1.6.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $";
 #endif /* not lint */
 
 /*

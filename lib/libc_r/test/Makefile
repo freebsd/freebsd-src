@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libc_r/test/Makefile,v 1.11.32.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 # Automated test suite for libc_r (pthreads).
 #

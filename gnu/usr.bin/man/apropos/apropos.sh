@@ -15,7 +15,7 @@
 # The University of Texas at Austin
 # Austin, Texas  78712
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/apropos/apropos.sh,v 1.17.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 
 db=whatis	# name of whatis data base

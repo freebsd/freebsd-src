@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/share/examples/FreeBSD_version/FreeBSD_version.c,v 1.3.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 #if __FreeBSD__ == 0		/* 1.0 did not define __FreeBSD__ */
 #define __FreeBSD_version 199401
 #elif __FreeBSD__ == 1		/* 1.1 defined it to be 1 */

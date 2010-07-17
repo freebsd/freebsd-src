@@ -1,5 +1,5 @@
 # Makefile
-# $FreeBSD$
+# $FreeBSD: src/libexec/bootpd/tools/bootptest/Makefile,v 1.8.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 PROG=	bootptest
 MAN=	bootptest.8

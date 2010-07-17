@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/Symbol.map,v 1.21.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 FBSD_1.0 {

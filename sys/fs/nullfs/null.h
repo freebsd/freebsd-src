@@ -31,7 +31,7 @@
  *
  *	@(#)null.h	8.3 (Berkeley) 8/20/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/nullfs/null.h,v 1.23.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 struct null_mount {

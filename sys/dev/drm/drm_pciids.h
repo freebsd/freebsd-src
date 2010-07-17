@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_pciids.h,v 1.16.2.6.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 /*
    This file is auto-generated from the drm_pciids.txt in the DRM CVS

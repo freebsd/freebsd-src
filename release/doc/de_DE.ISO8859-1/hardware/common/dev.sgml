@@ -34,7 +34,7 @@
 
 <sect1 id="support">
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.20.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $</pubdate>
   </sect1info>
 
   <title>Unterst&uuml;tzte Ger&auml;te</title>

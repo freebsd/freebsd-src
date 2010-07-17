@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/nfsserver/nfs_nfsdstate.c,v 1.10.2.5.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #ifndef APPLEKEXT
 #include <fs/nfs/nfsport.h>

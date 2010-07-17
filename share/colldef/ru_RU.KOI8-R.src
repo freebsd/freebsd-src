@@ -1,6 +1,6 @@
 # koi8-r (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/ru_RU.KOI8-R.src,v 1.10.32.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 charmap map.KOI8-R
 order \

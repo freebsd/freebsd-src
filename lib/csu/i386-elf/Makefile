@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/csu/i386-elf/Makefile,v 1.20.30.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 .PATH: ${.CURDIR}/../common
 

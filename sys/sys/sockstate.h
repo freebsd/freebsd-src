@@ -28,7 +28,7 @@
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/sockstate.h,v 1.1.4.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #ifndef _SYS_SOCKTATE_H_
 #define _SYS_SOCKTATE_H_

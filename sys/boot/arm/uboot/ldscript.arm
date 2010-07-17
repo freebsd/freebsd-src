@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/arm/uboot/ldscript.arm,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)

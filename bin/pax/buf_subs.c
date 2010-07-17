@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)buf_subs.c	8.2 (Berkeley) 4/18/94";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/pax/buf_subs.c,v 1.23.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

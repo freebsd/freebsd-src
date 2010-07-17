@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/atm/ng_sscfu.h,v 1.2.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  *
  * Netgraph module for ITU-T Q.2120 UNI SSCF.
  */

@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.6 2003/10/24 15:41:26 simokawa Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/dcons/Makefile,v 1.5.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../dev/dcons
 

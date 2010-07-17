@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/include/pal.h,v 1.5.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _MACHINE_PAL_H_

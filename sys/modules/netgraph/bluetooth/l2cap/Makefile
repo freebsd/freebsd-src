@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.1 2002/11/24 20:40:11 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/bluetooth/l2cap/Makefile,v 1.5.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/l2cap
 

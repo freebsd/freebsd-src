@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/db_trace.c,v 1.85.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_compat.h"
 

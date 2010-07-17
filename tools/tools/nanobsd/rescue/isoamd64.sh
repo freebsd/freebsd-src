@@ -1,5 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/nanobsd/rescue/isoamd64.sh,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 sh ../nanobsd.sh -i $* -c isoamd64.conf

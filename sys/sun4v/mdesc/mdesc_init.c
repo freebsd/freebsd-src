@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/mdesc/mdesc_init.c,v 1.6.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

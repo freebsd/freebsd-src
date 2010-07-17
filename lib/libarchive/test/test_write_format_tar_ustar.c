@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_tar_ustar.c,v 1.3.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 static int
 is_null(const char *p, size_t l)

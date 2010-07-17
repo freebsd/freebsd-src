@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/amd.map,v 1.10.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 /defaults       type:=host;fs:=${autodir}/${rhost}/host;rhost:=${key}
 *               opts:=rw,grpid,resvport,vers=3,proto=tcp,nosuid,nodev

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/gptboot/Makefile,v 1.62.6.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .PATH:		${.CURDIR}/../boot2
 

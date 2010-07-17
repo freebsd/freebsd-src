@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/timed/timed/extern.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 1993

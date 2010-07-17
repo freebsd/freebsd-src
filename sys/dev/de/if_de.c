@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/de/if_de.c,v 1.186.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #define	TULIP_HDR_DATA
 

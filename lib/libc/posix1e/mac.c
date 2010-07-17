@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/posix1e/mac.c,v 1.13.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/queue.h>

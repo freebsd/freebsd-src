@@ -12,7 +12,7 @@
  *
  * Snoop stuff.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/snoop.h,v 1.25.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _SYS_SNOOP_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libreadline/Makefile.inc,v 1.16.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 SHLIB_MAJOR=8
 RL_LIBRARY_VERSION=5.2

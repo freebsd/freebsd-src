@@ -33,7 +33,7 @@
 #
 #	@(#)lorder.sh	8.1 (Berkeley) 6/6/93
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/lorder/lorder.sh,v 1.7.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 
 # only one argument is a special case, just output the name twice

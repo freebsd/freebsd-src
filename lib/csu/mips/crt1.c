@@ -30,11 +30,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/csu/mips/crt1.c,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/csu/mips/crt1.c,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #ifndef __GNUC__
 #error "GCC is needed to compile this file"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ipfw/Makefile,v 1.30.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 .include <bsd.own.mk>
 

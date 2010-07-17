@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)ctags.c	8.4 (Berkeley) 2/7/95";
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ctags/ctags.c,v 1.20.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <err.h>
 #include <limits.h>

@@ -1,7 +1,7 @@
 /*	$OpenBSD: uslcom.c,v 1.17 2007/11/24 10:52:12 jsg Exp $	*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/serial/uslcom.c,v 1.11.2.4.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Copyright (c) 2006 Jonathan Gray <jsg@openbsd.org>

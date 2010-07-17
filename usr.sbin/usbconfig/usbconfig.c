@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/usbconfig/usbconfig.c,v 1.8.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $ */
 /*-
  * Copyright (c) 2008-2009 Hans Petter Selasky. All rights reserved.
  *

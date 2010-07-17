@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/Makefile,v 1.3.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 # The modules must be built first, because they are built into the
 # static version of libpam.

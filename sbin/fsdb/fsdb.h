@@ -27,7 +27,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/fsdb/fsdb.h,v 1.12.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 extern int blread(int fd, char *buf, ufs2_daddr_t blk, long size);

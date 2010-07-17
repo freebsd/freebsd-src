@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ipfw/ip_fw_log.c,v 1.9.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Logging support for ipfw

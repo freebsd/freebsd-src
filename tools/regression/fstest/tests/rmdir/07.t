@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rmdir/07.t,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 desc="rmdir returns EACCES when search permission is denied for a component of the path prefix"
 

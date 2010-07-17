@@ -1,5 +1,5 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
-# $FreeBSD$
+# $FreeBSD: src/lib/librpcsvc/Makefile,v 1.24.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .include <bsd.own.mk>
 

@@ -30,7 +30,7 @@
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_thread.c,v 1.285.2.7.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

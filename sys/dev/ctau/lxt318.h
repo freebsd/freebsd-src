@@ -17,7 +17,7 @@
  * all derivative works or modified versions.
  *
  * Cronyx Id: lxt318.h,v 1.2.4.4 2003/11/14 19:08:45 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ctau/lxt318.h,v 1.2.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #define LX_WRITE	0x00

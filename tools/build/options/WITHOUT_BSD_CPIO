@@ -1,3 +1,3 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_BSD_CPIO,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 Set to not build the BSD licensed version of cpio based on
 .Xr libarchive 3 .

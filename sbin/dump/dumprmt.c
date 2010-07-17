@@ -32,7 +32,7 @@
 static char sccsid[] = "@(#)dumprmt.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/dump/dumprmt.c,v 1.22.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

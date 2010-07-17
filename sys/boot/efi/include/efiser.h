@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efiser.h,v 1.3.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 #ifndef _EFI_SER_H
 #define _EFI_SER_H
 

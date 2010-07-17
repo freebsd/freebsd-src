@@ -33,7 +33,7 @@
 
 /* 
  * $Id: kadmin_locl.h 17580 2006-05-13 21:28:56Z lha $
- * $FreeBSD$
+ * $FreeBSD: src/crypto/heimdal/kadmin/kadmin_locl.h,v 1.8.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef __ADMIN_LOCL_H__

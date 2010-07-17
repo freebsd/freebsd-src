@@ -1,7 +1,7 @@
 #
 # Common configuration settings for mesh test scripts.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/scripts/mesh/config.mesh,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 
 NODE1_IP=10.0.1.100

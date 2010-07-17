@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libgssapi/gss_set_cred_option.c,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 /* RCSID("$Id: gss_set_cred_option.c 21126 2007-06-18 20:19:59Z lha $"); */
 
 #include <gssapi/gssapi.h>

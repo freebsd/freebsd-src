@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/module.c,v 1.28.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * file/module function dispatcher, support, etc.

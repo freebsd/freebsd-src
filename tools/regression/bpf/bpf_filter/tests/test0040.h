@@ -1,7 +1,7 @@
 /*-
  * Test 0040:	BPF_ALU+BPF_NEG
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0040.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /* BPF program */

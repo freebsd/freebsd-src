@@ -33,7 +33,7 @@
  *
  *	@(#)machAsmDefs.h	8.1 (Berkeley) 6/10/93
  *	JNPR: asm.h,v 1.10 2007/08/09 11:23:32 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/asm.h,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /*

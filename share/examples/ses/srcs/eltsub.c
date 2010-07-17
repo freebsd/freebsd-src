@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/share/examples/ses/srcs/eltsub.c,v 1.1.56.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 /*
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.

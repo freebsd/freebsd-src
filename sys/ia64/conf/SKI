@@ -17,7 +17,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check
 # first in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/ia64/conf/SKI,v 1.26.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 cpu		ITANIUM
 ident		SKI

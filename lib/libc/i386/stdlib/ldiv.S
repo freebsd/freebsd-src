@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/stdlib/ldiv.S,v 1.12.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 ENTRY(ldiv)
         movl    4(%esp),%eax

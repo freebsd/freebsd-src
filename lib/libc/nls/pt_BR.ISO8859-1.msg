@@ -1,4 +1,4 @@
-$ $FreeBSD$
+$ $FreeBSD: src/lib/libc/nls/pt_BR.ISO8859-1.msg,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 $
 $ Message catalog for pt_BR.ISO8859-1 locale
 $

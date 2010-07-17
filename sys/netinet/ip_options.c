@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ip_options.c,v 1.21.2.1.4.2 2010/06/25 21:26:34 qingli Exp $");
 
 #include "opt_ipstealth.h"
 

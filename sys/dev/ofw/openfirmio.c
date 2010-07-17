@@ -1,7 +1,7 @@
 /*	$NetBSD: openfirmio.c,v 1.4 2002/09/06 13:23:19 gehenna Exp $ */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ofw/openfirmio.c,v 1.16.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*-
  * Copyright (c) 1992, 1993

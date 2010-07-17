@@ -1,7 +1,7 @@
 # The FreeBSD Simplified Chinese Project
 # Original Revision: 82872
 #
-# $FreeBSD$
+# $FreeBSD: src/release/doc/zh_CN.GB2312/readme/Makefile,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 RELN_ROOT?= ${.CURDIR}/../..
 .ifdef NO_LANGCODE_IN_DESTDIR

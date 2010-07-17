@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ipfw/change_rules.sh,v 1.6.32.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 # Change ipfw(8) rules with safety guarantees for remote operation
 #

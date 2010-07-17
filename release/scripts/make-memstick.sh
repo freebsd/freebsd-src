@@ -7,7 +7,7 @@
 #
 # Usage: make-memstick.sh <directory tree> <image filename>
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/make-memstick.sh,v 1.1.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 #
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin

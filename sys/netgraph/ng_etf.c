@@ -30,7 +30,7 @@
  *
  * Author: Julian Elischer <julian@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_etf.c,v 1.10.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <sys/param.h>

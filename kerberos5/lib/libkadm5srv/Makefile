@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libkadm5srv/Makefile,v 1.8.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 LIB=	kadm5srv
 VERSION_MAP= ${KRB5DIR}/lib/kadm5/version-script.map

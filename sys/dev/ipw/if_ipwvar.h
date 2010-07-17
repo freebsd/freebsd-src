@@ -1,4 +1,4 @@
-/*      $FreeBSD$	*/
+/*      $FreeBSD: src/sys/dev/ipw/if_ipwvar.h,v 1.10.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 2004-2006

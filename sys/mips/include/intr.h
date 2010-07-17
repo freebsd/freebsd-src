@@ -29,7 +29,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	JNPR: intr.h,v 1.4 2007/08/09 11:23:32 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/intr.h,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _MACHINE_INTR_H_

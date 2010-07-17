@@ -25,7 +25,7 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_mtree.c,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 static char buff[4096];
 static struct {

@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/gen/fabs.S,v 1.2.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 ENTRY(fabs, 1)
 	fabs	fret0=farg0

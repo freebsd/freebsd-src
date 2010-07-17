@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/rijndael/test00.c,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  *
  * This test checks for inplace decryption working.  This is the case
  * where the same buffer is passed as input and output to

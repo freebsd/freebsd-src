@@ -1,4 +1,4 @@
-$ $FreeBSD$
+$ $FreeBSD: src/lib/libc/nls/ja_JP.UTF-8.msg,v 1.4.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 $
 $ Message catalog for ja_JP.UTF-8 locale
 $

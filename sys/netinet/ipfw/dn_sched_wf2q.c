@@ -26,7 +26,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ipfw/dn_sched_wf2q.c,v 1.1.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifdef _KERNEL

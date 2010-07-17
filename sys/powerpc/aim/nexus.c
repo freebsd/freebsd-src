@@ -52,7 +52,7 @@
  *
  * 	from: FreeBSD: src/sys/i386/i386/nexus.c,v 1.43 2001/02/09
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/aim/nexus.c,v 1.18.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #include "opt_psim.h"
 

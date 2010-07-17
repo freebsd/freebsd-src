@@ -7,7 +7,7 @@
 # (c) 2004 Andrew R. Reiter <arr@watson.org>
 # All Rights Reserved.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/vop_table/vop_table.pl,v 1.1.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 # XXX todo: Make $src_dir modificationable
 

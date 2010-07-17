@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/x86bios/Makefile,v 1.3.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 KMOD=	x86bios
 SRCS=	opt_x86bios.h

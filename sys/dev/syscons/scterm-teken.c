@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/syscons/scterm-teken.c,v 1.8.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_syscons.h"
 

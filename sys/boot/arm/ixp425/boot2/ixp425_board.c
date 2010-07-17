@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/arm/ixp425/boot2/ixp425_board.c,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 #include <sys/param.h>
 #include <sys/ata.h>
 #include <sys/linker_set.h>

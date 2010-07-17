@@ -1,5 +1,5 @@
 /* @(#)msg_proc.c	2.1 88/08/11 4.0 RPCSRC */
-/* $FreeBSD$ */
+/* $FreeBSD: src/share/examples/sunrpc/msg/msg_proc.c,v 1.3.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 /*
  * msg_proc.c: implementation of the remote procedure "printmessage"
  */

@@ -22,7 +22,7 @@
  *	By Jeffrey Mogul/DECWRL
  *	loosely based on print-bootp.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-ntp.c,v 1.12.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef lint

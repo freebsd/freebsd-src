@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/gptboot/gptldr.S,v 1.2.6.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  *
  * Partly from: src/sys/boot/i386/boot2/boot1.S 1.31
  */

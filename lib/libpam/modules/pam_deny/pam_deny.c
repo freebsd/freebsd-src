@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_deny/pam_deny.c,v 1.10.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <stddef.h>
 

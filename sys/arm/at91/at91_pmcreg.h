@@ -23,7 +23,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91_pmcreg.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #ifndef ARM_AT91_AT91_PMCREG_H
 #define ARM_AT91_AT91_PMCREG_H

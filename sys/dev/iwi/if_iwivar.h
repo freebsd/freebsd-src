@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/iwi/if_iwivar.h,v 1.21.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 2004, 2005

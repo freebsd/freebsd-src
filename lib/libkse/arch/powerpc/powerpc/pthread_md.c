@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/arch/powerpc/powerpc/pthread_md.c,v 1.5.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <stdlib.h>
 #include <strings.h>

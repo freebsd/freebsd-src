@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_condattr_destroy.c,v 1.7.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #include <stdlib.h>
 #include <errno.h>

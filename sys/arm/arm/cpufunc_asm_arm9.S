@@ -32,7 +32,7 @@
  */
  
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/cpufunc_asm_arm9.S,v 1.5.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Functions to set the MMU Translation Table Base register

@@ -21,7 +21,7 @@
  *
  *	from: NetBSD: sbusreg.h,v 1.7 1999/06/07 05:28:03 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sbus/sbusreg.h,v 1.4.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _SPARC64_SBUS_SBUSREG_H_

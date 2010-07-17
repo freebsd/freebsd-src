@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/net/nss_backends.h,v 1.1.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 /*
  * Eventually, the implementations of existing built-in NSS functions

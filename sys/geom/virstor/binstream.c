@@ -27,7 +27,7 @@
 // $Id: binstream.c,v 1.1 2006/07/05 10:47:54 ivoras Exp $
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/geom/virstor/binstream.c,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <sys/endian.h>
 #include <sys/param.h>

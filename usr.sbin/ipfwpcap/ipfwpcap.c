@@ -21,7 +21,7 @@
  *
  * From: Header: /local/src/local.lib/SRC/ipfwpcap/RCS/ipfwpcap.c,v 1.4 2004/01/15 16:19:07 pkern Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ipfwpcap/ipfwpcap.c,v 1.4.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <stdio.h>

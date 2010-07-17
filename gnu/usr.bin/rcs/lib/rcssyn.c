@@ -153,7 +153,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(synId, "$FreeBSD$")
+libId(synId, "$FreeBSD: src/gnu/usr.bin/rcs/lib/rcssyn.c,v 1.7.56.1.4.1 2010/06/14 02:09:06 kensmith Exp $")
 
 static char const *getkeyval P((char const*,enum tokens,int));
 static int getdelta P((void));

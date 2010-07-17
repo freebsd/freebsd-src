@@ -74,7 +74,7 @@
  */
  
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/cpufunc_asm_xscale_c3.S,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Size of the XScale core D-cache.

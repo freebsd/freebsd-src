@@ -33,7 +33,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs.h,v 1.47.22.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifdef _KERNEL

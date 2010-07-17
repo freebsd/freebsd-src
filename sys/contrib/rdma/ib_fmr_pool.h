@@ -32,7 +32,7 @@
  *
  * $Id: ib_fmr_pool.h 2730 2005-06-28 16:43:03Z sean.hefty $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/ib_fmr_pool.h,v 1.1.4.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #if !defined(IB_FMR_POOL_H)

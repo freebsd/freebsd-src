@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)kill	8.2 (Berkeley) 5/4/95
-# $FreeBSD$
+# $FreeBSD: src/bin/sh/funcs/kill,v 1.8.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 # Convert job names to process ids and then run /bin/kill.
 

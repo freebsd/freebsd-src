@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE. 
  *
  * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_domain.h#2
- * $FreeBSD$
+ * $FreeBSD: src/sys/bsm/audit_domain.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _BSM_AUDIT_DOMAIN_H_

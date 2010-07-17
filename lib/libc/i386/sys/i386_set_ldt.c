@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/sys/i386_set_ldt.c,v 1.11.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <sys/cdefs.h>
 #include <machine/segments.h>

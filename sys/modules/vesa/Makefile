@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/vesa/Makefile,v 1.14.36.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 KMOD=	vesa
 SRCS=	opt_vga.h opt_vesa.h

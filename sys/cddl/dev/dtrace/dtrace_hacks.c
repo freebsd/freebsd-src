@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/cddl/dev/dtrace/dtrace_hacks.c,v 1.1.4.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 /* XXX Hacks.... */
 
 dtrace_cacheid_t dtrace_predcache_id;

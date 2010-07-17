@@ -1,7 +1,7 @@
 #
 # /etc/locate.rc -  command script for updatedb(8)
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/locate/locate/locate.rc,v 1.11.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 #
 # All commented values are the defaults

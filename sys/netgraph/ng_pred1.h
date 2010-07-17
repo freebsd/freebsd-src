@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_pred1.h,v 1.1.12.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _NETGRAPH_NG_PRED1_H_

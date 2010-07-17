@@ -40,7 +40,7 @@
  *	from: Utah Hdr: pte.h 1.11 89/09/03
  *	from: @(#)pte.h 8.1 (Berkeley) 6/10/93
  *	JNPR: pte.h,v 1.1.4.1 2007/09/10 06:20:19 girish
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/pte.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _MACHINE_PTE_H_

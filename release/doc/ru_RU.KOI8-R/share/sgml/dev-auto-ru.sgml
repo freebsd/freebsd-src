@@ -9,7 +9,7 @@
      script to update this file (-o option).
      This script maintained in HEAD branch.
 
-     $FreeBSD$
+     $FreeBSD: src/release/doc/ru_RU.KOI8-R/share/sgml/dev-auto-ru.sgml,v 1.4.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/dev-auto-ru.sgml,v 1.5 2005/06/30 12:11:18 den Exp $
 -->
 <!ENTITY hwlist.62c9ec99a9ca598d738dcf66b339aa1e 'Контроллеры, поддерживаемые драйвером &man.aac.4;, включая:'>

@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	5.88 (Berkeley) 4/30/91
-# $FreeBSD$
+# $FreeBSD: src/etc/termcap.small,v 1.30.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 # for syscons
 # common entry without semigraphics

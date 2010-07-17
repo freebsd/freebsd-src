@@ -20,7 +20,7 @@
  *
  * Portions Copyright 2006-2008 John Birrell jb@freebsd.org
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/dev/profile/profile.c,v 1.1.4.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  *
  */
 

@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/uathload/uathload.c,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /*

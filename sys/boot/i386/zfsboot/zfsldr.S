@@ -12,7 +12,7 @@
  * warranties of merchantability and fitness for a particular
  * purpose.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/zfsboot/zfsldr.S,v 1.1.4.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /* Memory Locations */

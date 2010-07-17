@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/drm_atomic.h,v 1.3.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /* Many of these implementations are rather fake, but good enough. */
 

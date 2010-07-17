@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/powerpc/conf/NOTES,v 1.24.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 # This file contains machine dependent kernel configuration notes.  For
 # machine independent notes, look in /sys/conf/NOTES.

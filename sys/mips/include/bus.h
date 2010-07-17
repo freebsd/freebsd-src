@@ -69,7 +69,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: src/sys/alpha/include/bus.h,v 1.5 1999/08/28 00:38:40 peter
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/bus.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 */
 
 #ifndef _MACHINE_BUS_H_

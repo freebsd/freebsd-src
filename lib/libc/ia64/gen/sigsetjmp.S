@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/gen/sigsetjmp.S,v 1.7.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #define LOCORE
 #include <machine/setjmp.h>

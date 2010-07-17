@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/boot0/Makefile,v 1.35.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 PROG?=	boot0
 STRIP=

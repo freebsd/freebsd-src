@@ -1,7 +1,7 @@
 <!--
     FreeBSD Japanese Documentation Project
 
-    $FreeBSD$
+    $FreeBSD: src/release/doc/ja_JP.eucJP/errata/article.sgml,v 1.32.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
     Original revision: 1.73
 -->
 
@@ -50,7 +50,7 @@
 
     <corpauthor>&os; プロジェクト</corpauthor>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/ja_JP.eucJP/errata/article.sgml,v 1.32.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $</pubdate>
 
     <copyright>
       <year>2000</year>

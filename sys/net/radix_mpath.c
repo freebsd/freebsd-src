@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/radix_mpath.c,v 1.10.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

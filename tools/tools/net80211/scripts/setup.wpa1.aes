@@ -2,7 +2,7 @@
 #
 # Script for testing WPA1 w/ AES.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/scripts/setup.wpa1.aes,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 PATH=.:$PATH
 . config

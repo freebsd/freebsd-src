@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/amd/include/build_version.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #include <sys/param.h>
 /*#define AMU_BUILD_VERSION 1 */

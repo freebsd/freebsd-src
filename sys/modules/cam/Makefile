@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cam/Makefile,v 1.16.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 S=	${.CURDIR}/../..
 

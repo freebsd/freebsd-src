@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ubthidhci,v 1.1.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 #
 
 # PROVIDE: ubthidhci

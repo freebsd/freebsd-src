@@ -23,7 +23,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/kgzldr/kgzldr.h,v 1.2.56.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #define KGZ_CRT	 0x1		/* Video console */

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/usd/11.vitut/Makefile,v 1.7.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 VOLUME=		usd/11.edit
 SRCS=		edittut.ms

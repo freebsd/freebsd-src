@@ -32,7 +32,7 @@
  *
  *	@(#)timed.h	8.1 (Berkeley) 6/2/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/protocols/timed.h,v 1.7.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef	_PROTOCOLS_TIMED_H_

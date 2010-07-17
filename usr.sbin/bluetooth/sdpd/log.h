@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: log.h,v 1.1 2004/01/07 23:15:00 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/log.h,v 1.1.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _LOG_H_

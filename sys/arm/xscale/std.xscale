@@ -1,2 +1,2 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/xscale/std.xscale,v 1.1.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 options		ARM_CACHE_LOCK_ENABLE

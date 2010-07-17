@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)limits.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/include/limits.h,v 1.16.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _LIMITS_H_

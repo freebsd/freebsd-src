@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	JNPR: db_machdep.h,v 1.7 2006/10/16 12:30:34 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/db_machdep.h,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef	_MIPS_DB_MACHDEP_H_

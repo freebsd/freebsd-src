@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: lan.c,v 1.5 2004/01/13 01:54:39 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/lan.c,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <arpa/inet.h>

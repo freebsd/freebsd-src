@@ -1,6 +1,6 @@
 /*
  * David Leonard <d@openbsd.org>, 1999. Public domain.
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_cancel.c,v 1.14.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #include <sys/errno.h>
 #include <pthread.h>

@@ -21,7 +21,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/isa/psm.c,v 1.84 2005/01/10 13:05:58 philip
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/atkbdc/psm.h,v 1.1.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _DEV_ATKBDC_PSM_H_

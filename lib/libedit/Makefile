@@ -1,6 +1,6 @@
 #	$NetBSD: Makefile,v 1.34 2005/05/28 12:02:53 lukem Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libedit/Makefile,v 1.32.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 LIB=	edit
 SHLIB_MAJOR=	7

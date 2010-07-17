@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/ski/ssc.c,v 1.5.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <stand.h>
 #include "libski.h"

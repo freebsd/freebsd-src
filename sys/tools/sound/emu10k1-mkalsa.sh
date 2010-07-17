@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/tools/sound/emu10k1-mkalsa.sh,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 GREP=${GREP:-grep}
 CC=${CC:-cc}

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/lib/libregex/regex.c,v 1.15.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 /* Extended regular expression matching and search library.
    Copyright (C) 2002, 2003 Free Software Foundation, Inc.
    This file is part of the GNU C Library.

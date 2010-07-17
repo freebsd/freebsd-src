@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/fdread/fdutil.c,v 1.8.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <dev/ic/nec765.h>

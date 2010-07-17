@@ -31,7 +31,7 @@
 /* $KAME: sctp_peeloff.h,v 1.6 2005/03/06 16:04:18 itojun Exp $	 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctp_peeloff.h,v 1.3.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #ifndef __sctp_peeloff_h__
 #define __sctp_peeloff_h__

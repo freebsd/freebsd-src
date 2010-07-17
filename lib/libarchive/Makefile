@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libarchive/Makefile,v 1.98.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 .include <bsd.own.mk>
 
 LIB=	archive

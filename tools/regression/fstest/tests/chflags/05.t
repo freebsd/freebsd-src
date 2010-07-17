@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chflags/05.t,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 desc="chflags returns EACCES when search permission is denied for a component of the path prefix"
 

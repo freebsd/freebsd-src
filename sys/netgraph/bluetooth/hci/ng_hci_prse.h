@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_hci_prse.h,v 1.2 2003/03/18 00:09:36 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/bluetooth/hci/ng_hci_prse.h,v 1.4.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /***************************************************************************

@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/nfsclient/nfs_clrpcops.c,v 1.4.2.6.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Rpc op calls, generally called from the vnode op calls or through the

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/arch/mips/Makefile,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .if !defined(GDB_CROSS_DEBUGGER)
 LIBSRCS+= mips-nat.c mips-nat.c mipsfbsd-nat.c

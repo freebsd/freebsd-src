@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_disk_entry_from_file.c,v 1.3.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #ifdef HAVE_SYS_TYPES_H
 /* Mac OSX requires sys/types.h before sys/acl.h. */

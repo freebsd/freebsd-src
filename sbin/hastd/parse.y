@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/hastd/parse.y,v 1.1.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <sys/param.h>	/* MAXHOSTNAMELEN */

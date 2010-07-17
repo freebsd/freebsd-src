@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_cpio_bin_xz.c,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 static unsigned char archive[] = {
  0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00, 0x00, 0x04,

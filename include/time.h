@@ -39,7 +39,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/include/time.h,v 1.35.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _TIME_H_

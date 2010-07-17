@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/ee/Makefile,v 1.27.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../contrib/ee
 

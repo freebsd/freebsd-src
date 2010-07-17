@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/gasp/Makefile,v 1.20.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .include "../Makefile.inc0"
 

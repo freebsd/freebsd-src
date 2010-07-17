@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/comcontrol/comcontrol.c,v 1.14.32.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <ctype.h>
 #include <err.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/pfctl/missing/altq/altq_hfsc.h,v 1.1.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $	*/
 /*	$KAME: altq_hfsc.h,v 1.10 2003/07/10 12:07:48 kjc Exp $	*/
 
 /*

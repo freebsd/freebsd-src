@@ -28,7 +28,7 @@
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/yylex.c,v 2.13 95/03/04 16:10:41 vern Exp $ */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/lex/yylex.c,v 1.6.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <ctype.h>
 #include "flexdef.h"

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ppbus/vpoio.c,v 1.22.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #ifdef _KERNEL
 #include <sys/param.h>

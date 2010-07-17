@@ -3,7 +3,7 @@
 # Script for creating a simple Mesh Point.
 # Topology is fully connected if every node is a neighbor of each other.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/scripts/mesh/setup.simple,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 PATH=../:.:$PATH
 . config

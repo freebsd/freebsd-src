@@ -27,7 +27,7 @@
   * such options should clear the "dry_run" flag to inform the caller of this
   * course of action.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/contrib/tcp_wrappers/options.c,v 1.2.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
   */
 
 #ifndef lint

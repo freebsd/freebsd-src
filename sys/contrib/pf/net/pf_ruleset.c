@@ -37,7 +37,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/contrib/pf/net/pf_ruleset.c,v 1.2.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 #endif
 
 #include <sys/param.h>

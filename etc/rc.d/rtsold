@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/rtsold,v 1.4.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 #
 
 # PROVIDE: rtsold

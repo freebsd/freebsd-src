@@ -26,7 +26,7 @@
 #
 # Configure static ARP table
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/static_arp,v 1.4.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 #
 
 # PROVIDE: static_arp

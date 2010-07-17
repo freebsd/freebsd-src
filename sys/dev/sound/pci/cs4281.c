@@ -43,7 +43,7 @@
 
 #include <dev/sound/pci/cs4281.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/cs4281.c,v 1.28.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #define CS4281_DEFAULT_BUFSZ 16384
 

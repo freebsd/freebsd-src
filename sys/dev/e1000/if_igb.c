@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/e1000/if_igb.c,v 1.21.2.8.2.1 2010/06/14 02:09:06 kensmith Exp $*/
 
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS

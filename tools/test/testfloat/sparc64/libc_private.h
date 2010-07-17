@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/test/testfloat/sparc64/libc_private.h,v 1.1.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 /*
  * This file has no content and is solely to satisfy a #include in

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_mbuf.c,v 1.185.2.2.2.2 2010/07/13 02:45:17 cperciva Exp $");
 
 #include "opt_param.h"
 #include "opt_mbuf_stress_test.h"

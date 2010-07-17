@@ -52,7 +52,7 @@
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/telnet/libtelnet/key-proto.h,v 1.2.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef	__KEY_PROTO__

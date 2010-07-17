@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fdreg.h	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/cbus/fdcreg.h,v 1.11.28.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /*

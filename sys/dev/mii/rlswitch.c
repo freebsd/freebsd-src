@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/rlswitch.c,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * driver for RealTek 8305 pseudo PHYs

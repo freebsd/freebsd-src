@@ -1,5 +1,5 @@
 #XScale i80219 generic configuration
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/i80321/std.i80219,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 files		"../xscale/i80321/files.i80219"
 include		"../xscale/std.xscale"
 cpu 		CPU_XSCALE_80219

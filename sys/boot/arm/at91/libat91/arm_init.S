@@ -20,7 +20,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/arm_init.S,v 1.2.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  ******************************************************************************/
 
 	.equ	TWI_EEPROM_SIZE,	0x3000

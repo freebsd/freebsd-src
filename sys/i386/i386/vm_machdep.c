@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/vm_machdep.c,v 1.297.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_isa.h"
 #include "opt_npx.h"

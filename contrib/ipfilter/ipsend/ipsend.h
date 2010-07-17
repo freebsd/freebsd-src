@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/ipsend.h,v 1.2.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $	*/
 
 /*
  * ipsend.h (C) 1997-1998 Darren Reed

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsd/linux.h,v 1.2.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $	*/
 
 /*
  * Copyright (C) 1997-1998 by Darren Reed.

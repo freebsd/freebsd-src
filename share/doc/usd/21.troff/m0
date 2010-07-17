@@ -37,7 +37,7 @@
 .\"
 .\"	@(#)m0	8.1 (Berkeley) 8/14/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/usd/21.troff/m0,v 1.2.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 .br
 .rs
 .sp |1.0i

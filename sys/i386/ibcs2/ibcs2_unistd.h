@@ -1,5 +1,5 @@
 /*	$NetBSD: ibcs2_unistd.h,v 1.2 1994/10/26 02:53:11 cgd Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/ibcs2/ibcs2_unistd.h,v 1.2.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1994 Scott Bartram

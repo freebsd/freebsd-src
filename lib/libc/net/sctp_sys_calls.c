@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/sctp_sys_calls.c,v 1.14.10.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

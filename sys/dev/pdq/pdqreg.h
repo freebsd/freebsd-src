@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Id: pdqreg.h,v 1.11 1997/03/21 21:16:04 thomas Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pdq/pdqreg.h,v 1.5.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  *
  */
 

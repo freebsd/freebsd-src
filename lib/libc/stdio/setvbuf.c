@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)setvbuf.c	8.2 (Berkeley) 11/16/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/setvbuf.c,v 1.14.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "namespace.h"
 #include <stdio.h>

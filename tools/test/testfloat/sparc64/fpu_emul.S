@@ -24,7 +24,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/test/testfloat/sparc64/fpu_emul.S,v 1.1.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 	.section	"rodata1",#alloc
 	.align	8

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ctm/mkCTM/Makefile,v 1.9.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 PROG=	mkctm
 NO_MAN=

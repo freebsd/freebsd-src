@@ -47,7 +47,7 @@
  *
  *	from: @(#)locore.s	8.5 (Berkeley) 1/4/94
  *	JNPR: tlb.S,v 1.1.4.2 2007/09/10 09:02:05 girish
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/mips/tlb.S,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /*

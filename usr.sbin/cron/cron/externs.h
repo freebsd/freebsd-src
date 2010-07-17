@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/cron/cron/externs.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $	*/
 
 /* Copyright 1993,1994 by Paul Vixie
  * All rights reserved

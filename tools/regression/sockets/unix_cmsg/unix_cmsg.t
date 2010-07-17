@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/sockets/unix_cmsg/unix_cmsg.t,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 cd `dirname $0`
 cmd="./`basename $0 .t`"

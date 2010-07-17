@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/s_sin.S,v 1.7.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $")
 
 ENTRY(sin)
 	fldl	4(%esp)

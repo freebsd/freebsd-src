@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)extern.h	8.1 (Berkeley) 4/2/94
- * $FreeBSD$
+ * $FreeBSD: src/release/picobsd/tinyware/passwd/extern.h,v 1.1.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 int	krb_passwd(char *, char *, char *, char *);

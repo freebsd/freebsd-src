@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/bpf.c,v 1.215.2.9.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_bpf.h"
 #include "opt_compat.h"

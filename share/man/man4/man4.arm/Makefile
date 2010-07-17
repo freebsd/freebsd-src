@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/man/man4/man4.arm/Makefile,v 1.3.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 MAN=	mge.4 npe.4
 

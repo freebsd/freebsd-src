@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bootparamd/callbootd/Makefile,v 1.14.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 PROG=	callbootd
 NO_MAN=

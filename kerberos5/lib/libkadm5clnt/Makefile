@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libkadm5clnt/Makefile,v 1.9.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 LIB=	kadm5clnt
 

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/hastd/primary.c,v 1.3.2.4.2.2 2010/06/23 23:07:57 pjd Exp $");
 
 #include <sys/types.h>
 #include <sys/time.h>

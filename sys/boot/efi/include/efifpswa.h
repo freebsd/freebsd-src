@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efifpswa.h,v 1.2.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 #ifndef _EFI_FPSWA_H
 #define _EFI_FPSWA_H
 

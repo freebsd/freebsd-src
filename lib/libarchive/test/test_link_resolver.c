@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_link_resolver.c,v 1.2.6.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 static void test_linkify_tar(void)
 {

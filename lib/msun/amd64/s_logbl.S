@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/amd64/s_logbl.S,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $")
 
 ENTRY(logbl)
 	fldt	8(%rsp)

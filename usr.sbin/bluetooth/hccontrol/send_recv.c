@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: send_recv.c,v 1.2 2003/05/21 22:40:30 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/hccontrol/send_recv.c,v 1.5.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <sys/types.h>

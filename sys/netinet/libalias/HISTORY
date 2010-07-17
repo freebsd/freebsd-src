@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/netinet/libalias/HISTORY,v 1.9.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 Version 1.0: August 11, 1996 (cjm)
 

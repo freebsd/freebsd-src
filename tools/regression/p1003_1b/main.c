@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/regression/p1003_1b/main.c,v 1.1.56.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 #include <stdio.h>
 
 int fifo(int argc, char *argv[]);

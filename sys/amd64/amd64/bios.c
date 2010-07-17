@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/bios.c,v 1.73.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Subset of the i386 bios support code.  We cannot make bios16 nor bios32

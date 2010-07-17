@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/mv/files.mv,v 1.6.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 #
 # The Marvell CPU cores
 # - Compliant with V5TE architecture

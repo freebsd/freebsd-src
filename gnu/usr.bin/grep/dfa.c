@@ -18,7 +18,7 @@
 /* Written June, 1988 by Mike Haertel
    Modified July, 1988 by Arthur David Olson to assist BMG speedups  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/grep/dfa.c,v 1.21.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>

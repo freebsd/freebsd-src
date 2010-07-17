@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/usr.sbin/makefs/Makefile,v 1.2.4.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 PROG=	makefs
 MAN=	makefs.8

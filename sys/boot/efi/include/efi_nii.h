@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efi_nii.h,v 1.3.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 #ifndef _EFI_NII_H
 #define _EFI_NII_H
 

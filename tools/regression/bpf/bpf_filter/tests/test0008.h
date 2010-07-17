@@ -1,7 +1,7 @@
 /*-
  * Test 0008:	BPF_LDX+BPF_W+BPF_LEN & BPF_MISC+BPF_TXA
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0008.h,v 1.3.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /* BPF program */

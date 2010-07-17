@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: sar.c,v 1.2 2004/01/08 23:46:51 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/sar.c,v 1.2.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <sys/queue.h>

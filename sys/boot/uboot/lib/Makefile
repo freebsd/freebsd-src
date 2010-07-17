@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/uboot/lib/Makefile,v 1.4.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 LIB=		uboot
 INTERNALLIB=

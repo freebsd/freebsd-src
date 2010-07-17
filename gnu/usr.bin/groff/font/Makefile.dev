@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/font/Makefile.dev,v 2.12.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 FILES=		${DEVFILES}
 FILESDIR?=	${fontdir}/dev${DEV}

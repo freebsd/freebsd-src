@@ -23,7 +23,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91var.h,v 1.4.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #ifndef _AT91VAR_H_
 #define _AT91VAR_H_

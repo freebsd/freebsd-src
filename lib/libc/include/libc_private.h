@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/include/libc_private.h,v 1.20.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  *
  * Private definitions for libc, libc_r and libpthread.
  *

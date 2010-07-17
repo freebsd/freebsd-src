@@ -1,5 +1,5 @@
 /*	$NetBSD: uvisor.c,v 1.9 2001/01/23 14:04:14 augustss Exp $	*/
-/*      $FreeBSD$ */
+/*      $FreeBSD: src/sys/dev/usb/serial/uvisor.c,v 1.11.2.6.2.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 /* Also already merged from NetBSD:
  *	$NetBSD: uvisor.c,v 1.12 2001/11/13 06:24:57 lukem Exp $

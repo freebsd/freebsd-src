@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/gen/_ctx_start.S,v 1.5.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * _ctx_start((void *func)(int arg1, ..., argn),

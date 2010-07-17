@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  *
  * $Id: lexer.l,v 1.3 2006/09/07 21:06:53 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/bthidd/lexer.l,v 1.3.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <bluetooth.h>

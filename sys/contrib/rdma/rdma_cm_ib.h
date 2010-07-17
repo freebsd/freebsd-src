@@ -24,7 +24,7 @@
  * notice, one of the license notices in the documentation
  * and/or other materials provided with the distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/rdma_cm_ib.h,v 1.1.4.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #if !defined(RDMA_CM_IB_H)

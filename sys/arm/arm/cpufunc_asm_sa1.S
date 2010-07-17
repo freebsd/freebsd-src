@@ -37,7 +37,7 @@
  */
  
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/cpufunc_asm_sa1.S,v 1.3.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 .Lblock_userspace_access:
 	.word	_C_LABEL(block_userspace_access)

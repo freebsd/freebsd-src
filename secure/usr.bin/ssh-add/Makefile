@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.bin/ssh-add/Makefile,v 1.16.10.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 PROG=	ssh-add
 SRCS+=	ssh-add.c

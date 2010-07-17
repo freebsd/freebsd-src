@@ -1,7 +1,7 @@
 /*
  * Standard LOCALE_CTYPE for the ISO 8859-9 Locale
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/tr_TR.ISO8859-9.src,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 ENCODING	"NONE"
 VARIABLE        ISO 8859-9 Latin-5 character set

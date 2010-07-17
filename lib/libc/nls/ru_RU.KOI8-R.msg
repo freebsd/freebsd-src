@@ -1,4 +1,4 @@
-$ $FreeBSD$
+$ $FreeBSD: src/lib/libc/nls/ru_RU.KOI8-R.msg,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 $
 $ Message catalog for ru_RU.KOI8-R locale
 $

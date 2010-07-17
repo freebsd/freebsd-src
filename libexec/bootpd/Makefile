@@ -1,5 +1,5 @@
 # bootpd/Makefile
-# $FreeBSD$
+# $FreeBSD: src/libexec/bootpd/Makefile,v 1.9.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 PROG=	bootpd
 CFLAGS+= -DETC_ETHERS

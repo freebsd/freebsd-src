@@ -11,7 +11,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/s_ilogb.c,v 1.10.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /* ilogb(double x)
  * return the binary exponent of non-zero x

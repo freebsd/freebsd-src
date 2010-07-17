@@ -1,5 +1,5 @@
 # $DragonFly: src/sys/dev/netif/et/Makefile,v 1.1 2007/10/12 14:12:42 sephe Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/et/Makefile,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../dev/et
 

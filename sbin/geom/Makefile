@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/geom/Makefile,v 1.6.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 .if defined(RESCUE) || defined(RELEASE_CRUNCH)
 

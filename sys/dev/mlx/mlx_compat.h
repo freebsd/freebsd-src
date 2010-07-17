@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mlx/mlx_compat.h,v 1.3.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 /*
  * Portability and compatibility interfaces.

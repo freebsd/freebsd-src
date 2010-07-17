@@ -1,6 +1,6 @@
 #!/usr/local/bin/tclsh7.4
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ctm/mkCTM/mkCTM,v 1.21.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 #############################################################################
 ### Do we already have this delta ?

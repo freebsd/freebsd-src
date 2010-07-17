@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/contrib/mm/Makefile,v 1.8.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 SCRIPTS=	mmroff.pl
 MAN=		mmroff.1

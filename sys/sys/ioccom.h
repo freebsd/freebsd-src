@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioccom.h	8.2 (Berkeley) 3/28/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ioccom.h,v 1.17.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef	_SYS_IOCCOM_H_

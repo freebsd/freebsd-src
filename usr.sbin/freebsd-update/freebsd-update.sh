@@ -25,7 +25,7 @@
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/freebsd-update/freebsd-update.sh,v 1.16.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 #### Usage function -- called from command-line handling code.
 

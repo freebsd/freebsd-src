@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_self/pam_self.c,v 1.9.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #define _BSD_SOURCE
 

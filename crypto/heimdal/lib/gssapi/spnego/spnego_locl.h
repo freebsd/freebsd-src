@@ -31,7 +31,7 @@
  */
 
 /* $Id: spnego_locl.h 19411 2006-12-18 15:42:03Z lha $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/heimdal/lib/gssapi/spnego/spnego_locl.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #ifndef SPNEGO_LOCL_H
 #define SPNEGO_LOCL_H

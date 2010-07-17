@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_attr_getstack.c,v 1.1.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #include <errno.h>
 #include <pthread.h>

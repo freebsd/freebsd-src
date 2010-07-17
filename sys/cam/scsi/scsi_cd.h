@@ -41,7 +41,7 @@
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
  *	from: scsi_cd.h,v 1.10 1997/02/22 09:44:28 peter Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_cd.h,v 1.7.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #ifndef	_SCSI_SCSI_CD_H
 #define _SCSI_SCSI_CD_H 1

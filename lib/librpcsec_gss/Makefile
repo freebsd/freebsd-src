@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/librpcsec_gss/Makefile,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 LIB=	rpcsec_gss
 SHLIB_MAJOR= 1

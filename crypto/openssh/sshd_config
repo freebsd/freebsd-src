@@ -1,5 +1,5 @@
 #	$OpenBSD: sshd_config,v 1.81 2009/10/08 14:03:41 markus Exp $
-#	$FreeBSD$
+#	$FreeBSD: src/crypto/openssh/sshd_config,v 1.49.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.

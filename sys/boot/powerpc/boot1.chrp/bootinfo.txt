@@ -1,7 +1,7 @@
 <CHRP-BOOT>
 <DESCRIPTION>FreeBSD/powerpc bootloader</DESCRIPTION>
 <OS-NAME>FreeBSD</OS-NAME>
-<VERSION> $FreeBSD$ </VERSION>
+<VERSION> $FreeBSD: src/sys/boot/powerpc/boot1.chrp/bootinfo.txt,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ </VERSION>
 
 <COMPATIBLE>
 MacRISC MacRISC3 MacRISC4

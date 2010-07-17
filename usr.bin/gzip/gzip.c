@@ -31,7 +31,7 @@
 #ifndef lint
 __COPYRIGHT("@(#) Copyright (c) 1997, 1998, 2003, 2004, 2006\
  Matthew R. Green.  All rights reserved.");
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/usr.bin/gzip/gzip.c,v 1.12.2.4.2.1 2010/06/14 02:09:06 kensmith Exp $");
 #endif /* not lint */
 
 /*

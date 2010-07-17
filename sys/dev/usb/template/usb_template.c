@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/template/usb_template.c,v 1.8.2.4.2.1 2010/06/14 02:09:06 kensmith Exp $ */
 /*-
  * Copyright (c) 2007 Hans Petter Selasky. All rights reserved.
  *

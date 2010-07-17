@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/ipfilter/Makefile,v 1.20.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $ 
 
 .include <bsd.own.mk>
 

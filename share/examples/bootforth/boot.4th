@@ -1,6 +1,6 @@
 \ Example of the file which is automatically loaded by /boot/loader
 \ on startup.
-\ $FreeBSD$
+\ $FreeBSD: src/share/examples/bootforth/boot.4th,v 1.3.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 \ Load the screen manipulation words
 

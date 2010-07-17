@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/regression/ccd/layout/a.c,v 1.1.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 #include <unistd.h>
 
 static uint32_t buf[512/4];

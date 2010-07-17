@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/at91/std.bwct,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 include "../at91/std.at91"
 
 options		STARTUP_PAGETABLE_ADDR=0x20800000

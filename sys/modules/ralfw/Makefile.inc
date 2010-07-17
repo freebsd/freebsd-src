@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ralfw/Makefile.inc,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 #
 # Common rules for building firmware.  Note this gets auto-included

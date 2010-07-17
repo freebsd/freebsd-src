@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/controller/avr32dci.h,v 1.3.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 /*-
  * Copyright (c) 2009 Hans Petter Selasky. All rights reserved.
  *

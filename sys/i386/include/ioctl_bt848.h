@@ -23,7 +23,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/ioctl_bt848.h,v 1.31.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef	_MACHINE_IOCTL_BT848_H_

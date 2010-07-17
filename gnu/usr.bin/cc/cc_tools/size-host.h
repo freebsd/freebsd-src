@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/cc/cc_tools/size-host.h,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #ifdef	SIZEOF_INT
 # undef	SIZEOF_INT

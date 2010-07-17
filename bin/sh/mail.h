@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mail.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/mail.h,v 1.8.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 void chkmail(int);

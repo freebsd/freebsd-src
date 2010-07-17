@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/dev/dtrace/amd64/instr_size.c,v 1.1.4.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 /*
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.

@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/mips/mips/mp_machdep.c,v 1.4.2.2.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_kstack_pages.h"
 

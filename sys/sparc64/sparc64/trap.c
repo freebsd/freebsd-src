@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/trap.c,v 1.96.2.7.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_ddb.h"
 #include "opt_ktr.h"

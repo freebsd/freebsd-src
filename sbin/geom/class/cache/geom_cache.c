@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/geom/class/cache/geom_cache.c,v 1.3.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <errno.h>
 #include <stdio.h>

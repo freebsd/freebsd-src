@@ -29,7 +29,7 @@ THIS SOFTWARE.
 /* Please send bug reports to David M. Gay (dmg at acm dot org,
  * with " at " changed at "@" and " dot " changed to ".").	*/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gdtoa/hexnan.c,v 1.2.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #include <ctype.h>
 

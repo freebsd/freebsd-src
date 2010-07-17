@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.4 2006/11/09 15:25:37 jmmv Exp $
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/tmpfs/Makefile,v 1.2.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 tests=	t_mount
 tests+=	t_statvfs

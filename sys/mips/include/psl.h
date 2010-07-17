@@ -33,7 +33,7 @@
  *
  *	from: @(#)psl.h 8.1 (Berkeley) 6/10/93
  *	JNPR: psl.h,v 1.1 2006/08/07 05:38:57 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/psl.h,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _MACHINE_PSL_H_

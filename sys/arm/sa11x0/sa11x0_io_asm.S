@@ -35,7 +35,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/sa11x0_io_asm.S,v 1.2.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * bus_space I/O functions for sa11x0

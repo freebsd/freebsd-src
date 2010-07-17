@@ -23,7 +23,7 @@
  *
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/gnu/dev/sound/pci/emu10k1-alsa.h,v 1.3.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #ifdef __KERNEL__
 

@@ -30,7 +30,7 @@
  *
  *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI 
  *	from: @(#)pmap_clnt.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/include/rpc/pmap_clnt.h,v 1.14.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /*

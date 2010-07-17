@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/machdep.c,v 1.245.2.11.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"

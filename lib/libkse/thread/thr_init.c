@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_init.c,v 1.79.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /* Allocate space for global thread variables here: */

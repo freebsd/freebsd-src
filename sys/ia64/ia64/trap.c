@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/trap.c,v 1.130.2.5.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_ddb.h"
 #include "opt_ktrace.h"

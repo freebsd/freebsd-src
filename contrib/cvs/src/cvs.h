@@ -14,7 +14,7 @@
 /*
  * basic information used in all source files
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/cvs.h,v 1.23.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 

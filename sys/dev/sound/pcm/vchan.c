@@ -34,7 +34,7 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/vchan.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/vchan.c,v 1.37.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * [ac3 , dts , linear , 0, linear, 0]

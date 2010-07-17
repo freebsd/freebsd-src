@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libgeom/libgeom.h,v 1.13.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #ifndef _LIBGEOM_H_
 #define _LIBGEOM_H_

@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_kevents.h#7
- * $FreeBSD$
+ * $FreeBSD: src/sys/bsm/audit_kevents.h,v 1.22.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _BSM_AUDIT_KEVENTS_H_

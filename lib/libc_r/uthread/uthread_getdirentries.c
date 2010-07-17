@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_getdirentries.c,v 1.11.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #include <sys/types.h>
 #include <dirent.h>

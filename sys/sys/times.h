@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)times.h	8.4 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/times.h,v 1.9.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef	_SYS_TIMES_H_

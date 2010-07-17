@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/qemu/PICOBSD,v 1.2.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 # A configuration file to run tests on qemu.
 # We disable SMP because it does not work well with qemu, and set HZ=1000
 # to avoid it being overridden.

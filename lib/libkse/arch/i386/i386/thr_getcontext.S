@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/arch/i386/i386/thr_getcontext.S,v 1.7.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Where do we define these?

@@ -28,7 +28,7 @@
 #else
 #include <utime.h>
 #endif
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_option_a.c,v 1.4.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 static struct {
 	const char *name;

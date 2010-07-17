@@ -51,7 +51,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ppbus/lpt.c,v 1.49.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Device Driver for AT parallel printer port

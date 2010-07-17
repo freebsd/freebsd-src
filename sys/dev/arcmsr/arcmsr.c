@@ -58,7 +58,7 @@
 **     1.20.00.16   10/10/2009         Erich Chen        Bug fix for RAID adapter type ARC120x
 **                                                       bus_dmamem_alloc() with BUS_DMA_ZERO
 ******************************************************************************************
-* $FreeBSD$
+* $FreeBSD: src/sys/dev/arcmsr/arcmsr.c,v 1.31.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 */
 #include <sys/param.h>
 #include <sys/systm.h>

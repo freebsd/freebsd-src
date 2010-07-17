@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/pmc_mdep.h,v 1.8.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /* Machine dependent interfaces */

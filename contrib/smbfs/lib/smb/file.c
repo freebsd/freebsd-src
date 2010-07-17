@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: file.c,v 1.2 2001/04/16 04:33:01 bp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/smbfs/lib/smb/file.c,v 1.2.30.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 #include <sys/param.h>
 #include <sys/sysctl.h>

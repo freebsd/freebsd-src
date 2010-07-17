@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/colldef/common.h,v 1.2.38.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #define CHARMAP_SYMBOL_LEN 64

@@ -24,7 +24,7 @@
  *
  * used floppy.c and cdrom.c as templates, edited as necessary.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/usb.c,v 1.3.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <sys/fcntl.h>

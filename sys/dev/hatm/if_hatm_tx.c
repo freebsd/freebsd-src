@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hatm/if_hatm_tx.c,v 1.14.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_inet.h"
 #include "opt_natm.h"

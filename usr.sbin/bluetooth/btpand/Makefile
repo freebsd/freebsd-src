@@ -1,5 +1,5 @@
 # $NetBSD: Makefile,v 1.2 2008/08/18 08:25:32 plunky Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bluetooth/btpand/Makefile,v 1.1.4.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 PROG=	btpand
 MAN=	btpand.8

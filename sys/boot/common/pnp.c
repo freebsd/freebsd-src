@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/pnp.c,v 1.17.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * "Plug and Play" functionality.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/gss/mech,v 1.4.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 # Name		OID			Library name			Kernel module
 kerberosv5	1.2.840.113554.1.2.2	/usr/lib/libgssapi_krb5.so.10	kgssapi_krb5

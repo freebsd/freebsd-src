@@ -23,7 +23,7 @@ License Agreement applies to this software.
 	Modified at NRL for OPIE 2.0.
 	Originally from BSD.
 
-$FreeBSD$
+$FreeBSD: src/contrib/opie/popen.c,v 1.2.32.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 */
 /*
  * Copyright (c) 1988, 1993, 1994

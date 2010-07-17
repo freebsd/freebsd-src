@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/netrate/juggle/juggle.c,v 1.2.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <sys/types.h>
@@ -497,7 +497,7 @@ main(int argc, char *argv[])
 	int fd1, fd2, i, j, p;
 	struct utsname uts;
 
-	printf("version, juggle.c %s\n", "$FreeBSD$");
+	printf("version, juggle.c %s\n", "$FreeBSD: src/tools/tools/netrate/juggle/juggle.c,v 1.2.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 	if (uname(&uts) < 0)
 		err(-1, "utsname");

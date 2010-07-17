@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_disk_entry_from_file.c,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 static const char *
 gname_lookup(void *d, gid_t g)

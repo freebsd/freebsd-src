@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.t	1.2 (Berkeley) 11/8/90
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/kerntune/1.t,v 1.5.56.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 .\"
 .ds RH Introduction
 .NH 1

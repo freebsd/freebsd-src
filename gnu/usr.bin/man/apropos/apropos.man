@@ -12,7 +12,7 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/gnu/usr.bin/man/apropos/apropos.man,v 1.16.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 .Dd January 15, 1991
 .Dt APROPOS 1
 .Os

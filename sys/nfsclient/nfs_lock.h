@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *      from nfs_lock.h,v 2.2 1998/04/28 19:38:41 don Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsclient/nfs_lock.h,v 1.6.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /*

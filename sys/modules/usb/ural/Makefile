@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/usb/ural/Makefile,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 # Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
 #

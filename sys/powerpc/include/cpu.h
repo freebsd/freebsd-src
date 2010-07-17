@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: cpu.h,v 1.11 2000/05/26 21:19:53 thorpej Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/cpu.h,v 1.22.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _MACHINE_CPU_H_

@@ -51,7 +51,7 @@
     .file   "setjmp.s"
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/gen/_setjmp.S,v 1.11.32.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #define     LOCORE
 #include    <machine/setjmp.h>

@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/e1000/e1000_hw.h,v 1.4.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $*/
 
 #ifndef _E1000_HW_H_
 #define _E1000_HW_H_

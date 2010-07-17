@@ -23,7 +23,7 @@ this code that are retained.
 ===============================================================================
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/test/testfloat/sparc64/systfloat.h,v 1.1.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #include "softfloat.h"
 #include "milieu.h"

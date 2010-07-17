@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hptiop/hptiop.c,v 1.4.2.2.2.2 2010/06/23 10:04:48 mav Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

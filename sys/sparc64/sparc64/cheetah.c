@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/cheetah.c,v 1.10.2.5.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_pmap.h"
 

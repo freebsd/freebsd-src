@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
   <comment>
-    $FreeBSD$
+    $FreeBSD: src/tools/regression/geom/Data/disk.msdos.flp.xml,v 1.1.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
     A MSDOS floppy image.
   </comment>
   <sectorsize>512</sectorsize>

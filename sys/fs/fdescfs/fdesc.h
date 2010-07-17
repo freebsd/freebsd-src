@@ -31,7 +31,7 @@
  *
  *	@(#)fdesc.h	8.5 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/fdescfs/fdesc.h,v 1.22.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifdef _KERNEL

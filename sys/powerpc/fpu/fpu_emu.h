@@ -1,5 +1,5 @@
 /*	$NetBSD: fpu_emu.h,v 1.3 2005/12/11 12:18:42 christos Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/powerpc/fpu/fpu_emu.h,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 /*
  * Copyright (c) 1992, 1993

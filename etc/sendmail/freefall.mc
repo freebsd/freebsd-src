@@ -40,7 +40,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$FreeBSD$')
+VERSIONID(`$FreeBSD: src/etc/sendmail/freefall.mc,v 1.20.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $')
 
 OSTYPE(freebsd6)
 FEATURE(nullclient, hub.$m)

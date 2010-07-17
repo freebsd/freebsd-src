@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpam/modules/pam_login_access/pam_login_access.h,v 1.2.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 extern int login_access(const char *, const char *);

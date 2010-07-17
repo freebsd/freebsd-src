@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/nfs/nfs_commonport.c,v 1.4.2.5.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Functions that need to be different for different versions of BSD

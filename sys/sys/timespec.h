@@ -28,7 +28,7 @@
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
  * from: FreeBSD: src/sys/sys/time.h,v 1.43 2000/03/20 14:09:05 phk Exp
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/sys/timespec.h,v 1.5.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /*

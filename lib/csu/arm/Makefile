@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/csu/arm/Makefile,v 1.1.22.2.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 .PATH: ${.CURDIR}/../common
 

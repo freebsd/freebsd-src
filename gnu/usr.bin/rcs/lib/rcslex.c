@@ -168,7 +168,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(lexId, "$FreeBSD$")
+libId(lexId, "$FreeBSD: src/gnu/usr.bin/rcs/lib/rcslex.c,v 1.8.56.1.4.1 2010/06/14 02:09:06 kensmith Exp $")
 
 static char *checkidentifier P((char*,int,int));
 static void errsay P((char const*));

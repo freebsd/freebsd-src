@@ -3,7 +3,7 @@
 # Validate all locales installed in specified directory
 # (by default check system locales)
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/diag/localeck/docheck.sh,v 1.2.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 #
 
 LOCALEDIR=/usr/share/locale

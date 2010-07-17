@@ -26,7 +26,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
+__FBSDID("$FreeBSD: src/sys/sun4v/cddl/t1_copy.S,v 1.1.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $")
 	
 #include <machine/asi.h>
 #include <machine/asmacros.h>

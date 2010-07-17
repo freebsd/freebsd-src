@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/acpi/iasl/Makefile,v 1.8.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 PROG=	iasl
 SRCS=	adfile.c adisasm.c adwalk.c

@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)5.t	5.1 (Berkeley) 4/17/91
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/sysperf/5.t,v 1.2.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 .\"
 .ds RH Functional Extensions
 .NH

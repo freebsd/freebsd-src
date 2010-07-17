@@ -22,7 +22,7 @@
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$FreeBSD$"
+	.asciz "$FreeBSD: src/lib/libc_r/arch/i386/_atomic_lock.S,v 1.6.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include <machine/asm.h>

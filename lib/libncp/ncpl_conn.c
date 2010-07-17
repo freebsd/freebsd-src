@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libncp/ncpl_conn.c,v 1.11.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  *

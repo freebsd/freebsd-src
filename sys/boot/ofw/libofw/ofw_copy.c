@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ofw/libofw/ofw_copy.c,v 1.16.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * MD primitives supporting placement of module data 

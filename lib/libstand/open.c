@@ -61,7 +61,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/open.c,v 1.7.10.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "stand.h"
 

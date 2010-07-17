@@ -32,7 +32,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs_map.c,v 1.51.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include "opt_compat.h"

@@ -1,6 +1,6 @@
 /* RCS common definitions and data structures */
 
-#define RCSBASE "$FreeBSD$"
+#define RCSBASE "$FreeBSD: src/gnu/usr.bin/rcs/lib/rcsbase.h,v 1.10.56.1.4.1 2010/06/14 02:09:06 kensmith Exp $"
 
 /* Copyright 1982, 1988, 1989 Walter Tichy
    Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert

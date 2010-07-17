@@ -1,7 +1,7 @@
 /*
  * Ukrainian calendar files
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.ukrainian,v 1.1.14.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _calendar_ukrainian_

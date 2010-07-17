@@ -32,7 +32,7 @@
  */
 
 /* $Id: krb5_locl.h 22226 2007-12-08 21:31:53Z lha $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/heimdal/lib/krb5/krb5_locl.h,v 1.10.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 
 #ifndef __KRB5_LOCL_H__
 #define __KRB5_LOCL_H__

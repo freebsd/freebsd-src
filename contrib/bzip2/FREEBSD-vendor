@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/bzip2/FREEBSD-vendor,v 1.1.2.2.4.1 2010/06/14 02:09:06 kensmith Exp $
 Project:	bzip2
 ProjectURL:	http://www.bzip.org/
 Version:	1.0.5

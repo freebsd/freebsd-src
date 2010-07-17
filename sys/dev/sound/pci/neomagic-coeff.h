@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/neomagic-coeff.h,v 1.4.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #define NM_TOTAL_COEFF_COUNT 0x3158

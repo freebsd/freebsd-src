@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)tree.c	8.3 (Berkeley) 4/2/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ctags/tree.c,v 1.12.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <err.h>
 #include <limits.h>

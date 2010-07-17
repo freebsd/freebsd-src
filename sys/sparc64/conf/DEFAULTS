@@ -1,7 +1,7 @@
 #
 # DEFAULTS -- Default kernel configuration file for FreeBSD/sparc64
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/sparc64/conf/DEFAULTS,v 1.13.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 
 machine		sparc64
 

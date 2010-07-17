@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.sbin/bluetooth/bcmfw/README,v 1.2.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 This directory will eventually also contain copies of the broadcom firmware.
 

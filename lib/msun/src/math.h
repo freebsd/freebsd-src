@@ -11,7 +11,7 @@
 
 /*
  * from: @(#)fdlibm.h 5.1 93/09/24
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/src/math.h,v 1.77.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _MATH_H_

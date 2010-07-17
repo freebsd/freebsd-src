@@ -25,7 +25,7 @@
  */
 
 #include "cpio_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/pathmatch.c,v 1.2.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #ifdef HAVE_STRING_H
 #include <string.h>

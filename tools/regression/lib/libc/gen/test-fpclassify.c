@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/lib/libc/gen/test-fpclassify.c,v 1.3.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <assert.h>

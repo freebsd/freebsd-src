@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_INSTALLLIB,v 1.1.4.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 Set this if you do not want to install optional libraries.
 For example when creating a
 .Xr nanobsd 8

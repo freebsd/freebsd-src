@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/ncurses/config.mk,v 1.4.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 
 # This Makefile is shared by libncurses, libform, libmenu, libpanel.
 

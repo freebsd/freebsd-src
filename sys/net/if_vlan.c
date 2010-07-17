@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/if_vlan.c,v 1.139.2.9.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "opt_vlan.h"
 

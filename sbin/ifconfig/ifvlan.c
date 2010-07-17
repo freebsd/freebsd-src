@@ -56,7 +56,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/ifconfig/ifvlan.c,v 1.19.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $";
 #endif
 
 #define	NOTAG	((u_short) -1)

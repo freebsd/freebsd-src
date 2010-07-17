@@ -1,6 +1,6 @@
 #include <machine/asm.h>
 
-.ident	"$FreeBSD$"
+.ident	"$FreeBSD: src/lib/libc/arm/gen/_ctx_start.S,v 1.2.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $"
 ENTRY(_ctx_start)
 	mov	lr, pc
 	mov	pc, r4

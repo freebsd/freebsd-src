@@ -1,4 +1,4 @@
-$ $FreeBSD$
+$ $FreeBSD: src/lib/libc/nls/mn_MN.UTF-8.msg,v 1.1.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 $
 $ Message catalog for mn_MN.UTF-8 locale
 $

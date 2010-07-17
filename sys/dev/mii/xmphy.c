@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/xmphy.c,v 1.21.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * driver for the XaQti XMAC II's internal PHY. This is sort of

@@ -35,7 +35,7 @@
  *
  *	from: NetBSD: sbusvar.h,v 1.12 2001/09/24 23:49:34 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sbus/ofw_sbus.h,v 1.1.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _SPARC64_SBUS_OFW_SBUS_H_

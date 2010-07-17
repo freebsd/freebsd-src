@@ -1,7 +1,7 @@
 #
 # Custom kernel for Marvell SheevaPlug devices.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/conf/SHEEVAPLUG,v 1.1.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
 #
 
 ident		SHEEVAPLUG

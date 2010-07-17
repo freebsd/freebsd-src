@@ -1,7 +1,7 @@
 /* 
  * static configuration for libncp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/ncp_cfg.h,v 1.1.56.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #define NCP_NLS_KOI2CP866

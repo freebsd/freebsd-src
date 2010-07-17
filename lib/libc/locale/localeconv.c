@@ -32,7 +32,7 @@
 static char sccsid[] = "@(#)localeconv.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/localeconv.c,v 1.14.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <locale.h>
 

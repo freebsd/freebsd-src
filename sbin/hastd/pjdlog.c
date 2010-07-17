@@ -26,11 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/hastd/pjdlog.c,v 1.2.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/hastd/pjdlog.c,v 1.2.2.3.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include <assert.h>
 #include <errno.h>

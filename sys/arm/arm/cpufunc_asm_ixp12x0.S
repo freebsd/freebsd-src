@@ -37,7 +37,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/cpufunc_asm_ixp12x0.S,v 1.3.22.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * This function is the same as sa110_context_switch for now, the plan

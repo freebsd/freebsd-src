@@ -40,7 +40,7 @@
 #endif
 #endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/gen/modf.S,v 1.4.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $");
 
 #include "assym.s"
 

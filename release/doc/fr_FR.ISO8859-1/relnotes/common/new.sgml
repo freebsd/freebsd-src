@@ -3,13 +3,13 @@
      The FreeBSD French Documentation Project
 
      $Id: new.sgml,v 1.5 2002/09/28 21:57:12 eagle Exp $
-     $FreeBSD$
+     $FreeBSD: src/release/doc/fr_FR.ISO8859-1/relnotes/common/new.sgml,v 1.26.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $
      Original revision: 1.423
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; notes de version</title>
 
-  <pubdate>$FreeBSD$</pubdate>
+  <pubdate>$FreeBSD: src/release/doc/fr_FR.ISO8859-1/relnotes/common/new.sgml,v 1.26.36.1.4.1 2010/06/14 02:09:06 kensmith Exp $</pubdate>
 
   <corpauthor>Le Projet FreeBSD</corpauthor>
 

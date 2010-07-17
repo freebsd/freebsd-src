@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efidevp.h,v 1.3.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $ */
 #ifndef _DEVPATH_H
 #define _DEVPATH_H
 

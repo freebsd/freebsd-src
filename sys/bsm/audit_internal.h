@@ -31,7 +31,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_internal.h#5
- * $FreeBSD$
+ * $FreeBSD: src/sys/bsm/audit_internal.h,v 1.13.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #ifndef _AUDIT_INTERNAL_H

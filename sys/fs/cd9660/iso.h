@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.6 (Berkeley) 5/10/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/cd9660/iso.h,v 1.33.10.1.4.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)

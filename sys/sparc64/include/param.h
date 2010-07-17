@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/param.h,v 1.28.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $
  */
 
 /*

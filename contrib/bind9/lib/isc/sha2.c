@@ -16,7 +16,7 @@
 
 /* $Id: sha2.c,v 1.13.332.4 2010/01/15 23:47:34 tbox Exp $ */
 
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/bind9/lib/isc/sha2.c,v 1.2.2.2.2.1 2010/06/14 02:09:06 kensmith Exp $	*/
 /*	$KAME: sha2.c,v 1.8 2001/11/08 01:07:52 itojun Exp $	*/
 
 /*

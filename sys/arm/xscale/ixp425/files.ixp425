@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/xscale/ixp425/files.ixp425,v 1.11.2.1.4.1 2010/06/14 02:09:06 kensmith Exp $
 arm/arm/bus_space_generic.c		standard
 arm/arm/cpufunc_asm_xscale.S		standard
 arm/arm/irq_dispatch.S			standard

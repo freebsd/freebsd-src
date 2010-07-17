@@ -45,7 +45,7 @@ static const char sccsid[] = "@(#)pom.c       8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/games/pom/pom.c,v 1.13.22.2.2.1 2010/06/14 02:09:06 kensmith Exp $");
 
 /*
  * Phase of the Moon.  Calculates the current phase of the moon.
