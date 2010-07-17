@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "8.0-RELEASE">
+<!ENTITY release.bugfix "8.1-RELEASE">
 ]>
 
 <article>
@@ -40,7 +40,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2009</year>
+      <year>2010</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -129,6 +129,7 @@
       For more information, consult the individual advisories available from
       <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
 
+    <!--
     <informaltable frame="none" pgwide="0">
       <tgroup cols="3">
 	<colspec colwidth="1*">
@@ -144,18 +145,6 @@
 
 	<tbody>
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:17.freebsd-update.asc"
-		>SA-09:17.freebsd-update</ulink></entry>
-	    <entry>03&nbsp;December&nbsp;2009</entry>
-	    <entry><para>Inappropriate directory permissions in freebsd-update(8)</para></entry>
-	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:16.rtld.asc"
-		>SA-09:16.rtld</ulink></entry>
-	    <entry>03&nbsp;December&nbsp;2009</entry>
-	    <entry><para>Improper environment sanitization in rtld(1)</para></entry>
-	  </row>
-	  <row>
 	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:15.ssl.asc"
 		>SA-09:15.ssl</ulink></entry>
 	    <entry>03&nbsp;December&nbsp;2009</entry>
@@ -164,6 +153,7 @@
 	</tbody>
       </tgroup>
     </informaltable>
+    -->
 
   </sect1>
 
