@@ -116,7 +116,7 @@ extern uintptr_t dpcpu_off[];
 									\
 	sum = 0;							\
 	CPU_FOREACH(_i) {						\
-		sum += DPCPU_ID_PTR(_i, n);				\
+		sum += *DPCPU_ID_PTR(_i, n);				\
 	}								\
 	sum;								\
 })
