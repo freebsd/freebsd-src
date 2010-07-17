@@ -15,6 +15,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20100720:
+	8.1-RELEASE.
+
 20100502:
 	The config(8) command has been updated to maintain compatibility
 	with config files from 8.0-RELEASE.  You will need a new version
@@ -55,6 +58,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	Introduce the kernel thread "deadlock resolver" (which can be enabled
 	via the DEADLKRES option, see NOTES for more details) and the
 	sleepq_type() function for sleepqueues.
+
+20091125:
+	8.0-RELEASE.
 
 20090929:
 	802.11s D3.03 support was committed. This is incompatible with
