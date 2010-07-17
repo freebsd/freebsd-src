@@ -30,8 +30,35 @@
 
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
+#include <linux/kernel.h>
+
+#define	PAGE_ALIGN(x)	ALIGN(x, PAGE_SIZE)
 
 struct vm_area_struct {
 };
+
+static inline int
+get_order(unsigned long size)
+{
+	int order;
+
+	size = (size - 1) >> PAGE_SHIFT;
+	order = 0;
+	while (size) {
+		order++;
+		size >>= 1;
+	}
+	return (order);
+}
+
+static inline void *
+lowmem_page_address(struct page *page)
+{
+
+	if (page->flags & PG_KVA)
+		return (page->object);
+	return (NULL);
+}
+
 
 #endif	/* _LINUX_MM_H_ */

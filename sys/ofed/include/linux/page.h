@@ -28,8 +28,15 @@
 #ifndef	_LINUX_PAGE_H_
 #define _LINUX_PAGE_H_
 
-struct page
-{
-};
+#include <linux/types.h>
+
+#include <sys/param.h>
+
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+
+#define page	vm_page
+
+#define	virt_to_page(x)	PHYS_TO_VM_PAGE(vtophys((x)))
 
 #endif	/* _LINUX_PAGE_H_ */

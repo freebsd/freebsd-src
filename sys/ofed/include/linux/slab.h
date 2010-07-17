@@ -28,6 +28,8 @@
 #ifndef	_LINUX_SLAB_H_
 #define	_LINUX_SLAB_H_
 
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <vm/uma.h>
 
@@ -40,6 +42,7 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kzalloc(size, flags)	kmalloc((size), (flags) | M_ZERO)
 #define	kfree(ptr)		free(__DECONST(void *, (ptr)), M_KMALLOC)
 #define	krealloc(ptr, size, flags) realloc((ptr), (size), M_KMALLOC, (flags))
+#define	kcalloc(n, size, flags)	kmalloc((n) * (size), flags | M_ZERO)
 
 struct kmem_cache {
 	uma_zone_t	cache_zone;
@@ -94,18 +97,6 @@ kmem_cache_destroy(struct kmem_cache *c)
 {
 	uma_zdestroy(c->cache_zone);
 	free(c, M_KMALLOC);
-}
-
-static inline unsigned long
-get_zeroed_page(gfp_t mask)
-{
-	return (unsigned long)kzalloc(PAGE_SIZE, mask);
-}
-
-static inline void
-free_page(unsigned long page)
-{
-	kfree((void *)page);
 }
 
 #endif	/* _LINUX_SLAB_H_ */
