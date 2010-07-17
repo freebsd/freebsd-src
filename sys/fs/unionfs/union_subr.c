@@ -50,7 +50,6 @@
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/stat.h>
-#include <sys/resourcevar.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -775,7 +774,6 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 	/* Authority change to root */
 	rootinfo = uifind((uid_t)0);
 	cred = crdup(cnp->cn_cred);
-	chgproccnt(cred->cr_ruidinfo, 1, 0);
 	change_euid(cred, rootinfo);
 	change_ruid(cred, rootinfo);
 	change_svuid(cred, (uid_t)0);
@@ -825,7 +823,6 @@ unionfs_mkshadowdir_free_out:
 
 unionfs_mkshadowdir_abort:
 	cnp->cn_cred = credbk;
-	chgproccnt(cred->cr_ruidinfo, -1, 0);
 	crfree(cred);
 
 	return (error);
