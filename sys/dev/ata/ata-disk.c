@@ -405,6 +405,8 @@ ad_init(device_t dev)
 
 	if (!ata_controlcmd(dev, ATA_SET_MULTI, 0, 0, secsperint))
 	    atadev->max_iosize = secsperint * DEV_BSIZE;
+	else
+	    atadev->max_iosize = DEV_BSIZE;
     }
     else
 	atadev->max_iosize = DEV_BSIZE;
