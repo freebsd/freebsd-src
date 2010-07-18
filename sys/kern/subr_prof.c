@@ -254,7 +254,7 @@ kmstartup(dummy)
 	mcount_overhead -= empty_loop_time;
 	mexitcount_overhead -= empty_loop_time;
 
-	/*
+	/*-
 	 * Profiling overheads are determined by the times between the
 	 * following events:
 	 *	MC1: mcount() is called

@@ -1247,7 +1247,7 @@ uihold(uip)
 	refcount_acquire(&uip->ui_ref);
 }
 
-/*
+/*-
  * Since uidinfo structs have a long lifetime, we use an
  * opportunistic refcounting scheme to avoid locking the lookup hash
  * for each release.

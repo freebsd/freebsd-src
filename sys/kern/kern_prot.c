@@ -1316,7 +1316,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_uids, CTLFLAG_RW,
     &see_other_uids, 0,
     "Unprivileged processes may see subjects/objects with different real uid");
 
-/*
+/*-
  * Determine if u1 "can see" the subject specified by u2, according to the
  * 'see_other_uids' policy.
  * Returns: 0 for permitted, ESRCH otherwise
@@ -1375,7 +1375,7 @@ cr_seeothergids(struct ucred *u1, struct ucred *u2)
 	return (0);
 }
 
-/*
+/*-
  * Determine if u1 "can see" the subject specified by u2.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: none
@@ -1400,7 +1400,7 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 	return (0);
 }
 
-/*
+/*-
  * Determine if td "can see" the subject specified by p.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: Sufficient locks to protect p->p_ucred must be held.  td really
@@ -1431,7 +1431,7 @@ static int	conservative_signals = 1;
 SYSCTL_INT(_security_bsd, OID_AUTO, conservative_signals, CTLFLAG_RW,
     &conservative_signals, 0, "Unprivileged processes prevented from "
     "sending certain signals to processes whose credentials have changed");
-/*
+/*-
  * Determine whether cred may deliver the specified signal to proc.
  * Returns: 0 for permitted, an errno value otherwise.
  * Locks: A lock must be held for proc.
@@ -1507,7 +1507,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	return (0);
 }
 
-/*
+/*-
  * Determine whether td may deliver the specified signal to p.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: Sufficient locks to protect various components of td and p
@@ -1548,7 +1548,7 @@ p_cansignal(struct thread *td, struct proc *p, int signum)
 	return (cr_cansignal(td->td_ucred, p, signum));
 }
 
-/*
+/*-
  * Determine whether td may reschedule p.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: Sufficient locks to protect various components of td and p
@@ -1600,7 +1600,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_proc_debug, CTLFLAG_RW,
     &unprivileged_proc_debug, 0,
     "Unprivileged processes may use process debugging facilities");
 
-/*
+/*-
  * Determine whether td may debug p.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: Sufficient locks to protect various components of td and p
@@ -1698,7 +1698,7 @@ p_candebug(struct thread *td, struct proc *p)
 	return (0);
 }
 
-/*
+/*-
  * Determine whether the subject represented by cred can "see" a socket.
  * Returns: 0 for permitted, ENOENT otherwise.
  */
@@ -1724,7 +1724,7 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 }
 
 #if defined(INET) || defined(INET6)
-/*
+/*-
  * Determine whether the subject represented by cred can "see" a socket.
  * Returns: 0 for permitted, ENOENT otherwise.
  */
@@ -1751,7 +1751,7 @@ cr_canseeinpcb(struct ucred *cred, struct inpcb *inp)
 }
 #endif
 
-/*
+/*-
  * Determine whether td can wait for the exit of p.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: Sufficient locks to protect various components of td and p
@@ -2112,7 +2112,7 @@ setsugid(struct proc *p)
 		p->p_stops = 0;
 }
 
-/*
+/*-
  * Change a process's effective uid.
  * Side effects: newcred->cr_uid and newcred->cr_uidinfo will be modified.
  * References: newcred must be an exclusive credential reference for the
@@ -2128,7 +2128,7 @@ change_euid(struct ucred *newcred, struct uidinfo *euip)
 	newcred->cr_uidinfo = euip;
 }
 
-/*
+/*-
  * Change a process's effective gid.
  * Side effects: newcred->cr_gid will be modified.
  * References: newcred must be an exclusive credential reference for the
@@ -2141,7 +2141,7 @@ change_egid(struct ucred *newcred, gid_t egid)
 	newcred->cr_groups[0] = egid;
 }
 
-/*
+/*-
  * Change a process's real uid.
  * Side effects: newcred->cr_ruid will be updated, newcred->cr_ruidinfo
  *               will be updated, and the old and new cr_ruidinfo proc
@@ -2161,7 +2161,7 @@ change_ruid(struct ucred *newcred, struct uidinfo *ruip)
 	(void)chgproccnt(newcred->cr_ruidinfo, 1, 0);
 }
 
-/*
+/*-
  * Change a process's real gid.
  * Side effects: newcred->cr_rgid will be updated.
  * References: newcred must be an exclusive credential reference for the
@@ -2174,7 +2174,7 @@ change_rgid(struct ucred *newcred, gid_t rgid)
 	newcred->cr_rgid = rgid;
 }
 
-/*
+/*-
  * Change a process's saved uid.
  * Side effects: newcred->cr_svuid will be updated.
  * References: newcred must be an exclusive credential reference for the
@@ -2187,7 +2187,7 @@ change_svuid(struct ucred *newcred, uid_t svuid)
 	newcred->cr_svuid = svuid;
 }
 
-/*
+/*-
  * Change a process's saved gid.
  * Side effects: newcred->cr_svgid will be updated.
  * References: newcred must be an exclusive credential reference for the
