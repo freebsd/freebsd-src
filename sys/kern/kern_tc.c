@@ -484,7 +484,7 @@ tc_windup(void)
 		th->th_offset_count = ncount;
 	}
 
-	/*
+	/*-
 	 * Recalculate the scaling factor.  We want the number of 1/2^64
 	 * fractions of a second per period of the hardware counter, taking
 	 * into account the th_adjustment factor which the NTP PLL/adjtime(2)

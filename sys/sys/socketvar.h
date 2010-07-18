@@ -57,7 +57,7 @@ typedef	u_quad_t so_gen_t;
 
 struct socket;
 
-/*
+/*-
  * Locking key to struct socket:
  * (a) constant after allocation, no locking required.
  * (b) locked by SOCK_LOCK(so).
