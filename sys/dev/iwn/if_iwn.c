@@ -310,7 +310,6 @@ static const struct iwn_ident iwn_ident_table [] = {
 	{ 0x8086, 0x423D, "Intel(R) PRO/Wireless 5150" },
 	{ 0x8086, 0x4235, "Intel(R) PRO/Wireless 5300" },
 	{ 0x8086, 0x4236, "Intel(R) PRO/Wireless 5300" },
-	{ 0x8086, 0x4236, "Intel(R) PRO/Wireless 5350" },
 	{ 0x8086, 0x423A, "Intel(R) PRO/Wireless 5350" },
 	{ 0x8086, 0x423B, "Intel(R) PRO/Wireless 5350" },
 	{ 0x8086, 0x0083, "Intel(R) PRO/Wireless 1000" },
@@ -1666,7 +1665,7 @@ iwn5000_read_eeprom(struct iwn_softc *sc)
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE,
 	    "%s: calib version=%u pa type=%u voltage=%u\n",
 	    __func__, hdr.version, hdr.pa_type, le16toh(hdr.volt));
-	    sc->calib_ver = hdr.version;
+	sc->calib_ver = hdr.version;
 
 	if (sc->hw_type == IWN_HW_REV_TYPE_5150) {
 		/* Compute temperature offset. */
@@ -5868,9 +5867,9 @@ iwn5000_nic_config(struct iwn_softc *sc)
 		/* Use internal power amplifier only. */
 		IWN_WRITE(sc, IWN_GP_DRIVER, IWN_GP_DRIVER_RADIO_2X2_IPA);
 	}
-	 if (sc->hw_type == IWN_HW_REV_TYPE_6050 && sc->calib_ver >= 6) {
-		 /* Indicate that ROM calibration version is >=6. */
-		 IWN_SETBITS(sc, IWN_GP_DRIVER, IWN_GP_DRIVER_CALIB_VER6);
+	if (sc->hw_type == IWN_HW_REV_TYPE_6050 && sc->calib_ver >= 6) {
+		/* Indicate that ROM calibration version is >=6. */
+		IWN_SETBITS(sc, IWN_GP_DRIVER, IWN_GP_DRIVER_CALIB_VER6);
 	}
 	return 0;
 }
