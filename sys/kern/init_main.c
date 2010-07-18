@@ -539,7 +539,7 @@ proc0_init(void *dummy __unused)
 	vm_map_init(&vmspace0.vm_map, vmspace_pmap(&vmspace0),
 	    p->p_sysent->sv_minuser, p->p_sysent->sv_maxuser);
 
-	/*
+	/*-
 	 * call the init and ctor for the new thread and proc
 	 * we wait to do this until all other structures
 	 * are fairly sane.

@@ -59,7 +59,7 @@
 #define	M_MAXCOMPRESS	(MHLEN / 2)	/* max amount to copy for compression */
 
 #ifdef _KERNEL
-/*
+/*-
  * Macro for type conversion: convert mbuf pointer to data pointer of correct
  * type:
  *
@@ -827,7 +827,7 @@ struct mbuf	*m_split(struct mbuf *, int, int);
 struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
 struct mbuf	*m_unshare(struct mbuf *, int how);
 
-/*
+/*-
  * Network packets may have annotations attached by affixing a list of
  * "packet tags" to the pkthdr structure.  Packet tags are dynamically
  * allocated semi-opaque data structures that have a fixed header
