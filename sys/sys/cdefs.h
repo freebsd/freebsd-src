@@ -463,7 +463,7 @@
 #define	__DEQUALIFY(type, var)	((type)(uintptr_t)(const volatile void *)(var))
 #endif
 
-/*-
+/*
  * The following definitions are an extension of the behavior originally
  * implemented in <sys/_posix.h>, but with a different level of granularity.
  * POSIX.1 requires that the macros we test be defined before any standard
@@ -546,7 +546,7 @@
 #define	__ISO_C_VISIBLE		0
 #endif /* _POSIX_C_SOURCE */
 #else
-/*-
+/*
  * Deal with _ANSI_SOURCE:
  * If it is defined, and no other compilation environment is explicitly
  * requested, then define our internal feature-test macros to zero.  This
