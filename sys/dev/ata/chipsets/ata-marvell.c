@@ -188,7 +188,8 @@ ata_marvell_setmode(device_t dev, int target, int mode)
 
 	mode = min(mode, ctlr->chip->max_dma);
 	/* Check for 80pin cable present. */
-	if (mode > ATA_UDMA2 && ATA_IDX_INB(ch, ATA_BMDEVSPEC_0) & 0x01) {
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+	    ATA_IDX_INB(ch, ATA_BMDEVSPEC_0) & 0x01) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;
 	}
