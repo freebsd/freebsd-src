@@ -621,7 +621,9 @@ bufinit(void)
 	lobufspace = hibufspace - MAXBSIZE;
 
 	lorunningspace = 512 * 1024;
-	hirunningspace = 1024 * 1024;
+	hirunningspace = lmin(roundup(hibufspace/64, MAXBSIZE), 16*1024*1024);
+	if (hirunningspace < 1024 * 1024)
+		hirunningspace = 1024 * 1024;
 
 /*
  * Limit the amount of malloc memory since it is wired permanently into
