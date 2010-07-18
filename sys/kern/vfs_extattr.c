@@ -149,7 +149,7 @@ out:
 	return (error);
 }
 
-/*-
+/*
  * Set a named extended attribute on a file or directory
  *
  * Arguments: unlocked vnode "vp", attribute namespace "attrnamespace",
@@ -317,7 +317,7 @@ extattr_set_link(td, uap)
 	return (error);
 }
 
-/*-
+/*
  * Get a named extended attribute on a file or directory
  *
  * Arguments: unlocked vnode "vp", attribute namespace "attrnamespace",
@@ -638,7 +638,7 @@ extattr_delete_link(td, uap)
 	return(error);
 }
 
-/*-
+/*
  * Retrieve a list of extended attributes on a file or directory.
  *
  * Arguments: unlocked vnode "vp", attribute namespace 'attrnamespace",

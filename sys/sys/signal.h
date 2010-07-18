@@ -122,7 +122,7 @@
 /* #define	SIG_CATCH	((__sighandler_t *)2) See signalvar.h */
 #define SIG_HOLD        ((__sighandler_t *)3)
 
-/*-
+/*
  * Type of a signal handling function.
  *
  * Language spec sez signal handlers take exactly one arg, even though we

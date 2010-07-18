@@ -165,7 +165,7 @@ SYSCTL_ULONG(_net_local_seqpacket, OID_AUTO, recvspace, CTLFLAG_RW,
 SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, 
     "File descriptors in flight.");
 
-/*-
+/*
  * Locking and synchronization:
  *
  * Three types of locks exit in the local domain socket implementation: a
