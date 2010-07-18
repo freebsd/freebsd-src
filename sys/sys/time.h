@@ -90,7 +90,7 @@ bintime_sub(struct bintime *bt, const struct bintime *bt2)
 	bt->sec -= bt2->sec;
 }
 
-/*-
+/*
  * Background information:
  *
  * When converting between timestamps on parallel timescales of differing

@@ -79,7 +79,7 @@ struct plimit {
 	int	pl_refcnt;		/* number of references */
 };
 
-/*-
+/*
  * Per uid resource consumption.  This structure is used to track
  * the total resource consumption (process count, socket buffer size,
  * etc) for the uid and impose limits.

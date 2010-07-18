@@ -23,7 +23,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <geom/geom_disk.h>
 
-/*-
+/*
  * Disk error is the preface to plaintive error messages
  * about failing disk transfers.  It prints messages of the form
  * 	"hp0g: BLABLABLA cmd=read fsbn 12345 of 12344-12347"

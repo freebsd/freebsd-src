@@ -16,7 +16,7 @@
 #error "no user-serviceable parts inside"
 #endif
 
-/*-
+/*
  * `struct timecounter' is the interface between the hardware which implements
  * a timecounter and the MI code which uses this to keep track of time.
  *
