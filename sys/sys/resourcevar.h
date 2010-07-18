@@ -80,7 +80,9 @@ struct plimit {
 };
 
 /*-
- * Per uid resource consumption
+ * Per uid resource consumption.  This structure is used to track
+ * the total resource consumption (process count, socket buffer size,
+ * etc) for the uid and impose limits.
  *
  * Locking guide:
  * (a) Constant from inception
