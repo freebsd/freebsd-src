@@ -50,6 +50,7 @@
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/stat.h>
+#include <sys/resourcevar.h>
 
 #include <security/mac/mac_framework.h>
 
