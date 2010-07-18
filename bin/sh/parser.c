@@ -554,6 +554,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		checkkwd = 1;
 		break;
 	/* Handle an empty command like other simple commands.  */
+	case TBACKGND:
 	case TSEMI:
 	case TAND:
 	case TOR:
