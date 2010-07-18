@@ -112,7 +112,7 @@ struct pargs {
 	u_char	ar_args[1];	/* Arguments. */
 };
 
-/*
+/*-
  * Description of a process.
  *
  * This structure contains the information needed to manage a thread of

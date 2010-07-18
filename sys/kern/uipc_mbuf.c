@@ -161,7 +161,7 @@ m_freem(struct mbuf *mb)
 		mb = m_free(mb);
 }
 
-/*
+/*-
  * Configure a provided mbuf to refer to the provided external storage
  * buffer and setup a reference count for said buffer.  If the setting
  * up of the reference count fails, the M_EXT bit will not be set.  If
