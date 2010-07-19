@@ -423,7 +423,7 @@ static void bce_start			(struct ifnet *);
 static int  bce_ioctl			(struct ifnet *, u_long, caddr_t);
 static void bce_watchdog		(struct bce_softc *);
 static int  bce_ifmedia_upd		(struct ifnet *);
-static void bce_ifmedia_upd_locked	(struct ifnet *);
+static int  bce_ifmedia_upd_locked	(struct ifnet *);
 static void bce_ifmedia_sts		(struct ifnet *, struct ifmediareq *);
 static void bce_init_locked		(struct bce_softc *);
 static void bce_init			(void *);
@@ -5789,15 +5789,16 @@ static int
 bce_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bce_softc *sc = ifp->if_softc;
+	int error;
 
 	DBENTER(BCE_VERBOSE);
 
 	BCE_LOCK(sc);
-	bce_ifmedia_upd_locked(ifp);
+	error = bce_ifmedia_upd_locked(ifp);
 	BCE_UNLOCK(sc);
 
 	DBEXIT(BCE_VERBOSE);
-	return (0);
+	return (error);
 }
 
 
@@ -5807,14 +5808,16 @@ bce_ifmedia_upd(struct ifnet *ifp)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static int
 bce_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct bce_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+	int error;
 
 	DBENTER(BCE_VERBOSE_PHY);
 
+	error = 0;
 	BCE_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->bce_miibus);
@@ -5828,10 +5831,11 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 			LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			    mii_phy_reset(miisc);
 		}
-		mii_mediachg(mii);
+		error = mii_mediachg(mii);
 	}
 
 	DBEXIT(BCE_VERBOSE_PHY);
+	return (error);
 }
 
 
