@@ -153,7 +153,7 @@ static int availmem_regions_sz;
 static void print_kenv(void);
 static void print_kernel_section_addr(void);
 
-static void physmap_init(int);
+static void physmap_init(void);
 static int platform_devmap_init(void);
 static int platform_mpp_init(void);
 
@@ -202,7 +202,7 @@ print_kernel_section_addr(void)
 }
 
 static void
-physmap_init(int hardcoded)
+physmap_init(void)
 {
 	int i, j, cnt;
 	vm_offset_t phys_kernelend, kernload;
@@ -211,22 +211,6 @@ physmap_init(int hardcoded)
 
 	phys_kernelend = KERNPHYSADDR + (virtual_avail - KERNVIRTADDR);
 	kernload = KERNPHYSADDR;
-
-	/*
-	 * Use hardcoded physical addresses if we don't use memory regions
-	 * from metadata.
-	 */
-	if (hardcoded) {
-		phys_avail[0] = 0;
-		phys_avail[1] = kernload;
-
-		phys_avail[2] = phys_kernelend;
-		phys_avail[3] = PHYSMEM_SIZE;
-
-		phys_avail[4] = 0;
-		phys_avail[5] = 0;
-		return;
-	}
 
 	/*
 	 * Remove kernel physical address range from avail
@@ -352,12 +336,6 @@ initarm(void *mdp, void *unused __unused)
 	} else {
 		/* Fall back to hardcoded metadata. */
 		lastaddr = fake_preload_metadata();
-
-		/*
-		 * Assume a single memory region of size specified in board
-		 * configuration file.
-		 */
-		memsize = PHYSMEM_SIZE;
 	}
 
 #if defined(FDT_DTB_STATIC)
@@ -602,10 +580,8 @@ initarm(void *mdp, void *unused __unused)
 
 	/*
 	 * Prepare map of physical memory regions available to vm subsystem.
-	 * If metadata pointer doesn't point to a valid address, use hardcoded
-	 * values.
 	 */
-	physmap_init((mdp != NULL) ? 0 : 1);
+	physmap_init();
 
 	/* Do basic tuning, hz etc */
 	init_param1();
