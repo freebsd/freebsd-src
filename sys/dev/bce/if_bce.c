@@ -3088,6 +3088,8 @@ bce_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	bus_addr_t *busaddr = arg;
 
+	KASSERT(nseg == 1, ("%s(): Too many segments returned (%d)!",
+	    __FUNCTION__, nseg));
 	/* Simulate a mapping failure. */
 	DBRUNIF(DB_RANDOMTRUE(dma_map_addr_failed_sim_control),
 	    error = ENOMEM);
