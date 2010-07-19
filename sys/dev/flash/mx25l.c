@@ -69,7 +69,7 @@ struct mx25l_softc
 	struct disk	*sc_disk;
 	struct proc	*sc_p;
 	struct bio_queue_head sc_bio_queue;
-	unsigned int	flags;
+	unsigned int	sc_flags;
 };
 
 #define M25PXX_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
@@ -375,7 +375,7 @@ mx25l_attach(device_t dev)
 	sc->sc_disk->d_dump = NULL;		/* NB: no dumps */
 	/* Sectorsize for erase operations */
 	sc->sc_sectorsize =  ident->sectorsize;
-	sc->flags = ident->flags;
+	sc->sc_flags = ident->flags;
 
         /* NB: use stripesize to hold the erase/region size for RedBoot */
 	sc->sc_disk->d_stripesize = ident->sectorsize;
