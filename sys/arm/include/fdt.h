@@ -37,17 +37,9 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/bus.h>
 #include <machine/pmap.h>
 #include <machine/intr.h>
-
-#include <arm/mv/mvvar.h>
-#include <arm/mv/mvwin.h>
-
-/*
- * This is the base virtual address the internal mem-mapped registers (IMMR)
- * range is available at.
- */
-#define FDT_IMMR_VA	MV_BASE
 
 /* Max interrupt number */
 #define FDT_INTR_MAX	NIRQ
