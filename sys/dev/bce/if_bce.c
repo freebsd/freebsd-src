@@ -3424,7 +3424,7 @@ bce_dma_alloc(device_t dev)
 	    "size = 0x%jX)\n", __FUNCTION__, (uintmax_t) max_size,
 	     max_segments, (uintmax_t) max_seg_size);
 
-	if (bus_dma_tag_create(sc->parent_tag, 1,
+	if (bus_dma_tag_create(sc->parent_tag, BCE_RX_BUF_ALIGN,
 	    BCE_DMA_BOUNDARY, sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
 	    max_size, max_segments, max_seg_size, 0, NULL, NULL,
 	    &sc->rx_mbuf_tag)) {
