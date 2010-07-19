@@ -16,6 +16,7 @@
 
 # 20100719: new clang import which bumped version
 OLD_FILES+=usr/include/clang/2.0/emmintrin.h
+OLD_FILES+=usr/include/clang/2.0/mm_malloc.h
 OLD_FILES+=usr/include/clang/2.0/mmintrin.h
 OLD_FILES+=usr/include/clang/2.0/pmmintrin.h
 OLD_FILES+=usr/include/clang/2.0/tmmintrin.h
