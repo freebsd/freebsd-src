@@ -821,16 +821,16 @@ main(int argc, char **argv)
 		    "or you don't know, please choose NO here!");
 		if (!DIALOG_UTC(title, prompt, 7, 72)) {
 			if (reallydoit)
-				unlink(_PATH_WALL_CMOS_CLOCK);
+				unlink(path_wall_cmos_clock);
 		} else {
 			if (reallydoit) {
-				fd = open(_PATH_WALL_CMOS_CLOCK,
+				fd = open(path_wall_cmos_clock,
 				    O_WRONLY | O_CREAT | O_TRUNC,
 				    S_IRUSR | S_IRGRP | S_IROTH);
 				if (fd < 0) {
 					end_dialog();
 					err(1, "create %s",
-					    _PATH_WALL_CMOS_CLOCK);
+					    path_wall_cmos_clock);
 				}
 				close(fd);
 			}
