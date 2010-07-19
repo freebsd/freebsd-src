@@ -326,6 +326,9 @@ do {									\
 #define	THREAD_LOCKPTR_ASSERT(td, lock)
 #endif
 
+#define	CRITICAL_ASSERT(td)						\
+    KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
+
 /*
  * Flags kept in td_flags:
  * To change these you MUST have the scheduler lock.
