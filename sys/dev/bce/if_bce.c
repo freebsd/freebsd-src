@@ -3172,14 +3172,13 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if(bus_dmamem_alloc(sc->status_tag, (void **)&sc->status_block,
-	    BUS_DMA_NOWAIT, &sc->status_map)) {
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &sc->status_map)) {
 		BCE_PRINTF("%s(%d): Could not allocate status block "
 		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
-
-	bzero((char *)sc->status_block, BCE_STATUS_BLK_SZ);
 
 	error = bus_dmamap_load(sc->status_tag,	sc->status_map,
 	    sc->status_block, BCE_STATUS_BLK_SZ, bce_dma_map_addr,
@@ -3211,14 +3210,12 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if (bus_dmamem_alloc(sc->stats_tag, (void **)&sc->stats_block,
-	    BUS_DMA_NOWAIT,	&sc->stats_map)) {
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, &sc->stats_map)) {
 		BCE_PRINTF("%s(%d): Could not allocate statistics block "
 		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
-
-	bzero((char *)sc->stats_block, BCE_STATS_BLK_SZ);
 
 	error = bus_dmamap_load(sc->stats_tag, sc->stats_map,
 	    sc->stats_block, BCE_STATS_BLK_SZ, bce_dma_map_addr,
@@ -3265,15 +3262,13 @@ bce_dma_alloc(device_t dev)
 
 			if(bus_dmamem_alloc(sc->ctx_tag,
 			    (void **)&sc->ctx_block[i],
-			    BUS_DMA_NOWAIT,
+			    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 			    &sc->ctx_map[i])) {
 				BCE_PRINTF("%s(%d): Could not allocate CTX "
 				    "DMA memory!\n", __FILE__, __LINE__);
 				rc = ENOMEM;
 				goto bce_dma_alloc_exit;
 			}
-
-			bzero((char *)sc->ctx_block[i], BCM_PAGE_SIZE);
 
 			error = bus_dmamap_load(sc->ctx_tag, sc->ctx_map[i],
 			    sc->ctx_block[i], BCM_PAGE_SIZE, bce_dma_map_addr,
@@ -3310,7 +3305,8 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < TX_PAGES; i++) {
 
 		if(bus_dmamem_alloc(sc->tx_bd_chain_tag,
-		    (void **)&sc->tx_bd_chain[i], BUS_DMA_NOWAIT,
+		    (void **)&sc->tx_bd_chain[i],
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 		    &sc->tx_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate TX descriptor "
 			    "chain DMA memory!\n", __FILE__, __LINE__);
@@ -3386,15 +3382,14 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < RX_PAGES; i++) {
 
 		if (bus_dmamem_alloc(sc->rx_bd_chain_tag,
-		    (void **)&sc->rx_bd_chain[i], BUS_DMA_NOWAIT,
+		    (void **)&sc->rx_bd_chain[i],
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 		    &sc->rx_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate RX descriptor "
 			    "chain DMA memory!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
-
-		bzero((char *)sc->rx_bd_chain[i], BCE_RX_CHAIN_PAGE_SZ);
 
 		error = bus_dmamap_load(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], sc->rx_bd_chain[i],
@@ -3429,9 +3424,10 @@ bce_dma_alloc(device_t dev)
 	    "size = 0x%jX)\n", __FUNCTION__, (uintmax_t) max_size,
 	     max_segments, (uintmax_t) max_seg_size);
 
-	if (bus_dma_tag_create(sc->parent_tag, 1, BCE_DMA_BOUNDARY,
-	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL, max_size,
-	   max_segments, max_seg_size, 0, NULL, NULL, &sc->rx_mbuf_tag)) {
+	if (bus_dma_tag_create(sc->parent_tag, 1,
+	    BCE_DMA_BOUNDARY, sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
+	    max_size, max_segments, max_seg_size, 0, NULL, NULL,
+	    &sc->rx_mbuf_tag)) {
 		BCE_PRINTF("%s(%d): Could not allocate RX mbuf DMA tag!\n",
 		    __FILE__, __LINE__);
 		rc = ENOMEM;
@@ -3468,7 +3464,8 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < PG_PAGES; i++) {
 
 		if (bus_dmamem_alloc(sc->pg_bd_chain_tag,
-		    (void **)&sc->pg_bd_chain[i], BUS_DMA_NOWAIT,
+		    (void **)&sc->pg_bd_chain[i],
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 		    &sc->pg_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate page "
 			    "descriptor chain DMA memory!\n",
@@ -3476,8 +3473,6 @@ bce_dma_alloc(device_t dev)
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
-
-		bzero((char *)sc->pg_bd_chain[i], BCE_PG_CHAIN_PAGE_SZ);
 
 		error = bus_dmamap_load(sc->pg_bd_chain_tag,
 		    sc->pg_bd_chain_map[i], sc->pg_bd_chain[i],
