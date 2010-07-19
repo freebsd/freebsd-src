@@ -429,7 +429,7 @@ static void bce_init_locked		(struct bce_softc *);
 static void bce_init			(void *);
 static void bce_mgmt_init_locked	(struct bce_softc *sc);
 
-static void bce_init_ctx		(struct bce_softc *);
+static int  bce_init_ctx		(struct bce_softc *);
 static void bce_get_mac_addr		(struct bce_softc *);
 static void bce_set_mac_addr		(struct bce_softc *);
 static void bce_phy_intr		(struct bce_softc *);
@@ -4396,16 +4396,18 @@ bce_init_cpus(struct bce_softc *sc)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static int
 bce_init_ctx(struct bce_softc *sc)
 {
+	u32 offset, val, vcid_addr;
+	int i, j, rc, retry_cnt;
 
+	rc = 0;
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_CTX);
 
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
 	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
-		int i, retry_cnt = CTX_INIT_RETRY_COUNT;
-		u32 val;
+		retry_cnt = CTX_INIT_RETRY_COUNT;
 
 		DBPRINT(sc, BCE_INFO_CTX, "Initializing 5709 context.\n");
 
@@ -4426,15 +4428,14 @@ bce_init_ctx(struct bce_softc *sc)
 				break;
 			DELAY(2);
 		}
-
-		/* ToDo: Consider returning an error here. */
-		DBRUNIF((val & BCE_CTX_COMMAND_MEM_INIT),
-		    BCE_PRINTF("%s(): Context memory initialization "
-		    "failed!\n", __FUNCTION__));
+		if ((val & BCE_CTX_COMMAND_MEM_INIT) != 0) {
+			BCE_PRINTF("%s(): Context memory initialization failed!\n",
+			    __FUNCTION__);
+			rc = EBUSY;
+			goto init_ctx_fail;
+		}
 
 		for (i = 0; i < sc->ctx_pages; i++) {
-			int j;
-
 			/* Set the physical address of the context memory. */
 			REG_WR(sc, BCE_CTX_HOST_PAGE_TBL_DATA0,
 			    BCE_ADDR_LO(sc->ctx_paddr[i] & 0xfffffff0) |
@@ -4452,14 +4453,14 @@ bce_init_ctx(struct bce_softc *sc)
 					break;
 				DELAY(5);
 			}
-
-			/* ToDo: Consider returning an error here. */
-			DBRUNIF((val & BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ),
-			    BCE_PRINTF("%s(): Failed to initialize "
-			    "context page %d!\n", __FUNCTION__, i));
+			if ((val & BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ) != 0) {
+				BCE_PRINTF("%s(): Failed to initialize "
+				    "context page %d!\n", __FUNCTION__, i);
+				rc = EBUSY;
+				goto init_ctx_fail;
+			}
 		}
 	} else {
-		u32 vcid_addr, offset;
 
 		DBPRINT(sc, BCE_INFO, "Initializing 5706/5708 context.\n");
 
@@ -4486,7 +4487,9 @@ bce_init_ctx(struct bce_softc *sc)
 		}
 
 	}
+init_ctx_fail:
 	DBEXIT(BCE_VERBOSE_RESET | BCE_VERBOSE_CTX);
+	return (rc);
 }
 
 
@@ -4785,7 +4788,8 @@ bce_chipinit(struct bce_softc *sc)
 	    BCE_MISC_ENABLE_STATUS_BITS_CONTEXT_ENABLE);
 
 	/* Initialize context mapping and zero out the quick contexts. */
-	bce_init_ctx(sc);
+	if ((rc = bce_init_ctx(sc)) != 0)
+		goto bce_chipinit_exit;
 
 	/* Initialize the on-boards CPUs */
 	bce_init_cpus(sc);
