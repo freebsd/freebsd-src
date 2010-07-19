@@ -7,6 +7,7 @@ FILES=	100.chksetuid \
 	300.chkuid0 \
 	400.passwdless \
 	410.logincheck \
+	460.chkportsum \
 	700.kernelmsg \
 	800.loginfail \
 	900.tcpwrap \
