@@ -319,7 +319,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
 
-	if (fdt_immr_addr() != 0)
+	if (fdt_immr_addr(CCSRBAR_VA) != 0)
 		while (1);
 
 	OF_interpret("perform-fixup", 0);

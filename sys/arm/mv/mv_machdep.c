@@ -380,7 +380,7 @@ initarm(void *mdp, void *unused __unused)
 	    &memsize) != 0)
 		while(1);
 
-	if (fdt_immr_addr() != 0)
+	if (fdt_immr_addr(MV_BASE) != 0)
 		while (1);
 
 	/* Platform-specific initialisation */
