@@ -184,7 +184,7 @@ mx25l_set_writable(device_t dev, int writable)
 }
 
 static void
-mx25l_erase_sector(device_t dev, off_t sector)
+mx25l_erase_cmd(device_t dev, off_t sector, uint8_t ecmd)
 {
 	uint8_t txBuf[4], rxBuf[4];
 	struct spi_command cmd;
@@ -197,7 +197,7 @@ mx25l_erase_sector(device_t dev, off_t sector)
 	memset(txBuf, 0, sizeof(txBuf));
 	memset(rxBuf, 0, sizeof(rxBuf));
 
-	txBuf[0] = CMD_SECTOR_ERASE;
+	txBuf[0] = ecmd;
 	cmd.tx_cmd = txBuf;
 	cmd.rx_cmd = rxBuf;
 	cmd.rx_cmd_sz = 4;
@@ -258,7 +258,7 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 		 * If we crossed sector boundary - erase next sector
 		 */
 		if (((offset + bytes_writen) % sc->sc_sectorsize) == 0)
-			mx25l_erase_sector(dev, offset + bytes_writen);
+			mx25l_erase_cmd(dev, offset + bytes_writen, CMD_SECTOR_ERASE);
 
 		txBuf[0] = CMD_PAGE_PROGRAM;
 		txBuf[1] = ((write_offset >> 16) & 0xff);
