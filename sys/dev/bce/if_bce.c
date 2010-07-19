@@ -3146,10 +3146,10 @@ bce_dma_alloc(device_t dev)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
-	if (bus_dma_tag_create(NULL, 1,	BCE_DMA_BOUNDARY,
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, BCE_DMA_BOUNDARY,
 	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MAXBSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE_32BIT,
-	    0, NULL, NULL, &sc->parent_tag)) {
+	    BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->parent_tag)) {
 		BCE_PRINTF("%s(%d): Could not allocate parent DMA tag!\n",
 		    __FILE__, __LINE__);
 		rc = ENOMEM;
