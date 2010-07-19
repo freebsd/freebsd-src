@@ -2264,7 +2264,8 @@ bce_init_nvram(struct bce_softc *sc)
 		sc->bce_flash_info = NULL;
 		BCE_PRINTF("%s(%d): Unknown Flash NVRAM found!\n",
 		    __FILE__, __LINE__);
-		rc = ENODEV;
+		DBEXIT(BCE_VERBOSE_NVRAM);
+		return (ENODEV);
 	}
 
 bce_init_nvram_get_flash_size:
@@ -4796,10 +4797,8 @@ bce_chipinit(struct bce_softc *sc)
 	}
 
 	/* Prepare NVRAM for access. */
-	if (bce_init_nvram(sc)) {
-		rc = ENODEV;
+	if ((rc = bce_init_nvram(sc)) != 0)
 		goto bce_chipinit_exit;
-	}
 
 	/* Set the kernel bypass block size */
 	val = REG_RD(sc, BCE_MQ_CONFIG);
