@@ -5855,6 +5855,10 @@ bce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	BCE_LOCK(sc);
 
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		BCE_UNLOCK(sc);
+		return;
+	}
 	mii = device_get_softc(sc->bce_miibus);
 
 	mii_pollstat(mii);
