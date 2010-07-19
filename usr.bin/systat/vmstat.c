@@ -259,18 +259,22 @@ initkre(void)
 					cp1 = cp1 + 2;
 					cp2 = strdup(cp);
 					bcopy(cp1, cp, sz - (cp1 - cp) + 1);
-					/* If line is long - drop "irq",
-					   if too long - drop "irqN". */
-					if (sz <= 10 + 1) {
-						strcat(cp, " ");
-						strcat(cp, cp2);
-					} else if (sz <= 10 + 4) {
+					if (sz <= 10 + 4) {
 						strcat(cp, " ");
 						strcat(cp, cp2 + 3);
 					}
 					free(cp2);
 				}
 			}
+
+			/*
+			 * Convert "name irqN" to "name N" if the former is
+			 * longer than the field width.
+			 */
+			if ((cp1 = strstr(cp, "irq")) != NULL &&
+			    strlen(cp) > 10)
+				bcopy(cp1 + 3, cp1, strlen(cp1 + 3) + 1);
+
 			intrname[i] = cp;
 			cp = nextcp;
 		}
