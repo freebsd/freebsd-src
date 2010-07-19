@@ -121,13 +121,6 @@
 		   ((or (equal? arch #f)
 			(equal? arch "")
 			(equal? arch "all"))
-		    (make sequence
-		      (if (and (not (null? role)) (equal? role "7.1"))
-			  (literal " [7.1R]")
-			  (empty-sosofo))
-		      (if (and (not (null? role)) (equal? role "7.2"))
-			  (literal " [7.2R]")
-			  (empty-sosofo))
 		      (process-children-trim))
 		   (else
 		    (make sequence
@@ -142,13 +135,7 @@
 				(loop (car rest) (cdr rest)))
 			      (empty-sosofo))))
 		      (literal "] ")
-		      (if (and (not (null? role)) (equal? role "7.1"))
-			  (literal " [7.1R] ")
-			  (empty-sosofo))
-		      (if (and (not (null? role)) (equal? role "7.2"))
-			  (literal " [7.2R] ")
-			  (empty-sosofo))
-		      (process-children-trim))))
+		      (process-children-trim)))))
 		  (if (and (not (null? role)) (equal? role "merged"))
 		      (literal " [" merged-string "]")
 		      (empty-sosofo))))
@@ -171,14 +158,7 @@
 		   ((or (equal? arch #f)
 			(equal? arch "")
 			(equal? arch "all"))
-		    (make sequence
-		      (if (and (not (null? role)) (equal? role "7.1"))
-			  (literal " [7.1R] ")
-			  (empty-sosofo))
-		      (if (and (not (null? role)) (equal? role "7.2"))
-			  (literal " [7.2R] ")
-			  (empty-sosofo))
-		      (process-children-trim)))
+		      (process-children-trim))
 		   (else
 		    (make sequence
 		      (literal "[")
@@ -192,12 +172,6 @@
 				(loop (car rest) (cdr rest)))
 			      (empty-sosofo))))
 		      (literal "] ")
-		      (if (and (not (null? role)) (equal? role "7.1"))
-			  (literal " [7.1R]")
-			  (empty-sosofo))
-		      (if (and (not (null? role)) (equal? role "7.2"))
-			  (literal " [7.2R]")
-			  (empty-sosofo))
 		      (process-children-trim))))
 		  (if (and (not (null? role)) (equal? role "merged"))
 		      (literal " [" merged-string "]")
@@ -251,24 +225,10 @@
 		     ((or (equal? arch #f)
 			  (equal? arch "")
 			  (equal? arch "all"))
-		      (make sequence
-			(if (and (not (null? role)) (equal? role "7.1"))
-			    (literal " [7.1R] ")
-			    (empty-sosofo))
-			(if (and (not (null? role)) (equal? role "7.2"))
-			    (literal " [7.2R] ")
-			    (empty-sosofo))
-			(process-children)))
+			(process-children))
 		     (else
 		      (sosofo-append
 		       (make sequence
-			 (make sequence
-			   (if (and (not (null? role)) (equal? role "7.1"))
-			       (literal " [7.1R] ")
-			       (empty-sosofo))
-			   (if (and (not (null? role)) (equal? role "7.2"))
-			       (literal " [7.2R] ")
-			       (empty-sosofo)))
 			 (literal "[")
 			 (let loop ((prev (car (split-string-to-list arch)))
 				    (rest (cdr (split-string-to-list arch))))
