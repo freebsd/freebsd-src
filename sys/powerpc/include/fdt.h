@@ -34,14 +34,6 @@
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
-#include <machine/platform.h>
-#include <machine/vmparam.h>
-
-/*
- * This is the base virtual address the internal mem-mapped registers (IMMR)
- * range is available at.
- */
-#define FDT_IMMR_VA	CCSRBAR_VA
 
 /* Max interrupt number */
 #define FDT_INTR_MAX	INTR_VECTORS
