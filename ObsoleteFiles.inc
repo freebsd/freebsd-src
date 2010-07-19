@@ -14,6 +14,13 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100719: new clang import which bumped version
+OLD_FILES+=usr/include/clang/2.0/emmintrin.h
+OLD_FILES+=usr/include/clang/2.0/mmintrin.h
+OLD_FILES+=usr/include/clang/2.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/xmmintrin.h
+OLD_DIRS+=usr/include/clang/2.0
 # 20100514: library version bump for versioned symbols for liblzma
 OLD_LIBS+=usr/lib/liblzma.so.0
 .if ${TARGET_ARCH} == "amd64"
