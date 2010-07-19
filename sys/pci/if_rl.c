@@ -222,6 +222,8 @@ static int rl_suspend(device_t);
 static void rl_tick(void *);
 static void rl_txeof(struct rl_softc *);
 static void rl_watchdog(struct rl_softc *);
+static void rl_setwol(struct rl_softc *);
+static void rl_clrwol(struct rl_softc *);
 
 #ifdef RL_USEIOSPACE
 #define RL_RES			SYS_RES_IOPORT
@@ -803,7 +805,7 @@ rl_attach(device_t dev)
 	struct rl_type		*t;
 	struct sysctl_ctx_list	*ctx;
 	struct sysctl_oid_list	*children;
-	int			error = 0, i, rid;
+	int			error = 0, hwrev, i, pmc, rid;
 	int			unit;
 	uint16_t		rl_did = 0;
 	char			tn[32];
@@ -938,6 +940,25 @@ rl_attach(device_t dev)
 	ifp->if_start = rl_start;
 	ifp->if_init = rl_init;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	/* Check WOL for RTL8139B or newer controllers. */
+	if (sc->rl_type == RL_8139 &&
+	    pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
+		hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
+		switch (hwrev) {
+		case RL_HWREV_8139B:
+		case RL_HWREV_8130:
+		case RL_HWREV_8139C:
+		case RL_HWREV_8139D:
+		case RL_HWREV_8101:
+		case RL_HWREV_8100:
+			ifp->if_capabilities |= IFCAP_WOL;
+			/* Disable WOL. */
+			rl_clrwol(sc);
+			break;
+		default:
+			break;
+		}
+	}
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -1926,7 +1947,7 @@ rl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct mii_data		*mii;
 	struct rl_softc		*sc = ifp->if_softc;
-	int			error = 0;
+	int			error = 0, mask;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
@@ -1953,6 +1974,7 @@ rl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 #ifdef DEVICE_POLLING
 		if (ifr->ifr_reqcap & IFCAP_POLLING &&
 		    !(ifp->if_capenable & IFCAP_POLLING)) {
@@ -1978,6 +2000,15 @@ rl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			return (error);
 		}
 #endif /* DEVICE_POLLING */
+		if ((mask & IFCAP_WOL) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
+			if ((mask & IFCAP_WOL_UCAST) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_UCAST;
+			if ((mask & IFCAP_WOL_MCAST) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_MCAST;
+			if ((mask & IFCAP_WOL_MAGIC) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		}
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2066,6 +2097,7 @@ rl_suspend(device_t dev)
 
 	RL_LOCK(sc);
 	rl_stop(sc);
+	rl_setwol(sc);
 	sc->suspended = 1;
 	RL_UNLOCK(sc);
 
@@ -2082,11 +2114,30 @@ rl_resume(device_t dev)
 {
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
+	int			pmc;
+	uint16_t		pmstat;
 
 	sc = device_get_softc(dev);
 	ifp = sc->rl_ifp;
 
 	RL_LOCK(sc);
+
+	if ((ifp->if_capabilities & IFCAP_WOL) != 0 &&
+	    pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
+		/* Disable PME and clear PME status. */
+		pmstat = pci_read_config(sc->rl_dev,
+		    pmc + PCIR_POWER_STATUS, 2);
+		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
+			pmstat &= ~PCIM_PSTAT_PMEENABLE;
+			pci_write_config(sc->rl_dev,
+			    pmc + PCIR_POWER_STATUS, pmstat, 2);
+		}
+		/*
+		 * Clear WOL matching such that normal Rx filtering
+		 * wouldn't interfere with WOL patterns.
+		 */
+		rl_clrwol(sc);
+	}
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
@@ -2112,7 +2163,93 @@ rl_shutdown(device_t dev)
 
 	RL_LOCK(sc);
 	rl_stop(sc);
+	/*
+	 * Mark interface as down since otherwise we will panic if
+	 * interrupt comes in later on, which can happen in some
+	 * cases.
+	 */
+	sc->rl_ifp->if_flags &= ~IFF_UP;
+	rl_setwol(sc);
 	RL_UNLOCK(sc);
 
 	return (0);
+}
+
+static void
+rl_setwol(struct rl_softc *sc)
+{
+	struct ifnet		*ifp;
+	int			pmc;
+	uint16_t		pmstat;
+	uint8_t			v;
+
+	RL_LOCK_ASSERT(sc);
+
+	ifp = sc->rl_ifp;
+	if ((ifp->if_capabilities & IFCAP_WOL) == 0)
+		return;
+	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
+		return;
+
+	/* Enable config register write. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
+
+	/* Enable PME. */
+	v = CSR_READ_1(sc, RL_CFG1);
+	v &= ~RL_CFG1_PME;
+	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		v |= RL_CFG1_PME;
+	CSR_WRITE_1(sc, RL_CFG1, v);
+
+	v = CSR_READ_1(sc, RL_CFG3);
+	v &= ~(RL_CFG3_WOL_LINK | RL_CFG3_WOL_MAGIC);
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		v |= RL_CFG3_WOL_MAGIC;
+	CSR_WRITE_1(sc, RL_CFG3, v);
+
+	/* Config register write done. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
+
+	v = CSR_READ_1(sc, RL_CFG5);
+	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
+	v &= ~RL_CFG5_WOL_LANWAKE;
+	if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
+		v |= RL_CFG5_WOL_UCAST;
+	if ((ifp->if_capenable & IFCAP_WOL_MCAST) != 0)
+		v |= RL_CFG5_WOL_MCAST | RL_CFG5_WOL_BCAST;
+	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		v |= RL_CFG5_WOL_LANWAKE;
+	CSR_WRITE_1(sc, RL_CFG5, v);
+	/* Request PME if WOL is requested. */
+	pmstat = pci_read_config(sc->rl_dev, pmc + PCIR_POWER_STATUS, 2);
+	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+	pci_write_config(sc->rl_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+}
+
+static void
+rl_clrwol(struct rl_softc *sc)
+{
+	struct ifnet		*ifp;
+	uint8_t			v;
+
+	ifp = sc->rl_ifp;
+	if ((ifp->if_capabilities & IFCAP_WOL) == 0)
+		return;
+
+	/* Enable config register write. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
+
+	v = CSR_READ_1(sc, RL_CFG3);
+	v &= ~(RL_CFG3_WOL_LINK | RL_CFG3_WOL_MAGIC);
+	CSR_WRITE_1(sc, RL_CFG3, v);
+
+	/* Config register write done. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
+
+	v = CSR_READ_1(sc, RL_CFG5);
+	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
+	v &= ~RL_CFG5_WOL_LANWAKE;
+	CSR_WRITE_1(sc, RL_CFG5, v);
 }
