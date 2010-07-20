@@ -585,10 +585,10 @@ hpet_attach(device_t dev)
 			t->et.et_quality -= 10;
 		t->et.et_frequency = sc->freq;
 		t->et.et_min_period.sec = 0;
-		t->et.et_min_period.frac = 0x00004000LL << 32;
-		t->et.et_max_period.sec = 0xffffffff / sc->freq;
+		t->et.et_min_period.frac = 0x00004000LLU << 32;
+		t->et.et_max_period.sec = 0xfffffffeLLU / sc->freq;
 		t->et.et_max_period.frac =
-		    ((0xffffffffLL << 32) / sc->freq) << 32;
+		    ((0xfffffffeLLU << 32) / sc->freq) << 32;
 		t->et.et_start = hpet_start;
 		t->et.et_stop = hpet_stop;
 		t->et.et_priv = &sc->t[i];
