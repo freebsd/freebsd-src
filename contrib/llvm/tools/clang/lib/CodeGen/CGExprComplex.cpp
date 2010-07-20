@@ -131,14 +131,14 @@ public:
 
   // FIXME: CompoundLiteralExpr
 
-  ComplexPairTy EmitCast(Expr *Op, QualType DestTy);
+  ComplexPairTy EmitCast(CastExpr::CastKind CK, Expr *Op, QualType DestTy);
   ComplexPairTy VisitImplicitCastExpr(ImplicitCastExpr *E) {
     // Unlike for scalars, we don't have to worry about function->ptr demotion
     // here.
-    return EmitCast(E->getSubExpr(), E->getType());
+    return EmitCast(E->getCastKind(), E->getSubExpr(), E->getType());
   }
   ComplexPairTy VisitCastExpr(CastExpr *E) {
-    return EmitCast(E->getSubExpr(), E->getType());
+    return EmitCast(E->getCastKind(), E->getSubExpr(), E->getType());
   }
   ComplexPairTy VisitCallExpr(const CallExpr *E);
   ComplexPairTy VisitStmtExpr(const StmtExpr *E);
@@ -181,7 +181,7 @@ public:
   ComplexPairTy VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E) {
     return CGF.EmitCXXExprWithTemporaries(E).getComplexVal();
   }
-  ComplexPairTy VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E) {
+  ComplexPairTy VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {
     assert(E->getType()->isAnyComplexType() && "Expected complex type!");
     QualType Elem = E->getType()->getAs<ComplexType>()->getElementType();
     llvm::Constant *Null = llvm::Constant::getNullValue(CGF.ConvertType(Elem));
@@ -339,11 +339,22 @@ ComplexPairTy ComplexExprEmitter::EmitComplexToComplexCast(ComplexPairTy Val,
   return Val;
 }
 
-ComplexPairTy ComplexExprEmitter::EmitCast(Expr *Op, QualType DestTy) {
+ComplexPairTy ComplexExprEmitter::EmitCast(CastExpr::CastKind CK, Expr *Op, 
+                                           QualType DestTy) {
   // Two cases here: cast from (complex to complex) and (scalar to complex).
   if (Op->getType()->isAnyComplexType())
     return EmitComplexToComplexCast(Visit(Op), Op->getType(), DestTy);
 
+  // FIXME: We should be looking at all of the cast kinds here, not
+  // cherry-picking the ones we have test cases for.
+  if (CK == CastExpr::CK_LValueBitCast) {
+    llvm::Value *V = CGF.EmitLValue(Op).getAddress();
+    V = Builder.CreateBitCast(V, 
+                      CGF.ConvertType(CGF.getContext().getPointerType(DestTy)));
+    // FIXME: Are the qualifiers correct here?
+    return EmitLoadOfComplex(V, DestTy.isVolatileQualified());
+  }
+  
   // C99 6.3.1.7: When a value of real type is converted to a complex type, the
   // real part of the complex result value is determined by the rules of
   // conversion to the corresponding real type and the imaginary part of the
@@ -521,22 +532,22 @@ EmitCompoundAssign(const CompoundAssignOperator *E,
   // improve codegen a little.  It is possible for the RHS to be complex or
   // scalar.
   OpInfo.Ty = E->getComputationResultType();
-  OpInfo.RHS = EmitCast(E->getRHS(), OpInfo.Ty);
+  OpInfo.RHS = EmitCast(CastExpr::CK_Unknown, E->getRHS(), OpInfo.Ty);
   
-  LValue LHSLV = CGF.EmitLValue(E->getLHS());
+  LValue LHS = CGF.EmitLValue(E->getLHS());
   // We know the LHS is a complex lvalue.
   ComplexPairTy LHSComplexPair;
-  if (LHSLV.isPropertyRef())
-    LHSComplexPair = 
-      CGF.EmitObjCPropertyGet(LHSLV.getPropertyRefExpr()).getComplexVal();
-  else if (LHSLV.isKVCRef())
-    LHSComplexPair = 
-      CGF.EmitObjCPropertyGet(LHSLV.getKVCRefExpr()).getComplexVal();
+  if (LHS.isPropertyRef())
+    LHSComplexPair =
+      CGF.EmitObjCPropertyGet(LHS.getPropertyRefExpr()).getComplexVal();
+  else if (LHS.isKVCRef())
+    LHSComplexPair =
+      CGF.EmitObjCPropertyGet(LHS.getKVCRefExpr()).getComplexVal();
   else
-    LHSComplexPair = EmitLoadOfComplex(LHSLV.getAddress(), 
-                                       LHSLV.isVolatileQualified());
+    LHSComplexPair = EmitLoadOfComplex(LHS.getAddress(),
+                                       LHS.isVolatileQualified());
   
-  OpInfo.LHS=EmitComplexToComplexCast(LHSComplexPair, LHSTy, OpInfo.Ty);
+  OpInfo.LHS = EmitComplexToComplexCast(LHSComplexPair, LHSTy, OpInfo.Ty);
 
   // Expand the binary operator.
   ComplexPairTy Result = (this->*Func)(OpInfo);
@@ -545,23 +556,26 @@ EmitCompoundAssign(const CompoundAssignOperator *E,
   Result = EmitComplexToComplexCast(Result, OpInfo.Ty, LHSTy);
 
   // Store the result value into the LHS lvalue.
-  if (LHSLV.isPropertyRef())
-    CGF.EmitObjCPropertySet(LHSLV.getPropertyRefExpr(), 
+  if (LHS.isPropertyRef())
+    CGF.EmitObjCPropertySet(LHS.getPropertyRefExpr(),
                             RValue::getComplex(Result));
-  else if (LHSLV.isKVCRef())
-    CGF.EmitObjCPropertySet(LHSLV.getKVCRefExpr(), RValue::getComplex(Result));
+  else if (LHS.isKVCRef())
+    CGF.EmitObjCPropertySet(LHS.getKVCRefExpr(), RValue::getComplex(Result));
   else
-    EmitStoreOfComplex(Result, LHSLV.getAddress(), LHSLV.isVolatileQualified());
-  // And now return the LHS
+    EmitStoreOfComplex(Result, LHS.getAddress(), LHS.isVolatileQualified());
+
+  // Restore the Ignore* flags.
   IgnoreReal = ignreal;
   IgnoreImag = ignimag;
   IgnoreRealAssign = ignreal;
   IgnoreImagAssign = ignimag;
-  if (LHSLV.isPropertyRef())
-    return CGF.EmitObjCPropertyGet(LHSLV.getPropertyRefExpr()).getComplexVal();
-  else if (LHSLV.isKVCRef())
-    return CGF.EmitObjCPropertyGet(LHSLV.getKVCRefExpr()).getComplexVal();
-  return EmitLoadOfComplex(LHSLV.getAddress(), LHSLV.isVolatileQualified());
+ 
+  // Objective-C property assignment never reloads the value following a store.
+  if (LHS.isPropertyRef() || LHS.isKVCRef())
+    return Result;
+
+  // Otherwise, reload the value.
+  return EmitLoadOfComplex(LHS.getAddress(), LHS.isVolatileQualified());
 }
 
 ComplexPairTy ComplexExprEmitter::VisitBinAssign(const BinaryOperator *E) {
@@ -569,8 +583,8 @@ ComplexPairTy ComplexExprEmitter::VisitBinAssign(const BinaryOperator *E) {
   TestAndClearIgnoreImag();
   bool ignreal = TestAndClearIgnoreRealAssign();
   bool ignimag = TestAndClearIgnoreImagAssign();
-  assert(CGF.getContext().getCanonicalType(E->getLHS()->getType()) ==
-         CGF.getContext().getCanonicalType(E->getRHS()->getType()) &&
+  assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(), 
+                                                 E->getRHS()->getType()) &&
          "Invalid assignment");
   // Emit the RHS.
   ComplexPairTy Val = Visit(E->getRHS());
@@ -578,31 +592,26 @@ ComplexPairTy ComplexExprEmitter::VisitBinAssign(const BinaryOperator *E) {
   // Compute the address to store into.
   LValue LHS = CGF.EmitLValue(E->getLHS());
 
-  // Store into it, if simple.
-  if (LHS.isSimple()) {
-    EmitStoreOfComplex(Val, LHS.getAddress(), LHS.isVolatileQualified());
-
-    // And now return the LHS
-    IgnoreReal = ignreal;
-    IgnoreImag = ignimag;
-    IgnoreRealAssign = ignreal;
-    IgnoreImagAssign = ignimag;
-    return EmitLoadOfComplex(LHS.getAddress(), LHS.isVolatileQualified());
-  }
-
-  // Otherwise we must have a property setter (no complex vector/bitfields).
+  // Store the result value into the LHS lvalue.
   if (LHS.isPropertyRef())
     CGF.EmitObjCPropertySet(LHS.getPropertyRefExpr(), RValue::getComplex(Val));
-  else
+  else if (LHS.isKVCRef())
     CGF.EmitObjCPropertySet(LHS.getKVCRefExpr(), RValue::getComplex(Val));
+  else
+    EmitStoreOfComplex(Val, LHS.getAddress(), LHS.isVolatileQualified());
 
-  // There is no reload after a store through a method, but we need to restore
-  // the Ignore* flags.
+  // Restore the Ignore* flags.
   IgnoreReal = ignreal;
   IgnoreImag = ignimag;
   IgnoreRealAssign = ignreal;
   IgnoreImagAssign = ignimag;
-  return Val;
+
+  // Objective-C property assignment never reloads the value following a store.
+  if (LHS.isPropertyRef() || LHS.isKVCRef())
+    return Val;
+
+  // Otherwise, reload the value.
+  return EmitLoadOfComplex(LHS.getAddress(), LHS.isVolatileQualified());
 }
 
 ComplexPairTy ComplexExprEmitter::VisitBinComma(const BinaryOperator *E) {

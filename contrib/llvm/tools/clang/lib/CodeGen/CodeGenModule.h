@@ -75,6 +75,25 @@ namespace CodeGen {
   class CGObjCRuntime;
   class MangleBuffer;
   
+  struct OrderGlobalInits {
+    unsigned int priority;
+    unsigned int lex_order;
+    OrderGlobalInits(unsigned int p, unsigned int l) 
+      : priority(p), lex_order(l) {}
+    
+    bool operator==(const OrderGlobalInits &RHS) const {
+      return priority == RHS.priority &&
+             lex_order == RHS.lex_order;
+    }
+    
+    bool operator<(const OrderGlobalInits &RHS) const {
+      if (priority < RHS.priority)
+        return true;
+      
+      return priority == RHS.priority && lex_order < RHS.lex_order;
+    }
+  };
+  
 /// CodeGenModule - This class organizes the cross-function state that is used
 /// while generating LLVM code.
 class CodeGenModule : public BlockModule {
@@ -130,6 +149,10 @@ class CodeGenModule : public BlockModule {
   /// priorities to be emitted when the translation unit is complete.
   CtorList GlobalDtors;
 
+  /// MangledDeclNames - A map of canonical GlobalDecls to their mangled names.
+  llvm::DenseMap<GlobalDecl, llvm::StringRef> MangledDeclNames;
+  llvm::BumpPtrAllocator MangledNamesAllocator;
+  
   std::vector<llvm::Constant*> Annotations;
 
   llvm::StringMap<llvm::Constant*> CFConstantStringMap;
@@ -139,10 +162,16 @@ class CodeGenModule : public BlockModule {
   /// CXXGlobalInits - Global variables with initializers that need to run
   /// before main.
   std::vector<llvm::Constant*> CXXGlobalInits;
+  
+  /// - Global variables with initializers whose order of initialization
+  /// is set by init_priority attribute.
+  
+  llvm::SmallVector<std::pair<OrderGlobalInits, llvm::Function*>, 8> 
+    PrioritizedCXXGlobalInits;
 
   /// CXXGlobalDtors - Global destructor functions and arguments that need to
   /// run on termination.
-  std::vector<std::pair<llvm::Constant*,llvm::Constant*> > CXXGlobalDtors;
+  std::vector<std::pair<llvm::WeakVH,llvm::Constant*> > CXXGlobalDtors;
 
   /// CFConstantStringClassRef - Cached reference to the class for constant
   /// strings. This value has type int * but is actually an Obj-C class pointer.
@@ -315,6 +344,10 @@ public:
   llvm::GlobalValue *GetAddrOfCXXDestructor(const CXXDestructorDecl *D,
                                             CXXDtorType Type);
 
+  // GetCXXMemberFunctionPointerValue - Given a method declaration, return the
+  // integer used in a member function pointer to refer to that value.
+  llvm::Constant *GetCXXMemberFunctionPointerValue(const CXXMethodDecl *MD);
+
   /// getBuiltinLibFunction - Given a builtin id for a function like
   /// "__builtin_fabsf", return a Function* for "fabsf".
   llvm::Value *getBuiltinLibFunction(const FunctionDecl *FD,
@@ -346,7 +379,9 @@ public:
 
   /// AddCXXDtorEntry - Add a destructor and object to add to the C++ global
   /// destructor function.
-  void AddCXXDtorEntry(llvm::Constant *DtorFn, llvm::Constant *Object);
+  void AddCXXDtorEntry(llvm::Constant *DtorFn, llvm::Constant *Object) {
+    CXXGlobalDtors.push_back(std::make_pair(DtorFn, Object));
+  }
 
   /// CreateRuntimeFunction - Create a new runtime function with the specified
   /// type and name.
@@ -409,9 +444,13 @@ public:
   /// which only apply to a function definintion.
   void SetLLVMFunctionAttributesForDefinition(const Decl *D, llvm::Function *F);
 
-  /// ReturnTypeUsesSret - Return true iff the given type uses 'sret' when used
+  /// ReturnTypeUsesSRet - Return true iff the given type uses 'sret' when used
   /// as a return type.
-  bool ReturnTypeUsesSret(const CGFunctionInfo &FI);
+  bool ReturnTypeUsesSRet(const CGFunctionInfo &FI);
+
+  /// ReturnTypeUsesSret - Return true iff the given type uses 'fpret' when used
+  /// as a return type.
+  bool ReturnTypeUsesFPRet(QualType ResultType);
 
   /// ConstructAttributeList - Get the LLVM attributes and calling convention to
   /// use for a particular function type.
@@ -427,15 +466,8 @@ public:
                               AttributeListType &PAL,
                               unsigned &CallingConv);
 
-  void getMangledName(MangleBuffer &Buffer, GlobalDecl D);
-  void getMangledName(MangleBuffer &Buffer, const NamedDecl *ND);
-  void getMangledName(MangleBuffer &Buffer, const BlockDecl *BD);
-  void getMangledCXXCtorName(MangleBuffer &Buffer,
-                             const CXXConstructorDecl *D,
-                             CXXCtorType Type);
-  void getMangledCXXDtorName(MangleBuffer &Buffer,
-                             const CXXDestructorDecl *D,
-                             CXXDtorType Type);
+  llvm::StringRef getMangledName(GlobalDecl GD);
+  void getMangledName(GlobalDecl GD, MangleBuffer &Buffer, const BlockDecl *BD);
 
   void EmitTentativeDefinition(const VarDecl *D);
 
@@ -565,6 +597,8 @@ private:
   /// EmitLLVMUsed - Emit the llvm.used metadata used to force
   /// references to global which may otherwise be optimized out.
   void EmitLLVMUsed(void);
+
+  void EmitDeclMetadata();
 
   /// MayDeferGeneration - Determine if the given decl can be emitted
   /// lazily; this is only relevant for definitions. The given decl

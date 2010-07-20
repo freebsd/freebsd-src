@@ -93,8 +93,8 @@ protected:
   /// printing behavior.
   virtual void printCustom(raw_ostream &O) const;
 
-public:
   Value(const Type *Ty, unsigned scid);
+public:
   virtual ~Value();
 
   /// dump - Support for debugging, callable in GDB: V->dump()
@@ -210,7 +210,7 @@ public:
     UndefValueVal,            // This is an instance of UndefValue
     BlockAddressVal,          // This is an instance of BlockAddress
     ConstantExprVal,          // This is an instance of ConstantExpr
-    ConstantAggregateZeroVal, // This is an instance of ConstantAggregateNull
+    ConstantAggregateZeroVal, // This is an instance of ConstantAggregateZero
     ConstantIntVal,           // This is an instance of ConstantInt
     ConstantFPVal,            // This is an instance of ConstantFP
     ConstantArrayVal,         // This is an instance of ConstantArray
@@ -266,6 +266,10 @@ public:
     SubclassOptionalData &= V->SubclassOptionalData;
   }
 
+  /// hasValueHandle - Return true if there is a value handle associated with
+  /// this value.
+  bool hasValueHandle() const { return HasValueHandle; }
+  
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Value *) {
     return true; // Values are always values.

@@ -164,11 +164,9 @@ SPUInstrInfo::isMoveInstr(const MachineInstr& MI,
            MI.getOperand(0).isReg() &&
            MI.getOperand(1).isReg() &&
            "invalid SPU OR<type>_<vec> or LR instruction!");
-    if (MI.getOperand(0).getReg() == MI.getOperand(1).getReg()) {
       sourceReg = MI.getOperand(1).getReg();
       destReg = MI.getOperand(0).getReg();
       return true;
-    }
     break;
   }
   case SPU::ORv16i8:
@@ -251,40 +249,18 @@ SPUInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
   return 0;
 }
 
-bool SPUInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator MI,
-                                   unsigned DestReg, unsigned SrcReg,
-                                   const TargetRegisterClass *DestRC,
-                                   const TargetRegisterClass *SrcRC,
-                                   DebugLoc DL) const
+void SPUInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+                               MachineBasicBlock::iterator I, DebugLoc DL,
+                               unsigned DestReg, unsigned SrcReg,
+                               bool KillSrc) const
 {
   // We support cross register class moves for our aliases, such as R3 in any
   // reg class to any other reg class containing R3.  This is required because
   // we instruction select bitconvert i64 -> f64 as a noop for example, so our
   // types have no specific meaning.
 
-  if (DestRC == SPU::R8CRegisterClass) {
-    BuildMI(MBB, MI, DL, get(SPU::LRr8), DestReg).addReg(SrcReg);
-  } else if (DestRC == SPU::R16CRegisterClass) {
-    BuildMI(MBB, MI, DL, get(SPU::LRr16), DestReg).addReg(SrcReg);
-  } else if (DestRC == SPU::R32CRegisterClass) {
-    BuildMI(MBB, MI, DL, get(SPU::LRr32), DestReg).addReg(SrcReg);
-  } else if (DestRC == SPU::R32FPRegisterClass) {
-    BuildMI(MBB, MI, DL, get(SPU::LRf32), DestReg).addReg(SrcReg);
-  } else if (DestRC == SPU::R64CRegisterClass) {
-    BuildMI(MBB, MI, DL, get(SPU::LRr64), DestReg).addReg(SrcReg);
-  } else if (DestRC == SPU::R64FPRegisterClass) {
-    BuildMI(MBB, MI, DL, get(SPU::LRf64), DestReg).addReg(SrcReg);
-  } else if (DestRC == SPU::GPRCRegisterClass) {
-    BuildMI(MBB, MI, DL, get(SPU::LRr128), DestReg).addReg(SrcReg);
-  } else if (DestRC == SPU::VECREGRegisterClass) {
-    BuildMI(MBB, MI, DL, get(SPU::LRv16i8), DestReg).addReg(SrcReg);
-  } else {
-    // Attempt to copy unknown/unsupported register class!
-    return false;
-  }
-
-  return true;
+  BuildMI(MBB, I, DL, get(SPU::LRr128), DestReg)
+    .addReg(SrcReg, getKillRegState(KillSrc));
 }
 
 void
@@ -354,88 +330,6 @@ SPUInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   DebugLoc DL;
   if (MI != MBB.end()) DL = MI->getDebugLoc();
   addFrameReference(BuildMI(MBB, MI, DL, get(opc), DestReg), FrameIdx);
-}
-
-//! Return true if the specified load or store can be folded
-bool
-SPUInstrInfo::canFoldMemoryOperand(const MachineInstr *MI,
-                                   const SmallVectorImpl<unsigned> &Ops) const {
-  if (Ops.size() != 1) return false;
-
-  // Make sure this is a reg-reg copy.
-  unsigned Opc = MI->getOpcode();
-
-  switch (Opc) {
-  case SPU::ORv16i8:
-  case SPU::ORv8i16:
-  case SPU::ORv4i32:
-  case SPU::ORv2i64:
-  case SPU::ORr8:
-  case SPU::ORr16:
-  case SPU::ORr32:
-  case SPU::ORr64:
-  case SPU::ORf32:
-  case SPU::ORf64:
-    if (MI->getOperand(1).getReg() == MI->getOperand(2).getReg())
-      return true;
-    break;
-  }
-
-  return false;
-}
-
-/// foldMemoryOperand - SPU, like PPC, can only fold spills into
-/// copy instructions, turning them into load/store instructions.
-MachineInstr *
-SPUInstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
-                                    MachineInstr *MI,
-                                    const SmallVectorImpl<unsigned> &Ops,
-                                    int FrameIndex) const
-{
-  if (Ops.size() != 1) return 0;
-
-  unsigned OpNum = Ops[0];
-  unsigned Opc = MI->getOpcode();
-  MachineInstr *NewMI = 0;
-
-  switch (Opc) {
-  case SPU::ORv16i8:
-  case SPU::ORv8i16:
-  case SPU::ORv4i32:
-  case SPU::ORv2i64:
-  case SPU::ORr8:
-  case SPU::ORr16:
-  case SPU::ORr32:
-  case SPU::ORr64:
-  case SPU::ORf32:
-  case SPU::ORf64:
-    if (OpNum == 0) {  // move -> store
-      unsigned InReg = MI->getOperand(1).getReg();
-      bool isKill = MI->getOperand(1).isKill();
-      bool isUndef = MI->getOperand(1).isUndef();
-      if (FrameIndex < SPUFrameInfo::maxFrameOffset()) {
-        MachineInstrBuilder MIB = BuildMI(MF, MI->getDebugLoc(),
-                                          get(SPU::STQDr32));
-
-        MIB.addReg(InReg, getKillRegState(isKill) | getUndefRegState(isUndef));
-        NewMI = addFrameReference(MIB, FrameIndex);
-      }
-    } else {           // move -> load
-      unsigned OutReg = MI->getOperand(0).getReg();
-      bool isDead = MI->getOperand(0).isDead();
-      bool isUndef = MI->getOperand(0).isUndef();
-      MachineInstrBuilder MIB = BuildMI(MF, MI->getDebugLoc(), get(Opc));
-
-      MIB.addReg(OutReg, RegState::Define | getDeadRegState(isDead) |
-                 getUndefRegState(isUndef));
-      Opc = (FrameIndex < SPUFrameInfo::maxFrameOffset())
-        ? SPU::STQDr32 : SPU::STQXr32;
-      NewMI = addFrameReference(MIB, FrameIndex);
-    break;
-  }
-  }
-
-  return NewMI;
 }
 
 //! Branch analysis
@@ -554,9 +448,8 @@ SPUInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
 unsigned
 SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                            MachineBasicBlock *FBB,
-                           const SmallVectorImpl<MachineOperand> &Cond) const {
-  // FIXME this should probably have a DebugLoc argument
-  DebugLoc dl;
+                           const SmallVectorImpl<MachineOperand> &Cond,
+                           DebugLoc DL) const {
   // Shouldn't be a fall through.
   assert(TBB && "InsertBranch must not be told to insert a fallthrough");
   assert((Cond.size() == 2 || Cond.size() == 0) &&
@@ -566,14 +459,14 @@ SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   if (FBB == 0) {
     if (Cond.empty()) {
       // Unconditional branch
-      MachineInstrBuilder MIB = BuildMI(&MBB, dl, get(SPU::BR));
+      MachineInstrBuilder MIB = BuildMI(&MBB, DL, get(SPU::BR));
       MIB.addMBB(TBB);
 
       DEBUG(errs() << "Inserted one-way uncond branch: ");
       DEBUG((*MIB).dump());
     } else {
       // Conditional branch
-      MachineInstrBuilder  MIB = BuildMI(&MBB, dl, get(Cond[0].getImm()));
+      MachineInstrBuilder  MIB = BuildMI(&MBB, DL, get(Cond[0].getImm()));
       MIB.addReg(Cond[1].getReg()).addMBB(TBB);
 
       DEBUG(errs() << "Inserted one-way cond branch:   ");
@@ -581,8 +474,8 @@ SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
     }
     return 1;
   } else {
-    MachineInstrBuilder MIB = BuildMI(&MBB, dl, get(Cond[0].getImm()));
-    MachineInstrBuilder MIB2 = BuildMI(&MBB, dl, get(SPU::BR));
+    MachineInstrBuilder MIB = BuildMI(&MBB, DL, get(Cond[0].getImm()));
+    MachineInstrBuilder MIB2 = BuildMI(&MBB, DL, get(SPU::BR));
 
     // Two-way Conditional Branch.
     MIB.addReg(Cond[1].getReg()).addMBB(TBB);

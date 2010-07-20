@@ -53,17 +53,6 @@ void AsmPrinter::EmitInlineAsm(StringRef Str, unsigned LocCookie) const {
   }
   
   SourceMgr SrcMgr;
-
-  // Ensure the buffer is newline terminated.
-  char *TmpString = 0;
-  if (Str.back() != '\n') {
-    TmpString = new char[Str.size() + 2];
-    memcpy(TmpString, Str.data(), Str.size());
-    TmpString[Str.size()] = '\n';
-    TmpString[Str.size() + 1] = 0;
-    isNullTerminated = true;
-    Str = TmpString;
-  }
   
   // If the current LLVMContext has an inline asm handler, set it in SourceMgr.
   LLVMContext &LLVMCtx = MMI->getModule()->getContext();
@@ -83,7 +72,7 @@ void AsmPrinter::EmitInlineAsm(StringRef Str, unsigned LocCookie) const {
   // Tell SrcMgr about this buffer, it takes ownership of the buffer.
   SrcMgr.AddNewSourceBuffer(Buffer, SMLoc());
   
-  AsmParser Parser(SrcMgr, OutContext, OutStreamer, *MAI);
+  AsmParser Parser(TM.getTarget(), SrcMgr, OutContext, OutStreamer, *MAI);
   OwningPtr<TargetAsmParser> TAP(TM.getTarget().createAsmParser(Parser));
   if (!TAP)
     report_fatal_error("Inline asm not supported by this streamer because"
@@ -95,9 +84,6 @@ void AsmPrinter::EmitInlineAsm(StringRef Str, unsigned LocCookie) const {
                        /*NoFinalize*/ true);
   if (Res && !HasDiagHandler)
     report_fatal_error("Error parsing inline asm\n");
-
-  if (TmpString)
-    delete[] TmpString;
 }
 
 
@@ -279,7 +265,7 @@ void AsmPrinter::EmitInlineAsm(const MachineInstr *MI) const {
       // Okay, we finally have a value number.  Ask the target to print this
       // operand!
       if (CurVariant == -1 || CurVariant == AsmPrinterVariant) {
-        unsigned OpNo = 1;
+        unsigned OpNo = 2;
 
         bool Error = false;
 

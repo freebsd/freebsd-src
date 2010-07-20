@@ -162,37 +162,19 @@ ClassTemplateDecl *ClassTemplateDecl::Create(ASTContext &C,
                                              TemplateParameterList *Params,
                                              NamedDecl *Decl,
                                              ClassTemplateDecl *PrevDecl) {
-  Common *CommonPtr;
-  if (PrevDecl)
-    CommonPtr = PrevDecl->CommonPtr;
-  else {
-    CommonPtr = new (C) Common;
-    C.AddDeallocation(DeallocateCommon, CommonPtr);
-  }
-
-  return new (C) ClassTemplateDecl(DC, L, Name, Params, Decl, PrevDecl,
-                                   CommonPtr);
-}
-
-ClassTemplateDecl::~ClassTemplateDecl() {
-  assert(CommonPtr == 0 && "ClassTemplateDecl must be explicitly destroyed");
+  ClassTemplateDecl *New = new (C) ClassTemplateDecl(DC, L, Name, Params, Decl);
+  New->setPreviousDeclaration(PrevDecl);
+  return New;
 }
 
 void ClassTemplateDecl::Destroy(ASTContext& C) {
-  if (!PreviousDeclaration) {
-    CommonPtr->~Common();
-    C.Deallocate((void*)CommonPtr);
-  }
-  CommonPtr = 0;
-
-  this->~ClassTemplateDecl();
-  C.Deallocate((void*)this);
+  Decl::Destroy(C);
 }
 
 void ClassTemplateDecl::getPartialSpecializations(
           llvm::SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS) {
   llvm::FoldingSet<ClassTemplatePartialSpecializationDecl> &PartialSpecs
-    = CommonPtr->PartialSpecializations;
+    = getPartialSpecializations();
   PS.clear();
   PS.resize(PartialSpecs.size());
   for (llvm::FoldingSet<ClassTemplatePartialSpecializationDecl>::iterator
@@ -219,7 +201,8 @@ ClassTemplateDecl::findPartialSpecialization(QualType T) {
 }
 
 QualType
-ClassTemplateDecl::getInjectedClassNameSpecialization(ASTContext &Context) {
+ClassTemplateDecl::getInjectedClassNameSpecialization() {
+  Common *CommonPtr = getCommonPtr();
   if (!CommonPtr->InjectedClassNameType.isNull())
     return CommonPtr->InjectedClassNameType;
 
@@ -227,7 +210,7 @@ ClassTemplateDecl::getInjectedClassNameSpecialization(ASTContext &Context) {
   // corresponding to template parameter packs should be pack
   // expansions. We already say that in 14.6.2.1p2, so it would be
   // better to fix that redundancy.
-
+  ASTContext &Context = getASTContext();
   TemplateParameterList *Params = getTemplateParameters();
   llvm::SmallVector<TemplateArgument, 16> TemplateArgs;
   TemplateArgs.reserve(Params->size());
@@ -240,7 +223,7 @@ ClassTemplateDecl::getInjectedClassNameSpecialization(ASTContext &Context) {
     } else if (NonTypeTemplateParmDecl *NTTP =
                  dyn_cast<NonTypeTemplateParmDecl>(*Param)) {
       Expr *E = new (Context) DeclRefExpr(NTTP,
-                                          NTTP->getType().getNonReferenceType(),
+                                  NTTP->getType().getNonLValueExprType(Context),
                                           NTTP->getLocation());
       TemplateArgs.push_back(TemplateArgument(E));
     } else {
@@ -256,6 +239,20 @@ ClassTemplateDecl::getInjectedClassNameSpecialization(ASTContext &Context) {
   return CommonPtr->InjectedClassNameType;
 }
 
+ClassTemplateDecl::Common *ClassTemplateDecl::getCommonPtr() {
+  // Find the first declaration of this function template.
+  ClassTemplateDecl *First = this;
+  while (First->getPreviousDeclaration())
+    First = First->getPreviousDeclaration();
+
+  if (First->CommonOrPrev.isNull()) {
+    Common *CommonPtr = new (getASTContext()) Common;
+    getASTContext().AddDeallocation(DeallocateCommon, CommonPtr);
+    First->CommonOrPrev = CommonPtr;
+  }
+  return First->CommonOrPrev.get<Common*>();
+}
+
 //===----------------------------------------------------------------------===//
 // TemplateTypeParm Allocation/Deallocation Method Implementations
 //===----------------------------------------------------------------------===//
@@ -267,6 +264,12 @@ TemplateTypeParmDecl::Create(ASTContext &C, DeclContext *DC,
                              bool ParameterPack) {
   QualType Type = C.getTemplateTypeParmType(D, P, ParameterPack, Id);
   return new (C) TemplateTypeParmDecl(DC, L, Id, Typename, Type, ParameterPack);
+}
+
+TemplateTypeParmDecl *
+TemplateTypeParmDecl::Create(ASTContext &C, EmptyShell Empty) {
+  return new (C) TemplateTypeParmDecl(0, SourceLocation(), 0, false,
+                                      QualType(), false);
 }
 
 SourceLocation TemplateTypeParmDecl::getDefaultArgumentLoc() const {
@@ -294,8 +297,9 @@ NonTypeTemplateParmDecl::Create(ASTContext &C, DeclContext *DC,
 }
 
 SourceLocation NonTypeTemplateParmDecl::getDefaultArgumentLoc() const {
-  return DefaultArgument? DefaultArgument->getSourceRange().getBegin()
-                        : SourceLocation();
+  return hasDefaultArgument()
+    ? getDefaultArgument()->getSourceRange().getBegin()
+    : SourceLocation();
 }
 
 //===----------------------------------------------------------------------===//
@@ -393,6 +397,13 @@ TemplateArgumentList::TemplateArgumentList(ASTContext &Context,
   }
 }
 
+TemplateArgumentList::TemplateArgumentList(ASTContext &Context,
+                                           const TemplateArgument *Args,
+                                           unsigned NumArgs)
+  : NumFlatArguments(0), NumStructuredArguments(0) {
+  init(Context, Args, NumArgs);
+}
+
 /// Produces a shallow copy of the given template argument list.  This
 /// assumes that the input argument list outlives it.  This takes the list as
 /// a pointer to avoid looking like a copy constructor, since this really
@@ -402,6 +413,23 @@ TemplateArgumentList::TemplateArgumentList(const TemplateArgumentList *Other)
     NumFlatArguments(Other->flat_size()),
     StructuredArguments(Other->StructuredArguments.getPointer(), false),
     NumStructuredArguments(Other->NumStructuredArguments) { }
+
+void TemplateArgumentList::init(ASTContext &Context,
+                           const TemplateArgument *Args,
+                           unsigned NumArgs) {
+assert(NumFlatArguments == 0 && NumStructuredArguments == 0 &&
+       "Already initialized!");
+
+NumFlatArguments = NumStructuredArguments = NumArgs;
+TemplateArgument *NewArgs = new (Context) TemplateArgument[NumArgs];
+std::copy(Args, Args+NumArgs, NewArgs);
+FlatArguments.setPointer(NewArgs);
+FlatArguments.setInt(1); // Owns the pointer.
+
+// Just reuse the flat arguments array.
+StructuredArguments.setPointer(NewArgs);    
+StructuredArguments.setInt(0); // Doesn't own the pointer.
+}
 
 void TemplateArgumentList::Destroy(ASTContext &C) {
   if (FlatArguments.getInt())
@@ -425,8 +453,14 @@ ClassTemplateSpecializationDecl(ASTContext &Context, Kind DK, TagKind TK,
                   SpecializedTemplate->getIdentifier(),
                   PrevDecl),
     SpecializedTemplate(SpecializedTemplate),
-    TypeAsWritten(0),
+    ExplicitInfo(0),
     TemplateArgs(Context, Builder, /*TakeArgs=*/true),
+    SpecializationKind(TSK_Undeclared) {
+}
+
+ClassTemplateSpecializationDecl::ClassTemplateSpecializationDecl(Kind DK)
+  : CXXRecordDecl(DK, TTK_Struct, 0, SourceLocation(), 0, 0),
+    ExplicitInfo(0),
     SpecializationKind(TSK_Undeclared) {
 }
 
@@ -447,7 +481,15 @@ ClassTemplateSpecializationDecl::Create(ASTContext &Context, TagKind TK,
   return Result;
 }
 
+ClassTemplateSpecializationDecl *
+ClassTemplateSpecializationDecl::Create(ASTContext &Context, EmptyShell Empty) {
+  return
+    new (Context)ClassTemplateSpecializationDecl(ClassTemplateSpecialization);
+}
+
 void ClassTemplateSpecializationDecl::Destroy(ASTContext &C) {
+  delete ExplicitInfo;
+
   if (SpecializedPartialSpecialization *PartialSpec
         = SpecializedTemplate.dyn_cast<SpecializedPartialSpecialization*>())
     C.Deallocate(PartialSpec);
@@ -506,6 +548,25 @@ Create(ASTContext &Context, TagKind TK,DeclContext *DC, SourceLocation L,
 
   Context.getInjectedClassNameType(Result, CanonInjectedType);
   return Result;
+}
+
+ClassTemplatePartialSpecializationDecl *
+ClassTemplatePartialSpecializationDecl::Create(ASTContext &Context,
+                                               EmptyShell Empty) {
+  return new (Context)ClassTemplatePartialSpecializationDecl();
+}
+
+void ClassTemplatePartialSpecializationDecl::
+initTemplateArgsAsWritten(const TemplateArgumentListInfo &ArgInfos) {
+  assert(ArgsAsWritten == 0 && "ArgsAsWritten already set");
+  unsigned N = ArgInfos.size();
+  TemplateArgumentLoc *ClonedArgs
+    = new (getASTContext()) TemplateArgumentLoc[N];
+  for (unsigned I = 0; I != N; ++I)
+    ClonedArgs[I] = ArgInfos[I];
+  
+  ArgsAsWritten = ClonedArgs;
+  NumArgsAsWritten = N;
 }
 
 //===----------------------------------------------------------------------===//

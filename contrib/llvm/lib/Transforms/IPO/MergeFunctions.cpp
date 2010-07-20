@@ -146,7 +146,7 @@ static bool isEquivalentType(const Type *Ty1, const Type *Ty2) {
   switch(Ty1->getTypeID()) {
   default:
     llvm_unreachable("Unknown type!");
-    // Fall through in Release-Asserts mode.
+    // Fall through in Release mode.
   case Type::IntegerTyID:
   case Type::OpaqueTyID:
     // Ty1 == Ty2 would have returned true earlier.
@@ -535,6 +535,7 @@ static LinkageCategory categorize(const Function *F) {
   case GlobalValue::WeakAnyLinkage:
   case GlobalValue::WeakODRLinkage:
   case GlobalValue::ExternalWeakLinkage:
+  case GlobalValue::LinkerPrivateWeakLinkage:
     return ExternalWeak;
 
   case GlobalValue::ExternalLinkage:
@@ -602,6 +603,10 @@ static void ThunkGToF(Function *F, Function *G) {
 }
 
 static void AliasGToF(Function *F, Function *G) {
+  // Darwin will trigger llvm_unreachable if asked to codegen an alias.
+  return ThunkGToF(F, G);
+
+#if 0
   if (!G->hasExternalLinkage() && !G->hasLocalLinkage() && !G->hasWeakLinkage())
     return ThunkGToF(F, G);
 
@@ -613,6 +618,7 @@ static void AliasGToF(Function *F, Function *G) {
   GA->setVisibility(G->getVisibility());
   G->replaceAllUsesWith(GA);
   G->eraseFromParent();
+#endif
 }
 
 static bool fold(std::vector<Function *> &FnVec, unsigned i, unsigned j) {

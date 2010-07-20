@@ -37,6 +37,7 @@ namespace llvm {
   class SwitchInst;
   class Twine;
   class Value;
+  class CallSite;
 }
 
 namespace clang {
@@ -69,12 +70,317 @@ namespace CodeGen {
   class CGRecordLayout;
   class CGBlockInfo;
 
+/// A branch fixup.  These are required when emitting a goto to a
+/// label which hasn't been emitted yet.  The goto is optimistically
+/// emitted as a branch to the basic block for the label, and (if it
+/// occurs in a scope with non-trivial cleanups) a fixup is added to
+/// the innermost cleanup.  When a (normal) cleanup is popped, any
+/// unresolved fixups in that scope are threaded through the cleanup.
+struct BranchFixup {
+  /// The origin of the branch.  Any switch-index stores required by
+  /// cleanup threading are added before this instruction.
+  llvm::Instruction *Origin;
+
+  /// The destination of the branch.
+  ///
+  /// This can be set to null to indicate that this fixup was
+  /// successfully resolved.
+  llvm::BasicBlock *Destination;
+
+  /// The last branch of the fixup.  It is an invariant that
+  /// LatestBranch->getSuccessor(LatestBranchIndex) == Destination.
+  ///
+  /// The branch is always either a BranchInst or a SwitchInst.
+  llvm::TerminatorInst *LatestBranch;
+  unsigned LatestBranchIndex;
+};
+
+enum CleanupKind { NormalAndEHCleanup, EHCleanup, NormalCleanup };
+
+/// A stack of scopes which respond to exceptions, including cleanups
+/// and catch blocks.
+class EHScopeStack {
+public:
+  /// A saved depth on the scope stack.  This is necessary because
+  /// pushing scopes onto the stack invalidates iterators.
+  class stable_iterator {
+    friend class EHScopeStack;
+
+    /// Offset from StartOfData to EndOfBuffer.
+    ptrdiff_t Size;
+
+    stable_iterator(ptrdiff_t Size) : Size(Size) {}
+
+  public:
+    static stable_iterator invalid() { return stable_iterator(-1); }
+    stable_iterator() : Size(-1) {}
+
+    bool isValid() const { return Size >= 0; }
+
+    friend bool operator==(stable_iterator A, stable_iterator B) {
+      return A.Size == B.Size;
+    }
+    friend bool operator!=(stable_iterator A, stable_iterator B) {
+      return A.Size != B.Size;
+    }
+  };
+
+  /// A lazy cleanup.  Subclasses must be POD-like:  cleanups will
+  /// not be destructed, and they will be allocated on the cleanup
+  /// stack and freely copied and moved around.
+  ///
+  /// LazyCleanup implementations should generally be declared in an
+  /// anonymous namespace.
+  class LazyCleanup {
+  public:
+    // Anchor the construction vtable.  We use the destructor because
+    // gcc gives an obnoxious warning if there are virtual methods
+    // with an accessible non-virtual destructor.  Unfortunately,
+    // declaring this destructor makes it non-trivial, but there
+    // doesn't seem to be any other way around this warning.
+    //
+    // This destructor will never be called.
+    virtual ~LazyCleanup();
+
+    /// Emit the cleanup.  For normal cleanups, this is run in the
+    /// same EH context as when the cleanup was pushed, i.e. the
+    /// immediately-enclosing context of the cleanup scope.  For
+    /// EH cleanups, this is run in a terminate context.
+    ///
+    // \param IsForEHCleanup true if this is for an EH cleanup, false
+    ///  if for a normal cleanup.
+    virtual void Emit(CodeGenFunction &CGF, bool IsForEHCleanup) = 0;
+  };
+
+private:
+  // The implementation for this class is in CGException.h and
+  // CGException.cpp; the definition is here because it's used as a
+  // member of CodeGenFunction.
+
+  /// The start of the scope-stack buffer, i.e. the allocated pointer
+  /// for the buffer.  All of these pointers are either simultaneously
+  /// null or simultaneously valid.
+  char *StartOfBuffer;
+
+  /// The end of the buffer.
+  char *EndOfBuffer;
+
+  /// The first valid entry in the buffer.
+  char *StartOfData;
+
+  /// The innermost normal cleanup on the stack.
+  stable_iterator InnermostNormalCleanup;
+
+  /// The innermost EH cleanup on the stack.
+  stable_iterator InnermostEHCleanup;
+
+  /// The number of catches on the stack.
+  unsigned CatchDepth;
+
+  /// The current set of branch fixups.  A branch fixup is a jump to
+  /// an as-yet unemitted label, i.e. a label for which we don't yet
+  /// know the EH stack depth.  Whenever we pop a cleanup, we have
+  /// to thread all the current branch fixups through it.
+  ///
+  /// Fixups are recorded as the Use of the respective branch or
+  /// switch statement.  The use points to the final destination.
+  /// When popping out of a cleanup, these uses are threaded through
+  /// the cleanup and adjusted to point to the new cleanup.
+  ///
+  /// Note that branches are allowed to jump into protected scopes
+  /// in certain situations;  e.g. the following code is legal:
+  ///     struct A { ~A(); }; // trivial ctor, non-trivial dtor
+  ///     goto foo;
+  ///     A a;
+  ///    foo:
+  ///     bar();
+  llvm::SmallVector<BranchFixup, 8> BranchFixups;
+
+  char *allocate(size_t Size);
+
+  void popNullFixups();
+
+  void *pushLazyCleanup(CleanupKind K, size_t DataSize);
+
+public:
+  EHScopeStack() : StartOfBuffer(0), EndOfBuffer(0), StartOfData(0),
+                   InnermostNormalCleanup(stable_end()),
+                   InnermostEHCleanup(stable_end()),
+                   CatchDepth(0) {}
+  ~EHScopeStack() { delete[] StartOfBuffer; }
+
+  // Variadic templates would make this not terrible.
+
+  /// Push a lazily-created cleanup on the stack.
+  template <class T>
+  void pushLazyCleanup(CleanupKind Kind) {
+    void *Buffer = pushLazyCleanup(Kind, sizeof(T));
+    LazyCleanup *Obj = new(Buffer) T();
+    (void) Obj;
+  }
+
+  /// Push a lazily-created cleanup on the stack.
+  template <class T, class A0>
+  void pushLazyCleanup(CleanupKind Kind, A0 a0) {
+    void *Buffer = pushLazyCleanup(Kind, sizeof(T));
+    LazyCleanup *Obj = new(Buffer) T(a0);
+    (void) Obj;
+  }
+
+  /// Push a lazily-created cleanup on the stack.
+  template <class T, class A0, class A1>
+  void pushLazyCleanup(CleanupKind Kind, A0 a0, A1 a1) {
+    void *Buffer = pushLazyCleanup(Kind, sizeof(T));
+    LazyCleanup *Obj = new(Buffer) T(a0, a1);
+    (void) Obj;
+  }
+
+  /// Push a lazily-created cleanup on the stack.
+  template <class T, class A0, class A1, class A2>
+  void pushLazyCleanup(CleanupKind Kind, A0 a0, A1 a1, A2 a2) {
+    void *Buffer = pushLazyCleanup(Kind, sizeof(T));
+    LazyCleanup *Obj = new(Buffer) T(a0, a1, a2);
+    (void) Obj;
+  }
+
+  /// Push a lazily-created cleanup on the stack.
+  template <class T, class A0, class A1, class A2, class A3>
+  void pushLazyCleanup(CleanupKind Kind, A0 a0, A1 a1, A2 a2, A3 a3) {
+    void *Buffer = pushLazyCleanup(Kind, sizeof(T));
+    LazyCleanup *Obj = new(Buffer) T(a0, a1, a2, a3);
+    (void) Obj;
+  }
+
+  /// Push a cleanup on the stack.
+  void pushCleanup(llvm::BasicBlock *NormalEntry,
+                   llvm::BasicBlock *NormalExit,
+                   llvm::BasicBlock *EHEntry,
+                   llvm::BasicBlock *EHExit);
+
+  /// Pops a cleanup scope off the stack.  This should only be called
+  /// by CodeGenFunction::PopCleanupBlock.
+  void popCleanup();
+
+  /// Push a set of catch handlers on the stack.  The catch is
+  /// uninitialized and will need to have the given number of handlers
+  /// set on it.
+  class EHCatchScope *pushCatch(unsigned NumHandlers);
+
+  /// Pops a catch scope off the stack.
+  void popCatch();
+
+  /// Push an exceptions filter on the stack.
+  class EHFilterScope *pushFilter(unsigned NumFilters);
+
+  /// Pops an exceptions filter off the stack.
+  void popFilter();
+
+  /// Push a terminate handler on the stack.
+  void pushTerminate();
+
+  /// Pops a terminate handler off the stack.
+  void popTerminate();
+
+  /// Determines whether the exception-scopes stack is empty.
+  bool empty() const { return StartOfData == EndOfBuffer; }
+
+  bool requiresLandingPad() const {
+    return (CatchDepth || hasEHCleanups());
+  }
+
+  /// Determines whether there are any normal cleanups on the stack.
+  bool hasNormalCleanups() const {
+    return InnermostNormalCleanup != stable_end();
+  }
+
+  /// Returns the innermost normal cleanup on the stack, or
+  /// stable_end() if there are no normal cleanups.
+  stable_iterator getInnermostNormalCleanup() const {
+    return InnermostNormalCleanup;
+  }
+
+  /// Determines whether there are any EH cleanups on the stack.
+  bool hasEHCleanups() const {
+    return InnermostEHCleanup != stable_end();
+  }
+
+  /// Returns the innermost EH cleanup on the stack, or stable_end()
+  /// if there are no EH cleanups.
+  stable_iterator getInnermostEHCleanup() const {
+    return InnermostEHCleanup;
+  }
+
+  /// An unstable reference to a scope-stack depth.  Invalidated by
+  /// pushes but not pops.
+  class iterator;
+
+  /// Returns an iterator pointing to the innermost EH scope.
+  iterator begin() const;
+
+  /// Returns an iterator pointing to the outermost EH scope.
+  iterator end() const;
+
+  /// Create a stable reference to the top of the EH stack.  The
+  /// returned reference is valid until that scope is popped off the
+  /// stack.
+  stable_iterator stable_begin() const {
+    return stable_iterator(EndOfBuffer - StartOfData);
+  }
+
+  /// Create a stable reference to the bottom of the EH stack.
+  static stable_iterator stable_end() {
+    return stable_iterator(0);
+  }
+
+  /// Translates an iterator into a stable_iterator.
+  stable_iterator stabilize(iterator it) const;
+
+  /// Finds the nearest cleanup enclosing the given iterator.
+  /// Returns stable_iterator::invalid() if there are no such cleanups.
+  stable_iterator getEnclosingEHCleanup(iterator it) const;
+
+  /// Turn a stable reference to a scope depth into a unstable pointer
+  /// to the EH stack.
+  iterator find(stable_iterator save) const;
+
+  /// Removes the cleanup pointed to by the given stable_iterator.
+  void removeCleanup(stable_iterator save);
+
+  /// Add a branch fixup to the current cleanup scope.
+  BranchFixup &addBranchFixup() {
+    assert(hasNormalCleanups() && "adding fixup in scope without cleanups");
+    BranchFixups.push_back(BranchFixup());
+    return BranchFixups.back();
+  }
+
+  unsigned getNumBranchFixups() const { return BranchFixups.size(); }
+  BranchFixup &getBranchFixup(unsigned I) {
+    assert(I < getNumBranchFixups());
+    return BranchFixups[I];
+  }
+
+  /// Mark any branch fixups leading to the given block as resolved.
+  void resolveBranchFixups(llvm::BasicBlock *Dest);
+};
+
 /// CodeGenFunction - This class organizes the per-function state that is used
 /// while generating LLVM code.
 class CodeGenFunction : public BlockFunction {
   CodeGenFunction(const CodeGenFunction&); // DO NOT IMPLEMENT
   void operator=(const CodeGenFunction&);  // DO NOT IMPLEMENT
 public:
+  /// A jump destination is a pair of a basic block and a cleanup
+  /// depth.  They are used to implement direct jumps across cleanup
+  /// scopes, e.g. goto, break, continue, and return.
+  struct JumpDest {
+    JumpDest() : Block(0), ScopeDepth() {}
+    JumpDest(llvm::BasicBlock *Block, EHScopeStack::stable_iterator Depth)
+      : Block(Block), ScopeDepth(Depth) {}
+    
+    llvm::BasicBlock *Block;
+    EHScopeStack::stable_iterator ScopeDepth;
+  };
+
   CodeGenModule &CGM;  // Per-module state.
   const TargetInfo &Target;
 
@@ -94,7 +400,8 @@ public:
   GlobalDecl CurGD;
 
   /// ReturnBlock - Unified return block.
-  llvm::BasicBlock *ReturnBlock;
+  JumpDest ReturnBlock;
+
   /// ReturnValue - The temporary alloca to hold the return value. This is null
   /// iff the function has no return value.
   llvm::Value *ReturnValue;
@@ -103,7 +410,8 @@ public:
   /// we prefer to insert allocas.
   llvm::AssertingVH<llvm::Instruction> AllocaInsertPt;
 
-  const llvm::Type *LLVMIntTy;
+  // intptr_t, i32, i64
+  const llvm::IntegerType *IntPtrTy, *Int32Ty, *Int64Ty;
   uint32_t LLVMPointerWidth;
 
   bool Exceptions;
@@ -112,141 +420,97 @@ public:
   /// \brief A mapping from NRVO variables to the flags used to indicate
   /// when the NRVO has been applied to this variable.
   llvm::DenseMap<const VarDecl *, llvm::Value *> NRVOFlags;
-  
+
+  EHScopeStack EHStack;
+
+  /// The exception slot.  All landing pads write the current
+  /// exception pointer into this alloca.
+  llvm::Value *ExceptionSlot;
+
+  /// Emits a landing pad for the current EH stack.
+  llvm::BasicBlock *EmitLandingPad();
+
+  llvm::BasicBlock *getInvokeDestImpl();
+
 public:
   /// ObjCEHValueStack - Stack of Objective-C exception values, used for
   /// rethrows.
   llvm::SmallVector<llvm::Value*, 8> ObjCEHValueStack;
 
-  /// PushCleanupBlock - Push a new cleanup entry on the stack and set the
-  /// passed in block as the cleanup block.
-  void PushCleanupBlock(llvm::BasicBlock *CleanupEntryBlock,
-                        llvm::BasicBlock *CleanupExitBlock,
-                        llvm::BasicBlock *PreviousInvokeDest,
-                        bool EHOnly = false);
-  void PushCleanupBlock(llvm::BasicBlock *CleanupEntryBlock) {
-    PushCleanupBlock(CleanupEntryBlock, 0, getInvokeDest(), false);
-  }
-
-  /// CleanupBlockInfo - A struct representing a popped cleanup block.
-  struct CleanupBlockInfo {
-    /// CleanupEntryBlock - the cleanup entry block
-    llvm::BasicBlock *CleanupBlock;
-
-    /// SwitchBlock - the block (if any) containing the switch instruction used
-    /// for jumping to the final destination.
-    llvm::BasicBlock *SwitchBlock;
-
-    /// EndBlock - the default destination for the switch instruction.
-    llvm::BasicBlock *EndBlock;
-
-    /// EHOnly - True iff this cleanup should only be performed on the
-    /// exceptional edge.
-    bool EHOnly;
-
-    CleanupBlockInfo(llvm::BasicBlock *cb, llvm::BasicBlock *sb,
-                     llvm::BasicBlock *eb, bool ehonly = false)
-      : CleanupBlock(cb), SwitchBlock(sb), EndBlock(eb), EHOnly(ehonly) {}
+  // A struct holding information about a finally block's IR
+  // generation.  For now, doesn't actually hold anything.
+  struct FinallyInfo {
   };
 
-  /// EHCleanupBlock - RAII object that will create a cleanup block for the
-  /// exceptional edge and set the insert point to that block.  When destroyed,
-  /// it creates the cleanup edge and sets the insert point to the previous
-  /// block.
-  class EHCleanupBlock {
-    CodeGenFunction& CGF;
-    llvm::BasicBlock *PreviousInsertionBlock;
-    llvm::BasicBlock *CleanupHandler;
-    llvm::BasicBlock *PreviousInvokeDest;
-  public:
-    EHCleanupBlock(CodeGenFunction &cgf) 
-      : CGF(cgf),
-        PreviousInsertionBlock(CGF.Builder.GetInsertBlock()),
-        CleanupHandler(CGF.createBasicBlock("ehcleanup", CGF.CurFn)),
-        PreviousInvokeDest(CGF.getInvokeDest()) {
-      llvm::BasicBlock *TerminateHandler = CGF.getTerminateHandler();
-      CGF.Builder.SetInsertPoint(CleanupHandler);
-      CGF.setInvokeDest(TerminateHandler);
-    }
-    ~EHCleanupBlock();
-  };
+  FinallyInfo EnterFinallyBlock(const Stmt *Stmt,
+                                llvm::Constant *BeginCatchFn,
+                                llvm::Constant *EndCatchFn,
+                                llvm::Constant *RethrowFn);
+  void ExitFinallyBlock(FinallyInfo &FinallyInfo);
 
-  /// PopCleanupBlock - Will pop the cleanup entry on the stack, process all
-  /// branch fixups and return a block info struct with the switch block and end
-  /// block.  This will also reset the invoke handler to the previous value
-  /// from when the cleanup block was created.
-  CleanupBlockInfo PopCleanupBlock();
+  /// PushDestructorCleanup - Push a cleanup to call the
+  /// complete-object destructor of an object of the given type at the
+  /// given address.  Does nothing if T is not a C++ class type with a
+  /// non-trivial destructor.
+  void PushDestructorCleanup(QualType T, llvm::Value *Addr);
 
-  /// DelayedCleanupBlock - RAII object that will create a cleanup block and set
-  /// the insert point to that block. When destructed, it sets the insert point
-  /// to the previous block and pushes a new cleanup entry on the stack.
-  class DelayedCleanupBlock {
-    CodeGenFunction& CGF;
-    llvm::BasicBlock *CurBB;
-    llvm::BasicBlock *CleanupEntryBB;
-    llvm::BasicBlock *CleanupExitBB;
-    llvm::BasicBlock *CurInvokeDest;
-    bool EHOnly;
+  /// PopCleanupBlock - Will pop the cleanup entry on the stack and
+  /// process all branch fixups.
+  void PopCleanupBlock();
+
+  /// CleanupBlock - RAII object that will create a cleanup block and
+  /// set the insert point to that block. When destructed, it sets the
+  /// insert point to the previous block and pushes a new cleanup
+  /// entry on the stack.
+  class CleanupBlock {
+    CodeGenFunction &CGF;
+    CGBuilderTy::InsertPoint SavedIP;
+    llvm::BasicBlock *NormalCleanupEntryBB;
+    llvm::BasicBlock *NormalCleanupExitBB;
+    llvm::BasicBlock *EHCleanupEntryBB;
     
   public:
-    DelayedCleanupBlock(CodeGenFunction &cgf, bool ehonly = false)
-      : CGF(cgf), CurBB(CGF.Builder.GetInsertBlock()),
-        CleanupEntryBB(CGF.createBasicBlock("cleanup")),
-        CleanupExitBB(0),
-        CurInvokeDest(CGF.getInvokeDest()),
-        EHOnly(ehonly) {
-      CGF.Builder.SetInsertPoint(CleanupEntryBB);
-    }
+    CleanupBlock(CodeGenFunction &CGF, CleanupKind Kind);
 
-    llvm::BasicBlock *getCleanupExitBlock() {
-      if (!CleanupExitBB)
-        CleanupExitBB = CGF.createBasicBlock("cleanup.exit");
-      return CleanupExitBB;
-    }
+    /// If we're currently writing a normal cleanup, tie that off and
+    /// start writing an EH cleanup.
+    void beginEHCleanup();
     
-    ~DelayedCleanupBlock() {
-      CGF.PushCleanupBlock(CleanupEntryBB, CleanupExitBB, CurInvokeDest,
-                           EHOnly);
-      // FIXME: This is silly, move this into the builder.
-      if (CurBB)
-        CGF.Builder.SetInsertPoint(CurBB);
-      else
-        CGF.Builder.ClearInsertionPoint();
-    }
+    ~CleanupBlock();
   };
 
-  /// \brief Enters a new scope for capturing cleanups, all of which will be
-  /// executed once the scope is exited.
-  class CleanupScope {
+  /// \brief Enters a new scope for capturing cleanups, all of which
+  /// will be executed once the scope is exited.
+  class RunCleanupsScope {
     CodeGenFunction& CGF;
-    size_t CleanupStackDepth;
+    EHScopeStack::stable_iterator CleanupStackDepth;
     bool OldDidCallStackSave;
     bool PerformCleanup;
 
-    CleanupScope(const CleanupScope &); // DO NOT IMPLEMENT
-    CleanupScope &operator=(const CleanupScope &); // DO NOT IMPLEMENT
+    RunCleanupsScope(const RunCleanupsScope &); // DO NOT IMPLEMENT
+    RunCleanupsScope &operator=(const RunCleanupsScope &); // DO NOT IMPLEMENT
 
   public:
     /// \brief Enter a new cleanup scope.
-    explicit CleanupScope(CodeGenFunction &CGF) 
+    explicit RunCleanupsScope(CodeGenFunction &CGF) 
       : CGF(CGF), PerformCleanup(true) 
     {
-      CleanupStackDepth = CGF.CleanupEntries.size();
+      CleanupStackDepth = CGF.EHStack.stable_begin();
       OldDidCallStackSave = CGF.DidCallStackSave;
     }
 
     /// \brief Exit this cleanup scope, emitting any accumulated
     /// cleanups.
-    ~CleanupScope() {
+    ~RunCleanupsScope() {
       if (PerformCleanup) {
         CGF.DidCallStackSave = OldDidCallStackSave;
-        CGF.EmitCleanupBlocks(CleanupStackDepth);
+        CGF.PopCleanupBlocks(CleanupStackDepth);
       }
     }
 
     /// \brief Determine whether this scope requires any cleanups.
     bool requiresCleanups() const {
-      return CGF.CleanupEntries.size() > CleanupStackDepth;
+      return CGF.EHStack.stable_begin() != CleanupStackDepth;
     }
 
     /// \brief Force the emission of cleanups now, instead of waiting
@@ -254,42 +518,39 @@ public:
     void ForceCleanup() {
       assert(PerformCleanup && "Already forced cleanup");
       CGF.DidCallStackSave = OldDidCallStackSave;
-      CGF.EmitCleanupBlocks(CleanupStackDepth);
+      CGF.PopCleanupBlocks(CleanupStackDepth);
       PerformCleanup = false;
     }
   };
 
-  /// CXXTemporariesCleanupScope - Enters a new scope for catching live
-  /// temporaries, all of which will be popped once the scope is exited.
-  class CXXTemporariesCleanupScope {
-    CodeGenFunction &CGF;
-    size_t NumLiveTemporaries;
-    
-    // DO NOT IMPLEMENT
-    CXXTemporariesCleanupScope(const CXXTemporariesCleanupScope &); 
-    CXXTemporariesCleanupScope &operator=(const CXXTemporariesCleanupScope &);
-    
-  public:
-    explicit CXXTemporariesCleanupScope(CodeGenFunction &CGF)
-      : CGF(CGF), NumLiveTemporaries(CGF.LiveTemporaries.size()) { }
-    
-    ~CXXTemporariesCleanupScope() {
-      while (CGF.LiveTemporaries.size() > NumLiveTemporaries)
-        CGF.PopCXXTemporary();
-    }
-  };
 
+  /// PopCleanupBlocks - Takes the old cleanup stack size and emits
+  /// the cleanup blocks that have been added.
+  void PopCleanupBlocks(EHScopeStack::stable_iterator OldCleanupStackSize);
 
-  /// EmitCleanupBlocks - Takes the old cleanup stack size and emits the cleanup
-  /// blocks that have been added.
-  void EmitCleanupBlocks(size_t OldCleanupStackSize);
+  /// The given basic block lies in the current EH scope, but may be a
+  /// target of a potentially scope-crossing jump; get a stable handle
+  /// to which we can perform this jump later.
+  JumpDest getJumpDestInCurrentScope(llvm::BasicBlock *Target) const {
+    return JumpDest(Target, EHStack.stable_begin());
+  }
 
-  /// EmitBranchThroughCleanup - Emit a branch from the current insert block
-  /// through the cleanup handling code (if any) and then on to \arg Dest.
-  ///
-  /// FIXME: Maybe this should really be in EmitBranch? Don't we always want
-  /// this behavior for branches?
-  void EmitBranchThroughCleanup(llvm::BasicBlock *Dest);
+  /// The given basic block lies in the current EH scope, but may be a
+  /// target of a potentially scope-crossing jump; get a stable handle
+  /// to which we can perform this jump later.
+  JumpDest getJumpDestInCurrentScope(const char *Name = 0) {
+    return JumpDest(createBasicBlock(Name), EHStack.stable_begin());
+  }
+
+  /// EmitBranchThroughCleanup - Emit a branch from the current insert
+  /// block through the normal cleanup handling code (if any) and then
+  /// on to \arg Dest.
+  void EmitBranchThroughCleanup(JumpDest Dest);
+
+  /// EmitBranchThroughEHCleanup - Emit a branch from the current
+  /// insert block through the EH cleanup handling code (if any) and
+  /// then on to \arg Dest.
+  void EmitBranchThroughEHCleanup(JumpDest Dest);
 
   /// BeginConditionalBranch - Should be called before a conditional part of an
   /// expression is emitted. For example, before the RHS of the expression below
@@ -326,16 +587,16 @@ private:
   llvm::DenseMap<const Decl*, llvm::Value*> LocalDeclMap;
 
   /// LabelMap - This keeps track of the LLVM basic block for each C label.
-  llvm::DenseMap<const LabelStmt*, llvm::BasicBlock*> LabelMap;
+  llvm::DenseMap<const LabelStmt*, JumpDest> LabelMap;
 
   // BreakContinueStack - This keeps track of where break and continue
   // statements should jump to.
   struct BreakContinue {
-    BreakContinue(llvm::BasicBlock *bb, llvm::BasicBlock *cb)
-      : BreakBlock(bb), ContinueBlock(cb) {}
+    BreakContinue(JumpDest Break, JumpDest Continue)
+      : BreakBlock(Break), ContinueBlock(Continue) {}
 
-    llvm::BasicBlock *BreakBlock;
-    llvm::BasicBlock *ContinueBlock;
+    JumpDest BreakBlock;
+    JumpDest ContinueBlock;
   };
   llvm::SmallVector<BreakContinue, 8> BreakContinueStack;
 
@@ -363,44 +624,9 @@ private:
   /// calling llvm.stacksave for multiple VLAs in the same scope.
   bool DidCallStackSave;
 
-  struct CleanupEntry {
-    /// CleanupEntryBlock - The block of code that does the actual cleanup.
-    llvm::BasicBlock *CleanupEntryBlock;
-
-    /// CleanupExitBlock - The cleanup exit block.
-    llvm::BasicBlock *CleanupExitBlock;
-    
-    /// Blocks - Basic blocks that were emitted in the current cleanup scope.
-    std::vector<llvm::BasicBlock *> Blocks;
-
-    /// BranchFixups - Branch instructions to basic blocks that haven't been
-    /// inserted into the current function yet.
-    std::vector<llvm::BranchInst *> BranchFixups;
-
-    /// PreviousInvokeDest - The invoke handler from the start of the cleanup
-    /// region.
-    llvm::BasicBlock *PreviousInvokeDest;
-
-    /// EHOnly - Perform this only on the exceptional edge, not the main edge.
-    bool EHOnly;
-
-    explicit CleanupEntry(llvm::BasicBlock *CleanupEntryBlock,
-                          llvm::BasicBlock *CleanupExitBlock,
-                          llvm::BasicBlock *PreviousInvokeDest,
-                          bool ehonly)
-      : CleanupEntryBlock(CleanupEntryBlock),
-        CleanupExitBlock(CleanupExitBlock),
-        PreviousInvokeDest(PreviousInvokeDest),
-        EHOnly(ehonly) {}
-  };
-
-  /// CleanupEntries - Stack of cleanup entries.
-  llvm::SmallVector<CleanupEntry, 8> CleanupEntries;
-
-  typedef llvm::DenseMap<llvm::BasicBlock*, size_t> BlockScopeMap;
-
-  /// BlockScopes - Map of which "cleanup scope" scope basic blocks have.
-  BlockScopeMap BlockScopes;
+  /// A block containing a single 'unreachable' instruction.  Created
+  /// lazily by getUnreachableBlock().
+  llvm::BasicBlock *UnreachableBlock;
 
   /// CXXThisDecl - When generating code for a C++ member function,
   /// this will hold the implicit 'this' declaration.
@@ -413,31 +639,6 @@ private:
   ImplicitParamDecl *CXXVTTDecl;
   llvm::Value *CXXVTTValue;
   
-  /// CXXLiveTemporaryInfo - Holds information about a live C++ temporary.
-  struct CXXLiveTemporaryInfo {
-    /// Temporary - The live temporary.
-    const CXXTemporary *Temporary;
-
-    /// ThisPtr - The pointer to the temporary.
-    llvm::Value *ThisPtr;
-
-    /// DtorBlock - The destructor block.
-    llvm::BasicBlock *DtorBlock;
-
-    /// CondPtr - If this is a conditional temporary, this is the pointer to the
-    /// condition variable that states whether the destructor should be called
-    /// or not.
-    llvm::Value *CondPtr;
-
-    CXXLiveTemporaryInfo(const CXXTemporary *temporary,
-                         llvm::Value *thisptr, llvm::BasicBlock *dtorblock,
-                         llvm::Value *condptr)
-      : Temporary(temporary), ThisPtr(thisptr), DtorBlock(dtorblock),
-      CondPtr(condptr) { }
-  };
-
-  llvm::SmallVector<CXXLiveTemporaryInfo, 4> LiveTemporaries;
-
   /// ConditionalBranchLevel - Contains the nesting level of the current
   /// conditional branch. This is used so that we know if a temporary should be
   /// destroyed conditionally.
@@ -453,18 +654,32 @@ private:
   /// number that holds the value.
   unsigned getByRefValueLLVMField(const ValueDecl *VD) const;
 
+  llvm::BasicBlock *TerminateLandingPad;
   llvm::BasicBlock *TerminateHandler;
   llvm::BasicBlock *TrapBB;
 
-  int UniqueAggrDestructorCount;
 public:
   CodeGenFunction(CodeGenModule &cgm);
 
   ASTContext &getContext() const;
   CGDebugInfo *getDebugInfo() { return DebugInfo; }
 
-  llvm::BasicBlock *getInvokeDest() { return InvokeDest; }
-  void setInvokeDest(llvm::BasicBlock *B) { InvokeDest = B; }
+  /// Returns a pointer to the function's exception object slot, which
+  /// is assigned in every landing pad.
+  llvm::Value *getExceptionSlot();
+
+  llvm::BasicBlock *getUnreachableBlock() {
+    if (!UnreachableBlock) {
+      UnreachableBlock = createBasicBlock("unreachable");
+      new llvm::UnreachableInst(getLLVMContext(), UnreachableBlock);
+    }
+    return UnreachableBlock;
+  }
+
+  llvm::BasicBlock *getInvokeDest() {
+    if (!EHStack.requiresLandingPad()) return 0;
+    return getInvokeDestImpl();
+  }
 
   llvm::LLVMContext &getLLVMContext() { return VMContext; }
 
@@ -501,7 +716,8 @@ public:
                                            const llvm::StructType *,
                                            std::vector<HelperInfo> *);
 
-  llvm::Function *GenerateBlockFunction(const BlockExpr *BExpr,
+  llvm::Function *GenerateBlockFunction(GlobalDecl GD,
+                                        const BlockExpr *BExpr,
                                         CGBlockInfo &Info,
                                         const Decl *OuterFuncDecl,
                                   llvm::DenseMap<const Decl*, llvm::Value*> ldm);
@@ -567,6 +783,15 @@ public:
   void EmitDtorEpilogue(const CXXDestructorDecl *Dtor,
                         CXXDtorType Type);
 
+  /// ShouldInstrumentFunction - Return true if the current function should be
+  /// instrumented with __cyg_profile_func_* calls
+  bool ShouldInstrumentFunction();
+
+  /// EmitFunctionInstrumentation - Emit LLVM code to call the specified
+  /// instrumentation function with the current function and the call site, if
+  /// function instrumentation is enabled.
+  void EmitFunctionInstrumentation(const char *Fn);
+
   /// EmitFunctionProlog - Emit the target specific LLVM code to load the
   /// arguments for the given function. This is also responsible for naming the
   /// LLVM function arguments.
@@ -576,7 +801,7 @@ public:
 
   /// EmitFunctionEpilog - Emit the target specific LLVM code to return the
   /// given temporary.
-  void EmitFunctionEpilog(const CGFunctionInfo &FI, llvm::Value *ReturnValue);
+  void EmitFunctionEpilog(const CGFunctionInfo &FI);
 
   /// EmitStartEHSpec - Emit the start of the exception spec.
   void EmitStartEHSpec(const Decl *D);
@@ -584,7 +809,12 @@ public:
   /// EmitEndEHSpec - Emit the end of the exception spec.
   void EmitEndEHSpec(const Decl *D);
 
-  /// getTerminateHandler - Return a handler that just calls terminate.
+  /// getTerminateLandingPad - Return a landing pad that just calls terminate.
+  llvm::BasicBlock *getTerminateLandingPad();
+
+  /// getTerminateHandler - Return a handler (not a landing pad, just
+  /// a catch handler) that just calls terminate.  This is used when
+  /// a terminate scope encloses a try.
   llvm::BasicBlock *getTerminateHandler();
 
   const llvm::Type *ConvertTypeForMem(QualType T);
@@ -617,7 +847,7 @@ public:
 
   /// getBasicBlockForLabel - Return the LLVM basicblock that the specified
   /// label maps to.
-  llvm::BasicBlock *getBasicBlockForLabel(const LabelStmt *S);
+  JumpDest getJumpDestForLabel(const LabelStmt *S);
 
   /// SimplifyForwardingBlocks - If the given basic block is only a branch to
   /// another basic block, simplify it. This assumes that no other code could
@@ -688,11 +918,11 @@ public:
   /// value needs to be stored into an alloca (for example, to avoid explicit
   /// PHI construction), but the type is the IR type, not the type appropriate
   /// for storing in memory.
-  llvm::Value *CreateIRTemp(QualType T, const llvm::Twine &Name = "tmp");
+  llvm::AllocaInst *CreateIRTemp(QualType T, const llvm::Twine &Name = "tmp");
 
   /// CreateMemTemp - Create a temporary memory object of the given type, with
   /// appropriate alignment.
-  llvm::Value *CreateMemTemp(QualType T, const llvm::Twine &Name = "tmp");
+  llvm::AllocaInst *CreateMemTemp(QualType T, const llvm::Twine &Name = "tmp");
 
   /// EvaluateExprAsBool - Perform the usual unary conversions on the specified
   /// expression and compare the result against zero, returning an Int1Ty value.
@@ -835,15 +1065,17 @@ public:
                                  llvm::Value *NumElements,
                                  llvm::Value *This);
 
-  llvm::Constant *GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
-                                                const ArrayType *Array,
-                                                llvm::Value *This);
+  llvm::Function *GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
+                                                  const ArrayType *Array,
+                                                  llvm::Value *This);
 
   void EmitCXXDestructorCall(const CXXDestructorDecl *D, CXXDtorType Type,
                              bool ForVirtualBase, llvm::Value *This);
+  
+  void EmitNewArrayInitializer(const CXXNewExpr *E, llvm::Value *NewPtr,
+                               llvm::Value *NumElements);
 
-  void PushCXXTemporary(const CXXTemporary *Temporary, llvm::Value *Ptr);
-  void PopCXXTemporary();
+  void EmitCXXTemporary(const CXXTemporary *Temporary, llvm::Value *Ptr);
 
   llvm::Value *EmitCXXNewExpr(const CXXNewExpr *E);
   void EmitCXXDeleteExpr(const CXXDeleteExpr *E);
@@ -874,10 +1106,13 @@ public:
   /// This function can be called with a null (unreachable) insert point.
   void EmitBlockVarDecl(const VarDecl &D);
 
+  typedef void SpecialInitFn(CodeGenFunction &Init, const VarDecl &D,
+                             llvm::Value *Address);
+
   /// EmitLocalBlockVarDecl - Emit a local block variable declaration.
   ///
   /// This function can be called with a null (unreachable) insert point.
-  void EmitLocalBlockVarDecl(const VarDecl &D);
+  void EmitLocalBlockVarDecl(const VarDecl &D, SpecialInitFn *SpecialInit = 0);
 
   void EmitStaticBlockVarDecl(const VarDecl &D,
                               llvm::GlobalValue::LinkageTypes Linkage);
@@ -938,13 +1173,8 @@ public:
   void EmitObjCAtSynchronizedStmt(const ObjCAtSynchronizedStmt &S);
 
   llvm::Constant *getUnwindResumeOrRethrowFn();
-  struct CXXTryStmtInfo {
-    llvm::BasicBlock *SavedLandingPad;
-    llvm::BasicBlock *HandlerBlock;
-    llvm::BasicBlock *FinallyBlock;
-  };
-  CXXTryStmtInfo EnterCXXTryStmt(const CXXTryStmt &S);
-  void ExitCXXTryStmt(const CXXTryStmt &S, CXXTryStmtInfo Info);
+  void EnterCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
+  void ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock = false);
 
   void EmitCXXTryStmt(const CXXTryStmt &S);
   
@@ -1050,7 +1280,7 @@ public:
   LValue EmitCompoundLiteralLValue(const CompoundLiteralExpr *E);
   LValue EmitConditionalOperatorLValue(const ConditionalOperator *E);
   LValue EmitCastLValue(const CastExpr *E);
-  LValue EmitNullInitializationLValue(const CXXZeroInitValueExpr *E);
+  LValue EmitNullInitializationLValue(const CXXScalarValueInitExpr *E);
   
   llvm::Value *EmitIvarOffset(const ObjCInterfaceDecl *Interface,
                               const ObjCIvarDecl *Ivar);
@@ -1088,6 +1318,7 @@ public:
   LValue EmitObjCSuperExprLValue(const ObjCSuperExpr *E);
   LValue EmitStmtExprLValue(const StmtExpr *E);
   LValue EmitPointerToDataMemberBinaryExpr(const BinaryOperator *E);
+  LValue EmitObjCSelectorLValue(const ObjCSelectorExpr *E);
   
   //===--------------------------------------------------------------------===//
   //                         Scalar Expression Emission
@@ -1113,6 +1344,11 @@ public:
                   const Decl *TargetDecl = 0);
   RValue EmitCallExpr(const CallExpr *E, 
                       ReturnValueSlot ReturnValue = ReturnValueSlot());
+
+  llvm::CallSite EmitCallOrInvoke(llvm::Value *Callee,
+                                  llvm::Value * const *ArgBegin,
+                                  llvm::Value * const *ArgEnd,
+                                  const llvm::Twine &Name = "");
 
   llvm::Value *BuildVirtualCall(const CXXMethodDecl *MD, llvm::Value *This,
                                 const llvm::Type *Ty);
@@ -1146,6 +1382,14 @@ public:
   llvm::Value *EmitTargetBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
   llvm::Value *EmitARMBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
+  llvm::Value *EmitNeonCall(llvm::Function *F, 
+                            llvm::SmallVectorImpl<llvm::Value*> &O,
+                            const char *name, bool splat = false,
+                            unsigned shift = 0, bool rightshift = false);
+  llvm::Value *EmitNeonSplat(llvm::Value *V, llvm::Constant *Idx);
+  llvm::Value *EmitNeonShiftVector(llvm::Value *V, const llvm::Type *Ty,
+                                   bool negateForRightShift);
+  
   llvm::Value *EmitX86BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitPPCBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
@@ -1164,7 +1408,8 @@ public:
 
   /// EmitReferenceBindingToExpr - Emits a reference binding to the passed in
   /// expression. Will emit a temporary variable if E is not an LValue.
-  RValue EmitReferenceBindingToExpr(const Expr* E, bool IsInitializer = false);
+  RValue EmitReferenceBindingToExpr(const Expr* E, 
+                                    const NamedDecl *InitializedDecl);
 
   //===--------------------------------------------------------------------===//
   //                           Expression Emission
@@ -1260,7 +1505,7 @@ public:
   /// GenerateCXXGlobalDtorFunc - Generates code for destroying global
   /// variables.
   void GenerateCXXGlobalDtorFunc(llvm::Function *Fn,
-                                 const std::vector<std::pair<llvm::Constant*,
+                                 const std::vector<std::pair<llvm::WeakVH,
                                    llvm::Constant*> > &DtorsAndObjects);
 
   void GenerateCXXGlobalVarDeclInitFunc(llvm::Function *Fn, const VarDecl *D);
@@ -1308,7 +1553,6 @@ public:
   RValue EmitDelegateCallArg(const VarDecl *Param);
 
 private:
-
   void EmitReturnOfRValue(RValue RV, QualType Ty);
 
   /// ExpandTypeFromArgs - Reconstruct a structure of type \arg Ty
@@ -1330,13 +1574,6 @@ private:
   llvm::Value* EmitAsmInput(const AsmStmt &S,
                             const TargetInfo::ConstraintInfo &Info,
                             const Expr *InputExpr, std::string &ConstraintStr);
-
-  /// EmitCleanupBlock - emits a single cleanup block.
-  void EmitCleanupBlock();
-
-  /// AddBranchFixup - adds a branch instruction to the list of fixups for the
-  /// current cleanup scope.
-  void AddBranchFixup(llvm::BranchInst *BI);
 
   /// EmitCallArgs - Emit call arguments for a function.
   /// The CallArgTypeInfo parameter is used for iterating over the known
@@ -1381,6 +1618,8 @@ private:
   const TargetCodeGenInfo &getTargetHooks() const {
     return CGM.getTargetCodeGenInfo();
   }
+
+  void EmitDeclMetadata();
 };
 
 

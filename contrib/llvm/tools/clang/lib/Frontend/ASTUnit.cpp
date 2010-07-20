@@ -74,11 +74,13 @@ public:
     return false;
   }
 
-  virtual bool ReadPredefinesBuffer(llvm::StringRef PCHPredef,
-                                    FileID PCHBufferID,
+  virtual bool ReadPredefinesBuffer(const PCHPredefinesBlocks &Buffers,
                                     llvm::StringRef OriginalFileName,
                                     std::string &SuggestedPredefines) {
-    Predefines = PCHPredef;
+    Predefines = Buffers[0].Data;
+    for (unsigned I = 1, N = Buffers.size(); I != N; ++I) {
+      Predefines += Buffers[I].Data;
+    }
     return false;
   }
 
@@ -219,6 +221,7 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
   // FIXME: This is broken, we should store the TargetOptions in the PCH.
   TargetOptions TargetOpts;
   TargetOpts.ABI = "";
+  TargetOpts.CXXABI = "itanium";
   TargetOpts.CPU = "";
   TargetOpts.Features.clear();
   TargetOpts.Triple = TargetTriple;
@@ -332,8 +335,10 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(CompilerInvocation *CI,
 
   assert(Clang.getFrontendOpts().Inputs.size() == 1 &&
          "Invocation must have exactly one source file!");
-  assert(Clang.getFrontendOpts().Inputs[0].first != FrontendOptions::IK_AST &&
+  assert(Clang.getFrontendOpts().Inputs[0].first != IK_AST &&
          "FIXME: AST inputs not yet supported here!");
+  assert(Clang.getFrontendOpts().Inputs[0].first != IK_LLVM_IR &&
+         "IR inputs not support here!");
 
   // Create the AST unit.
   AST.reset(new ASTUnit(false));
@@ -354,12 +359,9 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(CompilerInvocation *CI,
   // Create the source manager.
   Clang.setSourceManager(&AST->getSourceManager());
 
-  // Create the preprocessor.
-  Clang.createPreprocessor();
-
   Act.reset(new TopLevelDeclTrackerAction(*AST));
   if (!Act->BeginSourceFile(Clang, Clang.getFrontendOpts().Inputs[0].second,
-                           /*IsAST=*/false))
+                            Clang.getFrontendOpts().Inputs[0].first))
     goto error;
 
   Act->Execute();

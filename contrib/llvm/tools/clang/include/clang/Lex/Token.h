@@ -148,6 +148,7 @@ public:
     Kind = tok::unknown;
     Flags = 0;
     PtrData = 0;
+    UintData = 0;
     Loc = SourceLocation();
   }
 
@@ -169,7 +170,7 @@ public:
   }
   void setLiteralData(const char *Ptr) {
     assert(isLiteral() && "Cannot set literal data of non-literal");
-    PtrData = (void*)Ptr;
+    PtrData = const_cast<char*>(Ptr);
   }
 
   void *getAnnotationValue() const {
@@ -253,5 +254,10 @@ struct PPConditionalInfo {
 };
 
 }  // end namespace clang
+
+namespace llvm {
+  template <>
+  struct isPodLike<clang::Token> { static const bool value = true; };
+}  // end namespace llvm
 
 #endif

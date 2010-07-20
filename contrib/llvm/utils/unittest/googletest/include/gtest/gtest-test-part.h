@@ -34,41 +34,42 @@
 #define GTEST_INCLUDE_GTEST_GTEST_TEST_PART_H_
 
 #include <iosfwd>
+#include <vector>
 #include <gtest/internal/gtest-internal.h>
 #include <gtest/internal/gtest-string.h>
 
 namespace testing {
 
-// The possible outcomes of a test part (i.e. an assertion or an
-// explicit SUCCEED(), FAIL(), or ADD_FAILURE()).
-enum TestPartResultType {
-  TPRT_SUCCESS,           // Succeeded.
-  TPRT_NONFATAL_FAILURE,  // Failed but the test can continue.
-  TPRT_FATAL_FAILURE      // Failed and the test should be terminated.
-};
-
 // A copyable object representing the result of a test part (i.e. an
 // assertion or an explicit FAIL(), ADD_FAILURE(), or SUCCESS()).
 //
 // Don't inherit from TestPartResult as its destructor is not virtual.
-class TestPartResult {
+class GTEST_API_ TestPartResult {
  public:
+  // The possible outcomes of a test part (i.e. an assertion or an
+  // explicit SUCCEED(), FAIL(), or ADD_FAILURE()).
+  enum Type {
+    kSuccess,          // Succeeded.
+    kNonFatalFailure,  // Failed but the test can continue.
+    kFatalFailure      // Failed and the test should be terminated.
+  };
+
   // C'tor.  TestPartResult does NOT have a default constructor.
   // Always use this constructor (with parameters) to create a
   // TestPartResult object.
-  TestPartResult(TestPartResultType type,
-                 const char* file_name,
-                 int line_number,
-                 const char* message)
-      : type_(type),
-        file_name_(file_name),
-        line_number_(line_number),
-        summary_(ExtractSummary(message)),
-        message_(message) {
+  TestPartResult(Type a_type,
+                 const char* a_file_name,
+                 int a_line_number,
+                 const char* a_message)
+      : type_(a_type),
+        file_name_(a_file_name),
+        line_number_(a_line_number),
+        summary_(ExtractSummary(a_message)),
+        message_(a_message) {
   }
 
   // Gets the outcome of the test part.
-  TestPartResultType type() const { return type_; }
+  Type type() const { return type_; }
 
   // Gets the name of the source file where the test part took place, or
   // NULL if it's unknown.
@@ -85,18 +86,18 @@ class TestPartResult {
   const char* message() const { return message_.c_str(); }
 
   // Returns true iff the test part passed.
-  bool passed() const { return type_ == TPRT_SUCCESS; }
+  bool passed() const { return type_ == kSuccess; }
 
   // Returns true iff the test part failed.
-  bool failed() const { return type_ != TPRT_SUCCESS; }
+  bool failed() const { return type_ != kSuccess; }
 
   // Returns true iff the test part non-fatally failed.
-  bool nonfatally_failed() const { return type_ == TPRT_NONFATAL_FAILURE; }
+  bool nonfatally_failed() const { return type_ == kNonFatalFailure; }
 
   // Returns true iff the test part fatally failed.
-  bool fatally_failed() const { return type_ == TPRT_FATAL_FAILURE; }
+  bool fatally_failed() const { return type_ == kFatalFailure; }
  private:
-  TestPartResultType type_;
+  Type type_;
 
   // Gets the summary of the failure message by omitting the stack
   // trace in it.
@@ -117,15 +118,11 @@ std::ostream& operator<<(std::ostream& os, const TestPartResult& result);
 
 // An array of TestPartResult objects.
 //
-// We define this class as we cannot use STL containers when compiling
-// Google Test with MSVC 7.1 and exceptions disabled.
-//
 // Don't inherit from TestPartResultArray as its destructor is not
 // virtual.
-class TestPartResultArray {
+class GTEST_API_ TestPartResultArray {
  public:
-  TestPartResultArray();
-  ~TestPartResultArray();
+  TestPartResultArray() {}
 
   // Appends the given TestPartResult to the array.
   void Append(const TestPartResult& result);
@@ -135,10 +132,9 @@ class TestPartResultArray {
 
   // Returns the number of TestPartResult objects in the array.
   int size() const;
+
  private:
-  // Internally we use a list to simulate the array.  Yes, this means
-  // that random access is O(N) in time, but it's OK for its purpose.
-  internal::List<TestPartResult>* const list_;
+  std::vector<TestPartResult> array_;
 
   GTEST_DISALLOW_COPY_AND_ASSIGN_(TestPartResultArray);
 };
@@ -159,7 +155,8 @@ namespace internal {
 // reported, it only delegates the reporting to the former result reporter.
 // The original result reporter is restored in the destructor.
 // INTERNAL IMPLEMENTATION - DO NOT USE IN A USER PROGRAM.
-class HasNewFatalFailureHelper : public TestPartResultReporterInterface {
+class GTEST_API_ HasNewFatalFailureHelper
+    : public TestPartResultReporterInterface {
  public:
   HasNewFatalFailureHelper();
   virtual ~HasNewFatalFailureHelper();

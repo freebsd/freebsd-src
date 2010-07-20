@@ -29,6 +29,7 @@ class CodeGenOptions;
 class Diagnostic;
 class FileManager;
 class LangOptions;
+class PCHReader;
 class Preprocessor;
 class TargetOptions;
 
@@ -57,25 +58,12 @@ ASTConsumer *CreateASTViewer();
 // to stderr; this is intended for debugging.
 ASTConsumer *CreateDeclContextPrinter();
 
-// ObjC rewriter: attempts tp rewrite ObjC constructs into pure C code.
-// This is considered experimental, and only works with Apple's ObjC runtime.
-ASTConsumer *CreateObjCRewriter(const std::string &InFile,
-                                llvm::raw_ostream *OS,
-                                Diagnostic &Diags,
-                                const LangOptions &LOpts,
-                                bool SilenceRewriteMacroWarning);
-
-/// CreateHTMLPrinter - Create an AST consumer which rewrites source code to
-/// HTML with syntax highlighting suitable for viewing in a web-browser.
-ASTConsumer *CreateHTMLPrinter(llvm::raw_ostream *OS, Preprocessor &PP,
-                               bool SyntaxHighlight = true,
-                               bool HighlightMacros = true);
-
 // PCH generator: generates a precompiled header file; this file can be used
 // later with the PCHReader (clang -cc1 option -include-pch) to speed up compile
 // times.
 ASTConsumer *CreatePCHGenerator(const Preprocessor &PP,
                                 llvm::raw_ostream *OS,
+                                PCHReader *Chain,
                                 const char *isysroot = 0);
 
 // Inheritance viewer: for C++ code, creates a graph of the inheritance

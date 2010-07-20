@@ -67,15 +67,21 @@ TYPE("f95",                      PP_Fortran,   INVALID,         0,       "u")
 TYPE("f95-cpp-input",            Fortran,      PP_Fortran,      0,       "u")
 TYPE("java",                     Java,         INVALID,         0,       "u")
 
+// LLVM IR/LTO types. We define separate types for IR and LTO because LTO
+// outputs should use the standard suffixes.
+TYPE("ir",                       LLVM_IR,      INVALID,         "ll",    "u")
+TYPE("ir",                       LLVM_BC,      INVALID,         "bc",    "u")
+TYPE("lto-ir",                   LTO_IR,       INVALID,         "s",     "")
+TYPE("lto-bc",                   LTO_BC,       INVALID,         "o",     "")
+
 // Misc.
 TYPE("ast",                      AST,          INVALID,         "ast",   "u")
-TYPE("llvm-asm",                 LLVMAsm,      INVALID,         "s",     "")
-TYPE("llvm-bc",                  LLVMBC,       INVALID,         "o",     "")
 TYPE("plist",                    Plist,        INVALID,         "plist", "")
 TYPE("rewritten-objc",           RewrittenObjC,INVALID,         "cpp",   "")
 TYPE("precompiled-header",       PCH,          INVALID,         "gch",   "A")
 TYPE("object",                   Object,       INVALID,         "o",     "")
 TYPE("treelang",                 Treelang,     INVALID,         0,       "u")
 TYPE("image",                    Image,        INVALID,         "out",   "")
+TYPE("dSYM",                     dSYM,         INVALID,         "dSYM",  "A")
 TYPE("dependencies",             Dependencies, INVALID,         "d",     "")
 TYPE("none",                     Nothing,      INVALID,         0,       "u")

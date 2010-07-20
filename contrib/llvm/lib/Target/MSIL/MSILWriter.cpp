@@ -808,7 +808,7 @@ void MSILWriter::printIntrinsicCall(const IntrinsicInst* Inst) {
   std::string Name;
   switch (Inst->getIntrinsicID()) {
   case Intrinsic::vastart:
-    Name = getValueName(Inst->getOperand(1));
+    Name = getValueName(Inst->getArgOperand(0));
     Name.insert(Name.length()-1,"$valist");
     // Obtain the argument handle.
     printSimpleInstruction("ldloca",Name.c_str());
@@ -817,20 +817,20 @@ void MSILWriter::printIntrinsicCall(const IntrinsicInst* Inst) {
       "instance void [mscorlib]System.ArgIterator::.ctor"
       "(valuetype [mscorlib]System.RuntimeArgumentHandle)");
     // Save as pointer type "void*"
-    printValueLoad(Inst->getOperand(1));
+    printValueLoad(Inst->getArgOperand(0));
     printSimpleInstruction("ldloca",Name.c_str());
     printIndirectSave(PointerType::getUnqual(
           IntegerType::get(Inst->getContext(), 8)));
     break;
   case Intrinsic::vaend:
     // Close argument list handle.
-    printIndirectLoad(Inst->getOperand(1));
+    printIndirectLoad(Inst->getArgOperand(0));
     printSimpleInstruction("call","instance void [mscorlib]System.ArgIterator::End()");
     break;
   case Intrinsic::vacopy:
     // Copy "ArgIterator" valuetype.
-    printIndirectLoad(Inst->getOperand(1));
-    printIndirectLoad(Inst->getOperand(2));
+    printIndirectLoad(Inst->getArgOperand(0));
+    printIndirectLoad(Inst->getArgOperand(1));
     printSimpleInstruction("cpobj","[mscorlib]System.ArgIterator");
     break;        
   default:
@@ -845,10 +845,11 @@ void MSILWriter::printCallInstruction(const Instruction* Inst) {
     // Handle intrinsic function.
     printIntrinsicCall(cast<IntrinsicInst>(Inst));
   } else {
+    const CallInst *CI = cast<CallInst>(Inst);
     // Load arguments to stack and call function.
-    for (int I = 1, E = Inst->getNumOperands(); I!=E; ++I)
-      printValueLoad(Inst->getOperand(I));
-    printFunctionCall(Inst->getOperand(0),Inst);
+    for (int I = 0, E = CI->getNumArgOperands(); I!=E; ++I)
+      printValueLoad(CI->getArgOperand(I));
+    printFunctionCall(CI->getCalledFunction(), Inst);
   }
 }
 
@@ -1002,8 +1003,8 @@ void MSILWriter::printInvokeInstruction(const InvokeInst* Inst) {
   std::string Label = "leave$normal_"+utostr(getUniqID());
   Out << ".try {\n";
   // Load arguments
-  for (int I = 3, E = Inst->getNumOperands(); I!=E; ++I)
-    printValueLoad(Inst->getOperand(I));
+  for (int I = 0, E = Inst->getNumArgOperands(); I!=E; ++I)
+    printValueLoad(Inst->getArgOperand(I));
   // Print call instruction
   printFunctionCall(Inst->getOperand(0),Inst);
   // Save function result and leave "try" block
@@ -1280,7 +1281,7 @@ void MSILWriter::printLocalVariables(const Function& F) {
       case Intrinsic::vaend:
       case Intrinsic::vacopy:
         isVaList = true;
-        VaList = Inst->getOperand(1);
+        VaList = Inst->getArgOperand(0);
         break;
       default:
         isVaList = false;
@@ -1620,8 +1621,7 @@ const char* MSILWriter::getLibraryName(const GlobalVariable* GV) {
 }
 
 
-const char* MSILWriter::getLibraryForSymbol(const StringRef &Name, 
-                                            bool isFunction,
+const char* MSILWriter::getLibraryForSymbol(StringRef Name, bool isFunction,
                                             CallingConv::ID CallingConv) {
   // TODO: Read *.def file with function and libraries definitions.
   return "MSVCRT.DLL";  

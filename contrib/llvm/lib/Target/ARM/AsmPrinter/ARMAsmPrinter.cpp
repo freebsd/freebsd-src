@@ -175,23 +175,8 @@ namespace {
                                raw_ostream &O);
     void printVFPf64ImmOperand(const MachineInstr *MI, int OpNum,
                                raw_ostream &O);
-
-    void printHex8ImmOperand(const MachineInstr *MI, int OpNum,
-                             raw_ostream &O) {
-      O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xff);
-    }
-    void printHex16ImmOperand(const MachineInstr *MI, int OpNum,
-                              raw_ostream &O) {
-      O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xffff);
-    }
-    void printHex32ImmOperand(const MachineInstr *MI, int OpNum,
-                              raw_ostream &O) {
-      O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xffffffff);
-    }
-    void printHex64ImmOperand(const MachineInstr *MI, int OpNum,
-                              raw_ostream &O) {
-      O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm());
-    }
+    void printNEONModImmOperand(const MachineInstr *MI, int OpNum,
+                                raw_ostream &O);
 
     virtual bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
                                  unsigned AsmVariant, const char *ExtraCode,
@@ -322,7 +307,7 @@ void ARMAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
       unsigned DRegLo = TM.getRegisterInfo()->getSubReg(Reg, ARM::dsub_0);
       unsigned DRegHi = TM.getRegisterInfo()->getSubReg(Reg, ARM::dsub_1);
       O << '{'
-        << getRegisterName(DRegLo) << ',' << getRegisterName(DRegHi)
+        << getRegisterName(DRegLo) << ", " << getRegisterName(DRegHi)
         << '}';
     } else if (Modifier && strcmp(Modifier, "lane") == 0) {
       unsigned RegNum = ARMRegisterInfo::getRegisterNumbering(Reg);
@@ -618,7 +603,7 @@ void ARMAsmPrinter::printAddrMode6Operand(const MachineInstr *MI, int Op,
   O << "[" << getRegisterName(MO1.getReg());
   if (MO2.getImm()) {
     // FIXME: Both darwin as and GNU as violate ARM docs here.
-    O << ", :" << MO2.getImm();
+    O << ", :" << (MO2.getImm() << 3);
   }
   O << "]";
 }
@@ -1039,6 +1024,14 @@ void ARMAsmPrinter::printVFPf64ImmOperand(const MachineInstr *MI, int OpNum,
   }
 }
 
+void ARMAsmPrinter::printNEONModImmOperand(const MachineInstr *MI, int OpNum,
+                                           raw_ostream &O) {
+  unsigned EncodedImm = MI->getOperand(OpNum).getImm();
+  unsigned EltBits;
+  uint64_t Val = ARM_AM::decodeNEONModImm(EncodedImm, EltBits);
+  O << "#0x" << utohexstr(Val);
+}
+
 bool ARMAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
                                     unsigned AsmVariant, const char *ExtraCode,
                                     raw_ostream &O) {
@@ -1064,20 +1057,10 @@ bool ARMAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
       printOperand(MI, OpNum, O);
       return false;
     case 'Q':
-      if (TM.getTargetData()->isLittleEndian())
-        break;
-      // Fallthrough
     case 'R':
-      if (TM.getTargetData()->isBigEndian())
-        break;
-      // Fallthrough
-    case 'H': // Write second word of DI / DF reference.
-      // Verify that this operand has two consecutive registers.
-      if (!MI->getOperand(OpNum).isReg() ||
-          OpNum+1 == MI->getNumOperands() ||
-          !MI->getOperand(OpNum+1).isReg())
-        return true;
-      ++OpNum;   // Return the high-part.
+    case 'H':
+      report_fatal_error("llvm does not support 'Q', 'R', and 'H' modifiers!");
+      return true;
     }
   }
 
@@ -1384,11 +1367,11 @@ void ARMAsmPrinter::printInstructionThroughMCStreamer(const MachineInstr *MI) {
     } else if (MO.isGlobal()) {
       MCSymbol *Symbol = MCInstLowering.GetGlobalAddressSymbol(MO);
       const MCSymbolRefExpr *SymRef1 =
-	MCSymbolRefExpr::Create(Symbol,
-				MCSymbolRefExpr::VK_ARM_LO16, OutContext);
+        MCSymbolRefExpr::Create(Symbol,
+                                MCSymbolRefExpr::VK_ARM_LO16, OutContext);
       const MCSymbolRefExpr *SymRef2 =
-	MCSymbolRefExpr::Create(Symbol,
-				MCSymbolRefExpr::VK_ARM_HI16, OutContext);
+        MCSymbolRefExpr::Create(Symbol,
+                                MCSymbolRefExpr::VK_ARM_HI16, OutContext);
       V1 = MCOperand::CreateExpr(SymRef1);
       V2 = MCOperand::CreateExpr(SymRef2);
     } else {

@@ -1575,6 +1575,15 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
     if (Name == "BXr9" || Name == "BMOVPCRX" || Name == "BMOVPCRXr9")
       return false;
 
+    // Tail calls are other patterns that generate existing instructions.
+    if (Name == "TCRETURNdi" || Name == "TCRETURNdiND" ||
+        Name == "TCRETURNri" || Name == "TCRETURNriND" ||
+        Name == "TAILJMPd"  || Name == "TAILJMPdt" ||
+        Name == "TAILJMPdND" || Name == "TAILJMPdNDt" ||
+        Name == "TAILJMPr"  || Name == "TAILJMPrND" ||
+        Name == "MOVr_TC")
+      return false;
+
     // VLDMQ/VSTMQ can be hanlded with the more generic VLDMD/VSTMD.
     if (Name == "VLDMQ" || Name == "VLDMQ_UPD" ||
         Name == "VSTMQ" || Name == "VSTMQ_UPD")

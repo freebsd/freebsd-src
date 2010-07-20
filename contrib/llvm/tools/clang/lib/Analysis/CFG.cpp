@@ -171,8 +171,8 @@ private:
   void autoCreateBlock() { if (!Block) Block = createBlock(); }
   CFGBlock *createBlock(bool add_successor = true);
   bool FinishBlock(CFGBlock* B);
-  CFGBlock *addStmt(Stmt *S, AddStmtChoice asc = AddStmtChoice::AlwaysAdd) {
-    return Visit(S, asc);
+  CFGBlock *addStmt(Stmt *S) {
+    return Visit(S, AddStmtChoice::AlwaysAdd);
   }
   
   void AppendStmt(CFGBlock *B, Stmt *S,
@@ -538,6 +538,15 @@ CFGBlock *CFGBuilder::VisitBinaryOperator(BinaryOperator *B,
     addStmt(B->getRHS());
     return addStmt(B->getLHS());
   }
+  else if (B->isAssignmentOp()) {
+    if (asc.alwaysAdd()) {
+      autoCreateBlock();
+      AppendStmt(Block, B, asc);
+    }
+    
+    Visit(B->getRHS());
+    return Visit(B->getLHS(), AddStmtChoice::AsLValueNotAlwaysAdd);
+  }
 
   return VisitStmt(B, asc);
 }
@@ -612,8 +621,12 @@ CFGBlock *CFGBuilder::VisitCallExpr(CallExpr *C, AddStmtChoice asc) {
   if (!CanThrow(C->getCallee()))
     AddEHEdge = false;
 
-  if (!NoReturn && !AddEHEdge)
-    return VisitStmt(C, AddStmtChoice::AlwaysAdd);
+  if (!NoReturn && !AddEHEdge) {
+    if (asc.asLValue())
+      return VisitStmt(C, AddStmtChoice::AlwaysAddAsLValue);
+    else
+      return VisitStmt(C, AddStmtChoice::AlwaysAdd);
+  }
 
   if (Block) {
     Succ = Block;
@@ -651,13 +664,13 @@ CFGBlock *CFGBuilder::VisitChooseExpr(ChooseExpr *C,
 
   Succ = ConfluenceBlock;
   Block = NULL;
-  CFGBlock* LHSBlock = addStmt(C->getLHS(), asc);
+  CFGBlock* LHSBlock = Visit(C->getLHS(), asc);
   if (!FinishBlock(LHSBlock))
     return 0;
 
   Succ = ConfluenceBlock;
   Block = NULL;
-  CFGBlock* RHSBlock = addStmt(C->getRHS(), asc);
+  CFGBlock* RHSBlock = Visit(C->getRHS(), asc);
   if (!FinishBlock(RHSBlock))
     return 0;
 
@@ -709,7 +722,7 @@ CFGBlock *CFGBuilder::VisitConditionalOperator(ConditionalOperator *C,
   Block = NULL;
   CFGBlock* LHSBlock = NULL;
   if (C->getLHS()) {
-    LHSBlock = addStmt(C->getLHS(), asc);
+    LHSBlock = Visit(C->getLHS(), asc);
     if (!FinishBlock(LHSBlock))
       return 0;
     Block = NULL;
@@ -717,7 +730,7 @@ CFGBlock *CFGBuilder::VisitConditionalOperator(ConditionalOperator *C,
 
   // Create the block for the RHS expression.
   Succ = ConfluenceBlock;
-  CFGBlock* RHSBlock = addStmt(C->getRHS(), asc);
+  CFGBlock* RHSBlock = Visit(C->getRHS(), asc);
   if (!FinishBlock(RHSBlock))
     return 0;
 

@@ -14,17 +14,23 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
-STATISTIC(NumITs,     "Number of IT blocks inserted");
+STATISTIC(NumITs,        "Number of IT blocks inserted");
+STATISTIC(NumMovedInsts, "Number of predicated instructions moved");
 
 namespace {
-  struct Thumb2ITBlockPass : public MachineFunctionPass {
+  class Thumb2ITBlockPass : public MachineFunctionPass {
+    bool PreRegAlloc;
+
+  public:
     static char ID;
     Thumb2ITBlockPass() : MachineFunctionPass(&ID) {}
 
     const Thumb2InstrInfo *TII;
+    const TargetRegisterInfo *TRI;
     ARMFunctionInfo *AFI;
 
     virtual bool runOnMachineFunction(MachineFunction &Fn);
@@ -34,61 +40,167 @@ namespace {
     }
 
   private:
-    bool InsertITBlocks(MachineBasicBlock &MBB);
+    bool MoveCopyOutOfITBlock(MachineInstr *MI,
+                              ARMCC::CondCodes CC, ARMCC::CondCodes OCC,
+                              SmallSet<unsigned, 4> &Defs,
+                              SmallSet<unsigned, 4> &Uses);
+    bool InsertITInstructions(MachineBasicBlock &MBB);
   };
   char Thumb2ITBlockPass::ID = 0;
 }
 
-static ARMCC::CondCodes getPredicate(const MachineInstr *MI, unsigned &PredReg){
-  unsigned Opc = MI->getOpcode();
-  if (Opc == ARM::tBcc || Opc == ARM::t2Bcc)
-    return ARMCC::AL;
-  return llvm::getInstrPredicate(MI, PredReg);
+/// TrackDefUses - Tracking what registers are being defined and used by
+/// instructions in the IT block. This also tracks "dependencies", i.e. uses
+/// in the IT block that are defined before the IT instruction.
+static void TrackDefUses(MachineInstr *MI,
+                         SmallSet<unsigned, 4> &Defs,
+                         SmallSet<unsigned, 4> &Uses,
+                         const TargetRegisterInfo *TRI) {
+  SmallVector<unsigned, 4> LocalDefs;
+  SmallVector<unsigned, 4> LocalUses;
+
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+    MachineOperand &MO = MI->getOperand(i);
+    if (!MO.isReg())
+      continue;
+    unsigned Reg = MO.getReg();
+    if (!Reg || Reg == ARM::ITSTATE || Reg == ARM::SP)
+      continue;
+    if (MO.isUse())
+      LocalUses.push_back(Reg);
+    else
+      LocalDefs.push_back(Reg);
+  }
+
+  for (unsigned i = 0, e = LocalUses.size(); i != e; ++i) {
+    unsigned Reg = LocalUses[i];
+    Uses.insert(Reg);
+    for (const unsigned *Subreg = TRI->getSubRegisters(Reg);
+         *Subreg; ++Subreg)
+      Uses.insert(*Subreg);
+  }
+
+  for (unsigned i = 0, e = LocalDefs.size(); i != e; ++i) {
+    unsigned Reg = LocalDefs[i];
+    Defs.insert(Reg);
+    for (const unsigned *Subreg = TRI->getSubRegisters(Reg);
+         *Subreg; ++Subreg)
+      Defs.insert(*Subreg);
+    if (Reg == ARM::CPSR)
+      continue;
+  }
 }
 
-bool Thumb2ITBlockPass::InsertITBlocks(MachineBasicBlock &MBB) {
+bool
+Thumb2ITBlockPass::MoveCopyOutOfITBlock(MachineInstr *MI,
+                                      ARMCC::CondCodes CC, ARMCC::CondCodes OCC,
+                                        SmallSet<unsigned, 4> &Defs,
+                                        SmallSet<unsigned, 4> &Uses) {
+  unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
+  if (TII->isMoveInstr(*MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx)) {
+    assert(SrcSubIdx == 0 && DstSubIdx == 0 &&
+           "Sub-register indices still around?");
+    // llvm models select's as two-address instructions. That means a copy
+    // is inserted before a t2MOVccr, etc. If the copy is scheduled in
+    // between selects we would end up creating multiple IT blocks.
+
+    // First check if it's safe to move it.
+    if (Uses.count(DstReg) || Defs.count(SrcReg))
+      return false;
+
+    // Then peek at the next instruction to see if it's predicated on CC or OCC.
+    // If not, then there is nothing to be gained by moving the copy.
+    MachineBasicBlock::iterator I = MI; ++I;
+    MachineBasicBlock::iterator E = MI->getParent()->end();
+    while (I != E && I->isDebugValue())
+      ++I;
+    if (I != E) {
+      unsigned NPredReg = 0;
+      ARMCC::CondCodes NCC = llvm::getITInstrPredicate(I, NPredReg);
+      if (NCC == CC || NCC == OCC)
+        return true;
+    }
+  }
+  return false;
+}
+
+bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
   bool Modified = false;
 
+  SmallSet<unsigned, 4> Defs;
+  SmallSet<unsigned, 4> Uses;
   MachineBasicBlock::iterator MBBI = MBB.begin(), E = MBB.end();
   while (MBBI != E) {
     MachineInstr *MI = &*MBBI;
     DebugLoc dl = MI->getDebugLoc();
     unsigned PredReg = 0;
-    ARMCC::CondCodes CC = getPredicate(MI, PredReg);
-
+    ARMCC::CondCodes CC = llvm::getITInstrPredicate(MI, PredReg);
     if (CC == ARMCC::AL) {
       ++MBBI;
       continue;
     }
 
+    Defs.clear();
+    Uses.clear();
+    TrackDefUses(MI, Defs, Uses, TRI);
+
     // Insert an IT instruction.
     MachineInstrBuilder MIB = BuildMI(MBB, MBBI, dl, TII->get(ARM::t2IT))
       .addImm(CC);
+
+    // Add implicit use of ITSTATE to IT block instructions.
+    MI->addOperand(MachineOperand::CreateReg(ARM::ITSTATE, false/*ifDef*/,
+                                             true/*isImp*/, false/*isKill*/));
+
+    MachineInstr *LastITMI = MI;
+    MachineBasicBlock::iterator InsertPos = MIB;
     ++MBBI;
 
-    // Finalize IT mask.
+    // Form IT block.
     ARMCC::CondCodes OCC = ARMCC::getOppositeCondition(CC);
     unsigned Mask = 0, Pos = 3;
     // Branches, including tricky ones like LDM_RET, need to end an IT
     // block so check the instruction we just put in the block.
-    while (MBBI != E && Pos &&
-           (!MI->getDesc().isBranch() && !MI->getDesc().isReturn())) {
+    for (; MBBI != E && Pos &&
+           (!MI->getDesc().isBranch() && !MI->getDesc().isReturn()) ; ++MBBI) {
+      if (MBBI->isDebugValue())
+        continue;
+
       MachineInstr *NMI = &*MBBI;
       MI = NMI;
-      DebugLoc ndl = NMI->getDebugLoc();
+
       unsigned NPredReg = 0;
-      ARMCC::CondCodes NCC = getPredicate(NMI, NPredReg);
-      if (NCC == CC || NCC == OCC)
+      ARMCC::CondCodes NCC = llvm::getITInstrPredicate(NMI, NPredReg);
+      if (NCC == CC || NCC == OCC) {
         Mask |= (NCC & 1) << Pos;
-      else
+        // Add implicit use of ITSTATE.
+        NMI->addOperand(MachineOperand::CreateReg(ARM::ITSTATE, false/*ifDef*/,
+                                               true/*isImp*/, false/*isKill*/));
+        LastITMI = NMI;
+      } else {
+        if (NCC == ARMCC::AL &&
+            MoveCopyOutOfITBlock(NMI, CC, OCC, Defs, Uses)) {
+          --MBBI;
+          MBB.remove(NMI);
+          MBB.insert(InsertPos, NMI);
+          ++NumMovedInsts;
+          continue;
+        }
         break;
+      }
+      TrackDefUses(NMI, Defs, Uses, TRI);
       --Pos;
-      ++MBBI;
     }
+
+    // Finalize IT mask.
     Mask |= (1 << Pos);
     // Tag along (firstcond[0] << 4) with the mask.
     Mask |= (CC & 1) << 4;
     MIB.addImm(Mask);
+
+    // Last instruction in IT block kills ITSTATE.
+    LastITMI->findRegisterUseOperand(ARM::ITSTATE)->setIsKill();
+
     Modified = true;
     ++NumITs;
   }
@@ -100,16 +212,20 @@ bool Thumb2ITBlockPass::runOnMachineFunction(MachineFunction &Fn) {
   const TargetMachine &TM = Fn.getTarget();
   AFI = Fn.getInfo<ARMFunctionInfo>();
   TII = static_cast<const Thumb2InstrInfo*>(TM.getInstrInfo());
+  TRI = TM.getRegisterInfo();
 
   if (!AFI->isThumbFunction())
     return false;
 
   bool Modified = false;
-  for (MachineFunction::iterator MFI = Fn.begin(), E = Fn.end(); MFI != E;
-       ++MFI) {
+  for (MachineFunction::iterator MFI = Fn.begin(), E = Fn.end(); MFI != E; ) {
     MachineBasicBlock &MBB = *MFI;
-    Modified |= InsertITBlocks(MBB);
+    ++MFI;
+    Modified |= InsertITInstructions(MBB);
   }
+
+  if (Modified)
+    AFI->setHasITBlocks(true);
 
   return Modified;
 }

@@ -10,47 +10,59 @@
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/ArgList.h"
 #include "clang/Driver/Option.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang::driver;
 
-Arg::Arg(ArgClass _Kind, const Option *_Opt, unsigned _Index,
-         const Arg *_BaseArg)
-  : Kind(_Kind), Opt(_Opt), BaseArg(_BaseArg), Index(_Index), Claimed(false) {
+Arg::Arg(const Option *_Opt, unsigned _Index, const Arg *_BaseArg)
+  : Opt(_Opt), BaseArg(_BaseArg), Index(_Index),
+    Claimed(false), OwnsValues(false) {
 }
 
-Arg::~Arg() { }
+Arg::Arg(const Option *_Opt, unsigned _Index, 
+         const char *Value0, const Arg *_BaseArg)
+  : Opt(_Opt), BaseArg(_BaseArg), Index(_Index),
+    Claimed(false), OwnsValues(false) {
+  Values.push_back(Value0);
+}
+
+Arg::Arg(const Option *_Opt, unsigned _Index, 
+         const char *Value0, const char *Value1, const Arg *_BaseArg)
+  : Opt(_Opt), BaseArg(_BaseArg), Index(_Index),
+    Claimed(false), OwnsValues(false) {
+  Values.push_back(Value0);
+  Values.push_back(Value1);
+}
+
+Arg::~Arg() {
+  if (OwnsValues) {
+    for (unsigned i = 0, e = Values.size(); i != e; ++i)
+      delete[] Values[i];
+  }
+}
 
 void Arg::dump() const {
   llvm::errs() << "<";
-  switch (Kind) {
-  default:
-    assert(0 && "Invalid kind");
-#define P(N) case N: llvm::errs() << #N; break
-    P(FlagClass);
-    P(PositionalClass);
-    P(JoinedClass);
-    P(SeparateClass);
-    P(CommaJoinedClass);
-    P(JoinedAndSeparateClass);
-#undef P
-  }
 
   llvm::errs() << " Opt:";
   Opt->dump();
 
   llvm::errs() << " Index:" << Index;
 
-  if (isa<CommaJoinedArg>(this) || isa<SeparateArg>(this))
-    llvm::errs() << " NumValues:" << getNumValues();
+  llvm::errs() << " Values: [";
+  for (unsigned i = 0, e = Values.size(); i != e; ++i) {
+    if (i) llvm::errs() << ", ";
+    llvm::errs() << "'" << Values[i] << "'";
+  }
 
-  llvm::errs() << ">\n";
+  llvm::errs() << "]>\n";
 }
 
 std::string Arg::getAsString(const ArgList &Args) const {
-  std::string Res;
-  llvm::raw_string_ostream OS(Res);
+  llvm::SmallString<256> Res;
+  llvm::raw_svector_ostream OS(Res);
 
   ArgStringList ASL;
   render(Args, ASL);
@@ -74,117 +86,36 @@ void Arg::renderAsInput(const ArgList &Args, ArgStringList &Output) const {
     Output.push_back(getValue(Args, i));
 }
 
-FlagArg::FlagArg(const Option *Opt, unsigned Index, const Arg *BaseArg)
-  : Arg(FlagClass, Opt, Index, BaseArg) {
-}
-
-void FlagArg::render(const ArgList &Args, ArgStringList &Output) const {
-  Output.push_back(Args.getArgString(getIndex()));
-}
-
-const char *FlagArg::getValue(const ArgList &Args, unsigned N) const {
-  assert(0 && "Invalid index.");
-  return 0;
-}
-
-PositionalArg::PositionalArg(const Option *Opt, unsigned Index,
-                             const Arg *BaseArg)
-  : Arg(PositionalClass, Opt, Index, BaseArg) {
-}
-
-void PositionalArg::render(const ArgList &Args, ArgStringList &Output) const {
-  Output.push_back(Args.getArgString(getIndex()));
-}
-
-const char *PositionalArg::getValue(const ArgList &Args, unsigned N) const {
-  assert(N < getNumValues() && "Invalid index.");
-  return Args.getArgString(getIndex());
-}
-
-JoinedArg::JoinedArg(const Option *Opt, unsigned Index, const Arg *BaseArg)
-  : Arg(JoinedClass, Opt, Index, BaseArg) {
-}
-
-void JoinedArg::render(const ArgList &Args, ArgStringList &Output) const {
-  if (getOption().hasForceSeparateRender()) {
-    Output.push_back(getOption().getName());
-    Output.push_back(getValue(Args, 0));
-  } else {
-    Output.push_back(Args.getArgString(getIndex()));
-  }
-}
-
-const char *JoinedArg::getValue(const ArgList &Args, unsigned N) const {
-  assert(N < getNumValues() && "Invalid index.");
-  // FIXME: Avoid strlen.
-  return Args.getArgString(getIndex()) + strlen(getOption().getName());
-}
-
-CommaJoinedArg::CommaJoinedArg(const Option *Opt, unsigned Index,
-                               const char *Str, const Arg *BaseArg)
-  : Arg(CommaJoinedClass, Opt, Index, BaseArg) {
-  const char *Prev = Str;
-  for (;; ++Str) {
-    char c = *Str;
-
-    if (!c) {
-      if (Prev != Str)
-        Values.push_back(std::string(Prev, Str));
-      break;
-    } else if (c == ',') {
-      if (Prev != Str)
-        Values.push_back(std::string(Prev, Str));
-      Prev = Str + 1;
-    }
-  }
-}
-
-void CommaJoinedArg::render(const ArgList &Args, ArgStringList &Output) const {
-  Output.push_back(Args.getArgString(getIndex()));
-}
-
-const char *CommaJoinedArg::getValue(const ArgList &Args, unsigned N) const {
-  assert(N < getNumValues() && "Invalid index.");
-  return Values[N].c_str();
-}
-
-SeparateArg::SeparateArg(const Option *Opt, unsigned Index, unsigned _NumValues,
-                         const Arg *BaseArg)
-  : Arg(SeparateClass, Opt, Index, BaseArg), NumValues(_NumValues) {
-}
-
-void SeparateArg::render(const ArgList &Args, ArgStringList &Output) const {
-  if (getOption().hasForceJoinedRender()) {
-    assert(getNumValues() == 1 && "Cannot force joined render with > 1 args.");
-    Output.push_back(Args.MakeArgString(llvm::StringRef(getOption().getName()) +
-                                        getValue(Args, 0)));
-  } else {
-    Output.push_back(Args.getArgString(getIndex()));
-    for (unsigned i = 0; i < NumValues; ++i)
+void Arg::render(const ArgList &Args, ArgStringList &Output) const {
+  switch (getOption().getRenderStyle()) {
+  case Option::RenderValuesStyle:
+    for (unsigned i = 0, e = getNumValues(); i != e; ++i)
       Output.push_back(getValue(Args, i));
+    break;
+
+  case Option::RenderCommaJoinedStyle: {
+    llvm::SmallString<256> Res;
+    llvm::raw_svector_ostream OS(Res);
+    OS << getOption().getName();
+    for (unsigned i = 0, e = getNumValues(); i != e; ++i) {
+      if (i) OS << ',';
+      OS << getValue(Args, i);
+    }
+    Output.push_back(Args.MakeArgString(OS.str()));
+    break;
   }
-}
+ 
+ case Option::RenderJoinedStyle:
+    Output.push_back(Args.GetOrMakeJoinedArgString(
+                       getIndex(), getOption().getName(), getValue(Args, 0)));
+    for (unsigned i = 1, e = getNumValues(); i != e; ++i)
+      Output.push_back(getValue(Args, i));
+    break;
 
-const char *SeparateArg::getValue(const ArgList &Args, unsigned N) const {
-  assert(N < getNumValues() && "Invalid index.");
-  return Args.getArgString(getIndex() + 1 + N);
-}
-
-JoinedAndSeparateArg::JoinedAndSeparateArg(const Option *Opt, unsigned Index,
-                                           const Arg *BaseArg)
-  : Arg(JoinedAndSeparateClass, Opt, Index, BaseArg) {
-}
-
-void JoinedAndSeparateArg::render(const ArgList &Args,
-                                  ArgStringList &Output) const {
-  Output.push_back(Args.getArgString(getIndex()));
-  Output.push_back(Args.getArgString(getIndex() + 1));
-}
-
-const char *JoinedAndSeparateArg::getValue(const ArgList &Args,
-                                           unsigned N) const {
-  assert(N < getNumValues() && "Invalid index.");
-  if (N == 0)
-    return Args.getArgString(getIndex()) + strlen(getOption().getName());
-  return Args.getArgString(getIndex() + 1);
+  case Option::RenderSeparateStyle:
+    Output.push_back(getOption().getName());
+    for (unsigned i = 0, e = getNumValues(); i != e; ++i)
+      Output.push_back(getValue(Args, i));
+    break;
+  }
 }

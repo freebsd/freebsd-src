@@ -33,6 +33,7 @@ static unsigned getFixupKindLog2Size(unsigned Kind) {
   default: llvm_unreachable("invalid fixup kind!");
   case X86::reloc_pcrel_1byte:
   case FK_Data_1: return 0;
+  case X86::reloc_pcrel_2byte:
   case FK_Data_2: return 1;
   case X86::reloc_pcrel_4byte:
   case X86::reloc_riprel_4byte:
@@ -47,6 +48,7 @@ static bool isFixupKindPCRel(unsigned Kind) {
   default:
     return false;
   case X86::reloc_pcrel_1byte:
+  case X86::reloc_pcrel_2byte:
   case X86::reloc_pcrel_4byte:
   case X86::reloc_riprel_4byte:
   case X86::reloc_riprel_4byte_movq_load:
@@ -738,6 +740,51 @@ public:
     Relocations[Fragment->getParent()].push_back(MRE);
   }
 
+  void RecordTLVPRelocation(const MCAssembler &Asm,
+                            const MCAsmLayout &Layout,
+                            const MCFragment *Fragment,
+                            const MCFixup &Fixup, MCValue Target,
+                            uint64_t &FixedValue) {
+    assert(Target.getSymA()->getKind() == MCSymbolRefExpr::VK_TLVP &&
+           !Is64Bit &&
+           "Should only be called with a 32-bit TLVP relocation!");
+
+    unsigned Log2Size = getFixupKindLog2Size(Fixup.getKind());
+    uint32_t Value = Layout.getFragmentOffset(Fragment)+Fixup.getOffset();
+    unsigned IsPCRel = 0;
+
+    // Get the symbol data.
+    MCSymbolData *SD_A = &Asm.getSymbolData(Target.getSymA()->getSymbol());
+    unsigned Index = SD_A->getIndex();
+
+    // We're only going to have a second symbol in pic mode and it'll be a
+    // subtraction from the picbase. For 32-bit pic the addend is the difference
+    // between the picbase and the next address.  For 32-bit static the addend
+    // is zero.
+    if (Target.getSymB()) {
+      // If this is a subtraction then we're pcrel.
+      uint32_t FixupAddress =
+      Layout.getFragmentAddress(Fragment) + Fixup.getOffset();
+      MCSymbolData *SD_B = &Asm.getSymbolData(Target.getSymB()->getSymbol());
+      IsPCRel = 1;
+      FixedValue = (FixupAddress - Layout.getSymbolAddress(SD_B) +
+                    Target.getConstant());
+      FixedValue += 1 << Log2Size;
+    } else {
+      FixedValue = 0;
+    }
+    
+    // struct relocation_info (8 bytes)
+    MachRelocationEntry MRE;
+    MRE.Word0 = Value;
+    MRE.Word1 = ((Index     <<  0) |
+                 (IsPCRel   << 24) |
+                 (Log2Size  << 25) |
+                 (1         << 27) | // Extern
+                 (RIT_TLV   << 28)); // Type
+    Relocations[Fragment->getParent()].push_back(MRE);
+  }
+  
   void RecordRelocation(const MCAssembler &Asm, const MCAsmLayout &Layout,
                         const MCFragment *Fragment, const MCFixup &Fixup,
                         MCValue Target, uint64_t &FixedValue) {
@@ -749,6 +796,12 @@ public:
     unsigned IsPCRel = isFixupKindPCRel(Fixup.getKind());
     unsigned Log2Size = getFixupKindLog2Size(Fixup.getKind());
 
+    // If this is a 32-bit TLVP reloc it's handled a bit differently.
+    if (Target.getSymA()->getKind() == MCSymbolRefExpr::VK_TLVP) {
+      RecordTLVPRelocation(Asm, Layout, Fragment, Fixup, Target, FixedValue);
+      return;
+    }
+    
     // If this is a difference or a defined symbol plus an offset, then we need
     // a scattered relocation entry.
     // Differences always require scattered relocations.
@@ -772,7 +825,6 @@ public:
 
     // See <reloc.h>.
     uint32_t FixupOffset = Layout.getFragmentOffset(Fragment)+Fixup.getOffset();
-    uint32_t Value = 0;
     unsigned Index = 0;
     unsigned IsExtern = 0;
     unsigned Type = 0;
@@ -783,7 +835,6 @@ public:
       // FIXME: Currently, these are never generated (see code below). I cannot
       // find a case where they are actually emitted.
       Type = RIT_Vanilla;
-      Value = 0;
     } else {
       // Check whether we need an external or internal relocation.
       if (doesSymbolRequireExternRelocation(SD)) {
@@ -794,11 +845,9 @@ public:
         // undefined. This occurs with weak definitions, for example.
         if (!SD->Symbol->isUndefined())
           FixedValue -= Layout.getSymbolAddress(SD);
-        Value = 0;
       } else {
         // The index is the section ordinal (1-based).
         Index = SD->getFragment()->getParent()->getOrdinal() + 1;
-        Value = Layout.getSymbolAddress(SD);
       }
 
       Type = RIT_Vanilla;
@@ -898,7 +947,7 @@ public:
       const MCSymbol &Symbol = it->getSymbol();
 
       // Ignore non-linker visible symbols.
-      if (!Asm.isSymbolLinkerVisible(it))
+      if (!Asm.isSymbolLinkerVisible(it->getSymbol()))
         continue;
 
       if (!it->isExternal() && !Symbol.isUndefined())
@@ -934,7 +983,7 @@ public:
       const MCSymbol &Symbol = it->getSymbol();
 
       // Ignore non-linker visible symbols.
-      if (!Asm.isSymbolLinkerVisible(it))
+      if (!Asm.isSymbolLinkerVisible(it->getSymbol()))
         continue;
 
       if (it->isExternal() || Symbol.isUndefined())

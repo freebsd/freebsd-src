@@ -31,6 +31,7 @@ namespace driver {
   class Action;
   class ArgList;
   class Compilation;
+  class DerivedArgList;
   class HostInfo;
   class InputArgList;
   class InputInfo;
@@ -60,6 +61,9 @@ public:
   /// The path the driver executable was in, as invoked from the
   /// command line.
   std::string Dir;
+
+  /// The original path to the clang executable.
+  std::string ClangExecutable;
 
   /// The path to the compiler resource directory.
   std::string ResourceDir;
@@ -135,6 +139,11 @@ private:
   std::list<std::string> TempFiles;
   std::list<std::string> ResultFiles;
 
+private:
+  /// TranslateInputArgs - Create a new derived argument list from the input
+  /// arguments, after applying the standard argument translations.
+  DerivedArgList *TranslateInputArgs(const InputArgList &Args) const;
+
 public:
   Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
          llvm::StringRef _DefaultHostTriple,
@@ -156,6 +165,11 @@ public:
 
   const std::string &getTitle() { return DriverTitle; }
   void setTitle(std::string Value) { DriverTitle = Value; }
+
+  /// \brief Get the path to the main clang executable.
+  std::string getClangProgramPath() const {
+    return ClangExecutable;
+  }
 
   /// @}
   /// @name Primary Functionality

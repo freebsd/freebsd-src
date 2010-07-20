@@ -69,9 +69,6 @@ public:
   /// Code Generation virtual methods...
   const unsigned *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
 
-  const TargetRegisterClass* const*
-  getCalleeSavedRegClasses(const MachineFunction *MF = 0) const;
-
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
   /// getMatchingSuperRegClass - Return a subclass of the specified register
@@ -81,14 +78,15 @@ public:
   getMatchingSuperRegClass(const TargetRegisterClass *A,
                            const TargetRegisterClass *B, unsigned Idx) const;
 
-  /// canCombinedSubRegIndex - Given a register class and a list of sub-register
-  /// indices, return true if it's possible to combine the sub-register indices
-  /// into one that corresponds to a larger sub-register. Return the new sub-
-  /// register index by reference. Note the new index by be zero if the given
-  /// sub-registers combined to form the whole register.
-  virtual bool canCombinedSubRegIndex(const TargetRegisterClass *RC,
-                                      SmallVectorImpl<unsigned> &SubIndices,
-                                      unsigned &NewSubIdx) const;
+  /// canCombineSubRegIndices - Given a register class and a list of
+  /// subregister indices, return true if it's possible to combine the
+  /// subregister indices into one that corresponds to a larger
+  /// subregister. Return the new subregister index by reference. Note the
+  /// new index may be zero if the given subregisters can be combined to
+  /// form the whole register.
+  virtual bool canCombineSubRegIndices(const TargetRegisterClass *RC,
+                                       SmallVectorImpl<unsigned> &SubIndices,
+                                       unsigned &NewSubIdx) const;
 
   const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
 
@@ -150,8 +148,8 @@ public:
   virtual bool canSimplifyCallFramePseudos(MachineFunction &MF) const;
 
   virtual void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                             MachineBasicBlock &MBB,
-                                             MachineBasicBlock::iterator I) const;
+                                           MachineBasicBlock &MBB,
+                                           MachineBasicBlock::iterator I) const;
 
   virtual unsigned eliminateFrameIndex(MachineBasicBlock::iterator II,
                                        int SPAdj, FrameIndexValue *Value = NULL,

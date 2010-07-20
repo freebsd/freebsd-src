@@ -340,9 +340,9 @@ static void EmitBaseInitializer(CodeGenFunction &CGF,
   
   if (CGF.Exceptions && !BaseClassDecl->hasTrivialDestructor()) {
     // FIXME: Is this OK for C++0x delegating constructors?
-    CodeGenFunction::EHCleanupBlock Cleanup(CGF);
+    CodeGenFunction::CleanupBlock Cleanup(CGF, EHCleanup);
 
-    CXXDestructorDecl *DD = BaseClassDecl->getDestructor(CGF.getContext());
+    CXXDestructorDecl *DD = BaseClassDecl->getDestructor();
     CGF.EmitCXXDestructorCall(DD, Dtor_Base, isBaseVirtual, V);
   }
 }
@@ -354,7 +354,7 @@ static void EmitAggMemberInitializer(CodeGenFunction &CGF,
                                      QualType T,
                                      unsigned Index) {
   if (Index == MemberInit->getNumArrayIndices()) {
-    CodeGenFunction::CleanupScope Cleanups(CGF);
+    CodeGenFunction::RunCleanupsScope Cleanups(CGF);
     
     llvm::Value *Dest = LHS.getAddress();
     if (ArrayIndexVar) {
@@ -410,7 +410,7 @@ static void EmitAggMemberInitializer(CodeGenFunction &CGF,
   llvm::BasicBlock *ContinueBlock = CGF.createBasicBlock("for.inc");
   
   {
-    CodeGenFunction::CleanupScope Cleanups(CGF);
+    CodeGenFunction::RunCleanupsScope Cleanups(CGF);
     
     // Inside the loop body recurse to emit the inner loop or, eventually, the
     // constructor call.
@@ -461,13 +461,12 @@ static void EmitMemberInitializer(CodeGenFunction &CGF,
   // was implicitly generated, we shouldn't be zeroing memory.
   RValue RHS;
   if (FieldType->isReferenceType()) {
-    RHS = CGF.EmitReferenceBindingToExpr(MemberInit->getInit(),
-                                         /*IsInitializer=*/true);
+    RHS = CGF.EmitReferenceBindingToExpr(MemberInit->getInit(), Field);
     CGF.EmitStoreThroughLValue(RHS, LHS, FieldType);
   } else if (FieldType->isArrayType() && !MemberInit->getInit()) {
     CGF.EmitNullInitialization(LHS.getAddress(), Field->getType());
   } else if (!CGF.hasAggregateLLVMType(Field->getType())) {
-    RHS = RValue::get(CGF.EmitScalarExpr(MemberInit->getInit(), true));
+    RHS = RValue::get(CGF.EmitScalarExpr(MemberInit->getInit()));
     CGF.EmitStoreThroughLValue(RHS, LHS, FieldType);
   } else if (MemberInit->getInit()->getType()->isAnyComplexType()) {
     CGF.EmitComplexExprIntoAddr(MemberInit->getInit(), LHS.getAddress(),
@@ -535,12 +534,12 @@ static void EmitMemberInitializer(CodeGenFunction &CGF,
     CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
     if (!RD->hasTrivialDestructor()) {
       // FIXME: Is this OK for C++0x delegating constructors?
-      CodeGenFunction::EHCleanupBlock Cleanup(CGF);
+      CodeGenFunction::CleanupBlock Cleanup(CGF, EHCleanup);
       
       llvm::Value *ThisPtr = CGF.LoadCXXThis();
       LValue LHS = CGF.EmitLValueForField(ThisPtr, Field, 0);
 
-      CXXDestructorDecl *DD = RD->getDestructor(CGF.getContext());
+      CXXDestructorDecl *DD = RD->getDestructor();
       CGF.EmitCXXDestructorCall(DD, Dtor_Complete, /*ForVirtualBase=*/false,
                                 LHS.getAddress());
     }
@@ -607,13 +606,11 @@ void CodeGenFunction::EmitConstructorBody(FunctionArgList &Args) {
 
   // Enter the function-try-block before the constructor prologue if
   // applicable.
-  CXXTryStmtInfo TryInfo;
   bool IsTryBody = (Body && isa<CXXTryStmt>(Body));
-
   if (IsTryBody)
-    TryInfo = EnterCXXTryStmt(*cast<CXXTryStmt>(Body));
+    EnterCXXTryStmt(*cast<CXXTryStmt>(Body), true);
 
-  unsigned CleanupStackSize = CleanupEntries.size();
+  EHScopeStack::stable_iterator CleanupDepth = EHStack.stable_begin();
 
   // Emit the constructor prologue, i.e. the base and member
   // initializers.
@@ -629,10 +626,10 @@ void CodeGenFunction::EmitConstructorBody(FunctionArgList &Args) {
   // initializers, which includes (along the exceptional path) the
   // destructors for those members and bases that were fully
   // constructed.
-  EmitCleanupBlocks(CleanupStackSize);
+  PopCleanupBlocks(CleanupDepth);
 
   if (IsTryBody)
-    ExitCXXTryStmt(*cast<CXXTryStmt>(Body), TryInfo);
+    ExitCXXTryStmt(*cast<CXXTryStmt>(Body), true);
 }
 
 /// EmitCtorPrologue - This routine generates necessary code to initialize
@@ -649,9 +646,6 @@ void CodeGenFunction::EmitCtorPrologue(const CXXConstructorDecl *CD,
        B != E; ++B) {
     CXXBaseOrMemberInitializer *Member = (*B);
     
-    assert(LiveTemporaries.empty() &&
-           "Should not have any live temporaries at initializer start!");
-
     if (Member->isBaseInitializer())
       EmitBaseInitializer(*this, ClassDecl, Member, CtorType);
     else
@@ -660,12 +654,8 @@ void CodeGenFunction::EmitCtorPrologue(const CXXConstructorDecl *CD,
 
   InitializeVTablePointers(ClassDecl);
 
-  for (unsigned I = 0, E = MemberInitializers.size(); I != E; ++I) {
-    assert(LiveTemporaries.empty() &&
-           "Should not have any live temporaries at initializer start!");
-    
+  for (unsigned I = 0, E = MemberInitializers.size(); I != E; ++I)
     EmitMemberInitializer(*this, ClassDecl, MemberInitializers[I], CD, Args);
-  }
 }
 
 /// EmitDestructorBody - Emits the body of the current destructor.
@@ -679,14 +669,33 @@ void CodeGenFunction::EmitDestructorBody(FunctionArgList &Args) {
   // anything else --- unless we're in a deleting destructor, in which
   // case we're just going to call the complete destructor and then
   // call operator delete() on the way out.
-  CXXTryStmtInfo TryInfo;
   bool isTryBody = (DtorType != Dtor_Deleting &&
                     Body && isa<CXXTryStmt>(Body));
   if (isTryBody)
-    TryInfo = EnterCXXTryStmt(*cast<CXXTryStmt>(Body));
+    EnterCXXTryStmt(*cast<CXXTryStmt>(Body), true);
 
-  llvm::BasicBlock *DtorEpilogue = createBasicBlock("dtor.epilogue");
-  PushCleanupBlock(DtorEpilogue);
+  // Emit the destructor epilogue now.  If this is a complete
+  // destructor with a function-try-block, perform the base epilogue
+  // as well.
+  //
+  // FIXME: This isn't really right, because an exception in the
+  // non-EH epilogue should jump to the appropriate place in the
+  // EH epilogue.
+  {
+    CleanupBlock Cleanup(*this, NormalCleanup);
+
+    if (isTryBody && DtorType == Dtor_Complete)
+      EmitDtorEpilogue(Dtor, Dtor_Base);
+    EmitDtorEpilogue(Dtor, DtorType);
+
+    if (Exceptions) {
+      Cleanup.beginEHCleanup();
+
+      if (isTryBody && DtorType == Dtor_Complete)
+        EmitDtorEpilogue(Dtor, Dtor_Base);
+      EmitDtorEpilogue(Dtor, DtorType);
+    }
+  }
 
   bool SkipBody = false; // should get jump-threaded
 
@@ -725,27 +734,12 @@ void CodeGenFunction::EmitDestructorBody(FunctionArgList &Args) {
     // nothing to do besides what's in the epilogue
   }
 
-  // Jump to the cleanup block.
-  CleanupBlockInfo Info = PopCleanupBlock();
-  assert(Info.CleanupBlock == DtorEpilogue && "Block mismatch!");
-  EmitBlock(DtorEpilogue);
-
-  // Emit the destructor epilogue now.  If this is a complete
-  // destructor with a function-try-block, perform the base epilogue
-  // as well.
-  if (isTryBody && DtorType == Dtor_Complete)
-    EmitDtorEpilogue(Dtor, Dtor_Base);
-  EmitDtorEpilogue(Dtor, DtorType);
-
-  // Link up the cleanup information.
-  if (Info.SwitchBlock)
-    EmitBlock(Info.SwitchBlock);
-  if (Info.EndBlock)
-    EmitBlock(Info.EndBlock);
+  // We're done with the epilogue cleanup.
+  PopCleanupBlock();
 
   // Exit the try if applicable.
   if (isTryBody)
-    ExitCXXTryStmt(*cast<CXXTryStmt>(Body), TryInfo);
+    ExitCXXTryStmt(*cast<CXXTryStmt>(Body), true);
 }
 
 /// EmitDtorEpilogue - Emit all code that comes at the end of class's
@@ -784,7 +778,7 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
       // Ignore trivial destructors.
       if (BaseClassDecl->hasTrivialDestructor())
         continue;
-      const CXXDestructorDecl *D = BaseClassDecl->getDestructor(getContext());
+      const CXXDestructorDecl *D = BaseClassDecl->getDestructor();
       llvm::Value *V = 
         GetAddressOfDirectBaseInCompleteClass(LoadCXXThis(),
                                               ClassDecl, BaseClassDecl,
@@ -839,10 +833,10 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
       BasePtr = llvm::PointerType::getUnqual(BasePtr);
       llvm::Value *BaseAddrPtr =
         Builder.CreateBitCast(LHS.getAddress(), BasePtr);
-      EmitCXXAggrDestructorCall(FieldClassDecl->getDestructor(getContext()),
+      EmitCXXAggrDestructorCall(FieldClassDecl->getDestructor(),
                                 Array, BaseAddrPtr);
     } else
-      EmitCXXDestructorCall(FieldClassDecl->getDestructor(getContext()),
+      EmitCXXDestructorCall(FieldClassDecl->getDestructor(),
                             Dtor_Complete, /*ForVirtualBase=*/false,
                             LHS.getAddress());
   }
@@ -863,7 +857,7 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
     if (BaseClassDecl->hasTrivialDestructor())
       continue;
 
-    const CXXDestructorDecl *D = BaseClassDecl->getDestructor(getContext());    
+    const CXXDestructorDecl *D = BaseClassDecl->getDestructor();    
     llvm::Value *V = 
       GetAddressOfDirectBaseInCompleteClass(LoadCXXThis(), ClassDecl, 
                                             BaseClassDecl, 
@@ -940,7 +934,7 @@ CodeGenFunction::EmitCXXAggrConstructorCall(const CXXConstructorDecl *D,
   
   // Keep track of the current number of live temporaries.
   {
-    CXXTemporariesCleanupScope Scope(*this);
+    RunCleanupsScope Scope(*this);
 
     EmitCXXConstructorCall(D, Ctor_Complete, /*ForVirtualBase=*/false, Address,
                            ArgBeg, ArgEnd);
@@ -1033,51 +1027,6 @@ CodeGenFunction::EmitCXXAggrDestructorCall(const CXXDestructorDecl *D,
   EmitBlock(AfterFor, true);
 }
 
-/// GenerateCXXAggrDestructorHelper - Generates a helper function which when
-/// invoked, calls the default destructor on array elements in reverse order of
-/// construction.
-llvm::Constant * 
-CodeGenFunction::GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
-                                                 const ArrayType *Array,
-                                                 llvm::Value *This) {
-  FunctionArgList Args;
-  ImplicitParamDecl *Dst =
-    ImplicitParamDecl::Create(getContext(), 0,
-                              SourceLocation(), 0,
-                              getContext().getPointerType(getContext().VoidTy));
-  Args.push_back(std::make_pair(Dst, Dst->getType()));
-  
-  llvm::SmallString<16> Name;
-  llvm::raw_svector_ostream(Name) << "__tcf_" << (++UniqueAggrDestructorCount);
-  QualType R = getContext().VoidTy;
-  const CGFunctionInfo &FI
-      = CGM.getTypes().getFunctionInfo(R, Args, FunctionType::ExtInfo());
-  const llvm::FunctionType *FTy = CGM.getTypes().GetFunctionType(FI, false);
-  llvm::Function *Fn =
-    llvm::Function::Create(FTy, llvm::GlobalValue::InternalLinkage,
-                           Name.str(),
-                           &CGM.getModule());
-  IdentifierInfo *II = &CGM.getContext().Idents.get(Name.str());
-  FunctionDecl *FD = FunctionDecl::Create(getContext(),
-                                          getContext().getTranslationUnitDecl(),
-                                          SourceLocation(), II, R, 0,
-                                          FunctionDecl::Static,
-                                          FunctionDecl::None,
-                                          false, true);
-  StartFunction(FD, R, Fn, Args, SourceLocation());
-  QualType BaseElementTy = getContext().getBaseElementType(Array);
-  const llvm::Type *BasePtr = ConvertType(BaseElementTy);
-  BasePtr = llvm::PointerType::getUnqual(BasePtr);
-  llvm::Value *BaseAddrPtr = Builder.CreateBitCast(This, BasePtr);
-  EmitCXXAggrDestructorCall(D, Array, BaseAddrPtr);
-  FinishFunction();
-  llvm::Type *Ptr8Ty = llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext),
-                                              0);
-  llvm::Constant *m = llvm::ConstantExpr::getBitCast(Fn, Ptr8Ty);
-  return m;
-}
-
-
 void
 CodeGenFunction::EmitCXXConstructorCall(const CXXConstructorDecl *D,
                                         CXXCtorType Type, bool ForVirtualBase,
@@ -1158,6 +1107,23 @@ void CodeGenFunction::EmitCXXDestructorCall(const CXXDestructorDecl *DD,
   llvm::Value *Callee = CGM.GetAddrOfCXXDestructor(DD, Type);
   
   EmitCXXMemberCall(DD, Callee, ReturnValueSlot(), This, VTT, 0, 0);
+}
+
+void CodeGenFunction::PushDestructorCleanup(QualType T, llvm::Value *Addr) {
+  CXXRecordDecl *ClassDecl = T->getAsCXXRecordDecl();
+  if (!ClassDecl) return;
+  if (ClassDecl->hasTrivialDestructor()) return;
+
+  const CXXDestructorDecl *D = ClassDecl->getDestructor();
+
+  CleanupBlock Scope(*this, NormalCleanup);
+
+  EmitCXXDestructorCall(D, Dtor_Complete, /*ForVirtualBase=*/false, Addr);
+
+  if (Exceptions) {
+    Scope.beginEHCleanup();
+    EmitCXXDestructorCall(D, Dtor_Complete, /*ForVirtualBase=*/false, Addr);
+  }
 }
 
 llvm::Value *

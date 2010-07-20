@@ -15,6 +15,8 @@
 #ifndef LLVM_TARGET_TARGETINSTRDESC_H
 #define LLVM_TARGET_TARGETINSTRDESC_H
 
+#include "llvm/System/DataTypes.h"
+
 namespace llvm {
 
 class TargetRegisterClass;
@@ -53,7 +55,7 @@ public:
   ///
   /// NOTE: This member should be considered to be private, all access should go
   /// through "getRegClass(TRI)" below.
-  unsigned short RegClass;
+  short RegClass;
   
   /// Flags - These are flags from the TOI::OperandFlags enum.
   unsigned short Flags;
@@ -131,7 +133,7 @@ public:
   unsigned short  SchedClass;    // enum identifying instr sched class
   const char *    Name;          // Name of the instruction record in td file
   unsigned        Flags;         // Flags identifying machine instr class
-  unsigned        TSFlags;       // Target Specific Flag values
+  uint64_t        TSFlags;       // Target Specific Flag values
   const unsigned *ImplicitUses;  // Registers implicitly read by this instr
   const unsigned *ImplicitDefs;  // Registers implicitly defined by this instr
   const TargetRegisterClass **RCBarriers; // Reg classes completely "clobbered"

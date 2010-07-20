@@ -18,6 +18,8 @@ include "OptParser.td"
 // Target Options
 //===----------------------------------------------------------------------===//
 
+def cxx_abi : Separate<"-cxx-abi">,
+  HelpText<"Target a particular C++ ABI type">;
 def target_abi : Separate<"-target-abi">,
   HelpText<"Target a particular ABI type">;
 def target_cpu : Separate<"-target-cpu">,
@@ -79,6 +81,8 @@ def analyzer_display_progress : Flag<"-analyzer-display-progress">,
   HelpText<"Emit verbose output about the analyzer's progress">;
 def analyzer_experimental_checks : Flag<"-analyzer-experimental-checks">,
   HelpText<"Use experimental path-sensitive checks">;
+def analyzer_idempotent_operation : Flag<"-analyzer-idempotent-operation">,
+  HelpText<"Use experimental path-sensitive idempotent operation checker">;
 def analyzer_experimental_internal_checks :
   Flag<"-analyzer-experimental-internal-checks">,
   HelpText<"Use new default path-sensitive checks currently in testing">;
@@ -121,6 +125,8 @@ def fno_common : Flag<"-fno-common">,
   HelpText<"Compile common globals like normal definitions">;
 def no_implicit_float : Flag<"-no-implicit-float">,
   HelpText<"Don't generate implicit floating point instructions (x86-only)">;
+def finstrument_functions : Flag<"-finstrument-functions">,
+  HelpText<"Generate calls to instrument function entry and exit">;
 def fno_merge_all_constants : Flag<"-fno-merge-all-constants">,
   HelpText<"Disallow merging of constants.">;
 def fno_threadsafe_statics : Flag<"-fno-threadsafe-statics">,
@@ -145,6 +151,8 @@ def mlimit_float_precision : Separate<"-mlimit-float-precision">,
   HelpText<"Limit float precision to the given value">;
 def mno_zero_initialized_in_bss : Flag<"-mno-zero-initialized-in-bss">,
   HelpText<"Do not put zero initialized data in the BSS">;
+def momit_leaf_frame_pointer : Flag<"-momit-leaf-frame-pointer">,
+  HelpText<"Omit frame pointer setup for leaf functions.">;
 def msoft_float : Flag<"-msoft-float">,
   HelpText<"Use software floating point">;
 def mrelax_all : Flag<"-mrelax-all">,
@@ -182,6 +190,9 @@ def fno_show_column : Flag<"-fno-show-column">,
   HelpText<"Do not include column number on diagnostics">;
 def fno_show_source_location : Flag<"-fno-show-source-location">,
   HelpText<"Do not include source location information with diagnostics">;
+def fshow_overloads_EQ : Joined<"-fshow-overloads=">,
+  HelpText<"Which overload candidates to show when overload resolution fails: "
+           "best|all; defaults to all">;
 def fno_caret_diagnostics : Flag<"-fno-caret-diagnostics">,
   HelpText<"Do not include source line and caret with diagnostics">;
 def fno_diagnostics_fixit_info : Flag<"-fno-diagnostics-fixit-info">,
@@ -259,8 +270,11 @@ def cxx_inheritance_view : Separate<"-cxx-inheritance-view">,
 def o : Separate<"-o">, MetaVarName<"<path>">, HelpText<"Specify output file">;
 def load : Separate<"-load">, MetaVarName<"<dsopath>">,
   HelpText<"Load the named plugin (dynamic shared object)">;
-def plugin : Separate<"-plugin">,
+def plugin : Separate<"-plugin">, MetaVarName<"<name>">,
   HelpText<"Use the named plugin action (use \"help\" to list available options)">;
+def plugin_arg : JoinedAndSeparate<"-plugin-arg-">, 
+    MetaVarName<"<name> <arg>">,
+    HelpText<"Pass <arg> to plugin <name>">;
 def resource_dir : Separate<"-resource-dir">,
   HelpText<"The directory which holds the compiler resource files">;
 def version : Flag<"-version">,
@@ -333,6 +347,8 @@ def rewrite_macros : Flag<"-rewrite-macros">,
 
 def relocatable_pch : Flag<"-relocatable-pch">,
   HelpText<"Whether to build a relocatable precompiled header">;
+def chained_pch : Flag<"-chained-pch">,
+  HelpText<"Whether to chain the new precompiled header to the old one.">;
 def print_stats : Flag<"-print-stats">,
   HelpText<"Print performance metrics and statistics">;
 def ftime_report : Flag<"-ftime-report">,
@@ -397,6 +413,8 @@ def fno_operator_names : Flag<"-fno-operator-names">,
   HelpText<"Do not treat C++ operator name keywords as synonyms for operators">;
 def fno_signed_char : Flag<"-fno-signed-char">,
   HelpText<"Char is unsigned">;
+def fno_spell_checking : Flag<"-fno-spell-checking">,
+  HelpText<"Disable spell-checking">;  
 def fno_use_cxa_atexit : Flag<"-fno-use-cxa-atexit">,
   HelpText<"Don't use __cxa_atexit for calling destructors">;
 def fconstant_string_class : Separate<"-fconstant-string-class">,
@@ -418,6 +436,8 @@ def fobjc_nonfragile_abi2 : Flag<"-fobjc-nonfragile-abi2">,
   HelpText<"enable objective-c's enhanced nonfragile abi">;
 def ftrapv : Flag<"-ftrapv">,
   HelpText<"Trap on integer overflow">;
+def fwrapv : Flag<"-fwrapv">,
+  HelpText<"Treat signed integer overflow as two's complement">;
 def pic_level : Separate<"-pic-level">,
   HelpText<"Value for __PIC__">;
 def pthread : Flag<"-pthread">,
@@ -434,6 +454,8 @@ def stack_protector : Separate<"-stack-protector">,
   HelpText<"Enable stack protectors">;
 def fvisibility : Separate<"-fvisibility">,
   HelpText<"Default symbol visibility">;
+def fvisibility_inlines_hidden : Flag<"-fvisibility-inlines-hidden">,
+  HelpText<"Give inline C++ member functions default visibility by default">;
 def ftemplate_depth : Separate<"-ftemplate-depth">,
   HelpText<"Maximum depth of recursive template instantiation">;
 def trigraphs : Flag<"-trigraphs">,

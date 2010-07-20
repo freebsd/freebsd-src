@@ -658,7 +658,7 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
               }
             }
           // Handle an offsetof-like expression.
-          if (Ty->isStructTy() || Ty->isArrayTy() || Ty->isVectorTy()){
+          if (Ty->isStructTy() || Ty->isArrayTy()) {
             if (Constant *C = getFoldedOffsetOf(Ty, CE->getOperand(2),
                                                 DestTy, false))
               return C;
@@ -1817,8 +1817,15 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
     return Constant::getAllOnesValue(ResultTy);
 
   // Handle some degenerate cases first
-  if (isa<UndefValue>(C1) || isa<UndefValue>(C2))
+  if (isa<UndefValue>(C1) || isa<UndefValue>(C2)) {
+    // For EQ and NE, we can always pick a value for the undef to make the
+    // predicate pass or fail, so we can return undef.
+    if (ICmpInst::isEquality(ICmpInst::Predicate(pred)))
+      return UndefValue::get(ResultTy);
+    // Otherwise, pick the same value as the non-undef operand, and fold
+    // it to true or false.
     return ConstantInt::get(ResultTy, CmpInst::isTrueWhenEqual(pred));
+  }
 
   // No compile-time operations on this type yet.
   if (C1->getType()->isPPC_FP128Ty())
@@ -2194,7 +2201,7 @@ Constant *llvm::ConstantFoldGetElementPtr(Constant *C,
         }
 
         NewIndices.push_back(Combined);
-        NewIndices.insert(NewIndices.end(), Idxs+1, Idxs+NumIdx);
+        NewIndices.append(Idxs+1, Idxs+NumIdx);
         return (inBounds && cast<GEPOperator>(CE)->isInBounds()) ?
           ConstantExpr::getInBoundsGetElementPtr(CE->getOperand(0),
                                                  &NewIndices[0],

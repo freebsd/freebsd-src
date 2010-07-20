@@ -612,7 +612,7 @@ public:
 
   /// A lossless cast is one that does not alter the basic value. It implies
   /// a no-op cast but is more stringent, preventing things like int->float,
-  /// long->double, int->ptr, or vector->anything.
+  /// long->double, or int->ptr.
   /// @returns true iff the cast is lossless.
   /// @brief Determine if this is a lossless cast.
   bool isLosslessCast() const;
@@ -625,6 +625,14 @@ public:
   /// platform. Generally, the result of TargetData::getIntPtrType() should be
   /// passed in. If that's not available, use Type::Int64Ty, which will make
   /// the isNoopCast call conservative.
+  /// @brief Determine if the described cast is a no-op cast.
+  static bool isNoopCast(
+    Instruction::CastOps Opcode,  ///< Opcode of cast
+    const Type *SrcTy,   ///< SrcTy of cast
+    const Type *DstTy,   ///< DstTy of cast
+    const Type *IntPtrTy ///< Integer type corresponding to Ptr types, or null
+  );
+
   /// @brief Determine if this cast is a no-op cast.
   bool isNoopCast(
     const Type *IntPtrTy ///< Integer type corresponding to pointer

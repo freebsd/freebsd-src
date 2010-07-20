@@ -56,6 +56,7 @@ namespace llvm {
     }
 
     GlobalVariable *getGlobalVariableField(unsigned Elt) const;
+    Function *getFunctionField(unsigned Elt) const;
 
   public:
     explicit DIDescriptor() : DbgNode(0) {}
@@ -409,6 +410,8 @@ namespace llvm {
     /// describes - Return true if this subprogram provides debugging
     /// information for the function F.
     bool describes(const Function *F);
+
+    Function *getFunction() const { return getFunctionField(16); }
   };
 
   /// DIGlobalVariable - This is a wrapper for a global variable.
@@ -577,7 +580,8 @@ namespace llvm {
                                     unsigned RunTimeVer = 0);
 
     /// CreateFile -  Create a new descriptor for the specified file.
-    DIFile CreateFile(StringRef Filename, StringRef Directory, DICompileUnit CU);
+    DIFile CreateFile(StringRef Filename, StringRef Directory,
+                      DICompileUnit CU);
 
     /// CreateEnumerator - Create a single enumerator value.
     DIEnumerator CreateEnumerator(StringRef Name, uint64_t Val);
@@ -658,7 +662,8 @@ namespace llvm {
                                   unsigned VIndex = 0,
                                   DIType = DIType(),
                                   bool isArtificial = 0,
-                                  bool isOptimized = false);
+                                  bool isOptimized = false,
+                                  Function *Fn = 0);
 
     /// CreateSubprogramDefinition - Create new subprogram descriptor for the
     /// given declaration. 

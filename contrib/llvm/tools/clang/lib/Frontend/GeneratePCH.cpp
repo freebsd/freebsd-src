@@ -32,20 +32,24 @@ namespace {
     llvm::raw_ostream *Out;
     Sema *SemaPtr;
     MemorizeStatCalls *StatCalls; // owned by the FileManager
+    std::vector<unsigned char> Buffer;
+    llvm::BitstreamWriter Stream;
+    PCHWriter Writer;
 
   public:
-    explicit PCHGenerator(const Preprocessor &PP,
-                          const char *isysroot,
-                          llvm::raw_ostream *Out);
+    PCHGenerator(const Preprocessor &PP, PCHReader *Chain,
+                 const char *isysroot, llvm::raw_ostream *Out);
     virtual void InitializeSema(Sema &S) { SemaPtr = &S; }
     virtual void HandleTranslationUnit(ASTContext &Ctx);
   };
 }
 
 PCHGenerator::PCHGenerator(const Preprocessor &PP,
+                           PCHReader *Chain,
                            const char *isysroot,
                            llvm::raw_ostream *OS)
-  : PP(PP), isysroot(isysroot), Out(OS), SemaPtr(0), StatCalls(0) {
+  : PP(PP), isysroot(isysroot), Out(OS), SemaPtr(0), StatCalls(0),
+    Stream(Buffer), Writer(Stream, Chain) {
 
   // Install a stat() listener to keep track of all of the stat()
   // calls.
@@ -57,11 +61,6 @@ void PCHGenerator::HandleTranslationUnit(ASTContext &Ctx) {
   if (PP.getDiagnostics().hasErrorOccurred())
     return;
 
-  // Write the PCH contents into a buffer
-  std::vector<unsigned char> Buffer;
-  llvm::BitstreamWriter Stream(Buffer);
-  PCHWriter Writer(Stream);
-
   // Emit the PCH file
   assert(SemaPtr && "No Sema?");
   Writer.WritePCH(*SemaPtr, StatCalls, isysroot);
@@ -71,10 +70,14 @@ void PCHGenerator::HandleTranslationUnit(ASTContext &Ctx) {
 
   // Make sure it hits disk now.
   Out->flush();
+
+  // Free up some memory, in case the process is kept alive.
+  Buffer.clear();
 }
 
 ASTConsumer *clang::CreatePCHGenerator(const Preprocessor &PP,
                                        llvm::raw_ostream *OS,
+                                       PCHReader *Chain,
                                        const char *isysroot) {
-  return new PCHGenerator(PP, isysroot, OS);
+  return new PCHGenerator(PP, Chain, isysroot, OS);
 }

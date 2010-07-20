@@ -59,15 +59,16 @@ class MallocChecker : public CheckerVisitor<MallocChecker> {
   BuiltinBug *BT_DoubleFree;
   BuiltinBug *BT_Leak;
   BuiltinBug *BT_UseFree;
-  IdentifierInfo *II_malloc, *II_free, *II_realloc;
+  BuiltinBug *BT_BadFree;
+  IdentifierInfo *II_malloc, *II_free, *II_realloc, *II_calloc;
 
 public:
   MallocChecker() 
-    : BT_DoubleFree(0), BT_Leak(0), BT_UseFree(0), 
-      II_malloc(0), II_free(0), II_realloc(0) {}
+    : BT_DoubleFree(0), BT_Leak(0), BT_UseFree(0), BT_BadFree(0),
+      II_malloc(0), II_free(0), II_realloc(0), II_calloc(0) {}
   static void *getTag();
   bool EvalCallExpr(CheckerContext &C, const CallExpr *CE);
-  void EvalDeadSymbols(CheckerContext &C,const Stmt *S,SymbolReaper &SymReaper);
+  void EvalDeadSymbols(CheckerContext &C, SymbolReaper &SymReaper);
   void EvalEndPath(GREndPathNodeBuilder &B, void *tag, GRExprEngine &Eng);
   void PreVisitReturnStmt(CheckerContext &C, const ReturnStmt *S);
   const GRState *EvalAssume(const GRState *state, SVal Cond, bool Assumption);
@@ -76,12 +77,24 @@ public:
 private:
   void MallocMem(CheckerContext &C, const CallExpr *CE);
   const GRState *MallocMemAux(CheckerContext &C, const CallExpr *CE,
-                              const Expr *SizeEx, const GRState *state);
+                              const Expr *SizeEx, SVal Init,
+                              const GRState *state) {
+    return MallocMemAux(C, CE, state->getSVal(SizeEx), Init, state);
+  }
+  const GRState *MallocMemAux(CheckerContext &C, const CallExpr *CE,
+                              SVal SizeEx, SVal Init,
+                              const GRState *state);
+
   void FreeMem(CheckerContext &C, const CallExpr *CE);
   const GRState *FreeMemAux(CheckerContext &C, const CallExpr *CE,
                             const GRState *state);
 
   void ReallocMem(CheckerContext &C, const CallExpr *CE);
+  void CallocMem(CheckerContext &C, const CallExpr *CE);
+  
+  bool SummarizeValue(llvm::raw_ostream& os, SVal V);
+  bool SummarizeRegion(llvm::raw_ostream& os, const MemRegion *MR);
+  void ReportBadFree(CheckerContext &C, SVal ArgVal, SourceRange range);
 };
 } // end anonymous namespace
 
@@ -120,6 +133,8 @@ bool MallocChecker::EvalCallExpr(CheckerContext &C, const CallExpr *CE) {
     II_free = &Ctx.Idents.get("free");
   if (!II_realloc)
     II_realloc = &Ctx.Idents.get("realloc");
+  if (!II_calloc)
+    II_calloc = &Ctx.Idents.get("calloc");
 
   if (FD->getIdentifier() == II_malloc) {
     MallocMem(C, CE);
@@ -136,30 +151,44 @@ bool MallocChecker::EvalCallExpr(CheckerContext &C, const CallExpr *CE) {
     return true;
   }
 
+  if (FD->getIdentifier() == II_calloc) {
+    CallocMem(C, CE);
+    return true;
+  }
+
   return false;
 }
 
 void MallocChecker::MallocMem(CheckerContext &C, const CallExpr *CE) {
-  const GRState *state = MallocMemAux(C, CE, CE->getArg(0), C.getState());
+  const GRState *state = MallocMemAux(C, CE, CE->getArg(0), UndefinedVal(),
+                                      C.getState());
   C.addTransition(state);
 }
 
 const GRState *MallocChecker::MallocMemAux(CheckerContext &C,  
                                            const CallExpr *CE,
-                                           const Expr *SizeEx,
+                                           SVal Size, SVal Init,
                                            const GRState *state) {
   unsigned Count = C.getNodeBuilder().getCurrentBlockCount();
   ValueManager &ValMgr = C.getValueManager();
 
+  // Set the return value.
   SVal RetVal = ValMgr.getConjuredSymbolVal(NULL, CE, CE->getType(), Count);
-
-  SVal Size = state->getSVal(SizeEx);
-
-  state = C.getEngine().getStoreManager().setExtent(state, RetVal.getAsRegion(),
-                                                    Size);
-
   state = state->BindExpr(CE, RetVal);
-  
+
+  // Fill the region with the initialization value.
+  state = state->bindDefault(RetVal, Init);
+
+  // Set the region's extent equal to the Size parameter.
+  const SymbolicRegion *R = cast<SymbolicRegion>(RetVal.getAsRegion());
+  DefinedOrUnknownSVal Extent = R->getExtent(ValMgr);
+  DefinedOrUnknownSVal DefinedSize = cast<DefinedOrUnknownSVal>(Size);
+
+  SValuator &SVator = ValMgr.getSValuator();
+  DefinedOrUnknownSVal ExtentMatchesSize =
+    SVator.EvalEQ(state, Extent, DefinedSize);
+  state = state->Assume(ExtentMatchesSize, true);
+
   SymbolRef Sym = RetVal.getAsLocSymbol();
   assert(Sym);
   // Set the symbol's state to Allocated.
@@ -175,18 +204,59 @@ void MallocChecker::FreeMem(CheckerContext &C, const CallExpr *CE) {
 
 const GRState *MallocChecker::FreeMemAux(CheckerContext &C, const CallExpr *CE,
                                          const GRState *state) {
-  SVal ArgVal = state->getSVal(CE->getArg(0));
+  const Expr *ArgExpr = CE->getArg(0);
+  SVal ArgVal = state->getSVal(ArgExpr);
 
   // If ptr is NULL, no operation is preformed.
   if (ArgVal.isZeroConstant())
     return state;
-
-  SymbolRef Sym = ArgVal.getAsLocSymbol();
-
-  // Various cases could lead to non-symbol values here.
-  if (!Sym)
+  
+  // Unknown values could easily be okay
+  // Undefined values are handled elsewhere
+  if (ArgVal.isUnknownOrUndef())
     return state;
 
+  const MemRegion *R = ArgVal.getAsRegion();
+  
+  // Nonlocs can't be freed, of course.
+  // Non-region locations (labels and fixed addresses) also shouldn't be freed.
+  if (!R) {
+    ReportBadFree(C, ArgVal, ArgExpr->getSourceRange());
+    return NULL;
+  }
+  
+  R = R->StripCasts();
+  
+  // Blocks might show up as heap data, but should not be free()d
+  if (isa<BlockDataRegion>(R)) {
+    ReportBadFree(C, ArgVal, ArgExpr->getSourceRange());
+    return NULL;
+  }
+  
+  const MemSpaceRegion *MS = R->getMemorySpace();
+  
+  // Parameters, locals, statics, and globals shouldn't be freed.
+  if (!(isa<UnknownSpaceRegion>(MS) || isa<HeapSpaceRegion>(MS))) {
+    // FIXME: at the time this code was written, malloc() regions were
+    // represented by conjured symbols, which are all in UnknownSpaceRegion.
+    // This means that there isn't actually anything from HeapSpaceRegion
+    // that should be freed, even though we allow it here.
+    // Of course, free() can work on memory allocated outside the current
+    // function, so UnknownSpaceRegion is always a possibility.
+    // False negatives are better than false positives.
+    
+    ReportBadFree(C, ArgVal, ArgExpr->getSourceRange());
+    return NULL;
+  }
+  
+  const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(R);
+  // Various cases could lead to non-symbol values here.
+  // For now, ignore them.
+  if (!SR)
+    return state;
+
+  SymbolRef Sym = SR->getSymbol();
+  
   const RefState *RS = state->get<RegionState>(Sym);
 
   // If the symbol has not been tracked, return. This is possible when free() is
@@ -214,6 +284,135 @@ const GRState *MallocChecker::FreeMemAux(CheckerContext &C, const CallExpr *CE,
   return state->set<RegionState>(Sym, RefState::getReleased(CE));
 }
 
+bool MallocChecker::SummarizeValue(llvm::raw_ostream& os, SVal V) {
+  if (nonloc::ConcreteInt *IntVal = dyn_cast<nonloc::ConcreteInt>(&V))
+    os << "an integer (" << IntVal->getValue() << ")";
+  else if (loc::ConcreteInt *ConstAddr = dyn_cast<loc::ConcreteInt>(&V))
+    os << "a constant address (" << ConstAddr->getValue() << ")";
+  else if (loc::GotoLabel *Label = dyn_cast<loc::GotoLabel>(&V))
+    os << "the address of the label '"
+       << Label->getLabel()->getID()->getName()
+       << "'";
+  else
+    return false;
+  
+  return true;
+}
+
+bool MallocChecker::SummarizeRegion(llvm::raw_ostream& os,
+                                    const MemRegion *MR) {
+  switch (MR->getKind()) {
+  case MemRegion::FunctionTextRegionKind: {
+    const FunctionDecl *FD = cast<FunctionTextRegion>(MR)->getDecl();
+    if (FD)
+      os << "the address of the function '" << FD << "'";
+    else
+      os << "the address of a function";
+    return true;
+  }
+  case MemRegion::BlockTextRegionKind:
+    os << "block text";
+    return true;
+  case MemRegion::BlockDataRegionKind:
+    // FIXME: where the block came from?
+    os << "a block";
+    return true;
+  default: {
+    const MemSpaceRegion *MS = MR->getMemorySpace();
+    
+    switch (MS->getKind()) {
+    case MemRegion::StackLocalsSpaceRegionKind: {
+      const VarRegion *VR = dyn_cast<VarRegion>(MR);
+      const VarDecl *VD;
+      if (VR)
+        VD = VR->getDecl();
+      else
+        VD = NULL;
+      
+      if (VD)
+        os << "the address of the local variable '" << VD->getName() << "'";
+      else
+        os << "the address of a local stack variable";
+      return true;
+    }
+    case MemRegion::StackArgumentsSpaceRegionKind: {
+      const VarRegion *VR = dyn_cast<VarRegion>(MR);
+      const VarDecl *VD;
+      if (VR)
+        VD = VR->getDecl();
+      else
+        VD = NULL;
+      
+      if (VD)
+        os << "the address of the parameter '" << VD->getName() << "'";
+      else
+        os << "the address of a parameter";
+      return true;
+    }
+    case MemRegion::NonStaticGlobalSpaceRegionKind:
+    case MemRegion::StaticGlobalSpaceRegionKind: {
+      const VarRegion *VR = dyn_cast<VarRegion>(MR);
+      const VarDecl *VD;
+      if (VR)
+        VD = VR->getDecl();
+      else
+        VD = NULL;
+      
+      if (VD) {
+        if (VD->isStaticLocal())
+          os << "the address of the static variable '" << VD->getName() << "'";
+        else
+          os << "the address of the global variable '" << VD->getName() << "'";
+      } else
+        os << "the address of a global variable";
+      return true;
+    }
+    default:
+      return false;
+    }
+  }
+  }
+}
+
+void MallocChecker::ReportBadFree(CheckerContext &C, SVal ArgVal,
+                                  SourceRange range) {
+  ExplodedNode *N = C.GenerateSink();
+  if (N) {
+    if (!BT_BadFree)
+      BT_BadFree = new BuiltinBug("Bad free");
+    
+    llvm::SmallString<100> buf;
+    llvm::raw_svector_ostream os(buf);
+    
+    const MemRegion *MR = ArgVal.getAsRegion();
+    if (MR) {
+      while (const ElementRegion *ER = dyn_cast<ElementRegion>(MR))
+        MR = ER->getSuperRegion();
+      
+      // Special case for alloca()
+      if (isa<AllocaRegion>(MR))
+        os << "Argument to free() was allocated by alloca(), not malloc()";
+      else {
+        os << "Argument to free() is ";
+        if (SummarizeRegion(os, MR))
+          os << ", which is not memory allocated by malloc()";
+        else
+          os << "not memory allocated by malloc()";
+      }
+    } else {
+      os << "Argument to free() is ";
+      if (SummarizeValue(os, ArgVal))
+        os << ", which is not memory allocated by malloc()";
+      else
+        os << "not memory allocated by malloc()";
+    }
+    
+    EnhancedBugReport *R = new EnhancedBugReport(*BT_BadFree, os.str(), N);
+    R->addRange(range);
+    C.EmitReport(R);
+  }
+}
+
 void MallocChecker::ReallocMem(CheckerContext &C, const CallExpr *CE) {
   const GRState *state = C.getState();
   const Expr *Arg0 = CE->getArg(0);
@@ -234,7 +433,8 @@ void MallocChecker::ReallocMem(CheckerContext &C, const CallExpr *CE) {
     if (Sym)
       stateEqual = stateEqual->set<RegionState>(Sym, RefState::getReleased(CE));
 
-    const GRState *stateMalloc = MallocMemAux(C, CE, CE->getArg(1), stateEqual);
+    const GRState *stateMalloc = MallocMemAux(C, CE, CE->getArg(1), 
+                                              UndefinedVal(), stateEqual);
     C.addTransition(stateMalloc);
   }
 
@@ -256,15 +456,31 @@ void MallocChecker::ReallocMem(CheckerContext &C, const CallExpr *CE) {
       if (stateFree) {
         // FIXME: We should copy the content of the original buffer.
         const GRState *stateRealloc = MallocMemAux(C, CE, CE->getArg(1), 
-                                                   stateFree);
+                                                   UnknownVal(), stateFree);
         C.addTransition(stateRealloc);
       }
     }
   }
 }
 
-void MallocChecker::EvalDeadSymbols(CheckerContext &C, const Stmt *S,
-                                    SymbolReaper &SymReaper) {
+void MallocChecker::CallocMem(CheckerContext &C, const CallExpr *CE) {
+  const GRState *state = C.getState();
+  
+  ValueManager &ValMgr = C.getValueManager();
+  SValuator &SVator = C.getSValuator();
+
+  SVal Count = state->getSVal(CE->getArg(0));
+  SVal EleSize = state->getSVal(CE->getArg(1));
+  SVal TotalSize = SVator.EvalBinOp(state, BinaryOperator::Mul, Count, EleSize,
+                                    ValMgr.getContext().getSizeType());
+  
+  SVal Zero = ValMgr.makeZeroVal(ValMgr.getContext().CharTy);
+
+  state = MallocMemAux(C, CE, TotalSize, Zero, state);
+  C.addTransition(state);
+}
+
+void MallocChecker::EvalDeadSymbols(CheckerContext &C,SymbolReaper &SymReaper) {
   for (SymbolReaper::dead_iterator I = SymReaper.dead_begin(),
          E = SymReaper.dead_end(); I != E; ++I) {
     SymbolRef Sym = *I;

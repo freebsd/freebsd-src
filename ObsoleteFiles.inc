@@ -14,6 +14,14 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100720: new clang import which bumps version from 2.0 to 2.8
+OLD_FILES+=usr/include/clang/2.0/emmintrin.h
+OLD_FILES+=usr/include/clang/2.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.0/mmintrin.h
+OLD_FILES+=usr/include/clang/2.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/xmmintrin.h
+OLD_DIRS+=usr/include/clang/2.0
 # 20100706: removed pc-sysinstall's detect-vmware.sh
 OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-vmware.sh
 # 20100701: [powerpc] removed <machine/intr.h>

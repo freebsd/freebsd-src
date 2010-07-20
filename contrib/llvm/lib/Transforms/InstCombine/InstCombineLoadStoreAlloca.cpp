@@ -13,6 +13,7 @@
 
 #include "InstCombine.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/Analysis/Loads.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -22,6 +23,18 @@ using namespace llvm;
 STATISTIC(NumDeadStore, "Number of dead stores eliminated");
 
 Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
+  // Ensure that the alloca array size argument has type intptr_t, so that
+  // any casting is exposed early.
+  if (TD) {
+    const Type *IntPtrTy = TD->getIntPtrType(AI.getContext());
+    if (AI.getArraySize()->getType() != IntPtrTy) {
+      Value *V = Builder->CreateIntCast(AI.getArraySize(),
+                                        IntPtrTy, false);
+      AI.setOperand(0, V);
+      return &AI;
+    }
+  }
+
   // Convert: alloca Ty, C - where C is a constant != 1 into: alloca [C x Ty], 1
   if (AI.isArrayAllocation()) {  // Check C != 1
     if (const ConstantInt *C = dyn_cast<ConstantInt>(AI.getArraySize())) {
@@ -352,10 +365,11 @@ DbgDeclareInst *InstCombiner::hasOneUsePlusDeclare(Value *V) {
     return 0;
   for (Value::use_iterator UI = V->use_begin(), E = V->use_end();
        UI != E; ++UI) {
-    if (DbgDeclareInst *DI = dyn_cast<DbgDeclareInst>(UI))
+    User *U = *UI;
+    if (DbgDeclareInst *DI = dyn_cast<DbgDeclareInst>(U))
       return DI;
-    if (isa<BitCastInst>(UI) && UI->hasOneUse()) {
-      if (DbgDeclareInst *DI = dyn_cast<DbgDeclareInst>(UI->use_begin()))
+    if (isa<BitCastInst>(U) && U->hasOneUse()) {
+      if (DbgDeclareInst *DI = dyn_cast<DbgDeclareInst>(U->use_begin()))
         return DI;
       }
   }
@@ -511,17 +525,20 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
   // Determine whether Dest has exactly two predecessors and, if so, compute
   // the other predecessor.
   pred_iterator PI = pred_begin(DestBB);
+  BasicBlock *P = *PI;
   BasicBlock *OtherBB = 0;
-  if (*PI != StoreBB)
-    OtherBB = *PI;
-  ++PI;
-  if (PI == pred_end(DestBB))
+
+  if (P != StoreBB)
+    OtherBB = P;
+
+  if (++PI == pred_end(DestBB))
     return false;
   
-  if (*PI != StoreBB) {
+  P = *PI;
+  if (P != StoreBB) {
     if (OtherBB)
       return false;
-    OtherBB = *PI;
+    OtherBB = P;
   }
   if (++PI != pred_end(DestBB))
     return false;

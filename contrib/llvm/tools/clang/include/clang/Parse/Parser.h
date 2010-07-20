@@ -72,6 +72,7 @@ namespace prec {
 class Parser {
   friend class PragmaUnusedHandler;
   friend class ColonProtectionRAIIObject;
+  friend class ParenBraceBracketBalancer;
   PrettyStackTraceParserEntry CrashInfo;
 
   Preprocessor &PP;
@@ -93,7 +94,6 @@ class Parser {
   /// and SemaActions for those uses that don't matter.
   Action &Actions;
 
-  Scope *CurScope;
   Diagnostic &Diags;
 
   /// ScopeCache - Cache scopes to reduce malloc traffic.
@@ -140,7 +140,8 @@ public:
   Action &getActions() const { return Actions; }
 
   const Token &getCurToken() const { return Tok; }
-
+  Scope *getCurScope() const { return Actions.getCurScope(); }
+  
   // Type forwarding.  All of these are statically 'void*', but they may all be
   // different actual classes based on the actions in place.
   typedef Action::ExprTy ExprTy;
@@ -832,8 +833,8 @@ private:
   //===--------------------------------------------------------------------===//
   // C99 6.9: External Definitions.
   DeclGroupPtrTy ParseExternalDeclaration(CXX0XAttributeList Attr);
-  bool isDeclarationAfterDeclarator();
-  bool isStartOfFunctionDefinition();
+  bool isDeclarationAfterDeclarator() const;
+  bool isStartOfFunctionDefinition(const ParsingDeclarator &Declarator);
   DeclGroupPtrTy ParseDeclarationOrFunctionDefinition(AttributeList *Attr,
             AccessSpecifier AS = AS_none);
   DeclGroupPtrTy ParseDeclarationOrFunctionDefinition(ParsingDeclSpec &DS,
@@ -1059,6 +1060,7 @@ private:
   OwningExprResult ParseObjCEncodeExpression(SourceLocation AtLoc);
   OwningExprResult ParseObjCSelectorExpression(SourceLocation AtLoc);
   OwningExprResult ParseObjCProtocolExpression(SourceLocation AtLoc);
+  bool isSimpleObjCMessageExpression();
   OwningExprResult ParseObjCMessageExpression();
   OwningExprResult ParseObjCMessageExpressionBody(SourceLocation LBracloc,
                                                   SourceLocation SuperLoc,
@@ -1345,14 +1347,14 @@ private:
       CreatedScope = true;
       P.EnterScope(0); // Not a decl scope.
 
-      if (!P.Actions.ActOnCXXEnterDeclaratorScope(P.CurScope, SS))
+      if (!P.Actions.ActOnCXXEnterDeclaratorScope(P.getCurScope(), SS))
         EnteredScope = true;
     }
 
     ~DeclaratorScopeObj() {
       if (EnteredScope) {
         assert(SS.isSet() && "C++ scope was cleared ?");
-        P.Actions.ActOnCXXExitDeclaratorScope(P.CurScope, SS);
+        P.Actions.ActOnCXXExitDeclaratorScope(P.getCurScope(), SS);
       }
       if (CreatedScope)
         P.ExitScope();

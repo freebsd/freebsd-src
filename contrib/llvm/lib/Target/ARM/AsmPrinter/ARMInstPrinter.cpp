@@ -442,7 +442,7 @@ void ARMInstPrinter::printAddrMode6Operand(const MCInst *MI, unsigned OpNum,
   O << "[" << getRegisterName(MO1.getReg());
   if (MO2.getImm()) {
     // FIXME: Both darwin as and GNU as violate ARM docs here.
-    O << ", :" << MO2.getImm();
+    O << ", :" << (MO2.getImm() << 3);
   }
   O << "]";
 }
@@ -779,22 +779,10 @@ void ARMInstPrinter::printVFPf64ImmOperand(const MCInst *MI, unsigned OpNum,
   O << '#' << MI->getOperand(OpNum).getImm();
 }
 
-void ARMInstPrinter::printHex8ImmOperand(const MCInst *MI, unsigned OpNum,
-                                         raw_ostream &O) {
-  O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xff);
-}
-
-void ARMInstPrinter::printHex16ImmOperand(const MCInst *MI, unsigned OpNum,
-                                          raw_ostream &O) {
-  O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xffff);
-}
-
-void ARMInstPrinter::printHex32ImmOperand(const MCInst *MI, unsigned OpNum,
-                                          raw_ostream &O) {
-  O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xffffffff);
-}
-
-void ARMInstPrinter::printHex64ImmOperand(const MCInst *MI, unsigned OpNum,
-                                          raw_ostream &O) {
-  O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm());
+void ARMInstPrinter::printNEONModImmOperand(const MCInst *MI, unsigned OpNum,
+                                            raw_ostream &O) {
+  unsigned EncodedImm = MI->getOperand(OpNum).getImm();
+  unsigned EltBits;
+  uint64_t Val = ARM_AM::decodeNEONModImm(EncodedImm, EltBits);
+  O << "#0x" << utohexstr(Val);
 }

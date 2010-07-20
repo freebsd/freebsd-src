@@ -178,7 +178,7 @@ bool AsmPrinter::doInitialization(Module &M) {
   if (!M.getModuleInlineAsm().empty()) {
     OutStreamer.AddComment("Start of file scope inline assembly");
     OutStreamer.AddBlankLine();
-    EmitInlineAsm(M.getModuleInlineAsm(), 0/*no loc cookie*/);
+    EmitInlineAsm(M.getModuleInlineAsm()+"\n", 0/*no loc cookie*/);
     OutStreamer.AddComment("End of file scope inline assembly");
     OutStreamer.AddBlankLine();
   }
@@ -199,7 +199,7 @@ void AsmPrinter::EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const {
   case GlobalValue::LinkOnceODRLinkage:
   case GlobalValue::WeakAnyLinkage:
   case GlobalValue::WeakODRLinkage:
-  case GlobalValue::LinkerPrivateLinkage:
+  case GlobalValue::LinkerPrivateWeakLinkage:
     if (MAI->getWeakDefDirective() != 0) {
       // .globl _foo
       OutStreamer.EmitSymbolAttribute(GVSym, MCSA_Global);
@@ -225,6 +225,7 @@ void AsmPrinter::EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const {
     break;
   case GlobalValue::PrivateLinkage:
   case GlobalValue::InternalLinkage:
+  case GlobalValue::LinkerPrivateLinkage:
     break;
   default:
     llvm_unreachable("Unknown linkage type!");
@@ -330,7 +331,6 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
     else if (GVKind.isThreadData()) {
       OutStreamer.SwitchSection(TheSection);
 
-      EmitLinkage(GV->getLinkage(), MangSym);
       EmitAlignment(AlignLog, GV);      
       OutStreamer.EmitLabel(MangSym);
       
@@ -353,7 +353,7 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
     //   - spare pointer, used when mapped by the runtime
     //   - pointer to mangled symbol above with initializer
     unsigned PtrSize = TD->getPointerSizeInBits()/8;
-    OutStreamer.EmitSymbolValue(GetExternalSymbolSymbol("__tlv_bootstrap"),
+    OutStreamer.EmitSymbolValue(GetExternalSymbolSymbol("_tlv_bootstrap"),
                           PtrSize, 0);
     OutStreamer.EmitIntValue(0, PtrSize, 0);
     OutStreamer.EmitSymbolValue(MangSym, PtrSize, 0);
@@ -428,20 +428,12 @@ void AsmPrinter::EmitFunctionHeader() {
   
   // Emit pre-function debug and/or EH information.
   if (DE) {
-    if (TimePassesIsEnabled) {
-      NamedRegionTimer T(EHTimerName, DWARFGroupName);
-      DE->BeginFunction(MF);
-    } else {
-      DE->BeginFunction(MF);
-    }
+    NamedRegionTimer T(EHTimerName, DWARFGroupName, TimePassesIsEnabled);
+    DE->BeginFunction(MF);
   }
   if (DD) {
-    if (TimePassesIsEnabled) {
-      NamedRegionTimer T(DbgTimerName, DWARFGroupName);
-      DD->beginFunction(MF);
-    } else {
-      DD->beginFunction(MF);
-    }
+    NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
+    DD->beginFunction(MF);
   }
 }
 
@@ -458,14 +450,11 @@ void AsmPrinter::EmitFunctionEntryLabel() {
 }
 
 
-/// EmitComments - Pretty-print comments for instructions.
-static void EmitComments(const MachineInstr &MI, raw_ostream &CommentOS) {
-  const MachineFunction *MF = MI.getParent()->getParent();
-  const TargetMachine &TM = MF->getTarget();
-  
-  DebugLoc DL = MI.getDebugLoc();
+static void EmitDebugLoc(DebugLoc DL, const MachineFunction *MF, 
+                         raw_ostream &CommentOS) {
+  const LLVMContext &Ctx = MF->getFunction()->getContext();
   if (!DL.isUnknown()) {          // Print source line info.
-    DIScope Scope(DL.getScope(MF->getFunction()->getContext()));
+    DIScope Scope(DL.getScope(Ctx));
     // Omit the directory, because it's likely to be long and uninteresting.
     if (Scope.Verify())
       CommentOS << Scope.getFilename();
@@ -474,6 +463,23 @@ static void EmitComments(const MachineInstr &MI, raw_ostream &CommentOS) {
     CommentOS << ':' << DL.getLine();
     if (DL.getCol() != 0)
       CommentOS << ':' << DL.getCol();
+    DebugLoc InlinedAtDL = DebugLoc::getFromDILocation(DL.getInlinedAt(Ctx));
+    if (!InlinedAtDL.isUnknown()) {
+      CommentOS << "[ ";
+      EmitDebugLoc(InlinedAtDL, MF, CommentOS);
+      CommentOS << " ]";
+    }
+  }
+}
+
+/// EmitComments - Pretty-print comments for instructions.
+static void EmitComments(const MachineInstr &MI, raw_ostream &CommentOS) {
+  const MachineFunction *MF = MI.getParent()->getParent();
+  const TargetMachine &TM = MF->getTarget();
+  
+  DebugLoc DL = MI.getDebugLoc();
+  if (!DL.isUnknown()) {          // Print source line info.
+    EmitDebugLoc(DL, MF, CommentOS);
     CommentOS << '\n';
   }
   
@@ -611,12 +617,8 @@ void AsmPrinter::EmitFunctionBody() {
       }
 
       if (ShouldPrintDebugScopes) {
-	if (TimePassesIsEnabled) {
-	  NamedRegionTimer T(DbgTimerName, DWARFGroupName);
-	  DD->beginScope(II);
-	} else {
-	  DD->beginScope(II);
-	}
+        NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
+        DD->beginScope(II);
       }
       
       if (isVerbose())
@@ -649,12 +651,8 @@ void AsmPrinter::EmitFunctionBody() {
       }
       
       if (ShouldPrintDebugScopes) {
-	if (TimePassesIsEnabled) {
-	  NamedRegionTimer T(DbgTimerName, DWARFGroupName);
-	  DD->endScope(II);
-	} else {
-	  DD->endScope(II);
-	}
+        NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
+        DD->endScope(II);
       }
     }
   }
@@ -692,20 +690,12 @@ void AsmPrinter::EmitFunctionBody() {
   
   // Emit post-function debug information.
   if (DD) {
-    if (TimePassesIsEnabled) {
-      NamedRegionTimer T(DbgTimerName, DWARFGroupName);
-      DD->endFunction(MF);
-    } else {
-      DD->endFunction(MF);
-    }
+    NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
+    DD->endFunction(MF);
   }
   if (DE) {
-    if (TimePassesIsEnabled) {
-      NamedRegionTimer T(EHTimerName, DWARFGroupName);
-      DE->EndFunction();
-    } else {
-      DE->EndFunction();
-    }
+    NamedRegionTimer T(EHTimerName, DWARFGroupName, TimePassesIsEnabled);
+    DE->EndFunction();
   }
   MMI->EndFunction();
   
@@ -730,19 +720,15 @@ bool AsmPrinter::doFinalization(Module &M) {
   
   // Finalize debug and EH information.
   if (DE) {
-    if (TimePassesIsEnabled) {
-      NamedRegionTimer T(EHTimerName, DWARFGroupName);
-      DE->EndModule();
-    } else {
+    {
+      NamedRegionTimer T(EHTimerName, DWARFGroupName, TimePassesIsEnabled);
       DE->EndModule();
     }
     delete DE; DE = 0;
   }
   if (DD) {
-    if (TimePassesIsEnabled) {
-      NamedRegionTimer T(DbgTimerName, DWARFGroupName);
-      DD->endModule();
-    } else {
+    {
+      NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
       DD->endModule();
     }
     delete DD; DD = 0;

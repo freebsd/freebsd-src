@@ -157,18 +157,18 @@ void Clang::AddPreprocessingOptions(const Driver &D,
   for (arg_iterator it = Args.filtered_begin(options::OPT_MT,
                                              options::OPT_MQ),
          ie = Args.filtered_end(); it != ie; ++it) {
+    const Arg *A = *it;
+    A->claim();
 
-    it->claim();
-
-    if (it->getOption().matches(options::OPT_MQ)) {
+    if (A->getOption().matches(options::OPT_MQ)) {
       CmdArgs.push_back("-MT");
       llvm::SmallString<128> Quoted;
-      QuoteTarget(it->getValue(Args), Quoted);
+      QuoteTarget(A->getValue(Args), Quoted);
       CmdArgs.push_back(Args.MakeArgString(Quoted));
 
     // -MT flag - no change
     } else {
-      it->render(Args, CmdArgs);
+      A->render(Args, CmdArgs);
     }
   }
 
@@ -252,54 +252,59 @@ void Clang::AddPreprocessingOptions(const Driver &D,
 /// getARMTargetCPU - Get the (LLVM) name of the ARM cpu we are targetting.
 //
 // FIXME: tblgen this.
-static const char *getARMTargetCPU(const ArgList &Args) {
+static const char *getARMTargetCPU(const ArgList &Args,
+                                   const llvm::Triple &Triple) {
   // FIXME: Warn on inconsistent use of -mcpu and -march.
 
   // If we have -mcpu=, use that.
   if (Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
     return A->getValue(Args);
 
-  // Otherwise, if we have -march= choose the base CPU for that arch.
+  llvm::StringRef MArch;
   if (Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
-    llvm::StringRef MArch = A->getValue(Args);
-
-    if (MArch == "armv2" || MArch == "armv2a")
-      return "arm2";
-    if (MArch == "armv3")
-      return "arm6";
-    if (MArch == "armv3m")
-      return "arm7m";
-    if (MArch == "armv4" || MArch == "armv4t")
-      return "arm7tdmi";
-    if (MArch == "armv5" || MArch == "armv5t")
-      return "arm10tdmi";
-    if (MArch == "armv5e" || MArch == "armv5te")
-      return "arm1026ejs";
-    if (MArch == "armv5tej")
-      return "arm926ej-s";
-    if (MArch == "armv6" || MArch == "armv6k")
-      return "arm1136jf-s";
-    if (MArch == "armv6j")
-      return "arm1136j-s";
-    if (MArch == "armv6z" || MArch == "armv6zk")
-      return "arm1176jzf-s";
-    if (MArch == "armv6t2")
-      return "arm1156t2-s";
-    if (MArch == "armv7" || MArch == "armv7a" || MArch == "armv7-a")
-      return "cortex-a8";
-    if (MArch == "armv7r" || MArch == "armv7-r")
-      return "cortex-r4";
-    if (MArch == "armv7m" || MArch == "armv7-m")
-      return "cortex-m3";
-    if (MArch == "ep9312")
-      return "ep9312";
-    if (MArch == "iwmmxt")
-      return "iwmmxt";
-    if (MArch == "xscale")
-      return "xscale";
+    // Otherwise, if we have -march= choose the base CPU for that arch.
+    MArch = A->getValue(Args);
+  } else {
+    // Otherwise, use the Arch from the triple.
+    MArch = Triple.getArchName();
   }
 
-  // Otherwise return the most base CPU LLVM supports.
+  if (MArch == "armv2" || MArch == "armv2a")
+    return "arm2";
+  if (MArch == "armv3")
+    return "arm6";
+  if (MArch == "armv3m")
+    return "arm7m";
+  if (MArch == "armv4" || MArch == "armv4t")
+    return "arm7tdmi";
+  if (MArch == "armv5" || MArch == "armv5t")
+    return "arm10tdmi";
+  if (MArch == "armv5e" || MArch == "armv5te")
+    return "arm1026ejs";
+  if (MArch == "armv5tej")
+    return "arm926ej-s";
+  if (MArch == "armv6" || MArch == "armv6k")
+    return "arm1136jf-s";
+  if (MArch == "armv6j")
+    return "arm1136j-s";
+  if (MArch == "armv6z" || MArch == "armv6zk")
+    return "arm1176jzf-s";
+  if (MArch == "armv6t2")
+    return "arm1156t2-s";
+  if (MArch == "armv7" || MArch == "armv7a" || MArch == "armv7-a")
+    return "cortex-a8";
+  if (MArch == "armv7r" || MArch == "armv7-r")
+    return "cortex-r4";
+  if (MArch == "armv7m" || MArch == "armv7-m")
+    return "cortex-m3";
+  if (MArch == "ep9312")
+    return "ep9312";
+  if (MArch == "iwmmxt")
+    return "iwmmxt";
+  if (MArch == "xscale")
+    return "xscale";
+
+  // If all else failed, return the most base CPU LLVM supports.
   return "arm7tdmi";
 }
 
@@ -352,7 +357,8 @@ static std::string getLLVMTriple(const ToolChain &TC, const ArgList &Args) {
     // Thumb2 is the default for V7 on Darwin.
     //
     // FIXME: Thumb should just be another -target-feaure, not in the triple.
-    llvm::StringRef Suffix = getLLVMArchSuffixForARM(getARMTargetCPU(Args));
+    llvm::StringRef Suffix =
+      getLLVMArchSuffixForARM(getARMTargetCPU(Args, Triple));
     bool ThumbDefault =
       (Suffix == "v7" && TC.getTriple().getOS() == llvm::Triple::Darwin);
     std::string ArchName = "arm";
@@ -385,6 +391,7 @@ static bool isSignedCharDefault(const llvm::Triple &Triple) {
 void Clang::AddARMTargetArgs(const ArgList &Args,
                              ArgStringList &CmdArgs) const {
   const Driver &D = getToolChain().getDriver();
+  llvm::Triple Triple = getToolChain().getTriple();
 
   // Select the ABI to use.
   //
@@ -394,27 +401,20 @@ void Clang::AddARMTargetArgs(const ArgList &Args,
     ABIName = A->getValue(Args);
   } else {
     // Select the default based on the platform.
-    switch (getToolChain().getTriple().getOS()) {
-      // FIXME: Is this right for non-Darwin and non-Linux?
-    default:
-      ABIName = "aapcs";
-      break;
-
-    case llvm::Triple::Darwin:
-      ABIName = "apcs-gnu";
-      break;
-
-    case llvm::Triple::Linux:
+    llvm::StringRef env = Triple.getEnvironmentName();
+    if (env == "gnueabi")
       ABIName = "aapcs-linux";
-      break;
-    }
+    else if (env == "eabi")
+      ABIName = "aapcs";
+    else
+      ABIName = "apcs-gnu";
   }
   CmdArgs.push_back("-target-abi");
   CmdArgs.push_back(ABIName);
 
   // Set the CPU based on -march= and -mcpu=.
   CmdArgs.push_back("-target-cpu");
-  CmdArgs.push_back(getARMTargetCPU(Args));
+  CmdArgs.push_back(getARMTargetCPU(Args, Triple));
 
   // Select the float ABI as determined by -msoft-float, -mhard-float, and
   // -mfloat-abi=.
@@ -438,20 +438,29 @@ void Clang::AddARMTargetArgs(const ArgList &Args,
 
   // If unspecified, choose the default based on the platform.
   if (FloatABI.empty()) {
-    // FIXME: This is wrong for non-Darwin, we don't have a mechanism yet for
-    // distinguishing things like linux-eabi vs linux-elf.
-    switch (getToolChain().getTriple().getOS()) {
+    const llvm::Triple &Triple = getToolChain().getTriple();
+    switch (Triple.getOS()) {
     case llvm::Triple::Darwin: {
       // Darwin defaults to "softfp" for v6 and v7.
       //
       // FIXME: Factor out an ARM class so we can cache the arch somewhere.
-      llvm::StringRef ArchName = getLLVMArchSuffixForARM(getARMTargetCPU(Args));
+      llvm::StringRef ArchName =
+        getLLVMArchSuffixForARM(getARMTargetCPU(Args, Triple));
       if (ArchName.startswith("v6") || ArchName.startswith("v7"))
         FloatABI = "softfp";
       else
         FloatABI = "soft";
       break;
     }
+
+    case llvm::Triple::Linux: {
+      llvm::StringRef Env = getToolChain().getTriple().getEnvironmentName();
+      if (Env == "gnueabi") {
+        FloatABI = "softfp";
+        break;
+      }
+    }
+    // fall through
 
     default:
       // Assume "soft", but warn the user we are guessing.
@@ -639,8 +648,8 @@ void Clang::AddX86TargetArgs(const ArgList &Args,
 
   for (arg_iterator it = Args.filtered_begin(options::OPT_m_x86_Features_Group),
          ie = Args.filtered_end(); it != ie; ++it) {
-    llvm::StringRef Name = it->getOption().getName();
-    it->claim();
+    llvm::StringRef Name = (*it)->getOption().getName();
+    (*it)->claim();
 
     // Skip over "-m".
     assert(Name.startswith("-m") && "Invalid feature name.");
@@ -792,9 +801,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
     if (JA.getType() == types::TY_Nothing) {
       CmdArgs.push_back("-fsyntax-only");
-    } else if (JA.getType() == types::TY_LLVMAsm) {
+    } else if (JA.getType() == types::TY_LLVM_IR ||
+               JA.getType() == types::TY_LTO_IR) {
       CmdArgs.push_back("-emit-llvm");
-    } else if (JA.getType() == types::TY_LLVMBC) {
+    } else if (JA.getType() == types::TY_LLVM_BC ||
+               JA.getType() == types::TY_LTO_BC) {
       CmdArgs.push_back("-emit-llvm-bc");
     } else if (JA.getType() == types::TY_PP_Asm) {
       CmdArgs.push_back("-S");
@@ -988,6 +999,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     break;
   }
 
+  // -mno-omit-leaf-frame-pointer is default.
+  if (Args.hasFlag(options::OPT_momit_leaf_frame_pointer,
+                   options::OPT_mno_omit_leaf_frame_pointer, false))
+    CmdArgs.push_back("-momit-leaf-frame-pointer");
+
   // -fno-math-errno is default.
   if (Args.hasFlag(options::OPT_fmath_errno,
                    options::OPT_fno_math_errno,
@@ -1025,6 +1041,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.AddAllArgs(CmdArgs, options::OPT_ffunction_sections);
   Args.AddAllArgs(CmdArgs, options::OPT_fdata_sections);
+
+  Args.AddAllArgs(CmdArgs, options::OPT_finstrument_functions);
 
   Args.AddLastArg(CmdArgs, options::OPT_nostdinc);
   Args.AddLastArg(CmdArgs, options::OPT_nostdincxx);
@@ -1072,8 +1090,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     else
       Std->render(Args, CmdArgs);
 
-    if (Arg *A = Args.getLastArg(options::OPT_trigraphs))
-      if (A->getIndex() > Std->getIndex())
+    if (Arg *A = Args.getLastArg(options::OPT_std_EQ, options::OPT_ansi,
+                                 options::OPT_trigraphs))
+      if (A != Std)
         A->render(Args, CmdArgs);
   } else {
     // Honor -std-default.
@@ -1146,6 +1165,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(A->getValue(Args));
   }
 
+  Args.AddLastArg(CmdArgs, options::OPT_fvisibility_inlines_hidden);
+                        
   // -fhosted is default.
   if (KernelOrKext || Args.hasFlag(options::OPT_ffreestanding,
                                    options::OPT_fhosted,
@@ -1178,12 +1199,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  Args.AddLastArg(CmdArgs, options::OPT_fno_caret_diagnostics);
   Args.AddLastArg(CmdArgs, options::OPT_fno_show_column);
   Args.AddLastArg(CmdArgs, options::OPT_fobjc_sender_dependent_dispatch);
   Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_print_source_range_info);
   Args.AddLastArg(CmdArgs, options::OPT_ftime_report);
   Args.AddLastArg(CmdArgs, options::OPT_ftrapv);
+  Args.AddLastArg(CmdArgs, options::OPT_fwrapv);
   Args.AddLastArg(CmdArgs, options::OPT_fwritable_strings);
 
   Args.AddLastArg(CmdArgs, options::OPT_pthread);
@@ -1347,6 +1368,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     D.Diag(clang::diag::warn_drv_clang_unsupported)
       << Args.getLastArg(options::OPT_funsigned_bitfields)->getAsString(Args);
 
+  // -fcaret-diagnostics is default.
+  if (!Args.hasFlag(options::OPT_fcaret_diagnostics,
+                    options::OPT_fno_caret_diagnostics, true))
+    CmdArgs.push_back("-fno-caret-diagnostics");
+
   // -fdiagnostics-fixit-info is default, only pass non-default.
   if (!Args.hasFlag(options::OPT_fdiagnostics_fixit_info,
                     options::OPT_fno_diagnostics_fixit_info))
@@ -1375,6 +1401,13 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasFlag(options::OPT_fshow_source_location,
                     options::OPT_fno_show_source_location))
     CmdArgs.push_back("-fno-show-source-location");
+
+  if (!Args.hasFlag(options::OPT_fspell_checking,
+                    options::OPT_fno_spell_checking))
+    CmdArgs.push_back("-fno-spell-checking");
+  
+  if (Arg *A = Args.getLastArg(options::OPT_fshow_overloads_EQ))
+    A->render(Args, CmdArgs);
 
   // -fdollars-in-identifiers default varies depending on platform and
   // language; only pass if specified.
@@ -1420,14 +1453,14 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddAllArgValues(CmdArgs, options::OPT_Xclang);
   for (arg_iterator it = Args.filtered_begin(options::OPT_mllvm),
          ie = Args.filtered_end(); it != ie; ++it) {
-    it->claim();
+    (*it)->claim();
 
     // We translate this by hand to the -cc1 argument, since nightly test uses
     // it and developers have been trained to spell it with -mllvm.
-    if (llvm::StringRef(it->getValue(Args, 0)) == "-disable-llvm-optzns")
+    if (llvm::StringRef((*it)->getValue(Args, 0)) == "-disable-llvm-optzns")
       CmdArgs.push_back("-disable-llvm-optzns");
     else
-      it->render(Args, CmdArgs);
+      (*it)->render(Args, CmdArgs);
   }
 
   if (Output.getType() == types::TY_Dependencies) {
@@ -1457,30 +1490,34 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.AddAllArgs(CmdArgs, options::OPT_undef);
 
-  const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "clang"));
+  std::string Exec = getToolChain().getDriver().getClangProgramPath();
 
   // Optionally embed the -cc1 level arguments into the debug info, for build
   // analysis.
   if (getToolChain().UseDwarfDebugFlags()) {
+    ArgStringList OriginalArgs;
+    for (ArgList::const_iterator it = Args.begin(),
+           ie = Args.end(); it != ie; ++it)
+      (*it)->render(Args, OriginalArgs);
+    
     llvm::SmallString<256> Flags;
     Flags += Exec;
-    for (unsigned i = 0, e = CmdArgs.size(); i != e; ++i) {
+    for (unsigned i = 0, e = OriginalArgs.size(); i != e; ++i) {
       Flags += " ";
-      Flags += CmdArgs[i];
+      Flags += OriginalArgs[i];
     }
     CmdArgs.push_back("-dwarf-debug-flags");
     CmdArgs.push_back(Args.MakeArgString(Flags.str()));
   }
 
-  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec.c_str(), CmdArgs));
 
   // Explicitly warn that these options are unsupported, even though
   // we are allowing compilation to continue.
   for (arg_iterator it = Args.filtered_begin(options::OPT_pg),
          ie = Args.filtered_end(); it != ie; ++it) {
-    it->claim();
-    D.Diag(clang::diag::warn_drv_clang_unsupported) << it->getAsString(Args);
+    (*it)->claim();
+    D.Diag(clang::diag::warn_drv_clang_unsupported) << (*it)->getAsString(Args);
   }
 
   // Claim some arguments which clang supports automatically.
@@ -1530,7 +1567,7 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasFlag(options::OPT_mrelax_all,
                     options::OPT_mno_relax_all,
                     !IsOpt))
-    CmdArgs.push_back("-mrelax-all");
+    CmdArgs.push_back("-relax-all");
 
   // FIXME: Add -force_cpusubtype_ALL support, once we have it.
 
@@ -1552,9 +1589,8 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(Input.getFilename());
   }
 
-  const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "clang"));
-  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
+  std::string Exec = getToolChain().getDriver().getClangProgramPath();
+  Dest.addCommand(new Command(JA, *this, Exec.c_str(), CmdArgs));
 }
 
 void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
@@ -1630,7 +1666,8 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
     const InputInfo &II = *it;
 
     // Don't try to pass LLVM or AST inputs to a generic gcc.
-    if (II.getType() == types::TY_LLVMBC)
+    if (II.getType() == types::TY_LLVM_IR || II.getType() == types::TY_LTO_IR ||
+        II.getType() == types::TY_LLVM_BC || II.getType() == types::TY_LTO_BC)
       D.Diag(clang::diag::err_drv_no_linker_llvm_support)
         << getToolChain().getTripleString();
     else if (II.getType() == types::TY_AST)
@@ -1653,7 +1690,7 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *GCCName = getToolChain().getDriver().CCCGenericGCCName.c_str();
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, GCCName));
+    Args.MakeArgString(getToolChain().GetProgramPath(GCCName));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -1672,7 +1709,8 @@ void gcc::Compile::RenderExtraToolArgs(const JobAction &JA,
   const Driver &D = getToolChain().getDriver();
 
   // If -flto, etc. are present then make sure not to force assembly output.
-  if (JA.getType() == types::TY_LLVMBC)
+  if (JA.getType() == types::TY_LLVM_IR || JA.getType() == types::TY_LTO_IR ||
+      JA.getType() == types::TY_LLVM_BC || JA.getType() == types::TY_LTO_BC)
     CmdArgs.push_back("-c");
   else {
     if (JA.getType() != types::TY_PP_Asm)
@@ -1845,10 +1883,10 @@ void darwin::CC1::AddCC1OptionsArgs(const ArgList &Args, ArgStringList &CmdArgs,
     for (arg_iterator it = Args.filtered_begin(options::OPT_f_Group,
                                                options::OPT_fsyntax_only),
            ie = Args.filtered_end(); it != ie; ++it) {
-      if (!it->getOption().matches(options::OPT_fbuiltin_strcat) &&
-          !it->getOption().matches(options::OPT_fbuiltin_strcpy)) {
-        it->claim();
-        it->render(Args, CmdArgs);
+      if (!(*it)->getOption().matches(options::OPT_fbuiltin_strcat) &&
+          !(*it)->getOption().matches(options::OPT_fbuiltin_strcpy)) {
+        (*it)->claim();
+        (*it)->render(Args, CmdArgs);
       }
     }
   } else
@@ -2059,7 +2097,7 @@ void darwin::Preprocess::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *CC1Name = getCC1Name(Inputs[0].getType());
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, CC1Name));
+    Args.MakeArgString(getToolChain().GetProgramPath(CC1Name));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -2079,9 +2117,11 @@ void darwin::Compile::ConstructJob(Compilation &C, const JobAction &JA,
     D.Diag(clang::diag::err_drv_argument_only_allowed_with)
       << A->getAsString(Args) << "-E";
 
-  if (Output.getType() == types::TY_LLVMAsm)
+  if (JA.getType() == types::TY_LLVM_IR ||
+      JA.getType() == types::TY_LTO_IR)
     CmdArgs.push_back("-emit-llvm");
-  else if (Output.getType() == types::TY_LLVMBC)
+  else if (JA.getType() == types::TY_LLVM_BC ||
+           JA.getType() == types::TY_LTO_BC)
     CmdArgs.push_back("-emit-llvm-bc");
   else if (Output.getType() == types::TY_AST)
     D.Diag(clang::diag::err_drv_no_ast_support)
@@ -2157,7 +2197,7 @@ void darwin::Compile::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *CC1Name = getCC1Name(Inputs[0].getType());
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, CC1Name));
+    Args.MakeArgString(getToolChain().GetProgramPath(CC1Name));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -2212,28 +2252,8 @@ void darwin::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
   // asm_final spec is empty.
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
+    Args.MakeArgString(getToolChain().GetProgramPath("as"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
-}
-
-/// Helper routine for seeing if we should use dsymutil; this is a
-/// gcc compatible hack, we should remove it and use the input
-/// type information.
-static bool isSourceSuffix(const char *Str) {
-  // match: 'C', 'CPP', 'c', 'cc', 'cp', 'c++', 'cpp', 'cxx', 'm',
-  // 'mm'.
-  return llvm::StringSwitch<bool>(Str)
-           .Case("C", true)
-           .Case("c", true)
-           .Case("m", true)
-           .Case("cc", true)
-           .Case("cp", true)
-           .Case("mm", true)
-           .Case("CPP", true)
-           .Case("c++", true)
-           .Case("cpp", true)
-           .Case("cxx", true)
-           .Default(false);
 }
 
 void darwin::DarwinTool::AddDarwinArch(const ArgList &Args,
@@ -2335,8 +2355,15 @@ void darwin::Link::AddLinkArgs(const ArgList &Args,
   Args.AddAllArgs(CmdArgs, options::OPT_multiply__defined);
   Args.AddAllArgs(CmdArgs, options::OPT_multiply__defined__unused);
 
-  if (Args.hasArg(options::OPT_fpie))
-    CmdArgs.push_back("-pie");
+  if (const Arg *A = Args.getLastArg(options::OPT_fpie, options::OPT_fPIE,
+                                     options::OPT_fno_pie,
+                                     options::OPT_fno_PIE)) {
+    if (A->getOption().matches(options::OPT_fpie) ||
+        A->getOption().matches(options::OPT_fPIE))
+      CmdArgs.push_back("-pie");
+    else
+      CmdArgs.push_back("-no_pie");
+  }
 
   Args.AddLastArg(CmdArgs, options::OPT_prebind);
   Args.AddLastArg(CmdArgs, options::OPT_noprebind);
@@ -2484,7 +2511,7 @@ void darwin::Link::ConstructJob(Compilation &C, const JobAction &JA,
         Args.hasArg(options::OPT_shared_libgcc) &&
         getDarwinToolChain().isMacosxVersionLT(10, 5)) {
       const char *Str =
-        Args.MakeArgString(getToolChain().GetFilePath(C, "crt3.o"));
+        Args.MakeArgString(getToolChain().GetFilePath("crt3.o"));
       CmdArgs.push_back(Str);
     }
   }
@@ -2544,40 +2571,8 @@ void darwin::Link::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddAllArgs(CmdArgs, options::OPT_F);
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
+    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
-
-  // Find the first non-empty base input (we want to ignore linker
-  // inputs).
-  const char *BaseInput = "";
-  for (unsigned i = 0, e = Inputs.size(); i != e; ++i) {
-    if (Inputs[i].getBaseInput()[0] != '\0') {
-      BaseInput = Inputs[i].getBaseInput();
-      break;
-    }
-  }
-
-  // Run dsymutil if we are making an executable in a single step.
-  //
-  // FIXME: Currently we don't want to do this when we are part of a
-  // universal build step, as this would end up creating stray temp
-  // files.
-  if (!LinkingOutput &&
-      Args.getLastArg(options::OPT_g_Group) &&
-      !Args.getLastArg(options::OPT_gstabs) &&
-      !Args.getLastArg(options::OPT_g0)) {
-    // FIXME: This is gross, but matches gcc. The test only considers
-    // the suffix (not the -x type), and then only of the first
-    // source input. Awesome.
-    const char *Suffix = strrchr(BaseInput, '.');
-    if (Suffix && isSourceSuffix(Suffix + 1)) {
-      const char *Exec =
-        Args.MakeArgString(getToolChain().GetProgramPath(C, "dsymutil"));
-      ArgStringList CmdArgs;
-      CmdArgs.push_back(Output.getFilename());
-      C.getJobs().addCommand(new Command(JA, *this, Exec, CmdArgs));
-    }
-  }
 }
 
 void darwin::Lipo::ConstructJob(Compilation &C, const JobAction &JA,
@@ -2600,7 +2595,27 @@ void darwin::Lipo::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(II.getFilename());
   }
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "lipo"));
+    Args.MakeArgString(getToolChain().GetProgramPath("lipo"));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
+}
+
+void darwin::Dsymutil::ConstructJob(Compilation &C, const JobAction &JA,
+                                    Job &Dest, const InputInfo &Output,
+                                    const InputInfoList &Inputs,
+                                    const ArgList &Args,
+                                    const char *LinkingOutput) const {
+  ArgStringList CmdArgs;
+
+  assert(Inputs.size() == 1 && "Unable to handle multiple inputs.");
+  const InputInfo &Input = Inputs[0];
+  assert(Input.isFilename() && "Unexpected dsymutil input.");
+  CmdArgs.push_back(Input.getFilename());
+
+  CmdArgs.push_back("-o");
+  CmdArgs.push_back(Output.getFilename());
+
+  const char *Exec =
+    Args.MakeArgString(getToolChain().GetProgramPath("dsymutil"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -2630,7 +2645,7 @@ void auroraux::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "gas"));
+    Args.MakeArgString(getToolChain().GetProgramPath("gas"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -2675,13 +2690,18 @@ void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared)) {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crt1.o")));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbegin.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                                getToolChain().GetFilePath("crt1.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                                getToolChain().GetFilePath("crti.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                                getToolChain().GetFilePath("crtbegin.o")));
     } else {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                                getToolChain().GetFilePath("crti.o")));
     }
-    CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtn.o")));
+    CmdArgs.push_back(Args.MakeArgString(
+                                getToolChain().GetFilePath("crtn.o")));
   }
 
   CmdArgs.push_back(Args.MakeArgString("-L/opt/gcc4/lib/gcc/"
@@ -2697,7 +2717,8 @@ void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
     const InputInfo &II = *it;
 
     // Don't try to pass LLVM inputs to a generic gcc.
-    if (II.getType() == types::TY_LLVMBC)
+    if (II.getType() == types::TY_LLVM_IR || II.getType() == types::TY_LTO_IR ||
+        II.getType() == types::TY_LLVM_BC || II.getType() == types::TY_LTO_BC)
       D.Diag(clang::diag::err_drv_no_linker_llvm_support)
         << getToolChain().getTripleString();
 
@@ -2725,13 +2746,12 @@ void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared))
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtend.o")));
-//    else
-//      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtendS.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                                getToolChain().GetFilePath("crtend.o")));
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
+    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -2761,7 +2781,7 @@ void openbsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
+    Args.MakeArgString(getToolChain().GetProgramPath("as"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -2805,10 +2825,13 @@ void openbsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared)) {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crt0.o")));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbegin.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crt0.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crtbegin.o")));
     } else {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbeginS.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crtbeginS.o")));
     }
   }
 
@@ -2827,7 +2850,8 @@ void openbsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
     const InputInfo &II = *it;
 
     // Don't try to pass LLVM inputs to a generic gcc.
-    if (II.getType() == types::TY_LLVMBC)
+    if (II.getType() == types::TY_LLVM_IR || II.getType() == types::TY_LTO_IR ||
+        II.getType() == types::TY_LLVM_BC || II.getType() == types::TY_LTO_BC)
       D.Diag(clang::diag::err_drv_no_linker_llvm_support)
         << getToolChain().getTripleString();
 
@@ -2855,13 +2879,15 @@ void openbsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared))
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtend.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crtend.o")));
     else
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtendS.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crtendS.o")));
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
+    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -2903,7 +2929,7 @@ void freebsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
+    Args.MakeArgString(getToolChain().GetProgramPath("as"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -2947,12 +2973,17 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared)) {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crt1.o")));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbegin.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crt1.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crti.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crtbegin.o")));
     } else {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbeginS.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crti.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crtbeginS.o")));
     }
   }
 
@@ -2965,7 +2996,8 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
     const InputInfo &II = *it;
 
     // Don't try to pass LLVM inputs to a generic gcc.
-    if (II.getType() == types::TY_LLVMBC)
+    if (II.getType() == types::TY_LLVM_IR || II.getType() == types::TY_LTO_IR ||
+        II.getType() == types::TY_LLVM_BC || II.getType() == types::TY_LTO_BC)
       D.Diag(clang::diag::err_drv_no_linker_llvm_support)
         << getToolChain().getTripleString();
 
@@ -3011,14 +3043,120 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared))
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtend.o")));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(
+                                                                  "crtend.o")));
     else
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtendS.o")));
-    CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtn.o")));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(
+                                                                 "crtendS.o")));
+    CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(
+                                                                    "crtn.o")));
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
+    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
+}
+
+void minix::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
+                                     Job &Dest, const InputInfo &Output,
+                                     const InputInfoList &Inputs,
+                                     const ArgList &Args,
+                                     const char *LinkingOutput) const {
+  ArgStringList CmdArgs;
+
+  Args.AddAllArgValues(CmdArgs, options::OPT_Wa_COMMA,
+                       options::OPT_Xassembler);
+
+  CmdArgs.push_back("-o");
+  if (Output.isPipe())
+    CmdArgs.push_back("-");
+  else
+    CmdArgs.push_back(Output.getFilename());
+
+  for (InputInfoList::const_iterator
+         it = Inputs.begin(), ie = Inputs.end(); it != ie; ++it) {
+    const InputInfo &II = *it;
+    if (II.isPipe())
+      CmdArgs.push_back("-");
+    else
+      CmdArgs.push_back(II.getFilename());
+  }
+
+  const char *Exec =
+    Args.MakeArgString(getToolChain().GetProgramPath("gas"));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
+}
+
+void minix::Link::ConstructJob(Compilation &C, const JobAction &JA,
+                                 Job &Dest, const InputInfo &Output,
+                                 const InputInfoList &Inputs,
+                                 const ArgList &Args,
+                                 const char *LinkingOutput) const {
+  const Driver &D = getToolChain().getDriver();
+  ArgStringList CmdArgs;
+
+  if (Output.isPipe()) {
+    CmdArgs.push_back("-o");
+    CmdArgs.push_back("-");
+  } else if (Output.isFilename()) {
+    CmdArgs.push_back("-o");
+    CmdArgs.push_back(Output.getFilename());
+  } else {
+    assert(Output.isNothing() && "Invalid output.");
+  }
+
+  if (!Args.hasArg(options::OPT_nostdlib) &&
+      !Args.hasArg(options::OPT_nostartfiles))
+    CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(
+                                                      "/usr/gnu/lib/crtso.o")));
+
+  Args.AddAllArgs(CmdArgs, options::OPT_L);
+  Args.AddAllArgs(CmdArgs, options::OPT_T_Group);
+  Args.AddAllArgs(CmdArgs, options::OPT_e);
+
+  for (InputInfoList::const_iterator
+         it = Inputs.begin(), ie = Inputs.end(); it != ie; ++it) {
+    const InputInfo &II = *it;
+
+    // Don't try to pass LLVM inputs to a generic gcc.
+    if (II.getType() == types::TY_LLVM_IR || II.getType() == types::TY_LTO_IR ||
+        II.getType() == types::TY_LLVM_BC || II.getType() == types::TY_LTO_BC)
+      D.Diag(clang::diag::err_drv_no_linker_llvm_support)
+        << getToolChain().getTripleString();
+
+    if (II.isPipe())
+      CmdArgs.push_back("-");
+    else if (II.isFilename())
+      CmdArgs.push_back(II.getFilename());
+    else
+      II.getInputArg().renderAsInput(Args, CmdArgs);
+  }
+
+  if (!Args.hasArg(options::OPT_nostdlib) &&
+      !Args.hasArg(options::OPT_nodefaultlibs)) {
+    if (D.CCCIsCXX) {
+      CmdArgs.push_back("-lstdc++");
+      CmdArgs.push_back("-lm");
+    }
+
+    if (Args.hasArg(options::OPT_pthread))
+      CmdArgs.push_back("-lpthread");
+    CmdArgs.push_back("-lc");
+    CmdArgs.push_back("-lgcc");
+    CmdArgs.push_back("-L/usr/gnu/lib");
+    // FIXME: fill in the correct search path for the final
+    // support libraries.
+    CmdArgs.push_back("-L/usr/gnu/lib/gcc/i686-pc-minix/4.4.3");
+  }
+
+  if (!Args.hasArg(options::OPT_nostdlib) &&
+      !Args.hasArg(options::OPT_nostartfiles)) {
+    CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(
+                                              "/usr/gnu/lib/libend.a")));
+  }
+
+  const char *Exec =
+    Args.MakeArgString(getToolChain().GetProgramPath("/usr/gnu/bin/gld"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -3057,7 +3195,7 @@ void dragonfly::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
+    Args.MakeArgString(getToolChain().GetProgramPath("as"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
@@ -3100,12 +3238,17 @@ void dragonfly::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared)) {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crt1.o")));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbegin.o")));
+      CmdArgs.push_back(
+            Args.MakeArgString(getToolChain().GetFilePath("crt1.o")));
+      CmdArgs.push_back(
+            Args.MakeArgString(getToolChain().GetFilePath("crti.o")));
+      CmdArgs.push_back(
+            Args.MakeArgString(getToolChain().GetFilePath("crtbegin.o")));
     } else {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbeginS.o")));
+      CmdArgs.push_back(
+            Args.MakeArgString(getToolChain().GetFilePath("crti.o")));
+      CmdArgs.push_back(
+            Args.MakeArgString(getToolChain().GetFilePath("crtbeginS.o")));
     }
   }
 
@@ -3118,7 +3261,8 @@ void dragonfly::Link::ConstructJob(Compilation &C, const JobAction &JA,
     const InputInfo &II = *it;
 
     // Don't try to pass LLVM inputs to a generic gcc.
-    if (II.getType() == types::TY_LLVMBC)
+    if (II.getType() == types::TY_LLVM_IR || II.getType() == types::TY_LTO_IR ||
+        II.getType() == types::TY_LLVM_BC || II.getType() == types::TY_LTO_BC)
       D.Diag(clang::diag::err_drv_no_linker_llvm_support)
         << getToolChain().getTripleString();
 
@@ -3174,13 +3318,16 @@ void dragonfly::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared))
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtend.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crtend.o")));
     else
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtendS.o")));
-    CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtn.o")));
+      CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crtendS.o")));
+    CmdArgs.push_back(Args.MakeArgString(
+                              getToolChain().GetFilePath("crtn.o")));
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
+    Args.MakeArgString(getToolChain().GetProgramPath("ld"));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }

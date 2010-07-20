@@ -32,6 +32,7 @@ namespace llvm {
     std::map<std::pair<const SCEV *, Instruction *>, AssertingVH<Value> >
       InsertedExpressions;
     std::set<Value*> InsertedValues;
+    std::set<Value*> InsertedPostIncValues;
 
     /// PostIncLoops - Addrecs referring to any of the given loops are expanded
     /// in post-inc mode. For example, expanding {1,+,1}<L> in post-inc mode
@@ -102,6 +103,10 @@ namespace llvm {
     /// clearPostInc - Disable all post-inc expansion.
     void clearPostInc() {
       PostIncLoops.clear();
+
+      // When we change the post-inc loop set, cached expansions may no
+      // longer be valid.
+      InsertedPostIncValues.clear();
     }
 
     /// disableCanonicalMode - Disable the behavior of expanding expressions in
@@ -122,6 +127,14 @@ namespace llvm {
     /// InsertBinop - Insert the specified binary operator, doing a small amount
     /// of work to avoid inserting an obviously redundant operation.
     Value *InsertBinop(Instruction::BinaryOps Opcode, Value *LHS, Value *RHS);
+
+    /// ReuseOrCreateCast - Arange for there to be a cast of V to Ty at IP,
+    /// reusing an existing cast if a suitable one exists, moving an existing
+    /// cast if a suitable one exists but isn't in the right place, or
+    /// or creating a new one.
+    Value *ReuseOrCreateCast(Value *V, const Type *Ty,
+                             Instruction::CastOps Op,
+                             BasicBlock::iterator IP);
 
     /// InsertNoopCastOfTo - Insert a cast of V to the specified type,
     /// which must be possible with a noop cast, doing what we can to
@@ -146,7 +159,7 @@ namespace llvm {
     /// inserted by the code rewriter.  If so, the client should not modify the
     /// instruction.
     bool isInsertedInstruction(Instruction *I) const {
-      return InsertedValues.count(I);
+      return InsertedValues.count(I) || InsertedPostIncValues.count(I);
     }
 
     Value *visitConstant(const SCEVConstant *S) {

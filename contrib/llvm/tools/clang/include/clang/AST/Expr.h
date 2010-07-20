@@ -162,9 +162,6 @@ public:
   };
   isLvalueResult isLvalue(ASTContext &Ctx) const;
 
-  // Same as above, but excluding checks for non-object and void types in C
-  isLvalueResult isLvalueInternal(ASTContext &Ctx) const;
-
   /// isModifiableLvalue - C99 6.3.2.1: an lvalue that does not have array type,
   /// does not have an incomplete type, does not have a const-qualified type,
   /// and if it is a structure or union, does not have any member (including,
@@ -193,6 +190,95 @@ public:
   };
   isModifiableLvalueResult isModifiableLvalue(ASTContext &Ctx,
                                               SourceLocation *Loc = 0) const;
+
+  /// \brief The return type of classify(). Represents the C++0x expression
+  ///        taxonomy.
+  class Classification {
+  public:
+    /// \brief The various classification results. Most of these mean prvalue.
+    enum Kinds {
+      CL_LValue,
+      CL_XValue,
+      CL_Function, // Functions cannot be lvalues in C.
+      CL_Void, // Void cannot be an lvalue in C.
+      CL_DuplicateVectorComponents, // A vector shuffle with dupes.
+      CL_MemberFunction, // An expression referring to a member function
+      CL_SubObjCPropertySetting,
+      CL_ClassTemporary, // A prvalue of class type
+      CL_PRValue // A prvalue for any other reason, of any other type
+    };
+    /// \brief The results of modification testing.
+    enum ModifiableType {
+      CM_Untested, // testModifiable was false.
+      CM_Modifiable,
+      CM_RValue, // Not modifiable because it's an rvalue
+      CM_Function, // Not modifiable because it's a function; C++ only
+      CM_LValueCast, // Same as CM_RValue, but indicates GCC cast-as-lvalue ext
+      CM_NotBlockQualified, // Not captured in the closure
+      CM_NoSetterProperty,// Implicit assignment to ObjC property without setter
+      CM_ConstQualified,
+      CM_ArrayType,
+      CM_IncompleteType
+    };
+
+  private:
+    friend class Expr;
+
+    unsigned short Kind;
+    unsigned short Modifiable;
+
+    explicit Classification(Kinds k, ModifiableType m)
+      : Kind(k), Modifiable(m)
+    {}
+
+  public:
+    Classification() {}
+
+    Kinds getKind() const { return static_cast<Kinds>(Kind); }
+    ModifiableType getModifiable() const {
+      assert(Modifiable != CM_Untested && "Did not test for modifiability.");
+      return static_cast<ModifiableType>(Modifiable);
+    }
+    bool isLValue() const { return Kind == CL_LValue; }
+    bool isXValue() const { return Kind == CL_XValue; }
+    bool isGLValue() const { return Kind <= CL_XValue; }
+    bool isPRValue() const { return Kind >= CL_Function; }
+    bool isRValue() const { return Kind >= CL_XValue; }
+    bool isModifiable() const { return getModifiable() == CM_Modifiable; }
+  };
+  /// \brief classify - Classify this expression according to the C++0x
+  ///        expression taxonomy.
+  ///
+  /// C++0x defines ([basic.lval]) a new taxonomy of expressions to replace the
+  /// old lvalue vs rvalue. This function determines the type of expression this
+  /// is. There are three expression types:
+  /// - lvalues are classical lvalues as in C++03.
+  /// - prvalues are equivalent to rvalues in C++03.
+  /// - xvalues are expressions yielding unnamed rvalue references, e.g. a
+  ///   function returning an rvalue reference.
+  /// lvalues and xvalues are collectively referred to as glvalues, while
+  /// prvalues and xvalues together form rvalues.
+  /// If a 
+  Classification Classify(ASTContext &Ctx) const {
+    return ClassifyImpl(Ctx, 0);
+  }
+
+  /// \brief classifyModifiable - Classify this expression according to the
+  ///        C++0x expression taxonomy, and see if it is valid on the left side
+  ///        of an assignment.
+  ///
+  /// This function extends classify in that it also tests whether the
+  /// expression is modifiable (C99 6.3.2.1p1).
+  /// \param Loc A source location that might be filled with a relevant location
+  ///            if the expression is not modifiable.
+  Classification ClassifyModifiable(ASTContext &Ctx, SourceLocation &Loc) const{
+    return ClassifyImpl(Ctx, &Loc);
+  }
+
+private:
+  Classification ClassifyImpl(ASTContext &Ctx, SourceLocation *Loc) const;
+
+public:
 
   /// \brief If this expression refers to a bit-field, retrieve the
   /// declaration of that bit-field.
@@ -414,6 +500,7 @@ struct ExplicitTemplateArgumentList {
 
   void initializeFrom(const TemplateArgumentListInfo &List);
   void copyInto(TemplateArgumentListInfo &List) const;
+  static std::size_t sizeFor(unsigned NumTemplateArgs);
   static std::size_t sizeFor(const TemplateArgumentListInfo &List);
 };
   
@@ -474,26 +561,20 @@ class DeclRefExpr : public Expr {
               ValueDecl *D, SourceLocation NameLoc,
               const TemplateArgumentListInfo *TemplateArgs,
               QualType T);
+
+  /// \brief Construct an empty declaration reference expression.
+  explicit DeclRefExpr(EmptyShell Empty)
+    : Expr(DeclRefExprClass, Empty) { }
   
-protected:
   /// \brief Computes the type- and value-dependence flags for this
   /// declaration reference expression.
   void computeDependence();
-
-  DeclRefExpr(StmtClass SC, ValueDecl *d, QualType t, SourceLocation l) :
-    Expr(SC, t, false, false), DecoratedD(d, 0), Loc(l) {
-    computeDependence();
-  }
 
 public:
   DeclRefExpr(ValueDecl *d, QualType t, SourceLocation l) :
     Expr(DeclRefExprClass, t, false, false), DecoratedD(d, 0), Loc(l) {
     computeDependence();
   }
-
-  /// \brief Construct an empty declaration reference expression.
-  explicit DeclRefExpr(EmptyShell Empty)
-    : Expr(DeclRefExprClass, Empty) { }
 
   static DeclRefExpr *Create(ASTContext &Context,
                              NestedNameSpecifier *Qualifier,
@@ -502,6 +583,10 @@ public:
                              SourceLocation NameLoc,
                              QualType T,
                              const TemplateArgumentListInfo *TemplateArgs = 0);
+
+  /// \brief Construct an empty declaration reference expression.
+  static DeclRefExpr *CreateEmpty(ASTContext &Context,
+                                  bool HasQualifier, unsigned NumTemplateArgs);
   
   ValueDecl *getDecl() { return DecoratedD.getPointer(); }
   const ValueDecl *getDecl() const { return DecoratedD.getPointer(); }
@@ -591,6 +676,9 @@ public:
   // Iterators
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
+  
+  friend class PCHStmtReader;
+  friend class PCHStmtWriter;
 };
 
 /// PredefinedExpr - [C99 6.4.2.2] - A predefined identifier such as __func__.
@@ -1560,11 +1648,6 @@ public:
       Base(base), MemberDecl(memberdecl), MemberLoc(l), IsArrow(isarrow),
       HasQualifierOrFoundDecl(false), HasExplicitTemplateArgumentList(false) {}
 
-  /// \brief Build an empty member reference expression.
-  explicit MemberExpr(EmptyShell Empty)
-    : Expr(MemberExprClass, Empty), HasQualifierOrFoundDecl(false),
-      HasExplicitTemplateArgumentList(false) { }
-
   static MemberExpr *Create(ASTContext &C, Expr *base, bool isarrow,
                             NestedNameSpecifier *qual, SourceRange qualrange,
                             ValueDecl *memberdecl, DeclAccessPair founddecl,
@@ -1771,6 +1854,10 @@ public:
     /// CK_BitCast - Used for reinterpret_cast.
     CK_BitCast,
 
+    /// CK_LValueBitCast - Used for reinterpret_cast of expressions to
+    /// a reference type.
+    CK_LValueBitCast,
+    
     /// CK_NoOp - Used for const_cast.
     CK_NoOp,
 
@@ -1874,6 +1961,7 @@ private:
     // These should not have an inheritance path.
     case CK_Unknown:
     case CK_BitCast:
+    case CK_LValueBitCast:
     case CK_NoOp:
     case CK_Dynamic:
     case CK_ToUnion:
@@ -1937,6 +2025,7 @@ public:
   }
 
   const CXXBaseSpecifierArray& getBasePath() const { return BasePath; }
+        CXXBaseSpecifierArray& getBasePath()       { return BasePath; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() >= firstCastExprConstant &&
@@ -2169,7 +2258,8 @@ public:
 
   /// predicates to categorize the respective opcodes.
   bool isMultiplicativeOp() const { return Opc >= Mul && Opc <= Rem; }
-  bool isAdditiveOp() const { return Opc == Add || Opc == Sub; }
+  static bool isAdditiveOp(Opcode Opc) { return Opc == Add || Opc == Sub; }
+  bool isAdditiveOp() const { return isAdditiveOp(Opc); }
   static bool isShiftOp(Opcode Opc) { return Opc == Shl || Opc == Shr; }
   bool isShiftOp() const { return isShiftOp(Opc); }
 
@@ -3153,7 +3243,7 @@ public:
   ~ParenListExpr() {}
 
   /// \brief Build an empty paren list.
-  //explicit ParenListExpr(EmptyShell Empty) : Expr(ParenListExprClass, Empty) { }
+  explicit ParenListExpr(EmptyShell Empty) : Expr(ParenListExprClass, Empty) { }
 
   unsigned getNumExprs() const { return NumExprs; }
 
@@ -3183,6 +3273,9 @@ public:
   // Iterators
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
+
+  friend class PCHStmtReader;
+  friend class PCHStmtWriter;
 };
 
 
@@ -3305,12 +3398,15 @@ class BlockDeclRefExpr : public Expr {
   SourceLocation Loc;
   bool IsByRef : 1;
   bool ConstQualAdded : 1;
+  Stmt *CopyConstructorVal;
 public:
   // FIXME: Fix type/value dependence!
   BlockDeclRefExpr(ValueDecl *d, QualType t, SourceLocation l, bool ByRef,
-                   bool constAdded = false)
-  : Expr(BlockDeclRefExprClass, t, false, false), D(d), Loc(l), IsByRef(ByRef),
-    ConstQualAdded(constAdded) {}
+                   bool constAdded = false,
+                   Stmt *copyConstructorVal = 0)
+  : Expr(BlockDeclRefExprClass, t, (!t.isNull() && t->isDependentType()),false), 
+    D(d), Loc(l), IsByRef(ByRef),
+    ConstQualAdded(constAdded),  CopyConstructorVal(copyConstructorVal) {}
 
   // \brief Build an empty reference to a declared variable in a
   // block.
@@ -3331,6 +3427,12 @@ public:
 
   bool isConstQualAdded() const { return ConstQualAdded; }
   void setConstQualAdded(bool C) { ConstQualAdded = C; }
+  
+  const Expr *getCopyConstructorExpr() const 
+    { return cast_or_null<Expr>(CopyConstructorVal); }
+  Expr *getCopyConstructorExpr() 
+    { return cast_or_null<Expr>(CopyConstructorVal); }
+  void setCopyConstructorExpr(Expr *E) { CopyConstructorVal = E; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == BlockDeclRefExprClass;

@@ -312,7 +312,7 @@ static int AssembleInput(const char *ProgName) {
     Str.reset(createLoggingStreamer(Str.take(), errs()));
   }
 
-  AsmParser Parser(SrcMgr, Ctx, *Str.get(), *MAI);
+  AsmParser Parser(*TheTarget, SrcMgr, Ctx, *Str.get(), *MAI);
   OwningPtr<TargetAsmParser> TAP(TheTarget->createAsmParser(Parser));
   if (!TAP) {
     errs() << ProgName 
@@ -323,8 +323,7 @@ static int AssembleInput(const char *ProgName) {
   Parser.setTargetParser(*TAP.get());
 
   int Res = Parser.Run(NoInitialTextSection);
-  if (Out != &fouts())
-    delete Out;
+  delete Out;
 
   // Delete output on errors.
   if (Res && OutputFilename != "-")
