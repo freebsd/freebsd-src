@@ -822,7 +822,8 @@ number:
 				neg = 1;
 				num = -(intmax_t)num;
 			}
-			p = ksprintn(nbuf, num, base, &tmp, upper);
+			p = ksprintn(nbuf, num, base, &n, upper);
+			tmp = 0;
 			if (sharpflag && num != 0) {
 				if (base == 8)
 					tmp++;
@@ -832,10 +833,13 @@ number:
 			if (neg)
 				tmp++;
 
-			if (!ladjust && padc != '0' && width
-			    && (width -= tmp) > 0)
-				while (width--)
-					PCHAR(padc);
+			if (!ladjust && padc == '0')
+				dwidth = width - tmp;
+			width -= tmp + imax(dwidth, n);
+			dwidth -= n;
+			if (!ladjust)
+				while (width-- > 0)
+					PCHAR(' ');
 			if (neg)
 				PCHAR('-');
 			if (sharpflag && num != 0) {
@@ -846,16 +850,15 @@ number:
 					PCHAR('x');
 				}
 			}
-			if (!ladjust && width && (width -= tmp) > 0)
-				while (width--)
-					PCHAR(padc);
+			while (dwidth-- > 0)
+				PCHAR('0');
 
 			while (*p)
 				PCHAR(*p--);
 
-			if (ladjust && width && (width -= tmp) > 0)
-				while (width--)
-					PCHAR(padc);
+			if (ladjust)
+				while (width-- > 0)
+					PCHAR(' ');
 
 			break;
 		default:
