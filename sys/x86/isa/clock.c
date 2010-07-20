@@ -666,10 +666,11 @@ attimer_attach(device_t dev)
 		sc->et.et_quality = 100;
 		sc->et.et_frequency = i8254_freq;
 		sc->et.et_min_period.sec = 0;
-		sc->et.et_min_period.frac = ((1LL << 62) / i8254_freq) << 2;
+		sc->et.et_min_period.frac =
+		    ((0x0002LLU << 48) / i8254_freq) << 16;
 		sc->et.et_max_period.sec = 0xffff / i8254_freq;
 		sc->et.et_max_period.frac =
-		    ((0xffffLL << 48) / i8254_freq) << 16;
+		    ((0xfffeLLU << 48) / i8254_freq) << 16;
 		sc->et.et_start = attimer_start;
 		sc->et.et_stop = attimer_stop;
 		sc->et.et_priv = dev;
