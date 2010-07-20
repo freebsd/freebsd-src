@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <machine/bus.h>
+#include <machine/iodev.h>
 #include <machine/pci_cfgreg.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/pci/pcireg.h>
@@ -48,22 +48,7 @@ __FBSDID("$FreeBSD$");
  *
  * In order to deal with this, we ignore resource ownership entirely, and simply
  * use the native I/O space accessor functionality.  This is Evil, but it works.
- *
- * XXX use an intermediate #define for the tag/handle
  */
-
-#ifdef __i386__
-#define ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
-#define ACPI_BUS_HANDLE		0
-#endif
-#ifdef __ia64__
-#define ACPI_BUS_SPACE_IO	IA64_BUS_SPACE_IO
-#define ACPI_BUS_HANDLE		0
-#endif
-#ifdef __amd64__
-#define ACPI_BUS_SPACE_IO	AMD64_BUS_SPACE_IO
-#define ACPI_BUS_HANDLE		0
-#endif
 
 ACPI_STATUS
 AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
@@ -71,19 +56,13 @@ AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
 
     switch (Width) {
     case 8:
-        *(u_int8_t *)Value = bus_space_read_1(ACPI_BUS_SPACE_IO,
-	    ACPI_BUS_HANDLE, InPort);
-        break;
+	*Value = iodev_read_1(InPort);
+	break;
     case 16:
-        *(u_int16_t *)Value = bus_space_read_2(ACPI_BUS_SPACE_IO,
-	    ACPI_BUS_HANDLE, InPort);
-        break;
+	*Value = iodev_read_2(InPort);
+	break;
     case 32:
-        *(u_int32_t *)Value = bus_space_read_4(ACPI_BUS_SPACE_IO,
-	    ACPI_BUS_HANDLE, InPort);
-        break;
-    default:
-        /* debug trap goes here */
+	*Value = iodev_read_4(InPort);
 	break;
     }
 
@@ -96,16 +75,13 @@ AcpiOsWritePort(ACPI_IO_ADDRESS OutPort, UINT32	Value, UINT32 Width)
 
     switch (Width) {
     case 8:
-        bus_space_write_1(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
-        break;
+	iodev_write_1(OutPort, Value);
+	break;
     case 16:
-        bus_space_write_2(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
-        break;
+	iodev_write_2(OutPort, Value);
+	break;
     case 32:
-        bus_space_write_4(ACPI_BUS_SPACE_IO, ACPI_BUS_HANDLE, OutPort, Value);
-        break;
-    default:
-        /* debug trap goes here */
+	iodev_write_4(OutPort, Value);
 	break;
     }
 
@@ -116,28 +92,15 @@ ACPI_STATUS
 AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId, UINT32 Register, void *Value,
     UINT32 Width)
 {
-    u_int32_t	byte_width = Width / 8;
-    u_int32_t	val;
+
+    if (Width == 64)
+	return (AE_SUPPORT);
 
     if (!pci_cfgregopen())
-        return (AE_NOT_EXIST);
+	return (AE_NOT_EXIST);
 
-    val = pci_cfgregread(PciId->Bus, PciId->Device, PciId->Function, Register,
-	byte_width);
-    switch (Width) {
-    case 8:
-	*(u_int8_t *)Value = val & 0xff;
-	break;
-    case 16:
-	*(u_int16_t *)Value = val & 0xffff;
-	break;
-    case 32:
-	*(u_int32_t *)Value = val;
-	break;
-    default:
-	/* debug trap goes here */
-	break;
-    }
+    *(UINT64 *)Value = pci_cfgregread(PciId->Bus, PciId->Device,
+	PciId->Function, Register, Width / 8);
 
     return (AE_OK);
 }
@@ -147,13 +110,15 @@ ACPI_STATUS
 AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
     UINT64 Value, UINT32 Width)
 {
-    u_int32_t	byte_width = Width / 8;
+
+    if (Width == 64)
+	return (AE_SUPPORT);
 
     if (!pci_cfgregopen())
     	return (AE_NOT_EXIST);
 
     pci_cfgregwrite(PciId->Bus, PciId->Device, PciId->Function, Register,
-	Value, byte_width);
+	Value, Width / 8);
 
     return (AE_OK);
 }
