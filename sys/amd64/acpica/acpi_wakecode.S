@@ -29,8 +29,6 @@
  * $FreeBSD$
  */
 
-#define LOCORE
-
 #include <machine/asmacros.h>
 #include <machine/specialreg.h>
 

@@ -99,15 +99,28 @@ SRCS+=	assym.s madt.c
 CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
 
 .if ${MACHINE_ARCH} == "amd64"
-SRCS+=	acpi_switch.S opt_global.h
+.if !defined(KERNBUILDDIR)
+CFLAGS+=-DSMP
+.endif
+SRCS+=	acpi_switch.S acpi_wakedata.h
 CLEANFILES+=	acpi_wakedata.h
 ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
 acpi_switch.o:	acpi_switch.S
 	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
-.endif
-
+acpi_wakecode.o: acpi_wakecode.S assym.s
+	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+acpi_wakecode.bin: acpi_wakecode.o
+	objcopy -S -O binary acpi_wakecode.o ${.TARGET}
+acpi_wakecode.h: acpi_wakecode.bin
+	file2c -sx 'static char wakecode[] = {' '};' < acpi_wakecode.bin > \
+	    ${.TARGET}
+acpi_wakedata.h: acpi_wakecode.o
+	nm -n --defined-only ${.ALLSRC} | while read offset dummy what; do \
+	    echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}
+.else
 acpi_wakecode.h: acpi_wakecode.S assym.s
 	${MAKE} -f ${.CURDIR}/../../../${MACHINE_ARCH}/acpica/Makefile \
 		MAKESRCPATH=${.CURDIR}/../../../${MACHINE_ARCH}/acpica
+.endif
 
 .include <bsd.kmod.mk>

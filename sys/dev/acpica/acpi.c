@@ -46,9 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/power.h>
 #include <sys/sbuf.h>
-#ifdef SMP
 #include <sys/sched.h>
-#endif
 #include <sys/smp.h>
 #include <sys/timetc.h>
 
@@ -2536,11 +2534,11 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	return_ACPI_STATUS (AE_OK);
     }
 
-#ifdef SMP
-    thread_lock(curthread);
-    sched_bind(curthread, 0);
-    thread_unlock(curthread);
-#endif
+    if (smp_started) {
+	thread_lock(curthread);
+	sched_bind(curthread, 0);
+	thread_unlock(curthread);
+    }
 
     /*
      * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
@@ -2621,11 +2619,11 @@ backout:
 
     mtx_unlock(&Giant);
 
-#ifdef SMP
-    thread_lock(curthread);
-    sched_unbind(curthread);
-    thread_unlock(curthread);
-#endif
+    if (smp_started) {
+	thread_lock(curthread);
+	sched_unbind(curthread);
+	thread_unlock(curthread);
+    }
 
     /* Allow another sleep request after a while. */
     timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
