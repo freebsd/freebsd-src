@@ -61,6 +61,7 @@ struct eventtimer {
 #define ET_FLAGS_ONESHOT	2
 #define ET_FLAGS_PERCPU		4
 #define ET_FLAGS_C3STOP		8
+#define ET_FLAGS_POW2DIV	16
 	int			et_quality;
 		/*
 		 * Used to determine if this timecounter is better than
@@ -69,6 +70,8 @@ struct eventtimer {
 	int			et_active;
 	u_int64_t		et_frequency;
 		/* Base frequency in Hz. */
+	struct bintime		et_min_period;
+	struct bintime		et_max_period;
 	et_start_t		*et_start;
 	et_stop_t		*et_stop;
 	et_event_cb_t		*et_event_cb;
