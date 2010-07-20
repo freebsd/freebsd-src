@@ -20,6 +20,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLocVisitor.h"
+#include "clang/Frontend/PCHReader.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Lex/Preprocessor.h"
@@ -61,9 +62,7 @@ namespace {
 
 #define TYPE(Class, Base) void Visit##Class##Type(const Class##Type *T);
 #define ABSTRACT_TYPE(Class, Base)
-#define DEPENDENT_TYPE(Class, Base)
 #include "clang/AST/TypeNodes.def"
-    void VisitInjectedClassNameType(const InjectedClassNameType *T);
   };
 }
 
@@ -130,8 +129,7 @@ void PCHTypeWriter::VisitVariableArrayType(const VariableArrayType *T) {
 void PCHTypeWriter::VisitVectorType(const VectorType *T) {
   Writer.AddTypeRef(T->getElementType(), Record);
   Record.push_back(T->getNumElements());
-  Record.push_back(T->isAltiVec());
-  Record.push_back(T->isPixel());
+  Record.push_back(T->getAltiVecSpecific());
   Code = pch::TYPE_VECTOR;
 }
 
@@ -169,16 +167,15 @@ void PCHTypeWriter::VisitFunctionProtoType(const FunctionProtoType *T) {
   Code = pch::TYPE_FUNCTION_PROTO;
 }
 
-#if 0
-// For when we want it....
 void PCHTypeWriter::VisitUnresolvedUsingType(const UnresolvedUsingType *T) {
   Writer.AddDeclRef(T->getDecl(), Record);
   Code = pch::TYPE_UNRESOLVED_USING;
 }
-#endif
 
 void PCHTypeWriter::VisitTypedefType(const TypedefType *T) {
   Writer.AddDeclRef(T->getDecl(), Record);
+  assert(!T->isCanonicalUnqualified() && "Invalid typedef ?");
+  Writer.AddTypeRef(T->getCanonicalTypeInternal(), Record);
   Code = pch::TYPE_TYPEDEF;
 }
 
@@ -198,6 +195,7 @@ void PCHTypeWriter::VisitDecltypeType(const DecltypeType *T) {
 }
 
 void PCHTypeWriter::VisitTagType(const TagType *T) {
+  Record.push_back(T->isDependentType());
   Writer.AddDeclRef(T->getDecl(), Record);
   assert(!T->isBeingDefined() &&
          "Cannot serialize in the middle of a type definition");
@@ -224,15 +222,70 @@ PCHTypeWriter::VisitSubstTemplateTypeParmType(
 void
 PCHTypeWriter::VisitTemplateSpecializationType(
                                        const TemplateSpecializationType *T) {
+  Record.push_back(T->isDependentType());
+  Writer.AddTemplateName(T->getTemplateName(), Record);
+  Record.push_back(T->getNumArgs());
+  for (TemplateSpecializationType::iterator ArgI = T->begin(), ArgE = T->end();
+         ArgI != ArgE; ++ArgI)
+    Writer.AddTemplateArgument(*ArgI, Record);
+  Writer.AddTypeRef(T->isCanonicalUnqualified() ? QualType()
+                                                : T->getCanonicalTypeInternal(),
+                    Record);
+  Code = pch::TYPE_TEMPLATE_SPECIALIZATION;
+}
+
+void
+PCHTypeWriter::VisitDependentSizedArrayType(const DependentSizedArrayType *T) {
+  VisitArrayType(T);
+  Writer.AddStmt(T->getSizeExpr());
+  Writer.AddSourceRange(T->getBracketsRange(), Record);
+  Code = pch::TYPE_DEPENDENT_SIZED_ARRAY;
+}
+
+void
+PCHTypeWriter::VisitDependentSizedExtVectorType(
+                                        const DependentSizedExtVectorType *T) {
   // FIXME: Serialize this type (C++ only)
-  assert(false && "Cannot serialize template specialization types");
+  assert(false && "Cannot serialize dependent sized extended vector types");
+}
+
+void
+PCHTypeWriter::VisitTemplateTypeParmType(const TemplateTypeParmType *T) {
+  Record.push_back(T->getDepth());
+  Record.push_back(T->getIndex());
+  Record.push_back(T->isParameterPack());
+  Writer.AddIdentifierRef(T->getName(), Record);
+  Code = pch::TYPE_TEMPLATE_TYPE_PARM;
+}
+
+void
+PCHTypeWriter::VisitDependentNameType(const DependentNameType *T) {
+  Record.push_back(T->getKeyword());
+  Writer.AddNestedNameSpecifier(T->getQualifier(), Record);
+  Writer.AddIdentifierRef(T->getIdentifier(), Record);
+  Writer.AddTypeRef(T->isCanonicalUnqualified() ? QualType()
+                                                : T->getCanonicalTypeInternal(),
+                    Record);
+  Code = pch::TYPE_DEPENDENT_NAME;
+}
+
+void
+PCHTypeWriter::VisitDependentTemplateSpecializationType(
+                                const DependentTemplateSpecializationType *T) {
+  Record.push_back(T->getKeyword());
+  Writer.AddNestedNameSpecifier(T->getQualifier(), Record);
+  Writer.AddIdentifierRef(T->getIdentifier(), Record);
+  Record.push_back(T->getNumArgs());
+  for (DependentTemplateSpecializationType::iterator
+         I = T->begin(), E = T->end(); I != E; ++I)
+    Writer.AddTemplateArgument(*I, Record);
+  Code = pch::TYPE_DEPENDENT_TEMPLATE_SPECIALIZATION;
 }
 
 void PCHTypeWriter::VisitElaboratedType(const ElaboratedType *T) {
-  Writer.AddTypeRef(T->getNamedType(), Record);
   Record.push_back(T->getKeyword());
-  // FIXME: Serialize the qualifier (C++ only)
-  assert(T->getQualifier() == 0 && "Cannot serialize qualified name types");
+  Writer.AddNestedNameSpecifier(T->getQualifier(), Record);
+  Writer.AddTypeRef(T->getNamedType(), Record);
   Code = pch::TYPE_ELABORATED;
 }
 
@@ -394,7 +447,8 @@ void TypeLocWriter::VisitTemplateSpecializationTypeLoc(
   Writer.AddSourceLocation(TL.getLAngleLoc(), Record);
   Writer.AddSourceLocation(TL.getRAngleLoc(), Record);
   for (unsigned i = 0, e = TL.getNumArgs(); i != e; ++i)
-    Writer.AddTemplateArgumentLoc(TL.getArgLoc(i), Record);
+    Writer.AddTemplateArgumentLocInfo(TL.getArgLoc(i).getArgument().getKind(),
+                                      TL.getArgLoc(i).getLocInfo(), Record);
 }
 void TypeLocWriter::VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
   Writer.AddSourceLocation(TL.getKeywordLoc(), Record);
@@ -407,6 +461,17 @@ void TypeLocWriter::VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
   Writer.AddSourceLocation(TL.getKeywordLoc(), Record);
   Writer.AddSourceRange(TL.getQualifierRange(), Record);
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitDependentTemplateSpecializationTypeLoc(
+       DependentTemplateSpecializationTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getKeywordLoc(), Record);
+  Writer.AddSourceRange(TL.getQualifierRange(), Record);
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+  Writer.AddSourceLocation(TL.getLAngleLoc(), Record);
+  Writer.AddSourceLocation(TL.getRAngleLoc(), Record);
+  for (unsigned I = 0, E = TL.getNumArgs(); I != E; ++I)
+    Writer.AddTemplateArgumentLocInfo(TL.getArgLoc(I).getArgument().getKind(),
+                                      TL.getArgLoc(I).getLocInfo(), Record);
 }
 void TypeLocWriter::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
@@ -564,6 +629,7 @@ void PCHWriter::WriteBlockInfoBlock() {
   RECORD(VERSION_CONTROL_BRANCH_REVISION);
   RECORD(UNUSED_STATIC_FUNCS);
   RECORD(MACRO_DEFINITION_OFFSETS);
+  RECORD(CHAINED_METADATA);
   
   // SourceManager Block.
   BLOCK(SOURCE_MANAGER_BLOCK);
@@ -683,24 +749,27 @@ void PCHWriter::WriteMetadata(ASTContext &Context, const char *isysroot) {
   // Metadata
   const TargetInfo &Target = Context.Target;
   BitCodeAbbrev *MetaAbbrev = new BitCodeAbbrev();
-  MetaAbbrev->Add(BitCodeAbbrevOp(pch::METADATA));
+  MetaAbbrev->Add(BitCodeAbbrevOp(
+                    Chain ? pch::CHAINED_METADATA : pch::METADATA));
   MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // PCH major
   MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // PCH minor
   MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Clang major
   MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Clang minor
   MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Relocatable
-  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Target triple
+  // Target triple or chained PCH name
+  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
   unsigned MetaAbbrevCode = Stream.EmitAbbrev(MetaAbbrev);
 
   RecordData Record;
-  Record.push_back(pch::METADATA);
+  Record.push_back(Chain ? pch::CHAINED_METADATA : pch::METADATA);
   Record.push_back(pch::VERSION_MAJOR);
   Record.push_back(pch::VERSION_MINOR);
   Record.push_back(CLANG_VERSION_MAJOR);
   Record.push_back(CLANG_VERSION_MINOR);
   Record.push_back(isysroot != 0);
-  const std::string &TripleStr = Target.getTriple().getTriple();
-  Stream.EmitRecordWithBlob(MetaAbbrevCode, Record, TripleStr);
+  // FIXME: This writes the absolute path for chained headers.
+  const std::string &BlobStr = Chain ? Chain->getFileName() : Target.getTriple().getTriple();
+  Stream.EmitRecordWithBlob(MetaAbbrevCode, Record, BlobStr);
 
   // Original file name
   SourceManager &SM = Context.getSourceManager();
@@ -779,11 +848,8 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
   Record.push_back(LangOpts.MathErrno); // Math functions must respect errno
                                   // (modulo the platform support).
 
-  Record.push_back(LangOpts.OverflowChecking); // Extension to call a handler function when
-                                  // signed integer arithmetic overflows.
-
-  Record.push_back(LangOpts.HeinousExtensions); // Extensions that we really don't like and
-                                  // may be ripped out at any time.
+  Record.push_back(LangOpts.getSignedOverflowBehavior());
+  Record.push_back(LangOpts.HeinousExtensions);
 
   Record.push_back(LangOpts.Optimize); // Whether __OPTIMIZE__ should be defined.
   Record.push_back(LangOpts.OptimizeSize); // Whether __OPTIMIZE_SIZE__ should be
@@ -807,6 +873,7 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
   Record.push_back(LangOpts.OpenCL);
   Record.push_back(LangOpts.CatchUndefined);
   Record.push_back(LangOpts.ElideConstructors);
+  Record.push_back(LangOpts.SpellChecking);
   Stream.EmitRecord(pch::LANGUAGE_OPTIONS, Record);
 }
 
@@ -866,8 +933,7 @@ public:
 } // end anonymous namespace
 
 /// \brief Write the stat() system call cache to the PCH file.
-void PCHWriter::WriteStatCache(MemorizeStatCalls &StatCalls,
-                               const char *isysroot) {
+void PCHWriter::WriteStatCache(MemorizeStatCalls &StatCalls) {
   // Build the on-disk hash table containing information about every
   // stat() call.
   OnDiskChainedHashTableGenerator<PCHStatCacheTrait> Generator;
@@ -876,7 +942,6 @@ void PCHWriter::WriteStatCache(MemorizeStatCalls &StatCalls,
                                 StatEnd = StatCalls.end();
        Stat != StatEnd; ++Stat, ++NumStatEntries) {
     const char *Filename = Stat->first();
-    Filename = adjustFilenameForRelocatablePCH(Filename, isysroot);
     Generator.insert(Filename, Stat->second);
   }
 
@@ -1347,16 +1412,7 @@ void PCHWriter::WriteType(QualType T) {
 #define TYPE(Class, Base) \
     case Type::Class: W.Visit##Class##Type(cast<Class##Type>(T)); break;
 #define ABSTRACT_TYPE(Class, Base)
-#define DEPENDENT_TYPE(Class, Base)
 #include "clang/AST/TypeNodes.def"
-
-      // For all of the dependent type nodes (which only occur in C++
-      // templates), produce an error.
-#define TYPE(Class, Base)
-#define DEPENDENT_TYPE(Class, Base) case Type::Class:
-#include "clang/AST/TypeNodes.def"
-      assert(false && "Cannot serialize dependent type nodes");
-      break;
     }
   }
 
@@ -1402,11 +1458,16 @@ uint64_t PCHWriter::WriteDeclContextVisibleBlock(ASTContext &Context,
   if (DC->getPrimaryContext() != DC)
     return 0;
 
-  // Since there is no name lookup into functions or methods, and we
-  // perform name lookup for the translation unit via the
-  // IdentifierInfo chains, don't bother to build a
-  // visible-declarations table for these entities.
-  if (DC->isFunctionOrMethod() || DC->isTranslationUnit())
+  // Since there is no name lookup into functions or methods, don't bother to
+  // build a visible-declarations table for these entities.
+  if (DC->isFunctionOrMethod())
+    return 0;
+
+  // If not in C++, we perform name lookup for the translation unit via the
+  // IdentifierInfo chains, don't bother to build a visible-declarations table.
+  // FIXME: In C++ we need the visible declarations in order to "see" the
+  // friend declarations, is there a way to do this without writing the table ?
+  if (DC->isTranslationUnit() && !Context.getLangOptions().CPlusPlus)
     return 0;
 
   // Force the DeclContext to build a its name-lookup table.
@@ -1832,66 +1893,66 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
     default:
       assert(0 && "Does not support PCH writing for this attribute yet!");
       break;
-    case Attr::Alias:
+    case attr::Alias:
       AddString(cast<AliasAttr>(Attr)->getAliasee(), Record);
       break;
 
-    case Attr::AlignMac68k:
+    case attr::AlignMac68k:
       break;
 
-    case Attr::Aligned:
+    case attr::Aligned:
       Record.push_back(cast<AlignedAttr>(Attr)->getAlignment());
       break;
 
-    case Attr::AlwaysInline:
+    case attr::AlwaysInline:
       break;
 
-    case Attr::AnalyzerNoReturn:
+    case attr::AnalyzerNoReturn:
       break;
 
-    case Attr::Annotate:
+    case attr::Annotate:
       AddString(cast<AnnotateAttr>(Attr)->getAnnotation(), Record);
       break;
 
-    case Attr::AsmLabel:
+    case attr::AsmLabel:
       AddString(cast<AsmLabelAttr>(Attr)->getLabel(), Record);
       break;
 
-    case Attr::BaseCheck:
+    case attr::BaseCheck:
       break;
 
-    case Attr::Blocks:
+    case attr::Blocks:
       Record.push_back(cast<BlocksAttr>(Attr)->getType()); // FIXME: stable
       break;
 
-    case Attr::CDecl:
+    case attr::CDecl:
       break;
 
-    case Attr::Cleanup:
+    case attr::Cleanup:
       AddDeclRef(cast<CleanupAttr>(Attr)->getFunctionDecl(), Record);
       break;
 
-    case Attr::Const:
+    case attr::Const:
       break;
 
-    case Attr::Constructor:
+    case attr::Constructor:
       Record.push_back(cast<ConstructorAttr>(Attr)->getPriority());
       break;
 
-    case Attr::DLLExport:
-    case Attr::DLLImport:
-    case Attr::Deprecated:
+    case attr::DLLExport:
+    case attr::DLLImport:
+    case attr::Deprecated:
       break;
 
-    case Attr::Destructor:
+    case attr::Destructor:
       Record.push_back(cast<DestructorAttr>(Attr)->getPriority());
       break;
 
-    case Attr::FastCall:
-    case Attr::Final:
+    case attr::FastCall:
+    case attr::Final:
       break;
 
-    case Attr::Format: {
+    case attr::Format: {
       const FormatAttr *Format = cast<FormatAttr>(Attr);
       AddString(Format->getType(), Record);
       Record.push_back(Format->getFormatIdx());
@@ -1899,93 +1960,93 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
       break;
     }
 
-    case Attr::FormatArg: {
+    case attr::FormatArg: {
       const FormatArgAttr *Format = cast<FormatArgAttr>(Attr);
       Record.push_back(Format->getFormatIdx());
       break;
     }
 
-    case Attr::Sentinel : {
+    case attr::Sentinel : {
       const SentinelAttr *Sentinel = cast<SentinelAttr>(Attr);
       Record.push_back(Sentinel->getSentinel());
       Record.push_back(Sentinel->getNullPos());
       break;
     }
 
-    case Attr::GNUInline:
-    case Attr::Hiding:
-    case Attr::IBActionKind:
-    case Attr::IBOutletKind:
-    case Attr::Malloc:
-    case Attr::NoDebug:
-    case Attr::NoInline:
-    case Attr::NoReturn:
-    case Attr::NoThrow:
+    case attr::GNUInline:
+    case attr::Hiding:
+    case attr::IBAction:
+    case attr::IBOutlet:
+    case attr::Malloc:
+    case attr::NoDebug:
+    case attr::NoInline:
+    case attr::NoReturn:
+    case attr::NoThrow:
       break;
 
-    case Attr::IBOutletCollectionKind: {
+    case attr::IBOutletCollection: {
       const IBOutletCollectionAttr *ICA = cast<IBOutletCollectionAttr>(Attr);
       AddDeclRef(ICA->getClass(), Record);
       break;
     }
 
-    case Attr::NonNull: {
+    case attr::NonNull: {
       const NonNullAttr *NonNull = cast<NonNullAttr>(Attr);
       Record.push_back(NonNull->size());
       Record.insert(Record.end(), NonNull->begin(), NonNull->end());
       break;
     }
 
-    case Attr::CFReturnsNotRetained:
-    case Attr::CFReturnsRetained:
-    case Attr::NSReturnsNotRetained:
-    case Attr::NSReturnsRetained:
-    case Attr::ObjCException:
-    case Attr::ObjCNSObject:
-    case Attr::Overloadable:
-    case Attr::Override:
+    case attr::CFReturnsNotRetained:
+    case attr::CFReturnsRetained:
+    case attr::NSReturnsNotRetained:
+    case attr::NSReturnsRetained:
+    case attr::ObjCException:
+    case attr::ObjCNSObject:
+    case attr::Overloadable:
+    case attr::Override:
       break;
 
-    case Attr::MaxFieldAlignment:
+    case attr::MaxFieldAlignment:
       Record.push_back(cast<MaxFieldAlignmentAttr>(Attr)->getAlignment());
       break;
 
-    case Attr::Packed:
+    case attr::Packed:
       break;
 
-    case Attr::Pure:
+    case attr::Pure:
       break;
 
-    case Attr::Regparm:
+    case attr::Regparm:
       Record.push_back(cast<RegparmAttr>(Attr)->getNumParams());
       break;
 
-    case Attr::ReqdWorkGroupSize:
+    case attr::ReqdWorkGroupSize:
       Record.push_back(cast<ReqdWorkGroupSizeAttr>(Attr)->getXDim());
       Record.push_back(cast<ReqdWorkGroupSizeAttr>(Attr)->getYDim());
       Record.push_back(cast<ReqdWorkGroupSizeAttr>(Attr)->getZDim());
       break;
 
-    case Attr::Section:
+    case attr::Section:
       AddString(cast<SectionAttr>(Attr)->getName(), Record);
       break;
 
-    case Attr::StdCall:
-    case Attr::TransparentUnion:
-    case Attr::Unavailable:
-    case Attr::Unused:
-    case Attr::Used:
+    case attr::StdCall:
+    case attr::TransparentUnion:
+    case attr::Unavailable:
+    case attr::Unused:
+    case attr::Used:
       break;
 
-    case Attr::Visibility:
+    case attr::Visibility:
       // FIXME: stable encoding
       Record.push_back(cast<VisibilityAttr>(Attr)->getVisibility());
       break;
 
-    case Attr::WarnUnusedResult:
-    case Attr::Weak:
-    case Attr::WeakRef:
-    case Attr::WeakImport:
+    case attr::WarnUnusedResult:
+    case attr::Weak:
+    case attr::WeakRef:
+    case attr::WeakImport:
       break;
     }
   }
@@ -2012,18 +2073,16 @@ void PCHWriter::SetSelectorOffset(Selector Sel, uint32_t Offset) {
   SelectorOffsets[ID - 1] = Offset;
 }
 
-PCHWriter::PCHWriter(llvm::BitstreamWriter &Stream)
-  : Stream(Stream), NextTypeID(pch::NUM_PREDEF_TYPE_IDS),
-    NumStatements(0), NumMacros(0), NumLexicalDeclContexts(0),
-    NumVisibleDeclContexts(0) { }
+PCHWriter::PCHWriter(llvm::BitstreamWriter &Stream, PCHReader *Chain)
+  : Stream(Stream), Chain(Chain), NextTypeID(pch::NUM_PREDEF_TYPE_IDS),
+    CollectedStmts(&StmtsToEmit), NumStatements(0), NumMacros(0),
+    NumLexicalDeclContexts(0), NumVisibleDeclContexts(0) {
+  if (Chain)
+    Chain->setDeserializationListener(this);
+}
 
 void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
                          const char *isysroot) {
-  using namespace llvm;
-
-  ASTContext &Context = SemaRef.Context;
-  Preprocessor &PP = SemaRef.PP;
-
   // Emit the file header.
   Stream.Emit((unsigned)'C', 8);
   Stream.Emit((unsigned)'P', 8);
@@ -2031,6 +2090,19 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
   Stream.Emit((unsigned)'H', 8);
 
   WriteBlockInfoBlock();
+
+  if (Chain)
+    WritePCHChain(SemaRef, StatCalls, isysroot);
+  else
+    WritePCHCore(SemaRef, StatCalls, isysroot);
+}
+
+void PCHWriter::WritePCHCore(Sema &SemaRef, MemorizeStatCalls *StatCalls,
+                             const char *isysroot) {
+  using namespace llvm;
+
+  ASTContext &Context = SemaRef.Context;
+  Preprocessor &PP = SemaRef.PP;
 
   // The translation unit is the first declaration we'll emit.
   DeclIDs[Context.getTranslationUnitDecl()] = 1;
@@ -2077,13 +2149,27 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
   for (unsigned I = 0, N = SemaRef.ExtVectorDecls.size(); I != N; ++I)
     AddDeclRef(SemaRef.ExtVectorDecls[I], ExtVectorDecls);
 
+  // Build a record containing all of the VTable uses information.
+  RecordData VTableUses;
+  VTableUses.push_back(SemaRef.VTableUses.size());
+  for (unsigned I = 0, N = SemaRef.VTableUses.size(); I != N; ++I) {
+    AddDeclRef(SemaRef.VTableUses[I].first, VTableUses);
+    AddSourceLocation(SemaRef.VTableUses[I].second, VTableUses);
+    VTableUses.push_back(SemaRef.VTablesUsed[SemaRef.VTableUses[I].first]);
+  }
+
+  // Build a record containing all of dynamic classes declarations.
+  RecordData DynamicClasses;
+  for (unsigned I = 0, N = SemaRef.DynamicClasses.size(); I != N; ++I)
+    AddDeclRef(SemaRef.DynamicClasses[I], DynamicClasses);
+
   // Write the remaining PCH contents.
   RecordData Record;
   Stream.EnterSubblock(pch::PCH_BLOCK_ID, 5);
   WriteMetadata(Context, isysroot);
   WriteLanguageOptions(Context.getLangOptions());
   if (StatCalls && !isysroot)
-    WriteStatCache(*StatCalls, isysroot);
+    WriteStatCache(*StatCalls);
   WriteSourceManagerBlock(Context.getSourceManager(), PP, isysroot);
   // Write the record of special types.
   Record.clear();
@@ -2104,6 +2190,7 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
   AddTypeRef(Context.getRawBlockdescriptorExtendedType(), Record);
   AddTypeRef(Context.ObjCSelRedefinitionType, Record);
   AddTypeRef(Context.getRawNSConstantStringType(), Record);
+  Record.push_back(Context.isInt128Installed());
   Stream.EmitRecord(pch::SPECIAL_TYPES, Record);
 
   // Keep writing types and declarations until all types and
@@ -2171,6 +2258,14 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
   if (!ExtVectorDecls.empty())
     Stream.EmitRecord(pch::EXT_VECTOR_DECLS, ExtVectorDecls);
 
+  // Write the record containing VTable uses information.
+  if (!VTableUses.empty())
+    Stream.EmitRecord(pch::VTABLE_USES, VTableUses);
+
+  // Write the record containing dynamic classes declarations.
+  if (!DynamicClasses.empty())
+    Stream.EmitRecord(pch::DYNAMIC_CLASSES, DynamicClasses);
+
   // Some simple statistics
   Record.clear();
   Record.push_back(NumStatements);
@@ -2178,6 +2273,64 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
   Record.push_back(NumLexicalDeclContexts);
   Record.push_back(NumVisibleDeclContexts);
   Stream.EmitRecord(pch::STATISTICS, Record);
+  Stream.ExitBlock();
+}
+
+void PCHWriter::WritePCHChain(Sema &SemaRef, MemorizeStatCalls *StatCalls,
+                              const char *isysroot) {
+  using namespace llvm;
+
+  ASTContext &Context = SemaRef.Context;
+  Preprocessor &PP = SemaRef.PP;
+  (void)PP;
+  
+  RecordData Record;
+  Stream.EnterSubblock(pch::PCH_BLOCK_ID, 5);
+  WriteMetadata(Context, isysroot);
+  // FIXME: StatCache
+  // FIXME: Source manager block
+
+  // The special types are in the chained PCH.
+
+  // We don't start with the translation unit, but with its decls that
+  // don't come from the other PCH.
+  const TranslationUnitDecl *TU = Context.getTranslationUnitDecl();
+  // FIXME: We don't want to iterate over everything here, because it needlessly
+  // deserializes the entire original PCH. Instead we only want to iterate over
+  // the stuff that's already there.
+  // All in good time, though.
+  for (DeclContext::decl_iterator I = TU->decls_begin(), E = TU->decls_end();
+       I != E; ++I) {
+    if ((*I)->getPCHLevel() == 0) {
+      (*I)->dump();
+      DeclTypesToEmit.push(*I);
+    }
+  }
+
+  Stream.EnterSubblock(pch::DECLTYPES_BLOCK_ID, 3);
+  WriteDeclsBlockAbbrevs();
+  while (!DeclTypesToEmit.empty()) {
+    DeclOrType DOT = DeclTypesToEmit.front();
+    DeclTypesToEmit.pop();
+    if (DOT.isType())
+      WriteType(DOT.getType());
+    else
+      WriteDecl(Context, DOT.getDecl());
+  }
+  Stream.ExitBlock();
+
+  // FIXME: Preprocessor
+  // FIXME: Method pool
+  // FIXME: Identifier table
+  // FIXME: Type offsets
+  // FIXME: Declaration offsets
+  // FIXME: External unnamed definitions
+  // FIXME: Tentative definitions
+  // FIXME: Unused static functions
+  // FIXME: Locally-scoped external definitions
+  // FIXME: ext_vector type names
+  // FIXME: Dynamic classes declarations
+  // FIXME: Statistics
   Stream.ExitBlock();
 }
 
@@ -2249,20 +2402,19 @@ void PCHWriter::AddCXXTemporary(const CXXTemporary *Temp, RecordData &Record) {
   AddDeclRef(Temp->getDestructor(), Record);
 }
 
-void PCHWriter::AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg,
-                                       RecordData &Record) {
-  switch (Arg.getArgument().getKind()) {
+void PCHWriter::AddTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
+                                           const TemplateArgumentLocInfo &Arg,
+                                           RecordData &Record) {
+  switch (Kind) {
   case TemplateArgument::Expression:
-    AddStmt(Arg.getLocInfo().getAsExpr());
+    AddStmt(Arg.getAsExpr());
     break;
   case TemplateArgument::Type:
-    AddTypeSourceInfo(Arg.getLocInfo().getAsTypeSourceInfo(), Record);
+    AddTypeSourceInfo(Arg.getAsTypeSourceInfo(), Record);
     break;
   case TemplateArgument::Template:
-    Record.push_back(
-                   Arg.getTemplateQualifierRange().getBegin().getRawEncoding());
-    Record.push_back(Arg.getTemplateQualifierRange().getEnd().getRawEncoding());
-    Record.push_back(Arg.getTemplateNameLoc().getRawEncoding());
+    AddSourceRange(Arg.getTemplateQualifierRange(), Record);
+    AddSourceLocation(Arg.getTemplateNameLoc(), Record);
     break;
   case TemplateArgument::Null:
   case TemplateArgument::Integral:
@@ -2270,6 +2422,21 @@ void PCHWriter::AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg,
   case TemplateArgument::Pack:
     break;
   }
+}
+
+void PCHWriter::AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg,
+                                       RecordData &Record) {
+  AddTemplateArgument(Arg.getArgument(), Record);
+
+  if (Arg.getArgument().getKind() == TemplateArgument::Expression) {
+    bool InfoHasSameExpr
+      = Arg.getArgument().getAsExpr() == Arg.getLocInfo().getAsExpr();
+    Record.push_back(InfoHasSameExpr);
+    if (InfoHasSameExpr)
+      return; // Avoid storing the same expr twice.
+  }
+  AddTemplateArgumentLocInfo(Arg.getArgument().getKind(), Arg.getLocInfo(),
+                             Record);
 }
 
 void PCHWriter::AddTypeSourceInfo(TypeSourceInfo *TInfo, RecordData &Record) {
@@ -2459,3 +2626,123 @@ void PCHWriter::AddNestedNameSpecifier(NestedNameSpecifier *NNS,
     }
   }
 }
+
+void PCHWriter::AddTemplateName(TemplateName Name, RecordData &Record) {
+  TemplateName::NameKind Kind = Name.getKind(); 
+  Record.push_back(Kind);
+  switch (Kind) {
+  case TemplateName::Template:
+    AddDeclRef(Name.getAsTemplateDecl(), Record);
+    break;
+
+  case TemplateName::OverloadedTemplate: {
+    OverloadedTemplateStorage *OvT = Name.getAsOverloadedTemplate();
+    Record.push_back(OvT->size());
+    for (OverloadedTemplateStorage::iterator I = OvT->begin(), E = OvT->end();
+           I != E; ++I)
+      AddDeclRef(*I, Record);
+    break;
+  }
+    
+  case TemplateName::QualifiedTemplate: {
+    QualifiedTemplateName *QualT = Name.getAsQualifiedTemplateName();
+    AddNestedNameSpecifier(QualT->getQualifier(), Record);
+    Record.push_back(QualT->hasTemplateKeyword());
+    AddDeclRef(QualT->getTemplateDecl(), Record);
+    break;
+  }
+    
+  case TemplateName::DependentTemplate: {
+    DependentTemplateName *DepT = Name.getAsDependentTemplateName();
+    AddNestedNameSpecifier(DepT->getQualifier(), Record);
+    Record.push_back(DepT->isIdentifier());
+    if (DepT->isIdentifier())
+      AddIdentifierRef(DepT->getIdentifier(), Record);
+    else
+      Record.push_back(DepT->getOperator());
+    break;
+  }
+  }
+}
+
+void PCHWriter::AddTemplateArgument(const TemplateArgument &Arg, 
+                                    RecordData &Record) {
+  Record.push_back(Arg.getKind());
+  switch (Arg.getKind()) {
+  case TemplateArgument::Null:
+    break;
+  case TemplateArgument::Type:
+    AddTypeRef(Arg.getAsType(), Record);
+    break;
+  case TemplateArgument::Declaration:
+    AddDeclRef(Arg.getAsDecl(), Record);
+    break;
+  case TemplateArgument::Integral:
+    AddAPSInt(*Arg.getAsIntegral(), Record);
+    AddTypeRef(Arg.getIntegralType(), Record);
+    break;
+  case TemplateArgument::Template:
+    AddTemplateName(Arg.getAsTemplate(), Record);
+    break;
+  case TemplateArgument::Expression:
+    AddStmt(Arg.getAsExpr());
+    break;
+  case TemplateArgument::Pack:
+    Record.push_back(Arg.pack_size());
+    for (TemplateArgument::pack_iterator I=Arg.pack_begin(), E=Arg.pack_end();
+           I != E; ++I)
+      AddTemplateArgument(*I, Record);
+    break;
+  }
+}
+
+void
+PCHWriter::AddTemplateParameterList(const TemplateParameterList *TemplateParams,
+                                    RecordData &Record) {
+  assert(TemplateParams && "No TemplateParams!");
+  AddSourceLocation(TemplateParams->getTemplateLoc(), Record);
+  AddSourceLocation(TemplateParams->getLAngleLoc(), Record);
+  AddSourceLocation(TemplateParams->getRAngleLoc(), Record);
+  Record.push_back(TemplateParams->size());
+  for (TemplateParameterList::const_iterator
+         P = TemplateParams->begin(), PEnd = TemplateParams->end();
+         P != PEnd; ++P)
+    AddDeclRef(*P, Record);
+}
+
+/// \brief Emit a template argument list.
+void
+PCHWriter::AddTemplateArgumentList(const TemplateArgumentList *TemplateArgs,
+                                   RecordData &Record) {
+  assert(TemplateArgs && "No TemplateArgs!");
+  Record.push_back(TemplateArgs->flat_size());
+  for (int i=0, e = TemplateArgs->flat_size(); i != e; ++i)
+    AddTemplateArgument(TemplateArgs->get(i), Record);
+}
+
+
+void
+PCHWriter::AddUnresolvedSet(const UnresolvedSetImpl &Set, RecordData &Record) {
+  Record.push_back(Set.size());
+  for (UnresolvedSetImpl::const_iterator
+         I = Set.begin(), E = Set.end(); I != E; ++I) {
+    AddDeclRef(I.getDecl(), Record);
+    Record.push_back(I.getAccess());
+  }
+}
+
+void PCHWriter::AddCXXBaseSpecifier(const CXXBaseSpecifier &Base,
+                                    RecordData &Record) {
+  Record.push_back(Base.isVirtual());
+  Record.push_back(Base.isBaseOfClass());
+  Record.push_back(Base.getAccessSpecifierAsWritten());
+  AddTypeRef(Base.getType(), Record);
+  AddSourceRange(Base.getSourceRange(), Record);
+}
+
+void PCHWriter::TypeRead(pch::TypeID ID, QualType T) {
+}
+
+void PCHWriter::DeclRead(pch::DeclID ID, const Decl *D) {
+}
+

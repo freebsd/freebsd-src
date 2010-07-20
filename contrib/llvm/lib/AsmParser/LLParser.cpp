@@ -196,19 +196,20 @@ bool LLParser::ParseTopLevelEntities() {
     // optional leading prefixes, the production is:
     // GlobalVar ::= OptionalLinkage OptionalVisibility OptionalThreadLocal
     //               OptionalAddrSpace ('constant'|'global') ...
-    case lltok::kw_private :       // OptionalLinkage
-    case lltok::kw_linker_private: // OptionalLinkage
-    case lltok::kw_internal:       // OptionalLinkage
-    case lltok::kw_weak:           // OptionalLinkage
-    case lltok::kw_weak_odr:       // OptionalLinkage
-    case lltok::kw_linkonce:       // OptionalLinkage
-    case lltok::kw_linkonce_odr:   // OptionalLinkage
-    case lltok::kw_appending:      // OptionalLinkage
-    case lltok::kw_dllexport:      // OptionalLinkage
-    case lltok::kw_common:         // OptionalLinkage
-    case lltok::kw_dllimport:      // OptionalLinkage
-    case lltok::kw_extern_weak:    // OptionalLinkage
-    case lltok::kw_external: {     // OptionalLinkage
+    case lltok::kw_private:             // OptionalLinkage
+    case lltok::kw_linker_private:      // OptionalLinkage
+    case lltok::kw_linker_private_weak: // OptionalLinkage
+    case lltok::kw_internal:            // OptionalLinkage
+    case lltok::kw_weak:                // OptionalLinkage
+    case lltok::kw_weak_odr:            // OptionalLinkage
+    case lltok::kw_linkonce:            // OptionalLinkage
+    case lltok::kw_linkonce_odr:        // OptionalLinkage
+    case lltok::kw_appending:           // OptionalLinkage
+    case lltok::kw_dllexport:           // OptionalLinkage
+    case lltok::kw_common:              // OptionalLinkage
+    case lltok::kw_dllimport:           // OptionalLinkage
+    case lltok::kw_extern_weak:         // OptionalLinkage
+    case lltok::kw_external: {          // OptionalLinkage
       unsigned Linkage, Visibility;
       if (ParseOptionalLinkage(Linkage) ||
           ParseOptionalVisibility(Visibility) ||
@@ -543,20 +544,21 @@ bool LLParser::ParseNamedMetadata() {
     return true;
 
   SmallVector<MDNode *, 8> Elts;
-  do {
-    // Null is a special case since it is typeless.
-    if (EatIfPresent(lltok::kw_null)) {
-      Elts.push_back(0);
-      continue;
-    }
+  if (Lex.getKind() != lltok::rbrace)
+    do {
+      // Null is a special case since it is typeless.
+      if (EatIfPresent(lltok::kw_null)) {
+        Elts.push_back(0);
+        continue;
+      }
 
-    if (ParseToken(lltok::exclaim, "Expected '!' here"))
-      return true;
+      if (ParseToken(lltok::exclaim, "Expected '!' here"))
+        return true;
     
-    MDNode *N = 0;
-    if (ParseMDNodeID(N)) return true;
-    Elts.push_back(N);
-  } while (EatIfPresent(lltok::comma));
+      MDNode *N = 0;
+      if (ParseMDNodeID(N)) return true;
+      Elts.push_back(N);
+    } while (EatIfPresent(lltok::comma));
 
   if (ParseToken(lltok::rbrace, "expected end of metadata node"))
     return true;
@@ -629,7 +631,8 @@ bool LLParser::ParseAlias(const std::string &Name, LocTy NameLoc,
       Linkage != GlobalValue::WeakODRLinkage &&
       Linkage != GlobalValue::InternalLinkage &&
       Linkage != GlobalValue::PrivateLinkage &&
-      Linkage != GlobalValue::LinkerPrivateLinkage)
+      Linkage != GlobalValue::LinkerPrivateLinkage &&
+      Linkage != GlobalValue::LinkerPrivateWeakLinkage)
     return Error(LinkageLoc, "invalid linkage type for alias");
 
   Constant *Aliasee;
@@ -1013,11 +1016,13 @@ bool LLParser::ParseOptionalAttrs(unsigned &Attrs, unsigned AttrKind) {
 ///   ::= /*empty*/
 ///   ::= 'private'
 ///   ::= 'linker_private'
+///   ::= 'linker_private_weak'
 ///   ::= 'internal'
 ///   ::= 'weak'
 ///   ::= 'weak_odr'
 ///   ::= 'linkonce'
 ///   ::= 'linkonce_odr'
+///   ::= 'available_externally'
 ///   ::= 'appending'
 ///   ::= 'dllexport'
 ///   ::= 'common'
@@ -1030,6 +1035,9 @@ bool LLParser::ParseOptionalLinkage(unsigned &Res, bool &HasLinkage) {
   default:                       Res=GlobalValue::ExternalLinkage; return false;
   case lltok::kw_private:        Res = GlobalValue::PrivateLinkage;       break;
   case lltok::kw_linker_private: Res = GlobalValue::LinkerPrivateLinkage; break;
+  case lltok::kw_linker_private_weak:
+    Res = GlobalValue::LinkerPrivateWeakLinkage;
+    break;
   case lltok::kw_internal:       Res = GlobalValue::InternalLinkage;      break;
   case lltok::kw_weak:           Res = GlobalValue::WeakAnyLinkage;       break;
   case lltok::kw_weak_odr:       Res = GlobalValue::WeakODRLinkage;       break;
@@ -2014,33 +2022,8 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
     ID.StrVal = Lex.getStrVal();
     ID.Kind = ValID::t_LocalName;
     break;
-  case lltok::exclaim:   // !{...} MDNode, !"foo" MDString
-    Lex.Lex();
-    
-    if (EatIfPresent(lltok::lbrace)) {
-      SmallVector<Value*, 16> Elts;
-      if (ParseMDNodeVector(Elts, PFS) ||
-          ParseToken(lltok::rbrace, "expected end of metadata node"))
-        return true;
-
-      ID.MDNodeVal = MDNode::get(Context, Elts.data(), Elts.size());
-      ID.Kind = ValID::t_MDNode;
-      return false;
-    }
-
-    // Standalone metadata reference
-    // !{ ..., !42, ... }
-    if (Lex.getKind() == lltok::APSInt) {
-      if (ParseMDNodeID(ID.MDNodeVal)) return true;
-      ID.Kind = ValID::t_MDNode;
-      return false;
-    }
-    
-    // MDString:
-    //   ::= '!' STRINGCONSTANT
-    if (ParseMDString(ID.MDStringVal)) return true;
-    ID.Kind = ValID::t_MDString;
-    return false;
+  case lltok::exclaim:   // !42, !{...}, or !"foo"
+    return ParseMetadataValue(ID, PFS);
   case lltok::APSInt:
     ID.APSIntVal = Lex.getAPSIntVal();
     ID.Kind = ValID::t_APSInt;
@@ -2521,6 +2504,42 @@ bool LLParser::ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts) {
   return false;
 }
 
+/// ParseMetadataValue
+///  ::= !42
+///  ::= !{...}
+///  ::= !"string"
+bool LLParser::ParseMetadataValue(ValID &ID, PerFunctionState *PFS) {
+  assert(Lex.getKind() == lltok::exclaim);
+  Lex.Lex();
+
+  // MDNode:
+  // !{ ... }
+  if (EatIfPresent(lltok::lbrace)) {
+    SmallVector<Value*, 16> Elts;
+    if (ParseMDNodeVector(Elts, PFS) ||
+        ParseToken(lltok::rbrace, "expected end of metadata node"))
+      return true;
+
+    ID.MDNodeVal = MDNode::get(Context, Elts.data(), Elts.size());
+    ID.Kind = ValID::t_MDNode;
+    return false;
+  }
+
+  // Standalone metadata reference
+  // !42
+  if (Lex.getKind() == lltok::APSInt) {
+    if (ParseMDNodeID(ID.MDNodeVal)) return true;
+    ID.Kind = ValID::t_MDNode;
+    return false;
+  }
+
+  // MDString:
+  //   ::= '!' STRINGCONSTANT
+  if (ParseMDString(ID.MDStringVal)) return true;
+  ID.Kind = ValID::t_MDString;
+  return false;
+}
+
 
 //===----------------------------------------------------------------------===//
 // Function Parsing.
@@ -2704,6 +2723,7 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
     break;
   case GlobalValue::PrivateLinkage:
   case GlobalValue::LinkerPrivateLinkage:
+  case GlobalValue::LinkerPrivateWeakLinkage:
   case GlobalValue::InternalLinkage:
   case GlobalValue::AvailableExternallyLinkage:
   case GlobalValue::LinkOnceAnyLinkage:
@@ -3791,8 +3811,8 @@ int LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
     }
   }
 
-  if (Size && !Size->getType()->isIntegerTy(32))
-    return Error(SizeLoc, "element count must be i32");
+  if (Size && !Size->getType()->isIntegerTy())
+    return Error(SizeLoc, "element count must have integer type");
 
   if (isAlloca) {
     Inst = new AllocaInst(Ty, Size, Alignment);
@@ -3801,6 +3821,8 @@ int LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
 
   // Autoupgrade old malloc instruction to malloc call.
   // FIXME: Remove in LLVM 3.0.
+  if (Size && !Size->getType()->isIntegerTy(32))
+    return Error(SizeLoc, "element count must be i32");
   const Type *IntPtrTy = Type::getInt32Ty(Context);
   Constant *AllocSize = ConstantExpr::getSizeOf(Ty);
   AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, IntPtrTy);
@@ -3973,6 +3995,10 @@ int LLParser::ParseInsertValue(Instruction *&Inst, PerFunctionState &PFS) {
 ///   ::= 'null' | TypeAndValue
 bool LLParser::ParseMDNodeVector(SmallVectorImpl<Value*> &Elts,
                                  PerFunctionState *PFS) {
+  // Check for an empty list.
+  if (Lex.getKind() == lltok::rbrace)
+    return false;
+
   do {
     // Null is a special case since it is typeless.
     if (EatIfPresent(lltok::kw_null)) {

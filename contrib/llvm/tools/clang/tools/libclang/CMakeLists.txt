@@ -3,7 +3,7 @@ set(SHARED_LIBRARY TRUE)
 set(LLVM_NO_RTTI 1)
 
 set(LLVM_USED_LIBS
- clangFrontend
+  clangFrontend
   clangDriver
   clangSema
   clangAnalysis
@@ -29,7 +29,6 @@ add_clang_library(libclang
   CXTypes.cpp
   ../../include/clang-c/Index.h
 )
-set_target_properties(libclang PROPERTIES OUTPUT_NAME clang)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   # FIXME: Deal with LLVM_SUBMIT_VERSION?

@@ -49,7 +49,7 @@ namespace testing {
 // after forking.
 GTEST_DECLARE_string_(death_test_style);
 
-#ifdef GTEST_HAS_DEATH_TEST
+#if GTEST_HAS_DEATH_TEST
 
 // The following macros are useful for writing death tests.
 
@@ -85,6 +85,57 @@ GTEST_DECLARE_string_(death_test_style);
 //   }
 //
 //   ASSERT_EXIT(client.HangUpServer(), KilledBySIGHUP, "Hanging up!");
+//
+// On the regular expressions used in death tests:
+//
+//   On POSIX-compliant systems (*nix), we use the <regex.h> library,
+//   which uses the POSIX extended regex syntax.
+//
+//   On other platforms (e.g. Windows), we only support a simple regex
+//   syntax implemented as part of Google Test.  This limited
+//   implementation should be enough most of the time when writing
+//   death tests; though it lacks many features you can find in PCRE
+//   or POSIX extended regex syntax.  For example, we don't support
+//   union ("x|y"), grouping ("(xy)"), brackets ("[xy]"), and
+//   repetition count ("x{5,7}"), among others.
+//
+//   Below is the syntax that we do support.  We chose it to be a
+//   subset of both PCRE and POSIX extended regex, so it's easy to
+//   learn wherever you come from.  In the following: 'A' denotes a
+//   literal character, period (.), or a single \\ escape sequence;
+//   'x' and 'y' denote regular expressions; 'm' and 'n' are for
+//   natural numbers.
+//
+//     c     matches any literal character c
+//     \\d   matches any decimal digit
+//     \\D   matches any character that's not a decimal digit
+//     \\f   matches \f
+//     \\n   matches \n
+//     \\r   matches \r
+//     \\s   matches any ASCII whitespace, including \n
+//     \\S   matches any character that's not a whitespace
+//     \\t   matches \t
+//     \\v   matches \v
+//     \\w   matches any letter, _, or decimal digit
+//     \\W   matches any character that \\w doesn't match
+//     \\c   matches any literal character c, which must be a punctuation
+//     .     matches any single character except \n
+//     A?    matches 0 or 1 occurrences of A
+//     A*    matches 0 or many occurrences of A
+//     A+    matches 1 or many occurrences of A
+//     ^     matches the beginning of a string (not that of each line)
+//     $     matches the end of a string (not that of each line)
+//     xy    matches x followed by y
+//
+//   If you accidentally use PCRE or POSIX extended regex features
+//   not implemented by us, you will get a run-time failure.  In that
+//   case, please try to rewrite your regular expression within the
+//   above syntax.
+//
+//   This implementation is *not* meant to be as highly tuned or robust
+//   as a compiled regex library, but should perform well enough for a
+//   death test, which already incurs significant overhead by launching
+//   a child process.
 //
 // Known caveats:
 //
@@ -125,23 +176,28 @@ GTEST_DECLARE_string_(death_test_style);
 // Two predicate classes that can be used in {ASSERT,EXPECT}_EXIT*:
 
 // Tests that an exit code describes a normal exit with a given exit code.
-class ExitedWithCode {
+class GTEST_API_ ExitedWithCode {
  public:
   explicit ExitedWithCode(int exit_code);
   bool operator()(int exit_status) const;
  private:
+  // No implementation - assignment is unsupported.
+  void operator=(const ExitedWithCode& other);
+
   const int exit_code_;
 };
 
+#if !GTEST_OS_WINDOWS
 // Tests that an exit code describes an exit due to termination by a
 // given signal.
-class KilledBySignal {
+class GTEST_API_ KilledBySignal {
  public:
   explicit KilledBySignal(int signum);
   bool operator()(int exit_status) const;
  private:
   const int signum_;
 };
+#endif  // !GTEST_OS_WINDOWS
 
 // EXPECT_DEBUG_DEATH asserts that the given statements die in debug mode.
 // The death testing framework causes this to have interesting semantics,
@@ -189,10 +245,10 @@ class KilledBySignal {
 #ifdef NDEBUG
 
 #define EXPECT_DEBUG_DEATH(statement, regex) \
-  do { statement; } while (false)
+  do { statement; } while (::testing::internal::AlwaysFalse())
 
 #define ASSERT_DEBUG_DEATH(statement, regex) \
-  do { statement; } while (false)
+  do { statement; } while (::testing::internal::AlwaysFalse())
 
 #else
 
@@ -204,6 +260,24 @@ class KilledBySignal {
 
 #endif  // NDEBUG for EXPECT_DEBUG_DEATH
 #endif  // GTEST_HAS_DEATH_TEST
+
+// EXPECT_DEATH_IF_SUPPORTED(statement, regex) and
+// ASSERT_DEATH_IF_SUPPORTED(statement, regex) expand to real death tests if
+// death tests are supported; otherwise they just issue a warning.  This is
+// useful when you are combining death test assertions with normal test
+// assertions in one test.
+#if GTEST_HAS_DEATH_TEST
+#define EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
+    EXPECT_DEATH(statement, regex)
+#define ASSERT_DEATH_IF_SUPPORTED(statement, regex) \
+    ASSERT_DEATH(statement, regex)
+#else
+#define EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
+    GTEST_UNSUPPORTED_DEATH_TEST_(statement, regex, )
+#define ASSERT_DEATH_IF_SUPPORTED(statement, regex) \
+    GTEST_UNSUPPORTED_DEATH_TEST_(statement, regex, return)
+#endif
+
 }  // namespace testing
 
 #endif  // GTEST_INCLUDE_GTEST_GTEST_DEATH_TEST_H_

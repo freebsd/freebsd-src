@@ -24,7 +24,7 @@ void Attr::Destroy(ASTContext &C) {
   C.Deallocate((void*)this);
 }
 
-AttrWithString::AttrWithString(Attr::Kind AK, ASTContext &C, llvm::StringRef s)
+AttrWithString::AttrWithString(attr::Kind AK, ASTContext &C, llvm::StringRef s)
   : Attr(AK) {
   assert(!s.empty());
   StrLen = s.size();
@@ -51,7 +51,7 @@ void FormatAttr::setType(ASTContext &C, llvm::StringRef type) {
 }
 
 NonNullAttr::NonNullAttr(ASTContext &C, unsigned* arg_nums, unsigned size)
-  : Attr(NonNull), ArgNums(0), Size(0) {  
+  : Attr(attr::NonNull), ArgNums(0), Size(0) {
   if (size == 0)
     return;
   assert(arg_nums);
@@ -93,6 +93,7 @@ DEF_SIMPLE_ATTR_CLONE(NSReturnsNotRetained)
 DEF_SIMPLE_ATTR_CLONE(NSReturnsRetained)
 DEF_SIMPLE_ATTR_CLONE(NoDebug)
 DEF_SIMPLE_ATTR_CLONE(NoInline)
+DEF_SIMPLE_ATTR_CLONE(NoInstrumentFunction)
 DEF_SIMPLE_ATTR_CLONE(NoReturn)
 DEF_SIMPLE_ATTR_CLONE(NoThrow)
 DEF_SIMPLE_ATTR_CLONE(ObjCException)
@@ -198,6 +199,10 @@ Attr *RegparmAttr::clone(ASTContext &C) const {
 
 Attr *ReqdWorkGroupSizeAttr::clone(ASTContext &C) const {
   return ::new (C) ReqdWorkGroupSizeAttr(X, Y, Z);
+}
+
+Attr *InitPriorityAttr::clone(ASTContext &C) const {
+  return ::new (C) InitPriorityAttr(Priority);
 }
 
 Attr *MSP430InterruptAttr::clone(ASTContext &C) const {

@@ -110,9 +110,8 @@ static bool isAlphaIntCondCode(unsigned Opcode) {
 unsigned AlphaInstrInfo::InsertBranch(MachineBasicBlock &MBB,
                                       MachineBasicBlock *TBB,
                                       MachineBasicBlock *FBB,
-                            const SmallVectorImpl<MachineOperand> &Cond) const {
-  // FIXME this should probably have a DebugLoc argument
-  DebugLoc dl;
+                                      const SmallVectorImpl<MachineOperand> &Cond,
+                                      DebugLoc DL) const {
   assert(TBB && "InsertBranch must not be told to insert a fallthrough");
   assert((Cond.size() == 2 || Cond.size() == 0) && 
          "Alpha branch conditions have two components!");
@@ -120,58 +119,47 @@ unsigned AlphaInstrInfo::InsertBranch(MachineBasicBlock &MBB,
   // One-way branch.
   if (FBB == 0) {
     if (Cond.empty())   // Unconditional branch
-      BuildMI(&MBB, dl, get(Alpha::BR)).addMBB(TBB);
+      BuildMI(&MBB, DL, get(Alpha::BR)).addMBB(TBB);
     else                // Conditional branch
       if (isAlphaIntCondCode(Cond[0].getImm()))
-        BuildMI(&MBB, dl, get(Alpha::COND_BRANCH_I))
+        BuildMI(&MBB, DL, get(Alpha::COND_BRANCH_I))
           .addImm(Cond[0].getImm()).addReg(Cond[1].getReg()).addMBB(TBB);
       else
-        BuildMI(&MBB, dl, get(Alpha::COND_BRANCH_F))
+        BuildMI(&MBB, DL, get(Alpha::COND_BRANCH_F))
           .addImm(Cond[0].getImm()).addReg(Cond[1].getReg()).addMBB(TBB);
     return 1;
   }
   
   // Two-way Conditional Branch.
   if (isAlphaIntCondCode(Cond[0].getImm()))
-    BuildMI(&MBB, dl, get(Alpha::COND_BRANCH_I))
+    BuildMI(&MBB, DL, get(Alpha::COND_BRANCH_I))
       .addImm(Cond[0].getImm()).addReg(Cond[1].getReg()).addMBB(TBB);
   else
-    BuildMI(&MBB, dl, get(Alpha::COND_BRANCH_F))
+    BuildMI(&MBB, DL, get(Alpha::COND_BRANCH_F))
       .addImm(Cond[0].getImm()).addReg(Cond[1].getReg()).addMBB(TBB);
-  BuildMI(&MBB, dl, get(Alpha::BR)).addMBB(FBB);
+  BuildMI(&MBB, DL, get(Alpha::BR)).addMBB(FBB);
   return 2;
 }
 
-bool AlphaInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
-                                  MachineBasicBlock::iterator MI,
-                                  unsigned DestReg, unsigned SrcReg,
-                                  const TargetRegisterClass *DestRC,
-                                  const TargetRegisterClass *SrcRC,
-                                  DebugLoc DL) const {
-  //cerr << "copyRegToReg " << DestReg << " <- " << SrcReg << "\n";
-  if (DestRC != SrcRC) {
-    // Not yet supported!
-    return false;
-  }
-
-  if (DestRC == Alpha::GPRCRegisterClass) {
+void AlphaInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+                                 MachineBasicBlock::iterator MI, DebugLoc DL,
+                                 unsigned DestReg, unsigned SrcReg,
+                                 bool KillSrc) const {
+  if (Alpha::GPRCRegClass.contains(DestReg, SrcReg)) {
     BuildMI(MBB, MI, DL, get(Alpha::BISr), DestReg)
       .addReg(SrcReg)
-      .addReg(SrcReg);
-  } else if (DestRC == Alpha::F4RCRegisterClass) {
+      .addReg(SrcReg, getKillRegState(KillSrc));
+  } else if (Alpha::F4RCRegClass.contains(DestReg, SrcReg)) {
     BuildMI(MBB, MI, DL, get(Alpha::CPYSS), DestReg)
       .addReg(SrcReg)
-      .addReg(SrcReg);
-  } else if (DestRC == Alpha::F8RCRegisterClass) {
+      .addReg(SrcReg, getKillRegState(KillSrc));
+  } else if (Alpha::F8RCRegClass.contains(DestReg, SrcReg)) {
     BuildMI(MBB, MI, DL, get(Alpha::CPYST), DestReg)
       .addReg(SrcReg)
-      .addReg(SrcReg);
+      .addReg(SrcReg, getKillRegState(KillSrc));
   } else {
-    // Attempt to copy register that is not GPR or FPR
-    return false;
+    llvm_unreachable("Attempt to copy register that is not GPR or FPR");
   }
-  
-  return true;
 }
 
 void
@@ -225,51 +213,6 @@ AlphaInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
       .addFrameIndex(FrameIdx).addReg(Alpha::F31);
   else
     llvm_unreachable("Unhandled register class");
-}
-
-MachineInstr *AlphaInstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
-                                                    MachineInstr *MI,
-                                          const SmallVectorImpl<unsigned> &Ops,
-                                                    int FrameIndex) const {
-   if (Ops.size() != 1) return NULL;
-
-   // Make sure this is a reg-reg copy.
-   unsigned Opc = MI->getOpcode();
-
-   MachineInstr *NewMI = NULL;
-   switch(Opc) {
-   default:
-     break;
-   case Alpha::BISr:
-   case Alpha::CPYSS:
-   case Alpha::CPYST:
-     if (MI->getOperand(1).getReg() == MI->getOperand(2).getReg()) {
-       if (Ops[0] == 0) {  // move -> store
-         unsigned InReg = MI->getOperand(1).getReg();
-         bool isKill = MI->getOperand(1).isKill();
-         bool isUndef = MI->getOperand(1).isUndef();
-         Opc = (Opc == Alpha::BISr) ? Alpha::STQ : 
-           ((Opc == Alpha::CPYSS) ? Alpha::STS : Alpha::STT);
-         NewMI = BuildMI(MF, MI->getDebugLoc(), get(Opc))
-           .addReg(InReg, getKillRegState(isKill) | getUndefRegState(isUndef))
-           .addFrameIndex(FrameIndex)
-           .addReg(Alpha::F31);
-       } else {           // load -> move
-         unsigned OutReg = MI->getOperand(0).getReg();
-         bool isDead = MI->getOperand(0).isDead();
-         bool isUndef = MI->getOperand(0).isUndef();
-         Opc = (Opc == Alpha::BISr) ? Alpha::LDQ : 
-           ((Opc == Alpha::CPYSS) ? Alpha::LDS : Alpha::LDT);
-         NewMI = BuildMI(MF, MI->getDebugLoc(), get(Opc))
-           .addReg(OutReg, RegState::Define | getDeadRegState(isDead) |
-                   getUndefRegState(isUndef))
-           .addFrameIndex(FrameIndex)
-           .addReg(Alpha::F31);
-       }
-     }
-     break;
-   }
-  return NewMI;
 }
 
 static unsigned AlphaRevCondCode(unsigned Opcode) {
@@ -428,11 +371,8 @@ unsigned AlphaInstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
   const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
 
   GlobalBaseReg = RegInfo.createVirtualRegister(&Alpha::GPRCRegClass);
-  bool Ok = TII->copyRegToReg(FirstMBB, MBBI, GlobalBaseReg, Alpha::R29,
-                              &Alpha::GPRCRegClass, &Alpha::GPRCRegClass,
-                              DebugLoc());
-  assert(Ok && "Couldn't assign to global base register!");
-  Ok = Ok; // Silence warning when assertions are turned off.
+  BuildMI(FirstMBB, MBBI, DebugLoc(), TII->get(TargetOpcode::COPY),
+          GlobalBaseReg).addReg(Alpha::R29);
   RegInfo.addLiveIn(Alpha::R29);
 
   AlphaFI->setGlobalBaseReg(GlobalBaseReg);
@@ -456,11 +396,8 @@ unsigned AlphaInstrInfo::getGlobalRetAddr(MachineFunction *MF) const {
   const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
 
   GlobalRetAddr = RegInfo.createVirtualRegister(&Alpha::GPRCRegClass);
-  bool Ok = TII->copyRegToReg(FirstMBB, MBBI, GlobalRetAddr, Alpha::R26,
-                              &Alpha::GPRCRegClass, &Alpha::GPRCRegClass,
-                              DebugLoc());
-  assert(Ok && "Couldn't assign to global return address register!");
-  Ok = Ok; // Silence warning when assertions are turned off.
+  BuildMI(FirstMBB, MBBI, DebugLoc(), TII->get(TargetOpcode::COPY),
+          GlobalRetAddr).addReg(Alpha::R26);
   RegInfo.addLiveIn(Alpha::R26);
 
   AlphaFI->setGlobalRetAddr(GlobalRetAddr);

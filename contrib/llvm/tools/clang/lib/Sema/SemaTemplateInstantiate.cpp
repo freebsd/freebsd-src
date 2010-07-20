@@ -63,7 +63,8 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
     if (ClassTemplateSpecializationDecl *Spec
           = dyn_cast<ClassTemplateSpecializationDecl>(Ctx)) {
       // We're done when we hit an explicit specialization.
-      if (Spec->getSpecializationKind() == TSK_ExplicitSpecialization)
+      if (Spec->getSpecializationKind() == TSK_ExplicitSpecialization &&
+          !isa<ClassTemplatePartialSpecializationDecl>(Spec))
         break;
 
       Result.addOuterTemplateArguments(&Spec->getTemplateInstantiationArgs());
@@ -103,6 +104,15 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
         Ctx = Function->getLexicalDeclContext();
         RelativeToPrimary = false;
         continue;
+      }
+    } else if (CXXRecordDecl *Rec = dyn_cast<CXXRecordDecl>(Ctx)) {
+      if (ClassTemplateDecl *ClassTemplate = Rec->getDescribedClassTemplate()) {
+        QualType T = ClassTemplate->getInjectedClassNameSpecialization();
+        const TemplateSpecializationType *TST
+          = cast<TemplateSpecializationType>(Context.getCanonicalType(T));
+        Result.addOuterTemplateArguments(TST->getArgs(), TST->getNumArgs());
+        if (ClassTemplate->isMemberSpecialization())
+          break;
       }
     }
 
@@ -620,6 +630,14 @@ namespace {
     QualType TransformTemplateTypeParmType(TypeLocBuilder &TLB,
                                            TemplateTypeParmTypeLoc TL,
                                            QualType ObjectType);
+
+    Sema::OwningExprResult TransformCallExpr(CallExpr *CE) {
+      getSema().CallsUndergoingInstantiation.push_back(CE);
+      OwningExprResult Result =
+          TreeTransform<TemplateInstantiator>::TransformCallExpr(CE);
+      getSema().CallsUndergoingInstantiation.pop_back();
+      return move(Result);
+    }
   };
 }
 
@@ -1049,6 +1067,9 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
   NewParm->setHasInheritedDefaultArg(OldParm->hasInheritedDefaultArg());
 
   CurrentInstantiationScope->InstantiatedLocal(OldParm, NewParm);
+  // Set DeclContext if inside a Block.
+  NewParm->setDeclContext(CurContext);
+  
   return NewParm;  
 }
 
@@ -1216,7 +1237,7 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
   ActOnFields(0, Instantiation->getLocation(), DeclPtrTy::make(Instantiation),
               Fields.data(), Fields.size(), SourceLocation(), SourceLocation(),
               0);
-  CheckCompletedCXXClass(/*Scope=*/0, Instantiation);
+  CheckCompletedCXXClass(Instantiation);
   if (Instantiation->isInvalidDecl())
     Invalid = true;
   
@@ -1434,7 +1455,7 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
             SuppressNew)
           continue;
         
-        if (Function->getBody())
+        if (Function->hasBody())
           continue;
 
         if (TSK == TSK_ExplicitInstantiationDefinition) {
@@ -1444,7 +1465,7 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
           //   specialization and is only an explicit instantiation definition 
           //   of members whose definition is visible at the point of 
           //   instantiation.
-          if (!Pattern->getBody())
+          if (!Pattern->hasBody())
             continue;
         
           Function->setTemplateSpecializationKind(TSK, PointOfInstantiation);

@@ -271,6 +271,8 @@ public:
     }
   }
 
+  bool isSupersetOf(Qualifiers Other) const;
+
   bool operator==(Qualifiers Other) const { return Mask == Other.Mask; }
   bool operator!=(Qualifiers Other) const { return Mask != Other.Mask; }
 
@@ -627,6 +629,16 @@ public:
   bool isAtLeastAsQualifiedAs(QualType Other) const;
   QualType getNonReferenceType() const;
 
+  /// \brief Determine the type of a (typically non-lvalue) expression with the
+  /// specified result type.
+  ///                       
+  /// This routine should be used for expressions for which the return type is
+  /// explicitly specified (e.g., in a cast or call) and isn't necessarily
+  /// an lvalue. It removes a top-level reference (since there are no 
+  /// expressions of reference type) and deletes top-level cvr-qualifiers
+  /// from non-class types (in C++) or all types (in C).
+  QualType getNonLValueExprType(ASTContext &Context) const;
+  
   /// getDesugaredType - Return the specified type with any "sugar" removed from
   /// the type.  This takes off typedefs, typeof's etc.  If the outer level of
   /// the type is already concrete, it returns it unmodified.  This is similar
@@ -774,25 +786,36 @@ private:
   
   /// \brief Linkage of this type.
   mutable unsigned CachedLinkage : 2;
-  
+
+  /// \brief FromPCH - Whether this type comes from a PCH file.
+  mutable bool FromPCH : 1;
+
+  /// \brief Set whether this type comes from a PCH file.
+  void setFromPCH(bool V = true) const { 
+    FromPCH = V;
+  }
+
 protected:
   /// \brief Compute the linkage of this type.
   virtual Linkage getLinkageImpl() const;
   
-  enum { BitsRemainingInType = 20 };
+  enum { BitsRemainingInType = 19 };
 
   // silence VC++ warning C4355: 'this' : used in base member initializer list
   Type *this_() { return this; }
   Type(TypeClass tc, QualType Canonical, bool dependent)
     : CanonicalType(Canonical.isNull() ? QualType(this_(), 0) : Canonical),
       TC(tc), Dependent(dependent), LinkageKnown(false), 
-      CachedLinkage(NoLinkage) {}
+      CachedLinkage(NoLinkage), FromPCH(false) {}
   virtual ~Type() {}
   virtual void Destroy(ASTContext& C);
   friend class ASTContext;
 
 public:
   TypeClass getTypeClass() const { return static_cast<TypeClass>(TC); }
+
+  /// \brief Whether this type comes from a PCH file.
+  bool isFromPCH() const { return FromPCH; }
 
   bool isCanonicalUnqualified() const {
     return CanonicalType.getTypePtr() == this;
@@ -835,6 +858,9 @@ public:
   /// Helper methods to distinguish type categories. All type predicates
   /// operate on the canonical type, ignoring typedefs and qualifiers.
 
+  /// isBuiltinType - returns true if the type is a builtin type.
+  bool isBuiltinType() const;
+
   /// isSpecificBuiltinType - Test for a particular builtin type.
   bool isSpecificBuiltinType(unsigned K) const;
 
@@ -846,8 +872,11 @@ public:
   bool isCharType() const;
   bool isWideCharType() const;
   bool isAnyCharacterType() const;
-  bool isIntegralType() const;
+  bool isIntegralType(ASTContext &Ctx) const;
   
+  /// \brief Determine whether this type is an integral or enumeration type.
+  bool isIntegralOrEnumerationType() const;
+                                   
   /// Floating point categories.
   bool isRealFloatingType() const; // C99 6.2.5p10 (float, double, long double)
   /// isComplexType() does *not* include complex integers (a GCC extension).
@@ -923,6 +952,10 @@ public:
   /// an objective pointer type for the purpose of GC'ability
   bool hasObjCPointerRepresentation() const;
 
+  /// \brief Determine whether this type has a floating-point representation
+  /// of some sort, e.g., it is a floating-point type or a vector thereof.
+  bool hasFloatingRepresentation() const;
+  
   // Type Checking Functions: Check to see if this type is structurally the
   // specified type, ignoring typedefs and qualifiers, and return a pointer to
   // the best type we can.
@@ -1001,6 +1034,9 @@ public:
   CanQualType getCanonicalTypeUnqualified() const; // in CanonicalType.h
   void dump() const;
   static bool classof(const Type *) { return true; }
+
+  friend class PCHReader;
+  friend class PCHWriter;
 };
 
 template <> inline const TypedefType *Type::getAs() const {
@@ -1640,6 +1676,13 @@ public:
 /// Since the constructor takes the number of vector elements, the
 /// client is responsible for converting the size into the number of elements.
 class VectorType : public Type, public llvm::FoldingSetNode {
+public:
+  enum AltiVecSpecific {
+    NotAltiVec,  // is not AltiVec vector
+    AltiVec,     // is AltiVec vector
+    Pixel,       // is AltiVec 'vector Pixel'
+    Bool         // is AltiVec 'vector bool ...'
+  };
 protected:
   /// ElementType - The element type of the vector.
   QualType ElementType;
@@ -1647,21 +1690,16 @@ protected:
   /// NumElements - The number of elements in the vector.
   unsigned NumElements;
 
-  /// AltiVec - True if this is for an Altivec vector.
-  bool AltiVec;
-
-  /// Pixel - True if this is for an Altivec vector pixel.
-  bool Pixel;
+  AltiVecSpecific AltiVecSpec;
 
   VectorType(QualType vecType, unsigned nElements, QualType canonType,
-      bool isAltiVec, bool isPixel) :
+      AltiVecSpecific altiVecSpec) :
     Type(Vector, canonType, vecType->isDependentType()),
-    ElementType(vecType), NumElements(nElements),
-    AltiVec(isAltiVec), Pixel(isPixel) {}
+    ElementType(vecType), NumElements(nElements), AltiVecSpec(altiVecSpec) {}
   VectorType(TypeClass tc, QualType vecType, unsigned nElements,
-             QualType canonType, bool isAltiVec, bool isPixel)
+             QualType canonType, AltiVecSpecific altiVecSpec)
     : Type(tc, canonType, vecType->isDependentType()), ElementType(vecType),
-      NumElements(nElements), AltiVec(isAltiVec), Pixel(isPixel) {}
+      NumElements(nElements), AltiVecSpec(altiVecSpec) {}
   friend class ASTContext;  // ASTContext creates these.
   
   virtual Linkage getLinkageImpl() const;
@@ -1674,22 +1712,18 @@ public:
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
 
-  bool isAltiVec() const { return AltiVec; }
-  
-  bool isPixel() const { return Pixel; }
-  
+  AltiVecSpecific getAltiVecSpecific() const { return AltiVecSpec; }
+
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, getElementType(), getNumElements(), getTypeClass(),
-      AltiVec, Pixel);
+    Profile(ID, getElementType(), getNumElements(), getTypeClass(), AltiVecSpec);
   }
   static void Profile(llvm::FoldingSetNodeID &ID, QualType ElementType,
                       unsigned NumElements, TypeClass TypeClass,
-                      bool isAltiVec, bool isPixel) {
+                      unsigned AltiVecSpec) {
     ID.AddPointer(ElementType.getAsOpaquePtr());
     ID.AddInteger(NumElements);
     ID.AddInteger(TypeClass);
-    ID.AddBoolean(isAltiVec);
-    ID.AddBoolean(isPixel);
+    ID.AddInteger(AltiVecSpec);
   }
 
   static bool classof(const Type *T) {
@@ -1705,7 +1739,7 @@ public:
 /// points, colors, and textures (modeled after OpenGL Shading Language).
 class ExtVectorType : public VectorType {
   ExtVectorType(QualType vecType, unsigned nElements, QualType canonType) :
-    VectorType(ExtVector, vecType, nElements, canonType, false, false) {}
+    VectorType(ExtVector, vecType, nElements, canonType, NotAltiVec) {}
   friend class ASTContext;  // ASTContext creates these.
 public:
   static int getPointAccessorIdx(char c) {
@@ -1875,11 +1909,18 @@ protected:
 public:
 
   QualType getResultType() const { return ResultType; }
+  
   unsigned getRegParmType() const { return RegParm; }
   bool getNoReturnAttr() const { return NoReturn; }
   CallingConv getCallConv() const { return (CallingConv)CallConv; }
   ExtInfo getExtInfo() const {
     return ExtInfo(NoReturn, RegParm, (CallingConv)CallConv);
+  }
+
+  /// \brief Determine the type of an expression that calls a function of
+  /// this type.
+  QualType getCallResultType(ASTContext &Context) const { 
+    return getResultType().getNonLValueExprType(Context);
   }
 
   static llvm::StringRef getNameForCallConv(CallingConv CC);
@@ -2416,23 +2457,14 @@ public:
 /// dependent.
 class TemplateSpecializationType
   : public Type, public llvm::FoldingSetNode {
-
-  // The ASTContext is currently needed in order to profile expressions.
-  // FIXME: avoid this.
-  //
-  // The bool is whether this is a current instantiation.
-  llvm::PointerIntPair<ASTContext*, 1, bool> ContextAndCurrentInstantiation;
-
-    /// \brief The name of the template being specialized.
+  /// \brief The name of the template being specialized.
   TemplateName Template;
 
   /// \brief - The number of template arguments named in this class
   /// template specialization.
   unsigned NumArgs;
 
-  TemplateSpecializationType(ASTContext &Context,
-                             TemplateName T,
-                             bool IsCurrentInstantiation,
+  TemplateSpecializationType(TemplateName T,
                              const TemplateArgument *Args,
                              unsigned NumArgs, QualType Canon);
 
@@ -2467,13 +2499,13 @@ public:
   /// True if this template specialization type matches a current
   /// instantiation in the context in which it is found.
   bool isCurrentInstantiation() const {
-    return ContextAndCurrentInstantiation.getInt();
+    return isa<InjectedClassNameType>(getCanonicalTypeInternal());
   }
 
   typedef const TemplateArgument * iterator;
 
   iterator begin() const { return getArgs(); }
-  iterator end() const;
+  iterator end() const; // defined inline in TemplateBase.h
 
   /// \brief Retrieve the name of the template that we are specializing.
   TemplateName getTemplateName() const { return Template; }
@@ -2488,20 +2520,18 @@ public:
 
   /// \brief Retrieve a specific template argument as a type.
   /// \precondition @c isArgType(Arg)
-  const TemplateArgument &getArg(unsigned Idx) const;
+  const TemplateArgument &getArg(unsigned Idx) const; // in TemplateBase.h
 
   bool isSugared() const {
     return !isDependentType() || isCurrentInstantiation();
   }
   QualType desugar() const { return getCanonicalTypeInternal(); }
 
-  void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, Template, isCurrentInstantiation(), getArgs(), NumArgs,
-            *ContextAndCurrentInstantiation.getPointer());
+  void Profile(llvm::FoldingSetNodeID &ID, ASTContext &Ctx) {
+    Profile(ID, Template, getArgs(), NumArgs, Ctx);
   }
 
   static void Profile(llvm::FoldingSetNodeID &ID, TemplateName T,
-                      bool IsCurrentInstantiation,
                       const TemplateArgument *Args,
                       unsigned NumArgs,
                       ASTContext &Context);
@@ -2545,6 +2575,9 @@ class InjectedClassNameType : public Type {
 
   friend class ASTContext; // ASTContext creates these.
   friend class TagDecl; // TagDecl mutilates the Decl
+  friend class PCHReader; // FIXME: ASTContext::getInjectedClassNameType is not
+                          // currently suitable for PCH reading, too much
+                          // interdependencies.
   InjectedClassNameType(CXXRecordDecl *D, QualType TST)
     : Type(InjectedClassName, QualType(), true),
       Decl(D), InjectedType(TST) {
@@ -2679,6 +2712,7 @@ class ElaboratedType : public TypeWithKeyword, public llvm::FoldingSetNode {
   friend class ASTContext;  // ASTContext creates these
 
 public:
+  ~ElaboratedType();
 
   /// \brief Retrieve the qualification on this type.
   NestedNameSpecifier *getQualifier() const { return NNS; }
@@ -2723,11 +2757,8 @@ class DependentNameType : public TypeWithKeyword, public llvm::FoldingSetNode {
   /// \brief The nested name specifier containing the qualifier.
   NestedNameSpecifier *NNS;
 
-  typedef llvm::PointerUnion<const IdentifierInfo *,
-                             const TemplateSpecializationType *> NameType;
-
   /// \brief The type that this typename specifier refers to.
-  NameType Name;
+  const IdentifierInfo *Name;
 
   DependentNameType(ElaboratedTypeKeyword Keyword, NestedNameSpecifier *NNS, 
                     const IdentifierInfo *Name, QualType CanonType)
@@ -2737,17 +2768,10 @@ class DependentNameType : public TypeWithKeyword, public llvm::FoldingSetNode {
            "DependentNameType requires a dependent nested-name-specifier");
   }
 
-  DependentNameType(ElaboratedTypeKeyword Keyword, NestedNameSpecifier *NNS,
-                    const TemplateSpecializationType *Ty, QualType CanonType)
-    : TypeWithKeyword(Keyword, DependentName, CanonType, true),
-      NNS(NNS), Name(Ty) {
-    assert(NNS->isDependent() &&
-           "DependentNameType requires a dependent nested-name-specifier");
-  }
-
   friend class ASTContext;  // ASTContext creates these
 
 public:
+  virtual ~DependentNameType();
 
   /// \brief Retrieve the qualification on this type.
   NestedNameSpecifier *getQualifier() const { return NNS; }
@@ -2759,13 +2783,7 @@ public:
   /// form of the original typename was terminated by an identifier,
   /// e.g., "typename T::type".
   const IdentifierInfo *getIdentifier() const {
-    return Name.dyn_cast<const IdentifierInfo *>();
-  }
-
-  /// \brief Retrieve the type named by the typename specifier as a
-  /// type specialization.
-  const TemplateSpecializationType *getTemplateId() const {
-    return Name.dyn_cast<const TemplateSpecializationType *>();
+    return Name;
   }
 
   bool isSugared() const { return false; }
@@ -2776,16 +2794,93 @@ public:
   }
 
   static void Profile(llvm::FoldingSetNodeID &ID, ElaboratedTypeKeyword Keyword,
-                      NestedNameSpecifier *NNS, NameType Name) {
+                      NestedNameSpecifier *NNS, const IdentifierInfo *Name) {
     ID.AddInteger(Keyword);
     ID.AddPointer(NNS);
-    ID.AddPointer(Name.getOpaqueValue());
+    ID.AddPointer(Name);
   }
 
   static bool classof(const Type *T) {
     return T->getTypeClass() == DependentName;
   }
   static bool classof(const DependentNameType *T) { return true; }
+};
+
+/// DependentTemplateSpecializationType - Represents a template
+/// specialization type whose template cannot be resolved, e.g.
+///   A<T>::template B<T>
+class DependentTemplateSpecializationType :
+  public TypeWithKeyword, public llvm::FoldingSetNode {
+
+  /// \brief The nested name specifier containing the qualifier.
+  NestedNameSpecifier *NNS;
+
+  /// \brief The identifier of the template.
+  const IdentifierInfo *Name;
+
+  /// \brief - The number of template arguments named in this class
+  /// template specialization.
+  unsigned NumArgs;
+
+  const TemplateArgument *getArgBuffer() const {
+    return reinterpret_cast<const TemplateArgument*>(this+1);
+  }
+  TemplateArgument *getArgBuffer() {
+    return reinterpret_cast<TemplateArgument*>(this+1);
+  }
+
+  DependentTemplateSpecializationType(ElaboratedTypeKeyword Keyword,
+                                      NestedNameSpecifier *NNS,
+                                      const IdentifierInfo *Name,
+                                      unsigned NumArgs,
+                                      const TemplateArgument *Args,
+                                      QualType Canon);
+
+  virtual void Destroy(ASTContext& C);
+
+  friend class ASTContext;  // ASTContext creates these
+
+public:
+  virtual ~DependentTemplateSpecializationType();
+
+  NestedNameSpecifier *getQualifier() const { return NNS; }
+  const IdentifierInfo *getIdentifier() const { return Name; }
+
+  /// \brief Retrieve the template arguments.
+  const TemplateArgument *getArgs() const {
+    return getArgBuffer();
+  }
+
+  /// \brief Retrieve the number of template arguments.
+  unsigned getNumArgs() const { return NumArgs; }
+
+  const TemplateArgument &getArg(unsigned Idx) const; // in TemplateBase.h
+
+  typedef const TemplateArgument * iterator;
+  iterator begin() const { return getArgs(); }
+  iterator end() const; // inline in TemplateBase.h
+
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
+
+  void Profile(llvm::FoldingSetNodeID &ID, ASTContext &Context) {
+    Profile(ID, Context, getKeyword(), NNS, Name, NumArgs, getArgs());
+  }
+
+  static void Profile(llvm::FoldingSetNodeID &ID,
+                      ASTContext &Context,
+                      ElaboratedTypeKeyword Keyword,
+                      NestedNameSpecifier *Qualifier,
+                      const IdentifierInfo *Name,
+                      unsigned NumArgs,
+                      const TemplateArgument *Args);
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == DependentTemplateSpecialization;
+  }
+  static bool classof(const DependentTemplateSpecializationType *T) {
+    return true;
+  }  
 };
 
 /// ObjCObjectType - Represents a class type in Objective C.
@@ -3310,6 +3405,12 @@ inline FunctionType::ExtInfo getFunctionExtInfo(QualType t) {
   return getFunctionExtInfo(*t);
 }
 
+/// \brief Determine whether this set of qualifiers is a superset of the given 
+/// set of qualifiers.
+inline bool Qualifiers::isSupersetOf(Qualifiers Other) const {
+  return Mask != Other.Mask && (Mask | Other.Mask) == Mask;
+}
+
 /// isMoreQualifiedThan - Determine whether this type is more
 /// qualified than the Other type. For example, "const volatile int"
 /// is more qualified than "const int", "volatile int", and
@@ -3452,6 +3553,10 @@ inline bool Type::isObjCBuiltinType() const {
 }
 inline bool Type::isTemplateTypeParmType() const {
   return isa<TemplateTypeParmType>(CanonicalType);
+}
+
+inline bool Type::isBuiltinType() const {
+  return getAs<BuiltinType>();
 }
 
 inline bool Type::isSpecificBuiltinType(unsigned K) const {

@@ -439,15 +439,47 @@ bool Type::isIntegerType() const {
   return false;
 }
 
-bool Type::isIntegralType() const {
+/// \brief Determine whether this type is an integral type.
+///
+/// This routine determines whether the given type is an integral type per 
+/// C++ [basic.fundamental]p7. Although the C standard does not define the
+/// term "integral type", it has a similar term "integer type", and in C++
+/// the two terms are equivalent. However, C's "integer type" includes 
+/// enumeration types, while C++'s "integer type" does not. The \c ASTContext
+/// parameter is used to determine whether we should be following the C or
+/// C++ rules when determining whether this type is an integral/integer type.
+///
+/// For cases where C permits "an integer type" and C++ permits "an integral
+/// type", use this routine.
+///
+/// For cases where C permits "an integer type" and C++ permits "an integral
+/// or enumeration type", use \c isIntegralOrEnumerationType() instead. 
+///
+/// \param Ctx The context in which this type occurs.
+///
+/// \returns true if the type is considered an integral type, false otherwise.
+bool Type::isIntegralType(ASTContext &Ctx) const {
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() >= BuiltinType::Bool &&
     BT->getKind() <= BuiltinType::Int128;
-  if (const TagType *TT = dyn_cast<TagType>(CanonicalType))
-    if (TT->getDecl()->isEnum() && TT->getDecl()->isDefinition())
-      return true;  // Complete enum types are integral.
-                    // FIXME: In C++, enum types are never integral.
+  
+  if (!Ctx.getLangOptions().CPlusPlus)
+    if (const TagType *TT = dyn_cast<TagType>(CanonicalType))
+      if (TT->getDecl()->isEnum() && TT->getDecl()->isDefinition())
+        return true;  // Complete enum types are integral in C.
+  
   return false;
+}
+
+bool Type::isIntegralOrEnumerationType() const {
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
+    return BT->getKind() >= BuiltinType::Bool &&
+           BT->getKind() <= BuiltinType::Int128;
+  
+  if (isa<EnumType>(CanonicalType))
+    return true;
+  
+  return false;  
 }
 
 bool Type::isEnumeralType() const {
@@ -531,16 +563,19 @@ bool Type::isFloatingType() const {
            BT->getKind() <= BuiltinType::LongDouble;
   if (const ComplexType *CT = dyn_cast<ComplexType>(CanonicalType))
     return CT->getElementType()->isFloatingType();
+  return false;
+}
+
+bool Type::hasFloatingRepresentation() const {
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isFloatingType();
-  return false;
+  else
+    return isFloatingType();
 }
 
 bool Type::isRealFloatingType() const {
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->isFloatingPoint();
-  if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
-    return VT->getElementType()->isRealFloatingType();
   return false;
 }
 
@@ -550,8 +585,6 @@ bool Type::isRealType() const {
            BT->getKind() <= BuiltinType::LongDouble;
   if (const TagType *TT = dyn_cast<TagType>(CanonicalType))
     return TT->getDecl()->isEnum() && TT->getDecl()->isDefinition();
-  if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
-    return VT->getElementType()->isRealType();
   return false;
 }
 
@@ -563,7 +596,7 @@ bool Type::isArithmeticType() const {
     // GCC allows forward declaration of enum types (forbid by C99 6.7.2.3p2).
     // If a body isn't seen by the time we get here, return false.
     return ET->getDecl()->isDefinition();
-  return isa<ComplexType>(CanonicalType) || isa<VectorType>(CanonicalType);
+  return isa<ComplexType>(CanonicalType);
 }
 
 bool Type::isScalarType() const {
@@ -768,6 +801,7 @@ bool Type::isSpecifierType() const {
   case TemplateSpecialization:
   case Elaborated:
   case DependentName:
+  case DependentTemplateSpecialization:
   case ObjCInterface:
   case ObjCObject:
   case ObjCObjectPointer: // FIXME: object pointers aren't really specifiers
@@ -856,12 +890,56 @@ TypeWithKeyword::getKeywordName(ElaboratedTypeKeyword Keyword) {
   }
 }
 
+ElaboratedType::~ElaboratedType() {}
+DependentNameType::~DependentNameType() {}
+DependentTemplateSpecializationType::~DependentTemplateSpecializationType() {}
+
+void DependentTemplateSpecializationType::Destroy(ASTContext &C) {
+  for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
+    // FIXME: Not all expressions get cloned, so we can't yet perform
+    // this destruction.
+    //    if (Expr *E = getArg(Arg).getAsExpr())
+    //      E->Destroy(C);
+  }
+}
+
+DependentTemplateSpecializationType::DependentTemplateSpecializationType(
+                         ElaboratedTypeKeyword Keyword,
+                         NestedNameSpecifier *NNS, const IdentifierInfo *Name,
+                         unsigned NumArgs, const TemplateArgument *Args,
+                         QualType Canon)
+  : TypeWithKeyword(Keyword, DependentTemplateSpecialization, Canon, true),
+    NNS(NNS), Name(Name), NumArgs(NumArgs) {
+  assert(NNS && NNS->isDependent() &&
+         "DependentTemplateSpecializatonType requires dependent qualifier");
+  for (unsigned I = 0; I != NumArgs; ++I)
+    new (&getArgBuffer()[I]) TemplateArgument(Args[I]);
+}
+
+void
+DependentTemplateSpecializationType::Profile(llvm::FoldingSetNodeID &ID,
+                                             ASTContext &Context,
+                                             ElaboratedTypeKeyword Keyword,
+                                             NestedNameSpecifier *Qualifier,
+                                             const IdentifierInfo *Name,
+                                             unsigned NumArgs,
+                                             const TemplateArgument *Args) {
+  ID.AddInteger(Keyword);
+  ID.AddPointer(Qualifier);
+  ID.AddPointer(Name);
+  for (unsigned Idx = 0; Idx < NumArgs; ++Idx)
+    Args[Idx].Profile(ID, Context);
+}
+
 bool Type::isElaboratedTypeSpecifier() const {
   ElaboratedTypeKeyword Keyword;
   if (const ElaboratedType *Elab = dyn_cast<ElaboratedType>(this))
     Keyword = Elab->getKeyword();
   else if (const DependentNameType *DepName = dyn_cast<DependentNameType>(this))
     Keyword = DepName->getKeyword();
+  else if (const DependentTemplateSpecializationType *DepTST =
+             dyn_cast<DependentTemplateSpecializationType>(this))
+    Keyword = DepTST->getKeyword();
   else
     return false;
 
@@ -913,6 +991,22 @@ const char *BuiltinType::getName(const LangOptions &LO) const {
 }
 
 void FunctionType::ANCHOR() {} // Key function for FunctionType.
+
+QualType QualType::getNonLValueExprType(ASTContext &Context) const {
+  if (const ReferenceType *RefType = getTypePtr()->getAs<ReferenceType>())
+    return RefType->getPointeeType();
+  
+  // C++0x [basic.lval]:
+  //   Class prvalues can have cv-qualified types; non-class prvalues always 
+  //   have cv-unqualified types.
+  //
+  // See also C99 6.3.2.1p2.
+  if (!Context.getLangOptions().CPlusPlus ||
+      (!getTypePtr()->isDependentType() && !getTypePtr()->isRecordType()))
+    return getUnqualifiedType();
+  
+  return *this;
+}
 
 llvm::StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   switch (CC) {
@@ -1085,14 +1179,12 @@ anyDependentTemplateArguments(const TemplateArgument *Args, unsigned N) {
 }
 
 TemplateSpecializationType::
-TemplateSpecializationType(ASTContext &Context, TemplateName T,
-                           bool IsCurrentInstantiation,
+TemplateSpecializationType(TemplateName T,
                            const TemplateArgument *Args,
                            unsigned NumArgs, QualType Canon)
   : Type(TemplateSpecialization,
          Canon.isNull()? QualType(this, 0) : Canon,
          T.isDependent() || anyDependentTemplateArguments(Args, NumArgs)),
-    ContextAndCurrentInstantiation(&Context, IsCurrentInstantiation),
     Template(T), NumArgs(NumArgs) {
   assert((!Canon.isNull() ||
           T.isDependent() || anyDependentTemplateArguments(Args, NumArgs)) &&
@@ -1113,25 +1205,12 @@ void TemplateSpecializationType::Destroy(ASTContext& C) {
   }
 }
 
-TemplateSpecializationType::iterator
-TemplateSpecializationType::end() const {
-  return begin() + getNumArgs();
-}
-
-const TemplateArgument &
-TemplateSpecializationType::getArg(unsigned Idx) const {
-  assert(Idx < getNumArgs() && "Template argument out of range");
-  return getArgs()[Idx];
-}
-
 void
 TemplateSpecializationType::Profile(llvm::FoldingSetNodeID &ID,
                                     TemplateName T,
-                                    bool IsCurrentInstantiation,
                                     const TemplateArgument *Args,
                                     unsigned NumArgs,
                                     ASTContext &Context) {
-  ID.AddBoolean(IsCurrentInstantiation);
   T.Profile(ID);
   for (unsigned Idx = 0; Idx < NumArgs; ++Idx)
     Args[Idx].Profile(ID, Context);

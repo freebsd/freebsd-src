@@ -118,6 +118,26 @@ bool OptimizeExts::OptimizeInstr(MachineInstr *MI, MachineBasicBlock *MBB,
         continue;
       }
 
+      // It's an error to translate this:
+      //
+      //    %reg1025 = <sext> %reg1024
+      //     ...
+      //    %reg1026 = SUBREG_TO_REG 0, %reg1024, 4
+      //
+      // into this:
+      //
+      //    %reg1025 = <sext> %reg1024
+      //     ...
+      //    %reg1027 = COPY %reg1025:4
+      //    %reg1026 = SUBREG_TO_REG 0, %reg1027, 4
+      //
+      // The problem here is that SUBREG_TO_REG is there to assert that an
+      // implicit zext occurs. It doesn't insert a zext instruction. If we allow
+      // the COPY here, it will give us the value after the <sext>,
+      // not the original value of %reg1024 before <sext>.
+      if (UseMI->getOpcode() == TargetOpcode::SUBREG_TO_REG)
+        continue;
+
       MachineBasicBlock *UseMBB = UseMI->getParent();
       if (UseMBB == MBB) {
         // Local uses that come after the extension.
@@ -165,8 +185,8 @@ bool OptimizeExts::OptimizeInstr(MachineInstr *MI, MachineBasicBlock *MBB,
           continue;
         unsigned NewVR = MRI->createVirtualRegister(RC);
         BuildMI(*UseMBB, UseMI, UseMI->getDebugLoc(),
-                TII->get(TargetOpcode::EXTRACT_SUBREG), NewVR)
-          .addReg(DstReg).addImm(SubIdx);
+                TII->get(TargetOpcode::COPY), NewVR)
+          .addReg(DstReg, 0, SubIdx);
         UseMO->setReg(NewVR);
         ++NumReuse;
         Changed = true;

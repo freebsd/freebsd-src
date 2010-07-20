@@ -127,7 +127,7 @@ public:
   void VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E);
   void VisitCXXConstructExpr(const CXXConstructExpr *E);
   void VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E);
-  void VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E);
+  void VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E);
   void VisitCXXTypeidExpr(CXXTypeidExpr *E) { EmitAggLoadOfLValue(E); }
 
   void VisitVAArgExpr(VAArgExpr *E);
@@ -177,11 +177,16 @@ bool AggExprEmitter::TypeRequiresGCollection(QualType T) {
 /// directly into the return value slot.  If GC does interfere, a final
 /// move will be performed.
 void AggExprEmitter::EmitGCMove(const Expr *E, RValue Src) {
-  if (!RequiresGCollection) return;
-
-  CGF.CGM.getObjCRuntime().EmitGCMemmoveCollectable(CGF, DestPtr,
+  if (RequiresGCollection) {
+    std::pair<uint64_t, unsigned> TypeInfo = 
+      CGF.getContext().getTypeInfo(E->getType());
+    unsigned long size = TypeInfo.first/8;
+    const llvm::Type *SizeTy = CGF.ConvertType(CGF.getContext().getSizeType());
+    llvm::Value *SizeVal = llvm::ConstantInt::get(SizeTy, size);
+    CGF.CGM.getObjCRuntime().EmitGCMemmoveCollectable(CGF, DestPtr,
                                                     Src.getAggregateAddr(),
-                                                    E->getType());
+                                                    SizeVal);
+  }
 }
 
 /// EmitFinalDestCopy - Perform the final copy to DestPtr, if desired.
@@ -198,9 +203,14 @@ void AggExprEmitter::EmitFinalDestCopy(const Expr *E, RValue Src, bool Ignore) {
   }
 
   if (RequiresGCollection) {
+    std::pair<uint64_t, unsigned> TypeInfo = 
+    CGF.getContext().getTypeInfo(E->getType());
+    unsigned long size = TypeInfo.first/8;
+    const llvm::Type *SizeTy = CGF.ConvertType(CGF.getContext().getSizeType());
+    llvm::Value *SizeVal = llvm::ConstantInt::get(SizeTy, size);
     CGF.CGM.getObjCRuntime().EmitGCMemmoveCollectable(CGF,
                                               DestPtr, Src.getAggregateAddr(),
-                                              E->getType());
+                                              SizeVal);
     return;
   }
   // If the result of the assignment is used, copy the LHS there also.
@@ -296,6 +306,10 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
 
     break;
   }
+      
+  case CastExpr::CK_LValueBitCast:
+    llvm_unreachable("there are no lvalue bit-casts on aggregates");
+    break;
       
   case CastExpr::CK_BitCast: {
     // This must be a member function pointer cast.
@@ -396,35 +410,11 @@ void AggExprEmitter::VisitUnaryAddrOf(const UnaryOperator *E) {
   const llvm::Type *PtrDiffTy = 
     CGF.ConvertType(CGF.getContext().getPointerDiffType());
 
-
   llvm::Value *DstPtr = Builder.CreateStructGEP(DestPtr, 0, "dst.ptr");
-  llvm::Value *FuncPtr;
-  
-  if (MD->isVirtual()) {
-    int64_t Index = CGF.CGM.getVTables().getMethodVTableIndex(MD);
-    
-    // FIXME: We shouldn't use / 8 here.
-    uint64_t PointerWidthInBytes = 
-      CGF.CGM.getContext().Target.getPointerWidth(0) / 8;
-
-    // Itanium C++ ABI 2.3:
-    //   For a non-virtual function, this field is a simple function pointer. 
-    //   For a virtual function, it is 1 plus the virtual table offset 
-    //   (in bytes) of the function, represented as a ptrdiff_t. 
-    FuncPtr = llvm::ConstantInt::get(PtrDiffTy,
-                                     (Index * PointerWidthInBytes) + 1);
-  } else {
-    const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
-    const llvm::Type *Ty =
-      CGF.CGM.getTypes().GetFunctionType(CGF.CGM.getTypes().getFunctionInfo(MD),
-                                         FPT->isVariadic());
-    llvm::Constant *Fn = CGF.CGM.GetAddrOfFunction(MD, Ty);
-    FuncPtr = llvm::ConstantExpr::getPtrToInt(Fn, PtrDiffTy);
-  }
+  llvm::Value *FuncPtr = CGF.CGM.GetCXXMemberFunctionPointerValue(MD);
   Builder.CreateStore(FuncPtr, DstPtr, VolatileDest);
 
   llvm::Value *AdjPtr = Builder.CreateStructGEP(DestPtr, 1, "dst.adj");
-  
   // The adjustment will always be 0.
   Builder.CreateStore(llvm::ConstantInt::get(PtrDiffTy, 0), AdjPtr,
                       VolatileDest);
@@ -546,17 +536,15 @@ void AggExprEmitter::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E) {
 
   // Don't make this a live temporary if we're emitting an initializer expr.
   if (!IsInitializer)
-    CGF.PushCXXTemporary(E->getTemporary(), Val);
+    CGF.EmitCXXTemporary(E->getTemporary(), Val);
 }
 
 void
 AggExprEmitter::VisitCXXConstructExpr(const CXXConstructExpr *E) {
   llvm::Value *Val = DestPtr;
 
-  if (!Val) {
-    // Create a temporary variable.
+  if (!Val) // Create a temporary variable.
     Val = CGF.CreateMemTemp(E->getType(), "tmp");
-  }
 
   if (E->requiresZeroInitialization())
     EmitNullInitializationToLValue(LValue::MakeAddr(Val, 
@@ -573,7 +561,7 @@ void AggExprEmitter::VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E) {
   CGF.EmitCXXExprWithTemporaries(E, Val, VolatileDest, IsInitializer);
 }
 
-void AggExprEmitter::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E) {
+void AggExprEmitter::VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {
   llvm::Value *Val = DestPtr;
 
   if (!Val) {
@@ -602,7 +590,7 @@ AggExprEmitter::EmitInitializationToLValue(Expr* E, LValue LV, QualType T) {
   if (isa<ImplicitValueInitExpr>(E)) {
     EmitNullInitializationToLValue(LV, T);
   } else if (T->isReferenceType()) {
-    RValue RV = CGF.EmitReferenceBindingToExpr(E, /*IsInitializer=*/false);
+    RValue RV = CGF.EmitReferenceBindingToExpr(E, /*InitializedDecl=*/0);
     CGF.EmitStoreThroughLValue(RV, LV, T);
   } else if (T->isAnyComplexType()) {
     CGF.EmitComplexExprIntoAddr(E, LV.getAddress(), false);
@@ -822,18 +810,11 @@ void CodeGenFunction::EmitAggregateCopy(llvm::Value *DestPtr,
   // equal, but other compilers do this optimization, and almost every memcpy
   // implementation handles this case safely.  If there is a libc that does not
   // safely handle this, we can add a target hook.
-  const llvm::Type *BP = llvm::Type::getInt8PtrTy(VMContext);
-  if (DestPtr->getType() != BP)
-    DestPtr = Builder.CreateBitCast(DestPtr, BP, "tmp");
-  if (SrcPtr->getType() != BP)
-    SrcPtr = Builder.CreateBitCast(SrcPtr, BP, "tmp");
 
   // Get size and alignment info for this aggregate.
   std::pair<uint64_t, unsigned> TypeInfo = getContext().getTypeInfo(Ty);
 
   // FIXME: Handle variable sized types.
-  const llvm::Type *IntPtr =
-          llvm::IntegerType::get(VMContext, LLVMPointerWidth);
 
   // FIXME: If we have a volatile struct, the optimizer can remove what might
   // appear to be `extra' memory ops:
@@ -847,25 +828,46 @@ void CodeGenFunction::EmitAggregateCopy(llvm::Value *DestPtr,
   //
   // we need to use a different call here.  We use isVolatile to indicate when
   // either the source or the destination is volatile.
-  const llvm::Type *I1Ty = llvm::Type::getInt1Ty(VMContext);
-  const llvm::Type *I8Ty = llvm::Type::getInt8Ty(VMContext);
-  const llvm::Type *I32Ty = llvm::Type::getInt32Ty(VMContext);
 
   const llvm::PointerType *DPT = cast<llvm::PointerType>(DestPtr->getType());
-  const llvm::Type *DBP = llvm::PointerType::get(I8Ty, DPT->getAddressSpace());
-  if (DestPtr->getType() != DBP)
-    DestPtr = Builder.CreateBitCast(DestPtr, DBP, "tmp");
+  const llvm::Type *DBP =
+    llvm::Type::getInt8PtrTy(VMContext, DPT->getAddressSpace());
+  DestPtr = Builder.CreateBitCast(DestPtr, DBP, "tmp");
 
   const llvm::PointerType *SPT = cast<llvm::PointerType>(SrcPtr->getType());
-  const llvm::Type *SBP = llvm::PointerType::get(I8Ty, SPT->getAddressSpace());
-  if (SrcPtr->getType() != SBP)
-    SrcPtr = Builder.CreateBitCast(SrcPtr, SBP, "tmp");
+  const llvm::Type *SBP =
+    llvm::Type::getInt8PtrTy(VMContext, SPT->getAddressSpace());
+  SrcPtr = Builder.CreateBitCast(SrcPtr, SBP, "tmp");
 
+  if (const RecordType *RecordTy = Ty->getAs<RecordType>()) {
+    RecordDecl *Record = RecordTy->getDecl();
+    if (Record->hasObjectMember()) {
+      unsigned long size = TypeInfo.first/8;
+      const llvm::Type *SizeTy = ConvertType(getContext().getSizeType());
+      llvm::Value *SizeVal = llvm::ConstantInt::get(SizeTy, size);
+      CGM.getObjCRuntime().EmitGCMemmoveCollectable(*this, DestPtr, SrcPtr, 
+                                                    SizeVal);
+      return;
+    }
+  } else if (getContext().getAsArrayType(Ty)) {
+    QualType BaseType = getContext().getBaseElementType(Ty);
+    if (const RecordType *RecordTy = BaseType->getAs<RecordType>()) {
+      if (RecordTy->getDecl()->hasObjectMember()) {
+        unsigned long size = TypeInfo.first/8;
+        const llvm::Type *SizeTy = ConvertType(getContext().getSizeType());
+        llvm::Value *SizeVal = llvm::ConstantInt::get(SizeTy, size);
+        CGM.getObjCRuntime().EmitGCMemmoveCollectable(*this, DestPtr, SrcPtr, 
+                                                      SizeVal);
+        return;
+      }
+    }
+  }
+  
   Builder.CreateCall5(CGM.getMemCpyFn(DestPtr->getType(), SrcPtr->getType(),
-                                      IntPtr),
+                                      IntPtrTy),
                       DestPtr, SrcPtr,
                       // TypeInfo.first describes size in bits.
-                      llvm::ConstantInt::get(IntPtr, TypeInfo.first/8),
-                      llvm::ConstantInt::get(I32Ty,  TypeInfo.second/8),
-                      llvm::ConstantInt::get(I1Ty,  isVolatile));
+                      llvm::ConstantInt::get(IntPtrTy, TypeInfo.first/8),
+                      Builder.getInt32(TypeInfo.second/8),
+                      Builder.getInt1(isVolatile));
 }

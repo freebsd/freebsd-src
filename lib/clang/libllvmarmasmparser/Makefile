@@ -4,8 +4,11 @@ LIB=	llvmarmasmparser
 
 SRCDIR=	lib/Target/ARM/AsmParser
 INCDIR=	lib/Target/ARM
-SRCS=	ARMAsmParser.cpp ARMAsmLexer.cpp
+SRCS=	ARMAsmParser.cpp \
+	ARMAsmLexer.cpp
 
-TGHDRS= ARMGenRegisterInfo.h ARMGenRegisterNames ARMGenInstrNames
+TGHDRS= ARMGenInstrNames \
+	ARMGenRegisterInfo.h \
+	ARMGenRegisterNames
 
 .include "../clang.lib.mk"

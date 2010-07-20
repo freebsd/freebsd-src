@@ -38,16 +38,20 @@ class CheckerContext {
   const unsigned size;
   bool DoneEvaluating; // FIXME: This is not a permanent API change.
 public:
+  bool *respondsToCallback;
+public:
   CheckerContext(ExplodedNodeSet &dst, GRStmtNodeBuilder &builder,
                  GRExprEngine &eng, ExplodedNode *pred,
                  const void *tag, ProgramPoint::Kind K,
+                 bool *respondsToCB = 0,
                  const Stmt *stmt = 0, const GRState *st = 0)
     : Dst(dst), B(builder), Eng(eng), Pred(pred),
       OldSink(B.BuildSinks),
       OldTag(B.Tag, tag),
       OldPointKind(B.PointKind, K),
       OldHasGen(B.HasGeneratedNode),
-      ST(st), statement(stmt), size(Dst.size()) {}
+      ST(st), statement(stmt), size(Dst.size()),
+      respondsToCallback(respondsToCB) {}
 
   ~CheckerContext();
 
@@ -144,6 +148,7 @@ public:
     // If the 'state' is not new, we need to check if the cached state 'ST'
     // is new.
     if (state != getState() || (ST && ST != B.GetState(Pred)))
+      // state is new or equals to ST.
       GenerateNode(state, true);
     else
       Dst.Add(Pred);
@@ -188,10 +193,11 @@ private:
                 GRStmtNodeBuilder &Builder,
                 GRExprEngine &Eng,
                 const Stmt *S,
-                ExplodedNode *Pred, void *tag, bool isPrevisit) {
+                ExplodedNode *Pred, void *tag, bool isPrevisit,
+                bool& respondsToCallback) {
     CheckerContext C(Dst, Builder, Eng, Pred, tag,
                      isPrevisit ? ProgramPoint::PreStmtKind :
-                     ProgramPoint::PostStmtKind, S);
+                     ProgramPoint::PostStmtKind, &respondsToCallback, S);
     if (isPrevisit)
       _PreVisit(C, S);
     else
@@ -202,7 +208,7 @@ private:
                           GRExprEngine &Eng, const ObjCMessageExpr *ME,
                           ExplodedNode *Pred, const GRState *state, void *tag) {
     CheckerContext C(Dst, Builder, Eng, Pred, tag, ProgramPoint::PostStmtKind,
-                     ME, state);
+                     0, ME, state);
     return EvalNilReceiver(C, ME);
   }
 
@@ -210,7 +216,7 @@ private:
                        GRExprEngine &Eng, const CallExpr *CE,
                        ExplodedNode *Pred, void *tag) {
     CheckerContext C(Dst, Builder, Eng, Pred, tag, ProgramPoint::PostStmtKind,
-                     CE);
+                     0, CE);
     return EvalCallExpr(C, CE);
   }
 
@@ -223,7 +229,7 @@ private:
                     bool isPrevisit) {
     CheckerContext C(Dst, Builder, Eng, Pred, tag,
                      isPrevisit ? ProgramPoint::PreStmtKind :
-                     ProgramPoint::PostStmtKind, StoreE);
+                     ProgramPoint::PostStmtKind, 0, StoreE);
     assert(isPrevisit && "Only previsit supported for now.");
     PreVisitBind(C, AssignE, StoreE, location, val);
   }
@@ -238,7 +244,7 @@ private:
                         void *tag, bool isLoad) {
     CheckerContext C(Dst, Builder, Eng, Pred, tag,
                      isLoad ? ProgramPoint::PreLoadKind :
-                     ProgramPoint::PreStoreKind, S, state);
+                     ProgramPoint::PreStoreKind, 0, S, state);
     VisitLocation(C, S, location);
   }
 
@@ -246,8 +252,8 @@ private:
                           GRExprEngine &Eng, const Stmt *S, ExplodedNode *Pred,
                           SymbolReaper &SymReaper, void *tag) {
     CheckerContext C(Dst, Builder, Eng, Pred, tag, 
-                     ProgramPoint::PostPurgeDeadSymbolsKind, S);
-    EvalDeadSymbols(C, S, SymReaper);
+                     ProgramPoint::PostPurgeDeadSymbolsKind, 0, S);
+    EvalDeadSymbols(C, SymReaper);
   }
 
 public:
@@ -257,8 +263,7 @@ public:
   virtual void VisitLocation(CheckerContext &C, const Stmt *S, SVal location) {}
   virtual void PreVisitBind(CheckerContext &C, const Stmt *AssignE,
                             const Stmt *StoreE, SVal location, SVal val) {}
-  virtual void EvalDeadSymbols(CheckerContext &C, const Stmt *S,
-                               SymbolReaper &SymReaper) {}
+  virtual void EvalDeadSymbols(CheckerContext &C, SymbolReaper &SymReaper) {}
   virtual void EvalEndPath(GREndPathNodeBuilder &B, void *tag,
                            GRExprEngine &Eng) {}
 
@@ -278,6 +283,9 @@ public:
                                     bool Assumption) {
     return state;
   }
+
+  virtual void VisitEndAnalysis(ExplodedGraph &G, BugReporter &B,
+                                bool hasWorkRemaining) {}
 };
 } // end clang namespace
 

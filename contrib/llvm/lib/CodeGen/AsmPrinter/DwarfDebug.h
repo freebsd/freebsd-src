@@ -156,6 +156,9 @@ class DwarfDebug {
   /// not included DbgScopeMap.  AbstractScopes owns its DbgScope*s.
   DenseMap<const MDNode *, DbgScope *> AbstractScopes;
 
+  /// AbstractSPDies - Collection of abstract subprogram DIEs.
+  DenseMap<const MDNode *, DIE *> AbstractSPDies;
+
   /// AbstractScopesList - Tracks abstract scopes constructed while processing
   /// a function. This list is cleared during endFunction().
   SmallVector<DbgScope *, 4>AbstractScopesList;
@@ -210,7 +213,7 @@ class DwarfDebug {
   DenseMap<DIE *, const MDNode *> ContainingTypeMap;
 
   typedef SmallVector<DbgScope *, 2> ScopeVector;
-  SmallPtrSet<const MachineInstr *, 8> InsnsBeginScopeSet;
+
   SmallPtrSet<const MachineInstr *, 8> InsnsEndScopeSet;
 
   /// InlineInfo - Keep track of inlined functions and their location.  This
@@ -218,6 +221,10 @@ class DwarfDebug {
   typedef std::pair<const MCSymbol *, DIE *> InlineInfoLabels;
   DenseMap<const MDNode *, SmallVector<InlineInfoLabels, 4> > InlineInfo;
   SmallVector<const MDNode *, 4> InlinedSPNodes;
+
+  // ProcessedSPNodes - This is a collection of subprogram MDNodes that
+  // are processed to create DIEs.
+  SmallPtrSet<const MDNode *, 16> ProcessedSPNodes;
 
   /// LabelsBeforeInsn - Maps instruction with label emitted before 
   /// instruction.
@@ -230,9 +237,6 @@ class DwarfDebug {
   /// insnNeedsLabel - Collection of instructions that need a label to mark
   /// a debuggging information entity.
   SmallPtrSet<const MachineInstr *, 8> InsnNeedsLabel;
-
-  /// ProcessedArgs - Collection of arguments already processed.
-  SmallPtrSet<const MDNode *, 8> ProcessedArgs;
 
   SmallVector<const MCSymbol *, 8> DebugRangeSymbols;
 
@@ -257,7 +261,10 @@ class DwarfDebug {
   MCSymbol *DwarfFrameSectionSym, *DwarfInfoSectionSym, *DwarfAbbrevSectionSym;
   MCSymbol *DwarfStrSectionSym, *TextSectionSym, *DwarfDebugRangeSectionSym;
   MCSymbol *DwarfDebugLocSectionSym;
+  MCSymbol *DwarfDebugLineSectionSym, *CurrentLineSectionSym;
   MCSymbol *FunctionBeginSym, *FunctionEndSym;
+
+  DIEInteger *DIEIntegerOne;
 private:
   
   /// getSourceDirectoryAndFileIds - Return the directory and file ids that
@@ -593,7 +600,8 @@ private:
   bool extractScopeInformation();
   
   /// collectVariableInfo - Populate DbgScope entries with variables' info.
-  void collectVariableInfo(const MachineFunction *);
+  void collectVariableInfo(const MachineFunction *,
+                           SmallPtrSet<const MDNode *, 16> &ProcessedVars);
   
   /// collectVariableInfoFromMMITable - Collect variable information from
   /// side table maintained by MMI.

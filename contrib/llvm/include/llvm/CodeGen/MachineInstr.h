@@ -215,9 +215,6 @@ public:
   bool isKill() const { return getOpcode() == TargetOpcode::KILL; }
   bool isImplicitDef() const { return getOpcode()==TargetOpcode::IMPLICIT_DEF; }
   bool isInlineAsm() const { return getOpcode() == TargetOpcode::INLINEASM; }
-  bool isExtractSubreg() const {
-    return getOpcode() == TargetOpcode::EXTRACT_SUBREG;
-  }
   bool isInsertSubreg() const {
     return getOpcode() == TargetOpcode::INSERT_SUBREG;
   }
@@ -227,7 +224,22 @@ public:
   bool isRegSequence() const {
     return getOpcode() == TargetOpcode::REG_SEQUENCE;
   }
-  
+  bool isCopy() const {
+    return getOpcode() == TargetOpcode::COPY;
+  }
+
+  /// isCopyLike - Return true if the instruction behaves like a copy.
+  /// This does not include native copy instructions.
+  bool isCopyLike() const {
+    return isCopy() || isSubregToReg();
+  }
+
+  /// isIdentityCopy - Return true is the instruction is an identity copy.
+  bool isIdentityCopy() const {
+    return isCopy() && getOperand(0).getReg() == getOperand(1).getReg() &&
+      getOperand(0).getSubReg() == getOperand(1).getSubReg();
+  }
+
   /// readsRegister - Return true if the MachineInstr reads the specified
   /// register. If TargetRegisterInfo is passed, then it also checks if there
   /// is a read of a super-register.
@@ -339,6 +351,11 @@ public:
   /// copyPredicates - Copies predicate operand(s) from MI.
   void copyPredicates(const MachineInstr *MI);
 
+  /// substituteRegister - Replace all occurrences of FromReg with ToReg:SubIdx,
+  /// properly composing subreg indices where necessary.
+  void substituteRegister(unsigned FromReg, unsigned ToReg, unsigned SubIdx,
+                          const TargetRegisterInfo &RegInfo);
+
   /// addRegisterKilled - We have determined MI kills a register. Look for the
   /// operand that uses it and mark it as IsKill. If AddIfNotFound is true,
   /// add a implicit operand if it's not found. Returns true if the operand
@@ -358,6 +375,11 @@ public:
   /// there is an operand defining Reg.
   void addRegisterDefined(unsigned IncomingReg,
                           const TargetRegisterInfo *RegInfo = 0);
+
+  /// setPhysRegsDeadExcept - Mark every physreg used by this instruction as dead
+  /// except those in the UsedRegs list.
+  void setPhysRegsDeadExcept(const SmallVectorImpl<unsigned> &UsedRegs,
+                             const TargetRegisterInfo &TRI);
 
   /// isSafeToMove - Return true if it is safe to move this instruction. If
   /// SawStore is set to true, it means that there is a store (or call) between

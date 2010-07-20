@@ -130,14 +130,14 @@ bool
 ReduceCrashingGlobalVariables::TestGlobalVariables(
                               std::vector<GlobalVariable*> &GVs) {
   // Clone the program to try hacking it apart...
-  DenseMap<const Value*, Value*> ValueMap;
-  Module *M = CloneModule(BD.getProgram(), ValueMap);
+  ValueMap<const Value*, Value*> VMap;
+  Module *M = CloneModule(BD.getProgram(), VMap);
 
   // Convert list to set for fast lookup...
   std::set<GlobalVariable*> GVSet;
 
   for (unsigned i = 0, e = GVs.size(); i != e; ++i) {
-    GlobalVariable* CMGV = cast<GlobalVariable>(ValueMap[GVs[i]]);
+    GlobalVariable* CMGV = cast<GlobalVariable>(VMap[GVs[i]]);
     assert(CMGV && "Global Variable not in module?!");
     GVSet.insert(CMGV);
   }
@@ -204,13 +204,13 @@ bool ReduceCrashingFunctions::TestFuncs(std::vector<Function*> &Funcs) {
     return false;
 
   // Clone the program to try hacking it apart...
-  DenseMap<const Value*, Value*> ValueMap;
-  Module *M = CloneModule(BD.getProgram(), ValueMap);
+  ValueMap<const Value*, Value*> VMap;
+  Module *M = CloneModule(BD.getProgram(), VMap);
 
   // Convert list to set for fast lookup...
   std::set<Function*> Functions;
   for (unsigned i = 0, e = Funcs.size(); i != e; ++i) {
-    Function *CMF = cast<Function>(ValueMap[Funcs[i]]);
+    Function *CMF = cast<Function>(VMap[Funcs[i]]);
     assert(CMF && "Function not in module?!");
     assert(CMF->getFunctionType() == Funcs[i]->getFunctionType() && "wrong ty");
     assert(CMF->getName() == Funcs[i]->getName() && "wrong name");
@@ -270,13 +270,13 @@ namespace {
 
 bool ReduceCrashingBlocks::TestBlocks(std::vector<const BasicBlock*> &BBs) {
   // Clone the program to try hacking it apart...
-  DenseMap<const Value*, Value*> ValueMap;
-  Module *M = CloneModule(BD.getProgram(), ValueMap);
+  ValueMap<const Value*, Value*> VMap;
+  Module *M = CloneModule(BD.getProgram(), VMap);
 
   // Convert list to set for fast lookup...
   SmallPtrSet<BasicBlock*, 8> Blocks;
   for (unsigned i = 0, e = BBs.size(); i != e; ++i)
-    Blocks.insert(cast<BasicBlock>(ValueMap[BBs[i]]));
+    Blocks.insert(cast<BasicBlock>(VMap[BBs[i]]));
 
   outs() << "Checking for crash with only these blocks:";
   unsigned NumPrint = Blocks.size();
@@ -298,10 +298,7 @@ bool ReduceCrashingBlocks::TestBlocks(std::vector<const BasicBlock*> &BBs) {
 
         TerminatorInst *BBTerm = BB->getTerminator();
         
-        if (BBTerm->getType()->isStructTy())
-           BBTerm->replaceAllUsesWith(UndefValue::get(BBTerm->getType()));
-        else if (BB->getTerminator()->getType() != 
-                    Type::getVoidTy(BB->getContext()))
+        if (!BB->getTerminator()->getType()->isVoidTy())
           BBTerm->replaceAllUsesWith(Constant::getNullValue(BBTerm->getType()));
 
         // Replace the old terminator instruction.
@@ -374,14 +371,14 @@ namespace {
 bool ReduceCrashingInstructions::TestInsts(std::vector<const Instruction*>
                                            &Insts) {
   // Clone the program to try hacking it apart...
-  DenseMap<const Value*, Value*> ValueMap;
-  Module *M = CloneModule(BD.getProgram(), ValueMap);
+  ValueMap<const Value*, Value*> VMap;
+  Module *M = CloneModule(BD.getProgram(), VMap);
 
   // Convert list to set for fast lookup...
   SmallPtrSet<Instruction*, 64> Instructions;
   for (unsigned i = 0, e = Insts.size(); i != e; ++i) {
     assert(!isa<TerminatorInst>(Insts[i]));
-    Instructions.insert(cast<Instruction>(ValueMap[Insts[i]]));
+    Instructions.insert(cast<Instruction>(VMap[Insts[i]]));
   }
 
   outs() << "Checking for crash with only " << Instructions.size();
@@ -395,7 +392,7 @@ bool ReduceCrashingInstructions::TestInsts(std::vector<const Instruction*>
       for (BasicBlock::iterator I = FI->begin(), E = FI->end(); I != E;) {
         Instruction *Inst = I++;
         if (!Instructions.count(Inst) && !isa<TerminatorInst>(Inst)) {
-          if (Inst->getType() != Type::getVoidTy(Inst->getContext()))
+          if (!Inst->getType()->isVoidTy())
             Inst->replaceAllUsesWith(UndefValue::get(Inst->getType()));
           Inst->eraseFromParent();
         }

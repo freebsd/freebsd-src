@@ -183,7 +183,7 @@ void DeclPrinter::Print(AccessSpecifier AS) {
   case AS_none:      assert(0 && "No access specifier!"); break;
   case AS_public:    Out << "public"; break;
   case AS_protected: Out << "protected"; break;
-  case AS_private:   Out << " private"; break;
+  case AS_private:   Out << "private"; break;
   }
 }
 
@@ -195,9 +195,6 @@ void DeclPrinter::VisitDeclContext(DeclContext *DC, bool Indent) {
   if (Indent)
     Indentation += Policy.Indentation;
 
-  bool PrintAccess = isa<CXXRecordDecl>(DC);
-  AccessSpecifier CurAS = AS_none;
-
   llvm::SmallVector<Decl*, 2> Decls;
   for (DeclContext::decl_iterator D = DC->decls_begin(), DEnd = DC->decls_end();
        D != DEnd; ++D) {
@@ -205,21 +202,14 @@ void DeclPrinter::VisitDeclContext(DeclContext *DC, bool Indent) {
       // Skip over implicit declarations in pretty-printing mode.
       if (D->isImplicit()) continue;
       // FIXME: Ugly hack so we don't pretty-print the builtin declaration
-      // of __builtin_va_list.  There should be some other way to check that.
-      if (isa<NamedDecl>(*D) && cast<NamedDecl>(*D)->getNameAsString() ==
-          "__builtin_va_list")
-        continue;
-    }
-
-    if (PrintAccess) {
-      AccessSpecifier AS = D->getAccess();
-
-      if (AS != CurAS) {
-        if (Indent)
-          this->Indent(Indentation - Policy.Indentation);
-        Print(AS);
-        Out << ":\n";
-        CurAS = AS;
+      // of __builtin_va_list or __[u]int128_t.  There should be some other way
+      // to check that.
+      if (NamedDecl *ND = dyn_cast<NamedDecl>(*D)) {
+        if (IdentifierInfo *II = ND->getIdentifier()) {
+          if (II->isStr("__builtin_va_list") ||
+              II->isStr("__int128_t") || II->isStr("__uint128_t"))
+            continue;
+        }
       }
     }
 
@@ -251,6 +241,16 @@ void DeclPrinter::VisitDeclContext(DeclContext *DC, bool Indent) {
       Decls.push_back(*D);
       continue;
     }
+
+    if (isa<AccessSpecDecl>(*D)) {
+      Indentation -= Policy.Indentation;
+      this->Indent();
+      Print(D->getAccess());
+      Out << ":\n";
+      Indentation += Policy.Indentation;
+      continue;
+    }
+
     this->Indent();
     Visit(*D);
 
@@ -406,7 +406,8 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
             FieldDecl *FD = BMInitializer->getMember();
             Out << FD;
           } else {
-            Out << QualType(BMInitializer->getBaseClass(), 0).getAsString();
+            Out << QualType(BMInitializer->getBaseClass(),
+                            0).getAsString(Policy);
           }
           
           Out << "(";
@@ -653,7 +654,11 @@ void DeclPrinter::VisitTemplateDecl(TemplateDecl *D) {
 
   Out << "> ";
 
-  Visit(D->getTemplatedDecl());
+  if (isa<TemplateTemplateParmDecl>(D)) {
+    Out << "class " << D->getName();
+  } else {
+    Visit(D->getTemplatedDecl());
+  }
 }
 
 //----------------------------------------------------------------------------

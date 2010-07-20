@@ -97,7 +97,7 @@ public:
   /// return value should have the LLVM type for pointer-to
   /// ASTContext::getObjCSelType().
   virtual llvm::Value *GetSelector(CGBuilderTy &Builder,
-                                   Selector Sel) = 0;
+                                   Selector Sel, bool lval=false) = 0;
 
   /// Get a typed selector.
   virtual llvm::Value *GetSelector(CGBuilderTy &Builder,
@@ -181,8 +181,10 @@ public:
   /// compiler when a mutation is detected during foreach iteration.
   virtual llvm::Constant *EnumerationMutationFunction() = 0;
 
-  virtual void EmitTryOrSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
-                                         const Stmt &S) = 0;
+  virtual void EmitSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
+                                    const ObjCAtSynchronizedStmt &S) = 0;
+  virtual void EmitTryStmt(CodeGen::CodeGenFunction &CGF,
+                           const ObjCAtTryStmt &S) = 0;
   virtual void EmitThrowStmt(CodeGen::CodeGenFunction &CGF,
                              const ObjCAtThrowStmt &S) = 0;
   virtual llvm::Value *EmitObjCWeakRead(CodeGen::CodeGenFunction &CGF,
@@ -208,7 +210,7 @@ public:
   virtual void EmitGCMemmoveCollectable(CodeGen::CodeGenFunction &CGF,
                                         llvm::Value *DestPtr,
                                         llvm::Value *SrcPtr,
-                                        QualType Ty) = 0;
+                                        llvm::Value *Size) = 0;
 };
 
 /// Creates an instance of an Objective-C runtime class.

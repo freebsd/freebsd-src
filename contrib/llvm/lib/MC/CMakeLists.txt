@@ -14,6 +14,7 @@ add_llvm_library(LLVMMC
   MCLoggingStreamer.cpp
   MCMachOStreamer.cpp
   MCNullStreamer.cpp
+  MCObjectStreamer.cpp
   MCObjectWriter.cpp
   MCSection.cpp
   MCSectionCOFF.cpp
@@ -23,5 +24,7 @@ add_llvm_library(LLVMMC
   MCSymbol.cpp
   MCValue.cpp
   MachObjectWriter.cpp
+  WinCOFFStreamer.cpp
+  WinCOFFObjectWriter.cpp
   TargetAsmBackend.cpp
   )

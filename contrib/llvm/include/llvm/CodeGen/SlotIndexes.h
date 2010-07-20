@@ -23,6 +23,7 @@
 #define LLVM_CODEGEN_SLOTINDEXES_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallVector.h"
@@ -663,15 +664,20 @@ namespace llvm {
       MachineBasicBlock::iterator miItr(mi);
       bool needRenumber = false;
       IndexListEntry *newEntry;
-
+      // Get previous index, considering that not all instructions are indexed.
       IndexListEntry *prevEntry;
-      if (miItr == mbb->begin()) {
+      for (;;) {
         // If mi is at the mbb beginning, get the prev index from the mbb.
-        prevEntry = &mbbRangeItr->second.first.entry();
-      } else {
-        // Otherwise get it from the previous instr.
-        MachineBasicBlock::iterator pItr(prior(miItr));
-        prevEntry = &getInstructionIndex(pItr).entry();
+        if (miItr == mbb->begin()) {
+          prevEntry = &mbbRangeItr->second.first.entry();
+          break;
+        }
+        // Otherwise rewind until we find a mapped instruction.
+        Mi2IndexMap::const_iterator itr = mi2iMap.find(--miItr);
+        if (itr != mi2iMap.end()) {
+          prevEntry = &itr->second.entry();
+          break;
+        }
       }
 
       // Get next entry from previous entry.
@@ -755,6 +761,47 @@ namespace llvm {
       miEntry->setInstr(newMI);
       mi2iMap.erase(mi2iItr);
       mi2iMap.insert(std::make_pair(newMI, replaceBaseIndex));
+    }
+
+    /// Add the given MachineBasicBlock into the maps.
+    void insertMBBInMaps(MachineBasicBlock *mbb) {
+      MachineFunction::iterator nextMBB =
+        llvm::next(MachineFunction::iterator(mbb));
+      IndexListEntry *startEntry = createEntry(0, 0);
+      IndexListEntry *terminatorEntry = createEntry(0, 0); 
+      IndexListEntry *nextEntry = 0;
+
+      if (nextMBB == mbb->getParent()->end()) {
+        nextEntry = getTail();
+      } else {
+        nextEntry = &getMBBStartIdx(nextMBB).entry();
+      }
+
+      insert(nextEntry, startEntry);
+      insert(nextEntry, terminatorEntry);
+
+      SlotIndex startIdx(startEntry, SlotIndex::LOAD);
+      SlotIndex terminatorIdx(terminatorEntry, SlotIndex::PHI_BIT);
+      SlotIndex endIdx(nextEntry, SlotIndex::LOAD);
+
+      terminatorGaps.insert(
+        std::make_pair(mbb, terminatorIdx));
+
+      mbb2IdxMap.insert(
+        std::make_pair(mbb, std::make_pair(startIdx, endIdx)));
+
+      idx2MBBMap.push_back(IdxMBBPair(startIdx, mbb));
+
+      if (MachineFunction::iterator(mbb) != mbb->getParent()->begin()) {
+        // Have to update the end index of the previous block.
+        MachineBasicBlock *priorMBB =
+          llvm::prior(MachineFunction::iterator(mbb));
+        mbb2IdxMap[priorMBB].second = startIdx;
+      }
+
+      renumberIndexes();
+      std::sort(idx2MBBMap.begin(), idx2MBBMap.end(), Idx2MBBCompare());
+
     }
 
   };

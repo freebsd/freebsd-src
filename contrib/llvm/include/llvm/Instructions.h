@@ -235,6 +235,9 @@ public:
 
   void setAlignment(unsigned Align);
 
+  Value *getValueOperand() { return getOperand(0); }
+  const Value *getValueOperand() const { return getOperand(0); }
+  
   Value *getPointerOperand() { return getOperand(1); }
   const Value *getPointerOperand() const { return getOperand(1); }
   static unsigned getPointerOperandIndex() { return 1U; }
@@ -883,14 +886,14 @@ public:
                           InputIterator ArgBegin, InputIterator ArgEnd,
                           const Twine &NameStr = "",
                           Instruction *InsertBefore = 0) {
-    return new((unsigned)(ArgEnd - ArgBegin + 1))
+    return new(unsigned(ArgEnd - ArgBegin + 1))
       CallInst(Func, ArgBegin, ArgEnd, NameStr, InsertBefore);
   }
   template<typename InputIterator>
   static CallInst *Create(Value *Func,
                           InputIterator ArgBegin, InputIterator ArgEnd,
                           const Twine &NameStr, BasicBlock *InsertAtEnd) {
-    return new((unsigned)(ArgEnd - ArgBegin + 1))
+    return new(unsigned(ArgEnd - ArgBegin + 1))
       CallInst(Func, ArgBegin, ArgEnd, NameStr, InsertAtEnd);
   }
   static CallInst *Create(Value *F, Value *Actual,
@@ -919,6 +922,7 @@ public:
   static Instruction *CreateMalloc(Instruction *InsertBefore,
                                    const Type *IntPtrTy, const Type *AllocTy,
                                    Value *AllocSize, Value *ArraySize = 0,
+                                   Function* MallocF = 0,
                                    const Twine &Name = "");
   static Instruction *CreateMalloc(BasicBlock *InsertAtEnd,
                                    const Type *IntPtrTy, const Type *AllocTy,
@@ -926,7 +930,7 @@ public:
                                    Function* MallocF = 0,
                                    const Twine &Name = "");
   /// CreateFree - Generate the IR for a call to the builtin free function.
-  static void CreateFree(Value* Source, Instruction *InsertBefore);
+  static Instruction* CreateFree(Value* Source, Instruction *InsertBefore);
   static Instruction* CreateFree(Value* Source, BasicBlock *InsertAtEnd);
 
   ~CallInst();
@@ -937,8 +941,33 @@ public:
                                unsigned(isTC));
   }
 
+  /// @deprecated these "define hacks" will go away soon
+  /// @brief coerce out-of-tree code to abandon the low-level interfaces
+  /// @detail see below comments and update your code to high-level interfaces
+  ///    - getOperand(0)  --->  getCalledValue(), or possibly getCalledFunction
+  ///    - setOperand(0, V)  --->  setCalledFunction(V)
+  ///
+  ///    in LLVM v2.8-only code
+  ///    - getOperand(N+1)  --->  getArgOperand(N)
+  ///    - setOperand(N+1, V)  --->  setArgOperand(N, V)
+  ///    - getNumOperands()  --->  getNumArgOperands()+1  // note the "+1"!
+  ///
+  ///    in backward compatible code please consult llvm/Support/CallSite.h,
+  ///    you should create a callsite using the CallInst pointer and call its
+  ///    methods
+  ///
+# define public private
+# define protected private
   /// Provide fast operand accessors
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
+# undef public
+# undef protected
+public:
+
+  enum { ArgOffset = 0 }; ///< temporary, do not use for new code!
+  unsigned getNumArgOperands() const { return getNumOperands() - 1; }
+  Value *getArgOperand(unsigned i) const { return getOperand(i + ArgOffset); }
+  void setArgOperand(unsigned i, Value *v) { setOperand(i + ArgOffset, v); }
 
   /// getCallingConv/setCallingConv - Get or set the calling convention of this
   /// function call.
@@ -974,7 +1003,7 @@ public:
   
   /// @brief Return true if the call should not be inlined.
   bool isNoInline() const { return paramHasAttr(~0, Attribute::NoInline); }
-  void setIsNoInline(bool Value) {
+  void setIsNoInline(bool Value = true) {
     if (Value) addAttribute(~0, Attribute::NoInline);
     else removeAttribute(~0, Attribute::NoInline);
   }
@@ -998,18 +1027,14 @@ public:
   }
 
   /// @brief Determine if the call cannot return.
-  bool doesNotReturn() const {
-    return paramHasAttr(~0, Attribute::NoReturn);
-  }
+  bool doesNotReturn() const { return paramHasAttr(~0, Attribute::NoReturn); }
   void setDoesNotReturn(bool DoesNotReturn = true) {
     if (DoesNotReturn) addAttribute(~0, Attribute::NoReturn);
     else removeAttribute(~0, Attribute::NoReturn);
   }
 
   /// @brief Determine if the call cannot unwind.
-  bool doesNotThrow() const {
-    return paramHasAttr(~0, Attribute::NoUnwind);
-  }
+  bool doesNotThrow() const { return paramHasAttr(~0, Attribute::NoUnwind); }
   void setDoesNotThrow(bool DoesNotThrow = true) {
     if (DoesNotThrow) addAttribute(~0, Attribute::NoUnwind);
     else removeAttribute(~0, Attribute::NoUnwind);
@@ -1031,17 +1056,17 @@ public:
   /// indirect function invocation.
   ///
   Function *getCalledFunction() const {
-    return dyn_cast<Function>(Op<0>());
+    return dyn_cast<Function>(Op<ArgOffset -1>());
   }
 
   /// getCalledValue - Get a pointer to the function that is invoked by this
   /// instruction.
-  const Value *getCalledValue() const { return Op<0>(); }
-        Value *getCalledValue()       { return Op<0>(); }
+  const Value *getCalledValue() const { return Op<ArgOffset -1>(); }
+        Value *getCalledValue()       { return Op<ArgOffset -1>(); }
 
   /// setCalledFunction - Set the function called.
   void setCalledFunction(Value* Fn) {
-    Op<0>() = Fn;
+    Op<ArgOffset -1>() = Fn;
   }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
@@ -1071,7 +1096,7 @@ CallInst::CallInst(Value *Func, InputIterator ArgBegin, InputIterator ArgEnd,
                                    ->getElementType())->getReturnType(),
                 Instruction::Call,
                 OperandTraits<CallInst>::op_end(this) - (ArgEnd - ArgBegin + 1),
-                (unsigned)(ArgEnd - ArgBegin + 1), InsertAtEnd) {
+                unsigned(ArgEnd - ArgBegin + 1), InsertAtEnd) {
   init(Func, ArgBegin, ArgEnd, NameStr,
        typename std::iterator_traits<InputIterator>::iterator_category());
 }
@@ -1083,11 +1108,15 @@ CallInst::CallInst(Value *Func, InputIterator ArgBegin, InputIterator ArgEnd,
                                    ->getElementType())->getReturnType(),
                 Instruction::Call,
                 OperandTraits<CallInst>::op_end(this) - (ArgEnd - ArgBegin + 1),
-                (unsigned)(ArgEnd - ArgBegin + 1), InsertBefore) {
+                unsigned(ArgEnd - ArgBegin + 1), InsertBefore) {
   init(Func, ArgBegin, ArgEnd, NameStr,
        typename std::iterator_traits<InputIterator>::iterator_category());
 }
 
+
+// Note: if you get compile errors about private methods then
+//       please update your code to use the high-level operand
+//       interfaces. See line 943 above.
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(CallInst, Value)
 
 //===----------------------------------------------------------------------===//
@@ -2432,6 +2461,10 @@ public:
   /// Provide fast operand accessors
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
 
+  unsigned getNumArgOperands() const { return getNumOperands() - 3; }
+  Value *getArgOperand(unsigned i) const { return getOperand(i); }
+  void setArgOperand(unsigned i, Value *v) { setOperand(i, v); }
+
   /// getCallingConv/setCallingConv - Get or set the calling convention of this
   /// function call.
   CallingConv::ID getCallingConv() const {
@@ -2465,11 +2498,11 @@ public:
 
   /// @brief Return true if the call should not be inlined.
   bool isNoInline() const { return paramHasAttr(~0, Attribute::NoInline); }
-  void setIsNoInline(bool Value) {
+  void setIsNoInline(bool Value = true) {
     if (Value) addAttribute(~0, Attribute::NoInline);
     else removeAttribute(~0, Attribute::NoInline);
   }
-  
+
   /// @brief Determine if the call does not access memory.
   bool doesNotAccessMemory() const {
     return paramHasAttr(~0, Attribute::ReadNone);
@@ -2489,18 +2522,14 @@ public:
   }
 
   /// @brief Determine if the call cannot return.
-  bool doesNotReturn() const {
-    return paramHasAttr(~0, Attribute::NoReturn);
-  }
+  bool doesNotReturn() const { return paramHasAttr(~0, Attribute::NoReturn); }
   void setDoesNotReturn(bool DoesNotReturn = true) {
     if (DoesNotReturn) addAttribute(~0, Attribute::NoReturn);
     else removeAttribute(~0, Attribute::NoReturn);
   }
 
   /// @brief Determine if the call cannot unwind.
-  bool doesNotThrow() const {
-    return paramHasAttr(~0, Attribute::NoUnwind);
-  }
+  bool doesNotThrow() const { return paramHasAttr(~0, Attribute::NoUnwind); }
   void setDoesNotThrow(bool DoesNotThrow = true) {
     if (DoesNotThrow) addAttribute(~0, Attribute::NoUnwind);
     else removeAttribute(~0, Attribute::NoUnwind);

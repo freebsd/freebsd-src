@@ -21,7 +21,7 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/Version.h"
-#include "clang/CodeGen/CodeGenOptions.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Instructions.h"
@@ -536,6 +536,19 @@ CGDebugInfo::getOrCreateMethodType(const CXXMethodDecl *Method,
     Context.getPointerType(Context.getTagDeclType(Method->getParent()));
   llvm::DIType ThisPtrType = 
     DebugFactory.CreateArtificialType(getOrCreateType(ThisPtr, Unit));
+
+  unsigned Quals = Method->getTypeQualifiers();
+  if (Quals & Qualifiers::Const)
+    ThisPtrType = 
+      DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_const_type, 
+                                     Unit, "", Unit,
+                                     0, 0, 0, 0, 0, ThisPtrType);
+  if (Quals & Qualifiers::Volatile)
+    ThisPtrType = 
+      DebugFactory.CreateDerivedType(llvm::dwarf::DW_TAG_volatile_type, 
+                                     Unit, "", Unit,
+                                     0, 0, 0, 0, 0, ThisPtrType);
+
   TypeCache[ThisPtr.getAsOpaquePtr()] = ThisPtrType;  
   Elts.push_back(ThisPtrType);
 
@@ -567,9 +580,9 @@ CGDebugInfo::CreateCXXMemberFunction(const CXXMethodDecl *Method,
   
   // Since a single ctor/dtor corresponds to multiple functions, it doesn't
   // make sense to give a single ctor/dtor a linkage name.
-  MangleBuffer MethodLinkageName;
+  llvm::StringRef MethodLinkageName;
   if (!IsCtorOrDtor)
-    CGM.getMangledName(MethodLinkageName, Method);
+    MethodLinkageName = CGM.getMangledName(Method);
 
   // Get the location for the method.
   llvm::DIFile MethodDefUnit = getOrCreateFile(Method->getLocation());
@@ -598,7 +611,7 @@ CGDebugInfo::CreateCXXMemberFunction(const CXXMethodDecl *Method,
                                   MethodLinkageName,
                                   MethodDefUnit, MethodLine,
                                   MethodTy, /*isLocalToUnit=*/false, 
-                                  Method->isThisDeclarationADefinition(),
+                                  /* isDefintion=*/ false,
                                   Virtuality, VIndex, ContainingType);
   
   // Don't cache ctors or dtors since we have to emit multiple functions for
@@ -758,21 +771,29 @@ llvm::DIType CGDebugInfo::CreateType(const RecordType *Ty,
   // its members.  Finally, we create a descriptor for the complete type (which
   // may refer to the forward decl if the struct is recursive) and replace all
   // uses of the forward declaration with the final definition.
+  llvm::DIDescriptor FDContext =
+    getContextDescriptor(dyn_cast<Decl>(RD->getDeclContext()), Unit);
+
+  // If this is just a forward declaration, construct an appropriately
+  // marked node and just return it.
+  if (!RD->getDefinition()) {
+    llvm::DICompositeType FwdDecl =
+      DebugFactory.CreateCompositeType(Tag, FDContext, RD->getName(),
+                                       DefUnit, Line, 0, 0, 0,
+                                       llvm::DIType::FlagFwdDecl,
+                                       llvm::DIType(), llvm::DIArray());
+
+      return FwdDecl;
+  }
 
   // A RD->getName() is not unique. However, the debug info descriptors 
   // are uniqued so use type name to ensure uniquness.
   llvm::SmallString<128> FwdDeclName;
   llvm::raw_svector_ostream(FwdDeclName) << "fwd.type." << FwdDeclCount++;
-  llvm::DIDescriptor FDContext = 
-    getContextDescriptor(dyn_cast<Decl>(RD->getDeclContext()), Unit);
   llvm::DICompositeType FwdDecl =
     DebugFactory.CreateCompositeType(Tag, FDContext, FwdDeclName,
                                      DefUnit, Line, 0, 0, 0, 0,
                                      llvm::DIType(), llvm::DIArray());
-
-  // If this is just a forward declaration, return it.
-  if (!RD->getDefinition())
-    return FwdDecl;
 
   llvm::MDNode *MN = FwdDecl;
   llvm::TrackingVH<llvm::MDNode> FwdDeclNode = MN;
@@ -1289,7 +1310,7 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
                                     CGBuilderTy &Builder) {
 
   llvm::StringRef Name;
-  MangleBuffer LinkageName;
+  llvm::StringRef LinkageName;
 
   const Decl *D = GD.getDecl();
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
@@ -1307,11 +1328,11 @@ void CGDebugInfo::EmitFunctionStart(GlobalDecl GD, QualType FnType,
     }
     Name = getFunctionName(FD);
     // Use mangled name as linkage name for c/c++ functions.
-    CGM.getMangledName(LinkageName, GD);
+    LinkageName = CGM.getMangledName(GD);
   } else {
     // Use llvm function name as linkage name.
     Name = Fn->getName();
-    LinkageName.setString(Name);
+    LinkageName = Name;
   }
   if (!Name.empty() && Name[0] == '\01')
     Name = Name.substr(1);
@@ -1477,7 +1498,7 @@ void CGDebugInfo::EmitDeclare(const VarDecl *VD, unsigned Tag,
   llvm::DIVariable D =
     DebugFactory.CreateVariable(Tag, llvm::DIDescriptor(RegionStack.back()),
                                 VD->getName(),
-                                Unit, Line, Ty);
+                                Unit, Line, Ty, CGM.getLangOptions().Optimize);
   // Insert an llvm.dbg.declare into the current block.
   llvm::Instruction *Call =
     DebugFactory.InsertDeclare(Storage, D, Builder.GetInsertBlock());

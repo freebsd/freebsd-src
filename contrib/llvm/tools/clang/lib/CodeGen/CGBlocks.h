@@ -99,7 +99,7 @@ public:
 
   llvm::Value *BlockObjectAssign;
   llvm::Value *BlockObjectDispose;
-  const llvm::Type *PtrToInt8Ty;
+  const llvm::PointerType *PtrToInt8Ty;
 
   std::map<uint64_t, llvm::Constant *> AssignCache;
   std::map<uint64_t, llvm::Constant *> DestroyCache;
@@ -121,13 +121,14 @@ public:
 
 class BlockFunction : public BlockBase {
   CodeGenModule &CGM;
-  CodeGenFunction &CGF;
   ASTContext &getContext() const;
 
 protected:
   llvm::LLVMContext &VMContext;
 
 public:
+  CodeGenFunction &CGF;
+
   const llvm::PointerType *PtrToInt8Ty;
   struct HelperInfo {
     int index;
@@ -180,7 +181,7 @@ public:
 
   /// BlockDecls - Offsets for all Decls in BlockDeclRefExprs.
   llvm::DenseMap<const Decl*, CharUnits> BlockDecls;
-
+  
   /// BlockCXXThisOffset - The offset of the C++ 'this' value within
   /// the block structure.
   CharUnits BlockCXXThisOffset;

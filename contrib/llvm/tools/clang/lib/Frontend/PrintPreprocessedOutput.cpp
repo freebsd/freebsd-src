@@ -23,6 +23,7 @@
 #include "clang/Lex/TokenConcatenation.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstdio>
@@ -117,7 +118,7 @@ public:
   virtual void Ident(SourceLocation Loc, const std::string &str);
   virtual void PragmaComment(SourceLocation Loc, const IdentifierInfo *Kind,
                              const std::string &Str);
-
+  virtual void PragmaMessage(SourceLocation Loc, llvm::StringRef Str);
 
   bool HandleFirstTokOnLine(Token &Tok);
   bool MoveToLine(SourceLocation Loc) {
@@ -174,20 +175,6 @@ void PrintPPOutputPPCallbacks::WriteLineInfo(unsigned LineNo,
 /// #line directive.  This returns false if already at the specified line, true
 /// if some newlines were emitted.
 bool PrintPPOutputPPCallbacks::MoveToLine(unsigned LineNo) {
-  if (DisableLineMarkers) {
-    if (LineNo == CurLine) return false;
-
-    CurLine = LineNo;
-
-    if (!EmittedTokensOnThisLine && !EmittedMacroOnThisLine)
-      return true;
-
-    OS << '\n';
-    EmittedTokensOnThisLine = false;
-    EmittedMacroOnThisLine = false;
-    return true;
-  }
-
   // If this line is "close enough" to the original line, just print newlines,
   // otherwise print a #line directive.
   if (LineNo-CurLine <= 8) {
@@ -199,8 +186,17 @@ bool PrintPPOutputPPCallbacks::MoveToLine(unsigned LineNo) {
       const char *NewLines = "\n\n\n\n\n\n\n\n";
       OS.write(NewLines, LineNo-CurLine);
     }
-  } else {
+  } else if (!DisableLineMarkers) {
+    // Emit a #line or line marker.
     WriteLineInfo(LineNo, 0, 0);
+  } else {
+    // Okay, we're in -P mode, which turns off line markers.  However, we still
+    // need to emit a newline between tokens on different lines.
+    if (EmittedTokensOnThisLine || EmittedMacroOnThisLine) {
+      OS << '\n';
+      EmittedTokensOnThisLine = false;
+      EmittedMacroOnThisLine = false;
+    }
   }
 
   CurLine = LineNo;
@@ -311,6 +307,29 @@ void PrintPPOutputPPCallbacks::PragmaComment(SourceLocation Loc,
   EmittedTokensOnThisLine = true;
 }
 
+void PrintPPOutputPPCallbacks::PragmaMessage(SourceLocation Loc,
+                                             llvm::StringRef Str) {
+  MoveToLine(Loc);
+  OS << "#pragma message(";
+
+  OS << '"';
+
+  for (unsigned i = 0, e = Str.size(); i != e; ++i) {
+    unsigned char Char = Str[i];
+    if (isprint(Char) && Char != '\\' && Char != '"')
+      OS << (char)Char;
+    else  // Output anything hard as an octal escape.
+      OS << '\\'
+         << (char)('0'+ ((Char >> 6) & 7))
+         << (char)('0'+ ((Char >> 3) & 7))
+         << (char)('0'+ ((Char >> 0) & 7));
+  }
+  OS << '"';
+
+  OS << ')';
+  EmittedTokensOnThisLine = true;
+}
+
 
 /// HandleFirstTokOnLine - When emitting a preprocessed file in -E mode, this
 /// is called for the first token on each new line.  If this really is the start
@@ -372,7 +391,7 @@ struct UnknownPragmaHandler : public PragmaHandler {
   PrintPPOutputPPCallbacks *Callbacks;
 
   UnknownPragmaHandler(const char *prefix, PrintPPOutputPPCallbacks *callbacks)
-    : PragmaHandler(0), Prefix(prefix), Callbacks(callbacks) {}
+    : Prefix(prefix), Callbacks(callbacks) {}
   virtual void HandlePragma(Preprocessor &PP, Token &PragmaTok) {
     // Figure out what line we went to and insert the appropriate number of
     // newline characters.
@@ -397,8 +416,9 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
                                     PrintPPOutputPPCallbacks *Callbacks,
                                     llvm::raw_ostream &OS) {
   char Buffer[256];
-  Token PrevPrevTok;
-  Token PrevTok;
+  Token PrevPrevTok, PrevTok;
+  PrevPrevTok.startToken();
+  PrevTok.startToken();
   while (1) {
 
     // If this token is at the start of a line, emit newlines if needed.
@@ -454,6 +474,9 @@ static int MacroIDCompare(const void* a, const void* b) {
 }
 
 static void DoPrintMacros(Preprocessor &PP, llvm::raw_ostream *OS) {
+  // Ignore unknown pragmas.
+  PP.AddPragmaHandler(new EmptyPragmaHandler());
+
   // -dM mode just scans and ignores all tokens in the files, then dumps out
   // the macro table at the end.
   PP.EnterMainSourceFile();
@@ -494,7 +517,7 @@ void clang::DoPrintPreprocessedInput(Preprocessor &PP, llvm::raw_ostream *OS,
   PrintPPOutputPPCallbacks *Callbacks =
       new PrintPPOutputPPCallbacks(PP, *OS, !Opts.ShowLineMarkers,
                                    Opts.ShowMacros);
-  PP.AddPragmaHandler(0, new UnknownPragmaHandler("#pragma", Callbacks));
+  PP.AddPragmaHandler(new UnknownPragmaHandler("#pragma", Callbacks));
   PP.AddPragmaHandler("GCC", new UnknownPragmaHandler("#pragma GCC",
                                                       Callbacks));
 

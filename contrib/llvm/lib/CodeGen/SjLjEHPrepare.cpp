@@ -46,6 +46,8 @@ namespace {
     Constant *UnregisterFn;
     Constant *BuiltinSetjmpFn;
     Constant *FrameAddrFn;
+    Constant *StackAddrFn;
+    Constant *StackRestoreFn;
     Constant *LSDAAddrFn;
     Value *PersonalityFn;
     Constant *SelectorFn;
@@ -69,7 +71,7 @@ namespace {
     void insertCallSiteStore(Instruction *I, int Number, Value *CallSite);
     void markInvokeCallSite(InvokeInst *II, int InvokeNo, Value *CallSite,
                             SwitchInst *CatchSwitch);
-    void splitLiveRangesLiveAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes);
+    void splitLiveRangesAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes);
     bool insertSjLjEHSupport(Function &F);
   };
 } // end anonymous namespace
@@ -107,6 +109,8 @@ bool SjLjEHPass::doInitialization(Module &M) {
                           PointerType::getUnqual(FunctionContextTy),
                           (Type *)0);
   FrameAddrFn = Intrinsic::getDeclaration(&M, Intrinsic::frameaddress);
+  StackAddrFn = Intrinsic::getDeclaration(&M, Intrinsic::stacksave);
+  StackRestoreFn = Intrinsic::getDeclaration(&M, Intrinsic::stackrestore);
   BuiltinSetjmpFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_sjlj_setjmp);
   LSDAAddrFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_sjlj_lsda);
   SelectorFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_selector);
@@ -175,8 +179,10 @@ static void MarkBlocksLiveIn(BasicBlock *BB, std::set<BasicBlock*> &LiveBBs) {
 /// we spill into a stack location, guaranteeing that there is nothing live
 /// across the unwind edge.  This process also splits all critical edges
 /// coming out of invoke's.
+/// FIXME: Move this function to a common utility file (Local.cpp?) so
+/// both SjLj and LowerInvoke can use it.
 void SjLjEHPass::
-splitLiveRangesLiveAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes) {
+splitLiveRangesAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes) {
   // First step, split all critical edges from invoke instructions.
   for (unsigned i = 0, e = Invokes.size(); i != e; ++i) {
     InvokeInst *II = Invokes[i];
@@ -198,16 +204,33 @@ splitLiveRangesLiveAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes) {
     ++AfterAllocaInsertPt;
   for (Function::arg_iterator AI = F->arg_begin(), E = F->arg_end();
        AI != E; ++AI) {
-    // This is always a no-op cast because we're casting AI to AI->getType() so
-    // src and destination types are identical. BitCast is the only possibility.
-    CastInst *NC = new BitCastInst(
-      AI, AI->getType(), AI->getName()+".tmp", AfterAllocaInsertPt);
-    AI->replaceAllUsesWith(NC);
-    // Normally its is forbidden to replace a CastInst's operand because it
-    // could cause the opcode to reflect an illegal conversion. However, we're
-    // replacing it here with the same value it was constructed with to simply
-    // make NC its user.
-    NC->setOperand(0, AI);
+    const Type *Ty = AI->getType();
+    // Aggregate types can't be cast, but are legal argument types, so we have
+    // to handle them differently. We use an extract/insert pair as a
+    // lightweight method to achieve the same goal.
+    if (isa<StructType>(Ty) || isa<ArrayType>(Ty) || isa<VectorType>(Ty)) {
+      Instruction *EI = ExtractValueInst::Create(AI, 0, "",AfterAllocaInsertPt);
+      Instruction *NI = InsertValueInst::Create(AI, EI, 0);
+      NI->insertAfter(EI);
+      AI->replaceAllUsesWith(NI);
+      // Set the operand of the instructions back to the AllocaInst.
+      EI->setOperand(0, AI);
+      NI->setOperand(0, AI);
+    } else {
+      // This is always a no-op cast because we're casting AI to AI->getType()
+      // so src and destination types are identical. BitCast is the only
+      // possibility.
+      CastInst *NC = new BitCastInst(
+        AI, AI->getType(), AI->getName()+".tmp", AfterAllocaInsertPt);
+      AI->replaceAllUsesWith(NC);
+      // Set the operand of the cast instruction back to the AllocaInst.
+      // Normally it's forbidden to replace a CastInst's operand because it
+      // could cause the opcode to reflect an illegal conversion. However,
+      // we're replacing it here with the same value it was constructed with.
+      // We do this because the above replaceAllUsesWith() clobbered the
+      // operand, but we want this one to remain.
+      NC->setOperand(0, AI);
+    }
   }
 
   // Finally, scan the code looking for instructions with bad live ranges.
@@ -266,6 +289,9 @@ splitLiveRangesLiveAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes) {
       }
 
       // If we decided we need a spill, do it.
+      // FIXME: Spilling this way is overkill, as it forces all uses of
+      // the value to be reloaded from the stack slot, even those that aren't
+      // in the unwind blocks. We should be more selective.
       if (NeedsSpill) {
         ++NumSpilled;
         DemoteRegToStack(*Inst, true);
@@ -294,22 +320,34 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   // If we don't have any invokes or unwinds, there's nothing to do.
   if (Unwinds.empty() && Invokes.empty()) return false;
 
-  // Find the eh.selector.*  and eh.exception calls. We'll use the first
-  // eh.selector to determine the right personality function to use. For
-  // SJLJ, we always use the same personality for the whole function,
-  // not on a per-selector basis.
+  // Find the eh.selector.*, eh.exception and alloca calls.
+  //
+  // Remember any allocas() that aren't in the entry block, as the
+  // jmpbuf saved SP will need to be updated for them.
+  //
+  // We'll use the first eh.selector to determine the right personality
+  // function to use. For SJLJ, we always use the same personality for the
+  // whole function, not on a per-selector basis.
   // FIXME: That's a bit ugly. Better way?
   SmallVector<CallInst*,16> EH_Selectors;
   SmallVector<CallInst*,16> EH_Exceptions;
-  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+  SmallVector<Instruction*,16> JmpbufUpdatePoints;
+  // Note: Skip the entry block since there's nothing there that interests
+  // us. eh.selector and eh.exception shouldn't ever be there, and we
+  // want to disregard any allocas that are there.
+  for (Function::iterator BB = F.begin(), E = F.end(); ++BB != E;) {
     for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
       if (CallInst *CI = dyn_cast<CallInst>(I)) {
         if (CI->getCalledFunction() == SelectorFn) {
-          if (!PersonalityFn) PersonalityFn = CI->getOperand(2);
+          if (!PersonalityFn) PersonalityFn = CI->getArgOperand(1);
           EH_Selectors.push_back(CI);
         } else if (CI->getCalledFunction() == ExceptionFn) {
           EH_Exceptions.push_back(CI);
+        } else if (CI->getCalledFunction() == StackRestoreFn) {
+          JmpbufUpdatePoints.push_back(CI);
         }
+      } else if (AllocaInst *AI = dyn_cast<AllocaInst>(I)) {
+        JmpbufUpdatePoints.push_back(AI);
       }
     }
   }
@@ -329,7 +367,7 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
     // we spill into a stack location, guaranteeing that there is nothing live
     // across the unwind edge.  This process also splits all critical edges
     // coming out of invoke's.
-    splitLiveRangesLiveAcrossInvokes(Invokes);
+    splitLiveRangesAcrossInvokes(Invokes);
 
     BasicBlock *EntryBB = F.begin();
     // Create an alloca for the incoming jump buffer ptr and the new jump buffer
@@ -419,7 +457,7 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
     // Populate the Function Context
     //   1. LSDA address
     //   2. Personality function address
-    //   3. jmpbuf (save FP and call eh.sjlj.setjmp)
+    //   3. jmpbuf (save SP, FP and call eh.sjlj.setjmp)
 
     // LSDA address
     Idxs[0] = Zero;
@@ -440,31 +478,41 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
     new StoreInst(PersonalityFn, PersonalityFieldPtr, true,
                   EntryBB->getTerminator());
 
-    //   Save the frame pointer.
+    // Save the frame pointer.
     Idxs[1] = ConstantInt::get(Int32Ty, 5);
-    Value *FieldPtr
+    Value *JBufPtr
       = GetElementPtrInst::Create(FunctionContext, Idxs, Idxs+2,
                                   "jbuf_gep",
                                   EntryBB->getTerminator());
     Idxs[1] = ConstantInt::get(Int32Ty, 0);
-    Value *ElemPtr =
-      GetElementPtrInst::Create(FieldPtr, Idxs, Idxs+2, "jbuf_fp_gep",
+    Value *FramePtr =
+      GetElementPtrInst::Create(JBufPtr, Idxs, Idxs+2, "jbuf_fp_gep",
                                 EntryBB->getTerminator());
 
     Value *Val = CallInst::Create(FrameAddrFn,
                                   ConstantInt::get(Int32Ty, 0),
                                   "fp",
                                   EntryBB->getTerminator());
-    new StoreInst(Val, ElemPtr, true, EntryBB->getTerminator());
-    // Call the setjmp instrinsic. It fills in the rest of the jmpbuf
+    new StoreInst(Val, FramePtr, true, EntryBB->getTerminator());
+
+    // Save the stack pointer.
+    Idxs[1] = ConstantInt::get(Int32Ty, 2);
+    Value *StackPtr =
+      GetElementPtrInst::Create(JBufPtr, Idxs, Idxs+2, "jbuf_sp_gep",
+                                EntryBB->getTerminator());
+
+    Val = CallInst::Create(StackAddrFn, "sp", EntryBB->getTerminator());
+    new StoreInst(Val, StackPtr, true, EntryBB->getTerminator());
+
+    // Call the setjmp instrinsic. It fills in the rest of the jmpbuf.
     Value *SetjmpArg =
-      CastInst::Create(Instruction::BitCast, FieldPtr,
+      CastInst::Create(Instruction::BitCast, JBufPtr,
                        Type::getInt8PtrTy(F.getContext()), "",
                        EntryBB->getTerminator());
     Value *DispatchVal = CallInst::Create(BuiltinSetjmpFn, SetjmpArg,
                                           "dispatch",
                                           EntryBB->getTerminator());
-    // check the return value of the setjmp. non-zero goes to dispatcher
+    // check the return value of the setjmp. non-zero goes to dispatcher.
     Value *IsNormal = new ICmpInst(EntryBB->getTerminator(),
                                    ICmpInst::ICMP_EQ, DispatchVal, Zero,
                                    "notunwind");
@@ -507,6 +555,16 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
     for (unsigned i = 0, e = Unwinds.size(); i != e; ++i) {
       BranchInst::Create(UnwindBlock, Unwinds[i]);
       Unwinds[i]->eraseFromParent();
+    }
+
+    // Following any allocas not in the entry block, update the saved SP
+    // in the jmpbuf to the new value.
+    for (unsigned i = 0, e = JmpbufUpdatePoints.size(); i != e; ++i) {
+      Instruction *AI = JmpbufUpdatePoints[i];
+      Instruction *StackAddr = CallInst::Create(StackAddrFn, "sp");
+      StackAddr->insertAfter(AI);
+      Instruction *StoreStackAddr = new StoreInst(StackAddr, StackPtr, true);
+      StoreStackAddr->insertAfter(StackAddr);
     }
 
     // Finally, for any returns from this function, if this function contains an

@@ -196,6 +196,10 @@ namespace llvm {
 
       // TLSADDR - Thread Local Storage.
       TLSADDR,
+      
+      // TLSCALL - Thread Local Storage.  When calling to an OS provided
+      // thunk at the address from an earlier relocation.
+      TLSCALL,
 
       // SegmentBaseAddress - The address segment:0
       SegmentBaseAddress,
@@ -496,7 +500,6 @@ namespace llvm {
     /// being processed is 'm'.
     virtual void LowerAsmOperandForConstraint(SDValue Op,
                                               char ConstraintLetter,
-                                              bool hasMemory,
                                               std::vector<SDValue> &Ops,
                                               SelectionDAG &DAG) const;
     
@@ -576,19 +579,16 @@ namespace llvm {
 
     /// createFastISel - This method returns a target specific FastISel object,
     /// or null if the target does not support "fast" ISel.
-    virtual FastISel *
-    createFastISel(MachineFunction &mf,
-                   DenseMap<const Value *, unsigned> &,
-                   DenseMap<const BasicBlock *, MachineBasicBlock *> &,
-                   DenseMap<const AllocaInst *, int> &,
-                   std::vector<std::pair<MachineInstr*, unsigned> > &
-#ifndef NDEBUG
-                   , SmallSet<const Instruction *, 8> &
-#endif
-                   ) const;
+    virtual FastISel *createFastISel(FunctionLoweringInfo &funcInfo) const;
 
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
+
+    /// getStackCookieLocation - Return true if the target stores stack
+    /// protector cookies at a fixed offset in some non-standard address
+    /// space, and populates the address space and offset as
+    /// appropriate.
+    virtual bool getStackCookieLocation(unsigned &AddressSpace, unsigned &Offset) const;
 
   private:
     /// Subtarget - Keep a pointer to the X86Subtarget around so that we can
@@ -643,6 +643,7 @@ namespace llvm {
                                            bool isCalleeStructRet,
                                            bool isCallerStructRet,
                                     const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                    const SmallVectorImpl<SDValue> &OutVals,
                                     const SmallVectorImpl<ISD::InputArg> &Ins,
                                            SelectionDAG& DAG) const;
     bool IsCalleePop(bool isVarArg, CallingConv::ID CallConv) const;
@@ -725,6 +726,7 @@ namespace llvm {
       LowerCall(SDValue Chain, SDValue Callee,
                 CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
+                const SmallVectorImpl<SDValue> &OutVals,
                 const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,
                 SmallVectorImpl<SDValue> &InVals) const;
@@ -733,13 +735,13 @@ namespace llvm {
       LowerReturn(SDValue Chain,
                   CallingConv::ID CallConv, bool isVarArg,
                   const SmallVectorImpl<ISD::OutputArg> &Outs,
+                  const SmallVectorImpl<SDValue> &OutVals,
                   DebugLoc dl, SelectionDAG &DAG) const;
 
     virtual bool
       CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
-                     const SmallVectorImpl<EVT> &OutTys,
-                     const SmallVectorImpl<ISD::ArgFlagsTy> &ArgsFlags,
-                     SelectionDAG &DAG) const;
+                     const SmallVectorImpl<ISD::OutputArg> &Outs,
+                     LLVMContext &Context) const;
 
     void ReplaceATOMIC_BINARY_64(SDNode *N, SmallVectorImpl<SDValue> &Results,
                                  SelectionDAG &DAG, unsigned NewOp) const;
@@ -762,7 +764,6 @@ namespace llvm {
                                                     unsigned immOpc,
                                                     unsigned loadOpc,
                                                     unsigned cxchgOpc,
-                                                    unsigned copyOpc,
                                                     unsigned notOpc,
                                                     unsigned EAXreg,
                                                     TargetRegisterClass *RC,
@@ -794,6 +795,9 @@ namespace llvm {
 
     MachineBasicBlock *EmitLoweredMingwAlloca(MachineInstr *MI,
                                               MachineBasicBlock *BB) const;
+    
+    MachineBasicBlock *EmitLoweredTLSCall(MachineInstr *MI,
+                                          MachineBasicBlock *BB) const;
 
     /// Emit nodes that will be selected as "test Op0,Op0", or something
     /// equivalent, for use with the given x86 condition code.
@@ -806,15 +810,7 @@ namespace llvm {
   };
 
   namespace X86 {
-    FastISel *createFastISel(MachineFunction &mf,
-                           DenseMap<const Value *, unsigned> &,
-                           DenseMap<const BasicBlock *, MachineBasicBlock *> &,
-                           DenseMap<const AllocaInst *, int> &,
-                           std::vector<std::pair<MachineInstr*, unsigned> > &
-#ifndef NDEBUG
-                           , SmallSet<const Instruction*, 8> &
-#endif
-                           );
+    FastISel *createFastISel(FunctionLoweringInfo &funcInfo);
   }
 }
 

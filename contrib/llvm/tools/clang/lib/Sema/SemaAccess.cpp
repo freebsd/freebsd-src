@@ -870,6 +870,10 @@ static void DiagnoseAccessPath(Sema &S,
         << BS->getSourceRange()
         << (BaseAccess == AS_protected)
         << (BS->getAccessSpecifierAsWritten() == AS_none);
+      
+      if (D)
+        S.Diag(D->getLocation(), diag::note_field_decl);
+      
       return;
     }
   }
@@ -1020,6 +1024,9 @@ static Sema::AccessResult CheckAccess(Sema &S, SourceLocation Loc,
   if (Entity.getAccess() == AS_public)
     return Sema::AR_accessible;
 
+  if (S.SuppressAccessChecking)
+    return Sema::AR_accessible;
+
   // If we're currently parsing a top-level declaration, delay
   // diagnostics.  This is the only case where parsing a declaration
   // can actually change our effective context for the purposes of
@@ -1153,9 +1160,10 @@ Sema::AccessResult Sema::CheckDestructorAccess(SourceLocation Loc,
 
 /// Checks access to a constructor.
 Sema::AccessResult Sema::CheckConstructorAccess(SourceLocation UseLoc,
-                                  CXXConstructorDecl *Constructor,
-                                  const InitializedEntity &Entity,
-                                  AccessSpecifier Access) {
+                                                CXXConstructorDecl *Constructor,
+                                                const InitializedEntity &Entity,
+                                                AccessSpecifier Access,
+                                                bool IsCopyBindingRefToTemp) {
   if (!getLangOptions().AccessControl ||
       Access == AS_public)
     return AR_accessible;
@@ -1166,7 +1174,9 @@ Sema::AccessResult Sema::CheckConstructorAccess(SourceLocation UseLoc,
                             QualType());
   switch (Entity.getKind()) {
   default:
-    AccessEntity.setDiag(diag::err_access_ctor);
+    AccessEntity.setDiag(IsCopyBindingRefToTemp
+                         ? diag::ext_rvalue_to_reference_access_ctor
+                         : diag::err_access_ctor);
     break;
 
   case InitializedEntity::EK_Base:
@@ -1326,4 +1336,16 @@ void Sema::CheckLookupAccess(const LookupResult &R) {
       CheckAccess(*this, R.getNameLoc(), Entity);
     }
   }
+}
+
+void Sema::ActOnStartSuppressingAccessChecks() {
+  assert(!SuppressAccessChecking &&
+         "Tried to start access check suppression when already started.");
+  SuppressAccessChecking = true;
+}
+
+void Sema::ActOnStopSuppressingAccessChecks() {
+  assert(SuppressAccessChecking &&
+         "Tried to stop access check suprression when already stopped.");
+  SuppressAccessChecking = false;
 }

@@ -15,35 +15,48 @@
 namespace llvm {
 class AsmToken;
 class MCAsmLexer;
+class MCAsmParserExtension;
 class MCContext;
 class MCExpr;
 class MCStreamer;
 class SMLoc;
+class SourceMgr;
+class StringRef;
 class Twine;
 
 /// MCAsmParser - Generic assembler parser interface, for use by target specific
 /// assembly parsers.
 class MCAsmParser {
+public:
+  typedef bool (MCAsmParserExtension::*DirectiveHandler)(StringRef, SMLoc);
+
+private:
   MCAsmParser(const MCAsmParser &);   // DO NOT IMPLEMENT
   void operator=(const MCAsmParser &);  // DO NOT IMPLEMENT
 protected: // Can only create subclasses.
   MCAsmParser();
- 
+
 public:
   virtual ~MCAsmParser();
+
+  virtual void AddDirectiveHandler(MCAsmParserExtension *Object,
+                                   StringRef Directive,
+                                   DirectiveHandler Handler) = 0;
+
+  virtual SourceMgr &getSourceManager() = 0;
 
   virtual MCAsmLexer &getLexer() = 0;
 
   virtual MCContext &getContext() = 0;
 
-  /// getSteamer - Return the output streamer for the assembler.
+  /// getStreamer - Return the output streamer for the assembler.
   virtual MCStreamer &getStreamer() = 0;
 
   /// Warning - Emit a warning at the location \arg L, with the message \arg
   /// Msg.
   virtual void Warning(SMLoc L, const Twine &Msg) = 0;
 
-  /// Warning - Emit an error at the location \arg L, with the message \arg
+  /// Error - Emit an error at the location \arg L, with the message \arg
   /// Msg.
   ///
   /// \return The return value is always true, as an idiomatic convenience to
@@ -53,10 +66,17 @@ public:
   /// Lex - Get the next AsmToken in the stream, possibly handling file
   /// inclusion first.
   virtual const AsmToken &Lex() = 0;
-  
+
   /// getTok - Get the current AsmToken from the stream.
   const AsmToken &getTok();
-  
+
+  /// \brief Report an error at the current lexer location.
+  bool TokError(const char *Msg);
+
+  /// ParseIdentifier - Parse an identifier or string (as a quoted identifier)
+  /// and set \arg Res to the identifier contents.
+  virtual bool ParseIdentifier(StringRef &Res) = 0;
+
   /// ParseExpression - Parse an arbitrary expression.
   ///
   /// @param Res - The value of the expression. The result is undefined
@@ -64,7 +84,7 @@ public:
   /// @result - False on success.
   virtual bool ParseExpression(const MCExpr *&Res, SMLoc &EndLoc) = 0;
   bool ParseExpression(const MCExpr *&Res);
-  
+
   /// ParseParenExpression - Parse an arbitrary expression, assuming that an
   /// initial '(' has already been consumed.
   ///

@@ -153,7 +153,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
   case tok::kw_const_cast:
     if (!TypeDependent)
       CheckConstCast(*this, Ex, DestType, OpRange, DestRange);
-    return Owned(new (Context) CXXConstCastExpr(DestType.getNonReferenceType(),
+    return Owned(new (Context) CXXConstCastExpr(
+                                        DestType.getNonLValueExprType(Context),
                                                 Ex, DestTInfo, OpLoc));
 
   case tok::kw_dynamic_cast: {
@@ -161,7 +162,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     CXXBaseSpecifierArray BasePath;
     if (!TypeDependent)
       CheckDynamicCast(*this, Ex, DestType, OpRange, DestRange, Kind, BasePath);
-    return Owned(new (Context)CXXDynamicCastExpr(DestType.getNonReferenceType(),
+    return Owned(new (Context)CXXDynamicCastExpr(
+                                          DestType.getNonLValueExprType(Context),
                                                  Kind, Ex, BasePath, DestTInfo,
                                                  OpLoc));
   }
@@ -170,7 +172,7 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     if (!TypeDependent)
       CheckReinterpretCast(*this, Ex, DestType, OpRange, DestRange, Kind);
     return Owned(new (Context) CXXReinterpretCastExpr(
-                                  DestType.getNonReferenceType(),
+                                  DestType.getNonLValueExprType(Context),
                                   Kind, Ex, CXXBaseSpecifierArray(), 
                                   DestTInfo, OpLoc));
   }
@@ -180,7 +182,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     if (!TypeDependent)
       CheckStaticCast(*this, Ex, DestType, OpRange, Kind, BasePath);
     
-    return Owned(new (Context) CXXStaticCastExpr(DestType.getNonReferenceType(),
+    return Owned(new (Context) CXXStaticCastExpr(
+                                         DestType.getNonLValueExprType(Context),
                                                  Kind, Ex, BasePath,
                                                  DestTInfo, OpLoc));
   }
@@ -233,6 +236,15 @@ bool UnwrapDissimilarPointerTypes(QualType& T1, QualType& T2) {
     T2 = T2MPType->getPointeeType();
     return true;
   }
+  
+  const BlockPointerType *T1BPType = T1->getAs<BlockPointerType>(),
+                         *T2BPType = T2->getAs<BlockPointerType>();
+  if (T1BPType && T2BPType) {
+    T1 = T1BPType->getPointeeType();
+    T2 = T2BPType->getPointeeType();
+    return true;
+  }
+  
   return false;
 }
 
@@ -246,9 +258,11 @@ CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType) {
   // C++ 4.4. We piggyback on Sema::IsQualificationConversion for this, since
   // the rules are non-trivial. So first we construct Tcv *...cv* as described
   // in C++ 5.2.11p8.
-  assert((SrcType->isAnyPointerType() || SrcType->isMemberPointerType()) &&
+  assert((SrcType->isAnyPointerType() || SrcType->isMemberPointerType() ||
+          SrcType->isBlockPointerType()) &&
          "Source type is not pointer or pointer to member.");
-  assert((DestType->isAnyPointerType() || DestType->isMemberPointerType()) &&
+  assert((DestType->isAnyPointerType() || DestType->isMemberPointerType() ||
+          DestType->isBlockPointerType()) &&
          "Destination type is not pointer or pointer to member.");
 
   QualType UnwrappedSrcType = Self.Context.getCanonicalType(SrcType), 
@@ -257,10 +271,16 @@ CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType) {
 
   // Find the qualifications.
   while (UnwrapDissimilarPointerTypes(UnwrappedSrcType, UnwrappedDestType)) {
-    cv1.push_back(UnwrappedSrcType.getQualifiers());
-    cv2.push_back(UnwrappedDestType.getQualifiers());
+    Qualifiers SrcQuals;
+    Self.Context.getUnqualifiedArrayType(UnwrappedSrcType, SrcQuals);
+    cv1.push_back(SrcQuals);
+    
+    Qualifiers DestQuals;
+    Self.Context.getUnqualifiedArrayType(UnwrappedDestType, DestQuals);
+    cv2.push_back(DestQuals);
   }
-  assert(cv1.size() > 0 && "Must have at least one pointer level.");
+  if (cv1.empty())
+    return false;
 
   // Construct void pointers with those qualifiers (in reverse order of
   // unwrapping, of course).
@@ -1014,7 +1034,7 @@ static TryCastResult TryConstCast(Sema &Self, Expr *SrcExpr, QualType DestType,
   // in multi-level pointers may change, but the level count must be the same,
   // as must be the final pointee type.
   while (SrcType != DestType &&
-         Self.UnwrapSimilarPointerTypes(SrcType, DestType)) {
+         Self.Context.UnwrapSimilarPointerTypes(SrcType, DestType)) {
     Qualifiers Quals;
     SrcType = Self.Context.getUnqualifiedArrayType(SrcType, Quals);
     DestType = Self.Context.getUnqualifiedArrayType(DestType, Quals);
@@ -1032,6 +1052,8 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
                                         const SourceRange &OpRange,
                                         unsigned &msg,
                                         CastExpr::CastKind &Kind) {
+  bool IsLValueCast = false;
+  
   DestType = Self.Context.getCanonicalType(DestType);
   QualType SrcType = SrcExpr->getType();
   if (const ReferenceType *DestTypeTmp = DestType->getAs<ReferenceType>()) {
@@ -1049,6 +1071,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     // This code does this transformation for the checked types.
     DestType = Self.Context.getPointerType(DestTypeTmp->getPointeeType());
     SrcType = Self.Context.getPointerType(SrcType);
+    IsLValueCast = true;
   }
 
   // Canonicalize source for comparison.
@@ -1075,13 +1098,12 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     }
 
     // A valid member pointer cast.
-    Kind = CastExpr::CK_BitCast;
+    Kind = IsLValueCast? CastExpr::CK_LValueBitCast : CastExpr::CK_BitCast;
     return TC_Success;
   }
 
   // See below for the enumeral issue.
-  if (SrcType->isNullPtrType() && DestType->isIntegralType() &&
-      !DestType->isEnumeralType()) {
+  if (SrcType->isNullPtrType() && DestType->isIntegralType(Self.Context)) {
     // C++0x 5.2.10p4: A pointer can be explicitly converted to any integral
     //   type large enough to hold it. A value of std::nullptr_t can be
     //   converted to an integral type; the conversion has the same meaning
@@ -1098,9 +1120,9 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
   bool destIsVector = DestType->isVectorType();
   bool srcIsVector = SrcType->isVectorType();
   if (srcIsVector || destIsVector) {
-    bool srcIsScalar = SrcType->isIntegralType() && !SrcType->isEnumeralType();
-    bool destIsScalar = 
-      DestType->isIntegralType() && !DestType->isEnumeralType();
+    // FIXME: Should this also apply to floating point types?
+    bool srcIsScalar = SrcType->isIntegralType(Self.Context);
+    bool destIsScalar = DestType->isIntegralType(Self.Context);
     
     // Check if this is a cast between a vector and something else.
     if (!(srcIsScalar && destIsVector) && !(srcIsVector && destIsScalar) &&
@@ -1124,8 +1146,10 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     return TC_Failed;
   }
   
-  bool destIsPtr = DestType->isAnyPointerType();
-  bool srcIsPtr = SrcType->isAnyPointerType();
+  bool destIsPtr = DestType->isAnyPointerType() ||
+                   DestType->isBlockPointerType();
+  bool srcIsPtr = SrcType->isAnyPointerType() ||
+                  SrcType->isBlockPointerType();
   if (!destIsPtr && !srcIsPtr) {
     // Except for std::nullptr_t->integer and lvalue->reference, which are
     // handled above, at least one of the two arguments must be a pointer.
@@ -1143,9 +1167,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     return TC_Success;
   }
 
-  // Note: Clang treats enumeration types as integral types. If this is ever
-  // changed for C++, the additional check here will be redundant.
-  if (DestType->isIntegralType() && !DestType->isEnumeralType()) {
+  if (DestType->isIntegralType(Self.Context)) {
     assert(srcIsPtr && "One type must be a pointer");
     // C++ 5.2.10p4: A pointer can be explicitly converted to any integral
     //   type large enough to hold it.
@@ -1158,7 +1180,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     return TC_Success;
   }
 
-  if (SrcType->isIntegralType() || SrcType->isEnumeralType()) {
+  if (SrcType->isIntegralOrEnumerationType()) {
     assert(destIsPtr && "One type must be a pointer");
     // C++ 5.2.10p5: A value of integral or enumeration type can be explicitly
     //   converted to a pointer.
@@ -1178,14 +1200,22 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     msg = diag::err_bad_cxx_cast_const_away;
     return TC_Failed;
   }
+  
+  // Cannot convert between block pointers and Objective-C object pointers.
+  if ((SrcType->isBlockPointerType() && DestType->isObjCObjectPointerType()) ||
+      (DestType->isBlockPointerType() && SrcType->isObjCObjectPointerType()))
+    return TC_NotApplicable;
+
+  // Any pointer can be cast to an Objective-C pointer type with a C-style
+  // cast.
   if (CStyle && DestType->isObjCObjectPointerType()) {
     Kind = CastExpr::CK_AnyPointerToObjCPointerCast;
     return TC_Success;
   }
-  
+    
   // Not casting away constness, so the only remaining check is for compatible
   // pointer categories.
-  Kind = CastExpr::CK_BitCast;
+  Kind = IsLValueCast? CastExpr::CK_LValueBitCast : CastExpr::CK_BitCast;
 
   if (SrcType->isFunctionPointerType()) {
     if (DestType->isFunctionPointerType()) {
@@ -1211,7 +1241,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
       Self.Diag(OpRange.getBegin(), diag::ext_cast_fn_obj) << OpRange;
     return TC_Success;
   }
-
+  
   // C++ 5.2.10p7: A pointer to an object can be explicitly converted to
   //   a pointer to an object of different type.
   // Void pointers are not specified, but supported by every compiler out there.

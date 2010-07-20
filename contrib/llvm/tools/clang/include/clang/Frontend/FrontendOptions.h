@@ -11,6 +11,7 @@
 #define LLVM_CLANG_FRONTEND_FRONTENDOPTIONS_H
 
 #include "clang/Frontend/CommandLineSourceLoc.h"
+#include "clang/Frontend/FrontendAction.h"
 #include "llvm/ADT/StringRef.h"
 #include <string>
 #include <vector>
@@ -55,27 +56,15 @@ namespace frontend {
 /// FrontendOptions - Options for controlling the behavior of the frontend.
 class FrontendOptions {
 public:
-  enum InputKind {
-    IK_None,
-    IK_Asm,
-    IK_C,
-    IK_CXX,
-    IK_ObjC,
-    IK_ObjCXX,
-    IK_PreprocessedC,
-    IK_PreprocessedCXX,
-    IK_PreprocessedObjC,
-    IK_PreprocessedObjCXX,
-    IK_OpenCL,
-    IK_AST
-  };
-
   unsigned DebugCodeCompletionPrinter : 1; ///< Use the debug printer for code
                                            /// completion results.
   unsigned DisableFree : 1;                ///< Disable memory freeing on exit.
   unsigned RelocatablePCH : 1;             ///< When generating PCH files,
                                            /// instruct the PCH writer to create
                                            /// relocatable PCH files.
+  unsigned ChainedPCH : 1;                 ///< When generating PCH files,
+                                           /// instruct the PCH writer to create
+                                           /// chained PCH files.
   unsigned ShowHelp : 1;                   ///< Show the -help text.
   unsigned ShowMacrosInCodeCompletion : 1; ///< Show macros in code completion
                                            /// results.
@@ -108,6 +97,9 @@ public:
   /// The name of the action to run when using a plugin action.
   std::string ActionName;
 
+  /// Arg to pass to the plugin
+  std::vector<std::string> PluginArgs;
+
   /// The list of plugins to load.
   std::vector<std::string> Plugins;
 
@@ -125,6 +117,7 @@ public:
     ProgramAction = frontend::ParseSyntaxOnly;
     ActionName = "";
     RelocatablePCH = 0;
+    ChainedPCH = 0;
     ShowHelp = 0;
     ShowMacrosInCodeCompletion = 0;
     ShowCodePatternsInCodeCompletion = 0;

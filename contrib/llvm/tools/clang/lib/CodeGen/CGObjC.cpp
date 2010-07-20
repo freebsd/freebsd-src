@@ -90,11 +90,14 @@ RValue CodeGenFunction::EmitObjCMessageExpr(const ObjCMessageExpr *E,
   CallArgList Args;
   EmitCallArgs(Args, E->getMethodDecl(), E->arg_begin(), E->arg_end());
 
+  QualType ResultType =
+    E->getMethodDecl() ? E->getMethodDecl()->getResultType() : E->getType();
+
   if (isSuperMessage) {
     // super is only valid in an Objective-C method
     const ObjCMethodDecl *OMD = cast<ObjCMethodDecl>(CurFuncDecl);
     bool isCategoryImpl = isa<ObjCCategoryImplDecl>(OMD->getDeclContext());
-    return Runtime.GenerateMessageSendSuper(*this, Return, E->getType(),
+    return Runtime.GenerateMessageSendSuper(*this, Return, ResultType,
                                             E->getSelector(),
                                             OMD->getClassInterface(),
                                             isCategoryImpl,
@@ -104,7 +107,7 @@ RValue CodeGenFunction::EmitObjCMessageExpr(const ObjCMessageExpr *E,
                                             E->getMethodDecl());
   }
 
-  return Runtime.GenerateMessageSend(*this, Return, E->getType(),
+  return Runtime.GenerateMessageSend(*this, Return, ResultType,
                                      E->getSelector(),
                                      Receiver, Args, OID,
                                      E->getMethodDecl());
@@ -458,7 +461,7 @@ void CodeGenFunction::GenerateObjCCtorDtorMethod(ObjCImplementationDecl *IMP,
                                     LoadObjCSelf(), Ivar, 0);
       const RecordType *RT = FieldType->getAs<RecordType>();
       CXXRecordDecl *FieldClassDecl = cast<CXXRecordDecl>(RT->getDecl());
-      CXXDestructorDecl *Dtor = FieldClassDecl->getDestructor(getContext());
+      CXXDestructorDecl *Dtor = FieldClassDecl->getDestructor();
       if (!Dtor->isTrivial()) {
         if (Array) {
           const llvm::Type *BasePtr = ConvertType(FieldType);
@@ -595,7 +598,8 @@ void CodeGenFunction::EmitObjCPropertySet(const Expr *Exp,
                                              Args);
   } else if (const ObjCImplicitSetterGetterRefExpr *E =
                dyn_cast<ObjCImplicitSetterGetterRefExpr>(Exp)) {
-    Selector S = E->getSetterMethod()->getSelector();
+    const ObjCMethodDecl *SetterMD = E->getSetterMethod();
+    Selector S = SetterMD->getSelector();
     CallArgList Args;
     llvm::Value *Receiver;
     if (E->getInterfaceDecl()) {
@@ -606,7 +610,8 @@ void CodeGenFunction::EmitObjCPropertySet(const Expr *Exp,
       return;
     } else
       Receiver = EmitScalarExpr(E->getBase());
-    Args.push_back(std::make_pair(Src, E->getType()));
+    ObjCMethodDecl::param_iterator P = SetterMD->param_begin(); 
+    Args.push_back(std::make_pair(Src, (*P)->getType()));
     CGM.getObjCRuntime().GenerateMessageSend(*this, ReturnValueSlot(),
                                              getContext().VoidTy, S,
                                              Receiver,
@@ -778,8 +783,8 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
                               llvm::ConstantInt::get(UnsignedLongLTy, 1));
   Builder.CreateStore(Counter, CounterPtr);
 
-  llvm::BasicBlock *LoopEnd = createBasicBlock("loopend");
-  llvm::BasicBlock *AfterBody = createBasicBlock("afterbody");
+  JumpDest LoopEnd = getJumpDestInCurrentScope("loopend");
+  JumpDest AfterBody = getJumpDestInCurrentScope("afterbody");
 
   BreakContinueStack.push_back(BreakContinue(LoopEnd, AfterBody));
 
@@ -787,7 +792,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
 
   BreakContinueStack.pop_back();
 
-  EmitBlock(AfterBody);
+  EmitBlock(AfterBody.Block);
 
   llvm::BasicBlock *FetchMore = createBasicBlock("fetchmore");
 
@@ -823,11 +828,11 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
                         LV.getAddress());
   }
 
-  EmitBlock(LoopEnd);
+  EmitBlock(LoopEnd.Block);
 }
 
 void CodeGenFunction::EmitObjCAtTryStmt(const ObjCAtTryStmt &S) {
-  CGM.getObjCRuntime().EmitTryOrSynchronizedStmt(*this, S);
+  CGM.getObjCRuntime().EmitTryStmt(*this, S);
 }
 
 void CodeGenFunction::EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S) {
@@ -836,7 +841,9 @@ void CodeGenFunction::EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S) {
 
 void CodeGenFunction::EmitObjCAtSynchronizedStmt(
                                               const ObjCAtSynchronizedStmt &S) {
-  CGM.getObjCRuntime().EmitTryOrSynchronizedStmt(*this, S);
+  CGM.getObjCRuntime().EmitSynchronizedStmt(*this, S);
 }
 
 CGObjCRuntime::~CGObjCRuntime() {}
+
+

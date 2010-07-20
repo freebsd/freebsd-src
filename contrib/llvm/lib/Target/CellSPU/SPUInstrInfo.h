@@ -23,19 +23,6 @@ namespace llvm {
   class SPUInstrInfo : public TargetInstrInfoImpl {
     SPUTargetMachine &TM;
     const SPURegisterInfo RI;
-  protected:
-    virtual MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
-                                            MachineInstr* MI,
-                                            const SmallVectorImpl<unsigned> &Ops,
-                                            int FrameIndex) const;
-
-    virtual MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
-                                                MachineInstr* MI,
-                                                const SmallVectorImpl<unsigned> &Ops,
-                                                MachineInstr* LoadMI) const {
-      return 0;
-    }
-
   public:
     explicit SPUInstrInfo(SPUTargetMachine &tm);
 
@@ -56,12 +43,10 @@ namespace llvm {
     unsigned isStoreToStackSlot(const MachineInstr *MI,
                                 int &FrameIndex) const;
 
-    virtual bool copyRegToReg(MachineBasicBlock &MBB,
-                              MachineBasicBlock::iterator MI,
-                              unsigned DestReg, unsigned SrcReg,
-                              const TargetRegisterClass *DestRC,
-                              const TargetRegisterClass *SrcRC,
-                              DebugLoc DL) const;
+    virtual void copyPhysReg(MachineBasicBlock &MBB,
+                             MachineBasicBlock::iterator I, DebugLoc DL,
+                             unsigned DestReg, unsigned SrcReg,
+                             bool KillSrc) const;
 
     //! Store a register to a stack slot, based on its register class.
     virtual void storeRegToStackSlot(MachineBasicBlock &MBB,
@@ -77,11 +62,6 @@ namespace llvm {
                                       const TargetRegisterClass *RC,
                                       const TargetRegisterInfo *TRI) const;
 
-    //! Return true if the specified load or store can be folded
-    virtual
-    bool canFoldMemoryOperand(const MachineInstr *MI,
-                              const SmallVectorImpl<unsigned> &Ops) const;
-
     //! Reverses a branch's condition, returning false on success.
     virtual
     bool ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const;
@@ -94,8 +74,9 @@ namespace llvm {
     virtual unsigned RemoveBranch(MachineBasicBlock &MBB) const;
 
     virtual unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                              MachineBasicBlock *FBB,
-                              const SmallVectorImpl<MachineOperand> &Cond) const;
+                                  MachineBasicBlock *FBB,
+                                  const SmallVectorImpl<MachineOperand> &Cond,
+                                  DebugLoc DL) const;
    };
 }
 

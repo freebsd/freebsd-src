@@ -280,19 +280,16 @@ private:
   SDNode *MorphNode(SDNode *Node, unsigned TargetOpc, SDVTList VTs,
                     const SDValue *Ops, unsigned NumOps, unsigned EmitNodeInfo);
   
-  void PrepareEHLandingPad(MachineBasicBlock *BB);
+  void PrepareEHLandingPad();
   void SelectAllBasicBlocks(const Function &Fn);
-  void FinishBasicBlock(MachineBasicBlock *BB);
+  void FinishBasicBlock();
 
-  MachineBasicBlock *SelectBasicBlock(MachineBasicBlock *BB,
-                                      const BasicBlock *LLVMBB,
-                                      BasicBlock::const_iterator Begin,
-                                      BasicBlock::const_iterator End,
-                                      bool &HadTailCall);
-  MachineBasicBlock *CodeGenAndEmitDAG(MachineBasicBlock *BB);
+  void SelectBasicBlock(BasicBlock::const_iterator Begin,
+                        BasicBlock::const_iterator End,
+                        bool &HadTailCall);
+  void CodeGenAndEmitDAG();
   void LowerArguments(const BasicBlock *BB);
   
-  void ShrinkDemandedOps();
   void ComputeLiveOutVRegInfo();
 
   /// Create the scheduler. If a specific scheduler was specified
