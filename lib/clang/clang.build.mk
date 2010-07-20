@@ -27,9 +27,7 @@ CFLAGS+= -O1
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 # XXX: 8.0, to keep __FreeBSD_cc_version happy
-CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\" \
-	-DCLANG_VENDOR=\"FreeBSD\ \" -DSVN_REVISION=\"108428\" \
-	-DCLANG_VENDOR_SUFFIX=\"\ 20100715\"
+CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
