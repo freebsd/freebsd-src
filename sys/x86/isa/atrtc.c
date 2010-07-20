@@ -276,9 +276,13 @@ atrtc_attach(device_t dev)
 			bus_bind_intr(dev, sc->intr_res, 0);
 		}
 		sc->et.et_name = "RTC";
-		sc->et.et_flags = ET_FLAGS_PERIODIC;
+		sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_POW2DIV;
 		sc->et.et_quality = 0;
 		sc->et.et_frequency = 32768;
+		sc->et.et_min_period.sec = 0;
+		sc->et.et_min_period.frac = 0x0008LL << 48;
+		sc->et.et_max_period.sec = 0;
+		sc->et.et_max_period.frac = 0x8000LL << 48;
 		sc->et.et_start = rtc_start;
 		sc->et.et_stop = rtc_stop;
 		sc->et.et_priv = dev;
