@@ -2,16 +2,59 @@
 # Octeon Support Files
 #
 mips/cavium/asm_octeon.S			optional smp
-mips/cavium/dev/rgmii/octeon_fpa.c		optional rgmii
-mips/cavium/dev/rgmii/octeon_ipd.c 		optional rgmii
-mips/cavium/dev/rgmii/octeon_pko.c		optional rgmii
-mips/cavium/dev/rgmii/octeon_rgmx.c		optional rgmii
+mips/cavium/ciu.c				standard
 mips/cavium/obio.c				optional uart
+mips/cavium/octeon_ds1337.c			standard
 mips/cavium/octeon_ebt3000_cf.c			optional cf
 mips/cavium/octeon_machdep.c			standard
 mips/cavium/octeon_mp.c				optional smp
+mips/cavium/octeon_rtc.c			standard
 mips/cavium/uart_bus_octeonusart.c		optional uart
 mips/cavium/uart_cpu_octeonusart.c		optional uart
 mips/cavium/uart_dev_oct16550.c			optional uart
 mips/mips/intr_machdep.c			standard
 mips/mips/tick.c				standard
+
+mips/cavium/octeon_rnd.c			optional random
+
+mips/cavium/octe/ethernet.c			optional octe
+mips/cavium/octe/ethernet-common.c		optional octe
+mips/cavium/octe/ethernet-mdio.c		optional octe
+mips/cavium/octe/ethernet-mem.c			optional octe
+mips/cavium/octe/ethernet-rgmii.c		optional octe
+mips/cavium/octe/ethernet-rx.c			optional octe
+mips/cavium/octe/ethernet-sgmii.c		optional octe
+mips/cavium/octe/ethernet-spi.c			optional octe
+mips/cavium/octe/ethernet-tx.c			optional octe
+mips/cavium/octe/ethernet-xaui.c		optional octe
+mips/cavium/octe/octe.c				optional octe
+mips/cavium/octe/octebus.c			optional octe
+
+mips/cavium/octopci.c				optional pci
+mips/cavium/octopci_bus_space.c			optional pci
+
+contrib/octeon-sdk/cvmx-cmd-queue.c		optional octe
+contrib/octeon-sdk/cvmx-fpa.c			optional octe
+contrib/octeon-sdk/cvmx-helper.c		optional octe
+contrib/octeon-sdk/cvmx-helper-board.c		optional octe
+contrib/octeon-sdk/cvmx-helper-errata.c		optional octe
+contrib/octeon-sdk/cvmx-helper-fpa.c		optional octe
+contrib/octeon-sdk/cvmx-helper-loop.c		optional octe
+contrib/octeon-sdk/cvmx-helper-npi.c		optional octe
+contrib/octeon-sdk/cvmx-helper-rgmii.c		optional octe
+contrib/octeon-sdk/cvmx-helper-sgmii.c		optional octe
+contrib/octeon-sdk/cvmx-helper-spi.c		optional octe
+contrib/octeon-sdk/cvmx-helper-util.c		optional octe
+contrib/octeon-sdk/cvmx-helper-xaui.c		optional octe
+contrib/octeon-sdk/cvmx-pko.c			optional octe
+contrib/octeon-sdk/cvmx-spi.c			optional octe
+contrib/octeon-sdk/cvmx-spi4000.c		optional octe
+contrib/octeon-sdk/cvmx-twsi.c			optional octe
+
+# XXX Some files could be excluded in some configurations.  Making them
+#     optional but on in the default config would seem reasonable.
+contrib/octeon-sdk/cvmx-bootmem.c		standard
+contrib/octeon-sdk/cvmx-sysinfo.c		standard
+contrib/octeon-sdk/cvmx-thunder.c		standard
+contrib/octeon-sdk/cvmx-warn.c			standard
+contrib/octeon-sdk/octeon-model.c		standard

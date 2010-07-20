@@ -157,8 +157,6 @@ static inline int cvmx_helper_get_first_ipd_port(int interface)
  */
 static inline int cvmx_helper_get_last_ipd_port (int interface)
 {
-    extern int cvmx_helper_ports_on_interface (int interface);
-
     return (cvmx_helper_get_first_ipd_port (interface) +
   	    cvmx_helper_ports_on_interface (interface) - 1);
 }

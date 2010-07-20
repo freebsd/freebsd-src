@@ -49,15 +49,12 @@
  *
  * <hr>$Revision: 42417 $<hr>
  */
-#include "executive-config.h"
-#include "cvmx-config.h"
-#ifdef CVMX_ENABLE_PKO_FUNCTIONS
-
 #include "cvmx.h"
 #include "cvmx-spi.h"
 #include "cvmx-sysinfo.h"
 #include "cvmx-helper.h"
 
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
 /* CVMX_HELPER_SPI_TIMEOUT is used to determine how long the SPI initialization
     routines wait for SPI training. You can override the value using
     executive-config.h if necessary */

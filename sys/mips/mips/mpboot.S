@@ -36,7 +36,7 @@
 	.set	noat
 	.set	noreorder
 
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 #define CLEAR_STATUS \
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \

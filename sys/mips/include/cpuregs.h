@@ -129,7 +129,7 @@
 #define	MIPS_XKSEG_END			0xc00000ff80000000
 
 /* CPU dependent mtc0 hazard hook */
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 #define	COP0_SYNC  nop; nop; nop; nop; nop;
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop

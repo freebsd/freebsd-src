@@ -1122,6 +1122,13 @@ extern cvmx_usb_status_t cvmx_usb_device_enable_endpoint(cvmx_usb_state_t *state
 extern cvmx_usb_status_t cvmx_usb_device_disable_endpoint(cvmx_usb_state_t *state,
                                                           int endpoint_num);
 
+/*
+ * The FreeBSD host driver uses these functions to manipulate the toggle to deal
+ * more easily with endpoint management.
+ */
+extern void cvmx_usb_set_toggle(cvmx_usb_state_t *state, int endpoint_num, int toggle);
+extern int cvmx_usb_get_toggle(cvmx_usb_state_t *state, int endpoint_num);
+
 #ifdef	__cplusplus
 }
 #endif

@@ -85,6 +85,26 @@ CVMX_SHARED cvmx_helper_link_info_t (*cvmx_override_board_link_get)(int ipd_port
  */
 int cvmx_helper_board_get_mii_address(int ipd_port)
 {
+    /*
+     * Board types we have to know at compile-time.
+     */
+#ifdef OCTEON_BOARD_CAPK_0100ND
+    switch (ipd_port) {
+    case 0:
+	return 2;
+    case 1:
+	return 3;
+    case 2:
+	/* XXX Switch PHY?  */
+	return -1;
+    default:
+	return -1;
+    }
+#endif
+
+    /*
+     * For board types we can determine at runtime.
+     */
     switch (cvmx_sysinfo_get()->board_type)
     {
         case CVMX_BOARD_TYPE_SIM:
@@ -154,6 +174,22 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
                 return -1;
         case CVMX_BOARD_TYPE_BBGW_REF:
             return -1;  /* No PHYs are connected to Octeon, everything is through switch */
+
+	/* Private vendor-defined boards.  */
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+	    switch (ipd_port) {
+	    case 0:
+		/* XXX Switch PHY?  */
+		return -1;
+	    case 1:
+		return 1;
+	    case 2:
+		return 2;
+	    default:
+		return -1;
+	    }
+#endif
     }
 
     /* Some unknown board. Somebody forgot to update this function... */
@@ -195,6 +231,7 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
     /* Unless we fix it later, all links are defaulted to down */
     result.u64 = 0;
 
+#if !defined(OCTEON_BOARD_CAPK_0100ND)
     /* This switch statement should handle all ports that either don't use
         Marvell PHYS, or don't support in-band status */
     switch (cvmx_sysinfo_get()->board_type)
@@ -248,7 +285,21 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
                 return result;
             }
             break;
+	/* Private vendor-defined boards.  */
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+	    /* Port 0 connects to the switch */
+	    if (ipd_port == 0)
+	    {
+                result.s.link_up = 1;
+                result.s.full_duplex = 1;
+                result.s.speed = 1000;
+		return result;
+	    }
+	    break;
+#endif
     }
+#endif
 
     phy_addr = cvmx_helper_board_get_mii_address(ipd_port);
     if (phy_addr != -1)
@@ -322,7 +373,11 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
                 and set the resolved bit (bit 11) */
             if (phy_status & (1<<11))
             {
+#if defined(OCTEON_BOARD_CAPK_0100ND)
+                result.s.link_up = (phy_status>>10)&1;
+#else
                 result.s.link_up = 1;
+#endif
                 result.s.full_duplex = ((phy_status>>13)&1);
                 switch ((phy_status>>14)&3)
                 {
@@ -635,6 +690,9 @@ cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
 {
     switch (cvmx_sysinfo_get()->board_type) {
     case CVMX_BOARD_TYPE_BBGW_REF:
+#if defined(OCTEON_VENDOR_LANNER)
+    case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+#endif
             return USB_CLOCK_TYPE_CRYSTAL_12;
     }
     return USB_CLOCK_TYPE_REF_48;
