@@ -14,12 +14,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Checker/FrontendActions.h"
+#include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/ArgList.h"
 #include "clang/Driver/CC1Options.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/OptTable.h"
-#include "clang/Frontend/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendActions.h"
@@ -27,6 +28,7 @@
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/Frontend/TextDiagnosticBuffer.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Rewrite/FrontendActions.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/Statistic.h"
@@ -83,21 +85,15 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   case ParseSyntaxOnly:        return new SyntaxOnlyAction();
 
   case PluginAction: {
-    if (CI.getFrontendOpts().ActionName == "help") {
-      llvm::errs() << "clang -cc1 plugins:\n";
-      for (FrontendPluginRegistry::iterator it =
-             FrontendPluginRegistry::begin(),
-             ie = FrontendPluginRegistry::end();
-           it != ie; ++it)
-        llvm::errs() << "  " << it->getName() << " - " << it->getDesc() << "\n";
-      return 0;
-    }
 
     for (FrontendPluginRegistry::iterator it =
            FrontendPluginRegistry::begin(), ie = FrontendPluginRegistry::end();
          it != ie; ++it) {
-      if (it->getName() == CI.getFrontendOpts().ActionName)
-        return it->instantiate();
+      if (it->getName() == CI.getFrontendOpts().ActionName) {
+        PluginASTAction* plugin = it->instantiate();
+        plugin->ParseArgs(CI.getFrontendOpts().PluginArgs);
+        return plugin;
+      }
     }
 
     CI.getDiagnostics().Report(diag::err_fe_invalid_plugin_name)

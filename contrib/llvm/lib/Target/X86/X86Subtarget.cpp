@@ -53,9 +53,12 @@ ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
   if (GV->hasDLLImportLinkage())
     return X86II::MO_DLLIMPORT;
 
-  // Materializable GVs (in JIT lazy compilation mode) do not require an
-  // extra load from stub.
-  bool isDecl = GV->isDeclaration() && !GV->isMaterializable();
+  // Determine whether this is a reference to a definition or a declaration.
+  // Materializable GVs (in JIT lazy compilation mode) do not require an extra
+  // load from stub.
+  bool isDecl = GV->hasAvailableExternallyLinkage();
+  if (GV->isDeclaration() && !GV->isMaterializable())
+    isDecl = true;
 
   // X86-64 in PIC mode.
   if (isPICStyleRIPRel()) {
@@ -293,12 +296,11 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS,
   , IsBTMemSlow(false)
   , IsUAMemFast(false)
   , HasVectorUAMem(false)
-  , DarwinVers(0)
   , stackAlignment(8)
   // FIXME: this is a known good value for Yonah. How about others?
   , MaxInlineSizeThreshold(128)
-  , Is64Bit(is64Bit)
-  , TargetType(isELF) { // Default to ELF unless otherwise specified.
+  , TargetTriple(TT)
+  , Is64Bit(is64Bit) {
 
   // default to hard float ABI
   if (FloatABIType == FloatABI::Default)
@@ -328,47 +330,40 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS,
     HasCMov = true;
   }
     
-
   DEBUG(dbgs() << "Subtarget features: SSELevel " << X86SSELevel
                << ", 3DNowLevel " << X863DNowLevel
                << ", 64bit " << HasX86_64 << "\n");
   assert((!Is64Bit || HasX86_64) &&
          "64-bit code requested on a subtarget that doesn't support it!");
 
-  // Set the boolean corresponding to the current target triple, or the default
-  // if one cannot be determined, to true.
-  if (TT.length() > 5) {
-    size_t Pos;
-    if ((Pos = TT.find("-darwin")) != std::string::npos) {
-      TargetType = isDarwin;
-      
-      // Compute the darwin version number.
-      if (isdigit(TT[Pos+7]))
-        DarwinVers = atoi(&TT[Pos+7]);
-      else
-        DarwinVers = 8;  // Minimum supported darwin is Tiger.
-    } else if (TT.find("linux") != std::string::npos) {
-      // Linux doesn't imply ELF, but we don't currently support anything else.
-      TargetType = isELF;
-    } else if (TT.find("cygwin") != std::string::npos) {
-      TargetType = isCygwin;
-    } else if (TT.find("mingw") != std::string::npos) {
-      TargetType = isMingw;
-    } else if (TT.find("win32") != std::string::npos) {
-      TargetType = isWindows;
-    } else if (TT.find("windows") != std::string::npos) {
-      TargetType = isWindows;
-    } else if (TT.find("-cl") != std::string::npos) {
-      TargetType = isDarwin;
-      DarwinVers = 9;
-    }
-  }
-
   // Stack alignment is 16 bytes on Darwin (both 32 and 64 bit) and for all 64
   // bit targets.
-  if (TargetType == isDarwin || Is64Bit)
+  if (isTargetDarwin() || Is64Bit)
     stackAlignment = 16;
 
   if (StackAlignment)
     stackAlignment = StackAlignment;
+}
+
+/// IsCalleePop - Determines whether the callee is required to pop its
+/// own arguments. Callee pop is necessary to support tail calls.
+bool X86Subtarget::IsCalleePop(bool IsVarArg,
+                               CallingConv::ID CallingConv) const {
+  if (IsVarArg)
+    return false;
+
+  switch (CallingConv) {
+  default:
+    return false;
+  case CallingConv::X86_StdCall:
+    return !is64Bit();
+  case CallingConv::X86_FastCall:
+    return !is64Bit();
+  case CallingConv::X86_ThisCall:
+    return !is64Bit();
+  case CallingConv::Fast:
+    return GuaranteedTailCallOpt;
+  case CallingConv::GHC:
+    return GuaranteedTailCallOpt;
+  }
 }

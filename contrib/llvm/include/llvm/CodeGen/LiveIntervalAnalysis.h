@@ -133,10 +133,9 @@ namespace llvm {
     bool conflictsWithPhysReg(const LiveInterval &li, VirtRegMap &vrm,
                               unsigned reg);
 
-    /// conflictsWithSubPhysRegRef - Similar to conflictsWithPhysRegRef except
-    /// it checks for sub-register reference and it can check use as well.
-    bool conflictsWithSubPhysRegRef(LiveInterval &li, unsigned Reg,
-                                    bool CheckUse,
+    /// conflictsWithAliasRef - Similar to conflictsWithPhysRegRef except
+    /// it checks for alias uses and defs.
+    bool conflictsWithAliasRef(LiveInterval &li, unsigned Reg,
                                    SmallPtrSet<MachineInstr*,32> &JoinedCopies);
 
     // Interval creation
@@ -229,10 +228,6 @@ namespace llvm {
 
     VNInfo::Allocator& getVNInfoAllocator() { return VNInfoAllocator; }
 
-    /// getVNInfoSourceReg - Helper function that parses the specified VNInfo
-    /// copy field and returns the source register that defines it.
-    unsigned getVNInfoSourceReg(const VNInfo *VNI) const;
-
     virtual void getAnalysisUsage(AnalysisUsage &AU) const;
     virtual void releaseMemory();
 
@@ -249,12 +244,6 @@ namespace llvm {
     addIntervalsForSpills(const LiveInterval& i,
                           SmallVectorImpl<LiveInterval*> &SpillIs,
                           const MachineLoopInfo *loopInfo, VirtRegMap& vrm);
-    
-    /// addIntervalsForSpillsFast - Quickly create new intervals for spilled
-    /// defs / uses without remat or splitting.
-    std::vector<LiveInterval*>
-    addIntervalsForSpillsFast(const LiveInterval &li,
-                              const MachineLoopInfo *loopInfo, VirtRegMap &vrm);
 
     /// spillPhysRegAroundRegDefsUses - Spill the specified physical register
     /// around all defs and uses of the specified interval. Return true if it
@@ -282,10 +271,6 @@ namespace llvm {
     /// specified interval that conflicts with the specified physical register.
     unsigned getNumConflictsWithPhysReg(const LiveInterval &li,
                                         unsigned PhysReg) const;
-
-    /// processImplicitDefs - Process IMPLICIT_DEF instructions. Add isUndef
-    /// marker to implicit_def defs and their uses.
-    void processImplicitDefs();
 
     /// intervalIsInOneMBB - Returns true if the specified interval is entirely
     /// within a single basic block.

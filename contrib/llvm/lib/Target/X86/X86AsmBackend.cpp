@@ -23,13 +23,13 @@
 #include "llvm/Target/TargetAsmBackend.h"
 using namespace llvm;
 
-namespace {
 
 static unsigned getFixupKindLog2Size(unsigned Kind) {
   switch (Kind) {
   default: assert(0 && "invalid fixup kind!");
   case X86::reloc_pcrel_1byte:
   case FK_Data_1: return 0;
+  case X86::reloc_pcrel_2byte:
   case FK_Data_2: return 1;
   case X86::reloc_pcrel_4byte:
   case X86::reloc_riprel_4byte:
@@ -39,6 +39,7 @@ static unsigned getFixupKindLog2Size(unsigned Kind) {
   }
 }
 
+namespace {
 class X86AsmBackend : public TargetAsmBackend {
 public:
   X86AsmBackend(const Target &T)
@@ -60,6 +61,7 @@ public:
 
   bool WriteNopData(uint64_t Count, MCObjectWriter *OW) const;
 };
+} // end anonymous namespace 
 
 static unsigned getRelaxedOpcode(unsigned Op) {
   switch (Op) {
@@ -75,7 +77,6 @@ static unsigned getRelaxedOpcode(unsigned Op) {
   case X86::JG_1:  return X86::JG_4;
   case X86::JLE_1: return X86::JLE_4;
   case X86::JL_1:  return X86::JL_4;
-  case X86::TAILJMP_1:
   case X86::JMP_1: return X86::JMP_4;
   case X86::JNE_1: return X86::JNE_4;
   case X86::JNO_1: return X86::JNO_4;
@@ -180,6 +181,7 @@ bool X86AsmBackend::WriteNopData(uint64_t Count, MCObjectWriter *OW) const {
 
 /* *** */
 
+namespace {
 class ELFX86AsmBackend : public X86AsmBackend {
 public:
   ELFX86AsmBackend(const Target &T)
@@ -281,7 +283,7 @@ public:
   }
 };
 
-}
+} // end anonymous namespace 
 
 TargetAsmBackend *llvm::createX86_32AsmBackend(const Target &T,
                                                const std::string &TT) {

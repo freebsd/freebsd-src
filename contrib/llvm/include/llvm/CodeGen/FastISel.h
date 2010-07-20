@@ -19,11 +19,13 @@
 #include "llvm/ADT/SmallSet.h"
 #endif
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 
 namespace llvm {
 
 class AllocaInst;
 class ConstantFP;
+class FunctionLoweringInfo;
 class Instruction;
 class MachineBasicBlock;
 class MachineConstantPool;
@@ -36,22 +38,15 @@ class TargetInstrInfo;
 class TargetLowering;
 class TargetMachine;
 class TargetRegisterClass;
+class TargetRegisterInfo;
 
 /// FastISel - This is a fast-path instruction selection class that
 /// generates poor code and doesn't support illegal types or non-trivial
 /// lowering, but runs quickly.
 class FastISel {
 protected:
-  MachineBasicBlock *MBB;
   DenseMap<const Value *, unsigned> LocalValueMap;
-  DenseMap<const Value *, unsigned> &ValueMap;
-  DenseMap<const BasicBlock *, MachineBasicBlock *> &MBBMap;
-  DenseMap<const AllocaInst *, int> &StaticAllocaMap;
-  std::vector<std::pair<MachineInstr*, unsigned> > &PHINodesToUpdate;
-#ifndef NDEBUG
-  SmallSet<const Instruction *, 8> &CatchInfoLost;
-#endif
-  MachineFunction &MF;
+  FunctionLoweringInfo &FuncInfo;
   MachineRegisterInfo &MRI;
   MachineFrameInfo &MFI;
   MachineConstantPool &MCP;
@@ -60,23 +55,22 @@ protected:
   const TargetData &TD;
   const TargetInstrInfo &TII;
   const TargetLowering &TLI;
-  bool IsBottomUp;
+  const TargetRegisterInfo &TRI;
+  MachineInstr *LastLocalValue;
 
 public:
+  /// getLastLocalValue - Return the position of the last instruction
+  /// emitted for materializing constants for use in the current block.
+  MachineInstr *getLastLocalValue() { return LastLocalValue; }
+
+  /// setLastLocalValue - Update the position of the last instruction
+  /// emitted for materializing constants for use in the current block.
+  void setLastLocalValue(MachineInstr *I) { LastLocalValue = I; }
+
   /// startNewBlock - Set the current block to which generated machine
   /// instructions will be appended, and clear the local CSE map.
   ///
-  void startNewBlock(MachineBasicBlock *mbb) {
-    setCurrentBlock(mbb);
-    LocalValueMap.clear();
-  }
-
-  /// setCurrentBlock - Set the current block to which generated machine
-  /// instructions will be appended.
-  ///
-  void setCurrentBlock(MachineBasicBlock *mbb) {
-    MBB = mbb;
-  }
+  void startNewBlock();
 
   /// getCurDebugLoc() - Return current debug location information.
   DebugLoc getCurDebugLoc() const { return DL; }
@@ -108,18 +102,26 @@ public:
   /// index value.
   std::pair<unsigned, bool> getRegForGEPIndex(const Value *V);
 
+  /// recomputeInsertPt - Reset InsertPt to prepare for insterting instructions
+  /// into the current block.
+  void recomputeInsertPt();
+
+  struct SavePoint {
+    MachineBasicBlock::iterator InsertPt;
+    DebugLoc DL;
+  };
+
+  /// enterLocalValueArea - Prepare InsertPt to begin inserting instructions
+  /// into the local value area and return the old insert position.
+  SavePoint enterLocalValueArea();
+
+  /// leaveLocalValueArea - Reset InsertPt to the given old insert position.
+  void leaveLocalValueArea(SavePoint Old);
+
   virtual ~FastISel();
 
 protected:
-  FastISel(MachineFunction &mf,
-           DenseMap<const Value *, unsigned> &vm,
-           DenseMap<const BasicBlock *, MachineBasicBlock *> &bm,
-           DenseMap<const AllocaInst *, int> &am,
-           std::vector<std::pair<MachineInstr*, unsigned> > &PHINodesToUpdate
-#ifndef NDEBUG
-           , SmallSet<const Instruction *, 8> &cil
-#endif
-           );
+  explicit FastISel(FunctionLoweringInfo &funcInfo);
 
   /// TargetSelectInstruction - This method is called by target-independent
   /// code when the normal FastISel process fails to select an instruction.
@@ -286,7 +288,7 @@ protected:
   /// FastEmitBranch - Emit an unconditional branch to the given block,
   /// unless it is the immediate (fall-through) successor, and update
   /// the CFG.
-  void FastEmitBranch(MachineBasicBlock *MBB);
+  void FastEmitBranch(MachineBasicBlock *MBB, DebugLoc DL);
 
   unsigned UpdateValueMap(const Value* I, unsigned Reg);
 

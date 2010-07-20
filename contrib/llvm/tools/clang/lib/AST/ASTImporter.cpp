@@ -73,6 +73,7 @@ namespace {
     // FIXME: TemplateSpecializationType
     QualType VisitElaboratedType(ElaboratedType *T);
     // FIXME: DependentNameType
+    // FIXME: DependentTemplateSpecializationType
     QualType VisitObjCInterfaceType(ObjCInterfaceType *T);
     QualType VisitObjCObjectType(ObjCObjectType *T);
     QualType VisitObjCObjectPointerType(ObjCObjectPointerType *T);
@@ -439,9 +440,7 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
       return false;
     if (Vec1->getNumElements() != Vec2->getNumElements())
       return false;
-    if (Vec1->isAltiVec() != Vec2->isAltiVec())
-      return false;
-    if (Vec1->isPixel() != Vec2->isPixel())
+    if (Vec1->getAltiVecSpecific() != Vec2->getAltiVecSpecific())
       return false;
     break;
   }
@@ -619,11 +618,29 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     if (!IsStructurallyEquivalent(Typename1->getIdentifier(),
                                   Typename2->getIdentifier()))
       return false;
-    if (!IsStructurallyEquivalent(Context,
-                                  QualType(Typename1->getTemplateId(), 0),
-                                  QualType(Typename2->getTemplateId(), 0)))
-      return false;
     
+    break;
+  }
+  
+  case Type::DependentTemplateSpecialization: {
+    const DependentTemplateSpecializationType *Spec1 =
+      cast<DependentTemplateSpecializationType>(T1);
+    const DependentTemplateSpecializationType *Spec2 =
+      cast<DependentTemplateSpecializationType>(T2);
+    if (!IsStructurallyEquivalent(Context, 
+                                  Spec1->getQualifier(),
+                                  Spec2->getQualifier()))
+      return false;
+    if (!IsStructurallyEquivalent(Spec1->getIdentifier(),
+                                  Spec2->getIdentifier()))
+      return false;
+    if (Spec1->getNumArgs() != Spec2->getNumArgs())
+      return false;
+    for (unsigned I = 0, N = Spec1->getNumArgs(); I != N; ++I) {
+      if (!IsStructurallyEquivalent(Context,
+                                    Spec1->getArg(I), Spec2->getArg(I)))
+        return false;
+    }
     break;
   }
   
@@ -1172,8 +1189,7 @@ QualType ASTNodeImporter::VisitVectorType(VectorType *T) {
   
   return Importer.getToContext().getVectorType(ToElementType, 
                                                T->getNumElements(),
-                                               T->isAltiVec(),
-                                               T->isPixel());
+                                               T->getAltiVecSpecific());
 }
 
 QualType ASTNodeImporter::VisitExtVectorType(ExtVectorType *T) {
@@ -1687,7 +1703,7 @@ Decl *ASTNodeImporter::VisitRecordDecl(RecordDecl *D) {
   // Create the record declaration.
   RecordDecl *D2 = AdoptDecl;
   if (!D2) {
-    if (CXXRecordDecl *D1CXX = dyn_cast<CXXRecordDecl>(D)) {
+    if (isa<CXXRecordDecl>(D)) {
       CXXRecordDecl *D2CXX = CXXRecordDecl::Create(Importer.getToContext(), 
                                                    D->getTagKind(),
                                                    DC, Loc,
@@ -1695,30 +1711,6 @@ Decl *ASTNodeImporter::VisitRecordDecl(RecordDecl *D) {
                                         Importer.Import(D->getTagKeywordLoc()));
       D2 = D2CXX;
       D2->setAccess(D->getAccess());
-      
-      if (D->isDefinition()) {
-        // Add base classes.
-        llvm::SmallVector<CXXBaseSpecifier *, 4> Bases;
-        for (CXXRecordDecl::base_class_iterator 
-                  Base1 = D1CXX->bases_begin(),
-               FromBaseEnd = D1CXX->bases_end();
-             Base1 != FromBaseEnd;
-             ++Base1) {
-          QualType T = Importer.Import(Base1->getType());
-          if (T.isNull())
-            return 0;
-          
-          Bases.push_back(
-            new (Importer.getToContext()) 
-                  CXXBaseSpecifier(Importer.Import(Base1->getSourceRange()),
-                                   Base1->isVirtual(),
-                                   Base1->isBaseOfClass(),
-                                   Base1->getAccessSpecifierAsWritten(),
-                                   T));
-        }
-        if (!Bases.empty())
-          D2CXX->setBases(Bases.data(), Bases.size());
-      }
     } else {
       D2 = RecordDecl::Create(Importer.getToContext(), D->getTagKind(),
                                     DC, Loc,
@@ -1739,6 +1731,33 @@ Decl *ASTNodeImporter::VisitRecordDecl(RecordDecl *D) {
 
   if (D->isDefinition()) {
     D2->startDefinition();
+
+    // Add base classes.
+    if (CXXRecordDecl *D2CXX = dyn_cast<CXXRecordDecl>(D2)) {
+      CXXRecordDecl *D1CXX = cast<CXXRecordDecl>(D);
+
+      llvm::SmallVector<CXXBaseSpecifier *, 4> Bases;
+      for (CXXRecordDecl::base_class_iterator 
+                Base1 = D1CXX->bases_begin(),
+             FromBaseEnd = D1CXX->bases_end();
+           Base1 != FromBaseEnd;
+           ++Base1) {
+        QualType T = Importer.Import(Base1->getType());
+        if (T.isNull())
+          return 0;
+          
+        Bases.push_back(
+          new (Importer.getToContext()) 
+                CXXBaseSpecifier(Importer.Import(Base1->getSourceRange()),
+                                 Base1->isVirtual(),
+                                 Base1->isBaseOfClass(),
+                                 Base1->getAccessSpecifierAsWritten(),
+                                 T));
+      }
+      if (!Bases.empty())
+        D2CXX->setBases(Bases.data(), Bases.size());
+    }
+
     ImportDeclContext(D);
     D2->completeDefinition();
   }
@@ -2598,8 +2617,8 @@ Decl *ASTNodeImporter::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
   }
 
   // Import the type.
-  QualType T = Importer.Import(D->getType());
-  if (T.isNull())
+  TypeSourceInfo *T = Importer.Import(D->getTypeSourceInfo());
+  if (!T)
     return 0;
 
   // Create the new property.
@@ -2614,6 +2633,8 @@ Decl *ASTNodeImporter::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
   LexicalDC->addDecl(ToProperty);
 
   ToProperty->setPropertyAttributes(D->getPropertyAttributes());
+  ToProperty->setPropertyAttributesAsWritten(
+                                      D->getPropertyAttributesAsWritten());
   ToProperty->setGetterName(Importer.Import(D->getGetterName()));
   ToProperty->setSetterName(Importer.Import(D->getSetterName()));
   ToProperty->setGetterMethodDecl(

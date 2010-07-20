@@ -472,6 +472,25 @@ Value *InstCombiner::FoldAndOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
       Value *NewOr = Builder->CreateOr(Val, Val2);
       return Builder->CreateICmp(LHSCC, NewOr, LHSCst);
     }
+    
+    // (icmp ne (A & C1), 0) & (icmp ne (A & C2), 0) -->
+    // (icmp eq (A & (C1|C2)), (C1|C2))
+    if (LHSCC == ICmpInst::ICMP_NE && LHSCst->isZero()) {
+      Instruction *I1 = dyn_cast<Instruction>(Val);
+      Instruction *I2 = dyn_cast<Instruction>(Val2);
+      if (I1 && I1->getOpcode() == Instruction::And &&
+          I2 && I2->getOpcode() == Instruction::And &&
+          I1->getOperand(0) == I1->getOperand(0)) {
+        ConstantInt *CI1 = dyn_cast<ConstantInt>(I1->getOperand(1));
+        ConstantInt *CI2 = dyn_cast<ConstantInt>(I2->getOperand(1));
+        if (CI1 && !CI1->isZero() && CI2 && !CI2->isZero() &&
+            CI1->getValue().operator&(CI2->getValue()) == 0) {
+          Constant *ConstOr = ConstantExpr::getOr(CI1, CI2);
+          Value *NewAnd = Builder->CreateAnd(I1->getOperand(0), ConstOr);
+          return Builder->CreateICmp(ICmpInst::ICMP_EQ, NewAnd, ConstOr);
+        }
+      }
+    }
   }
   
   // From here on, we only handle:
@@ -1584,6 +1603,19 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
     if ((match(A, m_Not(m_Specific(B))) &&
          match(D, m_Not(m_Specific(C)))))
       return BinaryOperator::CreateXor(C, B);
+
+    // ((A|B)&1)|(B&-2) -> (A&1) | B
+    if (match(A, m_Or(m_Value(V1), m_Specific(B))) ||
+        match(A, m_Or(m_Specific(B), m_Value(V1)))) {
+      Instruction *Ret = FoldOrWithConstants(I, Op1, V1, B, C);
+      if (Ret) return Ret;
+    }
+    // (B&-2)|((A|B)&1) -> (A&1) | B
+    if (match(B, m_Or(m_Specific(A), m_Value(V1))) ||
+        match(B, m_Or(m_Value(V1), m_Specific(A)))) {
+      Instruction *Ret = FoldOrWithConstants(I, Op0, A, V1, D);
+      if (Ret) return Ret;
+    }
   }
   
   // (X >> Z) | (Y >> Z)  -> (X|Y) >> Z  for all shifts.
@@ -1597,19 +1629,6 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
         return BinaryOperator::Create(SI1->getOpcode(), NewOp, 
                                       SI1->getOperand(1));
       }
-  }
-
-  // ((A|B)&1)|(B&-2) -> (A&1) | B
-  if (match(Op0, m_And(m_Or(m_Value(A), m_Value(B)), m_Value(C))) ||
-      match(Op0, m_And(m_Value(C), m_Or(m_Value(A), m_Value(B))))) {
-    Instruction *Ret = FoldOrWithConstants(I, Op1, A, B, C);
-    if (Ret) return Ret;
-  }
-  // (B&-2)|((A|B)&1) -> (A&1) | B
-  if (match(Op1, m_And(m_Or(m_Value(A), m_Value(B)), m_Value(C))) ||
-      match(Op1, m_And(m_Value(C), m_Or(m_Value(A), m_Value(B))))) {
-    Instruction *Ret = FoldOrWithConstants(I, Op0, A, B, C);
-    if (Ret) return Ret;
   }
 
   // (~A | ~B) == (~(A & B)) - De Morgan's Law

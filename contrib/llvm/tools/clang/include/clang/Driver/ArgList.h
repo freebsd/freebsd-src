@@ -52,9 +52,9 @@ namespace driver {
     void SkipToNextArg();
 
   public:
-    typedef const Arg*                  value_type;
-    typedef const Arg*                  reference;
-    typedef const Arg*                  pointer;
+    typedef Arg * const *                 value_type;
+    typedef Arg * const &                 reference;
+    typedef Arg * const *                 pointer;
     typedef std::forward_iterator_tag   iterator_category;
     typedef std::ptrdiff_t              difference_type;
 
@@ -67,7 +67,7 @@ namespace driver {
 
     operator const Arg*() { return *Current; }
     reference operator*() const { return *Current; }
-    pointer operator->() const { return *Current; }
+    pointer operator->() const { return Current; }
 
     arg_iterator &operator++() {
       ++Current;
@@ -96,6 +96,10 @@ namespace driver {
   /// check for the presence of Arg instances for a particular Option
   /// and to iterate over groups of arguments.
   class ArgList {
+  private:
+    ArgList(const ArgList &); // DO NOT IMPLEMENT
+    void operator=(const ArgList &); // DO NOT IMPLEMENT
+
   public:
     typedef llvm::SmallVector<Arg*, 16> arglist_type;
     typedef arglist_type::iterator iterator;
@@ -104,11 +108,11 @@ namespace driver {
     typedef arglist_type::const_reverse_iterator const_reverse_iterator;
 
   private:
-    /// The full list of arguments.
-    arglist_type &Args;
+    /// The internal list of arguments.
+    arglist_type Args;
 
   protected:
-    ArgList(arglist_type &Args);
+    ArgList();
 
   public:
     virtual ~ArgList();
@@ -175,9 +179,16 @@ namespace driver {
     Arg *getLastArg(OptSpecifier Id) const;
     Arg *getLastArg(OptSpecifier Id0, OptSpecifier Id1) const;
     Arg *getLastArg(OptSpecifier Id0, OptSpecifier Id1, OptSpecifier Id2) const;
+    Arg *getLastArg(OptSpecifier Id0, OptSpecifier Id1, OptSpecifier Id2,
+                    OptSpecifier Id3) const;
 
     /// getArgString - Return the input argument string at \arg Index.
     virtual const char *getArgString(unsigned Index) const = 0;
+
+    /// getNumInputArgStrings - Return the number of original argument strings,
+    /// which are guaranteed to be the first strings in the argument string
+    /// list.
+    virtual unsigned getNumInputArgStrings() const = 0;
 
     /// @}
     /// @name Argument Lookup Utilities
@@ -249,14 +260,16 @@ namespace driver {
     }
     const char *MakeArgString(const llvm::Twine &Str) const;
 
+    /// \brief Create an arg string for (\arg LHS + \arg RHS), reusing the
+    /// string at \arg Index if possible.
+    const char *GetOrMakeJoinedArgString(unsigned Index, llvm::StringRef LHS,
+                                         llvm::StringRef RHS) const;
+
     /// @}
   };
 
   class InputArgList : public ArgList  {
   private:
-    /// The internal list of arguments.
-    arglist_type ActualArgs;
-
     /// List of argument strings used by the contained Args.
     ///
     /// This is mutable since we treat the ArgList as being the list
@@ -276,16 +289,15 @@ namespace driver {
 
   public:
     InputArgList(const char **ArgBegin, const char **ArgEnd);
-    InputArgList(const ArgList &);
     ~InputArgList();
 
     virtual const char *getArgString(unsigned Index) const {
       return ArgStrings[Index];
     }
 
-    /// getNumInputArgStrings - Return the number of original input
-    /// argument strings.
-    unsigned getNumInputArgStrings() const { return NumInputArgStrings; }
+    virtual unsigned getNumInputArgStrings() const {
+      return NumInputArgStrings;
+    }
 
     /// @name Arg Synthesis
     /// @{
@@ -303,33 +315,70 @@ namespace driver {
   /// DerivedArgList - An ordered collection of driver arguments,
   /// whose storage may be in another argument list.
   class DerivedArgList : public ArgList {
-    InputArgList &BaseArgs;
-
-    /// The internal list of arguments.
-    arglist_type ActualArgs;
+    const InputArgList &BaseArgs;
 
     /// The list of arguments we synthesized.
     mutable arglist_type SynthesizedArgs;
 
-    /// Is this only a proxy for the base ArgList?
-    bool OnlyProxy;
-
   public:
     /// Construct a new derived arg list from \arg BaseArgs.
-    ///
-    /// \param OnlyProxy - If true, this is only a proxy for the base
-    /// list (to adapt the type), and it's Args list is unused.
-    DerivedArgList(InputArgList &BaseArgs, bool OnlyProxy);
+    DerivedArgList(const InputArgList &BaseArgs);
     ~DerivedArgList();
 
     virtual const char *getArgString(unsigned Index) const {
       return BaseArgs.getArgString(Index);
     }
 
+    virtual unsigned getNumInputArgStrings() const {
+      return BaseArgs.getNumInputArgStrings();
+    }
+
+    const InputArgList &getBaseArgs() const {
+      return BaseArgs;
+    }
+
     /// @name Arg Synthesis
     /// @{
 
+    /// AddSynthesizedArg - Add a argument to the list of synthesized arguments
+    /// (to be freed).
+    void AddSynthesizedArg(Arg *A) {
+      SynthesizedArgs.push_back(A);
+    }
+
     virtual const char *MakeArgString(llvm::StringRef Str) const;
+
+    /// AddFlagArg - Construct a new FlagArg for the given option \arg Id and
+    /// append it to the argument list.
+    void AddFlagArg(const Arg *BaseArg, const Option *Opt) {
+      append(MakeFlagArg(BaseArg, Opt));
+    }
+
+    /// AddPositionalArg - Construct a new Positional arg for the given option
+    /// \arg Id, with the provided \arg Value and append it to the argument
+    /// list.
+    void AddPositionalArg(const Arg *BaseArg, const Option *Opt,
+                          llvm::StringRef Value) {
+      append(MakePositionalArg(BaseArg, Opt, Value));
+    }
+
+
+    /// AddSeparateArg - Construct a new Positional arg for the given option
+    /// \arg Id, with the provided \arg Value and append it to the argument
+    /// list.
+    void AddSeparateArg(const Arg *BaseArg, const Option *Opt,
+                        llvm::StringRef Value) {
+      append(MakeSeparateArg(BaseArg, Opt, Value));
+    }
+
+
+    /// AddJoinedArg - Construct a new Positional arg for the given option \arg
+    /// Id, with the provided \arg Value and append it to the argument list.
+    void AddJoinedArg(const Arg *BaseArg, const Option *Opt,
+                      llvm::StringRef Value) {
+      append(MakeJoinedArg(BaseArg, Opt, Value));
+    }
+
 
     /// MakeFlagArg - Construct a new FlagArg for the given option
     /// \arg Id.

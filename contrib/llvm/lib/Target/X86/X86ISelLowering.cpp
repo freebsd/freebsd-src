@@ -62,21 +62,19 @@ static SDValue getMOVL(SelectionDAG &DAG, DebugLoc dl, EVT VT, SDValue V1,
                        SDValue V2);
 
 static TargetLoweringObjectFile *createTLOF(X86TargetMachine &TM) {
-  switch (TM.getSubtarget<X86Subtarget>().TargetType) {
-  default: llvm_unreachable("unknown subtarget type");
-  case X86Subtarget::isDarwin:
-    if (TM.getSubtarget<X86Subtarget>().is64Bit())
-      return new X8664_MachoTargetObjectFile();
+  
+  bool is64Bit = TM.getSubtarget<X86Subtarget>().is64Bit();
+  
+  if (TM.getSubtarget<X86Subtarget>().isTargetDarwin()) {
+    if (is64Bit) return new X8664_MachoTargetObjectFile();
     return new TargetLoweringObjectFileMachO();
-  case X86Subtarget::isELF:
-   if (TM.getSubtarget<X86Subtarget>().is64Bit())
-     return new X8664_ELFTargetObjectFile(TM);
+  } else if (TM.getSubtarget<X86Subtarget>().isTargetELF() ){
+    if (is64Bit) return new X8664_ELFTargetObjectFile(TM);
     return new X8632_ELFTargetObjectFile(TM);
-  case X86Subtarget::isMingw:
-  case X86Subtarget::isCygwin:
-  case X86Subtarget::isWindows:
+  } else if (TM.getSubtarget<X86Subtarget>().isTargetCOFF()) {
     return new TargetLoweringObjectFileCOFF();
-  }
+  }  
+  llvm_unreachable("unknown subtarget type");
 }
 
 X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
@@ -347,6 +345,12 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
 
   if (!Subtarget->hasSSE2())
     setOperationAction(ISD::MEMBARRIER    , MVT::Other, Expand);
+  // On X86 and X86-64, atomic operations are lowered to locked instructions.
+  // Locked instructions, in turn, have implicit fence semantics (all memory
+  // operations are flushed before issuing the locked instruction, and they
+  // are not buffered), so we can fold away the common pattern of
+  // fence-atomic-fence.
+  setShouldFoldAtomicFences(true);
 
   // Expand certain atomics
   setOperationAction(ISD::ATOMIC_CMP_SWAP, MVT::i8, Custom);
@@ -611,7 +615,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     addRegisterClass(MVT::v8i8,  X86::VR64RegisterClass, false);
     addRegisterClass(MVT::v4i16, X86::VR64RegisterClass, false);
     addRegisterClass(MVT::v2i32, X86::VR64RegisterClass, false);
-    addRegisterClass(MVT::v2f32, X86::VR64RegisterClass, false);
+    
     addRegisterClass(MVT::v1i64, X86::VR64RegisterClass, false);
 
     setOperationAction(ISD::ADD,                MVT::v8i8,  Legal);
@@ -657,14 +661,11 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     AddPromotedToType (ISD::LOAD,               MVT::v4i16, MVT::v1i64);
     setOperationAction(ISD::LOAD,               MVT::v2i32, Promote);
     AddPromotedToType (ISD::LOAD,               MVT::v2i32, MVT::v1i64);
-    setOperationAction(ISD::LOAD,               MVT::v2f32, Promote);
-    AddPromotedToType (ISD::LOAD,               MVT::v2f32, MVT::v1i64);
     setOperationAction(ISD::LOAD,               MVT::v1i64, Legal);
 
     setOperationAction(ISD::BUILD_VECTOR,       MVT::v8i8,  Custom);
     setOperationAction(ISD::BUILD_VECTOR,       MVT::v4i16, Custom);
     setOperationAction(ISD::BUILD_VECTOR,       MVT::v2i32, Custom);
-    setOperationAction(ISD::BUILD_VECTOR,       MVT::v2f32, Custom);
     setOperationAction(ISD::BUILD_VECTOR,       MVT::v1i64, Custom);
 
     setOperationAction(ISD::VECTOR_SHUFFLE,     MVT::v8i8,  Custom);
@@ -672,7 +673,6 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::VECTOR_SHUFFLE,     MVT::v2i32, Custom);
     setOperationAction(ISD::VECTOR_SHUFFLE,     MVT::v1i64, Custom);
 
-    setOperationAction(ISD::SCALAR_TO_VECTOR,   MVT::v2f32, Custom);
     setOperationAction(ISD::SCALAR_TO_VECTOR,   MVT::v8i8,  Custom);
     setOperationAction(ISD::SCALAR_TO_VECTOR,   MVT::v4i16, Custom);
     setOperationAction(ISD::SCALAR_TO_VECTOR,   MVT::v1i64, Custom);
@@ -691,7 +691,6 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
       setOperationAction(ISD::BIT_CONVERT,        MVT::v8i8,  Custom);
       setOperationAction(ISD::BIT_CONVERT,        MVT::v4i16, Custom);
       setOperationAction(ISD::BIT_CONVERT,        MVT::v2i32, Custom);
-      setOperationAction(ISD::BIT_CONVERT,        MVT::v2f32, Custom);
       setOperationAction(ISD::BIT_CONVERT,        MVT::v1i64, Custom);
     }
   }
@@ -792,9 +791,8 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
       EVT VT = SVT;
 
       // Do not attempt to promote non-128-bit vectors
-      if (!VT.is128BitVector()) {
+      if (!VT.is128BitVector())
         continue;
-      }
       
       setOperationAction(ISD::AND,    SVT, Promote);
       AddPromotedToType (ISD::AND,    SVT, MVT::v2i64);
@@ -825,6 +823,17 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   }
 
   if (Subtarget->hasSSE41()) {
+    setOperationAction(ISD::FFLOOR,             MVT::f32,   Legal);
+    setOperationAction(ISD::FCEIL,              MVT::f32,   Legal);
+    setOperationAction(ISD::FTRUNC,             MVT::f32,   Legal);
+    setOperationAction(ISD::FRINT,              MVT::f32,   Legal);
+    setOperationAction(ISD::FNEARBYINT,         MVT::f32,   Legal);
+    setOperationAction(ISD::FFLOOR,             MVT::f64,   Legal);
+    setOperationAction(ISD::FCEIL,              MVT::f64,   Legal);
+    setOperationAction(ISD::FTRUNC,             MVT::f64,   Legal);
+    setOperationAction(ISD::FRINT,              MVT::f64,   Legal);
+    setOperationAction(ISD::FNEARBYINT,         MVT::f64,   Legal);
+
     // FIXME: Do we need to handle scalar-to-vector here?
     setOperationAction(ISD::MUL,                MVT::v4i32, Legal);
 
@@ -965,15 +974,24 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
 
   // Add/Sub/Mul with overflow operations are custom lowered.
   setOperationAction(ISD::SADDO, MVT::i32, Custom);
-  setOperationAction(ISD::SADDO, MVT::i64, Custom);
   setOperationAction(ISD::UADDO, MVT::i32, Custom);
-  setOperationAction(ISD::UADDO, MVT::i64, Custom);
   setOperationAction(ISD::SSUBO, MVT::i32, Custom);
-  setOperationAction(ISD::SSUBO, MVT::i64, Custom);
   setOperationAction(ISD::USUBO, MVT::i32, Custom);
-  setOperationAction(ISD::USUBO, MVT::i64, Custom);
   setOperationAction(ISD::SMULO, MVT::i32, Custom);
-  setOperationAction(ISD::SMULO, MVT::i64, Custom);
+
+  // Only custom-lower 64-bit SADDO and friends on 64-bit because we don't
+  // handle type legalization for these operations here.
+  //
+  // FIXME: We really should do custom legalization for addition and
+  // subtraction on x86-32 once PR3203 is fixed.  We really can't do much better
+  // than generic legalization for 64-bit multiplication-with-overflow, though.
+  if (Subtarget->is64Bit()) {
+    setOperationAction(ISD::SADDO, MVT::i64, Custom);
+    setOperationAction(ISD::UADDO, MVT::i64, Custom);
+    setOperationAction(ISD::SSUBO, MVT::i64, Custom);
+    setOperationAction(ISD::USUBO, MVT::i64, Custom);
+    setOperationAction(ISD::SMULO, MVT::i64, Custom);
+  }
 
   if (!Subtarget->is64Bit()) {
     // These libcalls are not available in 32-bit.
@@ -992,7 +1010,6 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setTargetDAGCombine(ISD::SRL);
   setTargetDAGCombine(ISD::OR);
   setTargetDAGCombine(ISD::STORE);
-  setTargetDAGCombine(ISD::MEMBARRIER);
   setTargetDAGCombine(ISD::ZERO_EXTEND);
   if (Subtarget->is64Bit())
     setTargetDAGCombine(ISD::MUL);
@@ -1172,6 +1189,27 @@ unsigned X86TargetLowering::getFunctionAlignment(const Function *F) const {
   return F->hasFnAttr(Attribute::OptimizeForSize) ? 0 : 4;
 }
 
+bool X86TargetLowering::getStackCookieLocation(unsigned &AddressSpace,
+                                               unsigned &Offset) const {
+  if (!Subtarget->isTargetLinux())
+    return false;
+
+  if (Subtarget->is64Bit()) {
+    // %fs:0x28, unless we're using a Kernel code model, in which case it's %gs:
+    Offset = 0x28;
+    if (getTargetMachine().getCodeModel() == CodeModel::Kernel)
+      AddressSpace = 256;
+    else
+      AddressSpace = 257;
+  } else {
+    // %gs:0x14 on i386
+    Offset = 0x14;
+    AddressSpace = 256;
+  }
+  return true;
+}
+
+
 //===----------------------------------------------------------------------===//
 //               Return Value Calling Convention Implementation
 //===----------------------------------------------------------------------===//
@@ -1180,19 +1218,19 @@ unsigned X86TargetLowering::getFunctionAlignment(const Function *F) const {
 
 bool 
 X86TargetLowering::CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
-                        const SmallVectorImpl<EVT> &OutTys,
-                        const SmallVectorImpl<ISD::ArgFlagsTy> &ArgsFlags,
-                        SelectionDAG &DAG) const {
+                        const SmallVectorImpl<ISD::OutputArg> &Outs,
+                        LLVMContext &Context) const {
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, *DAG.getContext());
-  return CCInfo.CheckReturn(OutTys, ArgsFlags, RetCC_X86);
+                 RVLocs, Context);
+  return CCInfo.CheckReturn(Outs, RetCC_X86);
 }
 
 SDValue
 X86TargetLowering::LowerReturn(SDValue Chain,
                                CallingConv::ID CallConv, bool isVarArg,
                                const SmallVectorImpl<ISD::OutputArg> &Outs,
+                               const SmallVectorImpl<SDValue> &OutVals,
                                DebugLoc dl, SelectionDAG &DAG) const {
   MachineFunction &MF = DAG.getMachineFunction();
   X86MachineFunctionInfo *FuncInfo = MF.getInfo<X86MachineFunctionInfo>();
@@ -1220,7 +1258,7 @@ X86TargetLowering::LowerReturn(SDValue Chain,
   for (unsigned i = 0; i != RVLocs.size(); ++i) {
     CCValAssign &VA = RVLocs[i];
     assert(VA.isRegLoc() && "Can only return in registers!");
-    SDValue ValToCopy = Outs[i].Val;
+    SDValue ValToCopy = OutVals[i];
 
     // Returns in ST0/ST1 are handled specially: these are pushed as operands to
     // the RET instruction and handled by the FP Stackifier.
@@ -1308,17 +1346,34 @@ X86TargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
       report_fatal_error("SSE register return with SSE disabled");
     }
 
-    // If this is a call to a function that returns an fp value on the floating
-    // point stack, but where we prefer to use the value in xmm registers, copy
-    // it out as F80 and use a truncate to move it from fp stack reg to xmm reg.
-    if ((VA.getLocReg() == X86::ST0 ||
-         VA.getLocReg() == X86::ST1) &&
-        isScalarFPTypeInSSEReg(VA.getValVT())) {
-      CopyVT = MVT::f80;
-    }
-
     SDValue Val;
-    if (Is64Bit && CopyVT.isVector() && CopyVT.getSizeInBits() == 64) {
+
+    // If this is a call to a function that returns an fp value on the floating
+    // point stack, we must guarantee the the value is popped from the stack, so
+    // a CopyFromReg is not good enough - the copy instruction may be eliminated
+    // if the return value is not used. We use the FpGET_ST0 instructions
+    // instead.
+    if (VA.getLocReg() == X86::ST0 || VA.getLocReg() == X86::ST1) {
+      // If we prefer to use the value in xmm registers, copy it out as f80 and
+      // use a truncate to move it from fp stack reg to xmm reg.
+      if (isScalarFPTypeInSSEReg(VA.getValVT())) CopyVT = MVT::f80;
+      bool isST0 = VA.getLocReg() == X86::ST0;
+      unsigned Opc = 0;
+      if (CopyVT == MVT::f32) Opc = isST0 ? X86::FpGET_ST0_32:X86::FpGET_ST1_32;
+      if (CopyVT == MVT::f64) Opc = isST0 ? X86::FpGET_ST0_64:X86::FpGET_ST1_64;
+      if (CopyVT == MVT::f80) Opc = isST0 ? X86::FpGET_ST0_80:X86::FpGET_ST1_80;
+      SDValue Ops[] = { Chain, InFlag };
+      Chain = SDValue(DAG.getMachineNode(Opc, dl, CopyVT, MVT::Other, MVT::Flag,
+                                         Ops, 2), 1);
+      Val = Chain.getValue(0);
+
+      // Round the f80 to the right size, which also moves it to the appropriate
+      // xmm register.
+      if (CopyVT != VA.getValVT())
+        Val = DAG.getNode(ISD::FP_ROUND, dl, VA.getValVT(), Val,
+                          // This truncation won't change the value.
+                          DAG.getIntPtrConstant(1));
+    } else if (Is64Bit && CopyVT.isVector() && CopyVT.getSizeInBits() == 64) {
       // For x86-64, MMX values are returned in XMM0 / XMM1 except for v1i64.
       if (VA.getLocReg() == X86::XMM0 || VA.getLocReg() == X86::XMM1) {
         Chain = DAG.getCopyFromReg(Chain, dl, VA.getLocReg(),
@@ -1338,15 +1393,6 @@ X86TargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
       Val = Chain.getValue(0);
     }
     InFlag = Chain.getValue(2);
-
-    if (CopyVT != VA.getValVT()) {
-      // Round the F80 the right size, which also moves to the appropriate xmm
-      // register.
-      Val = DAG.getNode(ISD::FP_ROUND, dl, VA.getValVT(), Val,
-                        // This truncation won't change the value.
-                        DAG.getIntPtrConstant(1));
-    }
-
     InVals.push_back(Val);
   }
 
@@ -1381,29 +1427,6 @@ ArgsAreStructReturn(const SmallVectorImpl<ISD::InputArg> &Ins) {
     return false;
 
   return Ins[0].Flags.isSRet();
-}
-
-/// IsCalleePop - Determines whether the callee is required to pop its
-/// own arguments. Callee pop is necessary to support tail calls.
-bool X86TargetLowering::IsCalleePop(bool IsVarArg,
-                                    CallingConv::ID CallingConv) const {
-  if (IsVarArg)
-    return false;
-
-  switch (CallingConv) {
-  default:
-    return false;
-  case CallingConv::X86_StdCall:
-    return !Subtarget->is64Bit();
-  case CallingConv::X86_FastCall:
-    return !Subtarget->is64Bit();
-  case CallingConv::X86_ThisCall:
-    return !Subtarget->is64Bit();
-  case CallingConv::Fast:
-    return GuaranteedTailCallOpt;
-  case CallingConv::GHC:
-    return GuaranteedTailCallOpt;
-  }
 }
 
 /// CCAssignFnForNode - Selects the correct CCAssignFn for a the
@@ -1483,11 +1506,11 @@ X86TargetLowering::LowerMemArgument(SDValue Chain,
   // could be overwritten by lowering of arguments in case of a tail call.
   if (Flags.isByVal()) {
     int FI = MFI->CreateFixedObject(Flags.getByValSize(),
-                                    VA.getLocMemOffset(), isImmutable, false);
+                                    VA.getLocMemOffset(), isImmutable);
     return DAG.getFrameIndex(FI, getPointerTy());
   } else {
     int FI = MFI->CreateFixedObject(ValVT.getSizeInBits()/8,
-                                    VA.getLocMemOffset(), isImmutable, false);
+                                    VA.getLocMemOffset(), isImmutable);
     SDValue FIN = DAG.getFrameIndex(FI, getPointerTy());
     return DAG.getLoad(ValVT, dl, Chain, FIN,
                        PseudoSourceValue::getFixedStack(FI), 0,
@@ -1615,8 +1638,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
   if (isVarArg) {
     if (Is64Bit || (CallConv != CallingConv::X86_FastCall &&
                     CallConv != CallingConv::X86_ThisCall)) {
-      FuncInfo->setVarArgsFrameIndex(MFI->CreateFixedObject(1, StackSize,
-                                                            true, false));
+      FuncInfo->setVarArgsFrameIndex(MFI->CreateFixedObject(1, StackSize,true));
     }
     if (Is64Bit) {
       unsigned TotalNumIntRegs = 0, TotalNumXMMRegs = 0;
@@ -1722,7 +1744,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
   }
 
   // Some CCs need callee pop.
-  if (IsCalleePop(isVarArg, CallConv)) {
+  if (Subtarget->IsCalleePop(isVarArg, CallConv)) {
     FuncInfo->setBytesToPopOnReturn(StackSize); // Callee pops everything.
   } else {
     FuncInfo->setBytesToPopOnReturn(0); // Callee pops nothing.
@@ -1788,7 +1810,7 @@ EmitTailCallStoreRetAddr(SelectionDAG & DAG, MachineFunction &MF,
   // Calculate the new stack slot for the return address.
   int SlotSize = Is64Bit ? 8 : 4;
   int NewReturnAddrFI =
-    MF.getFrameInfo()->CreateFixedObject(SlotSize, FPDiff-SlotSize, false, false);
+    MF.getFrameInfo()->CreateFixedObject(SlotSize, FPDiff-SlotSize, false);
   EVT VT = Is64Bit ? MVT::i64 : MVT::i32;
   SDValue NewRetAddrFrIdx = DAG.getFrameIndex(NewReturnAddrFI, VT);
   Chain = DAG.getStore(Chain, dl, RetAddrFrIdx, NewRetAddrFrIdx,
@@ -1802,6 +1824,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                              CallingConv::ID CallConv, bool isVarArg,
                              bool &isTailCall,
                              const SmallVectorImpl<ISD::OutputArg> &Outs,
+                             const SmallVectorImpl<SDValue> &OutVals,
                              const SmallVectorImpl<ISD::InputArg> &Ins,
                              DebugLoc dl, SelectionDAG &DAG,
                              SmallVectorImpl<SDValue> &InVals) const {
@@ -1814,7 +1837,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     // Check if it's really possible to do a tail call.
     isTailCall = IsEligibleForTailCallOptimization(Callee, CallConv,
                     isVarArg, IsStructRet, MF.getFunction()->hasStructRetAttr(),
-                                                   Outs, Ins, DAG);
+                                                   Outs, OutVals, Ins, DAG);
 
     // Sibcalls are automatically detected tailcalls which do not require
     // ABI changes.
@@ -1874,7 +1897,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
     EVT RegVT = VA.getLocVT();
-    SDValue Arg = Outs[i].Val;
+    SDValue Arg = OutVals[i];
     ISD::ArgFlagsTy Flags = Outs[i].Flags;
     bool isByVal = Flags.isByVal();
 
@@ -2013,12 +2036,12 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
         if (VA.isRegLoc())
           continue;
         assert(VA.isMemLoc());
-        SDValue Arg = Outs[i].Val;
+        SDValue Arg = OutVals[i];
         ISD::ArgFlagsTy Flags = Outs[i].Flags;
         // Create frame index.
         int32_t Offset = VA.getLocMemOffset()+FPDiff;
         uint32_t OpSize = (VA.getLocVT().getSizeInBits()+7)/8;
-        FI = MF.getFrameInfo()->CreateFixedObject(OpSize, Offset, true, false);
+        FI = MF.getFrameInfo()->CreateFixedObject(OpSize, Offset, true);
         FIN = DAG.getFrameIndex(FI, getPointerTy());
 
         if (Flags.isByVal()) {
@@ -2059,7 +2082,6 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                      FPDiff, dl);
   }
 
-  bool WasGlobalOrExternal = false;
   if (getTargetMachine().getCodeModel() == CodeModel::Large) {
     assert(Is64Bit && "Large code model is only legal in 64-bit mode.");
     // In the 64-bit large code model, we have to make all calls
@@ -2067,7 +2089,6 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     // pc-relative offset may not be large enough to hold the whole
     // address.
   } else if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
-    WasGlobalOrExternal = true;
     // If the callee is a GlobalAddress node (quite common, every direct call
     // is) turn it into a TargetGlobalAddress node so that legalize doesn't hack
     // it.
@@ -2095,11 +2116,10 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
         OpFlags = X86II::MO_DARWIN_STUB;
       }
 
-      Callee = DAG.getTargetGlobalAddress(GV, getPointerTy(),
+      Callee = DAG.getTargetGlobalAddress(GV, dl, getPointerTy(),
                                           G->getOffset(), OpFlags);
     }
   } else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(Callee)) {
-    WasGlobalOrExternal = true;
     unsigned char OpFlags = 0;
 
     // On ELF targets, in either X86-64 or X86-32 mode, direct calls to external
@@ -2153,17 +2173,12 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     Ops.push_back(InFlag);
 
   if (isTailCall) {
-    // If this is the first return lowered for this function, add the regs
-    // to the liveout set for the function.
-    if (MF.getRegInfo().liveout_empty()) {
-      SmallVector<CCValAssign, 16> RVLocs;
-      CCState CCInfo(CallConv, isVarArg, getTargetMachine(), RVLocs,
-                     *DAG.getContext());
-      CCInfo.AnalyzeCallResult(Ins, RetCC_X86);
-      for (unsigned i = 0; i != RVLocs.size(); ++i)
-        if (RVLocs[i].isRegLoc())
-          MF.getRegInfo().addLiveOut(RVLocs[i].getLocReg());
-    }
+    // We used to do:
+    //// If this is the first return lowered for this function, add the regs
+    //// to the liveout set for the function.
+    // This isn't right, although it's probably harmless on x86; liveouts
+    // should be computed from returns not tail calls.  Consider a void
+    // function making a tail call to a function returning int.
     return DAG.getNode(X86ISD::TC_RETURN, dl,
                        NodeTys, &Ops[0], Ops.size());
   }
@@ -2173,7 +2188,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
 
   // Create the CALLSEQ_END node.
   unsigned NumBytesForCalleeToPush;
-  if (IsCalleePop(isVarArg, CallConv))
+  if (Subtarget->IsCalleePop(isVarArg, CallConv))
     NumBytesForCalleeToPush = NumBytes;    // Callee pops everything
   else if (!Is64Bit && !IsTailCallConvention(CallConv) && IsStructRet)
     // If this is a call to a struct-return function, the callee
@@ -2314,6 +2329,7 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
                                                      bool isCalleeStructRet,
                                                      bool isCallerStructRet,
                                     const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                    const SmallVectorImpl<SDValue> &OutVals,
                                     const SmallVectorImpl<ISD::InputArg> &Ins,
                                                      SelectionDAG& DAG) const {
   if (!IsTailCallConvention(CalleeCC) &&
@@ -2332,8 +2348,8 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
     return false;
   }
 
-  // Look for obvious safe cases to perform tail call optimization that does not
-  // requite ABI changes. This is what gcc calls sibcall.
+  // Look for obvious safe cases to perform tail call optimization that do not
+  // require ABI changes. This is what gcc calls sibcall.
 
   // Can't do sibcall if stack needs to be dynamically re-aligned. PEI needs to
   // emit a special epilogue.
@@ -2427,8 +2443,7 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
         ((X86TargetMachine&)getTargetMachine()).getInstrInfo();
       for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
         CCValAssign &VA = ArgLocs[i];
-        EVT RegVT = VA.getLocVT();
-        SDValue Arg = Outs[i].Val;
+        SDValue Arg = OutVals[i];
         ISD::ArgFlagsTy Flags = Outs[i].Flags;
         if (VA.getLocInfo() == CCValAssign::Indirect)
           return false;
@@ -2439,26 +2454,38 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
         }
       }
     }
+
+    // If the tailcall address may be in a register, then make sure it's
+    // possible to register allocate for it. In 32-bit, the call address can
+    // only target EAX, EDX, or ECX since the tail call must be scheduled after
+    // callee-saved registers are restored. These happen to be the same
+    // registers used to pass 'inreg' arguments so watch out for those.
+    if (!Subtarget->is64Bit() &&
+        !isa<GlobalAddressSDNode>(Callee) &&
+        !isa<ExternalSymbolSDNode>(Callee)) {
+      unsigned NumInRegs = 0;
+      for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
+        CCValAssign &VA = ArgLocs[i];
+        if (!VA.isRegLoc())
+          continue;
+        unsigned Reg = VA.getLocReg();
+        switch (Reg) {
+        default: break;
+        case X86::EAX: case X86::EDX: case X86::ECX:
+          if (++NumInRegs == 3)
+            return false;
+          break;
+        }
+      }
+    }
   }
 
   return true;
 }
 
 FastISel *
-X86TargetLowering::createFastISel(MachineFunction &mf,
-                            DenseMap<const Value *, unsigned> &vm,
-                            DenseMap<const BasicBlock*, MachineBasicBlock*> &bm,
-                            DenseMap<const AllocaInst *, int> &am,
-                            std::vector<std::pair<MachineInstr*, unsigned> > &pn
-#ifndef NDEBUG
-                          , SmallSet<const Instruction *, 8> &cil
-#endif
-                                  ) const {
-  return X86::createFastISel(mf, vm, bm, am, pn
-#ifndef NDEBUG
-                             , cil
-#endif
-                             );
+X86TargetLowering::createFastISel(FunctionLoweringInfo &funcInfo) const {
+  return X86::createFastISel(funcInfo);
 }
 
 
@@ -2476,7 +2503,7 @@ SDValue X86TargetLowering::getReturnAddressFrameIndex(SelectionDAG &DAG) const {
     // Set up a frame object for the return address.
     uint64_t SlotSize = TD->getPointerSize();
     ReturnAddrIndex = MF.getFrameInfo()->CreateFixedObject(SlotSize, -SlotSize,
-                                                           false, false);
+                                                           false);
     FuncInfo->setRAIndex(ReturnAddrIndex);
   }
 
@@ -3175,7 +3202,7 @@ unsigned X86::getShufflePALIGNRImmediate(SDNode *N) {
 /// constant +0.0.
 bool X86::isZeroNode(SDValue Elt) {
   return ((isa<ConstantSDNode>(Elt) &&
-           cast<ConstantSDNode>(Elt)->getZExtValue() == 0) ||
+           cast<ConstantSDNode>(Elt)->isNullValue()) ||
           (isa<ConstantFPSDNode>(Elt) &&
            cast<ConstantFPSDNode>(Elt)->getValueAPF().isPosZero()));
 }
@@ -4433,7 +4460,7 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
 }
 
 /// RewriteAsNarrowerShuffle - Try rewriting v8i16 and v16i8 shuffles as 4 wide
-/// ones, or rewriting v4i32 / v2f32 as 2 wide ones if possible. This can be
+/// ones, or rewriting v4i32 / v2i32 as 2 wide ones if possible. This can be
 /// done when every pair / quad of shuffle mask elements point to elements in
 /// the right sequence. e.g.
 /// vector_shuffle <>, <>, < 3, 4, | 10, 11, | 0, 1, | 14, 15>
@@ -4447,7 +4474,6 @@ SDValue RewriteAsNarrowerShuffle(ShuffleVectorSDNode *SVOp,
   unsigned NumElems = VT.getVectorNumElements();
   unsigned NewWidth = (NumElems == 4) ? 2 : 4;
   EVT MaskVT = MVT::getIntVectorWithNumElements(NewWidth);
-  EVT MaskEltVT = MaskVT.getVectorElementType();
   EVT NewVT = MaskVT;
   switch (VT.getSimpleVT().SimpleTy) {
   default: assert(false && "Unexpected!");
@@ -5059,13 +5085,9 @@ X86TargetLowering::LowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const {
 SDValue
 X86TargetLowering::LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) const {
   DebugLoc dl = Op.getDebugLoc();
-  if (Op.getValueType() == MVT::v2f32)
-    return DAG.getNode(ISD::BIT_CONVERT, dl, MVT::v2f32,
-                       DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, MVT::v2i32,
-                                   DAG.getNode(ISD::BIT_CONVERT, dl, MVT::i32,
-                                               Op.getOperand(0))));
-
-  if (Op.getValueType() == MVT::v1i64 && Op.getOperand(0).getValueType() == MVT::i64)
+  
+  if (Op.getValueType() == MVT::v1i64 &&
+      Op.getOperand(0).getValueType() == MVT::i64)
     return DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, MVT::v1i64, Op.getOperand(0));
 
   SDValue AnyExt = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i32, Op.getOperand(0));
@@ -5230,10 +5252,10 @@ X86TargetLowering::LowerGlobalAddress(const GlobalValue *GV, DebugLoc dl,
   if (OpFlags == X86II::MO_NO_FLAG &&
       X86::isOffsetSuitableForCodeModel(Offset, M)) {
     // A direct static reference to a global.
-    Result = DAG.getTargetGlobalAddress(GV, getPointerTy(), Offset);
+    Result = DAG.getTargetGlobalAddress(GV, dl, getPointerTy(), Offset);
     Offset = 0;
   } else {
-    Result = DAG.getTargetGlobalAddress(GV, getPointerTy(), 0, OpFlags);
+    Result = DAG.getTargetGlobalAddress(GV, dl, getPointerTy(), 0, OpFlags);
   }
 
   if (Subtarget->isPICStyleRIPRel() &&
@@ -5278,7 +5300,7 @@ GetTLSADDR(SelectionDAG &DAG, SDValue Chain, GlobalAddressSDNode *GA,
   MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
   SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Flag);
   DebugLoc dl = GA->getDebugLoc();
-  SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(),
+  SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(), dl,
                                            GA->getValueType(0),
                                            GA->getOffset(),
                                            OperandFlags);
@@ -5351,7 +5373,8 @@ static SDValue LowerToTLSExecModel(GlobalAddressSDNode *GA, SelectionDAG &DAG,
 
   // emit "addl x@ntpoff,%eax" (local exec) or "addl x@indntpoff,%eax" (initial
   // exec)
-  SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(), GA->getValueType(0),
+  SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(), dl, 
+                                           GA->getValueType(0),
                                            GA->getOffset(), OperandFlags);
   SDValue Offset = DAG.getNode(WrapperKind, dl, PtrVT, TGA);
 
@@ -5366,33 +5389,78 @@ static SDValue LowerToTLSExecModel(GlobalAddressSDNode *GA, SelectionDAG &DAG,
 
 SDValue
 X86TargetLowering::LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const {
-  // TODO: implement the "local dynamic" model
-  // TODO: implement the "initial exec"model for pic executables
-  assert(Subtarget->isTargetELF() &&
-         "TLS not implemented for non-ELF targets");
+  
   GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Op);
   const GlobalValue *GV = GA->getGlobal();
 
-  // If GV is an alias then use the aliasee for determining
-  // thread-localness.
-  if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(GV))
-    GV = GA->resolveAliasedGlobal(false);
+  if (Subtarget->isTargetELF()) {
+    // TODO: implement the "local dynamic" model
+    // TODO: implement the "initial exec"model for pic executables
+    
+    // If GV is an alias then use the aliasee for determining
+    // thread-localness.
+    if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(GV))
+      GV = GA->resolveAliasedGlobal(false);
+    
+    TLSModel::Model model 
+      = getTLSModel(GV, getTargetMachine().getRelocationModel());
+    
+    switch (model) {
+      case TLSModel::GeneralDynamic:
+      case TLSModel::LocalDynamic: // not implemented
+        if (Subtarget->is64Bit())
+          return LowerToTLSGeneralDynamicModel64(GA, DAG, getPointerTy());
+        return LowerToTLSGeneralDynamicModel32(GA, DAG, getPointerTy());
+        
+      case TLSModel::InitialExec:
+      case TLSModel::LocalExec:
+        return LowerToTLSExecModel(GA, DAG, getPointerTy(), model,
+                                   Subtarget->is64Bit());
+    }
+  } else if (Subtarget->isTargetDarwin()) {
+    // Darwin only has one model of TLS.  Lower to that.
+    unsigned char OpFlag = 0;
+    unsigned WrapperKind = Subtarget->isPICStyleRIPRel() ?
+                           X86ISD::WrapperRIP : X86ISD::Wrapper;
+    
+    // In PIC mode (unless we're in RIPRel PIC mode) we add an offset to the
+    // global base reg.
+    bool PIC32 = (getTargetMachine().getRelocationModel() == Reloc::PIC_) &&
+                  !Subtarget->is64Bit();
+    if (PIC32)
+      OpFlag = X86II::MO_TLVP_PIC_BASE;
+    else
+      OpFlag = X86II::MO_TLVP;
+    DebugLoc DL = Op.getDebugLoc();    
+    SDValue Result = DAG.getTargetGlobalAddress(GA->getGlobal(), DL,
+                                                getPointerTy(),
+                                                GA->getOffset(), OpFlag);
+    SDValue Offset = DAG.getNode(WrapperKind, DL, getPointerTy(), Result);
+  
+    // With PIC32, the address is actually $g + Offset.
+    if (PIC32)
+      Offset = DAG.getNode(ISD::ADD, DL, getPointerTy(),
+                           DAG.getNode(X86ISD::GlobalBaseReg,
+                                       DebugLoc(), getPointerTy()),
+                           Offset);
+    
+    // Lowering the machine isd will make sure everything is in the right
+    // location.
+    SDValue Args[] = { Offset };
+    SDValue Chain = DAG.getNode(X86ISD::TLSCALL, DL, MVT::Other, Args, 1);
+    
+    // TLSCALL will be codegen'ed as call. Inform MFI that function has calls.
+    MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
+    MFI->setAdjustsStack(true);
 
-  TLSModel::Model model = getTLSModel(GV,
-                                      getTargetMachine().getRelocationModel());
-
-  switch (model) {
-  case TLSModel::GeneralDynamic:
-  case TLSModel::LocalDynamic: // not implemented
-    if (Subtarget->is64Bit())
-      return LowerToTLSGeneralDynamicModel64(GA, DAG, getPointerTy());
-    return LowerToTLSGeneralDynamicModel32(GA, DAG, getPointerTy());
-
-  case TLSModel::InitialExec:
-  case TLSModel::LocalExec:
-    return LowerToTLSExecModel(GA, DAG, getPointerTy(), model,
-                               Subtarget->is64Bit());
+    // And our return value (tls address) is in the standard call return value
+    // location.
+    unsigned Reg = Subtarget->is64Bit() ? X86::RAX : X86::EAX;
+    return DAG.getCopyFromReg(Chain, DL, Reg, getPointerTy());
   }
+  
+  assert(false &&
+         "TLS not implemented for this target.");
 
   llvm_unreachable("Unreachable");
   return SDValue();
@@ -5715,7 +5783,7 @@ SDValue X86TargetLowering::LowerUINT_TO_FP(SDValue Op,
 
   // Load the value out, extending it from f32 to f80.
   // FIXME: Avoid the extend by constructing the right constant pool?
-  SDValue Fudge = DAG.getExtLoad(ISD::EXTLOAD, dl, MVT::f80, DAG.getEntryNode(),
+  SDValue Fudge = DAG.getExtLoad(ISD::EXTLOAD, MVT::f80, dl, DAG.getEntryNode(),
                                  FudgePtr, PseudoSourceValue::getConstantPool(),
                                  0, MVT::f32, false, false, 4);
   // Extend everything to 80 bits to force it to be done on x87.
@@ -5964,6 +6032,7 @@ SDValue X86TargetLowering::EmitTest(SDValue Op, unsigned X86CC,
   bool NeedCF = false;
   bool NeedOF = false;
   switch (X86CC) {
+  default: break;
   case X86::COND_A: case X86::COND_AE:
   case X86::COND_B: case X86::COND_BE:
     NeedCF = true;
@@ -5973,120 +6042,129 @@ SDValue X86TargetLowering::EmitTest(SDValue Op, unsigned X86CC,
   case X86::COND_O: case X86::COND_NO:
     NeedOF = true;
     break;
-  default: break;
   }
 
   // See if we can use the EFLAGS value from the operand instead of
   // doing a separate TEST. TEST always sets OF and CF to 0, so unless
   // we prove that the arithmetic won't overflow, we can't use OF or CF.
-  if (Op.getResNo() == 0 && !NeedOF && !NeedCF) {
-    unsigned Opcode = 0;
-    unsigned NumOperands = 0;
-    switch (Op.getNode()->getOpcode()) {
-    case ISD::ADD:
-      // Due to an isel shortcoming, be conservative if this add is
-      // likely to be selected as part of a load-modify-store
-      // instruction. When the root node in a match is a store, isel
-      // doesn't know how to remap non-chain non-flag uses of other
-      // nodes in the match, such as the ADD in this case. This leads
-      // to the ADD being left around and reselected, with the result
-      // being two adds in the output.  Alas, even if none our users
-      // are stores, that doesn't prove we're O.K.  Ergo, if we have
-      // any parents that aren't CopyToReg or SETCC, eschew INC/DEC.
-      // A better fix seems to require climbing the DAG back to the
-      // root, and it doesn't seem to be worth the effort.
-      for (SDNode::use_iterator UI = Op.getNode()->use_begin(),
-             UE = Op.getNode()->use_end(); UI != UE; ++UI)
-        if (UI->getOpcode() != ISD::CopyToReg && UI->getOpcode() != ISD::SETCC)
-          goto default_case;
-      if (ConstantSDNode *C =
-            dyn_cast<ConstantSDNode>(Op.getNode()->getOperand(1))) {
-        // An add of one will be selected as an INC.
-        if (C->getAPIntValue() == 1) {
-          Opcode = X86ISD::INC;
-          NumOperands = 1;
-          break;
-        }
-        // An add of negative one (subtract of one) will be selected as a DEC.
-        if (C->getAPIntValue().isAllOnesValue()) {
-          Opcode = X86ISD::DEC;
-          NumOperands = 1;
-          break;
-        }
-      }
-      // Otherwise use a regular EFLAGS-setting add.
-      Opcode = X86ISD::ADD;
-      NumOperands = 2;
-      break;
-    case ISD::AND: {
-      // If the primary and result isn't used, don't bother using X86ISD::AND,
-      // because a TEST instruction will be better.
-      bool NonFlagUse = false;
-      for (SDNode::use_iterator UI = Op.getNode()->use_begin(),
-             UE = Op.getNode()->use_end(); UI != UE; ++UI) {
-        SDNode *User = *UI;
-        unsigned UOpNo = UI.getOperandNo();
-        if (User->getOpcode() == ISD::TRUNCATE && User->hasOneUse()) {
-          // Look pass truncate.
-          UOpNo = User->use_begin().getOperandNo();
-          User = *User->use_begin();
-        }
-        if (User->getOpcode() != ISD::BRCOND &&
-            User->getOpcode() != ISD::SETCC &&
-            (User->getOpcode() != ISD::SELECT || UOpNo != 0)) {
-          NonFlagUse = true;
-          break;
-        }
-      }
-      if (!NonFlagUse)
-        break;
-    }
-    // FALL THROUGH
-    case ISD::SUB:
-    case ISD::OR:
-    case ISD::XOR:
-      // Due to the ISEL shortcoming noted above, be conservative if this op is
-      // likely to be selected as part of a load-modify-store instruction.
-      for (SDNode::use_iterator UI = Op.getNode()->use_begin(),
+  if (Op.getResNo() != 0 || NeedOF || NeedCF)
+    // Emit a CMP with 0, which is the TEST pattern.
+    return DAG.getNode(X86ISD::CMP, dl, MVT::i32, Op,
+                       DAG.getConstant(0, Op.getValueType()));
+
+  unsigned Opcode = 0;
+  unsigned NumOperands = 0;
+  switch (Op.getNode()->getOpcode()) {
+  case ISD::ADD:
+    // Due to an isel shortcoming, be conservative if this add is likely to be
+    // selected as part of a load-modify-store instruction. When the root node
+    // in a match is a store, isel doesn't know how to remap non-chain non-flag
+    // uses of other nodes in the match, such as the ADD in this case. This
+    // leads to the ADD being left around and reselected, with the result being
+    // two adds in the output.  Alas, even if none our users are stores, that
+    // doesn't prove we're O.K.  Ergo, if we have any parents that aren't
+    // CopyToReg or SETCC, eschew INC/DEC.  A better fix seems to require
+    // climbing the DAG back to the root, and it doesn't seem to be worth the
+    // effort.
+    for (SDNode::use_iterator UI = Op.getNode()->use_begin(),
            UE = Op.getNode()->use_end(); UI != UE; ++UI)
-        if (UI->getOpcode() == ISD::STORE)
-          goto default_case;
-      // Otherwise use a regular EFLAGS-setting instruction.
-      switch (Op.getNode()->getOpcode()) {
-      case ISD::SUB: Opcode = X86ISD::SUB; break;
-      case ISD::OR:  Opcode = X86ISD::OR;  break;
-      case ISD::XOR: Opcode = X86ISD::XOR; break;
-      case ISD::AND: Opcode = X86ISD::AND; break;
-      default: llvm_unreachable("unexpected operator!");
+      if (UI->getOpcode() != ISD::CopyToReg && UI->getOpcode() != ISD::SETCC)
+        goto default_case;
+
+    if (ConstantSDNode *C =
+        dyn_cast<ConstantSDNode>(Op.getNode()->getOperand(1))) {
+      // An add of one will be selected as an INC.
+      if (C->getAPIntValue() == 1) {
+        Opcode = X86ISD::INC;
+        NumOperands = 1;
+        break;
       }
-      NumOperands = 2;
-      break;
-    case X86ISD::ADD:
-    case X86ISD::SUB:
-    case X86ISD::INC:
-    case X86ISD::DEC:
-    case X86ISD::OR:
-    case X86ISD::XOR:
-    case X86ISD::AND:
-      return SDValue(Op.getNode(), 1);
-    default:
-    default_case:
-      break;
+
+      // An add of negative one (subtract of one) will be selected as a DEC.
+      if (C->getAPIntValue().isAllOnesValue()) {
+        Opcode = X86ISD::DEC;
+        NumOperands = 1;
+        break;
+      }
     }
-    if (Opcode != 0) {
-      SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::i32);
-      SmallVector<SDValue, 4> Ops;
-      for (unsigned i = 0; i != NumOperands; ++i)
-        Ops.push_back(Op.getOperand(i));
-      SDValue New = DAG.getNode(Opcode, dl, VTs, &Ops[0], NumOperands);
-      DAG.ReplaceAllUsesWith(Op, New);
-      return SDValue(New.getNode(), 1);
+
+    // Otherwise use a regular EFLAGS-setting add.
+    Opcode = X86ISD::ADD;
+    NumOperands = 2;
+    break;
+  case ISD::AND: {
+    // If the primary and result isn't used, don't bother using X86ISD::AND,
+    // because a TEST instruction will be better.
+    bool NonFlagUse = false;
+    for (SDNode::use_iterator UI = Op.getNode()->use_begin(),
+           UE = Op.getNode()->use_end(); UI != UE; ++UI) {
+      SDNode *User = *UI;
+      unsigned UOpNo = UI.getOperandNo();
+      if (User->getOpcode() == ISD::TRUNCATE && User->hasOneUse()) {
+        // Look pass truncate.
+        UOpNo = User->use_begin().getOperandNo();
+        User = *User->use_begin();
+      }
+
+      if (User->getOpcode() != ISD::BRCOND &&
+          User->getOpcode() != ISD::SETCC &&
+          (User->getOpcode() != ISD::SELECT || UOpNo != 0)) {
+        NonFlagUse = true;
+        break;
+      }
     }
+
+    if (!NonFlagUse)
+      break;
+  }
+    // FALL THROUGH
+  case ISD::SUB:
+  case ISD::OR:
+  case ISD::XOR:
+    // Due to the ISEL shortcoming noted above, be conservative if this op is
+    // likely to be selected as part of a load-modify-store instruction.
+    for (SDNode::use_iterator UI = Op.getNode()->use_begin(),
+           UE = Op.getNode()->use_end(); UI != UE; ++UI)
+      if (UI->getOpcode() == ISD::STORE)
+        goto default_case;
+
+    // Otherwise use a regular EFLAGS-setting instruction.
+    switch (Op.getNode()->getOpcode()) {
+    default: llvm_unreachable("unexpected operator!");
+    case ISD::SUB: Opcode = X86ISD::SUB; break;
+    case ISD::OR:  Opcode = X86ISD::OR;  break;
+    case ISD::XOR: Opcode = X86ISD::XOR; break;
+    case ISD::AND: Opcode = X86ISD::AND; break;
+    }
+
+    NumOperands = 2;
+    break;
+  case X86ISD::ADD:
+  case X86ISD::SUB:
+  case X86ISD::INC:
+  case X86ISD::DEC:
+  case X86ISD::OR:
+  case X86ISD::XOR:
+  case X86ISD::AND:
+    return SDValue(Op.getNode(), 1);
+  default:
+  default_case:
+    break;
   }
 
-  // Otherwise just emit a CMP with 0, which is the TEST pattern.
-  return DAG.getNode(X86ISD::CMP, dl, MVT::i32, Op,
-                     DAG.getConstant(0, Op.getValueType()));
+  if (Opcode == 0)
+    // Emit a CMP with 0, which is the TEST pattern.
+    return DAG.getNode(X86ISD::CMP, dl, MVT::i32, Op,
+                       DAG.getConstant(0, Op.getValueType()));
+
+  SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::i32);
+  SmallVector<SDValue, 4> Ops;
+  for (unsigned i = 0; i != NumOperands; ++i)
+    Ops.push_back(Op.getOperand(i));
+
+  SDValue New = DAG.getNode(Opcode, dl, VTs, &Ops[0], NumOperands);
+  DAG.ReplaceAllUsesWith(Op, New);
+  return SDValue(New.getNode(), 1);
 }
 
 /// Emit nodes that will be selected as "cmp Op0,Op1", or something
@@ -6113,15 +6191,21 @@ SDValue X86TargetLowering::LowerToBT(SDValue And, ISD::CondCode CC,
     Op1 = Op1.getOperand(0);
 
   SDValue LHS, RHS;
-  if (Op1.getOpcode() == ISD::SHL) {
-    if (ConstantSDNode *And10C = dyn_cast<ConstantSDNode>(Op1.getOperand(0)))
-      if (And10C->getZExtValue() == 1) {
-        LHS = Op0;
-        RHS = Op1.getOperand(1);
-      }
-  } else if (Op0.getOpcode() == ISD::SHL) {
+  if (Op1.getOpcode() == ISD::SHL)
+    std::swap(Op0, Op1);
+  if (Op0.getOpcode() == ISD::SHL) {
     if (ConstantSDNode *And00C = dyn_cast<ConstantSDNode>(Op0.getOperand(0)))
       if (And00C->getZExtValue() == 1) {
+        // If we looked past a truncate, check that it's only truncating away
+        // known zeros.
+        unsigned BitWidth = Op0.getValueSizeInBits();
+        unsigned AndBitWidth = And.getValueSizeInBits();
+        if (BitWidth > AndBitWidth) {
+          APInt Mask = APInt::getAllOnesValue(BitWidth), Zeros, Ones;
+          DAG.ComputeMaskedBits(Op0, Mask, Zeros, Ones);
+          if (Zeros.countLeadingOnes() < BitWidth - AndBitWidth)
+            return SDValue();
+        }
         LHS = Op1;
         RHS = Op0.getOperand(1);
       }
@@ -6172,7 +6256,7 @@ SDValue X86TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
   if (Op0.getOpcode() == ISD::AND &&
       Op0.hasOneUse() &&
       Op1.getOpcode() == ISD::Constant &&
-      cast<ConstantSDNode>(Op1)->getZExtValue() == 0 &&
+      cast<ConstantSDNode>(Op1)->isNullValue() &&
       (CC == ISD::SETEQ || CC == ISD::SETNE)) {
     SDValue NewSetCC = LowerToBT(Op0, CC, dl, DAG);
     if (NewSetCC.getNode())
@@ -6552,15 +6636,16 @@ SDValue X86TargetLowering::LowerBRCOND(SDValue Op, SelectionDAG &DAG) const {
             (X86::CondCode)Cond.getOperand(0).getConstantOperandVal(0);
           CCode = X86::GetOppositeBranchCondition(CCode);
           CC = DAG.getConstant(CCode, MVT::i8);
-          SDValue User = SDValue(*Op.getNode()->use_begin(), 0);
+          SDNode *User = *Op.getNode()->use_begin();
           // Look for an unconditional branch following this conditional branch.
           // We need this because we need to reverse the successors in order
           // to implement FCMP_OEQ.
-          if (User.getOpcode() == ISD::BR) {
-            SDValue FalseBB = User.getOperand(1);
-            SDValue NewBR =
-              DAG.UpdateNodeOperands(User, User.getOperand(0), Dest);
+          if (User->getOpcode() == ISD::BR) {
+            SDValue FalseBB = User->getOperand(1);
+            SDNode *NewBR =
+              DAG.UpdateNodeOperands(User, User->getOperand(0), Dest);
             assert(NewBR == User);
+            (void)NewBR;
             Dest = FalseBB;
 
             Chain = DAG.getNode(X86ISD::BRCOND, dl, Op.getValueType(),
@@ -6632,7 +6717,6 @@ X86TargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
 
   SDValue Flag;
 
-  EVT IntPtr = getPointerTy();
   EVT SPTy = Subtarget->is64Bit() ? MVT::i64 : MVT::i32;
 
   Chain = DAG.getCopyToReg(Chain, dl, X86::EAX, Size, Flag);
@@ -6685,7 +6769,7 @@ SDValue X86TargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
   Store = DAG.getStore(Op.getOperand(0), dl,
                        DAG.getConstant(FuncInfo->getVarArgsFPOffset(),
                                        MVT::i32),
-                       FIN, SV, 0, false, false, 0);
+                       FIN, SV, 4, false, false, 0);
   MemOps.push_back(Store);
 
   // Store ptr to overflow_arg_area
@@ -6693,7 +6777,7 @@ SDValue X86TargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
                     FIN, DAG.getIntPtrConstant(4));
   SDValue OVFIN = DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(),
                                     getPointerTy());
-  Store = DAG.getStore(Op.getOperand(0), dl, OVFIN, FIN, SV, 0,
+  Store = DAG.getStore(Op.getOperand(0), dl, OVFIN, FIN, SV, 8,
                        false, false, 0);
   MemOps.push_back(Store);
 
@@ -6702,7 +6786,7 @@ SDValue X86TargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
                     FIN, DAG.getIntPtrConstant(8));
   SDValue RSFIN = DAG.getFrameIndex(FuncInfo->getRegSaveFrameIndex(),
                                     getPointerTy());
-  Store = DAG.getStore(Op.getOperand(0), dl, RSFIN, FIN, SV, 0,
+  Store = DAG.getStore(Op.getOperand(0), dl, RSFIN, FIN, SV, 16,
                        false, false, 0);
   MemOps.push_back(Store);
   return DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
@@ -6712,9 +6796,6 @@ SDValue X86TargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
 SDValue X86TargetLowering::LowerVAARG(SDValue Op, SelectionDAG &DAG) const {
   // X86-64 va_list is a struct { i32, i32, i8*, i8* }.
   assert(Subtarget->is64Bit() && "This code only handles 64-bit va_arg!");
-  SDValue Chain = Op.getOperand(0);
-  SDValue SrcPtr = Op.getOperand(1);
-  SDValue SrcSV = Op.getOperand(2);
 
   report_fatal_error("VAArgInst is not yet implemented for x86-64!");
   return SDValue();
@@ -7733,6 +7814,7 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::FRSQRT:             return "X86ISD::FRSQRT";
   case X86ISD::FRCP:               return "X86ISD::FRCP";
   case X86ISD::TLSADDR:            return "X86ISD::TLSADDR";
+  case X86ISD::TLSCALL:            return "X86ISD::TLSCALL";
   case X86ISD::SegmentBaseAddress: return "X86ISD::SegmentBaseAddress";
   case X86ISD::EH_RETURN:          return "X86ISD::EH_RETURN";
   case X86ISD::TC_RETURN:          return "X86ISD::TC_RETURN";
@@ -7917,7 +7999,6 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
                                                        unsigned immOpc,
                                                        unsigned LoadOpc,
                                                        unsigned CXchgOpc,
-                                                       unsigned copyOpc,
                                                        unsigned notOpc,
                                                        unsigned EAXreg,
                                                        TargetRegisterClass *RC,
@@ -7944,8 +8025,11 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
   F->insert(MBBIter, newMBB);
   F->insert(MBBIter, nextMBB);
 
-  // Move all successors to thisMBB to nextMBB
-  nextMBB->transferSuccessors(thisMBB);
+  // Transfer the remainder of thisMBB and its successor edges to nextMBB.
+  nextMBB->splice(nextMBB->begin(), thisMBB,
+                  llvm::next(MachineBasicBlock::iterator(bInstr)),
+                  thisMBB->end());
+  nextMBB->transferSuccessorsAndUpdatePHIs(thisMBB);
 
   // Update thisMBB to fall through to newMBB
   thisMBB->addSuccessor(newMBB);
@@ -7955,17 +8039,17 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
   newMBB->addSuccessor(newMBB);
 
   // Insert instructions into newMBB based on incoming instruction
-  assert(bInstr->getNumOperands() < X86AddrNumOperands + 4 &&
+  assert(bInstr->getNumOperands() < X86::AddrNumOperands + 4 &&
          "unexpected number of operands");
   DebugLoc dl = bInstr->getDebugLoc();
   MachineOperand& destOper = bInstr->getOperand(0);
-  MachineOperand* argOpers[2 + X86AddrNumOperands];
+  MachineOperand* argOpers[2 + X86::AddrNumOperands];
   int numArgs = bInstr->getNumOperands() - 1;
   for (int i=0; i < numArgs; ++i)
     argOpers[i] = &bInstr->getOperand(i+1);
 
   // x86 address has 4 operands: base, index, scale, and displacement
-  int lastAddrIndx = X86AddrNumOperands - 1; // [0,3]
+  int lastAddrIndx = X86::AddrNumOperands - 1; // [0,3]
   int valArgIndx = lastAddrIndx + 1;
 
   unsigned t1 = F->getRegInfo().createVirtualRegister(RC);
@@ -7991,7 +8075,7 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
   MIB.addReg(tt);
   (*MIB).addOperand(*argOpers[valArgIndx]);
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), EAXreg);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), EAXreg);
   MIB.addReg(t1);
 
   MIB = BuildMI(newMBB, dl, TII->get(CXchgOpc));
@@ -8002,13 +8086,13 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
   (*MIB).setMemRefs(bInstr->memoperands_begin(),
                     bInstr->memoperands_end());
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), destOper.getReg());
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), destOper.getReg());
   MIB.addReg(EAXreg);
 
   // insert branch
   BuildMI(newMBB, dl, TII->get(X86::JNE_4)).addMBB(newMBB);
 
-  F->DeleteMachineInstr(bInstr);   // The pseudo instruction is gone now.
+  bInstr->eraseFromParent();   // The pseudo instruction is gone now.
   return nextMBB;
 }
 
@@ -8038,7 +8122,6 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
 
   const TargetRegisterClass *RC = X86::GR32RegisterClass;
   const unsigned LoadOpc = X86::MOV32rm;
-  const unsigned copyOpc = X86::MOV32rr;
   const unsigned NotOpc = X86::NOT32r;
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   const BasicBlock *LLVM_BB = MBB->getBasicBlock();
@@ -8053,8 +8136,11 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
   F->insert(MBBIter, newMBB);
   F->insert(MBBIter, nextMBB);
 
-  // Move all successors to thisMBB to nextMBB
-  nextMBB->transferSuccessors(thisMBB);
+  // Transfer the remainder of thisMBB and its successor edges to nextMBB.
+  nextMBB->splice(nextMBB->begin(), thisMBB,
+                  llvm::next(MachineBasicBlock::iterator(bInstr)),
+                  thisMBB->end());
+  nextMBB->transferSuccessorsAndUpdatePHIs(thisMBB);
 
   // Update thisMBB to fall through to newMBB
   thisMBB->addSuccessor(newMBB);
@@ -8066,12 +8152,12 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
   DebugLoc dl = bInstr->getDebugLoc();
   // Insert instructions into newMBB based on incoming instruction
   // There are 8 "real" operands plus 9 implicit def/uses, ignored here.
-  assert(bInstr->getNumOperands() < X86AddrNumOperands + 14 &&
+  assert(bInstr->getNumOperands() < X86::AddrNumOperands + 14 &&
          "unexpected number of operands");
   MachineOperand& dest1Oper = bInstr->getOperand(0);
   MachineOperand& dest2Oper = bInstr->getOperand(1);
-  MachineOperand* argOpers[2 + X86AddrNumOperands];
-  for (int i=0; i < 2 + X86AddrNumOperands; ++i) {
+  MachineOperand* argOpers[2 + X86::AddrNumOperands];
+  for (int i=0; i < 2 + X86::AddrNumOperands; ++i) {
     argOpers[i] = &bInstr->getOperand(i+2);
 
     // We use some of the operands multiple times, so conservatively just
@@ -8081,7 +8167,7 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
   }
 
   // x86 address has 5 operands: base, index, scale, displacement, and segment.
-  int lastAddrIndx = X86AddrNumOperands - 1; // [0,3]
+  int lastAddrIndx = X86::AddrNumOperands - 1; // [0,3]
 
   unsigned t1 = F->getRegInfo().createVirtualRegister(RC);
   MachineInstrBuilder MIB = BuildMI(thisMBB, dl, TII->get(LoadOpc), t1);
@@ -8145,14 +8231,14 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
     MIB.addReg(t2);
   (*MIB).addOperand(*argOpers[valArgIndx + 1]);
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), X86::EAX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EAX);
   MIB.addReg(t1);
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), X86::EDX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EDX);
   MIB.addReg(t2);
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), X86::EBX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EBX);
   MIB.addReg(t5);
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), X86::ECX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::ECX);
   MIB.addReg(t6);
 
   MIB = BuildMI(newMBB, dl, TII->get(X86::LCMPXCHG8B));
@@ -8163,15 +8249,15 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
   (*MIB).setMemRefs(bInstr->memoperands_begin(),
                     bInstr->memoperands_end());
 
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), t3);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), t3);
   MIB.addReg(X86::EAX);
-  MIB = BuildMI(newMBB, dl, TII->get(copyOpc), t4);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), t4);
   MIB.addReg(X86::EDX);
 
   // insert branch
   BuildMI(newMBB, dl, TII->get(X86::JNE_4)).addMBB(newMBB);
 
-  F->DeleteMachineInstr(bInstr);   // The pseudo instruction is gone now.
+  bInstr->eraseFromParent();   // The pseudo instruction is gone now.
   return nextMBB;
 }
 
@@ -8205,8 +8291,11 @@ X86TargetLowering::EmitAtomicMinMaxWithCustomInserter(MachineInstr *mInstr,
   F->insert(MBBIter, newMBB);
   F->insert(MBBIter, nextMBB);
 
-  // Move all successors of thisMBB to nextMBB
-  nextMBB->transferSuccessors(thisMBB);
+  // Transfer the remainder of thisMBB and its successor edges to nextMBB.
+  nextMBB->splice(nextMBB->begin(), thisMBB,
+                  llvm::next(MachineBasicBlock::iterator(mInstr)),
+                  thisMBB->end());
+  nextMBB->transferSuccessorsAndUpdatePHIs(thisMBB);
 
   // Update thisMBB to fall through to newMBB
   thisMBB->addSuccessor(newMBB);
@@ -8217,16 +8306,16 @@ X86TargetLowering::EmitAtomicMinMaxWithCustomInserter(MachineInstr *mInstr,
 
   DebugLoc dl = mInstr->getDebugLoc();
   // Insert instructions into newMBB based on incoming instruction
-  assert(mInstr->getNumOperands() < X86AddrNumOperands + 4 &&
+  assert(mInstr->getNumOperands() < X86::AddrNumOperands + 4 &&
          "unexpected number of operands");
   MachineOperand& destOper = mInstr->getOperand(0);
-  MachineOperand* argOpers[2 + X86AddrNumOperands];
+  MachineOperand* argOpers[2 + X86::AddrNumOperands];
   int numArgs = mInstr->getNumOperands() - 1;
   for (int i=0; i < numArgs; ++i)
     argOpers[i] = &mInstr->getOperand(i+1);
 
   // x86 address has 4 operands: base, index, scale, and displacement
-  int lastAddrIndx = X86AddrNumOperands - 1; // [0,3]
+  int lastAddrIndx = X86::AddrNumOperands - 1; // [0,3]
   int valArgIndx = lastAddrIndx + 1;
 
   unsigned t1 = F->getRegInfo().createVirtualRegister(X86::GR32RegisterClass);
@@ -8241,12 +8330,12 @@ X86TargetLowering::EmitAtomicMinMaxWithCustomInserter(MachineInstr *mInstr,
 
   unsigned t2 = F->getRegInfo().createVirtualRegister(X86::GR32RegisterClass);
   if (argOpers[valArgIndx]->isReg())
-    MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rr), t2);
+    MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), t2);
   else
     MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rr), t2);
   (*MIB).addOperand(*argOpers[valArgIndx]);
 
-  MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rr), X86::EAX);
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EAX);
   MIB.addReg(t1);
 
   MIB = BuildMI(newMBB, dl, TII->get(X86::CMP32rr));
@@ -8268,13 +8357,13 @@ X86TargetLowering::EmitAtomicMinMaxWithCustomInserter(MachineInstr *mInstr,
   (*MIB).setMemRefs(mInstr->memoperands_begin(),
                     mInstr->memoperands_end());
 
-  MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rr), destOper.getReg());
+  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), destOper.getReg());
   MIB.addReg(X86::EAX);
 
   // insert branch
   BuildMI(newMBB, dl, TII->get(X86::JNE_4)).addMBB(newMBB);
 
-  F->DeleteMachineInstr(mInstr);   // The pseudo instruction is gone now.
+  mInstr->eraseFromParent();   // The pseudo instruction is gone now.
   return nextMBB;
 }
 
@@ -8284,7 +8373,6 @@ MachineBasicBlock *
 X86TargetLowering::EmitPCMP(MachineInstr *MI, MachineBasicBlock *BB,
                             unsigned numArgs, bool memArg) const {
 
-  MachineFunction *F = BB->getParent();
   DebugLoc dl = MI->getDebugLoc();
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
 
@@ -8306,7 +8394,7 @@ X86TargetLowering::EmitPCMP(MachineInstr *MI, MachineBasicBlock *BB,
   BuildMI(BB, dl, TII->get(X86::MOVAPSrr), MI->getOperand(0).getReg())
     .addReg(X86::XMM0);
 
-  F->DeleteMachineInstr(MI);
+  MI->eraseFromParent();
 
   return BB;
 }
@@ -8335,9 +8423,12 @@ X86TargetLowering::EmitVAStartSaveXMMRegsWithCustomInserter(
   F->insert(MBBIter, XMMSaveMBB);
   F->insert(MBBIter, EndMBB);
 
-  // Set up the CFG.
-  // Move any original successors of MBB to the end block.
-  EndMBB->transferSuccessors(MBB);
+  // Transfer the remainder of MBB and its successor edges to EndMBB.
+  EndMBB->splice(EndMBB->begin(), MBB,
+                 llvm::next(MachineBasicBlock::iterator(MI)),
+                 MBB->end());
+  EndMBB->transferSuccessorsAndUpdatePHIs(MBB);
+
   // The original block will now fall through to the XMM save block.
   MBB->addSuccessor(XMMSaveMBB);
   // The XMMSaveMBB will fall through to the end block.
@@ -8376,7 +8467,7 @@ X86TargetLowering::EmitVAStartSaveXMMRegsWithCustomInserter(
       .addMemOperand(MMO);
   }
 
-  F->DeleteMachineInstr(MI);   // The pseudo instruction is gone now.
+  MI->eraseFromParent();   // The pseudo instruction is gone now.
 
   return EndMBB;
 }
@@ -8405,23 +8496,38 @@ X86TargetLowering::EmitLoweredSelect(MachineInstr *MI,
   MachineFunction *F = BB->getParent();
   MachineBasicBlock *copy0MBB = F->CreateMachineBasicBlock(LLVM_BB);
   MachineBasicBlock *sinkMBB = F->CreateMachineBasicBlock(LLVM_BB);
-  unsigned Opc =
-    X86::GetCondBranchFromCond((X86::CondCode)MI->getOperand(3).getImm());
-  BuildMI(BB, DL, TII->get(Opc)).addMBB(sinkMBB);
   F->insert(It, copy0MBB);
   F->insert(It, sinkMBB);
-  // Update machine-CFG edges by first adding all successors of the current
-  // block to the new block which will contain the Phi node for the select.
-  for (MachineBasicBlock::succ_iterator I = BB->succ_begin(),
-         E = BB->succ_end(); I != E; ++I)
-    sinkMBB->addSuccessor(*I);
-  // Next, remove all successors of the current block, and add the true
-  // and fallthrough blocks as its successors.
-  while (!BB->succ_empty())
-    BB->removeSuccessor(BB->succ_begin());
+
+  // If the EFLAGS register isn't dead in the terminator, then claim that it's
+  // live into the sink and copy blocks.
+  const MachineFunction *MF = BB->getParent();
+  const TargetRegisterInfo *TRI = MF->getTarget().getRegisterInfo();
+  BitVector ReservedRegs = TRI->getReservedRegs(*MF);
+
+  for (unsigned I = 0, E = MI->getNumOperands(); I != E; ++I) {
+    const MachineOperand &MO = MI->getOperand(I);
+    if (!MO.isReg() || !MO.isUse() || MO.isKill()) continue;
+    unsigned Reg = MO.getReg();
+    if (Reg != X86::EFLAGS) continue;
+    copy0MBB->addLiveIn(Reg);
+    sinkMBB->addLiveIn(Reg);
+  }
+
+  // Transfer the remainder of BB and its successor edges to sinkMBB.
+  sinkMBB->splice(sinkMBB->begin(), BB,
+                  llvm::next(MachineBasicBlock::iterator(MI)),
+                  BB->end());
+  sinkMBB->transferSuccessorsAndUpdatePHIs(BB);
+
   // Add the true and fallthrough blocks as its successors.
   BB->addSuccessor(copy0MBB);
   BB->addSuccessor(sinkMBB);
+
+  // Create the conditional branch instruction.
+  unsigned Opc =
+    X86::GetCondBranchFromCond((X86::CondCode)MI->getOperand(3).getImm());
+  BuildMI(BB, DL, TII->get(Opc)).addMBB(sinkMBB);
 
   //  copy0MBB:
   //   %FalseValue = ...
@@ -8431,11 +8537,12 @@ X86TargetLowering::EmitLoweredSelect(MachineInstr *MI,
   //  sinkMBB:
   //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
   //  ...
-  BuildMI(sinkMBB, DL, TII->get(X86::PHI), MI->getOperand(0).getReg())
+  BuildMI(*sinkMBB, sinkMBB->begin(), DL,
+          TII->get(X86::PHI), MI->getOperand(0).getReg())
     .addReg(MI->getOperand(1).getReg()).addMBB(copy0MBB)
     .addReg(MI->getOperand(2).getReg()).addMBB(thisMBB);
 
-  F->DeleteMachineInstr(MI);   // The pseudo instruction is gone now.
+  MI->eraseFromParent();   // The pseudo instruction is gone now.
   return sinkMBB;
 }
 
@@ -8444,21 +8551,70 @@ X86TargetLowering::EmitLoweredMingwAlloca(MachineInstr *MI,
                                           MachineBasicBlock *BB) const {
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   DebugLoc DL = MI->getDebugLoc();
-  MachineFunction *F = BB->getParent();
 
   // The lowering is pretty easy: we're just emitting the call to _alloca.  The
   // non-trivial part is impdef of ESP.
   // FIXME: The code should be tweaked as soon as we'll try to do codegen for
   // mingw-w64.
 
-  BuildMI(BB, DL, TII->get(X86::CALLpcrel32))
+  BuildMI(*BB, MI, DL, TII->get(X86::CALLpcrel32))
     .addExternalSymbol("_alloca")
     .addReg(X86::EAX, RegState::Implicit)
     .addReg(X86::ESP, RegState::Implicit)
     .addReg(X86::EAX, RegState::Define | RegState::Implicit)
     .addReg(X86::ESP, RegState::Define | RegState::Implicit);
 
-  F->DeleteMachineInstr(MI);   // The pseudo instruction is gone now.
+  MI->eraseFromParent();   // The pseudo instruction is gone now.
+  return BB;
+}
+
+MachineBasicBlock *
+X86TargetLowering::EmitLoweredTLSCall(MachineInstr *MI,
+                                      MachineBasicBlock *BB) const {
+  // This is pretty easy.  We're taking the value that we received from
+  // our load from the relocation, sticking it in either RDI (x86-64)
+  // or EAX and doing an indirect call.  The return value will then
+  // be in the normal return register.
+  const X86InstrInfo *TII 
+    = static_cast<const X86InstrInfo*>(getTargetMachine().getInstrInfo());
+  DebugLoc DL = MI->getDebugLoc();
+  MachineFunction *F = BB->getParent();
+  
+  assert(MI->getOperand(3).isGlobal() && "This should be a global");
+  
+  if (Subtarget->is64Bit()) {
+    MachineInstrBuilder MIB = BuildMI(*BB, MI, DL,
+                                      TII->get(X86::MOV64rm), X86::RDI)
+    .addReg(X86::RIP)
+    .addImm(0).addReg(0)
+    .addGlobalAddress(MI->getOperand(3).getGlobal(), 0, 
+                      MI->getOperand(3).getTargetFlags())
+    .addReg(0);
+    MIB = BuildMI(*BB, MI, DL, TII->get(X86::CALL64m));
+    addDirectMem(MIB, X86::RDI);
+  } else if (getTargetMachine().getRelocationModel() != Reloc::PIC_) {
+    MachineInstrBuilder MIB = BuildMI(*BB, MI, DL,
+                                      TII->get(X86::MOV32rm), X86::EAX)
+    .addReg(0)
+    .addImm(0).addReg(0)
+    .addGlobalAddress(MI->getOperand(3).getGlobal(), 0, 
+                      MI->getOperand(3).getTargetFlags())
+    .addReg(0);
+    MIB = BuildMI(*BB, MI, DL, TII->get(X86::CALL32m));
+    addDirectMem(MIB, X86::EAX);
+  } else {
+    MachineInstrBuilder MIB = BuildMI(*BB, MI, DL,
+                                      TII->get(X86::MOV32rm), X86::EAX)
+    .addReg(TII->getGlobalBaseReg(F))
+    .addImm(0).addReg(0)
+    .addGlobalAddress(MI->getOperand(3).getGlobal(), 0, 
+                      MI->getOperand(3).getTargetFlags())
+    .addReg(0);
+    MIB = BuildMI(*BB, MI, DL, TII->get(X86::CALL32m));
+    addDirectMem(MIB, X86::EAX);
+  }
+  
+  MI->eraseFromParent(); // The pseudo instruction is gone now.
   return BB;
 }
 
@@ -8469,6 +8625,9 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   default: assert(false && "Unexpected instr type to insert");
   case X86::MINGW_ALLOCA:
     return EmitLoweredMingwAlloca(MI, BB);
+  case X86::TLSCall_32:
+  case X86::TLSCall_64:
+    return EmitLoweredTLSCall(MI, BB);
   case X86::CMOV_GR8:
   case X86::CMOV_V1I64:
   case X86::CMOV_FR32:
@@ -8499,23 +8658,25 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     // mode when truncating to an integer value.
     MachineFunction *F = BB->getParent();
     int CWFrameIdx = F->getFrameInfo()->CreateStackObject(2, 2, false);
-    addFrameReference(BuildMI(BB, DL, TII->get(X86::FNSTCW16m)), CWFrameIdx);
+    addFrameReference(BuildMI(*BB, MI, DL,
+                              TII->get(X86::FNSTCW16m)), CWFrameIdx);
 
     // Load the old value of the high byte of the control word...
     unsigned OldCW =
       F->getRegInfo().createVirtualRegister(X86::GR16RegisterClass);
-    addFrameReference(BuildMI(BB, DL, TII->get(X86::MOV16rm), OldCW),
+    addFrameReference(BuildMI(*BB, MI, DL, TII->get(X86::MOV16rm), OldCW),
                       CWFrameIdx);
 
     // Set the high part to be round to zero...
-    addFrameReference(BuildMI(BB, DL, TII->get(X86::MOV16mi)), CWFrameIdx)
+    addFrameReference(BuildMI(*BB, MI, DL, TII->get(X86::MOV16mi)), CWFrameIdx)
       .addImm(0xC7F);
 
     // Reload the modified control word now...
-    addFrameReference(BuildMI(BB, DL, TII->get(X86::FLDCW16m)), CWFrameIdx);
+    addFrameReference(BuildMI(*BB, MI, DL,
+                              TII->get(X86::FLDCW16m)), CWFrameIdx);
 
     // Restore the memory image of control word to original value
-    addFrameReference(BuildMI(BB, DL, TII->get(X86::MOV16mr)), CWFrameIdx)
+    addFrameReference(BuildMI(*BB, MI, DL, TII->get(X86::MOV16mr)), CWFrameIdx)
       .addReg(OldCW);
 
     // Get the X86 opcode to use.
@@ -8554,13 +8715,14 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     } else {
       AM.Disp = Op.getImm();
     }
-    addFullAddress(BuildMI(BB, DL, TII->get(Opc)), AM)
-                      .addReg(MI->getOperand(X86AddrNumOperands).getReg());
+    addFullAddress(BuildMI(*BB, MI, DL, TII->get(Opc)), AM)
+                      .addReg(MI->getOperand(X86::AddrNumOperands).getReg());
 
     // Reload the original control word now.
-    addFrameReference(BuildMI(BB, DL, TII->get(X86::FLDCW16m)), CWFrameIdx);
+    addFrameReference(BuildMI(*BB, MI, DL,
+                              TII->get(X86::FLDCW16m)), CWFrameIdx);
 
-    F->DeleteMachineInstr(MI);   // The pseudo instruction is gone now.
+    MI->eraseFromParent();   // The pseudo instruction is gone now.
     return BB;
   }
     // String/text processing lowering.
@@ -8577,25 +8739,25 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::ATOMAND32:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND32rr,
                                                X86::AND32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32, X86::MOV32rr,
+                                               X86::LCMPXCHG32,
                                                X86::NOT32r, X86::EAX,
                                                X86::GR32RegisterClass);
   case X86::ATOMOR32:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR32rr,
                                                X86::OR32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32, X86::MOV32rr,
+                                               X86::LCMPXCHG32,
                                                X86::NOT32r, X86::EAX,
                                                X86::GR32RegisterClass);
   case X86::ATOMXOR32:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR32rr,
                                                X86::XOR32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32, X86::MOV32rr,
+                                               X86::LCMPXCHG32,
                                                X86::NOT32r, X86::EAX,
                                                X86::GR32RegisterClass);
   case X86::ATOMNAND32:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND32rr,
                                                X86::AND32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32, X86::MOV32rr,
+                                               X86::LCMPXCHG32,
                                                X86::NOT32r, X86::EAX,
                                                X86::GR32RegisterClass, true);
   case X86::ATOMMIN32:
@@ -8610,25 +8772,25 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::ATOMAND16:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND16rr,
                                                X86::AND16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16, X86::MOV16rr,
+                                               X86::LCMPXCHG16,
                                                X86::NOT16r, X86::AX,
                                                X86::GR16RegisterClass);
   case X86::ATOMOR16:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR16rr,
                                                X86::OR16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16, X86::MOV16rr,
+                                               X86::LCMPXCHG16,
                                                X86::NOT16r, X86::AX,
                                                X86::GR16RegisterClass);
   case X86::ATOMXOR16:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR16rr,
                                                X86::XOR16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16, X86::MOV16rr,
+                                               X86::LCMPXCHG16,
                                                X86::NOT16r, X86::AX,
                                                X86::GR16RegisterClass);
   case X86::ATOMNAND16:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND16rr,
                                                X86::AND16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16, X86::MOV16rr,
+                                               X86::LCMPXCHG16,
                                                X86::NOT16r, X86::AX,
                                                X86::GR16RegisterClass, true);
   case X86::ATOMMIN16:
@@ -8643,25 +8805,25 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::ATOMAND8:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND8rr,
                                                X86::AND8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8, X86::MOV8rr,
+                                               X86::LCMPXCHG8,
                                                X86::NOT8r, X86::AL,
                                                X86::GR8RegisterClass);
   case X86::ATOMOR8:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR8rr,
                                                X86::OR8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8, X86::MOV8rr,
+                                               X86::LCMPXCHG8,
                                                X86::NOT8r, X86::AL,
                                                X86::GR8RegisterClass);
   case X86::ATOMXOR8:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR8rr,
                                                X86::XOR8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8, X86::MOV8rr,
+                                               X86::LCMPXCHG8,
                                                X86::NOT8r, X86::AL,
                                                X86::GR8RegisterClass);
   case X86::ATOMNAND8:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND8rr,
                                                X86::AND8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8, X86::MOV8rr,
+                                               X86::LCMPXCHG8,
                                                X86::NOT8r, X86::AL,
                                                X86::GR8RegisterClass, true);
   // FIXME: There are no CMOV8 instructions; MIN/MAX need some other way.
@@ -8669,25 +8831,25 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::ATOMAND64:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND64rr,
                                                X86::AND64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64, X86::MOV64rr,
+                                               X86::LCMPXCHG64,
                                                X86::NOT64r, X86::RAX,
                                                X86::GR64RegisterClass);
   case X86::ATOMOR64:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR64rr,
                                                X86::OR64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64, X86::MOV64rr,
+                                               X86::LCMPXCHG64,
                                                X86::NOT64r, X86::RAX,
                                                X86::GR64RegisterClass);
   case X86::ATOMXOR64:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR64rr,
                                                X86::XOR64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64, X86::MOV64rr,
+                                               X86::LCMPXCHG64,
                                                X86::NOT64r, X86::RAX,
                                                X86::GR64RegisterClass);
   case X86::ATOMNAND64:
     return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND64rr,
                                                X86::AND64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64, X86::MOV64rr,
+                                               X86::LCMPXCHG64,
                                                X86::NOT64r, X86::RAX,
                                                X86::GR64RegisterClass, true);
   case X86::ATOMMIN64:
@@ -9513,8 +9675,10 @@ static SDValue PerformOrCombine(SDNode *N, SelectionDAG &DAG,
   if (ShAmt1.getOpcode() == ISD::SUB) {
     SDValue Sum = ShAmt1.getOperand(0);
     if (ConstantSDNode *SumC = dyn_cast<ConstantSDNode>(Sum)) {
-      if (SumC->getSExtValue() == Bits &&
-          ShAmt1.getOperand(1) == ShAmt0)
+      SDValue ShAmt1Op1 = ShAmt1.getOperand(1);
+      if (ShAmt1Op1.getNode()->getOpcode() == ISD::TRUNCATE)
+        ShAmt1Op1 = ShAmt1Op1.getOperand(0);
+      if (SumC->getSExtValue() == Bits && ShAmt1Op1 == ShAmt0)
         return DAG.getNode(Opc, DL, VT,
                            Op0, Op1,
                            DAG.getNode(ISD::TRUNCATE, DL,
@@ -9710,58 +9874,6 @@ static SDValue PerformVZEXT_MOVLCombine(SDNode *N, SelectionDAG &DAG) {
   return SDValue();
 }
 
-// On X86 and X86-64, atomic operations are lowered to locked instructions.
-// Locked instructions, in turn, have implicit fence semantics (all memory
-// operations are flushed before issuing the locked instruction, and the
-// are not buffered), so we can fold away the common pattern of
-// fence-atomic-fence.
-static SDValue PerformMEMBARRIERCombine(SDNode* N, SelectionDAG &DAG) {
-  SDValue atomic = N->getOperand(0);
-  switch (atomic.getOpcode()) {
-    case ISD::ATOMIC_CMP_SWAP:
-    case ISD::ATOMIC_SWAP:
-    case ISD::ATOMIC_LOAD_ADD:
-    case ISD::ATOMIC_LOAD_SUB:
-    case ISD::ATOMIC_LOAD_AND:
-    case ISD::ATOMIC_LOAD_OR:
-    case ISD::ATOMIC_LOAD_XOR:
-    case ISD::ATOMIC_LOAD_NAND:
-    case ISD::ATOMIC_LOAD_MIN:
-    case ISD::ATOMIC_LOAD_MAX:
-    case ISD::ATOMIC_LOAD_UMIN:
-    case ISD::ATOMIC_LOAD_UMAX:
-      break;
-    default:
-      return SDValue();
-  }
-
-  SDValue fence = atomic.getOperand(0);
-  if (fence.getOpcode() != ISD::MEMBARRIER)
-    return SDValue();
-
-  switch (atomic.getOpcode()) {
-    case ISD::ATOMIC_CMP_SWAP:
-      return DAG.UpdateNodeOperands(atomic, fence.getOperand(0),
-                                    atomic.getOperand(1), atomic.getOperand(2),
-                                    atomic.getOperand(3));
-    case ISD::ATOMIC_SWAP:
-    case ISD::ATOMIC_LOAD_ADD:
-    case ISD::ATOMIC_LOAD_SUB:
-    case ISD::ATOMIC_LOAD_AND:
-    case ISD::ATOMIC_LOAD_OR:
-    case ISD::ATOMIC_LOAD_XOR:
-    case ISD::ATOMIC_LOAD_NAND:
-    case ISD::ATOMIC_LOAD_MIN:
-    case ISD::ATOMIC_LOAD_MAX:
-    case ISD::ATOMIC_LOAD_UMIN:
-    case ISD::ATOMIC_LOAD_UMAX:
-      return DAG.UpdateNodeOperands(atomic, fence.getOperand(0),
-                                    atomic.getOperand(1), atomic.getOperand(2));
-    default:
-      return SDValue();
-  }
-}
-
 static SDValue PerformZExtCombine(SDNode *N, SelectionDAG &DAG) {
   // (i32 zext (and (i8  x86isd::setcc_carry), 1)) ->
   //           (and (i32 x86isd::setcc_carry), 1)
@@ -9809,7 +9921,6 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case X86ISD::FAND:        return PerformFANDCombine(N, DAG);
   case X86ISD::BT:          return PerformBTCombine(N, DAG, DCI);
   case X86ISD::VZEXT_MOVL:  return PerformVZEXT_MOVLCombine(N, DAG);
-  case ISD::MEMBARRIER:     return PerformMEMBARRIERCombine(N, DAG);
   case ISD::ZERO_EXTEND:    return PerformZExtCombine(N, DAG);
   }
 
@@ -9932,8 +10043,8 @@ static bool LowerToBSwap(CallInst *CI) {
   // so don't worry about this.
 
   // Verify this is a simple bswap.
-  if (CI->getNumOperands() != 2 ||
-      CI->getType() != CI->getOperand(1)->getType() ||
+  if (CI->getNumArgOperands() != 1 ||
+      CI->getType() != CI->getArgOperand(0)->getType() ||
       !CI->getType()->isIntegerTy())
     return false;
 
@@ -9946,7 +10057,7 @@ static bool LowerToBSwap(CallInst *CI) {
   Module *M = CI->getParent()->getParent()->getParent();
   Constant *Int = Intrinsic::getDeclaration(M, Intrinsic::bswap, Tys, 1);
 
-  Value *Op = CI->getOperand(1);
+  Value *Op = CI->getArgOperand(0);
   Op = CallInst::Create(Int, Op, CI->getName(), CI);
 
   CI->replaceAllUsesWith(Op);
@@ -10079,7 +10190,6 @@ LowerXConstraint(EVT ConstraintVT) const {
 /// vector.  If it is invalid, don't add anything to Ops.
 void X86TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
                                                      char Constraint,
-                                                     bool hasMemory,
                                                      std::vector<SDValue>&Ops,
                                                      SelectionDAG &DAG) const {
   SDValue Result(0, 0);
@@ -10121,9 +10231,8 @@ void X86TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
   case 'e': {
     // 32-bit signed value
     if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op)) {
-      const ConstantInt *CI = C->getConstantIntValue();
-      if (CI->isValueValidForType(Type::getInt32Ty(*DAG.getContext()),
-                                  C->getSExtValue())) {
+      if (ConstantInt::isValueValidForType(Type::getInt32Ty(*DAG.getContext()),
+                                           C->getSExtValue())) {
         // Widen to 64 bits here to get it sign extended.
         Result = DAG.getTargetConstant(C->getSExtValue(), MVT::i64);
         break;
@@ -10136,9 +10245,8 @@ void X86TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
   case 'Z': {
     // 32-bit unsigned value
     if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op)) {
-      const ConstantInt *CI = C->getConstantIntValue();
-      if (CI->isValueValidForType(Type::getInt32Ty(*DAG.getContext()),
-                                  C->getZExtValue())) {
+      if (ConstantInt::isValueValidForType(Type::getInt32Ty(*DAG.getContext()),
+                                           C->getZExtValue())) {
         Result = DAG.getTargetConstant(C->getZExtValue(), Op.getValueType());
         break;
       }
@@ -10154,6 +10262,12 @@ void X86TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
       Result = DAG.getTargetConstant(CST->getSExtValue(), MVT::i64);
       break;
     }
+
+    // In any sort of PIC mode addresses need to be computed at runtime by
+    // adding in a register or some sort of table lookup.  These can't
+    // be used as immediates.
+    if (Subtarget->isPICStyleGOT() || Subtarget->isPICStyleStubPIC())
+      return;
 
     // If we are in non-pic codegen mode, we allow the address of a global (with
     // an optional displacement) to be used with 'i'.
@@ -10190,11 +10304,8 @@ void X86TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
                                                         getTargetMachine())))
       return;
 
-    if (hasMemory)
-      Op = LowerGlobalAddress(GV, Op.getDebugLoc(), Offset, DAG);
-    else
-      Op = DAG.getTargetGlobalAddress(GV, GA->getValueType(0), Offset);
-    Result = Op;
+    Result = DAG.getTargetGlobalAddress(GV, Op.getDebugLoc(),
+                                        GA->getValueType(0), Offset);
     break;
   }
   }
@@ -10203,8 +10314,7 @@ void X86TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
     Ops.push_back(Result);
     return;
   }
-  return TargetLowering::LowerAsmOperandForConstraint(Op, Constraint, hasMemory,
-                                                      Ops, DAG);
+  return TargetLowering::LowerAsmOperandForConstraint(Op, Constraint, Ops, DAG);
 }
 
 std::vector<unsigned> X86TargetLowering::

@@ -147,7 +147,7 @@ let Namespace = "X86" in {
   def MM5 : Register<"mm5">, DwarfRegNum<[46, 34, 34]>;
   def MM6 : Register<"mm6">, DwarfRegNum<[47, 35, 35]>;
   def MM7 : Register<"mm7">, DwarfRegNum<[48, 36, 36]>;
-  
+
   // Pseudo Floating Point registers
   def FP0 : Register<"fp0">;
   def FP1 : Register<"fp1">;
@@ -155,7 +155,7 @@ let Namespace = "X86" in {
   def FP3 : Register<"fp3">;
   def FP4 : Register<"fp4">;
   def FP5 : Register<"fp5">;
-  def FP6 : Register<"fp6">; 
+  def FP6 : Register<"fp6">;
 
   // XMM Registers, used by the various SSE instruction set extensions.
   // The sub_ss and sub_sd subregs are the same registers with another regclass.
@@ -357,7 +357,7 @@ def GR16 : RegisterClass<"X86", [i16], 16,
   }];
 }
 
-def GR32 : RegisterClass<"X86", [i32], 32, 
+def GR32 : RegisterClass<"X86", [i32], 32,
                          [EAX, ECX, EDX, ESI, EDI, EBX, EBP, ESP,
                           R8D, R9D, R10D, R11D, R14D, R15D, R12D, R13D]> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi), (GR16 sub_16bit)];
@@ -412,7 +412,7 @@ def GR32 : RegisterClass<"X86", [i32], 32,
 // GR64 - 64-bit GPRs. This oddly includes RIP, which isn't accurate, since
 // RIP isn't really a register and it can't be used anywhere except in an
 // address, but it doesn't cause trouble.
-def GR64 : RegisterClass<"X86", [i64], 64, 
+def GR64 : RegisterClass<"X86", [i64], 64,
                          [RAX, RCX, RDX, RSI, RDI, R8, R9, R10, R11,
                           RBX, R14, R15, R12, R13, RBP, RSP, RIP]> {
   let SubRegClasses = [(GR8 sub_8bit, sub_8bit_hi),
@@ -446,7 +446,7 @@ def SEGMENT_REG : RegisterClass<"X86", [i16], 16, [CS, DS, SS, ES, FS, GS]> {
 }
 
 // Debug registers.
-def DEBUG_REG : RegisterClass<"X86", [i32], 32, 
+def DEBUG_REG : RegisterClass<"X86", [i32], 32,
                               [DR0, DR1, DR2, DR3, DR4, DR5, DR6, DR7]> {
 }
 
@@ -780,14 +780,14 @@ def RST : RegisterClass<"X86", [f80, f64, f32], 32,
 }
 
 // Generic vector registers: VR64 and VR128.
-def VR64  : RegisterClass<"X86", [v8i8, v4i16, v2i32, v1i64, v2f32], 64,
+def VR64  : RegisterClass<"X86", [v8i8, v4i16, v2i32, v1i64], 64,
                           [MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7]>;
 def VR128 : RegisterClass<"X86", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],128,
                           [XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
                            XMM8, XMM9, XMM10, XMM11,
                            XMM12, XMM13, XMM14, XMM15]> {
   let SubRegClasses = [(FR32 sub_ss), (FR64 sub_sd)];
-  
+
   let MethodProtos = [{
     iterator allocation_order_end(const MachineFunction &MF) const;
   }];
@@ -803,11 +803,27 @@ def VR128 : RegisterClass<"X86", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],128,
     }
   }];
 }
-def VR256 : RegisterClass<"X86", [ v8i32, v4i64, v8f32, v4f64],256,
+
+def VR256 : RegisterClass<"X86", [v8i32, v4i64, v8f32, v4f64], 256,
                           [YMM0, YMM1, YMM2, YMM3, YMM4, YMM5, YMM6, YMM7,
                            YMM8, YMM9, YMM10, YMM11,
                            YMM12, YMM13, YMM14, YMM15]> {
   let SubRegClasses = [(FR32 sub_ss), (FR64 sub_sd), (VR128 sub_xmm)];
+
+  let MethodProtos = [{
+    iterator allocation_order_end(const MachineFunction &MF) const;
+  }];
+  let MethodBodies = [{
+    VR256Class::iterator
+    VR256Class::allocation_order_end(const MachineFunction &MF) const {
+      const TargetMachine &TM = MF.getTarget();
+      const X86Subtarget &Subtarget = TM.getSubtarget<X86Subtarget>();
+      if (!Subtarget.is64Bit())
+        return end()-8; // Only YMM0 to YMM7 are available in 32-bit mode.
+      else
+        return end();
+    }
+  }];
 }
 
 // Status flags registers.

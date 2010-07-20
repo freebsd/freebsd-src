@@ -239,6 +239,12 @@ public:
   QualType getResultType() const { return MethodDeclType; }
   void setResultType(QualType T) { MethodDeclType = T; }
 
+  /// \brief Determine the type of an expression that sends a message to this 
+  /// function.
+  QualType getSendResultType() const {
+    return getResultType().getNonLValueExprType(getASTContext());
+  }
+  
   TypeSourceInfo *getResultTypeSourceInfo() const { return ResultTInfo; }
   void setResultTypeSourceInfo(TypeSourceInfo *TInfo) { ResultTInfo = TInfo; }
 
@@ -417,8 +423,8 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const ObjCContainerDecl *D) { return true; }
   static bool classofKind(Kind K) {
-    return K >= ObjCContainerFirst &&
-           K <= ObjCContainerLast;
+    return K >= firstObjCContainer &&
+           K <= lastObjCContainer;
   }
 
   static DeclContext *castToDeclContext(const ObjCContainerDecl *D) {
@@ -550,8 +556,8 @@ public:
   void setCategoryList(ObjCCategoryDecl *category) {
     CategoryList = category;
   }
-
-  ObjCCategoryDecl* getClassExtension() const;
+  
+  ObjCCategoryDecl* getFirstClassExtension() const;
 
   ObjCPropertyDecl
     *FindPropertyVisibleInPrimaryClass(IdentifierInfo *PropertyId) const;
@@ -983,6 +989,7 @@ public:
   }
 
   bool IsClassExtension() const { return getIdentifier() == 0; }
+  const ObjCCategoryDecl *getNextClassExtension() const;
   
   typedef specific_decl_iterator<ObjCIvarDecl> ivar_iterator;
   ivar_iterator ivar_begin() const {
@@ -1059,7 +1066,7 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const ObjCImplDecl *D) { return true; }
   static bool classofKind(Kind K) {
-    return K >= ObjCImplFirst && K <= ObjCImplLast;
+    return K >= firstObjCImpl && K <= lastObjCImpl;
   }
 };
 
@@ -1306,9 +1313,9 @@ public:
   enum PropertyControl { None, Required, Optional };
 private:
   SourceLocation AtLoc;   // location of @property
-  QualType DeclType;
+  TypeSourceInfo *DeclType;
   unsigned PropertyAttributes : 8;
-
+  unsigned PropertyAttributesAsWritten : 8;
   // @required/@optional
   unsigned PropertyImplementation : 2;
 
@@ -1320,9 +1327,11 @@ private:
   ObjCIvarDecl *PropertyIvarDecl;   // Synthesize ivar for this property
 
   ObjCPropertyDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
-                   SourceLocation AtLocation, QualType T)
+                   SourceLocation AtLocation, TypeSourceInfo *T)
     : NamedDecl(ObjCProperty, DC, L, Id), AtLoc(AtLocation), DeclType(T),
-      PropertyAttributes(OBJC_PR_noattr), PropertyImplementation(None),
+      PropertyAttributes(OBJC_PR_noattr), 
+      PropertyAttributesAsWritten(OBJC_PR_noattr),
+      PropertyImplementation(None),
       GetterName(Selector()),
       SetterName(Selector()),
       GetterMethodDecl(0), SetterMethodDecl(0) , PropertyIvarDecl(0) {}
@@ -1330,13 +1339,14 @@ public:
   static ObjCPropertyDecl *Create(ASTContext &C, DeclContext *DC,
                                   SourceLocation L,
                                   IdentifierInfo *Id, SourceLocation AtLocation,
-                                  QualType T,
+                                  TypeSourceInfo *T,
                                   PropertyControl propControl = None);
   SourceLocation getAtLoc() const { return AtLoc; }
   void setAtLoc(SourceLocation L) { AtLoc = L; }
   
-  QualType getType() const { return DeclType; }
-  void setType(QualType T) { DeclType = T; }
+  TypeSourceInfo *getTypeSourceInfo() const { return DeclType; }
+  QualType getType() const { return DeclType->getType(); }
+  void setType(TypeSourceInfo *T) { DeclType = T; }
 
   PropertyAttributeKind getPropertyAttributes() const {
     return PropertyAttributeKind(PropertyAttributes);
@@ -1345,6 +1355,14 @@ public:
     PropertyAttributes |= PRVal;
   }
 
+  PropertyAttributeKind getPropertyAttributesAsWritten() const {
+    return PropertyAttributeKind(PropertyAttributesAsWritten);
+  }
+  
+  void setPropertyAttributesAsWritten(PropertyAttributeKind PRVal) {
+    PropertyAttributesAsWritten = PRVal;
+  }
+  
  void makeitReadWriteAttribute(void) {
     PropertyAttributes &= ~OBJC_PR_readonly;
     PropertyAttributes |= OBJC_PR_readwrite;

@@ -33,16 +33,14 @@ class BitVector;
 /// callee saved register in the current frame.  
 class CalleeSavedInfo {
   unsigned Reg;
-  const TargetRegisterClass *RegClass;
   int FrameIdx;
   
 public:
-  CalleeSavedInfo(unsigned R, const TargetRegisterClass *RC, int FI = 0)
-  : Reg(R), RegClass(RC), FrameIdx(FI) {}
+  explicit CalleeSavedInfo(unsigned R, int FI = 0)
+  : Reg(R), FrameIdx(FI) {}
   
   // Accessors.
   unsigned getReg()                        const { return Reg; }
-  const TargetRegisterClass *getRegClass() const { return RegClass; }
   int getFrameIdx()                        const { return FrameIdx; }
   void setFrameIdx(int FI)                       { FrameIdx = FI; }
 };
@@ -100,8 +98,7 @@ class MachineFrameInfo {
     // cannot alias any other memory objects.
     bool isSpillSlot;
 
-    StackObject(uint64_t Sz, unsigned Al, int64_t SP, bool IM,
-                bool isSS)
+    StackObject(uint64_t Sz, unsigned Al, int64_t SP, bool IM, bool isSS)
       : SPOffset(SP), Size(Sz), Alignment(Al), isImmutable(IM),
         isSpillSlot(isSS) {}
   };
@@ -352,8 +349,7 @@ public:
   /// efficiency. By default, fixed objects are immutable. This returns an
   /// index with a negative value.
   ///
-  int CreateFixedObject(uint64_t Size, int64_t SPOffset,
-                        bool Immutable, bool isSS);
+  int CreateFixedObject(uint64_t Size, int64_t SPOffset, bool Immutable);
   
   
   /// isFixedObjectIndex - Returns true if the specified index corresponds to a

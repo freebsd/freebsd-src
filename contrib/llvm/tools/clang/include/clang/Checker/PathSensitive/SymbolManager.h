@@ -31,6 +31,7 @@ namespace clang {
   class ASTContext;
   class BasicValueFactory;
   class MemRegion;
+  class SubRegion;
   class TypedRegion;
   class VarRegion;
   class StackFrameContext;
@@ -38,7 +39,7 @@ namespace clang {
 class SymExpr : public llvm::FoldingSetNode {
 public:
   enum Kind { BEGIN_SYMBOLS,
-              RegionValueKind, ConjuredKind, DerivedKind,
+              RegionValueKind, ConjuredKind, DerivedKind, ExtentKind,
               END_SYMBOLS,
               SymIntKind, SymSymKind };
 private:
@@ -189,6 +190,34 @@ public:
   }
 };
 
+class SymbolExtent : public SymbolData {
+  const SubRegion *R;
+  
+public:
+  SymbolExtent(SymbolID sym, const SubRegion *r)
+  : SymbolData(ExtentKind, sym), R(r) {}
+
+  const SubRegion *getRegion() const { return R; }
+
+  QualType getType(ASTContext&) const;
+
+  void dumpToStream(llvm::raw_ostream &os) const;
+
+  static void Profile(llvm::FoldingSetNodeID& profile, const SubRegion *R) {
+    profile.AddInteger((unsigned) ExtentKind);
+    profile.AddPointer(R);
+  }
+
+  virtual void Profile(llvm::FoldingSetNodeID& profile) {
+    Profile(profile, R);
+  }
+
+  // Implement isa<T> support.
+  static inline bool classof(const SymExpr* SE) {
+    return SE->getKind() == ExtentKind;
+  }
+};
+
 // SymIntExpr - Represents symbolic expression like 'x' + 3.
 class SymIntExpr : public SymExpr {
   const SymExpr *LHS;
@@ -305,6 +334,8 @@ public:
   const SymbolDerived *getDerivedSymbol(SymbolRef parentSymbol,
                                         const TypedRegion *R);
 
+  const SymbolExtent *getExtentSymbol(const SubRegion *R);
+
   const SymIntExpr *getSymIntExpr(const SymExpr *lhs, BinaryOperator::Opcode op,
                                   const llvm::APSInt& rhs, QualType t);
 
@@ -330,21 +361,23 @@ class SymbolReaper {
   SetTy TheLiving;
   SetTy TheDead;
   const LocationContext *LCtx;
+  const Stmt *Loc;
   SymbolManager& SymMgr;
 
 public:
-  SymbolReaper(const LocationContext *ctx, SymbolManager& symmgr)
-    : LCtx(ctx), SymMgr(symmgr) {}
+  SymbolReaper(const LocationContext *ctx, const Stmt *s, SymbolManager& symmgr)
+   : LCtx(ctx), Loc(s), SymMgr(symmgr) {}
 
   ~SymbolReaper() {}
 
   const LocationContext *getLocationContext() const { return LCtx; }
+  const Stmt *getCurrentStatement() const { return Loc; }
 
   bool isLive(SymbolRef sym);
 
-  bool isLive(const Stmt* Loc, const Stmt* ExprVal) const;
+  bool isLive(const Stmt *ExprVal) const;
 
-  bool isLive(const Stmt* Loc, const VarRegion *VR) const;
+  bool isLive(const VarRegion *VR) const;
   
   void markLive(SymbolRef sym);
   bool maybeDead(SymbolRef sym);

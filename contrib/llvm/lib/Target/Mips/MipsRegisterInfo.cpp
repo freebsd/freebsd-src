@@ -116,34 +116,6 @@ getCalleeSavedRegs(const MachineFunction *MF) const
     return BitMode32CalleeSavedRegs;
 }
 
-/// Mips Callee Saved Register Classes
-const TargetRegisterClass* const* 
-MipsRegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const 
-{
-  static const TargetRegisterClass * const SingleFloatOnlyCalleeSavedRC[] = {
-    &Mips::CPURegsRegClass, &Mips::CPURegsRegClass, &Mips::CPURegsRegClass, 
-    &Mips::CPURegsRegClass, &Mips::CPURegsRegClass, &Mips::CPURegsRegClass,
-    &Mips::CPURegsRegClass, &Mips::CPURegsRegClass,
-    &Mips::FGR32RegClass, &Mips::FGR32RegClass, &Mips::FGR32RegClass, 
-    &Mips::FGR32RegClass, &Mips::FGR32RegClass, &Mips::FGR32RegClass, 
-    &Mips::FGR32RegClass, &Mips::FGR32RegClass, &Mips::FGR32RegClass, 
-    &Mips::FGR32RegClass, &Mips::FGR32RegClass, 0
-  };
-
-  static const TargetRegisterClass * const BitMode32CalleeSavedRC[] = {
-    &Mips::CPURegsRegClass, &Mips::CPURegsRegClass, &Mips::CPURegsRegClass, 
-    &Mips::CPURegsRegClass, &Mips::CPURegsRegClass, &Mips::CPURegsRegClass,
-    &Mips::CPURegsRegClass, &Mips::CPURegsRegClass,
-    &Mips::FGR32RegClass, &Mips::FGR32RegClass, &Mips::FGR32RegClass, 
-    &Mips::FGR32RegClass, &Mips::FGR32RegClass, &Mips::FGR32RegClass, 0
-  };
-
-  if (Subtarget.isSingleFloat())
-    return SingleFloatOnlyCalleeSavedRC;
-  else
-    return BitMode32CalleeSavedRC;
-}
-
 BitVector MipsRegisterInfo::
 getReservedRegs(const MachineFunction &MF) const
 {
@@ -279,7 +251,8 @@ void MipsRegisterInfo::adjustMipsStackFrame(MachineFunction &MF) const
   StackOffset = ((StackOffset+StackAlign-1)/StackAlign*StackAlign);
 
   for (unsigned i = 0, e = CSI.size(); i != e ; ++i) {
-    if (CSI[i].getRegClass() != Mips::CPURegsRegisterClass)
+    unsigned Reg = CSI[i].getReg();
+    if (!Mips::CPURegsRegisterClass->contains(Reg))
       break;
     MFI->setObjectOffset(CSI[i].getFrameIdx(), StackOffset);
     TopCPUSavedRegOff = StackOffset;
@@ -311,7 +284,8 @@ void MipsRegisterInfo::adjustMipsStackFrame(MachineFunction &MF) const
   // Adjust FPU Callee Saved Registers Area. This Area must be 
   // aligned to the default Stack Alignment requirements.
   for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
-    if (CSI[i].getRegClass() == Mips::CPURegsRegisterClass)
+    unsigned Reg = CSI[i].getReg();
+    if (Mips::CPURegsRegisterClass->contains(Reg))
       continue;
     MFI->setObjectOffset(CSI[i].getFrameIdx(), StackOffset);
     TopFPUSavedRegOff = StackOffset;
@@ -528,4 +502,3 @@ getDwarfRegNum(unsigned RegNum, bool isEH) const {
 }
 
 #include "MipsGenRegisterInfo.inc"
-

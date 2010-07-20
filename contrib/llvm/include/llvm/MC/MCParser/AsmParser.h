@@ -26,6 +26,7 @@
 namespace llvm {
 class AsmCond;
 class AsmToken;
+class MCAsmParserExtension;
 class MCContext;
 class MCExpr;
 class MCInst;
@@ -36,11 +37,15 @@ class TargetAsmParser;
 class Twine;
 
 class AsmParser : public MCAsmParser {
+  AsmParser(const AsmParser &);   // DO NOT IMPLEMENT
+  void operator=(const AsmParser &);  // DO NOT IMPLEMENT
 private:
   AsmLexer Lexer;
   MCContext &Ctx;
   MCStreamer &Out;
   SourceMgr &SrcMgr;
+  MCAsmParserExtension *GenericParser;
+  MCAsmParserExtension *PlatformParser;
   TargetAsmParser *TargetParser;
   
   /// This is the current buffer index we're lexing from as managed by the
@@ -54,26 +59,28 @@ private:
   /// invoked after the directive identifier is read and is responsible for
   /// parsing and validating the rest of the directive.  The handler is passed
   /// in the directive name and the location of the directive keyword.
-  StringMap<bool(AsmParser::*)(StringRef, SMLoc)> DirectiveMap;
+  StringMap<std::pair<MCAsmParserExtension*, DirectiveHandler> > DirectiveMap;
 public:
-  AsmParser(SourceMgr &SM, MCContext &Ctx, MCStreamer &Out,
+  AsmParser(const Target &T, SourceMgr &SM, MCContext &Ctx, MCStreamer &Out,
             const MCAsmInfo &MAI);
   ~AsmParser();
 
   bool Run(bool NoInitialTextSection, bool NoFinalize = false);
 
-  
-  void AddDirectiveHandler(StringRef Directive,
-                           bool (AsmParser::*Handler)(StringRef, SMLoc)) {
-    DirectiveMap[Directive] = Handler;
+  void AddDirectiveHandler(MCAsmParserExtension *Object,
+                           StringRef Directive,
+                           DirectiveHandler Handler) {
+    DirectiveMap[Directive] = std::make_pair(Object, Handler);
   }
+
 public:
   TargetAsmParser &getTargetParser() const { return *TargetParser; }
-  void setTargetParser(TargetAsmParser &P) { TargetParser = &P; }
+  void setTargetParser(TargetAsmParser &P);
 
   /// @name MCAsmParser Interface
   /// {
 
+  virtual SourceMgr &getSourceManager() { return SrcMgr; }
   virtual MCAsmLexer &getLexer() { return Lexer; }
   virtual MCContext &getContext() { return Ctx; }
   virtual MCStreamer &getStreamer() { return Out; }
@@ -91,12 +98,8 @@ public:
   /// }
 
 private:
-  MCSymbol *CreateSymbol(StringRef Name);
-
   bool ParseStatement();
 
-  bool TokError(const char *Msg);
-  
   void PrintMessage(SMLoc Loc, const std::string &Msg, const char *Type) const;
     
   /// EnterIncludeFile - Enter the specified file. This returns true on failure.
@@ -104,7 +107,7 @@ private:
   
   void EatToEndOfStatement();
   
-  bool ParseAssignment(const StringRef &Name);
+  bool ParseAssignment(StringRef Name);
 
   bool ParsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc);
   bool ParseBinOpRHS(unsigned Precedence, const MCExpr *&Res, SMLoc &EndLoc);
@@ -115,10 +118,6 @@ private:
   bool ParseIdentifier(StringRef &Res);
   
   // Directive Parsing.
-  bool ParseDirectiveDarwinSection(); // Darwin specific ".section".
-  bool ParseDirectiveSectionSwitch(const char *Segment, const char *Section,
-                                   unsigned TAA = 0, unsigned ImplicitAlign = 0,
-                                   unsigned StubSize = 0);
   bool ParseDirectiveAscii(bool ZeroTerminated); // ".ascii", ".asciiz"
   bool ParseDirectiveValue(unsigned Size); // ".byte", ".long", ...
   bool ParseDirectiveFill(); // ".fill"
@@ -132,17 +131,8 @@ private:
   /// accepts a single symbol (which should be a label or an external).
   bool ParseDirectiveSymbolAttribute(MCSymbolAttr Attr);
   bool ParseDirectiveELFType(); // ELF specific ".type"
-  bool ParseDirectiveDarwinSymbolDesc(); // Darwin specific ".desc"
-  bool ParseDirectiveDarwinLsym(); // Darwin specific ".lsym"
 
   bool ParseDirectiveComm(bool IsLocal); // ".comm" and ".lcomm"
-  bool ParseDirectiveDarwinZerofill(); // Darwin specific ".zerofill"
-  bool ParseDirectiveDarwinTBSS(); // Darwin specific ".tbss"
-
-  // Darwin specific ".subsections_via_symbols"
-  bool ParseDirectiveDarwinSubsectionsViaSymbols();
-  // Darwin specific .dump and .load
-  bool ParseDirectiveDarwinDumpOrLoad(SMLoc IDLoc, bool IsDump);
 
   bool ParseDirectiveAbort(); // ".abort"
   bool ParseDirectiveInclude(); // ".include"
@@ -151,10 +141,6 @@ private:
   bool ParseDirectiveElseIf(SMLoc DirectiveLoc); // ".elseif"
   bool ParseDirectiveElse(SMLoc DirectiveLoc); // ".else"
   bool ParseDirectiveEndIf(SMLoc DirectiveLoc); // .endif
-
-  bool ParseDirectiveFile(StringRef, SMLoc DirectiveLoc); // ".file"
-  bool ParseDirectiveLine(StringRef, SMLoc DirectiveLoc); // ".line"
-  bool ParseDirectiveLoc(StringRef, SMLoc DirectiveLoc); // ".loc"
 
   /// ParseEscapedString - Parse the current token as a string which may include
   /// escaped characters and return the string contents.

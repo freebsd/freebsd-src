@@ -34,7 +34,7 @@ GRStateManager::~GRStateManager() {
 }
 
 const GRState*
-GRStateManager::RemoveDeadBindings(const GRState* state, Stmt* Loc,
+GRStateManager::RemoveDeadBindings(const GRState* state,
                                    const StackFrameContext *LCtx,
                                    SymbolReaper& SymReaper) {
 
@@ -47,11 +47,11 @@ GRStateManager::RemoveDeadBindings(const GRState* state, Stmt* Loc,
   llvm::SmallVector<const MemRegion*, 10> RegionRoots;
   GRState NewState = *state;
 
-  NewState.Env = EnvMgr.RemoveDeadBindings(NewState.Env, Loc, SymReaper,
+  NewState.Env = EnvMgr.RemoveDeadBindings(NewState.Env, SymReaper,
                                            state, RegionRoots);
 
   // Clean up the store.
-  const GRState *s = StoreMgr->RemoveDeadBindings(NewState, Loc, LCtx, 
+  const GRState *s = StoreMgr->RemoveDeadBindings(NewState, LCtx, 
                                                   SymReaper, RegionRoots);
 
   return ConstraintMgr->RemoveDeadBindings(s, SymReaper);
@@ -342,29 +342,4 @@ bool GRState::scanReachableSymbols(const MemRegion * const *I,
       return false;
   }
   return true;
-}
-
-//===----------------------------------------------------------------------===//
-// Queries.
-//===----------------------------------------------------------------------===//
-
-bool GRStateManager::isEqual(const GRState* state, const Expr* Ex,
-                             const llvm::APSInt& Y) {
-
-  SVal V = state->getSVal(Ex);
-
-  if (loc::ConcreteInt* X = dyn_cast<loc::ConcreteInt>(&V))
-    return X->getValue() == Y;
-
-  if (nonloc::ConcreteInt* X = dyn_cast<nonloc::ConcreteInt>(&V))
-    return X->getValue() == Y;
-
-  if (SymbolRef Sym = V.getAsSymbol())
-    return ConstraintMgr->isEqual(state, Sym, Y);
-
-  return false;
-}
-
-bool GRStateManager::isEqual(const GRState* state, const Expr* Ex, uint64_t x) {
-  return isEqual(state, Ex, getBasicVals().getValue(x, Ex->getType()));
 }

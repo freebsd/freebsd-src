@@ -52,8 +52,8 @@ private:
   bool AppendField(const FieldDecl *Field, uint64_t FieldOffset,
                    llvm::Constant *InitExpr);
 
-  bool AppendBitField(const FieldDecl *Field, uint64_t FieldOffset,
-                      llvm::Constant *InitExpr);
+  void AppendBitField(const FieldDecl *Field, uint64_t FieldOffset,
+                      llvm::ConstantInt *InitExpr);
 
   void AppendPadding(uint64_t NumBytes);
 
@@ -123,14 +123,9 @@ AppendField(const FieldDecl *Field, uint64_t FieldOffset,
   return true;
 }
 
-bool ConstStructBuilder::
-  AppendBitField(const FieldDecl *Field, uint64_t FieldOffset,
-                 llvm::Constant *InitCst) {
-  llvm::ConstantInt *CI = cast_or_null<llvm::ConstantInt>(InitCst);
-  // FIXME: Can this ever happen?
-  if (!CI)
-    return false;
-
+void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
+                                        uint64_t FieldOffset,
+                                        llvm::ConstantInt *CI) {
   if (FieldOffset > NextFieldOffsetInBytes * 8) {
     // We need to add padding.
     uint64_t NumBytes =
@@ -195,16 +190,43 @@ bool ConstStructBuilder::
       Tmp = Tmp.shl(8 - BitsInPreviousByte);
     }
 
-    // Or in the bits that go into the previous byte.
-    if (llvm::ConstantInt *Val = dyn_cast<llvm::ConstantInt>(Elements.back()))
+    // 'or' in the bits that go into the previous byte.
+    llvm::Value *LastElt = Elements.back();
+    if (llvm::ConstantInt *Val = dyn_cast<llvm::ConstantInt>(LastElt))
       Tmp |= Val->getValue();
-    else
-      assert(isa<llvm::UndefValue>(Elements.back()));
+    else {
+      assert(isa<llvm::UndefValue>(LastElt));
+      // If there is an undef field that we're adding to, it can either be a
+      // scalar undef (in which case, we just replace it with our field) or it
+      // is an array.  If it is an array, we have to pull one byte off the
+      // array so that the other undef bytes stay around.
+      if (!isa<llvm::IntegerType>(LastElt->getType())) {
+        // The undef padding will be a multibyte array, create a new smaller
+        // padding and then an hole for our i8 to get plopped into.
+        assert(isa<llvm::ArrayType>(LastElt->getType()) &&
+               "Expected array padding of undefs");
+        const llvm::ArrayType *AT = cast<llvm::ArrayType>(LastElt->getType());
+        assert(AT->getElementType()->isIntegerTy(8) &&
+               AT->getNumElements() != 0 &&
+               "Expected non-empty array padding of undefs");
+        
+        // Remove the padding array.
+        NextFieldOffsetInBytes -= AT->getNumElements();
+        Elements.pop_back();
+        
+        // Add the padding back in two chunks.
+        AppendPadding(AT->getNumElements()-1);
+        AppendPadding(1);
+        assert(isa<llvm::UndefValue>(Elements.back()) &&
+               Elements.back()->getType()->isIntegerTy(8) &&
+               "Padding addition didn't work right");
+      }
+    }
 
     Elements.back() = llvm::ConstantInt::get(CGM.getLLVMContext(), Tmp);
 
     if (FitsCompletelyInPreviousByte)
-      return true;
+      return;
   }
 
   while (FieldValue.getBitWidth() > 8) {
@@ -248,7 +270,6 @@ bool ConstStructBuilder::
   Elements.push_back(llvm::ConstantInt::get(CGM.getLLVMContext(),
                                             FieldValue));
   NextFieldOffsetInBytes++;
-  return true;
 }
 
 void ConstStructBuilder::AppendPadding(uint64_t NumBytes) {
@@ -346,8 +367,8 @@ bool ConstStructBuilder::Build(InitListExpr *ILE) {
         return false;
     } else {
       // Otherwise we have a bitfield.
-      if (!AppendBitField(*Field, Layout.getFieldOffset(FieldNo), EltInit))
-        return false;
+      AppendBitField(*Field, Layout.getFieldOffset(FieldNo),
+                     cast<llvm::ConstantInt>(EltInit));
     }
   }
 
@@ -443,30 +464,8 @@ public:
       CGM.getTypes().ConvertType(CGM.getContext().getPointerDiffType());
     
     llvm::Constant *Values[2];
-    
-    // Get the function pointer (or index if this is a virtual function).
-    if (MD->isVirtual()) {
-      uint64_t Index = CGM.getVTables().getMethodVTableIndex(MD);
 
-      // FIXME: We shouldn't use / 8 here.
-      uint64_t PointerWidthInBytes = 
-        CGM.getContext().Target.getPointerWidth(0) / 8;
-      
-      // Itanium C++ ABI 2.3:
-      //   For a non-virtual function, this field is a simple function pointer. 
-      //   For a virtual function, it is 1 plus the virtual table offset 
-      //   (in bytes) of the function, represented as a ptrdiff_t. 
-      Values[0] = llvm::ConstantInt::get(PtrDiffTy, 
-                                         (Index * PointerWidthInBytes) + 1);
-    } else {
-      const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
-      const llvm::Type *Ty =
-        CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(MD),
-                                       FPT->isVariadic());
-
-      llvm::Constant *FuncPtr = CGM.GetAddrOfFunction(MD, Ty);
-      Values[0] = llvm::ConstantExpr::getPtrToInt(FuncPtr, PtrDiffTy);
-    } 
+    Values[0] = CGM.GetCXXMemberFunctionPointerValue(MD);
     
     // The adjustment will always be 0.
     Values[1] = llvm::ConstantInt::get(PtrDiffTy, 0);
@@ -930,7 +929,7 @@ llvm::Constant *CodeGenModule::EmitConstantExpr(const Expr *E,
       llvm::Constant *C = llvm::ConstantInt::get(VMContext,
                                                  Result.Val.getInt());
 
-      if (C->getType() == llvm::Type::getInt1Ty(VMContext)) {
+      if (C->getType()->isIntegerTy(1)) {
         const llvm::Type *BoolTy = getTypes().ConvertTypeForMem(E->getType());
         C = llvm::ConstantExpr::getZExt(C, BoolTy);
       }
@@ -977,7 +976,7 @@ llvm::Constant *CodeGenModule::EmitConstantExpr(const Expr *E,
   }
 
   llvm::Constant* C = ConstExprEmitter(*this, CGF).Visit(const_cast<Expr*>(E));
-  if (C && C->getType() == llvm::Type::getInt1Ty(VMContext)) {
+  if (C && C->getType()->isIntegerTy(1)) {
     const llvm::Type *BoolTy = getTypes().ConvertTypeForMem(E->getType());
     C = llvm::ConstantExpr::getZExt(C, BoolTy);
   }
@@ -1009,7 +1008,11 @@ FillInNullDataMemberPointers(CodeGenModule &CGM, QualType T,
     // Go through all bases and fill in any null pointer to data members.
     for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
          E = RD->bases_end(); I != E; ++I) {
-      assert(!I->isVirtual() && "Should not see virtual bases here!");
+      if (I->isVirtual()) {
+        // FIXME: We should initialize null pointer to data members in virtual
+        // bases here.
+        continue;
+      }
       
       const CXXRecordDecl *BaseDecl = 
       cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
@@ -1088,7 +1091,11 @@ llvm::Constant *CodeGenModule::EmitNullConstant(QualType T) {
     // Go through all bases and fill in any null pointer to data members.
     for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
          E = RD->bases_end(); I != E; ++I) {
-      assert(!I->isVirtual() && "Should not see virtual bases here!");
+      if (I->isVirtual()) {
+        // FIXME: We should initialize null pointer to data members in virtual
+        // bases here.
+        continue;
+      }
 
       const CXXRecordDecl *BaseDecl = 
         cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
@@ -1131,6 +1138,11 @@ llvm::Constant *CodeGenModule::EmitNullConstant(QualType T) {
     for (RecordDecl::field_iterator I = RD->field_begin(),
          E = RD->field_end(); I != E; ++I) {
       const FieldDecl *FD = *I;
+      
+      // Ignore bit fields.
+      if (FD->isBitField())
+        continue;
+
       unsigned FieldNo = Layout.getLLVMFieldNo(FD);
       Elements[FieldNo] = EmitNullConstant(FD->getType());
     }

@@ -548,7 +548,8 @@ protected:
     CI->eraseFromParent();
   }
   bool isFoldable(unsigned SizeCIOp, unsigned, bool) const {
-    if (ConstantInt *SizeCI = dyn_cast<ConstantInt>(CI->getOperand(SizeCIOp)))
+      if (ConstantInt *SizeCI = dyn_cast<ConstantInt>(CI->getArgOperand(SizeCIOp
+                                                        - CallInst::ArgOffset)))
       return SizeCI->isAllOnesValue();
     return false;
   }
@@ -559,7 +560,7 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
   // Lower all uses of llvm.objectsize.*
   IntrinsicInst *II = dyn_cast<IntrinsicInst>(CI);
   if (II && II->getIntrinsicID() == Intrinsic::objectsize) {
-    bool Min = (cast<ConstantInt>(II->getOperand(2))->getZExtValue() == 1);
+    bool Min = (cast<ConstantInt>(II->getArgOperand(1))->getZExtValue() == 1);
     const Type *ReturnTy = CI->getType();
     Constant *RetVal = ConstantInt::get(ReturnTy, Min ? 0 : -1ULL);    
     CI->replaceAllUsesWith(RetVal);
@@ -759,8 +760,7 @@ bool CodeGenPrepare::OptimizeInlineAsmInst(Instruction *I, CallSite CS,
     }
 
     // Compute the constraint code and ConstraintType to use.
-    TLI->ComputeConstraintToUse(OpInfo, SDValue(),
-                             OpInfo.ConstraintType == TargetLowering::C_Memory);
+    TLI->ComputeConstraintToUse(OpInfo, SDValue());
 
     if (OpInfo.ConstraintType == TargetLowering::C_Memory &&
         OpInfo.isIndirect) {

@@ -11,11 +11,9 @@
 #define CLANG_CODEGEN_ABIINFO_H
 
 #include "clang/AST/Type.h"
-
-#include <cassert>
+#include "llvm/Type.h"
 
 namespace llvm {
-  class Type;
   class Value;
   class LLVMContext;
 }
@@ -70,7 +68,7 @@ namespace clang {
 
   private:
     Kind TheKind;
-    const llvm::Type *TypeData;
+    llvm::PATypeHolder TypeData;
     unsigned UIntData;
     bool BoolData;
 
@@ -136,7 +134,11 @@ namespace clang {
 
     virtual void computeInfo(CodeGen::CGFunctionInfo &FI,
                              ASTContext &Ctx,
-                             llvm::LLVMContext &VMContext) const = 0;
+                             llvm::LLVMContext &VMContext,
+                             // This is the preferred type for argument lowering
+                             // which can be used to generate better IR.
+                             const llvm::Type *const *PrefTypes = 0,
+                             unsigned NumPrefTypes = 0) const = 0;
 
     /// EmitVAArg - Emit the target dependent code to load a value of
     /// \arg Ty from the va_list pointed to by \arg VAListAddr.

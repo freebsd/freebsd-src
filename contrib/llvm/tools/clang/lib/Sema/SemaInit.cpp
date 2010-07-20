@@ -523,8 +523,9 @@ void InitListChecker::CheckExplicitInitList(const InitializedEntity &Entity,
   StructuredList->setSyntacticForm(IList);
   CheckListElementTypes(Entity, IList, T, /*SubobjectIsDesignatorContext=*/true, 
                         Index, StructuredList, StructuredIndex, TopLevelObject);
-  IList->setType(T.getNonReferenceType());
-  StructuredList->setType(T.getNonReferenceType());
+  QualType ExprTy = T.getNonLValueExprType(SemaRef.Context);
+  IList->setType(ExprTy);
+  StructuredList->setType(ExprTy);
   if (hadError)
     return;
 
@@ -877,10 +878,15 @@ void InitListChecker::CheckVectorType(const InitializedEntity &Entity,
                               StructuredList, StructuredIndex);
           ++numEltsInit;
         } else {
+          QualType VecType;
           const VectorType *IVT = IType->getAs<VectorType>();
           unsigned numIElts = IVT->getNumElements();
-          QualType VecType = SemaRef.Context.getExtVectorType(elementType,
-                                                              numIElts);
+          
+          if (IType->isExtVectorType())
+            VecType = SemaRef.Context.getExtVectorType(elementType, numIElts);
+          else
+            VecType = SemaRef.Context.getVectorType(elementType, numIElts,
+                                                    IVT->getAltiVecSpecific());
           CheckSubElementType(ElementEntity, IList, VecType, Index,
                               StructuredList, StructuredIndex);
           numEltsInit += numIElts;
@@ -1114,7 +1120,7 @@ void InitListChecker::CheckStructUnionTypes(const InitializedEntity &Entity,
   }
 
   // Emit warnings for missing struct field initializers.
-  if (CheckForMissingFields && Field != FieldEnd && 
+  if (InitializedSomething && CheckForMissingFields && Field != FieldEnd && 
       !Field->getType()->isIncompleteArrayType() && !DeclType->isUnionType()) {
     // It is possible we have one or more unnamed bitfields remaining.
     // Find first (if any) named field and emit warning.
@@ -1711,7 +1717,7 @@ InitListChecker::getStructuredSubobjectInit(InitListExpr *IList, unsigned Index,
                                          InitRange.getBegin(), 0, 0,
                                          InitRange.getEnd());
 
-  Result->setType(CurrentObjectType.getNonReferenceType());
+  Result->setType(CurrentObjectType.getNonLValueExprType(SemaRef.Context));
 
   // Pre-allocate storage for the structured initializer list.
   unsigned NumElements = 0;
@@ -1956,6 +1962,7 @@ DeclarationName InitializedEntity::getName() const {
   case EK_Base:
   case EK_ArrayElement:
   case EK_VectorElement:
+  case EK_BlockElement:
     return DeclarationName();
   }
   
@@ -1977,6 +1984,7 @@ DeclaratorDecl *InitializedEntity::getDecl() const {
   case EK_Base:
   case EK_ArrayElement:
   case EK_VectorElement:
+  case EK_BlockElement:
     return 0;
   }
   
@@ -1998,6 +2006,7 @@ bool InitializedEntity::allowsNRVO() const {
   case EK_Base:
   case EK_ArrayElement:
   case EK_VectorElement:
+  case EK_BlockElement:
     break;
   }
 
@@ -2195,7 +2204,7 @@ static void TryListInitialization(Sema &S,
   // FIXME: We only perform rudimentary checking of list
   // initializations at this point, then assume that any list
   // initialization of an array, aggregate, or scalar will be
-  // well-formed. We we actually "perform" list initialization, we'll
+  // well-formed. When we actually "perform" list initialization, we'll
   // do all of the necessary checking.  C++0x initializer lists will
   // force us to perform more checking here.
   Sequence.setSequenceKind(InitializationSequence::ListInitialization);
@@ -2236,8 +2245,6 @@ static void TryListInitialization(Sema &S,
 
 /// \brief Try a reference initialization that involves calling a conversion
 /// function.
-///
-/// FIXME: look intos DRs 656, 896
 static OverloadingResult TryRefInitWithConversionFunction(Sema &S,
                                              const InitializedEntity &Entity,
                                              const InitializationKind &Kind,
@@ -2271,11 +2278,8 @@ static OverloadingResult TryRefInitWithConversionFunction(Sema &S,
     // The type we're converting to is a class type. Enumerate its constructors
     // to see if there is a suitable conversion.
     CXXRecordDecl *T1RecordDecl = cast<CXXRecordDecl>(T1RecordType->getDecl());
-    DeclarationName ConstructorName
-      = S.Context.DeclarationNames.getCXXConstructorName(
-                           S.Context.getCanonicalType(T1).getUnqualifiedType());
     DeclContext::lookup_iterator Con, ConEnd;
-    for (llvm::tie(Con, ConEnd) = T1RecordDecl->lookup(ConstructorName);
+    for (llvm::tie(Con, ConEnd) = S.LookupConstructors(T1RecordDecl);
          Con != ConEnd; ++Con) {
       NamedDecl *D = *Con;
       DeclAccessPair FoundDecl = DeclAccessPair::make(D, D->getAccess());
@@ -2328,7 +2332,7 @@ static OverloadingResult TryRefInitWithConversionFunction(Sema &S,
       if (ConvTemplate)
         Conv = cast<CXXConversionDecl>(ConvTemplate->getTemplatedDecl());
       else
-        Conv = cast<CXXConversionDecl>(*I);
+        Conv = cast<CXXConversionDecl>(D);
       
       // If the conversion function doesn't return a reference type,
       // it can't be considered for this conversion unless we're allowed to
@@ -2367,13 +2371,14 @@ static OverloadingResult TryRefInitWithConversionFunction(Sema &S,
 
   // Add the user-defined conversion step.
   Sequence.AddUserConversionStep(Function, Best->FoundDecl,
-                                 T2.getNonReferenceType());
+                                 T2.getNonLValueExprType(S.Context));
 
   // Determine whether we need to perform derived-to-base or 
   // cv-qualification adjustments.
   bool NewDerivedToBase = false;
   Sema::ReferenceCompareResult NewRefRelationship
-    = S.CompareReferenceRelationship(DeclLoc, T1, T2.getNonReferenceType(),
+    = S.CompareReferenceRelationship(DeclLoc, T1, 
+                                     T2.getNonLValueExprType(S.Context),
                                      NewDerivedToBase);
   if (NewRefRelationship == Sema::Ref_Incompatible) {
     // If the type we've converted to is not reference-related to the
@@ -2398,14 +2403,14 @@ static OverloadingResult TryRefInitWithConversionFunction(Sema &S,
   return OR_Success;
 }
   
-/// \brief Attempt reference initialization (C++0x [dcl.init.list]) 
+/// \brief Attempt reference initialization (C++0x [dcl.init.ref]) 
 static void TryReferenceInitialization(Sema &S, 
                                        const InitializedEntity &Entity,
                                        const InitializationKind &Kind,
                                        Expr *Initializer,
                                        InitializationSequence &Sequence) {
   Sequence.setSequenceKind(InitializationSequence::ReferenceBinding);
-  
+
   QualType DestType = Entity.getType();
   QualType cv1T1 = DestType->getAs<ReferenceType>()->getPointeeType();
   Qualifiers T1Quals;
@@ -2414,7 +2419,7 @@ static void TryReferenceInitialization(Sema &S,
   Qualifiers T2Quals;
   QualType T2 = S.Context.getUnqualifiedArrayType(cv2T2, T2Quals);
   SourceLocation DeclLoc = Initializer->getLocStart();
-  
+
   // If the initializer is the address of an overloaded function, try
   // to resolve the overloaded function. If all goes well, T2 is the
   // type of the resulting function.
@@ -2428,29 +2433,33 @@ static void TryReferenceInitialization(Sema &S,
       Sequence.SetFailed(InitializationSequence::FK_AddressOfOverloadFailed);
       return;
     }
-    
+
     Sequence.AddAddressOverloadResolutionStep(Fn, Found);
     cv2T2 = Fn->getType();
     T2 = cv2T2.getUnqualifiedType();
   }
-  
+
   // Compute some basic properties of the types and the initializer.
   bool isLValueRef = DestType->isLValueReferenceType();
   bool isRValueRef = !isLValueRef;
   bool DerivedToBase = false;
-  Expr::isLvalueResult InitLvalue = Initializer->isLvalue(S.Context);
+  Expr::Classification InitCategory = Initializer->Classify(S.Context);
   Sema::ReferenceCompareResult RefRelationship
     = S.CompareReferenceRelationship(DeclLoc, cv1T1, cv2T2, DerivedToBase);
-  
+
   // C++0x [dcl.init.ref]p5:
   //   A reference to type "cv1 T1" is initialized by an expression of type 
   //   "cv2 T2" as follows:
   //
   //     - If the reference is an lvalue reference and the initializer 
   //       expression
+  // Note the analogous bullet points for rvlaue refs to functions. Because
+  // there are no function rvalues in C++, rvalue refs to functions are treated
+  // like lvalue refs.
   OverloadingResult ConvOvlResult = OR_Success;
-  if (isLValueRef) {
-    if (InitLvalue == Expr::LV_Valid && 
+  bool T1Function = T1->isFunctionType();
+  if (isLValueRef || T1Function) {
+    if (InitCategory.isLValue() && 
         RefRelationship >= Sema::Ref_Compatible_With_Added_Qualification) {
       //   - is an lvalue (but is not a bit-field), and "cv1 T1" is 
       //     reference-compatible with "cv2 T2," or
@@ -2478,10 +2487,13 @@ static void TryReferenceInitialization(Sema &S,
     //       with "cv3 T3" (this conversion is selected by enumerating the 
     //       applicable conversion functions (13.3.1.6) and choosing the best
     //       one through overload resolution (13.3)),
-    if (RefRelationship == Sema::Ref_Incompatible && T2->isRecordType()) {
+    // If we have an rvalue ref to function type here, the rhs must be
+    // an rvalue.
+    if (RefRelationship == Sema::Ref_Incompatible && T2->isRecordType() &&
+        (isLValueRef || InitCategory.isRValue())) {
       ConvOvlResult = TryRefInitWithConversionFunction(S, Entity, Kind, 
                                                        Initializer,
-                                                       /*AllowRValues=*/false,
+                                                   /*AllowRValues=*/isRValueRef,
                                                        Sequence);
       if (ConvOvlResult == OR_Success)
         return;
@@ -2492,19 +2504,20 @@ static void TryReferenceInitialization(Sema &S,
       }
     }
   }
-  
+
   //     - Otherwise, the reference shall be an lvalue reference to a 
   //       non-volatile const type (i.e., cv1 shall be const), or the reference
   //       shall be an rvalue reference and the initializer expression shall 
-  //       be an rvalue.
+  //       be an rvalue or have a function type.
+  // We handled the function type stuff above.
   if (!((isLValueRef && T1Quals.hasConst() && !T1Quals.hasVolatile()) ||
-        (isRValueRef && InitLvalue != Expr::LV_Valid))) {
+        (isRValueRef && InitCategory.isRValue()))) {
     if (ConvOvlResult && !Sequence.getFailedCandidateSet().empty())
       Sequence.SetOverloadFailure(
                         InitializationSequence::FK_ReferenceInitOverloadFailed,
                                   ConvOvlResult);
     else if (isLValueRef)
-      Sequence.SetFailed(InitLvalue == Expr::LV_Valid
+      Sequence.SetFailed(InitCategory.isLValue()
         ? (RefRelationship == Sema::Ref_Related
              ? InitializationSequence::FK_ReferenceInitDropsQualifiers
              : InitializationSequence::FK_NonConstLValueReferenceBindingToUnrelated)
@@ -2512,15 +2525,15 @@ static void TryReferenceInitialization(Sema &S,
     else
       Sequence.SetFailed(
                     InitializationSequence::FK_RValueReferenceBindingToLValue);
-    
+
     return;
   }
-  
-  //       - If T1 and T2 are class types and
-  if (T1->isRecordType() && T2->isRecordType()) {
+
+  //       - [If T1 is not a function type], if T2 is a class type and
+  if (!T1Function && T2->isRecordType()) {
     //       - the initializer expression is an rvalue and "cv1 T1" is 
     //         reference-compatible with "cv2 T2", or
-    if (InitLvalue != Expr::LV_Valid && 
+    if (InitCategory.isRValue() && 
         RefRelationship >= Sema::Ref_Compatible_With_Added_Qualification) {
       // The corresponding bullet in C++03 [dcl.init.ref]p5 gives the
       // compiler the freedom to perform a copy here or bind to the
@@ -2543,7 +2556,7 @@ static void TryReferenceInitialization(Sema &S,
       Sequence.AddReferenceBindingStep(cv1T1, /*bindingTemporary=*/true);
       return;
     }
-    
+
     //       - T1 is not reference-related to T2 and the initializer expression
     //         can be implicitly converted to an rvalue of type "cv3 T3" (this
     //         conversion is selected by enumerating the applicable conversion
@@ -2576,15 +2589,17 @@ static void TryReferenceInitialization(Sema &S,
   //        from the initializer expression using the rules for a non-reference
   //        copy initialization (8.5). The reference is then bound to the 
   //        temporary. [...]
+
   // Determine whether we are allowed to call explicit constructors or
   // explicit conversion operators.
   bool AllowExplicit = (Kind.getKind() == InitializationKind::IK_Direct);
-  ImplicitConversionSequence ICS
-    = S.TryImplicitConversion(Initializer, cv1T1,
-                              /*SuppressUserConversions=*/false, AllowExplicit, 
-                              /*FIXME:InOverloadResolution=*/false);
-            
-  if (ICS.isBad()) {
+
+  InitializedEntity TempEntity = InitializedEntity::InitializeTemporary(cv1T1);
+
+  if (S.TryImplicitConversion(Sequence, TempEntity, Initializer,
+                              /*SuppressUserConversions*/ false,
+                              AllowExplicit,
+                              /*FIXME:InOverloadResolution=*/false)) {
     // FIXME: Use the conversion function set stored in ICS to turn
     // this into an overloading ambiguity diagnostic. However, we need
     // to keep that set as an OverloadCandidateSet rather than as some
@@ -2609,8 +2624,6 @@ static void TryReferenceInitialization(Sema &S,
     return;
   }
 
-  // Perform the actual conversion.
-  Sequence.AddConversionSequenceStep(ICS, cv1T1);
   Sequence.AddReferenceBindingStep(cv1T1, /*bindingTemporary=*/true);
   return;
 }
@@ -2661,11 +2674,8 @@ static void TryConstructorInitialization(Sema &S,
   CXXRecordDecl *DestRecordDecl
     = cast<CXXRecordDecl>(DestRecordType->getDecl());
     
-  DeclarationName ConstructorName
-    = S.Context.DeclarationNames.getCXXConstructorName(
-                     S.Context.getCanonicalType(DestType).getUnqualifiedType());
   DeclContext::lookup_iterator Con, ConEnd;
-  for (llvm::tie(Con, ConEnd) = DestRecordDecl->lookup(ConstructorName);
+  for (llvm::tie(Con, ConEnd) = S.LookupConstructors(DestRecordDecl);
        Con != ConEnd; ++Con) {
     NamedDecl *D = *Con;
     DeclAccessPair FoundDecl = DeclAccessPair::make(D, D->getAccess());
@@ -2764,8 +2774,7 @@ static void TryValueInitialization(Sema &S,
       //    zero-initialized and, if T’s implicitly-declared default
       //    constructor is non-trivial, that constructor is called.
       if ((ClassDecl->getTagKind() == TTK_Class ||
-           ClassDecl->getTagKind() == TTK_Struct) &&
-          !ClassDecl->hasTrivialConstructor()) {
+           ClassDecl->getTagKind() == TTK_Struct)) {
         Sequence.AddZeroInitializationStep(Entity.getType());
         return TryConstructorInitialization(S, Entity, Kind, 0, 0, T, Sequence);        
       }
@@ -2841,15 +2850,11 @@ static void TryUserDefinedConversion(Sema &S,
     
     // Try to complete the type we're converting to.
     if (!S.RequireCompleteType(Kind.getLocation(), DestType, 0)) {    
-      DeclarationName ConstructorName
-        = S.Context.DeclarationNames.getCXXConstructorName(
-                     S.Context.getCanonicalType(DestType).getUnqualifiedType());
       DeclContext::lookup_iterator Con, ConEnd;
-      for (llvm::tie(Con, ConEnd) = DestRecordDecl->lookup(ConstructorName);
+      for (llvm::tie(Con, ConEnd) = S.LookupConstructors(DestRecordDecl);
            Con != ConEnd; ++Con) {
         NamedDecl *D = *Con;
         DeclAccessPair FoundDecl = DeclAccessPair::make(D, D->getAccess());
-        bool SuppressUserConversions = false;
         
         // Find the constructor (which may be a template).
         CXXConstructorDecl *Constructor = 0;
@@ -2858,17 +2863,8 @@ static void TryUserDefinedConversion(Sema &S,
         if (ConstructorTmpl)
           Constructor = cast<CXXConstructorDecl>(
                                            ConstructorTmpl->getTemplatedDecl());
-        else {
+        else
           Constructor = cast<CXXConstructorDecl>(D);
-          
-          // If we're performing copy initialization using a copy constructor, 
-          // we suppress user-defined conversions on the arguments.
-          // FIXME: Move constructors?
-          if (Kind.getKind() == InitializationKind::IK_Copy &&
-              Constructor->isCopyConstructor())
-            SuppressUserConversions = true;
-          
-        }
         
         if (!Constructor->isInvalidDecl() &&
             Constructor->isConvertingConstructor(AllowExplicit)) {
@@ -2876,11 +2872,11 @@ static void TryUserDefinedConversion(Sema &S,
             S.AddTemplateOverloadCandidate(ConstructorTmpl, FoundDecl,
                                            /*ExplicitArgs*/ 0,
                                            &Initializer, 1, CandidateSet,
-                                           SuppressUserConversions);
+                                           /*SuppressUserConversions=*/true);
           else
             S.AddOverloadCandidate(Constructor, FoundDecl,
                                    &Initializer, 1, CandidateSet,
-                                   SuppressUserConversions);
+                                   /*SuppressUserConversions=*/true);
         }
       }    
     }
@@ -2948,7 +2944,7 @@ static void TryUserDefinedConversion(Sema &S,
   }
 
   // Add the user-defined conversion step that calls the conversion function.
-  QualType ConvType = Function->getResultType().getNonReferenceType();
+  QualType ConvType = Function->getCallResultType();
   if (ConvType->getAs<RecordType>()) {
     // If we're converting to a class type, there may be an copy if
     // the resulting temporary object (possible to create an object of
@@ -2973,25 +2969,22 @@ static void TryUserDefinedConversion(Sema &S,
   }
 }
 
-/// \brief Attempt an implicit conversion (C++ [conv]) converting from one
-/// non-class type to another.
-static void TryImplicitConversion(Sema &S, 
-                                  const InitializedEntity &Entity,
-                                  const InitializationKind &Kind,
-                                  Expr *Initializer,
-                                  InitializationSequence &Sequence) {
+bool Sema::TryImplicitConversion(InitializationSequence &Sequence,
+                                 const InitializedEntity &Entity,
+                                 Expr *Initializer,
+                                 bool SuppressUserConversions,
+                                 bool AllowExplicitConversions,
+                                 bool InOverloadResolution) {
   ImplicitConversionSequence ICS
-    = S.TryImplicitConversion(Initializer, Entity.getType(),
-                              /*SuppressUserConversions=*/true, 
-                              /*AllowExplicit=*/false,
-                              /*InOverloadResolution=*/false);
-  
-  if (ICS.isBad()) {
-    Sequence.SetFailed(InitializationSequence::FK_ConversionFailed);
-    return;
-  }
-  
+    = TryImplicitConversion(Initializer, Entity.getType(),
+                            SuppressUserConversions,
+                            AllowExplicitConversions, 
+                            InOverloadResolution);
+  if (ICS.isBad()) return true;
+
+  // Perform the actual conversion.
   Sequence.AddConversionSequenceStep(ICS, Entity.getType());
+  return false;
 }
 
 InitializationSequence::InitializationSequence(Sema &S,
@@ -3125,8 +3118,13 @@ InitializationSequence::InitializationSequence(Sema &S,
   //      conversions (Clause 4) will be used, if necessary, to convert the
   //      initializer expression to the cv-unqualified version of the 
   //      destination type; no user-defined conversions are considered.
-  setSequenceKind(StandardConversion);
-  TryImplicitConversion(S, Entity, Kind, Initializer, *this);
+  if (S.TryImplicitConversion(*this, Entity, Initializer,
+                              /*SuppressUserConversions*/ true,
+                              /*AllowExplicitConversions*/ false,
+                              /*InOverloadResolution*/ false))
+    SetFailed(InitializationSequence::FK_ConversionFailed);
+  else
+    setSequenceKind(StandardConversion);
 }
 
 InitializationSequence::~InitializationSequence() {
@@ -3168,6 +3166,7 @@ getAssignmentAction(const InitializedEntity &Entity) {
   case InitializedEntity::EK_Member:
   case InitializedEntity::EK_ArrayElement:
   case InitializedEntity::EK_VectorElement:
+  case InitializedEntity::EK_BlockElement:
     return Sema::AA_Initializing;
   }
 
@@ -3186,6 +3185,7 @@ static bool shouldBindAsTemporary(const InitializedEntity &Entity) {
   case InitializedEntity::EK_Base:
   case InitializedEntity::EK_VectorElement:
   case InitializedEntity::EK_Exception:
+  case InitializedEntity::EK_BlockElement:
     return false;
     
   case InitializedEntity::EK_Parameter:
@@ -3205,6 +3205,7 @@ static bool shouldDestroyTemporary(const InitializedEntity &Entity) {
     case InitializedEntity::EK_New:
     case InitializedEntity::EK_Base:
     case InitializedEntity::EK_VectorElement:
+    case InitializedEntity::EK_BlockElement:
       return false;
       
     case InitializedEntity::EK_Variable:
@@ -3289,6 +3290,7 @@ static Sema::OwningExprResult CopyObject(Sema &S,
   case InitializedEntity::EK_New:
   case InitializedEntity::EK_Base:
   case InitializedEntity::EK_VectorElement:
+  case InitializedEntity::EK_BlockElement:
     Loc = CurInitExpr->getLocStart();
     break;
   }
@@ -3298,12 +3300,9 @@ static Sema::OwningExprResult CopyObject(Sema &S,
     return move(CurInit);
 
   // Perform overload resolution using the class's copy constructors.
-  DeclarationName ConstructorName
-    = S.Context.DeclarationNames.getCXXConstructorName(
-                  S.Context.getCanonicalType(S.Context.getTypeDeclType(Class)));
   DeclContext::lookup_iterator Con, ConEnd;
   OverloadCandidateSet CandidateSet(Loc);
-  for (llvm::tie(Con, ConEnd) = Class->lookup(ConstructorName);
+  for (llvm::tie(Con, ConEnd) = S.LookupConstructors(Class);
        Con != ConEnd; ++Con) {
     // Only consider copy constructors.
     CXXConstructorDecl *Constructor = dyn_cast<CXXConstructorDecl>(*Con);
@@ -3324,12 +3323,16 @@ static Sema::OwningExprResult CopyObject(Sema &S,
     break;
       
   case OR_No_Viable_Function:
-    S.Diag(Loc, diag::err_temp_copy_no_viable)
+    S.Diag(Loc, IsExtraneousCopy && !S.isSFINAEContext()
+           ? diag::ext_rvalue_to_reference_temp_copy_no_viable
+           : diag::err_temp_copy_no_viable)
       << (int)Entity.getKind() << CurInitExpr->getType()
       << CurInitExpr->getSourceRange();
     S.PrintOverloadCandidates(CandidateSet, Sema::OCD_AllCandidates,
                               &CurInitExpr, 1);
-    return S.ExprError();
+    if (!IsExtraneousCopy || S.isSFINAEContext())
+      return S.ExprError();
+    return move(CurInit);
       
   case OR_Ambiguous:
     S.Diag(Loc, diag::err_temp_copy_ambiguous)
@@ -3353,7 +3356,7 @@ static Sema::OwningExprResult CopyObject(Sema &S,
   CurInit.release(); // Ownership transferred into MultiExprArg, below.
 
   S.CheckConstructorAccess(Loc, Constructor, Entity,
-                           Best->FoundDecl.getAccess());
+                           Best->FoundDecl.getAccess(), IsExtraneousCopy);
 
   if (IsExtraneousCopy) {
     // If this is a totally extraneous copy for C++03 reference
@@ -3699,8 +3702,8 @@ InitializationSequence::Perform(Sema &S,
         CurInitExpr = static_cast<Expr *>(CurInit.get());
         QualType T = CurInitExpr->getType();
         if (const RecordType *Record = T->getAs<RecordType>()) {
-          CXXDestructorDecl *Destructor
-            = cast<CXXRecordDecl>(Record->getDecl())->getDestructor(S.Context);
+          CXXDestructorDecl *Destructor 
+            = S.LookupDestructor(cast<CXXRecordDecl>(Record->getDecl()));
           S.CheckDestructorAccess(CurInitExpr->getLocStart(), Destructor, 
                                   S.PDiag(diag::err_access_dtor_temp) << T);
           S.MarkDeclarationReferenced(CurInitExpr->getLocStart(), Destructor);
@@ -3836,7 +3839,7 @@ InitializationSequence::Perform(Sema &S,
       } else if (Kind.getKind() == InitializationKind::IK_Value &&
                  S.getLangOptions().CPlusPlus &&
                  !Kind.isImplicitValueInit()) {
-        CurInit = S.Owned(new (S.Context) CXXZeroInitValueExpr(Step->Type,
+        CurInit = S.Owned(new (S.Context) CXXScalarValueInitExpr(Step->Type,
                                                    Kind.getRange().getBegin(),
                                                     Kind.getRange().getEnd()));
       } else {

@@ -112,7 +112,7 @@ OptLevelO3("O3",
 static cl::opt<bool>
 UnitAtATime("funit-at-a-time",
             cl::desc("Enable IPO. This is same as llvm-gcc's -funit-at-a-time"),
-	    cl::init(true));
+            cl::init(true));
 
 static cl::opt<bool>
 DisableSimplifyLibCalls("disable-simplify-libcalls",
@@ -377,24 +377,34 @@ int main(int argc, char **argv) {
   }
 
   // Figure out what stream we are supposed to write to...
-  // FIXME: outs() is not binary!
-  raw_ostream *Out = &outs();  // Default to printing to stdout...
-  if (OutputFilename != "-") {
-    if (NoOutput || AnalyzeOnly) {
-      errs() << "WARNING: The -o (output filename) option is ignored when\n"
-                "the --disable-output or --analyze options are used.\n";
+  raw_ostream *Out = 0;
+  bool DeleteStream = false;
+  if (!NoOutput && !AnalyzeOnly) {
+    if (OutputFilename == "-") {
+      // Print to stdout.
+      Out = &outs();
+      // If we're printing a bitcode file, switch stdout to binary mode.
+      // FIXME: This switches outs() globally, not just for the bitcode output.
+      if (!OutputAssembly)
+        sys::Program::ChangeStdoutToBinary(); 
     } else {
-      // Make sure that the Output file gets unlinked from the disk if we get a
-      // SIGINT
-      sys::RemoveFileOnSignal(sys::Path(OutputFilename));
+      if (NoOutput || AnalyzeOnly) {
+        errs() << "WARNING: The -o (output filename) option is ignored when\n"
+                  "the --disable-output or --analyze options are used.\n";
+      } else {
+        // Make sure that the Output file gets unlinked from the disk if we get
+        // a SIGINT.
+        sys::RemoveFileOnSignal(sys::Path(OutputFilename));
 
-      std::string ErrorInfo;
-      Out = new raw_fd_ostream(OutputFilename.c_str(), ErrorInfo,
-                               raw_fd_ostream::F_Binary);
-      if (!ErrorInfo.empty()) {
-        errs() << ErrorInfo << '\n';
-        delete Out;
-        return 1;
+        std::string ErrorInfo;
+        Out = new raw_fd_ostream(OutputFilename.c_str(), ErrorInfo,
+                                 raw_fd_ostream::F_Binary);
+        if (!ErrorInfo.empty()) {
+          errs() << ErrorInfo << '\n';
+          delete Out;
+          return 1;
+        }
+        DeleteStream = true;
       }
     }
   }
@@ -540,7 +550,7 @@ int main(int argc, char **argv) {
   Passes.run(*M.get());
 
   // Delete the raw_fd_ostream.
-  if (Out != &outs())
+  if (DeleteStream)
     delete Out;
   return 0;
 }

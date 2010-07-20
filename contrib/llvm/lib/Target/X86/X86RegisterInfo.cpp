@@ -127,21 +127,29 @@ unsigned X86RegisterInfo::getX86RegNum(unsigned RegNo) {
   case X86::ST4: case X86::ST5: case X86::ST6: case X86::ST7:
     return RegNo-X86::ST0;
 
-  case X86::XMM0: case X86::XMM8: case X86::MM0:
+  case X86::XMM0: case X86::XMM8:
+  case X86::YMM0: case X86::YMM8: case X86::MM0:
     return 0;
-  case X86::XMM1: case X86::XMM9: case X86::MM1:
+  case X86::XMM1: case X86::XMM9:
+  case X86::YMM1: case X86::YMM9: case X86::MM1:
     return 1;
-  case X86::XMM2: case X86::XMM10: case X86::MM2:
+  case X86::XMM2: case X86::XMM10:
+  case X86::YMM2: case X86::YMM10: case X86::MM2:
     return 2;
-  case X86::XMM3: case X86::XMM11: case X86::MM3:
+  case X86::XMM3: case X86::XMM11:
+  case X86::YMM3: case X86::YMM11: case X86::MM3:
     return 3;
-  case X86::XMM4: case X86::XMM12: case X86::MM4:
+  case X86::XMM4: case X86::XMM12:
+  case X86::YMM4: case X86::YMM12: case X86::MM4:
     return 4;
-  case X86::XMM5: case X86::XMM13: case X86::MM5:
+  case X86::XMM5: case X86::XMM13:
+  case X86::YMM5: case X86::YMM13: case X86::MM5:
     return 5;
-  case X86::XMM6: case X86::XMM14: case X86::MM6:
+  case X86::XMM6: case X86::XMM14:
+  case X86::YMM6: case X86::YMM14: case X86::MM6:
     return 6;
-  case X86::XMM7: case X86::XMM15: case X86::MM7:
+  case X86::XMM7: case X86::XMM15:
+  case X86::YMM7: case X86::YMM15: case X86::MM7:
     return 7;
 
   case X86::ES:
@@ -156,6 +164,34 @@ unsigned X86RegisterInfo::getX86RegNum(unsigned RegNo) {
     return 4;
   case X86::GS:
     return 5;
+
+  case X86::CR0:
+    return 0;
+  case X86::CR1:
+    return 1;
+  case X86::CR2:
+    return 2;
+  case X86::CR3:
+    return 3;
+  case X86::CR4:
+    return 4;
+
+  case X86::DR0:
+    return 0;
+  case X86::DR1:
+    return 1;
+  case X86::DR2:
+    return 2;
+  case X86::DR3:
+    return 3;
+  case X86::DR4:
+    return 4;
+  case X86::DR5:
+    return 5;
+  case X86::DR6:
+    return 6;
+  case X86::DR7:
+    return 7;
 
   default:
     assert(isVirtualRegister(RegNo) && "Unknown physical register!");
@@ -354,56 +390,6 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
       return (callsEHReturn ? CalleeSavedRegs64EHRet : CalleeSavedRegs64Bit);
   } else {
     return (callsEHReturn ? CalleeSavedRegs32EHRet : CalleeSavedRegs32Bit);
-  }
-}
-
-const TargetRegisterClass* const*
-X86RegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
-  bool callsEHReturn = false;
-  if (MF)
-    callsEHReturn = MF->getMMI().callsEHReturn();
-
-  static const TargetRegisterClass * const CalleeSavedRegClasses32Bit[] = {
-    &X86::GR32RegClass, &X86::GR32RegClass,
-    &X86::GR32RegClass, &X86::GR32RegClass,  0
-  };
-  static const TargetRegisterClass * const CalleeSavedRegClasses32EHRet[] = {
-    &X86::GR32RegClass, &X86::GR32RegClass,
-    &X86::GR32RegClass, &X86::GR32RegClass,
-    &X86::GR32RegClass, &X86::GR32RegClass,  0
-  };
-  static const TargetRegisterClass * const CalleeSavedRegClasses64Bit[] = {
-    &X86::GR64RegClass, &X86::GR64RegClass,
-    &X86::GR64RegClass, &X86::GR64RegClass,
-    &X86::GR64RegClass, &X86::GR64RegClass, 0
-  };
-  static const TargetRegisterClass * const CalleeSavedRegClasses64EHRet[] = {
-    &X86::GR64RegClass, &X86::GR64RegClass,
-    &X86::GR64RegClass, &X86::GR64RegClass,
-    &X86::GR64RegClass, &X86::GR64RegClass,
-    &X86::GR64RegClass, &X86::GR64RegClass, 0
-  };
-  static const TargetRegisterClass * const CalleeSavedRegClassesWin64[] = {
-    &X86::GR64RegClass,  &X86::GR64RegClass,
-    &X86::GR64RegClass,  &X86::GR64RegClass,
-    &X86::GR64RegClass,  &X86::GR64RegClass,
-    &X86::GR64RegClass,  &X86::GR64RegClass,
-    &X86::VR128RegClass, &X86::VR128RegClass,
-    &X86::VR128RegClass, &X86::VR128RegClass,
-    &X86::VR128RegClass, &X86::VR128RegClass,
-    &X86::VR128RegClass, &X86::VR128RegClass,
-    &X86::VR128RegClass, &X86::VR128RegClass, 0
-  };
-
-  if (Is64Bit) {
-    if (IsWin64)
-      return CalleeSavedRegClassesWin64;
-    else
-      return (callsEHReturn ?
-              CalleeSavedRegClasses64EHRet : CalleeSavedRegClasses64Bit);
-  } else {
-    return (callsEHReturn ?
-            CalleeSavedRegClasses32EHRet : CalleeSavedRegClasses32Bit);
   }
 }
 
@@ -696,8 +682,7 @@ X86RegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
     //   }
     //   [EBP]
     MFI->CreateFixedObject(-TailCallReturnAddrDelta,
-                           (-1U*SlotSize)+TailCallReturnAddrDelta,
-                           true, false);
+                           (-1U*SlotSize)+TailCallReturnAddrDelta, true);
   }
 
   if (hasFP(MF)) {
@@ -710,7 +695,7 @@ X86RegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                           -(int)SlotSize +
                                           TFI.getOffsetOfLocalArea() +
                                           TailCallReturnAddrDelta,
-                                          true, false);
+                                          true);
     assert(FrameIdx == MFI->getObjectIndexBegin() &&
            "Slot for EBP register must be last in order to be found!");
     FrameIdx = 0;
@@ -1240,8 +1225,8 @@ void X86RegisterInfo::emitEpilogue(MachineFunction &MF,
     if (CSSize) {
       unsigned Opc = Is64Bit ? X86::LEA64r : X86::LEA32r;
       MachineInstr *MI =
-        addLeaRegOffset(BuildMI(MF, DL, TII.get(Opc), StackPtr),
-                        FramePtr, false, -CSSize);
+        addRegOffset(BuildMI(MF, DL, TII.get(Opc), StackPtr),
+                     FramePtr, false, -CSSize);
       MBB.insert(MBBI, MI);
     } else {
       BuildMI(MBB, MBBI, DL,
@@ -1301,9 +1286,11 @@ void X86RegisterInfo::emitEpilogue(MachineFunction &MF,
       for (unsigned i = 0; i != 5; ++i)
         MIB.addOperand(MBBI->getOperand(i));
     } else if (RetOpcode == X86::TCRETURNri64) {
-      BuildMI(MBB, MBBI, DL, TII.get(X86::TAILJMPr64), JumpTarget.getReg());
+      BuildMI(MBB, MBBI, DL, TII.get(X86::TAILJMPr64)).
+        addReg(JumpTarget.getReg(), RegState::Kill);
     } else {
-      BuildMI(MBB, MBBI, DL, TII.get(X86::TAILJMPr), JumpTarget.getReg());
+      BuildMI(MBB, MBBI, DL, TII.get(X86::TAILJMPr)).
+        addReg(JumpTarget.getReg(), RegState::Kill);
     }
 
     MachineInstr *NewMI = prior(MBBI);

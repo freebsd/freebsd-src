@@ -17,11 +17,14 @@ def Implicit : DiagGroup<"implicit", [
 ]>;
 
 // Empty DiagGroups are recognized by clang but ignored.
+def : DiagGroup<"abi">;
 def : DiagGroup<"address">;
 def AddressOfTemporary : DiagGroup<"address-of-temporary">;
 def : DiagGroup<"aggregate-return">;
+def AmbigMemberTemplate : DiagGroup<"ambiguous-member-template">;
 def : DiagGroup<"attributes">;
 def : DiagGroup<"bad-function-cast">;
+def BoolConversions : DiagGroup<"bool-conversions">;
 def : DiagGroup<"c++-compat">;
 def : DiagGroup<"cast-align">;
 def : DiagGroup<"cast-qual">;
@@ -45,12 +48,14 @@ def CXXHexFloats : DiagGroup<"c++-hex-floats">;
 def : DiagGroup<"c++0x-compat", [CXXHexFloats]>;
 def FourByteMultiChar : DiagGroup<"four-char-constants">;
 def : DiagGroup<"idiomatic-parentheses">;
+def IgnoredQualifiers : DiagGroup<"ignored-qualifiers">;
 def : DiagGroup<"import">;
 def : DiagGroup<"init-self">;
 def : DiagGroup<"inline">;
 def : DiagGroup<"int-to-pointer-cast">;
 def : DiagGroup<"invalid-pch">;
 def LiteralRange : DiagGroup<"literal-range">;
+def : DiagGroup<"main">;
 def MissingBraces : DiagGroup<"missing-braces">;
 def : DiagGroup<"missing-declarations">;
 def : DiagGroup<"missing-format-attribute">;
@@ -62,6 +67,7 @@ def : DiagGroup<"newline-eof">;
 def LongLong : DiagGroup<"long-long">;
 def MismatchedTags : DiagGroup<"mismatched-tags">;
 def MissingFieldInitializers : DiagGroup<"missing-field-initializers">;
+def InitializerOverrides : DiagGroup<"initializer-overrides">;
 def NonNull : DiagGroup<"nonnull">;
 def : DiagGroup<"nonportable-cfstrings">;
 def : DiagGroup<"non-virtual-dtor">;
@@ -70,13 +76,17 @@ def : DiagGroup<"overflow">;
 def : DiagGroup<"overloaded-virtual">;
 def : DiagGroup<"packed">;
 def PointerArith : DiagGroup<"pointer-arith">;
+def PoundWarning : DiagGroup<"#warnings">,
+                   DiagCategory<"#warning Directive">;
 def : DiagGroup<"pointer-to-int-cast">;
 def : DiagGroup<"redundant-decls">;
 def ReturnType : DiagGroup<"return-type">;
+def BindToTemporaryCopy : DiagGroup<"bind-to-temporary-copy">;
 def SemiBeforeMethodBody : DiagGroup<"semicolon-before-method-body">;
 def : DiagGroup<"sequence-point">;
 def Shadow : DiagGroup<"shadow">;
 def : DiagGroup<"shorten-64-to-32">;
+def : DiagGroup<"sign-promo">;
 def SignCompare : DiagGroup<"sign-compare">;
 def : DiagGroup<"synth">;
 
@@ -108,6 +118,7 @@ def Trigraphs      : DiagGroup<"trigraphs">;
 def : DiagGroup<"type-limits">;
 def Uninitialized  : DiagGroup<"uninitialized">;
 def UnknownPragmas : DiagGroup<"unknown-pragmas">;
+def UnknownAttributes : DiagGroup<"unknown-attributes">;
 def UnusedArgument : DiagGroup<"unused-argument">;
 def UnusedExceptionParameter : DiagGroup<"unused-exception-parameter">;
 def UnusedFunction : DiagGroup<"unused-function">;
@@ -137,7 +148,7 @@ def Parentheses : DiagGroup<"parentheses", [DiagGroup<"idiomatic-parentheses">]>
 // -Wconversion has its own warnings, but we split this one out for
 // legacy reasons.
 def Conversion : DiagGroup<"conversion",
-                           [DiagGroup<"shorten-64-to-32">]>,
+                           [DiagGroup<"shorten-64-to-32">, BoolConversions]>,
                  DiagCategory<"Value Conversion Issue">;
 
 def Unused : DiagGroup<"unused",
@@ -157,6 +168,8 @@ def Format2 : DiagGroup<"format=2",
 
 def Extra : DiagGroup<"extra", [
     MissingFieldInitializers,
+    IgnoredQualifiers,
+    InitializerOverrides,
     SemiBeforeMethodBody,
     SignCompare,
     UnusedParameter

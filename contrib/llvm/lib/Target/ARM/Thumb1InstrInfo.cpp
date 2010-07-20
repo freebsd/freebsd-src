@@ -33,64 +33,24 @@ unsigned Thumb1InstrInfo::getUnindexedOpcode(unsigned Opc) const {
   return 0;
 }
 
-bool Thumb1InstrInfo::copyRegToReg(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator I,
-                                   unsigned DestReg, unsigned SrcReg,
-                                   const TargetRegisterClass *DestRC,
-                                   const TargetRegisterClass *SrcRC,
-                                   DebugLoc DL) const {
-  if (DestRC == ARM::GPRRegisterClass) {
-    if (SrcRC == ARM::GPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVgpr2gpr), DestReg).addReg(SrcReg);
-      return true;
-    } else if (SrcRC == ARM::tGPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVtgpr2gpr), DestReg).addReg(SrcReg);
-      return true;
-    }
-  } else if (DestRC == ARM::tGPRRegisterClass) {
-    if (SrcRC == ARM::GPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVgpr2tgpr), DestReg).addReg(SrcReg);
-      return true;
-    } else if (SrcRC == ARM::tGPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVr), DestReg).addReg(SrcReg);
-      return true;
-    }
-  }
+void Thumb1InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+                                  MachineBasicBlock::iterator I, DebugLoc DL,
+                                  unsigned DestReg, unsigned SrcReg,
+                                  bool KillSrc) const {
+  bool tDest = ARM::tGPRRegClass.contains(DestReg);
+  bool tSrc  = ARM::tGPRRegClass.contains(SrcReg);
+  unsigned Opc = ARM::tMOVgpr2gpr;
+  if (tDest && tSrc)
+    Opc = ARM::tMOVr;
+  else if (tSrc)
+    Opc = ARM::tMOVtgpr2gpr;
+  else if (tDest)
+    Opc = ARM::tMOVgpr2tgpr;
 
-  return false;
-}
-
-bool Thumb1InstrInfo::
-canFoldMemoryOperand(const MachineInstr *MI,
-                     const SmallVectorImpl<unsigned> &Ops) const {
-  if (Ops.size() != 1) return false;
-
-  unsigned OpNum = Ops[0];
-  unsigned Opc = MI->getOpcode();
-  switch (Opc) {
-  default: break;
-  case ARM::tMOVr:
-  case ARM::tMOVtgpr2gpr:
-  case ARM::tMOVgpr2tgpr:
-  case ARM::tMOVgpr2gpr: {
-    if (OpNum == 0) { // move -> store
-      unsigned SrcReg = MI->getOperand(1).getReg();
-      if (TargetRegisterInfo::isPhysicalRegister(SrcReg) &&
-          !isARMLowRegister(SrcReg))
-        // tSpill cannot take a high register operand.
-        return false;
-    } else {          // move -> load
-      unsigned DstReg = MI->getOperand(0).getReg();
-      if (TargetRegisterInfo::isPhysicalRegister(DstReg) &&
-          !isARMLowRegister(DstReg))
-        // tRestore cannot target a high register operand.
-        return false;
-    }
-    return true;
-  }
-  }
-
-  return false;
+  BuildMI(MBB, I, DL, get(Opc), DestReg)
+    .addReg(SrcReg, getKillRegState(KillSrc));
+  assert(ARM::GPRRegClass.contains(DestReg, SrcReg) &&
+         "Thumb1 can only copy GPR registers");
 }
 
 void Thumb1InstrInfo::
@@ -175,10 +135,10 @@ spillCalleeSavedRegisters(MachineBasicBlock &MBB,
         isKill = false;
     }
 
-    if (isKill) {
+    if (isKill)
       MBB.addLiveIn(Reg);
-      MIB.addReg(Reg, RegState::Kill);
-    }
+
+    MIB.addReg(Reg, getKillRegState(isKill));
   }
   return true;
 }
@@ -220,47 +180,4 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
     MF.DeleteMachineInstr(MIB);
 
   return true;
-}
-
-MachineInstr *Thumb1InstrInfo::
-foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
-                      const SmallVectorImpl<unsigned> &Ops, int FI) const {
-  if (Ops.size() != 1) return NULL;
-
-  unsigned OpNum = Ops[0];
-  unsigned Opc = MI->getOpcode();
-  MachineInstr *NewMI = NULL;
-  switch (Opc) {
-  default: break;
-  case ARM::tMOVr:
-  case ARM::tMOVtgpr2gpr:
-  case ARM::tMOVgpr2tgpr:
-  case ARM::tMOVgpr2gpr: {
-    if (OpNum == 0) { // move -> store
-      unsigned SrcReg = MI->getOperand(1).getReg();
-      bool isKill = MI->getOperand(1).isKill();
-      if (TargetRegisterInfo::isPhysicalRegister(SrcReg) &&
-          !isARMLowRegister(SrcReg))
-        // tSpill cannot take a high register operand.
-        break;
-      NewMI = AddDefaultPred(BuildMI(MF, MI->getDebugLoc(), get(ARM::tSpill))
-                             .addReg(SrcReg, getKillRegState(isKill))
-                             .addFrameIndex(FI).addImm(0));
-    } else {          // move -> load
-      unsigned DstReg = MI->getOperand(0).getReg();
-      if (TargetRegisterInfo::isPhysicalRegister(DstReg) &&
-          !isARMLowRegister(DstReg))
-        // tRestore cannot target a high register operand.
-        break;
-      bool isDead = MI->getOperand(0).isDead();
-      NewMI = AddDefaultPred(BuildMI(MF, MI->getDebugLoc(), get(ARM::tRestore))
-                             .addReg(DstReg,
-                                     RegState::Define | getDeadRegState(isDead))
-                             .addFrameIndex(FI).addImm(0));
-    }
-    break;
-  }
-  }
-
-  return NewMI;
 }

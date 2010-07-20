@@ -172,15 +172,39 @@ public:
 void GRExprEngine::CheckerVisit(Stmt *S, ExplodedNodeSet &Dst,
                                 ExplodedNodeSet &Src, bool isPrevisit) {
 
-  if (Checkers.empty()) {
+  // Determine if we already have a cached 'CheckersOrdered' vector
+  // specifically tailored for the provided <Stmt kind, isPrevisit>.  This
+  // can reduce the number of checkers actually called.
+  CheckersOrdered *CO = &Checkers;
+  llvm::OwningPtr<CheckersOrdered> NewCO;
+  
+  const std::pair<unsigned, unsigned> &K =
+    std::make_pair((unsigned)S->getStmtClass(), isPrevisit ? 1U : 0U);
+
+  CheckersOrdered *& CO_Ref = COCache[K];
+  
+  if (!CO_Ref) {
+    // If we have no previously cached CheckersOrdered vector for this
+    // statement kind, then create one.
+    NewCO.reset(new CheckersOrdered);
+  }
+  else {
+    // Use the already cached set.
+    CO = CO_Ref;
+  }
+  
+  if (CO->empty()) {
+    // If there are no checkers, return early without doing any
+    // more work.
     Dst.insert(Src);
     return;
   }
 
   ExplodedNodeSet Tmp;
   ExplodedNodeSet *PrevSet = &Src;
+  unsigned checkersEvaluated = 0;
 
-  for (CheckersOrdered::iterator I=Checkers.begin(),E=Checkers.end(); I!=E;++I){
+  for (CheckersOrdered::iterator I=CO->begin(), E=CO->end(); I!=E; ++I){
     ExplodedNodeSet *CurrSet = 0;
     if (I+1 == E)
       CurrSet = &Dst;
@@ -190,12 +214,30 @@ void GRExprEngine::CheckerVisit(Stmt *S, ExplodedNodeSet &Dst,
     }
     void *tag = I->first;
     Checker *checker = I->second;
+    bool respondsToCallback = true;
 
     for (ExplodedNodeSet::iterator NI = PrevSet->begin(), NE = PrevSet->end();
-         NI != NE; ++NI)
-      checker->GR_Visit(*CurrSet, *Builder, *this, S, *NI, tag, isPrevisit);
+         NI != NE; ++NI) {
+
+      checker->GR_Visit(*CurrSet, *Builder, *this, S, *NI, tag, isPrevisit,
+                        respondsToCallback);
+      
+    }
+
     PrevSet = CurrSet;
+
+    if (NewCO.get()) {
+      ++checkersEvaluated;
+      if (respondsToCallback)
+        NewCO->push_back(*I);
+    }    
   }
+  
+  // If we built NewCO, check if we called all the checkers.  This is important
+  // so that we know that we accurately determined the entire set of checkers
+  // that responds to this callback.
+  if (NewCO.get() && checkersEvaluated == Checkers.size())
+    CO_Ref = NewCO.take();
 
   // Don't autotransition.  The CheckerContext objects should do this
   // automatically.
@@ -312,18 +354,20 @@ static void RegisterInternalChecks(GRExprEngine &Eng) {
   // automatically.  Note that the check itself is owned by the GRExprEngine
   // object.
   RegisterAdjustedReturnValueChecker(Eng);
-  RegisterAttrNonNullChecker(Eng);
+  // CallAndMessageChecker should be registered before AttrNonNullChecker,
+  // where we assume arguments are not undefined.
   RegisterCallAndMessageChecker(Eng);
+  RegisterAttrNonNullChecker(Eng);
   RegisterDereferenceChecker(Eng);
   RegisterVLASizeChecker(Eng);
   RegisterDivZeroChecker(Eng);
-  RegisterReturnStackAddressChecker(Eng);
   RegisterReturnUndefChecker(Eng);
   RegisterUndefinedArraySubscriptChecker(Eng);
   RegisterUndefinedAssignmentChecker(Eng);
   RegisterUndefBranchChecker(Eng);
   RegisterUndefCapturedBlockVarChecker(Eng);
   RegisterUndefResultChecker(Eng);
+  RegisterStackAddrLeakChecker(Eng);
 
   // This is not a checker yet.
   RegisterNoReturnFunctionChecker(Eng);
@@ -335,10 +379,10 @@ static void RegisterInternalChecks(GRExprEngine &Eng) {
 
 GRExprEngine::GRExprEngine(AnalysisManager &mgr, GRTransferFuncs *tf)
   : AMgr(mgr),
-    CoreEngine(mgr.getASTContext(), *this),
+    CoreEngine(*this),
     G(CoreEngine.getGraph()),
     Builder(NULL),
-    StateMgr(G.getContext(), mgr.getStoreManagerCreator(),
+    StateMgr(getContext(), mgr.getStoreManagerCreator(),
              mgr.getConstraintManagerCreator(), G.getAllocator(),
              *this),
     SymMgr(StateMgr.getSymbolManager()),
@@ -346,7 +390,7 @@ GRExprEngine::GRExprEngine(AnalysisManager &mgr, GRTransferFuncs *tf)
     SVator(ValMgr.getSValuator()),
     CurrentStmt(NULL),
     NSExceptionII(NULL), NSExceptionInstanceRaiseSelectors(NULL),
-    RaiseSel(GetNullarySelector("raise", G.getContext())),
+    RaiseSel(GetNullarySelector("raise", getContext())),
     BR(mgr, *this), TF(tf) {
   // Register internal checks.
   RegisterInternalChecks(*this);
@@ -359,7 +403,13 @@ GRExprEngine::GRExprEngine(AnalysisManager &mgr, GRTransferFuncs *tf)
 GRExprEngine::~GRExprEngine() {
   BR.FlushReports();
   delete [] NSExceptionInstanceRaiseSelectors;
+  
+  // Delete the set of checkers.
   for (CheckersOrdered::iterator I=Checkers.begin(), E=Checkers.end(); I!=E;++I)
+    delete I->second;
+  
+  for (CheckersOrderedCache::iterator I=COCache.begin(), E=COCache.end();
+       I!=E;++I)
     delete I->second;
 }
 
@@ -464,6 +514,13 @@ const GRState *GRExprEngine::ProcessAssume(const GRState *state, SVal cond,
   return TF->EvalAssume(state, cond, assumption);
 }
 
+void GRExprEngine::ProcessEndWorklist(bool hasWorkRemaining) {
+  for (CheckersOrdered::iterator I = Checkers.begin(), E = Checkers.end();
+       I != E; ++I) {
+    I->second->VisitEndAnalysis(G, BR, hasWorkRemaining);
+  }
+}
+
 void GRExprEngine::ProcessStmt(CFGElement CE, GRStmtNodeBuilder& builder) {
   CurrentStmt = CE.getStmt();
   PrettyStackTraceLoc CrashInfo(getContext().getSourceManager(),
@@ -480,10 +537,10 @@ void GRExprEngine::ProcessStmt(CFGElement CE, GRStmtNodeBuilder& builder) {
   // Create the cleaned state.
   const ExplodedNode *BasePred = Builder->getBasePredecessor();
 
-  SymbolReaper SymReaper(BasePred->getLocationContext(), SymMgr);
+  SymbolReaper SymReaper(BasePred->getLocationContext(), CurrentStmt, SymMgr);
 
   CleanedState = AMgr.shouldPurgeDead()
-    ? StateMgr.RemoveDeadBindings(EntryNode->getState(), CurrentStmt, 
+    ? StateMgr.RemoveDeadBindings(EntryNode->getState(), 
                          BasePred->getLocationContext()->getCurrentStackFrame(),
                                   SymReaper)
     : EntryNode->getState();
@@ -502,7 +559,7 @@ void GRExprEngine::ProcessStmt(CFGElement CE, GRStmtNodeBuilder& builder) {
 
     // FIXME: This should soon be removed.
     ExplodedNodeSet Tmp2;
-    getTF().EvalDeadSymbols(Tmp2, *this, *Builder, EntryNode, CurrentStmt,
+    getTF().EvalDeadSymbols(Tmp2, *this, *Builder, EntryNode,
                             CleanedState, SymReaper);
 
     if (Checkers.empty())
@@ -598,7 +655,7 @@ void GRExprEngine::Visit(Stmt* S, ExplodedNode* Pred, ExplodedNodeSet& Dst) {
     case Stmt::CXXTryStmtClass:
     case Stmt::CXXTypeidExprClass:
     case Stmt::CXXUnresolvedConstructExprClass:
-    case Stmt::CXXZeroInitValueExprClass:
+    case Stmt::CXXScalarValueInitExprClass:
     case Stmt::DependentScopeDeclRefExprClass:
     case Stmt::UnaryTypeTraitExprClass:
     case Stmt::UnresolvedLookupExprClass:
@@ -627,10 +684,14 @@ void GRExprEngine::Visit(Stmt* S, ExplodedNode* Pred, ExplodedNodeSet& Dst) {
       llvm_unreachable("Stmt should not be in analyzer evaluation loop");
       break;
 
+    case Stmt::GNUNullExprClass: {
+      MakeNode(Dst, S, Pred, GetState(Pred)->BindExpr(S, ValMgr.makeNull()));
+      break;
+    }
+
     // Cases not handled yet; but will handle some day.
     case Stmt::DesignatedInitExprClass:
     case Stmt::ExtVectorElementExprClass:
-    case Stmt::GNUNullExprClass:
     case Stmt::ImaginaryLiteralClass:
     case Stmt::ImplicitValueInitExprClass:
     case Stmt::ObjCAtCatchStmtClass:
@@ -901,7 +962,7 @@ void GRExprEngine::VisitLValue(Expr* Ex, ExplodedNode* Pred,
     // C++ stuff we don't support yet.
     case Stmt::CXXExprWithTemporariesClass:
     case Stmt::CXXMemberCallExprClass:
-    case Stmt::CXXZeroInitValueExprClass: {
+    case Stmt::CXXScalarValueInitExprClass: {
       SaveAndRestore<bool> OldSink(Builder->BuildSinks);
       Builder->BuildSinks = true;
       MakeNode(Dst, Ex, Pred, GetState(Pred));
@@ -998,16 +1059,21 @@ void GRExprEngine::VisitLValue(Expr* Ex, ExplodedNode* Pred,
       CreateCXXTemporaryObject(Ex, Pred, Dst);
       return;
 
-    default:
+    default: {
       // Arbitrary subexpressions can return aggregate temporaries that
       // can be used in a lvalue context.  We need to enhance our support
       // of such temporaries in both the environment and the store, so right
       // now we just do a regular visit.
-      assert ((Ex->getType()->isAggregateType()) &&
-              "Other kinds of expressions with non-aggregate/union types do"
-              " not have lvalues.");
+
+      // NOTE: Do not use 'isAggregateType()' here as CXXRecordDecls that
+      //  are non-pod are not aggregates.
+      assert ((isa<RecordType>(Ex->getType().getDesugaredType()) ||
+               isa<ArrayType>(Ex->getType().getDesugaredType())) &&
+              "Other kinds of expressions with non-aggregate/union/class types"
+              " do not have lvalues.");
 
       Visit(Ex, Pred, Dst);
+    }
   }
 }
 
@@ -1819,7 +1885,7 @@ bool GRExprEngine::InlineCall(ExplodedNodeSet &Dst, const CallExpr *CE,
   if (!FD)
     return false;
 
-  if (!FD->getBody(FD))
+  if (!FD->hasBody(FD))
     return false;
 
   // Now we have the definition of the callee, create a CallEnter node.
@@ -1940,7 +2006,8 @@ void GRExprEngine::VisitCall(CallExpr* CE, ExplodedNode* Pred,
 
   // Finally, perform the post-condition check of the CallExpr and store
   // the created nodes in 'Dst'.
-
+  // If the callee returns a reference and we want an rvalue, skip this check
+  // and do the load.
   if (!(!asLValue && CalleeReturnsReference(CE))) {
     CheckerVisit(CE, Dst, DstTmp3, false);
     return;
@@ -2371,6 +2438,7 @@ void GRExprEngine::VisitCast(CastExpr *CastE, Expr *Ex, ExplodedNode *Pred,
   case CastExpr::CK_Unknown:
   case CastExpr::CK_ArrayToPointerDecay:
   case CastExpr::CK_BitCast:
+  case CastExpr::CK_LValueBitCast:
   case CastExpr::CK_IntegralCast:
   case CastExpr::CK_IntegralToPointer:
   case CastExpr::CK_PointerToIntegral:
@@ -2380,7 +2448,7 @@ void GRExprEngine::VisitCast(CastExpr *CastE, Expr *Ex, ExplodedNode *Pred,
   case CastExpr::CK_AnyPointerToObjCPointerCast:
   case CastExpr::CK_AnyPointerToBlockPointerCast:
   case CastExpr::CK_DerivedToBase:
-  case CastExpr::CK_UncheckedDerivedToBase:
+  case CastExpr::CK_UncheckedDerivedToBase: {
     // Delegate to SValuator to process.
     for (ExplodedNodeSet::iterator I = S2.begin(), E = S2.end(); I != E; ++I) {
       ExplodedNode* N = *I;
@@ -2391,10 +2459,24 @@ void GRExprEngine::VisitCast(CastExpr *CastE, Expr *Ex, ExplodedNode *Pred,
       MakeNode(Dst, CastE, N, state);
     }
     return;
-
-  default:
-    llvm::errs() << "Cast kind " << CastE->getCastKind() << " not handled.\n";
-    assert(0);
+  }
+  
+  // Various C++ casts that are not handled yet.
+  case CastExpr::CK_Dynamic:  
+  case CastExpr::CK_ToUnion:
+  case CastExpr::CK_BaseToDerived:
+  case CastExpr::CK_NullToMemberPointer:
+  case CastExpr::CK_BaseToDerivedMemberPointer:
+  case CastExpr::CK_DerivedToBaseMemberPointer:
+  case CastExpr::CK_UserDefinedConversion:
+  case CastExpr::CK_ConstructorConversion:
+  case CastExpr::CK_VectorSplat:
+  case CastExpr::CK_MemberPointerToBoolean: {
+    SaveAndRestore<bool> OldSink(Builder->BuildSinks);
+    Builder->BuildSinks = true;
+    MakeNode(Dst, CastE, Pred, GetState(Pred));
+    return;
+  }
   }
 }
 
@@ -2615,9 +2697,38 @@ void GRExprEngine::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr* Ex,
       // sizeof(void) == 1 byte.
       amt = CharUnits::One();
     }
-    else if (!T.getTypePtr()->isConstantSizeType()) {
-      // FIXME: Add support for VLAs.
-      Dst.Add(Pred);
+    else if (!T->isConstantSizeType()) {
+      assert(T->isVariableArrayType() && "Unknown non-constant-sized type.");
+
+      // FIXME: Add support for VLA type arguments, not just VLA expressions.
+      // When that happens, we should probably refactor VLASizeChecker's code.
+      if (Ex->isArgumentType()) {
+        Dst.Add(Pred);
+        return;
+      }
+
+      // Get the size by getting the extent of the sub-expression.
+      // First, visit the sub-expression to find its region.
+      Expr *Arg = Ex->getArgumentExpr();
+      ExplodedNodeSet Tmp;
+      VisitLValue(Arg, Pred, Tmp);
+
+      for (ExplodedNodeSet::iterator I=Tmp.begin(), E=Tmp.end(); I!=E; ++I) {
+        const GRState* state = GetState(*I);
+        const MemRegion *MR = state->getSVal(Arg).getAsRegion();
+
+        // If the subexpression can't be resolved to a region, we don't know
+        // anything about its size. Just leave the state as is and continue.
+        if (!MR) {
+          Dst.Add(*I);
+          continue;
+        }
+
+        // The result is the extent of the VLA.
+        SVal Extent = cast<SubRegion>(MR)->getExtent(ValMgr);
+        MakeNode(Dst, Ex, *I, state->BindExpr(Ex, Extent));
+      }
+
       return;
     }
     else if (T->getAs<ObjCObjectType>()) {
@@ -2749,7 +2860,7 @@ void GRExprEngine::VisitUnaryOperator(UnaryOperator* U, ExplodedNode* Pred,
       return;
     }
       
-    case UnaryOperator::Plus: assert (!asLValue);  // FALL-THROUGH.
+    case UnaryOperator::Plus: assert(!asLValue);  // FALL-THROUGH.
     case UnaryOperator::Extension: {
 
       // Unary "+" is a no-op, similar to a parentheses.  We still have places
@@ -2759,7 +2870,11 @@ void GRExprEngine::VisitUnaryOperator(UnaryOperator* U, ExplodedNode* Pred,
 
       Expr* Ex = U->getSubExpr()->IgnoreParens();
       ExplodedNodeSet Tmp;
-      Visit(Ex, Pred, Tmp);
+
+      if (asLValue)
+	VisitLValue(Ex, Pred, Tmp);
+      else
+	Visit(Ex, Pred, Tmp);
 
       for (ExplodedNodeSet::iterator I=Tmp.begin(), E=Tmp.end(); I!=E; ++I) {
         const GRState* state = GetState(*I);

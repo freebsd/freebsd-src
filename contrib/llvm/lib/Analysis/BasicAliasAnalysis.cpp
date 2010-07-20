@@ -78,6 +78,20 @@ static bool isNonEscapingLocalObject(const Value *V) {
   return false;
 }
 
+/// isEscapeSource - Return true if the pointer is one which would have
+/// been considered an escape by isNonEscapingLocalObject.
+static bool isEscapeSource(const Value *V) {
+  if (isa<CallInst>(V) || isa<InvokeInst>(V) || isa<Argument>(V))
+    return true;
+
+  // The load case works because isNonEscapingLocalObject considers all
+  // stores to be escapes (it passes true for the StoreCaptures argument
+  // to PointerMayBeCaptured).
+  if (isa<LoadInst>(V))
+    return true;
+
+  return false;
+}
 
 /// isObjectSmallerThan - Return true if we can prove that the object specified
 /// by V is smaller than Size.
@@ -94,7 +108,7 @@ static bool isObjectSmallerThan(const Value *V, unsigned Size,
   } else if (const CallInst* CI = extractMallocCall(V)) {
     if (!isArrayMalloc(V, &TD))
       // The size is the argument to the malloc call.
-      if (const ConstantInt* C = dyn_cast<ConstantInt>(CI->getOperand(1)))
+      if (const ConstantInt* C = dyn_cast<ConstantInt>(CI->getArgOperand(0)))
         return (C->getZExtValue() < Size);
     return false;
   } else if (const Argument *A = dyn_cast<Argument>(V)) {
@@ -177,8 +191,28 @@ static RegisterAnalysisGroup<AliasAnalysis> V(U);
 ImmutablePass *llvm::createNoAAPass() { return new NoAA(); }
 
 //===----------------------------------------------------------------------===//
-// BasicAA Pass
+// BasicAliasAnalysis Pass
 //===----------------------------------------------------------------------===//
+
+#ifndef NDEBUG
+static const Function *getParent(const Value *V) {
+  if (const Instruction *inst = dyn_cast<Instruction>(V))
+    return inst->getParent()->getParent();
+
+  if (const Argument *arg = dyn_cast<Argument>(V))
+    return arg->getParent();
+
+  return NULL;
+}
+
+static bool notDifferentParent(const Value *O1, const Value *O2) {
+
+  const Function *F1 = getParent(O1);
+  const Function *F2 = getParent(O2);
+
+  return !F1 || !F2 || F1 == F2;
+}
+#endif
 
 namespace {
   /// BasicAliasAnalysis - This is the default alias analysis implementation.
@@ -187,11 +221,14 @@ namespace {
   struct BasicAliasAnalysis : public NoAA {
     static char ID; // Class identification, replacement for typeinfo
     BasicAliasAnalysis() : NoAA(&ID) {}
+
     AliasResult alias(const Value *V1, unsigned V1Size,
                       const Value *V2, unsigned V2Size) {
-      assert(VisitedPHIs.empty() && "VisitedPHIs must be cleared after use!");
+      assert(Visited.empty() && "Visited must be cleared after use!");
+      assert(notDifferentParent(V1, V2) &&
+             "BasicAliasAnalysis doesn't support interprocedural queries.");
       AliasResult Alias = aliasCheck(V1, V1Size, V2, V2Size);
-      VisitedPHIs.clear();
+      Visited.clear();
       return Alias;
     }
 
@@ -213,8 +250,8 @@ namespace {
     }
     
   private:
-    // VisitedPHIs - Track PHI nodes visited by a aliasCheck() call.
-    SmallPtrSet<const Value*, 16> VisitedPHIs;
+    // Visited - Track instructions visited by a aliasPHI, aliasSelect(), and aliasGEP().
+    SmallPtrSet<const Value*, 16> Visited;
 
     // aliasGEP - Provide a bunch of ad-hoc rules to disambiguate a GEP
     // instruction against another.
@@ -268,6 +305,9 @@ bool BasicAliasAnalysis::pointsToConstantMemory(const Value *P) {
 /// simple "address taken" analysis on local objects.
 AliasAnalysis::ModRefResult
 BasicAliasAnalysis::getModRefInfo(CallSite CS, Value *P, unsigned Size) {
+  assert(notDifferentParent(CS.getInstruction(), P) &&
+         "AliasAnalysis query involving multiple functions!");
+
   const Value *Object = P->getUnderlyingObject();
   
   // If this is a tail call and P points to a stack location, we know that
@@ -318,10 +358,10 @@ BasicAliasAnalysis::getModRefInfo(CallSite CS, Value *P, unsigned Size) {
   case Intrinsic::memcpy:
   case Intrinsic::memmove: {
     unsigned Len = ~0U;
-    if (ConstantInt *LenCI = dyn_cast<ConstantInt>(II->getOperand(3)))
+    if (ConstantInt *LenCI = dyn_cast<ConstantInt>(II->getArgOperand(2)))
       Len = LenCI->getZExtValue();
-    Value *Dest = II->getOperand(1);
-    Value *Src = II->getOperand(2);
+    Value *Dest = II->getArgOperand(0);
+    Value *Src = II->getArgOperand(1);
     if (isNoAlias(Dest, Len, P, Size)) {
       if (isNoAlias(Src, Len, P, Size))
         return NoModRef;
@@ -332,9 +372,9 @@ BasicAliasAnalysis::getModRefInfo(CallSite CS, Value *P, unsigned Size) {
   case Intrinsic::memset:
     // Since memset is 'accesses arguments' only, the AliasAnalysis base class
     // will handle it for the variable length case.
-    if (ConstantInt *LenCI = dyn_cast<ConstantInt>(II->getOperand(3))) {
+    if (ConstantInt *LenCI = dyn_cast<ConstantInt>(II->getArgOperand(2))) {
       unsigned Len = LenCI->getZExtValue();
-      Value *Dest = II->getOperand(1);
+      Value *Dest = II->getArgOperand(0);
       if (isNoAlias(Dest, Len, P, Size))
         return NoModRef;
     }
@@ -352,7 +392,7 @@ BasicAliasAnalysis::getModRefInfo(CallSite CS, Value *P, unsigned Size) {
   case Intrinsic::atomic_load_umax:
   case Intrinsic::atomic_load_umin:
     if (TD) {
-      Value *Op1 = II->getOperand(1);
+      Value *Op1 = II->getArgOperand(0);
       unsigned Op1Size = TD->getTypeStoreSize(Op1->getType());
       if (isNoAlias(Op1, Op1Size, P, Size))
         return NoModRef;
@@ -361,14 +401,14 @@ BasicAliasAnalysis::getModRefInfo(CallSite CS, Value *P, unsigned Size) {
   case Intrinsic::lifetime_start:
   case Intrinsic::lifetime_end:
   case Intrinsic::invariant_start: {
-    unsigned PtrSize = cast<ConstantInt>(II->getOperand(1))->getZExtValue();
-    if (isNoAlias(II->getOperand(2), PtrSize, P, Size))
+    unsigned PtrSize = cast<ConstantInt>(II->getArgOperand(0))->getZExtValue();
+    if (isNoAlias(II->getArgOperand(1), PtrSize, P, Size))
       return NoModRef;
     break;
   }
   case Intrinsic::invariant_end: {
-    unsigned PtrSize = cast<ConstantInt>(II->getOperand(2))->getZExtValue();
-    if (isNoAlias(II->getOperand(3), PtrSize, P, Size))
+    unsigned PtrSize = cast<ConstantInt>(II->getArgOperand(1))->getZExtValue();
+    if (isNoAlias(II->getArgOperand(2), PtrSize, P, Size))
       return NoModRef;
     break;
   }
@@ -440,6 +480,13 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, unsigned V1Size,
                              const Value *V2, unsigned V2Size,
                              const Value *UnderlyingV1,
                              const Value *UnderlyingV2) {
+  // If this GEP has been visited before, we're on a use-def cycle.
+  // Such cycles are only valid when PHI nodes are involved or in unreachable
+  // code. The visitPHI function catches cycles containing PHIs, but there
+  // could still be a cycle without PHIs in unreachable code.
+  if (!Visited.insert(GEP1))
+    return MayAlias;
+
   int64_t GEP1BaseOffset;
   SmallVector<std::pair<const Value*, int64_t>, 4> GEP1VariableIndices;
 
@@ -550,6 +597,13 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, unsigned V1Size,
 AliasAnalysis::AliasResult
 BasicAliasAnalysis::aliasSelect(const SelectInst *SI, unsigned SISize,
                                 const Value *V2, unsigned V2Size) {
+  // If this select has been visited before, we're on a use-def cycle.
+  // Such cycles are only valid when PHI nodes are involved or in unreachable
+  // code. The visitPHI function catches cycles containing PHIs, but there
+  // could still be a cycle without PHIs in unreachable code.
+  if (!Visited.insert(SI))
+    return MayAlias;
+
   // If the values are Selects with the same condition, we can do a more precise
   // check: just check for aliases between the values on corresponding arms.
   if (const SelectInst *SI2 = dyn_cast<SelectInst>(V2))
@@ -570,11 +624,17 @@ BasicAliasAnalysis::aliasSelect(const SelectInst *SI, unsigned SISize,
   // If both arms of the Select node NoAlias or MustAlias V2, then returns
   // NoAlias / MustAlias. Otherwise, returns MayAlias.
   AliasResult Alias =
-    aliasCheck(SI->getTrueValue(), SISize, V2, V2Size);
+    aliasCheck(V2, V2Size, SI->getTrueValue(), SISize);
   if (Alias == MayAlias)
     return MayAlias;
+
+  // If V2 is visited, the recursive case will have been caught in the
+  // above aliasCheck call, so these subsequent calls to aliasCheck
+  // don't need to assume that V2 is being visited recursively.
+  Visited.erase(V2);
+
   AliasResult ThisAlias =
-    aliasCheck(SI->getFalseValue(), SISize, V2, V2Size);
+    aliasCheck(V2, V2Size, SI->getFalseValue(), SISize);
   if (ThisAlias != Alias)
     return MayAlias;
   return Alias;
@@ -586,7 +646,7 @@ AliasAnalysis::AliasResult
 BasicAliasAnalysis::aliasPHI(const PHINode *PN, unsigned PNSize,
                              const Value *V2, unsigned V2Size) {
   // The PHI node has already been visited, avoid recursion any further.
-  if (!VisitedPHIs.insert(PN))
+  if (!Visited.insert(PN))
     return MayAlias;
 
   // If the values are PHIs in the same block, we can do a more precise
@@ -636,10 +696,10 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, unsigned PNSize,
   for (unsigned i = 1, e = V1Srcs.size(); i != e; ++i) {
     Value *V = V1Srcs[i];
 
-    // If V2 is a PHI, the recursive case will have been caught in the
+    // If V2 is visited, the recursive case will have been caught in the
     // above aliasCheck call, so these subsequent calls to aliasCheck
     // don't need to assume that V2 is being visited recursively.
-    VisitedPHIs.erase(V2);
+    Visited.erase(V2);
 
     AliasResult ThisAlias = aliasCheck(V2, V2Size, V, PNSize);
     if (ThisAlias != Alias || ThisAlias == MayAlias)
@@ -693,17 +753,32 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, unsigned V1Size,
         (isa<Constant>(O2) && isIdentifiedObject(O1) && !isa<Constant>(O1)))
       return NoAlias;
 
-    // Arguments can't alias with local allocations or noalias calls.
-    if ((isa<Argument>(O1) && (isa<AllocaInst>(O2) || isNoAliasCall(O2))) ||
-        (isa<Argument>(O2) && (isa<AllocaInst>(O1) || isNoAliasCall(O1))))
+    // Arguments can't alias with local allocations or noalias calls
+    // in the same function.
+    if (((isa<Argument>(O1) && (isa<AllocaInst>(O2) || isNoAliasCall(O2))) ||
+         (isa<Argument>(O2) && (isa<AllocaInst>(O1) || isNoAliasCall(O1)))))
       return NoAlias;
 
     // Most objects can't alias null.
-    if ((isa<ConstantPointerNull>(V2) && isKnownNonNull(O1)) ||
-        (isa<ConstantPointerNull>(V1) && isKnownNonNull(O2)))
+    if ((isa<ConstantPointerNull>(O2) && isKnownNonNull(O1)) ||
+        (isa<ConstantPointerNull>(O1) && isKnownNonNull(O2)))
+      return NoAlias;
+  
+    // If one pointer is the result of a call/invoke or load and the other is a
+    // non-escaping local object within the same function, then we know the
+    // object couldn't escape to a point where the call could return it.
+    //
+    // Note that if the pointers are in different functions, there are a
+    // variety of complications. A call with a nocapture argument may still
+    // temporary store the nocapture argument's value in a temporary memory
+    // location if that memory location doesn't escape. Or it may pass a
+    // nocapture value to other functions as long as they don't capture it.
+    if (isEscapeSource(O1) && isNonEscapingLocalObject(O2))
+      return NoAlias;
+    if (isEscapeSource(O2) && isNonEscapingLocalObject(O1))
       return NoAlias;
   }
-  
+
   // If the size of one access is larger than the entire object on the other
   // side, then we know such behavior is undefined and can assume no alias.
   if (TD)
@@ -711,22 +786,6 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, unsigned V1Size,
         (V2Size != ~0U && isObjectSmallerThan(O1, V2Size, *TD)))
       return NoAlias;
   
-  // If one pointer is the result of a call/invoke or load and the other is a
-  // non-escaping local object, then we know the object couldn't escape to a
-  // point where the call could return it. The load case works because
-  // isNonEscapingLocalObject considers all stores to be escapes (it
-  // passes true for the StoreCaptures argument to PointerMayBeCaptured).
-  if (O1 != O2) {
-    if ((isa<CallInst>(O1) || isa<InvokeInst>(O1) || isa<LoadInst>(O1) ||
-         isa<Argument>(O1)) &&
-        isNonEscapingLocalObject(O2))
-      return NoAlias;
-    if ((isa<CallInst>(O2) || isa<InvokeInst>(O2) || isa<LoadInst>(O2) ||
-         isa<Argument>(O2)) &&
-        isNonEscapingLocalObject(O1))
-      return NoAlias;
-  }
-
   // FIXME: This isn't aggressively handling alias(GEP, PHI) for example: if the
   // GEP can't simplify, we don't even look at the PHI cases.
   if (!isa<GEPOperator>(V1) && isa<GEPOperator>(V2)) {

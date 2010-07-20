@@ -329,6 +329,37 @@ Instruction *InstCombiner::visitSelectInstWithICmp(SelectInst &SI,
       }
     }
 
+  // Transform (X >s -1) ? C1 : C2 --> ((X >>s 31) & (C2 - C1)) + C1
+  // and       (X <s  0) ? C2 : C1 --> ((X >>s 31) & (C2 - C1)) + C1
+  // FIXME: Type and constness constraints could be lifted, but we have to
+  //        watch code size carefully. We should consider xor instead of
+  //        sub/add when we decide to do that.
+  if (const IntegerType *Ty = dyn_cast<IntegerType>(CmpLHS->getType())) {
+    if (TrueVal->getType() == Ty) {
+      if (ConstantInt *Cmp = dyn_cast<ConstantInt>(CmpRHS)) {
+        ConstantInt *C1 = NULL, *C2 = NULL;
+        if (Pred == ICmpInst::ICMP_SGT && Cmp->isAllOnesValue()) {
+          C1 = dyn_cast<ConstantInt>(TrueVal);
+          C2 = dyn_cast<ConstantInt>(FalseVal);
+        } else if (Pred == ICmpInst::ICMP_SLT && Cmp->isNullValue()) {
+          C1 = dyn_cast<ConstantInt>(FalseVal);
+          C2 = dyn_cast<ConstantInt>(TrueVal);
+        }
+        if (C1 && C2) {
+          // This shift results in either -1 or 0.
+          Value *AShr = Builder->CreateAShr(CmpLHS, Ty->getBitWidth()-1);
+
+          // Check if we can express the operation with a single or.
+          if (C2->isAllOnesValue())
+            return ReplaceInstUsesWith(SI, Builder->CreateOr(AShr, C1));
+
+          Value *And = Builder->CreateAnd(AShr, C2->getValue()-C1->getValue());
+          return ReplaceInstUsesWith(SI, Builder->CreateAdd(And, C1));
+        }
+      }
+    }
+  }
+
   if (CmpLHS == TrueVal && CmpRHS == FalseVal) {
     // Transform (X == Y) ? X : Y  -> Y
     if (Pred == ICmpInst::ICMP_EQ)
@@ -667,6 +698,34 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
     SI.setOperand(1, FalseVal);
     SI.setOperand(2, TrueVal);
     return &SI;
+  }
+  
+  // select (A == 0 | B == 0), T, F--> select (A != 0 & B != 0), F, T
+  // Note: This is a canonicalization rather than an optimization, and is used
+  // to expose opportunities to other instcombine transforms.
+  Instruction* CondInst = dyn_cast<Instruction>(CondVal);
+  if (CondInst && CondInst->hasOneUse() && 
+      CondInst->getOpcode() == Instruction::Or) {
+    ICmpInst *LHSCmp = dyn_cast<ICmpInst>(CondInst->getOperand(0));
+    ICmpInst *RHSCmp = dyn_cast<ICmpInst>(CondInst->getOperand(1));
+    if (LHSCmp && LHSCmp->hasOneUse() &&
+                  LHSCmp->getPredicate() == ICmpInst::ICMP_EQ &&
+        RHSCmp && RHSCmp->hasOneUse() &&
+                  RHSCmp->getPredicate() == ICmpInst::ICMP_EQ) {
+      ConstantInt* C1 = dyn_cast<ConstantInt>(LHSCmp->getOperand(1));
+      ConstantInt* C2 = dyn_cast<ConstantInt>(RHSCmp->getOperand(1));
+      if (C1 && C1->isZero() && C2 && C2->isZero()) {
+        LHSCmp->setPredicate(ICmpInst::ICMP_NE);
+        RHSCmp->setPredicate(ICmpInst::ICMP_NE);
+        Value *And =
+          InsertNewInstBefore(BinaryOperator::CreateAnd(LHSCmp, RHSCmp,
+                                             "and."+CondVal->getName()), SI);
+        SI.setOperand(0, And);
+        SI.setOperand(1, FalseVal);
+        SI.setOperand(2, TrueVal);
+        return &SI;
+      }
+    }
   }
 
   return 0;

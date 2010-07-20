@@ -56,7 +56,7 @@ ARMBaseInstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
 
   MachineInstr *MI = MBBI;
   MachineFunction &MF = *MI->getParent()->getParent();
-  unsigned TSFlags = MI->getDesc().TSFlags;
+  uint64_t TSFlags = MI->getDesc().TSFlags;
   bool isPre = false;
   switch ((TSFlags & ARMII::IndexModeMask) >> ARMII::IndexModeShift) {
   default: return NULL;
@@ -199,9 +199,9 @@ ARMBaseInstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
 
 bool
 ARMBaseInstrInfo::spillCalleeSavedRegisters(MachineBasicBlock &MBB,
-                                            MachineBasicBlock::iterator MI,
-                                            const std::vector<CalleeSavedInfo> &CSI,
-                                            const TargetRegisterInfo *TRI) const {
+                                        MachineBasicBlock::iterator MI,
+                                        const std::vector<CalleeSavedInfo> &CSI,
+                                        const TargetRegisterInfo *TRI) const {
   if (CSI.empty())
     return false;
 
@@ -227,8 +227,9 @@ ARMBaseInstrInfo::spillCalleeSavedRegisters(MachineBasicBlock &MBB,
 
     // Insert the spill to the stack frame. The register is killed at the spill
     // 
+    const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
     storeRegToStackSlot(MBB, MI, Reg, isKill,
-                        CSI[i].getFrameIdx(), CSI[i].getRegClass(), TRI);
+                        CSI[i].getFrameIdx(), RC, TRI);
   }
   return true;
 }
@@ -347,10 +348,8 @@ unsigned ARMBaseInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
 unsigned
 ARMBaseInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                                MachineBasicBlock *FBB,
-                             const SmallVectorImpl<MachineOperand> &Cond) const {
-  // FIXME this should probably have a DebugLoc argument
-  DebugLoc dl;
-
+                               const SmallVectorImpl<MachineOperand> &Cond,
+                               DebugLoc DL) const {
   ARMFunctionInfo *AFI = MBB.getParent()->getInfo<ARMFunctionInfo>();
   int BOpc   = !AFI->isThumbFunction()
     ? ARM::B : (AFI->isThumb2Function() ? ARM::t2B : ARM::tB);
@@ -364,17 +363,17 @@ ARMBaseInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
 
   if (FBB == 0) {
     if (Cond.empty()) // Unconditional branch?
-      BuildMI(&MBB, dl, get(BOpc)).addMBB(TBB);
+      BuildMI(&MBB, DL, get(BOpc)).addMBB(TBB);
     else
-      BuildMI(&MBB, dl, get(BccOpc)).addMBB(TBB)
+      BuildMI(&MBB, DL, get(BccOpc)).addMBB(TBB)
         .addImm(Cond[0].getImm()).addReg(Cond[1].getReg());
     return 1;
   }
 
   // Two-way conditional branch.
-  BuildMI(&MBB, dl, get(BccOpc)).addMBB(TBB)
+  BuildMI(&MBB, DL, get(BccOpc)).addMBB(TBB)
     .addImm(Cond[0].getImm()).addReg(Cond[1].getReg());
-  BuildMI(&MBB, dl, get(BOpc)).addMBB(FBB);
+  BuildMI(&MBB, DL, get(BOpc)).addMBB(FBB);
   return 2;
 }
 
@@ -487,7 +486,7 @@ unsigned ARMBaseInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
 
   // Basic size info comes from the TSFlags field.
   const TargetInstrDesc &TID = MI->getDesc();
-  unsigned TSFlags = TID.TSFlags;
+  uint64_t TSFlags = TID.TSFlags;
 
   unsigned Opc = MI->getOpcode();
   switch ((TSFlags & ARMII::SizeMask) >> ARMII::SizeShift) {
@@ -524,11 +523,11 @@ unsigned ARMBaseInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
       return 10;
     case ARM::Int_eh_sjlj_setjmp:
     case ARM::Int_eh_sjlj_setjmp_nofp:
-      return 24;
+      return 20;
     case ARM::tInt_eh_sjlj_setjmp:
     case ARM::t2Int_eh_sjlj_setjmp:
     case ARM::t2Int_eh_sjlj_setjmp_nofp:
-      return 14;
+      return 12;
     case ARM::BR_JTr:
     case ARM::BR_JTm:
     case ARM::BR_JTadd:
@@ -595,6 +594,7 @@ ARMBaseInstrInfo::isMoveInstr(const MachineInstr &MI,
     return true;
   }
   case ARM::MOVr:
+  case ARM::MOVr_TC:
   case ARM::tMOVr:
   case ARM::tMOVgpr2tgpr:
   case ARM::tMOVtgpr2gpr:
@@ -693,75 +693,44 @@ ARMBaseInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
   return 0;
 }
 
-bool
-ARMBaseInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
-                               MachineBasicBlock::iterator I,
-                               unsigned DestReg, unsigned SrcReg,
-                               const TargetRegisterClass *DestRC,
-                               const TargetRegisterClass *SrcRC,
-                               DebugLoc DL) const {
-  // tGPR is used sometimes in ARM instructions that need to avoid using
-  // certain registers.  Just treat it as GPR here.
-  if (DestRC == ARM::tGPRRegisterClass)
-    DestRC = ARM::GPRRegisterClass;
-  if (SrcRC == ARM::tGPRRegisterClass)
-    SrcRC = ARM::GPRRegisterClass;
+void ARMBaseInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+                                   MachineBasicBlock::iterator I, DebugLoc DL,
+                                   unsigned DestReg, unsigned SrcReg,
+                                   bool KillSrc) const {
+  bool GPRDest = ARM::GPRRegClass.contains(DestReg);
+  bool GPRSrc  = ARM::GPRRegClass.contains(SrcReg);
 
-  // Allow DPR / DPR_VFP2 / DPR_8 cross-class copies.
-  if (DestRC == ARM::DPR_8RegisterClass)
-    DestRC = ARM::DPR_VFP2RegisterClass;
-  if (SrcRC == ARM::DPR_8RegisterClass)
-    SrcRC = ARM::DPR_VFP2RegisterClass;
-
-  // Allow QPR / QPR_VFP2 / QPR_8 cross-class copies.
-  if (DestRC == ARM::QPR_VFP2RegisterClass ||
-      DestRC == ARM::QPR_8RegisterClass)
-    DestRC = ARM::QPRRegisterClass;
-  if (SrcRC == ARM::QPR_VFP2RegisterClass ||
-      SrcRC == ARM::QPR_8RegisterClass)
-    SrcRC = ARM::QPRRegisterClass;
-
-  // Allow QQPR / QQPR_VFP2 cross-class copies.
-  if (DestRC == ARM::QQPR_VFP2RegisterClass)
-    DestRC = ARM::QQPRRegisterClass;
-  if (SrcRC == ARM::QQPR_VFP2RegisterClass)
-    SrcRC = ARM::QQPRRegisterClass;
-
-  // Disallow copies of unequal sizes.
-  if (DestRC != SrcRC && DestRC->getSize() != SrcRC->getSize())
-    return false;
-
-  if (DestRC == ARM::GPRRegisterClass) {
-    if (SrcRC == ARM::SPRRegisterClass)
-      AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VMOVRS), DestReg)
-                     .addReg(SrcReg));
-    else
-      AddDefaultCC(AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::MOVr),
-                                          DestReg).addReg(SrcReg)));
-  } else {
-    unsigned Opc;
-
-    if (DestRC == ARM::SPRRegisterClass)
-      Opc = (SrcRC == ARM::GPRRegisterClass ? ARM::VMOVSR : ARM::VMOVS);
-    else if (DestRC == ARM::DPRRegisterClass)
-      Opc = ARM::VMOVD;
-    else if (DestRC == ARM::DPR_VFP2RegisterClass ||
-             SrcRC == ARM::DPR_VFP2RegisterClass)
-      // Always use neon reg-reg move if source or dest is NEON-only regclass.
-      Opc = ARM::VMOVDneon;
-    else if (DestRC == ARM::QPRRegisterClass)
-      Opc = ARM::VMOVQ;
-    else if (DestRC == ARM::QQPRRegisterClass)
-      Opc = ARM::VMOVQQ;
-    else if (DestRC == ARM::QQQQPRRegisterClass)
-      Opc = ARM::VMOVQQQQ;
-    else
-      return false;
-
-    AddDefaultPred(BuildMI(MBB, I, DL, get(Opc), DestReg).addReg(SrcReg));
+  if (GPRDest && GPRSrc) {
+    AddDefaultCC(AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::MOVr), DestReg)
+                                  .addReg(SrcReg, getKillRegState(KillSrc))));
+    return;
   }
 
-  return true;
+  bool SPRDest = ARM::SPRRegClass.contains(DestReg);
+  bool SPRSrc  = ARM::SPRRegClass.contains(SrcReg);
+
+  unsigned Opc;
+  if (SPRDest && SPRSrc)
+    Opc = ARM::VMOVS;
+  else if (GPRDest && SPRSrc)
+    Opc = ARM::VMOVRS;
+  else if (SPRDest && GPRSrc)
+    Opc = ARM::VMOVSR;
+  else if (ARM::DPRRegClass.contains(DestReg, SrcReg))
+    Opc = ARM::VMOVD;
+  else if (ARM::QPRRegClass.contains(DestReg, SrcReg))
+    Opc = ARM::VMOVQ;
+  else if (ARM::QQPRRegClass.contains(DestReg, SrcReg))
+    Opc = ARM::VMOVQQ;
+  else if (ARM::QQQQPRRegClass.contains(DestReg, SrcReg))
+    Opc = ARM::VMOVQQQQ;
+  else
+    llvm_unreachable("Impossible reg-to-reg copy");
+
+  MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(Opc), DestReg);
+  MIB.addReg(SrcReg, getKillRegState(KillSrc));
+  if (Opc != ARM::VMOVQQ && Opc != ARM::VMOVQQQQ)
+    AddDefaultPred(MIB);
 }
 
 static const
@@ -795,30 +764,34 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
   // tGPR is used sometimes in ARM instructions that need to avoid using
   // certain registers.  Just treat it as GPR here.
-  if (RC == ARM::tGPRRegisterClass)
+  if (RC == ARM::tGPRRegisterClass || RC == ARM::tcGPRRegisterClass)
     RC = ARM::GPRRegisterClass;
 
-  if (RC == ARM::GPRRegisterClass) {
+  switch (RC->getID()) {
+  case ARM::GPRRegClassID:
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::STR))
                    .addReg(SrcReg, getKillRegState(isKill))
                    .addFrameIndex(FI).addReg(0).addImm(0).addMemOperand(MMO));
-  } else if (RC == ARM::SPRRegisterClass) {
+    break;
+  case ARM::SPRRegClassID:
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VSTRS))
                    .addReg(SrcReg, getKillRegState(isKill))
                    .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
-  } else if (RC == ARM::DPRRegisterClass ||
-             RC == ARM::DPR_VFP2RegisterClass ||
-             RC == ARM::DPR_8RegisterClass) {
+    break;
+  case ARM::DPRRegClassID:
+  case ARM::DPR_VFP2RegClassID:
+  case ARM::DPR_8RegClassID:
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VSTRD))
                    .addReg(SrcReg, getKillRegState(isKill))
                    .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
-  } else if (RC == ARM::QPRRegisterClass ||
-             RC == ARM::QPR_VFP2RegisterClass ||
-             RC == ARM::QPR_8RegisterClass) {
+    break;
+  case ARM::QPRRegClassID:
+  case ARM::QPR_VFP2RegClassID:
+  case ARM::QPR_8RegClassID:
     // FIXME: Neon instructions should support predicates
     if (Align >= 16 && getRegisterInfo().canRealignStack(MF)) {
       AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VST1q))
-                     .addFrameIndex(FI).addImm(128)
+                     .addFrameIndex(FI).addImm(16)
                      .addReg(SrcReg, getKillRegState(isKill))
                      .addMemOperand(MMO));
     } else {
@@ -828,12 +801,14 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4))
                      .addMemOperand(MMO));
     }
-  } else if (RC == ARM::QQPRRegisterClass || RC == ARM::QQPR_VFP2RegisterClass){
+    break;
+  case ARM::QQPRRegClassID:
+  case ARM::QQPR_VFP2RegClassID:
     if (Align >= 16 && getRegisterInfo().canRealignStack(MF)) {
       // FIXME: It's possible to only store part of the QQ register if the
       // spilled def has a sub-register index.
-      MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(ARM::VST2q32))
-        .addFrameIndex(FI).addImm(128);
+      MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(ARM::VST1d64Q))
+        .addFrameIndex(FI).addImm(16);
       MIB = AddDReg(MIB, SrcReg, ARM::dsub_0, getKillRegState(isKill), TRI);
       MIB = AddDReg(MIB, SrcReg, ARM::dsub_1, 0, TRI);
       MIB = AddDReg(MIB, SrcReg, ARM::dsub_2, 0, TRI);
@@ -850,8 +825,8 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
       MIB = AddDReg(MIB, SrcReg, ARM::dsub_2, 0, TRI);
             AddDReg(MIB, SrcReg, ARM::dsub_3, 0, TRI);
     }
-  } else {
-    assert(RC == ARM::QQQQPRRegisterClass && "Unknown regclass!");
+    break;
+  case ARM::QQQQPRRegClassID: {
     MachineInstrBuilder MIB =
       AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VSTMD))
                      .addFrameIndex(FI)
@@ -865,6 +840,10 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     MIB = AddDReg(MIB, SrcReg, ARM::dsub_5, 0, TRI);
     MIB = AddDReg(MIB, SrcReg, ARM::dsub_6, 0, TRI);
           AddDReg(MIB, SrcReg, ARM::dsub_7, 0, TRI);
+    break;
+  }
+  default:
+    llvm_unreachable("Unknown regclass!");
   }
 }
 
@@ -886,26 +865,30 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
   // tGPR is used sometimes in ARM instructions that need to avoid using
   // certain registers.  Just treat it as GPR here.
-  if (RC == ARM::tGPRRegisterClass)
+  if (RC == ARM::tGPRRegisterClass || RC == ARM::tcGPRRegisterClass)
     RC = ARM::GPRRegisterClass;
 
-  if (RC == ARM::GPRRegisterClass) {
+  switch (RC->getID()) {
+  case ARM::GPRRegClassID:
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::LDR), DestReg)
                    .addFrameIndex(FI).addReg(0).addImm(0).addMemOperand(MMO));
-  } else if (RC == ARM::SPRRegisterClass) {
+    break;
+  case ARM::SPRRegClassID:
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDRS), DestReg)
                    .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
-  } else if (RC == ARM::DPRRegisterClass ||
-             RC == ARM::DPR_VFP2RegisterClass ||
-             RC == ARM::DPR_8RegisterClass) {
+    break;
+  case ARM::DPRRegClassID:
+  case ARM::DPR_VFP2RegClassID:
+  case ARM::DPR_8RegClassID:
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDRD), DestReg)
                    .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
-  } else if (RC == ARM::QPRRegisterClass ||
-             RC == ARM::QPR_VFP2RegisterClass ||
-             RC == ARM::QPR_8RegisterClass) {
+    break;
+  case ARM::QPRRegClassID:
+  case ARM::QPR_VFP2RegClassID:
+  case ARM::QPR_8RegClassID:
     if (Align >= 16 && getRegisterInfo().canRealignStack(MF)) {
       AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLD1q), DestReg)
-                     .addFrameIndex(FI).addImm(128)
+                     .addFrameIndex(FI).addImm(16)
                      .addMemOperand(MMO));
     } else {
       AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDMQ), DestReg)
@@ -913,14 +896,16 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4))
                      .addMemOperand(MMO));
     }
-  } else if (RC == ARM::QQPRRegisterClass || RC == ARM::QQPR_VFP2RegisterClass){
+    break;
+  case ARM::QQPRRegClassID:
+  case ARM::QQPR_VFP2RegClassID:
     if (Align >= 16 && getRegisterInfo().canRealignStack(MF)) {
-      MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(ARM::VLD2q32));
+      MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(ARM::VLD1d64Q));
       MIB = AddDReg(MIB, DestReg, ARM::dsub_0, RegState::Define, TRI);
       MIB = AddDReg(MIB, DestReg, ARM::dsub_1, RegState::Define, TRI);
       MIB = AddDReg(MIB, DestReg, ARM::dsub_2, RegState::Define, TRI);
       MIB = AddDReg(MIB, DestReg, ARM::dsub_3, RegState::Define, TRI);
-      AddDefaultPred(MIB.addFrameIndex(FI).addImm(128).addMemOperand(MMO));
+      AddDefaultPred(MIB.addFrameIndex(FI).addImm(16).addMemOperand(MMO));
     } else {
       MachineInstrBuilder MIB =
         AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDMD))
@@ -932,21 +917,25 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
       MIB = AddDReg(MIB, DestReg, ARM::dsub_2, RegState::Define, TRI);
             AddDReg(MIB, DestReg, ARM::dsub_3, RegState::Define, TRI);
     }
-  } else {
-    assert(RC == ARM::QQQQPRRegisterClass && "Unknown regclass!");
-      MachineInstrBuilder MIB =
-        AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDMD))
-                       .addFrameIndex(FI)
-                       .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4)))
-        .addMemOperand(MMO);
-      MIB = AddDReg(MIB, DestReg, ARM::dsub_0, RegState::Define, TRI);
-      MIB = AddDReg(MIB, DestReg, ARM::dsub_1, RegState::Define, TRI);
-      MIB = AddDReg(MIB, DestReg, ARM::dsub_2, RegState::Define, TRI);
-      MIB = AddDReg(MIB, DestReg, ARM::dsub_3, RegState::Define, TRI);
-      MIB = AddDReg(MIB, DestReg, ARM::dsub_4, RegState::Define, TRI);
-      MIB = AddDReg(MIB, DestReg, ARM::dsub_5, RegState::Define, TRI);
-      MIB = AddDReg(MIB, DestReg, ARM::dsub_6, RegState::Define, TRI);
-            AddDReg(MIB, DestReg, ARM::dsub_7, RegState::Define, TRI);
+    break;
+  case ARM::QQQQPRRegClassID: {
+    MachineInstrBuilder MIB =
+      AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDMD))
+                     .addFrameIndex(FI)
+                     .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4)))
+      .addMemOperand(MMO);
+    MIB = AddDReg(MIB, DestReg, ARM::dsub_0, RegState::Define, TRI);
+    MIB = AddDReg(MIB, DestReg, ARM::dsub_1, RegState::Define, TRI);
+    MIB = AddDReg(MIB, DestReg, ARM::dsub_2, RegState::Define, TRI);
+    MIB = AddDReg(MIB, DestReg, ARM::dsub_3, RegState::Define, TRI);
+    MIB = AddDReg(MIB, DestReg, ARM::dsub_4, RegState::Define, TRI);
+    MIB = AddDReg(MIB, DestReg, ARM::dsub_5, RegState::Define, TRI);
+    MIB = AddDReg(MIB, DestReg, ARM::dsub_6, RegState::Define, TRI);
+    AddDReg(MIB, DestReg, ARM::dsub_7, RegState::Define, TRI);
+    break;
+  }
+  default:
+    llvm_unreachable("Unknown regclass!");
   }
 }
 
@@ -958,223 +947,6 @@ ARMBaseInstrInfo::emitFrameIndexDebugValue(MachineFunction &MF,
   MachineInstrBuilder MIB = BuildMI(MF, DL, get(ARM::DBG_VALUE))
     .addFrameIndex(FrameIx).addImm(0).addImm(Offset).addMetadata(MDPtr);
   return &*MIB;
-}
-
-MachineInstr *ARMBaseInstrInfo::
-foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
-                      const SmallVectorImpl<unsigned> &Ops, int FI) const {
-  if (Ops.size() != 1) return NULL;
-
-  unsigned OpNum = Ops[0];
-  unsigned Opc = MI->getOpcode();
-  MachineInstr *NewMI = NULL;
-  if (Opc == ARM::MOVr || Opc == ARM::t2MOVr) {
-    // If it is updating CPSR, then it cannot be folded.
-    if (MI->getOperand(4).getReg() == ARM::CPSR && !MI->getOperand(4).isDead())
-      return NULL;
-    unsigned Pred = MI->getOperand(2).getImm();
-    unsigned PredReg = MI->getOperand(3).getReg();
-    if (OpNum == 0) { // move -> store
-      unsigned SrcReg = MI->getOperand(1).getReg();
-      unsigned SrcSubReg = MI->getOperand(1).getSubReg();
-      bool isKill = MI->getOperand(1).isKill();
-      bool isUndef = MI->getOperand(1).isUndef();
-      if (Opc == ARM::MOVr)
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::STR))
-          .addReg(SrcReg,
-                  getKillRegState(isKill) | getUndefRegState(isUndef),
-                  SrcSubReg)
-          .addFrameIndex(FI).addReg(0).addImm(0).addImm(Pred).addReg(PredReg);
-      else // ARM::t2MOVr
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::t2STRi12))
-          .addReg(SrcReg,
-                  getKillRegState(isKill) | getUndefRegState(isUndef),
-                  SrcSubReg)
-          .addFrameIndex(FI).addImm(0).addImm(Pred).addReg(PredReg);
-    } else {          // move -> load
-      unsigned DstReg = MI->getOperand(0).getReg();
-      unsigned DstSubReg = MI->getOperand(0).getSubReg();
-      bool isDead = MI->getOperand(0).isDead();
-      bool isUndef = MI->getOperand(0).isUndef();
-      if (Opc == ARM::MOVr)
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::LDR))
-          .addReg(DstReg,
-                  RegState::Define |
-                  getDeadRegState(isDead) |
-                  getUndefRegState(isUndef), DstSubReg)
-          .addFrameIndex(FI).addReg(0).addImm(0).addImm(Pred).addReg(PredReg);
-      else // ARM::t2MOVr
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::t2LDRi12))
-          .addReg(DstReg,
-                  RegState::Define |
-                  getDeadRegState(isDead) |
-                  getUndefRegState(isUndef), DstSubReg)
-          .addFrameIndex(FI).addImm(0).addImm(Pred).addReg(PredReg);
-    }
-  } else if (Opc == ARM::tMOVgpr2gpr ||
-             Opc == ARM::tMOVtgpr2gpr ||
-             Opc == ARM::tMOVgpr2tgpr) {
-    if (OpNum == 0) { // move -> store
-      unsigned SrcReg = MI->getOperand(1).getReg();
-      unsigned SrcSubReg = MI->getOperand(1).getSubReg();
-      bool isKill = MI->getOperand(1).isKill();
-      bool isUndef = MI->getOperand(1).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::t2STRi12))
-        .addReg(SrcReg,
-                getKillRegState(isKill) | getUndefRegState(isUndef),
-                SrcSubReg)
-        .addFrameIndex(FI).addImm(0).addImm(ARMCC::AL).addReg(0);
-    } else {          // move -> load
-      unsigned DstReg = MI->getOperand(0).getReg();
-      unsigned DstSubReg = MI->getOperand(0).getSubReg();
-      bool isDead = MI->getOperand(0).isDead();
-      bool isUndef = MI->getOperand(0).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::t2LDRi12))
-        .addReg(DstReg,
-                RegState::Define |
-                getDeadRegState(isDead) |
-                getUndefRegState(isUndef),
-                DstSubReg)
-        .addFrameIndex(FI).addImm(0).addImm(ARMCC::AL).addReg(0);
-    }
-  } else if (Opc == ARM::VMOVS) {
-    unsigned Pred = MI->getOperand(2).getImm();
-    unsigned PredReg = MI->getOperand(3).getReg();
-    if (OpNum == 0) { // move -> store
-      unsigned SrcReg = MI->getOperand(1).getReg();
-      unsigned SrcSubReg = MI->getOperand(1).getSubReg();
-      bool isKill = MI->getOperand(1).isKill();
-      bool isUndef = MI->getOperand(1).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VSTRS))
-        .addReg(SrcReg, getKillRegState(isKill) | getUndefRegState(isUndef),
-                SrcSubReg)
-        .addFrameIndex(FI)
-        .addImm(0).addImm(Pred).addReg(PredReg);
-    } else {          // move -> load
-      unsigned DstReg = MI->getOperand(0).getReg();
-      unsigned DstSubReg = MI->getOperand(0).getSubReg();
-      bool isDead = MI->getOperand(0).isDead();
-      bool isUndef = MI->getOperand(0).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VLDRS))
-        .addReg(DstReg,
-                RegState::Define |
-                getDeadRegState(isDead) |
-                getUndefRegState(isUndef),
-                DstSubReg)
-        .addFrameIndex(FI).addImm(0).addImm(Pred).addReg(PredReg);
-    }
-  } else if (Opc == ARM::VMOVD || Opc == ARM::VMOVDneon) {
-    unsigned Pred = MI->getOperand(2).getImm();
-    unsigned PredReg = MI->getOperand(3).getReg();
-    if (OpNum == 0) { // move -> store
-      unsigned SrcReg = MI->getOperand(1).getReg();
-      unsigned SrcSubReg = MI->getOperand(1).getSubReg();
-      bool isKill = MI->getOperand(1).isKill();
-      bool isUndef = MI->getOperand(1).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VSTRD))
-        .addReg(SrcReg,
-                getKillRegState(isKill) | getUndefRegState(isUndef),
-                SrcSubReg)
-        .addFrameIndex(FI).addImm(0).addImm(Pred).addReg(PredReg);
-    } else {          // move -> load
-      unsigned DstReg = MI->getOperand(0).getReg();
-      unsigned DstSubReg = MI->getOperand(0).getSubReg();
-      bool isDead = MI->getOperand(0).isDead();
-      bool isUndef = MI->getOperand(0).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VLDRD))
-        .addReg(DstReg,
-                RegState::Define |
-                getDeadRegState(isDead) |
-                getUndefRegState(isUndef),
-                DstSubReg)
-        .addFrameIndex(FI).addImm(0).addImm(Pred).addReg(PredReg);
-    }
-  }  else if (Opc == ARM::VMOVQ) {
-    MachineFrameInfo &MFI = *MF.getFrameInfo();
-    unsigned Pred = MI->getOperand(2).getImm();
-    unsigned PredReg = MI->getOperand(3).getReg();
-    if (OpNum == 0) { // move -> store
-      unsigned SrcReg = MI->getOperand(1).getReg();
-      unsigned SrcSubReg = MI->getOperand(1).getSubReg();
-      bool isKill = MI->getOperand(1).isKill();
-      bool isUndef = MI->getOperand(1).isUndef();
-      if (MFI.getObjectAlignment(FI) >= 16 &&
-          getRegisterInfo().canRealignStack(MF)) {
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VST1q))
-          .addFrameIndex(FI).addImm(128)
-          .addReg(SrcReg,
-                  getKillRegState(isKill) | getUndefRegState(isUndef),
-                  SrcSubReg)
-          .addImm(Pred).addReg(PredReg);
-      } else {
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VSTMQ))
-          .addReg(SrcReg,
-                  getKillRegState(isKill) | getUndefRegState(isUndef),
-                  SrcSubReg)
-          .addFrameIndex(FI).addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4))
-          .addImm(Pred).addReg(PredReg);
-      }
-    } else {          // move -> load
-      unsigned DstReg = MI->getOperand(0).getReg();
-      unsigned DstSubReg = MI->getOperand(0).getSubReg();
-      bool isDead = MI->getOperand(0).isDead();
-      bool isUndef = MI->getOperand(0).isUndef();
-      if (MFI.getObjectAlignment(FI) >= 16 &&
-          getRegisterInfo().canRealignStack(MF)) {
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VLD1q))
-          .addReg(DstReg,
-                  RegState::Define |
-                  getDeadRegState(isDead) |
-                  getUndefRegState(isUndef),
-                  DstSubReg)
-          .addFrameIndex(FI).addImm(128).addImm(Pred).addReg(PredReg);
-      } else {
-        NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VLDMQ))
-          .addReg(DstReg,
-                  RegState::Define |
-                  getDeadRegState(isDead) |
-                  getUndefRegState(isUndef),
-                  DstSubReg)
-          .addFrameIndex(FI).addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4))
-          .addImm(Pred).addReg(PredReg);
-      }
-    }
-  }
-
-  return NewMI;
-}
-
-MachineInstr*
-ARMBaseInstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
-                                        MachineInstr* MI,
-                                        const SmallVectorImpl<unsigned> &Ops,
-                                        MachineInstr* LoadMI) const {
-  // FIXME
-  return 0;
-}
-
-bool
-ARMBaseInstrInfo::canFoldMemoryOperand(const MachineInstr *MI,
-                                   const SmallVectorImpl<unsigned> &Ops) const {
-  if (Ops.size() != 1) return false;
-
-  unsigned Opc = MI->getOpcode();
-  if (Opc == ARM::MOVr || Opc == ARM::t2MOVr) {
-    // If it is updating CPSR, then it cannot be folded.
-    return MI->getOperand(4).getReg() != ARM::CPSR ||
-      MI->getOperand(4).isDead();
-  } else if (Opc == ARM::tMOVgpr2gpr ||
-             Opc == ARM::tMOVtgpr2gpr ||
-             Opc == ARM::tMOVgpr2tgpr) {
-    return true;
-  } else if (Opc == ARM::VMOVS || Opc == ARM::VMOVD ||
-             Opc == ARM::VMOVDneon || Opc == ARM::VMOVQ) {
-    return true;
-  }
-
-  // FIXME: VMOVQQ and VMOVQQQQ?
-
-  return false;
 }
 
 /// Create a copy of a const pool value. Update CPI to the new index and return
@@ -1211,17 +983,12 @@ reMaterialize(MachineBasicBlock &MBB,
               MachineBasicBlock::iterator I,
               unsigned DestReg, unsigned SubIdx,
               const MachineInstr *Orig,
-              const TargetRegisterInfo *TRI) const {
-  if (SubIdx && TargetRegisterInfo::isPhysicalRegister(DestReg)) {
-    DestReg = TRI->getSubReg(DestReg, SubIdx);
-    SubIdx = 0;
-  }
-
+              const TargetRegisterInfo &TRI) const {
   unsigned Opcode = Orig->getOpcode();
   switch (Opcode) {
   default: {
     MachineInstr *MI = MBB.getParent()->CloneMachineInstr(Orig);
-    MI->getOperand(0).setReg(DestReg);
+    MI->substituteRegister(Orig->getOperand(0).getReg(), DestReg, SubIdx, TRI);
     MBB.insert(I, MI);
     break;
   }
@@ -1237,9 +1004,6 @@ reMaterialize(MachineBasicBlock &MBB,
     break;
   }
   }
-
-  MachineInstr *NewMI = prior(I);
-  NewMI->getOperand(0).setSubReg(SubIdx);
 }
 
 MachineInstr *
@@ -1289,6 +1053,165 @@ bool ARMBaseInstrInfo::produceSameValue(const MachineInstr *MI0,
   }
 
   return MI0->isIdenticalTo(MI1, MachineInstr::IgnoreVRegDefs);
+}
+
+/// areLoadsFromSameBasePtr - This is used by the pre-regalloc scheduler to
+/// determine if two loads are loading from the same base address. It should
+/// only return true if the base pointers are the same and the only differences
+/// between the two addresses is the offset. It also returns the offsets by
+/// reference.
+bool ARMBaseInstrInfo::areLoadsFromSameBasePtr(SDNode *Load1, SDNode *Load2,
+                                               int64_t &Offset1,
+                                               int64_t &Offset2) const {
+  // Don't worry about Thumb: just ARM and Thumb2.
+  if (Subtarget.isThumb1Only()) return false;
+
+  if (!Load1->isMachineOpcode() || !Load2->isMachineOpcode())
+    return false;
+
+  switch (Load1->getMachineOpcode()) {
+  default:
+    return false;
+  case ARM::LDR:
+  case ARM::LDRB:
+  case ARM::LDRD:
+  case ARM::LDRH:
+  case ARM::LDRSB:
+  case ARM::LDRSH:
+  case ARM::VLDRD:
+  case ARM::VLDRS:
+  case ARM::t2LDRi8:
+  case ARM::t2LDRDi8:
+  case ARM::t2LDRSHi8:
+  case ARM::t2LDRi12:
+  case ARM::t2LDRSHi12:
+    break;
+  }
+
+  switch (Load2->getMachineOpcode()) {
+  default:
+    return false;
+  case ARM::LDR:
+  case ARM::LDRB:
+  case ARM::LDRD:
+  case ARM::LDRH:
+  case ARM::LDRSB:
+  case ARM::LDRSH:
+  case ARM::VLDRD:
+  case ARM::VLDRS:
+  case ARM::t2LDRi8:
+  case ARM::t2LDRDi8:
+  case ARM::t2LDRSHi8:
+  case ARM::t2LDRi12:
+  case ARM::t2LDRSHi12:
+    break;
+  }
+
+  // Check if base addresses and chain operands match.
+  if (Load1->getOperand(0) != Load2->getOperand(0) ||
+      Load1->getOperand(4) != Load2->getOperand(4))
+    return false;
+
+  // Index should be Reg0.
+  if (Load1->getOperand(3) != Load2->getOperand(3))
+    return false;
+
+  // Determine the offsets.
+  if (isa<ConstantSDNode>(Load1->getOperand(1)) &&
+      isa<ConstantSDNode>(Load2->getOperand(1))) {
+    Offset1 = cast<ConstantSDNode>(Load1->getOperand(1))->getSExtValue();
+    Offset2 = cast<ConstantSDNode>(Load2->getOperand(1))->getSExtValue();
+    return true;
+  }
+
+  return false;
+}
+
+/// shouldScheduleLoadsNear - This is a used by the pre-regalloc scheduler to
+/// determine (in conjuction with areLoadsFromSameBasePtr) if two loads should
+/// be scheduled togther. On some targets if two loads are loading from
+/// addresses in the same cache line, it's better if they are scheduled
+/// together. This function takes two integers that represent the load offsets
+/// from the common base address. It returns true if it decides it's desirable
+/// to schedule the two loads together. "NumLoads" is the number of loads that
+/// have already been scheduled after Load1.
+bool ARMBaseInstrInfo::shouldScheduleLoadsNear(SDNode *Load1, SDNode *Load2,
+                                               int64_t Offset1, int64_t Offset2,
+                                               unsigned NumLoads) const {
+  // Don't worry about Thumb: just ARM and Thumb2.
+  if (Subtarget.isThumb1Only()) return false;
+
+  assert(Offset2 > Offset1);
+
+  if ((Offset2 - Offset1) / 8 > 64)
+    return false;
+
+  if (Load1->getMachineOpcode() != Load2->getMachineOpcode())
+    return false;  // FIXME: overly conservative?
+
+  // Four loads in a row should be sufficient.
+  if (NumLoads >= 3)
+    return false;
+
+  return true;
+}
+
+bool ARMBaseInstrInfo::isSchedulingBoundary(const MachineInstr *MI,
+                                            const MachineBasicBlock *MBB,
+                                            const MachineFunction &MF) const {
+  // Debug info is never a scheduling boundary. It's necessary to be explicit
+  // due to the special treatment of IT instructions below, otherwise a
+  // dbg_value followed by an IT will result in the IT instruction being
+  // considered a scheduling hazard, which is wrong. It should be the actual
+  // instruction preceding the dbg_value instruction(s), just like it is
+  // when debug info is not present.
+  if (MI->isDebugValue())
+    return false;
+
+  // Terminators and labels can't be scheduled around.
+  if (MI->getDesc().isTerminator() || MI->isLabel())
+    return true;
+
+  // Treat the start of the IT block as a scheduling boundary, but schedule
+  // t2IT along with all instructions following it.
+  // FIXME: This is a big hammer. But the alternative is to add all potential
+  // true and anti dependencies to IT block instructions as implicit operands
+  // to the t2IT instruction. The added compile time and complexity does not
+  // seem worth it.
+  MachineBasicBlock::const_iterator I = MI;
+  // Make sure to skip any dbg_value instructions
+  while (++I != MBB->end() && I->isDebugValue())
+    ;
+  if (I != MBB->end() && I->getOpcode() == ARM::t2IT)
+    return true;
+
+  // Don't attempt to schedule around any instruction that defines
+  // a stack-oriented pointer, as it's unlikely to be profitable. This
+  // saves compile time, because it doesn't require every single
+  // stack slot reference to depend on the instruction that does the
+  // modification.
+  if (MI->definesRegister(ARM::SP))
+    return true;
+
+  return false;
+}
+
+bool ARMBaseInstrInfo::
+isProfitableToIfCvt(MachineBasicBlock &MBB, unsigned NumInstrs) const {
+  if (!NumInstrs)
+    return false;
+  if (Subtarget.getCPUString() == "generic")
+    // Generic (and overly aggressive) if-conversion limits for testing.
+    return NumInstrs <= 10;
+  else if (Subtarget.hasV7Ops())
+    return NumInstrs <= 3;
+  return NumInstrs <= 2;
+}
+  
+bool ARMBaseInstrInfo::
+isProfitableToIfCvt(MachineBasicBlock &TMBB, unsigned NumT,
+                    MachineBasicBlock &FMBB, unsigned NumF) const {
+  return NumT && NumF && NumT <= 2 && NumF <= 2;
 }
 
 /// getInstrPredicate - If instruction is predicated, returns its predicate

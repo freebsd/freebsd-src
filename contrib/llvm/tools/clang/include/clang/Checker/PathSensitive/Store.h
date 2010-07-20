@@ -64,6 +64,10 @@ public:
   ///   to the location given for \c loc.
   virtual Store Bind(Store store, Loc loc, SVal val) = 0;
 
+  virtual Store BindDefault(Store store, const MemRegion *R, SVal V) {
+    return store;
+  }
+
   virtual Store Remove(Store St, Loc L) = 0;
 
   /// BindCompoundLiteral - Return the store that has the bindings currently
@@ -87,16 +91,16 @@ public:
   //   caller's responsibility to 'delete' the returned map.
   virtual SubRegionMap *getSubRegionMap(Store store) = 0;
 
-  virtual SVal getLValueVar(const VarDecl *VD, const LocationContext *LC) {
+  virtual Loc getLValueVar(const VarDecl *VD, const LocationContext *LC) {
     return ValMgr.makeLoc(MRMgr.getVarRegion(VD, LC));
   }
 
-  virtual SVal getLValueString(const StringLiteral* S) {
+  virtual Loc getLValueString(const StringLiteral* S) {
     return ValMgr.makeLoc(MRMgr.getStringRegion(S));
   }
 
-  SVal getLValueCompoundLiteral(const CompoundLiteralExpr* CL,
-                                const LocationContext *LC) {
+  Loc getLValueCompoundLiteral(const CompoundLiteralExpr* CL,
+                               const LocationContext *LC) {
     return loc::MemRegionVal(MRMgr.getCompoundLiteralRegion(CL, LC));
   }
 
@@ -110,7 +114,8 @@ public:
 
   virtual SVal getLValueElement(QualType elementType, SVal offset, SVal Base);
 
-  // FIXME: Make out-of-line.
+  // FIXME: This should soon be eliminated altogether; clients should deal with
+  // region extents directly.
   virtual DefinedOrUnknownSVal getSizeInElements(const GRState *state, 
                                                  const MemRegion *region,
                                                  QualType EleTy) {
@@ -144,7 +149,7 @@ public:
     return UnknownVal();
   }
 
-  virtual const GRState *RemoveDeadBindings(GRState &state, Stmt* Loc,
+  virtual const GRState *RemoveDeadBindings(GRState &state,
                                             const StackFrameContext *LCtx,
                                             SymbolReaper& SymReaper,
                       llvm::SmallVectorImpl<const MemRegion*>& RegionRoots) = 0;
@@ -164,18 +169,8 @@ public:
                                   const MemRegion * const *Begin,
                                   const MemRegion * const *End,
                                   const Expr *E, unsigned Count,
-                                  InvalidatedSymbols *IS);  
-
-  // FIXME: Make out-of-line.
-  virtual const GRState *setExtent(const GRState *state,
-                                   const MemRegion *region, SVal extent) {
-    return state;
-  }
-
-  virtual llvm::Optional<SVal> getExtent(const GRState *state, 
-                                         const MemRegion *R) {
-    return llvm::Optional<SVal>();
-  }
+                                  InvalidatedSymbols *IS,
+                                  bool invalidateGlobals) = 0;
 
   /// EnterStackFrame - Let the StoreManager to do something when execution
   /// engine is about to execute into a callee.

@@ -70,8 +70,7 @@ static const Module *getModuleFromVal(const Value *V) {
 
 // PrintEscapedString - Print each character of the specified string, escaping
 // it if it is not printable or if it is an escape char.
-static void PrintEscapedString(const StringRef &Name,
-                               raw_ostream &Out) {
+static void PrintEscapedString(StringRef Name, raw_ostream &Out) {
   for (unsigned i = 0, e = Name.size(); i != e; ++i) {
     unsigned char C = Name[i];
     if (isprint(C) && C != '\\' && C != '"')
@@ -91,8 +90,7 @@ enum PrefixType {
 /// PrintLLVMName - Turn the specified name into an 'LLVM name', which is either
 /// prefixed with % (if the string only contains simple characters) or is
 /// surrounded with ""'s (if it has special chars in it).  Print it out.
-static void PrintLLVMName(raw_ostream &OS, const StringRef &Name,
-                          PrefixType Prefix) {
+static void PrintLLVMName(raw_ostream &OS, StringRef Name, PrefixType Prefix) {
   assert(Name.data() && "Cannot get empty name!");
   switch (Prefix) {
   default: llvm_unreachable("Bad prefix!");
@@ -856,8 +854,9 @@ static void WriteOptimizationInfo(raw_ostream &Out, const User *U) {
   }
 }
 
-static void WriteConstantInt(raw_ostream &Out, const Constant *CV,
-                             TypePrinting &TypePrinter, SlotTracker *Machine) {
+static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
+                                  TypePrinting &TypePrinter,
+                                  SlotTracker *Machine) {
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
     if (CI->getType()->isIntegerTy(1)) {
       Out << (CI->getZExtValue() ? "true" : "false");
@@ -1148,7 +1147,7 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
   const Constant *CV = dyn_cast<Constant>(V);
   if (CV && !isa<GlobalValue>(CV)) {
     assert(TypePrinter && "Constants require TypePrinting!");
-    WriteConstantInt(Out, CV, *TypePrinter, Machine);
+    WriteConstantInternal(Out, CV, *TypePrinter, Machine);
     return;
   }
 
@@ -1419,6 +1418,9 @@ static void PrintLinkage(GlobalValue::LinkageTypes LT,
   case GlobalValue::ExternalLinkage: break;
   case GlobalValue::PrivateLinkage:       Out << "private ";        break;
   case GlobalValue::LinkerPrivateLinkage: Out << "linker_private "; break;
+  case GlobalValue::LinkerPrivateWeakLinkage:
+    Out << "linker_private_weak ";
+    break;
   case GlobalValue::InternalLinkage:      Out << "internal ";       break;
   case GlobalValue::LinkOnceAnyLinkage:   Out << "linkonce ";       break;
   case GlobalValue::LinkOnceODRLinkage:   Out << "linkonce_odr ";   break;
@@ -1469,8 +1471,11 @@ void AssemblyWriter::printGlobal(const GlobalVariable *GV) {
     writeOperand(GV->getInitializer(), false);
   }
 
-  if (GV->hasSection())
-    Out << ", section \"" << GV->getSection() << '"';
+  if (GV->hasSection()) {
+    Out << ", section \"";
+    PrintEscapedString(GV->getSection(), Out);
+    Out << '"';
+  }
   if (GV->getAlignment())
     Out << ", align " << GV->getAlignment();
 
@@ -1628,8 +1633,11 @@ void AssemblyWriter::printFunction(const Function *F) {
   Attributes FnAttrs = Attrs.getFnAttributes();
   if (FnAttrs != Attribute::None)
     Out << ' ' << Attribute::getAsString(Attrs.getFnAttributes());
-  if (F->hasSection())
-    Out << " section \"" << F->getSection() << '"';
+  if (F->hasSection()) {
+    Out << " section \"";
+    PrintEscapedString(F->getSection(), Out);
+    Out << '"';
+  }
   if (F->getAlignment())
     Out << " align " << F->getAlignment();
   if (F->hasGC())
@@ -1854,6 +1862,7 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     default: Out << " cc" << CI->getCallingConv(); break;
     }
 
+    Operand = CI->getCalledValue();
     const PointerType    *PTy = cast<PointerType>(Operand->getType());
     const FunctionType   *FTy = cast<FunctionType>(PTy->getElementType());
     const Type         *RetTy = FTy->getReturnType();
@@ -1877,10 +1886,10 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
       writeOperand(Operand, true);
     }
     Out << '(';
-    for (unsigned op = 1, Eop = I.getNumOperands(); op < Eop; ++op) {
-      if (op > 1)
+    for (unsigned op = 0, Eop = CI->getNumArgOperands(); op < Eop; ++op) {
+      if (op > 0)
         Out << ", ";
-      writeParamOperand(I.getOperand(op), PAL.getParamAttributes(op));
+      writeParamOperand(CI->getArgOperand(op), PAL.getParamAttributes(op + 1));
     }
     Out << ')';
     if (PAL.getFnAttributes() != Attribute::None)
@@ -1925,10 +1934,10 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
       writeOperand(Operand, true);
     }
     Out << '(';
-    for (unsigned op = 0, Eop = I.getNumOperands() - 3; op < Eop; ++op) {
+    for (unsigned op = 0, Eop = II->getNumArgOperands(); op < Eop; ++op) {
       if (op)
         Out << ", ";
-      writeParamOperand(I.getOperand(op), PAL.getParamAttributes(op + 1));
+      writeParamOperand(II->getArgOperand(op), PAL.getParamAttributes(op + 1));
     }
 
     Out << ')';
@@ -2027,7 +2036,7 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
 }
 
 static void WriteMDNodeComment(const MDNode *Node,
-			       formatted_raw_ostream &Out) {
+                               formatted_raw_ostream &Out) {
   if (Node->getNumOperands() < 1)
     return;
   ConstantInt *CI = dyn_cast_or_null<ConstantInt>(Node->getOperand(0));
@@ -2119,7 +2128,7 @@ void Value::print(raw_ostream &ROS, AssemblyAnnotationWriter *AAW) const {
   } else if (const MDNode *N = dyn_cast<MDNode>(this)) {
     const Function *F = N->getFunction();
     SlotTracker SlotTable(F);
-    AssemblyWriter W(OS, SlotTable, F ? getModuleFromVal(F) : 0, AAW);
+    AssemblyWriter W(OS, SlotTable, F ? F->getParent() : 0, AAW);
     W.printMDNodeBody(N);
   } else if (const NamedMDNode *N = dyn_cast<NamedMDNode>(this)) {
     SlotTracker SlotTable(N->getParent());
@@ -2129,7 +2138,7 @@ void Value::print(raw_ostream &ROS, AssemblyAnnotationWriter *AAW) const {
     TypePrinting TypePrinter;
     TypePrinter.print(C->getType(), OS);
     OS << ' ';
-    WriteConstantInt(OS, C, TypePrinter, 0);
+    WriteConstantInternal(OS, C, TypePrinter, 0);
   } else if (isa<InlineAsm>(this) || isa<MDString>(this) ||
              isa<Argument>(this)) {
     WriteAsOperand(OS, this, true, 0);

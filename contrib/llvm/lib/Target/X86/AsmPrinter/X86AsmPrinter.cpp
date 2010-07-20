@@ -17,7 +17,6 @@
 #include "X86IntelInstPrinter.h"
 #include "X86MCInstLower.h"
 #include "X86.h"
-#include "X86COFF.h"
 #include "X86COFFMachineModuleInfo.h"
 #include "X86MachineFunctionInfo.h"
 #include "X86TargetMachine.h"
@@ -35,6 +34,7 @@
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
+#include "llvm/Support/COFF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetOptions.h"
@@ -60,8 +60,10 @@ bool X86AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   if (Subtarget->isTargetCOFF()) {
     bool Intrn = MF.getFunction()->hasInternalLinkage();
     OutStreamer.BeginCOFFSymbolDef(CurrentFnSym);
-    OutStreamer.EmitCOFFSymbolStorageClass(Intrn ? COFF::C_STAT : COFF::C_EXT);
-    OutStreamer.EmitCOFFSymbolType(COFF::DT_FCN << COFF::N_BTSHFT);
+    OutStreamer.EmitCOFFSymbolStorageClass(Intrn ? COFF::IMAGE_SYM_CLASS_STATIC 
+                                              : COFF::IMAGE_SYM_CLASS_EXTERNAL);
+    OutStreamer.EmitCOFFSymbolType(COFF::IMAGE_SYM_DTYPE_FUNCTION
+                                               << COFF::SCT_COMPLEX_TYPE_SHIFT);
     OutStreamer.EndCOFFSymbolDef();
   }
 
@@ -200,6 +202,11 @@ void X86AsmPrinter::printSymbolOperand(const MachineOperand &MO,
   case X86II::MO_GOT:       O << "@GOT";       break;
   case X86II::MO_GOTOFF:    O << "@GOTOFF";    break;
   case X86II::MO_PLT:       O << "@PLT";       break;
+  case X86II::MO_TLVP:      O << "@TLVP";      break;
+  case X86II::MO_TLVP_PIC_BASE:
+    O << "@TLVP" << '-';
+    PrintPICBaseSymbol(O);
+    break;
   }
 }
 
@@ -383,6 +390,8 @@ bool X86AsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
       } 
       if (MO.isGlobal() || MO.isCPI() || MO.isJTI() || MO.isSymbol()) {
         printSymbolOperand(MO, O);
+        if (Subtarget->isPICStyleRIPRel())
+          O << "(%rip)";
         return false;
       }
       if (MO.isReg()) {
@@ -575,8 +584,9 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
                             E = COFFMMI.externals_end();
                             I != E; ++I) {
       OutStreamer.BeginCOFFSymbolDef(CurrentFnSym);
-      OutStreamer.EmitCOFFSymbolStorageClass(COFF::C_EXT);
-      OutStreamer.EmitCOFFSymbolType(COFF::DT_FCN << COFF::N_BTSHFT);
+      OutStreamer.EmitCOFFSymbolStorageClass(COFF::IMAGE_SYM_CLASS_EXTERNAL);
+      OutStreamer.EmitCOFFSymbolType(COFF::IMAGE_SYM_DTYPE_FUNCTION
+                                               << COFF::SCT_COMPLEX_TYPE_SHIFT);
       OutStreamer.EndCOFFSymbolDef();
     }
 

@@ -329,12 +329,15 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
   if (OptLevel != CodeGenOpt::None)
     PM.add(createOptimizePHIsPass());
 
-  // Delete dead machine instructions regardless of optimization level.
-  PM.add(createDeadMachineInstructionElimPass());
-  printAndVerify(PM, "After codegen DCE pass",
-                 /* allowDoubleDefs= */ true);
-
   if (OptLevel != CodeGenOpt::None) {
+    // With optimization, dead code should already be eliminated. However
+    // there is one known exception: lowered code for arguments that are only
+    // used by tail calls, where the tail calls reuse the incoming stack
+    // arguments directly (see t11 in test/CodeGen/X86/sibcall.ll).
+    PM.add(createDeadMachineInstructionElimPass());
+    printAndVerify(PM, "After codegen DCE pass",
+                   /* allowDoubleDefs= */ true);
+
     PM.add(createOptimizeExtsPass());
     if (!DisableMachineLICM)
       PM.add(createMachineLICMPass());
@@ -358,7 +361,7 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
                    /* allowDoubleDefs= */ true);
 
   // Perform register allocation.
-  PM.add(createRegisterAllocator());
+  PM.add(createRegisterAllocator(OptLevel));
   printAndVerify(PM, "After Register Allocation");
 
   // Perform stack slot coloring and post-ra machine LICM.

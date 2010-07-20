@@ -16,6 +16,7 @@
 #ifndef LLVM_CLANG_ANALYSIS_GREXPRENGINE
 #define LLVM_CLANG_ANALYSIS_GREXPRENGINE
 
+#include "clang/Checker/PathSensitive/AnalysisManager.h"
 #include "clang/Checker/PathSensitive/GRSubEngine.h"
 #include "clang/Checker/PathSensitive/GRCoreEngine.h"
 #include "clang/Checker/PathSensitive/GRState.h"
@@ -75,14 +76,25 @@ class GRExprEngine : public GRSubEngine {
   llvm::OwningPtr<GRSimpleAPICheck> BatchAuditor;
 
   typedef llvm::DenseMap<void *, unsigned> CheckerMap;
-  CheckerMap CheckerM;
-  
   typedef std::vector<std::pair<void *, Checker*> > CheckersOrdered;
+  typedef llvm::DenseMap<std::pair<unsigned, unsigned>, CheckersOrdered *>
+          CheckersOrderedCache;
+  
+  /// A registration map from checker tag to the index into the
+  ///  ordered checkers vector.
+  CheckerMap CheckerM;
+
+  /// An ordered vector of checkers that are called when evaluating
+  ///  various expressions and statements.
   CheckersOrdered Checkers;
 
-  /// BR - The BugReporter associated with this engine.  It is important that
-  //   this object be placed at the very end of member variables so that its
-  //   destructor is called before the rest of the GRExprEngine is destroyed.
+  /// A map used for caching the checkers that respond to the callback for
+  ///  a particular statement and visitation order.
+  CheckersOrderedCache COCache;
+
+  /// The BugReporter associated with this engine.  It is important that
+  ///  this object be placed at the very end of member variables so that its
+  ///  destructor is called before the rest of the GRExprEngine is destroyed.
   GRBugReporter BR;
   
   llvm::OwningPtr<GRTransferFuncs> TF;
@@ -106,7 +118,7 @@ public:
   }
 
   /// getContext - Return the ASTContext associated with this analysis.
-  ASTContext& getContext() const { return G.getContext(); }
+  ASTContext& getContext() const { return AMgr.getASTContext(); }
 
   AnalysisManager &getAnalysisManager() const { return AMgr; }
 
@@ -178,11 +190,14 @@ public:
   ///  nodes when the control reaches the end of a function.
   void ProcessEndPath(GREndPathNodeBuilder& builder);
 
-  // Generate the entry node of the callee.
+  /// Generate the entry node of the callee.
   void ProcessCallEnter(GRCallEnterNodeBuilder &builder);
 
-  // Generate the first post callsite node.
+  /// Generate the first post callsite node.
   void ProcessCallExit(GRCallExitNodeBuilder &builder);
+
+  /// Called by GRCoreEngine when the analysis worklist has terminated.
+  void ProcessEndWorklist(bool hasWorkRemaining);
 
   /// EvalAssume - Callback function invoked by the ConstraintManager when
   ///  making assumptions about state values.

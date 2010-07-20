@@ -203,7 +203,6 @@ class Instruction {
   bit canFoldAsLoad = 0;    // Can this be folded as a simple memory operand?
   bit mayLoad      = 0;     // Is it possible for this inst to read memory?
   bit mayStore     = 0;     // Is it possible for this inst to write memory?
-  bit isTwoAddress = 0;     // Is this a two address instruction?
   bit isConvertibleToThreeAddress = 0;  // Can this 2-addr instruction promote?
   bit isCommutable = 0;     // Is this 3 operand instruction commutable?
   bit isTerminator = 0;     // Is this part of the terminator for a basic block?
@@ -244,7 +243,7 @@ class Instruction {
   string DisableEncoding = "";
 
   /// Target-specific flags. This becomes the TSFlags field in TargetInstrDesc.
-  bits<32> TSFlags = 0;
+  bits<64> TSFlags = 0;
 }
 
 /// Predicates - These are extra conditionals which are turned into instruction
@@ -397,24 +396,23 @@ class InstrInfo {
 }
 
 // Standard Pseudo Instructions.
-let isCodeGenOnly = 1 in {
+// This list must match TargetOpcodes.h and CodeGenTarget.cpp.
+// Only these instructions are allowed in the TargetOpcode namespace.
+let isCodeGenOnly = 1, Namespace = "TargetOpcode" in {
 def PHI : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "PHINODE";
-  let Namespace = "TargetOpcode";
 }
 def INLINEASM : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
 }
 def DBG_LABEL : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
   let hasCtrlDep = 1;
   let isNotDuplicable = 1;
 }
@@ -422,7 +420,6 @@ def EH_LABEL : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
   let hasCtrlDep = 1;
   let isNotDuplicable = 1;
 }
@@ -430,7 +427,6 @@ def GC_LABEL : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
   let hasCtrlDep = 1;
   let isNotDuplicable = 1;
 }
@@ -438,21 +434,18 @@ def KILL : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
   let neverHasSideEffects = 1;
 }
 def EXTRACT_SUBREG : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$supersrc, i32imm:$subidx);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
   let neverHasSideEffects = 1;
 }
 def INSERT_SUBREG : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$supersrc, unknown:$subsrc, i32imm:$subidx);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
   let neverHasSideEffects = 1;
   let Constraints = "$supersrc = $dst";
 }
@@ -460,7 +453,6 @@ def IMPLICIT_DEF : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
   let neverHasSideEffects = 1;
   let isReMaterializable = 1;
   let isAsCheapAsAMove = 1;
@@ -469,14 +461,12 @@ def SUBREG_TO_REG : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$implsrc, unknown:$subsrc, i32imm:$subidx);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
   let neverHasSideEffects = 1;
 }
 def COPY_TO_REGCLASS : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$src, i32imm:$regclass);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
   let neverHasSideEffects = 1;
   let isAsCheapAsAMove = 1;
 }
@@ -484,15 +474,19 @@ def DBG_VALUE : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "DBG_VALUE";
-  let Namespace = "TargetOpcode";
   let isAsCheapAsAMove = 1;
 }
-
 def REG_SEQUENCE : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins variable_ops);
   let AsmString = "";
-  let Namespace = "TargetOpcode";
+  let neverHasSideEffects = 1;
+  let isAsCheapAsAMove = 1;
+}
+def COPY : Instruction {
+  let OutOperandList = (outs unknown:$dst);
+  let InOperandList = (ins unknown:$src);
+  let AsmString = "";
   let neverHasSideEffects = 1;
   let isAsCheapAsAMove = 1;
 }

@@ -51,14 +51,17 @@ protected:
   unsigned char FloatWidth, FloatAlign;
   unsigned char DoubleWidth, DoubleAlign;
   unsigned char LongDoubleWidth, LongDoubleAlign;
+  unsigned char LargeArrayMinWidth, LargeArrayAlign;
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
   const char *DescriptionString;
   const char *UserLabelPrefix;
   const llvm::fltSemantics *FloatFormat, *DoubleFormat, *LongDoubleFormat;
   unsigned char RegParmMax, SSERegParmMax;
+  std::string CXXABI;
 
   unsigned HasAlignMac68kSupport : 1;
+  unsigned RealTypeUsesObjCFPRet : 3;
 
   // TargetInfo Constructor.  Default initializes all fields.
   TargetInfo(const std::string &T);
@@ -85,6 +88,13 @@ public:
     SignedLongLong,
     UnsignedLongLong
   };
+
+  enum RealType {
+    Float = 0,
+    Double,
+    LongDouble
+  };
+
 protected:
   IntType SizeType, IntMaxType, UIntMaxType, PtrDiffType, IntPtrType, WCharType,
           WIntType, Char16Type, Char32Type, Int64Type, SigAtomicType;
@@ -194,6 +204,11 @@ public:
     return *LongDoubleFormat;
   }
 
+  // getLargeArrayMinWidth/Align - Return the minimum array size that is
+  // 'large' and its alignment.
+  unsigned getLargeArrayMinWidth() const { return LargeArrayMinWidth; }
+  unsigned getLargeArrayAlign() const { return LargeArrayAlign; }
+
   /// getIntMaxTWidth - Return the size of intmax_t and uintmax_t for this
   /// target, in bits.
   unsigned getIntMaxTWidth() const {
@@ -225,6 +240,12 @@ public:
   /// getTypeConstantSuffix - Return the constant suffix for the specified
   /// integer type enum. For example, SignedLong -> "L".
   static const char *getTypeConstantSuffix(IntType T);
+
+  /// \brief Check whether the given real type should use the "fpret" flavor of
+  /// Obj-C message passing on this target.
+  bool useObjCFPRetForRealType(RealType T) const {
+    return RealTypeUsesObjCFPRet & (1 << T);
+  }
 
   ///===---- Other target property query methods --------------------------===//
 
@@ -390,6 +411,11 @@ public:
     return "";
   }
 
+  /// getCXXABI - Get the C++ ABI in use.
+  virtual llvm::StringRef getCXXABI() const {
+    return CXXABI;
+  }
+
   /// setCPU - Target the specific CPU.
   ///
   /// \return - False on error (invalid CPU name).
@@ -404,6 +430,16 @@ public:
   /// \return - False on error (invalid ABI name).
   virtual bool setABI(const std::string &Name) {
     return false;
+  }
+
+  /// setCXXABI - Use this specific C++ ABI.
+  ///
+  /// \return - False on error (invalid ABI name).
+  virtual bool setCXXABI(const std::string &Name) {
+    if (Name != "itanium" && Name != "microsoft")
+      return false;
+    CXXABI = Name;
+    return true;
   }
 
   /// setFeatureEnabled - Enable or disable a specific target feature,
@@ -450,7 +486,12 @@ public:
     return -1; 
   }
   
-
+  /// getStaticInitSectionSpecifier - Return the section to use for C++ static 
+  /// initialization functions.
+  virtual const char *getStaticInitSectionSpecifier() const {
+    return 0;
+  }
+  
 protected:
   virtual uint64_t getPointerWidthV(unsigned AddrSpace) const {
     return PointerWidth;

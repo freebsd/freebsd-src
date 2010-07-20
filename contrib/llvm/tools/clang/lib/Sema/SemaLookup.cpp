@@ -447,11 +447,114 @@ static bool LookupBuiltin(Sema &S, LookupResult &R) {
   return false;
 }
 
+/// \brief Determine whether we can declare a special member function within
+/// the class at this point.
+static bool CanDeclareSpecialMemberFunction(ASTContext &Context,
+                                            const CXXRecordDecl *Class) {
+  // We need to have a definition for the class.
+  if (!Class->getDefinition() || Class->isDependentContext())
+    return false;
+  
+  // We can't be in the middle of defining the class.
+  if (const RecordType *RecordTy
+                        = Context.getTypeDeclType(Class)->getAs<RecordType>())
+    return !RecordTy->isBeingDefined();
+    
+  return false;
+}
+
+void Sema::ForceDeclarationOfImplicitMembers(CXXRecordDecl *Class) {
+  if (!CanDeclareSpecialMemberFunction(Context, Class))
+    return;
+
+  // If the default constructor has not yet been declared, do so now.
+  if (!Class->hasDeclaredDefaultConstructor())
+    DeclareImplicitDefaultConstructor(Class);
+  
+  // If the copy constructor has not yet been declared, do so now.
+  if (!Class->hasDeclaredCopyConstructor())
+    DeclareImplicitCopyConstructor(Class);
+  
+  // If the copy assignment operator has not yet been declared, do so now.
+  if (!Class->hasDeclaredCopyAssignment())
+    DeclareImplicitCopyAssignment(Class);
+
+  // If the destructor has not yet been declared, do so now.
+  if (!Class->hasDeclaredDestructor())
+    DeclareImplicitDestructor(Class);  
+}
+
+/// \brief Determine whether this is the name of an implicitly-declared 
+/// special member function.
+static bool isImplicitlyDeclaredMemberFunctionName(DeclarationName Name) {
+  switch (Name.getNameKind()) {
+  case DeclarationName::CXXConstructorName:
+  case DeclarationName::CXXDestructorName:
+    return true;
+    
+  case DeclarationName::CXXOperatorName:
+    return Name.getCXXOverloadedOperator() == OO_Equal;
+    
+  default:
+    break;      
+  }
+  
+  return false;
+}
+
+/// \brief If there are any implicit member functions with the given name
+/// that need to be declared in the given declaration context, do so.
+static void DeclareImplicitMemberFunctionsWithName(Sema &S, 
+                                                   DeclarationName Name,
+                                                   const DeclContext *DC) {
+  if (!DC)
+    return;
+  
+  switch (Name.getNameKind()) {
+  case DeclarationName::CXXConstructorName:
+    if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(DC))
+      if (Record->getDefinition() &&
+          CanDeclareSpecialMemberFunction(S.Context, Record)) {
+        if (!Record->hasDeclaredDefaultConstructor())
+          S.DeclareImplicitDefaultConstructor(
+                                           const_cast<CXXRecordDecl *>(Record));
+        if (!Record->hasDeclaredCopyConstructor())
+          S.DeclareImplicitCopyConstructor(const_cast<CXXRecordDecl *>(Record));
+      }
+    break;
+      
+  case DeclarationName::CXXDestructorName:
+    if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(DC))
+      if (Record->getDefinition() && !Record->hasDeclaredDestructor() &&
+          CanDeclareSpecialMemberFunction(S.Context, Record))
+        S.DeclareImplicitDestructor(const_cast<CXXRecordDecl *>(Record));
+    break;
+    
+  case DeclarationName::CXXOperatorName:
+    if (Name.getCXXOverloadedOperator() != OO_Equal)
+      break;
+    
+    if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(DC))
+      if (Record->getDefinition() && !Record->hasDeclaredCopyAssignment() &&
+          CanDeclareSpecialMemberFunction(S.Context, Record))
+        S.DeclareImplicitCopyAssignment(const_cast<CXXRecordDecl *>(Record));
+    break;
+    
+  default:
+    break;      
+  }
+}
+
 // Adds all qualifying matches for a name within a decl context to the
 // given lookup result.  Returns true if any matches were found.
 static bool LookupDirect(Sema &S, LookupResult &R, const DeclContext *DC) {
   bool Found = false;
 
+  // Lazily declare C++ special member functions.
+  if (S.getLangOptions().CPlusPlus)
+    DeclareImplicitMemberFunctionsWithName(S, R.getLookupName(), DC);
+  
+  // Perform lookup into this declaration context.
   DeclContext::lookup_const_iterator I, E;
   for (llvm::tie(I, E) = DC->lookup(R.getLookupName()); I != E; ++I) {
     NamedDecl *D = *I;
@@ -639,6 +742,17 @@ bool Sema::CppLookupName(LookupResult &R, Scope *S) {
   assert(getLangOptions().CPlusPlus && "Can perform only C++ lookup");
 
   DeclarationName Name = R.getLookupName();
+
+  // If this is the name of an implicitly-declared special member function,
+  // go through the scope stack to implicitly declare
+  if (isImplicitlyDeclaredMemberFunctionName(Name)) {
+    for (Scope *PreS = S; PreS; PreS = PreS->getParent())
+      if (DeclContext *DC = static_cast<DeclContext *>(PreS->getEntity()))
+        DeclareImplicitMemberFunctionsWithName(*this, Name, DC);
+  }
+    
+  // Implicitly declare member functions with the name we're looking for, if in
+  // fact we are in a scope where it matters.
 
   Scope *Initial = S;
   IdentifierResolver::iterator
@@ -1127,7 +1241,7 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
   // If this isn't a C++ class, we aren't allowed to look into base
   // classes, we're done.
   CXXRecordDecl *LookupRec = dyn_cast<CXXRecordDecl>(LookupCtx);
-  if (!LookupRec)
+  if (!LookupRec || !LookupRec->getDefinition())
     return false;
 
   // If we're performing qualified name lookup into a dependent class,
@@ -1416,11 +1530,22 @@ bool Sema::DiagnoseAmbiguousLookup(LookupResult &Result) {
   return true;
 }
 
+namespace {
+  struct AssociatedLookup {
+    AssociatedLookup(Sema &S,
+                     Sema::AssociatedNamespaceSet &Namespaces,
+                     Sema::AssociatedClassSet &Classes)
+      : S(S), Namespaces(Namespaces), Classes(Classes) {
+    }
+
+    Sema &S;
+    Sema::AssociatedNamespaceSet &Namespaces;
+    Sema::AssociatedClassSet &Classes;
+  };
+}
+
 static void
-addAssociatedClassesAndNamespaces(QualType T,
-                                  ASTContext &Context,
-                          Sema::AssociatedNamespaceSet &AssociatedNamespaces,
-                                  Sema::AssociatedClassSet &AssociatedClasses);
+addAssociatedClassesAndNamespaces(AssociatedLookup &Result, QualType T);
 
 static void CollectEnclosingNamespace(Sema::AssociatedNamespaceSet &Namespaces,
                                       DeclContext *Ctx) {
@@ -1439,10 +1564,8 @@ static void CollectEnclosingNamespace(Sema::AssociatedNamespaceSet &Namespaces,
 // \brief Add the associated classes and namespaces for argument-dependent
 // lookup that involves a template argument (C++ [basic.lookup.koenig]p2).
 static void
-addAssociatedClassesAndNamespaces(const TemplateArgument &Arg,
-                                  ASTContext &Context,
-                           Sema::AssociatedNamespaceSet &AssociatedNamespaces,
-                                  Sema::AssociatedClassSet &AssociatedClasses) {
+addAssociatedClassesAndNamespaces(AssociatedLookup &Result,
+                                  const TemplateArgument &Arg) {
   // C++ [basic.lookup.koenig]p2, last bullet:
   //   -- [...] ;
   switch (Arg.getKind()) {
@@ -1453,9 +1576,7 @@ addAssociatedClassesAndNamespaces(const TemplateArgument &Arg,
       // [...] the namespaces and classes associated with the types of the
       // template arguments provided for template type parameters (excluding
       // template template parameters)
-      addAssociatedClassesAndNamespaces(Arg.getAsType(), Context,
-                                        AssociatedNamespaces,
-                                        AssociatedClasses);
+      addAssociatedClassesAndNamespaces(Result, Arg.getAsType());
       break;
 
     case TemplateArgument::Template: {
@@ -1467,9 +1588,9 @@ addAssociatedClassesAndNamespaces(const TemplateArgument &Arg,
                  = dyn_cast<ClassTemplateDecl>(Template.getAsTemplateDecl())) {
         DeclContext *Ctx = ClassTemplate->getDeclContext();
         if (CXXRecordDecl *EnclosingClass = dyn_cast<CXXRecordDecl>(Ctx))
-          AssociatedClasses.insert(EnclosingClass);
+          Result.Classes.insert(EnclosingClass);
         // Add the associated namespace for this class.
-        CollectEnclosingNamespace(AssociatedNamespaces, Ctx);
+        CollectEnclosingNamespace(Result.Namespaces, Ctx);
       }
       break;
     }
@@ -1485,9 +1606,7 @@ addAssociatedClassesAndNamespaces(const TemplateArgument &Arg,
       for (TemplateArgument::pack_iterator P = Arg.pack_begin(),
                                         PEnd = Arg.pack_end();
            P != PEnd; ++P)
-        addAssociatedClassesAndNamespaces(*P, Context,
-                                          AssociatedNamespaces,
-                                          AssociatedClasses);
+        addAssociatedClassesAndNamespaces(Result, *P);
       break;
   }
 }
@@ -1496,10 +1615,13 @@ addAssociatedClassesAndNamespaces(const TemplateArgument &Arg,
 // argument-dependent lookup with an argument of class type
 // (C++ [basic.lookup.koenig]p2).
 static void
-addAssociatedClassesAndNamespaces(CXXRecordDecl *Class,
-                                  ASTContext &Context,
-                            Sema::AssociatedNamespaceSet &AssociatedNamespaces,
-                            Sema::AssociatedClassSet &AssociatedClasses) {
+addAssociatedClassesAndNamespaces(AssociatedLookup &Result,
+                                  CXXRecordDecl *Class) {
+
+  // Just silently ignore anything whose name is __va_list_tag.
+  if (Class->getDeclName() == Result.S.VAListTagName)
+    return;
+
   // C++ [basic.lookup.koenig]p2:
   //   [...]
   //     -- If T is a class type (including unions), its associated
@@ -1511,13 +1633,13 @@ addAssociatedClassesAndNamespaces(CXXRecordDecl *Class,
   // Add the class of which it is a member, if any.
   DeclContext *Ctx = Class->getDeclContext();
   if (CXXRecordDecl *EnclosingClass = dyn_cast<CXXRecordDecl>(Ctx))
-    AssociatedClasses.insert(EnclosingClass);
+    Result.Classes.insert(EnclosingClass);
   // Add the associated namespace for this class.
-  CollectEnclosingNamespace(AssociatedNamespaces, Ctx);
+  CollectEnclosingNamespace(Result.Namespaces, Ctx);
 
   // Add the class itself. If we've already seen this class, we don't
   // need to visit base classes.
-  if (!AssociatedClasses.insert(Class))
+  if (!Result.Classes.insert(Class))
     return;
 
   // -- If T is a template-id, its associated namespaces and classes are
@@ -1533,15 +1655,13 @@ addAssociatedClassesAndNamespaces(CXXRecordDecl *Class,
         = dyn_cast<ClassTemplateSpecializationDecl>(Class)) {
     DeclContext *Ctx = Spec->getSpecializedTemplate()->getDeclContext();
     if (CXXRecordDecl *EnclosingClass = dyn_cast<CXXRecordDecl>(Ctx))
-      AssociatedClasses.insert(EnclosingClass);
+      Result.Classes.insert(EnclosingClass);
     // Add the associated namespace for this class.
-    CollectEnclosingNamespace(AssociatedNamespaces, Ctx);
+    CollectEnclosingNamespace(Result.Namespaces, Ctx);
 
     const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
     for (unsigned I = 0, N = TemplateArgs.size(); I != N; ++I)
-      addAssociatedClassesAndNamespaces(TemplateArgs[I], Context,
-                                        AssociatedNamespaces,
-                                        AssociatedClasses);
+      addAssociatedClassesAndNamespaces(Result, TemplateArgs[I]);
   }
 
   // Only recurse into base classes for complete types.
@@ -1573,10 +1693,10 @@ addAssociatedClassesAndNamespaces(CXXRecordDecl *Class,
       if (!BaseType)
         continue;
       CXXRecordDecl *BaseDecl = cast<CXXRecordDecl>(BaseType->getDecl());
-      if (AssociatedClasses.insert(BaseDecl)) {
+      if (Result.Classes.insert(BaseDecl)) {
         // Find the associated namespace for this base class.
         DeclContext *BaseCtx = BaseDecl->getDeclContext();
-        CollectEnclosingNamespace(AssociatedNamespaces, BaseCtx);
+        CollectEnclosingNamespace(Result.Namespaces, BaseCtx);
 
         // Make sure we visit the bases of this base class.
         if (BaseDecl->bases_begin() != BaseDecl->bases_end())
@@ -1590,10 +1710,7 @@ addAssociatedClassesAndNamespaces(CXXRecordDecl *Class,
 // argument-dependent lookup with an argument of type T
 // (C++ [basic.lookup.koenig]p2).
 static void
-addAssociatedClassesAndNamespaces(QualType T,
-                                  ASTContext &Context,
-                            Sema::AssociatedNamespaceSet &AssociatedNamespaces,
-                                  Sema::AssociatedClassSet &AssociatedClasses) {
+addAssociatedClassesAndNamespaces(AssociatedLookup &Result, QualType Ty) {
   // C++ [basic.lookup.koenig]p2:
   //
   //   For each argument type T in the function call, there is a set
@@ -1604,109 +1721,137 @@ addAssociatedClassesAndNamespaces(QualType T,
   //   argument). Typedef names and using-declarations used to specify
   //   the types do not contribute to this set. The sets of namespaces
   //   and classes are determined in the following way:
-  T = Context.getCanonicalType(T).getUnqualifiedType();
 
-  //    -- If T is a pointer to U or an array of U, its associated
-  //       namespaces and classes are those associated with U.
-  //
-  // We handle this by unwrapping pointer and array types immediately,
-  // to avoid unnecessary recursion.
+  llvm::SmallVector<const Type *, 16> Queue;
+  const Type *T = Ty->getCanonicalTypeInternal().getTypePtr();
+
   while (true) {
-    if (const PointerType *Ptr = T->getAs<PointerType>())
-      T = Ptr->getPointeeType();
-    else if (const ArrayType *Ptr = Context.getAsArrayType(T))
-      T = Ptr->getElementType();
-    else
+    switch (T->getTypeClass()) {
+
+#define TYPE(Class, Base)
+#define DEPENDENT_TYPE(Class, Base) case Type::Class:
+#define NON_CANONICAL_TYPE(Class, Base) case Type::Class:
+#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:
+#define ABSTRACT_TYPE(Class, Base)
+#include "clang/AST/TypeNodes.def"
+      // T is canonical.  We can also ignore dependent types because
+      // we don't need to do ADL at the definition point, but if we
+      // wanted to implement template export (or if we find some other
+      // use for associated classes and namespaces...) this would be
+      // wrong.
       break;
-  }
 
-  //     -- If T is a fundamental type, its associated sets of
-  //        namespaces and classes are both empty.
-  if (T->getAs<BuiltinType>())
-    return;
+    //    -- If T is a pointer to U or an array of U, its associated
+    //       namespaces and classes are those associated with U.
+    case Type::Pointer:
+      T = cast<PointerType>(T)->getPointeeType().getTypePtr();
+      continue;
+    case Type::ConstantArray:
+    case Type::IncompleteArray:
+    case Type::VariableArray:
+      T = cast<ArrayType>(T)->getElementType().getTypePtr();
+      continue;
 
-  //     -- If T is a class type (including unions), its associated
-  //        classes are: the class itself; the class of which it is a
-  //        member, if any; and its direct and indirect base
-  //        classes. Its associated namespaces are the namespaces in
-  //        which its associated classes are defined.
-  if (const RecordType *ClassType = T->getAs<RecordType>())
-    if (CXXRecordDecl *ClassDecl
-        = dyn_cast<CXXRecordDecl>(ClassType->getDecl())) {
-      addAssociatedClassesAndNamespaces(ClassDecl, Context,
-                                        AssociatedNamespaces,
-                                        AssociatedClasses);
-      return;
+    //     -- If T is a fundamental type, its associated sets of
+    //        namespaces and classes are both empty.
+    case Type::Builtin:
+      break;
+
+    //     -- If T is a class type (including unions), its associated
+    //        classes are: the class itself; the class of which it is a
+    //        member, if any; and its direct and indirect base
+    //        classes. Its associated namespaces are the namespaces in
+    //        which its associated classes are defined.
+    case Type::Record: {
+      CXXRecordDecl *Class
+        = cast<CXXRecordDecl>(cast<RecordType>(T)->getDecl());
+      addAssociatedClassesAndNamespaces(Result, Class);
+      break;
     }
 
-  //     -- If T is an enumeration type, its associated namespace is
-  //        the namespace in which it is defined. If it is class
-  //        member, its associated class is the member’s class; else
-  //        it has no associated class.
-  if (const EnumType *EnumT = T->getAs<EnumType>()) {
-    EnumDecl *Enum = EnumT->getDecl();
+    //     -- If T is an enumeration type, its associated namespace is
+    //        the namespace in which it is defined. If it is class
+    //        member, its associated class is the member’s class; else
+    //        it has no associated class.
+    case Type::Enum: {
+      EnumDecl *Enum = cast<EnumType>(T)->getDecl();
 
-    DeclContext *Ctx = Enum->getDeclContext();
-    if (CXXRecordDecl *EnclosingClass = dyn_cast<CXXRecordDecl>(Ctx))
-      AssociatedClasses.insert(EnclosingClass);
+      DeclContext *Ctx = Enum->getDeclContext();
+      if (CXXRecordDecl *EnclosingClass = dyn_cast<CXXRecordDecl>(Ctx))
+        Result.Classes.insert(EnclosingClass);
 
-    // Add the associated namespace for this class.
-    CollectEnclosingNamespace(AssociatedNamespaces, Ctx);
+      // Add the associated namespace for this class.
+      CollectEnclosingNamespace(Result.Namespaces, Ctx);
 
-    return;
+      break;
+    }
+
+    //     -- If T is a function type, its associated namespaces and
+    //        classes are those associated with the function parameter
+    //        types and those associated with the return type.
+    case Type::FunctionProto: {
+      const FunctionProtoType *Proto = cast<FunctionProtoType>(T);
+      for (FunctionProtoType::arg_type_iterator Arg = Proto->arg_type_begin(),
+                                             ArgEnd = Proto->arg_type_end();
+             Arg != ArgEnd; ++Arg)
+        Queue.push_back(Arg->getTypePtr());
+      // fallthrough
+    }
+    case Type::FunctionNoProto: {
+      const FunctionType *FnType = cast<FunctionType>(T);
+      T = FnType->getResultType().getTypePtr();
+      continue;
+    }
+
+    //     -- If T is a pointer to a member function of a class X, its
+    //        associated namespaces and classes are those associated
+    //        with the function parameter types and return type,
+    //        together with those associated with X.
+    //
+    //     -- If T is a pointer to a data member of class X, its
+    //        associated namespaces and classes are those associated
+    //        with the member type together with those associated with
+    //        X.
+    case Type::MemberPointer: {
+      const MemberPointerType *MemberPtr = cast<MemberPointerType>(T);
+
+      // Queue up the class type into which this points.
+      Queue.push_back(MemberPtr->getClass());
+
+      // And directly continue with the pointee type.
+      T = MemberPtr->getPointeeType().getTypePtr();
+      continue;
+    }
+
+    // As an extension, treat this like a normal pointer.
+    case Type::BlockPointer:
+      T = cast<BlockPointerType>(T)->getPointeeType().getTypePtr();
+      continue;
+
+    // References aren't covered by the standard, but that's such an
+    // obvious defect that we cover them anyway.
+    case Type::LValueReference:
+    case Type::RValueReference:
+      T = cast<ReferenceType>(T)->getPointeeType().getTypePtr();
+      continue;
+
+    // These are fundamental types.
+    case Type::Vector:
+    case Type::ExtVector:
+    case Type::Complex:
+      break;
+
+    // These are ignored by ADL.
+    case Type::ObjCObject:
+    case Type::ObjCInterface:
+    case Type::ObjCObjectPointer:
+      break;
+    }
+
+    if (Queue.empty()) break;
+    T = Queue.back();
+    Queue.pop_back();
   }
-
-  //     -- If T is a function type, its associated namespaces and
-  //        classes are those associated with the function parameter
-  //        types and those associated with the return type.
-  if (const FunctionType *FnType = T->getAs<FunctionType>()) {
-    // Return type
-    addAssociatedClassesAndNamespaces(FnType->getResultType(),
-                                      Context,
-                                      AssociatedNamespaces, AssociatedClasses);
-
-    const FunctionProtoType *Proto = dyn_cast<FunctionProtoType>(FnType);
-    if (!Proto)
-      return;
-
-    // Argument types
-    for (FunctionProtoType::arg_type_iterator Arg = Proto->arg_type_begin(),
-                                           ArgEnd = Proto->arg_type_end();
-         Arg != ArgEnd; ++Arg)
-      addAssociatedClassesAndNamespaces(*Arg, Context,
-                                        AssociatedNamespaces, AssociatedClasses);
-
-    return;
-  }
-
-  //     -- If T is a pointer to a member function of a class X, its
-  //        associated namespaces and classes are those associated
-  //        with the function parameter types and return type,
-  //        together with those associated with X.
-  //
-  //     -- If T is a pointer to a data member of class X, its
-  //        associated namespaces and classes are those associated
-  //        with the member type together with those associated with
-  //        X.
-  if (const MemberPointerType *MemberPtr = T->getAs<MemberPointerType>()) {
-    // Handle the type that the pointer to member points to.
-    addAssociatedClassesAndNamespaces(MemberPtr->getPointeeType(),
-                                      Context,
-                                      AssociatedNamespaces,
-                                      AssociatedClasses);
-
-    // Handle the class type into which this points.
-    if (const RecordType *Class = MemberPtr->getClass()->getAs<RecordType>())
-      addAssociatedClassesAndNamespaces(cast<CXXRecordDecl>(Class->getDecl()),
-                                        Context,
-                                        AssociatedNamespaces,
-                                        AssociatedClasses);
-
-    return;
-  }
-
-  // FIXME: What about block pointers?
-  // FIXME: What about Objective-C message sends?
 }
 
 /// \brief Find the associated classes and namespaces for
@@ -1723,6 +1868,8 @@ Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
   AssociatedNamespaces.clear();
   AssociatedClasses.clear();
 
+  AssociatedLookup Result(*this, AssociatedNamespaces, AssociatedClasses);
+
   // C++ [basic.lookup.koenig]p2:
   //   For each argument type T in the function call, there is a set
   //   of zero or more associated namespaces and a set of zero or more
@@ -1734,9 +1881,7 @@ Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
     Expr *Arg = Args[ArgIdx];
 
     if (Arg->getType() != Context.OverloadTy) {
-      addAssociatedClassesAndNamespaces(Arg->getType(), Context,
-                                        AssociatedNamespaces,
-                                        AssociatedClasses);
+      addAssociatedClassesAndNamespaces(Result, Arg->getType());
       continue;
     }
 
@@ -1752,17 +1897,11 @@ Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
       if (unaryOp->getOpcode() == UnaryOperator::AddrOf)
         Arg = unaryOp->getSubExpr();
 
-    // TODO: avoid the copies.  This should be easy when the cases
-    // share a storage implementation.
-    llvm::SmallVector<NamedDecl*, 8> Functions;
+    UnresolvedLookupExpr *ULE = dyn_cast<UnresolvedLookupExpr>(Arg);
+    if (!ULE) continue;
 
-    if (UnresolvedLookupExpr *ULE = dyn_cast<UnresolvedLookupExpr>(Arg))
-      Functions.append(ULE->decls_begin(), ULE->decls_end());
-    else
-      continue;
-
-    for (llvm::SmallVectorImpl<NamedDecl*>::iterator I = Functions.begin(),
-           E = Functions.end(); I != E; ++I) {
+    for (UnresolvedSetIterator I = ULE->decls_begin(), E = ULE->decls_end();
+           I != E; ++I) {
       // Look through any using declarations to find the underlying function.
       NamedDecl *Fn = (*I)->getUnderlyingDecl();
 
@@ -1772,9 +1911,7 @@ Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
 
       // Add the classes and namespaces associated with the parameter
       // types and return type of this function.
-      addAssociatedClassesAndNamespaces(FDecl->getType(), Context,
-                                        AssociatedNamespaces,
-                                        AssociatedClasses);
+      addAssociatedClassesAndNamespaces(Result, FDecl->getType());
     }
   }
 }
@@ -1872,6 +2009,36 @@ void Sema::LookupOverloadedOperatorName(OverloadedOperatorKind Op, Scope *S,
         Functions.addDecl(*Op, Op.getAccess());
     }
   }
+}
+
+/// \brief Look up the constructors for the given class.
+DeclContext::lookup_result Sema::LookupConstructors(CXXRecordDecl *Class) {
+  // If the copy constructor has not yet been declared, do so now.
+  if (CanDeclareSpecialMemberFunction(Context, Class)) {
+    if (!Class->hasDeclaredDefaultConstructor())
+      DeclareImplicitDefaultConstructor(Class);
+    if (!Class->hasDeclaredCopyConstructor())
+      DeclareImplicitCopyConstructor(Class);
+  }
+  
+  CanQualType T = Context.getCanonicalType(Context.getTypeDeclType(Class));
+  DeclarationName Name = Context.DeclarationNames.getCXXConstructorName(T);
+  return Class->lookup(Name);
+}
+
+/// \brief Look for the destructor of the given class.
+///
+/// During semantic analysis, this routine should be used in lieu of 
+/// CXXRecordDecl::getDestructor().
+///
+/// \returns The destructor for this class.
+CXXDestructorDecl *Sema::LookupDestructor(CXXRecordDecl *Class) {
+  // If the destructor has not yet been declared, do so now.
+  if (CanDeclareSpecialMemberFunction(Context, Class) &&
+      !Class->hasDeclaredDestructor())
+    DeclareImplicitDestructor(Class);
+
+  return Class->getDestructor();
 }
 
 void ADLResult::insert(NamedDecl *New) {
@@ -2172,6 +2339,9 @@ static void LookupVisibleDecls(DeclContext *Ctx, LookupResult &Result,
   if (Visited.visitedContext(Ctx->getPrimaryContext()))
     return;
   
+  if (CXXRecordDecl *Class = dyn_cast<CXXRecordDecl>(Ctx))
+    Result.getSema().ForceDeclarationOfImplicitMembers(Class);
+
   // Enumerate all of the results in this context.
   for (DeclContext *CurCtx = Ctx->getPrimaryContext(); CurCtx; 
        CurCtx = CurCtx->getNextContext()) {
@@ -2556,7 +2726,7 @@ DeclarationName Sema::CorrectTypo(LookupResult &Res, Scope *S, CXXScopeSpec *SS,
                                   bool EnteringContext,
                                   CorrectTypoContext CTC,
                                   const ObjCObjectPointerType *OPT) {
-  if (Diags.hasFatalErrorOccurred())
+  if (Diags.hasFatalErrorOccurred() || !getLangOptions().SpellChecking)
     return DeclarationName();
 
   // Provide a stop gap for files that are just seriously broken.  Trying

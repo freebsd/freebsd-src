@@ -20,7 +20,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/CodeGen/CodeGenOptions.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/GlobalVariable.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/Target/TargetData.h"
@@ -38,7 +38,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::ClassTemplatePartialSpecialization:
   case Decl::TemplateTypeParm:
   case Decl::UnresolvedUsingValue:
-    case Decl::NonTypeTemplateParm:
+  case Decl::NonTypeTemplateParm:
   case Decl::CXXMethod:
   case Decl::CXXConstructor:
   case Decl::CXXDestructor:
@@ -59,6 +59,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::ObjCImplementation:
   case Decl::ObjCProperty:
   case Decl::ObjCCompatibleAlias:
+  case Decl::AccessSpec:
   case Decl::LinkageSpec:
   case Decl::ObjCPropertyImpl:
   case Decl::ObjCClass:
@@ -138,16 +139,14 @@ static std::string GetStaticDeclName(CodeGenFunction &CGF, const VarDecl &D,
                                      const char *Separator) {
   CodeGenModule &CGM = CGF.CGM;
   if (CGF.getContext().getLangOptions().CPlusPlus) {
-    MangleBuffer Name;
-    CGM.getMangledName(Name, &D);
-    return Name.getString().str();
+    llvm::StringRef Name = CGM.getMangledName(&D);
+    return Name.str();
   }
   
   std::string ContextName;
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(CGF.CurFuncDecl)) {
-    MangleBuffer Name;
-    CGM.getMangledName(Name, FD);
-    ContextName = Name.getString().str();
+    llvm::StringRef Name = CGM.getMangledName(FD);
+    ContextName = Name.str();
   } else if (isa<ObjCMethodDecl>(CGF.CurFuncDecl))
     ContextName = CGF.CurFn->getName();
   else
@@ -328,10 +327,10 @@ const llvm::Type *CodeGenFunction::BuildByRefType(const ValueDecl *D) {
   Types.push_back(llvm::PointerType::getUnqual(ByRefTypeHolder));
   
   // int32_t __flags;
-  Types.push_back(llvm::Type::getInt32Ty(VMContext));
+  Types.push_back(Int32Ty);
     
   // int32_t __size;
-  Types.push_back(llvm::Type::getInt32Ty(VMContext));
+  Types.push_back(Int32Ty);
 
   bool HasCopyAndDispose = BlockRequiresCopying(Ty);
   if (HasCopyAndDispose) {
@@ -389,10 +388,63 @@ const llvm::Type *CodeGenFunction::BuildByRefType(const ValueDecl *D) {
   return Info.first;
 }
 
+namespace {
+  struct CallArrayDtor : EHScopeStack::LazyCleanup {
+    CallArrayDtor(const CXXDestructorDecl *Dtor, 
+                  const ConstantArrayType *Type,
+                  llvm::Value *Loc)
+      : Dtor(Dtor), Type(Type), Loc(Loc) {}
+
+    const CXXDestructorDecl *Dtor;
+    const ConstantArrayType *Type;
+    llvm::Value *Loc;
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      QualType BaseElementTy = CGF.getContext().getBaseElementType(Type);
+      const llvm::Type *BasePtr = CGF.ConvertType(BaseElementTy);
+      BasePtr = llvm::PointerType::getUnqual(BasePtr);
+      llvm::Value *BaseAddrPtr = CGF.Builder.CreateBitCast(Loc, BasePtr);
+      CGF.EmitCXXAggrDestructorCall(Dtor, Type, BaseAddrPtr);
+    }
+  };
+
+  struct CallVarDtor : EHScopeStack::LazyCleanup {
+    CallVarDtor(const CXXDestructorDecl *Dtor,
+                llvm::Value *NRVOFlag,
+                llvm::Value *Loc)
+      : Dtor(Dtor), NRVOFlag(NRVOFlag), Loc(Loc) {}
+
+    const CXXDestructorDecl *Dtor;
+    llvm::Value *NRVOFlag;
+    llvm::Value *Loc;
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      // Along the exceptions path we always execute the dtor.
+      bool NRVO = !IsForEH && NRVOFlag;
+
+      llvm::BasicBlock *SkipDtorBB = 0;
+      if (NRVO) {
+        // If we exited via NRVO, we skip the destructor call.
+        llvm::BasicBlock *RunDtorBB = CGF.createBasicBlock("nrvo.unused");
+        SkipDtorBB = CGF.createBasicBlock("nrvo.skipdtor");
+        llvm::Value *DidNRVO = CGF.Builder.CreateLoad(NRVOFlag, "nrvo.val");
+        CGF.Builder.CreateCondBr(DidNRVO, SkipDtorBB, RunDtorBB);
+        CGF.EmitBlock(RunDtorBB);
+      }
+          
+      CGF.EmitCXXDestructorCall(Dtor, Dtor_Complete,
+                                /*ForVirtualBase=*/false, Loc);
+
+      if (NRVO) CGF.EmitBlock(SkipDtorBB);
+    }
+  };
+}
+
 /// EmitLocalBlockVarDecl - Emit code and set up an entry in LocalDeclMap for a
 /// variable declaration with auto, register, or no storage class specifier.
 /// These turn into simple stack objects, or GlobalValues depending on target.
-void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
+void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D,
+                                            SpecialInitFn *SpecialInit) {
   QualType Ty = D.getType();
   bool isByRef = D.hasAttr<BlocksAttr>();
   bool needsDispose = false;
@@ -490,7 +542,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
 
       {
         // Push a cleanup block and restore the stack there.
-        DelayedCleanupBlock scope(*this);
+        CleanupBlock scope(*this, NormalCleanup);
 
         V = Builder.CreateLoad(Stack, "tmp");
         llvm::Value *F = CGM.getIntrinsic(llvm::Intrinsic::stackrestore);
@@ -504,10 +556,6 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
       llvm::PointerType::get(LElemTy, D.getType().getAddressSpace());
 
     llvm::Value *VLASize = EmitVLASize(Ty);
-
-    // Downcast the VLA size expression
-    VLASize = Builder.CreateIntCast(VLASize, llvm::Type::getInt32Ty(VMContext),
-                                    false, "tmp");
 
     // Allocate memory for the array.
     llvm::AllocaInst *VLA = 
@@ -573,18 +621,18 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
     int isa = 0;
     if (flag&BLOCK_FIELD_IS_WEAK)
       isa = 1;
-    V = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), isa);
+    V = llvm::ConstantInt::get(Int32Ty, isa);
     V = Builder.CreateIntToPtr(V, PtrToInt8Ty, "isa");
     Builder.CreateStore(V, isa_field);
 
     Builder.CreateStore(DeclPtr, forwarding_field);
 
-    V = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), flags);
+    V = llvm::ConstantInt::get(Int32Ty, flags);
     Builder.CreateStore(V, flags_field);
 
     const llvm::Type *V1;
     V1 = cast<llvm::PointerType>(DeclPtr->getType())->getElementType();
-    V = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
+    V = llvm::ConstantInt::get(Int32Ty,
                                CGM.GetTargetTypeStoreSize(V1).getQuantity());
     Builder.CreateStore(V, size_field);
 
@@ -602,7 +650,9 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
     }
   }
 
-  if (Init) {
+  if (SpecialInit) {
+    SpecialInit(*this, D, DeclPtr);
+  } else if (Init) {
     llvm::Value *Loc = DeclPtr;
     if (isByRef)
       Loc = Builder.CreateStructGEP(DeclPtr, getByRefValueLLVMField(&D), 
@@ -618,8 +668,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
       assert(Init != 0 && "Wasn't a simple constant init?");
       
       llvm::Value *AlignVal = 
-      llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), 
-                             Align.getQuantity());
+      llvm::ConstantInt::get(Int32Ty, Align.getQuantity());
       const llvm::Type *IntPtr =
       llvm::IntegerType::get(VMContext, LLVMPointerWidth);
       llvm::Value *SizeVal =
@@ -658,7 +707,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
                             Loc, SrcPtr, SizeVal, AlignVal, NotVolatile);
       }
     } else if (Ty->isReferenceType()) {
-      RValue RV = EmitReferenceBindingToExpr(Init, /*IsInitializer=*/true);
+      RValue RV = EmitReferenceBindingToExpr(Init, &D);
       EmitStoreOfScalar(RV.getScalarVal(), Loc, false, Ty);
     } else if (!hasAggregateLLVMType(Init->getType())) {
       llvm::Value *V = EmitScalarExpr(Init);
@@ -669,7 +718,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
       EmitAggExpr(Init, Loc, isVolatile);
     }
   }
-  
+
   // Handle CXX destruction of variables.
   QualType DtorTy(Ty);
   while (const ArrayType *Array = getContext().getAsArrayType(DtorTy))
@@ -684,60 +733,16 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
           Loc = Builder.CreateStructGEP(DeclPtr, getByRefValueLLVMField(&D), 
                                         D.getNameAsString());
         
-        const CXXDestructorDecl *D = ClassDecl->getDestructor(getContext());
+        const CXXDestructorDecl *D = ClassDecl->getDestructor();
         assert(D && "EmitLocalBlockVarDecl - destructor is nul");
         
         if (const ConstantArrayType *Array = 
               getContext().getAsConstantArrayType(Ty)) {
-          {
-            DelayedCleanupBlock Scope(*this);
-            QualType BaseElementTy = getContext().getBaseElementType(Array);
-            const llvm::Type *BasePtr = ConvertType(BaseElementTy);
-            BasePtr = llvm::PointerType::getUnqual(BasePtr);
-            llvm::Value *BaseAddrPtr =
-              Builder.CreateBitCast(Loc, BasePtr);
-            EmitCXXAggrDestructorCall(D, Array, BaseAddrPtr);
-          
-            // Make sure to jump to the exit block.
-            EmitBranch(Scope.getCleanupExitBlock());
-          }
-          if (Exceptions) {
-            EHCleanupBlock Cleanup(*this);
-            QualType BaseElementTy = getContext().getBaseElementType(Array);
-            const llvm::Type *BasePtr = ConvertType(BaseElementTy);
-            BasePtr = llvm::PointerType::getUnqual(BasePtr);
-            llvm::Value *BaseAddrPtr =
-              Builder.CreateBitCast(Loc, BasePtr);
-            EmitCXXAggrDestructorCall(D, Array, BaseAddrPtr);
-          }
+          EHStack.pushLazyCleanup<CallArrayDtor>(NormalAndEHCleanup,
+                                                 D, Array, Loc);
         } else {
-          {
-            // Normal destruction. 
-            DelayedCleanupBlock Scope(*this);
-
-            if (NRVO) {
-              // If we exited via NRVO, we skip the destructor call.
-              llvm::BasicBlock *NoNRVO = createBasicBlock("nrvo.unused");
-              Builder.CreateCondBr(Builder.CreateLoad(NRVOFlag, "nrvo.val"),
-                                   Scope.getCleanupExitBlock(),
-                                   NoNRVO);
-              EmitBlock(NoNRVO);
-            }
-            
-            // We don't call the destructor along the normal edge if we're
-            // applying the NRVO.
-            EmitCXXDestructorCall(D, Dtor_Complete, /*ForVirtualBase=*/false,
-                                  Loc);
-
-            // Make sure to jump to the exit block.
-            EmitBranch(Scope.getCleanupExitBlock());
-          }
-          
-          if (Exceptions) {
-            EHCleanupBlock Cleanup(*this);
-            EmitCXXDestructorCall(D, Dtor_Complete, /*ForVirtualBase=*/false,
-                                  Loc);
-          }
+          EHStack.pushLazyCleanup<CallVarDtor>(NormalAndEHCleanup,
+                                               D, NRVOFlag, Loc);
         }
       }
   }
@@ -758,17 +763,19 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
     //
     // To fix this we insert a bitcast here.
     QualType ArgTy = Info.arg_begin()->type;
-    {
-      DelayedCleanupBlock scope(*this);
 
-      CallArgList Args;
-      Args.push_back(std::make_pair(RValue::get(Builder.CreateBitCast(DeclPtr,
-                                                           ConvertType(ArgTy))),
-                                    getContext().getPointerType(D.getType())));
-      EmitCall(Info, F, ReturnValueSlot(), Args);
-    }
+    CleanupBlock CleanupScope(*this, NormalCleanup);
+
+    // Normal cleanup.
+    CallArgList Args;
+    Args.push_back(std::make_pair(RValue::get(Builder.CreateBitCast(DeclPtr,
+                                                         ConvertType(ArgTy))),
+                                  getContext().getPointerType(D.getType())));
+    EmitCall(Info, F, ReturnValueSlot(), Args);
+
+    // EH cleanup.
     if (Exceptions) {
-      EHCleanupBlock Cleanup(*this);
+      CleanupScope.beginEHCleanup();
 
       CallArgList Args;
       Args.push_back(std::make_pair(RValue::get(Builder.CreateBitCast(DeclPtr,
@@ -779,15 +786,16 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
   }
 
   if (needsDispose && CGM.getLangOptions().getGCMode() != LangOptions::GCOnly) {
-    {
-      DelayedCleanupBlock scope(*this);
-      llvm::Value *V = Builder.CreateStructGEP(DeclPtr, 1, "forwarding");
-      V = Builder.CreateLoad(V);
-      BuildBlockRelease(V);
-    }
+    CleanupBlock CleanupScope(*this, NormalCleanup);
+
+    llvm::Value *V = Builder.CreateStructGEP(DeclPtr, 1, "forwarding");
+    V = Builder.CreateLoad(V);
+    BuildBlockRelease(V);
+
     // FIXME: Turn this on and audit the codegen
     if (0 && Exceptions) {
-      EHCleanupBlock Cleanup(*this);
+      CleanupScope.beginEHCleanup();
+
       llvm::Value *V = Builder.CreateStructGEP(DeclPtr, 1, "forwarding");
       V = Builder.CreateLoad(V);
       BuildBlockRelease(V);

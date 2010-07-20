@@ -607,10 +607,10 @@ _mm_storer_ps(float *p, __m128 a)
 #define _MM_HINT_T2 3
 #define _MM_HINT_NTA 0
 
-/* FIXME: We have to #define this because "sel" must be a constant integer, and 
+/* FIXME: We have to #define this because "sel" must be a constant integer, and
    Sema doesn't do any form of constant propagation yet. */
 
-#define _mm_prefetch(a, sel) (__builtin_prefetch((void *)a, 0, sel))
+#define _mm_prefetch(a, sel) (__builtin_prefetch((void *)(a), 0, sel))
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _mm_stream_pi(__m64 *p, __m64 a)
@@ -723,7 +723,7 @@ _mm_setcsr(unsigned int i)
 }
 
 #define _mm_shuffle_ps(a, b, mask) \
-        (__builtin_shufflevector((__v4sf)a, (__v4sf)b, \
+        (__builtin_shufflevector((__v4sf)(a), (__v4sf)(b),                \
                                  (mask) & 0x3, ((mask) & 0xc) >> 2, \
                                  (((mask) & 0x30) >> 4) + 4, \
                                  (((mask) & 0xc0) >> 6) + 4))

@@ -74,27 +74,27 @@ Stmt::child_iterator CXXDefaultArgExpr::child_end() {
   return child_iterator();
 }
 
-// CXXZeroInitValueExpr
-Stmt::child_iterator CXXZeroInitValueExpr::child_begin() {
+// CXXScalarValueInitExpr
+Stmt::child_iterator CXXScalarValueInitExpr::child_begin() {
   return child_iterator();
 }
-Stmt::child_iterator CXXZeroInitValueExpr::child_end() {
+Stmt::child_iterator CXXScalarValueInitExpr::child_end() {
   return child_iterator();
 }
 
 // CXXNewExpr
 CXXNewExpr::CXXNewExpr(ASTContext &C, bool globalNew, FunctionDecl *operatorNew,
                        Expr **placementArgs, unsigned numPlaceArgs,
-                       bool parenTypeId, Expr *arraySize,
+                       SourceRange TypeIdParens, Expr *arraySize,
                        CXXConstructorDecl *constructor, bool initializer,
                        Expr **constructorArgs, unsigned numConsArgs,
                        FunctionDecl *operatorDelete, QualType ty,
                        SourceLocation startLoc, SourceLocation endLoc)
   : Expr(CXXNewExprClass, ty, ty->isDependentType(), ty->isDependentType()),
-    GlobalNew(globalNew), ParenTypeId(parenTypeId),
+    GlobalNew(globalNew),
     Initializer(initializer), SubExprs(0), OperatorNew(operatorNew),
     OperatorDelete(operatorDelete), Constructor(constructor),
-    StartLoc(startLoc), EndLoc(endLoc) {
+    TypeIdParens(TypeIdParens), StartLoc(startLoc), EndLoc(endLoc) {
       
   AllocateArgsArray(C, arraySize != 0, numPlaceArgs, numConsArgs);
   unsigned i = 0;
@@ -190,6 +190,18 @@ UnresolvedLookupExpr::Create(ASTContext &C, bool Dependent,
   return ULE;
 }
 
+UnresolvedLookupExpr *
+UnresolvedLookupExpr::CreateEmpty(ASTContext &C, unsigned NumTemplateArgs) {
+  std::size_t size = sizeof(UnresolvedLookupExpr);
+  if (NumTemplateArgs != 0)
+    size += ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
+
+  void *Mem = C.Allocate(size, llvm::alignof<UnresolvedLookupExpr>());
+  UnresolvedLookupExpr *E = new (Mem) UnresolvedLookupExpr(EmptyShell());
+  E->HasExplicitTemplateArgs = NumTemplateArgs != 0;
+  return E;
+}
+
 OverloadExpr::OverloadExpr(StmtClass K, ASTContext &C, QualType T, 
                            bool Dependent, NestedNameSpecifier *Qualifier, 
                            SourceRange QRange, DeclarationName Name, 
@@ -197,18 +209,27 @@ OverloadExpr::OverloadExpr(StmtClass K, ASTContext &C, QualType T,
                            UnresolvedSetIterator Begin, 
                            UnresolvedSetIterator End)
   : Expr(K, T, Dependent, Dependent),
-  Results(0), NumResults(End - Begin), Name(Name), Qualifier(Qualifier), 
+  Results(0), NumResults(0), Name(Name), Qualifier(Qualifier), 
   QualifierRange(QRange), NameLoc(NameLoc), 
   HasExplicitTemplateArgs(HasTemplateArgs)
 {
+  initializeResults(C, Begin, End);
+}
+
+void OverloadExpr::initializeResults(ASTContext &C,
+                                     UnresolvedSetIterator Begin,
+                                     UnresolvedSetIterator End) {
+  assert(Results == 0 && "Results already initialized!");
+  NumResults = End - Begin;
   if (NumResults) {
     Results = static_cast<DeclAccessPair *>(
                                 C.Allocate(sizeof(DeclAccessPair) * NumResults, 
                                            llvm::alignof<DeclAccessPair>()));
     memcpy(Results, &*Begin.getIterator(), 
-           (End - Begin) * sizeof(DeclAccessPair));
+           NumResults * sizeof(DeclAccessPair));
   }
 }
+
 
 bool OverloadExpr::ComputeDependence(UnresolvedSetIterator Begin,
                                      UnresolvedSetIterator End,
@@ -267,6 +288,19 @@ DependentScopeDeclRefExpr::Create(ASTContext &C,
       ->initializeFrom(*Args);
 
   return DRE;
+}
+
+DependentScopeDeclRefExpr *
+DependentScopeDeclRefExpr::CreateEmpty(ASTContext &C,
+                                       unsigned NumTemplateArgs) {
+  std::size_t size = sizeof(DependentScopeDeclRefExpr);
+  if (NumTemplateArgs)
+    size += ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
+  void *Mem = C.Allocate(size);
+
+  return new (Mem) DependentScopeDeclRefExpr(QualType(), 0, SourceRange(),
+                                             DeclarationName(),SourceLocation(),
+                                             NumTemplateArgs != 0);
 }
 
 StmtIterator DependentScopeDeclRefExpr::child_begin() {
@@ -535,14 +569,6 @@ CXXConstructExpr::CXXConstructExpr(ASTContext &C, StmtClass SC, QualType T,
   }
 }
 
-CXXConstructExpr::CXXConstructExpr(EmptyShell Empty, ASTContext &C, 
-                                   unsigned numargs)
-  : Expr(CXXConstructExprClass, Empty), Args(0), NumArgs(numargs) 
-{
-  if (NumArgs)
-    Args = new (C) Stmt*[NumArgs];
-}
-
 void CXXConstructExpr::DoDestroy(ASTContext &C) {
   DestroyChildren(C);
   if (Args)
@@ -656,6 +682,14 @@ CXXUnresolvedConstructExpr::Create(ASTContext &C,
                                               Args, NumArgs, RParenLoc);
 }
 
+CXXUnresolvedConstructExpr *
+CXXUnresolvedConstructExpr::CreateEmpty(ASTContext &C, unsigned NumArgs) {
+  Stmt::EmptyShell Empty;
+  void *Mem = C.Allocate(sizeof(CXXUnresolvedConstructExpr) +
+                         sizeof(Expr *) * NumArgs);
+  return new (Mem) CXXUnresolvedConstructExpr(Empty, NumArgs);
+}
+
 Stmt::child_iterator CXXUnresolvedConstructExpr::child_begin() {
   return child_iterator(reinterpret_cast<Stmt **>(this + 1));
 }
@@ -714,6 +748,29 @@ CXXDependentScopeMemberExpr::Create(ASTContext &C,
                                                Member, MemberLoc, TemplateArgs);
 }
 
+CXXDependentScopeMemberExpr *
+CXXDependentScopeMemberExpr::CreateEmpty(ASTContext &C,
+                                         unsigned NumTemplateArgs) {
+  if (NumTemplateArgs == 0)
+    return new (C) CXXDependentScopeMemberExpr(C, 0, QualType(),
+                                               0, SourceLocation(), 0,
+                                               SourceRange(), 0,
+                                               DeclarationName(),
+                                               SourceLocation());
+
+  std::size_t size = sizeof(CXXDependentScopeMemberExpr) +
+                     ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
+  void *Mem = C.Allocate(size, llvm::alignof<CXXDependentScopeMemberExpr>());
+  CXXDependentScopeMemberExpr *E
+    =  new (Mem) CXXDependentScopeMemberExpr(C, 0, QualType(),
+                                             0, SourceLocation(), 0,
+                                             SourceRange(), 0,
+                                             DeclarationName(),
+                                             SourceLocation(), 0);
+  E->HasExplicitTemplateArgs = true;
+  return E;
+}
+
 Stmt::child_iterator CXXDependentScopeMemberExpr::child_begin() {
   return child_iterator(&Base);
 }
@@ -768,6 +825,18 @@ UnresolvedMemberExpr::Create(ASTContext &C, bool Dependent,
                              Dependent, HasUnresolvedUsing, Base, BaseType,
                              IsArrow, OperatorLoc, Qualifier, QualifierRange,
                              Member, MemberLoc, TemplateArgs, Begin, End);
+}
+
+UnresolvedMemberExpr *
+UnresolvedMemberExpr::CreateEmpty(ASTContext &C, unsigned NumTemplateArgs) {
+  std::size_t size = sizeof(UnresolvedMemberExpr);
+  if (NumTemplateArgs != 0)
+    size += ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
+
+  void *Mem = C.Allocate(size, llvm::alignof<UnresolvedMemberExpr>());
+  UnresolvedMemberExpr *E = new (Mem) UnresolvedMemberExpr(EmptyShell());
+  E->HasExplicitTemplateArgs = NumTemplateArgs != 0;
+  return E;
 }
 
 CXXRecordDecl *UnresolvedMemberExpr::getNamingClass() const {

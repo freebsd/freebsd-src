@@ -135,11 +135,22 @@ void Sema::ActOnPragmaOptionsAlign(PragmaOptionsAlignKind Kind,
     return;
   }
 
-  // We don't support #pragma options align=power.
   switch (Kind) {
+    // For all targets we support native and natural are the same.
+    //
+    // FIXME: This is not true on Darwin/PPC.
+  case POAK_Native:
+  case POAK_Power:
   case POAK_Natural:
     Context->push(0);
     Context->setAlignment(0);
+    break;
+
+    // Note that '#pragma options align=packed' is not equivalent to attribute
+    // packed, it has a different precedence relative to attribute aligned.
+  case POAK_Packed:
+    Context->push(0);
+    Context->setAlignment(1);
     break;
 
   case POAK_Mac68k:
