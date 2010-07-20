@@ -17,6 +17,9 @@ mips/mips/tick.c				standard
 
 mips/cavium/octeon_rnd.c			optional random
 
+mips/cavium/cryptocteon/cavium_crypto.c		optional cryptocteon
+mips/cavium/cryptocteon/cryptocteon.c		optional cryptocteon
+
 mips/cavium/octe/ethernet.c			optional octe
 mips/cavium/octe/ethernet-common.c		optional octe
 mips/cavium/octe/ethernet-mdio.c		optional octe
@@ -32,6 +35,9 @@ mips/cavium/octe/octebus.c			optional octe
 
 mips/cavium/octopci.c				optional pci
 mips/cavium/octopci_bus_space.c			optional pci
+
+mips/cavium/usb/octusb.c			optional usb octusb
+mips/cavium/usb/octusb_octeon.c			optional usb octusb
 
 contrib/octeon-sdk/cvmx-cmd-queue.c		optional octe
 contrib/octeon-sdk/cvmx-fpa.c			optional octe
@@ -50,6 +56,8 @@ contrib/octeon-sdk/cvmx-pko.c			optional octe
 contrib/octeon-sdk/cvmx-spi.c			optional octe
 contrib/octeon-sdk/cvmx-spi4000.c		optional octe
 contrib/octeon-sdk/cvmx-twsi.c			optional octe
+
+contrib/octeon-sdk/cvmx-usb.c			optional octusb
 
 # XXX Some files could be excluded in some configurations.  Making them
 #     optional but on in the default config would seem reasonable.
