@@ -33,7 +33,7 @@ using namespace llvm;
   MAP(C9, 38)           \
   MAP(E8, 39)           \
   MAP(F0, 40)           \
-  MAP(F8, 41)		\
+  MAP(F8, 41)           \
   MAP(F9, 42)
 
 // A clone of X86 since we can't depend on something that is generated.
@@ -212,6 +212,7 @@ RecognizableInstr::RecognizableInstr(DisassemblerTables &tables,
   
   HasOpSizePrefix  = Rec->getValueAsBit("hasOpSizePrefix");
   HasREX_WPrefix   = Rec->getValueAsBit("hasREX_WPrefix");
+  HasVEX_4VPrefix  = Rec->getValueAsBit("hasVEX_4VPrefix");
   HasLockPrefix    = Rec->getValueAsBit("hasLockPrefix");
   IsCodeGenOnly    = Rec->getValueAsBit("isCodeGenOnly");
   
@@ -532,7 +533,13 @@ void RecognizableInstr::emitInstructionSpecifier(DisassemblerTables &tables) {
            "Unexpected number of operands for MRMSrcRegFrm");
     HANDLE_OPERAND(roRegister)
     HANDLE_OPERAND(rmRegister)
-    HANDLE_OPTIONAL(immediate)
+
+    if (HasVEX_4VPrefix)
+      // FIXME: In AVX, the register below becomes the one encoded
+      // in ModRMVEX and the one above the one in the VEX.VVVV field
+      HANDLE_OPTIONAL(rmRegister)
+    else
+      HANDLE_OPTIONAL(immediate)
     break;
   case X86Local::MRMSrcMem:
     // Operand 1 is a register operand in the Reg/Opcode field.
@@ -541,6 +548,12 @@ void RecognizableInstr::emitInstructionSpecifier(DisassemblerTables &tables) {
     assert(numPhysicalOperands >= 2 && numPhysicalOperands <= 3 &&
            "Unexpected number of operands for MRMSrcMemFrm");
     HANDLE_OPERAND(roRegister)
+
+    if (HasVEX_4VPrefix)
+      // FIXME: In AVX, the register below becomes the one encoded
+      // in ModRMVEX and the one above the one in the VEX.VVVV field
+      HANDLE_OPTIONAL(rmRegister)
+
     HANDLE_OPERAND(memory)
     HANDLE_OPTIONAL(immediate)
     break;
@@ -823,6 +836,7 @@ OperandType RecognizableInstr::typeFromString(const std::string &s,
   TYPE("RST",                 TYPE_ST)
   TYPE("i128mem",             TYPE_M128)
   TYPE("i64i32imm_pcrel",     TYPE_REL64)
+  TYPE("i16imm_pcrel",        TYPE_REL16)
   TYPE("i32imm_pcrel",        TYPE_REL32)
   TYPE("SSECC",               TYPE_IMM3)
   TYPE("brtarget",            TYPE_RELv)
@@ -942,6 +956,7 @@ OperandEncoding RecognizableInstr::relocationEncodingFromString
   ENCODING("i64i8imm",        ENCODING_IB)
   ENCODING("i8imm",           ENCODING_IB)
   ENCODING("i64i32imm_pcrel", ENCODING_ID)
+  ENCODING("i16imm_pcrel",    ENCODING_IW)
   ENCODING("i32imm_pcrel",    ENCODING_ID)
   ENCODING("brtarget",        ENCODING_Iv)
   ENCODING("brtarget8",       ENCODING_IB)

@@ -75,6 +75,7 @@ static GlobalValue::LinkageTypes GetDecodedLinkage(unsigned Val) {
   case 11: return GlobalValue::LinkOnceODRLinkage;
   case 12: return GlobalValue::AvailableExternallyLinkage;
   case 13: return GlobalValue::LinkerPrivateLinkage;
+  case 14: return GlobalValue::LinkerPrivateWeakLinkage;
   }
 }
 
@@ -252,17 +253,18 @@ void BitcodeReaderValueList::ResolveConstantForwardRefs() {
     // at once.
     while (!Placeholder->use_empty()) {
       Value::use_iterator UI = Placeholder->use_begin();
+      User *U = *UI;
 
       // If the using object isn't uniqued, just update the operands.  This
       // handles instructions and initializers for global variables.
-      if (!isa<Constant>(*UI) || isa<GlobalValue>(*UI)) {
+      if (!isa<Constant>(U) || isa<GlobalValue>(U)) {
         UI.getUse().set(RealVal);
         continue;
       }
 
       // Otherwise, we have a constant that uses the placeholder.  Replace that
       // constant with a new constant that has *all* placeholder uses updated.
-      Constant *UserC = cast<Constant>(*UI);
+      Constant *UserC = cast<Constant>(U);
       for (User::op_iterator I = UserC->op_begin(), E = UserC->op_end();
            I != E; ++I) {
         Value *NewOp;
@@ -818,7 +820,7 @@ bool BitcodeReader::ParseMetadata() {
       IsFunctionLocal = true;
       // fall-through
     case bitc::METADATA_NODE: {
-      if (Record.empty() || Record.size() % 2 == 1)
+      if (Record.size() % 2 == 1)
         return Error("Invalid METADATA_NODE record");
 
       unsigned Size = Record.size();
@@ -832,7 +834,8 @@ bool BitcodeReader::ParseMetadata() {
         else
           Elts.push_back(NULL);
       }
-      Value *V = MDNode::getWhenValsUnresolved(Context, &Elts[0], Elts.size(),
+      Value *V = MDNode::getWhenValsUnresolved(Context,
+                                               Elts.data(), Elts.size(),
                                                IsFunctionLocal);
       IsFunctionLocal = false;
       MDValueList.AssignValue(V, NextMDValueNo++);
@@ -2178,13 +2181,18 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
       InstructionList.push_back(I);
       break;
     }
-    case bitc::FUNC_CODE_INST_ALLOCA: { // ALLOCA: [instty, op, align]
-      if (Record.size() < 3)
+    case bitc::FUNC_CODE_INST_ALLOCA: { // ALLOCA: [instty, opty, op, align]
+      // For backward compatibility, tolerate a lack of an opty, and use i32.
+      // LLVM 3.0: Remove this.
+      if (Record.size() < 3 || Record.size() > 4)
         return Error("Invalid ALLOCA record");
+      unsigned OpNum = 0;
       const PointerType *Ty =
-        dyn_cast_or_null<PointerType>(getTypeByID(Record[0]));
-      Value *Size = getFnValueByID(Record[1], Type::getInt32Ty(Context));
-      unsigned Align = Record[2];
+        dyn_cast_or_null<PointerType>(getTypeByID(Record[OpNum++]));
+      const Type *OpTy = Record.size() == 4 ? getTypeByID(Record[OpNum++]) :
+                                              Type::getInt32Ty(Context);
+      Value *Size = getFnValueByID(Record[OpNum++], OpTy);
+      unsigned Align = Record[OpNum++];
       if (!Ty || !Size) return Error("Invalid ALLOCA record");
       I = new AllocaInst(Ty->getElementType(), Size, (1 << Align) >> 1);
       InstructionList.push_back(I);

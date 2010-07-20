@@ -421,10 +421,8 @@ bool Path::getMagicNumber(std::string &Magic, unsigned len) const {
     return false;
   ssize_t bytes_read = ::read(fd, Buf, len);
   ::close(fd);
-  if (ssize_t(len) != bytes_read) {
-    Magic.clear();
+  if (ssize_t(len) != bytes_read)
     return false;
-  }
   Magic.assign(Buf, len);
   return true;
 }
@@ -890,14 +888,19 @@ Path::makeUnique(bool reuse_current, std::string* ErrMsg) {
 #else
   // Okay, looks like we have to do it all by our lonesome.
   static unsigned FCounter = 0;
-  unsigned offset = path.size() + 1;
-  while ( FCounter < 999999 && exists()) {
-    sprintf(FNBuffer+offset,"%06u",++FCounter);
+  // Try to initialize with unique value.
+  if (FCounter == 0) FCounter = ((unsigned)getpid() & 0xFFFF) << 8;
+  char* pos = strstr(FNBuffer, "XXXXXX");
+  do {
+    if (++FCounter > 0xFFFFFF) {
+      return MakeErrMsg(ErrMsg,
+        path + ": can't make unique filename: too many files");
+    }
+    sprintf(pos, "%06X", FCounter);
     path = FNBuffer;
-  }
-  if (FCounter > 999999)
-    return MakeErrMsg(ErrMsg,
-      path + ": can't make unique filename: too many files");
+  } while (exists());
+  // POSSIBLE SECURITY BUG: An attacker can easily guess the name and exploit
+  // LLVM.
 #endif
   return false;
 }

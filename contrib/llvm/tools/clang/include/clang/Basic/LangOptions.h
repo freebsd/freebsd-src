@@ -67,9 +67,6 @@ public:
   unsigned MathErrno         : 1; // Math functions must respect errno
                                   // (modulo the platform support).
 
-  unsigned OverflowChecking  : 1; // Extension to call a handler function when
-                                  // signed integer arithmetic overflows.
-
   unsigned HeinousExtensions : 1; // Extensions that we really don't like and
                                   // may be ripped out at any time.
 
@@ -103,20 +100,21 @@ public:
   unsigned DumpRecordLayouts : 1; /// Dump the layout of IRgen'd records.
   unsigned DumpVTableLayouts : 1; /// Dump the layouts of emitted vtables.
   unsigned NoConstantCFStrings : 1;  // Do not do CF strings
+  unsigned InlineVisibilityHidden : 1; // Whether inline C++ methods have
+                                       // hidden visibility by default.  
 
+  unsigned SpellChecking : 1; // Whether to perform spell-checking for error
+                              // recovery.
   // FIXME: This is just a temporary option, for testing purposes.
   unsigned NoBitFieldTypeAlign : 1;
 
 private:
-  unsigned GC : 2;                // Objective-C Garbage Collection modes.  We
-                                  // declare this enum as unsigned because MSVC
-                                  // insists on making enums signed.  Set/Query
-                                  // this value using accessors.
+  // We declare multibit enums as unsigned because MSVC insists on making enums
+  // signed.  Set/Query these values using accessors.
+  unsigned GC : 2;                // Objective-C Garbage Collection modes.
   unsigned SymbolVisibility  : 3; // Symbol's visibility.
-  unsigned StackProtector    : 2; // Whether stack protectors are on. We declare
-                                  // this enum as unsigned because MSVC insists
-                                  // on making enums signed.  Set/Query this
-                                  // value using accessors.
+  unsigned StackProtector    : 2; // Whether stack protectors are on.
+  unsigned SignedOverflowBehavior : 2; // How to handle signed integer overflow.
 
 public:
   unsigned InstantiationDepth;    // Maximum template instantiation depth.
@@ -130,13 +128,19 @@ public:
     Protected,
     Hidden
   };
+  
+  enum SignedOverflowBehaviorTy {
+    SOB_Undefined,  // Default C standard behavior.
+    SOB_Defined,    // -fwrapv
+    SOB_Trapping    // -ftrapv
+  };
 
   LangOptions() {
     Trigraphs = BCPLComment = Bool = DollarIdents = AsmPreprocessor = 0;
     GNUMode = GNUKeywords = ImplicitInt = Digraphs = 0;
     HexFloats = 0;
     GC = ObjC1 = ObjC2 = ObjCNonFragileABI = ObjCNonFragileABI2 = 0;
-    NoConstantCFStrings = 0;
+    NoConstantCFStrings = 0; InlineVisibilityHidden = 0;
     C99 = Microsoft = CPlusPlus = CPlusPlus0x = 0;
     CXXOperatorNames = PascalStrings = WritableStrings = ConstStrings = 0;
     Exceptions = SjLjExceptions = Freestanding = NoBuiltin = 0;
@@ -147,20 +151,19 @@ public:
     AltiVec = OpenCL = StackProtector = 0;
 
     SymbolVisibility = (unsigned) Default;
-
+      
     ThreadsafeStatics = 1;
     POSIXThreads = 0;
     Blocks = 0;
     EmitAllDecls = 0;
     MathErrno = 1;
-
+    SignedOverflowBehavior = SOB_Undefined;
+    
     AssumeSaneOperatorNew = 1;
-
-    // FIXME: The default should be 1.
-    AccessControl = 0;
+    AccessControl = 1;
     ElideConstructors = 1;
 
-    OverflowChecking = 0;
+    SignedOverflowBehavior = 0;
     ObjCGCBitmapPrint = 0;
 
     InstantiationDepth = 1024;
@@ -179,6 +182,7 @@ public:
     CatchUndefined = 0;
     DumpRecordLayouts = 0;
     DumpVTableLayouts = 0;
+    SpellChecking = 1;
     NoBitFieldTypeAlign = 0;
   }
 
@@ -196,6 +200,13 @@ public:
     return (VisibilityMode) SymbolVisibility;
   }
   void setVisibilityMode(VisibilityMode v) { SymbolVisibility = (unsigned) v; }
+  
+  SignedOverflowBehaviorTy getSignedOverflowBehavior() const {
+    return (SignedOverflowBehaviorTy)SignedOverflowBehavior;
+  }
+  void setSignedOverflowBehavior(SignedOverflowBehaviorTy V) {
+    SignedOverflowBehavior = (unsigned)V;
+  }
 };
 
 }  // end namespace clang

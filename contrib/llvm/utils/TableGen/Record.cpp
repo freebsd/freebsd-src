@@ -270,7 +270,15 @@ Init *RecordRecTy::convertValue(TypedInit *TI) {
 }
 
 bool RecordRecTy::baseClassOf(const RecordRecTy *RHS) const {
-  return Rec == RHS->getRecord() || RHS->getRecord()->isSubClassOf(Rec);
+  if (Rec == RHS->getRecord() || RHS->getRecord()->isSubClassOf(Rec))
+    return true;
+
+  const std::vector<Record*> &SC = Rec->getSuperClasses();
+  for (unsigned i = 0, e = SC.size(); i != e; ++i)
+    if (RHS->getRecord()->isSubClassOf(SC[i]))
+      return true;
+
+  return false;
 }
 
 
@@ -721,9 +729,20 @@ Init *BinOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
     break;
   }
   case EQ: {
-    // Make sure we've resolved
+    // try to fold eq comparison for 'bit' and 'int', otherwise fallback
+    // to string objects.
+    IntInit* L =
+      dynamic_cast<IntInit*>(LHS->convertInitializerTo(new IntRecTy()));
+    IntInit* R =
+      dynamic_cast<IntInit*>(RHS->convertInitializerTo(new IntRecTy()));
+
+    if (L && R)
+      return new IntInit(L->getValue() == R->getValue());
+
     StringInit *LHSs = dynamic_cast<StringInit*>(LHS);
     StringInit *RHSs = dynamic_cast<StringInit*>(RHS);
+
+    // Make sure we've resolved
     if (LHSs && RHSs)
       return new IntInit(LHSs->getValue() == RHSs->getValue());
 
@@ -971,6 +990,8 @@ Init *TernOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
 
   case IF: {
     IntInit *LHSi = dynamic_cast<IntInit*>(LHS);
+    if (Init *I = LHS->convertInitializerTo(new IntRecTy()))
+      LHSi = dynamic_cast<IntInit*>(I);
     if (LHSi) {
       if (LHSi->getValue()) {
         return MHS;
@@ -990,6 +1011,8 @@ Init *TernOpInit::resolveReferences(Record &R, const RecordVal *RV) {
 
   if (Opc == IF && lhs != LHS) {
     IntInit *Value = dynamic_cast<IntInit*>(lhs);
+    if (Init *I = lhs->convertInitializerTo(new IntRecTy()))
+      Value = dynamic_cast<IntInit*>(I);
     if (Value != 0) {
       // Short-circuit
       if (Value->getValue()) {
@@ -1239,7 +1262,7 @@ Init *DagInit::resolveReferences(Record &R, const RecordVal *RV) {
   Init *Op = Val->resolveReferences(R, RV);
 
   if (Args != NewArgs || Op != Val)
-    return new DagInit(Op, "", NewArgs, ArgNames);
+    return new DagInit(Op, ValName, NewArgs, ArgNames);
 
   return this;
 }

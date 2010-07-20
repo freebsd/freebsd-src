@@ -306,6 +306,7 @@ static int X86TypeFromOpName(LiteralConstantEmitter *type,
   REG("RFP64");
   REG("RFP80");
   REG("VR128");
+  REG("VR256");
   REG("RST");
   REG("SEGMENT_REG");
   REG("DEBUG_REG");
@@ -339,6 +340,7 @@ static int X86TypeFromOpName(LiteralConstantEmitter *type,
   MEM("opaque80mem");
   MEM("i128mem");
   MEM("f128mem");
+  MEM("f256mem");
   MEM("opaque512mem");
   
   // all R, I, R, I
@@ -347,6 +349,7 @@ static int X86TypeFromOpName(LiteralConstantEmitter *type,
   LEA("lea64mem");
   
   // all I
+  PCR("i16imm_pcrel");
   PCR("i32imm_pcrel");
   PCR("i64i32imm_pcrel");
   PCR("brtarget8");
@@ -500,6 +503,8 @@ static void X86ExtractSemantics(
       // TODO add support for fixed operands
     } else if (name.find("F") != name.npos) {
       // ignore (this pushes onto the FP stack)
+    } else if (name.find("A") != name.npos) {
+      // ignore (pushes all GP registoers onto the stack)
     } else if (name[name.length() - 1] == 'm') {
       PUSH("src");
     } else if (name.find("i") != name.npos) {
@@ -518,6 +523,8 @@ static void X86ExtractSemantics(
       // TODO add support for fixed operands
     } else if (name.find("F") != name.npos) {
       // ignore (this pops from the FP stack)
+    } else if (name.find("A") != name.npos) {
+      // ignore (pushes all GP registoers onto the stack)
     } else if (name[name.length() - 1] == 'm') {
       POP("dst");
     } else {
@@ -570,6 +577,7 @@ static void X86ExtractSemantics(
 static int ARMFlagFromOpName(LiteralConstantEmitter *type,
                              const std::string &name) {
   REG("GPR");
+  REG("tcGPR");
   REG("cc_out");
   REG("s_cc_out");
   REG("tGPR");
@@ -592,10 +600,7 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   IMM("msr_mask");
   IMM("neg_zero");
   IMM("imm0_31");
-  IMM("h8imm");
-  IMM("h16imm");
-  IMM("h32imm");
-  IMM("h64imm");
+  IMM("nModImm");
   IMM("imm0_4095");
   IMM("jt2block_operand");
   IMM("t_imm_s4");

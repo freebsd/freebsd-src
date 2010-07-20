@@ -118,7 +118,8 @@ struct FunctionScopeInfo {
 
   /// \brief Set true when a function, method contains a VLA or ObjC try block,
   /// which introduce scopes that need to be checked for goto conditions.  If a
-  /// function does not contain this, then it need not have the jump checker run on it.
+  /// function does not contain this, then it need not have the jump checker run
+  /// on it.
   bool NeedsScopeChecking;
 
   /// \brief The number of errors that had occurred before starting this
@@ -155,24 +156,25 @@ struct FunctionScopeInfo {
 
 /// \brief Retains information about a block that is currently being parsed.
 struct BlockScopeInfo : FunctionScopeInfo {
-  llvm::SmallVector<ParmVarDecl*, 8> Params;
-  bool hasPrototype;
-  bool isVariadic;
   bool hasBlockDeclRefExprs;
 
   BlockDecl *TheDecl;
-
+  
   /// TheScope - This is the scope for the block itself, which contains
   /// arguments etc.
   Scope *TheScope;
 
-  /// ReturnType - This will get set to block result type, by looking at
-  /// return types, if any, in the block body.
+  /// ReturnType - The return type of the block, or null if the block
+  /// signature didn't provide an explicit return type.
   QualType ReturnType;
 
+  /// BlockType - The function type of the block, if one was given.
+  /// Its return type may be BuiltinType::Dependent.
+  QualType FunctionType;
+
   BlockScopeInfo(unsigned NumErrors, Scope *BlockScope, BlockDecl *Block)
-    : FunctionScopeInfo(NumErrors), hasPrototype(false), isVariadic(false),
-      hasBlockDeclRefExprs(false), TheDecl(Block), TheScope(BlockScope)
+    : FunctionScopeInfo(NumErrors), hasBlockDeclRefExprs(false),
+      TheDecl(Block), TheScope(BlockScope)
   {
     IsBlockInfo = true;
   }
@@ -238,6 +240,10 @@ public:
 
   /// CurContext - This is the current declaration context of parsing.
   DeclContext *CurContext;
+
+  /// VAListTagName - The declaration name corresponding to __va_list_tag.
+  /// This is used as part of a hack to omit that class from ADL results.
+  DeclarationName VAListTagName;
 
   /// A RAII object to temporarily push a declaration context.
   class ContextRAII {
@@ -669,6 +675,8 @@ public:
 
   virtual void ActOnEndOfTranslationUnit();
 
+  Scope *getScopeForContext(DeclContext *Ctx);
+
   void PushFunctionScope();
   void PushBlockScope(Scope *BlockScope, BlockDecl *Block);
   void PopFunctionOrBlockScope();
@@ -713,9 +721,13 @@ public:
   //
 
   QualType adjustParameterType(QualType T);
-  QualType BuildPointerType(QualType T, unsigned Quals,
+  QualType BuildQualifiedType(QualType T, SourceLocation Loc, Qualifiers Qs);
+  QualType BuildQualifiedType(QualType T, SourceLocation Loc, unsigned CVR) {
+    return BuildQualifiedType(T, Loc, Qualifiers::fromCVRMask(CVR));
+  }
+  QualType BuildPointerType(QualType T,
                             SourceLocation Loc, DeclarationName Entity);
-  QualType BuildReferenceType(QualType T, bool LValueRef, unsigned Quals,
+  QualType BuildReferenceType(QualType T, bool LValueRef,
                               SourceLocation Loc, DeclarationName Entity);
   QualType BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
                           Expr *ArraySize, unsigned Quals,
@@ -727,13 +739,12 @@ public:
                              bool Variadic, unsigned Quals,
                              SourceLocation Loc, DeclarationName Entity);
   QualType BuildMemberPointerType(QualType T, QualType Class,
-                                  unsigned Quals, SourceLocation Loc,
+                                  SourceLocation Loc,
                                   DeclarationName Entity);
-  QualType BuildBlockPointerType(QualType T, unsigned Quals,
+  QualType BuildBlockPointerType(QualType T,
                                  SourceLocation Loc, DeclarationName Entity);
-  QualType GetTypeForDeclarator(Declarator &D, Scope *S,
-                                TypeSourceInfo **TInfo = 0,
-                                TagDecl **OwnedDecl = 0);
+  TypeSourceInfo *GetTypeForDeclarator(Declarator &D, Scope *S,
+                                       TagDecl **OwnedDecl = 0);
   TypeSourceInfo *GetTypeSourceInfoForDeclarator(Declarator &D, QualType T,
                                                TypeSourceInfo *ReturnTypeInfo);
   /// \brief Create a LocInfoType to hold the given QualType and TypeSourceInfo.
@@ -760,8 +771,6 @@ public:
   bool CheckParamExceptionSpec(const PartialDiagnostic & NoteID,
       const FunctionProtoType *Target, SourceLocation TargetLoc,
       const FunctionProtoType *Source, SourceLocation SourceLoc);
-
-  bool UnwrapSimilarPointerTypes(QualType& T1, QualType& T2);
 
   virtual TypeResult ActOnTypeName(Scope *S, Declarator &D);
 
@@ -837,6 +846,9 @@ public:
                                 bool &OverloadableAttrRequired);
   void CheckMain(FunctionDecl *FD);
   virtual DeclPtrTy ActOnParamDeclarator(Scope *S, Declarator &D);
+  ParmVarDecl *BuildParmVarDeclForTypedef(DeclContext *DC,
+                                          SourceLocation Loc,
+                                          QualType T);
   ParmVarDecl *CheckParameter(DeclContext *DC,
                               TypeSourceInfo *TSInfo, QualType T,
                               IdentifierInfo *Name,
@@ -1094,10 +1106,19 @@ public:
     /// non-function.
     Ovl_NonFunction
   };
-  OverloadKind CheckOverload(FunctionDecl *New,
+  OverloadKind CheckOverload(Scope *S,
+                             FunctionDecl *New,
                              const LookupResult &OldDecls,
-                             NamedDecl *&OldDecl);
-  bool IsOverload(FunctionDecl *New, FunctionDecl *Old);
+                             NamedDecl *&OldDecl,
+                             bool IsForUsingDecl);
+  bool IsOverload(FunctionDecl *New, FunctionDecl *Old, bool IsForUsingDecl);
+
+  bool TryImplicitConversion(InitializationSequence &Sequence,
+                             const InitializedEntity &Entity,
+                             Expr *From,
+                             bool SuppressUserConversions,
+                             bool AllowExplicit,
+                             bool InOverloadResolution);
 
   ImplicitConversionSequence
   TryImplicitConversion(Expr* From, QualType ToType,
@@ -1170,6 +1191,16 @@ public:
   ImplicitConversionSequence TryContextuallyConvertToObjCId(Expr *From);
   bool PerformContextuallyConvertToObjCId(Expr *&From);
 
+  OwningExprResult 
+  ConvertToIntegralOrEnumerationType(SourceLocation Loc, ExprArg FromE,
+                                     const PartialDiagnostic &NotIntDiag,
+                                     const PartialDiagnostic &IncompleteDiag,
+                                     const PartialDiagnostic &ExplicitConvDiag,
+                                     const PartialDiagnostic &ExplicitConvNote,
+                                     const PartialDiagnostic &AmbigDiag,
+                                     const PartialDiagnostic &AmbigNote,
+                                     const PartialDiagnostic &ConvDiag);
+  
   bool PerformObjectMemberConversion(Expr *&From,
                                      NestedNameSpecifier *Qualifier,
                                      NamedDecl *FoundDecl,
@@ -1448,6 +1479,8 @@ public:
   void LookupOverloadedOperatorName(OverloadedOperatorKind Op, Scope *S,
                                     QualType T1, QualType T2,
                                     UnresolvedSetImpl &Functions);
+  DeclContext::lookup_result LookupConstructors(CXXRecordDecl *Class);
+  CXXDestructorDecl *LookupDestructor(CXXRecordDecl *Class);
 
   void ArgumentDependentLookup(DeclarationName Name, bool Operator,
                                Expr **Args, unsigned NumArgs,
@@ -1457,7 +1490,7 @@ public:
                           VisibleDeclConsumer &Consumer);
   void LookupVisibleDecls(DeclContext *Ctx, LookupNameKind Kind,
                           VisibleDeclConsumer &Consumer);
-
+  
   /// \brief The context in which typo-correction occurs.
   ///
   /// The typo-correction context affects which keywords (if any) are
@@ -1508,7 +1541,7 @@ public:
 
   // Decl attributes - this routine is the top level dispatcher.
   void ProcessDeclAttributes(Scope *S, Decl *D, const Declarator &PD);
-  void ProcessDeclAttributeList(Scope *S, Decl *D, const AttributeList *AttrList);
+  void ProcessDeclAttributeList(Scope *S, Decl *D, const AttributeList *AL);
 
   void WarnUndefinedMethod(SourceLocation ImpLoc, ObjCMethodDecl *method,
                            bool &IncompleteImpl, unsigned DiagID);
@@ -1555,16 +1588,9 @@ public:
   /// CollectImmediateProperties - This routine collects all properties in
   /// the class and its conforming protocols; but not those it its super class.
   void CollectImmediateProperties(ObjCContainerDecl *CDecl,
-                  llvm::DenseMap<IdentifierInfo *, ObjCPropertyDecl*>& PropMap);
+            llvm::DenseMap<IdentifierInfo *, ObjCPropertyDecl*>& PropMap,
+            llvm::DenseMap<IdentifierInfo *, ObjCPropertyDecl*>& SuperPropMap);
   
-  /// ProtocolConformsToSuperClass - Returns true if class has a super class
-  /// and it, or its nested super class conforms to the protocol.
-  bool ProtocolConformsToSuperClass(const ObjCInterfaceDecl *IDecl, 
-                                    const ObjCProtocolDecl *PDecl);
-  /// ProtocolConformsToProtocol - Returns true if 2nd Protocol (PDecl) is
-  /// qualified by the 1st.
-  bool ProtocolConformsToProtocol(const ObjCProtocolDecl *NestedProtocol,
-                                  const ObjCProtocolDecl *PDecl);
 
   /// LookupPropertyDecl - Looks up a property in the current class and all
   /// its protocols.
@@ -1583,7 +1609,7 @@ public:
                                            const bool isReadWrite,
                                            const unsigned Attributes,
                                            bool *isOverridingProperty,
-                                           QualType T,
+                                           TypeSourceInfo *T,
                                            tok::ObjCKeywordKind MethodImplKind);
 
   /// Called by ActOnProperty and HandlePropertyInClassExtension to
@@ -1596,7 +1622,8 @@ public:
                                        Selector SetterSel,
                                        const bool isAssign,
                                        const bool isReadWrite,
-                                       const unsigned Attributes, QualType T,
+                                       const unsigned Attributes,
+                                       TypeSourceInfo *T,
                                        tok::ObjCKeywordKind MethodImplKind,
                                        DeclContext *lexicalDC = 0);
 
@@ -1935,7 +1962,8 @@ public:
   OwningExprResult LookupMemberExpr(LookupResult &R, Expr *&Base,
                                     bool &IsArrow, SourceLocation OpLoc,
                                     CXXScopeSpec &SS,
-                                    DeclPtrTy ObjCImpDecl);
+                                    DeclPtrTy ObjCImpDecl,
+                                    bool HasTemplateArgs);
 
   bool CheckQualifiedMemberReference(Expr *BaseExpr, QualType BaseType,
                                      const CXXScopeSpec &SS,
@@ -2100,6 +2128,7 @@ public:
                                            AttributeList *AttrList);
   virtual void ActOnFinishNamespaceDef(DeclPtrTy Dcl, SourceLocation RBrace);
 
+  NamespaceDecl *getStdNamespace();
   virtual DeclPtrTy ActOnUsingDirective(Scope *CurScope,
                                         SourceLocation UsingLoc,
                                         SourceLocation NamespcLoc,
@@ -2196,26 +2225,69 @@ public:
   /// constructed variable.
   void FinalizeVarWithDestructor(VarDecl *VD, const RecordType *DeclInitType);
 
+  /// \brief Declare the implicit default constructor for the given class.
+  ///
+  /// \param ClassDecl The class declaration into which the implicit 
+  /// default constructor will be added.
+  ///
+  /// \returns The implicitly-declared default constructor.
+  CXXConstructorDecl *DeclareImplicitDefaultConstructor(
+                                                     CXXRecordDecl *ClassDecl);
+  
   /// DefineImplicitDefaultConstructor - Checks for feasibility of
   /// defining this constructor as the default constructor.
   void DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
                                         CXXConstructorDecl *Constructor);
 
+  /// \brief Declare the implicit destructor for the given class.
+  ///
+  /// \param ClassDecl The class declaration into which the implicit 
+  /// destructor will be added.
+  ///
+  /// \returns The implicitly-declared destructor.
+  CXXDestructorDecl *DeclareImplicitDestructor(CXXRecordDecl *ClassDecl);
+                                               
   /// DefineImplicitDestructor - Checks for feasibility of
   /// defining this destructor as the default destructor.
   void DefineImplicitDestructor(SourceLocation CurrentLocation,
-                                        CXXDestructorDecl *Destructor);
+                                CXXDestructorDecl *Destructor);
 
+  /// \brief Declare the implicit copy constructor for the given class.
+  ///
+  /// \param S The scope of the class, which may be NULL if this is a 
+  /// template instantiation.
+  ///
+  /// \param ClassDecl The class declaration into which the implicit 
+  /// copy constructor will be added.
+  ///
+  /// \returns The implicitly-declared copy constructor.
+  CXXConstructorDecl *DeclareImplicitCopyConstructor(CXXRecordDecl *ClassDecl);
+                                                     
   /// DefineImplicitCopyConstructor - Checks for feasibility of
   /// defining this constructor as the copy constructor.
   void DefineImplicitCopyConstructor(SourceLocation CurrentLocation,
                                      CXXConstructorDecl *Constructor,
                                      unsigned TypeQuals);
 
-  /// \brief Defined and implicitly-declared copy assignment operator.
+  /// \brief Declare the implicit copy assignment operator for the given class.
+  ///
+  /// \param S The scope of the class, which may be NULL if this is a 
+  /// template instantiation.
+  ///
+  /// \param ClassDecl The class declaration into which the implicit 
+  /// copy-assignment operator will be added.
+  ///
+  /// \returns The implicitly-declared copy assignment operator.
+  CXXMethodDecl *DeclareImplicitCopyAssignment(CXXRecordDecl *ClassDecl);
+  
+  /// \brief Defined an implicitly-declared copy assignment operator.
   void DefineImplicitCopyAssignment(SourceLocation CurrentLocation,
                                     CXXMethodDecl *MethodDecl);
 
+  /// \brief Force the declaration of any implicitly-declared members of this
+  /// class.
+  void ForceDeclarationOfImplicitMembers(CXXRecordDecl *Class);
+  
   /// MaybeBindToTemporary - If the passed in expression has a record type with
   /// a non-trivial destructor, this will return CXXBindTemporaryExpr. Otherwise
   /// it simply returns the passed in expression.
@@ -2295,7 +2367,7 @@ public:
                                        SourceLocation PlacementLParen,
                                        MultiExprArg PlacementArgs,
                                        SourceLocation PlacementRParen,
-                                       bool ParenTypeId, Declarator &D,
+                                       SourceRange TypeIdParens, Declarator &D,
                                        SourceLocation ConstructorLParen,
                                        MultiExprArg ConstructorArgs,
                                        SourceLocation ConstructorRParen);
@@ -2303,7 +2375,7 @@ public:
                                SourceLocation PlacementLParen,
                                MultiExprArg PlacementArgs,
                                SourceLocation PlacementRParen,
-                               bool ParenTypeId,
+                               SourceRange TypeIdParens,
                                QualType AllocType,
                                SourceLocation TypeLoc,
                                SourceRange TypeRange,
@@ -2529,6 +2601,10 @@ public:
   virtual bool isCurrentClassName(const IdentifierInfo &II, Scope *S,
                                   const CXXScopeSpec *SS);
 
+  virtual DeclPtrTy ActOnAccessSpecifier(AccessSpecifier Access,
+                                         SourceLocation ASLoc,
+                                         SourceLocation ColonLoc);
+
   virtual DeclPtrTy ActOnCXXMemberDeclarator(Scope *S, AccessSpecifier AS,
                                              Declarator &D,
                                  MultiTemplateParamsArg TemplateParameterLists,
@@ -2605,14 +2681,14 @@ public:
   /// \returns true if any work was done, false otherwise.
   bool DefineUsedVTables();
 
-  void AddImplicitlyDeclaredMembersToClass(Scope *S, CXXRecordDecl *ClassDecl);
+  void AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl);
 
   virtual void ActOnMemInitializers(DeclPtrTy ConstructorDecl,
                                     SourceLocation ColonLoc,
                                     MemInitTy **MemInits, unsigned NumMemInits,
                                     bool AnyErrors);
 
-  void CheckCompletedCXXClass(Scope *S, CXXRecordDecl *Record);
+  void CheckCompletedCXXClass(CXXRecordDecl *Record);
   virtual void ActOnFinishCXXMemberSpecification(Scope* S, SourceLocation RLoc,
                                                  DeclPtrTy TagDecl,
                                                  SourceLocation LBrac,
@@ -2644,7 +2720,7 @@ public:
   QualType CheckConstructorDeclarator(Declarator &D, QualType R,
                                       FunctionDecl::StorageClass& SC);
   void CheckConstructor(CXXConstructorDecl *Constructor);
-  QualType CheckDestructorDeclarator(Declarator &D,
+  QualType CheckDestructorDeclarator(Declarator &D, QualType R,
                                      FunctionDecl::StorageClass& SC);
   bool CheckDestructor(CXXDestructorDecl *Destructor);
   void CheckConversionDeclarator(Declarator &D, QualType &R,
@@ -2718,6 +2794,7 @@ public:
                                          const CXXMethodDecl *Old);
 
   bool CheckPureMethod(CXXMethodDecl *Method, SourceRange InitRange);
+
   //===--------------------------------------------------------------------===//
   // C++ Access Control
   //
@@ -2744,7 +2821,8 @@ public:
   AccessResult CheckConstructorAccess(SourceLocation Loc,
                                       CXXConstructorDecl *D,
                                       const InitializedEntity &Entity,
-                                      AccessSpecifier Access);
+                                      AccessSpecifier Access,
+                                      bool IsCopyBindingRefToTemp = false);
   AccessResult CheckDestructorAccess(SourceLocation Loc,
                                      CXXDestructorDecl *Dtor,
                                      const PartialDiagnostic &PDiag);
@@ -2771,6 +2849,12 @@ public:
                         const MultiLevelTemplateArgumentList &TemplateArgs);
 
   void HandleDelayedAccessCheck(DelayedDiagnostic &DD, Decl *Ctx);
+
+  /// A flag to suppress access checking.
+  bool SuppressAccessChecking;
+
+  void ActOnStartSuppressingAccessChecks();
+  void ActOnStopSuppressingAccessChecks();
 
   enum AbstractDiagSelID {
     AbstractNone = -1,
@@ -2826,29 +2910,25 @@ public:
                                        SourceLocation KeyLoc,
                                        IdentifierInfo *ParamName,
                                        SourceLocation ParamNameLoc,
-                                       unsigned Depth, unsigned Position);
-  virtual void ActOnTypeParameterDefault(DeclPtrTy TypeParam,
-                                         SourceLocation EqualLoc,
-                                         SourceLocation DefaultLoc,
-                                         TypeTy *Default);
+                                       unsigned Depth, unsigned Position,
+                                       SourceLocation EqualLoc,
+                                       TypeTy *DefaultArg);
 
   QualType CheckNonTypeTemplateParameterType(QualType T, SourceLocation Loc);
   virtual DeclPtrTy ActOnNonTypeTemplateParameter(Scope *S, Declarator &D,
                                                   unsigned Depth,
-                                                  unsigned Position);
-  virtual void ActOnNonTypeTemplateParameterDefault(DeclPtrTy TemplateParam,
-                                                    SourceLocation EqualLoc,
-                                                    ExprArg Default);
+                                                  unsigned Position,
+                                                  SourceLocation EqualLoc,
+                                                  ExprArg DefaultArg);
   virtual DeclPtrTy ActOnTemplateTemplateParameter(Scope *S,
                                                    SourceLocation TmpLoc,
                                                    TemplateParamsTy *Params,
                                                    IdentifierInfo *ParamName,
                                                    SourceLocation ParamNameLoc,
                                                    unsigned Depth,
-                                                   unsigned Position);
-  virtual void ActOnTemplateTemplateParameterDefault(DeclPtrTy TemplateParam,
-                                                     SourceLocation EqualLoc,
-                                        const ParsedTemplateArgument &Default);
+                                                   unsigned Position,
+                                                   SourceLocation EqualLoc,
+                                     const ParsedTemplateArgument &DefaultArg);
 
   virtual TemplateParamsTy *
   ActOnTemplateParameterList(unsigned Depth,
@@ -2876,7 +2956,8 @@ public:
                                           TemplateParameterList **ParamLists,
                                           unsigned NumParamLists,
                                           bool IsFriend,
-                                          bool &IsExplicitSpecialization);
+                                          bool &IsExplicitSpecialization,
+                                          bool &Invalid);
 
   DeclResult CheckClassTemplate(Scope *S, unsigned TagSpec, TagUseKind TUK,
                                 SourceLocation KWLoc, CXXScopeSpec &SS,
@@ -2912,11 +2993,13 @@ public:
                                                 SourceLocation NameLoc,
                                const TemplateArgumentListInfo &TemplateArgs);
 
-  virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
-                                                CXXScopeSpec &SS,
-                                                UnqualifiedId &Name,
-                                                TypeTy *ObjectType,
-                                                bool EnteringContext);
+  virtual TemplateNameKind ActOnDependentTemplateName(Scope *S,
+                                                  SourceLocation TemplateKWLoc,
+                                                      CXXScopeSpec &SS,
+                                                      UnqualifiedId &Name,
+                                                      TypeTy *ObjectType,
+                                                      bool EnteringContext,
+                                                      TemplateTy &Template);
 
   bool CheckClassTemplatePartialSpecializationArgs(
                                         TemplateParameterList *TemplateParams,
@@ -2940,7 +3023,7 @@ public:
                                             Declarator &D);
 
   virtual DeclPtrTy ActOnStartOfFunctionTemplateDef(Scope *FnBodyScope,
-                                                    MultiTemplateParamsArg TemplateParameterLists,
+                                  MultiTemplateParamsArg TemplateParameterLists,
                                                     Declarator &D);
 
   bool
@@ -2948,7 +3031,7 @@ public:
                                          TemplateSpecializationKind NewTSK,
                                          NamedDecl *PrevDecl,
                                          TemplateSpecializationKind PrevTSK,
-                                         SourceLocation PrevPointOfInstantiation,
+                                         SourceLocation PrevPtOfInstantiation,
                                          bool &SuppressNew);
 
   bool CheckDependentFunctionTemplateSpecialization(FunctionDecl *FD,
@@ -3096,25 +3179,29 @@ public:
   /// \brief Called when the parser has parsed a C++ typename
   /// specifier, e.g., "typename T::type".
   ///
+  /// \param S The scope in which this typename type occurs.
   /// \param TypenameLoc the location of the 'typename' keyword
   /// \param SS the nested-name-specifier following the typename (e.g., 'T::').
   /// \param II the identifier we're retrieving (e.g., 'type' in the example).
   /// \param IdLoc the location of the identifier.
   virtual TypeResult
-  ActOnTypenameType(SourceLocation TypenameLoc, const CXXScopeSpec &SS,
-                    const IdentifierInfo &II, SourceLocation IdLoc);
+  ActOnTypenameType(Scope *S, SourceLocation TypenameLoc, 
+                    const CXXScopeSpec &SS, const IdentifierInfo &II, 
+                    SourceLocation IdLoc);
 
   /// \brief Called when the parser has parsed a C++ typename
   /// specifier that ends in a template-id, e.g.,
   /// "typename MetaFun::template apply<T1, T2>".
   ///
+  /// \param S The scope in which this typename type occurs.
   /// \param TypenameLoc the location of the 'typename' keyword
   /// \param SS the nested-name-specifier following the typename (e.g., 'T::').
   /// \param TemplateLoc the location of the 'template' keyword, if any.
   /// \param Ty the type that the typename specifier refers to.
   virtual TypeResult
-  ActOnTypenameType(SourceLocation TypenameLoc, const CXXScopeSpec &SS,
-                    SourceLocation TemplateLoc, TypeTy *Ty);
+  ActOnTypenameType(Scope *S, SourceLocation TypenameLoc, 
+                    const CXXScopeSpec &SS, SourceLocation TemplateLoc, 
+                    TypeTy *Ty);
 
   QualType CheckTypenameType(ElaboratedTypeKeyword Keyword,
                              NestedNameSpecifier *NNS,
@@ -3477,6 +3564,12 @@ public:
   /// same instantiation. FIXME: Does this belong in Sema? It's tough
   /// to implement it anywhere else.
   ActiveTemplateInstantiation LastTemplateInstantiationErrorContext;
+
+  /// \brief The stack of calls expression undergoing template instantiation.
+  ///
+  /// The top of this stack is used by a fixit instantiating unresolved
+  /// function calls to fix the AST to match the textual change it prints.
+  llvm::SmallVector<CallExpr *, 8> CallsUndergoingInstantiation;
 
   /// \brief A stack object to be created when performing template
   /// instantiation.
@@ -3878,7 +3971,7 @@ public:
                                                  SourceLocation *IdentLocs,
                                                  unsigned NumElts);
 
-  virtual DeclPtrTy ActOnForwardProtocolDeclaration(SourceLocation AtProtocolLoc,
+  virtual DeclPtrTy ActOnForwardProtocolDeclaration(SourceLocation AtProtoclLoc,
                                             const IdentifierLocPair *IdentList,
                                                   unsigned NumElts,
                                                   AttributeList *attrList);
@@ -4057,6 +4150,9 @@ public:
   /// FreePackedContext - Deallocate and null out PackContext.
   void FreePackedContext();
 
+  /// AddAlignedAttr - Adds an aligned attribute to a particular declaration.
+  void AddAlignedAttr(SourceLocation AttrLoc, Decl *D, Expr *E);
+
   /// ImpCastExprToType - If Expr is not of type 'Type', insert an implicit
   /// cast.  If there is already an implicit cast, merge into the existing one.
   /// If isLvalue, the result of the cast is an lvalue.
@@ -4232,7 +4328,7 @@ public:
                                  bool IgnoreBaseAccess = false);
   bool PerformImplicitConversion(Expr *&From, QualType ToType,
                                  const StandardConversionSequence& SCS,
-                                 AssignmentAction Action, bool IgnoreBaseAccess);
+                                 AssignmentAction Action,bool IgnoreBaseAccess);
 
   /// the following "Check" methods will return a valid/converted QualType
   /// or a null QualType (indicating an error diagnostic was issued).
@@ -4253,11 +4349,12 @@ public:
   QualType CheckShiftOperands( // C99 6.5.7
     Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isCompAssign = false);
   QualType CheckCompareOperands( // C99 6.5.8/9
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, unsigned Opc, bool isRelational);
+    Expr *&lex, Expr *&rex, SourceLocation OpLoc, unsigned Opc,
+                                bool isRelational);
   QualType CheckBitwiseOperands( // C99 6.5.[10...12]
     Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isCompAssign = false);
   QualType CheckLogicalOperands( // C99 6.5.[13,14]
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc);
+    Expr *&lex, Expr *&rex, SourceLocation OpLoc, unsigned Opc);
   // CheckAssignmentOperands is used for both simple and compound assignment.
   // For simple assignment, pass both expressions and a null converted type.
   // For compound assignment, pass both expressions and the converted type.
@@ -4413,6 +4510,7 @@ public:
   //@{
   virtual void CodeCompleteOrdinaryName(Scope *S,
                                      CodeCompletionContext CompletionContext);
+  virtual void CodeCompleteExpression(Scope *S, QualType T);
   virtual void CodeCompleteMemberReferenceExpr(Scope *S, ExprTy *Base,
                                                SourceLocation OpLoc,
                                                bool IsArrow);
@@ -4420,6 +4518,10 @@ public:
   virtual void CodeCompleteCase(Scope *S);
   virtual void CodeCompleteCall(Scope *S, ExprTy *Fn,
                                 ExprTy **Args, unsigned NumArgs);
+  virtual void CodeCompleteInitializer(Scope *S, DeclPtrTy D);
+  virtual void CodeCompleteReturn(Scope *S);
+  virtual void CodeCompleteAssignmentRHS(Scope *S, ExprTy *LHS);
+  
   virtual void CodeCompleteQualifiedId(Scope *S, CXXScopeSpec &SS,
                                        bool EnteringContext);
   virtual void CodeCompleteUsing(Scope *S);
@@ -4440,7 +4542,7 @@ public:
   virtual void CodeCompleteObjCPropertySetter(Scope *S, DeclPtrTy ClassDecl,
                                               DeclPtrTy *Methods,
                                               unsigned NumMethods);
-
+  virtual void CodeCompleteObjCMessageReceiver(Scope *S);
   virtual void CodeCompleteObjCSuperMessage(Scope *S, SourceLocation SuperLoc,
                                             IdentifierInfo **SelIdents,
                                             unsigned NumSelIdents);
@@ -4473,6 +4575,13 @@ public:
                                           bool IsInstanceMethod,
                                           TypeTy *ReturnType,
                                           DeclPtrTy IDecl);
+  virtual void CodeCompleteObjCMethodDeclSelector(Scope *S, 
+                                                  bool IsInstanceMethod,
+                                                  bool AtParameterName,
+                                                  TypeTy *ReturnType,
+                                                  IdentifierInfo **SelIdents,
+                                                  unsigned NumSelIdents);
+  
   //@}
 
   //===--------------------------------------------------------------------===//
@@ -4491,6 +4600,9 @@ private:
 
   Action::OwningExprResult CheckBuiltinFunctionCall(unsigned BuiltinID,
                                                     CallExpr *TheCall);
+  bool CheckARMBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall);
+  bool CheckX86BuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall);
+
   bool SemaBuiltinVAStart(CallExpr *TheCall);
   bool SemaBuiltinUnorderedCompare(CallExpr *TheCall);
   bool SemaBuiltinFPClassification(CallExpr *TheCall, unsigned NumArgs);
@@ -4503,7 +4615,7 @@ private:
   bool SemaBuiltinPrefetch(CallExpr *TheCall);
   bool SemaBuiltinObjectSize(CallExpr *TheCall);
   bool SemaBuiltinLongjmp(CallExpr *TheCall);
-  bool SemaBuiltinAtomicOverloaded(CallExpr *TheCall);
+  OwningExprResult SemaBuiltinAtomicOverloaded(OwningExprResult TheCallResult);
   bool SemaBuiltinConstantArg(CallExpr *TheCall, int ArgNum,
                               llvm::APSInt &Result);
   bool SemaCheckStringLiteral(const Expr *E, const CallExpr *TheCall,

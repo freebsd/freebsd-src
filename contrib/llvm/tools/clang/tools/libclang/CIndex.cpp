@@ -177,12 +177,12 @@ static RangeComparisonResult LocationCompare(SourceManager &SM,
 /// does the appropriate translation.
 CXSourceRange cxloc::translateSourceRange(const SourceManager &SM,
                                           const LangOptions &LangOpts,
-                                          SourceRange R) {
+                                          const CharSourceRange &R) {
   // We want the last character in this location, so we will adjust the
   // location accordingly.
   // FIXME: How do do this with a macro instantiation location?
   SourceLocation EndLoc = R.getEnd();
-  if (!EndLoc.isInvalid() && EndLoc.isFileID()) {
+  if (R.isTokenRange() && !EndLoc.isInvalid() && EndLoc.isFileID()) {
     unsigned Length = Lexer::MeasureTokenLength(EndLoc, SM, LangOpts);
     EndLoc = EndLoc.getFileLocWithOffset(Length);
   }
@@ -517,10 +517,8 @@ bool CursorVisitor::VisitChildren(CXCursor Cursor) {
 }
 
 bool CursorVisitor::VisitBlockDecl(BlockDecl *B) {
-  for (BlockDecl::param_iterator I=B->param_begin(), E=B->param_end(); I!=E;++I)
-    if (Decl *D = *I)
-      if (Visit(D))
-        return true;
+  if (Visit(B->getSignatureAsWritten()->getTypeLoc()))
+    return true;
 
   return Visit(MakeCXCursor(B->getBody(), StmtParent, TU));
 }
@@ -672,6 +670,9 @@ bool CursorVisitor::VisitObjCProtocolDecl(ObjCProtocolDecl *PID) {
 }
 
 bool CursorVisitor::VisitObjCPropertyDecl(ObjCPropertyDecl *PD) {
+  if (Visit(PD->getTypeSourceInfo()->getTypeLoc()))
+    return true;
+
   // FIXME: This implements a workaround with @property declarations also being
   // installed in the DeclContext for the @interface.  Eventually this code
   // should be removed.
@@ -1183,6 +1184,15 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
     // in the actual argument list.
     if (source_filename)
       Args.push_back(source_filename);
+    
+    // Since the Clang C library is primarily used by batch tools dealing with
+    // (often very broken) source code, where spell-checking can have a
+    // significant negative impact on performance (particularly when 
+    // precompiled headers are involved), we disable it by default.
+    // Note that we place this argument early in the list, so that it can be
+    // overridden by the caller with "-fspell-checking".
+    Args.push_back("-fno-spell-checking");
+    
     Args.insert(Args.end(), command_line_args,
                 command_line_args + num_command_line_args);
     Args.push_back("-Xclang");
@@ -1246,6 +1256,14 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
   argv.push_back("-o");
   char astTmpFile[L_tmpnam];
   argv.push_back(tmpnam(astTmpFile));
+  
+  // Since the Clang C library is primarily used by batch tools dealing with
+  // (often very broken) source code, where spell-checking can have a
+  // significant negative impact on performance (particularly when 
+  // precompiled headers are involved), we disable it by default.
+  // Note that we place this argument early in the list, so that it can be
+  // overridden by the caller with "-fspell-checking".
+  argv.push_back("-fno-spell-checking");
 
   // Remap any unsaved files to temporary files.
   std::vector<llvm::sys::Path> TemporaryFiles;
@@ -1477,16 +1495,6 @@ CXSourceLocation clang_getRangeEnd(CXSourceRange range) {
   CXSourceLocation Result = { { range.ptr_data[0], range.ptr_data[1] },
                               range.end_int_data };
   return Result;
-}
-
-unsigned clang_isFromMainFile(CXSourceLocation loc) {
-  SourceLocation Loc = SourceLocation::getFromRawEncoding(loc.int_data);
-  if (!loc.ptr_data[0] || Loc.isInvalid())
-    return 0;
-
-  const SourceManager &SM =
-    *static_cast<const SourceManager*>(loc.ptr_data[0]);
-  return SM.isFromMainFile(Loc) ? 1 : 0;
 }
 
 } // end: extern "C"
@@ -2048,6 +2056,7 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
   case Decl::TemplateTemplateParm:
   case Decl::ObjCCategoryImpl:
   case Decl::ObjCImplementation:
+  case Decl::AccessSpec:
   case Decl::LinkageSpec:
   case Decl::ObjCPropertyImpl:
   case Decl::FileScopeAsm:

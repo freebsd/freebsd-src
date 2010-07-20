@@ -343,12 +343,6 @@ CINDEX_LINKAGE CXSourceLocation clang_getRangeStart(CXSourceRange range);
 CINDEX_LINKAGE CXSourceLocation clang_getRangeEnd(CXSourceRange range);
 
 /**
-  * \brief Determine if the source location occurs within the main file
-  * of the translation unit (as opposed to an included header).
-  */
-CINDEX_LINKAGE unsigned clang_isFromMainFile(CXSourceLocation loc);
-
-/**
  * @}
  */
 
@@ -1092,7 +1086,9 @@ enum CXTypeKind {
   CXType_Enum = 106,
   CXType_Typedef = 107,
   CXType_ObjCInterface = 108,
-  CXType_ObjCObjectPointer = 109
+  CXType_ObjCObjectPointer = 109,
+  CXType_FunctionNoProto = 110,
+  CXType_FunctionProto = 111
 };
 
 /**
@@ -1143,6 +1139,17 @@ CINDEX_LINKAGE CXCursor clang_getTypeDeclaration(CXType T);
  * \brief Retrieve the spelling of a given CXTypeKind.
  */
 CINDEX_LINKAGE CXString clang_getTypeKindSpelling(enum CXTypeKind K);
+
+/**
+ * \brief Retrieve the result type associated with a function type.
+ */
+CINDEX_LINKAGE CXType clang_getResultType(CXType T);
+
+/**
+ * \brief Retrieve the result type associated with a given cursor.  This only
+ *  returns a valid type of the cursor refers to a function or method.
+ */
+CINDEX_LINKAGE CXType clang_getCursorResultType(CXCursor C);
 
 /**
  * @}

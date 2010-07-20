@@ -33,9 +33,6 @@ public:
   Generic_GCC(const HostInfo &Host, const llvm::Triple& Triple);
   ~Generic_GCC();
 
-  virtual DerivedArgList *TranslateArgs(InputArgList &Args,
-                                        const char *BoundArch) const;
-
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
 
   virtual bool IsUnwindTablesDefault() const;
@@ -147,7 +144,7 @@ public:
   /// @name ToolChain Implementation
   /// {
 
-  virtual DerivedArgList *TranslateArgs(InputArgList &Args,
+  virtual DerivedArgList *TranslateArgs(const DerivedArgList &Args,
                                         const char *BoundArch) const;
 
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
@@ -160,9 +157,13 @@ public:
       return !isMacosxVersionLT(10, 6);
   }
   virtual bool IsIntegratedAssemblerDefault() const {
+#ifdef DISABLE_DEFAULT_INTEGRATED_ASSEMBLER
+    return false;
+#else
     // Default integrated assembler to on for x86.
     return (getTriple().getArch() == llvm::Triple::x86 ||
             getTriple().getArch() == llvm::Triple::x86_64);
+#endif
   }
   virtual bool IsObjCNonFragileABIDefault() const {
     // Non-fragile ABI is default for everything but i386.
@@ -270,6 +271,13 @@ public:
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
 };
 
+class LLVM_LIBRARY_VISIBILITY Minix : public Generic_GCC {
+public:
+  Minix(const HostInfo &Host, const llvm::Triple& Triple);
+
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+};
+
 class LLVM_LIBRARY_VISIBILITY DragonFly : public Generic_GCC {
 public:
   DragonFly(const HostInfo &Host, const llvm::Triple& Triple);
@@ -290,8 +298,6 @@ public:
   TCEToolChain(const HostInfo &Host, const llvm::Triple& Triple);
   ~TCEToolChain();
 
-  virtual DerivedArgList *TranslateArgs(InputArgList &Args,
-                                        const char *BoundArch) const;
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
   bool IsMathErrnoDefault() const;
   bool IsUnwindTablesDefault() const;

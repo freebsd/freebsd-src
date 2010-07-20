@@ -14,12 +14,16 @@
 
 #include "clang/Analysis/Analyses/PrintfFormatString.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Type.h"
+#include "llvm/Support/raw_ostream.h"
 
 using clang::analyze_printf::ArgTypeResult;
 using clang::analyze_printf::FormatSpecifier;
 using clang::analyze_printf::FormatStringHandler;
 using clang::analyze_printf::OptionalAmount;
 using clang::analyze_printf::PositionContext;
+using clang::analyze_printf::ConversionSpecifier;
+using clang::analyze_printf::LengthModifier;
 
 using namespace clang;
 
@@ -34,7 +38,6 @@ public:
   FormatSpecifierResult(const char *start,
                         const FormatSpecifier &fs)
     : FS(fs), Start(start), Stop(false) {}
-
 
   const char *getStart() const { return Start; }
   bool shouldStop() const { return Stop; }
@@ -80,7 +83,8 @@ static OptionalAmount ParseAmount(const char *&Beg, const char *E) {
     }
 
     if (hasDigits)
-      return OptionalAmount(OptionalAmount::Constant, accumulator, Beg);
+      return OptionalAmount(OptionalAmount::Constant, accumulator, Beg, I - Beg,
+          false);
 
     break;
   }
@@ -92,7 +96,7 @@ static OptionalAmount ParseNonPositionAmount(const char *&Beg, const char *E,
                                              unsigned &argIndex) {
   if (*Beg == '*') {
     ++Beg;
-    return OptionalAmount(OptionalAmount::Arg, argIndex++, Beg);
+    return OptionalAmount(OptionalAmount::Arg, argIndex++, Beg, 0, false);
   }
 
   return ParseAmount(Beg, E);
@@ -120,6 +124,8 @@ static OptionalAmount ParsePositionAmount(FormatStringHandler &H,
     assert(Amt.getHowSpecified() == OptionalAmount::Constant);
 
     if (*I == '$') {
+      // Handle positional arguments
+
       // Special case: '*0$', since this is an easy mistake.
       if (Amt.getConstantAmount() == 0) {
         H.HandleZeroPosition(Beg, I - Beg + 1);
@@ -130,7 +136,7 @@ static OptionalAmount ParsePositionAmount(FormatStringHandler &H,
       Beg = ++I;
 
       return OptionalAmount(OptionalAmount::Arg, Amt.getConstantAmount() - 1,
-                            Tmp);
+                            Tmp, 0, true);
     }
 
     H.HandleInvalidPosition(Beg, I - Beg, p);
@@ -172,7 +178,6 @@ static bool ParseFieldWidth(FormatStringHandler &H, FormatSpecifier &FS,
   }
   return false;
 }
-
 
 static bool ParseArgPosition(FormatStringHandler &H,
                              FormatSpecifier &FS, const char *Start,
@@ -258,11 +263,11 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
   for ( ; I != E; ++I) {
     switch (*I) {
       default: hasMore = false; break;
-      case '-': FS.setIsLeftJustified(); break;
-      case '+': FS.setHasPlusPrefix(); break;
-      case ' ': FS.setHasSpacePrefix(); break;
-      case '#': FS.setHasAlternativeForm(); break;
-      case '0': FS.setHasLeadingZeros(); break;
+      case '-': FS.setIsLeftJustified(I); break;
+      case '+': FS.setHasPlusPrefix(I); break;
+      case ' ': FS.setHasSpacePrefix(I); break;
+      case '#': FS.setHasAlternativeForm(I); break;
+      case '0': FS.setHasLeadingZeros(I); break;
     }
     if (!hasMore)
       break;
@@ -305,24 +310,28 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
   }
 
   // Look for the length modifier.
-  LengthModifier lm = None;
+  LengthModifier::Kind lmKind = LengthModifier::None;
+  const char *lmPosition = I;
   switch (*I) {
     default:
       break;
     case 'h':
       ++I;
-      lm = (I != E && *I == 'h') ? ++I, AsChar : AsShort;
+      lmKind = (I != E && *I == 'h') ?
+          ++I, LengthModifier::AsChar : LengthModifier::AsShort;
       break;
     case 'l':
       ++I;
-      lm = (I != E && *I == 'l') ? ++I, AsLongLong : AsLong;
+      lmKind = (I != E && *I == 'l') ?
+          ++I, LengthModifier::AsLongLong : LengthModifier::AsLong;
       break;
-    case 'j': lm = AsIntMax;     ++I; break;
-    case 'z': lm = AsSizeT;      ++I; break;
-    case 't': lm = AsPtrDiff;    ++I; break;
-    case 'L': lm = AsLongDouble; ++I; break;
-    case 'q': lm = AsLongLong;   ++I; break;
+    case 'j': lmKind = LengthModifier::AsIntMax;     ++I; break;
+    case 'z': lmKind = LengthModifier::AsSizeT;      ++I; break;
+    case 't': lmKind = LengthModifier::AsPtrDiff;    ++I; break;
+    case 'L': lmKind = LengthModifier::AsLongDouble; ++I; break;
+    case 'q': lmKind = LengthModifier::AsLongLong;   ++I; break;
   }
+  LengthModifier lm(lmPosition, lmKind);
   FS.setLengthModifier(lm);
 
   if (I == E) {
@@ -423,95 +432,111 @@ FormatStringHandler::~FormatStringHandler() {}
 //===----------------------------------------------------------------------===//
 
 bool ArgTypeResult::matchesType(ASTContext &C, QualType argTy) const {
-  assert(isValid());
-
-  if (K == UnknownTy)
-    return true;
-
-  if (K == SpecificTy) {
-    argTy = C.getCanonicalType(argTy).getUnqualifiedType();
-
-    if (T == argTy)
+  switch (K) {
+    case InvalidTy:
+      assert(false && "ArgTypeResult must be valid");
       return true;
 
-    if (const BuiltinType *BT = argTy->getAs<BuiltinType>())
-      switch (BT->getKind()) {
-        default:
-          break;
-        case BuiltinType::Char_S:
-        case BuiltinType::SChar:
-          return T == C.UnsignedCharTy;
-        case BuiltinType::Char_U:
-        case BuiltinType::UChar:
-          return T == C.SignedCharTy;
-        case BuiltinType::Short:
-          return T == C.UnsignedShortTy;
-        case BuiltinType::UShort:
-          return T == C.ShortTy;
-        case BuiltinType::Int:
-          return T == C.UnsignedIntTy;
-        case BuiltinType::UInt:
-          return T == C.IntTy;
-        case BuiltinType::Long:
-          return T == C.UnsignedLongTy;
-        case BuiltinType::ULong:
-          return T == C.LongTy;
-        case BuiltinType::LongLong:
-          return T == C.UnsignedLongLongTy;
-        case BuiltinType::ULongLong:
-          return T == C.LongLongTy;
-      }
+    case UnknownTy:
+      return true;
 
-    return false;
-  }
-
-  if (K == CStrTy) {
-    const PointerType *PT = argTy->getAs<PointerType>();
-    if (!PT)
+    case SpecificTy: {
+      argTy = C.getCanonicalType(argTy).getUnqualifiedType();
+      if (T == argTy)
+        return true;
+      if (const BuiltinType *BT = argTy->getAs<BuiltinType>())
+        switch (BT->getKind()) {
+          default:
+            break;
+          case BuiltinType::Char_S:
+          case BuiltinType::SChar:
+            return T == C.UnsignedCharTy;
+          case BuiltinType::Char_U:
+          case BuiltinType::UChar:
+            return T == C.SignedCharTy;
+          case BuiltinType::Short:
+            return T == C.UnsignedShortTy;
+          case BuiltinType::UShort:
+            return T == C.ShortTy;
+          case BuiltinType::Int:
+            return T == C.UnsignedIntTy;
+          case BuiltinType::UInt:
+            return T == C.IntTy;
+          case BuiltinType::Long:
+            return T == C.UnsignedLongTy;
+          case BuiltinType::ULong:
+            return T == C.LongTy;
+          case BuiltinType::LongLong:
+            return T == C.UnsignedLongLongTy;
+          case BuiltinType::ULongLong:
+            return T == C.LongLongTy;
+        }
       return false;
+    }
 
-    QualType pointeeTy = PT->getPointeeType();
+    case CStrTy: {
+      const PointerType *PT = argTy->getAs<PointerType>();
+      if (!PT)
+        return false;
+      QualType pointeeTy = PT->getPointeeType();
+      if (const BuiltinType *BT = pointeeTy->getAs<BuiltinType>())
+        switch (BT->getKind()) {
+          case BuiltinType::Void:
+          case BuiltinType::Char_U:
+          case BuiltinType::UChar:
+          case BuiltinType::Char_S:
+          case BuiltinType::SChar:
+            return true;
+          default:
+            break;
+        }
 
-    if (const BuiltinType *BT = pointeeTy->getAs<BuiltinType>())
-      switch (BT->getKind()) {
-        case BuiltinType::Void:
-        case BuiltinType::Char_U:
-        case BuiltinType::UChar:
-        case BuiltinType::Char_S:
-        case BuiltinType::SChar:
-          return true;
-        default:
-          break;
-      }
-
-    return false;
-  }
-
-  if (K == WCStrTy) {
-    const PointerType *PT = argTy->getAs<PointerType>();
-    if (!PT)
       return false;
+    }
 
-    QualType pointeeTy =
-      C.getCanonicalType(PT->getPointeeType()).getUnqualifiedType();
+    case WCStrTy: {
+      const PointerType *PT = argTy->getAs<PointerType>();
+      if (!PT)
+        return false;
+      QualType pointeeTy =
+        C.getCanonicalType(PT->getPointeeType()).getUnqualifiedType();
+      return pointeeTy == C.getWCharType();
+    }
 
-    return pointeeTy == C.getWCharType();
+    case CPointerTy:
+      return argTy->getAs<PointerType>() != NULL ||
+      	     argTy->getAs<ObjCObjectPointerType>() != NULL;
+
+    case ObjCPointerTy:
+      return argTy->getAs<ObjCObjectPointerType>() != NULL;
   }
 
+  // FIXME: Should be unreachable, but Clang is currently emitting
+  // a warning.
   return false;
 }
 
 QualType ArgTypeResult::getRepresentativeType(ASTContext &C) const {
-  assert(isValid());
-  if (K == SpecificTy)
-    return T;
-  if (K == CStrTy)
-    return C.getPointerType(C.CharTy);
-  if (K == WCStrTy)
-    return C.getPointerType(C.getWCharType());
-  if (K == ObjCPointerTy)
-    return C.ObjCBuiltinIdTy;
+  switch (K) {
+    case InvalidTy:
+      assert(false && "No representative type for Invalid ArgTypeResult");
+      // Fall-through.
+    case UnknownTy:
+      return QualType();
+    case SpecificTy:
+      return T;
+    case CStrTy:
+      return C.getPointerType(C.CharTy);
+    case WCStrTy:
+      return C.getPointerType(C.getWCharType());
+    case ObjCPointerTy:
+      return C.ObjCBuiltinIdTy;
+    case CPointerTy:
+      return C.VoidPtrTy;
+  }
 
+  // FIXME: Should be unreachable, but Clang is currently emitting
+  // a warning.
   return QualType();
 }
 
@@ -524,6 +549,99 @@ ArgTypeResult OptionalAmount::getArgType(ASTContext &Ctx) const {
 }
 
 //===----------------------------------------------------------------------===//
+// Methods on ConversionSpecifier.
+//===----------------------------------------------------------------------===//
+const char *ConversionSpecifier::toString() const {
+  switch (kind) {
+  case bArg: return "b";
+  case dArg: return "d";
+  case iArg: return "i";
+  case oArg: return "o";
+  case uArg: return "u";
+  case xArg: return "x";
+  case XArg: return "X";
+  case fArg: return "f";
+  case FArg: return "F";
+  case eArg: return "e";
+  case EArg: return "E";
+  case gArg: return "g";
+  case GArg: return "G";
+  case aArg: return "a";
+  case AArg: return "A";
+  case IntAsCharArg:     return "c";
+  case CStrArg:          return "s";
+  case VoidPtrArg:       return "p";
+  case OutIntPtrArg:     return "n";
+  case PercentArg:       return "%";
+  case InvalidSpecifier: return NULL;
+
+  // MacOS X unicode extensions.
+  case CArg:          return "C";
+  case UnicodeStrArg: return "S";
+
+  // Objective-C specific specifiers.
+  case ObjCObjArg: return "@";
+
+  // GlibC specific specifiers.
+  case PrintErrno: return "m";
+  }
+  return NULL;
+}
+
+//===----------------------------------------------------------------------===//
+// Methods on LengthModifier.
+//===----------------------------------------------------------------------===//
+
+const char *LengthModifier::toString() const {
+  switch (kind) {
+  case AsChar:
+    return "hh";
+  case AsShort:
+    return "h";
+  case AsLong: // or AsWideChar
+    return "l";
+  case AsLongLong:
+    return "ll";
+  case AsIntMax:
+    return "j";
+  case AsSizeT:
+    return "z";
+  case AsPtrDiff:
+    return "t";
+  case AsLongDouble:
+    return "L";
+  case None:
+    return "";
+  }
+  return NULL;
+}
+
+//===----------------------------------------------------------------------===//
+// Methods on OptionalAmount.
+//===----------------------------------------------------------------------===//
+
+void OptionalAmount::toString(llvm::raw_ostream &os) const {
+  switch (hs) {
+  case Invalid:
+  case NotSpecified:
+    return;
+  case Arg:
+    if (UsesDotPrefix)
+        os << ".";
+    if (usesPositionalArg())
+      os << "*" << getPositionalArgIndex() << "$";
+    else
+      os << "*";
+    break;
+  case Constant:
+    if (UsesDotPrefix)
+        os << ".";
+    os << amt;
+    break;
+  }
+}
+
+//===----------------------------------------------------------------------===//
 // Methods on FormatSpecifier.
 //===----------------------------------------------------------------------===//
 
@@ -532,57 +650,60 @@ ArgTypeResult FormatSpecifier::getArgType(ASTContext &Ctx) const {
     return ArgTypeResult::Invalid();
 
   if (CS.isIntArg())
-    switch (LM) {
-      case AsLongDouble:
+    switch (LM.getKind()) {
+      case LengthModifier::AsLongDouble:
         return ArgTypeResult::Invalid();
-      case None: return Ctx.IntTy;
-      case AsChar: return Ctx.SignedCharTy;
-      case AsShort: return Ctx.ShortTy;
-      case AsLong: return Ctx.LongTy;
-      case AsLongLong: return Ctx.LongLongTy;
-      case AsIntMax:
+      case LengthModifier::None: return Ctx.IntTy;
+      case LengthModifier::AsChar: return Ctx.SignedCharTy;
+      case LengthModifier::AsShort: return Ctx.ShortTy;
+      case LengthModifier::AsLong: return Ctx.LongTy;
+      case LengthModifier::AsLongLong: return Ctx.LongLongTy;
+      case LengthModifier::AsIntMax:
         // FIXME: Return unknown for now.
         return ArgTypeResult();
-      case AsSizeT: return Ctx.getSizeType();
-      case AsPtrDiff: return Ctx.getPointerDiffType();
+      case LengthModifier::AsSizeT: return Ctx.getSizeType();
+      case LengthModifier::AsPtrDiff: return Ctx.getPointerDiffType();
     }
 
   if (CS.isUIntArg())
-    switch (LM) {
-      case AsLongDouble:
+    switch (LM.getKind()) {
+      case LengthModifier::AsLongDouble:
         return ArgTypeResult::Invalid();
-      case None: return Ctx.UnsignedIntTy;
-      case AsChar: return Ctx.UnsignedCharTy;
-      case AsShort: return Ctx.UnsignedShortTy;
-      case AsLong: return Ctx.UnsignedLongTy;
-      case AsLongLong: return Ctx.UnsignedLongLongTy;
-      case AsIntMax:
+      case LengthModifier::None: return Ctx.UnsignedIntTy;
+      case LengthModifier::AsChar: return Ctx.UnsignedCharTy;
+      case LengthModifier::AsShort: return Ctx.UnsignedShortTy;
+      case LengthModifier::AsLong: return Ctx.UnsignedLongTy;
+      case LengthModifier::AsLongLong: return Ctx.UnsignedLongLongTy;
+      case LengthModifier::AsIntMax:
         // FIXME: Return unknown for now.
         return ArgTypeResult();
-      case AsSizeT:
+      case LengthModifier::AsSizeT:
         // FIXME: How to get the corresponding unsigned
         // version of size_t?
         return ArgTypeResult();
-      case AsPtrDiff:
+      case LengthModifier::AsPtrDiff:
         // FIXME: How to get the corresponding unsigned
         // version of ptrdiff_t?
         return ArgTypeResult();
     }
 
   if (CS.isDoubleArg()) {
-    if (LM == AsLongDouble)
+    if (LM.getKind() == LengthModifier::AsLongDouble)
       return Ctx.LongDoubleTy;
     return Ctx.DoubleTy;
   }
 
   switch (CS.getKind()) {
     case ConversionSpecifier::CStrArg:
-      return ArgTypeResult(LM == AsWideChar ? ArgTypeResult::WCStrTy                                            : ArgTypeResult::CStrTy);
+      return ArgTypeResult(LM.getKind() == LengthModifier::AsWideChar ?
+          ArgTypeResult::WCStrTy : ArgTypeResult::CStrTy);
     case ConversionSpecifier::UnicodeStrArg:
       // FIXME: This appears to be Mac OS X specific.
       return ArgTypeResult::WCStrTy;
     case ConversionSpecifier::CArg:
       return Ctx.WCharTy;
+    case ConversionSpecifier::VoidPtrArg:
+      return ArgTypeResult::CPointerTy;
     default:
       break;
   }
@@ -591,3 +712,329 @@ ArgTypeResult FormatSpecifier::getArgType(ASTContext &Ctx) const {
   return ArgTypeResult();
 }
 
+bool FormatSpecifier::fixType(QualType QT) {
+  // Handle strings first (char *, wchar_t *)
+  if (QT->isPointerType() && (QT->getPointeeType()->isAnyCharacterType())) {
+    CS.setKind(ConversionSpecifier::CStrArg);
+
+    // Disable irrelevant flags
+    HasAlternativeForm = 0;
+    HasLeadingZeroes = 0;
+
+    // Set the long length modifier for wide characters
+    if (QT->getPointeeType()->isWideCharType())
+      LM.setKind(LengthModifier::AsWideChar);
+
+    return true;
+  }
+
+  // We can only work with builtin types.
+  if (!QT->isBuiltinType())
+    return false;
+
+  // Everything else should be a base type
+  const BuiltinType *BT = QT->getAs<BuiltinType>();
+
+  // Set length modifier
+  switch (BT->getKind()) {
+  default:
+    // The rest of the conversions are either optional or for non-builtin types
+    LM.setKind(LengthModifier::None);
+    break;
+
+  case BuiltinType::WChar:
+  case BuiltinType::Long:
+  case BuiltinType::ULong:
+    LM.setKind(LengthModifier::AsLong);
+    break;
+
+  case BuiltinType::LongLong:
+  case BuiltinType::ULongLong:
+    LM.setKind(LengthModifier::AsLongLong);
+    break;
+
+  case BuiltinType::LongDouble:
+    LM.setKind(LengthModifier::AsLongDouble);
+    break;
+  }
+
+  // Set conversion specifier and disable any flags which do not apply to it.
+  if (QT->isAnyCharacterType()) {
+    CS.setKind(ConversionSpecifier::IntAsCharArg);
+    Precision.setHowSpecified(OptionalAmount::NotSpecified);
+    HasAlternativeForm = 0;
+    HasLeadingZeroes = 0;
+    HasPlusPrefix = 0;
+  }
+  // Test for Floating type first as LongDouble can pass isUnsignedIntegerType
+  else if (QT->isRealFloatingType()) {
+    CS.setKind(ConversionSpecifier::fArg);
+  }
+  else if (QT->isPointerType()) {
+    CS.setKind(ConversionSpecifier::VoidPtrArg);
+    Precision.setHowSpecified(OptionalAmount::NotSpecified);
+    HasAlternativeForm = 0;
+    HasLeadingZeroes = 0;
+    HasPlusPrefix = 0;
+  }
+  else if (QT->isSignedIntegerType()) {
+    CS.setKind(ConversionSpecifier::dArg);
+    HasAlternativeForm = 0;
+  }
+  else if (QT->isUnsignedIntegerType()) {
+    CS.setKind(ConversionSpecifier::uArg);
+    HasAlternativeForm = 0;
+    HasPlusPrefix = 0;
+  }
+  else {
+    return false;
+  }
+
+  return true;
+}
+
+void FormatSpecifier::toString(llvm::raw_ostream &os) const {
+  // Whilst some features have no defined order, we are using the order
+  // appearing in the C99 standard (ISO/IEC 9899:1999 (E) ¤7.19.6.1)
+  os << "%";
+
+  // Positional args
+  if (usesPositionalArg()) {
+    os << getPositionalArgIndex() << "$";
+  }
+
+  // Conversion flags
+  if (IsLeftJustified)    os << "-";
+  if (HasPlusPrefix)      os << "+";
+  if (HasSpacePrefix)     os << " ";
+  if (HasAlternativeForm) os << "#";
+  if (HasLeadingZeroes)   os << "0";
+
+  // Minimum field width
+  FieldWidth.toString(os);
+  // Precision
+  Precision.toString(os);
+  // Length modifier
+  os << LM.toString();
+  // Conversion specifier
+  os << CS.toString();
+}
+
+bool FormatSpecifier::hasValidPlusPrefix() const {
+  if (!HasPlusPrefix)
+    return true;
+
+  // The plus prefix only makes sense for signed conversions
+  switch (CS.getKind()) {
+  case ConversionSpecifier::dArg:
+  case ConversionSpecifier::iArg:
+  case ConversionSpecifier::fArg:
+  case ConversionSpecifier::FArg:
+  case ConversionSpecifier::eArg:
+  case ConversionSpecifier::EArg:
+  case ConversionSpecifier::gArg:
+  case ConversionSpecifier::GArg:
+  case ConversionSpecifier::aArg:
+  case ConversionSpecifier::AArg:
+    return true;
+
+  default:
+    return false;
+  }
+}
+
+bool FormatSpecifier::hasValidAlternativeForm() const {
+  if (!HasAlternativeForm)
+    return true;
+
+  // Alternate form flag only valid with the oxaAeEfFgG conversions
+  switch (CS.getKind()) {
+  case ConversionSpecifier::oArg:
+  case ConversionSpecifier::xArg:
+  case ConversionSpecifier::aArg:
+  case ConversionSpecifier::AArg:
+  case ConversionSpecifier::eArg:
+  case ConversionSpecifier::EArg:
+  case ConversionSpecifier::fArg:
+  case ConversionSpecifier::FArg:
+  case ConversionSpecifier::gArg:
+  case ConversionSpecifier::GArg:
+    return true;
+
+  default:
+    return false;
+  }
+}
+
+bool FormatSpecifier::hasValidLeadingZeros() const {
+  if (!HasLeadingZeroes)
+    return true;
+
+  // Leading zeroes flag only valid with the diouxXaAeEfFgG conversions
+  switch (CS.getKind()) {
+  case ConversionSpecifier::dArg:
+  case ConversionSpecifier::iArg:
+  case ConversionSpecifier::oArg:
+  case ConversionSpecifier::uArg:
+  case ConversionSpecifier::xArg:
+  case ConversionSpecifier::XArg:
+  case ConversionSpecifier::aArg:
+  case ConversionSpecifier::AArg:
+  case ConversionSpecifier::eArg:
+  case ConversionSpecifier::EArg:
+  case ConversionSpecifier::fArg:
+  case ConversionSpecifier::FArg:
+  case ConversionSpecifier::gArg:
+  case ConversionSpecifier::GArg:
+    return true;
+
+  default:
+    return false;
+  }
+}
+
+bool FormatSpecifier::hasValidSpacePrefix() const {
+  if (!HasSpacePrefix)
+    return true;
+
+  // The space prefix only makes sense for signed conversions
+  switch (CS.getKind()) {
+  case ConversionSpecifier::dArg:
+  case ConversionSpecifier::iArg:
+  case ConversionSpecifier::fArg:
+  case ConversionSpecifier::FArg:
+  case ConversionSpecifier::eArg:
+  case ConversionSpecifier::EArg:
+  case ConversionSpecifier::gArg:
+  case ConversionSpecifier::GArg:
+  case ConversionSpecifier::aArg:
+  case ConversionSpecifier::AArg:
+    return true;
+
+  default:
+    return false;
+  }
+}
+
+bool FormatSpecifier::hasValidLeftJustified() const {
+  if (!IsLeftJustified)
+    return true;
+
+  // The left justified flag is valid for all conversions except n
+  switch (CS.getKind()) {
+  case ConversionSpecifier::OutIntPtrArg:
+    return false;
+
+  default:
+    return true;
+  }
+}
+
+bool FormatSpecifier::hasValidLengthModifier() const {
+  switch (LM.getKind()) {
+  case LengthModifier::None:
+    return true;
+
+  // Handle most integer flags
+  case LengthModifier::AsChar:
+  case LengthModifier::AsShort:
+  case LengthModifier::AsLongLong:
+  case LengthModifier::AsIntMax:
+  case LengthModifier::AsSizeT:
+  case LengthModifier::AsPtrDiff:
+    switch (CS.getKind()) {
+    case ConversionSpecifier::dArg:
+    case ConversionSpecifier::iArg:
+    case ConversionSpecifier::oArg:
+    case ConversionSpecifier::uArg:
+    case ConversionSpecifier::xArg:
+    case ConversionSpecifier::XArg:
+    case ConversionSpecifier::OutIntPtrArg:
+      return true;
+    default:
+      return false;
+    }
+
+  // Handle 'l' flag
+  case LengthModifier::AsLong:
+    switch (CS.getKind()) {
+    case ConversionSpecifier::dArg:
+    case ConversionSpecifier::iArg:
+    case ConversionSpecifier::oArg:
+    case ConversionSpecifier::uArg:
+    case ConversionSpecifier::xArg:
+    case ConversionSpecifier::XArg:
+    case ConversionSpecifier::aArg:
+    case ConversionSpecifier::AArg:
+    case ConversionSpecifier::fArg:
+    case ConversionSpecifier::FArg:
+    case ConversionSpecifier::eArg:
+    case ConversionSpecifier::EArg:
+    case ConversionSpecifier::gArg:
+    case ConversionSpecifier::GArg:
+    case ConversionSpecifier::OutIntPtrArg:
+    case ConversionSpecifier::IntAsCharArg:
+    case ConversionSpecifier::CStrArg:
+      return true;
+    default:
+      return false;
+    }
+
+  case LengthModifier::AsLongDouble:
+    switch (CS.getKind()) {
+    case ConversionSpecifier::aArg:
+    case ConversionSpecifier::AArg:
+    case ConversionSpecifier::fArg:
+    case ConversionSpecifier::FArg:
+    case ConversionSpecifier::eArg:
+    case ConversionSpecifier::EArg:
+    case ConversionSpecifier::gArg:
+    case ConversionSpecifier::GArg:
+      return true;
+    default:
+      return false;
+    }
+  }
+  return false;
+}
+
+bool FormatSpecifier::hasValidPrecision() const {
+  if (Precision.getHowSpecified() == OptionalAmount::NotSpecified)
+    return true;
+
+  // Precision is only valid with the diouxXaAeEfFgGs conversions
+  switch (CS.getKind()) {
+  case ConversionSpecifier::dArg:
+  case ConversionSpecifier::iArg:
+  case ConversionSpecifier::oArg:
+  case ConversionSpecifier::uArg:
+  case ConversionSpecifier::xArg:
+  case ConversionSpecifier::XArg:
+  case ConversionSpecifier::aArg:
+  case ConversionSpecifier::AArg:
+  case ConversionSpecifier::eArg:
+  case ConversionSpecifier::EArg:
+  case ConversionSpecifier::fArg:
+  case ConversionSpecifier::FArg:
+  case ConversionSpecifier::gArg:
+  case ConversionSpecifier::GArg:
+  case ConversionSpecifier::CStrArg:
+    return true;
+
+  default:
+    return false;
+  }
+}
+bool FormatSpecifier::hasValidFieldWidth() const {
+  if (FieldWidth.getHowSpecified() == OptionalAmount::NotSpecified)
+      return true;
+
+  // The field width is valid for all conversions except n
+  switch (CS.getKind()) {
+  case ConversionSpecifier::OutIntPtrArg:
+    return false;
+
+  default:
+    return true;
+  }
+}

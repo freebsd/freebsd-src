@@ -77,6 +77,8 @@ static CXTypeKind GetTypeKind(QualType T) {
     TKCASE(Typedef);
     TKCASE(ObjCInterface);
     TKCASE(ObjCObjectPointer);
+    TKCASE(FunctionNoProto);
+    TKCASE(FunctionProto);
     default:
       return CXType_Unexposed;
   }
@@ -116,7 +118,10 @@ CXType clang_getCursorType(CXCursor C) {
       return MakeCXType(QualType(ID->getTypeForDecl(), 0), AU);
     if (ValueDecl *VD = dyn_cast<ValueDecl>(D))
       return MakeCXType(VD->getType(), AU);
-
+    if (ObjCPropertyDecl *PD = dyn_cast<ObjCPropertyDecl>(D))
+      return MakeCXType(PD->getType(), AU);
+    if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
+      return MakeCXType(FD->getType(), AU);
     return MakeCXType(QualType(), AU);
   }
 
@@ -165,8 +170,15 @@ CXType clang_getPointeeType(CXType CT) {
 }
 
 CXCursor clang_getTypeDeclaration(CXType CT) {
+  if (CT.kind == CXType_Invalid)
+    return cxcursor::MakeCXCursorInvalid(CXCursor_NoDeclFound);
+
   QualType T = GetQualType(CT);
   Type *TP = T.getTypePtr();
+
+  if (!TP)
+    return cxcursor::MakeCXCursorInvalid(CXCursor_NoDeclFound);
+
   Decl *D = 0;
 
   switch (TP->getTypeClass()) {
@@ -237,6 +249,8 @@ CXString clang_getTypeKindSpelling(enum CXTypeKind K) {
     TKIND(Typedef);
     TKIND(ObjCInterface);
     TKIND(ObjCObjectPointer);
+    TKIND(FunctionNoProto);
+    TKIND(FunctionProto);
   }
 #undef TKIND
   return cxstring::createCXString(s);
@@ -244,6 +258,29 @@ CXString clang_getTypeKindSpelling(enum CXTypeKind K) {
 
 unsigned clang_equalTypes(CXType A, CXType B) {
   return A.data[0] == B.data[0] && A.data[1] == B.data[1];;
+}
+
+CXType clang_getResultType(CXType X) {
+  QualType T = GetQualType(X);
+  if (!T.getTypePtr())
+    return MakeCXType(QualType(), GetASTU(X));
+  
+  if (const FunctionType *FD = T->getAs<FunctionType>())
+    return MakeCXType(FD->getResultType(), GetASTU(X));
+  
+  return MakeCXType(QualType(), GetASTU(X));
+}
+
+CXType clang_getCursorResultType(CXCursor C) {
+  if (clang_isDeclaration(C.kind)) {
+    Decl *D = cxcursor::getCursorDecl(C);
+    if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D))
+      return MakeCXType(MD->getResultType(), cxcursor::getCursorASTUnit(C));
+
+    return clang_getResultType(clang_getCursorType(C));
+  }
+
+  return MakeCXType(QualType(), cxcursor::getCursorASTUnit(C));
 }
 
 } // end: extern "C"

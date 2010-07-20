@@ -13,17 +13,40 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/OwningPtr.h"
 #include <string>
+#include <vector>
+
+namespace llvm {
+  class raw_ostream;
+}
 
 namespace clang {
-class ASTUnit;
 class ASTConsumer;
-class CompilerInstance;
 class ASTMergeAction;
+class ASTUnit;
+class CompilerInstance;
+
+enum InputKind {
+  IK_None,
+  IK_Asm,
+  IK_C,
+  IK_CXX,
+  IK_ObjC,
+  IK_ObjCXX,
+  IK_PreprocessedC,
+  IK_PreprocessedCXX,
+  IK_PreprocessedObjC,
+  IK_PreprocessedObjCXX,
+  IK_OpenCL,
+  IK_AST,
+  IK_LLVM_IR
+};
+
 
 /// FrontendAction - Abstract base class for actions which can be performed by
 /// the frontend.
 class FrontendAction {
   std::string CurrentFile;
+  InputKind CurrentFileKind;
   llvm::OwningPtr<ASTUnit> CurrentASTUnit;
   CompilerInstance *Instance;
   friend class ASTMergeAction;
@@ -101,6 +124,11 @@ public:
     return CurrentFile;
   }
 
+  InputKind getCurrentFileKind() const {
+    assert(!CurrentFile.empty() && "No current file!");
+    return CurrentFileKind;
+  }
+
   ASTUnit &getCurrentASTUnit() const {
     assert(!CurrentASTUnit && "No current AST unit!");
     return *CurrentASTUnit;
@@ -110,7 +138,7 @@ public:
     return CurrentASTUnit.take();
   }
 
-  void setCurrentFile(llvm::StringRef Value, ASTUnit *AST = 0);
+  void setCurrentFile(llvm::StringRef Value, InputKind Kind, ASTUnit *AST = 0);
 
   /// @}
   /// @name Supported Modes
@@ -128,8 +156,11 @@ public:
   /// hasPCHSupport - Does this action support use with PCH?
   virtual bool hasPCHSupport() const { return !usesPreprocessorOnly(); }
 
-  /// hasASTSupport - Does this action support use with AST files?
-  virtual bool hasASTSupport() const { return !usesPreprocessorOnly(); }
+  /// hasASTFileSupport - Does this action support use with AST files?
+  virtual bool hasASTFileSupport() const { return !usesPreprocessorOnly(); }
+
+  /// hasIRSupport - Does this action support use with IR files?
+  virtual bool hasIRSupport() const { return false; }
 
   /// hasCodeCompletionSupport - Does this action support use with code
   /// completion?
@@ -150,17 +181,18 @@ public:
   /// \param Filename - The input filename, which will be made available to
   /// clients via \see getCurrentFile().
   ///
-  /// \param IsAST - Indicates whether this is an AST input. AST inputs require
-  /// special handling, since the AST file itself contains several objects which
-  /// would normally be owned by the CompilerInstance. When processing AST input
-  /// files, these objects should generally not be initialized in the
-  /// CompilerInstance -- they will automatically be shared with the AST file in
-  /// between \see BeginSourceFile() and \see EndSourceFile().
+  /// \param InputKind - The type of input. Some input kinds are handled
+  /// specially, for example AST inputs, since the AST file itself contains
+  /// several objects which would normally be owned by the
+  /// CompilerInstance. When processing AST input files, these objects should
+  /// generally not be initialized in the CompilerInstance -- they will
+  /// automatically be shared with the AST file in between \see
+  /// BeginSourceFile() and \see EndSourceFile().
   ///
   /// \return True on success; the compilation of this file should be aborted
   /// and neither Execute nor EndSourceFile should be called.
   bool BeginSourceFile(CompilerInstance &CI, llvm::StringRef Filename,
-                       bool IsAST = false);
+                       InputKind Kind);
 
   /// Execute - Set the source managers main input file, and run the action.
   void Execute();
@@ -175,6 +207,7 @@ public:
 /// ASTFrontendAction - Abstract base class to use for AST consumer based
 /// frontend actions.
 class ASTFrontendAction : public FrontendAction {
+protected:
   /// ExecuteAction - Implement the ExecuteAction interface by running Sema on
   /// the already initialized AST consumer.
   ///
@@ -184,6 +217,16 @@ class ASTFrontendAction : public FrontendAction {
 
 public:
   virtual bool usesPreprocessorOnly() const { return false; }
+};
+
+class PluginASTAction : public ASTFrontendAction {
+protected:
+  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                         llvm::StringRef InFile) = 0;
+
+public:
+  virtual bool ParseArgs(const std::vector<std::string>& arg) = 0;
+  virtual void PrintHelp(llvm::raw_ostream&) = 0;
 };
 
 /// PreprocessorFrontendAction - Abstract base class to use for preprocessor

@@ -35,16 +35,18 @@ using namespace clang;
 //  Statistics
 //===----------------------------------------------------------------------===//
 
-#define DECL(Derived, Base) static int n##Derived##s = 0;
-#include "clang/AST/DeclNodes.def"
+#define DECL(DERIVED, BASE) static int n##DERIVED##s = 0;
+#define ABSTRACT_DECL(DECL)
+#include "clang/AST/DeclNodes.inc"
 
 static bool StatSwitch = false;
 
 const char *Decl::getDeclKindName() const {
   switch (DeclKind) {
-  default: assert(0 && "Declaration not in DeclNodes.def!");
-#define DECL(Derived, Base) case Derived: return #Derived;
-#include "clang/AST/DeclNodes.def"
+  default: assert(0 && "Declaration not in DeclNodes.inc!");
+#define DECL(DERIVED, BASE) case DERIVED: return #DERIVED;
+#define ABSTRACT_DECL(DECL)
+#include "clang/AST/DeclNodes.inc"
   }
 }
 
@@ -60,9 +62,10 @@ void Decl::setInvalidDecl(bool Invalid) {
 
 const char *DeclContext::getDeclKindName() const {
   switch (DeclKind) {
-  default: assert(0 && "Declaration context not in DeclNodes.def!");
-#define DECL(Derived, Base) case Decl::Derived: return #Derived;
-#include "clang/AST/DeclNodes.def"
+  default: assert(0 && "Declaration context not in DeclNodes.inc!");
+#define DECL(DERIVED, BASE) case Decl::DERIVED: return #DERIVED;
+#define ABSTRACT_DECL(DECL)
+#include "clang/AST/DeclNodes.inc"
   }
 }
 
@@ -75,28 +78,31 @@ void Decl::PrintStats() {
   fprintf(stderr, "*** Decl Stats:\n");
 
   int totalDecls = 0;
-#define DECL(Derived, Base) totalDecls += n##Derived##s;
-#include "clang/AST/DeclNodes.def"
+#define DECL(DERIVED, BASE) totalDecls += n##DERIVED##s;
+#define ABSTRACT_DECL(DECL)
+#include "clang/AST/DeclNodes.inc"
   fprintf(stderr, "  %d decls total.\n", totalDecls);
 
   int totalBytes = 0;
-#define DECL(Derived, Base)                                             \
-  if (n##Derived##s > 0) {                                              \
-    totalBytes += (int)(n##Derived##s * sizeof(Derived##Decl));         \
-    fprintf(stderr, "    %d " #Derived " decls, %d each (%d bytes)\n",  \
-            n##Derived##s, (int)sizeof(Derived##Decl),                  \
-            (int)(n##Derived##s * sizeof(Derived##Decl)));              \
+#define DECL(DERIVED, BASE)                                             \
+  if (n##DERIVED##s > 0) {                                              \
+    totalBytes += (int)(n##DERIVED##s * sizeof(DERIVED##Decl));         \
+    fprintf(stderr, "    %d " #DERIVED " decls, %d each (%d bytes)\n",  \
+            n##DERIVED##s, (int)sizeof(DERIVED##Decl),                  \
+            (int)(n##DERIVED##s * sizeof(DERIVED##Decl)));              \
   }
-#include "clang/AST/DeclNodes.def"
+#define ABSTRACT_DECL(DECL)
+#include "clang/AST/DeclNodes.inc"
 
   fprintf(stderr, "Total bytes = %d\n", totalBytes);
 }
 
-void Decl::addDeclKind(Kind k) {
+void Decl::add(Kind k) {
   switch (k) {
-  default: assert(0 && "Declaration not in DeclNodes.def!");
-#define DECL(Derived, Base) case Derived: ++n##Derived##s; break;
-#include "clang/AST/DeclNodes.def"
+  default: assert(0 && "Declaration not in DeclNodes.inc!");
+#define DECL(DERIVED, BASE) case DERIVED: ++n##DERIVED##s; break;
+#define ABSTRACT_DECL(DECL)
+#include "clang/AST/DeclNodes.inc"
   }
 }
 
@@ -206,17 +212,17 @@ ASTContext &Decl::getASTContext() const {
   return getTranslationUnitDecl()->getASTContext();
 }
 
-bool Decl::isUsed() const { 
+bool Decl::isUsed(bool CheckUsedAttr) const { 
   if (Used)
     return true;
   
   // Check for used attribute.
-  if (hasAttr<UsedAttr>())
+  if (CheckUsedAttr && hasAttr<UsedAttr>())
     return true;
   
   // Check redeclarations for used attribute.
   for (redecl_iterator I = redecls_begin(), E = redecls_end(); I != E; ++I) {
-    if (I->hasAttr<UsedAttr>() || I->Used)
+    if ((CheckUsedAttr && I->hasAttr<UsedAttr>()) || I->Used)
       return true;
   }
   
@@ -285,6 +291,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     // Never have names.
     case Friend:
     case FriendTemplate:
+    case AccessSpec:
     case LinkageSpec:
     case FileScopeAsm:
     case StaticAssert:
@@ -307,9 +314,20 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
   return 0;
 }
 
+void Decl::initAttrs(Attr *attrs) {
+  assert(!HasAttrs && "Decl already contains attrs.");
+
+  Attr *&AttrBlank = getASTContext().getDeclAttrs(this);
+  assert(AttrBlank == 0 && "HasAttrs was wrong?");
+
+  AttrBlank = attrs;
+  HasAttrs = true;
+}
+
 void Decl::addAttr(Attr *NewAttr) {
   Attr *&ExistingAttr = getASTContext().getDeclAttrs(this);
 
+  assert(NewAttr->getNext() == 0 && "Chain of attributes will be truncated!");
   NewAttr->setNext(ExistingAttr);
   ExistingAttr = NewAttr;
 
@@ -354,7 +372,6 @@ void Decl::swapAttrs(Decl *RHS) {
   RHS->HasAttrs = true;
 }
 
-
 void Decl::Destroy(ASTContext &C) {
   // Free attributes for this decl.
   if (HasAttrs) {
@@ -392,16 +409,18 @@ void Decl::Destroy(ASTContext &C) {
 Decl *Decl::castFromDeclContext (const DeclContext *D) {
   Decl::Kind DK = D->getDeclKind();
   switch(DK) {
-#define DECL_CONTEXT(Name) \
-    case Decl::Name:     \
-      return static_cast<Name##Decl*>(const_cast<DeclContext*>(D));
-#define DECL_CONTEXT_BASE(Name)
-#include "clang/AST/DeclNodes.def"
+#define DECL(NAME, BASE)
+#define DECL_CONTEXT(NAME) \
+    case Decl::NAME:       \
+      return static_cast<NAME##Decl*>(const_cast<DeclContext*>(D));
+#define DECL_CONTEXT_BASE(NAME)
+#include "clang/AST/DeclNodes.inc"
     default:
-#define DECL_CONTEXT_BASE(Name)                                   \
-      if (DK >= Decl::Name##First && DK <= Decl::Name##Last)    \
-        return static_cast<Name##Decl*>(const_cast<DeclContext*>(D));
-#include "clang/AST/DeclNodes.def"
+#define DECL(NAME, BASE)
+#define DECL_CONTEXT_BASE(NAME)                  \
+      if (DK >= first##NAME && DK <= last##NAME) \
+        return static_cast<NAME##Decl*>(const_cast<DeclContext*>(D));
+#include "clang/AST/DeclNodes.inc"
       assert(false && "a decl that inherits DeclContext isn't handled");
       return 0;
   }
@@ -410,46 +429,51 @@ Decl *Decl::castFromDeclContext (const DeclContext *D) {
 DeclContext *Decl::castToDeclContext(const Decl *D) {
   Decl::Kind DK = D->getKind();
   switch(DK) {
-#define DECL_CONTEXT(Name) \
-    case Decl::Name:     \
-      return static_cast<Name##Decl*>(const_cast<Decl*>(D));
-#define DECL_CONTEXT_BASE(Name)
-#include "clang/AST/DeclNodes.def"
+#define DECL(NAME, BASE)
+#define DECL_CONTEXT(NAME) \
+    case Decl::NAME:       \
+      return static_cast<NAME##Decl*>(const_cast<Decl*>(D));
+#define DECL_CONTEXT_BASE(NAME)
+#include "clang/AST/DeclNodes.inc"
     default:
-#define DECL_CONTEXT_BASE(Name)                                   \
-      if (DK >= Decl::Name##First && DK <= Decl::Name##Last)    \
-        return static_cast<Name##Decl*>(const_cast<Decl*>(D));
-#include "clang/AST/DeclNodes.def"
+#define DECL(NAME, BASE)
+#define DECL_CONTEXT_BASE(NAME)                                   \
+      if (DK >= first##NAME && DK <= last##NAME)                  \
+        return static_cast<NAME##Decl*>(const_cast<Decl*>(D));
+#include "clang/AST/DeclNodes.inc"
       assert(false && "a decl that inherits DeclContext isn't handled");
       return 0;
   }
 }
 
-CompoundStmt* Decl::getCompoundBody() const {
-  return dyn_cast_or_null<CompoundStmt>(getBody());
-}
-
 SourceLocation Decl::getBodyRBrace() const {
-  Stmt *Body = getBody();
-  if (!Body)
+  // Special handling of FunctionDecl to avoid de-serializing the body from PCH.
+  // FunctionDecl stores EndRangeLoc for this purpose.
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(this)) {
+    const FunctionDecl *Definition;
+    if (FD->hasBody(Definition))
+      return Definition->getSourceRange().getEnd();
     return SourceLocation();
-  if (CompoundStmt *CS = dyn_cast<CompoundStmt>(Body))
-    return CS->getRBracLoc();
-  assert(isa<CXXTryStmt>(Body) &&
-         "Body can only be CompoundStmt or CXXTryStmt");
-  return cast<CXXTryStmt>(Body)->getSourceRange().getEnd();
+  }
+
+  if (Stmt *Body = getBody())
+    return Body->getSourceRange().getEnd();
+
+  return SourceLocation();
 }
 
 #ifndef NDEBUG
 void Decl::CheckAccessDeclContext() const {
+  // FIXME: Disable this until rdar://8146294 "access specifier for inner class
+  // templates is not set or checked" is fixed.
+  return;
   // Suppress this check if any of the following hold:
   // 1. this is the translation unit (and thus has no parent)
   // 2. this is a template parameter (and thus doesn't belong to its context)
-  // 3. this is a ParmVarDecl (which can be in a record context during
-  //    the brief period between its creation and the creation of the
-  //    FunctionDecl)
-  // 4. the context is not a record
+  // 3. the context is not a record
+  // 4. it's invalid
   if (isa<TranslationUnitDecl>(this) ||
+      isa<TemplateTypeParmDecl>(this) ||
       !isa<CXXRecordDecl>(getDeclContext()) ||
       isInvalidDecl())
     return;
@@ -466,16 +490,18 @@ void Decl::CheckAccessDeclContext() const {
 
 bool DeclContext::classof(const Decl *D) {
   switch (D->getKind()) {
-#define DECL_CONTEXT(Name) case Decl::Name:
-#define DECL_CONTEXT_BASE(Name)
-#include "clang/AST/DeclNodes.def"
+#define DECL(NAME, BASE)
+#define DECL_CONTEXT(NAME) case Decl::NAME:
+#define DECL_CONTEXT_BASE(NAME)
+#include "clang/AST/DeclNodes.inc"
       return true;
     default:
-#define DECL_CONTEXT_BASE(Name)                   \
-      if (D->getKind() >= Decl::Name##First &&  \
-          D->getKind() <= Decl::Name##Last)     \
+#define DECL(NAME, BASE)
+#define DECL_CONTEXT_BASE(NAME)                 \
+      if (D->getKind() >= Decl::first##NAME &&  \
+          D->getKind() <= Decl::last##NAME)     \
         return true;
-#include "clang/AST/DeclNodes.def"
+#include "clang/AST/DeclNodes.inc"
       return false;
   }
 }
@@ -537,7 +563,7 @@ bool DeclContext::isTransparentContext() const {
     return true; // FIXME: Check for C++0x scoped enums
   else if (DeclKind == Decl::LinkageSpec)
     return true;
-  else if (DeclKind >= Decl::RecordFirst && DeclKind <= Decl::RecordLast)
+  else if (DeclKind >= Decl::firstRecord && DeclKind <= Decl::lastRecord)
     return cast<RecordDecl>(this)->isAnonymousStructOrUnion();
   else if (DeclKind == Decl::Namespace)
     return false; // FIXME: Check for C++0x inline namespaces
@@ -581,7 +607,7 @@ DeclContext *DeclContext::getPrimaryContext() {
     return this;
 
   default:
-    if (DeclKind >= Decl::TagFirst && DeclKind <= Decl::TagLast) {
+    if (DeclKind >= Decl::firstTag && DeclKind <= Decl::lastTag) {
       // If this is a tag type that has a definition or is currently
       // being defined, that definition is our primary context.
       TagDecl *Tag = cast<TagDecl>(this);
@@ -602,7 +628,7 @@ DeclContext *DeclContext::getPrimaryContext() {
       return Tag;
     }
 
-    assert(DeclKind >= Decl::FunctionFirst && DeclKind <= Decl::FunctionLast &&
+    assert(DeclKind >= Decl::firstFunction && DeclKind <= Decl::lastFunction &&
           "Unknown DeclContext kind");
     return this;
   }
@@ -626,9 +652,8 @@ DeclContext::LoadLexicalDeclsFromExternalStorage() const {
   ExternalASTSource *Source = getParentASTContext().getExternalSource();
   assert(hasExternalLexicalStorage() && Source && "No external storage?");
 
-  llvm::SmallVector<uint32_t, 64> Decls;
-  if (Source->ReadDeclsLexicallyInContext(const_cast<DeclContext *>(this),
-                                          Decls))
+  llvm::SmallVector<Decl*, 64> Decls;
+  if (Source->FindExternalLexicalDecls(this, Decls))
     return;
 
   // There is no longer any lexical storage in this context
@@ -642,7 +667,7 @@ DeclContext::LoadLexicalDeclsFromExternalStorage() const {
   Decl *FirstNewDecl = 0;
   Decl *PrevDecl = 0;
   for (unsigned I = 0, N = Decls.size(); I != N; ++I) {
-    Decl *D = Source->GetDecl(Decls[I]);
+    Decl *D = Decls[I];
     if (PrevDecl)
       PrevDecl->NextDeclInContext = D;
     else
@@ -659,25 +684,80 @@ DeclContext::LoadLexicalDeclsFromExternalStorage() const {
     LastDecl = PrevDecl;
 }
 
-void
-DeclContext::LoadVisibleDeclsFromExternalStorage() const {
-  DeclContext *This = const_cast<DeclContext *>(this);
-  ExternalASTSource *Source = getParentASTContext().getExternalSource();
-  assert(hasExternalVisibleStorage() && Source && "No external storage?");
+DeclContext::lookup_result
+ExternalASTSource::SetNoExternalVisibleDeclsForName(const DeclContext *DC,
+                                                    DeclarationName Name) {
+  ASTContext &Context = DC->getParentASTContext();
+  StoredDeclsMap *Map;
+  if (!(Map = DC->LookupPtr))
+    Map = DC->CreateStoredDeclsMap(Context);
 
-  llvm::SmallVector<VisibleDeclaration, 64> Decls;
-  if (Source->ReadDeclsVisibleInContext(This, Decls))
-    return;
+  StoredDeclsList &List = (*Map)[Name];
+  assert(List.isNull());
+  (void) List;
 
-  // There is no longer any visible storage in this context
-  ExternalVisibleStorage = false;
+  return DeclContext::lookup_result();
+}
 
-  // Load the declaration IDs for all of the names visible in this
-  // context.
-  assert(!LookupPtr && "Have a lookup map before de-serialization?");
-  StoredDeclsMap *Map = CreateStoredDeclsMap(getParentASTContext());
+DeclContext::lookup_result
+ExternalASTSource::SetExternalVisibleDeclsForName(const DeclContext *DC,
+                                          const VisibleDeclaration &VD) {
+  ASTContext &Context = DC->getParentASTContext();
+  StoredDeclsMap *Map;
+  if (!(Map = DC->LookupPtr))
+    Map = DC->CreateStoredDeclsMap(Context);
+
+  StoredDeclsList &List = (*Map)[VD.Name];
+  List.setFromDeclIDs(VD.Declarations);
+  return List.getLookupResult(Context);
+}
+
+DeclContext::lookup_result
+ExternalASTSource::SetExternalVisibleDeclsForName(const DeclContext *DC,
+                                                  DeclarationName Name,
+                                    llvm::SmallVectorImpl<NamedDecl*> &Decls) {
+  ASTContext &Context = DC->getParentASTContext();;
+
+  StoredDeclsMap *Map;
+  if (!(Map = DC->LookupPtr))
+    Map = DC->CreateStoredDeclsMap(Context);
+
+  StoredDeclsList &List = (*Map)[Name];
+  for (unsigned I = 0, N = Decls.size(); I != N; ++I) {
+    if (List.isNull())
+      List.setOnlyValue(Decls[I]);
+    else
+      List.AddSubsequentDecl(Decls[I]);
+  }
+
+  return List.getLookupResult(Context);
+}
+
+void ExternalASTSource::SetExternalVisibleDecls(const DeclContext *DC,
+                    const llvm::SmallVectorImpl<VisibleDeclaration> &Decls) {
+  // There is no longer any visible storage in this context.
+  DC->ExternalVisibleStorage = false;
+
+  assert(!DC->LookupPtr && "Have a lookup map before de-serialization?");
+  StoredDeclsMap *Map = DC->CreateStoredDeclsMap(DC->getParentASTContext());
   for (unsigned I = 0, N = Decls.size(); I != N; ++I) {
     (*Map)[Decls[I].Name].setFromDeclIDs(Decls[I].Declarations);
+  }
+}
+
+void ExternalASTSource::SetExternalVisibleDecls(const DeclContext *DC,
+                            const llvm::SmallVectorImpl<NamedDecl*> &Decls) {
+  // There is no longer any visible storage in this context.
+  DC->ExternalVisibleStorage = false;
+
+  assert(!DC->LookupPtr && "Have a lookup map before de-serialization?");
+  StoredDeclsMap &Map = *DC->CreateStoredDeclsMap(DC->getParentASTContext());
+  for (unsigned I = 0, N = Decls.size(); I != N; ++I) {
+    StoredDeclsList &List = Map[Decls[I]->getDeclName()];
+    if (List.isNull())
+      List.setOnlyValue(Decls[I]);
+    else
+      List.AddSubsequentDecl(Decls[I]);
   }
 }
 
@@ -801,8 +881,17 @@ DeclContext::lookup(DeclarationName Name) {
   if (PrimaryContext != this)
     return PrimaryContext->lookup(Name);
 
-  if (hasExternalVisibleStorage())
-    LoadVisibleDeclsFromExternalStorage();
+  if (hasExternalVisibleStorage()) {
+    // Check to see if we've already cached the lookup results.
+    if (LookupPtr) {
+      StoredDeclsMap::iterator I = LookupPtr->find(Name);
+      if (I != LookupPtr->end())
+        return I->second.getLookupResult(getParentASTContext());
+    }
+
+    ExternalASTSource *Source = getParentASTContext().getExternalSource();
+    return Source->FindExternalVisibleDeclsByName(this, Name);
+  }
 
   /// If there is no lookup data structure, build one now by walking
   /// all of the linked DeclContexts (in declaration order!) and
@@ -858,9 +947,10 @@ void DeclContext::makeDeclVisibleInContext(NamedDecl *D, bool Recoverable) {
   }
 
   // If we already have a lookup data structure, perform the insertion
-  // into it. Otherwise, be lazy and don't build that structure until
-  // someone asks for it.
-  if (LookupPtr || !Recoverable)
+  // into it. If we haven't deserialized externally stored decls, deserialize
+  // them so we can add the decl. Otherwise, be lazy and don't build that
+  // structure until someone asks for it.
+  if (LookupPtr || !Recoverable || hasExternalVisibleStorage())
     makeDeclVisibleInContextImpl(D);
 
   // If we are a transparent context, insert into our parent context,
@@ -879,6 +969,12 @@ void DeclContext::makeDeclVisibleInContextImpl(NamedDecl *D) {
   // from being visible?
   if (isa<ClassTemplateSpecializationDecl>(D))
     return;
+
+  // If there is an external AST source, load any declarations it knows about
+  // with this declaration's name.
+  if (ExternalASTSource *Source = getParentASTContext().getExternalSource())
+    if (hasExternalVisibleStorage())
+      Source->FindExternalVisibleDeclsByName(this, D->getDeclName());
 
   ASTContext *C = 0;
   if (!LookupPtr) {
@@ -932,7 +1028,7 @@ void StoredDeclsList::materializeDecls(ASTContext &Context) {
     ExternalASTSource *Source = Context.getExternalSource();
     assert(Source && "No external AST source available!");
 
-    Data = reinterpret_cast<uintptr_t>(Source->GetDecl(DeclID));
+    Data = reinterpret_cast<uintptr_t>(Source->GetExternalDecl(DeclID));
     break;
   }
 
@@ -944,7 +1040,7 @@ void StoredDeclsList::materializeDecls(ASTContext &Context) {
     assert(Source && "No external AST source available!");
 
     for (unsigned I = 0, N = Vector.size(); I != N; ++I)
-      Vector[I] = reinterpret_cast<uintptr_t>(Source->GetDecl(Vector[I]));
+      Vector[I] = reinterpret_cast<uintptr_t>(Source->GetExternalDecl(Vector[I]));
 
     Data = (Data & ~0x03) | DK_Decl_Vector;
     break;

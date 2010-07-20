@@ -34,6 +34,8 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   DoubleAlign = 64;
   LongDoubleWidth = 64;
   LongDoubleAlign = 64;
+  LargeArrayMinWidth = 0;
+  LargeArrayAlign = 0;
   SizeType = UnsignedLong;
   PtrDiffType = SignedLong;
   IntMaxType = SignedLongLong;
@@ -53,6 +55,9 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
                       "i64:64:64-f32:32:32-f64:64:64-n32";
   UserLabelPrefix = "_";
   HasAlignMac68kSupport = false;
+
+  // Default to no types using fpret.
+  RealTypeUsesObjCFPRet = 0;
 }
 
 // Out of line virtual dtor for TargetInfo.
@@ -282,6 +287,8 @@ bool TargetInfo::validateOutputConstraint(ConstraintInfo &Info) const {
       Info.setAllowsRegister();
       Info.setAllowsMemory();
       break;
+    case ',': // FIXME: Until we handle multiple alternative constraints,
+      return true;  // ignore everything after the first comma.
     }
 
     Name++;
@@ -375,6 +382,8 @@ bool TargetInfo::validateInputConstraint(ConstraintInfo *OutputConstraints,
       Info.setAllowsRegister();
       Info.setAllowsMemory();
       break;
+    case ',': // FIXME: Until we handle multiple alternative constraints,
+      return true;  // ignore everything after the first comma.
     }
 
     Name++;

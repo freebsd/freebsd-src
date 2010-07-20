@@ -23,7 +23,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/StmtCXX.h"
-#include "clang/CodeGen/CodeGenOptions.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/ADT/StringExtras.h"
 using namespace clang;
 using namespace CodeGen;
@@ -97,8 +97,8 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   /// If we don't have a definition for the destructor yet, don't
   /// emit.  We can't emit aliases to declarations; that's just not
   /// how aliases work.
-  const CXXDestructorDecl *BaseD = UniqueBase->getDestructor(getContext());
-  if (!BaseD->isImplicit() && !BaseD->getBody())
+  const CXXDestructorDecl *BaseD = UniqueBase->getDestructor();
+  if (!BaseD->isImplicit() && !BaseD->hasBody())
     return true;
 
   // If the base is at a non-zero offset, give up.
@@ -166,8 +166,7 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
     new llvm::GlobalAlias(AliasType, Linkage, "", Aliasee, &getModule());
 
   // Switch any previous uses to the alias.
-  MangleBuffer MangledName;
-  getMangledName(MangledName, AliasDecl);
+  llvm::StringRef MangledName = getMangledName(AliasDecl);
   llvm::GlobalValue *Entry = GetGlobalValue(MangledName);
   if (Entry) {
     assert(Entry->isDeclaration() && "definition already exists for alias");
@@ -177,7 +176,7 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
     Entry->replaceAllUsesWith(Alias);
     Entry->eraseFromParent();
   } else {
-    Alias->setName(MangledName.getString());
+    Alias->setName(MangledName);
   }
 
   // Finally, set up the alias with its proper name and attributes.
@@ -218,8 +217,9 @@ void CodeGenModule::EmitCXXConstructor(const CXXConstructorDecl *D,
 llvm::GlobalValue *
 CodeGenModule::GetAddrOfCXXConstructor(const CXXConstructorDecl *D,
                                        CXXCtorType Type) {
-  MangleBuffer Name;
-  getMangledCXXCtorName(Name, D, Type);
+  GlobalDecl GD(D, Type);
+  
+  llvm::StringRef Name = getMangledName(GD);
   if (llvm::GlobalValue *V = GetGlobalValue(Name))
     return V;
 
@@ -227,18 +227,7 @@ CodeGenModule::GetAddrOfCXXConstructor(const CXXConstructorDecl *D,
   const llvm::FunctionType *FTy =
     getTypes().GetFunctionType(getTypes().getFunctionInfo(D, Type), 
                                FPT->isVariadic());
-  return cast<llvm::Function>(
-                      GetOrCreateLLVMFunction(Name, FTy, GlobalDecl(D, Type)));
-}
-
-void CodeGenModule::getMangledName(MangleBuffer &Buffer, const BlockDecl *BD) {
-  getMangleContext().mangleBlock(BD, Buffer.getBuffer());
-}
-
-void CodeGenModule::getMangledCXXCtorName(MangleBuffer &Name,
-                                          const CXXConstructorDecl *D,
-                                          CXXCtorType Type) {
-  getMangleContext().mangleCXXCtor(D, Type, Name.getBuffer());
+  return cast<llvm::Function>(GetOrCreateLLVMFunction(Name, FTy, GD));
 }
 
 void CodeGenModule::EmitCXXDestructors(const CXXDestructorDecl *D) {
@@ -286,22 +275,54 @@ void CodeGenModule::EmitCXXDestructor(const CXXDestructorDecl *D,
 llvm::GlobalValue *
 CodeGenModule::GetAddrOfCXXDestructor(const CXXDestructorDecl *D,
                                       CXXDtorType Type) {
-  MangleBuffer Name;
-  getMangledCXXDtorName(Name, D, Type);
+  GlobalDecl GD(D, Type);
+
+  llvm::StringRef Name = getMangledName(GD);
   if (llvm::GlobalValue *V = GetGlobalValue(Name))
     return V;
 
   const llvm::FunctionType *FTy =
     getTypes().GetFunctionType(getTypes().getFunctionInfo(D, Type), false);
 
-  return cast<llvm::Function>(
-                      GetOrCreateLLVMFunction(Name, FTy, GlobalDecl(D, Type)));
+  return cast<llvm::Function>(GetOrCreateLLVMFunction(Name, FTy, GD));
 }
 
-void CodeGenModule::getMangledCXXDtorName(MangleBuffer &Name,
-                                          const CXXDestructorDecl *D,
-                                          CXXDtorType Type) {
-  getMangleContext().mangleCXXDtor(D, Type, Name.getBuffer());
+llvm::Constant *
+CodeGenModule::GetCXXMemberFunctionPointerValue(const CXXMethodDecl *MD) {
+  assert(MD->isInstance() && "Member function must not be static!");
+    
+  MD = MD->getCanonicalDecl();
+
+  const llvm::Type *PtrDiffTy = Types.ConvertType(Context.getPointerDiffType());
+
+  // Get the function pointer (or index if this is a virtual function).
+  if (MD->isVirtual()) {
+    uint64_t Index = VTables.getMethodVTableIndex(MD);
+
+    // FIXME: We shouldn't use / 8 here.
+    uint64_t PointerWidthInBytes = Context.Target.getPointerWidth(0) / 8;
+
+    // Itanium C++ ABI 2.3:
+    //   For a non-virtual function, this field is a simple function pointer. 
+    //   For a virtual function, it is 1 plus the virtual table offset 
+    //   (in bytes) of the function, represented as a ptrdiff_t. 
+    return llvm::ConstantInt::get(PtrDiffTy, (Index * PointerWidthInBytes) + 1);
+  }
+
+  const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+  const llvm::Type *Ty;
+  // Check whether the function has a computable LLVM signature.
+  if (!CodeGenTypes::VerifyFuncTypeComplete(FPT)) {
+    // The function has a computable LLVM signature; use the correct type.
+    Ty = Types.GetFunctionType(Types.getFunctionInfo(MD), FPT->isVariadic());
+  } else {
+    // Use an arbitrary non-function type to tell GetAddrOfFunction that the
+    // function type is incomplete.
+    Ty = PtrDiffTy;
+  }
+
+  llvm::Constant *FuncPtr = GetAddrOfFunction(MD, Ty);
+  return llvm::ConstantExpr::getPtrToInt(FuncPtr, PtrDiffTy);
 }
 
 static llvm::Value *BuildVirtualCall(CodeGenFunction &CGF, uint64_t VTableIndex, 

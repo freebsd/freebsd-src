@@ -62,6 +62,7 @@ namespace {
 
     // State that is updated as we process loops
     bool         Changed;          // True if a loop is changed.
+    bool         FirstInLoop;      // True if it's the first LICM in the loop.
     MachineLoop *CurLoop;          // The current loop we are working on.
     MachineBasicBlock *CurPreheader; // The preheader for CurLoop.
 
@@ -82,7 +83,6 @@ namespace {
 
     const char *getPassName() const { return "Machine Instruction LICM"; }
 
-    // FIXME: Loop preheaders?
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
       AU.addRequired<MachineLoopInfo>();
@@ -127,8 +127,8 @@ namespace {
     void AddToLiveIns(unsigned Reg);
 
     /// IsLICMCandidate - Returns true if the instruction may be a suitable
-    /// candidate for LICM. e.g. If the instruction is a call, then it's obviously
-    /// not safe to hoist it.
+    /// candidate for LICM. e.g. If the instruction is a call, then it's
+    /// obviously not safe to hoist it.
     bool IsLICMCandidate(MachineInstr &I);
 
     /// IsLoopInvariantInst - Returns true if the instruction is loop
@@ -181,6 +181,10 @@ namespace {
     /// current loop preheader that may become duplicates of instructions that
     /// are hoisted out of the loop.
     void InitCSEMap(MachineBasicBlock *BB);
+
+    /// getCurPreheader - Get the preheader for the current loop, splitting
+    /// a critical edge if needed.
+    MachineBasicBlock *getCurPreheader();
   };
 } // end anonymous namespace
 
@@ -192,12 +196,17 @@ FunctionPass *llvm::createMachineLICMPass(bool PreRegAlloc) {
   return new MachineLICM(PreRegAlloc);
 }
 
-/// LoopIsOuterMostWithPreheader - Test if the given loop is the outer-most
-/// loop that has a preheader.
-static bool LoopIsOuterMostWithPreheader(MachineLoop *CurLoop) {
+/// LoopIsOuterMostWithPredecessor - Test if the given loop is the outer-most
+/// loop that has a unique predecessor.
+static bool LoopIsOuterMostWithPredecessor(MachineLoop *CurLoop) {
+  // Check whether this loop even has a unique predecessor.
+  if (!CurLoop->getLoopPredecessor())
+    return false;
+  // Ok, now check to see if any of its outer loops do.
   for (MachineLoop *L = CurLoop->getParentLoop(); L; L = L->getParentLoop())
-    if (L->getLoopPreheader())
+    if (L->getLoopPredecessor())
       return false;
+  // None of them did, so this is the outermost with a unique predecessor.
   return true;
 }
 
@@ -207,7 +216,7 @@ bool MachineLICM::runOnMachineFunction(MachineFunction &MF) {
   else
     DEBUG(dbgs() << "******** Post-regalloc Machine LICM ********\n");
 
-  Changed = false;
+  Changed = FirstInLoop = false;
   TM = &MF.getTarget();
   TII = TM->getInstrInfo();
   TRI = TM->getRegisterInfo();
@@ -220,23 +229,17 @@ bool MachineLICM::runOnMachineFunction(MachineFunction &MF) {
   DT  = &getAnalysis<MachineDominatorTree>();
   AA  = &getAnalysis<AliasAnalysis>();
 
-  for (MachineLoopInfo::iterator I = MLI->begin(), E = MLI->end(); I != E; ++I){
-    CurLoop = *I;
+  SmallVector<MachineLoop *, 8> Worklist(MLI->begin(), MLI->end());
+  while (!Worklist.empty()) {
+    CurLoop = Worklist.pop_back_val();
+    CurPreheader = 0;
 
     // If this is done before regalloc, only visit outer-most preheader-sporting
     // loops.
-    if (PreRegAlloc && !LoopIsOuterMostWithPreheader(CurLoop))
+    if (PreRegAlloc && !LoopIsOuterMostWithPredecessor(CurLoop)) {
+      Worklist.append(CurLoop->begin(), CurLoop->end());
       continue;
-
-    // Determine the block to which to hoist instructions. If we can't find a
-    // suitable loop preheader, we can't do any hoisting.
-    //
-    // FIXME: We are only hoisting if the basic block coming into this loop
-    // has only one successor. This isn't the case in general because we haven't
-    // broken critical edges or added preheaders.
-    CurPreheader = CurLoop->getLoopPreheader();
-    if (!CurPreheader)
-      continue;
+    }
 
     if (!PreRegAlloc)
       HoistRegionPostRA();
@@ -244,6 +247,7 @@ bool MachineLICM::runOnMachineFunction(MachineFunction &MF) {
       // CSEMap is initialized for loop header when the first instruction is
       // being hoisted.
       MachineDomTreeNode *N = DT->getNode(CurLoop->getHeader());
+      FirstInLoop = true;
       HoistRegion(N);
       CSEMap.clear();
     }
@@ -436,13 +440,16 @@ void MachineLICM::AddToLiveIns(unsigned Reg) {
 /// operands that is safe to hoist, this instruction is called to do the
 /// dirty work.
 void MachineLICM::HoistPostRA(MachineInstr *MI, unsigned Def) {
+  MachineBasicBlock *Preheader = getCurPreheader();
+  if (!Preheader) return;
+
   // Now move the instructions to the predecessor, inserting it before any
   // terminator instructions.
   DEBUG({
       dbgs() << "Hoisting " << *MI;
-      if (CurPreheader->getBasicBlock())
+      if (Preheader->getBasicBlock())
         dbgs() << " to MachineBasicBlock "
-               << CurPreheader->getName();
+               << Preheader->getName();
       if (MI->getParent()->getBasicBlock())
         dbgs() << " from MachineBasicBlock "
                << MI->getParent()->getName();
@@ -451,7 +458,7 @@ void MachineLICM::HoistPostRA(MachineInstr *MI, unsigned Def) {
 
   // Splice the instruction to the preheader.
   MachineBasicBlock *MBB = MI->getParent();
-  CurPreheader->splice(CurPreheader->getFirstTerminator(), MBB, MI);
+  Preheader->splice(Preheader->getFirstTerminator(), MBB, MI);
 
   // Add register to livein list to all the BBs in the current loop since a 
   // loop invariant must be kept live throughout the whole loop. This is
@@ -490,26 +497,11 @@ void MachineLICM::HoistRegion(MachineDomTreeNode *N) {
 /// candidate for LICM. e.g. If the instruction is a call, then it's obviously
 /// not safe to hoist it.
 bool MachineLICM::IsLICMCandidate(MachineInstr &I) {
-  if (I.isImplicitDef())
+  // Check if it's safe to move the instruction.
+  bool DontMoveAcrossStore = true;
+  if (!I.isSafeToMove(TII, AA, DontMoveAcrossStore))
     return false;
-
-  const TargetInstrDesc &TID = I.getDesc();
   
-  // Ignore stuff that we obviously can't hoist.
-  if (TID.mayStore() || TID.isCall() || TID.isTerminator() ||
-      TID.hasUnmodeledSideEffects())
-    return false;
-
-  if (TID.mayLoad()) {
-    // Okay, this instruction does a load. As a refinement, we allow the target
-    // to decide whether the loaded value is actually a constant. If so, we can
-    // actually use it as a load.
-    if (!I.isInvariantLoad(AA))
-      // FIXME: we should be able to hoist loads with no other side effects if
-      // there are no other instructions which can change memory in this loop.
-      // This is a trivial form of alias analysis.
-      return false;
-  }
   return true;
 }
 
@@ -720,7 +712,9 @@ MachineLICM::LookForDuplicate(const MachineInstr *MI,
 
 bool MachineLICM::EliminateCSE(MachineInstr *MI,
           DenseMap<unsigned, std::vector<const MachineInstr*> >::iterator &CI) {
-  if (CI == CSEMap.end())
+  // Do not CSE implicit_def so ProcessImplicitDefs can properly propagate
+  // the undef property onto uses.
+  if (CI == CSEMap.end() || MI->isImplicitDef())
     return false;
 
   if (const MachineInstr *Dup = LookForDuplicate(MI, CI->second)) {
@@ -754,6 +748,9 @@ bool MachineLICM::EliminateCSE(MachineInstr *MI,
 /// that are safe to hoist, this instruction is called to do the dirty work.
 ///
 void MachineLICM::Hoist(MachineInstr *MI) {
+  MachineBasicBlock *Preheader = getCurPreheader();
+  if (!Preheader) return;
+
   // First check whether we should hoist this instruction.
   if (!IsLoopInvariantInst(*MI) || !IsProfitableToHoist(*MI)) {
     // If not, try unfolding a hoistable load.
@@ -765,9 +762,9 @@ void MachineLICM::Hoist(MachineInstr *MI) {
   // terminator instructions.
   DEBUG({
       dbgs() << "Hoisting " << *MI;
-      if (CurPreheader->getBasicBlock())
+      if (Preheader->getBasicBlock())
         dbgs() << " to MachineBasicBlock "
-               << CurPreheader->getName();
+               << Preheader->getName();
       if (MI->getParent()->getBasicBlock())
         dbgs() << " from MachineBasicBlock "
                << MI->getParent()->getName();
@@ -776,7 +773,10 @@ void MachineLICM::Hoist(MachineInstr *MI) {
 
   // If this is the first instruction being hoisted to the preheader,
   // initialize the CSE map with potential common expressions.
-  InitCSEMap(CurPreheader);
+  if (FirstInLoop) {
+    InitCSEMap(Preheader);
+    FirstInLoop = false;
+  }
 
   // Look for opportunity to CSE the hoisted instruction.
   unsigned Opcode = MI->getOpcode();
@@ -784,7 +784,7 @@ void MachineLICM::Hoist(MachineInstr *MI) {
     CI = CSEMap.find(Opcode);
   if (!EliminateCSE(MI, CI)) {
     // Otherwise, splice the instruction to the preheader.
-    CurPreheader->splice(CurPreheader->getFirstTerminator(),MI->getParent(),MI);
+    Preheader->splice(Preheader->getFirstTerminator(),MI->getParent(),MI);
 
     // Clear the kill flags of any register this instruction defines,
     // since they may need to be live throughout the entire loop
@@ -807,4 +807,31 @@ void MachineLICM::Hoist(MachineInstr *MI) {
 
   ++NumHoisted;
   Changed = true;
+}
+
+MachineBasicBlock *MachineLICM::getCurPreheader() {
+  // Determine the block to which to hoist instructions. If we can't find a
+  // suitable loop predecessor, we can't do any hoisting.
+
+  // If we've tried to get a preheader and failed, don't try again.
+  if (CurPreheader == reinterpret_cast<MachineBasicBlock *>(-1))
+    return 0;
+
+  if (!CurPreheader) {
+    CurPreheader = CurLoop->getLoopPreheader();
+    if (!CurPreheader) {
+      MachineBasicBlock *Pred = CurLoop->getLoopPredecessor();
+      if (!Pred) {
+        CurPreheader = reinterpret_cast<MachineBasicBlock *>(-1);
+        return 0;
+      }
+
+      CurPreheader = Pred->SplitCriticalEdge(CurLoop->getHeader(), this);
+      if (!CurPreheader) {
+        CurPreheader = reinterpret_cast<MachineBasicBlock *>(-1);
+        return 0;
+      }
+    }
+  }
+  return CurPreheader;
 }

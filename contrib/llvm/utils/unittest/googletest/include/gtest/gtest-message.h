@@ -46,6 +46,8 @@
 #ifndef GTEST_INCLUDE_GTEST_GTEST_MESSAGE_H_
 #define GTEST_INCLUDE_GTEST_GTEST_MESSAGE_H_
 
+#include <limits>
+
 #include <gtest/internal/gtest-string.h>
 #include <gtest/internal/gtest-internal.h>
 
@@ -77,7 +79,7 @@ namespace testing {
 // latter (it causes an access violation if you do).  The Message
 // class hides this difference by treating a NULL char pointer as
 // "(null)".
-class Message {
+class GTEST_API_ Message {
  private:
   // The type of basic IO manipulators (endl, ends, and flush) for
   // narrow streams.
@@ -89,7 +91,11 @@ class Message {
   // ASSERT/EXPECT in a procedure adds over 200 bytes to the procedure's
   // stack frame leading to huge stack frames in some cases; gcc does not reuse
   // the stack space.
-  Message() : ss_(new internal::StrStream) {}
+  Message() : ss_(new internal::StrStream) {
+    // By default, we want there to be enough precision when printing
+    // a double to a Message.
+    *ss_ << std::setprecision(std::numeric_limits<double>::digits10 + 2);
+  }
 
   // Copy constructor.
   Message(const Message& msg) : ss_(new internal::StrStream) {  // NOLINT
@@ -102,7 +108,7 @@ class Message {
   }
 
   ~Message() { delete ss_; }
-#ifdef GTEST_OS_SYMBIAN
+#if GTEST_OS_SYMBIAN
   // Streams a value (either a pointer or not) to this object.
   template <typename T>
   inline Message& operator <<(const T& value) {
@@ -187,13 +193,13 @@ class Message {
   }
 
  private:
-#ifdef GTEST_OS_SYMBIAN
+#if GTEST_OS_SYMBIAN
   // These are needed as the Nokia Symbian Compiler cannot decide between
   // const T& and const T* in a function template. The Nokia compiler _can_
   // decide between class template specializations for T and T*, so a
   // tr1::type_traits-like is_pointer works, and we can overload on that.
   template <typename T>
-  inline void StreamHelper(internal::true_type dummy, T* pointer) {
+  inline void StreamHelper(internal::true_type /*dummy*/, T* pointer) {
     if (pointer == NULL) {
       *ss_ << "(null)";
     } else {
@@ -201,7 +207,7 @@ class Message {
     }
   }
   template <typename T>
-  inline void StreamHelper(internal::false_type dummy, const T& value) {
+  inline void StreamHelper(internal::false_type /*dummy*/, const T& value) {
     ::GTestStreamToHelper(ss_, value);
   }
 #endif  // GTEST_OS_SYMBIAN

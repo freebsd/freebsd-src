@@ -130,7 +130,7 @@ namespace ISD {
     /// This node represents a target intrinsic function with no side effects.
     /// The first operand is the ID number of the intrinsic from the
     /// llvm::Intrinsic namespace.  The operands to the intrinsic follow.  The
-    /// node has returns the result of the intrinsic.
+    /// node returns the result of the intrinsic.
     INTRINSIC_WO_CHAIN,
 
     /// RESULT,OUTCHAIN = INTRINSIC_W_CHAIN(INCHAIN, INTRINSICID, arg1, ...)
@@ -508,8 +508,9 @@ namespace ISD {
     CALLSEQ_START,  // Beginning of a call sequence
     CALLSEQ_END,    // End of a call sequence
 
-    // VAARG - VAARG has three operands: an input chain, a pointer, and a
-    // SRCVALUE.  It returns a pair of values: the vaarg value and a new chain.
+    // VAARG - VAARG has four operands: an input chain, a pointer, a SRCVALUE,
+    // and the alignment. It returns a pair of values: the vaarg value and a
+    // new chain.
     VAARG,
 
     // VACOPY - VACOPY has five operands: an input chain, a destination pointer,

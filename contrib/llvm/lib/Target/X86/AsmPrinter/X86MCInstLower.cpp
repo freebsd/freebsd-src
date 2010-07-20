@@ -152,6 +152,15 @@ MCOperand X86MCInstLower::LowerSymbolOperand(const MachineOperand &MO,
   case X86II::MO_DARWIN_STUB:
     break;
       
+  case X86II::MO_TLVP:      RefKind = MCSymbolRefExpr::VK_TLVP; break;
+  case X86II::MO_TLVP_PIC_BASE:
+    Expr = MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_TLVP, Ctx);
+    // Subtract the pic base.
+    Expr = MCBinaryExpr::CreateSub(Expr,
+                                   MCSymbolRefExpr::Create(GetPICBaseSymbol(),
+                                                           Ctx),
+                                   Ctx);
+    break;
   case X86II::MO_TLSGD:     RefKind = MCSymbolRefExpr::VK_TLSGD; break;
   case X86II::MO_GOTTPOFF:  RefKind = MCSymbolRefExpr::VK_GOTTPOFF; break;
   case X86II::MO_INDNTPOFF: RefKind = MCSymbolRefExpr::VK_INDNTPOFF; break;
@@ -266,10 +275,21 @@ static void SimplifyShortMoveForm(MCInst &Inst, unsigned Opcode) {
     return;
 
   // Check whether this is an absolute address.
-  if (Inst.getOperand(AddrBase + 0).getReg() != 0 ||
-      Inst.getOperand(AddrBase + 2).getReg() != 0 ||
-      Inst.getOperand(AddrBase + 4).getReg() != 0 ||
-      Inst.getOperand(AddrBase + 1).getImm() != 1)
+  // FIXME: We know TLVP symbol refs aren't, but there should be a better way 
+  // to do this here.
+  bool Absolute = true;
+  if (Inst.getOperand(AddrOp).isExpr()) {
+    const MCExpr *MCE = Inst.getOperand(AddrOp).getExpr();
+    if (const MCSymbolRefExpr *SRE = dyn_cast<MCSymbolRefExpr>(MCE))
+      if (SRE->getKind() == MCSymbolRefExpr::VK_TLVP)
+        Absolute = false;
+  }
+  
+  if (Absolute &&
+      (Inst.getOperand(AddrBase + 0).getReg() != 0 ||
+       Inst.getOperand(AddrBase + 2).getReg() != 0 ||
+       Inst.getOperand(AddrBase + 4).getReg() != 0 ||
+       Inst.getOperand(AddrBase + 1).getImm() != 1))
     return;
 
   // If so, rewrite the instruction.
@@ -327,6 +347,15 @@ void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
   switch (OutMI.getOpcode()) {
   case X86::LEA64_32r: // Handle 'subreg rewriting' for the lea64_32mem operand.
     lower_lea64_32mem(&OutMI, 1);
+    // FALL THROUGH.
+  case X86::LEA64r:
+  case X86::LEA16r:
+  case X86::LEA32r:
+    // LEA should have a segment register, but it must be empty.
+    assert(OutMI.getNumOperands() == 1+X86::AddrNumOperands &&
+           "Unexpected # of LEA operands");
+    assert(OutMI.getOperand(1+X86::AddrSegmentReg).getReg() == 0 &&
+           "LEA has segment specified!");
     break;
   case X86::MOVZX16rr8:   LowerSubReg32_Op0(OutMI, X86::MOVZX32rr8); break;
   case X86::MOVZX16rm8:   LowerSubReg32_Op0(OutMI, X86::MOVZX32rm8); break;
@@ -364,10 +393,9 @@ void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
     LowerUnaryToTwoAddr(OutMI, X86::XOR32rr); // MOV32r0 -> XOR32rr
     break;
 
-  // TAILJMPr, TAILJMPr64, CALL64r, CALL64pcrel32 - These instructions have
+  // TAILJMPr64, CALL64r, CALL64pcrel32 - These instructions have
   // register inputs modeled as normal uses instead of implicit uses.  As such,
   // truncate off all but the first operand (the callee).  FIXME: Change isel.
-  case X86::TAILJMPr:
   case X86::TAILJMPr64:
   case X86::CALL64r:
   case X86::CALL64pcrel32: {
@@ -380,11 +408,20 @@ void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
   }
 
   // TAILJMPd, TAILJMPd64 - Lower to the correct jump instructions.
+  case X86::TAILJMPr:
   case X86::TAILJMPd:
   case X86::TAILJMPd64: {
+    unsigned Opcode;
+    switch (OutMI.getOpcode()) {
+    default: assert(0 && "Invalid opcode");
+    case X86::TAILJMPr: Opcode = X86::JMP32r; break;
+    case X86::TAILJMPd:
+    case X86::TAILJMPd64: Opcode = X86::JMP_1; break;
+    }
+    
     MCOperand Saved = OutMI.getOperand(0);
     OutMI = MCInst();
-    OutMI.setOpcode(X86::TAILJMP_1);
+    OutMI.setOpcode(Opcode);
     OutMI.addOperand(Saved);
     break;
   }
@@ -483,8 +520,12 @@ void X86AsmPrinter::PrintDebugValueComment(const MachineInstr *MI,
   O << V.getName();
   O << " <- ";
   // Frame address.  Currently handles register +- offset only.
-  assert(MI->getOperand(0).isReg() && MI->getOperand(3).isImm());
-  O << '['; printOperand(MI, 0, O); O << '+'; printOperand(MI, 3, O);
+  O << '['; 
+  if (MI->getOperand(0).isReg() && MI->getOperand(0).getReg())
+    printOperand(MI, 0, O); 
+  else
+    O << "undef";
+  O << '+'; printOperand(MI, 3, O);
   O << ']';
   O << "+";
   printOperand(MI, NOps-2, O);
@@ -495,8 +536,9 @@ X86AsmPrinter::getDebugValueLocation(const MachineInstr *MI) const {
   MachineLocation Location;
   assert (MI->getNumOperands() == 7 && "Invalid no. of machine operands!");
   // Frame address.  Currently handles register +- offset only.
-  assert(MI->getOperand(0).isReg() && MI->getOperand(3).isImm());
-  Location.set(MI->getOperand(0).getReg(), MI->getOperand(3).getImm());
+
+  if (MI->getOperand(0).isReg() && MI->getOperand(3).isImm())
+    Location.set(MI->getOperand(0).getReg(), MI->getOperand(3).getImm());
   return Location;
 }
 
@@ -513,6 +555,13 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
     }
     return;
 
+  case X86::TAILJMPr:
+  case X86::TAILJMPd:
+  case X86::TAILJMPd64:
+    // Lower these as normal, but add some comments.
+    OutStreamer.AddComment("TAILCALL");
+    break;
+      
   case X86::MOVPC32r: {
     MCInst TmpInst;
     // This is a pseudo op for a two instruction sequence with a label, which
@@ -578,7 +627,6 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
   
   MCInst TmpInst;
   MCInstLowering.Lower(MI, TmpInst);
-  
   OutStreamer.EmitInstruction(TmpInst);
 }
 

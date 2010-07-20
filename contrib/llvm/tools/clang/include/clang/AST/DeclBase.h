@@ -68,12 +68,13 @@ class Decl {
 public:
   /// \brief Lists the kind of concrete classes of Decl.
   enum Kind {
-#define DECL(Derived, Base) Derived,
-#define DECL_RANGE(CommonBase, Start, End) \
-    CommonBase##First = Start, CommonBase##Last = End,
-#define LAST_DECL_RANGE(CommonBase, Start, End) \
-    CommonBase##First = Start, CommonBase##Last = End
-#include "clang/AST/DeclNodes.def"
+#define DECL(DERIVED, BASE) DERIVED,
+#define ABSTRACT_DECL(DECL)
+#define DECL_RANGE(BASE, START, END) \
+        first##BASE = START, last##BASE = END,
+#define LAST_DECL_RANGE(BASE, START, END) \
+        first##BASE = START, last##BASE = END
+#include "clang/AST/DeclNodes.inc"
   };
 
   /// \brief A placeholder type used to construct an empty shell of a
@@ -91,7 +92,7 @@ public:
   /// These are meant as bitmasks, so that searches in
   /// C++ can look into the "tag" namespace during ordinary lookup.
   ///
-  /// Decl currently provides 16 bits of IDNS bits.
+  /// Decl currently provides 15 bits of IDNS bits.
   enum IdentifierNamespace {
     /// Labels, declared with 'x:' and referenced with 'goto x'.
     IDNS_Label               = 0x0001,
@@ -224,10 +225,10 @@ protected:
   
   // PCHLevel - the "level" of precompiled header/AST file from which this
   // declaration was built.
-  unsigned PCHLevel : 2;
+  unsigned PCHLevel : 3;
   
   /// IdentifierNamespace - This specifies what IDNS_* namespace this lives in.
-  unsigned IdentifierNamespace : 16;
+  unsigned IdentifierNamespace : 15;
 
 private:
 #ifndef NDEBUG
@@ -244,7 +245,15 @@ protected:
       HasAttrs(false), Implicit(false), Used(false),
       Access(AS_none), PCHLevel(0),
       IdentifierNamespace(getIdentifierNamespaceForKind(DK)) {
-    if (Decl::CollectingStats()) addDeclKind(DK);
+    if (Decl::CollectingStats()) add(DK);
+  }
+
+  Decl(Kind DK, EmptyShell Empty)
+    : NextDeclInContext(0), DeclKind(DK), InvalidDecl(0),
+      HasAttrs(false), Implicit(false), Used(false),
+      Access(AS_none), PCHLevel(0),
+      IdentifierNamespace(getIdentifierNamespaceForKind(DK)) {
+    if (Decl::CollectingStats()) add(DK);
   }
 
   virtual ~Decl();
@@ -296,6 +305,7 @@ public:
   }
 
   bool hasAttrs() const { return HasAttrs; }
+  void initAttrs(Attr *attrs);
   void addAttr(Attr *attr);
   const Attr *getAttrs() const {
     if (!HasAttrs) return 0;  // common case, no attributes.
@@ -328,7 +338,11 @@ public:
 
   /// \brief Whether this declaration was used, meaning that a definition
   /// is required.
-  bool isUsed() const;
+  ///
+  /// \param CheckUsedAttr When true, also consider the "used" attribute
+  /// (in addition to the "used" bit set by \c setUsed()) when determining
+  /// whether the function is used.
+  bool isUsed(bool CheckUsedAttr = true) const;
   
   void setUsed(bool U = true) { Used = U; }
 
@@ -344,14 +358,14 @@ public:
   unsigned getPCHLevel() const { return PCHLevel; }
 
   /// \brief The maximum PCH level that any declaration may have.
-  static const unsigned MaxPCHLevel = 3;
-  
+  static const unsigned MaxPCHLevel = 7;
+
   /// \brief Set the PCH level of this declaration.
   void setPCHLevel(unsigned Level) { 
-    assert(Level < MaxPCHLevel && "PCH level exceeds the maximum");
+    assert(Level <= MaxPCHLevel && "PCH level exceeds the maximum");
     PCHLevel = Level;
   }
-  
+
   unsigned getIdentifierNamespace() const {
     return IdentifierNamespace;
   }
@@ -474,15 +488,16 @@ public:
   ///  top-level Stmt* of that body.  Otherwise this method returns null.
   virtual Stmt* getBody() const { return 0; }
 
-  /// getCompoundBody - Returns getBody(), dyn_casted to a CompoundStmt.
-  CompoundStmt* getCompoundBody() const;
+  /// \brief Returns true if this Decl represents a declaration for a body of
+  /// code, such as a function or method definition.
+  virtual bool hasBody() const { return getBody() != 0; }
 
   /// getBodyRBrace - Gets the right brace of the body, if a body exists.
   /// This works whether the body is a CompoundStmt or a CXXTryStmt.
   SourceLocation getBodyRBrace() const;
 
   // global temp stats (until we have a per-module visitor)
-  static void addDeclKind(Kind k);
+  static void add(Kind k);
   static bool CollectingStats(bool Enable = false);
   static void PrintStats();
 
@@ -631,6 +646,8 @@ class DeclContext {
   /// another pointer.
   mutable Decl *LastDecl;
 
+  friend class ExternalASTSource;
+
 protected:
    DeclContext(Decl::Kind K)
      : DeclKind(K), ExternalLexicalStorage(false),
@@ -687,7 +704,7 @@ public:
     case Decl::ObjCMethod:
       return true;
     default:
-      return DeclKind >= Decl::FunctionFirst && DeclKind <= Decl::FunctionLast;
+      return DeclKind >= Decl::firstFunction && DeclKind <= Decl::lastFunction;
     }
   }
 
@@ -700,7 +717,7 @@ public:
   }
 
   bool isRecord() const {
-    return DeclKind >= Decl::RecordFirst && DeclKind <= Decl::RecordLast;
+    return DeclKind >= Decl::firstRecord && DeclKind <= Decl::lastRecord;
   }
 
   bool isNamespace() const {
@@ -1083,9 +1100,10 @@ public:
 
   static bool classof(const Decl *D);
   static bool classof(const DeclContext *D) { return true; }
-#define DECL_CONTEXT(Name) \
-  static bool classof(const Name##Decl *D) { return true; }
-#include "clang/AST/DeclNodes.def"
+#define DECL(NAME, BASE)
+#define DECL_CONTEXT(NAME) \
+  static bool classof(const NAME##Decl *D) { return true; }
+#include "clang/AST/DeclNodes.inc"
 
   void dumpDeclContext() const;
 

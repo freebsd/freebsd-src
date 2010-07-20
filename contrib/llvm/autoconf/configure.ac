@@ -1039,8 +1039,8 @@ AC_LINK_USE_R
 dnl Determine whether the linker supports the -export-dynamic option.
 AC_LINK_EXPORT_DYNAMIC
 
-dnl Determine whether the linker supports the -retain-symbols-file option.
-AC_LINK_RETAIN_SYMBOLS_FILE
+dnl Determine whether the linker supports the --version-script option.
+AC_LINK_VERSION_SCRIPT
 
 dnl Check for libtool and the library that has dlopen function (which must come
 dnl before the AC_PROG_LIBTOOL check in order to enable dlopening libraries with
@@ -1283,6 +1283,9 @@ dnl Try to find ffi.h.
 if test "$llvm_cv_enable_libffi" = "yes" ; then
   AC_CHECK_HEADERS([ffi.h ffi/ffi.h])
 fi
+
+dnl Try to find Darwin specific crash reporting library.
+AC_CHECK_HEADERS([CrashReporterClient.h])
 
 dnl===-----------------------------------------------------------------------===
 dnl===

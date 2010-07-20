@@ -1,6 +1,7 @@
 set(LLVM_NO_RTTI 1)
 
 add_clang_library(clangCodeGen
+  BackendUtil.cpp
   CGBlocks.cpp
   CGBuiltin.cpp
   CGCall.cpp
@@ -25,13 +26,16 @@ add_clang_library(clangCodeGen
   CGTemporaries.cpp
   CGVTables.cpp
   CGVTT.cpp
+  CodeGenAction.cpp
   CodeGenFunction.cpp
   CodeGenModule.cpp
   CodeGenTypes.cpp
   ItaniumCXXABI.cpp
   Mangle.cpp
+  MicrosoftCXXABI.cpp
   ModuleBuilder.cpp
   TargetInfo.cpp
   )
 
-add_dependencies(clangCodeGen ClangStmtNodes)
+add_dependencies(clangCodeGen ClangAttrClasses ClangAttrList ClangDeclNodes
+                 ClangStmtNodes)

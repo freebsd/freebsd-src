@@ -160,27 +160,26 @@ bool Linker::LinkInFile(const sys::Path &File, bool &is_native) {
   // Check for a file of name "-", which means "read standard input"
   if (File.str() == "-") {
     std::auto_ptr<Module> M;
-    MemoryBuffer *Buffer = MemoryBuffer::getSTDIN();
-    if (!Buffer->getBufferSize()) {
-      delete Buffer;
-      Error = "standard input is empty";
-    } else {
-      M.reset(ParseBitcodeFile(Buffer, Context, &Error));
-      delete Buffer;
-      if (M.get())
-        if (!LinkInModule(M.get(), &Error))
-          return false;
+    if (MemoryBuffer *Buffer = MemoryBuffer::getSTDIN(&Error)) {
+      if (!Buffer->getBufferSize()) {
+        delete Buffer;
+        Error = "standard input is empty";
+      } else {
+        M.reset(ParseBitcodeFile(Buffer, Context, &Error));
+        delete Buffer;
+        if (M.get())
+          if (!LinkInModule(M.get(), &Error))
+            return false;
+      }
     }
     return error("Cannot link stdin: " + Error);
   }
 
-  // Make sure we can at least read the file
-  if (!File.canRead())
+  // Determine what variety of file it is.
+  std::string Magic;
+  if (!File.getMagicNumber(Magic, 64))
     return error("Cannot find linker input '" + File.str() + "'");
 
-  // If its an archive, try to link it in
-  std::string Magic;
-  File.getMagicNumber(Magic, 64);
   switch (sys::IdentifyFileType(Magic.c_str(), 64)) {
     default: llvm_unreachable("Bad file type identification");
     case sys::Unknown_FileType:

@@ -88,7 +88,7 @@ private:
   /// its register number, or -1 if there is no match.  To allow return values
   /// to be used directly in register lists, arm registers have values between
   /// 0 and 15.
-  int MatchRegisterName(const StringRef &Name);
+  int MatchRegisterName(StringRef Name);
 
   /// }
 
@@ -97,7 +97,7 @@ public:
   ARMAsmParser(const Target &T, MCAsmParser &_Parser)
     : TargetAsmParser(T), Parser(_Parser) {}
 
-  virtual bool ParseInstruction(const StringRef &Name, SMLoc NameLoc,
+  virtual bool ParseInstruction(StringRef Name, SMLoc NameLoc,
                                 SmallVectorImpl<MCParsedAsmOperand*> &Operands);
 
   virtual bool ParseDirective(AsmToken DirectiveID);
@@ -425,7 +425,7 @@ bool ARMAsmParser::ParseMemory(OwningPtr<ARMOperand> &Op) {
     const AsmToken &NextTok = Parser.getTok();
     if (NextTok.isNot(AsmToken::EndOfStatement)) {
       if (NextTok.isNot(AsmToken::Comma))
-	return Error(NextTok.getLoc(), "',' expected");
+        return Error(NextTok.getLoc(), "',' expected");
       Parser.Lex(); // Eat comma token.
       if(ParseMemoryOffsetReg(Negative, OffsetRegShifted, ShiftType,
                               ShiftAmount, Offset, OffsetIsReg, OffsetRegNum, 
@@ -488,7 +488,7 @@ bool ARMAsmParser::ParseMemoryOffsetReg(bool &Negative,
 
       const AsmToken &Tok = Parser.getTok();
       if (ParseShift(ShiftType, ShiftAmount, E))
-	return Error(Tok.getLoc(), "shift expected");
+        return Error(Tok.getLoc(), "shift expected");
       OffsetRegShifted = true;
     }
   }
@@ -517,7 +517,7 @@ bool ARMAsmParser::ParseShift(ShiftType &St,
   const AsmToken &Tok = Parser.getTok();
   if (Tok.isNot(AsmToken::Identifier))
     return true;
-  const StringRef &ShiftName = Tok.getString();
+  StringRef ShiftName = Tok.getString();
   if (ShiftName == "lsl" || ShiftName == "LSL")
     St = Lsl;
   else if (ShiftName == "lsr" || ShiftName == "LSR")
@@ -549,7 +549,7 @@ bool ARMAsmParser::ParseShift(ShiftType &St,
 }
 
 /// A hack to allow some testing, to be replaced by a real table gen version.
-int ARMAsmParser::MatchRegisterName(const StringRef &Name) {
+int ARMAsmParser::MatchRegisterName(StringRef Name) {
   if (Name == "r0" || Name == "R0")
     return 0;
   else if (Name == "r1" || Name == "R1")
@@ -593,7 +593,7 @@ MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*> &Operands,
                  MCInst &Inst) {
   ARMOperand &Op0 = *(ARMOperand*)Operands[0];
   assert(Op0.Kind == ARMOperand::Token && "First operand not a Token");
-  const StringRef &Mnemonic = Op0.getToken();
+  StringRef Mnemonic = Op0.getToken();
   if (Mnemonic == "add" ||
       Mnemonic == "stmfd" ||
       Mnemonic == "str" ||
@@ -658,14 +658,13 @@ bool ARMAsmParser::ParseOperand(OwningPtr<ARMOperand> &Op) {
 }
 
 /// Parse an arm instruction mnemonic followed by its operands.
-bool ARMAsmParser::ParseInstruction(const StringRef &Name, SMLoc NameLoc,
+bool ARMAsmParser::ParseInstruction(StringRef Name, SMLoc NameLoc,
                                SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
   OwningPtr<ARMOperand> Op;
   ARMOperand::CreateToken(Op, Name, NameLoc);
   
   Operands.push_back(Op.take());
 
-  SMLoc Loc = Parser.getTok().getLoc();
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
 
     // Read the first operand.
@@ -762,16 +761,11 @@ bool ARMAsmParser::ParseDirectiveSyntax(SMLoc L) {
   const AsmToken &Tok = Parser.getTok();
   if (Tok.isNot(AsmToken::Identifier))
     return Error(L, "unexpected token in .syntax directive");
-  const StringRef &Mode = Tok.getString();
-  bool unified_syntax;
-  if (Mode == "unified" || Mode == "UNIFIED") {
+  StringRef Mode = Tok.getString();
+  if (Mode == "unified" || Mode == "UNIFIED")
     Parser.Lex();
-    unified_syntax = true;
-  }
-  else if (Mode == "divided" || Mode == "DIVIDED") {
+  else if (Mode == "divided" || Mode == "DIVIDED")
     Parser.Lex();
-    unified_syntax = false;
-  }
   else
     return Error(L, "unrecognized syntax mode in .syntax directive");
 
@@ -791,15 +785,10 @@ bool ARMAsmParser::ParseDirectiveCode(SMLoc L) {
   if (Tok.isNot(AsmToken::Integer))
     return Error(L, "unexpected token in .code directive");
   int64_t Val = Parser.getTok().getIntVal();
-  bool thumb_mode;
-  if (Val == 16) {
+  if (Val == 16)
     Parser.Lex();
-    thumb_mode = true;
-  }
-  else if (Val == 32) {
+  else if (Val == 32)
     Parser.Lex();
-    thumb_mode = false;
-  }
   else
     return Error(L, "invalid operand to .code directive");
 

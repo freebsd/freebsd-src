@@ -100,7 +100,8 @@ public:
     Psp,
     Solaris,
     Win32,
-    Haiku
+    Haiku,
+    Minix
   };
   
 private:
@@ -242,8 +243,8 @@ public:
   /// environment components with a single string.
   void setOSAndEnvironmentName(StringRef Str);
 
-  /// getArchNameForAssembler - Get an architecture name that is understood by the
-  /// target assembler.
+  /// getArchNameForAssembler - Get an architecture name that is understood by
+  /// the target assembler.
   const char *getArchNameForAssembler();
 
   /// @}

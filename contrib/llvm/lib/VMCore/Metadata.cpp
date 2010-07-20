@@ -78,7 +78,8 @@ void MDNodeOperand::allUsesReplacedWith(Value *NV) {
 /// getOperandPtr - Helper function to get the MDNodeOperand's coallocated on
 /// the end of the MDNode.
 static MDNodeOperand *getOperandPtr(MDNode *N, unsigned Op) {
-  assert(Op < N->getNumOperands() && "Invalid operand number");
+  // Use <= instead of < to permit a one-past-the-end address.
+  assert(Op <= N->getNumOperands() && "Invalid operand number");
   return reinterpret_cast<MDNodeOperand*>(N+1)+Op;
 }
 
@@ -133,6 +134,7 @@ static const Function *getFunctionForValue(Value *V) {
 static const Function *assertLocalFunction(const MDNode *N) {
   if (!N->isFunctionLocal()) return 0;
 
+  // FIXME: This does not handle cyclic function local metadata.
   const Function *F = 0, *NewF = 0;
   for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
     if (Value *V = N->getOperand(i)) {

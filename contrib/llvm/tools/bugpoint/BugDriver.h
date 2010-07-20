@@ -16,7 +16,7 @@
 #ifndef BUGDRIVER_H
 #define BUGDRIVER_H
 
-#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/ValueMap.h"
 #include <vector>
 #include <string>
 
@@ -269,7 +269,7 @@ public:
   /// recreate the failure. This returns true if a compiler error is found.
   ///
   bool runManyPasses(const std::vector<const PassInfo*> &AllPasses,
-		     std::string &ErrMsg);
+                     std::string &ErrMsg);
 
   /// writeProgramToFile - This writes the current "Program" to the named
   /// bitcode file.  If an error occurs, true is returned.
@@ -325,7 +325,7 @@ void DeleteFunctionBody(Function *F);
 /// module, split the functions OUT of the specified module, and place them in
 /// the new module.
 Module *SplitFunctionsOutOfModule(Module *M, const std::vector<Function*> &F,
-                                  DenseMap<const Value*, Value*> &ValueMap);
+                                  ValueMap<const Value*, Value*> &VMap);
 
 } // End llvm namespace
 

@@ -42,12 +42,46 @@ public:
   EntityGetter(Program &prog, ProgramImpl &progImpl)
     : Prog(prog), ProgImpl(progImpl) { }
 
+  // Get an Entity.
+  Entity getEntity(Entity Parent, DeclarationName Name, 
+                   unsigned IdNS, bool isObjCInstanceMethod);
+
+  // Get an Entity associated with the name in the global namespace.
+  Entity getGlobalEntity(llvm::StringRef Name);
+
   Entity VisitNamedDecl(NamedDecl *D);
   Entity VisitVarDecl(VarDecl *D);
+  Entity VisitFieldDecl(FieldDecl *D);
   Entity VisitFunctionDecl(FunctionDecl *D);
+  Entity VisitTypeDecl(TypeDecl *D);
 };
 
 }
+}
+
+Entity EntityGetter::getEntity(Entity Parent, DeclarationName Name, 
+                               unsigned IdNS, bool isObjCInstanceMethod) {
+  llvm::FoldingSetNodeID ID;
+  EntityImpl::Profile(ID, Parent, Name, IdNS, isObjCInstanceMethod);
+
+  ProgramImpl::EntitySetTy &Entities = ProgImpl.getEntities();
+  void *InsertPos = 0;
+  if (EntityImpl *Ent = Entities.FindNodeOrInsertPos(ID, InsertPos))
+    return Entity(Ent);
+
+  void *Buf = ProgImpl.Allocate(sizeof(EntityImpl));
+  EntityImpl *New =
+      new (Buf) EntityImpl(Parent, Name, IdNS, isObjCInstanceMethod);
+  Entities.InsertNode(New, InsertPos);
+
+  return Entity(New);
+}
+
+Entity EntityGetter::getGlobalEntity(llvm::StringRef Name) {
+  IdentifierInfo *II = &ProgImpl.getIdents().get(Name);
+  DeclarationName GlobName(II);
+  unsigned IdNS = Decl::IDNS_Ordinary;
+  return getEntity(Entity(), GlobName, IdNS, false);
 }
 
 Entity EntityGetter::VisitNamedDecl(NamedDecl *D) {
@@ -91,24 +125,14 @@ Entity EntityGetter::VisitNamedDecl(NamedDecl *D) {
 
   ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D);
   bool isObjCInstanceMethod = MD && MD->isInstanceMethod();
-
-  llvm::FoldingSetNodeID ID;
-  EntityImpl::Profile(ID, Parent, GlobName, IdNS, isObjCInstanceMethod);
-
-  ProgramImpl::EntitySetTy &Entities = ProgImpl.getEntities();
-  void *InsertPos = 0;
-  if (EntityImpl *Ent = Entities.FindNodeOrInsertPos(ID, InsertPos))
-    return Entity(Ent);
-
-  void *Buf = ProgImpl.Allocate(sizeof(EntityImpl));
-  EntityImpl *New =
-      new (Buf) EntityImpl(Parent, GlobName, IdNS, isObjCInstanceMethod);
-  Entities.InsertNode(New, InsertPos);
-
-  return Entity(New);
+  return getEntity(Parent, GlobName, IdNS, isObjCInstanceMethod);
 }
 
 Entity EntityGetter::VisitVarDecl(VarDecl *D) {
+  // Local variables have no linkage, make invalid Entities.
+  if (D->hasLocalStorage())
+    return Entity();
+
   // If it's static it cannot be referred to by another translation unit.
   if (D->getStorageClass() == VarDecl::Static)
     return Entity(D);
@@ -122,6 +146,18 @@ Entity EntityGetter::VisitFunctionDecl(FunctionDecl *D) {
     return Entity(D);
 
   return VisitNamedDecl(D);
+}
+
+Entity EntityGetter::VisitFieldDecl(FieldDecl *D) {
+  // Make FieldDecl an invalid Entity since it has no linkage.
+  return Entity();
+}
+
+Entity EntityGetter::VisitTypeDecl(TypeDecl *D) {
+  // Although in C++ class name has external linkage, usually the definition of
+  // the class is available in the same translation unit when it's needed. So we
+  // make all of them invalid Entity.
+  return Entity();
 }
 
 //===----------------------------------------------------------------------===//
@@ -172,6 +208,12 @@ Entity EntityImpl::get(Decl *D, Program &Prog, ProgramImpl &ProgImpl) {
   return EntityGetter(Prog, ProgImpl).Visit(D);
 }
 
+/// \brief Get an Entity associated with a global name.
+Entity EntityImpl::get(llvm::StringRef Name, Program &Prog, 
+                       ProgramImpl &ProgImpl) {
+  return EntityGetter(Prog, ProgImpl).getGlobalEntity(Name);
+}
+
 std::string EntityImpl::getPrintableName() {
   return Name.getAsString();
 }
@@ -215,6 +257,11 @@ Entity Entity::get(Decl *D, Program &Prog) {
     return Entity();
   ProgramImpl &ProgImpl = *static_cast<ProgramImpl*>(Prog.Impl);
   return EntityImpl::get(D, Prog, ProgImpl);
+}
+
+Entity Entity::get(llvm::StringRef Name, Program &Prog) {
+  ProgramImpl &ProgImpl = *static_cast<ProgramImpl*>(Prog.Impl);
+  return EntityImpl::get(Name, Prog, ProgImpl);
 }
 
 unsigned

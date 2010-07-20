@@ -30,10 +30,10 @@ namespace clang {
     /// designed for the previous version could not support reading
     /// the new version), this number should be increased.
     ///
-    /// Version 3 of PCH files also requires that the version control branch and
+    /// Version 4 of PCH files also requires that the version control branch and
     /// revision match exactly, since there is no backward compatibility of
     /// PCH files at this time.
-    const unsigned VERSION_MAJOR = 3;
+    const unsigned VERSION_MAJOR = 4;
 
     /// \brief PCH minor version number supported by this version of
     /// Clang.
@@ -47,7 +47,7 @@ namespace clang {
 
     /// \brief An ID number that refers to a declaration in a PCH file.
     ///
-    /// The ID numbers of types are consecutive (in order of
+    /// The ID numbers of declarations are consecutive (in order of
     /// discovery) and start at 2. 0 is reserved for NULL, and 1 is
     /// reserved for the translation unit declaration.
     typedef uint32_t DeclID;
@@ -226,7 +226,18 @@ namespace clang {
       
       /// \brief Record code for the table of offsets to macro definition
       /// entries in the preprocessing record.
-      MACRO_DEFINITION_OFFSETS = 23
+      MACRO_DEFINITION_OFFSETS = 23,
+
+      /// \brief Record code for the array of VTable uses.
+      VTABLE_USES = 24,
+
+      /// \brief Record code for the array of dynamic classes.
+      DYNAMIC_CLASSES = 25,
+
+      /// \brief Record code for the chained PCH metadata, including the
+      /// PCH version and the name of the PCH this is chained to.
+      CHAINED_METADATA = 26
+
     };
 
     /// \brief Record types used within a source manager block.
@@ -417,7 +428,17 @@ namespace clang {
       /// \brief An InjectedClassNameType record.
       TYPE_INJECTED_CLASS_NAME      = 27,
       /// \brief An ObjCObjectType record.
-      TYPE_OBJC_OBJECT              = 28
+      TYPE_OBJC_OBJECT              = 28,
+      /// \brief An TemplateTypeParmType record.
+      TYPE_TEMPLATE_TYPE_PARM       = 29,
+      /// \brief An TemplateSpecializationType record.
+      TYPE_TEMPLATE_SPECIALIZATION  = 30,
+      /// \brief A DependentNameType record.
+      TYPE_DEPENDENT_NAME           = 31,
+      /// \brief A DependentTemplateSpecializationType record.
+      TYPE_DEPENDENT_TEMPLATE_SPECIALIZATION = 32,
+      /// \brief A DependentSizedArrayType record.
+      TYPE_DEPENDENT_SIZED_ARRAY    = 33
     };
 
     /// \brief The type IDs for special types constructed by semantic
@@ -457,7 +478,9 @@ namespace clang {
       /// \brief Objective-C "SEL" redefinition type
       SPECIAL_TYPE_OBJC_SEL_REDEFINITION       = 14,
       /// \brief NSConstantString type
-      SPECIAL_TYPE_NS_CONSTANT_STRING          = 15
+      SPECIAL_TYPE_NS_CONSTANT_STRING          = 15,
+      /// \brief Whether __[u]int128_t identifier is installed.
+      SPECIAL_TYPE_INT128_INSTALLED            = 16
     };
 
     /// \brief Record codes for each kind of declaration.
@@ -562,12 +585,13 @@ namespace clang {
       DECL_CXX_DESTRUCTOR,
       /// \brief A CXXConversionDecl record.
       DECL_CXX_CONVERSION,
+      /// \brief An AccessSpecDecl record.
+      DECL_ACCESS_SPEC,
 
       // FIXME: Implement serialization for these decl types. This just
       // allocates the order in which
       DECL_FRIEND,
       DECL_FRIEND_TEMPLATE,
-      DECL_TEMPLATE,
       DECL_CLASS_TEMPLATE,
       DECL_CLASS_TEMPLATE_SPECIALIZATION,
       DECL_CLASS_TEMPLATE_PARTIAL_SPECIALIZATION,
@@ -641,6 +665,8 @@ namespace clang {
       EXPR_CHARACTER_LITERAL,
       /// \brief A ParenExpr record.
       EXPR_PAREN,
+      /// \brief A ParenListExpr record.
+      EXPR_PAREN_LIST,
       /// \brief A UnaryOperator record.
       EXPR_UNARY_OPERATOR,
       /// \brief An OffsetOfExpr record.
@@ -736,6 +762,8 @@ namespace clang {
       EXPR_CXX_MEMBER_CALL,
       /// \brief A CXXConstructExpr record.
       EXPR_CXX_CONSTRUCT,
+      /// \brief A CXXTemporaryObjectExpr record.
+      EXPR_CXX_TEMPORARY_OBJECT,
       // \brief A CXXStaticCastExpr record.
       EXPR_CXX_STATIC_CAST,
       // \brief A CXXDynamicCastExpr record.
@@ -755,11 +783,22 @@ namespace clang {
       EXPR_CXX_THROW,             // CXXThrowExpr
       EXPR_CXX_DEFAULT_ARG,       // CXXDefaultArgExpr
       EXPR_CXX_BIND_TEMPORARY,    // CXXBindTemporaryExpr
-      //
-      EXPR_CXX_ZERO_INIT_VALUE,   // CXXZeroInitValueExpr
+      EXPR_CXX_BIND_REFERENCE,    // CXXBindReferenceExpr
+
+      EXPR_CXX_SCALAR_VALUE_INIT, // CXXScalarValueInitExpr
       EXPR_CXX_NEW,               // CXXNewExpr
+      EXPR_CXX_DELETE,            // CXXDeleteExpr
+      EXPR_CXX_PSEUDO_DESTRUCTOR, // CXXPseudoDestructorExpr
       
-      EXPR_CXX_EXPR_WITH_TEMPORARIES // CXXExprWithTemporaries
+      EXPR_CXX_EXPR_WITH_TEMPORARIES, // CXXExprWithTemporaries
+      
+      EXPR_CXX_DEPENDENT_SCOPE_MEMBER, // CXXDependentScopeMemberExpr
+      EXPR_CXX_DEPENDENT_SCOPE_DECL_REF,   // DependentScopeDeclRefExpr
+      EXPR_CXX_UNRESOLVED_CONSTRUCT, // CXXUnresolvedConstructExpr
+      EXPR_CXX_UNRESOLVED_MEMBER,    // UnresolvedMemberExpr
+      EXPR_CXX_UNRESOLVED_LOOKUP,     // UnresolvedLookupExpr
+
+      EXPR_CXX_UNARY_TYPE_TRAIT   // UnaryTypeTraitExpr  
     };
 
     /// \brief The kinds of designators that can occur in a
