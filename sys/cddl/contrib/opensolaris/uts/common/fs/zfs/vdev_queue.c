@@ -38,7 +38,7 @@
  * of i/os pending to each device (before it starts ramping up to
  * max_pending).
  */
-int zfs_vdev_max_pending = 35;
+int zfs_vdev_max_pending = 10;
 int zfs_vdev_min_pending = 4;
 
 /* deadline = pri + (LBOLT >> time_shift) */
