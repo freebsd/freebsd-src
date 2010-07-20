@@ -50,7 +50,6 @@ CFE_ENV		opt_global.h
 CFE_ENV_SIZE	opt_global.h
 
 NOFPU		opt_global.h
-TARGET_OCTEON	opt_global.h
 TARGET_EMULATOR	opt_ddb.h
 TARGET_XLR_XLS  opt_global.h
 
@@ -61,3 +60,9 @@ TICK_USE_MALTA_RTC	opt_global.h
 # The highest memory address that can be used by the kernel in units of KB.
 #
 MAXMEM			opt_global.h
+
+#
+# Options that control the Cavium Simple Executive.
+#
+OCTEON_VENDOR_LANNER		opt_cvmx.h
+OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h

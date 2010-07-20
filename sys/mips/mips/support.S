@@ -1431,7 +1431,7 @@ LEAF(casuptr)
 END(casuptr)
 
 
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 /* 
  * void octeon_enable_shadow(void)
  *	turns on access to CC and CCRes

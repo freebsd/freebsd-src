@@ -49,7 +49,6 @@
  *
  * <hr>$Revision: 42150 $<hr>
  */
-#include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-fpa.h"
 #include "cvmx-cmd-queue.h"

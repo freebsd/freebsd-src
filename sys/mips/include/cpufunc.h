@@ -186,7 +186,7 @@ mips_wr_ ## n(uint32_t a0)					\
 	mips_barrier();						\
 } struct __hack
 
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 static __inline void mips_sync_icache (void)
 {
 	__asm __volatile (

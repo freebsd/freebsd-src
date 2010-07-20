@@ -49,10 +49,6 @@
  *
  * <hr>$Revision: 42417 $<hr>
  */
-#include "executive-config.h"
-#include "cvmx-config.h"
-#ifdef CVMX_ENABLE_PKO_FUNCTIONS
-
 #include "cvmx.h"
 #include "cvmx-sysinfo.h"
 #include "cvmx-mdio.h"
@@ -60,6 +56,7 @@
 #include "cvmx-helper.h"
 #include "cvmx-helper-board.h"
 
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
 /**
  * @INTERNAL
  * Probe RGMII ports and determine the number present
@@ -202,6 +199,31 @@ int __cvmx_helper_rgmii_enable(int interface)
         cvmx_write_csr(CVMX_GMXX_TXX_PAUSE_PKT_TIME(port, interface), 20000);
         cvmx_write_csr(CVMX_GMXX_TXX_PAUSE_PKT_INTERVAL(port, interface), 19000);
 
+        /*
+         * Board types we have to know at compile-time.
+         */
+#if defined(OCTEON_BOARD_CAPK_0100ND)
+        cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, interface), 26);
+        cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, interface), 26);
+#else
+	/*
+	 * Vendor-defined board types.
+	 */
+#if defined(OCTEON_VENDOR_LANNER)
+	switch (cvmx_sysinfo_get()->board_type) {
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+            if (port == 0) {
+                cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, interface), 4);
+	    } else {
+                cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, interface), 7);
+            }
+            cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, interface), 0);
+	    break;
+	}
+#else
+        /*
+         * For board types we can determine at runtime.
+         */
         if (OCTEON_IS_MODEL(OCTEON_CN50XX))
         {
             cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, interface), 16);
@@ -212,6 +234,8 @@ int __cvmx_helper_rgmii_enable(int interface)
             cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, interface), 24);
             cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, interface), 24);
         }
+#endif
+#endif
     }
 
     __cvmx_helper_setup_gmx(interface, num_ports);

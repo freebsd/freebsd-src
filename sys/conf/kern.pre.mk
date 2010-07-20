@@ -94,8 +94,14 @@ CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
 .if ${CC} != "icc"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
+.if ${MACHINE_CPUARCH} != "mips"
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
+.else
+# XXX Actually a gross hack just for Octeon because of the Simple Executive.
+CFLAGS+= --param inline-unit-growth=1000
+CFLAGS+= --param large-function-growth=100000
+.endif
 WERROR?= -Werror
 .endif
 

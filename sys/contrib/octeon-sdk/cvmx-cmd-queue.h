@@ -92,8 +92,10 @@
 #ifndef __CVMX_CMD_QUEUE_H__
 #define __CVMX_CMD_QUEUE_H__
 
+#ifndef CVMX_DONT_INCLUDE_CONFIG
 #include "executive-config.h"
 #include "cvmx-config.h"
+#endif
 #include "cvmx-fpa.h"
 
 #ifdef	__cplusplus
@@ -167,6 +169,8 @@ typedef struct
     uint64_t                 ticket[(CVMX_CMD_QUEUE_END>>16) * 256];
     __cvmx_cmd_queue_state_t state[(CVMX_CMD_QUEUE_END>>16) * 256];
 } __cvmx_cmd_queue_all_state_t;
+
+extern CVMX_SHARED __cvmx_cmd_queue_all_state_t *__cvmx_cmd_queue_state_ptr;
 
 /**
  * Initialize a command queue for use. The initial FPA buffer is
@@ -246,7 +250,6 @@ static inline int __cvmx_cmd_queue_get_index(cvmx_cmd_queue_id_t queue_id)
  */
 static inline void __cvmx_cmd_queue_lock(cvmx_cmd_queue_id_t queue_id, __cvmx_cmd_queue_state_t *qptr)
 {
-    extern CVMX_SHARED __cvmx_cmd_queue_all_state_t *__cvmx_cmd_queue_state_ptr;
     int tmp;
     int my_ticket;
     CVMX_PREFETCH(qptr, 0);
@@ -304,7 +307,6 @@ static inline void __cvmx_cmd_queue_unlock(__cvmx_cmd_queue_state_t *qptr)
  */
 static inline __cvmx_cmd_queue_state_t *__cvmx_cmd_queue_get_state(cvmx_cmd_queue_id_t queue_id)
 {
-    extern CVMX_SHARED __cvmx_cmd_queue_all_state_t *__cvmx_cmd_queue_state_ptr;
     if (CVMX_ENABLE_PARAMETER_CHECKING)
     {
         if (cvmx_unlikely(queue_id >= CVMX_CMD_QUEUE_END))

@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #define	SYNC	__asm volatile("sync")
 #endif
 
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 #define SYNCI  mips_sync_icache();
 #else
 #define SYNCI
@@ -568,7 +568,7 @@ mipsNN_pdcache_wb_range_32(vm_offset_t va, vm_size_t size)
 }
 
 
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 
 void
 mipsNN_icache_sync_all_128(void)

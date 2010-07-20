@@ -17,6 +17,3 @@ cpu     CPU_MIPS4KC
 #device clock
 #device obio
 #device uart
-
-# Kludge
-options	TARGET_OCTEON
