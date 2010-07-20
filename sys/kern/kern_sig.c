@@ -2029,9 +2029,9 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	if (!_SIG_VALID(sig))
-		panic("tdsignal(): invalid signal %d", sig);
+		panic("%s(): invalid signal %d", __func__, sig);
 
-	KASSERT(ksi == NULL || !KSI_ONQ(ksi), ("tdsignal: ksi on queue"));
+	KASSERT(ksi == NULL || !KSI_ONQ(ksi), ("%s: ksi on queue", __func__));
 
 	/*
 	 * IEEE Std 1003.1-2001: return success when killing a zombie.
