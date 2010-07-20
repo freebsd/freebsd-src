@@ -52,8 +52,10 @@
 #ifndef __CVMX_HELPER_H__
 #define __CVMX_HELPER_H__
 
+#ifndef CVMX_DONT_INCLUDE_CONFIG
 #include "executive-config.h"
 #include "cvmx-config.h"
+#endif
 #include "cvmx-fpa.h"
 #include "cvmx-wqe.h"
 
@@ -97,7 +99,6 @@ typedef union
 #include "cvmx-helper-rgmii.h"
 #include "cvmx-helper-sgmii.h"
 #include "cvmx-helper-spi.h"
-#include "cvmx-helper-util.h"
 #include "cvmx-helper-xaui.h"
 
 /**
@@ -249,6 +250,8 @@ extern int cvmx_helper_interface_probe(int interface);
  * @return Zero on success, negative on failure.
  */
 extern int cvmx_helper_configure_loopback(int ipd_port, int enable_internal, int enable_external);
+
+#include "cvmx-helper-util.h"
 
 #endif /* CVMX_ENABLE_PKO_FUNCTIONS */
 

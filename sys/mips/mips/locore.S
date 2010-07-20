@@ -88,7 +88,7 @@ VECTOR(_locore, unknown)
 	/* UNSAFE TO USE a0..a3, need to preserve the args from boot loader */
 	mtc0	zero, MIPS_COP_0_CAUSE	# Clear soft interrupts
 	
-#if defined(TARGET_OCTEON)
+#if defined(CPU_CNMIPS)
 	/*
 	 * t1: Bits to set explicitly:
 	 *	Enable FPU
@@ -143,7 +143,7 @@ VECTOR(_locore, unknown)
 	sw	a2, _C_LABEL(fenvp)
 #endif
 
-#if defined(TARGET_OCTEON) && defined(SMP)
+#if defined(CPU_CNMIPS) && defined(SMP)
 	.set push
 	.set mips32r2
 	rdhwr	t2, $0

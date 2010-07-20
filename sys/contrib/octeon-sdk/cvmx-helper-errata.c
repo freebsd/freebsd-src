@@ -51,9 +51,6 @@
  *
  * <hr>$Revision: 42150 $<hr>
  */
-#include "executive-config.h"
-#include "cvmx-config.h"
-
 #include "cvmx.h"
 #include "cvmx-fpa.h"
 #include "cvmx-pip.h"

@@ -194,7 +194,7 @@ typedef struct
 /* This macro logs out when a function returns a value */
 #define CVMX_USB_RETURN(v)                                              \
     do {                                                                \
-        typeof(v) r = v;                                                \
+        __typeof(v) r = v;                                              \
         if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLS))    \
             cvmx_dprintf("%*s%s: returned %s(%d)\n", 2*--usb->indent, "", __FUNCTION__, #v, r); \
         return r;                                                       \
@@ -3648,3 +3648,20 @@ cvmx_usb_status_t cvmx_usb_device_disable_endpoint(cvmx_usb_state_t *state,
     CVMX_USB_RETURN(CVMX_USB_SUCCESS);
 }
 
+extern void cvmx_usb_set_toggle(cvmx_usb_state_t *state, int endpoint_num, int toggle)
+{
+    cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
+    cvmx_usb_pipe_t *pipe = usb->pipe + endpoint_num;
+
+    pipe->pid_toggle = !!toggle;
+}
+
+extern int cvmx_usb_get_toggle(cvmx_usb_state_t *state, int endpoint_num)
+{
+    cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
+    cvmx_usb_pipe_t *pipe = usb->pipe + endpoint_num;
+
+    if (pipe->pid_toggle)
+	    return (1);
+    return (0);
+}

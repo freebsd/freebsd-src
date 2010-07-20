@@ -49,14 +49,10 @@
  *
  * <hr>$Revision: 42417 $<hr>
  */
-#include "executive-config.h"
-#include "cvmx-config.h"
-#ifdef CVMX_ENABLE_PKO_FUNCTIONS
-
 #include "cvmx.h"
 #include "cvmx-helper.h"
 
-
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
 /**
  * @INTERNAL
  * Probe a XAUI interface and determine the number of ports

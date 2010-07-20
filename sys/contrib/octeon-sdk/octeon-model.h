@@ -254,7 +254,7 @@ extern "C" {
        && (((chip_model) & OCTEON_58XX_MODEL_MASK) < ((arg_model) & OCTEON_58XX_MODEL_MASK))) \
     )))
 
-#if defined(USE_RUNTIME_MODEL_CHECKS) || defined(__U_BOOT__) || (defined(__linux__) && defined(__KERNEL__))
+#if defined(USE_RUNTIME_MODEL_CHECKS) || defined(__U_BOOT__) || (defined(__linux__) && defined(__KERNEL__)) || (defined(__FreeBSD__) && defined(_KERNEL))
 
 /* NOTE: This for internal use only!!!!! */
 static inline int __octeon_is_model_runtime__(uint32_t model)

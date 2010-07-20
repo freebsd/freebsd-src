@@ -48,7 +48,6 @@
  *
  * <hr>$Revision: 41586 $<hr>
  */
-#include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-mio.h"
 #include "cvmx-pko.h"
