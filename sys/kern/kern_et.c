@@ -167,6 +167,26 @@ et_start(struct eventtimer *et,
 	if ((et->et_flags & ET_FLAGS_ONESHOT) == 0 &&
 	    period == NULL)
 		return (ENODEV);
+	if (first != NULL) {
+		if (first->sec < et->et_min_period.sec ||
+		    (first->sec == et->et_min_period.sec &&
+		     first->frac < et->et_min_period.frac))
+		        first = &et->et_min_period;
+		if (first->sec > et->et_max_period.sec ||
+		    (first->sec == et->et_max_period.sec &&
+		     first->frac > et->et_max_period.frac))
+		        first = &et->et_max_period;
+	}
+	if (period != NULL) {
+		if (period->sec < et->et_min_period.sec ||
+		    (period->sec == et->et_min_period.sec &&
+		     period->frac < et->et_min_period.frac))
+		        period = &et->et_min_period;
+		if (period->sec > et->et_max_period.sec ||
+		    (period->sec == et->et_max_period.sec &&
+		     period->frac > et->et_max_period.frac))
+		        period = &et->et_max_period;
+	}
 	if (et->et_start)
 		return (et->et_start(et, first, period));
 	return (0);

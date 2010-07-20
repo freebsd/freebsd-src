@@ -263,6 +263,11 @@ lapic_init(vm_paddr_t addr)
 			lapic_et.et_quality -= 100;
 		}
 		lapic_et.et_frequency = 0;
+		/* We don't know frequency yet, so trying to guess. */
+		lapic_et.et_min_period.sec = 0;
+		lapic_et.et_min_period.frac = 0x00001000LL << 32;
+		lapic_et.et_max_period.sec = 1;
+		lapic_et.et_max_period.frac = 0;
 		lapic_et.et_start = lapic_et_start;
 		lapic_et.et_stop = lapic_et_stop;
 		lapic_et.et_priv = NULL;
@@ -493,6 +498,12 @@ lapic_et_start(struct eventtimer *et,
 			printf("lapic: Divisor %lu, Frequency %lu Hz\n",
 			    lapic_timer_divisor, value);
 		et->et_frequency = value;
+		et->et_min_period.sec = 0;
+		et->et_min_period.frac =
+		    ((1LL << 63) / et->et_frequency) << 1;
+		et->et_max_period.sec = 0xffffffff / et->et_frequency;
+		et->et_max_period.frac =
+		    ((0xffffffffLL << 32) / et->et_frequency) << 32;
 	}
 	la = &lapics[lapic_id()];
 	/*

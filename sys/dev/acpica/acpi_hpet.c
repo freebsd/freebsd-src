@@ -154,15 +154,16 @@ hpet_start(struct eventtimer *et,
 		t->div = (sc->freq * (period->frac >> 32)) >> 32;
 		if (period->sec != 0)
 			t->div += sc->freq * period->sec;
-		if (first == NULL)
-			first = period;
 	} else {
 		t->mode = 2;
 		t->div = 0;
 	}
-	fdiv = (sc->freq * (first->frac >> 32)) >> 32;
-	if (first->sec != 0)
-		fdiv += sc->freq * first->sec;
+	if (first != NULL) {
+		fdiv = (sc->freq * (first->frac >> 32)) >> 32;
+		if (first->sec != 0)
+			fdiv += sc->freq * first->sec;
+	} else
+		fdiv = t->div;
 	t->last = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
 	if (t->mode == 1 && (t->caps & HPET_TCAP_PER_INT)) {
 		t->caps |= HPET_TCNF_TYPE;
@@ -583,6 +584,11 @@ hpet_attach(device_t dev)
 		if ((t->caps & HPET_TCAP_PER_INT) == 0)
 			t->et.et_quality -= 10;
 		t->et.et_frequency = sc->freq;
+		t->et.et_min_period.sec = 0;
+		t->et.et_min_period.frac = 0x00004000LL << 32;
+		t->et.et_max_period.sec = 0xffffffff / sc->freq;
+		t->et.et_max_period.frac =
+		    ((0xffffffffLL << 32) / sc->freq) << 32;
 		t->et.et_start = hpet_start;
 		t->et.et_stop = hpet_stop;
 		t->et.et_priv = &sc->t[i];

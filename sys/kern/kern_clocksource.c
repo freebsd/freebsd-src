@@ -87,11 +87,9 @@ static DPCPU_DEFINE(tc, configtimer);
 	(bt)->sec = 0;							\
 	(bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;	\
 }
-#define BT2FREQ(bt, freq)						\
-{									\
-	*(freq) = ((uint64_t)0x8000000000000000 + ((bt)->frac >> 2)) /	\
-		    ((bt)->frac >> 1);					\
-}
+#define BT2FREQ(bt)							\
+	(((uint64_t)0x8000000000000000 + ((bt)->frac >> 2)) /		\
+	    ((bt)->frac >> 1))
 
 /* Per-CPU timer1 handler. */
 static int
@@ -295,6 +293,26 @@ restart:
 #endif
 }
 
+static int
+round_freq(struct eventtimer *et, int freq)
+{
+	uint64_t div;
+
+	if (et->et_frequency != 0) {
+		div = (et->et_frequency + freq / 2) / freq;
+		if (et->et_flags & ET_FLAGS_POW2DIV)
+			div = 1 << (flsl(div + div / 2) - 1);
+		freq = (et->et_frequency + div / 2) / div;
+	}
+	if (et->et_min_period.sec > 0)
+		freq = 0;
+	else if (et->et_max_period.frac != 0)
+		freq = min(freq, BT2FREQ(&et->et_min_period));
+	if (et->et_max_period.sec == 0 && et->et_max_period.frac != 0)
+		freq = max(freq, BT2FREQ(&et->et_max_period));
+	return (freq);
+}
+
 /*
  * Configure and start event timers.
  */
@@ -327,21 +345,25 @@ cpu_initclocks_bsp(void)
 			singlemul = 4;
 	}
 	if (timer[1] == NULL) {
-		base = hz * singlemul;
-		if (base < 128)
+		base = round_freq(timer[0], hz * singlemul);
+		singlemul = max((base + hz / 2) / hz, 1);
+		hz = (base + singlemul / 2) / singlemul;
+		if (base <= 128)
 			stathz = base;
 		else {
 			div = base / 128;
-			if (div % 2 == 0)
+			if (div >= singlemul && (div % singlemul) == 0)
 				div++;
 			stathz = base / div;
 		}
 		profhz = stathz;
-		while ((profhz + stathz) <= 8192)
+		while ((profhz + stathz) <= 128 * 64)
 			profhz += stathz;
+		profhz = round_freq(timer[0], profhz);
 	} else {
-		stathz = 128;
-		profhz = stathz * 64;
+		hz = round_freq(timer[0], hz);
+		stathz = round_freq(timer[1], 127);
+		profhz = round_freq(timer[1], stathz * 64);
 	}
 	ET_LOCK();
 	cpu_restartclocks();
@@ -385,7 +407,9 @@ cpu_restartclocks(void)
 	} else {
 		timer1hz = hz;
 		timer2hz = profiling_on ? profhz : stathz;
+		timer2hz = round_freq(timer[1], timer2hz);
 	}
+	timer1hz = round_freq(timer[0], timer1hz);
 	printf("Starting kernel event timers: %s @ %dHz, %s @ %dHz\n",
 	    timer[0]->et_name, timer1hz,
 	    timer[1] ? timer[1]->et_name : "NONE", timer2hz);
