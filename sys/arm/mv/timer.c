@@ -158,10 +158,10 @@ mv_timer_attach(device_t dev)
 	sc->et.et_frequency = get_tclk();
 	sc->et.et_min_period.sec = 0;
 	sc->et.et_min_period.frac =
-	    ((0xfLL << 60) / sc->et.et_frequency) << 4;
-	sc->et.et_max_period.sec = 0xfffffff0 / sc->et.et_frequency;
+	    ((0x00000002LLU << 32) / sc->et.et_frequency) << 32;
+	sc->et.et_max_period.sec = 0xfffffff0U / sc->et.et_frequency;
 	sc->et.et_max_period.frac =
-	    ((0xfffffff0LL << 32) / sc->et.et_frequency) << 32;
+	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
 	sc->et.et_start = mv_timer_start;
 	sc->et.et_stop = mv_timer_stop;
 	sc->et.et_priv = sc;
