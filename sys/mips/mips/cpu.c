@@ -116,7 +116,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 		cpuinfo->l1.dc_nsets = 
 		    1 << (((cfg1 & MIPS_CONFIG1_DS_MASK) >> MIPS_CONFIG1_DS_SHIFT) + 6);
 	}
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 	/*
 	 * Octeon does 128 byte line-size. But Config-Sel1 doesn't show
 	 * 128 line-size, 1 Set, 64 ways.

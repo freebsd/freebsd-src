@@ -226,7 +226,7 @@ SlowFault:
 #define	SAVE_REG(reg, offs, base) \
 	REG_S	reg, CALLFRAME_SIZ + (SZREG * offs) (base)
 
-#if defined(TARGET_OCTEON)
+#if defined(CPU_CNMIPS)
 #define CLEAR_STATUS \
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
@@ -475,7 +475,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 # Turn off fpu and enter kernel mode
 	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS3_SR_KSU_MASK | MIPS_SR_INT_IE)
-#if defined(TARGET_OCTEON)
+#if defined(CPU_CNMIPS)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(TARGET_XLR_XLS)	
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_COP_2_BIT)
@@ -693,7 +693,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 
 # Turn off fpu, disable interrupts, set kernel mode kernel mode, clear exception level.
 	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS3_SR_KSU_MASK)
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(TARGET_XLR_XLS)	
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_COP_2_BIT)

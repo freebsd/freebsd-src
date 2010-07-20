@@ -225,12 +225,12 @@ extern "C" {
       unsigned long _v;							\
       ASM_STMT ("rdhwr\t%0,$31\n"					\
 		"\tsll\t%0,%0,0" : "=d"(_v));				\
-      result = (typeof(result))_v;					\
+      result = (__typeof(result))_v;					\
     }									\
   } else {								\
     unsigned long _v;							\
     ASM_STMT ("rdhwr\t%0,$" CVMX_TMP_STR(regstr) : "=d"(_v));		\
-    result = (typeof(result))_v;					\
+    result = (__typeof(result))_v;					\
   }})
   
 

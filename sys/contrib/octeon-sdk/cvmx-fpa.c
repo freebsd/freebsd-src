@@ -50,7 +50,6 @@
  *
  */
 
-#include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-fpa.h"
 #include "cvmx-ipd.h"

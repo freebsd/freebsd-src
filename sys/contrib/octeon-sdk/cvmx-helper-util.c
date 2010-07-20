@@ -48,8 +48,6 @@
  *
  * <hr>$Revision: 42493 $<hr>
  */
-#include "executive-config.h"
-#include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-bootmem.h"
 #include "cvmx-fpa.h"

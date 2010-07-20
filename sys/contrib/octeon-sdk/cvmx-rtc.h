@@ -74,7 +74,7 @@ typedef enum
  *
  * @return Supported options, or 0 if RTC is not supported
  */
-static inline cvmx_rtc_options_t cvmx_rtc_supported()
+static inline cvmx_rtc_options_t cvmx_rtc_supported(void)
 {
     static int supported = -1;
 

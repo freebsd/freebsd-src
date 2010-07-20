@@ -489,7 +489,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 #if defined(__mips_n32) || defined(__mips_n64)
 	td->td_frame->sr |= MIPS_SR_PX;
 #endif
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS_SR_PX | MIPS_SR_UX |
 	    MIPS_SR_KX | MIPS_SR_SX;
 #endif

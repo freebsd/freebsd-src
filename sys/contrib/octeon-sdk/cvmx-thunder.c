@@ -50,7 +50,6 @@
  *
  */
 
-#include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-sysinfo.h"
 #include "cvmx-thunder.h"
@@ -121,7 +120,7 @@ int cvmx_rtc_ds1374_write(uint32_t time)
     return (rc ? -1 : 0);
 }
 
-int cvmx_rtc_ds1374_alarm_config(int WD, int WDSTR, int AIE)
+static int cvmx_rtc_ds1374_alarm_config(int WD, int WDSTR, int AIE)
 {
     int val;
 
@@ -134,7 +133,7 @@ int cvmx_rtc_ds1374_alarm_config(int WD, int WDSTR, int AIE)
     return 0;
 }
 
-int cvmx_rtc_ds1374_alarm_set(int alarm_on)
+static int cvmx_rtc_ds1374_alarm_set(int alarm_on)
 {
     uint8_t val;
 
@@ -152,7 +151,7 @@ int cvmx_rtc_ds1374_alarm_set(int alarm_on)
 }
 
 
-int cvmx_rtc_ds1374_alarm_counter_set(uint32_t interval)
+static int cvmx_rtc_ds1374_alarm_counter_set(uint32_t interval)
 {
     int i;
     int rc = 0;
@@ -165,7 +164,8 @@ int cvmx_rtc_ds1374_alarm_counter_set(uint32_t interval)
     return rc;
 }
 
-uint32_t cvmx_rtc_ds1374_alarm_counter_get(void)
+#if 0 /* XXX unused */
+static uint32_t cvmx_rtc_ds1374_alarm_counter_get(void)
 {
     int i;
     uint32_t interval = 0;
@@ -176,6 +176,7 @@ uint32_t cvmx_rtc_ds1374_alarm_counter_get(void)
     }
     return interval;
 }
+#endif
 
 
 #ifdef CVMX_RTC_DEBUG

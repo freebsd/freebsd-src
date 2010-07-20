@@ -122,6 +122,8 @@ static inline uint64_t cvmx_ptr_to_phys(void *ptr)
         return address + 0x400000000ull;   /* 256MB-512MB is a virtual mapping for the 2nd 256MB */
     else
         return address; /* Looks to be a 1:1 mapped userspace pointer */
+#elif defined(__FreeBSD__) && defined(_KERNEL)
+    return (pmap_kextract((vm_offset_t)ptr));
 #else
 #if CVMX_USE_1_TO_1_TLB_MAPPINGS
     /* We are assumung we're running the Simple Executive standalone. In this
@@ -201,6 +203,15 @@ static inline void *cvmx_phys_to_ptr(uint64_t physical_address)
         return CASTPTR(void, physical_address - 0x400000000ull);
     else
         return CASTPTR(void, physical_address);
+#elif defined(__FreeBSD__) && defined(_KERNEL)
+#if defined(__mips_n64)
+    return CASTPTR(void, CVMX_ADD_SEG(CVMX_MIPS_SPACE_XKPHYS, physical_address));
+#else
+    if (physical_address < 0x20000000)
+	return CASTPTR(void, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, physical_address));
+    else
+	panic("%s: mapping high address (%#jx) not yet supported.\n", __func__, (uintmax_t)physical_address);
+#endif
 #else
 
 #if CVMX_USE_1_TO_1_TLB_MAPPINGS

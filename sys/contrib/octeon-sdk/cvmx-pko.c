@@ -48,8 +48,6 @@
  *
  * <hr>$Revision: 42150 $<hr>
  */
-#include "executive-config.h"
-#include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-pko.h"
 #include "cvmx-sysinfo.h"
