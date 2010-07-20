@@ -536,6 +536,8 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 		return (1);
 
 	buf = x86bios_alloc(&offs, size);
+	if (buf == NULL)
+		return (1);
 
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f04;
@@ -836,7 +838,7 @@ vesa_bios_init(void)
 		    "version 1.2 or later is required.\n",
 		    ((vers & 0xf000) >> 12) * 10 + ((vers & 0x0f00) >> 8),
 		    ((vers & 0x00f0) >> 4) * 10 + (vers & 0x000f));
-		return (1);
+		goto fail;
 	}
 
 	VESA_STRCPY(vesa_oemstr, buf->v_oemstr);
