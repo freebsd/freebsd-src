@@ -280,9 +280,9 @@ atrtc_attach(device_t dev)
 		sc->et.et_quality = 0;
 		sc->et.et_frequency = 32768;
 		sc->et.et_min_period.sec = 0;
-		sc->et.et_min_period.frac = 0x0008LL << 48;
+		sc->et.et_min_period.frac = 0x0008LLU << 48;
 		sc->et.et_max_period.sec = 0;
-		sc->et.et_max_period.frac = 0x8000LL << 48;
+		sc->et.et_max_period.frac = 0x8000LLU << 48;
 		sc->et.et_start = rtc_start;
 		sc->et.et_stop = rtc_stop;
 		sc->et.et_priv = dev;

@@ -299,14 +299,14 @@ round_freq(struct eventtimer *et, int freq)
 	uint64_t div;
 
 	if (et->et_frequency != 0) {
-		div = (et->et_frequency + freq / 2) / freq;
+		div = lmax((et->et_frequency + freq / 2) / freq, 1);
 		if (et->et_flags & ET_FLAGS_POW2DIV)
 			div = 1 << (flsl(div + div / 2) - 1);
 		freq = (et->et_frequency + div / 2) / div;
 	}
 	if (et->et_min_period.sec > 0)
 		freq = 0;
-	else if (et->et_max_period.frac != 0)
+	else if (et->et_min_period.frac != 0)
 		freq = min(freq, BT2FREQ(&et->et_min_period));
 	if (et->et_max_period.sec == 0 && et->et_max_period.frac != 0)
 		freq = max(freq, BT2FREQ(&et->et_max_period));
@@ -365,6 +365,7 @@ cpu_initclocks_bsp(void)
 		stathz = round_freq(timer[1], 127);
 		profhz = round_freq(timer[1], stathz * 64);
 	}
+	tick = 1000000 / hz;
 	ET_LOCK();
 	cpu_restartclocks();
 	ET_UNLOCK();

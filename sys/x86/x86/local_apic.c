@@ -500,10 +500,10 @@ lapic_et_start(struct eventtimer *et,
 		et->et_frequency = value;
 		et->et_min_period.sec = 0;
 		et->et_min_period.frac =
-		    ((1LL << 63) / et->et_frequency) << 1;
-		et->et_max_period.sec = 0xffffffff / et->et_frequency;
+		    ((0x00000002LLU << 32) / et->et_frequency) << 32;
+		et->et_max_period.sec = 0xfffffffeLLU / et->et_frequency;
 		et->et_max_period.frac =
-		    ((0xffffffffLL << 32) / et->et_frequency) << 32;
+		    ((0xfffffffeLLU << 32) / et->et_frequency) << 32;
 	}
 	la = &lapics[lapic_id()];
 	/*
