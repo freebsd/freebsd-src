@@ -1688,7 +1688,7 @@ sccnupdate(scr_stat *scp)
 {
     /* this is a cut-down version of scrn_timer()... */
 
-    if (scp->sc->font_loading_in_progress)
+    if (scp->sc->suspend_in_progress || scp->sc->font_loading_in_progress)
 	return;
 
     if (debugger > 0 || panicstr || shutdown_in_progress) {
@@ -1738,7 +1738,7 @@ scrn_timer(void *arg)
 	return;
 
     /* don't do anything when we are performing some I/O operations */
-    if (sc->font_loading_in_progress) {
+    if (sc->suspend_in_progress || sc->font_loading_in_progress) {
 	if (again)
 	    timeout(scrn_timer, sc, hz / 10);
 	return;
