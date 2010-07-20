@@ -552,13 +552,18 @@ hint.mse.0.irq="5"
 #       Intel EtherExpress
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
+#	Requires the iwi firmware module
 # iwn:	Intel Wireless WiFi Link 4965AGN 802.11 network adapters
+#	Requires the iwn firmware module
+# mwl:	Marvell 88W8363 IEEE 802.11 adapter
+#	Requires the mwl firmware module
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # wl:   Lucent Wavelan (ISA card only).
 # wpi:	Intel 3945ABG Wireless LAN controller
+#	Requires the wpi firmware module
 
 # Order for ISA/EISA devices is important here
 
@@ -600,14 +605,15 @@ hint.ie.2.at="isa"
 hint.ie.2.port="0x300"
 hint.ie.2.irq="5"
 hint.ie.2.maddr="0xd0000"
+device		ipw
 device		iwi
 device		iwn
-device		ipw
 # Hint for the i386-only ISA front-end of le(4).
 hint.le.0.at="isa"
 hint.le.0.port="0x280"
 hint.le.0.irq="10"
 hint.le.0.drq="0"
+device		mwl
 device		nfe		# nVidia nForce MCP on-board Ethernet Networking
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		ral
@@ -622,6 +628,45 @@ hint.wl.0.port="0x300"
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
 device		wpi
+
+# IEEE 802.11 adapter firmware modules
+
+# Intel PRO/Wireless 2100 firmware:
+#   ipwfw:		BSS/IBSS/monitor mode firmware
+#   ipwbssfw:		BSS mode firmware
+#   ipwibssfw:		IBSS mode firmware
+#   ipwmonitorfw:	Monitor mode firmware
+# Intel PRO/Wireless 2200BG/2225BG/2915ABG firmware:
+#   iwifw:		BSS/IBSS/monitor mode firmware
+#   iwibssfw:		BSS mode firmware
+#   iwiibssfw:		IBSS mode firmware
+#   iwimonitorfw:	Monitor mode firmware
+# Intel Wireless WiFi Link 4965/1000/5000/6000 series firmware:
+#   iwnfw:		Single module to support the 4965/1000/5000/5150/6000
+#   iwn4965fw:		Specific module for the 4965 only
+#   iwn1000fw:		Specific module for the 1000 only
+#   iwn5000fw:		Specific module for the 5000 only
+#   iwn5150fw:		Specific module for the 5150 only
+#   iwn6000fw:		Specific module for the 6000 only
+# mwlfw:	Marvell 88W8363 firmware
+# wpifw:	Intel 3945ABG Wireless LAN Controller firmware
+
+device		iwifw
+device		iwibssfw
+device		iwiibssfw
+device		iwimonitorfw
+device		ipwfw
+device		ipwbssfw
+device		ipwibssfw
+device		ipwmonitorfw
+device		iwnfw
+device		iwn4965fw
+device		iwn1000fw
+device		iwn5000fw
+device		iwn5150fw
+device		iwn6000fw
+device		mwlfw
+device		wpifw
 
 #
 # ATA raid adapters
