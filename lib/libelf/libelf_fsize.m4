@@ -43,16 +43,18 @@ include(SRCDIR`/elf_types.m4')
  * representations.
  */
 
-/* `Basic' types */
+/* `Basic' types. */
 define(`BYTE_SIZE',	1)
-define(`GNUHASH_SIZE',	1) /* Elf_GNU_Hash_Header structures vary in length. */
 define(`IDENT_SIZE',	`EI_NIDENT')
-define(`NOTE_SIZE',	1) /* Elf_Note structures have variable length. */
 
-/* Currently unimplemented types */
+/* Types that have variable length. */
+define(`GNUHASH_SIZE',	0) /* Elf_GNU_Hash_Header structures vary in length. */
+define(`NOTE_SIZE',	0) /* Elf_Note structures have variable length. */
+
+/* Currently unimplemented types. */
 define(`MOVEP_SIZE',	0)
 
-/* Overrides for 32 bit types that do not exist */
+/* Overrides for 32 bit types that do not exist. */
 define(`XWORD_SIZE32',	0)
 define(`SXWORD_SIZE32',	0)
 
@@ -143,7 +145,8 @@ _libelf_fsize(Elf_Type t, int ec, unsigned int v, size_t c)
 	sz = 0;
 	if (v != EV_CURRENT)
 		LIBELF_SET_ERROR(VERSION, 0);
-	else if ((int) t < ELF_T_FIRST || t > ELF_T_LAST)
+	else if ((int) t < ELF_T_FIRST || t > ELF_T_LAST ||
+	    t == ELF_T_NOTE || t == ELF_T_GNUHASH)
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 	else {
 		sz = ec == ELFCLASS64 ? fsize[t].fsz64 : fsize[t].fsz32;
