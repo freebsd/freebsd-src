@@ -385,7 +385,7 @@
 	  kernel.</para>
 
         <para>A bug in the &man.ata.4; driver which can lead to
-	  interrupt storms and command timeouts.</para>
+	  interrupt storms and command timeouts has been fixed.</para>
 
         <para>USB mass storage device support in the &man.ata.4;
 	  driver has been removed.  Note that this was not used in
