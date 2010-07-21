@@ -45,7 +45,7 @@ _libelf_getphdr(Elf *e, int ec)
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
 	void *ehdr, *phdr;
-	void (*xlator)(char *_d, char *_s, size_t _c, int _swap);
+	int (*xlator)(char *_d, size_t _dsz, char *_s, size_t _c, int _swap);
 
 	assert(ec == ELFCLASS32 || ec == ELFCLASS64);
 
@@ -103,7 +103,7 @@ _libelf_getphdr(Elf *e, int ec)
 
 
 	xlator = _libelf_get_translator(ELF_T_PHDR, ELF_TOMEMORY, ec);
-	(*xlator)(phdr, e->e_rawfile + phoff, phnum,
+	(*xlator)(phdr, phnum * msz, e->e_rawfile + phoff, phnum,
 	    e->e_byteorder != LIBELF_PRIVATE(byteorder));
 
 	return (phdr);

@@ -43,7 +43,7 @@ elf_getdata(Elf_Scn *s, Elf_Data *d)
 	int elfclass, elftype;
 	unsigned int sh_type;
 	uint64_t sh_align, sh_offset, sh_size;
-	void (*xlate)(char *_d, char *_s, size_t _c, int _swap);
+	int (*xlate)(char *_d, size_t _dsz, char *_s, size_t _c, int _swap);
 
 	if (s == NULL || (e = s->s_elf) == NULL || e->e_kind != ELF_K_ELF ||
 	    (d != NULL && s != d->d_scn)) {
@@ -125,11 +125,16 @@ elf_getdata(Elf_Scn *s, Elf_Data *d)
 	}
 
 	d->d_flags  |= LIBELF_F_MALLOCED;
-	STAILQ_INSERT_TAIL(&s->s_data, d, d_next);
 
 	xlate = _libelf_get_translator(elftype, ELF_TOMEMORY, elfclass);
-	(*xlate)(d->d_buf, e->e_rawfile + sh_offset, count, e->e_byteorder !=
-	    LIBELF_PRIVATE(byteorder));
+	if (!(*xlate)(d->d_buf, d->d_size, e->e_rawfile + sh_offset, count,
+	    e->e_byteorder != LIBELF_PRIVATE(byteorder))) {
+		_libelf_release_data(d);
+		LIBELF_SET_ERROR(DATA, 0);
+		return (NULL);
+	}
+
+	STAILQ_INSERT_TAIL(&s->s_data, d, d_next);
 
 	return (d);
 }
