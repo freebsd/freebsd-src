@@ -45,6 +45,7 @@ include(SRCDIR`/elf_types.m4')
 
 /* `Basic' types */
 define(`BYTE_SIZE',	1)
+define(`GNUHASH_SIZE',	1) /* Elf_GNU_Hash_Header structures vary in length. */
 define(`IDENT_SIZE',	`EI_NIDENT')
 define(`NOTE_SIZE',	1) /* Elf_Note structures have variable length. */
 
