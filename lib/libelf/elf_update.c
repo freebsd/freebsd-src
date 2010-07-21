@@ -422,8 +422,8 @@ _libelf_resync_elf(Elf *e)
 		(E)->e_ident[EI_VERSION] = (V);				\
 		(E)->e_ehsize = _libelf_fsize(ELF_T_EHDR, (EC), (V),	\
 		    (size_t) 1);					\
-		(E)->e_phentsize = _libelf_fsize(ELF_T_PHDR, (EC), (V),	\
-		    (size_t) 1);					\
+		(E)->e_phentsize = (phnum == 0) ? 0 : _libelf_fsize(	\
+		    ELF_T_PHDR, (EC), (V), (size_t) 1);			\
 		(E)->e_shentsize = _libelf_fsize(ELF_T_SHDR, (EC), (V),	\
 		    (size_t) 1);					\
 	} while (0)
