@@ -472,6 +472,11 @@ _libelf_resync_elf(Elf *e)
 	 * file.
 	 */
 
+	if (e->e_cmd != ELF_C_WRITE &&
+	    (e->e_flags & LIBELF_F_SHDRS_LOADED) == 0 &&
+	    _libelf_load_scn(e, ehdr) == 0)
+		return ((off_t) -1);
+
 	if ((rc = _libelf_resync_sections(e, rc)) < 0)
 		return ((off_t) -1);
 
@@ -726,14 +731,9 @@ _libelf_write_elf(Elf *e, off_t newsize)
 		assert(phoff % _libelf_falign(ELF_T_PHDR, ec) == 0);
 		assert(fsz > 0);
 
+		src.d_buf = _libelf_getphdr(e, ec);
 		src.d_version = dst.d_version = e->e_version;
 		src.d_type = ELF_T_PHDR;
-
-		if (ec == ELFCLASS32)
-			src.d_buf = e->e_u.e_elf.e_phdr.e_phdr32;
-		else
-			src.d_buf = e->e_u.e_elf.e_phdr.e_phdr64;
-
 		src.d_size = phnum * _libelf_msize(ELF_T_PHDR, ec,
 		    e->e_version);
 
