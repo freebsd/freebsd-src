@@ -208,6 +208,14 @@
       <para>The default &man.devfs.5; rules now expose the upper 256
 	of &man.pty.4; device nodes.</para>
 
+      <para>A new kernel thread called <quote>deadlock
+	  resolver</quote> has been added.  This can be used to detect
+	possible deadlock by using information of thread state and
+	heuristical analysis.  This is not enabled by default.  To
+	enable this, an option <option>option DEADLKRES</option> in
+	kernel configuration file and recompilation of the
+	kernel.</para>
+
       <para>Two commands to enable/disable read-ahead has been added
 	to &man.fcntl.2; system call:</para>
 
@@ -251,6 +259,14 @@
 	systems.  Note that SMP support is disabled by default in
 	<filename>GENERIC</filename> kernel.</para>
 
+      <para>A bug in the &man.tty.4; driver that
+	<varname>TIOCSTI</varname> did not work has been fixed.  This
+	affects applications like &man.mail.1;.</para>
+
+      <para>A bug in the &man.sched.4bsd.4; scheduler that the
+	timestamp for the sleeping operation is not cleaned up on the
+	wakeup has been fixed.</para>
+
       <para>A bug in the &man.sched.ule.4; scheduler which prevented
 	process usage (<literal>%CPU</literal>) from working correctly
 	has been fixed.</para>
@@ -259,6 +275,15 @@
 	with &man.sctp.4; now.  Note that the VIMAGE is not enabled by
 	default in <filename>GENERIC</filename> kernel.</para>
 
+      <para>The VIMAGE &man.jail.8; now supports
+	<varname>ip4.saddrsel</varname>,
+	<varname>ip4.nosaddrsel</varname>,
+	<varname>ip6.saddrsel</varname>, and
+	<varname>ip6.nosaddrsel</varname> to control whether to use
+	source address selection or the primary jail address for
+	unbound outgoing connections.  The default value is to use
+	source address selection.</para>
+
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
 
@@ -266,6 +291,12 @@
 	  been reimplemented based on the &arch.i386 counterpart.  It
 	  now supports ELF binary, UFS2 file system, and larger number
 	  of slices.</para>
+
+	<para arch="ia64">The EFI <filename>loader</filename> program
+	  now supports a command-line option <option>-dev
+	    <replaceable>currdev</replaceable></option> to specify the
+	  default value of <varname>currdev</varname>.  This option
+	  can be set by the EFI boot manager.</para>
 
         <para>A kernel environment variable
 	  <varname>vfs.root.mountfrom</varname> now supports
@@ -306,8 +337,15 @@
 	  the Apple Touchpad present on MacBook has been added to
 	  <filename>GENERIC</filename> kernel.</para>
 
+        <para arch="sparc64">The epic(4) driver for the front panel
+	  LEDs in Sun Fire V215/V245 has been added.</para>
+
         <para>A bug in the &man.ipmi.4; driver that caused incorrect
 	  watchdog timer setting has been fixed.</para>
+
+        <para arch="sparc64">The &man.pci.4; driver now supports a
+	  JBus to PCIe bridge (called as <quote>Fire</quote>) found in
+	  the Sun Fire V215/V245 and Sun Ultra 25/45 machines.</para>
 
         <para>The &man.uart.4; driver now supports NetMos NM9865
 	  family of Serial/Parallel ports.</para>
@@ -319,6 +357,21 @@
 	  <title>Multimedia Support</title>
 
           <para></para>
+
+          <para>The &man.agp.4; driver has been improved.  It includes
+	    a fix for aparture size calculation issue which prevents
+	    some graphics cards from working.</para>
+
+          <para>The &man.snd.hda.4; driver now allows AD1981HD codecs
+	    to use playback mixer.</para>
+
+          <para>The &man.snd.hda.4; driver now supports multichannel
+	    (4.0 and 7.1) playback support.  The 5.1 mode support is
+	    disabled now due to unidentified synchonization problem.
+	    Devices which supports the 7.1 mode can handle the 5.1
+	    operation via software upmix done by &man.sound.4;.  Note
+	    that stereo stream is no longer duplicated to all
+	    ports.</para>
 	</sect4>
 
 	<sect4 id="net-if">
@@ -348,6 +401,13 @@
 
           <para>The et(4) driver now supports MSI and Tx checksum
 	    offloading of IPv4, TCP, and UDP.</para>
+
+          <para>The &man.iwn.4; driver has been updated.  This
+	    includes various improvements and bugfixes regarding RF
+	    switch, bgscan support, suspend/resume support, locking
+	    issue, and more.  The line <literal>device iwnfw</literal>
+	    in the kernel configuration file will include all firmware
+	    images.</para>
 
           <para>The &man.msk.4; driver now supports Marvell Yukon
 	    88E8042, 88E8057 devices and DGE-560SX (Yukon XL).</para>
@@ -387,6 +447,15 @@
 	  </itemizedlist>
 
           <para>The tsec(4) driver now supports &man.altq.4;.</para>
+
+          <para>The &man.u3g.4; driver has been improved and now works
+	    with ZTE MF636, Option Gi0322, Globetrotter GE40x, and
+	    Novatel MC950D.</para>
+
+          <para>The &man.uhso.4; driver for Option HSDPA USB devices
+	    has been added.  A new &man.uhsoctl.1; userland utility
+	    can be used to initiate and close the WAN
+	    connection.</para>
 
           <para>The &man.vge.4; driver has been improved:</para>
 
@@ -446,6 +515,12 @@
 	  <command>keep-alive</command> rule did not work for IPv6
 	  packets has been fixed.</para>
 
+	<para>The &man.pf.4; subsystem now supports
+	  <literal>sloppy</literal> keyword to enable a TCP state
+	  machine for tracking TCP connections with no sequence number
+	  check.  This feature is in the latest version of
+	  <application>pf</application>.</para>
+
 	<para>A bug that proxy ARP entries cannot be added over
 	  point-to-point link types has been fixed.</para>
 
@@ -463,6 +538,18 @@
 	<title>Disks and Storage</title>
 
         <para></para>
+
+        <para>The &man.ada.4; driver now supports
+	  <varname>BIO_DELETE</varname>.  For SSDs this uses
+	  <literal>TRIM</literal> feature of <literal>DATA SET
+	  MANAGEMENT</literal> command, as defined by ACS-2
+	  specification working draft.  For Compact Flash use
+	  <literal>CFA ERASE</literal> command, same as &man.ad.4;
+	  does.  This change realizes restoring write speed of SSDs
+	  which supports <literal>TRIM</literal> command by doing
+	  <command>newfs -E
+	  <replaceable>/dev/ada1</replaceable></command>, for
+	  example.</para>
 
         <para>A bug in the &man.fdc.4; driver which prevents the
 	  kernel module from unloading has been fixed.</para>
@@ -505,6 +592,9 @@
 	  large request arrives has been fixed.  This happens when
 	  <varname>MAXPHYS</varname> is set as larger than 128k.</para>
 
+        <para>The default block size of &man.gstripe.8; has been
+	  increased from 4k to 64k.</para>
+
         <para>A new kernel option <option>option ATA_CAM</option> has
 	  been added.  This turns &man.ata.4; controller drivers into
 	  &man.cam.4; interface modules.  When enabled, this option
@@ -538,6 +628,17 @@
       <sect3 id="fs">
 	<title>File Systems</title>
 
+	<para>&os; NFS subsystem now supports a timeout for the
+	  negative name cache entries in the client.  This avoids a
+	  bogus negative name cache entry from persisting forever when
+	  another client creates an entry with the same name within
+	  the same NFS server time of day clock tick.  The mount
+	  option <option>negnametimeo</option> can be used to override
+	  the default timeout interval (60 seconds) on a
+	  per-mount-point basis.  a Setting
+	  <option>negnametimeo</option> to <literal>0</literal>
+	  disables negative name caching for the mount point.</para>
+
         <para>&os; &man.VFS.9; subsystem now supports a new sysctl
 	   variable <varname>vfs.vlru_allow_cache_src</varname>.  This
 	   allow <filename>vnlru</filename> kernel thread to reclaim
@@ -547,6 +648,8 @@
 	   large nested directory tree easily puts any process that
 	   accesses file system into one second wait for
 	   <filename>vnlru</filename> kernel thread.</para>
+
+	<para>The ZFS file system now supports NFSv4 ACL.</para>
 
 	<para>The zpool version of ZFS subsystem has been updated to
 	  version 14.  It is now possible to use zpools created on
@@ -568,6 +671,14 @@
       <para>A bug in &man.bzip2.1; utility which prevented it from
 	working with multi-session bzip2 files.</para>
 
+      <para>The &man.camcontrol.8; utility now supports a
+	<option>-v</option> flag in the subcommand
+	<command>identify</command>.  It displays whole of identify
+	data block.</para>
+
+      <para>The &man.cp.1;, &man.find.1;, &man.getfacl.1;, &man.mv.1;,
+	and &man.setfacl.1; utilities now support NFSv4 ACL.</para>
+
       <para>The &man.diskinfo.8; now supports reporting disk stripe
 	size and offset.  This helps users to make file systems
 	optimally aligned and tuned for better performance.</para>
@@ -578,6 +689,9 @@
       <para>A bug in &man.factor.6; utility which leads to performance
 	degradation has been fixed.</para>
 
+      <para>The &man.fetch.1; utility now supports HTTP digest
+	authentication.</para>
+
       <para>A bug in &man.fetch.1; utility which incorrectly evaluates
 	a variable <varname>NO_PROXY</varname> has been fixed.</para>
 
@@ -587,12 +701,33 @@
       <para>The &man.ifconfig.8; utility now supports manipulation of
 	NDP flags handled by &man.ndp.8;.</para>
 
+      <para>The &man.netstat.1; utility now supports ARP information
+	in statistics shown by the <option>-s</option> flag.</para>
+
+      <para>The &man.newsyslog.8; utility does not consider
+	non-existence of a PID file as an error now.  A new flag
+	<option>-P</option> reverts it to the old behavior.</para>
+
       <para>The &man.ntpd.8; program no longer tries to bind to an
 	IPv6 anycast address.</para>
 
       <para>The &man.pwait.1; utility has been added.  This is similar
 	to the Solaris utility of the same name, and waits for any
 	process to terminate.</para>
+
+      <para>The &man.scandir.3; and &man.alphasort.3; functions has
+	been updated to conform POSIX.1-2008 (IEEE Std
+	1003.1-2008).</para>
+
+      <para>The &man.sighold.2;, &man.sigignore.2;, &man.sigpause.2;,
+	&man.sigrelse.2;, and &man.sigset.2; functions have been
+	implemented for making porting software from System V-like
+	systems easy.  Note that these are defined in POSIX.1-2008 XSI
+	(IEEE Std 1003.1-2008, X/Open System Interface) but now
+	obsolete.  Since &os; already has another
+	<function>sigpause(3)</function> function derived from 4.2BSD,
+	a version of the XSI interface is implemented as
+	<function>xsi_sigpause()</function>.</para>
 
       <para>The &man.sshd.8;, &man.cron.8;, &man.inetd.8;, and
 	&man.syslogd.8; programs now set
@@ -601,10 +736,24 @@
 	available memory becomes short.  This kind of process
 	termination happens in a swap-intensive workload.</para>
 
+      <para>The &man.traceroute.8; utility now performs source address
+	selection correctly even in a VIMAGE &man.jail.8;
+	environment.</para>
+
       <para>The &man.unifdef.1; utility has been updated to version
 	1.188.  It now supports a new <option>-B</option> flag to
 	compress blank lines around a deleted section to prevent blank
 	lines around paragraphs of code from getting doubled.</para>
+
+      <para>The &man.usbconfig.8; utility now supports a new flag
+	<option>-d</option> to specify the &man.ugen.4; device, and
+	<command>add_quirk</command> and
+	<command>remove_quirk</command> commands.</para>
+
+      <para>The &man.whois.1; utility now supports searching IPv6
+	addresses just like IPv4 without specifying the ARIN server.
+	A <option>-d</option> flag has been removed becuase it is now
+	obsolete.</para>
 
       <para>A new errno <varname>ENOTCAPABLE</varname> has been added.
 	This is to be returned when a process requests an operation on
@@ -651,18 +800,24 @@
 
       <para></para>
 
+      <para>The <application>ACPI-CA</application> has been updated to
+	20100121.</para>
+
       <para>The <application>awk</application> has been updated from
 	the 23 October 2007 release to the 26 November 2009 release.</para>
 
       <para><application>ISC BIND</application> has been updated to
 	version 9.6.1-P2.</para>
 
-      <para>The timezone database has been updated to the
-	<application>tzdata2009u</application> release.</para>
-<!--
+      <para><application>netcat</application> has been updated to
+	version 4.6.</para>
 
-      <para role="8.0">The <application>ACPI-CA</application> has been
-	updated to 20090521.</para>
+      <para><application>sendmail</application> has been updated to
+	version 8.14.4.</para>
+
+      <para>The timezone database has been updated to the
+	<application>tzdata2010b</application> release.</para>
+<!--
 
       <para role="8.0">The <application>ee</application> (easy editor) has
 	been updated to 1.5.0.	This version is now licensed under a
@@ -716,8 +871,6 @@
       <para role="7.1">The &man.resolver.3; library has been updated to
 	one of <application>ISC BIND</application> 9.4.3.</para>
 
-      <para role="7.1"><application>sendmail</application> has been updated from
-	version 8.14.2 to version 8.14.4.</para>
 -->
     </sect2>
 
