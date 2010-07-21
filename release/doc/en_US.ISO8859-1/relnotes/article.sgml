@@ -669,7 +669,7 @@
 	consumption on a loaded system has been fixed.</para>
 
       <para>A bug in &man.bzip2.1; utility which prevented it from
-	working with multi-session bzip2 files.</para>
+	working with multi-session bzip2 files has been fixed.</para>
 
       <para>The &man.camcontrol.8; utility now supports a
 	<option>-v</option> flag in the subcommand
