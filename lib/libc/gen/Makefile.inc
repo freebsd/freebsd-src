@@ -129,7 +129,7 @@ MLINKS+=getusershell.3 endusershell.3 getusershell.3 setusershell.3
 MLINKS+=getutxent.3 endutxent.3 getutxent.3 getutxid.3 \
 	getutxent.3 getutxline.3 getutxent.3 getutxuser.3 \
 	getutxent.3 pututxline.3 getutxent.3 setutxdb.3 \
-	getutxent.3 setutxent.3
+	getutxent.3 setutxent.3 getutxent.3 utmpx.3
 MLINKS+=glob.3 globfree.3
 MLINKS+=isgreater.3 isgreaterequal.3 isgreater.3 isless.3 \
 	isgreater.3 islessequal.3 isgreater.3 islessgreater.3 \
