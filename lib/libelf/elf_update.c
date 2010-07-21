@@ -534,21 +534,23 @@ _libelf_write_scn(Elf *e, char *nf, Elf_Scn *s, off_t rc)
 	int ec;
 	size_t fsz, msz, nobjects;
 	uint32_t sh_type;
-	uint64_t sh_off;
+	uint64_t sh_off, sh_size;
 	int elftype;
 	Elf_Data *d, dst;
 
-	if ((ec = e->e_class) == ELFCLASS32)
+	if ((ec = e->e_class) == ELFCLASS32) {
 		sh_type = s->s_shdr.s_shdr32.sh_type;
-	else
+		sh_size = (uint64_t) s->s_shdr.s_shdr32.sh_size;
+	} else {
 		sh_type = s->s_shdr.s_shdr64.sh_type;
+		sh_size = s->s_shdr.s_shdr64.sh_size;
+	}
 
 	/*
 	 * Ignore sections that do not allocate space in the file.
 	 */
-	if (sh_type == SHT_NOBITS || sh_type == SHT_NULL)
+	if (sh_type == SHT_NOBITS || sh_type == SHT_NULL || sh_size == 0)
 		return (rc);
-
 
 	elftype = _libelf_xlate_shtype(sh_type);
 	assert(elftype >= ELF_T_FIRST && elftype <= ELF_T_LAST);
