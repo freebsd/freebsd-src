@@ -75,6 +75,7 @@ typedef enum {
 	ELF_T_VNEED,
 	ELF_T_WORD,
 	ELF_T_XWORD,
+	ELF_T_GNUHASH,	/* GNU style hash tables. */
 	ELF_T_NUM
 } Elf_Type;
 
