@@ -297,7 +297,6 @@ _libelf_resync_sections(Elf *e, off_t rc)
 		else
 			sh_type = s->s_shdr.s_shdr64.sh_type;
 
-		/* XXX Do we need the 'size' field of an SHT_NOBITS section */
 		if (sh_type == SHT_NOBITS || sh_type == SHT_NULL)
 			continue;
 
