@@ -301,47 +301,65 @@ vm_phys_add_page(vm_paddr_t pa)
 vm_page_t
 vm_phys_alloc_pages(int pool, int order)
 {
+	vm_page_t m;
+	int flind;
+
+	for (flind = 0; flind < vm_nfreelists; flind++) {
+		m = vm_phys_alloc_freelist_pages(flind, pool, order);
+		if (m != NULL)
+			return (m);
+	}
+	return (NULL);
+}
+
+/*
+ * Find and dequeue a free page on the given free list, with the 
+ * specified pool and order
+ */
+vm_page_t
+vm_phys_alloc_freelist_pages(int flind, int pool, int order)
+{	
 	struct vm_freelist *fl;
 	struct vm_freelist *alt;
-	int flind, oind, pind;
+	int oind, pind;
 	vm_page_t m;
 
+	KASSERT(flind < VM_NFREELIST,
+	    ("vm_phys_alloc_freelist_pages: freelist %d is out of range", flind));
 	KASSERT(pool < VM_NFREEPOOL,
-	    ("vm_phys_alloc_pages: pool %d is out of range", pool));
+	    ("vm_phys_alloc_freelist_pages: pool %d is out of range", pool));
 	KASSERT(order < VM_NFREEORDER,
-	    ("vm_phys_alloc_pages: order %d is out of range", order));
+	    ("vm_phys_alloc_freelist_pages: order %d is out of range", order));
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	for (flind = 0; flind < vm_nfreelists; flind++) {
-		fl = vm_phys_free_queues[flind][pool];
-		for (oind = order; oind < VM_NFREEORDER; oind++) {
-			m = TAILQ_FIRST(&fl[oind].pl);
+	fl = vm_phys_free_queues[flind][pool];
+	for (oind = order; oind < VM_NFREEORDER; oind++) {
+		m = TAILQ_FIRST(&fl[oind].pl);
+		if (m != NULL) {
+			TAILQ_REMOVE(&fl[oind].pl, m, pageq);
+			fl[oind].lcnt--;
+			m->order = VM_NFREEORDER;
+			vm_phys_split_pages(m, oind, fl, order);
+			return (m);
+		}
+	}
+
+	/*
+	 * The given pool was empty.  Find the largest
+	 * contiguous, power-of-two-sized set of pages in any
+	 * pool.  Transfer these pages to the given pool, and
+	 * use them to satisfy the allocation.
+	 */
+	for (oind = VM_NFREEORDER - 1; oind >= order; oind--) {
+		for (pind = 0; pind < VM_NFREEPOOL; pind++) {
+			alt = vm_phys_free_queues[flind][pind];
+			m = TAILQ_FIRST(&alt[oind].pl);
 			if (m != NULL) {
-				TAILQ_REMOVE(&fl[oind].pl, m, pageq);
-				fl[oind].lcnt--;
+				TAILQ_REMOVE(&alt[oind].pl, m, pageq);
+				alt[oind].lcnt--;
 				m->order = VM_NFREEORDER;
+				vm_phys_set_pool(pool, m, oind);
 				vm_phys_split_pages(m, oind, fl, order);
 				return (m);
-			}
-		}
-
-		/*
-		 * The given pool was empty.  Find the largest
-		 * contiguous, power-of-two-sized set of pages in any
-		 * pool.  Transfer these pages to the given pool, and
-		 * use them to satisfy the allocation.
-		 */
-		for (oind = VM_NFREEORDER - 1; oind >= order; oind--) {
-			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
-				alt = vm_phys_free_queues[flind][pind];
-				m = TAILQ_FIRST(&alt[oind].pl);
-				if (m != NULL) {
-					TAILQ_REMOVE(&alt[oind].pl, m, pageq);
-					alt[oind].lcnt--;
-					m->order = VM_NFREEORDER;
-					vm_phys_set_pool(pool, m, oind);
-					vm_phys_split_pages(m, oind, fl, order);
-					return (m);
-				}
 			}
 		}
 	}
@@ -592,7 +610,7 @@ vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
 {
 	struct vm_freelist *fl;
 	struct vm_phys_seg *seg;
-	vm_object_t m_object;
+	struct vnode *vp;
 	vm_paddr_t pa, pa_last, size;
 	vm_page_t deferred_vdrop_list, m, m_ret;
 	int flind, i, oind, order, pind;
@@ -687,50 +705,19 @@ done:
 	vm_phys_split_pages(m_ret, oind, fl, order);
 	for (i = 0; i < npages; i++) {
 		m = &m_ret[i];
-		KASSERT(m->queue == PQ_NONE,
-		    ("vm_phys_alloc_contig: page %p has unexpected queue %d",
-		    m, m->queue));
-		KASSERT(m->wire_count == 0,
-		    ("vm_phys_alloc_contig: page %p is wired", m));
-		KASSERT(m->hold_count == 0,
-		    ("vm_phys_alloc_contig: page %p is held", m));
-		KASSERT(m->busy == 0,
-		    ("vm_phys_alloc_contig: page %p is busy", m));
-		KASSERT(m->dirty == 0,
-		    ("vm_phys_alloc_contig: page %p is dirty", m));
-		KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
-		    ("vm_phys_alloc_contig: page %p has unexpected memattr %d",
-		    m, pmap_page_get_memattr(m)));
-		if ((m->flags & PG_CACHED) != 0) {
-			m->valid = 0;
-			m_object = m->object;
-			vm_page_cache_remove(m);
-			if (m_object->type == OBJT_VNODE &&
-			    m_object->cache == NULL) {
-				/*
-				 * Enqueue the vnode for deferred vdrop().
-				 *
-				 * Unmanaged pages don't use "pageq", so it
-				 * can be safely abused to construct a short-
-				 * lived queue of vnodes.
-				 */
-				m->pageq.tqe_prev = m_object->handle;
-				m->pageq.tqe_next = deferred_vdrop_list;
-				deferred_vdrop_list = m;
-			}
-		} else {
-			KASSERT(VM_PAGE_IS_FREE(m),
-			    ("vm_phys_alloc_contig: page %p is not free", m));
-			KASSERT(m->valid == 0,
-			    ("vm_phys_alloc_contig: free page %p is valid", m));
-			cnt.v_free_count--;
+		vp = vm_page_alloc_init(m);
+		if (vp != NULL) {
+			/*
+			 * Enqueue the vnode for deferred vdrop().
+			 *
+			 * Unmanaged pages don't use "pageq", so it
+			 * can be safely abused to construct a short-
+			 * lived queue of vnodes.
+			 */
+			m->pageq.tqe_prev = (void *)vp;
+			m->pageq.tqe_next = deferred_vdrop_list;
+			deferred_vdrop_list = m;
 		}
-		if (m->flags & PG_ZERO)
-			vm_page_zero_count--;
-		/* Don't clear the PG_ZERO flag; we'll need it later. */
-		m->flags = PG_UNMANAGED | (m->flags & PG_ZERO);
-		m->oflags = 0;
-		/* Unmanaged pages don't use "act_count". */
 	}
 	for (; i < roundup2(npages, 1 << imin(oind, order)); i++) {
 		m = &m_ret[i];
