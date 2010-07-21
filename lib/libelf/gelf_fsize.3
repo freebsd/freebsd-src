@@ -47,6 +47,9 @@ These functions return the size in bytes of the file representation of
 .Ar count
 numbers of objects of ELF type
 .Ar type .
+Argument
+.Ar type
+must be one that has a fixed size file representation.
 .Pp
 Functions
 .Fn elf32_fsize
@@ -80,6 +83,10 @@ had an unknown ELF class.
 Argument
 .Ar type
 contained an illegal value.
+.It Bq Er ELF_E_ARGUMENT
+Argument
+.Ar type
+denoted an ELF type with variable size.
 .It Bq Er ELF_E_UNIMPL
 Support for ELF type
 .Ar type
