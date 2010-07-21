@@ -48,8 +48,8 @@ define(`BYTE_SIZE',	1)
 define(`IDENT_SIZE',	`EI_NIDENT')
 
 /* Types that have variable length. */
-define(`GNUHASH_SIZE',	0) /* Elf_GNU_Hash_Header structures vary in length. */
-define(`NOTE_SIZE',	0) /* Elf_Note structures have variable length. */
+define(`GNUHASH_SIZE',	0)
+define(`NOTE_SIZE',	0)
 
 /* Currently unimplemented types. */
 define(`MOVEP_SIZE',	0)
