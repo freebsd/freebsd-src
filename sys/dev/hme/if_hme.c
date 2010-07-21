@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #if 0
 #define HMEDEBUG
 #endif
-#define	KTR_HME		KTR_CT2		/* XXX */
+#define	KTR_HME		KTR_SPARE2	/* XXX */
 
 #include <sys/param.h>
 #include <sys/systm.h>
