@@ -80,7 +80,7 @@ typedef enum {
 } Elf_Type;
 
 #define	ELF_T_FIRST	ELF_T_ADDR
-#define	ELF_T_LAST	ELF_T_XWORD
+#define	ELF_T_LAST	ELF_T_GNUHASH
 
 /* Commands */
 typedef enum {

@@ -48,8 +48,8 @@ define(`BYTE_SIZE',	1)
 define(`IDENT_SIZE',	`EI_NIDENT')
 
 /* Types that have variable length. */
-define(`GNUHASH_SIZE',	0)
-define(`NOTE_SIZE',	0)
+define(`GNUHASH_SIZE',	1)
+define(`NOTE_SIZE',	1)
 
 /* Currently unimplemented types. */
 define(`MOVEP_SIZE',	0)
@@ -145,8 +145,7 @@ _libelf_fsize(Elf_Type t, int ec, unsigned int v, size_t c)
 	sz = 0;
 	if (v != EV_CURRENT)
 		LIBELF_SET_ERROR(VERSION, 0);
-	else if ((int) t < ELF_T_FIRST || t > ELF_T_LAST ||
-	    t == ELF_T_NOTE || t == ELF_T_GNUHASH)
+	else if ((int) t < ELF_T_FIRST || t > ELF_T_LAST)
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 	else {
 		sz = ec == ELFCLASS64 ? fsize[t].fsz64 : fsize[t].fsz32;
