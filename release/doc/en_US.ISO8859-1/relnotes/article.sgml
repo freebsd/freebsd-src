@@ -334,9 +334,9 @@
 	  using a sysctl variable
 	  <varname>net.inet.ipcomp.ipcomp_enable</varname>.</para>
 
-        <para>IPv6 sockets in Linux emulation environment are
-	  unconditionally set as <varname>IPV6_V6ONLY</varname>
-	  regardless of <varname>net.inet6.ip6.v6only</varname> sysctl
+        <para>For IPv6 sockets in the Linux emulation environment
+	  <varname>IPV6_V6ONLY</varname> socket option is unconditionally
+          reset regardless of <varname>net.inet6.ip6.v6only</varname> sysctl
 	  variable.</para>
       </sect3>
 
