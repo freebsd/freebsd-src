@@ -125,7 +125,6 @@
 #define	VM_NRESERVLEVEL		0
 #endif
 
-
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
 #define	VM_KMEM_SIZE		(12 * 1024 * 1024)
@@ -174,13 +173,24 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * we support 1 free list:
+ * we support 2 free lists:
  *
- *	- DEFAULT for all systems
+ *	- DEFAULT for direct mapped (KSEG0) pages.
+ *	  Note: This usage of DEFAULT may be misleading because we use
+ *	  DEFAULT for allocating direct mapped pages. The normal page
+ *	  allocations use HIGHMEM if available, and then DEFAULT. 
+ *	- HIGHMEM for other pages 
  */
-
+#ifdef __mips_n64
 #define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
+#else
+#define	VM_NFREELIST		2
+#define	VM_FREELIST_DEFAULT	1
+#define	VM_FREELIST_HIGHMEM	0
+#define	VM_FREELIST_DIRECT	VM_FREELIST_DEFAULT
+#define	VM_HIGHMEM_ADDRESS	((vm_paddr_t)0x20000000)
+#endif
 
 /*
  * The largest allocation size is 1MB.

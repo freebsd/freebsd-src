@@ -1355,6 +1355,95 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 }
 
 /*
+ * Initialize a page that has been freshly dequeued from a freelist.
+ * The caller has to drop the vnode returned, if it is not NULL.
+ *
+ * To be called with vm_page_queue_free_mtx held.
+ */
+struct vnode *
+vm_page_alloc_init(vm_page_t m)
+{
+	struct vnode *drop;
+	vm_object_t m_object;
+
+	KASSERT(m->queue == PQ_NONE,
+	    ("vm_page_alloc_init: page %p has unexpected queue %d",
+	    m, m->queue));
+	KASSERT(m->wire_count == 0,
+	    ("vm_page_alloc_init: page %p is wired", m));
+	KASSERT(m->hold_count == 0,
+	    ("vm_page_alloc_init: page %p is held", m));
+	KASSERT(m->busy == 0,
+	    ("vm_page_alloc_init: page %p is busy", m));
+	KASSERT(m->dirty == 0,
+	    ("vm_page_alloc_init: page %p is dirty", m));
+	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
+	    ("vm_page_alloc_init: page %p has unexpected memattr %d",
+	    m, pmap_page_get_memattr(m)));
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	drop = NULL;
+	if ((m->flags & PG_CACHED) != 0) {
+		m->valid = 0;
+		m_object = m->object;
+		vm_page_cache_remove(m);
+		if (m_object->type == OBJT_VNODE &&
+		    m_object->cache == NULL)
+			drop = m_object->handle;
+	} else {
+		KASSERT(VM_PAGE_IS_FREE(m),
+		    ("vm_page_alloc_init: page %p is not free", m));
+		KASSERT(m->valid == 0,
+		    ("vm_page_alloc_init: free page %p is valid", m));
+		cnt.v_free_count--;
+	}
+	if (m->flags & PG_ZERO)
+		vm_page_zero_count--;
+	/* Don't clear the PG_ZERO flag; we'll need it later. */
+	m->flags = PG_UNMANAGED | (m->flags & PG_ZERO);
+	m->oflags = 0;
+	/* Unmanaged pages don't use "act_count". */
+	return (drop);
+}
+
+/*
+ * 	vm_page_alloc_freelist:
+ * 
+ *	Allocate a page from the specified freelist with specified order.
+ *	Only the ALLOC_CLASS values in req are honored, other request flags
+ *	are ignored.
+ */
+vm_page_t
+vm_page_alloc_freelist(int flind, int order, int req)
+{
+	struct vnode *drop;
+	vm_page_t m;
+	int page_req;
+
+	m = NULL;
+	page_req = req & VM_ALLOC_CLASS_MASK;
+	mtx_lock(&vm_page_queue_free_mtx);
+	/*
+	 * Do not allocate reserved pages unless the req has asked for it.
+	 */
+	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
+	    (page_req == VM_ALLOC_SYSTEM && 
+	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
+	    (page_req == VM_ALLOC_INTERRUPT &&
+	    cnt.v_free_count + cnt.v_cache_count > 0)) {
+		m = vm_phys_alloc_freelist_pages(flind, VM_FREEPOOL_DIRECT, order);
+	}
+	if (m == NULL) {
+		mtx_unlock(&vm_page_queue_free_mtx);
+		return (NULL);
+	}
+	drop = vm_page_alloc_init(m);
+	mtx_unlock(&vm_page_queue_free_mtx);
+	if (drop)
+		vdrop(drop);
+	return (m);
+}
+
+/*
  *	vm_wait:	(also see VM_WAIT macro)
  *
  *	Block until free pages are available for allocation
