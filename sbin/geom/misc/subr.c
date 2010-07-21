@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <string.h>
 #include <strings.h>
@@ -105,6 +107,94 @@ bitcount32(uint32_t x)
 	x = (x & 0x00ff00ff) + ((x & 0xff00ff00) >> 8);
 	x = (x & 0x0000ffff) + ((x & 0xffff0000) >> 16);
 	return (x);
+}
+
+/*
+ * The size of a sector is context specific (i.e. determined by the
+ * media). But when users enter a value with a SI unit, they really
+ * mean the byte-size or byte-offset and not the size or offset in
+ * sectors. We should map the byte-oriented value into a sector-oriented
+ * value when we already know the sector size in bytes. At this time
+ * we can use g_parse_lba() function. It converts user specified
+ * value into sectors with following conditions:
+ * o  Sectors size taken as argument from caller.
+ * o  When no SI unit is specified the value is in sectors.
+ * o  With an SI unit the value is in bytes.
+ * o  The 'b' suffix forces byte interpretation and the 's'
+ *    suffix forces sector interpretation.
+ *
+ * Thus:
+ * o  2 and 2s mean 2 sectors, and 2b means 2 bytes.
+ * o  4k and 4kb mean 4096 bytes, and 4ks means 4096 sectors.
+ *
+ */
+int
+g_parse_lba(const char *lbastr, unsigned sectorsize, off_t *sectors)
+{
+	off_t number, mult, unit;
+	char *s;
+
+	assert(lbastr != NULL);
+	assert(sectorsize > 0);
+	assert(sectors != NULL);
+
+	number = (off_t)strtoimax(lbastr, &s, 0);
+	if (s == lbastr || number < 0)
+		return (EINVAL);
+
+	mult = 1;
+	unit = sectorsize;
+	if (*s == '\0')
+		goto done;
+	switch (*s) {
+	case 'e': case 'E':
+		mult *= 1024;
+		/* FALLTHROUGH */
+	case 'p': case 'P':
+		mult *= 1024;
+		/* FALLTHROUGH */
+	case 't': case 'T':
+		mult *= 1024;
+		/* FALLTHROUGH */
+	case 'g': case 'G':
+		mult *= 1024;
+		/* FALLTHROUGH */
+	case 'm': case 'M':
+		mult *= 1024;
+		/* FALLTHROUGH */
+	case 'k': case 'K':
+		mult *= 1024;
+		break;
+	default:
+		goto sfx;
+	}
+	unit = 1;	/* bytes */
+	s++;
+	if (*s == '\0')
+		goto done;
+sfx:
+	switch (*s) {
+	case 's': case 'S':
+		unit = sectorsize;	/* sector */
+		break;
+	case 'b': case 'B':
+		unit = 1;		/* bytes */
+		break;
+	default:
+		return (EINVAL);
+	}
+	s++;
+	if (*s != '\0')
+		return (EINVAL);
+done:
+	if ((OFF_MAX / unit) < mult || (OFF_MAX / mult / unit) < number)
+		return (ERANGE);
+	number *= mult * unit;
+	if (number % sectorsize)
+		return (EINVAL);
+	number /= sectorsize;
+	*sectors = number;
+	return (0);
 }
 
 off_t
