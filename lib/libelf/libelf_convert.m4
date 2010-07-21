@@ -236,6 +236,7 @@ IGNORE(MOVEP)
 IGNORE(NOTE)
 
 define(IGNORE_BYTE,		1)	/* 'lator, leave 'em bytes alone */
+define(IGNORE_GNUHASH,		1)
 define(IGNORE_NOTE,		1)
 define(IGNORE_SXWORD32,		1)
 define(IGNORE_XWORD32,		1)
@@ -274,18 +275,18 @@ define(`SIZEDEP_OFF',	1)
  * `$4': ELF class specifier for types, one of [`32', `64']
  */
 define(`MAKEPRIM_TO_F',`
-static void
-libelf_cvt_$1$3_tof(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_$1$3_tof(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	Elf$4_$2 t, *s = (Elf$4_$2 *) (uintptr_t) src;
 	size_t c;
 
-	if (dst == src && !byteswap)
-		return;
+	(void) dsz;
 
 	if (!byteswap) {
 		(void) memcpy(dst, src, count * sizeof(*s));
-		return;
+		return (1);
 	}
 
 	for (c = 0; c < count; c++) {
@@ -293,22 +294,25 @@ libelf_cvt_$1$3_tof(char *dst, char *src, size_t count, int byteswap)
 		SWAP_$1$3(t);
 		WRITE_$1$3(dst,t);
 	}
+
+	return (1);
 }
 ')
 
 define(`MAKEPRIM_TO_M',`
-static void
-libelf_cvt_$1$3_tom(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_$1$3_tom(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	Elf$4_$2 t, *d = (Elf$4_$2 *) (uintptr_t) dst;
 	size_t c;
 
-	if (dst == src && !byteswap)
-		return;
+	if (dsz < count * sizeof(Elf$4_$2))
+		return (0);
 
 	if (!byteswap) {
 		(void) memcpy(dst, src, count * sizeof(*d));
-		return;
+		return (1);
 	}
 
 	for (c = 0; c < count; c++) {
@@ -316,6 +320,8 @@ libelf_cvt_$1$3_tom(char *dst, char *src, size_t count, int byteswap)
 		SWAP_$1$3(t);
 		*d++ = t;
 	}
+
+	return (1);
 }
 ')
 
@@ -392,11 +398,14 @@ define(`READ_STRUCT',
 
 define(`MAKE_TO_F',
   `ifdef(`IGNORE_'$1$3,`',`
-static void
-libelf_cvt$3_$1_tof(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt$3_$1_tof(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	Elf$3_$2	t, *s;
 	size_t c;
+
+	(void) dsz;
 
 	s = (Elf$3_$2 *) (uintptr_t) src;
 	for (c = 0; c < count; c++) {
@@ -406,13 +415,16 @@ libelf_cvt$3_$1_tof(char *dst, char *src, size_t count, int byteswap)
 		}
 		WRITE_STRUCT($2,$3)
 	}
+
+	return (1);
 }
 ')')
 
 define(`MAKE_TO_M',
   `ifdef(`IGNORE_'$1$3,`',`
-static void
-libelf_cvt$3_$1_tom(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt$3_$1_tom(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	Elf$3_$2	 t, *d;
 	unsigned char	*s,*s0;
@@ -422,6 +434,9 @@ libelf_cvt$3_$1_tom(char *dst, char *src, size_t count, int byteswap)
 	d   = ((Elf$3_$2 *) (uintptr_t) dst) + (count - 1);
 	s0  = (unsigned char *) src + (count - 1) * fsz;
 
+	if (dsz < count * sizeof(Elf$3_$2))
+		return (0);
+
 	while (count--) {
 		s = s0;
 		READ_STRUCT($2,$3)
@@ -430,6 +445,8 @@ libelf_cvt$3_$1_tom(char *dst, char *src, size_t count, int byteswap)
 		}
 		*d-- = t; s0 -= fsz;
 	}
+
+	return (1);
 }
 ')')
 
@@ -475,12 +492,16 @@ divert(0)
  * simple memcpy suffices for both directions of conversion.
  */
 
-static void
-libelf_cvt_BYTE_tox(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_BYTE_tox(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	(void) byteswap;
+	if (dsz < count)
+		return (0);
 	if (dst != src)
 		(void) memcpy(dst, src, count);
+	return (1);
 }
 
 /*
@@ -490,69 +511,81 @@ libelf_cvt_BYTE_tox(char *dst, char *src, size_t count, int byteswap)
  *
  * Argument `count' denotes the total number of bytes to be converted.
  */
-static void
-libelf_cvt_NOTE_tom(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_NOTE_tom(char *dst, size_t dsz, char *src, size_t count, 
+    int byteswap)
 {
 	uint32_t namesz, descsz, type;
 	Elf_Note *en;
-	size_t sz;
+	size_t sz, hdrsz;
 
-	if (dst == src && !byteswap)
-		return;
+	if (dsz < count)	/* Destination buffer is too small. */
+		return (0);
+
+	hdrsz = 3 * sizeof(uint32_t);
+	if (count < hdrsz)		/* Source too small. */
+		return (0);
 
 	if (!byteswap) {
 		(void) memcpy(dst, src, count);
-		return;
+		return (1);
 	}
 
-	while (count > sizeof(Elf_Note)) {
-
+	/* Process all notes in the section. */
+	while (count > hdrsz) {
+		/* Read the note header. */
 		READ_WORD(src, namesz);
 		READ_WORD(src, descsz);
 		READ_WORD(src, type);
 
-		if (byteswap) {
-			SWAP_WORD(namesz);
-			SWAP_WORD(descsz);
-			SWAP_WORD(type);
-		}
+		/* Translate. */
+		SWAP_WORD(namesz);
+		SWAP_WORD(descsz);
+		SWAP_WORD(type);
 
+		/* Copy out the translated note header. */
 		en = (Elf_Note *) (uintptr_t) dst;
 		en->n_namesz = namesz;
 		en->n_descsz = descsz;
 		en->n_type = type;
 
+		dsz -= sizeof(Elf_Note);
 		dst += sizeof(Elf_Note);
+		count -= hdrsz;
 
 		ROUNDUP2(namesz, 4);
 		ROUNDUP2(descsz, 4);
 
 		sz = namesz + descsz;
 
-		if (count < sz)
-			sz = count;
+		if (count < sz || dsz < sz)	/* Buffers are too small. */
+			return (0);
 
 		(void) memcpy(dst, src, sz);
 
 		src += sz;
 		dst += sz;
+
 		count -= sz;
 	}
+
+	return (1);
 }
 
-static void
-libelf_cvt_NOTE_tof(char *dst, char *src, size_t count, int byteswap)
+static int
+libelf_cvt_NOTE_tof(char *dst, size_t dsz, char *src, size_t count,
+    int byteswap)
 {
 	uint32_t namesz, descsz, type;
 	Elf_Note *en;
 	size_t sz;
 
-	if (dst == src && !byteswap)
-		return;
+	if (dsz < count)
+		return (0);
 
 	if (!byteswap) {
 		(void) memcpy(dst, src, count);
-		return;
+		return (1);
 	}
 
 	while (count > sizeof(Elf_Note)) {
@@ -562,12 +595,9 @@ libelf_cvt_NOTE_tof(char *dst, char *src, size_t count, int byteswap)
 		descsz = en->n_descsz;
 		type = en->n_type;
 
-		if (byteswap) {
-			SWAP_WORD(namesz);
-			SWAP_WORD(descsz);
-			SWAP_WORD(type);
-		}
-
+		SWAP_WORD(namesz);
+		SWAP_WORD(descsz);
+		SWAP_WORD(type);
 
 		WRITE_WORD(dst, namesz);
 		WRITE_WORD(dst, descsz);
@@ -589,15 +619,21 @@ libelf_cvt_NOTE_tof(char *dst, char *src, size_t count, int byteswap)
 		dst += sz;
 		count -= sz;
 	}
+
+	return (1);
 }
 
 MAKE_TYPE_CONVERTERS(ELF_TYPE_LIST)
 
 struct converters {
-	void	(*tof32)(char *dst, char *src, size_t cnt, int byteswap);
-	void	(*tom32)(char *dst, char *src, size_t cnt, int byteswap);
-	void	(*tof64)(char *dst, char *src, size_t cnt, int byteswap);
-	void	(*tom64)(char *dst, char *src, size_t cnt, int byteswap);
+	int	(*tof32)(char *dst, size_t dsz, char *src, size_t cnt,
+		    int byteswap);
+	int	(*tom32)(char *dst, size_t dsz, char *src, size_t cnt,
+		    int byteswap);
+	int	(*tof64)(char *dst, size_t dsz, char *src, size_t cnt,
+		    int byteswap);
+	int	(*tom64)(char *dst, size_t dsz, char *src, size_t cnt,
+		    int byteswap);
 };
 
 divert(-1)
@@ -647,8 +683,8 @@ CONVERTER_NAMES(ELF_TYPE_LIST)
 	}
 };
 
-void (*_libelf_get_translator(Elf_Type t, int direction, int elfclass))
- (char *_dst, char *_src, size_t _cnt, int _byteswap)
+int (*_libelf_get_translator(Elf_Type t, int direction, int elfclass))
+ (char *_dst, size_t dsz, char *_src, size_t _cnt, int _byteswap)
 {
 	assert(elfclass == ELFCLASS32 || elfclass == ELFCLASS64);
 	assert(direction == ELF_TOFILE || direction == ELF_TOMEMORY);
