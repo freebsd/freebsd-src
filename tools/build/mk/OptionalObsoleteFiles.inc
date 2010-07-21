@@ -630,12 +630,12 @@ OLD_FILES+=usr/share/man/man8/zpool.8.gz
 OLD_FILES+=usr/bin/clang
 OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/tblgen
-OLD_FILES+=usr/include/clang/2.0/emmintrin.h
-OLD_FILES+=usr/include/clang/2.0/mm_malloc.h
-OLD_FILES+=usr/include/clang/2.0/mmintrin.h
-OLD_FILES+=usr/include/clang/2.0/pmmintrin.h
-OLD_FILES+=usr/include/clang/2.0/tmmintrin.h
-OLD_FILES+=usr/include/clang/2.0/xmmintrin.h
+OLD_FILES+=usr/include/clang/2.8/emmintrin.h
+OLD_FILES+=usr/include/clang/2.8/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.8/mmintrin.h
+OLD_FILES+=usr/include/clang/2.8/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.8/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.8/xmmintrin.h
 .endif
 
 .if ${MK_CPP} == no
