@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2010
+.Dd June 20, 2010
 .Dt ELF_BEGIN 3
 .Os
 .Sh NAME
@@ -224,6 +224,10 @@ Function
 can fail with the following errors:
 .Pp
 .Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_ARCHIVE
+The archive denoted by argument
+.Ar elf
+could not be parsed.
 .It Bq Er ELF_E_ARGUMENT
 An unrecognized value was specified in argument
 .Ar cmd .
@@ -246,12 +250,6 @@ Argument
 differs from the value specified when ELF descriptor
 .Ar elf
 was created.
-.It Bq Er ELF_E_ARGUMENT
-Argument
-.Ar elf
-was not a descriptor for an
-.Xr ar 1
-archive.
 .It Bq Er ELF_E_ARGUMENT
 An
 .Xr ar 1
