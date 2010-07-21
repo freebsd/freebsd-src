@@ -42,6 +42,10 @@ _libelf_xlate_shtype(uint32_t sht)
 		return (ELF_T_SYM);
 	case SHT_FINI_ARRAY:
 		return (ELF_T_ADDR);
+#if	__FreeBSD_version >= 800062
+	case SHT_GNU_HASH:
+		return (ELF_T_GNUHASH);
+#endif
 	case SHT_GROUP:
 		return (ELF_T_WORD);
 	case SHT_HASH:
