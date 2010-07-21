@@ -62,8 +62,8 @@ et_register(struct eventtimer *et)
 	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
 	    "flags", CTLFLAG_RD, &(et->et_flags), 0,
 	    "Event timer capabilities");
-	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
-	    "frequency", CTLFLAG_RD, &(et->et_frequency), 0,
+	SYSCTL_ADD_QUAD(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
+	    "frequency", CTLFLAG_RD, &(et->et_frequency),
 	    "Event timer base frequency");
 	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(et->et_sysctl), OID_AUTO,
 	    "quality", CTLFLAG_RD, &(et->et_quality), 0,
