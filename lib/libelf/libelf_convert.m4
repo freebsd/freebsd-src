@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006,2007 Joseph Koshy
+ * Copyright (c) 2006-2008 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,22 +85,22 @@ __FBSDID("$FreeBSD$");
  * destination pointer is incremented after the write.
  */
 #define	WRITE_BYTE(P,X) do {						\
-		unsigned char *const _p = (unsigned char *) (P);	\
-		_p[0]		= (unsigned char) (X);			\
+		char *const _p = (char *) (P);	\
+		_p[0]		= (char) (X);			\
 		(P)		= _p + 1;				\
 	} while (0)
 #define	WRITE_HALF(P,X)	do {						\
 		uint16_t _t	= (X);					\
-		unsigned char *const _p	= (unsigned char *) (P);	\
-		unsigned const char *const _q = (unsigned char *) &_t;	\
+		char *const _p	= (char *) (P);	\
+		const char *const _q = (char *) &_t;	\
 		_p[0]		= _q[0];				\
 		_p[1]		= _q[1];				\
 		(P) 		= _p + 2;				\
 	} while (0)
 #define	WRITE_WORD(P,X)	do {						\
 		uint32_t _t	= (X);					\
-		unsigned char *const _p	= (unsigned char *) (P);	\
-		unsigned const char *const _q = (unsigned char *) &_t;	\
+		char *const _p	= (char *) (P);	\
+		const char *const _q = (char *) &_t;	\
 		_p[0]		= _q[0];				\
 		_p[1]		= _q[1];				\
 		_p[2]		= _q[2];				\
@@ -112,8 +112,8 @@ __FBSDID("$FreeBSD$");
 #define	WRITE_SWORD(P,X)	WRITE_WORD(P,X)
 #define	WRITE_WORD64(P,X)	do {					\
 		uint64_t _t	= (X);					\
-		unsigned char *const _p	= (unsigned char *) (P);	\
-		unsigned const char *const _q = (unsigned char *) &_t;	\
+		char *const _p	= (char *) (P);	\
+		const char *const _q = (char *) &_t;	\
 		_p[0]		= _q[0];				\
 		_p[1]		= _q[1];				\
 		_p[2]		= _q[2];				\
@@ -141,16 +141,16 @@ __FBSDID("$FreeBSD$");
  */
 
 #define	READ_BYTE(P,X)	do {						\
-		const unsigned char *const _p =				\
-			(const unsigned char *) (P);			\
+		const char *const _p =				\
+			(const char *) (P);			\
 		(X)		= _p[0];				\
 		(P)		= (P) + 1;				\
 	} while (0)
 #define	READ_HALF(P,X)	do {						\
 		uint16_t _t;						\
-		unsigned char *const _q = (unsigned char *) &_t;	\
-		const unsigned char *const _p =				\
-			(const unsigned char *) (P);			\
+		char *const _q = (char *) &_t;	\
+		const char *const _p =				\
+			(const char *) (P);			\
 		_q[0]		= _p[0];				\
 		_q[1]		= _p[1];				\
 		(P)		= (P) + 2;				\
@@ -158,9 +158,9 @@ __FBSDID("$FreeBSD$");
 	} while (0)
 #define	READ_WORD(P,X)	do {						\
 		uint32_t _t;						\
-		unsigned char *const _q = (unsigned char *) &_t;	\
-		const unsigned char *const _p =				\
-			(const unsigned char *) (P);			\
+		char *const _q = (char *) &_t;	\
+		const char *const _p =				\
+			(const char *) (P);			\
 		_q[0]		= _p[0];				\
 		_q[1]		= _p[1];				\
 		_q[2]		= _p[2];				\
@@ -173,9 +173,9 @@ __FBSDID("$FreeBSD$");
 #define	READ_SWORD(P,X)		READ_WORD(P,X)
 #define	READ_WORD64(P,X)	do {					\
 		uint64_t _t;						\
-		unsigned char *const _q = (unsigned char *) &_t;	\
-		const unsigned char *const _p =				\
-			(const unsigned char *) (P);			\
+		char *const _q = (char *) &_t;	\
+		const char *const _p =				\
+			(const char *) (P);			\
 		_q[0]		= _p[0];				\
 		_q[1]		= _p[1];				\
 		_q[2]		= _p[2];				\
@@ -428,12 +428,12 @@ libelf_cvt$3_$1_tom(char *dst, size_t dsz, char *src, size_t count,
     int byteswap)
 {
 	Elf$3_$2	 t, *d;
-	unsigned char	*s,*s0;
+	char		*s,*s0;
 	size_t		fsz;
 
 	fsz = elf$3_fsize(ELF_T_$1, (size_t) 1, EV_CURRENT);
 	d   = ((Elf$3_$2 *) (uintptr_t) dst) + (count - 1);
-	s0  = (unsigned char *) src + (count - 1) * fsz;
+	s0  = (char *) src + (count - 1) * fsz;
 
 	if (dsz < count * sizeof(Elf$3_$2))
 		return (0);
