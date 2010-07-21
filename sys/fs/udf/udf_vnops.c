@@ -904,8 +904,8 @@ udf_readlink(struct vop_readlink_args *ap)
 	vp = ap->a_vp;
 	node = VTON(vp);
 	len = le64toh(node->fentry->inf_len);
+	buf = malloc(len, M_DEVBUF, M_WAITOK);
 	iov[0].iov_len = len;
-	buf = malloc(iov[0].iov_len, M_DEVBUF, M_WAITOK);
 	iov[0].iov_base = buf;
 	uio.uio_iov = iov;
 	uio.uio_iovcnt = 1;

@@ -143,6 +143,11 @@ LIB2FUNCS_EXTRA = tramp.asm
 LIB2FUNCS_STATIC_EXTRA = eabi.asm
 .endif
 
+.if ${TARGET_ARCH} == "powerpc64"
+#	from config/rs6000/t-ppccomm
+LIB2FUNCS_EXTRA = tramp.asm
+.endif
+
 .if ${TARGET_ARCH} == "sparc64"
 #	from config/sparc/t-elf
 LIB1ASMSRC =   lb1spc.asm

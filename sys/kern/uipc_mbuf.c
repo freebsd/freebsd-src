@@ -302,6 +302,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 	n->m_ext.ext_type = m->m_ext.ext_type;
 	n->m_flags |= M_EXT;
+	n->m_flags |= m->m_flags & M_RDONLY;
 }
 
 /*
@@ -2027,7 +2028,7 @@ mbprof_textify(void)
 {
 	int offset;
 	char *c;
-	u_int64_t *p;
+	uint64_t *p;
 	
 
 	p = &mbprof.wasted[0];

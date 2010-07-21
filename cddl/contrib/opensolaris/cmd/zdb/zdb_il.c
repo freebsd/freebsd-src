@@ -115,7 +115,7 @@ zil_prt_rec_write(zilog_t *zilog, int txtype, lr_write_t *lr)
 	    (u_longlong_t)lr->lr_foid, (longlong_t)lr->lr_offset,
 	    (u_longlong_t)lr->lr_length, (u_longlong_t)lr->lr_blkoff);
 
-	if (verbose < 5)
+	if (txtype == TX_WRITE2 || verbose < 5)
 		return;
 
 	if (lr->lr_common.lrc_reclen == sizeof (lr_write_t)) {
@@ -123,18 +123,19 @@ zil_prt_rec_write(zilog_t *zilog, int txtype, lr_write_t *lr)
 		    bp->blk_birth >= spa_first_txg(zilog->zl_spa) ?
 		    "will claim" : "won't claim");
 		print_log_bp(bp, "\t\t\t");
+		if (BP_IS_HOLE(bp)) {
+			(void) printf("\t\t\tLSIZE 0x%llx\n",
+			    (u_longlong_t)BP_GET_LSIZE(bp));
+		}
 		if (bp->blk_birth == 0) {
 			bzero(buf, sizeof (buf));
 		} else {
 			zbookmark_t zb;
 
-			ASSERT3U(bp->blk_cksum.zc_word[ZIL_ZC_OBJSET], ==,
-			    dmu_objset_id(zilog->zl_os));
-
-			zb.zb_objset = bp->blk_cksum.zc_word[ZIL_ZC_OBJSET];
-			zb.zb_object = 0;
-			zb.zb_level = -1;
-			zb.zb_blkid = bp->blk_cksum.zc_word[ZIL_ZC_SEQ];
+			zb.zb_objset = dmu_objset_id(zilog->zl_os);
+			zb.zb_object = lr->lr_foid;
+			zb.zb_level = 0;
+			zb.zb_blkid = -1; /* unknown */
 
 			error = zio_wait(zio_read(NULL, zilog->zl_spa,
 			    bp, buf, BP_GET_LSIZE(bp), NULL, NULL,
@@ -251,6 +252,7 @@ static zil_rec_info_t zil_rec_info[TX_MAX_TYPE] = {
 	{	zil_prt_rec_create,	"TX_MKDIR_ACL       " },
 	{	zil_prt_rec_create,	"TX_MKDIR_ATTR      " },
 	{	zil_prt_rec_create,	"TX_MKDIR_ACL_ATTR  " },
+	{	zil_prt_rec_write,	"TX_WRITE2          " },
 };
 
 /* ARGSUSED */

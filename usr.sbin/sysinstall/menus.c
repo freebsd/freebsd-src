@@ -882,13 +882,8 @@ DMenu MenuMediaFTP = {
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
-    "If you are using PPP over a serial device, as opposed to a direct\n"
-    "ethernet connection, then you may first need to dial your Internet\n"
-    "Service Provider using the ppp utility we provide for that purpose.\n"
-    "If you're using SLIP over a serial device then the expectation is\n"
-    "that you have a HARDWIRED connection.\n\n"
-    "You can also install over a parallel port using a special \"laplink\"\n"
-    "cable to another machine running FreeBSD.",
+    "Please select the ethernet device to configure.\n\n"
+    "",
     "Press F1 to read network configuration manual",
     "network_device",
     { { NULL } },
@@ -1836,9 +1831,8 @@ DMenu MenuNTP = {
 DMenu MenuSyscons = {
     DMENU_NORMAL_TYPE,
     "System Console Configuration",
-    "The default system console driver for FreeBSD (syscons) has a\n"
-    "number of configuration options which may be set according to\n"
-    "your preference.\n\n"
+    "The system console driver for FreeBSD has a number of configuration\n"
+    "options which may be set according to your preference.\n\n"
     "When you are done setting configuration options, select Cancel.",
     "Configure your system console settings",
     NULL,
@@ -1862,9 +1856,9 @@ DMenu MenuSyscons = {
 DMenu MenuSysconsKeymap = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
-    "The default system console driver for FreeBSD (syscons) defaults\n"
-    "to a standard \"PC-98x1\" keyboard map.  Users may wish to choose\n"
-    "one of the other keymaps below.\n"
+    "The system console driver for FreeBSD defaults to a standard\n"
+    "\"PC-98x1\" keyboard map.  Users may wish to choose one of the\n"
+    "other keymaps below.\n"
     "Note that sysinstall itself only uses the part of the keyboard map\n"
     "which is required to generate the ANSI character subset, but your\n"
     "choice of keymap will also be saved for later (fuller) use.",
@@ -1878,10 +1872,10 @@ DMenu MenuSysconsKeymap = {
 DMenu MenuSysconsKeymap = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
-    "The default system console driver for FreeBSD (syscons) defaults\n"
-    "to a standard \"American\" keyboard map.  Users in other countries\n"
-    "(or with different keyboard preferences) may wish to choose one of\n"
-    "the other keymaps below.\n"
+    "The system console driver for FreeBSD defaults to a standard\n"
+    "\"American\" keyboard map.  Users in other countries (or with\n"
+    "different keyboard preferences) may wish to choose one of the\n"
+    "other keymaps below.\n"
     "Note that sysinstall itself only uses the part of the keyboard map\n"
     "which is required to generate the ANSI character subset, but your\n"
     "choice of keymap will also be saved for later (fuller) use.",

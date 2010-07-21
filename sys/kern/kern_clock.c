@@ -202,8 +202,14 @@ deadlkres(void)
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			FOREACH_THREAD_IN_PROC(p, td) {
+
+				/*
+				 * Once a thread is found in "interesting"
+				 * state a possible ticks wrap-up needs to be
+				 * checked.
+				 */
 				thread_lock(td);
-				if (TD_ON_LOCK(td)) {
+				if (TD_ON_LOCK(td) && ticks < td->td_blktick) {
 
 					/*
 					 * The thread should be blocked on a
@@ -212,9 +218,6 @@ deadlkres(void)
 					 */
 					MPASS(td->td_blocked != NULL);
 
-					/* Handle ticks wrap-up. */
-					if (ticks < td->td_blktick)
-						continue;
 					tticks = ticks - td->td_blktick;
 					thread_unlock(td);
 					if (tticks > blkticks) {
@@ -230,11 +233,9 @@ deadlkres(void)
 	panic("%s: possible deadlock detected for %p, blocked for %d ticks\n",
 						    __func__, td, tticks);
 					}
-				} else if (TD_IS_SLEEPING(td)) {
-
-					/* Handle ticks wrap-up. */
-					if (ticks < td->td_blktick)
-						continue;
+				} else if (TD_IS_SLEEPING(td) &&
+				    TD_ON_SLEEPQ(td) &&
+				    ticks < td->td_blktick) {
 
 					/*
 					 * Check if the thread is sleeping on a
@@ -392,7 +393,7 @@ initclocks(dummy)
 	 * Set divisors to 1 (normal case) and let the machine-specific
 	 * code do its bit.
 	 */
-	mtx_init(&time_lock, "time lock", NULL, MTX_SPIN);
+	mtx_init(&time_lock, "time lock", NULL, MTX_DEF);
 	cpu_initclocks();
 
 	/*
@@ -449,7 +450,7 @@ timer2clock(int usermode, uintfptr_t pc)
 		*cnt -= t2hz;
 		if (*cnt >= t2hz)
 			*cnt = 0;
-			profclock(usermode, pc);
+		profclock(usermode, pc);
 	}
 }
 
@@ -599,10 +600,10 @@ startprofclock(p)
 		return;
 	if ((p->p_flag & P_PROFIL) == 0) {
 		p->p_flag |= P_PROFIL;
-		mtx_lock_spin(&time_lock);
+		mtx_lock(&time_lock);
 		if (++profprocs == 1)
 			cpu_startprofclock();
-		mtx_unlock_spin(&time_lock);
+		mtx_unlock(&time_lock);
 	}
 }
 
@@ -626,10 +627,10 @@ stopprofclock(p)
 		if ((p->p_flag & P_PROFIL) == 0)
 			return;
 		p->p_flag &= ~P_PROFIL;
-		mtx_lock_spin(&time_lock);
+		mtx_lock(&time_lock);
 		if (--profprocs == 0)
 			cpu_stopprofclock();
-		mtx_unlock_spin(&time_lock);
+		mtx_unlock(&time_lock);
 	}
 }
 
@@ -790,7 +791,7 @@ static void
 watchdog_fire(void)
 {
 	int nintr;
-	u_int64_t inttotal;
+	uint64_t inttotal;
 	u_long *curintr;
 	char *curname;
 

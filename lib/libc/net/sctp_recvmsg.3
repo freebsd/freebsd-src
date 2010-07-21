@@ -146,14 +146,14 @@ The
 argument is defined as follows.
 .Bd -literal
 struct sctp_sndrcvinfo {
-	u_int16_t sinfo_stream;  /* Stream arriving on */
-	u_int16_t sinfo_ssn;     /* Stream Sequence Number */
-	u_int16_t sinfo_flags;   /* Flags on the incoming message */
-	u_int32_t sinfo_ppid;    /* The ppid field */
-	u_int32_t sinfo_context; /* context field */
-	u_int32_t sinfo_timetolive; /* not used by sctp_recvmsg */
-	u_int32_t sinfo_tsn;        /* The transport sequence number */
-	u_int32_t sinfo_cumtsn;     /* The cumulative acknowledgment point  */
+	uint16_t sinfo_stream;  /* Stream arriving on */
+	uint16_t sinfo_ssn;     /* Stream Sequence Number */
+	uint16_t sinfo_flags;   /* Flags on the incoming message */
+	uint32_t sinfo_ppid;    /* The ppid field */
+	uint32_t sinfo_context; /* context field */
+	uint32_t sinfo_timetolive; /* not used by sctp_recvmsg */
+	uint32_t sinfo_tsn;        /* The transport sequence number */
+	uint32_t sinfo_cumtsn;     /* The cumulative acknowledgment point  */
 	sctp_assoc_t sinfo_assoc_id; /* The association id of the peer */
 };
 .Ed

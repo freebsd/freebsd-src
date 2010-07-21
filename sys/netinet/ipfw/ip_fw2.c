@@ -351,7 +351,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 				return(1);
 		}
 	} else {
-#ifdef	__FreeBSD__	/* and OSX too ? */
+#ifdef __FreeBSD__	/* and OSX too ? */
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
@@ -1329,7 +1329,7 @@ do {								\
 				/* For diverted packets, args->rule.info
 				 * contains the divert port (in host format)
 				 * reason and direction.
-	 			 */
+				 */
 				uint32_t i = args->rule.info;
 				match = (i&IPFW_IS_MASK) == IPFW_IS_DIVERT &&
 				    cmd->arg1 & ((i & IPFW_INFO_IN) ? 1 : 2);
@@ -2012,14 +2012,15 @@ do {								\
 				     (1 << chain->map[f_pos]->set));
 				    f_pos++)
 				;
-			    /* prepare to enter the inner loop */
+			    /* Re-enter the inner loop at the skipto rule. */
 			    f = chain->map[f_pos];
 			    l = f->cmd_len;
 			    cmd = f->cmd;
 			    match = 1;
 			    cmdlen = 0;
 			    skip_or = 0;
-			    break;
+			    continue;
+			    break;	/* not reached */
 
 			case O_REJECT:
 				/*

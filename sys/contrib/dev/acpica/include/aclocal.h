@@ -275,8 +275,9 @@ typedef struct acpi_namespace_node
     UINT8                           Flags;          /* Miscellaneous flags */
     ACPI_OWNER_ID                   OwnerId;        /* Node creator */
     ACPI_NAME_UNION                 Name;           /* ACPI Name, always 4 chars per ACPI spec */
+    struct acpi_namespace_node      *Parent;        /* Parent node */
     struct acpi_namespace_node      *Child;         /* First child */
-    struct acpi_namespace_node      *Peer;          /* Peer. Parent if ANOBJ_END_OF_PEER_LIST set */
+    struct acpi_namespace_node      *Peer;          /* First peer */
 
     /*
      * The following fields are used by the ASL compiler and disassembler only
@@ -292,7 +293,7 @@ typedef struct acpi_namespace_node
 
 /* Namespace Node flags */
 
-#define ANOBJ_END_OF_PEER_LIST          0x01    /* End-of-list, Peer field points to parent */
+#define ANOBJ_RESERVED                  0x01    /* Available for use */
 #define ANOBJ_TEMPORARY                 0x02    /* Node is create by a method and is temporary */
 #define ANOBJ_METHOD_ARG                0x04    /* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08    /* Node is a method local */
@@ -562,7 +563,6 @@ typedef struct acpi_gpe_event_info
     UINT8                           Flags;          /* Misc info about this GPE */
     UINT8                           GpeNumber;      /* This GPE */
     UINT8                           RuntimeCount;   /* References to a run GPE */
-    UINT8                           WakeupCount;    /* References to a wake GPE */
 
 } ACPI_GPE_EVENT_INFO;
 

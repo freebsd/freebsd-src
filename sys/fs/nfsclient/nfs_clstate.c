@@ -3735,7 +3735,7 @@ nfscl_tryclose(struct nfsclopen *op, struct ucred *cred,
  * to the server. This might be a big performance win in some environments.
  * (Not useful until the client does caching on local stable storage.)
  */
-APPLESTATIC int
+APPLESTATIC boolean_t
 nfscl_mustflush(vnode_t vp)
 {
 	struct nfsclclient *clp;
@@ -3746,12 +3746,12 @@ nfscl_mustflush(vnode_t vp)
 	np = VTONFS(vp);
 	nmp = VFSTONFS(vnode_mount(vp));
 	if (!NFSHASNFSV4(nmp))
-		return (1);
+		return (TRUE);
 	NFSLOCKCLSTATE();
 	clp = nfscl_findcl(nmp);
 	if (clp == NULL) {
 		NFSUNLOCKCLSTATE();
-		return (1);
+		return (TRUE);
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
 	if (dp != NULL && (dp->nfsdl_flags & (NFSCLDL_WRITE | NFSCLDL_RECALL))
@@ -3759,10 +3759,10 @@ nfscl_mustflush(vnode_t vp)
 	    (dp->nfsdl_sizelimit >= np->n_size ||
 	     !NFSHASSTRICT3530(nmp))) {
 		NFSUNLOCKCLSTATE();
-		return (0);
+		return (FALSE);
 	}
 	NFSUNLOCKCLSTATE();
-	return (1);
+	return (TRUE);
 }
 
 /*

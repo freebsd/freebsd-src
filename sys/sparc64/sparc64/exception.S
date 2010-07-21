@@ -365,7 +365,7 @@ ENTRY(rsf_fatal)
 	sir
 END(rsf_fatal)
 
-	.comm	intrnames, IV_NAMLEN
+	.comm	intrnames, IV_MAX * (MAXCOMLEN + 1)
 	.comm	eintrnames, 0
 
 	.comm	intrcnt, IV_MAX * 8

@@ -165,7 +165,7 @@ P|Pc|Pc console:\
 	:ht:np:sp#9600:
 
 #
-# Wierdo special case for fast crt's with hardcopy devices
+# Weirdo special case for fast crt's with hardcopy devices
 #
 8|T9600|CRT with hardcopy:\
 	:nx=T300:tc=9600-baud:

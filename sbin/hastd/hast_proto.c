@@ -329,9 +329,7 @@ hast_proto_recv_hdr(struct proto_conn *conn, struct nv **nvp)
 	*nvp = nv;
 	return (0);
 fail:
-	if (nv != NULL)
-		nv_free(nv);
-	else if (eb != NULL)
+	if (eb != NULL)
 		ebuf_free(eb);
 	return (-1);
 }

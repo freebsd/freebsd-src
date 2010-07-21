@@ -51,7 +51,7 @@ struct timehands {
 	/* These fields must be initialized by the driver. */
 	struct timecounter	*th_counter;
 	int64_t			th_adjustment;
-	u_int64_t		th_scale;
+	uint64_t		th_scale;
 	u_int	 		th_offset_count;
 	struct bintime		th_offset;
 	struct timeval		th_microtime;
@@ -90,7 +90,7 @@ static struct timecounter *timecounters = &dummy_timecounter;
 time_t time_second = 1;
 time_t time_uptime = 1;
 
-static struct bintime boottimebin;
+struct bintime boottimebin;
 struct timeval boottime;
 static int sysctl_kern_boottime(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_kern, KERN_BOOTTIME, boottime, CTLTYPE_STRUCT|CTLFLAG_RD,
@@ -134,7 +134,7 @@ sysctl_kern_timecounter_get(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_timecounter_freq(SYSCTL_HANDLER_ARGS)
 {
-	u_int64_t freq;
+	uint64_t freq;
 	struct timecounter *tc = arg1;
 
 	freq = tc->tc_frequency;
@@ -362,7 +362,7 @@ tc_init(struct timecounter *tc)
 }
 
 /* Report the frequency of the current timecounter. */
-u_int64_t
+uint64_t
 tc_getfrequency(void)
 {
 
@@ -412,7 +412,7 @@ tc_windup(void)
 {
 	struct bintime bt;
 	struct timehands *th, *tho;
-	u_int64_t scale;
+	uint64_t scale;
 	u_int delta, ncount, ogen;
 	int i;
 	time_t t;
@@ -507,7 +507,7 @@ tc_windup(void)
 	 * to the goddess of code clarity.
 	 *
 	 */
-	scale = (u_int64_t)1 << 63;
+	scale = (uint64_t)1 << 63;
 	scale += (th->th_adjustment / 1024) * 2199;
 	scale /= th->th_counter->tc_frequency;
 	th->th_scale = scale * 2;
@@ -734,7 +734,7 @@ pps_event(struct pps_state *pps, int event)
 	}
 #ifdef PPS_SYNC
 	if (fhard) {
-		u_int64_t scale;
+		uint64_t scale;
 
 		/*
 		 * Feed the NTP PLL/FLL.
@@ -744,7 +744,7 @@ pps_event(struct pps_state *pps, int event)
 		tcount = pps->capcount - pps->ppscount[2];
 		pps->ppscount[2] = pps->capcount;
 		tcount &= pps->capth->th_counter->tc_counter_mask;
-		scale = (u_int64_t)1 << 63;
+		scale = (uint64_t)1 << 63;
 		scale /= pps->capth->th_counter->tc_frequency;
 		scale *= 2;
 		bt.sec = 0;
@@ -864,43 +864,21 @@ cpu_tick_calibrate(int reset)
 		t_delta = t_this;
 		bintime_sub(&t_delta, &t_last);
 		/*
-		 * Validate that 16 +/- 1/256 seconds passed. 
-		 * After division by 16 this gives us a precision of
-		 * roughly 250PPM which is sufficient
+		 * Headroom:
+		 * 	2^(64-20) / 16[s] =
+		 * 	2^(44) / 16[s] =
+		 * 	17.592.186.044.416 / 16 =
+		 * 	1.099.511.627.776 [Hz]
 		 */
-		if (t_delta.sec > 16 || (
-		    t_delta.sec == 16 && t_delta.frac >= (0x01LL << 56))) {
-			/* too long */
-			if (bootverbose)
-				printf("t_delta %ju.%016jx too long\n",
-				    (uintmax_t)t_delta.sec,
-				    (uintmax_t)t_delta.frac);
-		} else if (t_delta.sec < 15 ||
-		    (t_delta.sec == 15 && t_delta.frac <= (0xffLL << 56))) {
-			/* too short */
-			if (bootverbose)
-				printf("t_delta %ju.%016jx too short\n",
-				    (uintmax_t)t_delta.sec,
-				    (uintmax_t)t_delta.frac);
-		} else {
-			/* just right */
-			/*
-			 * Headroom:
-			 * 	2^(64-20) / 16[s] =
-			 * 	2^(44) / 16[s] =
-			 * 	17.592.186.044.416 / 16 =
-			 * 	1.099.511.627.776 [Hz]
-			 */
-			divi = t_delta.sec << 20;
-			divi |= t_delta.frac >> (64 - 20);
-			c_delta <<= 20;
-			c_delta /= divi;
-			if (c_delta  > cpu_tick_frequency) {
-				if (0 && bootverbose)
-					printf("cpu_tick increased to %ju Hz\n",
-					    c_delta);
-				cpu_tick_frequency = c_delta;
-			}
+		divi = t_delta.sec << 20;
+		divi |= t_delta.frac >> (64 - 20);
+		c_delta <<= 20;
+		c_delta /= divi;
+		if (c_delta > cpu_tick_frequency) {
+			if (0 && bootverbose)
+				printf("cpu_tick increased to %ju Hz\n",
+				    c_delta);
+			cpu_tick_frequency = c_delta;
 		}
 	}
 	c_last = c_this;

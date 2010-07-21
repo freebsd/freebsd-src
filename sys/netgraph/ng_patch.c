@@ -29,10 +29,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/ctype.h>
-#include <sys/endian.h>	/* be64toh(), htobe64() */
-#include <sys/errno.h>
+#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <netgraph/ng_message.h>
@@ -47,8 +46,6 @@ static ng_newhook_t	ng_patch_newhook;
 static ng_rcvdata_t	ng_patch_rcvdata;
 static ng_disconnect_t	ng_patch_disconnect;
 
-#define	OFFSETOF(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
-
 static int
 ng_patch_config_getlen(const struct ng_parse_type *type,
     const u_char *start, const u_char *buf)
@@ -56,7 +53,7 @@ ng_patch_config_getlen(const struct ng_parse_type *type,
 	const struct ng_patch_config *p;
 
 	p = (const struct ng_patch_config *)(buf -
-	    OFFSETOF(struct ng_patch_config, ops));
+	    offsetof(struct ng_patch_config, ops));
 	return (p->count);
 }
 

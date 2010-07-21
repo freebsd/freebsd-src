@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 MDASM=  Ovfork.S brk.S cerror.S exect.S \
-	fork.S pipe.S ptrace.S sbrk.S shmat.S syscall.S
+	fork.S pipe.S ptrace.S sbrk.S syscall.S
 
 # Don't generate default code for these syscalls:
 NOASM=	break.o exit.o ftruncate.o getlogin.o lseek.o mmap.o \

@@ -613,7 +613,7 @@ AcpiDbCommandDispatch (
 
     if (ParamCount < AcpiGbl_DbCommands[CommandIndex].MinArgs)
     {
-        AcpiOsPrintf ("%d parameters entered, [%s] requires %d parameters\n",
+        AcpiOsPrintf ("%u parameters entered, [%s] requires %u parameters\n",
             ParamCount, AcpiGbl_DbCommands[CommandIndex].Name,
             AcpiGbl_DbCommands[CommandIndex].MinArgs);
 

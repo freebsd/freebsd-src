@@ -58,6 +58,21 @@
 #define PMC_SR		0x68		/* Status Register */
 #define PMC_IMR		0x6c		/* Interrupt Mask Register */
 
+#ifdef AT91SAM9G20
+/* PMC Specific AT91SAM9G20 */
+
+/* PMC System Clock Enable Register */
+/* PMC System Clock Disable Register */
+/* PMC System Clock StatusRegister */
+#define PMC_SCER_UHP	(1UL << 6)	/* UHP: USB Host Port Clock Enable */
+#define PMC_SCER_UDP	(1UL << 7)	/* UDP: USB Device Port Clock Enable */
+#define PMC_SCER_PCK0	(1UL << 8)	/* PCK0: Programmable Clock out en */
+#define PMC_SCER_PCK1	(1UL << 9)	/* PCK1: Programmable Clock out en */
+#define PMC_SCER_PCK2	(1UL << 10)	/* PCK2: Programmable Clock out en */
+#define PMC_SCER_PCK3	(1UL << 11)	/* PCK3: Programmable Clock out en */
+
+#else
+
 /* PMC System Clock Enable Register */
 /* PMC System Clock Disable Register */
 /* PMC System Clock StatusRegister */
@@ -70,6 +85,7 @@
 #define PMC_SCER_PCK2	(1UL << 11)	/* PCK2: Programmable Clock out en */
 #define PMC_SCER_PCK3	(1UL << 12)	/* PCK3: Programmable Clock out en */
 
+#endif /* AT91SAM9G20 */
 /* PMC Peripheral Clock Enable Register */
 /* PMC Peripheral Clock Disable Register */
 /* PMC Peripheral Clock Status Register */

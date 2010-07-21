@@ -13,7 +13,7 @@ SRCS=	dtc.c checks.c fstree.c livetree.c treesource.c data.c \
 	fdt.c fdt_ro.c fdt_rw.c fdt_strerror.c \
 	fdt_sw.c fdt_wip.c ${DTCVERSIONFILE}
 
-CFLAGS = -Wall -g -Os -fPIC -Wpointer-arith -Wcast-qual
+WARNS?=	2
 CFLAGS+= -I. -I${.CURDIR} -I${DTCDIR} -I${LIBFDTDIR}
 
 VERSIONMAJ!= awk '/^VERSION =/ { print $$3 }' ${DTCDIR}/Makefile

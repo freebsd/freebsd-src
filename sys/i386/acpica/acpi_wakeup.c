@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/intr_machdep.h>
+#include <machine/mca.h>
 #include <machine/segments.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -272,6 +273,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		for (;;) ;
 	} else {
 		/* Execute Wakeup */
+		mca_resume();
 		intr_resume();
 
 		if (bootverbose) {

@@ -50,10 +50,10 @@ static const char rcsid[] =
 void
 __syncicache(void *from, int len)
 {
-	int	l, off;
+	register_t l, off;
 	char	*p;
 
-	off = (u_int)from & (cacheline_size - 1);
+	off = (uintptr_t)from & (cacheline_size - 1);
 	l = len += off;
 	p = (char *)from - off;
 

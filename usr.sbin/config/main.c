@@ -110,12 +110,17 @@ main(int argc, char **argv)
 	char *p;
 	char xxx[MAXPATHLEN];
 	char *kernfile;
+	int printmachine;
 
+	printmachine = 0;
 	kernfile = NULL;
-	while ((ch = getopt(argc, argv, "Cd:gpVx:")) != -1)
+	while ((ch = getopt(argc, argv, "Cd:gmpVx:")) != -1)
 		switch (ch) {
 		case 'C':
 			filebased = 1;
+			break;
+		case 'm':
+			printmachine = 1;
 			break;
 		case 'd':
 			if (*destdir == '\0')
@@ -171,13 +176,6 @@ main(int argc, char **argv)
 		strlcat(destdir, PREFIX, sizeof(destdir));
 	}
 
-	p = path((char *)NULL);
-	if (stat(p, &buf)) {
-		if (mkdir(p, 0777))
-			err(2, "%s", p);
-	} else if (!S_ISDIR(buf.st_mode))
-		errx(EXIT_FAILURE, "%s isn't a directory", p);
-
 	SLIST_INIT(&cputype);
 	SLIST_INIT(&mkopt);
 	SLIST_INIT(&opt);
@@ -206,6 +204,19 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	checkversion();
+
+	if (printmachine) {
+		printf("%s\t%s\n",machinename,machinearch);
+		exit(0);
+	}
+
+	/* Make compile directory */
+	p = path((char *)NULL);
+	if (stat(p, &buf)) {
+		if (mkdir(p, 0777))
+			err(2, "%s", p);
+	} else if (!S_ISDIR(buf.st_mode))
+		errx(EXIT_FAILURE, "%s isn't a directory", p);
 
 	/*
 	 * make symbolic links in compilation directory
@@ -280,7 +291,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: config [-CgpV] [-d destdir] sysname\n");
+	fprintf(stderr, "usage: config [-CgmpV] [-d destdir] sysname\n");
 	fprintf(stderr, "       config -x kernel\n");
 	exit(EX_USAGE);
 }

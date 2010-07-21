@@ -43,7 +43,7 @@
 /*
  * MCOUNT
  */
-#if defined(GPROF)
+#if defined(PROF) || (defined(_KERNEL) && defined(GPROF))
 #define	MCOUNT					\
 	alloc	out0 = ar.pfs, 8, 0, 4, 0;	\
 	mov	out1 = r1;			\

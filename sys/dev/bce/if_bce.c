@@ -423,13 +423,13 @@ static void bce_start			(struct ifnet *);
 static int  bce_ioctl			(struct ifnet *, u_long, caddr_t);
 static void bce_watchdog		(struct bce_softc *);
 static int  bce_ifmedia_upd		(struct ifnet *);
-static void bce_ifmedia_upd_locked	(struct ifnet *);
+static int  bce_ifmedia_upd_locked	(struct ifnet *);
 static void bce_ifmedia_sts		(struct ifnet *, struct ifmediareq *);
 static void bce_init_locked		(struct bce_softc *);
 static void bce_init			(void *);
 static void bce_mgmt_init_locked	(struct bce_softc *sc);
 
-static void bce_init_ctx		(struct bce_softc *);
+static int  bce_init_ctx		(struct bce_softc *);
 static void bce_get_mac_addr		(struct bce_softc *);
 static void bce_set_mac_addr		(struct bce_softc *);
 static void bce_phy_intr		(struct bce_softc *);
@@ -2264,7 +2264,8 @@ bce_init_nvram(struct bce_softc *sc)
 		sc->bce_flash_info = NULL;
 		BCE_PRINTF("%s(%d): Unknown Flash NVRAM found!\n",
 		    __FILE__, __LINE__);
-		rc = ENODEV;
+		DBEXIT(BCE_VERBOSE_NVRAM);
+		return (ENODEV);
 	}
 
 bce_init_nvram_get_flash_size:
@@ -3087,6 +3088,8 @@ bce_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	bus_addr_t *busaddr = arg;
 
+	KASSERT(nseg == 1, ("%s(): Too many segments returned (%d)!",
+	    __FUNCTION__, nseg));
 	/* Simulate a mapping failure. */
 	DBRUNIF(DB_RANDOMTRUE(dma_map_addr_failed_sim_control),
 	    error = ENOMEM);
@@ -3143,10 +3146,10 @@ bce_dma_alloc(device_t dev)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
-	if (bus_dma_tag_create(NULL, 1,	BCE_DMA_BOUNDARY,
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, BCE_DMA_BOUNDARY,
 	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MAXBSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE_32BIT,
-	    0, NULL, NULL, &sc->parent_tag)) {
+	    BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->parent_tag)) {
 		BCE_PRINTF("%s(%d): Could not allocate parent DMA tag!\n",
 		    __FILE__, __LINE__);
 		rc = ENOMEM;
@@ -3169,14 +3172,13 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if(bus_dmamem_alloc(sc->status_tag, (void **)&sc->status_block,
-	    BUS_DMA_NOWAIT, &sc->status_map)) {
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &sc->status_map)) {
 		BCE_PRINTF("%s(%d): Could not allocate status block "
 		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
-
-	bzero((char *)sc->status_block, BCE_STATUS_BLK_SZ);
 
 	error = bus_dmamap_load(sc->status_tag,	sc->status_map,
 	    sc->status_block, BCE_STATUS_BLK_SZ, bce_dma_map_addr,
@@ -3208,14 +3210,12 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if (bus_dmamem_alloc(sc->stats_tag, (void **)&sc->stats_block,
-	    BUS_DMA_NOWAIT,	&sc->stats_map)) {
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, &sc->stats_map)) {
 		BCE_PRINTF("%s(%d): Could not allocate statistics block "
 		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
-
-	bzero((char *)sc->stats_block, BCE_STATS_BLK_SZ);
 
 	error = bus_dmamap_load(sc->stats_tag, sc->stats_map,
 	    sc->stats_block, BCE_STATS_BLK_SZ, bce_dma_map_addr,
@@ -3262,15 +3262,13 @@ bce_dma_alloc(device_t dev)
 
 			if(bus_dmamem_alloc(sc->ctx_tag,
 			    (void **)&sc->ctx_block[i],
-			    BUS_DMA_NOWAIT,
+			    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 			    &sc->ctx_map[i])) {
 				BCE_PRINTF("%s(%d): Could not allocate CTX "
 				    "DMA memory!\n", __FILE__, __LINE__);
 				rc = ENOMEM;
 				goto bce_dma_alloc_exit;
 			}
-
-			bzero((char *)sc->ctx_block[i], BCM_PAGE_SIZE);
 
 			error = bus_dmamap_load(sc->ctx_tag, sc->ctx_map[i],
 			    sc->ctx_block[i], BCM_PAGE_SIZE, bce_dma_map_addr,
@@ -3307,7 +3305,8 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < TX_PAGES; i++) {
 
 		if(bus_dmamem_alloc(sc->tx_bd_chain_tag,
-		    (void **)&sc->tx_bd_chain[i], BUS_DMA_NOWAIT,
+		    (void **)&sc->tx_bd_chain[i],
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 		    &sc->tx_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate TX descriptor "
 			    "chain DMA memory!\n", __FILE__, __LINE__);
@@ -3383,15 +3382,14 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < RX_PAGES; i++) {
 
 		if (bus_dmamem_alloc(sc->rx_bd_chain_tag,
-		    (void **)&sc->rx_bd_chain[i], BUS_DMA_NOWAIT,
+		    (void **)&sc->rx_bd_chain[i],
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 		    &sc->rx_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate RX descriptor "
 			    "chain DMA memory!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
-
-		bzero((char *)sc->rx_bd_chain[i], BCE_RX_CHAIN_PAGE_SZ);
 
 		error = bus_dmamap_load(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], sc->rx_bd_chain[i],
@@ -3426,9 +3424,10 @@ bce_dma_alloc(device_t dev)
 	    "size = 0x%jX)\n", __FUNCTION__, (uintmax_t) max_size,
 	     max_segments, (uintmax_t) max_seg_size);
 
-	if (bus_dma_tag_create(sc->parent_tag, 1, BCE_DMA_BOUNDARY,
-	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL, max_size,
-	   max_segments, max_seg_size, 0, NULL, NULL, &sc->rx_mbuf_tag)) {
+	if (bus_dma_tag_create(sc->parent_tag, BCE_RX_BUF_ALIGN,
+	    BCE_DMA_BOUNDARY, sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
+	    max_size, max_segments, max_seg_size, 0, NULL, NULL,
+	    &sc->rx_mbuf_tag)) {
 		BCE_PRINTF("%s(%d): Could not allocate RX mbuf DMA tag!\n",
 		    __FILE__, __LINE__);
 		rc = ENOMEM;
@@ -3465,7 +3464,8 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < PG_PAGES; i++) {
 
 		if (bus_dmamem_alloc(sc->pg_bd_chain_tag,
-		    (void **)&sc->pg_bd_chain[i], BUS_DMA_NOWAIT,
+		    (void **)&sc->pg_bd_chain[i],
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 		    &sc->pg_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate page "
 			    "descriptor chain DMA memory!\n",
@@ -3473,8 +3473,6 @@ bce_dma_alloc(device_t dev)
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
-
-		bzero((char *)sc->pg_bd_chain[i], BCE_PG_CHAIN_PAGE_SZ);
 
 		error = bus_dmamap_load(sc->pg_bd_chain_tag,
 		    sc->pg_bd_chain_map[i], sc->pg_bd_chain[i],
@@ -4395,16 +4393,18 @@ bce_init_cpus(struct bce_softc *sc)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static int
 bce_init_ctx(struct bce_softc *sc)
 {
+	u32 offset, val, vcid_addr;
+	int i, j, rc, retry_cnt;
 
+	rc = 0;
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_CTX);
 
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
 	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
-		int i, retry_cnt = CTX_INIT_RETRY_COUNT;
-		u32 val;
+		retry_cnt = CTX_INIT_RETRY_COUNT;
 
 		DBPRINT(sc, BCE_INFO_CTX, "Initializing 5709 context.\n");
 
@@ -4425,15 +4425,14 @@ bce_init_ctx(struct bce_softc *sc)
 				break;
 			DELAY(2);
 		}
-
-		/* ToDo: Consider returning an error here. */
-		DBRUNIF((val & BCE_CTX_COMMAND_MEM_INIT),
-		    BCE_PRINTF("%s(): Context memory initialization "
-		    "failed!\n", __FUNCTION__));
+		if ((val & BCE_CTX_COMMAND_MEM_INIT) != 0) {
+			BCE_PRINTF("%s(): Context memory initialization failed!\n",
+			    __FUNCTION__);
+			rc = EBUSY;
+			goto init_ctx_fail;
+		}
 
 		for (i = 0; i < sc->ctx_pages; i++) {
-			int j;
-
 			/* Set the physical address of the context memory. */
 			REG_WR(sc, BCE_CTX_HOST_PAGE_TBL_DATA0,
 			    BCE_ADDR_LO(sc->ctx_paddr[i] & 0xfffffff0) |
@@ -4451,14 +4450,14 @@ bce_init_ctx(struct bce_softc *sc)
 					break;
 				DELAY(5);
 			}
-
-			/* ToDo: Consider returning an error here. */
-			DBRUNIF((val & BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ),
-			    BCE_PRINTF("%s(): Failed to initialize "
-			    "context page %d!\n", __FUNCTION__, i));
+			if ((val & BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ) != 0) {
+				BCE_PRINTF("%s(): Failed to initialize "
+				    "context page %d!\n", __FUNCTION__, i);
+				rc = EBUSY;
+				goto init_ctx_fail;
+			}
 		}
 	} else {
-		u32 vcid_addr, offset;
 
 		DBPRINT(sc, BCE_INFO, "Initializing 5706/5708 context.\n");
 
@@ -4485,7 +4484,9 @@ bce_init_ctx(struct bce_softc *sc)
 		}
 
 	}
+init_ctx_fail:
 	DBEXIT(BCE_VERBOSE_RESET | BCE_VERBOSE_CTX);
+	return (rc);
 }
 
 
@@ -4573,17 +4574,12 @@ static void
 bce_stop(struct bce_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmedia_entry *ifm;
-	struct mii_data *mii = NULL;
-	int mtmp, itmp;
 
 	DBENTER(BCE_VERBOSE_RESET);
 
 	BCE_LOCK_ASSERT(sc);
 
 	ifp = sc->bce_ifp;
-
-	mii = device_get_softc(sc->bce_miibus);
 
 	callout_stop(&sc->bce_tick_callout);
 
@@ -4603,25 +4599,6 @@ bce_stop(struct bce_softc *sc)
 	/* Free TX buffers. */
 	bce_free_tx_chain(sc);
 
-	/*
-	 * Isolate/power down the PHY, but leave the media selection
-	 * unchanged so that things will be put back to normal when
-	 * we bring the interface back up.
-	 */
-
-	itmp = ifp->if_flags;
-	ifp->if_flags |= IFF_UP;
-
-	/* If we are called from bce_detach(), mii is already NULL. */
-	if (mii != NULL) {
-		ifm = mii->mii_media.ifm_cur;
-		mtmp = ifm->ifm_media;
-		ifm->ifm_media = IFM_ETHER | IFM_NONE;
-		mii_mediachg(mii);
-		ifm->ifm_media = mtmp;
-	}
-
-	ifp->if_flags = itmp;
 	sc->watchdog_timer = 0;
 
 	sc->bce_link_up = FALSE;
@@ -4784,7 +4761,8 @@ bce_chipinit(struct bce_softc *sc)
 	    BCE_MISC_ENABLE_STATUS_BITS_CONTEXT_ENABLE);
 
 	/* Initialize context mapping and zero out the quick contexts. */
-	bce_init_ctx(sc);
+	if ((rc = bce_init_ctx(sc)) != 0)
+		goto bce_chipinit_exit;
 
 	/* Initialize the on-boards CPUs */
 	bce_init_cpus(sc);
@@ -4796,10 +4774,8 @@ bce_chipinit(struct bce_softc *sc)
 	}
 
 	/* Prepare NVRAM for access. */
-	if (bce_init_nvram(sc)) {
-		rc = ENODEV;
+	if ((rc = bce_init_nvram(sc)) != 0)
 		goto bce_chipinit_exit;
-	}
 
 	/* Set the kernel bypass block size */
 	val = REG_RD(sc, BCE_MQ_CONFIG);
@@ -5810,15 +5786,16 @@ static int
 bce_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bce_softc *sc = ifp->if_softc;
+	int error;
 
 	DBENTER(BCE_VERBOSE);
 
 	BCE_LOCK(sc);
-	bce_ifmedia_upd_locked(ifp);
+	error = bce_ifmedia_upd_locked(ifp);
 	BCE_UNLOCK(sc);
 
 	DBEXIT(BCE_VERBOSE);
-	return (0);
+	return (error);
 }
 
 
@@ -5828,14 +5805,16 @@ bce_ifmedia_upd(struct ifnet *ifp)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static int
 bce_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct bce_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+	int error;
 
 	DBENTER(BCE_VERBOSE_PHY);
 
+	error = 0;
 	BCE_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->bce_miibus);
@@ -5849,10 +5828,11 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 			LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			    mii_phy_reset(miisc);
 		}
-		mii_mediachg(mii);
+		error = mii_mediachg(mii);
 	}
 
 	DBEXIT(BCE_VERBOSE_PHY);
+	return (error);
 }
 
 
@@ -5872,6 +5852,10 @@ bce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	BCE_LOCK(sc);
 
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		BCE_UNLOCK(sc);
+		return;
+	}
 	mii = device_get_softc(sc->bce_miibus);
 
 	mii_pollstat(mii);

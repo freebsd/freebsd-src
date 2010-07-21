@@ -42,7 +42,7 @@
 .Nm
 .Op Fl A
 .Op Fl H | L | P
-.Op Fl a | s | d Ar depth
+.Op Fl a | s | d Ar depth | Fl t Ar threshold
 .Op Fl c
 .Op Fl l
 .Op Fl h | k | m | B Ar blocksize
@@ -107,6 +107,14 @@ This option exists solely for conformance with
 Display an entry for each specified file.
 (Equivalent to
 .Fl d Li 0 )
+.It Fl t Ar threshold
+Display only entries for which size exceeds
+.Ar threshold .
+If
+.Ar threshold
+is negative, display only entries for which size is less than the absolute
+value of
+.Ar threshold .
 .It Fl d Ar depth
 Display an entry for all files and directories
 .Ar depth

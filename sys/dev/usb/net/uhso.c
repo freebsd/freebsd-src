@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Fredrik Lindberg <fli@shapeshifter.se>
+ * Copyright (c) 2010 Fredrik Lindberg <fli@shapeshifter.se>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 
 #include <machine/bus.h>
 
@@ -81,6 +82,7 @@ struct uhso_softc {
 	struct usb_device	*sc_udev;
 	struct mtx		sc_mtx;
 	uint32_t		sc_type;	/* Interface definition */
+	int			sc_radio;
 
 	struct usb_xfer		*sc_xfer[3];
 	uint8_t			sc_iface_no;
@@ -155,6 +157,7 @@ struct uhso_softc {
  * Note that these definitions are arbitrary and do not match the values
  * returned by the auto config descriptor.
  */
+#define UHSO_PORT_TYPE_UNKNOWN	0x00
 #define UHSO_PORT_TYPE_CTL	0x01
 #define UHSO_PORT_TYPE_APP	0x02
 #define UHSO_PORT_TYPE_APP2	0x03
@@ -185,7 +188,7 @@ static char *uhso_port[] = {
  * descriptor values.
  */
 static unsigned char uhso_port_map[] = {
-	0,
+	UHSO_PORT_TYPE_UNKNOWN,
 	UHSO_PORT_TYPE_DIAG,
 	UHSO_PORT_TYPE_GPS,
 	UHSO_PORT_TYPE_GPSCTL,
@@ -243,6 +246,9 @@ static char *uhso_port_type_sysctl[] = {
 #define UHSO_STATIC_IFACE	0x01
 #define UHSO_AUTO_IFACE		0x02
 
+/* ifnet device unit allocations */
+static struct unrhdr *uhso_ifnet_unit = NULL;
+
 static const struct usb_device_id uhso_devs[] = {
 #define	UHSO_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	/* Option GlobeSurfer iCON 7.2 */
@@ -271,6 +277,8 @@ static const struct usb_device_id uhso_devs[] = {
 	/* Option iCON 322 */
 	UHSO_DEV(OPTION, GTICON322, UHSO_STATIC_IFACE),
 	/* Option iCON 505 */
+	UHSO_DEV(OPTION, ICON505, UHSO_AUTO_IFACE),
+	/* Option iCON 452 */
 	UHSO_DEV(OPTION, ICON505, UHSO_AUTO_IFACE),
 #undef UHSO_DEV
 };
@@ -432,9 +440,9 @@ static const struct usb_config uhso_bs_config[UHSO_BULK_ENDPT_MAX] = {
 };
 
 static int  uhso_probe_iface(struct uhso_softc *, int,
-    int (*probe)(struct uhso_softc *, int));
-static int  uhso_probe_iface_auto(struct uhso_softc *, int);
-static int  uhso_probe_iface_static(struct uhso_softc *, int);
+    int (*probe)(struct usb_device *, int));
+static int  uhso_probe_iface_auto(struct usb_device *, int);
+static int  uhso_probe_iface_static(struct usb_device *, int);
 static int  uhso_attach_muxserial(struct uhso_softc *, struct usb_interface *,
     int type);
 static int  uhso_attach_bulkserial(struct uhso_softc *, struct usb_interface *,
@@ -444,6 +452,8 @@ static int  uhso_attach_ifnet(struct uhso_softc *, struct usb_interface *,
 static void uhso_test_autoinst(void *, struct usb_device *,
 		struct usb_attach_arg *);
 static int  uhso_driver_loaded(struct module *, int, void *);
+static int uhso_radio_sysctl(SYSCTL_HANDLER_ARGS);
+static int uhso_radio_ctrl(struct uhso_softc *, int);
 
 static void uhso_ucom_start_read(struct ucom_softc *);
 static void uhso_ucom_stop_read(struct ucom_softc *);
@@ -497,6 +507,7 @@ static int
 uhso_probe(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
+	int error;
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -505,7 +516,20 @@ uhso_probe(device_t self)
 	if (uaa->device->ddesc.bDeviceClass != 0xff)
 		return (ENXIO);
 
-	return (usbd_lookup_id_by_uaa(uhso_devs, sizeof(uhso_devs), uaa));
+	error = usbd_lookup_id_by_uaa(uhso_devs, sizeof(uhso_devs), uaa);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Probe device to see if we are able to attach
+	 * to this interface or not.
+	 */
+	if (USB_GET_DRIVER_INFO(uaa) == UHSO_AUTO_IFACE) {
+		if (uhso_probe_iface_auto(uaa->device,
+		    uaa->info.bIfaceNum) == 0)
+			return (ENXIO);
+	}
+	return (error);
 }
 
 static int
@@ -517,7 +541,7 @@ uhso_attach(device_t self)
 	struct usb_interface_descriptor *id;
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
-	struct sysctl_oid *tree, *tty_node;
+	struct sysctl_oid *tree = NULL, *tty_node;
 	struct ucom_softc *ucom;
 	struct uhso_tty *ht;
 	int i, error, port;
@@ -531,6 +555,7 @@ uhso_attach(device_t self)
 
 	sc->sc_ucom = NULL;
 	sc->sc_ttys = 0;
+	sc->sc_radio = 1;
 
 	cd = usbd_get_config_descriptor(uaa->device);
 	id = usbd_get_interface_descriptor(uaa->iface);
@@ -566,6 +591,8 @@ uhso_attach(device_t self)
 	SYSCTL_ADD_STRING(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "type",
 	    CTLFLAG_RD, uhso_port[UHSO_IFACE_PORT(sc->sc_type)], 0,
 	    "Port available at this interface");
+	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "radio",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, uhso_radio_sysctl, "I", "Enable radio");
 
 	/*
 	 * The default interface description on most Option devices isn't
@@ -655,6 +682,7 @@ uhso_detach(device_t self)
 
 	if (sc->sc_ifp != NULL) {
 		callout_drain(&sc->sc_c);
+		free_unr(uhso_ifnet_unit, sc->sc_ifp->if_dunit);
 		mtx_lock(&sc->sc_mtx);
 		uhso_if_stop(sc);
 		bpfdetach(sc->sc_ifp);
@@ -701,9 +729,12 @@ uhso_driver_loaded(struct module *mod, int what, void *arg)
 		/* register our autoinstall handler */
 		uhso_etag = EVENTHANDLER_REGISTER(usb_dev_configured,
 		    uhso_test_autoinst, NULL, EVENTHANDLER_PRI_ANY);
+		/* create our unit allocator for inet devs */
+		uhso_ifnet_unit = new_unrhdr(0, INT_MAX, NULL);
 		break;
 	case MOD_UNLOAD:
 		EVENTHANDLER_DEREGISTER(usb_dev_configured, uhso_etag);
+		delete_unrhdr(uhso_ifnet_unit);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -717,7 +748,7 @@ uhso_driver_loaded(struct module *mod, int what, void *arg)
  * Returns a bit mask with the interface capabilities.
  */
 static int
-uhso_probe_iface_auto(struct uhso_softc *sc, int index)
+uhso_probe_iface_auto(struct usb_device *udev, int index)
 {
 	struct usb_device_request req;
 	usb_error_t uerr;
@@ -731,11 +762,11 @@ uhso_probe_iface_auto(struct uhso_softc *sc, int index)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 17);
 
-	uerr = usbd_do_request_flags(sc->sc_udev, NULL, &req, buf,
+	uerr = usbd_do_request_flags(udev, NULL, &req, buf,
 	    0, &actlen, USB_MS_HZ);
 	if (uerr != 0) {
-		device_printf(sc->sc_dev, "usbd_do_request_flags failed: %s\n",
-		    usbd_errstr(uerr));
+		printf("%s: usbd_do_request_flags failed, %s\n",
+		    __func__, usbd_errstr(uerr));
 		return (0);
 	}
 
@@ -759,23 +790,35 @@ uhso_probe_iface_auto(struct uhso_softc *sc, int index)
 	case UHSO_PORT_TYPE_NETWORK:
 		return (UHSO_IFACE_SPEC(UHSO_IF_NET | UHSO_IF_MUX,
 		    UHSO_PORT_SERIAL | UHSO_PORT_NETWORK, port));
-	case UHSO_PORT_TYPE_VOICE:
-		/* Don't claim 'voice' ports */
-		return (0);
-	default:
+	case UHSO_PORT_TYPE_DIAG:
+	case UHSO_PORT_TYPE_DIAG2:
+	case UHSO_PORT_TYPE_CTL:
+	case UHSO_PORT_TYPE_APP:
+	case UHSO_PORT_TYPE_APP2:
+	case UHSO_PORT_TYPE_MODEM:
 		return (UHSO_IFACE_SPEC(UHSO_IF_BULK,
 		    UHSO_PORT_SERIAL, port));
+	case UHSO_PORT_TYPE_MSD:
+		return (0);
+	case UHSO_PORT_TYPE_UNKNOWN:
+	default:
+		return (0);
 	}
 
 	return (0);
 }
 
+/*
+ * Returns the capabilities of interfaces for devices that don't
+ * support the automatic query.
+ * Returns a bit mask with the interface capabilities.
+ */
 static int
-uhso_probe_iface_static(struct uhso_softc *sc, int index)
+uhso_probe_iface_static(struct usb_device *udev, int index)
 {
 	struct usb_config_descriptor *cd;
 
-	cd = usbd_get_config_descriptor(sc->sc_udev);
+	cd = usbd_get_config_descriptor(udev);
 	if (cd->bNumInterface <= 3) {
 		/* Cards with 3 or less interfaces */
 		switch (index) {
@@ -817,14 +860,14 @@ uhso_probe_iface_static(struct uhso_softc *sc, int index)
  */
 static int
 uhso_probe_iface(struct uhso_softc *sc, int index,
-    int (*probe)(struct uhso_softc *, int))
+    int (*probe)(struct usb_device *, int))
 {
 	struct usb_interface *iface;
 	int type, error;
 
 	UHSO_DPRINTF(1, "Probing for interface %d, probe_func=%p\n", index, probe);
 
-	type = probe(sc, index);
+	type = probe(sc->sc_udev, index);
 	UHSO_DPRINTF(1, "Probe result %x\n", type);
 	if (type <= 0)
 		return (ENXIO);
@@ -885,6 +928,47 @@ uhso_probe_iface(struct uhso_softc *sc, int index,
 		return (ENXIO);
 	}
 
+	return (0);
+}
+
+static int
+uhso_radio_ctrl(struct uhso_softc *sc, int onoff)
+{
+	struct usb_device_request req;
+	usb_error_t uerr;
+
+	req.bmRequestType = UT_VENDOR;
+	req.bRequest = onoff ? 0x82 : 0x81;
+	USETW(req.wValue, 0);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+
+	uerr = usbd_do_request(sc->sc_udev, NULL, &req, NULL);
+	if (uerr != 0) {
+		device_printf(sc->sc_dev, "usbd_do_request_flags failed: %s\n",
+		    usbd_errstr(uerr));
+		return (-1);
+	}
+	return (onoff);
+}
+
+static int
+uhso_radio_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct uhso_softc *sc = arg1;
+	int error, radio;
+
+	radio = sc->sc_radio;
+	error = sysctl_handle_int(oidp, &radio, 0, req);
+	if (error)
+		return (error);
+	if (radio != sc->sc_radio) {
+		radio = radio != 0 ? 1 : 0;
+		error = uhso_radio_ctrl(sc, radio);
+		if (error != -1)
+			sc->sc_radio = radio;
+			
+	}	
 	return (0);
 }
 
@@ -1435,13 +1519,14 @@ uhso_ucom_stop_write(struct ucom_softc *ucom)
 	}
 }
 
-static int uhso_attach_ifnet(struct uhso_softc *sc, struct usb_interface *iface,
-    int type)
+static int
+uhso_attach_ifnet(struct uhso_softc *sc, struct usb_interface *iface, int type)
 {
 	struct ifnet *ifp;
 	usb_error_t uerr;
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
+	unsigned int devunit;
 
 	uerr = usbd_transfer_setup(sc->sc_udev,
 	    &iface->idesc->bInterfaceNumber, sc->sc_if_xfer,
@@ -1463,7 +1548,14 @@ static int uhso_attach_ifnet(struct uhso_softc *sc, struct usb_interface *iface,
 	callout_reset(&sc->sc_c, 1, uhso_if_rxflush, sc);
 	mtx_unlock(&sc->sc_mtx);
 
-	if_initname(ifp, device_get_name(sc->sc_dev), device_get_unit(sc->sc_dev));
+	/*
+	 * We create our own unit numbers for ifnet devices because the
+	 * USB interface unit numbers can be at arbitrary positions yielding
+	 * odd looking device names.
+	 */
+	devunit = alloc_unr(uhso_ifnet_unit);
+
+	if_initname(ifp, device_get_name(sc->sc_dev), devunit);
 	ifp->if_mtu = UHSO_MAX_MTU;
 	ifp->if_ioctl = uhso_if_ioctl;
 	ifp->if_init = uhso_if_init;

@@ -183,6 +183,7 @@
 #define VAR_SERIAL_SPEED		"serialSpeed"
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
+#define VAR_SYSLOG_SERVER		"syslogdServer"
 #define VAR_TRY_DHCP			"tryDHCP"
 #define VAR_TRY_RTSOL			"tryRTSOL"
 #define VAR_UFS_PATH			"ufs"
@@ -755,7 +756,7 @@ extern dialogMenuItem *item_add(dialogMenuItem *list, char *prompt, char *title,
 				int (*checked)(dialogMenuItem *self),
 				int (*fire)(dialogMenuItem *self),
 				void (*selected)(dialogMenuItem *self, int is_selected),
-				void *data, int *aux, int *curr, int *max);
+				void *data, void *aux, int *curr, int *max);
 extern void	items_free(dialogMenuItem *list, int *curr, int *max);
 extern int	Mkdir(char *);
 extern int	Mkdir_command(char *key, void *data);

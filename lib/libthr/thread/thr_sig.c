@@ -194,7 +194,7 @@ int
 _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 {
 	/* Check if the signal number is out of range: */
-	if (sig < 1 || sig > _SIG_MAXSIG || sig == SIGCANCEL) {
+	if (!_SIG_VALID(sig) || sig == SIGCANCEL) {
 		/* Return an invalid argument: */
 		errno = EINVAL;
 		return (-1);

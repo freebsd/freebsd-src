@@ -74,7 +74,7 @@ INLINE_LIMIT?=	8000
 # floating point registers for integer operations which it has a tendency to do.
 # Also explicitly disable Altivec instructions inside the kernel.
 #
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 CFLAGS+=	-msoft-float -mno-altivec
 INLINE_LIMIT?=	15000
 .endif

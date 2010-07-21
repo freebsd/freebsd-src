@@ -659,6 +659,15 @@ static void
 mca_setup(uint64_t mcg_cap)
 {
 
+	/*
+	 * On AMD Family 10h processors, unless logging of level one TLB
+	 * parity (L1TP) errors is disabled, enable the recommended workaround
+	 * for Erratum 383.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x10 && amd10h_L1TP)
+		workaround_erratum383 = 1;
+
 	mtx_init(&mca_lock, "mca", NULL, MTX_SPIN);
 	STAILQ_INIT(&mca_records);
 	TASK_INIT(&mca_task, 0x8000, mca_scan_cpus, NULL);
@@ -727,38 +736,56 @@ cmci_monitor(int i)
 	/* Mark this bank as monitored. */
 	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | 1 << i);
 }
+
+/*
+ * For resume, reset the threshold for any banks we monitor back to
+ * one and throw away the timestamp of the last interrupt.
+ */
+static void
+cmci_resume(int i)
+{
+	struct cmc_state *cc;
+	uint64_t ctl;
+
+	KASSERT(i < cmc_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
+
+	/* Ignore banks not monitored by this CPU. */
+	if (!(PCPU_GET(cmci_mask) & 1 << i))
+		return;
+
+	cc = &cmc_state[PCPU_GET(cpuid)][i];
+	cc->last_intr = -ticks;
+	ctl = rdmsr(MSR_MC_CTL2(i));
+	ctl &= ~MC_CTL2_THRESHOLD;
+	ctl |= MC_CTL2_CMCI_EN | 1;
+	wrmsr(MSR_MC_CTL2(i), ctl);
+}
 #endif
 
-/* Must be executed on each CPU. */
-void
-mca_init(void)
+/*
+ * Initializes per-CPU machine check registers and enables corrected
+ * machine check interrupts.
+ */
+static void
+_mca_init(int boot)
 {
 	uint64_t mcg_cap;
 	uint64_t ctl, mask;
-	int skip;
-	int i;
+	int i, skip;
 
 	/* MCE is required. */
 	if (!mca_enabled || !(cpu_feature & CPUID_MCE))
 		return;
 
-	/*
-	 * On AMD Family 10h processors, unless logging of level one TLB
-	 * parity (L1TP) errors is disabled, enable the recommended workaround
-	 * for Erratum 383.
-	 */
-	if (cpu_vendor_id == CPU_VENDOR_AMD &&
-	    CPUID_TO_FAMILY(cpu_id) == 0x10 && amd10h_L1TP)
-		workaround_erratum383 = 1;
-
 	if (cpu_feature & CPUID_MCA) {
-		PCPU_SET(cmci_mask, 0);
+		if (boot)
+			PCPU_SET(cmci_mask, 0);
 
 		mcg_cap = rdmsr(MSR_MCG_CAP);
 		if (mcg_cap & MCG_CAP_CTL_P)
 			/* Enable MCA features. */
 			wrmsr(MSR_MCG_CTL, MCG_CTL_ENABLE);
-		if (PCPU_GET(cpuid) == 0)
+		if (PCPU_GET(cpuid) == 0 && boot)
 			mca_setup(mcg_cap);
 
 		/*
@@ -797,8 +824,12 @@ mca_init(void)
 				wrmsr(MSR_MC_CTL(i), ctl);
 
 #ifdef DEV_APIC
-			if (mcg_cap & MCG_CAP_CMCI_P)
-				cmci_monitor(i);
+			if (mcg_cap & MCG_CAP_CMCI_P) {
+				if (boot)
+					cmci_monitor(i);
+				else
+					cmci_resume(i);
+			}
 #endif
 
 			/* Clear all errors. */
@@ -806,12 +837,28 @@ mca_init(void)
 		}
 
 #ifdef DEV_APIC
-		if (PCPU_GET(cmci_mask) != 0)
+		if (PCPU_GET(cmci_mask) != 0 && boot)
 			lapic_enable_cmc();
 #endif
 	}
 
 	load_cr4(rcr4() | CR4_MCE);
+}
+
+/* Must be executed on each CPU during boot. */
+void
+mca_init(void)
+{
+
+	_mca_init(1);
+}
+
+/* Must be executed on each CPU during resume. */
+void
+mca_resume(void)
+{
+
+	_mca_init(0);
 }
 
 /*

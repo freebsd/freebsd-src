@@ -30,9 +30,7 @@
 
 .include <bsd.own.mk>
 
-.if ${MACHINE_ARCH} == "mips"
-MK_RESCUE=no	# not yet
-.endif
+.include <bsd.arch.inc.mk>
 
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
@@ -130,7 +128,7 @@ TARGET=		${TARGET_ARCH}
 TARGET?=	${MACHINE}
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-KNOWN_ARCHES?=	amd64 arm i386 i386/pc98 ia64 mips powerpc sparc64 sparc64/sun4v
+KNOWN_ARCHES?=	amd64 arm i386 i386/pc98 ia64 mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -167,7 +165,7 @@ BUILD_ARCH!=	uname -p
 .if ${MACHINE} == ${TARGET} && !defined(CROSS_BUILD_TESTING)
 OBJTREE=	${MAKEOBJDIRPREFIX}
 .else
-OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}
+OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
 # /usr/games added for fortune which depend on strfile
@@ -267,35 +265,48 @@ WMAKEENV+=	NO_CTF=1
 .endif
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 # 32 bit world
 LIB32TMP=	${OBJTREE}${.CURDIR}/lib32
 
+.if ${TARGET_ARCH} == "amd64"
 .if empty(TARGET_CPUTYPE)
 LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 .else
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
-LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -mfancy-math-387 -DCOMPAT_32BIT \
+LIB32CPUFLAGS+=	-mfancy-math-387
+LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
+		MACHINE_CPU="i686 mmx sse sse2" \
+		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
+		AS="${AS} --32"
+
+.elif ${TARGET_ARCH} == "powerpc64"
+.if empty(TARGET_CPUTYPE)
+LIB32CPUFLAGS=	-mcpu=powerpc
+.else
+LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
+.endif
+LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc \
+		LD="${LD} -m elf32ppc"
+.endif
+
+
+LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
 		-isysroot ${LIB32TMP}/ \
 		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
 
 # Yes, the flags are redundant.
-LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
+LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
 		VERSION="${VERSION}" \
-		MACHINE=i386 \
-		MACHINE_ARCH=i386 \
-		MACHINE_CPU="i686 mmx sse sse2" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		CC="${CC} ${LIB32FLAGS}" \
 		CXX="${CXX} ${LIB32FLAGS}" \
 		OBJC="${OBJC} ${LIB32FLAGS}" \
-		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		AS="${AS} --32" \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32
 
@@ -342,7 +353,7 @@ _worldtmp:
 	@echo "--------------------------------------------------------------"
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
-.if ${TARGET_ARCH} == "amd64"
+.if defined(LIB32TMP)
 	rm -rf ${LIB32TMP}
 .endif
 .else
@@ -386,7 +397,7 @@ _cleanobj:
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
-.if ${TARGET_ARCH} == "amd64"
+.if defined(LIB32TMP)
 	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
 .endif
 .endif
@@ -437,7 +448,7 @@ everything:
 	[ ! -e ${WORLDTMP}/usr/bin/as ] || ln -sf ${WORLDTMP}/usr/bin/as ${WORLDTMP}/usr/lib/as
 	[ ! -e ${WORLDTMP}/usr/bin/ld ] || ln -sf ${WORLDTMP}/usr/bin/ld ${WORLDTMP}/usr/lib/ld
 	${_+_}cd ${.CURDIR}; ${WMAKE} par-all
-.if ${TARGET_ARCH} == "amd64"
+.if defined(LIB32TMP)
 build32:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -523,7 +534,7 @@ WMAKE_TGTS+=	_cleanobj _obj _build-tools
 WMAKE_TGTS+=	_cross-tools
 .endif
 WMAKE_TGTS+=	_includes _libraries _depend everything
-.if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
 WMAKE_TGTS+=	build32
 .endif
 
@@ -673,7 +684,7 @@ reinstall:
 	@echo ">>> Installing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
@@ -682,7 +693,7 @@ redistribute:
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
-.if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 \
 	    DISTRIBUTION=lib32
 .endif
@@ -718,7 +729,11 @@ KERNCONF=${KERNFAST}
 KERNCONF=	${KERNEL}
 KERNWARN=
 .else
+.if ${TARGET_ARCH} == "powerpc64"
+KERNCONF?=	GENERIC64
+.else
 KERNCONF?=	GENERIC
+.endif
 .endif
 INSTKERNNAME?=	kernel
 
@@ -1130,8 +1145,12 @@ _prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
 _startup_libs=	gnu/lib/csu
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
 _startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
-.else
+.elif exists(${.CURDIR}/lib/csu/${MACHINE_CPUARCH}-elf)
+_startup_libs+=	lib/csu/${MACHINE_CPUARCH}-elf
+.elif exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
 _startup_libs+=	lib/csu/${MACHINE_ARCH}
+.else
+_startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 .endif
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libc
@@ -1476,8 +1495,10 @@ _xi-links:
 DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
 
 .if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
-FDT_DTS_FILE!=	 grep "^makeoptions[[:space:]]\+FDT_DTS_FILE" \
-	${KERNCONFDIR}/${KERNCONF} 2> /dev/null | cut -d= -f2
+.if exists(${KERNCONFDIR}/${KERNCONF})
+FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
+	${KERNCONFDIR}/${KERNCONF}
+.endif
 .endif
 
 .endif

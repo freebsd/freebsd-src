@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20100428
+#define ACPI_CA_VERSION                 0x20100702
 
 #include <contrib/dev/acpica/include/actypes.h>
 #include <contrib/dev/acpica/include/actbl.h>
@@ -147,6 +147,7 @@ extern ACPI_NAME            AcpiGbl_TraceMethodName;
 extern UINT32               AcpiGbl_TraceFlags;
 extern UINT8                AcpiGbl_EnableAmlDebugObject;
 extern UINT8                AcpiGbl_CopyDsdtLocally;
+extern UINT8                AcpiGbl_TruncateIoAddresses;
 
 
 /*
@@ -472,19 +473,23 @@ AcpiSetGpe (
 ACPI_STATUS
 AcpiEnableGpe (
     ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT8                   GpeType);
+    UINT32                  GpeNumber);
 
 ACPI_STATUS
 AcpiDisableGpe (
     ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT8                   GpeType);
+    UINT32                  GpeNumber);
 
 ACPI_STATUS
 AcpiClearGpe (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber);
+
+ACPI_STATUS
+AcpiGpeWakeup (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    UINT8                   Action);
 
 ACPI_STATUS
 AcpiGetGpeStatus (

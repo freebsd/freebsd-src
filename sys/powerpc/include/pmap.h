@@ -65,10 +65,12 @@
 #define	_MACHINE_PMAP_H_
 
 #include <sys/queue.h>
+#include <sys/tree.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <machine/sr.h>
 #include <machine/pte.h>
+#include <machine/slb.h>
 #include <machine/tlb.h>
 
 struct pmap_md {
@@ -84,13 +86,22 @@ struct pmap_md {
 #define	NPMAPS		32768
 #endif /* !defined(NPMAPS) */
 
+struct	slbcontainer;
+
+SPLAY_HEAD(slb_tree, slbcontainer);
+
 struct	pmap {
 	struct	mtx	pm_mtx;
-	u_int		pm_sr[16];
+	
+    #ifdef __powerpc64__
+	struct slb_tree	pm_slbtree;
+	struct slb	*pm_slb;
+    #else
+	register_t	pm_sr[16];
+    #endif
 	u_int		pm_active;
 	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
 	u_int		pm_retries;
-	u_int		pm_context;
 
 	struct pmap	*pmap_phys;
 	struct		pmap_statistics	pm_stats;
@@ -107,6 +118,7 @@ struct pvo_entry {
 	} pvo_pte;
 	pmap_t		pvo_pmap;		/* Owning pmap */
 	vm_offset_t	pvo_vaddr;		/* VA of entry */
+	uint64_t	pvo_vpn;		/* Virtual page number */
 };
 LIST_HEAD(pvo_head, pvo_entry);
 
@@ -119,19 +131,38 @@ struct	md_page {
 #define	pmap_page_is_mapped(m)	(!LIST_EMPTY(&(m)->md.mdpg_pvoh))
 #define	pmap_page_set_memattr(m, ma)	(void)0
 
+/*
+ * Return the VSID corresponding to a given virtual address.
+ * If no VSID is currently defined, it will allocate one, and add
+ * it to a free slot if available.
+ *
+ * NB: The PMAP MUST be locked already.
+ */
+uint64_t va_to_vsid(pmap_t pm, vm_offset_t va);
+int      va_to_slb_entry(pmap_t pm, vm_offset_t va, struct slb *);
+
+uint64_t allocate_vsid(pmap_t pm, uint64_t esid, int large);
+void     slb_insert(pmap_t pm, struct slb *dst, struct slb *);
+int      vsid_to_esid(pmap_t pm, uint64_t vsid, uint64_t *esid);
+void     free_vsids(pmap_t pm);
+struct slb *slb_alloc_user_cache(void);
+void	slb_free_user_cache(struct slb *);
+
 #else
 
 struct pmap {
 	struct mtx		pm_mtx;		/* pmap mutex */
 	tlbtid_t		pm_tid[MAXCPU];	/* TID to identify this pmap entries in TLB */
 	u_int			pm_active;	/* active on cpus */
-	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
-	u_int			pm_retries;
 	int			pm_refs;	/* ref count */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 
 	/* Page table directory, array of pointers to page tables. */
 	pte_t			*pm_pdir[PDIR_NENTRIES];
+
+	/* generation count (pmap lock dropped) */
+	uint32_t		pm_gen_count;
+	u_int			pm_retries;
 
 	/* List of allocated ptbl bufs (ptbl kva regions). */
 	TAILQ_HEAD(, ptbl_buf)	pm_ptbl_list;

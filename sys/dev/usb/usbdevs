@@ -400,6 +400,7 @@ vendor ARASAN		0x07da	Arasan Chip Systems
 vendor ALLIEDCABLE	0x07e6	Allied Cable
 vendor STSN		0x07ef	STSN
 vendor CENTURY		0x07f7	Century Corp
+vendor UNKNOWN5		0x07ff	Unknown
 vendor ZOOM		0x0803	Zoom Telephonics
 vendor PCS		0x0810	Personal Communication Systems
 vendor ALPHASMART	0x081e	AlphaSmart, Inc.
@@ -1806,6 +1807,7 @@ product IODATA RT3072_2		0x0945	RT3072
 product IODATA RT3072_3		0x0947	RT3072
 product IODATA RT3072_4		0x0948	RT3072
 product IODATA USBRSAQ		0x0a03	Serial USB-RSAQ1
+product IODATA USBRSAQ5		0x0a0e  Serial USB-RSAQ5
 product IODATA2 USB2SC		0x0a09	USB2.0-SCSI Bridge USB2-SC
 
 /* Iomega products */
@@ -2158,6 +2160,8 @@ product NATIONAL BEARPAW1200	0x1000	BearPaw 1200
 product NATIONAL BEARPAW2400	0x1001	BearPaw 2400
 
 /* NEC products */
+product NEC HUB_0050		0x0050	USB 2.0 7-Port Hub
+product NEC HUB_005A		0x005a	USB 2.0 4-Port Hub
 product NEC HUB			0x55aa	hub
 product NEC HUB_B		0x55ab	hub
 
@@ -2297,6 +2301,7 @@ product OPTION ICONEDGE		0xc031	GlobeSurfer iCON EDGE
 product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
 product OPTION ICON321		0xd031	Globetrotter HSUPA
 product OPTION ICON505		0xd055	Globetrotter iCON 505
+product OPTION_ICON452		0x7901	Globetrotter iCON 452
 
 /* OvisLink product */
 product OVISLINK RT3072		0x3072	RT3072
@@ -3045,7 +3050,11 @@ product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
 /* Unknown vendors */
 product UNKNOWN4 USBMEMSTICK	0x6025	Flash Disk CBM
 
+/* Unknown vendors */
+product UNKNOWN5 USB2IDEBRIDGE	0x00ff	USB 2.0 ATA/SATA Bridge
+
 /* U.S. Robotics products */
+product USR USR5422		0x0118	USR5422 WLAN
 product USR USR5423		0x0121	USR5423 WLAN
 
 /* VIA Technologies products */

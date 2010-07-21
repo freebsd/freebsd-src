@@ -110,10 +110,10 @@ enum pmc_cputype {
 	__PMC_CLASS(P6)		/* Intel Pentium Pro counters */	\
 	__PMC_CLASS(P4)		/* Intel Pentium-IV counters */		\
 	__PMC_CLASS(IAF)	/* Intel Core2/Atom, fixed function */	\
-	__PMC_CLASS(IAP)	/* Intel Core...Atom, programmable */   \
-	__PMC_CLASS(UCF)	/* Intel Uncore programmable */		\
-	__PMC_CLASS(UCP)	/* Intel Uncore fixed function */	\
-	__PMC_CLASS(XSCALE)	/* Intel XScale counters */ \
+	__PMC_CLASS(IAP)	/* Intel Core...Atom, programmable */	\
+	__PMC_CLASS(UCF)	/* Intel Uncore fixed function */	\
+	__PMC_CLASS(UCP)	/* Intel Uncore programmable */		\
+	__PMC_CLASS(XSCALE)	/* Intel XScale counters */		\
 	__PMC_CLASS(MIPS24K)    /* MIPS 24K */
 
 enum pmc_class {

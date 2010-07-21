@@ -240,6 +240,8 @@ send_iterate_prop(zfs_handle_t *zhp, nvlist_t *nv)
 		zfs_prop_t prop = zfs_name_to_prop(propname);
 		nvlist_t *propnv;
 
+		assert(zfs_prop_user(propname) || prop != ZPROP_INVAL);
+
 		if (!zfs_prop_user(propname) && zfs_prop_readonly(prop))
 			continue;
 
@@ -596,12 +598,18 @@ dump_filesystem(zfs_handle_t *zhp, void *arg)
 			    zhp->zfs_name, sdd->fromsnap);
 			sdd->err = B_TRUE;
 		} else if (!sdd->seento) {
-			(void) fprintf(stderr,
-			    "WARNING: could not send %s@%s:\n"
-			    "incremental source (%s@%s) "
-			    "is not earlier than it\n",
-			    zhp->zfs_name, sdd->tosnap,
-			    zhp->zfs_name, sdd->fromsnap);
+			if (sdd->fromsnap) {
+				(void) fprintf(stderr,
+				    "WARNING: could not send %s@%s:\n"
+				    "incremental source (%s@%s) "
+				    "is not earlier than it\n",
+				    zhp->zfs_name, sdd->tosnap,
+				    zhp->zfs_name, sdd->fromsnap);
+			} else {
+				(void) fprintf(stderr, "WARNING: "
+				    "could not send %s@%s: does not exist\n",
+				    zhp->zfs_name, sdd->tosnap);
+			}
 			sdd->err = B_TRUE;
 		}
 	} else {
@@ -1100,6 +1108,7 @@ recv_incremental_replication(libzfs_handle_t *hdl, const char *tofs,
 	char newname[ZFS_MAXNAMELEN];
 	int error;
 	boolean_t needagain, progress;
+	char *s1, *s2;
 
 	VERIFY(0 == nvlist_lookup_string(stream_nv, "fromsnap", &fromsnap));
 	VERIFY(0 == nvlist_lookup_string(stream_nv, "tosnap", &tosnap));
@@ -1294,12 +1303,13 @@ again:
 		VERIFY(0 == nvlist_lookup_uint64(stream_nvfs,
 		    "parentfromsnap", &stream_parent_fromsnap_guid));
 
+		s1 = strrchr(fsname, '/');
+		s2 = strrchr(stream_fsname, '/');
+
 		/* check for rename */
-		p1 = strrchr(fsname, '/');
-		p2 = strrchr(stream_fsname, '/');
 		if ((stream_parent_fromsnap_guid != 0 &&
 		    stream_parent_fromsnap_guid != parent_fromsnap_guid) ||
-		    (p1 != NULL && p2 != NULL && strcmp (p1, p2) != 0)) {
+		    ((s1 != NULL) && (s2 != NULL) && strcmp(s1, s2) != 0)) {
 			nvlist_t *parent;
 			char tryname[ZFS_MAXNAMELEN];
 

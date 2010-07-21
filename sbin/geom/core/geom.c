@@ -259,94 +259,6 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 			    opt->go_val);
 		} else
 			gctl_ro_param(req, opt->go_name, -1, opt->go_val);
-	} else if (G_OPT_TYPE(opt) == G_TYPE_ASCLBA) {
-		/*
-		 * LBAs are ugly. The argument is a sector. The size of a
-		 * sector is context specific (i.e. determined by the media),
-		 * which we don't know here. But when users enter a value
-		 * with a SI unit, they really mean the byte-size or byte-
-		 * offset and not the size or offset in sectors.
-		 * So how can we map the byte-oriented value into a sector-
-		 * oriented value if we don't know the sector size in bytes?
-		 * The approach taken here is:
-		 * o  Sectors are 512 bytes in size. Mostly the case anyway.
-		 * o  When no SI unit is specified the value is in sectors.
-		 * o  With an SI unit the value is in bytes.
-		 * o  The 'b' suffix forces byte interpretation and the 's'
-		 *    suffix forces sector interpretation.
-		 *
-		 * Thus:
-		 * o  2 and 2s mean 2 sectors, and 2b means 2 bytes.
-		 * o  4k and 4kb mean 4096 bytes, and 4ks means 4096 sectors.
-		 *
-		 * "This seemed like a good idea at the time"
-		 */
-		intmax_t mult, unit;
-
-		number = strtoimax(val, &s, 0);
-		if (s == val)
-			errc(EXIT_FAILURE, EINVAL, "argument '%c'",
-			    opt->go_char);
-		mult = 1;
-		unit = 512;	/* sector */
-		if (*s == '\0')
-			goto done;
-		switch (*s) {
-		case 'e': case 'E':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 'p': case 'P':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 't': case 'T':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 'g': case 'G':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 'm': case 'M':
-			mult *= 1024;
-			/*FALLTHROUGH*/
-		case 'k': case 'K':
-			mult *= 1024;
-			break;
-		default:
-			goto sfx;
-		}
-		unit = 1;	/* bytes */
-		s++;
-		if (*s == '\0')
-			goto done;
-sfx:
-		switch (*s) {
-		case 's': case 'S':
-			unit = 512;	/* sector */
-			break;
-		case 'b': case 'B':
-			unit = 1;	/* bytes */
-			break;
-		default:
-			errc(EXIT_FAILURE, EINVAL, "argument '%c': suffix '%c'",
-			    opt->go_char, *s);
-		}
-		s++;
-		if (*s != '\0')
-			errx(EXIT_FAILURE, "argument '%c': junk at end (%s)",
-			    opt->go_char, s);
-done:
-		if (mult * unit < mult || number * mult * unit < number)
-			errc(EXIT_FAILURE, ERANGE, "argument '%c'",
-			    opt->go_char);
-		number *= mult * unit;
-		if (number % 512)
-			errx(EXIT_FAILURE, "argument '%c': "
-			    "not a valid block address", opt->go_char);
-		number /= 512;
-		asprintf(&s, "%jd", number);
-		if (s == NULL)
-			err(EXIT_FAILURE, NULL);
-		opt->go_val = s;
-		gctl_ro_param(req, opt->go_name, -1, s);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
 		gctl_ro_param(req, opt->go_name, -1, val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
@@ -439,8 +351,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 					gctl_ro_param(req, opt->go_name,
 					    sizeof(intmax_t), opt->go_val);
 				} else if (G_OPT_TYPE(opt) == G_TYPE_STRING ||
-				    G_OPT_TYPE(opt) == G_TYPE_ASCNUM ||
-				    G_OPT_TYPE(opt) == G_TYPE_ASCLBA) {
+				    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
 					if (cmd->gc_argname == NULL ||
 					    opt->go_val == NULL ||
 					    *(char *)opt->go_val != '\0')

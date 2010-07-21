@@ -29,6 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -37,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/spr.h>
 
-#include <powerpc/mpc85xx/ocpbus.h>
 #include <powerpc/mpc85xx/mpc85xx.h>
 
 /*
@@ -127,6 +129,39 @@ law_disable(int trgt, u_long addr, u_long size)
 		}
 
 	return (ENOENT);
+}
+
+int
+law_pci_target(struct resource *res, int *trgt_mem, int *trgt_io)
+{
+	u_long start;
+	uint32_t ver;
+	int trgt, rv;
+
+	ver = SVR_VER(mfspr(SPR_SVR));
+
+	start = rman_get_start(res) & 0xf000;
+
+	rv = 0;
+	trgt = -1;
+	switch (start) {
+	case 0x8000:
+		trgt = 0;
+		break;
+	case 0x9000:
+		trgt = 1;
+		break;
+	case 0xa000:
+		if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
+			trgt = 2;
+		else
+			rv = EINVAL;
+		break;
+	default:
+		rv = ENXIO;
+	}
+	*trgt_mem = *trgt_io = trgt;
+	return (rv);
 }
 
 void

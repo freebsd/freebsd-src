@@ -143,11 +143,11 @@ main(int argc, char *argv[])
 	struct ypmaplist *ypml, *y;
 	struct hostent *hent;
 	struct sockaddr_in lsin;
-	int notrans, mode, getmap;
+	int notrans, mode;
 	int c, r;
 	u_int i;
 
-	getmap = notrans = mode = 0;
+	notrans = mode = 0;
 	while ((c = getopt(argc, argv, "xd:mt")) != -1)
 		switch (c) {
 		case 'x':

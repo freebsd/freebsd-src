@@ -191,6 +191,7 @@ typedef struct {
 	psaddr_t	ti_startfunc;
 	psaddr_t	ti_stkbase;
 	size_t		ti_stksize;
+	siginfo_t	ti_siginfo;
 } td_thrinfo_t;
 
 /*

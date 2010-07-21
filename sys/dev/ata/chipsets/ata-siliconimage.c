@@ -364,8 +364,12 @@ ata_sii_status(device_t dev)
 static void
 ata_sii_reset(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
+    else
+	ch->devices = 0;
 }
 
 static int
@@ -389,7 +393,8 @@ ata_sii_setmode(device_t dev, int target, int mode)
 	mode = min(mode, ctlr->chip->max_dma);
 
 	if (ctlr->chip->cfg2 & SII_SETCLK) {
-	    if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x79, 1) &
+	    if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+		(pci_read_config(parent, 0x79, 1) &
 				 (ch->unit ? 0x02 : 0x01))) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;

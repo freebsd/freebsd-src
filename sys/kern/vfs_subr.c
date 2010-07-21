@@ -498,7 +498,7 @@ vfs_suser(struct mount *mp, struct thread *td)
 void
 vfs_getnewfsid(struct mount *mp)
 {
-	static u_int16_t mntid_base;
+	static uint16_t mntid_base;
 	struct mount *nmp;
 	fsid_t tfsid;
 	int mtype;
@@ -822,19 +822,6 @@ static struct kproc_desc vnlru_kp = {
 SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start,
     &vnlru_kp);
  
-static void
-vfs_lowmem(void *arg __unused)
-{
-
-	/*
-	 * On low memory condition free 1/8th of the free vnodes.
-	 */
-	mtx_lock(&vnode_free_list_mtx);
-	vnlru_free(freevnodes / 8);
-	mtx_unlock(&vnode_free_list_mtx);
-}
-EVENTHANDLER_DEFINE(vm_lowmem, vfs_lowmem, NULL, 0);
-
 /*
  * Routines having to do with the management of the vnode table.
  */
@@ -4031,7 +4018,7 @@ vfs_event_init(void *arg)
 SYSINIT(vfs_knlist, SI_SUB_VFS, SI_ORDER_ANY, vfs_event_init, NULL);
 
 void
-vfs_event_signal(fsid_t *fsid, u_int32_t event, intptr_t data __unused)
+vfs_event_signal(fsid_t *fsid, uint32_t event, intptr_t data __unused)
 {
 
 	KNOTE_UNLOCKED(&fs_knlist, event);

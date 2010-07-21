@@ -7,7 +7,7 @@
  */
 
 static void
-systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
+systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 {
 	int64_t *iarg  = (int64_t *) uarg;
 	switch (sysnum) {

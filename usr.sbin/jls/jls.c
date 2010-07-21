@@ -84,8 +84,10 @@ main(int argc, char **argv)
 			break;
 		case 'j':
 			jid = strtoul(optarg, &ep, 10);
-			if (!*optarg || *ep)
+			if (!jid || *ep) {
+				jid = 0;
 				jname = optarg;
+			}
 			break;
 		case 'h':
 			pflags = (pflags & ~(PRINT_SKIP | PRINT_VERBOSE)) |

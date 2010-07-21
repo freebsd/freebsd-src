@@ -477,7 +477,7 @@ AcpiDbCheckPredefinedNames (
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
                 AcpiDbWalkForPredefinedNames, NULL, (void *) &Count, NULL);
 
-    AcpiOsPrintf ("Found %d predefined names in the namespace\n", Count);
+    AcpiOsPrintf ("Found %u predefined names in the namespace\n", Count);
 }
 
 
@@ -619,7 +619,7 @@ AcpiDbBatchExecute (
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
                 AcpiDbWalkForExecute, NULL, (void *) &Info, NULL);
 
-    AcpiOsPrintf ("Executed %d predefined names in the namespace\n", Info.Count);
+    AcpiOsPrintf ("Executed %u predefined names in the namespace\n", Info.Count);
 }
 
 
@@ -678,7 +678,7 @@ AcpiDbDisplayTableInfo (
     for (i = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
         TableDesc = &AcpiGbl_RootTableList.Tables[i];
-        AcpiOsPrintf ("%d ", i);
+        AcpiOsPrintf ("%u ", i);
 
         /* Make sure that the table is mapped */
 
@@ -1182,7 +1182,7 @@ AcpiDbSetMethodData (
 
         if (Index > ACPI_METHOD_MAX_ARG)
         {
-            AcpiOsPrintf ("Arg%d - Invalid argument name\n", Index);
+            AcpiOsPrintf ("Arg%u - Invalid argument name\n", Index);
             goto Cleanup;
         }
 
@@ -1195,7 +1195,7 @@ AcpiDbSetMethodData (
 
         ObjDesc = WalkState->Arguments[Index].Object;
 
-        AcpiOsPrintf ("Arg%d: ", Index);
+        AcpiOsPrintf ("Arg%u: ", Index);
         AcpiDmDisplayInternalObject (ObjDesc, WalkState);
         break;
 
@@ -1205,7 +1205,7 @@ AcpiDbSetMethodData (
 
         if (Index > ACPI_METHOD_MAX_LOCAL)
         {
-            AcpiOsPrintf ("Local%d - Invalid local variable name\n", Index);
+            AcpiOsPrintf ("Local%u - Invalid local variable name\n", Index);
             goto Cleanup;
         }
 
@@ -1218,7 +1218,7 @@ AcpiDbSetMethodData (
 
         ObjDesc = WalkState->LocalVariables[Index].Object;
 
-        AcpiOsPrintf ("Local%d: ", Index);
+        AcpiOsPrintf ("Local%u: ", Index);
         AcpiDmDisplayInternalObject (ObjDesc, WalkState);
         break;
 
@@ -1942,7 +1942,7 @@ AcpiDbCheckIntegrity (
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
                     AcpiDbIntegrityWalk, NULL, (void *) &Info, NULL);
 
-    AcpiOsPrintf ("Verified %d namespace nodes with %d Objects\n",
+    AcpiOsPrintf ("Verified %u namespace nodes with %u Objects\n",
         Info.Nodes, Info.Objects);
 }
 

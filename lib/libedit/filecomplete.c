@@ -50,8 +50,10 @@ __FBSDID("$FreeBSD$");
 #include "histedit.h"
 #include "filecomplete.h"
 
-static char break_chars[] = { ' ', '\t', '\n', '"', '\\', '\'', '`', '@',
-    '$', '>', '<', '=', ';', '|', '&', '{', '(', '\0' };
+static char break_chars[] = { ' ', '\t', '\n', '"', '\\', '\'', '`',
+    '>', '<', '=', ';', '|', '&', '{', '(', '\0' };
+/* Tilde is deliberately omitted here, we treat it specially. */
+static char extra_quote_chars[] = { ')', '}', '*', '?', '[', '$', '\0' };
 
 
 /********************************/
@@ -347,13 +349,12 @@ fn_display_match_list(EditLine *el, char **matches, size_t len, size_t max)
 		count++;
 
 	/* Sort the items if they are not already sorted. */
-	qsort(&matches[1], (size_t)(len - 1), sizeof(char *),
-	    _fn_qsort_string_compare);
+	qsort(&matches[1], len, sizeof(char *), _fn_qsort_string_compare);
 
 	idx = 1;
 	for(; count > 0; count--) {
 		int more = limit > 0 && matches[0];
-		for(i = 0; more; i++, idx++) {
+		for(i = 0; more; idx++) {
 			more = ++i < limit && matches[idx + 1];
 			(void)fprintf(el->el_outfile, "%-*s%s", (int)max,
 			    matches[idx], more ? " " : "");
@@ -381,10 +382,14 @@ fn_complete(EditLine *el,
 	char **(*attempted_completion_function)(const char *, int, int),
 	const char *word_break, const char *special_prefixes,
 	const char *(*app_func)(const char *), size_t query_items,
-	int *completion_type, int *over, int *point, int *end)
+	int *completion_type, int *over, int *point, int *end,
+	const char *(*find_word_start_func)(const char *, const char *),
+	char *(*dequoting_func)(const char *),
+	char *(*quoting_func)(const char *))
 {
 	const LineInfo *li;
 	char *temp;
+	char *dequoted_temp;
 	char **matches;
 	const char *ctemp;
 	size_t len;
@@ -405,11 +410,15 @@ fn_complete(EditLine *el,
 
 	/* We now look backwards for the start of a filename/variable word */
 	li = el_line(el);
-	ctemp = li->cursor;
-	while (ctemp > li->buffer
-	    && !strchr(word_break, ctemp[-1])
-	    && (!special_prefixes || !strchr(special_prefixes, ctemp[-1]) ) )
-		ctemp--;
+	if (find_word_start_func)
+		ctemp = find_word_start_func(li->buffer, li->cursor);
+	else {
+		ctemp = li->cursor;
+		while (ctemp > li->buffer
+		    && !strchr(word_break, ctemp[-1])
+		    && (!special_prefixes || !strchr(special_prefixes, ctemp[-1]) ) )
+			ctemp--;
+	}
 
 	len = li->cursor - ctemp;
 #if defined(__SSP__) || defined(__SSP_ALL__)
@@ -422,6 +431,13 @@ fn_complete(EditLine *el,
 	(void)strncpy(temp, ctemp, len);
 	temp[len] = '\0';
 
+	if (dequoting_func) {
+		dequoted_temp = dequoting_func(temp);
+		if (dequoted_temp == NULL)
+			return retval;
+	} else
+		dequoted_temp = NULL;
+
 	/* these can be used by function called in completion_matches() */
 	/* or (*attempted_completion_function)() */
 	if (point != 0)
@@ -431,13 +447,13 @@ fn_complete(EditLine *el,
 
 	if (attempted_completion_function) {
 		int cur_off = (int)(li->cursor - li->buffer);
-		matches = (*attempted_completion_function) (temp,
+		matches = (*attempted_completion_function) (dequoted_temp ? dequoted_temp : temp,
 		    (int)(cur_off - len), cur_off);
 	} else
 		matches = 0;
 	if (!attempted_completion_function || 
 	    (over != NULL && !*over && !matches))
-		matches = completion_matches(temp, complet_func);
+		matches = completion_matches(dequoted_temp ? dequoted_temp : temp, complet_func);
 
 	if (over != NULL)
 		*over = 0;
@@ -452,8 +468,18 @@ fn_complete(EditLine *el,
 		 * possible matches if there is possible completion.
 		 */
 		if (matches[0][0] != '\0') {
+			char *quoted_match;
+			if (quoting_func) {
+				quoted_match = quoting_func(matches[0]);
+				if (quoted_match == NULL)
+					goto free_matches;
+			} else
+				quoted_match = NULL;
+
 			el_deletestr(el, (int) len);
-			el_insertstr(el, matches[0]);
+			el_insertstr(el, quoted_match ? quoted_match : matches[0]);
+
+			free(quoted_match);
 		}
 
 		if (what_to_do == '?')
@@ -515,12 +541,14 @@ fn_complete(EditLine *el,
 			retval = CC_NORM;
 		}
 
+free_matches:
 		/* free elements of array and the array itself */
 		for (i = 0; matches[i]; i++)
 			free(matches[i]);
 		free(matches);
 		matches = NULL;
 	}
+	free(dequoted_temp);
 #if defined(__SSP__) || defined(__SSP_ALL__)
 	free(temp);
 #endif
@@ -537,5 +565,103 @@ _el_fn_complete(EditLine *el, int ch __attribute__((__unused__)))
 {
 	return (unsigned char)fn_complete(el, NULL, NULL,
 	    break_chars, NULL, NULL, 100,
-	    NULL, NULL, NULL, NULL);
+	    NULL, NULL, NULL, NULL,
+	    NULL, NULL, NULL);
+}
+
+
+static const char *
+sh_find_word_start(const char *buffer, const char *cursor)
+{
+	const char *word_start = buffer;
+
+	while (buffer < cursor) {
+		if (*buffer == '\\')
+			buffer++;
+		else if (strchr(break_chars, *buffer))
+			word_start = buffer + 1;
+
+		buffer++;
+	}
+
+	return word_start;
+}
+
+
+static char *
+sh_quote(const char *str)
+{
+	const char *src;
+	int extra_len = 0;
+	char *quoted_str, *dst;
+
+	if (*str == '-' || *str == '+')
+		extra_len += 2;
+	for (src = str; *src != '\0'; src++)
+		if (strchr(break_chars, *src) ||
+		    strchr(extra_quote_chars, *src))
+			extra_len++;
+
+	quoted_str = malloc(sizeof(*quoted_str) *
+	    (strlen(str) + extra_len + 1));
+	if (quoted_str == NULL)
+		return NULL;
+
+	dst = quoted_str;
+	if (*str == '-' || *str == '+')
+		*dst++ = '.', *dst++ = '/';
+	for (src = str; *src != '\0'; src++) {
+		if (strchr(break_chars, *src) ||
+		    strchr(extra_quote_chars, *src))
+			*dst++ = '\\';
+		*dst++ = *src;
+	}
+	*dst = '\0';
+
+	return quoted_str;
+}
+
+
+static char *
+sh_dequote(const char *str)
+{
+	char *dequoted_str, *dst;
+
+	/* save extra space to replace \~ with ./~ */
+	dequoted_str = malloc(sizeof(*dequoted_str) * (strlen(str) + 1 + 1));
+	if (dequoted_str == NULL)
+		return NULL;
+
+	dst = dequoted_str;
+
+	/* dequote \~ at start as ./~ */
+	if (*str == '\\' && str[1] == '~') {
+		str++;
+		*dst++ = '.';
+		*dst++ = '/';
+	}
+
+	while (*str) {
+		if (*str == '\\')
+			str++;
+		if (*str)
+			*dst++ = *str++;
+	}
+	*dst = '\0';
+
+	return dequoted_str;
+}
+
+
+/*
+ * completion function using sh quoting rules; for key binding
+ */
+/* ARGSUSED */
+unsigned char
+_el_fn_sh_complete(EditLine *el, int ch __attribute__((__unused__)))
+{
+	return (unsigned char)fn_complete(el, NULL, NULL,
+	    break_chars, NULL, NULL, 100,
+	    NULL, NULL, NULL, NULL,
+	    sh_find_word_start, sh_dequote, sh_quote);
 }

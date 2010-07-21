@@ -333,7 +333,7 @@ hvpci_route_interrupt(device_t bridge, device_t dev, int pin)
 	node = ofw_bus_get_node(dev);
 	pintr = pin;
 	obli = ofw_bus_lookup_imap(node, &sc->hs_pci_iinfo, &reg, sizeof(reg),
-	    &pintr, sizeof(pintr), &mintr, sizeof(mintr), maskbuf);
+	    &pintr, sizeof(pintr), &mintr, sizeof(mintr), NULL, maskbuf);
 	device_printf(dev, "called hvpci_route_intr: %d, got: mintr: %#x\n",
 	    obli, mintr);
 	if (obli)

@@ -195,7 +195,10 @@ static pthread_mutex_t metadata_lock;
 	mtx_unlock(&hio_##name##_list_lock);				\
 } while (0)
 
-#define	SYNCREQ(hio)		do { (hio)->hio_ggio.gctl_unit = -1; } while (0)
+#define	SYNCREQ(hio)		do {					\
+	(hio)->hio_ggio.gctl_unit = -1;					\
+	(hio)->hio_ggio.gctl_seq = 1;					\
+} while (0)
 #define	ISSYNCREQ(hio)		((hio)->hio_ggio.gctl_unit == -1)
 #define	SYNCREQDONE(hio)	do { (hio)->hio_ggio.gctl_unit = -2; } while (0)
 #define	ISSYNCREQDONE(hio)	((hio)->hio_ggio.gctl_unit == -2)
@@ -447,6 +450,7 @@ init_local(struct hast_resource *res)
 		primary_exit(EX_NOINPUT, "Unable to read activemap");
 	}
 	activemap_copyin(res->hr_amp, buf, mapsize);
+	free(buf);
 	if (res->hr_resuid != 0)
 		return;
 	/*

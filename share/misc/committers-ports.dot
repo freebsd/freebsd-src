@@ -96,6 +96,7 @@ joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 johans [label="Johan Selst\njohans@FreeBSD.org\n2006/04/01"]
 josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/12/20"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2008/09/05"]
+jsa [label="Joseph S. Atkinson\njsa@FreeBSD.org\n2010/07/15"]
 jylefort [label="Jean-Yves Lefort\njylefort@FreeBSD.org\n2005/04/12"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2003/02/21"]
 knu [label="Akinori Musha\nknu@FreeBSD.org\n2000/03/22"]
@@ -270,6 +271,8 @@ krion -> sat
 krion -> sem
 krion -> sergei
 
+kwm -> jsa
+
 lawrance -> itetcu
 
 leeym -> clsung
@@ -365,6 +368,7 @@ tmclaugh -> xride
 
 will -> lioux
 
+wxs -> jsa
 wxs -> sahil
 wxs -> skreuzer
 

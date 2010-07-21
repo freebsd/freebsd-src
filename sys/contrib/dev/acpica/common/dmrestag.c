@@ -549,13 +549,6 @@ AcpiDmGetResourceNode (
             return (Node);
         }
 
-        /* List is circular, this flag marks the end */
-
-        if (Node->Flags & ANOBJ_END_OF_PEER_LIST)
-        {
-            return (NULL);
-        }
-
         Node = Node->Peer;
     }
 

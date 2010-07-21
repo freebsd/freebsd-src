@@ -531,7 +531,7 @@ AnGetBtype (
         if (!Node)
         {
             DbgPrint (ASL_DEBUG_OUTPUT,
-                "No attached Nsnode: [%s] at line %d name [%s], ignoring typecheck\n",
+                "No attached Nsnode: [%s] at line %u name [%s], ignoring typecheck\n",
                 Op->Asl.ParseOpName, Op->Asl.LineNumber,
                 Op->Asl.ExternalName);
             return ACPI_UINT32_MAX;

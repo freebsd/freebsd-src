@@ -302,6 +302,15 @@ AcpiExSystemDoSleep (
 
     AcpiExRelinquishInterpreter ();
 
+    /*
+     * For compatibility with other ACPI implementations and to prevent
+     * accidental deep sleeps, limit the sleep time to something reasonable.
+     */
+    if (HowLong > ACPI_MAX_SLEEP)
+    {
+        HowLong = ACPI_MAX_SLEEP;
+    }
+
     AcpiOsSleep (HowLong);
 
     /* And now we must get the interpreter again */

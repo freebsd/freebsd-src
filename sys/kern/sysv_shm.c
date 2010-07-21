@@ -907,9 +907,7 @@ shminit()
 static int
 shmunload()
 {
-#ifdef MAC
 	int i;	
-#endif
 
 	if (shm_nused > 0)
 		return (EBUSY);
@@ -919,10 +917,18 @@ shmunload()
 #endif
 	syscall_helper_unregister(shm_syscalls);
 
+	for (i = 0; i < shmalloced; i++) {
 #ifdef MAC
-	for (i = 0; i < shmalloced; i++)
 		mac_sysvshm_destroy(&shmsegs[i]);
 #endif
+		/*
+		 * Objects might be still mapped into the processes
+		 * address spaces.  Actual free would happen on the
+		 * last mapping destruction.
+		 */
+		if (shmsegs[i].u.shm_perm.mode != SHMSEG_FREE)
+			vm_object_deallocate(shmsegs[i].object);
+	}
 	free(shmsegs, M_SHM);
 	shmexit_hook = NULL;
 	shmfork_hook = NULL;

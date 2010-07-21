@@ -347,7 +347,7 @@ makelabel(const char *type, struct disklabel *lp)
 static void
 readboot(void)
 {
-	int fd, i;
+	int fd;
 	struct stat st;
 	uint64_t *p;
 
@@ -358,8 +358,7 @@ readboot(void)
 		err(1, "cannot open %s", xxboot);
 	fstat(fd, &st);
 	if (alphacksum && st.st_size <= BBSIZE - 512) {
-		i = read(fd, bootarea + 512, st.st_size);
-		if (i != st.st_size)
+		if (read(fd, bootarea + 512, st.st_size) != st.st_size)
 			err(1, "read error %s", xxboot);
 
 		/*
@@ -372,8 +371,7 @@ readboot(void)
 		p[62] = 0;
 		return;
 	} else if ((!alphacksum) && st.st_size <= BBSIZE) {
-		i = read(fd, bootarea, st.st_size);
-		if (i != st.st_size)
+		if (read(fd, bootarea, st.st_size) != st.st_size)
 			err(1, "read error %s", xxboot);
 		return;
 	}
@@ -479,6 +477,7 @@ get_file_parms(int f)
 static int
 readlabel(int flag)
 {
+	ssize_t nbytes;
 	uint32_t lba;
 	int f, i;
 	int error;
@@ -498,8 +497,11 @@ readlabel(int flag)
 		errx(1,
 		    "disks with more than 2^32-1 sectors are not supported");
 	(void)lseek(f, (off_t)0, SEEK_SET);
-	if (read(f, bootarea, BBSIZE) != BBSIZE)
+	nbytes = read(f, bootarea, BBSIZE);
+	if (nbytes == -1)
 		err(4, "%s read", specname);
+	if (nbytes != BBSIZE)
+		errx(4, "couldn't read %d bytes from %s", BBSIZE, specname);
 	close (f);
 	error = bsd_disklabel_le_dec(
 	    bootarea + (labeloffset + labelsoffset * secsize),

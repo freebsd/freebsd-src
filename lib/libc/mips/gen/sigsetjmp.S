@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 	ASMSTR("$NetBSD: sigsetjmp.S,v 1.8 2005/09/17 11:49:39 tsutsui Exp $")
 #endif /* LIBC_SCCS and not lint */
 
+#include "SYS.h"
+
 #ifdef __ABICALLS__
 	.abicalls
 #endif
@@ -57,30 +59,19 @@ __FBSDID("$FreeBSD$");
  */
 
 LEAF(sigsetjmp)
-#ifdef __ABICALLS__
-	.set	noreorder
-	.cpload	t9
-	.set	reorder
-#endif
-	bne	a1, 0x0, 1f			# do saving of signal mask?
-	la	t9, _setjmp
-	jr t9
+	PIC_PROLOGUE(sigsetjmp)
 
-1:	la	t9, setjmp
-	jr t9
+	bne	a1, 0x0, 1f			# do saving of signal mask?
+	PIC_TAILCALL(_setjmp)
+
+1:	PIC_TAILCALL(setjmp)
 END(sigsetjmp)
 
 LEAF(siglongjmp)
-#ifdef __ABICALLS__
-	.set	noreorder
-	.cpload	t9
-	.set	reorder
-#endif
-	lw	t0, (_JB_MAGIC  * SZREG)(a0)
-	li	t1, _JB_MAGIC__SETJMP
+	PIC_PROLOGUE(siglongjmp)
+	REG_L	t0, (_JB_MAGIC  * SZREG)(a0)
+	REG_LI	t1, _JB_MAGIC__SETJMP
 	bne	t0, t1, 1f			# setjmp or _setjmp magic?
-	la	t9, _longjmp
-	jr	t9
-1:	la	t9, longjmp
-	jr	t9
+	PIC_TAILCALL(_longjmp)
+1:	PIC_TAILCALL(longjmp)
 END(siglongjmp)

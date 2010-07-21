@@ -700,7 +700,18 @@ AcpiDsTerminateControlMethod (
          */
         if (!(MethodDesc->Method.Flags & AOPOBJ_MODULE_LEVEL))
         {
-            AcpiNsDeleteNamespaceByOwner (MethodDesc->Method.OwnerId);
+            /* Delete any direct children of (created by) this method */
+
+            AcpiNsDeleteNamespaceSubtree (WalkState->MethodNode);
+
+            /*
+             * Delete any objects that were created by this method
+             * elsewhere in the namespace (if any were created).
+             */
+            if (MethodDesc->Method.Flags & AOPOBJ_MODIFIED_NAMESPACE)
+            {
+                AcpiNsDeleteNamespaceByOwner (MethodDesc->Method.OwnerId);
+            }
         }
     }
 
@@ -725,7 +736,7 @@ AcpiDsTerminateControlMethod (
          * we immediately reuse it for the next thread executing this method
          */
         ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-            "*** Completed execution of one thread, %d threads remaining\n",
+            "*** Completed execution of one thread, %u threads remaining\n",
             MethodDesc->Method.ThreadCount));
     }
     else

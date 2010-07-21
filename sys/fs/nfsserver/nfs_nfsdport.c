@@ -3147,4 +3147,6 @@ DECLARE_MODULE(nfsd, nfsd_mod, SI_SUB_VFS, SI_ORDER_ANY);
 MODULE_VERSION(nfsd, 1);
 MODULE_DEPEND(nfsd, nfscommon, 1, 1, 1);
 MODULE_DEPEND(nfsd, nfslockd, 1, 1, 1);
+MODULE_DEPEND(nfsd, krpc, 1, 1, 1);
+MODULE_DEPEND(nfsd, nfssvc, 1, 1, 1);
 

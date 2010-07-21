@@ -600,7 +600,8 @@ struct uma_type_header {
 	u_int64_t	uth_allocs;	/* Zone: number of allocations. */
 	u_int64_t	uth_frees;	/* Zone: number of frees. */
 	u_int64_t	uth_fails;	/* Zone: number of alloc failures. */
-	u_int64_t	_uth_reserved1[3];	/* Reserved. */
+	u_int64_t	uth_sleeps;	/* Zone: number of alloc sleeps. */
+	u_int64_t	_uth_reserved1[2];	/* Reserved. */
 };
 
 struct uma_percpu_stat {

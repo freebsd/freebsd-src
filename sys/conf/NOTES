@@ -372,12 +372,6 @@ options 	DDB_NUMSYM
 options 	GDB
 
 #
-# Enable the kernel DTrace hooks which are required to load the DTrace
-# kernel modules.
-#
-options 	KDTRACE_HOOKS
-
-#
 # SYSCTL_DEBUG enables a 'sysctl' debug tree that can be used to dump the
 # contents of the registered sysctl nodes on the console.  It is disabled by
 # default because it generates excessively verbose console output that can

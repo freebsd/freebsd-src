@@ -57,6 +57,7 @@
 #define ADDR	5
 #define SUBADDR	6
 #define DATA	7
+#define REV	8
 
 /* MODE */
 #define I2C_SPEED	0x03	/* Speed mask */
@@ -146,6 +147,7 @@ static driver_t kiic_driver = {
 static devclass_t kiic_devclass;
 
 DRIVER_MODULE(kiic, macio, kiic_driver, kiic_devclass, 0, 0);
+DRIVER_MODULE(kiic, unin, kiic_driver, kiic_devclass, 0, 0);
 
 static int
 kiic_probe(device_t self)
@@ -235,6 +237,9 @@ kiic_attach(device_t self)
 	
 	kiic_writereg(sc, IER, I2C_INT_DATA | I2C_INT_ADDR | I2C_INT_STOP);
 
+	if (bootverbose)
+		device_printf(self, "Revision: %02X\n", kiic_readreg(sc, REV));
+
 	/* Add the IIC bus layer */
 	sc->sc_iicbus = device_add_child(self, "iicbus", -1);
 
@@ -244,14 +249,14 @@ kiic_attach(device_t self)
 static void
 kiic_writereg(struct kiic_softc *sc, u_int reg, u_int val)
 {
-	bus_write_1(sc->sc_reg, sc->sc_regstep * reg, val);
+	bus_write_4(sc->sc_reg, sc->sc_regstep * reg, val);
 	DELAY(10); /* register access delay */
 }
 
 static u_int
 kiic_readreg(struct kiic_softc *sc, u_int reg)
 {
-	return bus_read_1(sc->sc_reg, sc->sc_regstep * reg);
+	return bus_read_4(sc->sc_reg, sc->sc_regstep * reg) & 0xff;
 }
 
 static void

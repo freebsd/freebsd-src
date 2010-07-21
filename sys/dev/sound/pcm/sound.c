@@ -68,7 +68,7 @@ SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
  * XXX I've had enough with people not telling proper version/arch
  *     while reporting problems, not after 387397913213th questions/requests.
  */
-static const char snd_driver_version[] =
+static char snd_driver_version[] =
     __XSTRING(SND_DRV_VERSION)"/"MACHINE_ARCH;
 SYSCTL_STRING(_hw_snd, OID_AUTO, version, CTLFLAG_RD, &snd_driver_version,
     0, "driver version/arch");

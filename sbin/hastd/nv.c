@@ -707,8 +707,10 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 		assert(errno != 0);
 		if (nv->nv_error == 0)
 			nv->nv_error = errno;
+		free(nvh);
 		return;
 	}
+	free(nvh);
 	/* Add the actual data. */
 	if (ebuf_add_tail(nv->nv_ebuf, value, vsize) < 0) {
 		assert(errno != 0);

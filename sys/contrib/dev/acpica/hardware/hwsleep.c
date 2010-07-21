@@ -397,7 +397,7 @@ AcpiEnterSleepState (
         return_ACPI_STATUS (Status);
     }
     ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
-        "Entering sleep state [S%d]\n", SleepState));
+        "Entering sleep state [S%u]\n", SleepState));
 
     /* Clear the SLP_EN and SLP_TYP fields */
 

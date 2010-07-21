@@ -23,7 +23,6 @@ KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
 LOADERRAMADDR		opt_global.h
 PHYSADDR		opt_global.h
-PHYSMEM_SIZE		opt_global.h
 SKYEYE_WORKAROUNDS	opt_global.h
 SOC_MV_DISCOVERY	opt_global.h
 SOC_MV_KIRKWOOD		opt_global.h

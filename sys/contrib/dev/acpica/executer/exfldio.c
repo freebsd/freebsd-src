@@ -644,14 +644,14 @@ AcpiExFieldDatumIo (
         if (ReadWrite == ACPI_READ)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-                "Value Read %8.8X%8.8X, Width %d\n",
+                "Value Read %8.8X%8.8X, Width %u\n",
                 ACPI_FORMAT_UINT64 (*Value),
                 ObjDesc->CommonField.AccessByteWidth));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-                "Value Written %8.8X%8.8X, Width %d\n",
+                "Value Written %8.8X%8.8X, Width %u\n",
                 ACPI_FORMAT_UINT64 (*Value),
                 ObjDesc->CommonField.AccessByteWidth));
         }

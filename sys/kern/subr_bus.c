@@ -120,7 +120,7 @@ struct device {
 	char*		desc;		/**< driver specific description */
 	int		busy;		/**< count of calls to device_busy() */
 	device_state_t	state;		/**< current device state  */
-	u_int32_t	devflags;	/**< api level flags for device_get_flags() */
+	uint32_t	devflags;	/**< api level flags for device_get_flags() */
 	u_short		flags;		/**< internal device flags  */
 #define	DF_ENABLED	1		/* device should be probed/attached */
 #define	DF_FIXEDCLASS	2		/* devclass specified at create time */
@@ -2207,7 +2207,7 @@ device_get_desc(device_t dev)
 /**
  * @brief Return the device's flags
  */
-u_int32_t
+uint32_t
 device_get_flags(device_t dev)
 {
 	return (dev->devflags);
@@ -2315,7 +2315,7 @@ device_set_desc_copy(device_t dev, const char* desc)
  * @brief Set the device's flags
  */
 void
-device_set_flags(device_t dev, u_int32_t flags)
+device_set_flags(device_t dev, uint32_t flags)
 {
 	dev->devflags = flags;
 }

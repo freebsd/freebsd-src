@@ -356,14 +356,15 @@ uninorth_route_interrupt(device_t bus, device_t dev, int pin)
 	struct uninorth_softc *sc;
 	struct ofw_pci_register reg;
 	uint32_t pintr, mintr;
+	phandle_t iparent;
 	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bus);
 	pintr = pin;
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
 	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    maskbuf))
-		return (mintr);
+	    &iparent, maskbuf))
+		return (INTR_VEC(iparent, mintr));
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)

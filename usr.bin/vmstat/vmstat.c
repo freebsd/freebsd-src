@@ -1294,16 +1294,17 @@ domemstat_zone(void)
 				    memstat_strerror(error));
 		}
 	}
-	printf("%-20s %8s  %8s  %8s  %8s  %8s  %8s\n\n", "ITEM", "SIZE",
-	    "LIMIT", "USED", "FREE", "REQUESTS", "FAILURES");
+	printf("%-20s %6s %6s %8s %8s %8s %4s %4s\n\n", "ITEM", "SIZE",
+	    "LIMIT", "USED", "FREE", "REQ", "FAIL", "SLEEP");
 	for (mtp = memstat_mtl_first(mtlp); mtp != NULL;
 	    mtp = memstat_mtl_next(mtp)) {
 		strlcpy(name, memstat_get_name(mtp), MEMTYPE_MAXNAME);
 		strcat(name, ":");
-		printf("%-20s %8llu, %8llu, %8llu, %8llu, %8llu, %8llu\n", name,
+		printf("%-20s %6llu, %6llu,%8llu,%8llu,%8llu,%4llu,%4llu\n",name,
 		    memstat_get_size(mtp), memstat_get_countlimit(mtp),
 		    memstat_get_count(mtp), memstat_get_free(mtp),
-		    memstat_get_numallocs(mtp), memstat_get_failures(mtp));
+		    memstat_get_numallocs(mtp), memstat_get_failures(mtp),
+		    memstat_get_sleeps(mtp));
 	}
 	memstat_mtl_free(mtlp);
 	printf("\n");

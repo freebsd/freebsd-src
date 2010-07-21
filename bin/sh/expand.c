@@ -818,7 +818,7 @@ varisset(char *name, int nulok)
 {
 
 	if (*name == '!')
-		return backgndpid != -1;
+		return backgndpidset();
 	else if (*name == '@' || *name == '*') {
 		if (*shellparam.p == NULL)
 			return 0;
@@ -891,7 +891,7 @@ varvalue(char *name, int quoted, int subtype, int flag)
 		num = shellparam.nparam;
 		goto numvar;
 	case '!':
-		num = backgndpid;
+		num = backgndpidval();
 numvar:
 		expdest = cvtnum(num, expdest);
 		break;

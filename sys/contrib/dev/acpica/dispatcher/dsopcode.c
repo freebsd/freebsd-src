@@ -307,7 +307,7 @@ AcpiDsGetBufferFieldArguments (
 
     /* Execute the AML code for the TermArg arguments */
 
-    Status = AcpiDsExecuteArguments (Node, AcpiNsGetParentNode (Node),
+    Status = AcpiDsExecuteArguments (Node, Node->Parent,
                 ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
     return_ACPI_STATUS (Status);
 }
@@ -354,7 +354,7 @@ AcpiDsGetBankFieldArguments (
 
     /* Execute the AML code for the TermArg arguments */
 
-    Status = AcpiDsExecuteArguments (Node, AcpiNsGetParentNode (Node),
+    Status = AcpiDsExecuteArguments (Node, Node->Parent,
                 ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
     return_ACPI_STATUS (Status);
 }
@@ -505,7 +505,7 @@ AcpiDsGetRegionArguments (
 
     /* Execute the argument AML */
 
-    Status = AcpiDsExecuteArguments (Node, AcpiNsGetParentNode (Node),
+    Status = AcpiDsExecuteArguments (Node, Node->Parent,
                 ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
     return_ACPI_STATUS (Status);
 }

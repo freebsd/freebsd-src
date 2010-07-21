@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2007
+.Dd June 28, 2010
 .Dt MINISTAT 1
 .Os
 .Sh NAME
@@ -93,7 +93,7 @@ all statistical purposes identical.
 You have the option of lowering your standards by specifying a
 lower confidence level:
 .Bd -literal -offset indent
-  $ ministat -c 80 iguana chameleon
+  $ ministat -s -w 60 -c 80 iguana chameleon
   x iguana
   + chameleon
   +------------------------------------------------------------+

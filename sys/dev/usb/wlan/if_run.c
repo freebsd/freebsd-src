@@ -97,199 +97,201 @@ SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
 #define RUN_CMDQ_GET(c)	(atomic_fetchadd_32((c), 1) & RUN_CMDQ_MASQ)
 
 static const struct usb_device_id run_devs[] = {
-    { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_RT2770) },
-    { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_RT2870) },
-    { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_RT3070) },
-    { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_RT3071) },
-    { USB_VP(USB_VENDOR_ABOCOM,		USB_PRODUCT_ABOCOM_RT3072) },
-    { USB_VP(USB_VENDOR_ABOCOM2,	USB_PRODUCT_ABOCOM2_RT2870_1) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT2770) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT2870_1) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT2870_2) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT2870_3) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT2870_4) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT2870_5) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT3070) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT3070_1) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT3070_2) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT3070_3) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT3070_4) },
-    { USB_VP(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_RT3070_5) },
-    { USB_VP(USB_VENDOR_AIRTIES,	USB_PRODUCT_AIRTIES_RT3070) },
-    { USB_VP(USB_VENDOR_ALLWIN,		USB_PRODUCT_ALLWIN_RT2070) },
-    { USB_VP(USB_VENDOR_ALLWIN,		USB_PRODUCT_ALLWIN_RT2770) },
-    { USB_VP(USB_VENDOR_ALLWIN,		USB_PRODUCT_ALLWIN_RT2870) },
-    { USB_VP(USB_VENDOR_ALLWIN,		USB_PRODUCT_ALLWIN_RT3070) },
-    { USB_VP(USB_VENDOR_ALLWIN,		USB_PRODUCT_ALLWIN_RT3071) },
-    { USB_VP(USB_VENDOR_ALLWIN,		USB_PRODUCT_ALLWIN_RT3072) },
-    { USB_VP(USB_VENDOR_ALLWIN,		USB_PRODUCT_ALLWIN_RT3572) },
-    { USB_VP(USB_VENDOR_AMIGO,		USB_PRODUCT_AMIGO_RT2870_1) },
-    { USB_VP(USB_VENDOR_AMIGO,		USB_PRODUCT_AMIGO_RT2870_2) },
-    { USB_VP(USB_VENDOR_AMIT,		USB_PRODUCT_AMIT_CGWLUSB2GNR) },
-    { USB_VP(USB_VENDOR_AMIT,		USB_PRODUCT_AMIT_RT2870_1) },
-    { USB_VP(USB_VENDOR_AMIT2,		USB_PRODUCT_AMIT2_RT2870) },
-    { USB_VP(USB_VENDOR_ASUS,		USB_PRODUCT_ASUS_RT2870_1) },
-    { USB_VP(USB_VENDOR_ASUS,		USB_PRODUCT_ASUS_RT2870_2) },
-    { USB_VP(USB_VENDOR_ASUS,		USB_PRODUCT_ASUS_RT2870_3) },
-    { USB_VP(USB_VENDOR_ASUS,		USB_PRODUCT_ASUS_RT2870_4) },
-    { USB_VP(USB_VENDOR_ASUS,		USB_PRODUCT_ASUS_RT2870_5) },
-    { USB_VP(USB_VENDOR_ASUS,		USB_PRODUCT_ASUS_USBN13) },
-    { USB_VP(USB_VENDOR_ASUS,		USB_PRODUCT_ASUS_RT3070_1) },
-    { USB_VP(USB_VENDOR_ASUS2,		USB_PRODUCT_ASUS2_USBN11) },
-    { USB_VP(USB_VENDOR_AZUREWAVE,	USB_PRODUCT_AZUREWAVE_RT2870_1) },
-    { USB_VP(USB_VENDOR_AZUREWAVE,	USB_PRODUCT_AZUREWAVE_RT2870_2) },
-    { USB_VP(USB_VENDOR_AZUREWAVE,	USB_PRODUCT_AZUREWAVE_RT3070_1) },
-    { USB_VP(USB_VENDOR_AZUREWAVE,	USB_PRODUCT_AZUREWAVE_RT3070_2) },
-    { USB_VP(USB_VENDOR_AZUREWAVE,	USB_PRODUCT_AZUREWAVE_RT3070_3) },
-    { USB_VP(USB_VENDOR_BELKIN,		USB_PRODUCT_BELKIN_F5D8053V3) },
-    { USB_VP(USB_VENDOR_BELKIN,		USB_PRODUCT_BELKIN_F5D8055) },
-    { USB_VP(USB_VENDOR_BELKIN,		USB_PRODUCT_BELKIN_F6D4050V1) },
-    { USB_VP(USB_VENDOR_BELKIN,		USB_PRODUCT_BELKIN_RT2870_1) },
-    { USB_VP(USB_VENDOR_BELKIN,		USB_PRODUCT_BELKIN_RT2870_2) },
-    { USB_VP(USB_VENDOR_CISCOLINKSYS2,	USB_PRODUCT_CISCOLINKSYS2_RT3070) },
-    { USB_VP(USB_VENDOR_CISCOLINKSYS3,	USB_PRODUCT_CISCOLINKSYS2_RT3070) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT2870_1) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT2870_2) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT2870_3) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT2870_4) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT2870_5) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT2870_6) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT2870_7) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT2870_8) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT3070_1) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_RT3070_2) },
-    { USB_VP(USB_VENDOR_CONCEPTRONIC2,	USB_PRODUCT_CONCEPTRONIC2_VIGORN61) },
-    { USB_VP(USB_VENDOR_COREGA,		USB_PRODUCT_COREGA_CGWLUSB300GNM) },
-    { USB_VP(USB_VENDOR_COREGA,		USB_PRODUCT_COREGA_RT2870_1) },
-    { USB_VP(USB_VENDOR_COREGA,		USB_PRODUCT_COREGA_RT2870_2) },
-    { USB_VP(USB_VENDOR_COREGA,		USB_PRODUCT_COREGA_RT2870_3) },
-    { USB_VP(USB_VENDOR_COREGA,		USB_PRODUCT_COREGA_RT3070) },
-    { USB_VP(USB_VENDOR_CYBERTAN,	USB_PRODUCT_CYBERTAN_RT2870) },
-    { USB_VP(USB_VENDOR_DLINK,		USB_PRODUCT_DLINK_RT2870) },
-    { USB_VP(USB_VENDOR_DLINK,		USB_PRODUCT_DLINK_RT3072) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_DWA130) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_RT2870_1) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_RT2870_2) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_RT3070_1) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_RT3070_2) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_RT3070_3) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_RT3070_4) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_RT3070_5) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_RT3072) },
-    { USB_VP(USB_VENDOR_DLINK2,		USB_PRODUCT_DLINK2_RT3072_1) },
-    { USB_VP(USB_VENDOR_EDIMAX,		USB_PRODUCT_EDIMAX_EW7717) },
-    { USB_VP(USB_VENDOR_EDIMAX,		USB_PRODUCT_EDIMAX_EW7718) },
-    { USB_VP(USB_VENDOR_EDIMAX,		USB_PRODUCT_EDIMAX_RT2870_1) },
-    { USB_VP(USB_VENDOR_ENCORE,		USB_PRODUCT_ENCORE_RT3070_1) },
-    { USB_VP(USB_VENDOR_ENCORE,		USB_PRODUCT_ENCORE_RT3070_2) },
-    { USB_VP(USB_VENDOR_ENCORE,		USB_PRODUCT_ENCORE_RT3070_3) },
-    { USB_VP(USB_VENDOR_GIGABYTE,	USB_PRODUCT_GIGABYTE_GNWB31N) },
-    { USB_VP(USB_VENDOR_GIGABYTE,	USB_PRODUCT_GIGABYTE_GNWB32L) },
-    { USB_VP(USB_VENDOR_GIGABYTE,	USB_PRODUCT_GIGABYTE_RT2870_1) },
-    { USB_VP(USB_VENDOR_GIGASET,	USB_PRODUCT_GIGASET_RT3070_1) },
-    { USB_VP(USB_VENDOR_GIGASET,	USB_PRODUCT_GIGASET_RT3070_2) },
-    { USB_VP(USB_VENDOR_GUILLEMOT,	USB_PRODUCT_GUILLEMOT_HWNU300) },
-    { USB_VP(USB_VENDOR_HAWKING,	USB_PRODUCT_HAWKING_HWUN2) },
-    { USB_VP(USB_VENDOR_HAWKING,	USB_PRODUCT_HAWKING_RT2870_1) },
-    { USB_VP(USB_VENDOR_HAWKING,	USB_PRODUCT_HAWKING_RT2870_2) },
-    { USB_VP(USB_VENDOR_HAWKING,	USB_PRODUCT_HAWKING_RT3070) },
-    { USB_VP(USB_VENDOR_IODATA,		USB_PRODUCT_IODATA_RT3072_1) },
-    { USB_VP(USB_VENDOR_IODATA,		USB_PRODUCT_IODATA_RT3072_2) },
-    { USB_VP(USB_VENDOR_IODATA,		USB_PRODUCT_IODATA_RT3072_3) },
-    { USB_VP(USB_VENDOR_IODATA,		USB_PRODUCT_IODATA_RT3072_4) },
-    { USB_VP(USB_VENDOR_LINKSYS4,	USB_PRODUCT_LINKSYS4_RT3070) },
-    { USB_VP(USB_VENDOR_LINKSYS4,	USB_PRODUCT_LINKSYS4_WUSB100) },
-    { USB_VP(USB_VENDOR_LINKSYS4,	USB_PRODUCT_LINKSYS4_WUSB54GCV3) },
-    { USB_VP(USB_VENDOR_LINKSYS4,	USB_PRODUCT_LINKSYS4_WUSB600N) },
-    { USB_VP(USB_VENDOR_LINKSYS4,	USB_PRODUCT_LINKSYS4_WUSB600NV2) },
-    { USB_VP(USB_VENDOR_LOGITEC,	USB_PRODUCT_LOGITEC_RT2870_1) },
-    { USB_VP(USB_VENDOR_LOGITEC,	USB_PRODUCT_LOGITEC_RT2870_2) },
-    { USB_VP(USB_VENDOR_LOGITEC,	USB_PRODUCT_LOGITEC_RT2870_3) },
-    { USB_VP(USB_VENDOR_MELCO,		USB_PRODUCT_MELCO_RT2870_1) },
-    { USB_VP(USB_VENDOR_MELCO,		USB_PRODUCT_MELCO_RT2870_2) },
-    { USB_VP(USB_VENDOR_MELCO,		USB_PRODUCT_MELCO_WLIUCAG300N) },
-    { USB_VP(USB_VENDOR_MELCO,		USB_PRODUCT_MELCO_WLIUCG300N) },
-    { USB_VP(USB_VENDOR_MELCO,		USB_PRODUCT_MELCO_WLIUCGN) },
-    { USB_VP(USB_VENDOR_MOTOROLA4,	USB_PRODUCT_MOTOROLA4_RT2770) },
-    { USB_VP(USB_VENDOR_MOTOROLA4,	USB_PRODUCT_MOTOROLA4_RT3070) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_1) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_2) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_3) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_4) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_5) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_6) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_7) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_8) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_9) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_10) },
-    { USB_VP(USB_VENDOR_MSI,		USB_PRODUCT_MSI_RT3070_11) },
-    { USB_VP(USB_VENDOR_OVISLINK,	USB_PRODUCT_OVISLINK_RT3072) },
-    { USB_VP(USB_VENDOR_PARA,		USB_PRODUCT_PARA_RT3070) },
-    { USB_VP(USB_VENDOR_PEGATRON,	USB_PRODUCT_PEGATRON_RT2870) },
-    { USB_VP(USB_VENDOR_PEGATRON,	USB_PRODUCT_PEGATRON_RT3070) },
-    { USB_VP(USB_VENDOR_PEGATRON,	USB_PRODUCT_PEGATRON_RT3070_2) },
-    { USB_VP(USB_VENDOR_PEGATRON,	USB_PRODUCT_PEGATRON_RT3070_3) },
-    { USB_VP(USB_VENDOR_PHILIPS,	USB_PRODUCT_PHILIPS_RT2870) },
-    { USB_VP(USB_VENDOR_PLANEX2,	USB_PRODUCT_PLANEX2_GWUS300MINIS) },
-    { USB_VP(USB_VENDOR_PLANEX2,	USB_PRODUCT_PLANEX2_GWUSMICRON) },
-    { USB_VP(USB_VENDOR_PLANEX2,	USB_PRODUCT_PLANEX2_RT2870) },
-    { USB_VP(USB_VENDOR_PLANEX2,	USB_PRODUCT_PLANEX2_RT3070) },
-    { USB_VP(USB_VENDOR_QCOM,		USB_PRODUCT_QCOM_RT2870) },
-    { USB_VP(USB_VENDOR_QUANTA,		USB_PRODUCT_QUANTA_RT3070) },
-    { USB_VP(USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT2070) },
-    { USB_VP(USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT2770) },
-    { USB_VP(USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT2870) },
-    { USB_VP(USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT3070) },
-    { USB_VP(USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT3071) },
-    { USB_VP(USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT3072) },
-    { USB_VP(USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT3370) },
-    { USB_VP(USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT3572) },
-    { USB_VP(USB_VENDOR_RALINK,		USB_PRODUCT_RALINK_RT8070) },
-    { USB_VP(USB_VENDOR_SAMSUNG2,	USB_PRODUCT_SAMSUNG2_RT2870_1) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT2870_1) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT2870_2) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT2870_3) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT2870_4) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT3070) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT3071) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT3072_1) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT3072_2) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT3072_3) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT3072_4) },
-    { USB_VP(USB_VENDOR_SENAO,		USB_PRODUCT_SENAO_RT3072_5) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT2770) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT2870_1) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT2870_2) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT2870_3) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT2870_4) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3070) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3070_2) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3070_3) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3070_4) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3071) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3072_1) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3072_2) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3072_3) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3072_4) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3072_5) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_RT3072_6) },
-    { USB_VP(USB_VENDOR_SITECOMEU,	USB_PRODUCT_SITECOMEU_WL608) },
-    { USB_VP(USB_VENDOR_SPARKLAN,	USB_PRODUCT_SPARKLAN_RT2870_1) },
-    { USB_VP(USB_VENDOR_SPARKLAN,	USB_PRODUCT_SPARKLAN_RT3070) },
-    { USB_VP(USB_VENDOR_SWEEX2,		USB_PRODUCT_SWEEX2_LW153) },
-    { USB_VP(USB_VENDOR_SWEEX2,		USB_PRODUCT_SWEEX2_LW303) },
-    { USB_VP(USB_VENDOR_SWEEX2,		USB_PRODUCT_SWEEX2_LW313) },
-    { USB_VP(USB_VENDOR_TOSHIBA,	USB_PRODUCT_TOSHIBA_RT3070) },
-    { USB_VP(USB_VENDOR_UMEDIA,		USB_PRODUCT_UMEDIA_RT2870_1) },
-    { USB_VP(USB_VENDOR_ZCOM,		USB_PRODUCT_ZCOM_RT2870_1) },
-    { USB_VP(USB_VENDOR_ZCOM,		USB_PRODUCT_ZCOM_RT2870_2) },
-    { USB_VP(USB_VENDOR_ZINWELL,	USB_PRODUCT_ZINWELL_RT2870_1) },
-    { USB_VP(USB_VENDOR_ZINWELL,	USB_PRODUCT_ZINWELL_RT2870_2) },
-    { USB_VP(USB_VENDOR_ZINWELL,	USB_PRODUCT_ZINWELL_RT3070) },
-    { USB_VP(USB_VENDOR_ZINWELL,	USB_PRODUCT_ZINWELL_RT3072_1) },
-    { USB_VP(USB_VENDOR_ZINWELL,	USB_PRODUCT_ZINWELL_RT3072_2) },
-    { USB_VP(USB_VENDOR_ZYXEL,		USB_PRODUCT_ZYXEL_RT2870_1) },
-    { USB_VP(USB_VENDOR_ZYXEL,		USB_PRODUCT_ZYXEL_RT2870_2) },
+#define RUN_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
+    RUN_DEV(ABOCOM,		RT2770),
+    RUN_DEV(ABOCOM,		RT2870),
+    RUN_DEV(ABOCOM,		RT3070),
+    RUN_DEV(ABOCOM,		RT3071),
+    RUN_DEV(ABOCOM,		RT3072),
+    RUN_DEV(ABOCOM2,		RT2870_1),
+    RUN_DEV(ACCTON,		RT2770),
+    RUN_DEV(ACCTON,		RT2870_1),
+    RUN_DEV(ACCTON,		RT2870_2),
+    RUN_DEV(ACCTON,		RT2870_3),
+    RUN_DEV(ACCTON,		RT2870_4),
+    RUN_DEV(ACCTON,		RT2870_5),
+    RUN_DEV(ACCTON,		RT3070),
+    RUN_DEV(ACCTON,		RT3070_1),
+    RUN_DEV(ACCTON,		RT3070_2),
+    RUN_DEV(ACCTON,		RT3070_3),
+    RUN_DEV(ACCTON,		RT3070_4),
+    RUN_DEV(ACCTON,		RT3070_5),
+    RUN_DEV(AIRTIES,		RT3070),
+    RUN_DEV(ALLWIN,		RT2070),
+    RUN_DEV(ALLWIN,		RT2770),
+    RUN_DEV(ALLWIN,		RT2870),
+    RUN_DEV(ALLWIN,		RT3070),
+    RUN_DEV(ALLWIN,		RT3071),
+    RUN_DEV(ALLWIN,		RT3072),
+    RUN_DEV(ALLWIN,		RT3572),
+    RUN_DEV(AMIGO,		RT2870_1),
+    RUN_DEV(AMIGO,		RT2870_2),
+    RUN_DEV(AMIT,		CGWLUSB2GNR),
+    RUN_DEV(AMIT,		RT2870_1),
+    RUN_DEV(AMIT2,		RT2870),
+    RUN_DEV(ASUS,		RT2870_1),
+    RUN_DEV(ASUS,		RT2870_2),
+    RUN_DEV(ASUS,		RT2870_3),
+    RUN_DEV(ASUS,		RT2870_4),
+    RUN_DEV(ASUS,		RT2870_5),
+    RUN_DEV(ASUS,		USBN13),
+    RUN_DEV(ASUS,		RT3070_1),
+    RUN_DEV(ASUS2,		USBN11),
+    RUN_DEV(AZUREWAVE,		RT2870_1),
+    RUN_DEV(AZUREWAVE,		RT2870_2),
+    RUN_DEV(AZUREWAVE,		RT3070_1),
+    RUN_DEV(AZUREWAVE,		RT3070_2),
+    RUN_DEV(AZUREWAVE,		RT3070_3),
+    RUN_DEV(BELKIN,		F5D8053V3),
+    RUN_DEV(BELKIN,		F5D8055),
+    RUN_DEV(BELKIN,		F6D4050V1),
+    RUN_DEV(BELKIN,		RT2870_1),
+    RUN_DEV(BELKIN,		RT2870_2),
+    RUN_DEV(CISCOLINKSYS2,	RT3070),
+    RUN_DEV(CISCOLINKSYS3,	RT3070),
+    RUN_DEV(CONCEPTRONIC2,	RT2870_1),
+    RUN_DEV(CONCEPTRONIC2,	RT2870_2),
+    RUN_DEV(CONCEPTRONIC2,	RT2870_3),
+    RUN_DEV(CONCEPTRONIC2,	RT2870_4),
+    RUN_DEV(CONCEPTRONIC2,	RT2870_5),
+    RUN_DEV(CONCEPTRONIC2,	RT2870_6),
+    RUN_DEV(CONCEPTRONIC2,	RT2870_7),
+    RUN_DEV(CONCEPTRONIC2,	RT2870_8),
+    RUN_DEV(CONCEPTRONIC2,	RT3070_1),
+    RUN_DEV(CONCEPTRONIC2,	RT3070_2),
+    RUN_DEV(CONCEPTRONIC2,	VIGORN61),
+    RUN_DEV(COREGA,		CGWLUSB300GNM),
+    RUN_DEV(COREGA,		RT2870_1),
+    RUN_DEV(COREGA,		RT2870_2),
+    RUN_DEV(COREGA,		RT2870_3),
+    RUN_DEV(COREGA,		RT3070),
+    RUN_DEV(CYBERTAN,		RT2870),
+    RUN_DEV(DLINK,		RT2870),
+    RUN_DEV(DLINK,		RT3072),
+    RUN_DEV(DLINK2,		DWA130),
+    RUN_DEV(DLINK2,		RT2870_1),
+    RUN_DEV(DLINK2,		RT2870_2),
+    RUN_DEV(DLINK2,		RT3070_1),
+    RUN_DEV(DLINK2,		RT3070_2),
+    RUN_DEV(DLINK2,		RT3070_3),
+    RUN_DEV(DLINK2,		RT3070_4),
+    RUN_DEV(DLINK2,		RT3070_5),
+    RUN_DEV(DLINK2,		RT3072),
+    RUN_DEV(DLINK2,		RT3072_1),
+    RUN_DEV(EDIMAX,		EW7717),
+    RUN_DEV(EDIMAX,		EW7718),
+    RUN_DEV(EDIMAX,		RT2870_1),
+    RUN_DEV(ENCORE,		RT3070_1),
+    RUN_DEV(ENCORE,		RT3070_2),
+    RUN_DEV(ENCORE,		RT3070_3),
+    RUN_DEV(GIGABYTE,		GNWB31N),
+    RUN_DEV(GIGABYTE,		GNWB32L),
+    RUN_DEV(GIGABYTE,		RT2870_1),
+    RUN_DEV(GIGASET,		RT3070_1),
+    RUN_DEV(GIGASET,		RT3070_2),
+    RUN_DEV(GUILLEMOT,		HWNU300),
+    RUN_DEV(HAWKING,		HWUN2),
+    RUN_DEV(HAWKING,		RT2870_1),
+    RUN_DEV(HAWKING,		RT2870_2),
+    RUN_DEV(HAWKING,		RT3070),
+    RUN_DEV(IODATA,		RT3072_1),
+    RUN_DEV(IODATA,		RT3072_2),
+    RUN_DEV(IODATA,		RT3072_3),
+    RUN_DEV(IODATA,		RT3072_4),
+    RUN_DEV(LINKSYS4,		RT3070),
+    RUN_DEV(LINKSYS4,		WUSB100),
+    RUN_DEV(LINKSYS4,		WUSB54GCV3),
+    RUN_DEV(LINKSYS4,		WUSB600N),
+    RUN_DEV(LINKSYS4,		WUSB600NV2),
+    RUN_DEV(LOGITEC,		RT2870_1),
+    RUN_DEV(LOGITEC,		RT2870_2),
+    RUN_DEV(LOGITEC,		RT2870_3),
+    RUN_DEV(MELCO,		RT2870_1),
+    RUN_DEV(MELCO,		RT2870_2),
+    RUN_DEV(MELCO,		WLIUCAG300N),
+    RUN_DEV(MELCO,		WLIUCG300N),
+    RUN_DEV(MELCO,		WLIUCGN),
+    RUN_DEV(MOTOROLA4,		RT2770),
+    RUN_DEV(MOTOROLA4,		RT3070),
+    RUN_DEV(MSI,		RT3070_1),
+    RUN_DEV(MSI,		RT3070_2),
+    RUN_DEV(MSI,		RT3070_3),
+    RUN_DEV(MSI,		RT3070_4),
+    RUN_DEV(MSI,		RT3070_5),
+    RUN_DEV(MSI,		RT3070_6),
+    RUN_DEV(MSI,		RT3070_7),
+    RUN_DEV(MSI,		RT3070_8),
+    RUN_DEV(MSI,		RT3070_9),
+    RUN_DEV(MSI,		RT3070_10),
+    RUN_DEV(MSI,		RT3070_11),
+    RUN_DEV(OVISLINK,		RT3072),
+    RUN_DEV(PARA,		RT3070),
+    RUN_DEV(PEGATRON,		RT2870),
+    RUN_DEV(PEGATRON,		RT3070),
+    RUN_DEV(PEGATRON,		RT3070_2),
+    RUN_DEV(PEGATRON,		RT3070_3),
+    RUN_DEV(PHILIPS,		RT2870),
+    RUN_DEV(PLANEX2,		GWUS300MINIS),
+    RUN_DEV(PLANEX2,		GWUSMICRON),
+    RUN_DEV(PLANEX2,		RT2870),
+    RUN_DEV(PLANEX2,		RT3070),
+    RUN_DEV(QCOM,		RT2870),
+    RUN_DEV(QUANTA,		RT3070),
+    RUN_DEV(RALINK,		RT2070),
+    RUN_DEV(RALINK,		RT2770),
+    RUN_DEV(RALINK,		RT2870),
+    RUN_DEV(RALINK,		RT3070),
+    RUN_DEV(RALINK,		RT3071),
+    RUN_DEV(RALINK,		RT3072),
+    RUN_DEV(RALINK,		RT3370),
+    RUN_DEV(RALINK,		RT3572),
+    RUN_DEV(RALINK,		RT8070),
+    RUN_DEV(SAMSUNG2,		RT2870_1),
+    RUN_DEV(SENAO,		RT2870_1),
+    RUN_DEV(SENAO,		RT2870_2),
+    RUN_DEV(SENAO,		RT2870_3),
+    RUN_DEV(SENAO,		RT2870_4),
+    RUN_DEV(SENAO,		RT3070),
+    RUN_DEV(SENAO,		RT3071),
+    RUN_DEV(SENAO,		RT3072_1),
+    RUN_DEV(SENAO,		RT3072_2),
+    RUN_DEV(SENAO,		RT3072_3),
+    RUN_DEV(SENAO,		RT3072_4),
+    RUN_DEV(SENAO,		RT3072_5),
+    RUN_DEV(SITECOMEU,		RT2770),
+    RUN_DEV(SITECOMEU,		RT2870_1),
+    RUN_DEV(SITECOMEU,		RT2870_2),
+    RUN_DEV(SITECOMEU,		RT2870_3),
+    RUN_DEV(SITECOMEU,		RT2870_4),
+    RUN_DEV(SITECOMEU,		RT3070),
+    RUN_DEV(SITECOMEU,		RT3070_2),
+    RUN_DEV(SITECOMEU,		RT3070_3),
+    RUN_DEV(SITECOMEU,		RT3070_4),
+    RUN_DEV(SITECOMEU,		RT3071),
+    RUN_DEV(SITECOMEU,		RT3072_1),
+    RUN_DEV(SITECOMEU,		RT3072_2),
+    RUN_DEV(SITECOMEU,		RT3072_3),
+    RUN_DEV(SITECOMEU,		RT3072_4),
+    RUN_DEV(SITECOMEU,		RT3072_5),
+    RUN_DEV(SITECOMEU,		RT3072_6),
+    RUN_DEV(SITECOMEU,		WL608),
+    RUN_DEV(SPARKLAN,		RT2870_1),
+    RUN_DEV(SPARKLAN,		RT3070),
+    RUN_DEV(SWEEX2,		LW153),
+    RUN_DEV(SWEEX2,		LW303),
+    RUN_DEV(SWEEX2,		LW313),
+    RUN_DEV(TOSHIBA,		RT3070),
+    RUN_DEV(UMEDIA,		RT2870_1),
+    RUN_DEV(ZCOM,		RT2870_1),
+    RUN_DEV(ZCOM,		RT2870_2),
+    RUN_DEV(ZINWELL,		RT2870_1),
+    RUN_DEV(ZINWELL,		RT2870_2),
+    RUN_DEV(ZINWELL,		RT3070),
+    RUN_DEV(ZINWELL,		RT3072_1),
+    RUN_DEV(ZINWELL,		RT3072_2),
+    RUN_DEV(ZYXEL,		RT2870_1),
+    RUN_DEV(ZYXEL,		RT2870_2),
+#undef RUN_DEV
 };
 
 MODULE_DEPEND(run, wlan, 1, 1, 1);
@@ -569,7 +571,7 @@ run_attach(device_t self)
 
 	/* wait for the chip to settle */
 	for (ntries = 0; ntries < 100; ntries++) {
-		if (run_read(sc, RT2860_ASIC_VER_ID, &ver) != 0){
+		if (run_read(sc, RT2860_ASIC_VER_ID, &ver) != 0) {
 			RUN_UNLOCK(sc);
 			goto detach;
 		}
@@ -698,11 +700,11 @@ run_attach(device_t self)
 	if (bootverbose)
 		ieee80211_announce(ic);
 
-	return 0;
+	return (0);
 
 detach:
 	run_detach(self);
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -753,9 +755,9 @@ run_vap_create(struct ieee80211com *ic,
 	struct ieee80211vap *vap;
 	int i;
 
-	if(sc->rvp_cnt >= RUN_VAP_MAX){
+	if (sc->rvp_cnt >= RUN_VAP_MAX) {
 		if_printf(ifp, "number of VAPs maxed out\n");
-		return NULL;
+		return (NULL);
 	}
 
 	switch (opmode) {
@@ -769,7 +771,7 @@ run_vap_create(struct ieee80211com *ic,
 	case IEEE80211_M_MBSS:
 		/* other than WDS vaps, only one at a time */
 		if (!TAILQ_EMPTY(&ic->ic_vaps))
-			return NULL;
+			return (NULL);
 		break;
 	case IEEE80211_M_WDS:
 		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next){
@@ -779,20 +781,20 @@ run_vap_create(struct ieee80211com *ic,
 			flags &= ~IEEE80211_CLONE_BSSID;
 			break;
 		}
-		if(vap == NULL){
+		if (vap == NULL) {
 			if_printf(ifp, "wds only supported in ap mode\n");
-			return NULL;
+			return (NULL);
 		}
 		break;
 	default:
 		if_printf(ifp, "unknown opmode %d\n", opmode);
-		return NULL;
+		return (NULL);
 	}
 
 	rvp = (struct run_vap *) malloc(sizeof(struct run_vap),
 	    M_80211_VAP, M_NOWAIT | M_ZERO);
 	if (rvp == NULL)
-		return NULL;
+		return (NULL);
 	vap = &rvp->vap;
 	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
 
@@ -820,23 +822,23 @@ run_vap_create(struct ieee80211com *ic,
 	ieee80211_vap_attach(vap, run_media_change, ieee80211_media_status);
 
 	/* make sure id is always unique */
-	for(i = 0; i < RUN_VAP_MAX; i++){
+	for (i = 0; i < RUN_VAP_MAX; i++) {
 		if((sc->rvp_bmap & 1 << i) == 0){
 			sc->rvp_bmap |= 1 << i;
 			rvp->rvp_id = i;
 			break;
 		}
 	}
-	if(sc->rvp_cnt++ == 0)
+	if (sc->rvp_cnt++ == 0)
 		ic->ic_opmode = opmode;
 
-	if(opmode == IEEE80211_M_HOSTAP)
+	if (opmode == IEEE80211_M_HOSTAP)
 		sc->cmdq_run = RUN_CMDQ_GO;
 
 	DPRINTF("rvp_id=%d bmap=%x rvp_cnt=%d\n",
 	    rvp->rvp_id, sc->rvp_bmap, sc->rvp_cnt);
 
-	return vap;
+	return (vap);
 }
 
 static void
@@ -848,7 +850,7 @@ run_vap_delete(struct ieee80211vap *vap)
 	struct run_softc *sc;
 	uint8_t rvp_id;
 
-	if(vap == NULL)
+	if (vap == NULL)
 		return;
 
 	ic = vap->iv_ic;
@@ -891,15 +893,15 @@ run_cmdq_cb(void *arg, int pending)
 
 	/* call cmdq[].func locked */
 	RUN_LOCK(sc);
-	for(i = sc->cmdq_exec; sc->cmdq[i].func && pending;
-	    i = sc->cmdq_exec, pending--){
+	for (i = sc->cmdq_exec; sc->cmdq[i].func && pending;
+	    i = sc->cmdq_exec, pending--) {
 		DPRINTFN(6, "cmdq_exec=%d pending=%d\n", i, pending);
-		if(sc->cmdq_run == RUN_CMDQ_GO){
+		if (sc->cmdq_run == RUN_CMDQ_GO) {
 			/*
 			 * If arg0 is NULL, callback func needs more
 			 * than one arg. So, pass ptr to cmdq struct.
 			 */
-			if(sc->cmdq[i].arg0)
+			if (sc->cmdq[i].arg0)
 				sc->cmdq[i].func(sc->cmdq[i].arg0);
 			else
 				sc->cmdq[i].func(&sc->cmdq[i]);
@@ -942,7 +944,7 @@ run_unsetup_tx_list(struct run_softc *sc, struct run_endpoint_queue *pq)
 
 	/* free up all node references and mbufs */
 	for (data = &pq->tx_data[0];
-	    data < &pq->tx_data[RUN_TX_RING_COUNT]; data++){
+	    data < &pq->tx_data[RUN_TX_RING_COUNT]; data++) {
 		if (data->m != NULL) {
 			m_freem(data->m);
 			data->m = NULL;
@@ -968,7 +970,7 @@ run_load_microcode(struct run_softc *sc)
 	RUN_UNLOCK(sc);
 	fw = firmware_get("runfw");
 	RUN_LOCK(sc);
-	if(fw == NULL){
+	if (fw == NULL) {
 		device_printf(sc->sc_dev,
 		    "failed loadfirmware of file %s\n", "runfw");
 		return ENOENT;
@@ -990,14 +992,14 @@ run_load_microcode(struct run_softc *sc)
 	base = fw->data;
 	if ((sc->mac_ver) != 0x2860 &&
 	    (sc->mac_ver) != 0x2872 &&
-	    (sc->mac_ver) != 0x3070){ 
+	    (sc->mac_ver) != 0x3070) { 
 		base += 4096;
 	}
 
 	/* cheap sanity check */
 	temp = fw->data;
 	bytes = *temp;
-	if(bytes != be64toh(0xffffff0210280210)) {
+	if (bytes != be64toh(0xffffff0210280210)) {
 		device_printf(sc->sc_dev, "firmware checksum failed\n");
 		error = EINVAL;
 		goto fail;
@@ -1058,7 +1060,7 @@ run_reset(struct run_softc *sc)
 	USETW(req.wValue, 1);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
-	return usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL);
+	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL));
 }
 
 static usb_error_t
@@ -1093,7 +1095,7 @@ run_read(struct run_softc *sc, uint16_t reg, uint32_t *val)
 		*val = le32toh(tmp);
 	else
 		*val = 0xffffffff;
-	return error;
+	return (error);
 }
 
 static int
@@ -1107,7 +1109,7 @@ run_read_region_1(struct run_softc *sc, uint16_t reg, uint8_t *buf, int len)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, len);
 
-	return run_do_request(sc, &req, buf);
+	return (run_do_request(sc, &req, buf));
 }
 
 static int
@@ -1121,7 +1123,7 @@ run_write_2(struct run_softc *sc, uint16_t reg, uint16_t val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 0);
 
-	return run_do_request(sc, &req, NULL);
+	return (run_do_request(sc, &req, NULL));
 }
 
 static int
@@ -1131,7 +1133,7 @@ run_write(struct run_softc *sc, uint16_t reg, uint32_t val)
 
 	if ((error = run_write_2(sc, reg, val & 0xffff)) == 0)
 		error = run_write_2(sc, reg + 2, val >> 16);
-	return error;
+	return (error);
 }
 
 static int
@@ -1147,7 +1149,7 @@ run_write_region_1(struct run_softc *sc, uint16_t reg, const uint8_t *buf,
 	KASSERT((len & 1) == 0, ("run_write_region_1: Data too long.\n"));
 	for (i = 0; i < len && error == 0; i += 2)
 		error = run_write_2(sc, reg + i, buf[i] | buf[i + 1] << 8);
-	return error;
+	return (error);
 #else
 	usb_device_request_t req;
 
@@ -1156,7 +1158,7 @@ run_write_region_1(struct run_softc *sc, uint16_t reg, const uint8_t *buf,
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, len);
-	return run_do_request(sc, &req, buf);
+	return (run_do_request(sc, &req, buf));
 #endif
 }
 
@@ -1168,7 +1170,7 @@ run_set_region_4(struct run_softc *sc, uint16_t reg, uint32_t val, int len)
 	KASSERT((len & 3) == 0, ("run_set_region_4: Invalid data length.\n"));
 	for (i = 0; i < len && error == 0; i += 4)
 		error = run_write(sc, reg + i, val);
-	return error;
+	return (error);
 }
 
 /* Read 16-bit from eFUSE ROM (RT3070 only.) */
@@ -1180,7 +1182,7 @@ run_efuse_read_2(struct run_softc *sc, uint16_t addr, uint16_t *val)
 	int error, ntries;
 
 	if ((error = run_read(sc, RT3070_EFUSE_CTRL, &tmp)) != 0)
-		return error;
+		return (error);
 
 	addr *= 2;
 	/*-
@@ -1195,25 +1197,25 @@ run_efuse_read_2(struct run_softc *sc, uint16_t addr, uint16_t *val)
 	run_write(sc, RT3070_EFUSE_CTRL, tmp);
 	for (ntries = 0; ntries < 100; ntries++) {
 		if ((error = run_read(sc, RT3070_EFUSE_CTRL, &tmp)) != 0)
-			return error;
+			return (error);
 		if (!(tmp & RT3070_EFSROM_KICK))
 			break;
 		run_delay(sc, 2);
 	}
 	if (ntries == 100)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	if ((tmp & RT3070_EFUSE_AOUT_MASK) == RT3070_EFUSE_AOUT_MASK) {
 		*val = 0xffff;	/* address not found */
-		return 0;
+		return (0);
 	}
 	/* determine to which 32-bit register our 16-bit word belongs */
 	reg = RT3070_EFUSE_DATA3 - (addr & 0xc);
 	if ((error = run_read(sc, reg, &tmp)) != 0)
-		return error;
+		return (error);
 
 	*val = (addr & 2) ? tmp >> 16 : tmp & 0xffff;
-	return 0;
+	return (0);
 }
 
 static int
@@ -1235,7 +1237,7 @@ run_eeprom_read_2(struct run_softc *sc, uint16_t addr, uint16_t *val)
 		*val = le16toh(tmp);
 	else
 		*val = 0xffff;
-	return error;
+	return (error);
 }
 
 static __inline int
@@ -1253,17 +1255,17 @@ run_rt2870_rf_write(struct run_softc *sc, uint8_t reg, uint32_t val)
 
 	for (ntries = 0; ntries < 10; ntries++) {
 		if ((error = run_read(sc, RT2860_RF_CSR_CFG0, &tmp)) != 0)
-			return error;
+			return (error);
 		if (!(tmp & RT2860_RF_REG_CTRL))
 			break;
 	}
 	if (ntries == 10)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	/* RF registers are 24-bit on the RT2860 */
 	tmp = RT2860_RF_REG_CTRL | 24 << RT2860_RF_REG_WIDTH_SHIFT |
 	    (val & 0x3fffff) << 2 | (reg & 3);
-	return run_write(sc, RT2860_RF_CSR_CFG0, tmp);
+	return (run_write(sc, RT2860_RF_CSR_CFG0, tmp));
 }
 
 static int
@@ -1274,28 +1276,28 @@ run_rt3070_rf_read(struct run_softc *sc, uint8_t reg, uint8_t *val)
 
 	for (ntries = 0; ntries < 100; ntries++) {
 		if ((error = run_read(sc, RT3070_RF_CSR_CFG, &tmp)) != 0)
-			return error;
+			return (error);
 		if (!(tmp & RT3070_RF_KICK))
 			break;
 	}
 	if (ntries == 100)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	tmp = RT3070_RF_KICK | reg << 8;
 	if ((error = run_write(sc, RT3070_RF_CSR_CFG, tmp)) != 0)
-		return error;
+		return (error);
 
 	for (ntries = 0; ntries < 100; ntries++) {
 		if ((error = run_read(sc, RT3070_RF_CSR_CFG, &tmp)) != 0)
-			return error;
+			return (error);
 		if (!(tmp & RT3070_RF_KICK))
 			break;
 	}
 	if (ntries == 100)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	*val = tmp & 0xff;
-	return 0;
+	return (0);
 }
 
 static int
@@ -1306,15 +1308,15 @@ run_rt3070_rf_write(struct run_softc *sc, uint8_t reg, uint8_t val)
 
 	for (ntries = 0; ntries < 10; ntries++) {
 		if ((error = run_read(sc, RT3070_RF_CSR_CFG, &tmp)) != 0)
-			return error;
+			return (error);
 		if (!(tmp & RT3070_RF_KICK))
 			break;
 	}
 	if (ntries == 10)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	tmp = RT3070_RF_WRITE | RT3070_RF_KICK | reg << 8 | val;
-	return run_write(sc, RT3070_RF_CSR_CFG, tmp);
+	return (run_write(sc, RT3070_RF_CSR_CFG, tmp));
 }
 
 static int
@@ -1325,28 +1327,28 @@ run_bbp_read(struct run_softc *sc, uint8_t reg, uint8_t *val)
 
 	for (ntries = 0; ntries < 10; ntries++) {
 		if ((error = run_read(sc, RT2860_BBP_CSR_CFG, &tmp)) != 0)
-			return error;
+			return (error);
 		if (!(tmp & RT2860_BBP_CSR_KICK))
 			break;
 	}
 	if (ntries == 10)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	tmp = RT2860_BBP_CSR_READ | RT2860_BBP_CSR_KICK | reg << 8;
 	if ((error = run_write(sc, RT2860_BBP_CSR_CFG, tmp)) != 0)
-		return error;
+		return (error);
 
 	for (ntries = 0; ntries < 10; ntries++) {
 		if ((error = run_read(sc, RT2860_BBP_CSR_CFG, &tmp)) != 0)
-			return error;
+			return (error);
 		if (!(tmp & RT2860_BBP_CSR_KICK))
 			break;
 	}
 	if (ntries == 10)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	*val = tmp & 0xff;
-	return 0;
+	return (0);
 }
 
 static int
@@ -1357,15 +1359,15 @@ run_bbp_write(struct run_softc *sc, uint8_t reg, uint8_t val)
 
 	for (ntries = 0; ntries < 10; ntries++) {
 		if ((error = run_read(sc, RT2860_BBP_CSR_CFG, &tmp)) != 0)
-			return error;
+			return (error);
 		if (!(tmp & RT2860_BBP_CSR_KICK))
 			break;
 	}
 	if (ntries == 10)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	tmp = RT2860_BBP_CSR_KICK | reg << 8 | val;
-	return run_write(sc, RT2860_BBP_CSR_CFG, tmp);
+	return (run_write(sc, RT2860_BBP_CSR_CFG, tmp));
 }
 
 /*
@@ -1389,7 +1391,7 @@ run_mcu_cmd(struct run_softc *sc, uint8_t cmd, uint16_t arg)
 	tmp = RT2860_H2M_BUSY | RT2860_TOKEN_NO_INTR << 16 | arg;
 	if ((error = run_write(sc, RT2860_H2M_MAILBOX, tmp)) == 0)
 		error = run_write(sc, RT2860_HOST_CMD, cmd);
-	return error;
+	return (error);
 }
 
 /*
@@ -1410,7 +1412,7 @@ b4inc(uint32_t b32, int8_t delta)
 			b4 = 0xf;
 		b32 = b32 >> 4 | b4 << 28;
 	}
-	return b32;
+	return (b32);
 }
 
 static const char *
@@ -1427,7 +1429,7 @@ run_get_rf(int rev)
 	case RT3070_RF_3022:	return "RT3022";
 	case RT3070_RF_3052:	return "RT3052";
 	}
-	return "unknown";
+	return ("unknown");
 }
 
 int
@@ -1678,7 +1680,7 @@ run_read_eeprom(struct run_softc *sc)
 			sc->rssi_5ghz[ant] = 0;
 		}
 	}
-	return 0;
+	return (0);
 }
 
 struct ieee80211_node *
@@ -1701,9 +1703,9 @@ run_media_change(struct ifnet *ifp)
 	RUN_LOCK(sc);
 
 	error = ieee80211_media_change(ifp);
-	if (error != ENETRESET){
+	if (error != ENETRESET) {
 		RUN_UNLOCK(sc);
-		return error;
+		return (error);
 	}
 
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
@@ -1726,7 +1728,7 @@ run_media_change(struct ifnet *ifp)
 
 	RUN_UNLOCK(sc);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -1772,7 +1774,7 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		sc->runbmap &= ~bid;
 
 		/* abort TSF synchronization if there is no vap running */
-		if(--sc->running == 0){
+		if (--sc->running == 0) {
 			run_read(sc, RT2860_BCN_TIME_CFG, &tmp);
 			run_write(sc, RT2860_BCN_TIME_CFG,
 			    tmp & ~(RT2860_BCN_TX_EN | RT2860_TSF_TIMER_EN |
@@ -1783,13 +1785,13 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	case IEEE80211_S_RUN:
 		ni = vap->iv_bss;
-		if(!(sc->runbmap & bid)){
+		if (!(sc->runbmap & bid)) {
 			if(sc->running++)
 				restart_ratectl = 1;
 			sc->runbmap |= bid;
 		}
 
-		switch(vap->iv_opmode){
+		switch (vap->iv_opmode) {
 		case IEEE80211_M_HOSTAP:
 		case IEEE80211_M_MBSS:
 			sc->ap_running |= bid;
@@ -1798,13 +1800,13 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			break;
 		case IEEE80211_M_IBSS:
 			sc->adhoc_running |= bid;
-			if(!sc->ap_running)
+			if (!sc->ap_running)
 				ic->ic_opmode = vap->iv_opmode;
 			run_update_beacon_cb(vap);
 			break;
 		case IEEE80211_M_STA:
 			sc->sta_running |= bid;
-			if(!sc->ap_running && !sc->adhoc_running)
+			if (!sc->ap_running && !sc->adhoc_running)
 				ic->ic_opmode = vap->iv_opmode;
 
 			/* read statistic counters (clear on read) */
@@ -1844,7 +1846,7 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	}
 
 	/* restart amrr for running VAPs */
-	if((sc->ratectl_run = ratectl) && restart_ratectl)
+	if ((sc->ratectl_run = ratectl) && restart_ratectl)
 		usb_callout_reset(&sc->ratectl_ch, hz, run_ratectl_to, sc);
 
 	RUN_UNLOCK(sc);
@@ -1871,7 +1873,7 @@ run_wme_update_cb(void *arg)
 		    wmesp->wme_params[aci].wmep_logcwmin << 12 |
 		    wmesp->wme_params[aci].wmep_aifsn  <<  8 |
 		    wmesp->wme_params[aci].wmep_txopLimit);
-		if(error) goto err;
+		if (error) goto err;
 	}
 
 	/* update SCH/DMA registers too */
@@ -1880,29 +1882,29 @@ run_wme_update_cb(void *arg)
 	    wmesp->wme_params[WME_AC_VI].wmep_aifsn  <<  8 |
 	    wmesp->wme_params[WME_AC_BK].wmep_aifsn  <<  4 |
 	    wmesp->wme_params[WME_AC_BE].wmep_aifsn);
-	if(error) goto err;
+	if (error) goto err;
 	error = run_write(sc, RT2860_WMM_CWMIN_CFG,
 	    wmesp->wme_params[WME_AC_VO].wmep_logcwmin << 12 |
 	    wmesp->wme_params[WME_AC_VI].wmep_logcwmin <<  8 |
 	    wmesp->wme_params[WME_AC_BK].wmep_logcwmin <<  4 |
 	    wmesp->wme_params[WME_AC_BE].wmep_logcwmin);
-	if(error) goto err;
+	if (error) goto err;
 	error = run_write(sc, RT2860_WMM_CWMAX_CFG,
 	    wmesp->wme_params[WME_AC_VO].wmep_logcwmax << 12 |
 	    wmesp->wme_params[WME_AC_VI].wmep_logcwmax <<  8 |
 	    wmesp->wme_params[WME_AC_BK].wmep_logcwmax <<  4 |
 	    wmesp->wme_params[WME_AC_BE].wmep_logcwmax);
-	if(error) goto err;
+	if (error) goto err;
 	error = run_write(sc, RT2860_WMM_TXOP0_CFG,
 	    wmesp->wme_params[WME_AC_BK].wmep_txopLimit << 16 |
 	    wmesp->wme_params[WME_AC_BE].wmep_txopLimit);
-	if(error) goto err;
+	if (error) goto err;
 	error = run_write(sc, RT2860_WMM_TXOP1_CFG,
 	    wmesp->wme_params[WME_AC_VO].wmep_txopLimit << 16 |
 	    wmesp->wme_params[WME_AC_VI].wmep_txopLimit);
 
 err:
-	if(error)
+	if (error)
 		DPRINTF("WME update failed\n");
 
 	return;
@@ -1914,7 +1916,7 @@ run_wme_update(struct ieee80211com *ic)
 	struct run_softc *sc = ic->ic_ifp->if_softc;
 
 	/* sometime called wothout lock */
-	if(mtx_owned(&ic->ic_comlock.mtx)){
+	if (mtx_owned(&ic->ic_comlock.mtx)) {
 		uint32_t i = RUN_CMDQ_GET(&sc->cmdq_store);
 		DPRINTF("cmdq_store=%d\n", i);
 		sc->cmdq[i].func = run_wme_update_cb;
@@ -1962,7 +1964,7 @@ run_key_set_cb(void *arg)
 
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
 
-	if(vap->iv_opmode == IEEE80211_M_HOSTAP)
+	if (vap->iv_opmode == IEEE80211_M_HOSTAP)
 		ni = ieee80211_find_vap_node(&ic->ic_sta, vap, cmdq->mac);
 	else
 		ni = vap->iv_bss;
@@ -2017,7 +2019,7 @@ run_key_set_cb(void *arg)
 	if (!(k->wk_flags & IEEE80211_KEY_GROUP) ||
 	    (k->wk_flags & (IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV))) {
 		/* set initial packet number in IV+EIV */
-		if (k->wk_cipher == IEEE80211_CIPHER_WEP){
+		if (k->wk_cipher == IEEE80211_CIPHER_WEP) {
 			memset(iv, 0, sizeof iv);
 			iv[3] = vap->iv_def_txkey << 6;
 		} else {
@@ -2036,24 +2038,24 @@ run_key_set_cb(void *arg)
 			iv[6] = k->wk_keytsc >> 32;
 			iv[7] = k->wk_keytsc >> 40;
 		}
-		if(run_write_region_1(sc, RT2860_IVEIV(wcid), iv, 8))
+		if (run_write_region_1(sc, RT2860_IVEIV(wcid), iv, 8))
 			return;
 	}
 
 	if (k->wk_flags & IEEE80211_KEY_GROUP) {
 		/* install group key */
-		if(run_read(sc, RT2860_SKEY_MODE_0_7, &attr))
+		if (run_read(sc, RT2860_SKEY_MODE_0_7, &attr))
 			return;
 		attr &= ~(0xf << (k->wk_keyix * 4));
 		attr |= mode << (k->wk_keyix * 4);
-		if(run_write(sc, RT2860_SKEY_MODE_0_7, attr))
+		if (run_write(sc, RT2860_SKEY_MODE_0_7, attr))
 			return;
 	} else {
 		/* install pairwise key */
-		if(run_read(sc, RT2860_WCID_ATTR(wcid), &attr))
+		if (run_read(sc, RT2860_WCID_ATTR(wcid), &attr))
 			return;
 		attr = (attr & ~0xf) | (mode << 1) | RT2860_RX_PKEY_EN;
-		if(run_write(sc, RT2860_WCID_ATTR(wcid), attr))
+		if (run_write(sc, RT2860_WCID_ATTR(wcid), attr))
 			return;
 	}
 
@@ -2091,13 +2093,13 @@ run_key_set(struct ieee80211vap *vap, struct ieee80211_key *k,
 	 * To make sure key will be set when hostapd
 	 * calls iv_key_set() before if_init().
 	 */
-	if(vap->iv_opmode == IEEE80211_M_HOSTAP){
+	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {
 		RUN_LOCK(sc);
 		sc->cmdq_key_set = RUN_CMDQ_GO;
 		RUN_UNLOCK(sc);
 	}
 
-	return(1);
+	return (1);
 }
 
 /*
@@ -2186,10 +2188,10 @@ run_ratectl_cb(void *arg, int pending)
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	if(vap == NULL)
+	if (vap == NULL)
 		return;
 
-	if(sc->rvp_cnt <= 1 && vap->iv_opmode == IEEE80211_M_STA)
+	if (sc->rvp_cnt <= 1 && vap->iv_opmode == IEEE80211_M_STA)
 		run_iter_func(sc, vap->iv_bss);
 	else {
 		/*
@@ -2227,7 +2229,7 @@ run_drain_fifo(void *arg)
 		/* drain Tx status FIFO (maxsize = 16) */
 		run_read(sc, RT2860_TX_STAT_FIFO, &stat);
 		DPRINTFN(4, "tx stat 0x%08x\n", stat);
-		if(!(stat & RT2860_TXQ_VLD))
+		if (!(stat & RT2860_TXQ_VLD))
 			break;
 
 		wcid = (stat >> RT2860_TXQ_WCID_SHIFT) & 0xff;
@@ -2238,7 +2240,7 @@ run_drain_fifo(void *arg)
 			continue;
 
 		ni = sc->sc_ni[wcid];
-		if(ni->ni_rctls == NULL)
+		if (ni->ni_rctls == NULL)
 			continue;
 
 		/* update per-STA AMRR stats */
@@ -2281,8 +2283,8 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 	int txcnt = 0, success = 0, retrycnt = 0;
 	int error;
 
-	if(sc->rvp_cnt <= 1 && (vap->iv_opmode == IEEE80211_M_IBSS ||
-	    vap->iv_opmode == IEEE80211_M_STA)){
+	if (sc->rvp_cnt <= 1 && (vap->iv_opmode == IEEE80211_M_IBSS ||
+	    vap->iv_opmode == IEEE80211_M_STA)) {
 		RUN_LOCK(sc);
 
 		/* read statistic counters (clear on read) and update AMRR state */
@@ -2347,13 +2349,13 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 	uint8_t wcid = RUN_AID2WCID(ni->ni_associd);
 	int i, j;
 
-	if(wcid > RT2870_WCID_MAX){
+	if (wcid > RT2870_WCID_MAX) {
 		device_printf(sc->sc_dev, "wcid=%d out of range\n", wcid);
 		return;
 	}
 
 	/* only interested in true associations */
-	if (isnew && ni->ni_associd != 0){
+	if (isnew && ni->ni_associd != 0) {
 
 		/*
 		 * This function could is called though timeout function.
@@ -2422,7 +2424,7 @@ run_maxrssi_chain(struct run_softc *sc, const struct rt2860_rxwi *rxwi)
 			if (rxwi->rssi[2] > rxwi->rssi[rxchain])
 				rxchain = 2;
 	}
-	return rxchain;
+	return (rxchain);
 }
 
 static void
@@ -2463,12 +2465,12 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 
 	wh = mtod(m, struct ieee80211_frame *);
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP){
+	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
 		wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 		m->m_flags |= M_WEP;
 	}
 
-	if (flags & RT2860_RX_L2PAD){
+	if (flags & RT2860_RX_L2PAD) {
 		DPRINTFN(8, "received RT2860_RX_L2PAD frame\n");
 		len += 2;
 	}
@@ -2478,7 +2480,7 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 
 	if (__predict_false(flags & RT2860_RX_MICERR)) {
 		/* report MIC failures to net80211 for TKIP */
-		if(ni != NULL)
+		if (ni != NULL)
 			ieee80211_notify_michael_failure(ni->ni_vap, wh, rxwi->keyidx);
 		m_freem(m);
 		ifp->if_ierrors++;
@@ -2500,7 +2502,7 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 		(void)ieee80211_input_all(ic, m, rssi, nf);
 	}
 
-	if(__predict_false(ieee80211_radiotap_active(ic))){
+	if (__predict_false(ieee80211_radiotap_active(ic))) {
 		struct run_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
@@ -2601,7 +2603,7 @@ tr_setup:
 
 			goto tr_setup;
 		}
-		if(sc->rx_m != NULL){
+		if (sc->rx_m != NULL) {
 			m_freem(sc->rx_m);
 			sc->rx_m = NULL;
 		}
@@ -2632,7 +2634,7 @@ tr_setup:
 		}
 
 		/* If it is the last one or a single frame, we won't copy. */
-		if((xferlen -= dmalen + 8) <= 8){
+		if ((xferlen -= dmalen + 8) <= 8) {
 			/* trim 32-bit DMA-len header */
 			m->m_data += 4;
 			m->m_pkthdr.len = m->m_len -= 4;
@@ -2672,7 +2674,7 @@ run_tx_free(struct run_endpoint_queue *pq,
 		m_freem(data->m);
 		data->m = NULL;
 
-		if(data->ni == NULL) {
+		if (data->ni == NULL) {
 			DPRINTF("no node\n");
 		} else {
 			ieee80211_free_node(data->ni);
@@ -2702,7 +2704,7 @@ run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, unsigned int ind
 
 	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
-	switch (USB_GET_STATE(xfer)){
+	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete: %d "
 		    "bytes @ index %d\n", actlen, index);
@@ -2720,7 +2722,7 @@ run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, unsigned int ind
 	case USB_ST_SETUP:
 tr_setup:
 		data = STAILQ_FIRST(&pq->tx_qh);
-		if(data == NULL)
+		if (data == NULL)
 			break;
 
 		STAILQ_REMOVE_HEAD(&pq->tx_qh, next);
@@ -2790,7 +2792,7 @@ tr_setup:
 			run_tx_free(pq, data, error);
 			usbd_xfer_set_priv(xfer, NULL);
 		}
-		if(vap == NULL)
+		if (vap == NULL)
 			vap = TAILQ_FIRST(&ic->ic_vaps);
 
 		if (error != USB_ERR_CANCELLED) {
@@ -2908,7 +2910,7 @@ run_set_tx_desc(struct run_softc *sc, struct run_tx_data *data)
 	else
 		txwi->txop |= RT2860_TX_TXOP_BACKOFF;
 
-	if(vap->iv_opmode != IEEE80211_M_STA && !IEEE80211_QOS_HAS_SEQ(wh))
+	if (vap->iv_opmode != IEEE80211_M_STA && !IEEE80211_QOS_HAS_SEQ(wh))
 		txwi->xflags |= RT2860_TX_NSEQ;
 }
 
@@ -3036,8 +3038,8 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
  	 *
  	 * FIFO stats doesn't count Tx with WCID 0xff, so we do this in run_tx().
  	 */
-	if(sc->rvp_cnt > 1 || vap->iv_opmode == IEEE80211_M_HOSTAP ||
-	    vap->iv_opmode == IEEE80211_M_MBSS){
+	if (sc->rvp_cnt > 1 || vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	    vap->iv_opmode == IEEE80211_M_MBSS) {
 		uint16_t pid = (rt2860_rates[ridx].mcs + 1) & 0xf;
 		txwi->len |= htole16(pid << RT2860_TX_PID_SHIFT);
 
@@ -3053,7 +3055,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		 * run_ratectl_cb() via callout.
 		 * Call it early. Otherwise overflow.
 		 */
-		if(sc->fifo_cnt++ == 10){
+		if (sc->fifo_cnt++ == 10) {
 			/*
 			 * With multiple vaps or if_bridge, if_start() is called
 			 * with a non-sleepable lock, tcpinp. So, need to defer.
@@ -3179,7 +3181,7 @@ run_sendprot(struct run_softc *sc,
 	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
 
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort);
+	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
 	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 	wflags = RT2860_TX_FRAG;
 
@@ -3274,7 +3276,7 @@ run_tx_param(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 		    rate);
 		if (error) {
 			/* let caller free mbuf */
-			return (error);
+			return error;
 		}
 		opflags |= /*XXX RT2573_TX_LONG_RETRY |*/ RT2860_TX_TXOP_SIFS;
 	}
@@ -3313,7 +3315,7 @@ run_tx_param(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 
 	usbd_transfer_start(sc->sc_xfer[0]);
 
-        return (0); 
+        return (0);
 }
 
 static int
@@ -3334,14 +3336,14 @@ run_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	if (params == NULL) {
 		/* tx mgt packet */
-		if ((error = run_tx_mgt(sc, m, ni)) != 0){
+		if ((error = run_tx_mgt(sc, m, ni)) != 0) {
 			ifp->if_oerrors++;
 			DPRINTF("mgt tx failed\n");
 			goto done;
 		}
 	} else {
 		/* tx raw packet with param */
-		if ((error = run_tx_param(sc, m, ni, params)) != 0){
+		if ((error = run_tx_param(sc, m, ni, params)) != 0) {
 			ifp->if_oerrors++;
 			DPRINTF("tx with param failed\n");
 			goto done;
@@ -3353,7 +3355,7 @@ run_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 done:
 	RUN_UNLOCK(sc);
 
-	if(error != 0){
+	if (error != 0) {
 		if(m != NULL)
 			m_freem(m);
 		ieee80211_free_node(ni);
@@ -3412,13 +3414,13 @@ run_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			} else
 				run_update_promisc_locked(ifp);
 		} else {
-			if(ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    (ic->ic_nrunning == 0 || sc->rvp_cnt <= 1)){
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+			    (ic->ic_nrunning == 0 || sc->rvp_cnt <= 1)) {
 					run_stop(sc);
 			}
 		}
 		RUN_UNLOCK(sc);
-		if(startall)
+		if (startall)
 			ieee80211_start_all(ic);
 		break;
 	case SIOCGIFMEDIA:
@@ -3813,7 +3815,7 @@ run_set_chan(struct run_softc *sc, struct ieee80211_channel *c)
 
 	chan = ieee80211_chan2ieee(ic, c);
 	if (chan == 0 || chan == IEEE80211_CHAN_ANY)
-		return EINVAL;
+		return (EINVAL);
 
 	if (sc->mac_ver == 0x3572)
 		run_rt3572_set_chan(sc, chan);
@@ -3837,7 +3839,7 @@ run_set_chan(struct run_softc *sc, struct ieee80211_channel *c)
 
 	run_delay(sc, 10);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -3918,7 +3920,7 @@ run_update_beacon_cb(void *arg)
 	struct mbuf *m;
 	uint8_t ridx;
 
-	if(vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
+	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
 		return;
 
 	if ((m = ieee80211_beacon_alloc(vap->iv_bss, &RUN_VAP(vap)->bo)) == NULL)
@@ -3981,7 +3983,7 @@ run_usb_timeout_cb(void *arg)
 	if(vap->iv_state == IEEE80211_S_RUN &&
 	    vap->iv_opmode != IEEE80211_M_STA)
 		run_reset_livelock(sc);
-	else if(vap->iv_state == IEEE80211_S_SCAN){
+	else if (vap->iv_state == IEEE80211_S_SCAN) {
 		DPRINTF("timeout caused by scan\n");
 		/* cancel bgscan */
 		ieee80211_cancel_scan(vap);
@@ -4003,7 +4005,7 @@ run_reset_livelock(struct run_softc *sc)
 	 */
 	run_read(sc, RT2860_DEBUG, &tmp);
 	DPRINTFN(3, "debug reg %08x\n", tmp);
-	if((tmp & (1 << 29)) && (tmp & (1 << 7 | 1 << 5))){
+	if ((tmp & (1 << 29)) && (tmp & (1 << 7 | 1 << 5))) {
 		DPRINTF("CTS-to-self livelock detected\n");
 		run_write(sc, RT2860_MAC_SYS_CTRL, RT2860_MAC_SRST);
 		run_delay(sc, 1);
@@ -4202,7 +4204,7 @@ run_rssi2dbm(struct run_softc *sc, uint8_t rssi, uint8_t rxchain)
 	} else
 		delta = sc->rssi_2ghz[rxchain] - sc->lna[0];
 
-	return -12 - delta - rssi;
+	return (-12 - delta - rssi);
 }
 
 static int
@@ -4219,7 +4221,7 @@ run_bbp_init(struct run_softc *sc)
 			break;
 	}
 	if (ntries == 20)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	/* initialize BBP registers to default values */
 	for (i = 0; i < nitems(rt2860_def_bbp); i++) {
@@ -4239,7 +4241,7 @@ run_bbp_init(struct run_softc *sc)
 		run_bbp_write(sc, 69, 0x16);
 		run_bbp_write(sc, 73, 0x12);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -4291,7 +4293,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 		run_read(sc, RT3070_GPIO_SWITCH, &tmp);
 		run_write(sc, RT3070_GPIO_SWITCH, tmp & ~0x20);
 
-	} else if(sc->mac_ver == 0x3572){
+	} else if (sc->mac_ver == 0x3572) {
 		run_rt3070_rf_read(sc, 6, &rf);
 		run_rt3070_rf_write(sc, 6, rf | 0x40);
 
@@ -4300,7 +4302,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 		tmp = (tmp & ~0x1f000000) | 0x0d000000;
 		run_write(sc, RT3070_LDO_CFG0, tmp);
 
-		if (sc->mac_rev < 0x0211 || !sc->patch_dac){
+		if (sc->mac_rev < 0x0211 || !sc->patch_dac) {
 			run_delay(sc, 1);	/* wait for 1msec */
 			/* decrease voltage back to 1.2V */
 			tmp = (tmp & ~0x1f000000) | 0x01000000;
@@ -4378,7 +4380,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 			rf |= 0x03;
 		run_rt3070_rf_write(sc, 27, rf);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -4443,7 +4445,7 @@ run_rt3070_filter_calib(struct run_softc *sc, uint8_t init, uint8_t target,
 	run_rt3070_rf_read(sc, 22, &rf22);
 	run_rt3070_rf_write(sc, 22, rf22 & ~0x01);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -4569,7 +4571,7 @@ run_txrx_enable(struct run_softc *sc)
 	run_write(sc, RT2860_MAC_SYS_CTRL,
 	    RT2860_MAC_RX_EN | RT2860_MAC_TX_EN);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -4583,7 +4585,7 @@ run_init_locked(struct run_softc *sc)
 	int ridx;
 	int ntries;
 
-	if(ic->ic_nrunning > 1)
+	if (ic->ic_nrunning > 1)
 		return;
 
 	run_stop(sc);
@@ -4685,7 +4687,7 @@ run_init_locked(struct run_softc *sc)
 	run_set_region_4(sc, RT2860_WCID_ATTR(0), 0, 8 * 32);
 
 	/* hostapd sets a key before init. So, don't clear it. */
-	if(sc->cmdq_key_set != RUN_CMDQ_GO){
+	if (sc->cmdq_key_set != RUN_CMDQ_GO) {
 		/* clear shared key table */
 		run_set_region_4(sc, RT2860_SKEY(0, 0), 0, 8 * 32);
 		/* clear shared key mode */
@@ -4752,7 +4754,7 @@ run_init_locked(struct run_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->cmdq_run = RUN_CMDQ_GO;
 
-	for(i = 0; i != RUN_N_XFER; i++)
+	for (i = 0; i != RUN_N_XFER; i++)
 		usbd_xfer_set_stall(sc->sc_xfer[i]);
 
 	usbd_transfer_start(sc->sc_xfer[RUN_BULK_RX]);
@@ -4807,7 +4809,7 @@ run_stop(void *arg)
 
 	RUN_LOCK(sc);
 
-	if(sc->rx_m != NULL){
+	if (sc->rx_m != NULL) {
 		m_free(sc->rx_m);
 		sc->rx_m = NULL;
 	}
@@ -4819,17 +4821,17 @@ run_stop(void *arg)
 
 	/* wait for pending Tx to complete */
 	for (ntries = 0; ntries < 100; ntries++) {
-		if (run_read(sc, RT2860_TXRXQ_PCNT, &tmp) != 0){
+		if (run_read(sc, RT2860_TXRXQ_PCNT, &tmp) != 0) {
 			DPRINTF("Cannot read Tx queue count\n");
 			break;
 		}
-		if ((tmp & RT2860_TX2Q_PCNT_MASK) == 0){
+		if ((tmp & RT2860_TX2Q_PCNT_MASK) == 0) {
 			DPRINTF("All Tx cleared\n");
 			break;
 		}
 		run_delay(sc, 10);
 	}
-	if(ntries >= 100)
+	if (ntries >= 100)
 		DPRINTF("There are still pending Tx\n");
 	run_delay(sc, 10);
 	run_write(sc, RT2860_USB_DMA_CFG, 0);

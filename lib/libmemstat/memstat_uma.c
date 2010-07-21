@@ -208,6 +208,7 @@ retry:
 		mtp->mt_numallocs = uthp->uth_allocs;
 		mtp->mt_numfrees = uthp->uth_frees;
 		mtp->mt_failures = uthp->uth_fails;
+		mtp->mt_sleeps = uthp->uth_sleeps;
 
 		for (j = 0; j < maxcpus; j++) {
 			upsp = (struct uma_percpu_stat *)p;
@@ -402,6 +403,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			mtp->mt_numallocs = uz.uz_allocs;
 			mtp->mt_numfrees = uz.uz_frees;
 			mtp->mt_failures = uz.uz_fails;
+			mtp->mt_sleeps = uz.uz_sleeps;
 			if (kz.uk_flags & UMA_ZFLAG_INTERNAL)
 				goto skip_percpu;
 			for (i = 0; i < mp_maxid + 1; i++) {

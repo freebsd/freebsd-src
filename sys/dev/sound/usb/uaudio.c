@@ -507,8 +507,8 @@ static const struct usb_config
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = UMIDI_BULK_SIZE,
-		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 4,	/* bytes */
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.proxy_buffer = 1,},
 		.callback = &umidi_bulk_read_callback,
 	},
 
@@ -792,7 +792,8 @@ uaudio_chan_dump_ep_desc(const usb_endpoint_descriptor_audio_t *ed)
 		    ed, ed->bLength, ed->bDescriptorType,
 		    ed->bEndpointAddress, ed->bmAttributes,
 		    UGETW(ed->wMaxPacketSize), ed->bInterval,
-		    ed->bRefresh, ed->bSynchAddress);
+		    UEP_HAS_REFRESH(ed) ? ed->bRefresh : 0,
+		    UEP_HAS_SYNCADDR(ed) ? ed->bSynchAddress : 0);
 	}
 }
 
@@ -817,8 +818,6 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 	uint16_t alt_index = 0;
 	uint16_t wFormat;
 	uint8_t ep_dir;
-	uint8_t ep_type;
-	uint8_t ep_sync;
 	uint8_t bChannels;
 	uint8_t bBitResolution;
 	uint8_t x;
@@ -896,33 +895,11 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			}
 		}
 		if ((desc->bDescriptorType == UDESC_ENDPOINT) &&
-		    (desc->bLength >= sizeof(*ed1))) {
+		    (desc->bLength >= UEP_MINSIZE)) {
 			if (ed1 == NULL) {
 				ed1 = (void *)desc;
 				if (UE_GET_XFERTYPE(ed1->bmAttributes) != UE_ISOCHRONOUS) {
 					ed1 = NULL;
-				}
-			} else {
-				if (ed2 == NULL) {
-					ed2 = (void *)desc;
-					if (UE_GET_XFERTYPE(ed2->bmAttributes) != UE_ISOCHRONOUS) {
-						ed2 = NULL;
-						continue;
-					}
-					if (ed2->bSynchAddress != 0) {
-						DPRINTFN(11, "invalid endpoint: bSynchAddress != 0\n");
-						ed2 = NULL;
-						continue;
-					}
-					if (ed2->bEndpointAddress != ed1->bSynchAddress) {
-						DPRINTFN(11, "invalid endpoint addresses: "
-						    "ep[0]->bSynchAddress=0x%x "
-						    "ep[1]->bEndpointAddress=0x%x\n",
-						    ed1->bSynchAddress,
-						    ed2->bEndpointAddress);
-						ed2 = NULL;
-						continue;
-					}
 				}
 			}
 		}
@@ -936,35 +913,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		if (audio_if && asid && asf1d && ed1 && sed) {
 
 			ep_dir = UE_GET_DIR(ed1->bEndpointAddress);
-			ep_type = UE_GET_ISO_TYPE(ed1->bmAttributes);
-			ep_sync = 0;
 
-			if ((sc->sc_uq_au_inp_async) &&
-			    (ep_dir == UE_DIR_IN) && (ep_type == UE_ISO_ADAPT)) {
-				ep_type = UE_ISO_ASYNC;
-			}
-			if ((ep_dir == UE_DIR_IN) && (ep_type == UE_ISO_ADAPT)) {
-				ep_sync = 1;
-			}
-			if ((ep_dir != UE_DIR_IN) && (ep_type == UE_ISO_ASYNC)) {
-				ep_sync = 1;
-			}
-			/* Ignore sync endpoint information until further. */
-#if 0
-			if (ep_sync && (!ed2)) {
-				continue;
-			}
-			/*
-			 * we can't handle endpoints that need a sync pipe
-			 * yet
-			 */
-
-			if (ep_sync) {
-				DPRINTF("skipped sync interface\n");
-				audio_if = 0;
-				continue;
-			}
-#endif
+			/* We ignore sync endpoint information until further. */
 
 			wFormat = UGETW(asid->wFormatTag);
 			bChannels = UAUDIO_MAX_CHAN(asf1d->bNrChannels);
@@ -3366,10 +3316,6 @@ umidi_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTF("actlen=%d bytes\n", actlen);
 
-		if (actlen == 0) {
-			/* should not happen */
-			goto tr_error;
-		}
 		pos = 0;
 		pc = usbd_xfer_get_frame(xfer, 0);
 
@@ -3404,8 +3350,6 @@ umidi_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		return;
 
 	default:
-tr_error:
-
 		DPRINTF("error=%s\n", usbd_errstr(error));
 
 		if (error != USB_ERR_CANCELLED) {

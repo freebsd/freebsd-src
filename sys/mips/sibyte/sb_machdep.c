@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <machine/cpuregs.h>
 
 #include "opt_ddb.h"
 #include "opt_kdb.h"
@@ -253,7 +252,7 @@ mips_init(void)
 	 * code to the XTLB exception vector.
 	 */
 	{
-		bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
+		bcopy(MipsTLBMiss, (void *)MIPS3_XTLB_MISS_EXC_VEC,
 		      MipsTLBMissEnd - MipsTLBMiss);
 
 		mips_icache_sync_all();
@@ -314,7 +313,7 @@ kseg0_map_coherent(void)
 	const int CFG_K0_COHERENT = 5;
 
 	config = mips_rd_config();
-	config &= ~CFG_K0_MASK;
+	config &= ~MIPS3_CONFIG_K0_MASK;
 	config |= CFG_K0_COHERENT;
 	mips_wr_config(config);
 }
@@ -371,7 +370,7 @@ platform_init_ap(int cpuid)
 	 */
 	clock_int_mask = hard_int_mask(5);
 	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
-	set_intr_mask(ALL_INT_MASK & ~(ipi_int_mask | clock_int_mask));
+	set_intr_mask(MIPS_SR_INT_MASK & ~(ipi_int_mask | clock_int_mask));
 }
 
 int

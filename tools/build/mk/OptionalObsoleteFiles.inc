@@ -596,6 +596,8 @@ OLD_FILES+=usr/share/man/man1/dtrace.1.gz
 OLD_FILES+=boot/gptzfsboot
 OLD_FILES+=boot/zfsboot
 OLD_FILES+=boot/zfsloader
+OLD_FILES+=etc/periodic/daily/404.status-zfs
+OLD_FILES+=etc/periodic/daily/800.scrub-zfs
 OLD_LIBS+=lib/libzfs.so.2
 OLD_LIBS+=lib/libzpool.so.2
 OLD_FILES+=rescue/zfs
@@ -622,6 +624,18 @@ OLD_FILES+=usr/sbin/zdb
 OLD_FILES+=usr/share/man/man8/zdb.8.gz
 OLD_FILES+=usr/share/man/man8/zfs.8.gz
 OLD_FILES+=usr/share/man/man8/zpool.8.gz
+.endif
+
+.if ${MK_CLANG} == no
+OLD_FILES+=usr/bin/clang
+OLD_FILES+=usr/bin/clang++
+OLD_FILES+=usr/bin/tblgen
+OLD_FILES+=usr/include/clang/2.0/emmintrin.h
+OLD_FILES+=usr/include/clang/2.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.0/mmintrin.h
+OLD_FILES+=usr/include/clang/2.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/xmmintrin.h
 .endif
 
 .if ${MK_CPP} == no

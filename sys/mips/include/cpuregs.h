@@ -58,8 +58,6 @@
 #ifndef _MIPS_CPUREGS_H_
 #define	_MIPS_CPUREGS_H_
 
-#include <sys/cdefs.h>		/* For __CONCAT() */
-
 #if defined(_KERNEL_OPT)
 #include "opt_cputype.h"
 #endif
@@ -78,7 +76,10 @@
  * Caching of mapped addresses is controlled by bits in the TLB entry.
  */
 
-#if !defined(_LOCORE)
+#define	MIPS_KSEG0_LARGEST_PHYS         (0x20000000)
+#define	MIPS_PHYS_MASK			(0x1fffffff)
+
+#ifndef LOCORE
 #define	MIPS_KUSEG_START		0x00000000
 #define	MIPS_KSEG0_START		((intptr_t)(int32_t)0x80000000)
 #define	MIPS_KSEG0_END			((intptr_t)(int32_t)0x9fffffff)
@@ -88,20 +89,38 @@
 #define	MIPS_KSSEG_END			((intptr_t)(int32_t)0xdfffffff)
 #define	MIPS_KSEG3_START		((intptr_t)(int32_t)0xe0000000)
 #define	MIPS_KSEG3_END			((intptr_t)(int32_t)0xffffffff)
-
 #define MIPS_KSEG2_START		MIPS_KSSEG_START
 #define MIPS_KSEG2_END			MIPS_KSSEG_END
 #endif
 
+#define	MIPS_PHYS_TO_KSEG0(x)		((uintptr_t)(x) | MIPS_KSEG0_START)
+#define	MIPS_PHYS_TO_KSEG1(x)		((uintptr_t)(x) | MIPS_KSEG1_START)
+#define	MIPS_KSEG0_TO_PHYS(x)		((uintptr_t)(x) & MIPS_PHYS_MASK)
+#define	MIPS_KSEG1_TO_PHYS(x)		((uintptr_t)(x) & MIPS_PHYS_MASK)
+
+#define	MIPS_IS_KSEG0_ADDR(x)					\
+	(((vm_offset_t)(x) >= MIPS_KSEG0_START) &&		\
+	    ((vm_offset_t)(x) <= MIPS_KSEG0_END))
+#define	MIPS_IS_KSEG1_ADDR(x)					\
+	(((vm_offset_t)(x) >= MIPS_KSEG1_START) &&		\
+	    ((vm_offset_t)(x) <= MIPS_KSEG1_END))
+#define	MIPS_IS_VALID_PTR(x)		(MIPS_IS_KSEG0_ADDR(x) || \
+					    MIPS_IS_KSEG1_ADDR(x))
+
 #define	MIPS_XKPHYS_START		0x8000000000000000
 #define	MIPS_XKPHYS_END			0xbfffffffffffffff
 
-#define	MIPS_XKPHYS_CCA_UC		0x02	/* Uncached.  */
-#define	MIPS_XKPHYS_CCA_CNC		0x03	/* Cacheable non-coherent.  */
+#define	MIPS_CCA_UC		0x02	/* Uncached.  */
+#define	MIPS_CCA_CNC		0x03	/* Cacheable non-coherent.  */
 
 #define	MIPS_PHYS_TO_XKPHYS(cca,x) \
 	((0x2ULL << 62) | ((unsigned long long)(cca) << 59) | (x))
-#define	MIPS_XKPHYS_TO_PHYS(x)	((x) & 0x07ffffffffffffffULL)
+#define	MIPS_PHYS_TO_XKPHYS_CACHED(x) \
+	((0x2ULL << 62) | ((unsigned long long)(MIPS_CCA_CNC) << 59) | (x))
+#define	MIPS_PHYS_TO_XKPHYS_UNCACHED(x) \
+	((0x2ULL << 62) | ((unsigned long long)(MIPS_CCA_UC) << 59) | (x))
+
+#define	MIPS_XKPHYS_TO_PHYS(x)		((x) & 0x07ffffffffffffffULL)
 
 #define	MIPS_XUSEG_START		0x0000000000000000
 #define	MIPS_XUSEG_END			0x0000010000000000
@@ -174,7 +193,7 @@
 
 #define	MIPS_SR_INT_IE		0x00000001
 /*#define MIPS_SR_MBZ		0x0f8000c0*/	/* Never used, true for r3k */
-/*#define MIPS_SR_INT_MASK	0x0000ff00*/
+#define MIPS_SR_INT_MASK	0x0000ff00
 
 /*
  * The R2000/R3000-specific status register bit definitions.
@@ -453,20 +472,20 @@
  *
  * Common vectors:  reset and UTLB miss.
  */
-#define	MIPS_RESET_EXC_VEC	0xBFC00000
-#define	MIPS_UTLB_MISS_EXC_VEC	0x80000000
+#define	MIPS_RESET_EXC_VEC	((intptr_t)(int32_t)0xBFC00000)
+#define	MIPS_UTLB_MISS_EXC_VEC	((intptr_t)(int32_t)0x80000000)
 
 /*
  * MIPS-1 general exception vector (everything else)
  */
-#define	MIPS1_GEN_EXC_VEC	0x80000080
+#define	MIPS1_GEN_EXC_VEC	((intptr_t)(int32_t)0x80000080)
 
 /*
  * MIPS-III exception vectors
  */
-#define	MIPS3_XTLB_MISS_EXC_VEC 0x80000080
-#define	MIPS3_CACHE_ERR_EXC_VEC 0x80000100
-#define	MIPS3_GEN_EXC_VEC	0x80000180
+#define	MIPS3_XTLB_MISS_EXC_VEC ((intptr_t)(int32_t)0x80000080)
+#define	MIPS3_CACHE_ERR_EXC_VEC ((intptr_t)(int32_t)0x80000100)
+#define	MIPS3_GEN_EXC_VEC	((intptr_t)(int32_t)0x80000180)
 
 /*
  * TX79 (R5900) exception vectors
@@ -491,6 +510,7 @@
  *  4	MIPS_COP_0_TLB_CONTEXT	3636 TLB Context.
  *  5	MIPS_COP_0_TLB_PG_MASK	.333 TLB Page Mask register.
  *  6	MIPS_COP_0_TLB_WIRED	.333 Wired TLB number.
+ *  7	MIPS_COP_0_INFO		..33 Info registers
  *  8	MIPS_COP_0_BAD_VADDR	3636 Bad virtual address.
  *  9	MIPS_COP_0_COUNT	.333 Count register.
  * 10	MIPS_COP_0_TLB_HI	3636 TLB entry high.
@@ -567,6 +587,7 @@
 #define	MIPS_COP_0_ERROR_PC	_(30)
 
 /* MIPS32/64 */
+#define	MIPS_COP_0_INFO		_(7)
 #define	MIPS_COP_0_DEBUG	_(23)
 #define	MIPS_COP_0_DEPC		_(24)
 #define	MIPS_COP_0_PERFCNT	_(25)
@@ -620,6 +641,7 @@
 #define	MIPS_BREAK_SSTEP_VAL	513
 #define	MIPS_BREAK_BRKPT_VAL	514
 #define	MIPS_BREAK_SOVER_VAL	515
+#define	MIPS_BREAK_DDB_VAL	516
 #define	MIPS_BREAK_KDB		(MIPS_BREAK_INSTR | \
 				(MIPS_BREAK_KDB_VAL << MIPS_BREAK_VAL_SHIFT))
 #define	MIPS_BREAK_SSTEP	(MIPS_BREAK_INSTR | \
@@ -628,6 +650,8 @@
 				(MIPS_BREAK_BRKPT_VAL << MIPS_BREAK_VAL_SHIFT))
 #define	MIPS_BREAK_SOVER	(MIPS_BREAK_INSTR | \
 				(MIPS_BREAK_SOVER_VAL << MIPS_BREAK_VAL_SHIFT))
+#define	MIPS_BREAK_DDB		(MIPS_BREAK_INSTR | \
+				(MIPS_BREAK_DDB_VAL << MIPS_BREAK_VAL_SHIFT))
 
 /*
  * Mininum and maximum cache sizes.

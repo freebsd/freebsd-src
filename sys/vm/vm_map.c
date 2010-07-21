@@ -1750,13 +1750,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	start = 0;
 	p_start = NULL;
 
-	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-		if (p->pindex < pindex) {
-			p = vm_page_splay(pindex, object->root);
-			if ((object->root = p)->pindex < pindex)
-				p = TAILQ_NEXT(p, listq);
-		}
-	}
+	p = vm_page_find_least(object, pindex);
 	/*
 	 * Assert: the variable p is either (1) the page with the
 	 * least pindex greater than or equal to the parameter pindex

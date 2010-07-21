@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -579,10 +580,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Unconditionally fill the fsbase and gsbase into the mcontext.
 	 */
-	sdp = &td->td_pcb->pcb_gsd;
+	sdp = &td->td_pcb->pcb_fsd;
 	sf.sf_uc.uc_mcontext.mc_fsbase = sdp->sd_hibase << 24 |
 	    sdp->sd_lobase;
-	sdp = &td->td_pcb->pcb_fsd;
+	sdp = &td->td_pcb->pcb_gsd;
 	sf.sf_uc.uc_mcontext.mc_gsbase = sdp->sd_hibase << 24 |
 	    sdp->sd_lobase;
 
@@ -2582,9 +2583,9 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	 * mcontext after mc_fpstate.
 	 */
 	get_fpcontext(td, mcp);
-	sdp = &td->td_pcb->pcb_gsd;
-	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
 	sdp = &td->td_pcb->pcb_fsd;
+	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
+	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_gsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
 
 	return (0);
@@ -2647,7 +2648,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	 *
 	 * XXX unpessimize most cases by only aligning when fxsave might be
 	 * called, although this requires knowing too much about
-	 * npxgetregs()'s internals.
+	 * npxgetuserregs()'s internals.
 	 */
 	addr = (union savefpu *)&mcp->mc_fpstate;
 	if (td == PCPU_GET(fpcurthread) &&
@@ -2659,7 +2660,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 			addr = (void *)((char *)addr + 4);
 		while ((uintptr_t)(void *)addr & 0xF);
 	}
-	mcp->mc_ownedfp = npxgetregs(td, addr);
+	mcp->mc_ownedfp = npxgetuserregs(td, addr);
 	if (addr != (union savefpu *)&mcp->mc_fpstate) {
 		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
@@ -2700,11 +2701,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		if (cpu_fxsr)
 			addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
 #endif
-		/*
-		 * XXX we violate the dubious requirement that npxsetregs()
-		 * be called with interrupts disabled.
-		 */
-		npxsetregs(td, addr);
+		npxsetuserregs(td, addr);
 #endif
 		/*
 		 * Don't bother putting things back where they were in the
@@ -2719,25 +2716,25 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 static void
 fpstate_drop(struct thread *td)
 {
-	register_t s;
 
-	s = intr_disable();
+	critical_enter();
 #ifdef DEV_NPX
 	if (PCPU_GET(fpcurthread) == td)
 		npxdrop();
 #endif
 	/*
 	 * XXX force a full drop of the npx.  The above only drops it if we
-	 * owned it.  npxgetregs() has the same bug in the !cpu_fxsr case.
+	 * owned it.  npxusergetregs() has the same bug in the !cpu_fxsr case.
 	 *
-	 * XXX I don't much like npxgetregs()'s semantics of doing a full
+	 * XXX I don't much like npxgetuserregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
 	 * We only need to drop to !PCB_INITDONE in sendsig().  But
-	 * sendsig() is the only caller of npxgetregs()... perhaps we just
+	 * sendsig() is the only caller of npxgetuserregs()... perhaps we just
 	 * have too many layers.
 	 */
-	curthread->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
-	intr_restore(s);
+	curthread->td_pcb->pcb_flags &= ~(PCB_NPXINITDONE |
+	    PCB_NPXUSERINITDONE);
+	critical_exit();
 }
 
 int

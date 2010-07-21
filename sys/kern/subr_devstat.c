@@ -54,7 +54,7 @@ static struct devstatlist device_statq;
 static struct devstat *devstat_alloc(void);
 static void devstat_free(struct devstat *);
 static void devstat_add_entry(struct devstat *ds, const void *dev_name, 
-		       int unit_number, u_int32_t block_size,
+		       int unit_number, uint32_t block_size,
 		       devstat_support_flags flags,
 		       devstat_type_flags device_type,
 		       devstat_priority priority);
@@ -64,7 +64,7 @@ static void devstat_add_entry(struct devstat *ds, const void *dev_name,
  */
 struct devstat *
 devstat_new_entry(const void *dev_name,
-		  int unit_number, u_int32_t block_size,
+		  int unit_number, uint32_t block_size,
 		  devstat_support_flags flags,
 		  devstat_type_flags device_type,
 		  devstat_priority priority)
@@ -99,7 +99,7 @@ devstat_new_entry(const void *dev_name,
  */
 static void
 devstat_add_entry(struct devstat *ds, const void *dev_name, 
-		  int unit_number, u_int32_t block_size,
+		  int unit_number, uint32_t block_size,
 		  devstat_support_flags flags,
 		  devstat_type_flags device_type,
 		  devstat_priority priority)
@@ -275,7 +275,7 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
  * atomic instructions using appropriate memory barriers.
  */
 void
-devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
+devstat_end_transaction(struct devstat *ds, uint32_t bytes, 
 			devstat_tag_type tag_type, devstat_trans_flags flags,
 			struct bintime *now, struct bintime *then)
 {

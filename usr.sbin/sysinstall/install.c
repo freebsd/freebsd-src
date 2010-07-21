@@ -678,8 +678,7 @@ nodisks:
 	msgConfirm("Installation completed with some errors.  You may wish to\n"
 		   "scroll through the debugging messages on VTY1 with the\n"
 		   "scroll-lock feature.  You can also choose \"No\" at the next\n"
-		   "prompt and go back into the installation menus to retry\n"
-		   "whichever operations have failed.");
+		   "prompt and reboot and try the installation again.");
 	return i;
 
     }
@@ -693,7 +692,7 @@ nodisks:
 		   "may do so by typing: /usr/sbin/sysinstall.");
     }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	if (!msgYesNo("Would you like to configure any Ethernet or SLIP/PPP network devices?")) {
+	if (!msgYesNo("Would you like to configure any Ethernet network devices?")) {
 	    Device *tmp = tcpDeviceSelect();
 
 	    if (tmp && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
@@ -855,6 +854,9 @@ try_media:
     /* Now go get it all */
     i = distExtractAll(self);
 
+    if (i == FALSE)
+	    return FALSE;
+
     /* When running as init, *now* it's safe to grab the rc.foo vars */
     installEnvironment();
 
@@ -877,6 +879,9 @@ installConfigure(void)
 int
 installFixupBase(dialogMenuItem *self)
 {
+	FILE *orig, *new;
+	char buf[1024];
+	char *pos;
 #if defined(__i386__) || defined(__amd64__)
     FILE *fp;
 #endif
@@ -895,6 +900,32 @@ installFixupBase(dialogMenuItem *self)
 	    fclose(fp);
 	}
 #endif
+
+	/* Fixup /etc/ttys to start a getty on the serial port.
+	  This way after a serial installation you can login via
+	  the serial port */
+
+	if (!OnVTY){
+	    if (((orig=fopen("/etc/ttys","r")) != NULL) &&
+		((new=fopen("/etc/ttys.tmp","w")) != NULL)) {
+		while (fgets(buf,sizeof(buf),orig)){
+		    if (strstr(buf,"ttyu0")){
+			if ((pos=strstr(buf,"off"))){
+			    *pos++='o';
+			    *pos++='n';
+			    *pos++=' ';
+			}
+		    }
+		    fputs(buf,new);
+		}
+		fclose(orig);
+		fclose(new);
+
+		rename("/etc/ttys.tmp","/etc/ttys");
+		unlink("/etc/ttys.tmp");
+	    }
+	}
+
 	
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);

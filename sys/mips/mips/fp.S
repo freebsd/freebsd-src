@@ -41,7 +41,7 @@
 
 #include <machine/asm.h>
 #include <machine/regnum.h>
-#include <machine/cpu.h>
+#include <machine/cpuregs.h>
 
 #include "assym.s"
 
@@ -107,10 +107,10 @@ NON_LEAF(MipsEmulateFP, CALLFRAME_SIZ, ra)
 	bgt	v0, 4 << 2, ill			# illegal format
 
 	or	v1, v1, v0
-	cfc1	a1, FPC_CSR			# get exception register
+	cfc1	a1, MIPS_FPU_CSR		# get exception register
 	lw	a3, func_fmt_tbl(v1)		# switch on FUNC & FMT
-	and	a1, a1, ~FPC_EXCEPTION_UNIMPL	# clear exception
-	ctc1	a1, FPC_CSR
+	and	a1, a1, ~MIPS_FPU_EXCEPTION_UNIMPL # clear exception
+	ctc1	a1, MIPS_FPU_CSR
 	j	a3
 
 	.rdata
@@ -665,8 +665,8 @@ add_sub_s:
 3:
 	bne	ta1, zero, result_ft_s		# if FT != 0, result=FT
 	bne	ta2, zero, result_ft_s
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	bne	v0, FPC_ROUND_RM, 1f		# round to -infinity?
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	bne	v0, MIPS_FPU_ROUND_RM, 1f	# round to -infinity?
 	or	t0, t0, ta0			# compute result sign
 	b	result_fs_s
 1:
@@ -724,8 +724,8 @@ add_sub_s:
 	bne	t2, ta2, 2f			# if same, result=0
 	move	t1, zero			# result=0
 	move	t2, zero
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	bne	v0, FPC_ROUND_RM, 1f		# round to -infinity?
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	bne	v0, MIPS_FPU_ROUND_RM, 1f	# round to -infinity?
 	or	t0, t0, ta0			# compute result sign
 	b	result_fs_s
 1:
@@ -788,8 +788,8 @@ add_sub_d:
 	bne	ta1, zero, result_ft_d		# if FT != 0, result=FT
 	bne	ta2, zero, result_ft_d
 	bne	ta3, zero, result_ft_d
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	bne	v0, FPC_ROUND_RM, 1f		# round to -infinity?
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	bne	v0, MIPS_FPU_ROUND_RM, 1f	# round to -infinity?
 	or	t0, t0, ta0			# compute result sign
 	b	result_fs_d
 1:
@@ -882,8 +882,8 @@ add_sub_d:
 	move	t1, zero			# result=0
 	move	t2, zero
 	move	t3, zero
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	bne	v0, FPC_ROUND_RM, 1f		# round to -infinity?
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	bne	v0, MIPS_FPU_ROUND_RM, 1f	# round to -infinity?
 	or	t0, t0, ta0			# compute result sign
 	b	result_fs_d
 1:
@@ -1078,10 +1078,10 @@ div_s:
 3:
 	bne	ta1, zero, 2f			# is FT zero?
 	bne	ta2, zero, 1f
-	or	a1, a1, FPC_EXCEPTION_DIV0 | FPC_STICKY_DIV0
-	and	v0, a1, FPC_ENABLE_DIV0 	# trap enabled?
+	or	a1, a1, MIPS_FPU_EXCEPTION_DIV0 | MIPS_FPU_STICKY_DIV0
+	and	v0, a1, MIPS_FPU_ENABLE_DIV0 	# trap enabled?
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	li	t1, SEXP_INF			# result is infinity
 	move	t2, zero
 	b	result_fs_s
@@ -1152,10 +1152,10 @@ div_d:
 	bne	ta1, zero, 2f			# is FT zero?
 	bne	ta2, zero, 1f
 	bne	ta3, zero, 1f
-	or	a1, a1, FPC_EXCEPTION_DIV0 | FPC_STICKY_DIV0
-	and	v0, a1, FPC_ENABLE_DIV0		# trap enabled?
+	or	a1, a1, MIPS_FPU_EXCEPTION_DIV0 | MIPS_FPU_STICKY_DIV0
+	and	v0, a1, MIPS_FPU_ENABLE_DIV0	# trap enabled?
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# Save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# Save exceptions
 	li	t1, DEXP_INF			# result is infinity
 	move	t2, zero
 	move	t3, zero
@@ -1504,10 +1504,10 @@ cvt_w:
  * round result (t0 is sign, t2 is integer part, t3 is fractional part).
  */
 2:
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
-	beq	v0, FPC_ROUND_RZ, 5f		# round to zero (truncate)
-	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	beq	v0, MIPS_FPU_ROUND_RN, 3f	# round to nearest
+	beq	v0, MIPS_FPU_ROUND_RZ, 5f	# round to zero (truncate)
+	beq	v0, MIPS_FPU_ROUND_RP, 1f	# round to +infinity
 	beq	t0, zero, 5f			# if sign is positive, truncate
 	b	2f
 1:
@@ -1536,10 +1536,10 @@ cvt_w:
  * Handle inexact exception.
  */
 inexact_w:
-	or	a1, a1, FPC_EXCEPTION_INEXACT | FPC_STICKY_INEXACT
-	and	v0, a1, FPC_ENABLE_INEXACT
+	or	a1, a1, MIPS_FPU_EXCEPTION_INEXACT | MIPS_FPU_STICKY_INEXACT
+	and	v0, a1, MIPS_FPU_ENABLE_INEXACT
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	b	result_fs_w
 
 /*
@@ -1548,10 +1548,10 @@ inexact_w:
  * or generate an invalid exception.
  */
 overflow_w:
-	or	a1, a1, FPC_EXCEPTION_OVERFLOW | FPC_STICKY_OVERFLOW
-	and	v0, a1, FPC_ENABLE_OVERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_OVERFLOW | MIPS_FPU_STICKY_OVERFLOW
+	and	v0, a1, MIPS_FPU_ENABLE_OVERFLOW
 	bne	v0, zero, fpe_trap
-	and	v0, a1, FPC_ENABLE_INEXACT
+	and	v0, a1, MIPS_FPU_ENABLE_INEXACT
 	bne	v0, zero, inexact_w		# inexact traps enabled?
 	b	invalid_w
 
@@ -1561,10 +1561,10 @@ overflow_w:
  * or generate an invalid exception.
  */
 underflow_w:
-	or	a1, a1, FPC_EXCEPTION_UNDERFLOW | FPC_STICKY_UNDERFLOW
-	and	v0, a1, FPC_ENABLE_UNDERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_UNDERFLOW | MIPS_FPU_STICKY_UNDERFLOW
+	and	v0, a1, MIPS_FPU_ENABLE_UNDERFLOW
 	bne	v0, zero, fpe_trap
-	and	v0, a1, FPC_ENABLE_INEXACT
+	and	v0, a1, MIPS_FPU_ENABLE_INEXACT
 	bne	v0, zero, inexact_w		# inexact traps enabled?
 	b	invalid_w
 
@@ -1640,29 +1640,29 @@ test_cond:
 	and	v0, v0, a0			# condition match instruction?
 set_cond:
 	bne	v0, zero, 1f
-	and	a1, a1, ~FPC_COND_BIT		# clear condition bit
+	and	a1, a1, ~MIPS_FPU_COND_BIT	# clear condition bit
 	b	2f
 1:
-	or	a1, a1, FPC_COND_BIT		# set condition bit
+	or	a1, a1, MIPS_FPU_COND_BIT	# set condition bit
 2:
-	ctc1	a1, FPC_CSR			# save condition bit
+	ctc1	a1, MIPS_FPU_CSR		# save condition bit
 	b	done
 
 unordered:
 	and	v0, a0, COND_UNORDERED		# this cmp match unordered?
 	bne	v0, zero, 1f
-	and	a1, a1, ~FPC_COND_BIT		# clear condition bit
+	and	a1, a1, ~MIPS_FPU_COND_BIT	# clear condition bit
 	b	2f
 1:
-	or	a1, a1, FPC_COND_BIT		# set condition bit
+	or	a1, a1, MIPS_FPU_COND_BIT	# set condition bit
 2:
 	and	v0, a0, COND_SIGNAL
 	beq	v0, zero, 1f			# is this a signaling cmp?
-	or	a1, a1, FPC_EXCEPTION_INVALID | FPC_STICKY_INVALID
-	and	v0, a1, FPC_ENABLE_INVALID
+	or	a1, a1, MIPS_FPU_EXCEPTION_INVALID | MIPS_FPU_STICKY_INVALID
+	and	v0, a1, MIPS_FPU_ENABLE_INVALID
 	bne	v0, zero, fpe_trap
 1:
-	ctc1	a1, FPC_CSR			# save condition bit
+	ctc1	a1, MIPS_FPU_CSR		# save condition bit
 	b	done
 
 /*
@@ -1727,10 +1727,10 @@ norm_s:
 norm_noshift_s:
 	move	ta1, t1				# save unrounded exponent
 	move	ta2, t2				# save unrounded fraction
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
-	beq	v0, FPC_ROUND_RZ, 5f		# round to zero (truncate)
-	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	beq	v0, MIPS_FPU_ROUND_RN, 3f	# round to nearest
+	beq	v0, MIPS_FPU_ROUND_RZ, 5f	# round to zero (truncate)
+	beq	v0, MIPS_FPU_ROUND_RP, 1f	# round to +infinity
 	beq	t0, zero, 5f			# if sign is positive, truncate
 	b	2f
 1:
@@ -1770,10 +1770,10 @@ inexact_s:
 	and	t2, t2, ~SIMPL_ONE		# clear implied one bit
 inexact_nobias_s:
 	jal	set_fd_s			# save result
-	or	a1, a1, FPC_EXCEPTION_INEXACT | FPC_STICKY_INEXACT
-	and	v0, a1, FPC_ENABLE_INEXACT
+	or	a1, a1, MIPS_FPU_EXCEPTION_INEXACT | MIPS_FPU_STICKY_INEXACT
+	and	v0, a1, MIPS_FPU_ENABLE_INEXACT
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	b	done
 
 /*
@@ -1782,18 +1782,18 @@ inexact_nobias_s:
  * or generate an infinity.
  */
 overflow_s:
-	or	a1, a1, FPC_EXCEPTION_OVERFLOW | FPC_STICKY_OVERFLOW
-	and	v0, a1, FPC_ENABLE_OVERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_OVERFLOW | MIPS_FPU_STICKY_OVERFLOW
+	and	v0, a1, MIPS_FPU_ENABLE_OVERFLOW
 	beq	v0, zero, 1f
 	subu	t1, t1, 192			# bias exponent
 	and	t2, t2, ~SIMPL_ONE		# clear implied one bit
 	jal	set_fd_s			# save result
 	b	fpe_trap
 1:
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
-	beq	v0, FPC_ROUND_RZ, 1f		# round to zero (truncate)
-	beq	v0, FPC_ROUND_RP, 2f		# round to +infinity
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	beq	v0, MIPS_FPU_ROUND_RN, 3f	# round to nearest
+	beq	v0, MIPS_FPU_ROUND_RZ, 1f	# round to zero (truncate)
+	beq	v0, MIPS_FPU_ROUND_RP, 2f	# round to +infinity
 	bne	t0, zero, 3f
 1:
 	li	t1, SEXP_MAX			# result is max finite
@@ -1811,7 +1811,7 @@ overflow_s:
  * "loss of accuracy" is detected as "an inexact result".
  */
 underflow_s:
-	and	v0, a1, FPC_ENABLE_UNDERFLOW
+	and	v0, a1, MIPS_FPU_ENABLE_UNDERFLOW
 	beq	v0, zero, 1f
 /*
  * Underflow is enabled so compute the result and trap.
@@ -1819,7 +1819,7 @@ underflow_s:
 	addu	t1, t1, 192			# bias exponent
 	and	t2, t2, ~SIMPL_ONE		# clear implied one bit
 	jal	set_fd_s			# save result
-	or	a1, a1, FPC_EXCEPTION_UNDERFLOW | FPC_STICKY_UNDERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_UNDERFLOW | MIPS_FPU_STICKY_UNDERFLOW
 	b	fpe_trap
 /*
  * Underflow is not enabled so compute the result,
@@ -1833,15 +1833,15 @@ underflow_s:
 	blt	t9, SFRAC_BITS+2, 3f		# shift all the bits out?
 	move	t1, zero			# result is inexact zero
 	move	t2, zero
-	or	a1, a1, FPC_EXCEPTION_UNDERFLOW | FPC_STICKY_UNDERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_UNDERFLOW | MIPS_FPU_STICKY_UNDERFLOW
 /*
  * Now round the zero result.
  * Only need to worry about rounding to +- infinity when the sign matches.
  */
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, inexact_nobias_s # round to nearest
-	beq	v0, FPC_ROUND_RZ, inexact_nobias_s # round to zero
-	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	beq	v0, MIPS_FPU_ROUND_RN, inexact_nobias_s # round to nearest
+	beq	v0, MIPS_FPU_ROUND_RZ, inexact_nobias_s # round to zero
+	beq	v0, MIPS_FPU_ROUND_RP, 1f		# round to +infinity
 	beq	t0, zero, inexact_nobias_s	# if sign is positive, truncate
 	b	2f
 1:
@@ -1859,10 +1859,10 @@ underflow_s:
 /*
  * Now round the denormalized result.
  */
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
-	beq	v0, FPC_ROUND_RZ, 5f		# round to zero (truncate)
-	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	beq	v0, MIPS_FPU_ROUND_RN, 3f	# round to nearest
+	beq	v0, MIPS_FPU_ROUND_RZ, 5f	# round to zero (truncate)
+	beq	v0, MIPS_FPU_ROUND_RP, 1f	# round to +infinity
 	beq	t0, zero, 5f			# if sign is positive, truncate
 	b	2f
 1:
@@ -1884,11 +1884,11 @@ underflow_s:
 	move	t1, zero			# denorm or zero exponent
 	jal	set_fd_s			# save result
 	beq	t8, zero, done			# check for exact result
-	or	a1, a1, FPC_EXCEPTION_UNDERFLOW | FPC_STICKY_UNDERFLOW
-	or	a1, a1, FPC_EXCEPTION_INEXACT | FPC_STICKY_INEXACT
-	and	v0, a1, FPC_ENABLE_INEXACT
+	or	a1, a1, MIPS_FPU_EXCEPTION_UNDERFLOW | MIPS_FPU_STICKY_UNDERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_INEXACT | MIPS_FPU_STICKY_INEXACT
+	and	v0, a1, MIPS_FPU_ENABLE_INEXACT
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	b	done
 
 /*
@@ -1973,10 +1973,10 @@ norm_noshift_d:
 	move	ta1, t1				# save unrounded exponent
 	move	ta2, t2				# save unrounded fraction (MS)
 	move	ta3, t3				# save unrounded fraction (LS)
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
-	beq	v0, FPC_ROUND_RZ, 5f		# round to zero (truncate)
-	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	beq	v0, MIPS_FPU_ROUND_RN, 3f	# round to nearest
+	beq	v0, MIPS_FPU_ROUND_RZ, 5f	# round to zero (truncate)
+	beq	v0, MIPS_FPU_ROUND_RP, 1f	# round to +infinity
 	beq	t0, zero, 5f			# if sign is positive, truncate
 	b	2f
 1:
@@ -2020,10 +2020,10 @@ inexact_d:
 	and	t2, t2, ~DIMPL_ONE		# clear implied one bit
 inexact_nobias_d:
 	jal	set_fd_d			# save result
-	or	a1, a1, FPC_EXCEPTION_INEXACT | FPC_STICKY_INEXACT
-	and	v0, a1, FPC_ENABLE_INEXACT
+	or	a1, a1, MIPS_FPU_EXCEPTION_INEXACT | MIPS_FPU_STICKY_INEXACT
+	and	v0, a1, MIPS_FPU_ENABLE_INEXACT
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	b	done
 
 /*
@@ -2032,18 +2032,18 @@ inexact_nobias_d:
  * or generate an infinity.
  */
 overflow_d:
-	or	a1, a1, FPC_EXCEPTION_OVERFLOW | FPC_STICKY_OVERFLOW
-	and	v0, a1, FPC_ENABLE_OVERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_OVERFLOW | MIPS_FPU_STICKY_OVERFLOW
+	and	v0, a1, MIPS_FPU_ENABLE_OVERFLOW
 	beq	v0, zero, 1f
 	subu	t1, t1, 1536			# bias exponent
 	and	t2, t2, ~DIMPL_ONE		# clear implied one bit
 	jal	set_fd_d			# save result
 	b	fpe_trap
 1:
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
-	beq	v0, FPC_ROUND_RZ, 1f		# round to zero (truncate)
-	beq	v0, FPC_ROUND_RP, 2f		# round to +infinity
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	beq	v0, MIPS_FPU_ROUND_RN, 3f	# round to nearest
+	beq	v0, MIPS_FPU_ROUND_RZ, 1f	# round to zero (truncate)
+	beq	v0, MIPS_FPU_ROUND_RP, 2f	# round to +infinity
 	bne	t0, zero, 3f
 1:
 	li	t1, DEXP_MAX			# result is max finite
@@ -2063,7 +2063,7 @@ overflow_d:
  * "loss of accuracy" is detected as "an inexact result".
  */
 underflow_d:
-	and	v0, a1, FPC_ENABLE_UNDERFLOW
+	and	v0, a1, MIPS_FPU_ENABLE_UNDERFLOW
 	beq	v0, zero, 1f
 /*
  * Underflow is enabled so compute the result and trap.
@@ -2071,7 +2071,7 @@ underflow_d:
 	addu	t1, t1, 1536			# bias exponent
 	and	t2, t2, ~DIMPL_ONE		# clear implied one bit
 	jal	set_fd_d			# save result
-	or	a1, a1, FPC_EXCEPTION_UNDERFLOW | FPC_STICKY_UNDERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_UNDERFLOW | MIPS_FPU_STICKY_UNDERFLOW
 	b	fpe_trap
 /*
  * Underflow is not enabled so compute the result,
@@ -2087,15 +2087,15 @@ underflow_d:
 	move	t1, zero			# result is inexact zero
 	move	t2, zero
 	move	t3, zero
-	or	a1, a1, FPC_EXCEPTION_UNDERFLOW | FPC_STICKY_UNDERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_UNDERFLOW | MIPS_FPU_STICKY_UNDERFLOW
 /*
  * Now round the zero result.
  * Only need to worry about rounding to +- infinity when the sign matches.
  */
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, inexact_nobias_d  # round to nearest
-	beq	v0, FPC_ROUND_RZ, inexact_nobias_d  # round to zero
-	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	beq	v0, MIPS_FPU_ROUND_RN, inexact_nobias_d  # round to nearest
+	beq	v0, MIPS_FPU_ROUND_RZ, inexact_nobias_d  # round to zero
+	beq	v0, MIPS_FPU_ROUND_RP, 1f		# round to +infinity
 	beq	t0, zero, inexact_nobias_d	# if sign is positive, truncate
 	b	2f
 1:
@@ -2127,10 +2127,10 @@ underflow_d:
  * Now round the denormalized result.
  */
 2:
-	and	v0, a1, FPC_ROUNDING_BITS	# get rounding mode
-	beq	v0, FPC_ROUND_RN, 3f		# round to nearest
-	beq	v0, FPC_ROUND_RZ, 5f		# round to zero (truncate)
-	beq	v0, FPC_ROUND_RP, 1f		# round to +infinity
+	and	v0, a1, MIPS_FPU_ROUNDING_BITS	# get rounding mode
+	beq	v0, MIPS_FPU_ROUND_RN, 3f	# round to nearest
+	beq	v0, MIPS_FPU_ROUND_RZ, 5f	# round to zero (truncate)
+	beq	v0, MIPS_FPU_ROUND_RP, 1f	# round to +infinity
 	beq	t0, zero, 5f			# if sign is positive, truncate
 	b	2f
 1:
@@ -2156,11 +2156,11 @@ underflow_d:
 	move	t1, zero			# denorm or zero exponent
 	jal	set_fd_d			# save result
 	beq	t8, zero, done			# check for exact result
-	or	a1, a1, FPC_EXCEPTION_UNDERFLOW | FPC_STICKY_UNDERFLOW
-	or	a1, a1, FPC_EXCEPTION_INEXACT | FPC_STICKY_INEXACT
-	and	v0, a1, FPC_ENABLE_INEXACT
+	or	a1, a1, MIPS_FPU_EXCEPTION_UNDERFLOW | MIPS_FPU_STICKY_UNDERFLOW
+	or	a1, a1, MIPS_FPU_EXCEPTION_INEXACT | MIPS_FPU_STICKY_INEXACT
+	and	v0, a1, MIPS_FPU_ENABLE_INEXACT
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	b	done
 
 /*
@@ -2168,10 +2168,10 @@ underflow_d:
  * the result is a quiet NAN.
  */
 invalid_s:					# trap invalid operation
-	or	a1, a1, FPC_EXCEPTION_INVALID | FPC_STICKY_INVALID
-	and	v0, a1, FPC_ENABLE_INVALID
+	or	a1, a1, MIPS_FPU_EXCEPTION_INVALID | MIPS_FPU_STICKY_INVALID
+	and	v0, a1, MIPS_FPU_ENABLE_INVALID
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	move	t0, zero			# result is a quiet NAN
 	li	t1, SEXP_INF
 	li	t2, SQUIET_NAN
@@ -2183,10 +2183,10 @@ invalid_s:					# trap invalid operation
  * the result is a quiet NAN.
  */
 invalid_d:					# trap invalid operation
-	or	a1, a1, FPC_EXCEPTION_INVALID | FPC_STICKY_INVALID
-	and	v0, a1, FPC_ENABLE_INVALID
+	or	a1, a1, MIPS_FPU_EXCEPTION_INVALID | MIPS_FPU_STICKY_INVALID
+	and	v0, a1, MIPS_FPU_ENABLE_INVALID
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	move	t0, zero			# result is a quiet NAN
 	li	t1, DEXP_INF
 	li	t2, DQUIET_NAN0
@@ -2199,10 +2199,10 @@ invalid_d:					# trap invalid operation
  * the result is INT_MAX or INT_MIN.
  */
 invalid_w:					# trap invalid operation
-	or	a1, a1, FPC_EXCEPTION_INVALID | FPC_STICKY_INVALID
-	and	v0, a1, FPC_ENABLE_INVALID
+	or	a1, a1, MIPS_FPU_EXCEPTION_INVALID | MIPS_FPU_STICKY_INVALID
+	and	v0, a1, MIPS_FPU_ENABLE_INVALID
 	bne	v0, zero, fpe_trap
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	bne	t0, zero, 1f
 	li	t2, INT_MAX			# result is INT_MAX
 	b	result_fs_w
@@ -2215,14 +2215,14 @@ invalid_w:					# trap invalid operation
  */
 fpe_trap:
 	move	a2, a1				# code = FP CSR
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	break	0
 
 /*
  * Send an illegal instruction signal to the current process.
  */
 ill:
-	ctc1	a1, FPC_CSR			# save exceptions
+	ctc1	a1, MIPS_FPU_CSR		# save exceptions
 	move	a2, a0				# code = FP instruction
 	break	0
 

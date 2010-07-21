@@ -851,7 +851,7 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
     struct timeval *sp)
 {
 	/* {user, system, interrupt, total} {ticks, usec}: */
-	u_int64_t ut, uu, st, su, it, tt, tu;
+	uint64_t ut, uu, st, su, it, tt, tu;
 
 	ut = ruxp->rux_uticks;
 	st = ruxp->rux_sticks;
@@ -1169,11 +1169,6 @@ lim_rlimit(struct proc *p, int which, struct rlimit *rlp)
 		p->p_sysent->sv_fixlimit(rlp, which);
 }
 
-/*
- * Find the uidinfo structure for a uid.  This structure is used to
- * track the total resource consumption (process count, socket buffer
- * size, etc.) for the uid and impose limits.
- */
 void
 uihashinit()
 {

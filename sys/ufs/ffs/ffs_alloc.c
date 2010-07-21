@@ -191,11 +191,6 @@ retry:
 	bno = ffs_hashalloc(ip, cg, bpref, size, size, ffs_alloccg);
 	if (bno > 0) {
 		delta = btodb(size);
-		if (ip->i_flag & IN_SPACECOUNTED) {
-			UFS_LOCK(ump);
-			fs->fs_pendingblocks += delta;
-			UFS_UNLOCK(ump);
-		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
 			ip->i_flag |= IN_CHANGE;
@@ -321,11 +316,6 @@ retry:
 		if (bp->b_blkno != fsbtodb(fs, bno))
 			panic("ffs_realloccg: bad blockno");
 		delta = btodb(nsize - osize);
-		if (ip->i_flag & IN_SPACECOUNTED) {
-			UFS_LOCK(ump);
-			fs->fs_pendingblocks += delta;
-			UFS_UNLOCK(ump);
-		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
 			ip->i_flag |= IN_CHANGE;
@@ -394,11 +384,6 @@ retry:
 			ffs_blkfree(ump, fs, ip->i_devvp, bprev, (long)osize,
 			    ip->i_number, NULL);
 		delta = btodb(nsize - osize);
-		if (ip->i_flag & IN_SPACECOUNTED) {
-			UFS_LOCK(ump);
-			fs->fs_pendingblocks += delta;
-			UFS_UNLOCK(ump);
-		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		if (flags & IO_EXT)
 			ip->i_flag |= IN_CHANGE;
@@ -2422,11 +2407,6 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
 		ip = VTOI(vp);
-		if (ip->i_flag & IN_SPACECOUNTED) {
-			UFS_LOCK(ump);
-			fs->fs_pendingblocks += cmd.size;
-			UFS_UNLOCK(ump);
-		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + cmd.size);
 		ip->i_flag |= IN_CHANGE;
 		vput(vp);

@@ -38,7 +38,7 @@
  */
 
 #include <machine/asm.h>
-#include <machine/cpu.h>
+#include <machine/cpuregs.h>
 #include <machine/regnum.h>
 
 #include "opt_cputype.h"
@@ -54,14 +54,14 @@
 	.set	noreorder		# Noreorder is default style!
 
 LEAF(set_intr_mask)
-	li	t0, SR_INT_MASK		# 1 means masked so invert.
+	li	t0, MIPS_SR_INT_MASK	# 1 means masked so invert.
 	not	a0, a0			# 1 means masked so invert.
 	and	a0, t0			# 1 means masked so invert.
-	mfc0	v0, COP_0_STATUS_REG
-	li	v1, ~SR_INT_MASK
+	mfc0	v0, MIPS_COP_0_STATUS
+	li	v1, ~MIPS_SR_INT_MASK
 	and	v1, v0
 	or	v1, a0
-	mtc0	v1, COP_0_STATUS_REG
+	mtc0	v1, MIPS_COP_0_STATUS
 	MIPS_CPU_NOP_DELAY
 	move	v0, v1
 	jr	ra
@@ -71,8 +71,8 @@ END(set_intr_mask)
 
 LEAF(get_intr_mask)
 	li	a0, 0
-	mfc0	v0, COP_0_STATUS_REG
-	li	v1, SR_INT_MASK
+	mfc0	v0, MIPS_COP_0_STATUS
+	li	v1, MIPS_SR_INT_MASK
 	and	v0, v1
 	or	v0, a0
 	jr	ra

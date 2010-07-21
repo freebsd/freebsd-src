@@ -469,29 +469,28 @@ main(int argc, char **argv)
 
 	if (file == NULL || fl_dump) {
 		len = sizeof(count);
-		error = sysctlbyname(hw_mca_count, &count, &len, NULL, 0);
-		if (error)
+		if (sysctlbyname(hw_mca_count, &count, &len, NULL, 0) == -1)
 			err(1, hw_mca_count);
 
 		if (count == 0)
 			errx(0, "no error records found");
 
 		len = sizeof(first);
-		error = sysctlbyname(hw_mca_first, &first, &len, NULL, 0);
-		if (error)
+		if (sysctlbyname(hw_mca_first, &first, &len, NULL, 0) == -1)
 			err(1, hw_mca_first);
 
 		len = sizeof(last);
-		error = sysctlbyname(hw_mca_last, &last, &len, NULL, 0);
-		if (error)
+		if (sysctlbyname(hw_mca_last, &last, &len, NULL, 0) == -1)
 			err(1, hw_mca_last);
 
 		cpuid = 0;
+		error = 0;
 		while (count && first <= last) {
 			do {
 				sprintf(mib, hw_mca_recid, first, cpuid);
 				len = 0;
-				error = sysctlbyname(mib, NULL, &len, NULL, 0);
+				ch = sysctlbyname(mib, NULL, &len, NULL, 0);
+				error = (ch == -1) ? errno : 0;
 				if (error != ENOENT)
 					break;
 				cpuid++;
@@ -502,14 +501,13 @@ main(int argc, char **argv)
 				continue;
 			}
 			if (error)
-				err(1, "%s(1)", mib);
+				errc(1, error, "%s(1)", mib);
 
 			buf = malloc(len);
 			if (buf == NULL)
 				err(1, "buffer");
 
-			error = sysctlbyname(mib, buf, &len, NULL, 0);
-			if (error)
+			if (sysctlbyname(mib, buf, &len, NULL, 0) == -1)
 				err(1, "%s(2)", mib);
 
 			if (fl_dump)

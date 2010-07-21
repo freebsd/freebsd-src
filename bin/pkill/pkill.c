@@ -128,7 +128,7 @@ main(int argc, char **argv)
 {
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q, *pidfile;
 	const char *execf, *coref;
-	int ancestors, debug_opt;
+	int ancestors, debug_opt, did_action;
 	int i, ch, bestidx, rv, criteria, pidfromfile, pidfilelock;
 	size_t jsz;
 	int (*action)(const struct kinfo_proc *);
@@ -242,8 +242,6 @@ main(int argc, char **argv)
 			criteria = 1;
 			break;
 		case 'l':
-			if (!pgrep)
-				usage();
 			longfmt = 1;
 			break;
 		case 'n':
@@ -530,16 +528,24 @@ main(int argc, char **argv)
 	/*
 	 * Take the appropriate action for each matched process, if any.
 	 */
+	did_action = 0;
 	for (i = 0, rv = 0, kp = plist; i < nproc; i++, kp++) {
 		if (PSKIP(kp))
 			continue;
 		if (selected[i]) {
+			if (longfmt && !pgrep) {
+				did_action = 1;
+				printf("kill -%d %d\n", signum, kp->ki_pid);
+			}
 			if (inverse)
 				continue;
 		} else if (!inverse)
 			continue;
 		rv |= (*action)(kp);
 	}
+	if (!did_action && !pgrep && longfmt)
+		fprintf(stderr,
+		    "No matching processes belonging to you were found\n");
 
 	exit(rv ? STATUS_MATCH : STATUS_NOMATCH);
 }
@@ -552,7 +558,7 @@ usage(void)
 	if (pgrep)
 		ustr = "[-LSfilnoqvx] [-d delim]";
 	else
-		ustr = "[-signal] [-ILfinovx]";
+		ustr = "[-signal] [-ILfilnovx]";
 
 	fprintf(stderr,
 		"usage: %s %s [-F pidfile] [-G gid] [-M core] [-N system]\n"

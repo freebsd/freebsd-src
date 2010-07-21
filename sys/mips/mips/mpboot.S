@@ -38,23 +38,23 @@
 
 #ifdef TARGET_OCTEON
 #define CLEAR_STATUS \
-	mfc0    a0, COP_0_STATUS_REG    ;\
+	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
 	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER | MIPS_SR_BEV)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER | MIPS_SR_BEV) ; \
 	and     a0, a0, a2              ; \
-        mtc0    a0, COP_0_STATUS_REG    
+        mtc0    a0, MIPS_COP_0_STATUS
 #else
 #define CLEAR_STATUS \
-	mtc0	zero, COP_0_STATUS_REG
+	mtc0	zero, MIPS_COP_0_STATUS
 #endif
 
 GLOBAL(mpentry)
 	CLEAR_STATUS			/* disable interrupts */
 
-	mtc0	zero, COP_0_CAUSE_REG	/* clear soft interrupts */
+	mtc0	zero, MIPS_COP_0_CAUSE	/* clear soft interrupts */
 
-	li	t0, CFG_K0_CACHED	/* make sure kseg0 is cached */
+	li	t0, MIPS_CCA_CNC	/* make sure kseg0 is cached */
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 

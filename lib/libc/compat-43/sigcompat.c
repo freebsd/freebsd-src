@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
+#include <errno.h>
 #include <signal.h>
 #include <string.h>
 #include "un-namespace.h"
@@ -111,9 +112,16 @@ int
 xsi_sigpause(int sig)
 {
 	sigset_t set;
+	int error;
 
-	sigemptyset(&set);
-	sigaddset(&set, sig);
+	if (!_SIG_VALID(sig)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	error = _sigprocmask(SIG_BLOCK, NULL, &set);
+	if (error != 0)
+		return (error);
+	sigdelset(&set, sig);
 	return (_sigsuspend(&set));
 }
 

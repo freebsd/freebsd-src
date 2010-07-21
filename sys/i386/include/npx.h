@@ -138,11 +138,6 @@ union	savefpu {
 
 #ifdef _KERNEL
 
-#define	IO_NPX		0x0F0		/* Numeric Coprocessor */
-#define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
-
-#define	IRQ_NPX		13
-
 struct fpu_kern_ctx {
 	union savefpu hwstate;
 	union savefpu *prev;
@@ -151,9 +146,6 @@ struct fpu_kern_ctx {
 #define	FPU_KERN_CTX_NPXINITDONE 0x01
 
 #define	PCB_USER_FPU(pcb) (((pcb)->pcb_flags & PCB_KERNNPX) == 0)
-
-/* full reset on some systems, NOP on others */
-#define npx_full_reset() outb(IO_NPX + 1, 0)
 
 int	npxdna(void);
 void	npxdrop(void);

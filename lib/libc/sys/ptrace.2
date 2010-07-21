@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd May 24, 2010
+.Dd July 10, 2010
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -294,6 +294,7 @@ struct ptrace_lwpinfo {
 	int	pl_flags;
 	sigset_t pl_sigmask;
 	sigset_t pl_siglist;
+	siginfo_t pl_siginfo;
 };
 .Ed
 .Pp
@@ -338,13 +339,28 @@ program being executed by debuggee process has been changed by succesful
 execution of a system call from the
 .Fn execve 2
 family.
+.It PL_FLAG_SI
+Indicates that
+.Va pl_siginfo
+member of
+.Vt "struct ptrace_lwpinfo"
+contains valid information.
 .El
 .It pl_sigmask
 The current signal mask of the LWP
 .It pl_siglist
-The current pending set of signals for the LWP. Note that signals that
-are delivered to the process would not appear on an LWP siglist until
-the thread is selected for delivery.
+The current pending set of signals for the LWP.
+Note that signals that are delivered to the process would not appear
+on an LWP siglist until the thread is selected for delivery.
+.It pl_siginfo
+The siginfo that accompanies the signal pending.
+Only valid for
+.Dv PL_EVENT_SIGNAL
+kind of stop, when
+.Va pl_flags
+has
+.Dv PL_FLAG_SI
+set.
 .El
 .It PT_GETNUMLWPS
 This request returns the number of kernel threads associated with the

@@ -188,7 +188,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	err = fdt_regsize(node, &start, &size);
 	if (err)
 		return (ENXIO);
-	start += FDT_IMMR_VA;
+	start += fdt_immr_va;
 
 	uart_bus_space_mem = fdtbus_bs_tag;
 	uart_bus_space_io = NULL;

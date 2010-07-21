@@ -180,7 +180,9 @@ backup_cb(spa_t *spa, blkptr_t *bp, const zbookmark_t *zb,
 	if (issig(JUSTLOOKING) && issig(FORREAL))
 		return (EINTR);
 
-	if (bp == NULL && zb->zb_object == 0) {
+	if (zb->zb_object != 0 && DMU_OBJECT_IS_SPECIAL(zb->zb_object)) {
+		return (0);
+	} else if (bp == NULL && zb->zb_object == 0) {
 		uint64_t span = BP_SPAN(dnp, zb->zb_level);
 		uint64_t dnobj = (zb->zb_blkid * span) >> DNODE_SHIFT;
 		err = dump_freeobjects(ba, dnobj, span >> DNODE_SHIFT);

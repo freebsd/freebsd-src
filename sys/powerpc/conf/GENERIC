@@ -21,6 +21,8 @@
 cpu		AIM
 ident		GENERIC
 
+machine		powerpc	powerpc
+
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platform support

@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/tlb.h>
 #ifdef DDB
 #include <sys/kdb.h>
 #include <ddb/ddb.h>
@@ -118,7 +119,7 @@ vm_offset_t kstack0;
 /*
  * Each entry in the pcpu_space[] array is laid out in the following manner:
  * struct pcpu for cpu 'n'	pcpu_space[n]
- * boot stack for cpu 'n'	pcpu_space[n] + PAGE_SIZE * 2 - START_FRAME
+ * boot stack for cpu 'n'	pcpu_space[n] + PAGE_SIZE * 2 - CALLFRAME_SIZ
  *
  * Note that the boot stack grows downwards and we assume that we never
  * use enough stack space to trample over the 'struct pcpu' that is at
@@ -252,23 +253,8 @@ cpu_halt(void)
 		;
 }
 
-SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo, CTLFLAG_RD, &bootinfo,
+SYSCTL_STRUCT(_machdep, OID_AUTO, bootinfo, CTLFLAG_RD, &bootinfo,
     bootinfo, "Bootinfo struct: kernel filename, BIOS harddisk geometry, etc");
-
-#ifdef PORT_TO_JMIPS
-static int
-sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
-{
-}
-
-SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT | CTLFLAG_RW,
-    &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
-    "Local offset from GMT in seconds");
-SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set, CTLFLAG_RW,
-    &disable_rtc_set, 0, "Disable setting the real time clock to system time");
-SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock, CTLFLAG_RW,
-    &wall_cmos_clock, 0, "Wall CMOS clock assumed");
-#endif	/* PORT_TO_JMIPS */
 
 /*
  * Initialize per cpu data structures, include curthread.
@@ -343,19 +329,19 @@ mips_vector_init(void)
 	if (MipsCacheEnd - MipsCache > 0x80)
 		panic("startup: Cache error code too large");
 
-	bcopy(MipsTLBMiss, (void *)TLB_MISS_EXC_VEC,
+	bcopy(MipsTLBMiss, (void *)MIPS_UTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
 #if defined(TARGET_OCTEON) || defined(TARGET_XLR_XLS)
 /* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
-	bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
+	bcopy(MipsTLBMiss, (void *)MIPS3_XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 #endif
 
-	bcopy(MipsException, (void *)GEN_EXC_VEC,
+	bcopy(MipsException, (void *)MIPS3_GEN_EXC_VEC,
 	      MipsExceptionEnd - MipsException);
 
-	bcopy(MipsCache, (void *)CACHE_ERR_EXC_VEC,
+	bcopy(MipsCache, (void *)MIPS3_CACHE_ERR_EXC_VEC,
 	      MipsCacheEnd - MipsCache);
 
 	/*
@@ -368,10 +354,10 @@ mips_vector_init(void)
 	 * Mask all interrupts. Each interrupt will be enabled
 	 * when handler is installed for it
 	 */
-	set_intr_mask(ALL_INT_MASK);
+	set_intr_mask(MIPS_SR_INT_MASK);
 
 	/* Clear BEV in SR so we start handling our own exceptions */
-	mips_wr_status(mips_rd_status() & ~SR_BOOT_EXC_VEC);
+	mips_wr_status(mips_rd_status() & ~MIPS_SR_BEV);
 }
 
 /*
@@ -413,20 +399,17 @@ void
 mips_pcpu_tlb_init(struct pcpu *pcpu)
 {
 	vm_paddr_t pa;
-	struct tlb tlb;
-	int lobits;
+	pt_entry_t pte;
 
 	/*
 	 * Map the pcpu structure at the virtual address 'pcpup'.
 	 * We use a wired tlb index to do this one-time mapping.
 	 */
-	memset(&tlb, 0, sizeof(tlb));
 	pa = vtophys(pcpu);
-	lobits = PTE_RW | PTE_V | PTE_G | PTE_CACHE;
-	tlb.tlb_hi = (vm_offset_t)pcpup;
-	tlb.tlb_lo0 = mips_paddr_to_tlbpfn(pa) | lobits;
-	tlb.tlb_lo1 = mips_paddr_to_tlbpfn(pa + PAGE_SIZE) | lobits;
-	Mips_TLBWriteIndexed(PCPU_TLB_ENTRY, &tlb);
+	pte = PTE_D | PTE_V | PTE_G | PTE_C_CACHE;
+	tlb_insert_wired(PCPU_TLB_ENTRY, (vm_offset_t)pcpup,
+			 TLBLO_PA_TO_PFN(pa) | pte,
+			 TLBLO_PA_TO_PFN(pa + PAGE_SIZE) | pte);
 }
 #endif
 
@@ -491,7 +474,7 @@ spinlock_exit(void)
 void
 cpu_idle(int busy)
 {
-	if (mips_rd_status() & SR_INT_ENAB)
+	if (mips_rd_status() & MIPS_SR_INT_IE)
 		__asm __volatile ("wait");
 	else
 		panic("ints disabled in idleproc!");

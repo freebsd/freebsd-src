@@ -435,7 +435,7 @@ AcpiNsLookup (
             while (!AcpiNsOpensScope (PrefixNode->Type) &&
                     PrefixNode->Type != ACPI_TYPE_ANY)
             {
-                PrefixNode = AcpiNsGetParentNode (PrefixNode);
+                PrefixNode = PrefixNode->Parent;
             }
         }
     }
@@ -516,7 +516,7 @@ AcpiNsLookup (
                 /* Backup to the parent node */
 
                 NumCarats++;
-                ThisNode = AcpiNsGetParentNode (ThisNode);
+                ThisNode = ThisNode->Parent;
                 if (!ThisNode)
                 {
                     /* Current scope has no parent scope */
@@ -531,7 +531,7 @@ AcpiNsLookup (
             if (SearchParentFlag == ACPI_NS_NO_UPSEARCH)
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                    "Search scope is [%4.4s], path has %d carat(s)\n",
+                    "Search scope is [%4.4s], path has %u carat(s)\n",
                     AcpiUtGetNodeName (ThisNode), NumCarats));
             }
         }
@@ -592,7 +592,7 @@ AcpiNsLookup (
             Path++;
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "Multi Pathname (%d Segments, Flags=%X)\n",
+                "Multi Pathname (%u Segments, Flags=%X)\n",
                 NumSegments, Flags));
             break;
 

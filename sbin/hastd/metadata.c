@@ -96,6 +96,7 @@ metadata_read(struct hast_resource *res, bool openrw)
 		rerrno = errno;
 		pjdlog_errno(LOG_ERR,
 		    "Unable to allocate memory to read metadata");
+		ebuf_free(eb);
 		goto fail;
 	}
 	buf = ebuf_data(eb, NULL);
@@ -154,6 +155,7 @@ metadata_read(struct hast_resource *res, bool openrw)
 		nv_free(nv);
 		goto fail;
 	}
+	nv_free(nv);
 	return (0);
 fail:
 	if (opened_here) {
@@ -172,6 +174,7 @@ metadata_write(struct hast_resource *res)
 	unsigned char *buf, *ptr;
 	size_t size;
 	ssize_t done;
+	int ret;
 
 	buf = calloc(1, METADATA_SIZE);
 	if (buf == NULL) {
@@ -179,6 +182,8 @@ metadata_write(struct hast_resource *res)
 		    (size_t)METADATA_SIZE);
 		return (-1);
 	}
+
+	ret = -1;
 
 	nv = nv_alloc();
 	nv_add_string(nv, res->hr_name, "resource");
@@ -199,7 +204,7 @@ metadata_write(struct hast_resource *res)
 	nv_add_string(nv, role2str(res->hr_role), "prevrole");
 	if (nv_error(nv) != 0) {
 		pjdlog_error("Unable to create metadata.");
-		goto fail;
+		goto end;
 	}
 	res->hr_previous_role = res->hr_role;
 	eb = nv_hton(nv);
@@ -211,12 +216,11 @@ metadata_write(struct hast_resource *res)
 	done = pwrite(res->hr_localfd, buf, METADATA_SIZE, 0);
 	if (done < 0 || done != METADATA_SIZE) {
 		pjdlog_errno(LOG_ERR, "Unable to write metadata");
-		goto fail;
+		goto end;
 	}
-
-	return (0);
-fail:
+	ret = 0;
+end:
 	free(buf);
 	nv_free(nv);
-	return (-1);
+	return (ret);
 }

@@ -130,7 +130,8 @@
  *
  * PARAMETERS:  Table               - A RSDP
  *
- * RETURN:      Length of the table (there is no length field, use revision)
+ * RETURN:      Length of the table (there is not always a length field,
+ *              use revision or length if available (ACPI 2.0+))
  *
  * DESCRIPTION: Format the contents of a RSDP
  *
@@ -140,19 +141,42 @@ UINT32
 AcpiDmDumpRsdp (
     ACPI_TABLE_HEADER       *Table)
 {
-    UINT32                  Length = ACPI_RSDP_REV0_SIZE;
+    ACPI_TABLE_RSDP         *Rsdp = ACPI_CAST_PTR (ACPI_TABLE_RSDP, Table);
+    UINT32                  Length = sizeof (ACPI_RSDP_COMMON);
+    UINT8                   Checksum;
 
 
     /* Dump the common ACPI 1.0 portion */
 
     AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoRsdp1);
 
-    /* ACPI 2.0+ contains more data and has a Length field */
+    /* Validate the first checksum */
 
-    if (ACPI_CAST_PTR (ACPI_TABLE_RSDP, Table)->Revision > 0)
+    Checksum = AcpiDmGenerateChecksum (Rsdp, sizeof (ACPI_RSDP_COMMON),
+                Rsdp->Checksum);
+    if (Checksum != Rsdp->Checksum)
     {
-        Length = ACPI_CAST_PTR (ACPI_TABLE_RSDP, Table)->Length;
+        AcpiOsPrintf ("/* Incorrect Checksum above, should be 0x%2.2X */\n",
+            Checksum);
+    }
+
+    /* The RSDP for ACPI 2.0+ contains more data and has a Length field */
+
+    if (Rsdp->Revision > 0)
+    {
+        Length = Rsdp->Length;
         AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoRsdp2);
+
+        /* Validate the extended checksum over entire RSDP */
+
+        Checksum = AcpiDmGenerateChecksum (Rsdp, sizeof (ACPI_TABLE_RSDP),
+                    Rsdp->ExtendedChecksum);
+        if (Checksum != Rsdp->ExtendedChecksum)
+        {
+            AcpiOsPrintf (
+                "/* Incorrect Extended Checksum above, should be 0x%2.2X */\n",
+                Checksum);
+        }
     }
 
     return (Length);
@@ -595,7 +619,7 @@ AcpiDmDumpDmar (
             while (PathOffset < ScopeTable->Length)
             {
                 AcpiDmLineHeader ((PathOffset + ScopeOffset + Offset), 2, "PCI Path");
-                AcpiOsPrintf ("[%2.2X, %2.2X]\n", PciPath[0], PciPath[1]);
+                AcpiOsPrintf ("%2.2X,%2.2X\n", PciPath[0], PciPath[1]);
 
                 /* Point to next PCI Path entry */
 
@@ -709,7 +733,7 @@ AcpiDmDumpErst (
     {
         AcpiOsPrintf ("\n");
         Status = AcpiDmDumpTable (Length, Offset, SubTable,
-                    sizeof (ACPI_WHEA_HEADER), AcpiDmTableInfoEinj0);
+                    sizeof (ACPI_WHEA_HEADER), AcpiDmTableInfoErst0);
         if (ACPI_FAILURE (Status))
         {
             return;
@@ -1174,7 +1198,7 @@ AcpiDmDumpMcfg (
     {
         if (Offset + sizeof (ACPI_MCFG_ALLOCATION) > Table->Length)
         {
-            AcpiOsPrintf ("Warning: there are %d invalid trailing bytes\n",
+            AcpiOsPrintf ("Warning: there are %u invalid trailing bytes\n",
                 sizeof (ACPI_MCFG_ALLOCATION) - (Offset - Table->Length));
             return;
         }
@@ -1301,15 +1325,20 @@ AcpiDmDumpSlit (
                 return;
             }
 
-            AcpiOsPrintf ("%2.2X ", Row[j]);
+            AcpiOsPrintf ("%2.2X", Row[j]);
             Offset++;
 
             /* Display up to 16 bytes per output row */
 
-            if (j && (((j+1) % 16) == 0) && ((j+1) < Localities))
+            if ((j+1) < Localities)
             {
-                AcpiOsPrintf ("\n");
-                AcpiDmLineHeader (Offset, 0, "");
+                AcpiOsPrintf (",");
+
+                if (j && (((j+1) % 16) == 0))
+                {
+                    AcpiOsPrintf ("\n");
+                    AcpiDmLineHeader (Offset, 0, "");
+                }
             }
         }
 

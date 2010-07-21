@@ -286,7 +286,7 @@ ata_ali_setmode(device_t dev, int target, int mode)
         mode = min(mode, ctlr->chip->max_dma);
 
 	if (ctlr->chip->cfg2 & ALI_NEW && ctlr->chip->chiprev < 0xc7) {
-		if (mode > ATA_UDMA2 &&
+		if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
 		    pci_read_config(parent, 0x4a, 1) & (1 << ch->unit)) {
 			ata_print_cable(dev, "controller");
 			mode = ATA_UDMA2;

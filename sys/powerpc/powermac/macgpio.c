@@ -35,15 +35,16 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 
-#include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
+#include <machine/bus.h>
+#include <machine/intr_machdep.h>
+#include <machine/pmap.h>
 #include <machine/resource.h>
+#include <machine/vmparam.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -150,8 +151,7 @@ macgpio_attach(device_t dev)
 {
 	struct macgpio_softc *sc;
         struct macgpio_devinfo *dinfo;
-        phandle_t root;
-	phandle_t child;
+        phandle_t root, child, iparent;
         device_t cdev;
 	uint32_t irq;
 
@@ -186,10 +186,13 @@ macgpio_attach(device_t dev)
 
 		resource_list_init(&dinfo->mdi_resources);
 
-		if (OF_getprop(child,"interrupts",&irq, sizeof(irq)) == 
+		if (OF_getprop(child, "interrupts", &irq, sizeof(irq)) == 
 		    sizeof(irq)) {
+			OF_searchprop(child, "interrupt-parent", &iparent,
+			    sizeof(iparent));
 			resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
-			    0, irq, irq, 1);
+			    0, INTR_VEC(iparent, irq), INTR_VEC(iparent, irq),
+			    1);
 		}
 
 		/* Fix messed-up offsets */

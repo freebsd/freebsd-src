@@ -46,9 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/power.h>
 #include <sys/sbuf.h>
-#ifdef SMP
 #include <sys/sched.h>
-#endif
 #include <sys/smp.h>
 #include <sys/timetc.h>
 
@@ -2319,25 +2317,26 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 {
 #if defined(__amd64__) || defined(__i386__)
     struct apm_clone_data *clone;
+    ACPI_STATUS status;
 
     if (state < ACPI_STATE_S1 || state > ACPI_S_STATES_MAX)
 	return (EINVAL);
     if (!acpi_sleep_states[state])
 	return (EOPNOTSUPP);
 
-    /* S5 (soft-off) should be entered directly with no waiting. */
-    if (state == ACPI_STATE_S5) {
-	if (ACPI_SUCCESS(acpi_EnterSleepState(sc, state)))
-	    return (0);
-	else
-	    return (ENXIO);
-    }
+    ACPI_LOCK(acpi);
 
     /* If a suspend request is already in progress, just return. */
-    ACPI_LOCK(acpi);
     if (sc->acpi_next_sstate != 0) {
     	ACPI_UNLOCK(acpi);
 	return (0);
+    }
+
+    /* S5 (soft-off) should be entered directly with no waiting. */
+    if (state == ACPI_STATE_S5) {
+    	ACPI_UNLOCK(acpi);
+	status = acpi_EnterSleepState(sc, state);
+	return (ACPI_SUCCESS(status) ? 0 : ENXIO);
     }
 
     /* Record the pending state and notify all apm devices. */
@@ -2353,11 +2352,8 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
     /* If devd(8) is not running, immediately enter the sleep state. */
     if (!devctl_process_running()) {
 	ACPI_UNLOCK(acpi);
-	if (ACPI_SUCCESS(acpi_EnterSleepState(sc, sc->acpi_next_sstate))) {
-	    return (0);
-	} else {
-	    return (ENXIO);
-	}
+	status = acpi_EnterSleepState(sc, state);
+	return (ACPI_SUCCESS(status) ? 0 : ENXIO);
     }
 
     /*
@@ -2523,11 +2519,11 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	return_ACPI_STATUS (AE_OK);
     }
 
-#ifdef SMP
-    thread_lock(curthread);
-    sched_bind(curthread, 0);
-    thread_unlock(curthread);
-#endif
+    if (smp_started) {
+	thread_lock(curthread);
+	sched_bind(curthread, 0);
+	thread_unlock(curthread);
+    }
 
     /*
      * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
@@ -2594,7 +2590,6 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
      * process.  This handles both the error and success cases.
      */
 backout:
-    sc->acpi_next_sstate = 0;
     if (slp_state >= ACPI_SS_GPE_SET) {
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
@@ -2605,14 +2600,15 @@ backout:
 	DEVICE_RESUME(root_bus);
     if (slp_state >= ACPI_SS_SLEPT)
 	acpi_enable_fixed_events(sc);
+    sc->acpi_next_sstate = 0;
 
     mtx_unlock(&Giant);
 
-#ifdef SMP
-    thread_lock(curthread);
-    sched_unbind(curthread);
-    thread_unlock(curthread);
-#endif
+    if (smp_started) {
+	thread_lock(curthread);
+	sched_unbind(curthread);
+	thread_unlock(curthread);
+    }
 
     /* Allow another sleep request after a while. */
     timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
@@ -2653,16 +2649,14 @@ acpi_wake_set_enable(device_t dev, int enable)
 
     flags = acpi_get_flags(dev);
     if (enable) {
-	status = AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit,
-	    ACPI_GPE_TYPE_WAKE_RUN);
+	status = AcpiGpeWakeup(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_ENABLE);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "enable wake failed\n");
 	    return (ENXIO);
 	}
 	acpi_set_flags(dev, flags | ACPI_FLAG_WAKE_ENABLED);
     } else {
-	status = AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit,
-	    ACPI_GPE_TYPE_WAKE);
+	status = AcpiGpeWakeup(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_DISABLE);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "disable wake failed\n");
 	    return (ENXIO);
@@ -2692,7 +2686,7 @@ acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate)
      * and set _PSW.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_TYPE_WAKE);
+	AcpiGpeWakeup(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_DISABLE);
 	if (bootverbose)
 	    device_printf(dev, "wake_prep disabled wake for %s (S%d)\n",
 		acpi_name(handle), sstate);
@@ -2729,7 +2723,7 @@ acpi_wake_run_prep(ACPI_HANDLE handle, int sstate)
      * clear _PSW and turn off any power resources it used.
      */
     if (sstate > prw.lowest_wake) {
-	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_TYPE_WAKE_RUN);
+	AcpiGpeWakeup(prw.gpe_handle, prw.gpe_bit, ACPI_GPE_ENABLE);
 	if (bootverbose)
 	    device_printf(dev, "run_prep re-enabled %s\n", acpi_name(handle));
     } else {

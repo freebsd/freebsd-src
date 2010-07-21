@@ -294,7 +294,7 @@ AcpiEvPciConfigRegionSetup (
         return_ACPI_STATUS (Status);
     }
 
-    ParentNode = AcpiNsGetParentNode (RegionObj->Region.Node);
+    ParentNode = RegionObj->Region.Node->Parent;
 
     /*
      * Get the _SEG and _BBN values from the device upon which the handler
@@ -348,7 +348,7 @@ AcpiEvPciConfigRegionSetup (
                 break;
             }
 
-            PciRootNode = AcpiNsGetParentNode (PciRootNode);
+            PciRootNode = PciRootNode->Parent;
         }
 
         /* PCI root bridge not found, use namespace root node */
@@ -385,7 +385,7 @@ AcpiEvPciConfigRegionSetup (
     PciDeviceNode = RegionObj->Region.Node;
     while (PciDeviceNode && (PciDeviceNode->Type != ACPI_TYPE_DEVICE))
     {
-        PciDeviceNode = AcpiNsGetParentNode (PciDeviceNode);
+        PciDeviceNode = PciDeviceNode->Parent;
     }
 
     if (!PciDeviceNode)
@@ -661,7 +661,7 @@ AcpiEvInitializeRegion (
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
-    Node = AcpiNsGetParentNode (RegionObj->Region.Node);
+    Node = RegionObj->Region.Node->Parent;
     SpaceId = RegionObj->Region.SpaceId;
 
     /* Setup defaults */
@@ -785,7 +785,7 @@ AcpiEvInitializeRegion (
 
         /* This node does not have the handler we need; Pop up one level */
 
-        Node = AcpiNsGetParentNode (Node);
+        Node = Node->Parent;
     }
 
     /* If we get here, there is no handler for this region */

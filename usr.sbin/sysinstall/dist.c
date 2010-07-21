@@ -605,7 +605,7 @@ getinfo:
 	    if (fp == NULL)
 		msgConfirm("Failed to find %s on this media.  Reinitializing media.", fname);
 	    else
-		msgConfirm("Failed to retreive piece file %s.\n"
+		msgConfirm("Failed to retrieve piece file %s.\n"
 			   "%s: Reinitializing media.",
 			   fname, !intr ? "I/O error" : "User interrupt");
 	    DEVICE_SHUTDOWN(mediaDevice);
@@ -701,6 +701,7 @@ distExtract(char *parent, Distribution *me)
     char *path, *dist;
     WINDOW *w = savescr();
     struct sigaction old, new;
+    int canceled = 0;
 
     status = TRUE;
     if (isDebug())
@@ -715,7 +716,7 @@ distExtract(char *parent, Distribution *me)
     sigaction(SIGINT, &new, &old);
 
     /* Loop through to see if we're in our parent's plans */
-    for (i = 0; me[i].my_name; i++) {
+    for (i = 0; me[i].my_name && canceled == 0; i++) {
 	dist = me[i].my_name;
 	path = parent ? parent : dist;
 
@@ -750,8 +751,11 @@ distExtract(char *parent, Distribution *me)
 		    status = msgYesNo("Unable to transfer the %s distribution from\n%s.\n\n"
 			              "Do you want to try to retrieve it again?",
 				      me[i].my_name, mediaDevice->name);
-		    if (!status)
+		    if (status == 0)
 			--i;
+		    else
+			canceled = 1;	
+
 		    status = FALSE;
 		}
 	    }
@@ -765,6 +769,7 @@ distExtract(char *parent, Distribution *me)
 	if (status)
 	    *(me[i].my_mask) &= ~(me[i].my_bit);
     }
+
     sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
     restorescr(w);
     return status;
@@ -857,8 +862,9 @@ printSelected(char *buf, int selected, Distribution *me, int *col)
 int
 distExtractAll(dialogMenuItem *self)
 {
-    int old_dists, old_kernel, retries = 0, status = DITEM_SUCCESS;
+    int old_dists, old_kernel, status = DITEM_SUCCESS;
     char buf[512];
+    int extract_status = TRUE;
     WINDOW *w;
 
     /* paranoia */
@@ -878,9 +884,7 @@ distExtractAll(dialogMenuItem *self)
     w = savescr();
     msgNotify("Attempting to install all selected distributions..");
 
-    /* Try for 3 times around the loop, then give up. */
-    while (Dists && ++retries < 3)
-	distExtract(NULL, DistTable);
+    extract_status = distExtract(NULL, DistTable);
 
     dialog_clear_norefresh();
     /* Only do base fixup if base dist was successfully extracted */
@@ -907,5 +911,9 @@ distExtractAll(dialogMenuItem *self)
 	}
     }
     restorescr(w);
+
+    if (extract_status == FALSE)
+	status = DITEM_FAILURE;
+
     return status;
 }

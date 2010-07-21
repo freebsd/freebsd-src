@@ -640,12 +640,10 @@ The domain name of the host being installed (optional).
 .It defaultrouter
 The default router for this host (non-optional).
 .It netDev
-Which host interface to use
-.Ar ( ed0
-or
-.Ar ep0 ,
-for example.
-Non-optional).
+Which network interface to use. 
+Multiple network interfaces may be specified using a comma delimited list. 
+If netDev is set to ANY, all available network interfaces will be probed and the
+first interface found to have a link will be used. (non-optional).
 .It netInteractive
 If set, bring up the interactive network setup form even
 if all relevant configuration variables are already set (optional).
@@ -898,9 +896,6 @@ Use
 and
 .Xr bsdlabel 8
 for these tasks.
-.Pp
-This utility is a prototype which lasted several years past
-its expiration date and is greatly in need of death.
 .Pp
 There are a (great) number of undocumented variables.
 UTSL.

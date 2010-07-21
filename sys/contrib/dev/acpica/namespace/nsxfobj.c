@@ -242,7 +242,7 @@ AcpiGetParent (
 
     /* Get the parent entry */
 
-    ParentNode = AcpiNsGetParentNode (Node);
+    ParentNode = Node->Parent;
     *RetHandle = ACPI_CAST_PTR (ACPI_HANDLE, ParentNode);
 
     /* Return exception if parent is null */

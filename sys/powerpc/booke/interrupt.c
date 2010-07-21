@@ -134,7 +134,7 @@ powerpc_extr_interrupt(struct trapframe *framep)
 {
 
 	critical_enter();
-	PIC_DISPATCH(pic, framep);
+	PIC_DISPATCH(root_pic, framep);
 	critical_exit();
 	framep->srr1 &= ~PSL_WE;
 }

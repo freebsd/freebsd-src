@@ -583,14 +583,14 @@ release_tx_desc(struct msgrng_msg *msg, int rel_buf)
 	struct mbuf *m;
 
 	tx_desc = (struct p2d_tx_desc *)MIPS_PHYS_TO_KSEG0(msg->msg0);
-	chk_addr = (struct p2d_tx_desc *)(uint32_t) (tx_desc->frag[XLR_MAX_TX_FRAGS] & 0x00000000ffffffff);
+	chk_addr = (struct p2d_tx_desc *)(intptr_t)tx_desc->frag[XLR_MAX_TX_FRAGS];
 	if (tx_desc != chk_addr) {
 		printf("Address %p does not match with stored addr %p - we leaked a descriptor\n",
 		    tx_desc, chk_addr);
 		return;
 	}
 	if (rel_buf) {
-		m = (struct mbuf *)(uint32_t) (tx_desc->frag[XLR_MAX_TX_FRAGS + 1] & 0x00000000ffffffff);
+		m = (struct mbuf *)(intptr_t)tx_desc->frag[XLR_MAX_TX_FRAGS + 1];
 		m_freem(m);
 	}
 	free_p2d_desc(tx_desc);
@@ -626,7 +626,7 @@ free_buf(vm_paddr_t paddr)
 		    (u_long)paddr, mag);
 		return;
 	}
-	m = (struct mbuf *)um;
+	m = (struct mbuf *)(intptr_t)um;
 	if (m != NULL)
 		m_freem(m);
 }
@@ -644,9 +644,9 @@ get_buf(void)
 	if (m_new == NULL)
 		return NULL;
 
-	m_adj(m_new, XLR_CACHELINE_SIZE - ((unsigned int)m_new->m_data & 0x1f));
+	m_adj(m_new, XLR_CACHELINE_SIZE - ((uintptr_t)m_new->m_data & 0x1f));
 	md = (unsigned int *)m_new->m_data;
-	md[0] = (unsigned int)m_new;	/* Back Ptr */
+	md[0] = (uintptr_t)m_new;	/* Back Ptr */
 	md[1] = 0xf00bad;
 	m_adj(m_new, XLR_CACHELINE_SIZE);
 
@@ -899,7 +899,6 @@ static void
 serdes_regs_init(struct driver_data *priv)
 {
 	xlr_reg_t *mmio_gpio = (xlr_reg_t *) (xlr_io_base + XLR_IO_GPIO_OFFSET);
-	int i;
 
 	/* Initialize SERDES CONTROL Registers */
 	rge_mii_write_internal(priv->serdes_mmio, 26, 0, 0x6DB0);
@@ -915,14 +914,27 @@ serdes_regs_init(struct driver_data *priv)
 	rge_mii_write_internal(priv->serdes_mmio, 26, 10, 0x0000);
 
 	/*
-	 * For loop delay and GPIO programming crud from Linux driver,
+	 * GPIO setting which affect the serdes - needs figuring out
 	 */
-	for (i = 0; i < 10000000; i++) {
+	DELAY(100);
+	xlr_write_reg(mmio_gpio, 0x20, 0x7e6802);
+	xlr_write_reg(mmio_gpio, 0x10, 0x7104);
+	DELAY(100);
+	
+	/* 
+	 * This kludge is needed to setup serdes (?) clock correctly on some
+	 * XLS boards
+	 */
+	if ((xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XI ||
+	    xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XII) &&
+	    xlr_boot1_info.board_minor_version == 4) {
+		/* use 125 Mhz instead of 156.25Mhz ref clock */
+		DELAY(100);
+		xlr_write_reg(mmio_gpio, 0x10, 0x7103);
+		xlr_write_reg(mmio_gpio, 0x21, 0x7103);
+		DELAY(100);
 	}
-	mmio_gpio[0x20] = 0x7e6802;
-	mmio_gpio[0x10] = 0x7104;
-	for (i = 0; i < 100000000; i++) {
-	}
+
 	return;
 }
 
@@ -984,7 +996,7 @@ rmi_xlr_config_pde(struct driver_data *priv)
 			bucket_map |= (1ULL << bucket);
 		}
 	}
-	printf("rmi_xlr_config_pde: bucket_map=%llx\n", bucket_map);
+	printf("rmi_xlr_config_pde: bucket_map=%jx\n", (uintmax_t)bucket_map);
 
 	/* bucket_map = 0x1; */
 	xlr_write_reg(priv->mmio, R_PDE_CLASS_0, (bucket_map & 0xffffffff));
@@ -1085,7 +1097,7 @@ rmi_xlr_gmac_config_speed(struct driver_data *priv)
 	if (priv->speed == xlr_mac_speed_10) {
 		if (priv->mode != XLR_RGMII)
 			xlr_write_reg(mmio, R_INTERFACE_CONTROL, SGMII_SPEED_10);
-		xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7137);
+		xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7117);
 		xlr_write_reg(mmio, R_CORECONTROL, 0x02);
 		printf("%s: [10Mbps]\n", device_get_nameunit(sc->rge_dev));
 		sc->rge_mii.mii_media.ifm_media = IFM_ETHER | IFM_AUTO | IFM_10_T | IFM_FDX;
@@ -1094,7 +1106,7 @@ rmi_xlr_gmac_config_speed(struct driver_data *priv)
 	} else if (priv->speed == xlr_mac_speed_100) {
 		if (priv->mode != XLR_RGMII)
 			xlr_write_reg(mmio, R_INTERFACE_CONTROL, SGMII_SPEED_100);
-		xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7137);
+		xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7117);
 		xlr_write_reg(mmio, R_CORECONTROL, 0x01);
 		printf("%s: [100Mbps]\n", device_get_nameunit(sc->rge_dev));
 		sc->rge_mii.mii_media.ifm_media = IFM_ETHER | IFM_AUTO | IFM_100_TX | IFM_FDX;
@@ -1105,7 +1117,7 @@ rmi_xlr_gmac_config_speed(struct driver_data *priv)
 			if (priv->mode != XLR_RGMII)
 				xlr_write_reg(mmio, R_INTERFACE_CONTROL, SGMII_SPEED_100);
 			printf("PHY reported unknown MAC speed, defaulting to 100Mbps\n");
-			xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7137);
+			xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7117);
 			xlr_write_reg(mmio, R_CORECONTROL, 0x01);
 			sc->rge_mii.mii_media.ifm_media = IFM_ETHER | IFM_AUTO | IFM_100_TX | IFM_FDX;
 			sc->rge_mii.mii_media.ifm_cur->ifm_media = IFM_ETHER | IFM_AUTO | IFM_100_TX | IFM_FDX;
@@ -1113,7 +1125,7 @@ rmi_xlr_gmac_config_speed(struct driver_data *priv)
 		} else {
 			if (priv->mode != XLR_RGMII)
 				xlr_write_reg(mmio, R_INTERFACE_CONTROL, SGMII_SPEED_1000);
-			xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7237);
+			xlr_write_reg(mmio, R_MAC_CONFIG_2, 0x7217);
 			xlr_write_reg(mmio, R_CORECONTROL, 0x00);
 			printf("%s: [1000Mbps]\n", device_get_nameunit(sc->rge_dev));
 			sc->rge_mii.mii_media.ifm_media = IFM_ETHER | IFM_AUTO | IFM_1000_T | IFM_FDX;
@@ -1468,8 +1480,8 @@ mac_xmit(struct mbuf *m, struct rge_softc *sc,
 			msgrng_access_disable(mflags);
 			release_tx_desc(&msg, 0);
 			xlr_rge_msg_snd_failed[vcpu]++;
-			dbg_msg("Failed packet to cpu %d, rv = %d, stid %d, msg0=%llx\n",
-			    vcpu, rv, stid, msg.msg0);
+			dbg_msg("Failed packet to cpu %d, rv = %d, stid %d, msg0=%jx\n",
+			    vcpu, rv, stid, (uintmax_t)msg.msg0);
 			return MAC_TX_FAIL;
 		}
 		msgrng_access_disable(mflags);
@@ -1477,7 +1489,8 @@ mac_xmit(struct mbuf *m, struct rge_softc *sc,
 	}
 
 	/* Send the packet to MAC */
-	dbg_msg("Sent tx packet to stid %d, msg0=%llx, msg1=%llx \n", stid, msg.msg0, msg.msg1);
+	dbg_msg("Sent tx packet to stid %d, msg0=%jx, msg1=%jx \n", stid, 
+	    (uintmax_t)msg.msg0, (uintmax_t)msg.msg1);
 #ifdef DUMP_PACKETS
 	{
 		int i = 0;
@@ -1626,8 +1639,8 @@ rmi_xlr_mac_msgring_handler(int bucket, int size, int code,
 	int vcpu = xlr_cpu_id();
 	int cpu = xlr_core_id();
 
-	dbg_msg("mac: bucket=%d, size=%d, code=%d, stid=%d, msg0=%llx msg1=%llx\n",
-	    bucket, size, code, stid, msg->msg0, msg->msg1);
+	dbg_msg("mac: bucket=%d, size=%d, code=%d, stid=%d, msg0=%jx msg1=%jx\n",
+	    bucket, size, code, stid, (uintmax_t)msg->msg0, (uintmax_t)msg->msg1);
 
 	phys_addr = (uint64_t) (msg->msg0 & 0xffffffffe0ULL);
 	length = (msg->msg0 >> 40) & 0x3fff;
@@ -1658,8 +1671,8 @@ rmi_xlr_mac_msgring_handler(int bucket, int size, int code,
 		return;
 	priv = &(sc->priv);
 
-	dbg_msg("msg0 = %llx, stid = %d, port = %d, addr=%lx, length=%d, ctrl=%d\n",
-	    msg->msg0, stid, port, addr, length, ctrl);
+	dbg_msg("msg0 = %jx, stid = %d, port = %d, addr=%lx, length=%d, ctrl=%d\n",
+	    (uintmax_t)msg->msg0, stid, port, addr, length, ctrl);
 
 	if (ctrl == CTRL_REG_FREE || ctrl == CTRL_JUMBO_FREE) {
 		xlr_rge_tx_ok_done[vcpu]++;
@@ -1686,8 +1699,8 @@ rmi_xlr_mac_msgring_handler(int bucket, int size, int code,
 		if ((priv->frin_to_be_sent[cpu]) > MAC_FRIN_TO_BE_SENT_THRESHOLD) {
 			mac_frin_replenish(NULL);
 		}
-		dbg_msg("gmac_%d: rx packet: phys_addr = %llx, length = %x\n",
-		    priv->instance, phys_addr, length);
+		dbg_msg("gmac_%d: rx packet: phys_addr = %jx, length = %x\n",
+		    priv->instance, (uintmax_t)phys_addr, length);
 		mac_stats_add(priv->stats.rx_packets, 1);
 		mac_stats_add(priv->stats.rx_bytes, length);
 		xlr_inc_counter(NETIF_RX);
@@ -1788,7 +1801,9 @@ rge_attach(device_t dev)
 		priv->instance = priv->id - xlr_board_info.gmacports;
 		priv->mmio = (xlr_reg_t *) (xlr_io_base + gmac_conf->baseaddr);
 	}
-	if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_VI) {
+	if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_VI ||
+	    (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XI &&
+	     priv->instance >=4)) {
 		dbg_msg("Arizona board - offset 4 \n");
 		priv->mii_mmio = (xlr_reg_t *) (xlr_io_base + XLR_IO_GMAC_4_OFFSET);
 	} else
@@ -1812,7 +1827,9 @@ rge_attach(device_t dev)
 
 	priv->mode = gmac_conf->mode;
 	if (xlr_board_info.is_xls == 0) {
-		if (xlr_board_atx_ii() && !xlr_board_atx_ii_b())
+		/* TODO - check II and IIB boards */
+		if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_II &&
+		    xlr_boot1_info.board_minor_version != 1)
 			priv->phy_addr = priv->instance - 2;
 		else
 			priv->phy_addr = priv->instance;
@@ -1824,7 +1841,12 @@ rge_attach(device_t dev)
 			priv->phy_addr = 0;
 		} else {
 			priv->mode = XLR_SGMII;
-			priv->phy_addr = priv->instance + 16;
+			/* Board 11 has SGMII daughter cards with the XLS chips, in this case
+			   the phy number is 0-3 for both GMAC blocks */
+			if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XI)
+				priv->phy_addr = priv->instance % 4 + 16;
+			else
+				priv->phy_addr = priv->instance + 16;
 		}
 	}
 
@@ -1866,7 +1888,7 @@ rge_attach(device_t dev)
 	 * note this is a hack to pass the irq to the iodi interrupt setup
 	 * routines
 	 */
-	sc->rge_irq.__r_i = (struct resource_i *)sc->irq;
+	sc->rge_irq.__r_i = (struct resource_i *)(intptr_t)sc->irq;
 
 	ret = bus_setup_intr(dev, &sc->rge_irq, INTR_FAST | INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, rge_intr, sc, &sc->rge_intrhand);
@@ -2019,7 +2041,7 @@ rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
 	mips_wr_status(sr);
 
-	m = (struct mbuf *)tm;
+	m = (struct mbuf *)(intptr_t)tm;
 	if (mag != 0xf00bad) {
 		/* somebody else packet Error - FIXME in intialization */
 		printf("cpu %d: *ERROR* Not my packet paddr %p\n", xlr_cpu_id(), (void *)paddr);
@@ -2088,8 +2110,8 @@ rge_intr(void *arg)
 	/* clear all interrupts and hope to make progress */
 	xlr_write_reg(mmio, R_INTREG, 0xffffffff);
 
-	/* on A0 and B0, xgmac interrupts are routed only to xgs_1 irq */
-	if ((xlr_revision_b0()) && (priv->type == XLR_XGMAC)) {
+	/* (not yet) on A0 and B0, xgmac interrupts are routed only to xgs_1 irq */
+	if ((xlr_revision() < 2) && (priv->type == XLR_XGMAC)) {
 		struct rge_softc *xgs0_dev = dev_mac[dev_mac_xgs0];
 		struct driver_data *xgs0_priv = &xgs0_dev->priv;
 		xlr_reg_t *xgs0_mmio = xgs0_priv->mmio;
@@ -2432,7 +2454,7 @@ rmi_xlr_config_spill(xlr_reg_t * mmio,
 		panic("Unable to allocate memory for spill area!\n");
 	}
 	phys_addr = vtophys(spill);
-	dbg_msg("Allocate spill %d bytes at %llx\n", size, phys_addr);
+	dbg_msg("Allocate spill %d bytes at %jx\n", size, (uintmax_t)phys_addr);
 	xlr_write_reg(mmio, reg_start_0, (phys_addr >> 5) & 0xffffffff);
 	xlr_write_reg(mmio, reg_start_1, (phys_addr >> 37) & 0x07);
 	xlr_write_reg(mmio, reg_size, spill_size);

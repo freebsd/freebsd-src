@@ -61,7 +61,14 @@ struct sysent {			/* system call table */
 	u_int32_t sy_entry;	/* DTrace entry ID for systrace. */
 	u_int32_t sy_return;	/* DTrace return ID for systrace. */
 	u_int32_t sy_flags;	/* General flags for system calls. */
+	u_int32_t sy_thrcnt;
 };
+
+#define	SY_THR_FLAGMASK	0x7
+#define	SY_THR_STATIC	0x1
+#define	SY_THR_DRAINING	0x2
+#define	SY_THR_ABSENT	0x4
+#define	SY_THR_INCR	0x8
 
 struct image_params;
 struct __sigset;
@@ -210,6 +217,9 @@ struct nosys_args;
 
 int	lkmnosys(struct thread *, struct nosys_args *);
 int	lkmressys(struct thread *, struct nosys_args *);
+
+int	syscall_thread_enter(struct thread *td, struct sysent *se);
+void	syscall_thread_exit(struct thread *td, struct sysent *se);
 
 #endif /* _KERNEL */
 

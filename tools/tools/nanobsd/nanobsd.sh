@@ -124,6 +124,10 @@ NANO_HEADS=16
 NANO_BOOT0CFG="-o packet -s 1 -m 3"
 NANO_BOOTLOADER="boot/boot0sio"
 
+# boot2 flags/options
+# default force serial console
+NANO_BOOT2CFG="-h"
+
 # Backing type of md(4) device
 # Can be "file" or "swap"
 NANO_MD_BACKING="file"
@@ -241,6 +245,9 @@ install_etc ( ) (
 	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${NANO_OBJ}/_.etc 2>&1
+	# make.conf doesn't get created by default, but some ports need it
+	# so they can spam it.
+	cp /dev/null ${NANO_WORLDDIR}/etc/make.conf
 )
 
 install_kernel ( ) (
@@ -354,6 +361,30 @@ prune_usr() (
 		done
 )
 
+populate_slice ( ) (
+	local dev dir mnt
+	dev=$1
+	dir=$2
+	mnt=$3
+	test -z $2 && dir=/var/empty
+	test -d $d || dir=/var/empty
+	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
+	newfs ${NANO_NEWFS} ${dev}
+	mount ${dev} ${mnt}
+	cd ${dir}
+	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
+	df -i ${mnt}
+	umount ${mnt}
+)
+
+populate_cfg_slice ( ) (
+	populate_slice "$1" "$2" "$3"
+)
+
+populate_data_slice ( ) (
+	populate_slice "$1" "$2" "$3"
+)
+
 create_i386_diskimage ( ) (
 	pprint 2 "build diskimage"
 	pprint 3 "log: ${NANO_OBJ}/_.di"
@@ -453,6 +484,7 @@ create_i386_diskimage ( ) (
 	bsdlabel ${MD}s1
 
 	# Create first image
+	# XXX: should use populate_slice for easier override
 	newfs ${NANO_NEWFS} /dev/${MD}s1a
 	mount /dev/${MD}s1a ${MNT}
 	df -i ${MNT}
@@ -477,13 +509,11 @@ create_i386_diskimage ( ) (
 	fi
 	
 	# Create Config slice
-	newfs ${NANO_NEWFS} /dev/${MD}s3
-	# XXX: fill from where ?
+	populate_cfg_slice /dev/${MD}s3 "${NANO_CFGDIR}" ${MNT}
 
 	# Create Data slice, if any.
 	if [ $NANO_DATASIZE -ne 0 ] ; then
-		newfs ${NANO_NEWFS} /dev/${MD}s4
-		# XXX: fill from where ?
+		populate_data_slice /dev/${MD}s4 "${NANO_DATADIR}" ${MNT}
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
@@ -582,7 +612,7 @@ cust_comconsole () (
 	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
 
 	# Tell loader to use serial console early.
-	echo " -h" > ${NANO_WORLDDIR}/boot.config
+	echo "${NANO_BOOT2CFG}" > ${NANO_WORLDDIR}/boot.config
 )
 
 #######################################################################
@@ -650,19 +680,19 @@ cust_pkg () (
 
 #######################################################################
 # Convenience function:
-# 	Register $1 as customize function.
+# 	Register all args as customize function.
 
 customize_cmd () {
-	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $1"
+	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $*"
 }
 
 #######################################################################
 # Convenience function:
-# 	Register $1 as late customize function to run just before
+# 	Register all args as late customize function to run just before
 #	image creation.
 
 late_customize_cmd () {
-	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $1"
+	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $*"
 }
 
 #######################################################################

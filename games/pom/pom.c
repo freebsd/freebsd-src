@@ -84,13 +84,16 @@ main(int argc, char **argv)
 	time_t tt;
 	struct tm GMT, tmd;
 	double days, today, tomorrow;
-	int ch, cnt;
+	int ch, cnt, pflag = 0;
 	char *odate = NULL, *otime = NULL;
 
-	while ((ch = getopt(argc, argv, "d:t:")) != -1)
+	while ((ch = getopt(argc, argv, "d:pt:")) != -1)
 		switch (ch) {
 		case 'd':
 			odate = optarg;
+			break;
+		case 'p':
+			pflag = 1;
 			break;
 		case 't':
 			otime = optarg;
@@ -134,6 +137,10 @@ main(int argc, char **argv)
 	for (cnt = EPOCH; cnt < GMT.tm_year; ++cnt)
 		days += isleap(1900 + cnt) ? 366 : 365;
 	today = potm(days) + .5;
+	if (pflag) {
+		(void)printf("%1.0f\n", today);
+		return (0);
+	}
 	(void)printf("The Moon is ");
 	if ((int)today == 100)
 		(void)printf("Full\n");
@@ -227,6 +234,7 @@ static void
 usage(char *progname)
 {
 
-	fprintf(stderr, "Usage: %s [-d yyyy.mm.dd] [-t hh:mm:ss]\n", progname);
+	fprintf(stderr, "Usage: %s [-p] [-d yyyy.mm.dd] [-t hh:mm:ss]\n",
+	    progname);
 	exit(EX_USAGE);
 }

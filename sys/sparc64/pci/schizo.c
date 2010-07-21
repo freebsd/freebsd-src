@@ -1077,7 +1077,7 @@ schizo_route_interrupt(device_t bridge, device_t dev, int pin)
 	pintr = pin;
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
 	    &reg, sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    maskbuf))
+	    NULL, maskbuf))
 		return (mintr);
 
 	device_printf(bridge, "could not route pin %d for device %d.%d\n",

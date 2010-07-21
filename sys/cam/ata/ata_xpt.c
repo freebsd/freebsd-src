@@ -134,6 +134,7 @@ typedef struct {
 	uint32_t	pm_prv;
 	int		restart;
 	int		spinup;
+	int		faults;
 	u_int		caps;
 	struct cam_periph *periph;
 } probe_softc;
@@ -738,14 +739,28 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	ident_buf = &path->device->ident_data;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-device_fail:	if ((!softc->restart) &&
-		    cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART) {
+		if (softc->restart) {
+			if (bootverbose) {
+				cam_error_print(done_ccb,
+				    CAM_ESF_ALL, CAM_EPF_ALL);
+			}
+		} else if (cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART)
 			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
+		if (softc->restart) {
+			softc->faults++;
+			if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) ==
+			    CAM_CMD_TIMEOUT)
+				softc->faults += 4;
+			if (softc->faults < 10)
+				goto done;
+			else
+				softc->restart = 0;
+		} else
 		/* Old PIO2 devices may not support mode setting. */
 		if (softc->action == PROBE_SETMODE &&
 		    ata_max_pmode(ident_buf) <= ATA_PIO2 &&
@@ -761,7 +776,7 @@ device_fail:	if ((!softc->restart) &&
 		 * already marked unconfigured, notify the peripheral
 		 * drivers that this device is no more.
 		 */
-		if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
+device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 			xpt_async(AC_LOST_DEVICE, path, NULL);
 		found = 0;
 		goto done;

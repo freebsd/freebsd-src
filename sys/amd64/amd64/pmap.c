@@ -1331,19 +1331,22 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 void
 pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
-	pt_entry_t *endpte, oldpte, *pte;
+	pt_entry_t *endpte, oldpte, pa, *pte;
+	vm_page_t m;
 
 	oldpte = 0;
 	pte = vtopte(sva);
 	endpte = pte + count;
 	while (pte < endpte) {
-		oldpte |= *pte;
-		pte_store(pte, VM_PAGE_TO_PHYS(*ma) | PG_G |
-		    pmap_cache_bits((*ma)->md.pat_mode, 0) | PG_RW | PG_V);
+		m = *ma++;
+		pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 0);
+		if ((*pte & (PG_FRAME | PG_PTE_CACHE)) != pa) {
+			oldpte |= *pte;
+			pte_store(pte, pa | PG_G | PG_RW | PG_V);
+		}
 		pte++;
-		ma++;
 	}
-	if ((oldpte & PG_V) != 0)
+	if (__predict_false((oldpte & PG_V) != 0))
 		pmap_invalidate_range(kernel_pmap, sva, sva + count *
 		    PAGE_SIZE);
 }
@@ -1574,6 +1577,7 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	pmap->pm_root = NULL;
 	pmap->pm_active = 0;
+	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -2598,12 +2602,6 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 	oldpte = pte_load_clear(ptq);
 	if (oldpte & PG_W)
 		pmap->pm_stats.wired_count -= 1;
-	/*
-	 * Machines that don't support invlpg, also don't support
-	 * PG_G.
-	 */
-	if (oldpte & PG_G)
-		pmap_invalidate_page(kernel_pmap, va);
 	pmap_resident_count_dec(pmap, 1);
 	if (oldpte & PG_MANAGED) {
 		m = PHYS_TO_VM_PAGE(oldpte & PG_FRAME);
@@ -2643,7 +2641,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, vm_page_t *free)
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	vm_offset_t va_next;
+	vm_offset_t va, va_next;
 	pml4_entry_t *pml4e;
 	pdp_entry_t *pdpe;
 	pd_entry_t ptpaddr, *pde;
@@ -2744,20 +2742,27 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (va_next > eva)
 			va_next = eva;
 
+		va = va_next;
 		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
 		    sva += PAGE_SIZE) {
-			if (*pte == 0)
+			if (*pte == 0) {
+				if (va != va_next) {
+					pmap_invalidate_range(pmap, va, sva);
+					va = va_next;
+				}
 				continue;
-
-			/*
-			 * The TLB entry for a PG_G mapping is invalidated
-			 * by pmap_remove_pte().
-			 */
+			}
 			if ((*pte & PG_G) == 0)
 				anyvalid = 1;
-			if (pmap_remove_pte(pmap, pte, sva, ptpaddr, &free))
+			else if (va == va_next)
+				va = sva;
+			if (pmap_remove_pte(pmap, pte, sva, ptpaddr, &free)) {
+				sva += PAGE_SIZE;
 				break;
+			}
 		}
+		if (va != va_next)
+			pmap_invalidate_range(pmap, va, sva);
 	}
 out:
 	if (anyvalid)
@@ -4017,7 +4022,7 @@ pmap_remove_pages(pmap_t pmap)
 	uint64_t inuse, bitmask;
 	int allfree;
 
-	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
+	if (pmap != PCPU_GET(curpmap)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
@@ -4997,17 +5002,16 @@ pmap_activate(struct thread *td)
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	oldpmap = PCPU_GET(curpmap);
 #ifdef SMP
-if (oldpmap)	/* XXX FIXME */
 	atomic_clear_int(&oldpmap->pm_active, PCPU_GET(cpumask));
 	atomic_set_int(&pmap->pm_active, PCPU_GET(cpumask));
 #else
-if (oldpmap)	/* XXX FIXME */
 	oldpmap->pm_active &= ~PCPU_GET(cpumask);
 	pmap->pm_active |= PCPU_GET(cpumask);
 #endif
 	cr3 = DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4);
 	td->td_pcb->pcb_cr3 = cr3;
 	load_cr3(cr3);
+	PCPU_SET(curpmap, pmap);
 	critical_exit();
 }
 

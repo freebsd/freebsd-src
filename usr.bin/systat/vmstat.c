@@ -254,12 +254,15 @@ initkre(void)
 					cp1++;
 				if (cp1 != cp && *cp1 == ':' &&
 				    *(cp1 + 1) == ' ') {
+					sz = strlen(cp);
 					*cp1 = '\0';
 					cp1 = cp1 + 2;
 					cp2 = strdup(cp);
-					bcopy(cp1, cp, strlen(cp1) + 1);
-					strcat(cp, " ");
-					strcat(cp, cp2);
+					bcopy(cp1, cp, sz - (cp1 - cp) + 1);
+					if (sz <= 10 + 4) {
+						strcat(cp, " ");
+						strcat(cp, cp2 + 3);
+					}
 					free(cp2);
 				}
 			}

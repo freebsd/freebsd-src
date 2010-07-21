@@ -1040,7 +1040,8 @@ tty_rel_free(struct tty *tp)
 	tp->t_dev = NULL;
 	tty_unlock(tp);
 
-	destroy_dev_sched_cb(dev, tty_dealloc, tp);
+	if (dev != NULL)
+		destroy_dev_sched_cb(dev, tty_dealloc, tp);
 }
 
 void

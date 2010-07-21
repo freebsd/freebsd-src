@@ -810,7 +810,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 				"status reg = 0x%x %s",
 				status_reg,
 				tw_cli_describe_bits(status_reg, desc));
-			error = TW_OSL_EGENFAILURE; // tw_cl_reset_ctlr(ctlr_handle);
+			error = TW_OSL_EGENFAILURE;
 		}
 	}
 	return(error);

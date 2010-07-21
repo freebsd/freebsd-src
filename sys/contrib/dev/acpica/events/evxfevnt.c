@@ -305,43 +305,36 @@ AcpiEnableEvent (
 ACPI_EXPORT_SYMBOL (AcpiEnableEvent)
 
 
+
 /*******************************************************************************
  *
- * FUNCTION:    AcpiEnableGpe
+ * FUNCTION:    AcpiGpeWakeup
  *
  * PARAMETERS:  GpeDevice       - Parent GPE Device. NULL for GPE0/GPE1
  *              GpeNumber       - GPE level within the GPE block
- *              GpeType         - ACPI_GPE_TYPE_RUNTIME or ACPI_GPE_TYPE_WAKE
- *                                or both
+ *              Action          - Enable or Disable
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Add a reference to a GPE. On the first reference, the GPE is
- *              hardware-enabled (for runtime GPEs), or the GPE register mask
- *              is updated (for wake GPEs).
+ * DESCRIPTION: Set or clear the GPE's wakeup enable mask bit.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiEnableGpe (
+AcpiGpeWakeup (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    UINT8                   GpeType)
+    UINT8                   Action)
 {
     ACPI_STATUS             Status = AE_OK;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
+    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
     ACPI_CPU_FLAGS          Flags;
+    UINT32                  RegisterBit;
 
 
-    ACPI_FUNCTION_TRACE (AcpiEnableGpe);
+    ACPI_FUNCTION_TRACE (AcpiGpeWakeup);
 
-
-    /* Parameter validation */
-
-    if (!GpeType || (GpeType & ~ACPI_GPE_TYPE_WAKE_RUN))
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
 
     Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
 
@@ -354,50 +347,96 @@ AcpiEnableGpe (
         goto UnlockAndExit;
     }
 
-    if (GpeType & ACPI_GPE_TYPE_RUNTIME)
+    GpeRegisterInfo = GpeEventInfo->RegisterInfo;
+    if (!GpeRegisterInfo)
     {
-        if (GpeEventInfo->RuntimeCount == ACPI_UINT8_MAX)
-        {
-            Status = AE_LIMIT; /* Too many references */
-            goto UnlockAndExit;
-        }
-
-        GpeEventInfo->RuntimeCount++;
-        if (GpeEventInfo->RuntimeCount == 1)
-        {
-            Status = AcpiEvEnableGpe (GpeEventInfo);
-            if (ACPI_FAILURE (Status))
-            {
-                GpeEventInfo->RuntimeCount--;
-                goto UnlockAndExit;
-            }
-        }
+        Status = AE_NOT_EXIST;
+        goto UnlockAndExit;
     }
 
-    if (GpeType & ACPI_GPE_TYPE_WAKE)
+    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo, GpeRegisterInfo);
+
+    /* Perform the action */
+
+    switch (Action)
     {
-        /* The GPE must have the ability to wake the system */
+    case ACPI_GPE_ENABLE:
+        ACPI_SET_BIT (GpeRegisterInfo->EnableForWake, (UINT8) RegisterBit);
+        break;
 
-        if (!(GpeEventInfo->Flags & ACPI_GPE_CAN_WAKE))
+    case ACPI_GPE_DISABLE:
+        ACPI_CLEAR_BIT (GpeRegisterInfo->EnableForWake, (UINT8) RegisterBit);
+        break;
+
+    default:
+        ACPI_ERROR ((AE_INFO, "%u, Invalid action", Action));
+        Status = AE_BAD_PARAMETER;
+        break;
+    }
+
+UnlockAndExit:
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+    return_ACPI_STATUS (Status);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiGpeWakeup)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEnableGpe
+ *
+ * PARAMETERS:  GpeDevice       - Parent GPE Device. NULL for GPE0/GPE1
+ *              GpeNumber       - GPE level within the GPE block
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Add a reference to a GPE. On the first reference, the GPE is
+ *              hardware-enabled.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEnableGpe (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber)
+{
+    ACPI_STATUS             Status = AE_OK;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
+    ACPI_CPU_FLAGS          Flags;
+
+
+    ACPI_FUNCTION_TRACE (AcpiEnableGpe);
+
+
+    Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
+
+    /* Ensure that we have a valid GPE number */
+
+    GpeEventInfo = AcpiEvGetGpeEventInfo (GpeDevice, GpeNumber);
+    if (!GpeEventInfo)
+    {
+        Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit;
+    }
+
+    if (GpeEventInfo->RuntimeCount == ACPI_UINT8_MAX)
+    {
+        Status = AE_LIMIT; /* Too many references */
+        goto UnlockAndExit;
+    }
+
+    GpeEventInfo->RuntimeCount++;
+    if (GpeEventInfo->RuntimeCount == 1)
+    {
+        Status = AcpiEvUpdateGpeEnableMask (GpeEventInfo);
+        if (ACPI_SUCCESS (Status))
         {
-            Status = AE_TYPE;
-            goto UnlockAndExit;
+            Status = AcpiEvEnableGpe (GpeEventInfo);
         }
-
-        if (GpeEventInfo->WakeupCount == ACPI_UINT8_MAX)
+        if (ACPI_FAILURE (Status))
         {
-            Status = AE_LIMIT; /* Too many references */
-            goto UnlockAndExit;
-        }
-
-        /*
-         * Update the enable mask on the first wakeup reference. Wake GPEs
-         * are only hardware-enabled just before sleeping.
-         */
-        GpeEventInfo->WakeupCount++;
-        if (GpeEventInfo->WakeupCount == 1)
-        {
-            (void) AcpiEvUpdateGpeEnableMasks (GpeEventInfo);
+            GpeEventInfo->RuntimeCount--;
         }
     }
 
@@ -415,8 +454,6 @@ ACPI_EXPORT_SYMBOL (AcpiEnableGpe)
  *
  * PARAMETERS:  GpeDevice       - Parent GPE Device. NULL for GPE0/GPE1
  *              GpeNumber       - GPE level within the GPE block
- *              GpeType         - ACPI_GPE_TYPE_RUNTIME or ACPI_GPE_TYPE_WAKE
- *                                or both
  *
  * RETURN:      Status
  *
@@ -429,8 +466,7 @@ ACPI_EXPORT_SYMBOL (AcpiEnableGpe)
 ACPI_STATUS
 AcpiDisableGpe (
     ACPI_HANDLE             GpeDevice,
-    UINT32                  GpeNumber,
-    UINT8                   GpeType)
+    UINT32                  GpeNumber)
 {
     ACPI_STATUS             Status = AE_OK;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
@@ -439,13 +475,6 @@ AcpiDisableGpe (
 
     ACPI_FUNCTION_TRACE (AcpiDisableGpe);
 
-
-    /* Parameter validation */
-
-    if (!GpeType || (GpeType & ~ACPI_GPE_TYPE_WAKE_RUN))
-    {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
-    }
 
     Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
 
@@ -460,46 +489,25 @@ AcpiDisableGpe (
 
     /* Hardware-disable a runtime GPE on removal of the last reference */
 
-    if (GpeType & ACPI_GPE_TYPE_RUNTIME)
+    if (!GpeEventInfo->RuntimeCount)
     {
-        if (!GpeEventInfo->RuntimeCount)
-        {
-            Status = AE_LIMIT; /* There are no references to remove */
-            goto UnlockAndExit;
-        }
-
-        GpeEventInfo->RuntimeCount--;
-        if (!GpeEventInfo->RuntimeCount)
-        {
-            Status = AcpiEvDisableGpe (GpeEventInfo);
-            if (ACPI_FAILURE (Status))
-            {
-                GpeEventInfo->RuntimeCount++;
-                goto UnlockAndExit;
-            }
-        }
+        Status = AE_LIMIT; /* There are no references to remove */
+        goto UnlockAndExit;
     }
 
-    /*
-     * Update masks for wake GPE on removal of the last reference.
-     * No need to hardware-disable wake GPEs here, they are not currently
-     * enabled.
-     */
-    if (GpeType & ACPI_GPE_TYPE_WAKE)
+    GpeEventInfo->RuntimeCount--;
+    if (!GpeEventInfo->RuntimeCount)
     {
-        if (!GpeEventInfo->WakeupCount)
+        Status = AcpiEvUpdateGpeEnableMask (GpeEventInfo);
+        if (ACPI_SUCCESS (Status))
         {
-            Status = AE_LIMIT; /* There are no references to remove */
-            goto UnlockAndExit;
+            Status = AcpiHwLowSetGpe (GpeEventInfo, ACPI_GPE_DISABLE);
         }
-
-        GpeEventInfo->WakeupCount--;
-        if (!GpeEventInfo->WakeupCount)
+        if (ACPI_FAILURE (Status))
         {
-            (void) AcpiEvUpdateGpeEnableMasks (GpeEventInfo);
+            GpeEventInfo->RuntimeCount++;
         }
     }
-
 
 UnlockAndExit:
     AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
@@ -563,7 +571,7 @@ AcpiSetGpe (
         break;
 
     case ACPI_GPE_DISABLE:
-        Status = AcpiEvDisableGpe (GpeEventInfo);
+        Status = AcpiHwLowSetGpe (GpeEventInfo, ACPI_GPE_DISABLE);
         break;
 
     default:

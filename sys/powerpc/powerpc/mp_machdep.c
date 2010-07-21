@@ -187,7 +187,7 @@ cpu_mp_announce(void)
 		pc = pcpu_find(i);
 		if (pc == NULL)
 			continue;
-		printf("cpu%d: dev=%x", i, pc->pc_hwref);
+		printf("cpu%d: dev=%x", i, (int)pc->pc_hwref);
 		if (pc->pc_bsp)
 			printf(" (BSP)");
 		printf("\n");
@@ -211,7 +211,7 @@ cpu_mp_unleash(void *dummy)
 		if (!pc->pc_bsp) {
 			if (bootverbose)
 				printf("Waking up CPU %d (dev=%x)\n",
-				    pc->pc_cpuid, pc->pc_hwref);
+				    pc->pc_cpuid, (int)pc->pc_hwref);
 
 			platform_smp_start_cpu(pc);
 			
@@ -319,7 +319,7 @@ ipi_send(struct pcpu *pc, int ipi)
 	    pc, pc->pc_cpuid, ipi);
 
 	atomic_set_32(&pc->pc_ipimask, (1 << ipi));
-	PIC_IPI(pic, pc->pc_cpuid);
+	PIC_IPI(root_pic, pc->pc_cpuid);
 
 	CTR1(KTR_SMP, "%s: sent", __func__);
 }
