@@ -79,6 +79,7 @@ SUBDIR=	alias \
 	getent \
 	getopt \
 	${_gprof} \
+	${_grep} \
 	gzip \
 	head \
 	${_hesinfo} \
@@ -282,6 +283,10 @@ _calendar=	calendar
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
+.endif
+
+.if ${MK_GNU_GREP} != "yes"
+_grep=		grep
 .endif
 
 .if ${MK_HESIOD} != "no"
