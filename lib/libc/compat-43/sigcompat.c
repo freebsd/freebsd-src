@@ -112,16 +112,11 @@ int
 xsi_sigpause(int sig)
 {
 	sigset_t set;
-	int error;
 
-	if (!_SIG_VALID(sig)) {
-		errno = EINVAL;
+	if (_sigprocmask(SIG_BLOCK, NULL, &set) == -1)
 		return (-1);
-	}
-	error = _sigprocmask(SIG_BLOCK, NULL, &set);
-	if (error != 0)
-		return (error);
-	sigdelset(&set, sig);
+	if (sigdelset(&set, sig) == -1)
+		return (-1);
 	return (_sigsuspend(&set));
 }
 
@@ -131,7 +126,8 @@ sighold(int sig)
 	sigset_t set;
 
 	sigemptyset(&set);
-	sigaddset(&set, sig);
+	if (sigaddset(&set, sig) == -1)
+		return (-1);
 	return (_sigprocmask(SIG_BLOCK, &set, NULL));
 }
 
@@ -151,7 +147,8 @@ sigrelse(int sig)
 	sigset_t set;
 
 	sigemptyset(&set);
-	sigaddset(&set, sig);
+	if (sigaddset(&set, sig) == -1)
+		return (-1);
 	return (_sigprocmask(SIG_UNBLOCK, &set, NULL));
 }
 
@@ -160,35 +157,30 @@ void
 {
 	sigset_t set, pset;
 	struct sigaction sa, psa;
-	int error;
 
 	sigemptyset(&set);
-	sigaddset(&set, sig);
-	error = _sigprocmask(SIG_BLOCK, NULL, &pset);
-	if (error == -1)
+	if (sigaddset(&set, sig) == -1)
+		return (SIG_ERR);
+	if (_sigprocmask(SIG_BLOCK, NULL, &pset) == -1)
 		return (SIG_ERR);
 	if ((__sighandler_t *)disp == SIG_HOLD) {
-		error = _sigprocmask(SIG_BLOCK, &set, &pset);
-		if (error == -1)
+		if (_sigprocmask(SIG_BLOCK, &set, &pset) == -1)
 			return (SIG_ERR);
 		if (sigismember(&pset, sig))
 			return (SIG_HOLD);
 		else {
-			error = _sigaction(sig, NULL, &psa);
-			if (error == -1)
+			if (_sigaction(sig, NULL, &psa) == -1)
 				return (SIG_ERR);
 			return (psa.sa_handler);
 		}
 	} else {
-		error = _sigprocmask(SIG_UNBLOCK, &set, &pset);
-		if (error == -1)
+		if (_sigprocmask(SIG_UNBLOCK, &set, &pset) == -1)
 			return (SIG_ERR);
 	}
 
 	bzero(&sa, sizeof(sa));
 	sa.sa_handler = disp;
-	error = _sigaction(sig, &sa, &psa);
-	if (error == -1)
+	if (_sigaction(sig, &sa, &psa) == -1)
 		return (SIG_ERR);
 	if (sigismember(&pset, sig))
 		return (SIG_HOLD);
