@@ -32,7 +32,7 @@
 .\"	@(#)pom.6	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd May 31, 1993
+.Dd July 14, 2010
 .Dt POM 6
 .UC 7
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nd display the phase of the moon
 .Sh SYNOPSIS
 .Nm 
+.Op Fl p
 .Op Fl d Ar yyyy.mm.dd
 .Op Fl t Ar hh:mm:ss
 .Sh DESCRIPTION
@@ -48,6 +49,10 @@ The
 utility displays the current phase of the moon.
 Useful for selecting software completion target dates and predicting
 managerial behavior.
+.Pp
+Use the
+.Fl p
+option to print just the phase as a percentage.
 .Pp
 Use the arguments
 .Fl d
