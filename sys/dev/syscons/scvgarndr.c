@@ -766,8 +766,9 @@ vga_vgadraw_direct(scr_stat *scp, int from, int count, int flip)
 		d += 8 * pixel_size;
 
 		if ((i % scp->xsize) == scp->xsize - 1)
-			d += scp->xoff * 16 * pixel_size +
-			     (scp->font_size - 1) * line_width;
+			d += scp->xoff * scp->font_size * pixel_size +
+			    scp->font_size * line_width -
+			    scp->xpixel * pixel_size;
 	}
 }
 
