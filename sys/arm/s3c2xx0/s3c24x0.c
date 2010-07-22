@@ -83,22 +83,22 @@ static struct {
 	{ "timer", 0, -1, { { 0 }, } },
 	{ "uart", 1, 0, {
 		{ SYS_RES_IRQ, S3C24X0_INT_UART0, 1 },
-		{ SYS_RES_IOPORT, S3C24X0_UART_BASE(0),
+		{ SYS_RES_IOPORT, S3C24X0_UART_PA_BASE(0),
 		  S3C24X0_UART_BASE(1) - S3C24X0_UART_BASE(0) },
 	} },
 	{ "uart", 1, 1, {
 		{ SYS_RES_IRQ, S3C24X0_INT_UART1, 1 },
-		{ SYS_RES_IOPORT, S3C24X0_UART_BASE(1),
+		{ SYS_RES_IOPORT, S3C24X0_UART_PA_BASE(1),
 		  S3C24X0_UART_BASE(2) - S3C24X0_UART_BASE(1) },
 	} },
 	{ "uart", 1, 2, {
 		{ SYS_RES_IRQ, S3C24X0_INT_UART2, 1 },
-		{ SYS_RES_IOPORT, S3C24X0_UART_BASE(2),
+		{ SYS_RES_IOPORT, S3C24X0_UART_PA_BASE(2),
 		  S3C24X0_UART_BASE(3) - S3C24X0_UART_BASE(2) },
 	} },
 	{ "ohci", 0, -1, {
 		{ SYS_RES_IRQ, S3C24X0_INT_USBH, 0 },
-		{ SYS_RES_IOPORT, S3C24X0_USBHC_BASE, S3C24X0_USBHC_SIZE },
+		{ SYS_RES_IOPORT, S3C24X0_USBHC_PA_BASE, S3C24X0_USBHC_SIZE },
 	} },
 	{ NULL },
 };
@@ -257,8 +257,18 @@ s3c24x0_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		res = rman_reserve_resource(
 		    &s3c2xx0_softc->s3c2xx0_mem_rman,
 		    start, end, count, flags, child);
+		if (res == NULL)
+			panic("Unable to map address space %#lX-%#lX", start,
+			    end);
+
 		rman_set_bustag(res, &s3c2xx0_bs_tag);
 		rman_set_bushandle(res, start);
+		if (flags & RF_ACTIVE) {
+			if (bus_activate_resource(child, type, *rid, res)) {
+				rman_release_resource(res);
+				return (NULL);
+			}
+		} 
 		break;
 	}
 
@@ -279,6 +289,16 @@ static int
 s3c24x0_activate_resource(device_t bus, device_t child, int type, int rid,
         struct resource *r)
 {
+	bus_space_handle_t p;
+	int error;
+
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		error = bus_space_map(rman_get_bustag(r),
+		    rman_get_bushandle(r), rman_get_size(r), 0, &p);
+		if (error)
+			return (error);
+		rman_set_bushandle(r, p);
+	}
 	return (rman_activate_resource(r));
 }
 
@@ -335,32 +355,29 @@ s3c24x0_attach(device_t dev)
 
 	s3c2xx0_softc = &(sc->sc_sx);
 	sc->sc_sx.sc_iot = iot = &s3c2xx0_bs_tag;
+	s3c2xx0_softc->s3c2xx0_irq_rman.rm_type = RMAN_ARRAY;
+	s3c2xx0_softc->s3c2xx0_irq_rman.rm_descr = "S3C24X0 IRQs";
+	s3c2xx0_softc->s3c2xx0_mem_rman.rm_type = RMAN_ARRAY;
+	s3c2xx0_softc->s3c2xx0_mem_rman.rm_descr = "S3C24X0 Device Registers";
+	if (rman_init(&s3c2xx0_softc->s3c2xx0_irq_rman) != 0 ||
+	    rman_manage_region(&s3c2xx0_softc->s3c2xx0_irq_rman, 0,
+	    S3C2410_SUBIRQ_MAX) != 0) /* XXX Change S3C2440_SUBIRQ_MAX depending on micro */
+		panic("s3c24x0_attach: failed to set up IRQ rman");
+	/* Manage the registor memory space */
+	if ((rman_init(&s3c2xx0_softc->s3c2xx0_mem_rman) != 0) ||
+	    (rman_manage_region(&s3c2xx0_softc->s3c2xx0_mem_rman,
+	      S3C24X0_DEV_VA_OFFSET,
+	      S3C24X0_DEV_VA_OFFSET + S3C24X0_DEV_VA_SIZE) != 0) ||
+	    (rman_manage_region(&s3c2xx0_softc->s3c2xx0_mem_rman,
+	      S3C24X0_DEV_START, S3C24X0_DEV_STOP) != 0))
+		panic("s3c24x0_attach: failed to set up register rman");
 
-	if (bus_space_map(iot,
-		S3C24X0_INTCTL_PA_BASE, S3C24X0_INTCTL_SIZE,
-		BUS_SPACE_MAP_LINEAR, &sc->sc_sx.sc_intctl_ioh))
-		panic("Cannot map the interrupt controller");
-
-	/* Map the GPIO registers */
-	if (bus_space_map(iot, S3C24X0_GPIO_PA_BASE, S3C2410_GPIO_SIZE,
-		0, &sc->sc_sx.sc_gpio_ioh))
-		panic("Cannot map the GPIO");
-	/* Clock manager */
-	if (bus_space_map(iot, S3C24X0_CLKMAN_PA_BASE,
-		S3C24X0_CLKMAN_SIZE, 0, &sc->sc_sx.sc_clkman_ioh))
-		panic("cannot map the clock");
-
-	if (bus_space_map(iot, S3C24X0_TIMER_PA_BASE,
-		S3C24X0_TIMER_SIZE, 0, &sc->sc_timer_ioh))
-		panic("cannot map the TIMER");
-
-	if (bus_space_map(iot, S3C24X0_USBHC_PA_BASE,
-		S3C24X0_USBHC_SIZE, 0, &sc->sc_sx.sc_ohci_ioh))
-		panic("cannot map the USB Host");
-
-	if (bus_space_map(iot, S3C24X0_WDT_PA_BASE,
-		S3C24X0_WDT_SIZE, 0, &sc->sc_sx.sc_wdt_ioh))
-		panic("cannot map the watchdog timer");
+	/* These are needed for things without a proper device to attach to */
+	sc->sc_sx.sc_intctl_ioh = S3C24X0_INTCTL_BASE;
+	sc->sc_sx.sc_gpio_ioh = S3C24X0_GPIO_BASE;
+	sc->sc_sx.sc_clkman_ioh = S3C24X0_CLKMAN_BASE;
+	sc->sc_sx.sc_wdt_ioh = S3C24X0_WDT_BASE;
+	sc->sc_timer_ioh = S3C24X0_TIMER_BASE;
 
 	/*
 	 * Identify the CPU
@@ -376,20 +393,6 @@ s3c24x0_attach(device_t dev)
 	/*
 	 * Attach children devices
 	 */
-	s3c2xx0_softc->s3c2xx0_irq_rman.rm_type = RMAN_ARRAY;
-	s3c2xx0_softc->s3c2xx0_irq_rman.rm_descr = "S3C24X0 IRQs";
-	s3c2xx0_softc->s3c2xx0_mem_rman.rm_type = RMAN_ARRAY;
-	s3c2xx0_softc->s3c2xx0_mem_rman.rm_descr = "S3C24X0 Memory";
-	if (rman_init(&s3c2xx0_softc->s3c2xx0_irq_rman) != 0 ||
-	    rman_manage_region(&s3c2xx0_softc->s3c2xx0_irq_rman, 0,
-	    S3C2410_SUBIRQ_MAX) != 0)
-		panic("s3c24x0_attach: failed to set up IRQ rman");
-	/* Manage the registor memory space */
-	if ((rman_init(&s3c2xx0_softc->s3c2xx0_mem_rman) != 0) ||
-	    (rman_manage_region(&s3c2xx0_softc->s3c2xx0_mem_rman,
-	      S3C24X0_DEV_VA_OFFSET,
-	      S3C24X0_DEV_VA_OFFSET + S3C24X0_DEV_VA_SIZE) != 0))
-		panic("s3c24x0_attach: failed to set up register rman");
 
 	for (i = 0; s3c24x0_children[i].name != NULL; i++) {
 		child = s3c24x0_add_child(dev, s3c24x0_children[i].prio,
