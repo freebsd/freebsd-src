@@ -64,10 +64,6 @@ struct task {
 .Ft int
 .Fn taskqueue_enqueue_fast "struct taskqueue *queue" "struct task *task"
 .Ft void
-.Fn taskqueue_run "struct taskqueue *queue"
-.Ft void
-.Fn taskqueue_run_fast "struct taskqueue *queue"
-.Ft void
 .Fn taskqueue_drain "struct taskqueue *queue" "struct task *task"
 .Ft int
 .Fn taskqueue_member "struct taskqueue *queue" "struct thread *td"
@@ -143,12 +139,6 @@ when the enqueuing must happen from a fast interrupt handler.
 This method uses spin locks to avoid the possibility of sleeping in the fast
 interrupt context.
 .Pp
-To execute all the tasks on a queue,
-call
-.Fn taskqueue_run
-or
-.Fn taskqueue_run_fast
-depending on the flavour of the queue.
 When a task is executed,
 first it is removed from the queue,
 the value of
