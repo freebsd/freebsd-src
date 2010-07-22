@@ -40,6 +40,7 @@ SRCS=	ARMDecoderEmitter.cpp \
 	X86DisassemblerTables.cpp \
 	X86RecognizableInstr.cpp
 MAN=
+LLVM_REQUIRES_EH=
 
 LIBDEPS=llvmsupport llvmsystem
 
