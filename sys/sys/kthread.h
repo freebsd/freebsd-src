@@ -31,7 +31,7 @@
 
 #include <sys/cdefs.h>
 
-/*-
+/*
  * A kernel process descriptor; used to start "internal" daemons.
  *
  * Note: global_procpp may be NULL for no global save area.
