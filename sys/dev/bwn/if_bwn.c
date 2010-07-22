@@ -12828,9 +12828,9 @@ bwn_phy_lp_calc_rx_iq_comp(struct bwn_mac *mac, uint16_t sample)
 	int _t;								\
 	_t = _x - 11;							\
 	if (_t >= 0)							\
-		tmp[3] = (_y << (31 - _x)) / (_z >> _t);		\
+		_v = (_y << (31 - _x)) / (_z >> _t);			\
 	else								\
-		tmp[3] = (_y << (31 - _x)) / (_z << -_t);		\
+		_v = (_y << (31 - _x)) / (_z << -_t);			\
 } while (0)
 	struct bwn_phy_lp_iq_est ie;
 	uint16_t v0, v1;
