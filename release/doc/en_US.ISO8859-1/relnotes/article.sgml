@@ -221,7 +221,7 @@
 	kernel configuration file and recompilation of the
 	kernel.</para>
 
-      <para>Two commands to enable/disable read-ahead has been added
+      <para>Two commands to enable/disable read-ahead have been added
 	to &man.fcntl.2; system call:</para>
 
       <itemizedlist>
@@ -279,6 +279,17 @@
 	process usage (<literal>%CPU</literal>) from working correctly
 	has been fixed.</para>
 
+      <para>The &man.syscons.4; driver has been improved.  The history
+	buffer can be fully saved/restored in the VESA mode switching
+	via a loader tunable
+	<varname>hint.sc.<replaceable>0</replaceable>.vesa_mode</varname>.</para>
+
+      <para arch="amd64,i386">An x86 real mode emulator based on
+	OpenBSD's x86emu implementation has been added to improve real
+	mode BIOS call support on both &arch.i386; and &arch.amd64;.
+	The &man.atkbdc.4;, &man.dpms.4;, vesa(4), &man.vga.4; driver
+	now use this emulator and work on the both platforms.</para>
+
       <para>The VIMAGE &man.jail.8; virtualization container can work
 	with &man.sctp.4; now.  Note that the VIMAGE is not enabled by
 	default in <filename>GENERIC</filename> kernel.</para>
@@ -305,6 +316,9 @@
 	    <replaceable>currdev</replaceable></option> to specify the
 	  default value of <varname>currdev</varname>.  This option
 	  can be set by the EFI boot manager.</para>
+
+	<para arch="powerpc">The &man.loader.8; program now supports
+	  U-Boot storage.</para>
 
         <para>A kernel environment variable
 	  <varname>vfs.root.mountfrom</varname> now supports
@@ -355,6 +369,15 @@
 	  JBus to PCIe bridge (called as <quote>Fire</quote>) found in
 	  the Sun Fire V215/V245 and Sun Ultra 25/45 machines.</para>
 
+        <para arch="powerpc">The &man.smu.4; driver now provides
+	  thermal management and monitoring features.  This allows fan
+	  control and thermal monitoring on SMU-based Apple G5
+	  machines, as well as an &man.led.4; interface to control the
+	  sleep LED.</para>
+
+	<para>The &man.tnt4882.4; driver for IEEE-488 (GPIB) bus now
+	  supports National Instruments TNT5004 chip.</para>
+
         <para>The &man.uart.4; driver now supports NetMos NM9865
 	  family of Serial/Parallel ports.</para>
 
@@ -365,6 +388,13 @@
 	  <title>Multimedia Support</title>
 
           <para></para>
+
+          <para>The &man.acpi.video.4; driver now supports LCD
+	    brightness control notify handler.</para>
+
+          <para>The &man.acpi.sony.4; helper driver now supports
+	    default display brightness, wired LAN power, and bass
+	    gain.</para>
 
           <para>The &man.agp.4; driver has been improved.  It includes
 	    a fix for aparture size calculation issue which prevents
@@ -387,12 +417,22 @@
 
           <para></para>
 
+          <para>The &man.ath.4; driver now supports Atheros
+	    AR9285-based devices.</para>
+
+          <para>A bug in the &man.ath.4; driver which causes a problem
+	    of AR5416-based chipsets including AR9285 has been fixed.</para>
+
           <para>The &man.bge.4; driver now supports BCM5761, BCM5784, and
 	    BCM57780-based devices.</para>
 
           <para>The &man.bge.4; driver now supports TSO (TCP
-	    segmentation offloading) on BCM5755 or newer
+	    Segmentation Offloading) on BCM5755 or newer
 	    contollers.</para>
+
+          <para>A long-standing bug in the &man.bge.4; driver which
+	    was related to ASF heartbeat sending has been
+	    fixed.</para>
 
           <para>A long-standing stability issue of the &man.bce.4; and
 	    &man.bge.4; driver due to a hardware bug in its DMA
@@ -539,6 +579,12 @@
         <para>The &man.vlan.4; pseudo interface has been added to
 	  <filename>GENERIC</filename> kernel.</para>
 
+        <para>The &man.vlan.4; pseudo interface now supports TSO (TCP
+	  Segmentation Offloading).  The capability flag is named as
+	  <varname>IFCAP_VLAN_HWTSO</varname> and it is separated from
+	  <varname>IFCAP_VLAN_HWTAGGING</varname>.  The &man.mxge.4;
+	  driver supports this feature.</para>
+
         <para>The &man.vlan.4; pseudo interface for IEEE 802.1Q VLAN
 	  now ignore renaming of the parent's interface name.  The
 	  configured VLAN interfaces continue to work with the new
@@ -626,6 +672,9 @@
 	      of immediately return error status.</para>
 	  </listitem>
 	</itemizedlist>
+
+	<para>A livelock issue of the &man.ciss.4; driver under a high
+	  load has been fixed.</para>
 
         <para>A bug in the &man.fdc.4; driver which prevents the
 	  kernel module from unloading has been fixed.</para>
@@ -769,6 +818,10 @@
       <para>A bug in &man.fetch.1; utility which incorrectly evaluates
 	a variable <varname>NO_PROXY</varname> has been fixed.</para>
 
+      <para>A bug in &man.find.1; utility has been fixed.  An option
+	<option>-newerXB</option> was interpreted as the same as
+	<option>-newerXm</option>.</para>
+
       <para>A bug in the &man.fsck.ffs.8; utility which causes the
 	last cylinder group of a UFS1 file system is always reported
 	as broken even after it is fixed.</para>
@@ -805,6 +858,11 @@
 
       <para>The &man.ntpd.8; program no longer tries to bind to an
 	IPv6 anycast address.</para>
+
+      <para>The &man.procstat.1; utility now supports two new flags
+	<option>-i</option> and <option>-j</option> to display
+	information about signal disposition and pending/blocked
+	status for signals.</para>
 
       <para>The &man.pwait.1; utility has been added.  This is similar
 	to the Solaris utility of the same name, and waits for any
@@ -938,7 +996,7 @@
 	version 8.14.4.</para>
 
       <para>The timezone database has been updated to the
-	<application>tzdata2010b</application> release.</para>
+	<application>tzdata2010e</application> release.</para>
 <!--
 
       <para role="8.0">The <application>ee</application> (easy editor) has
