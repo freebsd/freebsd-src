@@ -175,8 +175,10 @@ Before secondary node returns, primary node dies entirely.
 When the secondary node comes back to life it becomes the new primary.
 Unfortunately some small amount of data which was confirmed to be stored
 to the application was lost.
-The risk of such a situation is very small, which is the reason for this
-mode to be the default.
+The risk of such a situation is very small.
+The
+.Ic memsync
+replication mode is currently not implemented.
 .It Ic fullsync
 .Pp
 Mark the write operation as completed when local as well as remote
@@ -184,7 +186,7 @@ write completes.
 This is the safest and the slowest replication mode.
 The
 .Ic fullsync
-replication mode is currently not implemented.
+replication mode is the default.
 .It Ic async
 .Pp
 The write operation is reported as complete right after the local write
