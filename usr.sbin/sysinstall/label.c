@@ -1036,7 +1036,10 @@ diskLabel(Device *dev)
 #endif
 		    else
 			size = (daddr_t) dsize;
+		} else {
+			size = (daddr_t) dsize;
 		}
+
 		if (size < FS_MIN_SIZE) {
 		    msgConfirm("The minimum filesystem size is %dMB", FS_MIN_SIZE / ONE_MEG);
 		    clear_wins();
