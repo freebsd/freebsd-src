@@ -35,6 +35,7 @@ SRCS=	AsmWriter.cpp \
 	ValueSymbolTable.cpp \
 	ValueTypes.cpp \
 	Verifier.cpp
+LLVM_REQUIRES_RTTI=
 
 TGHDRS=	Intrinsics
 

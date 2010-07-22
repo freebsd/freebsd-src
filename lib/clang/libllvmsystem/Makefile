@@ -22,5 +22,6 @@ SRCS=	Alarm.cpp \
 	Threading.cpp \
 	TimeValue.cpp \
 	Valgrind.cpp
+LLVM_REQUIRES_RTTI=
 
 .include "../clang.lib.mk"
