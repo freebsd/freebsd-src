@@ -130,6 +130,7 @@ static void g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp
 static int	mdunits;
 static struct cdev *status_dev = 0;
 static struct sx md_sx;
+static struct unrhdr *md_uh;
 
 static d_ioctl_t mdctlioctl;
 
@@ -748,20 +749,20 @@ mdfind(int unit)
 static struct md_s *
 mdnew(int unit, int *errp, enum md_types type)
 {
-	struct md_s *sc, *sc2;
-	int error, max = -1;
+	struct md_s *sc;
+	int error;
 
 	*errp = 0;
-	LIST_FOREACH(sc2, &md_softc_list, list) {
-		if (unit == sc2->unit) {
-			*errp = EBUSY;
-			return (NULL);
-		}
-		if (unit == -1 && sc2->unit > max) 
-			max = sc2->unit;
-	}
 	if (unit == -1)
-		unit = max + 1;
+		unit = alloc_unr(md_uh);
+	else
+		unit = alloc_unr_specific(md_uh, unit);
+
+	if (unit == -1) {
+		*errp = EBUSY;
+		return (NULL);
+	}
+
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->type = type;
 	bioq_init(&sc->bio_queue);
@@ -774,6 +775,7 @@ mdnew(int unit, int *errp, enum md_types type)
 		return (sc);
 	LIST_REMOVE(sc, list);
 	mtx_destroy(&sc->queue_mtx);
+	free_unr(md_uh, sc->unit);
 	free(sc, M_MD);
 	*errp = error;
 	return (NULL);
@@ -1012,6 +1014,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 		uma_zdestroy(sc->uma);
 
 	LIST_REMOVE(sc, list);
+	free_unr(md_uh, sc->unit);
 	free(sc, M_MD);
 	return (0);
 }
@@ -1097,8 +1100,11 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		}
 		if (mdio->md_options & MD_AUTOUNIT)
 			sc = mdnew(-1, &error, mdio->md_type);
-		else
+		else {
+			if (mdio->md_unit > INT_MAX)
+				return (EINVAL);
 			sc = mdnew(mdio->md_unit, &error, mdio->md_type);
+		}
 		if (sc == NULL)
 			return (error);
 		if (mdio->md_options & MD_AUTOUNIT)
@@ -1226,6 +1232,7 @@ g_md_init(struct g_class *mp __unused)
 	mod = NULL;
 	sx_init(&md_sx, "MD config lock");
 	g_topology_unlock();
+	md_uh = new_unrhdr(0, INT_MAX, NULL);
 #ifdef MD_ROOT_SIZE
 	sx_xlock(&md_sx);
 	md_preloaded(mfs_root.start, sizeof(mfs_root.start));
@@ -1322,4 +1329,5 @@ g_md_fini(struct g_class *mp __unused)
 	sx_destroy(&md_sx);
 	if (status_dev != NULL)
 		destroy_dev(status_dev);
+	delete_unrhdr(md_uh);
 }
