@@ -22,6 +22,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20100722:
+	BSD grep has been imported to the base system and it is built by
+	default.  It is completely BSD licensed, highly GNU-compatible, uses
+	less memory than its GNU counterpart and has a small codebase.
+	However, it is slower than its GNU counterpart, which is mostly
+	noticeable for larger searches, for smaller ones it is measurable
+	but not significant.  The reason is complex, the most important factor
+	is that we lack a modern and efficient regex library and GNU
+	overcomes this by optimizing the searches internally.  Future work
+	on improving the regex performance is planned, for the meantime,
+	users that need better performance, can build GNU grep instead by
+	setting the WITH_GNU_GREP knob.
 
 20100713:
 	Due to the import of powerpc64 support, all existing powerpc kernel
