@@ -48,5 +48,6 @@ SRCS=	APFloat.cpp \
 	regexec.c \
 	regfree.c \
 	regstrlcpy.c
+LLVM_REQUIRES_RTTI=
 
 .include "../clang.lib.mk"
