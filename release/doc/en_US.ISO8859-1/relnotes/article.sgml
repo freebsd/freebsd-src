@@ -205,6 +205,11 @@
 	&man.ddb.4; debugger now prints active string mount
 	options.</para>
 
+      <para>The &man.ddb.4; now supports <command>show
+	  vnetrcrs</command> command to dump the whole log of
+	distinctive <varname>curvnet</varname> recursion
+	events.</para>
+
       <para>The default &man.devfs.5; rules now expose the upper 256
 	of &man.pty.4; device nodes.</para>
 
@@ -266,6 +271,9 @@
       <para>A bug in the &man.sched.4bsd.4; scheduler that the
 	timestamp for the sleeping operation is not cleaned up on the
 	wakeup has been fixed.</para>
+
+      <para>A race condition in the &man.sched.4bsd.4; scheduler has
+	been fixed.</para>
 
       <para>A bug in the &man.sched.ule.4; scheduler which prevented
 	process usage (<literal>%CPU</literal>) from working correctly
@@ -521,6 +529,10 @@
 	  check.  This feature is in the latest version of
 	  <application>pf</application>.</para>
 
+	<para>The &man.pfil.9; framework for packet filtering in &os;
+	  kernel now supports separate packet filtering instances like
+	  &man.ipfw.4; for each VIMAGE jail.</para>
+
 	<para>A bug that proxy ARP entries cannot be added over
 	  point-to-point link types has been fixed.</para>
 
@@ -550,6 +562,70 @@
 	  <command>newfs -E
 	  <replaceable>/dev/ada1</replaceable></command>, for
 	  example.</para>
+
+        <para>The &man.ahci.4; driver now supports SATA part of
+	  Marvell 88SE912x controllers.</para>
+
+        <para>The &man.ahci.4; driver now supports FIS-based (Frame
+	  Information Structure) switching of port multiplier on
+	  supported controlers.</para>
+
+        <para>The &man.ahd.4; driver now supports three separated
+	  error counters for correctable, uncorrectable, and fatal, in
+	  &man.sysctl.8; MIB.</para>
+
+        <para>A new kernel option <option>option ATA_CAM</option> has
+	  been added.  This turns &man.ata.4; controller drivers into
+	  &man.cam.4; interface modules.  When enabled, this option
+	  deprecates all &man.ata.4; peripheral drivers and interfaces
+	  such as <filename>ad</filename> and
+	  <filename>acd</filename>, and allows &man.cam.4; drivers
+	  <filename>ada</filename>, and <filename>cd</filename> and
+	  interfaces to be natively used instead.  Note that this is
+	  not enabled by default in the <filename>GENERIC</filename>
+	  kernel.</para>
+
+        <para>A bug in the &man.ata.4; driver which can lead to
+	  interrupt storms and command timeouts has been fixed.</para>
+
+        <para>The &man.ata.4; driver now supports Power-Up In Stand-by
+	  (PUIS).  The PUIS is a configudation of SATA or PATA drives
+	  to prevent them from automatic spin-up when power is
+	  applied.  This feature can be controled via &man.cam.3;
+	  framework (a typical application is staggered
+	  spin-up).</para>
+
+        <para>USB mass storage device support in the &man.ata.4;
+	  driver has been removed.  Note that this was not used in
+	  <filename>GENERIC</filename> kernel and the &man.umass.4;
+	  driver supports such devices for a long time.</para>
+
+	<para>&os; &man.cam.3; SCSI framework has been improved:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>SATA and PATA support has been improved and it now
+	      recognizes more detail device capabilities.  For example,
+	      the &man.ahci.4; and &man.siis.4; driver now reports maximum
+	      tag number to the framework to optimize the NCQ
+	      handling.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A loader tunable
+	      <varname>kern.cam.boot_delay</varname> has been added.
+	      This controls the delay time before &man.cam.3; probes
+	      the attached devices.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>SCSI error recovery for devices on buses without
+	      automatic sense reporting has been improved.  Typical
+	      devices are on ATAPI and USB.  For example, this allows
+	      &man.cam.3; to wait, while CD drive loads disk, instead
+	      of immediately return error status.</para>
+	  </listitem>
+	</itemizedlist>
 
         <para>A bug in the &man.fdc.4; driver which prevents the
 	  kernel module from unloading has been fixed.</para>
@@ -588,6 +664,9 @@
 	  </listitem>
 	</itemizedlist>
 
+	<para>The &man.gmultipath.8; utility now supports
+	  <command>destroy</command> command.</para>
+
 	<para>A bug in the &man.graid3.8; which causes a panic when a
 	  large request arrives has been fixed.  This happens when
 	  <varname>MAXPHYS</varname> is set as larger than 128k.</para>
@@ -595,34 +674,12 @@
         <para>The default block size of &man.gstripe.8; has been
 	  increased from 4k to 64k.</para>
 
-        <para>A new kernel option <option>option ATA_CAM</option> has
-	  been added.  This turns &man.ata.4; controller drivers into
-	  &man.cam.4; interface modules.  When enabled, this option
-	  deprecates all &man.ata.4; peripheral drivers and interfaces
-	  such as <filename>ad</filename> and
-	  <filename>acd</filename>, and allows &man.cam.4; drivers
-	  <filename>ada</filename>, and <filename>cd</filename> and
-	  interfaces to be natively used instead.  Note that this is
-	  not enabled by default in the <filename>GENERIC</filename>
-	  kernel.</para>
+        <para>The &man.isp.4; driver has been improved in
+	  stability.</para>
 
-        <para>A bug in the &man.ata.4; driver which can lead to
-	  interrupt storms and command timeouts has been fixed.</para>
-
-        <para>USB mass storage device support in the &man.ata.4;
-	  driver has been removed.  Note that this was not used in
-	  <filename>GENERIC</filename> kernel and the &man.umass.4;
-	  driver supports such devices for a long time.</para>
-
-        <para>The &man.ahd.4; driver now supports three separated
-	  error counters for correctable, uncorrectable, and fatal, in
-	  &man.sysctl.8; MIB.</para>
-
-        <para>SATA and PATA support of &os; &man.cam.3; SCSI framework
-	  has been improved and it now recognizes more detail device
-	  capabilities.  For example, the &man.ahci.4; and
-	  &man.siis.4; driver now reports maximum tag number to the
-	  framework to optimize the NCQ handling.</para>
+        <para>The Max Read Request Size in the &man.siis.4; driver for
+	  PCIe chips has been increased from 512 to 1024 bytes for
+	  better performance.</para>
       </sect3>
 
       <sect3 id="fs">
@@ -638,6 +695,20 @@
 	  per-mount-point basis.  a Setting
 	  <option>negnametimeo</option> to <literal>0</literal>
 	  disables negative name caching for the mount point.</para>
+
+	<para>A race condition in &os; NFS subsystem that occurs when
+	  &man.nfsiod.8; threads are being created has been fixed.
+	  This also fixes an interoperability issue found in
+	  combination of a &os; NFS client and a Linux NFS
+	  server.</para>
+
+	<para>The inode number handling in &man.ffs.7; file system is
+	  now unsigned.  Previously some large inode numbers can be
+	  treated as negative, and this issue shows up at file systems
+	  with the size of more than 16Tb in 16k block case.  The
+	  &man.newfs.8; utility never create a file system with more
+	  than 2^32 inodes by cutting back on the number of inodes per
+	  cylinder group if necessary to stay under the limit.</para>
 
         <para>&os; &man.VFS.9; subsystem now supports a new sysctl
 	   variable <varname>vfs.vlru_allow_cache_src</varname>.  This
@@ -676,6 +747,9 @@
 	<command>identify</command>.  It displays whole of identify
 	data block.</para>
 
+      <para>The &man.cp.1; now supports a <option>-x</option> flag to
+	make it not traverse across multiple mount points.</para>
+
       <para>The &man.cp.1;, &man.find.1;, &man.getfacl.1;, &man.mv.1;,
 	and &man.setfacl.1; utilities now support NFSv4 ACL.</para>
 
@@ -695,14 +769,35 @@
       <para>A bug in &man.fetch.1; utility which incorrectly evaluates
 	a variable <varname>NO_PROXY</varname> has been fixed.</para>
 
+      <para>A bug in the &man.fsck.ffs.8; utility which causes the
+	last cylinder group of a UFS1 file system is always reported
+	as broken even after it is fixed.</para>
+
       <para>The &man.gcore.1; utility now recognizes threads in the
 	process and handles dumps on a thread scope.</para>
 
       <para>The &man.ifconfig.8; utility now supports manipulation of
 	NDP flags handled by &man.ndp.8;.</para>
 
+      <para>The &man.ifconfig.8; utility now supports a
+	<command>description
+	<replaceable>value</replaceable></command> command to add a
+	description <replaceable>value</replaceable> to the specified
+	interface.</para>
+
+      <para>The &man.mount.nfs.8; utility now supports
+	<literal>[<replaceable>ipaddr</replaceable>]:<replaceable>path</replaceable></literal>
+	notation in addition to the existing one.  This allows IPv6
+	address in the address field, and a path including
+	<quote><literal>:</literal></quote> to be mounted.</para>
+
       <para>The &man.netstat.1; utility now supports ARP information
 	in statistics shown by the <option>-s</option> flag.</para>
+
+      <para>The &man.netstat.1; utility now supports a <option>-q
+	  <replaceable>number</replaceable></option> option to specify
+	the number of outputs.  This is used in conjunction with
+	<option>-w</option> option.</para>
 
       <para>The &man.newsyslog.8; utility does not consider
 	non-existence of a PID file as an error now.  A new flag
@@ -714,6 +809,15 @@
       <para>The &man.pwait.1; utility has been added.  This is similar
 	to the Solaris utility of the same name, and waits for any
 	process to terminate.</para>
+
+      <para>A bug in the &man.restore.8; utility which caused short
+	reads when a option <option>-P</option> was used has been
+	fixed.</para>
+
+      <para>The &man.rtsold.8; <option>-a</option> flag now excludes
+	the interfaces which IPv6 or accepting ICMPv6 Router
+	Advertisement message is disabled from the auto-probed
+	interface list.</para>
 
       <para>The &man.scandir.3; and &man.alphasort.3; functions has
 	been updated to conform POSIX.1-2008 (IEEE Std
@@ -735,6 +839,15 @@
 	protect from being terminated by the &os; kernel when
 	available memory becomes short.  This kind of process
 	termination happens in a swap-intensive workload.</para>
+
+      <para>The &man.strsignal.3; function is now thread-safe.</para>
+
+      <para>The &man.sysctl.8; utility now supports a
+	<option>-i</option> flag to ignore failures while retrieving
+	individual OIDs.  This allows the same list of OIDs to be
+	passed to &man.sysctl.8; across different systems where
+	particular OIDs may not exist, and still get as much
+	information as possible from them.</para>
 
       <para>The &man.traceroute.8; utility now performs source address
 	selection correctly even in a VIMAGE &man.jail.8;
@@ -774,10 +887,19 @@
 	  <filename>rc.d</filename> system.</para>
 
         <para>A new <filename>rc.d</filename> script
+	  <filename>rtsold</filename> has been added.  This handles
+	  &man.rtsold.8; daemon.</para>
+
+        <para>A new <filename>rc.d</filename> script
 	  <filename>static_arp</filename> has been added.  This allows
 	  the administrator to statically define mappings of MAC
 	  address to IPv4 at boot time.  See also the &man.rc.conf.5;
 	  manual page for more details.</para>
+
+        <para>The &man.rc.conf.5; now supports a
+	  <varname>firewall_coscripts</varname> variable.  This should
+	  contain a list of commands which should be excuted after
+	  firewall starts or stops.</para>
 
         <para>The &man.rc.conf.5; now supports configuring
 	  &man.vlan.4; interfaces as child devices similar to
@@ -807,7 +929,7 @@
 	the 23 October 2007 release to the 26 November 2009 release.</para>
 
       <para><application>ISC BIND</application> has been updated to
-	version 9.6.1-P2.</para>
+	version 9.6.1-P3.</para>
 
       <para><application>netcat</application> has been updated to
 	version 4.6.</para>
