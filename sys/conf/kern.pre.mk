@@ -92,7 +92,7 @@ INCLUDES+= -I$S/dev/cxgb
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
-.if ${CC} != "icc"
+.if ${CC} != "icc" && ${CC} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 .if ${MACHINE_CPUARCH} != "mips"
 CFLAGS+= --param inline-unit-growth=100
@@ -109,8 +109,8 @@ WERROR?= -Werror
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-.if ${CC} == "icc"
-.error "Profiling doesn't work with icc yet"
+.if ${CC} == "icc" || ${CC} == "clang"
+.error "Profiling doesn't work with icc or clang yet"
 .endif
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2
