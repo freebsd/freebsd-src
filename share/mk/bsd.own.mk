@@ -334,7 +334,6 @@ _clang_no=CLANG
     GCOV \
     GDB \
     GNU \
-    GNU_GREP \
     GPIB \
     GROFF \
     HTML \
@@ -422,6 +421,7 @@ MK_${var}:=	yes
     BIND_XML \
     ${_clang_no} \
     FDT \
+    GNU_GREP \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
