@@ -743,6 +743,7 @@ struct mpt_softc {
 	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
 	uint32_t		max_seg_cnt;	/* calculated after IOC facts */
+	uint32_t		max_cam_seg_cnt;/* calculated from MAXPHYS*/
 
 	/*
 	 * Hardware management
@@ -994,9 +995,6 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 /*********************** Reply Frame/Request Management ***********************/
 /* Max MPT Reply we are willing to accept (must be power of 2) */
 #define MPT_REPLY_SIZE   	256
-
-/* Max i/o size, based on legacy MAXPHYS.  Can be increased. */
-#define MPT_MAXPHYS		(128 * 1024)
 
 /*
  * Must be less than 16384 in order for target mode to work

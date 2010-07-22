@@ -646,7 +646,7 @@ mpt_terminate_raid_thread(struct mpt_softc *mpt)
 		return;
 	}
 	mpt->shutdwn_raid = 1;
-	wakeup(mpt->raid_volumes);
+	wakeup(&mpt->raid_volumes);
 	/*
 	 * Sleep on a slightly different location
 	 * for this interlock just for added safety.
