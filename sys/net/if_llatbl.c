@@ -323,7 +323,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	LLTABLE_RUNLOCK();
 	KASSERT(llt != NULL, ("Yep, ugly hacks are bad\n"));
 
-	if (flags && LLE_CREATE)
+	if (flags & LLE_CREATE)
 		flags |= LLE_EXCLUSIVE;
 	
 	IF_AFDATA_LOCK(ifp);
