@@ -30,6 +30,7 @@
 .Op Fl a Ar directory
 .Op Fl d Ar directory
 .Op Fl f Ar config_file
+.Op Fl t Ar timefmt
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -50,6 +51,11 @@ the last period's logs in it,
 has the next to last
 period's logs in it, and so on, up to a user-specified number of
 archived logs.
+It is also possible to let archived log filenames be created using the
+time the log file was archived instead of the sequential number using
+the
+.Fl t
+option.
 Optionally the archived logs can be compressed to save
 space.
 .Pp
@@ -141,6 +147,31 @@ However, this option is most likely to be useful when specified
 with the
 .Fl R
 option, and in that case the compression will be done.
+.It Fl t Ar timefmt
+If specified
+.Nm
+will create the
+.Dq rotated
+logfiles using the specified time format instead of the default
+sequential filenames.
+The time format is described in the
+.Xr strftime 3
+manual page.
+If the
+.Ar timefmt
+argument is set to an empty string or the string
+.Dq DEFAULT ,
+the default built in time format
+is used.
+If the
+.Ar timefmt
+string is changed the old files created using the previous time format
+will not be be automatically removed (unless the new format is very
+similar to the old format).
+This is also the case when changing from sequential filenames to time
+based file names, and the other way around.
+The time format should contain at least year, month, day, and hour to
+make sure rotating of old logfiles can select the correct logfiles.
 .It Fl C
 If specified once, then
 .Nm

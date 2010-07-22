@@ -69,9 +69,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <glob.h>
@@ -80,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
+#include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -112,6 +115,9 @@ __FBSDID("$FreeBSD$");
 #define	DEFAULT_MARKER	"<default>"
 #define	DEBUG_MARKER	"<debug>"
 #define	INCLUDE_MARKER	"<include>"
+#define	DEFAULT_TIMEFNAME_FMT	"%Y%m%dT%H%M%S"
+
+#define	MAX_OLDLOGS 65536	/* Default maximum number of old logfiles */
 
 struct conf_entry {
 	STAILQ_ENTRY(conf_entry) cf_nextp;
@@ -155,6 +161,11 @@ struct include_entry {
 	const char *file;	/* Name of file to process */
 };
 
+struct oldlog_entry {
+	char *fname;		/* Filename of the log file */
+	time_t t;		/* Parses timestamp of the logfile */
+};
+
 typedef enum {
 	FREE_ENT, KEEP_ENT
 }	fk_entry;
@@ -182,6 +193,7 @@ int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
 				/*    that a list of files *are* given on  */
 				/*    the run command). */
 char *requestor;		/* The name given on a -R request */
+char *timefnamefmt = NULL;	/* Use time based filenames instead of .0 etc */
 char *archdirname;		/* Directory path to old logfiles archive */
 char *destdir = NULL;		/* Directory to treat at root for logs */
 const char *conf;		/* Configuration file to use */
@@ -585,7 +597,7 @@ parse_args(int argc, char **argv)
 		*p = '\0';
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:d:f:nrsvCD:FNPR:")) != -1)
+	while ((ch = getopt(argc, argv, "a:d:f:nrst:vCD:FNPR:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
@@ -605,6 +617,13 @@ parse_args(int argc, char **argv)
 			break;
 		case 's':
 			nosignal = 1;
+			break;
+		case 't':
+			if (optarg[0] == '\0' ||
+			    strcmp(optarg, "DEFAULT") == 0)
+				timefnamefmt = strdup(DEFAULT_TIMEFNAME_FMT);
+			else
+				timefnamefmt = strdup(optarg);
 			break;
 		case 'v':
 			verbose++;
@@ -728,7 +747,7 @@ usage(void)
 
 	fprintf(stderr,
 	    "usage: newsyslog [-CFNnrsv] [-a directory] [-d directory] [-f config-file]\n"
-	    "                 [ [-R requestor] filename ... ]\n");
+	    "                 [-t timefmt ] [ [-R requestor] filename ... ]\n");
 	exit(1);
 }
 
@@ -1365,6 +1384,177 @@ missing_field(char *p, char *errline)
 }
 
 /*
+ * In our sort we return it in the reverse of what qsort normally
+ * would do, as we want the newest files first.  If we have two
+ * entries with the same time we don't really care about order.
+ *
+ * Support function for qsort() in delete_oldest_timelog().
+ */
+static int
+oldlog_entry_compare(const void *a, const void *b)
+{
+	const struct oldlog_entry *ola = a, *olb = b;
+
+	if (ola->t > olb->t)
+		return (-1);
+	else if (ola->t < olb->t)
+		return (1);
+	else
+		return (0);
+}
+
+/*
+ * Delete the oldest logfiles, when using time based filenames.
+ */
+static void
+delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
+{
+	char *logfname, *s, *dir, errbuf[80];
+	int logcnt, max_logcnt, dirfd, i;
+	struct oldlog_entry *oldlogs;
+	size_t logfname_len;
+	struct dirent *dp;
+	const char *cdir;
+	struct tm tm;
+	DIR *dirp;
+
+	oldlogs = malloc(MAX_OLDLOGS * sizeof(struct oldlog_entry));
+	max_logcnt = MAX_OLDLOGS;
+	logcnt = 0;
+
+	if (archive_dir != NULL && archive_dir[0] != '\0')
+		cdir = archive_dir;
+	else
+		if ((cdir = dirname(ent->log)) == NULL)
+			err(1, "dirname()");
+	if ((dir = strdup(cdir)) == NULL)
+		err(1, "strdup()");
+
+	if ((s = basename(ent->log)) == NULL)
+		err(1, "basename()");
+	if ((logfname = strdup(s)) == NULL)
+		err(1, "strdup()");
+	logfname_len = strlen(logfname);
+	if (strcmp(logfname, "/") == 0)
+		errx(1, "Invalid log filename - became '/'");
+
+	if (verbose > 2)
+		printf("Searching for old logs in %s\n", dir);
+
+	/* First we create a 'list' of all archived logfiles */
+	if ((dirp = opendir(dir)) == NULL)
+		err(1, "Cannot open log directory '%s'", dir);
+	dirfd = dirfd(dirp);
+	while ((dp = readdir(dirp)) != NULL) {
+		if (dp->d_type != DT_REG)
+			continue;
+
+		/* Ignore everything but files with our logfile prefix */
+		if (strncmp(dp->d_name, logfname, logfname_len) != 0)
+			continue;
+		/* Ignore the actual non-rotated logfile */
+		if (dp->d_namlen == logfname_len)
+			continue;
+		/*
+		 * Make sure we created have found a logfile, so the
+		 * postfix is valid, IE format is: '.<time>(.[bg]z)?'.
+		 */
+		if (dp->d_name[logfname_len] != '.') {
+			if (verbose)
+				printf("Ignoring %s which has unexpected "
+				    "extension '%s'\n", dp->d_name,
+				    &dp->d_name[logfname_len]);
+			continue;
+		}
+		if ((s = strptime(&dp->d_name[logfname_len + 1],
+			    timefnamefmt, &tm)) == NULL) {
+			/*
+			 * We could special case "old" sequentially
+			 * named logfiles here, but we do not as that
+			 * would require special handling to decide
+			 * which one was the oldest compared to "new"
+			 * time based logfiles.
+			 */
+			if (verbose)
+				printf("Ignoring %s which does not "
+				    "match time format\n", dp->d_name);
+			continue;
+		}
+		if (*s != '\0' && !(strcmp(s, BZCOMPRESS_POSTFIX) == 0 ||
+			strcmp(s, COMPRESS_POSTFIX) == 0))  {
+			    if (verbose)
+				printf("Ignoring %s which has unexpected "
+				    "extension '%s'\n", dp->d_name, s);
+			continue;
+		}
+
+		/*
+		 * We should now have old an old rotated logfile, so
+		 * add it to the 'list'.
+		 */
+		if ((oldlogs[logcnt].t = timegm(&tm)) == -1)
+			err(1, "Could not convert time string to time value");
+		if ((oldlogs[logcnt].fname = strdup(dp->d_name)) == NULL)
+			err(1, "strdup()");
+		logcnt++;
+
+		/*
+		 * It is very unlikely we ever run out of space in the
+		 * logfile array from the default size, but lets
+		 * handle it anyway...
+		 */
+		if (logcnt >= max_logcnt) {
+			max_logcnt *= 4;
+			/* Detect integer overflow */
+			if (max_logcnt < logcnt)
+				errx(1, "Too many old logfiles found");
+			oldlogs = realloc(oldlogs,
+			    max_logcnt * sizeof(struct oldlog_entry));
+			if (oldlogs == NULL)
+				err(1, "realloc()");
+		}
+	}
+
+	/* Second, if needed we delete oldest archived logfiles */
+	if (logcnt > 0 && logcnt >= ent->numlogs && ent->numlogs > 1) {
+		oldlogs = realloc(oldlogs, logcnt *
+		    sizeof(struct oldlog_entry));
+		if (oldlogs == NULL)
+			err(1, "realloc()");
+
+		/*
+		 * We now sort the logs in the order of newest to
+		 * oldest.  That way we can simply skip over the
+		 * number of records we want to keep.
+		 */
+		qsort(oldlogs, logcnt, sizeof(struct oldlog_entry),
+		    oldlog_entry_compare);
+		for (i = ent->numlogs - 1; i < logcnt; i++) {
+			if (noaction)
+				printf("\trm -f %s/%s\n", dir,
+				    oldlogs[i].fname);
+			else if (unlinkat(dirfd, oldlogs[i].fname, 0) != 0) {
+				snprintf(errbuf, sizeof(errbuf),
+				    "Could not delet old logfile '%s'",
+				    oldlogs[i].fname);
+				perror(errbuf);
+			}
+		}
+	} else if (verbose > 1)
+		printf("No old logs to delete for logfile %s\n", ent->log);
+
+	/* Third, cleanup */
+	closedir(dirp);
+	for (i = 0; i < logcnt; i++) {
+		assert(oldlogs[i].fname != NULL);
+		free(oldlogs[i].fname);
+	}
+	free(oldlogs);
+	free(logfname);
+	free(dir);
+}
+
+/*
  * Only add to the queue if the file hasn't already been added. This is
  * done to prevent circular include loops.
  */
@@ -1398,10 +1588,13 @@ do_rotate(const struct conf_entry *ent)
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
 	char zfile1[MAXPATHLEN], zfile2[MAXPATHLEN];
 	char jfile1[MAXPATHLEN];
+	char datetimestr[30];
 	int flags, numlogs_c;
 	fk_entry free_or_keep;
 	struct sigwork_entry *swork;
 	struct stat st;
+	struct tm tm;
+	time_t now;
 
 	flags = ent->flags;
 	free_or_keep = FREE_ENT;
@@ -1435,32 +1628,59 @@ do_rotate(const struct conf_entry *ent)
 		/* name of oldest log */
 		(void) snprintf(file1, sizeof(file1), "%s/%s.%d", dirpart,
 		    namepart, ent->numlogs);
-		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
-		    COMPRESS_POSTFIX);
-		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
-		    BZCOMPRESS_POSTFIX);
 	} else {
+		/*
+		 * Tell delete_oldest_timelog() we are not using an
+		 * archive dir.
+		 */
+		dirpart[0] = '\0';
+
 		/* name of oldest log */
 		(void) snprintf(file1, sizeof(file1), "%s.%d", ent->log,
 		    ent->numlogs);
+	}
+
+	/* Delete old logs */
+	if (timefnamefmt != NULL)
+		delete_oldest_timelog(ent, dirpart);
+	else {
+		/* name of oldest log */
 		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
 		    COMPRESS_POSTFIX);
 		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
 		    BZCOMPRESS_POSTFIX);
+
+		if (noaction) {
+			printf("\trm -f %s\n", file1);
+			printf("\trm -f %s\n", zfile1);
+			printf("\trm -f %s\n", jfile1);
+		} else {
+			(void) unlink(file1);
+			(void) unlink(zfile1);
+			(void) unlink(jfile1);
+		}
 	}
 
-	if (noaction) {
-		printf("\trm -f %s\n", file1);
-		printf("\trm -f %s\n", zfile1);
-		printf("\trm -f %s\n", jfile1);
-	} else {
-		(void) unlink(file1);
-		(void) unlink(zfile1);
-		(void) unlink(jfile1);
-	}
+	if (timefnamefmt != NULL) {
+		/* If time functions fails we can't really do any sensible */
+		if (time(&now) == (time_t)-1 ||
+		    localtime_r(&now, &tm) == NULL)
+			bzero(&tm, sizeof(tm));
+
+		strftime(datetimestr, sizeof(datetimestr), timefnamefmt, &tm);
+		if (archtodir)
+			(void) snprintf(file1, sizeof(file1), "%s/%s.%s",
+			    dirpart, namepart, datetimestr);
+		else
+			(void) snprintf(file1, sizeof(file1), "%s.%s",
+			    ent->log, datetimestr);
+
+		/* Don't run the code to move down logs */
+		numlogs_c = 0;
+	} else
+		numlogs_c = ent->numlogs;		/* copy for countdown */
 
 	/* Move down log files */
-	numlogs_c = ent->numlogs;		/* copy for countdown */
 	while (numlogs_c--) {
 
 		(void) strlcpy(file2, file1, sizeof(file2));
