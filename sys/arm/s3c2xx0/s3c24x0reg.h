@@ -46,13 +46,21 @@
 #include <arm/s3c2xx0/s3c2xx0reg.h>
 
 /*
- * Map the device registers into kernel space
+ * Map the device registers into kernel space.
+ *
+ * As most devices use less than 1 page of memory reduce
+ * the distance between allocations by right shifting
+ * S3C24X0_DEV_SHIFT bits. Because the UART takes 3*0x4000
+ * bytes the upper limit on S3C24X0_DEV_SHIFT is 4.
+ * TODO: Fix the UART code so we can increase this value.
  */
 #define	S3C24X0_DEV_START	0x48000000
 #define	S3C24X0_DEV_STOP	0x60000000
-#define	S3C24X0_DEV_VA_OFFSET	0xD0000000
-#define	S3C24X0_DEV_VA_SIZE	(S3C24X0_DEV_STOP - S3C24X0_DEV_START)
-#define	S3C24X0_DEV_PA_TO_VA(x)	(x - S3C24X0_DEV_START + S3C24X0_DEV_VA_OFFSET)
+#define	S3C24X0_DEV_VA_OFFSET	0xD8000000
+#define	S3C24X0_DEV_SHIFT	4
+#define	S3C24X0_DEV_PA_SIZE	(S3C24X0_DEV_STOP - S3C24X0_DEV_START)
+#define	S3C24X0_DEV_VA_SIZE	(S3C24X0_DEV_PA_SIZE >> S3C24X0_DEV_SHIFT)
+#define	S3C24X0_DEV_PA_TO_VA(x)	((x >> S3C24X0_DEV_SHIFT) - S3C24X0_DEV_START + S3C24X0_DEV_VA_OFFSET)
 
 /*
  * Physical address of integrated peripherals
@@ -77,7 +85,7 @@
 #define	S3C24X0_UART0_PA_BASE	0x50000000
 #define	S3C24X0_UART0_BASE	S3C24X0_DEV_PA_TO_VA(S3C24X0_UART0_PA_BASE)
 #define	S3C24X0_UART_PA_BASE(n)	(S3C24X0_UART0_PA_BASE+0x4000*(n))
-#define	S3C24X0_UART_BASE(n)	S3C24X0_DEV_PA_TO_VA(S3C24X0_UART_PA_BASE(n))
+#define	S3C24X0_UART_BASE(n)	(S3C24X0_UART0_BASE+0x4000*(n))
 #define	S3C24X0_TIMER_PA_BASE 	0x51000000
 #define	S3C24X0_TIMER_BASE 	S3C24X0_DEV_PA_TO_VA(S3C24X0_TIMER_PA_BASE)
 #define	S3C24X0_USBDC_PA_BASE 	0x5200140

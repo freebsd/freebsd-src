@@ -146,6 +146,9 @@ static struct trapframe proc0_tf;
 
 /* Static device mappings. */
 static const struct pmap_devmap s3c24x0_devmap[] = {
+	/*
+	 * Map the devices we need early on.
+	 */
 	{
 		_A(S3C24X0_CLKMAN_BASE),
 		_A(S3C24X0_CLKMAN_PA_BASE),
@@ -161,13 +164,6 @@ static const struct pmap_devmap s3c24x0_devmap[] = {
 		PTE_NOCACHE,
 	},
 	{
-		_A(S3C24X0_IIC_BASE),
-		_A(S3C24X0_IIC_PA_BASE),
-		_S(S3C24X0_IIC_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
-		PTE_NOCACHE,
-	},
-	{
 		_A(S3C24X0_INTCTL_BASE),
 		_A(S3C24X0_INTCTL_PA_BASE),
 		_S(S3C24X0_INTCTL_SIZE),
@@ -175,16 +171,9 @@ static const struct pmap_devmap s3c24x0_devmap[] = {
 		PTE_NOCACHE,
 	},
 	{
-		_A(S3C24X0_LCDC_BASE),
-		_A(S3C24X0_LCDC_PA_BASE),
-		_S(S3C24X0_LCDC_SIZE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
-		PTE_NOCACHE,
-	},
-	{
-		_A(S3C24X0_SDI_BASE),
-		_A(S3C24X0_SDI_PA_BASE),
-		_S(S3C2410_SDI_SIZE),
+		_A(S3C24X0_TIMER_BASE),
+		_A(S3C24X0_TIMER_PA_BASE),
+		_S(S3C24X0_TIMER_SIZE),
 		VM_PROT_READ|VM_PROT_WRITE,                             
 		PTE_NOCACHE,
 	},
@@ -192,13 +181,6 @@ static const struct pmap_devmap s3c24x0_devmap[] = {
 		_A(S3C24X0_UART0_BASE),
 		_A(S3C24X0_UART0_PA_BASE),
 		_S(S3C24X0_UART_PA_BASE(3) - S3C24X0_UART0_PA_BASE),
-		VM_PROT_READ|VM_PROT_WRITE,                             
-		PTE_NOCACHE,
-	},
-	{
-		_A(S3C24X0_USBHC_BASE),
-		_A(S3C24X0_USBHC_PA_BASE),
-		_S(S3C24X0_USBHC_SIZE),
 		VM_PROT_READ|VM_PROT_WRITE,                             
 		PTE_NOCACHE,
 	},
