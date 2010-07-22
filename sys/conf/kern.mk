@@ -30,8 +30,10 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # reserved for user applications.
 #
 .if ${MACHINE_ARCH} == "i386" && ${CC} != "icc"
-CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2 \
-		-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
+.if ${CC} != "clang"
+CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
+.endif
+CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
 INLINE_LIMIT?=	8000
 .endif
 

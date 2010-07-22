@@ -114,7 +114,7 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${CC} != "icc"
+.if ${CC} != "icc" && ${CC} != "clang"
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
