@@ -220,11 +220,10 @@ taskqueue_unblock(struct taskqueue *queue)
 static void
 taskqueue_run(struct taskqueue *queue, struct task **tpp)
 {
-	struct task *task, *running;
+	struct task *task;
 	int pending;
 
 	mtx_assert(&queue->tq_mutex, MA_OWNED);
-	running = NULL;
 	while (STAILQ_FIRST(&queue->tq_queue)) {
 		/*
 		 * Carefully remove the first task from the queue and
