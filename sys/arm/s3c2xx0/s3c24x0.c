@@ -80,6 +80,10 @@ static struct {
 		u_long count;
 	} res[2];
 } s3c24x0_children[] = {
+	{ "rtc", 0, -1, {
+		{ SYS_RES_IOPORT, S3C24X0_RTC_PA_BASE, S3C24X0_RTC_SIZE },
+		{ 0 },
+	} },
 	{ "timer", 0, -1, { { 0 }, } },
 	{ "uart", 1, 0, {
 		{ SYS_RES_IRQ, S3C24X0_INT_UART0, 1 },
