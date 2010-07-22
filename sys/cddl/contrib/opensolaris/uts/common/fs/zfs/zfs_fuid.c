@@ -410,7 +410,7 @@ zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
 	domain = zfs_fuid_find_by_idx(zfsvfs, index);
 	ASSERT(domain != NULL);
 
-#ifdef TODO
+#ifdef sun
 	if (type == ZFS_OWNER || type == ZFS_ACE_USER) {
 		(void) kidmap_getuidbysid(crgetzone(cr), domain,
 		    FUID_RID(fuid), &id);
@@ -418,9 +418,9 @@ zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
 		(void) kidmap_getgidbysid(crgetzone(cr), domain,
 		    FUID_RID(fuid), &id);
 	}
-#else
-	panic(__func__);
-#endif
+#else	/* sun */
+	id = UID_NOBODY;
+#endif	/* sun */
 	return (id);
 }
 
@@ -514,21 +514,21 @@ zfs_fuid_create_cred(zfsvfs_t *zfsvfs, zfs_fuid_type_t type,
 	if (!zfsvfs->z_use_fuids || !IS_EPHEMERAL(id))
 		return ((uint64_t)id);
 
-#ifdef TODO
+#ifdef sun
 	ksid = crgetsid(cr, (type == ZFS_OWNER) ? KSID_OWNER : KSID_GROUP);
 
 	VERIFY(ksid != NULL);
 	rid = ksid_getrid(ksid);
 	domain = ksid_getdomain(ksid);
-
+#else	/* sun */
+	rid = UID_NOBODY;
+	domain = nulldomain;
+#endif	/* sun */
 	idx = zfs_fuid_find_by_domain(zfsvfs, domain, &kdomain, B_TRUE);
 
 	zfs_fuid_node_add(fuidp, kdomain, rid, idx, id, type);
 
 	return (FUID_ENCODE(idx, rid));
-#else
-	panic(__func__);
-#endif
 }
 
 /*
@@ -597,7 +597,7 @@ zfs_fuid_create(zfsvfs_t *zfsvfs, uint64_t id, cred_t *cr,
 		};
 		domain = fuidp->z_domain_table[idx -1];
 	} else {
-#ifdef TODO
+#ifdef sun
 		if (type == ZFS_OWNER || type == ZFS_ACE_USER)
 			status = kidmap_getsidbyuid(crgetzone(cr), id,
 			    &domain, &rid);
@@ -606,6 +606,7 @@ zfs_fuid_create(zfsvfs_t *zfsvfs, uint64_t id, cred_t *cr,
 			    &domain, &rid);
 
 		if (status != 0) {
+#endif	/* sun */
 			/*
 			 * When returning nobody we will need to
 			 * make a dummy fuid table entry for logging
@@ -613,10 +614,9 @@ zfs_fuid_create(zfsvfs_t *zfsvfs, uint64_t id, cred_t *cr,
 			 */
 			rid = UID_NOBODY;
 			domain = nulldomain;
+#ifdef sun
 		}
-#else
-		panic(__func__);
-#endif
+#endif	/* sun */
 	}
 
 	idx = zfs_fuid_find_by_domain(zfsvfs, domain, &kdomain, B_TRUE);
