@@ -201,6 +201,21 @@
 
       <para></para>
 
+      <para>The &man.ddb.4; now supports <command>show
+	  ifnets</command> and <command>show ifnet <replaceable>struct
+	    ifnet *</replaceable></command> commands to print a list of
+	<quote>ifnet *</quote> of each virtual network stack and
+	fields of specified <varname>fip</varname>,
+	respectively.</para>
+
+      <para>The &man.ddb.4; now supports <command>show all
+	  lltables</command>, <command>show lltable
+	  <replaceable>struct lltable *</replaceable></command>, and
+	  <command>show llentry <replaceable>struct llentry
+	    *</replaceable></command> commands to print a list of
+	<quote>lltable *</quote> of each virtual network stack,
+	fields of specified structures respectively.</para>
+
       <para>The <command>show mount</command> command in the
 	&man.ddb.4; debugger now prints active string mount
 	options.</para>
@@ -209,6 +224,11 @@
 	  vnetrcrs</command> command to dump the whole log of
 	distinctive <varname>curvnet</varname> recursion
 	events.</para>
+
+      <para>The &man.ddb.4; now supports <command>show
+	  vnet_sysinit</command> and <command>show
+	  vnet_unsysinit</command> commands to print
+	ordered call lists.</para>
 
       <para>The default &man.devfs.5; rules now expose the upper 256
 	of &man.pty.4; device nodes.</para>
@@ -257,12 +277,15 @@
 	<filename>GENERIC</filename> kernel by default.</para>
 
       <para>New SDT (Statically Defined Tracing) probes such as ones
-	for opencrypto have been added to &os; &man.dtrace.1;
-	subsystem.</para>
+	for <literal>opencrypto</literal> and <literal>vnet</literal>
+	have been added to &os; &man.dtrace.1; subsystem.</para>
 
       <para arch="powerpc">&os; now supports SMP in PowerPC G5
-	systems.  Note that SMP support is disabled by default in
-	<filename>GENERIC</filename> kernel.</para>
+	systems.  Note that SMP support on &os;/&arch.powerpc; is
+	disabled by default in <filename>GENERIC</filename>
+	kernel.</para>
+
+      <para arch="sparc64">&os; now supports UltraSPARC IV and IV+.</para>
 
       <para>A bug in the &man.tty.4; driver that
 	<varname>TIOCSTI</varname> did not work has been fixed.  This
@@ -444,11 +467,31 @@
 	    enabled TSO on BCM5754/BCM5754M controllers has been
 	    fixed.</para>
 
+	  <para>A bug in the &man.if.bridge.4; driver has been fixed.
+	    The MTU was set based on the firstly-added member even if
+	    the addition failed.</para>
+
+	  <para>The &man.if.bridge.4; driver now supports
+	    <varname>SIOCSIFMTU</varname> ioctl.  For example,
+	    <command>ifconfig bridge0 mtu 1280</command> can change
+	    the MTU of <literal>bridge0</literal> to
+	    <literal>1280</literal>.  Changing the MTU is allowed only
+	    when all members have the same MTU value.</para>
+
+          <para>The &man.bwn.4; driver for Broadcom BCM43xx chipsets
+	    has been added.</para>
+
           <para>The &man.cxgb.4; driver has been updated to T3
 	    firmware 7.8.0.</para>
 
           <para>The et(4) driver now supports MSI and Tx checksum
 	    offloading of IPv4, TCP, and UDP.</para>
+
+          <para>The &man.em.4; driver has been updated to version
+	    7.0.0.</para>
+
+          <para>The &man.igb.4; driver has been updated to version
+	    1.9.3.</para>
 
           <para>The &man.iwn.4; driver has been updated.  This
 	    includes various improvements and bugfixes regarding RF
@@ -457,15 +500,48 @@
 	    in the kernel configuration file will include all firmware
 	    images.</para>
 
-          <para>The &man.msk.4; driver now supports Marvell Yukon
-	    88E8042, 88E8057 devices and DGE-560SX (Yukon XL).</para>
+          <para>The &man.ixgbe.4; driver has been updated to version
+	    2.1.7.</para>
+
+          <para>The &man.msk.4; driver has been improved:</para>
+
+	  <itemizedlist>
+	    <listitem>
+	      <para>It now supports Marvell Yukon 88E8042, 88E8057
+		devices and DGE-560SX (Yukon XL).</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>A rudimentary interrupt moderation with
+		programmable countdown timer register has been
+		implemented.  The default parameter of the holdoff
+		time is 100us and this can be changed via sysctl
+		variable
+		<varname>dev.mskc.<replaceable>0</replaceable>.int_holdoff</varname>.
+		Note that the interrupt moderation is shared resource
+		on a dual-port controllers and it is impossible to use
+		separate interrupt moderation values for each
+		port.</para>
+	    </listitem>
+	  </itemizedlist>
 
           <para>The &man.mxge.4; driver has been updated to firmware
-	    1.4.48b.</para>
+	    version 1.4.50.</para>
 
           <para>The &man.re.4; driver no longer performs an
 	    unnecessary interface up/down during getting IP address
 	    via DHCP.</para>
+
+          <para>The &man.re.4; driver now uses <literal>2048</literal>
+	    as PCIe Maximuim Read Request Size.  This improves bulk
+	    transfer performance.</para>
+
+          <para>The &man.run.4; driver for Ralink
+	    RT2700U/RT2800U/RT3000U USB 802.11agn devices has been
+	    added.</para>
+
+          <para>The sge(4) driver for Silicon Integrated Systems
+	    SiS190/191 Fast/Gigabit Ethernet has been added.</para>
 
           <para>The &man.ste.4; driver has been improved:</para>
 
@@ -551,6 +627,19 @@
 
         <para></para>
 
+        <para>&os; flowtable now supports IPv6.  This is for per-CPU
+	  caching flows as a means of accelerating L3 and L2 lookups
+	  as well as providing stateful load balancing when ECMP
+	  (Equal-Cost Multi-Path routing) is enabled by <option>option
+	  RADIX_MPATH</option>.</para>
+
+	<para>A new capability flag <literal>LINKSTATE</literal> has
+	  been added to <varname>struct
+	  ifnet.if_capabilities</varname>.  This indicates if the
+	  interface can check the link state or not.  The
+	  &man.ifconfig.8; utility now shows this flag if
+	  supported.</para>
+
         <para>IPcomp (IP Payload Compression Protocol defined in RFC
 	  2393) protocol is now enabled by default.  Note that this
 	  requires <option>option IPSEC</option> in the kernel
@@ -559,9 +648,71 @@
 	  using a sysctl variable
 	  <varname>net.inet.ipcomp.ipcomp_enable</varname>.</para>
 
-	<para>A bug in the &man.ipfw.4; subsystem that
-	  <command>keep-alive</command> rule did not work for IPv6
-	  packets has been fixed.</para>
+	<para>The &man.ipfw.4; subsystem including &man.dummynet.4;
+	  has been updated to <quote>ipfw3</quote> and various bugs
+	  have been fixed:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>The major enhancement is a completely restructured
+	      version of &man.dummynet.4;, with support for different
+	      packet scheduling algorithms (loadable at runtime),
+	      faster queue/pipe lookup, and a much cleaner internal
+	      architecture and kernel/userland ABI which simplifies
+	      future extensions.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>All of O(N) sequences in the firewall rule
+	      evaluation removed from the kernel critical sections.
+	      The worst case is now O(log N).</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>It now supports <literal>ipfw0</literal> pseudo
+	      interface for logging similar to &man.pflog.4;.  A sysctl
+	      <varname>net.inet.ip.fw.verbose=0</varname> enables logging
+	      to <literal>ipfw0</literal>, and
+	      <varname>net.inet.ip.fw.verbose=1</varname> sends logging to
+	      &man.syslog.3; as before.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The <literal>me</literal> keyword in the &man.ipfw.4;
+	      rule now matches any IPv6 addresses configured on an
+	      interface as well as IPv4 ones.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A bug that <command>keep-alive</command> rule did
+	      not work for IPv6 packets has been fixed.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The <literal>lookup</literal> match option has been added.</para>
+
+	    <programlisting>lookup {dst-ip|src-ip|dst-port|src-port|uid|jail} <replaceable>N</replaceable></programlisting>
+
+	    <para>This searches the specified field in table
+	      <replaceable>N</replaceable> and sets
+	      <literal>tablearg</literal> accordingly.  With
+	      <literal>dst-ip</literal> or <literal>src-ip</literal>
+	      the option replicates two existing options.  When used
+	      with other arguments, the option can be useful to
+	      quickly dispatch traffic based on other fields.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A bug in the &man.sysctl.8; variable
+	      <varname>ip.fw.one_pass</varname> handling has been
+	      fixed.  A packet which comes from a pipe without being
+	      delayed incorrectly ignored this variable.</para>
+	  </listitem>
+	</itemizedlist>
+
+	<para>A memory alignment issue in the &man.ng.ksocket.4; and
+	  &man.ng.ppp.4;, Netgraph node drivers have been fixed.  This
+	  fixes kernel panics due to the misalightment.</para>
 
 	<para>The &man.pf.4; subsystem now supports
 	  <literal>sloppy</literal> keyword to enable a TCP state
@@ -576,14 +727,20 @@
 	<para>A bug that proxy ARP entries cannot be added over
 	  point-to-point link types has been fixed.</para>
 
+        <para>The &man.tap.4; pseudo interface now reports the link
+	  state properly by updating <varname>if_link_state</varname>
+	  variable in the kernel.</para>
+
         <para>The &man.vlan.4; pseudo interface has been added to
 	  <filename>GENERIC</filename> kernel.</para>
 
         <para>The &man.vlan.4; pseudo interface now supports TSO (TCP
 	  Segmentation Offloading).  The capability flag is named as
 	  <varname>IFCAP_VLAN_HWTSO</varname> and it is separated from
-	  <varname>IFCAP_VLAN_HWTAGGING</varname>.  The &man.mxge.4;
-	  driver supports this feature.</para>
+	  <varname>IFCAP_VLAN_HWTAGGING</varname>.  The &man.age.4;,
+	  &man.alc.4;, &man.bce.4;, &man.bge.4;, &man.cxgb.4;, &man.jme.4;,
+	  &man.re.4;, and &man.mxge.4; driver support this
+	  feature.</para>
 
         <para>The &man.vlan.4; pseudo interface for IEEE 802.1Q VLAN
 	  now ignore renaming of the parent's interface name.  The
@@ -594,8 +751,6 @@
 
       <sect3 id="disks">
 	<title>Disks and Storage</title>
-
-        <para></para>
 
         <para>The &man.ada.4; driver now supports
 	  <varname>BIO_DELETE</varname>.  For SSDs this uses
@@ -634,13 +789,6 @@
         <para>A bug in the &man.ata.4; driver which can lead to
 	  interrupt storms and command timeouts has been fixed.</para>
 
-        <para>The &man.ata.4; driver now supports Power-Up In Stand-by
-	  (PUIS).  The PUIS is a configudation of SATA or PATA drives
-	  to prevent them from automatic spin-up when power is
-	  applied.  This feature can be controled via &man.cam.3;
-	  framework (a typical application is staggered
-	  spin-up).</para>
-
         <para>USB mass storage device support in the &man.ata.4;
 	  driver has been removed.  Note that this was not used in
 	  <filename>GENERIC</filename> kernel and the &man.umass.4;
@@ -673,11 +821,33 @@
 	  </listitem>
 	</itemizedlist>
 
+        <para>The &man.cam.4; ATA transport layer now supports
+	  Power-Up In Stand-by (PUIS).  The PUIS is a configuration of
+	  SATA or PATA drives to prevent them from automatic spin-up
+	  when power is applied.  A typical application is staggered
+	  spin-up.</para>
+
 	<para>A livelock issue of the &man.ciss.4; driver under a high
 	  load has been fixed.</para>
 
         <para>A bug in the &man.fdc.4; driver which prevents the
 	  kernel module from unloading has been fixed.</para>
+
+	<para>The &man.glabel.8; now supports the following sysctl
+	  variables for each label type to enable the labeling itself:</para>
+
+	  <programlisting>kern.geom.label.ext2fs.enable
+kern.geom.label.iso9660.enable
+kern.geom.label.msdosfs.enable
+kern.geom.label.ntfs.enable
+kern.geom.label.reiserfs.enable
+kern.geom.label.ufs.enable
+kern.geom.label.ufsid.enable
+kern.geom.label.gptid.enable
+kern.geom.label.gpt.enable</programlisting>
+
+	<para>Note that all of them are also loader tunables.  They
+	  are enabled (set as <literal>1</literal>) by default.</para>
 
         <para>&man.geom.8; providers including complex ones such as
 	  &man.gconcat.8;, &man.gmirror.8;, &man.graid3.8,
@@ -714,7 +884,8 @@
 	</itemizedlist>
 
 	<para>The &man.gmultipath.8; utility now supports
-	  <command>destroy</command> command.</para>
+	  <command>destroy</command>, <command>rotate</command>,
+	  <command>getactive</command> commands.</para>
 
 	<para>A bug in the &man.graid3.8; which causes a panic when a
 	  large request arrives has been fixed.  This happens when
@@ -722,6 +893,48 @@
 
         <para>The default block size of &man.gstripe.8; has been
 	  increased from 4k to 64k.</para>
+
+	<para>The <literal>GEOM_SCHED</literal> module has been added.
+	  This supports scheduling disk I/O requests in a device
+	  independent manner.  A supported algorithm is an
+	  anticipatory scheduler <literal>gsched_rr</literal> which
+	  gives very nice performance improvements in presence of
+	  competing random access patterns.  See also &man.gsched.8;
+	  manual page for more details.</para>
+
+        <para>The HAST (Highly Avalable STorage) franework has been
+	  added:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>This is a framework to allow transparently storing
+	      data on two physically separated machines connected over
+	      the TCP/IP network.  HAST works in Primary-Secondary
+	      (Master-Backup, Master-Slave) configuration, which means
+	      that only one of the cluster nodes can be active at any
+	      given time.  Only Primary node is able to handle I/O
+	      requests to HAST-managed devices. Currently HAST is
+	      limited to two cluster nodes in total.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>This operates on block level; it provides disk-like
+	      devices in <filename>/dev/hast/</filename> directory for
+	      use by file systems and/or applications.  Working on
+	      block level makes it transparent for file systems and
+	      applications.  There in no difference between using
+	      HAST-provided device and raw disk, partition, etc.  All
+	      of them are just regular &man.geom.8; providers in
+	      &os;.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The userland part consists of &man.hastd.8;,
+	      &man.hastctl.8;, and &man.hast.conf.5;.  More datails
+	      can be found at <ulink
+		url="http://wiki.FreeBSD.org/HAST"></ulink>.</para>
+	  </listitem>
+	</itemizedlist>
 
         <para>The &man.isp.4; driver has been improved in
 	  stability.</para>
@@ -733,6 +946,10 @@
 
       <sect3 id="fs">
 	<title>File Systems</title>
+
+	<para>The &man.msdosfs.5; subsystem is now MP-safe and a race
+	  condition when a force unmount happens has been
+	  fixed.</para>
 
 	<para>&os; NFS subsystem now supports a timeout for the
 	  negative name cache entries in the client.  This avoids a
@@ -758,6 +975,9 @@
 	  &man.newfs.8; utility never create a file system with more
 	  than 2^32 inodes by cutting back on the number of inodes per
 	  cylinder group if necessary to stay under the limit.</para>
+
+	<para>The UFS file system (&man.ffs.7;) now supports NFSv4
+	  ACL.</para>
 
         <para>&os; &man.VFS.9; subsystem now supports a new sysctl
 	   variable <varname>vfs.vlru_allow_cache_src</varname>.  This
@@ -796,8 +1016,13 @@
 	<command>identify</command>.  It displays whole of identify
 	data block.</para>
 
+      <para>The &man.chgrp.1; and &man.chown.8; now support a
+	<option>-x</option> flag to make it not traverse across
+	multiple mount points for the recursive operation.</para>
+
       <para>The &man.cp.1; now supports a <option>-x</option> flag to
-	make it not traverse across multiple mount points.</para>
+	make it not traverse across multiple mount points for the
+	recursive operation.</para>
 
       <para>The &man.cp.1;, &man.find.1;, &man.getfacl.1;, &man.mv.1;,
 	and &man.setfacl.1; utilities now support NFSv4 ACL.</para>
@@ -822,6 +1047,11 @@
 	<option>-newerXB</option> was interpreted as the same as
 	<option>-newerXm</option>.</para>
 
+      <para>A bug in the &man.fnmatch.3; function has been fixed.  The
+	flag <varname>FNM_PERIOD</varname> did not work correctly when
+	<literal>*</literal> characters were included in the string
+	and <varname>FNM_PATHNAME</varname> was specified.</para>
+
       <para>A bug in the &man.fsck.ffs.8; utility which causes the
 	last cylinder group of a UFS1 file system is always reported
 	as broken even after it is fixed.</para>
@@ -838,11 +1068,26 @@
 	description <replaceable>value</replaceable> to the specified
 	interface.</para>
 
+      <para>The &man.indent.1; utility now supports a
+	<option>-ta</option> flag to treat all
+	<literal>_t</literal>-suffixed identifiers as types.</para>
+
+      <para arch="amd64,i386">The <filename>libz</filename> library
+	has been improved in performance.  For &os/&arch.i386;, note
+	that this improvement uses instructions only on i686-class CPU
+	and they are disabled by default.  Specifying
+	<literal>CPUTYPE=pentium4</literal> in
+	<filename>/etc/make.conf</filename> enables them.</para>
+
       <para>The &man.mount.nfs.8; utility now supports
 	<literal>[<replaceable>ipaddr</replaceable>]:<replaceable>path</replaceable></literal>
 	notation in addition to the existing one.  This allows IPv6
 	address in the address field, and a path including
 	<quote><literal>:</literal></quote> to be mounted.</para>
+
+      <para>A bug in the &man.netstat.1; utility that prevents
+	<command>netstat -f netgraph</command> from working has been
+	fixed.</para>
 
       <para>The &man.netstat.1; utility now supports ARP information
 	in statistics shown by the <option>-s</option> flag.</para>
@@ -858,6 +1103,11 @@
 
       <para>The &man.ntpd.8; program no longer tries to bind to an
 	IPv6 anycast address.</para>
+
+      <para>A variable <varname>daily_clean_tmps_ignore</varname>
+	which is used in the &man.periodic.8; daily script now has
+	<filename>/tmp/.snap</filename>.  This prevents
+	<filename>/tmp/.snap</filename> from being removed.</para>
 
       <para>The &man.procstat.1; utility now supports two new flags
 	<option>-i</option> and <option>-j</option> to display
@@ -880,6 +1130,22 @@
       <para>The &man.scandir.3; and &man.alphasort.3; functions has
 	been updated to conform POSIX.1-2008 (IEEE Std
 	1003.1-2008).</para>
+
+      <para>The &man.sed.1; utility now supports a <option>-r</option>
+	flag which means exactly the same as a <option>-E</option>
+	flag.  This is for compatibility with the GNU version.</para>
+
+      <para>The service name database &man.services.5; (usually in
+	<filename>/etc/services</filename>) now also supports a
+	&man.db.3; style database for better lookup performance.  The
+	following entry in <filename>/etc/nsswitch.conf</filename>
+	enables use of the binary database file:</para>
+
+      <programlisting>services: db</programlisting>
+
+      <para>Note that the &man.db.3; style database can be created by
+	&man.services.mkdb.8; at
+	<filename>/var/db/service.db</filename>.</para>
 
       <para>The &man.sighold.2;, &man.sigignore.2;, &man.sigpause.2;,
 	&man.sigrelse.2;, and &man.sigset.2; functions have been
@@ -944,15 +1210,39 @@
 	  provides an easy command-line interface to the
 	  <filename>rc.d</filename> system.</para>
 
+        <para>The <filename>rc.d/ipfw</filename> script and
+	  <filename>/etc/rc.firewall</filename> now supports IPv6 and
+	  <filename>rc.d/ip6fw</filename> script and
+	  <filename>/etc/rc.firewall6</filename> are obsolete.  Note
+	  that <varname>ipv6_firewall_*</varname> variables in
+	  &man.rc.conf.5; are replaced with
+	  <varname>firewall_client_net_ipv6</varname>,
+	  <varname>firewall_simple_iif_ipv6</varname>,
+	  <varname>firewall_simple_inet_ipv6</varname>,
+	  <varname>firewall_simple_oif_ipv6</varname>,
+	  <varname>firewall_simple_onet_ipv6</varname>.</para>
+
         <para>A new <filename>rc.d</filename> script
-	  <filename>rtsold</filename> has been added.  This handles
+	  <filename>rc.d/rtsold</filename> has been added.  This handles
 	  &man.rtsold.8; daemon.</para>
 
         <para>A new <filename>rc.d</filename> script
-	  <filename>static_arp</filename> has been added.  This allows
+	  <filename>rc.d/static_arp</filename> has been added.  This allows
 	  the administrator to statically define mappings of MAC
 	  address to IPv4 at boot time.  See also the &man.rc.conf.5;
 	  manual page for more details.</para>
+
+        <para>The <filename>rc.d/tmp</filename> script now uses a
+	  unique directory name prefixed with
+	  <filename>/tmp/.diskless</filename> instead of
+	  <filename>/tmp/.diskless</filename> itself.  This fixes an
+	  issue when <filename>/tmp/.diskless</filename> exists before
+	  the script runs.</para>
+
+        <para>A new <filename>rc.d</filename> script
+	  <filename>rc.d/ubthidhci</filename> has been added.  This
+	  small script calls &man.usbconfig.8; to change a USB
+	  Bluetooth controller from HID mode to HCI mode.</para>
 
         <para>The &man.rc.conf.5; now supports a
 	  <varname>firewall_coscripts</varname> variable.  This should
@@ -981,22 +1271,25 @@
       <para></para>
 
       <para>The <application>ACPI-CA</application> has been updated to
-	20100121.</para>
+	20100304.</para>
 
       <para>The <application>awk</application> has been updated from
 	the 23 October 2007 release to the 26 November 2009 release.</para>
 
       <para><application>ISC BIND</application> has been updated to
-	version 9.6.1-P3.</para>
+	version 9.6.2-P1.</para>
 
       <para><application>netcat</application> has been updated to
-	version 4.6.</para>
+	version 4.7.</para>
+
+      <para><application>OpenSSH</application> has been updated from
+	version 5.1p1 to version 5.4p1.</para>
 
       <para><application>sendmail</application> has been updated to
 	version 8.14.4.</para>
 
       <para>The timezone database has been updated to the
-	<application>tzdata2010e</application> release.</para>
+	<application>tzdata2010i</application> release.</para>
 <!--
 
       <para role="8.0">The <application>ee</application> (easy editor) has
@@ -1044,9 +1337,6 @@
 
       <para role="7.1"><application>OpenPAM</application> has been updated from the
 	Figwort release to the Hydrangea release.</para>
-
-      <para role="7.1"><application>OpenSSH</application> has been updated from
-	version 4.5p1 to version 5.1p1.</para>
 
       <para role="7.1">The &man.resolver.3; library has been updated to
 	one of <application>ISC BIND</application> 9.4.3.</para>
