@@ -800,9 +800,9 @@
 	  Segmentation Offloading).  The capability flag is named as
 	  <varname>IFCAP_VLAN_HWTSO</varname> and it is separated from
 	  <varname>IFCAP_VLAN_HWTAGGING</varname>.  The &man.age.4;,
-	  &man.alc.4;, &man.bce.4;, &man.bge.4;, &man.cxgb.4;, &man.jme.4;,
-	  &man.re.4;, and &man.mxge.4; driver support this
-	  feature.</para>
+	  &man.alc.4;, &man.ale.4;, &man.bce.4;, &man.bge.4;,
+	  &man.cxgb.4;, &man.jme.4;, &man.re.4;, and &man.mxge.4;
+	  driver support this feature.</para>
 
         <para>The &man.vlan.4; pseudo interface for IEEE 802.1Q VLAN
 	  now ignore renaming of the parent's interface name.  The
