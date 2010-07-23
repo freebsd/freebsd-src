@@ -4927,6 +4927,74 @@ igb_update_vf_stats_counters(struct adapter *adapter)
 }
 
 
+/** igb_sysctl_tdh_handler - Handler function
+ *  Retrieves the TDH value from the hardware
+ */
+static int igb_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
+	if (!txr) return 0;
+
+	unsigned val = E1000_READ_REG(&txr->adapter->hw, E1000_TDH(txr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+/** igb_sysctl_tdt_handler - Handler function
+ *  Retrieves the TDT value from the hardware
+ */
+static int igb_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
+	if (!txr) return 0;
+
+	unsigned val = E1000_READ_REG(&txr->adapter->hw, E1000_TDT(txr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+/** igb_sysctl_rdh_handler - Handler function
+ *  Retrieves the RDH value from the hardware
+ */
+static int igb_sysctl_rdh_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
+	if (!rxr) return 0;
+
+	unsigned val = E1000_READ_REG(&rxr->adapter->hw, E1000_RDH(rxr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+/** igb_sysctl_rdt_handler - Handler function
+ *  Retrieves the RDT value from the hardware
+ */
+static int igb_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
+	if (!rxr) return 0;
+
+	unsigned val = E1000_READ_REG(&rxr->adapter->hw, E1000_RDT(rxr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
 /*
  * Add sysctl variables, one per statistic, to the system.
  */
@@ -4992,12 +5060,14 @@ igb_add_hw_stats(struct adapter *adapter)
 					    CTLFLAG_RD, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "txd_head",
-				CTLFLAG_RD, &txr->tdh, 0,
-				"Transmit Descriptor Head");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "txd_tail",
-				CTLFLAG_RD, &txr->tdt, 0,
-				"Transmit Descriptor Tail");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
+				CTLFLAG_RD, txr, sizeof(txr),
+				igb_sysctl_tdh_handler, "IU",
+ 				"Transmit Descriptor Head");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail", 
+				CTLFLAG_RD, txr, sizeof(txr),
+				igb_sysctl_tdt_handler, "IU",
+ 				"Transmit Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
 				"Queue No Descriptor Available");
@@ -5019,11 +5089,13 @@ igb_add_hw_stats(struct adapter *adapter)
 					    CTLFLAG_RD, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rxd_head",
-				CTLFLAG_RD, &rxr->rdh, 0,
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
+				CTLFLAG_RD, rxr, sizeof(rxr),
+				igb_sysctl_rdh_handler, "IU",
 				"Receive Descriptor Head");
-		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "rxd_tail",
-				CTLFLAG_RD, &rxr->rdt, 0,
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail", 
+				CTLFLAG_RD, rxr, sizeof(rxr),
+				igb_sysctl_rdt_handler, "IU",
 				"Receive Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 				CTLFLAG_RD, &rxr->rx_packets,
