@@ -101,5 +101,9 @@ int	freebsd32_copyiniov(struct iovec32 *iovp, u_int iovcnt,
 	    struct iovec **iov, int error);
 void	freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32);
 
+enum uio_seg;
+struct image_args;
+int freebsd32_exec_copyin_args(struct image_args *args, char *fname,
+	    enum uio_seg segflg, u_int32_t *argv, u_int32_t *envv);
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_UTIL_H_ */

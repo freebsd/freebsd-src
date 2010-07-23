@@ -265,7 +265,7 @@ freebsd32_sigaltstack(struct thread *td,
  * Custom version of exec_copyin_args() so that we can translate
  * the pointers.
  */
-static int
+int
 freebsd32_exec_copyin_args(struct image_args *args, char *fname,
     enum uio_seg segflg, u_int32_t *argv, u_int32_t *envv)
 {
