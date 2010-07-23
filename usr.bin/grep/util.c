@@ -60,7 +60,7 @@ grep_tree(char **argv)
 {
 	FTS *fts;
 	FTSENT *p;
-	char *d, *dir;
+	char *d, *dir = NULL;
 	unsigned int i;
 	int c, fts_flags;
 	bool ok;
@@ -82,7 +82,7 @@ grep_tree(char **argv)
 	fts_flags |= FTS_NOSTAT | FTS_NOCHDIR;
 
 	if (!(fts = fts_open(argv, fts_flags, NULL)))
-		err(2, NULL);
+		err(2, "fts_open");
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 		case FTS_DNR:
@@ -103,11 +103,12 @@ grep_tree(char **argv)
 			/* Check for file exclusion/inclusion */
 			ok = true;
 			if (exclflag) {
-				d = strrchr(p->fts_path, '/');
-				dir = grep_malloc(sizeof(char) *
-				    (d - p->fts_path + 2));
-				strlcpy(dir, p->fts_path,
-				    (d - p->fts_path + 1));
+				if ((d = strrchr(p->fts_path, '/')) != NULL) {
+					dir = grep_malloc(sizeof(char) *
+					    (d - p->fts_path + 2));
+					strlcpy(dir, p->fts_path,
+					    (d - p->fts_path + 1));
+				}
 				for (i = 0; i < epatterns; ++i) {
 					switch(epattern[i].type) {
 					case FILE_PAT:
@@ -116,13 +117,14 @@ grep_tree(char **argv)
 							ok = epattern[i].mode != EXCL_PAT;
 						break;
 					case DIR_PAT:
-						if (strstr(dir,
+						if (dir != NULL && strstr(dir,
 						    epattern[i].pat) != NULL)
 							ok = epattern[i].mode != EXCL_PAT;
 						break;
 					}
 				}
-			free(dir);
+				free(dir);
+				dir = NULL;
 			}
 
 			if (ok)
@@ -131,6 +133,7 @@ grep_tree(char **argv)
 		}
 	}
 
+	fts_close(fts);
 	return (c);
 }
 
@@ -196,6 +199,7 @@ procfile(const char *fn)
 		/* Return if we need to skip a binary file */
 		if (f->binary && binbehave == BINFILE_SKIP) {
 			grep_close(f);
+			free(ln.file);
 			free(f);
 			return (0);
 		}
@@ -230,6 +234,7 @@ procfile(const char *fn)
 	    binbehave == BINFILE_BIN && f->binary && !qflag)
 		printf(getstr(9), fn);
 
+	free(ln.file);
 	free(f);
 	return (c);
 }
