@@ -10,6 +10,7 @@ SUBDIR=	${_3dfx} \
 	accf_http \
 	${_acpi} \
 	ae \
+	${_aesni} \
 	age \
 	${_agp} \
 	aha \
@@ -439,6 +440,9 @@ _zfs=		zfs
 .if ${MACHINE} == "i386"
 _aac=		aac
 _acpi=		acpi
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_aesni=		aesni
+.endif
 _ahb=		ahb
 _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
@@ -494,6 +498,9 @@ _snc=		snc
 .if ${MACHINE_ARCH} == "amd64"
 _aac=		aac
 _acpi=		acpi
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_aesni=		aesni
+.endif
 _agp=		agp
 _an=		an
 _amdsbwd=	amdsbwd
