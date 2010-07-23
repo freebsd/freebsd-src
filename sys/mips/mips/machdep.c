@@ -307,7 +307,9 @@ mips_proc0_init(void)
 void
 cpu_initclocks(void)
 {
+
 	platform_initclocks();
+	cpu_initclocks_bsp();
 }
 
 struct msgbuf *msgbufp=0;
