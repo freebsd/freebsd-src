@@ -72,20 +72,6 @@ tick_init(void)
 	tc_init(&counter_timecounter);
 }
 
-
-void
-cpu_startprofclock(void)
-{
-	/* nothing to do */
-}
-
-void
-cpu_stopprofclock(void)
-{
-	/* nothing to do */
-}
-
-
 static int
 sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 {

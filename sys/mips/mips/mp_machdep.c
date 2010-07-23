@@ -71,6 +71,13 @@ ipi_send(struct pcpu *pc, int ipi)
 	CTR1(KTR_SMP, "%s: sent", __func__);
 }
 
+void
+ipi_all_but_self(int ipi)
+{
+
+	ipi_selected(PCPU_GET(other_cpus), ipi);
+}
+
 /* Send an IPI to a set of cpus. */
 void
 ipi_selected(cpumask_t cpus, int ipi)
@@ -145,6 +152,14 @@ mips_ipi_handler(void *arg)
 		case IPI_PREEMPT:
 			CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
 			sched_preempt(curthread);
+			break;
+		case IPI_HARDCLOCK:
+			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
+			hardclockintr(arg);;
+			break;
+		case IPI_STATCLOCK:
+			CTR1(KTR_SMP, "%s: IPI_STATCLOCK", __func__);
+			statclockintr(arg);;
 			break;
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
@@ -290,12 +305,10 @@ smp_init_secondary(u_int32_t cpuid)
 	while (smp_started == 0)
 		; /* nothing */
 
-	/*
-	 * Bootstrap the compare register.
-	 */
-	mips_wr_compare(mips_rd_count() + counter_freq / hz);
-
 	intr_enable();
+
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
 
 	/* enter the scheduler */
 	sched_throw(NULL);
