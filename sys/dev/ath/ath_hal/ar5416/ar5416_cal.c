@@ -552,6 +552,22 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	}
 
 	/*
+	 * We timed out waiting for the noisefloor to load, probably due to an
+	 * in-progress rx. Simply return here and allow the load plenty of time
+	 * to complete before the next calibration interval.  We need to avoid
+	 * trying to load -50 (which happens below) while the previous load is
+	 * still in progress as this can cause rx deafness. Instead by returning
+	 * here, the baseband nf cal will just be capped by our present
+	 * noisefloor until the next calibration timer.
+	 */
+	if (j == 1000) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "Timeout while waiting for nf "
+		    "to load: AR_PHY_AGC_CONTROL=0x%x\n",
+		    OS_REG_READ(ah, AR_PHY_AGC_CONTROL));
+		return;
+	}
+
+	/*
 	 * Restore maxCCAPower register parameter again so that we're not capped
 	 * by the median we just loaded.  This will be initial (and max) value
 	 * of next noise floor calibration the baseband does.  
