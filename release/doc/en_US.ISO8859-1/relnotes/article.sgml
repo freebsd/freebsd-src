@@ -247,7 +247,7 @@
       <para>A new kernel thread called <quote>deadlock
 	  resolver</quote> has been added.  This can be used to detect
 	possible deadlock by using information of thread state and
-	heuristical analysis.  This is not enabled by default.  To
+	heuristic analysis.  This is not enabled by default.  To
 	enable this, an option <option>option DEADLKRES</option> in
 	kernel configuration file and recompilation of the
 	kernel.</para>
@@ -269,13 +269,13 @@
 	</listitem>
       </itemizedlist>
 
-      <para>Note that the read-ahead amount is also constrainted by
+      <para>Note that the read-ahead amount is also limited by
 	sysctl variable <varname>vfs.read_max</varname>, which may
 	need to be raised in order to better utilize this
 	feature.</para>
 
       <para>The &man.lindev.4; driver has been added.  This is for
-	supporting various linux-specific pseudo devices such as
+	supporting various Linux-specific pseudo devices such as
 	<filename>/dev/full</filename>.  Note that this is not
 	included in <filename>GENERIC</filename> kernel.</para>
 
@@ -444,7 +444,7 @@
 	    gain.</para>
 
           <para>The &man.agp.4; driver has been improved.  It includes
-	    a fix for aparture size calculation issue which prevents
+	    a fix for aperture size calculation issue which prevents
 	    some graphics cards from working.</para>
 
           <para>The &man.snd.hda.4; driver now allows AD1981HD codecs
@@ -452,7 +452,7 @@
 
           <para>The &man.snd.hda.4; driver now supports multichannel
 	    (4.0 and 7.1) playback support.  The 5.1 mode support is
-	    disabled now due to unidentified synchonization problem.
+	    disabled now due to unidentified synchronization problem.
 	    Devices which supports the 7.1 mode can handle the 5.1
 	    operation via software upmix done by &man.sound.4;.  Note
 	    that stereo stream is no longer duplicated to all
@@ -477,7 +477,7 @@
 
           <para>The &man.bge.4; driver now supports TSO (TCP
 	    Segmentation Offloading) on BCM5755 or newer
-	    contollers.</para>
+	    controllers.</para>
 
           <para>A long-standing bug in the &man.bge.4; driver which
 	    was related to ASF heartbeat sending has been
@@ -514,7 +514,7 @@
 	    filtering based on inspection of L2/L3/L4 headers.
 	    Filtering based on source IP address, destination IP
 	    address, source port number, destination port number,
-	    802.1q VLAN frame tag, UDP, TCP, and MAC address addr is
+	    802.1q VLAN frame tag, UDP, TCP, and MAC address is
 	    possible.  The configuration can be done by the
 	    cxgbtool(8) utility.  Note that cxgbtool(8) is in
 	    <filename>src/usr.sbin/cxgbtool</filename> but not
@@ -578,7 +578,7 @@
 	    via DHCP.</para>
 
           <para>The &man.re.4; driver now uses <literal>2048</literal>
-	    as PCIe Maximuim Read Request Size.  This improves bulk
+	    as PCIe Maximum Read Request Size.  This improves bulk
 	    transfer performance.</para>
 
           <para>The &man.run.4; driver for Ralink
@@ -692,7 +692,7 @@
 	  interface has changed, and lets stacked interfaces such as
 	  &man.vlan.4; detect that their lower interface has changed
 	  and adjust things in order to keep working.  This fixes an
-	  issue of &man.lagg.4; and &man.vlan.4; configulation.</para>
+	  issue of &man.lagg.4; and &man.vlan.4; configuration.</para>
 
         <para>IPcomp (IP Payload Compression Protocol defined in RFC
 	  2393) protocol is now enabled by default.  Note that this
@@ -766,7 +766,7 @@
 
 	<para>A memory alignment issue in the &man.ng.ksocket.4; and
 	  &man.ng.ppp.4;, Netgraph node drivers have been fixed.  This
-	  fixes kernel panics due to the misalightment.</para>
+	  fixes kernel panics due to the misalignment.</para>
 
 	<para>The &man.ng.bridge.4; and &man.ng.hub.4; Netgraph node
 	  drivers now supports a flag <literal>persistent</literal>.
@@ -831,7 +831,7 @@
 
         <para>The &man.ahci.4; driver now supports FIS-based (Frame
 	  Information Structure) switching of port multiplier on
-	  supported controlers.</para>
+	  supported controllers.</para>
 
         <para>The &man.ahd.4; driver now supports three separated
 	  error counters for correctable, uncorrectable, and fatal, in
@@ -997,7 +997,7 @@ kern.geom.label.gpt.enable</programlisting>
 
 	  <listitem>
 	    <para>The userland part consists of &man.hastd.8;,
-	      &man.hastctl.8;, and &man.hast.conf.5;.  More datails
+	      &man.hastctl.8;, and &man.hast.conf.5;.  More details
 	      can be found at <ulink
 		url="http://wiki.FreeBSD.org/HAST"></ulink>.</para>
 	  </listitem>
@@ -1059,16 +1059,6 @@ kern.geom.label.gpt.enable</programlisting>
 
 	<para>The UFS file system (&man.ffs.7;) now supports NFSv4
 	  ACL.</para>
-
-	<para>The UFS file system (&man.ffs.7;) now supports both
-	  32-bit and 64-bit &man.quota.1;.  The command
-	  <command>quotacheck -c 64</command> converts the 32-bit
-	  quota to 64-bit.  Note that the traditional 32-bit quota
-	  still works with no problem for sizes smaller than 2Tb, and
-	  the quota subsystem is not compilied in
-	  <filename>GENERIC</filename> kernel by default.  To enable
-	  it, an option <option>option QUOTA</option> in the kernel
-	  configuration file and recompilation of the kernel.</para>
 
         <para>&os; &man.VFS.9; subsystem now supports a new sysctl
 	   variable <varname>vfs.vlru_allow_cache_src</varname>.  This
@@ -1251,7 +1241,7 @@ kern.geom.label.gpt.enable</programlisting>
 	error.</para>
 
       <para>The &man.ln.1; utility now removes trailing slash
-	characters when creating a link to a directory.  The followin
+	characters when creating a link to a directory.  The following
 	command sequence reported an error in the previous
 	releases:</para>
 
@@ -1394,7 +1384,7 @@ kern.geom.label.gpt.enable</programlisting>
 
       <para>The &man.whois.1; utility now supports searching IPv6
 	addresses just like IPv4 without specifying the ARIN server.
-	A <option>-d</option> flag has been removed becuase it is now
+	A <option>-d</option> flag has been removed because it is now
 	obsolete.</para>
 
       <para>A new errno <varname>ENOTCAPABLE</varname> has been added.
@@ -1449,7 +1439,7 @@ kern.geom.label.gpt.enable</programlisting>
 
         <para>The &man.rc.conf.5; now supports a
 	  <varname>firewall_coscripts</varname> variable.  This should
-	  contain a list of commands which should be excuted after
+	  contain a list of commands which should be executed after
 	  firewall starts or stops.</para>
 
         <para>The &man.rc.conf.5; now supports configuring
