@@ -200,9 +200,7 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	return (0);
 
 err_exit:
-	kmem_free_wakeup(exec_map, (vm_offset_t)args->buf,
-	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
-	args->buf = NULL;
+	exec_free_args(args);
 	return (error);
 }
 
