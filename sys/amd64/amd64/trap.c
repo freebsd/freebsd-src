@@ -275,9 +275,9 @@ trap(struct trapframe *frame)
 			    type);
 			/*
 			 * We shouldn't enable interrupts while holding a
-			 * spin lock or servicing an NMI.
+			 * spin lock.
 			 */
-			if (type != T_NMI && td->td_md.md_spinlock_count == 0)
+			if (td->td_md.md_spinlock_count == 0)
 				enable_intr();
 		}
 	}
