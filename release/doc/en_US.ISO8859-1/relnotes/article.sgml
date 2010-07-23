@@ -199,36 +199,47 @@
     <sect2 id="kernel">
       <title>Kernel Changes</title>
 
-      <para></para>
+      <para>The &man.ddb.4; debugger has been improved:</para>
 
-      <para>The &man.ddb.4; now supports <command>show
-	  ifnets</command> and <command>show ifnet <replaceable>struct
-	    ifnet *</replaceable></command> commands to print a list of
-	<quote>ifnet *</quote> of each virtual network stack and
-	fields of specified <varname>fip</varname>,
-	respectively.</para>
+      <itemizedlist>
+	<listitem>
+	  <para>It now supports <command>show
+	      ifnets</command> and <command>show ifnet <replaceable>struct
+		ifnet *</replaceable></command> commands to print a list of
+	    <quote>ifnet *</quote> of each virtual network stack and
+	    fields of specified <varname>fip</varname>,
+	    respectively.</para>
+	</listitem>
 
-      <para>The &man.ddb.4; now supports <command>show all
-	  lltables</command>, <command>show lltable
-	  <replaceable>struct lltable *</replaceable></command>, and
-	  <command>show llentry <replaceable>struct llentry
-	    *</replaceable></command> commands to print a list of
-	<quote>lltable *</quote> of each virtual network stack,
-	fields of specified structures respectively.</para>
+	<listitem>
+	  <para>It now supports <command>show all
+	      lltables</command>, <command>show lltable
+	      <replaceable>struct lltable *</replaceable></command>, and
+	    <command>show llentry <replaceable>struct llentry
+		*</replaceable></command> commands to print a list of
+	    <quote>lltable *</quote> of each virtual network stack,
+	    fields of specified structures respectively.</para>
+	</listitem>
 
-      <para>The <command>show mount</command> command in the
-	&man.ddb.4; debugger now prints active string mount
-	options.</para>
+	<listitem>
+	  <para>The <command>show mount</command> command now prints
+	    active string mount options.</para>
+	</listitem>
 
-      <para>The &man.ddb.4; now supports <command>show
-	  vnetrcrs</command> command to dump the whole log of
-	distinctive <varname>curvnet</varname> recursion
-	events.</para>
+	<listitem>
+	  <para>It now supports <command>show
+	      vnetrcrs</command> command to dump the whole log of
+	    distinctive <varname>curvnet</varname> recursion
+	    events.</para>
+	</listitem>
 
-      <para>The &man.ddb.4; now supports <command>show
-	  vnet_sysinit</command> and <command>show
-	  vnet_unsysinit</command> commands to print
-	ordered call lists.</para>
+	<listitem>
+	  <para>It now supports <command>show
+	      vnet_sysinit</command> and <command>show
+	      vnet_unsysinit</command> commands to print
+	    ordered call lists.</para>
+	</listitem>
+      </itemizedlist>
 
       <para>The default &man.devfs.5; rules now expose the upper 256
 	of &man.pty.4; device nodes.</para>
@@ -285,7 +296,8 @@
 	disabled by default in <filename>GENERIC</filename>
 	kernel.</para>
 
-      <para arch="sparc64">&os; now supports UltraSPARC IV and IV+.</para>
+      <para arch="sparc64">&os; now supports UltraSPARC IV, IV+, and
+	SPARC64 V CPUs.</para>
 
       <para>A bug in the &man.tty.4; driver that
 	<varname>TIOCSTI</varname> did not work has been fixed.  This
@@ -364,8 +376,6 @@
 	  <filename>gptzfsboot</filename> bootcode now fully support
 	  64-bit LBAs for disk addresses.  This allows booting from
 	  large volumes.</para>
-
-        <para></para>
       </sect3>
 
       <sect3 id="proc">
@@ -392,6 +402,22 @@
 	  JBus to PCIe bridge (called as <quote>Fire</quote>) found in
 	  the Sun Fire V215/V245 and Sun Ultra 25/45 machines.</para>
 
+	<para>The &man.usb.4; subsystem now reports &man.devd.8;
+	  <literal>notify</literal> events with the device properties
+	  instead of <literal>attach</literal> events.  The following is an
+	  example entry of &man.devd.conf.5; to match a &man.umass.4;
+	  device with a SCSI subclass and BBB protocol:</para>
+
+	<programlisting>notify 100 {
+	match "system"		"USB";
+	match "subsystem"	"INTERFACE";
+	match "type"		"ATTACH";
+	match "intclass"	"0x08";
+	match "intsubclass"	"0x06";
+	match "intprotocol"	"0x50";
+	action "/path/to/command -flag";
+};</programlisting>
+
         <para arch="powerpc">The &man.smu.4; driver now provides
 	  thermal management and monitoring features.  This allows fan
 	  control and thermal monitoring on SMU-based Apple G5
@@ -409,8 +435,6 @@
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
-
-          <para></para>
 
           <para>The &man.acpi.video.4; driver now supports LCD
 	    brightness control notify handler.</para>
@@ -433,12 +457,14 @@
 	    operation via software upmix done by &man.sound.4;.  Note
 	    that stereo stream is no longer duplicated to all
 	    ports.</para>
+
+          <para>The &man.uep.4; driver for USB onscreen touch panel
+	    from eGalax has been added.  This driver is supported by
+	    <filename>x11-drivers/xf86-input-egalax</filename>.</para>
 	</sect4>
 
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
-
-          <para></para>
 
           <para>The &man.ath.4; driver now supports Atheros
 	    AR9285-based devices.</para>
@@ -484,11 +510,24 @@
           <para>The &man.cxgb.4; driver has been updated to T3
 	    firmware 7.8.0.</para>
 
+          <para>The &man.cxgb.4; driver now supports hardware
+	    filtering based on inspection of L2/L3/L4 headers.
+	    Filtering based on source IP address, destination IP
+	    address, source port number, destination port number,
+	    802.1q VLAN frame tag, UDP, TCP, and MAC address addr is
+	    possible.  The configuration can be done by the
+	    cxgbtool(8) utility.  Note that cxgbtool(8) is in
+	    <filename>src/usr.sbin/cxgbtool</filename> but not
+	    compilied by default.</para>
+
           <para>The et(4) driver now supports MSI and Tx checksum
 	    offloading of IPv4, TCP, and UDP.</para>
 
           <para>The &man.em.4; driver has been updated to version
 	    7.0.0.</para>
+
+	  <para>The &man.fxp.4; driver now exports the hardware MAC
+	    statistics via sysctl variables.</para>
 
           <para>The &man.igb.4; driver has been updated to version
 	    1.9.3.</para>
@@ -501,14 +540,15 @@
 	    images.</para>
 
           <para>The &man.ixgbe.4; driver has been updated to version
-	    2.1.7.</para>
+	    2.2.0.</para>
 
           <para>The &man.msk.4; driver has been improved:</para>
 
 	  <itemizedlist>
 	    <listitem>
-	      <para>It now supports Marvell Yukon 88E8042, 88E8057
-		devices and DGE-560SX (Yukon XL).</para>
+	      <para>It now supports Marvell Yukon 88E8042, 88E8057,
+		88E8059 (Yukon Optima) devices and DGE-560SX (Yukon
+		XL).</para>
 	    </listitem>
 
 	    <listitem>
@@ -523,10 +563,15 @@
 		separate interrupt moderation values for each
 		port.</para>
 	    </listitem>
+
+	    <listitem>
+	      <para>A stability issue has been fixed. A heavy RX
+		traffic while rebooting is in progress could prevent
+		the system from working.</para>
 	  </itemizedlist>
 
           <para>The &man.mxge.4; driver has been updated to firmware
-	    version 1.4.50.</para>
+	    version 1.4.50 from Myricom.</para>
 
           <para>The &man.re.4; driver no longer performs an
 	    unnecessary interface up/down during getting IP address
@@ -541,7 +586,8 @@
 	    added.</para>
 
           <para>The sge(4) driver for Silicon Integrated Systems
-	    SiS190/191 Fast/Gigabit Ethernet has been added.</para>
+	    SiS190/191 Fast/Gigabit Ethernet has been added.  This
+	    supports TSO and TSO over VLAN.</para>
 
           <para>The &man.ste.4; driver has been improved:</para>
 
@@ -619,13 +665,14 @@
 
           <para>The &man.urtw.4; driver has been improved and now
 	    supports RTL8187B-based devices.</para>
+
+          <para>The &os; Xen netfront driver has been improved in
+	    stability and performance./para>
 	</sect4>
       </sect3>
 
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
-
-        <para></para>
 
         <para>&os; flowtable now supports IPv6.  This is for per-CPU
 	  caching flows as a means of accelerating L3 and L2 lookups
@@ -639,6 +686,13 @@
 	  interface can check the link state or not.  The
 	  &man.ifconfig.8; utility now shows this flag if
 	  supported.</para>
+
+	<para>A new event handler <varname>iflladdr_event</varname>
+	  has been added.  This signals that the L2 address on an
+	  interface has changed, and lets stacked interfaces such as
+	  &man.vlan.4; detect that their lower interface has changed
+	  and adjust things in order to keep working.  This fixes an
+	  issue of &man.lagg.4; and &man.vlan.4; configulation.</para>
 
         <para>IPcomp (IP Payload Compression Protocol defined in RFC
 	  2393) protocol is now enabled by default.  Note that this
@@ -713,6 +767,14 @@
 	<para>A memory alignment issue in the &man.ng.ksocket.4; and
 	  &man.ng.ppp.4;, Netgraph node drivers have been fixed.  This
 	  fixes kernel panics due to the misalightment.</para>
+
+	<para>The &man.ng.bridge.4; and &man.ng.hub.4; Netgraph node
+	  drivers now supports a flag <literal>persistent</literal>.
+	  It disables automatic node shutdown when the last hook gets
+	  disconnected.  The new control messages
+	  <literal>NGM_BRIDGE_SET_PERSISTENT</literal> and
+	  <literal>NGM_HUB_SET_PERSISTENT</literal> have been added
+	  for the flag.</para>
 
 	<para>The &man.pf.4; subsystem now supports
 	  <literal>sloppy</literal> keyword to enable a TCP state
@@ -827,6 +889,11 @@
 	  when power is applied.  A typical application is staggered
 	  spin-up.</para>
 
+        <para>The &man.cam.4; ATA transport layer now supports
+	  negotiating and enabling additional SATA features such as
+	  device initiated power management, Automatic Partial to
+	  Slumber mode transition, and DMA auto-activation.</para>
+
 	<para>A livelock issue of the &man.ciss.4; driver under a high
 	  load has been fixed.</para>
 
@@ -939,9 +1006,23 @@ kern.geom.label.gpt.enable</programlisting>
         <para>The &man.isp.4; driver has been improved in
 	  stability.</para>
 
+	<para>The &man.mvs.4; CAM ATA driver for Marvell
+	  88SX50XX/88SX60XX/88SX70XX/SoC SATA controllers has been
+	  added.  This driver supports same hardware as the
+	  &man.ata.4; driver does, but provides many additional
+	  features, such as NCQ and PMP.</para>
+
+        <para>The &man.siis.4; driver now enables MSI by default on
+	  SiI3124-based devices.  This can be disabled by using a
+	  <varname>hint.siis.<replaceable>0</replaceable>.msi</varname>
+	  loader tunable.</para>
+
         <para>The Max Read Request Size in the &man.siis.4; driver for
 	  PCIe chips has been increased from 512 to 1024 bytes for
 	  better performance.</para>
+
+	<para>The &man.twa.4; driver has been updated to the latest
+	  version from LSI.</para>
       </sect3>
 
       <sect3 id="fs">
@@ -979,6 +1060,16 @@ kern.geom.label.gpt.enable</programlisting>
 	<para>The UFS file system (&man.ffs.7;) now supports NFSv4
 	  ACL.</para>
 
+	<para>The UFS file system (&man.ffs.7;) now supports both
+	  32-bit and 64-bit &man.quota.1;.  The command
+	  <command>quotacheck -c 64</command> converts the 32-bit
+	  quota to 64-bit.  Note that the traditional 32-bit quota
+	  still works with no problem for sizes smaller than 2Tb, and
+	  the quota subsystem is not compilied in
+	  <filename>GENERIC</filename> kernel by default.  To enable
+	  it, an option <option>option QUOTA</option> in the kernel
+	  configuration file and recompilation of the kernel.</para>
+
         <para>&os; &man.VFS.9; subsystem now supports a new sysctl
 	   variable <varname>vfs.vlru_allow_cache_src</varname>.  This
 	   allow <filename>vnlru</filename> kernel thread to reclaim
@@ -989,16 +1080,75 @@ kern.geom.label.gpt.enable</programlisting>
 	   accesses file system into one second wait for
 	   <filename>vnlru</filename> kernel thread.</para>
 
-	<para>The ZFS file system now supports NFSv4 ACL.</para>
+	<para>The ZFS file system has been improved:</para>
 
-	<para>The zpool version of ZFS subsystem has been updated to
-	  version 14.  It is now possible to use zpools created on
-	  OpenSolaris 2009.06.</para>
+	<itemizedlist>
+	  <listitem>
+	    <para>It now supports NFSv4 ACL.</para>
+	  </listitem>
 
-	<para>Bugs in the ZFS file system that <command>zfs snapshot
-	    -r</command> fails when the file system is busy, and
-	  <command>zfs receive</command> can fail with an E2BIG
-	  error, have been fixed.</para>
+	  <listitem>
+	    <para>The L2ARC code has been improved in stability and
+	      performance.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The zpool version has been updated to
+	      version 14.  It is now possible to use zpools created on
+	      OpenSolaris 2009.06.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A sysctl variable
+	      <varname>vfs.zfs.txg.write_limit_override</varname> has
+	      been added.  This can be used for tuning of ZFS write
+	      throttling.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>ZFS prefech statistics has been added as a sysctl
+	      variable
+	      <varname>kstat.zfs.misc.zfetchstats</varname>.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The &man.zfs.8; <command>zpool export</command>
+	      command now supports <option>-F</option> flag.
+	      When exporting with this flag, <filename>zpool.cache</filename>
+	      remains untouched.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A data corruption issue of <command>zfs
+		send/receive</command> between two different platforms
+	      has been fixed.  Symbolic links could be broken in the
+	      previous releases.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A possible deadlock of <command>zfs
+		receive</command> has been fixed.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Possible panics of <command>zfs destroy</command>
+	      and <command>zfs rollback</command> have been
+	      fixed.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A occasional failure of <command>zfs
+		rename</command> due to a busy state has been
+		fixed.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Bugs that <command>zfs snapshot
+		-r</command> fails when the file system is busy, and
+	      <command>zfs receive</command> can fail with an E2BIG
+	      error, have been fixed.</para>
+	  </listitem>
+	</itemizedlist>
       </sect3>
     </sect2>
 
@@ -1015,6 +1165,12 @@ kern.geom.label.gpt.enable</programlisting>
 	<option>-v</option> flag in the subcommand
 	<command>identify</command>.  It displays whole of identify
 	data block.</para>
+
+      <para>The &man.camcontrol.8; utility now supports
+	<option>-d</option> and <option>-f</option> flags in the
+	subcommand <command>cmd</command>.  They specify DMA protocol
+	or FPDMA (NCQ) protocol to be used for ATA command,
+	respectively.</para>
 
       <para>The &man.chgrp.1; and &man.chown.8; now support a
 	<option>-x</option> flag to make it not traverse across
@@ -1072,12 +1228,35 @@ kern.geom.label.gpt.enable</programlisting>
 	<option>-ta</option> flag to treat all
 	<literal>_t</literal>-suffixed identifiers as types.</para>
 
+      <para>The <filename>liblzma</filename> library for LZMA2
+	lossless data compression algorithm and the userland utilities
+	&man.xz.1;, &man.xzdec.1;, &man.lzma.1;, and &man.lzmainfo.1;.
+	has been imported.  When the old system is upgraded to
+	&release.current;, deinstalling a version found in the Ports
+	Collection (<filename>archivers/xz</filename>) and
+	recompilation of the packages which depend on it may be
+	required.</para>
+
       <para arch="amd64,i386">The <filename>libz</filename> library
 	has been improved in performance.  For &os/&arch.i386;, note
 	that this improvement uses instructions only on i686-class CPU
 	and they are disabled by default.  Specifying
 	<literal>CPUTYPE=pentium4</literal> in
 	<filename>/etc/make.conf</filename> enables them.</para>
+
+      <para>The &man.ln.1; utility now reports an error correctly when
+	a <option>-f</option> flag and two same file entries were
+	specified in the command line option.  It removed the file
+	first and then reported a <quote>not found</quote>
+	error.</para>
+
+      <para>The &man.ln.1; utility now removes trailing slash
+	characters when creating a link to a directory.  The followin
+	command sequence reported an error in the previous
+	releases:</para>
+
+      <screen>&prompt.user; mkdir test1 test2
+&prompt.user; ln -s ../test2/ test1</screen>
 
       <para>The &man.mount.nfs.8; utility now supports
 	<literal>[<replaceable>ipaddr</replaceable>]:<replaceable>path</replaceable></literal>
@@ -1097,12 +1276,25 @@ kern.geom.label.gpt.enable</programlisting>
 	the number of outputs.  This is used in conjunction with
 	<option>-w</option> option.</para>
 
+      <para>The &man.newfs.msdos.8; utility now uses
+	<literal>NO_NAME</literal> as the default volume label and
+	<literal>BSD4.4</literal> as the OEM String.</para>
+
       <para>The &man.newsyslog.8; utility does not consider
 	non-existence of a PID file as an error now.  A new flag
 	<option>-P</option> reverts it to the old behavior.</para>
 
       <para>The &man.ntpd.8; program no longer tries to bind to an
 	IPv6 anycast address.</para>
+
+      <para>The &man.pam.krb5.8; PAM module now supports
+	<option>no_user_check</option> option.  This allows to
+	authorize a user not known to the local system.</para>
+
+      <para>The &man.pathchk.1; utility now supports a
+	<option>-P</option> flag defined in POSIX-1.2008.  This checks
+	for empty pathnames and components starting with
+	<quote><literal>-</literal></quote>.</para>
 
       <para>A variable <varname>daily_clean_tmps_ignore</varname>
 	which is used in the &man.periodic.8; daily script now has
@@ -1164,6 +1356,10 @@ kern.geom.label.gpt.enable</programlisting>
 	available memory becomes short.  This kind of process
 	termination happens in a swap-intensive workload.</para>
 
+      <para>The &man.stat.1; utility now supports
+	<literal>%Sf</literal> output specifier to display the file
+	flags symbolically.</para>
+
       <para>The &man.strsignal.3; function is now thread-safe.</para>
 
       <para>The &man.sysctl.8; utility now supports a
@@ -1181,6 +1377,15 @@ kern.geom.label.gpt.enable</programlisting>
 	1.188.  It now supports a new <option>-B</option> flag to
 	compress blank lines around a deleted section to prevent blank
 	lines around paragraphs of code from getting doubled.</para>
+
+      <para>The &man.unzip.1; utility now supports the rename query
+	when a file with the same name as the one about to be
+	extracted already exists.</para>
+
+      <para>The &man.unzip.1; utility now supports
+	<option>-C</option>, <option>-c</option>, <option>-f</option>,
+	<option>-p</option>, and <option>-v</option> flags which are
+	compatible with Info-ZIP.</para>
 
       <para>The &man.usbconfig.8; utility now supports a new flag
 	<option>-d</option> to specify the &man.ugen.4; device, and
@@ -1203,8 +1408,6 @@ kern.geom.label.gpt.enable</programlisting>
 
       <sect3 id="rc-scripts">
         <title><filename>/etc/rc.d</filename> Scripts</title>
-
-        <para></para>
 
         <para>The &man.service.8; command has been added.  This
 	  provides an easy command-line interface to the
@@ -1268,8 +1471,6 @@ kern.geom.label.gpt.enable</programlisting>
     <sect2 id="contrib">
       <title>Contributed Software</title>
 
-      <para></para>
-
       <para>The <application>ACPI-CA</application> has been updated to
 	20100304.</para>
 
@@ -1277,7 +1478,7 @@ kern.geom.label.gpt.enable</programlisting>
 	the 23 October 2007 release to the 26 November 2009 release.</para>
 
       <para><application>ISC BIND</application> has been updated to
-	version 9.6.2-P1.</para>
+	version 9.6.2-P2.</para>
 
       <para><application>netcat</application> has been updated to
 	version 4.7.</para>
@@ -1285,69 +1486,14 @@ kern.geom.label.gpt.enable</programlisting>
       <para><application>OpenSSH</application> has been updated from
 	version 5.1p1 to version 5.4p1.</para>
 
+      <para><application>OpenSSL</application> has been updated to
+	version 0.9.8n.</para>
+
       <para><application>sendmail</application> has been updated to
 	version 8.14.4.</para>
 
       <para>The timezone database has been updated to the
-	<application>tzdata2010i</application> release.</para>
-<!--
-
-      <para role="8.0">The <application>ee</application> (easy editor) has
-	been updated to 1.5.0.	This version is now licensed under a
-	2-clause BSD license, instead of the Artistic license.</para>
-
-      <para role="8.0">The <application>hostapd</application> has been updated to
-	version 0.6.8 + radius ACL support.</para>
-
-      <para role="8.0">The <application>less</application> has been updated to
-	version v436.</para>
-
-      <para role="8.0">The <filename>libarchive</filename> library has
-	been updated to version 2.7.0.</para>
-
-      <para role="8.0">The <filename>libexpat</filename> library has
-	been updated from version 1.95.5 to version 2.0.1.</para>
-
-      <para role="8.0">The <filename>ncurses</filename> library has been updated
-	to version 5.7-20081102.</para>
-
-      <para role="8.0"><application>OpenBSM</application> 1.1 from
-	Trusted BSD Project has been merged.</para>
-
-      <para role="8.0"><application>TCPDUMP</application> has been
-	updated to 4.0.0.</para>
-
-      <para role="8.0"><application>wpa_supplicant</application> has been updated to
-	version 0.6.8</para>
-
-      <para role="8.0">The <application>ZFS</application> file system
-	has been updated from version 6 to version 13.</para>
-
-      <para role="7.1">The <application>am-utils</application> has been updated from
-	version 6.0.10p1 to version 6.1.5.</para>
-
-      <para role="7.1">The <application>bzip2</application> has been updated from
-	version 1.0.4 to version 1.0.5.</para>
-
-      <para role="7.1">The <application>CVS</application> has been updated to
-	version 1.11.22.1.</para>
-
-      <para role="7.1"><application>NTP</application> has been updated to version
-	4.2.4p5.</para>
-
-      <para role="7.1"><application>OpenPAM</application> has been updated from the
-	Figwort release to the Hydrangea release.</para>
-
-      <para role="7.1">The &man.resolver.3; library has been updated to
-	one of <application>ISC BIND</application> 9.4.3.</para>
-
--->
-    </sect2>
-
-    <sect2 id="ports">
-      <title>Ports/Packages Collection Infrastructure</title>
-
-      <para></para>
+	<application>tzdata2010j</application> release.</para>
     </sect2>
 
     <sect2 id="releng">
