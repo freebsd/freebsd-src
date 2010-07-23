@@ -105,7 +105,6 @@ static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
 static int do_execve(struct thread *td, struct image_args *args,
     struct mac *mac_p);
-static void exec_free_args(struct image_args *);
 
 /* XXX This should be vm_size_t. */
 SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
@@ -1155,11 +1154,11 @@ err_exit:
 	return (error);
 }
 
-static void
+void
 exec_free_args(struct image_args *args)
 {
 
-	if (args->buf) {
+	if (args->buf != NULL) {
 		kmem_free_wakeup(exec_map, (vm_offset_t)args->buf,
 		    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
 		args->buf = NULL;
