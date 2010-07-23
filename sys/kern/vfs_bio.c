@@ -620,9 +620,14 @@ bufinit(void)
 	hibufspace = lmax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 10);
 	lobufspace = hibufspace - MAXBSIZE;
 
-	lorunningspace = 512 * 1024;
+	/*
+	 * Note: The 16 MB upper limit for hirunningspace was chosen
+	 * arbitrarily and may need further tuning. The lower 1 MB
+	 * limit is the historical upper limit for hirunningspace.
+	 */
 	hirunningspace = lmax(lmin(roundup(hibufspace / 64, MAXBSIZE),
 	    16 * 1024 * 1024), 1024 * 1024);
+	lorunningspace = roundup(hirunningspace / 2, MAXBSIZE);
 
 /*
  * Limit the amount of malloc memory since it is wired permanently into
