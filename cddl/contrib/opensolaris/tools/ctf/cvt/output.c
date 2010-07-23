@@ -644,7 +644,7 @@ write_file(Elf *src, const char *srcname, Elf *dst, const char *dstname,
 		}
 
 #if !defined(sun)
-		if (ddata->d_buf == NULL) {
+		if (ddata->d_buf == NULL && sdata->d_buf != NULL) {
 			ddata->d_buf = xmalloc(shdr.sh_size);
 			bcopy(sdata->d_buf, ddata->d_buf, shdr.sh_size);
 		}
