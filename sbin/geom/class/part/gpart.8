@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2010
+.Dd July 23, 2010
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -84,9 +84,9 @@ utility:
 .\" ==== ADD ====
 .Nm
 .Cm add
-.Fl b Ar start
-.Fl s Ar size
 .Fl t Ar type
+.Op Fl b Ar start
+.Op Fl s Ar size
 .Op Fl i Ar index
 .Op Fl l Ar label
 .Op Fl f Ar flags
@@ -171,9 +171,13 @@ Add a new partition to the partitioning scheme given by
 The partition begins on the logical block address given by the
 .Fl b Ar start
 option.
-Its size is expressed in logical block numbers and given by the
+Its size is given by the
 .Fl s Ar size
-option.
+option. SI unit suffixes are allowed. One or both
+.Fl b
+and
+.Fl s
+options can be ommitted. If so they are automatically calculated.
 The type of the partition is given by the
 .Fl t Ar type
 option.
@@ -542,7 +546,7 @@ from a
 partition, and install bootstrap code into it.
 This partition must be larger than
 .Pa /boot/gptboot ,
-or the GPT boot you are planning to write.
+or the GPT boot you are planning to write, but smaller than 545 KB.
 A size of 15 blocks (7680 bytes) would be sufficient for
 booting from UFS but let's use 128 blocks (64 KB) here in
 this example, in order to reserve some space for potential
@@ -569,7 +573,7 @@ Create a 512MB-sized
 .Cm freebsd-ufs
 partition that would contain UFS where the system boots from.
 .Bd -literal -offset indent
-/sbin/gpart add -b 0 -s 1048576 -t freebsd-ufs da0
+/sbin/gpart add -s 512M -t freebsd-ufs da0
 .Ed
 .Pp
 After having created all required partitions, embed bootstrap code into them.
