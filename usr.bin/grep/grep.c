@@ -351,8 +351,8 @@ main(int argc, char *argv[])
 		}
 		eargv[++eargc] = NULL;
 
-		aargv = (char **)grep_malloc(sizeof(char *) *
-		    (eargc + argc + 1));
+		aargv = (char **)grep_calloc(eargc + argc + 1,
+		    sizeof(char *));
 		aargv[0] = argv[0];
 
 		for(i = 1; i < eargc; i++)
