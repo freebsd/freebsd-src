@@ -525,10 +525,12 @@ nfs_open(struct vop_open_args *ap)
 		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		if (error == EINTR || error == EIO)
 			return (error);
+		mtx_lock(&np->n_mtx);
 		np->n_attrstamp = 0;
 		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 		if (vp->v_type == VDIR)
 			np->n_direofoffset = 0;
+		mtx_unlock(&np->n_mtx);
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return (error);
@@ -970,8 +972,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 */
 		newvp = *vpp;
 		newnp = VTONFS(newvp);
-		if ((cnp->cn_flags & (ISLASTCN | ISOPEN)) ==
-		    (ISLASTCN | ISOPEN) && !(newnp->n_flag & NMODIFIED)) {
+		if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+		    !(newnp->n_flag & NMODIFIED)) {
 			mtx_lock(&newnp->n_mtx);
 			newnp->n_attrstamp = 0;
 			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
