@@ -137,6 +137,7 @@ typedef struct dt_module {
 	dt_idhash_t *dm_extern;	/* external symbol definitions */
 #if !defined(sun)
 	caddr_t dm_reloc_offset;	/* Symbol relocation offset. */
+	uintptr_t *dm_sec_offsets;
 #endif
 } dt_module_t;
 
