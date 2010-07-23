@@ -241,9 +241,6 @@
 	</listitem>
       </itemizedlist>
 
-      <para>The default &man.devfs.5; rules now expose the upper 256
-	of &man.pty.4; device nodes.</para>
-
       <para>A new kernel thread called <quote>deadlock
 	  resolver</quote> has been added.  This can be used to detect
 	possible deadlock by using information of thread state and
@@ -251,6 +248,9 @@
 	enable this, an option <option>option DEADLKRES</option> in
 	kernel configuration file and recompilation of the
 	kernel.</para>
+
+      <para>The default &man.devfs.5; rules now expose the upper 256
+	of &man.pty.4; device nodes.</para>
 
       <para>Two commands to enable/disable read-ahead have been added
 	to &man.fcntl.2; system call:</para>
@@ -287,6 +287,17 @@
 	  INCLUDE_CONFIG_FILE</option> has been added to
 	<filename>GENERIC</filename> kernel by default.</para>
 
+      <para>A bug in the &man.sched.4bsd.4; scheduler that the
+	timestamp for the sleeping operation is not cleaned up on the
+	wakeup has been fixed.</para>
+
+      <para>A race condition in the &man.sched.4bsd.4; scheduler has
+	been fixed.</para>
+
+      <para>A bug in the &man.sched.ule.4; scheduler which prevented
+	process usage (<literal>%CPU</literal>) from working correctly
+	has been fixed.</para>
+
       <para>New SDT (Statically Defined Tracing) probes such as ones
 	for <literal>opencrypto</literal> and <literal>vnet</literal>
 	have been added to &os; &man.dtrace.1; subsystem.</para>
@@ -299,25 +310,14 @@
       <para arch="sparc64">&os; now supports UltraSPARC IV, IV+, and
 	SPARC64 V CPUs.</para>
 
-      <para>A bug in the &man.tty.4; driver that
-	<varname>TIOCSTI</varname> did not work has been fixed.  This
-	affects applications like &man.mail.1;.</para>
-
-      <para>A bug in the &man.sched.4bsd.4; scheduler that the
-	timestamp for the sleeping operation is not cleaned up on the
-	wakeup has been fixed.</para>
-
-      <para>A race condition in the &man.sched.4bsd.4; scheduler has
-	been fixed.</para>
-
-      <para>A bug in the &man.sched.ule.4; scheduler which prevented
-	process usage (<literal>%CPU</literal>) from working correctly
-	has been fixed.</para>
-
       <para>The &man.syscons.4; driver has been improved.  The history
 	buffer can be fully saved/restored in the VESA mode switching
 	via a loader tunable
 	<varname>hint.sc.<replaceable>0</replaceable>.vesa_mode</varname>.</para>
+
+      <para>A bug in the &man.tty.4; driver that
+	<varname>TIOCSTI</varname> did not work has been fixed.  This
+	affects applications like &man.mail.1;.</para>
 
       <para arch="amd64,i386">An x86 real mode emulator based on
 	OpenBSD's x86emu implementation has been added to improve real
@@ -355,16 +355,16 @@
 	<para arch="powerpc">The &man.loader.8; program now supports
 	  U-Boot storage.</para>
 
+	<para arch="i386">The algorithm the &man.loader.8; uses has
+	  been improved to choose a memory range for its heap when
+	  using a range above 1MB.  This fixes a symptom that the
+	  loader fails to load a kernel.</para>
+
         <para>A kernel environment variable
 	  <varname>vfs.root.mountfrom</varname> now supports
 	  multiple elements for root file system in a space-separated
 	  list.  Each list element will be tried in order and the
 	  first available one will be mounted.</para>
-
-	<para arch="i386">The algorithm the &man.loader.8; uses has
-	  been improved to choose a memory range for its heap when
-	  using a range above 1MB.  This fixes a symptom that the
-	  loader fails to load a kernel.</para>
 
         <para>The <filename>zfsloader</filename> has been added.  This
 	  is a separate &man.zfs.8; enabled loader.  Note that a ZFS
@@ -402,6 +402,25 @@
 	  JBus to PCIe bridge (called as <quote>Fire</quote>) found in
 	  the Sun Fire V215/V245 and Sun Ultra 25/45 machines.</para>
 
+        <para arch="powerpc">The &man.smu.4; driver now provides
+	  thermal management and monitoring features.  This allows fan
+	  control and thermal monitoring on SMU-based Apple G5
+	  machines, as well as an &man.led.4; interface to control the
+	  sleep LED.</para>
+
+	<para>The &man.tnt4882.4; driver for IEEE-488 (GPIB) bus now
+	  supports National Instruments TNT5004 chip.</para>
+
+        <para>The &man.uart.4; driver now supports NetMos NM9865
+	  family of Serial/Parallel ports.</para>
+
+	<para>The &man.uep.4; driver for USB onscreen touch panel
+	  from eGalax has been added.  This driver is supported by
+	  <filename>x11-drivers/xf86-input-egalax</filename>.</para>
+
+	<para>A bug in the &man.uftdi.4; driver that can allow to send
+	  a zero length packet has been fixed.</para>
+
 	<para>The &man.usb.4; subsystem now reports &man.devd.8;
 	  <literal>notify</literal> events with the device properties
 	  instead of <literal>attach</literal> events.  The following is an
@@ -417,21 +436,6 @@
 	match "intprotocol"	"0x50";
 	action "/path/to/command -flag";
 };</programlisting>
-
-        <para arch="powerpc">The &man.smu.4; driver now provides
-	  thermal management and monitoring features.  This allows fan
-	  control and thermal monitoring on SMU-based Apple G5
-	  machines, as well as an &man.led.4; interface to control the
-	  sleep LED.</para>
-
-	<para>The &man.tnt4882.4; driver for IEEE-488 (GPIB) bus now
-	  supports National Instruments TNT5004 chip.</para>
-
-        <para>The &man.uart.4; driver now supports NetMos NM9865
-	  family of Serial/Parallel ports.</para>
-
-	<para>A bug in the &man.uftdi.4; driver that can allow to send
-	  a zero length packet has been fixed.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
@@ -457,10 +461,6 @@
 	    operation via software upmix done by &man.sound.4;.  Note
 	    that stereo stream is no longer duplicated to all
 	    ports.</para>
-
-          <para>The &man.uep.4; driver for USB onscreen touch panel
-	    from eGalax has been added.  This driver is supported by
-	    <filename>x11-drivers/xf86-input-egalax</filename>.</para>
 	</sect4>
 
 	<sect4 id="net-if">
@@ -520,11 +520,11 @@
 	    <filename>src/usr.sbin/cxgbtool</filename> but not
 	    compilied by default.</para>
 
-          <para>The et(4) driver now supports MSI and Tx checksum
-	    offloading of IPv4, TCP, and UDP.</para>
-
           <para>The &man.em.4; driver has been updated to version
 	    7.0.0.</para>
+
+          <para>The et(4) driver now supports MSI and Tx checksum
+	    offloading of IPv4, TCP, and UDP.</para>
 
 	  <para>The &man.fxp.4; driver now exports the hardware MAC
 	    statistics via sysctl variables.</para>
@@ -881,18 +881,22 @@
 	      &man.cam.3; to wait, while CD drive loads disk, instead
 	      of immediately return error status.</para>
 	  </listitem>
+
+	  <listitem>
+	    <para>The &man.cam.4; ATA transport layer now supports
+	      Power-Up In Stand-by (PUIS).  The PUIS is a configuration of
+	      SATA or PATA drives to prevent them from automatic spin-up
+	      when power is applied.  A typical application is staggered
+	      spin-up.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The &man.cam.4; ATA transport layer now supports
+	      negotiating and enabling additional SATA features such as
+	      device initiated power management, Automatic Partial to
+	      Slumber mode transition, and DMA auto-activation.</para>
+	  </listitem>
 	</itemizedlist>
-
-        <para>The &man.cam.4; ATA transport layer now supports
-	  Power-Up In Stand-by (PUIS).  The PUIS is a configuration of
-	  SATA or PATA drives to prevent them from automatic spin-up
-	  when power is applied.  A typical application is staggered
-	  spin-up.</para>
-
-        <para>The &man.cam.4; ATA transport layer now supports
-	  negotiating and enabling additional SATA features such as
-	  device initiated power management, Automatic Partial to
-	  Slumber mode transition, and DMA auto-activation.</para>
 
 	<para>A livelock issue of the &man.ciss.4; driver under a high
 	  load has been fixed.</para>
