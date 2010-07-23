@@ -973,7 +973,7 @@ kern.geom.label.gpt.enable</programlisting>
 	  competing random access patterns.  See also &man.gsched.8;
 	  manual page for more details.</para>
 
-        <para>The HAST (Highly Avalable STorage) franework has been
+        <para>The HAST (Highly Avalable STorage) framework has been
 	  added:</para>
 
 	<itemizedlist>
