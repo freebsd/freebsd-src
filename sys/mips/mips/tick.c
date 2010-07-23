@@ -259,7 +259,7 @@ clock_intr(void *arg)
 		compare_next = count + cycles_per_tick;
 		DPCPU_SET(compare_ticks, compare_next);
 		mips_wr_compare(compare_next);
-	} else
+	} else	/* In one-shot mode timer should be stopped after the event. */
 		mips_wr_compare(0xffffffff);
 
 	critical_enter();
@@ -352,7 +352,7 @@ clock_attach(device_t dev)
 	sc->et.et_quality = 800;
 	sc->et.et_frequency = counter_freq;
 	sc->et.et_min_period.sec = 0;
-	sc->et.et_min_period.frac = 0x00004000LLU << 32;
+	sc->et.et_min_period.frac = 0x00004000LLU << 32; /* To be safe. */
 	sc->et.et_max_period.sec = 0xfffffffeU / sc->et.et_frequency;
 	sc->et.et_max_period.frac =
 	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
