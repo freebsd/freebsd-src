@@ -32,8 +32,6 @@
 #ifndef _SYS_IMGACT_H_
 #define	_SYS_IMGACT_H_
 
-#include <sys/uio.h>
-
 #define MAXSHELLCMDLEN	PAGE_SIZE
 
 struct image_args {
@@ -75,6 +73,7 @@ struct image_params {
 #ifdef _KERNEL
 struct sysentvec;
 struct thread;
+enum uio_seg;
 
 #define IMGACT_CORE_COMPRESS	0x01
 
