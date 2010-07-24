@@ -24,6 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *      from nfs_lock.h,v 2.2 1998/04/28 19:38:41 don Exp
  * $FreeBSD$
  */
 
@@ -55,7 +56,7 @@ struct lockd_msg_ident {
 	int		msg_seq;	/* Sequence number of message */
 };
 
-#define	LOCKD_MSG_VERSION	3
+#define LOCKD_MSG_VERSION	3
 
 /*
  * The structure that the kernel hands us for each lock request.
@@ -74,7 +75,7 @@ typedef struct __lock_msg {
 	u_int8_t		lm_fh[NFSX_V3FHMAX];/* The file handle. */
 } LOCKD_MSG;
 
-#define	LOCKD_ANS_VERSION	1
+#define LOCKD_ANS_VERSION	1
 
 struct lockd_ans {
 	int		la_vers;
@@ -85,5 +86,5 @@ struct lockd_ans {
 };
 
 #ifdef _KERNEL
-int	ncl_dolock(struct vop_advlock_args *ap);
+int	nfs_dolock(struct vop_advlock_args *ap);
 #endif
