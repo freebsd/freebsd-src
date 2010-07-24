@@ -67,16 +67,16 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
-
 #include <fs/nfs/nfsport.h>
 #include <fs/nfsclient/nfsnode.h>
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
-#include <fs/nfsclient/nfs_lock.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+
+#include <nfs/nfs_lock.h>
 
 /* Defs */
 #define	TRUE	1
@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 
 extern struct nfsstats newnfsstats;
 MALLOC_DECLARE(M_NEWNFSREQ);
-vop_advlock_t	*ncl_advlock_p = ncl_dolock;
+vop_advlock_t	*ncl_advlock_p = nfs_dolock;
 
 /*
  * Ifdef for FreeBSD-current merged buffer cache. It is unfortunate that these

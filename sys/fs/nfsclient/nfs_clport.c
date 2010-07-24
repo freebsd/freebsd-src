@@ -1268,4 +1268,5 @@ MODULE_VERSION(nfscl, 1);
 MODULE_DEPEND(nfscl, nfscommon, 1, 1, 1);
 MODULE_DEPEND(nfscl, krpc, 1, 1, 1);
 MODULE_DEPEND(nfscl, nfssvc, 1, 1, 1);
+MODULE_DEPEND(nfscl, nfslock, 1, 1, 1);
 

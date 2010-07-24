@@ -205,6 +205,7 @@ SUBDIR=	${_3dfx} \
 	nfsclient \
 	nfscommon \
 	nfsd \
+	nfslock \
 	nfslockd \
 	nfsserver \
 	nfssvc \
