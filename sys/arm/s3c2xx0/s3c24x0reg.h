@@ -207,7 +207,10 @@
 #define	S3C24X0_INT_BFLT 	7	/* Battery fault */
 #define	S3C24X0_INT_8_23	5	/* Ext int 8..23 */
 #define	S3C24X0_INT_4_7 	4	/* Ext int 4..7 */
-#define	S3C24X0_INT_EXT(n)	(n) /* External interrupt [3:0] for 24{1,4}0 */
+#define	S3C24X0_INT_3		3
+#define	S3C24X0_INT_2		2
+#define	S3C24X0_INT_1		1
+#define	S3C24X0_INT_0		0
 
 /* 24{1,4}0 has more than 32 interrupt sources.  These are sub-sources
  * that are OR-ed into main interrupt sources, and controlled via
@@ -229,6 +232,15 @@
 #define	S3C24X0_INT_ERR0	(S3C24X0_SUBIRQ_MIN+2)	/* UART0 Error */
 #define	S3C24X0_INT_TXD0	(S3C24X0_SUBIRQ_MIN+1)	/* UART0 Tx */
 #define	S3C24X0_INT_RXD0	(S3C24X0_SUBIRQ_MIN+0)	/* UART0 Rx */
+
+/*
+ * Support for external interrupts. We use values from 48
+ * to allow new CPU's to allocate new subirq's.
+ */
+#define	S3C24X0_EXTIRQ_MIN	48
+#define	S3C24X0_EXTIRQ_COUNT	24
+#define	S3C24X0_EXTIRQ_MAX	(S3C24X0_EXTIRQ_MIN + S3C24X0_EXTIRQ_COUNT - 1)
+#define	S3C24X0_INT_EXT(n)	(S3C24X0_EXTIRQ_MIN + (n))
 
 /* DMA controller */
 /* XXX */
