@@ -521,7 +521,7 @@
 	    compiled by default.</para>
 
           <para>The &man.em.4; driver has been updated to version
-	    7.0.0.</para>
+	    7.0.5.</para>
 
           <para>The et(4) driver now supports MSI and Tx checksum
 	    offloading of IPv4, TCP, and UDP.</para>
@@ -530,7 +530,7 @@
 	    statistics via sysctl variables.</para>
 
           <para>The &man.igb.4; driver has been updated to version
-	    1.9.3.</para>
+	    1.9.5.</para>
 
           <para>The &man.iwn.4; driver has been updated.  This
 	    includes various improvements and bugfixes regarding RF
@@ -667,7 +667,7 @@
 	    supports RTL8187B-based devices.</para>
 
           <para>The &os; Xen netfront driver has been improved in
-	    stability and performance./para>
+	    stability and performance.</para>
 	</sect4>
       </sect3>
 
@@ -973,7 +973,7 @@ kern.geom.label.gpt.enable</programlisting>
 	  competing random access patterns.  See also &man.gsched.8;
 	  manual page for more details.</para>
 
-        <para>The HAST (Highly Avalable STorage) framework has been
+        <para>The HAST (Highly Available STorage) framework has been
 	  added:</para>
 
 	<itemizedlist>
@@ -1100,7 +1100,7 @@ kern.geom.label.gpt.enable</programlisting>
 	  </listitem>
 
 	  <listitem>
-	    <para>ZFS prefech statistics has been added as a sysctl
+	    <para>ZFS prefetch statistics has been added as a sysctl
 	      variable
 	      <varname>kstat.zfs.misc.zfetchstats</varname>.</para>
 	  </listitem>
