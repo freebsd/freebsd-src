@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
 #include <fs/nfsclient/nfsnode.h>
-#include <fs/nfsclient/nfs_lock.h>
 
 extern struct mtx ncl_iod_mutex;
 
