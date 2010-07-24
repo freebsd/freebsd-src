@@ -4930,7 +4930,8 @@ igb_update_vf_stats_counters(struct adapter *adapter)
 /** igb_sysctl_tdh_handler - Handler function
  *  Retrieves the TDH value from the hardware
  */
-static int igb_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS)
+static int 
+igb_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
@@ -4947,7 +4948,8 @@ static int igb_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS)
 /** igb_sysctl_tdt_handler - Handler function
  *  Retrieves the TDT value from the hardware
  */
-static int igb_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
+static int 
+igb_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
@@ -4964,7 +4966,8 @@ static int igb_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
 /** igb_sysctl_rdh_handler - Handler function
  *  Retrieves the RDH value from the hardware
  */
-static int igb_sysctl_rdh_handler(SYSCTL_HANDLER_ARGS)
+static int 
+igb_sysctl_rdh_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
@@ -4981,7 +4984,8 @@ static int igb_sysctl_rdh_handler(SYSCTL_HANDLER_ARGS)
 /** igb_sysctl_rdt_handler - Handler function
  *  Retrieves the RDT value from the hardware
  */
-static int igb_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
+static int 
+igb_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
