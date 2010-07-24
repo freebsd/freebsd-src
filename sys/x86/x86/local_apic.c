@@ -811,10 +811,12 @@ lapic_handle_timer(struct trapframe *frame)
 	critical_enter();
 	if (lapic_et.et_active) {
 		td = curthread;
+		td->td_intr_nesting_level++;
 		oldframe = td->td_intr_frame;
 		td->td_intr_frame = frame;
 		lapic_et.et_event_cb(&lapic_et, lapic_et.et_arg);
 		td->td_intr_frame = oldframe;
+		td->td_intr_nesting_level--;
 	}
 	critical_exit();
 }
