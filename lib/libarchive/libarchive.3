@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2006
+.Dd July 17, 2010
 .Dt LIBARCHIVE 3
 .Os
 .Sh NAME
@@ -158,7 +158,7 @@ Each archive entry consists of a header followed by a certain
 amount of data.
 You can obtain the next header with
 .Fn archive_read_next_header ,
-which returns a pointer to an
+which returns a pointer to a
 .Tn struct archive_entry
 structure with information about the current archive element.
 If the entry is a regular file, then the header will be followed
@@ -324,7 +324,7 @@ or the arbitrary key/value pairs that can appear in
 pax interchange format archives.
 .Pp
 Conversely, of course, not all of the information that can be
-stored in an
+stored in a
 .Tn struct archive_entry
 is supported by all formats.
 For example, cpio formats do not support nanosecond timestamps;
