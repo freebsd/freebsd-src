@@ -340,6 +340,9 @@ disk_OS_get_MD_disks(void)
 	struct md_ioctl mdio;
 	int unit;
 
+	if (md_fd <= 0)
+		return;
+
 	/* Look for md devices */
 	STAILQ_FOREACH(map, &device_map, link) {
 		if (sscanf(map->name_key, "md%d", &unit) != 1)
@@ -546,8 +549,8 @@ init_disk_storage_tbl(void)
 	md_fd = -1;
 	snprintf(mddev, sizeof(mddev) - 1, "%s%s", _PATH_DEV, MDCTL_NAME);
 	if ((md_fd = open(mddev, O_RDWR)) == -1) {
-		syslog(LOG_ERR, "open %s failed: %m", mddev);
-		return (-1);
+		syslog(LOG_ERR, "open %s failed - will not include md(4) "
+		    "info: %m", mddev);
 	}
 
 	refresh_disk_storage_tbl(1);
