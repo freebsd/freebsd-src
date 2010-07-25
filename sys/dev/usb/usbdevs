@@ -3057,6 +3057,7 @@ product UNKNOWN4 USBMEMSTICK	0x6025	Flash Disk CBM
 product UNKNOWN5 USB2IDEBRIDGE	0x00ff	USB 2.0 ATA/SATA Bridge
 
 /* U.S. Robotics products */
+product USR USR5422		0x0118	USR5422 WLAN
 product USR USR5423		0x0121	USR5423 WLAN
 
 /* VIA Technologies products */
