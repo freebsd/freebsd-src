@@ -3,7 +3,6 @@
 
 MAN=	aac.4 \
 	acpi.4 \
-	${_acpi_aiboost.4} \
 	${_acpi_asus.4} \
 	${_acpi_dock.4} \
 	${_acpi_fujitsu.4} \
@@ -629,7 +628,6 @@ MLINKS+=xl.4 if_xl.4
 MLINKS+=zyd.4 if_zyd.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
-_acpi_aiboost.4=acpi_aiboost.4
 _acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
