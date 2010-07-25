@@ -114,13 +114,13 @@ bool	 lbflag;	/* --line-buffered */
 bool	 nullflag;	/* --null */
 bool	 exclflag;	/* --exclude */
 char	*label;		/* --label */
-char	*color;		/* --color */
+const char *color;	/* --color */
 int	 grepbehave = GREP_BASIC;	/* -EFGP: type of the regex */
 int	 binbehave = BINFILE_BIN;	/* -aIU: handling of binary files */
 int	 filebehave = FILE_STDIO;	/* -JZ: normal, gzip or bzip2 file */
-int	 devbehave = DEV_GREP;		/* -D: handling of devices */
-int	 dirbehave = DIR_GREP;		/* -dRr: handling of directories */
-int	 linkbehave = LINK_GREP;	/* -OpS: handling of symlinks */
+int	 devbehave = DEV_READ;		/* -D: handling of devices */
+int	 dirbehave = DIR_READ;		/* -dRr: handling of directories */
+int	 linkbehave = LINK_READ;	/* -OpS: handling of symlinks */
 
 enum {
 	BIN_OPT = CHAR_MAX + 1,
@@ -135,6 +135,8 @@ enum {
 	R_DEXCLUDE_OPT,
 	R_DINCLUDE_OPT
 };
+
+static inline const char	*init_color(const char *);
 
 /* Housekeeping */
 bool	 first = true;	/* flag whether we are processing the first match */
@@ -279,6 +281,15 @@ read_patterns(const char *fn)
 	fclose(f);
 }
 
+static inline const char *
+init_color(const char *d)
+{
+	char *c;
+
+	c = getenv("GREP_COLOR");
+	return (c != NULL ? c : d);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -415,16 +426,24 @@ main(int argc, char *argv[])
 			cflag = true;
 			break;
 		case 'D':
-			if (strcmp(optarg, "skip") == 0)
+			if (strcasecmp(optarg, "skip") == 0)
 				devbehave = DEV_SKIP;
+			else if (strcasecmp(optarg, "read") == 0)
+				devbehave = DEV_READ;
+			else {
+				errno = EINVAL;
+				err(2, NULL);
+			}
 			break;
 		case 'd':
-			if (strcmp("recurse", optarg) == 0) {
+			if (strcasecmp("recurse", optarg) == 0) {
 				Hflag = true;
 				dirbehave = DIR_RECURSE;
-			} else if (strcmp("skip", optarg) == 0)
+			} else if (strcasecmp("skip", optarg) == 0)
 				dirbehave = DIR_SKIP;
-			else if (strcmp("read", optarg) != 0) {
+			else if (strcasecmp("read", optarg) == 0)
+				dirbehave = DIR_READ;
+			else {
 				errno = EINVAL;
 				err(2, NULL);
 			}
@@ -466,11 +485,11 @@ main(int argc, char *argv[])
 			break;
 		case 'L':
 			lflag = false;
-			Lflag = qflag = true;
+			Lflag = true;
 			break;
 		case 'l':
 			Lflag = false;
-			lflag = qflag = true;
+			lflag = true;
 			break;
 		case 'm':
 			mflag = true;
@@ -500,7 +519,7 @@ main(int argc, char *argv[])
 			qflag = true;
 			break;
 		case 'S':
-			linkbehave = LINK_GREP;
+			linkbehave = LINK_READ;
 			break;
 		case 'R':
 		case 'r':
@@ -533,26 +552,33 @@ main(int argc, char *argv[])
 			filebehave = FILE_GZIP;
 			break;
 		case BIN_OPT:
-			if (strcmp("binary", optarg) == 0)
+			if (strcasecmp("binary", optarg) == 0)
 				binbehave = BINFILE_BIN;
-			else if (strcmp("without-match", optarg) == 0)
+			else if (strcasecmp("without-match", optarg) == 0)
 				binbehave = BINFILE_SKIP;
-			else if (strcmp("text", optarg) == 0)
+			else if (strcasecmp("text", optarg) == 0)
 				binbehave = BINFILE_TEXT;
 			else
 				errx(2, "%s", getstr(8));
 			break;
 		case COLOR_OPT:
-			if (optarg == NULL || strcmp("auto", optarg) == 0 ||
-			    strcmp("always", optarg) == 0 ) {
-				color = getenv("GREP_COLOR");
-				if (color == NULL) {
-					color = grep_malloc(sizeof(char) * 6);
-					strcpy(color, "01;31");
-				}
-			} else if (strcmp("never", optarg) == 0)
-				color = NULL;
-			else
+			color = NULL;
+			if (optarg == NULL || strcasecmp("auto", optarg) == 0 ||
+			    strcasecmp("tty", optarg) == 0 ||
+			    strcasecmp("if-tty", optarg) == 0) {
+				char *term;
+
+				term = getenv("TERM");
+				if (isatty(STDOUT_FILENO) && term != NULL &&
+				    strcasecmp(term, "dumb") != 0)
+					color = init_color("01;31");
+			} else if (strcasecmp("always", optarg) == 0 ||
+			    strcasecmp("yes", optarg) == 0 ||
+			    strcasecmp("force", optarg) == 0) {
+				color = init_color("01;31");
+			} else if (strcasecmp("never", optarg) != 0 &&
+			    strcasecmp("none", optarg) != 0 &&
+			    strcasecmp("no", optarg) != 0)
 				errx(2, "%s", getstr(3));
 			break;
 		case LABEL_OPT:
