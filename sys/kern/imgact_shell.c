@@ -220,13 +220,13 @@ exec_shell_imgact(imgp)
 	 * the interpreter name and options-string.
 	 */
 	length = interpe - interpb;
-	bcopy(interpb, imgp->args->buf, length);
-	*(imgp->args->buf + length) = '\0';
+	bcopy(interpb, imgp->args->begin_argv, length);
+	*(imgp->args->begin_argv + length) = '\0';
 	offset = length + 1;
 	if (opte > optb) {
 		length = opte - optb;
-		bcopy(optb, imgp->args->buf + offset, length);
-		*(imgp->args->buf + offset + length) = '\0';
+		bcopy(optb, imgp->args->begin_argv + offset, length);
+		*(imgp->args->begin_argv + offset + length) = '\0';
 		offset += length + 1;
 		imgp->args->argc++;
 	}
@@ -236,12 +236,12 @@ exec_shell_imgact(imgp)
 	 * use and copy the interpreter's name to imgp->interpreter_name
 	 * for exec to use.
 	 */
-	error = copystr(fname, imgp->args->buf + offset, imgp->args->stringspace,
-	    &length);
+	error = copystr(fname, imgp->args->begin_argv + offset,
+	    imgp->args->stringspace, NULL);
 
 	if (error == 0)
 		error = copystr(imgp->args->begin_argv, imgp->interpreter_name,
-		    MAXSHELLCMDLEN, &length);
+		    MAXSHELLCMDLEN, NULL);
 
 	if (sname != NULL)
 		sbuf_delete(sname);

@@ -375,7 +375,7 @@ do_execve(td, args, mac_p)
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
 	imgp->opened = 0;
-	imgp->interpreter_name = args->buf + PATH_MAX + ARG_MAX;
+	imgp->interpreter_name = args->buf;
 	imgp->auxargs = NULL;
 	imgp->vp = NULL;
 	imgp->object = NULL;
@@ -1089,21 +1089,23 @@ exec_copyin_args(struct image_args *args, char *fname,
 	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
 	if (args->buf == NULL)
 		return (ENOMEM);
-	args->begin_argv = args->buf;
-	args->endp = args->begin_argv;
-	args->stringspace = ARG_MAX;
+
 	/*
 	 * Copy the file name.
 	 */
 	if (fname != NULL) {
-		args->fname = args->buf + ARG_MAX;
+		args->fname = args->buf + MAXSHELLCMDLEN;
 		error = (segflg == UIO_SYSSPACE) ?
 		    copystr(fname, args->fname, PATH_MAX, &length) :
 		    copyinstr(fname, args->fname, PATH_MAX, &length);
 		if (error != 0)
 			goto err_exit;
 	} else
-		args->fname = NULL;
+		length = 0;
+
+	args->begin_argv = args->buf + MAXSHELLCMDLEN + length;
+	args->endp = args->begin_argv;
+	args->stringspace = ARG_MAX;
 
 	/*
 	 * extract arguments first
