@@ -1677,7 +1677,7 @@ siis_check_ids(device_t dev, union ccb *ccb)
 static void
 siisaction(struct cam_sim *sim, union ccb *ccb)
 {
-	device_t dev;
+	device_t dev, parent;
 	struct siis_channel *ch;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("siisaction func_code=%x\n",
@@ -1816,6 +1816,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
+		parent = device_get_parent(dev);
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE;
 		cpi->hba_inquiry |= PI_SATAPM;
@@ -1835,8 +1836,12 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
-		cpi->ccb_h.status = CAM_REQ_CMP;
 		cpi->maxio = MAXPHYS;
+		cpi->hba_vendor = pci_get_vendor(parent);
+		cpi->hba_device = pci_get_device(parent);
+		cpi->hba_subvendor = pci_get_subvendor(parent);
+		cpi->hba_subdevice = pci_get_subdevice(parent);
+		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
 	default:
