@@ -343,7 +343,7 @@ procline(struct str *l, int nottext)
 		return (c); /* Binary file */
 
 	/* Dealing with the context */
-	if ((tail || c) && !cflag && !qflag) {
+	if ((tail || c) && !cflag && !qflag && !lflag && !Lflag) {
 		if (c) {
 			if (!first && !prev && !tail && Aflag)
 				printf("--\n");
