@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20100725:
+	The acpi_aiboost(4) driver has been removed in favor of the new
+	aibs(4) driver. You should update your kernel configuration file.
+
 20100722:
 	BSD grep has been imported to the base system and it is built by
 	default.  It is completely BSD licensed, highly GNU-compatible, uses
