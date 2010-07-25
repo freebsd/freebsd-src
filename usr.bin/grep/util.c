@@ -226,9 +226,9 @@ procfile(const char *fn)
 			printf("%s:", ln.file);
 		printf("%u\n", c);
 	}
-	if (lflag && c != 0)
+	if (lflag && !qflag && c != 0)
 		printf("%s\n", fn);
-	if (Lflag && c == 0)
+	if (Lflag && !qflag && c == 0)
 		printf("%s\n", fn);
 	if (c && !cflag && !lflag && !Lflag &&
 	    binbehave == BINFILE_BIN && f->binary && !qflag)
@@ -320,7 +320,8 @@ procline(struct str *l, int nottext)
 					if (m < MAX_LINE_MATCHES)
 						matches[m++] = pmatch;
 					/* matches - skip further patterns */
-					break;
+					if ((color != NULL && !oflag) || qflag || lflag)
+						break;
 				}
 			}
 
@@ -329,7 +330,7 @@ procline(struct str *l, int nottext)
 				break;
 			}
 			/* One pass if we are not recording matches */
-			if (!oflag && !color)
+			if ((color != NULL && !oflag) || qflag || lflag)
 				break;
 
 			if (st == (size_t)pmatch.rm_so)
