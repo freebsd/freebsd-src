@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>
+#include <dev/pci/pcivar.h>
 #include <ata_if.h>
 
 /* prototypes */
@@ -94,6 +95,7 @@ ad_attach(device_t dev)
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
     struct ad_softc *adp;
+    device_t parent;
 
     /* check that we have a virgin disk to attach */
     if (device_get_ivars(dev))
@@ -143,6 +145,17 @@ ad_attach(device_t dev)
 	adp->disk->d_flags |= DISKFLAG_CANDELETE;
     strlcpy(adp->disk->d_ident, atadev->param.serial,
 	sizeof(adp->disk->d_ident));
+    parent = device_get_parent(ch->dev);
+    if (parent != NULL && device_get_parent(parent) != NULL &&
+	    (device_get_devclass(parent) ==
+	     devclass_find("atapci") ||
+	     device_get_devclass(device_get_parent(parent)) ==
+	     devclass_find("pci"))) {
+	adp->disk->d_hba_vendor = pci_get_vendor(parent);
+	adp->disk->d_hba_device = pci_get_device(parent);
+	adp->disk->d_hba_subvendor = pci_get_subvendor(parent);
+	adp->disk->d_hba_subdevice = pci_get_subdevice(parent);
+    }
     ata_disk_firmware_geom_adjust(adp->disk);
     disk_create(adp->disk, DISK_VERSION);
     device_add_child(dev, "subdisk", device_get_unit(dev));
