@@ -184,6 +184,7 @@
 #ifdef __mips_n64
 #define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
+#define	VM_FREELIST_DIRECT	VM_FREELIST_DEFAULT
 #else
 #define	VM_NFREELIST		2
 #define	VM_FREELIST_DEFAULT	1
