@@ -1687,6 +1687,7 @@ product HP HS2300		0x1e1d  hs2300 HSDPA (aka MC8775)
 product HTC WINMOBILE		0x00ce	HTC USB Sync
 product HTC PPC6700MODEM	0x00cf	PPC6700 Modem
 product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
+product HTC WIZARD		0x0bce	HTC Wizard USB Sync
 
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
