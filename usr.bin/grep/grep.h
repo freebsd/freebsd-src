@@ -60,14 +60,14 @@ extern const char		*errstr[];
 #define FILE_GZIP	1
 #define FILE_BZIP	2
 
-#define DIR_GREP	0
+#define DIR_READ	0
 #define DIR_SKIP	1
 #define DIR_RECURSE	2
 
-#define DEV_GREP	0
+#define DEV_READ	0
 #define DEV_SKIP	1
 
-#define LINK_GREP	0
+#define LINK_READ	0
 #define LINK_EXPLICIT	1
 #define LINK_SKIP	2
 
@@ -120,7 +120,8 @@ extern bool	 Eflag, Fflag, Gflag, Hflag, Lflag,
 		 qflag, sflag, vflag, wflag, xflag;
 extern bool	 exclflag, nullflag;
 extern unsigned long long Aflag, Bflag, mcount;
-extern char	*color, *label;
+extern char	*label;
+extern const char *color;
 extern int	 binbehave, devbehave, dirbehave, filebehave, grepbehave, linkbehave;
 
 extern bool	 first, matchall, notfound, prev;
