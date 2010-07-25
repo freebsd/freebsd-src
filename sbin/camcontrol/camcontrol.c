@@ -3083,6 +3083,14 @@ cpi_print(struct ccb_pathinq *cpi)
 		cpi->initiator_id);
 	fprintf(stdout, "%s SIM vendor: %s\n", adapter_str, cpi->sim_vid);
 	fprintf(stdout, "%s HBA vendor: %s\n", adapter_str, cpi->hba_vid);
+	fprintf(stdout, "%s HBA vendor ID: 0x%04x\n",
+	    adapter_str, cpi->hba_vendor);
+	fprintf(stdout, "%s HBA device ID: 0x%04x\n",
+	    adapter_str, cpi->hba_device);
+	fprintf(stdout, "%s HBA subvendor ID: 0x%04x\n",
+	    adapter_str, cpi->hba_subvendor);
+	fprintf(stdout, "%s HBA subdevice ID: 0x%04x\n",
+	    adapter_str, cpi->hba_subdevice);
 	fprintf(stdout, "%s bus ID: %d\n", adapter_str, cpi->bus_id);
 	fprintf(stdout, "%s base transfer speed: ", adapter_str);
 	if (cpi->base_transfer_speed > 1000)
@@ -3092,6 +3100,8 @@ cpi_print(struct ccb_pathinq *cpi)
 	else
 		fprintf(stdout, "%dKB/sec\n",
 			(cpi->base_transfer_speed % 1000) * 1000);
+	fprintf(stdout, "%s maximum transfer size: %u bytes\n",
+	    adapter_str, cpi->maxio);
 }
 
 static int

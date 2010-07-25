@@ -2459,7 +2459,7 @@ ahci_check_ids(device_t dev, union ccb *ccb)
 static void
 ahciaction(struct cam_sim *sim, union ccb *ccb)
 {
-	device_t dev;
+	device_t dev, parent;
 	struct ahci_channel *ch;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("ahciaction func_code=%x\n",
@@ -2599,6 +2599,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
+		parent = device_get_parent(dev);
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE;
 		if (ch->caps & AHCI_CAP_SNCQ)
@@ -2626,8 +2627,12 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->maxio = MAXPHYS;
 		/* ATI SB600 can't handle 256 sectors with FPDMA (NCQ). */
-		if (pci_get_devid(device_get_parent(dev)) == 0x43801002)
+		if (pci_get_devid(parent) == 0x43801002)
 			cpi->maxio = min(cpi->maxio, 128 * 512);
+		cpi->hba_vendor = pci_get_vendor(parent);
+		cpi->hba_device = pci_get_device(parent);
+		cpi->hba_subvendor = pci_get_subvendor(parent);
+		cpi->hba_subdevice = pci_get_subdevice(parent);
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
