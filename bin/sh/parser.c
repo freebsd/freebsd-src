@@ -269,6 +269,9 @@ list(int nlflag)
 				parseheredoc();
 				if (nlflag)
 					return n1;
+			} else if (tok == TEOF && nlflag) {
+				parseheredoc();
+				return n1;
 			} else {
 				tokpushback++;
 			}
