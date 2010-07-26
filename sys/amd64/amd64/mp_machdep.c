@@ -1273,6 +1273,7 @@ cpususpend_handler(void)
 
 	/* Restore CR3 and enable interrupts */
 	load_cr3(cr3);
+	mca_resume();
 	lapic_setup(0);
 	intr_restore(rf);
 }
