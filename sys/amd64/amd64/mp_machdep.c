@@ -1329,20 +1329,17 @@ cpustop_handler(void)
 void
 cpususpend_handler(void)
 {
-	struct savefpu *stopfpu;
 	register_t cr3, rf;
 	int cpu = PCPU_GET(cpuid);
 	int cpumask = PCPU_GET(cpumask);
 
 	rf = intr_disable();
 	cr3 = rcr3();
-	stopfpu = &stopxpcbs[cpu]->xpcb_pcb.pcb_user_save;
+
 	if (savectx2(stopxpcbs[cpu])) {
-		fpugetregs(curthread, stopfpu);
 		wbinvd();
 		atomic_set_int(&stopped_cpus, cpumask);
-	} else
-		fpusetregs(curthread, stopfpu);
+	}
 
 	/* Wait for resume */
 	while (!(started_cpus & cpumask))
