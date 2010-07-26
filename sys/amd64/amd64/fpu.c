@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #define	fnclex()		__asm("fnclex")
 #define	fninit()		__asm("fninit")
 #define	fnstcw(addr)		__asm __volatile("fnstcw %0" : "=m" (*(addr)))
-#define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
+#define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=am" (*(addr)))
 #define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
 #define	ldmxcsr(r)		__asm __volatile("ldmxcsr %0" : : "m" (r))
