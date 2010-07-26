@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=am" (*(addr)))
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
-#define	ldmxcsr(r)		__asm __volatile("ldmxcsr %0" : : "m" (r))
+#define	ldmxcsr(csr)		__asm __volatile("ldmxcsr %0" : : "m" (csr))
 #define	start_emulating()	__asm __volatile( \
 				    "smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				    : : "n" (CR0_TS) : "ax")
@@ -87,6 +87,7 @@ void	fnstcw(caddr_t addr);
 void	fnstsw(caddr_t addr);
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
+void	ldmxcsr(u_int csr);
 void	start_emulating(void);
 void	stop_emulating(void);
 
