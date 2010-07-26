@@ -112,6 +112,7 @@ SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
 static const struct usb_device_id rue_devs[] = {
 	{USB_VPI(USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUAKTX, 0)},
 	{USB_VPI(USB_VENDOR_REALTEK, USB_PRODUCT_REALTEK_USBKR100, 0)},
+	{USB_VPI(USB_VENDOR_OQO, USB_PRODUCT_OQO_ETHER01, 0)},
 };
 
 /* prototypes */
