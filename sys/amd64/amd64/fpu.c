@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__GNUCLIKE_ASM) && !defined(lint)
 
-#define	fldcw(addr)		__asm __volatile("fldcw %0" : : "m" (*(addr)))
+#define	fldcw(cw)		__asm __volatile("fldcw %0" : : "m" (cw))
 #define	fnclex()		__asm __volatile("fnclex")
 #define	fninit()		__asm __volatile("fninit")
 #define	fnstcw(addr)		__asm __volatile("fnstcw %0" : "=m" (*(addr)))
@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
-void	fldcw(caddr_t addr);
+void	fldcw(u_short cw);
 void	fnclex(void);
 void	fninit(void);
 void	fnstcw(caddr_t addr);
@@ -124,7 +124,7 @@ fpuinit(void)
 	stop_emulating();
 	fninit();
 	control = __INITIAL_FPUCW__;
-	fldcw(&control);
+	fldcw(control);
 	mxcsr = __INITIAL_MXCSR__;
 	ldmxcsr(mxcsr);
 	if (PCPU_GET(cpuid) == 0) {
@@ -425,7 +425,7 @@ fpudna(void)
 		 */
 		fxrstor(&fpu_initialstate);
 		if (pcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
-			fldcw(&pcb->pcb_initial_fpucw);
+			fldcw(pcb->pcb_initial_fpucw);
 		pcb->pcb_flags |= PCB_FPUINITDONE;
 		if (PCB_USER_FPU(pcb))
 			pcb->pcb_flags |= PCB_USERFPUINITDONE;
