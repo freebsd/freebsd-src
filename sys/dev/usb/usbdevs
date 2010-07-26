@@ -646,6 +646,7 @@ vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor PEGATRON		0x1d4d	Pegatron
 vendor QISDA		0x1da5  Qisda
+vendor METAGEEK2	0x1dd5	MetaGeek
 vendor ALINK		0x1e0e  Alink
 vendor AIRTIES		0x1eda	AirTies
 vendor DLINK		0x2001	D-Link
@@ -2021,6 +2022,7 @@ product MERLIN V620             0x1110  Merlin V620
 /* MetaGeek products */
 product METAGEEK WISPY1B	0x083e	MetaGeek Wi-Spy
 product METAGEEK WISPY24X	0x083f	MetaGeek Wi-Spy 2.4x
+product METAGEEK2 WISPYDBX	0x5000	MetaGeek Wi-Spy DBx
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
