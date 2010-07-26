@@ -102,9 +102,12 @@ ENTRY(acpi_restorecpu)
 	movl	WAKEUP_CTX(sfmask), %eax
 	wrmsr
 
-	/* Restore CR0, CR2 and CR4. */
+	/* Restore CR0 except for FPU mode. */
 	movq	WAKEUP_XPCB(CR0), %rax
+	andq	$~(CR0_EM | CR0_TS), %rax
 	movq	%rax, %cr0
+
+	/* Restore CR2 and CR4. */
 	movq	WAKEUP_XPCB(CR2), %rax
 	movq	%rax, %cr2
 	movq	WAKEUP_XPCB(CR4), %rax
@@ -148,6 +151,17 @@ ENTRY(acpi_restorecpu)
 	movq	%rax, %dr6
 	movq	WAKEUP_PCB(DR7), %rax
 	movq	%rax, %dr7
+
+	/* Restore FPU state. */
+	movq	PCPU(FPCURTHREAD), %rax
+	testq	%rax, %rax
+	je	1f
+	fxrstor	WAKEUP_PCB(USER_FPU)
+1:
+
+	/* Restore CR0 with FPU mode. */
+	movq	WAKEUP_XPCB(CR0), %rax
+	movq	%rax, %cr0
 
 	/* Restore return address. */
 	movq	WAKEUP_PCB(RIP), %rax

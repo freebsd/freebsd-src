@@ -216,7 +216,6 @@ acpi_wakeup_cpus(struct acpi_softc *sc, cpumask_t wakeup_cpus)
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
-	struct savefpu	*stopfpu;
 #ifdef SMP
 	cpumask_t	wakeup_cpus;
 #endif
@@ -246,10 +245,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	cr3 = rcr3();
 	load_cr3(KPML4phys);
 
-	stopfpu = &stopxpcbs[0]->xpcb_pcb.pcb_user_save;
 	if (acpi_savecpu(stopxpcbs[0])) {
-		fpugetregs(curthread, stopfpu);
-
 #ifdef SMP
 		if (wakeup_cpus != 0 && suspend_cpus(wakeup_cpus) == 0) {
 			device_printf(sc->acpi_dev,
@@ -285,7 +281,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		for (;;)
 			ia32_pause();
 	} else {
-		fpusetregs(curthread, stopfpu);
 #ifdef SMP
 		if (wakeup_cpus != 0)
 			acpi_wakeup_cpus(sc, wakeup_cpus);
