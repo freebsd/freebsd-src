@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
 #include <compat/freebsd32/freebsd32_util.h>
