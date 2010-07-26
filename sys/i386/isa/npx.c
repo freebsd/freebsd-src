@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 #define	fninit()		__asm("fninit")
 #define	fnsave(addr)		__asm __volatile("fnsave %0" : "=m" (*(addr)))
 #define	fnstcw(addr)		__asm __volatile("fnstcw %0" : "=m" (*(addr)))
-#define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
+#define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=am" (*(addr)))
 #define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fnop")
 #define	frstor(addr)		__asm("frstor %0" : : "m" (*(addr)))
 #ifdef CPU_ENABLE_SSE
