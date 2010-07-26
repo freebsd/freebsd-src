@@ -65,17 +65,18 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__GNUCLIKE_ASM) && !defined(lint)
 
-#define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
-#define	fnclex()		__asm("fnclex")
-#define	fninit()		__asm("fninit")
+#define	fldcw(addr)		__asm __volatile("fldcw %0" : : "m" (*(addr)))
+#define	fnclex()		__asm __volatile("fnclex")
+#define	fninit()		__asm __volatile("fninit")
 #define	fnstcw(addr)		__asm __volatile("fnstcw %0" : "=m" (*(addr)))
 #define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=am" (*(addr)))
-#define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
+#define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
 #define	ldmxcsr(r)		__asm __volatile("ldmxcsr %0" : : "m" (r))
-#define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
-				      : : "n" (CR0_TS) : "ax")
-#define	stop_emulating()	__asm("clts")
+#define	start_emulating()	__asm __volatile( \
+				    "smsw %%ax; orb %0,%%al; lmsw %%ax" \
+				    : : "n" (CR0_TS) : "ax")
+#define	stop_emulating()	__asm __volatile("clts")
 
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
