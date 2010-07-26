@@ -12,7 +12,8 @@ SUBDIR=	${_snmp_atm} \
 	snmp_bridge \
 	snmp_hostres \
 	snmp_mibII \
-	snmp_pf
+	snmp_pf \
+	snmp_wlan
 
 .if ${MK_NETGRAPH_SUPPORT} != "no"
 SUBDIR+=snmp_netgraph
