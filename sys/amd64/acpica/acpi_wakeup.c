@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/intr_machdep.h>
+#include <machine/mca.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
@@ -306,6 +307,7 @@ out:
 #endif
 
 	load_cr3(cr3);
+	mca_resume();
 	intr_resume();
 	intr_restore(rf);
 

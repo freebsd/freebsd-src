@@ -49,6 +49,7 @@ struct mca_record {
 void	cmc_intr(void);
 void	mca_init(void);
 int	mca_intr(void);
+void	mca_resume(void);
 
 #endif
 
