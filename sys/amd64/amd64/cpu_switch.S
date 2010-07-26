@@ -417,6 +417,13 @@ ENTRY(savectx2)
 	leaq	(%rax,%rdx),%rax
 	movq	%rax,XPCB_KGSBASE(%r8)
 
+	movq	PCPU(FPCURTHREAD),%rax
+	testq	%rax,%rax
+	je	1f
+	clts
+	fxsave	PCB_USER_FPU(%r8)
+1:
+
 	movl	$1, %eax
 	ret
 END(savectx2)
