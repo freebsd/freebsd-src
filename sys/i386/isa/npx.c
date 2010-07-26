@@ -87,26 +87,28 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__GNUCLIKE_ASM) && !defined(lint)
 
-#define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
-#define	fnclex()		__asm("fnclex")
-#define	fninit()		__asm("fninit")
+#define	fldcw(addr)		__asm __volatile("fldcw %0" : : "m" (*(addr)))
+#define	fnclex()		__asm __volatile("fnclex")
+#define	fninit()		__asm __volatile("fninit")
 #define	fnsave(addr)		__asm __volatile("fnsave %0" : "=m" (*(addr)))
 #define	fnstcw(addr)		__asm __volatile("fnstcw %0" : "=m" (*(addr)))
 #define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=am" (*(addr)))
-#define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fnop")
-#define	frstor(addr)		__asm("frstor %0" : : "m" (*(addr)))
+#define	fp_divide_by_0()	__asm __volatile( \
+				    "fldz; fld1; fdiv %st,%st(1); fnop")
+#define	frstor(addr)		__asm __volatile("frstor %0" : : "m" (*(addr)))
 #ifdef CPU_ENABLE_SSE
-#define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
+#define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
-#define	ldmxcsr(__csr)		__asm __volatile("ldmxcsr %0" : : "m" (__csr))
+#define	ldmxcsr(r)		__asm __volatile("ldmxcsr %0" : : "m" (r))
 #endif
 #ifdef XEN
-#define start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
-#define stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
+#define	start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
+#define	stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
 #else
-#define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
-				      : : "n" (CR0_TS) : "ax")
-#define	stop_emulating()	__asm("clts")
+#define	start_emulating()	__asm __volatile( \
+				    "smsw %%ax; orb %0,%%al; lmsw %%ax" \
+				    : : "n" (CR0_TS) : "ax")
+#define	stop_emulating()	__asm __volatile("clts")
 #endif
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
