@@ -1268,6 +1268,7 @@ product CYPRESS IKARILASER	0x121f	Ikari Laser SteelSeries ApS
 product CYPRESS USBRS232	0x5500	USB-RS232 Interface
 product CYPRESS SLIM_HUB	0x6560	Slim Hub
 product CYPRESS XX6830XX	0x6830	PATA Storage Device
+product CYPRESS SILVERSHIELD	0xfd13	Gembird Silver Shield PM
 
 /* Daisy Technology products */
 product DAISY DMC		0x6901	USB MultiMedia Reader
