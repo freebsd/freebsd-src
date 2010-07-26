@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__GNUCLIKE_ASM) && !defined(lint)
 
-#define	fldcw(addr)		__asm __volatile("fldcw %0" : : "m" (*(addr)))
+#define	fldcw(cw)		__asm __volatile("fldcw %0" : : "m" (cw))
 #define	fnclex()		__asm __volatile("fnclex")
 #define	fninit()		__asm __volatile("fninit")
 #define	fnsave(addr)		__asm __volatile("fnsave %0" : "=m" (*(addr)))
@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
-void	fldcw(caddr_t addr);
+void	fldcw(u_short cw);
 void	fnclex(void);
 void	fninit(void);
 void	fnsave(caddr_t addr);
@@ -266,7 +266,7 @@ npx_probe(device_t dev)
 			 * 16 works.
 			 */
 			control &= ~(1 << 2);	/* enable divide by 0 trap */
-			fldcw(&control);
+			fldcw(control);
 #ifdef FPU_ERROR_BROKEN
 			/*
 			 * FPU error signal doesn't work on some CPU
@@ -364,7 +364,7 @@ npxinit(void)
 		fninit();
 #endif
 	control = __INITIAL_NPXCW__;
-	fldcw(&control);
+	fldcw(control);
 	start_emulating();
 	intr_restore(savecrit);
 }
@@ -683,7 +683,7 @@ npxdna(void)
 		 */
 		fpurstor(&npx_initialstate);
 		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
-			fldcw(&pcb->pcb_initial_npxcw);
+			fldcw(pcb->pcb_initial_npxcw);
 		pcb->pcb_flags |= PCB_NPXINITDONE;
 		if (PCB_USER_FPU(pcb))
 			pcb->pcb_flags |= PCB_NPXUSERINITDONE;
