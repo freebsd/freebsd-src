@@ -99,7 +99,6 @@ __FBSDID("$FreeBSD$");
 #ifdef CPU_ENABLE_SSE
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
-#define	ldmxcsr(r)		__asm __volatile("ldmxcsr %0" : : "m" (r))
 #endif
 #ifdef XEN
 #define	start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
