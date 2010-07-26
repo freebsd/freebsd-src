@@ -124,10 +124,10 @@ static g_init_t g_md_init;
 static g_fini_t g_md_fini;
 static g_start_t g_md_start;
 static g_access_t g_md_access;
-static void g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, 
-    struct g_consumer *cp __unused, struct g_provider *pp);
+static void g_md_dumpconf(struct sbuf *sb, const char *indent,
+    struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp);
 
-static int	mdunits;
+static int mdunits;
 static struct cdev *status_dev = 0;
 static struct sx md_sx;
 static struct unrhdr *md_uh;
@@ -675,7 +675,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 #if 0
 if (bootverbose || bp->bio_offset / PAGE_SIZE < 17)
 printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid %d dirty %d @ %d\n",
-    m->wire_count, m->busy, 
+    m->wire_count, m->busy,
     m->flags, m->hold_count, m->act_count, m->queue, m->valid, m->dirty, i);
 #endif
 	}
@@ -784,7 +784,6 @@ mdnew(int unit, int *errp, enum md_types type)
 static void
 mdinit(struct md_s *sc)
 {
-
 	struct g_geom *gp;
 	struct g_provider *pp;
 
@@ -931,7 +930,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	if (nd.ni_vp->v_type != VREG) {
 		error = EINVAL;
 		goto bad;
-	}	
+	}
 	error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred);
 	if (error != 0)
 		goto bad;
@@ -1186,7 +1185,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 static int
 mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
-	int error; 
+	int error;
 
 	sx_xlock(&md_sx);
 	error = xmdctlioctl(dev, cmd, addr, flags, td);
@@ -1218,7 +1217,6 @@ md_preloaded(u_char *image, size_t length)
 static void
 g_md_init(struct g_class *mp __unused)
 {
-
 	caddr_t mod;
 	caddr_t c;
 	u_char *ptr, *name, *type;
@@ -1264,7 +1262,7 @@ g_md_init(struct g_class *mp __unused)
 }
 
 static void
-g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, 
+g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp __unused, struct g_provider *pp)
 {
 	struct md_s *mp;
