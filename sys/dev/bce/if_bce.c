@@ -5404,7 +5404,7 @@ bce_init_rx_context(struct bce_softc *sc)
 	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
 		u32 lo_water, hi_water;
 
-		if (sc->bce_flags && BCE_USING_TX_FLOW_CONTROL) {
+		if (sc->bce_flags & BCE_USING_TX_FLOW_CONTROL) {
 			lo_water = BCE_L2CTX_RX_LO_WATER_MARK_DEFAULT;
 		} else {
 			lo_water = 0;
