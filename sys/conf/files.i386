@@ -376,6 +376,7 @@ contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
+x86/acpica/srat.c		optional acpi
 x86/bios/smbios.c		optional smbios
 x86/bios/vpd.c			optional vpd
 x86/cpufreq/est.c		optional cpufreq
