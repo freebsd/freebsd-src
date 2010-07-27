@@ -1,7 +1,7 @@
 # $FreeBSD$
 #mips/rmi/xlr_boot1_console.c			standard
 mips/rmi/xlr_machdep.c				standard
-mips/rmi/clock.c				standard
+#mips/rmi/clock.c				standard
 mips/rmi/tick.c 				standard
 mips/rmi/iodi.c					standard
 mips/rmi/msgring.c				standard
