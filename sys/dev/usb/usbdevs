@@ -430,6 +430,7 @@ vendor 2WIRE		0x08c8	2Wire
 vendor AIPTEK		0x08ca	AIPTEK International
 vendor SMARTBRIDGES	0x08d1	SmartBridges
 vendor BILLIONTON	0x08dd	Billionton Systems
+vendor GEMALTO		0x08e6	Gemalto SA
 vendor EXTENDED		0x08e9	Extended Systems
 vendor MSYSTEMS		0x08ec	M-Systems
 vendor AUTHENTEC	0x08ff	AuthenTec
@@ -554,6 +555,7 @@ vendor USI		0x10ab	USI
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor SILABS		0x10c4	Silicon Labs
+vendor SILABS3		0x10c5	Silicon Labs
 vendor ACTIONS		0x10d6  Actions
 vendor AIRPLUS		0x1011  Airplus
 vendor ANALOG		0x1110	Analog Devices
@@ -620,6 +622,7 @@ vendor AMOI		0x1614	Amoi Electronics
 vendor GOODWAY		0x1631	Good Way Technology
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics
+vendor CLIPSAL		0x166a	Clipsal
 vendor CISCOLINKSYS2	0x167b  Cisco-Linksys
 vendor ATHEROS		0x168c	Atheros Communications
 vendor GIGASET		0x1690	Gigaset
@@ -1171,6 +1174,9 @@ product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
 product	CISCOLINKSYS2 RT3070	0x4001	RT3070
 product	CISCOLINKSYS3 RT3070	0x0101	RT3070
 
+/* Clipsal products */
+product CLIPSAL 5500PCU		0x0303	5500PCU C-Bus
+
 /* CMOTECH products */
 product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
 product CMOTECH CNU550		0x5543	CDMA 2000 1xRTT/1xEVDO USB modem
@@ -1374,6 +1380,7 @@ product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Ter
 
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
+product DYNASTREAM ANT2USB	0x1004	ANT2USB
 
 /* Edimax products */
 product EDIMAX EW7318USG	0x7318	USB Wireless dongle
@@ -1539,6 +1546,9 @@ product FUJITSU AH_F401U	0x105b	AH-F401U Air H device
 
 /* Garmin products */
 product GARMIN IQUE_3600	0x0004	iQue 3600
+
+/* Gemalto products */
+product GEMALTO PROXPU		0x5501	Prox-PU/CU
 
 /* General Instruments (Motorola) products */
 product GENERALINSTMNTS SB5100	0x5100	SURFboard SB5100 Cable modem
@@ -2767,22 +2777,32 @@ product SILICOM U2E		0x0001	U2E
 product SILICOM GPE		0x0002	Psion Gold Port Ethernet
 
 /* SI Labs */
+product SILABS	BSM7DUSB	0x800a	BSM7-D-USB
 product SILABS	POLOLU		0x803b	Pololu Serial
 product SILABS	SAEL		0x8053	SA-EL USB
 product SILABS	ARGUSISP	0x8066	Argussoft ISP
 product SILABS	CRUMB128	0x807a	Crumb128 board
 product SILABS	DEGREE		0x80ca	Degree Controls Inc
+product SILABS	TRACIENT	0x80dd	Tracient RFID
 product SILABS	TRAQMATE	0x80ed	Track Systems Traqmate
 product SILABS	SUUNTO		0x80f6	Suunto Sports Instrument
 product SILABS	BURNSIDE	0x813d	Burnside Telecon Deskmobile
+product SILABS	RIGBLASTER	0x814a	WMR RIGblaster Plug&Play
+product SILABS	RIGTALK		0x814b	WMR RIGtalk RT1
 product SILABS	HELICOM		0x815e	Helicomm IP-Link 1220-DVM
-product SILABS	CP2102		0xea60	SILABS USB UART
 product SILABS	LIPOWSKY_JTAG	0x81c8	Lipowsky Baby-JTAG
 product SILABS	LIPOWSKY_LIN	0x81e2	Lipowsky Baby-LIN
+product SILABS	AEROCOMM	0x81e7	Aerocomm Radio
 product SILABS	LIPOWSKY_HARP	0x8218	Lipowsky HARP-1
-product SILABS	CP2102		0xea60	SILABS USB UARTa
+product SILABS	MC35PU		0x8341	MC35pu
+product SILABS	CP2102		0xea60	SILABS USB UART
 product SILABS	CP210X_2	0xea61	CP210x Serial
+product SILABS	USBSCOPE50	0xf001	USBscope50
+product SILABS	USBWAVE12	0xf002	USBwave12
+product SILABS	USBPULSE100	0xf003	USBpulse100
+product SILABS	USBCOUNT50	0xf004	USBcount50
 product SILABS2 DCU11CLONE	0xaa26	DCU-11 clone
+product SILABS3 GPRS_MODEM	0xea61	GPRS Modem
 
 /* Silicon Portals Inc. */
 product SILICONPORTALS YAPPH_NF	0x0200	YAP Phone (no firmware)
