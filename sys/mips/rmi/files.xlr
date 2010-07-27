@@ -18,7 +18,7 @@ mips/rmi/perfmon_percpu.c			optional xlr_perfmon
 mips/rmi/xlr_pci.c				optional pci
 mips/rmi/xls_ehci.c				optional usb ehci
 mips/rmi/bus_space_rmi.c			standard
-mips/rmi/bus_space_rmi_pci.c			optional pci
+mips/rmi/bus_space_rmi_pci.c			standard
 mips/rmi/dev/sec/rmisec.c			optional rmisec
 mips/rmi/dev/sec/rmilib.c			optional rmisec
 mips/rmi/dev/xlr/rge.c				optional rge
