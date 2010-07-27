@@ -78,6 +78,7 @@ struct thread;
 
 #define IMGACT_CORE_COMPRESS	0x01
 
+int	exec_alloc_args(struct image_args *);
 int	exec_check_permissions(struct image_params *);
 register_t *exec_copyout_strings(struct image_params *);
 void	exec_free_args(struct image_args *);

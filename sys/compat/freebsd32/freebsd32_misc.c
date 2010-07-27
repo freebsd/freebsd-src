@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -279,19 +278,18 @@ freebsd32_exec_copyin_args(struct image_args *args, char *fname,
 		return (EFAULT);
 
 	/*
-	 * Allocate temporary demand zeroed space for argument and
-	 *	environment strings
+	 * Allocate demand-paged memory for the file name, argument, and
+	 * environment strings.
 	 */
-	args->buf = (char *) kmem_alloc_wait(exec_map,
-	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
-	if (args->buf == NULL)
-		return (ENOMEM);
+	error = exec_alloc_args(args);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Copy the file name.
 	 */
 	if (fname != NULL) {
-		args->fname = args->buf + MAXSHELLCMDLEN;
+		args->fname = args->buf;
 		error = (segflg == UIO_SYSSPACE) ?
 		    copystr(fname, args->fname, PATH_MAX, &length) :
 		    copyinstr(fname, args->fname, PATH_MAX, &length);
@@ -300,7 +298,7 @@ freebsd32_exec_copyin_args(struct image_args *args, char *fname,
 	} else
 		length = 0;
 
-	args->begin_argv = args->buf + MAXSHELLCMDLEN + length;
+	args->begin_argv = args->buf + length;
 	args->endp = args->begin_argv;
 	args->stringspace = ARG_MAX;
 
