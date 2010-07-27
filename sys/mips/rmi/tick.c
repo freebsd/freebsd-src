@@ -62,9 +62,8 @@ struct timecounter *platform_timecounter;
 static DPCPU_DEFINE(uint32_t, cycles_per_tick);
 static uint32_t cycles_per_usec;
 
-static u_int32_t counter_upper = 0;
-static u_int32_t counter_lower_last = 0;
-
+static DPCPU_DEFINE(uint32_t, counter_upper);
+static DPCPU_DEFINE(uint32_t, counter_lower_last);
 static DPCPU_DEFINE(uint32_t, compare_ticks);
 static DPCPU_DEFINE(uint32_t, lost_ticks);
 
@@ -106,6 +105,7 @@ tick_ticker(void)
 {
 	uint64_t ret;
 	uint32_t ticktock;
+	uint32_t t_lower_last, t_upper;
 
 	/*
 	 * XXX: MIPS64 platforms can read 64-bits of counter directly.
@@ -115,12 +115,16 @@ tick_ticker(void)
 	 */
 	ticktock = mips_rd_count();
 	critical_enter();
-	if (ticktock < counter_lower_last)
-		counter_upper++;
-	counter_lower_last = ticktock;
+	t_lower_last = DPCPU_GET(counter_lower_last);
+	t_upper = DPCPU_GET(counter_upper);
+	if (ticktock < t_lower_last)
+		t_upper++;
+	t_lower_last = ticktock;
 	critical_exit();
 
-	ret = ((uint64_t) counter_upper << 32) | counter_lower_last;
+	DPCPU_SET(counter_upper, t_upper);
+	DPCPU_SET(counter_lower_last, t_lower_last);
+	ret = ((uint64_t)t_upper << 32) | t_lower_last;
 	return (ret);
 }
 
@@ -265,9 +269,9 @@ clock_intr(void *arg)
 		mips_wr_compare(0xffffffff);
 
 	critical_enter();
-	if (count < counter_lower_last) {
-		counter_upper++;
-		counter_lower_last = count;
+	if (count < DPCPU_GET(counter_lower_last)) {
+		DPCPU_SET(counter_upper, DPCPU_GET(counter_upper) + 1);
+		DPCPU_SET(counter_lower_last, count);
 	}
 
 	if (cycles_per_tick > 0) {
