@@ -240,8 +240,7 @@ exec_shell_imgact(imgp)
 	    imgp->args->stringspace, NULL);
 
 	if (error == 0)
-		error = copystr(imgp->args->begin_argv, imgp->interpreter_name,
-		    MAXSHELLCMDLEN, NULL);
+		imgp->interpreter_name = imgp->args->begin_argv;
 
 	if (sname != NULL)
 		sbuf_delete(sname);
