@@ -120,10 +120,10 @@ tick_ticker(void)
 	if (ticktock < t_lower_last)
 		t_upper++;
 	t_lower_last = ticktock;
-	critical_exit();
-
 	DPCPU_SET(counter_upper, t_upper);
 	DPCPU_SET(counter_lower_last, t_lower_last);
+	critical_exit();
+
 	ret = ((uint64_t)t_upper << 32) | t_lower_last;
 	return (ret);
 }
