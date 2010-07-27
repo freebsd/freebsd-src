@@ -322,11 +322,8 @@ platform_start(__register_t a0 __unused,
 	 * platform_get_frequency(). Thus we do not use
 	 * xlr_boot1_info.cpu_frequency here.
 	 */
-	mips_timer_early_init(platform_get_frequency());
+	mips_timer_early_init(xlr_boot1_info.cpu_frequency);
 
-	/* Init the time counter in the PIC and local putc routine*/
-	rmi_early_counter_init();
-	
 	/* Init console please */
 	cninit();
 	init_static_kenv(boot1_env, sizeof(boot1_env));
@@ -445,7 +442,7 @@ platform_start(__register_t a0 __unused,
 	 */
 	rmi_spin_mutex_safe = 1;
 	on_chip_init();
-	mips_timer_init_params(platform_get_frequency(), 0);
+	mips_timer_init_params(xlr_boot1_info.cpu_frequency, 0);
 	printf("Platform specific startup now completes\n");
 }
 
