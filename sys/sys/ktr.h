@@ -201,7 +201,7 @@ void	ktr_tracepoint(u_int mask, const char *file, int line,
 	    ident, edat, (v0), (v1), (v2))
 #define	KTR_EVENT4(m, egroup, ident, etype, edat,			\
 	    a0, v0, a1, v1, a2, v2, a3, v3)				\
-	CTR6(m,KTR_EFMT(egroup, ident, etype) a0 ", " a1 ", " a2, ", ", a3,\
+	CTR6(m,KTR_EFMT(egroup, ident, etype) a0 ", " a1 ", " a2 ", " a3,\
 	     ident, edat, (v0), (v1), (v2), (v3))
 
 /*
