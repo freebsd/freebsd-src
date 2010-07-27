@@ -118,6 +118,13 @@
 #endif
 
 /*
+ * Only one memory domain.
+ */
+#ifndef VM_NDOMAIN
+#define	VM_NDOMAIN		1
+#endif
+
+/*
  * Disable superpage reservations. (not sure if this is right
  * I copied it from ARM)
  */

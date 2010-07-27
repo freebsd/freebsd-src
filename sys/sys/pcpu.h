@@ -179,6 +179,7 @@ struct pcpu {
 	struct device	*pc_device;
 	void		*pc_netisr;		/* netisr SWI cookie */
 	int		pc_dnweight;		/* vm_page_dontneed() */
+	int		pc_domain;		/* Memory domain. */
 
 	/*
 	 * Stuff for read mostly lock

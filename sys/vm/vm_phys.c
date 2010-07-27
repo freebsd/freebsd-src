@@ -56,6 +56,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 #include <vm/vm_reserv.h>
 
+/*
+ * VM_FREELIST_DEFAULT is split into VM_NDOMAIN lists, one for each
+ * domain.  These extra lists are stored at the end of the regular
+ * free lists starting with VM_NFREELIST.
+ */
+#define VM_RAW_NFREELIST	(VM_NFREELIST + VM_NDOMAIN - 1)
+
 struct vm_freelist {
 	struct pglist pl;
 	int lcnt;
@@ -65,15 +72,20 @@ struct vm_phys_seg {
 	vm_paddr_t	start;
 	vm_paddr_t	end;
 	vm_page_t	first_page;
+	int		domain;
 	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER];
 };
+
+struct mem_affinity *mem_affinity;
 
 static struct vm_phys_seg vm_phys_segs[VM_PHYSSEG_MAX];
 
 static int vm_phys_nsegs;
 
 static struct vm_freelist
-    vm_phys_free_queues[VM_NFREELIST][VM_NFREEPOOL][VM_NFREEORDER];
+    vm_phys_free_queues[VM_RAW_NFREELIST][VM_NFREEPOOL][VM_NFREEORDER];
+static struct vm_freelist
+(*vm_phys_lookup_lists[VM_NDOMAIN][VM_RAW_NFREELIST])[VM_NFREEPOOL][VM_NFREEORDER];
 
 static int vm_nfreelists = VM_FREELIST_DEFAULT + 1;
 
@@ -89,6 +101,14 @@ static int sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_segs, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_segs, "A", "Phys Seg Info");
 
+#if VM_NDOMAIN > 1
+static int sysctl_vm_phys_lookup_lists(SYSCTL_HANDLER_ARGS);
+SYSCTL_OID(_vm, OID_AUTO, phys_lookup_lists, CTLTYPE_STRING | CTLFLAG_RD,
+    NULL, 0, sysctl_vm_phys_lookup_lists, "A", "Phys Lookup Lists");
+#endif
+
+static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind,
+    int domain);
 static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind);
 static int vm_phys_paddr_to_segind(vm_paddr_t pa);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
@@ -157,6 +177,7 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 		    (uintmax_t)seg->start);
 		sbuf_printf(&sbuf, "end:       %#jx\n",
 		    (uintmax_t)seg->end);
+		sbuf_printf(&sbuf, "domain:    %d\n", seg->domain);
 		sbuf_printf(&sbuf, "free list: %p\n", seg->free_queues);
 	}
 	sbuf_finish(&sbuf);
@@ -166,11 +187,40 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+#if VM_NDOMAIN > 1
+/*
+ * Outputs the set of free list lookup lists.
+ */
+static int
+sysctl_vm_phys_lookup_lists(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	char *cbuf;
+	const int cbufsize = (vm_nfreelists + 1) * VM_NDOMAIN * 81;
+	int domain, error, flind, ndomains;
+
+	ndomains = vm_nfreelists - VM_NFREELIST + 1;
+	cbuf = malloc(cbufsize, M_TEMP, M_WAITOK | M_ZERO);
+	sbuf_new(&sbuf, cbuf, cbufsize, SBUF_FIXEDLEN);
+	for (domain = 0; domain < ndomains; domain++) {
+		sbuf_printf(&sbuf, "\nDOMAIN %d:\n\n", domain);
+		for (flind = 0; flind < vm_nfreelists; flind++)
+			sbuf_printf(&sbuf, "  [%d]:\t%p\n", flind,
+			    vm_phys_lookup_lists[domain][flind]);
+	}
+	sbuf_finish(&sbuf);
+	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
+	sbuf_delete(&sbuf);
+	free(cbuf, M_TEMP);
+	return (error);
+}
+#endif
+	
 /*
  * Create a physical memory segment.
  */
 static void
-vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind)
+_vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind, int domain)
 {
 	struct vm_phys_seg *seg;
 #ifdef VM_PHYSSEG_SPARSE
@@ -188,12 +238,49 @@ vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind)
 	seg = &vm_phys_segs[vm_phys_nsegs++];
 	seg->start = start;
 	seg->end = end;
+	seg->domain = domain;
 #ifdef VM_PHYSSEG_SPARSE
 	seg->first_page = &vm_page_array[pages];
 #else
 	seg->first_page = PHYS_TO_VM_PAGE(start);
 #endif
+#if VM_NDOMAIN > 1
+	if (flind == VM_FREELIST_DEFAULT && domain != 0) {
+		flind = VM_NFREELIST + (domain - 1);
+		if (flind >= vm_nfreelists)
+			vm_nfreelists = flind + 1;
+	}
+#endif
 	seg->free_queues = &vm_phys_free_queues[flind];
+}
+
+static void
+vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind)
+{
+	int i;
+
+	if (mem_affinity == NULL) {
+		_vm_phys_create_seg(start, end, flind, 0);
+		return;
+	}
+
+	for (i = 0;; i++) {
+		if (mem_affinity[i].end == 0)
+			panic("Reached end of affinity info");
+		if (mem_affinity[i].end <= start)
+			continue;
+		if (mem_affinity[i].start > start)
+			panic("No affinity info for start %jx",
+			    (uintmax_t)start);
+		if (mem_affinity[i].end >= end) {
+			_vm_phys_create_seg(start, end, flind,
+			    mem_affinity[i].domain);
+			break;
+		}
+		_vm_phys_create_seg(start, mem_affinity[i].end, flind,
+		    mem_affinity[i].domain);
+		start = mem_affinity[i].end;
+	}
 }
 
 /*
@@ -204,6 +291,9 @@ vm_phys_init(void)
 {
 	struct vm_freelist *fl;
 	int flind, i, oind, pind;
+#if VM_NDOMAIN > 1
+	int ndomains, j;
+#endif
 
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 #ifdef	VM_FREELIST_ISADMA
@@ -246,6 +336,37 @@ vm_phys_init(void)
 				TAILQ_INIT(&fl[oind].pl);
 		}
 	}
+#if VM_NDOMAIN > 1
+	/*
+	 * Build a free list lookup list for each domain.  All of the
+	 * memory domain lists are inserted at the VM_FREELIST_DEFAULT
+	 * index in a round-robin order starting with the current
+	 * domain.
+	 */
+	ndomains = vm_nfreelists - VM_NFREELIST + 1;
+	for (flind = 0; flind < VM_FREELIST_DEFAULT; flind++)
+		for (i = 0; i < ndomains; i++)
+			vm_phys_lookup_lists[i][flind] =
+			    &vm_phys_free_queues[flind];
+	for (i = 0; i < ndomains; i++)
+		for (j = 0; j < ndomains; j++) {
+			flind = (i + j) % ndomains;
+			if (flind == 0)
+				flind = VM_FREELIST_DEFAULT;
+			else
+				flind += VM_NFREELIST - 1;
+			vm_phys_lookup_lists[i][VM_FREELIST_DEFAULT + j] =
+			    &vm_phys_free_queues[flind];
+		}
+	for (flind = VM_FREELIST_DEFAULT + 1; flind < VM_NFREELIST;
+	     flind++)
+		for (i = 0; i < ndomains; i++)
+			vm_phys_lookup_lists[i][flind + ndomains - 1] =
+			    &vm_phys_free_queues[flind];
+#else
+	for (flind = 0; flind < vm_nfreelists; flind++)
+		vm_phys_lookup_lists[0][flind] = &vm_phys_free_queues[flind];
+#endif
 }
 
 /*
@@ -321,7 +442,7 @@ vm_phys_alloc_freelist_pages(int flind, int pool, int order)
 {	
 	struct vm_freelist *fl;
 	struct vm_freelist *alt;
-	int oind, pind;
+	int domain, oind, pind;
 	vm_page_t m;
 
 	KASSERT(flind < VM_NFREELIST,
@@ -330,8 +451,14 @@ vm_phys_alloc_freelist_pages(int flind, int pool, int order)
 	    ("vm_phys_alloc_freelist_pages: pool %d is out of range", pool));
 	KASSERT(order < VM_NFREEORDER,
 	    ("vm_phys_alloc_freelist_pages: order %d is out of range", order));
+
+#if VM_NDOMAIN > 1
+	domain = PCPU_GET(domain);
+#else
+	domain = 0;
+#endif
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	fl = vm_phys_free_queues[flind][pool];
+	fl = (*vm_phys_lookup_lists[domain][flind])[pool];
 	for (oind = order; oind < VM_NFREEORDER; oind++) {
 		m = TAILQ_FIRST(&fl[oind].pl);
 		if (m != NULL) {
@@ -351,7 +478,7 @@ vm_phys_alloc_freelist_pages(int flind, int pool, int order)
 	 */
 	for (oind = VM_NFREEORDER - 1; oind >= order; oind--) {
 		for (pind = 0; pind < VM_NFREEPOOL; pind++) {
-			alt = vm_phys_free_queues[flind][pind];
+			alt = (*vm_phys_lookup_lists[domain][flind])[pind];
 			m = TAILQ_FIRST(&alt[oind].pl);
 			if (m != NULL) {
 				TAILQ_REMOVE(&alt[oind].pl, m, pageq);
@@ -613,8 +740,13 @@ vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
 	struct vnode *vp;
 	vm_paddr_t pa, pa_last, size;
 	vm_page_t deferred_vdrop_list, m, m_ret;
-	int flind, i, oind, order, pind;
+	int domain, flind, i, oind, order, pind;
 
+#if VM_NDOMAIN > 1
+	domain = PCPU_GET(domain);
+#else
+	domain = 0;
+#endif
 	size = npages << PAGE_SHIFT;
 	KASSERT(size != 0,
 	    ("vm_phys_alloc_contig: size must not be 0"));
@@ -632,7 +764,8 @@ retry:
 	for (flind = 0; flind < vm_nfreelists; flind++) {
 		for (oind = min(order, VM_NFREEORDER - 1); oind < VM_NFREEORDER; oind++) {
 			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
-				fl = vm_phys_free_queues[flind][pind];
+				fl = (*vm_phys_lookup_lists[domain][flind])
+				    [pind];
 				TAILQ_FOREACH(m_ret, &fl[oind].pl, pageq) {
 					/*
 					 * A free list may contain physical pages
