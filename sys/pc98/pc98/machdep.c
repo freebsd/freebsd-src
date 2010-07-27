@@ -566,10 +566,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Unconditionally fill the fsbase and gsbase into the mcontext.
 	 */
-	sdp = &td->td_pcb->pcb_gsd;
+	sdp = &td->td_pcb->pcb_fsd;
 	sf.sf_uc.uc_mcontext.mc_fsbase = sdp->sd_hibase << 24 |
 	    sdp->sd_lobase;
-	sdp = &td->td_pcb->pcb_fsd;
+	sdp = &td->td_pcb->pcb_gsd;
 	sf.sf_uc.uc_mcontext.mc_gsbase = sdp->sd_hibase << 24 |
 	    sdp->sd_lobase;
 
@@ -2454,9 +2454,9 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
 	get_fpcontext(td, mcp);
-	sdp = &td->td_pcb->pcb_gsd;
-	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
 	sdp = &td->td_pcb->pcb_fsd;
+	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
+	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_gsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
 
 	return (0);
