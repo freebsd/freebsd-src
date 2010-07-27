@@ -346,6 +346,7 @@ vendor ASIAMD		0x06be	Asia Microelectronic Development
 vendor BIZLINK		0x06c4	Bizlink International
 vendor KEYSPAN		0x06cd	Keyspan / InnoSys Inc.
 vendor AASHIMA		0x06d6	Aashima Technology
+vendor LIEBERT		0x06da	Liebert
 vendor MULTITECH	0x06e0	MultiTech
 vendor ADS		0x06e1	ADS Technologies
 vendor ALCATELM		0x06e4	Alcatel Microelectronics
@@ -1933,6 +1934,9 @@ product LEXAR CF_READER		0xb002	USB CF Reader
 
 /* Lexmark products */
 product LEXMARK S2450		0x0009	Optra S 2450
+
+/* Liebert products */
+product LIEBERT POWERSURE_PXT	0xffff	PowerSure Personal XT
 
 /* Linksys products */
 product LINKSYS MAUSB2		0x0105	Camedia MAUSB-2
