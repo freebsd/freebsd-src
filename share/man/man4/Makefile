@@ -20,6 +20,7 @@ MAN=	aac.4 \
 	ale.4 \
 	altq.4 \
 	amd.4 \
+	${_amdsbwd.4} \
 	${_amdtemp.4} \
 	${_amdsmb.4} \
 	amr.4 \
@@ -562,6 +563,7 @@ MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _acpi_dock.4=	acpi_dock.4
+_amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _coretemp.4=	coretemp.4
