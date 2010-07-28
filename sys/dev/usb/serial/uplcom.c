@@ -294,6 +294,8 @@ static const struct usb_device_id uplcom_devs[] = {
 	UPLCOM_DEV(PROLIFIC2, WSIM, 0, 0xFFFF, PL2303X),
 	/* Mobile Action MA-620 Infrared Adapter */
 	UPLCOM_DEV(MOBILEACTION, MA620, 0, 0xFFFF, PL2303X),
+	/* Corega CG-USBRS232R */
+	UPLCOM_DEV(COREGA, CGUSBRS232R, 0, 0xFFFF, PL2303X),
 };
 #undef UPLCOM_DEV
 
