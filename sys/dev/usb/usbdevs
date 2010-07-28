@@ -1255,6 +1255,7 @@ product EPSON STYLUS_895	0x0602	Stylus Photo 895 Card Reader
 product EPSON CX5400		0x0808	CX5400 scanner
 product EPSON 3500		0x080e	CX-3500/3600/3650 MFP
 product EPSON RX425		0x080f	Stylus Photo RX425 scanner
+product EPSON RX620		0x0811	Stylus Photo RX620 scanner
 product EPSON DX3800		0x0818	CX3700/CX3800/DX38x0 MFP scanner
 product EPSON 4800		0x0819	CX4700/CX4800/DX48x0 MFP scanner
 product EPSON 4200		0x0820	CX4100/CX4200/DX4200 MFP scanner
@@ -1451,6 +1452,7 @@ product HP 930C			0x1204	DeskJet 930c
 product HP P2000U		0x1801	Inkjet P-2000U
 product HP HS2300		0x1e1d  HS2300 HSDPA (aka MC8775)
 product HP 640C			0x2004	DeskJet 640c
+product HP 3570C		0x2005	ScanJet 3570C
 product HP 4670V		0x3005	ScanJet 4670v
 product HP P1100		0x3102	Photosmart P1100
 product HP OJ4215		0x3d11	OfficeJet 4215
