@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "extern.h"
+int pflags;
 
 static void	killed(int);
 static void	restart_target(void);
@@ -84,21 +85,24 @@ SET_DECLARE(dumpset, struct dumpers);
 int
 main(int argc, char *argv[])
 {
-	int ch, efd, fd, name[4], sflag;
+	int ch, efd, fd, name[4];
 	char *binfile, *corefile;
 	char passpath[MAXPATHLEN], fname[MAXPATHLEN];
 	struct dumpers **d, *dumper;
 	size_t len;
 
-	sflag = 0;
+	pflags = 0;
 	corefile = NULL;
-        while ((ch = getopt(argc, argv, "c:s")) != -1) {
+        while ((ch = getopt(argc, argv, "c:fs")) != -1) {
                 switch (ch) {
                 case 'c':
 			corefile = optarg;
                         break;
+		case 'f':
+			pflags |= PFLAGS_FULL;
+			break;
 		case 's':
-			sflag = 1;
+			pflags |= PFLAGS_RESUME;
 			break;
 		default:
 			usage();
@@ -148,7 +152,7 @@ main(int argc, char *argv[])
 	fd = open(corefile, O_RDWR|O_CREAT|O_TRUNC, DEFFILEMODE);
 	if (fd < 0)
 		err(1, "%s", corefile);
-	if (sflag) {
+	if ((pflags & PFLAGS_RESUME) != 0) {
 		signal(SIGHUP, killed);
 		signal(SIGINT, killed);
 		signal(SIGTERM, killed);
