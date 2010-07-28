@@ -507,6 +507,7 @@ libelf_cvt_BYTE_tox(char *dst, size_t dsz, char *src, size_t count,
 
 MAKE_TYPE_CONVERTERS(ELF_TYPE_LIST)
 
+#if	__FreeBSD_version >= 800062
 /*
  * Sections of type ELF_T_GNUHASH start with a header containing 4 32-bit
  * words.  Bloom filter data comes next, followed by hash buckets and the
@@ -700,6 +701,7 @@ libelf_cvt64_GNUHASH_tof(char *dst, size_t dsz, char *src, size_t srcsz,
 
 	return (1);
 }
+#endif
 
 /*
  * Elf_Note structures comprise a fixed size header followed by variable
@@ -873,12 +875,14 @@ CONVERTER_NAMES(ELF_TYPE_LIST)
 		.tom64 = libelf_cvt_BYTE_tox
 	},
 
+#if	__FreeBSD_version >= 800062
 	[ELF_T_GNUHASH] = {
 		.tof32 = libelf_cvt32_GNUHASH_tof,
 		.tom32 = libelf_cvt32_GNUHASH_tom,
 		.tof64 = libelf_cvt64_GNUHASH_tof,
 		.tom64 = libelf_cvt64_GNUHASH_tom
 	},
+#endif
 
 	[ELF_T_NOTE] = {
 		.tof32 = libelf_cvt_NOTE_tof,
