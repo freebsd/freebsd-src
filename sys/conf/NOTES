@@ -385,6 +385,20 @@ options 	SYSCTL_DEBUG
 options		NO_SYSCTL_DESCR
 
 #
+# MALLOC_DEBUG_MAXZONES enables multiple uma zones for malloc(9)
+# allocations that are smaller than a page.  The purpose is to isolate
+# different malloc types into hash classes, so that any buffer
+# overruns or use-after-free will usually only affect memory from
+# malloc types in that hash class.  This is purely a debugging tool;
+# by varying the hash function and tracking which hash class was
+# corrupted, the intersection of the hash classes from each instance
+# will point to a single malloc type that is being misused.  At this
+# point inspection or memguard(9) can be used to catch the offending
+# code.
+#
+options 	MALLOC_DEBUG_MAXZONES=8
+
+#
 # DEBUG_MEMGUARD builds and enables memguard(9), a replacement allocator
 # for the kernel used to detect modify-after-free scenarios.  See the
 # memguard(9) man page for more information on usage.
