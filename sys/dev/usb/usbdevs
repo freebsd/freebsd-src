@@ -929,6 +929,9 @@ product APC UPS			0x0002	Uninterruptible Power Supply
 product AMBIT WLAN		0x0302	WLAN
 product AMBIT NTL_250		0x6098	NTL 250 cable modem
 
+/* Apacer products */
+product APACER HT202		0xb113	USB 2.0 Flash Drive
+
 /* American Power Conversion products */
 product APC UPS			0x0002	Uninterruptible Power Supply
 
