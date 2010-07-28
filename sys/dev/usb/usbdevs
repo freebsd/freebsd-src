@@ -1519,6 +1519,7 @@ product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
 product FTDI TACTRIX_OPENPORT_13S 0xcc49 OpenPort 1.3 Subaru
 product FTDI TACTRIX_OPENPORT_13U 0xcc4a OpenPort 1.3 Universal
 product FTDI GAMMASCOUT		0xd678	Gamma-Scout
+product FTDI KBS		0xe6c8	Pyramid KBS USB LCD
 product FTDI EISCOU		0xe888	Expert ISDN Control USB
 product FTDI UOPTBR		0xe889	USB-RS232 OptoBridge
 product FTDI EMCU2D		0xe88a	Expert mouseCLOCK USB II
