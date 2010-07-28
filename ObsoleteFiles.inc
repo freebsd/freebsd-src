@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100725: acpi_aiboost(4) removal.
+OLD_FILES+=usr/share/man/man4/acpi_aiboost.4.gz
 # 20100720: new clang import which bumps version from 2.0 to 2.8
 OLD_FILES+=usr/include/clang/2.0/emmintrin.h
 OLD_FILES+=usr/include/clang/2.0/mm_malloc.h

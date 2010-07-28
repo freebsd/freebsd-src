@@ -346,6 +346,7 @@ vendor ASIAMD		0x06be	Asia Microelectronic Development
 vendor BIZLINK		0x06c4	Bizlink International
 vendor KEYSPAN		0x06cd	Keyspan / InnoSys Inc.
 vendor AASHIMA		0x06d6	Aashima Technology
+vendor LIEBERT		0x06da	Liebert
 vendor MULTITECH	0x06e0	MultiTech
 vendor ADS		0x06e1	ADS Technologies
 vendor ALCATELM		0x06e4	Alcatel Microelectronics
@@ -645,6 +646,7 @@ vendor STELERA		0x1a8d	Stelera Wireless
 vendor OVISLINK		0x1b75	OvisLink
 vendor TCTMOBILE	0x1bbb  TCT Mobile
 vendor TELIT		0x1bc7  Telit
+vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
 vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor PEGATRON		0x1d4d	Pegatron
@@ -1517,6 +1519,7 @@ product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
 product FTDI TACTRIX_OPENPORT_13S 0xcc49 OpenPort 1.3 Subaru
 product FTDI TACTRIX_OPENPORT_13U 0xcc4a OpenPort 1.3 Universal
 product FTDI GAMMASCOUT		0xd678	Gamma-Scout
+product FTDI KBS		0xe6c8	Pyramid KBS USB LCD
 product FTDI EISCOU		0xe888	Expert ISDN Control USB
 product FTDI UOPTBR		0xe889	USB-RS232 OptoBridge
 product FTDI EMCU2D		0xe88a	Expert mouseCLOCK USB II
@@ -1933,6 +1936,9 @@ product LEXAR CF_READER		0xb002	USB CF Reader
 /* Lexmark products */
 product LEXMARK S2450		0x0009	Optra S 2450
 
+/* Liebert products */
+product LIEBERT POWERSURE_PXT	0xffff	PowerSure Personal XT
+
 /* Linksys products */
 product LINKSYS MAUSB2		0x0105	Camedia MAUSB-2
 product LINKSYS USB10TX1	0x200c	USB10TX
@@ -1983,6 +1989,9 @@ product LOGITEC LDR_H443U2	0x00b3	DVD Multi-plus unit LDR-H443U2
 product LOGITEC RT2870_1	0x0162	RT2870
 product LOGITEC RT2870_2	0x0163	RT2870
 product LOGITEC RT2870_3	0x0164	RT2870
+
+/* Longcheer Holdings, Ltd. products */
+product LONGCHEER WM66		0x6061	Longcheer WM66 HSDPA USB modem
 
 /* Lucent products */
 product LUCENT EVALKIT		0x1001	USS-720 evaluation kit
@@ -2315,7 +2324,7 @@ product OPTION ICONEDGE		0xc031	GlobeSurfer iCON EDGE
 product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
 product OPTION ICON321		0xd031	Globetrotter HSUPA
 product OPTION ICON505		0xd055	Globetrotter iCON 505
-product OPTION_ICON452		0x7901	Globetrotter iCON 452
+product OPTION ICON452		0x7901	Globetrotter iCON 452
 
 /* OvisLink product */
 product OVISLINK RT3072		0x3072	RT3072

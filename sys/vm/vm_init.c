@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/selinfo.h>
-#include <sys/imgact.h>
 #include <sys/pipe.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -195,8 +194,7 @@ again:
 	    (long)nswbuf * MAXPHYS, FALSE);
 	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-	    exec_map_entries * round_page(PATH_MAX + ARG_MAX + MAXSHELLCMDLEN),
-	    FALSE);
+	    exec_map_entries * round_page(PATH_MAX + ARG_MAX), FALSE);
 	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva,
 	    FALSE);
 

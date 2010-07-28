@@ -1082,8 +1082,7 @@ mlockall(td, uap)
 	 * a hard resource limit, return ENOMEM.
 	 */
 	PROC_LOCK(td->td_proc);
-	if (map->size - ptoa(pmap_wired_count(vm_map_pmap(map)) >
-		lim_cur(td->td_proc, RLIMIT_MEMLOCK))) {
+	if (map->size > lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(td->td_proc);
 		return (ENOMEM);
 	}

@@ -234,8 +234,6 @@ lltable_init(struct ifnet *ifp, int af)
 	register int i;
 
 	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK);
-	if (llt == NULL)
-		return (NULL);
 
 	llt->llt_af = af;
 	llt->llt_ifp = ifp;

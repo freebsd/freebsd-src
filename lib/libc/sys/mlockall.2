@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 12, 1999
+.Dd July 27, 2010
 .Dt MLOCKALL 2
 .Os
 .Sh NAME
@@ -71,6 +71,8 @@ A single process can lock the minimum of a system-wide
 limit and the per-process
 .Dv RLIMIT_MEMLOCK
 resource limit.
+.Pp
+These calls are only available to the super-user.
 .Pp
 The
 .Fn munlockall

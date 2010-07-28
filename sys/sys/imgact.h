@@ -42,6 +42,7 @@ struct image_args {
 	char *begin_envv;	/* beginning of envv in buf */
 	char *endp;		/* current `end' pointer of arg & env strings */
 	char *fname;            /* pointer to filename of executable (system space) */
+	char *fname_buf;	/* pointer to optional malloc(M_TEMP) buffer */
 	int stringspace;	/* space left in arg & env buffer */
 	int argc;		/* count of argument strings */
 	int envc;		/* count of environment strings */
@@ -78,6 +79,7 @@ struct thread;
 
 #define IMGACT_CORE_COMPRESS	0x01
 
+int	exec_alloc_args(struct image_args *);
 int	exec_check_permissions(struct image_params *);
 register_t *exec_copyout_strings(struct image_params *);
 void	exec_free_args(struct image_args *);
