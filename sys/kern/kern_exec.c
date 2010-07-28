@@ -1175,6 +1175,10 @@ exec_free_args(struct image_args *args)
 		    PATH_MAX + ARG_MAX);
 		args->buf = NULL;
 	}
+	if (args->fname_buf != NULL) {
+		free(args->fname_buf, M_TEMP);
+		args->fname_buf = NULL;
+	}
 }
 
 /*
