@@ -6579,6 +6579,8 @@ sctp_clean_up_ctl(struct sctp_tcb *stcb, struct sctp_association *asoc)
 				chk->data = NULL;
 			}
 			asoc->ctrl_queue_cnt--;
+			if (chk->rec.chunk_id.id == SCTP_FORWARD_CUM_TSN)
+				asoc->fwd_tsn_cnt--;
 			sctp_free_a_chunk(stcb, chk);
 		} else if (chk->rec.chunk_id.id == SCTP_STREAM_RESET) {
 			/* special handling, we must look into the param */
@@ -7799,7 +7801,7 @@ again_one_more_time:
 			} else
 				omtu = 0;
 			/* Here we do NOT factor the r_mtu */
-			if ((chk->send_size < (int)(mtu - omtu)) ||
+			if ((chk->send_size <= (int)(mtu - omtu)) ||
 			    (chk->flags & CHUNK_FLAGS_FRAGMENT_OK)) {
 				/*
 				 * We probably should glom the mbuf chain
@@ -9704,6 +9706,7 @@ send_forward_tsn(struct sctp_tcb *stcb,
 	if (chk == NULL) {
 		return;
 	}
+	asoc->fwd_tsn_cnt++;
 	chk->copy_by_ref = 0;
 	chk->rec.chunk_id.id = SCTP_FORWARD_CUM_TSN;
 	chk->rec.chunk_id.can_take_data = 0;
@@ -9735,8 +9738,8 @@ sctp_fill_in_rest:
 		unsigned int cnt_of_skipped = 0;
 
 		TAILQ_FOREACH(at, &asoc->sent_queue, sctp_next) {
-			if ((at->sent != SCTP_FORWARD_TSN_SKIP) &&
-			    (at->sent != SCTP_DATAGRAM_ACKED)) {
+			if ((at->sent != SCTP_FORWARD_TSN_SKIP)	/* && (at->sent !=
+			        SCTP_DATAGRAM_ACKED) */ ) {
 				/* no more to look at */
 				break;
 			}
