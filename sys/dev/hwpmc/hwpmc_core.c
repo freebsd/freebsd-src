@@ -168,13 +168,13 @@ core_pcpu_fini(struct pmc_mdep *md, int cpu)
 	core_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAP].pcd_ri;
 
 	for (n = 0; n < npmc; n++) {
-		msr = rdmsr(IAP_EVSEL0 + n);
-		wrmsr(IAP_EVSEL0 + n, msr & ~IAP_EVSEL_MASK);
+		msr = rdmsr(IAP_EVSEL0 + n) & ~IAP_EVSEL_MASK;
+		wrmsr(IAP_EVSEL0 + n, msr);
 	}
 
 	if (core_cputype != PMC_CPU_INTEL_CORE) {
-		msr = rdmsr(IAF_CTRL);
-		wrmsr(IAF_CTRL, msr & ~IAF_CTRL_MASK);
+		msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
+		wrmsr(IAF_CTRL, msr);
 		npmc += md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAF].pcd_num;
 	}
 
@@ -392,13 +392,13 @@ iaf_start_pmc(int cpu, int ri)
 
 	iafc->pc_iafctrl |= pm->pm_md.pm_iaf.pm_iaf_ctrl;
 
- 	msr = rdmsr(IAF_CTRL);
+ 	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
  	wrmsr(IAF_CTRL, msr | (iafc->pc_iafctrl & IAF_CTRL_MASK));
 
 	do {
 		iafc->pc_resync = 0;
 		iafc->pc_globalctrl |= (1ULL << (ri + IAF_OFFSET));
- 		msr = rdmsr(IA_GLOBAL_CTRL);
+ 		msr = rdmsr(IA_GLOBAL_CTRL) & ~IAF_GLOBAL_CTRL_MASK;
  		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl & 
  					     IAF_GLOBAL_CTRL_MASK));
 	} while (iafc->pc_resync != 0);
@@ -434,13 +434,13 @@ iaf_stop_pmc(int cpu, int ri)
 	iafc->pc_iafctrl &= ~fc;
 
 	PMCDBG(MDP,STO,1,"iaf-stop iafctrl=%x", iafc->pc_iafctrl);
- 	msr = rdmsr(IAF_CTRL);
+ 	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
  	wrmsr(IAF_CTRL, msr | (iafc->pc_iafctrl & IAF_CTRL_MASK));
 
 	do {
 		iafc->pc_resync = 0;
 		iafc->pc_globalctrl &= ~(1ULL << (ri + IAF_OFFSET));
- 		msr = rdmsr(IA_GLOBAL_CTRL);
+ 		msr = rdmsr(IA_GLOBAL_CTRL) & ~IAF_GLOBAL_CTRL_MASK;
  		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl &
  					     IAF_GLOBAL_CTRL_MASK));
 	} while (iafc->pc_resync != 0);
@@ -473,10 +473,14 @@ iaf_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = iaf_reload_count_to_perfctr_value(v);
 
-	msr = rdmsr(IAF_CTRL);
-	wrmsr(IAF_CTRL, msr & ~IAF_CTRL_MASK);
+	/* Turn off fixed counters */
+	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
+	wrmsr(IAF_CTRL, msr); 
+
 	wrmsr(IAF_CTR0 + ri, v & ((1ULL << core_iaf_width) - 1));
-	msr = rdmsr(IAF_CTRL);
+
+	/* Turn on fixed counters */
+	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
 	wrmsr(IAF_CTRL, msr | (cc->pc_iafctrl & IAF_CTRL_MASK));
 
 	PMCDBG(MDP,WRI,1, "iaf-write cpu=%d ri=%d msr=0x%x v=%jx iafctrl=%jx "
@@ -1910,15 +1914,17 @@ iap_stop_pmc(int cpu, int ri)
 
 	PMCDBG(MDP,STO,1, "iap-stop cpu=%d ri=%d", cpu, ri);
 
-	msr = rdmsr(IAP_EVSEL0 + ri);
-	wrmsr(IAP_EVSEL0 + ri, msr & IAP_EVSEL_MASK);	/* stop hw */
+	msr = rdmsr(IAP_EVSEL0 + ri) & ~IAP_EVSEL_MASK;
+	wrmsr(IAP_EVSEL0 + ri, msr);	/* stop hw */
 
 	if (core_cputype == PMC_CPU_INTEL_CORE)
 		return (0);
 
+	msr = 0;
 	do {
 		cc->pc_resync = 0;
 		cc->pc_globalctrl &= ~(1ULL << ri);
+		msr = rdmsr(IA_GLOBAL_CTRL) & ~IA_GLOBAL_CTRL_MASK;
 		wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
 	} while (cc->pc_resync != 0);
 
@@ -2004,7 +2010,7 @@ core_intr(int cpu, struct trapframe *tf)
 	struct pmc *pm;
 	struct core_cpu *cc;
 	int error, found_interrupt, ri;
-	uint64_t msr = 0;
+	uint64_t msr;
 
 	PMCDBG(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
@@ -2036,15 +2042,15 @@ core_intr(int cpu, struct trapframe *tf)
 		 * Stop the counter, reload it but only restart it if
 		 * the PMC is not stalled.
 		 */
-		msr = rdmsr(IAP_EVSEL0 + ri);
-		wrmsr(IAP_EVSEL0 + ri, msr & ~IAP_EVSEL_MASK);
+		msr = rdmsr(IAP_EVSEL0 + ri) & ~IAP_EVSEL_MASK;
+		wrmsr(IAP_EVSEL0 + ri, msr);
 		wrmsr(IAP_PMC0 + ri, v);
 
 		if (error)
 			continue;
 
-		wrmsr(IAP_EVSEL0 + ri,
-		    pm->pm_md.pm_iap.pm_iap_evsel | IAP_EN);
+		wrmsr(IAP_EVSEL0 + ri, msr | (pm->pm_md.pm_iap.pm_iap_evsel | 
+					      IAP_EN));
 	}
 
 	if (found_interrupt)
@@ -2060,7 +2066,7 @@ static int
 core2_intr(int cpu, struct trapframe *tf)
 {
 	int error, found_interrupt, n;
-	uint64_t flag, intrstatus, intrenable;
+	uint64_t flag, intrstatus, intrenable, msr;
 	struct pmc *pm;
 	struct core_cpu *cc;
 	pmc_value_t v;
@@ -2091,7 +2097,8 @@ core2_intr(int cpu, struct trapframe *tf)
 	/*
 	 * Stop PMCs and clear overflow status bits.
 	 */
-	wrmsr(IA_GLOBAL_CTRL, 0);
+	msr = rdmsr(IA_GLOBAL_CTRL) & ~IA_GLOBAL_CTRL_MASK;
+	wrmsr(IA_GLOBAL_CTRL, msr);
 	wrmsr(IA_GLOBAL_OVF_CTRL, intrenable |
 	    IA_GLOBAL_STATUS_FLAG_OVFBUF |
 	    IA_GLOBAL_STATUS_FLAG_CONDCHG);
@@ -2162,7 +2169,7 @@ core2_intr(int cpu, struct trapframe *tf)
 
 	cc->pc_globalctrl |= intrenable;
 
-	wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
+	wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl & IA_GLOBAL_CTRL_MASK);
 
 	PMCDBG(MDP,INT, 1, "cpu=%d fixedctrl=%jx globalctrl=%jx status=%jx "
 	    "ovf=%jx", cpu, (uintmax_t) rdmsr(IAF_CTRL),
