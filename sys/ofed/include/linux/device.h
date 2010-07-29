@@ -57,6 +57,7 @@ struct device {
 	struct class	*class;
 	void		(*release)(struct device *dev);
 	irqreturn_t	(*irqhandler)(int, void *);
+	void		*irqarg;
 	void		*irqtag;
 	struct kobject	kobj;
 	uint64_t	*dma_mask;
@@ -188,8 +189,10 @@ device_unregister(struct device *dev)
 	device_t bsddev;
 
 	bsddev = dev->bsddev;
+	mtx_lock(&Giant);
 	if (bsddev)
 		device_delete_child(device_get_parent(bsddev), bsddev);
+	mtx_unlock(&Giant);
 	put_device(dev);
 }
 
