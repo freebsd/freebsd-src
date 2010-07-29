@@ -250,7 +250,6 @@ action::do_action(config &c)
 match::match(config &c, const char *var, const char *re)
 	: _var(var)
 {
-	string pattern = re;
 	_re = "^";
 	_re.append(c.expand_string(string(re)));
 	_re.append("$");
