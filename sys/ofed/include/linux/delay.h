@@ -25,3 +25,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#ifndef _LINUX_DELAY_H_
+#define	_LINUX_DELAY_H_
+
+#include <linux/jiffies.h>
+
+static inline void
+linux_msleep(int ms)
+{
+	pause("lnxsleep", msecs_to_jiffies(ms));
+}
+
+#undef msleep
+#define	msleep	linux_msleep
+
+#endif	/* _LINUX_DELAY_H_ */
