@@ -28,6 +28,6 @@
 #ifndef _LINUX_HARDIRQ_H_
 #define	_LINUX_HARDIRQ_H_
 
-#define	synchronize_irq(irq)	panic("Unimplemented");
+#define	synchronize_irq(irq)	printf("synchronize_irq: Unimplemented\n")
 
 #endif	/* _LINUX_HARDIRQ_H_ */

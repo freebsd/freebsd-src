@@ -33,6 +33,7 @@
 #include <linux/err.h>
 #include <linux/dma-attrs.h>
 #include <linux/scatterlist.h>
+#include <linux/mm.h>
 #include <linux/page.h>
 
 #include <sys/systm.h>
@@ -123,14 +124,15 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
     gfp_t flag)
 {
 	vm_paddr_t high;
+	size_t align;
 	void *mem;
 
 	if (dev->dma_mask)
 		high = *dev->dma_mask;
 	else
 		high = BUS_SPACE_MAXADDR_32BIT;
-
-	mem = contigmalloc(size, M_LINUX_DMA, flag, 0, high, 1, 0);
+	align = PAGE_SIZE << get_order(size);
+	mem = contigmalloc(size, M_LINUX_DMA, flag, 0, high, align, 0);
 	if (mem)
 		*dma_handle = vtophys(mem);
 	else
@@ -235,6 +237,13 @@ dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 #define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, NULL)
 #define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, NULL)
 #define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, NULL)
+
+#define	DEFINE_DMA_UNMAP_ADDR(name)		dma_addr_t name
+#define	DEFINE_DMA_UNMAP_LEN(name)		__u32 name
+#define	dma_unmap_addr(p, name)			((p)->name)
+#define	dma_unmap_addr_set(p, name, v)		(((p)->name) = (v))
+#define	dma_unmap_len(p, name)			((p)->name)
+#define	dma_unmap_len_set(p, name, v)		(((p)->name) = (v))
 
 extern int uma_align_cache;
 #define	dma_get_cache_alignment()	uma_align_cache

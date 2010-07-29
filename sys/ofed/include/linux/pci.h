@@ -61,12 +61,27 @@ struct pci_device_id {
 
 #define	MODULE_DEVICE_TABLE(bus, table)
 #define	PCI_ANY_ID		(-1)
-#define	PCI_VENDOR_ID_MELLANOX	0x15b3
+#define	PCI_VENDOR_ID_MELLANOX			0x15b3
+#define	PCI_VENDOR_ID_TOPSPIN			0x1867
+#define	PCI_DEVICE_ID_MELLANOX_TAVOR		0x5a44
+#define	PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE	0x5a46
+#define	PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT	0x6278
+#define	PCI_DEVICE_ID_MELLANOX_ARBEL		0x6282
+#define	PCI_DEVICE_ID_MELLANOX_SINAI_OLD	0x5e8c
+#define	PCI_DEVICE_ID_MELLANOX_SINAI		0x6274
+
 
 #define PCI_VDEVICE(vendor, device)					\
 	    PCI_VENDOR_ID_##vendor, (device), PCI_ANY_ID, PCI_ANY_ID, 0, 0
+#define	PCI_DEVICE(vendor, device)					\
+	    (vendor), (device), PCI_ANY_ID, PCI_ANY_ID, 0, 0
 
 #define	to_pci_dev(n)	container_of(n, struct pci_dev, dev)
+
+#define	PCI_VENDOR_ID	PCIR_DEVVENDOR
+#define	PCI_COMMAND	PCIR_COMMAND
+#define	PCI_EXP_DEVCTL	PCIR_EXPRESS_DEVICE_CTL
+#define	PCI_EXP_LNKCTL	PCIR_EXPRESS_LINK_CTL
 
 #define	IORESOURCE_MEM	SYS_RES_MEMORY
 #define	IORESOURCE_IO	SYS_RES_IOPORT
@@ -112,6 +127,7 @@ _pci_get_bar(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
+	bar = PCIR_BAR(bar);
 	if ((rle = _pci_get_rle(pdev, SYS_RES_MEMORY, bar)) == NULL)
 		rle = _pci_get_rle(pdev, SYS_RES_IOPORT, bar);
 	return (rle);
@@ -200,6 +216,8 @@ pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 	int type;
 
 	type = pci_resource_flags(pdev, bar);
+	if (type == 0)
+		return (-ENODEV);
 	rid = PCIR_BAR(bar);
 	if (bus_alloc_resource_any(pdev->dev.bsddev, type, &rid,
 	    RF_ACTIVE) == NULL)
@@ -218,10 +236,96 @@ pci_release_region(struct pci_dev *pdev, int bar)
 }
 
 static inline void
+pci_release_regions(struct pci_dev *pdev)
+{
+	int i;
+
+	for (i = 0; i <= PCIR_MAX_BAR_0; i++)
+		pci_release_region(pdev, i);
+}
+
+static inline int
+pci_request_regions(struct pci_dev *pdev, const char *res_name)
+{
+	int error;
+	int i;
+
+	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
+		error = pci_request_region(pdev, i, res_name);
+		if (error && error != -ENODEV) {
+			pci_release_regions(pdev);
+			return (error);
+		}
+	}
+	return (0);
+}
+
+static inline void
 pci_disable_msix(struct pci_dev *pdev)
 {
 
 	pci_release_msi(pdev->dev.bsddev);
+}
+
+#define	PCI_CAP_ID_EXP	PCIY_EXPRESS
+#define	PCI_CAP_ID_PCIX	PCIY_PCIX
+
+static inline int
+pci_find_capability(struct pci_dev *pdev, int capid)
+{
+	int reg;
+
+	if (pci_find_extcap(pdev->dev.bsddev, capid, &reg))
+		return (0);
+	return (reg);
+}
+
+static inline int
+pci_read_config_byte(struct pci_dev *pdev, int where, u8 *val)
+{
+
+	*val = (u8)pci_read_config(pdev->dev.bsddev, where, 1);
+	return (0);
+}
+
+static inline int
+pci_read_config_word(struct pci_dev *pdev, int where, u16 *val)
+{
+
+	*val = (u16)pci_read_config(pdev->dev.bsddev, where, 2);
+	return (0);
+}
+
+static inline int
+pci_read_config_dword(struct pci_dev *pdev, int where, u32 *val)
+{
+
+	*val = (u32)pci_read_config(pdev->dev.bsddev, where, 4);
+	return (0);
+} 
+
+static inline int
+pci_write_config_byte(struct pci_dev *pdev, int where, u8 val)
+{
+
+	pci_write_config(pdev->dev.bsddev, where, val, 1);
+	return (0);
+}
+
+static inline int
+pci_write_config_word(struct pci_dev *pdev, int where, u16 val)
+{
+
+	pci_write_config(pdev->dev.bsddev, where, val, 2);
+	return (0);
+}
+
+static inline int
+pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
+{ 
+
+	pci_write_config(pdev->dev.bsddev, where, val, 4);
+	return (0);
 }
 
 static struct pci_driver *
@@ -278,7 +382,9 @@ linux_pci_attach(device_t dev)
 	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 0);
 	if (rle)
 		pdev->irq = rle->start;
+	mtx_unlock(&Giant);
 	error = pdrv->probe(pdev, id);
+	mtx_lock(&Giant);
 	if (error)
 		return (-error);
 	return (0);
@@ -329,6 +435,11 @@ pci_unregister_driver(struct pci_driver *pdrv)
 	devclass_delete_driver(bus, &pdrv->driver);
 }
 
+/* XXX This should not be necessary. */
+#define	pcix_set_mmrbc(d, v)	0
+#define	pcix_get_max_mmrbc(d)	0
+#define	pcie_set_readrq(d, v)	0
+
 #define	PCI_DMA_BIDIRECTIONAL	0
 #define	PCI_DMA_TODEVICE	1
 #define	PCI_DMA_FROMDEVICE	2
@@ -349,8 +460,23 @@ pci_unregister_driver(struct pci_driver *pdrv)
 #define	pci_unmap_sg(hwdev, sg, nents, direction)			\
 	    dma_unmap_sg((hwdev) == NULL ? NULL : &(hwdev)->dev,	\
 		sg, nents, (enum dma_data_direction)direction)
+#define	pci_map_page(hwdev, page, offset, size, direction)		\
+	    dma_map_page((hwdev) == NULL ? NULL : &(hwdev)->dev, page,	\
+		offset, size, (enum dma_data_direction)direction)
+#define	pci_unmap_page(hwdev, dma_address, size, direction)		\
+	    dma_unmap_page((hwdev) == NULL ? NULL : &(hwdev)->dev,	\
+		dma_address, size, (enum dma_data_direction)direction)
 #define	pci_set_dma_mask(pdev, mask)	dma_set_mask(&(pdev)->dev, (mask))
+#define	pci_dma_mapping_error(pdev, dma_addr)				\
+	    dma_mapping_error(&(pdev)->dev, dma_addr)
 #define	pci_set_consistent_dma_mask(pdev, mask)				\
 	    dma_set_coherent_mask(&(pdev)->dev, (mask))
+#define	DECLARE_PCI_UNMAP_ADDR(x)	DEFINE_DMA_UNMAP_ADDR(x);
+#define	DECLARE_PCI_UNMAP_LEN(x)	DEFINE_DMA_UNMAP_LEN(x);
+#define	pci_unmap_addr		dma_unmap_addr
+#define	pci_unmap_addr_set	dma_unmap_addr_set
+#define	pci_unmap_len		dma_unmap_len
+#define	pci_unmap_len_set	dma_unmap_len_set
+
 
 #endif	/* _LINUX_PCI_H_ */

@@ -46,28 +46,28 @@ _irq_handler(void *device)
 	struct device *dev;
 
 	dev = device;
-	dev->irqhandler(0, dev);
+	dev->irqhandler(0, dev->irqarg);
 }
 
 static inline int
 request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
-    const char *name, void *device)
+    const char *name, void *arg, struct device *dev)
 {
 	struct resource *res;
-	struct device *dev;
 	int error;
 	int rid;
 
-	dev = device;
 	rid = 0;
-	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, flags | RF_ACTIVE);
+	res = bus_alloc_resource_any(dev->bsddev, SYS_RES_IRQ, &rid,
+	    flags | RF_ACTIVE);
 	if (res == NULL)
 		return (-ENXIO);
-	error = bus_setup_intr(dev, res, INTR_TYPE_NET | INTR_MPSAFE, NULL,
-	    _irq_handler, dev, &dev->irqtag);
+	error = bus_setup_intr(dev->bsddev, res, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, _irq_handler, dev, &dev->irqtag);
 	if (error)
 		return (-error);
 	dev->irqhandler = handler;
+	dev->irqarg = arg;
 
 	return 0;
 }

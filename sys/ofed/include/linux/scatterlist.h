@@ -56,7 +56,6 @@ sg_set_page(struct scatterlist *sg, struct page *page, unsigned int len,
 {
 	sg_page(sg) = page;
 	sg_dma_len(sg) = len;
-	sg_dma_address(sg) = 0;
 	sg->offset = offset;
 }
 
@@ -71,7 +70,7 @@ static inline void
 sg_init_table(struct scatterlist *sg, unsigned int nents)
 {
 	bzero(sg, sizeof(*sg) * nents);
-	sg[nents].flags = SG_END;
+	sg[nents - 1].flags = SG_END;
 }
 
 static inline struct scatterlist *
