@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
+#include <compat/linux/linux_videodev.h>
+#include <compat/linux/linux_videodev_compat.h>
+
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 
 static linux_ioctl_function_t linux_ioctl_cdrom;
@@ -91,6 +94,7 @@ static linux_ioctl_function_t linux_ioctl_termio;
 static linux_ioctl_function_t linux_ioctl_private;
 static linux_ioctl_function_t linux_ioctl_drm;
 static linux_ioctl_function_t linux_ioctl_sg;
+static linux_ioctl_function_t linux_ioctl_v4l;
 static linux_ioctl_function_t linux_ioctl_special;
 
 static struct linux_ioctl_handler cdrom_handler =
@@ -115,6 +119,8 @@ static struct linux_ioctl_handler drm_handler =
 { linux_ioctl_drm, LINUX_IOCTL_DRM_MIN, LINUX_IOCTL_DRM_MAX };
 static struct linux_ioctl_handler sg_handler =
 { linux_ioctl_sg, LINUX_IOCTL_SG_MIN, LINUX_IOCTL_SG_MAX };
+static struct linux_ioctl_handler video_handler =
+{ linux_ioctl_v4l, LINUX_IOCTL_VIDEO_MIN, LINUX_IOCTL_VIDEO_MAX };
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, vfat_handler);
@@ -127,6 +133,7 @@ DATA_SET(linux_ioctl_handler_set, termio_handler);
 DATA_SET(linux_ioctl_handler_set, private_handler);
 DATA_SET(linux_ioctl_handler_set, drm_handler);
 DATA_SET(linux_ioctl_handler_set, sg_handler);
+DATA_SET(linux_ioctl_handler_set, video_handler);
 
 struct handler_element
 {
@@ -136,7 +143,7 @@ struct handler_element
 };
 
 static TAILQ_HEAD(, handler_element) handlers =
-	TAILQ_HEAD_INITIALIZER(handlers);
+    TAILQ_HEAD_INITIALIZER(handlers);
 static struct sx linux_ioctl_sx;
 SX_SYSINIT(linux_ioctl, &linux_ioctl_sx, "linux ioctl handlers");
 
@@ -2585,6 +2592,361 @@ linux_ioctl_sg(struct thread *td, struct linux_ioctl_args *args)
 
 	error = (fo_ioctl(fp, cmd, (caddr_t)args->arg, td->td_ucred, td));
 	fdrop(fp, td);
+	return (error);
+}
+
+/*
+ * Video4Linux (V4L) ioctl handler
+ */
+static int
+linux_to_bsd_v4l_tuner(struct l_video_tuner *lvt, struct video_tuner *vt)
+{
+	vt->tuner = lvt->tuner;
+	strlcpy(vt->name, lvt->name, LINUX_VIDEO_TUNER_NAME_SIZE);
+	vt->rangelow = lvt->rangelow;	/* possible long size conversion */
+	vt->rangehigh = lvt->rangehigh;	/* possible long size conversion */
+	vt->flags = lvt->flags;
+	vt->mode = lvt->mode;
+	vt->signal = lvt->signal;
+	return (0);
+}
+
+static int
+bsd_to_linux_v4l_tuner(struct video_tuner *vt, struct l_video_tuner *lvt)
+{
+	lvt->tuner = vt->tuner;
+	strlcpy(lvt->name, vt->name, LINUX_VIDEO_TUNER_NAME_SIZE);
+	lvt->rangelow = vt->rangelow;	/* possible long size conversion */
+	lvt->rangehigh = vt->rangehigh;	/* possible long size conversion */
+	lvt->flags = vt->flags;
+	lvt->mode = vt->mode;
+	lvt->signal = vt->signal;
+	return (0);
+}
+
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
+static int
+linux_to_bsd_v4l_clip(struct l_video_clip *lvc, struct video_clip *vc)
+{
+	vc->x = lvc->x;
+	vc->y = lvc->y;
+	vc->width = lvc->width;
+	vc->height = lvc->height;
+	vc->next = PTRIN(lvc->next);	/* possible pointer size conversion */
+	return (0);
+}
+#endif
+
+static int
+linux_to_bsd_v4l_window(struct l_video_window *lvw, struct video_window *vw)
+{
+	vw->x = lvw->x;
+	vw->y = lvw->y;
+	vw->width = lvw->width;
+	vw->height = lvw->height;
+	vw->chromakey = lvw->chromakey;
+	vw->flags = lvw->flags;
+	vw->clips = PTRIN(lvw->clips);	/* possible pointer size conversion */
+	vw->clipcount = lvw->clipcount;
+	return (0);
+}
+
+static int
+bsd_to_linux_v4l_window(struct video_window *vw, struct l_video_window *lvw)
+{
+	lvw->x = vw->x;
+	lvw->y = vw->y;
+	lvw->width = vw->width;
+	lvw->height = vw->height;
+	lvw->chromakey = vw->chromakey;
+	lvw->flags = vw->flags;
+	lvw->clips = PTROUT(vw->clips);	/* possible pointer size conversion */
+	lvw->clipcount = vw->clipcount;
+	return (0);
+}
+
+static int
+linux_to_bsd_v4l_buffer(struct l_video_buffer *lvb, struct video_buffer *vb)
+{
+	vb->base = PTRIN(lvb->base);	/* possible pointer size conversion */
+	vb->height = lvb->height;
+	vb->width = lvb->width;
+	vb->depth = lvb->depth;
+	vb->bytesperline = lvb->bytesperline;
+	return (0);
+}
+
+static int
+bsd_to_linux_v4l_buffer(struct video_buffer *vb, struct l_video_buffer *lvb)
+{
+	lvb->base = PTROUT(vb->base);	/* possible pointer size conversion */
+	lvb->height = vb->height;
+	lvb->width = vb->width;
+	lvb->depth = vb->depth;
+	lvb->bytesperline = vb->bytesperline;
+	return (0);
+}
+
+static int
+linux_to_bsd_v4l_code(struct l_video_code *lvc, struct video_code *vc)
+{
+	strlcpy(vc->loadwhat, lvc->loadwhat, LINUX_VIDEO_CODE_LOADWHAT_SIZE);
+	vc->datasize = lvc->datasize;
+	vc->data = PTRIN(lvc->data);	/* possible pointer size conversion */
+	return (0);
+}
+
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
+static int
+linux_v4l_clip_copy(void *lvc, struct video_clip **ppvc)
+{
+	int error;
+	struct video_clip vclip;
+	struct l_video_clip l_vclip;
+
+	error = copyin(lvc, &l_vclip, sizeof(l_vclip));
+	if (error) return (error);
+	linux_to_bsd_v4l_clip(&l_vclip, &vclip);
+	/* XXX: If there can be no concurrency: s/M_NOWAIT/M_WAITOK/ */
+	if ((*ppvc = malloc(sizeof(**ppvc), M_LINUX, M_NOWAIT)) == NULL)
+		return (ENOMEM);    /* XXX: linux has no ENOMEM here */
+	memcpy(*ppvc, &vclip, sizeof(vclip));
+	(*ppvc)->next = NULL;
+	return (0);
+}
+
+static int
+linux_v4l_cliplist_free(struct video_window *vw)
+{
+	struct video_clip **ppvc;
+	struct video_clip **ppvc_next;
+
+	for (ppvc = &(vw->clips); *ppvc != NULL; ppvc = ppvc_next) {
+		ppvc_next = &((*ppvc)->next);
+		free(*ppvc, M_LINUX);
+	}
+	vw->clips = NULL;
+
+	return (0);
+}
+
+static int
+linux_v4l_cliplist_copy(struct l_video_window *lvw, struct video_window *vw)
+{
+	int error;
+	int clipcount;
+	void *plvc;
+	struct video_clip **ppvc;
+
+	/*
+	 * XXX: The cliplist is used to pass in a list of clipping
+	 *	rectangles or, if clipcount == VIDEO_CLIP_BITMAP, a
+	 *	clipping bitmap.  Some Linux apps, however, appear to
+	 *	leave cliplist and clips uninitialized.  In any case,
+	 *	the cliplist is not used by pwc(4), at the time of
+	 *	writing, FreeBSD's only V4L driver.  When a driver
+	 *	that uses the cliplist is developed, this code may
+	 *	need re-examiniation.
+	 */
+	error = 0;
+	clipcount = vw->clipcount;
+	if (clipcount == VIDEO_CLIP_BITMAP) {
+		/*
+		 * In this case, the pointer (clips) is overloaded
+		 * to be a "void *" to a bitmap, therefore there
+		 * is no struct video_clip to copy now.
+		 */
+	} else if (clipcount > 0 && clipcount <= 16384) {
+		/*
+		 * Clips points to list of clip rectangles, so
+		 * copy the list.
+		 *
+		 * XXX: Upper limit of 16384 was used here to try to
+		 *	avoid cases when clipcount and clips pointer
+		 *	are uninitialized and therefore have high random
+		 *	values, as is the case in the Linux Skype
+		 *	application.  The value 16384 was chosen as that
+		 *	is what is used in the Linux stradis(4) MPEG
+		 *	decoder driver, the only place we found an
+		 *	example of cliplist use.
+		 */
+		plvc = PTRIN(lvw->clips);
+		vw->clips = NULL;
+		ppvc = &(vw->clips);
+		while (clipcount-- > 0) {
+			if (plvc == 0) {
+				error = EFAULT;
+				break;
+			} else {
+				error = linux_v4l_clip_copy(plvc, ppvc);
+				if (error) {
+					linux_v4l_cliplist_free(vw);
+					break;
+				}
+			}
+			ppvc = &((*ppvc)->next);
+		        plvc = PTRIN(((struct l_video_clip *) plvc)->next);
+		}
+	} else {
+		/*
+		 * clipcount == 0 or negative (but not VIDEO_CLIP_BITMAP)
+		 * Force cliplist to null.
+		 */
+		vw->clipcount = 0;
+		vw->clips = NULL;
+	}
+	return (error);
+}
+#endif
+
+static int
+linux_ioctl_v4l(struct thread *td, struct linux_ioctl_args *args)
+{
+	struct file *fp;
+	int error;
+	struct video_tuner vtun;
+	struct video_window vwin;
+	struct video_buffer vbuf;
+	struct video_code vcode;
+	struct l_video_tuner l_vtun;
+	struct l_video_window l_vwin;
+	struct l_video_buffer l_vbuf;
+	struct l_video_code l_vcode;
+
+	switch (args->cmd & 0xffff) {
+	case LINUX_VIDIOCGCAP:		args->cmd = VIDIOCGCAP; break;
+	case LINUX_VIDIOCGCHAN:		args->cmd = VIDIOCGCHAN; break;
+	case LINUX_VIDIOCSCHAN:		args->cmd = VIDIOCSCHAN; break;
+
+	case LINUX_VIDIOCGTUNER:
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		error = copyin((void *) args->arg, &l_vtun, sizeof(l_vtun));
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		linux_to_bsd_v4l_tuner(&l_vtun, &vtun);
+		error = fo_ioctl(fp, VIDIOCGTUNER, &vtun, td->td_ucred, td);
+		if (!error) {
+			bsd_to_linux_v4l_tuner(&vtun, &l_vtun);
+			error = copyout(&l_vtun, (void *) args->arg,
+			    sizeof(l_vtun));
+		}
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_VIDIOCSTUNER:
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		error = copyin((void *) args->arg, &l_vtun, sizeof(l_vtun));
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		linux_to_bsd_v4l_tuner(&l_vtun, &vtun);
+		error = fo_ioctl(fp, VIDIOCSTUNER, &vtun, td->td_ucred, td);
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_VIDIOCGPICT:		args->cmd = VIDIOCGPICT; break;
+	case LINUX_VIDIOCSPICT:		args->cmd = VIDIOCSPICT; break;
+	case LINUX_VIDIOCCAPTURE:	args->cmd = VIDIOCCAPTURE; break;
+
+	case LINUX_VIDIOCGWIN:
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		error = fo_ioctl(fp, VIDIOCGWIN, &vwin, td->td_ucred, td);
+		if (!error) {
+			bsd_to_linux_v4l_window(&vwin, &l_vwin);
+			error = copyout(&l_vwin, (void *) args->arg,
+			    sizeof(l_vwin));
+		}
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_VIDIOCSWIN:
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		error = copyin((void *) args->arg, &l_vwin, sizeof(l_vwin));
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		linux_to_bsd_v4l_window(&l_vwin, &vwin);
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
+		error = linux_v4l_cliplist_copy(&l_vwin, &vwin);
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+#endif
+		error = fo_ioctl(fp, VIDIOCSWIN, &vwin, td->td_ucred, td);
+		fdrop(fp, td);
+#ifdef COMPAT_LINUX_V4L_CLIPLIST
+		linux_v4l_cliplist_free(&vwin);
+#endif
+		return (error);
+
+	case LINUX_VIDIOCGFBUF:
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		error = fo_ioctl(fp, VIDIOCGFBUF, &vbuf, td->td_ucred, td);
+		if (!error) {
+			bsd_to_linux_v4l_buffer(&vbuf, &l_vbuf);
+			error = copyout(&l_vbuf, (void *) args->arg,
+			    sizeof(l_vbuf));
+		}
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_VIDIOCSFBUF:
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		error = copyin((void *) args->arg, &l_vbuf, sizeof(l_vbuf));
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		linux_to_bsd_v4l_buffer(&l_vbuf, &vbuf);
+		error = fo_ioctl(fp, VIDIOCSFBUF, &vbuf, td->td_ucred, td);
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_VIDIOCKEY:		args->cmd = VIDIOCKEY; break;
+	case LINUX_VIDIOCGFREQ:		args->cmd = VIDIOCGFREQ; break;
+	case LINUX_VIDIOCSFREQ:		args->cmd = VIDIOCSFREQ; break;
+	case LINUX_VIDIOCGAUDIO:	args->cmd = VIDIOCGAUDIO; break;
+	case LINUX_VIDIOCSAUDIO:	args->cmd = VIDIOCSAUDIO; break;
+	case LINUX_VIDIOCSYNC:		args->cmd = VIDIOCSYNC; break;
+	case LINUX_VIDIOCMCAPTURE:	args->cmd = VIDIOCMCAPTURE; break;
+	case LINUX_VIDIOCGMBUF:		args->cmd = VIDIOCGMBUF; break;
+	case LINUX_VIDIOCGUNIT:		args->cmd = VIDIOCGUNIT; break;
+	case LINUX_VIDIOCGCAPTURE:	args->cmd = VIDIOCGCAPTURE; break;
+	case LINUX_VIDIOCSCAPTURE:	args->cmd = VIDIOCSCAPTURE; break;
+	case LINUX_VIDIOCSPLAYMODE:	args->cmd = VIDIOCSPLAYMODE; break;
+	case LINUX_VIDIOCSWRITEMODE:	args->cmd = VIDIOCSWRITEMODE; break;
+	case LINUX_VIDIOCGPLAYINFO:	args->cmd = VIDIOCGPLAYINFO; break;
+
+	case LINUX_VIDIOCSMICROCODE:
+		if ((error = fget(td, args->fd, &fp)) != 0)
+			return (error);
+		error = copyin((void *) args->arg, &l_vcode, sizeof(l_vcode));
+		if (error) {
+			fdrop(fp, td);
+			return (error);
+		}
+		linux_to_bsd_v4l_code(&l_vcode, &vcode);
+		error = fo_ioctl(fp, VIDIOCSMICROCODE, &vcode, td->td_ucred, td);
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_VIDIOCGVBIFMT:	args->cmd = VIDIOCGVBIFMT; break;
+	case LINUX_VIDIOCSVBIFMT:	args->cmd = VIDIOCSVBIFMT; break;
+	default:			return (ENOIOCTL);
+	}
+
+	error = ioctl(td, (struct ioctl_args *)args);
 	return (error);
 }
 
