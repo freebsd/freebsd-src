@@ -169,6 +169,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 	HAL_CHANNEL_INTERNAL *ichan;
+	int i;
 
 	ichan = ath_hal_checkchannel(ah, chan);
 	HALASSERT(ichan != AH_NULL);
@@ -219,7 +220,24 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * higher than normal value if DC offset and noise floor cal are
 	 * triggered at the same time.
 	 */
+	/* XXX this actually kicks off a NF calibration -adrian */
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
+	/*
+	 * Try to make sure the above NF cal completes, just so
+	 * it doesn't clash with subsequent percals -adrian
+	 */
+	for (i = 0; i < 100; i++) {
+		if (ath_hal_wait(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_NF, 0) == AH_TRUE)
+			break;
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: (loop %d): initial NF "
+		"calibration didn't finish.\n", __func__, i);
+	}
+	if (i >= 100) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
+		"not complete in time; noisy environment?\n", __func__);
+		return AH_FALSE;
+	}               
 
 	/* Initialize list pointers */
 	cal->cal_list = cal->cal_last = cal->cal_curr = AH_NULL;
