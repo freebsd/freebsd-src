@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <fnmatch.h>
 #include <fts.h>
 #include <libgen.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,6 +52,45 @@ __FBSDID("$FreeBSD$");
 static int	 linesqueued;
 static int	 procline(struct str *l, int);
 
+bool
+file_matching(const char *fname)
+{
+	bool ret;
+
+	ret = finclude ? false : true;
+
+	for (unsigned int i = 0; i < fpatterns; ++i) {
+		if (fnmatch(fpattern[i].pat,
+		    fname, 0) == 0 || fnmatch(fpattern[i].pat,
+		    basename(fname), 0) == 0) {
+			if (fpattern[i].mode == EXCL_PAT)
+				return (false);
+			else
+				ret = true;
+		}
+	}
+	return (ret);
+}
+
+bool
+dir_matching(const char *dname)
+{
+	bool ret;
+
+	ret = dinclude ? false : true;
+
+	for (unsigned int i = 0; i < dpatterns; ++i) {
+		if (dname != NULL &&
+		    fnmatch(dname, dpattern[i].pat, 0) == 0) {
+			if (dpattern[i].mode == EXCL_PAT)
+				return (false);
+			else
+				ret = true;
+		}
+	}
+	return (ret);
+}
+
 /*
  * Processes a directory when a recursive search is performed with
  * the -R option.  Each appropriate file is passed to procfile().
@@ -61,7 +101,6 @@ grep_tree(char **argv)
 	FTS *fts;
 	FTSENT *p;
 	char *d, *dir = NULL;
-	unsigned int i;
 	int c, fts_flags;
 	bool ok;
 
@@ -102,30 +141,19 @@ grep_tree(char **argv)
 		default:
 			/* Check for file exclusion/inclusion */
 			ok = true;
-			if (exclflag) {
+			if (dexclude || dinclude) {
 				if ((d = strrchr(p->fts_path, '/')) != NULL) {
 					dir = grep_malloc(sizeof(char) *
 					    (d - p->fts_path + 2));
 					strlcpy(dir, p->fts_path,
 					    (d - p->fts_path + 1));
 				}
-				for (i = 0; i < epatterns; ++i) {
-					switch(epattern[i].type) {
-					case FILE_PAT:
-						if (fnmatch(epattern[i].pat,
-						    basename(p->fts_path), 0) == 0)
-							ok = epattern[i].mode != EXCL_PAT;
-						break;
-					case DIR_PAT:
-						if (dir != NULL && strstr(dir,
-						    epattern[i].pat) != NULL)
-							ok = epattern[i].mode != EXCL_PAT;
-						break;
-					}
-				}
+				ok = dir_matching(dir);
 				free(dir);
 				dir = NULL;
 			}
+			if (fexclude || finclude)
+				ok &= file_matching(p->fts_path);
 
 			if (ok)
 				c += procfile(p->fts_path);
@@ -406,6 +434,19 @@ grep_realloc(void *ptr, size_t size)
 	if ((ptr = realloc(ptr, size)) == NULL)
 		err(2, "realloc");
 	return (ptr);
+}
+
+/*
+ * Safe strdup() for internal use.
+ */
+char *
+grep_strdup(const char *str)
+{
+	char *ret;
+
+	if ((ret = strdup(str)) == NULL)
+		err(2, "strdup");
+	return (ret);
 }
 
 /*
