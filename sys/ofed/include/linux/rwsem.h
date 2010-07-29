@@ -36,7 +36,8 @@ struct rw_semaphore {
 	struct sx sx;
 };
 
-#define	init_rwsem(_rw)			sx_init(&(_rw)->sx, "ldev")
+#define	init_rwsem(_rw)			sx_init_flags(&(_rw)->sx,	\
+					    "lnxrwsem", SX_NOWITNESS)
 #define	down_write(_rw)			sx_xlock(&(_rw)->sx)
 #define	up_write(_rw)			sx_xunlock(&(_rw)->sx)
 #define	down_read(_rw)			sx_slock(&(_rw)->sx)

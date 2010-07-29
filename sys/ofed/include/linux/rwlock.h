@@ -35,7 +35,7 @@ typedef struct {
 	struct rwlock rw;
 } rwlock_t;
 
-#define	rwlock_init(_l)		rw_init(&(_l)->rw, "ldev")
+#define	rwlock_init(_l)		rw_init_flags(&(_l)->rw, "lnxrw", RW_NOWITNESS)
 #define	read_lock(_l)		rw_rlock(&(_l)->rw)
 #define	write_lock(_l)		rw_wlock(&(_l)->rw)
 #define	read_unlock(_l)		rw_runlock(&(_l)->rw)

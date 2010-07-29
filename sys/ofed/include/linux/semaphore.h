@@ -36,7 +36,8 @@ struct semaphore {
 	struct sx sx;
 };
 
-#define	init_MUTEX(_rw)			sx_init(&(_rw)->sx, "ldev")
+#define	init_MUTEX(_rw)			sx_init_flags(&(_rw)->sx,	\
+					    "lnxsema", SX_NOWITNESS)
 #define	down(_rw)			sx_xlock(&(_rw)->sx)
 #define	down_interruptible(_rw)		sx_xlock_sig(&(_rw)->sx)
 #define	down_trylock(_rw)		!sx_try_xlock(&(_rw)->sx)

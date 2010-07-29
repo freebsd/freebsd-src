@@ -38,7 +38,8 @@ typedef struct mutex {
 	struct sx sx;
 } mutex_t;
 
-#define	mutex_init(_m)			sx_init(&(_m)->sx, "ldev")
+#define	mutex_init(_m)			sx_init_flags(&(_m)->sx,	\
+					    "lnxmtx",  SX_NOWITNESS)
 #define	mutex_lock(_m)			sx_xlock(&(_m)->sx)
 #define	mutex_lock_nested(_m, _s)	mutex_lock(_m)
 #define	mutex_lock_interruptible(_m)	({ mutex_lock((_m)); 0; })
@@ -47,6 +48,6 @@ typedef struct mutex {
 
 #define DEFINE_MUTEX(lock)						\
 	mutex_t lock;							\
-	SX_SYSINIT(lock, &(lock).sx, "ldev")
+	SX_SYSINIT_FLAGS(lock, &(lock).sx, "lnxmtx", SX_NOWITNESS)
 
 #endif	/* _LINUX_MUTEX_H_ */
