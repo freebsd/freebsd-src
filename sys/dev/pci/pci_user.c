@@ -735,6 +735,16 @@ getconfexit:
 			bio->pbi_enabled = (value & PCIM_CMD_PORTEN) != 0;
 		error = 0;
 		break;
+	case PCIOCATTACHED:
+		error = 0;
+		io = (struct pci_io *)data;
+		pcidev = pci_find_dbsf(io->pi_sel.pc_domain, io->pi_sel.pc_bus,
+				       io->pi_sel.pc_dev, io->pi_sel.pc_func);
+		if (pcidev != NULL)
+			io->pi_data = device_is_attached(pcidev);
+		else
+			error = ENODEV;
+		break;
 	default:
 		error = ENOTTY;
 		break;
