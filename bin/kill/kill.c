@@ -123,10 +123,9 @@ main(int argc, char *argv[])
 
 	for (errors = 0; argc; argc--, argv++) {
 		pid = strtol(*argv, &ep, 10);
-		if (!**argv || *ep) {
-			warnx("illegal process id: %s", *argv);
-			errors = 1;
-		} else if (kill(pid, numsig) == -1) {
+		if (!**argv || *ep)
+			errx(1, "illegal process id: %s", *argv);
+		else if (kill(pid, numsig) == -1) {
 			warn("%s", *argv);
 			errors = 1;
 		}
