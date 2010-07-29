@@ -41,13 +41,19 @@ __FBSDID("$FreeBSD$");
 #include "debug.h"
 #include "rtld.h"
 
+#ifdef __mips_n64
+#define	GOT1_MASK	0x8000000000000000UL
+#else
+#define	GOT1_MASK	0x80000000UL
+#endif
+
 void
 init_pltgot(Obj_Entry *obj)
 {
 	if (obj->pltgot != NULL) {
 		obj->pltgot[0] = (Elf_Addr) &_rtld_bind_start;
-		/* XXX only if obj->pltgot[1] & 0x80000000 ?? */
-		obj->pltgot[1] |= (Elf_Addr) obj;
+		if (obj->pltgot[1] & 0x80000000)
+			obj->pltgot[1] = (Elf_Addr) obj | GOT1_MASK;
 	}
 }
 
@@ -64,7 +70,7 @@ void _rtld_relocate_nonplt_self(Elf_Dyn *, Elf_Addr);
  * It is possible for the compiler to emit relocations for unaligned data.
  * We handle this situation with these inlines.
  */
-#if ELFSIZE == 64
+#ifdef __mips_n64
 /*
  * ELF64 MIPS encodes the relocs uniquely.  The first 32-bits of info contain
  * the symbol index.  The top 32-bits contain three relocation types encoded
@@ -90,7 +96,7 @@ load_ptr(void *where, size_t len)
 	Elf_Sxword val;
 
 	if (__predict_true(((uintptr_t)where & (len - 1)) == 0)) {
-#if ELFSIZE == 64
+#ifdef __mips_n64
 		if (len == sizeof(Elf_Sxword))
 			return *(Elf_Sxword *)where;
 #endif
@@ -111,7 +117,7 @@ static __inline void
 store_ptr(void *where, Elf_Sxword val, size_t len)
 {
 	if (__predict_true(((uintptr_t)where & (len - 1)) == 0)) {
-#if ELFSIZE == 64
+#ifdef __mips_n64
 		if (len == sizeof(Elf_Sxword)) {
 			*(Elf_Sxword *)where = val;
 			return;
@@ -165,7 +171,7 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 		}
 	}
 
-	i = (got[1] & 0x80000000) ? 2 : 1;
+	i = (got[1] & GOT1_MASK) ? 2 : 1;
 	/* Relocate the local GOT entries */
 	got += i;
 	for (; i < local_gotno; i++) {
@@ -197,7 +203,7 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 				: sizeof(Elf_Sword);
 			Elf_Sxword old = load_ptr(where, rlen);
 			Elf_Sxword val = old;
-#if ELFSIZE == 64
+#ifdef __mips_n64
 			assert(r_type == R_TYPE(REL32)
 			    || r_type == (R_TYPE(REL32)|(R_TYPE(64) << 8)));
 #endif
@@ -272,7 +278,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	dbg("%s: broken=%d", obj->path, broken);
 #endif
 
-	i = (got[1] & 0x80000000) ? 2 : 1;
+	i = (got[1] & GOT1_MASK) ? 2 : 1;
 
 	/* Relocate the local GOT entries */
 	got += i;
