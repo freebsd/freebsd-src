@@ -448,6 +448,7 @@ END(fuword64)
 LEAF(fuword32)
 #ifndef __mips_n64
 ALEAF(fuword)
+ALEAF(fuiword)
 #endif
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
