@@ -156,7 +156,7 @@ ENTRY(acpi_restorecpu)
 	movq	PCPU(FPCURTHREAD), %rax
 	testq	%rax, %rax
 	je	1f
-	fxrstor	WAKEUP_PCB(USER_FPU)
+	fxrstor	WAKEUP_PCB(USERFPU)
 1:
 
 	/* Restore CR0 with FPU mode. */
