@@ -264,7 +264,7 @@ match::~match()
 bool
 match::do_match(config &c)
 {
-	string value = c.get_variable(_var);
+	const string &value = c.get_variable(_var);
 	bool retval;
 
 	if (Dflag)
@@ -577,7 +577,7 @@ void
 config::expand_one(const char *&src, string &dst)
 {
 	int count;
-	string buffer, varstr;
+	string buffer;
 
 	src++;
 	// $$ -> $
@@ -615,8 +615,7 @@ config::expand_one(const char *&src, string &dst)
 		buffer.append(src++, 1);
 	} while (is_id_char(*src));
 	buffer.append("", 1);
-	varstr = get_variable(buffer.c_str());
-	dst.append(varstr);
+	dst.append(get_variable(buffer.c_str()));
 }
 
 const string
