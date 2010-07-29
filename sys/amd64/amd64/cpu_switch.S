@@ -347,7 +347,7 @@ ENTRY(savectx)
 	lmsw	%ax
 
 	movq	$PCB_SAVEFPU_SIZE,%rdx	/* arg 3 */
-	movq	PCB_SAVEFPU(%rcx),%rsi	/* arg 2 */
+	leaq	PCB_USERFPU(%rcx),%rsi	/* arg 2 */
 	/* arg 1 (%rdi) already loaded */
 	call	bcopy
 1:
