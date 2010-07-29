@@ -47,25 +47,6 @@
 #include <linux/log2.h>
 #include <asm/byteorder.h>
 
-#define BUG()				panic("BUG")
-#define BUG_ON(condition)		do { if (condition) BUG(); } while(0)
-#define	WARN_ON				BUG_ON
-
-#undef	ALIGN
-#define	ALIGN(x, y)			roundup2((x), (y))
-#define	DIV_ROUND_UP			howmany
-
-#define	printk(X...)			printf(X)
-#define udelay(t)       		DELAY(t)
-
-#define container_of(ptr, type, member)				\
-({								\
-	__typeof(((type *)0)->member) *_p = (ptr);		\
-	(type *)((char *)_p - offsetof(type, member));		\
-})
-  
-#define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-
 #define	KERN_EMERG	"<0>"
 #define	KERN_ALERT	"<1>"
 #define	KERN_CRIT	"<2>"
@@ -75,8 +56,30 @@
 #define	KERN_INFO	"<6>"
 #define	KERN_DEBUG	"<7>"
 
+#define BUG()			panic("BUG")
+#define BUG_ON(condition)	do { if (condition) BUG(); } while(0)
+#define	WARN_ON			BUG_ON
+
+#undef	ALIGN
+#define	ALIGN(x, y)		roundup2((x), (y))
+#define	DIV_ROUND_UP		howmany
+
+#define	printk(X...)		printf(X)
+#define	pr_debug(fmt, ...)	printk(KERN_DEBUG # fmt, ##__VA_ARGS__)
+#define udelay(t)       	DELAY(t)
+
+#define container_of(ptr, type, member)				\
+({								\
+	__typeof(((type *)0)->member) *_p = (ptr);		\
+	(type *)((char *)_p - offsetof(type, member));		\
+})
+  
+#define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
+
 #define	simple_strtoul	strtoul
 
+#define min(x, y)	(x < y ? x : y)
+#define max(x, y)	(x > y ? x : y)
 #define min_t(type, _x, _y)	(type)(_x) < (type)(_y) ? (type)(_x) : (_y)
 #define max_t(type, _x, _y)	(type)(_x) > (type)(_y) ? (type)(_x) : (_y)
 

@@ -29,6 +29,8 @@
 #ifndef	_LINUX_COMPILER_H_
 #define	_LINUX_COMPILER_H_
 
+#include <sys/cdefs.h>
+
 #define __user
 #define __kernel
 #define __safe
@@ -47,9 +49,12 @@
 #define __devinitdata
 #define __init
 #define	__devinit
+#define	__devexit
 #define __exit
 #define	__stringify(x)			#x
 #define	__attribute_const__		__attribute__((__const__))
+#undef __always_inline
+#define	__always_inline			inline
 
 #define	likely(x)			__builtin_expect(!!(x), 1)
 #define	unlikely(x)			__builtin_expect(!!(x), 0)
