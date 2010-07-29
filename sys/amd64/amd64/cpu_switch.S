@@ -421,7 +421,7 @@ ENTRY(savectx2)
 	testq	%rax,%rax
 	je	1f
 	clts
-	fxsave	PCB_USER_FPU(%r8)
+	fxsave	PCB_USERFPU(%r8)
 1:
 
 	movl	$1, %eax
