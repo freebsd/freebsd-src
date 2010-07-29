@@ -479,9 +479,37 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
 
 	/*
-	 * Make sp 64-bit aligned.
+	 * The stack pointer has to be aligned to accommodate the largest
+	 * datatype at minimum.  This probably means it should be 16-byte
+	 * aligned, but for now we're 8-byte aligning it.
 	 */
 	td->td_frame->sp = ((register_t) stack) & ~(sizeof(__int64_t) - 1);
+
+	/*
+	 * If we're running o32 or n32 programs but have 64-bit registers,
+	 * GCC may use stack-relative addressing near the top of user
+	 * address space that, due to sign extension, will yield an
+	 * invalid address.  For instance, if sp is 0x7fffff00 then GCC
+	 * might do something like this to load a word from 0x7ffffff0:
+	 *
+	 * 	addu	sp, sp, 32768
+	 * 	lw	t0, -32528(sp)
+	 *
+	 * On systems with 64-bit registers, sp is sign-extended to
+	 * 0xffffffff80007f00 and the load is instead done from
+	 * 0xffffffff7ffffff0.
+	 *
+	 * To prevent this, we subtract 64K from the stack pointer here.
+	 *
+	 * For consistency, we should just always do this unless we're
+	 * running n64 programs.  For now, since we don't support
+	 * COMPAT_FREEBSD32 on n64 kernels, we just do it unless we're
+	 * running n64 kernels.
+	 */
+#if !defined(__mips_n64)
+	td->td_frame->sp -= 65536;
+#endif
+
 	td->td_frame->pc = imgp->entry_addr & ~3;
 	td->td_frame->t9 = imgp->entry_addr & ~3; /* abicall req */
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
