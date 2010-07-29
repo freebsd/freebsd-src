@@ -73,6 +73,7 @@ struct pmap;
 	uint64_t pc_nrq_size;                                           \
 	u_long	pc_tickref;						\
 	u_long	pc_tickadj;						\
+	u_long	pc_tickincrement;					\
 	struct rwindow pc_kwbuf;                                        \
 	u_long  pc_kwbuf_sp;                                            \
 	u_int   pc_kwbuf_full;                                          \

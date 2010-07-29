@@ -30,7 +30,6 @@
 #include <sys/systm.h>
 #include <machine/clock.h>
 
-u_long tick_increment;
 u_long tick_freq;
 u_long tick_MHz;
 
@@ -45,14 +44,4 @@ DELAY(int n)
 	end = start + (u_long)n * tick_MHz;
 	while (rd(tick) < end)
 		;
-}
-
-void
-cpu_startprofclock(void)
-{
-}
-
-void
-cpu_stopprofclock(void)
-{
 }

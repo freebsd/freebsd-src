@@ -96,7 +96,9 @@ __FBSDID("$FreeBSD$");
 #define	SUNW_STOPSELF		"SUNW,stop-self"
 
 static ih_func_t cpu_ipi_ast;
+static ih_func_t cpu_ipi_hardclock;
 static ih_func_t cpu_ipi_preempt;
+static ih_func_t cpu_ipi_statclock;
 static ih_func_t cpu_ipi_stop;
 
 /*
@@ -279,6 +281,8 @@ cpu_mp_start(void)
 	    -1, NULL, NULL);
 	intr_setup(PIL_STOP, cpu_ipi_stop, -1, NULL, NULL);
 	intr_setup(PIL_PREEMPT, cpu_ipi_preempt, -1, NULL, NULL);
+	intr_setup(PIL_HARDCLOCK, cpu_ipi_hardclock, -1, NULL, NULL);
+	intr_setup(PIL_STATCLOCK, cpu_ipi_statclock, -1, NULL, NULL);
 
 	cpuid_to_mid[curcpu] = PCPU_GET(mid);
 
@@ -437,9 +441,6 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	wrpr(pil, 0, PIL_TICK);
 	wrpr(pstate, 0, PSTATE_KERNEL);
 
-	/* Start the (S)TICK interrupts. */
-	tick_start();
-
 	smp_cpus++;
 	KASSERT(curthread != NULL, ("%s: curthread", __func__));
 	PCPU_SET(other_cpus, all_cpus & ~(1 << curcpu));
@@ -450,6 +451,9 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	csa->csa_state = CPU_BOOTSTRAP;
 	while (csa->csa_count != 0)
 		;
+
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
 
 	/* Ok, now enter the scheduler. */
 	sched_throw(NULL);
@@ -505,6 +509,20 @@ cpu_ipi_preempt(struct trapframe *tf)
 {
 
 	sched_preempt(curthread);
+}
+
+static void
+cpu_ipi_hardclock(struct trapframe *tf)
+{
+
+	hardclockintr(tf);
+}
+
+static void
+cpu_ipi_statclock(struct trapframe *tf)
+{
+
+	statclockintr(tf);
 }
 
 static void
