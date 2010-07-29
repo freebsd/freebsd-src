@@ -429,9 +429,26 @@ END(copyerr)
  * {fu,su},{byte,sword,word}, fetch or store a byte, short or word to
  * user data space.
  */
-LEAF(fuword)
-ALEAF(fuword32)
+#ifdef __mips_n64
+LEAF(fuword64)
+ALEAF(fuword)
 ALEAF(fuiword)
+	PTR_LA	v0, fswberr
+	blt	a0, zero, fswberr	# make sure address is in user space
+	nop
+	GET_CPU_PCPU(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	ld	v0, 0(a0)		# fetch word
+	j	ra
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+END(fuword64)
+#endif
+
+LEAF(fuword32)
+#ifndef __mips_n64
+ALEAF(fuword)
+#endif
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -441,7 +458,7 @@ ALEAF(fuiword)
 	lw	v0, 0(a0)		# fetch word
 	j	ra
 	PTR_S	zero, U_PCB_ONFAULT(v1)
-END(fuword)
+END(fuword32)
 
 LEAF(fusword)
 ALEAF(fuisword)
