@@ -39,4 +39,9 @@
 
 #define	virt_to_page(x)	PHYS_TO_VM_PAGE(vtophys((x)))
 
+#define	clear_page(page)	memset((page), 0, PAGE_SIZE)
+
+#undef	PAGE_MASK
+#define	PAGE_MASK	(~(PAGE_SIZE-1))
+
 #endif	/* _LINUX_PAGE_H_ */
