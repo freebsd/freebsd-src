@@ -51,12 +51,12 @@
 #define	GFP_IOFS	M_NOWAIT
 
 static inline unsigned long
-get_zeroed_page(gfp_t mask)
+_get_page(gfp_t mask)
 {
 	vm_page_t m;
 	vm_offset_t p;
 
-	p = kmem_malloc(kernel_map, PAGE_SIZE, mask | M_ZERO);
+	p = kmem_malloc(kmem_map, PAGE_SIZE, mask | M_ZERO);
 	if (p) {
 		m = virt_to_page(p);
 		m->flags |= PG_KVA;
@@ -64,6 +64,10 @@ get_zeroed_page(gfp_t mask)
 	}
 	return (p);
 }
+
+#define	get_zeroed_page(mask)	_get_page((mask) | M_ZERO)
+#define	alloc_page(mask)	virt_to_page(_get_page((mask)))
+#define	__get_free_page(mask)	_get_page((mask))
 
 static inline void
 free_page(unsigned long page)
@@ -73,29 +77,50 @@ free_page(unsigned long page)
 	m = virt_to_page(page);
 	if (m->flags & PG_KVA) {
 		m->flags &= ~PG_KVA;
-		m->object = kernel_object;
+		m->object = kmem_object;
 	}
-	kmem_free(kernel_map, page, PAGE_SIZE);
+	kmem_free(kmem_map, page, PAGE_SIZE);
+}
+
+static inline void
+__free_page(struct page *m)
+{
+	void *p;
+
+	if ((m->flags & PG_KVA) == 0)
+		panic("__free_page:  Freed page %p not allocated via wrappers.",
+		    m);
+	p = m->object;
+	m->flags &= ~PG_KVA;
+	m->object  = kmem_object;
+	kmem_free(kmem_map, (vm_offset_t)p, PAGE_SIZE);
 }
 
 static inline void
 __free_pages(void *p, unsigned int order)
 {
+	unsigned long start;
 	unsigned long page;
 	vm_page_t m;
 	size_t size;
 
-	size = order << PAGE_SHIFT;
-	for (page = (uintptr_t)p; p < (uintptr_t)p + size; page += PAGE_SIZE) {
+	size = PAGE_SIZE << order;
+	start = (unsigned long)p;
+	for (page = start; page < start + size; page += PAGE_SIZE) {
 		m = virt_to_page(page);
 		if (m->flags & PG_KVA) {
 			m->flags &= ~PG_KVA;
-			m->object = kernel_object;
+			m->object = kmem_object;
 		}
 	}
-	kmem_free(kernel_map, p, size);
+	kmem_free(kmem_map, (vm_offset_t)p, size);
 }
 
+/*
+ * Alloc pages allocates directly from the buddy allocator on linux so
+ * order specifies a power of two bucket of pages and the results
+ * are expected to be aligned on the size as well.
+ */
 static inline struct page *
 alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
@@ -104,9 +129,9 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
 	vm_page_t m;
 	size_t size;
 
-	size = order << PAGE_SHIFT;
-	start = kmem_alloc_contig(kernel_map, size, gfp_mask, 0, -1,
-	    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+	size = PAGE_SIZE << order;
+	start = kmem_alloc_contig(kmem_map, size, gfp_mask, 0, -1,
+	    size, 0, VM_MEMATTR_DEFAULT);
 	if (start == 0)
 		return (NULL);
 	for (page = start; page < start + size; page += PAGE_SIZE) {
