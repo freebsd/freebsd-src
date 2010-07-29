@@ -44,10 +44,18 @@
 #define	EXPORT_SYMBOL(name)
 #define	EXPORT_SYMBOL_GPL(name)
 
-#define	module_init(fn)						\
-	SYSINIT(fn, SI_SUB_DRIVERS, SI_ORDER_ANY, (fn), NULL)
+#define	module_init(fn)							\
+	SYSINIT(fn, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, (fn), NULL)
+
+/*
+ * XXX This is a freebsdism designed to work around not having a module
+ * load order resolver built in.
+ */
+#define	module_init_order(fn, order)					\
+	SYSINIT(fn, SI_SUB_RUN_SCHEDULER, (order), (fn), NULL)
+
 #define	module_exit(fn)						\
-	SYSUNINIT(fn, SI_SUB_DRIVERS, SI_ORDER_ANY, (fn), NULL)
+	SYSUNINIT(fn, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, (fn), NULL)
 
 #define	module_get(module)
 #define	module_put(module)
