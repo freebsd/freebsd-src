@@ -96,7 +96,9 @@ __FBSDID("$FreeBSD$");
 
 
 #ifdef TRAP_DEBUG
-int trap_debug = 1;
+int trap_debug = 0;
+SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,
+    &trap_debug, 0, "Debug information on all traps");
 #endif
 
 static void log_illegal_instruction(const char *, struct trapframe *);
@@ -259,7 +261,7 @@ static int allow_unaligned_acc = 1;
 SYSCTL_INT(_vm, OID_AUTO, allow_unaligned_acc, CTLFLAG_RW,
     &allow_unaligned_acc, 0, "Allow unaligned accesses");
 
-static int emulate_unaligned_access(struct trapframe *frame);
+static int emulate_unaligned_access(struct trapframe *frame, int mode);
 
 extern void fswintrberr(void); /* XXX */
 
@@ -555,7 +557,10 @@ dofault:
 
 	case T_ADDR_ERR_LD + T_USER:	/* misaligned or kseg access */
 	case T_ADDR_ERR_ST + T_USER:	/* misaligned or kseg access */
-		if (allow_unaligned_acc) {
+		if (trapframe->badvaddr < 0 ||
+		    trapframe->badvaddr >= VM_MAXUSER_ADDRESS) {
+			msg = "ADDRESS_SPACE_ERR";
+		} else if (allow_unaligned_acc) {
 			int mode;
 
 			if (type == (T_ADDR_ERR_LD + T_USER))
@@ -563,23 +568,13 @@ dofault:
 			else
 				mode = VM_PROT_WRITE;
 
-			/*
-			 * ADDR_ERR faults have higher priority than TLB
-			 * Miss faults.  Therefore, it is necessary to
-			 * verify that the faulting address is a valid
-			 * virtual address within the process' address space
-			 * before trying to emulate the unaligned access.
-			 */
-			if (useracc((caddr_t)
-			    (((vm_offset_t)trapframe->badvaddr) &
-			    ~(sizeof(int) - 1)), sizeof(int) * 2, mode)) {
-				access_type = emulate_unaligned_access(
-				    trapframe);
-				if (access_type != 0)
-					goto out;
-			}
+			access_type = emulate_unaligned_access(trapframe, mode);
+			if (access_type != 0)
+				goto out;
+			msg = "ALIGNMENT_FIX_ERR";
+		} else {
+			msg = "ADDRESS_ERR";
 		}
-		msg = "ADDRESS_ERR";
 
 		/* FALL THROUGH */
 
@@ -686,7 +681,9 @@ dofault:
 #endif
 			}
 #ifdef TRAP_DEBUG
-			printf("SYSCALL #%d pid:%u\n", code, p->p_pid);
+			if (trap_debug) {
+				printf("SYSCALL #%d pid:%u\n", code, p->p_pid);
+			}
 #endif
 
 			if (p->p_sysent->sv_mask)
@@ -723,8 +720,10 @@ dofault:
 				}
 			}
 #ifdef TRAP_DEBUG
-			for (i = 0; i < nargs; i++) {
-				printf("args[%d] = %#jx\n", i, (intmax_t)args[i]);
+			if (trap_debug) {
+				for (i = 0; i < nargs; i++) {
+					printf("args[%d] = %#jx\n", i, (intmax_t)args[i]);
+				}
 			}
 #endif
 #ifdef SYSCALL_TRACING
@@ -937,8 +936,10 @@ dofault:
 	case T_ADDR_ERR_LD:	/* misaligned access */
 	case T_ADDR_ERR_ST:	/* misaligned access */
 #ifdef TRAP_DEBUG
-		printf("+++ ADDR_ERR: type = %d, badvaddr = %#jx\n", type,
-		    (intmax_t)trapframe->badvaddr);
+		if (trap_debug) {
+			printf("+++ ADDR_ERR: type = %d, badvaddr = %#jx\n", type,
+			    (intmax_t)trapframe->badvaddr);
+		}
 #endif
 		/* Only allow emulation on a user address */
 		if (allow_unaligned_acc &&
@@ -950,22 +951,9 @@ dofault:
 			else
 				mode = VM_PROT_WRITE;
 
-			/*
-			 * ADDR_ERR faults have higher priority than TLB
-			 * Miss faults.  Therefore, it is necessary to
-			 * verify that the faulting address is a valid
-			 * virtual address within the process' address space
-			 * before trying to emulate the unaligned access.
-			 */
-			if (useracc((caddr_t)
-			    (((vm_offset_t)trapframe->badvaddr) &
-			    ~(sizeof(int) - 1)), sizeof(int) * 2, mode)) {
-				access_type = emulate_unaligned_access(
-				    trapframe);
-				if (access_type != 0) {
-					return (trapframe->pc);
-				}
-			}
+			access_type = emulate_unaligned_access(trapframe, mode);
+			if (access_type != 0)
+				return (trapframe->pc);
 		}
 		/* FALLTHROUGH */
 
@@ -997,9 +985,10 @@ err:
 			printf("kernel mode)\n");
 
 #ifdef TRAP_DEBUG
-		printf("badvaddr = %#jx, pc = %#jx, ra = %#jx, sr = %#jxx\n",
-		       (intmax_t)trapframe->badvaddr, (intmax_t)trapframe->pc, (intmax_t)trapframe->ra,
-		       (intmax_t)trapframe->sr);
+		if (trap_debug)
+			printf("badvaddr = %#jx, pc = %#jx, ra = %#jx, sr = %#jxx\n",
+			       (intmax_t)trapframe->badvaddr, (intmax_t)trapframe->pc, (intmax_t)trapframe->ra,
+			       (intmax_t)trapframe->sr);
 #endif
 
 #ifdef KDB
@@ -1433,76 +1422,120 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
  * Unaligned load/store emulation
  */
 static int
-mips_unaligned_load_store(struct trapframe *frame, register_t addr, register_t pc)
+mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, register_t pc)
 {
 	register_t *reg = (register_t *) frame;
 	u_int32_t inst = *((u_int32_t *)(intptr_t)pc);
-	u_int32_t value_msb, value;
-	int access_type = 0;
+	register_t value_msb, value;
+	unsigned size;
 
+	/*
+	 * ADDR_ERR faults have higher priority than TLB
+	 * Miss faults.  Therefore, it is necessary to
+	 * verify that the faulting address is a valid
+	 * virtual address within the process' address space
+	 * before trying to emulate the unaligned access.
+	 */
+	switch (MIPS_INST_OPCODE(inst)) {
+	case OP_LHU: case OP_LH:
+	case OP_SH:
+		size = 2;
+		break;
+	case OP_LWU: case OP_LW:
+	case OP_SW:
+		size = 4;
+		break;
+	case OP_LD:
+	case OP_SD:
+		size = 8;
+		break;
+	default:
+		printf("%s: unhandled opcode in address error: %#x\n", __func__, MIPS_INST_OPCODE(inst));
+		return (0);
+	}
+
+	if (!useracc((void *)((vm_offset_t)addr & ~(size - 1)), size * 2, mode))
+		return (0);
+
+	/*
+	 * XXX
+	 * Handle LL/SC LLD/SCD.
+	 */
 	switch (MIPS_INST_OPCODE(inst)) {
 	case OP_LHU:
+		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
 		lbu_macro(value_msb, addr);
 		addr += 1;
 		lbu_macro(value, addr);
 		value |= value_msb << 8;
 		reg[MIPS_INST_RT(inst)] = value;
-		access_type = MIPS_LHU_ACCESS;
-		break;
+		return (MIPS_LHU_ACCESS);
 
 	case OP_LH:
+		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
 		lb_macro(value_msb, addr);
 		addr += 1;
 		lbu_macro(value, addr);
 		value |= value_msb << 8;
 		reg[MIPS_INST_RT(inst)] = value;
-		access_type = MIPS_LH_ACCESS;
-		break;
+		return (MIPS_LH_ACCESS);
 
 	case OP_LWU:
+		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
 		lwl_macro(value, addr);
 		addr += 3;
 		lwr_macro(value, addr);
 		value &= 0xffffffff;
 		reg[MIPS_INST_RT(inst)] = value;
-		access_type = MIPS_LWU_ACCESS;
-		break;
+		return (MIPS_LWU_ACCESS);
 
 	case OP_LW:
+		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
 		lwl_macro(value, addr);
 		addr += 3;
 		lwr_macro(value, addr);
 		reg[MIPS_INST_RT(inst)] = value;
-		access_type = MIPS_LW_ACCESS;
-		break;
+		return (MIPS_LW_ACCESS);
+
+	case OP_LD:
+		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
+		ldl_macro(value, addr);
+		addr += 7;
+		ldr_macro(value, addr);
+		reg[MIPS_INST_RT(inst)] = value;
+		return (MIPS_LD_ACCESS);
 
 	case OP_SH:
+		KASSERT(mode == VM_PROT_WRITE, ("access mode must be write for store instruction."));
 		value = reg[MIPS_INST_RT(inst)];
 		value_msb = value >> 8;
 		sb_macro(value_msb, addr);
 		addr += 1;
 		sb_macro(value, addr);
-		access_type = MIPS_SH_ACCESS;
-		break;
+		return (MIPS_SH_ACCESS);
 
 	case OP_SW:
+		KASSERT(mode == VM_PROT_WRITE, ("access mode must be write for store instruction."));
 		value = reg[MIPS_INST_RT(inst)];
 		swl_macro(value, addr);
 		addr += 3;
 		swr_macro(value, addr);
-		access_type = MIPS_SW_ACCESS;
-		break;
+		return (MIPS_SW_ACCESS);
 
-	default:
-		break;
+	case OP_SD:
+		KASSERT(mode == VM_PROT_WRITE, ("access mode must be write for store instruction."));
+		value = reg[MIPS_INST_RT(inst)];
+		sdl_macro(value, addr);
+		addr += 7;
+		sdr_macro(value, addr);
+		return (MIPS_SD_ACCESS);
 	}
-
-	return access_type;
+	panic("%s: should not be reached.", __func__);
 }
 
 
 static int
-emulate_unaligned_access(struct trapframe *frame)
+emulate_unaligned_access(struct trapframe *frame, int mode)
 {
 	register_t pc;
 	int access_type = 0;
@@ -1523,7 +1556,7 @@ emulate_unaligned_access(struct trapframe *frame)
 		 * Otherwise restore pc and fall through.
 		 */
 		access_type = mips_unaligned_load_store(frame,
-		    frame->badvaddr, pc);
+		    mode, frame->badvaddr, pc);
 
 		if (access_type) {
 			if (DELAYBRANCH(frame->cause))
