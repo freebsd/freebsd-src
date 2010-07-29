@@ -567,8 +567,8 @@ build_frag_list(struct mbuf *m_head, struct msgrng_msg *p2p_msg, struct p2d_tx_d
 	paddr = vtophys((vm_offset_t)tx_desc);
 	tx_desc->frag[nfrag] = (1ULL << 63) | (fr_stid << 54) | paddr;
 	nfrag++;
-	tx_desc->frag[XLR_MAX_TX_FRAGS] = (uint64_t) (vm_offset_t)tx_desc;
-	tx_desc->frag[XLR_MAX_TX_FRAGS + 1] = (uint64_t) (vm_offset_t)m_head;
+	tx_desc->frag[XLR_MAX_TX_FRAGS] = (uint64_t)(intptr_t)tx_desc;
+	tx_desc->frag[XLR_MAX_TX_FRAGS + 1] = (uint64_t)(intptr_t)m_head;
 
 	p2d_len = (nfrag * 8);
 	p2p_msg->msg0 = (1ULL << 63) | (1ULL << 62) | (127ULL << 54) |
@@ -614,19 +614,27 @@ static void
 free_buf(vm_paddr_t paddr)
 {
 	struct mbuf *m;
-	uint32_t mag, um, sr;
+	uint32_t mag;
+#ifdef __mips_n64
+	uint64_t *vaddr;
+
+	vaddr = (uint64_t *)MIPS_PHYS_TO_XKPHYS_CACHED(paddr);
+	m = (struct mbuf *)vaddr[0];
+	mag = (uint32_t)vaddr[1];
+#else
+	uint32_t sr;
 
 	sr = xlr_enable_kx();
-	um = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE);
-	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
+	m = (struct mbuf *)(intptr_t)xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
+	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + 3 * sizeof(uint32_t));
 	mips_wr_status(sr);
+#endif
 
 	if (mag != 0xf00bad) {
 		printf("Something is wrong kseg:%lx found mag:%x not 0xf00bad\n",
 		    (u_long)paddr, mag);
 		return;
 	}
-	m = (struct mbuf *)(intptr_t)um;
 	if (m != NULL)
 		m_freem(m);
 }
@@ -635,7 +643,7 @@ static void *
 get_buf(void)
 {
 	struct mbuf *m_new = NULL;
-	unsigned int *md;
+	uint64_t *md;
 #ifdef INVARIANTS
 	vm_paddr_t temp1, temp2;
 #endif
@@ -645,7 +653,7 @@ get_buf(void)
 		return NULL;
 
 	m_adj(m_new, XLR_CACHELINE_SIZE - ((uintptr_t)m_new->m_data & 0x1f));
-	md = (unsigned int *)m_new->m_data;
+	md = (uint64_t *)m_new->m_data;
 	md[0] = (uintptr_t)m_new;	/* Back Ptr */
 	md[1] = 0xf00bad;
 	m_adj(m_new, XLR_CACHELINE_SIZE);
@@ -2033,18 +2041,30 @@ static void
 rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 {
 	struct mbuf *m;
-	uint32_t tm, mag, sr;
+	uint32_t mag;
 	struct ifnet *ifp = sc->rge_ifp;
+#ifdef __mips_n64
+	uint64_t *vaddr;
 
+	vaddr =(uint64_t *)MIPS_PHYS_TO_XKPHYS_CACHED(paddr - XLR_CACHELINE_SIZE);
+	m = (struct mbuf *)vaddr[0];
+	mag = (uint32_t)vaddr[1];
+#else
+	uint32_t sr;
+	/*
+	 * On 32 bit machines we use XKPHYS to get the values stores with
+	 * the mbuf, need to explicitly enable KX. Disable interrupts while
+	 * KX is enabled to prevent this setting leaking to other code.
+	 */
 	sr = xlr_enable_kx();
-	tm = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE);
-	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
+	m = (struct mbuf *)(intptr_t)xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
+	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + 3 * sizeof(uint32_t));
 	mips_wr_status(sr);
-
-	m = (struct mbuf *)(intptr_t)tm;
+#endif
 	if (mag != 0xf00bad) {
 		/* somebody else packet Error - FIXME in intialization */
-		printf("cpu %d: *ERROR* Not my packet paddr %p\n", xlr_cpu_id(), (void *)paddr);
+		printf("cpu %d: *ERROR* Not my packet paddr %p\n",
+		    xlr_cpu_id(), (void *)paddr);
 		return;
 	}
 	/* align the data */
