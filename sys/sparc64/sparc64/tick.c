@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/timeet.h>
 #include <sys/timetc.h>
 
 #include <dev/ofw/openfirm.h>
@@ -48,9 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tick.h>
 #include <machine/ver.h>
 
-/* 10000 ticks proved okay for 500MHz. */
-#define	TICK_GRACE(clock)	((clock) / 1000000 * 2 * 10)
-
+#define	STICK_QUALITY	-500
 #define	TICK_QUALITY_MP	10
 #define	TICK_QUALITY_UP	1000
 
@@ -76,20 +75,25 @@ u_int hardclock_use_stick = 0;
 SYSCTL_INT(_machdep_tick, OID_AUTO, hardclock_use_stick, CTLFLAG_RD,
     &hardclock_use_stick, 0, "hardclock uses STICK instead of TICK timer");
 
+static struct timecounter stick_tc;
 static struct timecounter tick_tc;
-static u_long tick_increment;
+static struct eventtimer tick_et;
 
 static uint64_t tick_cputicks(void);
+static timecounter_get_t stick_get_timecount;
 static timecounter_get_t tick_get_timecount_up;
 #ifdef SMP
 static timecounter_get_t tick_get_timecount_mp;
 #endif
-static void tick_hardclock(struct trapframe *tf);
-static void tick_hardclock_bbwar(struct trapframe *tf);
+static int tick_et_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period);
+static int tick_et_stop(struct eventtimer *et);
+static void tick_intr(struct trapframe *tf);
+static void tick_intr_bbwar(struct trapframe *tf);
 static inline void tick_hardclock_common(struct trapframe *tf, u_long tick,
     u_long adj);
 static inline void tick_process(struct trapframe *tf);
-static void stick_hardclock(struct trapframe *tf);
+static void stick_intr(struct trapframe *tf);
 
 static uint64_t
 tick_cputicks(void)
@@ -101,39 +105,34 @@ tick_cputicks(void)
 void
 cpu_initclocks(void)
 {
-	uint32_t clock;
+	uint32_t clock, sclock;
 
-	stathz = hz;
-
+	clock = PCPU_GET(clock);
+	sclock = 0;
+	if (PCPU_GET(impl) == CPU_IMPL_SPARC64V ||
+	    PCPU_GET(impl) >= CPU_IMPL_ULTRASPARCIII) {
+		if (OF_getprop(OF_parent(PCPU_GET(node)), "stick-frequency",
+		    &sclock, sizeof(sclock)) == -1) {
+			panic("%s: could not determine STICK frequency",
+			    __func__);
+		}
+	}
 	/*
 	 * Given that the STICK timers typically are driven at rather low
 	 * frequencies they shouldn't be used except when really necessary.
 	 */
 	if (hardclock_use_stick != 0) {
-		if (OF_getprop(OF_parent(PCPU_GET(node)), "stick-frequency",
-		    &clock, sizeof(clock)) == -1)
-		panic("%s: could not determine STICK frequency", __func__);
-		intr_setup(PIL_TICK, stick_hardclock, -1, NULL, NULL);
+		intr_setup(PIL_TICK, stick_intr, -1, NULL, NULL);
 		/*
 		 * We don't provide a CPU ticker as long as the frequency
 		 * supplied isn't actually used per-CPU.
 		 */
 	} else {
-		clock = PCPU_GET(clock);
 		intr_setup(PIL_TICK, PCPU_GET(impl) >= CPU_IMPL_ULTRASPARCI &&
 		    PCPU_GET(impl) < CPU_IMPL_ULTRASPARCIII ?
-		    tick_hardclock_bbwar : tick_hardclock, -1, NULL, NULL);
+		    tick_intr_bbwar : tick_intr, -1, NULL, NULL);
 		set_cputicker(tick_cputicks, clock, 0);
 	}
-	tick_increment = clock / hz;
-	/*
-	 * Avoid stopping of hardclock in terms of a lost (S)TICK interrupt
-	 * by ensuring that the (S)TICK period is at least TICK_GRACE ticks.
-	 */
-	if (tick_increment < TICK_GRACE(clock))
-		panic("%s: HZ too high, decrease to at least %d",
-		    __func__, clock / TICK_GRACE(clock));
-	tick_start();
 
 	/*
 	 * Initialize the TICK-based timecounter.  This must not happen
@@ -142,7 +141,7 @@ cpu_initclocks(void)
 	tick_tc.tc_get_timecount = tick_get_timecount_up;
 	tick_tc.tc_poll_pps = NULL;
 	tick_tc.tc_counter_mask = ~0u;
-	tick_tc.tc_frequency = PCPU_GET(clock);
+	tick_tc.tc_frequency = clock;
 	tick_tc.tc_name = "tick";
 	tick_tc.tc_quality = TICK_QUALITY_UP;
 	tick_tc.tc_priv = NULL;
@@ -161,19 +160,46 @@ cpu_initclocks(void)
 	}
 #endif
 	tc_init(&tick_tc);
+	if (sclock != 0) {
+		stick_tc.tc_get_timecount = stick_get_timecount;
+		stick_tc.tc_poll_pps = NULL;
+		stick_tc.tc_counter_mask = ~0u;
+		stick_tc.tc_frequency = sclock;
+		stick_tc.tc_name = "stick";
+		stick_tc.tc_quality = STICK_QUALITY;
+		stick_tc.tc_priv = NULL;
+		tc_init(&stick_tc);
+	}
+	tick_et.et_name = hardclock_use_stick ? "stick" : "tick";
+	tick_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |      
+	    ET_FLAGS_PERCPU;
+	tick_et.et_quality = 1000;
+	tick_et.et_frequency = hardclock_use_stick ? sclock : clock;
+	tick_et.et_min_period.sec = 0;
+	tick_et.et_min_period.frac = 0x00010000LLU << 32; /* To be safe. */
+	tick_et.et_max_period.sec = 3600 * 24; /* No practical limit. */
+	tick_et.et_max_period.frac = 0;
+	tick_et.et_start = tick_et_start;
+	tick_et.et_stop = tick_et_stop;
+	tick_et.et_priv = NULL;
+	et_register(&tick_et);
+	
+	cpu_initclocks_bsp();
 }
 
 static inline void
 tick_process(struct trapframe *tf)
 {
+	struct trapframe *oldframe;
+	struct thread *td;
 
-	if (curcpu == 0)
-		hardclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
-	else
-		hardclock_cpu(TRAPF_USERMODE(tf));
-	if (profprocs != 0)
-		profclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
-	statclock(TRAPF_USERMODE(tf));
+	if (tick_et.et_active) {
+		td = curthread;
+		oldframe = td->td_intr_frame;
+		td->td_intr_frame = tf;
+		tick_et.et_event_cb(&tick_et, tick_et.et_arg);
+		td->td_intr_frame = oldframe;
+	}
 }
 
 /*
@@ -184,48 +210,60 @@ tick_process(struct trapframe *tf)
  */
 
 static void
-tick_hardclock(struct trapframe *tf)
+tick_intr(struct trapframe *tf)
 {
-	u_long adj, tick;
+	u_long adj, tick, tick_increment;
 	register_t s;
 
 	critical_enter();
 	adj = PCPU_GET(tickadj);
+	tick_increment = PCPU_GET(tickincrement);
 	s = intr_disable();
 	tick = rd(tick);
-	wr(tick_cmpr, tick + tick_increment - adj, 0);
+	if (tick_increment != 0)
+		wr(tick_cmpr, tick + tick_increment - adj, 0);
+	else
+		wr(tick_cmpr, 1L << 63, 0);
 	intr_restore(s);
 	tick_hardclock_common(tf, tick, adj);
 	critical_exit();
 }
 
 static void
-tick_hardclock_bbwar(struct trapframe *tf)
+tick_intr_bbwar(struct trapframe *tf)
 {
-	u_long adj, tick;
+	u_long adj, tick, tick_increment;
 	register_t s;
 
 	critical_enter();
 	adj = PCPU_GET(tickadj);
+	tick_increment = PCPU_GET(tickincrement);
 	s = intr_disable();
 	tick = rd(tick);
-	wrtickcmpr(tick + tick_increment - adj, 0);
+	if (tick_increment != 0)
+		wrtickcmpr(tick + tick_increment - adj, 0);
+	else
+		wrtickcmpr(1L << 63, 0);
 	intr_restore(s);
 	tick_hardclock_common(tf, tick, adj);
 	critical_exit();
 }
 
 static void
-stick_hardclock(struct trapframe *tf)
+stick_intr(struct trapframe *tf)
 {
-	u_long adj, stick;
+	u_long adj, stick, tick_increment;
 	register_t s;
 
 	critical_enter();
 	adj = PCPU_GET(tickadj);
+	tick_increment = PCPU_GET(tickincrement);
 	s = intr_disable();
 	stick = rdstick();
-	wrstickcmpr(stick + tick_increment - adj, 0);
+	if (tick_increment != 0)
+		wrstickcmpr(stick + tick_increment - adj, 0);
+	else
+		wrstickcmpr(1L << 63, 0);
 	intr_restore(s);
 	tick_hardclock_common(tf, stick, adj);
 	critical_exit();
@@ -234,10 +272,11 @@ stick_hardclock(struct trapframe *tf)
 static inline void
 tick_hardclock_common(struct trapframe *tf, u_long tick, u_long adj)
 {
-	u_long ref;
+	u_long ref, tick_increment;
 	long delta;
 	int count;
 
+	tick_increment = PCPU_GET(tickincrement);
 	ref = PCPU_GET(tickref);
 	delta = tick - ref;
 	count = 0;
@@ -248,6 +287,8 @@ tick_hardclock_common(struct trapframe *tf, u_long tick, u_long adj)
 		if (adj != 0)
 			adjust_ticks++;
 		count++;
+		if (tick_increment == 0)
+			break;
 	}
 	if (count > 0) {
 		adjust_missed += count - 1;
@@ -263,6 +304,13 @@ tick_hardclock_common(struct trapframe *tf, u_long tick, u_long adj)
 	}
 	PCPU_SET(tickref, ref);
 	PCPU_SET(tickadj, adj);
+}
+
+static u_int
+stick_get_timecount(struct timecounter *tc)
+{
+
+	return ((u_int)rdstick());
 }
 
 static u_int
@@ -294,11 +342,27 @@ tick_get_timecount_mp(struct timecounter *tc)
 }
 #endif
 
-void
-tick_start(void)
+static int
+tick_et_start(struct eventtimer *et,
+    struct bintime *first, struct bintime *period)
 {
+	u_long fdiv, div;
 	u_long base;
 	register_t s;
+
+	if (period != NULL) {
+		div = (tick_et.et_frequency * (period->frac >> 32)) >> 32;
+		if (period->sec != 0)
+			div += tick_et.et_frequency * period->sec;
+	} else
+		div = 0;
+	if (first != NULL) {
+		fdiv = (tick_et.et_frequency * (first->frac >> 32)) >> 32;
+		if (first->sec != 0)
+			fdiv += tick_et.et_frequency * first->sec;
+	} else 
+		fdiv = div;
+	PCPU_SET(tickincrement, div);
 
 	/*
 	 * Try to make the (S)TICK interrupts as synchronously as possible
@@ -312,14 +376,25 @@ tick_start(void)
 		base = rdstick();
 	else
 		base = rd(tick);
-	base = roundup(base, tick_increment);
+	if (div != 0)
+		base = roundup(base, div);
 	PCPU_SET(tickref, base);
 	if (hardclock_use_stick != 0)
-		wrstickcmpr(base + tick_increment, 0);
+		wrstickcmpr(base + fdiv, 0);
 	else
-		wrtickcmpr(base + tick_increment, 0);
+		wrtickcmpr(base + fdiv, 0);
 	intr_restore(s);
 	critical_exit();
+	return (0);
+}
+
+static int
+tick_et_stop(struct eventtimer *et)
+{
+
+	PCPU_SET(tickincrement, 0);
+	tick_stop(PCPU_GET(impl));
+	return (0);
 }
 
 void
