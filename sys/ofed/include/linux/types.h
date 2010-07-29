@@ -46,6 +46,6 @@ typedef unsigned gfp_t;
 typedef uint64_t loff_t;
 
 #define	DECLARE_BITMAP(n, bits)						\
-	unsigned long n[howmany(howmany(bits, 8), sizeof(long) / 8)]
+	unsigned long n[howmany(bits, sizeof(long) * 8)]
 
 #endif	/* _LINUX_TYPES_H_ */

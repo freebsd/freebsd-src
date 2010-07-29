@@ -34,7 +34,19 @@
 #define	BITS_PER_LONG		32
 #endif
 #define	BIT_MASK(n)		(~0UL >> (BITS_PER_LONG - (n)))
-#define	BITS_TO_LONGS(n)	roundup2((n), BITS_PER_LONG)
+#define	BITS_TO_LONGS(n)	howmany((n), BITS_PER_LONG)
+
+static inline int
+__ffs(int mask)
+{
+	return (ffs(mask) - 1);
+}
+
+static inline int
+__fls(int mask)
+{
+	return (fls(mask) - 1);
+}
 
 static inline int
 __ffsl(long mask)
@@ -51,7 +63,7 @@ __flsl(long mask)
 static inline unsigned long
 find_first_bit(unsigned long *addr, unsigned long size)
 {
-	int mask;
+	long mask;
 	int bit;
 
 	for (bit = 0; size >= BITS_PER_LONG;
@@ -73,7 +85,7 @@ find_first_bit(unsigned long *addr, unsigned long size)
 static inline unsigned long
 find_first_zero_bit(unsigned long *addr, unsigned long size)
 {
-	int mask;
+	long mask;
 	int bit;
 
 	for (bit = 0; size >= BITS_PER_LONG;
@@ -95,7 +107,7 @@ find_first_zero_bit(unsigned long *addr, unsigned long size)
 static inline unsigned long
 find_last_bit(unsigned long *addr, unsigned long size)
 {
-	int mask;
+	long mask;
 	int offs;
 	int bit;
 	int pos;
@@ -121,7 +133,7 @@ find_last_bit(unsigned long *addr, unsigned long size)
 static inline unsigned long
 find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
 {
-	int mask;
+	long mask;
 	int offs;
 	int bit;
 	int pos;
@@ -157,7 +169,7 @@ static inline unsigned long
 find_next_zero_bit(unsigned long *addr, unsigned long size,
     unsigned long offset)
 {
-	int mask;
+	long mask;
 	int offs;
 	int bit;
 	int pos;
@@ -194,7 +206,7 @@ bitmap_zero(unsigned long *addr, int size)
 {
 	int len;
 
-	len = BITS_TO_LONGS(size) * sizeof(*addr);
+	len = BITS_TO_LONGS(size) * sizeof(long);
 	memset(addr, 0, len);
 }
 
@@ -204,16 +216,19 @@ bitmap_fill(unsigned long *addr, int size)
 	int tail;
 	int len;
 
-	len = BITS_TO_LONGS(size) * sizeof(*addr);
+	len = BITS_TO_LONGS(size) * sizeof(long);
 	memset(addr, 0xff, len);
 	tail = size & (BITS_PER_LONG - 1);
-	if (tail) 
-		addr[len - 1] = ((unsigned long)-1) >> (BITS_PER_LONG - tail);
+	if (tail)  {
+		len /= sizeof(long);
+		addr[len - 1] = ((unsigned long)-1L) >> (BITS_PER_LONG - tail);
+	}
 }
 
 static inline int
 bitmap_full(unsigned long *addr, int size)
 {
+	long mask;
 	int tail;
 	int len;
 	int i;
@@ -223,21 +238,44 @@ bitmap_full(unsigned long *addr, int size)
 		if (addr[i] != (unsigned long)-1)
 			return (0);
 	tail = size & (BITS_PER_LONG - 1);
-	if (tail)
-		if (addr[i] != ((unsigned long)-1) >> (BITS_PER_LONG - tail))
+	if (tail) {
+		mask = ((unsigned long)-1L) >> (BITS_PER_LONG - tail);
+		if ((addr[i] & mask) != mask)
 			return (0);
+	}
+	return (1);
+}
+
+static inline int
+bitmap_empty(unsigned long *addr, int size)
+{
+	long mask;
+	int tail;
+	int len;
+	int i;
+
+	len = size / BITS_PER_LONG;
+	for (i = 0; i < len; i++)
+		if (addr[i] != 0)
+			return (0);
+	tail = size & (BITS_PER_LONG - 1);
+	if (tail) {
+		mask = ((unsigned long)-1L) >> (BITS_PER_LONG - tail);
+		if ((addr[i] & mask) != 0)
+			return (0);
+	}
 	return (1);
 }
 
 #define	NBINT	(NBBY * sizeof(int))
 
 #define	set_bit(i, a)							\
-    atomic_set_int((volatile int *)(a)[(i)/NBINT], (i) % NBINT)
+    atomic_set_int((volatile int *)&(a)[(i)/NBINT], 1 << (i) % NBINT)
 
 #define	clear_bit(i, a)							\
-    atomic_clear_int((volatile int *)(a)[(i)/NBINT], (i) % NBINT)
+    atomic_clear_int((volatile int *)&(a)[(i)/NBINT], 1 << (i) % NBINT)
 
 #define	test_bit(i, a)							\
-    !!(atomic_load_acq_int((volatile int *)(a)[(i)/NBINT]) & 1 << ((i) % NBINT))
+    !!(atomic_load_acq_int((volatile int *)&(a)[(i)/NBINT]) & 1 << ((i) % NBINT))
 
 #endif	/* _LINUX_BITOPS_H_ */
