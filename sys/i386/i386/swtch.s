@@ -416,7 +416,7 @@ ENTRY(savectx)
 	popl	%ecx
 
 	pushl	$PCB_SAVEFPU_SIZE
-	movl	PCB_SAVEFPU(%ecx),%ecx
+	leal	PCB_USERFPU(%ecx),%ecx
 	pushl	%ecx
 	pushl	%eax
 	call	bcopy
