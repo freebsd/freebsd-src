@@ -81,4 +81,10 @@
 #define	swab32	bswap32
 #define	swab64	bswap64
 
+static inline void
+be16_add_cpu(u16 *var, u16 val)
+{ 
+	*var = cpu_to_be16(be16_to_cpu(*var) + val);
+}
+
 #endif	/* _ASM_BYTEORDER_H_ */
