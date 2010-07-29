@@ -133,7 +133,7 @@ __FBSDID("$FreeBSD$");
 #else
 #define	NUSERPGTBLS		(pmap_segshift(VM_MAXUSER_ADDRESS))
 #endif
-#define	mips_segtrunc(va)	((va) & ~SEGOFSET)
+#define	mips_segtrunc(va)	((va) & ~SEGMASK)
 #define	is_kernel_pmap(x)	((x) == kernel_pmap)
 
 /*
@@ -2902,14 +2902,14 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 		return;
 	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
 		offset += ptoa(object->pg_color);
-	superpage_offset = offset & SEGOFSET;
-	if (size - ((NBSEG - superpage_offset) & SEGOFSET) < NBSEG ||
-	    (*addr & SEGOFSET) == superpage_offset)
+	superpage_offset = offset & SEGMASK;
+	if (size - ((NBSEG - superpage_offset) & SEGMASK) < NBSEG ||
+	    (*addr & SEGMASK) == superpage_offset)
 		return;
-	if ((*addr & SEGOFSET) < superpage_offset)
-		*addr = (*addr & ~SEGOFSET) + superpage_offset;
+	if ((*addr & SEGMASK) < superpage_offset)
+		*addr = (*addr & ~SEGMASK) + superpage_offset;
 	else
-		*addr = ((*addr + SEGOFSET) & ~SEGOFSET) + superpage_offset;
+		*addr = ((*addr + SEGMASK) & ~SEGMASK) + superpage_offset;
 }
 
 /*
