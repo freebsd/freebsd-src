@@ -74,6 +74,8 @@ struct task_struct {
 do {									\
 	void *c;							\
 									\
+	if (cold)							\
+		break;							\
 	c = curthread;							\
 	sleepq_lock(c);							\
 	if (current->state == TASK_INTERRUPTIBLE ||			\
@@ -100,6 +102,8 @@ do {									\
 		kick_proc0();						\
 } while (0)
 
-#define	cond_resched()	sched_relinquish(curthread)
+#define	cond_resched()	if (!cold)	sched_relinquish(curthread)
+
+#define	sched_yield()	sched_relinquish(curthread)
 
 #endif	/* _LINUX_SCHED_H_ */

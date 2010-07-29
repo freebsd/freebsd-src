@@ -74,10 +74,8 @@ _wait_for_common(struct completion *c, int flags)
 	flags |= SLEEPQ_SLEEP;
 	for (;;) {
 		sleepq_lock(c);
-		if (c->done) {
-			sleepq_release(c);
+		if (c->done)
 			break;
-		}
 		sleepq_add(c, NULL, "completion", flags, 0);
 		if (flags & SLEEPQ_INTERRUPTIBLE) {
 			if (sleepq_wait_sig(c, 0) != 0)
@@ -104,10 +102,8 @@ _wait_for_timeout_common(struct completion *c, long timeout, int flags)
 	flags |= SLEEPQ_SLEEP;
 	for (;;) {
 		sleepq_lock(c);
-		if (c->done) {
-			sleepq_release(c);
+		if (c->done)
 			break;
-		}
 		sleepq_add(c, NULL, "completion", flags, 0);
 		sleepq_set_timeout(c, end - ticks);
 		if (flags & SLEEPQ_INTERRUPTIBLE) {
