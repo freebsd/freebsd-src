@@ -86,10 +86,10 @@
 #include "opt_ddb.h"
 
 #ifdef NETDUMP_DEBUG
-#ifdef	NETDDEBUG(f, ...)		printf((f), ## __VA_ARGS__)
+#define	NETDDEBUG(f, ...)		printf((f), ## __VA_ARGS__)
 #define	NETDDEBUG_IF(i, f, ...)		if_printf((i), (f), ## __VA_ARGS__)
 #if NETDUMP_DEBUG > 1
-#ifdef	NETDDEBUGV(f, ...)		printf((f), ## __VA_ARGS__)
+#define	NETDDEBUGV(f, ...)		printf((f), ## __VA_ARGS__)
 #define	NETDDEBUGV_IF(i, f, ...)	if_printf((i), (f), ## __VA_ARGS__)
 #else
 #define	NETDDEBUGV(f, ...)
