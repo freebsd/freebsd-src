@@ -103,8 +103,13 @@
 #define	PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
 #define	PAGE_SIZE	(1<<PAGE_SHIFT) /* bytes/page */
 #define	PAGE_MASK	(PAGE_SIZE-1)
+
 #define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 #define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
+
+#define	SEGSHIFT	22		/* LOG2(NBSEG) */
+#define	NBSEG		(1 << SEGSHIFT)	/* bytes/segment */
+#define	SEGMASK		(NBSEG-1)	/* byte offset into segment */
 
 #define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
 
