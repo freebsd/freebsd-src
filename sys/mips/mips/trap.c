@@ -1497,6 +1497,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 		reg[MIPS_INST_RT(inst)] = value;
 		return (MIPS_LW_ACCESS);
 
+#if defined(__mips_n32) || defined(__mips_n64)
 	case OP_LD:
 		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
 		ldl_macro(value, addr);
@@ -1504,6 +1505,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 		ldr_macro(value, addr);
 		reg[MIPS_INST_RT(inst)] = value;
 		return (MIPS_LD_ACCESS);
+#endif
 
 	case OP_SH:
 		KASSERT(mode == VM_PROT_WRITE, ("access mode must be write for store instruction."));
@@ -1522,6 +1524,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 		swr_macro(value, addr);
 		return (MIPS_SW_ACCESS);
 
+#if defined(__mips_n32) || defined(__mips_n64)
 	case OP_SD:
 		KASSERT(mode == VM_PROT_WRITE, ("access mode must be write for store instruction."));
 		value = reg[MIPS_INST_RT(inst)];
@@ -1529,6 +1532,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 		addr += 7;
 		sdr_macro(value, addr);
 		return (MIPS_SD_ACCESS);
+#endif
 	}
 	panic("%s: should not be reached.", __func__);
 }
