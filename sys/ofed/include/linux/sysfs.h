@@ -48,4 +48,16 @@ struct attribute_group {
 	struct attribute	**attrs;
 };
 
+#define	__ATTR(_name, _mode, _show, _store) {				\
+	.attr = { .name = __stringify(_name), .mode = _mode },		\
+        .show = _show, .store  = _store,				\
+}
+
+#define	__ATTR_RO(_name) {						\
+	.attr = { .name = __stringify(_name), .mode = 0444 },		\
+	.show   = _name##_show,						\
+}
+
+#define	__ATTR_NULL	{ .attr = { .name = NULL } }
+
 #endif	/* _LINUX_SYSFS_H_ */
