@@ -30,4 +30,37 @@
 
 #include <sys/socket.h>
 
+#ifdef notyet
+static inline int
+memcpy_toiovec(struct iovec *v, unsigned char *kdata, int len)
+{
+	struct uio uio;
+	int error;
+
+	uio.uio_iov = v;
+	uio.uio_iovcnt = -1;
+	uio.uio_offset = 0;
+	uio.uio_resid = len;
+	uio.uio_segflag = UIO_USERSPACE;
+	uio.uio_rw = UIO_READ;
+	error = -uiomove(kdata, len, &uio);
+	return (error);
+}
+
+static inline int
+memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len)
+{
+	struct uio uio;
+	int error;
+
+	uio.uio_iov = v;
+	uio.uio_iovcnt = -1;
+	uio.uio_offset = 0;
+	uio.uio_resid = len;
+	uio.uio_segflag = UIO_USERSPACE;
+	uio.uio_rw = UIO_WRITE;
+	error = -uiomove(kdata, len, &uio);
+}
+#endif
+
 #endif	/* _LINUX_SOCKET_H_ */

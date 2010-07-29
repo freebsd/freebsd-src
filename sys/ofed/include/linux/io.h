@@ -92,6 +92,10 @@ writew(uint16_t b, void *addr)
 
 #define	ioremap	pmap_mapdev
 
+#define	memset_io(a, b, c)	memset((a), (b), (c))
+#define	memcpy_fromio(a, b, c)	memcpy((a), (b), (c))
+#define	memcpy_toio(a, b, c)	memcpy((a), (b), (c))
+
 /*
  * iounmap is not defined as pmap_unmapdev requires a length that can
  * not easily be determined on BSD.
