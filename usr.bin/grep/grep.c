@@ -61,14 +61,13 @@ const char	*errstr[] = {
 	"",
 /* 1*/	"(standard input)",
 /* 2*/	"cannot read bzip2 compressed file",
-/* 3*/	"unknown --color option",
+/* 3*/	"unknown %s option",
 /* 4*/	"usage: %s [-abcDEFGHhIiJLlmnOoPqRSsUVvwxZ] [-A num] [-B num] [-C[num]]\n",
 /* 5*/	"\t[-e pattern] [-f file] [--binary-files=value] [--color=when]\n",
 /* 6*/	"\t[--context[=num]] [--directories=action] [--label] [--line-buffered]\n",
 /* 7*/	"\t[--null] [pattern] [file ...]\n",
-/* 8*/	"unknown --binary-files option",
-/* 9*/	"Binary file %s matches\n",
-/*10*/	"%s (BSD grep) %s\n",
+/* 8*/	"Binary file %s matches\n",
+/* 9*/	"%s (BSD grep) %s\n",
 };
 
 /* Flags passed to regcomp() and regexec() */
@@ -445,10 +444,8 @@ main(int argc, char *argv[])
 				devbehave = DEV_SKIP;
 			else if (strcasecmp(optarg, "read") == 0)
 				devbehave = DEV_READ;
-			else {
-				errno = EINVAL;
-				err(2, NULL);
-			}
+			else
+				errx(2, getstr(3), "--devices");
 			break;
 		case 'd':
 			if (strcasecmp("recurse", optarg) == 0) {
@@ -458,10 +455,8 @@ main(int argc, char *argv[])
 				dirbehave = DIR_SKIP;
 			else if (strcasecmp("read", optarg) == 0)
 				dirbehave = DIR_READ;
-			else {
-				errno = EINVAL;
-				err(2, NULL);
-			}
+			else
+				errx(2, getstr(3), "--directories");
 			break;
 		case 'E':
 			grepbehave = GREP_EXTENDED;
@@ -552,7 +547,7 @@ main(int argc, char *argv[])
 			/* noop, compatibility */
 			break;
 		case 'V':
-			printf(getstr(10), __progname, VERSION);
+			printf(getstr(9), __progname, VERSION);
 			exit(0);
 		case 'v':
 			vflag = true;
@@ -574,7 +569,7 @@ main(int argc, char *argv[])
 			else if (strcasecmp("text", optarg) == 0)
 				binbehave = BINFILE_TEXT;
 			else
-				errx(2, "%s", getstr(8));
+				errx(2, getstr(3), "--binary-files");
 			break;
 		case COLOR_OPT:
 			color = NULL;
@@ -594,7 +589,7 @@ main(int argc, char *argv[])
 			} else if (strcasecmp("never", optarg) != 0 &&
 			    strcasecmp("none", optarg) != 0 &&
 			    strcasecmp("no", optarg) != 0)
-				errx(2, "%s", getstr(3));
+				errx(2, getstr(3), "--color");
 			break;
 		case LABEL_OPT:
 			label = optarg;
