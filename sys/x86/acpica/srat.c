@@ -150,7 +150,8 @@ check_domains(void)
 	for (i = 0; i < num_mem; i++) {
 		found = 0;
 		for (j = 0; j <= MAX_APIC_ID; j++)
-			if (cpus[j].domain == mem_info[i].domain) {
+			if (cpus[j].enabled &&
+			    cpus[j].domain == mem_info[i].domain) {
 				cpus[j].has_memory = 1;
 				found++;
 			}
