@@ -42,7 +42,8 @@ typedef struct {
 	struct mtx m;
 } spinlock_t;
 
-#define	spin_lock_init(_l)	mtx_init(&(_l)->m, "ldev", NULL, MTX_DEF)
+#define	spin_lock_init(_l)	mtx_init(&(_l)->m, "lnxspin", NULL,	\
+				    MTX_DEF | MTX_NOWITNESS)
 #define	spin_lock(_l)		mtx_lock(&(_l)->m)
 #define	spin_unlock(_l)		mtx_unlock(&(_l)->m)
 #define	spin_lock_nested(_l, _n) mtx_lock_flags(&(_l)->m, MTX_DUPOK)
@@ -55,6 +56,6 @@ typedef struct {
 
 #define	DEFINE_SPINLOCK(lock)						\
 	spinlock_t lock;						\
-	MTX_SYSINIT(lock, &(lock).m, "ldev", MTX_DEF)
+	MTX_SYSINIT(lock, &(lock).m, "lnxspin", MTX_DEF)
 
 #endif	/* _LINUX_SPINLOCK_H_ */
