@@ -171,7 +171,6 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 	HAL_CHANNEL_INTERNAL *ichan;
-	int i;
 
 	ichan = ath_hal_checkchannel(ah, chan);
 	HALASSERT(ichan != AH_NULL);
@@ -228,7 +227,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * Try to make sure the above NF cal completes, just so
 	 * it doesn't clash with subsequent percals -adrian
 	 */
-	if (! ar5416WaitNfComplete(struct ath_hal *ah, 1000)) {
+	if (! ar5416WaitNfComplete(ah, 1000)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
 		"not complete in time; noisy environment?\n", __func__);
 		return AH_FALSE;
@@ -414,7 +413,7 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 	 * override it with the current chainmask. The upper levels currently
 	 * doesn't know about the chainmask.
 	 */
-	rxchainmask = ahp->ah_rx_chainmask;
+	rxchainmask = AH5416(ah)->ah_rx_chainmask;
 
 	/* Invalid channel check */
 	ichan = ath_hal_checkchannel(ah, chan);
@@ -529,7 +528,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		AR_PHY_CH2_EXT_CCA
 	};
 	struct ar5212NfCalHist *h;
-	int i, j;
+	int i;
 	int32_t val;
 	uint8_t chainmask;
 
