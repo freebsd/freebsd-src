@@ -101,7 +101,7 @@ VECTOR(_locore, unknown)
         li	t0, ~(MIPS_SR_DE | MIPS_SR_SOFT_RESET | MIPS_SR_ERL | MIPS_SR_EXL | MIPS_SR_INT_IE)
 #elif defined (TARGET_XLR_XLS)
 	/* Set these bits */
-        li	t1, (MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT | MIPS_SR_KX)
+        li	t1, (MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT | MIPS_SR_KX | MIPS_SR_UX)
 
 	/* Reset these bits */
         li	t0, ~(MIPS_SR_BEV | MIPS_SR_SOFT_RESET | MIPS_SR_INT_IE)
