@@ -148,8 +148,8 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	pcb2->pcb_context[PCB_REG_S0] = (register_t)(intptr_t)fork_return;
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td2;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td2->td_frame;
-	pcb2->pcb_context[PCB_REG_SR] = (MIPS_SR_KX | MIPS_SR_INT_MASK) &
-	    mips_rd_status();
+	pcb2->pcb_context[PCB_REG_SR] = mips_rd_status() &
+	    (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * Setup any other CPU-Specific registers (Not MIPS Standard)
@@ -351,8 +351,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td->td_frame;
 	/* Dont set IE bit in SR. sched lock release will take care of it */
-	pcb2->pcb_context[PCB_REG_SR] = (MIPS_SR_KX | MIPS_SR_INT_MASK) &
-	    mips_rd_status();
+	pcb2->pcb_context[PCB_REG_SR] = mips_rd_status() &
+	    (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
 
 #ifdef CPU_CNMIPS
 	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT |
@@ -414,8 +414,13 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	/*
 	 * Keep interrupt mask
 	 */
-	tf->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | (MIPS_SR_INT_MASK & mips_rd_status()) |
-	    MIPS_SR_INT_IE;
+	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
+	    (mips_rd_status() & MIPS_SR_INT_MASK);
+#if defined(__mips_n32) 
+	td->td_frame->sr |= MIPS_SR_PX;
+#elif  defined(__mips_n64)
+	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX;
+#endif
 #ifdef CPU_CNMIPS
 	tf->sr |=  MIPS_SR_INT_IE | MIPS_SR_COP_0_BIT | MIPS_SR_PX | MIPS_SR_UX |
 	  MIPS_SR_KX;
