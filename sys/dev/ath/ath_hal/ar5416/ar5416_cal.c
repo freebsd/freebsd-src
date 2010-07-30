@@ -470,8 +470,26 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 		}
 	}
 
-	/* Do NF cal only at longer intervals */
-	if (longcal) {
+	/*
+	 * NF calibration can only be done if there's no in-progress periodic
+	 * calibration.
+	 *
+	 * To ensure it happens, an NF calibration is done at the end of the
+	 * periodic calibration run. That way if the periodic calibrations are
+	 * taking too long to run and prevent the "longcal" tick from actually
+	 * performing a successful NF calibration, the noise floor values still
+	 * get updated.
+	 */
+
+	/* Do NF cal only at longer intervals or at the end of a successful percal */
+	/*
+	 * XXX I don't know if there's some minimum delay between completing a percal
+	 * XXX and beginning a NF calibration. -adrian
+	 */
+	if ((*isCalDone == AH_TRUE) ||
+	    (longcal && currCal == AH_NULL) ||
+	    (longcal && currCal != AH_NULL &&
+		(currCal->calState == CAL_WAITING || currCal->calState == CAL_DONE))) {
 		/*
 		 * Get the value from the previous NF cal
 		 * and update the history buffer.
