@@ -406,6 +406,30 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 
 	OS_MARK(ah, AH_MARK_PERCAL, chan->ic_freq);
 
+	/*
+	 * Don't do any of these calibrations if there's a NF
+	 * calibration in progress. Long calibration will try to program
+	 * the CCA registers and kick another NF calibration ; periodic
+	 * calibrations shouldn't be occuring during a NF calibration.
+	 */
+	if (ar5416IsNFCalInProgress(ah)) {
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+		    "%s: NF calibration in-progress; skipping\n",
+		    __func__);
+
+		/*
+		 * Is there a percal in progress? Return
+		 * "not-done" so we're re-prodded very soon.
+		 */
+		if (currCal && ((currCal->calState == CAL_WAITING) ||
+		    (currCal->calState == CAL_RUNNING)))
+			*isCalDone = AH_FALSE;
+		else
+			*isCalDone = AH_TRUE;
+
+		return AH_TRUE;
+	}
+
 	*isCalDone = AH_TRUE;
 
 	/*
