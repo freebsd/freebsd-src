@@ -146,6 +146,8 @@ struct pmcstat_pmcrecord {
 	pmc_id_t			pr_pmcid;
 	int				pr_pmcin;
 	pmcstat_interned_string		pr_pmcname;
+	int				pr_samples;
+	int				pr_dubious_frames;
 	struct pmcstat_pmcrecord	*pr_merge;
 };
 extern LIST_HEAD(pmcstat_pmcs, pmcstat_pmcrecord) pmcstat_pmcs; /* PMC list */

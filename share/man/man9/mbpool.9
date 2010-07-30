@@ -254,11 +254,11 @@ states and
 the number of buffers on the free list.
 .Sh SEE ALSO
 .Xr mbuf 9
+.Sh AUTHORS
+.An Harti Brandt Aq harti@FreeBSD.org
 .Sh CAVEATS
 The function
 .Fn mbp_sync
 is currently a no-op because
 .Xr bus_dmamap_sync 9
 is missing the offset and length parameters.
-.Sh AUTHORS
-.An Harti Brandt Aq harti@FreeBSD.org

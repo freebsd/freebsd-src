@@ -44,7 +44,7 @@ DEFINE_TEST(test_option_s)
 {
 	struct stat st;
 
-	/* Create a sample file heirarchy. */
+	/* Create a sample file hierarchy. */
 	assertEqualInt(0, mkdir("in", 0755));
 	assertEqualInt(0, mkdir("in/d1", 0755));
 	assertEqualInt(0, mkfile("in/d1/foo", "foo"));

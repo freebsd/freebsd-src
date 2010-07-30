@@ -128,56 +128,6 @@ int wps_derive_keys(struct wps_data *wps)
 }
 
 
-int wps_derive_mgmt_keys(struct wps_data *wps)
-{
-	u8 nonces[2 * WPS_NONCE_LEN];
-	u8 keys[WPS_MGMTAUTHKEY_LEN + WPS_MGMTENCKEY_LEN];
-	u8 hash[SHA256_MAC_LEN];
-	const u8 *addr[2];
-	size_t len[2];
-	const char *auth_label = "WFA-WLAN-Management-MgmtAuthKey";
-	const char *enc_label = "WFA-WLAN-Management-MgmtEncKey";
-
-	/* MgmtAuthKey || MgmtEncKey =
-	 * kdf(EMSK, N1 || N2 || "WFA-WLAN-Management-Keys", 384) */
-	os_memcpy(nonces, wps->nonce_e, WPS_NONCE_LEN);
-	os_memcpy(nonces + WPS_NONCE_LEN, wps->nonce_r, WPS_NONCE_LEN);
-	wps_kdf(wps->emsk, nonces, sizeof(nonces), "WFA-WLAN-Management-Keys",
-		keys, sizeof(keys));
-	os_memcpy(wps->mgmt_auth_key, keys, WPS_MGMTAUTHKEY_LEN);
-	os_memcpy(wps->mgmt_enc_key, keys + WPS_MGMTAUTHKEY_LEN,
-		  WPS_MGMTENCKEY_LEN);
-
-	addr[0] = nonces;
-	len[0] = sizeof(nonces);
-
-	/* MgmtEncKeyID = first 128 bits of
-	 * SHA-256(N1 || N2 || "WFA-WLAN-Management-MgmtAuthKey") */
-	addr[1] = (const u8 *) auth_label;
-	len[1] = os_strlen(auth_label);
-	sha256_vector(2, addr, len, hash);
-	os_memcpy(wps->mgmt_auth_key_id, hash, WPS_MGMT_KEY_ID_LEN);
-
-	/* MgmtEncKeyID = first 128 bits of
-	 * SHA-256(N1 || N2 || "WFA-WLAN-Management-MgmtEncKey") */
-	addr[1] = (const u8 *) enc_label;
-	len[1] = os_strlen(enc_label);
-	sha256_vector(2, addr, len, hash);
-	os_memcpy(wps->mgmt_enc_key_id, hash, WPS_MGMT_KEY_ID_LEN);
-
-	wpa_hexdump_key(MSG_DEBUG, "WPS: MgmtAuthKey",
-			wps->mgmt_auth_key, WPS_MGMTAUTHKEY_LEN);
-	wpa_hexdump(MSG_DEBUG, "WPS: MgmtAuthKeyID",
-		    wps->mgmt_auth_key_id, WPS_MGMT_KEY_ID_LEN);
-	wpa_hexdump_key(MSG_DEBUG, "WPS: MgmtEncKey",
-			wps->mgmt_enc_key, WPS_MGMTENCKEY_LEN);
-	wpa_hexdump(MSG_DEBUG, "WPS: MgmtEncKeyID",
-		    wps->mgmt_enc_key_id, WPS_MGMT_KEY_ID_LEN);
-
-	return 0;
-}
-
-
 void wps_derive_psk(struct wps_data *wps, const u8 *dev_passwd,
 		    size_t dev_passwd_len)
 {
@@ -334,4 +284,22 @@ void wps_pwd_auth_fail_event(struct wps_context *wps, int enrollee, int part)
 	data.pwd_auth_fail.enrollee = enrollee;
 	data.pwd_auth_fail.part = part;
 	wps->event_cb(wps->cb_ctx, WPS_EV_PWD_AUTH_FAIL, &data);
+}
+
+
+void wps_pbc_overlap_event(struct wps_context *wps)
+{
+	if (wps->event_cb == NULL)
+		return;
+
+	wps->event_cb(wps->cb_ctx, WPS_EV_PBC_OVERLAP, NULL);
+}
+
+
+void wps_pbc_timeout_event(struct wps_context *wps)
+{
+	if (wps->event_cb == NULL)
+		return;
+
+	wps->event_cb(wps->cb_ctx, WPS_EV_PBC_TIMEOUT, NULL);
 }

@@ -184,6 +184,7 @@ main(int argc, char **argv)
 	long select_generation;
 	char **specified_devices;
 	devstat_select_mode select_mode;
+	float f;
 	int havelast = 0;
 
 	matches = NULL;
@@ -239,9 +240,10 @@ main(int argc, char **argv)
 				break;
 			case 'w':
 				wflag++;
-				waittime = atoi(optarg);
+				f = atof(optarg);
+				waittime = f * 1000;
 				if (waittime < 1)
-					errx(1, "wait time is < 1");
+					errx(1, "wait time is < 1ms");
 				break;
 			case 'x':
 				xflag++;
@@ -378,12 +380,13 @@ main(int argc, char **argv)
 	 * Look for the traditional wait time and count arguments.
 	 */
 	if (*argv) {
-		waittime = atoi(*argv);
+		f = atof(*argv);
+		waittime = f * 1000;
 
 		/* Let the user know he goofed, but keep going anyway */
 		if (wflag != 0)
 			warnx("discarding previous wait interval, using"
-			      " %d instead", waittime);
+			      " %g instead", waittime / 1000.0);
 		wflag++;
 
 		if (*++argv) {
@@ -401,7 +404,7 @@ main(int argc, char **argv)
 	 * to an interval of 1 second.
 	 */
 	if ((wflag == 0) && (cflag > 0))
-		waittime = 1;
+		waittime = 1 * 1000;
 
 	/*
 	 * If the user specified a wait time, but not a count, we want to
@@ -602,7 +605,7 @@ main(int argc, char **argv)
 		if (count >= 0 && --count <= 0)
 			break;
 
-		sleep(waittime);
+		usleep(waittime * 1000);
 		havelast = 1;
 	}
 

@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2008-2009 Robert N. M. Watson
+ * Copyright (c) 2010 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * This software was developed by Robert N. M. Watson under contract
+ * to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,9 +37,11 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <sys/wait.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <err.h>
 #include <errno.h>
@@ -82,6 +88,7 @@ static int			 kq;
 static int			 started;	/* Number started so far. */
 static int			 finished;	/* Number finished so far. */
 static int			 counter;	/* IP number offset. */
+static uint64_t			 payload_len;
 
 static struct connection *
 tcpp_client_newconn(void)
@@ -109,6 +116,9 @@ tcpp_client_newconn(void)
 	i = 1;
 	if (setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &i, sizeof(i)) < 0)
 		err(-1, "setsockopt");
+	i = 1;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i)) < 0)
+		err(-1, "setsockopt");
 #if 0
 	i = 1;
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i)) < 0)
@@ -131,7 +141,7 @@ tcpp_client_newconn(void)
 	conn->conn_magic = CONNECTION_MAGIC;
 	conn->conn_fd = fd;
 	conn->conn_header.th_magic = TCPP_MAGIC;
-	conn->conn_header.th_len = bflag;
+	conn->conn_header.th_len = payload_len;
 	tcpp_header_encode(&conn->conn_header);
 
 	EV_SET(&kev, fd, EVFILT_WRITE, EV_ADD, 0, 0, conn);
@@ -156,16 +166,22 @@ static void
 tcpp_client_handleconn(struct kevent *kev)
 {
 	struct connection *conn;
-	ssize_t len;
+	struct iovec iov[2];
+	ssize_t len, header_left;
 
 	conn = kev->udata;
 	if (conn->conn_magic != CONNECTION_MAGIC)
 		errx(-1, "tcpp_client_handleconn: magic");
 
 	if (conn->conn_header_sent < sizeof(conn->conn_header)) {
-		len = write(conn->conn_fd, ((u_char *)&conn->conn_header) +
-		    conn->conn_header_sent, sizeof(conn->conn_header) -
-		    conn->conn_header_sent);
+		header_left = sizeof(conn->conn_header) -
+		    conn->conn_header_sent;
+		iov[0].iov_base = ((u_char *)&conn->conn_header) +
+		    conn->conn_header_sent;
+		iov[0].iov_len = header_left;
+		iov[1].iov_base = buffer;
+		iov[1].iov_len = min(sizeof(buffer), payload_len);
+		len = writev(conn->conn_fd, iov, 2);
 		if (len < 0) {
 			tcpp_client_closeconn(conn);
 			err(-1, "tcpp_client_handleconn: header write");
@@ -175,10 +191,14 @@ tcpp_client_handleconn(struct kevent *kev)
 			errx(-1, "tcpp_client_handleconn: header write "
 			    "premature EOF");
 		}
-		conn->conn_header_sent += len;
+		if (len > header_left) {
+			conn->conn_data_sent += (len - header_left);
+			conn->conn_header_sent += header_left;
+		} else
+			conn->conn_header_sent += len;
 	} else {
 		len = write(conn->conn_fd, buffer, min(sizeof(buffer),
-		    bflag - conn->conn_data_sent));
+		    payload_len - conn->conn_data_sent));
 		if (len < 0) {
 			tcpp_client_closeconn(conn);
 			err(-1, "tcpp_client_handleconn: data write");
@@ -189,12 +209,12 @@ tcpp_client_handleconn(struct kevent *kev)
 			    "premature EOF");
 		}
 		conn->conn_data_sent += len;
-		if (conn->conn_data_sent >= bflag) {
-			/*
-			 * All is well.
-			 */
-			tcpp_client_closeconn(conn);
-		}
+	}
+	if (conn->conn_data_sent >= payload_len) {
+		/*
+		 * All is well.
+		 */
+		tcpp_client_closeconn(conn);
 	}
 }
 
@@ -208,17 +228,19 @@ tcpp_client_worker(int workernum)
 	int ncpus;
 	size_t len;
 
-	len = sizeof(ncpus);
-	if (sysctlbyname(SYSCTLNAME_CPUS, &ncpus, &len, NULL, 0) < 0)
-		err(-1, "sysctlbyname: %s", SYSCTLNAME_CPUS);
-	if (len != sizeof(ncpus))
-		errx(-1, "sysctlbyname: %s: len %jd", SYSCTLNAME_CPUS,
-		    (intmax_t)len);
+	if (Pflag) {
+		len = sizeof(ncpus);
+		if (sysctlbyname(SYSCTLNAME_CPUS, &ncpus, &len, NULL, 0) < 0)
+			err(-1, "sysctlbyname: %s", SYSCTLNAME_CPUS);
+		if (len != sizeof(ncpus))
+			errx(-1, "sysctlbyname: %s: len %jd", SYSCTLNAME_CPUS,
+			    (intmax_t)len);
 
-	CPU_ZERO(&mask);
-	CPU_SET(workernum % ncpus, &mask);
-	if (sched_setaffinity(0, CPU_SETSIZE, &mask) < 0)
-		err(-1, "sched_setaffinity");
+		CPU_ZERO(&mask);
+		CPU_SET(workernum % ncpus, &mask);
+		if (sched_setaffinity(0, CPU_SETSIZE, &mask) < 0)
+			err(-1, "sched_setaffinity");
+	}
 #endif
 	setproctitle("tcpp_client %d", workernum);
 
@@ -260,6 +282,11 @@ tcpp_client(void)
 	size_t size;
 	pid_t pid;
 	int i, failed, status;
+
+	if (bflag < sizeof(struct tcpp_header))
+		errx(-1, "Can't use -b less than %zu\n",
+		   sizeof(struct tcpp_header));
+	payload_len = bflag - sizeof(struct tcpp_header);
 
 	pid_list = malloc(sizeof(*pid_list) * pflag);
 	if (pid_list == NULL)
@@ -314,33 +341,37 @@ tcpp_client(void)
 	if (failed)
 		errx(-1, "Too many errors");
 
-	printf("%jd bytes transferred in %jd.%09jd seconds\n", 
-	    (bflag * tflag * pflag), (intmax_t)ts_finish.tv_sec,
+	if (hflag)
+		printf("bytes,seconds,conn/s,Gb/s,user%%,nice%%,sys%%,"
+		    "intr%%,idle%%\n");
+
+	/*
+	 * Configuration parameters.
+	 */
+	printf("%jd,", bflag * tflag * pflag);
+	printf("%jd.%09jd,", (intmax_t)ts_finish.tv_sec,
 	    (intmax_t)(ts_finish.tv_nsec));
 
-	if (Tflag)
-		printf("%d procs ", pflag);
-	if (Cflag) {
-		printf("%f cps%s", (double)(pflag * tflag)/
-		    (ts_finish.tv_sec + ts_finish.tv_nsec * 1e-9),
-		    Tflag ? " " : "\n");
-	} else {
-		printf("%f Gbps%s", (double)(bflag * tflag * pflag * 8) /
-		    (ts_finish.tv_sec + ts_finish.tv_nsec * 1e-9) * 1e-9,
-		    Tflag ? " " : "\n");
+	/*
+	 * Effective transmit rates.
+	 */
+	printf("%f,", (double)(pflag * tflag)/
+	    (ts_finish.tv_sec + ts_finish.tv_nsec * 1e-9));
+	printf("%f,", (double)(bflag * tflag * pflag * 8) /
+	    (ts_finish.tv_sec + ts_finish.tv_nsec * 1e-9) * 1e-9);
+
+	/*
+	 * CPU time (est).
+	 */
+	ticks = 0;
+	for (i = 0; i < CPUSTATES; i++) {
+		cp_time_finish[i] -= cp_time_start[i];
+		ticks += cp_time_finish[i];
 	}
-	if (Tflag) {
-		ticks = 0;
-		for (i = 0; i < CPUSTATES; i++) {
-			cp_time_finish[i] -= cp_time_start[i];
-			ticks += cp_time_finish[i];
-		}
-		printf("user%% %lu nice%% %lu sys%% %lu intr%% %lu "
-		    "idle%% %lu\n",
-		    (100 * cp_time_finish[CP_USER]) / ticks,
-		    (100 * cp_time_finish[CP_NICE]) / ticks,
-		    (100 * cp_time_finish[CP_SYS]) / ticks,
-		    (100 * cp_time_finish[CP_INTR]) / ticks,
-		    (100 * cp_time_finish[CP_IDLE]) / ticks);
-	}
+	printf("%0.02f,", (float)(100 * cp_time_finish[CP_USER]) / ticks);
+	printf("%0.02f,", (float)(100 * cp_time_finish[CP_NICE]) / ticks);
+	printf("%0.02f,", (float)(100 * cp_time_finish[CP_SYS]) / ticks);
+	printf("%0.02f,", (float)(100 * cp_time_finish[CP_INTR]) / ticks);
+	printf("%0.02f", (float)(100 * cp_time_finish[CP_IDLE]) / ticks);
+	printf("\n");
 }

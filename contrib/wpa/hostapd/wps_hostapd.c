@@ -219,19 +219,41 @@ static int hostapd_wps_cred_cb(void *ctx, const struct wps_credential *cred)
 	if ((hapd->conf->wps_cred_processing == 1 ||
 	     hapd->conf->wps_cred_processing == 2) && cred->cred_attr) {
 		size_t blen = cred->cred_attr_len * 2 + 1;
-		char *buf = os_malloc(blen);
-		if (buf) {
-			wpa_snprintf_hex(buf, blen,
+		char *_buf = os_malloc(blen);
+		if (_buf) {
+			wpa_snprintf_hex(_buf, blen,
 					 cred->cred_attr, cred->cred_attr_len);
 			wpa_msg(hapd, MSG_INFO, "%s%s",
-				WPS_EVENT_NEW_AP_SETTINGS, buf);
-			os_free(buf);
+				WPS_EVENT_NEW_AP_SETTINGS, _buf);
+			os_free(_buf);
 		}
 	} else
 		wpa_msg(hapd, MSG_INFO, WPS_EVENT_NEW_AP_SETTINGS);
 
 	if (hapd->conf->wps_cred_processing == 1)
 		return 0;
+
+	os_memcpy(hapd->wps->ssid, cred->ssid, cred->ssid_len);
+	hapd->wps->ssid_len = cred->ssid_len;
+	hapd->wps->encr_types = cred->encr_type;
+	hapd->wps->auth_types = cred->auth_type;
+	if (cred->key_len == 0) {
+		os_free(hapd->wps->network_key);
+		hapd->wps->network_key = NULL;
+		hapd->wps->network_key_len = 0;
+	} else {
+		if (hapd->wps->network_key == NULL ||
+		    hapd->wps->network_key_len < cred->key_len) {
+			hapd->wps->network_key_len = 0;
+			os_free(hapd->wps->network_key);
+			hapd->wps->network_key = os_malloc(cred->key_len);
+			if (hapd->wps->network_key == NULL)
+				return -1;
+		}
+		hapd->wps->network_key_len = cred->key_len;
+		os_memcpy(hapd->wps->network_key, cred->key, cred->key_len);
+	}
+	hapd->wps->wps_state = WPS_STATE_CONFIGURED;
 
 	len = os_strlen(hapd->iface->config_fname) + 5;
 	tmp_fname = os_malloc(len);
@@ -326,15 +348,21 @@ static int hostapd_wps_cred_cb(void *ctx, const struct wps_credential *cred)
 		else
 			fprintf(nconf, "auth_algs=1\n");
 
-		if (cred->encr_type & WPS_ENCR_WEP && cred->key_idx < 4) {
-			fprintf(nconf, "wep_default_key=%d\n", cred->key_idx);
-			fprintf(nconf, "wep_key%d=", cred->key_idx);
-			if (cred->key_len != 10 && cred->key_len != 26)
-				fputc('"', nconf);
-			for (i = 0; i < cred->key_len; i++)
-				fputc(cred->key[i], nconf);
-			if (cred->key_len != 10 && cred->key_len != 26)
-				fputc('"', nconf);
+		if (cred->encr_type & WPS_ENCR_WEP && cred->key_idx <= 4) {
+			int key_idx = cred->key_idx;
+			if (key_idx)
+				key_idx--;
+			fprintf(nconf, "wep_default_key=%d\n", key_idx);
+			fprintf(nconf, "wep_key%d=", key_idx);
+			if (cred->key_len == 10 || cred->key_len == 26) {
+				/* WEP key as a hex string */
+				for (i = 0; i < cred->key_len; i++)
+					fputc(cred->key[i], nconf);
+			} else {
+				/* Raw WEP key; convert to hex */
+				for (i = 0; i < cred->key_len; i++)
+					fprintf(nconf, "%02x", cred->key[i]);
+			}
 			fprintf(nconf, "\n");
 		}
 	}
@@ -620,6 +648,8 @@ int hostapd_init_wps(struct hostapd_data *hapd,
 	cfg.extra_cred_len = conf->extra_cred_len;
 	cfg.disable_auto_conf = (hapd->conf->wps_cred_processing == 1) &&
 		conf->skip_cred_build;
+	if (conf->ssid.security_policy == SECURITY_STATIC_WEP)
+		cfg.static_wep_only = 1;
 
 	wps->registrar = wps_registrar_init(wps, &cfg);
 	if (wps->registrar == NULL) {
@@ -669,7 +699,7 @@ void hostapd_deinit_wps(struct hostapd_data *hapd)
 
 
 int hostapd_wps_add_pin(struct hostapd_data *hapd, const char *uuid,
-			const char *pin)
+			const char *pin, int timeout)
 {
 	u8 u[UUID_LEN];
 	int any = 0;
@@ -681,7 +711,8 @@ int hostapd_wps_add_pin(struct hostapd_data *hapd, const char *uuid,
 	else if (uuid_str2bin(uuid, u))
 		return -1;
 	return wps_registrar_add_pin(hapd->wps->registrar, any ? NULL : u,
-				     (const u8 *) pin, os_strlen(pin));
+				     (const u8 *) pin, os_strlen(pin),
+				     timeout);
 }
 
 
@@ -864,8 +895,8 @@ static int hostapd_rx_req_put_wlan_response(
 
 	wpa_printf(MSG_DEBUG, "WPS UPnP: PutWLANResponse ev_type=%d mac_addr="
 		   MACSTR, ev_type, MAC2STR(mac_addr));
-	wpa_hexdump_ascii(MSG_MSGDUMP, "WPS UPnP: PutWLANResponse NewMessage",
-			  wpabuf_head(msg), wpabuf_len(msg));
+	wpa_hexdump(MSG_MSGDUMP, "WPS UPnP: PutWLANResponse NewMessage",
+		    wpabuf_head(msg), wpabuf_len(msg));
 	if (ev_type != UPNP_WPS_WLANEVENT_TYPE_EAP) {
 		wpa_printf(MSG_DEBUG, "WPS UPnP: Ignored unexpected "
 			   "PutWLANResponse WLANEventType %d", ev_type);

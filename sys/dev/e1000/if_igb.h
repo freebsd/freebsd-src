@@ -47,8 +47,8 @@
  *   desscriptors should meet the following condition.
  *      (num_tx_desc * sizeof(struct e1000_tx_desc)) % 128 == 0
  */
-#define IGB_MIN_TXD		80
-#define IGB_DEFAULT_TXD		256
+#define IGB_MIN_TXD		256
+#define IGB_DEFAULT_TXD		1024
 #define IGB_MAX_TXD		4096
 
 /*
@@ -62,8 +62,8 @@
  *   desscriptors should meet the following condition.
  *      (num_tx_desc * sizeof(struct e1000_tx_desc)) % 128 == 0
  */
-#define IGB_MIN_RXD		80
-#define IGB_DEFAULT_RXD		256
+#define IGB_MIN_RXD		256
+#define IGB_DEFAULT_RXD		1024
 #define IGB_MAX_RXD		4096
 
 /*
@@ -180,7 +180,8 @@
 
 #define IGB_TX_PTHRESH			8
 #define IGB_TX_HTHRESH			1
-#define IGB_TX_WTHRESH			((hw->mac.type == e1000_82576 && \
+#define IGB_TX_WTHRESH			(((hw->mac.type == e1000_82576 || \
+					  hw->mac.type == e1000_vfadapt) && \
                                           adapter->msix_mem) ? 1 : 16)
 
 #define MAX_NUM_MULTICAST_ADDRESSES     128
@@ -315,6 +316,8 @@ struct tx_ring {
 
 	bool			watchdog_check;
 	int			watchdog_time;
+	int			tdt;
+	int			tdh;
 	u64			no_desc_avail;
 	u64			tx_packets;
 };
@@ -333,13 +336,11 @@ struct rx_ring {
 	bool			discard;
 	struct mtx		rx_mtx;
 	char			mtx_name[16];
-	u32			last_cleaned;
+	u32			next_to_refresh;
 	u32			next_to_check;
 	struct igb_rx_buf	*rx_buffers;
-	bus_dma_tag_t		rx_htag;	/* dma tag for rx head */
-	bus_dmamap_t		rx_hspare_map;
-	bus_dma_tag_t		rx_ptag;	/* dma tag for rx packet */
-	bus_dmamap_t		rx_pspare_map;
+	bus_dma_tag_t		htag;		/* dma tag for rx head */
+	bus_dma_tag_t		ptag;		/* dma tag for rx packet */
 	/*
 	 * First/last mbuf pointers, for
 	 * collecting multisegment RX packets.
@@ -349,6 +350,8 @@ struct rx_ring {
 
 	u32			bytes;
 	u32			packets;
+	int			rdt;
+	int			rdh;
 
 	/* Soft stats */
 	u64			rx_split_packets;
@@ -363,6 +366,7 @@ struct adapter {
 
 	struct e1000_osdep osdep;
 	struct device	*dev;
+	struct cdev	*led_dev;
 
 	struct resource *pci_mem;
 	struct resource *msix_mem;
@@ -383,8 +387,6 @@ struct adapter {
 	int		min_frame_size;
 	struct mtx	core_mtx;
 	int		igb_insert_vlan_header;
-	struct task     rxtx_task;
-	struct taskqueue *tq;	/* adapter task queue */
         u16		num_queues;
 
 	eventhandler_tag vlan_attach;
@@ -429,6 +431,12 @@ struct adapter {
         unsigned long	no_tx_dma_setup;
 	unsigned long	watchdog_events;
 	unsigned long	rx_overruns;
+	unsigned long	device_control;
+	unsigned long	rx_control;
+	unsigned long	int_mask;
+	unsigned long	eint_mask;
+	unsigned long	packet_buf_alloc_rx;
+	unsigned long	packet_buf_alloc_tx;
 
 	boolean_t       in_detach;
 
@@ -440,7 +448,7 @@ struct adapter {
 	struct hwtstamp_ctrl    hwtstamp;
 #endif
 
-	struct e1000_hw_stats stats;
+	void 			*stats;
 };
 
 /* ******************************************************************************
@@ -468,8 +476,8 @@ struct igb_tx_buffer {
 struct igb_rx_buf {
         struct mbuf    *m_head;
         struct mbuf    *m_pack;
-	bus_dmamap_t	head_map;	/* bus_dma map for packet */
-	bus_dmamap_t	pack_map;	/* bus_dma map for packet */
+	bus_dmamap_t	hmap;	/* bus_dma map for header */
+	bus_dmamap_t	pmap;	/* bus_dma map for packet */
 };
 
 #define	IGB_CORE_LOCK_INIT(_sc, _name) \
@@ -488,7 +496,29 @@ struct igb_rx_buf {
 #define	IGB_RX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->rx_mtx)
 #define	IGB_RX_LOCK(_sc)		mtx_lock(&(_sc)->rx_mtx)
 #define	IGB_RX_UNLOCK(_sc)		mtx_unlock(&(_sc)->rx_mtx)
-#define	IGB_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
+#define	IGB_RX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->rx_mtx, MA_OWNED)
+
+#define UPDATE_VF_REG(reg, last, cur)		\
+{						\
+	u32 new = E1000_READ_REG(hw, reg);	\
+	if (new < last)				\
+		cur += 0x100000000LL;		\
+	last = new;				\
+	cur &= 0xFFFFFFFF00000000LL;		\
+	cur |= new;				\
+}
+
+#if __FreeBSD_version < 800504
+static __inline int
+drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		return (1);
+#endif
+	return (!buf_ring_empty(br));
+}
+#endif
 
 #endif /* _IGB_H_DEFINED_ */
 

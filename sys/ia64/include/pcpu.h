@@ -70,6 +70,16 @@ struct pcpu;
 
 register struct pcpu *pcpup __asm__("r13");
 
+static __inline struct thread *
+__curthread(void)
+{
+	struct thread *td;
+
+	__asm __volatile("ld8.acq %0=[r13]" : "=r"(td));
+	return (td);
+}
+#define	curthread	(__curthread())
+
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 
 /*
@@ -80,8 +90,6 @@ register struct pcpu *pcpup __asm__("r13");
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
 #define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
-
-void pcpu_initclock(void);
 
 #endif	/* _KERNEL */
 

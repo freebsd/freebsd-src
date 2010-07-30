@@ -875,7 +875,7 @@ AcpiDsCreateOperands (
 
         Index--;
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Arg #%d (%p) done, Arg1=%p\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Arg #%u (%p) done, Arg1=%p\n",
             Index, Arg, FirstArg));
     }
 
@@ -890,7 +890,7 @@ Cleanup:
      */
     AcpiDsObjStackPopAndDelete (ArgCount, WalkState);
 
-    ACPI_EXCEPTION ((AE_INFO, Status, "While creating Arg %d", Index));
+    ACPI_EXCEPTION ((AE_INFO, Status, "While creating Arg %u", Index));
     return_ACPI_STATUS (Status);
 }
 

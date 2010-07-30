@@ -88,7 +88,7 @@ PLATFORM_DEF(chrp_platform);
 static int
 chrp_probe(platform_t plat)
 {
-	if (OF_finddevice("/memory") != -1)
+	if (OF_finddevice("/memory") != -1 || OF_finddevice("/memory@0") != -1)
 		return (BUS_PROBE_GENERIC);
 
 	return (ENXIO);
@@ -105,7 +105,7 @@ static u_long
 chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
 	phandle_t phandle;
-	long ticks = -1;
+	int32_t ticks = -1;
 
 	phandle = cpuref->cr_hwref;
 
@@ -121,7 +121,7 @@ chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 static int
 chrp_smp_fill_cpuref(struct cpuref *cpuref, phandle_t cpu)
 {
-	int cpuid, res;
+	cell_t cpuid, res;
 
 	cpuref->cr_hwref = cpu;
 	res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
@@ -228,8 +228,26 @@ chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
 
 	cpu = pc->pc_hwref;
 	res = OF_getprop(cpu, "soft-reset", &reset, sizeof(reset));
-	if (res < 0)
-		return (ENXIO);
+	if (res < 0) {
+		reset = 0x58;
+
+		switch (pc->pc_cpuid) {
+		case 0:
+			reset += 0x03;
+			break;
+		case 1:
+			reset += 0x04;
+			break;
+		case 2:
+			reset += 0x0f;
+			break;
+		case 3:
+			reset += 0x10;
+			break;
+		default:
+			return (ENXIO);
+		}
+	}
 
 	ap_pcpu = pc;
 
@@ -239,10 +257,12 @@ chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	rstvec = rstvec_virtbase + reset;
 
 	*rstvec = 4;
+	powerpc_sync();
 	(void)(*rstvec);
 	powerpc_sync();
 	DELAY(1);
 	*rstvec = 0;
+	powerpc_sync();
 	(void)(*rstvec);
 	powerpc_sync();
 

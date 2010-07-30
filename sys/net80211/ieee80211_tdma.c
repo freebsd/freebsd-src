@@ -295,6 +295,8 @@ tdma_beacon_miss(struct ieee80211vap *vap)
 		"beacon miss, mode %u state %s\n",
 		vap->iv_opmode, ieee80211_state_name[vap->iv_state]);
 
+	callout_stop(&vap->iv_swbmiss);
+
 	if (ts->tdma_peer != NULL) {	/* XXX? can this be null? */
 		ieee80211_notify_node_leave(vap->iv_bss);
 		ts->tdma_peer = NULL;

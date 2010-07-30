@@ -239,6 +239,16 @@ seconds between each display.
 If no repeat
 .Ar count
 is specified, the default is infinity.
+The
+.Nm
+command will accept and honor a non-integer number of seconds.
+Note that the interval only has millisecond granularity.
+Smaller values will be truncated.
+.Pp
+e.g. -w1.0001 becomes -w1.000
+.Pp
+The interval will also suffer from modifications to hz so your mileage
+may vary.
 .It Fl x
 Show extended disk statistics.
 Each disk is displayed on a line of its own with all available statistics.

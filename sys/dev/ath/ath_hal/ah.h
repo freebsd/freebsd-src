@@ -324,6 +324,7 @@ typedef enum {
 	HAL_INT_RXORN	= 0x00000020,
 	HAL_INT_TX	= 0x00000040,	/* Non-common mapping */
 	HAL_INT_TXDESC	= 0x00000080,
+	HAL_INT_TIM_TIMER= 0x00000100,
 	HAL_INT_TXURN	= 0x00000800,
 	HAL_INT_MIB	= 0x00001000,
 	HAL_INT_RXPHY	= 0x00004000,
@@ -638,7 +639,11 @@ struct ath_hal {
 			HAL_BOOL longCal, HAL_BOOL *isCalDone);
 	HAL_BOOL  __ahdecl(*ah_resetCalValid)(struct ath_hal *,
 			const struct ieee80211_channel *);
+	HAL_BOOL  __ahdecl(*ah_setTxPower)(struct ath_hal *,
+	    		const struct ieee80211_channel *, uint16_t *);
 	HAL_BOOL  __ahdecl(*ah_setTxPowerLimit)(struct ath_hal *, uint32_t);
+	HAL_BOOL  __ahdecl(*ah_setBoardValues)(struct ath_hal *,
+	    		const struct ieee80211_channel *);
 
 	/* Transmit functions */
 	HAL_BOOL  __ahdecl(*ah_updateTxTrigLevel)(struct ath_hal*,

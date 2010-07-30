@@ -342,7 +342,6 @@ acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode, int file_owner_id)
 	const int WRITE = 02;
 	const int EXEC = 01;
 
-	KASSERT(aclp->acl_cnt >= 0, ("aclp->acl_cnt >= 0"));
 	KASSERT(aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 

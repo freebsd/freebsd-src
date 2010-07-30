@@ -350,7 +350,7 @@ mediaSetFTP(dialogMenuItem *self)
 	}
 	urllen = strlen(cp);
 	if (urllen >= sizeof(ftpDevice.name)) {
-	    msgConfirm("Length of specified URL is %d characters. Allowable maximum is %d.",
+	    msgConfirm("Length of specified URL is %zu characters. Allowable maximum is %zu.",
 			urllen,sizeof(ftpDevice.name)-1);
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE;
@@ -563,7 +563,7 @@ mediaSetNFS(dialogMenuItem *self)
     }
     pathlen = strlen(hostname);
     if (pathlen >= sizeof(nfsDevice.name)) {
-	msgConfirm("Length of specified NFS path is %d characters. Allowable maximum is %d.",
+	msgConfirm("Length of specified NFS path is %zu characters. Allowable maximum is %zu.",
 		   pathlen,sizeof(nfsDevice.name)-1);
 	variable_unset(VAR_NFS_PATH);
 	return DITEM_FAILURE;

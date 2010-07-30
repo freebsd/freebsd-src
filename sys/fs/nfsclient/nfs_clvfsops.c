@@ -652,7 +652,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 			while (newnfs_connect(nmp, &nmp->nm_sockreq,
 			    cred, td, 0)) {
 				printf("newnfs_args: retrying connect\n");
-				(void) nfs_catnap(PSOCK, "newnfscon");
+				(void) nfs_catnap(PSOCK, 0, "newnfscon");
 			}
 		}
 	} else {
@@ -951,7 +951,7 @@ nfs_mount(struct mount *mp)
 
 	if (vfs_getopt(mp->mnt_optnew, "fh", (void **)&args.fh,
 	    &args.fhsize) == 0) {
-		if (args.fhsize > NFSX_FHMAX) {
+		if (args.fhsize < 0 || args.fhsize > NFSX_FHMAX) {
 			vfs_mount_error(mp, "Bad file handle");
 			error = EINVAL;
 			goto out;
@@ -1188,7 +1188,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 			error = nfsrpc_getdirpath(nmp, NFSMNT_DIRPATH(nmp),
 			    cred, td);
 			if (error)
-				(void) nfs_catnap(PZERO, "nfsgetdirp");
+				(void) nfs_catnap(PZERO, error, "nfsgetdirp");
 		} while (error && --trycnt > 0);
 		if (error) {
 			error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
@@ -1284,7 +1284,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 	do {
 		error = vflush(mp, 1, flags, td);
 		if ((mntflags & MNT_FORCE) && error != 0 && ++trycnt < 30)
-			(void) nfs_catnap(PSOCK, "newndm");
+			(void) nfs_catnap(PSOCK, error, "newndm");
 	} while ((mntflags & MNT_FORCE) && error != 0 && trycnt < 30);
 	if (error)
 		goto out;

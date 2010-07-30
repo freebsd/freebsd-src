@@ -43,6 +43,7 @@
 #include <dev/pci/pcireg.h>
 
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
@@ -341,13 +342,15 @@ grackle_route_interrupt(device_t bus, device_t dev, int pin)
 	struct grackle_softc *sc;
 	struct ofw_pci_register reg;
 	uint32_t pintr, mintr;
+	phandle_t iparent;
 	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bus);
 	pintr = pin;
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
-	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr), maskbuf))
-		return (mintr);
+	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
+	    &iparent, maskbuf))
+		return (INTR_VEC(iparent, mintr));
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)

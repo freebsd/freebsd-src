@@ -105,6 +105,7 @@ static struct _devname {
     NETWORK("bfe",	"Broadcom BCM440x PCI Ethernet card"),
     NETWORK("bge",	"Broadcom BCM570x PCI Gigabit Ethernet card"),
     NETWORK("bm",	"Apple BMAC Built-in Ethernet"),
+    NETWORK("bwn",	"Broadcom BCM43xx IEEE 802.11 wireless adapter"),
     NETWORK("cas",	"Sun Cassini/Cassini+ or NS DP83065 Saturn Ethernet"),
     NETWORK("cue",	"CATC USB Ethernet adapter"),
     NETWORK("cxgb",	"Chelsio T3 10Gb Ethernet card"),
@@ -149,6 +150,7 @@ static struct _devname {
     NETWORK("rue",	"RealTek USB Ethernet card"),
     NETWORK("rum",	"Ralink Technology USB IEEE 802.11 wireless adapter"),
     NETWORK("sf",	"Adaptec AIC-6915 PCI Ethernet card"),
+    NETWORK("sge",	"Silicon Integrated Systems SiS190/191 Ethernet"),
     NETWORK("sis",	"SiS 900/SiS 7016 PCI Ethernet card"),
 #ifdef PC98
     NETWORK("snc",	"SONIC Ethernet card"),
@@ -293,6 +295,8 @@ deviceGetAll(void)
 
     msgNotify("Probing devices, please wait (this can take a while)...");
     /* First go for the network interfaces.  Stolen shamelessly from ifconfig! */
+    memset(&ifc, 0, sizeof(ifc));
+    memset(buffer, 0, INTERFACE_MAX * sizeof(struct ifreq));
     ifc.ifc_len = sizeof(buffer);
     ifc.ifc_buf = buffer;
 
@@ -369,7 +373,7 @@ skipif:
 
 		    if (fd >= 0) close(fd);
 		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
+		    deviceRegister(n, device_names[i].description, strdup(try),
 					 DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM,
 					 mediaShutdownCDROM, NULL);
 		    if (isDebug())
@@ -388,7 +392,7 @@ skipif:
 
 		    close(fd);
 		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
+		    deviceRegister(n, device_names[i].description, strdup(try),
 				   DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy,
 				   mediaShutdownFloppy, NULL);
 		    if (isDebug())
@@ -403,7 +407,7 @@ skipif:
 
 			close(fd);
 			snprintf(n, sizeof(n), device_names[i].name, j);
-			deviceRegister(strdup(n), device_names[i].description,
+			deviceRegister(n, device_names[i].description,
 			    strdup(try), DEVICE_TYPE_USB, TRUE, mediaInitUSB,
 			    mediaGetUSB, mediaShutdownUSB, NULL);
 

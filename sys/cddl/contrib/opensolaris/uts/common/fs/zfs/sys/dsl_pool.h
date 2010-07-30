@@ -31,6 +31,7 @@
 #include <sys/txg_impl.h>
 #include <sys/zfs_context.h>
 #include <sys/zio.h>
+#include <sys/dnode.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -47,6 +48,25 @@ enum scrub_func {
 	SCRUB_FUNC_CLEAN,
 	SCRUB_FUNC_NUMFUNCS
 };
+
+/* These macros are for indexing into the zfs_all_blkstats_t. */
+#define	DMU_OT_DEFERRED	DMU_OT_NONE
+#define	DMU_OT_TOTAL	DMU_OT_NUMTYPES
+
+typedef struct zfs_blkstat {
+	uint64_t	zb_count;
+	uint64_t	zb_asize;
+	uint64_t	zb_lsize;
+	uint64_t	zb_psize;
+	uint64_t	zb_gangs;
+	uint64_t	zb_ditto_2_of_2_samevdev;
+	uint64_t	zb_ditto_2_of_3_samevdev;
+	uint64_t	zb_ditto_3_of_3_samevdev;
+} zfs_blkstat_t;
+
+typedef struct zfs_all_blkstats {
+	zfs_blkstat_t	zab_type[DN_MAX_LEVELS + 1][DMU_OT_TOTAL + 1];
+} zfs_all_blkstats_t;
 
 
 typedef struct dsl_pool {
@@ -95,6 +115,8 @@ typedef struct dsl_pool {
 	 * nobody else could possibly have it for write.
 	 */
 	krwlock_t dp_config_rwlock;
+
+	zfs_all_blkstats_t *dp_blkstats;
 } dsl_pool_t;
 
 int dsl_pool_open(spa_t *spa, uint64_t txg, dsl_pool_t **dpp);
@@ -112,6 +134,8 @@ int dsl_free(zio_t *pio, dsl_pool_t *dp, uint64_t txg, const blkptr_t *bpp,
     zio_done_func_t *done, void *private, uint32_t arc_flags);
 void dsl_pool_ds_destroyed(struct dsl_dataset *ds, struct dmu_tx *tx);
 void dsl_pool_ds_snapshotted(struct dsl_dataset *ds, struct dmu_tx *tx);
+void dsl_pool_ds_clone_swapped(struct dsl_dataset *ds1, struct dsl_dataset *ds2,
+    struct dmu_tx *tx);
 void dsl_pool_create_origin(dsl_pool_t *dp, dmu_tx_t *tx);
 void dsl_pool_upgrade_clones(dsl_pool_t *dp, dmu_tx_t *tx);
 

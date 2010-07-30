@@ -43,7 +43,7 @@ isnan(double d)
 #endif
 
 int
-isnanf(float f)
+__isnanf(float f)
 {
 	union IEEEf2bits u;
 
@@ -60,3 +60,5 @@ __isnanl(long double e)
 	mask_nbit_l(u);
 	return (u.bits.exp == 32767 && (u.bits.manl != 0 || u.bits.manh != 0));
 }
+
+__weak_reference(__isnanf, isnanf);

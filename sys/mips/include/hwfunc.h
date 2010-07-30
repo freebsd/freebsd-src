@@ -93,5 +93,11 @@ extern int platform_processor_id(void);
  */
 extern int platform_num_processors(void);
 
+/*
+ * Return the topology of processors on this platform
+ */
+struct cpu_group *platform_smp_topo(void);
+
+
 #endif	/* SMP */
 #endif /* !_MACHINE_HWFUNC_H_ */

@@ -1,7 +1,7 @@
 /*
  * Copyright 2006 Peter Grehan <grehan@freebsd.org>
- * Copryight 2005 Orlando Bassotto <orlando@break.net>
- * Copryight 1998 Sean Eric Fagan
+ * Copyright 2005 Orlando Bassotto <orlando@break.net>
+ * Copyright 1998 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

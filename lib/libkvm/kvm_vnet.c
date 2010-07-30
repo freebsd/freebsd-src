@@ -117,8 +117,8 @@ _kvm_vnet_selectpid(kvm_t *kd, pid_t pid)
 	}
 
 	/*
-	 * First, find the process for this pid.  If we are workig on a dump,
-	 * either locate the thread dumptid is refering to or proc0.
+	 * First, find the process for this pid.  If we are working on a
+	 * dump, either locate the thread dumptid is refering to or proc0.
 	 * Based on either, take the address of the ucred.
 	 */
 	credp = 0;

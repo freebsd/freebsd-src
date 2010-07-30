@@ -185,17 +185,6 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	
 	init_level++;
 
-	xpt_lock_buses();
-	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
-		if (strcmp((*p_drv)->driver_name, name) == 0)
-			break;
-	}
-	xpt_unlock_buses();
-	if (*p_drv == NULL) {
-		printf("cam_periph_alloc: invalid periph name '%s'\n", name);
-		free(periph, M_CAMPERIPH);
-		return (CAM_REQ_INVALID);
-	}
 
 	sim = xpt_path_sim(path);
 	path_id = xpt_path_path_id(path);
@@ -208,7 +197,6 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	periph->periph_oninval = periph_oninvalidate;
 	periph->type = type;
 	periph->periph_name = name;
-	periph->unit_number = camperiphunit(*p_drv, path_id, target_id, lun_id);
 	periph->immediate_priority = CAM_PRIORITY_NONE;
 	periph->refcount = 0;
 	periph->sim = sim;
@@ -216,26 +204,39 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	status = xpt_create_path(&path, periph, path_id, target_id, lun_id);
 	if (status != CAM_REQ_CMP)
 		goto failure;
-
 	periph->path = path;
-	init_level++;
 
-	status = xpt_add_periph(periph);
-
-	if (status != CAM_REQ_CMP)
-		goto failure;
-
+	xpt_lock_buses();
+	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
+		if (strcmp((*p_drv)->driver_name, name) == 0)
+			break;
+	}
+	if (*p_drv == NULL) {
+		printf("cam_periph_alloc: invalid periph name '%s'\n", name);
+		xpt_free_path(periph->path);
+		free(periph, M_CAMPERIPH);
+		xpt_unlock_buses();
+		return (CAM_REQ_INVALID);
+	}
+	periph->unit_number = camperiphunit(*p_drv, path_id, target_id, lun_id);
 	cur_periph = TAILQ_FIRST(&(*p_drv)->units);
 	while (cur_periph != NULL
 	    && cur_periph->unit_number < periph->unit_number)
 		cur_periph = TAILQ_NEXT(cur_periph, unit_links);
-
-	if (cur_periph != NULL)
+	if (cur_periph != NULL) {
+		KASSERT(cur_periph->unit_number != periph->unit_number, ("duplicate units on periph list"));
 		TAILQ_INSERT_BEFORE(cur_periph, periph, unit_links);
-	else {
+	} else {
 		TAILQ_INSERT_TAIL(&(*p_drv)->units, periph, unit_links);
 		(*p_drv)->generation++;
 	}
+	xpt_unlock_buses();
+
+	init_level++;
+
+	status = xpt_add_periph(periph);
+	if (status != CAM_REQ_CMP)
+		goto failure;
 
 	init_level++;
 
@@ -250,10 +251,12 @@ failure:
 		/* Initialized successfully */
 		break;
 	case 3:
-		TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
 		xpt_remove_periph(periph);
 		/* FALLTHROUGH */
 	case 2:
+		xpt_lock_buses();
+		TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
+		xpt_unlock_buses();
 		xpt_free_path(periph->path);
 		/* FALLTHROUGH */
 	case 1:
@@ -288,6 +291,7 @@ cam_periph_find(struct cam_path *path, char *name)
 		TAILQ_FOREACH(periph, &(*p_drv)->units, unit_links) {
 			if (xpt_path_comp(periph->path, path) == 0) {
 				xpt_unlock_buses();
+				mtx_assert(periph->sim->mtx, MA_OWNED);
 				return(periph);
 			}
 		}
@@ -322,8 +326,13 @@ cam_periph_release_locked(struct cam_periph *periph)
 		return;
 
 	xpt_lock_buses();
-	if ((--periph->refcount == 0)
-	 && (periph->flags & CAM_PERIPH_INVALID)) {
+	if (periph->refcount != 0) {
+		periph->refcount--;
+	} else {
+		xpt_print(periph->path, "%s: release %p when refcount is zero\n ", __func__, periph);
+	}
+	if (periph->refcount == 0
+	    && (periph->flags & CAM_PERIPH_INVALID)) {
 		camperiphfree(periph);
 	}
 	xpt_unlock_buses();

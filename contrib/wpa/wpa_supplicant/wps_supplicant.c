@@ -26,7 +26,9 @@
 #include "ctrl_iface_dbus.h"
 #include "eap_common/eap_wsc_common.h"
 #include "blacklist.h"
+#include "wpa.h"
 #include "wps_supplicant.h"
+
 
 #define WPS_PIN_SCAN_IGNORE_SEL_REG 3
 
@@ -83,11 +85,109 @@ int wpas_wps_eapol_cb(struct wpa_supplicant *wpa_s)
 }
 
 
+static void wpas_wps_security_workaround(struct wpa_supplicant *wpa_s,
+					 struct wpa_ssid *ssid,
+					 const struct wps_credential *cred)
+{
+	struct wpa_driver_capa capa;
+	size_t i;
+	struct wpa_scan_res *bss;
+	const u8 *ie;
+	struct wpa_ie_data adv;
+	int wpa2 = 0, ccmp = 0;
+
+	/*
+	 * Many existing WPS APs do not know how to negotiate WPA2 or CCMP in
+	 * case they are configured for mixed mode operation (WPA+WPA2 and
+	 * TKIP+CCMP). Try to use scan results to figure out whether the AP
+	 * actually supports stronger security and select that if the client
+	 * has support for it, too.
+	 */
+
+	if (wpa_drv_get_capa(wpa_s, &capa))
+		return; /* Unknown what driver supports */
+
+	if (wpa_supplicant_get_scan_results(wpa_s) || wpa_s->scan_res == NULL)
+		return; /* Could not get scan results for checking advertised
+			 * parameters */
+
+	for (i = 0; i < wpa_s->scan_res->num; i++) {
+		bss = wpa_s->scan_res->res[i];
+		if (os_memcmp(bss->bssid, cred->mac_addr, ETH_ALEN) != 0)
+			continue;
+		ie = wpa_scan_get_ie(bss, WLAN_EID_SSID);
+		if (ie == NULL)
+			continue;
+		if (ie[1] != ssid->ssid_len || ssid->ssid == NULL ||
+		    os_memcmp(ie + 2, ssid->ssid, ssid->ssid_len) != 0)
+			continue;
+
+		wpa_printf(MSG_DEBUG, "WPS: AP found from scan results");
+		break;
+	}
+
+	if (i == wpa_s->scan_res->num) {
+		wpa_printf(MSG_DEBUG, "WPS: The AP was not found from scan "
+			   "results - use credential as-is");
+		return;
+	}
+
+	ie = wpa_scan_get_ie(bss, WLAN_EID_RSN);
+	if (ie && wpa_parse_wpa_ie(ie, 2 + ie[1], &adv) == 0) {
+		wpa2 = 1;
+		if (adv.pairwise_cipher & WPA_CIPHER_CCMP)
+			ccmp = 1;
+	} else {
+		ie = wpa_scan_get_vendor_ie(bss, WPA_IE_VENDOR_TYPE);
+		if (ie && wpa_parse_wpa_ie(ie, 2 + ie[1], &adv) == 0 &&
+		    adv.pairwise_cipher & WPA_CIPHER_CCMP)
+			ccmp = 1;
+	}
+
+	if (ie == NULL && (ssid->proto & WPA_PROTO_WPA) &&
+	    (ssid->pairwise_cipher & WPA_CIPHER_TKIP)) {
+		/*
+		 * TODO: This could be the initial AP configuration and the
+		 * Beacon contents could change shortly. Should request a new
+		 * scan and delay addition of the network until the updated
+		 * scan results are available.
+		 */
+		wpa_printf(MSG_DEBUG, "WPS: The AP did not yet advertise WPA "
+			   "support - use credential as-is");
+		return;
+	}
+
+	if (ccmp && !(ssid->pairwise_cipher & WPA_CIPHER_CCMP) &&
+	    (ssid->pairwise_cipher & WPA_CIPHER_TKIP) &&
+	    (capa.key_mgmt & WPA_DRIVER_CAPA_KEY_MGMT_WPA2_PSK)) {
+		wpa_printf(MSG_DEBUG, "WPS: Add CCMP into the credential "
+			   "based on scan results");
+		if (wpa_s->conf->ap_scan == 1)
+			ssid->pairwise_cipher |= WPA_CIPHER_CCMP;
+		else
+			ssid->pairwise_cipher = WPA_CIPHER_CCMP;
+	}
+
+	if (wpa2 && !(ssid->proto & WPA_PROTO_RSN) &&
+	    (ssid->proto & WPA_PROTO_WPA) &&
+	    (capa.enc & WPA_DRIVER_CAPA_ENC_CCMP)) {
+		wpa_printf(MSG_DEBUG, "WPS: Add WPA2 into the credential "
+			   "based on scan results");
+		if (wpa_s->conf->ap_scan == 1)
+			ssid->proto |= WPA_PROTO_RSN;
+		else
+			ssid->proto = WPA_PROTO_RSN;
+	}
+}
+
+
 static int wpa_supplicant_wps_cred(void *ctx,
 				   const struct wps_credential *cred)
 {
 	struct wpa_supplicant *wpa_s = ctx;
 	struct wpa_ssid *ssid = wpa_s->current_ssid;
+	u8 key_idx = 0;
+	u16 auth_type;
 
 	if ((wpa_s->conf->wps_cred_processing == 1 ||
 	     wpa_s->conf->wps_cred_processing == 2) && cred->cred_attr) {
@@ -110,13 +210,30 @@ static int wpa_supplicant_wps_cred(void *ctx,
 	if (wpa_s->conf->wps_cred_processing == 1)
 		return 0;
 
-	if (cred->auth_type != WPS_AUTH_OPEN &&
-	    cred->auth_type != WPS_AUTH_SHARED &&
-	    cred->auth_type != WPS_AUTH_WPAPSK &&
-	    cred->auth_type != WPS_AUTH_WPA2PSK) {
+	wpa_hexdump_ascii(MSG_DEBUG, "WPS: SSID", cred->ssid, cred->ssid_len);
+	wpa_printf(MSG_DEBUG, "WPS: Authentication Type 0x%x",
+		   cred->auth_type);
+	wpa_printf(MSG_DEBUG, "WPS: Encryption Type 0x%x", cred->encr_type);
+	wpa_printf(MSG_DEBUG, "WPS: Network Key Index %d", cred->key_idx);
+	wpa_hexdump_key(MSG_DEBUG, "WPS: Network Key",
+			cred->key, cred->key_len);
+	wpa_printf(MSG_DEBUG, "WPS: MAC Address " MACSTR,
+		   MAC2STR(cred->mac_addr));
+
+	auth_type = cred->auth_type;
+	if (auth_type == (WPS_AUTH_WPAPSK | WPS_AUTH_WPA2PSK)) {
+		wpa_printf(MSG_DEBUG, "WPS: Workaround - convert mixed-mode "
+			   "auth_type into WPA2PSK");
+		auth_type = WPS_AUTH_WPA2PSK;
+	}
+
+	if (auth_type != WPS_AUTH_OPEN &&
+	    auth_type != WPS_AUTH_SHARED &&
+	    auth_type != WPS_AUTH_WPAPSK &&
+	    auth_type != WPS_AUTH_WPA2PSK) {
 		wpa_printf(MSG_DEBUG, "WPS: Ignored credentials for "
-			   "unsupported authentication type %d",
-			   cred->auth_type);
+			   "unsupported authentication type 0x%x",
+			   auth_type);
 		return 0;
 	}
 
@@ -151,13 +268,36 @@ static int wpa_supplicant_wps_cred(void *ctx,
 	case WPS_ENCR_NONE:
 		break;
 	case WPS_ENCR_WEP:
-		if (cred->key_len > 0 && cred->key_len <= MAX_WEP_KEY_LEN &&
-		    cred->key_idx < NUM_WEP_KEYS) {
-			os_memcpy(ssid->wep_key[cred->key_idx], cred->key,
-				  cred->key_len);
-			ssid->wep_key_len[cred->key_idx] = cred->key_len;
-			ssid->wep_tx_keyidx = cred->key_idx;
+		if (cred->key_len <= 0)
+			break;
+		if (cred->key_len != 5 && cred->key_len != 13 &&
+		    cred->key_len != 10 && cred->key_len != 26) {
+			wpa_printf(MSG_ERROR, "WPS: Invalid WEP Key length "
+				   "%lu", (unsigned long) cred->key_len);
+			return -1;
 		}
+		if (cred->key_idx > NUM_WEP_KEYS) {
+			wpa_printf(MSG_ERROR, "WPS: Invalid WEP Key index %d",
+				   cred->key_idx);
+			return -1;
+		}
+		if (cred->key_idx)
+			key_idx = cred->key_idx - 1;
+		if (cred->key_len == 10 || cred->key_len == 26) {
+			if (hexstr2bin((char *) cred->key,
+				       ssid->wep_key[key_idx],
+				       cred->key_len / 2) < 0) {
+				wpa_printf(MSG_ERROR, "WPS: Invalid WEP Key "
+					   "%d", key_idx);
+				return -1;
+			}
+			ssid->wep_key_len[key_idx] = cred->key_len / 2;
+		} else {
+			os_memcpy(ssid->wep_key[key_idx], cred->key,
+				  cred->key_len);
+			ssid->wep_key_len[key_idx] = cred->key_len;
+		}
+		ssid->wep_tx_keyidx = key_idx;
 		break;
 	case WPS_ENCR_TKIP:
 		ssid->pairwise_cipher = WPA_CIPHER_TKIP;
@@ -167,7 +307,7 @@ static int wpa_supplicant_wps_cred(void *ctx,
 		break;
 	}
 
-	switch (cred->auth_type) {
+	switch (auth_type) {
 	case WPS_AUTH_OPEN:
 		ssid->auth_alg = WPA_AUTH_ALG_OPEN;
 		ssid->key_mgmt = WPA_KEY_MGMT_NONE;
@@ -225,6 +365,8 @@ static int wpa_supplicant_wps_cred(void *ctx,
 		}
 	}
 
+	wpas_wps_security_workaround(wpa_s, ssid, cred);
+
 #ifndef CONFIG_NO_CONFIG_WRITE
 	if (wpa_s->conf->update_config &&
 	    wpa_config_write(wpa_s->confname, wpa_s->conf)) {
@@ -276,6 +418,10 @@ static void wpa_supplicant_wps_event(void *ctx, enum wps_event event,
 		wpa_supplicant_wps_event_success(wpa_s);
 		break;
 	case WPS_EV_PWD_AUTH_FAIL:
+		break;
+	case WPS_EV_PBC_OVERLAP:
+		break;
+	case WPS_EV_PBC_TIMEOUT:
 		break;
 	}
 }
@@ -343,7 +489,7 @@ static struct wpa_ssid * wpas_wps_add_network(struct wpa_supplicant *wpa_s,
 
 	if (bssid) {
 		size_t i;
-		struct wpa_scan_res *res;
+		int count = 0;
 
 		os_memcpy(ssid->bssid, bssid, ETH_ALEN);
 		ssid->bssid_set = 1;
@@ -355,6 +501,7 @@ static struct wpa_ssid * wpas_wps_add_network(struct wpa_supplicant *wpa_s,
 
 		for (i = 0; i < wpa_s->scan_res->num; i++) {
 			const u8 *ie;
+			struct wpa_scan_res *res;
 
 			res = wpa_s->scan_res->res[i];
 			if (os_memcmp(bssid, res->bssid, ETH_ALEN) != 0)
@@ -369,7 +516,18 @@ static struct wpa_ssid * wpas_wps_add_network(struct wpa_supplicant *wpa_s,
 				break;
 			os_memcpy(ssid->ssid, ie + 2, ie[1]);
 			ssid->ssid_len = ie[1];
-			break;
+			wpa_hexdump_ascii(MSG_DEBUG, "WPS: Picked SSID from "
+					  "scan results",
+					  ssid->ssid, ssid->ssid_len);
+			count++;
+		}
+
+		if (count > 1) {
+			wpa_printf(MSG_DEBUG, "WPS: More than one SSID found "
+				   "for the AP; use wildcard");
+			os_free(ssid->ssid);
+			ssid->ssid = NULL;
+			ssid->ssid_len = 0;
 		}
 	}
 

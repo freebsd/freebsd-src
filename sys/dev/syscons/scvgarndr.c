@@ -181,8 +181,16 @@ static u_short mouse_or_mask[16] = {
 #define	vga_drawpxl(pos, color)						\
 	switch (scp->sc->adp->va_info.vi_depth) {			\
 		case 32:						\
-		case 24:						\
 			writel(pos, vga_palette32[color]);		\
+			break;						\
+		case 24:						\
+			if (((pos) & 1) == 0) {				\
+				writew(pos, vga_palette32[color]);	\
+				writeb(pos + 2, vga_palette32[color] >> 16);\
+			} else {					\
+				writeb(pos, vga_palette32[color]);	\
+				writew(pos + 1, vga_palette32[color] >> 8);\
+			}						\
 			break;						\
 		case 16:						\
 			if (scp->sc->adp->va_info.vi_pixel_fsizes[1] == 5)\

@@ -233,7 +233,6 @@ extern void
     SetNetTrace(char *);	/* Function to change where debugging goes */
 
 extern jmp_buf
-    peerdied,
     toplevel;		/* For error conditions. */
 
 extern void

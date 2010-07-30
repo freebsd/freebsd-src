@@ -620,9 +620,7 @@ cache_drain(uma_zone_t zone)
 	 * it is used elsewhere.  Should the tear-down path be made special
 	 * there in some form?
 	 */
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		cache = &zone->uz_cpu[cpu];
 		bucket_drain(zone, cache->uc_allocbucket);
 		bucket_drain(zone, cache->uc_freebucket);
@@ -1022,10 +1020,8 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 			while (pages != startpages) {
 				pages--;
 				p = TAILQ_LAST(&object->memq, pglist);
-				vm_page_lock_queues();
 				vm_page_unwire(p, 0);
 				vm_page_free(p);
-				vm_page_unlock_queues();
 			}
 			retkva = 0;
 			goto done;
@@ -1400,6 +1396,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_allocs = 0;
 	zone->uz_frees = 0;
 	zone->uz_fails = 0;
+	zone->uz_sleeps = 0;
 	zone->uz_fills = zone->uz_count = 0;
 	zone->uz_flags = 0;
 	keg = arg->keg;
@@ -2287,6 +2284,7 @@ zone_fetch_slab_multi(uma_zone_t zone, uma_keg_t last, int rflags)
 		 */
 		if (full && !empty) {
 			zone->uz_flags |= UMA_ZFLAG_FULL;
+			zone->uz_sleeps++;
 			msleep(zone, zone->uz_lock, PVM, "zonelimit", hz/100);
 			zone->uz_flags &= ~UMA_ZFLAG_FULL;
 			continue;
@@ -2891,13 +2889,11 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 
 	if (kva == 0)
 		return (0);
-	if (obj == NULL) {
-		obj = vm_object_allocate(OBJT_DEFAULT,
-		    pages);
-	} else {
+	if (obj == NULL)
+		obj = vm_object_allocate(OBJT_PHYS, pages);
+	else {
 		VM_OBJECT_LOCK_INIT(obj, "uma object");
-		_vm_object_allocate(OBJT_DEFAULT,
-		    pages, obj);
+		_vm_object_allocate(OBJT_PHYS, pages, obj);
 	}
 	ZONE_LOCK(zone);
 	keg->uk_kva = kva;
@@ -3079,9 +3075,7 @@ uma_print_zone(uma_zone_t zone)
 	    zone->uz_name, zone, zone->uz_size, zone->uz_flags);
 	LIST_FOREACH(kl, &zone->uz_kegs, kl_link)
 		uma_print_keg(kl->kl_keg);
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		cache = &zone->uz_cpu[i];
 		printf("CPU %d Cache:\n", i);
 		cache_print(cache);
@@ -3102,17 +3096,15 @@ uma_print_zone(uma_zone_t zone)
  */
 static void
 uma_zone_sumstat(uma_zone_t z, int *cachefreep, u_int64_t *allocsp,
-    u_int64_t *freesp)
+    u_int64_t *freesp, u_int64_t *sleepsp)
 {
 	uma_cache_t cache;
-	u_int64_t allocs, frees;
+	u_int64_t allocs, frees, sleeps;
 	int cachefree, cpu;
 
-	allocs = frees = 0;
+	allocs = frees = sleeps = 0;
 	cachefree = 0;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		cache = &z->uz_cpu[cpu];
 		if (cache->uc_allocbucket != NULL)
 			cachefree += cache->uc_allocbucket->ub_cnt;
@@ -3123,12 +3115,15 @@ uma_zone_sumstat(uma_zone_t z, int *cachefreep, u_int64_t *allocsp,
 	}
 	allocs += z->uz_allocs;
 	frees += z->uz_frees;
+	sleeps += z->uz_sleeps;
 	if (cachefreep != NULL)
 		*cachefreep = cachefree;
 	if (allocsp != NULL)
 		*allocsp = allocs;
 	if (freesp != NULL)
 		*freesp = frees;
+	if (sleepsp != NULL)
+		*sleepsp = sleeps;
 }
 #endif /* DDB */
 
@@ -3236,6 +3231,7 @@ restart:
 			uth.uth_allocs = z->uz_allocs;
 			uth.uth_frees = z->uz_frees;
 			uth.uth_fails = z->uz_fails;
+			uth.uth_sleeps = z->uz_sleeps;
 			if (sbuf_bcat(&sbuf, &uth, sizeof(uth)) < 0) {
 				ZONE_UNLOCK(z);
 				mtx_unlock(&uma_mtx);
@@ -3287,32 +3283,33 @@ out:
 #ifdef DDB
 DB_SHOW_COMMAND(uma, db_show_uma)
 {
-	u_int64_t allocs, frees;
+	u_int64_t allocs, frees, sleeps;
 	uma_bucket_t bucket;
 	uma_keg_t kz;
 	uma_zone_t z;
 	int cachefree;
 
-	db_printf("%18s %8s %8s %8s %12s\n", "Zone", "Size", "Used", "Free",
-	    "Requests");
+	db_printf("%18s %8s %8s %8s %12s %8s\n", "Zone", "Size", "Used", "Free",
+	    "Requests", "Sleeps");
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
 			if (kz->uk_flags & UMA_ZFLAG_INTERNAL) {
 				allocs = z->uz_allocs;
 				frees = z->uz_frees;
+				sleeps = z->uz_sleeps;
 				cachefree = 0;
 			} else
 				uma_zone_sumstat(z, &cachefree, &allocs,
-				    &frees);
+				    &frees, &sleeps);
 			if (!((z->uz_flags & UMA_ZONE_SECONDARY) &&
 			    (LIST_FIRST(&kz->uk_zones) != z)))
 				cachefree += kz->uk_free;
 			LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link)
 				cachefree += bucket->ub_cnt;
-			db_printf("%18s %8ju %8jd %8d %12ju\n", z->uz_name,
+			db_printf("%18s %8ju %8jd %8d %12ju %8ju\n", z->uz_name,
 			    (uintmax_t)kz->uk_size,
 			    (intmax_t)(allocs - frees), cachefree,
-			    (uintmax_t)allocs);
+			    (uintmax_t)allocs, sleeps);
 		}
 	}
 }

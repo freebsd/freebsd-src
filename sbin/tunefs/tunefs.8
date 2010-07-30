@@ -28,7 +28,7 @@
 .\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2009
+.Dd March 6, 2010
 .Dt TUNEFS 8
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Op Fl a Cm enable | disable
 .Op Fl e Ar maxbpg
 .Op Fl f Ar avgfilesize
+.Op Fl j Cm enable | disable
 .Op Fl J Cm enable | disable
 .Op Fl L Ar volname
 .Op Fl l Cm enable | disable
@@ -49,6 +50,7 @@
 .Op Fl o Cm space | time
 .Op Fl p
 .Op Fl s Ar avgfpdir
+.Op Fl S Ar size
 .Ar special | filesystem
 .Sh DESCRIPTION
 The
@@ -89,6 +91,8 @@ For file systems with exclusively large files,
 this parameter should be set higher.
 .It Fl f Ar avgfilesize
 Specify the expected average file size.
+.It Fl j Cm enable | disable
+Turn on/off soft updates journaling.
 .It Fl J Cm enable | disable
 Turn on/off gjournal flag.
 .It Fl L Ar volname
@@ -136,6 +140,9 @@ obtained from the
 utility.
 .It Fl s Ar avgfpdir
 Specify the expected number of files per directory.
+.It Fl S Ar size
+Specify the softdep journal size in bytes.
+The minimum is 4M.
 .El
 .Pp
 At least one of the above flags is required.

@@ -30,6 +30,16 @@
 #ifndef _MACHINE_INTR_H_
 #define	_MACHINE_INTR_H_
 
+#define	IA64_NXIVS		256	/* External Interrupt Vectors */
+#define	IA64_MIN_XIV		16
+
+#define	IA64_MAX_HWPRIO		14
+
+struct pcpu;
+struct sapic;
+struct thread;
+struct trapframe;
+
 /*
  * Layout of the Processor Interrupt Block.
  */
@@ -44,10 +54,40 @@ struct ia64_pib
 	uint8_t		_rsvd4[0x1fff0];
 };
 
+enum ia64_xiv_use {
+	IA64_XIV_FREE,
+	IA64_XIV_ARCH,		/* Architecturally defined. */
+	IA64_XIV_PLAT,		/* Platform defined. */
+	IA64_XIV_IPI,		/* Used for IPIs. */
+	IA64_XIV_IRQ		/* Used for external interrupts. */
+};
+
+typedef u_int (ia64_ihtype)(struct thread *, u_int, struct trapframe *);
+
 extern struct ia64_pib *ia64_pib;
 
-int ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
-    driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep);
-int ia64_teardown_intr(void *cookie);
+void	ia64_bind_intr(void);
+void	ia64_handle_intr(struct trapframe *);
+int	ia64_setup_intr(const char *, int, driver_filter_t, driver_intr_t,
+	    void *, enum intr_type, void **);
+int	ia64_teardown_intr(void *);
+
+void	ia64_xiv_init(void);
+u_int	ia64_xiv_alloc(u_int, enum ia64_xiv_use, ia64_ihtype);
+int	ia64_xiv_free(u_int, enum ia64_xiv_use);
+int	ia64_xiv_reserve(u_int, enum ia64_xiv_use, ia64_ihtype);
+
+int	sapic_bind_intr(u_int, struct pcpu *);
+int	sapic_config_intr(u_int, enum intr_trigger, enum intr_polarity);
+struct sapic *sapic_create(u_int, u_int, uint64_t);
+int	sapic_enable(struct sapic *, u_int, u_int);
+void	sapic_eoi(struct sapic *, u_int);
+struct sapic *sapic_lookup(u_int, u_int *);
+void	sapic_mask(struct sapic *, u_int);
+void	sapic_unmask(struct sapic *, u_int);
+
+#ifdef DDB
+void	sapic_print(struct sapic *, u_int);
+#endif
 
 #endif /* !_MACHINE_INTR_H_ */

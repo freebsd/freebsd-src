@@ -781,7 +781,7 @@ top:
 		/*
 		 * Don't allocate from faulted devices.
 		 */
-		if (!vdev_writeable(vd))
+		if (!vdev_allocatable(vd))
 			goto next;
 		/*
 		 * Avoid writing single-copy data to a failing vdev

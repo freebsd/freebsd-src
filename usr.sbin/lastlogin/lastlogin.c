@@ -39,6 +39,7 @@ __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include <utmpx.h>
@@ -47,11 +48,19 @@ __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 static	void	output(struct utmpx *);
 static	void	usage(void);
 
+static int
+utcmp(const void *u1, const void *u2)
+{
+
+	return (strcmp(((const struct utmpx *)u1)->ut_user,
+	    ((const struct utmpx *)u2)->ut_user));
+}
+
 int
 main(int argc, char *argv[])
 {
-	int	ch, i;
-	struct utmpx *u;
+	int	ch, i, ulistsize;
+	struct utmpx *u, *ulist;
 
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		usage();
@@ -74,12 +83,24 @@ main(int argc, char *argv[])
 	else {
 		if (setutxdb(UTXDB_LASTLOGIN, NULL) != 0)
 			errx(1, "failed to open lastlog database");
+		ulist = NULL;
+		ulistsize = 0;
 		while ((u = getutxent()) != NULL) {
 			if (u->ut_type != USER_PROCESS)
 				continue;
-			output(u);
+			if ((ulistsize % 16) == 0) {
+				ulist = realloc(ulist,
+				    (ulistsize + 16) * sizeof(struct utmpx));
+				if (ulist == NULL)
+					err(1, "malloc");
+			}
+			ulist[ulistsize++] = *u;
 		}
 		endutxent();
+
+		qsort(ulist, ulistsize, sizeof(struct utmpx), utcmp);
+		for (i = 0; i < ulistsize; i++)
+			output(&ulist[i]);
 	}
 
 	exit(0);
@@ -91,7 +112,7 @@ output(struct utmpx *u)
 {
 	time_t t = u->ut_tv.tv_sec;
 
-	printf("%-10s %-8s %-22s %s",
+	printf("%-10s %-8s %-22.22s %s",
 		u->ut_user, u->ut_line, u->ut_host, ctime(&t));
 }
 

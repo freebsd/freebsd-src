@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_iwnvar.h,v 1.16 2009/11/04 17:46:52 damien Exp $	*/
+/*	$OpenBSD: if_iwnvar.h,v 1.17 2010/02/17 18:23:00 damien Exp $	*/
 
 /*-
  * Copyright (c) 2007, 2008
@@ -99,7 +99,6 @@ struct iwn_rx_ring {
 
 struct iwn_node {
 	struct	ieee80211_node		ni;	/* must be the first */
-	struct	ieee80211_amrr_node	amn;
 	uint16_t			disable_tid;
 	uint8_t				id;
 	uint8_t				ridx[IEEE80211_RATE_MAXSIZE];
@@ -193,8 +192,6 @@ struct iwn_hal {
 
 struct iwn_vap {
 	struct ieee80211vap	iv_vap;
-	struct ieee80211_amrr	iv_amrr;
-	struct callout		iv_amrr_to;
 	uint8_t			iv_ridx;
 
 	int			(*iv_newstate)(struct ieee80211vap *,
@@ -284,6 +281,7 @@ struct iwn_softc {
 				bands[IWN_NBANDS];
 	struct iwn_eeprom_chan	eeprom_channels[IWN_NBANDS][IWN_MAX_CHAN_PER_BAND];
 	uint16_t		rfcfg;
+	uint8_t			calib_ver;
 	char			eeprom_domain[4];
 	uint32_t		eeprom_crystal;
 	int16_t			eeprom_voltage;

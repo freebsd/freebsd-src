@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2010  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-dsfromkey.c,v 1.2.14.3 2009/03/02 02:54:15 marka Exp $ */
+/* $Id: dnssec-dsfromkey.c,v 1.2.14.6 2010/01/11 23:47:22 tbox Exp $ */
 
 /*! \file */
 
@@ -78,10 +78,18 @@ loadkeys(char *dirname, char *setname)
 
 	isc_buffer_init(&buf, filename, sizeof(filename));
 	if (dirname != NULL) {
+		if (isc_buffer_availablelength(&buf) < strlen(dirname))
+			fatal("directory name '%s' too long", dirname);
 		isc_buffer_putstr(&buf, dirname);
-		if (dirname[strlen(dirname) - 1] != '/')
+		if (dirname[strlen(dirname) - 1] != '/') {
+			if (isc_buffer_availablelength(&buf) < 1)
+				fatal("directory name '%s' too long", dirname);
 			isc_buffer_putstr(&buf, "/");
+		}
 	}
+
+	if (isc_buffer_availablelength(&buf) < strlen("keyset-"))
+		fatal("directory name '%s' too long", dirname);
 	isc_buffer_putstr(&buf, "keyset-");
 	result = dns_name_tofilenametext(name, ISC_FALSE, &buf);
 	check_result(result, "dns_name_tofilenametext()");
@@ -210,12 +218,12 @@ emitds(unsigned int dtype, dns_rdata_t *rdata)
 	putchar(' ');
 
 	isc_buffer_usedregion(&classb, &r);
-	fwrite(r.base, 1, r.length, stdout);
+	isc_util_fwrite(r.base, 1, r.length, stdout);
 
 	printf(" DS ");
 
 	isc_buffer_usedregion(&textb, &r);
-	fwrite(r.base, 1, r.length, stdout);
+	isc_util_fwrite(r.base, 1, r.length, stdout);
 	putchar('\n');
 }
 

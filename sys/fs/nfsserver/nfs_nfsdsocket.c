@@ -364,10 +364,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 	 * Get a locked vnode for the first file handle
 	 */
 	if (!(nd->nd_flag & ND_NFSV4)) {
-#ifdef DIAGNOSTIC
-		if (nd->nd_repstat)
-			panic("nfsrvd_dorpc");
-#endif
+		KASSERT(nd->nd_repstat == 0, ("nfsrvd_dorpc"));
 		/*
 		 * For NFSv3, if the malloc/mget allocation is near limits,
 		 * return NFSERR_DELAY.

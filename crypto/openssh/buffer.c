@@ -1,4 +1,4 @@
-/* $OpenBSD: buffer.c,v 1.31 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: buffer.c,v 1.32 2010/02/09 03:56:28 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -160,7 +160,7 @@ buffer_check_alloc(Buffer *buffer, u_int len)
 /* Returns the number of bytes of data in the buffer. */
 
 u_int
-buffer_len(Buffer *buffer)
+buffer_len(const Buffer *buffer)
 {
 	return buffer->end - buffer->offset;
 }
@@ -228,7 +228,7 @@ buffer_consume_end(Buffer *buffer, u_int bytes)
 /* Returns a pointer to the first used byte in the buffer. */
 
 void *
-buffer_ptr(Buffer *buffer)
+buffer_ptr(const Buffer *buffer)
 {
 	return buffer->buf + buffer->offset;
 }
@@ -236,7 +236,7 @@ buffer_ptr(Buffer *buffer)
 /* Dumps the contents of the buffer to stderr. */
 
 void
-buffer_dump(Buffer *buffer)
+buffer_dump(const Buffer *buffer)
 {
 	u_int i;
 	u_char *ucp = buffer->buf;

@@ -47,7 +47,14 @@ arm/arm/vm_machdep.c		standard
 arm/fpe-arm/armfpe_glue.S	optional	armfpe
 arm/fpe-arm/armfpe_init.c	optional	armfpe
 arm/fpe-arm/armfpe.S		optional	armfpe
+dev/fdt/fdt_arm.c		optional	fdt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
+dev/ofw/openfirm.c		optional	fdt
+dev/ofw/openfirmio.c		optional	fdt
+dev/ofw/ofw_bus_if.m		optional	fdt
+dev/ofw/ofw_if.m		optional	fdt
+dev/ofw/ofw_bus_subr.c		optional	fdt
+dev/ofw/ofw_fdt.c		optional	fdt
 geom/geom_bsd.c			optional	geom_bsd
 geom/geom_bsd_enc.c		optional	geom_bsd
 geom/geom_mbr.c			optional	geom_mbr
@@ -62,6 +69,7 @@ libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/lshrdi3.c		standard
+libkern/memchr.c		optional	fdt
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/udivdi3.c		standard

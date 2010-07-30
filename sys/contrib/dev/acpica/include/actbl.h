@@ -224,7 +224,28 @@ typedef struct acpi_table_rsdp
 
 } ACPI_TABLE_RSDP;
 
-#define ACPI_RSDP_REV0_SIZE     20                  /* Size of original ACPI 1.0 RSDP */
+/* Standalone struct for the ACPI 1.0 RSDP */
+
+typedef struct acpi_rsdp_common
+{
+    char                    Signature[8];
+    UINT8                   Checksum;
+    char                    OemId[ACPI_OEM_ID_SIZE];
+    UINT8                   Revision;
+    UINT32                  RsdtPhysicalAddress;
+
+} ACPI_RSDP_COMMON;
+
+/* Standalone struct for the extended part of the RSDP (ACPI 2.0+) */
+
+typedef struct acpi_rsdp_extension
+{
+    UINT32                  Length;
+    UINT64                  XsdtPhysicalAddress;
+    UINT8                   ExtendedChecksum;
+    UINT8                   Reserved[3];
+
+} ACPI_RSDP_EXTENSION;
 
 
 /*******************************************************************************

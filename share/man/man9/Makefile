@@ -374,6 +374,7 @@ MAN=	accept_filter.9 \
 	zone.9
 
 MLINKS=	alloc_unr.9 alloc_unrl.9 \
+	alloc_unr.9 alloc_unr_specific.9 \
 	alloc_unr.9 delete_unrhdr.9 \
 	alloc_unr.9 free_unr.9 \
 	alloc_unr.9 new_unrhdr.9

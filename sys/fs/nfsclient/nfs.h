@@ -79,14 +79,16 @@ int ncl_biowrite(struct vnode *, struct uio *, int, struct ucred *);
 int ncl_vinvalbuf(struct vnode *, int, struct thread *, int);
 int ncl_asyncio(struct nfsmount *, struct buf *, struct ucred *,
     struct thread *);
-int ncl_doio(struct vnode *, struct buf *, struct ucred *, struct thread *);
+int ncl_doio(struct vnode *, struct buf *, struct ucred *, struct thread *,
+    int);
 void ncl_nhinit(void);
 void ncl_nhuninit(void);
 void ncl_nodelock(struct nfsnode *);
 void ncl_nodeunlock(struct nfsnode *);
 int ncl_getattrcache(struct vnode *, struct vattr *);
 int ncl_readrpc(struct vnode *, struct uio *, struct ucred *);
-int ncl_writerpc(struct vnode *, struct uio *, struct ucred *, int *, int *);
+int ncl_writerpc(struct vnode *, struct uio *, struct ucred *, int *, int *,
+    int);
 int ncl_readlinkrpc(struct vnode *, struct uio *, struct ucred *);
 int ncl_readdirrpc(struct vnode *, struct uio *, struct ucred *,
     struct thread *);

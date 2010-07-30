@@ -743,8 +743,6 @@ acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 			return (status);
 
 		if (sc->cmos_handle) {
-			val = val_ec & IBM_EC_MASK_VOL;
-
 			Args.Count = 1;
 			Args.Pointer = &Arg;
 			Arg.Type = ACPI_TYPE_INTEGER;

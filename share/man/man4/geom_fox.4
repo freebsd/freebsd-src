@@ -26,8 +26,8 @@
 .\" $FreeBSD$
 .\"
 .Dd January 2, 2005
-.Os
 .Dt GEOM_FOX 4
+.Os
 .Sh NAME
 .Nm geom_fox
 .Nd "GEOM based basic disk multipathing"
@@ -177,6 +177,14 @@ da2.fox     N/A  da2
 .Xr GEOM 4 ,
 .Xr geom 8 ,
 .Xr gmultipath 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An "Poul-Henning Kamp" Aq phk@FreeBSD.org .
+This manual page was written by
+.An "Wilko Bulte" Aq wilko@FreeBSD.org .
 .Sh CAVEATS
 The
 .Nm
@@ -193,14 +201,6 @@ Safety belts are not provided.
 For FibreChannel devices it is suggested to use the Port WWN of the device.
 The World Wide Name is guaranteed to be worldwide unique per the
 FibreChannel standard.
-.Sh AUTHORS
-.An -nosplit
-The
-.Nm
-driver was written by
-.An "Poul-Henning Kamp" Aq phk@FreeBSD.org .
-This manual page was written by
-.An "Wilko Bulte" Aq wilko@FreeBSD.org .
 .Sh BUGS
 The
 .Nm

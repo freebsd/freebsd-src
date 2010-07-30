@@ -114,6 +114,9 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_IP,
 	.pr_init =		ip_init,
+#ifdef VIMAGE
+	.pr_destroy =		ip_destroy,
+#endif
 	.pr_slowtimo =		ip_slowtimo,
 	.pr_drain =		ip_drain,
 	.pr_usrreqs =		&nousrreqs
@@ -205,7 +208,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		icmp_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		icmp_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 {

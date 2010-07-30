@@ -81,7 +81,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 	/*
 	 * Create the device queue for our SIM.
 	 */
-	if ((devq = cam_simq_alloc(TW_OSLI_MAX_NUM_IOS)) == NULL) {
+	if ((devq = cam_simq_alloc(TW_OSLI_MAX_NUM_REQUESTS)) == NULL) {
 		tw_osli_printf(sc, "error = %d",
 			TW_CL_SEVERITY_ERROR_STRING,
 			TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
@@ -92,15 +92,15 @@ tw_osli_cam_attach(struct twa_softc *sc)
 	}
 
 	/*
-	 * Create a SIM entry.  Though we can support TW_OSLI_MAX_NUM_IOS
+	 * Create a SIM entry.  Though we can support TW_OSLI_MAX_NUM_REQUESTS
 	 * simultaneous requests, we claim to be able to handle only
-	 * (TW_OSLI_MAX_NUM_IOS - 1), so that we always have a request
-	 * packet available to service ioctls.
+	 * TW_OSLI_MAX_NUM_IOS (two less), so that we always have a request
+	 * packet available to service ioctls and AENs.
 	 */
 	tw_osli_dbg_dprintf(3, sc, "Calling cam_sim_alloc");
 	sc->sim = cam_sim_alloc(twa_action, twa_poll, "twa", sc,
 			device_get_unit(sc->bus_dev), sc->sim_lock,
-			TW_OSLI_MAX_NUM_IOS - 1, 1, devq);
+			TW_OSLI_MAX_NUM_IOS, 1, devq);
 	if (sc->sim == NULL) {
 		cam_simq_free(devq);
 		tw_osli_printf(sc, "error = %d",
@@ -168,14 +168,6 @@ tw_osli_cam_detach(struct twa_softc *sc)
 {
 	tw_osli_dbg_dprintf(3, sc, "entered");
 
-#ifdef TW_OSLI_DEFERRED_INTR_USED
-	/*  - drain the taskqueue 
-           Ctrl is already went down so, no more enqueuetask will
-           happen . Don't  hold any locks, that task might need.
- 	*/ 
-
-	taskqueue_drain(taskqueue_fast, &(sc->deferred_intr_callback));
-#endif
 	mtx_lock(sc->sim_lock);
            
 	if (sc->path)
@@ -236,7 +228,7 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 			TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
 			0x2105,
 			"Physical CDB address!");
-		ccb_h->status = CAM_REQ_CMP_ERR;
+		ccb_h->status = CAM_REQ_INVALID;
 		xpt_done(ccb);
 		return(1);
 	}
@@ -297,7 +289,7 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 				TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
 				0x2107,
 				"XPT_SCSI_IO: Got SGList");
-			ccb_h->status = CAM_REQ_CMP_ERR;
+			ccb_h->status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			return(1);
 		}
@@ -308,8 +300,7 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 			TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
 			0x2108,
 			"XPT_SCSI_IO: Physical data addresses");
-		ccb_h->status = CAM_REQ_CMP_ERR;
-		ccb_h->status |= CAM_RELEASE_SIMQ;
+		ccb_h->status = CAM_REQ_INVALID;
 		ccb_h->status &= ~CAM_SIM_QUEUED;
 		xpt_done(ccb);
 		return(1);
@@ -347,20 +338,19 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct tw_osli_req_context	*req;
 
-		if ((sc->state & TW_OSLI_CTLR_STATE_SIMQ_FROZEN) ||
-				((req = tw_osli_get_request(sc)) == NULL)) {
-			tw_osli_dbg_dprintf(2, sc,
-				"simq frozen/Cannot get request pkt.");
+		req = tw_osli_get_request(sc);
+		if (req == NULL) {
+			tw_osli_dbg_dprintf(2, sc, "Cannot get request pkt.");
 			/*
 			 * Freeze the simq to maintain ccb ordering.  The next
 			 * ccb that gets completed will unfreeze the simq.
 			 */
-			tw_osli_disallow_new_requests(sc);
 			ccb_h->status |= CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			break;
 		}
 		req->req_handle.osl_req_ctxt = req;
+		req->req_handle.is_io = TW_CL_TRUE;
 		req->orig_req = ccb;
 		if (tw_osli_execute_scsi(req, ccb))
 			tw_osli_req_q_insert_tail(req, TW_OSLI_FREE_Q);
@@ -490,18 +480,7 @@ twa_poll(struct cam_sim *sim)
 	struct twa_softc *sc = (struct twa_softc *)(cam_sim_softc(sim));
 
 	tw_osli_dbg_dprintf(3, sc, "entering; sc = %p", sc);
-	/*
-	 * It's been observed that twa_poll can get called (from
-	 * dashutdown --> xpt_polled_action) even when interrupts are
-	 * active, in which case, the ISR might clear the interrupt,
-	 * leaving the call to tw_cl_interrupt below, no way of determining
-	 * that the response from firmware is ready, resulting in
-	 * tw_cl_deferred_interrupt never getting called.  To cover this case,
-	 * we will make the call to tw_cl_deferred_interrupt not dependent
-	 * on the return value from tw_cl_interrupt.
-	 */
 	tw_cl_interrupt(&(sc->ctlr_handle));
-	tw_cl_deferred_interrupt(&(sc->ctlr_handle));
 	tw_osli_dbg_dprintf(3, sc, "exiting; sc = %p", sc);
 }
 
@@ -561,36 +540,9 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 		return(EIO);
 	}
 
-	/* Release simq at the end of a reset */
-	if (sc->state & TW_OSLI_CTLR_STATE_SIMQ_FROZEN) {
-		xpt_release_simq(sc->sim, 1);
-		sc->state &= ~TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
-	}
-
 	xpt_rescan(ccb);
 	mtx_unlock(sc->sim_lock);
 	return(0);
-}
-
-
-
-/*
- * Function name:	tw_osli_allow_new_requests
- * Description:		Sets the appropriate status bits in a ccb such that,
- *			when the ccb is completed by a call to xpt_done,
- *			CAM knows that it's ok to unfreeze the flow of new
- *			requests to this controller, if the flow is frozen.
- *
- * Input:		sc	-- ptr to OSL internal ctlr context
- *			ccb	-- ptr to CAM request
- * Output:		None
- * Return value:	None
- */
-TW_VOID
-tw_osli_allow_new_requests(struct twa_softc *sc, TW_VOID *ccb)
-{
-	((union ccb *)(ccb))->ccb_h.status |= CAM_RELEASE_SIMQ;
-	sc->state &= ~TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
 }
 
 
@@ -601,18 +553,21 @@ tw_osli_allow_new_requests(struct twa_softc *sc, TW_VOID *ccb)
  *			the flow of new requests from CAM to this controller.
  *
  * Input:		sc	-- ptr to OSL internal ctlr context
+ *			req_handle -- ptr to request handle sent by OSL.
  * Output:		None
  * Return value:	None
  */
 TW_VOID
-tw_osli_disallow_new_requests(struct twa_softc *sc)
+tw_osli_disallow_new_requests(struct twa_softc *sc,
+	struct tw_cl_req_handle *req_handle)
 {
-	/* Don't double freeze if already frozen */
-	if ((sc->state & TW_OSLI_CTLR_STATE_SIMQ_FROZEN) == 0) {
-		mtx_lock(sc->sim_lock);
+	/* Only freeze/release the simq for IOs */
+	if (req_handle->is_io) {
+		struct tw_osli_req_context	*req = req_handle->osl_req_ctxt;
+		union ccb			*ccb = (union ccb *)(req->orig_req);
+
 		xpt_freeze_simq(sc->sim, 1);
-		mtx_unlock(sc->sim_lock);
-		sc->state |= TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
+		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 	}
 }
 
@@ -632,7 +587,7 @@ TW_VOID
 tw_osl_ctlr_busy(struct tw_cl_ctlr_handle *ctlr_handle,
 	struct tw_cl_req_handle *req_handle)
 {
-	tw_osli_disallow_new_requests(ctlr_handle->osl_ctlr_ctxt);
+	tw_osli_disallow_new_requests(ctlr_handle->osl_ctlr_ctxt, req_handle);
 }
 
 
@@ -706,10 +661,8 @@ tw_osl_complete_io(struct tw_cl_req_handle *req_handle)
 		if (req->error_code == EBUSY) {
 			/*
 			 * Cmd queue is full, or the Common Layer is out of
-			 * resources.  The simq will already have been frozen
-			 * by CL's call to tw_osl_ctlr_busy, and this will
-			 * maintain ccb ordering.  The next ccb that gets
-			 * completed will unfreeze the simq.
+			 * resources.  The simq will already have been frozen.
+			 * When this ccb gets completed will unfreeze the simq.
 			 */
 			ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 		}
@@ -744,9 +697,6 @@ tw_osl_complete_io(struct tw_cl_req_handle *req_handle)
 		}
 
 		ccb->csio.scsi_status = scsi_req->scsi_status;
-		/* If simq is frozen, unfreeze it. */
-		if (sc->state & TW_OSLI_CTLR_STATE_SIMQ_FROZEN)
-			tw_osli_allow_new_requests(sc, (TW_VOID *)ccb);
 	}
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;

@@ -6,6 +6,7 @@ PROG=	zfs
 MAN=	zfs.8
 SRCS=	zfs_main.c zfs_iter.c
 
+WARNS?=	0
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem

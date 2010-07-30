@@ -34,6 +34,14 @@ void	mips_timer_init_params(uint64_t, int);
 extern uint64_t	counter_freq;
 extern int	clocks_running;
 
+/*
+ * The 'platform_timecounter' pointer may be used to register a
+ * platform-specific timecounter.
+ *
+ * A default timecounter based on the CP0 COUNT register is always registered.
+ */
+extern struct timecounter *platform_timecounter;
+
 #endif
 
 #endif /* !_MACHINE_CLOCK_H_ */

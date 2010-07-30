@@ -557,9 +557,7 @@ madt_set_ids(void *dummy)
 
 	if (madt == NULL)
 		return;
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		KASSERT(pc != NULL, ("no pcpu data for CPU %u", i));
 		la = &lapics[pc->pc_apic_id];

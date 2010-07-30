@@ -298,8 +298,8 @@ void handle_probe_req(struct hostapd_data *hapd, struct ieee80211_mgmt *mgmt,
 
 	pos = hostapd_eid_wpa(hapd, pos, epos - pos, sta);
 
-	/* Wi-Fi Wireless Multimedia Extensions */
-	pos = hostapd_eid_wme(hapd, pos);
+	/* Wi-Fi Alliance WMM */
+	pos = hostapd_eid_wmm(hapd, pos);
 
 	pos = hostapd_eid_ht_capabilities_info(hapd, pos);
 	pos = hostapd_eid_ht_operation(hapd, pos);
@@ -395,8 +395,8 @@ void ieee802_11_set_beacon(struct hostapd_data *hapd)
 	tailpos = hostapd_eid_wpa(hapd, tailpos, tail + BEACON_TAIL_BUF_SIZE -
 				  tailpos, NULL);
 
-	/* Wi-Fi Wireless Multimedia Extensions */
-	tailpos = hostapd_eid_wme(hapd, tailpos);
+	/* Wi-Fi Alliance WMM */
+	tailpos = hostapd_eid_wmm(hapd, tailpos);
 
 #ifdef CONFIG_IEEE80211N
 	if (hapd->iconf->ieee80211n) {

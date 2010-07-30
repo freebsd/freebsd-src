@@ -141,6 +141,8 @@ sta_beacon_miss(struct ieee80211vap *vap)
 			vap->iv_bss->ni_essid, vap->iv_bss->ni_esslen);
 		return;
 	}
+
+	callout_stop(&vap->iv_swbmiss);
 	vap->iv_bmiss_count = 0;
 	vap->iv_stats.is_beacon_miss++;
 	if (vap->iv_roaming == IEEE80211_ROAMING_AUTO) {
@@ -582,7 +584,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		}
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 		ni->ni_noise = nf;
-		if (HAS_SEQ(type)) {
+		if (HAS_SEQ(type) && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 			uint8_t tid = ieee80211_gettid(wh);
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
@@ -1737,6 +1739,11 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 }
 
 static void
-sta_recv_ctl(struct ieee80211_node *ni, struct mbuf *m0, int subtype)
+sta_recv_ctl(struct ieee80211_node *ni, struct mbuf *m, int subtype)
 {
+	switch (subtype) {
+	case IEEE80211_FC0_SUBTYPE_BAR:
+		ieee80211_recv_bar(ni, m);
+		break;
+	}
 }

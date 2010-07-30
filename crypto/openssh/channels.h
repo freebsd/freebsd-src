@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.98 2009/02/12 03:00:56 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.103 2010/01/26 01:28:35 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -53,7 +53,9 @@
 #define SSH_CHANNEL_CONNECTING		12
 #define SSH_CHANNEL_DYNAMIC		13
 #define SSH_CHANNEL_ZOMBIE		14	/* Almost dead. */
-#define SSH_CHANNEL_MAX_TYPE		15
+#define SSH_CHANNEL_MUX_LISTENER	15	/* Listener for mux conn. */
+#define SSH_CHANNEL_MUX_CLIENT		16	/* Conn. to mux slave */
+#define SSH_CHANNEL_MAX_TYPE		17
 
 struct Channel;
 typedef struct Channel Channel;
@@ -81,6 +83,9 @@ struct channel_connect {
 	struct addrinfo *ai, *aitop;
 };
 
+/* Callbacks for mux channels back into client-specific code */
+typedef int mux_callback_fn(struct Channel *);
+
 struct Channel {
 	int     type;		/* channel type/state */
 	int     self;		/* my own channel identifier */
@@ -92,12 +97,16 @@ struct Channel {
 	int     wfd;		/* write fd */
 	int     efd;		/* extended fd */
 	int     sock;		/* sock fd */
-	int     ctl_fd;		/* control fd (client sharing) */
+	int     ctl_chan;	/* control channel (multiplexed connections) */
 	int     isatty;		/* rfd is a tty */
 	int     wfd_isatty;	/* wfd is a tty */
 	int	client_tty;	/* (client) TTY has been requested */
 	int     force_drain;	/* force close on iEOF */
-	int     delayed;		/* fdset hack */
+	int     delayed;	/* post-select handlers for newly created
+				 * channels are delayed until the first call
+				 * to a matching pre-select handler. 
+				 * this way post-select handlers are not
+				 * accidenly called if a FD gets reused */
 	Buffer  input;		/* data read from socket, to be sent over
 				 * encrypted connection */
 	Buffer  output;		/* data received over encrypted connection for
@@ -138,6 +147,10 @@ struct Channel {
 
 	/* non-blocking connect */
 	struct channel_connect	connect_ctx;
+
+	/* multiplexing protocol hook, called for each packet received */
+	mux_callback_fn		*mux_rcb;
+	void			*mux_ctx;
 };
 
 #define CHAN_EXTENDED_IGNORE		0
@@ -168,6 +181,7 @@ struct Channel {
 #define CHAN_CLOSE_RCVD			0x02
 #define CHAN_EOF_SENT			0x04
 #define CHAN_EOF_RCVD			0x08
+#define CHAN_LOCAL			0x10
 
 #define CHAN_RBUF	16*1024
 
@@ -239,6 +253,7 @@ void	 channel_clear_adm_permitted_opens(void);
 void 	 channel_print_adm_permitted_opens(void);
 int      channel_input_port_forward_request(int, int);
 Channel	*channel_connect_to(const char *, u_short, char *, char *);
+Channel	*channel_connect_stdio_fwd(const char*, u_short, int, int);
 Channel	*channel_connect_by_listen_address(u_short, char *, char *);
 int	 channel_request_remote_forwarding(const char *, u_short,
 	     const char *, u_short);

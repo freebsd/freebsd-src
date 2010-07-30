@@ -821,7 +821,7 @@ static int r600_ib_get(struct drm_radeon_cs_parser *parser)
 	}
 	buf->file_priv = parser->file_priv;
 	dev_priv->cs_buf = buf;
-	parser->ib = (void *)((vm_offset_t)dev->agp_buffer_map->handle +
+	parser->ib = (void *)((vm_offset_t)dev->agp_buffer_map->virtual +
 	    buf->offset);
 
 	return 0;

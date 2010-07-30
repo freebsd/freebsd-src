@@ -255,7 +255,7 @@ dimension(off_t size)
 {
 	off_t rcnt;
 	struct indir *ip;
-	int i, layer;
+	int layer;
 
 	rcnt = size;
 	layer = 0;
@@ -263,9 +263,6 @@ dimension(off_t size)
 		rcnt /= NINDIR;
 		layer++;
 	}
-	/* figure out log2(NINDIR) */
-	for (i = NINDIR, nshift = -1; i; nshift++)
-		i >>= 1;
 
 	/*
 	 * XXX: the top layer is probably not fully populated, so we allocate
@@ -665,11 +662,11 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		sf_buf_free(sf);
 		sched_unpin();
 		vm_page_wakeup(m);
-		vm_page_lock_queues();
+		vm_page_lock(m);
 		vm_page_activate(m);
+		vm_page_unlock(m);
 		if (bp->bio_cmd == BIO_WRITE)
 			vm_page_dirty(m);
-		vm_page_unlock_queues();
 
 		/* Actions on further pages start at offset 0 */
 		p += PAGE_SIZE - offs;
@@ -813,6 +810,8 @@ mdcreate_preload(struct md_s *sc, struct md_ioctl *mdio)
 {
 
 	if (mdio->md_options & ~(MD_AUTOUNIT | MD_FORCE))
+		return (EINVAL);
+	if (mdio->md_base == 0)
 		return (EINVAL);
 	sc->flags = mdio->md_options & MD_FORCE;
 	/* Cast to pointer size, then to pointer to avoid warning */
@@ -1218,6 +1217,11 @@ g_md_init(struct g_class *mp __unused)
 	caddr_t c;
 	u_char *ptr, *name, *type;
 	unsigned len;
+	int i;
+
+	/* figure out log2(NINDIR) */
+	for (i = NINDIR, nshift = -1; i; nshift++)
+		i >>= 1;
 
 	mod = NULL;
 	sx_init(&md_sx, "MD config lock");

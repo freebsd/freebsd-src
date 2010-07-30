@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/sf_buf.h>
+#include <sys/sysent.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
@@ -68,6 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
+#endif
+#ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32_util.h>
 #endif
 
 #include <net/vnet.h>
@@ -790,7 +794,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
 		    !(flags & MSG_NOSIGNAL)) {
 			PROC_LOCK(td->td_proc);
-			psignal(td->td_proc, SIGPIPE);
+			tdsignal(td, SIGPIPE);
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
@@ -941,8 +945,8 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	struct uio *ktruio = NULL;
 #endif
 
-	if(controlp != NULL)
-		*controlp = 0;
+	if (controlp != NULL)
+		*controlp = NULL;
 
 	AUDIT_ARG_FD(s);
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
@@ -1711,7 +1715,7 @@ sf_buf_mext(void *addr, void *args)
 
 	m = sf_buf_page(args);
 	sf_buf_free(args);
-	vm_page_lock_queues();
+	vm_page_lock(m);
 	vm_page_unwire(m, 0);
 	/*
 	 * Check for the object going away on us. This can
@@ -1720,7 +1724,7 @@ sf_buf_mext(void *addr, void *args)
 	 */
 	if (m->wire_count == 0 && m->object == NULL)
 		vm_page_free(m);
-	vm_page_unlock_queues();
+	vm_page_unlock(m);
 	if (addr == NULL)
 		return;
 	sfs = addr;
@@ -2104,7 +2108,7 @@ retry_space:
 				mbstat.sf_iocnt++;
 			}
 			if (error) {
-				vm_page_lock_queues();
+				vm_page_lock(pg);
 				vm_page_unwire(pg, 0);
 				/*
 				 * See if anyone else might know about
@@ -2113,10 +2117,9 @@ retry_space:
 				 */
 				if (pg->wire_count == 0 && pg->valid == 0 &&
 				    pg->busy == 0 && !(pg->oflags & VPO_BUSY) &&
-				    pg->hold_count == 0) {
+				    pg->hold_count == 0)
 					vm_page_free(pg);
-				}
-				vm_page_unlock_queues();
+				vm_page_unlock(pg);
 				VM_OBJECT_UNLOCK(obj);
 				if (error == EAGAIN)
 					error = 0;	/* not a real error */
@@ -2130,14 +2133,11 @@ retry_space:
 			if ((sf = sf_buf_alloc(pg,
 			    (mnw ? SFB_NOWAIT : SFB_CATCH))) == NULL) {
 				mbstat.sf_allocfail++;
-				vm_page_lock_queues();
+				vm_page_lock(pg);
 				vm_page_unwire(pg, 0);
-				/*
-				 * XXX: Not same check as above!?
-				 */
-				if (pg->wire_count == 0 && pg->object == NULL)
-					vm_page_free(pg);
-				vm_page_unlock_queues();
+				KASSERT(pg->object != NULL,
+				    ("kern_sendfile: object disappeared"));
+				vm_page_unlock(pg);
 				error = (mnw ? EAGAIN : EINTR);
 				break;
 			}
@@ -2409,7 +2409,7 @@ sctp_generic_sendmsg (td, uap)
 	if (error)
 		goto sctp_bad;
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_STRUCT))
+	if (to && (KTRPOINT(td, KTR_STRUCT)))
 		ktrsockaddr(to);
 #endif
 
@@ -2444,7 +2444,7 @@ sctp_generic_sendmsg (td, uap)
 		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
 		    !(uap->flags & MSG_NOSIGNAL)) {
 			PROC_LOCK(td->td_proc);
-			psignal(td->td_proc, SIGPIPE);
+			tdsignal(td, SIGPIPE);
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
@@ -2513,11 +2513,17 @@ sctp_generic_sendmsg_iov(td, uap)
 	if (error)
 		goto sctp_bad1;
 
-	error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		error = freebsd32_copyiniov((struct iovec32 *)uap->iov,
+		    uap->iovlen, &iov, EMSGSIZE);
+	else
+#endif
+		error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
 	if (error)
 		goto sctp_bad1;
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_STRUCT))
+	if (to && (KTRPOINT(td, KTR_STRUCT)))
 		ktrsockaddr(to);
 #endif
 
@@ -2528,7 +2534,7 @@ sctp_generic_sendmsg_iov(td, uap)
 		goto sctp_bad;
 #endif /* MAC */
 
-	auio.uio_iov =  iov;
+	auio.uio_iov = iov;
 	auio.uio_iovcnt = uap->iovlen;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_WRITE;
@@ -2556,7 +2562,7 @@ sctp_generic_sendmsg_iov(td, uap)
 		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
 		    !(uap->flags & MSG_NOSIGNAL)) {
 			PROC_LOCK(td->td_proc);
-			psignal(td->td_proc, SIGPIPE);
+			tdsignal(td, SIGPIPE);
 			PROC_UNLOCK(td->td_proc);
 		}
 	}
@@ -2596,7 +2602,7 @@ sctp_generic_recvmsg(td, uap)
 	} */ *uap;
 {
 #if (defined(INET) || defined(INET6)) && defined(SCTP)
-	u_int8_t sockbufstore[256];
+	uint8_t sockbufstore[256];
 	struct uio auio;
 	struct iovec *iov, *tiov;
 	struct sctp_sndrcvinfo sinfo;
@@ -2615,17 +2621,21 @@ sctp_generic_recvmsg(td, uap)
 	if (error) {
 		return (error);
 	}
-	error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
-	if (error) {
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		error = freebsd32_copyiniov((struct iovec32 *)uap->iov,
+		    uap->iovlen, &iov, EMSGSIZE);
+	else
+#endif
+		error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
+	if (error)
 		goto out1;
-	}
 
 	so = fp->f_data;
 #ifdef MAC
 	error = mac_socket_check_receive(td->td_ucred, so);
 	if (error) {
 		goto out;
-		return (error);
 	}
 #endif /* MAC */
 
@@ -2638,7 +2648,7 @@ sctp_generic_recvmsg(td, uap)
 	} else {
 		fromlen = 0;
 	}
-	if(uap->msg_flags) {
+	if (uap->msg_flags) {
 		error = copyin(uap->msg_flags, &msg_flags, sizeof (int));
 		if (error) {
 			goto out;
@@ -2667,6 +2677,7 @@ sctp_generic_recvmsg(td, uap)
 	if (KTRPOINT(td, KTR_GENIO))
 		ktruio = cloneuio(&auio);
 #endif /* KTRACE */
+	memset(&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
 	CURVNET_SET(so->so_vnet);
 	error = sctp_sorecvmsg(so, &auio, (struct mbuf **)NULL,
 		    fromsa, fromlen, &msg_flags,

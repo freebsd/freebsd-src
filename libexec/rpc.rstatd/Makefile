@@ -4,8 +4,8 @@ PROG =	rpc.rstatd
 SRCS =	rstatd.c rstat_proc.c
 MAN =	rpc.rstatd.8
 
-DPADD=	${LIBRPCSVC} ${LIBUTIL} ${LIBDEVSTAT}
-LDADD=	-lrpcsvc -lutil -ldevstat
+DPADD=	${LIBRPCSVC} ${LIBUTIL} ${LIBDEVSTAT} ${LIBKVM}
+LDADD=	-lrpcsvc -lutil -ldevstat -lkvm
 
 WARNS?=	1
 

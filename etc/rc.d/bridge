@@ -42,7 +42,7 @@ glob_int () {
 		$2 ) true ;;
 		* ) false ;;
 	esac
-} 
+}
 
 bridge_test () {
 	bridge=$1

@@ -1,4 +1,4 @@
-/*	$NetBSD: makecontext.c,v 1.3 2003/01/19 08:53:36 matt Exp $	*/
+/*	$NetBSD: makecontext.c,v 1.5 2009/12/14 01:07:42 matt Exp $	*/
 
 /*-
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -39,48 +32,92 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: makecontext.c,v 1.3 2003/01/19 08:53:36 matt Exp $");
+__RCSID("$NetBSD: makecontext.c,v 1.5 2009/12/14 01:07:42 matt Exp $");
 #endif
 
-#include <sys/types.h>
-#include <ucontext.h>
+#include <sys/param.h>
+#include <machine/regnum.h>
+
 #include <stdarg.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <ucontext.h>
+
+__weak_reference(__makecontext, makecontext);
+
+void _ctx_done(ucontext_t *);
+void _ctx_start(void);
 
 void
-makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
+__makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 {
-	/* XXXMIPS: Implement me */
-#if 0
-	__greg_t *gr = ucp->uc_mcontext.__gregs;
-	uintptr_t *sp;
+	mcontext_t *mc;
+	register_t *sp;
 	int i;
 	va_list ap;
 
-	void __resumecontext(void);
+	/*
+	 * XXX/juli
+	 * We need an mc_len or mc_flags like other architectures
+	 * so that we can mark a context as invalid.  Store it in
+	 * mc->mc_regs[ZERO] perhaps?
+	 */
+	if (argc < 0 || argc > 6 || ucp == NULL ||
+	    ucp->uc_stack.ss_sp == NULL ||
+	    ucp->uc_stack.ss_size < MINSIGSTKSZ)
+		return;
+	mc = &ucp->uc_mcontext;
 
-	/* LINTED uintptr_t is safe */
-	sp  = (uintptr_t *)
+	sp  = (register_t *)
 	    ((uintptr_t)ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size);
-	/* LINTED uintptr_t is safe */
+#if defined(__mips_o32) || defined(__mips_o64)
 	sp -= (argc >= 4 ? argc : 4);	/* Make room for >=4 arguments. */
-	sp  = (uintptr_t *)
-	      ((uintptr_t)sp & ~0x7);	/* Align on double-word boundary. */
+	sp  = (register_t *)
+	    ((uintptr_t)sp & ~0x7);	/* Align on double-word boundary. */
+#elif defined(__mips_n32) || defined(__mips_n64)
+	sp -= (argc > 8 ? argc - 8 : 0); /* Make room for > 8 arguments. */
+	sp  = (register_t *)
+	    ((uintptr_t)sp & ~0xf);	/* Align on quad-word boundary. */
+#endif
 
-	gr[_REG_SP]  = (__greg_t)sp;
-	gr[_REG_RA]  = (__greg_t)__resumecontext;
-	gr[_REG_T9]  = (__greg_t)func;	/* required for .abicalls */
-	gr[_REG_EPC] = (__greg_t)func;
+	mc->mc_regs[SP] = (intptr_t)sp;
+	mc->mc_regs[S0] = (intptr_t)ucp;
+	mc->mc_regs[T9] = (intptr_t)func;
+	mc->mc_pc = (intptr_t)_ctx_start;
 
 	/* Construct argument list. */
 	va_start(ap, argc);
+#if defined(__mips_o32) || defined(__mips_o64)
 	/* Up to the first four arguments are passed in $a0-3. */
 	for (i = 0; i < argc && i < 4; i++)
-		/* LINTED uintptr_t is safe */
-		gr[_REG_A0 + i] = va_arg(ap, uintptr_t);
+		/* LINTED register_t is safe */
+		mc->mc_regs[A0 + i] = va_arg(ap, register_t);
 	/* Pass remaining arguments on the stack above the $a0-3 gap. */
-	for (sp += 4; i < argc; i++)
-		/* LINTED uintptr_t is safe */
-		*sp++ = va_arg(ap, uintptr_t);
-	va_end(ap);
+	sp += i;
 #endif
+#if defined(__mips_n32) || defined(__mips_n64)
+	/* Up to the first 8 arguments are passed in $a0-7. */
+	for (i = 0; i < argc && i < 8; i++)
+		/* LINTED register_t is safe */
+		mc->mc_regs[A0 + i] = va_arg(ap, register_t);
+	/* Pass remaining arguments on the stack above the $a0-3 gap. */
+#endif
+	/* Pass remaining arguments on the stack above the $a0-3 gap. */
+	for (; i < argc; i++)
+		/* LINTED uintptr_t is safe */
+		*sp++ = va_arg(ap, register_t);
+	va_end(ap);
+}
+
+void
+_ctx_done(ucontext_t *ucp)
+{
+
+	if (ucp->uc_link == NULL)
+		exit(0);
+	else {
+		setcontext((const ucontext_t *)ucp->uc_link);
+		abort();
+	}
 }

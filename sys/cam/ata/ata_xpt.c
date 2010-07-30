@@ -44,10 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
-#endif
-
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_queue.h>
@@ -88,6 +84,9 @@ typedef enum {
 	PROBE_IDENTIFY,
 	PROBE_SPINUP,
 	PROBE_SETMODE,
+	PROBE_SETPM,
+	PROBE_SETAPST,
+	PROBE_SETDMAAA,
 	PROBE_SET_MULTI,
 	PROBE_INQUIRY,
 	PROBE_FULL_INQUIRY,
@@ -101,6 +100,9 @@ static char *probe_action_text[] = {
 	"PROBE_IDENTIFY",
 	"PROBE_SPINUP",
 	"PROBE_SETMODE",
+	"PROBE_SETPM",
+	"PROBE_SETAPST",
+	"PROBE_SETDMAAA",
 	"PROBE_SET_MULTI",
 	"PROBE_INQUIRY",
 	"PROBE_FULL_INQUIRY",
@@ -132,6 +134,8 @@ typedef struct {
 	uint32_t	pm_prv;
 	int		restart;
 	int		spinup;
+	int		faults;
+	u_int		caps;
 	struct cam_periph *periph;
 } probe_softc;
 
@@ -178,11 +182,13 @@ static void	 ata_dev_async(u_int32_t async_code,
 				struct cam_ed *device,
 				void *async_arg);
 static void	 ata_action(union ccb *start_ccb);
+static void	 ata_announce_periph(struct cam_periph *periph);
 
 static struct xpt_xport ata_xport = {
 	.alloc_device = ata_alloc_device,
 	.action = ata_action,
 	.async = ata_dev_async,
+	.announce = ata_announce_periph,
 };
 
 struct xpt_xport *
@@ -391,6 +397,45 @@ negotiate:
 		ata_28bit_cmd(ataio, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
 		break;
 	}
+	case PROBE_SETPM:
+		cam_fill_ataio(ataio,
+		    1,
+		    probedone,
+		    CAM_DIR_NONE,
+		    0,
+		    NULL,
+		    0,
+		    30*1000);
+		ata_28bit_cmd(ataio, ATA_SETFEATURES,
+		    (softc->caps & CTS_SATA_CAPS_H_PMREQ) ? 0x10 : 0x90,
+		    0, 0x03);
+		break;
+	case PROBE_SETAPST:
+		cam_fill_ataio(ataio,
+		    1,
+		    probedone,
+		    CAM_DIR_NONE,
+		    0,
+		    NULL,
+		    0,
+		    30*1000);
+		ata_28bit_cmd(ataio, ATA_SETFEATURES,
+		    (softc->caps & CTS_SATA_CAPS_H_APST) ? 0x10 : 0x90,
+		    0, 0x07);
+		break;
+	case PROBE_SETDMAAA:
+		cam_fill_ataio(ataio,
+		    1,
+		    probedone,
+		    CAM_DIR_NONE,
+		    0,
+		    NULL,
+		    0,
+		    30*1000);
+		ata_28bit_cmd(ataio, ATA_SETFEATURES,
+		    (softc->caps & CTS_SATA_CAPS_H_DMAAA) ? 0x10 : 0x90,
+		    0, 0x02);
+		break;
 	case PROBE_SET_MULTI:
 	{
 		u_int sectors, bytecount;
@@ -683,6 +728,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	probe_softc *softc;
 	struct cam_path *path;
 	u_int32_t  priority;
+	u_int caps;
 	int found = 1;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probedone\n"));
@@ -693,14 +739,28 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	ident_buf = &path->device->ident_data;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-device_fail:	if ((!softc->restart) &&
-		    cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART) {
+		if (softc->restart) {
+			if (bootverbose) {
+				cam_error_print(done_ccb,
+				    CAM_ESF_ALL, CAM_EPF_ALL);
+			}
+		} else if (cam_periph_error(done_ccb, 0, 0, NULL) == ERESTART)
 			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
+		if (softc->restart) {
+			softc->faults++;
+			if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) ==
+			    CAM_CMD_TIMEOUT)
+				softc->faults += 4;
+			if (softc->faults < 10)
+				goto done;
+			else
+				softc->restart = 0;
+		} else
 		/* Old PIO2 devices may not support mode setting. */
 		if (softc->action == PROBE_SETMODE &&
 		    ata_max_pmode(ident_buf) <= ATA_PIO2 &&
@@ -716,7 +776,7 @@ device_fail:	if ((!softc->restart) &&
 		 * already marked unconfigured, notify the peripheral
 		 * drivers that this device is no more.
 		 */
-		if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
+device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 			xpt_async(AC_LOST_DEVICE, path, NULL);
 		found = 0;
 		goto done;
@@ -764,7 +824,9 @@ noerror:
 	}
 	case PROBE_IDENTIFY:
 	{
+		struct ccb_pathinq cpi;
 		int16_t *ptr;
+		int changed = 1;
 
 		ident_buf = &softc->ident_data;
 		for (ptr = (int16_t *)ident_buf;
@@ -786,11 +848,10 @@ noerror:
 		ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
 		ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
 		/* Device may need spin-up before IDENTIFY become valid. */
-		if ((ident_buf->config & ATA_RESP_INCOMPLETE) ||
-		    ((ident_buf->support.command2 & ATA_SUPPORT_STANDBY) &&
-		     (ident_buf->enabled.command2 & ATA_SUPPORT_STANDBY) &&
-		     (ident_buf->support.command2 & ATA_SUPPORT_SPINUP) &&
-		      softc->spinup == 0)) {
+		if ((ident_buf->specconf == 0x37c8 ||
+		     ident_buf->specconf == 0x738c) &&
+		    ((ident_buf->config & ATA_RESP_INCOMPLETE) ||
+		     softc->spinup == 0)) {
 			PROBE_SET_ACTION(softc, PROBE_SPINUP);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
@@ -807,9 +868,12 @@ noerror:
 			     sizeof(ident_buf->serial))) {
 				/* Device changed. */
 				xpt_async(AC_LOST_DEVICE, path, NULL);
-			} else
+			} else {
 				bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
-		} else {
+				changed = 0;
+			}
+		}
+		if (changed) {
 			bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
 			/* Clean up from previous instance of this device */
 			if (path->device->serial_num != NULL) {
@@ -839,16 +903,24 @@ noerror:
 		ata_find_quirk(path->device);
 		if (path->device->mintags != 0 &&
 		    path->bus->sim->max_tagged_dev_openings != 0) {
-			/* Report SIM which tags are allowed. */
-			bzero(&cts, sizeof(cts));
-			xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
-			cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-			cts.type = CTS_TYPE_CURRENT_SETTINGS;
-			cts.xport_specific.sata.tags = path->device->maxtags;
-			cts.xport_specific.sata.valid = CTS_SATA_VALID_TAGS;
-			xpt_action((union ccb *)&cts);
-			/* Reconfigure queues for tagged queueing. */
-			xpt_start_tags(path);
+			/* Check if the SIM does not want queued commands. */
+			bzero(&cpi, sizeof(cpi));
+			xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
+			cpi.ccb_h.func_code = XPT_PATH_INQ;
+			xpt_action((union ccb *)&cpi);
+			if (cpi.ccb_h.status == CAM_REQ_CMP &&
+			    (cpi.hba_inquiry & PI_TAG_ABLE)) {
+				/* Report SIM which tags are allowed. */
+				bzero(&cts, sizeof(cts));
+				xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
+				cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+				cts.type = CTS_TYPE_CURRENT_SETTINGS;
+				cts.xport_specific.sata.tags = path->device->maxtags;
+				cts.xport_specific.sata.valid = CTS_SATA_VALID_TAGS;
+				xpt_action((union ccb *)&cts);
+				/* Reconfigure queues for tagged queueing. */
+				xpt_start_tags(path);
+			}
 		}
 		ata_device_transport(path);
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);
@@ -865,6 +937,67 @@ noerror:
 		xpt_schedule(periph, priority);
 		return;
 	case PROBE_SETMODE:
+		if (path->device->transport != XPORT_SATA)
+			goto notsata;
+		/* Set supported bits. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+			caps = cts.xport_specific.sata.caps & CTS_SATA_CAPS_H;
+		else
+			caps = 0;
+		if (ident_buf->satacapabilities != 0xffff) {
+			if (ident_buf->satacapabilities & ATA_SUPPORT_IFPWRMNGTRCV)
+				caps |= CTS_SATA_CAPS_D_PMREQ;
+			if (ident_buf->satacapabilities & ATA_SUPPORT_HAPST)
+				caps |= CTS_SATA_CAPS_D_APST;
+		}
+		/* Mask unwanted bits. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_USER_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+			caps &= cts.xport_specific.sata.caps;
+		/* Store result to SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
+		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		cts.xport_specific.sata.caps = caps;
+		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
+		xpt_action((union ccb *)&cts);
+		softc->caps = caps;
+		if (ident_buf->satasupport & ATA_SUPPORT_IFPWRMNGT) {
+			PROBE_SET_ACTION(softc, PROBE_SETPM);
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+			return;
+		}
+		/* FALLTHROUGH */
+	case PROBE_SETPM:
+		if (ident_buf->satacapabilities != 0xffff &&
+		    ident_buf->satacapabilities & ATA_SUPPORT_DAPST) {
+			PROBE_SET_ACTION(softc, PROBE_SETAPST);
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+			return;
+		}
+		/* FALLTHROUGH */
+	case PROBE_SETAPST:
+		if (ident_buf->satasupport & ATA_SUPPORT_AUTOACTIVATE) {
+			PROBE_SET_ACTION(softc, PROBE_SETDMAAA);
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+			return;
+		}
+		/* FALLTHROUGH */
+	case PROBE_SETDMAAA:
+notsata:
 		if (path->device->protocol == PROTO_ATA) {
 			PROBE_SET_ACTION(softc, PROBE_SET_MULTI);
 		} else {
@@ -950,6 +1083,35 @@ noerror:
 		snprintf(ident_buf->revision, sizeof(ident_buf->revision),
 		    "%04x", softc->pm_prv);
 		path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
+		/* Set supported bits. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+			caps = cts.xport_specific.sata.caps & CTS_SATA_CAPS_H;
+		else
+			caps = 0;
+		/* All PMPs must support PM requests. */
+		caps |= CTS_SATA_CAPS_D_PMREQ;
+		/* Mask unwanted bits. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_USER_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+			caps &= cts.xport_specific.sata.caps;
+		/* Store result to SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
+		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		cts.xport_specific.sata.caps = caps;
+		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
+		xpt_action((union ccb *)&cts);
+		softc->caps = caps;
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 			xpt_acquire_device(path->device);
@@ -1038,6 +1200,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		  ("xpt_scan_bus\n"));
 	switch (request_ccb->ccb_h.func_code) {
 	case XPT_SCAN_BUS:
+	case XPT_SCAN_TGT:
 		/* Find out the characteristics of the bus */
 		work_ccb = xpt_alloc_ccb_nowait();
 		if (work_ccb == NULL) {
@@ -1062,6 +1225,12 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		    !(work_ccb->cpi.hba_misc & PIM_NOBUSRESET) &&
 		    !timevalisset(&request_ccb->ccb_h.path->bus->last_reset)) {
 			reset_ccb = xpt_alloc_ccb_nowait();
+			if (reset_ccb == NULL) {
+				request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+				xpt_free_ccb(work_ccb);
+				xpt_done(request_ccb);
+				return;
+			}
 			xpt_setup_ccb(&reset_ccb->ccb_h, request_ccb->ccb_h.path,
 			      CAM_PRIORITY_NONE);
 			reset_ccb->ccb_h.func_code = XPT_RESET_BUS;
@@ -1081,6 +1250,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		    malloc(sizeof(ata_scan_bus_info), M_CAMXPT, M_NOWAIT);
 		if (scan_info == NULL) {
 			request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+			xpt_free_ccb(work_ccb);
 			xpt_done(request_ccb);
 			return;
 		}
@@ -1104,13 +1274,13 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		work_ccb = request_ccb;
 		/* Reuse the same CCB to query if a device was really found */
 		scan_info = (ata_scan_bus_info *)work_ccb->ccb_h.ppriv_ptr0;
-		/* Free the current request path- we're done with it. */
-		xpt_free_path(work_ccb->ccb_h.path);
 		/* If there is PMP... */
 		if ((scan_info->cpi->hba_inquiry & PI_SATAPM) &&
 		    (scan_info->counter == scan_info->cpi->max_target)) {
 			if (work_ccb->ccb_h.status == CAM_REQ_CMP) {
-				/* everything else willbe probed by it */
+				/* everything else will be probed by it */
+				/* Free the current request path- we're done with it. */
+				xpt_free_path(work_ccb->ccb_h.path);
 				goto done;
 			} else {
 				struct ccb_trans_settings cts;
@@ -1118,7 +1288,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				/* Report SIM that PM is absent. */
 				bzero(&cts, sizeof(cts));
 				xpt_setup_ccb(&cts.ccb_h,
-				    scan_info->request_ccb->ccb_h.path, 1);
+				    work_ccb->ccb_h.path, CAM_PRIORITY_NONE);
 				cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 				cts.type = CTS_TYPE_CURRENT_SETTINGS;
 				cts.xport_specific.sata.pm_present = 0;
@@ -1126,6 +1296,8 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_action((union ccb *)&cts);
 			}
 		}
+		/* Free the current request path- we're done with it. */
+		xpt_free_path(work_ccb->ccb_h.path);
 		if (scan_info->counter ==
 		    ((scan_info->cpi->hba_inquiry & PI_SATAPM) ?
 		    0 : scan_info->cpi->max_target)) {
@@ -1377,6 +1549,7 @@ ata_action(union ccb *start_ccb)
 		break;
 	}
 	case XPT_SCAN_BUS:
+	case XPT_SCAN_TGT:
 		ata_scan_bus(start_ccb->ccb_h.path->periph, start_ccb);
 		break;
 	case XPT_SCAN_LUN:
@@ -1639,5 +1812,84 @@ ata_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 		ata_set_transfer_settings(settings, device,
 					  /*async_update*/TRUE);
 	}
+}
+
+static void
+ata_announce_periph(struct cam_periph *periph)
+{
+	struct	ccb_pathinq cpi;
+	struct	ccb_trans_settings cts;
+	struct	cam_path *path = periph->path;
+	u_int	speed;
+	u_int	mb;
+
+	mtx_assert(periph->sim->mtx, MA_OWNED);
+
+	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+	xpt_action((union ccb*)&cts);
+	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+		return;
+	/* Ask the SIM for its base transfer speed */
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+	/* Report connection speed */
+	speed = cpi.base_transfer_speed;
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
+		struct	ccb_trans_settings_ata *ata =
+		    &cts.xport_specific.ata;
+
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			speed = ata_mode2speed(ata->mode);
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
+		struct	ccb_trans_settings_sata *sata =
+		    &cts.xport_specific.sata;
+
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			speed = ata_revision2speed(sata->revision);
+	}
+	mb = speed / 1000;
+	if (mb > 0)
+		printf("%s%d: %d.%03dMB/s transfers",
+		       periph->periph_name, periph->unit_number,
+		       mb, speed % 1000);
+	else
+		printf("%s%d: %dKB/s transfers", periph->periph_name,
+		       periph->unit_number, speed);
+	/* Report additional information about connection */
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
+		struct ccb_trans_settings_ata *ata =
+		    &cts.xport_specific.ata;
+
+		printf(" (");
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(ata->mode));
+		if ((ata->valid & CTS_ATA_VALID_ATAPI) && ata->atapi != 0)
+			printf("ATAPI %dbytes, ", ata->atapi);
+		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
+			printf("PIO %dbytes", ata->bytecount);
+		printf(")");
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
+		struct ccb_trans_settings_sata *sata =
+		    &cts.xport_specific.sata;
+
+		printf(" (");
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			printf("SATA %d.x, ", sata->revision);
+		else
+			printf("SATA, ");
+		if (sata->valid & CTS_SATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(sata->mode));
+		if ((sata->valid & CTS_ATA_VALID_ATAPI) && sata->atapi != 0)
+			printf("ATAPI %dbytes, ", sata->atapi);
+		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
+			printf("PIO %dbytes", sata->bytecount);
+		printf(")");
+	}
+	printf("\n");
 }
 

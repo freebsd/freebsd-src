@@ -28,7 +28,7 @@
 .\"     @(#)sigaltstack.2	8.2 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd May 1, 1995
+.Dd May 6, 2010
 .Dt SIGALTSTACK 2
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In signal.h
 .Bd -literal
-typedef struct sigaltstack {
+typedef struct {
         char    *ss_sp;
         size_t  ss_size;
         int     ss_flags;
@@ -51,24 +51,24 @@ typedef struct sigaltstack {
 The
 .Fn sigaltstack
 system call
-allows users to define an alternate stack on which signals
-are to be processed.
+allows defining an alternate stack on which signals
+are to be processed for the current thread.
 If
 .Fa ss
 is non-zero,
 it specifies a pointer to and the size of a
 .Em "signal stack"
-on which to deliver signals,
-and tells the system if the process is currently executing
-on that stack.
+on which to deliver signals.
 When a signal's action indicates its handler
 should execute on the signal stack (specified with a
 .Xr sigaction 2
 system call), the system checks to see
-if the process is currently executing on that stack.
-If the process is not currently executing on the signal stack,
+if the thread is currently executing on that stack.
+If the thread is not currently executing on the signal stack,
 the system arranges a switch to the signal stack for the
 duration of the signal handler's execution.
+.Pp
+An active stack cannot be modified.
 .Pp
 If
 .Dv SS_DISABLE
@@ -78,12 +78,6 @@ is set in
 and
 .Fa ss_size
 are ignored and the signal stack will be disabled.
-Trying to disable an active stack will cause
-.Fn sigaltstack
-to return -1 with
-.Va errno
-set to
-.Er EINVAL .
 A disabled stack will cause all signals to be
 taken on the regular user stack.
 If the stack is later re-enabled then all signals that were specified
@@ -96,7 +90,7 @@ The
 .Fa ss_flags
 field will contain the value
 .Dv SS_ONSTACK
-if the process is currently on a signal stack and
+if the thread is currently on a signal stack and
 .Dv SS_DISABLE
 if the signal stack is currently disabled.
 .Sh NOTES
@@ -146,8 +140,12 @@ or
 .Fa oss
 points to memory that is not a valid part of the process
 address space.
+.It Bq Er EPERM
+An attempt was made to modify an active stack.
 .It Bq Er EINVAL
-An attempt was made to disable an active stack.
+The
+.Fa ss_flags
+field was invalid.
 .It Bq Er ENOMEM
 Size of alternate stack area is less than or equal to
 .Dv MINSIGSTKSZ .

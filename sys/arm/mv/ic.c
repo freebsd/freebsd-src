@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
@@ -75,6 +78,9 @@ static void	arm_mask_irq_all(void);
 static int
 mv_ic_probe(device_t dev)
 {
+
+	if (!ofw_bus_is_compatible(dev, "mrvl,pic"))
+		return (ENXIO);
 
 	device_set_desc(dev, "Marvell Integrated Interrupt Controller");
 	return (0);
@@ -134,7 +140,7 @@ static driver_t mv_ic_driver = {
 
 static devclass_t mv_ic_devclass;
 
-DRIVER_MODULE(ic, mbus, mv_ic_driver, mv_ic_devclass, 0, 0);
+DRIVER_MODULE(ic, simplebus, mv_ic_driver, mv_ic_devclass, 0, 0);
 
 int
 arm_get_next_irq(int last __unused)

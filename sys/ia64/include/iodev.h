@@ -31,22 +31,16 @@
 
 #include <sys/uuid.h>
 
-struct iodev_pio_req {
-	u_int access;
-#define	IODEV_PIO_READ		0
-#define	IODEV_PIO_WRITE		1
-	u_int port;
-	u_int width;
-	u_int val;
-};
+#ifdef _KERNEL
+#include <machine/bus.h>
+#endif
 
-#define	IODEV_PIO	_IOWR('I', 0, struct iodev_pio_req)
-
-struct iodev_efivar_req {
-	u_int	access;
 #define	IODEV_EFIVAR_GETVAR	0
 #define	IODEV_EFIVAR_NEXTNAME	1
 #define	IODEV_EFIVAR_SETVAR	2
+
+struct iodev_efivar_req {
+	u_int	access;
 	u_int	result;			/* errno value */
 	size_t	namesize;
 	u_short	*name;			/* UCS-2 */
@@ -59,11 +53,16 @@ struct iodev_efivar_req {
 #define	IODEV_EFIVAR	_IOWR('I', 1, struct iodev_efivar_req)
 
 #ifdef _KERNEL
+#define	iodev_read_1	bus_space_read_io_1
+#define	iodev_read_2	bus_space_read_io_2
+#define	iodev_read_4	bus_space_read_io_4
+#define	iodev_write_1	bus_space_write_io_1
+#define	iodev_write_2	bus_space_write_io_2
+#define	iodev_write_4	bus_space_write_io_4
 
-d_open_t	ioopen;
-d_close_t	ioclose;
-d_ioctl_t	ioioctl;
+int	 iodev_open(struct thread *td);
+int	 iodev_close(struct thread *td);
+int	 iodev_ioctl(u_long, caddr_t data);
 
-#endif
-
+#endif /* _KERNEL */
 #endif /* _MACHINE_IODEV_H_ */

@@ -332,7 +332,6 @@ int		acpi_ReqSleepState(struct acpi_softc *sc, int state);
 int		acpi_AckSleepState(struct apm_clone_data *clone, int error);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 void		acpi_resync_clock(struct acpi_softc *sc);
-int		acpi_wake_init(device_t dev, int type);
 int		acpi_wake_set_enable(device_t dev, int enable);
 int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 ACPI_STATUS	acpi_Startup(void);
@@ -343,6 +342,7 @@ int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
 		    u_int flags);
 void		acpi_walk_subtables(void *first, void *end,
 		    acpi_subtable_handler *handler, void *arg);
+BOOLEAN		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);

@@ -238,6 +238,7 @@ struct gv_softc {
 	struct bio_queue_head	*bqueue_up;	/* BIO queue for completed
 						   requests. */
 	struct g_geom		*geom;		/* Pointer to our VINUM geom. */
+	struct proc		*worker;	/* Worker process. */
 };
 #endif
 
@@ -335,9 +336,6 @@ struct gv_plex {
 	int	flags;
 #define	GV_PLEX_ADDED		0x01	/* Added to an existing volume. */
 #define	GV_PLEX_SYNCING		0x02	/* Plex is syncing from another plex. */
-#define	GV_PLEX_THREAD_ACTIVE	0x04	/* Plex has an active RAID5 thread. */
-#define	GV_PLEX_THREAD_DIE	0x08	/* Signal the RAID5 thread to die. */
-#define	GV_PLEX_THREAD_DEAD	0x10	/* The RAID5 thread has died. */
 #define	GV_PLEX_NEWBORN		0x20	/* The plex was just created. */
 #define GV_PLEX_REBUILDING	0x40	/* The plex is rebuilding. */
 #define GV_PLEX_GROWING		0x80	/* The plex is growing. */
@@ -371,9 +369,6 @@ struct gv_volume {
 #define	GV_VOL_UP	1
 
 	int	flags;
-#define	GV_VOL_THREAD_ACTIVE	0x01	/* Volume has an active thread. */
-#define	GV_VOL_THREAD_DIE	0x02	/* Signal the thread to die. */
-#define	GV_VOL_THREAD_DEAD	0x04	/* The thread has died. */
 #define GV_VOL_NEWBORN		0x08	/* The volume was just created. */
 
 	LIST_HEAD(,gv_plex)	plexes;		/* List of attached plexes. */

@@ -181,9 +181,13 @@ VNET_DECLARE(int, ipforwarding);		/* ip forwarding */
 #ifdef IPSTEALTH
 VNET_DECLARE(int, ipstealth);			/* stealth forwarding */
 #endif
-VNET_DECLARE(int, rsvp_on);
+extern u_char	ip_protox[];
 VNET_DECLARE(struct socket *, ip_rsvpd);	/* reservation protocol daemon*/
 VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
+extern int	(*legal_vif_num)(int);
+extern u_long	(*ip_mcast_src)(int);
+VNET_DECLARE(int, rsvp_on);
+extern struct	pr_usrreqs rip_usrreqs;
 
 #define	V_ipstat		VNET(ipstat)
 #define	V_ip_id			VNET(ip_id)
@@ -192,14 +196,9 @@ VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
 #ifdef IPSTEALTH
 #define	V_ipstealth		VNET(ipstealth)
 #endif
-#define	V_rsvp_on		VNET(rsvp_on)
 #define	V_ip_rsvpd		VNET(ip_rsvpd)
 #define	V_ip_mrouter		VNET(ip_mrouter)
-
-extern u_char	ip_protox[];
-extern int	(*legal_vif_num)(int);
-extern u_long	(*ip_mcast_src)(int);
-extern struct	pr_usrreqs rip_usrreqs;
+#define	V_rsvp_on		VNET(rsvp_on)
 
 void	inp_freemoptions(struct ip_moptions *);
 int	inp_getmoptions(struct inpcb *, struct sockopt *);
@@ -212,6 +211,9 @@ int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags, int sw_csum);
 void	ip_forward(struct mbuf *m, int srcrt);
 void	ip_init(void);
+#ifdef VIMAGE
+void	ip_destroy(void);
+#endif
 extern int
 	(*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 	    struct ip_moptions *);

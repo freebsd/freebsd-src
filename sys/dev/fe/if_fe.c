@@ -766,7 +766,7 @@ fe_attach (device_t dev)
 	 * Set fixed interface flags.
 	 */
  	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 
 #if FE_SINGLE_TRANSMISSION
 	/* Override txb config to allocate minimum.  */

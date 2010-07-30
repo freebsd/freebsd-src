@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
@@ -138,6 +139,7 @@ struct kva_md_info kmi;
 
 u_long ofw_vec;
 u_long ofw_tba;
+u_int tba_taken_over;
 
 char sparc64_model[32];
 
@@ -146,7 +148,7 @@ static int cpu_use_vis = 1;
 cpu_block_copy_t *cpu_block_copy;
 cpu_block_zero_t *cpu_block_zero;
 
-static phandle_t find_bsp(phandle_t node, uint32_t bspid);
+static phandle_t find_bsp(phandle_t node, uint32_t bspid, u_int cpu_impl);
 void sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3,
     ofw_vec_t *vec);
 static void sparc64_shutdown_final(void *dummy, int howto);
@@ -241,7 +243,7 @@ spinlock_exit(void)
 }
 
 static phandle_t
-find_bsp(phandle_t node, uint32_t bspid)
+find_bsp(phandle_t node, uint32_t bspid, u_int cpu_impl)
 {
 	char type[sizeof("cpu")];
 	phandle_t child;
@@ -250,7 +252,7 @@ find_bsp(phandle_t node, uint32_t bspid)
 	for (; node != 0; node = OF_peer(node)) {
 		child = OF_child(node);
 		if (child > 0) {
-			child = find_bsp(child, bspid);
+			child = find_bsp(child, bspid, cpu_impl);
 			if (child > 0)
 				return (child);
 		} else {
@@ -259,7 +261,7 @@ find_bsp(phandle_t node, uint32_t bspid)
 				continue;
 			if (strcmp(type, "cpu") != 0)
 				continue;
-			if (OF_getprop(node, cpu_cpuid_prop(), &cpuid,
+			if (OF_getprop(node, cpu_cpuid_prop(cpu_impl), &cpuid,
 			    sizeof(cpuid)) <= 0)
 				continue;
 			if (cpuid == bspid)
@@ -270,11 +272,12 @@ find_bsp(phandle_t node, uint32_t bspid)
 }
 
 const char *
-cpu_cpuid_prop(void)
+cpu_cpuid_prop(u_int cpu_impl)
 {
 
 	switch (cpu_impl) {
 	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
 	case CPU_IMPL_ULTRASPARCI:
 	case CPU_IMPL_ULTRASPARCII:
 	case CPU_IMPL_ULTRASPARCIIi:
@@ -294,11 +297,12 @@ cpu_cpuid_prop(void)
 }
 
 uint32_t
-cpu_get_mid(void)
+cpu_get_mid(u_int cpu_impl)
 {
 
 	switch (cpu_impl) {
 	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
 	case CPU_IMPL_ULTRASPARCI:
 	case CPU_IMPL_ULTRASPARCII:
 	case CPU_IMPL_ULTRASPARCIIi:
@@ -328,6 +332,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	vm_offset_t va;
 	caddr_t kmdp;
 	phandle_t root;
+	u_int cpu_impl;
 
 	end = 0;
 	kmdp = NULL;
@@ -339,15 +344,16 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cpu_impl = VER_IMPL(rdpr(ver));
 
 	/*
-	 * Do CPU-specific Initialization.
+	 * Do CPU-specific initialization.
 	 */
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-		cheetah_init();
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+		cheetah_init(cpu_impl);
 
 	/*
 	 * Clear (S)TICK timer (including NPT).
 	 */
-	tick_clear();
+	tick_clear(cpu_impl);
 
 	/*
 	 * UltraSparc II[e,i] based systems come up with the tick interrupt
@@ -357,7 +363,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * enabled, causing an interrupt storm on startup since they are not
 	 * handled.
 	 */
-	tick_stop();
+	tick_stop(cpu_impl);
 
 	/*
 	 * Set up Open Firmware entry points.
@@ -399,7 +405,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_addr = (vm_offset_t)pcpu0;
-	pc->pc_mid = cpu_get_mid();
+	pc->pc_impl = cpu_impl;
+	pc->pc_mid = cpu_get_mid(cpu_impl);
 	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;
@@ -409,7 +416,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * BSP is in the device tree in the first place).
 	 */
 	root = OF_peer(0);
-	pc->pc_node = find_bsp(root, pc->pc_mid);
+	pc->pc_node = find_bsp(root, pc->pc_mid, cpu_impl);
 	if (pc->pc_node == 0)
 		OF_exit();
 	if (OF_getprop(pc->pc_node, "clock-frequency", &pc->pc_clock,
@@ -464,7 +471,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Determine the TLB slot maxima, which are expected to be
 	 * equal across all CPUs.
-	 * NB: for Cheetah-class CPUs, these properties only refer
+	 * NB: for cheetah-class CPUs, these properties only refer
 	 * to the t16s.
 	 */
 	if (OF_getprop(pc->pc_node, "#dtlb-entries", &dtlb_slots,
@@ -474,8 +481,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	    sizeof(itlb_slots)) == -1)
 		panic("sparc64_init: cannot determine number of iTLB slots");
 
+	/*
+	 * Initialize and enable the caches.  Note that his may include
+	 * applying workarounds.
+	 */
 	cache_init(pc);
-	cache_enable();
+	cache_enable(cpu_impl);
 	uma_set_align(pc->pc_cache.dc_linesize - 1);
 
 	cpu_block_copy = bcopy;
@@ -484,6 +495,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	if (cpu_use_vis) {
 		switch (cpu_impl) {
 		case CPU_IMPL_SPARC64:
+		case CPU_IMPL_SPARC64V:
 		case CPU_IMPL_ULTRASPARCI:
 		case CPU_IMPL_ULTRASPARCII:
 		case CPU_IMPL_ULTRASPARCIIi:
@@ -501,13 +513,13 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 
 #ifdef SMP
-	mp_init();
+	mp_init(cpu_impl);
 #endif
 
 	/*
 	 * Initialize virtual memory and calculate physmem.
 	 */
-	pmap_bootstrap();
+	pmap_bootstrap(cpu_impl);
 
 	/*
 	 * Initialize tunables.
@@ -565,8 +577,18 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	dpcpu_init(dpcpu0, 0);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
+	/*
+	 * Initialize mutexes.
+	 */
 	mutex_init();
+
+	/*
+	 * Finish the interrupt initialization now that mutexes work and
+	 * enable them.
+	 */
 	intr_init2();
+	wrpr(pil, 0, PIL_TICK);
+	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	/*
 	 * Finish pmap initialization now that we're ready for mutexes.
@@ -966,7 +988,7 @@ ptrace_clear_single_step(struct thread *td)
 }
 
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf;
 	struct pcb *pcb;
@@ -989,8 +1011,8 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->tf_out[0] = stack;
 	tf->tf_out[3] = p->p_sysent->sv_psstrings;
 	tf->tf_out[6] = sp - SPOFF - sizeof(struct frame);
-	tf->tf_tnpc = entry + 4;
-	tf->tf_tpc = entry;
+	tf->tf_tnpc = imgp->entry_addr + 4;
+	tf->tf_tpc = imgp->entry_addr;
 	tf->tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_MM_TSO;
 
 	td->td_retval[0] = tf->tf_out[0];

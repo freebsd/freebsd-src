@@ -35,10 +35,10 @@ void
 __assert(const char *func, const char *file, int line, const char *expression)
 {
 	if (func == NULL)
-		printf("Assertion failed: (%s), file %s, line %d.\n",
+		panic("Assertion failed: (%s), file %s, line %d.\n",
 		    expression, file, line);
 	else
-		printf("Assertion failed: (%s), function %s, file %s, line "
-		    "%d.\n", expression, func, file, line);
-	exit();
+		panic(
+		    "Assertion failed: (%s), function %s, file %s, line %d.\n",
+		    expression, func, file, line);
 }

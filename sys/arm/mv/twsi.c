@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include "iicbus_if.h"
 
 #define MV_TWSI_NAME		"twsi"
@@ -151,7 +154,7 @@ static driver_t mv_twsi_driver = {
 	sizeof(struct mv_twsi_softc),
 };
 
-DRIVER_MODULE(twsi, mbus, mv_twsi_driver, mv_twsi_devclass, 0, 0);
+DRIVER_MODULE(twsi, simplebus, mv_twsi_driver, mv_twsi_devclass, 0, 0);
 DRIVER_MODULE(iicbus, twsi, iicbus_driver, iicbus_devclass, 0, 0);
 MODULE_DEPEND(twsi, iicbus, 1, 1, 1);
 
@@ -288,6 +291,9 @@ twsi_locked_start(device_t dev, struct mv_twsi_softc *sc, int32_t mask,
 static int
 mv_twsi_probe(device_t dev)
 {
+
+	if (!ofw_bus_is_compatible(dev, "mrvl,twsi"))
+		return (ENXIO);
 
 	device_set_desc(dev, "Marvell Integrated I2C Bus Controller");
 	return (BUS_PROBE_DEFAULT);

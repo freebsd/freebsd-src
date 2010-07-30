@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 
-#include <cxgb_config.h>
 #include <cxgb_osdep.h>
 #include <sys/mbufq.h>
 #include <ulp/tom/cxgb_tcp_offload.h>

@@ -1,4 +1,5 @@
 # $FreeBSD$
+
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 
@@ -117,6 +118,12 @@ LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 
 .if ${TARGET_ARCH} == "mips"
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
+.if defined(TARGET_ABI) && ${TARGET_ABI} != "o32"
+LIB2FUNCS_EXTRA+= floatdidf.c fixunsdfsi.c
+LIB2FUNCS_EXTRA+= floatdisf.c floatundidf.c
+LIB2FUNCS_EXTRA+= fixsfdi.c floatundisf.c
+LIB2FUNCS_EXTRA+= fixdfdi.c fixunssfsi.c
+.endif
 .endif
 
 .if ${TARGET_ARCH} == "ia64"
@@ -134,6 +141,11 @@ LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
 #	from config/rs6000/t-ppccomm
 LIB2FUNCS_EXTRA = tramp.asm
 LIB2FUNCS_STATIC_EXTRA = eabi.asm
+.endif
+
+.if ${TARGET_ARCH} == "powerpc64"
+#	from config/rs6000/t-ppccomm
+LIB2FUNCS_EXTRA = tramp.asm
 .endif
 
 .if ${TARGET_ARCH} == "sparc64"

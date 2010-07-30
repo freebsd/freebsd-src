@@ -50,8 +50,6 @@ extern int _DYNAMIC;
 extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
-extern void _start(char **, void (*)(void), struct Struct_Obj_Entry *,
-    struct ps_strings *);
 extern void __sparc_utrap_setup(void);
 
 #ifdef GCRT
@@ -63,6 +61,9 @@ extern int etext;
 
 char **environ;
 const char *__progname = "";
+
+void _start(char **, void (*)(void), struct Struct_Obj_Entry *,
+    struct ps_strings *);
 
 /* The entry function. */
 /*

@@ -189,7 +189,7 @@ vx_attach(device_t dev)
 	}
 
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = vx_start;
 	ifp->if_ioctl = vx_ioctl;

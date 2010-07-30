@@ -295,12 +295,20 @@ VNET_DECLARE(struct ip6stat, ip6stat);	/* statistics */
 VNET_DECLARE(int, ip6_defhlim);		/* default hop limit */
 VNET_DECLARE(int, ip6_defmcasthlim);	/* default multicast hop limit */
 VNET_DECLARE(int, ip6_forwarding);	/* act as router? */
-VNET_DECLARE(int, ip6_gif_hlim);	/* Hop limit for gif encap packet */
 VNET_DECLARE(int, ip6_use_deprecated);	/* allow deprecated addr as source */
 VNET_DECLARE(int, ip6_rr_prune);	/* router renumbering prefix
 					 * walk list every 5 sec.    */
 VNET_DECLARE(int, ip6_mcast_pmtu);	/* enable pMTU discovery for multicast? */
 VNET_DECLARE(int, ip6_v6only);
+#define	V_ip6stat			VNET(ip6stat)
+#define	V_ip6_defhlim			VNET(ip6_defhlim)
+#define	V_ip6_defmcasthlim		VNET(ip6_defmcasthlim)
+#define	V_ip6_forwarding		VNET(ip6_forwarding)
+#define	V_ip6_use_deprecated		VNET(ip6_use_deprecated)
+#define	V_ip6_rr_prune			VNET(ip6_rr_prune)
+#define	V_ip6_mcast_pmtu		VNET(ip6_mcast_pmtu)
+#define	V_ip6_v6only			VNET(ip6_v6only)
+
 VNET_DECLARE(struct socket *, ip6_mrouter);	/* multicast routing daemon */
 VNET_DECLARE(int, ip6_sendredirects);	/* send IP redirects when forwarding? */
 VNET_DECLARE(int, ip6_maxfragpackets);	/* Maximum packets in reassembly
@@ -314,31 +322,6 @@ VNET_DECLARE(time_t, ip6_log_time);
 VNET_DECLARE(int, ip6_hdrnestlimit);	/* upper limit of # of extension
 					 * headers */
 VNET_DECLARE(int, ip6_dad_count);	/* DupAddrDetectionTransmits */
-
-VNET_DECLARE(int, ip6_auto_flowlabel);
-VNET_DECLARE(int, ip6_auto_linklocal);
-
-VNET_DECLARE(int, ip6_use_tempaddr);	/* Whether to use temporary addresses */
-VNET_DECLARE(int, ip6_prefer_tempaddr);	/* Whether to prefer temporary
-					 * addresses in the source address
-					 * selection */
-
-#ifdef IPSTEALTH
-VNET_DECLARE(int, ip6stealth);
-#endif
-
-VNET_DECLARE(int, ip6_use_defzone);	/* Whether to use the default scope
-					 * zone when unspecified */
-
-#define	V_ip6stat			VNET(ip6stat)
-#define	V_ip6_defhlim			VNET(ip6_defhlim)
-#define	V_ip6_defmcasthlim		VNET(ip6_defmcasthlim)
-#define	V_ip6_forwarding		VNET(ip6_forwarding)
-#define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
-#define	V_ip6_use_deprecated		VNET(ip6_use_deprecated)
-#define	V_ip6_rr_prune			VNET(ip6_rr_prune)
-#define	V_ip6_mcast_pmtu		VNET(ip6_mcast_pmtu)
-#define	V_ip6_v6only			VNET(ip6_v6only)
 #define	V_ip6_mrouter			VNET(ip6_mrouter)
 #define	V_ip6_sendredirects		VNET(ip6_sendredirects)
 #define	V_ip6_maxfragpackets		VNET(ip6_maxfragpackets)
@@ -349,17 +332,29 @@ VNET_DECLARE(int, ip6_use_defzone);	/* Whether to use the default scope
 #define	V_ip6_log_time			VNET(ip6_log_time)
 #define	V_ip6_hdrnestlimit		VNET(ip6_hdrnestlimit)
 #define	V_ip6_dad_count			VNET(ip6_dad_count)
+
+VNET_DECLARE(int, ip6_auto_flowlabel);
+VNET_DECLARE(int, ip6_auto_linklocal);
 #define	V_ip6_auto_flowlabel		VNET(ip6_auto_flowlabel)
 #define	V_ip6_auto_linklocal		VNET(ip6_auto_linklocal)
+
+VNET_DECLARE(int, ip6_use_tempaddr);	/* Whether to use temporary addresses */
+VNET_DECLARE(int, ip6_prefer_tempaddr);	/* Whether to prefer temporary
+					 * addresses in the source address
+					 * selection */
 #define	V_ip6_use_tempaddr		VNET(ip6_use_tempaddr)
 #define	V_ip6_prefer_tempaddr		VNET(ip6_prefer_tempaddr)
-#ifdef IPSTEALTH
-#define	V_ip6stealth			VNET(ip6stealth)
-#endif
+
+VNET_DECLARE(int, ip6_use_defzone);	/* Whether to use the default scope
+					 * zone when unspecified */
 #define	V_ip6_use_defzone		VNET(ip6_use_defzone)
 
 VNET_DECLARE (struct pfil_head, inet6_pfil_hook);	/* packet filter hooks */
 #define	V_inet6_pfil_hook	VNET(inet6_pfil_hook)
+#ifdef IPSTEALTH
+VNET_DECLARE(int, ip6stealth);
+#define	V_ip6stealth			VNET(ip6stealth)
+#endif
 
 extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;

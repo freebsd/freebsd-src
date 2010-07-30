@@ -25,8 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -40,6 +38,9 @@
  * if_start(), rewrite them for use by the real outgoing interface,
  * and ask it to send them.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_vlan.h"
 
@@ -186,8 +187,8 @@ static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
     int (*func)(struct ifnet *, int));
 static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
-static	int vlan_unconfig(struct ifnet *ifp);
-static	int vlan_unconfig_locked(struct ifnet *ifp);
+static	void vlan_unconfig(struct ifnet *ifp);
+static	void vlan_unconfig_locked(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
 static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
@@ -1127,25 +1128,22 @@ done:
 	return (error);
 }
 
-static int
+static void
 vlan_unconfig(struct ifnet *ifp)
 {
-	int ret;
 
 	VLAN_LOCK();
-	ret = vlan_unconfig_locked(ifp);
+	vlan_unconfig_locked(ifp);
 	VLAN_UNLOCK();
-	return (ret);
 }
 
-static int
+static void
 vlan_unconfig_locked(struct ifnet *ifp)
 {
 	struct ifvlantrunk *trunk;
 	struct vlan_mc_entry *mc;
 	struct ifvlan *ifv;
 	struct ifnet  *parent;
-	int error;
 
 	VLAN_LOCK_ASSERT();
 
@@ -1174,9 +1172,15 @@ vlan_unconfig_locked(struct ifnet *ifp)
 		while ((mc = SLIST_FIRST(&ifv->vlan_mc_listhead)) != NULL) {
 			bcopy((char *)&mc->mc_addr, LLADDR(&sdl),
 			    ETHER_ADDR_LEN);
-			error = if_delmulti(parent, (struct sockaddr *)&sdl);
-			if (error)
-				return (error);
+
+			/*
+			 * This may fail if the parent interface is
+			 * being detached.  Regardless, we should do a
+			 * best effort to free this interface as much
+			 * as possible as all callers expect vlan
+			 * destruction to succeed.
+			 */
+			(void)if_delmulti(parent, (struct sockaddr *)&sdl);
 			SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
 			free(mc, M_VLAN);
 		}
@@ -1222,8 +1226,6 @@ vlan_unconfig_locked(struct ifnet *ifp)
 	 */
 	if (parent != NULL)
 		EVENTHANDLER_INVOKE(vlan_unconfig, parent, ifv->ifv_tag);
-
-	return (0);
 }
 
 /* Handle a reference counted flag that should be set on the parent as well */
@@ -1322,10 +1324,25 @@ vlan_capabilities(struct ifvlan *ifv)
 	if (p->if_capenable & IFCAP_VLAN_HWCSUM &&
 	    p->if_capenable & IFCAP_VLAN_HWTAGGING) {
 		ifp->if_capenable = p->if_capenable & IFCAP_HWCSUM;
-		ifp->if_hwassist = p->if_hwassist;
+		ifp->if_hwassist = p->if_hwassist & (CSUM_IP | CSUM_TCP |
+		    CSUM_UDP | CSUM_SCTP | CSUM_IP_FRAGS | CSUM_FRAGMENT);
 	} else {
 		ifp->if_capenable = 0;
 		ifp->if_hwassist = 0;
+	}
+	/*
+	 * If the parent interface can do TSO on VLANs then
+	 * propagate the hardware-assisted flag. TSO on VLANs
+	 * does not necessarily require hardware VLAN tagging.
+	 */
+	if (p->if_capabilities & IFCAP_VLAN_HWTSO)
+		ifp->if_capabilities |= p->if_capabilities & IFCAP_TSO;
+	if (p->if_capenable & IFCAP_VLAN_HWTSO) {
+		ifp->if_capenable |= p->if_capenable & IFCAP_TSO;
+		ifp->if_hwassist |= p->if_hwassist & CSUM_TSO;
+	} else {
+		ifp->if_capenable &= ~(p->if_capenable & IFCAP_TSO);
+		ifp->if_hwassist &= ~(p->if_hwassist & CSUM_TSO);
 	}
 }
 
@@ -1366,9 +1383,9 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGIFMEDIA:
 		VLAN_LOCK();
 		if (TRUNK(ifv) != NULL) {
-			error = (*PARENT(ifv)->if_ioctl)(PARENT(ifv),
-					SIOCGIFMEDIA, data);
+			p = PARENT(ifv);
 			VLAN_UNLOCK();
+			error = (*p->if_ioctl)(p, SIOCGIFMEDIA, data);
 			/* Limit the result to the parent's current config. */
 			if (error == 0) {
 				struct ifmediareq *ifmr;

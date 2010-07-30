@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "d2i_X509_CRL 3"
-.TH d2i_X509_CRL 3 "2009-06-14" "0.9.8k" "OpenSSL"
+.TH d2i_X509_CRL 3 "2010-03-24" "0.9.8n" "OpenSSL"
 .SH "NAME"
 d2i_X509_CRL, i2d_X509_CRL, d2i_X509_CRL_bio, d2i_509_CRL_fp,
 i2d_X509_CRL_bio, i2d_X509_CRL_fp \- PKCS#10 certificate request functions.
@@ -150,8 +150,8 @@ i2d_X509_CRL_bio, i2d_X509_CRL_fp \- PKCS#10 certificate request functions.
 .Ve
 .PP
 .Vb 2
-\& int i2d_X509_CRL_bio(X509_CRL *x, BIO *bp);
-\& int i2d_X509_CRL_fp(X509_CRL *x, FILE *fp);
+\& int i2d_X509_CRL_bio(BIO *bp, X509_CRL *x);
+\& int i2d_X509_CRL_fp(FILE *fp, X509_CRL *x);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"

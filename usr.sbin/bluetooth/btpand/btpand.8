@@ -181,8 +181,6 @@ After
 has set up the client or server connection and opened the
 .Xr tap 4
 interface, it will create a pid file and detach.
-.Sh EXIT STATUS
-.Ex -std
 .Sh FILES
 .Bl -tag -compact
 .It Pa /dev/tap
@@ -190,6 +188,8 @@ interface, it will create a pid file and detach.
 .It Pa /var/run/sdp
 .It Pa /var/run/tap Ns Em N Ns No .pid
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 .Dl ifconfig tap1 create
 .Dl btpand -a host -d mydevice -s NAP -i tap1

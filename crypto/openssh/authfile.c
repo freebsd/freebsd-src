@@ -1,4 +1,4 @@
-/* $OpenBSD: authfile.c,v 1.76 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: authfile.c,v 1.80 2010/03/04 10:36:03 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -46,6 +46,9 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+
+/* compatibility with old or broken OpenSSL versions */
+#include "openbsd-compat/openssl-compat.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -184,7 +187,11 @@ key_save_private_pem(Key *key, const char *filename, const char *_passphrase,
 	int success = 0;
 	int len = strlen(_passphrase);
 	u_char *passphrase = (len > 0) ? (u_char *)_passphrase : NULL;
+#if (OPENSSL_VERSION_NUMBER < 0x00907000L)
 	const EVP_CIPHER *cipher = (len > 0) ? EVP_des_ede3_cbc() : NULL;
+#else
+	const EVP_CIPHER *cipher = (len > 0) ? EVP_aes_128_cbc() : NULL;
+#endif
 
 	if (len > 0 && len <= 4) {
 		error("passphrase too short: have %d bytes, need > 4", len);
@@ -552,8 +559,13 @@ key_load_private_type(int type, const char *filename, const char *passphrase,
 	int fd;
 
 	fd = open(filename, O_RDONLY);
-	if (fd < 0)
+	if (fd < 0) {
+		debug("could not open key file '%s': %s", filename,
+		    strerror(errno));
+		if (perm_ok != NULL)
+			*perm_ok = 0;
 		return NULL;
+	}
 	if (!key_perm_ok(fd, filename)) {
 		if (perm_ok != NULL)
 			*perm_ok = 0;
@@ -588,8 +600,11 @@ key_load_private(const char *filename, const char *passphrase,
 	int fd;
 
 	fd = open(filename, O_RDONLY);
-	if (fd < 0)
+	if (fd < 0) {
+		debug("could not open key file '%s': %s", filename,
+		    strerror(errno));
 		return NULL;
+	}
 	if (!key_perm_ok(fd, filename)) {
 		error("bad permissions: ignore key: %s", filename);
 		close(fd);
@@ -677,3 +692,65 @@ key_load_public(const char *filename, char **commentp)
 	key_free(pub);
 	return NULL;
 }
+
+/*
+ * Returns 1 if the specified "key" is listed in the file "filename",
+ * 0 if the key is not listed or -1 on error.
+ * If strict_type is set then the key type must match exactly,
+ * otherwise a comparison that ignores certficiate data is performed.
+ */
+int
+key_in_file(Key *key, const char *filename, int strict_type)
+{
+	FILE *f;
+	char line[SSH_MAX_PUBKEY_BYTES];
+	char *cp;
+	u_long linenum = 0;
+	int ret = 0;
+	Key *pub;
+	int (*key_compare)(const Key *, const Key *) = strict_type ?
+	    key_equal : key_equal_public;
+
+	if ((f = fopen(filename, "r")) == NULL) {
+		if (errno == ENOENT) {
+			debug("%s: keyfile \"%s\" missing", __func__, filename);
+			return 0;
+		} else {
+			error("%s: could not open keyfile \"%s\": %s", __func__,
+			    filename, strerror(errno));
+			return -1;
+		}
+	}
+
+	while (read_keyfile_line(f, filename, line, sizeof(line),
+		    &linenum) != -1) {
+		cp = line;
+
+		/* Skip leading whitespace. */
+		for (; *cp && (*cp == ' ' || *cp == '\t'); cp++)
+			;
+
+		/* Skip comments and empty lines */
+		switch (*cp) {
+		case '#':
+		case '\n':
+		case '\0':
+			continue;
+		}
+
+		pub = key_new(KEY_UNSPEC);
+		if (key_read(pub, &cp) != 1) {
+			key_free(pub);
+			continue;
+		}
+		if (key_compare(key, pub)) {
+			ret = 1;
+			key_free(pub);
+			break;
+		}
+		key_free(pub);
+	}
+	fclose(f);
+	return ret;
+}
+

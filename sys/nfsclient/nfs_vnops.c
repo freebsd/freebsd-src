@@ -932,7 +932,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct mbuf *mreq, *mrep, *md, *mb;
 	long len;
 	nfsfh_t *fhp;
-	struct nfsnode *np;
+	struct nfsnode *np, *newnp;
 	int error = 0, attrflag, fhsize, ltype;
 	int v3 = NFS_ISV3(dvp);
 	struct thread *td = cnp->cn_thread;
@@ -958,10 +958,27 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * change time of the file matches our cached copy.
 		 * Otherwise, we discard the cache entry and fallback
 		 * to doing a lookup RPC.
+		 *
+		 * To better handle stale file handles and attributes,
+		 * clear the attribute cache of this node if it is a
+		 * leaf component, part of an open() call, and not
+		 * locally modified before fetching the attributes.
+		 * This should allow stale file handles to be detected
+		 * here where we can fall back to a LOOKUP RPC to
+		 * recover rather than having nfs_open() detect the
+		 * stale file handle and failing open(2) with ESTALE.
 		 */
 		newvp = *vpp;
-		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
-		    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+		newnp = VTONFS(newvp);
+		if ((cnp->cn_flags & (ISLASTCN | ISOPEN)) ==
+		    (ISLASTCN | ISOPEN) && !(newnp->n_flag & NMODIFIED)) {
+			mtx_lock(&newnp->n_mtx);
+			newnp->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
+			mtx_unlock(&newnp->n_mtx);
+		}
+		if (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
+		    vattr.va_ctime.tv_sec == newnp->n_ctime) {
 			nfsstats.lookupcache_hits++;
 			if (cnp->cn_nameiop != LOOKUP &&
 			    (flags & ISLASTCN))
@@ -1331,10 +1348,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	int v3 = NFS_ISV3(vp), committed = NFSV3WRITE_FILESYNC;
 	int wsize;
 	
-#ifndef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1)
-		panic("nfs: writerpc iovcnt > 1");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	*must_commit = 0;
 	tsiz = uiop->uio_resid;
 	mtx_lock(&nmp->nm_mtx);
@@ -1691,12 +1705,8 @@ nfs_remove(struct vop_remove_args *ap)
 	int error = 0;
 	struct vattr vattr;
 
-#ifndef DIAGNOSTIC
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("nfs_remove: no name");
-	if (vrefcnt(vp) < 1)
-		panic("nfs_remove: bad v_usecount");
-#endif
+	KASSERT((cnp->cn_flags & HASBUF) != 0, ("nfs_remove: no name"));
+	KASSERT(vrefcnt(vp) > 0, ("nfs_remove: bad v_usecount"));
 	if (vp->v_type == VDIR)
 		error = EPERM;
 	else if (vrefcnt(vp) == 1 || (np->n_sillyrename &&
@@ -1797,11 +1807,8 @@ nfs_rename(struct vop_rename_args *ap)
 	struct componentname *fcnp = ap->a_fcnp;
 	int error;
 
-#ifndef DIAGNOSTIC
-	if ((tcnp->cn_flags & HASBUF) == 0 ||
-	    (fcnp->cn_flags & HASBUF) == 0)
-		panic("nfs_rename: no name");
-#endif
+	KASSERT((tcnp->cn_flags & HASBUF) != 0 &&
+	    (fcnp->cn_flags & HASBUF) != 0, ("nfs_rename: no name"));
 	/* Check for cross-device rename */
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
@@ -2260,11 +2267,10 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	int attrflag;
 	int v3 = NFS_ISV3(vp);
 
-#ifndef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1 || (uiop->uio_offset & (DIRBLKSIZ - 1)) ||
-		(uiop->uio_resid & (DIRBLKSIZ - 1)))
-		panic("nfs readdirrpc bad uio");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1 &&
+	    (uiop->uio_offset & (DIRBLKSIZ - 1)) == 0 &&
+	    (uiop->uio_resid & (DIRBLKSIZ - 1)) == 0,
+	    ("nfs readdirrpc bad uio"));
 
 	/*
 	 * If there is no cookie, assume directory was stale.
@@ -2465,11 +2471,10 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 #ifndef nolint
 	dp = NULL;
 #endif
-#ifndef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1 || (uiop->uio_offset & (DIRBLKSIZ - 1)) ||
-		(uiop->uio_resid & (DIRBLKSIZ - 1)))
-		panic("nfs readdirplusrpc bad uio");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1 &&
+	    (uiop->uio_offset & (DIRBLKSIZ - 1)) == 0 &&
+	    (uiop->uio_resid & (DIRBLKSIZ - 1)) == 0,
+	    ("nfs readdirplusrpc bad uio"));
 	ndp->ni_dvp = vp;
 	newvp = NULLVP;
 
@@ -2735,10 +2740,7 @@ nfs_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 
 	cache_purge(dvp);
 	np = VTONFS(vp);
-#ifndef DIAGNOSTIC
-	if (vp->v_type == VDIR)
-		panic("nfs: sillyrename dir");
-#endif
+	KASSERT(vp->v_type != VDIR, ("nfs: sillyrename dir"));
 	sp = malloc(sizeof (struct sillyrename),
 		M_NFSREQ, M_WAITOK);
 	sp->s_cred = crhold(cnp->cn_cred);

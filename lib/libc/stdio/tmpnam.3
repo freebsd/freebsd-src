@@ -217,6 +217,17 @@ for any of the errors specified for the library functions
 .Xr malloc 3
 or
 .Xr mktemp 3 .
+.Sh SEE ALSO
+.Xr mkstemp 3 ,
+.Xr mktemp 3
+.Sh STANDARDS
+The
+.Fn tmpfile
+and
+.Fn tmpnam
+functions
+conform to
+.St -isoC .
 .Sh SECURITY CONSIDERATIONS
 The
 .Fn tmpnam
@@ -235,14 +246,3 @@ It is strongly suggested that
 be used in place of these functions.
 (See
 the FSA.)
-.Sh SEE ALSO
-.Xr mkstemp 3 ,
-.Xr mktemp 3
-.Sh STANDARDS
-The
-.Fn tmpfile
-and
-.Fn tmpnam
-functions
-conform to
-.St -isoC .

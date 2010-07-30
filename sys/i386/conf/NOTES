@@ -11,6 +11,12 @@
 # We want LINT to cover profiling as well.
 profile         2
 
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
 
 #####################################################################
 # SMP OPTIONS:
@@ -506,6 +512,9 @@ device		acpi_video
 # ACPI Docking Station
 device		acpi_dock
 
+# ACPI ASOC ATK0110 ASUSTeK AI Booster (voltage, temperature and fan sensors)
+device		aibs
+
 # The cpufreq(4) driver provides support for non-ACPI CPU frequency control
 device		cpufreq
 
@@ -861,6 +870,15 @@ options 	PMAP_SHPGPERPROC=201
 # PAE kernels default to a value of 512.
 #
 options 	KVA_PAGES=260
+
+#
+# Number of initial kernel page table pages used for early bootstrap.
+# This number should include enough pages to map the kernel, any
+# modules or other data loaded with the kernel by the loader, and data
+# structures allocated before the VM system is initialized such as the
+# vm_page_t array.  Each page table page maps 4MB (2MB with PAE).
+#
+options 	NKPT=31
 
 
 #####################################################################

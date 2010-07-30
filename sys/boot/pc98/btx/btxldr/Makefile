@@ -11,6 +11,6 @@ CFLAGS+=-DLOADER_ADDRESS=${LOADER_ADDRESS}
 CFLAGS+=-DBTXLDR_VERBOSE
 .endif
 
-LDFLAGS=-N -e start -Ttext ${LOADER_ADDRESS} -Wl,-S,--oformat,binary
+LDFLAGS=-e start -Ttext ${LOADER_ADDRESS} -Wl,-N,-S,--oformat,binary
 
 .include <bsd.prog.mk>

@@ -326,6 +326,9 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define	VMFS_NO_SPACE		0	/* don't find; use the given range */
 #define	VMFS_ANY_SPACE		1	/* find a range with any alignment */
 #define	VMFS_ALIGNED_SPACE	2	/* find a superpage-aligned range */
+#if defined(__mips__)
+#define	VMFS_TLB_ALIGNED_SPACE	3	/* find a TLB entry aligned range */
+#endif
 
 /*
  * vm_map_wire and vm_map_unwire option flags
@@ -346,7 +349,7 @@ int vm_map_fixed(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_size_t,
     vm_prot_t, vm_prot_t, int);
 int vm_map_findspace (vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *);
 int vm_map_inherit (vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t);
-void vm_map_init (struct vm_map *, vm_offset_t, vm_offset_t);
+void vm_map_init(vm_map_t, pmap_t, vm_offset_t, vm_offset_t);
 int vm_map_insert (vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t, vm_prot_t, vm_prot_t, int);
 int vm_map_lookup (vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
     vm_pindex_t *, vm_prot_t *, boolean_t *);

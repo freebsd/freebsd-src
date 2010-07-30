@@ -129,7 +129,7 @@ static int kmemcount;
 
 #define KMEM_ZMAX	PAGE_SIZE
 #define KMEM_ZSIZE	(KMEM_ZMAX >> KMEM_ZSHIFT)
-static u_int8_t kmemsize[KMEM_ZSIZE + 1];
+static uint8_t kmemsize[KMEM_ZSIZE + 1];
 
 /*
  * Small malloc(9) memory allocations are allocated from a set of UMA buckets
@@ -558,7 +558,7 @@ reallocf(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 static void
 kmeminit(void *dummy)
 {
-	u_int8_t indx;
+	uint8_t indx;
 	u_long mem_size;
 	int i;
  
@@ -879,8 +879,8 @@ DB_SHOW_COMMAND(malloc, db_show_malloc)
 {
 	struct malloc_type_internal *mtip;
 	struct malloc_type *mtp;
-	u_int64_t allocs, frees;
-	u_int64_t alloced, freed;
+	uint64_t allocs, frees;
+	uint64_t alloced, freed;
 	int i;
 
 	db_printf("%18s %12s  %12s %12s\n", "Type", "InUse", "MemUse",

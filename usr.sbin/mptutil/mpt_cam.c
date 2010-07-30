@@ -56,15 +56,75 @@ xpt_open(void)
 	return (xptfd);
 }
 
+/* Fetch the path id of bus 0 for the opened mpt controller. */
+static int
+fetch_path_id(path_id_t *path_id)
+{
+	struct bus_match_pattern *b;
+	union ccb ccb;
+	size_t bufsize;
+
+	if (xpt_open() < 0)
+		return (ENXIO);
+
+	/* First, find the path id of bus 0 for this mpt controller. */
+	bzero(&ccb, sizeof(ccb));
+
+	ccb.ccb_h.func_code = XPT_DEV_MATCH;
+
+	bufsize = sizeof(struct dev_match_result) * 1;
+	ccb.cdm.num_matches = 0;
+	ccb.cdm.match_buf_len = bufsize;
+	ccb.cdm.matches = calloc(1, bufsize);
+
+	bufsize = sizeof(struct dev_match_pattern) * 1;
+	ccb.cdm.num_patterns = 1;
+	ccb.cdm.pattern_buf_len = bufsize;
+	ccb.cdm.patterns = calloc(1, bufsize);
+
+	/* Match mptX bus 0. */
+	ccb.cdm.patterns[0].type = DEV_MATCH_BUS;
+	b = &ccb.cdm.patterns[0].pattern.bus_pattern;
+	snprintf(b->dev_name, sizeof(b->dev_name), "mpt");
+	b->unit_number = mpt_unit;
+	b->bus_id = 0;
+	b->flags = BUS_MATCH_NAME | BUS_MATCH_UNIT | BUS_MATCH_BUS_ID;
+
+	if (ioctl(xptfd, CAMIOCOMMAND, &ccb) < 0) {
+		free(ccb.cdm.matches);
+		free(ccb.cdm.patterns);
+		return (errno);
+	}
+	free(ccb.cdm.patterns);
+
+	if (((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) ||
+	    (ccb.cdm.status != CAM_DEV_MATCH_LAST)) {
+		warnx("fetch_path_id got CAM error %#x, CDM error %d\n",
+		    ccb.ccb_h.status, ccb.cdm.status);
+		free(ccb.cdm.matches);
+		return (EIO);
+	}
+
+	/* We should have exactly 1 match for the bus. */
+	if (ccb.cdm.num_matches != 1 ||
+	    ccb.cdm.matches[0].type != DEV_MATCH_BUS) {
+		free(ccb.cdm.matches);
+		return (ENOENT);
+	}
+	*path_id = ccb.cdm.matches[0].result.bus_result.path_id;
+	free(ccb.cdm.matches);
+	return (0);
+}
+
 int
 mpt_query_disk(U8 VolumeBus, U8 VolumeID, struct mpt_query_disk *qd)
 {
-	struct bus_match_pattern *b;
 	struct periph_match_pattern *p;
 	struct periph_match_result *r;
 	union ccb ccb;
+	path_id_t path_id;
 	size_t bufsize;
-	int i;
+	int error, i;
 
 	/* mpt(4) only handles devices on bus 0. */
 	if (VolumeBus != 0)
@@ -72,6 +132,11 @@ mpt_query_disk(U8 VolumeBus, U8 VolumeID, struct mpt_query_disk *qd)
 
 	if (xpt_open() < 0)
 		return (ENXIO);
+
+	/* Find the path ID of bus 0. */
+	error = fetch_path_id(&path_id);
+	if (error)
+		return (error);
 
 	bzero(&ccb, sizeof(ccb));
 
@@ -85,25 +150,18 @@ mpt_query_disk(U8 VolumeBus, U8 VolumeID, struct mpt_query_disk *qd)
 	ccb.cdm.match_buf_len = bufsize;
 	ccb.cdm.matches = calloc(1, bufsize);
 
-	bufsize = sizeof(struct dev_match_pattern) * 2;
-	ccb.cdm.num_patterns = 2;
+	bufsize = sizeof(struct dev_match_pattern) * 1;
+	ccb.cdm.num_patterns = 1;
 	ccb.cdm.pattern_buf_len = bufsize;
 	ccb.cdm.patterns = calloc(1, bufsize);
 
-	/* Match mptX bus 0. */
-	ccb.cdm.patterns[0].type = DEV_MATCH_BUS;
-	b = &ccb.cdm.patterns[0].pattern.bus_pattern;
-	snprintf(b->dev_name, sizeof(b->dev_name), "mpt");
-	b->unit_number = mpt_unit;
-	b->bus_id = 0;
-	b->flags = BUS_MATCH_NAME | BUS_MATCH_UNIT | BUS_MATCH_BUS_ID;
-
 	/* Look for a "da" device at the specified target and lun. */
-	ccb.cdm.patterns[1].type = DEV_MATCH_PERIPH;
-	p = &ccb.cdm.patterns[1].pattern.periph_pattern;
+	ccb.cdm.patterns[0].type = DEV_MATCH_PERIPH;
+	p = &ccb.cdm.patterns[0].pattern.periph_pattern;
+	p->path_id = path_id;
 	snprintf(p->periph_name, sizeof(p->periph_name), "da");
 	p->target_id = VolumeID;
-	p->flags = PERIPH_MATCH_NAME | PERIPH_MATCH_TARGET;
+	p->flags = PERIPH_MATCH_PATH | PERIPH_MATCH_NAME | PERIPH_MATCH_TARGET;
 
 	if (ioctl(xptfd, CAMIOCOMMAND, &ccb) < 0) {
 		i = errno;
@@ -122,25 +180,22 @@ mpt_query_disk(U8 VolumeBus, U8 VolumeID, struct mpt_query_disk *qd)
 	}
 
 	/*
-	 * We should have exactly 2 matches, 1 for the bus and 1 for
-	 * the peripheral.  However, if we only have 1 match and it is
-	 * for the bus, don't print an error message and return
-	 * ENOENT.
+	 * We should have exactly 1 match for the peripheral.
+	 * However, if we don't get a match, don't print an error
+	 * message and return ENOENT.
 	 */
-	if (ccb.cdm.num_matches == 1 &&
-	    ccb.cdm.matches[0].type == DEV_MATCH_BUS) {
+	if (ccb.cdm.num_matches == 0) {
 		free(ccb.cdm.matches);
 		return (ENOENT);
 	}
-	if (ccb.cdm.num_matches != 2) {
-		warnx("mpt_query_disk got %d matches, expected 2",
+	if (ccb.cdm.num_matches != 1) {
+		warnx("mpt_query_disk got %d matches, expected 1",
 		    ccb.cdm.num_matches);
 		free(ccb.cdm.matches);
 		return (EIO);
 	}
-	if (ccb.cdm.matches[0].type != DEV_MATCH_BUS ||
-	    ccb.cdm.matches[1].type != DEV_MATCH_PERIPH) {
-		warnx("mpt_query_disk got wrong CAM matches");
+	if (ccb.cdm.matches[0].type != DEV_MATCH_PERIPH) {
+		warnx("mpt_query_disk got wrong CAM match");
 		free(ccb.cdm.matches);
 		return (EIO);
 	}
@@ -336,17 +391,21 @@ mpt_fetch_disks(int fd, int *ndisks, struct mpt_standalone_disk **disksp)
 {
 	CONFIG_PAGE_IOC_2 *ioc2;
 	struct mpt_standalone_disk *disks;
-	struct bus_match_pattern *b;
 	struct periph_match_pattern *p;
 	struct periph_match_result *r;
 	struct cam_device *dev;
 	union ccb ccb;
+	path_id_t path_id;
 	size_t bufsize;
 	u_int i;
-	int count;
+	int count, error;
 
 	if (xpt_open() < 0)
 		return (ENXIO);
+
+	error = fetch_path_id(&path_id);
+	if (error)
+		return (error);
 
 	for (count = 100;; count+= 100) {
 		/* Try to fetch 'count' disks in one go. */
@@ -354,29 +413,22 @@ mpt_fetch_disks(int fd, int *ndisks, struct mpt_standalone_disk **disksp)
 
 		ccb.ccb_h.func_code = XPT_DEV_MATCH;
 
-		bufsize = sizeof(struct dev_match_result) * (count + 2);
+		bufsize = sizeof(struct dev_match_result) * (count + 1);
 		ccb.cdm.num_matches = 0;
 		ccb.cdm.match_buf_len = bufsize;
 		ccb.cdm.matches = calloc(1, bufsize);
 
-		bufsize = sizeof(struct dev_match_pattern) * 2;
-		ccb.cdm.num_patterns = 2;
+		bufsize = sizeof(struct dev_match_pattern) * 1;
+		ccb.cdm.num_patterns = 1;
 		ccb.cdm.pattern_buf_len = bufsize;
 		ccb.cdm.patterns = calloc(1, bufsize);
 
-		/* Match mptX bus 0. */
-		ccb.cdm.patterns[0].type = DEV_MATCH_BUS;
-		b = &ccb.cdm.patterns[0].pattern.bus_pattern;
-		snprintf(b->dev_name, sizeof(b->dev_name), "mpt");
-		b->unit_number = mpt_unit;
-		b->bus_id = 0;
-		b->flags = BUS_MATCH_NAME | BUS_MATCH_UNIT | BUS_MATCH_BUS_ID;
-
 		/* Match any "da" peripherals. */
-		ccb.cdm.patterns[1].type = DEV_MATCH_PERIPH;
-		p = &ccb.cdm.patterns[1].pattern.periph_pattern;
+		ccb.cdm.patterns[0].type = DEV_MATCH_PERIPH;
+		p = &ccb.cdm.patterns[0].pattern.periph_pattern;
+		p->path_id = path_id;
 		snprintf(p->periph_name, sizeof(p->periph_name), "da");
-		p->flags = PERIPH_MATCH_NAME;
+		p->flags = PERIPH_MATCH_PATH | PERIPH_MATCH_NAME;
 
 		if (ioctl(xptfd, CAMIOCOMMAND, &ccb) < 0) {
 			i = errno;
@@ -406,34 +458,21 @@ mpt_fetch_disks(int fd, int *ndisks, struct mpt_standalone_disk **disksp)
 		break;
 	}
 
-	/*
-	 * We should have N + 1 matches, 1 for the bus and 1 for each
-	 * "da" device.
-	 */
-	if (ccb.cdm.num_matches < 1) {
-		warnx("mpt_fetch_disks didn't get any matches");
+	/* Shortcut if we don't have any "da" devices. */
+	if (ccb.cdm.num_matches == 0) {
 		free(ccb.cdm.matches);
-		return (EIO);
+		*ndisks = 0;
+		*disksp = NULL;
+		return (0);
 	}
-	if (ccb.cdm.matches[0].type != DEV_MATCH_BUS) {
-		warnx("mpt_fetch_disks got wrong CAM matches");
-		free(ccb.cdm.matches);
-		return (EIO);
-	}
-	for (i = 1; i < ccb.cdm.num_matches; i++) {
+
+	/* We should have N matches, 1 for each "da" device. */
+	for (i = 0; i < ccb.cdm.num_matches; i++) {
 		if (ccb.cdm.matches[i].type != DEV_MATCH_PERIPH) {
 			warnx("mpt_fetch_disks got wrong CAM matches");
 			free(ccb.cdm.matches);
 			return (EIO);
 		}
-	}
-
-	/* Shortcut if we don't have any "da" devices. */
-	if (ccb.cdm.num_matches == 1) {
-		free(ccb.cdm.matches);
-		*ndisks = 0;
-		*disksp = NULL;
-		return (0);
 	}
 
 	/*
@@ -444,7 +483,7 @@ mpt_fetch_disks(int fd, int *ndisks, struct mpt_standalone_disk **disksp)
 	ioc2 = mpt_read_ioc_page(fd, 2, NULL);
 	disks = calloc(ccb.cdm.num_matches, sizeof(*disks));
 	count = 0;
-	for (i = 1; i < ccb.cdm.num_matches; i++) {
+	for (i = 0; i < ccb.cdm.num_matches; i++) {
 		r = &ccb.cdm.matches[i].result.periph_result;
 		if (periph_is_volume(ioc2, r))
 			continue;
@@ -480,10 +519,9 @@ mpt_fetch_disks(int fd, int *ndisks, struct mpt_standalone_disk **disksp)
 int
 mpt_rescan_bus(int bus, int id)
 {
-	struct bus_match_pattern *b;
 	union ccb ccb;
 	path_id_t path_id;
-	size_t bufsize;
+	int error;
 
 	/* mpt(4) only handles devices on bus 0. */
 	if (bus != -1 && bus != 0)
@@ -492,54 +530,12 @@ mpt_rescan_bus(int bus, int id)
 	if (xpt_open() < 0)
 		return (ENXIO);
 
-	/* First, find the path id of bus 0 for this mpt controller. */
+	error = fetch_path_id(&path_id);
+	if (error)
+		return (error);
+
+	/* Perform the actual rescan. */
 	bzero(&ccb, sizeof(ccb));
-
-	ccb.ccb_h.func_code = XPT_DEV_MATCH;
-
-	bufsize = sizeof(struct dev_match_result) * 1;
-	ccb.cdm.num_matches = 0;
-	ccb.cdm.match_buf_len = bufsize;
-	ccb.cdm.matches = calloc(1, bufsize);
-
-	bufsize = sizeof(struct dev_match_pattern) * 1;
-	ccb.cdm.num_patterns = 1;
-	ccb.cdm.pattern_buf_len = bufsize;
-	ccb.cdm.patterns = calloc(1, bufsize);
-
-	/* Match mptX bus 0. */
-	ccb.cdm.patterns[0].type = DEV_MATCH_BUS;
-	b = &ccb.cdm.patterns[0].pattern.bus_pattern;
-	snprintf(b->dev_name, sizeof(b->dev_name), "mpt");
-	b->unit_number = mpt_unit;
-	b->bus_id = 0;
-	b->flags = BUS_MATCH_NAME | BUS_MATCH_UNIT | BUS_MATCH_BUS_ID;
-
-	if (ioctl(xptfd, CAMIOCOMMAND, &ccb) < 0) {
-		free(ccb.cdm.matches);
-		free(ccb.cdm.patterns);
-		return (errno);
-	}
-	free(ccb.cdm.patterns);
-
-	if (((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) ||
-	    (ccb.cdm.status != CAM_DEV_MATCH_LAST)) {
-		warnx("mpt_rescan_bus got CAM error %#x, CDM error %d\n",
-		    ccb.ccb_h.status, ccb.cdm.status);
-		free(ccb.cdm.matches);
-		return (EIO);
-	}
-
-	/* We should have exactly 1 match for the bus. */
-	if (ccb.cdm.num_matches != 1 ||
-	    ccb.cdm.matches[0].type != DEV_MATCH_BUS) {
-		free(ccb.cdm.matches);
-		return (ENOENT);
-	}
-	path_id = ccb.cdm.matches[0].result.bus_result.path_id;
-	free(ccb.cdm.matches);
-
-	/* Now perform the actual rescan. */
 	ccb.ccb_h.path_id = path_id;
 	if (id == -1) {
 		ccb.ccb_h.func_code = XPT_SCAN_BUS;

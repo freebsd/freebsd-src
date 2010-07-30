@@ -45,7 +45,7 @@ CFLAGS+=	-DOPENSSL
 CFLAGS+=	-DUSE_MD5
 
 # Endianness
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "sparc64"
 CFLAGS+=	-DWORDS_BIGENDIAN
 .endif
 
@@ -67,7 +67,7 @@ CFLAGS+=	-I${LIB_BIND_DIR}
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 ISC_ATOMIC_ARCH=	x86_32
 .else
-ISC_ATOMIC_ARCH=	${MACHINE_ARCH}
+ISC_ATOMIC_ARCH=	${MACHINE_CPUARCH}
 .endif
 
 # Optional features

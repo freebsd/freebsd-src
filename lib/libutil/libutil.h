@@ -164,6 +164,23 @@ int pidfile_close(struct pidfh *pfh);
 int pidfile_remove(struct pidfh *pfh);
 #endif
 
+#ifdef _UFS_UFS_QUOTA_H_
+struct quotafile;
+struct fstab;
+struct quotafile *quota_open(struct fstab *, int, int);
+void quota_close(struct quotafile *);
+int quota_on(struct quotafile *);
+int quota_off(struct quotafile *);
+const char *quota_fsname(const struct quotafile *);
+const char *quota_qfname(const struct quotafile *);
+int quota_maxid(struct quotafile *);
+int quota_check_path(const struct quotafile *, const char *path);
+int quota_read(struct quotafile *, struct dqblk *, int);
+int quota_write_limits(struct quotafile *, struct dqblk *, int);
+int quota_write_usage(struct quotafile *, struct dqblk *, int);
+int quota_convert(struct quotafile *, int);
+#endif
+
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)

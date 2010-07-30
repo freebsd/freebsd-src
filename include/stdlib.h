@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -159,6 +155,7 @@ void	 _Exit(int) __dead2;
 #if __POSIX_VISIBLE /* >= ??? */
 int	 posix_memalign(void **, size_t, size_t); /* (ADV) */
 int	 rand_r(unsigned *);			/* (TSF) */
+char	*realpath(const char * __restrict, char * __restrict);
 int	 setenv(const char *, const char *, int);
 int	 unsetenv(const char *);
 #endif
@@ -205,7 +202,6 @@ int	 posix_openpt(int);
 char	*ptsname(int);
 int	 putenv(char *);
 long	 random(void);
-char	*realpath(const char *, char resolved_path[]);
 unsigned short
 	*seed48(unsigned short[3]);
 #ifndef _SETKEY_DECLARED

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
@@ -79,15 +80,15 @@ nfstype nfsv3_type[9] = {
 static void *nfsm_dissect_xx_sub(int s, struct mbuf **md, caddr_t *dpos,
     int how);
 
-SYSCTL_DECL(_vfs_nfs);
+SYSCTL_NODE(_vfs, OID_AUTO, nfs_common, CTLFLAG_RD, 0, "NFS common support");
 
 static int nfs_realign_test;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RD, &nfs_realign_test,
-    0, "Number of realign tests done");
+SYSCTL_INT(_vfs_nfs_common, OID_AUTO, realign_test, CTLFLAG_RD,
+    &nfs_realign_test, 0, "Number of realign tests done");
 
 static int nfs_realign_count;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RD, &nfs_realign_count,
-    0, "Number of mbuf realignments done");
+SYSCTL_INT(_vfs_nfs_common, OID_AUTO, realign_count, CTLFLAG_RD,
+    &nfs_realign_count, 0, "Number of mbuf realignments done");
 
 u_quad_t
 nfs_curusec(void)
@@ -404,3 +405,12 @@ nfs_realign(struct mbuf **pm, int how)
 	}
 	return (0);
 }
+
+static moduledata_t nfs_common_mod = {
+	"nfs_common",
+	NULL,
+	NULL
+};
+
+DECLARE_MODULE(nfs_common, nfs_common_mod, SI_SUB_VFS, SI_ORDER_ANY);
+MODULE_VERSION(nfs_common, 1);

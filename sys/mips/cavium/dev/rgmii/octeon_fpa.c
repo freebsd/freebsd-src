@@ -209,8 +209,9 @@ void octeon_fpa_fill_pool_mem (u_int pool, u_int elem_size_words, u_int elem_num
     memory = (void *) OCTEON_ALIGN(memory);
 
 #ifdef FPA_DEBUG_TERSE
-    printf("FPA fill: %u  Count: %u  SizeBytes: %u  SizeBytesAligned: %u  1st: %p = 0x%X\n",
-           pool, elem_num, elem_size_bytes, block_size, memory, (void *)OCTEON_PTR2PHYS(memory));
+    printf("FPA fill: %u  Count: %u  SizeBytes: %u  SizeBytesAligned: %u  1st: %p = %p\n",
+           pool, elem_num, elem_size_bytes, block_size, memory,
+	   (void *)(intptr_t)OCTEON_PTR2PHYS(memory));
 #endif
 
 //    memory = (void *) ((((u_int) memory / OCTEON_FPA_POOL_ALIGNMENT) + 1) * OCTEON_FPA_POOL_ALIGNMENT);
@@ -218,7 +219,8 @@ void octeon_fpa_fill_pool_mem (u_int pool, u_int elem_size_words, u_int elem_num
     while (elem_num--) {
 #ifdef FPA_DEBUG
         if (((elems - elem_num) < 4) || (elem_num < 4))
-        printf(" %% Block %d:  %p  Phys 0x%X   Bytes %u\n", block, memory, OCTEON_PTR2PHYS(memory), elem_size_bytes);
+        printf(" %% Block %d:  %p  Phys %p   Bytes %u\n", block, memory,
+	  (void *)(intptr_t)OCTEON_PTR2PHYS(memory), elem_size_bytes);
         block++;
 #endif
         octeon_fpa_free(memory, pool, 0);

@@ -43,15 +43,12 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <string.h>
 
-extern int __sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
-    void *newp, size_t newlen);
+extern int __sysctl(const int *name, u_int namelen, void *oldp,
+    size_t *oldlenp, const void *newp, size_t newlen);
 
 int
-sysctl(name, namelen, oldp, oldlenp, newp, newlen)
-	int *name;
-	u_int namelen;
-	void *oldp, *newp;
-	size_t *oldlenp, newlen;
+sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
+    const void *newp, size_t newlen)
 {
 	if (name[0] != CTL_USER)
 		return (__sysctl(name, namelen, oldp, oldlenp, newp, newlen));

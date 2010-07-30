@@ -574,7 +574,7 @@ ub_env_enum(const char *last)
 	 * internally, which handles such case
 	 */
 	env = NULL;
-	if (syscall(API_ENV_ENUM, NULL, (uint32_t)last, (uint32_t)&env) != 0)
+	if (!syscall(API_ENV_ENUM, NULL, (uint32_t)last, (uint32_t)&env))
 		return (NULL);
 
 	if (env == NULL)

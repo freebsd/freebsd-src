@@ -48,9 +48,10 @@ module at boot time, place the following line in
 ahci_load="YES"
 .Ed
 .Pp
-The following tunables are settable from the loader:
+The following tunables are settable from the
+.Xr loader 8 :
 .Bl -ohang
-.It Va hint.ahci.X.msi
+.It Va hint.ahci. Ns Ar X Ns Va .msi
 controls Message Signaled Interrupts (MSI) usage by the specified controller
 .Bl -tag -compact
 .It 0
@@ -60,15 +61,15 @@ single MSI vector used, if supported (default);
 .It 2
 multiple MSI vectors used, if supported;
 .El
-.It Va hint.ahci.X.ccc
+.It Va hint.ahci. Ns Ar X Ns Va .ccc
 controls Command Completion Coalescing (CCC) usage by the specified controller.
 Non-zero value enables CCC and defines maximum time (in ms), request can wait
 for interrupt, if there are some more requests present on controller queue.
 CCC reduces number of context switches on systems with many parallel requests,
 but it can decrease disk performance on some workloads due to additional
 command latency.
-.It Va hint.ahcich.X.pm_level
-controls SATA interface Power Management for specified channel,
+.It Va hint.ahcich. Ns Ar X Ns Va .pm_level
+controls SATA interface Power Management for the specified channel,
 allowing some power to be saved at the cost of additional command
 latency.
 Possible values:
@@ -92,18 +93,20 @@ Because of artificial entering latency, performance degradation in modes
 .Pp
 Note that interface Power Management is not compatible with
 device presence detection.
-You will have to reset bus manually on device hot-plug.
-.It Va hint.ahcich.X.sata_rev
+A manual bus reset is needed on device hot-plug.
+.It Va hint.ahcich. Ns Ar X Ns Va .sata_rev
 setting to nonzero value limits maximum SATA revision (speed).
 Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
 .El
 .Sh DESCRIPTION
-This driver provides the CAM subsystem with native access to the
+This driver provides the
+.Xr CAM 4
+subsystem with native access to the
 .Tn SATA
 ports of AHCI-compatible controllers.
 Each SATA port found is represented to CAM as a separate bus with one
 target, or, if HBA supports Port Multipliers, 16 targets.
-Most of the bus-management details are handled by the SATA-specific 
+Most of the bus-management details are handled by the SATA-specific
 transport of CAM.
 Connected ATA disks are handled by the ATA protocol disk peripheral driver
 .Xr ada 4 .
@@ -121,7 +124,8 @@ and Message Signaled Interrupts.
 .Pp
 AHCI hardware is also supported by ataahci driver from
 .Xr ata 4
-subsystem. If both drivers are loaded at the same time, this one will be
+subsystem.
+If both drivers are loaded at the same time, this one will be
 given precedence as the more functional of the two.
 .Sh HARDWARE
 The
@@ -134,11 +138,11 @@ it supports AHCI part of legacy-PATA + AHCI-SATA combined controllers,
 such as JMicron JMB36x and Marvell 88SX61xx.
 .Sh SEE ALSO
 .Xr ada 4 ,
+.Xr ata 4 ,
+.Xr cam 4 ,
 .Xr cd 4 ,
 .Xr da 4 ,
-.Xr sa 4 ,
-.Xr scsi 4 ,
-.Xr ata 4
+.Xr sa 4
 .Sh HISTORY
 The
 .Nm

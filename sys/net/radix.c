@@ -761,8 +761,10 @@ on2:
 		if (m->rm_flags & RNF_NORMAL) {
 			mmask = m->rm_leaf->rn_mask;
 			if (tt->rn_flags & RNF_NORMAL) {
+#if !defined(RADIX_MPATH)
 			    log(LOG_ERR,
 			        "Non-unique normal route, mask not entered\n");
+#endif
 				return tt;
 			}
 		} else
@@ -936,7 +938,7 @@ on1:
 			if (m)
 				log(LOG_ERR,
 				    "rn_delete: Orphaned Mask %p at %p\n",
-				    (void *)m, (void *)x);
+				    m, x);
 		}
 	}
 	/*
@@ -1158,6 +1160,22 @@ rn_inithead(head, off)
 	rnh->rnh_walktree = rn_walktree;
 	rnh->rnh_walktree_from = rn_walktree_from;
 	rnh->rnh_treetop = t;
+	return (1);
+}
+
+int
+rn_detachhead(void **head)
+{
+	struct radix_node_head *rnh;
+
+	KASSERT((head != NULL && *head != NULL),
+	    ("%s: head already freed", __func__));
+	rnh = *head;
+	
+	/* Free <left,root,right> nodes. */
+	Free(rnh);
+
+	*head = NULL;
 	return (1);
 }
 

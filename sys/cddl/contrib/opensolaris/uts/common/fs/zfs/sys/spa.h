@@ -44,7 +44,6 @@ typedef struct spa spa_t;
 typedef struct vdev vdev_t;
 typedef struct metaslab metaslab_t;
 typedef struct zilog zilog_t;
-typedef struct traverse_handle traverse_handle_t;
 typedef struct spa_aux_vdev spa_aux_vdev_t;
 struct dsl_pool;
 
@@ -333,7 +332,8 @@ extern int spa_import(const char *pool, nvlist_t *config, nvlist_t *props);
 extern int spa_import_faulted(const char *, nvlist_t *, nvlist_t *);
 extern nvlist_t *spa_tryimport(nvlist_t *tryconfig);
 extern int spa_destroy(char *pool);
-extern int spa_export(char *pool, nvlist_t **oldconfig, boolean_t force);
+extern int spa_export(char *pool, nvlist_t **oldconfig, boolean_t force,
+    boolean_t hardforce);
 extern int spa_reset(char *pool);
 extern void spa_async_request(spa_t *spa, int flag);
 extern void spa_async_unrequest(spa_t *spa, int flag);
@@ -437,8 +437,7 @@ extern void spa_vdev_state_enter(spa_t *spa);
 extern int spa_vdev_state_exit(spa_t *spa, vdev_t *vd, int error);
 
 /* Accessor functions */
-extern krwlock_t *spa_traverse_rwlock(spa_t *spa);
-extern boolean_t spa_traverse_wanted(spa_t *spa);
+extern boolean_t spa_shutting_down(spa_t *spa);
 extern struct dsl_pool *spa_get_dsl(spa_t *spa);
 extern blkptr_t *spa_get_rootblkptr(spa_t *spa);
 extern void spa_set_rootblkptr(spa_t *spa, const blkptr_t *bp);
@@ -449,7 +448,7 @@ extern uint64_t spa_guid(spa_t *spa);
 extern uint64_t spa_last_synced_txg(spa_t *spa);
 extern uint64_t spa_first_txg(spa_t *spa);
 extern uint64_t spa_version(spa_t *spa);
-extern int spa_state(spa_t *spa);
+extern pool_state_t spa_state(spa_t *spa);
 extern uint64_t spa_freeze_txg(spa_t *spa);
 extern uint64_t spa_get_alloc(spa_t *spa);
 extern uint64_t spa_get_space(spa_t *spa);

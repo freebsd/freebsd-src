@@ -211,7 +211,7 @@ const struct usb_temp_device_desc usb_template_mtp = {
  * Else: Success. Pointer to vendor descriptor is returned.
  *------------------------------------------------------------------------*/
 static const void *
-mtp_get_vendor_desc(const struct usb_device_request *req)
+mtp_get_vendor_desc(const struct usb_device_request *req, uint16_t *plen)
 {
 	static const uint8_t dummy_desc[0x28] = {
 		0x28, 0, 0, 0, 0, 1, 4, 0,

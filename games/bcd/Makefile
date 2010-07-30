@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	bcd
-WARNS?=	6
 MAN=	bcd.6
 MLINKS=	bcd.6 ppt.6
 

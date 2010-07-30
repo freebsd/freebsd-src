@@ -89,7 +89,7 @@ static void event_clean(struct wps_event_ *e)
 /* event_delete -- delete single unqueued event
  * (be sure to dequeue first if need be)
  */
-void event_delete(struct wps_event_ *e)
+static void event_delete(struct wps_event_ *e)
 {
 	event_clean(e);
 	wpabuf_free(e->data);
@@ -432,7 +432,7 @@ static int event_send_start(struct subscription *s)
 
 
 /* event_send_all_later_handler -- actually send events as needed */
-void event_send_all_later_handler(void *eloop_data, void *user_ctx)
+static void event_send_all_later_handler(void *eloop_data, void *user_ctx)
 {
 	struct upnp_wps_device_sm *sm = user_ctx;
 	struct subscription *s;

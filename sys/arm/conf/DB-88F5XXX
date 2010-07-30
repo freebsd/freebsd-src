@@ -39,7 +39,7 @@ options 	NO_SWAPPING
 # Debugging
 options 	ALT_BREAK_TO_DEBUGGER
 options 	DDB
-#options	DEADLKRES		#Enable the deadlock resolver
+#options 	DEADLKRES		#Enable the deadlock resolver
 options 	DIAGNOSTIC
 #options 	INVARIANTS		#Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
@@ -74,6 +74,7 @@ device		iicbus
 device		ds133x
 
 # USB
+options 	USB_DEBUG	# enable debug msgs
 device		usb
 device		ehci
 device		umass
@@ -84,3 +85,7 @@ device		da
 # SATA
 device		ata
 device		atadisk
+
+# Flattened Device Tree
+options 	FDT
+makeoptions	FDT_DTS_FILE=db88f5281.dts

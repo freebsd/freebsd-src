@@ -310,6 +310,7 @@ struct wpa_supplicant {
 	int mgmt_group_cipher;
 
 	void *drv_priv; /* private data used by driver_ops */
+	void *global_drv_priv;
 
 	struct wpa_ssid *prev_scan_ssid; /* previously scanned SSID;
 					  * NULL = not yet initialized (start
@@ -330,6 +331,7 @@ struct wpa_supplicant {
 	struct ctrl_iface_priv *ctrl_iface;
 
 	wpa_states wpa_state;
+	int scanning;
 	int new_connection;
 	int reassociated_connection;
 
@@ -363,6 +365,10 @@ struct wpa_supplicant {
 	struct wps_context *wps;
 	int wps_success; /* WPS success event received */
 	int blacklist_cleared;
+
+	struct wpabuf *pending_eapol_rx;
+	struct os_time pending_eapol_rx_time;
+	u8 pending_eapol_rx_src[ETH_ALEN];
 };
 
 
@@ -409,8 +415,11 @@ int wpa_supplicant_scard_init(struct wpa_supplicant *wpa_s,
 			      struct wpa_ssid *ssid);
 
 /* scan.c */
+int wpa_supplicant_enabled_networks(struct wpa_config *conf);
 void wpa_supplicant_req_scan(struct wpa_supplicant *wpa_s, int sec, int usec);
 void wpa_supplicant_cancel_scan(struct wpa_supplicant *wpa_s);
+void wpa_supplicant_notify_scanning(struct wpa_supplicant *wpa_s,
+				    int scanning);
 
 /* events.c */
 void wpa_supplicant_mark_disassoc(struct wpa_supplicant *wpa_s);
@@ -420,7 +429,8 @@ static inline void * wpa_drv_init(struct wpa_supplicant *wpa_s,
 				  const char *ifname)
 {
 	if (wpa_s->driver->init2)
-		return wpa_s->driver->init2(wpa_s, ifname, wpa_s->global);
+		return wpa_s->driver->init2(wpa_s, ifname,
+					    wpa_s->global_drv_priv);
 	if (wpa_s->driver->init) {
 		return wpa_s->driver->init(wpa_s, ifname);
 	}

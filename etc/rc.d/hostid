@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: hostid
-# BEFORE: fsck
+# REQUIRE: sysctl
 # KEYWORD: nojail
 
 . /etc/rc.subr

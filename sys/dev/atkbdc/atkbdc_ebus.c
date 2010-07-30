@@ -202,6 +202,7 @@ atkbdc_ebus_attach(device_t dev)
 		    "cannot determine command/data port resource\n");
 		return (ENXIO);
 	}
+	sc->retry = 5000;
 	sc->port0 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, start, start,
 	    1, RF_ACTIVE);
 	if (sc->port0 == NULL) {

@@ -48,16 +48,19 @@ ar5212UpdateTxTrigLevel(struct ath_hal *ah, HAL_BOOL bIncTrigLevel)
 	uint32_t txcfg, curLevel, newLevel;
 	HAL_INT omask;
 
+	if (ahp->ah_txTrigLev >= ahp->ah_maxTxTrigLev)
+		return AH_FALSE;
+
 	/*
 	 * Disable interrupts while futzing with the fifo level.
 	 */
-	omask = ar5212SetInterrupts(ah, ahp->ah_maskReg &~ HAL_INT_GLOBAL);
+	omask = ath_hal_setInterrupts(ah, ahp->ah_maskReg &~ HAL_INT_GLOBAL);
 
 	txcfg = OS_REG_READ(ah, AR_TXCFG);
 	curLevel = MS(txcfg, AR_FTRIG);
 	newLevel = curLevel;
 	if (bIncTrigLevel) {		/* increase the trigger level */
-		if (curLevel < MAX_TX_FIFO_THRESHOLD)
+		if (curLevel < ahp->ah_maxTxTrigLev)
 			newLevel++;
 	} else if (curLevel > MIN_TX_FIFO_THRESHOLD)
 		newLevel--;
@@ -66,8 +69,10 @@ ar5212UpdateTxTrigLevel(struct ath_hal *ah, HAL_BOOL bIncTrigLevel)
 		OS_REG_WRITE(ah, AR_TXCFG,
 			(txcfg &~ AR_FTRIG) | SM(newLevel, AR_FTRIG));
 
+	ahp->ah_txTrigLev = newLevel;
+
 	/* re-enable chip interrupts */
-	ar5212SetInterrupts(ah, omask);
+	ath_hal_setInterrupts(ah, omask);
 
 	return (newLevel != curLevel);
 }

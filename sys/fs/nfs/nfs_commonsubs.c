@@ -1824,6 +1824,19 @@ nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex)
 }
 
 /*
+ * Test for a lock. Return 1 if locked, 0 otherwise.
+ */
+APPLESTATIC int
+nfsv4_testlock(struct nfsv4lock *lp)
+{
+
+	if ((lp->nfslock_lock & NFSV4LOCK_LOCK) == 0 &&
+	    lp->nfslock_usecnt == 0)
+		return (0);
+	return (1);
+}
+
+/*
  * Wake up anyone sleeping, waiting for this lock.
  */
 static void

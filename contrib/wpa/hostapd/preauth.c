@@ -171,6 +171,7 @@ int rsn_preauth_iface_init(struct hostapd_data *hapd)
 
 		if (rsn_preauth_iface_add(hapd, start)) {
 			rsn_preauth_iface_deinit(hapd);
+			os_free(tmp);
 			return -1;
 		}
 

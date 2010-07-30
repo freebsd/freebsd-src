@@ -216,7 +216,6 @@ static int certify_spkac(X509 **xret, char *infile,EVP_PKEY *pkey,X509 *x509,
 			 char *startdate, char *enddate, long days, char *ext_sect,
 			 CONF *conf, int verbose, unsigned long certopt, 
 			 unsigned long nameopt, int default_op, int ext_copy);
-static int fix_data(int nid, int *type);
 static void write_new_certificate(BIO *bp, X509 *x, int output_der, int notext);
 static int do_body(X509 **xret, EVP_PKEY *pkey, X509 *x509, const EVP_MD *dgst,
 	STACK_OF(CONF_VALUE) *policy, CA_DB *db, BIGNUM *serial,char *subj,unsigned long chtype, int multirdn,
@@ -227,7 +226,7 @@ static int do_body(X509 **xret, EVP_PKEY *pkey, X509 *x509, const EVP_MD *dgst,
 static int do_revoke(X509 *x509, CA_DB *db, int ext, char *extval);
 static int get_certificate_status(const char *ser_status, CA_DB *db);
 static int do_updatedb(CA_DB *db);
-static int check_time_format(char *str);
+static int check_time_format(const char *str);
 char *make_revocation_str(int rev_type, char *rev_arg);
 int make_revoked(X509_REVOKED *rev, const char *str);
 int old_entry_print(BIO *bp, ASN1_OBJECT *obj, ASN1_STRING *str);
@@ -858,8 +857,8 @@ bad:
 			perror(outdir);
 			goto err;
 			}
-#ifdef S_IFDIR
-		if (!(sb.st_mode & S_IFDIR))
+#ifdef S_ISDIR
+		if (!S_ISDIR(sb.st_mode))
 			{
 			BIO_printf(bio_err,"%s need to be a directory\n",outdir);
 			perror(outdir);
@@ -895,7 +894,7 @@ bad:
 			BIO_printf(bio_err," in entry %d\n", i+1);
 			goto err;
 			}
-		if (!check_time_format((char *)pp[DB_exp_date]))
+		if (!check_time_format(pp[DB_exp_date]))
 			{
 			BIO_printf(bio_err,"entry %d: invalid expiry date\n",i+1);
 			goto err;
@@ -1249,7 +1248,12 @@ bad:
 				BIO_printf(bio_err,"\n%d out of %d certificate requests certified, commit? [y/n]",total_done,total);
 				(void)BIO_flush(bio_err);
 				buf[0][0]='\0';
-				fgets(buf[0],10,stdin);
+				if (!fgets(buf[0],10,stdin))
+					{
+					BIO_printf(bio_err,"CERTIFICATION CANCELED: I/O error\n"); 
+					ret=0;
+					goto err;
+					}
 				if ((buf[0][0] != 'y') && (buf[0][0] != 'Y'))
 					{
 					BIO_printf(bio_err,"CERTIFICATION CANCELED\n"); 
@@ -2091,7 +2095,7 @@ again2:
 		}
 
 	BIO_printf(bio_err,"Certificate is to be certified until ");
-	ASN1_UTCTIME_print(bio_err,X509_get_notAfter(ret));
+	ASN1_TIME_print(bio_err,X509_get_notAfter(ret));
 	if (days) BIO_printf(bio_err," (%ld days)",days);
 	BIO_printf(bio_err, "\n");
 
@@ -2101,7 +2105,12 @@ again2:
 		BIO_printf(bio_err,"Sign the certificate? [y/n]:");
 		(void)BIO_flush(bio_err);
 		buf[0]='\0';
-		fgets(buf,sizeof(buf)-1,stdin);
+		if (!fgets(buf,sizeof(buf)-1,stdin))
+			{
+			BIO_printf(bio_err,"CERTIFICATE WILL NOT BE CERTIFIED: I/O error\n");
+			ok=0;
+			goto err;
+			}
 		if (!((buf[0] == 'y') || (buf[0] == 'Y')))
 			{
 			BIO_printf(bio_err,"CERTIFICATE WILL NOT BE CERTIFIED\n");
@@ -2317,25 +2326,9 @@ static int certify_spkac(X509 **xret, char *infile, EVP_PKEY *pkey, X509 *x509,
 			continue;
 			}
 
-		/*
-		if ((nid == NID_pkcs9_emailAddress) && (email_dn == 0))
-			continue;
-		*/
-		
-		j=ASN1_PRINTABLE_type((unsigned char *)buf,-1);
-		if (fix_data(nid, &j) == 0)
-			{
-			BIO_printf(bio_err,
-				"invalid characters in string %s\n",buf);
+		if (!X509_NAME_add_entry_by_NID(n, nid, chtype,
+				(unsigned char *)buf, -1, -1, 0))
 			goto err;
-			}
-
-		if ((ne=X509_NAME_ENTRY_create_by_NID(&ne,nid,j,
-			(unsigned char *)buf,
-			strlen(buf))) == NULL)
-			goto err;
-
-		if (!X509_NAME_add_entry(n,ne,-1, 0)) goto err;
 		}
 	if (spki == NULL)
 		{
@@ -2378,29 +2371,17 @@ err:
 	return(ok);
 	}
 
-static int fix_data(int nid, int *type)
+static int check_time_format(const char *str)
 	{
-	if (nid == NID_pkcs9_emailAddress)
-		*type=V_ASN1_IA5STRING;
-	if ((nid == NID_commonName) && (*type == V_ASN1_IA5STRING))
-		*type=V_ASN1_T61STRING;
-	if ((nid == NID_pkcs9_challengePassword) && (*type == V_ASN1_IA5STRING))
-		*type=V_ASN1_T61STRING;
-	if ((nid == NID_pkcs9_unstructuredName) && (*type == V_ASN1_T61STRING))
-		return(0);
-	if (nid == NID_pkcs9_unstructuredName)
-		*type=V_ASN1_IA5STRING;
-	return(1);
-	}
-
-static int check_time_format(char *str)
-	{
-	ASN1_UTCTIME tm;
+	ASN1_TIME tm;
 
 	tm.data=(unsigned char *)str;
 	tm.length=strlen(str);
 	tm.type=V_ASN1_UTCTIME;
-	return(ASN1_UTCTIME_check(&tm));
+	if (ASN1_TIME_check(&tm))
+		return 1;
+	tm.type=V_ASN1_GENERALIZEDTIME;
+	return ASN1_TIME_check(&tm);
 	}
 
 static int do_revoke(X509 *x509, CA_DB *db, int type, char *value)

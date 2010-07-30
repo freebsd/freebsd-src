@@ -176,6 +176,10 @@ ELFNAMEEND(check)(int fd, const char *fn)
 #define	EM_PPC		20
 #endif
 	case EM_PPC: break;
+#ifndef EM_PPC64
+#define	EM_PPC64	21
+#endif
+	case EM_PPC64: break;
 #ifndef EM_SPARCV9
 #define	EM_SPARCV9	43
 #endif

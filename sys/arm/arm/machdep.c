@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
@@ -516,15 +517,15 @@ spinlock_exit(void)
  * Clear registers on exec
  */
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf = td->td_frame;
 
 	memset(tf, 0, sizeof(*tf));
 	tf->tf_usr_sp = stack;
-	tf->tf_usr_lr = entry;
+	tf->tf_usr_lr = imgp->entry_addr;
 	tf->tf_svc_lr = 0x77777777;
-	tf->tf_pc = entry;
+	tf->tf_pc = imgp->entry_addr;
 	tf->tf_spsr = PSR_USR32_MODE;
 }
 

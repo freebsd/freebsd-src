@@ -69,6 +69,11 @@ OBJCOPY?=	objcopy
 .error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
 .endif
 
+# Enable CTF conversion on request.
+.if defined(WITH_CTF)
+.undef NO_CTF
+.endif
+
 .include <bsd.init.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
@@ -128,6 +133,14 @@ CFLAGS+=	-fno-omit-frame-pointer
 CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
 
+.if ${MACHINE_ARCH} == "mips"
+CFLAGS+=	-G0 -fno-pic -mno-abicalls -mlong-calls
+.endif
+
+.if defined(DEBUG) || defined(DEBUG_FLAGS)
+CTFFLAGS+=	-g
+.endif
+
 .if defined(FIRMWS)
 .if !exists(@)
 ${KMOD:S/$/.c/}: @
@@ -174,7 +187,7 @@ ${PROG}.symbols: ${FULLPROG}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
-.if ${MACHINE_ARCH} != amd64
+.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != mips
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
@@ -187,12 +200,13 @@ EXPORT_SYMS?=	NO
 CLEANFILES+=	export_syms
 .endif
 
-.if ${MACHINE_ARCH} != amd64
+.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != mips
 ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
 .endif
 	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .if defined(EXPORT_SYMS)
 .if ${EXPORT_SYMS} != YES
 .if ${EXPORT_SYMS} == NO
@@ -206,7 +220,8 @@ ${FULLPROG}: ${OBJS}
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .endif
-.if !defined(DEBUG_FLAGS) && ${MACHINE_ARCH} == amd64
+.if !defined(DEBUG_FLAGS) && \
+    (${MACHINE_ARCH} == amd64 || ${MACHINE_ARCH} == mips)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 
@@ -320,11 +335,14 @@ ${_src}:
 .endfor
 .endif
 
+# Respect configuration-specific C flags.
+CFLAGS+=	${CONF_CFLAGS}
+
 MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 	dev/agp/agp_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
 	dev/iicbus/iicbb_if.m dev/iicbus/iicbus_if.m \
 	dev/mmc/mmcbr_if.m dev/mmc/mmcbus_if.m \
-	dev/mii/miibus_if.m dev/ofw/ofw_bus_if.m \
+	dev/mii/miibus_if.m dev/mvs/mvs_if.m dev/ofw/ofw_bus_if.m \
 	dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
 	dev/pci/pcib_if.m dev/ppbus/ppbus_if.m dev/smbus/smbus_if.m \
 	dev/sound/pcm/ac97_if.m dev/sound/pcm/channel_if.m \

@@ -303,7 +303,14 @@ sgregister(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&sg_cdevsw, periph->unit_number,
 			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 			      periph->periph_name, periph->unit_number);
-	(void)make_dev_alias(softc->dev, "sg%c", 'a' + periph->unit_number);
+	if (periph->unit_number < 26) {
+		(void)make_dev_alias(softc->dev, "sg%c",
+		    periph->unit_number + 'a');
+	} else {
+		(void)make_dev_alias(softc->dev, "sg%c%c",
+		    ((periph->unit_number / 26) - 1) + 'a',
+		    (periph->unit_number % 26) + 'a');
+	}
 	cam_periph_lock(periph);
 	softc->dev->si_drv1 = periph;
 
@@ -586,7 +593,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	{
 		struct sg_scsi_id id;
 
-		id.host_no = 0; /* XXX */
+		id.host_no = cam_sim_path(xpt_path_sim(periph->path));
 		id.channel = xpt_path_path_id(periph->path);
 		id.scsi_id = xpt_path_target_id(periph->path);
 		id.lun = xpt_path_lun_id(periph->path);

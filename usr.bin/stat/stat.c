@@ -13,13 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the NetBSD
- *      Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -189,6 +182,9 @@ int	format1(const struct stat *,	/* stat info */
 	    char *, size_t,		/* a place to put the output */
 	    int, int, int, int,		/* the parsed format */
 	    int, int);
+#if HAVE_STRUCT_STAT_ST_FLAGS
+char   *xfflagstostr(unsigned long);
+#endif
 
 char *timefmt;
 int linkfail;
@@ -339,6 +335,25 @@ main(int argc, char *argv[])
 
 	return (am_readlink ? linkfail : errs);
 }
+
+#if HAVE_STRUCT_STAT_ST_FLAGS
+/*
+ * fflagstostr() wrapper that leaks only once
+ */
+char *
+xfflagstostr(unsigned long fflags)
+{
+	static char *str = NULL;
+
+	if (str != NULL)
+		free(str);
+
+	str = fflagstostr(fflags);
+	if (str == NULL)
+		err(1, "fflagstostr");
+	return (str);
+}
+#endif /* HAVE_STRUCT_STAT_ST_FLAGS */
 
 void
 usage(const char *synopsis)
@@ -732,8 +747,11 @@ format1(const struct stat *st,
 	case SHOW_st_flags:
 		small = (sizeof(st->st_flags) == 4);
 		data = st->st_flags;
-		sdata = NULL;
-		formats = FMTF_DECIMAL | FMTF_OCTAL | FMTF_UNSIGNED | FMTF_HEX;
+		sdata = xfflagstostr(st->st_flags);
+		if (*sdata == '\0')
+			sdata = "-";
+		formats = FMTF_DECIMAL | FMTF_OCTAL | FMTF_UNSIGNED | FMTF_HEX |
+		    FMTF_STRING;
 		if (ofmt == 0)
 			ofmt = FMTF_UNSIGNED;
 		break;

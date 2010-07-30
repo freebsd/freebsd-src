@@ -37,19 +37,18 @@
 #if defined(PLATFORM_CONFIG_H)
 /* Use hand-built config.h in environments that need it. */
 #include PLATFORM_CONFIG_H
-#elif defined(HAVE_CONFIG_H)
-/* Most POSIX platforms use the 'configure' script to build config.h */
-#include "config.h"
 #else
-/* Warn if cpio hasn't been (automatically or manually) configured. */
-#error Oops: No config.h and no built-in configuration in cpio_platform.h.
-#endif /* !HAVE_CONFIG_H */
+/* Read config.h or die trying. */
+#include "config.h"
+#endif
 
-/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>  /* For __FBSDID */
-#elif !defined(__FBSDID)
-/* Just leaving this macro replacement empty leads to a dangling semicolon. */
+/* Get a real definition for __FBSDID if we can */
+#if HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
+
+/* If not, define it so as to avoid dangling semicolons. */
+#ifndef __FBSDID
 #define	__FBSDID(a)     struct _undefined_hack
 #endif
 
@@ -63,24 +62,6 @@
 #include "archive_entry.h"
 #endif
 
-/*
- * We need to be able to display a filesize using printf().  The type
- * and format string here must be compatible with one another and
- * large enough for any file.
- */
-#if HAVE_UINTMAX_T
-#define	CPIO_FILESIZE_TYPE	uintmax_t
-#define	CPIO_FILESIZE_PRINTF	"%ju"
-#else
-#if HAVE_UNSIGNED_LONG_LONG
-#define	CPIO_FILESIZE_TYPE	unsigned long long
-#define	CPIO_FILESIZE_PRINTF	"%llu"
-#else
-#define	CPIO_FILESIZE_TYPE	unsigned long
-#define	CPIO_FILESIZE_PRINTF	"%lu"
-#endif
-#endif
-
 /* How to mark functions that don't return. */
 #if defined(__GNUC__) && (__GNUC__ > 2 || \
                           (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
@@ -89,9 +70,7 @@
 #define __LA_DEAD
 #endif
 
-#if defined(__CYGWIN__)
-#include "cpio_cygwin.h"
-#elif defined(_WIN32)	/* && !__CYGWIN__ */
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #include "cpio_windows.h"
 #endif
 

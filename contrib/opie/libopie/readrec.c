@@ -141,10 +141,8 @@ int __opiereadrec FUNCTION((opie), struct opie *opie)
     
     if (c = strchr(opie->opie_principal, ':'))
       *c = 0;
-    if (strlen(opie->opie_principal) > OPIE_PRINCIPAL_MAX)
-      (opie->opie_principal)[OPIE_PRINCIPAL_MAX] = 0;
     
-    strcpy(principal, opie->opie_principal);
+    strlcpy(principal, opie->opie_principal, sizeof(principal));
     
     do {
       if ((opie->opie_recstart = ftell(f)) < 0)

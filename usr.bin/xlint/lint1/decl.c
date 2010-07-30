@@ -825,15 +825,15 @@ getbound(type_t *tp)
 	} else if (t == FUNC) {
 		/* compiler takes alignment of function */
 		error(14);
-		a = ALIGN(1) * CHAR_BIT;
+		a = LINT_ALIGN(1) * CHAR_BIT;
 	} else {
 		if ((a = size(t)) == 0) {
 			a = CHAR_BIT;
-		} else if (a > ALIGN(1) * CHAR_BIT) {
-			a = ALIGN(1) * CHAR_BIT;
+		} else if (a > LINT_ALIGN(1) * CHAR_BIT) {
+			a = LINT_ALIGN(1) * CHAR_BIT;
 		}
 	}
-	if (a < CHAR_BIT || a > ALIGN(1) * CHAR_BIT)
+	if (a < CHAR_BIT || a > LINT_ALIGN(1) * CHAR_BIT)
 		lerror("getbound() 1");
 	return (a);
 }

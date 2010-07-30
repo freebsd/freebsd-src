@@ -1786,12 +1786,14 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 			case hdr_www_authenticate:
 				if (conn->err != HTTP_NEED_AUTH)
 					break;
-				http_parse_authenticate(p, &server_challenges);
+				if (http_parse_authenticate(p, &server_challenges))
+					++n;
 				break;
 			case hdr_proxy_authenticate:
 				if (conn->err != HTTP_NEED_PROXY_AUTH)
 					break;
-				http_parse_authenticate(p, &proxy_challenges);
+				if (http_parse_authenticate(p, &proxy_challenges) == 0);
+					++n;
 				break;
 			case hdr_end:
 				/* fall through */

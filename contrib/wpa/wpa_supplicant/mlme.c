@@ -459,9 +459,9 @@ static void ieee80211_send_assoc(struct wpa_supplicant *wpa_s)
 		*pos++ = 0x00; /* Microsoft OUI 00:50:F2 */
 		*pos++ = 0x50;
 		*pos++ = 0xf2;
-		*pos++ = 2; /* WME */
-		*pos++ = 0; /* WME info */
-		*pos++ = 1; /* WME ver */
+		*pos++ = 2; /* WMM */
+		*pos++ = 0; /* WMM info */
+		*pos++ = 1; /* WMM ver */
 		*pos++ = 0;
 	}
 
@@ -1175,9 +1175,9 @@ static void ieee80211_rx_mgmt_assoc_resp(struct wpa_supplicant *wpa_s,
 #if 0 /* FIX? */
 	sta->assoc_ap = 1;
 
-	if (elems.wme && wpa_s->mlme.wmm_enabled) {
-		sta->flags |= WLAN_STA_WME;
-		ieee80211_sta_wmm_params(wpa_s, elems.wme, elems.wme_len);
+	if (elems.wmm && wpa_s->mlme.wmm_enabled) {
+		sta->flags |= WLAN_STA_WMM;
+		ieee80211_sta_wmm_params(wpa_s, elems.wmm, elems.wmm_len);
 	}
 #endif
 
@@ -1488,18 +1488,18 @@ static void ieee80211_bss_info(struct wpa_supplicant *wpa_s,
 		bss->rsn_ie_len = 0;
 	}
 
-	if (elems.wme &&
-	    (bss->wmm_ie == NULL || bss->wmm_ie_len != elems.wme_len ||
-	     os_memcmp(bss->wmm_ie, elems.wme, elems.wme_len))) {
+	if (elems.wmm &&
+	    (bss->wmm_ie == NULL || bss->wmm_ie_len != elems.wmm_len ||
+	     os_memcmp(bss->wmm_ie, elems.wmm, elems.wmm_len))) {
 		os_free(bss->wmm_ie);
-		bss->wmm_ie = os_malloc(elems.wme_len + 2);
+		bss->wmm_ie = os_malloc(elems.wmm_len + 2);
 		if (bss->wmm_ie) {
-			os_memcpy(bss->wmm_ie, elems.wme - 2,
-				  elems.wme_len + 2);
-			bss->wmm_ie_len = elems.wme_len + 2;
+			os_memcpy(bss->wmm_ie, elems.wmm - 2,
+				  elems.wmm_len + 2);
+			bss->wmm_ie_len = elems.wmm_len + 2;
 		} else
 			bss->wmm_ie_len = 0;
-	} else if (!elems.wme && bss->wmm_ie) {
+	} else if (!elems.wmm && bss->wmm_ie) {
 		os_free(bss->wmm_ie);
 		bss->wmm_ie = NULL;
 		bss->wmm_ie_len = 0;
@@ -1595,9 +1595,9 @@ static void ieee80211_rx_mgmt_beacon(struct wpa_supplicant *wpa_s,
 		wpa_s->mlme.cts_protect_erp_frames = use_protection;
 	}
 
-	if (elems.wme && wpa_s->mlme.wmm_enabled) {
-		ieee80211_sta_wmm_params(wpa_s, elems.wme,
-					 elems.wme_len);
+	if (elems.wmm && wpa_s->mlme.wmm_enabled) {
+		ieee80211_sta_wmm_params(wpa_s, elems.wmm,
+					 elems.wmm_len);
 	}
 }
 
@@ -1709,7 +1709,6 @@ static void ieee80211_rx_mgmt_ft_action(struct wpa_supplicant *wpa_s,
 		wpa_printf(MSG_DEBUG, "MLME: Foreign STA Address " MACSTR
 			   " in FT Action Response", MAC2STR(sta_addr));
 		return;
-			   
 	}
 
 	if (status) {

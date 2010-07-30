@@ -48,13 +48,14 @@ readboot(int dosfs, struct bootblock *boot)
 	int ret = FSOK;
 	int i;
 	
-	if ((size_t)read(dosfs, block, sizeof block) != sizeof block) {
+	if (read(dosfs, block, sizeof block) != sizeof block) {
 		perror("could not read boot block");
 		return FSFATAL;
 	}
 
 	if (block[510] != 0x55 || block[511] != 0xaa) {
-		pfatal("Invalid signature in boot block: %02x%02x", block[511], block[510]);
+		pfatal("Invalid signature in boot block: %02x%02x",
+		    block[511], block[510]);
 		return FSFATAL;
 	}
 
@@ -72,8 +73,10 @@ readboot(int dosfs, struct bootblock *boot)
 	boot->bpbFATsmall = block[22] + (block[23] << 8);
 	boot->SecPerTrack = block[24] + (block[25] << 8);
 	boot->bpbHeads = block[26] + (block[27] << 8);
-	boot->bpbHiddenSecs = block[28] + (block[29] << 8) + (block[30] << 16) + (block[31] << 24);
-	boot->bpbHugeSectors = block[32] + (block[33] << 8) + (block[34] << 16) + (block[35] << 24);
+	boot->bpbHiddenSecs = block[28] + (block[29] << 8) +
+	    (block[30] << 16) + (block[31] << 24);
+	boot->bpbHugeSectors = block[32] + (block[33] << 8) +
+	    (block[34] << 16) + (block[35] << 24);
 
 	boot->FATsecs = boot->bpbFATsmall;
 
@@ -97,10 +100,9 @@ readboot(int dosfs, struct bootblock *boot)
 		boot->bpbFSInfo = block[48] + (block[49] << 8);
 		boot->bpbBackup = block[50] + (block[51] << 8);
 
-		if (lseek(dosfs, boot->bpbFSInfo * boot->bpbBytesPerSec, SEEK_SET)
-		    != boot->bpbFSInfo * boot->bpbBytesPerSec
-		    || read(dosfs, fsinfo, sizeof fsinfo)
-		    != sizeof fsinfo) {
+		if (lseek(dosfs, boot->bpbFSInfo * boot->bpbBytesPerSec,
+		    SEEK_SET) != boot->bpbFSInfo * boot->bpbBytesPerSec
+		    || read(dosfs, fsinfo, sizeof fsinfo) != sizeof fsinfo) {
 			perror("could not read fsinfo block");
 			return FSFATAL;
 		}
@@ -124,7 +126,8 @@ readboot(int dosfs, struct bootblock *boot)
 				fsinfo[0x3fc] = fsinfo[0x3fd] = 0;
 				fsinfo[0x3fe] = 0x55;
 				fsinfo[0x3ff] = 0xaa;
-				if (lseek(dosfs, boot->bpbFSInfo * boot->bpbBytesPerSec, SEEK_SET)
+				if (lseek(dosfs, boot->bpbFSInfo *
+				    boot->bpbBytesPerSec, SEEK_SET)
 				    != boot->bpbFSInfo * boot->bpbBytesPerSec
 				    || write(dosfs, fsinfo, sizeof fsinfo)
 				    != sizeof fsinfo) {
@@ -144,7 +147,8 @@ readboot(int dosfs, struct bootblock *boot)
 				       + (fsinfo[0x1ef] << 24);
 		}
 
-		if (lseek(dosfs, boot->bpbBackup * boot->bpbBytesPerSec, SEEK_SET)
+		if (lseek(dosfs, boot->bpbBackup * boot->bpbBytesPerSec,
+		    SEEK_SET)
 		    != boot->bpbBackup * boot->bpbBytesPerSec
 		    || read(dosfs, backup, sizeof backup) != sizeof  backup) {
 			perror("could not read backup bootblock");
@@ -172,11 +176,10 @@ readboot(int dosfs, struct bootblock *boot)
 		/* Check backup bpbFSInfo?					XXX */
 	}
 
-	boot->ClusterOffset = (boot->bpbRootDirEnts * 32 + boot->bpbBytesPerSec - 1)
-	    / boot->bpbBytesPerSec
-	    + boot->bpbResSectors
-	    + boot->bpbFATs * boot->FATsecs
-	    - CLUST_FIRST * boot->bpbSecPerClust;
+	boot->ClusterOffset = (boot->bpbRootDirEnts * 32 +
+	    boot->bpbBytesPerSec - 1) / boot->bpbBytesPerSec +
+	    boot->bpbResSectors + boot->bpbFATs * boot->FATsecs -
+	    CLUST_FIRST * boot->bpbSecPerClust;
 
 	if (boot->bpbBytesPerSec % DOSBOOTBLOCKSIZE != 0) {
 		pfatal("Invalid sector size: %u", boot->bpbBytesPerSec);
@@ -191,7 +194,8 @@ readboot(int dosfs, struct bootblock *boot)
 		boot->NumSectors = boot->bpbSectors;
 	} else
 		boot->NumSectors = boot->bpbHugeSectors;
-	boot->NumClusters = (boot->NumSectors - boot->ClusterOffset) / boot->bpbSecPerClust;
+	boot->NumClusters = (boot->NumSectors - boot->ClusterOffset) /
+	    boot->bpbSecPerClust;
 
 	if (boot->flags&FAT32)
 		boot->ClustMask = CLUST32_MASK;

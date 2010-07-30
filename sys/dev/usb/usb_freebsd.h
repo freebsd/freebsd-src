@@ -57,10 +57,6 @@
 #define	USB_HUB_MAX_DEPTH	5
 #define	USB_EP0_BUFSIZE		1024	/* bytes */
 
-#ifndef USB_DEBUG
-#define USB_DEBUG 1
-#endif
-
 typedef uint32_t usb_timeout_t;		/* milliseconds */
 typedef uint32_t usb_frlength_t;	/* bytes */
 typedef uint32_t usb_frcount_t;		/* units */

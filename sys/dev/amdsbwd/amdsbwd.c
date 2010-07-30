@@ -230,10 +230,10 @@ amdsbwd_event(void *arg, unsigned int cmd, int *error)
 	cmd &= WD_INTERVAL;
 	if (cmd < WD_TO_1SEC)
 		cmd = 0;
-	timeout = ((uint64_t)1 << (cmd - WD_TO_1MS)) / sc->ms_per_tick;
-	if (timeout > sc->max_ticks)
-		timeout = sc->max_ticks;
 	if (cmd) {
+		timeout = ((uint64_t)1 << (cmd - WD_TO_1MS)) / sc->ms_per_tick;
+		if (timeout > sc->max_ticks)
+			timeout = sc->max_ticks;
 		if (timeout != sc->timeout) {
 			amdsbwd_tmr_set(sc, timeout);
 			if (!sc->active)

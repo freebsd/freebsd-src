@@ -130,8 +130,9 @@ main(int argc, char *argv[])
 	fflag = 0;
 	inplace = NULL;
 
-	while ((c = getopt(argc, argv, "EI:ae:f:i:ln")) != -1)
+	while ((c = getopt(argc, argv, "EI:ae:f:i:lnr")) != -1)
 		switch (c) {
+		case 'r':		/* Gnu sed compat */
 		case 'E':
 			rflags = REG_EXTENDED;
 			break;

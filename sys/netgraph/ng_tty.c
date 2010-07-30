@@ -164,7 +164,7 @@ ngt_constructor(node_p node)
 	sc->node = node;
 
 	mtx_init(&sc->outq.ifq_mtx, "ng_tty node+queue", NULL, MTX_DEF);
-	IFQ_SET_MAXLEN(&sc->outq, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&sc->outq, ifqmaxlen);
 
 	return (0);
 }

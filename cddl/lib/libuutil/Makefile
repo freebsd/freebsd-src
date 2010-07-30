@@ -15,6 +15,7 @@ SRCS=	avl.c \
 	uu_pname.c \
 	uu_strtoint.c
 
+WARNS?=	0
 CFLAGS+= -DNATIVE_BUILD
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libuutil/common
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris

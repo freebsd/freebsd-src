@@ -41,7 +41,7 @@ main(int argc __unused, char **argv __unused)
 	struct module_stat stat;
 
 	stat.version = sizeof(stat);
-	modstat(modfind("syscall"), &stat);
+	modstat(modfind("sys/syscall"), &stat);
 	syscall_num = stat.data.intval;
 	return syscall (syscall_num);
 }

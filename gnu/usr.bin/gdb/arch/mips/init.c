@@ -123,14 +123,18 @@ initialize_all_files (void)
   _initialize_ser_pipe ();
   _initialize_ser_tcp ();
 #ifndef CROSS_DEBUGGER
+#if 0
   _initialize_mipsfbsd_nat ();
   _initialize_mips_nat ();
+#endif
   _initialize_kernel_u_addr ();
   _initialize_infptrace ();
   _initialize_inftarg ();
   _initialize_solib ();
   _initialize_svr4_solib ();
+#if 0
   _initialize_svr4_lm ();
+#endif
 #endif
   _initialize_remote ();
   _initialize_dcache ();

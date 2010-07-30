@@ -74,6 +74,9 @@ char **environ;
 const char *__progname = "";
 struct ps_strings *__ps_strings;
 
+void __start(int, char **, char **, struct ps_strings *,
+    const struct Struct_Obj_Entry *, void (*)(void));
+
 /* The entry function. */
 __asm("	.text			\n"
 "	.align	0		\n"

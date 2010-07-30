@@ -27,6 +27,8 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
  * *****************************RMI_2**********************************/
+#include <sys/cdefs.h>		/* RCS ID & Copyright macro defns */
+__FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -93,10 +95,12 @@ struct xlr_board_info xlr_board_info;
 int 
 xlr_board_info_setup()
 {
+
 	if (xlr_is_xls()) {
 		xlr_board_info.is_xls = 1;
 		xlr_board_info.nr_cpus = 8;
 		xlr_board_info.usb = 1;
+		/* Board version 8 has NAND flash */
 		xlr_board_info.cfi =
 		    (xlr_boot1_info.board_major_version != RMI_XLR_BOARD_ARIZONA_VIII);
 		xlr_board_info.pci_irq = 0;
@@ -111,7 +115,9 @@ xlr_board_info_setup()
 		xlr_board_info.gmac_block[0].credit_config = &xls_cc_table_gmac0;
 		xlr_board_info.gmac_block[0].station_txbase = MSGRNG_STNID_GMACTX0;
 		xlr_board_info.gmac_block[0].station_rfr = MSGRNG_STNID_GMACRFR_0;
-		if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_VI)
+		if (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_VI ||
+		    xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XI ||
+		    xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XII)
 			xlr_board_info.gmac_block[0].mode = XLR_PORT0_RGMII;
 		else
 			xlr_board_info.gmac_block[0].mode = XLR_SGMII;
@@ -121,7 +127,19 @@ xlr_board_info_setup()
 
 		/* network block 1 */
 		xlr_board_info.gmac_block[1].type = XLR_GMAC;
-		xlr_board_info.gmac_block[1].enabled = 0xf;
+		xlr_board_info.gmac_block[1].enabled = xlr_is_xls1xx() ? 0 : 0xf;
+		if (xlr_is_xls4xx_lite()) {
+			xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_GPIO_OFFSET);
+			uint32_t tmp;
+
+			/* some ports are not enabled on the condor 4xx, figure this
+			   out from the GPIO fuse bank */
+			tmp = xlr_read_reg(mmio, 35);
+			if (tmp & (1<<28))
+				xlr_board_info.gmac_block[1].enabled &= ~0x8;
+			if (tmp & (1<<29))
+				xlr_board_info.gmac_block[1].enabled &= ~0x4;
+		}
 		xlr_board_info.gmac_block[1].credit_config = &xls_cc_table_gmac1;
 		xlr_board_info.gmac_block[1].station_txbase = MSGRNG_STNID_GMAC1_TX0;
 		xlr_board_info.gmac_block[1].station_rfr = MSGRNG_STNID_GMAC1_FR_0;

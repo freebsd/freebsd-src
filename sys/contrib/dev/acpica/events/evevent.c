@@ -415,7 +415,7 @@ AcpiEvFixedEventDispatch (
                 ACPI_DISABLE_EVENT);
 
         ACPI_ERROR ((AE_INFO,
-            "No installed handler for fixed event [%08X]",
+            "No installed handler for fixed event [0x%08X]",
             Event));
 
         return (ACPI_INTERRUPT_NOT_HANDLED);

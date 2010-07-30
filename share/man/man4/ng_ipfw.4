@@ -24,13 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2009
+.Dd March 2, 2010
 .Dt NG_IPFW 4
 .Os
 .Sh NAME
 .Nm ng_ipfw
 .Nd interface between netgraph and IP firewall
 .Sh SYNOPSIS
+.In netinet/ip_var.h
 .In netgraph/ng_ipfw.h
 .Sh DESCRIPTION
 The
@@ -73,30 +74,18 @@ If no hook matches, packets are discarded.
 Packets injected via the
 .Cm netgraph
 command are tagged with
-.Vt "struct ng_ipfw_tag" .
+.Vt "struct ipfw_rule_ref" .
 This tag contains information that helps the packet to re-enter
 .Xr ipfw 4
 processing, should the packet come back from
 .Xr netgraph 4
 to
 .Xr ipfw 4 .
-.Bd -literal -offset 4n
-struct ng_ipfw_tag {
-	struct m_tag	mt;		/* tag header */
-	struct ip_fw	*rule;		/* matching rule */
-	uint32_t	rule_id;	/* matching rule id */
-	uint32_t	chain_id;	/* ruleset id */
-        struct ifnet	*ifp;		/* interface, for ip_output */
-	int		dir;		/* packet direction */
-#define	NG_IPFW_OUT	0
-#define	NG_IPFW_IN	1
-};
-.Ed
 .Pp
 Packets received by a node from
 .Xr netgraph 4
-must be tagged with
-.Vt "struct ng_ipfw_tag"
+subsystem must be tagged with
+.Vt "struct ipfw_rule_ref"
 tag.
 Packets re-enter IP firewall processing at the next rule.
 If no tag is supplied, packets are discarded.

@@ -63,7 +63,7 @@ int     kproc_kthread_add(void (*)(void *), void *,
 	    struct proc **,
 	    struct thread **,
 	    int flags, int pages,
-	    char * procname, const char *, ...) __printflike(8, 9);
+	    const char *procname, const char *, ...) __printflike(8, 9);
 
 int     kthread_add(void (*)(void *), void *,
 	    struct proc *, struct thread **,

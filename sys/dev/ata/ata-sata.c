@@ -223,7 +223,7 @@ ata_sata_getrev(device_t dev, int target)
 
 	if (ch->r_io[ATA_SSTATUS].res)
 		return ((ATA_IDX_INL(ch, ATA_SSTATUS) & 0x0f0) >> 4);
-	return (0);
+	return (0xff);
 }
 
 int

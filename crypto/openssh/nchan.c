@@ -1,4 +1,4 @@
-/* $OpenBSD: nchan.c,v 1.62 2008/11/07 18:50:18 stevesk Exp $ */
+/* $OpenBSD: nchan.c,v 1.63 2010/01/26 01:28:35 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -161,7 +161,7 @@ chan_ibuf_empty(Channel *c)
 	switch (c->istate) {
 	case CHAN_INPUT_WAIT_DRAIN:
 		if (compat20) {
-			if (!(c->flags & CHAN_CLOSE_SENT))
+			if (!(c->flags & (CHAN_CLOSE_SENT|CHAN_LOCAL)))
 				chan_send_eof2(c);
 			chan_set_istate(c, CHAN_INPUT_CLOSED);
 		} else {
@@ -278,9 +278,12 @@ static void
 chan_rcvd_close2(Channel *c)
 {
 	debug2("channel %d: rcvd close", c->self);
-	if (c->flags & CHAN_CLOSE_RCVD)
-		error("channel %d: protocol error: close rcvd twice", c->self);
-	c->flags |= CHAN_CLOSE_RCVD;
+	if (!(c->flags & CHAN_LOCAL)) {
+		if (c->flags & CHAN_CLOSE_RCVD)
+			error("channel %d: protocol error: close rcvd twice",
+			    c->self);
+		c->flags |= CHAN_CLOSE_RCVD;
+	}
 	if (c->type == SSH_CHANNEL_LARVAL) {
 		/* tear down larval channels immediately */
 		chan_set_ostate(c, CHAN_OUTPUT_CLOSED);
@@ -302,11 +305,13 @@ chan_rcvd_close2(Channel *c)
 		chan_set_istate(c, CHAN_INPUT_CLOSED);
 		break;
 	case CHAN_INPUT_WAIT_DRAIN:
-		chan_send_eof2(c);
+		if (!(c->flags & CHAN_LOCAL))
+			chan_send_eof2(c);
 		chan_set_istate(c, CHAN_INPUT_CLOSED);
 		break;
 	}
 }
+
 void
 chan_rcvd_eow(Channel *c)
 {
@@ -454,6 +459,10 @@ chan_is_dead(Channel *c, int do_send)
 		    c->self, c->efd, buffer_len(&c->extended));
 		return 0;
 	}
+	if (c->flags & CHAN_LOCAL) {
+		debug2("channel %d: is dead (local)", c->self);
+		return 1;
+	}		
 	if (!(c->flags & CHAN_CLOSE_SENT)) {
 		if (do_send) {
 			chan_send_close2(c);

@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IEEE80211_SUPPORT_SUPERG
 #include <net80211/ieee80211_superg.h>
 #endif
+#include <net80211/ieee80211_ratectl.h>
 
 #include <net/bpf.h>
 
@@ -393,8 +394,8 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ifp->if_ioctl = ieee80211_ioctl;
 	ifp->if_init = ieee80211_init;
 	/* NB: input+output filled in by ether_ifattach */
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	vap->iv_ifp = ifp;
@@ -404,6 +405,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_flags_ven = ic->ic_flags_ven;
 	vap->iv_caps = ic->ic_caps &~ IEEE80211_C_OPMODE;
 	vap->iv_htcaps = ic->ic_htcaps;
+	vap->iv_htextcaps = ic->ic_htextcaps;
 	vap->iv_opmode = opmode;
 	vap->iv_caps |= ieee80211_opcap[opmode];
 	switch (opmode) {
@@ -484,6 +486,8 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
 	ieee80211_radiotap_vattach(vap);
+
+	ieee80211_ratectl_set(vap, IEEE80211_RATECTL_AMRR);
 
 	return 0;
 }

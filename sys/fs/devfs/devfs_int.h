@@ -70,7 +70,7 @@ struct cdev_priv {
 
 #define	cdev2priv(c)	member2struct(cdev_priv, cdp_c, c)
 
-struct cdev *devfs_alloc(void);
+struct cdev *devfs_alloc(int);
 void devfs_free(struct cdev *);
 void devfs_create(struct cdev *dev);
 void devfs_destroy(struct cdev *dev);

@@ -44,17 +44,6 @@ If it cannot assign necessary resources to a device without
 causing conflict with other devices in the system,
 the device will not be activated and will be unavailable
 to programs.
-.Sh CAVEATS
-There is no explicit way to disable individual embedded devices.
-The
-.Nm
-driver will find all devices reported by the
-.Dq "Plug and Play (PnP)"
-BIOS and try to activate them all.
-.Pp
-There is no way to explicitly assign particular resource to a device.
-The resource assignment is fully automatic and there is
-no provision for manual override.
 .Sh SEE ALSO
 .Xr pnp 4
 .Sh STANDARDS
@@ -83,3 +72,14 @@ The
 .Nm
 driver was written by
 .An Mike Smith .
+.Sh CAVEATS
+There is no explicit way to disable individual embedded devices.
+The
+.Nm
+driver will find all devices reported by the
+.Dq "Plug and Play (PnP)"
+BIOS and try to activate them all.
+.Pp
+There is no way to explicitly assign particular resource to a device.
+The resource assignment is fully automatic and there is
+no provision for manual override.

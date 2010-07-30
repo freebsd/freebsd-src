@@ -193,6 +193,10 @@
 
 #define ACPI_MAX_LOOP_ITERATIONS        0xFFFF
 
+/* Maximum sleep allowed via Sleep() operator */
+
+#define ACPI_MAX_SLEEP                  20000   /* Two seconds */
+
 
 /******************************************************************************
  *

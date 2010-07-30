@@ -335,14 +335,6 @@ in
 mode with the
 .Dq Li rfcomm-client
 label.
-.Sh CAVEATS
-The
-.Nm
-utility in server mode will try to register the Bluetooth LAN Access Over PPP
-service with the local SPD daemon.
-If the local SDP daemon is not running,
-.Nm
-will exit with an error.
 .Sh SEE ALSO
 .Xr rfcomm_sppd 1 ,
 .Xr bluetooth 3 ,
@@ -352,3 +344,11 @@ will exit with an error.
 .Xr sdpd 8
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.Sh CAVEATS
+The
+.Nm
+utility in server mode will try to register the Bluetooth LAN Access Over PPP
+service with the local SPD daemon.
+If the local SDP daemon is not running,
+.Nm
+will exit with an error.

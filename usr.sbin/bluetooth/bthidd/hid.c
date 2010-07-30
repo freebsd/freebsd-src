@@ -130,7 +130,7 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	hid_item_t	h;
 	int32_t		report_id, usage, page, val,
 			mouse_x, mouse_y, mouse_z, mouse_butt,
-			mevents, kevents;
+			mevents, kevents, i;
 
 	assert(s != NULL);
 	assert(s->srv != NULL);
@@ -150,8 +150,8 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	}
 
 	report_id = data[1];
-	data += 2;
-	len -= 2;
+	data ++;
+	len --;
 
 	hid_device = get_hid_device(&s->bdaddr);
 	assert(hid_device != NULL);
@@ -202,17 +202,11 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 				if (val && val < kbd_maxkey())
 					bit_set(s->keys1, val);
 
-				data ++;
-				len --;
-
-				len = min(len, h.report_size);
-				while (len > 0) {
+				for (i = 1; i < h.report_count; i++) {
+					h.pos += h.report_size;
 					val = hid_get_data(data, &h);
 					if (val && val < kbd_maxkey())
 						bit_set(s->keys1, val);
-
-					data ++;
-					len --;
 				}
 			}
 			break;

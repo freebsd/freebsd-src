@@ -767,6 +767,10 @@ AcpiUtStrupr (
     char                    *SrcString);
 
 void
+AcpiUtStrlwr (
+    char                    *SrcString);
+
+void
 AcpiUtPrintString (
     char                    *String,
     UINT8                   MaxLength);

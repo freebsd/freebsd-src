@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ENC 1"
-.TH ENC 1 "2009-06-14" "0.9.8k" "OpenSSL"
+.TH ENC 1 "2010-03-24" "0.9.8n" "OpenSSL"
 .SH "NAME"
 enc \- symmetric cipher routines
 .SH "SYNOPSIS"
@@ -171,14 +171,12 @@ the password source. For more information about the format of \fBarg\fR
 see the \fB\s-1PASS\s0 \s-1PHRASE\s0 \s-1ARGUMENTS\s0\fR section in \fIopenssl\fR\|(1).
 .IP "\fB\-salt\fR" 4
 .IX Item "-salt"
-use a salt in the key derivation routines. This option should \fB\s-1ALWAYS\s0\fR
-be used unless compatibility with previous versions of OpenSSL or SSLeay
-is required. This option is only present on OpenSSL versions 0.9.5 or
-above.
+use a salt in the key derivation routines. This is the default.
 .IP "\fB\-nosalt\fR" 4
 .IX Item "-nosalt"
-don't use a salt in the key derivation routines. This is the default for
-compatibility with previous versions of OpenSSL and SSLeay.
+don't use a salt in the key derivation routines. This option \fB\s-1SHOULD\s0 \s-1NOT\s0\fR be
+used except for test purposes or compatibility with ancient versions of OpenSSL
+and SSLeay.
 .IP "\fB\-e\fR" 4
 .IX Item "-e"
 encrypt the input data: this is the default.

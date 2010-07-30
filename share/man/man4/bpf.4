@@ -49,7 +49,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2007
+.Dd June 15, 2010
 .Dt BPF 4
 .Os
 .Sh NAME
@@ -513,6 +513,64 @@ to see only outgoing packets on the interface.
 This setting is initialized to
 .Dv BPF_D_INOUT
 by default.
+.It Dv BIOCSTSTAMP
+.It Dv BIOCGTSTAMP
+.Pq Li u_int
+Set or get format and resolution of the time stamps returned by BPF.
+Set to
+.Dv BPF_T_MICROTIME ,
+.Dv BPF_T_MICROTIME_FAST ,
+.Dv BPF_T_MICROTIME_MONOTONIC ,
+or
+.Dv BPF_T_MICROTIME_MONOTONIC_FAST
+to get time stamps in 64-bit
+.Vt struct timeval
+format.
+Set to
+.Dv BPF_T_NANOTIME ,
+.Dv BPF_T_NANOTIME_FAST ,
+.Dv BPF_T_NANOTIME_MONOTONIC ,
+or
+.Dv BPF_T_NANOTIME_MONOTONIC_FAST
+to get time stamps in 64-bit
+.Vt struct timespec
+format.
+Set to
+.Dv BPF_T_BINTIME ,
+.Dv BPF_T_BINTIME_FAST ,
+.Dv BPF_T_NANOTIME_MONOTONIC ,
+or
+.Dv BPF_T_BINTIME_MONOTONIC_FAST
+to get time stamps in 64-bit
+.Vt struct bintime
+format.
+Set to
+.Dv BPF_T_NONE
+to ignore time stamp.
+All 64-bit time stamp formats are wrapped in
+.Vt struct bpf_ts .
+The
+.Dv BPF_T_MICROTIME_FAST ,
+.Dv BPF_T_NANOTIME_FAST ,
+.Dv BPF_T_BINTIME_FAST ,
+.Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
+.Dv BPF_T_NANOTIME_MONOTONIC_FAST ,
+and
+.Dv BPF_T_BINTIME_MONOTONIC_FAST
+are analogs of corresponding formats without _FAST suffix but do not perform
+a full time counter query, so their accuracy is one timer tick.
+The
+.Dv BPF_T_MICROTIME_MONOTONIC ,
+.Dv BPF_T_NANOTIME_MONOTONIC ,
+.Dv BPF_T_BINTIME_MONOTONIC ,
+.Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
+.Dv BPF_T_NANOTIME_MONOTONIC_FAST ,
+and
+.Dv BPF_T_BINTIME_MONOTONIC_FAST
+store the time elapsed since kernel boot.
+This setting is initialized to
+.Dv BPF_T_MICROTIME
+by default.
 .It Dv BIOCFEEDBACK
 .Pq Li u_int
 Set packet feedback mode.
@@ -575,16 +633,24 @@ against
 .Vt bzh_user_gen .
 .El
 .Sh BPF HEADER
-The following structure is prepended to each packet returned by
+One of the following structures is prepended to each packet returned by
 .Xr read 2
 or via a zero-copy buffer:
 .Bd -literal
+struct bpf_xhdr {
+	struct bpf_ts	bh_tstamp;     /* time stamp */
+	uint32_t	bh_caplen;     /* length of captured portion */
+	uint32_t	bh_datalen;    /* original length of packet */
+	u_short		bh_hdrlen;     /* length of bpf header (this struct
+					  plus alignment padding */
+};
+
 struct bpf_hdr {
-        struct timeval bh_tstamp;     /* time stamp */
-        u_long bh_caplen;             /* length of captured portion */
-        u_long bh_datalen;            /* original length of packet */
-        u_short bh_hdrlen;            /* length of bpf header (this struct
-					 plus alignment padding */
+	struct timeval	bh_tstamp;     /* time stamp */
+	uint32_t	bh_caplen;     /* length of captured portion */
+	uint32_t	bh_datalen;    /* original length of packet */
+	u_short		bh_hdrlen;     /* length of bpf header (this struct
+					  plus alignment padding */
 };
 .Ed
 .Pp
@@ -605,6 +671,8 @@ The length of the
 .Nm
 header, which may not be equal to
 .\" XXX - not really a function call
+.Fn sizeof "struct bpf_xhdr"
+or
 .Fn sizeof "struct bpf_hdr" .
 .El
 .Pp
@@ -616,9 +684,24 @@ The purpose here is to guarantee proper alignment of the packet
 data structures, which is required on alignment sensitive
 architectures and improves performance on many other architectures.
 The packet filter insures that the
-.Li bpf_hdr
+.Vt bpf_xhdr ,
+.Vt bpf_hdr
 and the network layer
 header will be word aligned.
+Currently,
+.Vt bpf_hdr
+is used when the time stamp is set to
+.Dv BPF_T_MICROTIME ,
+.Dv BPF_T_MICROTIME_FAST ,
+.Dv BPF_T_MICROTIME_MONOTONIC ,
+.Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
+or
+.Dv BPF_T_NONE
+for backward compatibility reasons.  Otherwise,
+.Vt bpf_xhdr
+is used.  However,
+.Vt bpf_hdr
+may be deprecated in the near future.
 Suitable precautions
 must be taken when accessing the link layer protocol fields on alignment
 restricted machines.

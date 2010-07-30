@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 
 static int	vop_nolookup(struct vop_lookup_args *);
+static int	vop_norename(struct vop_rename_args *);
 static int	vop_nostrategy(struct vop_strategy_args *);
 static int	get_next_dirent(struct vnode *vp, struct dirent **dpp,
 				char *dirbuf, int dirbuflen, off_t *off,
@@ -97,6 +98,7 @@ struct vop_vector default_vnodeops = {
 	.vop_accessx =		vop_stdaccessx,
 	.vop_advlock =		vop_stdadvlock,
 	.vop_advlockasync =	vop_stdadvlockasync,
+	.vop_advlockpurge =	vop_stdadvlockpurge,
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
 	.vop_fsync =		VOP_NULL,
@@ -113,6 +115,7 @@ struct vop_vector default_vnodeops = {
 	.vop_poll =		vop_nopoll,
 	.vop_putpages =		vop_stdputpages,
 	.vop_readlink =		VOP_EINVAL,
+	.vop_rename =		vop_norename,
 	.vop_revoke =		VOP_PANIC,
 	.vop_strategy =		vop_nostrategy,
 	.vop_unlock =		vop_stdunlock,
@@ -203,6 +206,20 @@ vop_nolookup(ap)
 
 	*ap->a_vpp = NULL;
 	return (ENOTDIR);
+}
+
+/*
+ * vop_norename:
+ *
+ * Handle unlock and reference counting for arguments of vop_rename
+ * for filesystems that do not implement rename operation.
+ */
+static int
+vop_norename(struct vop_rename_args *ap)
+{
+
+	vop_rename_fail(ap);
+	return (EOPNOTSUPP);
 }
 
 /*
@@ -395,6 +412,16 @@ vop_stdadvlockasync(struct vop_advlockasync_args *ap)
 		return (error);
 
 	return (lf_advlockasync(ap, &(vp->v_lockf), vattr.va_size));
+}
+
+int
+vop_stdadvlockpurge(struct vop_advlockpurge_args *ap)
+{
+	struct vnode *vp;
+
+	vp = ap->a_vp;
+	lf_purgelocks(vp, &vp->v_lockf);
+	return (0);
 }
 
 /*
@@ -894,10 +921,7 @@ loop:
 		error = VOP_FSYNC(vp, waitfor, td);
 		if (error)
 			allerror = error;
-
-		/* Do not turn this into vput.  td is not always curthread. */
-		VOP_UNLOCK(vp, 0);
-		vrele(vp);
+		vput(vp);
 		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);

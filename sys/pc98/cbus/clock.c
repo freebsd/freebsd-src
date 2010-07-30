@@ -99,7 +99,6 @@ static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
 static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
-static	enum lapic_clock using_lapic_timer = LAPIC_CLOCK_NONE;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -110,7 +109,9 @@ static	enum lapic_clock using_lapic_timer = LAPIC_CLOCK_NONE;
 static	u_char	timer1_state;
 
 static	unsigned i8254_get_timecount(struct timecounter *tc);
+#if 0
 static	unsigned i8254_simple_get_timecount(struct timecounter *tc);
+#endif
 static	void	set_i8254_freq(u_int freq, int intr_freq);
 
 static struct timecounter i8254_timecounter = {
@@ -126,22 +127,12 @@ int
 hardclockintr(struct trapframe *frame)
 {
 
-	if (PCPU_GET(cpuid) == 0)
-		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-	else
-		hardclock_cpu(TRAPF_USERMODE(frame));
+	timer1clock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	return (FILTER_HANDLED);
 }
 
 int
 statclockintr(struct trapframe *frame)
-{
-
-	return (FILTER_HANDLED);
-}
-
-int
-profclockintr(struct trapframe *frame)
 {
 
 	return (FILTER_HANDLED);
@@ -162,8 +153,6 @@ clkintr(struct trapframe *frame)
 		clkintr_pending = 0;
 		mtx_unlock_spin(&clock_lock);
 	}
-	KASSERT(using_lapic_timer == LAPIC_CLOCK_NONE,
-	    ("clk interrupt enabled with lapic timer"));
 
 #ifdef KDTRACE_HOOKS
 	/*
@@ -172,8 +161,8 @@ clkintr(struct trapframe *frame)
 	 * timers.
 	 */
 	int cpu = PCPU_GET(cpuid);
-	if (lapic_cyclic_clock_func[cpu] != NULL)
-		(*lapic_cyclic_clock_func[cpu])(frame);
+	if (cyclic_clock_func[cpu] != NULL)
+		(*cyclic_clock_func[cpu])(frame);
 #endif
 
 #ifdef SMP
@@ -359,7 +348,7 @@ set_i8254_freq(u_int freq, int intr_freq)
 	i8254_timecounter.tc_frequency = freq;
 	mtx_lock_spin(&clock_lock);
 	i8254_freq = freq;
-	if (using_lapic_timer != LAPIC_CLOCK_NONE)
+	if (intr_freq == 0)
 		new_i8254_real_max_count = 0x10000;
 	else
 		new_i8254_real_max_count = TIMER_DIV(intr_freq);
@@ -433,30 +422,26 @@ void
 cpu_initclocks()
 {
 
-#ifdef DEV_APIC
-	using_lapic_timer = lapic_setup_clock();
-#endif
-	/*
-	 * If we aren't using the local APIC timer to drive the kernel
-	 * clocks, setup the interrupt handler for the 8254 timer 0 so
-	 * that it can drive hardclock().  Otherwise, change the 8254
-	 * timecounter to user a simpler algorithm.
-	 */
-	if (using_lapic_timer == LAPIC_CLOCK_NONE) {
-		intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL,
-		    NULL, INTR_TYPE_CLK, NULL);
-		i8254_intsrc = intr_lookup_source(0);
-		if (i8254_intsrc != NULL)
-			i8254_pending =
-			    i8254_intsrc->is_pic->pic_source_pending;
-	} else {
-		i8254_timecounter.tc_get_timecount =
-		    i8254_simple_get_timecount;
-		i8254_timecounter.tc_counter_mask = 0xffff;
-		set_i8254_freq(i8254_freq, hz);
-	}
+	timer1hz = hz;
+	intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL,
+	    NULL, INTR_TYPE_CLK, NULL);
+	i8254_intsrc = intr_lookup_source(0);
+	if (i8254_intsrc != NULL)
+		i8254_pending =
+		    i8254_intsrc->is_pic->pic_source_pending;
+	profhz = hz;
+	if (hz < 128)
+		stathz = hz;
+	else
+		stathz = hz / (hz / 128);
+	timer2hz = 0;
 
 	init_TSC_tc();
+}
+
+void
+cpu_initclocks_ap(void)
+{
 }
 
 void
@@ -489,12 +474,14 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(u_int), sysctl_machdep_i8254_freq, "IU", "");
 
+#if 0
 static unsigned
 i8254_simple_get_timecount(struct timecounter *tc)
 {
 
 	return (i8254_max_count - getit());
 }
+#endif
 
 static unsigned
 i8254_get_timecount(struct timecounter *tc)

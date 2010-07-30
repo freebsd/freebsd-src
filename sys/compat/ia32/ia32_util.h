@@ -47,3 +47,7 @@
 #define	IA32_MAXDSIZ	(512*1024*1024)		/* 512MB */
 #define	IA32_MAXSSIZ	(64*1024*1024)		/* 64MB */
 #define IA32_MAXVMEM	0			/* Unlimited */
+
+struct syscall_args;
+int ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
+void ia32_set_syscall_retval(struct thread *, int);

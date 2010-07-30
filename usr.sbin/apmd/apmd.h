@@ -106,3 +106,28 @@ extern int register_apm_event_handlers(
 	bitstr_t bit_decl(evlist, EVENT_MAX),
 	struct event_cmd *cmdlist);
 extern void free_event_cmd_list(struct event_cmd *p);
+
+extern int	yyparse(void);
+
+void	yyerror(const char *);
+int	yylex(void);
+
+struct event_cmd *event_cmd_default_clone(void *);
+int event_cmd_exec_act(void *);
+void event_cmd_exec_dump(void *, FILE *);
+struct event_cmd *event_cmd_exec_clone(void *);
+void event_cmd_exec_free(void *);
+int event_cmd_reject_act(void *);
+struct event_cmd *clone_event_cmd_list(struct event_cmd *);
+int exec_run_cmd(struct event_cmd *);
+int exec_event_cmd(struct event_config *);
+void read_config(void);
+void dump_config(void);
+void destroy_config(void);
+void restart(void);
+void enque_signal(int);
+void wait_child(void);
+int proc_signal(int);
+void proc_apmevent(int);
+void check_battery(void);
+void event_loop(void);

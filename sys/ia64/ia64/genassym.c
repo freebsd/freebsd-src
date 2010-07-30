@@ -61,8 +61,8 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
-#ifdef COMPAT_IA32
-ASSYM(COMPAT_IA32,	COMPAT_IA32);
+#ifdef COMPAT_FREEBSD32
+ASSYM(COMPAT_FREEBSD32,	COMPAT_FREEBSD32);
 #endif
 
 ASSYM(DT_NULL,		DT_NULL);

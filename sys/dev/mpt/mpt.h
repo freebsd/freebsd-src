@@ -130,6 +130,11 @@
 #include <machine/clock.h>
 #endif
 
+#ifdef __sparc64__
+#include <dev/ofw/openfirm.h>
+#include <machine/ofw_machdep.h>
+#endif
+
 #include <sys/rman.h>
 
 #if __FreeBSD_version < 500000  
@@ -171,6 +176,8 @@
 #define	MPT_ROLE_TARGET		2
 #define	MPT_ROLE_BOTH		3
 #define	MPT_ROLE_DEFAULT	MPT_ROLE_INITIATOR
+
+#define	MPT_INI_ID_NONE		-1
 
 /**************************** Forward Declarations ****************************/
 struct mpt_softc;
@@ -637,7 +644,6 @@ struct mpt_softc {
 	 * Port Facts
 	 */
 	MSG_PORT_FACTS_REPLY *	port_facts;
-#define	mpt_ini_id	port_facts[0].PortSCSIID
 #define	mpt_max_tgtcmds	port_facts[0].MaxPostedCmdBuffers
 
 	/*
@@ -650,6 +656,7 @@ struct mpt_softc {
 			CONFIG_PAGE_SCSI_PORT_2		_port_page2;
 			CONFIG_PAGE_SCSI_DEVICE_0	_dev_page0[16];
 			CONFIG_PAGE_SCSI_DEVICE_1	_dev_page1[16];
+			int				_ini_id;
 			uint16_t			_tag_enable;
 			uint16_t			_disc_enable;
 		} spi;
@@ -658,6 +665,7 @@ struct mpt_softc {
 #define	mpt_port_page2		cfg.spi._port_page2
 #define	mpt_dev_page0		cfg.spi._dev_page0
 #define	mpt_dev_page1		cfg.spi._dev_page1
+#define	mpt_ini_id		cfg.spi._ini_id
 #define	mpt_tag_enable		cfg.spi._tag_enable
 #define	mpt_disc_enable		cfg.spi._disc_enable
 		struct mpi_fc_cfg {
@@ -735,6 +743,7 @@ struct mpt_softc {
 	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
 	uint32_t		max_seg_cnt;	/* calculated after IOC facts */
+	uint32_t		max_cam_seg_cnt;/* calculated from MAXPHYS*/
 
 	/*
 	 * Hardware management
@@ -986,9 +995,6 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 /*********************** Reply Frame/Request Management ***********************/
 /* Max MPT Reply we are willing to accept (must be power of 2) */
 #define MPT_REPLY_SIZE   	256
-
-/* Max i/o size, based on legacy MAXPHYS.  Can be increased. */
-#define MPT_MAXPHYS		(128 * 1024)
 
 /*
  * Must be less than 16384 in order for target mode to work
@@ -1273,6 +1279,7 @@ void		mpt_check_doorbell(struct mpt_softc *mpt);
 void		mpt_dump_reply_frame(struct mpt_softc *mpt,
 				     MSG_DEFAULT_REPLY *reply_frame);
 
+int		mpt_dma_buf_alloc(struct mpt_softc *mpt);
 void		mpt_set_config_regs(struct mpt_softc *);
 int		mpt_issue_cfg_req(struct mpt_softc */*mpt*/, request_t */*req*/,
 				  cfgparms_t *params,

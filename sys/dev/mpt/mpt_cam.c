@@ -1058,12 +1058,13 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 static int
 mpt_set_initial_config_spi(struct mpt_softc *mpt)
 {
-	int i, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
-	int error;
+	int error, i, pp1val;
 
 	mpt->mpt_disc_enable = 0xff;
 	mpt->mpt_tag_enable = 0;
 
+	pp1val = ((1 << mpt->mpt_ini_id) <<
+	    MPI_SCSIPORTPAGE1_CFG_SHIFT_PORT_RESPONSE_ID) | mpt->mpt_ini_id;
 	if (mpt->mpt_port_page1.Configuration != pp1val) {
 		CONFIG_PAGE_SCSI_PORT_1 tmp;
 
@@ -1204,7 +1205,6 @@ mpt_cam_detach(struct mpt_softc *mpt)
 		free(mpt->sas_portinfo, M_DEVBUF);
 		mpt->sas_portinfo = NULL;
 	}
-	MPT_UNLOCK(mpt);
 
 	if (mpt->sim != NULL) {
 		xpt_free_path(mpt->path);
@@ -1219,6 +1219,7 @@ mpt_cam_detach(struct mpt_softc *mpt)
 		cam_sim_free(mpt->phydisk_sim, TRUE);
 		mpt->phydisk_sim = NULL;
 	}
+	MPT_UNLOCK(mpt);
 }
 
 /* This routine is used after a system crash to dump core onto the swap device.
@@ -2570,6 +2571,10 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		CAMLOCK_2_MPTLOCK(mpt);
 		break;
 	}
+	case MPI_EVENT_IR_RESYNC_UPDATE:
+		mpt_prt(mpt, "IR resync update %d completed\n",
+		    (data0 >> 16) & 0xff);
+		break;
 	case MPI_EVENT_EVENT_CHANGE:
 	case MPI_EVENT_INTEGRATED_RAID:
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
@@ -3577,6 +3582,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->target_sprt = 0;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = mpt->port_facts[0].MaxDevices - 1;
+		cpi->maxio = (mpt->max_cam_seg_cnt - 1) * PAGE_SIZE;
 		/*
 		 * FC cards report MAX_DEVICES of 512, but
 		 * the MSG_SCSI_IO_REQUEST target id field
@@ -4217,7 +4223,7 @@ mpt_fc_post_els(struct mpt_softc *mpt, request_t *req, int ioindex)
 	/*
 	 * Okay, set up ELS buffer pointers. ELS buffer pointers
 	 * consist of a TE SGL element (with details length of zero)
-	 * followe by a SIMPLE SGL element which holds the address
+	 * followed by a SIMPLE SGL element which holds the address
 	 * of the buffer.
 	 */
 

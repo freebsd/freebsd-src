@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -358,13 +358,19 @@ zil_create(zilog_t *zilog)
 	blk = zh->zh_log;
 
 	/*
-	 * If we don't already have an initial log block, allocate one now.
+	 * If we don't already have an initial log block or we have one
+	 * but it's the wrong endianness then allocate one.
 	 */
-	if (BP_IS_HOLE(&blk)) {
+	if (BP_IS_HOLE(&blk) || BP_SHOULD_BYTESWAP(&blk)) {
 		tx = dmu_tx_create(zilog->zl_os);
 		(void) dmu_tx_assign(tx, TXG_WAIT);
 		dsl_dataset_dirty(dmu_objset_ds(zilog->zl_os), tx);
 		txg = dmu_tx_get_txg(tx);
+
+		if (!BP_IS_HOLE(&blk)) {
+			zio_free_blk(zilog->zl_spa, &blk, txg);
+			BP_ZERO(&blk);
+		}
 
 		error = zio_alloc_blk(zilog->zl_spa, ZIL_MIN_BLKSZ, &blk,
 		    NULL, txg);
@@ -469,37 +475,6 @@ zil_destroy(zilog_t *zilog, boolean_t keep_first)
 	mutex_exit(&zilog->zl_lock);
 
 	dmu_tx_commit(tx);
-}
-
-/*
- * zil_rollback_destroy() is only called by the rollback code.
- * We already have a syncing tx. Rollback has exclusive access to the
- * dataset, so we don't have to worry about concurrent zil access.
- * The actual freeing of any log blocks occurs in zil_sync() later in
- * this txg syncing phase.
- */
-void
-zil_rollback_destroy(zilog_t *zilog, dmu_tx_t *tx)
-{
-	const zil_header_t *zh = zilog->zl_header;
-	uint64_t txg;
-
-	if (BP_IS_HOLE(&zh->zh_log))
-		return;
-
-	txg = dmu_tx_get_txg(tx);
-	ASSERT3U(zilog->zl_destroy_txg, <, txg);
-	zilog->zl_destroy_txg = txg;
-	zilog->zl_keep_first = B_FALSE;
-
-	/*
-	 * Ensure there's no outstanding ZIL IO.  No lwbs or just the
-	 * unused one that allocated in advance is ok.
-	 */
-	ASSERT(zilog->zl_lwb_list.list_head.list_next ==
-	    zilog->zl_lwb_list.list_head.list_prev);
-	(void) zil_parse(zilog, zil_free_log_block, zil_free_log_record,
-	    tx, zh->zh_claim_txg);
 }
 
 /*
@@ -1561,6 +1536,29 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 	}
 
 	/*
+	 * Replay of large truncates can end up needing additional txs
+	 * and a different txg. If they are nested within the replay tx
+	 * as below then a hang is possible. So we do the truncate here
+	 * and redo the truncate later (a no-op) and update the sequence
+	 * number whilst in the replay tx. Fortunately, it's safe to repeat
+	 * a truncate if we crash and the truncate commits. A create over
+	 * an existing file will also come in as a TX_TRUNCATE record.
+	 *
+	 * Note, remove of large files and renames over large files is
+	 * handled by putting the deleted object on a stable list
+	 * and if necessary force deleting the object outside of the replay
+	 * transaction using the zr_replay_cleaner.
+	 */
+	if (txtype == TX_TRUNCATE) {
+		*zr->zr_txgp = TXG_NOWAIT;
+		error = zr->zr_replay[TX_TRUNCATE](zr->zr_arg, zr->zr_lrbuf,
+		    zr->zr_byteswap);
+		if (error)
+			goto bad;
+		zr->zr_byteswap = 0; /* only byteswap once */
+	}
+
+	/*
 	 * We must now do two things atomically: replay this log record,
 	 * and update the log header to reflect the fact that we did so.
 	 * We use the DMU's ability to assign into a specific txg to do this.
@@ -1630,6 +1628,7 @@ zil_replay_log_record(zilog_t *zilog, lr_t *lr, void *zra, uint64_t claim_txg)
 		dprintf("pass %d, retrying\n", pass);
 	}
 
+bad:
 	ASSERT(error && error != ERESTART);
 	name = kmem_alloc(MAXNAMELEN, KM_SLEEP);
 	dmu_objset_name(zr->zr_os, name);

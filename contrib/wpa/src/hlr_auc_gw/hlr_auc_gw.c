@@ -532,7 +532,7 @@ static void aka_req_auth(int s, struct sockaddr_un *from, socklen_t fromlen,
 static void aka_auts(int s, struct sockaddr_un *from, socklen_t fromlen,
 		     char *imsi)
 {
-	char *auts, *rand;
+	char *auts, *__rand;
 	u8 _auts[EAP_AKA_AUTS_LEN], _rand[EAP_AKA_RAND_LEN], sqn[6];
 	struct milenage_parameters *m;
 
@@ -543,14 +543,14 @@ static void aka_auts(int s, struct sockaddr_un *from, socklen_t fromlen,
 		return;
 	*auts++ = '\0';
 
-	rand = strchr(auts, ' ');
-	if (rand == NULL)
+	__rand = strchr(auts, ' ');
+	if (__rand == NULL)
 		return;
-	*rand++ = '\0';
+	*__rand++ = '\0';
 
-	printf("AKA-AUTS: IMSI=%s AUTS=%s RAND=%s\n", imsi, auts, rand);
+	printf("AKA-AUTS: IMSI=%s AUTS=%s RAND=%s\n", imsi, auts, __rand);
 	if (hexstr2bin(auts, _auts, EAP_AKA_AUTS_LEN) ||
-	    hexstr2bin(rand, _rand, EAP_AKA_RAND_LEN)) {
+	    hexstr2bin(__rand, _rand, EAP_AKA_RAND_LEN)) {
 		printf("Could not parse AUTS/RAND\n");
 		return;
 	}

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004-2008 University of Zagreb
  * Copyright (c) 2007-2008 FreeBSD Foundation
  *
@@ -779,8 +779,9 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		    random() % 100 <= hinfo->cfg.duplicate) {
 			ngp_h = uma_zalloc(ngp_zone, M_NOWAIT);
 			KASSERT(ngp_h != NULL, ("ngp_h zalloc failed (3)"));
-			ngp_h->m = m_dup(m, M_NOWAIT);
-			KASSERT(ngp_h->m != NULL, ("m_dup failed"));
+			m = m_dup(m, M_NOWAIT);
+			KASSERT(m != NULL, ("m_dup failed"));
+			ngp_h->m = m;
 		} else {
 			TAILQ_REMOVE(&ngp_f->packet_head, ngp_h, ngp_link);
 			hinfo->run.qin_frames--;
@@ -816,14 +817,17 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		}
 
 		/* Randomly discard the frame, according to BER setting */
-		if (hinfo->cfg.ber && 
-		    ((oldrand = rand) ^ (rand = random())<<17) >=
-		    hinfo->ber_p[priv->overhead + m->m_pkthdr.len] ) {
-			hinfo->stats.out_disc_frames++;
-			hinfo->stats.out_disc_octets += m->m_pkthdr.len;
-			uma_zfree(ngp_zone, ngp_h);
-			m_freem(m);
-			continue;
+		if (hinfo->cfg.ber) {
+			oldrand = rand;
+			rand = random();
+			if (((oldrand ^ rand) << 17) >=
+			    hinfo->ber_p[priv->overhead + m->m_pkthdr.len]) {
+				hinfo->stats.out_disc_frames++;
+				hinfo->stats.out_disc_octets += m->m_pkthdr.len;
+				uma_zfree(ngp_zone, ngp_h);
+				m_freem(m);
+				continue;
+			}
 		}
 
 		/* Discard frame if outbound queue size limit exceeded */

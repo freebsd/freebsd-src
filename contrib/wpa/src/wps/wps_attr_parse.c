@@ -381,6 +381,14 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->eap_identity = pos;
 		attr->eap_identity_len = len;
 		break;
+	case ATTR_AP_SETUP_LOCKED:
+		if (len != 1) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid AP Setup Locked "
+				   "length %u", len);
+			return -1;
+		}
+		attr->ap_setup_locked = pos;
+		break;
 	default:
 		wpa_printf(MSG_DEBUG, "WPS: Unsupported attribute type 0x%x "
 			   "len=%u", type, len);

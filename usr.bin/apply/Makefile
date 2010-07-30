@@ -2,5 +2,7 @@
 # $FreeBSD$
 
 PROG=	apply
+DPADD=	${LIBSBUF}
+LDADD=	-lsbuf
 
 .include <bsd.prog.mk>

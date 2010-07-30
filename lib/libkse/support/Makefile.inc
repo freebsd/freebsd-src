@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/support ${.CURDIR}/../libc/gen ${.CURDIR}/../libc/string
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys
+.PATH: ${.CURDIR}/../libc/${MACHINE_CPUARCH}/sys
 
-CFLAGS+= -I${.CURDIR}/../libc/${MACHINE_ARCH}
+CFLAGS+= -I${.CURDIR}/../libc/${MACHINE_CPUARCH}
 
 SYSCALLS= clock_gettime \
 	kse_create \

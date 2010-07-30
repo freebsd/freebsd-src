@@ -34,6 +34,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#define	libusb_device_handle libusb20_device
+
 #include "libusb20.h"
 #include "libusb20_desc.h"
 #include "libusb20_int.h"

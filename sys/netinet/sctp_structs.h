@@ -108,9 +108,11 @@ typedef void (*end_func) (void *ptr, uint32_t val);
 
 struct sctp_iterator {
 	TAILQ_ENTRY(sctp_iterator) sctp_nxt_itr;
+	struct vnet *vn;
 	struct sctp_timer tmr;
 	struct sctp_inpcb *inp;	/* current endpoint */
 	struct sctp_tcb *stcb;	/* current* assoc */
+	struct sctp_inpcb *next_inp;	/* special hook to skip to */
 	asoc_func function_assoc;	/* per assoc function */
 	inp_func function_inp;	/* per endpoint function */
 	inp_func function_inp_end;	/* end INP function */
@@ -129,6 +131,7 @@ struct sctp_iterator {
 #define SCTP_ITERATOR_DO_ALL_INP	0x00000001
 #define SCTP_ITERATOR_DO_SINGLE_INP	0x00000002
 
+
 TAILQ_HEAD(sctpiterators, sctp_iterator);
 
 struct sctp_copy_all {
@@ -144,6 +147,20 @@ struct sctp_asconf_iterator {
 	struct sctpladdr list_of_work;
 	int cnt;
 };
+
+struct iterator_control {
+	struct mtx ipi_iterator_wq_mtx;
+	struct mtx it_mtx;
+	SCTP_PROCESS_STRUCT thread_proc;
+	struct sctpiterators iteratorhead;
+	struct sctp_iterator *cur_it;
+	uint32_t iterator_running;
+	uint32_t iterator_flags;
+};
+
+#define SCTP_ITERATOR_MUST_EXIT   	0x00000001
+#define SCTP_ITERATOR_STOP_CUR_IT  	0x00000002
+#define SCTP_ITERATOR_STOP_CUR_INP  	0x00000004
 
 struct sctp_net_route {
 	sctp_rtentry_t *ro_rt;
@@ -477,7 +494,6 @@ struct sctp_asconf_addr {
 	struct sctp_ifa *ifa;	/* save the ifa for add/del ip */
 	uint8_t sent;		/* has this been sent yet? */
 	uint8_t special_del;	/* not to be used in lookup */
-
 };
 
 struct sctp_scoping {
@@ -771,9 +787,7 @@ struct sctp_association {
 
 	/* EY - new NR variables used for nr_sack based on mapping_array */
 	uint8_t *nr_mapping_array;
-	uint32_t nr_mapping_array_base_tsn;
 	uint32_t highest_tsn_inside_nr_map;
-	uint16_t nr_mapping_array_size;
 
 	uint32_t last_echo_tsn;
 	uint32_t last_cwr_tsn;

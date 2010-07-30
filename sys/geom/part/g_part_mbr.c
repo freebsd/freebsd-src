@@ -76,6 +76,8 @@ static int g_part_mbr_setunset(struct g_part_table *, struct g_part_entry *,
 static const char *g_part_mbr_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_mbr_write(struct g_part_table *, struct g_consumer *);
+static int g_part_mbr_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_mbr_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_mbr_add),
@@ -85,6 +87,7 @@ static kobj_method_t g_part_mbr_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_mbr_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_mbr_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_mbr_modify),
+	KOBJMETHOD(g_part_resize,	g_part_mbr_resize),
 	KOBJMETHOD(g_part_name,		g_part_mbr_name),
 	KOBJMETHOD(g_part_probe,	g_part_mbr_probe),
 	KOBJMETHOD(g_part_read,		g_part_mbr_read),
@@ -122,6 +125,11 @@ mbr_parse_type(const char *type, u_char *dp_typ)
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
 	if (!strcasecmp(type, alias)) {
 		*dp_typ = DOSPTYP_386BSD;
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_MS_NTFS);
+	if (!strcasecmp(type, alias)) {
+		*dp_typ = DOSPTYP_NTFS;
 		return (0);
 	}
 	return (EINVAL);
@@ -299,6 +307,31 @@ g_part_mbr_modify(struct g_part_table *basetable,
 	entry = (struct g_part_mbr_entry *)baseentry;
 	if (gpp->gpp_parms & G_PART_PARM_TYPE)
 		return (mbr_parse_type(gpp->gpp_type, &entry->ent.dp_typ));
+	return (0);
+}
+
+static int
+g_part_mbr_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_part_mbr_entry *entry;
+	uint32_t size, sectors;
+
+	sectors = basetable->gpt_sectors;
+	size = gpp->gpp_size;
+
+	if (size < sectors)
+		return (EINVAL);
+	if (size % sectors)
+		size = size - (size % sectors);
+	if (size < sectors)
+		return (EINVAL);
+
+	entry = (struct g_part_mbr_entry *)baseentry;
+	baseentry->gpe_end = baseentry->gpe_start + size - 1;
+	entry->ent.dp_size = size;
+	mbr_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
+	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
 	return (0);
 }
 
@@ -481,9 +514,14 @@ g_part_mbr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	entry = (struct g_part_mbr_entry *)baseentry;
 	type = entry->ent.dp_typ;
-	if (type == DOSPTYP_386BSD)
+	switch (type) {
+	case DOSPTYP_386BSD:
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
-	snprintf(buf, bufsz, "!%d", type);
+	case DOSPTYP_NTFS:
+		return (g_part_alias_name(G_PART_ALIAS_MS_NTFS));
+	default:
+		snprintf(buf, bufsz, "!%d", type);
+	}
 	return (buf);
 }
 

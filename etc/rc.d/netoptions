@@ -99,6 +99,13 @@ netoptions_inet6()
 	else
 		${SYSCTL_W} net.inet6.ip6.v6only=1 >/dev/null
 	fi
+
+	if checkyesno ipv6_privacy; then
+		netoptions_init
+		echo -n " IPv6 Privacy Addresses"
+		${SYSCTL_W} net.inet6.ip6.use_tempaddr=1 >/dev/null
+		${SYSCTL_W} net.inet6.ip6.prefer_tempaddr=1 >/dev/null
+	fi
 }
 
 load_rc_config $name

@@ -466,6 +466,7 @@ copy(char *argv[], enum op type, int fts_options)
 		case S_IFSOCK:
 			warnx("%s is a socket (not copied).",
 				    curr->fts_path);
+			break;
 		case S_IFIFO:
 			if (Rflag) {
 				if (copy_fifo(curr->fts_statp, !dne))

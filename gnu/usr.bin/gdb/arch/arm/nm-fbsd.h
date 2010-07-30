@@ -32,4 +32,4 @@
 /* We can attach and detach.  */
 #define ATTACH_DETACH
 
-#endif /* NM_NBSD_H */
+#endif /* NM_FBSD_H */

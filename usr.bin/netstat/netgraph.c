@@ -166,14 +166,14 @@ netgraphprotopr(u_long off, const char *name, int af1 __unused,
 		    name, sockb.so_rcv.sb_cc, sockb.so_snd.sb_cc);
 
 		/* Get ngsock structure */
-		if (ngpcb.sockdata == 0)	/* unconnected data socket */
+		if (ngpcb.sockdata == NULL)	/* unconnected data socket */
 			goto finish;
 		kread((u_long)ngpcb.sockdata, (char *)&info, sizeof(info));
 
 		/* Get info on associated node */
-		if (info.node == 0 || csock == -1)
+		if (info.node_id == 0 || csock == -1)
 			goto finish;
-		snprintf(path, sizeof(path), "[%lx]:", (u_long) info.node);
+		snprintf(path, sizeof(path), "[%x]:", info.node_id);
 		if (NgSendMsg(csock, path,
 		    NGM_GENERIC_COOKIE, NGM_NODEINFO, NULL, 0) < 0)
 			goto finish;

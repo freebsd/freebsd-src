@@ -38,7 +38,6 @@
 #define	_MIPS_DB_MACHDEP_H_
 
 #include <machine/frame.h>
-#include <machine/psl.h>
 #include <machine/trap.h>
 #include <machine/endian.h>
 
@@ -92,7 +91,6 @@ db_addr_t	next_instr_address(db_addr_t, boolean_t);
 #define	DB_SMALL_VALUE_MIN	(-0x400001)
 
 int db_inst_type(int);
-void db_dump_tlb(int, int);
 db_addr_t branch_taken(int inst, db_addr_t pc);
 void stacktrace_subr(register_t pc, register_t sp, register_t ra, int (*)(const char *, ...));
 int kdbpeek(int *);

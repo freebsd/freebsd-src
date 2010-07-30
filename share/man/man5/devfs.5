@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 1996
+.Dd May 30, 2010
 .Dt DEVFS 5
 .Os
 .Sh NAME
@@ -80,9 +80,9 @@ mount point.
 To mount a
 .Nm
 volume located on
-.Pa /dev :
+.Pa /mychroot/dev :
 .Pp
-.Dl "mount -t devfs devfs /dev"
+.Dl "mount -t devfs devfs /mychroot/dev"
 .Sh SEE ALSO
 .Xr devfs 8 ,
 .Xr mount 8
@@ -91,6 +91,10 @@ The
 .Nm
 file system first appeared in
 .Fx 2.0 .
+It became the preferred method for accessing devices in
+.Fx 5.0
+and the only method in
+.Fx 6.0 .
 The
 .Nm
 manual page first appeared in

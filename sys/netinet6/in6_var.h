@@ -487,12 +487,7 @@ struct	in6_rrenumreq {
 
 #ifdef _KERNEL
 VNET_DECLARE(struct in6_ifaddrhead, in6_ifaddrhead);
-VNET_DECLARE(struct icmp6stat, icmp6stat);
-VNET_DECLARE(unsigned long, in6_maxmtu);
-
 #define	V_in6_ifaddrhead		VNET(in6_ifaddrhead)
-#define	V_icmp6stat			VNET(icmp6stat)
-#define	V_in6_maxmtu			VNET(in6_maxmtu)
 
 extern struct rwlock in6_ifaddr_lock;
 #define	IN6_IFADDR_LOCK_ASSERT(	)	rw_assert(&in6_ifaddr_lock, RA_LOCKED)
@@ -503,6 +498,8 @@ extern struct rwlock in6_ifaddr_lock;
 #define	IN6_IFADDR_WLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_WLOCKED)
 #define	IN6_IFADDR_WUNLOCK()		rw_wunlock(&in6_ifaddr_lock)
 
+VNET_DECLARE(struct icmp6stat, icmp6stat);
+#define	V_icmp6stat			VNET(icmp6stat)
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\
@@ -511,6 +508,8 @@ do {								\
 
 extern struct in6_addr zeroin6_addr;
 extern u_char inet6ctlerrmap[];
+VNET_DECLARE(unsigned long, in6_maxmtu);
+#define	V_in6_maxmtu			VNET(in6_maxmtu)
 #endif /* _KERNEL */
 
 /*

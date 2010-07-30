@@ -76,6 +76,7 @@ struct g_event {
 #define EV_DONE		0x80000
 #define EV_WAKEUP	0x40000
 #define EV_CANCELED	0x20000
+#define EV_INPROGRESS	0x10000
 
 void
 g_waitidle(void)
@@ -206,12 +207,19 @@ one_event(void)
 		g_topology_unlock();
 		return (0);
 	}
+	if (ep->flag & EV_INPROGRESS) {
+		mtx_unlock(&g_eventlock);
+		g_topology_unlock();
+		return (1);
+	}
+	ep->flag |= EV_INPROGRESS;
 	mtx_unlock(&g_eventlock);
 	g_topology_assert();
 	ep->func(ep->arg, 0);
 	g_topology_assert();
 	mtx_lock(&g_eventlock);
 	TAILQ_REMOVE(&g_events, ep, events);
+	ep->flag &= ~EV_INPROGRESS;
 	mtx_unlock(&g_eventlock);
 	if (ep->flag & EV_WAKEUP) {
 		ep->flag |= EV_DONE;
@@ -255,6 +263,8 @@ g_cancel_event(void *ref)
 		break;
 	}
 	TAILQ_FOREACH_SAFE(ep, &g_events, events, epn) {
+		if (ep->flag & EV_INPROGRESS)
+			continue;
 		for (n = 0; n < G_N_EVENTREFS; n++) {
 			if (ep->ref[n] == NULL)
 				break;

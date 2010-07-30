@@ -65,8 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socketvar.h>
 
-#include <security/mac/mac_framework.h>
-
 static int	ip_dosourceroute = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute, CTLFLAG_RW,
     &ip_dosourceroute, 0, "Enable forwarding source routed IP packets");
@@ -230,7 +228,7 @@ dropit:
 #define	INA	struct in_ifaddr *
 #define	SA	struct sockaddr *
 			    if ((ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr)) == NULL)
-				ia = (INA)ifa_ifwithnet((SA)&ipaddr);
+				    ia = (INA)ifa_ifwithnet((SA)&ipaddr, 0);
 			} else
 /* XXX MRT 0 for routing */
 				ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m));

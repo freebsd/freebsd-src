@@ -60,10 +60,6 @@ en0: ATM midway v0, board IDs 6.0, Utopia (pipelined), 512KB on-board RAM
 en0: maximum DMA burst length = 64 bytes
 en0: 7 32KB receive buffers, 8 32KB transmit buffers allocated
 .Ed
-.Sh CAVEATS
-The driver extensively uses DMA on PCI.
-The first
-generation PCI chipsets do not work or exhibit poor performance.
 .Sh SEE ALSO
 .Xr natm 4 ,
 .Xr natmip 4 ,
@@ -76,3 +72,7 @@ of Washington University implemented
 .Nm
 driver in 1996 for
 .Nx .
+.Sh CAVEATS
+The driver extensively uses DMA on PCI.
+The first
+generation PCI chipsets do not work or exhibit poor performance.

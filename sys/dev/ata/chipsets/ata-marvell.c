@@ -188,7 +188,8 @@ ata_marvell_setmode(device_t dev, int target, int mode)
 
 	mode = min(mode, ctlr->chip->max_dma);
 	/* Check for 80pin cable present. */
-	if (mode > ATA_UDMA2 && ATA_IDX_INB(ch, ATA_BMDEVSPEC_0) & 0x01) {
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+	    ATA_IDX_INB(ch, ATA_BMDEVSPEC_0) & 0x01) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;
 	}
@@ -578,6 +579,8 @@ ata_marvell_edma_reset(device_t dev)
     /* enable channel and test for devices */
     if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
+    else
+	ch->devices = 0;
 
     /* enable EDMA machinery */
     ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000001);

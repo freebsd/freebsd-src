@@ -12,7 +12,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	encswap \
 	faith fsck ftp-proxy ftpd \
 	gbde geli geli2 gssd \
-	hcsecd \
+	hastd hcsecd \
 	hostapd hostid hostid_save hostname \
 	inetd initrandom \
 	ip6addrctl ipfilter ipfs ipfw ipmon \
@@ -48,6 +48,10 @@ FILES+=	sshd
 
 .if ${MK_NS_CACHING} != "no"
 FILES+= nscd
+.endif
+
+.if ${MK_BLUETOOTH} != "no"
+FILES+=	ubthidhci
 .endif
 
 FILESDIR=	/etc/rc.d

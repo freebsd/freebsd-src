@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.457.26.9 $)
+AC_REVISION($Revision: 1.457.26.16 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.59)
@@ -28,6 +28,18 @@ AC_CONFIG_HEADER(config.h)
 AC_CANONICAL_HOST
 
 AC_PROG_MAKE_SET
+
+#
+# GNU libtool support
+#
+case $build_os in
+sunos*)
+    # Just set the maximum command line length for sunos as it otherwise
+    # takes a exceptionally long time to work it out. Required for libtool.
+    lt_cv_sys_max_cmd_len=4096;
+    ;;
+esac
+
 AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 AC_PROG_LN_S
@@ -466,7 +478,7 @@ AC_C_BIGENDIAN
 OPENSSL_WARNING=
 AC_MSG_CHECKING(for OpenSSL library)
 AC_ARG_WITH(openssl,
-[  --with-openssl[=PATH]   Build with OpenSSL [yes|no|path].
+[  --with-openssl[=PATH]     Build with OpenSSL [yes|no|path].
 			  (Required for DNSSEC)],
     use_openssl="$withval", use_openssl="auto")
 
@@ -491,7 +503,9 @@ case "$use_openssl" in
 	auto)
 		DST_OPENSSL_INC=""
 		USE_OPENSSL=""
-		AC_MSG_RESULT(not found)
+		AC_MSG_ERROR(
+[OpenSSL was not found in any of $openssldirs; use --with-openssl=/path
+If you don't want OpenSSL, use --without-openssl])
 		;;
 	*)
 		if test "$use_openssl" = "yes"
@@ -630,8 +644,10 @@ esac
 		else
 			AC_MSG_RESULT(no)
 		fi
+		AC_CHECK_FUNCS(EVP_sha256 EVP_sha512)
 		CFLAGS="$saved_cflags"
 		LIBS="$saved_libs"
+
 		;;
 esac
 
@@ -652,7 +668,7 @@ DNS_CRYPTO_LIBS="$DNS_CRYPTO_LIBS $DNS_OPENSSL_LIBS"
 
 AC_MSG_CHECKING(for PKCS11 support)
 AC_ARG_WITH(pkcs11,
-[  --with-pkcs11     Build with PKCS11 support],
+[  --with-pkcs11           Build with PKCS11 support],
    use_pkcs11="yes", use_pkcs11="no")
 
 case "$use_pkcs11" in
@@ -670,7 +686,7 @@ AC_SUBST(USE_PKCS11)
 
 AC_MSG_CHECKING(for GSSAPI library)
 AC_ARG_WITH(gssapi,
-[  --with-gssapi=PATH   Specify path for system-supplied GSSAPI],
+[  --with-gssapi=PATH      Specify path for system-supplied GSSAPI],
     use_gssapi="$withval", use_gssapi="no")
 
 gssapidirs="/usr/local /usr/pkg /usr/kerberos /usr"
@@ -824,7 +840,7 @@ AC_SUBST(DNS_CRYPTO_LIBS)
 #
 AC_MSG_CHECKING(for random device)
 AC_ARG_WITH(randomdev,
-[  --with-randomdev=PATH Specify path for random device],
+[  --with-randomdev=PATH   Specify path for random device],
     use_randomdev="$withval", use_randomdev="unspec")
 
 case "$use_randomdev" in
@@ -997,7 +1013,7 @@ AC_SUBST(ISC_THREAD_DIR)
 #
 AC_MSG_CHECKING(for libxml2 library)
 AC_ARG_WITH(libxml2,
-[  --with-libxml2[=PATH]   Build with libxml2 library [yes|no|path]],
+[  --with-libxml2[=PATH]     Build with libxml2 library [yes|no|path]],
     use_libxml2="$withval", use_libxml2="auto")
 
 case "$use_libxml2" in
@@ -1191,7 +1207,7 @@ esac
 #
 AC_MSG_CHECKING(whether to use purify)
 AC_ARG_WITH(purify,
-	[  --with-purify[=PATH]	use Rational purify],
+	[  --with-purify[=PATH]      use Rational purify],
 	use_purify="$withval", use_purify="no")
 
 case "$use_purify" in
@@ -1228,19 +1244,9 @@ esac
 
 AC_SUBST(PURIFY)
 
-#
-# GNU libtool support
-#
-case $build_os in
-sunos*)
-    # Just set the maximum command line length for sunos as it otherwise
-    # takes a exceptionally long time to work it out. Required for libtool.
-    lt_cv_sys_max_cmd_len=4096;
-    ;;
-esac
 
 AC_ARG_WITH(libtool,
-	    [  --with-libtool	use GNU libtool (following indented options supported)],
+	    [  --with-libtool          use GNU libtool],
 	    use_libtool="$withval", use_libtool="no")
 
 case $use_libtool in
@@ -1299,7 +1305,7 @@ AC_SUBST(LIBTOOL_IN_MAIN)
 # IPv6
 #
 AC_ARG_ENABLE(ipv6,
-	[  --enable-ipv6		use IPv6 [default=autodetect]])
+	[  --enable-ipv6           use IPv6 [default=autodetect]])
 
 case "$enable_ipv6" in
 	yes|''|autodetect)
@@ -1330,7 +1336,7 @@ AC_TRY_COMPILE([
 #
 AC_MSG_CHECKING(for Kame IPv6 support)
 AC_ARG_WITH(kame,
-	[  --with-kame[=PATH]	use Kame IPv6 [default path /usr/local/v6]],
+	[  --with-kame[=PATH]	  use Kame IPv6 [default path /usr/local/v6]],
 	use_kame="$withval", use_kame="no")
 
 case "$use_kame" in
@@ -1780,7 +1786,7 @@ AC_SUBST(ISC_LWRES_GETADDRINFOPROTO)
 AC_SUBST(ISC_LWRES_GETNAMEINFOPROTO)
 
 AC_ARG_ENABLE(getifaddrs,
-[  --enable-getifaddrs    Enable the use of getifaddrs() [[yes|no]].],
+[  --enable-getifaddrs     Enable the use of getifaddrs() [[yes|no]].],
     want_getifaddrs="$enableval",  want_getifaddrs="yes")
 
 #
@@ -1902,7 +1908,7 @@ AC_SUBST(ISC_EXTRA_SRCS)
 # Use our own SPNEGO implementation?
 #
 AC_ARG_ENABLE(isc-spnego,
-	[  --disable-isc-spnego		use SPNEGO from GSSAPI library])
+	[  --disable-isc-spnego    use SPNEGO from GSSAPI library])
 
 if test -n "$USE_GSSAPI"
 then
@@ -1967,7 +1973,7 @@ AC_SUBST(LWRES_PLATFORM_QUADFORMAT)
 # Note it is very recommended to *not* disable chroot(),
 # this is only because chroot() was made obsolete by Posix.
 AC_ARG_ENABLE(chroot,
-	[  --disable-chroot disable chroot])
+	[  --disable-chroot        disable chroot])
 case "$enable_chroot" in
 	yes|'')
 		AC_CHECK_FUNCS(chroot)
@@ -1976,7 +1982,7 @@ case "$enable_chroot" in
 		;;
 esac
 AC_ARG_ENABLE(linux-caps,
-	[  --disable-linux-caps	disable linux capabilities])
+	[  --disable-linux-caps	  disable linux capabilities])
 case "$enable_linux_caps" in
 	yes|'')
 		AC_CHECK_HEADERS(linux/capability.h sys/capability.h)
@@ -2215,13 +2221,43 @@ AC_CHECK_FUNCS(nanosleep)
 # Machine architecture dependent features
 #
 AC_ARG_ENABLE(atomic,
-	[  --enable-atomic	enable machine specific atomic operations
-			[[default=autodetect]]],
+	[  --enable-atomic	  enable machine specific atomic operations
+			  [[default=autodetect]]],
 			enable_atomic="$enableval",
 			enable_atomic="autodetect")
 case "$enable_atomic" in
 	yes|''|autodetect)
-		use_atomic=yes
+		case "$host" in
+		powerpc-ibm-aix*)
+			if test "X$GCC" = "Xyes"; then
+				AC_MSG_CHECKING([if asm("isc"); works])
+				AC_TRY_COMPILE(,[
+				main() { asm("ics"); exit(0); }
+				],
+				[AC_MSG_RESULT(yes)
+				 use_atomic=yes],
+				[
+				saved_cflags="$CFLAGS"
+				CFLAGS="$CFLAGS -Wa,-many"
+				AC_TRY_RUN([
+				main() { asm("ics"); exit(0); }
+				],
+				[AC_MSG_RESULT([yes, required -Wa,-many])
+				 use_atomic=yes],
+				[AC_MSG_RESULT([no, use_atomic disabled])
+				 CFLAGS="$saved_cflags"
+				 use_atomic=no],
+				[AC_MSG_RESULT([cross compile, assume yes])
+				 CFLAGS="$saved_cflags"
+				 use_atomic=yes])
+				]
+				)
+			fi
+			;;
+		*)
+			use_atomic=yes
+			;;
+		esac
 		;;
 	no)
 		use_atomic=no
@@ -2248,8 +2284,16 @@ main() {
 		[arch=x86_32])
 	;;
 	x86_64-*|amd64-*)
-		have_xaddq=yes
-		arch=x86_64
+AC_TRY_RUN([
+main() {
+       exit((sizeof(void *) == 8) ? 0 : 1);
+}
+],
+	       [arch=x86_64
+	       have_xaddq=yes],
+	       [arch=x86_32],
+	       [arch=x86_64
+	       have_xaddq=yes])
 	;;
 	alpha*-*)
 		arch=alpha
@@ -2354,9 +2398,9 @@ else
 fi
 
 if test "$have_xaddq" = "yes"; then
-        ISC_PLATFORM_HAVEXADDQ="#define ISC_PLATFORM_HAVEXADDQ 1"
+	ISC_PLATFORM_HAVEXADDQ="#define ISC_PLATFORM_HAVEXADDQ 1"
 else
-        ISC_PLATFORM_HAVEXADDQ="#undef ISC_PLATFORM_HAVEXADDQ"
+	ISC_PLATFORM_HAVEXADDQ="#undef ISC_PLATFORM_HAVEXADDQ"
 fi
 
 AC_SUBST(ISC_PLATFORM_HAVEXADD)
@@ -2376,14 +2420,14 @@ AC_SUBST(ISC_ARCH_DIR)
 # Activate "rrset-order fixed" or not?
 #
 AC_ARG_ENABLE(fixed-rrset,
-	[  --enable-fixed-rrset        enable fixed rrset ordering
-			[[default=no]]],
+	[  --enable-fixed-rrset    enable fixed rrset ordering
+			  [[default=no]]],
 			enable_fixed="$enableval",
 			enable_fixed="no")
 case "$enable_fixed" in
 	yes)
 		AC_DEFINE(DNS_RDATASET_FIXED, 1,
-                          [Define to enable "rrset-order fixed" syntax.])
+			  [Define to enable "rrset-order fixed" syntax.])
 		;;
 	no)
 		;;
@@ -2503,7 +2547,7 @@ AC_SUBST($1)
 #
 AC_MSG_CHECKING(for Docbook-XSL path)
 AC_ARG_WITH(docbook-xsl,
-[  --with-docbook-xsl=PATH    Specify path for Docbook-XSL stylesheets],
+[  --with-docbook-xsl=PATH Specify path for Docbook-XSL stylesheets],
    docbook_path="$withval", docbook_path="auto")
 case "$docbook_path" in
 auto)
@@ -2571,7 +2615,7 @@ AC_SUBST(XSLT_DB2LATEX_ADMONITIONS)
 # IDN support
 #
 AC_ARG_WITH(idn,
-	[  --with-idn[=MPREFIX]   enable IDN support using idnkit [default PREFIX]],
+	[  --with-idn[=MPREFIX]      enable IDN support using idnkit [default PREFIX]],
 	use_idn="$withval", use_idn="no")
 case "$use_idn" in
 yes)
@@ -2591,7 +2635,7 @@ esac
 iconvinc=
 iconvlib=
 AC_ARG_WITH(libiconv,
-	[  --with-libiconv[=IPREFIX]   GNU libiconv are in IPREFIX [default PREFIX]],
+	[  --with-libiconv[=IPREFIX] GNU libiconv are in IPREFIX [default PREFIX]],
 	use_libiconv="$withval", use_libiconv="no")
 case "$use_libiconv" in
 yes)
@@ -2610,7 +2654,7 @@ no)
 esac
 
 AC_ARG_WITH(iconv,
-	[  --with-iconv[=LIBSPEC]   specify iconv library [default -liconv]],
+	[  --with-iconv[=LIBSPEC]    specify iconv library [default -liconv]],
 	iconvlib="$withval")
 case "$iconvlib" in
 no)
@@ -2622,7 +2666,7 @@ yes)
 esac
 
 AC_ARG_WITH(idnlib,
-	[  --with-idnlib=ARG    specify libidnkit],
+	[  --with-idnlib=ARG       specify libidnkit],
 	idnlib="$withval", idnlib="no")
 if test "$idnlib" = yes; then
 	AC_MSG_ERROR([You must specify ARG for --with-idnlib.])
@@ -2678,7 +2722,7 @@ AC_SUBST_FILE(BIND9_MAKE_RULES)
 BIND9_MAKE_RULES=$BIND9_TOP_BUILDDIR/make/rules
 
 . $srcdir/version
-BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}.${PATCHVER}${RELEASETYPE}${RELEASEVER}"
+BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}"
 AC_SUBST(BIND9_VERSION)
 
 if test -z "$ac_configure_args"; then
@@ -2963,6 +3007,12 @@ AC_CONFIG_FILES([
 #
 
 AC_OUTPUT
+
+if test "X$USE_OPENSSL" = "X"; then
+cat << \EOF                                                             
+BIND is being built without OpenSSL. This means it will not have DNSSEC support.
+EOF
+fi
 
 if test "X$OPENSSL_WARNING" != "X"; then
 cat << \EOF

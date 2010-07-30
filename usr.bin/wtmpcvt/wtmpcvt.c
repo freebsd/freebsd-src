@@ -113,10 +113,10 @@ main(int argc, char *argv[])
 	/* Open files. */
 	in = fopen(argv[1], "r");
 	if (in == NULL)
-		err(1, argv[1]);
+		err(1, "%s", argv[1]);
 	out = fopen(argv[2], "w");
 	if (out == NULL)
-		err(1, argv[2]);
+		err(1, "%s", argv[2]);
 
 	/* Process entries. */
 	while (fread(&ui, sizeof ui, 1, in) == 1) {

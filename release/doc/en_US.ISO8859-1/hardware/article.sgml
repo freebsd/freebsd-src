@@ -36,6 +36,7 @@
     <legalnotice id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.amd;
+      &tm-attrib.fujitsu;
       &tm-attrib.ibm;
       &tm-attrib.intel;
       &tm-attrib.sparc;
@@ -326,12 +327,18 @@
 
       <para>All systems listed below are fully supported, with the
 	exception that software fan control is currently missing on
-	the Power Macintosh G5. SMP is supported on all systems with
-	more than 1 processor.</para>
+	some Power Macintosh G5 models. SMP is supported on all systems
+	with more than 1 processor.</para>
 
       <itemizedlist>
 	<listitem>
-	  <para>Apple iMac</para>
+	  <para>Apple iMac G3</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iMac G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iMac G5</para>
 	</listitem>
 	<listitem>
 	  <para>Apple Power Macintosh G3 (Blue & White)</para>
@@ -340,10 +347,16 @@
 	  <para>Apple Power Macintosh G4</para>
 	</listitem>
 	<listitem>
-	  <para>Apple Power Macintosh G5 (non-970MP models)</para>
+	  <para>Apple Power Macintosh G5</para>
 	</listitem>
 	<listitem>
-	  <para>Apple iBook</para>
+	  <para>Apple iBook G3</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iBook G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple PowerBook G3 (Lombard and Pismo)</para>
 	</listitem>
 	<listitem>
 	  <para>Apple PowerBook G4</para>
@@ -367,7 +380,8 @@
       <title>sparc64</title>
 
       <para>This section describes the systems currently known to be
-	supported by &os; on the &ultrasparc; platform.  For
+	supported by &os; on the Fujitsu &sparc64; and Sun &ultrasparc;
+	platforms.  For
 	background information on the various hardware designs see the
 	<ulink url="http://sunsolve.sun.com/handbook_pub/">Sun System
 	  Handbook</ulink>.</para>
@@ -377,8 +391,8 @@
 
       <para>When using the <filename>GENERIC</filename> kernel,
 	&os;/&arch.sparc64; systems not equipped with a framebuffer
-	supported by the &man.creator.4; (&sun; Creator, &sun; Creator3D
-	and &sun; Elite3D) or &man.machfb.4; (&sun; PGX and &sun; PGX64
+	supported by the &man.creator.4; (Sun Creator, Sun Creator3D
+	and Sun Elite3D) or &man.machfb.4; (Sun PGX and Sun PGX64
 	as well as the ATI Mach64 chips found onboard in for example
 	&sun.blade; 100, &sun.blade; 150, &sun.ultra; 5	and &sun.ultra; 10)
 	driver must use the serial console.</para>
@@ -392,6 +406,10 @@
 
       <itemizedlist>
 	<listitem>
+	  <para>Naturetech GENIALstation 777S</para>
+	</listitem>
+
+	<listitem>
 	  <para>&sun.blade; 100</para>
 	</listitem>
 
@@ -400,7 +418,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>&sun.enterprise; 100</para>
+	  <para>&sun.enterprise; 150</para>
 	</listitem>
 
 	<listitem>
@@ -420,6 +438,11 @@
 	</listitem>
 
 	<listitem>
+	  <para>&sun.fire; B100s (support for the on-board NICs first
+	    appeared in 8.1-RELEASE)</para>
+	</listitem>
+
+	<listitem>
 	  <para>&sun.fire; V100</para>
 	</listitem>
 
@@ -428,51 +451,55 @@
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t1 105</para>
+	  <para>Sun &netra; t1 100/105</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; T1 AC200/DC200</para>
+	  <para>Sun &netra; T1 AC200/DC200</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t 1100</para>
+	  <para>Sun &netra; t 1100</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t 1120</para>
+	  <para>Sun &netra; t 1120</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t 1125</para>
+	  <para>Sun &netra; t 1125</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; t 1400/1405</para>
+	  <para>Sun &netra; t 1400/1405</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; 120</para>
+	  <para>Sun &netra; 120</para>
 	</listitem>
 
 	<listitem>
-	  <para>&netra; X1</para>
+	  <para>Sun &netra; X1</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sparcengine; Ultra AX1105</para>
+	  <para>Sun &sparcengine; Ultra AX1105</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sparcengine; Ultra AXe</para>
+	  <para>Sun &sparcengine; Ultra AXe</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sparcengine; Ultra AXi</para>
+	  <para>Sun &sparcengine; Ultra AXi</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sparcengine; Ultra AXmp</para>
+	  <para>Sun &sparcengine; Ultra AXmp</para>
+	</listitem>
+
+	<listitem>
+	  <para>Sun &sparcengine; CP1500</para>
 	</listitem>
 
 	<listitem>
@@ -515,8 +542,8 @@
       <para>The following systems are partially supported by &os;.  In
 	particular the fibre channel controllers in SBus-based systems are not
 	supported.  However, it is possible to use these with a SCSI controller
-	supported by the &man.esp.4 driver (&sun; ESP SCSI, &sun; FAS Fast-SCSI
-	and &sun; FAS366 Fast-Wide SCSI controllers).</para>
+	supported by the &man.esp.4 driver (Sun ESP SCSI, Sun FAS Fast-SCSI
+	and Sun FAS366 Fast-Wide SCSI controllers).</para>
 
       <itemizedlist>
 	<listitem>
@@ -528,7 +555,7 @@
 	</listitem>
       </itemizedlist>
 
-      <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on
+      <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on Sun
 	&ultrasparc; III and beyond are also supported by &os;, which includes
 	the following known working systems:</para>
 
@@ -580,11 +607,16 @@
 	</listitem>
 
 	<listitem>
+	  <para>&sun.fire; V890 (support first appeared in 8.1-RELEASE,
+	    non-mixed &ultrasparc; IV/IV+ CPU-configurations only)</para>
+	</listitem>
+
+	<listitem>
 	  <para>&netra; 20/&netra; T4</para>
 	</listitem>
       </itemizedlist>
 
-      <para>The following &ultrasparc; IIIi systems are not tested but
+      <para>The following Sun &ultrasparc; systems are not tested but
 	believed to be also supported by &os;:</para>
 
       <itemizedlist>
@@ -599,7 +631,40 @@
 	<listitem>
 	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE)</para>
 	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V490 (support first appeared in 8.1-RELEASE,
+	    non-mixed &ultrasparc; IV/IV+ CPU-configurations only)</para>
+	</listitem>
       </itemizedlist>
+
+      <para>Starting with 8.1-RELEASE, &arch.sparc64; systems based on
+	Fujitsu &sparc64; V are also supported by &os;, which
+	includes the following known working systems:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Fujitsu &primepower; 250</para>
+	</listitem>
+      </itemizedlist>
+
+      <para>The following Fujitsu &primepower; systems are not tested but
+	believed to be also supported by &os;:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Fujitsu &primepower; 450</para>
+	</listitem>
+
+	<listitem>
+	  <para>Fujitsu &primepower; 650</para>
+	</listitem>
+
+	<listitem>
+	  <para>Fujitsu &primepower; 850</para>
+	</listitem>
+      </itemizedlist>
+
     </sect2>
   </sect1>
 
@@ -842,6 +907,9 @@
 
       &hwlist.ep;
 
+      <para>Agere ET1310 Gigabit Ethernet adapters
+	(&man.et.4; driver)</para>
+
       &hwlist.ex;
 
       &hwlist.fe;
@@ -889,6 +957,8 @@
       &hwlist.rue;
 
       &hwlist.sf;
+
+      &hwlist.sge;
 
       &hwlist.sis;
 
@@ -981,9 +1051,14 @@
       <para>[&arch.i386;, &arch.amd64;] Marvell Libertas IEEE 802.11b/g
         PCI network adapters (&man.malo.4; driver)</para>
 
+      <para>Marvell 88W8363 IEEE 802.11n wireless network
+	adapters (&man.mwl.4; driver)</para>
+
       &hwlist.ral;
 
       &hwlist.rum;
+
+      &hwlist.run;
 
       &hwlist.uath;
 

@@ -120,7 +120,7 @@ struct device {
 	char*		desc;		/**< driver specific description */
 	int		busy;		/**< count of calls to device_busy() */
 	device_state_t	state;		/**< current device state  */
-	u_int32_t	devflags;	/**< api level flags for device_get_flags() */
+	uint32_t	devflags;	/**< api level flags for device_get_flags() */
 	u_short		flags;		/**< internal device flags  */
 #define	DF_ENABLED	1		/* device should be probed/attached */
 #define	DF_FIXEDCLASS	2		/* devclass specified at create time */
@@ -539,21 +539,22 @@ devctl_process_running(void)
  * that @p data is allocated using the M_BUS malloc type.
  */
 void
-devctl_queue_data(char *data)
+devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
 	struct proc *p;
 
 	if (strlen(data) == 0)
-		return;
+		goto out;
 	if (devctl_queue_length == 0)
-		return;
-	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
+		goto out;
+	n1 = malloc(sizeof(*n1), M_BUS, flags);
 	if (n1 == NULL)
-		return;
+		goto out;
 	n1->dei_data = data;
 	mtx_lock(&devsoftc.mtx);
 	if (devctl_queue_length == 0) {
+		mtx_unlock(&devsoftc.mtx);
 		free(n1->dei_data, M_BUS);
 		free(n1, M_BUS);
 		return;
@@ -577,14 +578,29 @@ devctl_queue_data(char *data)
 		psignal(p, SIGIO);
 		PROC_UNLOCK(p);
 	}
+	return;
+out:
+	/*
+	 * We have to free data on all error paths since the caller
+	 * assumes it will be free'd when this item is dequeued.
+	 */
+	free(data, M_BUS);
+	return;
+}
+
+void
+devctl_queue_data(char *data)
+{
+
+	devctl_queue_data_f(data, M_NOWAIT);
 }
 
 /**
  * @brief Send a 'notification' to userland, using standard ways
  */
 void
-devctl_notify(const char *system, const char *subsystem, const char *type,
-    const char *data)
+devctl_notify_f(const char *system, const char *subsystem, const char *type,
+    const char *data, int flags)
 {
 	int len = 0;
 	char *msg;
@@ -602,7 +618,7 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 	if (data != NULL)
 		len += strlen(data);
 	len += 3;	/* '!', '\n', and NUL */
-	msg = malloc(len, M_BUS, M_NOWAIT);
+	msg = malloc(len, M_BUS, flags);
 	if (msg == NULL)
 		return;		/* Drop it on the floor */
 	if (data != NULL)
@@ -611,7 +627,15 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 	else
 		snprintf(msg, len, "!system=%s subsystem=%s type=%s\n",
 		    system, subsystem, type);
-	devctl_queue_data(msg);
+	devctl_queue_data_f(msg, flags);
+}
+
+void
+devctl_notify(const char *system, const char *subsystem, const char *type,
+    const char *data)
+{
+
+	devctl_notify_f(system, subsystem, type, data, M_NOWAIT);
 }
 
 /*
@@ -1157,6 +1181,9 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 				if ((error = device_detach(dev)) != 0)
 					return (error);
 				device_set_driver(dev, NULL);
+				BUS_PROBE_NOMATCH(dev->parent, dev);
+				devnomatch(dev);
+				dev->flags |= DF_DONENOMATCH;
 			}
 		}
 	}
@@ -2180,7 +2207,7 @@ device_get_desc(device_t dev)
 /**
  * @brief Return the device's flags
  */
-u_int32_t
+uint32_t
 device_get_flags(device_t dev)
 {
 	return (dev->devflags);
@@ -2288,7 +2315,7 @@ device_set_desc_copy(device_t dev, const char* desc)
  * @brief Set the device's flags
  */
 void
-device_set_flags(device_t dev, u_int32_t flags)
+device_set_flags(device_t dev, uint32_t flags)
 {
 	dev->devflags = flags;
 }
@@ -2651,6 +2678,7 @@ device_attach(device_t dev)
 	}
 	device_sysctl_update(dev);
 	dev->state = DS_ATTACHED;
+	dev->flags &= ~DF_DONENOMATCH;
 	devadded(dev);
 	return (0);
 }

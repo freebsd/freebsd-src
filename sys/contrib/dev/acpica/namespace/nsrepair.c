@@ -683,7 +683,7 @@ AcpiNsRepairNullElement (
     {
         /* Need an Integer - create a zero-value integer */
 
-        NewObject = AcpiUtCreateIntegerObject (0);
+        NewObject = AcpiUtCreateIntegerObject ((UINT64) 0);
     }
     else if (ExpectedBtypes & ACPI_RTYPE_STRING)
     {

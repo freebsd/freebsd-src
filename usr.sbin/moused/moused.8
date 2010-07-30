@@ -787,34 +787,6 @@ file, and bind
 .Pp
 to a key in your window manager, you can suspend mouse events on your laptop if
 you keep brushing over the mouse pad while typing.
-.Sh CAVEATS
-Many pad devices behave as if the first (left) button were pressed if
-the user
-.Dq taps
-the surface of the pad.
-In contrast, some ALPS GlidePoint and Interlink VersaPad models
-treat the tapping action
-as fourth button events.
-Use the option
-.Dq Fl m Li 1=4
-for these models
-to obtain the same effect as the other pad devices.
-.Pp
-Cut and paste functions in the virtual console assume that there
-are three buttons on the mouse.
-The logical button 1 (logical left) selects a region of text in the
-console and copies it to the cut buffer.
-The logical button 3 (logical right) extends the selected region.
-The logical button 2 (logical middle) pastes the selected text
-at the text cursor position.
-If the mouse has only two buttons, the middle, `paste' button
-is not available.
-To obtain the paste function, use the
-.Fl 3
-option to emulate the middle button, or use the
-.Fl m
-option to assign the physical right button to the logical middle button:
-.Dq Fl m Li 2=3 .
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr vidcontrol 1 ,
@@ -852,3 +824,31 @@ This manual page was written by
 .An Mike Pritchard Aq mpp@FreeBSD.org .
 The command and manual page have since been updated by
 .An Kazutaka Yokota Aq yokota@FreeBSD.org .
+.Sh CAVEATS
+Many pad devices behave as if the first (left) button were pressed if
+the user
+.Dq taps
+the surface of the pad.
+In contrast, some ALPS GlidePoint and Interlink VersaPad models
+treat the tapping action
+as fourth button events.
+Use the option
+.Dq Fl m Li 1=4
+for these models
+to obtain the same effect as the other pad devices.
+.Pp
+Cut and paste functions in the virtual console assume that there
+are three buttons on the mouse.
+The logical button 1 (logical left) selects a region of text in the
+console and copies it to the cut buffer.
+The logical button 3 (logical right) extends the selected region.
+The logical button 2 (logical middle) pastes the selected text
+at the text cursor position.
+If the mouse has only two buttons, the middle, `paste' button
+is not available.
+To obtain the paste function, use the
+.Fl 3
+option to emulate the middle button, or use the
+.Fl m
+option to assign the physical right button to the logical middle button:
+.Dq Fl m Li 2=3 .

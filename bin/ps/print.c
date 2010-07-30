@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <nlist.h>
 #include <pwd.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -616,6 +617,21 @@ elapsed(KINFO *k, VARENT *ve)
 	else
 		(void)snprintf(obuff, sizeof(obuff), "%02d:%02d", mins, secs);
 	(void)printf("%*s", v->width, obuff);
+}
+
+void
+elapseds(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+	time_t val;
+
+	v = ve->var;
+	if (!k->ki_valid) {
+		(void)printf("%-*s", v->width, "-");
+		return;
+	}
+	val = now - k->ki_p->ki_start.tv_sec;
+	(void)printf("%*jd", v->width, (intmax_t)val);
 }
 
 double

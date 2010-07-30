@@ -92,6 +92,7 @@ SRCS+=	ar9160_attach.c
 SRCS+=	ar9280.c ar9280_attach.c
 # RF backend for 5416 and 9160
 SRCS+=	ar2133.c
+SRCS+=	ar9285.c ar9285_reset.c ar9285_attach.c
 
 # NB: rate control is bound to the driver by symbol names so only pick one
 .if ${ATH_RATE} == "sample"

@@ -9,10 +9,10 @@ _CPUCFLAGS =
 . if ${MACHINE_ARCH} == "i386"
 MACHINE_CPU = i486
 . elif ${MACHINE_ARCH} == "amd64"
-MACHINE_CPU = amd64 sse2 sse
+MACHINE_CPU = amd64 sse2 sse mmx
 . elif ${MACHINE_ARCH} == "ia64"
 MACHINE_CPU = itanium
-. elif ${MACHINE_ARCH} == "powerpc"
+. elif ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 MACHINE_CPU = aim
 . elif ${MACHINE_ARCH} == "sparc64"
 . elif ${MACHINE_ARCH} == "arm"
@@ -121,6 +121,8 @@ _CPUCFLAGS = -Wa,-me500 -msoft-float
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
 .  endif
+. elif ${MACHINE_ARCH} == "powerpc64"
+_CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_ARCH} == "mips"
 .  if ${CPUTYPE} == "mips32"
 _CPUCFLAGS = -march=mips32
@@ -203,14 +205,12 @@ LD += -EB
 .if ${MACHINE_ARCH} == "mips" 
 . if defined(TARGET_BIG_ENDIAN)
 CFLAGS += -EB
-LDFLAGS += -Wl,-EB
 LD += -EB
 . else
 CFLAGS += -EL
-LDFLAGS += -Wl,-EL
 LD += -EL
 . endif
-CFLAGS += -msoft-float -G0 -mno-dsp -mabicalls
+CFLAGS += -G0
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk

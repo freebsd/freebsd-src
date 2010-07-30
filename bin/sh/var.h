@@ -77,6 +77,7 @@ extern struct var vps2;
 extern struct var vps4;
 #ifndef NO_HISTORY
 extern struct var vhistsize;
+extern struct var vterm;
 #endif
 
 /*
@@ -96,6 +97,7 @@ extern struct var vhistsize;
 #define optindval()	(voptind.text + 7)
 #ifndef NO_HISTORY
 #define histsizeval()	(vhistsize.text + 9)
+#define termval()	(vterm.text + 5)
 #endif
 
 #define mpathset()	((vmpath.flags & VUNSET) == 0)
@@ -107,6 +109,8 @@ struct strlist;
 void listsetvar(struct strlist *);
 char *lookupvar(const char *);
 char *bltinlookup(const char *, int);
+void bltinsetlocale(void);
+void bltinunsetlocale(void);
 char **environment(void);
 int showvarscmd(int, char **);
 int exportcmd(int, char **);

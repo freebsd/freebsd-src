@@ -29,7 +29,7 @@ case "$daily_accounting_enable" in
 
 	    cd /var/account
 	    rc=0
-	
+
 	    n=$daily_accounting_save
 	    rm -f acct.$n.gz acct.$n || rc=3
 	    m=$n

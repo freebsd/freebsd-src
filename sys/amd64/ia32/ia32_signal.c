@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/vnode.h>
@@ -92,7 +93,14 @@ static void
 ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp)
 {
 
-	mcp->mc_ownedfp = fpugetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+	/*
+	 * XXX Format of 64bit and 32bit FXSAVE areas differs. FXSAVE
+	 * in 32bit mode saves %cs and %ds, while on 64bit it saves
+	 * 64bit instruction and data pointers. Ignore the difference
+	 * for now, it should be irrelevant for most applications.
+	 */
+	mcp->mc_ownedfp = fpugetuserregs(td,
+	    (struct savefpu *)&mcp->mc_fpstate);
 	mcp->mc_fpformat = fpuformat();
 }
 
@@ -109,11 +117,7 @@ ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		/*
-		 * XXX we violate the dubious requirement that fpusetregs()
-		 * be called with interrupts disabled.
-		 */
-		fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+		fpusetuserregs(td, (struct savefpu *)&mcp->mc_fpstate);
 	} else
 		return (EINVAL);
 	return (0);
@@ -141,9 +145,11 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_esi = tp->tf_rsi;
 	mcp->mc_ebp = tp->tf_rbp;
 	mcp->mc_isp = tp->tf_rsp;
+	mcp->mc_eflags = tp->tf_rflags;
 	if (flags & GET_MC_CLEAR_RET) {
 		mcp->mc_eax = 0;
 		mcp->mc_edx = 0;
+		mcp->mc_eflags &= ~PSL_C;
 	} else {
 		mcp->mc_eax = tp->tf_rax;
 		mcp->mc_edx = tp->tf_rdx;
@@ -152,7 +158,6 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_ecx = tp->tf_rcx;
 	mcp->mc_eip = tp->tf_rip;
 	mcp->mc_cs = tp->tf_cs;
-	mcp->mc_eflags = tp->tf_rflags;
 	mcp->mc_esp = tp->tf_rsp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
@@ -565,7 +570,8 @@ freebsd4_freebsd32_sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("freebsd4_freebsd32_sigreturn: eflags = 0x%x\n", eflags);
+		uprintf("pid %d (%s): freebsd4_freebsd32_sigreturn eflags = 0x%x\n",
+		    td->td_proc->p_pid, td->td_name, eflags);
 		return (EINVAL);
 	}
 
@@ -576,7 +582,8 @@ freebsd4_freebsd32_sigreturn(td, uap)
 	 */
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
-		printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
+		uprintf("pid %d (%s): freebsd4_sigreturn cs = 0x%x\n",
+		    td->td_proc->p_pid, td->td_name, cs);
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGBUS;
 		ksi.ksi_code = BUS_OBJERR;
@@ -647,7 +654,8 @@ freebsd32_sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("freebsd32_sigreturn: eflags = 0x%x\n", eflags);
+		uprintf("pid %d (%s): freebsd32_sigreturn eflags = 0x%x\n",
+		    td->td_proc->p_pid, td->td_name, eflags);
 		return (EINVAL);
 	}
 
@@ -658,7 +666,8 @@ freebsd32_sigreturn(td, uap)
 	 */
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
-		printf("sigreturn: cs = 0x%x\n", cs);
+		uprintf("pid %d (%s): sigreturn cs = 0x%x\n",
+		    td->td_proc->p_pid, td->td_name, cs);
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGBUS;
 		ksi.ksi_code = BUS_OBJERR;
@@ -701,11 +710,7 @@ freebsd32_sigreturn(td, uap)
  * Clear registers on exec
  */
 void
-ia32_setregs(td, entry, stack, ps_strings)
-	struct thread *td;
-	u_long entry;
-	u_long stack;
-	u_long ps_strings;
+ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
@@ -721,12 +726,12 @@ ia32_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW_I386__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
-	regs->tf_rip = entry;
+	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = stack;
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucode32sel;
-	regs->tf_rbx = ps_strings;
+	regs->tf_rbx = imgp->ps_strings;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _ufssel;

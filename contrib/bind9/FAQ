@@ -1,6 +1,6 @@
 Frequently Asked Questions about BIND 9
 
-Copyright © 2004-2009 Internet Systems Consortium, Inc. ("ISC")
+Copyright © 2004-2010 Internet Systems Consortium, Inc. ("ISC")
 
 Copyright © 2000-2003 Internet Software Consortium.
 
@@ -783,6 +783,22 @@ A: Red Hat Security Enhanced Linux (SELinux) policy security protections :
 
    See these man-pages for more information : selinux(8), named_selinux
    (8), chcon(1), setsebool(8)
+
+Q: I'm running BIND on Ubuntu -
+
+   Why can't named update slave zone database files?
+
+   Why can't named create DDNS journal files or update the master zones
+   from journals?
+
+   Why can't named create custom log files?
+
+A: Ubuntu uses AppArmor <http://en.wikipedia.org/wiki/AppArmor> in
+   addition to normal file system permissions to protect the system.
+
+   Adjust the paths to use those specified in /etc/apparmor.d/
+   usr.sbin.named or adjust /etc/apparmor.d/usr.sbin.named to allow named
+   to write at the location specified in named.conf.
 
 Q: Listening on individual IPv6 interfaces does not work.
 

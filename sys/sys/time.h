@@ -264,6 +264,7 @@ void	resettodr(void);
 
 extern time_t	time_second;
 extern time_t	time_uptime;
+extern struct bintime boottimebin;
 extern struct timeval boottime;
 
 /*

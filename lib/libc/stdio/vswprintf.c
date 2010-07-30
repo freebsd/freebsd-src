@@ -45,7 +45,7 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 {
 	static const mbstate_t initial;
 	mbstate_t mbs;
-	FILE f;
+	FILE f = FAKE_FILE;
 	char *mbp;
 	int ret, sverrno;
 	size_t nwc;
@@ -55,7 +55,6 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 		return (-1);
 	}
 
-	f._file = -1;
 	f._flags = __SWR | __SSTR | __SALC;
 	f._bf._base = f._p = (unsigned char *)malloc(128);
 	if (f._bf._base == NULL) {
@@ -63,8 +62,6 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NUL */
-	f._orientation = 0;
-	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	ret = __vfwprintf(&f, fmt, ap);
 	if (ret < 0) {
 		sverrno = errno;

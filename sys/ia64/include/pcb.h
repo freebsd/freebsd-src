@@ -30,7 +30,9 @@
 #ifndef _MACHINE_PCB_H_
 #define _MACHINE_PCB_H_
 
+#ifndef _MACHINE_REGSET_H_
 #include <machine/_regset.h>
+#endif
 
 /*
  * PCB: process control block

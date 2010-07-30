@@ -41,6 +41,7 @@
 int
 cftime(char *s, char *format, const time_t *clock)
 {
-	return strftime(s, MAXLEN, format? format: "%C", localtime(clock));
+
+	return (strftime(s, MAXLEN, format? format: "%C", localtime(clock)));
 }
 

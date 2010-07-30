@@ -88,12 +88,6 @@ is not marked as clean.
 Print the current generation numbers for all inodes instead of
 generating new ones.
 .El
-.Sh CAVEATS
-Since
-.Nm
-allocates enough memory to hold all the inodes in
-a given cylinder group it may use a large amount
-of memory for large disks with few cylinder groups.
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr fsck 8 ,
@@ -114,3 +108,9 @@ version first appeared in
 .Fx 2.2.5 .
 .Sh AUTHORS
 .An Todd C. Miller Aq Todd.Miller@courtesan.com
+.Sh CAVEATS
+Since
+.Nm
+allocates enough memory to hold all the inodes in
+a given cylinder group it may use a large amount
+of memory for large disks with few cylinder groups.

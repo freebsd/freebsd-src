@@ -379,7 +379,7 @@ cache_lookup(dvp, vpp, cnp)
 	struct componentname *cnp;
 {
 	struct namecache *ncp;
-	u_int32_t hash;
+	uint32_t hash;
 	int error, ltype, wlocked;
 
 	if (!doingcache) {
@@ -602,7 +602,7 @@ cache_enter(dvp, vp, cnp)
 {
 	struct namecache *ncp, *n2;
 	struct nchashhead *ncpp;
-	u_int32_t hash;
+	uint32_t hash;
 	int flag;
 	int hold;
 	int zap;
@@ -610,7 +610,9 @@ cache_enter(dvp, vp, cnp)
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
 	VNASSERT(vp == NULL || (vp->v_iflag & VI_DOOMED) == 0, vp,
-	    ("cahe_enter: Adding a doomed vnode"));
+	    ("cache_enter: Adding a doomed vnode"));
+	VNASSERT(dvp == NULL || (dvp->v_iflag & VI_DOOMED) == 0, dvp,
+	    ("cache_enter: Doomed vnode used as src"));
 
 	if (!doingcache)
 		return;

@@ -400,6 +400,8 @@ static void bge_setpromisc(struct bge_softc *);
 static void bge_setmulti(struct bge_softc *);
 static void bge_setvlan(struct bge_softc *);
 
+static __inline void bge_rxreuse_std(struct bge_softc *, int);
+static __inline void bge_rxreuse_jumbo(struct bge_softc *, int);
 static int bge_newbuf_std(struct bge_softc *, int);
 static int bge_newbuf_jumbo(struct bge_softc *, int);
 static int bge_init_rx_ring_std(struct bge_softc *);
@@ -421,7 +423,6 @@ static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
 static void bge_writemem_direct(struct bge_softc *, int, int);
 static void bge_writereg_ind(struct bge_softc *, int, int);
-static void bge_set_max_readrq(struct bge_softc *);
 
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
@@ -520,7 +521,7 @@ bge_has_eaddr(struct bge_softc *sc)
 	 */
 	if (OF_getprop(ofw_bus_get_node(dev), SPARC64_OFW_SUBVENDOR,
 	    &subvendor, sizeof(subvendor)) == sizeof(subvendor) &&
-	    subvendor == SUN_VENDORID)
+	    (subvendor == FJTSU_VENDORID || subvendor == SUN_VENDORID))
 		return (0);
 	memset(buf, 0, sizeof(buf));
 	if (OF_package_to_path(ofw_bus_get_node(dev), buf, sizeof(buf)) > 0) {
@@ -559,32 +560,6 @@ bge_writemem_ind(struct bge_softc *sc, int off, int val)
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_DATA, val, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, 0, 4);
-}
-
-/*
- * PCI Express only
- */
-static void
-bge_set_max_readrq(struct bge_softc *sc)
-{
-	device_t dev;
-	uint16_t val;
-
-	dev = sc->bge_dev;
-
-	val = pci_read_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
-	if ((val & PCIM_EXP_CTL_MAX_READ_REQUEST) !=
-	    BGE_PCIE_DEVCTL_MAX_READRQ_4096) {
-		if (bootverbose)
-			device_printf(dev, "adjust device control 0x%04x ",
-			    val);
-		val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
-		val |= BGE_PCIE_DEVCTL_MAX_READRQ_4096;
-		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
-		    val, 2);
-		if (bootverbose)
-			printf("-> 0x%04x\n", val);
-	}
 }
 
 #ifdef notdef
@@ -949,6 +924,7 @@ bge_newbuf_std(struct bge_softc *sc, int i)
 	sc->bge_cdata.bge_rx_std_dmamap[i] = sc->bge_cdata.bge_rx_std_sparemap;
 	sc->bge_cdata.bge_rx_std_sparemap = map;
 	sc->bge_cdata.bge_rx_std_chain[i] = m;
+	sc->bge_cdata.bge_rx_std_seglen[i] = segs[0].ds_len;
 	r = &sc->bge_ldata.bge_rx_std_ring[sc->bge_std];
 	r->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[0].ds_addr);
 	r->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[0].ds_addr);
@@ -1006,6 +982,11 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 	    sc->bge_cdata.bge_rx_jumbo_sparemap;
 	sc->bge_cdata.bge_rx_jumbo_sparemap = map;
 	sc->bge_cdata.bge_rx_jumbo_chain[i] = m;
+	sc->bge_cdata.bge_rx_jumbo_seglen[i][0] = 0;
+	sc->bge_cdata.bge_rx_jumbo_seglen[i][1] = 0;
+	sc->bge_cdata.bge_rx_jumbo_seglen[i][2] = 0;
+	sc->bge_cdata.bge_rx_jumbo_seglen[i][3] = 0;
+
 	/*
 	 * Fill in the extended RX buffer descriptor.
 	 */
@@ -1018,18 +999,22 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 		r->bge_addr3.bge_addr_lo = BGE_ADDR_LO(segs[3].ds_addr);
 		r->bge_addr3.bge_addr_hi = BGE_ADDR_HI(segs[3].ds_addr);
 		r->bge_len3 = segs[3].ds_len;
+		sc->bge_cdata.bge_rx_jumbo_seglen[i][3] = segs[3].ds_len;
 	case 3:
 		r->bge_addr2.bge_addr_lo = BGE_ADDR_LO(segs[2].ds_addr);
 		r->bge_addr2.bge_addr_hi = BGE_ADDR_HI(segs[2].ds_addr);
 		r->bge_len2 = segs[2].ds_len;
+		sc->bge_cdata.bge_rx_jumbo_seglen[i][2] = segs[2].ds_len;
 	case 2:
 		r->bge_addr1.bge_addr_lo = BGE_ADDR_LO(segs[1].ds_addr);
 		r->bge_addr1.bge_addr_hi = BGE_ADDR_HI(segs[1].ds_addr);
 		r->bge_len1 = segs[1].ds_len;
+		sc->bge_cdata.bge_rx_jumbo_seglen[i][1] = segs[1].ds_len;
 	case 1:
 		r->bge_addr0.bge_addr_lo = BGE_ADDR_LO(segs[0].ds_addr);
 		r->bge_addr0.bge_addr_hi = BGE_ADDR_HI(segs[0].ds_addr);
 		r->bge_len0 = segs[0].ds_len;
+		sc->bge_cdata.bge_rx_jumbo_seglen[i][0] = segs[0].ds_len;
 		break;
 	default:
 		panic("%s: %d segments\n", __func__, nsegs);
@@ -1041,12 +1026,6 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 	return (0);
 }
 
-/*
- * The standard receive ring has 512 entries in it. At 2K per mbuf cluster,
- * that's 1MB or memory, which is a lot. For now, we fill only the first
- * 256 ring entries and hope that our CPU is fast enough to keep up with
- * the NIC.
- */
 static int
 bge_init_rx_ring_std(struct bge_softc *sc)
 {
@@ -1054,7 +1033,7 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 
 	bzero(sc->bge_ldata.bge_rx_std_ring, BGE_STD_RX_RING_SZ);
 	sc->bge_std = 0;
-	for (i = 0; i < BGE_SSLOTS; i++) {
+	for (i = 0; i < BGE_STD_RX_RING_CNT; i++) {
 		if ((error = bge_newbuf_std(sc, i)) != 0)
 			return (error);
 		BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
@@ -1063,8 +1042,8 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
 
-	sc->bge_std = i - 1;
-	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
+	sc->bge_std = 0;
+	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, BGE_STD_RX_RING_CNT - 1);
 
 	return (0);
 }
@@ -1106,14 +1085,14 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 	    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 
-	sc->bge_jumbo = i - 1;
+	sc->bge_jumbo = 0;
 
 	rcb = &sc->bge_ldata.bge_info.bge_jumbo_rx_rcb;
 	rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0,
 				    BGE_RCB_FLAG_USE_EXT_RX_BD);
 	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
 
-	bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
+	bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, BGE_JUMBO_RX_RING_CNT - 1);
 
 	return (0);
 }
@@ -1342,6 +1321,7 @@ static int
 bge_chipinit(struct bge_softc *sc)
 {
 	uint32_t dma_rw_ctl;
+	uint16_t val;
 	int i;
 
 	/* Set endianness before we access any non-PCI registers. */
@@ -1362,6 +1342,17 @@ bge_chipinit(struct bge_softc *sc)
 	    i < BGE_STATUS_BLOCK_END + 1; i += sizeof(uint32_t))
 		BGE_MEMWIN_WRITE(sc, i, 0);
 
+	if (sc->bge_chiprev == BGE_CHIPREV_5704_BX) {
+		/*
+		 *  Fix data corruption caused by non-qword write with WB.
+		 *  Fix master abort in PCI mode.
+		 *  Fix PCI latency timer.
+		 */
+		val = pci_read_config(sc->bge_dev, BGE_PCI_MSI_DATA + 2, 2);
+		val |= (1 << 10) | (1 << 12) | (1 << 13);
+		pci_write_config(sc->bge_dev, BGE_PCI_MSI_DATA + 2, val, 2);
+	}
+
 	/*
 	 * Set up the PCI DMA control register.
 	 */
@@ -1378,6 +1369,15 @@ bge_chipinit(struct bge_softc *sc)
 			dma_rw_ctl |= (sc->bge_asicrev == BGE_ASICREV_BCM5780) ?
 			    BGE_PCIDMARWCTL_ONEDMA_ATONCE_GLOBAL :
 			    BGE_PCIDMARWCTL_ONEDMA_ATONCE_LOCAL;
+		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5703) {
+			/*
+			 * In the BCM5703, the DMA read watermark should
+			 * be set to less than or equal to the maximum
+			 * memory read byte count of the PCI-X command
+			 * register.
+			 */
+			dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(4) |
+			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(3);
 		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
 			/* 1536 bytes for read, 384 bytes for write. */
 			dma_rw_ctl |= BGE_PCIDMARWCTL_RD_WAT_SHIFT(7) |
@@ -1760,15 +1760,19 @@ bge_blockinit(struct bge_softc *sc)
 	    BGE_ADDR_HI(sc->bge_ldata.bge_status_block_paddr));
 	CSR_WRITE_4(sc, BGE_HCC_STATUSBLK_ADDR_LO,
 	    BGE_ADDR_LO(sc->bge_ldata.bge_status_block_paddr));
-	sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx = 0;
-	sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx = 0;
 
 	/* Set up status block size. */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
-	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
+	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0) {
 		val = BGE_STATBLKSZ_FULL;
-	else
+		bzero(sc->bge_ldata.bge_status_block, BGE_STATUS_BLK_SZ);
+	} else {
 		val = BGE_STATBLKSZ_32BYTE;
+		bzero(sc->bge_ldata.bge_status_block, 32);
+	}
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/* Turn on host coalescing state machine */
 	CSR_WRITE_4(sc, BGE_HCC_MODE, val | BGE_HCCMODE_ENABLE);
@@ -1834,8 +1838,12 @@ bge_blockinit(struct bge_softc *sc)
 		    BGE_RDMAMODE_MBUF_SBD_CRPT_ATTN;
 	if (sc->bge_flags & BGE_FLAG_PCIE)
 		val |= BGE_RDMAMODE_FIFO_LONG_BURST;
-	if (sc->bge_flags & BGE_FLAG_TSO)
+	if (sc->bge_flags & BGE_FLAG_TSO) {
 		val |= BGE_RDMAMODE_TSO4_ENABLE;
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM57780)
+			val |= BGE_RDMAMODE_TSO6_ENABLE;
+	}
 	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
 	DELAY(40);
 
@@ -2656,9 +2664,11 @@ bge_attach(device_t dev)
 		/*
 		 * BCM5754 and BCM5787 shares the same ASIC id so
 		 * explicit device id check is required.
+		 * Due to unknown reason TSO does not work on BCM5755M.
 		 */
 		if (pci_get_device(dev) != BCOM_DEVICEID_BCM5754 &&
-		    pci_get_device(dev) != BCOM_DEVICEID_BCM5754M)
+		    pci_get_device(dev) != BCOM_DEVICEID_BCM5754M &&
+		    pci_get_device(dev) != BCOM_DEVICEID_BCM5755M)
 			sc->bge_flags |= BGE_FLAG_TSO;
 	}
 
@@ -2672,7 +2682,8 @@ bge_attach(device_t dev)
 		 */
 		sc->bge_flags |= BGE_FLAG_PCIE;
 		sc->bge_expcap = reg;
-		bge_set_max_readrq(sc);
+		if (pci_get_max_read_req(dev) != 4096)
+			pci_set_max_read_req(dev, 4096);
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
@@ -2816,7 +2827,7 @@ bge_attach(device_t dev)
 	    IFCAP_VLAN_MTU;
 	if ((sc->bge_flags & BGE_FLAG_TSO) != 0) {
 		ifp->if_hwassist |= CSUM_TSO;
-		ifp->if_capabilities |= IFCAP_TSO4;
+		ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
 	}
 #ifdef IFCAP_VLAN_HWCSUM
 	ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
@@ -3156,7 +3167,26 @@ bge_reset(struct bge_softc *sc)
 	pci_write_config(dev, BGE_PCI_CACHESZ, cachesize, 4);
 	pci_write_config(dev, BGE_PCI_CMD, command, 4);
 	write_op(sc, BGE_MISC_CFG, BGE_32BITTIME_66MHZ);
-
+	/*
+	 * Disable PCI-X relaxed ordering to ensure status block update
+	 * comes first then packet buffer DMA. Otherwise driver may
+	 * read stale status block.
+	 */
+	if (sc->bge_flags & BGE_FLAG_PCIX) {
+		devctl = pci_read_config(dev,
+		    sc->bge_pcixcap + PCIXR_COMMAND, 2);
+		devctl &= ~PCIXM_COMMAND_ERO;
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5703) {
+			devctl &= ~PCIXM_COMMAND_MAX_READ;
+			devctl |= PCIXM_COMMAND_MAX_READ_2048;
+		} else if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
+			devctl &= ~(PCIXM_COMMAND_MAX_SPLITS |
+			    PCIXM_COMMAND_MAX_READ);
+			devctl |= PCIXM_COMMAND_MAX_READ_2048;
+		}
+		pci_write_config(dev, sc->bge_pcixcap + PCIXR_COMMAND,
+		    devctl, 2);
+	}
 	/* Re-enable MSI, if neccesary, and enable the memory arbiter. */
 	if (BGE_IS_5714_FAMILY(sc)) {
 		/* This chip disables MSI on reset. */
@@ -3257,6 +3287,33 @@ bge_reset(struct bge_softc *sc)
 	return(0);
 }
 
+static __inline void
+bge_rxreuse_std(struct bge_softc *sc, int i)
+{
+	struct bge_rx_bd *r;
+
+	r = &sc->bge_ldata.bge_rx_std_ring[sc->bge_std];
+	r->bge_flags = BGE_RXBDFLAG_END;
+	r->bge_len = sc->bge_cdata.bge_rx_std_seglen[i];
+	r->bge_idx = i;
+	BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
+}
+
+static __inline void
+bge_rxreuse_jumbo(struct bge_softc *sc, int i)
+{
+	struct bge_extrx_bd *r;
+
+	r = &sc->bge_ldata.bge_rx_jumbo_ring[sc->bge_jumbo];
+	r->bge_flags = BGE_RXBDFLAG_JUMBO_RING | BGE_RXBDFLAG_END;
+	r->bge_len0 = sc->bge_cdata.bge_rx_jumbo_seglen[i][0];
+	r->bge_len1 = sc->bge_cdata.bge_rx_jumbo_seglen[i][1];
+	r->bge_len2 = sc->bge_cdata.bge_rx_jumbo_seglen[i][2];
+	r->bge_len3 = sc->bge_cdata.bge_rx_jumbo_seglen[i][3];
+	r->bge_idx = i;
+	BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
+}
+
 /*
  * Frame reception handling. This is called if there's a frame
  * on the receive return list.
@@ -3320,24 +3377,24 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 			jumbocnt++;
 			m = sc->bge_cdata.bge_rx_jumbo_chain[rxidx];
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_ERROR) {
-				BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
+				bge_rxreuse_jumbo(sc, rxidx);
 				continue;
 			}
 			if (bge_newbuf_jumbo(sc, rxidx) != 0) {
-				BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
+				bge_rxreuse_jumbo(sc, rxidx);
 				ifp->if_iqdrops++;
 				continue;
 			}
 			BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
 		} else {
 			stdcnt++;
+			m = sc->bge_cdata.bge_rx_std_chain[rxidx];
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_ERROR) {
-				BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
+				bge_rxreuse_std(sc, rxidx);
 				continue;
 			}
-			m = sc->bge_cdata.bge_rx_std_chain[rxidx];
 			if (bge_newbuf_std(sc, rxidx) != 0) {
-				BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
+				bge_rxreuse_std(sc, rxidx);
 				ifp->if_iqdrops++;
 				continue;
 			}
@@ -3835,12 +3892,11 @@ bge_cksum_pad(struct mbuf *m)
 static struct mbuf *
 bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 {
-	struct ether_header *eh;
 	struct ip *ip;
 	struct tcphdr *tcp;
 	struct mbuf *n;
 	uint16_t hlen;
-	uint32_t ip_off, poff;
+	uint32_t poff;
 
 	if (M_WRITABLE(m) == 0) {
 		/* Get a writable copy. */
@@ -3850,28 +3906,16 @@ bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 			return (NULL);
 		m = n;
 	}
-	ip_off = sizeof(struct ether_header);
-	m = m_pullup(m, ip_off);
+	m = m_pullup(m, sizeof(struct ether_header) + sizeof(struct ip));
 	if (m == NULL)
 		return (NULL);
-	eh = mtod(m, struct ether_header *);
-	/* Check the existence of VLAN tag. */
-	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
-		ip_off = sizeof(struct ether_vlan_header);
-		m = m_pullup(m, ip_off);
-		if (m == NULL)
-			return (NULL);
-	}
-	m = m_pullup(m, ip_off + sizeof(struct ip));
-	if (m == NULL)
-		return (NULL);
-	ip = (struct ip *)(mtod(m, char *) + ip_off);
-	poff = ip_off + (ip->ip_hl << 2);
+	ip = (struct ip *)(mtod(m, char *) + sizeof(struct ether_header));
+	poff = sizeof(struct ether_header) + (ip->ip_hl << 2);
 	m = m_pullup(m, poff + sizeof(struct tcphdr));
 	if (m == NULL)
 		return (NULL);
 	tcp = (struct tcphdr *)(mtod(m, char *) + poff);
-	m = m_pullup(m, poff + sizeof(struct tcphdr) + tcp->th_off);
+	m = m_pullup(m, poff + (tcp->th_off << 2));
 	if (m == NULL)
 		return (NULL);
 	/*
@@ -4526,9 +4570,6 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist |= BGE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~BGE_CSUM_FEATURES;
-#ifdef VLAN_CAPABILITIES
-			VLAN_CAPABILITIES(ifp);
-#endif
 		}
 
 		if ((mask & IFCAP_TSO4) != 0 &&
@@ -4546,16 +4587,21 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			bge_init(sc);
 		}
 
-		if (mask & IFCAP_VLAN_HWTAGGING) {
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
 			BGE_LOCK(sc);
 			bge_setvlan(sc);
 			BGE_UNLOCK(sc);
-#ifdef VLAN_CAPABILITIES
-			VLAN_CAPABILITIES(ifp);
-#endif
 		}
-
+#ifdef VLAN_CAPABILITIES
+		VLAN_CAPABILITIES(ifp);
+#endif
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);

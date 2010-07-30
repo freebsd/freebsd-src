@@ -50,7 +50,7 @@ typedef	void (*cyclic_clock_func_t)(struct trapframe *);
  *
  * Defining them here avoids a proliferation of header files.
  */
-extern cyclic_clock_func_t     lapic_cyclic_clock_func[];
+extern cyclic_clock_func_t     cyclic_clock_func[];
 
 /*
  * The dtrace module handles traps that occur during a DTrace probe.

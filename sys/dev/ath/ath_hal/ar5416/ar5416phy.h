@@ -111,6 +111,9 @@
 
 #define AR_PHY_HEAVY_CLIP_ENABLE    0x99E0
 
+#define AR_PHY_HEAVY_CLIP_FACTOR_RIFS	0x99ec
+#define AR_PHY_RIFS_INIT_DELAY		0x03ff0000
+
 #define AR_PHY_M_SLEEP      0x99f0      /* sleep control registers */
 #define AR_PHY_REFCLKDLY    0x99f4
 #define AR_PHY_REFCLKPD     0x99f8

@@ -204,6 +204,8 @@ int	    function_brace_split;	/* split function declaration and
 					 * brace onto separate lines */
 int	    use_tabs;			/* set true to use tabs for spacing,
 					 * false uses all spaces */
+int	    auto_typedefs;		/* set true to recognize identifiers
+					 * ending in "_t" like typedefs */
 
 /* -troff font state information */
 

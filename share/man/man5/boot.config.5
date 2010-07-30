@@ -64,6 +64,11 @@ the other options available for
 are documented in detail in the
 .Xr boot 8
 manual page.
+.Sh FILES
+.Bl -tag -width /boot.config -compact
+.It Pa /boot.config
+parameters for the boot blocks (optional)
+.El
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
@@ -90,11 +95,6 @@ The command:
 .Ed
 .Pp
 will do both of the above.
-.Sh FILES
-.Bl -tag -width /boot.config -compact
-.It Pa /boot.config
-parameters for the boot blocks (optional)
-.El
 .Sh SEE ALSO
 .Xr boot 8 ,
 .Xr loader 8

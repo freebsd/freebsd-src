@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/pcpu.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -152,6 +153,7 @@ EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
 MODULE_VERSION(nexus, 1);
 
 static const char *const nexus_excl_name[] = {
+	"FJSV,system",
 	"aliases",
 	"associations",
 	"chosen",
@@ -162,6 +164,7 @@ static const char *const nexus_excl_name[] = {
 	"openprom",
 	"options",
 	"packages",
+	"physical-memory",
 	"rsc",
 	"sgcn",
 	"todsg",
@@ -522,7 +525,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
 	if (nintr > 0) {
-		if (OF_getprop(node, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+		if (OF_getprop(node, PCPU_GET(impl) < CPU_IMPL_ULTRASPARCIII ?
 		    "upa-portid" : "portid", &ign, sizeof(ign)) <= 0) {
 			device_printf(dev, "<%s>: could not determine portid\n",
 			    ndi->ndi_obdinfo.obd_name);

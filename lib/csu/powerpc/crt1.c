@@ -59,8 +59,6 @@ extern int _DYNAMIC;
 extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
-extern void _start(int, char **, char **, const struct Struct_Obj_Entry *,
-    void (*)(void), struct ps_strings *);
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -72,6 +70,9 @@ extern int etext;
 char **environ;
 const char *__progname = "";
 struct ps_strings *__ps_strings;
+
+void _start(int, char **, char **, const struct Struct_Obj_Entry *,
+    void (*)(void), struct ps_strings *);
 
 /* The entry function. */
 /*

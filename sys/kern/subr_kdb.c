@@ -230,7 +230,7 @@ kdb_panic(const char *msg)
 	stop_cpus_hard(PCPU_GET(other_cpus));
 #endif
 	printf("KDB: panic\n");
-	panic(msg);
+	panic("%s", msg);
 }
 
 void

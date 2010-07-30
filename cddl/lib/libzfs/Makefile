@@ -32,6 +32,7 @@ SRCS+=	zfs_deleg.c \
 	libzfs_sendrecv.c \
 	libzfs_status.c
 
+WARNS?=	0
 CFLAGS+= -DZFS_NO_ACL
 CFLAGS+= -I${.CURDIR}/../../../sbin/mount
 CFLAGS+= -I${.CURDIR}/../../../cddl/lib/libumem

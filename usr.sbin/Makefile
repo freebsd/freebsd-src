@@ -3,7 +3,6 @@
 
 .include <bsd.own.mk>
 
-# XXX MISSING:		mkproto
 SUBDIR=	${_ac} \
 	${_accton} \
 	${_acpi} \
@@ -91,7 +90,7 @@ SUBDIR=	${_ac} \
 	mailwrapper \
 	makefs \
 	${_makemap} \
-	manctl \
+	${_manctl} \
 	memcontrol \
 	mergemaster \
 	mfiutil \
@@ -126,6 +125,7 @@ SUBDIR=	${_ac} \
 	${_ntp} \
 	${_nvram} \
 	${_ofwdump} \
+	pc-sysinstall \
 	pciconf \
 	periodic \
 	${_pkg_install} \
@@ -168,6 +168,7 @@ SUBDIR=	${_ac} \
 	${_sade} \
 	${_sendmail} \
 	service \
+	services_mkdb \
 	setfib \
 	setfmac \
 	setpmac \
@@ -302,7 +303,6 @@ _jls=		jls
 .endif
 
 # XXX MK_SYSCONS
-# XXX is moused w/ usb useful?
 .if ${MK_LEGACY_CONSOLE} != "no"
 _kbdcontrol=	kbdcontrol
 _kbdmap=	kbdmap
@@ -321,6 +321,10 @@ _nscd=		nscd
 
 .if ${MK_LPR} != "no"
 _lpr=		lpr
+.endif
+
+.if ${MK_MAN_UTILS} != "no"
+_manctl=	manctl
 .endif
 
 .if ${MK_NETGRAPH} != "no"
@@ -493,6 +497,10 @@ _ndiscvt=	ndiscvt
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
+.endif
+
+.if ${MACHINE_ARCH} == "arm"
+_ofwdump=	ofwdump
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"

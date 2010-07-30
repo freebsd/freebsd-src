@@ -283,8 +283,8 @@ ed_attach(device_t dev)
 	ifp->if_start = ed_start;
 	ifp->if_ioctl = ed_ioctl;
 	ifp->if_init = ed_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof sc->mibdata;

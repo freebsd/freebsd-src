@@ -15,6 +15,7 @@
 # reinstallkernel     - Reinstall the kernel and the kernel-modules.
 # reinstallkernel.debug
 # kernel              - buildkernel + installkernel.
+# kernel-toolchain    - Builds the subset of world necessary to build a kernel
 # doxygen             - Build API documentation of the kernel, needs doxygen.
 # update              - Convenient way to update your source tree (cvs).
 # check-old           - List obsolete directories/files/libraries.
@@ -88,7 +89,8 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	obj objlink regress rerelease showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
-	build32 distribute32 install32 xdev xdev-build xdev-install
+	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
+
 TGTS+=	${SUBDIR_TARGETS}
 
 BITGTS=	files includes
@@ -310,6 +312,7 @@ universe_${target}:
 	    "check _.${target}.buildworld for details" | ${MAKEFAIL}))
 	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
 .endif
+.if !defined(MAKE_JUST_WORLDS)
 .if exists(${.CURDIR}/sys/${target}/conf/NOTES)
 	@(cd ${.CURDIR}/sys/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
@@ -318,6 +321,7 @@ universe_${target}:
 .endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
+.endif
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
 universe_kernels: universe_kernconfs

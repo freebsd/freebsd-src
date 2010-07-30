@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 #include "err.h"
-#include "matching.h"
 
 /*
  * Per POSIX.1-1988, tar defaults to reading/writing archives to/from
@@ -180,8 +179,10 @@ main(int argc, char **argv)
 
 	time(&now);
 
+#if HAVE_SETLOCALE
 	if (setlocale(LC_ALL, "") == NULL)
 		bsdtar_warnc(0, "Failed to set default locale");
+#endif
 #if defined(HAVE_NL_LANGINFO) && defined(HAVE_D_MD_ORDER)
 	bsdtar->day_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 #endif

@@ -378,6 +378,16 @@ static void swp_pager_meta_free(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free_all(vm_object_t);
 static daddr_t swp_pager_meta_ctl(vm_object_t, vm_pindex_t, int);
 
+static void
+swp_pager_free_nrpage(vm_page_t m)
+{
+
+	vm_page_lock(m);
+	if (m->wire_count == 0)
+		vm_page_free(m);
+	vm_page_unlock(m);
+}
+
 /*
  * SWP_SIZECHECK() -	update swap_pager_full indication
  *	
@@ -1101,8 +1111,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * happen.  Note that blk, iblk & jblk can be SWAPBLK_NONE, but the 
 	 * loops are set up such that the case(s) are handled implicitly.
 	 *
-	 * The swp_*() calls must be made at splvm().  vm_page_free() does
-	 * not need to be, but it will go a little faster if it is.
+	 * The swp_*() calls must be made with the object locked.
 	 */
 	blk = swp_pager_meta_ctl(mreq->object, mreq->pindex, 0);
 
@@ -1130,12 +1139,10 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	if (0 < i || j < count) {
 		int k;
 
-		vm_page_lock_queues();
 		for (k = 0; k < i; ++k)
-			vm_page_free(m[k]);
+			swp_pager_free_nrpage(m[k]);
 		for (k = j; k < count; ++k)
-			vm_page_free(m[k]);
-		vm_page_unlock_queues();
+			swp_pager_free_nrpage(m[k]);
 	}
 
 	/*
@@ -1212,9 +1219,6 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	VM_OBJECT_LOCK(object);
 	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
 		mreq->oflags |= VPO_WANTED;
-		vm_page_lock_queues();
-		vm_page_flag_set(mreq, PG_REFERENCED);
-		vm_page_unlock_queues();
 		PCPU_INC(cnt.v_intrans);
 		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
 			printf(
@@ -1493,7 +1497,7 @@ swp_pager_async_iodone(struct buf *bp)
 		object = bp->b_pages[0]->object;
 		VM_OBJECT_LOCK(object);
 	}
-	vm_page_lock_queues();
+
 	/*
 	 * cleanup pages.  If an error occurs writing to swap, we are in
 	 * very serious trouble.  If it happens to be a disk error, though,
@@ -1533,7 +1537,7 @@ swp_pager_async_iodone(struct buf *bp)
 				 */
 				m->valid = 0;
 				if (i != bp->b_pager.pg_reqpage)
-					vm_page_free(m);
+					swp_pager_free_nrpage(m);
 				else
 					vm_page_flash(m);
 				/*
@@ -1547,7 +1551,9 @@ swp_pager_async_iodone(struct buf *bp)
 				 * then finish the I/O.
 				 */
 				vm_page_dirty(m);
+				vm_page_lock(m);
 				vm_page_activate(m);
+				vm_page_unlock(m);
 				vm_page_io_finish(m);
 			}
 		} else if (bp->b_iocmd == BIO_READ) {
@@ -1582,11 +1588,12 @@ swp_pager_async_iodone(struct buf *bp)
 			 * left busy.
 			 */
 			if (i != bp->b_pager.pg_reqpage) {
+				vm_page_lock(m);
 				vm_page_deactivate(m);
+				vm_page_unlock(m);
 				vm_page_wakeup(m);
-			} else {
+			} else
 				vm_page_flash(m);
-			}
 		} else {
 			/*
 			 * For write success, clear the dirty
@@ -1598,11 +1605,13 @@ swp_pager_async_iodone(struct buf *bp)
 			    " protected", m));
 			vm_page_undirty(m);
 			vm_page_io_finish(m);
-			if (vm_page_count_severe())
+			if (vm_page_count_severe()) {
+				vm_page_lock(m);
 				vm_page_try_to_cache(m);
+				vm_page_unlock(m);
+			}
 		}
 	}
-	vm_page_unlock_queues();
 
 	/*
 	 * adjust pip.  NOTE: the original parent may still have its own
@@ -1698,10 +1707,10 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
-		vm_page_lock_queues();
-		vm_page_activate(m);
 		vm_page_dirty(m);
-		vm_page_unlock_queues();
+		vm_page_lock(m);
+		vm_page_activate(m);
+		vm_page_unlock(m);
 		vm_page_wakeup(m);
 		vm_pager_page_unswapped(m);
 		return;
@@ -1710,10 +1719,10 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_subtract(object, 1);
-	vm_page_lock_queues();
 	vm_page_dirty(m);
-	vm_page_dontneed(m);
-	vm_page_unlock_queues();
+	vm_page_lock(m);
+	vm_page_deactivate(m);
+	vm_page_unlock(m);
 	vm_page_wakeup(m);
 	vm_pager_page_unswapped(m);
 }

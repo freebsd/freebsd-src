@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netscope.h,v 1.11 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: netscope.h,v 1.11.332.2 2009/06/25 23:47:24 tbox Exp $ */
 
 #ifndef ISC_NETSCOPE_H
 #define ISC_NETSCOPE_H 1
@@ -40,4 +40,4 @@ isc_netscope_pton(int af, char *scopename, void *addr, isc_uint32_t *zoneid);
 
 ISC_LANG_ENDDECLS
 
-#endif /* ISC_NETADDR_H */
+#endif /* ISC_NETSCOPE_H */

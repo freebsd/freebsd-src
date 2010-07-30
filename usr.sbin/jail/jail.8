@@ -27,7 +27,7 @@
 .\"
 .\" ----------------------------------------------------------------------------
 .\" "THE BEER-WARE LICENSE" (Revision 42):
-.\" <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
 .\" can do whatever you want with this stuff. If we meet some day, and you think
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
@@ -47,7 +47,6 @@
 .Op Fl l u Ar username | Fl U Ar username
 .Op Fl c | m
 .Op Ar parameter=value ...
-.Br
 .Nm
 .Op Fl hi
 .Op Fl n Ar jailname
@@ -55,7 +54,6 @@
 .Op Fl s Ar securelevel
 .Op Fl l u Ar username | Fl U Ar username
 .Op Ar path hostname [ip[,..]] command ...
-.Br
 .Nm
 .Op Fl r Ar jail
 .Sh DESCRIPTION
@@ -67,9 +65,7 @@ imprisoning the current process (and future descendants) inside it.
 The options are as follows:
 .Bl -tag -width indent
 .It Fl d
-Allow making changes to a
-.Va
-dying jail.
+Allow making changes to a dying jail.
 .It Fl h
 Resolve the
 .Va host.hostname
@@ -243,7 +239,7 @@ The
 .Xr jexec 8 .
 .It Va ip4.addr
 A comma-separated list of IPv4 addresses assigned to the prison.
-If this is set, the jail is restricted to using only these address.
+If this is set, the jail is restricted to using only these addresses.
 Any attempts to use other addresses fail, and attempts to use wildcard
 addresses silently use the jailed address instead.
 For IPv4 the first address given will be kept used as the source address

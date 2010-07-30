@@ -1,8 +1,8 @@
 <!--
- - Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  - 
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.dnssec-signzone.html,v 1.94.14.11.8.1 2009/12/31 23:17:55 tbox Exp $ -->
+<!-- $Id: man.dnssec-signzone.html,v 1.94.14.23.2.1 2010/02/25 12:16:49 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -47,21 +47,21 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">dnssec-signzone</code>  [<code class="option">-a</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-d <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-e <em class="replaceable"><code>end-time</code></em></code>] [<code class="option">-f <em class="replaceable"><code>output-file</code></em></code>] [<code class="option">-g</code>] [<code class="option">-h</code>] [<code class="option">-k <em class="replaceable"><code>key</code></em></code>] [<code class="option">-l <em class="replaceable"><code>domain</code></em></code>] [<code class="option">-i <em class="replaceable"><code>interval</code></em></code>] [<code class="option">-I <em class="replaceable"><code>input-format</code></em></code>] [<code class="option">-j <em class="replaceable"><code>jitter</code></em></code>] [<code class="option">-N <em class="replaceable"><code>soa-serial-format</code></em></code>] [<code class="option">-o <em class="replaceable"><code>origin</code></em></code>] [<code class="option">-O <em class="replaceable"><code>output-format</code></em></code>] [<code class="option">-p</code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-s <em class="replaceable"><code>start-time</code></em></code>] [<code class="option">-t</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-z</code>] [<code class="option">-3 <em class="replaceable"><code>salt</code></em></code>] [<code class="option">-H <em class="replaceable"><code>iterations</code></em></code>] [<code class="option">-A</code>] {zonefile} [key...]</p></div>
+<div class="cmdsynopsis"><p><code class="command">dnssec-signzone</code>  [<code class="option">-a</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-d <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-e <em class="replaceable"><code>end-time</code></em></code>] [<code class="option">-f <em class="replaceable"><code>output-file</code></em></code>] [<code class="option">-g</code>] [<code class="option">-h</code>] [<code class="option">-k <em class="replaceable"><code>key</code></em></code>] [<code class="option">-l <em class="replaceable"><code>domain</code></em></code>] [<code class="option">-i <em class="replaceable"><code>interval</code></em></code>] [<code class="option">-I <em class="replaceable"><code>input-format</code></em></code>] [<code class="option">-j <em class="replaceable"><code>jitter</code></em></code>] [<code class="option">-N <em class="replaceable"><code>soa-serial-format</code></em></code>] [<code class="option">-o <em class="replaceable"><code>origin</code></em></code>] [<code class="option">-O <em class="replaceable"><code>output-format</code></em></code>] [<code class="option">-p</code>] [<code class="option">-P</code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-s <em class="replaceable"><code>start-time</code></em></code>] [<code class="option">-t</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-z</code>] [<code class="option">-3 <em class="replaceable"><code>salt</code></em></code>] [<code class="option">-H <em class="replaceable"><code>iterations</code></em></code>] [<code class="option">-A</code>] {zonefile} [key...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2607752"></a><h2>DESCRIPTION</h2>
+<a name="id2608017"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-signzone</strong></span>
       signs a zone.  It generates
       NSEC and RRSIG records and produces a signed version of the
-      zone. The security status of delegations from the signed zone
-      (that is, whether the child zones are secure or not) is
-      determined by the presence or absence of a
-      <code class="filename">keyset</code> file for each child zone.
+      zone.  It also generates a <code class="filename">keyset-</code> file containing
+      the key-signing keys for the zone, and if signing a zone which
+      contains delegations, it can optionally generate DS records for
+      the child zones from their <code class="filename">keyset-</code> files.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2607771"></a><h2>OPTIONS</h2>
+<a name="id2608041"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a</span></dt>
 <dd><p>
@@ -88,8 +88,10 @@
           </p></dd>
 <dt><span class="term">-g</span></dt>
 <dd><p>
-            Generate DS records for child zones from keyset files.
-            Existing DS records will be removed.
+            If the zone contains any delegations, and there are
+            <code class="filename">keyset-</code> files for any of the child zones,
+            then DS records for the child zones will be generated from the
+            keys in those files.  Existing DS records will be removed.
           </p></dd>
 <dt><span class="term">-s <em class="replaceable"><code>start-time</code></em></span></dt>
 <dd><p>
@@ -220,6 +222,19 @@
             may be useful when signing large zones or when the entropy
             source is limited.
           </p></dd>
+<dt><span class="term">-P</span></dt>
+<dd>
+<p>
+	    Disable post sign verification tests.
+          </p>
+<p>
+	    The post sign verification test ensures that for each algorithm
+	    in use there is at least one non revoked self signed KSK key,
+	    that all revoked KSK keys are self signed, and that all records
+	    in the zone are signed by the algorithm.
+	    This option skips these tests.
+          </p>
+</dd>
 <dt><span class="term">-r <em class="replaceable"><code>randomdev</code></em></span></dt>
 <dd><p>
             Specifies the source of randomness.  If the operating
@@ -276,7 +291,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2659163"></a><h2>EXAMPLE</h2>
+<a name="id2658773"></a><h2>EXAMPLE</h2>
 <p>
       The following command signs the <strong class="userinput"><code>example.com</code></strong>
       zone with the DSA key generated by <span><strong class="command">dnssec-keygen</strong></span>
@@ -305,7 +320,7 @@ db.example.com.signed
 %</pre>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2659304"></a><h2>KNOWN BUGS</h2>
+<a name="id2658845"></a><h2>KNOWN BUGS</h2>
 <p>
         <span><strong class="command">dnssec-signzone</strong></span> was designed so that it could
         sign a zone partially, using only a subset of the DNSSEC keys
@@ -330,14 +345,14 @@ db.example.com.signed
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2659404"></a><h2>SEE ALSO</h2>
+<a name="id2658877"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 4033</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2659429"></a><h2>AUTHOR</h2>
+<a name="id2658902"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

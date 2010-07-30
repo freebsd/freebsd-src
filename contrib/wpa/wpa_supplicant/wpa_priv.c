@@ -172,12 +172,12 @@ static void wpa_priv_get_scan_results2(struct wpa_priv_interface *iface,
 	       sizeof(*from));
 
 	os_free(buf);
-	os_free(res);
+	wpa_scan_results_free(res);
 	return;
 
 fail:
 	os_free(buf);
-	os_free(res);
+	wpa_scan_results_free(res);
 	sendto(iface->fd, "", 0, 0, (struct sockaddr *) from, sizeof(*from));
 }
 

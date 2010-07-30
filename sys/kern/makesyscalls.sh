@@ -165,7 +165,7 @@ s/\$//g
 		printf "# created from%s\nMIASM = ", $0 > sysmk
 
 		printf " * This file is part of the DTrace syscall provider.\n */\n\n" > systrace
-		printf "static void\nsystrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)\n{\n" > systrace
+		printf "static void\nsystrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)\n{\n" > systrace
 		printf "\tint64_t *iarg  = (int64_t *) uarg;\n" > systrace
 		printf "\tswitch (sysnum) {\n" > systrace
 
@@ -253,6 +253,10 @@ s/\$//g
 		f=4			# toss number, type, audit event
 		argc= 0;
 		argssize = "0"
+		thr_flag = "SY_THR_STATIC"
+		if (flag("NOTSTATIC")) {
+			thr_flag = "SY_THR_ABSENT"
+		}
 		if ($NF != "}") {
 			funcalias=$(NF-2)
 			argalias=$(NF-1)
@@ -401,10 +405,10 @@ s/\$//g
 		printf("\t{ %s, (sy_call_t *)", argssize) > sysent
 		column = 8 + 2 + length(argssize) + 15
 		if (flag("NOSTD")) {
-			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0, 0") > sysent
+			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT") > sysent
 			column = column + length("lkmressys") + length("AUE_NULL") + 3
 		} else {
-			printf("%s, %s, NULL, 0, 0, %s },", funcname, auditev, flags) > sysent
+			printf("%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
 			column = column + length(funcname) + length(auditev) + length(flags) + 3
 		} 
 		align_sysent_comment(column)
@@ -472,13 +476,13 @@ s/\$//g
 			    prefix, funcname, auditev) > sysaue
 		}
 		if (flag("NOSTD")) {
-			printf("\t{ %s, (sy_call_t *)%s, %s, NULL, 0, 0, 0 },",
+			printf("\t{ %s, (sy_call_t *)%s, %s, NULL, 0, 0, 0, SY_THR_ABSENT },",
 			    "0", "lkmressys", "AUE_NULL") > sysent
 			align_sysent_comment(8 + 2 + length("0") + 15 + \
 			    length("lkmressys") + length("AUE_NULL") + 3)
 		} else {
-			printf("\t{ %s(%s,%s), %s, NULL, 0, 0, %s },",
-			    wrap, argssize, funcname, auditev, flags) > sysent
+			printf("\t{ %s(%s,%s), %s, NULL, 0, 0, %s, %s },",
+			    wrap, argssize, funcname, auditev, flags, thr_flag) > sysent
 			align_sysent_comment(8 + 9 + length(argssize) + 1 + \
 			    length(funcname) + length(auditev) + \
 			    length(flags) + 4)
@@ -498,7 +502,7 @@ s/\$//g
 		next
 	}
 	type("OBSOL") {
-		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0 },") > sysent
+		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },") > sysent
 		align_sysent_comment(34)
 		printf("/* %d = obsolete %s */\n", syscall, comment) > sysent
 		printf("\t\"obs_%s\",\t\t\t/* %d = obsolete %s */\n",
@@ -509,7 +513,7 @@ s/\$//g
 		next
 	}
 	type("UNIMPL") {
-		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0 },\t\t\t/* %d = %s */\n",
+		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },\t\t\t/* %d = %s */\n",
 		    syscall, comment) > sysent
 		printf("\t\"#%d\",\t\t\t/* %d = %s */\n",
 		    syscall, syscall, comment) > sysnames

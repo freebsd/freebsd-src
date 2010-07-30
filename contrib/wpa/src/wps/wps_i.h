@@ -62,10 +62,6 @@ struct wps_data {
 	u8 authkey[WPS_AUTHKEY_LEN];
 	u8 keywrapkey[WPS_KEYWRAPKEY_LEN];
 	u8 emsk[WPS_EMSK_LEN];
-	u8 mgmt_auth_key[WPS_MGMTAUTHKEY_LEN];
-	u8 mgmt_auth_key_id[WPS_MGMT_KEY_ID_LEN];
-	u8 mgmt_enc_key[WPS_MGMTENCKEY_LEN];
-	u8 mgmt_enc_key_id[WPS_MGMT_KEY_ID_LEN];
 
 	struct wpabuf *last_msg;
 
@@ -146,6 +142,7 @@ struct wps_parse_attr {
 	const u8 *selected_registrar; /* 1 octet (Bool) */
 	const u8 *request_type; /* 1 octet */
 	const u8 *response_type; /* 1 octet */
+	const u8 *ap_setup_locked; /* 1 octet */
 
 	/* variable length fields */
 	const u8 *manufacturer;
@@ -182,7 +179,6 @@ struct wps_parse_attr {
 void wps_kdf(const u8 *key, const u8 *label_prefix, size_t label_prefix_len,
 	     const char *label, u8 *res, size_t res_len);
 int wps_derive_keys(struct wps_data *wps);
-int wps_derive_mgmt_keys(struct wps_data *wps);
 void wps_derive_psk(struct wps_data *wps, const u8 *dev_passwd,
 		    size_t dev_passwd_len);
 struct wpabuf * wps_decrypt_encr_settings(struct wps_data *wps, const u8 *encr,
@@ -190,6 +186,8 @@ struct wpabuf * wps_decrypt_encr_settings(struct wps_data *wps, const u8 *encr,
 void wps_fail_event(struct wps_context *wps, enum wps_msg_type msg);
 void wps_success_event(struct wps_context *wps);
 void wps_pwd_auth_fail_event(struct wps_context *wps, int enrollee, int part);
+void wps_pbc_overlap_event(struct wps_context *wps);
+void wps_pbc_timeout_event(struct wps_context *wps);
 
 /* wps_attr_parse.c */
 int wps_parse_msg(const struct wpabuf *msg, struct wps_parse_attr *attr);

@@ -193,8 +193,6 @@
             ..
             IPv6
             ..
-            bc
-            ..
             bootforth
             ..
             cvs
@@ -215,9 +213,13 @@
             ..
             find_interface
             ..
+            hast
+            ..
             hostapd
             ..
             ibcs2
+            ..
+            indent
             ..
             ipfilter
             ..
@@ -258,6 +260,8 @@
                 ..
             ..
             nwclient
+            ..
+            pc-sysinstall
             ..
             perfmon
             ..
@@ -1222,6 +1226,20 @@
                 ..
                 man3
                 ..
+            ..
+        ..
+        pc-sysinstall
+            backend
+            ..
+            backend-partmanager
+            ..
+            backend-query
+            ..
+            conf
+                license
+                ..
+            ..
+            doc
             ..
         ..
         security

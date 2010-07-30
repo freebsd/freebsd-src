@@ -92,9 +92,7 @@ amd_update(const char *dev, const char *path)
 	assert(dev);
 
 	fd  = -1;
-	devfd = -1;
 	fw_image = MAP_FAILED;
-	error = 0;
 	devfd = open(dev, O_RDWR);
 	if (devfd < 0) {
 		WARN(0, "could not open %s for writing", dev);

@@ -12,10 +12,10 @@
 cpu		ITANIUM
 cpu		ITANIUM2
 
-# option: COMPAT_IA32
+# option: COMPAT_FREEBSD32
 # This option enables the support for execution of i386 (32-bit) programs on
 # ia64. It is based on the ia32 emulation in the processor.
-options 	COMPAT_IA32
+options 	COMPAT_FREEBSD32
 
 # option: LOG2_ID_PAGE_SIZE
 # Specify the log2 size of the identity (direct) mappings in regions 6 and 7

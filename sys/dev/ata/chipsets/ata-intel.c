@@ -140,6 +140,22 @@ ata_intel_probe(device_t dev)
      { ATA_I82801JI_AH,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I82801JI_R1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I82801JI_S2,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
+     { 0x3b208086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b218086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b228086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b238086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b248086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b258086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b268086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b278086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b288086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b298086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b2a8086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b2b8086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b2c8086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b2d8086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b2e8086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
+     { 0x3b2f8086,       0, INTEL_AHCI, 0, ATA_SA300, "PCH" },
      { ATA_I31244,       0,          0, 2, ATA_SA150, "31244" },
      { ATA_ISCH,         0,          0, 1, ATA_UDMA5, "SCH" },
      { 0, 0, 0, 0, 0, 0}};
@@ -320,7 +336,8 @@ ata_intel_new_setmode(device_t dev, int target, int mode)
 	u_int8_t utimings[] = { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
 
 	mode = min(mode, ctlr->chip->max_dma);
-	if (mode > ATA_UDMA2 && !(reg54 & (0x10 << devno))) {
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+	    !(reg54 & (0x10 << devno))) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;
 	}
@@ -537,8 +554,12 @@ ata_intel_31244_tf_write(struct ata_request *request)
 static void
 ata_intel_31244_reset(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
+    else
+	ch->devices = 0;
 }
 
 ATA_DECLARE_DRIVER(ata_intel);

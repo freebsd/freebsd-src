@@ -558,7 +558,7 @@ acl_posix1e_check(struct acl *acl)
 	 */
 	num_acl_user_obj = num_acl_user = num_acl_group_obj = num_acl_group =
 	    num_acl_mask = num_acl_other = 0;
-	if (acl->acl_cnt > ACL_MAX_ENTRIES || acl->acl_cnt < 0)
+	if (acl->acl_cnt > ACL_MAX_ENTRIES)
 		return (EINVAL);
 	for (i = 0; i < acl->acl_cnt; i++) {
 		/*

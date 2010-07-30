@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_carp.h"
+#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -76,19 +77,18 @@ static int	in_ifinit(struct ifnet *,
 static void	in_purgemaddrs(struct ifnet *);
 
 static VNET_DEFINE(int, subnetsarelocal);
-static VNET_DEFINE(int, sameprefixcarponly);
-VNET_DECLARE(struct inpcbinfo, ripcbinfo);
-
 #define	V_subnetsarelocal		VNET(subnetsarelocal)
-#define	V_sameprefixcarponly		VNET(sameprefixcarponly)
-#define	V_ripcbinfo			VNET(ripcbinfo)
-
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW,
 	&VNET_NAME(subnetsarelocal), 0,
 	"Treat all subnets as directly connected");
+static VNET_DEFINE(int, sameprefixcarponly);
+#define	V_sameprefixcarponly		VNET(sameprefixcarponly)
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, same_prefix_carp_only, CTLFLAG_RW,
 	&VNET_NAME(sameprefixcarponly), 0,
 	"Refuse to create same prefixes on different interfaces");
+
+VNET_DECLARE(struct inpcbinfo, ripcbinfo);
+#define	V_ripcbinfo			VNET(ripcbinfo)
 
 /*
  * Return 1 if an internet address is for a ``local'' host
@@ -1040,6 +1040,13 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		 * interface address, we are done here.
 		 */
 		if (ia->ia_flags & IFA_ROUTE) {
+#ifdef RADIX_MPATH
+			if (ia->ia_addr.sin_addr.s_addr == 
+			    target->ia_addr.sin_addr.s_addr)
+				return (EEXIST);
+			else
+				break;
+#endif
 			if (V_sameprefixcarponly &&
 			    target->ia_ifp->if_type != IFT_CARP &&
 			    ia->ia_ifp->if_type != IFT_CARP) {
@@ -1349,8 +1356,12 @@ in_lltable_prefix_free(struct lltable *llt,
 
 			if (IN_ARE_MASKED_ADDR_EQUAL((struct sockaddr_in *)L3_ADDR(lle), 
 						     pfx, msk)) {
-				callout_drain(&lle->la_timer);
+				int canceled;
+
+				canceled = callout_drain(&lle->la_timer);
 				LLE_WLOCK(lle);
+				if (canceled)
+					LLE_REMREF(lle);
 				llentry_free(lle);
 			}
 		}
@@ -1368,8 +1379,9 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
-	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || 
-	    ((rt->rt_ifp != ifp) && !(flags & LLE_PUB))) {
+	if (rt == NULL || (!(flags & LLE_PUB) &&
+			   ((rt->rt_flags & RTF_GATEWAY) || 
+			    (rt->rt_ifp != ifp)))) {
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
 		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));

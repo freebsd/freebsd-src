@@ -62,6 +62,10 @@
 #include "archive_entry.h"
 #endif
 
+#ifdef HAVE_LIBACL
+#include <acl/libacl.h>
+#endif
+
 /*
  * Include "dirent.h" (or it's equivalent on several different platforms).
  *

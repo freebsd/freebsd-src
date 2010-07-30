@@ -37,7 +37,6 @@ makeoptions     TARGET_BIG_ENDIAN=defined
 makeoptions     TARGET_64BIT=defined
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
-options		KERNVIRTADDR=0xffffffff80100000
 include		"../cavium/std.octeon1"
 
 hints		"OCTEON1.hints"		#Default places to look for devices.
@@ -67,7 +66,7 @@ options         UFS_DIRHASH             #Improve performance on big directories
 
 
 # Debugging for use in -current
-#options	DEADLKRES		#Enable the deadlock resolver
+#options		DEADLKRES	#Enable the deadlock resolver
 options		INVARIANTS		#Enable calls of extra sanity checking
 options		INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options		WITNESS			#Enable checks to detect deadlocks and cycles
@@ -82,6 +81,8 @@ nodevice	uart_ns8250
 device 		rgmii
 #options 	VERBOSE_SYSINIT
 
+device		bpf
+device		random
 
 #
 # Use the following for  Compact Flash file-system

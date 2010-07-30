@@ -127,7 +127,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	KASSERT(error == 0,
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
 	dev = make_dev(&g_dev_cdevsw, 0,
-	    UID_ROOT, GID_OPERATOR, 0640, gp->name);
+	    UID_ROOT, GID_OPERATOR, 0640, "%s", gp->name);
 	if (pp->flags & G_PF_CANDELETE)
 		dev->si_flags |= SI_CANDELETE;
 	dev->si_iosize_max = MAXPHYS;

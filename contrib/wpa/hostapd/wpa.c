@@ -1,6 +1,6 @@
 /*
  * hostapd - IEEE 802.11i-2004 / WPA Authenticator
- * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -44,6 +44,8 @@ static void wpa_sm_call_step(void *eloop_ctx, void *timeout_ctx);
 static void wpa_group_sm_step(struct wpa_authenticator *wpa_auth,
 			      struct wpa_group *group);
 static void wpa_request_new_ptk(struct wpa_state_machine *sm);
+static int wpa_gtk_update(struct wpa_authenticator *wpa_auth,
+			  struct wpa_group *group);
 
 static const u32 dot11RSNAConfigGroupUpdateCount = 4;
 static const u32 dot11RSNAConfigPairwiseUpdateCount = 4;
@@ -286,6 +288,25 @@ static void wpa_auth_pmksa_free_cb(struct rsn_pmksa_cache_entry *entry,
 }
 
 
+static void wpa_group_set_key_len(struct wpa_group *group, int cipher)
+{
+	switch (cipher) {
+	case WPA_CIPHER_CCMP:
+		group->GTK_len = 16;
+		break;
+	case WPA_CIPHER_TKIP:
+		group->GTK_len = 32;
+		break;
+	case WPA_CIPHER_WEP104:
+		group->GTK_len = 13;
+		break;
+	case WPA_CIPHER_WEP40:
+		group->GTK_len = 5;
+		break;
+	}
+}
+
+
 static struct wpa_group * wpa_group_init(struct wpa_authenticator *wpa_auth,
 					 int vlan_id)
 {
@@ -300,20 +321,7 @@ static struct wpa_group * wpa_group_init(struct wpa_authenticator *wpa_auth,
 	group->GTKAuthenticator = TRUE;
 	group->vlan_id = vlan_id;
 
-	switch (wpa_auth->conf.wpa_group) {
-	case WPA_CIPHER_CCMP:
-		group->GTK_len = 16;
-		break;
-	case WPA_CIPHER_TKIP:
-		group->GTK_len = 32;
-		break;
-	case WPA_CIPHER_WEP104:
-		group->GTK_len = 13;
-		break;
-	case WPA_CIPHER_WEP40:
-		group->GTK_len = 5;
-		break;
-	}
+	wpa_group_set_key_len(group, wpa_auth->conf.wpa_group);
 
 	/* Counter = PRF-256(Random number, "Init Counter",
 	 *                   Local MAC Address || Time)
@@ -451,6 +459,7 @@ void wpa_deinit(struct wpa_authenticator *wpa_auth)
 int wpa_reconfig(struct wpa_authenticator *wpa_auth,
 		 struct wpa_auth_config *conf)
 {
+	struct wpa_group *group;
 	if (wpa_auth == NULL)
 		return 0;
 
@@ -459,6 +468,17 @@ int wpa_reconfig(struct wpa_authenticator *wpa_auth,
 		wpa_printf(MSG_ERROR, "Could not generate WPA IE.");
 		return -1;
 	}
+
+	/*
+	 * Reinitialize GTK to make sure it is suitable for the new
+	 * configuration.
+	 */
+	group = wpa_auth->group;
+	wpa_group_set_key_len(group, wpa_auth->conf.wpa_group);
+	group->GInit = TRUE;
+	wpa_group_sm_step(wpa_auth, group);
+	group->GInit = FALSE;
+	wpa_group_sm_step(wpa_auth, group);
 
 	return 0;
 }
@@ -617,6 +637,22 @@ void wpa_receive(struct wpa_authenticator *wpa_auth,
 			   (unsigned long) (data_len - sizeof(*hdr) -
 					    sizeof(*key)));
 		return;
+	}
+
+	if (sm->wpa == WPA_VERSION_WPA2) {
+		if (key->type != EAPOL_KEY_TYPE_RSN) {
+			wpa_printf(MSG_DEBUG, "Ignore EAPOL-Key with "
+				   "unexpected type %d in RSN mode",
+				   key->type);
+			return;
+		}
+	} else {
+		if (key->type != EAPOL_KEY_TYPE_WPA) {
+			wpa_printf(MSG_DEBUG, "Ignore EAPOL-Key with "
+				   "unexpected type %d in WPA mode",
+				   key->type);
+			return;
+		}
 	}
 
 	/* FIX: verify that the EAPOL-Key frame was encrypted if pairwise keys
@@ -1403,14 +1439,15 @@ SM_STATE(WPA_PTK, PTKSTART)
 static int wpa_derive_ptk(struct wpa_state_machine *sm, const u8 *pmk,
 			  struct wpa_ptk *ptk)
 {
+	size_t ptk_len = sm->pairwise == WPA_CIPHER_CCMP ? 48 : 64;
 #ifdef CONFIG_IEEE80211R
 	if (wpa_key_mgmt_ft(sm->wpa_key_mgmt))
-		return wpa_auth_derive_ptk_ft(sm, pmk, ptk);
+		return wpa_auth_derive_ptk_ft(sm, pmk, ptk, ptk_len);
 #endif /* CONFIG_IEEE80211R */
 
 	wpa_pmk_to_ptk(pmk, PMK_LEN, "Pairwise key expansion",
 		       sm->wpa_auth->addr, sm->addr, sm->ANonce, sm->SNonce,
-		       (u8 *) ptk, sizeof(*ptk),
+		       (u8 *) ptk, ptk_len,
 		       wpa_key_mgmt_sha256(sm->wpa_key_mgmt));
 
 	return 0;

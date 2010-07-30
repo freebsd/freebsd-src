@@ -696,7 +696,7 @@ AcpiEvTerminate (
             if (ACPI_FAILURE (Status))
             {
                 ACPI_ERROR ((AE_INFO,
-                    "Could not disable fixed event %d", (UINT32) i));
+                    "Could not disable fixed event %u", (UINT32) i));
             }
         }
 

@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2009, Chelsio Inc.
+Copyright (c) 2007-2010, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -85,13 +85,17 @@ struct reg_info {
 
 static const char *progname;
 
-static void __attribute__((noreturn)) usage(FILE *fp)
+static void
+usage(FILE *fp)
 {
 	fprintf(fp, "Usage: %s <interface> [operation]\n", progname);
 	fprintf(fp,
 	    	"\tclearstats                          clear MAC statistics\n"
 		"\tcontext <type> <id>                 show an SGE context\n"
 		"\tdesc <qset> <queue> <idx> [<cnt>]   dump SGE descriptors\n"
+		"\tfilter <idx> [<param> <val>] ...    set a filter\n"
+		"\tfilter <idx> delete|clear           delete a filter\n"
+		"\tfilter list                         list all filters\n"
 		"\tioqs                                dump uP IOQs\n"
 		"\tla                                  dump uP logic analyzer info\n"
 		"\tloadboot <boot image>               download boot image\n"
@@ -136,7 +140,8 @@ doit(const char *iff_name, unsigned long cmd, void *data)
 	return ioctl(fd, cmd, data) < 0 ? -1 : 0;
 }
 
-static int get_int_arg(const char *s, uint32_t *valp)
+static int
+get_int_arg(const char *s, uint32_t *valp)
 {
 	char *p;
 
@@ -172,11 +177,12 @@ write_reg(const char *iff_name, uint32_t addr, uint32_t val)
 		err(1, "register write");
 }
 
-static int register_io(int argc, char *argv[], int start_arg,
+static int
+register_io(int argc, char *argv[], int start_arg,
 		       const char *iff_name)
 {
 	char *p;
-	uint32_t addr, val = 0, write = 0;
+	uint32_t addr, val = 0, w = 0;
 
 	if (argc != start_arg + 1) return -1;
 
@@ -184,14 +190,14 @@ static int register_io(int argc, char *argv[], int start_arg,
 	if (p == argv[start_arg]) return -1;
 	if (*p == '=' && p[1]) {
 		val = strtoul(p + 1, &p, 0);
-		write = 1;
+		w = 1;
 	}
 	if (*p) {
 		warnx("bad parameter \"%s\"", argv[start_arg]);
 		return -1;
 	}
 
-	if (write)
+	if (w)
 		write_reg(iff_name, addr, val);
 	else {
 		val = read_reg(iff_name, addr);
@@ -200,9 +206,9 @@ static int register_io(int argc, char *argv[], int start_arg,
 	return 0;
 }
 
-static int mdio_io(int argc, char *argv[], int start_arg, const char *iff_name) 
+static int
+mdio_io(int argc, char *argv[], int start_arg, const char *iff_name) 
 { 
-        struct ifreq ifr; 
         struct ch_mii_data p;
         unsigned int cmd, phy_addr, reg, mmd, val; 
  
@@ -230,12 +236,14 @@ static int mdio_io(int argc, char *argv[], int start_arg, const char *iff_name)
         return 0; 
 } 
 
-static inline uint32_t xtract(uint32_t val, int shift, int len)
+static inline
+uint32_t xtract(uint32_t val, int shift, int len)
 {
 	return (val >> shift) & ((1 << len) - 1);
 }
 
-static int dump_block_regs(const struct reg_info *reg_array, uint32_t *regs)
+static int
+dump_block_regs(const struct reg_info *reg_array, uint32_t *regs)
 {
 	uint32_t reg_val = 0; // silence compiler warning
 
@@ -254,7 +262,8 @@ static int dump_block_regs(const struct reg_info *reg_array, uint32_t *regs)
 	return 1;
 }
 
-static int dump_regs_t2(int argc, char *argv[], int start_arg, uint32_t *regs)
+static int
+dump_regs_t2(int argc, char *argv[], int start_arg, uint32_t *regs)
 {
 	int match = 0;
 	char *block_name = NULL;
@@ -292,8 +301,8 @@ static int dump_regs_t2(int argc, char *argv[], int start_arg, uint32_t *regs)
 }
 
 #if defined(CONFIG_T3_REGS)
-static int dump_regs_t3(int argc, char *argv[], int start_arg, uint32_t *regs,
-			int is_pcie)
+static int
+dump_regs_t3(int argc, char *argv[], int start_arg, uint32_t *regs, int is_pcie)
 {
 	int match = 0;
 	char *block_name = NULL;
@@ -353,8 +362,9 @@ static int dump_regs_t3(int argc, char *argv[], int start_arg, uint32_t *regs,
 	return 0;
 }
 
-static int dump_regs_t3b(int argc, char *argv[], int start_arg, uint32_t *regs,
-			 int is_pcie)
+static int
+dump_regs_t3b(int argc, char *argv[], int start_arg, uint32_t *regs,
+    int is_pcie)
 {
 	int match = 0;
 	char *block_name = NULL;
@@ -414,8 +424,9 @@ static int dump_regs_t3b(int argc, char *argv[], int start_arg, uint32_t *regs,
 	return 0;
 }
 
-static int dump_regs_t3c(int argc, char *argv[], int start_arg, uint32_t *regs,
-			 int is_pcie)
+static int
+dump_regs_t3c(int argc, char *argv[], int start_arg, uint32_t *regs,
+    int is_pcie)
 {
 	int match = 0;
 	char *block_name = NULL;
@@ -479,7 +490,7 @@ static int dump_regs_t3c(int argc, char *argv[], int start_arg, uint32_t *regs,
 static int
 dump_regs(int argc, char *argv[], int start_arg, const char *iff_name)
 {
-	int i, vers, revision, is_pcie;
+	int vers, revision, is_pcie;
 	struct ch_ifconf_regs regs;
 
 	regs.len = REGDUMP_SIZE;
@@ -514,7 +525,8 @@ dump_regs(int argc, char *argv[], int start_arg, const char *iff_name)
 	return 0;
 }
 
-static int t3_meminfo(const uint32_t *regs)
+static int
+t3_meminfo(const uint32_t *regs)
 {
 	enum {
 		SG_EGR_CNTX_BADDR       = 0x58,
@@ -592,10 +604,15 @@ static int t3_meminfo(const uint32_t *regs)
 	return 0;
 }
 
-static int meminfo(int argc, char *argv[], int start_arg, const char *iff_name)
+static int
+meminfo(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	int vers;
 	struct ch_ifconf_regs regs;
+
+	(void) argc;
+	(void) argv;
+	(void) start_arg;
 
 	regs.len = REGDUMP_SIZE;
 	if ((regs.data = malloc(regs.len)) == NULL)
@@ -612,11 +629,11 @@ static int meminfo(int argc, char *argv[], int start_arg, const char *iff_name)
 	return 0;
 }
 
-static int mtu_tab_op(int argc, char *argv[], int start_arg,
-		      const char *iff_name)
+static int
+mtu_tab_op(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	struct ch_mtus m;
-	int i;
+	unsigned int i;
 
 	if (argc == start_arg) {
 		if (doit(iff_name, CHELSIO_GETMTUTAB, &m) < 0)
@@ -649,13 +666,14 @@ static int mtu_tab_op(int argc, char *argv[], int start_arg,
 }
 
 #ifdef CHELSIO_INTERNAL
-static void show_egress_cntxt(uint32_t data[])
+static void
+show_egress_cntxt(uint32_t data[])
 {
 	printf("credits:      %u\n", data[0] & 0x7fff);
 	printf("GTS:          %u\n", (data[0] >> 15) & 1);
 	printf("index:        %u\n", data[0] >> 16);
 	printf("queue size:   %u\n", data[1] & 0xffff);
-	printf("base address: 0x%llx\n",
+	printf("base address: 0x%" PRIx64 "\n",
 	       ((data[1] >> 16) | ((uint64_t)data[2] << 16) |
 	       (((uint64_t)data[3] & 0xf) << 48)) << 12);
 	printf("rsp queue #:  %u\n", (data[3] >> 4) & 7);
@@ -667,9 +685,10 @@ static void show_egress_cntxt(uint32_t data[])
 	printf("valid:        %u\n", (data[3] >> 31) & 1);
 }
 
-static void show_fl_cntxt(uint32_t data[])
+static void
+show_fl_cntxt(uint32_t data[])
 {
-	printf("base address: 0x%llx\n",
+	printf("base address: 0x%" PRIx64 "\n",
 	       ((uint64_t)data[0] | ((uint64_t)data[1] & 0xfffff) << 32) << 12);
 	printf("index:        %u\n", (data[1] >> 20) | ((data[2] & 0xf) << 12));
 	printf("queue size:   %u\n", (data[2] >> 4) & 0xffff);
@@ -680,11 +699,12 @@ static void show_fl_cntxt(uint32_t data[])
 	printf("GTS:          %u\n", (data[3] >> 31) & 1);
 }
 
-static void show_response_cntxt(uint32_t data[])
+static void
+show_response_cntxt(uint32_t data[])
 {
 	printf("index:        %u\n", data[0] & 0xffff);
 	printf("size:         %u\n", data[0] >> 16);
-	printf("base address: 0x%llx\n",
+	printf("base address: 0x%" PRIx64 "\n",
 	       ((uint64_t)data[1] | ((uint64_t)data[2] & 0xfffff) << 32) << 12);
 	printf("MSI-X/RspQ:   %u\n", (data[2] >> 20) & 0x3f);
 	printf("intr enable:  %u\n", (data[2] >> 26) & 1);
@@ -694,11 +714,12 @@ static void show_response_cntxt(uint32_t data[])
 	printf("FL threshold: %u\n", data[3]);
 }
 
-static void show_cq_cntxt(uint32_t data[])
+static void
+show_cq_cntxt(uint32_t data[])
 {
 	printf("index:            %u\n", data[0] & 0xffff);
 	printf("size:             %u\n", data[0] >> 16);
-	printf("base address:     0x%llx\n",
+	printf("base address:     0x%" PRIx64 "\n",
 	       ((uint64_t)data[1] | ((uint64_t)data[2] & 0xfffff) << 32) << 12);
 	printf("rsp queue #:      %u\n", (data[2] >> 20) & 0x3f);
 	printf("AN:               %u\n", (data[2] >> 26) & 1);
@@ -710,8 +731,8 @@ static void show_cq_cntxt(uint32_t data[])
 	printf("credit threshold: %u\n", data[3] >> 16);
 }
 
-static int get_sge_context(int argc, char *argv[], int start_arg,
-			   const char *iff_name)
+static int
+get_sge_context(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	struct ch_cntxt ctx;
 
@@ -750,8 +771,8 @@ static int get_sge_context(int argc, char *argv[], int start_arg,
 
 #define ntohll(x) be64toh((x))
 
-static int get_sge_desc(int argc, char *argv[], int start_arg,
-			const char *iff_name)
+static int
+get_sge_desc(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	uint64_t *p, wr_hdr;
 	unsigned int n = 1, qset, qnum;
@@ -796,7 +817,8 @@ static int get_sge_desc(int argc, char *argv[], int start_arg,
 }
 #endif
 
-static int get_tcb2(int argc, char *argv[], int start_arg, const char *iff_name)
+static int
+get_tcb2(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	uint64_t *d;
 	unsigned int i;
@@ -835,8 +857,9 @@ static int get_tcb2(int argc, char *argv[], int start_arg, const char *iff_name)
 	return 0;
 }
 
-static int get_pm_page_spec(const char *s, unsigned int *page_size,
-			    unsigned int *num_pages)
+static int
+get_pm_page_spec(const char *s, unsigned int *page_size,
+    unsigned int *num_pages)
 {
 	char *p;
 	unsigned long val;
@@ -854,7 +877,8 @@ static int get_pm_page_spec(const char *s, unsigned int *page_size,
 	return *p;
 }
 
-static int conf_pm(int argc, char *argv[], int start_arg, const char *iff_name)
+static int
+conf_pm(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	struct ch_pm pm;
 
@@ -884,8 +908,8 @@ static int conf_pm(int argc, char *argv[], int start_arg, const char *iff_name)
 }
 
 #ifdef	CHELSIO_INTERNAL
-static int dump_tcam(int argc, char *argv[], int start_arg,
-		     const char *iff_name)
+static int
+dump_tcam(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	unsigned int nwords;
 	struct ch_tcam_word op;
@@ -907,7 +931,8 @@ static int dump_tcam(int argc, char *argv[], int start_arg,
 	return 0;
 }
 
-static void hexdump_8b(unsigned int start, uint64_t *data, unsigned int len)
+static void
+hexdump_8b(unsigned int start, uint64_t *data, unsigned int len)
 {
 	int i;
 
@@ -920,8 +945,8 @@ static void hexdump_8b(unsigned int start, uint64_t *data, unsigned int len)
 	}
 }
 
-static int dump_mc7(int argc, char *argv[], int start_arg,
-		    const char *iff_name)
+static int
+dump_mc7(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	struct ch_mem_range mem;
 	unsigned int mem_id, addr, len;
@@ -959,10 +984,11 @@ static int dump_mc7(int argc, char *argv[], int start_arg,
 }
 #endif
 
-/* Max FW size is 32K including version, +4 bytes for the checksum. */
+/* Max FW size is 64K including version, +4 bytes for the checksum. */
 #define MAX_FW_IMAGE_SIZE (64 * 1024)
 
-static int load_fw(int argc, char *argv[], int start_arg, const char *iff_name)
+static int
+load_fw(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	int fd, len;
 	struct ch_mem_range op;
@@ -979,12 +1005,13 @@ static int load_fw(int argc, char *argv[], int start_arg, const char *iff_name)
 	if (!op.buf)
 		err(1, "load firmware");
 
-	op.len = read(fd, op.buf, MAX_FW_IMAGE_SIZE + 1);
-	if (op.len < 0)
+	len = read(fd, op.buf, MAX_FW_IMAGE_SIZE + 1);
+	if (len < 0)
 		err(1, "load firmware");
- 	if (op.len > MAX_FW_IMAGE_SIZE)
+ 	if (len > MAX_FW_IMAGE_SIZE)
 		errx(1, "FW image too large");
 
+	op.len = len;
 	if (doit(iff_name, CHELSIO_LOAD_FW, &op) < 0)
 		err(1, "load firmware");
 	return 0;
@@ -993,8 +1020,8 @@ static int load_fw(int argc, char *argv[], int start_arg, const char *iff_name)
 /* Max BOOT size is 255*512 bytes including the BIOS boot ROM basic header */
 #define MAX_BOOT_IMAGE_SIZE (0xff * 512)
 
-static int load_boot(int argc, char *argv[],
-		     int start_arg, const char *iff_name)
+static int
+load_boot(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	int fd, len;
 	struct ch_mem_range op;
@@ -1024,7 +1051,8 @@ static int load_boot(int argc, char *argv[],
 	return 0;
 }
 
-static int dump_proto_sram(const char *iff_name)
+static int
+dump_proto_sram(const char *iff_name)
 {
 	int i, j;
 	uint8_t buf[PROTO_SRAM_SIZE];
@@ -1054,15 +1082,20 @@ static int dump_proto_sram(const char *iff_name)
 	return 0;
 }
 
-static int proto_sram_op(int argc, char *argv[], int start_arg,
+static int
+proto_sram_op(int argc, char *argv[], int start_arg,
 			 const char *iff_name)
 {
+	(void) argv;
+	(void) start_arg;
+
 	if (argc == start_arg)
 		return dump_proto_sram(iff_name);
 	return -1;
 }
 
-static int dump_qset_params(const char *iff_name)
+static int
+dump_qset_params(const char *iff_name)
 {
 	struct ch_qset_params qp;
 
@@ -1084,10 +1117,10 @@ static int dump_qset_params(const char *iff_name)
 	return 0;
 }
 
-static int qset_config(int argc, char *argv[], int start_arg,
-		       const char *iff_name)
+static int
+qset_config(int argc, char *argv[], int start_arg, const char *iff_name)
 {
-	struct ch_qset_params qp;
+	(void) argv;
 
 	if (argc == start_arg)
 		return dump_qset_params(iff_name);
@@ -1095,10 +1128,12 @@ static int qset_config(int argc, char *argv[], int start_arg,
 	return -1;
 }
 
-static int qset_num_config(int argc, char *argv[], int start_arg,
-			   const char *iff_name)
+static int
+qset_num_config(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	struct ch_reg reg;
+
+	(void) argv;
 
 	if (argc == start_arg) {
 		if (doit(iff_name, CHELSIO_GET_QSET_NUM, &reg) < 0)
@@ -1113,7 +1148,8 @@ static int qset_num_config(int argc, char *argv[], int start_arg,
 /*
  * Parse a string containing an IP address with an optional network prefix.
  */
-static int parse_ipaddr(const char *s, uint32_t *addr, uint32_t *mask)
+static int
+parse_ipaddr(const char *s, uint32_t *addr, uint32_t *mask)
 {
 	char *p, *slash;
 	struct in_addr ia;
@@ -1143,27 +1179,30 @@ static int parse_ipaddr(const char *s, uint32_t *addr, uint32_t *mask)
 /*
  * Parse a string containing a value and an optional colon separated mask.
  */
-static int parse_val_mask_param(const char *s, uint32_t *val, uint32_t *mask)
+static int
+parse_val_mask_param(const char *s, uint32_t *val, uint32_t *mask,
+    uint32_t default_mask)
 {
 	char *p;
 
-	*mask = 0xffffffffU;
+	*mask = default_mask;
 	*val = strtoul(s, &p, 0);
-	if (p == s)
+	if (p == s || *val > default_mask)
 		return -1;
 	if (*p == ':' && p[1])
 		*mask = strtoul(p + 1, &p, 0);
-	return *p ? -1 : 0;
+	return *p || *mask > default_mask ? -1 : 0;
 }
 
-static int parse_trace_param(const char *s, uint32_t *val, uint32_t *mask)
+static int
+parse_trace_param(const char *s, uint32_t *val, uint32_t *mask)
 {
 	return strchr(s, '.') ? parse_ipaddr(s, val, mask) :
-				parse_val_mask_param(s, val, mask);
+				parse_val_mask_param(s, val, mask, 0xffffffffU);
 }
 
-static int trace_config(int argc, char *argv[], int start_arg,
-			const char *iff_name)
+static int
+trace_config(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	uint32_t val, mask;
 	struct ch_trace trace;
@@ -1238,7 +1277,176 @@ static int trace_config(int argc, char *argv[], int start_arg,
 	return 0;
 }
 
-static int get_sched_param(int argc, char *argv[], int pos, unsigned int *valp)
+static void
+show_filters(const char *iff_name)
+{
+	static const char *pkt_type[] = { "*", "tcp", "udp", "frag" };
+	struct ch_filter op;
+	union {
+		uint32_t nip;
+		uint8_t octet[4];
+	} nsip, ndip;
+	char sip[20], dip[20];
+	int header = 0;
+
+	bzero(&op, sizeof(op));
+	op.filter_id = 0xffffffff;
+
+	do {
+		if (doit(iff_name, CHELSIO_GET_FILTER, &op) < 0)
+			err(1, "list filters");
+
+		if (op.filter_id == 0xffffffff)
+			break;
+
+		if (!header) {
+			printf("index         SIP                DIP     sport "
+			    "dport VLAN PRI P/MAC type Q\n");
+			header = 1;
+		}
+
+		nsip.nip = htonl(op.val.sip);
+		ndip.nip = htonl(op.val.dip);
+
+		sprintf(sip, "%u.%u.%u.%u/%-2u", nsip.octet[0], nsip.octet[1],
+		    nsip.octet[2], nsip.octet[3],
+		    op.mask.sip ? 33 - ffs(op.mask.sip) : 0);
+		sprintf(dip, "%u.%u.%u.%u", ndip.octet[0], ndip.octet[1],
+		    ndip.octet[2], ndip.octet[3]);
+		printf("%5zu %18s %15s ", (size_t)op.filter_id, sip, dip);
+		printf(op.val.sport ? "%5u " : "    * ", op.val.sport);
+		printf(op.val.dport ? "%5u " : "    * ", op.val.dport);
+		printf(op.val.vlan != 0xfff ? "%4u " : "   * ", op.val.vlan);
+		printf(op.val.vlan_prio == 7 ?  "  * " :
+		    "%1u/%1u ", op.val.vlan_prio, op.val.vlan_prio | 1);
+		if (op.mac_addr_idx == 0xffff)
+			printf("*/*   ");
+		else if (op.mac_hit)
+			printf("%1u/%3u ", (op.mac_addr_idx >> 3) & 0x1,
+			    (op.mac_addr_idx) & 0x7);
+		else
+			printf("%1u/  * ", (op.mac_addr_idx >> 3) & 0x1);
+		printf("%4s ", pkt_type[op.proto]);
+		if (!op.pass)
+			printf("-\n");
+		else if (op.rss)
+			printf("*\n");
+		else
+			printf("%1u\n", op.qset);
+	} while (1);
+}
+
+static int
+filter_config(int argc, char *argv[], int start_arg, const char *iff_name)
+{
+	int ret = 0;
+	uint32_t val, mask;
+	struct ch_filter op;
+
+	if (argc < start_arg + 1)
+		return -1;
+
+	memset(&op, 0, sizeof(op));
+	op.mac_addr_idx = 0xffff;
+	op.rss = 1;
+
+	if (argc == start_arg + 1 && !strcmp(argv[start_arg], "list")) {
+		show_filters(iff_name);
+		return 0;
+	}
+
+	if (get_int_arg(argv[start_arg++], &op.filter_id))
+		return -1;
+	if (argc == start_arg + 1 && (!strcmp(argv[start_arg], "delete") ||
+				      !strcmp(argv[start_arg], "clear"))) {
+		if (doit(iff_name, CHELSIO_DEL_FILTER, &op) < 0) {
+			if (errno == EBUSY)
+				err(1, "no filter support when offload in use");
+			err(1, "delete filter");
+		}
+		return 0;
+	}
+
+	while (start_arg + 2 <= argc) {
+		if (!strcmp(argv[start_arg], "sip")) {
+			ret = parse_ipaddr(argv[start_arg + 1], &op.val.sip,
+					   &op.mask.sip);
+		} else if (!strcmp(argv[start_arg], "dip")) {
+			ret = parse_ipaddr(argv[start_arg + 1], &op.val.dip,
+					   &op.mask.dip);
+		} else if (!strcmp(argv[start_arg], "sport")) {
+			ret = parse_val_mask_param(argv[start_arg + 1],
+						   &val, &mask, 0xffff);
+			op.val.sport = val;
+			op.mask.sport = mask;
+		} else if (!strcmp(argv[start_arg], "dport")) {
+			ret = parse_val_mask_param(argv[start_arg + 1],
+						   &val, &mask, 0xffff);
+			op.val.dport = val;
+			op.mask.dport = mask;
+		} else if (!strcmp(argv[start_arg], "vlan")) {
+			ret = parse_val_mask_param(argv[start_arg + 1],
+						   &val, &mask, 0xfff);
+			op.val.vlan = val;
+			op.mask.vlan = mask;
+		} else if (!strcmp(argv[start_arg], "prio")) {
+			ret = parse_val_mask_param(argv[start_arg + 1],
+						   &val, &mask, 7);
+			op.val.vlan_prio = val;
+			op.mask.vlan_prio = mask;
+		} else if (!strcmp(argv[start_arg], "mac")) {
+			if (!strcmp(argv[start_arg + 1], "none"))
+				val = -1;
+			else
+				ret = get_int_arg(argv[start_arg + 1], &val);
+			op.mac_hit = val != (uint32_t)-1;
+			op.mac_addr_idx = op.mac_hit ? val : 0;
+		} else if (!strcmp(argv[start_arg], "type")) {
+			if (!strcmp(argv[start_arg + 1], "tcp"))
+				op.proto = 1;
+			else if (!strcmp(argv[start_arg + 1], "udp"))
+				op.proto = 2;
+			else if (!strcmp(argv[start_arg + 1], "frag"))
+				op.proto = 3;
+			else
+				errx(1, "unknown type \"%s\"; must be one of "
+				     "\"tcp\", \"udp\", or \"frag\"",
+				     argv[start_arg + 1]);
+		} else if (!strcmp(argv[start_arg], "queue")) {
+			ret = get_int_arg(argv[start_arg + 1], &val);
+			op.qset = val;
+			op.rss = 0;
+		} else if (!strcmp(argv[start_arg], "action")) {
+			if (!strcmp(argv[start_arg + 1], "pass"))
+				op.pass = 1;
+			else if (strcmp(argv[start_arg + 1], "drop"))
+				errx(1, "unknown action \"%s\"; must be one of "
+				     "\"pass\" or \"drop\"",
+				     argv[start_arg + 1]);
+		} else
+ 			errx(1, "unknown filter parameter \"%s\"\n"
+			     "known parameters are \"mac\", \"sip\", "
+			     "\"dip\", \"sport\", \"dport\", \"vlan\", "
+			     "\"prio\", \"type\", \"queue\", and \"action\"",
+			     argv[start_arg]);
+		if (ret < 0)
+			errx(1, "bad value \"%s\" for parameter \"%s\"",
+			     argv[start_arg + 1], argv[start_arg]);
+		start_arg += 2;
+	}
+	if (start_arg != argc)
+		errx(1, "no value for \"%s\"", argv[start_arg]);
+
+	if (doit(iff_name, CHELSIO_SET_FILTER, &op) < 0) {
+		if (errno == EBUSY)
+			err(1, "no filter support when offload in use");
+		err(1, "set filter");
+	}
+	
+	return 0;
+}
+static int
+get_sched_param(int argc, char *argv[], int pos, unsigned int *valp)
 {
 	if (pos + 1 >= argc)
 		errx(1, "missing value for %s", argv[pos]);
@@ -1247,7 +1455,8 @@ static int get_sched_param(int argc, char *argv[], int pos, unsigned int *valp)
 	return 0;
 }
 
-static int tx_sched(int argc, char *argv[], int start_arg, const char *iff_name)
+static int
+tx_sched(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	struct ch_hw_sched op;
 	unsigned int idx, val;
@@ -1293,7 +1502,8 @@ static int tx_sched(int argc, char *argv[], int start_arg, const char *iff_name)
 	return 0;
 }
 
-static int pktsched(int argc, char *argv[], int start_arg, const char *iff_name)
+static int
+pktsched(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	struct ch_pktsched_params op;
 	unsigned int idx, min = -1, max, binding = -1;
@@ -1333,19 +1543,28 @@ static int pktsched(int argc, char *argv[], int start_arg, const char *iff_name)
 	return 0;
 }
 
-static int clear_stats(int argc, char *argv[], int start_arg,
-		       const char *iff_name)
+static int
+clear_stats(int argc, char *argv[], int start_arg, const char *iff_name)
 {
+	(void) argc;
+	(void) argv;
+	(void) start_arg;
+
 	if (doit(iff_name, CHELSIO_CLEAR_STATS, NULL) < 0)
 		 err(1, "clearstats");
 
 	return 0;
 }
 
-static int get_up_la(int argc, char *argv[], int start_arg, const char *iff_name)
+static int
+get_up_la(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	struct ch_up_la la;
 	int i, idx, max_idx, entries;
+
+	(void) argc;
+	(void) argv;
+	(void) start_arg;
 
 	la.stopped = 0;
 	la.idx = -1;
@@ -1372,10 +1591,15 @@ static int get_up_la(int argc, char *argv[], int start_arg, const char *iff_name
 	return 0;
 }
 
-static int get_up_ioqs(int argc, char *argv[], int start_arg, const char *iff_name)
+static int
+get_up_ioqs(int argc, char *argv[], int start_arg, const char *iff_name)
 {
 	struct ch_up_ioqs ioqs;
 	int i, entries;
+
+	(void) argc;
+	(void) argv;
+	(void) start_arg;
 
 	bzero(&ioqs, sizeof(ioqs));
 	ioqs.bufsize = IOQS_BUFSIZE;
@@ -1449,6 +1673,8 @@ run_cmd(int argc, char *argv[], const char *iff_name)
 		r = pktsched(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "tcb"))
 		r = get_tcb2(argc, argv, 3, iff_name);
+	else if (!strcmp(argv[2], "filter"))
+		r = filter_config(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "clearstats"))
 		r = clear_stats(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "la"))
@@ -1465,10 +1691,12 @@ run_cmd(int argc, char *argv[], const char *iff_name)
 static int
 run_cmd_loop(int argc, char *argv[], const char *iff_name)
 {
-	int n, i;
+	int n;
+	unsigned int i;
 	char buf[64];
 	char *args[8], *s;
 
+	(void) argc;
 	args[0] = argv[0];
 	args[1] = argv[1];
 
@@ -1481,11 +1709,8 @@ run_cmd_loop(int argc, char *argv[], const char *iff_name)
 	for (;;) {
 		fprintf(stdout, "> ");
 		fflush(stdout);
-		n = read(STDIN_FILENO, buf, sizeof(buf));
-		if (n > sizeof(buf) - 1) {
-			fprintf(stdout, "too much input.\n");
-			return (0);
-		} else if (n <= 0)
+		n = read(STDIN_FILENO, buf, sizeof(buf) - 1);
+		if (n <= 0)
 			return (0);
 
 		if (buf[--n] != '\n')

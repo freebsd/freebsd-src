@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/tlb.h>
 #ifdef DDB
 #include <sys/kdb.h>
 #include <ddb/ddb.h>
@@ -118,7 +119,7 @@ vm_offset_t kstack0;
 /*
  * Each entry in the pcpu_space[] array is laid out in the following manner:
  * struct pcpu for cpu 'n'	pcpu_space[n]
- * boot stack for cpu 'n'	pcpu_space[n] + PAGE_SIZE * 2 - START_FRAME
+ * boot stack for cpu 'n'	pcpu_space[n] + PAGE_SIZE * 2 - CALLFRAME_SIZ
  *
  * Note that the boot stack grows downwards and we assume that we never
  * use enough stack space to trample over the 'struct pcpu' that is at
@@ -141,10 +142,6 @@ vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
 #ifdef UNIMPLEMENTED
 struct platform platform;
 #endif
-
-vm_paddr_t	mips_wired_tlb_physmem_start;
-vm_paddr_t	mips_wired_tlb_physmem_end;
-u_int		need_wired_tlb_page_pool;
 
 static void cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
@@ -302,14 +299,13 @@ mips_proc0_init(void)
 		(long)kstack0));
 	thread0.td_kstack = kstack0;
 	thread0.td_kstack_pages = KSTACK_PAGES;
-	thread0.td_md.md_realstack = roundup2(thread0.td_kstack, PAGE_SIZE * 2);
 	/* 
 	 * Do not use cpu_thread_alloc to initialize these fields 
 	 * thread0 is the only thread that has kstack located in KSEG0 
 	 * while cpu_thread_alloc handles kstack allocated in KSEG2.
 	 */
-	thread0.td_pcb = (struct pcb *)(thread0.td_md.md_realstack +
-	    (thread0.td_kstack_pages - 1) * PAGE_SIZE) - 1;
+	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
+	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
 	thread0.td_frame = &thread0.td_pcb->pcb_regs;
 
 	/* Steal memory for the dynamic per-cpu area. */
@@ -351,7 +347,7 @@ mips_vector_init(void)
 	bcopy(MipsTLBMiss, (void *)TLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
-#ifdef TARGET_OCTEON
+#if defined(TARGET_OCTEON) || defined(TARGET_XLR_XLS)
 /* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
 	bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
@@ -374,11 +370,9 @@ mips_vector_init(void)
 	 * when handler is installed for it
 	 */
 	set_intr_mask(ALL_INT_MASK);
-	enableintr();
 
 	/* Clear BEV in SR so we start handling our own exceptions */
-	mips_cp0_status_write(mips_cp0_status_read() & ~SR_BOOT_EXC_VEC);
-
+	mips_wr_status(mips_rd_status() & ~SR_BOOT_EXC_VEC);
 }
 
 /*
@@ -420,20 +414,17 @@ void
 mips_pcpu_tlb_init(struct pcpu *pcpu)
 {
 	vm_paddr_t pa;
-	struct tlb tlb;
-	int lobits;
+	pt_entry_t pte;
 
 	/*
 	 * Map the pcpu structure at the virtual address 'pcpup'.
 	 * We use a wired tlb index to do this one-time mapping.
 	 */
-	memset(&tlb, 0, sizeof(tlb));
 	pa = vtophys(pcpu);
-	lobits = PTE_RW | PTE_V | PTE_G | PTE_CACHE;
-	tlb.tlb_hi = (vm_offset_t)pcpup;
-	tlb.tlb_lo0 = mips_paddr_to_tlbpfn(pa) | lobits;
-	tlb.tlb_lo1 = mips_paddr_to_tlbpfn(pa + PAGE_SIZE) | lobits;
-	Mips_TLBWriteIndexed(PCPU_TLB_ENTRY, &tlb);
+	pte = PTE_D | PTE_V | PTE_G | PTE_C_CACHE;
+	tlb_insert_wired(PCPU_TLB_ENTRY, (vm_offset_t)pcpup,
+			 TLBLO_PA_TO_PFN(pa) | pte,
+			 TLBLO_PA_TO_PFN(pa + PAGE_SIZE) | pte);
 }
 #endif
 
@@ -475,7 +466,7 @@ spinlock_enter(void)
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_intr = disableintr();
+		td->td_md.md_saved_intr = intr_disable();
 	td->td_md.md_spinlock_count++;
 	critical_enter();
 }
@@ -489,16 +480,7 @@ spinlock_exit(void)
 	critical_exit();
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		restoreintr(td->td_md.md_saved_intr);
-}
-
-u_int32_t
-get_cyclecount(void)
-{
-	u_int32_t count;
-
-	mfc0_macro(count, 9);
-	return (count);
+		intr_restore(td->td_md.md_saved_intr);
 }
 
 /*
@@ -507,7 +489,7 @@ get_cyclecount(void)
 void
 cpu_idle(int busy)
 {
-	if (mips_cp0_status_read() & SR_INT_ENAB)
+	if (mips_rd_status() & SR_INT_ENAB)
 		__asm __volatile ("wait");
 	else
 		panic("ints disabled in idleproc!");

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2009 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 #define	G_GATE_MOD_NAME		"ggate"
 #define	G_GATE_CTL_NAME		"ggctl"
 
-#define G_GATE_VERSION		1
+#define G_GATE_VERSION		2
 
 /*
  * Maximum number of request that can be stored in
@@ -53,6 +53,15 @@
 #define	G_GATE_FLAG_WRITEONLY	0x0002
 #define	G_GATE_FLAG_DESTROY	0x1000
 #define	G_GATE_USERFLAGS	(G_GATE_FLAG_READONLY | G_GATE_FLAG_WRITEONLY)
+
+/*
+ * Pick unit number automatically in /dev/ggate<unit>.
+ */
+#define	G_GATE_UNIT_AUTO	(-1)
+/*
+ * Full provider name is given, so don't use ggate<unit>.
+ */
+#define	G_GATE_NAME_GIVEN	(-2)
 
 #define G_GATE_CMD_CREATE	_IOWR('m', 0, struct g_gate_ctl_create)
 #define G_GATE_CMD_DESTROY	_IOWR('m', 1, struct g_gate_ctl_destroy)
@@ -120,20 +129,23 @@ struct g_gate_ctl_create {
 	u_int	gctl_flags;
 	u_int	gctl_maxcount;
 	u_int	gctl_timeout;
+	char	gctl_name[NAME_MAX];
 	char	gctl_info[G_GATE_INFOSIZE];
-	int	gctl_unit;	/* out */
+	int	gctl_unit;	/* in/out */
 };
 
 struct g_gate_ctl_destroy {
 	u_int	gctl_version;
 	int	gctl_unit;
 	int	gctl_force;
+	char	gctl_name[NAME_MAX];
 };
 
 struct g_gate_ctl_cancel {
 	u_int		gctl_version;
 	int		gctl_unit;
 	uintptr_t	gctl_seq;
+	char		gctl_name[NAME_MAX];
 };
 
 struct g_gate_ctl_io {

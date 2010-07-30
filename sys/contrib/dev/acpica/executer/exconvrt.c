@@ -786,7 +786,7 @@ AcpiExConvertToTargetType (
 
 
         default:
-            ACPI_ERROR ((AE_INFO, "Bad destination type during conversion: %X",
+            ACPI_ERROR ((AE_INFO, "Bad destination type during conversion: 0x%X",
                 DestinationType));
             Status = AE_AML_INTERNAL;
             break;
@@ -803,7 +803,7 @@ AcpiExConvertToTargetType (
 
     default:
         ACPI_ERROR ((AE_INFO,
-            "Unknown Target type ID 0x%X AmlOpcode %X DestType %s",
+            "Unknown Target type ID 0x%X AmlOpcode 0x%X DestType %s",
             GET_CURRENT_ARG_TYPE (WalkState->OpInfo->RuntimeArgs),
             WalkState->Opcode, AcpiUtGetTypeName (DestinationType)));
         Status = AE_AML_INTERNAL;

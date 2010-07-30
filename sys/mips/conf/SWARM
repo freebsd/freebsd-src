@@ -8,21 +8,10 @@ options		CPU_SB1
 files		"../sibyte/files.sibyte"
 hints		"SWARM.hints"
 
-#
-# 32-bit kernel cannot deal with physical memory beyond 4GB
-# XXX pmap assumes that all the memory can be mapped using KSEG0
-#
-options		MAXMEM=512*1024
-
 options		CFE
 options		CFE_CONSOLE
 options		CFE_ENV
 options		ALT_BREAK_TO_DEBUGGER
-
-# cfe loader expects kernel at 0x80001000 for mips32 w/o backwards
-# offsets in the linked elf image (see ldscript hack)
-# XXX can we conditionalize the linker stuff on options CFE?
-options		KERNVIRTADDR=0x80001000
 
 makeoptions	LDSCRIPT_NAME=	ldscript.mips.cfe
 
@@ -47,7 +36,7 @@ options		PSEUDOFS		#Pseudo-filesystem framework
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 # Debugging for use in -current
-#options	DEADLKRES
+#options 	DEADLKRES
 options		INVARIANTS
 options		INVARIANT_SUPPORT
 options		WITNESS

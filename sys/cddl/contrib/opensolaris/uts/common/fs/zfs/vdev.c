@@ -1861,6 +1861,19 @@ vdev_writeable(vdev_t *vd)
 }
 
 boolean_t
+vdev_allocatable(vdev_t *vd)
+{
+	/*
+	 * We currently allow allocations from vdevs which maybe in the
+	 * process of reopening (i.e. VDEV_STATE_CLOSED). If the device
+	 * fails to reopen then we'll catch it later when we're holding
+	 * the proper locks.
+	 */
+	return (!(vdev_is_dead(vd) && vd->vdev_state != VDEV_STATE_CLOSED) &&
+	    !vd->vdev_cant_write);
+}
+
+boolean_t
 vdev_accessible(vdev_t *vd, zio_t *zio)
 {
 	ASSERT(zio->io_vd == vd);

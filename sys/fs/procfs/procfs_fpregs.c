@@ -53,10 +53,9 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <sys/procfs.h>
 #include <machine/fpu.h>
-#include <compat/ia32/ia32_reg.h>
 
 /*
  * PROC(write, fpregs, td2, &r) becomes
@@ -84,7 +83,7 @@ procfs_doprocfpregs(PFS_FILL_ARGS)
 	int error;
 	struct fpreg r;
 	struct thread *td2;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	struct fpreg32 r32;
 	int wrap32 = 0;
 #endif
@@ -101,7 +100,7 @@ procfs_doprocfpregs(PFS_FILL_ARGS)
 
 	/* XXXKSE: */
 	td2 = FIRST_THREAD_IN_PROC(p);
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	if (SV_CURPROC_FLAG(SV_ILP32)) {
 		if ((td2->td_proc->p_sysent->sv_flags & SV_ILP32) == 0) {
 			PROC_UNLOCK(p);

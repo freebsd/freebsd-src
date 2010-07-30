@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.326 2009/07/02 02:11:47 dtucker Exp $ */
+/* $OpenBSD: ssh.c,v 1.335 2010/02/26 20:29:54 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -101,10 +101,11 @@ __RCSID("$FreeBSD$");
 #include "match.h"
 #include "msg.h"
 #include "uidswap.h"
+#include "roaming.h"
 #include "version.h"
 
-#ifdef SMARTCARD
-#include "scard.h"
+#ifdef ENABLE_PKCS11
+#include "ssh-pkcs11.h"
 #endif
 
 extern char *__progname;
@@ -132,6 +133,10 @@ int stdin_null_flag = 0;
  * background.
  */
 int fork_after_authentication_flag = 0;
+
+/* forward stdio to remote host and port */
+char *stdio_forward_host = NULL;
+int stdio_forward_port = 0;
 
 /*
  * General data structure for command line options and options configurable
@@ -183,10 +188,12 @@ usage(void)
 	fprintf(stderr,
 "usage: ssh [-1246AaCfgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]\n"
 "           [-D [bind_address:]port] [-e escape_char] [-F configfile]\n"
-"           [-i identity_file] [-L [bind_address:]port:host:hostport]\n"
+"           [-I pkcs11] [-i identity_file]\n"
+"           [-L [bind_address:]port:host:hostport]\n"
 "           [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]\n"
 "           [-R [bind_address:]port:host:hostport] [-S ctl_path]\n"
-"           [-w local_tun[:remote_tun]] [user@]hostname [command]\n"
+"           [-W host:port] [-w local_tun[:remote_tun]]\n"
+"           [user@]hostname [command]\n"
 	);
 	exit(255);
 }
@@ -276,7 +283,7 @@ main(int ac, char **av)
 
  again:
 	while ((opt = getopt(ac, av, "1246ab:c:e:fgi:kl:m:no:p:qstvx"
-	    "ACD:F:I:KL:MNO:PR:S:TVw:XYy")) != -1) {
+	    "ACD:F:I:KL:MNO:PR:S:TVw:W:XYy")) != -1) {
 		switch (opt) {
 		case '1':
 			options.protocol = SSH_PROTO_1;
@@ -314,6 +321,11 @@ main(int ac, char **av)
 			options.gateway_ports = 1;
 			break;
 		case 'O':
+			if (stdio_forward_host != NULL)
+				fatal("Cannot specify multiplexing "
+				    "command with -W");
+			else if (muxclient_command != 0)
+				fatal("Multiplexing command already specified");
 			if (strcmp(optarg, "check") == 0)
 				muxclient_command = SSHMUX_COMMAND_ALIVE_CHECK;
 			else if (strcmp(optarg, "exit") == 0)
@@ -352,10 +364,10 @@ main(int ac, char **av)
 			    xstrdup(optarg);
 			break;
 		case 'I':
-#ifdef SMARTCARD
-			options.smartcard_device = xstrdup(optarg);
+#ifdef ENABLE_PKCS11
+			options.pkcs11_provider = xstrdup(optarg);
 #else
-			fprintf(stderr, "no support for smartcards.\n");
+			fprintf(stderr, "no support for PKCS#11.\n");
 #endif
 			break;
 		case 't':
@@ -388,6 +400,26 @@ main(int ac, char **av)
 				    "Bad tun device '%s'\n", optarg);
 				exit(255);
 			}
+			break;
+		case 'W':
+			if (stdio_forward_host != NULL)
+				fatal("stdio forward already specified");
+			if (muxclient_command != 0)
+				fatal("Cannot specify stdio forward with -O");
+			if (parse_forward(&fwd, optarg, 1, 0)) {
+				stdio_forward_host = fwd.listen_host;
+				stdio_forward_port = fwd.listen_port;
+				xfree(fwd.connect_host);
+			} else {
+				fprintf(stderr,
+				    "Bad stdio forwarding specification '%s'\n",
+				    optarg);
+				exit(255);
+			}
+			no_tty_flag = 1;
+			no_shell_flag = 1;
+			options.clear_forwardings = 1;
+			options.exit_on_forward_failure = 1;
 			break;
 		case 'q':
 			options.log_level = SYSLOG_LEVEL_QUIET;
@@ -528,7 +560,7 @@ main(int ac, char **av)
 	ac -= optind;
 	av += optind;
 
-	if (ac > 0 && !host && **av != '-') {
+	if (ac > 0 && !host) {
 		if (strrchr(*av, '@')) {
 			p = xstrdup(*av);
 			cp = strrchr(p, '@');
@@ -888,10 +920,47 @@ ssh_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
 }
 
 static void
+client_cleanup_stdio_fwd(int id, void *arg)
+{
+	debug("stdio forwarding: done");
+	cleanup_exit(0);
+}
+
+static int
+client_setup_stdio_fwd(const char *host_to_connect, u_short port_to_connect)
+{
+	Channel *c;
+	int in, out;
+
+	debug3("client_setup_stdio_fwd %s:%d", host_to_connect,
+	    port_to_connect);
+
+	in = dup(STDIN_FILENO);
+	out = dup(STDOUT_FILENO);
+	if (in < 0 || out < 0)
+		fatal("channel_connect_stdio_fwd: dup() in/out failed");
+
+	if ((c = channel_connect_stdio_fwd(host_to_connect, port_to_connect,
+	    in, out)) == NULL)
+		return 0;
+	channel_register_cleanup(c->self, client_cleanup_stdio_fwd, 0);
+	return 1;
+}
+
+static void
 ssh_init_forwarding(void)
 {
 	int success = 0;
 	int i;
+
+	if (stdio_forward_host != NULL) {
+		if (!compat20) {
+			fatal("stdio forwarding require Protocol 2");
+		}
+		if (!client_setup_stdio_fwd(stdio_forward_host,
+		    stdio_forward_port))
+			fatal("Failed to connect in stdio forward mode.");
+	}
 
 	/* Initiate local TCP/IP port forwardings. */
 	for (i = 0; i < options.num_local_forwards; i++) {
@@ -1240,6 +1309,9 @@ ssh_session2(void)
 			fatal("daemon() failed: %.200s", strerror(errno));
 	}
 
+	if (options.use_roaming)
+		request_roaming();
+
 	return client_loop(tty_flag, tty_flag ?
 	    options.escape_char : SSH_ESCAPECHAR_NONE, id);
 }
@@ -1252,31 +1324,37 @@ load_public_identity_files(void)
 	int i = 0;
 	Key *public;
 	struct passwd *pw;
-#ifdef SMARTCARD
+	u_int n_ids;
+	char *identity_files[SSH_MAX_IDENTITY_FILES];
+	Key *identity_keys[SSH_MAX_IDENTITY_FILES];
+#ifdef ENABLE_PKCS11
 	Key **keys;
+	int nkeys;
+#endif /* PKCS11 */
 
-	if (options.smartcard_device != NULL &&
+	n_ids = 0;
+	bzero(identity_files, sizeof(identity_files));
+	bzero(identity_keys, sizeof(identity_keys));
+
+#ifdef ENABLE_PKCS11
+	if (options.pkcs11_provider != NULL &&
 	    options.num_identity_files < SSH_MAX_IDENTITY_FILES &&
-	    (keys = sc_get_keys(options.smartcard_device, NULL)) != NULL) {
-		int count = 0;
-		for (i = 0; keys[i] != NULL; i++) {
-			count++;
-			memmove(&options.identity_files[1],
-			    &options.identity_files[0],
-			    sizeof(char *) * (SSH_MAX_IDENTITY_FILES - 1));
-			memmove(&options.identity_keys[1],
-			    &options.identity_keys[0],
-			    sizeof(Key *) * (SSH_MAX_IDENTITY_FILES - 1));
-			options.num_identity_files++;
-			options.identity_keys[0] = keys[i];
-			options.identity_files[0] = sc_get_key_label(keys[i]);
+	    (pkcs11_init(!options.batch_mode) == 0) &&
+	    (nkeys = pkcs11_add_provider(options.pkcs11_provider, NULL,
+	    &keys)) > 0) {
+		for (i = 0; i < nkeys; i++) {
+			if (n_ids >= SSH_MAX_IDENTITY_FILES) {
+				key_free(keys[i]);
+				continue;
+			}
+			identity_keys[n_ids] = keys[i];
+			identity_files[n_ids] =
+			    xstrdup(options.pkcs11_provider); /* XXX */
+			n_ids++;
 		}
-		if (options.num_identity_files > SSH_MAX_IDENTITY_FILES)
-			options.num_identity_files = SSH_MAX_IDENTITY_FILES;
-		i = count;
 		xfree(keys);
 	}
-#endif /* SMARTCARD */
+#endif /* ENABLE_PKCS11 */
 	if ((pw = getpwuid(original_real_uid)) == NULL)
 		fatal("load_public_identity_files: getpwuid failed");
 	pwname = xstrdup(pw->pw_name);
@@ -1284,7 +1362,11 @@ load_public_identity_files(void)
 	if (gethostname(thishost, sizeof(thishost)) == -1)
 		fatal("load_public_identity_files: gethostname: %s",
 		    strerror(errno));
-	for (; i < options.num_identity_files; i++) {
+	for (i = 0; i < options.num_identity_files; i++) {
+		if (n_ids >= SSH_MAX_IDENTITY_FILES) {
+			xfree(options.identity_files[i]);
+			continue;
+		}
 		cp = tilde_expand_filename(options.identity_files[i],
 		    original_real_uid);
 		filename = percent_expand(cp, "d", pwdir,
@@ -1295,9 +1377,37 @@ load_public_identity_files(void)
 		debug("identity file %s type %d", filename,
 		    public ? public->type : -1);
 		xfree(options.identity_files[i]);
-		options.identity_files[i] = filename;
-		options.identity_keys[i] = public;
+		identity_files[n_ids] = filename;
+		identity_keys[n_ids] = public;
+
+		if (++n_ids >= SSH_MAX_IDENTITY_FILES)
+			continue;
+
+		/* Try to add the certificate variant too */
+		xasprintf(&cp, "%s-cert", filename);
+		public = key_load_public(cp, NULL);
+		debug("identity file %s type %d", cp,
+		    public ? public->type : -1);
+		if (public == NULL) {
+			xfree(cp);
+			continue;
+		}
+		if (!key_is_cert(public)) {
+			debug("%s: key %s type %s is not a certificate",
+			    __func__, cp, key_type(public));
+			key_free(public);
+			xfree(cp);
+			continue;
+		}
+		identity_keys[n_ids] = public;
+		/* point to the original path, most likely the private key */
+		identity_files[n_ids] = xstrdup(filename);
+		n_ids++;
 	}
+	options.num_identity_files = n_ids;
+	memcpy(options.identity_files, identity_files, sizeof(identity_files));
+	memcpy(options.identity_keys, identity_keys, sizeof(identity_keys));
+
 	bzero(pwname, strlen(pwname));
 	xfree(pwname);
 	bzero(pwdir, strlen(pwdir));

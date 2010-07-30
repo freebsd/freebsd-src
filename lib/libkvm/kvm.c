@@ -416,6 +416,8 @@ _kvm_nlist(kvm_t *kd, struct nlist *nl, int initialize)
 	struct kld_sym_lookup lookup;
 	int error;
 	char *prefix = "", symname[1024]; /* XXX-BZ symbol name length limit? */
+	int tried_vnet, tried_dpcpu;
+
 	/*
 	 * If we can't use the kld symbol lookup, revert to the
 	 * slow library call.
@@ -429,6 +431,10 @@ _kvm_nlist(kvm_t *kd, struct nlist *nl, int initialize)
 			error = kvm_fdnlist_prefix(kd, nl, error,
 			    VNET_SYMPREFIX, _kvm_vnet_validaddr);
 
+		if (error > 0 && _kvm_dpcpu_initialized(kd, initialize))
+			error = kvm_fdnlist_prefix(kd, nl, error,
+			    "pcpu_entry_", _kvm_dpcpu_validaddr);
+
 		return (error);
 	}
 
@@ -437,6 +443,8 @@ _kvm_nlist(kvm_t *kd, struct nlist *nl, int initialize)
 	 * and look it up with a kldsym(2) syscall.
 	 */
 	nvalid = 0;
+	tried_vnet = 0;
+	tried_dpcpu = 0;
 again:
 	for (p = nl; p->n_name && p->n_name[0]; ++p) {
 		if (p->n_type != N_UNDF)
@@ -464,6 +472,10 @@ again:
 			    !strcmp(prefix, VNET_SYMPREFIX))
 				p->n_value =
 				    _kvm_vnet_validaddr(kd, lookup.symvalue);
+			else if (_kvm_dpcpu_initialized(kd, initialize) &&
+			    !strcmp(prefix, "pcpu_entry_"))
+				p->n_value =
+				    _kvm_dpcpu_validaddr(kd, lookup.symvalue);
 			else
 				p->n_value = lookup.symvalue;
 			++nvalid;
@@ -473,12 +485,17 @@ again:
 
 	/*
 	 * Check the number of entries that weren't found. If they exist,
-	 * try again with a prefix for virtualized symbol names.
+	 * try again with a prefix for virtualized or DPCPU symbol names.
 	 */
 	error = ((p - nl) - nvalid);
-	if (error && _kvm_vnet_initialized(kd, initialize) &&
-	    strcmp(prefix, VNET_SYMPREFIX)) {
+	if (error && _kvm_vnet_initialized(kd, initialize) && !tried_vnet) {
+		tried_vnet = 1;
 		prefix = VNET_SYMPREFIX;
+		goto again;
+	}
+	if (error && _kvm_dpcpu_initialized(kd, initialize) && !tried_dpcpu) {
+		tried_dpcpu = 1;
+		prefix = "pcpu_entry_";
 		goto again;
 	}
 

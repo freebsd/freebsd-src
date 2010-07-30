@@ -61,9 +61,6 @@
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
-#include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -655,7 +652,6 @@ msdosfs_write(ap)
 	struct buf *bp;
 	int ioflag = ap->a_ioflag;
 	struct uio *uio = ap->a_uio;
-	struct thread *td = uio->uio_td;
 	struct vnode *vp = ap->a_vp;
 	struct vnode *thisvp;
 	struct denode *dep = VTODE(vp);
@@ -699,16 +695,8 @@ msdosfs_write(ap)
 	/*
 	 * If they've exceeded their filesize limit, tell them about it.
 	 */
-	if (td != NULL) {
-		PROC_LOCK(td->td_proc);
-		if ((uoff_t)uio->uio_offset + uio->uio_resid >
-		    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
-			psignal(td->td_proc, SIGXFSZ);
-			PROC_UNLOCK(td->td_proc);
-			return (EFBIG);
-		}
-		PROC_UNLOCK(td->td_proc);
-	}
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
+		return (EFBIG);
 
 	/*
 	 * If the offset we are starting the write at is beyond the end of
@@ -1072,7 +1060,7 @@ abortit:
 	/*
 	 * If ".." must be changed (ie the directory gets a new
 	 * parent) then the source directory must not be in the
-	 * directory heirarchy above the target, as this would
+	 * directory hierarchy above the target, as this would
 	 * orphan everything below the source directory. Also
 	 * the user must have write permission in the source so
 	 * as to be able to change "..". We must repeat the call
@@ -1468,14 +1456,12 @@ msdosfs_rmdir(ap)
 	 * the name cache.
 	 */
 	cache_purge(dvp);
-	VOP_UNLOCK(dvp, 0);
 	/*
 	 * Truncate the directory that is being deleted.
 	 */
 	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred, td);
 	cache_purge(vp);
 
-	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 out:
 	return (error);
 }

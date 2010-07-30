@@ -168,8 +168,8 @@ malo_bar0_read4(struct malo_softc *sc, bus_size_t off)
 static void
 malo_bar0_write4(struct malo_softc *sc, bus_size_t off, uint32_t val)
 {
-	DPRINTF(sc, MALO_DEBUG_FW, "%s: off 0x%zx val 0x%x\n",
-	    __func__, off, val);
+	DPRINTF(sc, MALO_DEBUG_FW, "%s: off 0x%jx val 0x%x\n",
+	    __func__, (intmax_t)off, val);
 
 	bus_space_write_4(sc->malo_io0t, sc->malo_io0h, off, val);
 }
@@ -275,8 +275,8 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	ifp->if_start = malo_start;
 	ifp->if_ioctl = malo_ioctl;
 	ifp->if_init = malo_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;

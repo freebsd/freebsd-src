@@ -18,6 +18,7 @@
 
 #include <sys/un.h>
 #include <sys/stat.h>
+#include <stddef.h>
 
 #include "hostapd.h"
 #include "eloop.h"
@@ -60,7 +61,8 @@ static int hostapd_ctrl_iface_attach(struct hostapd_data *hapd,
 	dst->next = hapd->ctrl_dst;
 	hapd->ctrl_dst = dst;
 	wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor attached",
-		    (u8 *) from->sun_path, fromlen);
+		    (u8 *) from->sun_path,
+		    fromlen - offsetof(struct sockaddr_un, sun_path));
 	return 0;
 }
 
@@ -74,15 +76,18 @@ static int hostapd_ctrl_iface_detach(struct hostapd_data *hapd,
 	dst = hapd->ctrl_dst;
 	while (dst) {
 		if (fromlen == dst->addrlen &&
-		    os_memcmp(from->sun_path, dst->addr.sun_path, fromlen) ==
-		    0) {
+		    os_memcmp(from->sun_path, dst->addr.sun_path,
+			      fromlen - offsetof(struct sockaddr_un, sun_path))
+		    == 0) {
 			if (prev == NULL)
 				hapd->ctrl_dst = dst->next;
 			else
 				prev->next = dst->next;
 			os_free(dst);
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor detached",
-				    (u8 *) from->sun_path, fromlen);
+				    (u8 *) from->sun_path,
+				    fromlen -
+				    offsetof(struct sockaddr_un, sun_path));
 			return 0;
 		}
 		prev = dst;
@@ -104,10 +109,12 @@ static int hostapd_ctrl_iface_level(struct hostapd_data *hapd,
 	dst = hapd->ctrl_dst;
 	while (dst) {
 		if (fromlen == dst->addrlen &&
-		    os_memcmp(from->sun_path, dst->addr.sun_path, fromlen) ==
-		    0) {
+		    os_memcmp(from->sun_path, dst->addr.sun_path,
+			      fromlen - offsetof(struct sockaddr_un, sun_path))
+		    == 0) {
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE changed monitor "
-				    "level", (u8 *) from->sun_path, fromlen);
+				    "level", (u8 *) from->sun_path, fromlen -
+				    offsetof(struct sockaddr_un, sun_path));
 			dst->debug_level = atoi(level);
 			return 0;
 		}
@@ -246,10 +253,21 @@ static int hostapd_ctrl_iface_sa_query(struct hostapd_data *hapd,
 static int hostapd_ctrl_iface_wps_pin(struct hostapd_data *hapd, char *txt)
 {
 	char *pin = os_strchr(txt, ' ');
+	char *timeout_txt;
+	int timeout;
+
 	if (pin == NULL)
 		return -1;
 	*pin++ = '\0';
-	return hostapd_wps_add_pin(hapd, txt, pin);
+
+	timeout_txt = os_strchr(pin, ' ');
+	if (timeout_txt) {
+		*timeout_txt++ = '\0';
+		timeout = atoi(timeout_txt);
+	} else
+		timeout = 0;
+
+	return hostapd_wps_add_pin(hapd, txt, pin, timeout);
 }
 #endif /* CONFIG_WPS */
 
@@ -434,14 +452,44 @@ int hostapd_ctrl_iface_init(struct hostapd_data *hapd)
 	}
 
 	os_memset(&addr, 0, sizeof(addr));
+#ifdef __FreeBSD__
+	addr.sun_len = sizeof(addr);
+#endif /* __FreeBSD__ */
 	addr.sun_family = AF_UNIX;
 	fname = hostapd_ctrl_iface_path(hapd);
 	if (fname == NULL)
 		goto fail;
 	os_strlcpy(addr.sun_path, fname, sizeof(addr.sun_path));
 	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("bind(PF_UNIX)");
-		goto fail;
+		wpa_printf(MSG_DEBUG, "ctrl_iface bind(PF_UNIX) failed: %s",
+			   strerror(errno));
+		if (connect(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+			wpa_printf(MSG_DEBUG, "ctrl_iface exists, but does not"
+				   " allow connections - assuming it was left"
+				   "over from forced program termination");
+			if (unlink(fname) < 0) {
+				perror("unlink[ctrl_iface]");
+				wpa_printf(MSG_ERROR, "Could not unlink "
+					   "existing ctrl_iface socket '%s'",
+					   fname);
+				goto fail;
+			}
+			if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) <
+			    0) {
+				perror("bind(PF_UNIX)");
+				goto fail;
+			}
+			wpa_printf(MSG_DEBUG, "Successfully replaced leftover "
+				   "ctrl_iface socket '%s'", fname);
+		} else {
+			wpa_printf(MSG_INFO, "ctrl_iface exists and seems to "
+				   "be in use - cannot override it");
+			wpa_printf(MSG_INFO, "Delete '%s' manually if it is "
+				   "not used anymore", fname);
+			os_free(fname);
+			fname = NULL;
+			goto fail;
+		}
 	}
 
 	if (hapd->conf->ctrl_interface_gid_set &&
@@ -536,15 +584,17 @@ static void hostapd_ctrl_iface_send(struct hostapd_data *hapd, int level,
 		next = dst->next;
 		if (level >= dst->debug_level) {
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor send",
-				    (u8 *) dst->addr.sun_path, dst->addrlen);
+				    (u8 *) dst->addr.sun_path, dst->addrlen -
+				    offsetof(struct sockaddr_un, sun_path));
 			msg.msg_name = &dst->addr;
 			msg.msg_namelen = dst->addrlen;
 			if (sendmsg(hapd->ctrl_sock, &msg, 0) < 0) {
-				fprintf(stderr, "CTRL_IFACE monitor[%d]: ",
-					idx);
-				perror("sendmsg");
+				int _errno = errno;
+				wpa_printf(MSG_INFO, "CTRL_IFACE monitor[%d]: "
+					   "%d - %s",
+					   idx, errno, strerror(errno));
 				dst->errors++;
-				if (dst->errors > 10) {
+				if (dst->errors > 10 || _errno == ENOENT) {
 					hostapd_ctrl_iface_detach(
 						hapd, &dst->addr,
 						dst->addrlen);

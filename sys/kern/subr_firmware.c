@@ -121,7 +121,7 @@ struct priv_fw {
  * reallocate the array because pointers are held externally.
  * A list may work, though.
  */
-#define	FIRMWARE_MAX	30
+#define	FIRMWARE_MAX	50
 static struct priv_fw firmware_table[FIRMWARE_MAX];
 
 /*

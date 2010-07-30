@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+GCCVER=	4.2
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 SRCDIR=	${.CURDIR}/../../../contrib/libstdc++
@@ -94,7 +95,7 @@ CLEANFILES+=	atomicity.cc
 
 INCSGROUPS=	BITSHDRS BKWHDRS EXTHDRS BASEHDRS BASEXHDRS STDHDRS \
 		TARGETHDRS THRHDRS DEBUGHDRS TR1HDRS PBHDRS0 PBHDRS1
-CXXINCLUDEDIR=	${INCLUDEDIR}/c++/4.2
+CXXINCLUDEDIR=	${INCLUDEDIR}/c++/${GCCVER}
 
 STDHDRS=	std_algorithm.h std_bitset.h std_complex.h std_deque.h \
 		std_fstream.h std_functional.h std_iomanip.h std_ios.h \

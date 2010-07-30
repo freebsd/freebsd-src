@@ -68,6 +68,7 @@
 #define	CAS_STATUS4		0x105c	/* interrupt status 4 for INTD */
 #define	CAS_CLEAR_ALIAS4	0x1060	/* clear mask alias 4 for INTD */
 #define	CAS_STATUS_ALIAS4	0x1064	/* interrupt status alias 4 for INTD */
+#define	CAS_SATURN_PCFG		0x106c	/* internal MACPHY pin configuration */
 
 #define	CAS_CAW_RX_WGHT_MASK	0x00000003	/* RX DMA factor for... */
 #define	CAS_CAW_RX_WGHT_SHFT	0		/* ...weighted round robin */
@@ -170,6 +171,17 @@
 
 /* INTn enable bit for CAS_INTMASK[2-4] */
 #define	CAS_INTMASKN_EN		0x00000080	/* INT[B-D] enable */
+
+#define	CAS_SATURN_PCFG_TLA	0x00000001	/* PHY activity LED */
+#define	CAS_SATURN_PCFG_FLA	0x00000002	/* PHY 10MBit/sec LED */
+#define	CAS_SATURN_PCFG_CLA	0x00000004	/* PHY 100MBit/sec LED */
+#define	CAS_SATURN_PCFG_LLA	0x00000008	/* PHY 1000MBit/sec LED */
+#define	CAS_SATURN_PCFG_RLA	0x00000010	/* PHY full-duplex LED */
+#define	CAS_SATURN_PCFG_PDS	0x00000020	/* PHY debug mode */
+#define	CAS_SATURN_PCFG_MTP	0x00000080	/* test point select */
+#define	CAS_SATURN_PCFG_GMO	0x00000100	/* GMII observe */
+#define	CAS_SATURN_PCFG_FSI	0x00000200	/* freeze GMII/SERDES */
+#define	CAS_SATURN_PCFG_LAD	0x00000800	/* MAC LED control active low */
 
 /* TX DMA registers */
 #define	CAS_TX_CONF		0x2004	/* TX configuration */

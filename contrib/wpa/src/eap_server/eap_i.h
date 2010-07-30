@@ -183,6 +183,8 @@ struct eap_sm {
 	int tnc;
 	struct wps_context *wps;
 	struct wpabuf *assoc_wps_ie;
+
+	Boolean start_reauth;
 };
 
 int eap_user_get(struct eap_sm *sm, const u8 *identity, size_t identity_len,

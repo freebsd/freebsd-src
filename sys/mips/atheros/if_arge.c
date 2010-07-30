@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/taskqueue.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -171,7 +172,7 @@ extern uint32_t ar711_base_mac[ETHER_ADDR_LEN];
 
 static struct mtx miibus_mtx;
 
-MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_SPIN);
+MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_DEF);
 
 
 /*
@@ -196,6 +197,26 @@ arge_probe(device_t dev)
 
 	device_set_desc(dev, "Atheros AR71xx built-in ethernet interface");
 	return (0);
+}
+
+static void
+arge_attach_sysctl(device_t dev)
+{
+	struct arge_softc *sc = device_get_softc(dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debug", CTLFLAG_RW, &sc->arge_debug, 0,
+		"arge interface debugging flags");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tx_pkts_aligned", CTLFLAG_RW, &sc->stats.tx_pkts_aligned, 0,
+		"number of TX aligned packets");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned, 0,
+		"number of TX unaligned packets");
 }
 
 static int
@@ -312,8 +333,8 @@ arge_attach(device_t dev)
 	sc->arge_if_flags = ifp->if_flags;
 
 	/* XXX: add real size */
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ifp->if_capenable = ifp->if_capabilities;
@@ -456,6 +477,9 @@ arge_attach(device_t dev)
 		ether_ifdetach(ifp);
 		goto fail;
 	}
+
+	/* setup sysctl variables */
+	arge_attach_sysctl(dev);
 
 fail:
 	if (error) 
@@ -818,6 +842,28 @@ arge_init_locked(struct arge_softc *sc)
 }
 
 /*
+ * Return whether the mbuf chain is correctly aligned
+ * for the arge TX engine.
+ *
+ * The TX engine requires each fragment to be aligned to a
+ * 4 byte boundary and the size of each fragment except
+ * the last to be a multiple of 4 bytes.
+ */
+static int
+arge_mbuf_chain_is_tx_aligned(struct mbuf *m0)
+{
+	struct mbuf *m;
+
+	for (m = m0; m != NULL; m = m->m_next) {
+		if((mtod(m, intptr_t) & 3) != 0)
+			return 0;
+		if ((m->m_next != NULL) && ((m->m_len & 0x03) != 0))
+			return 0;
+	}
+	return 1;
+}
+
+/*
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
@@ -837,14 +883,16 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	 * even 4 bytes
 	 */
 	m = *m_head;
-	if((mtod(m, intptr_t) & 3) != 0) {
+	if (! arge_mbuf_chain_is_tx_aligned(m)) {
+		sc->stats.tx_pkts_unaligned++;
 		m = m_defrag(*m_head, M_DONTWAIT);
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
 		*m_head = m;
-	}
+	} else
+		sc->stats.tx_pkts_aligned++;
 
 	prod = sc->arge_cdata.arge_tx_prod;
 	txd = &sc->arge_cdata.arge_txdesc[prod];

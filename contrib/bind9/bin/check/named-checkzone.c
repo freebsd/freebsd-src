@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkzone.c,v 1.51.34.3 2009/05/29 02:17:43 marka Exp $ */
+/* $Id: named-checkzone.c,v 1.51.34.4 2009/11/10 20:01:41 each Exp $ */
 
 /*! \file */
 
@@ -73,14 +73,16 @@ static enum { progmode_check, progmode_compile } progmode;
 static void
 usage(void) {
 	fprintf(stderr,
-		"usage: %s [-djqvD] [-c class] [-o output] "
+		"usage: %s [-djqvD] [-c class] "
 		"[-f inputformat] [-F outputformat] "
 		"[-t directory] [-w directory] [-k (ignore|warn|fail)] "
 		"[-n (ignore|warn|fail)] [-m (ignore|warn|fail)] "
 		"[-i (full|full-sibling|local|local-sibling|none)] "
 		"[-M (ignore|warn|fail)] [-S (ignore|warn|fail)] "
 		"[-W (ignore|warn)] "
-		"zonename filename\n", prog_name);
+		"%s zonename filename\n",
+		prog_name,
+		progmode == progmode_check ? "[-o filename]" : "{-o filename}");
 	exit(1);
 }
 

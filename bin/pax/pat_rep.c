@@ -76,7 +76,7 @@ static char * range_match(char *, int);
 #ifdef NET2_REGEX
 static int resub(regexp *, char *, char *, char *);
 #else
-static int resub(regex_t *, regmatch_t *, char *, char *, char *);
+static int resub(regex_t *, regmatch_t *, char *, char *, char *, char *);
 #endif
 
 /*
@@ -929,7 +929,7 @@ rep_name(char *name, int *nlen, int prnt)
 #			ifdef NET2_REGEX
 			if ((res = resub(pt->rcmp,pt->nstr,outpt,endpt)) < 0) {
 #			else
-			if ((res = resub(&(pt->rcmp),pm,pt->nstr,outpt,endpt))
+			if ((res = resub(&(pt->rcmp),pm,inpt,pt->nstr,outpt,endpt))
 			    < 0) {
 #			endif
 				if (prnt)
@@ -1071,7 +1071,7 @@ resub(regexp *prog, char *src, char *dest, char *destend)
  */
 
 static int
-resub(regex_t *rp, regmatch_t *pm, char *src, char *dest,
+resub(regex_t *rp, regmatch_t *pm, char *orig, char *src, char *dest,
 	char *destend)
 {
 	char *spt;
@@ -1121,7 +1121,7 @@ resub(regex_t *rp, regmatch_t *pm, char *src, char *dest,
 		 */
 		if (len > (destend - dpt))
 			len = destend - dpt;
-		if (l_strncpy(dpt, src + pmpt->rm_so, len) != len)
+		if (l_strncpy(dpt, orig + pmpt->rm_so, len) != len)
 			return(-1);
 		dpt += len;
 	}

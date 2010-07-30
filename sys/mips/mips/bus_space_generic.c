@@ -206,6 +206,14 @@ static struct bus_space generic_space = {
 #define wr8(a, v) oct_write8(a, v)
 #define wr16(a, v) oct_write16(a, v)
 #define wr32(a, v) oct_write32(a, v)
+#elif defined(CPU_SB1) && _BYTE_ORDER == _BIG_ENDIAN
+#include <mips/sibyte/sb_bus_space.h>
+#define rd8(a) sb_big_endian_read8(a)
+#define rd16(a) sb_big_endian_read16(a)
+#define rd32(a) sb_big_endian_read32(a)
+#define wr8(a, v) sb_big_endian_write8(a, v)
+#define wr16(a, v) sb_big_endian_write16(a, v)
+#define wr32(a, v) sb_big_endian_write32(a, v)
 #else
 #define rd8(a) readb(a)
 #define rd16(a) readw(a)

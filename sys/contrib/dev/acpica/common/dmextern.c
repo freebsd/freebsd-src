@@ -252,7 +252,7 @@ AcpiDmNormalizeParentPrefix (
     Node = Op->Common.Node;
     while (Node && (*Path == (UINT8) AML_PARENT_PREFIX))
     {
-        Node = AcpiNsGetParentNode (Node);
+        Node = Node->Parent;
         Path++;
     }
 
@@ -270,6 +270,15 @@ AcpiDmNormalizeParentPrefix (
     }
 
     Length = (ACPI_STRLEN (ParentPath) + ACPI_STRLEN (Path) + 1);
+    if (ParentPath[1])
+    {
+        /*
+         * If ParentPath is not just a simple '\', increment the length
+         * for the required dot separator (ParentPath.Path)
+         */
+        Length++;
+    }
+
     Fullpath = ACPI_ALLOCATE_ZEROED (Length);
     if (!Fullpath)
     {
@@ -374,7 +383,7 @@ AcpiDmAddToExternalList (
                 (NextExternal->Value != Value))
             {
                 ACPI_ERROR ((AE_INFO,
-                    "Argument count mismatch for method %s %d %d",
+                    "Argument count mismatch for method %s %u %u",
                     NextExternal->Path, NextExternal->Value, Value));
             }
 
@@ -620,7 +629,7 @@ AcpiDmEmitExternals (
 
         if (AcpiGbl_ExternalList->Type == ACPI_TYPE_METHOD)
         {
-            AcpiOsPrintf (")    // %d Arguments\n",
+            AcpiOsPrintf (")    // %u Arguments\n",
                 AcpiGbl_ExternalList->Value);
         }
         else

@@ -47,9 +47,6 @@
  * -- Needs renaming with module prefix to avoid polluting the debugger
  * namespace and causing possible collisions with other static fncs
  * and structure declarations when using the debugger.
- * -- Just what should be in the first event message sent after subscription
- * for the WLANEvent field? If i pass it empty, Vista replies with OK
- * but apparently barfs on the message.
  * -- The http error code generation is pretty bogus, hopefully noone cares.
  *
  * Author: Ted Merrill, Atheros Communications, based upon earlier work
@@ -641,6 +638,27 @@ struct subscription * subscription_find(struct upnp_wps_device_sm *sm,
 }
 
 
+static struct wpabuf * build_fake_wsc_ack(void)
+{
+	struct wpabuf *msg = wpabuf_alloc(100);
+	if (msg == NULL)
+		return NULL;
+	wpabuf_put_u8(msg, UPNP_WPS_WLANEVENT_TYPE_EAP);
+	wpabuf_put_str(msg, "00:00:00:00:00:00");
+	wps_build_version(msg);
+	wps_build_msg_type(msg, WPS_WSC_ACK);
+	/* Enrollee Nonce */
+	wpabuf_put_be16(msg, ATTR_ENROLLEE_NONCE);
+	wpabuf_put_be16(msg, WPS_NONCE_LEN);
+	wpabuf_put(msg, WPS_NONCE_LEN);
+	/* Registrar Nonce */
+	wpabuf_put_be16(msg, ATTR_REGISTRAR_NONCE);
+	wpabuf_put_be16(msg, WPS_NONCE_LEN);
+	wpabuf_put(msg, WPS_NONCE_LEN);
+	return msg;
+}
+
+
 /* subscription_first_event -- send format/queue event that is automatically
  * sent on a new subscription.
  */
@@ -664,6 +682,28 @@ static int subscription_first_event(struct subscription *s)
 		"<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\">\n";
 	const char *tail = "</e:propertyset>\n";
 	char txt[10];
+
+	if (s->sm->wlanevent == NULL) {
+		/*
+		 * There has been no events before the subscription. However,
+		 * UPnP device architecture specification requires all the
+		 * evented variables to be included, so generate a dummy event
+		 * for this particular case using a WSC_ACK and all-zeros
+		 * nonces. The ER (UPnP control point) will ignore this, but at
+		 * least it will learn that WLANEvent variable will be used in
+		 * event notifications in the future.
+		 */
+		struct wpabuf *msg;
+		wpa_printf(MSG_DEBUG, "WPS UPnP: Use a fake WSC_ACK as the "
+			   "initial WLANEvent");
+		msg = build_fake_wsc_ack();
+		if (msg) {
+			s->sm->wlanevent = (char *)
+				base64_encode(wpabuf_head(msg),
+					      wpabuf_len(msg), NULL);
+			wpabuf_free(msg);
+		}
+	}
 
 	wlan_event = s->sm->wlanevent;
 	if (wlan_event == NULL || *wlan_event == '\0') {
@@ -694,13 +734,13 @@ static int subscription_first_event(struct subscription *s)
 
 
 /**
- * subscription_start - Rremember a UPnP control point to send events to.
+ * subscription_start - Remember a UPnP control point to send events to.
  * @sm: WPS UPnP state machine from upnp_wps_device_init()
- * @callback_urls: malloc' mem given to the subscription
+ * @callback_urls: Callback URLs
  * Returns: %NULL on error, or pointer to new subscription structure.
  */
 struct subscription * subscription_start(struct upnp_wps_device_sm *sm,
-					 char *callback_urls)
+					 const char *callback_urls)
 {
 	struct subscription *s;
 	time_t now = time(NULL);
@@ -740,7 +780,6 @@ struct subscription * subscription_start(struct upnp_wps_device_sm *sm,
 	}
 	wpa_printf(MSG_DEBUG, "WPS UPnP: Subscription %p started with %s",
 		   s, callback_urls);
-	os_free(callback_urls);
 	/* Schedule sending this */
 	event_send_all_later(sm);
 	return s;
@@ -832,6 +871,50 @@ fail:
 }
 
 
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#include <net/route.h>
+#include <net/if_dl.h>
+
+static int eth_get(const char *device, u8 ea[ETH_ALEN])
+{
+	struct if_msghdr *ifm;
+	struct sockaddr_dl *sdl;
+	u_char *p, *buf;
+	size_t len;
+	int mib[] = { CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0 };
+
+	if (sysctl(mib, 6, NULL, &len, NULL, 0) < 0)
+		return -1;
+	if ((buf = os_malloc(len)) == NULL)
+		return -1;
+	if (sysctl(mib, 6, buf, &len, NULL, 0) < 0) {
+		os_free(buf);
+		return -1;
+	}
+	for (p = buf; p < buf + len; p += ifm->ifm_msglen) {
+		ifm = (struct if_msghdr *)p;
+		sdl = (struct sockaddr_dl *)(ifm + 1);
+		if (ifm->ifm_type != RTM_IFINFO ||
+		    (ifm->ifm_addrs & RTA_IFP) == 0)
+			continue;
+		if (sdl->sdl_family != AF_LINK || sdl->sdl_nlen == 0 ||
+		    os_memcmp(sdl->sdl_data, device, sdl->sdl_nlen) != 0)
+			continue;
+		os_memcpy(ea, LLADDR(sdl), sdl->sdl_alen);
+		break;
+	}
+	os_free(buf);
+
+	if (p >= buf + len) {
+		errno = ESRCH;
+		return -1;
+	}
+	return 0;
+}
+#endif /* __FreeBSD__ */
+
+
 /**
  * get_netif_info - Get hw and IP addresses for network device
  * @net_if: Selected network interface name
@@ -870,6 +953,7 @@ static int get_netif_info(const char *net_if, unsigned *ip_addr,
 	in_addr.s_addr = *ip_addr;
 	os_snprintf(*ip_addr_text, 16, "%s", inet_ntoa(in_addr));
 
+#ifdef __linux__
 	os_strlcpy(req.ifr_name, net_if, sizeof(req.ifr_name));
 	if (ioctl(sock, SIOCGIFHWADDR, &req) < 0) {
 		wpa_printf(MSG_ERROR, "WPS UPnP: SIOCGIFHWADDR failed: "
@@ -877,6 +961,14 @@ static int get_netif_info(const char *net_if, unsigned *ip_addr,
 		goto fail;
 	}
 	os_memcpy(mac, req.ifr_addr.sa_data, 6);
+#elif defined(__FreeBSD__)
+	if (eth_get(net_if, mac) < 0) {
+		wpa_printf(MSG_ERROR, "WPS UPnP: Failed to get MAC address");
+		goto fail;
+	}
+#else
+#error MAC address fetch not implemented
+#endif
 	os_snprintf(*mac_addr_text, 18, MACSTR, MAC2STR(req.ifr_addr.sa_data));
 
 	close(sock);
@@ -914,8 +1006,7 @@ void upnp_wps_device_stop(struct upnp_wps_device_sm *sm)
 		subscription_destroy(s);
 	}
 
-	advertisement_state_machine_stop(sm);
-	/* TODO: send byebye notifications */
+	advertisement_state_machine_stop(sm, 1);
 
 	event_send_stop_all(sm);
 	os_free(sm->wlanevent);

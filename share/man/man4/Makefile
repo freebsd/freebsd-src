@@ -26,6 +26,7 @@ MAN=	aac.4 \
 	ahc.4 \
 	ahci.4 \
 	ahd.4 \
+	${_aibs.4} \
 	aio.4 \
 	alc.4 \
 	ale.4 \
@@ -62,6 +63,7 @@ MAN=	aac.4 \
 	bridge.4 \
 	bt.4 \
 	bwi.4 \
+	bwn.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
@@ -219,6 +221,7 @@ MAN=	aac.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
+	mvs.4 \
 	mwl.4 \
 	mwlfw.4 \
 	mxge.4 \
@@ -272,6 +275,7 @@ MAN=	aac.4 \
 	ng_nat.4 \
 	ng_netflow.4 \
 	ng_one2many.4 \
+	ng_patch.4 \
 	ng_ppp.4 \
 	ng_pppoe.4 \
 	ng_pptpgre.4 \
@@ -349,10 +353,12 @@ MAN=	aac.4 \
 	sem.4 \
 	ses.4 \
 	sf.4 \
+	sge.4 \
 	si.4 \
 	siba.4 \
-	sio.4 \
+	siftr.4 \
 	siis.4 \
+	sio.4 \
 	sis.4 \
 	sk.4 \
 	smb.4 \
@@ -432,6 +438,7 @@ MAN=	aac.4 \
 	udav.4 \
 	udbp.4 \
 	udp.4 \
+	uep.4 \
 	ufm.4 \
 	ufoma.4 \
 	uftdi.4 \
@@ -628,6 +635,7 @@ _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
+_aibs.4=	aibs.4
 _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4

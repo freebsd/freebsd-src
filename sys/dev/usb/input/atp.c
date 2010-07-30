@@ -116,7 +116,7 @@ __FBSDID("$FreeBSD$");
 /* Tunables */
 SYSCTL_NODE(_hw_usb, OID_AUTO, atp, CTLFLAG_RW, 0, "USB atp");
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 enum atp_log_level {
 	ATP_LLEVEL_DISABLED = 0,
 	ATP_LLEVEL_ERROR,
@@ -126,7 +126,7 @@ enum atp_log_level {
 static int atp_debug = ATP_LLEVEL_ERROR; /* the default is to only log errors */
 SYSCTL_INT(_hw_usb_atp, OID_AUTO, debug, CTLFLAG_RW,
     &atp_debug, ATP_LLEVEL_ERROR, "ATP debug level");
-#endif /* #if USB_DEBUG */
+#endif /* USB_DEBUG */
 
 static u_int atp_touch_timeout = ATP_TOUCH_TIMEOUT;
 SYSCTL_INT(_hw_usb_atp, OID_AUTO, touch_timeout, CTLFLAG_RW, &atp_touch_timeout,
@@ -1055,7 +1055,7 @@ atp_update_strokes(struct atp_softc *sc, atp_pspan *pspans_x,
 		if (pspans_y[j].matched == FALSE) break;
 	}
 	if ((i < n_xpspans) && (j < n_ypspans)) {
-#if USB_DEBUG
+#ifdef USB_DEBUG
 		if (atp_debug >= ATP_LLEVEL_INFO) {
 			printf("unmatched pspans:");
 			for (; i < n_xpspans; i++) {
@@ -1072,7 +1072,7 @@ atp_update_strokes(struct atp_softc *sc, atp_pspan *pspans_x,
 			}
 			printf("\n");
 		}
-#endif /* #if USB_DEBUG */
+#endif /* USB_DEBUG */
 		if ((n_xpspans == 1) && (n_ypspans == 1))
 			/* The common case of a single pair of new pspans. */
 			atp_add_stroke(sc, &pspans_x[0], &pspans_y[0]);
@@ -1082,7 +1082,7 @@ atp_update_strokes(struct atp_softc *sc, atp_pspan *pspans_x,
 			    pspans_y, n_ypspans);
 	}
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (atp_debug >= ATP_LLEVEL_INFO) {
 		for (i = 0; i < sc->sc_n_strokes; i++) {
 			atp_stroke *stroke = &sc->sc_strokes[i];
@@ -1110,7 +1110,7 @@ atp_update_strokes(struct atp_softc *sc, atp_pspan *pspans_x,
 		if (sc->sc_n_strokes)
 			printf("\n");
 	}
-#endif /* #if USB_DEBUG */
+#endif /* USB_DEBUG */
 
 	return (movement);
 }

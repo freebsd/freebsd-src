@@ -100,20 +100,6 @@ __FBSDID("$FreeBSD$");
 const int tcprexmtthresh = 3;
 
 VNET_DEFINE(struct tcpstat, tcpstat);
-VNET_DEFINE(int, blackhole);
-VNET_DEFINE(int, tcp_delack_enabled);
-VNET_DEFINE(int, drop_synfin);
-VNET_DEFINE(int, tcp_do_rfc3042);
-VNET_DEFINE(int, tcp_do_rfc3390);
-VNET_DEFINE(int, tcp_do_ecn);
-VNET_DEFINE(int, tcp_ecn_maxretries);
-VNET_DEFINE(int, tcp_insecure_rst);
-VNET_DEFINE(int, tcp_do_autorcvbuf);
-VNET_DEFINE(int, tcp_autorcvbuf_inc);
-VNET_DEFINE(int, tcp_autorcvbuf_max);
-VNET_DEFINE(int, tcp_do_rfc3465);
-VNET_DEFINE(int, tcp_abc_l_var);
-
 SYSCTL_VNET_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
     &VNET_NAME(tcpstat), tcpstat,
     "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
@@ -123,56 +109,79 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &tcp_log_in_vain, 0,
     "Log all incoming TCP segments to closed ports");
 
+VNET_DEFINE(int, blackhole) = 0;
+#define	V_blackhole		VNET(blackhole)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
     &VNET_NAME(blackhole), 0,
     "Do not send RST on segments to closed ports");
 
+VNET_DEFINE(int, tcp_delack_enabled) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
     &VNET_NAME(tcp_delack_enabled), 0,
     "Delay ACK to try and piggyback it onto a data packet");
 
+VNET_DEFINE(int, drop_synfin) = 0;
+#define	V_drop_synfin		VNET(drop_synfin)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
     &VNET_NAME(drop_synfin), 0,
     "Drop TCP packets with SYN+FIN set");
 
+VNET_DEFINE(int, tcp_do_rfc3042) = 1;
+#define	V_tcp_do_rfc3042	VNET(tcp_do_rfc3042)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3042), 0,
     "Enable RFC 3042 (Limited Transmit)");
 
+VNET_DEFINE(int, tcp_do_rfc3390) = 1;
+#define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3390), 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
+VNET_DEFINE(int, tcp_do_rfc3465) = 1;
+#define	V_tcp_do_rfc3465	VNET(tcp_do_rfc3465)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3465), 0,
     "Enable RFC 3465 (Appropriate Byte Counting)");
 
+VNET_DEFINE(int, tcp_abc_l_var) = 2;
+#define	V_tcp_abc_l_var		VNET(tcp_abc_l_var)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_RW,
     &VNET_NAME(tcp_abc_l_var), 2,
     "Cap the max cwnd increment during slow-start to this number of segments");
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
 
+VNET_DEFINE(int, tcp_do_ecn) = 0;
 SYSCTL_VNET_INT(_net_inet_tcp_ecn, OID_AUTO, enable, CTLFLAG_RW,
     &VNET_NAME(tcp_do_ecn), 0,
     "TCP ECN support");
 
+VNET_DEFINE(int, tcp_ecn_maxretries) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp_ecn, OID_AUTO, maxretries, CTLFLAG_RW,
     &VNET_NAME(tcp_ecn_maxretries), 0,
     "Max retries before giving up on ECN");
 
+VNET_DEFINE(int, tcp_insecure_rst) = 0;
+#define	V_tcp_insecure_rst	VNET(tcp_insecure_rst)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_rst), 0,
     "Follow the old (insecure) criteria for accepting RST packets");
 
+VNET_DEFINE(int, tcp_do_autorcvbuf) = 1;
+#define	V_tcp_do_autorcvbuf	VNET(tcp_do_autorcvbuf)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_RW,
     &VNET_NAME(tcp_do_autorcvbuf), 0,
     "Enable automatic receive buffer sizing");
 
+VNET_DEFINE(int, tcp_autorcvbuf_inc) = 16*1024;
+#define	V_tcp_autorcvbuf_inc	VNET(tcp_autorcvbuf_inc)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_inc), 0,
     "Incrementor step size of automatic receive buffer");
 
+VNET_DEFINE(int, tcp_autorcvbuf_max) = 256*1024;
+#define	V_tcp_autorcvbuf_max	VNET(tcp_autorcvbuf_max)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_max), 0,
     "Max size of automatic receive buffer");
@@ -182,8 +191,8 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, read_locking, CTLFLAG_RW,
     &tcp_read_locking, 0, "Enable read locking strategy");
 
 VNET_DEFINE(struct inpcbhead, tcb);
-VNET_DEFINE(struct inpcbinfo, tcbinfo);
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
+VNET_DEFINE(struct inpcbinfo, tcbinfo);
 
 static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
 static void	 tcp_do_segment(struct mbuf *, struct tcphdr *,
@@ -739,7 +748,7 @@ relocked:
 		    ("%s: INP_TIMEWAIT ti_locked %d", __func__, ti_locked));
 
 		if (ti_locked == TI_RLOCKED) {
-			if (rw_try_upgrade(&V_tcbinfo.ipi_lock) == 0) {
+			if (INP_INFO_TRY_UPGRADE(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
 				INP_WUNLOCK(inp);
 				INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -790,7 +799,7 @@ relocked:
 		    ("%s: upgrade check ti_locked %d", __func__, ti_locked));
 
 		if (ti_locked == TI_RLOCKED) {
-			if (rw_try_upgrade(&V_tcbinfo.ipi_lock) == 0) {
+			if (INP_INFO_TRY_UPGRADE(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
 				INP_WUNLOCK(inp);
 				INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -1241,6 +1250,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * TCP ECN processing.
 	 */
 	if (tp->t_flags & TF_ECN_PERMIT) {
+		if (thflags & TH_CWR)
+			tp->t_flags &= ~TF_ECN_SND_ECE;
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
 			tp->t_flags |= TF_ECN_SND_ECE;
@@ -1253,10 +1264,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_ecn_ect1);
 			break;
 		}
-
-		if (thflags & TH_CWR)
-			tp->t_flags &= ~TF_ECN_SND_ECE;
-
 		/*
 		 * Congestion experienced.
 		 * Ignore if we are already trying to recover.

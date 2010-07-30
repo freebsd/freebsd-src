@@ -379,7 +379,7 @@ int encrypt_pw_block_with_password_hash(
 	 */
 	pos = &pw_block[2 * 256];
 	WPA_PUT_LE16(pos, password_len * 2);
-	rc4(pw_block, PWBLOCK_LEN, password_hash, 16);
+	rc4_skip(password_hash, 16, 0, pw_block, PWBLOCK_LEN);
 	return 0;
 }
 

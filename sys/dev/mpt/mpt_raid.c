@@ -646,7 +646,7 @@ mpt_terminate_raid_thread(struct mpt_softc *mpt)
 		return;
 	}
 	mpt->shutdwn_raid = 1;
-	wakeup(mpt->raid_volumes);
+	wakeup(&mpt->raid_volumes);
 	/*
 	 * Sleep on a slightly different location
 	 * for this interlock just for added safety.
@@ -690,7 +690,6 @@ mpt_raid_thread(void *arg)
 
 		if (mpt->raid_rescan != 0) {
 			union ccb *ccb;
-			struct cam_path *path;
 			int error;
 
 			mpt->raid_rescan = 0;
@@ -699,7 +698,7 @@ mpt_raid_thread(void *arg)
 			ccb = xpt_alloc_ccb();
 
 			MPT_LOCK(mpt);
-			error = xpt_create_path(&path, xpt_periph,
+			error = xpt_create_path(&ccb->ccb_h.path, xpt_periph,
 			    cam_sim_path(mpt->phydisk_sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 			if (error != CAM_REQ_CMP) {

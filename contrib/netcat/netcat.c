@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.93 2009/06/05 00:18:10 claudio Exp $ */
+/* $OpenBSD: netcat.c,v 1.95 2010/02/27 00:58:56 nicm Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -72,14 +72,12 @@
 #define PORT_MAX_LEN	6
 
 /* Command Line Options */
-int	Eflag;					/* Use IPsec ESP */
 int	dflag;					/* detached, no stdin */
 unsigned int iflag;				/* Interval Flag */
 int	jflag;					/* use jumbo frames if we can */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
 int	nflag;					/* Don't do name look up */
-int	oflag;					/* Once only: stop on EOF */
 int	FreeBSD_Oflag;				/* Do not use TCP options */
 char   *Pflag;					/* Proxy username */
 char   *pflag;					/* Localport flag */
@@ -151,7 +149,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt_long(argc, argv,
-	    "46DdEe:hI:i:jklnO:oP:p:rSs:tT:UuV:vw:X:x:z",
+	    "46DdEe:hI:i:jklnoO:P:p:rSs:tT:UuV:vw:X:x:z",
 	    longopts, NULL)) != -1) {
 		switch (ch) {
 		case '4':
@@ -214,7 +212,7 @@ main(int argc, char *argv[])
 			nflag = 1;
 			break;
 		case 'o':
-			oflag = 1;
+			fprintf(stderr, "option -o is deprecated.\n");
 			break;
 		case 'P':
 			Pflag = optarg;
@@ -281,8 +279,6 @@ main(int argc, char *argv[])
 			break;
 		case 'T':
 			Tflag = parse_iptos(optarg);
-			break;
-		case 0:
 			break;
 		default:
 			usage(1);
@@ -455,8 +451,10 @@ main(int argc, char *argv[])
 					    uflag ? "udp" : "tcp");
 				}
 
-				printf("Connection to %s %s port [%s/%s] succeeded!\n",
-				    host, portlist[i], uflag ? "udp" : "tcp",
+				fprintf(stderr,
+				    "Connection to %s %s port [%s/%s] "
+				    "succeeded!\n", host, portlist[i],
+				    uflag ? "udp" : "tcp",
 				    sv ? sv->s_name : "*");
 			}
 			if (!zflag)
@@ -572,10 +570,8 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 		if (sflag || pflag) {
 			struct addrinfo ahints, *ares;
 
-#ifdef SO_BINDANY
-			/* try SO_BINDANY, but don't insist */
-			setsockopt(s, SOL_SOCKET, SO_BINDANY, &on, sizeof(on));
-#endif
+			/* try IP_BINDANY, but don't insist */
+			setsockopt(s, IPPROTO_IP, IP_BINDANY, &on, sizeof(on));
 			memset(&ahints, 0, sizeof(struct addrinfo));
 			ahints.ai_family = res0->ai_family;
 			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
@@ -727,10 +723,9 @@ readwrite(int nfd)
 		}
 
 		if (!dflag && pfd[1].revents & POLLIN) {
-			if ((n = read(wfd, buf, plen)) < 0 ||
-			    (oflag && n == 0)) {
+			if ((n = read(wfd, buf, plen)) < 0)
 				return;
-			} else if (n == 0) {
+			else if (n == 0) {
 				shutdown(nfd, SHUT_WR);
 				pfd[1].fd = -1;
 				pfd[1].events = 0;
@@ -749,27 +744,27 @@ atelnet(int nfd, unsigned char *buf, unsigned int size)
 	unsigned char *p, *end;
 	unsigned char obuf[4];
 
-	end = buf + size;
-	obuf[0] = '\0';
+	if (size < 3)
+		return;
+	end = buf + size - 2;
 
 	for (p = buf; p < end; p++) {
 		if (*p != IAC)
-			break;
+			continue;
 
 		obuf[0] = IAC;
 		p++;
 		if ((*p == WILL) || (*p == WONT))
 			obuf[1] = DONT;
-		if ((*p == DO) || (*p == DONT))
+		else if ((*p == DO) || (*p == DONT))
 			obuf[1] = WONT;
-		if (obuf) {
-			p++;
-			obuf[2] = *p;
-			obuf[3] = '\0';
-			if (atomicio(vwrite, nfd, obuf, 3) != 3)
-				warn("Write Error!");
-			obuf[0] = '\0';
-		}
+		else
+			continue;
+
+		p++;
+		obuf[2] = *p;
+		if (atomicio(vwrite, nfd, obuf, 3) != 3)
+			warn("Write Error!");
 	}
 }
 
@@ -943,7 +938,6 @@ help(void)
 	\t-n		Suppress name/port resolutions\n\
 	\t--no-tcpopt	Disable TCP options\n\
 	\t-O length	TCP send buffer length\n\
-	\t-o		Terminate on EOF on input\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
 	\t-p port\t	Specify local port for remote connects\n\
 	\t-r		Randomize remote ports\n\
@@ -993,9 +987,9 @@ usage(int ret)
 {
 	fprintf(stderr,
 #ifdef IPSEC
-	    "usage: nc [-46DdEhklnorStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdEhklnrStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
 #else
-	    "usage: nc [-46DdhklnorStUuvz] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
 	    "\t  [-P proxy_username] [-p source_port] [-s source_ip_address] [-T ToS]\n"
 	    "\t  [-V fib] [-w timeout] [-X proxy_protocol]\n"

@@ -55,16 +55,11 @@ int
 vsscanf(const char * __restrict str, const char * __restrict fmt,
 	__va_list ap)
 {
-	FILE f;
+	FILE f = FAKE_FILE;
 
-	f._file = -1;
 	f._flags = __SRD;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._r = strlen(str);
 	f._read = eofread;
-	f._ub._base = NULL;
-	f._lb._base = NULL;
-	f._orientation = 0;
-	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	return (__svfscanf(&f, fmt, ap));
 }

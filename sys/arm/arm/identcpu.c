@@ -220,6 +220,11 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_ARM966ESR1,	CPU_CLASS_ARM9ES,	"ARM966E-S",
 	  generic_steppings },
+	{ CPU_ID_FA526,		CPU_CLASS_ARM9TDMI,	"FA526",
+	  generic_steppings },
+	{ CPU_ID_FA626TE,	CPU_CLASS_ARM9ES,	"FA626TE",
+	  generic_steppings },
+
 	{ CPU_ID_TI925T,	CPU_CLASS_ARM9TDMI,	"TI ARM925T",
 	  generic_steppings },
 
@@ -325,6 +330,7 @@ const struct cpu_classtab cpu_classes[] = {
 	{ "SA-1",	"CPU_SA110" },		/* CPU_CLASS_SA1 */
 	{ "XScale",	"CPU_XSCALE_..." },	/* CPU_CLASS_XSCALE */
 	{ "ARM11J",	"CPU_ARM11" },		/* CPU_CLASS_ARM11J */
+	{ "Marvell",	"CPU_MARVELL" },	/* CPU_CLASS_MARVELL */
 };
 
 /*
@@ -400,6 +406,7 @@ identify_arm_cpu(void)
 	case CPU_CLASS_SA1:
 	case CPU_CLASS_XSCALE:
 	case CPU_CLASS_ARM11J:
+	case CPU_CLASS_MARVELL:
 		if ((ctrl & CPU_CONTROL_DC_ENABLE) == 0)
 			printf(" DC disabled");
 		else

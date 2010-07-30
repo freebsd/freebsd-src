@@ -22,7 +22,7 @@ options 	BOOTP_WIRED_TO=tsec0
 options 	CD9660
 options 	COMPAT_43
 options 	DDB
-#options	DEADLKRES
+#options 	DEADLKRES
 options 	DEVICE_POLLING
 options 	HZ=1000
 #options 	DIAGNOSTIC
@@ -79,6 +79,7 @@ device		sec
 device		tsec
 device		tun
 device		uart
+options 	USB_DEBUG	# enable debug msgs
 #device		uhci
 device		umass
 device		usb

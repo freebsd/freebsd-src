@@ -37,8 +37,7 @@ static char rcsid[] = "$FreeBSD$";
 #include <sys/timeb.h>
 
 int
-ftime(tbp)
-        struct timeb *tbp;
+ftime(struct timeb *tbp)
 {
         struct timezone tz;
         struct timeval t;

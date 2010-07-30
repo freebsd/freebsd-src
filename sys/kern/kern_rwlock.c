@@ -199,8 +199,8 @@ void
 rw_destroy(struct rwlock *rw)
 {
 
-	KASSERT(rw->rw_lock == RW_UNLOCKED, ("rw lock not unlocked"));
-	KASSERT(rw->rw_recurse == 0, ("rw lock still recursed"));
+	KASSERT(rw->rw_lock == RW_UNLOCKED, ("rw lock %p not unlocked", rw));
+	KASSERT(rw->rw_recurse == 0, ("rw lock %p still recursed", rw));
 	rw->rw_lock = RW_DESTROYED;
 	lock_destroy(&rw->lock_object);
 }

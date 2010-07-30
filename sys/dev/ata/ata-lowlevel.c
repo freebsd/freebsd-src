@@ -141,6 +141,14 @@ ata_begin_transaction(struct ata_request *request)
 	    goto begin_finished;
 	}
 
+	/* start DMA engine if necessary */
+	if ((ch->flags & ATA_DMA_BEFORE_CMD) &&
+	   ch->dma.start && ch->dma.start(request)) {
+	    device_printf(request->parent, "error starting DMA\n");
+	    request->result = EIO;
+	    goto begin_finished;
+	}
+
 	/* issue command */
 	if (ch->hw.command(request)) {
 	    device_printf(request->parent, "error issuing %s command\n",
@@ -150,7 +158,8 @@ ata_begin_transaction(struct ata_request *request)
 	}
 
 	/* start DMA engine */
-	if (ch->dma.start && ch->dma.start(request)) {
+	if (!(ch->flags & ATA_DMA_BEFORE_CMD) &&
+	   ch->dma.start && ch->dma.start(request)) {
 	    device_printf(request->parent, "error starting DMA\n");
 	    request->result = EIO;
 	    goto begin_finished;

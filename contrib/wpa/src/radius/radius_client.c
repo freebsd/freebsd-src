@@ -917,6 +917,22 @@ static void radius_retry_primary_timer(void *eloop_ctx, void *timeout_ctx)
 }
 
 
+static int radius_client_disable_pmtu_discovery(int s)
+{
+	int r = -1;
+#if defined(IP_MTU_DISCOVER) && defined(IP_PMTUDISC_DONT)
+	/* Turn off Path MTU discovery on IPv4/UDP sockets. */
+	int action = IP_PMTUDISC_DONT;
+	r = setsockopt(s, IPPROTO_IP, IP_MTU_DISCOVER, &action,
+		       sizeof(action));
+	if (r == -1)
+		wpa_printf(MSG_ERROR, "Failed to set IP_MTU_DISCOVER: "
+			   "%s", strerror(errno));
+#endif
+	return r;
+}
+
+
 static int radius_client_init_auth(struct radius_client_data *radius)
 {
 	struct hostapd_radius_servers *conf = radius->conf;
@@ -925,8 +941,10 @@ static int radius_client_init_auth(struct radius_client_data *radius)
 	radius->auth_serv_sock = socket(PF_INET, SOCK_DGRAM, 0);
 	if (radius->auth_serv_sock < 0)
 		perror("socket[PF_INET,SOCK_DGRAM]");
-	else
+	else {
+		radius_client_disable_pmtu_discovery(radius->auth_serv_sock);
 		ok++;
+	}
 
 #ifdef CONFIG_IPV6
 	radius->auth_serv_sock6 = socket(PF_INET6, SOCK_DGRAM, 0);
@@ -975,8 +993,10 @@ static int radius_client_init_acct(struct radius_client_data *radius)
 	radius->acct_serv_sock = socket(PF_INET, SOCK_DGRAM, 0);
 	if (radius->acct_serv_sock < 0)
 		perror("socket[PF_INET,SOCK_DGRAM]");
-	else
+	else {
+		radius_client_disable_pmtu_discovery(radius->acct_serv_sock);
 		ok++;
+	}
 
 #ifdef CONFIG_IPV6
 	radius->acct_serv_sock6 = socket(PF_INET6, SOCK_DGRAM, 0);
@@ -1060,6 +1080,12 @@ void radius_client_deinit(struct radius_client_data *radius)
 		eloop_unregister_read_sock(radius->auth_serv_sock);
 	if (radius->acct_serv_sock >= 0)
 		eloop_unregister_read_sock(radius->acct_serv_sock);
+#ifdef CONFIG_IPV6
+	if (radius->auth_serv_sock6 >= 0)
+		eloop_unregister_read_sock(radius->auth_serv_sock6);
+	if (radius->acct_serv_sock6 >= 0)
+		eloop_unregister_read_sock(radius->acct_serv_sock6);
+#endif /* CONFIG_IPV6 */
 
 	eloop_cancel_timeout(radius_retry_primary_timer, radius, NULL);
 

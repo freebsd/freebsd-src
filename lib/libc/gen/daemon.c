@@ -64,6 +64,10 @@ daemon(nochdir, noclose)
 	case 0:
 		break;
 	default:
+		/*
+		 * A fine point:  _exit(0), not exit(0), to avoid triggering
+		 * atexit(3) processing
+		 */
 		_exit(0);
 	}
 

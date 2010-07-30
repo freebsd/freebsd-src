@@ -147,7 +147,7 @@ int drm_getsareactx(struct drm_device *dev, void *data,
 	map = dev->context_sareas[request->ctx_id];
 	DRM_UNLOCK();
 
-	request->handle = map->handle;
+	request->handle = (void *)map->handle;
 
 	return 0;
 }

@@ -183,7 +183,7 @@ AcpiExGetObjectReference (
 
         default:
 
-            ACPI_ERROR ((AE_INFO, "Unknown Reference Class %2.2X",
+            ACPI_ERROR ((AE_INFO, "Unknown Reference Class 0x%2.2X",
                 ObjDesc->Reference.Class));
             return_ACPI_STATUS (AE_AML_INTERNAL);
         }
@@ -201,7 +201,7 @@ AcpiExGetObjectReference (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Invalid descriptor type %X",
+        ACPI_ERROR ((AE_INFO, "Invalid descriptor type 0x%X",
             ACPI_GET_DESCRIPTOR_TYPE (ObjDesc)));
         return_ACPI_STATUS (AE_TYPE);
     }
@@ -373,7 +373,7 @@ AcpiExDoConcatenate (
         break;
 
     default:
-        ACPI_ERROR ((AE_INFO, "Invalid object type: %X",
+        ACPI_ERROR ((AE_INFO, "Invalid object type: 0x%X",
             Operand0->Common.Type));
         Status = AE_AML_INTERNAL;
     }
@@ -475,7 +475,7 @@ AcpiExDoConcatenate (
 
         /* Invalid object type, should not happen here */
 
-        ACPI_ERROR ((AE_INFO, "Invalid object type: %X",
+        ACPI_ERROR ((AE_INFO, "Invalid object type: 0x%X",
             Operand0->Common.Type));
         Status =AE_AML_INTERNAL;
         goto Cleanup;

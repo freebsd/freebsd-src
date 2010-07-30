@@ -60,34 +60,35 @@ __FBSDID("$FreeBSD$");
 
 #define _DEFAULT_NLS_PATH "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:/usr/local/share/nls/%L/%N.cat:/usr/local/share/nls/%N/%L"
 
-#define RLOCK(fail)	{ int ret; \
-			  if (__isthreaded && \
-			      ((ret = _pthread_rwlock_rdlock(&rwlock)) != 0)) { \
-				  errno = ret; \
-				  return (fail); \
+#define RLOCK(fail)	{ int ret;						\
+			  if (__isthreaded &&					\
+			      ((ret = _pthread_rwlock_rdlock(&rwlock)) != 0)) {	\
+				  errno = ret;					\
+				  return (fail);				\
 			  }}
-#define WLOCK(fail)	{ int ret; \
-			  if (__isthreaded && \
-			      ((ret = _pthread_rwlock_wrlock(&rwlock)) != 0)) { \
-				  errno = ret; \
-				  return (fail); \
+#define WLOCK(fail)	{ int ret;						\
+			  if (__isthreaded &&					\
+			      ((ret = _pthread_rwlock_wrlock(&rwlock)) != 0)) {	\
+				  errno = ret;					\
+				  return (fail);				\
 			  }}
-#define UNLOCK		{ if (__isthreaded) \
+#define UNLOCK		{ if (__isthreaded)					\
 			      _pthread_rwlock_unlock(&rwlock); }
 
 #define	NLERR		((nl_catd) -1)
 #define NLRETERR(errc)  { errno = errc; return (NLERR); }
-#define SAVEFAIL(n, l, e)	{ WLOCK(NLERR); \
-				  np = malloc(sizeof(struct catentry)); \
-				  if (np != NULL) { \
-				  	np->name = strdup(n); \
-					np->path = NULL; \
-					np->lang = (l == NULL) ? NULL : strdup(l); \
-					np->caterrno = e; \
-				  	SLIST_INSERT_HEAD(&cache, np, list); \
-				  } \
-				  UNLOCK; \
-				  errno = e; \
+#define SAVEFAIL(n, l, e)	{ WLOCK(NLERR);					\
+				  np = malloc(sizeof(struct catentry));		\
+				  if (np != NULL) {				\
+				  	np->name = strdup(n);			\
+					np->path = NULL;			\
+					np->lang = (l == NULL) ? NULL :		\
+					    strdup(l);				\
+					np->caterrno = e;			\
+				  	SLIST_INSERT_HEAD(&cache, np, list);	\
+				  }						\
+				  UNLOCK;					\
+				  errno = e;					\
 				}
 
 static nl_catd load_msgcat(const char *, const char *, const char *);
@@ -209,7 +210,7 @@ catopen(const char *name, int type)
 						break;
 					case '%':
 						++nlspath;
-						/* fallthrough */
+						/* FALLTHROUGH */
 					default:
 						if (pathP - path >=
 						    sizeof(path) - 1)
@@ -369,7 +370,8 @@ load_msgcat(const char *path, const char *name, const char *lang)
 
 	/* path/name will never be NULL here */
 
-	/* One more try in cache; if it was not found by name,
+	/*
+	 * One more try in cache; if it was not found by name,
 	 * it might still be found by absolute path.
 	 */
 	RLOCK(NLERR);
@@ -393,8 +395,9 @@ load_msgcat(const char *path, const char *name, const char *lang)
 		NLRETERR(EFTYPE);
 	}
 
-	/* If the file size cannot be held in size_t we cannot mmap()
-	 * it to the memory. Probably, this will not be a problem given
+	/*
+	 * If the file size cannot be held in size_t we cannot mmap()
+	 * it to the memory.  Probably, this will not be a problem given
 	 * that catalog files are usually small.
 	 */
 	if (st.st_size > SIZE_T_MAX) {

@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF SANDVINE IS ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * Author: Dave Chapeskie <dchapeskie@sandvine.com>
+ * Author: Dave Chapeskie
  */
 
 #include <sys/cdefs.h>

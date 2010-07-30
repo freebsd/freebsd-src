@@ -22,6 +22,7 @@ check "4611686018427387904" 4611686018427387904
 check "0x4000000000000000" 4611686018427387904
 check "0400000000000000000000" 4611686018427387904
 check "0x4Ab0000000000000" 5381801554707742720
+check "010" 8
 
 # try out all operators
 v=42
@@ -71,6 +72,6 @@ check "v" 10
 check "(v=42)&&(v|=32)==42" 1
 check "v" 42
 
-# missing: ternary, comma
+# missing: ternary
 
 exit $((failures != 0))

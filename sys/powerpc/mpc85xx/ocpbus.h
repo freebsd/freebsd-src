@@ -50,6 +50,7 @@
 #define	OCP85XX_TGTIF_PCI0	0
 #define	OCP85XX_TGTIF_PCI1	1
 #define	OCP85XX_TGTIF_PCI2	2
+#define	OCP85XX_TGTIF_PCI3	3
 #define	OCP85XX_TGTIF_LBC	4
 #define	OCP85XX_TGTIF_RAM_INTL	11
 #define	OCP85XX_TGTIF_RIO	12
@@ -86,6 +87,7 @@
 #define	OCP85XX_PCI0_OFF	0x08000
 #define	OCP85XX_PCI1_OFF	0x09000
 #define	OCP85XX_PCI2_OFF	0x0A000
+#define	OCP85XX_PCI3_OFF	0x0B000
 #define	OCP85XX_PCI_SIZE	0x1000
 #define	OCP85XX_TSEC0_OFF	0x24000
 #define	OCP85XX_TSEC1_OFF	0x25000
@@ -102,11 +104,9 @@
 /*
  * PIC definitions
  */
-#define	ISA_IRQ_START	0
-#define	PIC_IRQ_START	(ISA_IRQ_START + 16)
 
-#define	ISA_IRQ(n)	(ISA_IRQ_START + (n))
-#define	PIC_IRQ_EXT(n)	(PIC_IRQ_START + (n))
-#define	PIC_IRQ_INT(n)	(PIC_IRQ_START + 16 + (n))
+#define	ISA_IRQ(n)	(INTR_VEC(ATPIC_ID, n))
+#define	PIC_IRQ_EXT(n)	(INTR_VEC(OPIC_ID, (n)))
+#define	PIC_IRQ_INT(n)	(INTR_VEC(OPIC_ID, (16 + (n))))
 
 #endif /* _MACHINE_OCP85XX_H */

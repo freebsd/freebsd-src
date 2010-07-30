@@ -116,7 +116,7 @@ The implementation detected that another caller is already waiting on
 .El
 .Pp
 Additionally, the
-.Fn pthread_join
+.Fn pthread_timedjoin_np
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er ETIMEDOUT
@@ -134,7 +134,7 @@ function conforms to
 .St -p1003.1-96 .
 The
 .Fn pthread_timedjoin_np
-is
+is a
 .Fx
-extension, first appeared in
+extension which first appeared in
 .Fx 6.1 .

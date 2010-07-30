@@ -382,7 +382,7 @@ AcpiExWriteDataToField (
         if (SourceDesc->Buffer.Length < Length)
         {
             ACPI_ERROR ((AE_INFO,
-                "SMBus or IPMI write requires Buffer of length %X, found length %X",
+                "SMBus or IPMI write requires Buffer of length %u, found length %u",
                 Length, SourceDesc->Buffer.Length));
 
             return_ACPI_STATUS (AE_AML_BUFFER_LIMIT);

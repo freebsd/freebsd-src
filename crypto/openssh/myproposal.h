@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.23 2009/01/23 07:58:11 djm Exp $ */
+/* $OpenBSD: myproposal.h,v 1.24 2010/02/26 20:29:54 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -40,7 +40,9 @@
 	"diffie-hellman-group1-sha1"
 #endif
 
-#define	KEX_DEFAULT_PK_ALG	"ssh-rsa,ssh-dss"
+#define	KEX_DEFAULT_PK_ALG	"ssh-rsa-cert-v00@openssh.com," \
+				"ssh-dss-cert-v00@openssh.com," \
+				"ssh-rsa,ssh-dss"
 
 #define	KEX_DEFAULT_ENCRYPT \
 	"aes128-ctr,aes192-ctr,aes256-ctr," \

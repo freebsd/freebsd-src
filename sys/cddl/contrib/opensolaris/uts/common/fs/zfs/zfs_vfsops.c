@@ -214,7 +214,7 @@ blksz_changed_cb(void *arg, uint64_t newval)
 		newval = SPA_MAXBLOCKSIZE;
 
 	zfsvfs->z_max_blksz = newval;
-	zfsvfs->z_vfs->vfs_bsize = newval;
+	zfsvfs->z_vfs->mnt_stat.f_iosize = newval;
 }
 
 static void
@@ -499,6 +499,12 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 	dmu_objset_set_user(zfsvfs->z_os, zfsvfs);
 	mutex_exit(&zfsvfs->z_os->os->os_user_ptr_lock);
 
+	zfsvfs->z_log = zil_open(zfsvfs->z_os, zfs_get_data);
+	if (zil_disable) {
+		zil_destroy(zfsvfs->z_log, B_FALSE);
+		zfsvfs->z_log = NULL;
+	}
+
 	/*
 	 * If we are not mounting (ie: online recv), then we don't
 	 * have to worry about replaying the log as we blocked all
@@ -512,20 +518,44 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 		 * allow replays to succeed.
 		 */
 		readonly = zfsvfs->z_vfs->vfs_flag & VFS_RDONLY;
-		zfsvfs->z_vfs->vfs_flag &= ~VFS_RDONLY;
+		if (readonly != 0)
+			zfsvfs->z_vfs->vfs_flag &= ~VFS_RDONLY;
+		else
+			zfs_unlinked_drain(zfsvfs);
 
-		/*
-		 * Parse and replay the intent log.
-		 */
-		zil_replay(zfsvfs->z_os, zfsvfs, &zfsvfs->z_assign,
-		    zfs_replay_vector, zfs_unlinked_drain);
-
-		zfs_unlinked_drain(zfsvfs);
+		if (zfsvfs->z_log) {
+			/*
+			 * Parse and replay the intent log.
+			 *
+			 * Because of ziltest, this must be done after
+			 * zfs_unlinked_drain().  (Further note: ziltest
+			 * doesn't use readonly mounts, where
+			 * zfs_unlinked_drain() isn't called.)  This is because
+			 * ziltest causes spa_sync() to think it's committed,
+			 * but actually it is not, so the intent log contains
+			 * many txg's worth of changes.
+			 *
+			 * In particular, if object N is in the unlinked set in
+			 * the last txg to actually sync, then it could be
+			 * actually freed in a later txg and then reallocated
+			 * in a yet later txg.  This would write a "create
+			 * object N" record to the intent log.  Normally, this
+			 * would be fine because the spa_sync() would have
+			 * written out the fact that object N is free, before
+			 * we could write the "create object N" intent log
+			 * record.
+			 *
+			 * But when we are in ziltest mode, we advance the "open
+			 * txg" without actually spa_sync()-ing the changes to
+			 * disk.  So we would see that object N is still
+			 * allocated and in the unlinked set, and there is an
+			 * intent log record saying to allocate it.
+			 */
+			zil_replay(zfsvfs->z_os, zfsvfs, &zfsvfs->z_assign,
+			    zfs_replay_vector, zfs_unlinked_drain);
+		}
 		zfsvfs->z_vfs->vfs_flag |= readonly; /* restore readonly bit */
 	}
-
-	if (!zil_disable)
-		zfsvfs->z_log = zil_open(zfsvfs->z_os, zfs_get_data);
 
 	return (0);
 }
@@ -577,7 +607,8 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	if (error = dsl_prop_get_integer(osname, "recordsize", &recordsize,
 	    NULL))
 		goto out;
-	zfsvfs->z_vfs->vfs_bsize = recordsize;
+	zfsvfs->z_vfs->vfs_bsize = SPA_MINBLOCKSIZE;
+	zfsvfs->z_vfs->mnt_stat.f_iosize = recordsize;
 
 	vfsp->vfs_data = zfsvfs;
 	vfsp->mnt_flag |= MNT_LOCAL;
@@ -817,8 +848,8 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 	 * We report the fragsize as the smallest block size we support,
 	 * and we report our blocksize as the filesystem's maximum blocksize.
 	 */
-	statp->f_bsize = zfsvfs->z_vfs->vfs_bsize;
-	statp->f_iosize = zfsvfs->z_vfs->vfs_bsize;
+	statp->f_bsize = SPA_MINBLOCKSIZE;
+	statp->f_iosize = zfsvfs->z_vfs->mnt_stat.f_iosize;
 
 	/*
 	 * The following report "total" blocks of various kinds in the
@@ -826,7 +857,7 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 	 * "fragment" size.
 	 */
 
-	statp->f_blocks = (refdbytes + availbytes) / statp->f_bsize;
+	statp->f_blocks = (refdbytes + availbytes) >> SPA_MINBLOCKSHIFT;
 	statp->f_bfree = availbytes / statp->f_bsize;
 	statp->f_bavail = statp->f_bfree; /* no root reservation */
 
@@ -867,13 +898,15 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 	ZFS_ENTER_NOERROR(zfsvfs);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
+
+	ZFS_EXIT(zfsvfs);
+
 	if (error == 0) {
 		*vpp = ZTOV(rootzp);
 		error = vn_lock(*vpp, flags);
 		(*vpp)->v_vflag |= VV_ROOT;
 	}
 
-	ZFS_EXIT(zfsvfs);
 	return (error);
 }
 
@@ -1142,13 +1175,13 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		VN_RELE(ZTOV(zp));
 		err = EINVAL;
 	}
+	ZFS_EXIT(zfsvfs);
 	if (err != 0)
 		*vpp = NULL;
 	else {
 		*vpp = ZTOV(zp);
 		vn_lock(*vpp, flags);
 	}
-	ZFS_EXIT(zfsvfs);
 	return (err);
 }
 
@@ -1165,8 +1198,6 @@ zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
 	 * which we have to use here, because only this file system
 	 * has mnt_export configured.
 	 */
-	vfsp = zfsvfs->z_parent->z_vfs;
-
 	return (vfs_stdcheckexp(zfsvfs->z_parent->z_vfs, nam, extflagsp,
 	    credanonp, numsecflavors, secflavors));
 }
@@ -1236,8 +1267,8 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 		} else {
 			VN_HOLD(*vpp);
 		}
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 		ZFS_EXIT(zfsvfs);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 		return (0);
 	}
 
@@ -1258,10 +1289,11 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 		return (EINVAL);
 	}
 
+	ZFS_EXIT(zfsvfs);
+
 	*vpp = ZTOV(zp);
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	vnode_create_vobject(*vpp, zp->z_phys->zp_size, curthread);
-	ZFS_EXIT(zfsvfs);
 	return (0);
 }
 

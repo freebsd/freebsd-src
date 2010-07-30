@@ -30,10 +30,11 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/sched.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
@@ -52,6 +53,7 @@ devclass_t openpic_devclass;
 /*
  * Local routines
  */
+static int openpic_intr(void *arg);
 
 static __inline uint32_t
 openpic_read(struct openpic_softc *sc, u_int reg)
@@ -71,11 +73,13 @@ openpic_set_priority(struct openpic_softc *sc, int pri)
 	u_int tpr;
 	uint32_t x;
 
-	tpr = OPENPIC_PCPU_TPR(PCPU_GET(cpuid));
+	sched_pin();
+	tpr = OPENPIC_PCPU_TPR((sc->sc_dev == root_pic) ? PCPU_GET(cpuid) : 0);
 	x = openpic_read(sc, tpr);
 	x &= ~OPENPIC_TPR_MASK;
 	x |= pri;
 	openpic_write(sc, tpr, x);
+	sched_unpin();
 }
 
 int
@@ -99,6 +103,46 @@ openpic_attach(device_t dev)
 
 	sc->sc_bt = rman_get_bustag(sc->sc_memr);
 	sc->sc_bh = rman_get_bushandle(sc->sc_memr);
+
+	/* Reset the PIC */
+	x = openpic_read(sc, OPENPIC_CONFIG);
+	x |= OPENPIC_CONFIG_RESET;
+	openpic_write(sc, OPENPIC_CONFIG, x);
+
+	while (openpic_read(sc, OPENPIC_CONFIG) & OPENPIC_CONFIG_RESET) {
+		powerpc_sync();
+		DELAY(100);
+	}
+
+	/* Check if this is a cascaded PIC */
+	sc->sc_irq = 0;
+	sc->sc_intr = NULL;
+	do {
+		struct resource_list *rl;
+
+		rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
+		if (rl == NULL)
+			break;
+		if (resource_list_find(rl, SYS_RES_IRQ, 0) == NULL)
+			break;
+
+		sc->sc_intr = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &sc->sc_irq, RF_ACTIVE);
+
+		/* XXX Cascaded PICs pass NULL trapframes! */
+		bus_setup_intr(dev, sc->sc_intr, INTR_TYPE_MISC | INTR_MPSAFE,
+		    openpic_intr, NULL, dev, &sc->sc_icookie);
+	} while (0);
+
+	/* Reset the PIC */
+	x = openpic_read(sc, OPENPIC_CONFIG);
+	x |= OPENPIC_CONFIG_RESET;
+	openpic_write(sc, OPENPIC_CONFIG, x);
+
+	while (openpic_read(sc, OPENPIC_CONFIG) & OPENPIC_CONFIG_RESET) {
+		powerpc_sync();
+		DELAY(100);
+	}
 
 	x = openpic_read(sc, OPENPIC_FEATURE);
 	switch (x & OPENPIC_FEATURE_VERSION_MASK) {
@@ -141,7 +185,7 @@ openpic_attach(device_t dev)
 	for (irq = 0; irq < sc->sc_nirq; irq++) {
 		x = irq;                /* irq == vector. */
 		x |= OPENPIC_IMASK;
-		x |= OPENPIC_POLARITY_POSITIVE;
+		x |= OPENPIC_POLARITY_NEGATIVE;
 		x |= OPENPIC_SENSE_LEVEL;
 		x |= 8 << OPENPIC_PRIORITY_SHIFT;
 		openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
@@ -164,10 +208,10 @@ openpic_attach(device_t dev)
 	for (irq = 0; irq < sc->sc_nirq; irq++)
 		openpic_write(sc, OPENPIC_IDEST(irq), 1 << 0);
 
-	/* clear all pending interrupts */
+	/* clear all pending interrupts from cpu 0 */
 	for (irq = 0; irq < sc->sc_nirq; irq++) {
-		(void)openpic_read(sc, OPENPIC_PCPU_IACK(PCPU_GET(cpuid)));
-		openpic_write(sc, OPENPIC_PCPU_EOI(PCPU_GET(cpuid)), 0);
+		(void)openpic_read(sc, OPENPIC_PCPU_IACK(0));
+		openpic_write(sc, OPENPIC_PCPU_EOI(0), 0);
 	}
 
 	for (cpu = 0; cpu < sc->sc_ncpu; cpu++)
@@ -175,12 +219,29 @@ openpic_attach(device_t dev)
 
 	powerpc_register_pic(dev, sc->sc_nirq);
 
+	/* If this is not a cascaded PIC, it must be the root PIC */
+	if (sc->sc_intr == NULL)
+		root_pic = dev;
+
 	return (0);
 }
 
 /*
  * PIC I/F methods
  */
+
+void
+openpic_bind(device_t dev, u_int irq, cpumask_t cpumask)
+{
+	struct openpic_softc *sc;
+
+	/* If we aren't directly connected to the CPU, this won't work */
+	if (dev != root_pic)
+		return;
+
+	sc = device_get_softc(dev);
+	openpic_write(sc, OPENPIC_IDEST(irq), cpumask);
+}
 
 void
 openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
@@ -202,6 +263,17 @@ openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
 	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
 }
 
+static int
+openpic_intr(void *arg)
+{
+	device_t dev = (device_t)(arg);
+
+	/* XXX Cascaded PICs do not pass non-NULL trapframes! */
+	openpic_dispatch(dev, NULL);
+
+	return (FILTER_HANDLED);
+}
+
 void
 openpic_dispatch(device_t dev, struct trapframe *tf)
 {
@@ -210,7 +282,8 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 
 	CTR1(KTR_INTR, "%s: got interrupt", __func__);
 
-	cpuid = PCPU_GET(cpuid);
+	cpuid = (dev == root_pic) ? PCPU_GET(cpuid) : 0;
+
 	sc = device_get_softc(dev);
 
 	while (1) {
@@ -246,9 +319,12 @@ void
 openpic_eoi(device_t dev, u_int irq __unused)
 {
 	struct openpic_softc *sc;
+	u_int cpuid;
+
+	cpuid = (dev == root_pic) ? PCPU_GET(cpuid) : 0;
 
 	sc = device_get_softc(dev);
-	openpic_write(sc, OPENPIC_PCPU_EOI(PCPU_GET(cpuid)), 0);
+	openpic_write(sc, OPENPIC_PCPU_EOI(cpuid), 0);
 }
 
 void
@@ -256,9 +332,13 @@ openpic_ipi(device_t dev, u_int cpu)
 {
 	struct openpic_softc *sc;
 
+	KASSERT(dev == root_pic, ("Cannot send IPIs from non-root OpenPIC"));
+
 	sc = device_get_softc(dev);
+	sched_pin();
 	openpic_write(sc, OPENPIC_PCPU_IPI_DISPATCH(PCPU_GET(cpuid), 0),
 	    1u << cpu);
+	sched_unpin();
 }
 
 void
@@ -277,7 +357,6 @@ openpic_mask(device_t dev, u_int irq)
 		x |= OPENPIC_IMASK;
 		openpic_write(sc, OPENPIC_IPI_VECTOR(0), x);
 	}
-	openpic_write(sc, OPENPIC_PCPU_EOI(PCPU_GET(cpuid)), 0);
 }
 
 void

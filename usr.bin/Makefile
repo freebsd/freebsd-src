@@ -5,7 +5,7 @@
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
-# XXX Use GNU versions: apropos bc dc diff grep ld man patch whatis
+# XXX Use GNU versions: apropos diff grep ld man patch whatis
 # Moved to secure: bdes
 #
 
@@ -35,6 +35,7 @@ SUBDIR=	alias \
 	${_chkey} \
 	chpass \
 	cksum \
+	${_clang} \
 	cmp \
 	col \
 	${_colcrt} \
@@ -116,10 +117,11 @@ SUBDIR=	alias \
 	look \
 	lorder \
 	lsvfs \
+	lzmainfo \
 	m4 \
 	${_mail} \
 	${_make} \
-	makewhatis \
+	${_makewhatis} \
 	mesg \
 	minigzip \
 	ministat \
@@ -172,6 +174,7 @@ SUBDIR=	alias \
 	${_rwho} \
 	script \
 	sed \
+	seq \
 	shar \
 	showmount \
 	${_smbutil} \
@@ -232,6 +235,8 @@ SUBDIR=	alias \
 	xinstall \
 	${_xlint} \
 	${_xstr} \
+	xz \
+	xzdec \
 	${_yacc} \
 	yes \
 	${_ypcat} \
@@ -252,7 +257,7 @@ _at=		at
 _atm=		atm
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 _catman=	catman
 .endif
 
@@ -273,6 +278,10 @@ _cpio=		cpio
 
 .if ${MK_CALENDAR} != "no"
 _calendar=	calendar
+.endif
+
+.if ${MK_CLANG} != "no"
+_clang=		clang
 .endif
 
 .if ${MK_HESIOD} != "no"
@@ -303,6 +312,10 @@ _msgs=		msgs
 
 .if ${MK_MAKE} != "no"
 _make=		make
+.endif
+
+.if ${MK_MAN_UTILS} != "no"
+_makewhatis=	makewhatis
 .endif
 
 .if ${MK_NETCAT} != "no"

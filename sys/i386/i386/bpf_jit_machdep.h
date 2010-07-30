@@ -418,4 +418,10 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	}								\
 } while (0)
 
+#define	JUMP(off) do {							\
+	if ((off) != 0)							\
+		JMP(stream.refs[stream.bpf_pc + (off)] -		\
+		    stream.refs[stream.bpf_pc]);			\
+} while (0)
+
 #endif	/* _BPF_JIT_MACHDEP_H_ */

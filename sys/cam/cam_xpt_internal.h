@@ -44,8 +44,7 @@ typedef void (*xpt_dev_async_func)(u_int32_t async_code,
 				   struct cam_et *target,
 				   struct cam_ed *device,
 				   void *async_arg);
-typedef void (*xpt_announce_periph_func)(struct cam_periph *periph,
-					 char *announce_string);
+typedef void (*xpt_announce_periph_func)(struct cam_periph *periph);
 
 struct xpt_xport {
 	xpt_alloc_device_func	alloc_device;
@@ -136,6 +135,8 @@ struct cam_et {
 	u_int32_t	refcount;
 	u_int		generation;
 	struct		timeval last_reset;
+	u_int		rpl_size;
+	struct scsi_report_luns_data *luns;
 };
 
 /*

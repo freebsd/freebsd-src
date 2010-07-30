@@ -102,6 +102,7 @@ static void
 configure_final(dummy)
 	void *dummy;
 {
+	intr_enable();
 
 	cninit_finish(); 
 

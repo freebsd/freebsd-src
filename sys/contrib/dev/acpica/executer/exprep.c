@@ -193,11 +193,11 @@ AcpiExGenerateAccess (
     FieldByteLength    = FieldByteEndOffset - FieldByteOffset;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-            "Bit length %d, Bit offset %d\n",
+            "Bit length %u, Bit offset %u\n",
             FieldBitLength, FieldBitOffset));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-            "Byte Length %d, Byte Offset %d, End Offset %d\n",
+            "Byte Length %u, Byte Offset %u, End Offset %u\n",
             FieldByteLength, FieldByteOffset, FieldByteEndOffset));
 
     /*
@@ -228,10 +228,10 @@ AcpiExGenerateAccess (
             Accesses = FieldEndOffset - FieldStartOffset;
 
             ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-                    "AccessWidth %d end is within region\n", AccessByteWidth));
+                    "AccessWidth %u end is within region\n", AccessByteWidth));
 
             ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-                    "Field Start %d, Field End %d -- requires %d accesses\n",
+                    "Field Start %u, Field End %u -- requires %u accesses\n",
                     FieldStartOffset, FieldEndOffset, Accesses));
 
             /* Single access is optimal */
@@ -239,7 +239,7 @@ AcpiExGenerateAccess (
             if (Accesses <= 1)
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-                    "Entire field can be accessed with one operation of size %d\n",
+                    "Entire field can be accessed with one operation of size %u\n",
                     AccessByteWidth));
                 return_VALUE (AccessByteWidth);
             }
@@ -257,7 +257,7 @@ AcpiExGenerateAccess (
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-                "AccessWidth %d end is NOT within region\n", AccessByteWidth));
+                "AccessWidth %u end is NOT within region\n", AccessByteWidth));
             if (AccessByteWidth == 1)
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
@@ -273,7 +273,7 @@ AcpiExGenerateAccess (
              * previous access
              */
             ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-                    "Backing off to previous optimal access width of %d\n",
+                    "Backing off to previous optimal access width of %u\n",
                     MinimumAccessWidth));
             return_VALUE (MinimumAccessWidth);
         }
@@ -362,7 +362,7 @@ AcpiExDecodeFieldAccess (
         /* Invalid field access type */
 
         ACPI_ERROR ((AE_INFO,
-            "Unknown field access type %X",
+            "Unknown field access type 0x%X",
             Access));
         return_UINT32 (0);
     }
@@ -479,16 +479,6 @@ AcpiExPrepCommonFieldObject (
     ObjDesc->CommonField.StartFieldBitOffset = (UINT8)
         (FieldBitPosition - ACPI_MUL_8 (ObjDesc->CommonField.BaseByteOffset));
 
-    /*
-     * Does the entire field fit within a single field access element? (datum)
-     * (i.e., without crossing a datum boundary)
-     */
-    if ((ObjDesc->CommonField.StartFieldBitOffset + FieldBitLength) <=
-            (UINT16) AccessBitWidth)
-    {
-        ObjDesc->Common.Flags |= AOPOBJ_SINGLE_DATUM;
-    }
-
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -533,7 +523,7 @@ AcpiExPrepFieldValue (
         if (Type != ACPI_TYPE_REGION)
         {
             ACPI_ERROR ((AE_INFO,
-                "Needed Region, found type %X (%s)",
+                "Needed Region, found type 0x%X (%s)",
                 Type, AcpiUtGetTypeName (Type)));
 
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);

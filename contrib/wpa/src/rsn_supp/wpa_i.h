@@ -240,6 +240,6 @@ int wpa_supplicant_send_4_of_4(struct wpa_sm *sm, const unsigned char *dst,
 
 int wpa_derive_ptk_ft(struct wpa_sm *sm, const unsigned char *src_addr,
 		      const struct wpa_eapol_key *key,
-		      struct wpa_ptk *ptk);
+		      struct wpa_ptk *ptk, size_t ptk_len);
 
 #endif /* WPA_I_H */

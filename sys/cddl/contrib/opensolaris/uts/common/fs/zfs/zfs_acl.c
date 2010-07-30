@@ -1984,8 +1984,6 @@ zfs_getacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 	if (mask & VSA_ACE) {
 		size_t aclsz;
 
-		zfs_acl_node_t *aclnode = list_head(&aclp->z_acl);
-
 		aclsz = count * sizeof (ace_t) +
 		    sizeof (ace_object_t) * largeace;
 
@@ -1996,8 +1994,17 @@ zfs_getacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 			zfs_copy_fuid_2_ace(zp->z_zfsvfs, aclp, cr,
 			    vsecp->vsa_aclentp, !(mask & VSA_ACE_ALLTYPES));
 		else {
-			bcopy(aclnode->z_acldata, vsecp->vsa_aclentp,
-			    count * sizeof (ace_t));
+			zfs_acl_node_t *aclnode;
+			void *start = vsecp->vsa_aclentp;
+
+			for (aclnode = list_head(&aclp->z_acl); aclnode;
+			    aclnode = list_next(&aclp->z_acl, aclnode)) {
+				bcopy(aclnode->z_acldata, start,
+				    aclnode->z_size);
+				start = (caddr_t)start + aclnode->z_size;
+			}
+			ASSERT((caddr_t)start - (caddr_t)vsecp->vsa_aclentp ==
+			    aclp->z_acl_bytes);
 		}
 	}
 	if (mask & VSA_ACE_ACLFLAGS) {
@@ -2235,11 +2242,24 @@ zfs_zaccess_common(znode_t *zp, uint32_t v4_mode, uint32_t *working_mode,
 		return (EPERM);
 	}
 
+#ifdef sun
 	if ((v4_mode & (ACE_DELETE | ACE_DELETE_CHILD)) &&
 	    (zp->z_phys->zp_flags & ZFS_NOUNLINK)) {
 		*check_privs = B_FALSE;
 		return (EPERM);
 	}
+#else
+	/*
+	 * In FreeBSD we allow to modify directory's content is ZFS_NOUNLINK
+	 * (sunlnk) is set. We just don't allow directory removal, which is
+	 * handled in zfs_zaccess_delete().
+	 */
+	if ((v4_mode & ACE_DELETE) &&
+	    (zp->z_phys->zp_flags & ZFS_NOUNLINK)) {
+		*check_privs = B_FALSE;
+		return (EPERM);
+	}
+#endif
 
 	if (((v4_mode & (ACE_READ_DATA|ACE_EXECUTE)) &&
 	    (zp->z_phys->zp_flags & ZFS_AV_QUARANTINED))) {

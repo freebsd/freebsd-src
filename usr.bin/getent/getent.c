@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -622,14 +615,13 @@ static int
 utmpx(int argc, char *argv[])
 {
 	const struct utmpx *ut;
-	int rv = RV_OK, db;
+	const char *file = NULL;
+	int rv = RV_OK, db = 0;
 
 	assert(argc > 1);
 	assert(argv != NULL);
 
-	if (argc == 2) {
-		db = UTXDB_ACTIVE;
-	} else if (argc == 3) {
+	if (argc == 3 || argc == 4) {
 		if (strcmp(argv[2], "active") == 0)
 			db = UTXDB_ACTIVE;
 		else if (strcmp(argv[2], "lastlogin") == 0)
@@ -638,15 +630,18 @@ utmpx(int argc, char *argv[])
 			db = UTXDB_LOG;
 		else
 			rv = RV_USAGE;
+		if (argc == 4)
+			file = argv[3];
 	} else {
 		rv = RV_USAGE;
 	}
 
 	if (rv == RV_USAGE) {
-		fprintf(stderr, "Usage: %s utmpx [active | lastlogin | log]\n",
+		fprintf(stderr,
+		    "Usage: %s utmpx active | lastlogin | log [filename]\n",
 		    getprogname());
 	} else if (rv == RV_OK) {
-		if (setutxdb(db, NULL) != 0)
+		if (setutxdb(db, file) != 0)
 			return (RV_NOTFOUND);
 		while ((ut = getutxent()) != NULL)
 			utmpxprint(ut);

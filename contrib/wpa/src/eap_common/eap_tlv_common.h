@@ -24,8 +24,7 @@
 #define EAP_TLV_URI_TLV 8
 #define EAP_TLV_EAP_PAYLOAD_TLV 9
 #define EAP_TLV_INTERMEDIATE_RESULT_TLV 10
-#define EAP_TLV_PAC_TLV 11 /* draft-cam-winget-eap-fast-provisioning-04.txt,
-			    * Section 4.2 */
+#define EAP_TLV_PAC_TLV 11 /* RFC 5422, Section 4.2 */
 #define EAP_TLV_CRYPTO_BINDING_TLV 12
 #define EAP_TLV_CALLING_STATION_ID_TLV 13
 #define EAP_TLV_CALLED_STATION_ID_TLV 14
@@ -99,7 +98,7 @@ struct eap_tlv_request_action_tlv {
 	be16 action;
 } STRUCT_PACKED;
 
-/* draft-cam-winget-eap-fast-provisiong-04.txt, Section 4.2.6 - PAC-Type TLV */
+/* RFC 5422, Section 4.2.6 - PAC-Type TLV */
 struct eap_tlv_pac_type_tlv {
 	be16 tlv_type; /* PAC_TYPE_PAC_TYPE */
 	be16 length;

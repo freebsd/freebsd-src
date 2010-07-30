@@ -42,7 +42,7 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 struct procfs_status32 {
 	int	state;	/* Running, stopped, something else? */
 	int	flags;	/* Any flags */
@@ -62,7 +62,7 @@ int
 procfs_ioctl(PFS_IOCTL_ARGS)
 {
 	struct procfs_status *ps;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	struct procfs_status32 *ps32;
 #endif
 	int error, flags, sig;
@@ -142,7 +142,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		ps->why = p->p_step ? p->p_stype : 0;
 		ps->val = p->p_step ? p->p_xstat : 0;
 		break;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	case PIOCWAIT32:
 		while (p->p_step == 0 && (p->p_flag & P_WEXIT) == 0) {
 			/* sleep until p stops */

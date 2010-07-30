@@ -382,6 +382,13 @@ int hostapd_select_hw_mode(struct hostapd_iface *iface)
 			break;
 		}
 	}
+	if (iface->conf->channel == 0) {
+		/* TODO: could request a scan of neighboring BSSes and select
+		 * the channel automatically */
+		wpa_printf(MSG_ERROR, "Channel not configured "
+			   "(hw_mode/channel in hostapd.conf)");
+		return -1;
+	}
 	if (ok == 0 && iface->conf->channel != 0) {
 		hostapd_logger(iface->bss[0], NULL,
 			       HOSTAPD_MODULE_IEEE80211,

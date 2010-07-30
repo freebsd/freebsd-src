@@ -1,8 +1,7 @@
 # $FreeBSD$
 # Octeon Support Files
 #
-mips/mips/mp_machdep.c				optional smp
-mips/cavium/dev/rgmii/octeon_fau.c		optional rgmii
+mips/cavium/asm_octeon.S			optional smp
 mips/cavium/dev/rgmii/octeon_fpa.c		optional rgmii
 mips/cavium/dev/rgmii/octeon_ipd.c 		optional rgmii
 mips/cavium/dev/rgmii/octeon_pko.c		optional rgmii
@@ -10,6 +9,7 @@ mips/cavium/dev/rgmii/octeon_rgmx.c		optional rgmii
 mips/cavium/obio.c				optional uart
 mips/cavium/octeon_ebt3000_cf.c			optional cf
 mips/cavium/octeon_machdep.c			standard
+mips/cavium/octeon_mp.c				optional smp
 mips/cavium/uart_bus_octeonusart.c		optional uart
 mips/cavium/uart_cpu_octeonusart.c		optional uart
 mips/cavium/uart_dev_oct16550.c			optional uart

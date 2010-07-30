@@ -75,9 +75,21 @@ cpudep_ap_bootstrap(void)
 }
 
 static register_t
-mpc745x_l2_enable(register_t l2cr_config)
+mpc74xx_l2_enable(register_t l2cr_config)
 {
-	register_t ccr;
+	register_t ccr, bit;
+	uint16_t	vers;
+
+	vers = mfpvr() >> 16;
+	switch (vers) {
+	case MPC7400:
+	case MPC7410:
+		bit = L2CR_L2IP;
+		break;
+	default:
+		bit = L2CR_L2I;
+		break;
+	}
 
 	ccr = mfspr(SPR_L2CR);
 	if (ccr & L2CR_L2E)
@@ -88,7 +100,7 @@ mpc745x_l2_enable(register_t l2cr_config)
 	mtspr(SPR_L2CR, ccr | L2CR_L2I);
 	do {
 		ccr = mfspr(SPR_L2CR);
-	} while (ccr & L2CR_L2I);
+	} while (ccr & bit);
 	powerpc_sync();
 	mtspr(SPR_L2CR, l2cr_config);
 	powerpc_sync();
@@ -129,7 +141,7 @@ mpc745x_l3_enable(register_t l3cr_config)
 }
 
 static register_t
-mpc745x_l1d_enable(void)
+mpc74xx_l1d_enable(void)
 {
 	register_t hid;
 
@@ -147,7 +159,7 @@ mpc745x_l1d_enable(void)
 }
 
 static register_t
-mpc745x_l1i_enable(void)
+mpc74xx_l1i_enable(void)
 {
 	register_t hid;
 
@@ -267,9 +279,9 @@ cpudep_ap_setup()
 		mtspr(SPR_HID0, bsp_state[0]); isync();
 		mtspr(SPR_HID1, bsp_state[1]); isync();
 
-		reg = mpc745x_l2_enable(bsp_state[2]);
-		reg = mpc745x_l1d_enable();
-		reg = mpc745x_l1i_enable();
+		reg = mpc74xx_l2_enable(bsp_state[2]);
+		reg = mpc74xx_l1d_enable();
+		reg = mpc74xx_l1i_enable();
 
 		break;
 	default:

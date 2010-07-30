@@ -22,7 +22,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
-#include "lib.h"
+#include <pkg.h>
 #include "add.h"
 
 /*
@@ -50,7 +50,7 @@ make_hierarchy(char *dir)
 	    }
 	}
 	else {
-	    if (vsystem("/bin/mkdir %s", dir)) {
+	    if (mkdir(dir, 0777) < 0) {
 		if (cp2)
 		    *cp2 = '/';
 		return FAIL;

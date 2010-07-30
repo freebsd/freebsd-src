@@ -50,12 +50,10 @@
 #define TW_OSLI_DEVICE_NAME		"3ware 9000 series Storage Controller"
 
 #define TW_OSLI_MALLOC_CLASS		M_TWA
-#define TW_OSLI_MAX_NUM_IOS		TW_CL_MAX_SIMULTANEOUS_REQUESTS
+#define TW_OSLI_MAX_NUM_REQUESTS	TW_CL_MAX_SIMULTANEOUS_REQUESTS
+/* Reserve two command packets.  One for ioctls and one for AENs */
+#define TW_OSLI_MAX_NUM_IOS		(TW_OSLI_MAX_NUM_REQUESTS - 2)
 #define TW_OSLI_MAX_NUM_AENS		0x100
-
-/* Disabled, doesn't work yet.
-#define TW_OSLI_DEFERRED_INTR_USED
-*/
 
 #ifdef PAE
 #define	TW_OSLI_DMA_BOUNDARY		(1u << 31)
@@ -80,10 +78,6 @@
 #define TW_OSLI_REQ_FLAGS_PASSTHRU	(1<<5)	/* pass through request */
 #define TW_OSLI_REQ_FLAGS_SLEEPING	(1<<6)	/* owner sleeping on this cmd */
 
-/* Possible values of sc->state. */
-#define TW_OSLI_CTLR_STATE_OPEN		(1<<0)	/* control device is open */
-#define TW_OSLI_CTLR_STATE_SIMQ_FROZEN	(1<<1)	/* simq frozen */
-
 
 #ifdef TW_OSL_DEBUG
 struct tw_osli_q_stats {
@@ -101,6 +95,8 @@ struct tw_osli_q_stats {
 /* Driver's request packet. */
 struct tw_osli_req_context {
 	struct tw_cl_req_handle	req_handle;/* tag to track req b/w OSL & CL */
+	struct mtx		ioctl_wake_timeout_lock_handle;/* non-spin lock used to detect ioctl timeout */
+	struct mtx		*ioctl_wake_timeout_lock;/* ptr to above lock */
 	struct twa_softc	*ctlr;	/* ptr to OSL's controller context */
 	TW_VOID			*data;	/* ptr to data being passed to CL */
 	TW_UINT32		length;	/* length of buf being passed to CL */
@@ -130,10 +126,10 @@ struct tw_osli_req_context {
 /* Per-controller structure. */
 struct twa_softc {
 	struct tw_cl_ctlr_handle	ctlr_handle;
-	struct tw_osli_req_context	*req_ctxt_buf;
+	struct tw_osli_req_context	*req_ctx_buf;
 
 	/* Controller state. */
-	TW_UINT32		state;
+	TW_UINT8		open;
 	TW_UINT32		flags;
 
 	TW_INT32		device_id;

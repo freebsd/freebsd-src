@@ -62,6 +62,8 @@ struct pmap {
 	struct	tte *pm_tsb;
 	vm_object_t pm_tsb_obj;
 	u_int	pm_active;
+	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
+	u_int			pm_retries;
 	u_int	pm_context[MAXCPU];
 	struct	pmap_statistics pm_stats;
 };
@@ -80,7 +82,7 @@ struct pmap {
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_set_memattr(m, ma)	(void)0
 
-void	pmap_bootstrap(void);
+void	pmap_bootstrap(u_int cpu_impl);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kenter(vm_offset_t va, vm_page_t m);
 void	pmap_kremove(vm_offset_t);

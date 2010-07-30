@@ -204,20 +204,21 @@ in6_matroute(void *v_arg, struct radix_node_head *head)
 
 SYSCTL_DECL(_net_inet6_ip6);
 
-static VNET_DEFINE(int, rtq_reallyold6);
-static VNET_DEFINE(int, rtq_minreallyold6);
-static VNET_DEFINE(int, rtq_toomany6);
-
+static VNET_DEFINE(int, rtq_reallyold6) = 60*60;
+	/* one hour is ``really old'' */
 #define	V_rtq_reallyold6		VNET(rtq_reallyold6)
-#define	V_rtq_minreallyold6		VNET(rtq_minreallyold6)
-#define	V_rtq_toomany6			VNET(rtq_toomany6)
-
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
     &VNET_NAME(rtq_reallyold6) , 0, "");
 
+static VNET_DEFINE(int, rtq_minreallyold6) = 10;
+	/* never automatically crank down to less */
+#define	V_rtq_minreallyold6		VNET(rtq_minreallyold6)
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW,
     &VNET_NAME(rtq_minreallyold6) , 0, "");
 
+static VNET_DEFINE(int, rtq_toomany6) = 128;
+	/* 128 cached routes is ``too many'' */
+#define	V_rtq_toomany6			VNET(rtq_toomany6)
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
     &VNET_NAME(rtq_toomany6) , 0, "");
 
@@ -277,7 +278,7 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-static VNET_DEFINE(int, rtq_timeout6);
+static VNET_DEFINE(int, rtq_timeout6) = RTQ_TIMEOUT;
 static VNET_DEFINE(struct callout, rtq_timer6);
 
 #define	V_rtq_timeout6			VNET(rtq_timeout6)
@@ -346,7 +347,6 @@ struct mtuex_arg {
 	struct radix_node_head *rnh;
 	time_t nextstop;
 };
-
 static VNET_DEFINE(struct callout, rtq_mtutimer);
 #define	V_rtq_mtutimer			VNET(rtq_mtutimer)
 
@@ -421,11 +421,6 @@ in6_inithead(void **head, int off)
 
 	if (off == 0)		/* See above */
 		return 1;	/* only do the rest for the real thing */
-
-	V_rtq_reallyold6 = 60*60; /* one hour is ``really old'' */
-	V_rtq_minreallyold6 = 10; /* never automatically crank down to less */
-	V_rtq_toomany6 = 128;	  /* 128 cached routes is ``too many'' */
-	V_rtq_timeout6 = RTQ_TIMEOUT;
 
 	rnh = *head;
 	KASSERT(rnh == rt_tables_get_rnh(0, AF_INET6), ("rnh?"));

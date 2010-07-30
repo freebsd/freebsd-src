@@ -217,9 +217,4 @@ static inline void octeon_fau_atomic_add64 (octeon_fau_reg_64_t reg, int64_t val
 }
 
 
-extern void octeon_fau_init(void);
-extern void octeon_fau_enable(void);
-extern void octeon_fau_disable(void);
-
-
 #endif  /* ___OCTEON_FAU__H___ */

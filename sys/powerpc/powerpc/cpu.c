@@ -433,6 +433,13 @@ cpu_e500_setup(int cpuid, uint16_t vers)
 	register_t hid0;
 
 	hid0 = mfspr(SPR_HID0);
+
+	/* Programe power-management mode. */
+	hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+	hid0 |= HID0_DOZE;
+
+	mtspr(SPR_HID0, hid0);
+
 	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, HID0_E500_BITMASK);
 }
 
@@ -446,8 +453,16 @@ cpu_970_setup(int cpuid, uint16_t vers)
 	    : "=r" (hid0_hi), "=r" (hid0_lo) : "K" (SPR_HID0));
 
 	/* Configure power-saving mode */
-	hid0_hi |= (HID0_NAP | HID0_DPM);
-	hid0_hi &= ~(HID0_DOZE | HID0_DEEPNAP);
+	switch (vers) {
+	case IBM970MP:
+		hid0_hi |= (HID0_DEEPNAP | HID0_DPM);
+		hid0_hi &= ~(HID0_DOZE | HID0_NAP);
+		break;
+	default:
+		hid0_hi |= (HID0_NAP | HID0_DPM);
+		hid0_hi &= ~(HID0_DOZE | HID0_DEEPNAP);
+		break;
+	}
 	powerpc_pow_enabled = 1;
 
 	__asm __volatile (" \

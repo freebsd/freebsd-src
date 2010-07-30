@@ -32,12 +32,12 @@
 .\"     @(#)raise.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd May 7, 2010
 .Dt RAISE 3
 .Os
 .Sh NAME
 .Nm raise
-.Nd send a signal to the current process
+.Nd send a signal to the current thread
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -49,7 +49,7 @@ The
 .Fn raise
 function sends the signal
 .Fa sig
-to the current process.
+to the current thread.
 .Sh RETURN VALUES
 .Rv -std raise
 .Sh ERRORS

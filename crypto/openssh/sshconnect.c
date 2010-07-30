@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.214 2009/05/28 16:50:16 andreas Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.220 2010/03/04 10:36:03 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -29,6 +29,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #ifdef HAVE_PATHS_H
 #include <paths.h>
@@ -58,6 +59,7 @@
 #include "misc.h"
 #include "dns.h"
 #include "roaming.h"
+#include "ssh2.h"
 #include "version.h"
 
 char *client_version_string = NULL;
@@ -192,8 +194,11 @@ ssh_create_socket(int privileged, struct addrinfo *ai)
 		return sock;
 	}
 	sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-	if (sock < 0)
+	if (sock < 0) {
 		error("socket: %.100s", strerror(errno));
+		return -1;
+	}
+	fcntl(sock, F_SETFD, FD_CLOEXEC);
 
 	/* Bind the socket to an alternative local IP address */
 	if (options.bind_address == NULL)
@@ -573,6 +578,23 @@ confirm(const char *prompt)
 	}
 }
 
+static int
+check_host_cert(const char *host, const Key *host_key)
+{
+	const char *reason;
+
+	if (key_cert_check_authority(host_key, 1, 0, host, &reason) != 0) {
+		error("%s", reason);
+		return 0;
+	}
+	if (buffer_len(&host_key->cert->constraints) != 0) {
+		error("Certificate for %s contains unsupported constraint(s)",
+		    host);
+		return 0;
+	}
+	return 1;
+}
+
 /*
  * check whether the supplied host key is valid, return -1 if the key
  * is not valid. the user_hostfile will not be updated if 'readonly' is true.
@@ -585,13 +607,13 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
     Key *host_key, int readonly, const char *user_hostfile,
     const char *system_hostfile)
 {
-	Key *file_key;
-	const char *type = key_type(host_key);
+	Key *file_key, *raw_key = NULL;
+	const char *type;
 	char *ip = NULL, *host = NULL;
 	char hostline[1000], *hostp, *fp, *ra;
 	HostStatus host_status;
 	HostStatus ip_status;
-	int r, local = 0, host_ip_differ = 0;
+	int r, want_cert, local = 0, host_ip_differ = 0;
 	int salen;
 	char ntop[NI_MAXHOST];
 	char msg[1024];
@@ -664,11 +686,15 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		host = put_host_port(hostname, port);
 	}
 
+ retry:
+	want_cert = key_is_cert(host_key);
+	type = key_type(host_key);
+
 	/*
 	 * Store the host key from the known host file in here so that we can
 	 * compare it with the key for the IP address.
 	 */
-	file_key = key_new(host_key->type);
+	file_key = key_new(key_is_cert(host_key) ? KEY_UNSPEC : host_key->type);
 
 	/*
 	 * Check if the host key is present in the user's list of known
@@ -684,9 +710,10 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	}
 	/*
 	 * Also perform check for the ip address, skip the check if we are
-	 * localhost or the hostname was an ip address to begin with
+	 * localhost, looking for a certificate, or the hostname was an ip
+	 * address to begin with.
 	 */
-	if (options.check_host_ip) {
+	if (!want_cert && options.check_host_ip) {
 		Key *ip_key = key_new(host_key->type);
 
 		ip_file = user_hostfile;
@@ -710,11 +737,14 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	switch (host_status) {
 	case HOST_OK:
 		/* The host is known and the key matches. */
-		debug("Host '%.200s' is known and matches the %s host key.",
-		    host, type);
-		debug("Found key in %s:%d", host_file, host_line);
+		debug("Host '%.200s' is known and matches the %s host %s.",
+		    host, type, want_cert ? "certificate" : "key");
+		debug("Found %s in %s:%d",
+		    want_cert ? "certificate" : "key", host_file, host_line);
+		if (want_cert && !check_host_cert(hostname, host_key))
+			goto fail;
 		if (options.check_host_ip && ip_status == HOST_NEW) {
-			if (readonly)
+			if (readonly || want_cert)
 				logit("%s host key for IP address "
 				    "'%.128s' not in list of known hosts.",
 				    type, ip);
@@ -746,7 +776,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 				break;
 			}
 		}
-		if (readonly)
+		if (readonly || want_cert)
 			goto fail;
 		/* The host is new. */
 		if (options.strict_host_key_checking == 1) {
@@ -830,7 +860,37 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			logit("Warning: Permanently added '%.200s' (%s) to the "
 			    "list of known hosts.", hostp, type);
 		break;
+	case HOST_REVOKED:
+		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+		error("@       WARNING: REVOKED HOST KEY DETECTED!               @");
+		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+		error("The %s host key for %s is marked as revoked.", type, host);
+		error("This could mean that a stolen key is being used to");
+		error("impersonate this host.");
+
+		/*
+		 * If strict host key checking is in use, the user will have
+		 * to edit the key manually and we can only abort.
+		 */
+		if (options.strict_host_key_checking) {
+			error("%s host key for %.200s was revoked and you have "
+			    "requested strict checking.", type, host);
+			goto fail;
+		}
+		goto continue_unsafe;
+
 	case HOST_CHANGED:
+		if (want_cert) {
+			/*
+			 * This is only a debug() since it is valid to have
+			 * CAs with wildcard DNS matches that don't match
+			 * all hosts that one might visit.
+			 */
+			debug("Host certificate authority does not "
+			    "match %s in %s:%d", CA_MARKER,
+			    host_file, host_line);
+			goto fail;
+		}
 		if (readonly == ROQUIET)
 			goto fail;
 		if (options.check_host_ip && host_ip_differ) {
@@ -868,6 +928,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			goto fail;
 		}
 
+ continue_unsafe:
 		/*
 		 * If strict host key checking has not been requested, allow
 		 * the connection but without MITM-able authentication or
@@ -926,7 +987,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 		 * XXX Should permit the user to change to use the new id.
 		 * This could be done by converting the host key to an
 		 * identifying sentence, tell that the host identifies itself
-		 * by that sentence, and ask the user if he/she whishes to
+		 * by that sentence, and ask the user if he/she wishes to
 		 * accept the authentication.
 		 */
 		break;
@@ -967,6 +1028,20 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	return 0;
 
 fail:
+	if (want_cert && host_status != HOST_REVOKED) {
+		/*
+		 * No matching certificate. Downgrade cert to raw key and
+		 * search normally.
+		 */
+		debug("No matching CA found. Retry with plain key");
+		raw_key = key_from_private(host_key);
+		if (key_drop_cert(raw_key) != 0)
+			fatal("Couldn't drop certificate");
+		host_key = raw_key;
+		goto retry;
+	}
+	if (raw_key != NULL)
+		key_free(raw_key);
 	xfree(ip);
 	xfree(host);
 	return -1;
@@ -979,7 +1054,8 @@ verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
 	struct stat st;
 	int flags = 0;
 
-	if (options.verify_host_key_dns &&
+	/* XXX certs are not yet supported for DNS */
+	if (!key_is_cert(host_key) && options.verify_host_key_dns &&
 	    verify_host_key_dns(host, hostaddr, host_key, &flags) == 0) {
 
 		if (flags & DNS_VERIFY_FOUND) {

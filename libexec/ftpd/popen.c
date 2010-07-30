@@ -110,10 +110,11 @@ ftpd_popen(char *program, char *type)
 		flags |= GLOB_LIMIT;
 		if (glob(argv[argc], flags, NULL, &gl))
 			gargv[gargc++] = strdup(argv[argc]);
-		else
+		else if (gl.gl_pathc > 0) {
 			for (pop = gl.gl_pathv; *pop && gargc < (MAXGLOBARGS-1);
 			     pop++)
 				gargv[gargc++] = strdup(*pop);
+		}
 		globfree(&gl);
 	}
 	gargv[gargc] = NULL;

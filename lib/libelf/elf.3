@@ -24,8 +24,8 @@
 .\" $FreeBSD$
 .\"
 .Dd October 21, 2007
-.Os
 .Dt ELF 3
+.Os
 .Sh NAME
 .Nm elf
 .Nd API for manipulating ELF objects
@@ -111,11 +111,13 @@ constraints.
 Accordingly, the
 .Xr ELF 3
 library offers translation facilities
-.Xr ( elf32_xlatetof 3 ,
+.Po
+.Xr elf32_xlatetof 3 ,
 .Xr elf32_xlatetom 3 ,
 .Xr elf64_xlatetof 3
 and
-.Xr elf64_xlatetom 3 )
+.Xr elf64_xlatetom 3
+.Pc
 to and from these
 representations and also provides higher-level APIs that retrieve and store
 data from the ELF object in a transparent manner.

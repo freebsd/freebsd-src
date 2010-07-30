@@ -3268,13 +3268,13 @@ create_got_section (bfd *abfd, struct bfd_link_info *info)
   flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS | SEC_IN_MEMORY
 	   | SEC_LINKER_CREATED);
 
-  got = bfd_make_section (abfd, ".got");
+  got = bfd_make_section_anyway (abfd, ".got");
   if (!got
       || !bfd_set_section_flags (abfd, got, flags)
       || !bfd_set_section_alignment (abfd, got, 3))
     return FALSE;
 
-  relgot = bfd_make_section (abfd, ".rela.got");
+  relgot = bfd_make_section_anyway (abfd, ".rela.got");
   if (!relgot
       || ! bfd_set_section_flags (abfd, relgot, flags | SEC_READONLY)
       || ! bfd_set_section_alignment (abfd, relgot, 3))
@@ -6033,6 +6033,10 @@ ppc64_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 
   for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link_next)
     {
+      /* Skip this BFD if it is not ELF */
+      if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour)
+	continue;
+
       s = ppc64_elf_tdata (ibfd)->got;
       if (s != NULL && s != htab->got)
 	{
@@ -7206,7 +7210,7 @@ ppc64_elf_build_stubs (bfd_boolean emit_stub_syms,
 	stub_sec->_cooked_size = 0;
       }
 
-  if (htab->plt != NULL)
+  if (htab->glink != NULL && htab->glink->contents != NULL)
     {
       unsigned int indx;
       bfd_vma plt0;
@@ -9000,6 +9004,10 @@ ppc64_elf_finish_dynamic_sections (bfd *output_bfd,
   while ((dynobj = dynobj->link_next) != NULL)
     {
       asection *s;
+
+      if (bfd_get_flavour (dynobj) != bfd_target_elf_flavour)
+	continue;
+
       s = ppc64_elf_tdata (dynobj)->got;
       if (s != NULL
 	  && s->_raw_size != 0

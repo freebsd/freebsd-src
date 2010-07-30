@@ -424,7 +424,7 @@ AcpiDsGetFieldNames (
         default:
 
             ACPI_ERROR ((AE_INFO,
-                "Invalid opcode in field list: %X", Arg->Common.AmlOpcode));
+                "Invalid opcode in field list: 0x%X", Arg->Common.AmlOpcode));
             return_ACPI_STATUS (AE_AML_BAD_OPCODE);
         }
 

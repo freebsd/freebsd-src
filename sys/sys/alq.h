@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2002, Jeffrey Roberson <jeff@freebsd.org>
+ * Copyright (c) 2008-2009, Lawrence Stewart <lstewart@freebsd.org>
+ * Copyright (c) 2010, The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed at the Centre for Advanced
+ * Internet Architectures, Swinburne University of Technology, Melbourne,
+ * Australia by Lawrence Stewart under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,46 +47,47 @@ extern struct thread *ald_thread;
  * Async. Logging Entry
  */
 struct ale {
-	struct ale	*ae_next;	/* Next Entry */
-	char		*ae_data;	/* Entry buffer */
-	int		ae_flags;	/* Entry flags */
+	intptr_t	ae_bytesused;	/* # bytes written to ALE. */
+	char		*ae_data;	/* Write ptr. */
+	int		ae_pad;		/* Unused, compat. */
 };
 
-#define	AE_VALID	0x0001		/* Entry has valid data */
- 
-
-/* waitok options */
-#define	ALQ_NOWAIT	0x0001
-#define	ALQ_WAITOK	0x0002
+/* Flag options. */
+#define	ALQ_NOWAIT	0x0001	/* ALQ may not sleep. */
+#define	ALQ_WAITOK	0x0002	/* ALQ may sleep. */
+#define	ALQ_NOACTIVATE	0x0004	/* Don't activate ALQ after write. */
+#define	ALQ_ORDERED	0x0010	/* Maintain write ordering between threads. */
 
 /* Suggested mode for file creation. */
 #define	ALQ_DEFAULT_CMODE	0600
 
 /*
- * alq_open:  Creates a new queue
+ * alq_open_flags:  Creates a new queue
  *
  * Arguments:
  *	alq	Storage for a pointer to the newly created queue.
  *	file	The filename to open for logging.
  *	cred	Credential to authorize open and I/O with.
  *	cmode	Creation mode for file, if new.
- *	size	The size of each entry in the queue.
- *	count	The number of items in the buffer, this should be large enough
- *		to store items over the period of a disk write.
+ *	size	The size of the queue in bytes.
+ *	flags	ALQ_ORDERED
  * Returns:
  *	error from open or 0 on success
  */
 struct ucred;
-int alq_open(struct alq **, const char *file, struct ucred *cred, int cmode,
+int alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
+	    int size, int flags);
+int alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 	    int size, int count);
 
 /*
- * alq_write:  Write data into the queue
+ * alq_writen:  Write data into the queue
  *
  * Arguments:
  *	alq	The queue we're writing to
  *	data	The entry to be recorded
- *	waitok	Are we permitted to wait?
+ *	len	The number of bytes to write from *data
+ *	flags	(ALQ_NOWAIT || ALQ_WAITOK), ALQ_NOACTIVATE
  *
  * Returns:
  *	EWOULDBLOCK if:
@@ -88,7 +95,8 @@ int alq_open(struct alq **, const char *file, struct ucred *cred, int cmode,
  *		The system is shutting down.
  *	0 on success.
  */
-int alq_write(struct alq *alq, void *data, int waitok);
+int alq_writen(struct alq *alq, void *data, int len, int flags);
+int alq_write(struct alq *alq, void *data, int flags);
 
 /*
  * alq_flush:  Flush the queue out to disk
@@ -101,27 +109,36 @@ void alq_flush(struct alq *alq);
 void alq_close(struct alq *alq);
 
 /*
- * alq_get:  Return an entry for direct access
+ * alq_getn:  Return an entry for direct access
  *
  * Arguments:
  *	alq	The queue to retrieve an entry from
- *	waitok	Are we permitted to wait?
+ *	len	Max number of bytes required
+ *	flags	(ALQ_NOWAIT || ALQ_WAITOK)
  *
  * Returns:
  *	The next available ale on success.
  *	NULL if:
- *		Waitok is ALQ_NOWAIT and the queue is full.
+ *		flags is ALQ_NOWAIT and the queue is full.
  *		The system is shutting down.
  *
  * This leaves the queue locked until a subsequent alq_post.
  */
-struct ale *alq_get(struct alq *alq, int waitok);
+struct ale *alq_getn(struct alq *alq, int len, int flags);
+struct ale *alq_get(struct alq *alq, int flags);
 
 /*
- * alq_post:  Schedule the ale retrieved by alq_get for writing.
+ * alq_post_flags:  Schedule the ale retrieved by alq_get/alq_getn for writing.
  *	alq	The queue to post the entry to.
  *	ale	An asynch logging entry returned by alq_get.
+ *	flags	ALQ_NOACTIVATE
  */
-void alq_post(struct alq *, struct ale *);
+void alq_post_flags(struct alq *alq, struct ale *ale, int flags);
+
+static __inline void
+alq_post(struct alq *alq, struct ale *ale)
+{
+	alq_post_flags(alq, ale, 0);
+}
 
 #endif	/* _SYS_ALQ_H_ */

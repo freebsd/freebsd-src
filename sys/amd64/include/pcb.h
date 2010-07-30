@@ -57,7 +57,9 @@ struct pcb {
 	register_t	pcb_gsbase;
 	u_long		pcb_flags;
 #define	PCB_DBREGS	0x02	/* process using debug registers */
+#define	PCB_KERNFPU	0x04	/* kernel uses fpu */
 #define	PCB_FPUINITDONE	0x08	/* fpu state is initialized */
+#define	PCB_USERFPUINITDONE 0x10 /* fpu user state is initialized */
 #define	PCB_GS32BIT	0x20	/* linux gs switch */
 #define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
 #define	PCB_FULLCTX	0x80	/* full context restore on sysret */
@@ -69,7 +71,7 @@ struct pcb {
 	u_int64_t	pcb_dr6;
 	u_int64_t	pcb_dr7;
 
-	struct	savefpu	pcb_save;
+	struct	savefpu pcb_user_save;
 	uint16_t	pcb_initial_fpucw;
 
 	caddr_t		pcb_onfault; /* copyin/out fault recovery */
@@ -78,6 +80,7 @@ struct pcb {
 	struct user_segment_descriptor	pcb_gs32sd;
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;
+	struct	savefpu	*pcb_save;
 	char		pcb_full_iret;
 };
 

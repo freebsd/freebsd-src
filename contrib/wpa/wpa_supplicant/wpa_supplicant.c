@@ -385,6 +385,9 @@ static void wpa_supplicant_cleanup(struct wpa_supplicant *wpa_s)
 	ieee80211_sta_deinit(wpa_s);
 
 	wpas_wps_deinit(wpa_s);
+
+	wpabuf_free(wpa_s->pending_eapol_rx);
+	wpa_s->pending_eapol_rx = NULL;
 }
 
 
@@ -418,6 +421,10 @@ void wpa_clear_keys(struct wpa_supplicant *wpa_s, const u8 *addr)
 	wpa_drv_set_key(wpa_s, WPA_ALG_NONE, bcast, 1, 0, NULL, 0, NULL, 0);
 	wpa_drv_set_key(wpa_s, WPA_ALG_NONE, bcast, 2, 0, NULL, 0, NULL, 0);
 	wpa_drv_set_key(wpa_s, WPA_ALG_NONE, bcast, 3, 0, NULL, 0, NULL, 0);
+#ifdef CONFIG_IEEE80211W
+	wpa_drv_set_key(wpa_s, WPA_ALG_NONE, bcast, 4, 0, NULL, 0, NULL, 0);
+	wpa_drv_set_key(wpa_s, WPA_ALG_NONE, bcast, 5, 0, NULL, 0, NULL, 0);
+#endif /* CONFIG_IEEE80211W */
 	if (addr) {
 		wpa_drv_set_key(wpa_s, WPA_ALG_NONE, addr, 0, 0, NULL, 0, NULL,
 				0);
@@ -474,6 +481,9 @@ void wpa_supplicant_set_state(struct wpa_supplicant *wpa_s, wpa_states state)
 	wpa_printf(MSG_DEBUG, "State: %s -> %s",
 		   wpa_supplicant_state_txt(wpa_s->wpa_state),
 		   wpa_supplicant_state_txt(state));
+
+	if (state != WPA_SCANNING)
+		wpa_supplicant_notify_scanning(wpa_s, 0);
 
 	wpa_supplicant_dbus_notify_state_change(wpa_s, state,
 						wpa_s->wpa_state);
@@ -1226,7 +1236,6 @@ void wpa_supplicant_deauthenticate(struct wpa_supplicant *wpa_s,
 				   int reason_code)
 {
 	u8 *addr = NULL;
-	wpa_supplicant_set_state(wpa_s, WPA_DISCONNECTED);
 	if (!is_zero_ether_addr(wpa_s->bssid)) {
 		if (wpa_s->use_client_mlme)
 			ieee80211_sta_deauthenticate(wpa_s, reason_code);
@@ -1236,11 +1245,10 @@ void wpa_supplicant_deauthenticate(struct wpa_supplicant *wpa_s,
 		addr = wpa_s->bssid;
 	}
 	wpa_clear_keys(wpa_s, addr);
+	wpa_supplicant_mark_disassoc(wpa_s);
 	wpa_s->current_ssid = NULL;
 	wpa_sm_set_config(wpa_s->wpa, NULL);
 	eapol_sm_notify_config(wpa_s->eapol, NULL, NULL);
-	eapol_sm_notify_portEnabled(wpa_s->eapol, FALSE);
-	eapol_sm_notify_portValid(wpa_s->eapol, FALSE);
 }
 
 
@@ -1471,12 +1479,14 @@ static int wpa_supplicant_set_driver(struct wpa_supplicant *wpa_s,
 	if (name == NULL) {
 		/* default to first driver in the list */
 		wpa_s->driver = wpa_supplicant_drivers[0];
+		wpa_s->global_drv_priv = wpa_s->global->drv_priv[0];
 		return 0;
 	}
 
 	for (i = 0; wpa_supplicant_drivers[i]; i++) {
 		if (os_strcmp(name, wpa_supplicant_drivers[i]->name) == 0) {
 			wpa_s->driver = wpa_supplicant_drivers[i];
+			wpa_s->global_drv_priv = wpa_s->global->drv_priv[i];
 			return 0;
 		}
 	}
@@ -1493,6 +1503,27 @@ void wpa_supplicant_rx_eapol(void *ctx, const u8 *src_addr,
 
 	wpa_printf(MSG_DEBUG, "RX EAPOL from " MACSTR, MAC2STR(src_addr));
 	wpa_hexdump(MSG_MSGDUMP, "RX EAPOL", buf, len);
+
+	if (wpa_s->wpa_state < WPA_ASSOCIATED) {
+		/*
+		 * There is possible race condition between receiving the
+		 * association event and the EAPOL frame since they are coming
+		 * through different paths from the driver. In order to avoid
+		 * issues in trying to process the EAPOL frame before receiving
+		 * association information, lets queue it for processing until
+		 * the association event is received.
+		 */
+		wpa_printf(MSG_DEBUG, "Not associated - Delay processing of "
+			   "received EAPOL frame");
+		wpabuf_free(wpa_s->pending_eapol_rx);
+		wpa_s->pending_eapol_rx = wpabuf_alloc_copy(buf, len);
+		if (wpa_s->pending_eapol_rx) {
+			os_get_time(&wpa_s->pending_eapol_rx_time);
+			os_memcpy(wpa_s->pending_eapol_rx_src, src_addr,
+				  ETH_ALEN);
+		}
+		return;
+	}
 
 	if (wpa_s->key_mgmt == WPA_KEY_MGMT_NONE) {
 		wpa_printf(MSG_DEBUG, "Ignored received EAPOL frame since "
@@ -1915,6 +1946,8 @@ struct wpa_supplicant * wpa_supplicant_add_iface(struct wpa_global *global,
 	if (wpa_s == NULL)
 		return NULL;
 
+	wpa_s->global = global;
+
 	if (wpa_supplicant_init_iface(wpa_s, iface) ||
 	    wpa_supplicant_init_iface2(wpa_s)) {
 		wpa_printf(MSG_DEBUG, "Failed to add interface %s",
@@ -1924,15 +1957,13 @@ struct wpa_supplicant * wpa_supplicant_add_iface(struct wpa_global *global,
 		return NULL;
 	}
 
-	wpa_s->global = global;
-
 	/* Register the interface with the dbus control interface */
 	if (wpas_dbus_register_iface(wpa_s)) {
 		wpa_supplicant_deinit_iface(wpa_s);
 		os_free(wpa_s);
 		return NULL;
 	}
-		
+
 	wpa_s->next = global->ifaces;
 	global->ifaces = wpa_s;
 

@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_mesh.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <net/bpf.h>
 
@@ -431,7 +432,7 @@ ieee80211_reset_bss(struct ieee80211vap *vap)
 	ieee80211_reset_erp(ic);
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
-	KASSERT(ni != NULL, ("unable to setup inital BSS node"));
+	KASSERT(ni != NULL, ("unable to setup initial BSS node"));
 	obss = vap->iv_bss;
 	vap->iv_bss = ieee80211_ref_node(ni);
 	if (obss != NULL) {
@@ -1035,6 +1036,7 @@ node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 
+	ieee80211_ratectl_node_deinit(ni);
 	ic->ic_node_cleanup(ni);
 	ieee80211_ies_cleanup(&ni->ni_ies);
 	ieee80211_psq_cleanup(&ni->ni_psq);

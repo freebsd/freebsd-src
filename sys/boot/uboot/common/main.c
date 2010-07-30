@@ -53,6 +53,10 @@ extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
 
+#ifdef LOADER_FDT_SUPPORT
+extern int command_fdt_internal(int argc, char *argv[]);
+#endif
+
 static void
 dump_sig(struct api_signature *sig)
 {
@@ -117,6 +121,7 @@ main(void)
 {
 	struct api_signature *sig = NULL;
 	int i;
+	struct open_file f;
 
 	if (!api_search_sig(&sig))
 		return (-1);
@@ -156,30 +161,42 @@ main(void)
 		panic("no U-Boot devices found");
 	printf("Number of U-Boot devices: %d\n", devs_no);
 
-	/*
-	 * March through the device switch probing for things.
-	 */
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
-
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 	meminfo();
 
-	/* XXX only support netbooting for now */
-	for (i = 0; devsw[i] != NULL; i++)
+	/*
+	 * March through the device switch probing for things.
+	 */
+	for (i = 0; devsw[i] != NULL; i++) {
+
+		if (devsw[i]->dv_init == NULL)
+			continue;
+		if ((devsw[i]->dv_init)() != 0)
+			continue;
+
+		printf("\nDevice: %s\n", devsw[i]->dv_name);
+
+		currdev.d_dev = devsw[i];
+		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.d_unit = 0;
+
+		if (strncmp(devsw[i]->dv_name, "disk",
+		    strlen(devsw[i]->dv_name)) == 0) {
+			f.f_devdata = &currdev;
+			currdev.d_disk.pnum = 0;
+			if (devsw[i]->dv_open(&f,&currdev) == 0)
+				break;
+		}
+
 		if (strncmp(devsw[i]->dv_name, "net",
 		    strlen(devsw[i]->dv_name)) == 0)
 			break;
+	}
 
 	if (devsw[i] == NULL)
-		panic("no network devices?!");
-
-	currdev.d_dev = devsw[i];
-	currdev.d_type = currdev.d_dev->dv_type;
-	currdev.d_unit = 0;
+		panic("No boot device found!");
 
 	env_setenv("currdev", EV_VOLATILE, uboot_fmtdev(&currdev),
 	    uboot_setcurrdev, env_nounset);
@@ -258,3 +275,20 @@ command_sysinfo(int argc, char *argv[])
 	ub_dump_si(si);
 	return (CMD_OK);
 }
+
+#ifdef LOADER_FDT_SUPPORT
+/*
+ * Since proper fdt command handling function is defined in fdt_loader_cmd.c,
+ * and declaring it as extern is in contradiction with COMMAND_SET() macro
+ * (which uses static pointer), we're defining wrapper function, which
+ * calls the proper fdt handling routine.
+ */
+static int
+command_fdt(int argc, char *argv[])
+{
+
+	return (command_fdt_internal(argc, argv));
+}
+
+COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
+#endif

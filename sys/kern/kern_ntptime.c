@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -198,22 +199,11 @@ static long pps_errcnt;			/* calibration errors */
 static void ntp_init(void);
 static void hardupdate(long offset);
 static void ntp_gettime1(struct ntptimeval *ntvp);
+static int ntp_is_time_error(void);
 
-static void
-ntp_gettime1(struct ntptimeval *ntvp)
+static int
+ntp_is_time_error(void)
 {
-	struct timespec atv;	/* nanosecond time */
-
-	GIANT_REQUIRED;
-
-	nanotime(&atv);
-	ntvp->time.tv_sec = atv.tv_sec;
-	ntvp->time.tv_nsec = atv.tv_nsec;
-	ntvp->maxerror = time_maxerror;
-	ntvp->esterror = time_esterror;
-	ntvp->tai = time_tai;
-	ntvp->time_state = time_state;
-
 	/*
 	 * Status word error decode. If any of these conditions occur,
 	 * an error is returned, instead of the status word. Most
@@ -243,6 +233,27 @@ ntp_gettime1(struct ntptimeval *ntvp)
 	 */
 	    (time_status & STA_PPSFREQ &&
 	    time_status & (STA_PPSWANDER | STA_PPSERROR)))
+		return (1);
+
+	return (0);
+}
+
+static void
+ntp_gettime1(struct ntptimeval *ntvp)
+{
+	struct timespec atv;	/* nanosecond time */
+
+	GIANT_REQUIRED;
+
+	nanotime(&atv);
+	ntvp->time.tv_sec = atv.tv_sec;
+	ntvp->time.tv_nsec = atv.tv_nsec;
+	ntvp->maxerror = time_maxerror;
+	ntvp->esterror = time_esterror;
+	ntvp->tai = time_tai;
+	ntvp->time_state = time_state;
+
+	if (ntp_is_time_error())
 		ntvp->time_state = TIME_ERROR;
 }
 
@@ -442,21 +453,11 @@ ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	if (error)
 		goto done2;
 
-	/*
-	 * Status word error decode. See comments in
-	 * ntp_gettime() routine.
-	 */
-	if ((time_status & (STA_UNSYNC | STA_CLOCKERR)) ||
-	    (time_status & (STA_PPSFREQ | STA_PPSTIME) &&
-	    !(time_status & STA_PPSSIGNAL)) ||
-	    (time_status & STA_PPSTIME &&
-	    time_status & STA_PPSJITTER) ||
-	    (time_status & STA_PPSFREQ &&
-	    time_status & (STA_PPSWANDER | STA_PPSERROR))) {
+	if (ntp_is_time_error())
 		td->td_retval[0] = TIME_ERROR;
-	} else {
+	else
 		td->td_retval[0] = time_state;
-	}
+
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -972,3 +973,67 @@ kern_adjtime(struct thread *td, struct timeval *delta, struct timeval *olddelta)
 	return (0);
 }
 
+static struct callout resettodr_callout;
+static int resettodr_period = 1800;
+
+static void
+periodic_resettodr(void *arg __unused)
+{
+
+	if (!ntp_is_time_error()) {
+		mtx_lock(&Giant);
+		resettodr();
+		mtx_unlock(&Giant);
+	}
+	if (resettodr_period > 0)
+		callout_schedule(&resettodr_callout, resettodr_period * hz);
+}
+
+static void
+shutdown_resettodr(void *arg __unused, int howto __unused)
+{
+
+	callout_drain(&resettodr_callout);
+	if (resettodr_period > 0 && !ntp_is_time_error()) {
+		mtx_lock(&Giant);
+		resettodr();
+		mtx_unlock(&Giant);
+	}
+}
+
+static int
+sysctl_resettodr_period(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (error || !req->newptr)
+		return (error);
+	if (resettodr_period == 0)
+		callout_stop(&resettodr_callout);
+	else
+		callout_reset(&resettodr_callout, resettodr_period * hz,
+		    periodic_resettodr, NULL);
+	return (0);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, rtc_save_period, CTLTYPE_INT|CTLFLAG_RW,
+	&resettodr_period, 1800, sysctl_resettodr_period, "I",
+	"Save system time to RTC with this period (in seconds)");
+TUNABLE_INT("machdep.rtc_save_period", &resettodr_period);
+
+static void
+start_periodic_resettodr(void *arg __unused)
+{
+
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_resettodr, NULL,
+	    SHUTDOWN_PRI_FIRST);
+	callout_init(&resettodr_callout, 1);
+	if (resettodr_period == 0)
+		return;
+	callout_reset(&resettodr_callout, resettodr_period * hz,
+	    periodic_resettodr, NULL);
+}
+
+SYSINIT(periodic_resettodr, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY - 1,
+	start_periodic_resettodr, NULL);

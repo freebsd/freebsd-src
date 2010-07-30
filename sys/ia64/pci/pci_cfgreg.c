@@ -28,6 +28,7 @@
  */
 
 #include <sys/param.h>
+#include <machine/cpufunc.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/sal.h>
 
@@ -66,6 +67,7 @@ uint32_t
 pci_cfgregread(int bus, int slot, int func, int reg, int len)
 {
 	struct ia64_sal_result res;
+	register_t is;
 	u_long addr;
 
 	addr = pci_sal_address(0, bus, slot, func, reg);
@@ -75,17 +77,18 @@ pci_cfgregread(int bus, int slot, int func, int reg, int len)
 	if (!pci_valid_access(reg, len))
 		return (~0);
 
+	is = intr_disable();
 	res = ia64_sal_entry(SAL_PCI_CONFIG_READ, addr, len, 0, 0, 0, 0, 0);
-	if (res.sal_status < 0)
-		return (~0);
+	intr_restore(is);
 
-	return (res.sal_result[0]);
+	return ((res.sal_status < 0) ? ~0 : res.sal_result[0]);
 }
 
 void
 pci_cfgregwrite(int bus, int slot, int func, int reg, uint32_t data, int len)
 {
 	struct ia64_sal_result res;
+	register_t is;
 	u_long addr;
 
 	addr = pci_sal_address(0, bus, slot, func, reg);
@@ -95,5 +98,7 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, uint32_t data, int len)
 	if (!pci_valid_access(reg, len))
 		return;
 
+	is = intr_disable();
 	res = ia64_sal_entry(SAL_PCI_CONFIG_WRITE, addr, len, data, 0, 0, 0, 0);
+	intr_restore(is);
 }

@@ -141,7 +141,7 @@ struct wpa_auth_config {
 	int rsn_preauth;
 	int eapol_version;
 	int peerkey;
-	int wme_enabled;
+	int wmm_enabled;
 	int okc;
 #ifdef CONFIG_IEEE80211W
 	enum {

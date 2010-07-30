@@ -280,7 +280,14 @@ AePrintException (
     /* Get the file handles */
 
     OutputFile = Gbl_Files[FileId].Handle;
+
+    /* Use the merged header/source file if present, otherwise use input file */
+
     SourceFile = Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle;
+    if (!SourceFile)
+    {
+        SourceFile = Gbl_Files[ASL_FILE_INPUT].Handle;
+    }
 
     if (Header)
     {
@@ -525,7 +532,7 @@ AslCommonError (
     Gbl_ExceptionCount[Level]++;
     if (Gbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
-        printf ("\nMaximum error count (%d) exceeded\n", ASL_MAX_ERROR_COUNT);
+        printf ("\nMaximum error count (%u) exceeded\n", ASL_MAX_ERROR_COUNT);
 
         Gbl_SourceLine = 0;
         Gbl_NextError = Gbl_ErrorLog;

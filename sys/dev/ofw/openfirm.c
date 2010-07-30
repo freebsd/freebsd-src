@@ -58,6 +58,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -110,10 +112,11 @@ OF_install(char *name, int prio)
 }
 
 /* Initializer */
-void
+int
 OF_init(void *cookie)
 {
 	phandle_t chosen;
+	int rv;
 
 	ofw_obj = &ofw_kernel_obj;
 	/*
@@ -123,14 +126,16 @@ OF_init(void *cookie)
 	kobj_class_compile_static(ofw_def_impl, &ofw_kernel_kops);
 	kobj_init((kobj_t)ofw_obj, ofw_def_impl);
 
-	OFW_INIT(ofw_obj, cookie);
+	rv = OFW_INIT(ofw_obj, cookie);
 
-	if ((chosen = OF_finddevice("/chosen")) == -1)
-		OF_exit();
-	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
-		stdout = -1;
+	if ((chosen = OF_finddevice("/chosen")) > 0)
+		if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
+			stdout = -1;
+
+	return (rv);
 }
 
+#ifndef FDT
 void
 OF_printf(const char *fmt, ...)
 {
@@ -154,6 +159,7 @@ OF_test(const char *name)
 
 	return (OFW_TEST(ofw_obj, name));
 }
+#endif
 
 int
 OF_interpret(const char *cmd, int nreturns, ...)
@@ -228,7 +234,7 @@ OF_getprop(phandle_t package, const char *propname, void *buf, size_t buflen)
 }
 
 /*
- * Resursively search the node and its parent for the given property, working
+ * Recursively search the node and its parent for the given property, working
  * downward from the node to the device tree root.  Returns the value of the
  * first match.
  */
@@ -315,20 +321,21 @@ OF_package_to_path(phandle_t package, char *buf, size_t len)
 	return (OFW_PACKAGE_TO_PATH(ofw_obj, package, buf, len));
 }
 
+#ifndef FDT
 /*  Call the method in the scope of a given instance. */
 int
 OF_call_method(const char *method, ihandle_t instance, int nargs, int nreturns,
     ...)
 {
 	va_list ap;
-	unsigned long args_n_results[12];
+	cell_t args_n_results[12];
 	int n, status;
 
 	if (nargs > 6)
 		return (-1);
 	va_start(ap, nreturns);
 	for (n = 0; n < nargs; n++)
-		args_n_results[n] = va_arg(ap, unsigned long);
+		args_n_results[n] = va_arg(ap, cell_t);
 
 	status = OFW_CALL_METHOD(ofw_obj, instance, method, nargs, nreturns,
 	    args_n_results);
@@ -336,7 +343,7 @@ OF_call_method(const char *method, ihandle_t instance, int nargs, int nreturns,
 		return (status);
 
 	for (; n < nargs + nreturns; n++)
-		*va_arg(ap, unsigned long *) = args_n_results[n];
+		*va_arg(ap, cell_t *) = args_n_results[n];
 	va_end(ap);
 	return (0);
 }
@@ -428,3 +435,4 @@ OF_exit()
 	for (;;)			/* just in case */
 		;
 }
+#endif

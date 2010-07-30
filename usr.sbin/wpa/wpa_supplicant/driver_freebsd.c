@@ -29,6 +29,7 @@
 
 #include <sys/socket.h>
 #include <net/if.h>
+#include <net/if_media.h>
 #include <net/ethernet.h>
 
 #include <net80211/ieee80211_ioctl.h>
@@ -47,7 +48,33 @@ struct wpa_driver_bsd_data {
 	int	lastssid_len;
 	uint32_t drivercaps;		/* general driver capabilities */
 	uint32_t cryptocaps;		/* hardware crypto support */
+	enum ieee80211_opmode opmode;	/* operation mode */
 };
+
+static enum ieee80211_opmode
+get80211opmode(struct wpa_driver_bsd_data *drv)
+{
+	struct ifmediareq ifmr;
+
+	(void) memset(&ifmr, 0, sizeof(ifmr));
+	(void) strncpy(ifmr.ifm_name, drv->ifname, sizeof(ifmr.ifm_name));
+
+	if (ioctl(drv->sock, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0) {
+		if (ifmr.ifm_current & IFM_IEEE80211_ADHOC) {
+			if (ifmr.ifm_current & IFM_FLAG0)
+				return IEEE80211_M_AHDEMO;
+			else
+				return IEEE80211_M_IBSS;
+		}
+		if (ifmr.ifm_current & IFM_IEEE80211_HOSTAP)
+			return IEEE80211_M_HOSTAP;
+		if (ifmr.ifm_current & IFM_IEEE80211_MONITOR)
+			return IEEE80211_M_MONITOR;
+		if (ifmr.ifm_current & IFM_IEEE80211_MBSS)
+			return IEEE80211_M_MBSS;
+	}
+	return IEEE80211_M_STA;
+}
 
 static int
 set80211var(struct wpa_driver_bsd_data *drv, int op, const void *arg, int arg_len)
@@ -332,6 +359,12 @@ wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
 	}
 	if (wk.ik_keyix != IEEE80211_KEYIX_NONE && set_tx)
 		wk.ik_flags |= IEEE80211_KEY_DEFAULT;
+	/*
+	 * Ignore replay failures in IBSS and AHDEMO mode.
+	 */
+	if (drv->opmode == IEEE80211_M_IBSS ||
+	    drv->opmode == IEEE80211_M_AHDEMO)
+		wk.ik_flags |= IEEE80211_KEY_NOREPLAY;
 	wk.ik_keylen = key_len;
 	memcpy(&wk.ik_keyrsc, seq, seq_len);
 	wk.ik_keyrsc = le64toh(wk.ik_keyrsc);
@@ -396,7 +429,7 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 {
 	struct wpa_driver_bsd_data *drv = priv;
 	struct ieee80211req_mlme mlme;
-	int privacy;
+	int flags, privacy;
 
 	wpa_printf(MSG_DEBUG,
 		"%s: ssid '%.*s' wpa ie len %u pairwise %u group %u key mgmt %u"
@@ -407,6 +440,17 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 		, params->group_suite
 		, params->key_mgmt_suite
 	);
+
+	/* NB: interface must be marked UP to associate */
+	if (getifflags(drv, &flags) != 0) {
+		wpa_printf(MSG_DEBUG, "%s did not mark interface UP", __func__);
+		return -1;
+	}
+	if ((flags & IFF_UP) == 0 && setifflags(drv, flags | IFF_UP) != 0) {
+		wpa_printf(MSG_DEBUG, "%s unable to mark interface UP",
+		    __func__);
+		return -1;
+	}
 
 	/* XXX error handling is wrong but unclear what to do... */
 	if (wpa_driver_bsd_set_wpa_ie(drv, params->wpa_ie, params->wpa_ie_len) < 0)
@@ -850,6 +894,7 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 			   __func__, strerror(errno));
 		goto fail;
 	}
+	drv->opmode = get80211opmode(drv);
 
 	return drv;
 fail:

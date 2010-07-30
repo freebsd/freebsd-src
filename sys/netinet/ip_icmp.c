@@ -75,65 +75,60 @@ __FBSDID("$FreeBSD$");
  * routines to turnaround packets back to the originator, and
  * host table maintenance routines.
  */
-
 VNET_DEFINE(struct icmpstat, icmpstat);
-static VNET_DEFINE(int, icmpmaskrepl);
-static VNET_DEFINE(u_int, icmpmaskfake);
-static VNET_DEFINE(int, drop_redirect);
-static VNET_DEFINE(int, log_redirect);
-static VNET_DEFINE(int, icmplim);
-static VNET_DEFINE(int, icmplim_output);
-static VNET_DEFINE(char, reply_src[IFNAMSIZ]);
-static VNET_DEFINE(int, icmp_rfi);
-static VNET_DEFINE(int, icmp_quotelen);
-static VNET_DEFINE(int, icmpbmcastecho);
-
-#define	V_icmpmaskrepl			VNET(icmpmaskrepl)
-#define	V_icmpmaskfake			VNET(icmpmaskfake)
-#define	V_drop_redirect			VNET(drop_redirect)
-#define	V_log_redirect			VNET(log_redirect)
-#define	V_icmplim			VNET(icmplim)
-#define	V_icmplim_output		VNET(icmplim_output)
-#define	V_reply_src			VNET(reply_src)
-#define	V_icmp_rfi			VNET(icmp_rfi)
-#define	V_icmp_quotelen			VNET(icmp_quotelen)
-#define	V_icmpbmcastecho		VNET(icmpbmcastecho)
-
 SYSCTL_VNET_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RW,
 	&VNET_NAME(icmpstat), icmpstat, "");
 
+static VNET_DEFINE(int, icmpmaskrepl) = 0;
+#define	V_icmpmaskrepl			VNET(icmpmaskrepl)
 SYSCTL_VNET_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
 	&VNET_NAME(icmpmaskrepl), 0,
 	"Reply to ICMP Address Mask Request packets.");
 
+static VNET_DEFINE(u_int, icmpmaskfake) = 0;
+#define	V_icmpmaskfake			VNET(icmpmaskfake)
 SYSCTL_VNET_UINT(_net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_RW,
 	&VNET_NAME(icmpmaskfake), 0,
 	"Fake reply to ICMP Address Mask Request packets.");
 
+static VNET_DEFINE(int, drop_redirect) = 0;
+#define	V_drop_redirect			VNET(drop_redirect)
 SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_RW,
 	&VNET_NAME(drop_redirect), 0,
 	"Ignore ICMP redirects");
 
+static VNET_DEFINE(int, log_redirect) = 0;
+#define	V_log_redirect			VNET(log_redirect)
 SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_RW,
 	&VNET_NAME(log_redirect), 0,
 	"Log ICMP redirects to the console");
 
+static VNET_DEFINE(int, icmplim) = 200;
+#define	V_icmplim			VNET(icmplim)
 SYSCTL_VNET_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RW,
 	&VNET_NAME(icmplim), 0,
 	"Maximum number of ICMP responses per second");
 
+static VNET_DEFINE(int, icmplim_output) = 1;
+#define	V_icmplim_output		VNET(icmplim_output)
 SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
 	&VNET_NAME(icmplim_output), 0,
 	"Enable rate limiting of ICMP responses");
 
+static VNET_DEFINE(char, reply_src[IFNAMSIZ]);
+#define	V_reply_src			VNET(reply_src)
 SYSCTL_VNET_STRING(_net_inet_icmp, OID_AUTO, reply_src, CTLFLAG_RW,
 	&VNET_NAME(reply_src), IFNAMSIZ,
 	"icmp reply source for non-local packets.");
 
+static VNET_DEFINE(int, icmp_rfi) = 0;
+#define	V_icmp_rfi			VNET(icmp_rfi)
 SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, reply_from_interface, CTLFLAG_RW,
 	&VNET_NAME(icmp_rfi), 0,
 	"ICMP reply from incoming interface for non-local packets");
 
+static VNET_DEFINE(int, icmp_quotelen) = 8;
+#define	V_icmp_quotelen			VNET(icmp_quotelen)
 SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_RW,
 	&VNET_NAME(icmp_quotelen), 0,
 	"Number of bytes from original packet to quote in ICMP reply");
@@ -141,7 +136,8 @@ SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_RW,
 /*
  * ICMP broadcast echo sysctl
  */
-
+static VNET_DEFINE(int, icmpbmcastecho) = 0;
+#define	V_icmpbmcastecho		VNET(icmpbmcastecho)
 SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW,
 	&VNET_NAME(icmpbmcastecho), 0,
 	"");
@@ -155,21 +151,6 @@ static void	icmp_reflect(struct mbuf *);
 static void	icmp_send(struct mbuf *, struct mbuf *);
 
 extern	struct protosw inetsw[];
-
-void
-icmp_init(void)
-{
-
-	V_icmpmaskrepl = 0;
-	V_icmpmaskfake = 0;
-	V_drop_redirect = 0;
-	V_log_redirect = 0;
-	V_icmplim = 200;
-	V_icmplim_output = 1;
-	V_icmp_rfi = 0;
-	V_icmp_quotelen = 8;
-	V_icmpbmcastecho = 0;
-}
 
 /*
  * Kernel module interface for updating icmpstat.  The argument is an index

@@ -48,6 +48,7 @@
 #include <wchar.h>
 #include "un-namespace.h"
 
+#include "local.h"
 #include "printf.h"
 #include "fvwrite.h"
 
@@ -575,7 +576,7 @@ static int
 __v3printf(FILE *fp, const char *fmt, int pct, va_list ap)
 {
 	int ret;
-	FILE fake;
+	FILE fake = FAKE_FILE;
 	unsigned char buf[BUFSIZ];
 
 	/* copy the important variables */

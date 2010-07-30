@@ -1530,8 +1530,10 @@ load_object(const char *name, const Obj_Entry *refobj, int flags)
 	close(fd);
 	return obj;
     }
-    if (flags & RTLD_LO_NOLOAD)
+    if (flags & RTLD_LO_NOLOAD) {
+	free(path);
 	return (NULL);
+    }
 
     /* First use of this object, so we must map it in */
     obj = do_load_object(fd, name, path, &sb, flags);
@@ -1961,7 +1963,7 @@ dlclose(void *handle)
     return 0;
 }
 
-const char *
+char *
 dlerror(void)
 {
     char *msg = error_message;
@@ -3151,13 +3153,13 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 	dtv[1] = tls_max_index;
 
 	for (obj = objs; obj; obj = obj->next) {
-	    if (obj->tlsoffset) {
+	    if (obj->tlsoffset > 0) {
 		addr = (Elf_Addr)tls + obj->tlsoffset;
-		memset((void*) (addr + obj->tlsinitsize),
-		       0, obj->tlssize - obj->tlsinitsize);
-		if (obj->tlsinit)
-		    memcpy((void*) addr, obj->tlsinit,
-			   obj->tlsinitsize);
+		if (obj->tlsinitsize > 0)
+		    memcpy((void*) addr, obj->tlsinit, obj->tlsinitsize);
+		if (obj->tlssize > obj->tlsinitsize)
+		    memset((void*) (addr + obj->tlsinitsize), 0,
+			   obj->tlssize - obj->tlsinitsize);
 		dtv[obj->tlsindex + 1] = addr;
 	    }
 	}
@@ -3311,6 +3313,10 @@ allocate_module_tls(int index)
     }
 
     p = malloc(obj->tlssize);
+    if (p == NULL) {
+	_rtld_error("Cannot allocate TLS block for index %d", index);
+	die();
+    }
     memcpy(p, obj->tlsinit, obj->tlsinitsize);
     memset(p + obj->tlsinitsize, 0, obj->tlssize - obj->tlsinitsize);
 
@@ -3357,21 +3363,18 @@ allocate_tls_offset(Obj_Entry *obj)
 void
 free_tls_offset(Obj_Entry *obj)
 {
-#if defined(__i386__) || defined(__amd64__) || defined(__sparc64__) || \
-    defined(__arm__) || defined(__mips__)
+
     /*
      * If we were the last thing to allocate out of the static TLS
      * block, we give our space back to the 'allocator'. This is a
      * simplistic workaround to allow libGL.so.1 to be loaded and
-     * unloaded multiple times. We only handle the Variant II
-     * mechanism for now - this really needs a proper allocator.
+     * unloaded multiple times.
      */
     if (calculate_tls_end(obj->tlsoffset, obj->tlssize)
 	== calculate_tls_end(tls_last_offset, tls_last_size)) {
 	tls_last_offset -= obj->tlssize;
 	tls_last_size = 0;
     }
-#endif
 }
 
 void *

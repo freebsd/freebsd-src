@@ -38,11 +38,8 @@ v4kEepromGet(struct ath_hal *ah, int param, void *val)
 	int i;
 
 	switch (param) {
-        case AR_EEP_NFTHRESH_5:
-		*(int16_t *)val = pModal[0].noiseFloorThreshCh[0];
-		return HAL_OK;
         case AR_EEP_NFTHRESH_2:
-		*(int16_t *)val = pModal[1].noiseFloorThreshCh[0];
+		*(int16_t *)val = pModal->noiseFloorThreshCh[0];
 		return HAL_OK;
         case AR_EEP_MACADDR:		/* Get MAC Address */
 		sum = 0;
@@ -67,14 +64,10 @@ v4kEepromGet(struct ath_hal *ah, int param, void *val)
 		return pBase->opCapFlags;
         case AR_EEP_RFSILENT:
 		return pBase->rfSilent;
-	case AR_EEP_OB_5:
-		return pModal[CHAN_A_IDX].ob;
-    	case AR_EEP_DB_5:
-		return pModal[CHAN_A_IDX].db;
     	case AR_EEP_OB_2:
-		return pModal[CHAN_B_IDX].ob;
+		return pModal->ob;
     	case AR_EEP_DB_2:
-		return pModal[CHAN_B_IDX].db;
+		return pModal->db;
 	case AR_EEP_TXMASK:
 		return pBase->txMask;
 	case AR_EEP_RXMASK:
@@ -84,11 +77,9 @@ v4kEepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_TXGAIN_TYPE:
 		return IS_VERS(>=, AR5416_EEP_MINOR_VER_19) ?
 		    pBase->txGainType : AR5416_EEP_TXGAIN_ORIG;
-#if 0
 	case AR_EEP_OL_PWRCTRL:
 		HALASSERT(val == AH_NULL);
-		return pBase->openLoopPwrCntl ?  HAL_OK : HAL_EIO;
-#endif
+		return HAL_EIO;
 	case AR_EEP_AMODE:
 		HALASSERT(val == AH_NULL);
 		return pBase->opCapFlags & AR5416_OPFLAGS_11A ?
@@ -110,15 +101,11 @@ v4kEepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_AES:
 	case AR_EEP_BURST:
         case AR_EEP_RFKILL:
-	case AR_EEP_TURBO5DISABLE:
 	case AR_EEP_TURBO2DISABLE:
 		HALASSERT(val == AH_NULL);
 		return HAL_OK;
 	case AR_EEP_ANTGAINMAX_2:
-		*(int8_t *) val = ee->ee_antennaGainMax[1];
-		return HAL_OK;
-	case AR_EEP_ANTGAINMAX_5:
-		*(int8_t *) val = ee->ee_antennaGainMax[0];
+		*(int8_t *) val = ee->ee_antennaGainMax;
 		return HAL_OK;
         default:
 		HALASSERT(0);
@@ -136,10 +123,7 @@ v4kEepromSet(struct ath_hal *ah, int param, int v)
 
 	switch (param) {
 	case AR_EEP_ANTGAINMAX_2:
-		ee->ee_antennaGainMax[1] = (int8_t) v;
-		return HAL_OK;
-	case AR_EEP_ANTGAINMAX_5:
-		ee->ee_antennaGainMax[0] = (int8_t) v;
+		ee->ee_antennaGainMax = (int8_t) v;
 		return HAL_OK;
 	}
 	return HAL_EINVAL;
@@ -252,7 +236,7 @@ v4kEepromReadCTLInfo(struct ath_hal *ah, HAL_EEPROM_v4k *ee)
 	RD_EDGES_POWER *rep = ee->ee_rdEdgesPower;
 	int i, j;
 	
-	HALASSERT(AR5416_NUM_CTLS <= sizeof(ee->ee_rdEdgesPower)/NUM_EDGES);
+	HALASSERT(AR5416_4K_NUM_CTLS <= sizeof(ee->ee_rdEdgesPower)/NUM_EDGES);
 
 	for (i = 0; ee->ee_base.ctlIndex[i] != 0 && i < AR5416_4K_NUM_CTLS; i++) {
 		for (j = 0; j < NUM_EDGES; j ++) {

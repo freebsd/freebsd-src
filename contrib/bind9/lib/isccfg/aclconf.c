@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aclconf.c,v 1.22.34.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: aclconf.c,v 1.22.34.4 2009/10/01 23:47:17 tbox Exp $ */
 
 #include <config.h>
 
@@ -168,12 +168,16 @@ convert_keyname(const cfg_obj_t *keyobj, isc_log_t *lctx, isc_mem_t *mctx,
  * parent.
  */
 static int
-count_acl_elements(const cfg_obj_t *caml, const cfg_obj_t *cctx)
+count_acl_elements(const cfg_obj_t *caml, const cfg_obj_t *cctx,
+		   isc_boolean_t *has_negative)
 {
 	const cfg_listelt_t *elt;
 	const cfg_obj_t *cacl = NULL;
 	isc_result_t result;
 	int n = 0;
+
+	if (has_negative != NULL)
+		*has_negative = ISC_FALSE;
 
 	for (elt = cfg_list_first(caml);
 	     elt != NULL;
@@ -181,13 +185,19 @@ count_acl_elements(const cfg_obj_t *caml, const cfg_obj_t *cctx)
 		const cfg_obj_t *ce = cfg_listelt_value(elt);
 
 		/* negated element; just get the value. */
-		if (cfg_obj_istuple(ce))
+		if (cfg_obj_istuple(ce)) {
 			ce = cfg_tuple_get(ce, "value");
+			if (has_negative != NULL)
+				*has_negative = ISC_TRUE;
+		}
 
 		if (cfg_obj_istype(ce, &cfg_type_keyref)) {
 			n++;
 		} else if (cfg_obj_islist(ce)) {
-			n += count_acl_elements(ce, cctx);
+			isc_boolean_t negative;
+			n += count_acl_elements(ce, cctx, &negative);
+			if (negative)
+				n++;
 		} else if (cfg_obj_isstring(ce)) {
 			const char *name = cfg_obj_asstring(ce);
 			if (strcasecmp(name, "localhost") == 0 ||
@@ -197,7 +207,8 @@ count_acl_elements(const cfg_obj_t *caml, const cfg_obj_t *cctx)
 				   strcasecmp(name, "none") != 0) {
 				result = get_acl_def(cctx, name, &cacl);
 				if (result == ISC_R_SUCCESS)
-					n += count_acl_elements(cacl, cctx) + 1;
+					n += count_acl_elements(cacl, cctx,
+								NULL) + 1;
 			}
 		}
 	}
@@ -246,7 +257,7 @@ cfg_acl_fromconfig(const cfg_obj_t *caml,
 		int nelem;
 
 		if (nest_level == 0)
-			nelem = count_acl_elements(caml, cctx);
+			nelem = count_acl_elements(caml, cctx, NULL);
 		else
 			nelem = cfg_list_length(caml, ISC_FALSE);
 

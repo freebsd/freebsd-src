@@ -31,6 +31,10 @@
 
 #include <machine/_regset.h>
 
+#if defined(_KERNEL) && !defined(_STANDALONE)
+#include "opt_compat.h"
+#endif
+
 struct reg {
 	struct _special		r_special;
 	struct _callee_saved	r_preserved;
@@ -47,6 +51,11 @@ struct dbreg {
 	unsigned long	dbr_data[8];
 	unsigned long	dbr_inst[8];
 };
+
+#ifdef COMPAT_FREEBSD32
+#include <machine/fpu.h>
+#include <compat/ia32/ia32_reg.h>
+#endif
 
 #ifdef _KERNEL
 struct thread;

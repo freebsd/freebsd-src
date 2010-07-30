@@ -51,4 +51,4 @@ dd of=/dev/${NANO_DRIVE}s1 obs=64k
 # Check that it worked
 fsck_ffs -n /dev/${NANO_DRIVE}s1a
 
-boot0cfg -s 1 -v ${NANO_DRIVE}
+gpart set -a active -i 1 ${NANO_DRIVE}

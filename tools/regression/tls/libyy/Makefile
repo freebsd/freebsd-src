@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-LIB=		yy
-SHLIB_MAJOR=	1
+SHLIB_NAME=	libyy.so
 
 SRCS=	yy.c
 CFLAGS+=-fpic

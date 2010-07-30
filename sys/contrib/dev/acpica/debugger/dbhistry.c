@@ -284,7 +284,7 @@ AcpiDbGetFromHistory (
         }
     }
 
-    AcpiOsPrintf ("Invalid history number: %d\n", HistoryIndex);
+    AcpiOsPrintf ("Invalid history number: %u\n", HistoryIndex);
     return (NULL);
 }
 

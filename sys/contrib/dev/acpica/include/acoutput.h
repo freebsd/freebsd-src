@@ -143,8 +143,9 @@
 #define ACPI_TOOLS                  0x00002000
 #define ACPI_EXAMPLE                0x00004000
 #define ACPI_DRIVER                 0x00008000
+#define DT_COMPILER                 0x00010000
 
-#define ACPI_ALL_COMPONENTS         0x0000FFFF
+#define ACPI_ALL_COMPONENTS         0x0001FFFF
 #define ACPI_COMPONENT_DEFAULT      (ACPI_ALL_COMPONENTS)
 
 /* Component IDs reserved for ACPI drivers */
@@ -281,6 +282,7 @@
 #define ACPI_WARNING(plist)             AcpiWarning plist
 #define ACPI_EXCEPTION(plist)           AcpiException plist
 #define ACPI_ERROR(plist)               AcpiError plist
+#define ACPI_DEBUG_OBJECT(obj,l,i)      AcpiExDoDebugObject(obj,l,i)
 
 #else
 
@@ -290,6 +292,7 @@
 #define ACPI_WARNING(plist)
 #define ACPI_EXCEPTION(plist)
 #define ACPI_ERROR(plist)
+#define ACPI_DEBUG_OBJECT(obj,l,i)
 
 #endif /* ACPI_NO_ERROR_MESSAGES */
 

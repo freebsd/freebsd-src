@@ -69,16 +69,13 @@
  * %rsi = newtd
  */
 ENTRY(cpu_throw)
+	movl	PCPU(CPUID),%eax
 	testq	%rdi,%rdi
-	jnz	1f
-	movq	PCPU(IDLETHREAD),%rdi
-1:
-	movq	TD_PCB(%rdi),%r8		/* Old pcb */
-	movl	PCPU(CPUID), %eax
+	jz	1f
 	/* release bit from old pm_active */
-	movq	TD_PROC(%rdi), %rdx		/* oldtd->td_proc */
-	movq	P_VMSPACE(%rdx), %rdx		/* proc->p_vmspace */
-	LK btrl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
+	movq	PCPU(CURPMAP),%rdx
+	LK btrl	%eax,PM_ACTIVE(%rdx)		/* clear old */
+1:
 	movq	TD_PCB(%rsi),%r8		/* newtd->td_proc */
 	movq	PCB_CR3(%r8),%rdx
 	movq	%rdx,%cr3			/* new address space */
@@ -116,7 +113,7 @@ done_store_dr:
 	/* have we used fp, and need a save? */
 	cmpq	%rdi,PCPU(FPCURTHREAD)
 	jne	1f
-	addq	$PCB_SAVEFPU,%r8
+	movq	PCB_SAVEFPU(%r8),%r8
 	clts
 	fxsave	(%r8)
 	smsw	%ax
@@ -140,15 +137,16 @@ swinact:
 	movq	%rcx,%cr3			/* new address space */
 	movl	PCPU(CPUID), %eax
 	/* Release bit from old pmap->pm_active */
-	movq	TD_PROC(%rdi), %rcx		/* oldproc */
-	movq	P_VMSPACE(%rcx), %rcx
-	LK btrl	%eax, VM_PMAP+PM_ACTIVE(%rcx)	/* clear old */
+	movq	PCPU(CURPMAP),%rcx
+	LK btrl	%eax,PM_ACTIVE(%rcx)		/* clear old */
 	SETLK	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
 swact:
 	/* Set bit in new pmap->pm_active */
 	movq	TD_PROC(%rsi),%rdx		/* newproc */
 	movq	P_VMSPACE(%rdx), %rdx
-	LK btsl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
+	addq	$VM_PMAP,%rdx
+	LK btsl	%eax,PM_ACTIVE(%rdx)		/* set new */
+	movq	%rdx,PCPU(CURPMAP)
 
 sw1:
 #if defined(SCHED_ULE) && defined(SMP)
@@ -341,7 +339,7 @@ ENTRY(savectx)
 	je	1f
 
 	movq	TD_PCB(%rax),%rdi
-	leaq	PCB_SAVEFPU(%rdi),%rdi
+	movq	PCB_SAVEFPU(%rdi),%rdi
 	clts
 	fxsave	(%rdi)
 	smsw	%ax
@@ -349,7 +347,7 @@ ENTRY(savectx)
 	lmsw	%ax
 
 	movq	$PCB_SAVEFPU_SIZE,%rdx	/* arg 3 */
-	leaq	PCB_SAVEFPU(%rcx),%rsi	/* arg 2 */
+	movq	PCB_SAVEFPU(%rcx),%rsi	/* arg 2 */
 	/* arg 1 (%rdi) already loaded */
 	call	bcopy
 1:

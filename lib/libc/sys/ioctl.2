@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2007
+.Dd May 11, 2010
 .Dt IOCTL 2
 .Os
 .Sh NAME
@@ -80,6 +80,30 @@ Macros and defines used in specifying an ioctl
 .Fa request
 are located in the file
 .In sys/ioctl.h .
+.Sh GENERIC IOCTLS
+Some generic ioctls are not implemented for all types of file
+descriptors.
+These include:
+.Bl -tag -width "xxxxxx"
+.It Dv FIONREAD int
+Get the number of bytes that are immediately available for reading.
+.It Dv FIONWRITE int
+Get the number of bytes in the descriptor's send queue.
+These bytes are data which has been written to the descriptor but
+which are being held by the kernel for further processing.
+The nature of the required processing depends on the underlying device.
+For TCP sockets, these bytes have not yet been acknowledged by the
+other side of the connection.
+.It Dv FIONSPACE int
+Get the free space in the descriptor's send queue.
+This value is the size of the send queue minus the number of bytes
+being held in the queue.
+Note: while this value represents the number of bytes that may be
+added to the queue, other resource limitations may cause a write
+not larger than the send queue's space to be blocked.
+One such limitation would be a lack of network buffers for a write
+to a network connection.
+.El
 .Sh RETURN VALUES
 If an error has occurred, a value of -1 is returned and
 .Va errno

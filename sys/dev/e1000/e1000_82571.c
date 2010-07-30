@@ -313,10 +313,6 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
 	/* Set if part includes ASF firmware */
 	mac->asf_firmware_present = TRUE;
-	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid =
-	        (E1000_READ_REG(hw, E1000_FWSM) & E1000_FWSM_MODE_MASK)
-	                ? TRUE : FALSE;
 	/* Adaptive IFS supported */
 	mac->adaptive_ifs = TRUE;
 
@@ -357,6 +353,16 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 		mac->ops.set_lan_id = e1000_set_lan_id_single_port;
 		mac->ops.check_mng_mode = e1000_check_mng_mode_generic;
 		mac->ops.led_on = e1000_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = TRUE;
+		/*
+		 * ARC supported; valid only if manageability features are
+		 * enabled.
+		 */
+		mac->arc_subsystem_valid =
+			(E1000_READ_REG(hw, E1000_FWSM) & E1000_FWSM_MODE_MASK)
+			? TRUE : FALSE;
 		break;
 	case e1000_82574:
 	case e1000_82583:
@@ -367,6 +373,9 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 	default:
 		mac->ops.check_mng_mode = e1000_check_mng_mode_generic;
 		mac->ops.led_on = e1000_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = TRUE;
 		break;
 	}
 
@@ -1076,9 +1085,10 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	/* ...for both queues. */
 	switch (mac->type) {
 	case e1000_82573:
+		e1000_enable_tx_pkt_filtering_generic(hw);
+		/* fall through */
 	case e1000_82574:
 	case e1000_82583:
-		e1000_enable_tx_pkt_filtering_generic(hw);
 		reg_data = E1000_READ_REG(hw, E1000_GCR);
 		reg_data |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
 		E1000_WRITE_REG(hw, E1000_GCR, reg_data);
@@ -1364,7 +1374,7 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 {
 	u32 ctrl;
-	s32  ret_val;
+	s32 ret_val;
 
 	DEBUGFUNC("e1000_setup_copper_link_82571");
 

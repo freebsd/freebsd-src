@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG = locale
-CFLAGS += -I${.CURDIR}/../../lib/libc/locale
-WARNS ?= 3
+PROG=	locale
+WARNS?=	3
+CFLAGS+= -I${.CURDIR}/../../lib/libc/locale
 
 .include <bsd.prog.mk>

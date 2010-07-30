@@ -1190,9 +1190,7 @@ sched_pickcpu(struct thread *td)
 		best = td->td_lastcpu;
 	else
 		best = NOCPU;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu))
 			continue;
 	
@@ -1462,9 +1460,8 @@ sched_bind(struct thread *td, int cpu)
 {
 	struct td_sched *ts;
 
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	KASSERT(TD_IS_RUNNING(td),
-	    ("sched_bind: cannot bind non-running thread"));
+	THREAD_LOCK_ASSERT(td, MA_OWNED|MA_NOTRECURSED);
+	KASSERT(td == curthread, ("sched_bind: can only bind curthread"));
 
 	ts = td->td_sched;
 
@@ -1482,6 +1479,7 @@ void
 sched_unbind(struct thread* td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	KASSERT(td == curthread, ("sched_unbind: can only bind curthread"));
 	td->td_flags &= ~TDF_BOUND;
 }
 
@@ -1523,6 +1521,7 @@ sched_pctcpu(struct thread *td)
 {
 	struct td_sched *ts;
 
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
 	return (ts->ts_pctcpu);
 }
@@ -1626,9 +1625,7 @@ sched_affinity(struct thread *td)
 	 */
 	ts = td->td_sched;
 	ts->ts_flags &= ~TSF_AFFINITY;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
+	CPU_FOREACH(cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu)) {
 			ts->ts_flags |= TSF_AFFINITY;
 			break;

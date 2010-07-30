@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.c,v 1.88 2008/09/24 02:46:22 marka Exp $ */
+/* $Id: db.c,v 1.88.50.2 2009/06/23 00:19:34 tbox Exp $ */
 
 /*! \file */
 
@@ -854,12 +854,14 @@ dns_db_unregister(dns_dbimplementation_t **dbimp) {
 	RUNTIME_CHECK(isc_once_do(&once, initialize) == ISC_R_SUCCESS);
 
 	imp = *dbimp;
+	*dbimp = NULL;
 	RWLOCK(&implock, isc_rwlocktype_write);
 	ISC_LIST_UNLINK(implementations, imp, link);
 	mctx = imp->mctx;
 	isc_mem_put(mctx, imp, sizeof(dns_dbimplementation_t));
 	isc_mem_detach(&mctx);
 	RWUNLOCK(&implock, isc_rwlocktype_write);
+	ENSURE(*dbimp == NULL);
 }
 
 isc_result_t

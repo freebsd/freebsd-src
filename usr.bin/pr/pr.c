@@ -1265,9 +1265,7 @@ FILE *
 nxtfile(int argc, char **argv, const char **fname, char *buf, int dt)
 {
 	FILE *inf = NULL;
-	struct timeval tv;
 	time_t tv_sec;
-	struct timezone tz;
 	struct tm *timeptr = NULL;
 	struct stat statbuf;
 	static int twice = -1;
@@ -1287,14 +1285,13 @@ nxtfile(int argc, char **argv, const char **fname, char *buf, int dt)
 			*fname = fnamedefault;
 		if (nohead)
 			return(inf);
-		if (gettimeofday(&tv, &tz) < 0) {
+		if ((tv_sec = time(NULL)) == -1) {
 			++errcnt;
 			(void)fprintf(err, "pr: cannot get time of day, %s\n",
 				strerror(errno));
 			eoptind = argc - 1;
 			return(NULL);
 		}
-		tv_sec = tv.tv_sec;
 		timeptr = localtime(&tv_sec);
 	}
 	for (; eoptind < argc; ++eoptind) {
@@ -1311,14 +1308,13 @@ nxtfile(int argc, char **argv, const char **fname, char *buf, int dt)
 			++eoptind;
 			if (nohead || (dt && twice))
 				return(inf);
-			if (gettimeofday(&tv, &tz) < 0) {
+			if ((tv_sec = time(NULL)) == -1) {
 				++errcnt;
 				(void)fprintf(err,
 					"pr: cannot get time of day, %s\n",
 					strerror(errno));
 				return(NULL);
 			}
-			tv_sec = tv.tv_sec;
 			timeptr = localtime(&tv_sec);
 		} else {
 			/*
@@ -1343,14 +1339,13 @@ nxtfile(int argc, char **argv, const char **fname, char *buf, int dt)
 				return(inf);
 
 			if (dt) {
-				if (gettimeofday(&tv, &tz) < 0) {
+				if ((tv_sec = time(NULL)) == -1) {
 					++errcnt;
 					(void)fprintf(err,
 					     "pr: cannot get time of day, %s\n",
 					     strerror(errno));
 					return(NULL);
 				}
-				tv_sec = tv.tv_sec;
 				timeptr = localtime(&tv_sec);
 			} else {
 				if (fstat(fileno(inf), &statbuf) < 0) {

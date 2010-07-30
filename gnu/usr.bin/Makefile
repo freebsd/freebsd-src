@@ -4,11 +4,11 @@
 
 SUBDIR= ${_binutils} \
 	${_cc} \
-	${_cpio} \
 	${_cvs} \
 	dialog \
 	diff \
 	diff3 \
+	${_dtc} \
 	${_gdb} \
 	${_gperf} \
 	${_grep} \
@@ -21,10 +21,6 @@ SUBDIR= ${_binutils} \
 	sort \
 	${_texinfo}
 
-.if ${MACHINE_ARCH} == "mips"
-MK_GDB=no	# not yet
-.endif
-
 .if ${MK_CXX} != "no"
 _gperf=		gperf
 .if ${MK_GROFF} != "no"
@@ -32,12 +28,12 @@ _groff=		groff
 .endif
 .endif
 
-.if ${MK_GNU_CPIO} == "yes"
-_cpio=		cpio
-.endif
-
 .if ${MK_CVS} != "no"
 _cvs=		cvs
+.endif
+
+.if ${MK_FDT}	!= "no"
+_dtc=		dtc
 .endif
 
 .if ${MK_GNU_GREP} != "no"
@@ -48,7 +44,7 @@ _grep=		grep
 _texinfo=	texinfo
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 _man=		man
 .endif
 

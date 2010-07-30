@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 1998
+.Dd March 3, 2010
 .Dt DRIVER 9
 .Os
 .Sh NAME
@@ -37,7 +37,9 @@
 .Sh SYNOPSIS
 .Bd -literal
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/module.h>
 
 static int foo_probe(device_t);
 static int foo_attach(device_t);
@@ -59,7 +61,7 @@ static device_method_t foo_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t foo_driver {
+static driver_t foo_driver = {
 	"foo",
 	foo_methods,
 	sizeof(struct foo_softc)
@@ -67,7 +69,7 @@ static driver_t foo_driver {
 
 static devclass_t foo_devclass;
 
-DRIVER_MODULE(foo, bogo, foo_driver, foo_devclass, 0, 0);
+DRIVER_MODULE(foo, bogo, foo_driver, foo_devclass, NULL, NULL);
 .Ed
 .Sh DESCRIPTION
 Each driver in the kernel is described by a

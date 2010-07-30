@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -146,6 +147,53 @@ ofw_bus_gen_get_type(device_t bus, device_t dev)
 	return (obd->obd_type);
 }
 
+int
+ofw_bus_is_compatible(device_t dev, const char *onecompat)
+{
+	phandle_t node;
+	const char *compat;
+	int len, onelen, l;
+
+	if ((compat = ofw_bus_get_compat(dev)) == NULL)
+		return (0);
+
+	if ((node = ofw_bus_get_node(dev)) == 0)
+		return (0);
+
+	/* Get total 'compatible' prop len */
+	if ((len = OF_getproplen(node, "compatible")) <= 0)
+		return (0);
+
+	onelen = strlen(onecompat);
+
+	while (len > 0) {
+		if (strncasecmp(compat, onecompat, onelen) == 0)
+			/* Found it. */
+			return (1);
+
+		/* Slide to the next sub-string. */
+		l = strlen(compat) + 1;
+		compat += l;
+		len -= l;
+	}
+	return (0);
+}
+
+int
+ofw_bus_is_compatible_strict(device_t dev, const char *compatible)
+{
+	const char *compat;
+
+	if ((compat = ofw_bus_get_compat(dev)) == NULL)
+		return (0);
+
+	if (strncasecmp(compat, compatible, strlen(compatible)) == 0)
+		return (1);
+
+	return (0);
+}
+
+#ifndef FDT
 void
 ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 {
@@ -174,7 +222,7 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 int
 ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
     int regsz, void *pintr, int pintrsz, void *mintr, int mintrsz,
-    void *maskbuf)
+    phandle_t *iparent, void *maskbuf)
 {
 	int rv;
 
@@ -188,7 +236,7 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
 		panic("ofw_bus_lookup_imap: could not get reg property");
 	return (ofw_bus_search_intrmap(pintr, pintrsz, reg, ii->opi_addrc,
 	    ii->opi_imap, ii->opi_imapsz, ii->opi_imapmsk, maskbuf, mintr,
-	    mintrsz));
+	    mintrsz, iparent));
 }
 
 /*
@@ -211,7 +259,7 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
 int
 ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
     void *imap, int imapsz, void *imapmsk, void *maskbuf, void *result,
-    int rintrsz)
+    int rintrsz, phandle_t *iparent)
 {
 	phandle_t parent;
 	uint8_t *ref = maskbuf;
@@ -255,6 +303,9 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 		if (bcmp(ref, mptr, physsz + intrsz) == 0) {
 			bcopy(mptr + physsz + intrsz + sizeof(parent),
 			    result, rintrsz);
+
+			if (iparent != NULL)
+				*iparent = parent;
 			return (1);
 		}
 		mptr += tsz;
@@ -262,3 +313,4 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	}
 	return (0);
 }
+#endif /* !FDT */

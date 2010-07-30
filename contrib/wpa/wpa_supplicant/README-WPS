@@ -131,12 +131,17 @@ negotiation which will generate a new WPA PSK in the same way as the
 PIN method described above.
 
 
-If the client wants to operation in the Registrar role to configure an
+If the client wants to operate in the Registrar role to configure an
 AP, wpa_supplicant is notified over the control interface, e.g., with
 wpa_cli:
 
 wpa_cli wps_reg <AP BSSID> <AP PIN>
 (example: wpa_cli wps_reg 02:34:56:78:9a:bc 12345670)
+
+This is currently only used to fetch the current AP settings instead
+of actually changing them. The main difference with the wps_pin
+command is that wps_reg uses the AP PIN (e.g., from a label on the AP)
+instead of a PIN generated at the client.
 
 
 Scanning

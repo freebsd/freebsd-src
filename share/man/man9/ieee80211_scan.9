@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2009
+.Dd March 29, 2010
 .Dt IEEE80211_SCAN 9
 .Os
 .Sh NAME
@@ -177,8 +177,8 @@ Scanning is not tied to the
 state machine that governs vaps except for linkage to the
 .Dv IEEE80211_S_SCAN
 state.
-One one vap at a time may be scanning; this scheduling policy
-is handle in
+Only one vap at a time may be scanning; this scheduling policy
+is handled in
 .Fn ieee80211_new_state
 and is transparent to scanning code.
 .Pp
@@ -346,5 +346,5 @@ applications through the
 request.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
-.Xr ieee80211 9 .
+.Xr ieee80211 9 ,
 .Xr ieee80211_proto 9

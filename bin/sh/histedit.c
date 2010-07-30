@@ -98,6 +98,8 @@ histedit(void)
 			/*
 			 * turn editing on
 			 */
+			char *term;
+
 			INTOFF;
 			if (el_in == NULL)
 				el_in = fdopen(0, "r");
@@ -107,11 +109,19 @@ histedit(void)
 				el_out = fdopen(2, "w");
 			if (el_in == NULL || el_err == NULL || el_out == NULL)
 				goto bad;
+			term = lookupvar("TERM");
+			if (term)
+				setenv("TERM", term, 1);
+			else
+				unsetenv("TERM");
 			el = el_init(arg0, el_in, el_out, el_err);
 			if (el != NULL) {
 				if (hist)
 					el_set(el, EL_HIST, history, hist);
 				el_set(el, EL_PROMPT, getprompt);
+				el_set(el, EL_ADDFN, "sh-complete",
+				    "Filename completion",
+				    _el_fn_sh_complete);
 			} else {
 bad:
 				out2fmt_flush("sh: can't initialize editing\n");
@@ -128,6 +138,7 @@ bad:
 				el_set(el, EL_EDITOR, "vi");
 			else if (Eflag)
 				el_set(el, EL_EDITOR, "emacs");
+			el_set(el, EL_BIND, "^I", "sh-complete", NULL);
 			el_source(el, NULL);
 		}
 	} else {
@@ -158,6 +169,13 @@ sethistsize(hs)
 			histsize = 100;
 		history(hist, &he, H_SETSIZE, histsize);
 	}
+}
+
+void
+setterm(const char *term)
+{
+	if (rootshell && el != NULL && term != NULL)
+		el_set(el, EL_TERMINAL, term);
 }
 
 int

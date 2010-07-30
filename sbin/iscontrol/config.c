@@ -249,7 +249,6 @@ getConfig(FILE *fd, char *key, char **Ar, int *nargs)
 	  switch(state) {
 	  case 0:
 	       if((p = strchr(lp, '{')) != NULL) {
-		    n = 0;
 		    while((--p > lp) && *p && isspace(*p));
 		    n = p - lp;
 		    if(len && strncmp(lp, key, MAX(n, len)) == 0)

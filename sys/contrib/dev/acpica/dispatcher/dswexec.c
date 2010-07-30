@@ -227,7 +227,7 @@ AcpiDsGetPredicateValue (
     if (LocalObjDesc->Common.Type != ACPI_TYPE_INTEGER)
     {
         ACPI_ERROR ((AE_INFO,
-            "Bad predicate (not an integer) ObjDesc=%p State=%p Type=%X",
+            "Bad predicate (not an integer) ObjDesc=%p State=%p Type=0x%X",
             ObjDesc, WalkState, ObjDesc->Common.Type));
 
         Status = AE_AML_OPERAND_TYPE;
@@ -463,7 +463,7 @@ AcpiDsExecEndOp (
 
     if (OpClass == AML_CLASS_UNKNOWN)
     {
-        ACPI_ERROR ((AE_INFO, "Unknown opcode %X", Op->Common.AmlOpcode));
+        ACPI_ERROR ((AE_INFO, "Unknown opcode 0x%X", Op->Common.AmlOpcode));
         return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
     }
 
@@ -783,7 +783,7 @@ AcpiDsExecEndOp (
         default:
 
             ACPI_ERROR ((AE_INFO,
-                "Unimplemented opcode, class=%X type=%X Opcode=%X Op=%p",
+                "Unimplemented opcode, class=0x%X type=0x%X Opcode=-0x%X Op=%p",
                 OpClass, OpType, Op->Common.AmlOpcode, Op));
 
             Status = AE_NOT_IMPLEMENTED;

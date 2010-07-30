@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	gaithrstress
-LDADD+=	-pthread
+DPADD=	${LIBPTHREAD}
+LDADD=	-lpthread
 
 NO_MAN=
 .include <bsd.prog.mk>

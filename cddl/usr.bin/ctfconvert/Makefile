@@ -1,13 +1,12 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
-.include	"../../Makefile.inc"
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/common
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/cvt
 
 DEBUG_FLAGS=	-g
 
 PROG=		ctfconvert
-
+NO_MAN=
 SRCS=		alist.c \
 		ctf.c \
 		ctfconvert.c \
@@ -29,8 +28,6 @@ SRCS=		alist.c \
 		traverse.c \
 		util.c
 
-WARNS?=		6
-
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
 		-I${OPENSOLARIS_USR_DISTDIR} \
@@ -40,12 +37,7 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/tools/ctf/cvt \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
 
-LDADD+=		-lctf -ldwarf -lelf -lz -lthr
-
-.PATH:		${.CURDIR}
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/cvt
-
-MK_MAN=		no
+DPADD=		${LIBCTF} ${LIBDWARF} ${LIBELF} ${LIBZ} ${LIBPTHREAD}
+LDADD=		-lctf -ldwarf -lelf -lz -lpthread
 
 .include <bsd.prog.mk>

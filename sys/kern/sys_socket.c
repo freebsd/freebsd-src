@@ -102,7 +102,7 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	error = sosend(so, 0, uio, 0, 0, 0, uio->uio_td);
 	if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
 		PROC_LOCK(uio->uio_td->td_proc);
-		psignal(uio->uio_td->td_proc, SIGPIPE);
+		tdsignal(uio->uio_td, SIGPIPE);
 		PROC_UNLOCK(uio->uio_td->td_proc);
 	}
 	return (error);

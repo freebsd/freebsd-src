@@ -152,10 +152,10 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		KASSERT(m[i]->dirty == 0,
 		    ("phys_pager_getpages: dirty page %p", m[i]));
 		/* The requested page must remain busy, the others not. */
-		if (reqpage != i) {
-			m[i]->oflags &= ~VPO_BUSY;
-			m[i]->busy = 0;
-		}
+		if (i == reqpage)
+			vm_page_flash(m[i]);
+		else
+			vm_page_wakeup(m[i]);
 	}
 	return (VM_PAGER_OK);
 }

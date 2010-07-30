@@ -27,6 +27,9 @@ extern struct wpa_driver_ops wpa_driver_prism54_ops; /* driver_prism54.c */
 #ifdef CONFIG_DRIVER_MADWIFI
 extern struct wpa_driver_ops wpa_driver_madwifi_ops; /* driver_madwifi.c */
 #endif /* CONFIG_DRIVER_MADWIFI */
+#ifdef CONFIG_DRIVER_ATHEROS
+extern struct wpa_driver_ops wpa_driver_atheros_ops; /* driver_atheros.c */
+#endif /* CONFIG_DRIVER_ATHEROS */
 #ifdef CONFIG_DRIVER_BSD
 extern struct wpa_driver_ops wpa_driver_bsd_ops; /* driver_bsd.c */
 #endif /* CONFIG_DRIVER_BSD */
@@ -55,6 +58,9 @@ struct wpa_driver_ops *hostapd_drivers[] =
 #ifdef CONFIG_DRIVER_MADWIFI
 	&wpa_driver_madwifi_ops,
 #endif /* CONFIG_DRIVER_MADWIFI */
+#ifdef CONFIG_DRIVER_ATHEROS
+	&wpa_driver_atheros_ops,
+#endif /* CONFIG_DRIVER_ATHEROS */
 #ifdef CONFIG_DRIVER_BSD
 	&wpa_driver_bsd_ops,
 #endif /* CONFIG_DRIVER_BSD */

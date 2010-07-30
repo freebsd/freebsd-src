@@ -57,7 +57,6 @@ void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 }
 
 
-#ifdef EAP_TLS_FUNCS
 void md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
 	gcry_md_hd_t hd;
@@ -162,7 +161,6 @@ void aes_decrypt_deinit(void *ctx)
 	gcry_cipher_hd_t hd = ctx;
 	gcry_cipher_close(hd);
 }
-#endif /* EAP_TLS_FUNCS */
 
 
 int crypto_mod_exp(const u8 *base, size_t base_len,

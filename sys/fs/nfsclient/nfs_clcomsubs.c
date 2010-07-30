@@ -194,10 +194,7 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 	int uiosiz, clflg, rem;
 	char *cp, *tcp;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1)
-		panic("nfsm_uiotombuf: iovcnt != 1");
-#endif
+	KASSERT(uiop->uio_iovcnt == 1, ("nfsm_uiotombuf: iovcnt != 1"));
 
 	if (siz > ncl_mbuf_mlen)	/* or should it >= MCLBYTES ?? */
 		clflg = 1;
@@ -346,10 +343,7 @@ nfscl_getcookie(struct nfsnode *np, off_t off, int add)
 
 	pos = off / NFS_DIRBLKSIZ;
 	if (pos == 0) {
-#ifdef DIAGNOSTIC
-		if (add)
-			panic("nfs getcookie add at 0");
-#endif
+		KASSERT(!add, ("nfs getcookie add at 0"));
 		return (&nfs_nullcookie);
 	}
 	pos--;

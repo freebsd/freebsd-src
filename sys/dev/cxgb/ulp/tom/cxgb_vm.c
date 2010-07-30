@@ -90,11 +90,9 @@ vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr, vm_page_t *mp,
 	 * (and R/W if for write) if so just mark pages as held (and 
 	 * dirty if for write) and return
 	 */
-	vm_page_lock_queues();
 	for (pages = mp, faults = 0, va = addr; va < end;
 	     va += PAGE_SIZE, pages++) {
 		/*
-		 * page queue mutex is recursable so this is OK
 		 * it would be really nice if we had an unlocked
 		 * version of this so we were only acquiring the 
 		 * pmap lock 1 time as opposed to potentially
@@ -110,11 +108,13 @@ vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr, vm_page_t *mp,
 		 * will never have the modified bit set if
 		 * they are only changed via DMA
 		 */
-		if (prot & VM_PROT_WRITE)
+		if (prot & VM_PROT_WRITE) {
+			vm_page_lock_queues();
 			vm_page_dirty(m);
+			vm_page_unlock_queues();
+		}
 		
 	}
-	vm_page_unlock_queues();
 	
 	if (faults == 0)
 		return (0);
@@ -141,13 +141,13 @@ vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr, vm_page_t *mp,
 error:	
 	log(LOG_WARNING,
 	    "vm_fault bad return rv=%d va=0x%zx\n", rv, va);
-	vm_page_lock_queues();
 	for (pages = mp, va = addr; va < end; va += PAGE_SIZE, pages++)
 		if (*pages) {
+			vm_page_lock(*pages);
 			vm_page_unhold(*pages);
+			vm_page_unlock(*pages);
 			*pages = NULL;
 		}
-	vm_page_unlock_queues();
 	return (EFAULT);
 }
 
@@ -156,10 +156,10 @@ vm_fault_unhold_pages(vm_page_t *mp, int count)
 {
 
 	KASSERT(count >= 0, ("negative count %d", count));
-	vm_page_lock_queues();
 	while (count--) {
+		vm_page_lock(*mp);
 		vm_page_unhold(*mp);
+		vm_page_unlock(*mp);
 		mp++;
 	}
-	vm_page_unlock_queues();
 }

@@ -380,7 +380,6 @@ acpi_fujitsu_init(struct acpi_fujitsu_softc *sc)
 	    OID_AUTO, "fujitsu", CTLFLAG_RD, 0, "");
 
 	for (i = 0; sysctl_table[i].name != NULL; i++) {
-		exists = 0;
 		switch(sysctl_table[i].method) {
 			case METHOD_GMOU:
 				exists = sc->gmou.exists;
@@ -566,9 +565,6 @@ static uint8_t
 acpi_fujitsu_check_hardware(struct acpi_fujitsu_softc *sc)
 {
 	int val;
-	struct acpi_softc *acpi_sc;
-
-	acpi_sc = acpi_device_get_parent_softc(sc->dev);
 
 	ACPI_SERIAL_ASSERT(fujitsu);
 	/* save the hotkey bitmask */

@@ -153,10 +153,7 @@ main(int argc, char *argv[])
 	init();
 	setstackmark(&smark);
 	procargs(argc, argv);
-	if (getpwd() == NULL && iflag)
-		out2fmt_flush("sh: cannot determine working directory\n");
-	if (getpwd() != NULL)
-		setvar ("PWD", getpwd(), VEXPORT);
+	pwd_init(iflag);
 	if (iflag)
 		chkmail(1);
 	if (argv[0] && argv[0][0] == '-') {
@@ -317,14 +314,20 @@ find_dot_file(char *basename)
 int
 dotcmd(int argc, char **argv)
 {
-	char *fullname;
+	char *filename, *fullname;
 
 	if (argc < 2)
 		error("missing filename");
 
 	exitstatus = 0;
 
-	fullname = find_dot_file(argv[1]);
+	/*
+	 * Because we have historically not supported any options,
+	 * only treat "--" specially.
+	 */
+	filename = argc > 2 && strcmp(argv[1], "--") == 0 ? argv[2] : argv[1];
+
+	fullname = find_dot_file(filename);
 	setinputfile(fullname, 1);
 	commandname = fullname;
 	cmdloop(0);

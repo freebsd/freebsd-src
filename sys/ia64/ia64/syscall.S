@@ -102,13 +102,13 @@ gw_ret:
 	;;
 }
 gw_ret_ia32:
-{	.mfb
+{	.mmi
 	flushrs
 	nop		0
 	nop		0
 	;;
 }
-{	.mfb
+{	.mib
 	nop		0
 	nop		0
 	br.ia.sptk	b6
@@ -193,7 +193,7 @@ ENTRY_NOPROFILE(epc_sigtramp, 0)
 	mov		b7=r16
 	;;
 }
-{	.mmb
+{	.mmi
 	alloc		r14=ar.pfs, 0, 0, 3, 0
 	mov		ar.rsc=15
 	nop		0
@@ -204,7 +204,7 @@ ENTRY_NOPROFILE(epc_sigtramp, 0)
 	mov		out0=r8
 	mov		out1=r9
 }
-{	.mfb
+{	.mib
 	add		out2=16,sp
 	nop		0
 	br.call.sptk	rp=b7
@@ -257,7 +257,7 @@ ENTRY_NOPROFILE(epc_syscall, 8)
 	add		r31=8,r30
 	;;
 }
-{	.mib
+{	.mii
 	mov		r22=ar.fpsr
 	sub		r29=r14,r30
 	nop		0
@@ -380,7 +380,7 @@ ENTRY_NOPROFILE(epc_syscall, 8)
 }
 	.global		epc_syscall_return
 epc_syscall_return:
-{	.mfb
+{	.mib
 	add		out0=16,sp
 	nop		0
 	br.call.sptk	rp=do_ast
@@ -392,7 +392,7 @@ epc_syscall_return:
 (p15)	br.spnt		1b			// restart syscall
 	;;
 }
-{	.mfb
+{	.mmi
 	ld8		r14=[r14]		// tf_flags
 	nop		0
 	nop		0
@@ -422,7 +422,7 @@ epc_syscall_return:
 	add		r31=r31,sp
 	;;
 }
-{	.mmb
+{	.mmi
 	ld8		r19=[r15],16		// pr
 	ld8		r20=[r14],16		// pfs (syscall caller)
 	nop		0
@@ -434,7 +434,7 @@ epc_syscall_return:
 	mov		pr=r19,0x1fffe
 	;;
 }
-{	.mmb
+{	.mmi
 	ld8		r23=[r15],16		// tp
 	ld8		r24=[r14],16		// rsc
 	nop		0
@@ -488,7 +488,7 @@ epc_syscall_return:
 	dep		r30=0,r30,0,13		// 8KB aligned.
 	;;
 }
-{	.mib
+{	.mii
 	mov		ar.k6=r30
 	mov		r13=r23
 	nop		0

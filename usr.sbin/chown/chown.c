@@ -73,14 +73,14 @@ main(int argc, char **argv)
 {
 	FTS *ftsp;
 	FTSENT *p;
-	int Hflag, Lflag, Rflag, fflag, hflag, vflag;
+	int Hflag, Lflag, Rflag, fflag, hflag, vflag, xflag;
 	int ch, fts_options, rval;
 	char *cp;
 
 	ischown = (strcmp(basename(argv[0]), "chown") == 0);
 
-	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfhv")) != -1)
+	Hflag = Lflag = Rflag = fflag = hflag = vflag = xflag = 0;
+	while ((ch = getopt(argc, argv, "HLPRfhvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -105,6 +105,9 @@ main(int argc, char **argv)
 		case 'v':
 			vflag++;
 			break;
+		case 'x':
+			xflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -128,6 +131,8 @@ main(int argc, char **argv)
 		}
 	} else
 		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
+	if (xflag)
+		fts_options |= FTS_XDEV;
 
 	uid = (uid_t)-1;
 	gid = (gid_t)-1;
@@ -257,9 +262,7 @@ id(const char *name, const char *type)
 	 */
 	errno = 0;
 	val = strtoul(name, &ep, 10);
-	if (errno)
-		err(1, "%s", name);
-	if (*ep != '\0')
+	if (errno || *ep != '\0')
 		errx(1, "%s: illegal %s name", name, type);
 	return (val);
 }
@@ -287,6 +290,7 @@ chownerr(const char *file)
 			err(1, "malloc");
 		ngroups = getgroups(ngroups_max, groups);
 		while (--ngroups >= 0 && gid != groups[ngroups]);
+		free(groups);
 		if (ngroups < 0) {
 			warnx("you are not a member of group %s", gname);
 			return;
@@ -301,11 +305,11 @@ usage(void)
 
 	if (ischown)
 		(void)fprintf(stderr, "%s\n%s\n",
-		    "usage: chown [-fhv] [-R [-H | -L | -P]] owner[:group]"
+		    "usage: chown [-fhvx] [-R [-H | -L | -P]] owner[:group]"
 		    " file ...",
-		    "       chown [-fhv] [-R [-H | -L | -P]] :group file ...");
+		    "       chown [-fhvx] [-R [-H | -L | -P]] :group file ...");
 	else
 		(void)fprintf(stderr, "%s\n",
-		    "usage: chgrp [-fhv] [-R [-H | -L | -P]] group file ...");
+		    "usage: chgrp [-fhvx] [-R [-H | -L | -P]] group file ...");
 	exit(1);
 }

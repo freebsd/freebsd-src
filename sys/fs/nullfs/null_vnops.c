@@ -798,6 +798,7 @@ struct vop_vector null_vnodeops = {
 	.vop_bypass =		null_bypass,
 	.vop_access =		null_access,
 	.vop_accessx =		null_accessx,
+	.vop_advlockpurge =	vop_stdadvlockpurge,
 	.vop_bmap =		VOP_EOPNOTSUPP,
 	.vop_getattr =		null_getattr,
 	.vop_getwritemount =	null_getwritemount,

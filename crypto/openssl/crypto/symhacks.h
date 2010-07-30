@@ -60,6 +60,11 @@
 /* Hacks to solve the problem with linkers incapable of handling very long
    symbol names.  In the case of VMS, the limit is 31 characters on VMS for
    VAX. */
+/* Note that this affects util/libeay.num and util/ssleay.num...  you may
+   change those manually, but that's not recommended, as those files are
+   controlled centrally and updated on Unix, and the central definition
+   may disagree with yours, which in turn may come with shareable library
+   incompatibilities. */
 #ifdef OPENSSL_SYS_VMS
 
 /* Hack a long name in crypto/cryptlib.c */
@@ -137,6 +142,8 @@
 #define X509_policy_node_get0_qualifiers	X509_pcy_node_get0_qualifiers
 #undef X509_STORE_CTX_get_explicit_policy
 #define X509_STORE_CTX_get_explicit_policy	X509_STORE_CTX_get_expl_policy
+#undef X509_STORE_CTX_get0_current_issuer
+#define X509_STORE_CTX_get0_current_issuer	X509_STORE_CTX_get0_cur_issuer
 
 /* Hack some long CRYPTO names */
 #undef CRYPTO_set_dynlock_destroy_callback
@@ -173,6 +180,15 @@
 #define SSL_CTX_set_default_passwd_cb_userdata  SSL_CTX_set_def_passwd_cb_ud
 #undef SSL_COMP_get_compression_methods
 #define SSL_COMP_get_compression_methods	SSL_COMP_get_compress_methods
+
+#undef ssl_add_clienthello_renegotiate_ext
+#define ssl_add_clienthello_renegotiate_ext	ssl_add_clienthello_reneg_ext
+#undef ssl_add_serverhello_renegotiate_ext
+#define ssl_add_serverhello_renegotiate_ext	ssl_add_serverhello_reneg_ext
+#undef ssl_parse_clienthello_renegotiate_ext
+#define ssl_parse_clienthello_renegotiate_ext	ssl_parse_clienthello_reneg_ext
+#undef ssl_parse_serverhello_renegotiate_ext
+#define ssl_parse_serverhello_renegotiate_ext	ssl_parse_serverhello_reneg_ext
 
 /* Hack some long ENGINE names */
 #undef ENGINE_get_default_BN_mod_exp_crt
@@ -364,6 +380,10 @@
 #define CMS_OriginatorIdentifierOrKey_it	CMS_OriginatorIdOrKey_it
 #undef cms_SignerIdentifier_get0_signer_id
 #define cms_SignerIdentifier_get0_signer_id	cms_SignerId_get0_signer_id
+
+/* Hack some long DTLS1 names */
+#undef dtls1_retransmit_buffered_messages
+#define dtls1_retransmit_buffered_messages	dtls1_retransmit_buffered_msgs
 
 #endif /* defined OPENSSL_SYS_VMS */
 

@@ -327,8 +327,7 @@ static void r128_cce_init_ring_buffer(struct drm_device * dev,
 		ring_start = dev_priv->cce_ring->offset - dev->agp->base;
 	else
 #endif
-		ring_start = dev_priv->cce_ring->offset -
-				(unsigned long)dev->sg->virtual;
+		ring_start = dev_priv->cce_ring->offset - dev->sg->vaddr;
 
 	R128_WRITE(R128_PM4_BUFFER_OFFSET, ring_start | R128_AGP_OFFSET);
 
@@ -509,7 +508,7 @@ static int r128_do_init_cce(struct drm_device * dev, drm_r128_init_t * init)
 	}
 
 	dev_priv->sarea_priv =
-	    (drm_r128_sarea_t *) ((u8 *) dev_priv->sarea->handle +
+	    (drm_r128_sarea_t *) ((u8 *) dev_priv->sarea->virtual +
 				  init->sarea_priv_offset);
 
 #if __OS_HAS_AGP
@@ -517,9 +516,9 @@ static int r128_do_init_cce(struct drm_device * dev, drm_r128_init_t * init)
 		drm_core_ioremap(dev_priv->cce_ring, dev);
 		drm_core_ioremap(dev_priv->ring_rptr, dev);
 		drm_core_ioremap(dev->agp_buffer_map, dev);
-		if (!dev_priv->cce_ring->handle ||
-		    !dev_priv->ring_rptr->handle ||
-		    !dev->agp_buffer_map->handle) {
+		if (!dev_priv->cce_ring->virtual ||
+		    !dev_priv->ring_rptr->virtual ||
+		    !dev->agp_buffer_map->virtual) {
 			DRM_ERROR("Could not ioremap agp regions!\n");
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce(dev);
@@ -528,10 +527,11 @@ static int r128_do_init_cce(struct drm_device * dev, drm_r128_init_t * init)
 	} else
 #endif
 	{
-		dev_priv->cce_ring->handle = (void *)dev_priv->cce_ring->offset;
-		dev_priv->ring_rptr->handle =
+		dev_priv->cce_ring->virtual =
+		    (void *)dev_priv->cce_ring->offset;
+		dev_priv->ring_rptr->virtual =
 		    (void *)dev_priv->ring_rptr->offset;
-		dev->agp_buffer_map->handle =
+		dev->agp_buffer_map->virtual =
 		    (void *)dev->agp_buffer_map->offset;
 	}
 
@@ -540,10 +540,10 @@ static int r128_do_init_cce(struct drm_device * dev, drm_r128_init_t * init)
 		dev_priv->cce_buffers_offset = dev->agp->base;
 	else
 #endif
-		dev_priv->cce_buffers_offset = (unsigned long)dev->sg->virtual;
+		dev_priv->cce_buffers_offset = dev->sg->vaddr;
 
-	dev_priv->ring.start = (u32 *) dev_priv->cce_ring->handle;
-	dev_priv->ring.end = ((u32 *) dev_priv->cce_ring->handle
+	dev_priv->ring.start = (u32 *) dev_priv->cce_ring->virtual;
+	dev_priv->ring.end = ((u32 *) dev_priv->cce_ring->virtual
 			      + init->ring_size / sizeof(u32));
 	dev_priv->ring.size = init->ring_size;
 	dev_priv->ring.size_l2qw = drm_order(init->ring_size / 8);

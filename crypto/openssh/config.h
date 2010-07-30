@@ -123,6 +123,9 @@
 /* Define if you don't want to use wtmpx */
 #define DISABLE_WTMPX 1
 
+/* Enable for PKCS#11 support */
+#define ENABLE_PKCS11 /**/
+
 /* Builtin PRNG command timeout */
 #define ENTROPY_TIMEOUT_MSEC 200
 
@@ -453,6 +456,9 @@
 /* Define to 1 if you have the `getutxline' function. */
 #define HAVE_GETUTXLINE 1
 
+/* Define to 1 if you have the `getutxuser' function. */
+#define HAVE_GETUTXUSER 1
+
 /* Define to 1 if you have the `get_default_context_with_level' function. */
 /* #undef HAVE_GET_DEFAULT_CONTEXT_WITH_LEVEL */
 
@@ -461,6 +467,9 @@
 
 /* Define to 1 if you have the <glob.h> header file. */
 #define HAVE_GLOB_H 1
+
+/* Define to 1 if you have the `group_from_gid' function. */
+#define HAVE_GROUP_FROM_GID 1
 
 /* Define to 1 if you have the <gssapi_generic.h> header file. */
 /* #undef HAVE_GSSAPI_GENERIC_H */
@@ -546,14 +555,14 @@
 /* Define if system has libiaf that supports set_id */
 /* #undef HAVE_LIBIAF */
 
+/* Define to 1 if you have the `network' library (-lnetwork). */
+/* #undef HAVE_LIBNETWORK */
+
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 /* #undef HAVE_LIBNSL */
 
 /* Define to 1 if you have the `pam' library (-lpam). */
 #define HAVE_LIBPAM 1
-
-/* Define to 1 if you have the `sectok' library (-lsectok). */
-/* #undef HAVE_LIBSECTOK */
 
 /* Define to 1 if you have the `socket' library (-lsocket). */
 /* #undef HAVE_LIBSOCKET */
@@ -736,9 +745,6 @@
 /* define if you have sa_family_t data type */
 #define HAVE_SA_FAMILY_T 1
 
-/* Define to 1 if you have the <sectok.h> header file. */
-/* #undef HAVE_SECTOK_H */
-
 /* Define if you have SecureWare-based protected password database */
 /* #undef HAVE_SECUREWARE */
 
@@ -763,6 +769,9 @@
 /* Define to 1 if you have the `seteuid' function. */
 #define HAVE_SETEUID 1
 
+/* Define to 1 if you have the `setgroupent' function. */
+#define HAVE_SETGROUPENT 1
+
 /* Define to 1 if you have the `setgroups' function. */
 #define HAVE_SETGROUPS 1
 
@@ -771,6 +780,9 @@
 
 /* Define to 1 if you have the `setluid' function. */
 /* #undef HAVE_SETLUID */
+
+/* Define to 1 if you have the `setpassent' function. */
+#define HAVE_SETPASSENT 1
 
 /* Define to 1 if you have the `setpcred' function. */
 /* #undef HAVE_SETPCRED */
@@ -798,6 +810,9 @@
 
 /* Define to 1 if you have the `setutent' function. */
 /* #undef HAVE_SETUTENT */
+
+/* Define to 1 if you have the `setutxdb' function. */
+#define HAVE_SETUTXDB 1
 
 /* Define to 1 if you have the `setutxent' function. */
 #define HAVE_SETUTXENT 1
@@ -1075,6 +1090,9 @@
 /* Define to 1 if you have the <usersec.h> header file. */
 /* #undef HAVE_USERSEC_H */
 
+/* Define to 1 if you have the `user_from_uid' function. */
+#define HAVE_USER_FROM_UID 1
+
 /* Define to 1 if you have the <util.h> header file. */
 /* #undef HAVE_UTIL_H */
 
@@ -1183,6 +1201,9 @@
 /* Define to whatever link() returns for "not supported" if it doesn't return
    EOPNOTSUPP. */
 /* #undef LINK_OPNOTSUPP_ERRNO */
+
+/* Adjust Linux out-of-memory killer */
+/* #undef LINUX_OOM_ADJUST */
 
 /* max value of long long calculated by configure */
 /* #undef LLONG_MAX */
@@ -1303,9 +1324,6 @@
 /* Define if your skeychallenge() function takes 4 arguments (NetBSD) */
 /* #undef SKEYCHALLENGE_4ARG */
 
-/* Define if you want smartcard support */
-/* #undef SMARTCARD */
-
 /* Define as const if snprintf() can declare const char *fmt */
 #define SNPRINTF_CONST const
 
@@ -1373,9 +1391,6 @@
 /* Use libedit for sftp */
 #define USE_LIBEDIT 1
 
-/* Define if you want smartcard support using OpenSC */
-/* #undef USE_OPENSC */
-
 /* Enable OpenSSL engine support */
 #define USE_OPENSSL_ENGINE 1
 
@@ -1384,9 +1399,6 @@
 
 /* Use PIPES instead of a socketpair() */
 /* #undef USE_PIPES */
-
-/* Define if you want smartcard support using sectok */
-/* #undef USE_SECTOK */
 
 /* Define if you have Solaris process contracts */
 /* #undef USE_SOLARIS_PROCESS_CONTRACTS */

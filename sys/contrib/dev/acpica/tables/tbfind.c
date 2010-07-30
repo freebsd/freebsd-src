@@ -164,7 +164,7 @@ AcpiTbFindTable (
 
     /* Search for the table */
 
-    for (i = 0; i < AcpiGbl_RootTableList.Count; ++i)
+    for (i = 0; i < AcpiGbl_RootTableList.CurrentTableCount; ++i)
     {
         if (ACPI_MEMCMP (&(AcpiGbl_RootTableList.Tables[i].Signature),
                             Header.Signature, ACPI_NAME_SIZE))

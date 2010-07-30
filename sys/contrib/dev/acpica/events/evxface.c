@@ -232,7 +232,7 @@ AcpiInstallFixedEventHandler (
     Status = AcpiEnableEvent (Event, 0);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_WARNING ((AE_INFO, "Could not enable fixed event %X", Event));
+        ACPI_WARNING ((AE_INFO, "Could not enable fixed event 0x%X", Event));
 
         /* Remove the handler */
 
@@ -303,7 +303,7 @@ AcpiRemoveFixedEventHandler (
     if (ACPI_FAILURE (Status))
     {
         ACPI_WARNING ((AE_INFO,
-            "Could not write to fixed event enable register %X", Event));
+            "Could not write to fixed event enable register 0x%X", Event));
     }
     else
     {
@@ -705,7 +705,7 @@ AcpiInstallGpeHandler (
 
     /* Parameter validation */
 
-    if ((!Address) || (Type > ACPI_GPE_XRUPT_TYPE_MASK))
+    if ((!Address) || (Type & ~ACPI_GPE_XRUPT_TYPE_MASK))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
@@ -746,14 +746,6 @@ AcpiInstallGpeHandler (
     Handler->Address    = Address;
     Handler->Context    = Context;
     Handler->MethodNode = GpeEventInfo->Dispatch.MethodNode;
-
-    /* Disable the GPE before installing the handler */
-
-    Status = AcpiEvDisableGpe (GpeEventInfo);
-    if (ACPI_FAILURE (Status))
-    {
-        goto UnlockAndExit;
-    }
 
     /* Install the handler */
 
@@ -842,14 +834,6 @@ AcpiRemoveGpeHandler (
     if (GpeEventInfo->Dispatch.Handler->Address != Address)
     {
         Status = AE_BAD_PARAMETER;
-        goto UnlockAndExit;
-    }
-
-    /* Disable the GPE before removing the handler */
-
-    Status = AcpiEvDisableGpe (GpeEventInfo);
-    if (ACPI_FAILURE (Status))
-    {
         goto UnlockAndExit;
     }
 

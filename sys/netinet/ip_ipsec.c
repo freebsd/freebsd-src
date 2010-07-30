@@ -342,7 +342,7 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 		}
 #ifdef SCTP
 		if ((*m)->m_pkthdr.csum_flags & CSUM_SCTP) {
-			sctp_delayed_cksum(*m);
+			sctp_delayed_cksum(*m, (uint32_t)(ip->ip_hl << 2));
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 		}
 #endif

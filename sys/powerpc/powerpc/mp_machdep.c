@@ -319,7 +319,7 @@ ipi_send(struct pcpu *pc, int ipi)
 	    pc, pc->pc_cpuid, ipi);
 
 	atomic_set_32(&pc->pc_ipimask, (1 << ipi));
-	PIC_IPI(pic, pc->pc_cpuid);
+	PIC_IPI(root_pic, pc->pc_cpuid);
 
 	CTR1(KTR_SMP, "%s: sent", __func__);
 }

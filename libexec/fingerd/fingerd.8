@@ -32,7 +32,7 @@
 .\"     @(#)fingerd.8	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd April 1, 2010
 .Dt FINGERD 8
 .Os
 .Sh NAME
@@ -40,6 +40,8 @@
 .Nd remote user information server
 .Sh SYNOPSIS
 .Nm
+.Op Fl d
+.Op Fl k
 .Op Fl s
 .Op Fl l
 .Op Fl p Ar filename
@@ -106,6 +108,25 @@ The following options may be passed to
 as server program arguments in
 .Pa /etc/inetd.conf :
 .Bl -tag -width indent
+.It Fl d
+Enable debugging mode.
+In debugging mode,
+.Nm
+will not attempt any network-related operations on
+.Va stdin ,
+and it will print the full
+.Nm finger
+command line
+to
+.Va stderr
+before executing it.
+.It Fl k
+Suppress login information.
+See the description of the
+.Fl k
+option in
+.Xr finger 1
+for details.
 .It Fl s
 Enable secure mode.
 Queries without a user name are rejected and

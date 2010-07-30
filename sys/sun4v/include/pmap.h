@@ -75,6 +75,8 @@ struct pmap {
 	struct tte_hash        *pm_hash;
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	struct hv_tsb_info      pm_tsb;
+	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
+	u_int			pm_retries;
 	pmap_cpumask_t          pm_active;      /* mask of cpus currently using pmap */
 	pmap_cpumask_t          pm_tlbactive;   /* mask of cpus that have used this pmap */
 	struct	pmap_statistics pm_stats;

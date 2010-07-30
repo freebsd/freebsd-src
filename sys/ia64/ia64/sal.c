@@ -29,21 +29,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <machine/efi.h>
+#include <machine/intr.h>
 #include <machine/md_var.h>
 #include <machine/sal.h>
 #include <machine/smp.h>
 
-/*
- * IPIs are used more genericly than only
- * for inter-processor interrupts. Don't
- * make it a SMP specific thing...
- */
-int ipi_vector[IPI_COUNT];
+int ia64_ipi_wakeup;
 
 static struct ia64_fdesc sal_fdesc;
 static sal_entry_t	fake_sal;
@@ -66,22 +63,6 @@ fake_sal(u_int64_t a1, u_int64_t a2, u_int64_t a3, u_int64_t a4,
 	return res;
 }
 
-static void
-setup_ipi_vectors(int ceil)
-{
-	int ipi;
-
-	ipi_vector[IPI_MCA_RENDEZ] = ceil - 0x10;
-
-	ipi = IPI_AST;		/* First generic IPI. */
-	ceil -= 0x20;		/* First vector in group. */
-	while (ipi < IPI_COUNT)
-		ipi_vector[ipi++] = ceil++;
-
-	ipi_vector[IPI_HIGH_FP] = ceil - 0x30;
-	ipi_vector[IPI_MCA_CMCV] = ceil - 0x30 + 1;
-}
-
 void
 ia64_sal_init(void)
 {
@@ -89,7 +70,7 @@ ia64_sal_init(void)
 		48, 32, 16, 32, 16, 16
 	};
 	u_int8_t *p;
-	int i;
+	int error, i;
 
 	sal_systbl = efi_get_table(&sal_table);
 	if (sal_systbl == NULL)
@@ -132,36 +113,19 @@ ia64_sal_init(void)
 				break;
 			}
 
-			if (dp->sale_vector < 0x10 || dp->sale_vector > 0xff) {
-				printf("SAL: invalid AP wake-up vector "
-				    "(0x%lx)\n", dp->sale_vector);
-				break;
-			}
-
-			/*
-			 * SAL documents that the wake-up vector should be
-			 * high (close to 255). The MCA rendezvous vector
-			 * should be less than the wake-up vector, but still
-			 * "high". We use the following priority assignment:
-			 *	Wake-up:	priority of the sale_vector
-			 *	Rendezvous:	priority-1
-			 *	Generic IPIs:	priority-2
-			 *	Special IPIs:	priority-3
-			 * Consequently, the wake-up priority should be at
-			 * least 4 (ie vector >= 0x40).
-			 */
-			if (dp->sale_vector < 0x40) {
-				printf("SAL: AP wake-up vector too low "
-				    "(0x%lx)\n", dp->sale_vector);
-				break;
-			}
-
-			if (bootverbose)
-				printf("SAL: AP wake-up vector: 0x%lx\n",
+			/* Reserve the XIV so that we won't use it. */
+			error = ia64_xiv_reserve(dp->sale_vector,
+			    IA64_XIV_PLAT, NULL);
+			if (error) {
+				printf("SAL: invalid AP wake-up XIV (%#lx)\n",
 				    dp->sale_vector);
+				break;
+			}
 
-			ipi_vector[IPI_AP_WAKEUP] = dp->sale_vector;
-			setup_ipi_vectors(dp->sale_vector & 0xf0);
+			ia64_ipi_wakeup = dp->sale_vector;
+			if (bootverbose)
+				printf("SAL: AP wake-up XIV: %#x\n",
+				    ia64_ipi_wakeup);
 
 #ifdef SMP
 			fd = (struct ia64_fdesc *) os_boot_rendez;
@@ -175,7 +139,4 @@ ia64_sal_init(void)
 		}
 		p += sizes[*p];
 	}
-
-	if (ipi_vector[IPI_AP_WAKEUP] == 0)
-		setup_ipi_vectors(0xf0);
 }

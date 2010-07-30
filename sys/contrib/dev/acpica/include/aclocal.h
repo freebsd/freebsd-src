@@ -275,8 +275,9 @@ typedef struct acpi_namespace_node
     UINT8                           Flags;          /* Miscellaneous flags */
     ACPI_OWNER_ID                   OwnerId;        /* Node creator */
     ACPI_NAME_UNION                 Name;           /* ACPI Name, always 4 chars per ACPI spec */
+    struct acpi_namespace_node      *Parent;        /* Parent node */
     struct acpi_namespace_node      *Child;         /* First child */
-    struct acpi_namespace_node      *Peer;          /* Peer. Parent if ANOBJ_END_OF_PEER_LIST set */
+    struct acpi_namespace_node      *Peer;          /* First peer */
 
     /*
      * The following fields are used by the ASL compiler and disassembler only
@@ -292,7 +293,7 @@ typedef struct acpi_namespace_node
 
 /* Namespace Node flags */
 
-#define ANOBJ_END_OF_PEER_LIST          0x01    /* End-of-list, Peer field points to parent */
+#define ANOBJ_RESERVED                  0x01    /* Available for use */
 #define ANOBJ_TEMPORARY                 0x02    /* Node is create by a method and is temporary */
 #define ANOBJ_METHOD_ARG                0x04    /* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08    /* Node is a method local */
@@ -307,16 +308,16 @@ typedef struct acpi_namespace_node
 #define ANOBJ_IS_REFERENCED             0x80    /* iASL only: Object was referenced */
 
 
-/* One internal RSDT for table management */
+/* Internal ACPI table management - master table list */
 
-typedef struct acpi_internal_rsdt
+typedef struct acpi_table_list
 {
-    ACPI_TABLE_DESC                 *Tables;
-    UINT32                          Count;
-    UINT32                          Size;
+    ACPI_TABLE_DESC                 *Tables;            /* Table descriptor array */
+    UINT32                          CurrentTableCount;  /* Tables currently in the array */
+    UINT32                          MaxTableCount;      /* Max tables array will hold */
     UINT8                           Flags;
 
-} ACPI_INTERNAL_RSDT;
+} ACPI_TABLE_LIST;
 
 /* Flags for above */
 
@@ -561,6 +562,7 @@ typedef struct acpi_gpe_event_info
     struct acpi_gpe_register_info   *RegisterInfo;  /* Backpointer to register info */
     UINT8                           Flags;          /* Misc info about this GPE */
     UINT8                           GpeNumber;      /* This GPE */
+    UINT8                           RuntimeCount;   /* References to a run GPE */
 
 } ACPI_GPE_EVENT_INFO;
 
@@ -590,6 +592,7 @@ typedef struct acpi_gpe_block_info
     ACPI_GPE_EVENT_INFO             *EventInfo;     /* One for each GPE */
     ACPI_GENERIC_ADDRESS            BlockAddress;   /* Base address of the block */
     UINT32                          RegisterCount;  /* Number of register pairs in block */
+    UINT16                          GpeCount;       /* Number of individual GPEs in block */
     UINT8                           BlockBaseNumber;/* Base GPE number for this block */
 
 } ACPI_GPE_BLOCK_INFO;
@@ -609,6 +612,10 @@ typedef struct acpi_gpe_walk_info
 {
     ACPI_NAMESPACE_NODE             *GpeDevice;
     ACPI_GPE_BLOCK_INFO             *GpeBlock;
+    UINT16                          Count;
+    ACPI_OWNER_ID                   OwnerId;
+    BOOLEAN                         EnableThisGpe;
+    BOOLEAN                         ExecuteByOwnerId;
 
 } ACPI_GPE_WALK_INFO;
 

@@ -160,7 +160,7 @@ struct upnp_wps_device_sm {
 /* wps_upnp.c */
 void format_date(struct wpabuf *buf);
 struct subscription * subscription_start(struct upnp_wps_device_sm *sm,
-					 char *callback_urls);
+					 const char *callback_urls);
 struct subscription * subscription_renew(struct upnp_wps_device_sm *sm,
 					 const u8 uuid[UUID_LEN]);
 void subscription_unlink(struct subscription *s);
@@ -172,7 +172,8 @@ int send_wpabuf(int fd, struct wpabuf *buf);
 /* wps_upnp_ssdp.c */
 void msearchreply_state_machine_stop(struct advertisement_state_machine *a);
 int advertisement_state_machine_start(struct upnp_wps_device_sm *sm);
-void advertisement_state_machine_stop(struct upnp_wps_device_sm *sm);
+void advertisement_state_machine_stop(struct upnp_wps_device_sm *sm,
+				      int send_byebye);
 void ssdp_listener_stop(struct upnp_wps_device_sm *sm);
 int ssdp_listener_start(struct upnp_wps_device_sm *sm);
 int add_ssdp_network(char *net_if);
@@ -185,7 +186,6 @@ void web_listener_stop(struct upnp_wps_device_sm *sm);
 
 /* wps_upnp_event.c */
 int event_add(struct subscription *s, const struct wpabuf *data);
-void event_delete(struct wps_event_ *e);
 void event_delete_all(struct subscription *s);
 void event_send_all_later(struct upnp_wps_device_sm *sm);
 void event_send_stop_all(struct upnp_wps_device_sm *sm);

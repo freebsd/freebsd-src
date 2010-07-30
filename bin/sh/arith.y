@@ -287,13 +287,17 @@ arith_t
 arith(const char *s)
 {
 	arith_t result;
+	struct stackmark smark;
 
+	setstackmark(&smark);
 	arith_buf = arith_startbuf = s;
 
 	INTOFF;
 	yyparse(&result);
 	arith_lex_reset();	/* Reprime lex. */
 	INTON;
+
+	popstackmark(&smark);
 
 	return result;
 }

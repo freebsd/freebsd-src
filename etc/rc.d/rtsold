@@ -6,7 +6,7 @@
 # PROVIDE: rtsold
 # REQUIRE: netif
 # BEFORE: NETWORKING
-# KEYWORD: nojail
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 

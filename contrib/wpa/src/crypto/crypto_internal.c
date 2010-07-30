@@ -25,7 +25,7 @@
 #include "tls/asn1.h"
 
 
-#ifdef EAP_TLS_FUNCS
+#ifdef CONFIG_CRYPTO_INTERNAL
 
 #ifdef CONFIG_TLS_INTERNAL
 
@@ -435,6 +435,7 @@ struct crypto_public_key * crypto_public_key_import(const u8 *key, size_t len)
 }
 
 
+#ifdef EAP_TLS_FUNCS
 static struct crypto_private_key *
 crypto_pkcs8_key_import(const u8 *buf, size_t len)
 {
@@ -536,6 +537,7 @@ crypto_pkcs8_key_import(const u8 *buf, size_t len)
 	return (struct crypto_private_key *)
 		crypto_rsa_import_private_key(hdr.payload, hdr.length);
 }
+#endif /* EAP_TLS_FUNCS */
 
 
 struct crypto_private_key * crypto_private_key_import(const u8 *key,
@@ -788,6 +790,7 @@ int crypto_global_init(void)
 void crypto_global_deinit(void)
 {
 }
+#endif /* CONFIG_TLS_INTERNAL */
 
 
 #if defined(EAP_FAST) || defined(CONFIG_WPS)
@@ -830,6 +833,4 @@ error:
 #endif /* EAP_FAST || CONFIG_WPS */
 
 
-#endif /* CONFIG_TLS_INTERNAL */
-
-#endif /* EAP_TLS_FUNCS */
+#endif /* CONFIG_CRYPTO_INTERNAL */

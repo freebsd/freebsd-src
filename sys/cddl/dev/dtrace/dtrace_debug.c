@@ -108,10 +108,7 @@ dtrace_debug_init(void *dummy)
 	int i;
 	struct dtrace_debug_data *d;
 
-	for (i = 0; i <= mp_maxid; i++) {
-		if (pcpu_find(i) == NULL)
-			continue;
-
+	CPU_FOREACH(i) {
 		d = &dtrace_debug_data[i];
 
 		if (d->first == NULL) {
@@ -134,10 +131,7 @@ dtrace_debug_output(void)
 	struct dtrace_debug_data *d;
 	uintptr_t count;
 
-	for (i = 0; i <= mp_maxid; i++) {
-		if (pcpu_find(i) == NULL)
-			continue;
-
+	CPU_FOREACH(i) {
 		dtrace_debug_lock(i);
 
 		d = &dtrace_debug_data[i];

@@ -44,4 +44,8 @@
 #define	OCPBUS_DEVTYPE_I2C	7
 #define	OCPBUS_DEVTYPE_SEC	8
 
+/* PIC IDs */
+#define	OPIC_ID			0
+#define	ATPIC_ID		1
+
 #endif /* _MACHINE_OCPBUS_H_ */

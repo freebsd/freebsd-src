@@ -374,6 +374,31 @@ aix_restoreauthdb(void)
 
 # endif /* WITH_AIXAUTHENTICATE */
 
+# ifdef USE_AIX_KRB_NAME
+/*
+ * aix_krb5_get_principal_name: returns the user's kerberos client principal name if
+ * configured, otherwise NULL.  Caller must free returned string.
+ */
+char *
+aix_krb5_get_principal_name(char *pw_name)
+{
+	char *authname = NULL, *authdomain = NULL, *principal = NULL;
+
+	setuserdb(S_READ);
+	if (getuserattr(pw_name, S_AUTHDOMAIN, &authdomain, SEC_CHAR) != 0)
+		debug("AIX getuserattr S_AUTHDOMAIN: %s", strerror(errno));
+	if (getuserattr(pw_name, S_AUTHNAME, &authname, SEC_CHAR) != 0)
+		debug("AIX getuserattr S_AUTHNAME: %s", strerror(errno));
+
+	if (authdomain != NULL)
+		xasprintf(&principal, "%s@%s", authname ? authname : pw_name, authdomain);
+	else if (authname != NULL)
+		principal = xstrdup(authname);
+	enduserdb();
+	return principal;
+}
+# endif /* USE_AIX_KRB_NAME */
+
 # if defined(AIX_GETNAMEINFO_HACK) && !defined(BROKEN_ADDRINFO)
 # undef getnameinfo
 /*

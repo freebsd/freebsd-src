@@ -42,6 +42,7 @@
 #include <sys/elf_generic.h>
 
 #define	ELF_ARCH	EM_X86_64
+#define	ELF_ARCH32	EM_386
 
 #define	ELF_MACHINE_OK(x) ((x) == EM_X86_64)
 

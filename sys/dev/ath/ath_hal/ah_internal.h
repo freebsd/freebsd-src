@@ -334,6 +334,8 @@ struct ath_hal_private {
 	(_ah)->ah_configPCIE(_ah, _reset)
 #define	ath_hal_disablePCIE(_ah) \
 	(_ah)->ah_disablePCIE(_ah)
+#define	ath_hal_setInterrupts(_ah, _mask) \
+	(_ah)->ah_setInterrupts(_ah, _mask)
 
 #define	ath_hal_eepromDetach(_ah) do {				\
 	if (AH_PRIVATE(_ah)->ah_eepromDetach != AH_NULL)	\

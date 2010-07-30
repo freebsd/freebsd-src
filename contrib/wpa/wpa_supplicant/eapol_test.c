@@ -617,7 +617,8 @@ static void ieee802_1x_decapsulate_radius(struct eapol_test_data *e)
 
 static void ieee802_1x_get_keys(struct eapol_test_data *e,
 				struct radius_msg *msg, struct radius_msg *req,
-				u8 *shared_secret, size_t shared_secret_len)
+				const u8 *shared_secret,
+				size_t shared_secret_len)
 {
 	struct radius_ms_mppe_keys *keys;
 
@@ -664,7 +665,7 @@ static void ieee802_1x_get_keys(struct eapol_test_data *e,
 /* Process the RADIUS frames from Authentication Server */
 static RadiusRxResult
 ieee802_1x_receive_auth(struct radius_msg *msg, struct radius_msg *req,
-			u8 *shared_secret, size_t shared_secret_len,
+			const u8 *shared_secret, size_t shared_secret_len,
 			void *data)
 {
 	struct eapol_test_data *e = data;

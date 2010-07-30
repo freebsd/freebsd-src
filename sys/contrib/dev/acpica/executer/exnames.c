@@ -189,7 +189,7 @@ AcpiExAllocateNameString (
     if (!NameString)
     {
         ACPI_ERROR ((AE_INFO,
-            "Could not allocate size %d", SizeNeeded));
+            "Could not allocate size %u", SizeNeeded));
         return_PTR (NULL);
     }
 
@@ -325,7 +325,7 @@ AcpiExNameSegment (
          */
         Status = AE_AML_BAD_NAME;
         ACPI_ERROR ((AE_INFO,
-            "Bad character %02x in name, at %p",
+            "Bad character 0x%02x in name, at %p",
             *AmlAddress, AmlAddress));
     }
 

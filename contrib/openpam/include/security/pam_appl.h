@@ -72,8 +72,7 @@ pam_close_session(pam_handle_t *_pamh,
 
 int
 pam_end(pam_handle_t *_pamh,
-	int _status)
-	OPENPAM_NONNULL((1));
+	int _status);
 
 int
 pam_get_data(const pam_handle_t *_pamh,

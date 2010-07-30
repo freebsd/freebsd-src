@@ -162,6 +162,12 @@ SYSCTL_PROC(_kern, OID_AUTO, cp_times, CTLTYPE_LONG|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0,0, sysctl_kern_cp_times, "LU", "per-CPU time statistics");
 
 #ifdef DEADLKRES
+static const char *blessed[] = {
+	"getblk",
+	"so_snd_sx",
+	"so_rcv_sx",
+	NULL
+};
 static int slptime_threshold = 1800;
 static int blktime_threshold = 900;
 static int sleepfreq = 3;
@@ -172,7 +178,7 @@ deadlkres(void)
 	struct proc *p;
 	struct thread *td;
 	void *wchan;
-	int blkticks, slpticks, slptype, tryl, tticks;
+	int blkticks, i, slpticks, slptype, tryl, tticks;
 
 	tryl = 0;
 	for (;;) {
@@ -196,8 +202,14 @@ deadlkres(void)
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			FOREACH_THREAD_IN_PROC(p, td) {
+
+				/*
+				 * Once a thread is found in "interesting"
+				 * state a possible ticks wrap-up needs to be
+				 * checked.
+				 */
 				thread_lock(td);
-				if (TD_ON_LOCK(td)) {
+				if (TD_ON_LOCK(td) && ticks < td->td_blktick) {
 
 					/*
 					 * The thread should be blocked on a
@@ -205,6 +217,7 @@ deadlkres(void)
 					 * turnstile channel is in good state.
 					 */
 					MPASS(td->td_blocked != NULL);
+
 					tticks = ticks - td->td_blktick;
 					thread_unlock(td);
 					if (tticks > blkticks) {
@@ -220,7 +233,9 @@ deadlkres(void)
 	panic("%s: possible deadlock detected for %p, blocked for %d ticks\n",
 						    __func__, td, tticks);
 					}
-				} else if (TD_IS_SLEEPING(td)) {
+				} else if (TD_IS_SLEEPING(td) &&
+				    TD_ON_SLEEPQ(td) &&
+				    ticks < td->td_blktick) {
 
 					/*
 					 * Check if the thread is sleeping on a
@@ -242,7 +257,24 @@ deadlkres(void)
 						 * thresholds, this thread is
 						 * stuck for too long on a
 						 * sleepqueue.
+						 * However, being on a
+						 * sleepqueue, we might still
+						 * check for the blessed
+						 * list.
 						 */
+						tryl = 0;
+						for (i = 0; blessed[i] != NULL;
+						    i++) {
+							if (!strcmp(blessed[i],
+							    td->td_wmesg)) {
+								tryl = 1;
+								break;
+							}
+						}
+						if (tryl != 0) {
+							tryl = 0;
+							continue;
+						}
 						PROC_UNLOCK(p);
 						sx_sunlock(&allproc_lock);
 	panic("%s: possible deadlock detected for %p, blocked for %d ticks\n",
@@ -287,9 +319,7 @@ read_cpu_time(long *cp_time)
 
 	/* Sum up global cp_time[]. */
 	bzero(cp_time, sizeof(long) * CPUSTATES);
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ABSENT(i))
-			continue;
+	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		for (j = 0; j < CPUSTATES; j++)
 			cp_time[j] += pc->pc_cp_time[j];
@@ -343,6 +373,12 @@ int	profprocs;
 int	ticks;
 int	psratio;
 
+int	timer1hz;
+int	timer2hz;
+static DPCPU_DEFINE(u_int, hard_cnt);
+static DPCPU_DEFINE(u_int, stat_cnt);
+static DPCPU_DEFINE(u_int, prof_cnt);
+
 /*
  * Initialize clock frequencies and start both clocks running.
  */
@@ -357,7 +393,7 @@ initclocks(dummy)
 	 * Set divisors to 1 (normal case) and let the machine-specific
 	 * code do its bit.
 	 */
-	mtx_init(&time_lock, "time lock", NULL, MTX_SPIN);
+	mtx_init(&time_lock, "time lock", NULL, MTX_DEF);
 	cpu_initclocks();
 
 	/*
@@ -370,6 +406,52 @@ initclocks(dummy)
 #ifdef SW_WATCHDOG
 	EVENTHANDLER_REGISTER(watchdog_list, watchdog_config, NULL, 0);
 #endif
+}
+
+void
+timer1clock(int usermode, uintfptr_t pc)
+{
+	u_int *cnt;
+
+	cnt = DPCPU_PTR(hard_cnt);
+	*cnt += hz;
+	if (*cnt >= timer1hz) {
+		*cnt -= timer1hz;
+		if (*cnt >= timer1hz)
+			*cnt = 0;
+		if (PCPU_GET(cpuid) == 0)
+			hardclock(usermode, pc);
+		else
+			hardclock_cpu(usermode);
+	}
+	if (timer2hz == 0)
+		timer2clock(usermode, pc);
+}
+
+void
+timer2clock(int usermode, uintfptr_t pc)
+{
+	u_int *cnt;
+	int t2hz = timer2hz ? timer2hz : timer1hz;
+
+	cnt = DPCPU_PTR(stat_cnt);
+	*cnt += stathz;
+	if (*cnt >= t2hz) {
+		*cnt -= t2hz;
+		if (*cnt >= t2hz)
+			*cnt = 0;
+		statclock(usermode);
+	}
+	if (profprocs == 0)
+		return;
+	cnt = DPCPU_PTR(prof_cnt);
+	*cnt += profhz;
+	if (*cnt >= t2hz) {
+		*cnt -= t2hz;
+		if (*cnt >= t2hz)
+			*cnt = 0;
+		profclock(usermode, pc);
+	}
 }
 
 /*
@@ -518,10 +600,10 @@ startprofclock(p)
 		return;
 	if ((p->p_flag & P_PROFIL) == 0) {
 		p->p_flag |= P_PROFIL;
-		mtx_lock_spin(&time_lock);
+		mtx_lock(&time_lock);
 		if (++profprocs == 1)
 			cpu_startprofclock();
-		mtx_unlock_spin(&time_lock);
+		mtx_unlock(&time_lock);
 	}
 }
 
@@ -545,10 +627,10 @@ stopprofclock(p)
 		if ((p->p_flag & P_PROFIL) == 0)
 			return;
 		p->p_flag &= ~P_PROFIL;
-		mtx_lock_spin(&time_lock);
+		mtx_lock(&time_lock);
 		if (--profprocs == 0)
 			cpu_stopprofclock();
-		mtx_unlock_spin(&time_lock);
+		mtx_unlock(&time_lock);
 	}
 }
 
@@ -709,7 +791,7 @@ static void
 watchdog_fire(void)
 {
 	int nintr;
-	u_int64_t inttotal;
+	uint64_t inttotal;
 	u_long *curintr;
 	char *curname;
 

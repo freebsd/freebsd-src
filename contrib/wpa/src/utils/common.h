@@ -22,17 +22,24 @@
 #include <byteswap.h>
 #endif /* __linux__ */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || \
+    defined(__OpenBSD__)
 #include <sys/types.h>
 #include <sys/endian.h>
 #define __BYTE_ORDER	_BYTE_ORDER
 #define	__LITTLE_ENDIAN	_LITTLE_ENDIAN
 #define	__BIG_ENDIAN	_BIG_ENDIAN
+#ifdef __OpenBSD__
+#define bswap_16 swap16
+#define bswap_32 swap32
+#define bswap_64 swap64
+#else /* __OpenBSD__ */
 #define bswap_16 bswap16
 #define bswap_32 bswap32
 #define bswap_64 bswap64
+#endif /* __OpenBSD__ */
 #endif /* defined(__FreeBSD__) || defined(__NetBSD__) ||
-	* defined(__DragonFly__) */
+	* defined(__DragonFly__) || defined(__OpenBSD__) */
 
 #ifdef __APPLE__
 #include <sys/types.h>
@@ -434,5 +441,18 @@ static inline int is_zero_ether_addr(const u8 *a)
 }
 
 #include "wpa_debug.h"
+
+
+/*
+ * gcc 4.4 ends up generating strict-aliasing warnings about some very common
+ * networking socket uses that do not really result in a real problem and
+ * cannot be easily avoided with union-based type-punning due to struct
+ * definitions including another struct in system header files. To avoid having
+ * to fully disable strict-aliasing warnings, provide a mechanism to hide the
+ * typecast from aliasing for now. A cleaner solution will hopefully be found
+ * in the future to handle these cases.
+ */
+void * __hide_aliasing_typecast(void *foo);
+#define aliasing_hide_typecast(a,t) (t *) __hide_aliasing_typecast((a))
 
 #endif /* COMMON_H */

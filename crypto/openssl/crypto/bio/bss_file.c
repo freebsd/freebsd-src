@@ -272,9 +272,9 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr)
 			BIO_clear_flags(b,BIO_FLAGS_UPLINK);
 #endif
 #endif
-#ifdef UP_fsetmode
+#ifdef UP_fsetmod
 		if (b->flags&BIO_FLAGS_UPLINK)
-			UP_fsetmode(b->ptr,num&BIO_FP_TEXT?'t':'b');
+			UP_fsetmod(b->ptr,(char)((num&BIO_FP_TEXT)?'t':'b'));
 		else
 #endif
 		{
@@ -404,11 +404,18 @@ static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size)
 
 	buf[0]='\0';
 	if (bp->flags&BIO_FLAGS_UPLINK)
-		UP_fgets(buf,size,bp->ptr);
+		{
+		if (!UP_fgets(buf,size,bp->ptr))
+			goto err;
+		}
 	else
-		fgets(buf,size,(FILE *)bp->ptr);
+		{
+		if (!fgets(buf,size,(FILE *)bp->ptr))
+			goto err;
+		}
 	if (buf[0] != '\0')
 		ret=strlen(buf);
+	err:
 	return(ret);
 	}
 

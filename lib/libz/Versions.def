@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+ZLIB_1.2.4.0 {
+};
+
+FBSD_1.2 {
+} ZLIB_1.2.4.0;
+
+ZLIBprivate_1.0 {
+} ZLIB_1.2.4.0;
+

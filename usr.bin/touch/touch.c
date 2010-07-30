@@ -187,9 +187,9 @@ main(int argc, char *argv[])
 		}
 
 		if (!aflag)
-			TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
+			TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atim);
 		if (!mflag)
-			TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+			TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtim);
 
 		/*
 		 * We're adjusting the times based on the file times, not a
@@ -197,11 +197,11 @@ main(int argc, char *argv[])
 		 */
 		if (Aflag) {
 			if (aflag) {
-				TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atimespec);
+				TIMESPEC_TO_TIMEVAL(&tv[0], &sb.st_atim);
 				tv[0].tv_sec += Aflag;
 			}
 			if (mflag) {
-				TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
+				TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtim);
 				tv[1].tv_sec += Aflag;
 			}
 		}
@@ -368,8 +368,8 @@ stime_file(char *fname, struct timeval *tvp)
 
 	if (stat(fname, &sb))
 		err(1, "%s", fname);
-	TIMESPEC_TO_TIMEVAL(tvp, &sb.st_atimespec);
-	TIMESPEC_TO_TIMEVAL(tvp + 1, &sb.st_mtimespec);
+	TIMESPEC_TO_TIMEVAL(tvp, &sb.st_atim);
+	TIMESPEC_TO_TIMEVAL(tvp + 1, &sb.st_mtim);
 }
 
 int

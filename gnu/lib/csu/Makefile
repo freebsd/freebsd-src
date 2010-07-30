@@ -17,7 +17,8 @@ CSTD?=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR -DDT_CONFIG -D__GLIBC__=3
 CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
 		-fno-exceptions -fno-zero-initialized-in-bss \
-		-fno-zero-initialized-in-bss -fno-toplevel-reorder
+		-fno-zero-initialized-in-bss -fno-toplevel-reorder \
+		-fno-asynchronous-unwind-tables -fno-omit-frame-pointer
 CFLAGS+=	-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
@@ -30,7 +31,7 @@ CFLAGS+=	-x assembler-with-cpp	# Ugly hack
 CFLAGS+=	-include osreldate.h
 .undef SRCS				# hack for 'make depend'
 .endif
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm
 .endif

@@ -29,6 +29,10 @@ static void wpabuf_overflow(const struct wpabuf *buf, size_t len)
 int wpabuf_resize(struct wpabuf **_buf, size_t add_len)
 {
 	struct wpabuf *buf = *_buf;
+	if (buf == NULL) {
+		*_buf = wpabuf_alloc(add_len);
+		return *_buf == NULL ? -1 : 0;
+	}
 	if (buf->used + add_len > buf->size) {
 		unsigned char *nbuf;
 		if (buf->ext_data) {

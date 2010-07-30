@@ -1,0 +1,339 @@
+//===-- FastISel.h - Definition of the FastISel class ---------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the FastISel class.
+//  
+//===----------------------------------------------------------------------===//
+  
+#ifndef LLVM_CODEGEN_FASTISEL_H
+#define LLVM_CODEGEN_FASTISEL_H
+
+#include "llvm/ADT/DenseMap.h"
+#ifndef NDEBUG
+#include "llvm/ADT/SmallSet.h"
+#endif
+#include "llvm/CodeGen/ValueTypes.h"
+
+namespace llvm {
+
+class AllocaInst;
+class ConstantFP;
+class Instruction;
+class MachineBasicBlock;
+class MachineConstantPool;
+class MachineFunction;
+class MachineInstr;
+class MachineFrameInfo;
+class MachineRegisterInfo;
+class TargetData;
+class TargetInstrInfo;
+class TargetLowering;
+class TargetMachine;
+class TargetRegisterClass;
+
+/// FastISel - This is a fast-path instruction selection class that
+/// generates poor code and doesn't support illegal types or non-trivial
+/// lowering, but runs quickly.
+class FastISel {
+protected:
+  MachineBasicBlock *MBB;
+  DenseMap<const Value *, unsigned> LocalValueMap;
+  DenseMap<const Value *, unsigned> &ValueMap;
+  DenseMap<const BasicBlock *, MachineBasicBlock *> &MBBMap;
+  DenseMap<const AllocaInst *, int> &StaticAllocaMap;
+  std::vector<std::pair<MachineInstr*, unsigned> > &PHINodesToUpdate;
+#ifndef NDEBUG
+  SmallSet<const Instruction *, 8> &CatchInfoLost;
+#endif
+  MachineFunction &MF;
+  MachineRegisterInfo &MRI;
+  MachineFrameInfo &MFI;
+  MachineConstantPool &MCP;
+  DebugLoc DL;
+  const TargetMachine &TM;
+  const TargetData &TD;
+  const TargetInstrInfo &TII;
+  const TargetLowering &TLI;
+  bool IsBottomUp;
+
+public:
+  /// startNewBlock - Set the current block to which generated machine
+  /// instructions will be appended, and clear the local CSE map.
+  ///
+  void startNewBlock(MachineBasicBlock *mbb) {
+    setCurrentBlock(mbb);
+    LocalValueMap.clear();
+  }
+
+  /// setCurrentBlock - Set the current block to which generated machine
+  /// instructions will be appended.
+  ///
+  void setCurrentBlock(MachineBasicBlock *mbb) {
+    MBB = mbb;
+  }
+
+  /// getCurDebugLoc() - Return current debug location information.
+  DebugLoc getCurDebugLoc() const { return DL; }
+
+  /// SelectInstruction - Do "fast" instruction selection for the given
+  /// LLVM IR instruction, and append generated machine instructions to
+  /// the current block. Return true if selection was successful.
+  ///
+  bool SelectInstruction(const Instruction *I);
+
+  /// SelectOperator - Do "fast" instruction selection for the given
+  /// LLVM IR operator (Instruction or ConstantExpr), and append
+  /// generated machine instructions to the current block. Return true
+  /// if selection was successful.
+  ///
+  bool SelectOperator(const User *I, unsigned Opcode);
+
+  /// getRegForValue - Create a virtual register and arrange for it to
+  /// be assigned the value for the given LLVM value.
+  unsigned getRegForValue(const Value *V);
+
+  /// lookUpRegForValue - Look up the value to see if its value is already
+  /// cached in a register. It may be defined by instructions across blocks or
+  /// defined locally.
+  unsigned lookUpRegForValue(const Value *V);
+
+  /// getRegForGEPIndex - This is a wrapper around getRegForValue that also
+  /// takes care of truncating or sign-extending the given getelementptr
+  /// index value.
+  std::pair<unsigned, bool> getRegForGEPIndex(const Value *V);
+
+  virtual ~FastISel();
+
+protected:
+  FastISel(MachineFunction &mf,
+           DenseMap<const Value *, unsigned> &vm,
+           DenseMap<const BasicBlock *, MachineBasicBlock *> &bm,
+           DenseMap<const AllocaInst *, int> &am,
+           std::vector<std::pair<MachineInstr*, unsigned> > &PHINodesToUpdate
+#ifndef NDEBUG
+           , SmallSet<const Instruction *, 8> &cil
+#endif
+           );
+
+  /// TargetSelectInstruction - This method is called by target-independent
+  /// code when the normal FastISel process fails to select an instruction.
+  /// This gives targets a chance to emit code for anything that doesn't
+  /// fit into FastISel's framework. It returns true if it was successful.
+  ///
+  virtual bool
+  TargetSelectInstruction(const Instruction *I) = 0;
+
+  /// FastEmit_r - This method is called by target-independent code
+  /// to request that an instruction with the given type and opcode
+  /// be emitted.
+  virtual unsigned FastEmit_(MVT VT,
+                             MVT RetVT,
+                             unsigned Opcode);
+
+  /// FastEmit_r - This method is called by target-independent code
+  /// to request that an instruction with the given type, opcode, and
+  /// register operand be emitted.
+  ///
+  virtual unsigned FastEmit_r(MVT VT,
+                              MVT RetVT,
+                              unsigned Opcode,
+                              unsigned Op0, bool Op0IsKill);
+
+  /// FastEmit_rr - This method is called by target-independent code
+  /// to request that an instruction with the given type, opcode, and
+  /// register operands be emitted.
+  ///
+  virtual unsigned FastEmit_rr(MVT VT,
+                               MVT RetVT,
+                               unsigned Opcode,
+                               unsigned Op0, bool Op0IsKill,
+                               unsigned Op1, bool Op1IsKill);
+
+  /// FastEmit_ri - This method is called by target-independent code
+  /// to request that an instruction with the given type, opcode, and
+  /// register and immediate operands be emitted.
+  ///
+  virtual unsigned FastEmit_ri(MVT VT,
+                               MVT RetVT,
+                               unsigned Opcode,
+                               unsigned Op0, bool Op0IsKill,
+                               uint64_t Imm);
+
+  /// FastEmit_rf - This method is called by target-independent code
+  /// to request that an instruction with the given type, opcode, and
+  /// register and floating-point immediate operands be emitted.
+  ///
+  virtual unsigned FastEmit_rf(MVT VT,
+                               MVT RetVT,
+                               unsigned Opcode,
+                               unsigned Op0, bool Op0IsKill,
+                               const ConstantFP *FPImm);
+
+  /// FastEmit_rri - This method is called by target-independent code
+  /// to request that an instruction with the given type, opcode, and
+  /// register and immediate operands be emitted.
+  ///
+  virtual unsigned FastEmit_rri(MVT VT,
+                                MVT RetVT,
+                                unsigned Opcode,
+                                unsigned Op0, bool Op0IsKill,
+                                unsigned Op1, bool Op1IsKill,
+                                uint64_t Imm);
+
+  /// FastEmit_ri_ - This method is a wrapper of FastEmit_ri. It first tries
+  /// to emit an instruction with an immediate operand using FastEmit_ri.
+  /// If that fails, it materializes the immediate into a register and try
+  /// FastEmit_rr instead.
+  unsigned FastEmit_ri_(MVT VT,
+                        unsigned Opcode,
+                        unsigned Op0, bool Op0IsKill,
+                        uint64_t Imm, MVT ImmType);
+  
+  /// FastEmit_rf_ - This method is a wrapper of FastEmit_rf. It first tries
+  /// to emit an instruction with an immediate operand using FastEmit_rf.
+  /// If that fails, it materializes the immediate into a register and try
+  /// FastEmit_rr instead.
+  unsigned FastEmit_rf_(MVT VT,
+                        unsigned Opcode,
+                        unsigned Op0, bool Op0IsKill,
+                        const ConstantFP *FPImm, MVT ImmType);
+  
+  /// FastEmit_i - This method is called by target-independent code
+  /// to request that an instruction with the given type, opcode, and
+  /// immediate operand be emitted.
+  virtual unsigned FastEmit_i(MVT VT,
+                              MVT RetVT,
+                              unsigned Opcode,
+                              uint64_t Imm);
+
+  /// FastEmit_f - This method is called by target-independent code
+  /// to request that an instruction with the given type, opcode, and
+  /// floating-point immediate operand be emitted.
+  virtual unsigned FastEmit_f(MVT VT,
+                              MVT RetVT,
+                              unsigned Opcode,
+                              const ConstantFP *FPImm);
+
+  /// FastEmitInst_ - Emit a MachineInstr with no operands and a
+  /// result register in the given register class.
+  ///
+  unsigned FastEmitInst_(unsigned MachineInstOpcode,
+                         const TargetRegisterClass *RC);
+
+  /// FastEmitInst_r - Emit a MachineInstr with one register operand
+  /// and a result register in the given register class.
+  ///
+  unsigned FastEmitInst_r(unsigned MachineInstOpcode,
+                          const TargetRegisterClass *RC,
+                          unsigned Op0, bool Op0IsKill);
+
+  /// FastEmitInst_rr - Emit a MachineInstr with two register operands
+  /// and a result register in the given register class.
+  ///
+  unsigned FastEmitInst_rr(unsigned MachineInstOpcode,
+                           const TargetRegisterClass *RC,
+                           unsigned Op0, bool Op0IsKill,
+                           unsigned Op1, bool Op1IsKill);
+
+  /// FastEmitInst_ri - Emit a MachineInstr with two register operands
+  /// and a result register in the given register class.
+  ///
+  unsigned FastEmitInst_ri(unsigned MachineInstOpcode,
+                           const TargetRegisterClass *RC,
+                           unsigned Op0, bool Op0IsKill,
+                           uint64_t Imm);
+
+  /// FastEmitInst_rf - Emit a MachineInstr with two register operands
+  /// and a result register in the given register class.
+  ///
+  unsigned FastEmitInst_rf(unsigned MachineInstOpcode,
+                           const TargetRegisterClass *RC,
+                           unsigned Op0, bool Op0IsKill,
+                           const ConstantFP *FPImm);
+
+  /// FastEmitInst_rri - Emit a MachineInstr with two register operands,
+  /// an immediate, and a result register in the given register class.
+  ///
+  unsigned FastEmitInst_rri(unsigned MachineInstOpcode,
+                            const TargetRegisterClass *RC,
+                            unsigned Op0, bool Op0IsKill,
+                            unsigned Op1, bool Op1IsKill,
+                            uint64_t Imm);
+  
+  /// FastEmitInst_i - Emit a MachineInstr with a single immediate
+  /// operand, and a result register in the given register class.
+  unsigned FastEmitInst_i(unsigned MachineInstrOpcode,
+                          const TargetRegisterClass *RC,
+                          uint64_t Imm);
+
+  /// FastEmitInst_extractsubreg - Emit a MachineInstr for an extract_subreg
+  /// from a specified index of a superregister to a specified type.
+  unsigned FastEmitInst_extractsubreg(MVT RetVT,
+                                      unsigned Op0, bool Op0IsKill,
+                                      uint32_t Idx);
+
+  /// FastEmitZExtFromI1 - Emit MachineInstrs to compute the value of Op
+  /// with all but the least significant bit set to zero.
+  unsigned FastEmitZExtFromI1(MVT VT,
+                              unsigned Op0, bool Op0IsKill);
+
+  /// FastEmitBranch - Emit an unconditional branch to the given block,
+  /// unless it is the immediate (fall-through) successor, and update
+  /// the CFG.
+  void FastEmitBranch(MachineBasicBlock *MBB);
+
+  unsigned UpdateValueMap(const Value* I, unsigned Reg);
+
+  unsigned createResultReg(const TargetRegisterClass *RC);
+  
+  /// TargetMaterializeConstant - Emit a constant in a register using 
+  /// target-specific logic, such as constant pool loads.
+  virtual unsigned TargetMaterializeConstant(const Constant* C) {
+    return 0;
+  }
+
+  /// TargetMaterializeAlloca - Emit an alloca address in a register using
+  /// target-specific logic.
+  virtual unsigned TargetMaterializeAlloca(const AllocaInst* C) {
+    return 0;
+  }
+
+private:
+  bool SelectBinaryOp(const User *I, unsigned ISDOpcode);
+
+  bool SelectFNeg(const User *I);
+
+  bool SelectGetElementPtr(const User *I);
+
+  bool SelectCall(const User *I);
+
+  bool SelectBitCast(const User *I);
+  
+  bool SelectCast(const User *I, unsigned Opcode);
+
+  /// HandlePHINodesInSuccessorBlocks - Handle PHI nodes in successor blocks.
+  /// Emit code to ensure constants are copied into registers when needed.
+  /// Remember the virtual registers that need to be added to the Machine PHI
+  /// nodes as input.  We cannot just directly add them, because expansion
+  /// might result in multiple MBB's for one BB.  As such, the start of the
+  /// BB might correspond to a different MBB than the end.
+  bool HandlePHINodesInSuccessorBlocks(const BasicBlock *LLVMBB);
+
+  /// materializeRegForValue - Helper for getRegForVale. This function is
+  /// called when the value isn't already available in a register and must
+  /// be materialized with new instructions.
+  unsigned materializeRegForValue(const Value *V, MVT VT);
+
+  /// hasTrivialKill - Test whether the given value has exactly one use.
+  bool hasTrivialKill(const Value *V) const;
+};
+
+}
+
+#endif

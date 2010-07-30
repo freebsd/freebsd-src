@@ -954,7 +954,7 @@ static int eap_ttls_phase2_eap_init(struct eap_sm *sm,
 	sm->init_phase2 = 1;
 	data->phase2_priv = data->phase2_method->init(sm);
 	sm->init_phase2 = 0;
-	return 0;
+	return data->phase2_priv == NULL ? -1 : 0;
 }
 
 
@@ -1045,6 +1045,11 @@ static void eap_ttls_process_phase2_eap_response(struct eap_sm *sm,
 		next_type = sm->user->methods[0].method;
 		sm->user_eap_method_index = 1;
 		wpa_printf(MSG_DEBUG, "EAP-TTLS: try EAP type %d", next_type);
+		if (eap_ttls_phase2_eap_init(sm, data, next_type)) {
+			wpa_printf(MSG_DEBUG, "EAP-TTLS: Failed to initialize "
+				   "EAP type %d", next_type);
+			eap_ttls_state(data, FAILURE);
+		}
 		break;
 	case PHASE2_METHOD:
 		if (data->ttls_version > 0) {
@@ -1065,12 +1070,6 @@ static void eap_ttls_process_phase2_eap_response(struct eap_sm *sm,
 		wpa_printf(MSG_DEBUG, "EAP-TTLS: %s - unexpected state %d",
 			   __func__, data->state);
 		break;
-	}
-
-	if (eap_ttls_phase2_eap_init(sm, data, next_type)) {
-		wpa_printf(MSG_DEBUG, "EAP-TTLS: Failed to initialize EAP "
-			   "type %d", next_type);
-		eap_ttls_state(data, FAILURE);
 	}
 }
 

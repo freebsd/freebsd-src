@@ -54,6 +54,7 @@ static pthread_mutex_t atexit_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define _MUTEX_LOCK(x)		if (__isthreaded) _pthread_mutex_lock(x)
 #define _MUTEX_UNLOCK(x)	if (__isthreaded) _pthread_mutex_unlock(x)
+#define _MUTEX_DESTROY(x)	if (__isthreaded) _pthread_mutex_destroy(x)
 
 struct atexit {
 	struct atexit *next;			/* next in list */
@@ -182,4 +183,6 @@ __cxa_finalize(void *dso)
 		}
 	}
 	_MUTEX_UNLOCK(&atexit_mutex);
+	if (dso == NULL)
+		_MUTEX_DESTROY(&atexit_mutex);
 }

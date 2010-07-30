@@ -121,8 +121,7 @@ kmem_direct_mapped:	v = uio->uio_offset;
 		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			va = uio->uio_offset;
 
-			if ((va < VM_MIN_KERNEL_ADDRESS)
-			    || (va > VM_MAX_KERNEL_ADDRESS))
+			if ((va < VM_MIN_KERNEL_ADDRESS) || (va > virtual_end))
 				goto kmem_direct_mapped;
 
 			va = trunc_page(uio->uio_offset);
@@ -135,8 +134,7 @@ kmem_direct_mapped:	v = uio->uio_offset;
 			 */
 
 			for (; va < eva; va += PAGE_SIZE)
-				if (pmap_extract(kernel_pmap, va)
-				    == 0)
+				if (pmap_extract(kernel_pmap, va) == 0)
 					return (EFAULT);
 
 			prot = (uio->uio_rw == UIO_READ)

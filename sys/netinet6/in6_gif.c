@@ -41,8 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/syslog.h>
+#include <sys/sysctl.h>
 #include <sys/protosw.h>
 #include <sys/malloc.h>
 
@@ -68,6 +70,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <net/if_gif.h>
+
+VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
+#define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
+
+SYSCTL_DECL(_net_inet6_ip6);
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_RW,
+    &VNET_NAME(ip6_gif_hlim), 0, "");
 
 static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
 			 struct ifnet *);

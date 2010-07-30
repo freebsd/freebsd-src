@@ -117,6 +117,7 @@ O_SYNC		synchronous writes
 O_NOFOLLOW	do not follow symlinks
 O_NOCTTY	don't assign controlling terminal
 O_TTY_INIT	restore default terminal attributes
+O_DIRECTORY	error if file is not a directory
 .Ed
 .Pp
 Opening a file with
@@ -221,6 +222,14 @@ The initial call to
 .Fn open
 on a TTY will always restore default terminal attributes on
 .Fx .
+.Pp
+.Dv O_DIRECTORY
+may be used to ensure the resulting file descriptor refers to a
+directory.
+This flag can be used to prevent applications with elevated privileges
+from opening files which are even unsafe to open with
+.Dv O_RDONLY ,
+such as device nodes.
 .Pp
 If successful,
 .Fn open
@@ -413,6 +422,9 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Eq ENOTDIR
+.Dv O_DIRECTORY
+is specified and the file is not a directory.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,

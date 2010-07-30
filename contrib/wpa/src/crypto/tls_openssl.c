@@ -108,71 +108,9 @@ static void tls_show_errors(int level, const char *func, const char *txt)
  * MinGW does not yet include all the needed definitions for CryptoAPI, so
  * define here whatever extra is needed.
  */
-#define CALG_SSL3_SHAMD5 (ALG_CLASS_HASH | ALG_TYPE_ANY | ALG_SID_SSL3SHAMD5)
 #define CERT_SYSTEM_STORE_CURRENT_USER (1 << 16)
 #define CERT_STORE_READONLY_FLAG 0x00008000
 #define CERT_STORE_OPEN_EXISTING_FLAG 0x00004000
-#define CRYPT_ACQUIRE_COMPARE_KEY_FLAG 0x00000004
-
-static BOOL WINAPI
-(*CryptAcquireCertificatePrivateKey)(PCCERT_CONTEXT pCert, DWORD dwFlags,
-				     void *pvReserved, HCRYPTPROV *phCryptProv,
-				     DWORD *pdwKeySpec, BOOL *pfCallerFreeProv)
-= NULL; /* to be loaded from crypt32.dll */
-
-#ifdef CONFIG_MINGW32_LOAD_CERTENUM
-static PCCERT_CONTEXT WINAPI
-(*CertEnumCertificatesInStore)(HCERTSTORE hCertStore,
-			       PCCERT_CONTEXT pPrevCertContext)
-= NULL; /* to be loaded from crypt32.dll */
-#endif /* CONFIG_MINGW32_LOAD_CERTENUM */
-
-static int mingw_load_crypto_func(void)
-{
-	HINSTANCE dll;
-
-	/* MinGW does not yet have full CryptoAPI support, so load the needed
-	 * function here. */
-
-	if (CryptAcquireCertificatePrivateKey)
-		return 0;
-
-	dll = LoadLibrary("crypt32");
-	if (dll == NULL) {
-		wpa_printf(MSG_DEBUG, "CryptoAPI: Could not load crypt32 "
-			   "library");
-		return -1;
-	}
-
-	CryptAcquireCertificatePrivateKey = GetProcAddress(
-		dll, "CryptAcquireCertificatePrivateKey");
-	if (CryptAcquireCertificatePrivateKey == NULL) {
-		wpa_printf(MSG_DEBUG, "CryptoAPI: Could not get "
-			   "CryptAcquireCertificatePrivateKey() address from "
-			   "crypt32 library");
-		return -1;
-	}
-
-#ifdef CONFIG_MINGW32_LOAD_CERTENUM
-	CertEnumCertificatesInStore = (void *) GetProcAddress(
-		dll, "CertEnumCertificatesInStore");
-	if (CertEnumCertificatesInStore == NULL) {
-		wpa_printf(MSG_DEBUG, "CryptoAPI: Could not get "
-			   "CertEnumCertificatesInStore() address from "
-			   "crypt32 library");
-		return -1;
-	}
-#endif /* CONFIG_MINGW32_LOAD_CERTENUM */
-
-	return 0;
-}
-
-#else /* __MINGW32_VERSION */
-
-static int mingw_load_crypto_func(void)
-{
-	return 0;
-}
 
 #endif /* __MINGW32_VERSION */
 
@@ -403,9 +341,6 @@ static int tls_cryptoapi_cert(SSL *ssl, const char *name)
 		goto err;
 	}
 
-	if (mingw_load_crypto_func())
-		goto err;
-
 	if (!CryptAcquireCertificatePrivateKey(priv->cert,
 					       CRYPT_ACQUIRE_COMPARE_KEY_FLAG,
 					       NULL, &priv->crypt_prov,
@@ -475,9 +410,6 @@ static int tls_cryptoapi_ca_cert(SSL_CTX *ssl_ctx, SSL *ssl, const char *name)
 #ifdef UNICODE
 	WCHAR *wstore;
 #endif /* UNICODE */
-
-	if (mingw_load_crypto_func())
-		return -1;
 
 	if (name == NULL || strncmp(name, "cert_store://", 13) != 0)
 		return -1;
@@ -735,11 +667,23 @@ void * tls_init(const struct tls_config *conf)
 	if (tls_openssl_ref_count == 0) {
 		SSL_load_error_strings();
 		SSL_library_init();
+#ifndef OPENSSL_NO_SHA256
+		EVP_add_digest(EVP_sha256());
+#endif /* OPENSSL_NO_SHA256 */
 		/* TODO: if /dev/urandom is available, PRNG is seeded
 		 * automatically. If this is not the case, random data should
 		 * be added here. */
 
 #ifdef PKCS12_FUNCS
+#ifndef OPENSSL_NO_RC2
+		/*
+		 * 40-bit RC2 is commonly used in PKCS#12 files, so enable it.
+		 * This is enabled by PKCS12_PBE_add() in OpenSSL 0.9.8
+		 * versions, but it looks like OpenSSL 1.0.0 does not do that
+		 * anymore.
+		 */
+		EVP_add_cipher(EVP_rc2_40_cbc());
+#endif /* OPENSSL_NO_RC2 */
 		PKCS12_PBE_add();
 #endif  /* PKCS12_FUNCS */
 	}
@@ -2105,9 +2049,18 @@ u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 		if (*appl_data) {
 			res = SSL_read(conn->ssl, *appl_data, in_len);
 			if (res < 0) {
-				tls_show_errors(MSG_INFO, __func__,
-						"Failed to read possible "
-						"Application Data");
+				int err = SSL_get_error(conn->ssl, res);
+				if (err == SSL_ERROR_WANT_READ ||
+				    err == SSL_ERROR_WANT_WRITE) {
+					wpa_printf(MSG_DEBUG,
+						   "SSL: No Application Data "
+						   "included");
+				} else {
+					tls_show_errors(MSG_INFO, __func__,
+							"Failed to read "
+							"possible "
+							"Application Data");
+				}
 				os_free(*appl_data);
 				*appl_data = NULL;
 			} else {

@@ -523,6 +523,9 @@ m_getjcl(int how, short type, int flags, int size)
 	struct mbuf *m, *n;
 	uma_zone_t zone;
 
+	if (size == MCLBYTES)
+		return m_getcl(how, type, flags);
+
 	args.flags = flags;
 	args.type = type;
 

@@ -278,9 +278,11 @@ nfssvc_iod(void *instance)
 			(void)ncl_doio_directwrite(bp);
 		} else {
 			if (bp->b_iocmd == BIO_READ)
-				(void) ncl_doio(bp->b_vp, bp, bp->b_rcred, NULL);
+				(void) ncl_doio(bp->b_vp, bp, bp->b_rcred,
+				    NULL, 0);
 			else
-				(void) ncl_doio(bp->b_vp, bp, bp->b_wcred, NULL);
+				(void) ncl_doio(bp->b_vp, bp, bp->b_wcred,
+				    NULL, 0);
 		}
 		mtx_lock(&ncl_iod_mutex);
 		/*

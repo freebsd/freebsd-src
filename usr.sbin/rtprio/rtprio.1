@@ -161,9 +161,6 @@ The
 utility appeared in
 .Fx 2.0 ,
 but is similar to the HP-UX version.
-.Sh CAVEATS
-You can lock yourself out of the system by placing a cpu-heavy
-process in a realtime priority.
 .Sh AUTHORS
 .An -nosplit
 .An Henrik Vestergaard Draboel Aq hvd@terry.ping.dk
@@ -173,6 +170,9 @@ implementation in
 .Fx
 was substantially rewritten by
 .An David Greenman .
+.Sh CAVEATS
+You can lock yourself out of the system by placing a cpu-heavy
+process in a realtime priority.
 .Sh BUGS
 There is no way to set/view the realtime priority of process 0
 (swapper) (see

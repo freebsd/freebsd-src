@@ -210,34 +210,24 @@ static_inet6()
 		;;
 	esac
 
-	# Disallow unicast packets without outgoing scope identifiers,
-	# or route such packets to a "default" interface, if it is specified.
+	# Disallow link-local unicast packets without outgoing scope
+	# identifiers.  However, if you set "ipv6_default_interface",
+	# for the host case, you will allow to omit the identifiers.
+	# Under this configuration, the packets will go to the default
+	# interface.
 	route ${_action} -inet6 fe80:: -prefixlen 10 ::1 -reject
+	route ${_action} -inet6 ff02:: -prefixlen 16 ::1 -reject
 
 	case ${ipv6_default_interface} in
 	'')
-		route ${_action} -inet6 ff02:: -prefixlen 16 ::1 -reject
 		;;
 	*)
-		laddr=`network6_getladdr ${ipv6_default_interface}`
-		route ${_action} -inet6 ff02:: ${laddr} -prefixlen 16 -interface
-
-		# Disable installing the default interface with the
-		# case net.inet6.ip6.forwarding=0 and
-		# the interface with no ND6_IFF_ACCEPT_RTADV
-		# to avoid conflict between the default router list and
-		# the manual configured default route.
+		# Disable installing the default interface when we act
+		# as router to avoid conflict between the default
+		# router list and the manual configured default route.
 		if ! checkyesno ipv6_gateway_enable; then
-			ifconfig ${ipv6_default_interface} nd6 | \
-			while read proto options
-			do
-				case "${proto}:${options}" in
-				nd6:*ACCEPT_RTADV*)
-					ifconfig ${ipv6_default_interface} inet6 defaultif
-					break
-				;;
-				esac
-			done
+			ifconfig ${ipv6_default_interface} inet6 defaultif
+			sysctl net.inet6.ip6.use_defaultzone=1
 		fi
 		;;
 	esac

@@ -15,7 +15,7 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvahipFCPU]'
+  echo 'Usage: mergemaster [-scrvhpCP] [-a|[-iFU]]'
   echo '    [-m /path] [-t /path] [-d] [-u N] [-w N] [-A arch] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
@@ -337,6 +337,18 @@ while getopts ":ascrvhipCPm:t:du:w:D:A:FU" COMMAND_LINE_ARGUMENT ; do
   esac
 done
 
+if [ -n "$AUTO_RUN" ]; then
+  if [ -n "$FREEBSD_ID" -o -n "$AUTO_UPGRADE" -o -n "$AUTO_INSTALL" ]; then
+    echo ''
+    echo "*** You have included the -a option along with one or more options"
+    echo '    that indicate that you wish mergemaster to actually make updates'
+    echo '    (-F, -U, or -i), however these options are not compatible.'
+    echo '    Please read mergemaster(8) for more information.'
+    echo ''
+    exit 1
+  fi
+fi
+
 # Assign the location of the mtree database
 #
 MTREEDB=${MTREEDB:-${DESTDIR}/var/db}
@@ -605,14 +617,14 @@ case "${RERUN}" in
       case "${DESTDIR}" in
       '') ;;
       *)
-        ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs
+        ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs >/dev/null
         ;;
       esac
       od=${TEMPROOT}/usr/obj
-      ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution;} ||
+      ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs >/dev/null &&
+      MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc >/dev/null &&
+      MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc >/dev/null &&
+      MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution >/dev/null;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
       echo "      the temproot environment";
@@ -836,6 +848,9 @@ mm_install () {
       ;;
     /etc/login.conf)
       NEED_CAP_MKDB=yes
+      ;;
+    /etc/services)
+      NEED_SERVICES_MKDB=yes
       ;;
     /etc/master.passwd)
       do_install_and_rm 600 "${1}" "${DESTDIR}${INSTALL_DIR}"
@@ -1263,6 +1278,17 @@ case "${NEED_CAP_MKDB}" in
   echo "    '/usr/bin/cap_mkdb ${DESTDIR}/etc/login.conf'"
   echo "     to rebuild your login.conf database"
   run_it_now "/usr/bin/cap_mkdb ${DESTDIR}/etc/login.conf"
+  ;;
+esac
+
+case "${NEED_SERVICES_MKDB}" in
+'') ;;
+*)
+  echo ''
+  echo "*** You installed a services file, so make sure that you run"
+  echo "    '/usr/sbin/services_mkdb -q -o ${DESTDIR}/var/db/services.db ${DESTDIR}/etc/services'"
+  echo "     to rebuild your services database"
+  run_it_now "/usr/sbin/services_mkdb -q -o ${DESTDIR}/var/db/services.db ${DESTDIR}/etc/services"
   ;;
 esac
 

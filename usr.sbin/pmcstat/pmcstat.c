@@ -292,7 +292,8 @@ pmcstat_find_targets(const char *spec)
 		    0, &nproc)) == NULL)
 			err(EX_OSERR, "ERROR: Cannot get process list: %s",
 			    kvm_geterr(pmcstat_kvm));
-	}
+	} else
+		nproc = 0;
 
 	if ((rv = regcomp(&reg, spec, REG_EXTENDED|REG_NOSUB)) != 0) {
 		regerror(rv, &reg, errbuf, sizeof(errbuf));
@@ -1311,6 +1312,9 @@ main(int argc, char **argv)
 			intrflush(stdscr, FALSE);
 			keypad(stdscr, TRUE);
 			clear();
+			/* Get terminal width / height with ncurses. */
+			getmaxyx(stdscr, pmcstat_displayheight, pmcstat_displaywidth);
+			pmcstat_displayheight--; pmcstat_displaywidth--;
 			atexit(pmcstat_topexit);
 		}
 	}

@@ -41,7 +41,7 @@ typedef STAILQ_HEAD(, ciss_request)	cr_qhead_t;
  * commands an adapter may claim to support.  Cap it at a reasonable
  * value.
  */
-#define CISS_MAX_REQUESTS	256
+#define CISS_MAX_REQUESTS	1024
 
 /*
  * Maximum number of logical drives we support.
@@ -251,6 +251,7 @@ struct ciss_softc
 #define CISS_FLAG_CONTROL_OPEN	(1<<1)		/* control device is open */
 #define CISS_FLAG_ABORTING	(1<<2)		/* driver is going away */
 #define CISS_FLAG_RUNNING	(1<<3)		/* driver is running (interrupts usable) */
+#define CISS_FLAG_BUSY		(1<<4)		/* no free commands */
 
 #define CISS_FLAG_FAKE_SYNCH	(1<<16)		/* needs SYNCHRONISE_CACHE faked */
 #define CISS_FLAG_BMIC_ABORT	(1<<17)		/* use BMIC command to abort Notify on Event */

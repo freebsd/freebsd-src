@@ -445,9 +445,7 @@ acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id, uint32_t *cpu_id)
 
     KASSERT(acpi_id != NULL, ("Null acpi_id"));
     KASSERT(cpu_id != NULL, ("Null cpu_id"));
-    for (i = 0; i <= mp_maxid; i++) {
-	if (CPU_ABSENT(i))
-	    continue;
+    CPU_FOREACH(i) {
 	pcpu_data = pcpu_find(i);
 	KASSERT(pcpu_data != NULL, ("no pcpu data for %d", i));
 	if (idx-- == 0) {
@@ -930,12 +928,16 @@ acpi_cpu_idle()
 
     /*
      * Execute HLT (or equivalent) and wait for an interrupt.  We can't
-     * calculate the time spent in C1 since the place we wake up is an
-     * ISR.  Assume we slept half of quantum and return.
+     * precisely calculate the time spent in C1 since the place we wake up
+     * is an ISR.  Assume we slept no more then half of quantum.
      */
     if (cx_next->type == ACPI_STATE_C1) {
-	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + 500000 / hz) / 4;
+	AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
 	acpi_cpu_c1();
+	AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+        end_time = acpi_TimerDelta(end_time, start_time);
+	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 +
+	    min(PM_USEC(end_time), 500000 / hz)) / 4;
 	return;
     }
 
@@ -1009,6 +1011,8 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	if (isc->cpu_cx_count > cpu_cx_count)
 	    cpu_cx_count = isc->cpu_cx_count;
     }
+    if (sc->cpu_cx_lowest < cpu_cx_lowest)
+	acpi_cpu_set_cx_lowest(sc, min(cpu_cx_lowest, sc->cpu_cx_count - 1));
     ACPI_SERIAL_END(cpu);
 }
 
@@ -1204,7 +1208,7 @@ acpi_cpu_global_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS)
     ACPI_SERIAL_BEGIN(cpu);
     for (i = 0; i < cpu_ndevices; i++) {
 	sc = device_get_softc(cpu_devices[i]);
-	acpi_cpu_set_cx_lowest(sc, val);
+	acpi_cpu_set_cx_lowest(sc, min(val, sc->cpu_cx_count - 1));
     }
     ACPI_SERIAL_END(cpu);
 

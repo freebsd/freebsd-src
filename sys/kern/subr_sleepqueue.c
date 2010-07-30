@@ -442,7 +442,7 @@ sleepq_catch_signals(void *wchan, int pri)
 	/*
 	 * Lock the per-process spinlock prior to dropping the PROC_LOCK
 	 * to avoid a signal delivery race.  PROC_LOCK, PROC_SLOCK, and
-	 * thread_lock() are currently held in tdsignal().
+	 * thread_lock() are currently held in tdsendsignal().
 	 */
 	PROC_SLOCK(p);
 	mtx_lock_spin(&sc->sc_lock);

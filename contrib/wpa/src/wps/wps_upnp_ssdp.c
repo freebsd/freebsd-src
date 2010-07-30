@@ -229,10 +229,41 @@ static void advertisement_state_machine_handler(void *eloop_data,
 /**
  * advertisement_state_machine_stop - Stop SSDP advertisements
  * @sm: WPS UPnP state machine from upnp_wps_device_init()
+ * @send_byebye: Send byebye advertisement messages immediately
  */
-void advertisement_state_machine_stop(struct upnp_wps_device_sm *sm)
+void advertisement_state_machine_stop(struct upnp_wps_device_sm *sm,
+				      int send_byebye)
 {
+	struct advertisement_state_machine *a = &sm->advertisement;
+	int islast = 0;
+	struct wpabuf *msg;
+	struct sockaddr_in dest;
+
 	eloop_cancel_timeout(advertisement_state_machine_handler, NULL, sm);
+	if (!send_byebye || sm->multicast_sd < 0)
+		return;
+
+	a->type = ADVERTISE_DOWN;
+	a->state = 0;
+	a->sm = sm;
+
+	os_memset(&dest, 0, sizeof(dest));
+	dest.sin_family = AF_INET;
+	dest.sin_addr.s_addr = inet_addr(UPNP_MULTICAST_ADDRESS);
+	dest.sin_port = htons(UPNP_MULTICAST_PORT);
+
+	while (!islast) {
+		msg = next_advertisement(a, &islast);
+		if (msg == NULL)
+			break;
+		if (sendto(sm->multicast_sd, wpabuf_head(msg), wpabuf_len(msg),
+			   0, (struct sockaddr *) &dest, sizeof(dest)) < 0) {
+			wpa_printf(MSG_INFO, "WPS UPnP: Advertisement sendto "
+				   "failed: %d (%s)", errno, strerror(errno));
+		}
+		wpabuf_free(msg);
+		a->state++;
+	}
 }
 
 
@@ -318,7 +349,7 @@ int advertisement_state_machine_start(struct upnp_wps_device_sm *sm)
 	struct advertisement_state_machine *a = &sm->advertisement;
 	int next_timeout_msec;
 
-	advertisement_state_machine_stop(sm);
+	advertisement_state_machine_stop(sm, 0);
 
 	/*
 	 * Start out advertising down, this automatically switches
@@ -461,7 +492,7 @@ static void msearchreply_state_machine_start(struct upnp_wps_device_sm *sm,
 	a->type = MSEARCH_REPLY;
 	a->state = 0;
 	a->sm = sm;
-	os_memcpy(&a->client, client, sizeof(client));
+	os_memcpy(&a->client, client, sizeof(*client));
 	/* Wait time depending on MX value */
 	next_timeout_msec = (1000 * mx * (os_random() & 0xFF)) >> 8;
 	next_timeout_sec = next_timeout_msec / 1000;
@@ -784,6 +815,7 @@ fail:
  */
 int add_ssdp_network(char *net_if)
 {
+#ifdef __linux__
 	int ret = -1;
 	int sock = -1;
 	struct rtentry rt;
@@ -798,11 +830,11 @@ int add_ssdp_network(char *net_if)
 		goto fail;
 
 	rt.rt_dev = net_if;
-	sin = (struct sockaddr_in *) &rt.rt_dst;
+	sin = aliasing_hide_typecast(&rt.rt_dst, struct sockaddr_in);
 	sin->sin_family = AF_INET;
 	sin->sin_port = 0;
 	sin->sin_addr.s_addr = inet_addr(SSDP_TARGET);
-	sin = (struct sockaddr_in *) &rt.rt_genmask;
+	sin = aliasing_hide_typecast(&rt.rt_genmask, struct sockaddr_in);
 	sin->sin_family = AF_INET;
 	sin->sin_port = 0;
 	sin->sin_addr.s_addr = inet_addr(SSDP_NETMASK);
@@ -826,6 +858,9 @@ fail:
 		close(sock);
 
 	return ret;
+#else /* __linux__ */
+	return 0;
+#endif /* __linux__ */
 }
 
 

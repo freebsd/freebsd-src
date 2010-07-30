@@ -290,9 +290,12 @@ ata_via_reset(device_t dev)
 
     if ((ctlr->chip->cfg2 & VIABAR) && (ch->unit > 1))
         ata_generic_reset(dev);
-    else
+    else {
 	if (ata_sata_phy_reset(dev, -1, 1))
 	    ata_generic_reset(dev);
+	else
+	    ch->devices = 0;
+    }
 }
 
 static int

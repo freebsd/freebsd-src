@@ -434,6 +434,12 @@ static int drm_load(struct drm_device *dev)
 	DRM_DEBUG("\n");
 
 	TAILQ_INIT(&dev->maplist);
+	dev->map_unrhdr = new_unrhdr(1, ((1 << DRM_MAP_HANDLE_BITS) - 1), NULL);
+	if (dev->map_unrhdr == NULL) {
+		DRM_ERROR("Couldn't allocate map number allocator\n");
+		return EINVAL;
+	}
+
 
 	drm_mem_init();
 	drm_sysctl_init(dev);
@@ -565,6 +571,7 @@ static void drm_unload(struct drm_device *dev)
 	}
 
 	delete_unrhdr(dev->drw_unrhdr);
+	delete_unrhdr(dev->map_unrhdr);
 
 	drm_mem_uninit();
 

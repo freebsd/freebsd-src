@@ -225,17 +225,30 @@ s32 e1000_get_bus_info_pcie_generic(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_get_bus_info_pcie_generic");
 
 	bus->type = e1000_bus_type_pci_express;
-	bus->speed = e1000_bus_speed_2500;
 
 	ret_val = e1000_read_pcie_cap_reg(hw,
 	                                  PCIE_LINK_STATUS,
 	                                  &pcie_link_status);
-	if (ret_val)
+	if (ret_val) {
 		bus->width = e1000_bus_width_unknown;
-	else
+		bus->speed = e1000_bus_speed_unknown;
+	} else {
+		switch (pcie_link_status & PCIE_LINK_SPEED_MASK) {
+		case PCIE_LINK_SPEED_2500:
+			bus->speed = e1000_bus_speed_2500;
+			break;
+		case PCIE_LINK_SPEED_5000:
+			bus->speed = e1000_bus_speed_5000;
+			break;
+		default:
+			bus->speed = e1000_bus_speed_unknown;
+			break;
+		}
+		
 		bus->width = (enum e1000_bus_width)((pcie_link_status &
 		                                PCIE_LINK_WIDTH_MASK) >>
 		                               PCIE_LINK_WIDTH_SHIFT);
+	}
 
 	mac->ops.set_lan_id(hw);
 

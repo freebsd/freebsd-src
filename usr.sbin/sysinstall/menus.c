@@ -1175,20 +1175,16 @@ DMenu MenuMBRType = {
     "at boot time.  If you have more than one drive and want to boot\n"
     "from the second one, the boot manager will also make it possible\n"
     "to do so (limitations in the PC BIOS usually prevent this otherwise).\n"
-    "If you will only have FreeBSD on the machine the boot manager is\n"
-    "not needed and it slows down the boot while offering you the choice\n"
-    "of which operating system to boot.  If you do not want a boot\n"
-    "manager, or wish to replace an existing one, select \"standard\".\n"
-    "If you would prefer your Master Boot Record remain untouched then\n"
-    "select \"None\".\n\n"
-    "  NOTE:  PC-DOS users will almost certainly require \"None\"!",
-    "Press F1 to read about drive setup",
+    "If you have other operating systems installed and would like a choice when\n"
+    "booting, choose \"BootMgr\". If you would prefer to keep your existing\n"
+    "boot manager, select \"None\".\n\n",
+    "",    
     "drives",
-    { { "Standard",	"Install a standard MBR (no boot manager)",
+    { { "Standard",	"Install a standard MBR (non-interactive boot manager)",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
       { "BootMgr",	"Install the FreeBSD Boot Manager",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 0 },
-      { "None",		"Leave the Master Boot Record untouched",
+      { "None",		"Do not install a boot manager",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 2 },
       { NULL } },
 };
@@ -1840,9 +1836,8 @@ DMenu MenuNTP = {
 DMenu MenuSyscons = {
     DMENU_NORMAL_TYPE,
     "System Console Configuration",
-    "The default system console driver for FreeBSD (syscons) has a\n"
-    "number of configuration options which may be set according to\n"
-    "your preference.\n\n"
+    "The system console driver for FreeBSD has a number of configuration\n"
+    "options which may be set according to your preference.\n\n"
     "When you are done setting configuration options, select Cancel.",
     "Configure your system console settings",
     NULL,
@@ -1866,9 +1861,9 @@ DMenu MenuSyscons = {
 DMenu MenuSysconsKeymap = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
-    "The default system console driver for FreeBSD (syscons) defaults\n"
-    "to a standard \"PC-98x1\" keyboard map.  Users may wish to choose\n"
-    "one of the other keymaps below.\n"
+    "The system console driver for FreeBSD defaults to a standard\n"
+    "\"PC-98x1\" keyboard map.  Users may wish to choose one of the\n"
+    "other keymaps below.\n"
     "Note that sysinstall itself only uses the part of the keyboard map\n"
     "which is required to generate the ANSI character subset, but your\n"
     "choice of keymap will also be saved for later (fuller) use.",
@@ -1882,10 +1877,10 @@ DMenu MenuSysconsKeymap = {
 DMenu MenuSysconsKeymap = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
-    "The default system console driver for FreeBSD (syscons) defaults\n"
-    "to a standard \"American\" keyboard map.  Users in other countries\n"
-    "(or with different keyboard preferences) may wish to choose one of\n"
-    "the other keymaps below.\n"
+    "The system console driver for FreeBSD defaults to a standard\n"
+    "\"American\" keyboard map.  Users in other countries (or with\n"
+    "different keyboard preferences) may wish to choose one of the\n"
+    "other keymaps below.\n"
     "Note that sysinstall itself only uses the part of the keyboard map\n"
     "which is required to generate the ANSI character subset, but your\n"
     "choice of keymap will also be saved for later (fuller) use.",
@@ -1980,26 +1975,28 @@ DMenu MenuSysconsSaver = {
     NULL,
     { { "1 Blank",	"Simply blank the screen",
 	dmenuVarCheck, configSaver, NULL, "saver=blank" },
-      { "2 Daemon",	"\"BSD Daemon\" animated screen saver (text)",
+      { "2 Beastie",	"\"BSD Daemon\" animated screen saver (graphics)",
+	dmenuVarCheck, configSaver, NULL, "saver=beastie" },
+      { "3 Daemon",	"\"BSD Daemon\" animated screen saver (text)",
 	dmenuVarCheck, configSaver, NULL, "saver=daemon" },
-      { "3 Fade",	"Fade out effect screen saver",
-	dmenuVarCheck, configSaver, NULL, "saver=fade" },
-      { "4 Fire",	"Flames effect screen saver",
-	dmenuVarCheck, configSaver, NULL, "saver=fire" },
-      { "5 Green",	"\"Green\" power saving mode (if supported by monitor)",
-	dmenuVarCheck, configSaver, NULL, "saver=green" },
-      { "6 Logo",	"\"BSD Daemon\" animated screen saver (graphics)",
-	dmenuVarCheck, configSaver, NULL, "saver=logo" },
-      { "7 Rain",	"Rain drops screen saver",
-	dmenuVarCheck, configSaver, NULL, "saver=rain" },
-      { "8 Snake",	"Draw a FreeBSD \"snake\" on your screen",
-	dmenuVarCheck, configSaver, NULL, "saver=snake" },
-      { "9 Star",	"A \"twinkling stars\" effect",
-	dmenuVarCheck, configSaver, NULL, "saver=star" },
-      { "Warp",	"A \"stars warping\" effect",
-	dmenuVarCheck, configSaver, NULL, "saver=warp" },
-      { "Dragon", "Dragon screensaver (graphics)",
+      { "4 Dragon",	"Dragon screensaver (graphics)",
 	dmenuVarCheck, configSaver, NULL, "saver=dragon" },
+      { "5 Fade",	"Fade out effect screen saver",
+	dmenuVarCheck, configSaver, NULL, "saver=fade" },
+      { "6 Fire",	"Flames effect screen saver",
+	dmenuVarCheck, configSaver, NULL, "saver=fire" },
+      { "7 Green",	"\"Green\" power saving mode (if supported by monitor)",
+	dmenuVarCheck, configSaver, NULL, "saver=green" },
+      { "8 Logo",	"FreeBSD \"logo\" animated screen saver (graphics)",
+	dmenuVarCheck, configSaver, NULL, "saver=logo" },
+      { "9 Rain",	"Rain drops screen saver",
+	dmenuVarCheck, configSaver, NULL, "saver=rain" },
+      { "a Snake",	"Draw a FreeBSD \"snake\" on your screen",
+	dmenuVarCheck, configSaver, NULL, "saver=snake" },
+      { "b Star",	"A \"twinkling stars\" effect",
+	dmenuVarCheck, configSaver, NULL, "saver=star" },
+      { "c Warp",	"A \"stars warping\" effect",
+	dmenuVarCheck, configSaver, NULL, "saver=warp" },
       { "Timeout",	"Set the screen saver timeout interval",
 	NULL, configSaverTimeout, NULL, NULL, ' ', ' ', ' ' },
       { NULL } },

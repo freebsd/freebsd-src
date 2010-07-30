@@ -34,6 +34,7 @@
 . /etc/network.subr
 
 name="network"
+start_precmd="network_prestart"
 start_cmd="network_start"
 stop_cmd="network_stop"
 cloneup_cmd="clone_up"
@@ -41,7 +42,13 @@ clonedown_cmd="clone_down"
 extra_commands="cloneup clonedown"
 cmdifn=
 
-set_rcvar_obsolete ipv6_enable ipv6_prefer
+network_prestart()
+{
+	if [ -n "$ipv6_enable" ]; then
+		warn 'The ipv6_enable option is deprecated.'
+		warn 'See rc.conf(5) for information on disabling IPv6.'
+	fi
+}
 
 network_start()
 {

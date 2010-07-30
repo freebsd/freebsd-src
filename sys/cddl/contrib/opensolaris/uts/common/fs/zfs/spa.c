@@ -62,6 +62,14 @@
 #include "zfs_prop.h"
 #include "zfs_comutil.h"
 
+/* Check hostid on import? */
+static int check_hostid = 1;
+
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.check_hostid", &check_hostid);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RW, &check_hostid, 0,
+    "Check hostid on import?");
+
 int zio_taskq_threads[ZIO_TYPES][ZIO_TASKQ_TYPES] = {
 	/*	ISSUE	INTR					*/
 	{	1,	1	},	/* ZIO_TYPE_NULL	*/
@@ -1168,7 +1176,7 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 			    ZPOOL_CONFIG_HOSTNAME, &hostname) == 0);
 
 			(void) ddi_strtoul(hw_serial, NULL, 10, &myhostid);
-			if (hostid != 0 && myhostid != 0 &&
+			if (check_hostid && hostid != 0 && myhostid != 0 &&
 			    (unsigned long)hostid != myhostid) {
 				cmn_err(CE_WARN, "pool '%s' could not be "
 				    "loaded as it was last accessed by "
@@ -1417,6 +1425,12 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 		 */
 		if (need_update)
 			spa_async_request(spa, SPA_ASYNC_CONFIG_UPDATE);
+
+		/*
+		 * Check all DTLs to see if anything needs resilvering.
+		 */
+		if (vdev_resilver_needed(rvd, NULL, NULL))
+			spa_async_request(spa, SPA_ASYNC_RESILVER);
 	}
 
 	error = 0;
@@ -2074,9 +2088,9 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	if (version >= SPA_VERSION_ZPOOL_HISTORY && history_str != NULL)
 		(void) spa_history_log(spa, history_str, LOG_CMD_POOL_CREATE);
 
-	mutex_exit(&spa_namespace_lock);
-
 	spa->spa_minref = refcount_count(&spa->spa_refcount);
+
+	mutex_exit(&spa_namespace_lock);
 
 	return (0);
 }
@@ -2470,6 +2484,7 @@ spa_tryimport(nvlist_t *tryconfig)
 	char *poolname;
 	spa_t *spa;
 	uint64_t state;
+	int error;
 
 	if (nvlist_lookup_string(tryconfig, ZPOOL_CONFIG_POOL_NAME, &poolname))
 		return (NULL);
@@ -2489,7 +2504,7 @@ spa_tryimport(nvlist_t *tryconfig)
 	 * Pass TRUE for mosconfig because the user-supplied config
 	 * is actually the one to trust when doing an import.
 	 */
-	(void) spa_load(spa, tryconfig, SPA_LOAD_TRYIMPORT, B_TRUE);
+	error = spa_load(spa, tryconfig, SPA_LOAD_TRYIMPORT, B_TRUE);
 
 	/*
 	 * If 'tryconfig' was at least parsable, return the current config.
@@ -2508,7 +2523,7 @@ spa_tryimport(nvlist_t *tryconfig)
 		 * copy it out so that external consumers can tell which
 		 * pools are bootable.
 		 */
-		if (spa->spa_bootfs) {
+		if ((!error || error == EEXIST) && spa->spa_bootfs) {
 			char *tmpname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
 
 			/*
@@ -2556,11 +2571,12 @@ spa_tryimport(nvlist_t *tryconfig)
  * The act of destroying or exporting a pool is very simple.  We make sure there
  * is no more pending I/O and any references to the pool are gone.  Then, we
  * update the pool state and sync all the labels to disk, removing the
- * configuration from the cache afterwards.
+ * configuration from the cache afterwards. If the 'hardforce' flag is set, then
+ * we don't sync the labels or remove the configuration cache.
  */
 static int
 spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
-    boolean_t force)
+    boolean_t force, boolean_t hardforce)
 {
 	spa_t *spa;
 
@@ -2628,7 +2644,7 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 		 * so mark them all dirty.  spa_unload() will do the
 		 * final sync that pushes these changes out.
 		 */
-		if (new_state != POOL_STATE_UNINITIALIZED) {
+		if (new_state != POOL_STATE_UNINITIALIZED && !hardforce) {
 			spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
 			spa->spa_state = new_state;
 			spa->spa_final_txg = spa_last_synced_txg(spa) + 1;
@@ -2648,7 +2664,8 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 		VERIFY(nvlist_dup(spa->spa_config, oldconfig, 0) == 0);
 
 	if (new_state != POOL_STATE_UNINITIALIZED) {
-		spa_config_sync(spa, B_TRUE, B_TRUE);
+		if (!hardforce)
+			spa_config_sync(spa, B_TRUE, B_TRUE);
 		spa_remove(spa);
 	}
 	mutex_exit(&spa_namespace_lock);
@@ -2662,16 +2679,19 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 int
 spa_destroy(char *pool)
 {
-	return (spa_export_common(pool, POOL_STATE_DESTROYED, NULL, B_FALSE));
+	return (spa_export_common(pool, POOL_STATE_DESTROYED, NULL,
+	    B_FALSE, B_FALSE));
 }
 
 /*
  * Export a storage pool.
  */
 int
-spa_export(char *pool, nvlist_t **oldconfig, boolean_t force)
+spa_export(char *pool, nvlist_t **oldconfig, boolean_t force,
+    boolean_t hardforce)
 {
-	return (spa_export_common(pool, POOL_STATE_EXPORTED, oldconfig, force));
+	return (spa_export_common(pool, POOL_STATE_EXPORTED, oldconfig,
+	    force, hardforce));
 }
 
 /*
@@ -2682,7 +2702,7 @@ int
 spa_reset(char *pool)
 {
 	return (spa_export_common(pool, POOL_STATE_UNINITIALIZED, NULL,
-	    B_FALSE));
+	    B_FALSE, B_FALSE));
 }
 
 /*
@@ -4062,11 +4082,7 @@ spa_sync(spa_t *spa, uint64_t txg)
 		spa->spa_config_syncing = NULL;
 	}
 
-	spa->spa_traverse_wanted = B_TRUE;
-	rw_enter(&spa->spa_traverse_lock, RW_WRITER);
-	spa->spa_traverse_wanted = B_FALSE;
 	spa->spa_ubsync = spa->spa_uberblock;
-	rw_exit(&spa->spa_traverse_lock);
 
 	/*
 	 * Clean up the ZIL records for the synced txg.

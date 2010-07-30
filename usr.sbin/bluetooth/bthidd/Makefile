@@ -8,7 +8,6 @@ SRCS=		bthidd.c client.c hid.c kbd.c lexer.l parser.y server.c \
 		session.c
 
 CFLAGS+=	-I${.CURDIR}
-WARNS?=		6
 DEBUG_FLAGS=	-g
 
 DPADD=          ${LIBBLUETOOTH} ${LIBUSBHID}

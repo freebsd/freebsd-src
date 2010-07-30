@@ -56,9 +56,14 @@ static int wpa_driver_ndis_adapter_open(struct wpa_driver_ndis_data *drv);
 static void wpa_driver_ndis_adapter_close(struct wpa_driver_ndis_data *drv);
 
 
+static const u8 pae_group_addr[ETH_ALEN] =
+{ 0x01, 0x80, 0xc2, 0x00, 0x00, 0x03 };
+
+
 /* FIX: to be removed once this can be compiled with the complete NDIS
  * header files */
 #ifndef OID_802_11_BSSID
+#define OID_802_3_MULTICAST_LIST                0x01010103
 #define OID_802_11_BSSID 			0x0d010101
 #define OID_802_11_SSID 			0x0d010102
 #define OID_802_11_INFRASTRUCTURE_MODE		0x0d010108
@@ -610,12 +615,7 @@ static int wpa_driver_ndis_get_bssid(void *priv, u8 *bssid)
 		 * Report PAE group address as the "BSSID" for wired
 		 * connection.
 		 */
-		bssid[0] = 0x01;
-		bssid[1] = 0x80;
-		bssid[2] = 0xc2;
-		bssid[3] = 0x00;
-		bssid[4] = 0x00;
-		bssid[5] = 0x03;
+		os_memcpy(bssid, pae_group_addr, ETH_ALEN);
 		return 0;
 	}
 
@@ -2704,6 +2704,19 @@ static void wpa_driver_ndis_adapter_close(struct wpa_driver_ndis_data *drv)
 }
 
 
+static int ndis_add_multicast(struct wpa_driver_ndis_data *drv)
+{
+	if (ndis_set_oid(drv, OID_802_3_MULTICAST_LIST,
+			 (const char *) pae_group_addr, ETH_ALEN) < 0) {
+		wpa_printf(MSG_DEBUG, "NDIS: Failed to add PAE group address "
+			   "to the multicast list");
+		return -1;
+	}
+
+	return 0;
+}
+
+
 static void * wpa_driver_ndis_init(void *ctx, const char *ifname)
 {
 	struct wpa_driver_ndis_data *drv;
@@ -2799,6 +2812,7 @@ static void * wpa_driver_ndis_init(void *ctx, const char *ifname)
 				   "any wireless capabilities - assume it is "
 				   "a wired interface");
 			drv->wired = 1;
+			ndis_add_multicast(drv);
 		}
 	}
 

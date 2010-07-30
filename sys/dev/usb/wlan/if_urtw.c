@@ -867,8 +867,8 @@ urtw_attach(device_t dev)
 	ifp->if_ioctl = urtw_ioctl;
 	ifp->if_start = urtw_start;
 	/* XXX URTW_TX_DATA_LIST_COUNT */
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic = ifp->if_l2com;

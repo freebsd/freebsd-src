@@ -62,8 +62,8 @@
 #include <machine/segments.h>
 #include <machine/frame.h>
 #include <dev/ic/i8259.h>
-#include <amd64/isa/icu.h>
-#include <amd64/isa/isa.h>
+#include <x86/isa/icu.h>
+#include <x86/isa/isa.h>
 #endif
 
 #define	MAX_STRAY_LOG	5
@@ -529,7 +529,7 @@ intr_shuffle_irqs(void *arg __unused)
 			 */
 			if (isrc->is_event->ie_cpu != NOCPU)
 				(void)isrc->is_pic->pic_assign_cpu(isrc,
-				    isrc->is_event->ie_cpu);
+				    cpu_apic_ids[isrc->is_event->ie_cpu]);
 			else if (isrc->is_pic->pic_assign_cpu(isrc,
 				cpu_apic_ids[current_cpu]) == 0)
 				(void)intr_next_cpu();

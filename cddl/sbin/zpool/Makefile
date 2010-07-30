@@ -7,6 +7,7 @@ PROG=	zpool
 MAN=	zpool.8
 SRCS=	zpool_main.c zpool_vdev.c zpool_iter.c zpool_util.c zfs_comutil.c
 
+WARNS?=	0
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem

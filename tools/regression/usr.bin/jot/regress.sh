@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-echo 1..57
+echo 1..60
 
 REGRESSION_START($1)
 
@@ -32,12 +32,15 @@ REGRESSION_TEST(`hddd2', `jot 30 - - -')
 REGRESSION_TEST(`dhhh2', `jot - 20 160 2')
 REGRESSION_TEST(`dhhd2', `jot - 20 160 -')
 REGRESSION_TEST(`ddhh2', `jot - - 160 2')
+REGRESSION_TEST(`rand1', `jot -r 10000 0 9 | sort -u')
+REGRESSION_TEST(`rand2', `jot -r 10000 9 0 | sort -u')
 REGRESSION_TEST(`n21', `jot 21 -1 1.00')
 REGRESSION_TEST(`ascii', `jot -c 128 0')
 REGRESSION_TEST(`xaa', `jot -w xa%c 26 a')
 REGRESSION_TEST(`yes', `jot -b yes 10')
 REGRESSION_TEST(`ed', `jot -w %ds/old/new/ 30 2 - 5')
 REGRESSION_TEST(`stutter', `jot - 9 0 -.5')
+REGRESSION_TEST(`stutter2', `jot -w %d - 9.5 0 -.5')
 REGRESSION_TEST(`block', `jot -b x 512')
 REGRESSION_TEST(`tabs', `jot -s, - 10 132 4')
 REGRESSION_TEST(`grep', `jot -s "" -b . 80')

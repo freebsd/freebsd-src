@@ -57,6 +57,10 @@ struct ucred;
 struct uio;
 struct vnode;
 struct ufs_extattr_per_mount;
+struct jblocks;
+struct inodedep;
+
+TAILQ_HEAD(inodedeplst, inodedep);
 
 /* This structure describes the UFS specific mount structure data. */
 struct ufsmount {
@@ -75,6 +79,11 @@ struct ufsmount {
 	long	um_numindirdeps;		/* outstanding indirdeps */
 	struct	workhead softdep_workitem_pending; /* softdep work queue */
 	struct	worklist *softdep_worklist_tail; /* Tail pointer for above */
+	struct	workhead softdep_journal_pending; /* journal work queue */
+	struct	worklist *softdep_journal_tail;	/* Tail pointer for above */
+	struct	jblocks *softdep_jblocks;	/* Journal block information */
+	struct	inodedeplst softdep_unlinked; /* Unlinked inodes */
+	int	softdep_on_journal;		/* Items on the journal list */
 	int	softdep_on_worklist;		/* Items on the worklist */
 	int	softdep_on_worklist_inprogress;	/* Busy items on worklist */
 	int	softdep_deps;			/* Total dependency count */
@@ -120,6 +129,7 @@ struct ufsmount {
  */
 #define	QTF_OPENING	0x01			/* Q_QUOTAON in progress */
 #define	QTF_CLOSING	0x02			/* Q_QUOTAOFF in progress */
+#define QTF_64BIT	0x04			/* 64-bit quota file */
 
 /* Convert mount ptr to ufsmount ptr. */
 #define VFSTOUFS(mp)	((struct ufsmount *)((mp)->mnt_data))

@@ -34,6 +34,9 @@ struct tls_config {
 	const char *pkcs11_module_path;
 };
 
+#define TLS_CONN_ALLOW_SIGN_RSA_MD5 BIT(0)
+#define TLS_CONN_DISABLE_TIME_CHECKS BIT(1)
+
 /**
  * struct tls_connection_params - Parameters for TLS connection
  * @ca_cert: File or reference name for CA X.509 certificate in PEM or DER
@@ -68,6 +71,7 @@ struct tls_config {
  * @cert_id: the certificate's id when using engine
  * @ca_cert_id: the CA certificate's id when using engine
  * @tls_ia: Whether to enable TLS/IA (for EAP-TTLSv1)
+ * @flags: Parameter options (TLS_CONN_*)
  *
  * TLS connection parameters to be configured with tls_connection_set_params()
  * and tls_global_set_params().
@@ -103,6 +107,8 @@ struct tls_connection_params {
 	const char *key_id;
 	const char *cert_id;
 	const char *ca_cert_id;
+
+	unsigned int flags;
 };
 
 

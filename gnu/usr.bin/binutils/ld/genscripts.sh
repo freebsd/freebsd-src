@@ -50,6 +50,7 @@ fi
 if test -d ldscripts; then
   true
 else
+  rm -f ldscripts
   mkdir ldscripts
 fi
 

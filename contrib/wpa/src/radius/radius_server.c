@@ -117,7 +117,8 @@ wpa_hexdump_ascii(MSG_MSGDUMP, "RADIUS SRV: " args)
 
 
 static void radius_server_session_timeout(void *eloop_ctx, void *timeout_ctx);
-
+static void radius_server_session_remove_timeout(void *eloop_ctx,
+						 void *timeout_ctx);
 
 
 static struct radius_client *
@@ -179,6 +180,7 @@ static void radius_server_session_free(struct radius_server_data *data,
 				       struct radius_session *sess)
 {
 	eloop_cancel_timeout(radius_server_session_timeout, data, sess);
+	eloop_cancel_timeout(radius_server_session_remove_timeout, data, sess);
 	eap_server_sm_deinit(sess->eap);
 	if (sess->last_msg) {
 		radius_msg_free(sess->last_msg);
@@ -193,9 +195,6 @@ static void radius_server_session_free(struct radius_server_data *data,
 	data->num_sess--;
 }
 
-
-static void radius_server_session_remove_timeout(void *eloop_ctx,
-						 void *timeout_ctx);
 
 static void radius_server_session_remove(struct radius_server_data *data,
 					 struct radius_session *sess)
@@ -493,6 +492,7 @@ static int radius_server_request(struct radius_server_data *data,
 	unsigned int state;
 	struct radius_session *sess;
 	struct radius_msg *reply;
+	int is_complete = 0;
 
 	if (force_sess)
 		sess = force_sess;
@@ -603,6 +603,9 @@ static int radius_server_request(struct radius_server_data *data,
 		return -1;
 	}
 
+	if (sess->eap_if->eapSuccess || sess->eap_if->eapFail)
+		is_complete = 1;
+
 	reply = radius_server_encapsulate_eap(data, client, sess, msg);
 
 	if (reply) {
@@ -644,7 +647,7 @@ static int radius_server_request(struct radius_server_data *data,
 		client->counters.packets_dropped++;
 	}
 
-	if (sess->eap_if->eapSuccess || sess->eap_if->eapFail) {
+	if (is_complete) {
 		RADIUS_DEBUG("Removing completed session 0x%x after timeout",
 			     sess->sess_id);
 		eloop_cancel_timeout(radius_server_session_remove_timeout,
@@ -663,7 +666,13 @@ static void radius_server_receive_auth(int sock, void *eloop_ctx,
 {
 	struct radius_server_data *data = eloop_ctx;
 	u8 *buf = NULL;
-	struct sockaddr_storage from;
+	union {
+		struct sockaddr_storage ss;
+		struct sockaddr_in sin;
+#ifdef CONFIG_IPV6
+		struct sockaddr_in6 sin6;
+#endif /* CONFIG_IPV6 */
+	} from;
 	socklen_t fromlen;
 	int len;
 	struct radius_client *client = NULL;
@@ -678,7 +687,7 @@ static void radius_server_receive_auth(int sock, void *eloop_ctx,
 
 	fromlen = sizeof(from);
 	len = recvfrom(sock, buf, RADIUS_MAX_MSG_LEN, 0,
-		       (struct sockaddr *) &from, &fromlen);
+		       (struct sockaddr *) &from.ss, &fromlen);
 	if (len < 0) {
 		perror("recvfrom[radius_server]");
 		goto fail;
@@ -686,28 +695,26 @@ static void radius_server_receive_auth(int sock, void *eloop_ctx,
 
 #ifdef CONFIG_IPV6
 	if (data->ipv6) {
-		struct sockaddr_in6 *from6 = (struct sockaddr_in6 *) &from;
-		if (inet_ntop(AF_INET6, &from6->sin6_addr, abuf, sizeof(abuf))
-		    == NULL)
+		if (inet_ntop(AF_INET6, &from.sin6.sin6_addr, abuf,
+			      sizeof(abuf)) == NULL)
 			abuf[0] = '\0';
-		from_port = ntohs(from6->sin6_port);
+		from_port = ntohs(from.sin6.sin6_port);
 		RADIUS_DEBUG("Received %d bytes from %s:%d",
 			     len, abuf, from_port);
 
 		client = radius_server_get_client(data,
 						  (struct in_addr *)
-						  &from6->sin6_addr, 1);
+						  &from.sin6.sin6_addr, 1);
 	}
 #endif /* CONFIG_IPV6 */
 
 	if (!data->ipv6) {
-		struct sockaddr_in *from4 = (struct sockaddr_in *) &from;
-		os_strlcpy(abuf, inet_ntoa(from4->sin_addr), sizeof(abuf));
-		from_port = ntohs(from4->sin_port);
+		os_strlcpy(abuf, inet_ntoa(from.sin.sin_addr), sizeof(abuf));
+		from_port = ntohs(from.sin.sin_port);
 		RADIUS_DEBUG("Received %d bytes from %s:%d",
 			     len, abuf, from_port);
 
-		client = radius_server_get_client(data, &from4->sin_addr, 0);
+		client = radius_server_get_client(data, &from.sin.sin_addr, 0);
 	}
 
 	RADIUS_DUMP("Received data", buf, len);
@@ -765,6 +772,22 @@ fail:
 }
 
 
+static int radius_server_disable_pmtu_discovery(int s)
+{
+	int r = -1;
+#if defined(IP_MTU_DISCOVER) && defined(IP_PMTUDISC_DONT)
+	/* Turn off Path MTU discovery on IPv4/UDP sockets. */
+	int action = IP_PMTUDISC_DONT;
+	r = setsockopt(s, IPPROTO_IP, IP_MTU_DISCOVER, &action,
+		       sizeof(action));
+	if (r == -1)
+		wpa_printf(MSG_ERROR, "Failed to set IP_MTU_DISCOVER: "
+			   "%s", strerror(errno));
+#endif
+	return r;
+}
+
+
 static int radius_server_open_socket(int port)
 {
 	int s;
@@ -775,6 +798,8 @@ static int radius_server_open_socket(int port)
 		perror("socket");
 		return -1;
 	}
+
+	radius_server_disable_pmtu_discovery(s);
 
 	os_memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;

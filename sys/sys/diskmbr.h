@@ -49,6 +49,7 @@
 #define	DOSPTYP_PMBR	0xee	/* GPT Protective MBR */
 #define	DOSPTYP_EXT	5	/* DOS extended partition */
 #define	DOSPTYP_EXTLBA	15	/* DOS extended partition */
+#define	DOSPTYP_NTFS	0x07	/* NTFS partition */
 
 struct dos_partition {
 	unsigned char	dp_flag;	/* bootstrap flags */

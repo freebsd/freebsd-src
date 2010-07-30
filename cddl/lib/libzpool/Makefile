@@ -33,6 +33,7 @@ SRCS=		${ZFS_COMMON_SRCS} ${ZFS_SHARED_SRCS} \
 		${KERNEL_SRCS} ${LIST_SRCS} ${ATOMIC_SRCS} \
 		${UNICODE_SRCS}
 
+WARNS?=		0
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris
 CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris/include
 CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem

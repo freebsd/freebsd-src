@@ -58,6 +58,13 @@ CODE {
 	{
 		return (0);
 	}
+
+	static int
+	default_resize(struct g_part_table *t __unused,
+	    struct g_part_entry *e __unused, struct g_part_parms *p __unused)
+	{
+		return (ENOSYS);
+	}
 };
 
 # add() - scheme specific processing for the add verb.
@@ -113,6 +120,13 @@ METHOD int modify {
 	struct g_part_entry *entry;
 	struct g_part_parms *gpp;
 };
+
+# resize() - scheme specific processing for the resize verb.
+METHOD int resize {
+	struct g_part_table *table;
+	struct g_part_entry *entry;
+	struct g_part_parms *gpp;
+} DEFAULT default_resize;
 
 # name() - return the name of the given partition entry.
 # Typical names are "p1", "s0" or "c".

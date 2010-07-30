@@ -5,6 +5,8 @@ PROG=	quotacheck
 SRCS=	quotacheck.c preen.c fsutil.c utilities.c
 WARNS?=	2
 MAN=	quotacheck.8
+DPADD=  ${LIBUTIL}
+LDADD=  -lutil
 
 .PATH:	${.CURDIR}/../fsck ${.CURDIR}/../fsck_ffs
 

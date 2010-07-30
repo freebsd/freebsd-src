@@ -500,15 +500,11 @@ dtnfsclient_load(void *dummy)
 static int
 dtnfsclient_unload()
 {
-	int error = 0;
 
 	dtrace_nfsclient_nfs23_start_probe = NULL;
 	dtrace_nfsclient_nfs23_done_probe = NULL;
 
-	if ((error = dtrace_unregister(dtnfsclient_id)) != 0)
-		return (error);
-
-	return (error);
+	return (dtrace_unregister(dtnfsclient_id));
 }
 
 static int

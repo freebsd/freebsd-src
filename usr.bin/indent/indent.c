@@ -675,7 +675,7 @@ check_type:
 		ps.want_blank = true;
 		break;
 	    }
-	    if (ps.in_decl) {
+	    if (ps.in_or_st) {
 		*e_code++ = ':';
 		ps.want_blank = false;
 		break;

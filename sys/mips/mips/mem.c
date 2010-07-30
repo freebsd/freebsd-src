@@ -1,13 +1,12 @@
-/*	$OpenBSD: mem.c,v 1.2 1998/08/31 17:42:34 millert Exp $ */
-/*	$NetBSD: mem.c,v 1.6 1995/04/10 11:55:03 mycroft Exp $	*/
-/*
+/*-
  * Copyright (c) 1988 University of Utah.
- * Copyright (c) 1982, 1986, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1982, 1986, 1990 The Regents of the University of California.
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
- * Science Department and Ralph Campbell.
+ * Science Department, and code derived from software contributed to
+ * Berkeley by William Jolitz.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,161 +32,138 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mem.c	8.3 (Berkeley) 1/12/94
- *	JNPR: mem.c,v 1.3 2007/08/09 11:23:32 katta Exp $
- */
-
-/*
- * Memory special file
+ *	from: Utah $Hdr: mem.c 1.13 89/10/08$
+ *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/*
+ * Memory special file
+ */
+
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/memrange.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/signalvar.h>
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <sys/user.h>
 #include <sys/msgbuf.h>
 #include <sys/systm.h>
-#include <sys/systm.h>
-#include <sys/buf.h>
+#include <sys/signalvar.h>
 #include <sys/uio.h>
-#include <sys/sched.h>
-#include <sys/malloc.h>
-#include <machine/pte.h>
-#include <machine/cpu.h>
+
 #include <machine/md_var.h>
-#include <machine/atomic.h>
+#include <machine/vmparam.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_page.h>
+
 #include <machine/memdev.h>
 
+struct mem_range_softc mem_range_softc;
 
-extern struct sysmaps sysmaps_pcpu[];
-/*ARGSUSED*/
+/* ARGSUSED */
 int
-memrw(dev, uio, flags)
-	struct cdev *dev;
-	struct uio *uio;
-	int flags;
+memrw(struct cdev *dev, struct uio *uio, int flags)
 {
-	register vm_offset_t v;
-	register int c;
-	register struct iovec *iov;
+	struct iovec *iov;
 	int error = 0;
+	vm_offset_t va, eva, off, v;
+	vm_prot_t prot;
+	struct vm_page m;
+	vm_page_t marr;
+	vm_size_t cnt;
 
-	while (uio->uio_resid > 0 && error == 0) {
+	cnt = 0;
+	error = 0;
+
+	GIANT_REQUIRED;
+
+	while (uio->uio_resid > 0 && !error) {
 		iov = uio->uio_iov;
 		if (iov->iov_len == 0) {
 			uio->uio_iov++;
 			uio->uio_iovcnt--;
 			if (uio->uio_iovcnt < 0)
-				panic("mmrw");
+				panic("memrw");
 			continue;
 		}
-
-		/* minor device 0 is physical memory */
 		if (dev2unit(dev) == CDEV_MINOR_MEM) {
 			v = uio->uio_offset;
-			c = iov->iov_len;
 
-			vm_offset_t va;
-			vm_paddr_t pa;
-			register int o;
+			off = uio->uio_offset & PAGE_MASK;
+			cnt = PAGE_SIZE - ((vm_offset_t)iov->iov_base &
+			    PAGE_MASK);
+			cnt = min(cnt, PAGE_SIZE - off);
+			cnt = min(cnt, iov->iov_len);
 
-			if (is_cacheable_mem(v) &&
-			    is_cacheable_mem(v + c - 1)) {
-				struct fpage *fp;
-				struct sysmaps *sysmaps;
-
-				sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
-				mtx_lock(&sysmaps->lock);
-				sched_pin();
-
-				fp = &sysmaps->fp[PMAP_FPAGE1];
-				pa = uio->uio_offset & ~PAGE_MASK;
-				va = pmap_map_fpage(pa, fp, FALSE);
-				o = (int)uio->uio_offset & PAGE_MASK;
-				c = (u_int)(PAGE_SIZE -
-					    ((uintptr_t)iov->iov_base & PAGE_MASK));
-				c = min(c, (u_int)(PAGE_SIZE - o));
-				c = min(c, (u_int)iov->iov_len);
-				error = uiomove((caddr_t)(va + o), (int)c, uio);
-				pmap_unmap_fpage(pa, fp);
-				sched_unpin();
-				mtx_unlock(&sysmaps->lock);
-			} else
-				return (EFAULT);
-			continue;
+			m.phys_addr = trunc_page(v);
+			marr = &m;
+			error = uiomove_fromphys(&marr, off, cnt, uio);
 		}
-
-		/* minor device 1 is kernel memory */
 		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
-			v = uio->uio_offset;
-			c = min(iov->iov_len, MAXPHYS);
+			va = uio->uio_offset;
 
-			vm_offset_t addr, eaddr;
-			vm_offset_t wired_tlb_virtmem_end;
+			va = trunc_page(uio->uio_offset);
+			eva = round_page(uio->uio_offset
+			    + iov->iov_len);
 
-			/*
-			 * Make sure that all of the pages are currently
-			 * resident so that we don't create any zero-fill pages.
+			/* 
+			 * Make sure that all the pages are currently resident
+			 * so that we don't create any zero-fill pages.
 			 */
-			addr = trunc_page(uio->uio_offset);
-			eaddr = round_page(uio->uio_offset + c);
-
-			if (addr > (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
-				wired_tlb_virtmem_end = VM_MIN_KERNEL_ADDRESS +
-				    VM_KERNEL_ALLOC_OFFSET;
-				if ((addr < wired_tlb_virtmem_end) &&
-				    (eaddr >= wired_tlb_virtmem_end))
-					addr = wired_tlb_virtmem_end;
-
-				if (addr >= wired_tlb_virtmem_end) {
-					for (; addr < eaddr; addr += PAGE_SIZE) 
-						if (pmap_extract(kernel_pmap,
-						    addr) == 0)
-							return EFAULT;
-
-					if (!kernacc(
-					    (caddr_t)(uintptr_t)uio->uio_offset, c,
-					    uio->uio_rw == UIO_READ ?
-					    VM_PROT_READ : VM_PROT_WRITE))
+			if (va >= VM_MIN_KERNEL_ADDRESS &&
+			    eva <= VM_MAX_KERNEL_ADDRESS) {
+				for (; va < eva; va += PAGE_SIZE)
+					if (pmap_extract(kernel_pmap, va) == 0)
 						return (EFAULT);
-				}
-			}
-			else if (MIPS_IS_KSEG0_ADDR(v)) {
-				if (MIPS_KSEG0_TO_PHYS(v + c) >= ctob(physmem))
+
+				prot = (uio->uio_rw == UIO_READ)
+				    ? VM_PROT_READ : VM_PROT_WRITE;
+
+				va = uio->uio_offset;
+				if (kernacc((void *) va, iov->iov_len, prot)
+				    == FALSE)
 					return (EFAULT);
 			}
-			else if (MIPS_IS_KSEG1_ADDR(v)) {
-				if (MIPS_KSEG1_TO_PHYS(v + c) >= ctob(physmem))
-					return (EFAULT);
-			}
-			else
-				return (EFAULT);
 
-
-			error = uiomove((caddr_t)v, c, uio);
+			va = uio->uio_offset;
+			error = uiomove((void *)va, iov->iov_len, uio);
 			continue;
 		}
-
 	}
+
 	return (error);
 }
 
-/*ARGSUSED*/
+/*
+ * allow user processes to MMAP some memory sections
+ * instead of going through read/write
+ */
 int
-memmmap(struct cdev *dev, vm_ooffset_t off, vm_paddr_t *paddr,
+memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int prot, vm_memattr_t *memattr)
 {
+	/*
+	 * /dev/mem is the only one that makes sense through this
+	 * interface.  For /dev/kmem any physaddr we return here
+	 * could be transient and hence incorrect or invalid at
+	 * a later time.
+	 */
+	if (dev2unit(dev) != CDEV_MINOR_MEM)
+		return (-1);
 
-	return (EOPNOTSUPP);
+	*paddr = offset;
+
+	return (0);
 }
 
 void

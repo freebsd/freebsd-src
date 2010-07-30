@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.104 2009/06/12 20:43:22 andreas Exp $ */
+/* $OpenBSD: monitor.c,v 1.106 2010/03/07 11:57:13 dtucker Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -997,17 +997,6 @@ mm_answer_pam_free_ctx(int sock, Buffer *m)
 }
 #endif
 
-static void
-mm_append_debug(Buffer *m)
-{
-	if (auth_debug_init && buffer_len(&auth_debug)) {
-		debug3("%s: Appending debug messages for child", __func__);
-		buffer_append(m, buffer_ptr(&auth_debug),
-		    buffer_len(&auth_debug));
-		buffer_clear(&auth_debug);
-	}
-}
-
 int
 mm_answer_keyallowed(int sock, Buffer *m)
 {
@@ -1089,8 +1078,6 @@ mm_answer_keyallowed(int sock, Buffer *m)
 	buffer_clear(m);
 	buffer_put_int(m, allowed);
 	buffer_put_int(m, forced_command != NULL);
-
-	mm_append_debug(m);
 
 	mm_request_send(sock, MONITOR_ANS_KEYALLOWED, m);
 
@@ -1475,8 +1462,6 @@ mm_answer_rsa_keyallowed(int sock, Buffer *m)
 	if (key != NULL)
 		key_free(key);
 
-	mm_append_debug(m);
-
 	mm_request_send(sock, MONITOR_ANS_RSAKEYALLOWED, m);
 
 	monitor_permit(mon_dispatch, MONITOR_REQ_RSACHALLENGE, allowed);
@@ -1721,7 +1706,8 @@ mm_get_kex(Buffer *m)
 	kex->flags = buffer_get_int(m);
 	kex->client_version_string = buffer_get_string(m, NULL);
 	kex->server_version_string = buffer_get_string(m, NULL);
-	kex->load_host_key=&get_hostkey_by_type;
+	kex->load_host_public_key=&get_hostkey_public_by_type;
+	kex->load_host_private_key=&get_hostkey_private_by_type;
 	kex->host_key_index=&get_hostkey_index;
 
 	return (kex);

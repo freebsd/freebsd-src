@@ -50,6 +50,7 @@ CONFIG_DRIVER_HOSTAP=y
 #CFLAGS += -I../../include/wireless
 
 # Driver interface for madwifi driver
+# Deprecated; use CONFIG_DRIVER_WEXT=y instead.
 #CONFIG_DRIVER_MADWIFI=y
 # Set include directory to the madwifi source tree
 #CFLAGS += -I../../madwifi
@@ -60,6 +61,7 @@ CONFIG_DRIVER_HOSTAP=y
 #CONFIG_DRIVER_PRISM54=y
 
 # Driver interface for ndiswrapper
+# Deprecated; use CONFIG_DRIVER_WEXT=y instead.
 #CONFIG_DRIVER_NDISWRAPPER=y
 
 # Driver interface for Atmel driver
@@ -74,6 +76,7 @@ CONFIG_DRIVER_ATMEL=y
 #CFLAGS += -I/opt/WRT54GS/release/src/include
 
 # Driver interface for Intel ipw2100/2200 driver
+# Deprecated; use CONFIG_DRIVER_WEXT=y instead.
 #CONFIG_DRIVER_IPW=y
 
 # Driver interface for Ralink driver

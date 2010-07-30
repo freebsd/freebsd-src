@@ -412,7 +412,7 @@ AcpiHwGetBitRegisterInfo (
 
     if (RegisterId > ACPI_BITREG_MAX)
     {
-        ACPI_ERROR ((AE_INFO, "Invalid BitRegister ID: %X", RegisterId));
+        ACPI_ERROR ((AE_INFO, "Invalid BitRegister ID: 0x%X", RegisterId));
         return (NULL);
     }
 
@@ -539,7 +539,7 @@ AcpiHwRegisterRead (
 
 
     default:
-        ACPI_ERROR ((AE_INFO, "Unknown Register ID: %X",
+        ACPI_ERROR ((AE_INFO, "Unknown Register ID: 0x%X",
             RegisterId));
         Status = AE_BAD_PARAMETER;
         break;
@@ -682,7 +682,7 @@ AcpiHwRegisterWrite (
 
 
     default:
-        ACPI_ERROR ((AE_INFO, "Unknown Register ID: %X",
+        ACPI_ERROR ((AE_INFO, "Unknown Register ID: 0x%X",
             RegisterId));
         Status = AE_BAD_PARAMETER;
         break;

@@ -120,6 +120,40 @@ static int	obio_setup_intr(device_t, device_t, struct resource *, int,
 static int	obio_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
 
+static void 
+obio_mask_irq(void *arg)
+{
+  /* XXX need to write */
+#if 0
+	unsigned int irq = (unsigned int)arg;
+	int ip_bit, mask, mask_register;
+
+	/* mask IRQ */
+	mask_register = ICU_IRQ_MASK_REG(irq);
+	ip_bit = ICU_IP_BIT(irq);
+
+	mask = ICU_REG_READ(mask_register);
+	ICU_REG_WRITE(mask_register, mask | ip_bit);
+#endif
+}
+
+static void 
+obio_unmask_irq(void *arg)
+{
+  /* XXX need to write */
+#if 0
+	unsigned int irq = (unsigned int)arg;
+	int ip_bit, mask, mask_register;
+
+	/* unmask IRQ */
+	mask_register = ICU_IRQ_MASK_REG(irq);
+	ip_bit = ICU_IP_BIT(irq);
+
+	mask = ICU_REG_READ(mask_register);
+	ICU_REG_WRITE(mask_register, mask & ~ip_bit);
+#endif
+}
+
 static int
 obio_probe(device_t dev)
 {
@@ -320,9 +354,10 @@ obio_setup_intr(device_t dev, device_t child, struct resource *ires,
 
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0, irq,
-		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
-		    NULL, NULL, "obio intr%d:", irq);
+		error = intr_event_create(&event, (void *)irq, 0, irq, 
+		    obio_mask_irq, obio_unmask_irq,
+		    NULL, NULL,
+		    "obio intr%d:", irq);
 
 		sc->sc_eventstab[irq] = event;
 	}

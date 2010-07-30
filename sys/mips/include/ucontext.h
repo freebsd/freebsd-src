@@ -58,10 +58,12 @@ typedef struct	__mcontext {
 } mcontext_t;
 #endif
 
-#if defined(__mips_n64) || defined(__mips_n32)
-#define	SZREG		8
+#ifndef SZREG
+#if defined(__mips_o32)
+#define	SZREG	4
 #else
-#define	SZREG		4
+#define	SZREG	8
+#endif
 #endif
 
 /* offsets into mcontext_t */

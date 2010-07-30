@@ -40,13 +40,14 @@
 int
 getpw(uid_t uid, char *buf)
 {
-  struct passwd *pw;
+	struct passwd *pw;
 
-  pw = getpwuid(uid);
-  endpwent();
+	pw = getpwuid(uid);
+	endpwent();
 
-  if(pw == 0) return -1;
+	if (pw == 0)
+		return (-1);
 
-  strncpy(buf, pw->pw_name, L_cuserid);
-  return 0;
+	strncpy(buf, pw->pw_name, L_cuserid);
+	return (0);
 }

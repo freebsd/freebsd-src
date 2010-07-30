@@ -174,6 +174,7 @@ typedef struct znode_phys {
 typedef struct zfs_dirlock {
 	char		*dl_name;	/* directory entry being locked */
 	uint32_t	dl_sharecnt;	/* 0 if exclusive, > 0 if shared */
+	uint8_t		dl_namelock;	/* 1 if z_name_lock is NOT held */
 	uint16_t	dl_namesize;	/* set if dl_name was allocated */
 	kcondvar_t	dl_cv;		/* wait for entry to be unlocked */
 	struct znode	*dl_dzp;	/* directory znode */

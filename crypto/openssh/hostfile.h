@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.h,v 1.16 2006/03/25 22:22:43 djm Exp $ */
+/* $OpenBSD: hostfile.h,v 1.18 2010/03/04 10:36:03 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -15,7 +15,7 @@
 #define HOSTFILE_H
 
 typedef enum {
-	HOST_OK, HOST_NEW, HOST_CHANGED, HOST_FOUND
+	HOST_OK, HOST_NEW, HOST_CHANGED, HOST_REVOKED, HOST_FOUND
 }       HostStatus;
 
 int	 hostfile_read_key(char **, u_int *, Key *);
@@ -27,6 +27,9 @@ int	lookup_key_in_hostfile_by_type(const char *, const char *,
 
 #define HASH_MAGIC	"|1|"
 #define HASH_DELIM	'|'
+
+#define CA_MARKER	"@cert-authority"
+#define REVOKE_MARKER	"@revoked"
 
 char	*host_hash(const char *, const char *, u_int);
 

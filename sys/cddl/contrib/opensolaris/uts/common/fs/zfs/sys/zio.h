@@ -316,6 +316,11 @@ struct zio {
 
 	/* FMA state */
 	uint64_t	io_ena;
+
+#ifdef _KERNEL
+	/* FreeBSD only. */
+	struct ostask	io_task;
+#endif
 };
 
 extern zio_t *zio_null(zio_t *pio, spa_t *spa,

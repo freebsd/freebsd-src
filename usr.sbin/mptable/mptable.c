@@ -147,7 +147,7 @@ tableEntry basetableEntryTypes[] =
 tableEntry extendedtableEntryTypes[] =
 {
     { 128, 20, "System Address Space" },
-    { 129,  8, "Bus Heirarchy" },
+    { 129,  8, "Bus Hierarchy" },
     { 130,  8, "Compatibility Bus Address" }
 };
 

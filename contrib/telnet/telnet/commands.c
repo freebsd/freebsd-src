@@ -2491,8 +2491,7 @@ tn(int argc, char *argv[])
 	env_export("USER");
     }
     (void) call(status, "status", "notmuch", 0);
-    if (setjmp(peerdied) == 0)
-	telnet(user);
+    telnet(user); 
     (void) NetClose(net);
     ExitString("Connection closed by foreign host.\n",1);
     /*NOTREACHED*/

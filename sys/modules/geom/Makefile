@@ -19,6 +19,7 @@ SUBDIR=	geom_bde \
 	geom_part \
 	geom_pc98 \
 	geom_raid3 \
+	geom_sched \
 	geom_shsec \
 	geom_stripe \
 	geom_sunlabel \

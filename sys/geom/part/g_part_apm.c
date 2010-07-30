@@ -74,6 +74,8 @@ static int g_part_apm_read(struct g_part_table *, struct g_consumer *);
 static const char *g_part_apm_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_apm_write(struct g_part_table *, struct g_consumer *);
+static int g_part_apm_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_apm_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_apm_add),
@@ -82,6 +84,7 @@ static kobj_method_t g_part_apm_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_apm_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_apm_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_apm_modify),
+	KOBJMETHOD(g_part_resize,	g_part_apm_resize),
 	KOBJMETHOD(g_part_name,		g_part_apm_name),
 	KOBJMETHOD(g_part_probe,	g_part_apm_probe),
 	KOBJMETHOD(g_part_read,		g_part_apm_read),
@@ -126,6 +129,26 @@ apm_parse_type(const char *type, char *buf, size_t bufsz)
 		    !strcmp(type, APM_ENT_TYPE_UNUSED))
 			return (EINVAL);
 		strncpy(buf, type, bufsz);
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_APPLE_BOOT);
+	if (!strcasecmp(type, alias)) {
+		strcpy(buf, APM_ENT_TYPE_APPLE_BOOT);
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_APPLE_HFS);
+	if (!strcasecmp(type, alias)) {
+		strcpy(buf, APM_ENT_TYPE_APPLE_HFS);
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_APPLE_UFS);
+	if (!strcasecmp(type, alias)) {
+		strcpy(buf, APM_ENT_TYPE_APPLE_UFS);
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_BOOT);
+	if (!strcasecmp(type, alias)) {
+		strcpy(buf, APM_ENT_TYPE_APPLE_BOOT);
 		return (0);
 	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
@@ -318,6 +341,19 @@ g_part_apm_modify(struct g_part_table *basetable,
 	return (0);
 }
 
+static int
+g_part_apm_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_part_apm_entry *entry;
+
+	entry = (struct g_part_apm_entry *)baseentry;
+	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
+	entry->ent.ent_size = gpp->gpp_size;
+
+	return (0);
+}
+
 static const char *
 g_part_apm_name(struct g_part_table *table, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
@@ -429,6 +465,12 @@ g_part_apm_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	entry = (struct g_part_apm_entry *)baseentry;
 	type = entry->ent.ent_type;
+	if (!strcmp(type, APM_ENT_TYPE_APPLE_BOOT))
+		return (g_part_alias_name(G_PART_ALIAS_APPLE_BOOT));
+	if (!strcmp(type, APM_ENT_TYPE_APPLE_HFS))
+		return (g_part_alias_name(G_PART_ALIAS_APPLE_HFS));
+	if (!strcmp(type, APM_ENT_TYPE_APPLE_UFS))
+		return (g_part_alias_name(G_PART_ALIAS_APPLE_UFS));
 	if (!strcmp(type, APM_ENT_TYPE_FREEBSD))
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
 	if (!strcmp(type, APM_ENT_TYPE_FREEBSD_SWAP))

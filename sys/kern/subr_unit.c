@@ -153,6 +153,7 @@ mtx_assert(struct mtx *mp, int flag)
 }
 
 #define CTASSERT(foo)
+#define WITNESS_WARN(flags, lock, fmt, ...)	(void)0
 
 #endif /* USERLAND */
 
@@ -317,7 +318,7 @@ clean_unrhdr(struct unrhdr *uh)
 /*
  * Allocate a new unrheader set.
  *
- * Highest and lowest valid values given as paramters.
+ * Highest and lowest valid values given as parameters.
  */
 
 struct unrhdr *
@@ -325,8 +326,8 @@ new_unrhdr(int low, int high, struct mtx *mutex)
 {
 	struct unrhdr *uh;
 
-	KASSERT(low <= high,
-	    ("UNR: use error: new_unrhdr(%u, %u)", low, high));
+	KASSERT(low >= 0 && low <= high,
+	    ("UNR: use error: new_unrhdr(%d, %d)", low, high));
 	uh = Malloc(sizeof *uh);
 	if (mutex != NULL)
 		uh->mtx = mutex;
@@ -627,6 +628,132 @@ alloc_unr(struct unrhdr *uh)
 	return (i);
 }
 
+static int
+alloc_unr_specificl(struct unrhdr *uh, u_int item, void **p1, void **p2)
+{
+	struct unr *up, *upn;
+	struct unrb *ub;
+	u_int i, last, tl;
+
+	mtx_assert(uh->mtx, MA_OWNED);
+
+	if (item < uh->low + uh->first || item > uh->high)
+		return (-1);
+
+	up = TAILQ_FIRST(&uh->head);
+	/* Ideal split. */
+	if (up == NULL && item - uh->low == uh->first) {
+		uh->first++;
+		uh->last--;
+		uh->busy++;
+		check_unrhdr(uh, __LINE__);
+		return (item);
+	}
+
+	i = item - uh->low - uh->first;
+
+	if (up == NULL) {
+		up = new_unr(uh, p1, p2);
+		up->ptr = NULL;
+		up->len = i;
+		TAILQ_INSERT_TAIL(&uh->head, up, list);
+		up = new_unr(uh, p1, p2);
+		up->ptr = uh;
+		up->len = 1;
+		TAILQ_INSERT_TAIL(&uh->head, up, list);
+		uh->last = uh->high - uh->low - i;
+		uh->busy++;
+		check_unrhdr(uh, __LINE__);
+		return (item);
+	} else {
+		/* Find the item which contains the unit we want to allocate. */
+		TAILQ_FOREACH(up, &uh->head, list) {
+			if (up->len > i)
+				break;
+			i -= up->len;
+		}
+	}
+
+	if (up == NULL) {
+		if (i > 0) {
+			up = new_unr(uh, p1, p2);
+			up->ptr = NULL;
+			up->len = i;
+			TAILQ_INSERT_TAIL(&uh->head, up, list);
+		}
+		up = new_unr(uh, p1, p2);
+		up->ptr = uh;
+		up->len = 1;
+		TAILQ_INSERT_TAIL(&uh->head, up, list);
+		goto done;
+	}
+
+	if (is_bitmap(uh, up)) {
+		ub = up->ptr;
+		if (bit_test(ub->map, i) == 0) {
+			bit_set(ub->map, i);
+			ub->busy++;
+			goto done;
+		} else
+			return (-1);
+	} else if (up->ptr == uh)
+		return (-1);
+
+	KASSERT(up->ptr == NULL,
+	    ("alloc_unr_specificl: up->ptr != NULL (up=%p)", up));
+
+	/* Split off the tail end, if any. */
+	tl = up->len - (1 + i);
+	if (tl > 0) {
+		upn = new_unr(uh, p1, p2);
+		upn->ptr = NULL;
+		upn->len = tl;
+		TAILQ_INSERT_AFTER(&uh->head, up, upn, list);
+	}
+
+	/* Split off head end, if any */
+	if (i > 0) {
+		upn = new_unr(uh, p1, p2);
+		upn->len = i;
+		upn->ptr = NULL;
+		TAILQ_INSERT_BEFORE(up, upn, list);
+	}
+	up->len = 1;
+	up->ptr = uh;
+
+done:
+	last = uh->high - uh->low - (item - uh->low);
+	if (uh->last > last)
+		uh->last = last;
+	uh->busy++;
+	collapse_unr(uh, up);
+	check_unrhdr(uh, __LINE__);
+	return (item);
+}
+
+int
+alloc_unr_specific(struct unrhdr *uh, u_int item)
+{
+	void *p1, *p2;
+	int i;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "alloc_unr_specific");
+
+	p1 = Malloc(sizeof(struct unr));
+	p2 = Malloc(sizeof(struct unr));
+
+	mtx_lock(uh->mtx);
+	i = alloc_unr_specificl(uh, item, &p1, &p2);
+	mtx_unlock(uh->mtx);
+
+	if (p1 != NULL)
+		Free(p1);
+	if (p2 != NULL)
+		Free(p2);
+
+	return (i);
+}
+
 /*
  * Free a unr.
  *
@@ -809,6 +936,42 @@ print_unrhdr(struct unrhdr *uh)
 	}
 }
 
+static void
+test_alloc_unr(struct unrhdr *uh, u_int i, char a[])
+{
+	int j;
+
+	if (a[i]) {
+		printf("F %u\n", i);
+		free_unr(uh, i);
+		a[i] = 0;
+	} else {
+		no_alloc = 1;
+		j = alloc_unr(uh);
+		if (j != -1) {
+			a[j] = 1;
+			printf("A %d\n", j);
+		}
+		no_alloc = 0;
+	}
+}
+
+static void
+test_alloc_unr_specific(struct unrhdr *uh, u_int i, char a[])
+{
+	int j;
+
+	j = alloc_unr_specific(uh, i);
+	if (j == -1) {
+		printf("F %u\n", i);
+		a[i] = 0;
+		free_unr(uh, i);
+	} else {
+		a[i] = 1;
+		printf("A %d\n", j);
+	}
+}
+
 /* Number of unrs to test */
 #define NN	10000
 
@@ -824,10 +987,11 @@ main(int argc __unused, const char **argv __unused)
 	print_unrhdr(uh);
 
 	memset(a, 0, sizeof a);
+	srandomdev();
 
-	fprintf(stderr, "sizeof(struct unr) %d\n", sizeof (struct unr));
-	fprintf(stderr, "sizeof(struct unrb) %d\n", sizeof (struct unrb));
-	fprintf(stderr, "sizeof(struct unrhdr) %d\n", sizeof (struct unrhdr));
+	fprintf(stderr, "sizeof(struct unr) %zu\n", sizeof(struct unr));
+	fprintf(stderr, "sizeof(struct unrb) %zu\n", sizeof(struct unrb));
+	fprintf(stderr, "sizeof(struct unrhdr) %zu\n", sizeof(struct unrhdr));
 	fprintf(stderr, "NBITS %d\n", NBITS);
 	x = 1;
 	for (m = 0; m < NN * 100; m++) {
@@ -837,19 +1001,11 @@ main(int argc __unused, const char **argv __unused)
 		if (a[i] && (j & 1))
 			continue;
 #endif
-		if (a[i]) {
-			printf("F %u\n", i);
-			free_unr(uh, i);
-			a[i] = 0;
-		} else {
-			no_alloc = 1;
-			i = alloc_unr(uh);
-			if (i != -1) {
-				a[i] = 1;
-				printf("A %u\n", i);
-			}
-			no_alloc = 0;
-		}
+		if ((random() & 1) != 0)
+			test_alloc_unr(uh, i, a);
+		else
+			test_alloc_unr_specific(uh, i, a);
+
 		if (1)	/* XXX: change this for detailed debug printout */
 			print_unrhdr(uh);
 		check_unrhdr(uh, __LINE__);

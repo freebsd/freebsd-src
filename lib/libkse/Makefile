@@ -10,23 +10,15 @@
 
 .include <bsd.own.mk>
 
-.if ${DEFAULT_THREAD_LIB} == "libkse" || ${MK_LIBTHR} == "no"
-LIB=kse
-.if ${SHLIBDIR} == "/usr/lib"
-SHLIBDIR= /lib
-.endif
-.else
 SHLIB=kse
-.endif
-
 SHLIB_MAJOR= 4
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
-CFLAGS+=-I${.CURDIR}/arch/${MACHINE_ARCH}/include
+CFLAGS+=-I${.CURDIR}/arch/${MACHINE_CPUARCH}/include
 CFLAGS+=-I${.CURDIR}/sys
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
-CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
+CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_CPUARCH}
 CFLAGS+=-fno-builtin
 
 # Uncomment this if you want libkse to contain debug information for
@@ -46,21 +38,11 @@ SYMBOL_MAPS=${.CURDIR}/kse.map
 
 PRECIOUSLIB=
 
-.include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
+.path: ${.CURDIR}/arch/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}
+
+.include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
 .include "${.CURDIR}/support/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
-
-.if ${DEFAULT_THREAD_LIB} == "libkse" || ${MK_LIBTHR} == "no"
-.if ${MK_INSTALLLIB} != "no"
-SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
-.endif
-.if !defined(NO_PIC)
-SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
-.endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
-.endif
-.endif
 
 .include <bsd.lib.mk>

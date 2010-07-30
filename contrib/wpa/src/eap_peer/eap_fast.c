@@ -918,10 +918,7 @@ static int eap_fast_parse_pac_info(struct eap_fast_pac *entry, int type,
 		entry->a_id_info_len = len;
 		break;
 	case PAC_TYPE_PAC_TYPE:
-		/*
-		 * draft-cam-winget-eap-fast-provisioning-04.txt,
-		 * Section 4.2.6 - PAC-Type TLV
-		 */
+		/* RFC 5422, Section 4.2.6 - PAC-Type TLV */
 		if (len != 2) {
 			wpa_printf(MSG_INFO, "EAP-FAST: Invalid PAC-Type "
 				   "length %lu (expected 2)",
@@ -961,7 +958,7 @@ static int eap_fast_process_pac_info(struct eap_fast_pac *entry)
 	size_t left, len;
 	int type;
 
-	/* draft-cam-winget-eap-fast-provisioning-04.txt, Section 4.2.4 */
+	/* RFC 5422, Section 4.2.4 */
 
 	/* PAC-Type defaults to Tunnel PAC (Type 1) */
 	entry->pac_type = PAC_TYPE_TUNNEL_PAC;

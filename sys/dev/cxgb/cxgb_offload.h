@@ -33,8 +33,6 @@ $FreeBSD$
 #ifndef _CXGB_OFFLOAD_H
 #define _CXGB_OFFLOAD_H
 
-#include <common/cxgb_version.h>
-#include <cxgb_config.h>
 #include <common/cxgb_tcb.h>
 #include <t3cdev.h>
 

@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -128,7 +129,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_ATPIC
-#include <amd64/isa/icu.h>
+#include <x86/isa/icu.h>
 #else
 #include <machine/apicvar.h>
 #endif
@@ -285,7 +286,6 @@ cpu_startup(dummy)
 	vm_pager_bufferinit();
 
 	cpu_setregs();
-	mca_init();
 }
 
 /*
@@ -424,13 +424,14 @@ sigreturn(td, uap)
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0) {
-		printf("sigreturn (pid %d): copyin failed\n", p->p_pid);
+		uprintf("pid %d (%s): sigreturn copyin failed\n",
+		    p->p_pid, td->td_name);
 		return (error);
 	}
 	ucp = &uc;
 	if ((ucp->uc_mcontext.mc_flags & ~_MC_FLAG_MASK) != 0) {
-		printf("sigreturn (pid %d): mc_flags %x\n", p->p_pid,
-		    ucp->uc_mcontext.mc_flags);
+		uprintf("pid %d (%s): sigreturn mc_flags %x\n", p->p_pid,
+		    td->td_name, ucp->uc_mcontext.mc_flags);
 		return (EINVAL);
 	}
 	regs = td->td_frame;
@@ -449,8 +450,8 @@ sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(rflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("sigreturn (pid %d): rflags = 0x%lx\n", p->p_pid,
-		    rflags);
+		uprintf("pid %d (%s): sigreturn rflags = 0x%lx\n", p->p_pid,
+		    td->td_name, rflags);
 		return (EINVAL);
 	}
 
@@ -461,7 +462,8 @@ sigreturn(td, uap)
 	 */
 	cs = ucp->uc_mcontext.mc_cs;
 	if (!CS_SECURE(cs)) {
-		printf("sigreturn (pid %d): cs = 0x%x\n", p->p_pid, cs);
+		uprintf("pid %d (%s): sigreturn cs = 0x%x\n", p->p_pid,
+		    td->td_name, cs);
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGBUS;
 		ksi.ksi_code = BUS_OBJERR;
@@ -473,7 +475,8 @@ sigreturn(td, uap)
 
 	ret = set_fpcontext(td, &ucp->uc_mcontext);
 	if (ret != 0) {
-		printf("sigreturn (pid %d): set_fpcontext\n", p->p_pid);
+		uprintf("pid %d (%s): sigreturn set_fpcontext err %d\n",
+		    p->p_pid, td->td_name, ret);
 		return (ret);
 	}
 	bcopy(&ucp->uc_mcontext.mc_rdi, regs, sizeof(*regs));
@@ -841,11 +844,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
  * Reset registers to default values on exec.
  */
 void
-exec_setregs(td, entry, stack, ps_strings)
-	struct thread *td;
-	u_long entry;
-	u_long stack;
-	u_long ps_strings;
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
@@ -863,7 +862,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_full_iret = 1;
 
 	bzero((char *)regs, sizeof(struct trapframe));
-	regs->tf_rip = entry;
+	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = ((stack - 8) & ~0xFul) + 8;
 	regs->tf_rdi = stack;		/* argv */
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
@@ -1962,7 +1961,7 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	fill_fpregs_xmm(&td->td_pcb->pcb_save, fpregs);
+	fill_fpregs_xmm(&td->td_pcb->pcb_user_save, fpregs);
 	return (0);
 }
 
@@ -1971,7 +1970,7 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_save);
+	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_user_save);
 	return (0);
 }
 
@@ -2086,7 +2085,8 @@ static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
 
-	mcp->mc_ownedfp = fpugetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+	mcp->mc_ownedfp = fpugetuserregs(td,
+	    (struct savefpu *)&mcp->mc_fpstate);
 	mcp->mc_fpformat = fpuformat();
 }
 
@@ -2104,14 +2104,9 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		/*
-		 * XXX we violate the dubious requirement that fpusetregs()
-		 * be called with interrupts disabled.
-		 * XXX obsolete on trap-16 systems?
-		 */
 		fpstate = (struct savefpu *)&mcp->mc_fpstate;
 		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
-		fpusetregs(td, fpstate);
+		fpusetuserregs(td, fpstate);
 	} else
 		return (EINVAL);
 	return (0);
@@ -2120,23 +2115,24 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 void
 fpstate_drop(struct thread *td)
 {
-	register_t s;
 
-	s = intr_disable();
+	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
+	critical_enter();
 	if (PCPU_GET(fpcurthread) == td)
 		fpudrop();
 	/*
 	 * XXX force a full drop of the fpu.  The above only drops it if we
 	 * owned it.
 	 *
-	 * XXX I don't much like fpugetregs()'s semantics of doing a full
+	 * XXX I don't much like fpugetuserregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
 	 * We only need to drop to !PCB_INITDONE in sendsig().  But
-	 * sendsig() is the only caller of fpugetregs()... perhaps we just
+	 * sendsig() is the only caller of fpugetuserregs()... perhaps we just
 	 * have too many layers.
 	 */
-	curthread->td_pcb->pcb_flags &= ~PCB_FPUINITDONE;
-	intr_restore(s);
+	curthread->td_pcb->pcb_flags &= ~(PCB_FPUINITDONE |
+	    PCB_USERFPUINITDONE);
+	critical_exit();
 }
 
 int

@@ -194,6 +194,7 @@ __FBSDID("$FreeBSD$");
 
 #include "un-namespace.h"
 
+#define	RB_COMPACT
 #include "rb.h"
 #if (defined(MALLOC_TCACHE) && defined(MALLOC_STATS))
 #include "qr.h"
@@ -215,10 +216,12 @@ __FBSDID("$FreeBSD$");
 #  define LG_QUANTUM		4
 #  define LG_SIZEOF_PTR		2
 #  define CPU_SPINWAIT		__asm__ volatile("pause")
+#  define TLS_MODEL		__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __ia64__
 #  define LG_QUANTUM		4
 #  define LG_SIZEOF_PTR		3
+#  define TLS_MODEL		/* default */
 #endif
 #ifdef __alpha__
 #  define LG_QUANTUM		4
@@ -234,6 +237,7 @@ __FBSDID("$FreeBSD$");
 #  define LG_QUANTUM		4
 #  define LG_SIZEOF_PTR		3
 #  define CPU_SPINWAIT		__asm__ volatile("pause")
+#  define TLS_MODEL		__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __arm__
 #  define LG_QUANTUM		3
@@ -245,8 +249,14 @@ __FBSDID("$FreeBSD$");
 #  define LG_SIZEOF_PTR		2
 #  define NO_TLS
 #endif
-#ifdef __powerpc__
+#ifdef __powerpc64__
 #  define LG_QUANTUM		4
+#  define LG_SIZEOF_PTR		3
+#  define TLS_MODEL		/* default */
+#elif defined(__powerpc__)
+#  define LG_QUANTUM		4
+#  define LG_SIZEOF_PTR		2
+#  define TLS_MODEL		/* default */
 #endif
 #ifdef __s390x__
 #  define LG_QUANTUM		4
@@ -1090,14 +1100,12 @@ static pthread_mutex_t	arenas_lock; /* Protects arenas initialization. */
  * Map of _pthread_self() --> arenas[???], used for selecting an arena to use
  * for allocations.
  */
-static __thread arena_t		*arenas_map
-    __attribute__((tls_model("initial-exec")));
+static __thread arena_t		*arenas_map TLS_MODEL;
 #endif
 
 #ifdef MALLOC_TCACHE
 /* Map of thread-specific caches. */
-static __thread tcache_t	*tcache_tls
-    __attribute__((tls_model("initial-exec")));
+static __thread tcache_t	*tcache_tls TLS_MODEL;
 
 /*
  * Number of cache slots for each bin in the thread cache, or 0 if tcache is
@@ -1115,15 +1123,12 @@ unsigned			tcache_gc_incr;
  * since the state of mmap_unaligned only affects performance, rather than
  * correct function.
  */
-static
 #ifndef NO_TLS
-       __thread
+static __thread bool	mmap_unaligned TLS_MODEL;
+#else
+static		bool	mmap_unaligned;
 #endif
-       bool	mmap_unaligned
-#ifndef NO_TLS
-       __attribute__((tls_model("initial-exec")))
-#endif
-       ;
+
 #ifdef MALLOC_STATS
 static malloc_mutex_t	chunks_mtx;
 /* Chunk statistics. */
@@ -1747,7 +1752,7 @@ extent_szad_comp(extent_node_t *a, extent_node_t *b)
 }
 
 /* Wrap red-black tree macros in functions. */
-rb_wrap(__unused static, extent_tree_szad_, extent_tree_t, extent_node_t,
+rb_gen(__unused static, extent_tree_szad_, extent_tree_t, extent_node_t,
     link_szad, extent_szad_comp)
 #endif
 
@@ -1761,7 +1766,7 @@ extent_ad_comp(extent_node_t *a, extent_node_t *b)
 }
 
 /* Wrap red-black tree macros in functions. */
-rb_wrap(__unused static, extent_tree_ad_, extent_tree_t, extent_node_t, link_ad,
+rb_gen(__unused static, extent_tree_ad_, extent_tree_t, extent_node_t, link_ad,
     extent_ad_comp)
 
 /*
@@ -2347,7 +2352,7 @@ arena_chunk_comp(arena_chunk_t *a, arena_chunk_t *b)
 }
 
 /* Wrap red-black tree macros in functions. */
-rb_wrap(__unused static, arena_chunk_tree_dirty_, arena_chunk_tree_t,
+rb_gen(__unused static, arena_chunk_tree_dirty_, arena_chunk_tree_t,
     arena_chunk_t, link_dirty, arena_chunk_comp)
 
 static inline int
@@ -2363,7 +2368,7 @@ arena_run_comp(arena_chunk_map_t *a, arena_chunk_map_t *b)
 }
 
 /* Wrap red-black tree macros in functions. */
-rb_wrap(__unused static, arena_run_tree_, arena_run_tree_t, arena_chunk_map_t,
+rb_gen(__unused static, arena_run_tree_, arena_run_tree_t, arena_chunk_map_t,
     link, arena_run_comp)
 
 static inline int
@@ -2395,7 +2400,7 @@ arena_avail_comp(arena_chunk_map_t *a, arena_chunk_map_t *b)
 }
 
 /* Wrap red-black tree macros in functions. */
-rb_wrap(__unused static, arena_avail_tree_, arena_avail_tree_t,
+rb_gen(__unused static, arena_avail_tree_, arena_avail_tree_t,
     arena_chunk_map_t, link, arena_avail_comp)
 
 static inline void
@@ -2825,6 +2830,18 @@ arena_run_alloc(arena_t *arena, size_t size, bool large, bool zero)
 	return (run);
 }
 
+#ifdef MALLOC_DEBUG
+static arena_chunk_t *
+chunks_dirty_iter_cb(arena_chunk_tree_t *tree, arena_chunk_t *chunk, void *arg)
+{
+	size_t *ndirty = (size_t *)arg;
+
+	assert(chunk->dirtied);
+	*ndirty += chunk->ndirty;
+	return (NULL);
+}
+#endif
+
 static void
 arena_purge(arena_t *arena)
 {
@@ -2833,11 +2850,8 @@ arena_purge(arena_t *arena)
 #ifdef MALLOC_DEBUG
 	size_t ndirty = 0;
 
-	rb_foreach_begin(arena_chunk_t, link_dirty, &arena->chunks_dirty,
-	    chunk) {
-		assert(chunk->dirtied);
-		ndirty += chunk->ndirty;
-	} rb_foreach_end(arena_chunk_t, link_dirty, &arena->chunks_dirty, chunk)
+	arena_chunk_tree_dirty_iter(&arena->chunks_dirty, NULL,
+	    chunks_dirty_iter_cb, (void *)&ndirty);
 	assert(ndirty == arena->ndirty);
 #endif
 	assert((arena->nactive >> opt_lg_dirty_mult) < arena->ndirty);

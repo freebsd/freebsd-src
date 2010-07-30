@@ -1,8 +1,8 @@
 <!--
- - Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  - 
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.dnssec-keyfromlabel.html,v 1.31.14.7 2009/06/03 01:54:41 tbox Exp $ -->
+<!-- $Id: man.dnssec-keyfromlabel.html,v 1.31.14.17.2.1 2010/02/25 12:16:49 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -50,7 +50,7 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-keyfromlabel</code>  {-a <em class="replaceable"><code>algorithm</code></em>} {-l <em class="replaceable"><code>label</code></em>} [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-f <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-k</code>] [<code class="option">-n <em class="replaceable"><code>nametype</code></em></code>] [<code class="option">-p <em class="replaceable"><code>protocol</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] {name}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604515"></a><h2>DESCRIPTION</h2>
+<a name="id2604588"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-keyfromlabel</strong></span>
       gets keys with the given label from a crypto hardware and builds
       key files for DNSSEC (Secure DNS), as defined in RFC 2535
@@ -58,16 +58,24 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604529"></a><h2>OPTIONS</h2>
+<a name="id2604602"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a <em class="replaceable"><code>algorithm</code></em></span></dt>
 <dd>
 <p>
 	    Selects the cryptographic algorithm.  The value of
-	    <code class="option">algorithm</code> must be one of RSAMD5 (RSA)
-	    or RSASHA1, DSA, NSEC3RSASHA1, NSEC3DSA or DH (Diffie Hellman).
+	    <code class="option">algorithm</code> must be one of RSAMD5,
+ 	    RSASHA1, DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256,
+ 	    RSASHA512 or DH (Diffie Hellman).
 	    These values are case insensitive.
 	  </p>
+<p>
+            If no algorithm is specified, then RSASHA1 will be used by
+            default, unless the <code class="option">-3</code> option is specified,
+            in which case NSEC3RSASHA1 will be used instead.  (If
+            <code class="option">-3</code> is used and an algorithm is specified,
+            that algorithm will be checked for compatibility with NSEC3.)
+          </p>
 <p>
             Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement
             algorithm, and DSA is recommended.
@@ -131,7 +139,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2604930"></a><h2>GENERATED KEY FILES</h2>
+<a name="id2604945"></a><h2>GENERATED KEY FILES</h2>
 <p>
       When <span><strong class="command">dnssec-keyfromlabel</strong></span> completes
       successfully,
@@ -172,17 +180,15 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2605024"></a><h2>SEE ALSO</h2>
+<a name="id2605038"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
-      <em class="citetitle">RFC 2539</em>,
-      <em class="citetitle">RFC 2845</em>,
-      <em class="citetitle">RFC 4033</em>.
+      <em class="citetitle">RFC 4034</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2605063"></a><h2>AUTHOR</h2>
+<a name="id2605072"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

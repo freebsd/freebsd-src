@@ -55,6 +55,18 @@ emu10k1-alsa%diked.h		optional snd_emu10k1 | snd_emu10kx	   \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"emu10k1-alsa%diked.h"
+#
+# The 'fdt_dtb_file' target covers an actual DTB file name, which is derived
+# from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
+#
+fdt_dtb_file			optional fdt \
+	compile-with "if [ -f $S/boot/fdt/dts/${FDT_DTS_FILE} ]; then dtc -O dtb -o `echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 -p 1024 $S/boot/fdt/dts/${FDT_DTS_FILE}; fi" \
+	no-obj no-implicit-rule before-depend	\
+	clean		"`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb"
+fdt_static_dtb.h		optional fdt fdt_dtb_static \
+	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ." \
+	no-obj no-implicit-rule before-depend \
+	clean		"fdt_static_dtb.h"
 p16v-alsa%diked.h		optional snd_emu10kx pci			   \
 	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h" \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h p16v-alsa%diked.h" \
@@ -174,6 +186,8 @@ contrib/dev/acpica/dispatcher/dswstate.c	optional acpi
 contrib/dev/acpica/events/evevent.c		optional acpi
 contrib/dev/acpica/events/evgpe.c		optional acpi
 contrib/dev/acpica/events/evgpeblk.c		optional acpi
+contrib/dev/acpica/events/evgpeinit.c		optional acpi
+contrib/dev/acpica/events/evgpeutil.c		optional acpi
 contrib/dev/acpica/events/evmisc.c		optional acpi
 contrib/dev/acpica/events/evregion.c		optional acpi
 contrib/dev/acpica/events/evrgnini.c		optional acpi
@@ -184,6 +198,7 @@ contrib/dev/acpica/events/evxfregn.c		optional acpi
 contrib/dev/acpica/executer/exconfig.c		optional acpi
 contrib/dev/acpica/executer/exconvrt.c		optional acpi
 contrib/dev/acpica/executer/excreate.c		optional acpi
+contrib/dev/acpica/executer/exdebug.c		optional acpi
 contrib/dev/acpica/executer/exdump.c		optional acpi
 contrib/dev/acpica/executer/exfield.c		optional acpi
 contrib/dev/acpica/executer/exfldio.c		optional acpi
@@ -299,6 +314,12 @@ contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/libfdt/fdt.c			optional	fdt
+contrib/libfdt/fdt_ro.c			optional	fdt
+contrib/libfdt/fdt_rw.c			optional	fdt
+contrib/libfdt/fdt_strerror.c		optional	fdt
+contrib/libfdt/fdt_sw.c			optional	fdt
+contrib/libfdt/fdt_wip.c		optional	fdt
 contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
 	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
@@ -415,6 +436,7 @@ dev/acpi_support/acpi_ibm.c	optional acpi_ibm acpi
 dev/acpi_support/acpi_panasonic.c optional acpi_panasonic acpi
 dev/acpi_support/acpi_sony.c	optional acpi_sony acpi
 dev/acpi_support/acpi_toshiba.c	optional acpi_toshiba acpi
+dev/acpi_support/atk0110.c	optional aibs acpi
 dev/acpica/Osd/OsdDebug.c	optional acpi
 dev/acpica/Osd/OsdHardware.c	optional acpi
 dev/acpica/Osd/OsdInterrupt.c	optional acpi
@@ -555,7 +577,7 @@ dev/ath/ath_hal/ah_eeprom_v14.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_eeprom_v4k.c \
-	optional ath_hal | ath_ar9280 | ath_ar9285 \
+	optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_regdomain.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -713,9 +735,14 @@ dev/ath/ath_hal/ar5416/ar5416_xmit.c \
 # ar9160 (depends on ar5416)
 dev/ath/ath_hal/ar5416/ar9160_attach.c optional ath_hal | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-# ar9280/ar9285 (depends on ar5416)
+# ar9280 (depends on ar5416)
 dev/ath/ath_hal/ar5416/ar9280_attach.c optional ath_hal | ath_ar9280 | \
-	ath_ar9285 \
+	ath_ar9285 \ 
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+# ar9285 (depends on ar5416 and ar9280)
+dev/ath/ath_hal/ar5416/ar9285_attach.c optional ath_hal | ath_ar9285 \ 
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar9285_reset.c optional ath_hal | ath_ar9285 \ 
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # rf backends
 dev/ath/ath_hal/ar5212/ar2316.c	optional ath_rf2316 \
@@ -735,6 +762,8 @@ dev/ath/ath_hal/ar5212/ar5413.c	optional ath_hal | ath_rf5413 \
 dev/ath/ath_hal/ar5416/ar2133.c optional ath_hal | ath_ar5416 | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5416/ar9280.c optional ath_hal | ath_ar9280 | ath_ar9285 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar9285.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ath rate control algorithms
 dev/ath/ath_rate/amrr/amrr.c	optional ath_rate_amrr \
@@ -764,6 +793,7 @@ dev/bwi/bwiphy.c		optional bwi
 dev/bwi/bwirf.c			optional bwi
 dev/bwi/if_bwi.c		optional bwi
 dev/bwi/if_bwi_pci.c		optional bwi pci
+dev/bwn/if_bwn.c		optional bwn siba_bwn
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -903,6 +933,8 @@ dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
 dev/e1000/if_em.c		optional em inet \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/if_lem.c		optional em inet \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/if_igb.c		optional igb inet \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_80003es2lan.c	optional em | igb \
@@ -931,6 +963,10 @@ dev/e1000/e1000_nvm.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_phy.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_vf.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_mbx.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_osdep.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/et/if_et.c			optional et
@@ -948,6 +984,11 @@ dev/ex/if_ex_pccard.c		optional ex pccard
 dev/exca/exca.c			optional cbb
 dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/splash.c			optional splash
+dev/fdt/fdt_common.c		optional fdt
+dev/fdt/fdt_pci.c		optional fdt pci
+dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static
+dev/fdt/fdtbus.c		optional fdt
+dev/fdt/simplebus.c		optional fdt
 dev/fe/if_fe.c			optional fe
 dev/fe/if_fe_pccard.c		optional fe pccard
 dev/firewire/firewire.c		optional firewire
@@ -1179,7 +1220,7 @@ iwn6000fw.fwo			optional iwn6000fw | iwnfw		\
 	clean		"iwn6000fw.fwo"
 iwn6000.fw			optional iwn6000fw | iwnfw		\
 	dependency	".PHONY"					\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.176.4.1.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.193.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn6000.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
@@ -1280,6 +1321,9 @@ dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
 dev/mpt/mpt_user.c		optional mpt
 dev/msk/if_msk.c		optional msk inet
+dev/mvs/mvs.c			optional mvs
+dev/mvs/mvs_if.m		optional mvs
+dev/mvs/mvs_pci.c		optional mvs pci
 dev/mwl/if_mwl.c		optional mwl
 dev/mwl/if_mwl_pci.c		optional mwl pci
 dev/mwl/mwlhal.c		optional mwl
@@ -1479,12 +1523,15 @@ dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
 dev/sdhci/sdhci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
+dev/sge/if_sge.c		optional sge pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
 dev/si/si3_t225.c		optional si
 dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
+dev/siba/siba_bwn.c		optional siba_bwn pci
+dev/siba/siba_core.c		optional siba_bwn pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci inet
@@ -1640,6 +1687,7 @@ dev/txp/if_txp.c		optional txp inet
 dev/uart/uart_bus_acpi.c	optional uart acpi
 #dev/uart/uart_bus_cbus.c	optional uart cbus
 dev/uart/uart_bus_ebus.c	optional uart ebus
+dev/uart/uart_bus_fdt.c		optional uart fdt
 dev/uart/uart_bus_isa.c		optional uart isa
 dev/uart/uart_bus_pccard.c	optional uart pccard
 dev/uart/uart_bus_pci.c		optional uart pci
@@ -1762,6 +1810,7 @@ dev/usb/misc/udbp.c		optional udbp
 # USB input drivers
 #
 dev/usb/input/atp.c		optional atp
+dev/usb/input/uep.c		optional uep
 dev/usb/input/uhid.c		optional uhid
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
@@ -2041,11 +2090,13 @@ kern/kern_context.c		standard
 kern/kern_descrip.c		standard
 kern/kern_dtrace.c		optional kdtrace_hooks
 kern/kern_environment.c		standard
+kern/kern_et.c			standard
 kern/kern_event.c		standard
 kern/kern_exec.c		standard
 kern/kern_exit.c		standard
 kern/kern_fail.c		standard
 kern/kern_fork.c		standard
+kern/kern_gzio.c		optional gzio
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
 kern/kern_jail.c		standard
@@ -2077,7 +2128,6 @@ kern/kern_sdt.c			optional kdtrace_hooks
 kern/kern_sema.c		standard
 kern/kern_shutdown.c		standard
 kern/kern_sig.c			standard
-kern/kern_subr.c		standard
 kern/kern_switch.c		standard
 kern/kern_sx.c			standard
 kern/kern_synch.c		standard
@@ -2114,6 +2164,7 @@ kern/subr_disk.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
+kern/subr_hash.c		standard
 kern/subr_hints.c		standard
 kern/subr_kdb.c			standard
 kern/subr_kobj.c		standard
@@ -2139,13 +2190,14 @@ kern/subr_stack.c		optional ddb | stack | ktr
 kern/subr_taskqueue.c		standard
 kern/subr_trap.c		standard
 kern/subr_turnstile.c		standard
+kern/subr_uio.c			standard
 kern/subr_unit.c		standard
 kern/subr_witness.c		optional witness
 kern/sys_generic.c		standard
 kern/sys_pipe.c			standard
 kern/sys_process.c		standard
 kern/sys_socket.c		standard
-kern/syscalls.c			optional witness | invariants | kdtrace_hooks
+kern/syscalls.c			standard
 kern/sysv_ipc.c			standard
 kern/sysv_msg.c			optional sysvmsg
 kern/sysv_sem.c			optional sysvsem
@@ -2307,7 +2359,7 @@ net/if_ethersubr.c		optional ether \
 net/if_faith.c			optional faith
 net/if_fddisubr.c		optional fddi
 net/if_fwsubr.c			optional fwip
-net/if_gif.c			optional gif
+net/if_gif.c			optional gif | netgraph_gif
 net/if_gre.c			optional gre inet
 net/if_iso88025subr.c		optional token
 net/if_lagg.c			optional lagg
@@ -2336,14 +2388,14 @@ net/slcompress.c		optional netgraph_vjc | sppp | \
 net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
-					 ddb_ctf
+					 ddb_ctf | gzio
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_action.c	optional wlan
 net80211/ieee80211_ageq.c	optional wlan
 net80211/ieee80211_adhoc.c	optional wlan
 net80211/ieee80211_ageq.c	optional wlan
-net80211/ieee80211_amrr.c	optional wlan wlan_amrr
+net80211/ieee80211_amrr.c	optional wlan | wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan
 net80211/ieee80211_crypto_ccmp.c optional wlan wlan_ccmp
 net80211/ieee80211_crypto_none.c optional wlan
@@ -2365,6 +2417,7 @@ net80211/ieee80211_phy.c	optional wlan
 net80211/ieee80211_power.c	optional wlan
 net80211/ieee80211_proto.c	optional wlan
 net80211/ieee80211_radiotap.c	optional wlan
+net80211/ieee80211_ratectl.c	optional wlan
 net80211/ieee80211_regdomain.c	optional wlan
 net80211/ieee80211_rssadapt.c	optional wlan wlan_rssadapt
 net80211/ieee80211_scan.c	optional wlan
@@ -2447,6 +2500,7 @@ netgraph/ng_mppc.c		optional netgraph_mppc_compression | \
 netgraph/ng_nat.c		optional netgraph_nat inet libalias
 netgraph/ng_one2many.c		optional netgraph_one2many
 netgraph/ng_parse.c		optional netgraph
+netgraph/ng_patch.c		optional netgraph_patch
 netgraph/ng_pipe.c		optional netgraph_pipe
 netgraph/ng_ppp.c		optional netgraph_ppp
 netgraph/ng_pppoe.c		optional netgraph_pppoe
@@ -2472,7 +2526,7 @@ netinet/if_ether.c		optional inet ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
 netinet/ip_carp.c		optional inet carp | inet6 carp
-netinet/in_gif.c		optional gif inet
+netinet/in_gif.c		optional gif inet | netgraph_gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
 netinet/in_mcast.c		optional inet
@@ -2481,7 +2535,15 @@ netinet/in_proto.c		optional inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 netinet/in_rmx.c		optional inet
 netinet/ip_divert.c		optional inet ipdivert ipfirewall
+netinet/ipfw/dn_heap.c		optional inet dummynet
+netinet/ipfw/dn_sched_fifo.c	optional inet dummynet
+netinet/ipfw/dn_sched_prio.c	optional inet dummynet
+netinet/ipfw/dn_sched_qfq.c	optional inet dummynet 
+netinet/ipfw/dn_sched_rr.c	optional inet dummynet
+netinet/ipfw/dn_sched_wf2q.c	optional inet dummynet 
 netinet/ipfw/ip_dummynet.c	optional inet dummynet
+netinet/ipfw/ip_dn_io.c		optional inet dummynet
+netinet/ipfw/ip_dn_glue.c	optional inet dummynet
 netinet/ip_ecn.c		optional inet | inet6
 netinet/ip_encap.c		optional inet | inet6
 netinet/ip_fastfwd.c		optional inet
@@ -2541,7 +2603,7 @@ netinet6/frag6.c		optional inet6
 netinet6/icmp6.c		optional inet6
 netinet6/in6.c			optional inet6
 netinet6/in6_cksum.c		optional inet6
-netinet6/in6_gif.c		optional gif inet6
+netinet6/in6_gif.c		optional gif inet6 | netgraph_gif inet6
 netinet6/in6_ifattach.c		optional inet6
 netinet6/in6_mcast.c		optional inet6
 netinet6/in6_pcb.c		optional inet6

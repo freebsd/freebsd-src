@@ -47,8 +47,8 @@ extern	vm_paddr_t kstack0_phys;
 struct	pcpu;
 struct	md_utrap;
 
-const char *cpu_cpuid_prop(void);
-uint32_t cpu_get_mid(void);
+const char *cpu_cpuid_prop(u_int cpu_impl);
+uint32_t cpu_get_mid(u_int cpu_impl);
 void	cpu_identify(u_long vers, u_int clock, u_int id);
 void	cpu_setregs(struct pcpu *pc);
 int	is_physical_memory(vm_paddr_t addr);
@@ -66,13 +66,10 @@ extern	cpu_block_zero_t *cpu_block_zero;
  * Given that the Sun disk label only uses 16-bit fields for cylinders,
  * heads and sectors we might need to adjust the geometry of large IDE
  * disks.
- * We have to have a knowledge that a device_t is a struct device * here
- * to avoid including too many things from this file.
  */
 struct disk;
-struct device;
-void sparc64_ad_firmware_geom_adjust(struct device *dev, struct disk *disk);
-#define	ad_firmware_geom_adjust(dev, dsk)				\
-	sparc64_ad_firmware_geom_adjust(dev, dsk)
+void sparc64_ata_disk_firmware_geom_adjust(struct disk *disk);
+#define	ata_disk_firmware_geom_adjust(disk)				\
+	sparc64_ata_disk_firmware_geom_adjust(disk)
 
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -85,6 +85,8 @@ struct protosw in_gif_protosw = {
 	.pr_usrreqs =		&rip_usrreqs
 };
 
+VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
+#define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
 	&VNET_NAME(ip_gif_ttl), 0, "");
 

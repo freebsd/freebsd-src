@@ -115,17 +115,21 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev_priv, CTLFLAG_RD,
     0, sizeof(struct cdev_priv), "sizeof(struct cdev_priv)");
 
 struct cdev *
-devfs_alloc(void)
+devfs_alloc(int flags)
 {
 	struct cdev_priv *cdp;
 	struct cdev *cdev;
 	struct timespec ts;
 
-	cdp = malloc(sizeof *cdp, M_CDEVP, M_USE_RESERVE | M_ZERO | M_WAITOK);
+	cdp = malloc(sizeof *cdp, M_CDEVP, M_USE_RESERVE | M_ZERO |
+	    ((flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK));
+	if (cdp == NULL)
+		return (NULL);
 
 	cdp->cdp_dirents = &cdp->cdp_dirent0;
 	cdp->cdp_dirent0 = NULL;
 	cdp->cdp_maxdirent = 0;
+	cdp->cdp_inode = 0;
 
 	cdev = &cdp->cdp_c;
 
@@ -133,6 +137,7 @@ devfs_alloc(void)
 	LIST_INIT(&cdev->si_children);
 	vfs_timestamp(&ts);
 	cdev->si_atime = cdev->si_mtime = cdev->si_ctime = ts;
+	cdev->si_cred = NULL;
 
 	return (cdev);
 }
@@ -190,6 +195,26 @@ devfs_newdirent(char *name, int namelen)
 	mac_devfs_init(de);
 #endif
 	return (de);
+}
+
+struct devfs_dirent *
+devfs_parent_dirent(struct devfs_dirent *de)
+{
+
+	if (de->de_dirent->d_type != DT_DIR)
+		return (de->de_dir);
+
+	if (de->de_flags & (DE_DOT | DE_DOTDOT))
+		return (NULL);
+
+	de = TAILQ_FIRST(&de->de_dlist);	/* "." */
+	if (de == NULL)
+		return (NULL);
+	de = TAILQ_NEXT(de, de_list);		/* ".." */
+	if (de == NULL)
+		return (NULL);
+
+	return (de->de_dir);
 }
 
 struct devfs_dirent *

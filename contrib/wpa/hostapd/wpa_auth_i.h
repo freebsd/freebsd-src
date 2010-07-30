@@ -213,7 +213,7 @@ void wpa_smk_m3(struct wpa_authenticator *wpa_auth,
 #ifdef CONFIG_IEEE80211R
 int wpa_write_mdie(struct wpa_auth_config *conf, u8 *buf, size_t len);
 int wpa_auth_derive_ptk_ft(struct wpa_state_machine *sm, const u8 *pmk,
-			   struct wpa_ptk *ptk);
+			   struct wpa_ptk *ptk, size_t ptk_len);
 struct wpa_ft_pmk_cache * wpa_ft_pmk_cache_init(void);
 void wpa_ft_pmk_cache_deinit(struct wpa_ft_pmk_cache *cache);
 #endif /* CONFIG_IEEE80211R */

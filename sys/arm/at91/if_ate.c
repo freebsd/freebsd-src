@@ -272,8 +272,8 @@ ate_attach(device_t dev)
 	ifp->if_ioctl = ateioctl;
 	ifp->if_init = ateinit;
 	ifp->if_baudrate = 10000000;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof(sc->mibdata);
@@ -380,6 +380,16 @@ ate_load_rx_buf(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	bus_dmamap_sync(sc->rxtag, sc->rx_map[i], BUS_DMASYNC_PREREAD);
 }
 
+static uint32_t
+ate_mac_hash(const uint8_t *buf)
+{
+	uint32_t index = 0;
+	for (int i = 0; i < 48; i++) {
+		index ^= ((buf[i >> 3] >> (i & 7)) & 1) << (i % 6);
+	}
+	return (index);
+}
+
 /*
  * Compute the multicast filter for this device using the standard
  * algorithm.  I wonder why this isn't in ether somewhere as a lot
@@ -414,8 +424,8 @@ ate_setmcast(struct ate_softc *sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		index = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
+		index = ate_mac_hash(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr));
 		af[index >> 3] |= 1 << (index & 7);
 	}
 	if_maddr_runlock(ifp);

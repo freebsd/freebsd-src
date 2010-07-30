@@ -177,6 +177,7 @@ union ich8_hws_flash_regacc {
 static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
+	u32 ctrl;
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_init_phy_params_pchlan");
@@ -198,6 +199,35 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->ops.power_up             = e1000_power_up_phy_copper;
 	phy->ops.power_down           = e1000_power_down_phy_copper_ich8lan;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
+
+	if ((hw->mac.type == e1000_pchlan) &&
+	    (!(E1000_READ_REG(hw, E1000_FWSM) & E1000_ICH_FWSM_FW_VALID))) {
+
+		/*
+		 * The MAC-PHY interconnect may still be in SMBus mode
+		 * after Sx->S0.  Toggle the LANPHYPC Value bit to force
+		 * the interconnect to PCIe mode, but only if there is no
+		 * firmware present otherwise firmware will have done it.
+		 */
+		ctrl = E1000_READ_REG(hw, E1000_CTRL);
+		ctrl |=  E1000_CTRL_LANPHYPC_OVERRIDE;
+		ctrl &= ~E1000_CTRL_LANPHYPC_VALUE;
+		E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
+		usec_delay(10);
+		ctrl &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
+		E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
+		msec_delay(50);
+	}
+
+	/*
+	 * Reset the PHY before any acccess to it.  Doing so, ensures that
+	 * the PHY is in a known good state before we read/write PHY registers.
+	 * The generic reset is sufficient here, because we haven't determined
+	 * the PHY type yet.
+	 */
+	ret_val = e1000_phy_hw_reset_generic(hw);
+	if (ret_val)
+		goto out;
 
 	phy->id = e1000_phy_unknown;
 	ret_val = e1000_get_phy_id(hw);
@@ -225,6 +255,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		phy->ops.get_cable_length = e1000_get_cable_length_82577;
 		phy->ops.get_info = e1000_get_phy_info_82577;
 		phy->ops.commit = e1000_phy_sw_reset_generic;
+		break;
 	case e1000_phy_82578:
 		phy->ops.check_polarity = e1000_check_polarity_m88;
 		phy->ops.force_speed_duplex = e1000_phy_force_speed_duplex_m88;
@@ -431,8 +462,10 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		mac->rar_entry_count--;
 	/* Set if part includes ASF firmware */
 	mac->asf_firmware_present = TRUE;
-	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid = TRUE;
+	/* FWSM register */
+	mac->has_fwsm = TRUE;
+	/* ARC subsystem not supported */
+	mac->arc_subsystem_valid = FALSE;
 	/* Adaptive IFS supported */
 	mac->adaptive_ifs = TRUE;
 
@@ -763,6 +796,9 @@ static s32 e1000_check_reset_block_ich8lan(struct e1000_hw *hw)
 	u32 fwsm;
 
 	DEBUGFUNC("e1000_check_reset_block_ich8lan");
+
+	if (hw->phy.reset_disable)
+		return E1000_BLK_PHY_RESET;
 
 	fwsm = E1000_READ_REG(hw, E1000_FWSM);
 
@@ -2684,6 +2720,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 			DEBUGOUT("Auto Read Done did not complete\n");
 		}
 	}
+	/* Dummy read to clear the phy wakeup bit after lcd reset */
 	if (hw->mac.type == e1000_pchlan)
 		hw->phy.ops.read_reg(hw, BM_WUC, &reg);
 
@@ -2856,6 +2893,14 @@ static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw)
 		reg &= ~(1 << 31);
 		E1000_WRITE_REG(hw, E1000_STATUS, reg);
 	}
+
+	/*
+	 * work-around descriptor data corruption issue during nfs v2 udp
+	 * traffic, just disable the nfs filtering capability
+	 */
+	reg = E1000_READ_REG(hw, E1000_RFCTL);
+	reg |= (E1000_RFCTL_NFSW_DIS | E1000_RFCTL_NFSR_DIS);
+	E1000_WRITE_REG(hw, E1000_RFCTL, reg);
 
 	return;
 }

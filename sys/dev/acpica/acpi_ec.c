@@ -223,7 +223,7 @@ static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function,
 				void *Context, void **return_Context);
 static ACPI_STATUS	EcSpaceHandler(UINT32 Function,
 				ACPI_PHYSICAL_ADDRESS Address,
-				UINT32 width, UINT64 *Value,
+				UINT32 Width, UINT64 *Value,
 				void *Context, void *RegionContext);
 static ACPI_STATUS	EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event,
 				u_int gen_count);
@@ -231,7 +231,7 @@ static ACPI_STATUS	EcCommand(struct acpi_ec_softc *sc, EC_COMMAND cmd);
 static ACPI_STATUS	EcRead(struct acpi_ec_softc *sc, UINT8 Address,
 				UINT8 *Data);
 static ACPI_STATUS	EcWrite(struct acpi_ec_softc *sc, UINT8 Address,
-				UINT8 *Data);
+				UINT8 Data);
 static int		acpi_ec_probe(device_t dev);
 static int		acpi_ec_attach(device_t dev);
 static int		acpi_ec_suspend(device_t dev);
@@ -518,14 +518,7 @@ acpi_ec_attach(device_t dev)
     }
 
     /* Enable runtime GPEs for the handler. */
-    Status = AcpiSetGpeType(sc->ec_gpehandle, sc->ec_gpebit,
-			    ACPI_GPE_TYPE_RUNTIME);
-    if (ACPI_FAILURE(Status)) {
-	device_printf(dev, "AcpiSetGpeType failed: %s\n",
-		      AcpiFormatException(Status));
-	goto error;
-    }
-    Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
+    Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "AcpiEnableGpe failed: %s\n",
 		      AcpiFormatException(Status));
@@ -575,7 +568,7 @@ acpi_ec_shutdown(device_t dev)
 
     /* Disable the GPE so we don't get EC events during shutdown. */
     sc = device_get_softc(dev);
-    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
+    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit);
     return (0);
 }
 
@@ -723,25 +716,27 @@ EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context,
 }
 
 static ACPI_STATUS
-EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
+EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 Width,
 	       UINT64 *Value, void *Context, void *RegionContext)
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     ACPI_STATUS			Status;
-    UINT8			EcAddr, EcData;
-    int				i;
+    UINT8			*EcData;
+    UINT8			EcAddr;
+    int				bytes, i;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Address);
 
-    if (width % 8 != 0 || Value == NULL || Context == NULL)
+    if (Width % 8 != 0 || Value == NULL || Context == NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
-    if (Address + (width / 8) - 1 > 0xFF)
+    bytes = Width / 8;
+    if (Address + bytes - 1 > 0xFF)
 	return_ACPI_STATUS (AE_BAD_ADDRESS);
 
     if (Function == ACPI_READ)
 	*Value = 0;
     EcAddr = Address;
-    Status = AE_ERROR;
+    EcData = (UINT8 *)Value;
 
     /*
      * If booting, check if we need to run the query handler.  If so, we
@@ -759,17 +754,14 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
     if (ACPI_FAILURE(Status))
 	return_ACPI_STATUS (Status);
 
-    /* Perform the transaction(s), based on width. */
-    for (i = 0; i < width; i += 8, EcAddr++) {
+    /* Perform the transaction(s), based on Width. */
+    for (i = 0; i < bytes; i++, EcAddr++, EcData++) {
 	switch (Function) {
 	case ACPI_READ:
-	    Status = EcRead(sc, EcAddr, &EcData);
-	    if (ACPI_SUCCESS(Status))
-		*Value |= ((UINT64)EcData) << i;
+	    Status = EcRead(sc, EcAddr, EcData);
 	    break;
 	case ACPI_WRITE:
-	    EcData = (UINT8)((*Value) >> i);
-	    Status = EcWrite(sc, EcAddr, &EcData);
+	    Status = EcWrite(sc, EcAddr, *EcData);
 	    break;
 	default:
 	    device_printf(sc->ec_dev, "invalid EcSpaceHandler function %d\n",
@@ -992,14 +984,14 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 }
 
 static ACPI_STATUS
-EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
+EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 Data)
 {
     ACPI_STATUS	status;
     UINT8 data;
     u_int gen_count;
 
     ACPI_SERIAL_ASSERT(ec);
-    CTR2(KTR_ACPI, "ec write to %#x, data %#x", Address, *Data);
+    CTR2(KTR_ACPI, "ec write to %#x, data %#x", Address, Data);
 
     /* If we can't start burst mode, continue anyway. */
     status = EcCommand(sc, EC_COMMAND_BURST_ENABLE);
@@ -1024,7 +1016,7 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     }
 
     gen_count = sc->ec_gencount;
-    EC_SET_DATA(sc, *Data);
+    EC_SET_DATA(sc, Data);
     status = EcWaitEvent(sc, EC_EVENT_INPUT_BUFFER_EMPTY, gen_count);
     if (ACPI_FAILURE(status)) {
 	device_printf(sc->ec_dev, "EcWrite: failed waiting for sent data\n");

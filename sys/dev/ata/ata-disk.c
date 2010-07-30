@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 /* prototypes */
 static void ad_init(device_t dev);
-static void ad_get_geometry(device_t dev);
+static int ad_get_geometry(device_t dev);
 static void ad_set_geometry(device_t dev);
 static void ad_done(struct ata_request *request);
 static void ad_describe(device_t dev);
@@ -67,8 +67,8 @@ static dumper_t ad_dump;
  * Most platforms map firmware geom to actual, but some don't.  If
  * not overridden, default to nothing.
  */
-#ifndef ad_firmware_geom_adjust
-#define ad_firmware_geom_adjust(dev, disk)
+#ifndef ata_disk_firmware_geom_adjust
+#define	ata_disk_firmware_geom_adjust(disk)
 #endif
 
 /* local vars */
@@ -106,7 +106,8 @@ ad_attach(device_t dev)
     device_set_ivars(dev, adp);
 
     /* get device geometry into internal structs */
-    ad_get_geometry(dev);
+    if (ad_get_geometry(dev))
+	return ENXIO;
 
     /* set the max size if configured */
     if (ata_setmax)
@@ -142,9 +143,9 @@ ad_attach(device_t dev)
 	adp->disk->d_flags |= DISKFLAG_CANDELETE;
     strlcpy(adp->disk->d_ident, atadev->param.serial,
 	sizeof(adp->disk->d_ident));
+    ata_disk_firmware_geom_adjust(adp->disk);
     disk_create(adp->disk, DISK_VERSION);
     device_add_child(dev, "subdisk", device_get_unit(dev));
-    ad_firmware_geom_adjust(dev, adp->disk);
     bus_generic_attach(dev);
 
     callout_init(&atadev->spindown_timer, 1);
@@ -410,7 +411,7 @@ ad_init(device_t dev)
 	atadev->max_iosize = DEV_BSIZE;
 }
 
-static void
+static int
 ad_get_geometry(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
@@ -432,6 +433,9 @@ ad_get_geometry(device_t dev)
     }
     lbasize = (u_int32_t)atadev->param.lba_size_1 |
 	      ((u_int32_t)atadev->param.lba_size_2 << 16);
+    /* This device exists, but has no size.  Filter out this bogus device. */
+    if (!lbasize && !adp->total_secs)
+	return ENXIO;
 
     /* does this device need oldstyle CHS addressing */
     if (!ad_version(atadev->param.version_major) || !lbasize)
@@ -449,6 +453,7 @@ ad_get_geometry(device_t dev)
     if ((atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48) &&
 	lbasize48 > ATA_MAX_28BIT_LBA)
 	adp->total_secs = lbasize48;
+    return 0;
 }
 
 static void

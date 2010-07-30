@@ -178,7 +178,7 @@ main(int argc, char **argv)
 			bsdar->options |= AR_TR;
 			break;
 		case 'j':
-			bsdar->options |= AR_J;
+			/* ignored */
 			break;
 		case 'l':
 			/* ignored, for GNU ar comptibility */
@@ -223,7 +223,7 @@ main(int argc, char **argv)
 			set_mode(bsdar, opt);
 			break;
 		case 'z':
-			bsdar->options |= AR_Z;
+			/* ignored */
 			break;
 		case OPTION_HELP:
 			bsdar_usage();

@@ -97,8 +97,6 @@ static const struct siba_dev {
 	{ PCI_VENDOR_BROADCOM, 0x432b, "Unknown" }
 };
 
-device_t	siba_add_child(device_t, struct siba_softc *, int, const char *,
-		    int);
 int		siba_core_attach(struct siba_softc *);
 int		siba_core_detach(struct siba_softc *);
 int		siba_core_suspend(struct siba_softc *);
@@ -154,6 +152,7 @@ siba_bwn_attach(device_t dev)
 	siba->siba_pci_vid = pci_get_vendor(dev);
 	siba->siba_pci_subvid = pci_get_subvendor(dev);
 	siba->siba_pci_subdid = pci_get_subdevice(dev);
+	siba->siba_pci_revid = pci_get_revid(dev);
 
 	return (siba_core_attach(siba));
 }
@@ -236,15 +235,6 @@ siba_bwn_resume(device_t dev)
 		DEVICE_RESUME(devlistp[i]);
 	free(devlistp, M_TEMP);
 	return (0);
-}
-
-static device_t
-siba_bwn_add_child(device_t dev, int order, const char *name, int unit)
-{
-	struct siba_bwn_softc *ssc = device_get_softc(dev);
-	struct siba_softc *siba = &ssc->ssc_siba;
-
-	return (siba_add_child(dev, siba, order, name, unit));
 }
 
 /* proxying to the parent */
@@ -332,6 +322,71 @@ siba_bwn_msi_count(device_t dev, device_t child)
 	return (pci_msi_count(dev));
 }
 
+static int
+siba_bwn_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+	struct siba_dev_softc *sd;
+	struct siba_softc *siba;;
+
+	sd = device_get_ivars(child);
+	siba = sd->sd_bus;
+
+	switch (which) {
+	case SIBA_IVAR_VENDOR:
+		*result = sd->sd_id.sd_vendor;
+		break;
+	case SIBA_IVAR_DEVICE:
+		*result = sd->sd_id.sd_device;
+		break;
+	case SIBA_IVAR_REVID:
+		*result = sd->sd_id.sd_rev;
+		break;
+	case SIBA_IVAR_PCI_VENDOR:
+		*result = siba->siba_pci_vid;
+		break;
+	case SIBA_IVAR_PCI_DEVICE:
+		*result = siba->siba_pci_did;
+		break;
+	case SIBA_IVAR_PCI_SUBVENDOR:
+		*result = siba->siba_pci_subvid;
+		break;
+	case SIBA_IVAR_PCI_SUBDEVICE:
+		*result = siba->siba_pci_subdid;
+		break;
+	case SIBA_IVAR_PCI_REVID:
+		*result = siba->siba_pci_revid;
+		break;
+	case SIBA_IVAR_CHIPID:
+		*result = siba->siba_chipid;
+		break;
+	case SIBA_IVAR_CHIPREV:
+		*result = siba->siba_chiprev;
+		break;
+	case SIBA_IVAR_CHIPPKG:
+		*result = siba->siba_chippkg;
+		break;
+	case SIBA_IVAR_TYPE:
+		*result = siba->siba_type;
+		break;
+	case SIBA_IVAR_CC_PMUFREQ:
+		*result = siba->siba_cc.scc_pmu.freq;
+		break;
+	case SIBA_IVAR_CC_CAPS:
+		*result = siba->siba_cc.scc_caps;
+		break;
+	case SIBA_IVAR_CC_POWERDELAY:
+		*result = siba->siba_cc.scc_powerup_delay;
+		break;
+	case SIBA_IVAR_PCICORE_REVID:
+		*result = siba->siba_pci.spc_dev->sd_id.sd_rev;
+		break;
+	default:
+		return (ENOENT);
+	}
+
+	return (0);
+}
+
 static device_method_t siba_bwn_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		siba_bwn_probe),
@@ -342,9 +397,9 @@ static device_method_t siba_bwn_methods[] = {
 	DEVMETHOD(device_resume,	siba_bwn_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_add_child,	siba_bwn_add_child),
 	DEVMETHOD(bus_alloc_resource,   siba_bwn_alloc_resource),
 	DEVMETHOD(bus_release_resource, siba_bwn_release_resource),
+	DEVMETHOD(bus_read_ivar,	siba_bwn_read_ivar),
 	DEVMETHOD(bus_setup_intr,       siba_bwn_setup_intr),
 	DEVMETHOD(bus_teardown_intr,    siba_bwn_teardown_intr),
 
@@ -354,7 +409,7 @@ static device_method_t siba_bwn_methods[] = {
 	DEVMETHOD(pci_release_msi,	siba_bwn_release_msi),
 	DEVMETHOD(pci_msi_count,	siba_bwn_msi_count),
 
-	{ 0,0 }
+	KOBJMETHOD_END
 };
 static driver_t siba_bwn_driver = {
 	"siba_bwn",

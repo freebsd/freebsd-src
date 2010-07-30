@@ -206,33 +206,6 @@ AcpiExOpcode_2A_0T_0R (
             break;
         }
 
-#ifdef ACPI_GPE_NOTIFY_CHECK
-        /*
-         * GPE method wake/notify check.  Here, we want to ensure that we
-         * don't receive any "DeviceWake" Notifies from a GPE _Lxx or _Exx
-         * GPE method during system runtime.  If we do, the GPE is marked
-         * as "wake-only" and disabled.
-         *
-         * 1) Is the Notify() value == DeviceWake?
-         * 2) Is this a GPE deferred method?  (An _Lxx or _Exx method)
-         * 3) Did the original GPE happen at system runtime?
-         *    (versus during wake)
-         *
-         * If all three cases are true, this is a wake-only GPE that should
-         * be disabled at runtime.
-         */
-        if (Value == 2)     /* DeviceWake */
-        {
-            Status = AcpiEvCheckForWakeOnlyGpe (WalkState->GpeEventInfo);
-            if (ACPI_FAILURE (Status))
-            {
-                /* AE_WAKE_ONLY_GPE only error, means ignore this notify */
-
-                return_ACPI_STATUS (AE_OK)
-            }
-        }
-#endif
-
         /*
          * Dispatch the notify to the appropriate handler
          * NOTE: the request is queued for execution after this method
@@ -246,7 +219,7 @@ AcpiExOpcode_2A_0T_0R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
     }
@@ -319,7 +292,7 @@ AcpiExOpcode_2A_2T_1R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -555,7 +528,7 @@ AcpiExOpcode_2A_1T_1R (
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
-                "Index (%X%8.8X) is beyond end of object",
+                "Index (0x%8.8X%8.8X) is beyond end of object",
                 ACPI_FORMAT_UINT64 (Index)));
             goto Cleanup;
         }
@@ -579,7 +552,7 @@ AcpiExOpcode_2A_1T_1R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         break;
@@ -702,7 +675,7 @@ AcpiExOpcode_2A_0T_1R (
 
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown AML opcode %X",
+        ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
             WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;

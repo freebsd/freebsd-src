@@ -68,6 +68,19 @@ struct __kvm {
 	uintptr_t	vnet_stop;	/* stop of kernel's vnet region */
 	uintptr_t	vnet_current;	/* vnet we're working with */
 	uintptr_t	vnet_base;	/* vnet base of current vnet */
+
+	/*
+	 * Dynamic per-CPU kernel memory.  We translate symbols, on-demand,
+	 * to the data associated with dpcpu_curcpu, set with
+	 * kvm_dpcpu_setcpu().
+	 */
+	int		dpcpu_initialized;	/* dpcpu fields set up */
+	uintptr_t	dpcpu_start;	/* start of kernel's dpcpu region */
+	uintptr_t	dpcpu_stop;	/* stop of kernel's dpcpu region */
+	u_int		dpcpu_maxcpus;	/* size of base array */
+	uintptr_t	*dpcpu_off;	/* base array, indexed by CPU ID */
+	u_int		dpcpu_curcpu;	/* CPU we're currently working with */
+	uintptr_t	dpcpu_curoff;	/* dpcpu base of current CPU */
 };
 
 /*
@@ -88,6 +101,8 @@ int	 _kvm_uvatop(kvm_t *, const struct proc *, u_long, u_long *);
 int	 _kvm_vnet_selectpid(kvm_t *, pid_t);
 int	 _kvm_vnet_initialized(kvm_t *, int);
 uintptr_t _kvm_vnet_validaddr(kvm_t *, uintptr_t);
+int	 _kvm_dpcpu_initialized(kvm_t *, int);
+uintptr_t _kvm_dpcpu_validaddr(kvm_t *, uintptr_t);
 
 #if defined(__amd64__) || defined(__i386__) || defined(__arm__)
 void	 _kvm_minidump_freevtop(kvm_t *);

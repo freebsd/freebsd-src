@@ -445,12 +445,6 @@ device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
 
-/*
- * Can be used by MD code to request the PCI bus to re-map an MSI or
- * MSI-X message.
- */
-int	pci_remap_msi_irq(device_t dev, u_int irq);
-
 /* Can be used by drivers to manage the MSI-X table. */
 int	pci_pending_msix(device_t dev, u_int index);
 

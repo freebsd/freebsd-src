@@ -49,8 +49,8 @@
  * For 82576, there are an additional set of RARs that begin at an offset
  * separate from the first set of RARs.
  */
-#define E1000_RAR_ENTRIES_82575   16
-#define E1000_RAR_ENTRIES_82576   24
+#define E1000_RAR_ENTRIES_82575        16
+#define E1000_RAR_ENTRIES_82576        24
 #define E1000_RAR_ENTRIES_82580        24
 #define E1000_SW_SYNCH_MB              0x00000100
 #define E1000_STAT_DEV_RST_SET         0x00100000
@@ -425,6 +425,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_VMOLR_STRVLAN    0x40000000 /* Vlan stripping enable */
 #define E1000_VMOLR_STRCRC     0x80000000 /* CRC stripping enable */
 
+
 #define E1000_VLVF_ARRAY_SIZE     32
 #define E1000_VLVF_VLANID_MASK    0x00000FFF
 #define E1000_VLVF_POOLSEL_SHIFT  12
@@ -458,5 +459,16 @@ struct e1000_adv_tx_context_desc {
 #define E1000_RXPBS_SIZE_MASK_82576  0x0000007F
 void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable);
 void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable);
+enum e1000_promisc_type {
+	e1000_promisc_disabled = 0,   /* all promisc modes disabled */
+	e1000_promisc_unicast = 1,    /* unicast promiscuous enabled */
+	e1000_promisc_multicast = 2,  /* multicast promiscuous enabled */
+	e1000_promisc_enabled = 3,    /* both uni and multicast promisc */
+	e1000_num_promisc_types
+};
+
+void e1000_vfta_set_vf(struct e1000_hw *, u16, bool);
+void e1000_rlpml_set_vf(struct e1000_hw *, u16);
+s32 e1000_promisc_set_vf(struct e1000_hw *, enum e1000_promisc_type type);
 u16 e1000_rxpbs_adjust_82580(u32 data);
 #endif /* _E1000_82575_H_ */

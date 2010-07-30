@@ -2,4 +2,4 @@
 
 SSP_CFLAGS=
 
-WARNS?=	6
+.include "../Makefile.inc"

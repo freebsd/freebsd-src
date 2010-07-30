@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -132,7 +133,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_ISA
-#include <i386/isa/icu.h>
+#include <x86/isa/icu.h>
 #endif
 
 #ifdef XBOX
@@ -328,7 +329,6 @@ cpu_startup(dummy)
 #ifndef XEN
 	cpu_setregs();
 #endif
-	mca_init();
 }
 
 /*
@@ -633,6 +633,13 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
+
+	/*
+	 * The get_fpcontext() call must be placed before assignments
+	 * to mc_fsbase and mc_gsbase due to the alignment-override
+	 * code in get_fpcontext() that possibly clobbers 12 bytes of
+	 * mcontext after mc_fpstate.
+	 */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
 	/*
@@ -944,7 +951,8 @@ freebsd4_sigreturn(td, uap)
 		 * one less debugger trap, so allowing it is fairly harmless.
 		 */
 		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-			printf("freebsd4_sigreturn: eflags = 0x%x\n", eflags);
+			uprintf("pid %d (%s): freebsd4_sigreturn eflags = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
 		}
 
@@ -955,7 +963,8 @@ freebsd4_sigreturn(td, uap)
 		 */
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
-			printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
+			uprintf("pid %d (%s): freebsd4_sigreturn cs = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, cs);
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGBUS;
 			ksi.ksi_code = BUS_OBJERR;
@@ -1056,7 +1065,8 @@ sigreturn(td, uap)
 		 * one less debugger trap, so allowing it is fairly harmless.
 		 */
 		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-			printf("sigreturn: eflags = 0x%x\n", eflags);
+			uprintf("pid %d (%s): sigreturn eflags = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
 		}
 
@@ -1067,7 +1077,8 @@ sigreturn(td, uap)
 		 */
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
-			printf("sigreturn: cs = 0x%x\n", cs);
+			uprintf("pid %d (%s): sigreturn cs = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, cs);
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGBUS;
 			ksi.ksi_code = BUS_OBJERR;
@@ -1461,11 +1472,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
  * Reset registers to default values on exec.
  */
 void
-exec_setregs(td, entry, stack, ps_strings)
-	struct thread *td;
-	u_long entry;
-	u_long stack;
-	u_long ps_strings;
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
@@ -1481,7 +1488,7 @@ exec_setregs(td, entry, stack, ps_strings)
 		mtx_unlock_spin(&dt_lock);
   
 	bzero((char *)regs, sizeof(struct trapframe));
-	regs->tf_eip = entry;
+	regs->tf_eip = imgp->entry_addr;
 	regs->tf_esp = stack;
 	regs->tf_eflags = PSL_USER | (regs->tf_eflags & PSL_T);
 	regs->tf_ss = _udatasel;
@@ -1491,7 +1498,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	regs->tf_cs = _ucodesel;
 
 	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
-	regs->tf_ebx = ps_strings;
+	regs->tf_ebx = imgp->ps_strings;
 
         /*
          * Reset the hardware debug registers if they were in use.
@@ -3179,12 +3186,12 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
-		fill_fpregs_xmm(&td->td_pcb->pcb_save.sv_xmm,
+		fill_fpregs_xmm(&td->td_pcb->pcb_user_save.sv_xmm,
 						(struct save87 *)fpregs);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(&td->td_pcb->pcb_save.sv_87, fpregs, sizeof *fpregs);
+	bcopy(&td->td_pcb->pcb_user_save.sv_87, fpregs, sizeof *fpregs);
 	return (0);
 }
 
@@ -3194,11 +3201,11 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
 		set_fpregs_xmm((struct save87 *)fpregs,
-					   &td->td_pcb->pcb_save.sv_xmm);
+		    &td->td_pcb->pcb_user_save.sv_xmm);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(fpregs, &td->td_pcb->pcb_save.sv_87, sizeof *fpregs);
+	bcopy(fpregs, &td->td_pcb->pcb_user_save.sv_87, sizeof *fpregs);
 	return (0);
 }
 
@@ -3240,6 +3247,13 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_esp = tp->tf_esp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
+
+	/*
+	 * The get_fpcontext() call must be placed before assignments
+	 * to mc_fsbase and mc_gsbase due to the alignment-override
+	 * code in get_fpcontext() that possibly clobbers 12 bytes of
+	 * mcontext after mc_fpstate.
+	 */
 	get_fpcontext(td, mcp);
 	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
@@ -3306,7 +3320,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	 *
 	 * XXX unpessimize most cases by only aligning when fxsave might be
 	 * called, although this requires knowing too much about
-	 * npxgetregs()'s internals.
+	 * npxgetuserregs()'s internals.
 	 */
 	addr = (union savefpu *)&mcp->mc_fpstate;
 	if (td == PCPU_GET(fpcurthread) &&
@@ -3318,7 +3332,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 			addr = (void *)((char *)addr + 4);
 		while ((uintptr_t)(void *)addr & 0xF);
 	}
-	mcp->mc_ownedfp = npxgetregs(td, addr);
+	mcp->mc_ownedfp = npxgetuserregs(td, addr);
 	if (addr != (union savefpu *)&mcp->mc_fpstate) {
 		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
@@ -3359,11 +3373,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		if (cpu_fxsr)
 			addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
 #endif
-		/*
-		 * XXX we violate the dubious requirement that npxsetregs()
-		 * be called with interrupts disabled.
-		 */
-		npxsetregs(td, addr);
+		npxsetuserregs(td, addr);
 #endif
 		/*
 		 * Don't bother putting things back where they were in the
@@ -3378,25 +3388,26 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 static void
 fpstate_drop(struct thread *td)
 {
-	register_t s;
 
-	s = intr_disable();
+	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
+	critical_enter();
 #ifdef DEV_NPX
 	if (PCPU_GET(fpcurthread) == td)
 		npxdrop();
 #endif
 	/*
 	 * XXX force a full drop of the npx.  The above only drops it if we
-	 * owned it.  npxgetregs() has the same bug in the !cpu_fxsr case.
+	 * owned it.  npxgetuserregs() has the same bug in the !cpu_fxsr case.
 	 *
-	 * XXX I don't much like npxgetregs()'s semantics of doing a full
+	 * XXX I don't much like npxgetuserregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
 	 * We only need to drop to !PCB_INITDONE in sendsig().  But
-	 * sendsig() is the only caller of npxgetregs()... perhaps we just
+	 * sendsig() is the only caller of npxgetuserregs()... perhaps we just
 	 * have too many layers.
 	 */
-	curthread->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
-	intr_restore(s);
+	curthread->td_pcb->pcb_flags &= ~(PCB_NPXINITDONE |
+	    PCB_NPXUSERINITDONE);
+	critical_exit();
 }
 
 int

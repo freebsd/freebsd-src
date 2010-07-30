@@ -122,7 +122,7 @@ option sets the flag to one.
 The KTR buffer can be examined from within
 .Xr ddb 4
 via the
-.Ic show ktr Op Cm /v
+.Ic show ktr Op Cm /vV
 command.
 This command displays the contents of the trace buffer one page at a time.
 At the
@@ -136,6 +136,10 @@ If the
 .Cm /v
 modifier is specified, then they are displayed in addition to the normal
 output.
+If the
+.Cm /V
+modifier is specified, then just the timestamp is displayed in
+addition to the normal output.
 Note that the events are displayed in reverse chronological order.
 That is, the most recent events are displayed first.
 .Ss Logging ktr to Disk
@@ -167,7 +171,9 @@ the next invocation.
 enables logging of
 .Nm
 entries to disk if it is set to one.
-Setting this to 0 will terminate logging.
+Setting this to 0 will terminate logging to disk and revert to 
+logging to the normal ktr ring buffer.
+Data is not sent to the ring buffer while logging to disk.
 .It Va debug.ktr.alq_max
 is the maximum number of entries that will be recorded to disk, or 0 for
 infinite.

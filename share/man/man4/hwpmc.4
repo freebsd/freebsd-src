@@ -450,42 +450,6 @@ These variables may be set in the kernel environment using
 before
 .Nm
 is loaded.
-.Sh SECURITY CONSIDERATIONS
-PMCs may be used to monitor the actual behavior of the system on hardware.
-In situations where this constitutes an undesirable information leak,
-the following options are available:
-.Bl -enum
-.It
-Set the
-.Xr sysctl 8
-tunable
-.Va security.bsd.unprivileged_syspmcs
-to 0.
-This ensures that unprivileged processes cannot allocate system-wide
-PMCs and thus cannot observe the hardware behavior of the system
-as a whole.
-This tunable may also be set at boot time using
-.Xr loader 8 ,
-or with
-.Xr kenv 1
-prior to loading the
-.Nm
-driver into the kernel.
-.It
-Set the
-.Xr sysctl 8
-tunable
-.Va security.bsd.unprivileged_proc_debug
-to 0.
-This will ensure that an unprivileged process cannot attach a PMC
-to any process other than itself and thus cannot observe the hardware
-behavior of other processes with the same credentials.
-.El
-.Pp
-System administrators should note that on IA-32 platforms
-.Fx
-makes the content of the IA-32 TSC counter available to all processes
-via the RDTSC instruction.
 .Sh IMPLEMENTATION NOTES
 .Ss SMP Symmetry
 The kernel driver requires all physical CPUs in an SMP system to have
@@ -831,3 +795,39 @@ Many single-processor motherboards keep the APIC disabled in BIOS; on
 such systems
 .Nm
 will not support sampling PMCs.
+.Sh SECURITY CONSIDERATIONS
+PMCs may be used to monitor the actual behavior of the system on hardware.
+In situations where this constitutes an undesirable information leak,
+the following options are available:
+.Bl -enum
+.It
+Set the
+.Xr sysctl 8
+tunable
+.Va security.bsd.unprivileged_syspmcs
+to 0.
+This ensures that unprivileged processes cannot allocate system-wide
+PMCs and thus cannot observe the hardware behavior of the system
+as a whole.
+This tunable may also be set at boot time using
+.Xr loader 8 ,
+or with
+.Xr kenv 1
+prior to loading the
+.Nm
+driver into the kernel.
+.It
+Set the
+.Xr sysctl 8
+tunable
+.Va security.bsd.unprivileged_proc_debug
+to 0.
+This will ensure that an unprivileged process cannot attach a PMC
+to any process other than itself and thus cannot observe the hardware
+behavior of other processes with the same credentials.
+.El
+.Pp
+System administrators should note that on IA-32 platforms
+.Fx
+makes the content of the IA-32 TSC counter available to all processes
+via the RDTSC instruction.

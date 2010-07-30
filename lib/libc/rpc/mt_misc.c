@@ -28,7 +28,6 @@ __FBSDID("$FreeBSD$");
 #define	proglst_lock		__proglst_lock
 #define	rpcsoc_lock		__rpcsoc_lock
 #define	svcraw_lock		__svcraw_lock
-#define	tsd_lock		__tsd_lock
 #define	xprtlist_lock		__xprtlist_lock
 
 /* protects the services list (svc.c) */
@@ -76,33 +75,33 @@ pthread_mutex_t	rpcsoc_lock = PTHREAD_MUTEX_INITIALIZER;
 /* svc_raw.c serialization */
 pthread_mutex_t	svcraw_lock = PTHREAD_MUTEX_INITIALIZER;
 
-/* protects TSD key creation */
-pthread_mutex_t	tsd_lock = PTHREAD_MUTEX_INITIALIZER;
-
 /* xprtlist (svc_generic.c) */
 pthread_mutex_t	xprtlist_lock = PTHREAD_MUTEX_INITIALIZER;
 
 #undef	rpc_createerr
 
 struct rpc_createerr rpc_createerr;
+static thread_key_t rce_key;
+static once_t rce_once = ONCE_INITIALIZER;
+static int rce_key_error;
+
+static void
+rce_key_init(void)
+{
+
+	rce_key_error = thr_keycreate(&rce_key, free);
+}
 
 struct rpc_createerr *
 __rpc_createerr()
 {
-	static thread_key_t rce_key = 0;
 	struct rpc_createerr *rce_addr = 0;
 
 	if (thr_main())
 		return (&rpc_createerr);
-	if ((rce_addr =
-	    (struct rpc_createerr *)thr_getspecific(rce_key)) != 0) {
-		mutex_lock(&tsd_lock);
-		if (thr_keycreate(&rce_key, free) != 0) {
-			mutex_unlock(&tsd_lock);
-			return (&rpc_createerr);
-		}
-		mutex_unlock(&tsd_lock);
-	}
+	if (thr_once(&rce_once, rce_key_init) != 0 || rce_key_error != 0)
+		return (&rpc_createerr);
+	rce_addr = (struct rpc_createerr *)thr_getspecific(rce_key);
 	if (!rce_addr) {
 		rce_addr = (struct rpc_createerr *)
 			malloc(sizeof (struct rpc_createerr));

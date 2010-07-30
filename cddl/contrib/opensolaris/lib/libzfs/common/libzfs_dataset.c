@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -1791,7 +1791,6 @@ zfs_prop_set(zfs_handle_t *zhp, const char *propname, const char *propval)
 	/* We don't support those properties on FreeBSD. */
 	switch (prop) {
 	case ZFS_PROP_DEVICES:
-	case ZFS_PROP_ZONED:
 	case ZFS_PROP_SHAREISCSI:
 	case ZFS_PROP_ISCSIOPTIONS:
 	case ZFS_PROP_XATTR:
@@ -2045,6 +2044,8 @@ getprop_uint64(zfs_handle_t *zhp, zfs_prop_t prop, char **source)
 		verify(nvlist_lookup_uint64(nv, ZPROP_VALUE, &value) == 0);
 		(void) nvlist_lookup_string(nv, ZPROP_SOURCE, source);
 	} else {
+		verify(!zhp->zfs_props_table ||
+		    zhp->zfs_props_table[prop] == B_TRUE);
 		value = zfs_prop_default_numeric(prop);
 		*source = "";
 	}
@@ -2064,6 +2065,8 @@ getprop_string(zfs_handle_t *zhp, zfs_prop_t prop, char **source)
 		verify(nvlist_lookup_string(nv, ZPROP_VALUE, &value) == 0);
 		(void) nvlist_lookup_string(nv, ZPROP_SOURCE, source);
 	} else {
+		verify(!zhp->zfs_props_table ||
+		    zhp->zfs_props_table[prop] == B_TRUE);
 		if ((value = (char *)zfs_prop_default_string(prop)) == NULL)
 			value = "";
 		*source = "";
@@ -4265,6 +4268,35 @@ zfs_deleg_share_nfs(libzfs_handle_t *hdl, char *dataset, char *path,
 
 	error = ioctl(hdl->libzfs_fd, ZFS_IOC_SHARE, &zc);
 	return (error);
+}
+
+void
+zfs_prune_proplist(zfs_handle_t *zhp, uint8_t *props)
+{
+	nvpair_t *curr;
+
+	/*
+	 * Keep a reference to the props-table against which we prune the
+	 * properties.
+	 */
+	zhp->zfs_props_table = props;
+
+	curr = nvlist_next_nvpair(zhp->zfs_props, NULL);
+
+	while (curr) {
+		zfs_prop_t zfs_prop = zfs_name_to_prop(nvpair_name(curr));
+		nvpair_t *next = nvlist_next_nvpair(zhp->zfs_props, curr);
+
+		/*
+		 * We leave user:props in the nvlist, so there will be
+		 * some ZPROP_INVAL.  To be extra safe, don't prune
+		 * those.
+		 */
+		if (zfs_prop != ZPROP_INVAL && props[zfs_prop] == B_FALSE)
+			(void) nvlist_remove(zhp->zfs_props,
+			    nvpair_name(curr), nvpair_type(curr));
+		curr = next;
+	}
 }
 
 /*

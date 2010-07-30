@@ -18,12 +18,16 @@ BIN1=	auth.conf \
 	rc rc.bsdextended rc.firewall rc.initdiskless \
 	rc.sendmail rc.shutdown \
 	rc.subr remote rpc services shells \
-	sysctl.conf syslog.conf
+	sysctl.conf syslog.conf termcap.small
 
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
-.else
+.elif exists(${.CURDIR}/etc.${MACHINE_ARCH}/ttys)
 BIN1+=	etc.${MACHINE_ARCH}/ttys
+.elif exists(${.CURDIR}/etc.${MACHINE_CPUARCH}/ttys)
+BIN1+=	etc.${MACHINE_CPUARCH}/ttys
+.else
+.error etc.MACHINE/ttys missing
 .endif
 
 OPENBSMDIR=			${.CURDIR}/../contrib/openbsm
@@ -64,7 +68,7 @@ BIN1+=	hosts.lpd printcap
 BIN1+=	${.CURDIR}/../usr.bin/mail/misc/mail.rc
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN_UTILS} != "no"
 BIN1+=	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config
 .endif
 
@@ -161,6 +165,9 @@ distribution:
 		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
+.if ${MK_AT} == "no"
+	sed -i "" -e 's;.*/usr/libexec/atrun;#&;' ${DESTDIR}/etc/crontab
+.endif
 .if ${MK_TCSH} == "no"
 	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
 .endif
@@ -246,10 +253,12 @@ distribution:
 	    ${DESTDIR}/var/crash
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FREEBSD} ${DESTDIR}/
+.if ${MK_BOOT} != "no"
 .if exists(${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints)
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
 	    ${DESTDIR}/boot/device.hints
+.endif
 .endif
 
 distrib-dirs:

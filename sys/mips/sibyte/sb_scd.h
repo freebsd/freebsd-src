@@ -31,6 +31,7 @@
 
 #define	NUM_INTSRC		64	/* total number of interrupt sources */
 
+uint64_t	sb_zbbus_cycle_count(void);
 uint64_t	sb_cpu_speed(void);
 void		sb_system_reset(void);
 

@@ -42,7 +42,7 @@ struct upnp_wps_device_sm;
  * @key_idx: Key index
  * @key: Key
  * @key_len: Key length in octets
- * @mac_addr: MAC address of the peer
+ * @mac_addr: MAC address of the Credential receiver
  * @cred_attr: Unparsed Credential attribute data (used only in cred_cb());
  *	this may be %NULL, if not used
  * @cred_attr_len: Length of cred_attr in octets
@@ -266,6 +266,11 @@ struct wps_registrar_config {
 	 * to be set with a suitable Credential and skip_cred_build being used.
 	 */
 	int disable_auto_conf;
+
+	/**
+	 * static_wep_only - Whether the BSS supports only static WEP
+	 */
+	int static_wep_only;
 };
 
 
@@ -291,7 +296,17 @@ enum wps_event {
 	/**
 	 * WPS_EV_PWD_AUTH_FAIL - Password authentication failed
 	 */
-	WPS_EV_PWD_AUTH_FAIL
+	WPS_EV_PWD_AUTH_FAIL,
+
+	/**
+	 * WPS_EV_PBC_OVERLAP - PBC session overlap detected
+	 */
+	WPS_EV_PBC_OVERLAP,
+
+	/**
+	 * WPS_EV_PBC_TIMEOUT - PBC walktime expired before protocol run start
+	 */
+	WPS_EV_PBC_TIMEOUT
 };
 
 /**
@@ -500,7 +515,7 @@ wps_registrar_init(struct wps_context *wps,
 		   const struct wps_registrar_config *cfg);
 void wps_registrar_deinit(struct wps_registrar *reg);
 int wps_registrar_add_pin(struct wps_registrar *reg, const u8 *uuid,
-			  const u8 *pin, size_t pin_len);
+			  const u8 *pin, size_t pin_len, int timeout);
 int wps_registrar_invalidate_pin(struct wps_registrar *reg, const u8 *uuid);
 int wps_registrar_unlock_pin(struct wps_registrar *reg, const u8 *uuid);
 int wps_registrar_button_pushed(struct wps_registrar *reg);

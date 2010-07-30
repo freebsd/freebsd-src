@@ -1578,7 +1578,6 @@ static void web_connection_parse_subscribe(struct web_connection *c,
 			ret = HTTP_INTERNAL_SERVER_ERROR;
 			goto error;
 		}
-		callback_urls = NULL;   /* is now owned by subscription */
 	} else {
 		ret = HTTP_PRECONDITION_FAILED;
 		goto error;
@@ -1630,6 +1629,7 @@ error:
 	http_put_empty(buf, ret);
 	send_wpabuf(c->sd, buf);
 	wpabuf_free(buf);
+	os_free(callback_urls);
 }
 
 

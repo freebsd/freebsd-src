@@ -163,6 +163,12 @@ _ENTRY(_rtld_bind_start)
  * The ELF object is shifted into %r11, and _rtld_bind_start is called
  * to complete the binding.
  */
+_ENTRY(_rtld_powerpc_pltlongresolve)
+	lis	%r12,0			# lis	12,jmptab@ha
+	addi    %r12,%r12,0		# addi  12,12,jmptab@l
+	subf	%r11,%r12,%r11		# reloff
+	li	%r12,2
+	srw	%r11,%r11,%r12		# index = reloff/sizeof(Elf_Addr)
 _ENTRY(_rtld_powerpc_pltresolve)
         lis     %r12,0			# lis   12,_rtld_bind_start@ha
         addi    %r12,%r12,0		# addi  12,12,_rtld_bind_start@l

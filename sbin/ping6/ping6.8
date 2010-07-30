@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2008
+.Dd April 20, 2010
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -40,9 +40,9 @@ packets to network hosts
 .Sh SYNOPSIS
 .Nm
 .\" without ipsec, or new ipsec
-.Op Fl dfHmnNoqrRtvwW
+.Op Fl DdfHmnNoqrRtvwW
 .\" old ipsec
-.\" .Op Fl AdEfmnNqRtvwW
+.\" .Op Fl ADdEfmnNqRtvwW
 .Bk -words
 .Op Fl a Ar addrtype
 .Ek
@@ -141,6 +141,8 @@ Stop after sending
 .Ar count
 .Tn ECHO_RESPONSE
 packets.
+.It Fl D
+Disable IPv6 fragmentation.
 .It Fl d
 Set the
 .Dv SO_DEBUG

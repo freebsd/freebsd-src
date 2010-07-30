@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keysign.c,v 1.29 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: ssh-keysign.c,v 1.30 2010/01/13 01:20:20 dtucker Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
@@ -222,7 +222,7 @@ main(int argc, char **argv)
 	if ((fd == STDIN_FILENO) || (fd == STDOUT_FILENO))
 		fatal("bad fd");
 	if ((host = get_local_name(fd)) == NULL)
-		fatal("cannot get sockname for fd");
+		fatal("cannot get local name for fd");
 
 	data = buffer_get_string(&b, &dlen);
 	if (valid_request(pw, host, &key, data, dlen) < 0)

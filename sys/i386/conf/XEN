@@ -31,7 +31,6 @@ options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
-options 	COMPAT_43TTY		# BSD 4.3 TTY compat (sgtty)
 options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
@@ -49,7 +48,7 @@ options 	AUDIT			# Security event auditing
 options 	KDB			# Enable kernel debugger support.
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
-options		DEADLKRES		# Enable the deadlock resolver
+options 	DEADLKRES		# Enable the deadlock resolver
 options 	INVARIANTS		# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
@@ -67,12 +66,12 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 device		apic			# I/O APIC
 
 
-device		atkbdc		# AT keyboard controller
-device		atkbd		# AT keyboard
+#device		atkbdc		# AT keyboard controller
+#device		atkbd		# AT keyboard
 device		psm		# PS/2 mouse
 device		pci
 
-device		kbdmux		# keyboard multiplexer
+#device		kbdmux		# keyboard multiplexer
 
 # Pseudo devices.
 device		loop		# Network loopback

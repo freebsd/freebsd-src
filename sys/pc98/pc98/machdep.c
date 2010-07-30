@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -129,7 +130,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_ISA
-#include <i386/isa/icu.h>
+#include <x86/isa/icu.h>
 #endif
 
 /* Sanity check for __curthread() */
@@ -213,6 +214,8 @@ static void
 cpu_startup(dummy)
 	void *dummy;
 {
+	uintmax_t memsize;
+
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
@@ -222,9 +225,14 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
-	    ptoa((uintmax_t)Maxmem) / 1048576);
 	realmem = Maxmem;
+
+	/*
+	 * Display physical memory.
+	 */
+	memsize = ptoa((uintmax_t)Maxmem);
+	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -255,10 +263,7 @@ cpu_startup(dummy)
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-
 	cpu_setregs();
-
-	mca_init();
 }
 
 /*
@@ -563,6 +568,13 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
+
+	/*
+	 * The get_fpcontext() call must be placed before assignments
+	 * to mc_fsbase and mc_gsbase due to the alignment-override
+	 * code in get_fpcontext() that possibly clobbers 12 bytes of
+	 * mcontext after mc_fpstate.
+	 */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
 	/*
@@ -874,7 +886,8 @@ freebsd4_sigreturn(td, uap)
 		 * one less debugger trap, so allowing it is fairly harmless.
 		 */
 		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-			printf("freebsd4_sigreturn: eflags = 0x%x\n", eflags);
+			uprintf("pid %d (%s): freebsd4_sigreturn eflags = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
 		}
 
@@ -885,7 +898,8 @@ freebsd4_sigreturn(td, uap)
 		 */
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
-			printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
+			uprintf("pid %d (%s): freebsd4_sigreturn cs = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, cs);
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGBUS;
 			ksi.ksi_code = BUS_OBJERR;
@@ -986,7 +1000,8 @@ sigreturn(td, uap)
 		 * one less debugger trap, so allowing it is fairly harmless.
 		 */
 		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-			printf("sigreturn: eflags = 0x%x\n", eflags);
+			uprintf("pid %d (%s): sigreturn eflags = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
 		}
 
@@ -997,7 +1012,8 @@ sigreturn(td, uap)
 		 */
 		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
-			printf("sigreturn: cs = 0x%x\n", cs);
+			uprintf("pid %d (%s): sigreturn cs = 0x%x\n",
+			    td->td_proc->p_pid, td->td_name, cs);
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGBUS;
 			ksi.ksi_code = BUS_OBJERR;
@@ -1019,8 +1035,8 @@ sigreturn(td, uap)
 	else
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
 
+	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
 	return (EJUSTRETURN);
 }
 
@@ -1093,6 +1109,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	return (0);
 }
 
+
 /*
  * Shutdown the CPU as much as possible
  */
@@ -1103,80 +1120,183 @@ cpu_halt(void)
 		__asm__ ("hlt");
 }
 
-/*
- * Hook to idle the CPU when possible.  In the SMP case we default to
- * off because a halted cpu will not currently pick up a new thread in the
- * run queue until the next timer tick.  If turned on this will result in
- * approximately a 4.2% loss in real time performance in buildworld tests
- * (but improves user and sys times oddly enough), and saves approximately
- * 5% in power consumption on an idle machine (tests w/2xCPU 1.1GHz P3).
- *
- * XXX we need to have a cpu mask of idle cpus and generate an IPI or
- * otherwise generate some sort of interrupt to wake up cpus sitting in HLT.
- * Then we can have our cake and eat it too.
- *
- * XXX I'm turning it on for SMP as well by default for now.  It seems to
- * help lock contention somewhat, and this is critical for HTT. -Peter
- */
-static int	cpu_idle_hlt = 1;
-TUNABLE_INT("machdep.cpu_idle_hlt", &cpu_idle_hlt);
-SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
-    &cpu_idle_hlt, 0, "Idle loop HLT enable");
-
 static void
-cpu_idle_default(void)
+cpu_idle_hlt(int busy)
 {
 	/*
-	 * we must absolutely guarentee that hlt is the
-	 * absolute next instruction after sti or we
-	 * introduce a timing window.
+	 * we must absolutely guarentee that hlt is the next instruction
+	 * after sti or we introduce a timing window.
 	 */
-	__asm __volatile("sti; hlt");
+	disable_intr();
+  	if (sched_runnable())
+		enable_intr();
+	else
+		__asm __volatile("sti; hlt");
 }
 
-/*
- * Note that we have to be careful here to avoid a race between checking
- * sched_runnable() and actually halting.  If we don't do this, we may waste
- * the time between calling hlt and the next interrupt even though there
- * is a runnable process.
- */
+static void
+cpu_idle_spin(int busy)
+{
+	return;
+}
+
+void (*cpu_idle_fn)(int) = cpu_idle_hlt;
+
 void
 cpu_idle(int busy)
 {
-
-#ifdef SMP
+#if defined(SMP)
 	if (mp_grab_cpu_hlt())
 		return;
 #endif
+	cpu_idle_fn(busy);
+}
 
-	if (cpu_idle_hlt) {
-		disable_intr();
-  		if (sched_runnable())
-			enable_intr();
-		else
-			(*cpu_idle_hook)();
+/*
+ * mwait cpu power states.  Lower 4 bits are sub-states.
+ */
+#define	MWAIT_C0	0xf0
+#define	MWAIT_C1	0x00
+#define	MWAIT_C2	0x10
+#define	MWAIT_C3	0x20
+#define	MWAIT_C4	0x30
+
+#define	MWAIT_DISABLED	0x0
+#define	MWAIT_WOKEN	0x1
+#define	MWAIT_WAITING	0x2
+
+static void
+cpu_idle_mwait(int busy)
+{
+	int *mwait;
+
+	mwait = (int *)PCPU_PTR(monitorbuf);
+	*mwait = MWAIT_WAITING;
+	if (sched_runnable())
+		return;
+	cpu_monitor(mwait, 0, 0);
+	if (*mwait == MWAIT_WAITING)
+		cpu_mwait(0, MWAIT_C1);
+}
+
+static void
+cpu_idle_mwait_hlt(int busy)
+{
+	int *mwait;
+
+	mwait = (int *)PCPU_PTR(monitorbuf);
+	if (busy == 0) {
+		*mwait = MWAIT_DISABLED;
+		cpu_idle_hlt(busy);
+		return;
 	}
+	*mwait = MWAIT_WAITING;
+	if (sched_runnable())
+		return;
+	cpu_monitor(mwait, 0, 0);
+	if (*mwait == MWAIT_WAITING)
+		cpu_mwait(0, MWAIT_C1);
 }
 
 int
 cpu_idle_wakeup(int cpu)
 {
+	struct pcpu *pcpu;
+	int *mwait;
 
-	return (0);
+	if (cpu_idle_fn == cpu_idle_spin)
+		return (1);
+	if (cpu_idle_fn != cpu_idle_mwait && cpu_idle_fn != cpu_idle_mwait_hlt)
+		return (0);
+	pcpu = pcpu_find(cpu);
+	mwait = (int *)pcpu->pc_monitorbuf;
+	/*
+	 * This doesn't need to be atomic since missing the race will
+	 * simply result in unnecessary IPIs.
+	 */
+	if (cpu_idle_fn == cpu_idle_mwait_hlt && *mwait == MWAIT_DISABLED)
+		return (0);
+	*mwait = MWAIT_WOKEN;
+
+	return (1);
 }
 
-/* Other subsystems (e.g., ACPI) can hook this later. */
-void (*cpu_idle_hook)(void) = cpu_idle_default;
+/*
+ * Ordered by speed/power consumption.
+ */
+struct {
+	void	*id_fn;
+	char	*id_name;
+} idle_tbl[] = {
+	{ cpu_idle_spin, "spin" },
+	{ cpu_idle_mwait, "mwait" },
+	{ cpu_idle_mwait_hlt, "mwait_hlt" },
+	{ cpu_idle_hlt, "hlt" },
+	{ NULL, NULL }
+};
+
+static int
+idle_sysctl_available(SYSCTL_HANDLER_ARGS)
+{
+	char *avail, *p;
+	int error;
+	int i;
+
+	avail = malloc(256, M_TEMP, M_WAITOK);
+	p = avail;
+	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
+		if (strstr(idle_tbl[i].id_name, "mwait") &&
+		    (cpu_feature2 & CPUID2_MON) == 0)
+			continue;
+		p += sprintf(p, "%s, ", idle_tbl[i].id_name);
+	}
+	error = sysctl_handle_string(oidp, avail, 0, req);
+	free(avail, M_TEMP);
+	return (error);
+}
+
+static int
+idle_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	char buf[16];
+	int error;
+	char *p;
+	int i;
+
+	p = "unknown";
+	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
+		if (idle_tbl[i].id_fn == cpu_idle_fn) {
+			p = idle_tbl[i].id_name;
+			break;
+		}
+	}
+	strncpy(buf, p, sizeof(buf));
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	for (i = 0; idle_tbl[i].id_name != NULL; i++) {
+		if (strstr(idle_tbl[i].id_name, "mwait") &&
+		    (cpu_feature2 & CPUID2_MON) == 0)
+			continue;
+		if (strcmp(idle_tbl[i].id_name, buf))
+			continue;
+		cpu_idle_fn = idle_tbl[i].id_fn;
+		return (0);
+	}
+	return (EINVAL);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, idle_sysctl_available, "A", "list of available idle functions");
+
+SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
+    idle_sysctl, "A", "currently selected idle function");
 
 /*
  * Reset registers to default values on exec.
  */
 void
-exec_setregs(td, entry, stack, ps_strings)
-	struct thread *td;
-	u_long entry;
-	u_long stack;
-	u_long ps_strings;
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
@@ -1192,7 +1312,7 @@ exec_setregs(td, entry, stack, ps_strings)
 		mtx_unlock_spin(&dt_lock);
   
 	bzero((char *)regs, sizeof(struct trapframe));
-	regs->tf_eip = entry;
+	regs->tf_eip = imgp->entry_addr;
 	regs->tf_esp = stack;
 	regs->tf_eflags = PSL_USER | (regs->tf_eflags & PSL_T);
 	regs->tf_ss = _udatasel;
@@ -1202,7 +1322,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	regs->tf_cs = _ucodesel;
 
 	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
-	regs->tf_ebx = ps_strings;
+	regs->tf_ebx = imgp->ps_strings;
 
         /*
          * Reset the hardware debug registers if they were in use.
@@ -1291,10 +1411,11 @@ SYSCTL_ULONG(_machdep, OID_AUTO, guessed_bootdev,
  */
 
 int _default_ldt;
+
 union descriptor gdt[NGDT * MAXCPU];	/* global descriptor table */
+union descriptor ldt[NLDT];		/* local descriptor table */
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
-union descriptor ldt[NLDT];		/* local descriptor table */
 struct region_descriptor r_gdt, r_idt;	/* table descriptors */
 struct mtx dt_lock;			/* lock for GDT and LDT */
 
@@ -1319,7 +1440,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	.ssd_base = 0x0,
 	.ssd_limit = 0x0,
 	.ssd_type = 0,
-	.ssd_dpl = 0,
+	.ssd_dpl = SEL_KPL,
 	.ssd_p = 0,
 	.ssd_xx = 0, .ssd_xx1 = 0,
 	.ssd_def32 = 0,
@@ -1328,7 +1449,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMRWA,
-	.ssd_dpl = 0,
+	.ssd_dpl = SEL_KPL,
 	.ssd_p = 1,
 	.ssd_xx = 0, .ssd_xx1 = 0,
 	.ssd_def32 = 1,
@@ -1355,7 +1476,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMERA,
-	.ssd_dpl = 0,
+	.ssd_dpl = SEL_KPL,
 	.ssd_p = 1,
 	.ssd_xx = 0, .ssd_xx1 = 0,
 	.ssd_def32 = 1,
@@ -1364,7 +1485,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMRWA,
-	.ssd_dpl = 0,
+	.ssd_dpl = SEL_KPL,
 	.ssd_p = 1,
 	.ssd_xx = 0, .ssd_xx1 = 0,
 	.ssd_def32 = 1,
@@ -1391,7 +1512,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	.ssd_base = 0x400,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMRWA,
-	.ssd_dpl = 0,
+	.ssd_dpl = SEL_KPL,
 	.ssd_p = 1,
 	.ssd_xx = 0, .ssd_xx1 = 0,
 	.ssd_def32 = 1,
@@ -1650,7 +1771,8 @@ getmemsize(int first)
 	int i, off, physmap_idx, pa_indx, da_indx;
 	int pg_n;
 	u_long physmem_tunable;
-	u_int extmem, under16;
+	u_int extmem;
+	u_int under16;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	quad_t dcons_addr, dcons_size;
@@ -1675,7 +1797,7 @@ getmemsize(int first)
 	/*
 	 * Perform "base memory" related probes & setup
 	 */
-        under16 = pc98_getmemsize(&basemem, &extmem);
+	under16 = pc98_getmemsize(&basemem, &extmem);
 	if (basemem > 640) {
 		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
 			basemem);
@@ -1907,7 +2029,7 @@ do_next:
 	}
 	*pte = 0;
 	invltlb();
-
+	
 	/*
 	 * XXX
 	 * The last chunk must contain at least one page plus the message
@@ -1937,9 +2059,8 @@ init386(first)
 	int first;
 {
 	struct gate_descriptor *gdp;
-	int gsel_tss, metadata_missing, x;
+	int gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
-	int pa;
 
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
@@ -2000,7 +2121,6 @@ init386(first)
 		pmap_kenter(pa + KERNBASE, pa);
 	dpcpu_init((void *)(first + KERNBASE), 0);
 	first += DPCPU_SIZE;
-
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);
@@ -2394,12 +2514,12 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
-		fill_fpregs_xmm(&td->td_pcb->pcb_save.sv_xmm,
+		fill_fpregs_xmm(&td->td_pcb->pcb_save->sv_xmm,
 						(struct save87 *)fpregs);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(&td->td_pcb->pcb_save.sv_87, fpregs, sizeof *fpregs);
+	bcopy(&td->td_pcb->pcb_save->sv_87, fpregs, sizeof *fpregs);
 	return (0);
 }
 
@@ -2409,11 +2529,11 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
 		set_fpregs_xmm((struct save87 *)fpregs,
-					   &td->td_pcb->pcb_save.sv_xmm);
+					   &td->td_pcb->pcb_save->sv_xmm);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(fpregs, &td->td_pcb->pcb_save.sv_87, sizeof *fpregs);
+	bcopy(fpregs, &td->td_pcb->pcb_save->sv_87, sizeof *fpregs);
 	return (0);
 }
 
@@ -2455,6 +2575,13 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_esp = tp->tf_esp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
+
+	/*
+	 * The get_fpcontext() call must be placed before assignments
+	 * to mc_fsbase and mc_gsbase due to the alignment-override
+	 * code in get_fpcontext() that possibly clobbers 12 bytes of
+	 * mcontext after mc_fpstate.
+	 */
 	get_fpcontext(td, mcp);
 	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
@@ -2521,7 +2648,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	 *
 	 * XXX unpessimize most cases by only aligning when fxsave might be
 	 * called, although this requires knowing too much about
-	 * npxgetregs()'s internals.
+	 * npxgetuserregs()'s internals.
 	 */
 	addr = (union savefpu *)&mcp->mc_fpstate;
 	if (td == PCPU_GET(fpcurthread) &&
@@ -2533,7 +2660,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 			addr = (void *)((char *)addr + 4);
 		while ((uintptr_t)(void *)addr & 0xF);
 	}
-	mcp->mc_ownedfp = npxgetregs(td, addr);
+	mcp->mc_ownedfp = npxgetuserregs(td, addr);
 	if (addr != (union savefpu *)&mcp->mc_fpstate) {
 		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
@@ -2574,11 +2701,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		if (cpu_fxsr)
 			addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
 #endif
-		/*
-		 * XXX we violate the dubious requirement that npxsetregs()
-		 * be called with interrupts disabled.
-		 */
-		npxsetregs(td, addr);
+		npxsetuserregs(td, addr);
 #endif
 		/*
 		 * Don't bother putting things back where they were in the
@@ -2593,25 +2716,25 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 static void
 fpstate_drop(struct thread *td)
 {
-	register_t s;
 
-	s = intr_disable();
+	critical_enter();
 #ifdef DEV_NPX
 	if (PCPU_GET(fpcurthread) == td)
 		npxdrop();
 #endif
 	/*
 	 * XXX force a full drop of the npx.  The above only drops it if we
-	 * owned it.  npxgetregs() has the same bug in the !cpu_fxsr case.
+	 * owned it.  npxusergetregs() has the same bug in the !cpu_fxsr case.
 	 *
-	 * XXX I don't much like npxgetregs()'s semantics of doing a full
+	 * XXX I don't much like npxgetuserregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
 	 * We only need to drop to !PCB_INITDONE in sendsig().  But
-	 * sendsig() is the only caller of npxgetregs()... perhaps we just
+	 * sendsig() is the only caller of npxgetuserregs()... perhaps we just
 	 * have too many layers.
 	 */
-	curthread->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
-	intr_restore(s);
+	curthread->td_pcb->pcb_flags &= ~(PCB_NPXINITDONE |
+	    PCB_NPXUSERINITDONE);
+	critical_exit();
 }
 
 int

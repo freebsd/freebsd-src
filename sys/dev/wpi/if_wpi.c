@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -173,8 +174,7 @@ static int	wpi_alloc_tx_ring(struct wpi_softc *, struct wpi_tx_ring *,
 		    int, int);
 static void	wpi_reset_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
 static void	wpi_free_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
-static struct ieee80211_node *wpi_node_alloc(struct ieee80211vap *,
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
+static void	wpi_newassoc(struct ieee80211_node *, int);
 static int	wpi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	wpi_mem_lock(struct wpi_softc *);
 static void	wpi_mem_unlock(struct wpi_softc *);
@@ -235,7 +235,6 @@ static void	wpi_init_locked(struct wpi_softc *, int);
 static void	wpi_stop(struct wpi_softc *);
 static void	wpi_stop_locked(struct wpi_softc *);
 
-static void	wpi_newassoc(struct ieee80211_node *, int);
 static int	wpi_set_txpower(struct wpi_softc *, struct ieee80211_channel *,
 		    int);
 static void	wpi_calib_timeout(void *);
@@ -662,15 +661,14 @@ wpi_attach(device_t dev)
 	ifp->if_init = wpi_init;
 	ifp->if_ioctl = wpi_ioctl;
 	ifp->if_start = wpi_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ieee80211_ifattach(ic, macaddr);
 	/* override default methods */
-	ic->ic_node_alloc = wpi_node_alloc;
-	ic->ic_newassoc = wpi_newassoc;
 	ic->ic_raw_xmit = wpi_raw_xmit;
+	ic->ic_newassoc = wpi_newassoc;
 	ic->ic_wme.wme_update = wpi_wme_update;
 	ic->ic_scan_start = wpi_scan_start;
 	ic->ic_scan_end = wpi_scan_end;
@@ -782,11 +780,7 @@ wpi_vap_create(struct ieee80211com *ic,
 	wvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = wpi_newstate;
 
-	ieee80211_amrr_init(&wvp->amrr, vap,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
-	    500 /*ms*/);
-
+	ieee80211_ratectl_init(vap);
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change, ieee80211_media_status);
 	ic->ic_opmode = opmode;
@@ -798,7 +792,7 @@ wpi_vap_delete(struct ieee80211vap *vap)
 {
 	struct wpi_vap *wvp = WPI_VAP(vap);
 
-	ieee80211_amrr_cleanup(&wvp->amrr);
+	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(wvp, M_80211_VAP);
 }
@@ -1236,18 +1230,6 @@ wpi_resume(device_t dev)
 	return 0;
 }
 
-/* ARGSUSED */
-static struct ieee80211_node *
-wpi_node_alloc(struct ieee80211vap *vap __unused,
-	const uint8_t mac[IEEE80211_ADDR_LEN] __unused)
-{
-	struct wpi_node *wn;
-
-	wn = malloc(sizeof (struct wpi_node), M_80211_NODE, M_NOWAIT | M_ZERO);
-
-	return &wn->ni;
-}
-
 /**
  * Called by net80211 when ever there is a change to 80211 state machine
  */
@@ -1567,7 +1549,9 @@ wpi_tx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	struct wpi_tx_ring *ring = &sc->txq[desc->qid & 0x3];
 	struct wpi_tx_data *txdata = &ring->data[desc->idx];
 	struct wpi_tx_stat *stat = (struct wpi_tx_stat *)(desc + 1);
-	struct wpi_node *wn = (struct wpi_node *)txdata->ni;
+	struct ieee80211_node *ni = txdata->ni;
+	struct ieee80211vap *vap = ni->ni_vap;
+	int retrycnt = 0;
 
 	DPRINTFN(WPI_DEBUG_TX, ("tx done: qid=%d idx=%d retries=%d nkill=%d "
 	    "rate=%x duration=%d status=%x\n", desc->qid, desc->idx,
@@ -1580,11 +1564,12 @@ wpi_tx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	 * the lowest available bit-rate.
 	 * XXX frames w/o ACK shouldn't be used either
 	 */
-	wn->amn.amn_txcnt++;
 	if (stat->ntries > 0) {
 		DPRINTFN(WPI_DEBUG_TX, ("%d retries\n", stat->ntries));
-		wn->amn.amn_retrycnt++;
+		retrycnt = 1;
 	}
+	ieee80211_ratectl_tx_complete(vap, ni, IEEE80211_RATECTL_TX_SUCCESS,
+	    &retrycnt, NULL);
 
 	/* XXX oerrors should only count errors !maxtries */
 	if ((le32toh(stat->status) & 0xff) != 1)
@@ -1919,7 +1904,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		rate = tp->ucastrate;
 	} else {
-		(void) ieee80211_amrr_choose(ni, &WPI_NODE(ni)->amn);
+		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 	}
 	tx->rate = wpi_plcp_signal(rate);
@@ -3214,10 +3199,9 @@ wpi_stop(struct wpi_softc *sc)
 static void
 wpi_newassoc(struct ieee80211_node *ni, int isnew)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct wpi_vap *wvp = WPI_VAP(vap);
 
-	ieee80211_amrr_node_init(&wvp->amrr, &WPI_NODE(ni)->amn, ni);
+	/* XXX move */
+	ieee80211_ratectl_node_init(ni);
 }
 
 static void
@@ -3706,4 +3690,3 @@ static const char *wpi_cmd_str(int cmd)
 MODULE_DEPEND(wpi, pci,  1, 1, 1);
 MODULE_DEPEND(wpi, wlan, 1, 1, 1);
 MODULE_DEPEND(wpi, firmware, 1, 1, 1);
-MODULE_DEPEND(wpi, wlan_amrr, 1, 1, 1);

@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1997-2005
+ *	Herbert Xu <herbert@gondor.apana.org.au>.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Kenneth Almquist.
@@ -273,7 +275,6 @@ exptilde(char *p, int flag)
 		switch(c) {
 		case CTLESC: /* This means CTL* are always considered quoted. */
 		case CTLVAR:
-		case CTLENDVAR:
 		case CTLBACKQ:
 		case CTLBACKQ | CTLQUOTE:
 		case CTLARI:
@@ -285,6 +286,7 @@ exptilde(char *p, int flag)
 				goto done;
 			break;
 		case '/':
+		case CTLENDVAR:
 			goto done;
 		}
 		p++;
@@ -360,7 +362,7 @@ removerecordregions(int endoff)
 void
 expari(int flag)
 {
-	char *p, *start;
+	char *p, *q, *start;
 	arith_t result;
 	int begoff;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
@@ -398,7 +400,9 @@ expari(int flag)
 	removerecordregions(begoff);
 	if (quotes)
 		rmescapes(p+2);
+	q = grabstackstr(expdest);
 	result = arith(p+2);
+	ungrabstackstr(q, expdest);
 	fmtstr(p, DIGITS(result), ARITH_FORMAT_STR, result);
 	while (*p++)
 		;
@@ -506,7 +510,9 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 	int amount;
 
 	herefd = -1;
-	argstr(p, 0);
+	argstr(p, (subtype == VSTRIMLEFT || subtype == VSTRIMLEFTMAX ||
+	    subtype == VSTRIMRIGHT || subtype == VSTRIMRIGHTMAX ?
+	    EXP_CASE : 0) | EXP_TILDE);
 	STACKSTRNUL(expdest);
 	herefd = saveherefd;
 	argbackq = saveargbackq;
@@ -812,7 +818,7 @@ varisset(char *name, int nulok)
 {
 
 	if (*name == '!')
-		return backgndpid != -1;
+		return backgndpidset();
 	else if (*name == '@' || *name == '*') {
 		if (*shellparam.p == NULL)
 			return 0;
@@ -885,7 +891,7 @@ varvalue(char *name, int quoted, int subtype, int flag)
 		num = shellparam.nparam;
 		goto numvar;
 	case '!':
-		num = backgndpid;
+		num = backgndpidval();
 numvar:
 		expdest = cvtnum(num, expdest);
 		break;
@@ -1146,10 +1152,11 @@ expmeta(char *enddir, char *name)
 	struct dirent *dp;
 	int atend;
 	int matchdot;
+	int esc;
 
 	metaflag = 0;
 	start = name;
-	for (p = name ; ; p++) {
+	for (p = name; esc = 0, *p; p += esc + 1) {
 		if (*p == '*' || *p == '?')
 			metaflag = 1;
 		else if (*p == '[') {
@@ -1174,12 +1181,14 @@ expmeta(char *enddir, char *name)
 			break;
 		else if (*p == CTLQUOTEMARK)
 			continue;
-		else if (*p == CTLESC)
-			p++;
-		if (*p == '/') {
-			if (metaflag)
-				break;
-			start = p + 1;
+		else {
+			if (*p == CTLESC)
+				esc++;
+			if (p[esc] == '/') {
+				if (metaflag)
+					break;
+				start = p + esc + 1;
+			}
 		}
 	}
 	if (metaflag == 0) {	/* we've reached the end of the file name */
@@ -1225,7 +1234,8 @@ expmeta(char *enddir, char *name)
 		atend = 1;
 	} else {
 		atend = 0;
-		*endname++ = '\0';
+		*endname = '\0';
+		endname += esc + 1;
 	}
 	matchdot = 0;
 	p = start;
@@ -1253,7 +1263,7 @@ expmeta(char *enddir, char *name)
 	}
 	closedir(dirp);
 	if (! atend)
-		endname[-1] = '/';
+		endname[-esc - 1] = esc ? CTLESC : '/';
 }
 
 

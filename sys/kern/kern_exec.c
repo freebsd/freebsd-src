@@ -372,6 +372,7 @@ do_execve(td, args, mac_p)
 	imgp->execlabel = NULL;
 	imgp->attr = &attr;
 	imgp->entry_addr = 0;
+	imgp->reloc_base = 0;
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
 	imgp->opened = 0;
@@ -752,15 +753,14 @@ interpret:
 	p->p_flag &= ~P_INEXEC;
 
 	/*
-	 * If tracing the process, trap to debugger so breakpoints
-	 * can be set before the program executes.
-	 * Use tdsignal to deliver signal to current thread, use
-	 * psignal may cause the signal to be delivered to wrong thread
-	 * because that thread will exit, remember we are going to enter
-	 * single thread mode.
+	 * If tracing the process, trap to the debugger so that
+	 * breakpoints can be set before the program executes.  We
+	 * have to use tdsignal() to deliver the signal to the current
+	 * thread since any other threads in this process will exit if
+	 * execve() succeeds.
 	 */
 	if (p->p_flag & P_TRACED)
-		tdsignal(p, td, SIGTRAP, NULL);
+		tdsignal(td, SIGTRAP);
 
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;
@@ -799,11 +799,10 @@ interpret:
 
 	/* Set values passed into the program in registers. */
 	if (p->p_sysent->sv_setregs)
-		(*p->p_sysent->sv_setregs)(td, imgp->entry_addr,
-		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
+		(*p->p_sysent->sv_setregs)(td, imgp, 
+		    (u_long)(uintptr_t)stack_base);
 	else
-		exec_setregs(td, imgp->entry_addr,
-		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
+		exec_setregs(td, imgp, (u_long)(uintptr_t)stack_base);
 
 	vfs_mark_atime(imgp->vp, td->td_ucred);
 
@@ -871,6 +870,10 @@ exec_fail_dealloc:
 	free(imgp->freepath, M_TEMP);
 
 	if (error == 0) {
+		PROC_LOCK(p);
+		td->td_dbgflags |= TDB_EXEC;
+		PROC_UNLOCK(p);
+
 		/*
 		 * Stop the process here if its stop event mask has
 		 * the S_EXEC bit set.
@@ -931,7 +934,7 @@ exec_map_first_page(imgp)
 		if (initial_pagein > object->size)
 			initial_pagein = object->size;
 		for (i = 1; i < initial_pagein; i++) {
-			if ((ma[i] = vm_page_lookup(object, i)) != NULL) {
+			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
 				if (ma[i]->valid)
 					break;
 				if ((ma[i]->oflags & VPO_BUSY) || ma[i]->busy)
@@ -948,18 +951,18 @@ exec_map_first_page(imgp)
 		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
 		ma[0] = vm_page_lookup(object, 0);
 		if ((rv != VM_PAGER_OK) || (ma[0] == NULL)) {
-			if (ma[0]) {
-				vm_page_lock_queues();
+			if (ma[0] != NULL) {
+				vm_page_lock(ma[0]);
 				vm_page_free(ma[0]);
-				vm_page_unlock_queues();
+				vm_page_unlock(ma[0]);
 			}
 			VM_OBJECT_UNLOCK(object);
 			return (EIO);
 		}
 	}
-	vm_page_lock_queues();
+	vm_page_lock(ma[0]);
 	vm_page_hold(ma[0]);
-	vm_page_unlock_queues();
+	vm_page_unlock(ma[0]);
 	vm_page_wakeup(ma[0]);
 	VM_OBJECT_UNLOCK(object);
 
@@ -979,9 +982,9 @@ exec_unmap_first_page(imgp)
 		m = sf_buf_page(imgp->firstpage);
 		sf_buf_free(imgp->firstpage);
 		imgp->firstpage = NULL;
-		vm_page_lock_queues();
+		vm_page_lock(m);
 		vm_page_unhold(m);
-		vm_page_unlock_queues();
+		vm_page_unlock(m);
 	}
 }
 
@@ -1260,7 +1263,7 @@ exec_copyout_strings(imgp)
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
 	suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp);
-	suword(&arginfo->ps_nargvstr, argc);
+	suword32(&arginfo->ps_nargvstr, argc);
 
 	/*
 	 * Fill in argument portion of vector table.
@@ -1276,7 +1279,7 @@ exec_copyout_strings(imgp)
 	suword(vectp++, 0);
 
 	suword(&arginfo->ps_envstr, (long)(intptr_t)vectp);
-	suword(&arginfo->ps_nenvstr, envc);
+	suword32(&arginfo->ps_nenvstr, envc);
 
 	/*
 	 * Fill in environment portion of vector table.

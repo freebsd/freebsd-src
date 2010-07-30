@@ -188,7 +188,7 @@ AcpiExSystemMemorySpaceHandler (
         break;
 
     default:
-        ACPI_ERROR ((AE_INFO, "Invalid SystemMemory width %d",
+        ACPI_ERROR ((AE_INFO, "Invalid SystemMemory width %u",
             BitWidth));
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
     }
@@ -265,7 +265,7 @@ AcpiExSystemMemorySpaceHandler (
         if (!MemInfo->MappedLogicalAddress)
         {
             ACPI_ERROR ((AE_INFO,
-                "Could not map memory at %8.8X%8.8X, size %X",
+                "Could not map memory at 0x%8.8X%8.8X, size %u",
                 ACPI_FORMAT_NATIVE_UINT (Address), (UINT32) MapLength));
             MemInfo->MappedLength = 0;
             return_ACPI_STATUS (AE_NO_MEMORY);
@@ -285,7 +285,7 @@ AcpiExSystemMemorySpaceHandler (
         ((UINT64) Address - (UINT64) MemInfo->MappedPhysicalAddress);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "System-Memory (width %d) R/W %d Address=%8.8X%8.8X\n",
+        "System-Memory (width %u) R/W %u Address=%8.8X%8.8X\n",
         BitWidth, Function, ACPI_FORMAT_NATIVE_UINT (Address)));
 
     /*
@@ -395,7 +395,7 @@ AcpiExSystemIoSpaceHandler (
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "System-IO (width %d) R/W %d Address=%8.8X%8.8X\n",
+        "System-IO (width %u) R/W %u Address=%8.8X%8.8X\n",
         BitWidth, Function, ACPI_FORMAT_NATIVE_UINT (Address)));
 
     /* Decode the function parameter */
@@ -475,7 +475,7 @@ AcpiExPciConfigSpaceHandler (
     PciRegister = (UINT16) (UINT32) Address;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "Pci-Config %d (%d) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
+        "Pci-Config %u (%u) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
         Function, BitWidth, PciId->Segment, PciId->Bus, PciId->Device,
         PciId->Function, PciRegister));
 
@@ -608,8 +608,10 @@ AcpiExDataTableSpaceHandler (
     ACPI_FUNCTION_TRACE (ExDataTableSpaceHandler);
 
 
-    /* Perform the memory read or write */
-
+    /*
+     * Perform the memory read or write. The BitWidth was already
+     * validated.
+     */
     switch (Function)
     {
     case ACPI_READ:
@@ -619,9 +621,14 @@ AcpiExDataTableSpaceHandler (
         break;
 
     case ACPI_WRITE:
+
+        ACPI_MEMCPY (ACPI_PHYSADDR_TO_PTR (Address), ACPI_CAST_PTR (char, Value),
+            ACPI_DIV_8 (BitWidth));
+        break;
+
     default:
 
-        return_ACPI_STATUS (AE_SUPPORT);
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
     return_ACPI_STATUS (AE_OK);

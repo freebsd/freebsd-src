@@ -203,10 +203,8 @@ g_label_destroy(struct g_geom *gp, boolean_t force)
 			    pp->acr, pp->acw, pp->ace);
 			return (EBUSY);
 		}
-	} else {
-		G_LABEL_DEBUG(1, "Label %s removed.",
-		    LIST_FIRST(&gp->provider)->name);
-	}
+	} else if (pp != NULL)
+		G_LABEL_DEBUG(1, "Label %s removed.", pp->name);
 	g_slice_spoiled(LIST_FIRST(&gp->consumer));
 	return (0);
 }

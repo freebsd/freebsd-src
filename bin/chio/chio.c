@@ -1072,6 +1072,7 @@ find_element(char *voltag, uint16_t *et, uint16_t *eu)
 
 	/* Read in the changer slots */
 	if (cp.cp_nslots > 0) {
+		(void) memset(&cesr, 0, sizeof(cesr));
 		cesr.cesr_element_type = CHET_ST;
 		cesr.cesr_element_base = 0;
 		cesr.cesr_element_count = cp.cp_nslots;

@@ -123,7 +123,7 @@ struct ctlname {
 #define REQ_WIRED	2	/* locked and wired */
 
 /* definitions for sysctl_req 'flags' member */
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__) || defined(__ia64__) || defined(__powerpc64__)
 #define	SCTL_MASK32	1	/* 32 bit emulation */
 #endif
 
@@ -714,8 +714,8 @@ int	sysctl_wire_old_buffer(struct sysctl_req *req, size_t len);
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	sysctl(int *, u_int, void *, size_t *, void *, size_t);
-int	sysctlbyname(const char *, void *, size_t *, void *, size_t);
+int	sysctl(const int *, u_int, void *, size_t *, const void *, size_t);
+int	sysctlbyname(const char *, void *, size_t *, const void *, size_t);
 int	sysctlnametomib(const char *, int *, size_t *);
 __END_DECLS
 #endif	/* _KERNEL */

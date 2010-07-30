@@ -135,11 +135,11 @@ struct hostapd_tx_queue_params {
 	int configured;
 };
 
-struct hostapd_wme_ac_params {
+struct hostapd_wmm_ac_params {
 	int cwmin;
 	int cwmax;
 	int aifs;
-	int txopLimit; /* in units of 32us */
+	int txop_limit; /* in units of 32us */
 	int admission_control_mandatory;
 };
 
@@ -271,7 +271,7 @@ struct hostapd_bss_config {
 	int ap_max_inactivity;
 	int ignore_broadcast_ssid;
 
-	int wme_enabled;
+	int wmm_enabled;
 
 	struct hostapd_vlan *vlan, *vlan_tail;
 
@@ -371,13 +371,13 @@ struct hostapd_config {
 	struct hostapd_tx_queue_params tx_queue[NUM_TX_QUEUES];
 
 	/*
-	 * WME AC parameters, in same order as 802.1D, i.e.
+	 * WMM AC parameters, in same order as 802.1D, i.e.
 	 * 0 = BE (best effort)
 	 * 1 = BK (background)
 	 * 2 = VI (video)
 	 * 3 = VO (voice)
 	 */
-	struct hostapd_wme_ac_params wme_ac_params[4];
+	struct hostapd_wmm_ac_params wmm_ac_params[4];
 
 	enum {
 		INTERNAL_BRIDGE_DO_NOT_CONTROL = -1,

@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2000
+.Dd May 5, 2010
 .Dt NG_BRIDGE 4
 .Os
 .Sh NAME
@@ -181,11 +181,17 @@ but also atomically clears the statistics as well.
 .It Dv NGM_BRIDGE_GET_TABLE
 Returns the current host mapping table used to direct packets, in a
 .Dv "struct ng_bridge_host_ary" .
+.It Dv NGM_BRIDGE_SET_PERSISTENT
+This command sets the persistent flag on the node, and takes no arguments.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
-control message, or when all hooks have been disconnected.
+control message, or when all hooks have been disconnected.  Setting the
+persistent flag via a
+.Dv NGM_BRIDGE_SET_PERSISTENT
+control message disables automatic node shutdown when the last hook gets
+disconnected.
 .Sh FILES
 .Bl -tag -width XXXXXXXX -compact
 .It Pa /usr/share/examples/netgraph/ether.bridge

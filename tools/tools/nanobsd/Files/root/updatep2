@@ -58,4 +58,4 @@ sed -i "" "s/${NANO_DRIVE}s1/${NANO_DRIVE}s2/" /mnt/conf/base/etc/fstab
 sed -i "" "s/${NANO_DRIVE}s1/${NANO_DRIVE}s2/" /mnt/etc/fstab
 umount /mnt
 trap 1 2 15 EXIT
-boot0cfg -s 2 -v ${NANO_DRIVE}
+gpart set -a active -i 2 ${NANO_DRIVE}

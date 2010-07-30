@@ -63,7 +63,7 @@
 #define	_ENTRY(x) \
 	.text; .align 4; .globl x; .type x,@function; x:
 
-#ifdef GPROF
+#if defined(PROF) || (defined(_KERNEL) && defined(GPROF))
 # define	_PROF_PROLOGUE	mflr 0; stw 0,4(1); bl _mcount
 #else
 # define	_PROF_PROLOGUE

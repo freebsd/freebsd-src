@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 TARGET(elf32-ntradbigmips)
 OUTPUT_FORMAT("elf32-ntradbigmips", "elf32-ntradbigmips", "elf32-ntradlittlemips")
 OUTPUT_ARCH(mips)
@@ -6,6 +8,7 @@ ENTRY(_start)
 PROVIDE (_DYNAMIC = 0);
 
 SECTIONS {
+	. = KERNLOADADDR + SIZEOF_HEADERS;
 
 	.text . : {
 	    	*(.text)

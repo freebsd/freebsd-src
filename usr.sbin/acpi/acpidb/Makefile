@@ -13,8 +13,9 @@ SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
 	dmresrcl.c dmresrcs.c dmutils.c dmwalk.c
 
 # events
-SRCS+=	evevent.c evgpe.c evgpeblk.c evmisc.c evregion.c	\
-	evrgnini.c evsci.c evxface.c evxfevnt.c evxfregn.c
+SRCS+=	evevent.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c	\
+	evmisc.c evregion.c evrgnini.c evsci.c evxface.c	\
+	evxfevnt.c evxfregn.c
 
 # hardware
 SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwvalid.c hwxface.c
@@ -25,11 +26,11 @@ SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c dsobject.c	\
 	dswstate.c
 
 # interpreter/executer
-SRCS+=	exconfig.c exconvrt.c excreate.c exdump.c exfield.c	\
-	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c	\
-	exoparg2.c exoparg3.c exoparg6.c exprep.c exregion.c	\
-	exresnte.c exresolv.c exresop.c exstore.c exstoren.c	\
-	exstorob.c exsystem.c exutils.c
+SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c	\
+	exfield.c exfldio.c exmisc.c exmutex.c exnames.c	\
+	exoparg1.c exoparg2.c exoparg3.c exoparg6.c exprep.c	\
+	exregion.c exresnte.c exresolv.c exresop.c exstore.c	\
+	exstoren.c exstorob.c exsystem.c exutils.c
 
 # interpreter/parser
 SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\

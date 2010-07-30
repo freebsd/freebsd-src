@@ -101,8 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 
-#include <security/mac/mac_framework.h>
-
 struct	in6_addr zeroin6_addr;
 
 int
