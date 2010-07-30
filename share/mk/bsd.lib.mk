@@ -214,7 +214,7 @@ ${SHLIB_NAME}: ${SOBJS}
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
 	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
+		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS} && \
 		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS})
 .endif
 
