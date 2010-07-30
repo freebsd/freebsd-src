@@ -34,6 +34,8 @@
 static void ar5416StartNFCal(struct ath_hal *ah);
 static void ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *);
 static int16_t ar5416GetNf(struct ath_hal *, struct ieee80211_channel *);
+static int ar5416IsNFCalInProgress(struct ath_hal *ah);
+static int ar5416WaitNfComplete(struct ath_hal *ah, int i);
 
 /*
  * Determine if calibration is supported by device and channel flags
@@ -226,14 +228,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * Try to make sure the above NF cal completes, just so
 	 * it doesn't clash with subsequent percals -adrian
 	 */
-	for (i = 0; i < 100; i++) {
-		if (ath_hal_wait(ah, AR_PHY_AGC_CONTROL,
-		    AR_PHY_AGC_CONTROL_NF, 0) == AH_TRUE)
-			break;
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: (loop %d): initial NF "
-		"calibration didn't finish.\n", __func__, i);
-	}
-	if (i >= 100) {
+	if (! ar5416WaitNfComplete(struct ath_hal *ah, 1000)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
 		"not complete in time; noisy environment?\n", __func__);
 		return AH_FALSE;
@@ -570,22 +565,16 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 
 	/* Wait for load to complete, should be fast, a few 10s of us. */
-	for (j = 0; j < 1000; j++) {
-		if ((OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) == 0)
-			break;
-		OS_DELAY(10);
-	}
-
-	/*
-	 * We timed out waiting for the noisefloor to load, probably due to an
-	 * in-progress rx. Simply return here and allow the load plenty of time
-	 * to complete before the next calibration interval.  We need to avoid
-	 * trying to load -50 (which happens below) while the previous load is
-	 * still in progress as this can cause rx deafness. Instead by returning
-	 * here, the baseband nf cal will just be capped by our present
-	 * noisefloor until the next calibration timer.
-	 */
-	if (j == 1000) {
+	if (! ar5416WaitNfComplete(ah, 1000)) {
+		/*
+		 * We timed out waiting for the noisefloor to load, probably due to an
+		 * in-progress rx. Simply return here and allow the load plenty of time
+		 * to complete before the next calibration interval.  We need to avoid
+		 * trying to load -50 (which happens below) while the previous load is
+		 * still in progress as this can cause rx deafness. Instead by returning
+		 * here, the baseband nf cal will just be capped by our present
+		 * noisefloor until the next calibration timer.
+		 */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "Timeout while waiting for nf "
 		    "to load: AR_PHY_AGC_CONTROL=0x%x\n",
 		    OS_REG_READ(ah, AR_PHY_AGC_CONTROL));
@@ -648,6 +637,41 @@ ar5416UpdateNFHistBuff(struct ar5212NfCalHist *h, int16_t *nfarray)
 }   
 
 /*
+ * Check whether there's an in-progress NF completion.
+ *
+ * Returns AH_TRUE if there's a in-progress NF calibration, AH_FALSE
+ * otherwise.
+ */
+static int
+ar5416IsNFCalInProgress(struct ath_hal *ah)
+{
+	if (OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF)
+		return AH_TRUE;
+	return FALSE;
+}
+
+/*
+ * Wait for an in-progress calibration to complete.
+ *
+ * The completion function waits "i" times 10uS.
+ * It returns AH_TRUE if the NF calibration completed (or was never
+ * in progress); AH_FALSE if it was still in progress after "i" checks.
+ */
+static int
+ar5416WaitNfComplete(struct ath_hal *ah, int i)
+{
+	int j;
+	if (i <= 0)
+		i = 1;		/* it should run at least once */
+	for (j = 0; j < i; j++) {
+		if (! ar5416IsNFCalInProgress(ah))
+			return AH_TRUE;
+		OS_DELAY(10);
+	}
+	return AH_FALSE;
+}
+
+/*
  * Read the NF and check it against the noise floor threshhold
  */
 static int16_t
@@ -655,7 +679,7 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
 	int16_t nf, nfThresh;
 
-	if (OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) {
+	if (ar5416IsNFCalInProgress(ah)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: NF didn't complete in calibration window\n", __func__);
 		nf = 0;
