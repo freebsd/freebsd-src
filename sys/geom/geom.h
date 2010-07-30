@@ -353,6 +353,9 @@ g_free(void *ptr)
 		sx_assert(&topology_lock, SX_UNLOCKED);		\
 	} while (0)
 
+#define g_topology_sleep(chan, timo)				\
+	sx_sleep(chan, &topology_lock, 0, "gtopol", timo)
+
 #define DECLARE_GEOM_CLASS(class, name) 			\
 	static moduledata_t name##_mod = {			\
 		#name, g_modevent, &class			\
