@@ -238,7 +238,7 @@ SlowFault:
 #elif defined(TARGET_XLR_XLS)
 #define CLEAR_STATUS \
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
-	li      a2, (MIPS_SR_KX | MIPS_SR_COP_2_BIT) ; \
+	li      a2, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT) ; \
 	or      a0, a0, a2	        ; \
 	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
@@ -484,7 +484,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 #if defined(CPU_CNMIPS)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(TARGET_XLR_XLS)	
-	or      t0, t0, (MIPS_SR_KX | MIPS_SR_COP_2_BIT)
+	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
 #endif	
 	mtc0	t0, MIPS_COP_0_STATUS
 	PTR_ADDU a0, k1, U_PCB_REGS
@@ -708,7 +708,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 #ifdef CPU_CNMIPS
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(TARGET_XLR_XLS)	
-	or      t0, t0, (MIPS_SR_KX | MIPS_SR_COP_2_BIT)
+	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
 #endif	
 	mtc0	t0, MIPS_COP_0_STATUS
 	ITLBNOPFIX

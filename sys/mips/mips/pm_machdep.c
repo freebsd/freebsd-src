@@ -514,8 +514,10 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	td->td_frame->t9 = imgp->entry_addr & ~3; /* abicall req */
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
 	    (mips_rd_status() & MIPS_SR_INT_MASK);
-#if defined(__mips_n32) || defined(__mips_n64)
+#if defined(__mips_n32) 
 	td->td_frame->sr |= MIPS_SR_PX;
+#elif  defined(__mips_n64)
+	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX;
 #endif
 #ifdef CPU_CNMIPS
 	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS_SR_PX | MIPS_SR_UX |
