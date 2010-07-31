@@ -167,7 +167,7 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
@@ -179,15 +179,6 @@ _libproc=	libproc
 .if ${MACHINE_ARCH} == "ia64"
 _libefi=	libefi
 _libsmb=	libsmb
-.endif
-
-.if ${MACHINE_ARCH} == "amd64"
-.if ${MK_NCP} != "no"
-_libncp=	libncp
-.endif
-_libsmb=	libsmb
-_libvgl=	libvgl
-_libproc=	libproc
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
