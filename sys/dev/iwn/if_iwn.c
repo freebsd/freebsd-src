@@ -320,8 +320,17 @@ static const struct iwn_ident iwn_ident_table [] = {
 	{ 0x8086, 0x4239, "Intel(R) PRO/Wireless 6000" },
 	{ 0x8086, 0x422B, "Intel(R) PRO/Wireless 6000" },
 	{ 0x8086, 0x422C, "Intel(R) PRO/Wireless 6000" },
-	{ 0x8086, 0x0086, "Intel(R) PRO/Wireless 6050" },
-	{ 0x8086, 0x0087, "Intel(R) PRO/Wireless 6050" },
+	{ 0x8086, 0x0087, "Intel(R) PRO/Wireless 6250" },
+	{ 0x8086, 0x0089, "Intel(R) PRO/Wireless 6250" },
+	{ 0x8086, 0x0082, "Intel(R) PRO/Wireless 6205a" },
+	{ 0x8086, 0x0085, "Intel(R) PRO/Wireless 6205a" },
+#ifdef notyet
+	{ 0x8086, 0x008a, "Intel(R) PRO/Wireless 6205b" },
+	{ 0x8086, 0x008b, "Intel(R) PRO/Wireless 6205b" },
+	{ 0x8086, 0x008f, "Intel(R) PRO/Wireless 6205b" },
+	{ 0x8086, 0x0090, "Intel(R) PRO/Wireless 6205b" },
+	{ 0x8086, 0x0091, "Intel(R) PRO/Wireless 6205b" },
+#endif
 	{ 0, 0, NULL }
 };
 
@@ -734,7 +743,14 @@ iwn_hal_attach(struct iwn_softc *sc)
 	case IWN_HW_REV_TYPE_6050:
 		sc->sc_hal = &iwn5000_hal;
 		sc->limits = &iwn6000_sensitivity_limits;
-		sc->fwname = "iwn6000fw";
+		sc->fwname = "iwn6050fw";
+		sc->txchainmask = IWN_ANT_AB;
+		sc->rxchainmask = IWN_ANT_AB;
+		break;
+	case IWN_HW_REV_TYPE_6005:
+		sc->sc_hal = &iwn5000_hal;
+		sc->limits = &iwn6000_sensitivity_limits;
+		sc->fwname = "iwn6005fw";
 		sc->txchainmask = IWN_ANT_AB;
 		sc->rxchainmask = IWN_ANT_AB;
 		break;
@@ -5751,8 +5767,7 @@ iwn_apm_init(struct iwn_softc *sc)
 		IWN_CLRBITS(sc, IWN_GIO, IWN_GIO_L0S_ENA);
 
 	if (sc->hw_type != IWN_HW_REV_TYPE_4965 &&
-	    sc->hw_type != IWN_HW_REV_TYPE_6000 &&
-	    sc->hw_type != IWN_HW_REV_TYPE_6050)
+	    sc->hw_type <= IWN_HW_REV_TYPE_1000)
 		IWN_SETBITS(sc, IWN_ANA_PLL, IWN_ANA_PLL_INIT);
 
 	/* Wait for clock stabilization before accessing prph. */
