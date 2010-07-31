@@ -88,7 +88,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libpcap \
 	${_libpkg} \
 	${_libpmc} \
-	libproc \
+	${_libproc} \
 	librt \
 	${_libsdp} \
 	${_libsm} \
@@ -173,6 +173,7 @@ _libncp=	libncp
 .endif
 _libsmb=	libsmb
 _libvgl=	libvgl
+_libproc=	libproc
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
@@ -186,6 +187,7 @@ _libncp=	libncp
 .endif
 _libsmb=	libsmb
 _libvgl=	libvgl
+_libproc=	libproc
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
