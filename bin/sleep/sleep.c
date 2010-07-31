@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <limits.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -131,9 +132,10 @@ main(int argc, char *argv[])
 				 * Reporting does not bother with
 				 * fractions of a second...
 				 */
-				warnx("about %ld second(s) left"
-				    " out of the original %ld",
-				    time_to_sleep.tv_sec, original);
+				warnx("about %jd second(s) left"
+				    " out of the original %jd",
+				    (intmax_t)time_to_sleep.tv_sec,
+				    (intmax_t)original);
 				report_requested = 0;
 			} else
 				break;
