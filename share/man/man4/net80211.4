@@ -308,7 +308,7 @@ By default 802.11h is enabled if the device is capable.
 Return, in
 .Va i_val ,
 whether unencrypted packets transmit/received should be discarded.
-This value will be zero if unecrypted packets will be accepted and
+This value will be zero if unencrypted packets will be accepted and
 non-zero if they are to be discarded.
 .It Dv IEEE80211_IOC_DTIM_PERIOD
 Return the period (in beacon intervals) between DTIM events in
@@ -397,7 +397,7 @@ and
 Return whether or not the system handles inactivity processing in
 .Va i_val .
 When inactivity processing is enabled the system will track stations
-that have not trasmitted frames and periodically probe them to
+that have not transmitted frames and periodically probe them to
 check if they are still present.
 Stations that are inactive and do not respond to probes are dropped.
 .It Dv IEEE80211_IOC_MACCMD
@@ -1002,7 +1002,7 @@ and
 Set whether or not the system handles inactivity processing using the value in
 .Va i_val .
 When inactivity processing is enabled the system will track stations
-that have not trasmitted frames and periodically probe them to
+that have not transmitted frames and periodically probe them to
 check if they are still present.
 Stations that are inactive and do not respond to probes are dropped.
 .It Dv IEEE80211_IOC_MACCMD
@@ -1073,7 +1073,7 @@ There are several MLME operations supported:
 .Dv IEEE80211_MLME_DEAUTH
 (deauthenticate the specified station),
 .Dv IEEE80211_MLME_AUHORIZE
-(mark the specifed station authorized to pass data frames),
+(mark the specified station authorized to pass data frames),
 .Dv IEEE80211_MLME_UNAUTHORIZE
 (revoke the specified station's ability to pass data frames),
 and
