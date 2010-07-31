@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_iwnreg.h,v 1.37 2010/02/17 18:23:00 damien Exp $	*/
+/*	$OpenBSD: if_iwnreg.h,v 1.38 2010/04/10 08:37:36 damien Exp $	*/
 
 /*-
  * Copyright (c) 2007, 2008
@@ -204,6 +204,7 @@
 #define IWN_HW_REV_TYPE_1000	6
 #define IWN_HW_REV_TYPE_6000	7
 #define IWN_HW_REV_TYPE_6050	8
+#define IWN_HW_REV_TYPE_6005	11
 
 /* Possible flags for register IWN_GIO_CHICKEN. */
 #define IWN_GIO_CHICKEN_L1A_NO_L0S_RX	(1 << 23)
