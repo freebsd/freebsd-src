@@ -13,7 +13,7 @@ INCS=	libproc.h
 
 CFLAGS+=	-I${.CURDIR}
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	2
 
 WITHOUT_MAN=
 
