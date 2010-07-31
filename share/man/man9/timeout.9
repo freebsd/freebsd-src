@@ -234,7 +234,7 @@ after the callout function returns.
 .Pp
 The
 .Fn callout_init_rw
-function serves the need of using rwlocks in conujunction with callouts.
+function serves the need of using rwlocks in conjunction with callouts.
 The function does basically the same as
 .Fn callout_init_mtx
 with the possibility of specifying an extra
@@ -249,7 +249,7 @@ may be specified:
 .Bl -tag -width ".Dv CALLOUT_SHAREDLOCK"
 .It Dv CALLOUT_SHAREDLOCK
 The lock is only acquired in read mode when running the callout handler.
-It has no effects when used in conjuction with
+It has no effects when used in conjunction with
 .Fa mtx .
 .El
 .Pp
