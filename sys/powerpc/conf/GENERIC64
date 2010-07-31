@@ -27,6 +27,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platform support
 options 	POWERMAC		#NewWorld Apple PowerMacs
+options		MAMBO			#IBM Mambo Full System Simulator
 
 options 	SCHED_ULE		#ULE scheduler
 options 	INET			#InterNETworking
