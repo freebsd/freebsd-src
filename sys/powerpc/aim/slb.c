@@ -104,17 +104,10 @@ uint64_t
 va_to_vsid(pmap_t pm, vm_offset_t va)
 {
 	struct slb entry;
-	int large;
 
 	/* Shortcut kernel case */
-	if (pm == kernel_pmap) {
-		large = 0;
-		if (hw_direct_map && va < VM_MIN_KERNEL_ADDRESS &&
-		    mem_valid(va, 0) == 0)
-			large = 1;
-
-		return (KERNEL_VSID((uintptr_t)va >> ADDR_SR_SHFT, large));
-	}
+	if (pm == kernel_pmap)
+		return (KERNEL_VSID((uintptr_t)va >> ADDR_SR_SHFT));
 
 	/*
 	 * If there is no vsid for this VA, we need to add a new entry
