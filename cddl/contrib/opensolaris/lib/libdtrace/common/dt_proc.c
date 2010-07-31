@@ -723,7 +723,7 @@ dt_proc_error(dtrace_hdl_t *dtp, dt_proc_t *dpr, const char *format, ...)
 #if defined(sun)
 		Prelease(dpr->dpr_proc, 0);
 #else
-		proc_detach(dpr->dpr_proc);
+		proc_detach(dpr->dpr_proc, 0);
 #endif
 
 	dt_free(dtp, dpr);
@@ -861,7 +861,7 @@ dt_proc_destroy(dtrace_hdl_t *dtp, struct ps_prochandle *P)
 #if defined(sun)
 	Prelease(dpr->dpr_proc, rflag);
 #else
-	proc_detach(dpr->dpr_proc);
+	proc_detach(dpr->dpr_proc, rflag);
 #endif
 	dt_free(dtp, dpr);
 }
