@@ -17,6 +17,7 @@ GFB_NO_MODE_CHANGE	opt_gfb.h
 
 MPC85XX			opt_platform.h
 POWERMAC		opt_platform.h
+MAMBO
 PSIM
 
 SC_OFWFB		opt_ofwfb.h
