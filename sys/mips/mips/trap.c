@@ -820,7 +820,7 @@ dofault:
 				va += sizeof(int);
 
 			/* read break instruction */
-			instr = fuword((caddr_t)va);
+			instr = fuword32((caddr_t)va);
 #if 0
 			printf("trap: %s (%d) breakpoint %x at %x: (adr %x ins %x)\n",
 			    p->p_comm, p->p_pid, instr, trapframe->pc,
@@ -869,7 +869,7 @@ dofault:
 			if (DELAYBRANCH(trapframe->cause))
 				va += sizeof(int);
 			/* read break instruction */
-			instr = fuword((caddr_t)va);
+			instr = fuword32((caddr_t)va);
 
 			if (DELAYBRANCH(trapframe->cause)) {	/* Check BD bit */
 				locr0->pc = MipsEmulateBranch(locr0, trapframe->pc, 0,
