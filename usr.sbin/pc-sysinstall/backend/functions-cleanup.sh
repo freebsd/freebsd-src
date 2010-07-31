@@ -163,6 +163,14 @@ setup_fstab()
     # Unset EXT
     EXT=""
 
+    # Set mount options for file-systems
+    case $PARTFS in
+      UFS+J) MNTOPTS="rw,noatime,async" ;;
+       SWAP) MNTOPTS="sw" ;;
+          *) MNTOPTS="rw,noatime" ;;
+    esac
+
+
     # Figure out if we are using a glabel, or the raw name for this entry
     if [ ! -z "${PARTLABEL}" ]
     then
@@ -212,9 +220,9 @@ setup_fstab()
       # Echo out the fstab entry now
       if [ "${PARTFS}" = "SWAP" ]
       then
-        echo "/dev/${DEVICE}	none			swap		sw		0	0" >> ${FSTAB}
+        echo "/dev/${DEVICE}	none			swap		${MNTOPTS}		0	0" >> ${FSTAB}
       else
-        echo "/dev/${DEVICE}  	${PARTMNT}			ufs		rw,noatime	1	1" >> ${FSTAB}
+        echo "/dev/${DEVICE}  	${PARTMNT}			ufs		${MNTOPTS}	1	1" >> ${FSTAB}
       fi
 
     fi # End of ZFS Check
