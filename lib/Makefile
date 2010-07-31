@@ -90,6 +90,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libpmc} \
 	${_libproc} \
 	librt \
+	${_librtld_db} \
 	${_libsdp} \
 	${_libsm} \
 	${_libsmb} \
@@ -174,6 +175,7 @@ _libncp=	libncp
 _libsmb=	libsmb
 _libvgl=	libvgl
 _libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
