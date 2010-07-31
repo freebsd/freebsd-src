@@ -325,6 +325,7 @@ device		ath_rate_sample		# SampleRate tx rate control for ath
 #   iwn5000fw:		Specific module for the 5000 only
 #   iwn5150fw:		Specific module for the 5150 only
 #   iwn6000fw:		Specific module for the 6000 only
+#   iwn6050fw:		Specific module for the 6050 only
 # mwlfw:	Marvell 88W8363 firmware
 # wpifw:	Intel 3945ABG Wireless LAN Controller firmware
 
@@ -342,6 +343,7 @@ device		iwn1000fw
 device		iwn5000fw
 device		iwn5150fw
 device		iwn6000fw
+device		iwn6050fw
 device		mwlfw
 device		wpifw
 
