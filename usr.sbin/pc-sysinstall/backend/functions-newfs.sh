@@ -61,6 +61,7 @@ setup_zfs_filesystem()
     # Check if we ended up with needing a zfs bootable partition
     if [ "${i}" = "/" -o "${i}" = "/boot" ]
     then
+      if [ "$HAVEBOOT" = "YES" ] ; then continue ; fi
       if [ "${PARTGEOM}" = "MBR" ]
       then
         # Lets stamp the proper ZFS boot loader
@@ -129,6 +130,11 @@ setup_filesystems()
               rc_halt "sync"
               rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
               rc_halt "sync"
+
+	      # Set flag that we've found a boot partition
+	      if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
+		HAVEBOOT="YES"
+  	      fi
               sleep 2
               ;;
        UFS+S) echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
@@ -138,6 +144,10 @@ setup_filesystems()
               rc_halt "sync"
               rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
               rc_halt "sync"
+	      # Set flag that we've found a boot partition
+	      if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
+		HAVEBOOT="YES"
+  	      fi
               sleep 2
               ;;
        UFS+J) echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
@@ -151,6 +161,10 @@ setup_filesystems()
               rc_halt "sync"
               rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal"
               rc_halt "sync"
+	      # Set flag that we've found a boot partition
+	      if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
+		HAVEBOOT="YES"
+  	      fi
               sleep 2
               ;;
          ZFS) echo_log "NEWFS: /dev/${PART} - ${PARTFS}" 
