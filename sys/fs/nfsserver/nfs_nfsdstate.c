@@ -45,7 +45,7 @@ NFSV4ROOTLOCKMUTEX;
 NFSSTATESPINLOCK;
 
 /*
- * Hash and lru lists for nfs V4.
+ * Hash lists for nfs V4.
  * (Some would put them in the .h file, but I don't like declaring storage
  *  in a .h)
  */
