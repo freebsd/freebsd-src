@@ -5,7 +5,7 @@
 SUBDIR=	drti \
 	libavl \
 	libctf \
-	libdtrace \
+	${_libdtrace} \
 	libnvpair \
 	libumem \
 	libuutil \
@@ -17,6 +17,10 @@ _libzfs=	libzfs
 .if ${MK_LIBTHR} != "no"
 _libzpool=	libzpool
 .endif
+.endif
+
+.if ${MACHINE_ARCH} == amd64 || ${MACHINE_ARCH} == i386
+_libdtrace=	libdtrace
 .endif
 
 .include <bsd.subdir.mk>
