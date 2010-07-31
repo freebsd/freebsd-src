@@ -580,8 +580,8 @@ END(prepare_usermode)
  */
 	.globl	_C_LABEL(sigcode)
 _C_LABEL(sigcode):
-	addu	a0, sp, SIGF_UC			# address of ucontext
-	li	v0, SYS_sigreturn
+	PTR_ADDU	a0, sp, SIGF_UC		# address of ucontext
+	li		v0, SYS_sigreturn
 # sigreturn (ucp)
 	syscall
 	break	0				# just in case sigreturn fails
