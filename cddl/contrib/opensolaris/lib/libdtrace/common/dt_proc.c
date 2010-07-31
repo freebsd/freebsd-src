@@ -590,7 +590,7 @@ dt_proc_control(void *arg)
 			continue; /* check dpr_quit and continue waiting */
 #else
 		/* Wait for the process to report status. */
-		proc_wait(P);
+		proc_wstatus(P);
 #endif
 
 		(void) pthread_mutex_lock(&dpr->dpr_lock);
