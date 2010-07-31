@@ -139,6 +139,7 @@ LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBRPCSEC_GSS?=	${DESTDIR}${LIBDIR}/librpcsec_gss.a
 LIBRT?=		${DESTDIR}${LIBDIR}/librt.a
+LIBRTLD_DB?=	${DESTDIR}${LIBDIR}/librtld_db.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
 LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
