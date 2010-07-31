@@ -47,14 +47,15 @@
 #define	SLBV_VSID_MASK	0xfffffffffffff000UL /* Virtual segment ID mask */
 #define	SLBV_VSID_SHIFT	12
 
-#define	KERNEL_VSID_BIT	0x0000001000000000UL /* Bit set in all kernel VSIDs */
-
 /*
- * Shift large-page VSIDs one place left. At present, they are only used in the
- * kernel direct map, and we already assume in the placement of KVA that the
- * CPU cannot address more than 63 bits of memory.
+ * Make a predictable 1:1 map from ESIDs to VSIDs for the kernel. Hash table
+ * coverage is increased by swizzling the ESID and multiplying by a prime
+ * number (0x13bb).
  */
-#define KERNEL_VSID(esid, large) (((uint64_t)(esid) << (large ? 1 : 0)) | KERNEL_VSID_BIT)
+#define	KERNEL_VSID_BIT	0x0000001000000000UL /* Bit set in all kernel VSIDs */
+#define KERNEL_VSID(esid) ((((((uint64_t)esid << 8) | ((uint64_t)esid >> 28)) \
+				* 0x13bbUL) & (KERNEL_VSID_BIT - 1)) | \
+				KERNEL_VSID_BIT)
 
 #define	SLBE_VALID	0x0000000008000000UL /* SLB entry valid */
 #define	SLBE_INDEX_MASK	0x0000000000000fffUL /* SLB index mask*/
