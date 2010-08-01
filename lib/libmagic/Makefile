@@ -40,8 +40,7 @@ magic.mgc: mkmagic magic
 CLEANFILES+=	mkmagic
 build-tools: mkmagic
 mkmagic: apprentice.c funcs.c magic.c print.c
-	${CC} -DHAVE_CONFIG_H -DCOMPILE_ONLY \
-	    -I${.CURDIR} -I${CONTRDIR} -o ${.TARGET} ${.ALLSRC}
+	${CC} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
 			${.CURDIR}/config.h
