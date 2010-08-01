@@ -2367,7 +2367,7 @@ net80211/ieee80211_action.c	optional wlan
 net80211/ieee80211_ageq.c	optional wlan
 net80211/ieee80211_adhoc.c	optional wlan
 net80211/ieee80211_ageq.c	optional wlan
-net80211/ieee80211_amrr.c	optional wlan wlan_amrr
+net80211/ieee80211_amrr.c	optional wlan | wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan
 net80211/ieee80211_crypto_ccmp.c optional wlan wlan_ccmp
 net80211/ieee80211_crypto_none.c optional wlan
