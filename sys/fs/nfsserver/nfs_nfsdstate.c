@@ -600,6 +600,13 @@ nfsrv_dumpclients(struct nfsd_dumpclients *dumpp, int maxcnt)
 	struct nfsclient *clp;
 	int i = 0, cnt = 0;
 
+	/*
+	 * First, get a reference on the nfsv4rootfs_lock so that an
+	 * exclusive lock cannot be acquired while dumping the clients.
+	 */
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR);
+	NFSUNLOCKV4ROOTMUTEX();
 	NFSLOCKSTATE();
 	/*
 	 * Rattle through the client lists until done.
@@ -616,6 +623,9 @@ nfsrv_dumpclients(struct nfsd_dumpclients *dumpp, int maxcnt)
 	if (cnt < maxcnt)
 	    dumpp[cnt].ndcl_clid.nclid_idlen = 0;
 	NFSUNLOCKSTATE();
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_relref(&nfsv4rootfs_lock);
+	NFSUNLOCKV4ROOTMUTEX();
 }
 
 /*
@@ -691,12 +701,22 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 	fhandle_t nfh;
 
 	ret = nfsrv_getlockfh(vp, 0, NULL, &nfh, p);
+	/*
+	 * First, get a reference on the nfsv4rootfs_lock so that an
+	 * exclusive lock on it cannot be acquired while dumping the locks.
+	 */
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR);
+	NFSUNLOCKV4ROOTMUTEX();
 	NFSLOCKSTATE();
 	if (!ret)
 		ret = nfsrv_getlockfile(0, NULL, &lfp, &nfh, 0);
 	if (ret) {
 		ldumpp[0].ndlck_clid.nclid_idlen = 0;
 		NFSUNLOCKSTATE();
+		NFSLOCKV4ROOTMUTEX();
+		nfsv4_relref(&nfsv4rootfs_lock);
+		NFSUNLOCKV4ROOTMUTEX();
 		return;
 	}
 
@@ -797,6 +817,9 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 	if (cnt < maxcnt)
 		ldumpp[cnt].ndlck_clid.nclid_idlen = 0;
 	NFSUNLOCKSTATE();
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_relref(&nfsv4rootfs_lock);
+	NFSUNLOCKV4ROOTMUTEX();
 }
 
 /*
