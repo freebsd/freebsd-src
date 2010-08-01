@@ -128,7 +128,7 @@ libkern.${MACHINE_ARCH}:: ${KMSRCS}
 .include <bsd.lib.mk>
 
 # Disable warnings in contributed sources.
-CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/}
+CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/:C/^$/-w/}
 # XXX For now, we don't allow libc to be compiled with
 # -fstack-protector-all because it breaks rtld.  We may want to make a librtld
 # in the future to circumvent this.
