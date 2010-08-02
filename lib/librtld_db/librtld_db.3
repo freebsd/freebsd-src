@@ -44,7 +44,7 @@
 .Fc
 .Ft char *
 .Fo rd_errstr
-.Fa "rd_err_e rderr" 
+.Fa "rd_err_e rderr"
 .Fc
 .Ft rd_err_e
 .Fo rd_event_addr
@@ -84,8 +84,8 @@
 .Fc
 .Ft rd_err_e
 .Fo rd_plt_resolution
-.Fa "rd_agent_t *rdap, uintptr_t pc, struct proc *proc
-.Fa  "uintptr_t plt_base, rd_plt_info_t *rpi"
+.Fa "rd_agent_t *rdap, uintptr_t pc, struct proc *proc"
+.Fa "uintptr_t plt_base, rd_plt_info_t *rpi"
 .Fc
 .Ft rd_err_e
 .Fo rd_reset
@@ -101,7 +101,7 @@ This library must be used along with
 Most library functions take a
 .Ft rd_agent_t
 argument.
-This argument is an opaque structure containing information associated with 
+This argument is an opaque structure containing information associated with
 the current status of the agent.
 .Pp
 Before you start using
@@ -163,14 +163,6 @@ type error.
 The error codes are described in the header file for this library.
 You can get the error string using
 .Fn rd_errstr .
-.Sh CAVEATS
-The functions
-.Fn rd_event_enable ,
-.Fn rd_log ,
-.Fn rd_objpad_enable
-and
-.Fn rd_plt_resolution
-are not yet implemented.
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr ld-elf.so.1 1 ,
@@ -179,13 +171,21 @@ are not yet implemented.
 .Xr rtld 1
 .Sh HISTORY
 The
-.Nm librtld_db 
+.Nm librtld_db
 library first appeared in
-.Fx 9.0 
+.Fx 9.0
 and was modeled after the same library present in the Solaris operating system.
 .Sh AUTHORS
 The
 .Nm librtld_db
 library and this manual page were written by
-.An Rui Paulo Aq rpaulo@FreeBSD.org 
+.An Rui Paulo Aq rpaulo@FreeBSD.org
 under sponsorship from the FreeBSD Foundation.
+.Sh CAVEATS
+The functions
+.Fn rd_event_enable ,
+.Fn rd_log ,
+.Fn rd_objpad_enable
+and
+.Fn rd_plt_resolution
+are not yet implemented.
