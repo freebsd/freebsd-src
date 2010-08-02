@@ -20,11 +20,9 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <strings.h>
 #include <unistd.h>
@@ -35,6 +33,7 @@ static int g_errs;
 static int g_fd;
 static int g_verbose;
 static int g_errexit;
+static char *g_progname;
 
 static int
 probe(dtrace_hdl_t *dtp, const dtrace_probedesc_t *pdp, void *data)
@@ -91,9 +90,11 @@ main(int argc, char *argv[])
 	int err, c;
 	char *p;
 
+	g_progname = argv[0];
+
 	if ((dtp = dtrace_open(DTRACE_VERSION, 0, &err)) == NULL) {
 		(void) fprintf(stderr, "%s: failed to open dtrace: %s\n",
-		    argv[0], dtrace_errmsg(dtp, err));
+		    g_progname, dtrace_errmsg(dtp, err));
 		return (1);
 	}
 
@@ -111,7 +112,7 @@ main(int argc, char *argv[])
 
 			if (dtrace_setopt(dtp, optarg, p) != 0) {
 				(void) fprintf(stderr, "%s: failed to set "
-				    "option -x %s: %s\n", argv[0], optarg,
+				    "option -x %s: %s\n", g_progname, optarg,
 				    dtrace_errmsg(dtp, dtrace_errno(dtp)));
 				return (2);
 			}
@@ -119,7 +120,7 @@ main(int argc, char *argv[])
 
 		default:
 			(void) fprintf(stderr, "Usage: %s [-ev] "
-			    "[-x opt[=arg]] [probedesc]\n", argv[0]);
+			    "[-x opt[=arg]] [probedesc]\n", g_progname);
 			return (2);
 		}
 	}
@@ -128,9 +129,9 @@ main(int argc, char *argv[])
 	argc -= optind;
 
 	if (argc > 0) {
-		if (dtrace_str2desc(dtp, DTRACE_PROBESPEC_NAME, argv[1], &pd)) {
+		if (dtrace_str2desc(dtp, DTRACE_PROBESPEC_NAME, argv[0], &pd)) {
 			(void) fprintf(stderr, "%s: invalid probe description "
-			    "%s: %s\n", argv[0], argv[1],
+			    "%s: %s\n", g_progname, argv[0],
 			    dtrace_errmsg(dtp, dtrace_errno(dtp)));
 			return (2);
 		}
