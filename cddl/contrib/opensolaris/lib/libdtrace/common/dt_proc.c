@@ -20,11 +20,9 @@
  */
 
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * DTrace Process Control
@@ -91,9 +89,8 @@
 #include <dt_pid.h>
 #include <dt_impl.h>
 
-#define	IS_SYS_EXEC(w)	(w == SYS_exec || w == SYS_execve)
-#define	IS_SYS_FORK(w)	(w == SYS_vfork || w == SYS_fork1 ||	\
-			w == SYS_forkall || w == SYS_forksys)
+#define	IS_SYS_EXEC(w)	(w == SYS_execve)
+#define	IS_SYS_FORK(w)	(w == SYS_vfork || w == SYS_forksys)
 
 #ifdef DOODAD
 static dt_bkpt_t *
@@ -102,7 +99,7 @@ dt_proc_bpcreate(dt_proc_t *dpr, uintptr_t addr, dt_bkpt_f *func, void *data)
 	struct ps_prochandle *P = dpr->dpr_proc;
 	dt_bkpt_t *dbp;
 
-	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
+	assert(MUTEX_HELD(&dpr->dpr_lock));
 
 	if ((dbp = dt_zalloc(dpr->dpr_hdl, sizeof (dt_bkpt_t))) != NULL) {
 		dbp->dbp_func = func;
@@ -129,7 +126,7 @@ dt_proc_bpdestroy(dt_proc_t *dpr, int delbkpts)
 #endif
 	dt_bkpt_t *dbp, *nbp;
 
-	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
+	assert(MUTEX_HELD(&dpr->dpr_lock));
 
 	for (dbp = dt_list_next(&dpr->dpr_bps); dbp != NULL; dbp = nbp) {
 printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
@@ -153,7 +150,7 @@ dt_proc_bpmatch(dtrace_hdl_t *dtp, dt_proc_t *dpr)
 	const lwpstatus_t *psp = &Pstatus(dpr->dpr_proc)->pr_lwp;
 	dt_bkpt_t *dbp;
 
-	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
+	assert(MUTEX_HELD(&dpr->dpr_lock));
 
 	for (dbp = dt_list_next(&dpr->dpr_bps);
 	    dbp != NULL; dbp = dt_list_next(dbp)) {
@@ -180,7 +177,7 @@ dt_proc_bpenable(dt_proc_t *dpr)
 {
 	dt_bkpt_t *dbp;
 
-	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
+	assert(MUTEX_HELD(&dpr->dpr_lock));
 
 	for (dbp = dt_list_next(&dpr->dpr_bps);
 	    dbp != NULL; dbp = dt_list_next(dbp)) {
@@ -200,7 +197,7 @@ dt_proc_bpdisable(dt_proc_t *dpr)
 {
 	dt_bkpt_t *dbp;
 
-	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
+	assert(MUTEX_HELD(&dpr->dpr_lock));
 
 	for (dbp = dt_list_next(&dpr->dpr_bps);
 	    dbp != NULL; dbp = dt_list_next(dbp)) {
@@ -251,7 +248,7 @@ dt_proc_notify(dtrace_hdl_t *dtp, dt_proc_hash_t *dph, dt_proc_t *dpr,
 static void
 dt_proc_stop(dt_proc_t *dpr, uint8_t why)
 {
-	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
+	assert(MUTEX_HELD(&dpr->dpr_lock));
 	assert(why != DT_PROC_STOP_IDLE);
 
 	if (dpr->dpr_stop & why) {
@@ -353,7 +350,7 @@ dt_proc_attach(dt_proc_t *dpr, int exec)
 	rd_err_e err;
 	GElf_Sym sym;
 
-	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
+	assert(MUTEX_HELD(&dpr->dpr_lock));
 
 	if (exec) {
 		if (psp->pr_lwp.pr_errno != 0)
@@ -419,7 +416,7 @@ dt_proc_waitrun(dt_proc_t *dpr)
 	const long wstop = PCWSTOP;
 	int pfd = Pctlfd(P);
 
-	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
+	assert(MUTEX_HELD(&dpr->dpr_lock));
 	assert(psp->pr_flags & PR_STOPPED);
 	assert(Pstate(P) == PS_STOP);
 
@@ -522,7 +519,6 @@ dt_proc_control(void *arg)
 	 * We must trace exit from exec() system calls so that if the exec is
 	 * successful, we can reset our breakpoints and re-initialize libproc.
 	 */
-	(void) Psysexit(P, SYS_exec, B_TRUE);
 	(void) Psysexit(P, SYS_execve, B_TRUE);
 
 	/*
@@ -533,10 +529,6 @@ dt_proc_control(void *arg)
 	 */
 	(void) Psysentry(P, SYS_vfork, B_TRUE);
 	(void) Psysexit(P, SYS_vfork, B_TRUE);
-	(void) Psysentry(P, SYS_fork1, B_TRUE);
-	(void) Psysexit(P, SYS_fork1, B_TRUE);
-	(void) Psysentry(P, SYS_forkall, B_TRUE);
-	(void) Psysexit(P, SYS_forkall, B_TRUE);
 	(void) Psysentry(P, SYS_forksys, B_TRUE);
 	(void) Psysexit(P, SYS_forksys, B_TRUE);
 
@@ -779,14 +771,17 @@ dt_proc_destroy(dtrace_hdl_t *dtp, struct ps_prochandle *P)
 	if (!(proc_getflags(dpr->dpr_proc) & (PR_KLC | PR_RLC))) {
 #endif
 		dt_dprintf("abandoning pid %d\n", (int)dpr->dpr_pid);
-#if defined(sun)
 		rflag = PRELEASE_HANG;
+#if defined(sun)
+	} else if (Pstatus(dpr->dpr_proc)->pr_flags & PR_KLC) {
 #else
-		rflag = 0 /* XXX */;
+	} else if (proc_getflags(dpr->dpr_proc) & PR_KLC) {
 #endif
+		dt_dprintf("killing pid %d\n", (int)dpr->dpr_pid);
+		rflag = PRELEASE_KILL; /* apply kill-on-last-close */
 	} else {
 		dt_dprintf("releasing pid %d\n", (int)dpr->dpr_pid);
-		rflag = 0; /* apply kill or run-on-last-close */
+		rflag = 0; /* apply run-on-last-close */
 	}
 
 	if (dpr->dpr_tid) {

@@ -21,10 +21,8 @@
 #
 
 #
-# Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
-#
-# ident	"%Z%%M%	%I%	%E% SMI"
 #
 
 if [ $# != 1 ]; then
@@ -40,7 +38,7 @@ dtrace=$1
 # (and therefore 'libc' and 'libc.so') as it's definitely there.
 #
 
-for lib in libc libc.so libc.so.1; do
+for lib in libc libc.so libc.so.1 'lib[c]*'; do
 	sleep 60 &
 	pid=$!
 	dtrace -n "pid$pid:$lib::entry" -n 'tick-2s{exit(0);}'
