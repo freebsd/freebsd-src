@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 15, 2010
+.Dd July 3, 2010
 .Dt NC 1
 .Os
 .Sh NAME
@@ -340,7 +340,7 @@ when it might be necessary to verify what data a server is sending
 in response to commands issued by the client.
 For example, to retrieve the home page of a web site:
 .Bd -literal -offset indent
-$ echo -n "GET / HTTP/1.0\er\en\er\en" | nc host.example.com 80
+$ printf "GET / HTTP/1.0\er\en\er\en" | nc host.example.com 80
 .Ed
 .Pp
 Note that this also displays the headers sent by the web server.
