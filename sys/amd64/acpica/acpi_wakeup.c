@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,13 +66,12 @@ extern int		acpi_resume_beep;
 extern int		acpi_reset_video;
 
 #ifdef SMP
-extern struct xpcb	**stopxpcbs;
+extern struct pcb	**susppcbs;
 #else
-static struct xpcb	**stopxpcbs;
+static struct pcb	**susppcbs;
 #endif
 
-int			acpi_restorecpu(struct xpcb *, vm_offset_t);
-int			acpi_savecpu(struct xpcb *);
+int			acpi_restorecpu(struct pcb *, vm_offset_t);
 
 static void		*acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
@@ -105,10 +104,10 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 	int		apic_id = cpu_apic_ids[cpu];
 	int		ms;
 
-	WAKECODE_FIXUP(wakeup_xpcb, struct xpcb *, stopxpcbs[cpu]);
-	WAKECODE_FIXUP(wakeup_gdt, uint16_t, stopxpcbs[cpu]->xpcb_gdt.rd_limit);
+	WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[cpu]);
+	WAKECODE_FIXUP(wakeup_gdt, uint16_t, susppcbs[cpu]->pcb_gdt.rd_limit);
 	WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
-	    stopxpcbs[cpu]->xpcb_gdt.rd_base);
+	    susppcbs[cpu]->pcb_gdt.rd_base);
 	WAKECODE_FIXUP(wakeup_cpu, int, cpu);
 
 	/* do an INIT IPI: assert RESET */
@@ -245,7 +244,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	cr3 = rcr3();
 	load_cr3(KPML4phys);
 
-	if (acpi_savecpu(stopxpcbs[0])) {
+	if (savectx(susppcbs[0])) {
 #ifdef SMP
 		if (wakeup_cpus != 0 && suspend_cpus(wakeup_cpus) == 0) {
 			device_printf(sc->acpi_dev,
@@ -258,11 +257,11 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(resume_beep, uint8_t, (acpi_resume_beep != 0));
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
-		WAKECODE_FIXUP(wakeup_xpcb, struct xpcb *, stopxpcbs[0]);
+		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[0]);
 		WAKECODE_FIXUP(wakeup_gdt, uint16_t,
-		    stopxpcbs[0]->xpcb_gdt.rd_limit);
+		    susppcbs[0]->pcb_gdt.rd_limit);
 		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
-		    stopxpcbs[0]->xpcb_gdt.rd_base);
+		    susppcbs[0]->pcb_gdt.rd_base);
 		WAKECODE_FIXUP(wakeup_cpu, int, 0);
 
 		/* Call ACPICA to enter the desired sleep state */
@@ -332,9 +331,9 @@ acpi_alloc_wakeup_handler(void)
 		printf("%s: can't alloc wake memory\n", __func__);
 		return (NULL);
 	}
-	stopxpcbs = malloc(mp_ncpus * sizeof(*stopxpcbs), M_DEVBUF, M_WAITOK);
+	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
 	for (i = 0; i < mp_ncpus; i++)
-		stopxpcbs[i] = malloc(sizeof(**stopxpcbs), M_DEVBUF, M_WAITOK);
+		susppcbs[i] = malloc(sizeof(**susppcbs), M_DEVBUF, M_WAITOK);
 
 	return (wakeaddr);
 }

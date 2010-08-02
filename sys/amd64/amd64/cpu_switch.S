@@ -303,22 +303,69 @@ END(cpu_switch)
  */
 ENTRY(savectx)
 	/* Fetch PCB. */
-	movq	%rdi,%rcx
+	movq	%rdi,%rsi
 
 	/* Save caller's return address. */
 	movq	(%rsp),%rax
-	movq	%rax,PCB_RIP(%rcx)
+	movq	%rax,PCB_RIP(%rsi)
 
+	movq	%rbx,PCB_RBX(%rsi)
+	movq	%rsp,PCB_RSP(%rsi)
+	movq	%rbp,PCB_RBP(%rsi)
+	movq	%r12,PCB_R12(%rsi)
+	movq	%r13,PCB_R13(%rsi)
+	movq	%r14,PCB_R14(%rsi)
+	movq	%r15,PCB_R15(%rsi)
+
+	movq	%cr2,%rax
+	movq	%rax,PCB_CR2(%rsi)
 	movq	%cr3,%rax
-	movq	%rax,PCB_CR3(%rcx)
+	movq	%rax,PCB_CR3(%rsi)
+	movq	%cr4,%rax
+	movq	%rax,PCB_CR4(%rsi)
 
-	movq	%rbx,PCB_RBX(%rcx)
-	movq	%rsp,PCB_RSP(%rcx)
-	movq	%rbp,PCB_RBP(%rcx)
-	movq	%r12,PCB_R12(%rcx)
-	movq	%r13,PCB_R13(%rcx)
-	movq	%r14,PCB_R14(%rcx)
-	movq	%r15,PCB_R15(%rcx)
+	movq	%dr0,%rax
+	movq	%rax,PCB_DR0(%rsi)
+	movq	%dr1,%rax
+	movq	%rax,PCB_DR1(%rsi)
+	movq	%dr2,%rax
+	movq	%rax,PCB_DR2(%rsi)
+	movq	%dr3,%rax
+	movq	%rax,PCB_DR3(%rsi)
+	movq	%dr6,%rax
+	movq	%rax,PCB_DR6(%rsi)
+	movq	%dr7,%rax
+	movq	%rax,PCB_DR7(%rsi)
+
+	movl	$MSR_FSBASE,%ecx
+	rdmsr
+	shlq	$32,%rdx
+	leaq	(%rax,%rdx),%rax
+	movq	%rax,PCB_FSBASE(%rsi)
+	movl	$MSR_GSBASE,%ecx
+	rdmsr
+	shlq	$32,%rdx
+	leaq	(%rax,%rdx),%rax
+	movq	%rax,PCB_GSBASE(%rsi)
+	movl	$MSR_KGSBASE,%ecx
+	rdmsr
+	shlq	$32,%rdx
+	leaq	(%rax,%rdx),%rax
+	movq	%rax,PCB_KGSBASE(%rsi)
+
+	sgdt	PCB_GDT(%rsi)
+	sidt	PCB_IDT(%rsi)
+	sldt	PCB_LDT(%rsi)
+	str	PCB_TR(%rsi)
+
+	movq	%cr0,%rax
+	movq	%rax,PCB_CR0(%rsi)
+	leaq	PCB_USERFPU(%rsi),%rdi
+	pushfq
+	cli
+	clts
+	fxsave	(%rdi)
+	movq	%rax,%cr0
 
 	/*
 	 * If fpcurthread == NULL, then the fpu h/w state is irrelevant and the
@@ -326,104 +373,22 @@ ENTRY(savectx)
 	 * but not for dumps (the old book-keeping with FP flags in the pcb
 	 * always lost for dumps because the dump pcb has 0 flags).
 	 *
-	 * If fpcurthread != NULL, then we have to save the fpu h/w state to
-	 * fpcurthread's pcb and copy it to the requested pcb, or save to the
-	 * requested pcb and reload.  Copying is easier because we would
-	 * have to handle h/w bugs for reloading.  We used to lose the
-	 * parent's fpu state for forks by forgetting to reload.
+	 * If fpcurthread != NULL, then we have to copy the fpu h/w state to
+	 * fpcurthread's pcb, or reload from the requested pcb.  Copying is
+	 * easier because we would have to handle h/w bugs for reloading.
 	 */
-	pushfq
-	cli
 	movq	PCPU(FPCURTHREAD),%rax
 	testq	%rax,%rax
 	je	1f
 
-	movq	TD_PCB(%rax),%rdi
-	movq	PCB_SAVEFPU(%rdi),%rdi
-	clts
-	fxsave	(%rdi)
-	smsw	%ax
-	orb	$CR0_TS,%al
-	lmsw	%ax
-
-	movq	$PCB_SAVEFPU_SIZE,%rdx	/* arg 3 */
-	leaq	PCB_USERFPU(%rcx),%rsi	/* arg 2 */
 	/* arg 1 (%rdi) already loaded */
+	movq	TD_PCB(%rax),%rax
+	movq	PCB_SAVEFPU(%rax),%rsi	/* arg 2 */
+	movq	$PCB_SAVEFPU_SIZE,%rdx	/* arg 3 */
 	call	bcopy
 1:
 	popfq
+	movl	$1,%eax
 
 	ret
 END(savectx)
-
-/*
- * savectx2(xpcb)
- * Update xpcb, saving current processor state.
- */
-ENTRY(savectx2)
-	/* Fetch XPCB. */
-	movq	%rdi,%r8
-
-	/* Save caller's return address. */
-	movq	(%rsp),%rax
-	movq	%rax,PCB_RIP(%r8)
-
-	movq	%rbx,PCB_RBX(%r8)
-	movq	%rsp,PCB_RSP(%r8)
-	movq	%rbp,PCB_RBP(%r8)
-	movq	%r12,PCB_R12(%r8)
-	movq	%r13,PCB_R13(%r8)
-	movq	%r14,PCB_R14(%r8)
-	movq	%r15,PCB_R15(%r8)
-
-	movq	%cr0,%rax
-	movq	%rax,XPCB_CR0(%r8)
-	movq	%cr2,%rax
-	movq	%rax,XPCB_CR2(%r8)
-	movq	%cr4,%rax
-	movq	%rax,XPCB_CR4(%r8)
-
-	movq	%dr0,%rax
-	movq	%rax,PCB_DR0(%r8)
-	movq	%dr1,%rax
-	movq	%rax,PCB_DR1(%r8)
-	movq	%dr2,%rax
-	movq	%rax,PCB_DR2(%r8)
-	movq	%dr3,%rax
-	movq	%rax,PCB_DR3(%r8)
-	movq	%dr6,%rax
-	movq	%rax,PCB_DR6(%r8)
-	movq	%dr7,%rax
-	movq	%rax,PCB_DR7(%r8)
-
-	sgdt	XPCB_GDT(%r8)
-	sidt	XPCB_IDT(%r8)
-	sldt	XPCB_LDT(%r8)
-	str	XPCB_TR(%r8)
-
-	movl	$MSR_FSBASE,%ecx
-	rdmsr
-	shlq	$32,%rdx
-	leaq	(%rax,%rdx),%rax
-	movq	%rax,PCB_FSBASE(%r8)
-	movl	$MSR_GSBASE,%ecx
-	rdmsr
-	shlq	$32,%rdx
-	leaq	(%rax,%rdx),%rax
-	movq	%rax,PCB_GSBASE(%r8)
-	movl	$MSR_KGSBASE,%ecx
-	rdmsr
-	shlq	$32,%rdx
-	leaq	(%rax,%rdx),%rax
-	movq	%rax,XPCB_KGSBASE(%r8)
-
-	movq	PCPU(FPCURTHREAD),%rax
-	testq	%rax,%rax
-	je	1f
-	clts
-	fxsave	PCB_USERFPU(%r8)
-1:
-
-	movl	$1, %eax
-	ret
-END(savectx2)
