@@ -603,7 +603,15 @@ extern void dt_buffered_destroy(dtrace_hdl_t *);
 
 extern uint64_t dt_stddev(uint64_t *, uint64_t);
 
+extern int dt_rw_read_held(pthread_rwlock_t *);
+extern int dt_rw_write_held(pthread_rwlock_t *);
+extern int dt_mutex_held(pthread_mutex_t *);
 extern int dt_options_load(dtrace_hdl_t *);
+
+#define DT_RW_READ_HELD(x)	dt_rw_read_held(x)	 
+#define DT_RW_WRITE_HELD(x)	dt_rw_write_held(x)	 
+#define DT_RW_LOCK_HELD(x)	(DT_RW_READ_HELD(x) || DT_RW_WRITE_HELD(x))
+#define DT_MUTEX_HELD(x)	dt_mutex_held(x)
 
 extern void dt_dprintf(const char *, ...);
 
