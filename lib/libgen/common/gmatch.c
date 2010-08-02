@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,21 +19,16 @@
  * CDDL HEADER END
  */
 
-/*	Copyright (c) 1988 AT&T	*/
-/*	  All Rights Reserved  	*/
-
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"	/* SVr4.0 1.1.5.2 */
+/*	Copyright (c) 1988 AT&T	*/
+/*	  All Rights Reserved  	*/
 
-/*LINTLIBRARY*/
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
-#pragma weak gmatch = _gmatch
-
-#include "gen_synonyms.h"
 #include <sys/types.h>
 #include <libgen.h>
 #include <stdlib.h>
@@ -47,7 +41,7 @@
 	c = cl; \
 	if (n <= 0) \
 		return (0); \
-	p += n;
+	p += n
 
 int
 gmatch(const char *s, const char *p)
@@ -88,13 +82,13 @@ gmatch(const char *s, const char *p)
 				notflag = 1;
 				p++;
 			}
-			Popwchar(p, c)
+			Popwchar(p, c);
 			do
 			{
 				if (c == '-' && lc && *p != ']') {
-					Popwchar(p, c)
+					Popwchar(p, c);
 					if (c == '\\') {
-						Popwchar(p, c)
+						Popwchar(p, c);
 					}
 					if (notflag) {
 						if (!multibyte ||
@@ -113,7 +107,7 @@ gmatch(const char *s, const char *p)
 					}
 				} else if (c == '\\') {
 					/* skip to quoted character */
-					Popwchar(p, c)
+					Popwchar(p, c);
 				}
 				lc = c;
 				if (notflag) {
@@ -127,14 +121,14 @@ gmatch(const char *s, const char *p)
 					if (scc == lc)
 						ok++;
 				}
-				Popwchar(p, c)
+				Popwchar(p, c);
 			} while (c != ']');
 			return (ok ? gmatch(s, p) : 0);
 		}
 
 	case '\\':
 		/* skip to quoted character and see if it matches */
-		Popwchar(p, c)
+		Popwchar(p, c);
 
 	default:
 		if (c != scc)

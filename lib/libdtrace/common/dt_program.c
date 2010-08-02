@@ -20,11 +20,8 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <unistd.h>
 #include <strings.h>
@@ -44,10 +41,12 @@ dt_program_create(dtrace_hdl_t *dtp)
 {
 	dtrace_prog_t *pgp = dt_zalloc(dtp, sizeof (dtrace_prog_t));
 
-	if (pgp != NULL)
+	if (pgp != NULL) {
 		dt_list_append(&dtp->dt_programs, pgp);
-	else
+	} else {
 		(void) dt_set_errno(dtp, EDT_NOMEM);
+		return (NULL);
+	}
 
 	/*
 	 * By default, programs start with DOF version 1 so that output files
@@ -172,6 +171,9 @@ dtrace_program_exec(dtrace_hdl_t *dtp, dtrace_prog_t *pgp,
 			break;
 		case E2BIG:
 			err = EDT_DIFSIZE;
+			break;
+		case EBUSY:
+			err = EDT_ENABLING_ERR;
 			break;
 		default:
 			err = errno;
@@ -431,8 +433,13 @@ dt_header_decl(dt_idhash_t *dhp, dt_ident_t *idp, void *data)
 	if (fprintf(infop->dthi_out, ");\n") < 0)
 		return (dt_set_errno(dtp, errno));
 
-	if (fprintf(infop->dthi_out, "extern int "
-	    "__dtraceenabled_%s___%s(void);\n", infop->dthi_pfname, fname) < 0)
+	if (fprintf(infop->dthi_out,
+	    "#ifndef\t__sparc\n"
+	    "extern int __dtraceenabled_%s___%s(void);\n"
+	    "#else\n"
+	    "extern int __dtraceenabled_%s___%s(long);\n"
+	    "#endif\n",
+	    infop->dthi_pfname, fname, infop->dthi_pfname, fname) < 0)
 		return (dt_set_errno(dtp, errno));
 
 	return (0);
@@ -494,13 +501,20 @@ dt_header_probe(dt_idhash_t *dhp, dt_ident_t *idp, void *data)
 		return (dt_set_errno(dtp, errno));
 
 	if (!infop->dthi_empty) {
-		if (fprintf(infop->dthi_out, "#define\t%s_%s_ENABLED() \\\n",
-		    infop->dthi_pmname, mname) < 0)
-			return (dt_set_errno(dtp, errno));
-
-		if (fprintf(infop->dthi_out, "\t__dtraceenabled_%s___%s()\n",
+		if (fprintf(infop->dthi_out,
+		    "#ifndef\t__sparc\n"
+		    "#define\t%s_%s_ENABLED() \\\n"
+		    "\t__dtraceenabled_%s___%s()\n"
+		    "#else\n"
+		    "#define\t%s_%s_ENABLED() \\\n"
+		    "\t__dtraceenabled_%s___%s(0)\n"
+		    "#endif\n",
+		    infop->dthi_pmname, mname,
+		    infop->dthi_pfname, fname,
+		    infop->dthi_pmname, mname,
 		    infop->dthi_pfname, fname) < 0)
 			return (dt_set_errno(dtp, errno));
+
 	} else {
 		if (fprintf(infop->dthi_out, "#define\t%s_%s_ENABLED() (0)\n",
 		    infop->dthi_pmname, mname) < 0)
