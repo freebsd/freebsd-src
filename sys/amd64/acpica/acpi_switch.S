@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
- * Copyright (c) 2008-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,6 @@
 #include "assym.s"
 
 #define	WAKEUP_CTX(member)	wakeup_ ## member - wakeup_ctx(%rdi)
-#define	WAKEUP_PCB(member)	PCB_ ## member(%r11)
-#define	WAKEUP_XPCB(member)	XPCB_ ## member(%r11)
 
 ENTRY(acpi_restorecpu)
 	/* Switch to KPML4phys. */
@@ -49,7 +47,7 @@ ENTRY(acpi_restorecpu)
 1:
 
 	/* Fetch PCB. */
-	movq	WAKEUP_CTX(xpcb), %r11
+	movq	WAKEUP_CTX(pcb), %rsi
 
 	/* Force kernel segment registers. */
 	movl	$KDSEL, %eax
@@ -62,16 +60,16 @@ ENTRY(acpi_restorecpu)
 	movw	%ax, %gs
 
 	movl	$MSR_FSBASE, %ecx
-	movl	WAKEUP_PCB(FSBASE), %eax
-	movl	4 + WAKEUP_PCB(FSBASE), %edx
+	movl	PCB_FSBASE(%rsi), %eax
+	movl	4 + PCB_FSBASE(%rsi), %edx
 	wrmsr
 	movl	$MSR_GSBASE, %ecx
-	movl	WAKEUP_PCB(GSBASE), %eax
-	movl	4 + WAKEUP_PCB(GSBASE), %edx
+	movl	PCB_GSBASE(%rsi), %eax
+	movl	4 + PCB_GSBASE(%rsi), %edx
 	wrmsr
 	movl	$MSR_KGSBASE, %ecx
-	movl	WAKEUP_XPCB(KGSBASE), %eax
-	movl	4 + WAKEUP_XPCB(KGSBASE), %edx
+	movl	PCB_KGSBASE(%rsi), %eax
+	movl	4 + PCB_KGSBASE(%rsi), %edx
 	wrmsr
 
 	/* Restore EFER. */
@@ -103,19 +101,20 @@ ENTRY(acpi_restorecpu)
 	wrmsr
 
 	/* Restore CR0 except for FPU mode. */
-	movq	WAKEUP_XPCB(CR0), %rax
+	movq	PCB_CR0(%rsi), %rax
+	movq	%rax, %rcx
 	andq	$~(CR0_EM | CR0_TS), %rax
 	movq	%rax, %cr0
 
 	/* Restore CR2 and CR4. */
-	movq	WAKEUP_XPCB(CR2), %rax
+	movq	PCB_CR2(%rsi), %rax
 	movq	%rax, %cr2
-	movq	WAKEUP_XPCB(CR4), %rax
+	movq	PCB_CR4(%rsi), %rax
 	movq	%rax, %cr4
 
 	/* Restore descriptor tables. */
-	lidt	WAKEUP_XPCB(IDT)
-	lldt	WAKEUP_XPCB(LDT)
+	lidt	PCB_IDT(%rsi)
+	lldt	PCB_LDT(%rsi)
 
 #define	SDT_SYSTSS	9
 #define	SDT_SYSBSY	11
@@ -123,48 +122,58 @@ ENTRY(acpi_restorecpu)
 	/* Clear "task busy" bit and reload TR. */
 	movq	PCPU(TSS), %rax
 	andb	$(~SDT_SYSBSY | SDT_SYSTSS), 5(%rax)
-	movw	WAKEUP_XPCB(TR), %ax
+	movw	PCB_TR(%rsi), %ax
 	ltr	%ax
 
 #undef	SDT_SYSTSS
 #undef	SDT_SYSBSY
 
 	/* Restore other callee saved registers. */
-	movq	WAKEUP_PCB(R15), %r15
-	movq	WAKEUP_PCB(R14), %r14
-	movq	WAKEUP_PCB(R13), %r13
-	movq	WAKEUP_PCB(R12), %r12
-	movq	WAKEUP_PCB(RBP), %rbp
-	movq	WAKEUP_PCB(RSP), %rsp
-	movq	WAKEUP_PCB(RBX), %rbx
+	movq	PCB_R15(%rsi), %r15
+	movq	PCB_R14(%rsi), %r14
+	movq	PCB_R13(%rsi), %r13
+	movq	PCB_R12(%rsi), %r12
+	movq	PCB_RBP(%rsi), %rbp
+	movq	PCB_RSP(%rsi), %rsp
+	movq	PCB_RBX(%rsi), %rbx
 
 	/* Restore debug registers. */
-	movq	WAKEUP_PCB(DR0), %rax
+	movq	PCB_DR0(%rsi), %rax
 	movq	%rax, %dr0
-	movq	WAKEUP_PCB(DR1), %rax
+	movq	PCB_DR1(%rsi), %rax
 	movq	%rax, %dr1
-	movq	WAKEUP_PCB(DR2), %rax
+	movq	PCB_DR2(%rsi), %rax
 	movq	%rax, %dr2
-	movq	WAKEUP_PCB(DR3), %rax
+	movq	PCB_DR3(%rsi), %rax
 	movq	%rax, %dr3
-	movq	WAKEUP_PCB(DR6), %rax
+	movq	PCB_DR6(%rsi), %rax
 	movq	%rax, %dr6
-	movq	WAKEUP_PCB(DR7), %rax
+	movq	PCB_DR7(%rsi), %rax
 	movq	%rax, %dr7
 
-	/* Restore FPU state. */
+#define	__INITIAL_FPUCW__	0x037f
+#define	__INITIAL_MXCSR__	0x1f80
+
+	/* Initialize FPU and restore state if necessary. */
+	fninit
+	movw	$__INITIAL_FPUCW__, -2(%rsp)
+	fldcw	-2(%rsp)
+	movl	$__INITIAL_MXCSR__, -4(%rsp)
+	ldmxcsr	-4(%rsp)
 	movq	PCPU(FPCURTHREAD), %rax
 	testq	%rax, %rax
 	je	1f
-	fxrstor	WAKEUP_PCB(USERFPU)
+	fxrstor	PCB_USERFPU(%rsi)
 1:
 
-	/* Restore CR0 with FPU mode. */
-	movq	WAKEUP_XPCB(CR0), %rax
-	movq	%rax, %cr0
+#undef	__INITIAL_FPUCW__
+#undef	__INITIAL_MXCSR__
+
+	/* Reload CR0. */
+	movq	%rcx, %cr0
 
 	/* Restore return address. */
-	movq	WAKEUP_PCB(RIP), %rax
+	movq	PCB_RIP(%rsi), %rax
 	movq	%rax, (%rsp)
 
 	/* Indicate the CPU is resumed. */
@@ -173,19 +182,3 @@ ENTRY(acpi_restorecpu)
 
 	ret
 END(acpi_restorecpu)
-
-ENTRY(acpi_savecpu)
-	/* Fetch XPCB and save CPU context. */
-	movq	%rdi, %r10
-	call	savectx2
-	movq	%r10, %r11
-
-	/* Patch caller's return address and stack pointer. */
-	movq	(%rsp), %rax
-	movq	%rax, WAKEUP_PCB(RIP)
-	movq	%rsp, %rax
-	movq	%rax, WAKEUP_PCB(RSP)
-
-	movl	$1, %eax
-	ret
-END(acpi_savecpu)

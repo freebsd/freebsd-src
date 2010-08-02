@@ -44,7 +44,6 @@
 #include <machine/segments.h>
 
 struct pcb {
-	register_t	pcb_cr3;
 	register_t	pcb_r15;
 	register_t	pcb_r14;
 	register_t	pcb_r13;
@@ -55,6 +54,7 @@ struct pcb {
 	register_t	pcb_rip;
 	register_t	pcb_fsbase;
 	register_t	pcb_gsbase;
+	register_t	pcb_kgsbase;
 	u_long		pcb_flags;
 #define	PCB_DBREGS	0x02	/* process using debug registers */
 #define	PCB_KERNFPU	0x04	/* kernel uses fpu */
@@ -64,44 +64,41 @@ struct pcb {
 #define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
 #define	PCB_FULLCTX	0x80	/* full context restore on sysret */
 
-	u_int64_t	pcb_dr0;
-	u_int64_t	pcb_dr1;
-	u_int64_t	pcb_dr2;
-	u_int64_t	pcb_dr3;
-	u_int64_t	pcb_dr6;
-	u_int64_t	pcb_dr7;
+	register_t	pcb_cr0;
+	register_t	pcb_cr2;
+	register_t	pcb_cr3;
+	register_t	pcb_cr4;
+	register_t	pcb_dr0;
+	register_t	pcb_dr1;
+	register_t	pcb_dr2;
+	register_t	pcb_dr3;
+	register_t	pcb_dr6;
+	register_t	pcb_dr7;
 
-	struct	savefpu pcb_user_save;
 	uint16_t	pcb_initial_fpucw;
 
 	caddr_t		pcb_onfault; /* copyin/out fault recovery */
 
 	/* 32-bit segment descriptor */
-	struct user_segment_descriptor	pcb_gs32sd;
+	struct user_segment_descriptor pcb_gs32sd;
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;
 	struct	savefpu	*pcb_save;
 	char		pcb_full_iret;
-};
 
-struct xpcb {
-	struct pcb	xpcb_pcb;
-	register_t	xpcb_cr0;
-	register_t	xpcb_cr2;
-	register_t	xpcb_cr4;
-	register_t	xpcb_kgsbase;
-	struct region_descriptor xpcb_gdt;
-	struct region_descriptor xpcb_idt;
-	struct region_descriptor xpcb_ldt;
-	uint16_t	xpcb_tr;
+	struct region_descriptor pcb_gdt;
+	struct region_descriptor pcb_idt;
+	struct region_descriptor pcb_ldt;
+	uint16_t	pcb_tr;
+
+	struct	savefpu pcb_user_save;
 };
 
 #ifdef _KERNEL
 struct trapframe;
 
 void	makectx(struct trapframe *, struct pcb *);
-void	savectx(struct pcb *);
-int	savectx2(struct xpcb *);
+int	savectx(struct pcb *);
 #endif
 
 #endif /* _AMD64_PCB_H_ */
