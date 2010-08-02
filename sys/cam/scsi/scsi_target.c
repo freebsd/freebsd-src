@@ -1174,7 +1174,7 @@ targcamstatus(cam_status status)
 		return (EINVAL);
 	case CAM_RESRC_UNAVAIL:	/* Resource Unavailable */
 		return (ENOMEM);
-	case CAM_BUSY:		/* CAM subsytem is busy */
+	case CAM_BUSY:		/* CAM subsystem is busy */
 	case CAM_UA_ABORT:	/* Unable to abort CCB request */
 		return (EBUSY);
 	default:
