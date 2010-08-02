@@ -444,7 +444,9 @@ dt_pid_mod_filt(void *arg, const prmap_t *pmp, const char *obj)
 	if (gmatch(pp->dpp_obj, pp->dpp_mod))
 		return (dt_pid_per_mod(pp, pmp, obj));
 
+#if defined(sun)
 	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
+#endif
 
 	dt_pid_objname(name, sizeof (name), pp->dpp_lmid, pp->dpp_obj);
 
@@ -676,7 +678,7 @@ dt_pid_create_usdt_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 	struct ps_prochandle *P = dpr->dpr_proc;
 	int ret = 0;
 
-	assert(MUTEX_HELD(&dpr->dpr_lock));
+	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
 
 #ifdef DOODAD
 	(void) Pupdate_maps(P);
