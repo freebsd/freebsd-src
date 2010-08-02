@@ -20,10 +20,8 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- *
- * ident	"%Z%%M%	%I%	%E% SMI"
  */
 
 import org.opensolaris.os.dtrace.*;
@@ -70,7 +68,7 @@ public class TestFunctionLookup {
 			    long addr = (Long)address;
 			    f = consumer.lookupKernelFunction(addr);
 			}
-			if (f.equals("genunix`setrun")) {
+			if (f.equals("genunix`cv_wakeup")) {
 			    System.out.println(f);
 			    done = true;
 			}

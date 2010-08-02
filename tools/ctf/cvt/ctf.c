@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * Create and parse buffers containing CTF data.
@@ -172,6 +170,12 @@ write_functions(iidesc_t *idp, ctf_buf_t *b)
 	}
 
 	nargs = idp->ii_nargs + (idp->ii_vargs != 0);
+
+	if (nargs > CTF_MAX_VLEN) {
+		terminate("function %s has too many args: %d > %d\n",
+		    idp->ii_name, nargs, CTF_MAX_VLEN);
+	}
+
 	fdata[0] = CTF_TYPE_INFO(CTF_K_FUNCTION, 1, nargs);
 	fdata[1] = idp->ii_dtype->t_id;
 	ctf_buf_write(b, fdata, sizeof (fdata));
@@ -312,6 +316,11 @@ write_type(tdesc_t *tp, ctf_buf_t *b)
 		for (i = 0, mp = tp->t_members; mp != NULL; mp = mp->ml_next)
 			i++; /* count up struct or union members */
 
+		if (i > CTF_MAX_VLEN) {
+			terminate("sou %s has too many members: %d > %d\n",
+			    tdesc_name(tp), i, CTF_MAX_VLEN);
+		}
+
 		if (tp->t_type == STRUCT)
 			ctt.ctt_info = CTF_TYPE_INFO(CTF_K_STRUCT, isroot, i);
 		else
@@ -351,6 +360,11 @@ write_type(tdesc_t *tp, ctf_buf_t *b)
 		for (i = 0, ep = tp->t_emem; ep != NULL; ep = ep->el_next)
 			i++; /* count up enum members */
 
+		if (i > CTF_MAX_VLEN) {
+			terminate("enum %s has too many values: %d > %d\n",
+			    tdesc_name(tp), i, CTF_MAX_VLEN);
+		}
+
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_ENUM, isroot, i);
 		write_sized_type_rec(b, &ctt, tp->t_size);
 
@@ -387,8 +401,14 @@ write_type(tdesc_t *tp, ctf_buf_t *b)
 		break;
 
 	case FUNCTION:
-		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_FUNCTION, isroot,
-		    tp->t_fndef->fn_nargs + tp->t_fndef->fn_vargs);
+		i = tp->t_fndef->fn_nargs + tp->t_fndef->fn_vargs;
+
+		if (i > CTF_MAX_VLEN) {
+			terminate("function %s has too many args: %d > %d\n",
+			    i, CTF_MAX_VLEN);
+		}
+
+		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_FUNCTION, isroot, i);
 		ctt.ctt_type = tp->t_fndef->fn_ret->t_id;
 		write_unsized_type_rec(b, &ctt);
 
@@ -927,7 +947,7 @@ resurrect_types(ctf_header_t *h, tdata_t *td, tdesc_t **tdarr, int tdsize,
 
 		if (CTF_NAME_STID(ctt->ctt_name) != CTF_STRTAB_0)
 			parseterminate(
-				"Unable to cope with non-zero strtab id");
+			    "Unable to cope with non-zero strtab id");
 		if (CTF_NAME_OFFSET(ctt->ctt_name) != 0) {
 			tdp->t_name =
 			    xstrdup(sbuf + CTF_NAME_OFFSET(ctt->ctt_name));
