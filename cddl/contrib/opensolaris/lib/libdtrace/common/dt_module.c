@@ -18,12 +18,10 @@
  *
  * CDDL HEADER END
  */
-/*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
- */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ */
 
 #include <sys/types.h>
 #if defined(sun)
@@ -77,6 +75,10 @@ dt_module_symhash_insert(dt_module_t *dmp, const char *name, uint_t id)
 static uint_t
 dt_module_syminit32(dt_module_t *dmp)
 {
+#if STT_NUM != (STT_TLS + 1)
+#error "STT_NUM has grown. update dt_module_syminit32()"
+#endif
+
 	Elf32_Sym *sym = dmp->dm_symtab.cts_data;
 	const char *base = dmp->dm_strtab.cts_data;
 	size_t ss_size = dmp->dm_strtab.cts_size;
@@ -123,6 +125,10 @@ dt_module_syminit32(dt_module_t *dmp)
 static uint_t
 dt_module_syminit64(dt_module_t *dmp)
 {
+#if STT_NUM != (STT_TLS + 1)
+#error "STT_NUM has grown. update dt_module_syminit64()"
+#endif
+
 	Elf64_Sym *sym = dmp->dm_symtab.cts_data;
 	const char *base = dmp->dm_strtab.cts_data;
 	size_t ss_size = dmp->dm_strtab.cts_size;
@@ -512,7 +518,7 @@ dt_module_load_sect(dtrace_hdl_t *dtp, dt_module_t *dmp, ctf_sect_t *ctsp)
 	Elf_Data *dp;
 	Elf_Scn *sp;
 
-	if (elf_getshstrndx(dmp->dm_elf, &shstrs) == 0)
+	if (elf_getshdrstrndx(dmp->dm_elf, &shstrs) == -1)
 		return (dt_set_errno(dtp, EDT_NOTLOADED));
 
 	for (sp = NULL; (sp = elf_nextscn(dmp->dm_elf, sp)) != NULL; ) {
@@ -778,9 +784,24 @@ dt_module_unload(dtrace_hdl_t *dtp, dt_module_t *dmp)
 void
 dt_module_destroy(dtrace_hdl_t *dtp, dt_module_t *dmp)
 {
+	uint_t h = dt_strtab_hash(dmp->dm_name, NULL) % dtp->dt_modbuckets;
+	dt_module_t **dmpp = &dtp->dt_mods[h];
+
 	dt_list_delete(&dtp->dt_modlist, dmp);
 	assert(dtp->dt_nmods != 0);
 	dtp->dt_nmods--;
+
+	/*
+	 * Now remove this module from its hash chain.  We expect to always
+	 * find the module on its hash chain, so in this loop we assert that
+	 * we don't run off the end of the list.
+	 */
+	while (*dmpp != dmp) {
+		dmpp = &((*dmpp)->dm_next);
+		assert(*dmpp != NULL);
+	}
+
+	*dmpp = dmp->dm_next;
 
 	dt_module_unload(dtp, dmp);
 	free(dmp);
@@ -903,7 +924,7 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 	(void) close(fd);
 
 	if (dmp->dm_elf == NULL || err == -1 ||
-	    elf_getshstrndx(dmp->dm_elf, &shstrs) == 0) {
+	    elf_getshdrstrndx(dmp->dm_elf, &shstrs) == -1) {
 		dt_dprintf("failed to load %s: %s\n",
 		    fname, elf_errmsg(elf_errno()));
 		dt_module_destroy(dtp, dmp);
