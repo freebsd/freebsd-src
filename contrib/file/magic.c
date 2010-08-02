@@ -71,10 +71,10 @@ FILE_RCSID("@(#)$File: magic.c,v 1.62 2009/03/20 21:25:41 christos Exp $")
 #endif
 
 private void free_mlist(struct mlist *);
+#ifndef COMPILE_ONLY
 private void close_and_restore(const struct magic_set *, const char *, int,
     const struct stat *);
 private int unreadable_info(struct magic_set *, mode_t, const char *);
-#ifndef COMPILE_ONLY
 private const char *file_or_fd(struct magic_set *, const char *, int);
 #endif
 
@@ -132,6 +132,7 @@ free_mlist(struct mlist *mlist)
 	free(ml);
 }
 
+#ifndef COMPILE_ONLY
 private int
 unreadable_info(struct magic_set *ms, mode_t md, const char *file)
 {
@@ -149,6 +150,7 @@ unreadable_info(struct magic_set *ms, mode_t md, const char *file)
 		return -1;
 	return 0;
 }
+#endif
 
 public void
 magic_close(struct magic_set *ms)
@@ -191,6 +193,7 @@ magic_check(struct magic_set *ms, const char *magicfile)
 	return ml ? 0 : -1;
 }
 
+#ifndef COMPILE_ONLY
 private void
 close_and_restore(const struct magic_set *ms, const char *name, int fd,
     const struct stat *sb)
@@ -224,7 +227,6 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 	}
 }
 
-#ifndef COMPILE_ONLY
 
 /*
  * find type of descriptor
@@ -352,7 +354,7 @@ magic_buffer(struct magic_set *ms, const void *buf, size_t nb)
 	}
 	return file_getbuffer(ms);
 }
-#endif
+#endif /* COMPILE_ONLY */
 
 public const char *
 magic_error(struct magic_set *ms)
