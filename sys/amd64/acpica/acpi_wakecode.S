@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -265,7 +265,7 @@ wakeup_kpml4:
 
 wakeup_ctx:
 	.quad	0
-wakeup_xpcb:
+wakeup_pcb:
 	.quad	0
 wakeup_gdt:
 	.word	0
