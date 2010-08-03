@@ -101,13 +101,6 @@ list_del_init(struct list_head *entry)
 	INIT_LIST_HEAD(entry);
 }
 
-static inline void
-list_move_tail(struct list_head *entry, struct list_head *head)
-{
-
-	list_del(entry);
-}
-
 #define	list_entry(ptr, type, field)	container_of(ptr, type, field)
 
 #define	list_for_each(p, head)						\
@@ -151,6 +144,14 @@ list_move(struct list_head *list, struct list_head *head)
 
 	list_del(list);
 	list_add(list, head);
+}
+
+static inline void
+list_move_tail(struct list_head *entry, struct list_head *head)
+{
+
+	list_del(entry);
+	list_add_tail(entry, head);
 }
 
 static inline void
