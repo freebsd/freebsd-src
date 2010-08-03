@@ -722,7 +722,7 @@ nd_handle_ip(struct mbuf **mb)
 	struct ip *ip;
 	struct udpiphdr *udp;
 	struct netdump_ack *nd_ack;
-	struct mbuf *m=*mb;
+	struct mbuf *m;
 	int rcv_ackno;
 
 	/* IP processing */
