@@ -1059,6 +1059,8 @@ freebsd32_recvmsg(td, uap)
 		
 		if (control != NULL)
 			error = freebsd32_copy_msg_out(&msg, control);
+		else
+			msg.msg_controllen = 0;
 		
 		if (error == 0)
 			error = freebsd32_copyoutmsghdr(&msg, uap->msg);
