@@ -390,7 +390,7 @@ checkfilesys(char *filesys)
 	 */
 	if ((sblock.fs_flags & FS_SUJ) == FS_SUJ) {
 		if ((sblock.fs_flags & FS_NEEDSFSCK) != FS_NEEDSFSCK && skipclean) {
-			if (preen || reply("USE JOURNAL?")) {
+			if (preen || reply("USE JOURNAL")) {
 				if (suj_check(filesys) == 0) {
 					printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
 					if (chkdoreload(mntp) == 0)
