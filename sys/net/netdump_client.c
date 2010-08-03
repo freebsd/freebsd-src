@@ -905,14 +905,16 @@ nd_handle_ip(struct mbuf **mb)
 static void
 nd_handle_arp(struct mbuf **mb)
 {
-	struct mbuf *m=*mb;
+	struct mbuf *m;
 	struct arphdr *ah;
-	struct ifnet *ifp = m->m_pkthdr.rcvif;
+	struct ifnet *ifp;
 	int req_len, op;
 	struct in_addr isaddr, itaddr, myaddr;
 	uint8_t *enaddr;
 	struct ether_addr dst;
 
+	m = *mb;
+	ifp = m->m_pkthdr.rcvif;
 	if (m->m_len < sizeof(struct arphdr) && ((*mb = m = m_pullup(m,
 	    sizeof(struct arphdr))) == NULL)) {
 		NETDDEBUG("nd_handle_arp: runt packet: m_pullup failed\n");
