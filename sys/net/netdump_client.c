@@ -1308,8 +1308,8 @@ cleanup:
 extern int system_panic;
 
 int
-netdump_break_lock(struct mtx * lock, const char * name, int * broke_lock, uint8_t * broken_state, 
-                        unsigned index, unsigned broken_state_size)
+netdump_break_lock(struct mtx *lock, const char *name, int *broke_lock,
+    uint8_t *broken_state, u_int index, u_int bstatesz)
 {
 	/* XXX: Technically this might be bad because it's possible to be called
 	   from within a critical section (such as when the software watchdog
@@ -1324,7 +1324,7 @@ netdump_break_lock(struct mtx * lock, const char * name, int * broke_lock, uint8
 			critical_enter(); /* No interrupts so that this is less likely
 			                   * to mess up 
 			                   */
-			if(broken_state_size >= (index + sizeof(*lock))) {
+			if(bstatesz >= (index + sizeof(*lock))) {
 				bcopy(lock, broken_state + index, sizeof(*lock));
 			} else {
 				printf("Netdump: cannot save state of lock %s!", name);
