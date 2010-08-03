@@ -29,8 +29,6 @@
  * FreeBSD kernel module supporting netdump network dumps.
  * netdump_server must be running to accept client dumps.
  * XXX: This should be split into machdep and non-machdep parts
- *   - Modified by Adrian Dewhurst to work with FreeBSD 5.2, send a dump header,
- *     improve performance, and couple with the em driver.
  *
 */
 
@@ -471,7 +469,7 @@ netdump_udp_output(struct mbuf *m)
  * [netdump_network_poll]
  *
  * after trapping, instead of assuming that most of the network stack is sane
- * just poll the em driver directly for packets
+ * just poll the driver directly for packets
  *
  * Parameters:
  *	void
@@ -482,7 +480,6 @@ netdump_udp_output(struct mbuf *m)
 static void
 netdump_network_poll(void)
 {
-	/* Poll directly from em */
 	nd_nic->if_netdump->poll_locked(nd_nic, POLL_AND_CHECK_STATUS, 1000);
 }
 
@@ -538,7 +535,7 @@ netdump_send(uint32_t type, off_t offset,
 
 	rcvd_acks = 0;
 
- retransmit:
+retransmit:
 	/* We might get chunks too big to fit in packets. Yuck. */
 	for (i=sent_so_far=0; sent_so_far < datalen || (i==0 && datalen==0);
 		i++) {
@@ -553,8 +550,8 @@ netdump_send(uint32_t type, off_t offset,
 		/* Check if we're retransmitting and this has been ACKed
 		 * already */
 		if ((rcvd_acks & (1 << i)) != 0) {
-		    sent_so_far += pktlen;
-		    continue;
+			sent_so_far += pktlen;
+			continue;
 		}
 
 		/*
@@ -1239,7 +1236,7 @@ netdump_trigger(void *arg, int howto)
 		return;
 	}
 	
-	/* At this point, we should 'own' the em lock */
+	/* At this point, we should 'own' the driver lock */
 
 	/* We don't want interrupts potentially messing with our dump process */
 	critical_enter();
@@ -1290,9 +1287,9 @@ netdump_trigger(void *arg, int howto)
 	printf("cancelling normal dump\n");
 	set_dumper(NULL);
 	goto cleanup;
- abort:
+abort:
 	printf("\nnetdump failed, proceeding to normal dump\n");
- cleanup:
+cleanup:
 	if (old_if_input)
 		nd_nic->if_input = old_if_input;
 	critical_exit();
@@ -1356,8 +1353,8 @@ netdump_break_lock(struct mtx * lock, const char * name, int * broke_lock, uint8
  * [netdump_config_defaults]
  *
  * Called upon module load. Initializes the sysctl variables to sane defaults
- * (locates the lowest numbered em card for use as the NIC, and uses the first
- * IPv4 IP on that card as the client IP). Leaves the server IP unconfigured.
+ * (locates the first available NIC and uses the first IPv4 IP on that card as
+ * the client IP). Leaves the server IP unconfigured.
  *
  * Parameters:
  *	void
@@ -1374,7 +1371,7 @@ netdump_config_defaults(void)
 	nd_nic = NULL;
 	nd_client.s_addr = INADDR_ANY;
 
-	/* Default the nic to the lowest numbered em interface */
+	/* Default the nic to the first available interface */
 	if ((ifn = TAILQ_FIRST(&ifnet)) != NULL) do {
 		if ((ifn->if_flags & IFF_UP) == 0)
 			continue;
