@@ -210,8 +210,8 @@ wakeup_64:
 	mov	%ax, %ds
 
 	/* Restore arguments and return. */
-	movq	wakeup_ctx - wakeup_start(%rbx), %rdi
-	movq	wakeup_kpml4 - wakeup_start(%rbx), %rsi
+	movq	wakeup_kpml4 - wakeup_start(%rbx), %rdi
+	movq	wakeup_ctx - wakeup_start(%rbx), %rsi
 	movq	wakeup_retaddr - wakeup_start(%rbx), %rax
 	jmp	*%rax
 

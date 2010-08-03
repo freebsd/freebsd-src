@@ -34,11 +34,11 @@
 #include "acpi_wakedata.h"
 #include "assym.s"
 
-#define	WAKEUP_CTX(member)	wakeup_ ## member - wakeup_ctx(%rdi)
+#define	WAKEUP_CTX(member)	wakeup_ ## member - wakeup_ctx(%rsi)
 
 ENTRY(acpi_restorecpu)
 	/* Switch to KPML4phys. */
-	movq	%rsi, %rax
+	movq	%rdi, %rax
 	movq	%rax, %cr3
 
 	/* Restore GDT. */
@@ -47,7 +47,7 @@ ENTRY(acpi_restorecpu)
 1:
 
 	/* Fetch PCB. */
-	movq	WAKEUP_CTX(pcb), %rsi
+	movq	WAKEUP_CTX(pcb), %rdi
 
 	/* Force kernel segment registers. */
 	movl	$KDSEL, %eax
@@ -60,16 +60,16 @@ ENTRY(acpi_restorecpu)
 	movw	%ax, %gs
 
 	movl	$MSR_FSBASE, %ecx
-	movl	PCB_FSBASE(%rsi), %eax
-	movl	4 + PCB_FSBASE(%rsi), %edx
+	movl	PCB_FSBASE(%rdi), %eax
+	movl	4 + PCB_FSBASE(%rdi), %edx
 	wrmsr
 	movl	$MSR_GSBASE, %ecx
-	movl	PCB_GSBASE(%rsi), %eax
-	movl	4 + PCB_GSBASE(%rsi), %edx
+	movl	PCB_GSBASE(%rdi), %eax
+	movl	4 + PCB_GSBASE(%rdi), %edx
 	wrmsr
 	movl	$MSR_KGSBASE, %ecx
-	movl	PCB_KGSBASE(%rsi), %eax
-	movl	4 + PCB_KGSBASE(%rsi), %edx
+	movl	PCB_KGSBASE(%rdi), %eax
+	movl	4 + PCB_KGSBASE(%rdi), %edx
 	wrmsr
 
 	/* Restore EFER. */
@@ -101,20 +101,20 @@ ENTRY(acpi_restorecpu)
 	wrmsr
 
 	/* Restore CR0 except for FPU mode. */
-	movq	PCB_CR0(%rsi), %rax
+	movq	PCB_CR0(%rdi), %rax
 	movq	%rax, %rcx
 	andq	$~(CR0_EM | CR0_TS), %rax
 	movq	%rax, %cr0
 
 	/* Restore CR2 and CR4. */
-	movq	PCB_CR2(%rsi), %rax
+	movq	PCB_CR2(%rdi), %rax
 	movq	%rax, %cr2
-	movq	PCB_CR4(%rsi), %rax
+	movq	PCB_CR4(%rdi), %rax
 	movq	%rax, %cr4
 
 	/* Restore descriptor tables. */
-	lidt	PCB_IDT(%rsi)
-	lldt	PCB_LDT(%rsi)
+	lidt	PCB_IDT(%rdi)
+	lldt	PCB_LDT(%rdi)
 
 #define	SDT_SYSTSS	9
 #define	SDT_SYSBSY	11
@@ -122,58 +122,44 @@ ENTRY(acpi_restorecpu)
 	/* Clear "task busy" bit and reload TR. */
 	movq	PCPU(TSS), %rax
 	andb	$(~SDT_SYSBSY | SDT_SYSTSS), 5(%rax)
-	movw	PCB_TR(%rsi), %ax
+	movw	PCB_TR(%rdi), %ax
 	ltr	%ax
 
 #undef	SDT_SYSTSS
 #undef	SDT_SYSBSY
 
 	/* Restore other callee saved registers. */
-	movq	PCB_R15(%rsi), %r15
-	movq	PCB_R14(%rsi), %r14
-	movq	PCB_R13(%rsi), %r13
-	movq	PCB_R12(%rsi), %r12
-	movq	PCB_RBP(%rsi), %rbp
-	movq	PCB_RSP(%rsi), %rsp
-	movq	PCB_RBX(%rsi), %rbx
+	movq	PCB_R15(%rdi), %r15
+	movq	PCB_R14(%rdi), %r14
+	movq	PCB_R13(%rdi), %r13
+	movq	PCB_R12(%rdi), %r12
+	movq	PCB_RBP(%rdi), %rbp
+	movq	PCB_RSP(%rdi), %rsp
+	movq	PCB_RBX(%rdi), %rbx
 
 	/* Restore debug registers. */
-	movq	PCB_DR0(%rsi), %rax
+	movq	PCB_DR0(%rdi), %rax
 	movq	%rax, %dr0
-	movq	PCB_DR1(%rsi), %rax
+	movq	PCB_DR1(%rdi), %rax
 	movq	%rax, %dr1
-	movq	PCB_DR2(%rsi), %rax
+	movq	PCB_DR2(%rdi), %rax
 	movq	%rax, %dr2
-	movq	PCB_DR3(%rsi), %rax
+	movq	PCB_DR3(%rdi), %rax
 	movq	%rax, %dr3
-	movq	PCB_DR6(%rsi), %rax
+	movq	PCB_DR6(%rdi), %rax
 	movq	%rax, %dr6
-	movq	PCB_DR7(%rsi), %rax
+	movq	PCB_DR7(%rdi), %rax
 	movq	%rax, %dr7
 
-#define	__INITIAL_FPUCW__	0x037f
-#define	__INITIAL_MXCSR__	0x1f80
-
-	/* Initialize FPU and restore state if necessary. */
+	/* Restore FPU state. */
 	fninit
-	movw	$__INITIAL_FPUCW__, -2(%rsp)
-	fldcw	-2(%rsp)
-	movl	$__INITIAL_MXCSR__, -4(%rsp)
-	ldmxcsr	-4(%rsp)
-	movq	PCPU(FPCURTHREAD), %rax
-	testq	%rax, %rax
-	je	1f
-	fxrstor	PCB_USERFPU(%rsi)
-1:
-
-#undef	__INITIAL_FPUCW__
-#undef	__INITIAL_MXCSR__
+	fxrstor	PCB_USERFPU(%rdi)
 
 	/* Reload CR0. */
 	movq	%rcx, %cr0
 
 	/* Restore return address. */
-	movq	PCB_RIP(%rsi), %rax
+	movq	PCB_RIP(%rdi), %rax
 	movq	%rax, (%rsp)
 
 	/* Indicate the CPU is resumed. */
