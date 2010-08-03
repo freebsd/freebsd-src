@@ -15,21 +15,18 @@
  */
 
 #include <err.h>
-#include <time.h>
-#include <signal.h>
 #include <ncurses.h>
+#include <signal.h>
 #include <stdlib.h>
-#ifndef NONPOSIX
+#include <time.h>
 #include <unistd.h>
-#endif
 
 #define YBASE	10
 #define XBASE	10
 #define XLENGTH 58
 #define YDEPTH  7
 
-/* it won't be */
-struct timespec now; /* yeah! */
+struct timespec now;
 struct tm *tm;
 
 short disp[11] = {
@@ -88,9 +85,14 @@ main(int argc, char *argv[])
 		/* NOTREACHED */
 	}
 
-	if (argc > 0)
+	if (argc > 0) {
 		n = atoi(*argv) + 1;
-	else
+		if (n < 1) {
+			warnx("number of seconds is out of range");
+			usage();
+			/* NOTREACHED */
+		}
+	} else
 		n = 0;
 
 	initscr();
@@ -192,16 +194,20 @@ main(int argc, char *argv[])
 		}
 		movto(6, 0);
 		refresh();
-		clock_gettime(CLOCK_REALTIME_FAST, &now);
-		if (delay.tv_nsec > 0) {
-		    delay.tv_sec = 0;
-		    delay.tv_nsec = 1000000000 - now.tv_nsec;
-		} else {
-		    delay.tv_sec = 1;
-		    delay.tv_nsec = 0;
+		clock_gettime(CLOCK_REALTIME_FAST, &delay);
+		if (delay.tv_sec == now.tv_sec) {
+			if (delay.tv_nsec > 0) {
+				delay.tv_sec = 0;
+				delay.tv_nsec = 1000000000 - delay.tv_nsec;
+			} else {
+				delay.tv_sec = 1;
+				delay.tv_nsec = 0;
+			}
+			nanosleep(&delay, NULL);
+			clock_gettime(CLOCK_REALTIME_FAST, &delay);
 		}
-		nanosleep(&delay, NULL);
-		now.tv_sec++;
+		n -= delay.tv_sec - now.tv_sec;
+		now.tv_sec = delay.tv_sec;
 		if (sigtermed) {
 			standend();
 			clear();
@@ -209,7 +215,7 @@ main(int argc, char *argv[])
 			endwin();
 			errx(1, "terminated by signal %d", (int)sigtermed);
 		}
-	} while(--n);
+	} while (n);
 	standend();
 	clear();
 	refresh();
