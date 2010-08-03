@@ -258,7 +258,7 @@ Two additional constants in the allocator name space are defined:
 which will only be returned as a result of a library error, and
 .Dv ALLOCATOR_ANY ,
 which can be used to specify that returning types matching any allocator is
-permittible from
+permittable from
 .Fn memstat_mtl_find .
 .Ss Access Method List
 The following accessor methods are defined, of which some will be valid for
@@ -281,7 +281,7 @@ If the memory type has an administrative limit on the number of simultaneous
 allocations, return it.
 .It Fn memstat_get_byteslimit
 If the memory type has an administrative limit on the number of bytes of
-memory that may be simultaenously allocated for the memory type, return it.
+memory that may be simultaneously allocated for the memory type, return it.
 .It Fn memstat_get_sizemask
 If the memory type supports variable allocation sizes, return a bitmask of
 sizes allocated for the memory type.

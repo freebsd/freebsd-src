@@ -840,7 +840,7 @@ necessarily executed or retired.
 .It Li BACLEAR_FORCE_IQ
 .Pq Event A7H , Umask 01H
 Counts number of times a BACLEAR was forced by the Instruction Queue. The IQ
-is also responsible for providing conditional branch prediciton direction
+is also responsible for providing conditional branch prediction direction
 based on a static scheme and dynamic data provided by the L2 Branch
 Prediction Unit. If the conditional branch target is not found in the Target
 Array and the IQ predicts that the branch is taken, then the IQ will force
@@ -1170,7 +1170,7 @@ Counts unfusion events due to floating point exception to a fused uop.
 Counts the number of branch instructions decoded.
 .It Li BPU_MISSED_CALL_RET
 .Pq Event E5H , Umask 01H
-Counts number of times the Branch Prediciton Unit missed predicting a call
+Counts number of times the Branch Prediction Unit missed predicting a call
 or return branch.
 .It Li BACLEAR.CLEAR
 .Pq Event E6H , Umask 01H
