@@ -50,19 +50,20 @@
 #define	GFP_HIGHUSER_MOVABLE	M_WAITOK
 #define	GFP_IOFS	M_NOWAIT
 
+static inline void *
+page_address(struct page *page)
+{
+
+	if (page->object != kmem_object && page->object != kernel_object)
+		return (NULL);
+	return (void *)(VM_MIN_KERNEL_ADDRESS + IDX_TO_OFF(page->pindex));
+}
+
 static inline unsigned long
 _get_page(gfp_t mask)
 {
-	vm_page_t m;
-	vm_offset_t p;
 
-	p = kmem_malloc(kmem_map, PAGE_SIZE, mask | M_ZERO);
-	if (p) {
-		m = virt_to_page(p);
-		m->flags |= PG_KVA;
-		m->object = (vm_object_t)p;
-	}
-	return (p);
+	return kmem_malloc(kmem_map, PAGE_SIZE, mask);
 }
 
 #define	get_zeroed_page(mask)	_get_page((mask) | M_ZERO)
@@ -72,47 +73,30 @@ _get_page(gfp_t mask)
 static inline void
 free_page(unsigned long page)
 {
-	vm_page_t m;
 
-	m = virt_to_page(page);
-	if (m->flags & PG_KVA) {
-		m->flags &= ~PG_KVA;
-		m->object = kmem_object;
-	}
+	if (page == 0)
+		return;
 	kmem_free(kmem_map, page, PAGE_SIZE);
 }
 
 static inline void
 __free_page(struct page *m)
 {
-	void *p;
 
-	if ((m->flags & PG_KVA) == 0)
+	if (m->object != kmem_object)
 		panic("__free_page:  Freed page %p not allocated via wrappers.",
 		    m);
-	p = m->object;
-	m->flags &= ~PG_KVA;
-	m->object  = kmem_object;
-	kmem_free(kmem_map, (vm_offset_t)p, PAGE_SIZE);
+	kmem_free(kmem_map, (vm_offset_t)page_address(m), PAGE_SIZE);
 }
 
 static inline void
 __free_pages(void *p, unsigned int order)
 {
-	unsigned long start;
-	unsigned long page;
-	vm_page_t m;
 	size_t size;
 
+	if (p == 0)
+		return;
 	size = PAGE_SIZE << order;
-	start = (unsigned long)p;
-	for (page = start; page < start + size; page += PAGE_SIZE) {
-		m = virt_to_page(page);
-		if (m->flags & PG_KVA) {
-			m->flags &= ~PG_KVA;
-			m->object = kmem_object;
-		}
-	}
 	kmem_free(kmem_map, (vm_offset_t)p, size);
 }
 
@@ -124,22 +108,15 @@ __free_pages(void *p, unsigned int order)
 static inline struct page *
 alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
-	unsigned long start;
 	unsigned long page;
-	vm_page_t m;
 	size_t size;
 
 	size = PAGE_SIZE << order;
-	start = kmem_alloc_contig(kmem_map, size, gfp_mask, 0, -1,
+	page = kmem_alloc_contig(kmem_map, size, gfp_mask, 0, -1,
 	    size, 0, VM_MEMATTR_DEFAULT);
-	if (start == 0)
+	if (page == 0)
 		return (NULL);
-	for (page = start; page < start + size; page += PAGE_SIZE) {
-		m = virt_to_page(page);
-		m->flags |= PG_KVA;
-		m->object = (vm_object_t)page;
-	}
-        return (virt_to_page(start));
+        return (virt_to_page(page));
 }
 
 #endif	/* _LINUX_GFP_H_ */

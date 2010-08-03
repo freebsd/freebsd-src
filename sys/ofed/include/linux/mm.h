@@ -37,6 +37,10 @@
 struct vm_area_struct {
 };
 
+/*
+ * Compute log2 of the power of two rounded up count of pages
+ * needed for size bytes.
+ */
 static inline int
 get_order(unsigned long size)
 {
@@ -55,10 +59,7 @@ static inline void *
 lowmem_page_address(struct page *page)
 {
 
-	if (page->flags & PG_KVA)
-		return (page->object);
-	return (NULL);
+	return page_address(page);
 }
-
 
 #endif	/* _LINUX_MM_H_ */

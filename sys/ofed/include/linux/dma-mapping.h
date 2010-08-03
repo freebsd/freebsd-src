@@ -117,8 +117,6 @@ dma_set_coherent_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
-MALLOC_DECLARE(M_LINUX_DMA);
-
 static inline void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
     gfp_t flag)
@@ -132,7 +130,8 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	else
 		high = BUS_SPACE_MAXADDR_32BIT;
 	align = PAGE_SIZE << get_order(size);
-	mem = contigmalloc(size, M_LINUX_DMA, flag, 0, high, align, 0);
+	mem = (void *)kmem_alloc_contig(kmem_map, size, flag, 0, high, align,
+	    0, VM_MEMATTR_DEFAULT);
 	if (mem)
 		*dma_handle = vtophys(mem);
 	else
@@ -144,7 +143,8 @@ static inline void
 dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
     dma_addr_t dma_handle)
 {
-	contigfree(cpu_addr, size, M_LINUX_DMA);
+
+	kmem_free(kmem_map, (vm_offset_t)cpu_addr, size);
 }
 
 /* XXX This only works with no iommu. */
@@ -186,7 +186,7 @@ dma_map_page(struct device *dev, struct page *page,
     unsigned long offset, size_t size, enum dma_data_direction direction)
 {
 
-	return  VM_PAGE_TO_PHYS(page) + offset;
+	return VM_PAGE_TO_PHYS(page) + offset;
 }
 
 static inline void

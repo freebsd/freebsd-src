@@ -57,13 +57,15 @@ sg_set_page(struct scatterlist *sg, struct page *page, unsigned int len,
 	sg_page(sg) = page;
 	sg_dma_len(sg) = len;
 	sg->offset = offset;
+	if (offset > PAGE_SIZE)
+		panic("sg_set_page: Invalid offset %d\n", offset);
 }
 
 static inline void
 sg_set_buf(struct scatterlist *sg, const void *buf, unsigned int buflen)
 {
-	sg_set_page(sg, PHYS_TO_VM_PAGE(vtophys(buf)), buflen,
-	    ((uintptr_t)buf) & PAGE_MASK);
+	sg_set_page(sg, virt_to_page(buf), buflen,
+	    ((uintptr_t)buf) & ~PAGE_MASK);
 }
 
 static inline void
