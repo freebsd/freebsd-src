@@ -302,93 +302,65 @@ END(cpu_switch)
  * Update pcb, saving current processor state.
  */
 ENTRY(savectx)
-	/* Fetch PCB. */
-	movq	%rdi,%rsi
-
 	/* Save caller's return address. */
 	movq	(%rsp),%rax
-	movq	%rax,PCB_RIP(%rsi)
+	movq	%rax,PCB_RIP(%rdi)
 
-	movq	%rbx,PCB_RBX(%rsi)
-	movq	%rsp,PCB_RSP(%rsi)
-	movq	%rbp,PCB_RBP(%rsi)
-	movq	%r12,PCB_R12(%rsi)
-	movq	%r13,PCB_R13(%rsi)
-	movq	%r14,PCB_R14(%rsi)
-	movq	%r15,PCB_R15(%rsi)
+	movq	%rbx,PCB_RBX(%rdi)
+	movq	%rsp,PCB_RSP(%rdi)
+	movq	%rbp,PCB_RBP(%rdi)
+	movq	%r12,PCB_R12(%rdi)
+	movq	%r13,PCB_R13(%rdi)
+	movq	%r14,PCB_R14(%rdi)
+	movq	%r15,PCB_R15(%rdi)
 
+	movq	%cr0,%rsi
+	movq	%rsi,PCB_CR0(%rdi)
 	movq	%cr2,%rax
-	movq	%rax,PCB_CR2(%rsi)
+	movq	%rax,PCB_CR2(%rdi)
 	movq	%cr3,%rax
-	movq	%rax,PCB_CR3(%rsi)
+	movq	%rax,PCB_CR3(%rdi)
 	movq	%cr4,%rax
-	movq	%rax,PCB_CR4(%rsi)
+	movq	%rax,PCB_CR4(%rdi)
 
 	movq	%dr0,%rax
-	movq	%rax,PCB_DR0(%rsi)
+	movq	%rax,PCB_DR0(%rdi)
 	movq	%dr1,%rax
-	movq	%rax,PCB_DR1(%rsi)
+	movq	%rax,PCB_DR1(%rdi)
 	movq	%dr2,%rax
-	movq	%rax,PCB_DR2(%rsi)
+	movq	%rax,PCB_DR2(%rdi)
 	movq	%dr3,%rax
-	movq	%rax,PCB_DR3(%rsi)
+	movq	%rax,PCB_DR3(%rdi)
 	movq	%dr6,%rax
-	movq	%rax,PCB_DR6(%rsi)
+	movq	%rax,PCB_DR6(%rdi)
 	movq	%dr7,%rax
-	movq	%rax,PCB_DR7(%rsi)
+	movq	%rax,PCB_DR7(%rdi)
 
 	movl	$MSR_FSBASE,%ecx
 	rdmsr
 	shlq	$32,%rdx
 	leaq	(%rax,%rdx),%rax
-	movq	%rax,PCB_FSBASE(%rsi)
+	movq	%rax,PCB_FSBASE(%rdi)
 	movl	$MSR_GSBASE,%ecx
 	rdmsr
 	shlq	$32,%rdx
 	leaq	(%rax,%rdx),%rax
-	movq	%rax,PCB_GSBASE(%rsi)
+	movq	%rax,PCB_GSBASE(%rdi)
 	movl	$MSR_KGSBASE,%ecx
 	rdmsr
 	shlq	$32,%rdx
 	leaq	(%rax,%rdx),%rax
-	movq	%rax,PCB_KGSBASE(%rsi)
+	movq	%rax,PCB_KGSBASE(%rdi)
 
-	sgdt	PCB_GDT(%rsi)
-	sidt	PCB_IDT(%rsi)
-	sldt	PCB_LDT(%rsi)
-	str	PCB_TR(%rsi)
+	sgdt	PCB_GDT(%rdi)
+	sidt	PCB_IDT(%rdi)
+	sldt	PCB_LDT(%rdi)
+	str	PCB_TR(%rdi)
 
-	movq	%cr0,%rax
-	movq	%rax,PCB_CR0(%rsi)
-	leaq	PCB_USERFPU(%rsi),%rdi
-	pushfq
-	cli
 	clts
-	fxsave	(%rdi)
-	movq	%rax,%cr0
+	fxsave	PCB_USERFPU(%rdi)
+	movq	%rsi,%cr0	/* The previous %cr0 is saved in %rsi. */
 
-	/*
-	 * If fpcurthread == NULL, then the fpu h/w state is irrelevant and the
-	 * state had better already be in the pcb.  This is true for forks
-	 * but not for dumps (the old book-keeping with FP flags in the pcb
-	 * always lost for dumps because the dump pcb has 0 flags).
-	 *
-	 * If fpcurthread != NULL, then we have to copy the fpu h/w state to
-	 * fpcurthread's pcb, or reload from the requested pcb.  Copying is
-	 * easier because we would have to handle h/w bugs for reloading.
-	 */
-	movq	PCPU(FPCURTHREAD),%rax
-	testq	%rax,%rax
-	je	1f
-
-	/* arg 1 (%rdi) already loaded */
-	movq	TD_PCB(%rax),%rax
-	movq	PCB_SAVEFPU(%rax),%rsi	/* arg 2 */
-	movq	$PCB_SAVEFPU_SIZE,%rdx	/* arg 3 */
-	call	bcopy
-1:
-	popfq
 	movl	$1,%eax
-
 	ret
 END(savectx)
