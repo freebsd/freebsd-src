@@ -609,7 +609,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 	GElf_Phdr ph;
 	GElf_Shdr sh;
 	enum pmcstat_image_type image_type;
-	char buffer[PATH_MAX], rtldpath[PATH_MAX];
+	char buffer[PATH_MAX];
 
 	assert(image->pi_type == PMCSTAT_IMAGE_UNKNOWN);
 
@@ -689,10 +689,9 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 					    buffer, elf_errmsg(-1));
 					goto done;
 				}
-				snprintf(rtldpath, sizeof(rtldpath), "%s%s",
-				    args.pa_fsroot, elfbase + ph.p_offset);
 				image->pi_dynlinkerpath =
-				    pmcstat_string_intern(rtldpath);
+				    pmcstat_string_intern(elfbase +
+				        ph.p_offset);
 				break;
 			case PT_LOAD:
 				if (ph.p_offset == 0)
