@@ -641,6 +641,7 @@ main(int argc, char **argv)
 			else
 				cpumask = pmcstat_get_cpumask(optarg);
 
+			args.pa_flags	 |= FLAGS_HAS_CPUMASK;
 			args.pa_required |= FLAG_HAS_SYSTEM_PMCS;
 			break;
 
@@ -883,6 +884,13 @@ main(int argc, char **argv)
 
 	args.pa_argc = (argc -= optind);
 	args.pa_argv = (argv += optind);
+
+	/* If we read from logfile and no specified CPU mask use
+	 * the maximum CPU count.
+	 */
+	if ((args.pa_flags & FLAG_READ_LOGFILE) &&
+	    (args.pa_flags & FLAGS_HAS_CPUMASK) == 0)
+		cpumask = 0xffffffff;
 
 	args.pa_cpumask = cpumask; /* For selecting CPUs using -R. */
 
