@@ -187,8 +187,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	struct nfsnode *np;
 	struct vattr *vap;
 	struct nfsmount *nmp;
-	int timeo;
-	boolean_t mustflush;
+	int timeo, mustflush;
 	
 	np = VTONFS(vp);
 	vap = &np->n_vattr.na_vattr;
@@ -230,7 +229,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 #endif
 
 	if ((time_second - np->n_attrstamp) >= timeo &&
-	    (mustflush || np->n_attrstamp == 0)) {
+	    (mustflush != 0 || np->n_attrstamp == 0)) {
 		newnfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
 #ifdef NFS_ACDEBUG
