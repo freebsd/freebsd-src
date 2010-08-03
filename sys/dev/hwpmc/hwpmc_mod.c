@@ -1251,7 +1251,7 @@ pmc_process_csw_in(struct thread *td)
 			continue;
 
 		/* increment PMC runcount */
-		atomic_add_rel_32(&pm->pm_runcount, 1);
+		atomic_add_rel_int(&pm->pm_runcount, 1);
 
 		/* configure the HWPMC we are going to use. */
 		pcd = pmc_ri_to_classdep(md, ri, &adjri);
@@ -1390,7 +1390,7 @@ pmc_process_csw_out(struct thread *td)
 			pcd->pcd_stop_pmc(cpu, adjri);
 
 		/* reduce this PMC's runcount */
-		atomic_subtract_rel_32(&pm->pm_runcount, 1);
+		atomic_subtract_rel_int(&pm->pm_runcount, 1);
 
 		/*
 		 * If this PMC is associated with this process,
@@ -3256,9 +3256,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			}
 		}
 
-		if (error)
-			break;
-
 		/*
 		 * Look for valid values for 'pm_flags'
 		 */
@@ -4049,7 +4046,7 @@ pmc_process_interrupt(int cpu, struct pmc *pm, struct trapframe *tf,
 	    ("[pmc,%d] pm=%p runcount %d", __LINE__, (void *) pm,
 		pm->pm_runcount));
 
-	atomic_add_rel_32(&pm->pm_runcount, 1);	/* hold onto PMC */
+	atomic_add_rel_int(&pm->pm_runcount, 1);	/* hold onto PMC */
 	ps->ps_pmc = pm;
 	if ((td = curthread) && td->td_proc)
 		ps->ps_pid = td->td_proc->p_pid;
@@ -4250,7 +4247,7 @@ pmc_process_samples(int cpu)
 
 	entrydone:
 		ps->ps_nsamples = 0;	/* mark entry as free */
-		atomic_subtract_rel_32(&pm->pm_runcount, 1);
+		atomic_subtract_rel_int(&pm->pm_runcount, 1);
 
 		/* increment read pointer, modulo sample size */
 		if (++ps == psb->ps_fence)
@@ -4422,7 +4419,7 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 				mtx_pool_unlock_spin(pmc_mtxpool, pm);
 			}
 
-			atomic_subtract_rel_32(&pm->pm_runcount,1);
+			atomic_subtract_rel_int(&pm->pm_runcount,1);
 
 			KASSERT((int) pm->pm_runcount >= 0,
 			    ("[pmc,%d] runcount is %d", __LINE__, ri));
