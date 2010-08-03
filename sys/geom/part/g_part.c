@@ -1748,7 +1748,7 @@ g_part_orphan(struct g_consumer *cp)
 
 	KASSERT(pp->error != 0, (__func__));
 	table = cp->geom->softc;
-	if (table->gpt_opened)
+	if (table != NULL && table->gpt_opened)
 		g_access(cp, -1, -1, -1);
 	g_part_wither(cp->geom, pp->error);
 }
