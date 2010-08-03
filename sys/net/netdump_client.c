@@ -961,6 +961,7 @@ nd_handle_arp(struct mbuf **mb)
 		    "broadcast.\n");
 		return;
 	}
+#endif
 
 	if (isaddr.s_addr == nd_client.s_addr) {
 		printf("nd_handle_arp: %*D is using my IP address %s!\n",
