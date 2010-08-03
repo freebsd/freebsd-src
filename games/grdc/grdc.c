@@ -55,6 +55,7 @@ int
 main(int argc, char *argv[])
 {
 	struct timespec delay;
+	time_t prev_sec;
 	long t, a;
 	int i, j, s, k;
 	int n;
@@ -138,6 +139,7 @@ main(int argc, char *argv[])
 		attrset(COLOR_PAIR(2));
 	}
 	clock_gettime(CLOCK_REALTIME_FAST, &now);
+	prev_sec = now.tv_sec;
 	do {
 		mask = 0;
 		tm = localtime(&now.tv_sec);
@@ -194,20 +196,20 @@ main(int argc, char *argv[])
 		}
 		movto(6, 0);
 		refresh();
-		clock_gettime(CLOCK_REALTIME_FAST, &delay);
-		if (delay.tv_sec == now.tv_sec) {
+		clock_gettime(CLOCK_REALTIME_FAST, &now);
+		if (now.tv_sec == prev_sec) {
 			if (delay.tv_nsec > 0) {
 				delay.tv_sec = 0;
-				delay.tv_nsec = 1000000000 - delay.tv_nsec;
+				delay.tv_nsec = 1000000000 - now.tv_nsec;
 			} else {
 				delay.tv_sec = 1;
 				delay.tv_nsec = 0;
 			}
 			nanosleep(&delay, NULL);
-			clock_gettime(CLOCK_REALTIME_FAST, &delay);
+			clock_gettime(CLOCK_REALTIME_FAST, &now);
 		}
-		n -= delay.tv_sec - now.tv_sec;
-		now.tv_sec = delay.tv_sec;
+		n -= now.tv_sec - prev_sec;
+		prev_sec = now.tv_sec;
 		if (sigtermed) {
 			standend();
 			clear();
