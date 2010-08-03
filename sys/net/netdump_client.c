@@ -922,7 +922,10 @@ nd_handle_arp(struct mbuf **mb)
 	}
 	ah = mtod(m, struct arphdr *);
 
-	if (ntohs(ah->ar_hrd) != ARPHRD_ETHER) {
+	if (ntohs(ah->ar_hrd) != ARPHRD_ETHER &&
+	    ntohs(ar->ar_hrd) != ARPHRD_IEEE802 &&
+	    ntohs(ar->ar_hrd) != ARPHRD_ARCNET &&
+	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394) {
 		NETDDEBUG("nd_handle_arp: unknown hardware address fmt "
 		    "0x%2D)\n", (unsigned char *)&ah->ar_hrd, "");
 		return;
@@ -949,6 +952,13 @@ nd_handle_arp(struct mbuf **mb)
 
 	if (!bcmp(ar_sha(ah), enaddr, ifp->if_addrlen)) {
 		NETDDEBUG("nd_handle_arp: ignoring ARP from myself\n");
+		return;
+	}
+
+#ifdef INVARIANTS
+	if (!bcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen)) {
+		NETDDEBUG("nd_handle_arp: ignoring ARP as link address is "
+		    "broadcast.\n");
 		return;
 	}
 
