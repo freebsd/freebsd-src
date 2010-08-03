@@ -353,6 +353,7 @@ vendor ASIAMD		0x06be	Asia Microelectronic Development
 vendor BIZLINK		0x06c4	Bizlink International
 vendor KEYSPAN		0x06cd	Keyspan / InnoSys Inc.
 vendor AASHIMA		0x06d6	Aashima Technology
+vendor LIEBERT		0x06da	Liebert
 vendor MULTITECH	0x06e0	MultiTech
 vendor ADS		0x06e1	ADS Technologies
 vendor ALCATELM		0x06e4	Alcatel Microelectronics
@@ -653,6 +654,7 @@ vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor PEGATRON		0x1d4d	Pegatron
 vendor QISDA		0x1da5  Qisda
+vendor METAGEEK2	0x1dd5	MetaGeek
 vendor ALINK		0x1e0e  Alink
 vendor AIRTIES		0x1eda	AirTies
 vendor DLINK		0x2001	D-Link
@@ -1274,6 +1276,7 @@ product CYPRESS IKARILASER	0x121f	Ikari Laser SteelSeries ApS
 product CYPRESS USBRS232	0x5500	USB-RS232 Interface
 product CYPRESS SLIM_HUB	0x6560	Slim Hub
 product CYPRESS XX6830XX	0x6830	PATA Storage Device
+product CYPRESS SILVERSHIELD	0xfd13	Gembird Silver Shield PM
 
 /* Daisy Technology products */
 product DAISY DMC		0x6901	USB MultiMedia Reader
@@ -1926,6 +1929,9 @@ product LEXAR CF_READER		0xb002	USB CF Reader
 /* Lexmark products */
 product LEXMARK S2450		0x0009	Optra S 2450
 
+/* Liebert products */
+product LIEBERT POWERSURE_PXT	0xffff	PowerSure Personal XT
+
 /* Linksys products */
 product LINKSYS MAUSB2		0x0105	Camedia MAUSB-2
 product LINKSYS USB10TX1	0x200c	USB10TX
@@ -2026,6 +2032,7 @@ product MERLIN V620             0x1110  Merlin V620
 /* MetaGeek products */
 product METAGEEK WISPY1B	0x083e	MetaGeek Wi-Spy
 product METAGEEK WISPY24X	0x083f	MetaGeek Wi-Spy 2.4x
+product METAGEEK2 WISPYDBX	0x5000	MetaGeek Wi-Spy DBx
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
