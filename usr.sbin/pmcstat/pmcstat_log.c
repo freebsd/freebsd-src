@@ -141,6 +141,7 @@ struct pmcstat_image_hash_list pmcstat_image_hash[PMCSTAT_NHASH];
 struct pmcstat_process_hash_list pmcstat_process_hash[PMCSTAT_NHASH];
 
 struct pmcstat_stats pmcstat_stats; /* statistics */
+int ps_samples_period; /* samples count between top refresh. */
 
 struct pmcstat_process *pmcstat_kernproc; /* kernel 'process' */
 
@@ -247,7 +248,7 @@ static int	pmcstat_string_compute_hash(const char *_string);
 static void pmcstat_string_initialize(void);
 static int	pmcstat_string_lookup_hash(pmcstat_interned_string _is);
 static void pmcstat_string_shutdown(void);
-static void pmcstat_stats_reset(void);
+static void pmcstat_stats_reset(int _reset_global);
 
 /*
  * A simple implementation of interned strings.  Each interned string
@@ -276,7 +277,7 @@ int pmcstat_npmcs;
 int pmcstat_pause;
 
 static void
-pmcstat_stats_reset(void)
+pmcstat_stats_reset(int reset_global)
 {
 	struct pmcstat_pmcrecord *pr;
 
@@ -285,9 +286,11 @@ pmcstat_stats_reset(void)
 		pr->pr_samples = 0;
 		pr->pr_dubious_frames = 0;
 	}
+	ps_samples_period = 0;
 
 	/* Flush global stats. */
-	bzero(&pmcstat_stats, sizeof(struct pmcstat_stats));
+	if (reset_global)
+		bzero(&pmcstat_stats, sizeof(struct pmcstat_stats));
 }
 
 /*
@@ -606,7 +609,7 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 	GElf_Phdr ph;
 	GElf_Shdr sh;
 	enum pmcstat_image_type image_type;
-	char buffer[PATH_MAX];
+	char buffer[PATH_MAX], rtldpath[PATH_MAX];
 
 	assert(image->pi_type == PMCSTAT_IMAGE_UNKNOWN);
 
@@ -686,9 +689,10 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 					    buffer, elf_errmsg(-1));
 					goto done;
 				}
+				snprintf(rtldpath, sizeof(rtldpath), "%s%s",
+				    args.pa_fsroot, elfbase + ph.p_offset);
 				image->pi_dynlinkerpath =
-				    pmcstat_string_intern(elfbase +
-					ph.p_offset);
+				    pmcstat_string_intern(rtldpath);
 				break;
 			case PT_LOAD:
 				if (ph.p_offset == 0)
@@ -944,11 +948,13 @@ pmcstat_image_addr2line(struct pmcstat_image *image, uintfptr_t addr,
 	int fd;
 
 	if (image->pi_addr2line == NULL) {
-		snprintf(imagepath, sizeof(imagepath), "%s.symbols",
+		snprintf(imagepath, sizeof(imagepath), "%s%s.symbols",
+		    args.pa_fsroot,
 		    pmcstat_string_unintern(image->pi_fullpath));
 		fd = open(imagepath, O_RDONLY);
 		if (fd < 0) {
-			snprintf(imagepath, sizeof(imagepath), "%s",
+			snprintf(imagepath, sizeof(imagepath), "%s%s",
+			    args.pa_fsroot,
 			    pmcstat_string_unintern(image->pi_fullpath));
 		} else
 			close(fd);
@@ -1397,6 +1403,7 @@ pmcstat_analyze_log(void)
 			 * bin inside this.
 			 */
 			pmcstat_stats.ps_samples_total++;
+			ps_samples_period++;
 
 			pc = ev.pl_u.pl_s.pl_pc;
 			pp = pmcstat_process_lookup(ev.pl_u.pl_s.pl_pid,
@@ -1423,6 +1430,7 @@ pmcstat_analyze_log(void)
 
 		case PMCLOG_TYPE_CALLCHAIN:
 			pmcstat_stats.ps_samples_total++;
+			ps_samples_period++;
 
 			cpuflags = ev.pl_u.pl_cc.pl_cpuflags;
 			cpu = PMC_CALLCHAIN_CPUFLAGS_TO_CPU(cpuflags);
@@ -1689,8 +1697,15 @@ pmcstat_print_log(void)
 int
 pmcstat_close_log(void)
 {
-	if (pmc_flush_logfile() < 0)
-		err(EX_OSERR, "ERROR: logging failed");
+	/* If a local logfile is configured ask the kernel to stop
+	 * and flush data. Kernel will close the file when data is flushed
+	 * so keep the status to EXITING.
+	 */
+	if (args.pa_logfd != -1) {
+		if (pmc_flush_logfile() < 0)
+			err(EX_OSERR, "ERROR: logging failed");
+	}
+
 	return (args.pa_flags & FLAG_HAS_PIPE ? PMCSTAT_EXITING :
 	    PMCSTAT_FINISHED);
 }
@@ -1707,7 +1722,7 @@ pmcstat_close_log(void)
 int
 pmcstat_open_log(const char *path, int mode)
 {
-	int error, fd;
+	int error, fd, cfd;
 	size_t hlen;
 	const char *p, *errstr;
 	struct addrinfo hints, *res, *res0;
@@ -1728,7 +1743,7 @@ pmcstat_open_log(const char *path, int mode)
 	 */
 	if (path[0] == '-' && path[1] == '\0')
 		fd = (mode == PMCSTAT_OPEN_FOR_READ) ? 0 : 1;
-	else if (mode == PMCSTAT_OPEN_FOR_WRITE && path[0] != '/' &&
+	else if (path[0] != '/' &&
 	    path[0] != '.' && strchr(path, ':') != NULL) {
 
 		p = strrchr(path, ':');
@@ -1757,11 +1772,29 @@ pmcstat_open_log(const char *path, int mode)
 				errstr = strerror(errno);
 				continue;
 			}
-			if (connect(fd, res->ai_addr, res->ai_addrlen) < 0) {
-				errstr = strerror(errno);
+			if (mode == PMCSTAT_OPEN_FOR_READ) {
+				if (bind(fd, res->ai_addr, res->ai_addrlen) < 0) {
+					errstr = strerror(errno);
+					(void) close(fd);
+					fd = -1;
+					continue;
+				}
+				listen(fd, 1);
+				cfd = accept(fd, NULL, NULL);
 				(void) close(fd);
-				fd = -1;
-				continue;
+				if (cfd < 0) {
+					errstr = strerror(errno);
+					fd = -1;
+					break;
+				}
+				fd = cfd;
+			} else {
+				if (connect(fd, res->ai_addr, res->ai_addrlen) < 0) {
+					errstr = strerror(errno);
+					(void) close(fd);
+					fd = -1;
+					continue;
+				}
 			}
 			errstr = NULL;
 			break;
@@ -1831,9 +1864,8 @@ pmcstat_refresh_top(void)
 		    pmcstat_pmcinfilter);
 
 	/* Format samples count. */
-	if (pmcstat_stats.ps_samples_total > 0)
-		v = (pmcpr->pr_samples * 100.0) /
-		    pmcstat_stats.ps_samples_total;
+	if (ps_samples_period > 0)
+		v = (pmcpr->pr_samples * 100.0) / ps_samples_period;
 	else
 		v = 0.;
 	v_attrs = PMCSTAT_ATTRPERCENT(v);
@@ -1870,7 +1902,7 @@ pmcstat_changefilter(void)
 
 		do {
 			pmcr = pmcstat_pmcindex_to_pmcr(pmcstat_pmcinfilter);
-			if (pmcr == pmcr->pr_merge)
+			if (pmcr == NULL || pmcr == pmcr->pr_merge)
 				break;
 
 			pmcstat_pmcinfilter++;
@@ -1913,7 +1945,7 @@ pmcstat_keypress_log(void)
 		 */
 		if (plugins[args.pa_plugin].pl_shutdown != NULL)
 			plugins[args.pa_plugin].pl_shutdown(NULL);
-		pmcstat_stats_reset();
+		pmcstat_stats_reset(0);
 		if (plugins[args.pa_plugin].pl_init != NULL)
 			plugins[args.pa_plugin].pl_init();
 
@@ -1934,7 +1966,7 @@ pmcstat_keypress_log(void)
 		} while (plugins[args.pa_plugin].pl_topdisplay == NULL);
 
 		/* Open new plugin. */
-		pmcstat_stats_reset();
+		pmcstat_stats_reset(0);
 		if (plugins[args.pa_plugin].pl_init != NULL)
 			plugins[args.pa_plugin].pl_init();
 		wprintw(w, "switching to plugin %s",
@@ -1984,7 +2016,7 @@ pmcstat_display_log(void)
 	if (args.pa_topmode == PMCSTAT_TOP_DELTA) {
 		if (plugins[args.pa_plugin].pl_shutdown != NULL)
 			plugins[args.pa_plugin].pl_shutdown(NULL);
-		pmcstat_stats_reset();
+		pmcstat_stats_reset(0);
 		if (plugins[args.pa_plugin].pl_init != NULL)
 			plugins[args.pa_plugin].pl_init();
 	}
@@ -2128,8 +2160,7 @@ pmcstat_shutdown_logging(void)
 			    N, pmcstat_stats.ps_##V);			\
 	} while (0)
 
-	if (args.pa_verbosity >= 1 && (args.pa_flags & FLAG_DO_ANALYSIS) &&
-	    (args.pa_flags & FLAG_DO_TOP) == 0) {
+	if (args.pa_verbosity >= 1 && (args.pa_flags & FLAG_DO_ANALYSIS)) {
 		(void) fprintf(args.pa_printfile, "CONVERSION STATISTICS:\n");
 		PRINT("#exec/a.out", exec_aout);
 		PRINT("#exec/elf", exec_elf);
