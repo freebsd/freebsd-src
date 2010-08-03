@@ -138,8 +138,10 @@ find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
 	int bit;
 	int pos;
 
+	if (offset >= size)
+		return (size);
 	pos = offset / BITS_PER_LONG;
-	offs = size % BITS_PER_LONG;
+	offs = offset % BITS_PER_LONG;
 	bit = BITS_PER_LONG * pos;
 	addr += pos;
 	if (offs) {
@@ -174,8 +176,10 @@ find_next_zero_bit(unsigned long *addr, unsigned long size,
 	int bit;
 	int pos;
 
+	if (offset >= size)
+		return (size);
 	pos = offset / BITS_PER_LONG;
-	offs = size % BITS_PER_LONG;
+	offs = offset % BITS_PER_LONG;
 	bit = BITS_PER_LONG * pos;
 	addr += pos;
 	if (offs) {
@@ -216,13 +220,11 @@ bitmap_fill(unsigned long *addr, int size)
 	int tail;
 	int len;
 
-	len = BITS_TO_LONGS(size) * sizeof(long);
+	len = (size / BITS_PER_LONG) * sizeof(long);
 	memset(addr, 0xff, len);
 	tail = size & (BITS_PER_LONG - 1);
-	if (tail)  {
-		len /= sizeof(long);
-		addr[len - 1] = ((unsigned long)-1L) >> (BITS_PER_LONG - tail);
-	}
+	if (tail) 
+		addr[size / BITS_PER_LONG] = BIT_MASK(tail);
 }
 
 static inline int
@@ -235,11 +237,11 @@ bitmap_full(unsigned long *addr, int size)
 
 	len = size / BITS_PER_LONG;
 	for (i = 0; i < len; i++)
-		if (addr[i] != (unsigned long)-1)
+		if (addr[i] != ~0UL)
 			return (0);
 	tail = size & (BITS_PER_LONG - 1);
 	if (tail) {
-		mask = ((unsigned long)-1L) >> (BITS_PER_LONG - tail);
+		mask = BIT_MASK(tail);
 		if ((addr[i] & mask) != mask)
 			return (0);
 	}
@@ -260,7 +262,7 @@ bitmap_empty(unsigned long *addr, int size)
 			return (0);
 	tail = size & (BITS_PER_LONG - 1);
 	if (tail) {
-		mask = ((unsigned long)-1L) >> (BITS_PER_LONG - tail);
+		mask = BIT_MASK(tail);
 		if ((addr[i] & mask) != 0)
 			return (0);
 	}
@@ -270,12 +272,12 @@ bitmap_empty(unsigned long *addr, int size)
 #define	NBINT	(NBBY * sizeof(int))
 
 #define	set_bit(i, a)							\
-    atomic_set_int((volatile int *)&(a)[(i)/NBINT], 1 << (i) % NBINT)
+    atomic_set_int(&((volatile int *)(a))[(i)/NBINT], 1 << (i) % NBINT)
 
 #define	clear_bit(i, a)							\
-    atomic_clear_int((volatile int *)&(a)[(i)/NBINT], 1 << (i) % NBINT)
+    atomic_clear_int(&((volatile int *)(a))[(i)/NBINT], 1 << (i) % NBINT)
 
 #define	test_bit(i, a)							\
-    !!(atomic_load_acq_int((volatile int *)&(a)[(i)/NBINT]) & 1 << ((i) % NBINT))
+    !!(atomic_load_acq_int(&((volatile int *)(a))[(i)/NBINT]) & 1 << ((i) % NBINT))
 
 #endif	/* _LINUX_BITOPS_H_ */
