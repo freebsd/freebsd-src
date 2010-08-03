@@ -33,6 +33,15 @@
 
 #ifdef _KERNEL
 
+struct mtx;
+
+struct netdump_methods {
+	void (*test_get_lock)(struct ifnet *);
+	int (*break_lock)(struct ifnet *, int *, uint8_t *, unsigned);
+	void (*release_lock)(struct ifnet *);
+	int (*poll_locked)(struct ifnet *, enum poll_cmd, int);
+};
+
 int	 netdump_break_lock(struct mtx *lock, const char *name,
 	    int *broke_lock, uint8_t *broken_state, unsigned index,
 	    unsigned broken_state_size);
