@@ -38,8 +38,7 @@
 
 ENTRY(acpi_restorecpu)
 	/* Switch to KPML4phys. */
-	movq	%rdi, %rax
-	movq	%rax, %cr3
+	movq	%rdi, %cr3
 
 	/* Restore GDT. */
 	lgdt	WAKEUP_CTX(gdt)
