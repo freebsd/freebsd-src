@@ -729,6 +729,7 @@ nd_handle_ip(struct mbuf **mb)
 
 	NETDDEBUGV("nd_handle_ip: Processing IP packet...\n");
 
+	m = *mb;
 	if (m->m_pkthdr.len < sizeof(struct ip)) {
 		NETDDEBUG("nd_handle_ip: dropping packet too small for IP "
 		    "header\n");
