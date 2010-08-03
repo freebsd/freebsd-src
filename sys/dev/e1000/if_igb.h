@@ -317,6 +317,9 @@ struct tx_ring {
 	int			watchdog_time;
 	u64			no_desc_avail;
 	u64			tx_packets;
+	/* Statistics for reporting, ONLY. */
+	u32			tdh; /* Transmit Descriptor Head */
+	u32			tdt; /* Transmit Descriptor Tail */
 };
 
 /*
@@ -353,6 +356,9 @@ struct rx_ring {
 	u64			rx_discarded;
 	u64			rx_packets;
 	u64			rx_bytes;
+	/* Statistics for reporting, ONLY. */
+	u32			rdh; /* Transmit Descriptor Head */
+	u32			rdt; /* Transmit Descriptor Tail */
 };
 
 struct adapter {
@@ -428,6 +434,12 @@ struct adapter {
         unsigned long	no_tx_dma_setup;
 	unsigned long	watchdog_events;
 	unsigned long	rx_overruns;
+	unsigned long	device_control;
+	unsigned long	rx_control;
+	unsigned long	int_mask;
+	unsigned long	eint_mask;
+	unsigned long	packet_buf_alloc_rx;
+	unsigned long	packet_buf_alloc_tx;
 
 	boolean_t       in_detach;
 
