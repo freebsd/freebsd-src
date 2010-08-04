@@ -1916,7 +1916,7 @@ igb_local_timer(void *arg)
 
 	/* Trigger an RX interrupt on all queues */
 #ifdef DEVICE_POLLING
-	if (!(ifp->if_capenable & IFCAP_POLLING))
+	if (!(adapter->ifp->if_capenable & IFCAP_POLLING))
 #endif
 	E1000_WRITE_REG(&adapter->hw, E1000_EICS, adapter->rx_mask);
 	callout_reset(&adapter->timer, hz, igb_local_timer, adapter);
