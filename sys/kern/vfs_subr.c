@@ -288,7 +288,7 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
  * grows, the ratio of physical pages to vnodes approaches sixteen to one.
  */
 #ifndef	MAXVNODES_MAX
-#define	MAXVNODES_MAX	(512 * (1024 * 1024 * 1024 / PAGE_SIZE / 16))
+#define	MAXVNODES_MAX	(512 * (1024 * 1024 * 1024 / (int)PAGE_SIZE / 16))
 #endif
 static void
 vntblinit(void *dummy __unused)
