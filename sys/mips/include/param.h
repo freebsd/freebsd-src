@@ -107,8 +107,18 @@
 #define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 #define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
 
+#if defined(__mips_n64)
+#define	SEGSHIFT	31		/* LOG2(NBSEG) */
+#define	NBSEG		(1ul << SEGSHIFT)	/* bytes/segment */
+#define	PDRSHIFT	22              /* second level */
+#define	PDRMASK		((1 << PDRSHIFT) - 1)
+#else
 #define	SEGSHIFT	22		/* LOG2(NBSEG) */
 #define	NBSEG		(1 << SEGSHIFT)	/* bytes/segment */
+#define	PDRSHIFT	SEGSHIFT	/* alias for SEG in 32 bit */
+#define	PDRMASK		((1 << PDRSHIFT) - 1)
+#endif
+#define	NBPDR		(1 << PDRSHIFT)	/* bytes/pagedir */
 #define	SEGMASK		(NBSEG-1)	/* byte offset into segment */
 
 #define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
@@ -119,7 +129,7 @@
 /*
  * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
  */
-#define	KSTACK_PAGES		2	/* kernel stack*/
+#define	KSTACK_PAGES		2	/* kernel stack */
 #define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
 
 #define	UPAGES			2
