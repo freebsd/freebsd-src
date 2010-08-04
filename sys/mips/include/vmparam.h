@@ -185,7 +185,7 @@
  *	  allocations use HIGHMEM if available, and then DEFAULT. 
  *	- HIGHMEM for other pages 
  */
-#ifdef __mips_n64
+#if 0 /* Not yet, change n64 to use xkphys */
 #define	VM_NFREELIST		1
 #define	VM_FREELIST_DEFAULT	0
 #define	VM_FREELIST_DIRECT	VM_FREELIST_DEFAULT

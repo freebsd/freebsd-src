@@ -137,7 +137,15 @@ MipsDoTLBMiss:
 	PTR_L		k1, 0(k1)			#08: k1=seg entry
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	#09: k0=bad address (again)
 	beq		k1, zero, 2f			#0a: ==0 -- no page table
-	srl		k0, PAGE_SHIFT - 2		#0b: k0=VPN (aka va>>10)
+#ifdef __mips_n64
+	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=VPN
+	andi		k0, k0, PTRMASK			# k0=pde offset
+	PTR_ADDU	k1, k0, k1			# k1=pde entry address
+	PTR_L		k1, 0(k1)			# k1=pde entry
+	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
+	beq		k1, zero, 2f			# ==0 -- no page table
+#endif
+	PTR_SRL		k0, PAGE_SHIFT - 2		#0b: k0=VPN (aka va>>10)
 	andi		k0, k0, 0xff8			#0c: k0=page tab offset
 	PTR_ADDU	k1, k1, k0			#0d: k1=pte address
 	lw		k0, 0(k1)			#0e: k0=lo0 pte
@@ -836,6 +844,18 @@ NLEAF(MipsTLBInvalidException)
 	beqz		k1, 3f
 	nop
 
+#ifdef __mips_n64
+	MFC0		k0, MIPS_COP_0_BAD_VADDR
+	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=pde offset (almost)
+	beq		k1, zero, MipsKernGenException	# ==0 -- no pde tab
+	andi		k0, k0, PTRMASK			# k0=pde offset
+	PTR_ADDU	k1, k0, k1			# k1=pde entry address
+	PTR_L		k1, 0(k1)			# k1=pde entry
+
+	/* Validate pde table pointer.  */
+	beqz		k1, 3f
+	nop
+#endif
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
 	PTR_SRL		k0, PAGE_SHIFT - 2		# k0=VPN
 	andi		k0, k0, 0xffc			# k0=page tab offset
@@ -996,6 +1016,14 @@ NLEAF(MipsTLBMissException)
 	PTR_L		k1, 0(k1)			# k1=seg entry
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
 	beq		k1, zero, MipsKernGenException	# ==0 -- no page table
+#ifdef __mips_n64
+	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=VPN
+	andi		k0, k0, PTRMASK			# k0=pde offset
+	PTR_ADDU	k1, k0, k1			# k1=pde entry address
+	PTR_L		k1, 0(k1)			# k1=pde entry
+	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
+  	beq		k1, zero, MipsKernGenException	# ==0 -- no page table
+#endif
 	PTR_SRL		k0, PAGE_SHIFT - 2		# k0=VPN
 	andi		k0, k0, 0xff8			# k0=page tab offset
 	PTR_ADDU	k1, k1, k0			# k1=pte address
