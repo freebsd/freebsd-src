@@ -521,7 +521,7 @@ nfs_open(struct vop_open_args *ap)
 	 */
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NMODIFIED) {
-		mtx_unlock(&np->n_mtx);			
+		mtx_unlock(&np->n_mtx);
 		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		if (error == EINTR || error == EIO)
 			return (error);
@@ -536,9 +536,8 @@ nfs_open(struct vop_open_args *ap)
 			return (error);
 		mtx_lock(&np->n_mtx);
 		np->n_mtime = vattr.va_mtime;
-		mtx_unlock(&np->n_mtx);
 	} else {
-		mtx_unlock(&np->n_mtx);						
+		mtx_unlock(&np->n_mtx);
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return (error);
@@ -554,22 +553,22 @@ nfs_open(struct vop_open_args *ap)
 			mtx_lock(&np->n_mtx);
 			np->n_mtime = vattr.va_mtime;
 		}
-		mtx_unlock(&np->n_mtx);
 	}
 	/*
 	 * If the object has >= 1 O_DIRECT active opens, we disable caching.
 	 */
 	if (nfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
 		if (np->n_directio_opens == 0) {
+			mtx_unlock(&np->n_mtx);
 			error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error)
 				return (error);
 			mtx_lock(&np->n_mtx);
 			np->n_flag |= NNONCACHE;
-			mtx_unlock(&np->n_mtx);
 		}
 		np->n_directio_opens++;
 	}
+	mtx_unlock(&np->n_mtx);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }
@@ -1745,7 +1744,9 @@ nfs_remove(struct vop_remove_args *ap)
 			error = 0;
 	} else if (!np->n_sillyrename)
 		error = nfs_sillyrename(dvp, vp, cnp);
+	mtx_lock(&np->n_mtx);
 	np->n_attrstamp = 0;
+	mtx_unlock(&np->n_mtx);
 	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 	return (error);
 }
