@@ -356,7 +356,7 @@ create_msgring_thread(int core, int cpu)
 	sched_class(td, PRI_ITHD);
 	sched_add(td, SRQ_INTR);
 	thread_unlock(td);
-	CTR2(KTR_INTR, "%s: created %s", __func__, ithd_name[core]);
+	CTR2(KTR_INTR, "%s: created %s", __func__, td->td_name);
 }
 
 int 
