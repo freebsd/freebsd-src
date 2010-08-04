@@ -53,12 +53,12 @@ the two is that spin mutexes never sleep - instead, they spin, waiting
 for the thread holding the lock, which runs on another CPU, to release it.
 Differently from ordinary mutex, spin mutexes disable interrupts when acquired.
 Since disabling interrupts is expensive, they are also generally slower.
-Spin mutexes should be used only when neccessary, e.g. to protect data shared
+Spin mutexes should be used only when necessary, e.g. to protect data shared
 with interrupt filter code (see
 .Xr bus_setup_intr 9
 for details).
 .Ss Pool mutexes
-With most synchronisaton primitives, such as mutexes, programmer must
+With most synchronization primitives, such as mutexes, programmer must
 provide a piece of allocated memory to hold the primitive.
 For example, a mutex may be embedded inside the structure it protects.
 Pool mutex is a variant of mutex without this requirement - to lock or unlock

@@ -20,11 +20,9 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <assert.h>
 #include <strings.h>
@@ -443,7 +441,14 @@ dt_pid_mod_filt(void *arg, const prmap_t *pmp, const char *obj)
 	else
 		pp->dpp_obj++;
 
-	dt_pid_objname(name, sizeof (name), pp->dpp_lmid, obj);
+	if (gmatch(pp->dpp_obj, pp->dpp_mod))
+		return (dt_pid_per_mod(pp, pmp, obj));
+
+#if defined(sun)
+	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
+#endif
+
+	dt_pid_objname(name, sizeof (name), pp->dpp_lmid, pp->dpp_obj);
 
 	if (gmatch(name, pp->dpp_mod))
 		return (dt_pid_per_mod(pp, pmp, obj));

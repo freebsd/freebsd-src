@@ -278,10 +278,12 @@ blocked_loop:
 	PTR_L	a2, TD_PCB(a1)
 	PTR_S	a2, PC_CURPCB(a3)
 	PTR_L	v0, TD_KSTACK(a1)
-#if !defined(__mips_n64)
+#if defined(__mips_n64)
+	PTR_LI	s0, MIPS_XKSEG_START
+#else
 	PTR_LI	s0, MIPS_KSEG2_START		# If Uarea addr is below kseg2,
-	bltu	v0, s0, sw2			# no need to insert in TLB.
 #endif
+	bltu	v0, s0, sw2			# no need to insert in TLB.
 	lw	a1, TD_UPTE + 0(s7)		# a1 = u. pte #0
 	lw	a2, TD_UPTE + 4(s7)		# a2 = u. pte #1
 /*
@@ -578,8 +580,8 @@ END(prepare_usermode)
  */
 	.globl	_C_LABEL(sigcode)
 _C_LABEL(sigcode):
-	addu	a0, sp, SIGF_UC			# address of ucontext
-	li	v0, SYS_sigreturn
+	PTR_ADDU	a0, sp, SIGF_UC		# address of ucontext
+	li		v0, SYS_sigreturn
 # sigreturn (ucp)
 	syscall
 	break	0				# just in case sigreturn fails

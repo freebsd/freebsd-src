@@ -20,11 +20,9 @@
  */
 
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * DTrace Process Control
@@ -91,9 +89,8 @@
 #include <dt_pid.h>
 #include <dt_impl.h>
 
-#define	IS_SYS_EXEC(w)	(w == SYS_exec || w == SYS_execve)
-#define	IS_SYS_FORK(w)	(w == SYS_vfork || w == SYS_fork1 ||	\
-			w == SYS_forkall || w == SYS_forksys)
+#define	IS_SYS_EXEC(w)	(w == SYS_execve)
+#define	IS_SYS_FORK(w)	(w == SYS_vfork || w == SYS_forksys)
 
 #ifdef DOODAD
 static dt_bkpt_t *
@@ -522,7 +519,6 @@ dt_proc_control(void *arg)
 	 * We must trace exit from exec() system calls so that if the exec is
 	 * successful, we can reset our breakpoints and re-initialize libproc.
 	 */
-	(void) Psysexit(P, SYS_exec, B_TRUE);
 	(void) Psysexit(P, SYS_execve, B_TRUE);
 
 	/*
@@ -533,10 +529,6 @@ dt_proc_control(void *arg)
 	 */
 	(void) Psysentry(P, SYS_vfork, B_TRUE);
 	(void) Psysexit(P, SYS_vfork, B_TRUE);
-	(void) Psysentry(P, SYS_fork1, B_TRUE);
-	(void) Psysexit(P, SYS_fork1, B_TRUE);
-	(void) Psysentry(P, SYS_forkall, B_TRUE);
-	(void) Psysexit(P, SYS_forkall, B_TRUE);
 	(void) Psysentry(P, SYS_forksys, B_TRUE);
 	(void) Psysexit(P, SYS_forksys, B_TRUE);
 
@@ -590,7 +582,7 @@ dt_proc_control(void *arg)
 			continue; /* check dpr_quit and continue waiting */
 #else
 		/* Wait for the process to report status. */
-		proc_wait(P);
+		proc_wstatus(P);
 #endif
 
 		(void) pthread_mutex_lock(&dpr->dpr_lock);
@@ -723,7 +715,7 @@ dt_proc_error(dtrace_hdl_t *dtp, dt_proc_t *dpr, const char *format, ...)
 #if defined(sun)
 		Prelease(dpr->dpr_proc, 0);
 #else
-		proc_detach(dpr->dpr_proc);
+		proc_detach(dpr->dpr_proc, 0);
 #endif
 
 	dt_free(dtp, dpr);
@@ -779,14 +771,17 @@ dt_proc_destroy(dtrace_hdl_t *dtp, struct ps_prochandle *P)
 	if (!(proc_getflags(dpr->dpr_proc) & (PR_KLC | PR_RLC))) {
 #endif
 		dt_dprintf("abandoning pid %d\n", (int)dpr->dpr_pid);
-#if defined(sun)
 		rflag = PRELEASE_HANG;
+#if defined(sun)
+	} else if (Pstatus(dpr->dpr_proc)->pr_flags & PR_KLC) {
 #else
-		rflag = 0 /* XXX */;
+	} else if (proc_getflags(dpr->dpr_proc) & PR_KLC) {
 #endif
+		dt_dprintf("killing pid %d\n", (int)dpr->dpr_pid);
+		rflag = PRELEASE_KILL; /* apply kill-on-last-close */
 	} else {
 		dt_dprintf("releasing pid %d\n", (int)dpr->dpr_pid);
-		rflag = 0; /* apply kill or run-on-last-close */
+		rflag = 0; /* apply run-on-last-close */
 	}
 
 	if (dpr->dpr_tid) {
@@ -861,7 +856,7 @@ dt_proc_destroy(dtrace_hdl_t *dtp, struct ps_prochandle *P)
 #if defined(sun)
 	Prelease(dpr->dpr_proc, rflag);
 #else
-	proc_detach(dpr->dpr_proc);
+	proc_detach(dpr->dpr_proc, rflag);
 #endif
 	dt_free(dtp, dpr);
 }

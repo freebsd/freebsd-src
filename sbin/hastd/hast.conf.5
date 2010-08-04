@@ -169,7 +169,7 @@ The only situation where some small amount of data could be lost is when
 the data is stored on primary node and sent to the secondary.
 Secondary node then acknowledges data receipt and primary reports
 success to an application.
-However, it may happen that the seconderay goes down before the received
+However, it may happen that the secondary goes down before the received
 data is really stored locally.
 Before secondary node returns, primary node dies entirely.
 When the secondary node comes back to life it becomes the new primary.

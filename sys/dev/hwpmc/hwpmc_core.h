@@ -144,6 +144,12 @@ struct pmc_md_iap_op_pmcallocate {
 /* The mask is only for the fixed porttion of the register. */
 #define	IAF_GLOBAL_CTRL_MASK			0x0000000700000000
 
+/* The mask is only for the programmable porttion of the register. */
+#define IAP_GLOBAL_CTRL_MASK			0x00000000ffffffff
+
+/* The mask is for both the fixed and programmable porttions of the register. */
+#define IA_GLOBAL_CTRL_MASK			0x00000007ffffffff
+
 #define	IA_GLOBAL_OVF_CTRL			0x390
 
 #define	IA_GLOBAL_STATUS_FLAG_CONDCHG		(1ULL << 63)

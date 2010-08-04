@@ -392,7 +392,6 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	tte_hash_set_scratchpad_kernel(kernel_pmap->pm_hash);
 	trap_init();
 	cpu_intrq_init();
-	tick_start();
 
 #ifdef TRAP_TRACING
 	mp_trap_trace_init();
@@ -413,6 +412,10 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	while (csa->csa_count != 0)
 		;
+
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
+
 	/* ok, now enter the scheduler */
 	sched_throw(NULL);
 }
@@ -464,6 +467,20 @@ void
 cpu_ipi_preempt(struct trapframe *tf)
 {
 	sched_preempt(curthread);
+}
+
+void
+cpu_ipi_hardclock(struct trapframe *tf)
+{
+
+	hardclockintr(tf);
+}
+
+void
+cpu_ipi_statclock(struct trapframe *tf)
+{
+
+	statclockintr(tf);
 }
 
 void

@@ -838,7 +838,7 @@ moea64_bootstrap_slb_prefault(vm_offset_t va, int large)
 	}
 
 	entry.slbe = slbe;
-	entry.slbv = KERNEL_VSID(esid, large) << SLBV_VSID_SHIFT;
+	entry.slbv = KERNEL_VSID(esid) << SLBV_VSID_SHIFT;
 	if (large)
 		entry.slbv |= SLBV_L;
 

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2010
+.Dd August 3, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -4233,14 +4233,14 @@ Must set properly if multiple profiles used in the same time.
 .Pq Vt bool
 Tells
 .Xr rfcomm_pppd 8
-if it should register Serial Port service on the speficied RFCOMM channel.
+if it should register Serial Port service on the specified RFCOMM channel.
 Default
 .Dq Li NO .
 .It Va rfcomm_pppd_server_ Ns Ao Ar profile Ac Ns _register_dun
 .Pq Vt bool
 Tells
 .Xr rfcomm_pppd 8
-if it should register Dial-Up Networking service on the speficied
+if it should register Dial-Up Networking service on the specified
 RFCOMM channel.
 Default
 .Dq Li NO .
@@ -4257,12 +4257,12 @@ variables.
 .It Va ubthidhci_busnum
 Bus number where the USB Bluetooth controller is located.
 Check the output of
-.Xr usbconfig 1
+.Xr usbconfig 8
 on your system to find this information.
 .It Va ubthidhci_addr
 Bus address of the USB Bluetooth controller.
 Check the output of
-.Xr usbconfig 1
+.Xr usbconfig 8
 on your system to find this information.
 .El
 .Sh FILES
@@ -4279,7 +4279,6 @@ on your system to find this information.
 .Xr kbdcontrol 1 ,
 .Xr makewhatis 1 ,
 .Xr sh 1 ,
-.Xr usbconfig 1 ,
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
 .Xr bridge 4 ,
@@ -4355,6 +4354,7 @@ on your system to find this information.
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr timed 8 ,
+.Xr usbconfig 8 ,
 .Xr wlandebug 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,

@@ -119,8 +119,7 @@ fastcomp(fastgrep_t *fg, const char *pat)
 	 * string respectively.
 	 */
 	fg->pattern = grep_malloc(fg->len + 1);
-	memcpy(fg->pattern, pat + (bol ? 1 : 0) + wflag, fg->len);
-	fg->pattern[fg->len] = '\0';
+	strlcpy(fg->pattern, pat + (bol ? 1 : 0) + wflag, fg->len + 1);
 
 	/* Look for ways to cheat...er...avoid the full regex engine. */
 	for (i = 0; i < fg->len; i++) {

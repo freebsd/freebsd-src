@@ -71,8 +71,6 @@ extern const char		*errstr[];
 #define LINK_EXPLICIT	1
 #define LINK_SKIP	2
 
-#define FILE_PAT	0
-#define DIR_PAT		1
 #define EXCL_PAT	0
 #define INCL_PAT	1
 
@@ -98,7 +96,6 @@ struct str {
 struct epat {
 	char		*pat;
 	int		 mode;
-	int		 type;
 };
 
 typedef struct {
@@ -118,7 +115,7 @@ extern int	 cflags, eflags;
 extern bool	 Eflag, Fflag, Gflag, Hflag, Lflag,
 		 bflag, cflag, hflag, iflag, lflag, mflag, nflag, oflag,
 		 qflag, sflag, vflag, wflag, xflag;
-extern bool	 exclflag, nullflag;
+extern bool	 dexclude, dinclude, fexclude, finclude, nullflag;
 extern unsigned long long Aflag, Bflag, mcount;
 extern char	*label;
 extern const char *color;
@@ -126,9 +123,9 @@ extern int	 binbehave, devbehave, dirbehave, filebehave, grepbehave, linkbehave;
 
 extern bool	 first, matchall, notfound, prev;
 extern int	 tail;
-extern unsigned int epatterns, patterns;
+extern unsigned int dpatterns, fpatterns, patterns;
 extern char    **pattern;
-extern struct epat *epattern;
+extern struct epat *dpattern, *fpattern;
 extern regex_t	*er_pattern, *r_pattern;
 extern fastgrep_t *fg_pattern;
 
@@ -137,11 +134,14 @@ extern fastgrep_t *fg_pattern;
 extern char	 re_error[RE_ERROR_BUF + 1];	/* Seems big enough */
 
 /* util.c */
+bool	 dir_matching(const char *dname);
+bool	 file_matching(const char *fname);
 int	 procfile(const char *fn);
 int	 grep_tree(char **argv);
 void	*grep_malloc(size_t size);
 void	*grep_calloc(size_t nmemb, size_t size);
 void	*grep_realloc(void *ptr, size_t size);
+char	*grep_strdup(const char *str);
 void	 printline(struct str *line, int sep, regmatch_t *matches, int m);
 
 /* queue.c */

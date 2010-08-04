@@ -61,14 +61,13 @@ const char	*errstr[] = {
 	"",
 /* 1*/	"(standard input)",
 /* 2*/	"cannot read bzip2 compressed file",
-/* 3*/	"unknown --color option",
+/* 3*/	"unknown %s option",
 /* 4*/	"usage: %s [-abcDEFGHhIiJLlmnOoPqRSsUVvwxZ] [-A num] [-B num] [-C[num]]\n",
 /* 5*/	"\t[-e pattern] [-f file] [--binary-files=value] [--color=when]\n",
 /* 6*/	"\t[--context[=num]] [--directories=action] [--label] [--line-buffered]\n",
 /* 7*/	"\t[--null] [pattern] [file ...]\n",
-/* 8*/	"unknown --binary-files option",
-/* 9*/	"Binary file %s matches\n",
-/*10*/	"%s (BSD grep) %s\n",
+/* 8*/	"Binary file %s matches\n",
+/* 9*/	"%s (BSD grep) %s\n",
 };
 
 /* Flags passed to regcomp() and regexec() */
@@ -85,8 +84,9 @@ regex_t		*r_pattern;
 fastgrep_t	*fg_pattern;
 
 /* Filename exclusion/inclusion patterns */
-unsigned int	 epatterns, epattern_sz;
-struct epat	*epattern;
+unsigned int	 fpatterns, fpattern_sz;
+unsigned int	 dpatterns, dpattern_sz;
+struct epat	*dpattern, *fpattern;
 
 /* For regex errors  */
 char	 re_error[RE_ERROR_BUF + 1];
@@ -112,7 +112,6 @@ bool	 wflag;		/* -w: pattern must start and end on word boundaries */
 bool	 xflag;		/* -x: pattern must match entire line */
 bool	 lbflag;	/* --line-buffered */
 bool	 nullflag;	/* --null */
-bool	 exclflag;	/* --exclude */
 char	*label;		/* --label */
 const char *color;	/* --color */
 int	 grepbehave = GREP_BASIC;	/* -EFGP: type of the regex */
@@ -121,6 +120,9 @@ int	 filebehave = FILE_STDIO;	/* -JZ: normal, gzip or bzip2 file */
 int	 devbehave = DEV_READ;		/* -D: handling of devices */
 int	 dirbehave = DIR_READ;		/* -dRr: handling of directories */
 int	 linkbehave = LINK_READ;	/* -OpS: handling of symlinks */
+
+bool	 dexclude, dinclude;	/* --exclude amd --include */
+bool	 fexclude, finclude;	/* --exclude-dir and --include-dir */
 
 enum {
 	BIN_OPT = CHAR_MAX + 1,
@@ -234,32 +236,44 @@ add_pattern(char *pat, size_t len)
 		--len;
 	/* pat may not be NUL-terminated */
 	pattern[patterns] = grep_malloc(len + 1);
-	memcpy(pattern[patterns], pat, len);
-	pattern[patterns][len] = '\0';
+	strlcpy(pattern[patterns], pat, len + 1);
 	++patterns;
 }
 
 /*
- * Adds an include/exclude pattern to the internal array.
+ * Adds a file include/exclude pattern to the internal array.
  */
 static void
-add_epattern(char *pat, size_t len, int type, int mode)
+add_fpattern(const char *pat, int mode)
 {
 
 	/* Increase size if necessary */
-	if (epatterns == epattern_sz) {
-		epattern_sz *= 2;
-		epattern = grep_realloc(epattern, ++epattern_sz *
+	if (fpatterns == fpattern_sz) {
+		fpattern_sz *= 2;
+		fpattern = grep_realloc(fpattern, ++fpattern_sz *
 		    sizeof(struct epat));
 	}
-	if (len > 0 && pat[len - 1] == '\n')
-		 --len;
-	epattern[epatterns].pat = grep_malloc(len + 1);
-	memcpy(epattern[epatterns].pat, pat, len);
-	epattern[epatterns].pat[len] = '\0';
-	epattern[epatterns].type = type;
-	epattern[epatterns].mode = mode;
-	++epatterns;
+	fpattern[fpatterns].pat = grep_strdup(pat);
+	fpattern[fpatterns].mode = mode;
+	++fpatterns;
+}
+
+/*
+ * Adds a directory include/exclude pattern to the internal array.
+ */
+static void
+add_dpattern(const char *pat, int mode)
+{
+
+	/* Increase size if necessary */
+	if (dpatterns == dpattern_sz) {
+		dpattern_sz *= 2;
+		dpattern = grep_realloc(dpattern, ++dpattern_sz *
+		    sizeof(struct epat));
+	}
+	dpattern[dpatterns].pat = grep_strdup(pat);
+	dpattern[dpatterns].mode = mode;
+	++dpatterns;
 }
 
 /*
@@ -430,10 +444,8 @@ main(int argc, char *argv[])
 				devbehave = DEV_SKIP;
 			else if (strcasecmp(optarg, "read") == 0)
 				devbehave = DEV_READ;
-			else {
-				errno = EINVAL;
-				err(2, NULL);
-			}
+			else
+				errx(2, getstr(3), "--devices");
 			break;
 		case 'd':
 			if (strcasecmp("recurse", optarg) == 0) {
@@ -443,10 +455,8 @@ main(int argc, char *argv[])
 				dirbehave = DIR_SKIP;
 			else if (strcasecmp("read", optarg) == 0)
 				dirbehave = DIR_READ;
-			else {
-				errno = EINVAL;
-				err(2, NULL);
-			}
+			else
+				errx(2, getstr(3), "--directories");
 			break;
 		case 'E':
 			grepbehave = GREP_EXTENDED;
@@ -537,7 +547,7 @@ main(int argc, char *argv[])
 			/* noop, compatibility */
 			break;
 		case 'V':
-			printf(getstr(10), __progname, VERSION);
+			printf(getstr(9), __progname, VERSION);
 			exit(0);
 		case 'v':
 			vflag = true;
@@ -559,7 +569,7 @@ main(int argc, char *argv[])
 			else if (strcasecmp("text", optarg) == 0)
 				binbehave = BINFILE_TEXT;
 			else
-				errx(2, "%s", getstr(8));
+				errx(2, getstr(3), "--binary-files");
 			break;
 		case COLOR_OPT:
 			color = NULL;
@@ -579,7 +589,7 @@ main(int argc, char *argv[])
 			} else if (strcasecmp("never", optarg) != 0 &&
 			    strcasecmp("none", optarg) != 0 &&
 			    strcasecmp("no", optarg) != 0)
-				errx(2, "%s", getstr(3));
+				errx(2, getstr(3), "--color");
 			break;
 		case LABEL_OPT:
 			label = optarg;
@@ -591,24 +601,20 @@ main(int argc, char *argv[])
 			nullflag = true;
 			break;
 		case R_INCLUDE_OPT:
-			exclflag = true;
-			add_epattern(basename(optarg), strlen(basename(optarg)),
-			    FILE_PAT, INCL_PAT);
+			finclude = true;
+			add_fpattern(optarg, INCL_PAT);
 			break;
 		case R_EXCLUDE_OPT:
-			exclflag = true;
-			add_epattern(basename(optarg), strlen(basename(optarg)),
-			    FILE_PAT, EXCL_PAT);
+			fexclude = true;
+			add_fpattern(optarg, EXCL_PAT);
 			break;
 		case R_DINCLUDE_OPT:
-			exclflag = true;
-			add_epattern(basename(optarg), strlen(basename(optarg)),
-			    DIR_PAT, INCL_PAT);
+			dexclude = true;
+			add_dpattern(optarg, INCL_PAT);
 			break;
 		case R_DEXCLUDE_OPT:
-			exclflag = true;
-			add_epattern(basename(optarg), strlen(basename(optarg)),
-			    DIR_PAT, EXCL_PAT);
+			dinclude = true;
+			add_dpattern(optarg, EXCL_PAT);
 			break;
 		case HELP_OPT:
 		default:
@@ -680,8 +686,11 @@ main(int argc, char *argv[])
 	if (dirbehave == DIR_RECURSE)
 		c = grep_tree(aargv);
 	else 
-		for (c = 0; aargc--; ++aargv)
+		for (c = 0; aargc--; ++aargv) {
+			if ((finclude || fexclude) && !file_matching(*aargv))
+				continue;
 			c+= procfile(*aargv);
+		}
 
 #ifndef WITHOUT_NLS
 	catclose(catalog);
