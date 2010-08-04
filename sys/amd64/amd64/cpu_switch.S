@@ -296,13 +296,13 @@ store_dr:
 	movq	%dr2,%r13
 	movq	%dr3,%r12
 	movq	%dr6,%r11
-	andq	$0x0000fc00, %rax		/* disable all watchpoints */
 	movq	%r15,PCB_DR0(%r8)
 	movq	%r14,PCB_DR1(%r8)
 	movq	%r13,PCB_DR2(%r8)
 	movq	%r12,PCB_DR3(%r8)
 	movq	%r11,PCB_DR6(%r8)
 	movq	%rax,PCB_DR7(%r8)
+	andq	$0x0000fc00, %rax		/* disable all watchpoints */
 	movq	%rax,%dr7
 	jmp	done_store_dr
 
