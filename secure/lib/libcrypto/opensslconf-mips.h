@@ -124,8 +124,8 @@
 #undef BN_LLONG
 #else
 #define BN_LLONG
-
 #endif
+
 /* Should we define BN_DIV2W here? */
 
 /* Only one for the following should be defined */
