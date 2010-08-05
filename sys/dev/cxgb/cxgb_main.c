@@ -461,20 +461,18 @@ cxgb_controller_attach(device_t dev)
 #ifdef MSI_SUPPORTED	
 	/* find the PCIe link width and set max read request to 4KB*/
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
-		uint16_t lnk, pectl;
-		lnk = pci_read_config(dev, reg + 0x12, 2);
-		sc->link_width = (lnk >> 4) & 0x3f;
-		
-		pectl = pci_read_config(dev, reg + 0x8, 2);
-		pectl = (pectl & ~0x7000) | (5 << 12);
-		pci_write_config(dev, reg + 0x8, pectl, 2);
-	}
+		uint16_t lnk;
 
-	if (sc->link_width != 0 && sc->link_width <= 4 &&
-	    (ai->nports0 + ai->nports1) <= 2) {
-		device_printf(sc->dev,
-		    "PCIe x%d Link, expect reduced performance\n",
-		    sc->link_width);
+		lnk = pci_read_config(dev, reg + PCIR_EXPRESS_LINK_STA, 2);
+		sc->link_width = (lnk & PCIM_LINK_STA_WIDTH) >> 4;
+		if (sc->link_width < 8 &&
+		    (ai->caps & SUPPORTED_10000baseT_Full)) {
+			device_printf(sc->dev,
+			    "PCIe x%d Link, expect reduced performance\n",
+			    sc->link_width);
+		}
+
+		pci_set_max_read_req(dev, 4096);
 	}
 #endif
 	touch_bars(dev);
