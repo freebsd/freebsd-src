@@ -126,11 +126,12 @@ tcp4_addr(const char *addr, struct sockaddr_in *sinp)
 		addr += 7;
 	else if (strncasecmp(addr, "tcp://", 6) == 0)
 		addr += 6;
-	else if (addr[0] != '/' &&	/* If this is not path... */
-	    strstr(addr, "://") == NULL)/* ...and has no prefix... */
-		;			/* ...tcp4 is the default. */
-	else
-		return (-1);
+	else {
+		/*
+		 * Because TCP4 is the default assume IP or host is given without
+		 * prefix.
+		 */
+	}
 
 	sinp->sin_family = AF_INET;
 	sinp->sin_len = sizeof(*sinp);
