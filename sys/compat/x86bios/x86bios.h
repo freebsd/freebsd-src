@@ -138,8 +138,8 @@ typedef struct x86regs	x86regs_t;
 #define	R_FS		register_fs
 #define	R_GS		register_gs
 
-#define	X86BIOS_PHYSTOSEG(x)	(((x) >> 4) & 0xffff)
-#define	X86BIOS_PHYSTOOFF(x)	((x) & 0x000f)
+#define	X86BIOS_PHYSTOSEG(x)	(((x) >> 4) & 0xff00)
+#define	X86BIOS_PHYSTOOFF(x)	((x) & 0x0fff)
 
 __BEGIN_DECLS
 void	*x86bios_alloc(uint32_t *offset, size_t size, int flags);
