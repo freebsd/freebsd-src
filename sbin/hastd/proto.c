@@ -52,13 +52,20 @@ struct proto_conn {
 #define	PROTO_SIDE_SERVER_WORK		2
 };
 
-static LIST_HEAD(, hast_proto) protos = LIST_HEAD_INITIALIZER(protos);
+static TAILQ_HEAD(, hast_proto) protos = TAILQ_HEAD_INITIALIZER(protos);
 
 void
-proto_register(struct hast_proto *proto)
+proto_register(struct hast_proto *proto, bool isdefault)
 {
+	static bool seen_default = false;
 
-	LIST_INSERT_HEAD(&protos, proto, hp_next);
+	if (!isdefault)
+		TAILQ_INSERT_HEAD(&protos, proto, hp_next);
+	else {
+		assert(!seen_default);
+		seen_default = true;
+		TAILQ_INSERT_TAIL(&protos, proto, hp_next);
+	}
 }
 
 static int
@@ -75,7 +82,7 @@ proto_common_setup(const char *addr, struct proto_conn **connp, int side)
 	if (conn == NULL)
 		return (-1);
 
-	LIST_FOREACH(proto, &protos, hp_next) {
+	TAILQ_FOREACH(proto, &protos, hp_next) {
 		if (side == PROTO_SIDE_CLIENT)
 			ret = proto->hp_client(addr, &ctx);
 		else /* if (side == PROTO_SIDE_SERVER_LISTEN) */

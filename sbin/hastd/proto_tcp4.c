@@ -515,5 +515,5 @@ static __constructor void
 tcp4_ctor(void)
 {
 
-	proto_register(&tcp4_proto);
+	proto_register(&tcp4_proto, true);
 }

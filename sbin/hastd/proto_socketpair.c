@@ -271,5 +271,5 @@ static __constructor void
 sp_ctor(void)
 {
 
-	proto_register(&sp_proto);
+	proto_register(&sp_proto, false);
 }
