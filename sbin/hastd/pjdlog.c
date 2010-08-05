@@ -365,3 +365,23 @@ pjdlog_exitx(int exitcode, const char *fmt, ...)
 	/* NOTREACHED */
 	va_end(ap);
 }
+
+/*
+ * Log assertion and exit.
+ */
+void
+pjdlog_verify(const char *func, const char *file, int line,
+    const char *failedexpr)
+{
+
+	if (func == NULL) {
+		pjdlog_critical("Assertion failed: (%s), file %s, line %d.",
+		    failedexpr, file, line);
+	} else {
+		pjdlog_critical("Assertion failed: (%s), function %s, file %s, line %d.",
+		    failedexpr, func, file, line);
+	}
+	abort();
+        /* NOTREACHED */
+}
+
