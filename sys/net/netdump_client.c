@@ -1061,8 +1061,6 @@ netdump_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
 		offset -= sizeof(struct kerneldumpheader);
 
 	bcopy(virtual, buf, length);
-	if (wdog_tickler)
-		(*wdog_tickler)();
 	err=netdump_send(msgtype, offset, buf, length);
 	if (err) {
 		dump_failed=1;
@@ -1147,10 +1145,6 @@ netdump_arp_server(void)
 
 		for (polls=0; polls < nd_polls && !have_server_mac; polls++) {
 			netdump_network_poll();
-#ifdef HW_WDOG
-		if (wdog_tickler)
-			(*wdog_tickler)();
-#endif
 			DELAY(500); /* 0.5 ms */
 		}
 
