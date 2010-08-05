@@ -189,7 +189,7 @@ smbios_walk_table(uint8_t *p, int entries, smbios_callback_t cb, void *arg)
 		 * formatted area of this structure.
 		 */
 		p += s->length;
-		while (p[0] != 0 && p[1] != 0)
+		while (!(p[0] == 0 && p[1] == 0))
 			p++;
 
 		/*
