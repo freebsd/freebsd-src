@@ -298,6 +298,13 @@ hast_activemap_flush(struct hast_resource *res)
 	return (0);
 }
 
+static bool
+real_remote(const struct hast_resource *res)
+{
+
+	return (strcmp(res->hr_remoteaddr, "none") != 0);
+}
+
 static void
 init_environment(struct hast_resource *res __unused)
 {
@@ -479,6 +486,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	size_t size;
 
 	assert((inp == NULL && outp == NULL) || (inp != NULL && outp != NULL));
+	assert(real_remote(res));
 
 	in = out = NULL;
 
@@ -765,7 +773,7 @@ hastd_primary(struct hast_resource *res)
 	signal(SIGCHLD, SIG_DFL);
 
 	init_local(res);
-	if (init_remote(res, NULL, NULL))
+	if (real_remote(res) && init_remote(res, NULL, NULL))
 		sync_start();
 	init_ggate(res);
 	init_environment(res);
@@ -1760,7 +1768,7 @@ guard_thread(void *arg)
 				pjdlog_debug(2,
 				    "remote_guard: Connection to %s is ok.",
 				    res->hr_remoteaddr);
-			} else {
+			} else if (real_remote(res)) {
 				assert(res->hr_remotein == NULL);
 				assert(res->hr_remoteout == NULL);
 				/*
@@ -1795,6 +1803,8 @@ guard_thread(void *arg)
 					    res->hr_remoteaddr);
 					timeout = RECONNECT_SLEEP;
 				}
+			} else {
+				rw_unlock(&hio_remote_lock[ii]);
 			}
 		}
 		(void)cv_timedwait(&hio_guard_cond, &hio_guard_lock, timeout);
