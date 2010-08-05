@@ -761,6 +761,9 @@ hastd_primary(struct hast_resource *res)
 
 	setproctitle("%s (primary)", res->hr_name);
 
+	signal(SIGHUP, SIG_DFL);
+	signal(SIGCHLD, SIG_DFL);
+
 	init_local(res);
 	if (init_remote(res, NULL, NULL))
 		sync_start();
