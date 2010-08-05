@@ -493,7 +493,7 @@ main(int argc, char *argv[])
 		pjdlog_errno(LOG_WARNING, "Unable to open or create pidfile");
 	}
 
-	cfg = yy_config_parse(cfgpath);
+	cfg = yy_config_parse(cfgpath, true);
 	assert(cfg != NULL);
 
 	signal(SIGHUP, sighandler);
