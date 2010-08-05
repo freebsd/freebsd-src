@@ -74,10 +74,6 @@ struct nfsdmap {
 #define ndm_cookies	ndm_un1.ndmu3_cookies
 #define ndm4_cookies	ndm_un1.ndmu4_cookies
 
-#define n_ac_ts_tid		n_ac_ts.nfs_ac_ts_tid
-#define n_ac_ts_pid		n_ac_ts.nfs_ac_ts_pid
-#define n_ac_ts_syscalls	n_ac_ts.nfs_ac_ts_syscalls
-
 struct nfs_attrcache_timestamp {
 	lwpid_t		nfs_ac_ts_tid;
 	pid_t		nfs_ac_ts_pid;
@@ -138,7 +134,7 @@ struct nfsnode {
 	uint32_t		n_namelen;
 	int			n_directio_opens;
 	int                     n_directio_asyncwr;
-	struct nfs_attrcache_timestamp n_ac_ts;
+	struct nfs_attrcache_timestamp n_unused;
 };
 
 #define n_atim		n_un1.nf_atim
