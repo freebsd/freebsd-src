@@ -39,7 +39,8 @@
 
 #include "hast.h"
 
-extern bool sigexit_received;
+extern const char *cfgpath;
+extern bool sigexit_received, sighup_received;
 extern struct pidfh *pfh;
 
 void hastd_primary(struct hast_resource *res);
