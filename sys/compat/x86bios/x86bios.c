@@ -84,13 +84,10 @@ x86bios_emu2vmf(struct x86emu_regs *regs, struct vm86frame *vmf)
 
 	vmf->vmf_ds = regs->R_DS;
 	vmf->vmf_es = regs->R_ES;
-	vmf->vmf_ss = regs->R_SS;
-	vmf->vmf_flags = regs->R_FLG;
 	vmf->vmf_ax = regs->R_AX;
 	vmf->vmf_bx = regs->R_BX;
 	vmf->vmf_cx = regs->R_CX;
 	vmf->vmf_dx = regs->R_DX;
-	vmf->vmf_sp = regs->R_SP;
 	vmf->vmf_bp = regs->R_BP;
 	vmf->vmf_si = regs->R_SI;
 	vmf->vmf_di = regs->R_DI;
@@ -102,13 +99,10 @@ x86bios_vmf2emu(struct vm86frame *vmf, struct x86emu_regs *regs)
 
 	regs->R_DS = vmf->vmf_ds;
 	regs->R_ES = vmf->vmf_es;
-	regs->R_SS = vmf->vmf_ss;
-	regs->R_FLG = vmf->vmf_flags;
 	regs->R_AX = vmf->vmf_ax;
 	regs->R_BX = vmf->vmf_bx;
 	regs->R_CX = vmf->vmf_cx;
 	regs->R_DX = vmf->vmf_dx;
-	regs->R_SP = vmf->vmf_sp;
 	regs->R_BP = vmf->vmf_bp;
 	regs->R_SI = vmf->vmf_si;
 	regs->R_DI = vmf->vmf_di;
