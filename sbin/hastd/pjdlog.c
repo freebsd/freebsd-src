@@ -325,6 +325,7 @@ pjdlogv_exit(int exitcode, const char *fmt, va_list ap)
 
 	pjdlogv_errno(LOG_ERR, fmt, ap);
 	exit(exitcode);
+	/* NOTREACHED */
 }
 
 /*
@@ -350,6 +351,7 @@ pjdlogv_exitx(int exitcode, const char *fmt, va_list ap)
 
 	pjdlogv(LOG_ERR, fmt, ap);
 	exit(exitcode);
+	/* NOTREACHED */
 }
 
 /*
