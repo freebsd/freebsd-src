@@ -163,38 +163,15 @@ mptable_pcib_probe(device_t dev)
 static device_method_t mptable_pcib_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mptable_pcib_probe),
-	DEVMETHOD(device_attach,	pcib_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar,	pcib_read_ivar),
-	DEVMETHOD(bus_write_ivar,	pcib_write_ivar),
-	DEVMETHOD(bus_alloc_resource,	pcib_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,	pcib_maxslots),
-	DEVMETHOD(pcib_read_config,	pcib_read_config),
-	DEVMETHOD(pcib_write_config,	pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	mptable_pci_route_interrupt),
-	DEVMETHOD(pcib_alloc_msi,	pcib_alloc_msi),
-	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	pcib_alloc_msix),
-	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
-	DEVMETHOD(pcib_map_msi,		pcib_map_msi),
 
 	{0, 0}
 };
 
 static devclass_t pcib_devclass;
 
-DEFINE_CLASS_0(pcib, mptable_pcib_driver, mptable_pcib_pci_methods,
-    sizeof(struct pcib_softc));
+DEFINE_CLASS_1(pcib, mptable_pcib_driver, mptable_pcib_pci_methods,
+    sizeof(struct pcib_softc), pcib_driver);
 DRIVER_MODULE(mptable_pcib, pci, mptable_pcib_driver, pcib_devclass, 0, 0);
