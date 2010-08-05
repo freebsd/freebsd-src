@@ -647,7 +647,7 @@ netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
 
 	/* Ethernet processing */
 
-	NETDDEBUGV_IF("Processing packet...\n");
+	NETDDEBUGV_IF(ifp, "Processing packet...\n");
 
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		NETDDEBUG_IF(ifp, "discard frame w/o packet header\n");
