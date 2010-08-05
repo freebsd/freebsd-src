@@ -43,6 +43,8 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <pjdlog.h>
+
 #include "hast.h"
 
 extern int depth;
@@ -51,7 +53,7 @@ extern int lineno;
 extern FILE *yyin;
 extern char *yytext;
 
-static struct hastd_config lconfig;
+static struct hastd_config *lconfig;
 static struct hast_resource *curres;
 static bool mynode;
 
@@ -63,7 +65,9 @@ static int depth0_timeout;
 static char depth1_provname[PATH_MAX];
 static char depth1_localpath[PATH_MAX];
 
-static bool
+extern void yyrestart(FILE *);
+
+static int
 isitme(const char *name)
 {
 	char buf[MAXHOSTNAMELEN];
@@ -73,78 +77,101 @@ isitme(const char *name)
 	/*
 	 * First check if the give name matches our full hostname.
 	 */
-	if (gethostname(buf, sizeof(buf)) < 0)
-		err(EX_OSERR, "gethostname() failed");
+	if (gethostname(buf, sizeof(buf)) < 0) {
+		pjdlog_errno(LOG_ERR, "gethostname() failed");
+		return (-1);
+	}
 	if (strcmp(buf, name) == 0)
-		return (true);
+		return (1);
 
 	/*
 	 * Now check if it matches first part of the host name.
 	 */
 	pos = strchr(buf, '.');
 	if (pos != NULL && pos != buf && strncmp(buf, name, pos - buf) == 0)
-		return (true);
+		return (1);
 
 	/*
 	 * At the end check if name is equal to our host's UUID.
 	 */
 	bufsize = sizeof(buf);
-	if (sysctlbyname("kern.hostuuid", buf, &bufsize, NULL, 0) < 0)
-		err(EX_OSERR, "sysctlbyname(kern.hostuuid) failed");
+	if (sysctlbyname("kern.hostuuid", buf, &bufsize, NULL, 0) < 0) {
+		pjdlog_errno(LOG_ERR, "sysctlbyname(kern.hostuuid) failed");
+		return (-1);
+	}
 	if (strcasecmp(buf, name) == 0)
-		return (true);
+		return (1);
 
 	/*
 	 * Looks like this isn't about us.
 	 */
-	return (false);
+	return (0);
 }
 
 void
 yyerror(const char *str)
 {
 
-	fprintf(stderr, "error at line %d near '%s': %s\n",
+	pjdlog_error("Unable to parse configuration file at line %d near '%s': %s",
 	    lineno, yytext, str);
 }
 
 struct hastd_config *
-yy_config_parse(const char *config)
+yy_config_parse(const char *config, bool exitonerror)
 {
 	int ret;
 
 	curres = NULL;
 	mynode = false;
+	depth = 0;
+	lineno = 0;
 
 	depth0_timeout = HAST_TIMEOUT;
 	depth0_replication = HAST_REPLICATION_MEMSYNC;
 	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
 	strlcpy(depth0_listen, HASTD_LISTEN, sizeof(depth0_listen));
 
-	TAILQ_INIT(&lconfig.hc_resources);
+	lconfig = calloc(1, sizeof(*lconfig));
+	if (lconfig == NULL) {
+		pjdlog_error("Unable to allocate memory for configuration.");
+		if (exitonerror)
+			exit(EX_TEMPFAIL);
+		return (NULL);
+	}
+
+	TAILQ_INIT(&lconfig->hc_resources);
 
 	yyin = fopen(config, "r");
-	if (yyin == NULL)
-		err(EX_OSFILE, "cannot open configuration file %s", config);
+	if (yyin == NULL) {
+		pjdlog_errno(LOG_ERR, "Unable to open configuration file %s",
+		    config);
+		yy_config_free(lconfig);
+		if (exitonerror)
+			exit(EX_OSFILE);
+		return (NULL);
+	}
+	yyrestart(yyin);
 	ret = yyparse();
 	fclose(yyin);
 	if (ret != 0) {
-		yy_config_free(&lconfig);
-		exit(EX_CONFIG);
+		yy_config_free(lconfig);
+		if (exitonerror)
+			exit(EX_CONFIG);
+		return (NULL);
 	}
 
 	/*
 	 * Let's see if everything is set up.
 	 */
-	if (lconfig.hc_controladdr[0] == '\0') {
-		strlcpy(lconfig.hc_controladdr, depth0_control,
-		    sizeof(lconfig.hc_controladdr));
+	if (lconfig->hc_controladdr[0] == '\0') {
+		strlcpy(lconfig->hc_controladdr, depth0_control,
+		    sizeof(lconfig->hc_controladdr));
 	}
-	if (lconfig.hc_listenaddr[0] == '\0') {
-		strlcpy(lconfig.hc_listenaddr, depth0_listen,
-		    sizeof(lconfig.hc_listenaddr));
+	if (lconfig->hc_listenaddr[0] == '\0') {
+		strlcpy(lconfig->hc_listenaddr, depth0_listen,
+		    sizeof(lconfig->hc_listenaddr));
 	}
-	TAILQ_FOREACH(curres, &lconfig.hc_resources, hr_next) {
+	TAILQ_FOREACH(curres, &lconfig->hc_resources, hr_next) {
 		assert(curres->hr_provname[0] != '\0');
 		assert(curres->hr_localpath[0] != '\0');
 		assert(curres->hr_remoteaddr[0] != '\0');
@@ -165,7 +192,7 @@ yy_config_parse(const char *config)
 		}
 	}
 
-	return (&lconfig);
+	return (lconfig);
 }
 
 void
@@ -177,6 +204,7 @@ yy_config_free(struct hastd_config *config)
 		TAILQ_REMOVE(&config->hc_resources, res, hr_next);
 		free(res);
 	}
+	free(config);
 }
 %}
 
@@ -223,16 +251,17 @@ control_statement:	CONTROL STR
 			if (strlcpy(depth0_control, $2,
 			    sizeof(depth0_control)) >=
 			    sizeof(depth0_control)) {
-				errx(EX_CONFIG, "control argument too long");
+				pjdlog_error("control argument is too long.");
+				return (1);
 			}
 			break;
 		case 1:
 			if (mynode) {
-				if (strlcpy(lconfig.hc_controladdr, $2,
-				    sizeof(lconfig.hc_controladdr)) >=
-				    sizeof(lconfig.hc_controladdr)) {
-					errx(EX_CONFIG,
-					    "control argument too long");
+				if (strlcpy(lconfig->hc_controladdr, $2,
+				    sizeof(lconfig->hc_controladdr)) >=
+				    sizeof(lconfig->hc_controladdr)) {
+					pjdlog_error("control argument is too long.");
+					return (1);
 				}
 			}
 			break;
@@ -249,16 +278,17 @@ listen_statement:	LISTEN STR
 			if (strlcpy(depth0_listen, $2,
 			    sizeof(depth0_listen)) >=
 			    sizeof(depth0_listen)) {
-				errx(EX_CONFIG, "listen argument too long");
+				pjdlog_error("listen argument is too long.");
+				return (1);
 			}
 			break;
 		case 1:
 			if (mynode) {
-				if (strlcpy(lconfig.hc_listenaddr, $2,
-				    sizeof(lconfig.hc_listenaddr)) >=
-				    sizeof(lconfig.hc_listenaddr)) {
-					errx(EX_CONFIG,
-					    "listen argument too long");
+				if (strlcpy(lconfig->hc_listenaddr, $2,
+				    sizeof(lconfig->hc_listenaddr)) >=
+				    sizeof(lconfig->hc_listenaddr)) {
+					pjdlog_error("listen argument is too long.");
+					return (1);
 				}
 			}
 			break;
@@ -316,8 +346,17 @@ node_statement:		ON node_start OB node_entries CB
 
 node_start:	STR
 	{
-		if (isitme($1))
+		switch (isitme($1)) {
+		case -1:
+			return (1);
+		case 0:
+			break;
+		case 1:
 			mynode = true;
+			break;
+		default:
+			assert(!"invalid isitme() return value");
+		}
 	}
 	;
 
@@ -372,22 +411,22 @@ resource_statement:	RESOURCE resource_start OB resource_entries CB
 			 * Remote address has to be configured at this point.
 			 */
 			if (curres->hr_remoteaddr[0] == '\0') {
-				errx(EX_CONFIG,
-				    "remote address not configured for resource %s",
+				pjdlog_error("Remote address not configured for resource %s.",
 				    curres->hr_name);
+				return (1);
 			}
 			/*
 			 * Path to local provider has to be configured at this
 			 * point.
 			 */
 			if (curres->hr_localpath[0] == '\0') {
-				errx(EX_CONFIG,
-				    "path local component not configured for resource %s",
+				pjdlog_error("Path to local component not configured for resource %s.",
 				    curres->hr_name);
+				return (1);
 			}
 
 			/* Put it onto resource list. */
-			TAILQ_INSERT_TAIL(&lconfig.hc_resources, curres, hr_next);
+			TAILQ_INSERT_TAIL(&lconfig->hc_resources, curres, hr_next);
 			curres = NULL;
 		}
 	}
@@ -404,14 +443,14 @@ resource_start:	STR
 
 		curres = calloc(1, sizeof(*curres));
 		if (curres == NULL) {
-			errx(EX_TEMPFAIL,
-			    "cannot allocate memory for resource");
+			pjdlog_error("Unable to allocate memory for resource.");
+			return (1);
 		}
 		if (strlcpy(curres->hr_name, $1,
 		    sizeof(curres->hr_name)) >=
 		    sizeof(curres->hr_name)) {
-			errx(EX_CONFIG,
-			    "resource name (%s) too long", $1);
+			pjdlog_error("Resource name is too long.");
+			return (1);
 		}
 		curres->hr_role = HAST_ROLE_INIT;
 		curres->hr_previous_role = HAST_ROLE_INIT;
@@ -449,7 +488,8 @@ name_statement:		NAME STR
 			if (strlcpy(depth1_provname, $2,
 			    sizeof(depth1_provname)) >=
 			    sizeof(depth1_provname)) {
-				errx(EX_CONFIG, "name argument too long");
+				pjdlog_error("name argument is too long.");
+				return (1);
 			}
 			break;
 		case 2:
@@ -458,8 +498,8 @@ name_statement:		NAME STR
 				if (strlcpy(curres->hr_provname, $2,
 				    sizeof(curres->hr_provname)) >=
 				    sizeof(curres->hr_provname)) {
-					errx(EX_CONFIG,
-					    "name argument too long");
+					pjdlog_error("name argument is too long.");
+					return (1);
 				}
 			}
 			break;
@@ -476,7 +516,8 @@ local_statement:	LOCAL STR
 			if (strlcpy(depth1_localpath, $2,
 			    sizeof(depth1_localpath)) >=
 			    sizeof(depth1_localpath)) {
-				errx(EX_CONFIG, "local argument too long");
+				pjdlog_error("local argument is too long.");
+				return (1);
 			}
 			break;
 		case 2:
@@ -485,8 +526,8 @@ local_statement:	LOCAL STR
 				if (strlcpy(curres->hr_localpath, $2,
 				    sizeof(curres->hr_localpath)) >=
 				    sizeof(curres->hr_localpath)) {
-					errx(EX_CONFIG,
-					    "local argument too long");
+					pjdlog_error("local argument is too long.");
+					return (1);
 				}
 			}
 			break;
@@ -504,8 +545,19 @@ resource_node_statement:ON resource_node_start OB resource_node_entries CB
 
 resource_node_start:	STR
 	{
-		if (curres != NULL && isitme($1))
-			mynode = true;
+		if (curres != NULL) {
+			switch (isitme($1)) {
+			case -1:
+				return (1);
+			case 0:
+				break;
+			case 1:
+				mynode = true;
+				break;
+			default:
+				assert(!"invalid isitme() return value");
+			}
+		}
 	}
 	;
 
@@ -530,7 +582,8 @@ remote_statement:	REMOTE STR
 			if (strlcpy(curres->hr_remoteaddr, $2,
 			    sizeof(curres->hr_remoteaddr)) >=
 			    sizeof(curres->hr_remoteaddr)) {
-				errx(EX_CONFIG, "remote argument too long");
+				pjdlog_error("remote argument is too long.");
+				return (1);
 			}
 		}
 	}
