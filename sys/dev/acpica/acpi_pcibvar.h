@@ -31,13 +31,14 @@
 #define	_ACPI_PCIBVAR_H_
 
 #ifdef _KERNEL
+
 void	acpi_pci_link_add_reference(device_t dev, int index, device_t pcib,
     int slot, int pin);
 int	acpi_pci_link_route_interrupt(device_t dev, int index);
 int	acpi_pcib_attach(device_t bus, ACPI_BUFFER *prt, int busno);
 int	acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     ACPI_BUFFER *prtbuf);
-int	acpi_pcib_resume(device_t dev);
+
 #endif /* _KERNEL */
 
 #endif /* !_ACPI_PCIBVAR_H_ */

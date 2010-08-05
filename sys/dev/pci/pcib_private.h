@@ -37,6 +37,7 @@
  * Export portions of generic PCI:PCI bridge support so that it can be
  * used by subclasses.
  */
+DECLARE_CLASS(pcib_driver);
 
 /*
  * Bridge-specific data.
