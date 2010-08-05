@@ -305,10 +305,6 @@ sysctl_force_crash(SYSCTL_HANDLER_ARGS)
 			printf("\nPanic'ing system...\n");
 			panic("netdump forced crash");
 			break;
-		case 4:
-			printf("\nStarting netdump then spinning "
-				"(to test watchdog trigger)\n");
-			// nd_force_crash == 4 is checked in netdump_dumper
 		case 3:
 			printf("\nDeadlocking system while holding the em lock\n");
 			{
@@ -1067,11 +1063,6 @@ netdump_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
 		return err;
 	}
 	
-	/* To test the hardware watchdog for problems during dumps, spin here
-	 * if required */
-	if (nd_force_crash == 4)
-		for(;;);
-
 	return 0;
 }
 
