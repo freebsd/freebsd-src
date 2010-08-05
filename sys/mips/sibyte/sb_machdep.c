@@ -454,6 +454,4 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	mips_init();
 
 	mips_timer_init_params(sb_cpu_speed(), 0);
-
-	set_cputicker(sb_zbbus_cycle_count, sb_cpu_speed() / 2, 1);
 }
