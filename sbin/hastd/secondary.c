@@ -127,14 +127,16 @@ init_environment(void)
 	for (ii = 0; ii < HAST_HIO_MAX; ii++) {
 		hio = malloc(sizeof(*hio));
 		if (hio == NULL) {
-			errx(EX_TEMPFAIL, "cannot allocate %zu bytes of memory "
-			    "for hio request", sizeof(*hio));
+			pjdlog_exitx(EX_TEMPFAIL,
+			    "Unable to allocate memory (%zu bytes) for hio request.",
+			    sizeof(*hio));
 		}
 		hio->hio_error = 0;
 		hio->hio_data = malloc(MAXPHYS);
 		if (hio->hio_data == NULL) {
-			errx(EX_TEMPFAIL, "cannot allocate %zu bytes of memory "
-			    "for gctl_data", (size_t)MAXPHYS);
+			pjdlog_exitx(EX_TEMPFAIL,
+			    "Unable to allocate memory (%zu bytes) for gctl_data.",
+			    (size_t)MAXPHYS);
 		}
 		TAILQ_INSERT_HEAD(&hio_free_list, hio, hio_next);
 	}
