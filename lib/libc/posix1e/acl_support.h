@@ -61,5 +61,6 @@ int	_posix1e_acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id,
 	    acl_perm_t perm);
 char	*string_skip_whitespace(char *string);
 void	string_trim_trailing_whitespace(char *string);
+int	_acl_name_to_id(acl_tag_t tag, char *name, uid_t *id);
 
 #endif
