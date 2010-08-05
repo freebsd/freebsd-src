@@ -490,7 +490,7 @@ main(int argc, char *argv[])
 			    (intmax_t)otherpid);
 		}
 		/* If we cannot create pidfile from other reasons, only warn. */
-		pjdlog_errno(LOG_WARNING, "Cannot open or create pidfile");
+		pjdlog_errno(LOG_WARNING, "Unable to open or create pidfile");
 	}
 
 	cfg = yy_config_parse(cfgpath);
