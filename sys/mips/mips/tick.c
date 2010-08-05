@@ -60,9 +60,8 @@ struct timecounter *platform_timecounter;
 static DPCPU_DEFINE(uint32_t, cycles_per_tick);
 static uint32_t cycles_per_usec;
 
-static u_int32_t counter_upper = 0;
-static u_int32_t counter_lower_last = 0;
-
+static DPCPU_DEFINE(volatile uint32_t, counter_upper);
+static DPCPU_DEFINE(volatile uint32_t, counter_lower_last);
 static DPCPU_DEFINE(uint32_t, compare_ticks);
 static DPCPU_DEFINE(uint32_t, lost_ticks);
 
@@ -104,21 +103,35 @@ tick_ticker(void)
 {
 	uint64_t ret;
 	uint32_t ticktock;
+	uint32_t t_lower_last, t_upper;
 
 	/*
-	 * XXX: MIPS64 platforms can read 64-bits of counter directly.
-	 * Also: the tc code is supposed to cope with things wrapping
-	 * from the time counter, so I'm not sure why all these hoops
-	 * are even necessary.
+	 * Disable preemption because we are working with cpu specific data.
 	 */
-	ticktock = mips_rd_count();
 	critical_enter();
-	if (ticktock < counter_lower_last)
-		counter_upper++;
-	counter_lower_last = ticktock;
+
+	/*
+	 * Note that even though preemption is disabled, interrupts are
+	 * still enabled. In particular there is a race with clock_intr()
+	 * reading the values of 'counter_upper' and 'counter_lower_last'.
+	 *
+	 * XXX this depends on clock_intr() being executed periodically
+	 * so that 'counter_upper' and 'counter_lower_last' are not stale.
+	 */
+	do {
+		t_upper = DPCPU_GET(counter_upper);
+		t_lower_last = DPCPU_GET(counter_lower_last);
+	} while (t_upper != DPCPU_GET(counter_upper));
+
+	ticktock = mips_rd_count();
+
 	critical_exit();
 
-	ret = ((uint64_t) counter_upper << 32) | counter_lower_last;
+	/* COUNT register wrapped around */
+	if (ticktock < t_lower_last)
+		t_upper++;
+
+	ret = ((uint64_t)t_upper << 32) | ticktock;
 	return (ret);
 }
 
@@ -262,11 +275,11 @@ clock_intr(void *arg)
 	} else	/* In one-shot mode timer should be stopped after the event. */
 		mips_wr_compare(0xffffffff);
 
-	critical_enter();
-	if (count < counter_lower_last) {
-		counter_upper++;
-		counter_lower_last = count;
+	/* COUNT register wrapped around */
+	if (count < DPCPU_GET(counter_lower_last)) {
+		DPCPU_SET(counter_upper, DPCPU_GET(counter_upper) + 1);
 	}
+	DPCPU_SET(counter_lower_last, count);
 
 	if (cycles_per_tick > 0) {
 
@@ -296,7 +309,6 @@ clock_intr(void *arg)
 	}
 	if (sc->et.et_active)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
-	critical_exit();
 	return (FILTER_HANDLED);
 }
 
