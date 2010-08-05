@@ -340,6 +340,9 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 
 	setproctitle("%s (secondary)", res->hr_name);
 
+	signal(SIGHUP, SIG_DFL);
+	signal(SIGCHLD, SIG_DFL);
+
 	/* Error in setting timeout is not critical, but why should it fail? */
 	if (proto_timeout(res->hr_remotein, 0) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
