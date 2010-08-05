@@ -99,6 +99,7 @@ x86bios_vmf2emu(struct vm86frame *vmf, struct x86emu_regs *regs)
 
 	regs->R_DS = vmf->vmf_ds;
 	regs->R_ES = vmf->vmf_es;
+	regs->R_FLG = vmf->vmf_flags;
 	regs->R_AX = vmf->vmf_ax;
 	regs->R_BX = vmf->vmf_bx;
 	regs->R_CX = vmf->vmf_cx;
