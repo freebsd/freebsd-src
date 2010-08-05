@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009 The FreeBSD Foundation
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -64,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #include "pjdlog.h"
 #include "subr.h"
 #include "synch.h"
+
+/* The is only one remote component for now. */
+#define	ISREMOTE(no)	((no) == 1)
 
 struct hio {
 	/*
@@ -424,6 +428,7 @@ init_environment(struct hast_resource *res __unused)
 	 */
 	signal(SIGINT, sighandler);
 	signal(SIGTERM, sighandler);
+	signal(SIGHUP, sighandler);
 }
 
 static void
@@ -1713,6 +1718,9 @@ sighandler(int sig)
 	case SIGTERM:
 		sigexit_received = true;
 		break;
+	case SIGHUP:
+		sighup_received = true;
+		break;
 	default:
 		assert(!"invalid condition");
 	}
@@ -1724,6 +1732,114 @@ sighandler(int sig)
 	cv_signal(&hio_guard_cond);
 	if (unlock)
 		mtx_unlock(&hio_guard_lock);
+}
+
+static void
+config_reload(void)
+{
+	struct hastd_config *newcfg;
+	struct hast_resource *res;
+	unsigned int ii, ncomps;
+	int modified;
+
+	pjdlog_info("Reloading configuration...");
+
+	ncomps = HAST_NCOMPONENTS;
+
+	newcfg = yy_config_parse(cfgpath, false);
+	if (newcfg == NULL)
+		goto failed;
+
+	TAILQ_FOREACH(res, &newcfg->hc_resources, hr_next) {
+		if (strcmp(res->hr_name, gres->hr_name) == 0)
+			break;
+	}
+	/*
+	 * If resource was removed from the configuration file, resource
+	 * name, provider name or path to local component was modified we
+	 * shouldn't be here. This means that someone modified configuration
+	 * file and send SIGHUP to us instead of main hastd process.
+	 * Log advice and ignore the signal.
+	 */
+	if (res == NULL || strcmp(gres->hr_name, res->hr_name) != 0 ||
+	    strcmp(gres->hr_provname, res->hr_provname) != 0 ||
+	    strcmp(gres->hr_localpath, res->hr_localpath) != 0) {
+		pjdlog_warning("To reload configuration send SIGHUP to the main hastd process (pid %u).",
+		    (unsigned int)getppid());
+		goto failed;
+	}
+
+#define MODIFIED_REMOTEADDR	0x1
+#define MODIFIED_REPLICATION	0x2
+#define MODIFIED_TIMEOUT	0x4
+	modified = 0;
+	if (strcmp(gres->hr_remoteaddr, res->hr_remoteaddr) != 0) {
+		/*
+		 * Don't copy res->hr_remoteaddr to gres just yet.
+		 * We want remote_close() to log disconnect from the old
+		 * addresses, not from the new ones.
+		 */
+		modified |= MODIFIED_REMOTEADDR;
+	}
+	if (gres->hr_replication != res->hr_replication) {
+		gres->hr_replication = res->hr_replication;
+		modified |= MODIFIED_REPLICATION;
+	}
+	if (gres->hr_timeout != res->hr_timeout) {
+		gres->hr_timeout = res->hr_timeout;
+		modified |= MODIFIED_TIMEOUT;
+	}
+	/*
+	 * If only timeout was modified we only need to change it without
+	 * reconnecting.
+	 */
+	if (modified == MODIFIED_TIMEOUT) {
+		for (ii = 0; ii < ncomps; ii++) {
+			if (!ISREMOTE(ii))
+				continue;
+			rw_rlock(&hio_remote_lock[ii]);
+			if (!ISCONNECTED(gres, ii)) {
+				rw_unlock(&hio_remote_lock[ii]);
+				continue;
+			}
+			rw_unlock(&hio_remote_lock[ii]);
+			if (proto_timeout(gres->hr_remotein,
+			    gres->hr_timeout) < 0) {
+				pjdlog_errno(LOG_WARNING,
+				    "Unable to set connection timeout");
+			}
+			if (proto_timeout(gres->hr_remoteout,
+			    gres->hr_timeout) < 0) {
+				pjdlog_errno(LOG_WARNING,
+				    "Unable to set connection timeout");
+			}
+		}
+	} else {
+		for (ii = 0; ii < ncomps; ii++) {
+			if (!ISREMOTE(ii))
+				continue;
+			remote_close(gres, ii);
+		}
+		if (modified & MODIFIED_REMOTEADDR) {
+			strlcpy(gres->hr_remoteaddr, res->hr_remoteaddr,
+			    sizeof(gres->hr_remoteaddr));
+		}
+	}
+#undef	MODIFIED_REMOTEADDR
+#undef	MODIFIED_REPLICATION
+#undef	MODIFIED_TIMEOUT
+
+	pjdlog_info("Configuration reloaded successfully.");
+	return;
+failed:
+	if (newcfg != NULL) {
+		if (newcfg->hc_controlconn != NULL)
+			proto_close(newcfg->hc_controlconn);
+		if (newcfg->hc_listenconn != NULL)
+			proto_close(newcfg->hc_listenconn);
+		yy_config_free(newcfg);
+	}
+	pjdlog_warning("Configuration not reloaded.");
 }
 
 /*
@@ -1739,13 +1855,15 @@ guard_thread(void *arg)
 	int timeout;
 
 	ncomps = HAST_NCOMPONENTS;
-	/* The is only one remote component for now. */
-#define	ISREMOTE(no)	((no) == 1)
 
 	for (;;) {
 		if (sigexit_received) {
 			primary_exitx(EX_OK,
 			    "Termination signal received, exiting.");
+		}
+		if (sighup_received) {
+			sighup_received = false;
+			config_reload();
 		}
 		/*
 		 * If all the connection will be fine, we will sleep until
@@ -1810,7 +1928,6 @@ guard_thread(void *arg)
 		(void)cv_timedwait(&hio_guard_cond, &hio_guard_lock, timeout);
 		mtx_unlock(&hio_guard_lock);
 	}
-#undef	ISREMOTE
 	/* NOTREACHED */
 	return (NULL);
 }

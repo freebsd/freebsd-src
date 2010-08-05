@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -57,13 +58,13 @@ __FBSDID("$FreeBSD$");
 #include "subr.h"
 
 /* Path to configuration file. */
-static const char *cfgpath = HAST_CONFIG;
+const char *cfgpath = HAST_CONFIG;
 /* Hastd configuration. */
 static struct hastd_config *cfg;
 /* Was SIGCHLD signal received? */
 static bool sigchld_received = false;
 /* Was SIGHUP signal received? */
-static bool sighup_received = false;
+bool sighup_received = false;
 /* Was SIGINT or SIGTERM signal received? */
 bool sigexit_received = false;
 /* PID file handle. */
@@ -169,12 +170,203 @@ child_exit(void)
 	}
 }
 
+static bool
+resource_needs_restart(const struct hast_resource *res0,
+    const struct hast_resource *res1)
+{
+
+	assert(strcmp(res0->hr_name, res1->hr_name) == 0);
+
+	if (strcmp(res0->hr_provname, res1->hr_provname) != 0)
+		return (true);
+	if (strcmp(res0->hr_localpath, res1->hr_localpath) != 0)
+		return (true);
+	if (res0->hr_role == HAST_ROLE_INIT ||
+	    res0->hr_role == HAST_ROLE_SECONDARY) {
+		if (strcmp(res0->hr_remoteaddr, res1->hr_remoteaddr) != 0)
+			return (true);
+		if (res0->hr_replication != res1->hr_replication)
+			return (true);
+		if (res0->hr_timeout != res1->hr_timeout)
+			return (true);
+	}
+	return (false);
+}
+
+static bool
+resource_needs_reload(const struct hast_resource *res0,
+    const struct hast_resource *res1)
+{
+
+	assert(strcmp(res0->hr_name, res1->hr_name) == 0);
+	assert(strcmp(res0->hr_provname, res1->hr_provname) == 0);
+	assert(strcmp(res0->hr_localpath, res1->hr_localpath) == 0);
+
+	if (res0->hr_role != HAST_ROLE_PRIMARY)
+		return (false);
+
+	if (strcmp(res0->hr_remoteaddr, res1->hr_remoteaddr) != 0)
+		return (true);
+	if (res0->hr_replication != res1->hr_replication)
+		return (true);
+	if (res0->hr_timeout != res1->hr_timeout)
+		return (true);
+	return (false);
+}
+
 static void
 hastd_reload(void)
 {
+	struct hastd_config *newcfg;
+	struct hast_resource *nres, *cres, *tres;
+	uint8_t role;
 
-	/* TODO */
-	pjdlog_warning("Configuration reload is not implemented.");
+	pjdlog_info("Reloading configuration...");
+
+	newcfg = yy_config_parse(cfgpath, false);
+	if (newcfg == NULL)
+		goto failed;
+
+	/*
+	 * Check if control address has changed.
+	 */
+	if (strcmp(cfg->hc_controladdr, newcfg->hc_controladdr) != 0) {
+		if (proto_server(newcfg->hc_controladdr,
+		    &newcfg->hc_controlconn) < 0) {
+			pjdlog_errno(LOG_ERR,
+			    "Unable to listen on control address %s",
+			    newcfg->hc_controladdr);
+			goto failed;
+		}
+	}
+	/*
+	 * Check if listen address has changed.
+	 */
+	if (strcmp(cfg->hc_listenaddr, newcfg->hc_listenaddr) != 0) {
+		if (proto_server(newcfg->hc_listenaddr,
+		    &newcfg->hc_listenconn) < 0) {
+			pjdlog_errno(LOG_ERR, "Unable to listen on address %s",
+			    newcfg->hc_listenaddr);
+			goto failed;
+		}
+	}
+	/*
+	 * Only when both control and listen sockets are successfully
+	 * initialized switch them to new configuration.
+	 */
+	if (newcfg->hc_controlconn != NULL) {
+		pjdlog_info("Control socket changed from %s to %s.",
+		    cfg->hc_controladdr, newcfg->hc_controladdr);
+		proto_close(cfg->hc_controlconn);
+		cfg->hc_controlconn = newcfg->hc_controlconn;
+		newcfg->hc_controlconn = NULL;
+		strlcpy(cfg->hc_controladdr, newcfg->hc_controladdr,
+		    sizeof(cfg->hc_controladdr));
+	}
+	if (newcfg->hc_listenconn != NULL) {
+		pjdlog_info("Listen socket changed from %s to %s.",
+		    cfg->hc_listenaddr, newcfg->hc_listenaddr);
+		proto_close(cfg->hc_listenconn);
+		cfg->hc_listenconn = newcfg->hc_listenconn;
+		newcfg->hc_listenconn = NULL;
+		strlcpy(cfg->hc_listenaddr, newcfg->hc_listenaddr,
+		    sizeof(cfg->hc_listenaddr));
+	}
+
+	/*
+	 * Stop and remove resources that were removed from the configuration.
+	 */
+	TAILQ_FOREACH_SAFE(cres, &cfg->hc_resources, hr_next, tres) {
+		TAILQ_FOREACH(nres, &newcfg->hc_resources, hr_next) {
+			if (strcmp(cres->hr_name, nres->hr_name) == 0)
+				break;
+		}
+		if (nres == NULL) {
+			control_set_role(cres, HAST_ROLE_INIT);
+			TAILQ_REMOVE(&cfg->hc_resources, cres, hr_next);
+			pjdlog_info("Resource %s removed.", cres->hr_name);
+			free(cres);
+		}
+	}
+	/*
+	 * Move new resources to the current configuration.
+	 */
+	TAILQ_FOREACH_SAFE(nres, &newcfg->hc_resources, hr_next, tres) {
+		TAILQ_FOREACH(cres, &cfg->hc_resources, hr_next) {
+			if (strcmp(cres->hr_name, nres->hr_name) == 0)
+				break;
+		}
+		if (cres == NULL) {
+			TAILQ_REMOVE(&newcfg->hc_resources, nres, hr_next);
+			TAILQ_INSERT_TAIL(&cfg->hc_resources, nres, hr_next);
+			pjdlog_info("Resource %s added.", nres->hr_name);
+		}
+	}
+	/*
+	 * Deal with modified resources.
+	 * Depending on what has changed exactly we might want to perform
+	 * different actions.
+	 *
+	 * We do full resource restart in the following situations:
+	 * Resource role is INIT or SECONDARY.
+	 * Resource role is PRIMARY and path to local component or provider
+	 * name has changed.
+	 * In case of PRIMARY, the worker process will be killed and restarted,
+	 * which also means removing /dev/hast/<name> provider and
+	 * recreating it.
+	 *
+	 * We do just reload (send SIGHUP to worker process) if we act as
+	 * PRIMARY, but only remote address, replication mode and timeout
+	 * has changed. For those, there is no need to restart worker process.
+	 * If PRIMARY receives SIGHUP, it will reconnect if remote address or
+	 * replication mode has changed or simply set new timeout if only
+	 * timeout has changed.
+	 */
+	TAILQ_FOREACH_SAFE(nres, &newcfg->hc_resources, hr_next, tres) {
+		TAILQ_FOREACH(cres, &cfg->hc_resources, hr_next) {
+			if (strcmp(cres->hr_name, nres->hr_name) == 0)
+				break;
+		}
+		assert(cres != NULL);
+		if (resource_needs_restart(cres, nres)) {
+			pjdlog_info("Resource %s configuration was modified, restarting it.",
+			    cres->hr_name);
+			role = cres->hr_role;
+			control_set_role(cres, HAST_ROLE_INIT);
+			TAILQ_REMOVE(&cfg->hc_resources, cres, hr_next);
+			free(cres);
+			TAILQ_REMOVE(&newcfg->hc_resources, nres, hr_next);
+			TAILQ_INSERT_TAIL(&cfg->hc_resources, nres, hr_next);
+			control_set_role(nres, role);
+		} else if (resource_needs_reload(cres, nres)) {
+			pjdlog_info("Resource %s configuration was modified, reloading it.",
+			    cres->hr_name);
+			strlcpy(cres->hr_remoteaddr, nres->hr_remoteaddr,
+			    sizeof(cres->hr_remoteaddr));
+			cres->hr_replication = nres->hr_replication;
+			cres->hr_timeout = nres->hr_timeout;
+			if (cres->hr_workerpid != 0) {
+				if (kill(cres->hr_workerpid, SIGHUP) < 0) {
+					pjdlog_errno(LOG_WARNING,
+					    "Unable to send SIGHUP to worker process %u",
+					    (unsigned int)cres->hr_workerpid);
+				}
+			}
+		}
+	}
+
+	yy_config_free(newcfg);
+	pjdlog_info("Configuration reloaded successfully.");
+	return;
+failed:
+	if (newcfg != NULL) {
+		if (newcfg->hc_controlconn != NULL)
+			proto_close(newcfg->hc_controlconn);
+		if (newcfg->hc_listenconn != NULL)
+			proto_close(newcfg->hc_listenconn);
+		yy_config_free(newcfg);
+	}
+	pjdlog_warning("Configuration not reloaded.");
 }
 
 static void
@@ -402,10 +594,6 @@ main_loop(void)
 	fd_set rfds, wfds;
 	int cfd, lfd, maxfd, ret;
 
-	cfd = proto_descriptor(cfg->hc_controlconn);
-	lfd = proto_descriptor(cfg->hc_listenconn);
-	maxfd = cfd > lfd ? cfd : lfd;
-
 	for (;;) {
 		if (sigchld_received) {
 			sigchld_received = false;
@@ -415,6 +603,10 @@ main_loop(void)
 			sighup_received = false;
 			hastd_reload();
 		}
+
+		cfd = proto_descriptor(cfg->hc_controlconn);
+		lfd = proto_descriptor(cfg->hc_listenconn);
+		maxfd = cfd > lfd ? cfd : lfd;
 
 		/* Setup descriptors for select(2). */
 		FD_ZERO(&rfds);
