@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2010
+.Dd August 5, 2010
 .Dt HAST.CONF 5
 .Os
 .Sh NAME
@@ -225,6 +225,11 @@ When operating as a primary node this address will be used to connect to
 the secondary node.
 When operating as a secondary node only connections from this address
 will be accepted.
+.Pp
+A special value of
+.Va none
+can be used when the remote address is not yet known (eg. the other node is not
+set up yet).
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/hastctl" -compact
