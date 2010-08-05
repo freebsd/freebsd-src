@@ -326,5 +326,5 @@ static __constructor void
 uds_ctor(void)
 {
 
-	proto_register(&uds_proto);
+	proto_register(&uds_proto, false);
 }
