@@ -245,7 +245,7 @@ mca_log(const struct mca_record *rec)
 		printf("UNCOR ");
 	else {
 		printf("COR ");
-		if (rec->mr_mcg_cap & MCG_CAP_TES_P)
+		if (rec->mr_mcg_cap & MCG_CAP_CMCI_P)
 			printf("(%lld) ", ((long long)rec->mr_status &
 			    MC_STATUS_COR_COUNT) >> 38);
 	}
