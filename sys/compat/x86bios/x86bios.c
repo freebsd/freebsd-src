@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
 #include <sys/sysctl.h>
 
 #include <contrib/x86emu/x86emu.h>
@@ -47,35 +46,236 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/iodev.h>
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#if defined(__amd64__) || defined(__i386__)
+#ifdef __amd64__
 #define	X86BIOS_NATIVE_ARCH
 #endif
+#ifdef __i386__
+#define	X86BIOS_NATIVE_VM86
+#endif
+
+#define	X86BIOS_MEM_SIZE	0x00100000	/* 1M */
+
+static struct mtx x86bios_lock;
+
+SYSCTL_NODE(_debug, OID_AUTO, x86bios, CTLFLAG_RD, NULL, "x86bios debugging");
+static int x86bios_trace_call;
+TUNABLE_INT("debug.x86bios.call", &x86bios_trace_call);
+SYSCTL_INT(_debug_x86bios, OID_AUTO, call, CTLFLAG_RW, &x86bios_trace_call, 0,
+    "Trace far function calls");
+static int x86bios_trace_int;
+TUNABLE_INT("debug.x86bios.int", &x86bios_trace_int);
+SYSCTL_INT(_debug_x86bios, OID_AUTO, int, CTLFLAG_RW, &x86bios_trace_int, 0,
+    "Trace software interrupt handlers");
+
+#ifdef X86BIOS_NATIVE_VM86
+
+#include <machine/vm86.h>
+#include <machine/vmparam.h>
+#include <machine/pc/bios.h>
+
+struct vm86context x86bios_vmc;
+
+static void
+x86bios_emu2vmf(struct x86emu_regs *regs, struct vm86frame *vmf)
+{
+
+	vmf->vmf_ds = regs->R_DS;
+	vmf->vmf_es = regs->R_ES;
+	vmf->vmf_ss = regs->R_SS;
+	vmf->vmf_flags = regs->R_FLG;
+	vmf->vmf_ax = regs->R_AX;
+	vmf->vmf_bx = regs->R_BX;
+	vmf->vmf_cx = regs->R_CX;
+	vmf->vmf_dx = regs->R_DX;
+	vmf->vmf_sp = regs->R_SP;
+	vmf->vmf_bp = regs->R_BP;
+	vmf->vmf_si = regs->R_SI;
+	vmf->vmf_di = regs->R_DI;
+}
+
+static void
+x86bios_vmf2emu(struct vm86frame *vmf, struct x86emu_regs *regs)
+{
+
+	regs->R_DS = vmf->vmf_ds;
+	regs->R_ES = vmf->vmf_es;
+	regs->R_SS = vmf->vmf_ss;
+	regs->R_FLG = vmf->vmf_flags;
+	regs->R_AX = vmf->vmf_ax;
+	regs->R_BX = vmf->vmf_bx;
+	regs->R_CX = vmf->vmf_cx;
+	regs->R_DX = vmf->vmf_dx;
+	regs->R_SP = vmf->vmf_sp;
+	regs->R_BP = vmf->vmf_bp;
+	regs->R_SI = vmf->vmf_si;
+	regs->R_DI = vmf->vmf_di;
+}
+
+void *
+x86bios_alloc(uint32_t *offset, size_t size, int flags)
+{
+	vm_offset_t addr;
+	int i;
+
+	addr = (vm_offset_t)contigmalloc(size, M_DEVBUF, flags, 0,
+	    X86BIOS_MEM_SIZE, PAGE_SIZE, 0);
+	if (addr != 0) {
+		*offset = vtophys(addr);
+		mtx_lock(&x86bios_lock);
+		for (i = 0; i < howmany(size, PAGE_SIZE); i++)
+			vm86_addpage(&x86bios_vmc, atop(*offset),
+			    addr + i * PAGE_SIZE);
+		mtx_unlock(&x86bios_lock);
+	}
+
+	return ((void *)addr);
+}
+
+void
+x86bios_free(void *addr, size_t size)
+{
+	int i, last;
+
+	mtx_lock(&x86bios_lock);
+	for (i = 0, last = -1; i < x86bios_vmc.npages; i++)
+		if (x86bios_vmc.pmap[i].kva >= (vm_offset_t)addr &&
+		    x86bios_vmc.pmap[i].kva < (vm_offset_t)addr + size) {
+			bzero(&x86bios_vmc.pmap[i],
+			    sizeof(x86bios_vmc.pmap[i]));
+			last = i;
+		}
+	if (last == x86bios_vmc.npages - 1) {
+		x86bios_vmc.npages -= howmany(size, PAGE_SIZE);
+		for (i = x86bios_vmc.npages - 1;
+		    i >= 0 && x86bios_vmc.pmap[i].kva == 0; i--)
+			x86bios_vmc.npages--;
+	}
+	mtx_unlock(&x86bios_lock);
+	contigfree(addr, size, M_DEVBUF);
+}
+
+void
+x86bios_init_regs(struct x86regs *regs)
+{
+
+	bzero(regs, sizeof(*regs));
+}
+
+void
+x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
+{
+	struct vm86frame vmf;
+
+	if (x86bios_trace_call)
+		printf("Calling 0x%05x (ax=0x%04x bx=0x%04x "
+		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
+		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
+		    regs->R_DX, regs->R_ES, regs->R_DI);
+
+	bzero(&vmf, sizeof(vmf));
+	x86bios_emu2vmf((struct x86emu_regs *)regs, &vmf);
+	vmf.vmf_cs = seg;
+	vmf.vmf_ip = off;
+	mtx_lock(&x86bios_lock);
+	vm86_datacall(-1, &vmf, &x86bios_vmc);
+	mtx_unlock(&x86bios_lock);
+	x86bios_vmf2emu(&vmf, (struct x86emu_regs *)regs);
+
+	if (x86bios_trace_call)
+		printf("Exiting 0x%05x (ax=0x%04x bx=0x%04x "
+		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
+		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
+		    regs->R_DX, regs->R_ES, regs->R_DI);
+}
+
+uint32_t
+x86bios_get_intr(int intno)
+{
+
+	return (readl(x86bios_offset(intno * 4)));
+}
+
+void
+x86bios_intr(struct x86regs *regs, int intno)
+{
+	struct vm86frame vmf;
+
+	if (x86bios_trace_int)
+		printf("Calling int 0x%x (ax=0x%04x bx=0x%04x "
+		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
+		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
+		    regs->R_DX, regs->R_ES, regs->R_DI);
+
+	bzero(&vmf, sizeof(vmf));
+	x86bios_emu2vmf((struct x86emu_regs *)regs, &vmf);
+	mtx_lock(&x86bios_lock);
+	vm86_datacall(intno, &vmf, &x86bios_vmc);
+	mtx_unlock(&x86bios_lock);
+	x86bios_vmf2emu(&vmf, (struct x86emu_regs *)regs);
+
+	if (x86bios_trace_int)
+		printf("Exiting int 0x%x (ax=0x%04x bx=0x%04x "
+		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
+		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
+		    regs->R_DX, regs->R_ES, regs->R_DI);
+}
+
+void *
+x86bios_offset(uint32_t offset)
+{
+	vm_offset_t addr;
+
+	addr = vm86_getaddr(&x86bios_vmc, X86BIOS_PHYSTOSEG(offset),
+	    X86BIOS_PHYSTOOFF(offset));
+	if (addr == 0)
+		addr = BIOS_PADDRTOVADDR(offset);
+
+	return ((void *)addr);
+}
+
+static int
+x86bios_init(void)
+{
+
+	mtx_init(&x86bios_lock, "x86bios lock", NULL, MTX_DEF);
+	bzero(&x86bios_vmc, sizeof(x86bios_vmc));
+
+	return (0);
+}
+
+static int
+x86bios_uninit(void)
+{
+
+	mtx_destroy(&x86bios_lock);
+
+	return (0);
+}
+
+#else
+
+#include <machine/iodev.h>
 
 #define	X86BIOS_PAGE_SIZE	0x00001000	/* 4K */
 
 #define	X86BIOS_IVT_SIZE	0x00000500	/* 1K + 256 (BDA) */
-#define	X86BIOS_SEG_SIZE	0x00010000	/* 64K */
-#define	X86BIOS_MEM_SIZE	0x00100000	/* 1M */
 
 #define	X86BIOS_IVT_BASE	0x00000000
 #define	X86BIOS_RAM_BASE	0x00001000
 #define	X86BIOS_ROM_BASE	0x000a0000
 
 #define	X86BIOS_ROM_SIZE	(X86BIOS_MEM_SIZE - (uint32_t)x86bios_rom_phys)
+#define	X86BIOS_SEG_SIZE	X86BIOS_PAGE_SIZE
 
 #define	X86BIOS_PAGES		(X86BIOS_MEM_SIZE / X86BIOS_PAGE_SIZE)
 
-#define	X86BIOS_R_DS		_pad1
 #define	X86BIOS_R_SS		_pad2
+#define	X86BIOS_R_SP		_pad3.I16_reg.x_reg
 
 static struct x86emu x86bios_emu;
-
-static struct mtx x86bios_lock;
 
 static void *x86bios_ivt;
 static void *x86bios_rom;
@@ -91,16 +291,6 @@ static uint32_t x86bios_fault_addr;
 static uint16_t x86bios_fault_cs;
 static uint16_t x86bios_fault_ip;
 
-SYSCTL_NODE(_debug, OID_AUTO, x86bios, CTLFLAG_RD, NULL, "x86bios debugging");
-static int x86bios_trace_call;
-TUNABLE_INT("debug.x86bios.call", &x86bios_trace_call);
-SYSCTL_INT(_debug_x86bios, OID_AUTO, call, CTLFLAG_RW, &x86bios_trace_call, 0,
-    "Trace far function calls");
-static int x86bios_trace_int;
-TUNABLE_INT("debug.x86bios.int", &x86bios_trace_int);
-SYSCTL_INT(_debug_x86bios, OID_AUTO, int, CTLFLAG_RW, &x86bios_trace_int, 0,
-    "Trace software interrupt handlers");
-
 static void
 x86bios_set_fault(struct x86emu *emu, uint32_t addr)
 {
@@ -115,18 +305,18 @@ x86bios_set_fault(struct x86emu *emu, uint32_t addr)
 static void *
 x86bios_get_pages(uint32_t offset, size_t size)
 {
-	vm_offset_t page;
+	vm_offset_t addr;
 
 	if (offset + size > X86BIOS_MEM_SIZE + X86BIOS_IVT_SIZE)
 		return (NULL);
 
 	if (offset >= X86BIOS_MEM_SIZE)
 		offset -= X86BIOS_MEM_SIZE;
-	page = x86bios_map[offset / X86BIOS_PAGE_SIZE];
-	if (page != 0)
-		return ((void *)(page + offset % X86BIOS_PAGE_SIZE));
+	addr = x86bios_map[offset / X86BIOS_PAGE_SIZE];
+	if (addr != 0)
+		addr += offset % X86BIOS_PAGE_SIZE;
 
-	return (NULL);
+	return ((void *)addr);
 }
 
 static void
@@ -393,8 +583,8 @@ x86bios_init_regs(struct x86regs *regs)
 {
 
 	bzero(regs, sizeof(*regs));
-	regs->X86BIOS_R_DS = 0x40;
-	regs->X86BIOS_R_SS = x86bios_seg_phys >> 4;
+	regs->X86BIOS_R_SS = X86BIOS_PHYSTOSEG(x86bios_seg_phys);
+	regs->X86BIOS_R_SP = X86BIOS_PAGE_SIZE - 2;
 }
 
 void
@@ -481,51 +671,6 @@ x86bios_offset(uint32_t offset)
 	return (x86bios_get_pages(offset, 1));
 }
 
-void *
-x86bios_get_orm(uint32_t offset)
-{
-	uint8_t *p;
-
-	/* Does the shadow ROM contain BIOS POST code for x86? */
-	p = x86bios_offset(offset);
-	if (p == NULL || p[0] != 0x55 || p[1] != 0xaa || p[3] != 0xe9)
-		return (NULL);
-
-	return (p);
-}
-
-int
-x86bios_match_device(uint32_t offset, device_t dev)
-{
-	uint8_t *p;
-	uint16_t device, vendor;
-	uint8_t class, progif, subclass;
-
-	/* Does the shadow ROM contain BIOS POST code for x86? */
-	p = x86bios_get_orm(offset);
-	if (p == NULL)
-		return (0);
-
-	/* Does it contain PCI data structure? */
-	p += le16toh(*(uint16_t *)(p + 0x18));
-	if (bcmp(p, "PCIR", 4) != 0 ||
-	    le16toh(*(uint16_t *)(p + 0x0a)) < 0x18 || *(p + 0x14) != 0)
-		return (0);
-
-	/* Does it match the vendor, device, and classcode? */
-	vendor = le16toh(*(uint16_t *)(p + 0x04));
-	device = le16toh(*(uint16_t *)(p + 0x06));
-	progif = *(p + 0x0d);
-	subclass = *(p + 0x0e);
-	class = *(p + 0x0f);
-	if (vendor != pci_get_vendor(dev) || device != pci_get_device(dev) ||
-	    class != pci_get_class(dev) || subclass != pci_get_subclass(dev) ||
-	    progif != pci_get_progif(dev))
-		return (0);
-
-	return (1);
-}
-
 static __inline void
 x86bios_unmap_mem(void)
 {
@@ -549,7 +694,6 @@ x86bios_map_mem(void)
 #ifdef X86BIOS_NATIVE_ARCH
 	x86bios_ivt = pmap_mapbios(X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE);
 
-#ifndef PC98
 	/* Probe EBDA via BDA. */
 	x86bios_rom_phys = *(uint16_t *)((caddr_t)x86bios_ivt + 0x40e);
 	x86bios_rom_phys = x86bios_rom_phys << 4;
@@ -558,7 +702,6 @@ x86bios_map_mem(void)
 		x86bios_rom_phys =
 		    rounddown(x86bios_rom_phys, X86BIOS_PAGE_SIZE);
 	else
-#endif
 #else
 	x86bios_ivt = malloc(X86BIOS_IVT_SIZE, M_DEVBUF, M_ZERO | M_WAITOK);
 #endif
@@ -567,7 +710,7 @@ x86bios_map_mem(void)
 	x86bios_rom = pmap_mapdev(x86bios_rom_phys, X86BIOS_ROM_SIZE);
 	if (x86bios_rom == NULL)
 		goto fail;
-#if defined(X86BIOS_NATIVE_ARCH) && !defined(PC98)
+#ifdef X86BIOS_NATIVE_ARCH
 	/* Change attribute for EBDA. */
 	if (x86bios_rom_phys < X86BIOS_ROM_BASE &&
 	    pmap_change_attr((vm_offset_t)x86bios_rom,
@@ -664,6 +807,53 @@ x86bios_uninit(void)
 	mtx_destroy(&x86bios_lock);
 
 	return (0);
+}
+
+#endif
+
+void *
+x86bios_get_orm(uint32_t offset)
+{
+	uint8_t *p;
+
+	/* Does the shadow ROM contain BIOS POST code for x86? */
+	p = x86bios_offset(offset);
+	if (p == NULL || p[0] != 0x55 || p[1] != 0xaa || p[3] != 0xe9)
+		return (NULL);
+
+	return (p);
+}
+
+int
+x86bios_match_device(uint32_t offset, device_t dev)
+{
+	uint8_t *p;
+	uint16_t device, vendor;
+	uint8_t class, progif, subclass;
+
+	/* Does the shadow ROM contain BIOS POST code for x86? */
+	p = x86bios_get_orm(offset);
+	if (p == NULL)
+		return (0);
+
+	/* Does it contain PCI data structure? */
+	p += le16toh(*(uint16_t *)(p + 0x18));
+	if (bcmp(p, "PCIR", 4) != 0 ||
+	    le16toh(*(uint16_t *)(p + 0x0a)) < 0x18 || *(p + 0x14) != 0)
+		return (0);
+
+	/* Does it match the vendor, device, and classcode? */
+	vendor = le16toh(*(uint16_t *)(p + 0x04));
+	device = le16toh(*(uint16_t *)(p + 0x06));
+	progif = *(p + 0x0d);
+	subclass = *(p + 0x0e);
+	class = *(p + 0x0f);
+	if (vendor != pci_get_vendor(dev) || device != pci_get_device(dev) ||
+	    class != pci_get_class(dev) || subclass != pci_get_subclass(dev) ||
+	    progif != pci_get_progif(dev))
+		return (0);
+
+	return (1);
 }
 
 static int
