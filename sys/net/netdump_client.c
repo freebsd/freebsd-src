@@ -32,9 +32,9 @@
  *
 */
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_ddb.h"
 #include "opt_device_polling.h"
-#endif
+#include "opt_netdump.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -75,13 +75,12 @@
 #include <machine/_inttypes.h>
 #include <net/if_media.h>
 #include <net/if_mib.h>
+#include <net/netdump.h>
 #include <machine/clock.h>
 
+#ifdef DDB
 #include <ddb/ddb.h>
-
-#include <netinet/netdump.h>
-#include "opt_netdump.h"
-#include "opt_ddb.h"
+#endif
 
 #ifdef NETDUMP_DEBUG
 #define	NETDDEBUG(f, ...)		printf((f), ## __VA_ARGS__)
