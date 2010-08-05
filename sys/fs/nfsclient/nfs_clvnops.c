@@ -516,9 +516,11 @@ nfs_open(struct vop_open_args *ap)
 					(void) nfsrpc_close(vp, 0, ap->a_td);
 				return (error);
 			}
+			mtx_lock(&np->n_mtx);
 			np->n_attrstamp = 0;
 			if (vp->v_type == VDIR)
 				np->n_direofoffset = 0;
+			mtx_unlock(&np->n_mtx);
 			error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 			if (error) {
 				if (NFS_ISV4(vp))
@@ -531,14 +533,6 @@ nfs_open(struct vop_open_args *ap)
 				np->n_change = vattr.va_filerev;
 			mtx_unlock(&np->n_mtx);
 		} else {
-			struct thread *td = curthread;
-	
-			if (np->n_ac_ts_syscalls != td->td_syscalls ||
-			    np->n_ac_ts_tid != td->td_tid || 
-			    td->td_proc == NULL ||
-			    np->n_ac_ts_pid != td->td_proc->p_pid) {
-				np->n_attrstamp = 0;
-			}
 			mtx_unlock(&np->n_mtx);						
 			error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 			if (error) {
@@ -998,7 +992,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
 	struct nfsmount *nmp;
-	struct nfsnode *np;
+	struct nfsnode *np, *newnp;
 	int error = 0, attrflag, dattrflag, ltype;
 	struct thread *td = cnp->cn_thread;
 	struct nfsfh *nfhp;
@@ -1034,11 +1028,27 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * change time of the file matches our cached copy.
 		 * Otherwise, we discard the cache entry and fallback
 		 * to doing a lookup RPC.
+		 *
+		 * To better handle stale file handles and attributes,
+		 * clear the attribute cache of this node if it is a
+		 * leaf component, part of an open() call, and not
+		 * locally modified before fetching the attributes.
+		 * This should allow stale file handles to be detected
+		 * here where we can fall back to a LOOKUP RPC to
+		 * recover rather than having nfs_open() detect the
+		 * stale file handle and failing open(2) with ESTALE.
 		 */
 		newvp = *vpp;
+		newnp = VTONFS(newvp);
+		if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+		    !(newnp->n_flag & NMODIFIED)) {
+			mtx_lock(&newnp->n_mtx);
+			newnp->n_attrstamp = 0;
+			mtx_unlock(&newnp->n_mtx);
+		}
 		if (nfscl_nodeleg(newvp, 0) == 0 ||
-		    (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
-		    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime)) {
+		    (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
+		    vattr.va_ctime.tv_sec == newnp->n_ctime)) {
 			NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
 			if (cnp->cn_nameiop != LOOKUP &&
 			    (flags & ISLASTCN))
@@ -1224,6 +1234,18 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if (attrflag)
 			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
+		else if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+		    !(np->n_flag & NMODIFIED)) {			
+			/*
+			 * Flush the attribute cache when opening a
+			 * leaf node to ensure that fresh attributes
+			 * are fetched in nfs_open() since we did not
+			 * fetch attributes from the LOOKUP reply.
+			 */
+			mtx_lock(&np->n_mtx);
+			np->n_attrstamp = 0;
+			mtx_unlock(&np->n_mtx);
+		}
 	}
 	if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
 		cnp->cn_flags |= SAVENAME;
