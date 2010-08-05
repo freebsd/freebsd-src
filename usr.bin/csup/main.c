@@ -265,7 +265,6 @@ main(int argc, char *argv[])
 			lprintf(0, "Software version: %s\n", PROTO_SWVER);
 			lprintf(0, "Protocol version: %d.%d\n",
 			    PROTO_MAJ, PROTO_MIN);
-			lprintf(0, "http://mu.org/~mux/csup.html\n");
 			return (0);
 			break;
 		case 'z':
