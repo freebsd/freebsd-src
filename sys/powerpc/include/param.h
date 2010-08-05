@@ -69,6 +69,11 @@
 #define	MACHINE_ARCH	"powerpc"
 #endif
 #define	MID_MACHINE	MID_POWERPC
+#ifdef __powerpc64__
+#ifndef	MACHINE_ARCH32
+#define	MACHINE_ARCH32	"powerpc"
+#endif
+#endif
 
 #if defined(SMP) || defined(KLD_MODULE)
 #define	MAXCPU		2
