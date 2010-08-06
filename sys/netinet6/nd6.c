@@ -441,14 +441,9 @@ nd6_llinfo_timer(void *arg)
 	struct ifnet *ifp;
 	struct nd_ifinfo *ndi = NULL;
 
+	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
-	if (ln == NULL) {
-		panic("%s: NULL entry!\n", __func__);
-		return;
-	}
-
-	if ((ifp = ((ln->lle_tbl != NULL) ? ln->lle_tbl->llt_ifp : NULL)) == NULL)
-		panic("ln ifp == NULL");
+	ifp = ln->lle_tbl->llt_ifp;
 
 	CURVNET_SET(ifp->if_vnet);
 
