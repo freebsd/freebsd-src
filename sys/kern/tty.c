@@ -1797,7 +1797,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	struct cdev *dev;
 	struct cdevsw *cdp;
 	struct filedesc *fdp;
-	int error;
+	int error, ref;
 
 	/* Validate the file descriptor. */
 	if ((fdp = p->p_fd) == NULL)
@@ -1823,7 +1823,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	}
 
 	/* Make sure it is a TTY. */
-	cdp = devvn_refthread(fp->f_vnode, &dev);
+	cdp = devvn_refthread(fp->f_vnode, &dev, &ref);
 	if (cdp == NULL) {
 		error = ENXIO;
 		goto done1;
@@ -1859,7 +1859,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 		th->th_rint = ttyhook_defrint;
 
 done3:	tty_unlock(tp);
-done2:	dev_relthread(dev);
+done2:	dev_relthread(dev, ref);
 done1:	fdrop(fp, curthread);
 	return (error);
 }
