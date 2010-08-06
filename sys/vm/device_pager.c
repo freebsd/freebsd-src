@@ -108,6 +108,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	vm_ooffset_t off;
 	vm_memattr_t dummy;
 	struct cdevsw *csw;
+	int ref;
 
 	/*
 	 * Offset should be page aligned.
@@ -122,7 +123,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * Make sure this device can be mapped.
 	 */
 	dev = handle;
-	csw = dev_refthread(dev);
+	csw = dev_refthread(dev, &ref);
 	if (csw == NULL)
 		return (NULL);
 
@@ -135,7 +136,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	npages = OFF_TO_IDX(size);
 	for (off = foff; npages--; off += PAGE_SIZE)
 		if (csw->d_mmap(dev, off, &paddr, (int)prot, &dummy) != 0) {
-			dev_relthread(dev);
+			dev_relthread(dev, ref);
 			return (NULL);
 		}
 
@@ -177,7 +178,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			object->size = pindex;
 	}
 	mtx_unlock(&dev_pager_mtx);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	vm_object_deallocate(object1);
 	return (object);
 }
@@ -214,7 +215,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	vm_page_t m_paddr, page;
 	vm_memattr_t memattr;
 	struct cdev *dev;
-	int i, ret;
+	int i, ref, ret;
 	struct cdevsw *csw;
 	struct thread *td;
 	struct file *fpop;
@@ -225,7 +226,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	offset = page->pindex;
 	memattr = object->memattr;
 	VM_OBJECT_UNLOCK(object);
-	csw = dev_refthread(dev);
+	csw = dev_refthread(dev, &ref);
 	if (csw == NULL)
 		panic("dev_pager_getpage: no cdevsw");
 	td = curthread;
@@ -235,7 +236,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	    PROT_READ, &memattr);
 	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
 	td->td_fpop = fpop;
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	/* If "paddr" is a real page, perform a sanity check on "memattr". */
 	if ((m_paddr = vm_phys_paddr_to_vm_page(paddr)) != NULL &&
 	    pmap_page_get_memattr(m_paddr) != memattr) {
