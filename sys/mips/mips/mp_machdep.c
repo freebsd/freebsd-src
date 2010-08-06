@@ -92,6 +92,15 @@ ipi_selected(cpumask_t cpus, int ipi)
 	}
 }
 
+/* Send an IPI to a specific CPU. */
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x\n", __func__, cpu, ipi);
+	ipi_send(cpuid_to_pcpu[cpu], ipi);
+}
+
 /*
  * Handle an IPI sent to this processor.
  */

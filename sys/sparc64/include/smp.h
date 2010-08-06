@@ -135,6 +135,17 @@ ipi_selected(u_int cpus, u_int ipi)
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
 }
 
+static __inline void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	/*
+	 * XXX: Not ideal, but would require more work to add a cpu_ipi_cpu
+	 * function pointer.
+	 */
+	cpu_ipi_selected(1 << cpu, 0, (u_long)tl_ipi_level, ipi);
+}
+
 #if defined(_MACHINE_PMAP_H_) && defined(_SYS_MUTEX_H_)
 
 static __inline void *
