@@ -30,15 +30,16 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <grp.h>
-#include <string.h>
+
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <assert.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #ifndef HAS_TRUNCATE64
 #define	truncate64	truncate
