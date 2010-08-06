@@ -699,6 +699,9 @@ retransmit:
  * Handler for IP packets: checks their sanity and then processes any netdump
  * ACK packets it finds.
  *
+ * It needs to replicate partially the behaviour of ip_input() and
+ * udp_input().
+ *
  * Parameters:
  *	mb	a pointer to an mbuf * containing the packet received
  *		Updates *mb if m_pullup et al change the pointer
@@ -707,8 +710,6 @@ retransmit:
  * Return value:
  *	void
  */
-/* Bits from sys/netinet/ip_input.c:ip_input,
- 	     sys/netinet/udp_usrreq.c:udp_input */
 static void
 nd_handle_ip(struct mbuf **mb)
 {
@@ -886,6 +887,9 @@ nd_handle_ip(struct mbuf **mb)
  * 1. If the ARP is a request for our IP, respond with our MAC address
  * 2. If the ARP is a response from our server, record its MAC address
  *
+ * It needs to replicate partially the behaviour of arpintr() and
+ * in_arpinput().
+ *
  * Parameters:
  *	mb	a pointer to an mbuf * containing the packet received
  *		Updates *mb if m_pullup et al change the pointer
@@ -894,8 +898,6 @@ nd_handle_ip(struct mbuf **mb)
  * Return value:
  *	void
  */
-/* Bits from sys/netinet/if_ether.c:arpintr,
-	     sys/netinet/if_ether.c:in_arpinput */
 static void
 nd_handle_arp(struct mbuf **mb)
 {
@@ -1019,6 +1021,9 @@ nd_handle_arp(struct mbuf **mb)
  * Identifies the packet type (IP or ARP) and passes it along to one of the
  * helper functions nd_handle_ip or nd_handle_arp.
  *
+ * It needs to replicate partially the behaviour of ether_input() and
+ * ether_demux().
+ *
  * Parameters:
  *	ifp	the interface the packet came from (should be nd_nic)
  *	m	an mbuf containing the packet received
@@ -1026,8 +1031,6 @@ nd_handle_arp(struct mbuf **mb)
  * Return value:
  *	void
  */
-/* Bits from sys/net/if_ethersubr.c:ether_input,
-   	     sys/net/if_ethersubr.c:ether_demux */
 static void
 netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
 {
