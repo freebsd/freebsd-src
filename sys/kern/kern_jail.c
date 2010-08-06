@@ -599,6 +599,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		vfs_flagopt(opts, pr_flag_names[fi], &pr_flags, 1 << fi);
 		vfs_flagopt(opts, pr_flag_nonames[fi], &ch_flags, 1 << fi);
 	}
+	if ((flags & (JAIL_CREATE | JAIL_UPDATE | JAIL_ATTACH)) == JAIL_CREATE)
+	    pr_flags |= PR_PERSIST;
 	ch_flags |= pr_flags;
 	for (fi = 0; fi < sizeof(pr_flag_jailsys) / sizeof(pr_flag_jailsys[0]);
 	    fi++) {
@@ -627,12 +629,6 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		}
 		ch_flags |=
 		    pr_flag_jailsys[fi].new | pr_flag_jailsys[fi].disable;
-	}
-	if ((flags & (JAIL_CREATE | JAIL_UPDATE | JAIL_ATTACH)) == JAIL_CREATE
-	    && !(pr_flags & PR_PERSIST)) {
-		error = EINVAL;
-		vfs_opterror(opts, "new jail must persist or attach");
-		goto done_errmsg;
 	}
 #ifdef VIMAGE
 	if ((flags & JAIL_UPDATE) && (ch_flags & PR_VNET)) {
