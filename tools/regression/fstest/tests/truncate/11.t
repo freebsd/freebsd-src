@@ -6,18 +6,13 @@ desc="truncate returns ETXTBSY the file is a pure procedure (shared text) file t
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-case "${os}" in
-FreeBSD)
-	echo "1..2"
+[ "${os}" = "FreeBSD" ] || quick_exit
 
-	n0=`namegen`
+echo "1..2"
 
-	cp -pf `which sleep` ${n0}
-	./${n0} 3 &
-	expect ETXTBSY truncate ${n0} 123
-	expect 0 unlink ${n0}
-	;;
-*)
-	quick_exit
-	;;
-esac
+n0=`namegen`
+
+cp -pf `which sleep` ${n0}
+./${n0} 3 &
+expect ETXTBSY truncate ${n0} 123
+expect 0 unlink ${n0}
