@@ -61,7 +61,7 @@ atomic_sub_return(int i, atomic_t *v)
 static inline void
 atomic_set(atomic_t *v, int i)
 {
-	atomic_set_int(&v->counter, i);
+	atomic_store_rel_int(&v->counter, i);
 }
 
 static inline int

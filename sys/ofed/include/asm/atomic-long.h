@@ -48,7 +48,7 @@ atomic_long_add_return(long i, atomic_long_t *v)
 static inline void
 atomic_long_set(atomic_long_t *v, long i)
 {
-	atomic_set_long(&v->counter, i);
+	atomic_store_rel_long(&v->counter, i);
 }
 
 static inline long
