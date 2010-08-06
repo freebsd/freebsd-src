@@ -149,6 +149,7 @@ static const char *const vm_bnames[] = {
 	"QEMU",				/* QEMU */
 	"Plex86",			/* Plex86 */
 	"Bochs",			/* Bochs */
+	"Xen",				/* Xen */
 	NULL
 };
 
