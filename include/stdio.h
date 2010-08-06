@@ -285,8 +285,7 @@ int	 vsscanf(const char * __restrict, const char * __restrict, __va_list)
  * Functions defined in all versions of POSIX 1003.1.
  */
 #if __BSD_VISIBLE || __POSIX_VISIBLE <= 199506
-/* size for cuserid(3); UT_NAMESIZE + 1, see <utmp.h> */
-#define	L_cuserid	17	/* legacy */
+#define	L_cuserid	17	/* size for cuserid(3); MAXLOGNAME, legacy */
 #endif
 
 #if __POSIX_VISIBLE
