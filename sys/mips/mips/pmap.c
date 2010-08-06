@@ -1716,7 +1716,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
-		pt_entry_t pbits, obits;
+		pt_entry_t pbits;
 		vm_page_t m;
 		vm_paddr_t pa;
 
@@ -1745,8 +1745,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			/* Skip invalid PTEs */
 			if (!pte_test(pte, PTE_V))
 				continue;
-retry:
-			obits = pbits = *pte;
+			pbits = *pte;
 			pa = TLBLO_PTE_TO_PA(pbits);
 			if (page_is_managed(pa) && pte_test(&pbits, PTE_D)) {
 				m = PHYS_TO_VM_PAGE(pa);
@@ -1757,8 +1756,7 @@ retry:
 			pte_set(&pbits, PTE_RO);
 			
 			if (pbits != *pte) {
-				if (!atomic_cmpset_int((u_int *)pte, obits, pbits))
-					goto retry;
+				*pte = pbits;
 				pmap_update_page(pmap, sva, pbits);
 			}
 		}
