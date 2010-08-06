@@ -331,7 +331,8 @@ devfs_insmntque_dtr(struct vnode *vp, void *arg)
  * it on return.
  */
 int
-devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp)
+devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
+    struct vnode **vpp)
 {
 	int error;
 	struct vnode *vp;
@@ -352,7 +353,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp)
 		VI_LOCK(vp);
 		mtx_unlock(&devfs_de_interlock);
 		sx_xunlock(&dmp->dm_lock);
-		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, curthread);
+		error = vget(vp, lockmode | LK_INTERLOCK, curthread);
 		sx_xlock(&dmp->dm_lock);
 		if (devfs_allocv_drop_refs(0, dmp, de)) {
 			if (error == 0)
@@ -408,6 +409,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp)
 	} else {
 		vp->v_type = VBAD;
 	}
+	VN_LOCK_ASHARE(vp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_NOWITNESS);
 	mtx_lock(&devfs_de_interlock);
 	vp->v_data = de;
@@ -758,7 +760,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 	struct devfs_dirent **dde;
 	struct devfs_mount *dmp;
 	struct cdev *cdev;
-	int error, flags, nameiop;
+	int error, flags, nameiop, dvplocked;
 	char specname[SPECNAMELEN + 1], *pname;
 
 	cnp = ap->a_cnp;
@@ -799,10 +801,12 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		de = devfs_parent_dirent(dd);
 		if (de == NULL)
 			return (ENOENT);
+		dvplocked = VOP_ISLOCKED(dvp);
 		VOP_UNLOCK(dvp, 0);
-		error = devfs_allocv(de, dvp->v_mount, vpp);
+		error = devfs_allocv(de, dvp->v_mount,
+		    cnp->cn_lkflags & LK_TYPE_MASK, vpp);
 		*dm_unlock = 0;
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(dvp, dvplocked | LK_RETRY);
 		return (error);
 	}
 
@@ -886,7 +890,8 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 			return (0);
 		}
 	}
-	error = devfs_allocv(de, dvp->v_mount, vpp);
+	error = devfs_allocv(de, dvp->v_mount, cnp->cn_lkflags & LK_TYPE_MASK,
+	    vpp);
 	*dm_unlock = 0;
 	return (error);
 }
@@ -944,7 +949,7 @@ devfs_mknod(struct vop_mknod_args *ap)
 	if (de == NULL)
 		goto notfound;
 	de->de_flags &= ~DE_WHITEOUT;
-	error = devfs_allocv(de, dvp->v_mount, vpp);
+	error = devfs_allocv(de, dvp->v_mount, LK_EXCLUSIVE, vpp);
 	return (error);
 notfound:
 	sx_xunlock(&dmp->dm_lock);
@@ -959,7 +964,7 @@ devfs_open(struct vop_open_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct cdev *dev = vp->v_rdev;
 	struct file *fp = ap->a_fp;
-	int error;
+	int error, vlocked;
 	struct cdevsw *dsw;
 	struct file *fpop;
 
@@ -977,6 +982,7 @@ devfs_open(struct vop_open_args *ap)
 	if (dsw == NULL)
 		return (ENXIO);
 
+	vlocked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
 
 	fpop = td->td_fpop;
@@ -991,18 +997,15 @@ devfs_open(struct vop_open_args *ap)
 		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 	td->td_fpop = fpop;
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-
+	vn_lock(vp, vlocked | LK_RETRY);
 	dev_relthread(dev);
-
 	if (error)
 		return (error);
 
 #if 0	/* /dev/console */
-	KASSERT(fp != NULL,
-	     ("Could not vnode bypass device on NULL fp"));
+	KASSERT(fp != NULL, ("Could not vnode bypass device on NULL fp"));
 #else
-	if(fp == NULL)
+	if (fp == NULL)
 		return (error);
 #endif
 	if (fp->f_ops == &badfileops)
@@ -1495,7 +1498,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 	mac_devfs_create_symlink(ap->a_cnp->cn_cred, dmp->dm_mount, dd, de);
 #endif
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
-	return (devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp));
+	return (devfs_allocv(de, ap->a_dvp->v_mount, LK_EXCLUSIVE, ap->a_vpp));
 }
 
 static int
