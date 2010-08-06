@@ -337,6 +337,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp)
 	struct vnode *vp;
 	struct cdev *dev;
 	struct devfs_mount *dmp;
+	struct cdevsw *dsw;
 
 	dmp = VFSTODEVFS(mp);
 	if (de->de_flags & DE_DOOMED) {
@@ -393,6 +394,10 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp)
 		KASSERT(vp->v_usecount == 1,
 		    ("%s %d (%d)\n", __func__, __LINE__, vp->v_usecount));
 		dev->si_usecount += vp->v_usecount;
+		/* Special casing of ttys for deadfs.  Probably redundant. */
+		dsw = dev->si_devsw;
+		if (dsw != NULL && (dsw->d_flags & D_TTY) != 0)
+			vp->v_vflag |= VV_ISTTY;
 		dev_unlock();
 		VI_UNLOCK(vp);
 		vp->v_op = &devfs_specops;
@@ -971,10 +976,6 @@ devfs_open(struct vop_open_args *ap)
 	dsw = dev_refthread(dev);
 	if (dsw == NULL)
 		return (ENXIO);
-
-	/* XXX: Special casing of ttys for deadfs.  Probably redundant. */
-	if (dsw->d_flags & D_TTY)
-		vp->v_vflag |= VV_ISTTY;
 
 	VOP_UNLOCK(vp, 0);
 
