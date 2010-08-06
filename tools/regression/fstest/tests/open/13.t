@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-desc="open returns EISDIR when he named file is a directory, and the arguments specify it is to be modified"
+desc="open returns EISDIR when trying to open a directory for writing"
 
 dir=`dirname $0`
 . ${dir}/../misc.sh
