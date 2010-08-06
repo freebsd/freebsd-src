@@ -9,7 +9,7 @@ FreeBSD|Darwin)
 	GREP=grep
 	#fs=`df -T . | tail -1 | awk '{print $2}'`
 	pattern="`df . | tail -1 | awk '{printf("%s on %s \n", $1, $6)}'`"
-	fs=`mount | egrep "^${pattern}" | awk -F '[(,]' '{print $2}'`
+	fs=`mount | egrep "^${pattern}" | awk -F '[(,]' '{print $2}' | tr '[:lower:]' '[:upper:]'`
 	;;
 Solaris|SunOS)
 	GREP=ggrep
@@ -19,7 +19,7 @@ Solaris|SunOS)
 	;;
 Linux)
 	GREP=grep
-	fs=`df -PT . | tail -1 | awk '{print $2}'`
+	fs=`df -PT . | tail -1 | awk '{print $2}' | tr '[:lower:]' '[:upper:]'`
 	;;
 *)
 	echo "Unsupported operating system ${os}." >/dev/stderr
