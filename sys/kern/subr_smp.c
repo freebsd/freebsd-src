@@ -181,7 +181,7 @@ forward_signal(struct thread *td)
 	id = td->td_oncpu;
 	if (id == NOCPU)
 		return;
-	ipi_selected(1 << id, IPI_AST);
+	ipi_cpu(id, IPI_AST);
 }
 
 /*
