@@ -6,20 +6,15 @@ desc="open returns ETXTBSY when the file is a pure procedure (shared text) file 
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-case "${os}" in
-FreeBSD)
-	echo "1..4"
+[ "${os}:${fs}" = "FreeBSD:UFS" ] || quick_exit
 
-	n0=`namegen`
+echo "1..4"
 
-	cp -pf `which sleep` ${n0}
-	./${n0} 3 &
-	expect ETXTBSY open ${n0} O_WRONLY
-	expect ETXTBSY open ${n0} O_RDWR
-	expect ETXTBSY open ${n0} O_RDONLY,O_TRUNC
-	expect 0 unlink ${n0}
-	;;
-*)
-	quick_exit
-	;;
-esac
+n0=`namegen`
+
+cp -pf `which sleep` ${n0}
+./${n0} 3 &
+expect ETXTBSY open ${n0} O_WRONLY
+expect ETXTBSY open ${n0} O_RDWR
+expect ETXTBSY open ${n0} O_RDONLY,O_TRUNC
+expect 0 unlink ${n0}

@@ -6,6 +6,8 @@ desc="NFSv4 granular permissions checking - ACL_READ_ACL and ACL_WRITE_ACL"
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
+[ "${os}:${fs}" = "FreeBSD:ZFS" ] || quick_exit
+
 echo "1..83"
 
 n0=`namegen`
