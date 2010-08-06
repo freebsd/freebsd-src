@@ -7,7 +7,7 @@ PROG=	iasl
 ACPICA_SRC =    ..
 ASL_COMPILER =  $(ACPICA_SRC)/compiler
 ACPICA_COMMON = $(ACPICA_SRC)/common
-ACPICA_CORE =   $(ACPICA_SRC)/components
+ACPICA_CORE =   $(ACPICA_SRC)
 ACPICA_TOOLS =  $(ACPICA_SRC)/tools
 ACPICA_OSL =    $(ACPICA_SRC)/os_specific/service_layers
 
@@ -166,7 +166,7 @@ MISC = \
 # Root rule
 #
 $(PROG) : $(INTERMEDIATES) $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $(PROG)
+	$(CC) $(OBJS) $(LDFLAGS) -o $(PROG)
 	$(COPYPROG)
 
 

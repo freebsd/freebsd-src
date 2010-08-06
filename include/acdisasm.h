@@ -582,6 +582,15 @@ AcpiDmIsStringBuffer (
 /*
  * dmextern
  */
+
+ACPI_STATUS
+AcpiDmAddToExternalFileList (
+    char                    *PathList);
+
+void
+AcpiDmClearExternalFileList (
+    void);
+
 void
 AcpiDmAddToExternalList (
     ACPI_PARSE_OBJECT       *Op,

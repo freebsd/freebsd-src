@@ -1,7 +1,68 @@
 ----------------------------------------
-02 July 2010. Summary of changes for version 20100702:
+06 August 2010. Summary of changes for version 20100806:
 
-This release is available at www.acpica.org/downloads
+1) ACPI CA Core Subsystem:
+
+Designed and implemented a new host interface to the _OSI support code. This 
+will allow the host to dynamically add or remove multiple _OSI strings, as 
+well as install an optional handler that is called for each _OSI invocation. 
+Also added a new AML debugger command, 'osi' to display and modify the global 
+_OSI string table, and test support in the AcpiExec utility. See the ACPICA 
+reference manual for full details. Lin Ming, Bob Moore. ACPICA BZ 836.
+New Functions:
+    AcpiInstallInterface - Add an _OSI string.
+    AcpiRemoveInterface - Delete an _OSI string.
+    AcpiInstallInterfaceHandler - Install optional _OSI handler.
+Obsolete Functions:
+    AcpiOsValidateInterface - no longer used.
+New Files:
+    source/components/utilities/utosi.c
+
+Re-introduced the support to enable multi-byte transfers for Embedded 
+Controller (EC) operation regions. A reported problem was found to be a bug 
+in the host OS, not in the multi-byte support. Previously, the maximum data 
+size passed to the EC operation region handler was a single byte. There are 
+often EC Fields larger than one byte that need to be transferred, and it is 
+useful for the EC driver to lock these as a single transaction. This change 
+enables single transfers larger than 8 bits. This effectively changes the 
+access to the EC space from ByteAcc to AnyAcc, and will probably require 
+changes to the host OS Embedded Controller driver to enable 16/32/64/256-bit 
+transfers in addition to 8-bit transfers. Alexey Starikovskiy, Lin Ming.
+
+Fixed a problem with the prototype for AcpiOsReadPciConfiguration. The 
+prototype in acpiosxf.h had the output value pointer as a (void *).
+It should be a (UINT64 *). This may affect some host OSL code.
+
+Fixed a couple problems with the recently modified Linux makefiles for iASL 
+and AcpiExec. These new makefiles place the generated object files in the 
+local directory so that there can be no collisions between the files that are 
+shared between them that are compiled with different options.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  88.3K Code, 18.8K Data, 107.1K Total
+    Debug Version:     164.0K Code, 51.5K Data, 215.5K Total
+  Current Release:
+    Non-Debug Version:  89.1K Code, 19.0K Data, 108.1K Total
+    Debug Version:     165.1K Code, 51.9K Data, 217.0K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Disassembler: Added a new option (-da, "disassemble all") to load the 
+namespace from and disassemble an entire group of AML files. Useful for 
+loading all of the AML tables for a given machine (DSDT, SSDT1...SSDTn) and 
+disassembling with one simple command. ACPICA BZ 865. Lin Ming.
+
+iASL: Allow multiple invocations of -e option. This change allows multiple 
+uses of -e on the command line: "-e ssdt1.dat -e ssdt2.dat". ACPICA BZ 834. 
+Lin Ming.
+
+----------------------------------------
+02 July 2010. Summary of changes for version 20100702:
 
 1) ACPI CA Core Subsystem:
 
@@ -76,8 +137,6 @@ the #define __APPLE__ to enable this support.
 
 ----------------------------------------
 28 May 2010. Summary of changes for version 20100528:
-
-This release is available at www.acpica.org/downloads
 
 Note: The ACPI 4.0a specification was released on April 5, 2010 and is 
 available at www.acpi.info. This is primarily an errata release.

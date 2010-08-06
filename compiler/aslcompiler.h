@@ -195,9 +195,14 @@ void
 AslInitializeGlobals (
     void);
 
+typedef
+ACPI_STATUS (*ASL_PATHNAME_CALLBACK) (
+    char *);
+
 ACPI_STATUS
 AslDoOnePathname (
-    char                    *Pathname);
+    char                    *Pathname,
+    ASL_PATHNAME_CALLBACK   Callback);
 
 ACPI_STATUS
 AslDoOneFile (

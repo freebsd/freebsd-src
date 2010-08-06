@@ -517,6 +517,16 @@ AeMiscellaneousTests (
 
     AeTestBufferArgument();
     AeTestPackageArgument ();
+
+
+    AcpiInstallInterface ("");
+    AcpiInstallInterface ("TestString");
+    AcpiInstallInterface ("TestString");
+    AcpiRemoveInterface ("Windows 2006");
+    AcpiRemoveInterface ("TestString");
+    AcpiRemoveInterface ("XXXXXX");
+    AcpiInstallInterface ("AnotherTestString");
+
     ExecuteOSI ("Windows 2001", 0xFFFFFFFF);
     ExecuteOSI ("MichiganTerminalSystem", 0);
 
