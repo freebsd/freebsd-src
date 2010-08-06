@@ -50,7 +50,7 @@ SRCS+=	rsmemory.c rsmisc.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c uteval.c utglobal.c
 SRCS+=	utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c utobject.c
-SRCS+=	utresrc.c utstate.c utxface.c
+SRCS+=	utosi.c utresrc.c utstate.c utxface.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c acpi_package.c acpi_pci.c acpi_pcib.c

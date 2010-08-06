@@ -529,7 +529,8 @@ AslDoOneFile (
 
 ACPI_STATUS
 AslDoOnePathname (
-    char                    *Pathname)
+    char                    *Pathname,
+    ASL_PATHNAME_CALLBACK   PathCallback)
 {
     ACPI_STATUS             Status = AE_OK;
     char                    **FileList;
@@ -569,7 +570,7 @@ AslDoOnePathname (
 
         /* Save status from all compiles */
 
-        Status |= AslDoOneFile (FullPathname);
+        Status |= (*PathCallback) (FullPathname);
 
         ACPI_FREE (FullPathname);
         ACPI_FREE (*FileList);

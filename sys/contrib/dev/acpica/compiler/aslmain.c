@@ -119,6 +119,7 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -224,6 +225,7 @@ Options (
 
     printf ("\nAML Disassembler:\n");
     printf ("  -d  [file]     Disassemble or decode binary ACPI table to file (*.dsl)\n");
+    printf ("  -da [f1,f2]    Disassemble multiple tables from single namespace\n");
     printf ("  -dc [file]     Disassemble AML and immediately compile it\n");
     printf ("                 (Obtain DSDT from current system if no input file)\n");
     printf ("  -e  [f1,f2]    Include ACPI table(s) for external symbol resolution\n");
@@ -534,6 +536,11 @@ AslDoOptions (
             Gbl_DoCompile = FALSE;
             break;
 
+        case 'a':
+            Gbl_DoCompile = FALSE;
+            Gbl_DisassembleAll = TRUE;
+            break;
+
         case 'c':
             break;
 
@@ -547,7 +554,7 @@ AslDoOptions (
 
 
     case 'e':
-        Gbl_ExternalFilename = AcpiGbl_Optarg;
+        AcpiDmAddToExternalFileList (AcpiGbl_Optarg);
         break;
 
 
@@ -952,8 +959,11 @@ main (
     char                    **argv)
 {
     ACPI_STATUS             Status;
-    int                     Index;
+    int                     Index1;
+    int                     Index2;
 
+
+    AcpiGbl_ExternalFileList = NULL;
 
 #ifdef _DEBUG
     _CrtSetDbgFlag (_CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF |
@@ -963,7 +973,7 @@ main (
     /* Init and command line */
 
     AslInitialize ();
-    Index = AslCommandLine (argc, argv);
+    Index1 = Index2 = AslCommandLine (argc, argv);
 
     /* Options that have no additional parameters or pathnames */
 
@@ -977,17 +987,36 @@ main (
         return (0);
     }
 
+    if (Gbl_DisassembleAll)
+    {
+        while (argv[Index1])
+        {
+            Status = AslDoOnePathname (argv[Index1], AcpiDmAddToExternalFileList);
+            if (ACPI_FAILURE (Status))
+            {
+                return (-1);
+            }
+
+            Index1++;
+        }
+    }
+
     /* Process each pathname/filename in the list, with possible wildcards */
 
-    while (argv[Index])
+    while (argv[Index2])
     {
-        Status = AslDoOnePathname (argv[Index]);
+        Status = AslDoOnePathname (argv[Index2], AslDoOneFile);
         if (ACPI_FAILURE (Status))
         {
             return (-1);
         }
 
-        Index++;
+        Index2++;
+    }
+
+    if (AcpiGbl_ExternalFileList)
+    {
+        AcpiDmClearExternalFileList();
     }
 
     return (0);

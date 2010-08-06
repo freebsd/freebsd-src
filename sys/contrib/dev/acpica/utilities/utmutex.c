@@ -182,6 +182,13 @@ AcpiUtMutexInitialize (
         return_ACPI_STATUS (Status);
     }
 
+    /* Mutex for _OSI support */
+    Status = AcpiOsCreateMutex (&AcpiGbl_OsiMutex);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
     /* Create the reader/writer lock for namespace access */
 
     Status = AcpiUtCreateRwLock (&AcpiGbl_NamespaceRwLock);
@@ -218,6 +225,8 @@ AcpiUtMutexTerminate (
     {
         AcpiUtDeleteMutex (i);
     }
+
+    AcpiOsDeleteMutex (AcpiGbl_OsiMutex);
 
     /* Delete the spinlocks */
 
