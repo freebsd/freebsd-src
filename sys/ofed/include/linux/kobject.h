@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 
 struct kobject;
+struct sysctl_oid;
 
 struct kobj_type {
 	void (*release)(struct kobject *kobj);
@@ -42,11 +43,15 @@ struct kobj_type {
 	struct attribute **default_attrs;
 };
 
+extern struct kobj_type kfree_type;
+
 struct kobject {
 	struct kobject		*parent;
 	char			*name;
 	struct kref		kref;
 	struct kobj_type	*ktype;
+	struct list_head	entry;
+	struct sysctl_oid	*oidp;
 };
 
 static inline void
@@ -54,20 +59,13 @@ kobject_init(struct kobject *kobj, struct kobj_type *ktype)
 {
 
 	kref_init(&kobj->kref);
+	INIT_LIST_HEAD(&kobj->entry);
 	kobj->ktype = ktype;
-	kobj->name = NULL;
-	kobj->parent = NULL;
+	kobj->oidp = NULL;
 }
 
-static inline void
-kobject_release(struct kref *kref)
-{
-	struct kobject *kobj;
-
-	kobj = container_of(kref, struct kobject, kref);
-	if (kobj->ktype && kobj->ktype->release)
-		kobj->ktype->release(kobj);
-}
+static inline void kobject_put(struct kobject *kobj);
+void kobject_release(struct kref *kref);
 
 static inline void
 kobject_put(struct kobject *kobj)
@@ -109,24 +107,42 @@ kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
 	return (0);
 }
 
-static inline int
-kobject_add(struct kobject *kobj, struct kobject *parent, const char *fmt, ...)
+int	kobject_add(struct kobject *kobj, struct kobject *parent,
+	    const char *fmt, ...);
+
+static inline struct kobject *
+kobject_create(void)
 {
-	va_list args;
-	int error;
+	struct kobject *kobj;
 
-	va_start(args, fmt);
-	error = kobject_set_name_vargs(kobj, fmt, args);
-	va_end(args);
-	kobj->parent = parent;
+	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+	if (kobj == NULL)
+		return (NULL);
+	kobject_init(kobj, &kfree_type);
 
-	return (error);
+	return (kobj);
+}
+
+static inline struct kobject *
+kobject_create_and_add(const char *name, struct kobject *parent)
+{
+	struct kobject *kobj;
+
+	kobj = kobject_create();
+	if (kobj == NULL)
+		return (NULL);
+	if (kobject_add(kobj, parent, "%s", name) == 0)
+		return (kobj);
+	kobject_put(kobj);
+
+	return (NULL);
 }
 
 
 static inline char *
 kobject_name(const struct kobject *kobj)
 {
+
 	return kobj->name;
 }
 

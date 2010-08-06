@@ -41,17 +41,23 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/cdev.h>
+#include <linux/file.h>
+#include <linux/sysfs.h>
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
-MALLOC_DEFINE(M_LINUX_DMA, "lnxdma", "Linux DMA compat");
+
+struct fileops linuxfileops;
+struct cdevsw linuxcdevsw;
 
 #include <linux/rbtree.h>
 /* Undo Linux compat change. */
 #undef RB_ROOT
 #define	RB_ROOT(head)	(head)->rbh_root
 
+struct kobject class_root;
+struct device linux_rootdev;
 struct class miscclass;
-struct device miscroot;
 struct list_head pci_drivers;
 
 int
@@ -75,6 +81,71 @@ kobject_set_name(struct kobject *kobj, const char *fmt, ...)
 	return (error);
 }
 
+static inline int
+kobject_add_complete(struct kobject *kobj, struct kobject *parent)
+{
+	struct kobj_type *t;
+	int error;
+
+	kobj->parent = kobject_get(parent);
+	error = sysfs_create_dir(kobj);
+	if (error == 0 && kobj->ktype && kobj->ktype->default_attrs) {
+		struct attribute **attr;
+		t = kobj->ktype;
+
+		for (attr = t->default_attrs; *attr != NULL; attr++) {
+			error = sysfs_create_file(kobj, *attr);
+			if (error)
+				break;
+		}
+		if (error)
+			sysfs_remove_dir(kobj);
+		
+	}
+	return (error);
+}
+
+int
+kobject_add(struct kobject *kobj, struct kobject *parent, const char *fmt, ...)
+{
+	va_list args;
+	int error;
+
+	va_start(args, fmt);
+	error = kobject_set_name_vargs(kobj, fmt, args);
+	va_end(args);
+	if (error)
+		return (error);
+
+	return kobject_add_complete(kobj, parent);
+}
+
+void
+kobject_release(struct kref *kref)
+{
+	struct kobject *kobj;
+	char *name;
+
+	kobj = container_of(kref, struct kobject, kref);
+	sysfs_remove_dir(kobj);
+	if (kobj->parent)
+		kobject_put(kobj->parent);
+	kobj->parent = NULL;
+	name = kobj->name;
+	if (kobj->ktype && kobj->ktype->release)
+		kobj->ktype->release(kobj);
+	kfree(name);
+}
+
+static void
+kobject_kfree(struct kobject *kobj)
+{
+
+	kfree(kobj);
+}
+
+struct kobj_type kfree_type = { .release = kobject_kfree };
+
 struct device *
 device_create(struct class *class, struct device *parent, dev_t devt,
     void *drvdata, const char *fmt, ...)
@@ -84,6 +155,7 @@ device_create(struct class *class, struct device *parent, dev_t devt,
 
 	dev = kzalloc(sizeof(*dev), M_WAITOK);
 	dev->parent = parent;
+	dev->class = class;
 	dev->devt = devt;
 	dev->driver_data = drvdata;
 	va_start(args, fmt);
@@ -109,17 +181,31 @@ kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
 	va_start(args, fmt);
 	error = kobject_set_name_vargs(kobj, fmt, args);
 	va_end(args);
-
-	return error;
+	if (error)
+		return (error);
+	return kobject_add_complete(kobj, parent);
 }
 
 static void
 linux_compat_init(void)
 {
+	struct sysctl_oid *rootoid;
+
+	rootoid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(),
+	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
+	kobject_init(&class_root, &class_ktype);
+	kobject_set_name(&class_root, "class");
+	class_root.oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(rootoid),
+	    OID_AUTO, "class", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "class");
+	kobject_init(&linux_rootdev.kobj, &dev_ktype);
+	kobject_set_name(&linux_rootdev.kobj, "device");
+	linux_rootdev.kobj.oidp = SYSCTL_ADD_NODE(NULL,
+	    SYSCTL_CHILDREN(rootoid), OID_AUTO, "device", CTLFLAG_RD, NULL,
+	    "device");
+	linux_rootdev.bsddev = root_bus;
 	miscclass.name = "misc";
 	class_register(&miscclass);
-	miscroot.bsddev = root_bus;
 	INIT_LIST_HEAD(&pci_drivers);
 }
 
-module_init(linux_compat_init);
+SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);

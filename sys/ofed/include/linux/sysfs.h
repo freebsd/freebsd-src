@@ -29,6 +29,8 @@
 #ifndef	_LINUX_SYSFS_H_
 #define	_LINUX_SYSFS_H_
 
+#include <sys/sysctl.h>
+
 struct attribute {
 	const char 	*name;
 	struct module	*owner;
@@ -59,5 +61,122 @@ struct attribute_group {
 }
 
 #define	__ATTR_NULL	{ .attr = { .name = NULL } }
+
+/*
+ * Handle our generic '\0' terminated 'C' string.
+ * Two cases:
+ *      a variable string:  point arg1 at it, arg2 is max length.
+ *      a constant string:  point arg1 at it, arg2 is zero.
+ */
+
+static inline int
+sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
+{
+	struct kobject *kobj;
+	struct attribute *attr;
+	const struct sysfs_ops *ops;
+	void *buf;
+	int error;
+	ssize_t len;
+
+	kobj = arg1;
+	attr = (struct attribute *)arg2;
+	buf = (void *)get_zeroed_page(GFP_KERNEL);
+	len = 1;	/* Copy out a NULL byte at least. */
+	if (kobj->ktype == NULL || kobj->ktype->sysfs_ops == NULL)
+		return (ENODEV);
+	ops = kobj->ktype->sysfs_ops;
+	if (buf == NULL)
+		return (ENOMEM);
+	if (ops->show) {
+		len = ops->show(kobj, attr, buf);
+		/*
+		 * It's valid not to have a 'show' so we just return 1 byte
+		 * of NULL.
+	 	 */
+		if (len < 0) {
+			error = -len;
+			len = 1;
+			if (error != EIO)
+				goto out;
+		}
+	}
+	error = SYSCTL_OUT(req, buf, len);
+	if (error || !req->newptr || ops->store == NULL)
+		goto out;
+	error = SYSCTL_IN(req, buf, PAGE_SIZE);
+	if (error)
+		goto out;
+	len = ops->store(kobj, attr, buf, req->newlen);
+	if (len < 0)
+		error = -len;
+out:
+	free_page((unsigned long)buf);
+
+	return (error);
+}
+
+static inline int
+sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
+{
+
+	sysctl_add_oid(NULL, SYSCTL_CHILDREN(kobj->oidp), OID_AUTO,
+	    attr->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE, kobj,
+	    (uintptr_t)attr, sysctl_handle_attr, "A", "");
+
+	return (0);
+}
+
+static inline void
+sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
+{
+
+	if (kobj->oidp)
+		sysctl_remove_name(kobj->oidp, attr->name, 1, 1);
+}
+
+static inline void
+sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
+{
+
+	if (kobj->oidp)
+		sysctl_remove_name(kobj->oidp, grp->name, 1, 1);
+}
+
+static inline int
+sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
+{
+	struct attribute **attr;
+	struct sysctl_oid *oidp;
+
+	oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->oidp),
+	    OID_AUTO, grp->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, grp->name);
+	for (attr = grp->attrs; *attr != NULL; attr++) {
+		sysctl_add_oid(NULL, SYSCTL_CHILDREN(oidp), OID_AUTO,
+		    (*attr)->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE,
+		    kobj, (uintptr_t)*attr, sysctl_handle_attr, "A", "");
+	}
+
+	return (0);
+}
+
+static inline int
+sysfs_create_dir(struct kobject *kobj)
+{
+
+	kobj->oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->parent->oidp),
+	    OID_AUTO, kobj->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, kobj->name);
+
+        return (0);
+}
+
+static inline void
+sysfs_remove_dir(struct kobject *kobj)
+{
+
+	if (kobj->oidp == NULL)
+		return;
+	sysctl_remove_oid(kobj->oidp, 1, 1);
+}
 
 #endif	/* _LINUX_SYSFS_H_ */

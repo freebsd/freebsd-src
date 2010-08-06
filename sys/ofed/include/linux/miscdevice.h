@@ -41,7 +41,6 @@ struct miscdevice  {
 };
 
 extern struct class	miscclass;
-extern struct device	miscroot;
 
 /*
  * XXX Missing cdev.
@@ -49,7 +48,7 @@ extern struct device	miscroot;
 static inline int
 misc_register(struct miscdevice *misc)
 {
-	misc->this_device = device_create(&miscclass, &miscroot, 0, misc, 
+	misc->this_device = device_create(&miscclass, &linux_rootdev, 0, misc, 
 	    misc->name);
 	return (0);
 }
