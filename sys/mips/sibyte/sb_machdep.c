@@ -189,11 +189,11 @@ mips_init(void)
 			("CFE DRAM region is not available?"));
 
 		if (bootverbose)
-			printf("cfe_enummem: 0x%016jx/%llu.\n", addr, len);
+			printf("cfe_enummem: 0x%016jx/%ju.\n", addr, len);
 
 		if (maxmem != 0) {
 			if (addr >= maxmem) {
-				printf("Ignoring %llu bytes of memory at 0x%jx "
+				printf("Ignoring %ju bytes of memory at 0x%jx "
 				       "that is above maxmem %dMB\n",
 				       len, addr,
 				       (int)(maxmem / (1024 * 1024)));
@@ -201,7 +201,7 @@ mips_init(void)
 			}
 
 			if (addr + len > maxmem) {
-				printf("Ignoring %llu bytes of memory "
+				printf("Ignoring %ju bytes of memory "
 				       "that is above maxmem %dMB\n",
 				       (addr + len) - maxmem,
 				       (int)(maxmem / (1024 * 1024)));
