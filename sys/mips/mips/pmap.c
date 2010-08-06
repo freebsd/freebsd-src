@@ -1473,7 +1473,6 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_page_t mpte, vm_offset_t va,
 		pv->pv_va = va;
 		pv->pv_pmap = pmap;
 		pv->pv_ptem = mpte;
-		pv->pv_wired = FALSE;
 		TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count++;
@@ -1897,7 +1896,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pv->pv_va = va;
 		pv->pv_pmap = pmap;
 		pv->pv_ptem = mpte;
-		pv->pv_wired = wired;
 		TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count++;
@@ -2655,15 +2653,22 @@ int
 pmap_page_wired_mappings(vm_page_t m)
 {
 	pv_entry_t pv;
+	pmap_t pmap;
+	pt_entry_t *pte;
 	int count;
 
 	count = 0;
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		return (count);
 	vm_page_lock_queues();
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
-	    if (pv->pv_wired)
-		count++;
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = pv->pv_pmap;
+		PMAP_LOCK(pmap);
+		pte = pmap_pte(pmap, pv->pv_va);
+		if (pte_test(pte, PTE_W))
+			count++;
+		PMAP_UNLOCK(pmap);
+	}
 	vm_page_unlock_queues();
 	return (count);
 }
