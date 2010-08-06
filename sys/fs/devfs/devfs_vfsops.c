@@ -155,7 +155,7 @@ devfs_root(struct mount *mp, int flags, struct vnode **vpp)
 
 	dmp = VFSTODEVFS(mp);
 	sx_xlock(&dmp->dm_lock);
-	error = devfs_allocv(dmp->dm_rootdir, mp, &vp);
+	error = devfs_allocv(dmp->dm_rootdir, mp, LK_EXCLUSIVE, &vp);
 	if (error)
 		return (error);
 	vp->v_vflag |= VV_ROOT;
