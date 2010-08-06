@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2010
+.Dd August 6, 2010
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -333,11 +333,11 @@ where the jail's chroot directory is located.
 Setting this boolean parameter allows a jail to exist without any
 processes.
 Normally, a jail is destroyed as its last process exits.
-A new jail must have either the
-.Va persist
-parameter or
+A new jail created without processes (i.e. the
 .Va command
-pseudo-parameter set.
+pseudo-parameter) will automatically have
+.Va persist
+set.
 .It Va cpuset.id
 The ID of the cpuset associated with this jail (read-only).
 .It Va dying
