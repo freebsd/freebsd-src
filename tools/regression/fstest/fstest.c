@@ -28,6 +28,8 @@
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -63,6 +65,8 @@ enum action {
 	ACTION_SYMLINK,
 	ACTION_RENAME,
 	ACTION_MKFIFO,
+	ACTION_BIND,
+	ACTION_CONNECT,
 	ACTION_CHMOD,
 #ifdef HAS_LCHMOD
 	ACTION_LCHMOD,
@@ -110,6 +114,8 @@ static struct syscall_desc syscalls[] = {
 	{ "symlink", ACTION_SYMLINK, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "rename", ACTION_RENAME, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "mkfifo", ACTION_MKFIFO, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
+	{ "bind", ACTION_BIND, { TYPE_STRING, TYPE_NONE } },
+	{ "connect", ACTION_CONNECT, { TYPE_STRING, TYPE_NONE } },
 	{ "chmod", ACTION_CHMOD, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
 #ifdef HAS_LCHMOD
 	{ "lchmod", ACTION_LCHMOD, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
@@ -496,6 +502,32 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 	case ACTION_MKFIFO:
 		rval = mkfifo(STR(0), (mode_t)NUM(1));
 		break;
+	case ACTION_BIND:
+	    {
+		struct sockaddr_un sun;
+
+		sun.sun_family = AF_UNIX;
+		strlcpy(sun.sun_path, STR(0), sizeof(sun.sun_path));
+		sun.sun_len = SUN_LEN(&sun);
+		rval = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (rval < 0)
+			break;
+		rval = bind(rval, (struct sockaddr *)&sun, sizeof(sun));
+		break;
+	    }
+	case ACTION_CONNECT:
+	    {
+		struct sockaddr_un sun;
+
+		sun.sun_family = AF_UNIX;
+		strlcpy(sun.sun_path, STR(0), sizeof(sun.sun_path));
+		sun.sun_len = SUN_LEN(&sun);
+		rval = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (rval < 0)
+			break;
+		rval = connect(rval, (struct sockaddr *)&sun, sizeof(sun));
+		break;
+	    }
 	case ACTION_CHMOD:
 		rval = chmod(STR(0), (mode_t)NUM(1));
 		break;
