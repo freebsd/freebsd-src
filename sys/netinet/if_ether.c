@@ -163,12 +163,10 @@ static void
 arptimer(void *arg)
 {
 	struct ifnet *ifp;
-	struct llentry   *lle = (struct llentry *)arg;
+	struct llentry   *lle;
 
-	if (lle == NULL) {
-		panic("%s: NULL entry!\n", __func__);
-		return;
-	}
+	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
+	lle = (struct llentry *)arg;
 	ifp = lle->lle_tbl->llt_ifp;
 	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
