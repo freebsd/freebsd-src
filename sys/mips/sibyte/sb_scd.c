@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
  *
  * We use the mips_ld() and mips_sd() functions to do this for us.
  */
-#define	sb_store64(addr, val)	mips3_sd((uint64_t *)(addr), (val))
-#define	sb_load64(addr)		mips3_ld((uint64_t *)(addr))
+#define	sb_store64(addr, val)	mips3_sd((uint64_t *)(uintptr_t)(addr), (val))
+#define	sb_load64(addr)		mips3_ld((uint64_t *)(uintptr_t)(addr))
 
 /*
  * System Control and Debug (SCD) unit on the Sibyte ZBbus.
@@ -131,7 +131,7 @@ sb_system_reset(void)
 void
 sb_disable_intsrc(int cpu, int src)
 {
-	uint32_t regaddr;
+	int regaddr;
 	uint64_t val;
 
 	regaddr = INTSRC_MASK_ADDR(cpu);
@@ -144,7 +144,7 @@ sb_disable_intsrc(int cpu, int src)
 void
 sb_enable_intsrc(int cpu, int src)
 {
-	uint32_t regaddr;
+	int regaddr;
 	uint64_t val;
 
 	regaddr = INTSRC_MASK_ADDR(cpu);
@@ -157,7 +157,7 @@ sb_enable_intsrc(int cpu, int src)
 void
 sb_write_intsrc_mask(int cpu, uint64_t val)
 {
-	uint32_t regaddr;
+	int regaddr;
 
 	regaddr = INTSRC_MASK_ADDR(cpu);
 	sb_store64(regaddr, val);
@@ -166,7 +166,7 @@ sb_write_intsrc_mask(int cpu, uint64_t val)
 uint64_t
 sb_read_intsrc_mask(int cpu)
 {
-	uint32_t regaddr;
+	int regaddr;
 	uint64_t val;
 
 	regaddr = INTSRC_MASK_ADDR(cpu);
@@ -178,7 +178,7 @@ sb_read_intsrc_mask(int cpu)
 void
 sb_write_intmap(int cpu, int intsrc, int intrnum)
 {
-	uint32_t regaddr;
+	int regaddr;
 
 	regaddr = INTSRC_MAP_ADDR(cpu, intsrc);
 	sb_store64(regaddr, intrnum);
@@ -187,7 +187,7 @@ sb_write_intmap(int cpu, int intsrc, int intrnum)
 int
 sb_read_intmap(int cpu, int intsrc)
 {
-	uint32_t regaddr;
+	int regaddr;
 
 	regaddr = INTSRC_MAP_ADDR(cpu, intsrc);
 	return (sb_load64(regaddr) & 0x7);
@@ -227,7 +227,7 @@ sb_read_sysrev(void)
 void
 sb_set_mailbox(int cpu, uint64_t val)
 {
-	uint32_t regaddr;
+	int regaddr;
 
 	regaddr = MAILBOX_SET_ADDR(cpu);
 	sb_store64(regaddr, val);
@@ -236,7 +236,7 @@ sb_set_mailbox(int cpu, uint64_t val)
 void
 sb_clear_mailbox(int cpu, uint64_t val)
 {
-	uint32_t regaddr;
+	int regaddr;
 
 	regaddr = MAILBOX_CLEAR_ADDR(cpu);
 	sb_store64(regaddr, val);
