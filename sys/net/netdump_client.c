@@ -707,9 +707,6 @@ retransmit:
  * Return value:
  *	void
  */
-/* Bits from sys/net/if_ethersubr.c:ether_input,
-   	     sys/net/if_ethersubr.c:ether_demux */
-
 /* Bits from sys/netinet/ip_input.c:ip_input,
  	     sys/netinet/udp_usrreq.c:udp_input */
 static void
