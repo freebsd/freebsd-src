@@ -109,6 +109,8 @@
 #define NETDUMP_VMCORE 3        /* packet contains dump data */
 #define NETDUMP_KDH 4           /* packet contains kernel dump header */
 
+#define	NETDUMP_BROKEN_STATE_BUFFER_SIZE	(5 * sizeof(struct mtx))
+
 struct netdump_msg_hdr {
 	u_int32_t type;		/* NETDUMP_HERALD, _FINISHED, _VMCORE or _KDH */
 	u_int32_t seqno;	/* match acks with msgs */
@@ -126,12 +128,30 @@ struct netdump_ack {
 	u_int32_t seqno;	/* match acks with msgs */
 };
 
+static void	 nd_handle_arp(struct mbuf **mb);
+static void	 nd_handle_ip(struct mbuf **mb);
+static int	 netdump_arp_server(void);
+static void	 netdump_config_defaults(void);
+static int	 netdump_dumper(void *priv, void *virtual,
+		    vm_offset_t physical, off_t offset, size_t length);
+static int	 netdump_ether_output(struct mbuf *m, struct ifnet *ifp, 
+		    struct ether_addr dst, u_short etype);
+static void	 netdump_mbuf_nop(void *ptr, void *opt_args);
+static int	 netdump_modevent(module_t mod, int type, void *unused); 
+static void	 netdump_network_poll(void);
+static void	 netdump_pkt_in(struct ifnet *ifp, struct mbuf *m);
+static int	 netdump_send(uint32_t type, off_t offset, unsigned char *data,
+		    uint32_t datalen);
+static int	 netdump_send_arp(void);
+static void	 netdump_trigger(void *arg, int howto);
+static int	 netdump_udp_output(struct mbuf *m);
+
+static int	 sysctl_force_crash(SYSCTL_HANDLER_ARGS);
+static int	 sysctl_ip(SYSCTL_HANDLER_ARGS);
+static int	 sysctl_nic(SYSCTL_HANDLER_ARGS);
+
 extern struct pcb dumppcb; /* cheat.  dumppcb is a static! */
 
-/* ---------------------------------------------------------------- */
-/*
- * private globals.  don't touch.
- */
 static eventhandler_tag nd_tag = NULL;       /* record of our shutdown event */
 static uint32_t nd_seqno = 1;		     /* current sequence number */
 static uint64_t rcvd_acks;		     /* flags for out of order acks */
@@ -142,12 +162,15 @@ static unsigned char buf[MAXDUMPPGS*PAGE_SIZE]; /* Must be at least as big as
 						 * us */
 static struct ether_addr nd_server_mac;
 
-#define NETDUMP_BROKEN_STATE_BUFFER_SIZE (5 * sizeof(struct mtx))
-
-/* ---------------------------------------------------------------- */
-/*
- * helpers
- */
+static int nd_active = 0;
+static int nd_enable = 0;  /* if we should perform a network dump */
+static struct in_addr nd_server = {INADDR_ANY}; /* server address */
+static struct in_addr nd_client = {INADDR_ANY}; /* client (our) address */
+struct ifnet *nd_nic = NULL;
+static int nd_force_crash=0;
+static int nd_polls=10000; /* Times to poll the NIC (0.5ms each poll) before
+			    * assuming packetloss occurred: 5s by default */
+static int nd_retries=10; /* Times to retransmit lost packets */
 
 /*
  * [netdump_supported_nic]
@@ -160,27 +183,15 @@ static struct ether_addr nd_server_mac;
  * Returns:
  *	int	1 if the interface is supported, 0 if not
  */
-static int
+static __inline int
 netdump_supported_nic(struct ifnet *ifn)
 {
 	return ifn->if_netdump != NULL;
 }
 
-
-/* ---------------------------------------------------------------- */
-/*
- * sysctl pokables.
+/*-
+ * Sysctls specific code.
  */
-
-static int nd_active = 0;
-static int nd_enable = 0;  /* if we should perform a network dump */
-static struct in_addr nd_server = {INADDR_ANY}; /* server address */
-static struct in_addr nd_client = {INADDR_ANY}; /* client (our) address */
-struct ifnet *nd_nic = NULL;
-static int nd_force_crash=0;
-static int nd_polls=10000; /* Times to poll the NIC (0.5ms each poll) before
-			    * assuming packetloss occurred: 5s by default */
-static int nd_retries=10; /* Times to retransmit lost packets */
 
 /*
  * [sysctl_ip]
@@ -341,7 +352,35 @@ SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT|CTLFLAG_RW, &nd_polls, 0,
 SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT|CTLFLAG_RW, &nd_retries, 0,
 	"times to retransmit lost packets");
 
-/* ---------------------------------------------------------------- */
+/*-
+ * Network specific primitives.
+ * Following down the code they are divided ordered as:
+ * - Output primitives
+ * - Input primitives
+ * - Polling primitives
+ */
+
+/*
+ * [netdump_mbuf_nop]
+ *
+ * netdump wraps external mbufs around address ranges.  unlike most sane
+ * counterparts, netdump uses a stop-and-wait approach to flow control and
+ * retransmission, so the ack obviates the need for mbuf reference
+ * counting.  we still need to tell other mbuf handlers not to do anything
+ * special with our mbufs, so specify this nop handler.
+ *
+ * Parameters:
+ *	ptr	 data to free (ignored)
+ *	opt_args callback pointer (ignored)
+ *
+ * Returns:
+ *	void
+ */
+static void
+netdump_mbuf_nop(void *ptr, void *opt_args)
+{
+	;
+}
 
 /*
  * [netdump_ether_output]
@@ -454,51 +493,86 @@ netdump_udp_output(struct mbuf *m)
 	return netdump_ether_output(m, nd_nic, nd_server_mac, ETHERTYPE_IP);
 }
 
-/* ---------------------------------------------------------------- */
 /*
- * this section provides reliable message delivery (in the absence
- * of resource shortages).
- */
-
-/*
- * [netdump_network_poll]
+ * [netdump_send_arp]
  *
- * after trapping, instead of assuming that most of the network stack is sane
- * just poll the driver directly for packets
+ * Builds and sends a single ARP request to locate the server
  *
  * Parameters:
  *	void
  *
- * Returns:
- *	void
+ * Return value:
+ *	0 on success
+ *	errno on error
  */
-static void
-netdump_network_poll(void)
+static int
+netdump_send_arp()
 {
-	nd_nic->if_netdump->poll_locked(nd_nic, POLL_AND_CHECK_STATUS, 1000);
+	struct mbuf *m;
+	int pktlen = arphdr_len2(ETHER_ADDR_LEN, sizeof(struct in_addr));
+	struct arphdr *ah;
+	struct ether_addr bcast;
+
+	ETHER_SET_BROADCAST(&bcast);
+
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (m == NULL) {
+		printf("netdump_send_arp: Out of mbufs");
+		return ENOBUFS;
+	}
+	m->m_pkthdr.len = m->m_len = pktlen;
+	MH_ALIGN(m, pktlen); /* Make room for ethernet header */
+	ah = mtod(m, struct arphdr *);
+	ah->ar_hrd = htons(ARPHRD_ETHER);
+	ah->ar_pro = htons(ETHERTYPE_IP);
+	ah->ar_hln = ETHER_ADDR_LEN;
+	ah->ar_pln = sizeof(struct in_addr);
+	ah->ar_op = htons(ARPOP_REQUEST);
+	bcopy(IF_LLADDR(nd_nic), ar_sha(ah), ETHER_ADDR_LEN);
+	((struct in_addr *)ar_spa(ah))->s_addr = nd_client.s_addr;
+	bzero(ar_tha(ah), ETHER_ADDR_LEN);
+	((struct in_addr *)ar_tpa(ah))->s_addr = nd_server.s_addr;
+
+	return netdump_ether_output(m, nd_nic, bcast, ETHERTYPE_ARP);
 }
 
-
 /*
- * [netdump_mbuf_nop]
+ * [netdump_arp_server]
  *
- * netdump wraps external mbufs around address ranges.  unlike most sane
- * counterparts, netdump uses a stop-and-wait approach to flow control and
- * retransmission, so the ack obviates the need for mbuf reference
- * counting.  we still need to tell other mbuf handlers not to do anything
- * special with our mbufs, so specify this nop handler.
+ * Sends ARP requests to locate the server and waits for a response
  *
  * Parameters:
- *	ptr	 data to free (ignored)
- *	opt_args callback pointer (ignored)
- *
- * Returns:
  *	void
+ *
+ * Return value:
+ *	0 on success
+ *	errno on error
  */
-static void
-netdump_mbuf_nop(void *ptr, void *opt_args)
+static int
+netdump_arp_server()
 {
-	;
+	int err, polls, retries;
+
+	for (retries=0; retries < nd_retries && !have_server_mac; retries++) {
+		err = netdump_send_arp();
+
+		if (err)
+			return err;
+
+		for (polls=0; polls < nd_polls && !have_server_mac; polls++) {
+			netdump_network_poll();
+			DELAY(500); /* 0.5 ms */
+		}
+
+		if (!have_server_mac) printf("(ARP retry)");
+	}
+
+	if (have_server_mac)
+		return 0;
+
+	printf("\nARP timed out.\n");
+
+	return ETIMEDOUT;
 }
 
 /*
@@ -617,78 +691,6 @@ retransmit:
 	}
 	nd_seqno += i;
 	return 0;
-}
-
-/* ---------------------------------------------------------------- */
-
-static void nd_handle_ip(struct mbuf **mb);
-static void nd_handle_arp(struct mbuf **mb);
-/*
- * [netdump_pkt_in]
- *
- * Handler for incoming packets directly from the network adapter
- * Identifies the packet type (IP or ARP) and passes it along to one of the
- * helper functions nd_handle_ip or nd_handle_arp.
- *
- * Parameters:
- *	ifp	the interface the packet came from (should be nd_nic)
- *	m	an mbuf containing the packet received
- *
- * Return value:
- *	void
- */
-/* Bits from sys/net/if_ethersubr.c:ether_input,
-   	     sys/net/if_ethersubr.c:ether_demux */
-static void
-netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
-{
-	struct ether_header *eh;
-	u_short etype;
-
-	/* Ethernet processing */
-
-	NETDDEBUGV_IF(ifp, "Processing packet...\n");
-
-	if ((m->m_flags & M_PKTHDR) == 0) {
-		NETDDEBUG_IF(ifp, "discard frame w/o packet header\n");
-		goto done;
-	}
-	if (m->m_len < ETHER_HDR_LEN) {
-		NETDDEBUG_IF(ifp, "discard frome w/o leading ethernet "
-		    "header (len %u pkt len %u)\n", m->m_len, m->m_pkthdr.len);
-		goto done;
-	}
-	if (m->m_flags & M_HASFCS) {
-		m_adj(m, -ETHER_CRC_LEN);
-		m->m_flags &= ~M_HASFCS;
-	}
-	eh = mtod(m, struct ether_header *);
-	m->m_pkthdr.header = eh;
-	etype = ntohs(eh->ether_type);
-	if ((ifp->if_nvlans && m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL))
-	    || etype == ETHERTYPE_VLAN) {
-		NETDDEBUG_IF(ifp, "ignoring vlan packets\n");
-		goto done;
-	}
-	/* XXX: Probably should check if we're the recipient MAC address */
-	/* Done ethernet processing. Strip off the ethernet header */
-	m_adj(m, ETHER_HDR_LEN);
-
-	switch (etype) {
-		case ETHERTYPE_ARP:
-			nd_handle_arp(&m);
-			break;
-		case ETHERTYPE_IP:
-			nd_handle_ip(&m);
-			break;
-		default:
-			NETDDEBUG_IF(ifp, "dropping unknown ethertype %hu\n",
-			    etype);
-			break;
-	}
-
-done:
-	if (m) m_freem(m);
 }
 
 /*
@@ -1014,6 +1016,96 @@ nd_handle_arp(struct mbuf **mb)
 }
 
 /*
+ * [netdump_pkt_in]
+ *
+ * Handler for incoming packets directly from the network adapter
+ * Identifies the packet type (IP or ARP) and passes it along to one of the
+ * helper functions nd_handle_ip or nd_handle_arp.
+ *
+ * Parameters:
+ *	ifp	the interface the packet came from (should be nd_nic)
+ *	m	an mbuf containing the packet received
+ *
+ * Return value:
+ *	void
+ */
+/* Bits from sys/net/if_ethersubr.c:ether_input,
+   	     sys/net/if_ethersubr.c:ether_demux */
+static void
+netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
+{
+	struct ether_header *eh;
+	u_short etype;
+
+	/* Ethernet processing */
+
+	NETDDEBUGV_IF(ifp, "Processing packet...\n");
+
+	if ((m->m_flags & M_PKTHDR) == 0) {
+		NETDDEBUG_IF(ifp, "discard frame w/o packet header\n");
+		goto done;
+	}
+	if (m->m_len < ETHER_HDR_LEN) {
+		NETDDEBUG_IF(ifp, "discard frome w/o leading ethernet "
+		    "header (len %u pkt len %u)\n", m->m_len, m->m_pkthdr.len);
+		goto done;
+	}
+	if (m->m_flags & M_HASFCS) {
+		m_adj(m, -ETHER_CRC_LEN);
+		m->m_flags &= ~M_HASFCS;
+	}
+	eh = mtod(m, struct ether_header *);
+	m->m_pkthdr.header = eh;
+	etype = ntohs(eh->ether_type);
+	if ((ifp->if_nvlans && m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL))
+	    || etype == ETHERTYPE_VLAN) {
+		NETDDEBUG_IF(ifp, "ignoring vlan packets\n");
+		goto done;
+	}
+	/* XXX: Probably should check if we're the recipient MAC address */
+	/* Done ethernet processing. Strip off the ethernet header */
+	m_adj(m, ETHER_HDR_LEN);
+
+	switch (etype) {
+		case ETHERTYPE_ARP:
+			nd_handle_arp(&m);
+			break;
+		case ETHERTYPE_IP:
+			nd_handle_ip(&m);
+			break;
+		default:
+			NETDDEBUG_IF(ifp, "dropping unknown ethertype %hu\n",
+			    etype);
+			break;
+	}
+
+done:
+	if (m) m_freem(m);
+}
+
+/*
+ * [netdump_network_poll]
+ *
+ * after trapping, instead of assuming that most of the network stack is sane
+ * just poll the driver directly for packets
+ *
+ * Parameters:
+ *	void
+ *
+ * Returns:
+ *	void
+ */
+static void
+netdump_network_poll()
+{
+	nd_nic->if_netdump->poll_locked(nd_nic, POLL_AND_CHECK_STATUS, 1000);
+}
+
+/*-
+ * Dumping specific primitives.
+ */
+
+/*
  * [netdump_dumper]
  *
  * Callback from dumpsys() to dump a chunk of memory
@@ -1063,90 +1155,6 @@ netdump_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
 	}
 	
 	return 0;
-}
-
-/* ---------------------------------------------------------------- */
-
-/*
- * [netdump_send_arp]
- *
- * Builds and sends a single ARP request to locate the server
- *
- * Parameters:
- *	void
- *
- * Return value:
- *	0 on success
- *	errno on error
- */
-static int
-netdump_send_arp(void)
-{
-	struct mbuf *m;
-	int pktlen = arphdr_len2(ETHER_ADDR_LEN, sizeof(struct in_addr));
-	struct arphdr *ah;
-	struct ether_addr bcast;
-
-	ETHER_SET_BROADCAST(&bcast);
-
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL) {
-		printf("netdump_send_arp: Out of mbufs");
-		return ENOBUFS;
-	}
-	m->m_pkthdr.len = m->m_len = pktlen;
-	MH_ALIGN(m, pktlen); /* Make room for ethernet header */
-	ah = mtod(m, struct arphdr *);
-	ah->ar_hrd = htons(ARPHRD_ETHER);
-	ah->ar_pro = htons(ETHERTYPE_IP);
-	ah->ar_hln = ETHER_ADDR_LEN;
-	ah->ar_pln = sizeof(struct in_addr);
-	ah->ar_op = htons(ARPOP_REQUEST);
-	bcopy(IF_LLADDR(nd_nic), ar_sha(ah), ETHER_ADDR_LEN);
-	((struct in_addr *)ar_spa(ah))->s_addr = nd_client.s_addr;
-	bzero(ar_tha(ah), ETHER_ADDR_LEN);
-	((struct in_addr *)ar_tpa(ah))->s_addr = nd_server.s_addr;
-
-	return netdump_ether_output(m, nd_nic, bcast, ETHERTYPE_ARP);
-}
-
-/*
- * [netdump_arp_server]
- *
- * Sends ARP requests to locate the server and waits for a response
- *
- * Parameters:
- *	void
- *
- * Return value:
- *	0 on success
- *	errno on error
- */
-static int
-netdump_arp_server(void)
-{
-	int err, polls, retries;
-
-	for (retries=0; retries < nd_retries && !have_server_mac; retries++) {
-		err = netdump_send_arp();
-
-		if (err)
-			return err;
-
-		for (polls=0; polls < nd_polls && !have_server_mac; polls++) {
-			netdump_network_poll();
-			DELAY(500); /* 0.5 ms */
-		}
-
-		if (!have_server_mac) printf("(ARP retry)");
-	}
-
-	if (have_server_mac)
-		return 0;
-
-	printf("\nARP timed out.\n");
-
-	return ETIMEDOUT;
 }
 
 /*
@@ -1311,6 +1319,10 @@ cleanup:
 	nd_active = 0;
 }
 
+/*-
+ * Public primitives.
+ */
+
 /* this isn't declared in any header file... */
 extern int system_panic;
 
@@ -1351,9 +1363,8 @@ netdump_break_lock(struct mtx *lock, const char *name, int *broke_lock,
 	return 0;
 }
 
-/*------------------------------------------------*/
-/*
- * module specific handling
+/*-
+ * KLD specific code.
  */
 
 /*
@@ -1370,7 +1381,7 @@ netdump_break_lock(struct mtx *lock, const char *name, int *broke_lock,
  *	void
  */
 static void
-netdump_config_defaults(void)
+netdump_config_defaults()
 {
 	struct ifnet *ifn;
 	struct ifaddr *ifa;
