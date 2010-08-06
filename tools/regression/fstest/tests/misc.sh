@@ -9,7 +9,7 @@ path1021="${name255}/${name255}/${name255}/${name253}"
 path1023="${path1021}/x"
 path1024="${path1023}x"
 
-echo ${dir} | egrep '^/' >/dev/null 2>&1
+echo ${dir} | ${GREP} -E '^/' >/dev/null 2>&1
 if [ $? -eq 0 ]; then
 	maindir="${dir}/../.."
 else
@@ -23,7 +23,7 @@ expect()
 	e="${1}"
 	shift
 	r=`${fstest} $* 2>/dev/null | tail -1`
-	echo "${r}" | egrep '^'${e}'$' >/dev/null 2>&1
+	echo "${r}" | ${GREP} -E '^'${e}'$' >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		if [ -z "${todomsg}" ]; then
 			echo "ok ${ntest}"
@@ -48,7 +48,7 @@ jexpect()
 	e="${3}"
 	shift 3
 	r=`jail -s ${s} / fstest 127.0.0.1 /bin/sh -c "cd ${d} && ${fstest} $* 2>/dev/null" | tail -1`
-	echo "${r}" | egrep '^'${e}'$' >/dev/null 2>&1
+	echo "${r}" | ${GREP} -E '^'${e}'$' >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		if [ -z "${todomsg}" ]; then
 			echo "ok ${ntest}"
