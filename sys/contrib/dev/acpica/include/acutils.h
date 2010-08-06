@@ -536,10 +536,6 @@ AcpiUtDeleteInternalObjectList (
  * uteval - object evaluation
  */
 ACPI_STATUS
-AcpiUtOsiImplementation (
-    ACPI_WALK_STATE         *WalkState);
-
-ACPI_STATUS
 AcpiUtEvaluateObject (
     ACPI_NAMESPACE_NODE     *PrefixNode,
     char                    *Path,
@@ -659,6 +655,34 @@ ACPI_STATUS
 AcpiUtGetObjectSize(
     ACPI_OPERAND_OBJECT     *Obj,
     ACPI_SIZE               *ObjLength);
+
+
+/*
+ * utosi - Support for the _OSI predefined control method
+ */
+ACPI_STATUS
+AcpiUtInitializeInterfaces (
+    void);
+
+void
+AcpiUtInterfaceTerminate (
+    void);
+
+ACPI_STATUS
+AcpiUtInstallInterface (
+    ACPI_STRING             InterfaceName);
+
+ACPI_STATUS
+AcpiUtRemoveInterface (
+    ACPI_STRING             InterfaceName);
+
+ACPI_INTERFACE_INFO *
+AcpiUtGetInterface (
+    ACPI_STRING             InterfaceName);
+
+ACPI_STATUS
+AcpiUtOsiImplementation (
+    ACPI_WALK_STATE         *WalkState);
 
 
 /*

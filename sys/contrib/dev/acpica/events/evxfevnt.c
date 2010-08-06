@@ -305,7 +305,6 @@ AcpiEnableEvent (
 ACPI_EXPORT_SYMBOL (AcpiEnableEvent)
 
 
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiGpeWakeup

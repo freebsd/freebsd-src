@@ -74,12 +74,6 @@ AcpiOsGetPhysicalAddress(void *LogicalAddress,
     return (AE_BAD_ADDRESS);
 }
 
-ACPI_STATUS
-AcpiOsValidateInterface (char *Interface)
-{
-    return (AE_SUPPORT);
-}
-
 BOOLEAN
 AcpiOsReadable (void *Pointer, ACPI_SIZE Length)
 {
