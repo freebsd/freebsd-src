@@ -715,7 +715,7 @@ qualified by mask value written to MSR 396H. The following mask values are
 supported:
 0: NONE 40000000_00000000H:RSPFWDI 40001A00_00000000H:RSPFWDS
 40001D00_00000000H:RSPIWB
-Match opcode/addres s by writing MSR 396H with mask supported mask value
+Match opcode/address by writing MSR 396H with mask supported mask value
 .It Li ADDR_OPCODE_MATCH.REMOTE
 .Pq Event 35H , Umask 02H
 Counts number of requests from the remote socket, address/opcode of request
@@ -723,7 +723,7 @@ is qualified by mask value written to MSR 396H. The following mask values
 are supported:
 0: NONE 40000000_00000000H:RSPFWDI 40001A00_00000000H:RSPFWDS
 40001D00_00000000H:RSPIWB
-Match opcode/addres s by writing MSR 396H with mask supported mask value
+Match opcode/address by writing MSR 396H with mask supported mask value
 .It Li ADDR_OPCODE_MATCH.LOCAL
 .Pq Event 35H , Umask 04H
 Counts number of requests from the local socket, address/opcode of request
@@ -731,7 +731,7 @@ is qualified by mask value written to MSR 396H. The following mask values
 are supported:
 0: NONE 40000000_00000000H:RSPFWDI 40001A00_00000000H:RSPFWDS
 40001D00_00000000H:RSPIWB
-Match opcode/addres s by writing MSR 396H with mask supported mask value
+Match opcode/address by writing MSR 396H with mask supported mask value
 .It Li QPI_TX_STALLED_SINGLE_FLIT.HOME.LINK_0
 .Pq Event 40H , Umask 01H
 Counts cycles the Quickpath outbound link 0 HOME virtual channel is stalled
