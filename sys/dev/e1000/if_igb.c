@@ -2070,6 +2070,9 @@ igb_identify_hardware(struct adapter *adapter)
 	    pci_read_config(dev, PCIR_SUBVEND_0, 2);
 	adapter->hw.subsystem_device_id =
 	    pci_read_config(dev, PCIR_SUBDEV_0, 2);
+
+	/* Set MAC type early for PCI setup */
+	e1000_set_mac_type(&adapter->hw);
 }
 
 static int
