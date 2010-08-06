@@ -43,10 +43,10 @@ smartcard reader.
 The driver provides a character device special file based
 .Em Chip/Smart Card Interface Devices (CCID)
 interface.  The driver implements what the vendor calls the
-.Em Synchronious API
+.Em Synchronous API
 onto the smartcard reader device.
 .Pp
-Reading and writing is synchronious, meaning that a call to
+Reading and writing is synchronous, meaning that a call to
 .Xr write 2
 directly corresponds to a complete CCID command sent to the
 device, while the following
