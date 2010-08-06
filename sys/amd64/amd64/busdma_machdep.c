@@ -594,14 +594,14 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		 * Count the number of bounce pages
 		 * needed in order to complete this transfer
 		 */
-		vaddr = trunc_page((vm_offset_t)buf);
+		vaddr = (vm_offset_t)buf;
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
 			paddr = pmap_kextract(vaddr);
 			if (run_filter(dmat, paddr) != 0)
 				map->pagesneeded++;
-			vaddr += PAGE_SIZE;
+			vaddr += (PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
@@ -832,7 +832,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    bus_dmamap_callback2_t *callback, void *callback_arg,
 		    int flags)
 {
-	bus_addr_t lastaddr;
+	bus_addr_t lastaddr = 0;
 	int nsegs, error, first, i;
 	bus_size_t resid;
 	struct iovec *iov;
