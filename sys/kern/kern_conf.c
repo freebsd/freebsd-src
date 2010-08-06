@@ -177,12 +177,16 @@ dev_rel(struct cdev *dev)
 }
 
 struct cdevsw *
-dev_refthread(struct cdev *dev)
+dev_refthread(struct cdev *dev, int *ref)
 {
 	struct cdevsw *csw;
 	struct cdev_priv *cdp;
 
 	mtx_assert(&devmtx, MA_NOTOWNED);
+	if ((dev->si_flags & SI_ETERNAL) != 0) {
+		*ref = 0;
+		return (dev->si_devsw);
+	}
 	dev_lock();
 	csw = dev->si_devsw;
 	if (csw != NULL) {
@@ -193,36 +197,59 @@ dev_refthread(struct cdev *dev)
 			csw = NULL;
 	}
 	dev_unlock();
+	*ref = 1;
 	return (csw);
 }
 
 struct cdevsw *
-devvn_refthread(struct vnode *vp, struct cdev **devp)
+devvn_refthread(struct vnode *vp, struct cdev **devp, int *ref)
 {
 	struct cdevsw *csw;
 	struct cdev_priv *cdp;
+	struct cdev *dev;
 
 	mtx_assert(&devmtx, MA_NOTOWNED);
+	if ((vp->v_vflag & VV_ETERNALDEV) != 0) {
+		dev = vp->v_rdev;
+		if (dev == NULL)
+			return (NULL);
+		KASSERT((dev->si_flags & SI_ETERNAL) != 0,
+		    ("Not eternal cdev"));
+		*ref = 0;
+		csw = dev->si_devsw;
+		KASSERT(csw != NULL, ("Eternal cdev is destroyed"));
+		*devp = dev;
+		return (csw);
+	}
+
 	csw = NULL;
 	dev_lock();
-	*devp = vp->v_rdev;
-	if (*devp != NULL) {
-		cdp = cdev2priv(*devp);
-		if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0) {
-			csw = (*devp)->si_devsw;
-			if (csw != NULL)
-				(*devp)->si_threadcount++;
-		}
+	dev = vp->v_rdev;
+	if (dev == NULL) {
+		dev_unlock();
+		return (NULL);
+	}
+	cdp = cdev2priv(dev);
+	if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0) {
+		csw = dev->si_devsw;
+		if (csw != NULL)
+			dev->si_threadcount++;
 	}
 	dev_unlock();
+	if (csw != NULL) {
+		*devp = dev;
+		*ref = 1;
+	}
 	return (csw);
 }
 
 void	
-dev_relthread(struct cdev *dev)
+dev_relthread(struct cdev *dev, int ref)
 {
 
 	mtx_assert(&devmtx, MA_NOTOWNED);
+	if (!ref)
+		return;
 	dev_lock();
 	KASSERT(dev->si_threadcount > 0,
 	    ("%s threadcount is wrong", dev->si_name));
@@ -325,15 +352,15 @@ static int
 giant_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_open(dev, oflags, devtype, td);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
 
@@ -341,15 +368,15 @@ static int
 giant_fdopen(struct cdev *dev, int oflags, struct thread *td, struct file *fp)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_fdopen(dev, oflags, td, fp);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
 
@@ -357,15 +384,15 @@ static int
 giant_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_close(dev, fflag, devtype, td);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
 
@@ -374,9 +401,10 @@ giant_strategy(struct bio *bp)
 {
 	struct cdevsw *dsw;
 	struct cdev *dev;
+	int ref;
 
 	dev = bp->bio_dev;
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL) {
 		biofinish(bp, NULL, ENXIO);
 		return;
@@ -384,22 +412,22 @@ giant_strategy(struct bio *bp)
 	mtx_lock(&Giant);
 	dsw->d_gianttrick->d_strategy(bp);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 }
 
 static int
 giant_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_ioctl(dev, cmd, data, fflag, td);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
   
@@ -407,15 +435,15 @@ static int
 giant_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_read(dev, uio, ioflag);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
 
@@ -423,15 +451,15 @@ static int
 giant_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_write(dev, uio, ioflag);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
 
@@ -439,15 +467,15 @@ static int
 giant_poll(struct cdev *dev, int events, struct thread *td)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_poll(dev, events, td);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
 
@@ -455,15 +483,15 @@ static int
 giant_kqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_kqfilter(dev, kn);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
 
@@ -472,16 +500,16 @@ giant_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
     vm_memattr_t *memattr)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_mmap(dev, offset, paddr, nprot,
 	    memattr);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
 
@@ -490,16 +518,16 @@ giant_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
     vm_object_t *object, int nprot)
 {
 	struct cdevsw *dsw;
-	int retval;
+	int ref, retval;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
 	retval = dsw->d_gianttrick->d_mmap_single(dev, offset, size, object,
 	    nprot);
 	mtx_unlock(&Giant);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (retval);
 }
 
@@ -676,6 +704,8 @@ make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
 	dev = newdev(devsw, unit, dev);
 	if (flags & MAKEDEV_REF)
 		dev_refl(dev);
+	if (flags & MAKEDEV_ETERNAL)
+		dev->si_flags |= SI_ETERNAL;
 	if (dev->si_flags & SI_CHEAPCLONE &&
 	    dev->si_flags & SI_NAMED) {
 		/*
@@ -840,6 +870,9 @@ destroy_devl(struct cdev *dev)
 	mtx_assert(&devmtx, MA_OWNED);
 	KASSERT(dev->si_flags & SI_NAMED,
 	    ("WARNING: Driver mistake: destroy_dev on %d\n", dev2unit(dev)));
+	KASSERT((dev->si_flags & SI_ETERNAL) == 0,
+	    ("WARNING: Driver mistake: destroy_dev on eternal %d\n",
+	     dev2unit(dev)));
 
 	devfs_destroy(dev);
 
