@@ -121,7 +121,7 @@ x86bios_alloc(uint32_t *offset, size_t size, int flags)
 		*offset = vtophys(addr);
 		mtx_lock(&x86bios_lock);
 		for (i = 0; i < howmany(size, PAGE_SIZE); i++)
-			vm86_addpage(&x86bios_vmc, atop(*offset),
+			vm86_addpage(&x86bios_vmc, atop(*offset) + i,
 			    addr + i * PAGE_SIZE);
 		mtx_unlock(&x86bios_lock);
 	}
@@ -142,6 +142,10 @@ x86bios_free(void *addr, size_t size)
 			    sizeof(x86bios_vmc.pmap[i]));
 			last = i;
 		}
+	if (last < 0) {
+		mtx_unlock(&x86bios_lock);
+		return;
+	}
 	if (last == x86bios_vmc.npages - 1) {
 		x86bios_vmc.npages -= howmany(size, PAGE_SIZE);
 		for (i = x86bios_vmc.npages - 1;
