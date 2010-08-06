@@ -244,7 +244,7 @@ sysctl_ip(SYSCTL_HANDLER_ARGS)
  *
  * Parameters:
  *	SYSCTL_HANDLER_ARGS
- *	 - arg1 is a pointer to the struct ifnet * to the interface
+ *	 - arg1 is a pointer to the struct ifnet to the interface
  *	 - arg2 is the maximum string length (IFNAMSIZ)
  *
  * Returns:
