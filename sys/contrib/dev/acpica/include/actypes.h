@@ -1099,6 +1099,11 @@ ACPI_STATUS (*ACPI_WALK_CALLBACK) (
     void                            *Context,
     void                            **ReturnValue);
 
+typedef
+UINT32 (*ACPI_INTERFACE_HANDLER) (
+    ACPI_STRING                     InterfaceName,
+    UINT32                          Supported);
+
 
 /* Interrupt handler return values */
 

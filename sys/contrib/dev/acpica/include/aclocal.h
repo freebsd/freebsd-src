@@ -1142,10 +1142,15 @@ typedef struct acpi_bit_register_info
 
 typedef struct acpi_interface_info
 {
-    char                    *Name;
-    UINT8                   Value;
+    char                        *Name;
+    struct acpi_interface_info  *Next;
+    UINT8                       Flags;
+    UINT8                       Value;
 
 } ACPI_INTERFACE_INFO;
+
+#define ACPI_OSI_INVALID                0x01
+#define ACPI_OSI_DYNAMIC                0x02
 
 typedef struct acpi_port_info
 {
@@ -1244,6 +1249,14 @@ typedef struct acpi_external_list
 /* Values for Flags field above */
 
 #define ACPI_IPATH_ALLOCATED    0x01
+
+
+typedef struct acpi_external_file
+{
+    char                        *Path;
+    struct acpi_external_file   *Next;
+
+} ACPI_EXTERNAL_FILE;
 
 
 /*****************************************************************************

@@ -54,8 +54,8 @@ SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
 # utilities
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
 	uteval.c utglobal.c utids.c utinit.c utlock.c utmath.c	\
-	utmisc.c utmutex.c utobject.c utresrc.c utstate.c	\
-	uttrack.c utxface.c
+	utmisc.c utmutex.c utobject.c utosi.c utresrc.c		\
+	utstate.c uttrack.c utxface.c
 
 MAN=	acpidb.8
 WARNS?=	2

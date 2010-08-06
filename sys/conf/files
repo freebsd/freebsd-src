@@ -285,6 +285,7 @@ contrib/dev/acpica/utilities/utmath.c		optional acpi
 contrib/dev/acpica/utilities/utmisc.c		optional acpi
 contrib/dev/acpica/utilities/utmutex.c		optional acpi
 contrib/dev/acpica/utilities/utobject.c		optional acpi
+contrib/dev/acpica/utilities/utosi.c		optional acpi
 contrib/dev/acpica/utilities/utresrc.c		optional acpi
 contrib/dev/acpica/utilities/utstate.c		optional acpi
 contrib/dev/acpica/utilities/utxface.c		optional acpi
