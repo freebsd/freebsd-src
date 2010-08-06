@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100806: removal of unused libcompat routines
+OLD_FILES+=usr/share/man/man3/ascftime.3.gz
+OLD_FILES+=usr/share/man/man3/cfree.3.gz
+OLD_FILES+=usr/share/man/man3/cftime.3.gz
+OLD_FILES+=usr/share/man/man3/getpw.3.gz
 # 20100725: acpi_aiboost(4) removal.
 OLD_FILES+=usr/share/man/man4/acpi_aiboost.4.gz
 # 20100720: new clang import which bumps version from 2.0 to 2.8
