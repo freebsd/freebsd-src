@@ -124,7 +124,6 @@ typedef struct pv_entry {
 	TAILQ_ENTRY(pv_entry) pv_list;
 	TAILQ_ENTRY(pv_entry) pv_plist;
 	vm_page_t pv_ptem;	/* VM page for pte */
-	boolean_t pv_wired;	/* whether this entry is wired */
 }       *pv_entry_t;
 
 
