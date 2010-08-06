@@ -6,6 +6,8 @@ desc="NFSv4 granular permissions checking - WRITE_DATA vs APPEND_DATA on directo
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
+[ "${os}:${fs}" = "FreeBSD:ZFS" ] || quick_exit
+
 echo "1..49"
 
 n0=`namegen`
