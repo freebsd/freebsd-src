@@ -41,8 +41,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_wi.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -126,6 +124,7 @@ static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(DLINK, DWL650H),
 	PCMCIA_CARD(ELSA, XI300_IEEE),
 	PCMCIA_CARD(ELSA, XI325_IEEE),
+	PCMCIA_CARD(ELSA, APDL325_IEEE),
 	PCMCIA_CARD(ELSA, XI330_IEEE),
 	PCMCIA_CARD(ELSA, XI800_IEEE),
 	PCMCIA_CARD(ELSA, WIFI_FLASH),
