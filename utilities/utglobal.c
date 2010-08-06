@@ -905,6 +905,7 @@ AcpiUtInitGlobals (
     AcpiGbl_ExceptionHandler            = NULL;
     AcpiGbl_InitHandler                 = NULL;
     AcpiGbl_TableHandler                = NULL;
+    AcpiGbl_InterfaceHandler            = NULL;
 
     /* Global Lock support */
 
@@ -931,6 +932,7 @@ AcpiUtInitGlobals (
     AcpiGbl_DebuggerConfiguration       = DEBUGGER_THREADING;
     AcpiGbl_DbOutputFlags               = ACPI_DB_CONSOLE_OUTPUT;
     AcpiGbl_OsiData                     = 0;
+    AcpiGbl_OsiMutex                    = NULL;
 
     /* Hardware oriented */
 

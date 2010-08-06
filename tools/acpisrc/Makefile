@@ -8,7 +8,7 @@ CFLAGS+= -Wall -O2 -D_LINUX -DACPI_APPLICATION -Wstrict-prototypes -I../../inclu
 
 
 aslmain : $(patsubst %.c,%.o, $(SRCS))
-	$(CC) $(LDFLAGS) $(patsubst %.c,%.o, $(SRCS)) -o $(PROG)
+	$(CC) $(LDFLAGS) $(CFLAGS) $(patsubst %.c,%.o, $(SRCS)) -o $(PROG)
 
 CLEANFILES= $(PROG)
 

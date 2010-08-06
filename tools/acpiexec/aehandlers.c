@@ -158,6 +158,11 @@ AeAttachedDataHandler (
     ACPI_HANDLE             Object,
     void                    *Data);
 
+UINT32
+AeInterfaceHandler (
+    ACPI_STRING             InterfaceName,
+    UINT32                  Supported);
+
 UINT32                      SigintCount = 0;
 AE_DEBUG_REGIONS            AeRegions;
 
@@ -479,6 +484,30 @@ AeAttachedDataHandler (
 
 /******************************************************************************
  *
+ * FUNCTION:    AeInterfaceHandler
+ *
+ * DESCRIPTION: Handler for _OSI invocations
+ *
+ *****************************************************************************/
+
+UINT32
+AeInterfaceHandler (
+    ACPI_STRING             InterfaceName,
+    UINT32                  Supported)
+{
+    ACPI_FUNCTION_NAME (AeInterfaceHandler);
+
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "Received _OSI (\"%s\"), is %ssupported\n",
+        InterfaceName, Supported == 0 ? "not " : ""));
+
+    return (Supported);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    AeRegionInit
  *
  * PARAMETERS:  None
@@ -530,6 +559,13 @@ AeInstallHandlers (void)
 
     ACPI_FUNCTION_ENTRY ();
 
+
+    Status = AcpiInstallInterfaceHandler (AeInterfaceHandler);
+    if (ACPI_FAILURE (Status))
+    {
+        printf ("Could not install interface handler, %s\n",
+            AcpiFormatException (Status));
+    }
 
     Status = AcpiInstallTableHandler (AeTableHandler, NULL);
     if (ACPI_FAILURE (Status))
