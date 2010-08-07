@@ -193,6 +193,8 @@ static const struct u3g_dev_type_s u3g_devs[] = {
 	/* OEM: CMOTECH */
 	{{ USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CGU628 },		U3GSP_HSDPA,	U3GINIT_CMOTECH },
 	{{ USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_DISK },		U3GSP_HSDPA,	U3GINIT_NONE },
+	/* OEM: Longcheer */
+	{ USB_VENDOR_LONGCHEER, USB_PRODUCT_LONGCHEER_WM66 },		U3GSP_HSDPA,	U3GINIT_HUAWEI },
 };
 #define u3g_lookup(v, p) ((const struct u3g_dev_type_s *)usb_lookup(u3g_devs, v, p))
 
