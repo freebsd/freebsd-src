@@ -37,8 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/fbio.h>
 
 #include <vm/vm.h>
@@ -72,6 +74,8 @@ struct adp_state {
 	u_char		regs[1];
 };
 typedef struct adp_state adp_state_t;
+
+static struct mtx vesa_lock;
 
 static void *vesa_state_buf = NULL;
 static uint32_t vesa_state_buf_offs = 0;
@@ -381,17 +385,19 @@ vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 	regs.R_ES = X86BIOS_PHYSTOSEG(vesa_palette_offs);
 	regs.R_DI = X86BIOS_PHYSTOOFF(vesa_palette_offs);
 
-	x86bios_intr(&regs, 0x10);
-
-	if (regs.R_AX != 0x004f)
-		return (1);
-
 	bits = 8 - bits;
+	mtx_lock(&vesa_lock);
+	x86bios_intr(&regs, 0x10);
+	if (regs.R_AX != 0x004f) {
+		mtx_unlock(&vesa_lock);
+		return (1);
+	}
 	for (i = 0; i < colors; ++i) {
 		palette[i * 3] = vesa_palette[i * 4 + 2] << bits;
 		palette[i * 3 + 1] = vesa_palette[i * 4 + 1] << bits;
 		palette[i * 3 + 2] = vesa_palette[i * 4] << bits;
 	}
+	mtx_unlock(&vesa_lock);
 
 	return (0);
 }
@@ -412,17 +418,19 @@ vesa_bios_save_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	regs.R_ES = X86BIOS_PHYSTOSEG(vesa_palette_offs);
 	regs.R_DI = X86BIOS_PHYSTOOFF(vesa_palette_offs);
 
-	x86bios_intr(&regs, 0x10);
-
-	if (regs.R_AX != 0x004f)
-		return (1);
-
 	bits = 8 - bits;
+	mtx_lock(&vesa_lock);
+	x86bios_intr(&regs, 0x10);
+	if (regs.R_AX != 0x004f) {
+		mtx_unlock(&vesa_lock);
+		return (1);
+	}
 	for (i = 0; i < colors; ++i) {
 		r[i] = vesa_palette[i * 4 + 2] << bits;
 		g[i] = vesa_palette[i * 4 + 1] << bits;
 		b[i] = vesa_palette[i * 4] << bits;
 	}
+	mtx_unlock(&vesa_lock);
 
 	return (0);
 }
@@ -443,6 +451,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 	regs.R_DI = X86BIOS_PHYSTOOFF(vesa_palette_offs);
 
 	bits = 8 - bits;
+	mtx_lock(&vesa_lock);
 	for (i = 0; i < colors; ++i) {
 		vesa_palette[i * 4] = palette[i * 3 + 2] >> bits;
 		vesa_palette[i * 4 + 1] = palette[i * 3 + 1] >> bits;
@@ -450,6 +459,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 		vesa_palette[i * 4 + 3] = 0;
 	}
 	x86bios_intr(&regs, 0x10);
+	mtx_unlock(&vesa_lock);
 
 	return (regs.R_AX != 0x004f);
 }
@@ -471,6 +481,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	regs.R_DI = X86BIOS_PHYSTOOFF(vesa_palette_offs);
 
 	bits = 8 - bits;
+	mtx_lock(&vesa_lock);
 	for (i = 0; i < colors; ++i) {
 		vesa_palette[i * 4] = b[i] >> bits;
 		vesa_palette[i * 4 + 1] = g[i] >> bits;
@@ -478,6 +489,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 		vesa_palette[i * 4 + 3] = 0;
 	}
 	x86bios_intr(&regs, 0x10);
+	mtx_unlock(&vesa_lock);
 
 	return (regs.R_AX != 0x004f);
 }
@@ -516,6 +528,7 @@ vesa_bios_save_restore(int code, void *p)
 	regs.R_ES = X86BIOS_PHYSTOSEG(vesa_state_buf_offs);
 	regs.R_BX = X86BIOS_PHYSTOOFF(vesa_state_buf_offs);
 
+	mtx_lock(&vesa_lock);
 	switch (code) {
 	case STATE_SAVE:
 		x86bios_intr(&regs, 0x10);
@@ -526,6 +539,7 @@ vesa_bios_save_restore(int code, void *p)
 		x86bios_intr(&regs, 0x10);
 		break;
 	}
+	mtx_unlock(&vesa_lock);
 
 	return (regs.R_AX != 0x004f);
 }
@@ -1805,16 +1819,15 @@ static int
 vesa_load(void)
 {
 	int error;
-	int s;
 
 	if (vesa_init_done)
 		return (0);
 
+	mtx_init(&vesa_lock, "VESA lock", NULL, MTX_DEF);
+
 	/* locate a VGA adapter */
-	s = spltty();
 	vesa_adp = NULL;
 	error = vesa_configure(0);
-	splx(s);
 
 	if (error == 0)
 		vesa_bios_info(bootverbose);
@@ -1827,7 +1840,6 @@ vesa_unload(void)
 {
 	u_char palette[256*3];
 	int error;
-	int s;
 
 	/* if the adapter is currently in a VESA mode, don't unload */
 	if ((vesa_adp != NULL) && VESA_MODE(vesa_adp->va_mode))
@@ -1837,7 +1849,6 @@ vesa_unload(void)
 	 * we shouldn't be unloading! XXX
 	 */
 
-	s = spltty();
 	if ((error = vesa_unload_ioctl()) == 0) {
 		if (vesa_adp != NULL) {
 			if ((vesa_adp->va_flags & V_ADP_DAC8) != 0) {
@@ -1850,7 +1861,6 @@ vesa_unload(void)
 			vidsw[vesa_adp->va_index] = prevvidsw;
 		}
 	}
-	splx(s);
 
 	if (vesa_adp_info != NULL)
 		free(vesa_adp_info, M_DEVBUF);
@@ -1867,6 +1877,9 @@ vesa_unload(void)
 	if (vesa_palette != NULL)
 		x86bios_free(vesa_palette,
 		    VESA_PALETTE_SIZE + vesa_state_buf_size);
+
+	mtx_destroy(&vesa_lock);
+
 	return (error);
 }
 
