@@ -267,7 +267,6 @@ sysctl_nic(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return error;
 
-	error=0;
 	len = req->newlen - req->newidx;
 	if (len >= arg2) {
 		error = EINVAL;
