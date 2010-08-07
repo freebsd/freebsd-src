@@ -358,6 +358,8 @@ linux_pci_probe(device_t dev)
 
 	if ((pdrv = linux_pci_find(dev, &id)) == NULL)
 		return (ENXIO);
+	if (device_get_driver(dev) != &pdrv->driver)
+		return (ENXIO);
 	device_set_desc(dev, pdrv->name);
 	return (0);
 }
