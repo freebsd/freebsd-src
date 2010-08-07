@@ -98,7 +98,8 @@ do {									\
 				sleepq_release(c);			\
 				break;					\
 			}						\
-			sleepq_add(c, NULL, "completion", SLEEPQ_SLEEP, 0); \
+			sleepq_add(c, NULL, "completion",		\
+			    SLEEPQ_SLEEP | SLEEPQ_INTERRUPTIBLE, 0);	\
 			if (sleepq_wait_sig(c, 0))			\
 				_error = -ERESTARTSYS;			\
 		}							\
