@@ -49,9 +49,9 @@ __FBSDID("$FreeBSD$");
 
 #ifndef IN6_IS_ADDR_V4MAPPED
 #define IN6_IS_ADDR_V4MAPPED(a)		      \
-	((*(const u_int32_t *)(const void *)(&(a)->s6_addr[0]) == 0) &&	\
-	 (*(const u_int32_t *)(const void *)(&(a)->s6_addr[4]) == 0) &&	\
-	 (*(const u_int32_t *)(const void *)(&(a)->s6_addr[8]) == ntohl(0x0000ffff)))
+	((*(const uint32_t *)(const void *)(&(a)->s6_addr[0]) == 0) &&	\
+	 (*(const uint32_t *)(const void *)(&(a)->s6_addr[4]) == 0) &&	\
+	 (*(const uint32_t *)(const void *)(&(a)->s6_addr[8]) == ntohl(0x0000ffff)))
 #endif
 
 
@@ -533,11 +533,11 @@ sctp_sendmsg(int s,
     size_t len,
     const struct sockaddr *to,
     socklen_t tolen,
-    u_int32_t ppid,
-    u_int32_t flags,
-    u_int16_t stream_no,
-    u_int32_t timetolive,
-    u_int32_t context)
+    uint32_t ppid,
+    uint32_t flags,
+    uint16_t stream_no,
+    uint32_t timetolive,
+    uint32_t context)
 {
 #ifdef SYS_sctp_generic_sendmsg
 	struct sctp_sndrcvinfo sinfo;
@@ -814,11 +814,11 @@ sctp_sendmsgx(int sd,
     size_t len,
     struct sockaddr *addrs,
     int addrcnt,
-    u_int32_t ppid,
-    u_int32_t flags,
-    u_int16_t stream_no,
-    u_int32_t timetolive,
-    u_int32_t context)
+    uint32_t ppid,
+    uint32_t flags,
+    uint16_t stream_no,
+    uint32_t timetolive,
+    uint32_t context)
 {
 	struct sctp_sndrcvinfo sinfo;
 
