@@ -162,7 +162,6 @@ static unsigned char buf[MAXDUMPPGS*PAGE_SIZE]; /* Must be at least as big as
 						 * us */
 static struct ether_addr nd_server_mac;
 
-static int nd_active = 0;
 static int nd_enable = 0;  /* if we should perform a network dump */
 static struct in_addr nd_server = {INADDR_ANY}; /* server address */
 static struct in_addr nd_client = {INADDR_ANY}; /* client (our) address */
@@ -1177,25 +1176,25 @@ netdump_trigger(void *arg, int howto)
 	u_int cpumap=0;
 #endif
 	
-	if ((howto&(RB_HALT|RB_DUMP))!=RB_DUMP || !nd_enable || nd_active) {
+	if ((howto&(RB_HALT|RB_DUMP))!=RB_DUMP || !nd_enable) {
 		return;
 	}
-	nd_active = 1;
+	nd_enable = 0;
 
 	if (!nd_nic) {
 		printf("netdump_trigger: Can't netdump: no NIC given\n");
-		nd_active = 0;
+		nd_enable = 1;
 		return;
 	}
 
 	if (nd_server.s_addr == INADDR_ANY) {
 		printf("netdump_trigger: Can't netdump; no server IP given\n");
-		nd_active = 0;
+		nd_enable = 1;
 		return;
 	}
 	if (nd_client.s_addr == INADDR_ANY) {
 		printf("netdump_trigger: Can't netdump; no client IP given\n");
-		nd_active = 0;
+		nd_enable = 1;
 		return;
 	}
 
@@ -1242,7 +1241,7 @@ netdump_trigger(void *arg, int howto)
 
 	if(error) {
 		printf("netdump_trigger: Could not acquire lock on %s\n", nd_nic->if_xname);
-		nd_active = 0;
+		nd_enable = 1;
 		return;
 	}
 	
@@ -1311,7 +1310,7 @@ cleanup:
 		restart_cpus(cpumap);
 	}
 #endif
-	nd_active = 0;
+	nd_enable = 1;
 }
 
 /*-
@@ -1452,13 +1451,9 @@ DECLARE_MODULE(netdump, netdump_mod, SI_SUB_PROTO_END, SI_ORDER_ANY);
 #ifdef DDB
 DB_COMMAND(netdump, ddb_force_netdump)
 {
-	if(nd_active) {
-		db_printf("netdump in progress");
-		return;
-	}
 
 	if(!nd_enable) {
-		db_printf("netdump not enabled");
+		db_printf("Netdump not enabled -- could be in progress");
 		return;
 	}
 
