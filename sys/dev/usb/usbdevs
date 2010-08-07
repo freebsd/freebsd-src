@@ -627,6 +627,7 @@ vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor MATRIXORBITAL	0x1b3d	Matrix Orbital
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor METAGEEK2	0x1dd5	MetaGeek
 vendor DLINK		0x2001	D-Link
@@ -1666,6 +1667,9 @@ product LOGITECH QUICKCAMPRO2	0xd001	QuickCam Pro
 /* Logitec Corp. products */
 product LOGITEC LDR_H443SU2	0x0033	DVD Multi-plus unit LDR-H443SU2
 product LOGITEC LDR_H443U2	0x00b3	DVD Multi-plus unit LDR-H443U2
+
+/* Longcheer Holdings, Ltd. products */
+product LONGCHEER WM66		0x6061	Longcheer WM66 HSDPA USB modem
 
 /* Lucent products */
 product LUCENT EVALKIT		0x1001	USS-720 evaluation kit
