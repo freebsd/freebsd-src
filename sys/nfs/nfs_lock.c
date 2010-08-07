@@ -54,10 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 
 #include <nfs/nfsproto.h>
+#include <nfs/nfs_lock.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
-#include <nfsclient/nfs_lock.h>
 #include <nfsclient/nlminfo.h>
 
 extern void (*nlminfo_release_p)(struct proc *p);
