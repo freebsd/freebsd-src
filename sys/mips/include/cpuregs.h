@@ -110,15 +110,75 @@
 #define	MIPS_XKPHYS_START		0x8000000000000000
 #define	MIPS_XKPHYS_END			0xbfffffffffffffff
 
-#define	MIPS_CCA_UC		0x02	/* Uncached.  */
-#define	MIPS_CCA_CNC		0x03	/* Cacheable non-coherent.  */
+/*
+ * Cache Coherency Attributes:
+ *	UC:	Uncached.
+ *	UA:	Uncached accelerated.
+ *	C:	Cacheable, coherency unspecified.
+ *	CNC:	Cacheable non-coherent.
+ *	CC:	Cacheable coherent.
+ *	CCE:	Cacheable coherent, exclusive read.
+ *	CCEW:	Cacheable coherent, exclusive write.
+ *	CCUOW:	Cacheable coherent, update on write.
+ *
+ * Note that some bits vary in meaning across implementations (and that the
+ * listing here is no doubt incomplete) and that the optimal cached mode varies
+ * between implementations.  0x02 is required to be UC and 0x03 is required to
+ * be a least C.
+ *
+ * We define the following logical bits:
+ * 	UNCACHED:
+ * 		The optimal uncached mode for the target CPU type.  This must
+ * 		be suitable for use in accessing memory-mapped devices.
+ * 	CACHED:	The optional cached mode for the target CPU type.
+ */
+
+#define	MIPS_CCA_UC		0x02	/* Uncached. */
+#define	MIPS_CCA_C		0x03	/* Cacheable, coherency unspecified. */
+
+#if defined(CPU_R4000) || defined(CPU_R10000)
+#define	MIPS_CCA_CNC	0x03
+#define	MIPS_CCA_CCE	0x04
+#define	MIPS_CCA_CCEW	0x05
+
+#ifdef CPU_R4000
+#define	MIPS_CCA_CCUOW	0x06
+#endif
+
+#ifdef CPU_R10000
+#define	MIPS_CCA_UA	0x07
+#endif
+
+#define	MIPS_CCA_CACHED	MIPS_CCA_CCEW
+#endif /* defined(CPU_R4000) || defined(CPU_R10000) */
+
+#if defined(CPU_SB1)
+#define	MIPS_CCA_CC	0x05	/* Cacheable Coherent. */
+#endif
+
+#ifndef	MIPS_CCA_UNCACHED
+#define	MIPS_CCA_UNCACHED	MIPS_CCA_UC
+#endif
+
+/*
+ * If we don't know which cached mode to use and there is a cache coherent
+ * mode, use it.  If there is not a cache coherent mode, use the required
+ * cacheable mode.
+ */
+#ifndef MIPS_CCA_CACHED
+#ifdef MIPS_CCA_CC
+#define	MIPS_CCA_CACHED	MIPS_CCA_CC
+#else
+#define	MIPS_CCA_CACHED	MIPS_CCA_C
+#endif
+#endif
 
 #define	MIPS_PHYS_TO_XKPHYS(cca,x) \
 	((0x2ULL << 62) | ((unsigned long long)(cca) << 59) | (x))
 #define	MIPS_PHYS_TO_XKPHYS_CACHED(x) \
-	((0x2ULL << 62) | ((unsigned long long)(MIPS_CCA_CNC) << 59) | (x))
+	((0x2ULL << 62) | ((unsigned long long)(MIPS_CCA_CACHED) << 59) | (x))
 #define	MIPS_PHYS_TO_XKPHYS_UNCACHED(x) \
-	((0x2ULL << 62) | ((unsigned long long)(MIPS_CCA_UC) << 59) | (x))
+	((0x2ULL << 62) | ((unsigned long long)(MIPS_CCA_UNCACHED) << 59) | (x))
 
 #define	MIPS_XKPHYS_TO_PHYS(x)		((x) & 0x07ffffffffffffffULL)
 
