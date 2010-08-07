@@ -424,10 +424,12 @@ static uint8_t
 x86bios_emu_inb(struct x86emu *emu, uint16_t port)
 {
 
+#ifndef X86BIOS_NATIVE_ARCH
 	if (port == 0xb2) /* APM scratch register */
 		return (0);
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return (0);
+#endif
 
 	return (iodev_read_1(port));
 }
@@ -437,10 +439,10 @@ x86bios_emu_inw(struct x86emu *emu, uint16_t port)
 {
 	uint16_t val;
 
+#ifndef X86BIOS_NATIVE_ARCH
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return (0);
 
-#ifndef X86BIOS_NATIVE_ARCH
 	if ((port & 1) != 0) {
 		val = iodev_read_1(port);
 		val |= iodev_read_1(port + 1) << 8;
@@ -456,10 +458,10 @@ x86bios_emu_inl(struct x86emu *emu, uint16_t port)
 {
 	uint32_t val;
 
+#ifndef X86BIOS_NATIVE_ARCH
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return (0);
 
-#ifndef X86BIOS_NATIVE_ARCH
 	if ((port & 1) != 0) {
 		val = iodev_read_1(port);
 		val |= iodev_read_2(port + 1) << 8;
@@ -478,10 +480,12 @@ static void
 x86bios_emu_outb(struct x86emu *emu, uint16_t port, uint8_t val)
 {
 
+#ifndef X86BIOS_NATIVE_ARCH
 	if (port == 0xb2) /* APM scratch register */
 		return;
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return;
+#endif
 
 	iodev_write_1(port, val);
 }
@@ -490,10 +494,10 @@ static void
 x86bios_emu_outw(struct x86emu *emu, uint16_t port, uint16_t val)
 {
 
+#ifndef X86BIOS_NATIVE_ARCH
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return;
 
-#ifndef X86BIOS_NATIVE_ARCH
 	if ((port & 1) != 0) {
 		iodev_write_1(port, val);
 		iodev_write_1(port + 1, val >> 8);
@@ -506,10 +510,10 @@ static void
 x86bios_emu_outl(struct x86emu *emu, uint16_t port, uint32_t val)
 {
 
+#ifndef X86BIOS_NATIVE_ARCH
 	if (port >= 0x80 && port < 0x88) /* POST status register */
 		return;
 
-#ifndef X86BIOS_NATIVE_ARCH
 	if ((port & 1) != 0) {
 		iodev_write_1(port, val);
 		iodev_write_2(port + 1, val >> 8);
