@@ -2990,10 +2990,10 @@ alc_init_locked(struct alc_softc *sc)
 	 */
 	CSR_WRITE_4(sc, ALC_INTR_RETRIG_TIMER, ALC_USECS(0));
 	/* Configure CMB. */
-	CSR_WRITE_4(sc, ALC_CMB_TD_THRESH, 4);
-	if ((sc->alc_flags & ALC_FLAG_CMB_BUG) == 0)
+	if ((sc->alc_flags & ALC_FLAG_CMB_BUG) == 0) {
+		CSR_WRITE_4(sc, ALC_CMB_TD_THRESH, 4);
 		CSR_WRITE_4(sc, ALC_CMB_TX_TIMER, ALC_USECS(5000));
-	else
+	} else
 		CSR_WRITE_4(sc, ALC_CMB_TX_TIMER, ALC_USECS(0));
 	/*
 	 * Hardware can be configured to issue SMB interrupt based
