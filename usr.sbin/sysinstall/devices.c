@@ -281,6 +281,8 @@ deviceGetAll(void)
 
     msgNotify("Probing devices, please wait (this can take a while)...");
     /* First go for the network interfaces.  Stolen shamelessly from ifconfig! */
+    memset(&ifc, 0, sizeof(ifc));
+    memset(buffer, 0, INTERFACE_MAX * sizeof(struct ifreq));
     ifc.ifc_len = sizeof(buffer);
     ifc.ifc_buf = buffer;
 
@@ -357,7 +359,7 @@ skipif:
 
 		    if (fd >= 0) close(fd);
 		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
+		    deviceRegister(n, device_names[i].description, strdup(try),
 					 DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM,
 					 mediaShutdownCDROM, NULL);
 		    if (isDebug())
@@ -390,7 +392,7 @@ skipif:
 
 		    close(fd);
 		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
+		    deviceRegister(n, device_names[i].description, strdup(try),
 				   DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy,
 				   mediaShutdownFloppy, NULL);
 		    if (isDebug())
