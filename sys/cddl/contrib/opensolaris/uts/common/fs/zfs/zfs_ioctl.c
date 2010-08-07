@@ -357,7 +357,7 @@ zfs_secpolicy_setprop(const char *name, zfs_prop_t prop, cred_t *cr)
 			 * quota on things *under* (ie. contained by)
 			 * the thing they own.
 			 */
-			if (dsl_prop_get_integer(name, "zoned", &zoned,
+			if (dsl_prop_get_integer(name, "jailed", &zoned,
 			    setpoint))
 				return (EPERM);
 			if (!zoned || strlen(name) <= strlen(setpoint))
