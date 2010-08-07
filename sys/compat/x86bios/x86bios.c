@@ -194,7 +194,7 @@ uint32_t
 x86bios_get_intr(int intno)
 {
 
-	return (readl(x86bios_offset(intno * 4)));
+	return (readl(BIOS_PADDRTOVADDR(intno * 4)));
 }
 
 void
