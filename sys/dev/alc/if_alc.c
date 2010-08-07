@@ -610,6 +610,10 @@ alc_attach(device_t dev)
 			device_printf(dev, "TLP payload size : %u bytes.\n",
 			    alc_dma_burst[sc->alc_dma_wr_burst]);
 		}
+		if (alc_dma_burst[sc->alc_dma_rd_burst] > 1024)
+			sc->alc_dma_rd_burst = 3;
+		if (alc_dma_burst[sc->alc_dma_wr_burst] > 1024)
+			sc->alc_dma_wr_burst = 3;
 		/* Clear data link and flow-control protocol error. */
 		val = CSR_READ_4(sc, ALC_PEX_UNC_ERR_SEV);
 		val &= ~(PEX_UNC_ERR_SEV_DLP | PEX_UNC_ERR_SEV_FCP);
