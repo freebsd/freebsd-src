@@ -65,11 +65,12 @@ struct file_operations;
 
 struct linux_file {
 	struct file	*_file;
-	struct file_operations	*f_op;
+	const struct file_operations	*f_op;
 	void 		*private_data;
 	int		f_flags;
 	struct dentry	*f_dentry;
 	struct dentry	f_dentry_store;
+	struct selinfo	f_selinfo;
 };
 
 #define	file	linux_file
@@ -78,23 +79,25 @@ typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 
 struct file_operations {
 	struct module *owner;
-	loff_t (*llseek)(struct file *, loff_t, int);
 	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
+	unsigned int (*poll) (struct file *, struct poll_table_struct *);
+	long (*unlocked_ioctl)(struct file *, unsigned int, unsigned long);
+	int (*mmap)(struct file *, struct vm_area_struct *);
+	int (*open)(struct inode *, struct file *);
+	int (*release)(struct inode *, struct file *);
+#if 0
+	/* We do not support these methods.  Don't permit them to compile. */
+	loff_t (*llseek)(struct file *, loff_t, int);
 	ssize_t (*aio_read)(struct kiocb *, const struct iovec *,
 	    unsigned long, loff_t);
 	ssize_t (*aio_write)(struct kiocb *, const struct iovec *,
 	    unsigned long, loff_t);
 	int (*readdir)(struct file *, void *, filldir_t);
-	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	int (*ioctl)(struct inode *, struct file *, unsigned int,
 	    unsigned long);
-	long (*unlocked_ioctl)(struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl)(struct file *, unsigned int, unsigned long);
-	int (*mmap)(struct file *, struct vm_area_struct *);
-	int (*open)(struct inode *, struct file *);
 	int (*flush)(struct file *, fl_owner_t id);
-	int (*release)(struct inode *, struct file *);
 	int (*fsync)(struct file *, struct dentry *, int datasync);
 	int (*aio_fsync)(struct kiocb *, int datasync);
 	int (*fasync)(int, struct file *, int);
@@ -110,68 +113,28 @@ struct file_operations {
 	ssize_t (*splice_read)(struct file *, loff_t *,
 	    struct pipe_inode_info *, size_t, unsigned int);
 	int (*setlease)(struct file *, long, struct file_lock **);
+#endif
 };
-
-static inline int
-linux_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
-{
-	return 0;
-}
-
-static inline int
-linux_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
-{
-	return 0;
-}
-
-static inline int
-linux_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
-    struct thread *td)
-{
-	return 0;
-}
-
-static inline int
-linux_read(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	return 0;
-}
-
-static inline int
-linux_write(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	return 0;
-}
-
-static inline int
-linux_poll(struct cdev *dev, int events, struct thread *td)
-{
-	return 0;
-}
-
-static inline int
-linux_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int nprot, vm_memattr_t *memattr)
-{
-	return 0;
-}
 
 static inline int
 register_chrdev_region(dev_t dev, unsigned range, const char *name)
 {
+
 	return 0;
 }
 
 static inline void
 unregister_chrdev_region(dev_t dev, unsigned range)
 {
+
 	return;
 }
 
 static inline dev_t
 iminor(struct inode *inode)
 {
-	return dev2udev(inode->v_rdev);
+
+	return dev2unit(inode->v_rdev);
 }
 
 static inline struct inode *

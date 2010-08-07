@@ -60,6 +60,7 @@ cdev_alloc(void)
 {
 	struct linux_cdev *cdev;
 
+	/* XXX Need cdev_ktype */
 	cdev = kzalloc(sizeof(struct linux_cdev), M_WAITOK);
 	if (cdev)
 		kobject_init(&cdev->kobj, NULL);
@@ -79,6 +80,8 @@ cdev_add(struct linux_cdev *cdev, dev_t dev, unsigned count)
 		panic("cdev_add: Unsupported count: %d", count);
 	cdev->cdev = make_dev(&linuxcdevsw, MINOR(dev), 0, 0, 0700, 
 	    kobject_name(&cdev->kobj));
+	cdev->cdev->si_drv1 = cdev;
+
 	return (0);
 }
 

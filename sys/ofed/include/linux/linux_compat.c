@@ -44,15 +44,15 @@
 #include <linux/cdev.h>
 #include <linux/file.h>
 #include <linux/sysfs.h>
+#include <linux/mm.h>
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
-struct fileops linuxfileops;
-struct cdevsw linuxcdevsw;
-
 #include <linux/rbtree.h>
-/* Undo Linux compat change. */
+/* Undo Linux compat changes. */
 #undef RB_ROOT
+#undef file
+#undef cdev
 #define	RB_ROOT(head)	(head)->rbh_root
 
 struct kobject class_root;
@@ -185,6 +185,304 @@ kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
 		return (error);
 	return kobject_add_complete(kobj, parent);
 }
+
+static void
+linux_file_dtor(void *cdp)
+{
+	struct linux_file *filp;
+
+	filp = cdp;
+	filp->f_op->release(curthread->td_fpop->f_vnode, filp);
+	kfree(filp);
+}
+
+static int
+linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+	struct linux_cdev *ldev;
+	struct linux_file *filp;
+	struct file *file;
+	int error;
+
+	file = curthread->td_fpop;
+	ldev = dev->si_drv1;
+	if (ldev == NULL)
+		return (ENODEV);
+	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
+	filp->f_dentry = &filp->f_dentry_store;
+	filp->f_op = ldev->ops;
+	filp->f_flags = file->f_flag;
+	if (filp->f_op->open) {
+		error = -filp->f_op->open(file->f_vnode, filp);
+		if (error) {
+			kfree(filp);
+			return (error);
+		}
+	}
+	error = devfs_set_cdevpriv(filp, linux_file_dtor);
+	if (error) {
+		filp->f_op->release(file->f_vnode, filp);
+		kfree(filp);
+		return (error);
+	}
+
+	return 0;
+}
+
+static int
+linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+{
+	struct linux_cdev *ldev;
+	struct linux_file *filp;
+	struct file *file;
+	int error;
+
+	file = curthread->td_fpop;
+	ldev = dev->si_drv1;
+	if (ldev == NULL)
+		return (0);
+	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
+		return (error);
+	filp->f_flags = file->f_flag;
+	devfs_clear_cdevpriv();
+
+	return (0);
+}
+
+static int
+linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	struct linux_cdev *ldev;
+	struct linux_file *filp;
+	struct file *file;
+	int error;
+
+	file = curthread->td_fpop;
+	ldev = dev->si_drv1;
+	if (ldev == NULL)
+		return (0);
+	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
+		return (error);
+	filp->f_flags = file->f_flag;
+	/*
+	 * Linux does not have a generic ioctl copyin/copyout layer.  All
+	 * linux ioctls must be converted to void ioctls which pass a
+	 * pointer to the address of the data.  We want the actual user
+	 * address so we dereference here.
+	 */
+	data = *(void **)data;
+	if (filp->f_op->unlocked_ioctl)
+		error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
+	else
+		error = ENOTTY;
+
+	return (error);
+}
+
+static int
+linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
+{
+	struct linux_cdev *ldev;
+	struct linux_file *filp;
+	struct file *file;
+	ssize_t bytes;
+	int error;
+
+	file = curthread->td_fpop;
+	ldev = dev->si_drv1;
+	if (ldev == NULL)
+		return (0);
+	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
+		return (error);
+	filp->f_flags = file->f_flag;
+	if (uio->uio_iovcnt != 1)
+		panic("linux_dev_read: uio %p iovcnt %d",
+		    uio, uio->uio_iovcnt);
+	if (filp->f_op->read) {
+		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
+		    uio->uio_iov->iov_len, &uio->uio_offset);
+		if (bytes >= 0) {
+			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_len -= bytes;
+			uio->uio_resid -= bytes;
+		} else
+			error = -bytes;
+	} else
+		error = ENXIO;
+
+	return (error);
+}
+
+static int
+linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
+{
+	struct linux_cdev *ldev;
+	struct linux_file *filp;
+	struct file *file;
+	ssize_t bytes;
+	int error;
+
+	file = curthread->td_fpop;
+	ldev = dev->si_drv1;
+	if (ldev == NULL)
+		return (0);
+	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
+		return (error);
+	filp->f_flags = file->f_flag;
+	if (uio->uio_iovcnt != 1)
+		panic("linux_dev_write: uio %p iovcnt %d",
+		    uio, uio->uio_iovcnt);
+	if (filp->f_op->write) {
+		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
+		    uio->uio_iov->iov_len, &uio->uio_offset);
+		if (bytes >= 0) {
+			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_len -= bytes;
+			uio->uio_resid -= bytes;
+		} else
+			error = -bytes;
+	} else
+		error = ENXIO;
+
+	return (error);
+}
+
+static int
+linux_dev_poll(struct cdev *dev, int events, struct thread *td)
+{
+	struct linux_cdev *ldev;
+	struct linux_file *filp;
+	struct file *file;
+	int revents;
+	int error;
+
+	file = curthread->td_fpop;
+	ldev = dev->si_drv1;
+	if (ldev == NULL)
+		return (0);
+	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
+		return (error);
+	filp->f_flags = file->f_flag;
+	if (filp->f_op->poll)
+		revents = filp->f_op->poll(filp, NULL) & events;
+	else
+		revents = 0;
+
+	return (revents);
+}
+
+static int
+linux_dev_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
+{
+	struct linux_cdev *ldev;
+	struct linux_file *filp;
+	struct file *file;
+	struct vm_area_struct vma;
+	int error;
+
+	file = curthread->td_fpop;
+	ldev = dev->si_drv1;
+	if (ldev == NULL)
+		return (0);
+	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
+		return (error);
+	filp->f_flags = file->f_flag;
+	vma.vm_start = 0;
+	vma.vm_end = PAGE_SIZE;
+	vma.vm_pgoff = offset / PAGE_SIZE;
+	vma.vm_pfn = 0;
+	vma.vm_page_prot = *memattr;
+	if (filp->f_op->mmap) {
+		error = -filp->f_op->mmap(filp, &vma);
+		if (error == 0) {
+			*paddr = (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT;
+			*memattr = vma.vm_page_prot;
+		}
+	} else
+		error = ENODEV;
+
+	return (error);
+}
+
+struct cdevsw linuxcdevsw = {
+	.d_version = D_VERSION,
+	.d_flags = D_TRACKCLOSE,
+	.d_open = linux_dev_open,
+	.d_close = linux_dev_close,
+	.d_read = linux_dev_read,
+	.d_write = linux_dev_write,
+	.d_ioctl = linux_dev_ioctl,
+	.d_mmap = linux_dev_mmap,
+	.d_poll = linux_dev_poll,
+};
+
+static int
+linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
+{
+	struct linux_file *filp;
+	ssize_t bytes;
+	int error;
+
+	error = 0;
+	filp = (struct linux_file *)file->f_data;
+	filp->f_flags = file->f_flag;
+	if (uio->uio_iovcnt != 1)
+		panic("linux_file_read: uio %p iovcnt %d",
+		    uio, uio->uio_iovcnt);
+	if (filp->f_op->read) {
+		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
+		    uio->uio_iov->iov_len, &uio->uio_offset);
+		if (bytes >= 0) {
+			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_len -= bytes;
+			uio->uio_resid -= bytes;
+		} else
+			error = -bytes;
+	} else
+		error = ENXIO;
+
+	return (error);
+}
+
+static int
+linux_file_poll(struct file *file, int events, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct linux_file *filp;
+	int revents;
+
+	filp = (struct linux_file *)file->f_data;
+	filp->f_flags = file->f_flag;
+	if (filp->f_op->poll)
+		revents = filp->f_op->poll(filp, NULL) & events;
+	else
+		revents = 0;
+
+	return (0);
+}
+
+static int
+linux_file_close(struct file *file, struct thread *td)
+{
+	struct linux_file *filp;
+	int error;
+
+	filp = (struct linux_file *)file->f_data;
+	filp->f_flags = file->f_flag;
+	error = -filp->f_op->release(NULL, filp);
+	kfree(filp);
+
+	return (error);
+}
+
+struct fileops linuxfileops = {
+	.fo_read = linux_file_read,
+	.fo_poll = linux_file_poll,
+	.fo_close = linux_file_close
+};
 
 static void
 linux_compat_init(void)
