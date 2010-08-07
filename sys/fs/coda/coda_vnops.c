@@ -471,7 +471,8 @@ coda_ioctl(struct vop_ioctl_args *ap)
 		    iap->path)););
 		return (EINVAL);
 	}
-	if (iap->vi.in_size > VC_MAXDATASIZE) {
+	if (iap->vi.in_size > VC_MAXDATASIZE ||
+	    iap->vi.out_size > VC_MAXDATASIZE) {
 		NDFREE(&ndp, 0);
 		return (EINVAL);
 	}
