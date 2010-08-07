@@ -293,19 +293,18 @@ sysctl_nic(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-/* From the watchdog code and modified */
 static int
 sysctl_force_crash(SYSCTL_HANDLER_ARGS) 
 {
 	int error;
-	error = sysctl_handle_int(oidp, &nd_force_crash, 
-				  sizeof(nd_force_crash), req);
-	if (error)
-	    return error;
+
+	error = sysctl_handle_int(oidp, &nd_force_crash, nd_force_crash, req);
+	if (error || req->newptr == NULL)
+		return error;
 
 	switch (nd_force_crash) {
 		case 1:
-			printf("\nCrashing system...\n");
+			printf("\nLivelocking system...\n");
 			for (;;);
 			break;
 		case 2:
@@ -313,19 +312,18 @@ sysctl_force_crash(SYSCTL_HANDLER_ARGS)
 			panic("netdump forced crash");
 			break;
 		case 3:
-			printf("\nDeadlocking system while holding the em lock\n");
-			{
-				nd_nic->if_netdump->test_get_lock(nd_nic);
-				for (;;);
-			}
+			printf("\nLivelocking system while holding the "
+			    "interface lock\n");
+			nd_nic->if_netdump->test_get_lock(nd_nic);
+			for (;;);
 			break;
 		case 5:
 			critical_enter();
-			panic("netdump forced crash in critical section");
+			panic("Forcing spourious critical section");
 			break;
 		case 6:
 			critical_enter();
-			printf("\nNetdump spinning in a critical section\n");
+			printf("\nLivelocking in a critical section\n");
 			for (;;);
 		default:
 			return EINVAL;
