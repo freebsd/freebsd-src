@@ -653,6 +653,7 @@ vendor STELERA		0x1a8d	Stelera Wireless
 vendor OVISLINK		0x1b75	OvisLink
 vendor TCTMOBILE	0x1bbb  TCT Mobile
 vendor TELIT		0x1bc7  Telit
+vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
 vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor PEGATRON		0x1d4d	Pegatron
@@ -1995,6 +1996,9 @@ product LOGITEC LDR_H443U2	0x00b3	DVD Multi-plus unit LDR-H443U2
 product LOGITEC RT2870_1	0x0162	RT2870
 product LOGITEC RT2870_2	0x0163	RT2870
 product LOGITEC RT2870_3	0x0164	RT2870
+
+/* Longcheer Holdings, Ltd. products */
+product LONGCHEER WM66		0x6061	Longcheer WM66 HSDPA USB modem
 
 /* Lucent products */
 product LUCENT EVALKIT		0x1001	USS-720 evaluation kit
