@@ -52,7 +52,7 @@ dma_pool_create(char *name, struct device *dev, size_t size,
 	 * and physical address requirements of the device.
 	 */
 	pool->pool_zone = uma_zcreate(name, size, NULL, NULL, NULL, NULL,
-	    align, UMA_ZONE_OFFPAGE);
+	    align, UMA_ZONE_OFFPAGE|UMA_ZONE_HASH);
 
 	return (pool);
 }
