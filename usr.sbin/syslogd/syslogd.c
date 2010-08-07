@@ -317,7 +317,7 @@ static void	dodie(int);
 static void	dofsync(void);
 static void	domark(int);
 static void	fprintlog(struct filed *, int, const char *);
-static int	*socksetup(int, const char *);
+static int	*socksetup(int, char *);
 static void	init(int);
 static void	logerror(const char *);
 static void	logmsg(int, const char *, const char *, int);
@@ -345,7 +345,8 @@ main(int argc, char *argv[])
 	struct sockaddr_storage frominet;
 	fd_set *fdsr = NULL;
 	char line[MAXLINE + 1];
-	const char *bindhostname, *hname;
+	char *bindhostname;
+	const char *hname;
 	struct timeval tv, *tvp;
 	struct sigaction sact;
 	struct funix *fx, *fx1;
@@ -2605,16 +2606,47 @@ log_deadchild(pid_t pid, int status, const char *name)
 }
 
 static int *
-socksetup(int af, const char *bindhostname)
+socksetup(int af, char *bindhostname)
 {
 	struct addrinfo hints, *res, *r;
+	const char *bindservice;
+	char *cp;
 	int error, maxs, *s, *socks;
+
+	/*
+	 * We have to handle this case for backwards compatibility:
+	 * If there are two (or more) colons but no '[' and ']',
+	 * assume this is an inet6 address without a service.
+	 */
+	bindservice = "syslog";
+	if (bindhostname != NULL) {
+#ifdef INET6
+		if (*bindhostname == '[' &&
+		    (cp = strchr(bindhostname + 1, ']')) != NULL) {
+			++bindhostname;
+			*cp = '\0';
+			if (cp[1] == ':' && cp[2] != '\0')
+				bindservice = cp + 2;
+		} else {
+#endif
+			cp = strchr(bindhostname, ':');
+			if (cp != NULL && strchr(cp + 1, ':') == NULL) {
+				*cp = '\0';
+				if (cp[1] != '\0')
+					bindservice = cp + 1;
+				if (cp == bindhostname)
+					bindhostname = NULL;
+			}
+#ifdef INET6
+		}
+#endif
+	}
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = af;
 	hints.ai_socktype = SOCK_DGRAM;
-	error = getaddrinfo(bindhostname, "syslog", &hints, &res);
+	error = getaddrinfo(bindhostname, bindservice, &hints, &res);
 	if (error) {
 		logerror(gai_strerror(error));
 		errno = 0;
