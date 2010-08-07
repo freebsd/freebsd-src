@@ -166,7 +166,8 @@ flush_taskqueue(struct taskqueue *tq)
 }
 
 #define	cancel_work_sync(work)						\
-	taskqueue_cancel((work)->taskqueue, &(work)->work_task)
+	(work)->taskqueue ?						\
+	taskqueue_cancel((work)->taskqueue, &(work)->work_task) : 0
 
 static inline int
 cancel_delayed_work(struct delayed_work *work)
@@ -174,7 +175,7 @@ cancel_delayed_work(struct delayed_work *work)
 	int error;
 
 	error = callout_drain(&work->timer);
-	if (error == 0)
+	if (error == 0 && work->work.taskqueue)
 		error = taskqueue_cancel(work->work.taskqueue,
 		    &work->work.work_task);
 	return error;
