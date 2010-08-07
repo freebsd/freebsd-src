@@ -882,13 +882,8 @@ DMenu MenuMediaFTP = {
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
-    "If you are using PPP over a serial device, as opposed to a direct\n"
-    "ethernet connection, then you may first need to dial your Internet\n"
-    "Service Provider using the ppp utility we provide for that purpose.\n"
-    "If you're using SLIP over a serial device then the expectation is\n"
-    "that you have a HARDWIRED connection.\n\n"
-    "You can also install over a parallel port using a special \"laplink\"\n"
-    "cable to another machine running FreeBSD.",
+    "Please select the ethernet device to configure.\n\n"
+    "",
     "Press F1 to read network configuration manual",
     "network_device",
     { { NULL } },
