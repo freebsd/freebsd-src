@@ -54,7 +54,7 @@ GLOBAL(mpentry)
 
 	mtc0	zero, MIPS_COP_0_CAUSE	/* clear soft interrupts */
 
-	li	t0, MIPS_CCA_CNC	/* make sure kseg0 is cached */
+	li	t0, MIPS_CCA_CACHED	/* make sure kseg0 is cached */
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 
