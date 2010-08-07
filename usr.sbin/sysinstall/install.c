@@ -875,6 +875,9 @@ installConfigure(void)
 int
 installFixupBase(dialogMenuItem *self)
 {
+    FILE *orig, *new;
+    char buf[1024];
+    char *pos;
     FILE *fp;
 #ifdef __ia64__
     const char *efi_mntpt;
@@ -891,6 +894,32 @@ installFixupBase(dialogMenuItem *self)
 	    fclose(fp);
 	}
 #endif
+
+	/* Fixup /etc/ttys to start a getty on the serial port.
+	  This way after a serial installation you can login via
+	  the serial port */
+
+	if (!OnVTY){
+	    if (((orig=fopen("/etc/ttys","r")) != NULL) &&
+		((new=fopen("/etc/ttys.tmp","w")) != NULL)) {
+		while (fgets(buf,sizeof(buf),orig)){
+		    if (strstr(buf,"ttyu0")){
+			if ((pos=strstr(buf,"off"))){
+			    *pos++='o';
+			    *pos++='n';
+			    *pos++=' ';
+			}
+		    }
+		    fputs(buf,new);
+		}
+		fclose(orig);
+		fclose(new);
+
+		rename("/etc/ttys.tmp","/etc/ttys");
+		unlink("/etc/ttys.tmp");
+	    }
+	}
+
 	
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
