@@ -220,8 +220,6 @@ sysctl_ip(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return error;
 
-	error=0;
-
 	if (len >= INET_ADDRSTRLEN) {
 		error = EINVAL;
 	} else {
