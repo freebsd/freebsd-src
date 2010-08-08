@@ -1369,7 +1369,8 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
 		CARP_SCLOCK_ASSERT(sc);
 
 	if (SC2IFP(sc)->if_flags & IFF_UP &&
-	    sc->sc_vhid > 0 && (sc->sc_naddrs || sc->sc_naddrs6))
+	    sc->sc_vhid > 0 && (sc->sc_naddrs || sc->sc_naddrs6) &&
+	    sc->sc_carpdev->if_link_state == LINK_STATE_UP)
 		SC2IFP(sc)->if_drv_flags |= IFF_DRV_RUNNING;
 	else {
 		SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
