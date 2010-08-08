@@ -962,7 +962,6 @@ main(int argc, char **argv)
 		for (probe = 0, loss = 0; probe < nprobes; ++probe) {
 			register int cc;
 			struct timeval t1, t2;
-			struct timezone tz;
 			register struct ip *ip;
 			struct outdata outdata;
 
@@ -973,7 +972,7 @@ main(int argc, char **argv)
 			outdata.ttl = ttl;
 
 			/* Avoid alignment problems by copying bytewise: */
-			(void)gettimeofday(&t1, &tz);
+			(void)gettimeofday(&t1, NULL);
 			memcpy(&outdata.tv, &t1, sizeof(outdata.tv));
 
 			/* Finalize and send packet */
@@ -986,7 +985,7 @@ main(int argc, char **argv)
 				double T;
 				int precis;
 
-				(void)gettimeofday(&t2, &tz);
+				(void)gettimeofday(&t2, NULL);
 				i = packet_ok(packet, cc, from, seq);
 				/* Skip short packet */
 				if (i == 0)
@@ -1152,7 +1151,6 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 	fd_set *fdsp;
 	size_t nfds;
 	struct timeval now, wait;
-	struct timezone tz;
 	register int cc = 0;
 	register int error;
 	int fromlen = sizeof(*fromp);
@@ -1165,7 +1163,7 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 
 	wait.tv_sec = tp->tv_sec + waittime;
 	wait.tv_usec = tp->tv_usec;
-	(void)gettimeofday(&now, &tz);
+	(void)gettimeofday(&now, NULL);
 	tvsub(&wait, &now);
 	if (wait.tv_sec < 0) {
 		wait.tv_sec = 0;
