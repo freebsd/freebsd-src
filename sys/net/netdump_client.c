@@ -349,8 +349,9 @@ SYSCTL_INT(_net_dump, OID_AUTO, enable, CTLTYPE_INT|CTLFLAG_RW, &nd_enable,
 	0, "enable network dump");
 TUNABLE_INT("net.dump.enable", &nd_enable);
 #ifdef NETDUMP_DEBUG
-SYSCTL_PROC(_net_dump, OID_AUTO, crash, CTLTYPE_INT|CTLFLAG_RW, 0, sizeof(int),
-    sysctl_force_crash, "I", "force crashing");
+SYSCTL_DECL(_debug_netdump);
+SYSCTL_PROC(_debug_netdump, OID_AUTO, crash, CTLTYPE_INT|CTLFLAG_RW, 0,
+    sizeof(int), sysctl_force_crash, "I", "force crashing");
 #endif
 
 /*-
