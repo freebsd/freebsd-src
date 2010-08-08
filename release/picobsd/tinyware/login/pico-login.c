@@ -538,10 +538,10 @@ main(argc, argv)
 	 * devices, we just clear them.
 	 */
 	if (chflags(ttyn, 0) && errno != EOPNOTSUPP)
-		syslog(LOG_ERR, "chmod(%s): %m", ttyn);
+		syslog(LOG_ERR, "chflags(%s): %m", ttyn);
 	if (chown(ttyn, pwd->pw_uid,
 	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid))
-		syslog(LOG_ERR, "chmod(%s): %m", ttyn);
+		syslog(LOG_ERR, "chown(%s): %m", ttyn);
 
 
 	/*
