@@ -1694,7 +1694,6 @@ alc_setwol(struct alc_softc *sc)
 		return;
 	}
 
-	ifp = sc->alc_ifp;
 	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
 		if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0)
 			alc_setlinkspeed(sc);
