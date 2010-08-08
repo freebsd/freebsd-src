@@ -569,7 +569,7 @@ alc_attach(device_t dev)
 	struct ifnet *ifp;
 	char *aspm_state[] = { "L0s/L1", "L0s", "L1", "L0s/l1" };
 	uint16_t burst;
-	int base, error, i, msic, msixc, pmc, state;
+	int base, error, i, msic, msixc, state;
 	uint32_t cap, ctl, val;
 
 	error = 0;
@@ -600,6 +600,7 @@ alc_attach(device_t dev)
 	sc->alc_rcb = DMA_CFG_RCB_64;
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &base) == 0) {
 		sc->alc_flags |= ALC_FLAG_PCIE;
+		sc->alc_expcap = base;
 		burst = CSR_READ_2(sc, base + PCIR_EXPRESS_DEVICE_CTL);
 		sc->alc_dma_rd_burst =
 		    (burst & PCIM_EXP_CTL_MAX_READ_REQUEST) >> 12;
@@ -743,8 +744,11 @@ alc_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
 	ifp->if_hwassist = ALC_CSUM_FEATURES | CSUM_TSO;
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+	if (pci_find_extcap(dev, PCIY_PMG, &base) == 0) {
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
+		sc->alc_flags |= ALC_FLAG_PM;
+		sc->alc_pmcap = base;
+	}
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
@@ -1675,13 +1679,12 @@ alc_setwol(struct alc_softc *sc)
 	struct ifnet *ifp;
 	uint32_t reg, pmcs;
 	uint16_t pmstat;
-	int pmc;
 
 	ALC_LOCK_ASSERT(sc);
 
 	alc_disable_l0s_l1(sc);
 	ifp = sc->alc_ifp;
-	if (pci_find_extcap(sc->alc_dev, PCIY_PMG, &pmc) != 0) {
+	if ((sc->alc_flags & ALC_FLAG_PM) == 0) {
 		/* Disable WOL. */
 		CSR_WRITE_4(sc, ALC_WOL_CFG, 0);
 		reg = CSR_READ_4(sc, ALC_PCIE_PHYMISC);
@@ -1724,11 +1727,13 @@ alc_setwol(struct alc_softc *sc)
 		    CSR_READ_4(sc, ALC_MASTER_CFG) | MASTER_CLK_SEL_DIS);
 	}
 	/* Request PME. */
-	pmstat = pci_read_config(sc->alc_dev, pmc + PCIR_POWER_STATUS, 2);
+	pmstat = pci_read_config(sc->alc_dev,
+	    sc->alc_pmcap + PCIR_POWER_STATUS, 2);
 	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((ifp->if_capenable & IFCAP_WOL) != 0)
 		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->alc_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+	pci_write_config(sc->alc_dev,
+	    sc->alc_pmcap + PCIR_POWER_STATUS, pmstat, 2);
 }
 
 static int
@@ -1751,20 +1756,19 @@ alc_resume(device_t dev)
 {
 	struct alc_softc *sc;
 	struct ifnet *ifp;
-	int pmc;
 	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
 
 	ALC_LOCK(sc);
-	if (pci_find_extcap(sc->alc_dev, PCIY_PMG, &pmc) == 0) {
+	if ((sc->alc_flags & ALC_FLAG_PM) != 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->alc_dev,
-		    pmc + PCIR_POWER_STATUS, 2);
+		    sc->alc_pmcap + PCIR_POWER_STATUS, 2);
 		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
 			pmstat &= ~PCIM_PSTAT_PMEENABLE;
 			pci_write_config(sc->alc_dev,
-			    pmc + PCIR_POWER_STATUS, pmstat, 2);
+			    sc->alc_pmcap + PCIR_POWER_STATUS, pmstat, 2);
 		}
 	}
 	/* Reset PHY. */
