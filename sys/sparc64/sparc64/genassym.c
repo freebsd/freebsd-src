@@ -216,6 +216,9 @@ ASSYM(IR_PRI, offsetof(struct intr_request, ir_pri));
 ASSYM(IR_VEC, offsetof(struct intr_request, ir_vec));
 
 #ifdef SMP
+ASSYM(IRA_MASK, offsetof(struct ipi_rd_args, ira_mask));
+ASSYM(IRA_VAL, offsetof(struct ipi_rd_args, ira_val));
+
 ASSYM(ITA_MASK, offsetof(struct ipi_tlb_args, ita_mask));
 ASSYM(ITA_PMAP, offsetof(struct ipi_tlb_args, ita_pmap));
 ASSYM(ITA_START, offsetof(struct ipi_tlb_args, ita_start));
