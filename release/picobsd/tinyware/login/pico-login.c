@@ -279,7 +279,8 @@ main(argc, argv)
 	 * Get "login-retries" & "login-backoff" from default class
 	 */
 	lc = login_getclass(NULL);
-	prompt = login_getcapstr(lc, "prompt", DEFAULT_PROMPT, DEFAULT_PROMPT);
+	prompt = login_getcapstr(lc, "login_prompt",
+	    DEFAULT_PROMPT, DEFAULT_PROMPT);
 	passwd_prompt = login_getcapstr(lc, "passwd_prompt",
 	    DEFAULT_PASSWD_PROMPT, DEFAULT_PASSWD_PROMPT);
 	retries = login_getcapnum(lc, "login-retries", DEFAULT_RETRIES,
