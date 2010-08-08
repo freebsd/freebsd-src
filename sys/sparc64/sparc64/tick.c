@@ -43,13 +43,16 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
+#include <machine/smp.h>
 #include <machine/tick.h>
 #include <machine/ver.h>
 
-#define	STICK_QUALITY	-500
 #define	TICK_QUALITY_MP	10
 #define	TICK_QUALITY_UP	1000
 
@@ -80,7 +83,10 @@ static struct timecounter tick_tc;
 static struct eventtimer tick_et;
 
 static uint64_t tick_cputicks(void);
-static timecounter_get_t stick_get_timecount;
+static timecounter_get_t stick_get_timecount_up;
+#ifdef SMP
+static timecounter_get_t stick_get_timecount_mp;
+#endif
 static timecounter_get_t tick_get_timecount_up;
 #ifdef SMP
 static timecounter_get_t tick_get_timecount_mp;
@@ -135,8 +141,14 @@ cpu_initclocks(void)
 	}
 
 	/*
-	 * Initialize the TICK-based timecounter.  This must not happen
-	 * before SI_SUB_INTRINSIC for tick_get_timecount_mp() to work.
+	 * Initialize the (S)TICK-based timecounter(s).
+	 * Note that we (try to) sync the (S)TICK timers of APs with the BSP
+	 * during their startup but not afterwards.  The resulting drift can
+	 * cause problems when the time is calculated based on (S)TICK values
+	 * read on different CPUs.  Thus we always read the register on the
+	 * BSP (if necessary via an IPI as sched_bind(9) isn't available in
+	 * all circumstances) and use a low quality for the otherwise high
+	 * quality (S)TICK timers in the MP case.
 	 */
 	tick_tc.tc_get_timecount = tick_get_timecount_up;
 	tick_tc.tc_poll_pps = NULL;
@@ -146,14 +158,6 @@ cpu_initclocks(void)
 	tick_tc.tc_quality = TICK_QUALITY_UP;
 	tick_tc.tc_priv = NULL;
 #ifdef SMP
-	/*
-	 * We (try to) sync the (S)TICK timers of APs with the BSP during
-	 * their startup but not afterwards.  The resulting drift can
-	 * cause problems when the time is calculated based on (S)TICK
-	 * values read on different CPUs.  Thus we bind to the BSP for
-	 * reading the register and use a low quality for the otherwise
-	 * high quality (S)TICK timers in the MP case.
-	 */
 	if (cpu_mp_probe()) {
 		tick_tc.tc_get_timecount = tick_get_timecount_mp;
 		tick_tc.tc_quality = TICK_QUALITY_MP;
@@ -161,17 +165,23 @@ cpu_initclocks(void)
 #endif
 	tc_init(&tick_tc);
 	if (sclock != 0) {
-		stick_tc.tc_get_timecount = stick_get_timecount;
+		stick_tc.tc_get_timecount = stick_get_timecount_up;
 		stick_tc.tc_poll_pps = NULL;
 		stick_tc.tc_counter_mask = ~0u;
 		stick_tc.tc_frequency = sclock;
 		stick_tc.tc_name = "stick";
-		stick_tc.tc_quality = STICK_QUALITY;
+		stick_tc.tc_quality = TICK_QUALITY_UP;
 		stick_tc.tc_priv = NULL;
+#ifdef SMP
+		if (cpu_mp_probe()) {
+			stick_tc.tc_get_timecount = stick_get_timecount_mp;
+			stick_tc.tc_quality = TICK_QUALITY_MP;
+		}
+#endif
 		tc_init(&stick_tc);
 	}
 	tick_et.et_name = hardclock_use_stick ? "stick" : "tick";
-	tick_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |      
+	tick_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
 	    ET_FLAGS_PERCPU;
 	tick_et.et_quality = 1000;
 	tick_et.et_frequency = hardclock_use_stick ? sclock : clock;
@@ -183,7 +193,7 @@ cpu_initclocks(void)
 	tick_et.et_stop = tick_et_stop;
 	tick_et.et_priv = NULL;
 	et_register(&tick_et);
-	
+
 	cpu_initclocks_bsp();
 }
 
@@ -307,7 +317,7 @@ tick_hardclock_common(struct trapframe *tf, u_long tick, u_long adj)
 }
 
 static u_int
-stick_get_timecount(struct timecounter *tc)
+stick_get_timecount_up(struct timecounter *tc)
 {
 
 	return ((u_int)rdstick());
@@ -322,22 +332,30 @@ tick_get_timecount_up(struct timecounter *tc)
 
 #ifdef SMP
 static u_int
+stick_get_timecount_mp(struct timecounter *tc)
+{
+	u_long stick;
+
+	sched_pin();
+	if (curcpu == 0)
+		stick = rdstick();
+	else
+		ipi_wait(ipi_rd(0, tl_ipi_stick_rd, &stick));
+	sched_unpin();
+	return (stick);
+}
+
+static u_int
 tick_get_timecount_mp(struct timecounter *tc)
 {
-	struct thread *td;
-	u_int tick;
+	u_long tick;
 
-	td = curthread;
-	thread_lock(td);
-	sched_bind(td, 0);
-	thread_unlock(td);
-
-	tick = tick_get_timecount_up(tc);
-
-	thread_lock(td);
-	sched_unbind(td);
-	thread_unlock(td);
-
+	sched_pin();
+	if (curcpu == 0)
+		tick = rd(tick);
+	else
+		ipi_wait(ipi_rd(0, tl_ipi_tick_rd, &tick));
+	sched_unpin();
 	return (tick);
 }
 #endif
@@ -360,7 +378,7 @@ tick_et_start(struct eventtimer *et,
 		fdiv = (tick_et.et_frequency * (first->frac >> 32)) >> 32;
 		if (first->sec != 0)
 			fdiv += tick_et.et_frequency * first->sec;
-	} else 
+	} else
 		fdiv = div;
 	PCPU_SET(tickincrement, div);
 
