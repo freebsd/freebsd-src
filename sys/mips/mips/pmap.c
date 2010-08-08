@@ -1352,9 +1352,11 @@ retry:
 			pmap->pm_stats.resident_count--;
 			pte = pmap_pte(pmap, va);
 			KASSERT(pte != NULL, ("pte"));
-			oldpte = loadandclear((u_int *)pte);
+			oldpte = *pte;
 			if (is_kernel_pmap(pmap))
 				*pte = PTE_G;
+			else
+				*pte = 0;
 			KASSERT(!pte_test(&oldpte, PTE_W),
 			    ("wired pte for unwired page"));
 			if (m->md.pv_flags & PV_TABLE_REF)
@@ -1494,9 +1496,11 @@ pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	oldpte = loadandclear((u_int *)ptq);
+	oldpte = *ptq;
 	if (is_kernel_pmap(pmap))
 		*ptq = PTE_G;
+	else
+		*ptq = 0;
 
 	if (pte_test(&oldpte, PTE_W))
 		pmap->pm_stats.wired_count -= 1;
@@ -1657,9 +1661,11 @@ pmap_remove_all(vm_page_t m)
 
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 
-		tpte = loadandclear((u_int *)pte);
+		tpte = *pte;
 		if (is_kernel_pmap(pv->pv_pmap))
 			*pte = PTE_G;
+		else
+			*pte = 0;
 
 		if (pte_test(&tpte, PTE_W))
 			pv->pv_pmap->pm_stats.wired_count--;
