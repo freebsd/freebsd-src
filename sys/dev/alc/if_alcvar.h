@@ -211,11 +211,14 @@ struct alc_softc {
 	uint32_t		alc_dma_rd_burst;
 	uint32_t		alc_dma_wr_burst;
 	uint32_t		alc_rcb;
+	int			alc_expcap;
+	int			alc_pmcap;
 	int			alc_flags;
 #define	ALC_FLAG_PCIE		0x0001
 #define	ALC_FLAG_PCIX		0x0002
 #define	ALC_FLAG_MSI		0x0004
 #define	ALC_FLAG_MSIX		0x0008
+#define	ALC_FLAG_PM		0x0010
 #define	ALC_FLAG_FASTETHER	0x0020
 #define	ALC_FLAG_JUMBO		0x0040
 #define	ALC_FLAG_ASPM_MON	0x0080
