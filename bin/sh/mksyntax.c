@@ -241,8 +241,8 @@ main(int argc __unused, char **argv __unused)
 	filltable("0");
 	fputs("\n/* character classification table */\n", cfile);
 	add("0123456789", "ISDIGIT");
-	add("abcdefghijklmnopqrstucvwxyz", "ISLOWER");
-	add("ABCDEFGHIJKLMNOPQRSTUCVWXYZ", "ISUPPER");
+	add("abcdefghijklmnopqrstuvwxyz", "ISLOWER");
+	add("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "ISUPPER");
 	add("_", "ISUNDER");
 	add("#?$!-*@", "ISSPECL");
 	print("is_type");
