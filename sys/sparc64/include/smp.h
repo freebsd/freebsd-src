@@ -98,6 +98,8 @@ void	cpu_mp_shutdown(void);
 
 typedef	void cpu_ipi_selected_t(u_int, u_long, u_long, u_long);
 extern	cpu_ipi_selected_t *cpu_ipi_selected;
+typedef	void cpu_ipi_single_t(u_int, u_long, u_long, u_long);
+extern	cpu_ipi_single_t *cpu_ipi_single;
 
 void	mp_init(u_int cpu_impl);
 
@@ -139,11 +141,7 @@ static __inline void
 ipi_cpu(int cpu, u_int ipi)
 {
 
-	/*
-	 * XXX: Not ideal, but would require more work to add a cpu_ipi_cpu
-	 * function pointer.
-	 */
-	cpu_ipi_selected(1 << cpu, 0, (u_long)tl_ipi_level, ipi);
+	cpu_ipi_single(cpu, 0, (u_long)tl_ipi_level, ipi);
 }
 
 #if defined(_MACHINE_PMAP_H_) && defined(_SYS_MUTEX_H_)
@@ -243,7 +241,8 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
 	ita->ita_end = end;
-	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap, (u_long)ita);
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap,
+	    (u_long)ita);
 	return (&ita->ita_mask);
 }
 
