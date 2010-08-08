@@ -162,7 +162,7 @@ static unsigned char buf[MAXDUMPPGS*PAGE_SIZE]; /* Must be at least as big as
 						 * us */
 static struct ether_addr nd_server_mac;
 
-static long nd_enable = 0;  /* if we should perform a network dump */
+static int nd_enable = 0;  /* if we should perform a network dump */
 static struct in_addr nd_server = {INADDR_ANY}; /* server address */
 static struct in_addr nd_client = {INADDR_ANY}; /* client (our) address */
 struct ifnet *nd_nic = NULL;
@@ -343,9 +343,9 @@ SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT|CTLFLAG_RW, &nd_polls, 0,
 	"times to poll NIC per retry");
 SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT|CTLFLAG_RW, &nd_retries, 0,
 	"times to retransmit lost packets");
-SYSCTL_LONG(_net_dump, OID_AUTO, enable, CTLTYPE_LONG|CTLFLAG_RW, &nd_enable,
+SYSCTL_INT(_net_dump, OID_AUTO, enable, CTLTYPE_INT|CTLFLAG_RW, &nd_enable,
 	0, "enable network dump");
-TUNABLE_LONG("net.dump.enable", &nd_enable);
+TUNABLE_INT("net.dump.enable", &nd_enable);
 
 /*-
  * Network specific primitives.
