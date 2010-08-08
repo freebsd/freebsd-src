@@ -146,7 +146,9 @@ static int	 netdump_send_arp(void);
 static void	 netdump_trigger(void *arg, int howto);
 static int	 netdump_udp_output(struct mbuf *m);
 
+#ifdef NETDUMP_DEBUG
 static int	 sysctl_force_crash(SYSCTL_HANDLER_ARGS);
+#endif
 static int	 sysctl_ip(SYSCTL_HANDLER_ARGS);
 static int	 sysctl_nic(SYSCTL_HANDLER_ARGS);
 
@@ -166,7 +168,6 @@ static int nd_enable = 0;  /* if we should perform a network dump */
 static struct in_addr nd_server = {INADDR_ANY}; /* server address */
 static struct in_addr nd_client = {INADDR_ANY}; /* client (our) address */
 struct ifnet *nd_nic = NULL;
-static int nd_force_crash=0;
 static int nd_polls=10000; /* Times to poll the NIC (0.5ms each poll) before
 			    * assuming packetloss occurred: 5s by default */
 static int nd_retries=10; /* Times to retransmit lost packets */
@@ -292,16 +293,18 @@ sysctl_nic(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
+#ifdef NETDUMP_DEBUG
 static int
 sysctl_force_crash(SYSCTL_HANDLER_ARGS) 
 {
-	int error;
+	int error, force_crash;
 
-	error = sysctl_handle_int(oidp, &nd_force_crash, nd_force_crash, req);
+	force_crash = 0;
+	error = sysctl_handle_int(oidp, &force_crash, force_crash, req);
 	if (error || req->newptr == NULL)
 		return error;
 
-	switch (nd_force_crash) {
+	switch (force_crash) {
 		case 1:
 			printf("\nLivelocking system...\n");
 			for (;;);
@@ -329,6 +332,7 @@ sysctl_force_crash(SYSCTL_HANDLER_ARGS)
 	}
 	return 0;
 }
+#endif
 
 SYSCTL_NODE(_net, OID_AUTO, dump, CTLFLAG_RW, 0, "netdump");
 SYSCTL_PROC(_net_dump, OID_AUTO, server, CTLTYPE_STRING|CTLFLAG_RW, &nd_server,
@@ -337,8 +341,6 @@ SYSCTL_PROC(_net_dump, OID_AUTO, client, CTLTYPE_STRING|CTLFLAG_RW, &nd_client,
 	0, sysctl_ip, "A", "dump client");
 SYSCTL_PROC(_net_dump, OID_AUTO, nic, CTLTYPE_STRING|CTLFLAG_RW, &nd_nic,
 	IFNAMSIZ, sysctl_nic, "A", "NIC to dump on");
-SYSCTL_PROC(_net_dump, OID_AUTO, crash, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof(nd_force_crash), sysctl_force_crash, "I", "force crashing");
 SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT|CTLFLAG_RW, &nd_polls, 0,
 	"times to poll NIC per retry");
 SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT|CTLFLAG_RW, &nd_retries, 0,
@@ -346,6 +348,10 @@ SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT|CTLFLAG_RW, &nd_retries, 0,
 SYSCTL_INT(_net_dump, OID_AUTO, enable, CTLTYPE_INT|CTLFLAG_RW, &nd_enable,
 	0, "enable network dump");
 TUNABLE_INT("net.dump.enable", &nd_enable);
+#ifdef NETDUMP_DEBUG
+SYSCTL_PROC(_net_dump, OID_AUTO, crash, CTLTYPE_INT|CTLFLAG_RW, 0, sizeof(int),
+    sysctl_force_crash, "I", "force crashing");
+#endif
 
 /*-
  * Network specific primitives.
