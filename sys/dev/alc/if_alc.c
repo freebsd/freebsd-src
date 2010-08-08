@@ -1673,19 +1673,14 @@ static void
 alc_setwol(struct alc_softc *sc)
 {
 	struct ifnet *ifp;
-	uint32_t cap, reg, pmcs;
+	uint32_t reg, pmcs;
 	uint16_t pmstat;
-	int base, pmc;
+	int pmc;
 
 	ALC_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->alc_dev, PCIY_EXPRESS, &base) == 0) {
-		cap = CSR_READ_2(sc, base + PCIR_EXPRESS_LINK_CAP);
-		if ((cap & PCIM_LINK_CAP_ASPM) != 0) {
-			cap = CSR_READ_2(sc, base + PCIR_EXPRESS_LINK_CTL);
-			alc_disable_l0s_l1(sc);
-		}
-	}
+	alc_disable_l0s_l1(sc);
+	ifp = sc->alc_ifp;
 	if (pci_find_extcap(sc->alc_dev, PCIY_PMG, &pmc) != 0) {
 		/* Disable WOL. */
 		CSR_WRITE_4(sc, ALC_WOL_CFG, 0);
@@ -1694,6 +1689,8 @@ alc_setwol(struct alc_softc *sc)
 		CSR_WRITE_4(sc, ALC_PCIE_PHYMISC, reg);
 		/* Force PHY power down. */
 		alc_phy_down(sc);
+		CSR_WRITE_4(sc, ALC_MASTER_CFG,
+		    CSR_READ_4(sc, ALC_MASTER_CFG) | MASTER_CLK_SEL_DIS);
 		return;
 	}
 
@@ -1701,9 +1698,8 @@ alc_setwol(struct alc_softc *sc)
 	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
 		if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0)
 			alc_setlinkspeed(sc);
-		reg = CSR_READ_4(sc, ALC_MASTER_CFG);
-		reg &= ~MASTER_CLK_SEL_DIS;
-		CSR_WRITE_4(sc, ALC_MASTER_CFG, reg);
+		CSR_WRITE_4(sc, ALC_MASTER_CFG,
+		    CSR_READ_4(sc, ALC_MASTER_CFG) & ~MASTER_CLK_SEL_DIS);
 	}
 
 	pmcs = 0;
@@ -1725,6 +1721,8 @@ alc_setwol(struct alc_softc *sc)
 	if ((ifp->if_capenable & IFCAP_WOL) == 0) {
 		/* WOL disabled, PHY power down. */
 		alc_phy_down(sc);
+		CSR_WRITE_4(sc, ALC_MASTER_CFG,
+		    CSR_READ_4(sc, ALC_MASTER_CFG) | MASTER_CLK_SEL_DIS);
 	}
 	/* Request PME. */
 	pmstat = pci_read_config(sc->alc_dev, pmc + PCIR_POWER_STATUS, 2);
