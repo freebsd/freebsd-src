@@ -227,7 +227,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 
 void
 cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
-	stack_t *stack)
+    stack_t *stack)
 {
 	struct trapframe *tf;
 	uint64_t sp;
@@ -251,7 +251,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 
 	if (td == curthread)
 		flushw();
-	td->td_frame->tf_global[7] = (uint64_t) tls_base;
+	td->td_frame->tf_global[7] = (uint64_t)tls_base;
 	return (0);
 }
 
@@ -531,7 +531,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color != DCACHE_COLOR(pa)) {
+	if (dcache_color_ignore == 0 && m->md.color != DCACHE_COLOR(pa)) {
 		KASSERT(m->md.colors[0] == 0 && m->md.colors[1] == 0,
 		    ("uma_small_alloc: free page still has mappings!"));
 		PMAP_STATS_INC(uma_nsmall_alloc_oc);
