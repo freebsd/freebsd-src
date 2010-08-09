@@ -100,9 +100,11 @@ struct	vmspace vmspace0;
 struct	proc *initproc;
 
 int	boothowto = 0;		/* initialized so that it can be patched */
-SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0,
+	"Boot control flags, passed from loader");
 int	bootverbose;
-SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
+	"Control the output of verbose kernel messages");
 
 /*
  * This ensures that there is at least one entry so that the sysinit_set
@@ -647,7 +649,8 @@ SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
 #endif
 static int init_shutdown_timeout = INIT_SHUTDOWN_TIMEOUT;
 SYSCTL_INT(_kern, OID_AUTO, init_shutdown_timeout,
-	CTLFLAG_RW, &init_shutdown_timeout, 0, "");
+	CTLFLAG_RW, &init_shutdown_timeout, 0, "Shutdown timeout of init(8). "
+	"Unused within kernel, but used to control init(8)");
 
 /*
  * Start the initial user process; try exec'ing each pathname in init_path.
