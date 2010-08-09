@@ -504,10 +504,7 @@ smp_topo_none(void)
 	top = &group[0];
 	top->cg_parent = NULL;
 	top->cg_child = NULL;
-	if (mp_ncpus == sizeof(top->cg_mask) * 8)
-		top->cg_mask = -1;
-	else
-		top->cg_mask = (1 << mp_ncpus) - 1;
+	top->cg_mask = ~0U >> (32 - mp_ncpus);
 	top->cg_count = mp_ncpus;
 	top->cg_children = 0;
 	top->cg_level = CG_SHARE_NONE;
