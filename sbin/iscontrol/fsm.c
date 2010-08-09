@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <camlib.h>
 
-#include "iscsi.h"
+#include <dev/iscsi/initiator/iscsi.h>
 #include "iscontrol.h"
 
 typedef enum {
@@ -99,26 +99,26 @@ tcpConnect(isess_t *sess)
 #ifdef notyet
 	  {
 	       time_t	sec;
-	  // make sure we are not in a loop
-	  // XXX: this code has to be tested
-	  sec = time(0) - sess->reconnect_time;
-	  if(sec > (5*60)) {
-	       // if we've been connected for more that 5 minutes
-	       // then just reconnect
-	       sess->reconnect_time = sec;
-	       sess->reconnect_cnt1 = 0;
-	  }
-	  else {
-	       //
-	       sess->reconnect_cnt1++;
-	       if((sec / sess->reconnect_cnt1) < 2) {
-		    // if less that 2 seconds from the last reconnect
-		    // we are most probably looping
-		    syslog(LOG_CRIT, "too many reconnects %d", sess->reconnect_cnt1);
-		    return 0;
+	       // make sure we are not in a loop
+	       // XXX: this code has to be tested
+	       sec = time(0) - sess->reconnect_time;
+	       if(sec > (5*60)) {
+		    // if we've been connected for more that 5 minutes
+		    // then just reconnect
+		    sess->reconnect_time = sec;
+		    sess->reconnect_cnt1 = 0;
+	       }
+	       else {
+		    //
+		    sess->reconnect_cnt1++;
+		    if((sec / sess->reconnect_cnt1) < 2) {
+			 // if less that 2 seconds from the last reconnect
+			 // we are most probably looping
+			 syslog(LOG_CRIT, "too many reconnects %d", sess->reconnect_cnt1);
+			 return 0;
+		    }
 	       }
 	  }
-     }
 #endif
 	  sess->reconnect_cnt++;
      }
@@ -140,13 +140,13 @@ tcpConnect(isess_t *sess)
 	  if (soc == -1)
 	       continue;
 
-     // from Patrick.Guelat@imp.ch:
-     // iscontrol can be called without waiting for the socket entry to time out
-     val = 1;
+	  // from Patrick.Guelat@imp.ch:
+	  // iscontrol can be called without waiting for the socket entry to time out
+	  val = 1;
 	  if(setsockopt(soc, SOL_SOCKET, SO_REUSEADDR, &val, (socklen_t)sizeof(val)) < 0) {
-	  fprintf(stderr, "Cannot set socket SO_REUSEADDR %d: %s\n\n",
-		  errno, strerror(errno));
-     }
+	       fprintf(stderr, "Cannot set socket SO_REUSEADDR %d: %s\n\n",
+		       errno, strerror(errno));
+	  }
 
 	  if(connect(soc, res->ai_addr, res->ai_addrlen) == 0)
 	       break;
@@ -196,7 +196,7 @@ tcpConnect(isess_t *sess)
 	  }
 	  sess->flags |= SESS_CONNECTED;
 	  return T1;
-     } 
+     }
 
      fprintf(stderr, "errno=%d\n", sv_errno);
      perror("connect");
@@ -289,7 +289,7 @@ startSession(isess_t *sess)
 	       // XXX: this has to go
 	       size_t	n;
 	       n = sizeof(sess->isid);
-	       if(sysctlbyname("net.iscsi.isid", (void *)sess->isid, (size_t *)&n, 0, 0) != 0)
+	       if(sysctlbyname("net.iscsi_initiator.isid", (void *)sess->isid, (size_t *)&n, 0, 0) != 0)
 		    perror("sysctlbyname");
 	  }
 	  if(ioctl(fd, ISCSISETSES, &n)) {
@@ -343,29 +343,29 @@ trap(int sig)
      }
 }
 
-static void
+static int
 doCAM(isess_t *sess)
 {
      char	pathstr[1024];
      union ccb	*ccb;
-     int	i;
+     int	i, n;
 
      if(ioctl(sess->fd, ISCSIGETCAM, &sess->cam) != 0) {
 	  syslog(LOG_WARNING, "ISCSIGETCAM failed: %d", errno);
-	  return;
+	  return 0;
      }
-     debug(2, "nluns=%d", sess->cam.target_nluns);
+     debug(1, "nluns=%d", sess->cam.target_nluns);
      /*
       | for now will do this for each lun ...
       */
-     for(i = 0; i < sess->cam.target_nluns; i++) {
+     for(n = i = 0; i < sess->cam.target_nluns; i++) {
 	  debug(2, "CAM path_id=%d target_id=%d target_lun=%d",
 		sess->cam.path_id, sess->cam.target_id, sess->cam.target_lun[i]);
 
 	  sess->camdev = cam_open_btl(sess->cam.path_id, sess->cam.target_id,
-				      sess->cam.target_lun[i], O_RDWR, NULL);
+				      i, O_RDWR, NULL);
 	  if(sess->camdev == NULL) {
-	       syslog(LOG_WARNING, "%s", cam_errbuf);
+	       //syslog(LOG_WARNING, "%s", cam_errbuf);
 	       debug(3, "%s", cam_errbuf);
 	       continue;
 	  }
@@ -378,20 +378,21 @@ doCAM(isess_t *sess)
 	  ccb->ccb_h.func_code = XPT_REL_SIMQ;
 	  ccb->crs.release_flags = RELSIM_ADJUST_OPENINGS;
 	  ccb->crs.openings = sess->op->tags;
-
 	  if(cam_send_ccb(sess->camdev, ccb) < 0)
-	       syslog(LOG_WARNING, "%s", cam_errbuf);
+	       debug(2, "%s", cam_errbuf);
 	  else
 	  if((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 	       syslog(LOG_WARNING, "XPT_REL_SIMQ CCB failed");
 	       // cam_error_print(sess->camdev, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
 	  }
-	  else
+	  else {
+	       n++;
 	       syslog(LOG_INFO, "%s tagged openings now %d\n", pathstr, ccb->crs.openings);
-
+	  }
 	  cam_freeccb(ccb);
 	  cam_close_device(sess->camdev);
      }
+     return n;
 }
 
 static trans_t
@@ -417,7 +418,15 @@ supervise(isess_t *sess)
 	       perror("daemon");
 	       exit(1);
 	  }
+	  if(sess->op->pidfile != NULL) {
+	       FILE *pidf;
 
+	       pidf = fopen(sess->op->pidfile, "w");
+	       if(pidf != NULL) { 
+ 		    fprintf(pidf, "%d\n", getpid());
+		    fclose(pidf);
+	       }
+	  }
 	  openlog("iscontrol", LOG_CONS|LOG_PERROR|LOG_PID|LOG_NDELAY, LOG_KERN);
 	  syslog(LOG_INFO, "running");
 
@@ -426,7 +435,11 @@ supervise(isess_t *sess)
 	       perror("ISCSISTART");
 	       return -1;
 	  }
-	  doCAM(sess);
+	  if(doCAM(sess) == 0) {
+	       syslog(LOG_WARNING, "no device found");
+	       ioctl(sess->fd, ISCSISTOP);
+	       return T15;
+	  }
 
      }
      else {
@@ -449,7 +462,8 @@ supervise(isess_t *sess)
      sess->flags |= SESS_FULLFEATURE;
 
      sess->flags &= ~(SESS_REDIRECT | SESS_RECONNECT);
-     printf("iscontrol: supervise starting main loop\n");
+     if(vflag)
+	  printf("iscontrol: supervise starting main loop\n");
      /*
       | the main loop - actually do nothing
       | all the work is done inside the kernel
@@ -468,14 +482,14 @@ supervise(isess_t *sess)
      }
 
      if(sess->flags & SESS_DISCONNECT) {
-	  val = 0;
-	  if(ioctl(sess->fd, ISCSISTOP, &val)) {
-	       perror("ISCSISTOP");
-	  }
 	  sess->flags &= ~SESS_FULLFEATURE;
 	  return T9;
      } 
      else {
+	  val = 0;
+	  if(ioctl(sess->fd, ISCSISTOP, &val)) {
+	       perror("ISCSISTOP");
+	  }
 	  sess->flags |= SESS_INITIALLOGIN1;
      }
      return T8;
@@ -490,7 +504,7 @@ handledDiscoveryResp(isess_t *sess, pdu_t *pp)
      debug_called(3);
 
      len = pp->ds_len;
-     ptr = pp->ds;
+     ptr = pp->ds_addr;
      while(len > 0) {
 	  if(*ptr != 0)
 	       printf("%s\n", ptr);
@@ -579,8 +593,13 @@ doLogin(isess_t *sess)
 static int
 handleLogoutResp(isess_t *sess, pdu_t *pp)
 {
-     if(sess->flags & SESS_DISCONNECT)
+     if(sess->flags & SESS_DISCONNECT) {
+	  int val = 0;
+	  if(ioctl(sess->fd, ISCSISTOP, &val)) {
+	       perror("ISCSISTOP");
+	  }
 	  return 0;
+     }
      return T13;
 }
 
@@ -610,7 +629,7 @@ typedef enum {
      S1, S2, /*S3,*/ S4, S5, S6, S7, S8
 } state_t;
 
-#if 0
+/**
       S1: FREE
       S2: XPT_WAIT
       S4: IN_LOGIN
@@ -652,7 +671,7 @@ typedef enum {
          |     +-----\       /--->\       / T14  |
          |            -------      --+----+------+T17
          +---------------------------+
-#endif
+*/
 
 int
 fsm(isc_opt_t *op)
