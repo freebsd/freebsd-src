@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <md5.h>
 #include <sha.h>
 
-#include "iscsi.h"
+#include <dev/iscsi/initiator/iscsi.h>
 #include "iscontrol.h"
 
 static int
@@ -152,7 +152,7 @@ chapDigest(char *ap, char id, char *cp, char *chapSecret)
 }
 
 char *
-genChapChallenge(char *encoding, int len)
+genChapChallenge(char *encoding, uint len)
 {
      int	fd;
      unsigned	char tmp[1024];
