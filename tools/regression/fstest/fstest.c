@@ -541,7 +541,8 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		struct sockaddr_un sunx;
 
 		sunx.sun_family = AF_UNIX;
-		strlcpy(sunx.sun_path, STR(0), sizeof(sunx.sun_path));
+		strncpy(sunx.sun_path, STR(0), sizeof(sunx.sun_path) - 1);
+		sunx.sun_path[sizeof(sunx.sun_path) - 1] = '\0';
 		rval = socket(AF_UNIX, SOCK_STREAM, 0);
 		if (rval < 0)
 			break;
@@ -553,7 +554,8 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		struct sockaddr_un sunx;
 
 		sunx.sun_family = AF_UNIX;
-		strlcpy(sunx.sun_path, STR(0), sizeof(sunx.sun_path));
+		strncpy(sunx.sun_path, STR(0), sizeof(sunx.sun_path) - 1);
+		sunx.sun_path[sizeof(sunx.sun_path) - 1] = '\0';
 		rval = socket(AF_UNIX, SOCK_STREAM, 0);
 		if (rval < 0)
 			break;
