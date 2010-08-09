@@ -142,7 +142,6 @@ x86bios_free(void *addr, size_t size)
 	paddr = vtophys(addr);
 	if (paddr >= X86BIOS_MEM_SIZE || (paddr & PAGE_MASK) != 0)
 		return;
-	nfree = atop(round_page(size));
 	mtx_lock(&x86bios_lock);
 	for (i = 0; i < x86bios_vmc.npages; i++)
 		if (x86bios_vmc.pmap[i].kva == (vm_offset_t)addr)
@@ -151,6 +150,7 @@ x86bios_free(void *addr, size_t size)
 		mtx_unlock(&x86bios_lock);
 		return;
 	}
+	nfree = atop(round_page(size));
 	bzero(x86bios_vmc.pmap + i, sizeof(*x86bios_vmc.pmap) * nfree);
 	if (i + nfree == x86bios_vmc.npages) {
 		x86bios_vmc.npages -= nfree;
