@@ -538,28 +538,26 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 	    }
 	case ACTION_BIND:
 	    {
-		struct sockaddr_un sun;
+		struct sockaddr_un sunx;
 
-		sun.sun_family = AF_UNIX;
-		strlcpy(sun.sun_path, STR(0), sizeof(sun.sun_path));
-		sun.sun_len = SUN_LEN(&sun);
+		sunx.sun_family = AF_UNIX;
+		strlcpy(sunx.sun_path, STR(0), sizeof(sunx.sun_path));
 		rval = socket(AF_UNIX, SOCK_STREAM, 0);
 		if (rval < 0)
 			break;
-		rval = bind(rval, (struct sockaddr *)&sun, sizeof(sun));
+		rval = bind(rval, (struct sockaddr *)&sunx, sizeof(sunx));
 		break;
 	    }
 	case ACTION_CONNECT:
 	    {
-		struct sockaddr_un sun;
+		struct sockaddr_un sunx;
 
-		sun.sun_family = AF_UNIX;
-		strlcpy(sun.sun_path, STR(0), sizeof(sun.sun_path));
-		sun.sun_len = SUN_LEN(&sun);
+		sunx.sun_family = AF_UNIX;
+		strlcpy(sunx.sun_path, STR(0), sizeof(sunx.sun_path));
 		rval = socket(AF_UNIX, SOCK_STREAM, 0);
 		if (rval < 0)
 			break;
-		rval = connect(rval, (struct sockaddr *)&sun, sizeof(sun));
+		rval = connect(rval, (struct sockaddr *)&sunx, sizeof(sunx));
 		break;
 	    }
 	case ACTION_CHMOD:
