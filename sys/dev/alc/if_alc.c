@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 
-/* Driver for Atheros AR8131/AR8132 PCIe Ethernet. */
+/* Driver for Atheros AR813x/AR815x PCIe Ethernet. */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -98,18 +98,23 @@ TUNABLE_INT("hw.alc.msix_disable", &msix_disable);
 /*
  * Devices supported by this driver.
  */
-static struct alc_dev {
-	uint16_t	alc_vendorid;
-	uint16_t	alc_deviceid;
-	const char	*alc_name;
-} alc_devs[] = {
-	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_AR8131,
+static struct alc_ident alc_ident_table[] = {
+	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_AR8131, 9 * 1024,
 		"Atheros AR8131 PCIe Gigabit Ethernet" },
-	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_AR8132,
-		"Atheros AR8132 PCIe Fast Ethernet" }
+	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_AR8132, 9 * 1024,
+		"Atheros AR8132 PCIe Fast Ethernet" },
+	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_AR8151, 6 * 1024,
+		"Atheros AR8151 v1.0 PCIe Gigabit Ethernet" },
+	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_AR8151_V2, 6 * 1024,
+		"Atheros AR8151 v2.0 PCIe Gigabit Ethernet" },
+	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_AR8152_B, 6 * 1024,
+		"Atheros AR8152 v1.1 PCIe Fast Ethernet" },
+	{ VENDORID_ATHEROS, DEVICEID_ATHEROS_AR8152_B2, 6 * 1024,
+		"Atheros AR8152 v2.0 PCIe Fast Ethernet" },
+	{ 0, 0, 0, NULL}
 };
 
-static void	alc_aspm(struct alc_softc *);
+static void	alc_aspm(struct alc_softc *, int);
 static int	alc_attach(device_t);
 static int	alc_check_boundary(struct alc_softc *);
 static int	alc_detach(device_t);
@@ -118,6 +123,8 @@ static int	alc_dma_alloc(struct alc_softc *);
 static void	alc_dma_free(struct alc_softc *);
 static void	alc_dmamap_cb(void *, bus_dma_segment_t *, int, int);
 static int	alc_encap(struct alc_softc *, struct mbuf **);
+static struct alc_ident *
+		alc_find_ident(device_t);
 #ifndef __NO_STRICT_ALIGNMENT
 static struct mbuf *
 		alc_fixup_rx(struct ifnet *, struct mbuf *);
@@ -331,7 +338,7 @@ alc_miibus_statchg(device_t dev)
 		reg |= MAC_CFG_TX_ENB | MAC_CFG_RX_ENB;
 		CSR_WRITE_4(sc, ALC_MAC_CFG, reg);
 	}
-	alc_aspm(sc);
+	alc_aspm(sc, IFM_SUBTYPE(mii->mii_media_active));
 }
 
 static void
@@ -375,23 +382,31 @@ alc_mediachange(struct ifnet *ifp)
 	return (error);
 }
 
-static int
-alc_probe(device_t dev)
+static struct alc_ident *
+alc_find_ident(device_t dev)
 {
-	struct alc_dev *sp;
-	int i;
+	struct alc_ident *ident;
 	uint16_t vendor, devid;
 
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
-	sp = alc_devs;
-	for (i = 0; i < sizeof(alc_devs) / sizeof(alc_devs[0]); i++) {
-		if (vendor == sp->alc_vendorid &&
-		    devid == sp->alc_deviceid) {
-			device_set_desc(dev, sp->alc_name);
-			return (BUS_PROBE_DEFAULT);
-		}
-		sp++;
+	for (ident = alc_ident_table; ident->name != NULL; ident++) {
+		if (vendor == ident->vendorid && devid == ident->deviceid)
+			return (ident);
+	}
+
+	return (NULL);
+}
+
+static int
+alc_probe(device_t dev)
+{
+	struct alc_ident *ident;
+
+	ident = alc_find_ident(dev);
+	if (ident != NULL) {
+		device_set_desc(dev, ident->name);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);
@@ -401,20 +416,53 @@ static void
 alc_get_macaddr(struct alc_softc *sc)
 {
 	uint32_t ea[2], opt;
-	int i;
+	uint16_t val;
+	int eeprom, i;
 
+	eeprom = 0;
 	opt = CSR_READ_4(sc, ALC_OPT_CFG);
-	if ((CSR_READ_4(sc, ALC_TWSI_DEBUG) & TWSI_DEBUG_DEV_EXIST) != 0) {
+	if ((CSR_READ_4(sc, ALC_MASTER_CFG) & MASTER_OTP_SEL) != 0 &&
+	    (CSR_READ_4(sc, ALC_TWSI_DEBUG) & TWSI_DEBUG_DEV_EXIST) != 0) {
 		/*
 		 * EEPROM found, let TWSI reload EEPROM configuration.
 		 * This will set ethernet address of controller.
 		 */
-		if ((opt & OPT_CFG_CLK_ENB) == 0) {
-			opt |= OPT_CFG_CLK_ENB;
-			CSR_WRITE_4(sc, ALC_OPT_CFG, opt);
-			CSR_READ_4(sc, ALC_OPT_CFG);
-			DELAY(1000);
+		eeprom++;
+		switch (sc->alc_ident->deviceid) {
+		case DEVICEID_ATHEROS_AR8131:
+		case DEVICEID_ATHEROS_AR8132:
+			if ((opt & OPT_CFG_CLK_ENB) == 0) {
+				opt |= OPT_CFG_CLK_ENB;
+				CSR_WRITE_4(sc, ALC_OPT_CFG, opt);
+				CSR_READ_4(sc, ALC_OPT_CFG);
+				DELAY(1000);
+			}
+			break;
+		case DEVICEID_ATHEROS_AR8151:
+		case DEVICEID_ATHEROS_AR8151_V2:
+		case DEVICEID_ATHEROS_AR8152_B:
+		case DEVICEID_ATHEROS_AR8152_B2:
+			alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_ADDR, 0x00);
+			val = alc_miibus_readreg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_DATA);
+			alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_DATA, val & 0xFF7F);
+			alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_ADDR, 0x3B);
+			val = alc_miibus_readreg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_DATA);
+			alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_DATA, val | 0x0008);
+			DELAY(20);
+			break;
 		}
+
+		CSR_WRITE_4(sc, ALC_LTSSM_ID_CFG,
+		    CSR_READ_4(sc, ALC_LTSSM_ID_CFG) & ~LTSSM_ID_WRO_ENB);
+		CSR_WRITE_4(sc, ALC_WOL_CFG, 0);
+		CSR_READ_4(sc, ALC_WOL_CFG);
+
 		CSR_WRITE_4(sc, ALC_TWSI_CFG, CSR_READ_4(sc, ALC_TWSI_CFG) |
 		    TWSI_CFG_SW_LD_START);
 		for (i = 100; i > 0; i--) {
@@ -430,11 +478,36 @@ alc_get_macaddr(struct alc_softc *sc)
 		if (bootverbose)
 			device_printf(sc->alc_dev, "EEPROM not found!\n");
 	}
-	if ((opt & OPT_CFG_CLK_ENB) != 0) {
-		opt &= ~OPT_CFG_CLK_ENB;
-		CSR_WRITE_4(sc, ALC_OPT_CFG, opt);
-		CSR_READ_4(sc, ALC_OPT_CFG);
-		DELAY(1000);
+	if (eeprom != 0) {
+		switch (sc->alc_ident->deviceid) {
+		case DEVICEID_ATHEROS_AR8131:
+		case DEVICEID_ATHEROS_AR8132:
+			if ((opt & OPT_CFG_CLK_ENB) != 0) {
+				opt &= ~OPT_CFG_CLK_ENB;
+				CSR_WRITE_4(sc, ALC_OPT_CFG, opt);
+				CSR_READ_4(sc, ALC_OPT_CFG);
+				DELAY(1000);
+			}
+			break;
+		case DEVICEID_ATHEROS_AR8151:
+		case DEVICEID_ATHEROS_AR8151_V2:
+		case DEVICEID_ATHEROS_AR8152_B:
+		case DEVICEID_ATHEROS_AR8152_B2:
+			alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_ADDR, 0x00);
+			val = alc_miibus_readreg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_DATA);
+			alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_DATA, val | 0x0080);
+			alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_ADDR, 0x3B);
+			val = alc_miibus_readreg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_DATA);
+			alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+			    ALC_MII_DBG_DATA, val & 0xFFF7);
+			DELAY(20);
+			break;
+		}
 	}
 
 	ea[0] = CSR_READ_4(sc, ALC_PAR0);
@@ -478,6 +551,43 @@ alc_phy_reset(struct alc_softc *sc)
 	    GPHY_CFG_SEL_ANA_RESET);
 	CSR_READ_2(sc, ALC_GPHY_CFG);
 	DELAY(10 * 1000);
+
+	/* DSP fixup, Vendor magic. */
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B) {
+		alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_ADDR, 0x000A);
+		data = alc_miibus_readreg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_DATA);
+		alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_DATA, data & 0xDFFF);
+	}
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8151 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8151_V2 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B2) {
+		alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_ADDR, 0x003B);
+		data = alc_miibus_readreg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_DATA);
+		alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_DATA, data & 0xFFF7);
+		DELAY(20 * 1000);
+	}
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8151) {
+		alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_ADDR, 0x0029);
+		alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_DATA, 0x929D);
+	}
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8131 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8132 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8151_V2 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B2) {
+		alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_ADDR, 0x0029);
+		alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+		    ALC_MII_DBG_DATA, 0xB6DD);
+	}
 
 	/* Load DSP codes, vendor magic. */
 	data = ANA_LOOP_SEL_10BT | ANA_EN_MASK_TB | ANA_EN_10BT_IDLE |
@@ -528,36 +638,117 @@ static void
 alc_phy_down(struct alc_softc *sc)
 {
 
-	/* Force PHY down. */
-	CSR_WRITE_2(sc, ALC_GPHY_CFG,
-	    GPHY_CFG_EXT_RESET | GPHY_CFG_HIB_EN | GPHY_CFG_HIB_PULSE |
-	    GPHY_CFG_SEL_ANA_RESET | GPHY_CFG_PHY_IDDQ | GPHY_CFG_PWDOWN_HW);
-	DELAY(1000);
+	switch (sc->alc_ident->deviceid) {
+	case DEVICEID_ATHEROS_AR8151:
+	case DEVICEID_ATHEROS_AR8151_V2:
+		/*
+		 * GPHY power down caused more problems on AR8151 v2.0.
+		 * When driver is reloaded after GPHY power down,
+		 * accesses to PHY/MAC registers hung the system. Only
+		 * cold boot recovered from it.  I'm not sure whether
+		 * AR8151 v1.0 also requires this one though.  I don't
+		 * have AR8151 v1.0 controller in hand.
+		 * The only option left is to isolate the PHY and
+		 * initiates power down the PHY which in turn saves
+		 * more power when driver is unloaded.
+		 */
+		alc_miibus_writereg(sc->alc_dev, sc->alc_phyaddr,
+		    MII_BMCR, BMCR_ISO | BMCR_PDOWN);
+		break;
+	default:
+		/* Force PHY down. */
+		CSR_WRITE_2(sc, ALC_GPHY_CFG,
+		    GPHY_CFG_EXT_RESET | GPHY_CFG_HIB_EN | GPHY_CFG_HIB_PULSE |
+		    GPHY_CFG_SEL_ANA_RESET | GPHY_CFG_PHY_IDDQ |
+		    GPHY_CFG_PWDOWN_HW);
+		DELAY(1000);
+		break;
+	}
 }
 
 static void
-alc_aspm(struct alc_softc *sc)
+alc_aspm(struct alc_softc *sc, int media)
 {
 	uint32_t pmcfg;
+	uint16_t linkcfg;
 
 	ALC_LOCK_ASSERT(sc);
 
 	pmcfg = CSR_READ_4(sc, ALC_PM_CFG);
+	if ((sc->alc_flags & (ALC_FLAG_APS | ALC_FLAG_PCIE)) ==
+	    (ALC_FLAG_APS | ALC_FLAG_PCIE))
+		linkcfg = CSR_READ_2(sc, sc->alc_expcap +
+		    PCIR_EXPRESS_LINK_CTL);
+	else
+		linkcfg = 0;
 	pmcfg &= ~PM_CFG_SERDES_PD_EX_L1;
-	pmcfg |= PM_CFG_SERDES_BUDS_RX_L1_ENB;
-	pmcfg |= PM_CFG_SERDES_L1_ENB;
-	pmcfg &= ~PM_CFG_L1_ENTRY_TIMER_MASK;
+	pmcfg &= ~(PM_CFG_L1_ENTRY_TIMER_MASK | PM_CFG_LCKDET_TIMER_MASK);
 	pmcfg |= PM_CFG_MAC_ASPM_CHK;
+	pmcfg |= PM_CFG_SERDES_ENB | PM_CFG_RBER_ENB;
+	pmcfg &= ~(PM_CFG_ASPM_L1_ENB | PM_CFG_ASPM_L0S_ENB);
+
+	if ((sc->alc_flags & ALC_FLAG_APS) != 0) {
+		/* Disable extended sync except AR8152 B v1.0 */
+		linkcfg &= ~0x80;
+		if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B &&
+		    sc->alc_rev == ATHEROS_AR8152_B_V10)
+			linkcfg |= 0x80;
+		CSR_WRITE_2(sc, sc->alc_expcap + PCIR_EXPRESS_LINK_CTL,
+		    linkcfg);
+		pmcfg &= ~(PM_CFG_EN_BUFS_RX_L0S | PM_CFG_SA_DLY_ENB |
+		    PM_CFG_HOTRST);
+		pmcfg |= (PM_CFG_L1_ENTRY_TIMER_DEFAULT <<
+		    PM_CFG_L1_ENTRY_TIMER_SHIFT);
+		pmcfg &= ~PM_CFG_PM_REQ_TIMER_MASK;
+		pmcfg |= (PM_CFG_PM_REQ_TIMER_DEFAULT <<
+		    PM_CFG_PM_REQ_TIMER_SHIFT);
+		pmcfg |= PM_CFG_SERDES_PD_EX_L1 | PM_CFG_PCIE_RECV;
+	}
+
 	if ((sc->alc_flags & ALC_FLAG_LINK) != 0) {
-		pmcfg |= PM_CFG_SERDES_PLL_L1_ENB;
-		pmcfg &= ~PM_CFG_CLK_SWH_L1;
-		pmcfg &= ~PM_CFG_ASPM_L1_ENB;
-		pmcfg &= ~PM_CFG_ASPM_L0S_ENB;
+		if ((sc->alc_flags & ALC_FLAG_L0S) != 0)
+			pmcfg |= PM_CFG_ASPM_L0S_ENB;
+		if ((sc->alc_flags & ALC_FLAG_L1S) != 0)
+			pmcfg |= PM_CFG_ASPM_L1_ENB;
+		if ((sc->alc_flags & ALC_FLAG_APS) != 0) {
+			if (sc->alc_ident->deviceid ==
+			    DEVICEID_ATHEROS_AR8152_B)
+				pmcfg &= ~PM_CFG_ASPM_L0S_ENB;
+			pmcfg &= ~(PM_CFG_SERDES_L1_ENB |
+			    PM_CFG_SERDES_PLL_L1_ENB |
+			    PM_CFG_SERDES_BUDS_RX_L1_ENB);
+			pmcfg |= PM_CFG_CLK_SWH_L1;
+			if (media == IFM_100_TX || media == IFM_1000_T) {
+				pmcfg &= ~PM_CFG_L1_ENTRY_TIMER_MASK;
+				switch (sc->alc_ident->deviceid) {
+				case DEVICEID_ATHEROS_AR8152_B:
+					pmcfg |= (7 <<
+					    PM_CFG_L1_ENTRY_TIMER_SHIFT);
+					break;
+				case DEVICEID_ATHEROS_AR8152_B2:
+				case DEVICEID_ATHEROS_AR8151_V2:
+					pmcfg |= (4 <<
+					    PM_CFG_L1_ENTRY_TIMER_SHIFT);
+					break;
+				default:
+					pmcfg |= (15 <<
+					    PM_CFG_L1_ENTRY_TIMER_SHIFT);
+					break;
+				}
+			}
+		} else {
+			pmcfg |= PM_CFG_SERDES_L1_ENB |
+			    PM_CFG_SERDES_PLL_L1_ENB |
+			    PM_CFG_SERDES_BUDS_RX_L1_ENB;
+			pmcfg &= ~(PM_CFG_CLK_SWH_L1 |
+			    PM_CFG_ASPM_L1_ENB | PM_CFG_ASPM_L0S_ENB);
+		}
 	} else {
-		pmcfg &= ~PM_CFG_SERDES_PLL_L1_ENB;
+		pmcfg &= ~(PM_CFG_SERDES_BUDS_RX_L1_ENB | PM_CFG_SERDES_L1_ENB |
+		    PM_CFG_SERDES_PLL_L1_ENB);
 		pmcfg |= PM_CFG_CLK_SWH_L1;
-		pmcfg &= ~PM_CFG_ASPM_L1_ENB;
-		pmcfg &= ~PM_CFG_ASPM_L0S_ENB;
+		if ((sc->alc_flags & ALC_FLAG_L1S) != 0)
+			pmcfg |= PM_CFG_ASPM_L1_ENB;
 	}
 	CSR_WRITE_4(sc, ALC_PM_CFG, pmcfg);
 }
@@ -567,7 +758,7 @@ alc_attach(device_t dev)
 {
 	struct alc_softc *sc;
 	struct ifnet *ifp;
-	char *aspm_state[] = { "L0s/L1", "L0s", "L1", "L0s/l1" };
+	char *aspm_state[] = { "L0s/L1", "L0s", "L1", "L0s/L1" };
 	uint16_t burst;
 	int base, error, i, msic, msixc, state;
 	uint32_t cap, ctl, val;
@@ -580,6 +771,7 @@ alc_attach(device_t dev)
 	    MTX_DEF);
 	callout_init_mtx(&sc->alc_tick_ch, &sc->alc_mtx, 0);
 	TASK_INIT(&sc->alc_int_task, 0, alc_int_task, sc);
+	sc->alc_ident = alc_find_ident(dev);
 
 	/* Map the device. */
 	pci_enable_busmaster(dev);
@@ -619,6 +811,20 @@ alc_attach(device_t dev)
 		val = CSR_READ_4(sc, ALC_PEX_UNC_ERR_SEV);
 		val &= ~(PEX_UNC_ERR_SEV_DLP | PEX_UNC_ERR_SEV_FCP);
 		CSR_WRITE_4(sc, ALC_PEX_UNC_ERR_SEV, val);
+		CSR_WRITE_4(sc, ALC_LTSSM_ID_CFG,
+		    CSR_READ_4(sc, ALC_LTSSM_ID_CFG) & ~LTSSM_ID_WRO_ENB);
+		CSR_WRITE_4(sc, ALC_PCIE_PHYMISC,
+		    CSR_READ_4(sc, ALC_PCIE_PHYMISC) |
+		    PCIE_PHYMISC_FORCE_RCV_DET);
+		if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B &&
+		    sc->alc_rev == ATHEROS_AR8152_B_V10) {
+			val = CSR_READ_4(sc, ALC_PCIE_PHYMISC2);
+			val &= ~(PCIE_PHYMISC2_SERDES_CDR_MASK |
+			    PCIE_PHYMISC2_SERDES_TH_MASK);
+			val |= 3 << PCIE_PHYMISC2_SERDES_CDR_SHIFT;
+			val |= 3 << PCIE_PHYMISC2_SERDES_TH_SHIFT;
+			CSR_WRITE_4(sc, ALC_PCIE_PHYMISC2, val);
+		}
 		/* Disable ASPM L0S and L1. */
 		cap = CSR_READ_2(sc, base + PCIR_EXPRESS_LINK_CAP);
 		if ((cap & PCIM_LINK_CAP_ASPM) != 0) {
@@ -629,12 +835,19 @@ alc_attach(device_t dev)
 				device_printf(dev, "RCB %u bytes\n",
 				    sc->alc_rcb == DMA_CFG_RCB_64 ? 64 : 128);
 			state = ctl & 0x03;
+			if (state & 0x01)
+				sc->alc_flags |= ALC_FLAG_L0S;
+			if (state & 0x02)
+				sc->alc_flags |= ALC_FLAG_L1S;
 			if (bootverbose)
 				device_printf(sc->alc_dev, "ASPM %s %s\n",
 				    aspm_state[state],
 				    state == 0 ? "disabled" : "enabled");
-			if (state != 0)
-				alc_disable_l0s_l1(sc);
+			alc_disable_l0s_l1(sc);
+		} else {
+			if (bootverbose)
+				device_printf(sc->alc_dev,
+				    "no ASPM support\n");
 		}
 	}
 
@@ -651,12 +864,25 @@ alc_attach(device_t dev)
 	 * used in AR8132 can't establish gigabit link even if it
 	 * shows the same PHY model/revision number of AR8131.
 	 */
-	if (pci_get_device(dev) == DEVICEID_ATHEROS_AR8132)
-		sc->alc_flags |= ALC_FLAG_FASTETHER | ALC_FLAG_JUMBO;
-	else
-		sc->alc_flags |= ALC_FLAG_JUMBO | ALC_FLAG_ASPM_MON;
+	switch (sc->alc_ident->deviceid) {
+	case DEVICEID_ATHEROS_AR8152_B:
+	case DEVICEID_ATHEROS_AR8152_B2:
+		sc->alc_flags |= ALC_FLAG_APS;
+		/* FALLTHROUGH */
+	case DEVICEID_ATHEROS_AR8132:
+		sc->alc_flags |= ALC_FLAG_FASTETHER;
+		break;
+	case DEVICEID_ATHEROS_AR8151:
+	case DEVICEID_ATHEROS_AR8151_V2:
+		sc->alc_flags |= ALC_FLAG_APS;
+		/* FALLTHROUGH */
+	default:
+		break;
+	}
+	sc->alc_flags |= ALC_FLAG_ASPM_MON | ALC_FLAG_JUMBO;
+
 	/*
-	 * It seems that AR8131/AR8132 has silicon bug for SMB. In
+	 * It seems that AR813x/AR815x has silicon bug for SMB. In
 	 * addition, Atheros said that enabling SMB wouldn't improve
 	 * performance. However I think it's bad to access lots of
 	 * registers to extract MAC statistics.
@@ -1369,7 +1595,7 @@ again:
 
 	/*
 	 * Create Tx buffer parent tag.
-	 * AR8131/AR8132 allows 64bit DMA addressing of Tx/Rx buffers
+	 * AR813x/AR815x allows 64bit DMA addressing of Tx/Rx buffers
 	 * so it needs separate parent DMA tag as parent DMA address
 	 * space could be restricted to be within 32bit address space
 	 * by 4GB boundary crossing.
@@ -1806,7 +2032,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	poff = 0;
 	if ((m->m_pkthdr.csum_flags & (ALC_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
-		 * AR8131/AR8132 requires offset of TCP/UDP header in its
+		 * AR813x/AR815x requires offset of TCP/UDP header in its
 		 * Tx descriptor to perform Tx checksum offloading. TSO
 		 * also requires TCP header offset and modification of
 		 * IP/TCP header. This kind of operation takes many CPU
@@ -1826,12 +2052,14 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 			*m_head = m;
 		}
 
-		m = m_pullup(m, sizeof(struct ether_header) + sizeof(struct ip));
+		m = m_pullup(m, sizeof(struct ether_header) +
+		    sizeof(struct ip));
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
-		ip = (struct ip *)(mtod(m, char *) + sizeof(struct ether_header));
+		ip = (struct ip *)(mtod(m, char *) +
+		    sizeof(struct ether_header));
 		poff = sizeof(struct ether_header) + (ip->ip_hl << 2);
 		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 			m = m_pullup(m, poff + sizeof(struct tcphdr));
@@ -1922,7 +2150,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 		cflags |= (poff << TD_TCPHDR_OFFSET_SHIFT) &
 		    TD_TCPHDR_OFFSET_MASK;
 		/*
-		 * AR8131/AR8132 requires the first buffer should
+		 * AR813x/AR815x requires the first buffer should
 		 * only hold IP/TCP header data. Payload should
 		 * be handled in other descriptors.
 		 */
@@ -2103,14 +2331,16 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	error = 0;
 	switch (cmd) {
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > ALC_JUMBO_MTU ||
+		if (ifr->ifr_mtu < ETHERMIN ||
+		    ifr->ifr_mtu > (sc->alc_ident->max_framelen -
+		    sizeof(struct ether_vlan_header) - ETHER_CRC_LEN) ||
 		    ((sc->alc_flags & ALC_FLAG_JUMBO) == 0 &&
 		    ifr->ifr_mtu > ETHERMTU))
 			error = EINVAL;
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			ALC_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
-			/* AR8131/AR8132 has 13 bits MSS field. */
+			/* AR813x/AR815x has 13 bits MSS field. */
 			if (ifp->if_mtu > ALC_TSO_MTU &&
 			    (ifp->if_capenable & IFCAP_TSO4) != 0) {
 				ifp->if_capenable &= ~IFCAP_TSO4;
@@ -2161,7 +2391,7 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
 			ifp->if_capenable ^= IFCAP_TSO4;
 			if ((ifp->if_capenable & IFCAP_TSO4) != 0) {
-				/* AR8131/AR8132 has 13 bits MSS field. */
+				/* AR813x/AR815x has 13 bits MSS field. */
 				if (ifp->if_mtu > ALC_TSO_MTU) {
 					ifp->if_capenable &= ~IFCAP_TSO4;
 					ifp->if_hwassist &= ~CSUM_TSO;
@@ -2213,6 +2443,10 @@ alc_mac_config(struct alc_softc *sc)
 	reg = CSR_READ_4(sc, ALC_MAC_CFG);
 	reg &= ~(MAC_CFG_FULL_DUPLEX | MAC_CFG_TX_FC | MAC_CFG_RX_FC |
 	    MAC_CFG_SPEED_MASK);
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8151 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8151_V2 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B2)
+		reg |= MAC_CFG_HASH_ALG_CRC32 | MAC_CFG_SPEED_MODE_SW;
 	/* Reprogram MAC with resolved speed/duplex. */
 	switch (IFM_SUBTYPE(mii->mii_media_active)) {
 	case IFM_10_T:
@@ -2834,7 +3068,9 @@ alc_reset(struct alc_softc *sc)
 	uint32_t reg;
 	int i;
 
-	CSR_WRITE_4(sc, ALC_MASTER_CFG, MASTER_RESET);
+	reg = CSR_READ_4(sc, ALC_MASTER_CFG) & 0xFFFF;
+	reg |= MASTER_OOB_DIS_OFF | MASTER_RESET;
+	CSR_WRITE_4(sc, ALC_MASTER_CFG, reg);
 	for (i = ALC_RESET_TIMEOUT; i > 0; i--) {
 		DELAY(10);
 		if ((CSR_READ_4(sc, ALC_MASTER_CFG) & MASTER_RESET) == 0)
@@ -2965,6 +3201,18 @@ alc_init_locked(struct alc_softc *sc)
 	CSR_WRITE_4(sc, ALC_SMB_BASE_ADDR_HI, ALC_ADDR_HI(paddr));
 	CSR_WRITE_4(sc, ALC_SMB_BASE_ADDR_LO, ALC_ADDR_LO(paddr));
 
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B) {
+		/* Reconfigure SRAM - Vendor magic. */
+		CSR_WRITE_4(sc, ALC_SRAM_RX_FIFO_LEN, 0x000002A0);
+		CSR_WRITE_4(sc, ALC_SRAM_TX_FIFO_LEN, 0x00000100);
+		CSR_WRITE_4(sc, ALC_SRAM_RX_FIFO_ADDR, 0x029F0000);
+		CSR_WRITE_4(sc, ALC_SRAM_RD0_ADDR, 0x02BF02A0);
+		CSR_WRITE_4(sc, ALC_SRAM_TX_FIFO_ADDR, 0x03BF02C0);
+		CSR_WRITE_4(sc, ALC_SRAM_TD_ADDR, 0x03DF03C0);
+		CSR_WRITE_4(sc, ALC_TXF_WATER_MARK, 0x00000000);
+		CSR_WRITE_4(sc, ALC_RD_DMA_CFG, 0x00000000);
+	}
+
 	/* Tell hardware that we're ready to load DMA blocks. */
 	CSR_WRITE_4(sc, ALC_DMA_BLOCK, DMA_BLOCK_LOAD);
 
@@ -2972,14 +3220,11 @@ alc_init_locked(struct alc_softc *sc)
 	reg = ALC_USECS(sc->alc_int_rx_mod) << IM_TIMER_RX_SHIFT;
 	reg |= ALC_USECS(sc->alc_int_tx_mod) << IM_TIMER_TX_SHIFT;
 	CSR_WRITE_4(sc, ALC_IM_TIMER, reg);
-	reg = CSR_READ_4(sc, ALC_MASTER_CFG);
-	reg &= ~(MASTER_CHIP_REV_MASK | MASTER_CHIP_ID_MASK);
 	/*
 	 * We don't want to automatic interrupt clear as task queue
 	 * for the interrupt should know interrupt status.
 	 */
-	reg &= ~MASTER_INTR_RD_CLR;
-	reg &= ~(MASTER_IM_RX_TIMER_ENB | MASTER_IM_TX_TIMER_ENB);
+	reg = MASTER_SA_TIMER_ENB;
 	if (ALC_USECS(sc->alc_int_rx_mod) != 0)
 		reg |= MASTER_IM_RX_TIMER_ENB;
 	if (ALC_USECS(sc->alc_int_tx_mod) != 0)
@@ -3020,7 +3265,7 @@ alc_init_locked(struct alc_softc *sc)
 	 * Be conservative in what you do, be liberal in what you
 	 * accept from others - RFC 793.
 	 */
-	CSR_WRITE_4(sc, ALC_FRAME_SIZE, ALC_JUMBO_FRAMELEN);
+	CSR_WRITE_4(sc, ALC_FRAME_SIZE, sc->alc_ident->max_framelen);
 
 	/* Disable header split(?) */
 	CSR_WRITE_4(sc, ALC_HDS_CFG, 0);
@@ -3047,11 +3292,14 @@ alc_init_locked(struct alc_softc *sc)
 	 * TSO/checksum offloading.
 	 */
 	CSR_WRITE_4(sc, ALC_TSO_OFFLOAD_THRESH,
-	    (ALC_JUMBO_FRAMELEN >> TSO_OFFLOAD_THRESH_UNIT_SHIFT) &
+	    (sc->alc_ident->max_framelen >> TSO_OFFLOAD_THRESH_UNIT_SHIFT) &
 	    TSO_OFFLOAD_THRESH_MASK);
 	/* Configure TxQ. */
 	reg = (alc_dma_burst[sc->alc_dma_rd_burst] <<
 	    TXQ_CFG_TX_FIFO_BURST_SHIFT) & TXQ_CFG_TX_FIFO_BURST_MASK;
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B2)
+		reg >>= 1;
 	reg |= (TXQ_CFG_TD_BURST_DEFAULT << TXQ_CFG_TD_BURST_SHIFT) &
 	    TXQ_CFG_TD_BURST_MASK;
 	CSR_WRITE_4(sc, ALC_TXQ_CFG, reg | TXQ_CFG_ENHANCED_MODE);
@@ -3068,14 +3316,23 @@ alc_init_locked(struct alc_softc *sc)
 	 * XON  : 80% of Rx FIFO
 	 * XOFF : 30% of Rx FIFO
 	 */
-	reg = CSR_READ_4(sc, ALC_SRAM_RX_FIFO_LEN);
-	rxf_hi = (reg * 8) / 10;
-	rxf_lo = (reg * 3)/ 10;
-	CSR_WRITE_4(sc, ALC_RX_FIFO_PAUSE_THRESH,
-	    ((rxf_lo << RX_FIFO_PAUSE_THRESH_LO_SHIFT) &
-	    RX_FIFO_PAUSE_THRESH_LO_MASK) |
-	    ((rxf_hi << RX_FIFO_PAUSE_THRESH_HI_SHIFT) &
-	     RX_FIFO_PAUSE_THRESH_HI_MASK));
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8131 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8132) {
+		reg = CSR_READ_4(sc, ALC_SRAM_RX_FIFO_LEN);
+		rxf_hi = (reg * 8) / 10;
+		rxf_lo = (reg * 3) / 10;
+		CSR_WRITE_4(sc, ALC_RX_FIFO_PAUSE_THRESH,
+		    ((rxf_lo << RX_FIFO_PAUSE_THRESH_LO_SHIFT) &
+		     RX_FIFO_PAUSE_THRESH_LO_MASK) |
+		    ((rxf_hi << RX_FIFO_PAUSE_THRESH_HI_SHIFT) &
+		     RX_FIFO_PAUSE_THRESH_HI_MASK));
+	}
+
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8151_V2)
+		CSR_WRITE_4(sc, ALC_SERDES_LOCK,
+		    CSR_READ_4(sc, ALC_SERDES_LOCK) | SERDES_MAC_CLK_SLOWDOWN |
+		    SERDES_PHY_CLK_SLOWDOWN);
 
 	/* Disable RSS until I understand L1C/L2C's RSS logic. */
 	CSR_WRITE_4(sc, ALC_RSS_IDT_TABLE0, 0);
@@ -3086,15 +3343,9 @@ alc_init_locked(struct alc_softc *sc)
 	    RXQ_CFG_RD_BURST_MASK;
 	reg |= RXQ_CFG_RSS_MODE_DIS;
 	if ((sc->alc_flags & ALC_FLAG_ASPM_MON) != 0)
-		reg |= RXQ_CFG_ASPM_THROUGHPUT_LIMIT_100M;
+		reg |= RXQ_CFG_ASPM_THROUGHPUT_LIMIT_1M;
 	CSR_WRITE_4(sc, ALC_RXQ_CFG, reg);
 
-	/* Configure Rx DMAW request thresold. */
-	CSR_WRITE_4(sc, ALC_RD_DMA_CFG,
-	    ((RD_DMA_CFG_THRESH_DEFAULT << RD_DMA_CFG_THRESH_SHIFT) &
-	    RD_DMA_CFG_THRESH_MASK) |
-	    ((ALC_RD_DMA_CFG_USECS(0) << RD_DMA_CFG_TIMER_SHIFT) &
-	    RD_DMA_CFG_TIMER_MASK));
 	/* Configure DMA parameters. */
 	reg = DMA_CFG_OUT_ORDER | DMA_CFG_RD_REQ_PRI;
 	reg |= sc->alc_rcb;
@@ -3120,7 +3371,7 @@ alc_init_locked(struct alc_softc *sc)
 	 *  - Enable CRC generation.
 	 *  Actual reconfiguration of MAC for resolved speed/duplex
 	 *  is followed after detection of link establishment.
-	 *  AR8131/AR8132 always does checksum computation regardless
+	 *  AR813x/AR815x always does checksum computation regardless
 	 *  of MAC_CFG_RXCSUM_ENB bit. Also the controller is known to
 	 *  have bug in protocol field in Rx return structure so
 	 *  these controllers can't handle fragmented frames. Disable
@@ -3130,6 +3381,10 @@ alc_init_locked(struct alc_softc *sc)
 	reg = MAC_CFG_TX_CRC_ENB | MAC_CFG_TX_AUTO_PAD | MAC_CFG_FULL_DUPLEX |
 	    ((MAC_CFG_PREAMBLE_DEFAULT << MAC_CFG_PREAMBLE_SHIFT) &
 	    MAC_CFG_PREAMBLE_MASK);
+	if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8151 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8151_V2 ||
+	    sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B2)
+		reg |= MAC_CFG_HASH_ALG_CRC32 | MAC_CFG_SPEED_MODE_SW;
 	if ((sc->alc_flags & ALC_FLAG_FASTETHER) != 0)
 		reg |= MAC_CFG_SPEED_10_100;
 	else
