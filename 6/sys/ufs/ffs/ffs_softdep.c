@@ -873,7 +873,7 @@ static	struct jremref *newjremref(struct dirrem *, struct inode *,
 	    struct inode *ip, off_t, nlink_t);
 static	struct jaddref *newjaddref(struct inode *, ino_t, off_t, int16_t,
 	    uint16_t);
-static inline void newinoref(struct inoref *, ino_t, ino_t, off_t, nlink_t,
+static void newinoref(struct inoref *, ino_t, ino_t, off_t, nlink_t,
 	    uint16_t);
 static inline struct jsegdep *inoref_jseg(struct inoref *);
 static	struct jmvref *newjmvref(struct inode *, ino_t, off_t, off_t);
@@ -3241,7 +3241,7 @@ newjremref(struct dirrem *dirrem, struct inode *dp, struct inode *ip,
 	return (jremref);
 }
 
-static inline void
+static void
 newinoref(struct inoref *inoref, ino_t ino, ino_t parent, off_t diroff,
     nlink_t nlink, uint16_t mode)
 {
