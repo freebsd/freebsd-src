@@ -1087,6 +1087,30 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
+/*
+ * Send an IPI to specified CPU handling the bitmap logic.
+ */
+static void
+ipi_send_cpu(int cpu, u_int ipi)
+{
+	u_int bitmap, old_pending, new_pending;
+
+	KASSERT(cpu_apic_ids[cpu] != -1, ("IPI to non-existent CPU %d", cpu));
+
+	if (IPI_IS_BITMAPED(ipi)) {
+		bitmap = 1 << ipi;
+		ipi = IPI_BITMAP_VECTOR;
+		do {
+			old_pending = cpu_ipi_pending[cpu];
+			new_pending = old_pending | bitmap;
+		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
+		    old_pending, new_pending)); 
+		if (old_pending)
+			return;
+	}
+	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+}
+
 void
 smp_cache_flush(void)
 {
@@ -1210,14 +1234,6 @@ void
 ipi_selected(cpumask_t cpus, u_int ipi)
 {
 	int cpu;
-	u_int bitmap = 0;
-	u_int old_pending;
-	u_int new_pending;
-
-	if (IPI_IS_BITMAPED(ipi)) { 
-		bitmap = 1 << ipi;
-		ipi = IPI_BITMAP_VECTOR;
-	}
 
 	/*
 	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
@@ -1231,20 +1247,7 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
 		cpus &= ~(1 << cpu);
-
-		KASSERT(cpu_apic_ids[cpu] != -1,
-		    ("IPI to non-existent CPU %d", cpu));
-
-		if (bitmap) {
-			do {
-				old_pending = cpu_ipi_pending[cpu];
-				new_pending = old_pending | bitmap;
-			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
-			    old_pending, new_pending));	
-			if (old_pending)
-				continue;
-		}
-		lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+		ipi_send_cpu(cpu, ipi);
 	}
 }
 
@@ -1254,14 +1257,6 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 void
 ipi_cpu(int cpu, u_int ipi)
 {
-	u_int bitmap = 0;
-	u_int old_pending;
-	u_int new_pending;
-
-	if (IPI_IS_BITMAPED(ipi)) { 
-		bitmap = 1 << ipi;
-		ipi = IPI_BITMAP_VECTOR;
-	}
 
 	/*
 	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
@@ -1272,18 +1267,7 @@ ipi_cpu(int cpu, u_int ipi)
 		atomic_set_int(&ipi_nmi_pending, 1 << cpu);
 
 	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
-	KASSERT(cpu_apic_ids[cpu] != -1, ("IPI to non-existent CPU %d", cpu));
-
-	if (bitmap) {
-		do {
-			old_pending = cpu_ipi_pending[cpu];
-			new_pending = old_pending | bitmap;
-		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
-		    old_pending, new_pending));	
-		if (old_pending)
-			return;
-	}
-	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+	ipi_send_cpu(cpu, ipi);
 }
 
 /*
