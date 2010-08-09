@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,9 @@
  * SUCH DAMAGE.
  *
  */
-
+/*
+ | $Id: isc_cam.c 998 2009-12-20 10:32:45Z danny $
+ */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -53,146 +56,34 @@ __FBSDID("$FreeBSD$");
 #include <dev/iscsi/initiator/iscsi.h>
 #include <dev/iscsi/initiator/iscsivar.h>
 
-// XXX: untested/incomplete
-void
-ic_freeze(isc_session_t *sp)
-{
-     debug_called(8);
-#if 0
-     sdebug(2, "freezing path=%p", sp->cam_path == NULL? 0: sp->cam_path);
-     if((sp->cam_path != NULL) && !(sp->flags & ISC_FROZEN)) {
-	  xpt_freeze_devq(sp->cam_path, 1);
-     }
-#endif
-     sp->flags |= ISC_FROZEN;
-}
-
-// XXX: untested/incomplete
-void
-ic_release(isc_session_t *sp)
-{
-     debug_called(8);
-#if 0
-     sdebug(2, "release path=%p", sp->cam_path == NULL? 0: sp->cam_path);
-     if((sp->cam_path != NULL) && (sp->flags & ISC_FROZEN)) {
-	  xpt_release_devq(sp->cam_path, 1, TRUE);
-     }
-#endif
-     sp->flags &= ~ISC_FROZEN;
-}
-
-void
-ic_lost_target(isc_session_t *sp, int target)
-{
-     struct isc_softc   *isp = sp->isc;
-
-     debug_called(8);
-     sdebug(2, "target=%d", target);
-     if(sp->cam_path != NULL) {
-	  mtx_lock(&isp->cam_mtx);
-	  xpt_async(AC_LOST_DEVICE, sp->cam_path, NULL);
-	  xpt_free_path(sp->cam_path);
-	  mtx_unlock(&isp->cam_mtx);
-	  sp->cam_path = 0; // XXX
-     }
-}
-
 static void
-_scan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-     isc_session_t *sp = (isc_session_t *)ccb->ccb_h.spriv_ptr0;
-
-     debug_called(8);
-
-     free(ccb, M_TEMP);
-
-     if(sp->flags & ISC_FFPWAIT) {
-	  sp->flags &= ~ISC_FFPWAIT;
-	  wakeup(sp);
-     }
-}
-
-static void
-_scan_target(isc_session_t *sp, int target)
-{
-     union ccb		*ccb;
-
-     debug_called(8);
-     sdebug(2, "target=%d", target);
-
-     if((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO)) == NULL) {
-	  xdebug("scan failed (can't allocate CCB)");
-	  return;
-     }
-     CAM_LOCK(sp->isc);
-     xpt_setup_ccb(&ccb->ccb_h, sp->cam_path, 5/*priority (low)*/);
-     ccb->ccb_h.func_code	= XPT_SCAN_BUS;
-     ccb->ccb_h.cbfcnp		= _scan_callback;
-     ccb->crcn.flags		= CAM_FLAG_NONE;
-     ccb->ccb_h.spriv_ptr0	= sp;
-
-     xpt_action(ccb);
-     CAM_UNLOCK(sp->isc);
-}
-
-int
-ic_fullfeature(struct cdev *dev)
-{
-     struct isc_softc 	*isp = dev->si_drv1;
-     isc_session_t	*sp = (isc_session_t *)dev->si_drv2;
-
-     debug_called(8);
-     sdebug(3, "dev=%d sc=%p", dev2unit(dev), isp);
-
-     sp->flags &= ~ISC_FFPHASE;
-     sp->flags |= ISC_FFPWAIT;
-
-     CAM_LOCK(isp);
-     if(xpt_create_path(&sp->cam_path, xpt_periph, cam_sim_path(sp->isc->cam_sim),
-			sp->sid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-	  xdebug("can't create cam path");
-	  CAM_UNLOCK(isp);
-	  return ENODEV; // XXX
-     }
-     CAM_UNLOCK(isp);
-
-     _scan_target(sp, sp->sid);
-
-     while(sp->flags & ISC_FFPWAIT)
-	  tsleep(sp, PRIBIO, "ffp", 5*hz); // the timeout time should
-					    // be configurable
-     if(sp->target_nluns > 0) {
-	  sp->flags |= ISC_FFPHASE;
-	  return 0;
-     }
-
-     return ENODEV;
-}
-
-static void
-_inq(struct cam_sim *sim, union ccb *ccb, int maxluns)
+_inq(struct cam_sim *sim, union ccb *ccb)
 {
      struct ccb_pathinq *cpi = &ccb->cpi;
+     isc_session_t *sp = cam_sim_softc(sim);
 
-     debug_called(4);
+     debug_called(8);
+     debug(3, "sid=%d target=%d lun=%d", sp->sid, ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 
      cpi->version_num = 1; /* XXX??? */
      cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE | PI_WIDE_32;
      cpi->target_sprt = 0;
      cpi->hba_misc = 0;
      cpi->hba_eng_cnt = 0;
-     cpi->max_target = ISCSI_MAX_TARGETS - 1;
+     cpi->max_target = 0; //ISCSI_MAX_TARGETS - 1;
      cpi->initiator_id = ISCSI_MAX_TARGETS;
-     cpi->max_lun = maxluns;
+     cpi->max_lun = sp->opt.maxluns - 1;
      cpi->bus_id = cam_sim_bus(sim);
-     cpi->base_transfer_speed = 3300;
+     cpi->base_transfer_speed = 3300; // 40000; // XXX:
      strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
      strncpy(cpi->hba_vid, "iSCSI", HBA_IDLEN);
      strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
      cpi->unit_number = cam_sim_unit(sim);
+     cpi->ccb_h.status = CAM_REQ_CMP;
+#if defined(KNOB_VALID_ADDRESS)
      cpi->transport = XPORT_ISCSI;
      cpi->transport_version = 0;
-     cpi->ccb_h.status = CAM_REQ_CMP;
+#endif
 }
 
 static __inline int
@@ -203,77 +94,111 @@ _scsi_encap(struct cam_sim *sim, union ccb *ccb)
 #if __FreeBSD_version < 700000
      ret = scsi_encap(sim, ccb);
 #else
-     struct isc_softc	*isp = (struct isc_softc *)cam_sim_softc(sim);
+     isc_session_t	*sp = cam_sim_softc(sim);
 
-     mtx_unlock(&isp->cam_mtx);
+     mtx_unlock(&sp->cam_mtx);
      ret = scsi_encap(sim, ccb);
-     mtx_lock(&isp->cam_mtx);
+     mtx_lock(&sp->cam_mtx);
 #endif
      return ret;
+}
+
+void
+ic_lost_target(isc_session_t *sp, int target)
+{
+     debug_called(8);
+     sdebug(2, "lost target=%d", target);
+
+     if(sp->cam_path != NULL) {
+	  mtx_lock(&sp->cam_mtx);
+	  xpt_async(AC_LOST_DEVICE, sp->cam_path, NULL);
+	  xpt_free_path(sp->cam_path);
+	  mtx_unlock(&sp->cam_mtx);
+	  sp->cam_path = 0; // XXX
+     }
+}
+
+static void
+scan_callback(struct cam_periph *periph, union ccb *ccb)
+{
+     isc_session_t *sp = (isc_session_t *)ccb->ccb_h.spriv_ptr0;
+
+     debug_called(8);
+
+     free(ccb, M_TEMP);
+
+     if(sp->flags & ISC_SCANWAIT) {
+	  sp->flags &= ~ISC_SCANWAIT;
+	  wakeup(sp);
+     }
+}
+
+static int
+ic_scan(isc_session_t *sp)
+{
+     union ccb	*ccb;
+
+     debug_called(8);
+     sdebug(2, "scanning sid=%d", sp->sid);
+
+     if((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO)) == NULL) {
+	  xdebug("scan failed (can't allocate CCB)");
+	  return ENOMEM; // XXX
+     }
+
+     sp->flags &= ~ISC_CAMDEVS;
+     sp->flags |= ISC_SCANWAIT;
+
+     CAM_LOCK(sp);
+     if(xpt_create_path(&sp->cam_path, xpt_periph, cam_sim_path(sp->cam_sim),
+			0, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	  xdebug("can't create cam path");
+	  CAM_UNLOCK(sp);
+	  free(ccb, M_TEMP);
+	  return ENODEV; // XXX
+     }
+     xpt_setup_ccb(&ccb->ccb_h, sp->cam_path, 5/*priority (low)*/);
+     ccb->ccb_h.func_code	= XPT_SCAN_BUS;
+     ccb->ccb_h.cbfcnp		= scan_callback;
+     ccb->crcn.flags		= CAM_FLAG_NONE;
+     ccb->ccb_h.spriv_ptr0	= sp;
+
+     xpt_action(ccb);
+     CAM_UNLOCK(sp);
+
+     while(sp->flags & ISC_SCANWAIT)
+	  tsleep(sp, PRIBIO, "ffp", 5*hz); // the timeout time should
+					    // be configurable
+     sdebug(2, "# of luns=%d", sp->target_nluns);
+
+     if(sp->target_nluns > 0) {
+	  sp->flags |= ISC_CAMDEVS;
+	  return 0;
+     }
+
+     return ENODEV;
 }
 
 static void
 ic_action(struct cam_sim *sim, union ccb *ccb)
 {
+     isc_session_t	*sp = cam_sim_softc(sim);
      struct ccb_hdr	*ccb_h = &ccb->ccb_h;
-     struct isc_softc	*isp = (struct isc_softc *)cam_sim_softc(sim);
-     isc_session_t	*sp;
 
      debug_called(8);
 
-     if((ccb_h->target_id != CAM_TARGET_WILDCARD) && (ccb_h->target_id < MAX_SESSIONS))
-	  sp = isp->sessions[ccb_h->target_id];
-     else
-	  sp = NULL;
-
      ccb_h->spriv_ptr0 = sp;
-
-     debug(4, "func_code=0x%x flags=0x%x status=0x%x target=%d lun=%d retry_count=%d timeout=%d",
+     sdebug(4, "func_code=0x%x flags=0x%x status=0x%x target=%d lun=%d retry_count=%d timeout=%d",
 	   ccb_h->func_code, ccb->ccb_h.flags, ccb->ccb_h.status,
 	   ccb->ccb_h.target_id, ccb->ccb_h.target_lun, 
 	   ccb->ccb_h.retry_count, ccb_h->timeout);
-     /*
-      | first quick check
-      */
+     if(sp == NULL) {
+	  xdebug("sp == NULL! cannot happen");
+	  return;
+     }	  
      switch(ccb_h->func_code) {
-     default:
-	  // XXX: maybe check something else?
-	  break;
-
-     case XPT_SCSI_IO:
-     case XPT_RESET_DEV:
-     case XPT_GET_TRAN_SETTINGS:
-     case XPT_SET_TRAN_SETTINGS:
-     case XPT_CALC_GEOMETRY:
-	  if(sp == NULL) {
-	       ccb->ccb_h.status = CAM_DEV_NOT_THERE;
-#if __FreeBSD_version < 700000
-	       XPT_DONE(isp, ccb);
-#else
-	       xpt_done(ccb);
-#endif
-	       return;
-	  }
-	  break;
-
      case XPT_PATH_INQ:
-     case XPT_NOOP:
-	  if(sp == NULL && ccb->ccb_h.target_id != CAM_TARGET_WILDCARD) {
-	       ccb->ccb_h.status = CAM_DEV_NOT_THERE;
-#if __FreeBSD_version < 700000
-	       XPT_DONE(isp, ccb);
-#else
-	       xpt_done(ccb);
-#endif
-	       debug(4, "status = CAM_DEV_NOT_THERE");
-	       return;
-	  }
-     }
-
-     switch(ccb_h->func_code) {
-
-     case XPT_PATH_INQ:
-	  _inq(sim, ccb, (sp? sp->opt.maxluns: ISCSI_MAX_LUNS) - 1);
+	  _inq(sim, ccb);
 	  break;
 
      case XPT_RESET_BUS: // (can just be a stub that does nothing and completes)
@@ -310,14 +235,35 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	  struct	ccb_calc_geometry *ccg;
 
 	  ccg = &ccb->ccg;
-	  debug(6, "XPT_CALC_GEOMETRY vsize=%jd bsize=%d", ccg->volume_size, ccg->block_size);
+	  debug(4, "sid=%d target=%d lun=%d XPT_CALC_GEOMETRY vsize=%jd bsize=%d",
+		sp->sid, ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
+		ccg->volume_size, ccg->block_size);
 	  if(ccg->block_size == 0 ||
 	     (ccg->volume_size < ccg->block_size)) {
 	       // print error message  ...
 	       /* XXX: what error is appropiate? */
 	       break;
-	  } else
+	  } 
+	  else {
+	       int	lun, *off, boff;
+
+	       lun = ccb->ccb_h.target_lun;
+	       if(lun > ISCSI_MAX_LUNS) {
+		    // XXX: 
+		    xdebug("lun %d > ISCSI_MAX_LUNS!\n", lun);
+		    lun %= ISCSI_MAX_LUNS;
+	       }
+	       off = &sp->target_lun[lun / (sizeof(int)*8)];
+	       boff = BIT(lun % (sizeof(int)*8));
+	       debug(4, "sp->target_nluns=%d *off=%x boff=%x",
+		     sp->target_nluns, *off, boff);
+
+	       if((*off & boff) == 0) {
+		    sp->target_nluns++;
+		    *off |= boff;
+	       }
 	       cam_calc_geometry(ccg, /*extended*/1);
+	  }
 	  break;
      }
 
@@ -327,7 +273,7 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	  break;
      }
 #if __FreeBSD_version < 700000
-     XPT_DONE(isp, ccb);
+     XPT_DONE(sp, ccb);
 #else
      xpt_done(ccb);
 #endif
@@ -337,102 +283,102 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 static void
 ic_poll(struct cam_sim *sim)
 {
-     debug_called(8);
+     debug_called(4);
 
 }
 
 int
 ic_getCamVals(isc_session_t *sp, iscsi_cam_t *cp)
 {
-     int	i;
-
      debug_called(8);
 
-     if(sp && sp->isc->cam_sim) {
-	  cp->path_id = cam_sim_path(sp->isc->cam_sim);
-	  cp->target_id = sp->sid;
-	  cp->target_nluns = sp->target_nluns; // XXX: -1?
-	  for(i = 0; i < cp->target_nluns; i++)
-	       cp->target_lun[i] = sp->target_lun[i];
+     if(sp && sp->cam_sim) {
+	  cp->path_id = cam_sim_path(sp->cam_sim);
+	  cp->target_id = 0;
+	  cp->target_nluns = ISCSI_MAX_LUNS; // XXX: -1?
 	  return 0;
      }
      return ENXIO;
 }
 
 void
-ic_destroy(struct isc_softc *isp)
+ic_destroy(isc_session_t *sp )
 {
      debug_called(8);
 
-     CAM_LOCK(isp); // can't harm :-)
+     if(sp->cam_path != NULL) {
+	  sdebug(2, "name=%s unit=%d",
+		 cam_sim_name(sp->cam_sim), cam_sim_unit(sp->cam_sim));
+	  CAM_LOCK(sp);
+#if 0
+	  xpt_async(AC_LOST_DEVICE, sp->cam_path, NULL);
+#else
+	  xpt_async(XPT_RESET_BUS, sp->cam_path, NULL);
+#endif
+	  xpt_free_path(sp->cam_path);
+	  xpt_bus_deregister(cam_sim_path(sp->cam_sim));
+	  cam_sim_free(sp->cam_sim, TRUE /*free_devq*/);
 
-     xpt_async(AC_LOST_DEVICE, isp->cam_path, NULL);
-     xpt_free_path(isp->cam_path);
-     
-     xpt_bus_deregister(cam_sim_path(isp->cam_sim));
-     cam_sim_free(isp->cam_sim, TRUE /*free_devq*/);
-
-     CAM_UNLOCK(isp);
+	  CAM_UNLOCK(sp);
+	  sdebug(2, "done");
+     }
 }
 
 int
-ic_init(struct isc_softc *isp)
+ic_init(isc_session_t *sp)
 {
      struct cam_sim	*sim;
      struct cam_devq	*devq;
-     struct cam_path	*path;
+
+     debug_called(8);
 
      if((devq = cam_simq_alloc(256)) == NULL)
 	  return ENOMEM;
 
 #if __FreeBSD_version >= 700000
-     mtx_init(&isp->cam_mtx, "isc-cam", NULL, MTX_DEF);
+     mtx_init(&sp->cam_mtx, "isc-cam", NULL, MTX_DEF);
 #else
      isp->cam_mtx = Giant;
 #endif
-     sim = cam_sim_alloc(ic_action, ic_poll,
-			 "iscsi", isp, 0/*unit*/,
+     sim = cam_sim_alloc(ic_action,
+			 ic_poll,
+			 "iscsi",
+			 sp,
+			 sp->sid,	// unit
 #if __FreeBSD_version >= 700000
-			 &isp->cam_mtx,
+			 &sp->cam_mtx,
 #endif
-			 1/*max_dev_transactions*/,
-			 100/*max_tagged_dev_transactions*/,
+			 1,		// max_dev_transactions
+			 0,		// max_tagged_dev_transactions
 			 devq);
      if(sim == NULL) {
 	  cam_simq_free(devq);
 #if __FreeBSD_version >= 700000
-	  mtx_destroy(&isp->cam_mtx);
+	  mtx_destroy(&sp->cam_mtx);
 #endif
 	  return ENXIO;
      }
-     CAM_LOCK(isp);
+
+     CAM_LOCK(sp);
      if(xpt_bus_register(sim,
 #if __FreeBSD_version >= 700000
 			 NULL,
 #endif
-			 0/*bus_number*/) != CAM_SUCCESS)
-	  goto bad;
+			 0/*bus_number*/) != CAM_SUCCESS) {
 
-     if(xpt_create_path(&path, xpt_periph, cam_sim_path(sim),
-			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-	  xpt_bus_deregister(cam_sim_path(sim));
-	  goto bad;
-     }
-
-     CAM_UNLOCK(isp);
-
-     isp->cam_sim = sim;
-     isp->cam_path = path;
-
-     debug(2, "cam subsystem initialized"); // XXX: add dev ...
-     debug(4, "sim=%p path=%p", sim, path);
-     return 0;
-
- bad:
-     cam_sim_free(sim, /*free_devq*/TRUE);
-     CAM_UNLOCK(isp);
+	  cam_sim_free(sim, /*free_devq*/TRUE);
+	  CAM_UNLOCK(sp);
 #if __FreeBSD_version >= 700000
-     mtx_destroy(&isp->cam_mtx);
+	  mtx_destroy(&sp->cam_mtx);
 #endif
-     return ENXIO;
+	  return ENXIO;
+     }
+     sp->cam_sim = sim;
+     CAM_UNLOCK(sp);
+
+     sdebug(1, "cam subsystem initialized");
+
+     ic_scan(sp);
+
+     return 0;
 }
