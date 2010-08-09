@@ -31,6 +31,8 @@
 #ifndef _NETINET_NETDUMP_H_
 #define _NETINET_NETDUMP_H_
 
+#include <sys/types.h>
+
 #define	NETDUMP_PORT		20023	/* Server udp port number for data. */
 #define	NETDUMP_ACKPORT		20024	/* Client udp port number for acks. */
 
