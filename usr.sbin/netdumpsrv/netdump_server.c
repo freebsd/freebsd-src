@@ -41,6 +41,7 @@
 #include <sys/stat.h>
 #include <sys/errno.h>
 #include <sys/kerneldump.h>
+#include <sys/queue.h>
 #include <netinet/netdump.h>
 #include <inttypes.h>
 
@@ -53,6 +54,7 @@
 
 struct netdump_client
 {
+    SLIST_ENTRY(netdump_client) iter;
     char infofilename[MAXPATHLEN];
     char corefilename[MAXPATHLEN];
     char hostname[MAXHOSTNAMELEN];
@@ -63,11 +65,9 @@ struct netdump_client
     time_t last_msg;
     unsigned int printed_port_warning : 1;
     unsigned int any_data_rcvd : 1;
-
-    struct netdump_client *next;
 };
 
-struct netdump_client *clients;
+SLIST_HEAD(, netdump_client) clients = SLIST_HEAD_INITIALIZER(clients);
 char dumpdir[MAXPATHLEN];
 char *handler_script=NULL;
 time_t now;
@@ -237,32 +237,14 @@ struct netdump_client * alloc_client(struct in_addr *ip)
 	free(client);
 	return NULL;
     }
-
-    client->next = clients;
-    clients = client;
+    SLIST_INSERT_HEAD(&clients, client, iter);
     return client;
 }
 
 void free_client(struct netdump_client *client)
 {
     /* Remove from the list */
-    if (clients == client)
-    {
-	clients = client->next;
-    }
-    else
-    {
-	struct netdump_client *parent;
-	for (parent=clients; parent; parent = parent->next)
-	{
-	    if (parent->next == client)
-	    {
-		break;
-	    }
-	}
-	parent->next = client->next;
-    }
-
+    SLIST_REMOVE(&clients, client, netdump_client, iter);
     fclose(client->infofile);
     close(client->corefd);
     close(client->sock);
@@ -305,7 +287,7 @@ void handle_timeout(struct netdump_client *client)
 void timeout_clients()
 {
     static time_t last_timeout_check;
-    struct netdump_client **node;
+    struct netdump_client *client, *tmp;
     
     /* Only time out clients every 10 seconds */
     if (now - last_timeout_check < 10)
@@ -316,16 +298,10 @@ void timeout_clients()
     last_timeout_check = now;
 
     /* Traverse the list looking for stale clients */
-    for (node=&clients; *node; node = &(*node)->next)
-    {
-	while (*node && (*node)->last_msg+CLIENT_TIMEOUT < now)
+    SLIST_FOREACH_SAFE(client, &clients, iter, tmp) {
+	if (client->last_msg+CLIENT_TIMEOUT < now)
 	{
-	    handle_timeout(*node);
-	}
-
-	if (*node == NULL)
-	{
-	    break;
+	    handle_timeout(client);
 	}
     }
 }
@@ -605,8 +581,7 @@ void eventloop()
 	
 	FD_ZERO(&readfds);
 	FD_SET(sock, &readfds);
-	for (client=clients; client; client = client->next)
-	{
+	SLIST_FOREACH(client, &clients, iter) {
 	    FD_SET(client->sock, &readfds);
 	    if (maxfd <= client->sock)
 	    {
@@ -660,8 +635,7 @@ void eventloop()
 	    else
 	    {
 		/* Check if they're on the clients list */
-		for (client=clients; client; client = client->next)
-		{
+		SLIST_FOREACH(client, &clients, iter) {
 		    if (client->ip.s_addr == from.sin_addr.s_addr)
 		    {
 			break;
@@ -689,8 +663,7 @@ void eventloop()
 	    }
 	}
 
-	for (client=clients; client; client = client->next)
-	{
+	SLIST_FOREACH(client, &clients, iter) {
 	    if (FD_ISSET(client->sock, &readfds))
 	    {
 		int len = receive_message(client->sock, &from, fromstr,
@@ -706,7 +679,7 @@ void eventloop()
 		    /* Client socket is broken for some reason */
 		    handle_timeout(client);
 		    /* The client pointer is now invalid */
-		    client = clients;
+		    client = SLIST_FIRST(&clients);
 		    if (!client)
 		    {
 			break;
@@ -723,7 +696,7 @@ void eventloop()
 		    if (handle_packet(client, &from, fromstr, &msg))
 		    {
 			/* Client was freed; we have a stale pointer */
-			client = clients;
+		    	client = SLIST_FIRST(&clients);
 			if (!client)
 			{
 			    break;
@@ -739,9 +712,9 @@ void eventloop()
     puts("Shutting down...");
     /* Clients is the head of the list, so clients != NULL iff the list isn't
      * empty. Call it a timeout so that the scripts get run. */
-    while (clients)
+    while (!SLIST_EMPTY(&clients))
     {
-	handle_timeout(clients);
+	handle_timeout(SLIST_FIRST(&clients));
     }
 }
 
