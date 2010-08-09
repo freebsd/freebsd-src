@@ -9,12 +9,14 @@ path1021="${name255}/${name255}/${name255}/${name253}"
 path1023="${path1021}/x"
 path1024="${path1023}x"
 
-echo ${dir} | grep '^/' >/dev/null 2>&1
-if [ $? -eq 0 ]; then
+case "${dir}" in
+/*)
 	maindir="${dir}/../.."
-else
+	;;
+*)
 	maindir="`pwd`/${dir}/../.."
-fi
+	;;
+esac
 fstest="${maindir}/fstest"
 . ${maindir}/tests/conf
 
