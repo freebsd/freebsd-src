@@ -25,7 +25,7 @@ expect()
 	e="${1}"
 	shift
 	r=`${fstest} $* 2>/dev/null | tail -1`
-	echo "${r}" | ${GREP} -E '^'${e}'$' >/dev/null 2>&1
+	echo "${r}" | ${GREP} -Eq '^'${e}'$'
 	if [ $? -eq 0 ]; then
 		if [ -z "${todomsg}" ]; then
 			echo "ok ${ntest}"
@@ -40,7 +40,7 @@ expect()
 		fi
 	fi
 	todomsg=""
-	ntest=`expr $ntest + 1`
+	ntest=$((ntest+1))
 }
 
 jexpect()
@@ -50,7 +50,7 @@ jexpect()
 	e="${3}"
 	shift 3
 	r=`jail -s ${s} / fstest 127.0.0.1 /bin/sh -c "cd ${d} && ${fstest} $* 2>/dev/null" | tail -1`
-	echo "${r}" | ${GREP} -E '^'${e}'$' >/dev/null 2>&1
+	echo "${r}" | ${GREP} -Eq '^'${e}'$'
 	if [ $? -eq 0 ]; then
 		if [ -z "${todomsg}" ]; then
 			echo "ok ${ntest}"
@@ -65,7 +65,7 @@ jexpect()
 		fi
 	fi
 	todomsg=""
-	ntest=`expr $ntest + 1`
+	ntest=$((ntest+1))
 }
 
 test_check()
@@ -84,7 +84,7 @@ test_check()
 		fi
 	fi
 	todomsg=""
-	ntest=`expr $ntest + 1`
+	ntest=$((ntest+1))
 }
 
 todo()
