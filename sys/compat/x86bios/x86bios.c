@@ -58,6 +58,13 @@ __FBSDID("$FreeBSD$");
 
 #define	X86BIOS_MEM_SIZE	0x00100000	/* 1M */
 
+#define	X86BIOS_TRACE(h, n, r)	do {					\
+	printf(__STRING(h)						\
+	    " (ax=0x%04x bx=0x%04x cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",\
+	    (n), (r)->R_AX, (r)->R_BX, (r)->R_CX, (r)->R_DX,		\
+	    (r)->R_ES, (r)->R_DI);					\
+} while (0)
+
 static struct mtx x86bios_lock;
 
 SYSCTL_NODE(_debug, OID_AUTO, x86bios, CTLFLAG_RD, NULL, "x86bios debugging");
@@ -174,10 +181,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 	struct vm86frame vmf;
 
 	if (x86bios_trace_call)
-		printf("Calling 0x%05x (ax=0x%04x bx=0x%04x "
-		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
-		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
-		    regs->R_DX, regs->R_ES, regs->R_DI);
+		X86BIOS_TRACE(Calling 0x%06x, (seg << 4) + off, regs);
 
 	bzero(&vmf, sizeof(vmf));
 	x86bios_emu2vmf((struct x86emu_regs *)regs, &vmf);
@@ -189,10 +193,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 	x86bios_vmf2emu(&vmf, (struct x86emu_regs *)regs);
 
 	if (x86bios_trace_call)
-		printf("Exiting 0x%05x (ax=0x%04x bx=0x%04x "
-		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
-		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
-		    regs->R_DX, regs->R_ES, regs->R_DI);
+		X86BIOS_TRACE(Exiting 0x%06x, (seg << 4) + off, regs);
 }
 
 uint32_t
@@ -208,10 +209,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 	struct vm86frame vmf;
 
 	if (x86bios_trace_int)
-		printf("Calling int 0x%x (ax=0x%04x bx=0x%04x "
-		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
-		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
-		    regs->R_DX, regs->R_ES, regs->R_DI);
+		X86BIOS_TRACE(Calling INT 0x%02x, intno, regs);
 
 	bzero(&vmf, sizeof(vmf));
 	x86bios_emu2vmf((struct x86emu_regs *)regs, &vmf);
@@ -221,10 +219,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 	x86bios_vmf2emu(&vmf, (struct x86emu_regs *)regs);
 
 	if (x86bios_trace_int)
-		printf("Exiting int 0x%x (ax=0x%04x bx=0x%04x "
-		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
-		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
-		    regs->R_DX, regs->R_ES, regs->R_DI);
+		X86BIOS_TRACE(Exiting INT 0x%02x, intno, regs);
 }
 
 void *
@@ -271,7 +266,7 @@ x86bios_uninit(void)
 #define	X86BIOS_RAM_BASE	0x00001000
 #define	X86BIOS_ROM_BASE	0x000a0000
 
-#define	X86BIOS_ROM_SIZE	(X86BIOS_MEM_SIZE - (uint32_t)x86bios_rom_phys)
+#define	X86BIOS_ROM_SIZE	(X86BIOS_MEM_SIZE - x86bios_rom_phys)
 #define	X86BIOS_SEG_SIZE	X86BIOS_PAGE_SIZE
 
 #define	X86BIOS_PAGES		(X86BIOS_MEM_SIZE / X86BIOS_PAGE_SIZE)
@@ -604,10 +599,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 		return;
 
 	if (x86bios_trace_call)
-		printf("Calling 0x%05x (ax=0x%04x bx=0x%04x "
-		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
-		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
-		    regs->R_DX, regs->R_ES, regs->R_DI);
+		X86BIOS_TRACE(Calling 0x%06x, (seg << 4) + off, regs);
 
 	mtx_lock_spin(&x86bios_lock);
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
@@ -617,12 +609,9 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 	mtx_unlock_spin(&x86bios_lock);
 
 	if (x86bios_trace_call) {
-		printf("Exiting 0x%05x (ax=0x%04x bx=0x%04x "
-		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
-		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
-		    regs->R_DX, regs->R_ES, regs->R_DI);
+		X86BIOS_TRACE(Exiting 0x%06x, (seg << 4) + off, regs);
 		if (x86bios_fault)
-			printf("Page fault at 0x%05x from 0x%04x:0x%04x.\n",
+			printf("Page fault at 0x%06x from 0x%04x:0x%04x.\n",
 			    x86bios_fault_addr, x86bios_fault_cs,
 			    x86bios_fault_ip);
 	}
@@ -649,10 +638,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 		return;
 
 	if (x86bios_trace_int)
-		printf("Calling int 0x%x (ax=0x%04x bx=0x%04x "
-		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
-		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
-		    regs->R_DX, regs->R_ES, regs->R_DI);
+		X86BIOS_TRACE(Calling INT 0x%02x, intno, regs);
 
 	mtx_lock_spin(&x86bios_lock);
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
@@ -662,12 +648,9 @@ x86bios_intr(struct x86regs *regs, int intno)
 	mtx_unlock_spin(&x86bios_lock);
 
 	if (x86bios_trace_int) {
-		printf("Exiting int 0x%x (ax=0x%04x bx=0x%04x "
-		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
-		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
-		    regs->R_DX, regs->R_ES, regs->R_DI);
+		X86BIOS_TRACE(Exiting INT 0x%02x, intno, regs);
 		if (x86bios_fault)
-			printf("Page fault at 0x%05x from 0x%04x:0x%04x.\n",
+			printf("Page fault at 0x%06x from 0x%04x:0x%04x.\n",
 			    x86bios_fault_addr, x86bios_fault_cs,
 			    x86bios_fault_ip);
 	}
@@ -732,21 +715,22 @@ x86bios_map_mem(void)
 	x86bios_seg_phys = vtophys(x86bios_seg);
 
 	if (bootverbose) {
-		printf("x86bios:   IVT 0x%06x-0x%06x at %p\n",
-		    X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE + X86BIOS_IVT_BASE - 1,
+		printf("x86bios:  IVT 0x%06jx-0x%06jx at %p\n",
+		    (vm_paddr_t)X86BIOS_IVT_BASE,
+		    (vm_paddr_t)X86BIOS_IVT_SIZE + X86BIOS_IVT_BASE - 1,
 		    x86bios_ivt);
-		printf("x86bios:  SSEG 0x%06x-0x%06x at %p\n",
-		    (uint32_t)x86bios_seg_phys,
-		    X86BIOS_SEG_SIZE + (uint32_t)x86bios_seg_phys - 1,
+		printf("x86bios: SSEG 0x%06jx-0x%06jx at %p\n",
+		    x86bios_seg_phys,
+		    (vm_paddr_t)X86BIOS_SEG_SIZE + x86bios_seg_phys - 1,
 		    x86bios_seg);
 		if (x86bios_rom_phys < X86BIOS_ROM_BASE)
-			printf("x86bios:  EBDA 0x%06x-0x%06x at %p\n",
-			    (uint32_t)x86bios_rom_phys, X86BIOS_ROM_BASE - 1,
+			printf("x86bios: EBDA 0x%06jx-0x%06jx at %p\n",
+			    x86bios_rom_phys, (vm_paddr_t)X86BIOS_ROM_BASE - 1,
 			    x86bios_rom);
-		printf("x86bios:   ROM 0x%06x-0x%06x at %p\n",
-		    X86BIOS_ROM_BASE, X86BIOS_MEM_SIZE - X86BIOS_SEG_SIZE - 1,
-		    (void *)((vm_offset_t)x86bios_rom + X86BIOS_ROM_BASE -
-		    (vm_offset_t)x86bios_rom_phys));
+		printf("x86bios:  ROM 0x%06jx-0x%06jx at %p\n",
+		    (vm_paddr_t)X86BIOS_ROM_BASE,
+		    (vm_paddr_t)X86BIOS_MEM_SIZE - X86BIOS_SEG_SIZE - 1,
+		    (caddr_t)x86bios_rom + X86BIOS_ROM_BASE - x86bios_rom_phys);
 	}
 
 	return (0);
