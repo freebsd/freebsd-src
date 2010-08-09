@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #define	DOTDOT_OFFSET	DIRECTSIZ(1)
 #define	SUJ_HASHSIZE	2048
 #define	SUJ_HASHMASK	(SUJ_HASHSIZE - 1)
-#define	SUJ_HASH(x)	((x * 2654435761) & SUJ_HASHMASK)
+#define	SUJ_HASH(x)	((x * 2654435761UL) & SUJ_HASHMASK)
 
 struct suj_seg {
 	TAILQ_ENTRY(suj_seg) ss_next;
