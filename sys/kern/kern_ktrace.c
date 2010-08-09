@@ -218,7 +218,8 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_ktrace, OID_AUTO, request_pool, CTLTYPE_UINT|CTLFLAG_RW,
-    &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU", "");
+    &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU",
+    "Pool buffer size for ktrace(1)");
 
 static u_int
 ktrace_resize_pool(u_int newsize)
