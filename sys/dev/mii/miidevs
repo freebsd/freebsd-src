@@ -121,6 +121,7 @@ model ASIX AX88X9X		0x0031 Ax88x9x internal PHY
 /* Atheros Communications/Attansic PHYs. */
 model ATHEROS F1		0x0001 Atheros F1 10/100/1000 PHY
 model ATHEROS F2		0x0002 Atheros F2 10/100 PHY
+model ATHEROS F1_7		0x0007 Atheros F1 10/100/1000 PHY
 
 /* Broadcom Corp. PHYs. */
 model BROADCOM 3C905B		0x0012 3c905B 10/100 internal PHY
