@@ -99,34 +99,7 @@
 #define	NETDDEBUGV_IF(i, f, ...)
 #endif
 
-#define NETDUMP_PORT 20023      /* server udp port number for data */
-#define NETDUMP_ACKPORT 20024   /* client udp port number for acks */
-
-#define NETDUMP_DATASIZE 8192   /* how big to let the packets be */
-
-#define NETDUMP_HERALD 1        /* broadcast before starting a dump */
-#define NETDUMP_FINISHED 2      /* send after finishing a dump */
-#define NETDUMP_VMCORE 3        /* packet contains dump data */
-#define NETDUMP_KDH 4           /* packet contains kernel dump header */
-
 #define	NETDUMP_BROKEN_STATE_BUFFER_SIZE	(5 * sizeof(struct mtx))
-
-struct netdump_msg_hdr {
-	u_int32_t type;		/* NETDUMP_HERALD, _FINISHED, _VMCORE or _KDH */
-	u_int32_t seqno;	/* match acks with msgs */
-	u_int64_t offset;	/* vmcore offset, in bytes */
-	u_int32_t len;		/* attached data, in bytes */
-	u_int8_t pad[4];	/* Pad for parifying 32 and 64 bits */
-};
-
-struct netdump_msg {
-	struct netdump_msg_hdr hdr;
-	unsigned char data[NETDUMP_DATASIZE];/* real message may contain less */
-};
-
-struct netdump_ack {
-	u_int32_t seqno;	/* match acks with msgs */
-};
 
 static void	 nd_handle_arp(struct mbuf **mb);
 static void	 nd_handle_ip(struct mbuf **mb);

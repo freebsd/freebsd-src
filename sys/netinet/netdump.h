@@ -31,6 +31,33 @@
 #ifndef _NETINET_NETDUMP_H_
 #define _NETINET_NETDUMP_H_
 
+#define	NETDUMP_PORT		20023	/* Server udp port number for data. */
+#define	NETDUMP_ACKPORT		20024	/* Client udp port number for acks. */
+
+#define	NETDUMP_HERALD		1	/* Broadcast before starting a dump. */
+#define	NETDUMP_FINISHED	2	/* Send after finishing a dump. */
+#define	NETDUMP_VMCORE		3	/* Contains dump datas. */
+#define	NETDUMP_KDH		4	/* Contains kernel dump header. */
+
+#define	NETDUMP_DATASIZE	8192	/* Packets payload. */
+
+struct netdump_msg_hdr {
+	uint32_t type;		/* NETDUMP_HERALD, _FINISHED, _VMCORE, _KDH. */
+	uint32_t seqno;		/* Match acks with msgs. */
+	uint64_t offset;	/* vmcore offset (bytes). */
+	uint32_t len;		/* Attached data (bytes). */
+	uint8_t pad[4];		/* Pad for parifying 32 and 64 bits. */
+};
+
+struct netdump_ack {
+	uint32_t seqno;		/* Match acks with msgs. */
+};
+
+struct netdump_msg {
+	struct netdump_msg_hdr hdr;
+	uint8_t data[NETDUMP_DATASIZE];
+};
+
 #ifdef _KERNEL
 
 struct mtx;
