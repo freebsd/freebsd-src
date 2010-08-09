@@ -23,7 +23,9 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
+KMOD=	vmptest
+SRCS=	vhba_mptest.c vhba.c
+CFLAGS += -I${.CURDIR}/.. -DVHBA_MOD=\"vmptest\"
+VPATH=	${.CURDIR}/..
 
-SUBDIR=	simple medium lots faulty rptluns mptest
-
-.include <bsd.subdir.mk>
+.include <bsd.kmod.mk>
