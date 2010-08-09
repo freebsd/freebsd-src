@@ -28,8 +28,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __NETDUMP_H
-#define __NETDUMP_H
+#ifndef _NETINET_NETDUMP_H_
+#define _NETINET_NETDUMP_H_
 
 #ifdef _KERNEL
 
@@ -48,4 +48,4 @@ int	 netdump_break_lock(struct mtx *lock, const char *name,
 
 #endif
 
-#endif /* __NETDUMP_H */
+#endif /* _NETINET_NETDUMP_H_ */
