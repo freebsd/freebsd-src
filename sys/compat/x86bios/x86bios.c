@@ -112,44 +112,49 @@ x86bios_vmf2emu(struct vm86frame *vmf, struct x86emu_regs *regs)
 void *
 x86bios_alloc(uint32_t *offset, size_t size, int flags)
 {
-	vm_offset_t addr;
+	void *vaddr;
 	int i;
 
-	addr = (vm_offset_t)contigmalloc(size, M_DEVBUF, flags, 0,
-	    X86BIOS_MEM_SIZE, PAGE_SIZE, 0);
-	if (addr != 0) {
-		*offset = vtophys(addr);
+	if (offset == NULL || size == 0)
+		return (NULL);
+	vaddr = contigmalloc(size, M_DEVBUF, flags, 0, X86BIOS_MEM_SIZE,
+	    PAGE_SIZE, 0);
+	if (vaddr != NULL) {
+		*offset = vtophys(vaddr);
 		mtx_lock(&x86bios_lock);
 		for (i = 0; i < atop(round_page(size)); i++)
 			vm86_addpage(&x86bios_vmc, atop(*offset) + i,
-			    addr + ptoa(i));
+			    (vm_offset_t)vaddr + ptoa(i));
 		mtx_unlock(&x86bios_lock);
 	}
 
-	return ((void *)addr);
+	return (vaddr);
 }
 
 void
 x86bios_free(void *addr, size_t size)
 {
-	int i, last;
+	vm_paddr_t paddr;
+	int i, nfree;
 
+	if (addr == NULL || size == 0)
+		return;
+	paddr = vtophys(addr);
+	if (paddr >= X86BIOS_MEM_SIZE || (paddr & PAGE_MASK) != 0)
+		return;
+	nfree = atop(round_page(size));
 	mtx_lock(&x86bios_lock);
-	for (i = 0, last = -1; i < x86bios_vmc.npages; i++)
-		if (x86bios_vmc.pmap[i].kva >= (vm_offset_t)addr &&
-		    x86bios_vmc.pmap[i].kva < (vm_offset_t)addr + size) {
-			bzero(&x86bios_vmc.pmap[i],
-			    sizeof(x86bios_vmc.pmap[i]));
-			last = i;
-		}
-	if (last < 0) {
+	for (i = 0; i < x86bios_vmc.npages; i++)
+		if (x86bios_vmc.pmap[i].kva == (vm_offset_t)addr)
+			break;
+	if (i >= x86bios_vmc.npages) {
 		mtx_unlock(&x86bios_lock);
 		return;
 	}
-	if (last == x86bios_vmc.npages - 1) {
-		x86bios_vmc.npages -= atop(round_page(size));
-		for (i = x86bios_vmc.npages - 1;
-		    i >= 0 && x86bios_vmc.pmap[i].kva == 0; i--)
+	bzero(x86bios_vmc.pmap + i, sizeof(*x86bios_vmc.pmap) * nfree);
+	if (i + nfree == x86bios_vmc.npages) {
+		x86bios_vmc.npages -= nfree;
+		while (--i >= 0 && x86bios_vmc.pmap[i].kva == 0)
 			x86bios_vmc.npages--;
 	}
 	mtx_unlock(&x86bios_lock);
@@ -552,12 +557,13 @@ x86bios_alloc(uint32_t *offset, size_t size, int flags)
 
 	if (offset == NULL || size == 0)
 		return (NULL);
-
 	vaddr = contigmalloc(size, M_DEVBUF, flags, X86BIOS_RAM_BASE,
 	    x86bios_rom_phys, X86BIOS_PAGE_SIZE, 0);
 	if (vaddr != NULL) {
 		*offset = vtophys(vaddr);
+		mtx_lock_spin(&x86bios_lock);
 		x86bios_set_pages((vm_offset_t)vaddr, *offset, size);
+		mtx_unlock_spin(&x86bios_lock);
 	}
 
 	return (vaddr);
@@ -570,14 +576,14 @@ x86bios_free(void *addr, size_t size)
 
 	if (addr == NULL || size == 0)
 		return;
-
 	paddr = vtophys(addr);
 	if (paddr < X86BIOS_RAM_BASE || paddr >= x86bios_rom_phys ||
 	    paddr % X86BIOS_PAGE_SIZE != 0)
 		return;
-
+	mtx_lock_spin(&x86bios_lock);
 	bzero(x86bios_map + paddr / X86BIOS_PAGE_SIZE,
 	    sizeof(*x86bios_map) * howmany(size, X86BIOS_PAGE_SIZE));
+	mtx_unlock_spin(&x86bios_lock);
 	contigfree(addr, size, M_DEVBUF);
 }
 
