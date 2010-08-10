@@ -88,13 +88,12 @@ struct netdump_client * alloc_client(struct in_addr *ip)
     struct hostent *hp;
     int i, fd, bufsz;
 
-    client = malloc(sizeof(*client));
+    client = calloc(1, sizeof(*client));
     if (!client)
     {
-	perror("malloc");
+	perror("calloc");
 	return NULL;
     }
-    bzero(client, sizeof(*client));
     bcopy(ip, &client->ip, sizeof(*ip));
     client->corefd = -1;
     client->sock = -1;
