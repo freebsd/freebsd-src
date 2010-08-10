@@ -249,29 +249,63 @@ static struct ucom_callback uplcom_callback = {
   { USB_VENDOR(USB_VENDOR_##v), USB_PRODUCT(USB_PRODUCT_##v##_##p) }
 
 static const struct usb_device_id uplcom_devs[] = {
+	UPLCOM_DEV(ACERP, S81),			/* BenQ S81 phone */
+	UPLCOM_DEV(ADLINK, ND6530),		/* ADLINK ND-6530 USB-Serial */
+	UPLCOM_DEV(ALCATEL, OT535),		/* Alcatel One Touch 535/735 */
+	UPLCOM_DEV(ALCOR, AU9720),		/* Alcor AU9720 USB 2.0-RS232 */
+	UPLCOM_DEV(ANCHOR, SERIAL),		/* Anchor Serial adapter */
 	UPLCOM_DEV(ATEN, UC232A),		/* PLANEX USB-RS232 URS-03 */
 	UPLCOM_DEV(BELKIN, F5U257),		/* Belkin F5U257 */
 	UPLCOM_DEV(COREGA, CGUSBRS232R),	/* Corega CG-USBRS232R */
+	UPLCOM_DEV(EPSON, CRESSI_EDY),		/* Cressi Edy diving computer */
 	UPLCOM_DEV(ELECOM, UCSGT),		/* ELECOM UC-SGT */
 	UPLCOM_DEV(ELECOM, UCSGT0),		/* ELECOM UC-SGT */
 	UPLCOM_DEV(HAL, IMR001),		/* HAL Corporation Crossam2+USB */
+	UPLCOM_DEV(HP, LD220),			/* HP LD220 POS Display */
 	UPLCOM_DEV(IODATA, USBRSAQ),		/* I/O DATA USB-RSAQ */
 	UPLCOM_DEV(IODATA, USBRSAQ5),		/* I/O DATA USB-RSAQ5 */
+	UPLCOM_DEV(ITEGNO, WM1080A),		/* iTegno WM1080A GSM/GFPRS modem */
+	UPLCOM_DEV(ITEGNO, WM2080A),		/* iTegno WM2080A CDMA modem */
+	UPLCOM_DEV(LEADTEK, 9531),		/* Leadtek 9531 GPS */
+	UPLCOM_DEV(MICROSOFT, 700WX),		/* Microsoft Palm 700WX */
 	UPLCOM_DEV(MOBILEACTION, MA620),	/* Mobile Action MA-620 Infrared Adapter */
+	UPLCOM_DEV(NETINDEX, WS002IN),		/* Willcom W-S002IN */
+	UPLCOM_DEV(NOKIA2, CA42),		/* Nokia CA-42 cable */
+	UPLCOM_DEV(OTI, DKU5),			/* OTI DKU-5 cable */
+	UPLCOM_DEV(PANASONIC, TYTP50P6S),	/* Panasonic TY-TP50P6-S flat screen */
+	UPLCOM_DEV(PLX, CA42),			/* PLX CA-42 clone cable */
+	UPLCOM_DEV(PROLIFIC, ALLTRONIX_GPRS),	/* Alltronix ACM003U00 modem */
+	UPLCOM_DEV(PROLIFIC, ALDIGA_AL11U),	/* AlDiga AL-11U modem */
+	UPLCOM_DEV(PROLIFIC, DCU11),		/* DCU-11 Phone Cable */
+	UPLCOM_DEV(PROLIFIC, HCR331),		/* HCR331 Card Reader */
+	UPLCOM_DEV(PROLIFIC, MICROMAX_610U),	/* Micromax 610U modem */
 	UPLCOM_DEV(PROLIFIC, PHAROS),		/* Prolific Pharos */
-	UPLCOM_DEV(PROLIFIC, PL2303),		/* Generic */
+	UPLCOM_DEV(PROLIFIC, PL2303),		/* Generic adapter */
 	UPLCOM_DEV(PROLIFIC, RSAQ2),		/* I/O DATA USB-RSAQ2 */
 	UPLCOM_DEV(PROLIFIC, RSAQ3),		/* I/O DATA USB-RSAQ3 */
-	UPLCOM_DEV(PROLIFIC2, WSIM),		/* Willcom W-SIM */
+	UPLCOM_DEV(PROLIFIC2, PL2303),		/* Prolific adapter */
 	UPLCOM_DEV(RADIOSHACK, USBCABLE),
 	UPLCOM_DEV(RATOC, REXUSB60),		/* RATOC REX-USB60 */
 	UPLCOM_DEV(SAGEM, USBSERIAL),		/* Sagem USB-Serial Controller */
+	UPLCOM_DEV(SAMSUNG, I330),		/* Samsung I330 phone cradle */
+	UPLCOM_DEV(SANWA, KB_USB2),		/* Sanwa KB-USB2 Multimeter cable */
+	UPLCOM_DEV(SIEMENS3, EF81),		/* Seimens EF81 */
+	UPLCOM_DEV(SIEMENS3, SX1),		/* Seimens SX1 */
+	UPLCOM_DEV(SIEMENS3, X65),		/* Seimens X65 */
+	UPLCOM_DEV(SIEMENS3, X75),		/* Seimens X75 */
 	UPLCOM_DEV(SITECOM, SERIAL),		/* Sitecom USB to Serial */
-	UPLCOM_DEV(SONYERICSSON, DCU10),	/* Sony Ericsson USB Cable */
+	UPLCOM_DEV(SMART, PL2303),		/* SMART Technologies */
+	UPLCOM_DEV(SONY, QN3),			/* Sony QN3 phone cable */
+	UPLCOM_DEV(SONYERICSSON, DATAPILOT),	/* Sony Ericsson Datapilot */
+	UPLCOM_DEV(SONYERICSSON, DCU10),	/* Sony Ericsson DCU-10 Cable */
 	UPLCOM_DEV(SOURCENEXT, KEIKAI8),	/* SOURCENEXT KeikaiDenwa 8 */
 	UPLCOM_DEV(SOURCENEXT, KEIKAI8_CHG),	/* SOURCENEXT KeikaiDenwa 8 with charger */
+	UPLCOM_DEV(SPEEDDRAGON, MS3303H),	/* Speed Dragon USB-Serial */
+	UPLCOM_DEV(SYNTECH, CPT8001C),		/* Syntech CPT-8001C Barcode scanner */
 	UPLCOM_DEV(TDK, UHA6400),		/* TDK USB-PHS Adapter UHA6400 */
+	UPLCOM_DEV(TDK, UPA9664),		/* TDK USB-PHS Adapter UPA9664 */
 	UPLCOM_DEV(TRIPPLITE, U209),		/* Tripp-Lite U209-000-R */
+	UPLCOM_DEV(YCCABLE, PL2303),		/* YC Cable USB-Serial */
 };
 #undef UPLCOM_DEV
 
