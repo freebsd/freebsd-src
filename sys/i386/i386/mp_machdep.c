@@ -174,7 +174,7 @@ static u_long *ipi_statclock_counts[MAXCPU];
  * Local data and functions.
  */
 
-static u_int logical_cpus;
+static cpumask_t logical_cpus;
 static volatile cpumask_t ipi_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
@@ -210,8 +210,8 @@ static int	start_all_aps(void);
 static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
-static int	hlt_logical_cpus;
-static u_int	hyperthreading_cpus;
+static cpumask_t	hlt_logical_cpus;
+static cpumask_t	hyperthreading_cpus;
 static cpumask_t	hyperthreading_cpus_mask;
 static int	hyperthreading_allowed = 1;
 static struct	sysctl_ctx_list logical_cpu_clist;
@@ -1408,8 +1408,11 @@ ipi_nmi_handler()
 void
 cpustop_handler(void)
 {
-	int cpu = PCPU_GET(cpuid);
-	int cpumask = PCPU_GET(cpumask);
+	cpumask_t cpumask;
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	savectx(&stoppcbs[cpu]);
 
@@ -1577,13 +1580,15 @@ SYSINIT(cpu_hlt, SI_SUB_SMP, SI_ORDER_ANY, cpu_hlt_setup, NULL);
 int
 mp_grab_cpu_hlt(void)
 {
-	u_int mask = PCPU_GET(cpumask);
+	cpuset_t mask;
 #ifdef MP_WATCHDOG
-	u_int cpuid = PCPU_GET(cpuid);
+	u_int cpuid;
 #endif
 	int retval;
 
+	mask = PCPU_GET(cpumask);
 #ifdef MP_WATCHDOG
+	cpuid = PCPU_GET(cpuid);
 	ap_watchdog(cpuid);
 #endif
 
