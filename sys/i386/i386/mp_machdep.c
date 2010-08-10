@@ -1580,7 +1580,7 @@ SYSINIT(cpu_hlt, SI_SUB_SMP, SI_ORDER_ANY, cpu_hlt_setup, NULL);
 int
 mp_grab_cpu_hlt(void)
 {
-	cpuset_t mask;
+	cpumask_t mask;
 #ifdef MP_WATCHDOG
 	u_int cpuid;
 #endif
