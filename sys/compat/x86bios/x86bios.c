@@ -556,9 +556,9 @@ x86bios_alloc(uint32_t *offset, size_t size, int flags)
 	    x86bios_rom_phys, X86BIOS_PAGE_SIZE, 0);
 	if (vaddr != NULL) {
 		*offset = vtophys(vaddr);
-		mtx_lock_spin(&x86bios_lock);
+		mtx_lock(&x86bios_lock);
 		x86bios_set_pages((vm_offset_t)vaddr, *offset, size);
-		mtx_unlock_spin(&x86bios_lock);
+		mtx_unlock(&x86bios_lock);
 	}
 
 	return (vaddr);
@@ -575,10 +575,10 @@ x86bios_free(void *addr, size_t size)
 	if (paddr < X86BIOS_RAM_BASE || paddr >= x86bios_rom_phys ||
 	    paddr % X86BIOS_PAGE_SIZE != 0)
 		return;
-	mtx_lock_spin(&x86bios_lock);
+	mtx_lock(&x86bios_lock);
 	bzero(x86bios_map + paddr / X86BIOS_PAGE_SIZE,
 	    sizeof(*x86bios_map) * howmany(size, X86BIOS_PAGE_SIZE));
-	mtx_unlock_spin(&x86bios_lock);
+	mtx_unlock(&x86bios_lock);
 	contigfree(addr, size, M_DEVBUF);
 }
 
@@ -595,18 +595,17 @@ void
 x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 {
 
-	if (x86bios_map == NULL)
-		return;
-
 	if (x86bios_trace_call)
 		X86BIOS_TRACE(Calling 0x%06x, (seg << 4) + off, regs);
 
-	mtx_lock_spin(&x86bios_lock);
+	mtx_lock(&x86bios_lock);
+	spinlock_enter();
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
 	x86bios_fault = 0;
 	x86emu_exec_call(&x86bios_emu, seg, off);
 	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
-	mtx_unlock_spin(&x86bios_lock);
+	spinlock_exit();
+	mtx_unlock(&x86bios_lock);
 
 	if (x86bios_trace_call) {
 		X86BIOS_TRACE(Exiting 0x%06x, (seg << 4) + off, regs);
@@ -634,18 +633,17 @@ x86bios_intr(struct x86regs *regs, int intno)
 	if (intno < 0 || intno > 255)
 		return;
 
-	if (x86bios_map == NULL)
-		return;
-
 	if (x86bios_trace_int)
 		X86BIOS_TRACE(Calling INT 0x%02x, intno, regs);
 
-	mtx_lock_spin(&x86bios_lock);
+	mtx_lock(&x86bios_lock);
+	spinlock_enter();
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
 	x86bios_fault = 0;
 	x86emu_exec_intr(&x86bios_emu, intno);
 	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
-	mtx_unlock_spin(&x86bios_lock);
+	spinlock_exit();
+	mtx_unlock(&x86bios_lock);
 
 	if (x86bios_trace_int) {
 		X86BIOS_TRACE(Exiting INT 0x%02x, intno, regs);
@@ -667,6 +665,7 @@ static __inline void
 x86bios_unmap_mem(void)
 {
 
+	free(x86bios_map, M_DEVBUF);
 	if (x86bios_ivt != NULL)
 #ifdef X86BIOS_NATIVE_ARCH
 		pmap_unmapdev((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
@@ -682,6 +681,9 @@ x86bios_unmap_mem(void)
 static __inline int
 x86bios_map_mem(void)
 {
+
+	x86bios_map = malloc(sizeof(*x86bios_map) * X86BIOS_PAGES, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 #ifdef X86BIOS_NATIVE_ARCH
 	x86bios_ivt = pmap_mapbios(X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE);
@@ -713,6 +715,13 @@ x86bios_map_mem(void)
 	x86bios_seg = contigmalloc(X86BIOS_SEG_SIZE, M_DEVBUF, M_WAITOK,
 	    X86BIOS_RAM_BASE, x86bios_rom_phys, X86BIOS_PAGE_SIZE, 0);
 	x86bios_seg_phys = vtophys(x86bios_seg);
+
+	x86bios_set_pages((vm_offset_t)x86bios_ivt, X86BIOS_IVT_BASE,
+	    X86BIOS_IVT_SIZE);
+	x86bios_set_pages((vm_offset_t)x86bios_rom, x86bios_rom_phys,
+	    X86BIOS_ROM_SIZE);
+	x86bios_set_pages((vm_offset_t)x86bios_seg, x86bios_seg_phys,
+	    X86BIOS_SEG_SIZE);
 
 	if (bootverbose) {
 		printf("x86bios:  IVT 0x%06jx-0x%06jx at %p\n",
@@ -746,19 +755,10 @@ x86bios_init(void)
 {
 	int i;
 
+	mtx_init(&x86bios_lock, "x86bios lock", NULL, MTX_DEF);
+
 	if (x86bios_map_mem() != 0)
 		return (ENOMEM);
-
-	mtx_init(&x86bios_lock, "x86bios lock", NULL, MTX_SPIN);
-
-	x86bios_map = malloc(sizeof(*x86bios_map) * X86BIOS_PAGES, M_DEVBUF,
-	    M_WAITOK | M_ZERO);
-	x86bios_set_pages((vm_offset_t)x86bios_ivt, X86BIOS_IVT_BASE,
-	    X86BIOS_IVT_SIZE);
-	x86bios_set_pages((vm_offset_t)x86bios_rom, x86bios_rom_phys,
-	    X86BIOS_ROM_SIZE);
-	x86bios_set_pages((vm_offset_t)x86bios_seg, x86bios_seg_phys,
-	    X86BIOS_SEG_SIZE);
 
 	bzero(&x86bios_emu, sizeof(x86bios_emu));
 
@@ -785,18 +785,8 @@ x86bios_init(void)
 static int
 x86bios_uninit(void)
 {
-	vm_offset_t *map = x86bios_map;
 
-	mtx_lock_spin(&x86bios_lock);
-	if (x86bios_map != NULL) {
-		free(x86bios_map, M_DEVBUF);
-		x86bios_map = NULL;
-	}
-	mtx_unlock_spin(&x86bios_lock);
-
-	if (map != NULL)
-		x86bios_unmap_mem();
-
+	x86bios_unmap_mem();
 	mtx_destroy(&x86bios_lock);
 
 	return (0);
