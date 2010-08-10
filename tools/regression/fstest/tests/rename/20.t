@@ -6,7 +6,7 @@ desc="rename returns EEXIST or ENOTEMPTY if the 'to' argument is a directory and
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-echo "1..16"
+echo "1..25"
 
 n0=`namegen`
 n1=`namegen`
@@ -24,6 +24,18 @@ expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
 expect 0 rmdir ${n1}/${n2}
 
 expect 0 mkfifo ${n1}/${n2} 0644
+expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
+expect 0 unlink ${n1}/${n2}
+
+expect 0 mknod ${n1}/${n2} b 0644 1 2
+expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
+expect 0 unlink ${n1}/${n2}
+
+expect 0 mknod ${n1}/${n2} c 0644 1 2
+expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
+expect 0 unlink ${n1}/${n2}
+
+expect 0 bind ${n1}/${n2}
 expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
 expect 0 unlink ${n1}/${n2}
 
