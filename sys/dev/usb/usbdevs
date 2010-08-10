@@ -372,6 +372,7 @@ vendor GRIFFIN		0x077d	Griffin Technology
 vendor SANDISK		0x0781	SanDisk
 vendor JENOPTIK		0x0784	Jenoptik
 vendor LOGITEC		0x0789	Logitec
+vendor NOKIA2		0x078b	Nokia
 vendor BRIMAX		0x078e	Brimax
 vendor AXIS		0x0792	Axis Communications
 vendor ABL		0x0794	ABL Electronics
@@ -495,9 +496,11 @@ vendor TEKRAM		0x0b3b	Tekram Technology
 vendor HAL		0x0b41	HAL Corporation
 vendor EMS		0x0b43	EMS Production
 vendor NEC2		0x0b62	NEC
+vendor ADLINK		0x0b63	ADLINK Technoligy, Inc.
 vendor ATI2		0x0b6f	ATI
 vendor ZEEVO		0x0b7a	Zeevo, Inc.
 vendor KURUSUGAWA	0x0b7e	Kurusugawa Electronics, Inc.
+vendor SMART		0x0b8c	Smart Technologies
 vendor ASIX		0x0b95	ASIX Electronics
 vendor O2MICRO		0x0b97	O2 Micro, Inc.
 vendor USR		0x0baf	U.S. Robotics
@@ -575,9 +578,10 @@ vendor SERVERWORKS	0x1166	ServerWorks
 vendor DLINK3		0x1186	Dlink
 vendor ACERCM		0x1189	Acer Communications & Multimedia
 vendor SIERRA		0x1199	Sierra Wireless
+vendor SANWA		0x11ad	Sanwa Electric Instrument Co., Ltd.
 vendor TOPFIELD		0x11db	Topfield Co., Ltd
 vendor SIEMENS3		0x11f5	Siemens
-vendor PROLIFIC2	0x11f6	Prolific
+vendor NETINDEX		0x11f6	NetIndex
 vendor ALCATEL		0x11f7	Alcatel
 vendor UNKNOWN3		0x1233	Unknown vendor
 vendor TSUNAMI		0x1241	Tsunami
@@ -690,6 +694,7 @@ vendor WCH		0x4348	QinHeng Electronics
 vendor ACEECA		0x4766	Aceeca
 vendor AVERATEC		0x50c2	Averatec
 vendor SWEEX		0x5173	Sweex
+vendor PROLIFIC2	0x5372	Prolific Technologies
 vendor ONSPEC2		0x55aa	OnSpec Electronic Inc.
 vendor ZINWELL		0x5a57	Zinwell
 vendor SITECOM		0x6189	Sitecom
@@ -799,6 +804,7 @@ product ACERP ACERSCAN_620U	0x2060	Acerscan 620U
 product ACERP ACERSCAN_4300U	0x20b0	Benq 3300U/4300U
 product ACERP ACERSCAN_640BT	0x20be	Acerscan 640BT
 product ACERP ACERSCAN_1240U	0x20c0	Acerscan 1240U
+product ACERP S81		0x4027	BenQ S81 phone
 product ACERP H10		0x4068	AWL400 Wireless Adapter
 product ACERP ATAPI		0x6003	ATA/ATAPI Adapter
 product ACERP AWL300		0x9000	AWL300 Wireless Adapter
@@ -828,6 +834,9 @@ product ADAPTEC AWN8020		0x0020	AWN-8020 WLAN
 
 /* Addtron products */
 product ADDTRON AWU120		0xff31	AWU-120
+
+/* ADLINK Texhnology products */
+product ADLINK ND6530		0x6530	ND-6530 USB-Serial
 
 /* ADMtek products */
 product ADMTEK PEGASUSII_4	0x07c2	AN986A Ethernet
@@ -888,6 +897,9 @@ product AIRTIES RT3070		0x2310	RT3070
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
 
+/* Alcatel products */
+product ALCATEL OT535		0x02df	One Touch 535/735
+
 /* Alcor Micro, Inc. products */
 product ALCOR2 KBD_HUB		0x2802	Kbd Hub
 
@@ -899,6 +911,7 @@ product ALCOR AU9814		0x9215	AU9814 Hub
 product ALCOR UMCR_9361		0x9361	USB Multimedia Card Reader
 product ALCOR SM_KBD		0x9410	MicroConnectors/StrongMan Keyboard
 product ALCOR NEC_KBD_HUB	0x9472	NEC Kbd Hub
+product ALCOR AU9720 		0x9720	USB2 - RS-232
 product ALCOR AU6390	0x6390	AU6390 USB-IDE converter
 
 /* Alink products */
@@ -957,6 +970,7 @@ product AMIT RT2870_1		0x0012	RT2870
 product AMIT2 RT2870		0x0008	RT2870
 
 /* Anchor products */
+product ANCHOR SERIAL		0x2008	Serial
 product ANCHOR EZUSB		0x2131	EZUSB
 product ANCHOR EZLINK		0x2720	EZLINK
 
@@ -1507,6 +1521,7 @@ product EPSON 1270		0x0120	Perfection 1270 scanner
 product EPSON 2480		0x0121	Perfection 2480 scanner
 product EPSON 3590		0x0122	Perfection 3590 scanner
 product EPSON 4990		0x012a	Perfection 4990 Photo scanner
+product EPSON CRESSI_EDY	0x0521	Cressi Edy diving computer
 product EPSON STYLUS_875DC	0x0601	Stylus Photo 875DC Card Reader
 product EPSON STYLUS_895	0x0602	Stylus Photo 895 Card Reader
 product EPSON CX5400		0x0808	CX5400 scanner
@@ -1743,6 +1758,7 @@ product HP HS2300		0x1e1d  HS2300 HSDPA (aka MC8775)
 product HP 640C			0x2004	DeskJet 640c
 product HP 4670V		0x3005	ScanJet 4670v
 product HP P1100		0x3102	Photosmart P1100
+product HP LD220		0x3524	LD220 POS Display
 product HP OJ4215		0x3d11	OfficeJet 4215
 product HP HN210E		0x811c	Ethernet HN210E
 product HP2 C500		0x6002	PhotoSmart C500
@@ -1884,6 +1900,10 @@ product IODATA2 USB2SC		0x0a09	USB2.0-SCSI Bridge USB2-SC
 product IOMEGA ZIP100		0x0001	Zip 100
 product IOMEGA ZIP250		0x0030	Zip 250
 
+/* iTegno products */
+product ITEGNO WM1080A		0x1080	WM1080A GSM/GPRS modem
+product ITEGNO WM2080A		0x2080	WM2080A CDMA modem
+
 /* Ituner networks products */
 product ITUNERNET USBLCD2X20	0x0002	USB-LCD 2x20
 product ITUNERNET USBLCD4X20	0xc001	USB-LCD 4x20
@@ -1982,6 +2002,9 @@ product KYOCERA2 KPC680		0x180a	Qualcomm Kyocera CDMA Technologies MSM
 /* LaCie products */
 product LACIE HD		0xa601	Hard Disk
 product LACIE CDRW		0xa602	CD R/W
+
+/* Leadtek products */
+product LEADTEK 9531		0x2101	9531 GPS
 
 /* Lexar products */
 product LEXAR JUMPSHOT		0x0001	jumpSHOT CompactFlash Reader
@@ -2144,6 +2167,7 @@ product MICROSOFT INETPRO2	0x002b	Internet Keyboard Pro
 product MICROSOFT INTELLIMOUSE5	0x0039	IntelliMouse 1.1 5-Button Mouse
 product MICROSOFT WHEELMOUSE	0x0040	Wheel Mouse Optical
 product MICROSOFT MN510		0x006e	MN510 Wireless
+product MICROSOFT 700WX		0x0079	Palm 700WX
 product MICROSOFT MN110		0x007a	10/100 USB NIC
 product MICROSOFT WLINTELLIMOUSE 0x008c	Wireless Optical IntelliMouse
 product MICROSOFT WLNOTEBOOK	0x00b9	Wireless Optical Mouse (Model 1023)
@@ -2278,6 +2302,9 @@ product NETGEAR3 WPN111		0x5f00	WPN111
 product NETGEAR3 WPN111_NF	0x5f01	WPN111 (no firmware)
 product NETGEAR3 WPN111_2	0x5f02	WPN111
 
+/* NetIndex products */
+product NETINDEX WS002IN	0x2001	Willcom WS002IN
+
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
 product NIKON LS40		0x4000	CoolScan LS40 ED
@@ -2289,6 +2316,7 @@ product NOVATECH RT2573		0x9021	RT2573
 
 /* Nokia products */
 product NOKIA N958GB		0x0070	Nokia N95 8GBc
+product NOKIA2 CA42		0x1234	CA-42 cable
 
 /* Novatel Wireless products */
 product NOVATEL V640		0x1100	Merlin V620
@@ -2398,6 +2426,9 @@ product OQO BT01		0x0003	model 01 Bluetooth interface
 product OQO ETHER01PLUS		0x7720	model 01+ Ethernet
 product OQO ETHER01		0x8150	model 01 Ethernet interface
 
+/* Ours Technology Inc. */
+product OTI DKU5		0x6858	DKU-5 Serial
+
 /* Owen.ru products */
 product OWEN AC4		0x0004	AC4 USB-RS485 converter
 
@@ -2421,6 +2452,7 @@ product PANASONIC KXLRW32AN	0x0d09	CD-R Drive KXL-RW32AN
 product PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
 product PANASONIC KXLCB35AN	0x0d0e	DVD-ROM & CD-R/RW
 product PANASONIC SDCAAE	0x1b00	MultiMediaCard
+product PANASONIC TYTP50P6S	0x3900	TY-TP50P6-S 50in Touch Panel
 
 /* PARA Industrial products */
 product PARA RT3070		0x8888	RT3070
@@ -2518,14 +2550,19 @@ product PRIMAX HP_RH304AA	0x4d17	HP RH304AA mouse
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
 product PROLIFIC PL2302		0x0001	PL2302 Host-Host interface
 product PROLIFIC RSAQ2		0x04bb	PL2303 Serial (IODATA USB-RSAQ2)
+product PROLIFIC ALLTRONIX_GPRS	0x0609	Alltronix ACM003U00 modem
+product PROLIFIC ALDIGA_AL11U	0x0611	AlDiga AL-11U modem
+product PROLIFIC MICROMAX_610U	0x0612	Micromax 610U
+product PROLIFIC DCU11		0x1234	DCU-11 Phone Cable
 product PROLIFIC PL2303		0x2303	PL2303 Serial (ATEN/IOGEAR UC232A)
 product PROLIFIC PL2305		0x2305	Parallel printer
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
 product PROLIFIC PL2506		0x2506	PL2506 USB to IDE Bridge
+product PROLIFIC HCR331		0x331a	HCR331 Hybrid Card Reader
 product PROLIFIC PHAROS		0xaaa0	Prolific Pharos
 product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial Adapter (IODATA USB-RSAQ3)
-product PROLIFIC2 WSIM		0x2001	Willcom WSIM
+product PROLIFIC2 PL2303	0x2303	PL2303 Serial Adapter
 
 /* Putercom products */
 product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
@@ -2661,6 +2698,10 @@ product RALINK RT8070		0x8070	RT8070
 product RALINK RT2570_3		0x9020	RT2500USB Wireless Adapter
 product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 
+/* RATOC Systems products */
+product RATOC REXUSB60		0xb000	USB serial adapter REX-USB60
+product RATOC REXUSB60F		0xb020	USB serial adapter REX-USB60F
+
 /* ReakTek products */
 /* Green House and CompUSA OEM this part */
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
@@ -2701,8 +2742,8 @@ product SAGEM XG76NA		0x0062	XG-76NA
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 product SAMSUNG YP_U2		0x5050	YP-U2 MP3 Player
 product SAMSUNG YP_U4		0x5092	YP-U4 MP3 Player
-
 product SAMSUNG I500		0x6601	I500 Palm USB Phone 
+product SAMSUNG I330		0x8001	I330 phone cradle
 product SAMSUNG2 RT2870_1	0x2018	RT2870
 
 /* Samsung Techwin products */
@@ -2718,6 +2759,9 @@ product SANDISK SDDR75		0x0810	ImageMate SDDR-75
 product SANDISK SDCZ2_256	0x7104	Cruzer Mini 256MB
 product SANDISK SDCZ4_128	0x7112	Cruzer Micro 128MB
 product SANDISK SDCZ4_256	0x7113	Cruzer Micro 256MB
+
+/* Sanwa Electric Instrument Co., Ltd. products */
+product SANWA KB_USB2 		0x0701	KB-USB2 multimeter cable
 
 /* Sanyo Electric products */
 product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
@@ -2780,6 +2824,7 @@ product SIEMENS2 WL54G		0x3c06	54g USB Network Adapter
 product SIEMENS3 SX1		0x0001	SX1
 product SIEMENS3 X65		0x0003	X65
 product SIEMENS3 X75		0x0004	X75
+product SIEMENS3 EF81 		0x0005	EF81
 
 /* Sierra Wireless products */
 product SIERRA EM5625		0x0017	EM5625
@@ -2954,6 +2999,9 @@ product SITECOMEU WL113R2	0x9712	WL-113 rev 2
 product SKANHEX MD_7425		0x410a	MD 7425 Camera
 product SKANHEX SX_520Z		0x5200	SX 520z Camera
 
+/* Smart Technologies products */
+product SMART PL2303		0x2303	Serial adapter
+
 /* SmartBridges products */
 product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB Ethernet
 product SMARTBRIDGES SMARTNIC	0x0003	smartNIC 2 PnP Ethernet
@@ -2993,9 +3041,11 @@ product SONY CLIE_NX60		0x00da	Sony Clie nx60
 product SONY CLIE_TH55		0x0144	Sony Clie th55
 product SONY CLIE_TJ37		0x0169	Sony Clie tj37
 product SONY RF_RECEIVER	0x01db	Sony RF mouse/kbd Receiver VGP-WRC1
+product SONY QN3		0x0437	Sony QN3 CMD-Jxx phone cable
 
 /* Sony Ericsson products */
-product SONYERICSSON DCU10	0x0528	USB Cable
+product SONYERICSSON DCU10	0x0528	DCU-10 Phone Data Cable
+product SONYERICSSON DATAPILOT	0x2003	Datapilot Phone Cable
 
 /* SOURCENEXT products */
 product SOURCENEXT KEIKAI8	0x039f	KeikaiDenwa 8
@@ -3005,6 +3055,9 @@ product SOURCENEXT KEIKAI8_CHG	0x012e	KeikaiDenwa 8 with charger
 product SPARKLAN RT2573		0x0004	RT2573
 product SPARKLAN RT2870_1	0x0006	RT2870
 product SPARKLAN RT3070		0x0010	RT3070
+
+/* Speed Dragon Multimedia products */
+product SPEEDDRAGON MS3303H	0x110b	MS3303H Serial
 
 /* Sphairon Access Systems GmbH products */
 product SPHAIRON UB801R		0x0110	UB801R
@@ -3059,6 +3112,7 @@ product SUN KBD_HUB		0x100e	Kbd Hub
 product	SUPERTOP IDE		0x6600	USB-IDE
 
 /* Syntech products */
+product SYNTECH CPT8001C	0x0001	CPT-8001C Barcode scanner
 product	SYNTECH CYPHERLAB100	0x1000	CipherLab USB Barcode Scanner
 
 /* Teclast products */
@@ -3279,6 +3333,9 @@ product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03
 product YANO FW800HD		0x05fc	METALWEAR-HDD
+
+/* Y.C. Cable products */
+product YCCABLE PL2303		0x0fba	PL2303 Serial
 
 /* Y-E Data products */
 product YEDATA FLASHBUSTERU	0x0000	Flashbuster-U
