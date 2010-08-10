@@ -44,20 +44,20 @@
 #define	NETDUMP_DATASIZE	8192	/* Packets payload. */
 
 struct netdump_msg_hdr {
-	uint32_t type;		/* NETDUMP_HERALD, _FINISHED, _VMCORE, _KDH. */
-	uint32_t seqno;		/* Match acks with msgs. */
-	uint64_t offset;	/* vmcore offset (bytes). */
-	uint32_t len;		/* Attached data (bytes). */
-	uint8_t pad[4];		/* Pad for parifying 32 and 64 bits. */
+	uint32_t	type;	/* NETDUMP_HERALD, _FINISHED, _VMCORE, _KDH. */
+	uint32_t	seqno;	/* Match acks with msgs. */
+	uint64_t	offset;	/* vmcore offset (bytes). */
+	uint32_t	len;	/* Attached data (bytes). */
+	uint8_t		pad[4];	/* Pad for parifying 32 and 64 bits. */
 };
 
 struct netdump_ack {
-	uint32_t seqno;		/* Match acks with msgs. */
+	uint32_t	seqno;	/* Match acks with msgs. */
 };
 
 struct netdump_msg {
 	struct netdump_msg_hdr hdr;
-	uint8_t data[NETDUMP_DATASIZE];
+	uint8_t		data[NETDUMP_DATASIZE];
 };
 
 #ifdef _KERNEL
@@ -65,10 +65,10 @@ struct netdump_msg {
 struct mtx;
 
 struct netdump_methods {
-	void (*test_get_lock)(struct ifnet *);
-	int (*break_lock)(struct ifnet *, int *, uint8_t *, u_int);
-	void (*release_lock)(struct ifnet *);
-	int (*poll_locked)(struct ifnet *, enum poll_cmd, int);
+	void	(*test_get_lock)(struct ifnet *);
+	int	(*break_lock)(struct ifnet *, int *, uint8_t *, u_int);
+	void	(*release_lock)(struct ifnet *);
+	int	(*poll_locked)(struct ifnet *, enum poll_cmd, int);
 };
 
 int	 netdump_break_lock(struct mtx *lock, const char *name,
