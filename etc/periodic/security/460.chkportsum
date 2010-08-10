@@ -42,20 +42,20 @@ echo 'Checking for ports with mismatched checksums:'
 
 case "${daily_status_security_chkportsum_enable}" in
 	[Yy][Ee][Ss])
+	set -f
 	pkg_info -ga 2>/dev/null | \
-	while read one two three; do
-		case ${one} in
+	while IFS= read -r line; do
+		set -- $line
+		case $1 in
 			Information)
-			case ${two} in
-				  for) name=${three%%:} ;;
-					*) name='??' ;;
+			case $2 in
+				for) name="${3%%:}" ;;
+				*) name='??' ;;
 			esac
 			;;
 			Mismatched|'') ;;
-			*)
-			if [ -n ${name} ]; then
-				echo ${name}: ${one}
-			fi
+			*) [ -n "${name}" ] &&
+				echo "${name}: ${line%% fails the original MD5 checksum}"
 			;;
 		esac
 	done
