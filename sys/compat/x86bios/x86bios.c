@@ -599,12 +599,12 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 		X86BIOS_TRACE(Calling 0x%06x, (seg << 4) + off, regs);
 
 	mtx_lock(&x86bios_lock);
-	spinlock_enter();
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
 	x86bios_fault = 0;
+	spinlock_enter();
 	x86emu_exec_call(&x86bios_emu, seg, off);
-	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	spinlock_exit();
+	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	mtx_unlock(&x86bios_lock);
 
 	if (x86bios_trace_call) {
@@ -637,12 +637,12 @@ x86bios_intr(struct x86regs *regs, int intno)
 		X86BIOS_TRACE(Calling INT 0x%02x, intno, regs);
 
 	mtx_lock(&x86bios_lock);
-	spinlock_enter();
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
 	x86bios_fault = 0;
+	spinlock_enter();
 	x86emu_exec_intr(&x86bios_emu, intno);
-	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	spinlock_exit();
+	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	mtx_unlock(&x86bios_lock);
 
 	if (x86bios_trace_int) {
