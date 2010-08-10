@@ -29,7 +29,7 @@
  */
 
 #ifndef _NETINET_NETDUMP_H_
-#define _NETINET_NETDUMP_H_
+#define	_NETINET_NETDUMP_H_
 
 #include <sys/types.h>
 
@@ -77,4 +77,4 @@ int	 netdump_break_lock(struct mtx *lock, const char *name,
 
 #endif
 
-#endif /* _NETINET_NETDUMP_H_ */
+#endif /* !_NETINET_NETDUMP_H_ */
