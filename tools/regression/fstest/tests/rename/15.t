@@ -8,7 +8,7 @@ dir=`dirname $0`
 
 [ "${os}" = "FreeBSD" ] || quick_exit
 
-echo "1..14"
+echo "1..23"
 
 n0=`namegen`
 n1=`namegen`
@@ -28,6 +28,18 @@ expect EXDEV rename ${n0}/${n1} ${n2}
 expect 0 rmdir ${n0}/${n1}
 
 expect 0 mkfifo ${n0}/${n1} 0644
+expect EXDEV rename ${n0}/${n1} ${n2}
+expect 0 unlink ${n0}/${n1}
+
+expect 0 mknod ${n0}/${n1} b 0644 1 2
+expect EXDEV rename ${n0}/${n1} ${n2}
+expect 0 unlink ${n0}/${n1}
+
+expect 0 mknod ${n0}/${n1} c 0644 1 2
+expect EXDEV rename ${n0}/${n1} ${n2}
+expect 0 unlink ${n0}/${n1}
+
+expect 0 bind ${n0}/${n1}
 expect EXDEV rename ${n0}/${n1} ${n2}
 expect 0 unlink ${n0}/${n1}
 

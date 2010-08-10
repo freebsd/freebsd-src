@@ -12,12 +12,12 @@ case "${os}:${fs}" in
 FreeBSD:ZFS)
 	flags1="SF_IMMUTABLE SF_APPEND"
 	flags2="SF_NOUNLINK"
-	echo "1..110"
+	echo "1..128"
 	;;
 FreeBSD:UFS)
 	flags1="SF_IMMUTABLE SF_APPEND UF_IMMUTABLE UF_APPEND"
 	flags2="SF_NOUNLINK UF_NOUNLINK"
-	echo "1..182"
+	echo "1..212"
 	;;
 *)
 	quick_exit
@@ -54,6 +54,18 @@ expect 0 chflags ${n0} none
 expect 0 rmdir ${n0}/${n1}
 
 expect 0 mkfifo ${n0}/${n1} 0644
+for flag in ${flags1}; do
+	expect 0 chflags ${n0} ${flag}
+	expect ${flag} stat ${n0} flags
+	[ "${flag}" = "SF_APPEND" ] && todo FreeBSD:ZFS "Renaming a file protected by SF_APPEND should return EPERM."
+	expect EPERM rename ${n0}/${n1} ${n2}
+	[ "${flag}" = "SF_APPEND" ] && todo FreeBSD:ZFS "Renaming a file protected by SF_APPEND should return EPERM."
+	expect ENOENT rename ${n2} ${n0}/${n1}
+done
+expect 0 chflags ${n0} none
+expect 0 unlink ${n0}/${n1}
+
+expect 0 mknod ${n0}/${n1} b 0644 1 2
 for flag in ${flags1}; do
 	expect 0 chflags ${n0} ${flag}
 	expect ${flag} stat ${n0} flags
@@ -122,6 +134,16 @@ expect 0 chflags ${n0} none
 expect 0 rmdir ${n0}/${n1}
 
 expect 0 mkfifo ${n0}/${n1} 0644
+for flag in ${flags2}; do
+	expect 0 chflags ${n0} ${flag}
+	expect ${flag} stat ${n0} flags
+	expect 0 rename ${n0}/${n1} ${n2}
+	expect 0 rename ${n2} ${n0}/${n1}
+done
+expect 0 chflags ${n0} none
+expect 0 unlink ${n0}/${n1}
+
+expect 0 mknod ${n0}/${n1} b 0644 1 2
 for flag in ${flags2}; do
 	expect 0 chflags ${n0} ${flag}
 	expect ${flag} stat ${n0} flags

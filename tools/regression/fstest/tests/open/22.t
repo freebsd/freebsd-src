@@ -6,7 +6,7 @@ desc="open returns EEXIST when O_CREAT and O_EXCL were specified and the file ex
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-echo "1..12"
+echo "1..21"
 
 n0=`namegen`
 
@@ -23,5 +23,17 @@ expect EEXIST open ${n0} O_CREAT,O_EXCL 0644
 expect 0 unlink ${n0}
 
 expect 0 symlink test ${n0}
+expect EEXIST open ${n0} O_CREAT,O_EXCL 0644
+expect 0 unlink ${n0}
+
+expect 0 mknod ${n0} b 0644 1 2
+expect EEXIST open ${n0} O_CREAT,O_EXCL 0644
+expect 0 unlink ${n0}
+
+expect 0 mknod ${n0} c 0644 1 2
+expect EEXIST open ${n0} O_CREAT,O_EXCL 0644
+expect 0 unlink ${n0}
+
+expect 0 bind ${n0}
 expect EEXIST open ${n0} O_CREAT,O_EXCL 0644
 expect 0 unlink ${n0}
