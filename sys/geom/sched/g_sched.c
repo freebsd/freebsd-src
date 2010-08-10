@@ -1887,7 +1887,7 @@ g_sched_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (indent == NULL) {	/* plaintext */
 		sbuf_printf(sb, " algo %s", gsp ? gsp->gs_name : "--");
 	}
-	if (gsp->gs_dumpconf)
+	if (gsp != NULL && gsp->gs_dumpconf)
 		gsp->gs_dumpconf(sb, indent, gp, cp, pp);
 }
 
