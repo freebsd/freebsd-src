@@ -506,7 +506,7 @@ cryptof_ioctl(
 			}
 		}
 
-		/* NB: CIOGSESSION2 has the crid */
+		/* NB: CIOCGSESSION2 has the crid */
 		if (cmd == CIOCGSESSION2
 #ifdef COMPAT_FREEBSD32
 		    || cmd == CIOCGSESSION232
