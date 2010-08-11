@@ -506,7 +506,8 @@ nfs_open(struct vop_open_args *ap)
 	 * Now, if this Open will be doing reading, re-validate/flush the
 	 * cache, so that Close/Open coherency is maintained.
 	 */
-	if ((fmode & FREAD) && (!NFS_ISV4(vp) || nfscl_mustflush(vp))) {
+	if ((fmode & FREAD) != 0 &&
+	    (!NFS_ISV4(vp) || nfscl_mustflush(vp) != 0)) {
 		mtx_lock(&np->n_mtx);
 		if (np->n_flag & NMODIFIED) {
 			mtx_unlock(&np->n_mtx);			
@@ -678,7 +679,7 @@ nfs_close(struct vop_close_args *ap)
 		    error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm, 0);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else if (NFS_ISV4(vp)) { 
-			if (nfscl_mustflush(vp)) {
+			if (nfscl_mustflush(vp) != 0) {
 				int cm = newnfs_commit_on_close ? 1 : 0;
 				error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td,
 				    cm, 0);
@@ -720,7 +721,7 @@ nfs_close(struct vop_close_args *ap)
 		/*
 		 * Get attributes so "change" is up to date.
 		 */
-		if (error == 0 && nfscl_mustflush(vp)) {
+		if (error == 0 && nfscl_mustflush(vp) != 0) {
 			ret = nfsrpc_getattr(vp, cred, ap->a_td, &nfsva,
 			    NULL);
 			if (!ret) {
