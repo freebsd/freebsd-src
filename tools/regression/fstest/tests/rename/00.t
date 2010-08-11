@@ -6,7 +6,7 @@ desc="rename changes file name"
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-echo "1..145"
+echo "1..150"
 
 n0=`namegen`
 n1=`namegen`
@@ -17,21 +17,23 @@ expect 0 mkdir ${n3} 0755
 cdir=`pwd`
 cd ${n3}
 
-expect 0 create ${n0} 0644
-expect regular,0644,1 lstat ${n0} type,mode,nlink
-inode=`${fstest} lstat ${n0} inode`
-expect 0 rename ${n0} ${n1}
-expect ENOENT lstat ${n0} type,mode,nlink
-expect regular,${inode},0644,1 lstat ${n1} type,inode,mode,nlink
-expect 0 link ${n1} ${n0}
-expect regular,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect regular,${inode},0644,2 lstat ${n1} type,inode,mode,nlink
-expect 0 rename ${n1} ${n2}
-expect regular,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect ENOENT lstat ${n1} type,mode,nlink
-expect regular,${inode},0644,2 lstat ${n2} type,inode,mode,nlink
-expect 0 unlink ${n0}
-expect 0 unlink ${n2}
+for type in regular fifo block char socket; do
+	create_file ${type} ${n0} 0644
+	expect ${type},0644,1 lstat ${n0} type,mode,nlink
+	inode=`${fstest} lstat ${n0} inode`
+	expect 0 rename ${n0} ${n1}
+	expect ENOENT lstat ${n0} type,mode,nlink
+	expect ${type},${inode},0644,1 lstat ${n1} type,inode,mode,nlink
+	expect 0 link ${n1} ${n0}
+	expect ${type},${inode},0644,2 lstat ${n0} type,inode,mode,nlink
+	expect ${type},${inode},0644,2 lstat ${n1} type,inode,mode,nlink
+	expect 0 rename ${n1} ${n2}
+	expect ${type},${inode},0644,2 lstat ${n0} type,inode,mode,nlink
+	expect ENOENT lstat ${n1} type,mode,nlink
+	expect ${type},${inode},0644,2 lstat ${n2} type,inode,mode,nlink
+	expect 0 unlink ${n0}
+	expect 0 unlink ${n2}
+done
 
 expect 0 mkdir ${n0} 0755
 expect dir,0755 lstat ${n0} type,mode
@@ -40,70 +42,6 @@ expect 0 rename ${n0} ${n1}
 expect ENOENT lstat ${n0} type,mode
 expect dir,${inode},0755 lstat ${n1} type,inode,mode
 expect 0 rmdir ${n1}
-
-expect 0 mkfifo ${n0} 0644
-expect fifo,0644,1 lstat ${n0} type,mode,nlink
-inode=`${fstest} lstat ${n0} inode`
-expect 0 rename ${n0} ${n1}
-expect ENOENT lstat ${n0} type,mode,nlink
-expect fifo,${inode},0644,1 lstat ${n1} type,inode,mode,nlink
-expect 0 link ${n1} ${n0}
-expect fifo,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect fifo,${inode},0644,2 lstat ${n1} type,inode,mode,nlink
-expect 0 rename ${n1} ${n2}
-expect fifo,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect ENOENT lstat ${n1} type,mode,nlink
-expect fifo,${inode},0644,2 lstat ${n2} type,inode,mode,nlink
-expect 0 unlink ${n0}
-expect 0 unlink ${n2}
-
-expect 0 mknod ${n0} b 0644 1 2
-expect block,0644,1 lstat ${n0} type,mode,nlink
-inode=`${fstest} lstat ${n0} inode`
-expect 0 rename ${n0} ${n1}
-expect ENOENT lstat ${n0} type,mode,nlink
-expect block,${inode},0644,1 lstat ${n1} type,inode,mode,nlink
-expect 0 link ${n1} ${n0}
-expect block,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect block,${inode},0644,2 lstat ${n1} type,inode,mode,nlink
-expect 0 rename ${n1} ${n2}
-expect block,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect ENOENT lstat ${n1} type,mode,nlink
-expect block,${inode},0644,2 lstat ${n2} type,inode,mode,nlink
-expect 0 unlink ${n0}
-expect 0 unlink ${n2}
-
-expect 0 mknod ${n0} c 0644 1 2
-expect char,0644,1 lstat ${n0} type,mode,nlink
-inode=`${fstest} lstat ${n0} inode`
-expect 0 rename ${n0} ${n1}
-expect ENOENT lstat ${n0} type,mode,nlink
-expect char,${inode},0644,1 lstat ${n1} type,inode,mode,nlink
-expect 0 link ${n1} ${n0}
-expect char,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect char,${inode},0644,2 lstat ${n1} type,inode,mode,nlink
-expect 0 rename ${n1} ${n2}
-expect char,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect ENOENT lstat ${n1} type,mode,nlink
-expect char,${inode},0644,2 lstat ${n2} type,inode,mode,nlink
-expect 0 unlink ${n0}
-expect 0 unlink ${n2}
-
-expect 0 -U 0133 bind ${n0}
-expect socket,0644,1 lstat ${n0} type,mode,nlink
-inode=`${fstest} lstat ${n0} inode`
-expect 0 rename ${n0} ${n1}
-expect ENOENT lstat ${n0} type,mode,nlink
-expect socket,${inode},0644,1 lstat ${n1} type,inode,mode,nlink
-expect 0 link ${n1} ${n0}
-expect socket,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect socket,${inode},0644,2 lstat ${n1} type,inode,mode,nlink
-expect 0 rename ${n1} ${n2}
-expect socket,${inode},0644,2 lstat ${n0} type,inode,mode,nlink
-expect ENOENT lstat ${n1} type,mode,nlink
-expect socket,${inode},0644,2 lstat ${n2} type,inode,mode,nlink
-expect 0 unlink ${n0}
-expect 0 unlink ${n2}
 
 expect 0 create ${n0} 0644
 rinode=`${fstest} lstat ${n0} inode`
@@ -120,118 +58,34 @@ expect 0 unlink ${n0}
 expect 0 unlink ${n2}
 
 # successful rename(2) updates ctime.
-expect 0 create ${n0} 0644
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect 0 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n1} ctime`
-test_check $ctime1 -lt $ctime2
-expect 0 unlink ${n1}
-
-expect 0 mkdir ${n0} 0755
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect 0 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n1} ctime`
-test_check $ctime1 -lt $ctime2
-expect 0 rmdir ${n1}
-
-expect 0 mkfifo ${n0} 0644
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect 0 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n1} ctime`
-test_check $ctime1 -lt $ctime2
-expect 0 unlink ${n1}
-
-expect 0 mknod ${n0} b 0644 1 2
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect 0 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n1} ctime`
-test_check $ctime1 -lt $ctime2
-expect 0 unlink ${n1}
-
-expect 0 mknod ${n0} c 0644 1 2
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect 0 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n1} ctime`
-test_check $ctime1 -lt $ctime2
-expect 0 unlink ${n1}
-
-expect 0 bind ${n0}
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect 0 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n1} ctime`
-test_check $ctime1 -lt $ctime2
-expect 0 unlink ${n1}
-
-expect 0 symlink ${n2} ${n0}
-ctime1=`${fstest} lstat ${n0} ctime`
-sleep 1
-expect 0 rename ${n0} ${n1}
-ctime2=`${fstest} lstat ${n1} ctime`
-test_check $ctime1 -lt $ctime2
-expect 0 unlink ${n1}
+for type in regular dir fifo block char socket symlink; do
+	create_file ${type} ${n0}
+	ctime1=`${fstest} lstat ${n0} ctime`
+	sleep 1
+	expect 0 rename ${n0} ${n1}
+	ctime2=`${fstest} lstat ${n1} ctime`
+	test_check $ctime1 -lt $ctime2
+	if [ "${type}" = "dir" ]; then
+		expect 0 rmdir ${n1}
+	else
+		expect 0 unlink ${n1}
+	fi
+done
 
 # unsuccessful link(2) does not update ctime.
-expect 0 create ${n0} 0644
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect EACCES -u 65534 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n0} ctime`
-test_check $ctime1 -eq $ctime2
-expect 0 unlink ${n0}
-
-expect 0 mkdir ${n0} 0755
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect EACCES -u 65534 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n0} ctime`
-test_check $ctime1 -eq $ctime2
-expect 0 rmdir ${n0}
-
-expect 0 mkfifo ${n0} 0644
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect EACCES -u 65534 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n0} ctime`
-test_check $ctime1 -eq $ctime2
-expect 0 unlink ${n0}
-
-expect 0 mknod ${n0} b 0644 1 2
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect EACCES -u 65534 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n0} ctime`
-test_check $ctime1 -eq $ctime2
-expect 0 unlink ${n0}
-
-expect 0 mknod ${n0} c 0644 1 2
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect EACCES -u 65534 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n0} ctime`
-test_check $ctime1 -eq $ctime2
-expect 0 unlink ${n0}
-
-expect 0 bind ${n0}
-ctime1=`${fstest} stat ${n0} ctime`
-sleep 1
-expect EACCES -u 65534 rename ${n0} ${n1}
-ctime2=`${fstest} stat ${n0} ctime`
-test_check $ctime1 -eq $ctime2
-expect 0 unlink ${n0}
-
-expect 0 symlink ${n2} ${n0}
-ctime1=`${fstest} lstat ${n0} ctime`
-sleep 1
-expect EACCES -u 65534 rename ${n0} ${n1}
-ctime2=`${fstest} lstat ${n0} ctime`
-test_check $ctime1 -eq $ctime2
-expect 0 unlink ${n0}
+for type in regular dir fifo block char socket symlink; do
+	create_file ${type} ${n0}
+	ctime1=`${fstest} lstat ${n0} ctime`
+	sleep 1
+	expect EACCES -u 65534 rename ${n0} ${n1}
+	ctime2=`${fstest} lstat ${n0} ctime`
+	test_check $ctime1 -eq $ctime2
+	if [ "${type}" = "dir" ]; then
+		expect 0 rmdir ${n0}
+	else
+		expect 0 unlink ${n0}
+	fi
+done
 
 cd ${cdir}
 expect 0 rmdir ${n3}

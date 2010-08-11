@@ -14,14 +14,14 @@ FreeBSD:UFS)
 	userflags="UF_NODUMP,UF_IMMUTABLE,UF_APPEND,UF_NOUNLINK,UF_OPAQUE"
 	systemflags="SF_ARCHIVED,SF_IMMUTABLE,SF_APPEND,SF_NOUNLINK"
 
-	echo "1..780"
+	echo "1..742"
 	;;
 FreeBSD:ZFS)
 	allflags="UF_NODUMP,SF_IMMUTABLE,SF_APPEND,SF_NOUNLINK"
 	userflags="UF_NODUMP"
 	systemflags="SF_IMMUTABLE,SF_APPEND,SF_NOUNLINK"
 
-	echo "1..520"
+	echo "1..482"
 	;;
 *)
 	quick_exit
@@ -37,7 +37,7 @@ cdir=`pwd`
 cd ${n2}
 
 for type in regular dir fifo block char socket; do
-	create_file ${type} ${n0} 0 0
+	create_file ${type} ${n0}
 	expect none stat ${n0} flags
 	expect 0 chflags ${n0} ${allflags}
 	expect ${allflags} stat ${n0} flags
@@ -53,7 +53,7 @@ for type in regular dir fifo block char socket; do
 		expect 0 unlink ${n0}
 	fi
 
-	create_file ${type} ${n0} 0 0
+	create_file ${type} ${n0}
 	expect none stat ${n0} flags
 	expect 0 lchflags ${n0} ${allflags}
 	expect ${allflags} stat ${n0} flags
@@ -111,7 +111,7 @@ expect 0 unlink ${n0}
 # successful chflags(2) updates ctime.
 for type in regular dir fifo block char socket symlink; do
 	if [ "${type}" != "symlink" ]; then
-		create_file ${type} ${n0} 0 0
+		create_file ${type} ${n0}
 		for flag in `echo ${allflags},none | tr ',' ' '`; do
 			ctime1=`${fstest} stat ${n0} ctime`
 			sleep 1
@@ -126,7 +126,7 @@ for type in regular dir fifo block char socket symlink; do
 		fi
 	fi
 
-	create_file ${type} ${n0} 0 0
+	create_file ${type} ${n0}
 	for flag in `echo ${allflags},none | tr ',' ' '`; do
 		ctime1=`${fstest} lstat ${n0} ctime`
 		sleep 1
@@ -144,7 +144,7 @@ done
 # unsuccessful chflags(2) does not update ctime.
 for type in regular dir fifo block char socket symlink; do
 	if [ "${type}" != "symlink" ]; then
-		create_file ${type} ${n0} 0 0
+		create_file ${type} ${n0}
 		for flag in `echo ${allflags},none | tr ',' ' '`; do
 			ctime1=`${fstest} stat ${n0} ctime`
 			sleep 1
@@ -159,7 +159,7 @@ for type in regular dir fifo block char socket symlink; do
 		fi
 	fi
 
-	create_file ${type} ${n0} 0 0
+	create_file ${type} ${n0}
 	for flag in `echo ${allflags},none | tr ',' ' '`; do
 		ctime1=`${fstest} lstat ${n0} ctime`
 		sleep 1

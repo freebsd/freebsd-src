@@ -15,33 +15,15 @@ n2=`namegen`
 expect 0 mkdir ${n0} 0755
 expect 0 mkdir ${n1} 0755
 
-expect 0 create ${n1}/${n2} 0644
-expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
-expect 0 unlink ${n1}/${n2}
-
-expect 0 mkdir ${n1}/${n2} 0755
-expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
-expect 0 rmdir ${n1}/${n2}
-
-expect 0 mkfifo ${n1}/${n2} 0644
-expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
-expect 0 unlink ${n1}/${n2}
-
-expect 0 mknod ${n1}/${n2} b 0644 1 2
-expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
-expect 0 unlink ${n1}/${n2}
-
-expect 0 mknod ${n1}/${n2} c 0644 1 2
-expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
-expect 0 unlink ${n1}/${n2}
-
-expect 0 bind ${n1}/${n2}
-expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
-expect 0 unlink ${n1}/${n2}
-
-expect 0 symlink test ${n1}/${n2}
-expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
-expect 0 unlink ${n1}/${n2}
+for type in regular dir fifo block char socket symlink; do
+	create_file ${type} ${n1}/${n2}
+	expect "EEXIST|ENOTEMPTY" rename ${n0} ${n1}
+	if [ "${type}" = "dir" ]; then
+		expect 0 rmdir ${n1}/${n2}
+	else
+		expect 0 unlink ${n1}/${n2}
+	fi
+done
 
 expect 0 rmdir ${n1}
 expect 0 rmdir ${n0}
