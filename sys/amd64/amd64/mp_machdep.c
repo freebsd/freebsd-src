@@ -1053,7 +1053,7 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	int ncpu, othercpus;
 
 	othercpus = mp_ncpus - 1;
-	if (mask == (u_int)-1) {
+	if (mask == (cpumask_t)-1) {
 		ncpu = othercpus;
 		if (ncpu < 1)
 			return;
@@ -1078,7 +1078,7 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
-	if (mask == (u_int)-1)
+	if (mask == (cpumask_t)-1)
 		ipi_all_but_self(vector);
 	else
 		ipi_selected(mask, vector);
@@ -1549,9 +1549,11 @@ mp_grab_cpu_hlt(void)
 	mask = PCPU_GET(cpumask);
 #endif
 
-	retval = mask & hlt_cpus_mask;
-	while (mask & hlt_cpus_mask)
+	retval = 0;
+	while (mask & hlt_cpus_mask) {
+		retval = 1;
 		__asm __volatile("sti; hlt" : : : "memory");
+	}
 	return (retval);
 }
 

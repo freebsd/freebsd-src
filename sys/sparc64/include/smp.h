@@ -77,17 +77,17 @@ struct cpu_start_args {
 };
 
 struct ipi_cache_args {
-	u_int	ica_mask;
+	cpumask_t ica_mask;
 	vm_paddr_t ica_pa;
 };
 
 struct ipi_rd_args {
-	u_int	ira_mask;
+	cpumask_t ira_mask;
 	register_t *ira_val;
 };
 
 struct ipi_tlb_args {
-	u_int	ita_mask;
+	cpumask_t ita_mask;
 	struct	pmap *ita_pmap;
 	u_long	ita_start;
 	u_long	ita_end;
@@ -208,7 +208,7 @@ static __inline void *
 ipi_tlb_context_demap(struct pmap *pm)
 {
 	struct ipi_tlb_args *ita;
-	u_int cpus;
+	cpumask_t cpus;
 
 	if (smp_cpus == 1)
 		return (NULL);
@@ -230,7 +230,7 @@ static __inline void *
 ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
 	struct ipi_tlb_args *ita;
-	u_int cpus;
+	cpumask_t cpus;
 
 	if (smp_cpus == 1)
 		return (NULL);
@@ -252,7 +252,7 @@ static __inline void *
 ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 {
 	struct ipi_tlb_args *ita;
-	u_int cpus;
+	cpumask_t cpus;
 
 	if (smp_cpus == 1)
 		return (NULL);
@@ -275,7 +275,7 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 static __inline void
 ipi_wait(void *cookie)
 {
-	volatile u_int *mask;
+	volatile cpumask_t *mask;
 
 	if ((mask = cookie) != NULL) {
 		atomic_clear_int(mask, PCPU_GET(cpumask));

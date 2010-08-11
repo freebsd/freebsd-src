@@ -1598,9 +1598,11 @@ mp_grab_cpu_hlt(void)
 	mask = PCPU_GET(cpumask);
 #endif
 
-	retval = mask & hlt_cpus_mask;
-	while (mask & hlt_cpus_mask)
+	retval = 0;
+	while (mask & hlt_cpus_mask) {
+		retval = 1;
 		__asm __volatile("sti; hlt" : : : "memory");
+	}
 	return (retval);
 }
 
