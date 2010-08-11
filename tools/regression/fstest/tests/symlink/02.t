@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-desc="symlink returns ENAMETOOLONG if a component of the name2 pathname exceeded 255 characters"
+desc="symlink returns ENAMETOOLONG if a component of the name2 pathname exceeded {NAME_MAX} characters"
 
 dir=`dirname $0`
 . ${dir}/../misc.sh
@@ -9,12 +9,14 @@ dir=`dirname $0`
 echo "1..7"
 
 n0=`namegen`
+nx=`namegen_max`
+nxx="${nx}x"
 
-expect 0 symlink ${name255} ${n0}
+expect 0 symlink ${nx} ${n0}
 expect 0 unlink ${n0}
-expect 0 symlink ${n0} ${name255}
-expect 0 unlink ${name255}
+expect 0 symlink ${n0} ${nx}
+expect 0 unlink ${nx}
 
-expect ENAMETOOLONG symlink ${n0} ${name256}
-expect 0 symlink ${name256} ${n0}
+expect ENAMETOOLONG symlink ${n0} ${nxx}
+expect 0 symlink ${nxx} ${n0}
 expect 0 unlink ${n0}
