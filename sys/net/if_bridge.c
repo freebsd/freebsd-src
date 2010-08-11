@@ -2141,10 +2141,6 @@ drop:
 	m_freem(m);
 }
 
-#if defined(INET) || defined(INET6)
-int (*carp_forus_p)(struct carp_if *, u_char *);
-#endif
-
 /*
  * bridge_input:
  *
@@ -2256,10 +2252,10 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 #if (defined(INET) || defined(INET6))
 #   define OR_CARP_CHECK_WE_ARE_DST(iface) \
 	|| ((iface)->if_carp \
-	    && (*carp_forus_p)((iface)->if_carp, eh->ether_dhost))
+	    && (*carp_forus_p)((iface), eh->ether_dhost))
 #   define OR_CARP_CHECK_WE_ARE_SRC(iface) \
 	|| ((iface)->if_carp \
-	    && (*carp_forus_p)((iface)->if_carp, eh->ether_shost))
+	    && (*carp_forus_p)((iface), eh->ether_shost))
 #else
 #   define OR_CARP_CHECK_WE_ARE_DST(iface)
 #   define OR_CARP_CHECK_WE_ARE_SRC(iface)

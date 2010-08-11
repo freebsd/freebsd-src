@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
+#include <netinet/ip_carp.h>
 
 #define SDL(s) ((struct sockaddr_dl *)s)
 
@@ -83,10 +84,6 @@ static void nd6_dad_timer(struct dadq *);
 static void nd6_dad_ns_output(struct dadq *, struct ifaddr *);
 static void nd6_dad_ns_input(struct ifaddr *);
 static void nd6_dad_na_input(struct ifaddr *);
-
-struct ifaddr *(*carp_iamatch6_p)(struct ifnet *, struct in6_addr *);
-caddr_t (*carp_macmatch6_p)(struct ifnet *, struct mbuf *,
-    const struct in6_addr *);
 
 VNET_DEFINE(int, dad_ignore_ns) = 0;	/* ignore NS in DAD - specwise incorrect*/
 VNET_DEFINE(int, dad_maxtry) = 15;	/* max # of *tries* to transmit DAD packet */
