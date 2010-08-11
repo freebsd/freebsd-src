@@ -83,7 +83,7 @@ void _rtld_relocate_nonplt_self(Elf_Dyn *, Elf_Addr);
 #undef ELF_R_SYM
 #undef ELF_R_TYPE
 #define ELF_R_SYM(r_info)		((r_info) & 0xffffffff)
-#define ELF_R_TYPE(r_info)		bswap32(((r_info) >> 32))
+#define ELF_R_TYPE(r_info)		bswap32((r_info) >> 32)
 #endif
 #else
 #define	ELF_R_NXTTYPE_64_P(r_type)	(0)
