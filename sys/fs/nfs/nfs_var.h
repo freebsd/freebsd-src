@@ -469,7 +469,7 @@ void nfscl_docb(struct nfsrv_descript *, NFSPROC_T *);
 void nfscl_releasealllocks(struct nfsclclient *, vnode_t, NFSPROC_T *);
 int nfscl_lockt(vnode_t, struct nfsclclient *, u_int64_t,
     u_int64_t, struct flock *, NFSPROC_T *);
-boolean_t nfscl_mustflush(vnode_t);
+int nfscl_mustflush(vnode_t);
 int nfscl_nodeleg(vnode_t, int);
 int nfscl_removedeleg(vnode_t, NFSPROC_T *, nfsv4stateid_t *);
 int nfscl_getref(struct nfsmount *);
