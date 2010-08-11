@@ -3052,6 +3052,7 @@ pmap_align_tlb(vm_offset_t *addr)
 	return;
 }
 
+#ifdef DDB
 DB_SHOW_COMMAND(ptable, ddb_pid_dump)
 {
 	pmap_t pmap;
@@ -3077,9 +3078,8 @@ DB_SHOW_COMMAND(ptable, ddb_pid_dump)
 		pmap = kernel_pmap;
 
 	db_printf("pmap:%p segtab:%p asid:%x generation:%x\n",
-	    pmap, pmap->pm_segtab,
-			       pmap->pm_asid[0].asid,
-			       pmap->pm_asid[0].gen);
+	    pmap, pmap->pm_segtab, pmap->pm_asid[0].asid,
+	    pmap->pm_asid[0].gen);
 	for (i = 0; i < NPDEPG; i++) {
 		pd_entry_t *pdpe;
 		pt_entry_t *pde;
@@ -3112,7 +3112,7 @@ DB_SHOW_COMMAND(ptable, ddb_pid_dump)
 		}
 	}
 }
-
+#endif
 
 #if defined(DEBUG)
 
