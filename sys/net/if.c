@@ -80,6 +80,7 @@
 /*XXX*/
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/ip_carp.h>
 #ifdef INET6
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
@@ -124,7 +125,22 @@ SX_SYSINIT(ifdescr_sx, &ifdescr_sx, "ifnet descr");
 void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
+/* These are external hooks for CARP. */
 void	(*carp_linkstate_p)(struct ifnet *ifp);
+#if defined(INET) || defined(INET6)
+struct ifnet *(*carp_forus_p)(struct ifnet *ifp, u_char *dhost);
+int	(*carp_output_p)(struct ifnet *ifp, struct mbuf *m,
+    struct sockaddr *sa, struct rtentry *rt);
+#endif
+#ifdef INET
+int (*carp_iamatch_p)(struct ifnet *, struct in_ifaddr *, struct in_addr *,
+    u_int8_t **);
+#endif
+#ifdef INET6
+struct ifaddr *(*carp_iamatch6_p)(struct ifnet *ifp, struct in6_addr *taddr6);
+caddr_t (*carp_macmatch6_p)(struct ifnet *ifp, struct mbuf *m,
+    const struct in6_addr *taddr);
+#endif
 
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 

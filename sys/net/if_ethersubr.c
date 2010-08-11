@@ -114,11 +114,6 @@ void	(*ng_ether_attach_p)(struct ifnet *ifp);
 void	(*ng_ether_detach_p)(struct ifnet *ifp);
 
 void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
-#if defined(INET) || defined(INET6)
-int (*carp_forus_p)(struct ifnet *, u_char *);
-int (*carp_output_p)(struct ifnet *, struct mbuf *, struct sockaddr *,
-    struct rtentry *);
-#endif
 
 /* if_bridge(4) support */
 struct mbuf *(*bridge_input_p)(struct ifnet *, struct mbuf *); 
