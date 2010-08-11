@@ -175,11 +175,14 @@ require()
 	quick_exit
 }
 
+# usage:
+#	create_file <type> <name>
+#	create_file <type> <name> <mode>
+#	create_file <type> <name> <uid> <gid>
+#	create_file <type> <name> <mode> <uid> <gid>
 create_file() {
 	type="${1}"
 	name="${2}"
-	uid="${3}"
-	gid="${4}"
 
 	case "${type}" in
 	none)
@@ -207,5 +210,12 @@ create_file() {
 		expect 0 symlink test ${name}
 		;;
 	esac
-	expect 0 lchown ${name} ${uid} ${gid}
+	if [ -n "${3}" -a -n "${4}" -a -n "${5}" ]; then
+		expect 0 lchmod ${name} ${3}
+		expect 0 lchown ${name} ${4} ${5}
+	elif [ -n "${3}" -a -n "${4}" ]; then
+		expect 0 lchown ${name} ${3} ${4}
+	elif [ -n "${3}" ]; then
+		expect 0 lchmod ${name} ${3}
+	fi
 }
