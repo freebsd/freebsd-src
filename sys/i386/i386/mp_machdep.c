@@ -1411,8 +1411,10 @@ cpustop_handler(void)
 	cpumask_t cpumask;
 	u_int cpu;
 
+	sched_pin();
 	cpu = PCPU_GET(cpuid);
 	cpumask = PCPU_GET(cpumask);
+	sched_unpin();
 
 	savectx(&stoppcbs[cpu]);
 
@@ -1586,10 +1588,14 @@ mp_grab_cpu_hlt(void)
 #endif
 	int retval;
 
-	mask = PCPU_GET(cpumask);
 #ifdef MP_WATCHDOG
+	sched_pin();
+	mask = PCPU_GET(cpumask);
 	cpuid = PCPU_GET(cpuid);
+	sched_unpin();
 	ap_watchdog(cpuid);
+#else
+	mask = PCPU_GET(cpumask);
 #endif
 
 	retval = mask & hlt_cpus_mask;
