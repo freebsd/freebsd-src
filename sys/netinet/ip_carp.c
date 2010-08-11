@@ -135,26 +135,6 @@ struct carp_softc {
 };
 #define	SC2IFP(sc)	((sc)->sc_ifp)
 
-/* These are external networking stack hooks for CARP */
-/* net/if.c */
-extern void (*carp_linkstate_p)(struct ifnet *);
-/* net/if_bridge.c net/if_ethersubr.c */
-extern struct ifnet *(*carp_forus_p)(struct ifnet *, u_char *);
-/* net/if_ethersubr.c */
-extern int (*carp_output_p)(struct ifnet *, struct mbuf *,
-    struct sockaddr *, struct rtentry *);
-#ifdef INET
-/* netinet/if_ether.c */
-extern int (*carp_iamatch_p)(struct ifnet *, struct in_ifaddr *,
-    struct in_addr *, u_int8_t **);
-#endif
-#ifdef INET6
-/* netinet6/nd6_nbr.c */
-extern struct ifaddr *(*carp_iamatch6_p)(struct ifnet *, struct in6_addr *);
-extern caddr_t (*carp_macmatch6_p)(struct ifnet *, struct mbuf *,
-    const struct in6_addr *);
-#endif
-
 int carp_suppress_preempt = 0;
 int carp_opts[CARPCTL_MAXID] = { 0, 1, 0, 1, 0, 0 };	/* XXX for now */
 SYSCTL_NODE(_net_inet, IPPROTO_CARP,	carp,	CTLFLAG_RW, 0,	"CARP");
