@@ -42,7 +42,6 @@
 #define _CL_DEBUG_OSD_H_
 
 #include <complib/cl_types.h>
-#include <bits/wordsize.h>
 
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {

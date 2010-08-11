@@ -39,7 +39,6 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/sysinfo.h>
 #include <complib/cl_thread.h>
 
 /*
@@ -122,7 +121,7 @@ int cl_proc_count(void)
 {
 	uint32_t ret;
 
-	ret = get_nprocs();
+	ret = sysconf(_SC_NPROCESSORS_ONLN);
 	if (!ret)
 		return 1;	/* Workaround for PPC where get_nprocs() returns 0 */
 

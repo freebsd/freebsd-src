@@ -60,6 +60,14 @@ typedef uint16_t net16_t;
 typedef uint32_t net32_t;
 typedef uint64_t net64_t;
 
+#ifndef __WORDSIZE
+#ifdef	__LP64__
+#define	__WORDSIZE	64
+#else
+#define	__WORDSIZE	32
+#endif
+#endif
+
 /* explicit cast of void* to uint32_t */
 #ifndef ASSERT_VOIDP2UINTN
 #if __WORDSIZE == 64

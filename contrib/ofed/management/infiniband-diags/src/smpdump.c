@@ -295,7 +295,7 @@ main(int argc, char *argv[])
 		usage();
 
 	if (mgmt_class == CLASS_SUBN_DIRECTED_ROUTE &&
-	    str2DRPath(strdupa(argv[0]), &path) < 0)
+	    str2DRPath(strdup(argv[0]), &path) < 0)
 		IBPANIC("bad path str '%s'", argv[0]);
 
 	if (mgmt_class == CLASS_SUBN_LID_ROUTE)

@@ -42,7 +42,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <ctype.h>
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include <complib/cl_nodenamemap.h>
 
