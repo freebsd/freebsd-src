@@ -19,33 +19,15 @@ n=`mdconfig -a -n -t malloc -s 1m`
 newfs /dev/md${n} >/dev/null
 mount /dev/md${n} ${n0}
 
-expect 0 create ${n0}/${n1} 0644
-expect EXDEV rename ${n0}/${n1} ${n2}
-expect 0 unlink ${n0}/${n1}
-
-expect 0 mkdir ${n0}/${n1} 0755
-expect EXDEV rename ${n0}/${n1} ${n2}
-expect 0 rmdir ${n0}/${n1}
-
-expect 0 mkfifo ${n0}/${n1} 0644
-expect EXDEV rename ${n0}/${n1} ${n2}
-expect 0 unlink ${n0}/${n1}
-
-expect 0 mknod ${n0}/${n1} b 0644 1 2
-expect EXDEV rename ${n0}/${n1} ${n2}
-expect 0 unlink ${n0}/${n1}
-
-expect 0 mknod ${n0}/${n1} c 0644 1 2
-expect EXDEV rename ${n0}/${n1} ${n2}
-expect 0 unlink ${n0}/${n1}
-
-expect 0 bind ${n0}/${n1}
-expect EXDEV rename ${n0}/${n1} ${n2}
-expect 0 unlink ${n0}/${n1}
-
-expect 0 symlink test ${n0}/${n1}
-expect EXDEV rename ${n0}/${n1} ${n2}
-expect 0 unlink ${n0}/${n1}
+for type in regular dir fifo block char socket symlink; do
+	create_file ${type} ${n0}/${n1}
+	expect EXDEV rename ${n0}/${n1} ${n2}
+	if [ "${type}" = "dir" ]; then
+		expect 0 rmdir ${n0}/${n1}
+	else
+		expect 0 unlink ${n0}/${n1}
+	fi
+done
 
 umount /dev/md${n}
 mdconfig -d -u ${n}
