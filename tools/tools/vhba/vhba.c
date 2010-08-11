@@ -106,7 +106,7 @@ vhba_action(struct cam_sim *sim, union ccb *ccb)
 
 	case XPT_GET_TRAN_SETTINGS:
 		cts = &ccb->cts;
-		cts->protocol_version = SCSI_REV_SPC2;
+		cts->protocol_version = SCSI_REV_SPC3;
 		cts->protocol = PROTO_SCSI;
 		cts->transport_version = 0;
 		cts->transport = XPORT_PPB;
@@ -133,7 +133,7 @@ vhba_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport = XPORT_PPB;
 		cpi->base_transfer_speed = 1000000;
 		cpi->protocol = PROTO_SCSI;
-		cpi->protocol_version = SCSI_REV_SPC2;
+		cpi->protocol_version = SCSI_REV_SPC3;
 		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strlcpy(cpi->hba_vid, "FakeHBA", HBA_IDLEN);
 		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -235,14 +235,14 @@ vhba_default_cmd(struct ccb_scsiio *csio, lun_id_t max_lun, uint8_t *sparse_lun_
 {
 	char junk[128];
 	const uint8_t niliqd[SHORT_INQUIRY_LENGTH] = {
-		0x7f, 0x0, 0x5, 0x2, 32, 0, 0, 0x32,
+		0x7f, 0x0, SCSI_REV_SPC3, 0x2, 32, 0, 0, 0x32,
 		'P', 'A', 'N', 'A', 'S', 'A', 'S', ' ',
 		'N', 'U', 'L', 'L', ' ', 'D', 'E', 'V',
 		'I', 'C', 'E', ' ', ' ', ' ', ' ', ' ',
 		'0', '0', '0', '1'
 	};
 	const uint8_t iqd[SHORT_INQUIRY_LENGTH] = {
-		0, 0x0, 0x5, 0x2, 32, 0, 0, 0x32,
+		0, 0x0, SCSI_REV_SPC3, 0x2, 32, 0, 0, 0x32,
 		'P', 'A', 'N', 'A', 'S', 'A', 'S', ' ',
 		'V', 'I', 'R', 'T', ' ', 'M', 'E', 'M',
 		'O', 'R', 'Y', ' ', 'D', 'I', 'S', 'K',
