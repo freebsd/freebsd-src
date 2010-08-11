@@ -31,6 +31,17 @@
 #include "vhba.h"
 #include <sys/sysctl.h>
 
+static int vhba_stop_lun;
+static int vhba_start_lun = 0;
+static int vhba_notify_stop = 1;
+static int vhba_notify_start = 1;
+static int vhba_inject_hwerr = 0;
+SYSCTL_INT(_debug, OID_AUTO, vhba_stop_lun, CTLFLAG_RW, &vhba_stop_lun, 0, "stop lun bitmap");
+SYSCTL_INT(_debug, OID_AUTO, vhba_start_lun, CTLFLAG_RW, &vhba_start_lun, 0, "start lun bitmap");
+SYSCTL_INT(_debug, OID_AUTO, vhba_notify_stop, CTLFLAG_RW, &vhba_notify_stop, 1, "notify when luns go away");
+SYSCTL_INT(_debug, OID_AUTO, vhba_notify_start, CTLFLAG_RW, &vhba_notify_start, 1, "notify when luns arrive");
+SYSCTL_INT(_debug, OID_AUTO, vhba_inject_hwerr, CTLFLAG_RW, &vhba_inject_hwerr, 0, "inject hardware error on lost luns");
+
 #define	MAX_TGT		1
 #define	MAX_LUN		2
 #define	VMP_TIME	hz
@@ -49,8 +60,11 @@ typedef struct {
 	int		luns[2];
 	struct callout	tick;
 	struct task	qt;
+	TAILQ_HEAD(, ccb_hdr)   inproc;
+	int		nact, nact_high;
 } mptest_t;
 
+static timeout_t vhba_iodelay;
 static timeout_t vhba_timer;
 static void vhba_task(void *, int);
 static void mptest_act(mptest_t *, struct ccb_scsiio *);
@@ -59,13 +73,17 @@ void
 vhba_init(vhba_softc_t *vhba)
 {
 	static mptest_t vhbastatic;
+
 	vhbastatic.vhba = vhba;
 	vhbastatic.disk_size = DISK_SIZE << 20;
 	vhbastatic.disk = malloc(vhbastatic.disk_size, M_DEVBUF, M_WAITOK|M_ZERO);
 	vhba->private = &vhbastatic;
 	callout_init_mtx(&vhbastatic.tick, &vhba->lock, 0);
 	callout_reset(&vhbastatic.tick, VMP_TIME, vhba_timer, vhba);
+	TAILQ_INIT(&vhbastatic.inproc);
 	TASK_INIT(&vhbastatic.qt, 0, vhba_task, &vhbastatic);
+	vhbastatic.luns[0] = 1;
+	vhbastatic.luns[1] = 1;
 }
 
 void
@@ -89,15 +107,23 @@ vhba_task(void *arg, int pending)
 {
 	mptest_t *vhbas = arg;
 	struct ccb_hdr *ccbh;
+	int nadded = 0;
 
 	mtx_lock(&vhbas->vhba->lock);
 	while ((ccbh = TAILQ_FIRST(&vhbas->vhba->actv)) != NULL) {
 		TAILQ_REMOVE(&vhbas->vhba->actv, ccbh, sim_links.tqe);
                 mptest_act(vhbas, (struct ccb_scsiio *)ccbh);
+		nadded++;
+		ccbh->sim_priv.entries[0].ptr = vhbas;
+		callout_handle_init(&ccbh->timeout_ch);
 	}
-	while ((ccbh = TAILQ_FIRST(&vhbas->vhba->done)) != NULL) {
-		TAILQ_REMOVE(&vhbas->vhba->done, ccbh, sim_links.tqe);
-		xpt_done((union ccb *)ccbh);
+	if (nadded) {
+		vhba_kick(vhbas->vhba);
+	} else {
+		while ((ccbh = TAILQ_FIRST(&vhbas->vhba->done)) != NULL) {
+			TAILQ_REMOVE(&vhbas->vhba->done, ccbh, sim_links.tqe);
+			xpt_done((union ccb *)ccbh);
+		}
 	}
 	mtx_unlock(&vhbas->vhba->lock);
 }
@@ -108,10 +134,10 @@ mptest_act(mptest_t *vhbas, struct ccb_scsiio *csio)
 	char junk[128];
 	cam_status camstatus;
 	uint8_t *cdb, *ptr, status;
-	uint32_t data_len;
+	uint32_t data_len, blkcmd;
 	uint64_t off;
 	    
-	data_len = 0;
+	blkcmd = data_len = 0;
 	status = SCSI_STATUS_OK;
 
 	memset(&csio->sense_data, 0, sizeof (csio->sense_data));
@@ -119,6 +145,11 @@ mptest_act(mptest_t *vhbas, struct ccb_scsiio *csio)
 
 	if (csio->ccb_h.target_id >= MAX_TGT) {
 		vhba_set_status(&csio->ccb_h, CAM_SEL_TIMEOUT);
+		TAILQ_INSERT_TAIL(&vhbas->vhba->done, &csio->ccb_h, sim_links.tqe);
+		return;
+	}
+	if (vhba_inject_hwerr && csio->ccb_h.target_lun < MAX_LUN && vhbas->luns[csio->ccb_h.target_lun] == 0) {
+		vhba_fill_sense(csio, SSD_KEY_HARDWARE_ERROR, 0x44, 0x0);
 		TAILQ_INSERT_TAIL(&vhbas->vhba->done, &csio->ccb_h, sim_links.tqe);
 		return;
 	}
@@ -284,6 +315,11 @@ mptest_act(mptest_t *vhbas, struct ccb_scsiio *csio)
 			vhba_fill_sense(csio, SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x0);
 			break;
 		}
+		blkcmd++;
+		if (++vhbas->nact > vhbas->nact_high) {
+			vhbas->nact_high = vhbas->nact;
+			printf("%s: high block count now %d\n", __func__, vhbas->nact);
+		}
 		if (data_len) {
 			if ((cdb[0] & 0xf) == 8) {
 				memcpy(csio->data_ptr, &vhbas->disk[off], data_len);
@@ -339,17 +375,36 @@ mptest_act(mptest_t *vhbas, struct ccb_scsiio *csio)
 		camstatus = CAM_REQ_CMP;
 	}
 	vhba_set_status(&csio->ccb_h, camstatus);
-	TAILQ_INSERT_TAIL(&vhbas->vhba->done, &csio->ccb_h, sim_links.tqe);
+	if (blkcmd) {
+		int ticks;
+		struct timeval t;
+
+		TAILQ_INSERT_TAIL(&vhbas->inproc, &csio->ccb_h, sim_links.tqe);
+		t.tv_sec = 0;
+		t.tv_usec = (500 + arc4random());
+		if (t.tv_usec > 10000) {
+			t.tv_usec = 10000;
+		}
+		ticks = tvtohz(&t);
+		csio->ccb_h.timeout_ch = timeout(vhba_iodelay, &csio->ccb_h, ticks);
+	} else {
+		TAILQ_INSERT_TAIL(&vhbas->vhba->done, &csio->ccb_h, sim_links.tqe);
+	}
 }
 
-static int vhba_stop_lun;
-SYSCTL_INT(_debug, OID_AUTO, vhba_stop_lun, CTLFLAG_RW, &vhba_stop_lun, 0, "stop this lun");
-static int vhba_start_lun = 3;
-SYSCTL_INT(_debug, OID_AUTO, vhba_start_lun, CTLFLAG_RW, &vhba_start_lun, 3, "start this lun");
-static int vhba_notify_stop = 1;
-SYSCTL_INT(_debug, OID_AUTO, vhba_notify_stop, CTLFLAG_RW, &vhba_notify_stop, 1, "notify when luns go away");
-static int vhba_notify_start = 1;
-SYSCTL_INT(_debug, OID_AUTO, vhba_notify_start, CTLFLAG_RW, &vhba_notify_start, 1, "notify when luns arrive");
+static void
+vhba_iodelay(void *arg)
+{
+	struct ccb_hdr *ccbh = arg;
+	mptest_t *vhbas = ccbh->sim_priv.entries[0].ptr;
+
+	mtx_lock(&vhbas->vhba->lock);
+	TAILQ_REMOVE(&vhbas->inproc, ccbh, sim_links.tqe);
+	TAILQ_INSERT_TAIL(&vhbas->vhba->done, ccbh, sim_links.tqe);
+	vhbas->nact -= 1;
+	vhba_kick(vhbas->vhba);
+	mtx_unlock(&vhbas->vhba->lock);
+}
 
 static void
 vhba_timer(void *arg)
