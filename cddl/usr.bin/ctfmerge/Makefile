@@ -4,7 +4,6 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/cvt
 
 PROG=		ctfmerge
-NO_MAN=
 SRCS=		alist.c \
 		barrier.c \
 		ctf.c \
