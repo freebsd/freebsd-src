@@ -2,13 +2,6 @@
 
 ntest=1
 
-name253="_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_12"
-name255="${name253}34"
-name256="${name255}5"
-path1021="${name255}/${name255}/${name255}/${name253}"
-path1023="${path1021}/x"
-path1024="${path1023}x"
-
 case "${dir}" in
 /*)
 	maindir="${dir}/../.."
@@ -97,6 +90,52 @@ todo()
 namegen()
 {
 	echo "fstest_`dd if=/dev/urandom bs=1k count=1 2>/dev/null | openssl md5`"
+}
+
+namegen_len()
+{
+	len="${1}"
+
+	name=""
+	while :; do
+		namepart="`dd if=/dev/urandom bs=64 count=1 2>/dev/null | openssl md5`"
+		name="${name}${namepart}"
+		curlen=`printf "%s" "${name}" | wc -c`
+		[ ${curlen} -lt ${len} ] || break
+	done
+	name=`echo "${name}" | cut -b -${len}`
+	printf "%s" "${name}"
+}
+
+# POSIX:
+# {NAME_MAX}
+#     Maximum number of bytes in a filename (not including terminating null).
+namegen_max()
+{
+	name_max=`${fstest} pathconf . _PC_NAME_MAX`
+	namegen_len ${name_max}
+}
+
+# POSIX:
+# {PATH_MAX}
+#     Maximum number of bytes in a pathname, including the terminating null character.
+dirgen_max()
+{
+	name_max=`${fstest} pathconf . _PC_NAME_MAX`
+	complen=$((name_max/2))
+	path_max=`${fstest} pathconf . _PC_PATH_MAX`
+	# "...including the terminating null character."
+	path_max=$((path_max-1))
+
+	name=""
+	while :; do
+		name="${name}`namegen_len ${complen}`/"
+		curlen=`printf "%s" "${name}" | wc -c`
+		[ ${curlen} -lt ${path_max} ] || break
+	done
+	name=`echo "${name}" | cut -b -${path_max}`
+	name=`echo "${name}" | sed -E 's@/$@x@'`
+	printf "%s" "${name}"
 }
 
 quick_exit()
