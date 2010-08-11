@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_carp.h"
 #include "opt_bpf.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -44,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/protosw.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/signalvar.h>
@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
+#include <netinet6/ip6protosw.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
@@ -134,8 +135,29 @@ struct carp_softc {
 };
 #define	SC2IFP(sc)	((sc)->sc_ifp)
 
+/* These are external networking stack hooks for CARP */
+/* net/if.c */
+extern void (*carp_linkstate_p)(struct ifnet *);
+/* net/if_bridge.c net/if_ethersubr.c */
+extern struct ifnet *(*carp_forus_p)(struct ifnet *, u_char *);
+/* net/if_ethersubr.c */
+extern int (*carp_output_p)(struct ifnet *, struct mbuf *,
+    struct sockaddr *, struct rtentry *);
+#ifdef INET
+/* netinet/if_ether.c */
+extern int (*carp_iamatch_p)(struct ifnet *, struct in_ifaddr *,
+    struct in_addr *, u_int8_t **);
+#endif
+#ifdef INET6
+/* netinet6/nd6_nbr.c */
+extern struct ifaddr *(*carp_iamatch6_p)(struct ifnet *, struct in6_addr *);
+extern caddr_t (*carp_macmatch6_p)(struct ifnet *, struct mbuf *,
+    const struct in6_addr *);
+#endif
+
 int carp_suppress_preempt = 0;
 int carp_opts[CARPCTL_MAXID] = { 0, 1, 0, 1, 0, 0 };	/* XXX for now */
+SYSCTL_NODE(_net_inet, IPPROTO_CARP,	carp,	CTLFLAG_RW, 0,	"CARP");
 SYSCTL_INT(_net_inet_carp, CARPCTL_ALLOW, allow, CTLFLAG_RW,
     &carp_opts[CARPCTL_ALLOW], 0, "Accept incoming CARP packets");
 SYSCTL_INT(_net_inet_carp, CARPCTL_PREEMPT, preempt, CTLFLAG_RW,
@@ -159,6 +181,10 @@ struct carp_if {
 	struct ifnet 	*vhif_ifp;
 	struct mtx	 vhif_mtx;
 };
+
+#define	CARP_INET	0
+#define	CARP_INET6	1
+static int proto_reg[] = {-1, -1};
 
 /* Get carp_if from softc. Valid after carp_set_addr{,6}. */
 #define	SC2CIF(sc)		((struct carp_if *)(sc)->sc_carpdev->if_carp)
@@ -1146,14 +1172,15 @@ carp_addrcount(struct carp_if *cif, struct in_ifaddr *ia, int type)
 }
 
 int
-carp_iamatch(void *v, struct in_ifaddr *ia,
+carp_iamatch(struct ifnet *ifp, struct in_ifaddr *ia,
     struct in_addr *isaddr, u_int8_t **enaddr)
 {
-	struct carp_if *cif = v;
+	struct carp_if *cif;
 	struct carp_softc *vh;
 	int index, count = 0;
 	struct ifaddr *ifa;
 
+	cif = ifp->if_carp;
 	CARP_LOCK(cif);
 
 	if (carp_opts[CARPCTL_ARPBALANCE]) {
@@ -1222,12 +1249,13 @@ carp_iamatch(void *v, struct in_ifaddr *ia,
 
 #ifdef INET6
 struct ifaddr *
-carp_iamatch6(void *v, struct in6_addr *taddr)
+carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 {
-	struct carp_if *cif = v;
+	struct carp_if *cif;
 	struct carp_softc *vh;
 	struct ifaddr *ifa;
 
+	cif = ifp->if_carp;
 	CARP_LOCK(cif);
 	TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
 		IF_ADDR_LOCK(SC2IFP(vh));
@@ -1250,14 +1278,15 @@ carp_iamatch6(void *v, struct in6_addr *taddr)
 	return (NULL);
 }
 
-void *
-carp_macmatch6(void *v, struct mbuf *m, const struct in6_addr *taddr)
+caddr_t
+carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 {
 	struct m_tag *mtag;
-	struct carp_if *cif = v;
+	struct carp_if *cif;
 	struct carp_softc *sc;
 	struct ifaddr *ifa;
 
+	cif = ifp->if_carp;
 	CARP_LOCK(cif);
 	TAILQ_FOREACH(sc, &cif->vhif_vrs, sc_list) {
 		IF_ADDR_LOCK(SC2IFP(sc));
@@ -1293,15 +1322,16 @@ carp_macmatch6(void *v, struct mbuf *m, const struct in6_addr *taddr)
 #endif
 
 struct ifnet *
-carp_forus(void *v, void *dhost)
+carp_forus(struct ifnet *ifp, u_char *dhost)
 {
-	struct carp_if *cif = v;
+	struct carp_if *cif;
 	struct carp_softc *vh;
 	u_int8_t *ena = dhost;
 
 	if (ena[0] || ena[1] || ena[2] != 0x5e || ena[3] || ena[4] != 1)
 		return (NULL);
 
+	cif = ifp->if_carp;
 	CARP_LOCK(cif);
 	TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list)
 		if ((SC2IFP(vh)->if_flags & IFF_UP) &&
@@ -2210,10 +2240,11 @@ carp_set_state(struct carp_softc *sc, int state)
 }
 
 void
-carp_carpdev_state(void *v)
+carp_carpdev_state(struct ifnet *ifp)
 {
-	struct carp_if *cif = v;
+	struct carp_if *cif;
 
+	cif = ifp->if_carp;
 	CARP_LOCK(cif);
 	carp_carpdev_state_locked(cif);
 	CARP_UNLOCK(cif);
@@ -2264,24 +2295,121 @@ carp_sc_state_locked(struct carp_softc *sc)
 	return;
 }
 
+#ifdef INET
+extern  struct domain inetdomain;
+static struct protosw in_carp_protosw = {
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_CARP,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		carp_input,
+	.pr_output =		(pr_output_t *)rip_output,
+	.pr_ctloutput =		rip_ctloutput,
+	.pr_usrreqs =		&rip_usrreqs
+};
+#endif
+
+#ifdef INET6
+extern	struct domain inet6domain;
+static struct ip6protosw in6_carp_protosw = {
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&inet6domain,
+	.pr_protocol =		IPPROTO_CARP,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		carp6_input,
+	.pr_output =		rip6_output,
+	.pr_ctloutput =		rip6_ctloutput,
+	.pr_usrreqs =		&rip6_usrreqs
+};
+#endif
+
+static void
+carp_mod_cleanup(void)
+{
+
+	if (if_detach_event_tag == NULL)
+		return;
+	EVENTHANDLER_DEREGISTER(ifnet_departure_event, if_detach_event_tag);
+	if_clone_detach(&carp_cloner);
+#ifdef INET
+	if (proto_reg[CARP_INET] == 0) {
+		pf_proto_unregister(PF_INET, IPPROTO_CARP, SOCK_RAW);
+		proto_reg[CARP_INET] = -1;
+	}
+	carp_iamatch_p = NULL;
+#endif
+#ifdef INET6
+	if (proto_reg[CARP_INET6] == 0) {
+		pf_proto_unregister(PF_INET6, IPPROTO_CARP, SOCK_RAW);
+		proto_reg[CARP_INET6] = -1;
+	}
+	carp_iamatch6_p = NULL;
+	carp_macmatch6_p = NULL;
+#endif
+	carp_linkstate_p = NULL;
+	carp_forus_p = NULL;
+	carp_output_p = NULL;
+	mtx_destroy(&carp_mtx);
+}
+
+static int
+carp_mod_load(void)
+{
+
+	if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
+		carp_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
+	if (if_detach_event_tag == NULL)
+		return (ENOMEM);
+	mtx_init(&carp_mtx, "carp_mtx", NULL, MTX_DEF);
+	LIST_INIT(&carpif_list);
+	if_clone_attach(&carp_cloner);
+	carp_linkstate_p = carp_carpdev_state;
+	carp_forus_p = carp_forus;
+	carp_output_p = carp_output;
+#ifdef INET6
+	carp_iamatch6_p = carp_iamatch6;
+	carp_macmatch6_p = carp_macmatch6;
+	proto_reg[CARP_INET6] = pf_proto_register(PF_INET6,
+	    (struct protosw *)&in6_carp_protosw);
+	if (proto_reg[CARP_INET6] != 0) {
+		printf("carp: error %d attaching to PF_INET6\n",
+		    proto_reg[CARP_INET6]);
+		carp_mod_cleanup();
+		return (EINVAL);
+	}
+#endif
+#ifdef INET
+	carp_iamatch_p = carp_iamatch;
+	proto_reg[CARP_INET] = pf_proto_register(PF_INET, &in_carp_protosw);
+	if (proto_reg[CARP_INET] != 0) {
+		printf("carp: error %d attaching to PF_INET\n",
+		    proto_reg[CARP_INET]);
+		carp_mod_cleanup();
+		return (EINVAL);
+	}
+#endif
+	return 0;
+}
+
 static int
 carp_modevent(module_t mod, int type, void *data)
 {
 	switch (type) {
 	case MOD_LOAD:
-		if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
-		    carp_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
-		if (if_detach_event_tag == NULL)
-			return (ENOMEM);
-		mtx_init(&carp_mtx, "carp_mtx", NULL, MTX_DEF);
-		LIST_INIT(&carpif_list);
-		if_clone_attach(&carp_cloner);
-		break;
-
+		return carp_mod_load();
+		/* NOTREACHED */
 	case MOD_UNLOAD:
-		EVENTHANDLER_DEREGISTER(ifnet_departure_event, if_detach_event_tag);
-		if_clone_detach(&carp_cloner);
-		mtx_destroy(&carp_mtx);
+		/*
+		 * XXX: For now, disallow module unloading by default due to
+		 * a race condition where a thread may dereference one of the
+		 * function pointer hooks after the module has been
+		 * unloaded, during processing of a packet, causing a panic.
+		 */
+#ifdef CARPMOD_CAN_UNLOAD
+		carp_mod_cleanup();
+#else
+		return (EBUSY);
+#endif
 		break;
 
 	default:
