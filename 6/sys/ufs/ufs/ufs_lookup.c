@@ -591,7 +591,7 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		saved_ino = dp->i_ino;
+		saved_ino = ino;
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
 		error = VFS_VGET(pdp->v_mount, saved_ino,
 		    cnp->cn_lkflags, &tdp);
@@ -599,11 +599,11 @@ found:
 		if (error)
 			return (error);
 		*vpp = tdp;
-	} else if (dp->i_number == dp->i_ino) {
+	} else if (dp->i_number == ino) {
 		VREF(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
-		error = VFS_VGET(pdp->v_mount, dp->i_ino,
+		error = VFS_VGET(pdp->v_mount, ino,
 		    cnp->cn_lkflags, &tdp);
 		if (error)
 			return (error);
