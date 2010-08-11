@@ -164,7 +164,8 @@ proc_bkptexec(struct proc_handle *phdl, unsigned long saved)
 		warn("ERROR: ptrace step failed");
 		return (-1);
 	}
-	status = proc_wstatus(phdl);
+	proc_wstatus(phdl);
+	status = proc_getwstat(phdl);
 	if (!WIFSTOPPED(status)) {
 		warn("ERROR: don't know why process stopped");
 		return (-1);
