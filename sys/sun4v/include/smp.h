@@ -59,12 +59,12 @@ struct cpu_start_args {
 };
 
 struct ipi_cache_args {
-	u_int	ica_mask;
+	cpumask_t ica_mask;
 	vm_paddr_t ica_pa;
 };
 
 struct ipi_tlb_args {
-	u_int	ita_mask;
+	cpumask_t ita_mask;
 	struct	pmap *ita_pmap;
 	u_long	ita_start;
 	u_long	ita_end;

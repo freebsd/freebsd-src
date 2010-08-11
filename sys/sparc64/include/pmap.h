@@ -61,7 +61,7 @@ struct pmap {
 	struct	mtx pm_mtx;
 	struct	tte *pm_tsb;
 	vm_object_t pm_tsb_obj;
-	u_int	pm_active;
+	cpumask_t	pm_active;
 	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
 	u_int			pm_retries;
 	u_int	pm_context[MAXCPU];
