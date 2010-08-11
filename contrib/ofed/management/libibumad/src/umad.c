@@ -79,7 +79,7 @@ typedef struct ib_user_mad_reg_req {
 #define TRACE	if (umaddebug)	IBWARN
 #define DEBUG	if (umaddebug)	IBWARN
 
-int umaddebug = 0;
+int umaddebug = 1;
 
 #define UMAD_DEV_FILE_SZ	256
 
@@ -163,7 +163,7 @@ get_port(char *ca_name, char *dir, int portnum, umad_port_t *port)
 	memcpy(&port->port_guid, gid + 8, sizeof port->port_guid);
 
 	snprintf(port_dir + len, sizeof(port_dir) - len, "/pkeys");
-	ret = scandir(port_dir, &namelist, check_for_digit_name, NULL);
+	ret = sys_scandir(port_dir, &namelist, check_for_digit_name, NULL);
 	if (ret <= 0) {
 		IBWARN("no pkeys found for %s:%u (at dir %s)...",
 		       port->ca_name, port->portnum, port_dir);
@@ -346,7 +346,9 @@ resolve_ca_name(char *ca_name, int *best_port)
 static int
 get_ca(char *ca_name, umad_ca_t *ca)
 {
+#ifdef __linux__
 	DIR *dir;
+#endif
 	char dir_name[256];
 	struct dirent **namelist;
 	int r, i, ret;
@@ -376,10 +378,12 @@ get_ca(char *ca_name, umad_ca_t *ca)
 	snprintf(dir_name, sizeof(dir_name), "%s/%s/%s",
 		SYS_INFINIBAND, ca->ca_name, SYS_CA_PORTS_DIR);
 
+#ifdef __linux__
 	if (!(dir = opendir(dir_name)))
 		return -ENOENT;
+#endif
 
-	if ((r = scandir(dir_name, &namelist, 0, alphasort)) < 0) {
+	if ((r = sys_scandir(dir_name, &namelist, 0, alphasort)) < 0) {
 		ret = errno < 0 ? errno : -EIO;
 		goto error;
 	}
@@ -416,7 +420,9 @@ get_ca(char *ca_name, umad_ca_t *ca)
 		free(namelist[i]);
 	free(namelist);
 
+#ifdef __linux__
 	closedir(dir);
+#endif
 	put_ca(ca);
 	return 0;
 
@@ -425,7 +431,9 @@ clean:
 		free(namelist[i]);
 	free(namelist);
 error:
+#ifdef __linux__
 	closedir(dir);
+#endif
 	release_ca(ca);
 
 	return ret;
@@ -437,7 +445,7 @@ umad_id_to_dev(int umad_id, char *dev, unsigned *port)
 	char path[256];
 	int r;
 
-	snprintf(path, sizeof(path), SYS_INFINIBAND_MAD "/umad%d/", umad_id);
+	snprintf(path, sizeof(path), SYS_INFINIBAND_MAD "/umad%d", umad_id);
 
 	if ((r = sys_read_string(path, SYS_IB_MAD_DEV, dev, UMAD_CA_NAME_LEN)) < 0)
 		return r;
@@ -520,7 +528,7 @@ umad_get_cas_names(char cas[][UMAD_CA_NAME_LEN], int max)
 
 	TRACE("max %d", max);
 
-	n = scandir(SYS_INFINIBAND, &namelist, 0, alphasort);
+	n = sys_scandir(SYS_INFINIBAND, &namelist, NULL, alphasort);
 	if (n > 0) {
 		for (i = 0; i < n; i++) {
 			if (strcmp(namelist[i]->d_name, ".") &&

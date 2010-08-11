@@ -81,9 +81,8 @@ typedef struct ib_user_mad {
 
 #define IB_IOCTL_MAGIC		0x1b
 
-#define IB_USER_MAD_REGISTER_AGENT	_IOWR(IB_IOCTL_MAGIC, 1, \
-					      struct ib_user_mad_reg_req)
-#define IB_USER_MAD_UNREGISTER_AGENT	_IOW(IB_IOCTL_MAGIC, 2, uint32_t)
+#define IB_USER_MAD_REGISTER_AGENT	_IO(IB_IOCTL_MAGIC, 1)
+#define IB_USER_MAD_UNREGISTER_AGENT	_IO(IB_IOCTL_MAGIC, 2)
 #define IB_USER_MAD_ENABLE_PKEY		_IO(IB_IOCTL_MAGIC, 3)
 
 #define UMAD_CA_NAME_LEN	20
@@ -98,7 +97,7 @@ typedef struct ib_user_mad {
 
 #define UMAD_MAX_PORTS		64
 
-#define UMAD_DEV_DIR		"/dev/infiniband"
+#define UMAD_DEV_DIR		"/dev"
 
 #define SYS_CA_PORTS_DIR	"ports"
 

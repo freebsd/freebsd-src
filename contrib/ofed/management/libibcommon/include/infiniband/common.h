@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <sys/select.h>
 #include <sys/types.h>
+#include <dirent.h>
 #include <stdint.h>
 #include <byteswap.h>
 
@@ -127,6 +128,9 @@ int	sys_read_guid(char *dir_name, char *file_name, uint64_t *net_guid);
 int	sys_read_gid(char *dir_name, char *file_name, uint8_t *gid);
 int	sys_read_uint64(char *dir_name, char *file_name, uint64_t *u);
 int	sys_read_uint(char *dir_name, char *file_name, unsigned *u);
+int	sys_scandir(const char *dirname, struct dirent ***namelist,
+	    int (*select)(const struct dirent *),
+	    int (*compar)(const struct dirent **, const struct dirent **));
 
 /* stack.c */
 void	stack_dump(void);

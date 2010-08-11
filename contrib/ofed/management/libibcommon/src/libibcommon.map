@@ -7,6 +7,7 @@ IBCOMMON_1.0 {
 		sys_read_string;
 		sys_read_uint;
 		sys_read_uint64;
+		sys_scandir;
 		getcurrenttime;
 		fhash;
 		logmsg;

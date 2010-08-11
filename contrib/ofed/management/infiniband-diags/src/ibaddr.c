@@ -46,6 +46,8 @@
 #include <infiniband/umad.h>
 #include <infiniband/mad.h>
 
+#include <sys/socket.h>
+
 #include "ibdiag_common.h"
 
 char *argv0 = "ibaddr";
