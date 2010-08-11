@@ -428,7 +428,8 @@ platform_start(__register_t a0 __unused,
 	/* Wakeup Other cpus, and put them in bsd park code. */
 	wakeup = ((void (*) (void *, void *, unsigned int))
 	    (unsigned long)(xlr_boot1_info.wakeup));
-	printf("Waking up CPUs 0x%llx.\n", xlr_boot1_info.cpu_online_map & ~(0x1U));
+	printf("Waking up CPUs 0x%jx.\n", 
+	    (intmax_t)xlr_boot1_info.cpu_online_map & ~(0x1U));
 	if (xlr_boot1_info.cpu_online_map & ~(0x1U))
 		wakeup(mpwait, 0,
 		    (unsigned int)xlr_boot1_info.cpu_online_map);
@@ -516,7 +517,7 @@ platform_init_ap(int cpuid)
 	stat |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT;
 	mips_wr_status(stat);
 
-	xlr_unmask_hard_irq((void *)platform_ipi_intrnum());
+	xlr_unmask_hard_irq((void *)IRQ_IPI);
 	xlr_unmask_hard_irq((void *)IRQ_TIMER);
 	if (xlr_thr_id() == 0) {
 		xlr_msgring_cpu_init(); 
