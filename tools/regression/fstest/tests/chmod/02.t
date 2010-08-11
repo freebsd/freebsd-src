@@ -1,15 +1,24 @@
 #!/bin/sh
 # $FreeBSD$
 
-desc="chmod returns ENAMETOOLONG if a component of a pathname exceeded 255 characters"
+desc="chmod returns ENAMETOOLONG if a component of a pathname exceeded {NAME_MAX} characters"
 
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-echo "1..5"
+echo "1..10"
 
-expect 0 create ${name255} 0644
-expect 0 chmod ${name255} 0620
-expect 0620 stat ${name255} mode
-expect 0 unlink ${name255}
-expect ENAMETOOLONG chmod ${name256} 0620
+nx=`namegen_max`
+nxx="${nx}x"
+
+expect 0 create ${nx} 0644
+expect 0 chmod ${nx} 0620
+expect 0620 stat ${nx} mode
+expect 0 unlink ${nx}
+expect ENAMETOOLONG chmod ${nxx} 0620
+
+expect 0 create ${nx} 0644
+expect 0 lchmod ${nx} 0620
+expect 0620 stat ${nx} mode
+expect 0 unlink ${nx}
+expect ENAMETOOLONG lchmod ${nxx} 0620
