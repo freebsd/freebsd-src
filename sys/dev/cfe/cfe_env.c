@@ -25,8 +25,7 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
+#include <sys/kenv.h>
 
 #include <dev/cfe/cfe_api.h>
 
@@ -43,32 +42,20 @@ static char cfe_env_buf[CFE_ENV_SIZE];
 void
 cfe_env_init(void)
 {
-	int idx, len;
-	char name[64], val[128], *cp, *cplim;
+	int idx;
+	char name[KENV_MNAMELEN], val[KENV_MVALLEN];
 
-	cp = cfe_env_buf;
-	cplim = cp + CFE_ENV_SIZE;
+	init_static_kenv(cfe_env_buf, CFE_ENV_SIZE);
 
 	idx = 0;
 	while (1) {
 		if (cfe_enumenv(idx, name, sizeof(name), val, sizeof(val)) != 0)
 			break;
 
-		if (bootverbose)
-			printf("Importing CFE env: \"%s=%s\"\n", name, val);
-
-		/*
-		 * name=val\0\0
-		 */
-		len = strlen(name) + 1 + strlen(val) + 1 + 1;
-		if (cplim - cp < len)
+		if (setenv(name, val) != 0) {
 			printf("No space to store CFE env: \"%s=%s\"\n",
 				name, val);
-		else
-			cp += sprintf(cp, "%s=%s", name, val) + 1;
+		}
 		++idx;
 	}
-	*cp++ = '\0';
-
-	kern_envp = cfe_env_buf;
 }
