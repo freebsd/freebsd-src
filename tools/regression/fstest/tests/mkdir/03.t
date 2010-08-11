@@ -1,21 +1,20 @@
 #!/bin/sh
 # $FreeBSD$
 
-desc="mkdir returns ENAMETOOLONG if an entire path name exceeded 1023 characters"
+desc="mkdir returns ENAMETOOLONG if an entire path name exceeded {PATH_MAX} characters"
 
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-echo "1..11"
+echo "1..3"
 
-expect 0 mkdir ${name255} 0755
-expect 0 mkdir ${name255}/${name255} 0755
-expect 0 mkdir ${name255}/${name255}/${name255} 0755
-expect 0 mkdir ${path1021} 0755
-expect 0 mkdir ${path1023} 0755
-expect 0 rmdir ${path1023}
-expect ENAMETOOLONG mkdir ${path1024} 0755
-expect 0 rmdir ${path1021}
-expect 0 rmdir ${name255}/${name255}/${name255}
-expect 0 rmdir ${name255}/${name255}
-expect 0 rmdir ${name255}
+nx=`dirgen_max`
+nxx="${nx}x"
+
+mkdir -p "${nx%/*}"
+
+expect 0 mkdir ${nx} 0755
+expect 0 rmdir ${nx}
+expect ENAMETOOLONG mkdir ${nxx} 0755
+
+rm -rf "${nx%%/*}"

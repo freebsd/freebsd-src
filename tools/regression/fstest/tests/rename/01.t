@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-desc="rename returns ENAMETOOLONG if a component of either pathname exceeded 255 characters"
+desc="rename returns ENAMETOOLONG if a component of either pathname exceeded {NAME_MAX} characters"
 
 dir=`dirname $0`
 . ${dir}/../misc.sh
@@ -9,13 +9,15 @@ dir=`dirname $0`
 echo "1..8"
 
 n0=`namegen`
+nx=`namegen_max`
+nxx="${nx}x"
 
-expect 0 create ${name255} 0644
-expect 0 rename ${name255} ${n0}
-expect 0 rename ${n0} ${name255}
-expect 0 unlink ${name255}
+expect 0 create ${nx} 0644
+expect 0 rename ${nx} ${n0}
+expect 0 rename ${n0} ${nx}
+expect 0 unlink ${nx}
 
 expect 0 create ${n0} 0644
-expect ENAMETOOLONG rename ${n0} ${name256}
+expect ENAMETOOLONG rename ${n0} ${nxx}
 expect 0 unlink ${n0}
-expect ENAMETOOLONG rename ${name256} ${n0}
+expect ENAMETOOLONG rename ${nxx} ${n0}
