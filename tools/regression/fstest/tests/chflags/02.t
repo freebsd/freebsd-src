@@ -1,18 +1,28 @@
 #!/bin/sh
 # $FreeBSD$
 
-desc="chflags returns ENAMETOOLONG if a component of a pathname exceeded 255 characters"
+desc="chflags returns ENAMETOOLONG if a component of a pathname exceeded {NAME_MAX} characters"
 
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
 require chflags
 
-echo "1..6"
+echo "1..12"
 
-expect 0 create ${name255} 0644
-expect 0 chflags ${name255} SF_IMMUTABLE
-expect SF_IMMUTABLE stat ${name255} flags
-expect 0 chflags ${name255} none
-expect 0 unlink ${name255}
-expect ENAMETOOLONG chflags ${name256} SF_IMMUTABLE
+nx=`namegen_max`
+nxx="${nx}x"
+
+expect 0 create ${nx} 0644
+expect 0 chflags ${nx} SF_IMMUTABLE
+expect SF_IMMUTABLE stat ${nx} flags
+expect 0 chflags ${nx} none
+expect 0 unlink ${nx}
+expect ENAMETOOLONG chflags ${nxx} SF_IMMUTABLE
+
+expect 0 create ${nx} 0644
+expect 0 lchflags ${nx} SF_IMMUTABLE
+expect SF_IMMUTABLE stat ${nx} flags
+expect 0 lchflags ${nx} none
+expect 0 unlink ${nx}
+expect ENAMETOOLONG lchflags ${nxx} SF_IMMUTABLE

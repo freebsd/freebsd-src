@@ -1,13 +1,17 @@
 #!/bin/sh
 # $FreeBSD$
 
-desc="mkfifo returns ENAMETOOLONG if a component of a pathname exceeded 255 characters"
+desc="mkfifo returns ENAMETOOLONG if a component of a pathname exceeded {NAME_MAX} characters"
 
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-echo "1..3"
+echo "1..4"
 
-expect 0 mkfifo ${name255} 0644
-expect 0 unlink ${name255}
-expect ENAMETOOLONG mkfifo ${name256} 0644
+nx=`namegen_max`
+nxx="${nx}x"
+
+expect 0 mkfifo ${nx} 0644
+expect fifo,0644 stat ${nx} type,mode
+expect 0 unlink ${nx}
+expect ENAMETOOLONG mkfifo ${nxx} 0644
