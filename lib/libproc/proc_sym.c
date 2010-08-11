@@ -110,14 +110,25 @@ proc_iter_objs(struct proc_handle *p, proc_map_f *func, void *cd)
 	rd_loadobj_t *rdl;
 	prmap_t map;
 	char path[MAXPATHLEN];
+	char last[MAXPATHLEN];
 
 	if (p->nobjs == 0)
 		return (-1);
+	memset(last, 0, sizeof(last));
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
 		proc_rdl2prmap(rdl, &map);
 		basename_r(rdl->rdl_path, path);
+		/*
+		 * We shouldn't call the callback twice with the same object.
+		 * To do that we are assuming the fact that if there are
+		 * repeated object names (i.e. different mappings for the
+		 * same object) they occur next to each other.
+		 */
+		if (strcmp(path, last) == 0)
+			continue;
 		(*func)(cd, &map, path);
+		strlcpy(last, path, sizeof(last));
 	}
 
 	return (0);
