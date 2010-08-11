@@ -81,7 +81,7 @@ struct pmap {
 						 * pmap */
 	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
 	u_int		pm_retries;
-	int pm_active;		/* active on cpus */
+	cpumask_t	pm_active;		/* active on cpus */
 	struct {
 		u_int32_t asid:ASID_BITS;	/* TLB address space tag */
 		u_int32_t gen:ASIDGEN_BITS;	/* its generation number */
