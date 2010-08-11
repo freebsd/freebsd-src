@@ -8,7 +8,7 @@ dir=`dirname $0`
 
 require chflags_SF_SNAPSHOT
 
-echo "1..158"
+echo "1..145"
 
 n0=`namegen`
 n1=`namegen`
@@ -20,7 +20,7 @@ cd ${n0}
 
 for type in regular dir fifo block char socket symlink; do
 	if [ "${type}" != "symlink" ]; then
-		create_file ${type} ${n1} 0 0
+		create_file ${type} ${n1}
 		expect EPERM -u 65534 -g 65534 chflags ${n1} SF_SNAPSHOT
 		expect none stat ${n1} flags
 		expect EPERM chflags ${n1} SF_SNAPSHOT
@@ -37,7 +37,7 @@ for type in regular dir fifo block char socket symlink; do
 		fi
 	fi
 
-	create_file ${type} ${n1} 0 0
+	create_file ${type} ${n1}
 	expect EPERM -u 65534 -g 65534 lchflags ${n1} SF_SNAPSHOT
 	expect none lstat ${n1} flags
 	expect EPERM lchflags ${n1} SF_SNAPSHOT

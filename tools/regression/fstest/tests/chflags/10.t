@@ -8,7 +8,7 @@ dir=`dirname $0`
 
 require chflags
 
-echo "1..210"
+echo "1..197"
 
 n0=`namegen`
 n1=`namegen`
@@ -20,7 +20,7 @@ cd ${n0}
 
 for type in regular dir fifo block char socket symlink; do
 	if [ "${type}" != "symlink" ]; then
-		create_file ${type} ${n1} 0 0
+		create_file ${type} ${n1}
 		expect 0 chown ${n1} 65534 65534
 		for flag in SF_IMMUTABLE SF_APPEND SF_NOUNLINK; do
 			expect EPERM -u 65533 -g 65533 chflags ${n1} ${flag}
@@ -35,7 +35,7 @@ for type in regular dir fifo block char socket symlink; do
 		fi
 	fi
 
-	create_file ${type} ${n1} 0 0
+	create_file ${type} ${n1}
 	expect 0 lchown ${n1} 65534 65534
 	for flag in SF_IMMUTABLE SF_APPEND SF_NOUNLINK; do
 		expect EPERM -u 65533 -g 65533 lchflags ${n1} ${flag}
