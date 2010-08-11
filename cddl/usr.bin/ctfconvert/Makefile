@@ -6,7 +6,6 @@
 DEBUG_FLAGS=	-g
 
 PROG=		ctfconvert
-NO_MAN=
 SRCS=		alist.c \
 		ctf.c \
 		ctfconvert.c \
