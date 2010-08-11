@@ -24,6 +24,8 @@
 
 #include "ah_eeprom_v14.h"
 
+#include "ar5212/ar5212.h"	/* for NF cal related declarations */
+
 #include "ar5416/ar5416.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
@@ -34,8 +36,6 @@
 static void ar5416StartNFCal(struct ath_hal *ah);
 static void ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *);
 static int16_t ar5416GetNf(struct ath_hal *, struct ieee80211_channel *);
-static int ar5416IsNFCalInProgress(struct ath_hal *ah);
-static int ar5416WaitNfComplete(struct ath_hal *ah, int i);
 
 /*
  * Determine if calibration is supported by device and channel flags
@@ -227,7 +227,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * Try to make sure the above NF cal completes, just so
 	 * it doesn't clash with subsequent percals -adrian
 	 */
-	if (! ar5416WaitNfComplete(ah, 10000)) {
+	if (! ar5212WaitNFCalComplete(ah, 10000)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
 		"not complete in time; noisy environment?\n", __func__);
 		return AH_FALSE;
@@ -412,7 +412,7 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 	 * the CCA registers and kick another NF calibration ; periodic
 	 * calibrations shouldn't be occuring during a NF calibration.
 	 */
-	if (ar5416IsNFCalInProgress(ah)) {
+	if (ar5212IsNFCalInProgress(ah)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: NF calibration in-progress; skipping\n",
 		    __func__);
@@ -606,7 +606,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 
 	/* Wait for load to complete, should be fast, a few 10s of us. */
-	if (! ar5416WaitNfComplete(ah, 1000)) {
+	if (! ar5212WaitNFCalComplete(ah, 1000)) {
 		/*
 		 * We timed out waiting for the noisefloor to load, probably due to an
 		 * in-progress rx. Simply return here and allow the load plenty of time
@@ -678,41 +678,6 @@ ar5416UpdateNFHistBuff(struct ar5212NfCalHist *h, int16_t *nfarray)
 }   
 
 /*
- * Check whether there's an in-progress NF completion.
- *
- * Returns AH_TRUE if there's a in-progress NF calibration, AH_FALSE
- * otherwise.
- */
-static int
-ar5416IsNFCalInProgress(struct ath_hal *ah)
-{
-	if (OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF)
-		return AH_TRUE;
-	return FALSE;
-}
-
-/*
- * Wait for an in-progress calibration to complete.
- *
- * The completion function waits "i" times 10uS.
- * It returns AH_TRUE if the NF calibration completed (or was never
- * in progress); AH_FALSE if it was still in progress after "i" checks.
- */
-static int
-ar5416WaitNfComplete(struct ath_hal *ah, int i)
-{
-	int j;
-	if (i <= 0)
-		i = 1;		/* it should run at least once */
-	for (j = 0; j < i; j++) {
-		if (! ar5416IsNFCalInProgress(ah))
-			return AH_TRUE;
-		OS_DELAY(10);
-	}
-	return AH_FALSE;
-}
-
-/*
  * Read the NF and check it against the noise floor threshhold
  */
 static int16_t
@@ -720,7 +685,7 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
 	int16_t nf, nfThresh;
 
-	if (ar5416IsNFCalInProgress(ah)) {
+	if (ar5212IsNFCalInProgress(ah)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: NF didn't complete in calibration window\n", __func__);
 		nf = 0;
