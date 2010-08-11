@@ -31,11 +31,16 @@
 .Nm linux
 .Nd Linux ABI support
 .Sh SYNOPSIS
-To compile support for this ABI into the kernel,
+To compile support for this ABI into an i386 kernel
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options COMPAT_LINUX"
+.Ed
+.Pp
+for an amd64 kernel use:
+.Bd -ragged -offset indent
+.Cd "options COMPAT_LINUX32"
 .Ed
 .Pp
 Alternatively, to load the ABI as a
