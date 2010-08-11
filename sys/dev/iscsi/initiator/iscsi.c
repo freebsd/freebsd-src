@@ -306,11 +306,11 @@ iscsi_read(struct cdev *dev, struct uio *uio, int ioflag)
 	  int	i = 0;
 	  struct socket	*so = sp->soc;
 #define pukeit(i, pq) do {\
-	       sprintf(buf, "%03d] %06x %02x %06x %06x %zd\n",\
+	       sprintf(buf, "%03d] %06x %02x %06x %06x %jd\n",\
 		       i, ntohl(pq->pdu.ipdu.bhs.CmdSN),\
 		       pq->pdu.ipdu.bhs.opcode, ntohl(pq->pdu.ipdu.bhs.itt),\
 		       ntohl(pq->pdu.ipdu.bhs.ExpStSN),\
-		       pq->ts.sec);\
+		       (intmax_t)pq->ts.sec);\
 	       } while(0)
 
 	  sprintf(buf, "%d/%d /---- hld -----/\n", sp->stats.nhld, sp->stats.max_hld);
