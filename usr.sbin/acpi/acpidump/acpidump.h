@@ -55,6 +55,78 @@
 /* Find and map the RSD PTR structure and return it for parsing */
 ACPI_TABLE_HEADER *sdt_load_devmem(void);
 
+/* TCPA */
+struct TCPAbody {
+	ACPI_TABLE_HEADER header;
+	uint16_t	platform_class;
+#define ACPI_TCPA_BIOS_CLIENT	0x00
+#define ACPI_TCPA_BIOS_SERVER	0x01
+	union {
+		struct client_hdr {
+			uint32_t	log_max_len __packed;
+			uint64_t	log_start_addr __packed;
+		} client;
+		struct server_hdr {
+			uint16_t	reserved;
+			uint64_t	log_max_len __packed;
+			uint64_t	log_start_addr __packed;
+		} server;
+	};
+} __packed;
+
+struct TCPAevent {
+	u_int32_t	pcr_index;
+	u_int32_t	event_type;
+	u_int8_t	pcr_value[20];
+	u_int32_t	event_size;
+	u_int8_t	event_data[0];
+};
+
+struct TCPApc_event {
+	u_int32_t	event_id;
+	u_int32_t	event_size;
+	u_int8_t	event_data[0];
+};
+
+enum TCPAevent_types {
+	PREBOOT = 0,
+	POST_CODE,
+	UNUSED,
+	NO_ACTION,
+	SEPARATOR,
+	ACTION,
+	EVENT_TAG,
+	SCRTM_CONTENTS,
+	SCRTM_VERSION,
+	CPU_MICROCODE,
+	PLATFORM_CONFIG_FLAGS,
+	TABLE_OF_DEVICES,
+	COMPACT_HASH,
+	IPL,
+	IPL_PARTITION_DATA,
+	NONHOST_CODE,
+	NONHOST_CONFIG,
+	NONHOST_INFO,
+	EVENT_TYPE_MAX,
+};
+
+enum TCPApcclient_ids {
+	SMBIOS = 1,
+	BIS_CERT,
+	POST_BIOS_ROM,
+	ESCD,
+	CMOS,
+	NVRAM,
+	OPTION_ROM_EXEC,
+	OPTION_ROM_CONFIG,
+	OPTION_ROM_MICROCODE = 10,
+	S_CRTM_VERSION,
+	S_CRTM_CONTENTS,
+	POST_CONTENTS,
+	HOST_TABLE_OF_DEVICES,
+	PCCLIENT_ID_MAX,
+};
+
 /*
  * Load the DSDT from a previous save file.  Note that other tables are
  * not saved (i.e. FADT)
