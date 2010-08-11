@@ -174,3 +174,38 @@ require()
 	fi
 	quick_exit
 }
+
+create_file() {
+	type="${1}"
+	name="${2}"
+	uid="${3}"
+	gid="${4}"
+
+	case "${type}" in
+	none)
+		return
+		;;
+	regular)
+		expect 0 create ${name} 0644
+		;;
+	dir)
+		expect 0 mkdir ${name} 0755
+		;;
+	fifo)
+		expect 0 mkfifo ${name} 0644
+		;;
+	block)
+		expect 0 mknod ${name} b 0644 1 2
+		;;
+	char)
+		expect 0 mknod ${name} c 0644 1 2
+		;;
+	socket)
+		expect 0 bind ${name}
+		;;
+	symlink)
+		expect 0 symlink test ${name}
+		;;
+	esac
+	expect 0 lchown ${name} ${uid} ${gid}
+}
