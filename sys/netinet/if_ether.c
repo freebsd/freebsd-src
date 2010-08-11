@@ -39,7 +39,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -68,10 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_arc.h>
 #include <net/iso88025.h>
-
-#ifdef DEV_CARP
-#include <netinet/ip_carp.h>
-#endif
 
 #include <security/mac/mac_framework.h>
 
@@ -122,6 +117,10 @@ static void	arpintr(struct mbuf *);
 static void	arptimer(void *);
 #ifdef INET
 static void	in_arpinput(struct mbuf *);
+#endif
+#if defined(INET) || defined(INET6)
+int		(*carp_iamatch_p)(struct ifnet *, struct in_ifaddr *, struct in_addr *,
+		    u_int8_t **);
 #endif
 
 static const struct netisr_handler arp_nh = {
@@ -494,9 +493,7 @@ in_arpinput(struct mbuf *m)
 	int op, flags;
 	int req_len;
 	int bridged = 0, is_bridge = 0;
-#ifdef DEV_CARP
 	int carp_match = 0;
-#endif
 	struct sockaddr_in sin;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
@@ -539,16 +536,14 @@ in_arpinput(struct mbuf *m)
 			IN_IFADDR_RUNLOCK();
 			goto match;
 		}
-#ifdef DEV_CARP
 		if (ifp->if_carp != NULL &&
-		    carp_iamatch(ifp->if_carp, ia, &isaddr, &enaddr) &&
+		    (*carp_iamatch_p)(ifp, ia, &isaddr, &enaddr) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			carp_match = 1;
 			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK();
 			goto match;
 		}
-#endif
 	}
 	LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
 		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
@@ -648,11 +643,7 @@ match:
 	IF_AFDATA_UNLOCK(ifp);
 	if (la != NULL) {
 		/* the following is not an error when doing bridging */
-		if (!bridged && la->lle_tbl->llt_ifp != ifp
-#ifdef DEV_CARP
-		    && (ifp->if_type != IFT_CARP || !carp_match)
-#endif
-			) {
+		if (!bridged && la->lle_tbl->llt_ifp != ifp && !carp_match) {
 			if (log_arp_wrong_iface)
 				log(LOG_ERR, "arp: %s is on %s "
 				    "but got reply from %*D on %s\n",
