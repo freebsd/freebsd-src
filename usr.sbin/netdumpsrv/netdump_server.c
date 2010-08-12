@@ -503,8 +503,7 @@ int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
 	return -1;
     }
 
-    snprintf(fromstr, fromstrlen, "%s:%hu",
-	    addr2ascii(AF_INET, &from->sin_addr, sizeof(from->sin_addr), NULL),
+    snprintf(fromstr, fromstrlen, "%s:%hu", inet_aton(from->sin_addr),
 	    ntohs(from->sin_port));
 
     if ((size_t)len < sizeof(struct netdump_msg_hdr))
@@ -756,9 +755,7 @@ int main(int argc, char **argv)
 		fputs("Invalid bind IP specified\n", stderr);
 		return 1;
 	    }
-	    printf("Listening on IP %s\n",
-		    addr2ascii(AF_INET, &bindip,
-			sizeof(bindip), NULL));
+	    printf("Listening on IP %s\n", inet_aton(bindip));
 	    break;
 	case 2:
 	    bindip.s_addr = INADDR_ANY;
