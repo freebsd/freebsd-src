@@ -8,7 +8,7 @@ MAN=    rlhistory.3
 SRCS= $(HISTSRC) xmalloc.c
 
 rlhistory.3: doc/history.3
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 
 CLEANFILES+= rlhistory.3
 
