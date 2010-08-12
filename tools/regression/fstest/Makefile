@@ -1,25 +1,26 @@
 # $FreeBSD$
 
 PROG=	fstest
-NO_MAN=
 
-OSTYPE!= uname
+${PROG}:	${PROG}.c
+	@OSTYPE=`uname`; \
+	CFLAGS=-D__OS_$${OSTYPE}__; \
+	if [ $$OSTYPE = "FreeBSD" ]; then \
+		CFLAGS="$$CFLAGS -DHAS_LCHMOD -DHAS_CHFLAGS -DHAS_LCHFLAGS -DHAS_FREEBSD_ACL"; \
+	elif [ $$OSTYPE = "SunOS" ]; then \
+		CFLAGS="$$CFLAGS -DHAS_TRUNCATE64 -DHAS_STAT64"; \
+		CFLAGS="$$CFLAGS -lsocket"; \
+	elif [ $$OSTYPE = "Darwin" ]; then \
+		CFLAGS="$$CFLAGS -DHAS_LCHMOD -DHAS_CHFLAGS -DHAS_LCHFLAGS"; \
+	elif [ $$OSTYPE == "Linux" ]; then \
+		CFLAGS="$$CFLAGS -D_GNU_SOURCE"; \
+	else \
+		echo "Unsupported operating system: ${OSTYPE}."; \
+		exit 1; \
+	fi; \
+	cmd="gcc -Wall $$CFLAGS ${PROG}.c -o ${PROG}"; \
+	echo $$cmd; \
+	$$cmd
 
-.if ${OSTYPE} == "FreeBSD"
-CFLAGS+= -D__OS_FreeBSD__
-CFLAGS+= -DHAS_LCHMOD -DHAS_CHFLAGS -DHAS_LCHFLAGS -DHAS_FREEBSD_ACL
-
-.elif ${OSTYPE} == "SunOS"
-CFLAGS+= -D__OS_Solaris__
-CFLAGS+= -DHAS_TRUNCATE64 -DHAS_STAT64
-
-.elif ${OSTYPE} == "Darwin"
-CFLAGS+= -D__OS_Darwin__
-CFLAGS+= -DHAS_LCHMOD -DHAS_CHFLAGS -DHAS_LCHFLAGS
-
-.elif ${OSTYPE} == "Linux"
-CFLAGS+= -D__OS_Linux__
-CFLAGS+= -D_GNU_SOURCE
-.endif
-
-.include <bsd.prog.mk>
+clean:
+	rm -f ${PROG}
