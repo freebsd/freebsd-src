@@ -52,6 +52,8 @@
 /* Host name length (keep at least as big as INET_ADDRSTRLEN) */
 #define MAXHOSTNAMELEN 256
 
+#define	client_ntoa(cl)		inet_ntoa((cl)->ip)
+
 struct netdump_client
 {
     SLIST_ENTRY(netdump_client) iter;
@@ -76,11 +78,6 @@ struct in_addr bindip;
 struct pidfh *pfh;
 int sock;
 
-char * client_ipstr(struct netdump_client *client)
-{
-    return addr2ascii(AF_INET, &client->ip, sizeof(client->ip), NULL);
-}
-
 struct netdump_client * alloc_client(struct in_addr *ip)
 {
     struct sockaddr_in saddr;
@@ -99,7 +96,7 @@ struct netdump_client * alloc_client(struct in_addr *ip)
     client->sock = -1;
     client->last_msg = now;
 
-    /* Get the hostname */
+    /* XXX: To be replaced by getnameinfo(). Get the hostname */
     if ((hp = gethostbyaddr((const char *)ip, sizeof(*ip), AF_INET)) == NULL ||
 	    !hp->h_name || strlen(hp->h_name) == 0)
     {
@@ -157,7 +154,7 @@ struct netdump_client * alloc_client(struct in_addr *ip)
 	free(client);
 	return NULL;
     }
-    bufsz=131072; /* Enough to hold approx twice the chunk size. Should be
+    bufsz=131072; /* XXX: Enough to hold approx twice the chunk size. Should be
 		   * plenty for any 1 client. */
     if (setsockopt(client->sock, SOL_SOCKET, SO_RCVBUF, &bufsz, sizeof(bufsz)))
     {
@@ -191,6 +188,7 @@ struct netdump_client * alloc_client(struct in_addr *ip)
 	{
 	    perror("fdopen");
 	    close(fd);
+	    /* XXX */
 	    unlink(client->infofilename);
 	    continue;
 	}
@@ -220,7 +218,7 @@ struct netdump_client * alloc_client(struct in_addr *ip)
     if (!client->infofile || client->corefd == -1)
     {
 	fprintf(stderr, "Can't create output files for new client %s [%s]\n",
-		client->hostname, client_ipstr(client));
+		client->hostname, client_ntoa(client));
 	if (client->infofile)
 	{
 	    fclose(client->infofile);
@@ -267,7 +265,7 @@ void exec_handler(struct netdump_client *client, const char *reason)
     {
 	close(sock);
 	pidfile_close(pfh);
-	execl(handler_script, handler_script, reason, client_ipstr(client),
+	execl(handler_script, handler_script, reason, client_ntoa(client),
 		client->hostname, client->infofilename, client->corefilename,
 		NULL);
 	perror("execl");
@@ -277,7 +275,7 @@ void exec_handler(struct netdump_client *client, const char *reason)
 
 void handle_timeout(struct netdump_client *client)
 {
-    printf("Client %s timed out\n", client_ipstr(client));
+    printf("Client %s timed out\n", client_ntoa(client));
     fputs("Dump incomplete: client timed out\n", client->infofile);
     exec_handler(client, "timeout");
     free_client(client);
@@ -362,10 +360,10 @@ int handle_herald(struct sockaddr_in *from, struct netdump_client *client,
     }
 
     fprintf(client->infofile, "Dump from %s [%s]\n", client->hostname,
-	    client_ipstr(client));
+	    client_ntoa(client));
 
     printf("New dump from client %s [%s] (to %s)\n", client->hostname,
-	    client_ipstr(client), client->corefilename);
+	    client_ntoa(client), client->corefilename);
 
     send_ack(client, msg);
 
@@ -392,7 +390,7 @@ int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
     if (msg->hdr.len < sizeof(struct kerneldumpheader))
     {
 	fprintf(stderr, "Bad KDH from %s [%s]: packet too small\n",
-		client->hostname, client_ipstr(client));
+		client->hostname, client_ntoa(client));
 	fputs("Bad KDH: packet too small\n", f);
 	fflush(f);
 	send_ack(client, msg);
@@ -423,7 +421,7 @@ int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
     fflush(f);
 
     fprintf(stdout, "(KDH from %s [%s])", client->hostname,
-	    client_ipstr(client));
+	    client_ntoa(client));
     fflush(stdout);
 
     send_ack(client, msg);
@@ -450,7 +448,7 @@ int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
     if (pwrite(client->corefd, msg->data, msg->hdr.len, msg->hdr.offset) == -1)
     {
 	fprintf(stderr, "pwrite (for client %s [%s]): %s\n", client->hostname,
-		client_ipstr(client), strerror(errno));
+		client_ntoa(client), strerror(errno));
 	fprintf(client->infofile, "Dump unsuccessful: write error at offset %08"PRIx64": %s\n",
 		msg->hdr.offset, strerror(errno));
 	exec_handler(client, "error");
@@ -472,7 +470,7 @@ int handle_finish(struct netdump_client *client, struct netdump_msg *msg)
 
 
     printf("\nCompleted dump from client %s [%s]\n", client->hostname,
-	    client_ipstr(client));
+	    client_ntoa(client));
     fflush(stdout);
     fputs("Dump complete\n", client->infofile);
 
