@@ -79,7 +79,33 @@ struct in_addr bindip;
 struct pidfh *pfh;
 int sock;
 
-struct netdump_client * alloc_client(struct in_addr *ip)
+static struct netdump_client	*alloc_client(struct in_addr *ip);
+static void		 eventloop(void);
+static void		 exec_handler(struct netdump_client *client,
+			    const char *reason);
+static void		 free_client(struct netdump_client *client);
+static int		 handle_finish(struct netdump_client *client,
+			    struct netdump_msg *msg);
+static int		 handle_herald(struct sockaddr_in *from,
+			    struct netdump_client *client,
+			    struct netdump_msg *msg);
+static int		 handle_kdh(struct netdump_client *client,
+			    struct netdump_msg *msg);
+static int		 handle_packet(struct netdump_client *client,
+			    struct sockaddr_in *from, const char *fromstr,
+			    struct netdump_msg *msg);
+static void		 handle_timeout(struct netdump_client *client);
+static int		 handle_vmcore(struct netdump_client *client,
+			    struct netdump_msg *msg);
+static int		 receive_message(int sock, struct sockaddr_in *from,
+			    char *fromstr, size_t fromstrlen,
+			    struct netdump_msg *msg);
+static void		 send_ack(struct netdump_client *client,
+			    struct netdump_msg *msg);
+static void		 signal_shutdown(int sig);
+static void		 timeout_clients(void);
+
+static struct netdump_client *alloc_client(struct in_addr *ip)
 {
     struct sockaddr_in saddr;
     struct netdump_client *client;
@@ -241,7 +267,7 @@ struct netdump_client * alloc_client(struct in_addr *ip)
     return client;
 }
 
-void free_client(struct netdump_client *client)
+static void free_client(struct netdump_client *client)
 {
     /* Remove from the list */
     SLIST_REMOVE(&clients, client, netdump_client, iter);
@@ -251,7 +277,7 @@ void free_client(struct netdump_client *client)
     free(client);
 }
 
-void exec_handler(struct netdump_client *client, const char *reason)
+static void exec_handler(struct netdump_client *client, const char *reason)
 {
     int pid=fork();
 
@@ -276,7 +302,7 @@ void exec_handler(struct netdump_client *client, const char *reason)
     }
 }
 
-void handle_timeout(struct netdump_client *client)
+static void handle_timeout(struct netdump_client *client)
 {
     printf("Client %s timed out\n", client_ntoa(client));
     fputs("Dump incomplete: client timed out\n", client->infofile);
@@ -284,7 +310,7 @@ void handle_timeout(struct netdump_client *client)
     free_client(client);
 }
 
-void timeout_clients()
+static void timeout_clients()
 {
     static time_t last_timeout_check;
     struct netdump_client *client, *tmp;
@@ -306,7 +332,7 @@ void timeout_clients()
     }
 }
 
-void send_ack(struct netdump_client *client, struct netdump_msg *msg)
+static void send_ack(struct netdump_client *client, struct netdump_msg *msg)
 {
     struct netdump_ack ack;
     int tryagain;
@@ -335,8 +361,8 @@ void send_ack(struct netdump_client *client, struct netdump_msg *msg)
     while (tryagain);
 }
 
-int handle_herald(struct sockaddr_in *from, struct netdump_client *client,
-	struct netdump_msg *msg)
+static int handle_herald(struct sockaddr_in *from,
+	struct netdump_client *client, struct netdump_msg *msg)
 {
     int freed_client=0;
 
@@ -373,7 +399,7 @@ int handle_herald(struct sockaddr_in *from, struct netdump_client *client,
     return freed_client;
 }
 
-int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
+static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 {
     struct kerneldumpheader *h=(void *)msg->data;
     uint64_t dumplen;
@@ -432,7 +458,7 @@ int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
     return 0;
 }
 
-int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
+static int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
 {
     if (!client)
     {
@@ -464,7 +490,7 @@ int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
     return 0;
 }
 
-int handle_finish(struct netdump_client *client, struct netdump_msg *msg)
+static int handle_finish(struct netdump_client *client, struct netdump_msg *msg)
 {
     if (!client)
     {
@@ -487,7 +513,7 @@ int handle_finish(struct netdump_client *client, struct netdump_msg *msg)
 }
 
 
-int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
+static int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
 	size_t fromstrlen, struct netdump_msg *msg)
 {
     socklen_t fromlen;
@@ -532,8 +558,8 @@ int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
     return len;
 }
 
-int handle_packet(struct netdump_client *client, struct sockaddr_in *from,
-	const char *fromstr, struct netdump_msg *msg)
+static int handle_packet(struct netdump_client *client,
+	struct sockaddr_in *from, const char *fromstr, struct netdump_msg *msg)
 {
     int freed_client;
 
@@ -565,7 +591,7 @@ int handle_packet(struct netdump_client *client, struct sockaddr_in *from,
     return freed_client;
 }
 
-void eventloop()
+static void eventloop()
 {
     struct netdump_msg msg;
 
@@ -717,7 +743,7 @@ void eventloop()
     }
 }
 
-void signal_shutdown(int sig)
+static void signal_shutdown(int sig)
 {
     do_shutdown=1;
 }
