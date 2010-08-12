@@ -810,7 +810,8 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	pte = pmap_pte(kernel_pmap, va);
 	opte = *pte;
 	*pte = npte;
-	pmap_update_page(kernel_pmap, va, npte);
+	if (pte_test(&opte, PTE_V) && opte != npte)
+		pmap_update_page(kernel_pmap, va, npte);
 }
 
 /*
