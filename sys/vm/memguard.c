@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
  * See the memguard(9) man page for more information on using MemGuard.
  */
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
