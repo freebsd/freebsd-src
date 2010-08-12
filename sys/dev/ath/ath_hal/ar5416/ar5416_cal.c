@@ -24,6 +24,8 @@
 
 #include "ah_eeprom_v14.h"
 
+#include "ar5212/ar5212.h"	/* for NF cal related declarations */
+
 #include "ar5416/ar5416.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
@@ -220,7 +222,16 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * triggered at the same time.
 	 */
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
-
+	/*
+	 * Try to make sure the above NF cal completes, just so
+	 * it doesn't clash with subsequent percals -adrian
+	*/
+	if (! ar5212WaitNFCalComplete(ah, 10000)) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
+		    "not complete in time; noisy environment?\n", __func__);
+		return AH_FALSE;
+	}
+        
 	/* Initialize list pointers */
 	cal->cal_list = cal->cal_last = cal->cal_curr = AH_NULL;
 
