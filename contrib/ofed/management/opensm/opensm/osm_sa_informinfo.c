@@ -60,6 +60,8 @@
 #include <opensm/osm_inform.h>
 #include <opensm/osm_pkey.h>
 
+#include <sys/socket.h>
+
 typedef struct osm_iir_item {
 	cl_list_item_t list_item;
 	ib_inform_info_record_t rec;

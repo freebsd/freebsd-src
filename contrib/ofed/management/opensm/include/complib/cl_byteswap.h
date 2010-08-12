@@ -86,10 +86,11 @@ BEGIN_C_DECLS
  *		ntoh32, hton32
  *		ntoh64, hton64
  */
-#include <machine/endian.h>
+#include <sys/endian.h>
 #define	__BYTE_ORDER	_BYTE_ORDER
-#define	bswap_16	__bswap16
-#define	bswap_32	__bswap32
+#define	bswap_16	bswap16
+#define	bswap_32	bswap32
+#define	bswap_64	bswap64
 
 #ifndef __BYTE_ORDER
 #error "__BYTE_ORDER macro undefined. Missing in endian.h?"

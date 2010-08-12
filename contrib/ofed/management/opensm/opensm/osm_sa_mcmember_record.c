@@ -64,6 +64,8 @@
 #include <opensm/osm_inform.h>
 #include <opensm/osm_sa.h>
 
+#include <sys/socket.h>
+
 #define JOIN_MC_COMP_MASK (IB_MCR_COMPMASK_MGID | \
 				IB_MCR_COMPMASK_PORT_GID | \
 				IB_MCR_COMPMASK_JOIN_STATE)

@@ -46,6 +46,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 #include <complib/cl_debug.h>
 #include <iba/ib_types.h>
 #include <opensm/osm_helper.h>

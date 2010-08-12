@@ -52,6 +52,8 @@
 #include <opensm/osm_subnet.h>
 #include <opensm/osm_log.h>
 
+#include <complib/cl_byteswap.h>
+
 struct part_conf {
 	osm_log_t *p_log;
 	osm_subn_t *p_subn;

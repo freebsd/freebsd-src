@@ -44,6 +44,57 @@ IBADIR=		../../management/opensm/include/iba
 IBAINCS=	${IBADIR}/ib_cm_types.h ${IBADIR}/ib_types.h
 IBAINCSDIR=	${INCLUDEDIR}/infiniband/iba
 
+OPENSM=		../../management/opensm/include/opensm
+
+OPENSMINCS=	${OPENSM}/osm_attrib_req.h ${OPENSM}/osm_base.h
+OPENSMINCS+=	${OPENSM}/osm_config.h ${OPENSM}/osm_console.h
+OPENSMINCS+=	${OPENSM}/osm_console_io.h ${OPENSM}/osm_db.h
+OPENSMINCS+=	${OPENSM}/osm_db_pack.h ${OPENSM}/osm_errors.h
+OPENSMINCS+=	${OPENSM}/osm_event_plugin.h ${OPENSM}/osm_helper.h
+OPENSMINCS+=	${OPENSM}/osm_inform.h ${OPENSM}/osm_lid_mgr.h
+OPENSMINCS+=	${OPENSM}/osm_log.h ${OPENSM}/osm_mad_pool.h
+OPENSMINCS+=	${OPENSM}/osm_madw.h ${OPENSM}/osm_mcast_tbl.h
+OPENSMINCS+=	${OPENSM}/osm_mcm_info.h ${OPENSM}/osm_mcm_port.h
+OPENSMINCS+=	${OPENSM}/osm_msgdef.h ${OPENSM}/osm_mtree.h
+OPENSMINCS+=	${OPENSM}/osm_multicast.h ${OPENSM}/osm_node.h
+OPENSMINCS+=	${OPENSM}/osm_opensm.h ${OPENSM}/osm_partition.h
+OPENSMINCS+=	${OPENSM}/osm_path.h ${OPENSM}/osm_perfmgr.h
+OPENSMINCS+=	${OPENSM}/osm_perfmgr_db.h ${OPENSM}/osm_pkey.h
+OPENSMINCS+=	${OPENSM}/osm_pkey_mgr.h ${OPENSM}/osm_port.h
+OPENSMINCS+=	${OPENSM}/osm_port_profile.h ${OPENSM}/osm_prefix_route.h
+OPENSMINCS+=	${OPENSM}/osm_qos_policy.h ${OPENSM}/osm_remote_sm.h
+OPENSMINCS+=	${OPENSM}/osm_router.h ${OPENSM}/osm_sa.h
+OPENSMINCS+=	${OPENSM}/osm_sa_mad_ctrl.h ${OPENSM}/osm_service.h
+OPENSMINCS+=	${OPENSM}/osm_sm.h ${OPENSM}/osm_sm_mad_ctrl.h
+OPENSMINCS+=	${OPENSM}/osm_stats.h ${OPENSM}/osm_subnet.h
+OPENSMINCS+=	${OPENSM}/osm_switch.h ${OPENSM}/osm_ucast_cache.h
+OPENSMINCS+=	${OPENSM}/osm_ucast_mgr.h ${OPENSM}/osm_version.h
+OPENSMINCS+=	${OPENSM}/osm_vl15intf.h ${OPENSM}/st.h
+OPENSMINCSDIR=	${INCLUDEDIR}/infiniband/opensm
+
+VENDOR=		../../management/opensm/include/vendor
+VENDORINCS=	${VENDOR}/osm_mtl_bind.h ${VENDOR}/osm_pkt_randomizer.h
+VENDORINCS+=	${VENDOR}/osm_ts_useraccess.h ${VENDOR}/osm_umadt.h
+VENDORINCS+=	${VENDOR}/osm_vendor.h ${VENDOR}/osm_vendor_al.h
+VENDORINCS+=	${VENDOR}/osm_vendor_api.h ${VENDOR}/osm_vendor_ibumad.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx.h ${VENDOR}/osm_vendor_mlx_defs.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx_dispatcher.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx_hca.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx_inout.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx_rmpp_ctx.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx_sar.h ${VENDOR}/osm_vendor_mlx_sender.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx_svc.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx_transport.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx_transport_anafa.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mlx_txn.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mtl.h ${VENDOR}/osm_vendor_mtl_hca_guid.h
+VENDORINCS+=	${VENDOR}/osm_vendor_mtl_transaction_mgr.h
+VENDORINCS+=	${VENDOR}/osm_vendor_sa_api.h
+VENDORINCS+=	${VENDOR}/osm_vendor_test.h ${VENDOR}/osm_vendor_ts.h
+VENDORINCS+=	${VENDOR}/osm_vendor_umadt.h
+VENDORINCSDIR=	${INCLUDEDIR}/infiniband/vendor
+
 INCSGROUPS=	INCS VERBINCS COMMONINCS MADINCS UMADINCS COMPLIBINCS IBAINCS
+INCSGROUPS+=	OPENSMINCS VENDORINCS
 
 .include <bsd.prog.mk>
