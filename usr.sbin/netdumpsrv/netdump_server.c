@@ -37,6 +37,7 @@
 #include <arpa/inet.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
@@ -516,7 +517,7 @@ int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
     /* Convert byte order */
     msg->hdr.type = ntohl(msg->hdr.type);
     msg->hdr.seqno = ntohl(msg->hdr.seqno);
-    msg->hdr.offset = ntohll(msg->hdr.offset);
+    msg->hdr.offset = be64toh(msg->hdr.offset);
     msg->hdr.len = ntohl(msg->hdr.len);
 
     if ((size_t)len < sizeof(struct netdump_msg_hdr) + msg->hdr.len)
