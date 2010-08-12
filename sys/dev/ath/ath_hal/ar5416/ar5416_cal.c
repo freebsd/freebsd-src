@@ -225,7 +225,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/*
 	 * Try to make sure the above NF cal completes, just so
 	 * it doesn't clash with subsequent percals -adrian
-	*/
+	 */
 	if (! ar5212WaitNFCalComplete(ah, 10000)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
 		    "not complete in time; noisy environment?\n", __func__);
