@@ -36,7 +36,8 @@
 	.set	noat
 	.set	noreorder
 
-#ifdef CPU_CNMIPS
+/* XXX move this to a header file */
+#if defined(CPU_CNMIPS)
 #define CLEAR_STATUS \
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
@@ -44,6 +45,10 @@
 	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER | MIPS_SR_BEV) ; \
 	and     a0, a0, a2              ; \
         mtc0    a0, MIPS_COP_0_STATUS
+#elif defined(__mips_n64)
+#define CLEAR_STATUS \
+	li	a0, (MIPS_SR_KX | MIPS_SR_UX) ; \
+	mtc0	a0, MIPS_COP_0_STATUS
 #else
 #define CLEAR_STATUS \
 	mtc0	zero, MIPS_COP_0_STATUS

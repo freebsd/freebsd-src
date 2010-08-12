@@ -434,12 +434,6 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 /*
  * Save all of the registers except for the kernel temporaries in u.u_pcb.
  */
-	mfc0	k0, MIPS_COP_0_STATUS
-	HAZARD_DELAY
-#ifdef __mips_n64
-	ori	k1, k0, MIPS_SR_KX
-	mtc0	k1, MIPS_COP_0_STATUS
-#endif
 	GET_CPU_PCPU(k1)
 	PTR_L	k1, PC_CURPCB(k1)
 	SAVE_U_PCB_REG(AT, AST, k1)
@@ -457,7 +451,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	SAVE_U_PCB_REG(t2, T2, k1)
 	SAVE_U_PCB_REG(t3, T3, k1)
 	SAVE_U_PCB_REG(ta0, TA0, k1)
-	move	a0, k0				# First arg is the status reg.
+	mfc0	a0, MIPS_COP_0_STATUS		# First arg is the status reg.
 	SAVE_U_PCB_REG(ta1, TA1, k1)
 	SAVE_U_PCB_REG(ta2, TA2, k1)
 	SAVE_U_PCB_REG(ta3, TA3, k1)
@@ -656,12 +650,6 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
  * Save the relevant user registers into the u.u_pcb struct.
  * We don't need to save s0 - s8 because the compiler does it for us.
  */
-	mfc0	k0, MIPS_COP_0_STATUS
-	HAZARD_DELAY
-#ifdef __mips_n64
-	ori	k1, k0, MIPS_SR_KX
-	mtc0	k1, MIPS_COP_0_STATUS
-#endif
 	GET_CPU_PCPU(k1)
 	PTR_L	k1, PC_CURPCB(k1)
 	SAVE_U_PCB_REG(AT, AST, k1)
@@ -700,7 +688,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 
 	mflo	v0			# get lo/hi late to avoid stall
 	mfhi	v1
-	move	a0, k0
+	mfc0	a0, MIPS_COP_0_STATUS
 	mfc0	a1, MIPS_COP_0_CAUSE
 	MFC0	a3, MIPS_COP_0_EXC_PC
 	SAVE_U_PCB_REG(v0, MULLO, k1)
