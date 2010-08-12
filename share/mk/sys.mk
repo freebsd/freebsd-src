@@ -167,7 +167,7 @@ YFLAGS		?=	-d
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .sh:
-	cp ${.IMPSRC} ${.TARGET}
+	cp -f ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 
 # DOUBLE SUFFIX RULES
@@ -225,7 +225,7 @@ YFLAGS		?=	-d
 # non-Posix rule set
 
 .sh:
-	cp -p ${.IMPSRC} ${.TARGET}
+	cp -fp ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 
 .c.ln:
