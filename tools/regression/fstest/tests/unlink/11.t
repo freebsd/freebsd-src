@@ -67,19 +67,19 @@ expect "EACCES|EPERM" -u 65533 -g 65533 unlink ${n0}/${n1}
 expect 0 unlink ${n0}/${n1}
 
 # User owns both: the sticky directory and the character device to be removed.
-expect 0 mknod ${n0}/${n1} b 0644 1 2
+expect 0 mknod ${n0}/${n1} c 0644 1 2
 expect 0 chown ${n0}/${n1} 65534 65534
 expect 0 -u 65534 -g 65534 unlink ${n0}/${n1}
 # User owns the character device to be removed, but doesn't own the sticky directory.
-expect 0 mknod ${n0}/${n1} b 0644 1 2
+expect 0 mknod ${n0}/${n1} c 0644 1 2
 expect 0 chown ${n0}/${n1} 65533 65533
 expect 0 -u 65533 -g 65533 unlink ${n0}/${n1}
 # User owns the sticky directory, but doesn't own the character device to be removed.
-expect 0 mknod ${n0}/${n1} b 0644 1 2
+expect 0 mknod ${n0}/${n1} c 0644 1 2
 expect 0 chown ${n0}/${n1} 65533 65533
 expect 0 -u 65534 -g 65534 unlink ${n0}/${n1}
 # User doesn't own the sticky directory nor the character directory to be removed.
-expect 0 mknod ${n0}/${n1} b 0644 1 2
+expect 0 mknod ${n0}/${n1} c 0644 1 2
 expect 0 chown ${n0}/${n1} 65534 65534
 expect "EACCES|EPERM" -u 65533 -g 65533 unlink ${n0}/${n1}
 expect 0 unlink ${n0}/${n1}
