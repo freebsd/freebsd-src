@@ -749,13 +749,13 @@ int main(int argc, char **argv)
 		return 1;
 	    }
 	case 3:
-	    if (ascii2addr(AF_INET, argv[2], &bindip) == -1)
+	    if (!inet_aton(argv[2], &bindip))
 	    {
                 pidfile_remove(pfh);
 		fputs("Invalid bind IP specified\n", stderr);
 		return 1;
 	    }
-	    printf("Listening on IP %s\n", inet_ntoa(bindip));
+	    printf("Listening on IP %s\n", argv[2]);
 	    break;
 	case 2:
 	    bindip.s_addr = INADDR_ANY;
