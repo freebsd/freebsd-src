@@ -407,6 +407,13 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 
 	*isCalDone = AH_TRUE;
 
+	/*
+	 * Since ath_hal calls the PerCal method with rxchainmask=0x1;
+	 * override it with the current chainmask. The upper levels currently
+	 * doesn't know about the chainmask.
+	 */
+	rxchainmask = AH5416(ah)->ah_rx_chainmask;
+
 	/* Invalid channel check */
 	ichan = ath_hal_checkchannel(ah, chan);
 	if (ichan == AH_NULL) {
