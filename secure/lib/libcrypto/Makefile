@@ -355,13 +355,13 @@ buildinf.h: ${.CURDIR}/Makefile
 	echo "#endif" ) > ${.TARGET}
 
 opensslconf.h: opensslconf-${MACHINE_ARCH}.h
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 
 evp.h: ${LCRYPTO_SRC}/crypto/evp/evp.h
 .if ${MK_IDEA} == "no"
 	sed '/^#ifndef OPENSSL_NO_IDEA$$/,/^#endif$$/d' ${.ALLSRC} > ${.TARGET}
 .else
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 .endif
 
 # No FIPS support for now
