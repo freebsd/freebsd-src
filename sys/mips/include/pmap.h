@@ -157,16 +157,14 @@ void pmap_bootstrap(void);
 void *pmap_mapdev(vm_offset_t, vm_size_t);
 void pmap_unmapdev(vm_offset_t, vm_size_t);
 vm_offset_t pmap_steal_memory(vm_size_t size);
-void pmap_set_modified(vm_offset_t pa);
 int page_is_managed(vm_offset_t pa);
 void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void pmap_kremove(vm_offset_t va);
 void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
 int pmap_compute_pages_to_dump(void);
-void pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte);
 void pmap_flush_pvcache(vm_page_t m);
-
+int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
 #endif				/* _KERNEL */
 
 #endif				/* !LOCORE */

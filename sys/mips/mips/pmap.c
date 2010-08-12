@@ -180,6 +180,7 @@ static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m, vm_offset_t va);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_page_t mpte,
     vm_offset_t va, vm_page_t m);
+static void pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte);
 static void pmap_invalidate_all(pmap_t pmap);
 static void pmap_invalidate_page(pmap_t pmap, vm_offset_t va);
 static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m);
@@ -704,7 +705,7 @@ struct pmap_update_page_arg {
 	pt_entry_t pte;
 };
 
-void
+static void
 pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
 {
 	struct pmap_update_page_arg arg;
@@ -723,7 +724,7 @@ pmap_update_page_action(void *arg)
 	pmap_update_page_local(p->pmap, p->va, p->pte);
 }
 #else
-void
+static void
 pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
 {
 
@@ -3265,15 +3266,49 @@ init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot)
 }
 
 /*
- *	pmap_set_modified:
+ * pmap_emulate_modified : do dirty bit emulation
  *
- *	Sets the page modified and reference bits for the specified page.
+ * On SMP, update just the local TLB, other CPUs will update their
+ * TLBs from PTE lazily, if they get the exception.
+ * Returns 0 in case of sucess, 1 if the page is read only and we
+ * need to fault.
  */
-void
-pmap_set_modified(vm_offset_t pa)
+int
+pmap_emulate_modified(pmap_t pmap, vm_offset_t va)
 {
+	vm_page_t m;
+	pt_entry_t *pte;
+ 	vm_offset_t pa;
 
-	PHYS_TO_VM_PAGE(pa)->md.pv_flags |= (PV_TABLE_REF | PV_TABLE_MOD);
+	PMAP_LOCK(pmap);
+	pte = pmap_pte(pmap, va);
+	if (pte == NULL)
+		panic("pmap_emulate_modified: can't find PTE");
+#ifdef SMP
+	/* It is possible that some other CPU changed m-bit */
+	if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D)) {
+		pmap_update_page_local(pmap, va, *pte);
+		PMAP_UNLOCK(pmap);
+		return (0);
+	}
+#else
+	if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D))
+		panic("pmap_emulate_modified: invalid pte");
+#endif
+	if (pte_test(pte, PTE_RO)) {
+		/* write to read only page in the kernel */
+		PMAP_UNLOCK(pmap);
+		return (1);
+	}
+	pte_set(pte, PTE_D);
+	pmap_update_page_local(pmap, va, *pte);
+	pa = TLBLO_PTE_TO_PA(*pte);
+	if (!page_is_managed(pa))
+		panic("pmap_emulate_modified: unmanaged page");
+	m = PHYS_TO_VM_PAGE(pa);
+	m->md.pv_flags |= (PV_TABLE_REF | PV_TABLE_MOD);
+	PMAP_UNLOCK(pmap);
+	return (0);
 }
 
 /*

@@ -281,7 +281,6 @@ trap(struct trapframe *trapframe)
 	struct thread *td = curthread;
 	struct proc *p = curproc;
 	vm_prot_t ftype;
-	pt_entry_t *pte;
 	pmap_t pmap;
 	int access_type;
 	ksiginfo_t ksi;
@@ -372,82 +371,24 @@ trap(struct trapframe *trapframe)
 	case T_TLB_MOD:
 		/* check for kernel address */
 		if (KERNLAND(trapframe->badvaddr)) {
-			vm_offset_t pa;
-
-			PMAP_LOCK(kernel_pmap);
-			pte = pmap_pte(kernel_pmap, trapframe->badvaddr);
-			if (pte == NULL)
-				panic("trap: ktlbmod: can't find PTE");
-#ifdef SMP
-			/* It is possible that some other CPU changed m-bit */
-			if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D)) {
-				pmap_update_page(kernel_pmap,
-				    trapframe->badvaddr, *pte);
-				PMAP_UNLOCK(kernel_pmap);
-				return (trapframe->pc);
-			}
-#else
-			if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D))
-				panic("trap: ktlbmod: invalid pte");
-#endif
-			if (pte_test(pte, PTE_RO)) {
-				/* write to read only page in the kernel */
+			if (pmap_emulate_modified(kernel_pmap, 
+			    trapframe->badvaddr) != 0) {
 				ftype = VM_PROT_WRITE;
-				PMAP_UNLOCK(kernel_pmap);
 				goto kernel_fault;
 			}
-			pte_set(pte, PTE_D);
-			pmap_update_page(kernel_pmap, trapframe->badvaddr, *pte);
-			pa = TLBLO_PTE_TO_PA(*pte);
-			if (!page_is_managed(pa))
-				panic("trap: ktlbmod: unmanaged page");
-			pmap_set_modified(pa);
-			PMAP_UNLOCK(kernel_pmap);
 			return (trapframe->pc);
 		}
 		/* FALLTHROUGH */
 
 	case T_TLB_MOD + T_USER:
-		{
-			vm_offset_t pa;
-
-			pmap = &p->p_vmspace->vm_pmap;
-
-			PMAP_LOCK(pmap);
-			pte = pmap_pte(pmap, trapframe->badvaddr);
-			if (pte == NULL)
-				panic("trap: utlbmod: can't find PTE");
-#ifdef SMP
-			/* It is possible that some other CPU changed m-bit */
-			if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D)) {
-				pmap_update_page(pmap, trapframe->badvaddr, *pte);
-				PMAP_UNLOCK(pmap);
-				goto out;
-			}
-#else
-			if (!pte_test(pte, PTE_V) || pte_test(pte, PTE_D))
-				panic("trap: utlbmod: invalid pte");
-#endif
-
-			if (pte_test(pte, PTE_RO)) {
-				/* write to read only page */
-				ftype = VM_PROT_WRITE;
-				PMAP_UNLOCK(pmap);
-				goto dofault;
-			}
-			pte_set(pte, PTE_D);
-			pmap_update_page(pmap, trapframe->badvaddr, *pte);
-			pa = TLBLO_PTE_TO_PA(*pte);
-			if (!page_is_managed(pa))
-				panic("trap: utlbmod: unmanaged page");
-			pmap_set_modified(pa);
-
-			PMAP_UNLOCK(pmap);
-			if (!usermode) {
-				return (trapframe->pc);
-			}
-			goto out;
+		pmap = &p->p_vmspace->vm_pmap;
+		if (pmap_emulate_modified(pmap, trapframe->badvaddr) != 0) {
+			ftype = VM_PROT_WRITE;
+			goto dofault;
 		}
+		if (!usermode)
+			return (trapframe->pc);
+		goto out;
 
 	case T_TLB_LD_MISS:
 	case T_TLB_ST_MISS:
