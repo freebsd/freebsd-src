@@ -101,8 +101,10 @@ struct netdump_client * alloc_client(struct in_addr *ip)
     if ((hp = gethostbyaddr((const char *)ip, sizeof(*ip), AF_INET)) == NULL ||
 	    !hp->h_name || strlen(hp->h_name) == 0)
     {
+#if 0
 	/* Can't resolve; use IP */
 	addr2ascii(AF_INET, ip, sizeof(*ip), client->hostname);
+#endif
     }
     else
     {
