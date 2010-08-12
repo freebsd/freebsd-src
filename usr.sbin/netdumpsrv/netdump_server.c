@@ -29,7 +29,6 @@
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <libutil.h>
 #include <netdb.h>
 #include <stdbool.h>
 #include <sys/types.h>
@@ -45,6 +44,7 @@
 #include <sys/queue.h>
 #include <netinet/netdump.h>
 #include <inttypes.h>
+#include <libutil.h>
 
 /* How many dumps to allow per IP before they need to be cleaned out */
 #define MAX_DUMPS 256
