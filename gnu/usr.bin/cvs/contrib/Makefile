@@ -24,7 +24,7 @@ Makefile:
 	@:
 
 .sh:
-	cp ${.IMPSRC} ${.TARGET}
+	cp -f ${.IMPSRC} ${.TARGET}
 
 .pl:
 	sed -e 's,xPERL_PATHx,$(PERLPATH),' ${.IMPSRC} > ${.TARGET}
