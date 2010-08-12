@@ -562,6 +562,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	OS_REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 
+	/* Wait for load to complete, should be fast, a few 10s of us. */
 	if (! ar5212WaitNFCalComplete(ah, 1000)) {
 		/*
 		 * We timed out waiting for the noisefloor to load, probably due to an
@@ -575,7 +576,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		HALDEBUG(ah, HAL_DEBUG_ANY, "Timeout while waiting for nf "
 		    "to load: AR_PHY_AGC_CONTROL=0x%x\n",
 		    OS_REG_READ(ah, AR_PHY_AGC_CONTROL));
-		    return;
+		return;
 	}
 
 	/*
