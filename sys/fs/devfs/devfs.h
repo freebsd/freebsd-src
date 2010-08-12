@@ -126,10 +126,11 @@ struct devfs_dirent {
 	struct cdev_priv	*de_cdp;
 	int			de_inode;
 	int			de_flags;
-#define	DE_WHITEOUT	0x1
-#define	DE_DOT		0x2
-#define	DE_DOTDOT	0x4
-#define DE_DOOMED	0x8
+#define	DE_WHITEOUT	0x01
+#define	DE_DOT		0x02
+#define	DE_DOTDOT	0x04
+#define	DE_DOOMED	0x08
+#define	DE_COVERED	0x10
 	int			de_holdcnt;
 	struct dirent 		*de_dirent;
 	TAILQ_ENTRY(devfs_dirent) de_list;
@@ -182,7 +183,7 @@ void devfs_unmount_final(struct devfs_mount *mp);
 struct devfs_dirent *devfs_newdirent (char *name, int namelen);
 struct devfs_dirent *devfs_parent_dirent(struct devfs_dirent *de);
 struct devfs_dirent *devfs_vmkdir (struct devfs_mount *, char *name, int namelen, struct devfs_dirent *dotdot, u_int inode);
-struct devfs_dirent *devfs_find (struct devfs_dirent *dd, const char *name, int namelen);
+struct devfs_dirent *devfs_find(struct devfs_dirent *dd, const char *name, int namelen, int type);
 
 #endif /* _KERNEL */
 
