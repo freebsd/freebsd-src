@@ -173,7 +173,6 @@ static void pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
     vm_offset_t va);
 static __inline void pmap_changebit(vm_page_t m, int bit, boolean_t setem);
-
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static int pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va);
@@ -181,7 +180,8 @@ static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m, vm_offset_t va);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_page_t mpte,
     vm_offset_t va, vm_page_t m);
-static __inline void pmap_invalidate_page(pmap_t pmap, vm_offset_t va);
+static void pmap_invalidate_all(pmap_t pmap);
+static void pmap_invalidate_page(pmap_t pmap, vm_offset_t va);
 static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
@@ -592,58 +592,48 @@ pmap_nw_modified(pt_entry_t pte)
 	else
 		return (0);
 }
-
 #endif
 
-static void
-pmap_invalidate_all(pmap_t pmap)
+static __inline void
+pmap_invalidate_all_local(pmap_t pmap)
 {
-#ifdef SMP
-	smp_rendezvous(0, pmap_invalidate_all_action, 0, (void *)pmap);
-}
-
-static void
-pmap_invalidate_all_action(void *arg)
-{
-	pmap_t pmap = (pmap_t)arg;
-
-#endif
 
 	if (pmap == kernel_pmap) {
 		tlb_invalidate_all();
 		return;
 	}
-
 	if (pmap->pm_active & PCPU_GET(cpumask))
 		tlb_invalidate_all_user(pmap);
 	else
 		pmap->pm_asid[PCPU_GET(cpuid)].gen = 0;
 }
 
-struct pmap_invalidate_page_arg {
-	pmap_t pmap;
-	vm_offset_t va;
-};
-
-static __inline void
-pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
-{
 #ifdef SMP
-	struct pmap_invalidate_page_arg arg;
+static void
+pmap_invalidate_all(pmap_t pmap)
+{
 
-	arg.pmap = pmap;
-	arg.va = va;
-
-	smp_rendezvous(0, pmap_invalidate_page_action, 0, (void *)&arg);
+	smp_rendezvous(0, pmap_invalidate_all_action, 0, pmap);
 }
 
 static void
-pmap_invalidate_page_action(void *arg)
+pmap_invalidate_all_action(void *arg)
 {
-	pmap_t pmap = ((struct pmap_invalidate_page_arg *)arg)->pmap;
-	vm_offset_t va = ((struct pmap_invalidate_page_arg *)arg)->va;
 
+	pmap_invalidate_all_local((pmap_t)arg);
+}
+#else
+static void
+pmap_invalidate_all(pmap_t pmap)
+{
+
+	pmap_invalidate_all_local(pmap);
+}
 #endif
+
+static __inline void
+pmap_invalidate_page_local(pmap_t pmap, vm_offset_t va)
+{
 
 	if (is_kernel_pmap(pmap)) {
 		tlb_invalidate_address(pmap, va);
@@ -658,33 +648,42 @@ pmap_invalidate_page_action(void *arg)
 	tlb_invalidate_address(pmap, va);
 }
 
-struct pmap_update_page_arg {
+#ifdef SMP
+struct pmap_invalidate_page_arg {
 	pmap_t pmap;
 	vm_offset_t va;
-	pt_entry_t pte;
 };
 
-void
-pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
+static void
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-#ifdef SMP
-	struct pmap_update_page_arg arg;
+	struct pmap_invalidate_page_arg arg;
 
 	arg.pmap = pmap;
 	arg.va = va;
-	arg.pte = pte;
-
-	smp_rendezvous(0, pmap_update_page_action, 0, (void *)&arg);
+	smp_rendezvous(0, pmap_invalidate_page_action, 0, &arg);
 }
 
 static void
-pmap_update_page_action(void *arg)
+pmap_invalidate_page_action(void *arg)
 {
-	pmap_t pmap = ((struct pmap_update_page_arg *)arg)->pmap;
-	vm_offset_t va = ((struct pmap_update_page_arg *)arg)->va;
-	pt_entry_t pte = ((struct pmap_update_page_arg *)arg)->pte;
+	struct pmap_invalidate_page_arg *p = arg;
 
+	pmap_invalidate_page_local(p->pmap, p->va);
+}
+#else
+static void
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+{
+
+	pmap_invalidate_page_local(pmap, va);
+}
 #endif
+
+static __inline void
+pmap_update_page_local(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
+{
+
 	if (is_kernel_pmap(pmap)) {
 		tlb_update(pmap, va, pte);
 		return;
@@ -697,6 +696,40 @@ pmap_update_page_action(void *arg)
 	}
 	tlb_update(pmap, va, pte);
 }
+
+#ifdef SMP
+struct pmap_update_page_arg {
+	pmap_t pmap;
+	vm_offset_t va;
+	pt_entry_t pte;
+};
+
+void
+pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
+{
+	struct pmap_update_page_arg arg;
+
+	arg.pmap = pmap;
+	arg.va = va;
+	arg.pte = pte;
+	smp_rendezvous(0, pmap_update_page_action, 0, &arg);
+}
+
+static void
+pmap_update_page_action(void *arg)
+{
+	struct pmap_update_page_arg *p = arg;
+
+	pmap_update_page_local(p->pmap, p->va, p->pte);
+}
+#else
+void
+pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte)
+{
+
+	pmap_update_page_local(pmap, va, pte);
+}
+#endif
 
 /*
  *	Routine:	pmap_extract
