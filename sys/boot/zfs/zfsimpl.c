@@ -328,6 +328,9 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	size_t psize;
 	int rc;
 
+	if (!vdev->v_phys_read)
+		return (EIO);
+
 	if (bp) {
 		psize = BP_GET_PSIZE(bp);
 	} else {
