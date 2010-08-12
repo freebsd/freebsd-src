@@ -3316,7 +3316,7 @@ bus_generic_probe(device_t dev)
 		 * on early-pass busses during BUS_NEW_PASS().
 		 */
 		if (dl->pass > bus_current_pass)
-				continue;
+			continue;
 		DEVICE_IDENTIFY(dl->driver, dev);
 	}
 
