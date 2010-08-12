@@ -158,12 +158,14 @@ devfs_free(struct cdev *cdev)
 }
 
 struct devfs_dirent *
-devfs_find(struct devfs_dirent *dd, const char *name, int namelen)
+devfs_find(struct devfs_dirent *dd, const char *name, int namelen, int type)
 {
 	struct devfs_dirent *de;
 
 	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
 		if (namelen != de->de_dirent->d_namlen)
+			continue;
+		if (type != 0 && type != de->de_dirent->d_type)
 			continue;
 		if (bcmp(name, de->de_dirent->d_name, namelen) != 0)
 			continue;
@@ -235,14 +237,19 @@ devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dire
 	else
 		dd->de_inode = alloc_unr(devfs_inos);
 
-	/* Create the "." entry in the new directory */
+	/*
+	 * "." and ".." are always the two first entries in the
+	 * de_dlist list.
+	 *
+	 * Create the "." entry in the new directory.
+	 */
 	de = devfs_newdirent(".", 1);
 	de->de_dirent->d_type = DT_DIR;
 	de->de_flags |= DE_DOT;
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	de->de_dir = dd;
 
-	/* Create the ".." entry in the new directory */
+	/* Create the ".." entry in the new directory. */
 	de = devfs_newdirent("..", 2);
 	de->de_dirent->d_type = DT_DIR;
 	de->de_flags |= DE_DOTDOT;
@@ -382,7 +389,7 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 	struct devfs_dirent *de;
 	struct devfs_dirent *dd;
 	struct cdev *pdev;
-	int j;
+	int de_flags, j;
 	char *q, *s;
 
 	sx_assert(&dm->dm_lock, SX_XLOCKED);
@@ -454,12 +461,27 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 				continue;
 			if (*q != '/')
 				break;
-			de = devfs_find(dd, s, q - s);
+			de = devfs_find(dd, s, q - s, 0);
 			if (de == NULL)
 				de = devfs_vmkdir(dm, s, q - s, dd, 0);
+			else if (de->de_dirent->d_type == DT_LNK) {
+				de = devfs_find(dd, s, q - s, DT_DIR);
+				if (de == NULL)
+					de = devfs_vmkdir(dm, s, q - s, dd, 0);
+				de->de_flags |= DE_COVERED;
+			}
 			s = q + 1;
 			dd = de;
+			KASSERT(dd->de_dirent->d_type == DT_DIR &&
+			    (dd->de_flags & (DE_DOT | DE_DOTDOT)) == 0,
+			    ("%s: invalid directory (si_name=%s)",
+			    __func__, cdp->cdp_c.si_name));
+
 		}
+		de_flags = 0;
+		de = devfs_find(dd, s, q - s, DT_LNK);
+		if (de != NULL)
+			de_flags |= DE_COVERED;
 
 		de = devfs_newdirent(s, q - s);
 		if (cdp->cdp_c.si_flags & SI_ALIAS) {
@@ -477,6 +499,7 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 			de->de_mode = cdp->cdp_c.si_mode;
 			de->de_dirent->d_type = DT_CHR;
 		}
+		de->de_flags |= de_flags;
 		de->de_inode = cdp->cdp_inode;
 		de->de_cdp = cdp;
 #ifdef MAC
