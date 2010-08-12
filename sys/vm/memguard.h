@@ -26,7 +26,13 @@
  * $FreeBSD$
  */
 
+#ifndef _VM_MEMGUARD_H_
+#define	_VM_MEMGUARD_H_
+
 #include "opt_vm.h"
+
+struct malloc_type;
+struct vm_map;
 
 #ifdef DEBUG_MEMGUARD
 unsigned long	memguard_fudge(unsigned long, unsigned long);
@@ -43,3 +49,5 @@ int	is_memguard_addr(void *);
 #define	memguard_cmp(mtp, size)		0
 #define	is_memguard_addr(addr)		0
 #endif
+
+#endif /* _VM_MEMGUARD_H_ */
