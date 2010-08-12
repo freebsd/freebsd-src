@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 
 static device_t clock_dev = NULL;
 static long clock_res;
+static struct timespec clock_adj;
 
 /* XXX: should be kern. now, it's no longer machdep.  */
 static int disable_rtc_set;
@@ -87,9 +88,12 @@ clock_register(device_t dev, long res)	/* res has units of microseconds */
 	}
 	clock_dev = dev;
 	clock_res = res;
+	clock_adj.tv_sec = res / 2 / 1000000;
+	clock_adj.tv_nsec = res / 2 % 1000000 * 1000;
 	if (bootverbose)
 		device_printf(dev, "registered as a time-of-day clock "
-		    "(resolution %ldus)\n", res);
+		    "(resolution %ldus, adjustment %jd.%09jds)\n", res,
+		    (intmax_t)clock_adj.tv_sec, (intmax_t)clock_adj.tv_nsec);
 }
 
 /*
@@ -127,6 +131,7 @@ inittodr(time_t base)
 	}
 
 	ts.tv_sec += utc_offset();
+	timespecadd(&ts, &clock_adj);
 	tc_setclock(&ts);
 	return;
 
@@ -151,6 +156,7 @@ resettodr(void)
 		return;
 
 	getnanotime(&ts);
+	timespecadd(&ts, &clock_adj);
 	ts.tv_sec -= utc_offset();
 	/* XXX: We should really set all registered RTCs */
 	if ((error = CLOCK_SETTIME(clock_dev, &ts)) != 0)
