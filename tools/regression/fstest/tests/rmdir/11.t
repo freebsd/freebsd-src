@@ -6,7 +6,7 @@ desc="rmdir returns EACCES or EPERM if the directory containing the directory to
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-echo "1..15"
+echo "1..47"
 
 n0=`namegen`
 n1=`namegen`
@@ -22,17 +22,34 @@ expect 0 chmod ${n0} 01777
 
 # User owns both: the sticky directory and the directory to be removed.
 expect 0 -u 65534 -g 65534 mkdir ${n0}/${n1} 0755
+expect dir,65534,65534 lstat ${n0}/${n1} type,uid,gid
 expect 0 -u 65534 -g 65534 rmdir ${n0}/${n1}
+expect ENOENT lstat ${n0}/${n1} type
 # User owns the directory to be removed, but doesn't own the sticky directory.
-expect 0 -u 65533 -g 65533 mkdir ${n0}/${n1} 0755
-expect 0 -u 65533 -g 65533 rmdir ${n0}/${n1}
+for id in 0 65533; do
+	expect 0 chown ${n0} ${id} ${id}
+	create_file dir ${n0}/${n1} 65534 65534
+	expect dir,65534,65534 lstat ${n0}/${n1} type,uid,gid
+	expect 0 -u 65534 -g 65534 rmdir ${n0}/${n1}
+	expect ENOENT lstat ${n0}/${n1} type
+done
 # User owns the sticky directory, but doesn't own the directory to be removed.
-expect 0 -u 65533 -g 65533 mkdir ${n0}/${n1} 0755
-expect 0 -u 65534 -g 65534 rmdir ${n0}/${n1}
+expect 0 chown ${n0} 65534 65534
+for id in 0 65533; do
+	create_file dir ${n0}/${n1} ${id} ${id}
+	expect dir,${id},${id} lstat ${n0}/${n1} type,uid,gid
+	expect 0 -u 65534 -g 65534 rmdir ${n0}/${n1}
+	expect ENOENT lstat ${n0}/${n1} type
+done
 # User doesn't own the sticky directory nor the directory to be removed.
-expect 0 -u 65534 -g 65534 mkdir ${n0}/${n1} 0755
-expect "EACCES|EPERM" -u 65533 -g 65533 rmdir ${n0}/${n1}
-expect 0 rmdir ${n0}/${n1}
+for id in 0 65533; do
+	expect 0 chown ${n0} ${id} ${id}
+	create_file dir ${n0}/${n1} ${id} ${id}
+	expect dir,${id},${id} lstat ${n0}/${n1} type,uid,gid
+	expect "EACCES|EPERM" -u 65534 -g 65534 rmdir ${n0}/${n1}
+	expect dir,${id},${id} lstat ${n0}/${n1} type,uid,gid
+	expect 0 rmdir ${n0}/${n1}
+done
 
 expect 0 rmdir ${n0}
 
