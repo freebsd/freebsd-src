@@ -632,7 +632,7 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
 	int16_t nf, nfThresh;
 
-	if (OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) {
+	if (ar5212IsNFCalInProgress(ah)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: NF didn't complete in calibration window\n", __func__);
 		nf = 0;
