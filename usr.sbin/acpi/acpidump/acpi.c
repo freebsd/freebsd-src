@@ -646,7 +646,7 @@ acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
 		printf(END_COMMENT);
 		return;
 	}
-	printf("\tClass %d Base Address 0x%jx Length %lld\n\n",
+	printf("\tClass %d Base Address 0x%jx Length %llu\n\n",
 	    tcpa->platform_class, paddr, len);
 
 	if (len == 0) {
