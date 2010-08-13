@@ -497,7 +497,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf);
 static inline void *mlx4_buf_offset(struct mlx4_buf *buf, int offset)
 {
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
+	if (buf->direct.buf != NULL)
 		return buf->direct.buf + offset;
 	else
 		return buf->page_list[offset >> PAGE_SHIFT].buf +
