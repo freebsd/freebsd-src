@@ -44,21 +44,41 @@
 #define	EXPORT_SYMBOL(name)
 #define	EXPORT_SYMBOL_GPL(name)
 
+#include <sys/linker.h>
+
+static inline void
+_module_run(void *arg)
+{
+	char name[1024];
+	caddr_t pc;
+	void (*fn)(void);
+	long offset;
+
+	pc = (caddr_t)arg;
+	if (linker_search_symbol_name(pc, name, sizeof(name), &offset) != 0)
+		printf("Running ??? (%p)\n", pc);
+	else
+		printf("Running %s (%p)\n", name, pc);
+
+	fn = arg;
+	fn();
+}
+
 #define	module_init(fn)							\
-	SYSINIT(fn, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, (fn), NULL)
+	SYSINIT(fn, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, _module_run, (fn))
 
 /*
  * XXX This is a freebsdism designed to work around not having a module
  * load order resolver built in.
  */
 #define	module_init_order(fn, order)					\
-	SYSINIT(fn, SI_SUB_RUN_SCHEDULER, (order), (fn), NULL)
+	SYSINIT(fn, SI_SUB_RUN_SCHEDULER, (order), _module_run, (fn))
 
 #define	module_exit(fn)						\
-	SYSUNINIT(fn, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, (fn), NULL)
+	SYSUNINIT(fn, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, _module_run, (fn))
 
 #define	module_get(module)
 #define	module_put(module)
-#define	try_module_get(module)	0
+#define	try_module_get(module)	1
 
 #endif	/* _LINUX_MODULE_H_ */
