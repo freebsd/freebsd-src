@@ -49,8 +49,8 @@ fast|safe)
 	/bin/rm -f /var/run/rc.suspend.tch
 	;;
 *)
-	( /sbin/sysctl -n kern.timecounter.hardware=ACPI-fast || \
-	    /sbin/sysctl -n kern.timecounter.hardware=ACPI-safe ) \
+	{ /sbin/sysctl -n kern.timecounter.hardware=ACPI-fast || \
+	    /sbin/sysctl -n kern.timecounter.hardware=ACPI-safe; } \
 	    > /dev/null 2>&1 && echo $_t > /var/run/rc.suspend.tch
 	;;
 esac
