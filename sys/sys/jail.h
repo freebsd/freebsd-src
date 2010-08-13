@@ -379,7 +379,7 @@ int prison_check_af(struct ucred *cred, int af);
 int prison_if(struct ucred *cred, struct sockaddr *sa);
 char *prison_name(struct prison *, struct prison *);
 int prison_priv_check(struct ucred *cred, int priv);
-int sysctl_jail_param(struct sysctl_oid *, void *, int , struct sysctl_req *);
+int sysctl_jail_param(SYSCTL_HANDLER_ARGS);
 
 #endif /* _KERNEL */
 #endif /* !_SYS_JAIL_H_ */

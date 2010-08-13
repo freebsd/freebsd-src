@@ -4166,7 +4166,7 @@ sysctl_jail_param(SYSCTL_HANDLER_ARGS)
 		i = 0;
 		return (SYSCTL_OUT(req, &i, sizeof(i)));
 	case CTLTYPE_STRING:
-		snprintf(numbuf, sizeof(numbuf), "%d", arg2);
+		snprintf(numbuf, sizeof(numbuf), "%jd", arg2);
 		return
 		    (sysctl_handle_string(oidp, numbuf, sizeof(numbuf), req));
 	case CTLTYPE_STRUCT:
