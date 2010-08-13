@@ -151,16 +151,16 @@ static inline void iboe_mac_vlan_to_ll(union ib_gid *gid, u8 *mac, u16 vid)
 static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 					union ib_gid *gid)
 {
-	struct net_device *dev;
 	u16 vid = 0;
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+	struct net_device *dev;
 
 	dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
 	if (dev) {
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 		vid = vlan_dev_vlan_id(dev);
-#endif
 		dev_put(dev);
 	}
+#endif
 
 	iboe_mac_vlan_to_ll(gid, dev_addr->src_dev_addr, vid);
 }
@@ -212,6 +212,7 @@ static inline enum ib_mtu iboe_get_mtu(int mtu)
 		return 0;
 }
 
+#ifdef __linux__
 static inline int iboe_get_rate(struct net_device *dev)
 {
 	struct ethtool_cmd cmd;
@@ -231,6 +232,21 @@ static inline int iboe_get_rate(struct net_device *dev)
 	else
 		return IB_RATE_PORT_CURRENT;
 }
+#else
+static inline int iboe_get_rate(struct net_device *dev)
+{
+	if (dev->if_baudrate >= IF_Gbps(40ULL))
+		return IB_RATE_40_GBPS;
+	else if (dev->if_baudrate >= IF_Gbps(30ULL))
+		return IB_RATE_30_GBPS;
+	else if (dev->if_baudrate >= IF_Gbps(20ULL))
+		return IB_RATE_20_GBPS;
+	else if (dev->if_baudrate >= IF_Gbps(10ULL))
+		return IB_RATE_10_GBPS;
+	else
+		return IB_RATE_PORT_CURRENT;
+}
+#endif
 
 static inline int rdma_link_local_addr(struct in6_addr *addr)
 {
