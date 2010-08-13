@@ -197,6 +197,16 @@
     ..
     gssapi
     ..
+    infiniband
+        complib 
+        ..
+        iba
+        ..
+        opensm
+        ..
+        vendor
+        ..
+    ..
     isofs
         cd9660
         ..
