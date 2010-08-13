@@ -2666,11 +2666,17 @@ ofed/include/linux/linux_idr.c			optional infiniband	\
 ofed/include/linux/linux_radix.c		optional infiniband	\
 	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/addr.c		optional infiniband	\
-	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"	
 ofed/drivers/infiniband/core/agent.c		optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/cache.c		optional infiniband	\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
+# XXX Mad.c must be ordered before cm.c for sysinit sets to occur in
+# the correct order.
+ofed/drivers/infiniband/core/mad.c		optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/cm.c		optional infiniband	\
@@ -2691,9 +2697,6 @@ ofed/drivers/infiniband/core/iwcm.c		optional infiniband	\
 ofed/drivers/infiniband/core/local_sa.c		optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-ofed/drivers/infiniband/core/mad.c		optional infiniband	\
-	no-depend							\
-	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/mad_rmpp.c		optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
@@ -2712,9 +2715,9 @@ ofed/drivers/infiniband/core/sa_query.c		optional infiniband	\
 ofed/drivers/infiniband/core/smi.c		optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-#ofed/drivers/infiniband/core/sysfs.c		optional infiniband	\
-#	no-depend							\
-#	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
+ofed/drivers/infiniband/core/sysfs.c		optional infiniband	\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/ucm.c		optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
@@ -2724,9 +2727,9 @@ ofed/drivers/infiniband/core/ucma.c		optional infiniband	\
 ofed/drivers/infiniband/core/ud_header.c	optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
-#ofed/drivers/infiniband/core/umem.c		optional infiniband	\
-#	no-depend							\
-#	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
+ofed/drivers/infiniband/core/umem.c		optional infiniband	\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/user_mad.c		optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
