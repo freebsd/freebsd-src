@@ -480,8 +480,12 @@ fakeaddr(const char *name, int af, struct hostent *hp, char *buf,
 	hed->h_addr_ptrs[0] = (char *)hed->host_addr;
 	hed->h_addr_ptrs[1] = NULL;
 	he.h_addr_list = hed->h_addr_ptrs;
+	if (__copy_hostent(&he, hp, buf, buflen) != 0) {
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		return (-1);
+	}
 	RES_SET_H_ERRNO(statp, NETDB_SUCCESS);
-	return (__copy_hostent(&he, hp, buf, buflen));
+	return (0);
 }
 
 int
@@ -528,7 +532,7 @@ gethostbyname_internal(const char *name, int af, struct hostent *hp, char *buf,
     size_t buflen, struct hostent **result, int *h_errnop, res_state statp)
 {
 	const char *cp;
-	int rval, ret_errno;
+	int rval, ret_errno = 0;
 	char abuf[MAXDNAME];
 
 #ifdef NS_CACHING
@@ -576,7 +580,11 @@ gethostbyname_internal(const char *name, int af, struct hostent *hp, char *buf,
 	    "gethostbyname2_r", default_src, name, af, hp, buf, buflen,
 	    &ret_errno, h_errnop);
 
-	return ((rval == NS_SUCCESS) ? 0 : -1);
+	if (rval != NS_SUCCESS) {
+		errno = ret_errno;
+		return ((ret_errno != 0) ? ret_errno : -1);
+	}
+	return (0);
 }
 
 int
@@ -586,7 +594,7 @@ gethostbyaddr_r(const void *addr, socklen_t len, int af, struct hostent *hp,
 	const u_char *uaddr = (const u_char *)addr;
 	const struct in6_addr *addr6;
 	socklen_t size;
-	int rval, ret_errno;
+	int rval, ret_errno = 0;
 	res_state statp;
 
 #ifdef NS_CACHING
@@ -651,7 +659,11 @@ gethostbyaddr_r(const void *addr, socklen_t len, int af, struct hostent *hp,
 	    "gethostbyaddr_r", default_src, uaddr, len, af, hp, buf, buflen,
 	    &ret_errno, h_errnop);
 
-	return ((rval == NS_SUCCESS) ? 0 : -1);
+	if (rval != NS_SUCCESS) {
+		errno = ret_errno;
+		return ((ret_errno != 0) ? ret_errno : -1);
+	}
+	return (0);
 }
 
 struct hostent *
