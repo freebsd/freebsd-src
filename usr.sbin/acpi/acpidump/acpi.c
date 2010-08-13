@@ -622,7 +622,7 @@ acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
 {
 	struct TCPAbody *tcpa;
 	struct TCPAevent *event;
-	uint64_t len, paddr;
+	uintmax_t len, paddr;
 	unsigned char *vaddr = NULL;
 	unsigned char *vend = NULL;
 
