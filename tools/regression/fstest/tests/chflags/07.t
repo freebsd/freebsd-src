@@ -8,7 +8,7 @@ dir=`dirname $0`
 
 require chflags
 
-echo "1..30"
+echo "1..93"
 
 n0=`namegen`
 n1=`namegen`
@@ -18,37 +18,33 @@ expect 0 mkdir ${n0} 0755
 cdir=`pwd`
 cd ${n0}
 
-expect 0 create ${n1} 0644
-expect EPERM -u 65534 -g 65534 chflags ${n1} UF_NODUMP
-expect none stat ${n1} flags
-expect 0 chown ${n1} 65534 65534
-expect EPERM -u 65533 -g 65533 chflags ${n1} UF_NODUMP
-expect none stat ${n1} flags
-expect 0 unlink ${n1}
+for type in regular dir fifo block char socket symlink; do
+	if [ "${type}" != "symlink" ]; then
+		create_file ${type} ${n1}
+		expect EPERM -u 65534 -g 65534 chflags ${n1} UF_NODUMP
+		expect none stat ${n1} flags
+		expect 0 chown ${n1} 65534 65534
+		expect EPERM -u 65533 -g 65533 chflags ${n1} UF_NODUMP
+		expect none stat ${n1} flags
+		if [ "${type}" = "dir" ]; then
+			expect 0 rmdir ${n1}
+		else
+			expect 0 unlink ${n1}
+		fi
+	fi
 
-expect 0 mkdir ${n1} 0755
-expect EPERM -u 65534 -g 65534 chflags ${n1} UF_NODUMP
-expect none stat ${n1} flags
-expect 0 chown ${n1} 65534 65534
-expect EPERM -u 65533 -g 65533 chflags ${n1} UF_NODUMP
-expect none stat ${n1} flags
-expect 0 rmdir ${n1}
-
-expect 0 mkfifo ${n1} 0644
-expect EPERM -u 65534 -g 65534 chflags ${n1} UF_NODUMP
-expect none stat ${n1} flags
-expect 0 chown ${n1} 65534 65534
-expect EPERM -u 65533 -g 65533 chflags ${n1} UF_NODUMP
-expect none stat ${n1} flags
-expect 0 unlink ${n1}
-
-expect 0 symlink ${n2} ${n1}
-expect EPERM -u 65534 -g 65534 lchflags ${n1} UF_NODUMP
-expect none lstat ${n1} flags
-expect 0 lchown ${n1} 65534 65534
-expect EPERM -u 65533 -g 65533 lchflags ${n1} UF_NODUMP
-expect none lstat ${n1} flags
-expect 0 unlink ${n1}
+	create_file ${type} ${n1}
+	expect EPERM -u 65534 -g 65534 lchflags ${n1} UF_NODUMP
+	expect none lstat ${n1} flags
+	expect 0 lchown ${n1} 65534 65534
+	expect EPERM -u 65533 -g 65533 lchflags ${n1} UF_NODUMP
+	expect none lstat ${n1} flags
+	if [ "${type}" = "dir" ]; then
+		expect 0 rmdir ${n1}
+	else
+		expect 0 unlink ${n1}
+	fi
+done
 
 cd ${cdir}
 expect 0 rmdir ${n0}
