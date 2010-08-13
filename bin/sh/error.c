@@ -102,7 +102,7 @@ exraise(int e)
 void
 onint(void)
 {
-	sigset_t sigset;
+	sigset_t sigs;
 
 	/*
 	 * The !in_dotrap here is safe.  The only way we can arrive here
@@ -115,8 +115,8 @@ onint(void)
 		return;
 	}
 	intpending = 0;
-	sigemptyset(&sigset);
-	sigprocmask(SIG_SETMASK, &sigset, NULL);
+	sigemptyset(&sigs);
+	sigprocmask(SIG_SETMASK, &sigs, NULL);
 
 	/*
 	 * This doesn't seem to be needed, since main() emits a newline.
