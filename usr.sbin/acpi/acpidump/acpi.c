@@ -40,7 +40,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <inttypes.h>
 
 #include "acpidump.h"
 
@@ -623,7 +622,7 @@ acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
 {
 	struct TCPAbody *tcpa;
 	struct TCPAevent *event;
-	u_int64_t len, paddr;
+	uint64_t len, paddr;
 	unsigned char *vaddr = NULL;
 	unsigned char *vend = NULL;
 
@@ -647,7 +646,7 @@ acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
 		printf(END_COMMENT);
 		return;
 	}
-	printf("\tClass %d Base Address 0x%jx Length %" PRIu64 "\n\n",
+	printf("\tClass %u Base Address 0x%jx Length %ju\n\n",
 	    tcpa->platform_class, paddr, len);
 
 	if (len == 0) {
@@ -662,7 +661,7 @@ acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
 	while (vaddr != NULL) {
 		if (vaddr + sizeof(struct TCPAevent) >= vend)
 			break;
-		event = (struct TCPAevent *)vaddr;
+		event = (struct TCPAevent *)(void *)vaddr;
 		if (vaddr + event->event_size >= vend)
 			break;
 		if (event->event_type == 0 && event->event_size == 0)
