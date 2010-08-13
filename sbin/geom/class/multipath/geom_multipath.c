@@ -149,16 +149,6 @@ mp_label(struct gctl_req *req)
 	}
 
 	/*
-	 * Allocate a sector to write as metadata.
-	 */
-	sector = malloc(secsize);
-	if (sector == NULL) {
-		gctl_error(req, "unable to allocate metadata buffer");
-		return;
-	}
-	memset(sector, 0, secsize);
-
-	/*
 	 * Generate metadata.
 	 */
 	strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));
@@ -189,6 +179,16 @@ mp_label(struct gctl_req *req)
 		gctl_error(req, "cannot clear metadata on %s: %s.", name, strerror(error));
 		return;
 	}
+
+	/*
+	 * Allocate a sector to write as metadata.
+	 */
+	sector = malloc(secsize);
+	if (sector == NULL) {
+		gctl_error(req, "unable to allocate metadata buffer");
+		return;
+	}
+	memset(sector, 0, secsize);
 
 	/*
 	 * encode the metadata
