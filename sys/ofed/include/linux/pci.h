@@ -108,6 +108,7 @@ struct pci_dev {
 	struct pci_driver	*pdrv;
 	uint64_t		dma_mask;
 	uint16_t		device;
+	uint16_t		vendor;
 	unsigned int		irq;
 };
 
@@ -377,7 +378,8 @@ linux_pci_attach(device_t dev)
 	pdev = device_get_softc(dev);
 	pdev->dev.parent = &linux_rootdev;
 	pdev->dev.bsddev = dev;
-	pdev->device = device_get_unit(dev);
+	pdev->device = id->device;
+	pdev->vendor = id->vendor;
 	pdev->dev.dma_mask = &pdev->dma_mask;
 	pdev->pdrv = pdrv;
 	kobject_init(&pdev->dev.kobj, &dev_ktype);
