@@ -69,7 +69,7 @@ extern "C" {
 
 #if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE_BUILTIN_CONSTANT_P)
 
-static inline __uint32_t
+static __inline __uint32_t
 __byte_swap_int_var(__uint32_t x)
 {
 	register __uint32_t _x;
@@ -96,7 +96,7 @@ __byte_swap_int_var(__uint32_t x)
 
 #endif	/* __OPTIMIZE__ */
 
-static inline __uint64_t
+static __inline __uint64_t
 __byte_swap_long_var(__uint64_t x)
 {
 	register __uint64_t _x;
@@ -127,7 +127,16 @@ __byte_swap_long_var(__uint64_t x)
 
 #endif	/* __OPTIMIZE__ */
 
-#define	__bswap16(_x)	(__uint16_t)((_x) << 8 | (_x) >> 8)
+#define	__byte_swap_short_const(_x)	(__uint16_t)((_x) << 8 | (_x) >> 8)
+
+static __inline __uint16_t
+__byte_swap_short_var(__uint16_t x)
+{
+	return __byte_swap_short_const(x);
+}
+
+#define	__bswap16(x)	(__builtin_constant_p(x) ? \
+	__byte_swap_short_const(x) : __byte_swap_short_var(x))
 
 #define	__htonl(x)	__bswap32(x)
 #define	__htons(x)	__bswap16(x)
