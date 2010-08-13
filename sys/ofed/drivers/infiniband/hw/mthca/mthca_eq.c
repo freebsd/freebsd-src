@@ -687,7 +687,12 @@ static int mthca_map_eq_regs(struct mthca_dev *dev)
 					dev->fw.arbel.eq_arm_base) + 4, 4,
 				  &dev->eq_regs.arbel.eq_arm)) {
 			mthca_err(dev, "Couldn't map EQ arm register, aborting.\n");
+#ifdef __linux__
 			iounmap(dev->clr_base);
+#else
+			pmap_unmapdev((vm_offset_t)dev->clr_base,
+			    MTHCA_CLR_INT_SIZE);
+#endif
 			return -ENOMEM;
 		}
 
@@ -696,8 +701,15 @@ static int mthca_map_eq_regs(struct mthca_dev *dev)
 				  MTHCA_EQ_SET_CI_SIZE,
 				  &dev->eq_regs.arbel.eq_set_ci_base)) {
 			mthca_err(dev, "Couldn't map EQ CI register, aborting.\n");
+#ifdef __linux__
 			iounmap(dev->eq_regs.arbel.eq_arm);
 			iounmap(dev->clr_base);
+#else
+			pmap_unmapdev((vm_offset_t)dev->eq_regs.arbel.eq_arm,
+			    4);
+			pmap_unmapdev((vm_offset_t)dev->clr_base,
+			    MTHCA_CLR_INT_SIZE);
+#endif
 			return -ENOMEM;
 		}
 	} else {
@@ -713,7 +725,12 @@ static int mthca_map_eq_regs(struct mthca_dev *dev)
 				  &dev->eq_regs.tavor.ecr_base)) {
 			mthca_err(dev, "Couldn't map ecr register, "
 				  "aborting.\n");
+#ifdef __linux__
 			iounmap(dev->clr_base);
+#else
+			pmap_unmapdev((vm_offset_t)dev->clr_base,
+			    MTHCA_CLR_INT_SIZE);
+#endif
 			return -ENOMEM;
 		}
 	}
@@ -725,12 +742,25 @@ static int mthca_map_eq_regs(struct mthca_dev *dev)
 static void mthca_unmap_eq_regs(struct mthca_dev *dev)
 {
 	if (mthca_is_memfree(dev)) {
+#ifdef __linux__
 		iounmap(dev->eq_regs.arbel.eq_set_ci_base);
 		iounmap(dev->eq_regs.arbel.eq_arm);
 		iounmap(dev->clr_base);
+#else
+		pmap_unmapdev((vm_offset_t)dev->eq_regs.arbel.eq_set_ci_base,
+		    MTHCA_EQ_SET_CI_SIZE);
+		pmap_unmapdev((vm_offset_t)dev->eq_regs.arbel.eq_arm, 4);
+		pmap_unmapdev((vm_offset_t)dev->clr_base, MTHCA_CLR_INT_SIZE);
+#endif
 	} else {
+#ifdef __linux__
 		iounmap(dev->eq_regs.tavor.ecr_base);
 		iounmap(dev->clr_base);
+#else
+		pmap_unmapdev((vm_offset_t)dev->eq_regs.tavor.ecr_base,
+		    MTHCA_ECR_SIZE + MTHCA_ECR_CLR_SIZE);
+		pmap_unmapdev((vm_offset_t)dev->clr_base, MTHCA_CLR_INT_SIZE);
+#endif
 	}
 }
 
@@ -835,21 +865,38 @@ int mthca_init_eq_table(struct mthca_dev *dev)
 		};
 
 		for (i = 0; i < MTHCA_NUM_EQ; ++i) {
+#ifdef __linux__
 			err = request_irq(dev->eq_table.eq[i].msi_x_vector,
 					  mthca_is_memfree(dev) ?
 					  mthca_arbel_msi_x_interrupt :
 					  mthca_tavor_msi_x_interrupt,
 					  0, eq_name[i], dev->eq_table.eq + i);
+#else
+			err = request_irq(dev->eq_table.eq[i].msi_x_vector,
+					  mthca_is_memfree(dev) ?
+					  mthca_arbel_msi_x_interrupt :
+					  mthca_tavor_msi_x_interrupt,
+					  0, eq_name[i], dev->eq_table.eq + i,
+					  &dev->pdev->dev);
+#endif
 			if (err)
 				goto err_out_cmd;
 			dev->eq_table.eq[i].have_irq = 1;
 		}
 	} else {
+#ifdef __linux__
 		err = request_irq(dev->pdev->irq,
 				  mthca_is_memfree(dev) ?
 				  mthca_arbel_interrupt :
 				  mthca_tavor_interrupt,
 				  IRQF_SHARED, DRV_NAME, dev);
+#else
+		err = request_irq(dev->pdev->irq,
+				  mthca_is_memfree(dev) ?
+				  mthca_arbel_interrupt :
+				  mthca_tavor_interrupt,
+				  IRQF_SHARED, DRV_NAME, dev, &dev->pdev->dev);
+#endif
 		if (err)
 			goto err_out_cmd;
 		dev->eq_table.have_irq = 1;

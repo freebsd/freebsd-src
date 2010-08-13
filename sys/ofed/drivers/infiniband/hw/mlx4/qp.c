@@ -1532,7 +1532,11 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		u8 *smac;
 
 		memcpy(sqp->ud_header.eth.dmac_h, ah->av.eth.mac_0_1, 6);
+#ifdef __linux__
 		smac = to_mdev(sqp->qp.ibqp.device)->iboe.netdevs[sqp->qp.port - 1]->dev_addr; /* fixme: cache this value */
+#else
+		smac = IF_LLADDR(to_mdev(sqp->qp.ibqp.device)->iboe.netdevs[sqp->qp.port - 1]); /* fixme: cache this value */
+#endif
 		memcpy(sqp->ud_header.eth.smac_h, smac, 6);
 		if (!memcmp(sqp->ud_header.eth.smac_h, sqp->ud_header.eth.dmac_h, 6))
 			mlx->flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);

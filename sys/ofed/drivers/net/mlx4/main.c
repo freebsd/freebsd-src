@@ -55,7 +55,7 @@ struct workqueue_struct *mlx4_wq;
 
 #ifdef CONFIG_MLX4_DEBUG
 
-int mlx4_debug_level = 0;
+int mlx4_debug_level = 1;
 module_param_named(debug_level, mlx4_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
@@ -127,7 +127,7 @@ module_param_named(log_num_mtt, mod_param_profile.num_mtt, int, 0444);
 MODULE_PARM_DESC(log_num_mtt,
 		 "log maximum number of memory translation table segments per HCA");
 
-static int log_mtts_per_seg = ilog2(MLX4_MTT_ENTRY_PER_SEG);
+static int log_mtts_per_seg = 0;
 module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
 MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-5)");
 
@@ -242,7 +242,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 
 	if (dev_cap->min_page_sz > PAGE_SIZE) {
 		mlx4_err(dev, "HCA minimum page size of %d bigger than "
-			 "kernel PAGE_SIZE of %ld, aborting.\n",
+			 "kernel PAGE_SIZE of %d, aborting.\n",
 			 dev_cap->min_page_sz, PAGE_SIZE);
 		return -ENODEV;
 	}
@@ -1192,7 +1192,11 @@ err_pd_table_free:
 	mlx4_cleanup_pd_table(dev);
 
 err_kar_unmap:
+#ifdef __linux__
 	iounmap(priv->kar);
+#else
+	pmap_unmapdev((vm_offset_t)priv->kar, PAGE_SIZE);
+#endif
 
 err_uar_free:
 	mlx4_uar_free(dev, &priv->driver_uar);
@@ -1204,6 +1208,7 @@ err_uar_table_free:
 
 static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 {
+#ifdef __linux__
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry *entries;
 	int nreq;
@@ -1250,6 +1255,15 @@ no_msi:
 
 	for (i = 0; i < 2; ++i)
 		priv->eq_table.eq[i].irq = dev->pdev->irq;
+#else
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int i;
+
+	dev->caps.num_comp_vectors = 1;
+
+	for (i = 0; i < 2; ++i)
+		priv->eq_table.eq[i].irq = dev->pdev->irq;
+#endif
 }
 
 static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
@@ -1524,7 +1538,11 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		mlx4_cleanup_xrcd_table(dev);
 		mlx4_cleanup_pd_table(dev);
 
+#ifdef __linux__
 		iounmap(priv->kar);
+#else
+		pmap_unmapdev((vm_offset_t)priv->kar, PAGE_SIZE);
+#endif
 		mlx4_uar_free(dev, &priv->driver_uar);
 		mlx4_cleanup_uar_table(dev);
 		mlx4_free_eq_table(dev);
@@ -1597,6 +1615,8 @@ static int __init mlx4_verify_params(void)
 		return -1;
 	}
 
+	if (log_mtts_per_seg == 0)
+		log_mtts_per_seg = ilog2(MLX4_MTT_ENTRY_PER_SEG);
 	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 5)) {
 		printk(KERN_WARNING "mlx4_core: bad log_mtts_per_seg: %d\n", log_mtts_per_seg);
 		return -1;
@@ -1609,6 +1629,7 @@ static int __init mlx4_init(void)
 {
 	int ret;
 
+	printk("mlx4 init\n");
 	mutex_init(&drv_mutex);
 
 	if (mlx4_verify_params())
@@ -1633,5 +1654,5 @@ static void __exit mlx4_cleanup(void)
 	destroy_workqueue(mlx4_wq);
 }
 
-module_init(mlx4_init);
+module_init_order(mlx4_init, SI_ORDER_ANY);
 module_exit(mlx4_cleanup);

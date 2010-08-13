@@ -41,6 +41,7 @@
 
 int mthca_reset(struct mthca_dev *mdev)
 {
+#ifdef __linux__
 	int i;
 	int err = 0;
 	u32 *hca_header    = NULL;
@@ -286,4 +287,7 @@ out:
 	kfree(hca_header);
 
 	return err;
+#else
+	return 0;
+#endif
 }

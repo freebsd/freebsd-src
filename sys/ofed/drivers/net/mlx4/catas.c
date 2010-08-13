@@ -35,9 +35,7 @@
 
 #include "mlx4.h"
 
-enum {
-	MLX4_CATAS_POLL_INTERVAL	= 5 * HZ,
-};
+#define	MLX4_CATAS_POLL_INTERVAL	(5 * HZ)
 
 static DEFINE_SPINLOCK(catas_lock);
 
@@ -147,7 +145,12 @@ void mlx4_stop_catas_poll(struct mlx4_dev *dev)
 	del_timer_sync(&priv->catas_err.timer);
 
 	if (priv->catas_err.map)
+#ifdef __linux__
 		iounmap(priv->catas_err.map);
+#else
+		pmap_unmapdev((vm_offset_t)priv->catas_err.map,
+		    priv->fw.catas_size * 4);
+#endif
 
 	spin_lock_irq(&catas_lock);
 	list_del(&priv->catas_err.list);

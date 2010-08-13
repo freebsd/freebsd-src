@@ -36,6 +36,8 @@
 #include <asm/pgtable.h>
 
 int mlx4_wc_enabled(void);
+#ifdef __linux__
 pgprot_t pgprot_wc(pgprot_t _prot);
+#endif
 
 #endif

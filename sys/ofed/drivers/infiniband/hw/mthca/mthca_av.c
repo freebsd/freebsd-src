@@ -172,8 +172,10 @@ int mthca_create_ah(struct mthca_dev *dev,
 		index = mthca_alloc(&dev->av_table.alloc);
 
 		/* fall back to allocate in host memory */
-		if (index == -1)
+		if (index == -1) {
+			printf("av_table alloc fail\n");
 			goto on_hca_fail;
+		}
 
 		av = kmalloc(sizeof *av, GFP_ATOMIC);
 		if (!av)
@@ -368,7 +370,11 @@ void mthca_cleanup_av_table(struct mthca_dev *dev)
 		return;
 
 	if (dev->av_table.av_map)
+#ifdef __linux__
 		iounmap(dev->av_table.av_map);
+#else
+		pmap_unmapdev((vm_offset_t)dev->av_table.av_map, MTHCA_AV_SIZE);
+#endif
 	pci_pool_destroy(dev->av_table.pool);
 	mthca_alloc_cleanup(&dev->av_table.alloc);
 }

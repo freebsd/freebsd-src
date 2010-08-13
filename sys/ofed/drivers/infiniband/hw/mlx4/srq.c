@@ -92,7 +92,7 @@ struct ib_srq *mlx4_ib_create_xrc_srq(struct ib_pd *pd,
 		return ERR_PTR(-EINVAL);
 	}
 
-	srq = kmalloc(sizeof *srq, GFP_KERNEL);
+	srq = kzalloc(sizeof *srq, GFP_KERNEL);
 	if (!srq)
 		return ERR_PTR(-ENOMEM);
 

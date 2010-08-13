@@ -242,8 +242,9 @@ static int mlx4_cmd_poll(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 					  __raw_readl(hcr + HCR_OUT_PARAM_OFFSET + 4));
 	stat = be32_to_cpu((__force __be32) __raw_readl(hcr + HCR_STATUS_OFFSET)) >> 24;
 	err = mlx4_status_to_errno(stat);
-	if (err)
+	if (err) {
 		mlx4_err(dev, "command 0x%x failed: fw status = 0x%x\n", op, stat);
+	}
 
 out:
 	up(&priv->cmd.poll_sem);
@@ -318,7 +319,7 @@ int __mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	       int out_is_imm, u32 in_modifier, u8 op_modifier,
 	       u16 op, unsigned long timeout)
 {
-	if (mlx4_priv(dev)->cmd.use_events)
+	if (mlx4_priv(dev)->cmd.use_events && !cold)
 		return mlx4_cmd_wait(dev, in_param, out_param, out_is_imm,
 				     in_modifier, op_modifier, op, timeout);
 	else
@@ -347,7 +348,11 @@ int mlx4_cmd_init(struct mlx4_dev *dev)
 					 MLX4_MAILBOX_SIZE,
 					 MLX4_MAILBOX_SIZE, 0);
 	if (!priv->cmd.pool) {
+#ifdef __linux__
 		iounmap(priv->cmd.hcr);
+#else
+		pmap_unmapdev((vm_offset_t)priv->cmd.hcr, MLX4_HCR_SIZE);
+#endif
 		return -ENOMEM;
 	}
 
@@ -359,7 +364,11 @@ void mlx4_cmd_cleanup(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	pci_pool_destroy(priv->cmd.pool);
+#ifdef __linux__
 	iounmap(priv->cmd.hcr);
+#else
+	pmap_unmapdev((vm_offset_t)priv->cmd.hcr, MLX4_HCR_SIZE);
+#endif
 }
 
 /*

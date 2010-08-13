@@ -2746,8 +2746,7 @@ kill_socks:
 				 TCPF_LAST_ACK | TCPF_TIME_WAIT)) {
 				sock_put(sk, SOCK_REF_CMA);
 			}
-
-			schedule();
+			sched_yield();
 
 			spin_lock_irq(&sock_list_lock);
 

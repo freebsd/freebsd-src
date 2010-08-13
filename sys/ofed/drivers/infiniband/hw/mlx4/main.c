@@ -61,7 +61,7 @@ MODULE_VERSION(DRV_VERSION);
 
 #ifdef CONFIG_MLX4_DEBUG
 
-int mlx4_ib_debug_level = 0;
+int mlx4_ib_debug_level = 1;
 module_param_named(debug_level, mlx4_ib_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
@@ -94,7 +94,9 @@ static void init_query_mad(struct ib_smp *mad)
 	mad->method	   = IB_MGMT_METHOD_GET;
 }
 
+#ifdef __linux__
 static union ib_gid zgid;
+#endif
 
 static int mlx4_ib_query_device(struct ib_device *ibdev,
 				struct ib_device_attr *props)
@@ -223,7 +225,7 @@ static void ib_link_query_port(struct ib_device *ibdev, u8 port,
 	props->link_layer	= IB_LINK_LAYER_INFINIBAND;
 }
 
-int eth_to_ib_width(int w)
+static int eth_to_ib_width(int w)
 {
 	switch (w) {
 	case 4:
@@ -238,7 +240,7 @@ int eth_to_ib_width(int w)
 	}
 }
 
-int eth_to_ib_speed(int s)
+static int eth_to_ib_speed(int s)
 {
 	switch (s) {
 	case 256:
@@ -311,7 +313,11 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	if (!ndev)
 		goto out_ul;
 
+#ifdef __linux__
 	tmp = iboe_get_mtu(ndev->mtu);
+#else
+	tmp = iboe_get_mtu(ndev->if_mtu);
+#endif
 	props->active_mtu = tmp ? min(props->max_mtu, tmp) : 0;
 	props->state		= netif_running(ndev) &&  netif_oper_up(ndev) ?
 					IB_PORT_ACTIVE : IB_PORT_DOWN;
@@ -523,6 +529,7 @@ static struct ib_ucontext *mlx4_ib_alloc_ucontext(struct ib_device *ibdev,
 
 	resp.qp_tab_size      = dev->dev->caps.num_qps;
 
+#ifdef __linux__
 	if (mlx4_wc_enabled()) {
 		resp.bf_reg_size      = dev->dev->caps.bf_reg_size;
 		resp.bf_regs_per_page = dev->dev->caps.bf_regs_per_page;
@@ -530,8 +537,12 @@ static struct ib_ucontext *mlx4_ib_alloc_ucontext(struct ib_device *ibdev,
 		resp.bf_reg_size      = 0;
 		resp.bf_regs_per_page = 0;
 	}
+#else
+	resp.bf_reg_size      = 0;
+	resp.bf_regs_per_page = 0;
+#endif
 
-	context = kmalloc(sizeof *context, GFP_KERNEL);
+	context = kzalloc(sizeof *context, GFP_KERNEL);
 	if (!context)
 		return ERR_PTR(-ENOMEM);
 
@@ -653,13 +664,13 @@ static int add_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
 int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		   union ib_gid *gid)
 {
+	int ret = 0;
+#ifdef __linux__
 	u8 mac[6];
 	struct net_device *ndev;
-	int ret = 0;
 
 	if (!mqp->port)
 		return 0;
-
 	spin_lock(&mdev->iboe.lock);
 	ndev = mdev->iboe.netdevs[mqp->port - 1];
 	if (ndev)
@@ -673,6 +684,7 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		rtnl_unlock();
 		dev_put(ndev);
 	}
+#endif
 
 	return ret;
 }
@@ -699,7 +711,7 @@ err_add:
 	return err;
 }
 
-struct gid_entry *find_gid_entry(struct mlx4_ib_qp *qp, u8 *raw)
+static struct gid_entry *find_gid_entry(struct mlx4_ib_qp *qp, u8 *raw)
 {
 	struct gid_entry *ge;
 	struct gid_entry *tmp;
@@ -720,8 +732,10 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	int err;
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
+#ifdef __linux__
 	u8 mac[6];
 	struct net_device *ndev;
+#endif
 	struct gid_entry *ge;
 
 	err = mlx4_multicast_detach(mdev->dev,
@@ -732,6 +746,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	mutex_lock(&mqp->mutex);
 	ge = find_gid_entry(mqp, gid->raw);
 	if (ge) {
+#ifdef __linux__
 		spin_lock(&mdev->iboe.lock);
 		ndev = ge->added ? mdev->iboe.netdevs[ge->port - 1] : NULL;
 		if (ndev)
@@ -744,6 +759,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 			rtnl_unlock();
 			dev_put(ndev);
 		}
+#endif
 		list_del(&ge->list);
 		kfree(ge);
 	} else
@@ -1035,15 +1051,21 @@ static struct attribute *diag_rprt_attrs[] = {
 	NULL
 };
 
-static struct attribute_group diag_counters_group = {
+struct attribute_group diag_counters_group = {
 	.name  = "diag_counters",
 	.attrs  = diag_rprt_attrs
 };
 
+#ifdef __linux__
 static void mlx4_addrconf_ifid_eui48(u8 *eui, int is_vlan, u16 vlan_id, struct net_device *dev)
 {
+#ifdef __linux__
 	memcpy(eui, dev->dev_addr, 3);
 	memcpy(eui + 5, dev->dev_addr + 3, 3);
+#else
+	memcpy(eui, IF_LLADDR(dev), 3);
+	memcpy(eui + 5, IF_LLADDR(dev) + 3, 3);
+#endif
 	if (is_vlan) {
 		eui[3] = vlan_id >> 8;
 		eui[4] = vlan_id & 0xff;
@@ -1173,6 +1195,7 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 out:
 	kfree(work);
 	return ret;
+	return 0;
 }
 
 static void handle_en_event(struct mlx4_ib_dev *dev, int port, unsigned long event)
@@ -1244,6 +1267,7 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 
 	return NOTIFY_DONE;
 }
+#endif
 
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
@@ -1409,13 +1433,14 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
-
+#ifdef __linux__
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE && !iboe->nb.notifier_call) {
 		iboe->nb.notifier_call = mlx4_ib_netdev_event;
 		err = register_netdevice_notifier(&iboe->nb);
 		if (err)
 			goto err_reg;
 	}
+#endif
 	for (i = 0; i < ARRAY_SIZE(mlx4_class_attributes); ++i) {
 		if (device_create_file(&ibdev->ib_dev.dev,
 				       mlx4_class_attributes[i]))
@@ -1430,8 +1455,10 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	return ibdev;
 
 err_notif:
+#ifdef __linux__
 	if (unregister_netdevice_notifier(&ibdev->iboe.nb))
 		printk(KERN_WARNING "failure unregistering notifier\n");
+#endif
 	flush_workqueue(wq);
 
 err_reg:
@@ -1442,7 +1469,11 @@ err_counter:
 		mlx4_counter_free(ibdev->dev, ibdev->counters[k - 1]);
 
 err_map:
+#ifdef __linux__
 	iounmap(ibdev->uar_map);
+#else
+	pmap_unmapdev((vm_offset_t)ibdev->uar_map, PAGE_SIZE);
+#endif
 
 err_uar:
 	mlx4_uar_free(dev, &ibdev->priv_uar);
@@ -1470,11 +1501,17 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 		mlx4_counter_free(ibdev->dev, ibdev->counters[k]);
 
 	if (ibdev->iboe.nb.notifier_call) {
+#ifdef __linux__
 		unregister_netdevice_notifier(&ibdev->iboe.nb);
+#endif
 		flush_workqueue(wq);
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
+#ifdef __linux__
 	iounmap(ibdev->uar_map);
+#else
+	pmap_unmapdev((vm_offset_t)ibdev->uar_map, PAGE_SIZE);
+#endif
 
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
@@ -1548,5 +1585,5 @@ static void __exit mlx4_ib_cleanup(void)
 	destroy_workqueue(wq);
 }
 
-module_init(mlx4_ib_init);
+module_init_order(mlx4_ib_init, SI_ORDER_MIDDLE);
 module_exit(mlx4_ib_cleanup);

@@ -1679,6 +1679,7 @@ out:
 	kfree(work);
 }
 
+#ifdef __linux__
 static void cma_ndev_work_handler(struct work_struct *_work)
 {
 	struct cma_ndev_work *work = container_of(_work, struct cma_ndev_work, work);
@@ -1702,6 +1703,7 @@ out:
 		rdma_destroy_id(&id_priv->id);
 	kfree(work);
 }
+#endif
 
 static int cma_resolve_ib_route(struct rdma_id_private *id_priv, int timeout_ms)
 {
@@ -1833,7 +1835,11 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	route->path_rec->mtu_selector = IB_SA_EQ;
 	route->path_rec->sl = tos_to_sl(id_priv->tos);
 
+#ifdef __linux__
 	route->path_rec->mtu = iboe_get_mtu(ndev->mtu);
+#else
+	route->path_rec->mtu = iboe_get_mtu(ndev->if_mtu);
+#endif
 	route->path_rec->rate_selector = IB_SA_EQ;
 	route->path_rec->rate = iboe_get_rate(ndev);
 	dev_put(ndev);
@@ -2184,8 +2190,10 @@ static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
 
 	sin = (struct sockaddr_in *) &id_priv->id.route.addr.src_addr;
 	snum = ntohs(sin->sin_port);
+#ifdef __linux__
 	if (snum < PROT_SOCK && !capable(CAP_NET_BIND_SERVICE))
 		return -EACCES;
+#endif
 
 	bind_list = idr_find(ps, snum);
 	if (!bind_list)
@@ -2220,15 +2228,21 @@ static int cma_get_tcp_port(struct rdma_id_private *id_priv)
 	ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret)
 		return ret;
+#ifdef __linux__
 	ret = sock->ops->bind(sock,
 			(struct sockaddr *) &id_priv->id.route.addr.src_addr,
 			ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr));
+#else
+	ret = -sobind(sock,
+			(struct sockaddr *)&id_priv->id.route.addr.src_addr,
+			curthread);
+#endif
 	if (ret) {
 		sock_release(sock);
 		return ret;
 	}
 	size = ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr);
-	ret = sock->ops->getname(sock,
+	ret = sock_getname(sock,
 			(struct sockaddr *) &id_priv->id.route.addr.src_addr,
 			&size, 0);
 	if (ret) {
@@ -3046,7 +3060,11 @@ static int cma_iboe_join_multicast(struct rdma_id_private *id_priv,
 
 	mc->multicast.ib->rec.rate = iboe_get_rate(ndev);
 	mc->multicast.ib->rec.hop_limit = 1;
+#ifdef __linux__
 	mc->multicast.ib->rec.mtu = iboe_get_mtu(ndev->mtu);
+#else
+	mc->multicast.ib->rec.mtu = iboe_get_mtu(ndev->if_mtu);
+#endif
 	dev_put(ndev);
 	if (!mc->multicast.ib->rec.mtu) {
 		err = -EINVAL;
@@ -3158,6 +3176,7 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 }
 EXPORT_SYMBOL(rdma_leave_multicast);
 
+#ifdef __linux__
 static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id_priv)
 {
 	struct rdma_dev_addr *dev_addr;
@@ -3216,6 +3235,7 @@ out:
 static struct notifier_block cma_nb = {
 	.notifier_call = cma_netdev_callback
 };
+#endif
 
 static void cma_add_one(struct ib_device *device)
 {
@@ -3325,7 +3345,9 @@ static int cma_init(void)
 
 	ib_sa_register_client(&sa_client);
 	rdma_addr_register_client(&addr_client);
+#ifdef __linux__
 	register_netdevice_notifier(&cma_nb);
+#endif
 
 	ret = ib_register_client(&cma_client);
 	if (ret)
@@ -3333,7 +3355,9 @@ static int cma_init(void)
 	return 0;
 
 err:
+#ifdef __linux__
 	unregister_netdevice_notifier(&cma_nb);
+#endif
 	rdma_addr_unregister_client(&addr_client);
 	ib_sa_unregister_client(&sa_client);
 	destroy_workqueue(cma_wq);
@@ -3343,7 +3367,9 @@ err:
 static void cma_cleanup(void)
 {
 	ib_unregister_client(&cma_client);
+#ifdef __linux__
 	unregister_netdevice_notifier(&cma_nb);
+#endif
 	rdma_addr_unregister_client(&addr_client);
 	ib_sa_unregister_client(&sa_client);
 	destroy_workqueue(cma_wq);

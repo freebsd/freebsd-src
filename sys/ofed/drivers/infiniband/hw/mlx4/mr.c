@@ -77,6 +77,7 @@ err_free:
 int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 			   struct ib_umem *umem)
 {
+#ifdef __linux__
 	u64 *pages;
 	struct ib_umem_chunk *chunk;
 	int i, j, k;
@@ -117,6 +118,9 @@ int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 out:
 	free_page((unsigned long) pages);
 	return err;
+#else
+	return 0;
+#endif
 }
 
 static int handle_hugetlb_user_mr(struct ib_pd *pd, struct mlx4_ib_mr *mr,

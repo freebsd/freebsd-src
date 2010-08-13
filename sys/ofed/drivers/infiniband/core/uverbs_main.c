@@ -120,7 +120,9 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_GET_ETH_L2_ADDR]	= ib_uverbs_get_eth_l2_addr,
 };
 
+#ifdef __linux__
 static struct vfsmount *uverbs_event_mnt;
+#endif
 
 static void ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device);
@@ -359,6 +361,7 @@ static unsigned int ib_uverbs_event_poll(struct file *filp,
 	unsigned int pollflags = 0;
 	struct ib_uverbs_event_file *file = filp->private_data;
 
+	file->filp = filp;
 	poll_wait(filp, &file->poll_wait, wait);
 
 	spin_lock_irq(&file->lock);
@@ -369,12 +372,14 @@ static unsigned int ib_uverbs_event_poll(struct file *filp,
 	return pollflags;
 }
 
+#ifdef __linux__
 static int ib_uverbs_event_fasync(int fd, struct file *filp, int on)
 {
 	struct ib_uverbs_event_file *file = filp->private_data;
 
 	return fasync_helper(fd, filp, on, &file->async_queue);
 }
+#endif
 
 static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 {
@@ -404,7 +409,9 @@ static const struct file_operations uverbs_event_fops = {
 	.read 	 = ib_uverbs_event_read,
 	.poll    = ib_uverbs_event_poll,
 	.release = ib_uverbs_event_close,
+#ifdef __linux__
 	.fasync  = ib_uverbs_event_fasync
+#endif
 };
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
@@ -439,7 +446,12 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 	spin_unlock_irqrestore(&file->lock, flags);
 
 	wake_up_interruptible(&file->poll_wait);
+	if (file->filp)
+		selwakeup(&file->filp->f_selinfo);
+#ifdef __linux__
+	/* funsetown ? */
 	kill_fasync(&file->async_queue, SIGIO, POLL_IN);
+#endif
 }
 
 static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
@@ -472,7 +484,12 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	spin_unlock_irqrestore(&file->async_file->lock, flags);
 
 	wake_up_interruptible(&file->async_file->poll_wait);
+	if (file->async_file->filp)
+		selwakeup(&file->async_file->filp->f_selinfo);
+#ifdef __linux__	
+	/* funsetown? */
 	kill_fasync(&file->async_file->async_queue, SIGIO, POLL_IN);
+#endif
 }
 
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
@@ -533,7 +550,7 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	struct file *filp;
 	int ret;
 
-	ev_file = kmalloc(sizeof *ev_file, GFP_KERNEL);
+	ev_file = kzalloc(sizeof *ev_file, GFP_KERNEL);
 	if (!ev_file)
 		return ERR_PTR(-ENOMEM);
 
@@ -546,6 +563,7 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	ev_file->is_async    = is_async;
 	ev_file->is_closed   = 0;
 
+#ifdef __linux__
 	*fd = get_unused_fd();
 	if (*fd < 0) {
 		ret = *fd;
@@ -564,12 +582,28 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 		goto err_fd;
 	}
 
+#else
+	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
+	if (filp == NULL) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	filp->f_op = &uverbs_event_fops;
+	ret = falloc(curthread, &filp->_file, fd);
+	if (ret) {
+		ret = -ret;
+		goto err;
+	}
+	finit(filp->_file, FREAD, DTYPE_DEV, filp, &badfileops);
+#endif
 	filp->private_data = ev_file;
 
 	return filp;
 
+#ifdef __linux__
 err_fd:
 	put_unused_fd(*fd);
+#endif
 
 err:
 	kfree(ev_file);
@@ -677,7 +711,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 		goto err;
 	}
 
-	file = kmalloc(sizeof *file, GFP_KERNEL);
+	file = kzalloc(sizeof *file, GFP_KERNEL);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err_module;
@@ -766,6 +800,46 @@ static ssize_t show_abi_version(struct class *class, char *buf)
 }
 static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 
+#include <linux/pci.h>
+
+static ssize_t
+show_dev_device(struct device *device, struct device_attribute *attr, char *buf)
+{
+	struct ib_uverbs_device *dev = dev_get_drvdata(device);
+
+	if (!dev)
+		return -ENODEV;
+
+	return sprintf(buf, "0x%04x\n",
+	    ((struct pci_dev *)dev->ib_dev->dma_device)->device);
+}
+static DEVICE_ATTR(device, S_IRUGO, show_dev_device, NULL);
+
+static ssize_t
+show_dev_vendor(struct device *device, struct device_attribute *attr, char *buf)
+{
+	struct ib_uverbs_device *dev = dev_get_drvdata(device);
+
+	if (!dev)
+		return -ENODEV;
+
+	return sprintf(buf, "0x%04x\n",
+	    ((struct pci_dev *)dev->ib_dev->dma_device)->vendor);
+}
+static DEVICE_ATTR(vendor, S_IRUGO, show_dev_vendor, NULL);
+
+struct attribute *device_attrs[] =
+{
+	&dev_attr_device.attr,
+	&dev_attr_vendor.attr,
+	NULL
+};
+
+static struct attribute_group device_group = {
+        .name  = "device",
+        .attrs  = device_attrs   
+};
+
 static void ib_uverbs_add_one(struct ib_device *device)
 {
 	struct ib_uverbs_device *uverbs_dev;
@@ -811,6 +885,8 @@ static void ib_uverbs_add_one(struct ib_device *device)
 		goto err_class;
 	if (device_create_file(uverbs_dev->dev, &dev_attr_abi_version))
 		goto err_class;
+	if (sysfs_create_group(&uverbs_dev->dev->kobj, &device_group))
+		goto err_class;
 
 	spin_lock(&map_lock);
 	dev_table[uverbs_dev->devnum] = uverbs_dev;
@@ -855,7 +931,7 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	wait_for_completion(&uverbs_dev->comp);
 	kfree(uverbs_dev);
 }
-
+#ifdef __linux__
 static int uverbs_event_get_sb(struct file_system_type *fs_type, int flags,
 			       const char *dev_name, void *data,
 			       struct vfsmount *mnt)
@@ -870,6 +946,7 @@ static struct file_system_type uverbs_event_fs = {
 	.get_sb  = uverbs_event_get_sb,
 	.kill_sb = kill_litter_super
 };
+#endif
 
 static int __init ib_uverbs_init(void)
 {
@@ -897,6 +974,7 @@ static int __init ib_uverbs_init(void)
 		goto out_class;
 	}
 
+#ifdef __linux__
 	ret = register_filesystem(&uverbs_event_fs);
 	if (ret) {
 		printk(KERN_ERR "user_verbs: couldn't register infinibandeventfs\n");
@@ -909,6 +987,7 @@ static int __init ib_uverbs_init(void)
 		printk(KERN_ERR "user_verbs: couldn't mount infinibandeventfs\n");
 		goto out_fs;
 	}
+#endif
 
 	ret = ib_register_client(&uverbs_client);
 	if (ret) {
@@ -919,10 +998,12 @@ static int __init ib_uverbs_init(void)
 	return 0;
 
 out_mnt:
+#ifdef __linux__
 	mntput(uverbs_event_mnt);
 
 out_fs:
 	unregister_filesystem(&uverbs_event_fs);
+#endif
 
 out_class:
 	class_destroy(uverbs_class);
@@ -937,8 +1018,10 @@ out:
 static void __exit ib_uverbs_cleanup(void)
 {
 	ib_unregister_client(&uverbs_client);
+#ifdef __linux__
 	mntput(uverbs_event_mnt);
 	unregister_filesystem(&uverbs_event_fs);
+#endif
 	class_destroy(uverbs_class);
 	unregister_chrdev_region(IB_UVERBS_BASE_DEV, IB_UVERBS_MAX_DEVICES);
 	idr_destroy(&ib_uverbs_pd_idr);

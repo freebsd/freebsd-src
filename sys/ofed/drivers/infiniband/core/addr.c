@@ -65,7 +65,7 @@ static void process_req(struct work_struct *work);
 
 static DEFINE_MUTEX(lock);
 static LIST_HEAD(req_list);
-static DECLARE_DELAYED_WORK(work, process_req);
+static struct delayed_work work;
 static struct workqueue_struct *addr_wq;
 
 void rdma_addr_register_client(struct rdma_addr_client *client)
@@ -88,6 +88,7 @@ void rdma_addr_unregister_client(struct rdma_addr_client *client)
 }
 EXPORT_SYMBOL(rdma_addr_unregister_client);
 
+#ifdef __linux__
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 		     const unsigned char *dst_dev_addr)
 {
@@ -99,6 +100,20 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 	dev_addr->bound_dev_if = dev->ifindex;
 	return 0;
 }
+#else
+int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
+		     const unsigned char *dst_dev_addr)
+{
+	dev_addr->dev_type = dev->if_type;
+	memcpy(dev_addr->src_dev_addr, IF_LLADDR(dev), MAX_ADDR_LEN);
+	memcpy(dev_addr->broadcast, __DECONST(char *, dev->if_broadcastaddr),
+	    MAX_ADDR_LEN);
+	if (dst_dev_addr)
+		memcpy(dev_addr->dst_dev_addr, dst_dev_addr, MAX_ADDR_LEN);
+	dev_addr->bound_dev_if = dev->if_index;
+	return 0;
+}
+#endif
 EXPORT_SYMBOL(rdma_copy_addr);
 
 int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
@@ -176,6 +191,7 @@ static void queue_req(struct addr_req *req)
 	mutex_unlock(&lock);
 }
 
+#ifdef __linux__
 static int addr4_resolve(struct sockaddr_in *src_in,
 			 struct sockaddr_in *dst_in,
 			 struct rdma_dev_addr *addr)
@@ -293,6 +309,23 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 }
 #endif
 
+#else
+
+static int addr6_resolve(struct sockaddr_in6 *src_in,
+			 struct sockaddr_in6 *dst_in,
+			 struct rdma_dev_addr *addr)
+{
+	return -EADDRNOTAVAIL;
+}
+
+static int addr4_resolve(struct sockaddr_in *src_in,
+			 struct sockaddr_in *dst_in,
+			 struct rdma_dev_addr *addr)
+{
+	/* XXX This will have to be filled in after ipoib is functional. */
+	return -EADDRNOTAVAIL;
+}
+
 static int addr_resolve(struct sockaddr *src_in,
 			struct sockaddr *dst_in,
 			struct rdma_dev_addr *addr)
@@ -304,6 +337,8 @@ static int addr_resolve(struct sockaddr *src_in,
 		return addr6_resolve((struct sockaddr_in6 *) src_in,
 			(struct sockaddr_in6 *) dst_in, addr);
 }
+
+#endif
 
 static void process_req(struct work_struct *work)
 {
@@ -418,6 +453,7 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
 
+#ifdef __linux__
 static int netevent_callback(struct notifier_block *self, unsigned long event,
 	void *ctx)
 {
@@ -434,20 +470,26 @@ static int netevent_callback(struct notifier_block *self, unsigned long event,
 static struct notifier_block nb = {
 	.notifier_call = netevent_callback
 };
+#endif
 
 static int addr_init(void)
 {
+	INIT_DELAYED_WORK(&work, process_req);
 	addr_wq = create_singlethread_workqueue("ib_addr");
 	if (!addr_wq)
 		return -ENOMEM;
 
+#ifdef __linux__
 	register_netevent_notifier(&nb);
+#endif
 	return 0;
 }
 
 static void addr_cleanup(void)
 {
+#ifdef __linux__
 	unregister_netevent_notifier(&nb);
+#endif
 	destroy_workqueue(addr_wq);
 }
 

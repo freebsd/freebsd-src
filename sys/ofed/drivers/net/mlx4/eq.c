@@ -523,7 +523,11 @@ static void mlx4_unmap_clr_int(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
+#ifdef __linux__
 	iounmap(priv->clr_base);
+#else
+	pmap_unmapdev((vm_offset_t)priv->clr_base, MLX4_CLR_INT_SIZE);
+#endif
 }
 
 int mlx4_alloc_eq_table(struct mlx4_dev *dev)
@@ -607,17 +611,28 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 			} else
 				eq_name = async_eq_name;
 
+#ifdef __linux__
 			err = request_irq(priv->eq_table.eq[i].irq,
 					  mlx4_msi_x_interrupt, 0, eq_name,
 					  priv->eq_table.eq + i);
+#else
+			err = request_irq(priv->eq_table.eq[i].irq,
+					  mlx4_msi_x_interrupt, 0, eq_name,
+					  priv->eq_table.eq + i, &dev->pdev->dev);
+#endif
 			if (err)
 				goto err_out_async;
 
 			priv->eq_table.eq[i].have_irq = 1;
 		}
 	} else {
+#ifdef __linux__
 		err = request_irq(dev->pdev->irq, mlx4_interrupt,
 				  IRQF_SHARED, DRV_NAME, dev);
+#else
+		err = request_irq(dev->pdev->irq, mlx4_interrupt,
+				  IRQF_SHARED, DRV_NAME, dev, &dev->pdev->dev);
+#endif
 		if (err)
 			goto err_out_async;
 
@@ -675,7 +690,12 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 
 	for (i = 0; i < mlx4_num_eq_uar(dev); ++i)
 		if (priv->eq_table.uar_map[i])
+#ifdef __linux__
 			iounmap(priv->eq_table.uar_map[i]);
+#else
+			pmap_unmapdev((vm_offset_t)priv->eq_table.uar_map[i],
+			    PAGE_SIZE);
+#endif
 
 	mlx4_bitmap_cleanup(&priv->eq_table.bitmap);
 

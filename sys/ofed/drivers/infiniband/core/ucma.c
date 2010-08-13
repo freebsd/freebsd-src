@@ -284,6 +284,8 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 
 	list_add_tail(&uevent->list, &ctx->file->event_list);
 	wake_up_interruptible(&ctx->file->poll_wait);
+	if (ctx->file->filp)
+		selwakeup(&ctx->file->filp->f_selinfo);
 out:
 	mutex_unlock(&ctx->file->mut);
 	return ret;
@@ -585,20 +587,22 @@ static void ucma_copy_iboe_route(struct rdma_ucm_query_route_resp *resp,
 				   struct rdma_route *route)
 {
 	struct rdma_dev_addr *dev_addr;
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 	struct net_device *dev;
+#endif
 	u16 vid = 0;
 
 	resp->num_paths = route->num_paths;
 	switch (route->num_paths) {
 	case 0:
 		dev_addr = &route->addr.dev_addr;
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 		dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
 		if (dev) {
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 			vid = vlan_dev_vlan_id(dev);
-#endif
 			dev_put(dev);
 		}
+#endif
 
 		iboe_mac_vlan_to_ll((union ib_gid *) &resp->ib_route[0].dgid,
 				    dev_addr->dst_dev_addr, vid);
@@ -1250,7 +1254,7 @@ static int ucma_open(struct inode *inode, struct file *filp)
 {
 	struct ucma_file *file;
 
-	file = kmalloc(sizeof *file, GFP_KERNEL);
+	file = kzalloc(sizeof *file, GFP_KERNEL);
 	if (!file)
 		return -ENOMEM;
 

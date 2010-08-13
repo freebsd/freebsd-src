@@ -100,7 +100,7 @@ static int ib_device_check_mandatory(struct ib_device *device)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mandatory_table); ++i) {
-		if (!*(void **) ((void *) device + mandatory_table[i].offset)) {
+		if (!*(void **) ((u_char *) device + mandatory_table[i].offset)) {
 			printk(KERN_WARNING "Device %s is missing mandatory function %s\n",
 			       device->name, mandatory_table[i].name);
 			return -EINVAL;

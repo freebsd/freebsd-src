@@ -37,6 +37,8 @@
 #ifndef MLX4_H
 #define MLX4_H
 
+#define	CONFIG_MLX4_DEBUG
+
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
 #include <linux/timer.h>

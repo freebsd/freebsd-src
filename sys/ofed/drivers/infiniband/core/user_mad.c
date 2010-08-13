@@ -678,7 +678,7 @@ found:
 		file->already_used = 1;
 		if (!file->use_pkey_index) {
 			printk(KERN_WARNING "user_mad: process %s did not enable "
-			       "P_Key index support.\n", current->comm);
+			       "P_Key index support.\n", curproc->p_comm);
 			printk(KERN_WARNING "user_mad:   Documentation/infiniband/user_mad.txt "
 			       "has info on the new ABI.\n");
 		}

@@ -451,6 +451,7 @@ static u64 mthca_uarc_virt(struct mthca_dev *dev, struct mthca_uar *uar, int pag
 int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 		      struct mthca_user_db_table *db_tab, int index, u64 uaddr)
 {
+#ifdef __linux__
 	struct page *pages[1];
 	int ret = 0;
 	u8 status;
@@ -508,11 +509,15 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 out:
 	mutex_unlock(&db_tab->mutex);
 	return ret;
+#else
+	return -EINVAL;
+#endif
 }
 
 void mthca_unmap_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 			 struct mthca_user_db_table *db_tab, int index)
 {
+#ifdef __linux__
 	if (!mthca_is_memfree(dev))
 		return;
 
@@ -526,6 +531,7 @@ void mthca_unmap_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 	--db_tab->page[index / MTHCA_DB_REC_PER_PAGE].refcount;
 
 	mutex_unlock(&db_tab->mutex);
+#endif
 }
 
 struct mthca_user_db_table *mthca_init_user_db_tab(struct mthca_dev *dev)
@@ -565,7 +571,9 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
 		if (db_tab->page[i].uvirt) {
 			mthca_UNMAP_ICM(dev, mthca_uarc_virt(dev, uar, i), 1, &status);
 			pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
+#ifdef __linux__
 			put_page(sg_page(&db_tab->page[i].mem));
+#endif
 		}
 	}
 

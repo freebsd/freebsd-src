@@ -69,7 +69,7 @@ int mlx4_en_map_buffer(struct mlx4_buf *buf)
 	struct page **pages;
 	int i;
 
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
+	if (buf->direct.buf != NULL || buf->nbufs == 1)
 		return 0;
 
 	pages = kmalloc(sizeof *pages * buf->nbufs, GFP_KERNEL);
@@ -89,10 +89,11 @@ int mlx4_en_map_buffer(struct mlx4_buf *buf)
 
 void mlx4_en_unmap_buffer(struct mlx4_buf *buf)
 {
-	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
+	if (buf->direct.buf != NULL || buf->nbufs == 1)
 		return;
 
 	vunmap(buf->direct.buf);
+	buf->direct.buf = NULL;
 }
 
 void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event)

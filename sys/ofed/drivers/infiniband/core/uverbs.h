@@ -79,6 +79,7 @@ struct ib_uverbs_device {
 
 struct ib_uverbs_event_file {
 	struct kref				ref;
+	struct file			       *filp;
 	struct ib_uverbs_file		       *uverbs_file;
 	spinlock_t				lock;
 	wait_queue_head_t			poll_wait;

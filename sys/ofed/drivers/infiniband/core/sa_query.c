@@ -1474,5 +1474,5 @@ static void __exit ib_sa_cleanup(void)
 	idr_destroy(&query_idr);
 }
 
-module_init(ib_sa_init);
+module_init_order(ib_sa_init, SI_ORDER_SECOND);
 module_exit(ib_sa_cleanup);

@@ -380,6 +380,8 @@ static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
 	list_add_tail(&uevent->file_list, &ctx->file->events);
 	list_add_tail(&uevent->ctx_list, &ctx->events);
 	wake_up_interruptible(&ctx->file->poll_wait);
+	if (ctx->file->filp)
+		selwakeup(&ctx->file->filp->f_selinfo);
 	mutex_unlock(&ctx->file->file_mutex);
 	return 0;
 
@@ -1165,7 +1167,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 {
 	struct ib_ucm_file *file;
 
-	file = kmalloc(sizeof(*file), GFP_KERNEL);
+	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
 		return -ENOMEM;
 
@@ -1177,7 +1179,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = file;
 	file->filp = filp;
-	file->device = container_of(inode->i_cdev, struct ib_ucm_device, cdev);
+	file->device = container_of(inode->i_cdev->si_drv1, struct ib_ucm_device, cdev);
 
 	return 0;
 }
@@ -1342,5 +1344,5 @@ static void __exit ib_ucm_cleanup(void)
 	idr_destroy(&ctx_id_table);
 }
 
-module_init(ib_ucm_init);
+module_init_order(ib_ucm_init, SI_ORDER_THIRD);
 module_exit(ib_ucm_cleanup);

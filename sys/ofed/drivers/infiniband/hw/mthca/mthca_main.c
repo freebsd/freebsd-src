@@ -52,7 +52,7 @@ MODULE_VERSION(DRV_VERSION);
 
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 
-int mthca_debug_level = 0;
+int mthca_debug_level = 1;
 module_param_named(debug_level, mthca_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
@@ -125,7 +125,7 @@ module_param_named(fmr_reserved_mtts, hca_profile.fmr_reserved_mtts, int, 0444);
 MODULE_PARM_DESC(fmr_reserved_mtts,
 		 "number of memory translation table segments reserved for FMR");
 
-static int log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
+static int log_mtts_per_seg;
 module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
 MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-5)");
 
@@ -179,7 +179,7 @@ static int mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim *dev_lim)
 	}
 	if (dev_lim->min_page_sz > PAGE_SIZE) {
 		mthca_err(mdev, "HCA minimum page size of %d bigger than "
-			  "kernel PAGE_SIZE of %ld, aborting.\n",
+			  "kernel PAGE_SIZE of %d, aborting.\n",
 			  dev_lim->min_page_sz, PAGE_SIZE);
 		return -ENODEV;
 	}
@@ -916,7 +916,11 @@ err_pd_table_free:
 	mthca_cleanup_pd_table(dev);
 
 err_kar_unmap:
+#ifdef __linux__
 	iounmap(dev->kar);
+#else
+	pmap_unmapdev((vm_offset_t)dev->kar, PAGE_SIZE);
+#endif
 
 err_uar_free:
 	mthca_uar_free(dev, &dev->driver_uar);
@@ -928,6 +932,7 @@ err_uar_table_free:
 
 static int mthca_enable_msi_x(struct mthca_dev *mdev)
 {
+#ifdef __linux__
 	struct msix_entry entries[3];
 	int err;
 
@@ -948,6 +953,9 @@ static int mthca_enable_msi_x(struct mthca_dev *mdev)
 	mdev->eq_table.eq[MTHCA_EQ_CMD  ].msi_x_vector = entries[2].vector;
 
 	return 0;
+#else
+	return -EINVAL;
+#endif
 }
 
 /* Types of supported HCA */
@@ -1185,7 +1193,11 @@ static void __mthca_remove_one(struct pci_dev *pdev)
 		mthca_cleanup_mr_table(mdev);
 		mthca_cleanup_pd_table(mdev);
 
+#ifdef __linux__
 		iounmap(mdev->kar);
+#else
+		pmap_unmapdev((vm_offset_t)mdev->kar, PAGE_SIZE);
+#endif
 		mthca_uar_free(mdev, &mdev->driver_uar);
 		mthca_cleanup_uar_table(mdev);
 		mthca_close_hca(mdev);
@@ -1322,9 +1334,10 @@ static void __init mthca_validate_profile(void)
 		printk(KERN_WARNING PFX "Corrected fmr_reserved_mtts to %d.\n",
 		       hca_profile.fmr_reserved_mtts);
 	}
-
+	if (log_mtts_per_seg == 0)
+		log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
 	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 5)) {
-		printk(KERN_WARNING PFX "bad log_mtts_per_seg (%d). Using default - %d\n",
+		printk(KERN_WARNING PFX "bad log_mtts_per_seg (%d). Using default - %ld\n",
 		       log_mtts_per_seg, ilog2(MTHCA_MTT_SEG_SIZE / 8));
 		log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
 	}
@@ -1355,5 +1368,5 @@ static void __exit mthca_cleanup(void)
 	mthca_catas_cleanup();
 }
 
-module_init(mthca_init);
+module_init_order(mthca_init, SI_ORDER_MIDDLE);
 module_exit(mthca_cleanup);

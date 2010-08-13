@@ -37,13 +37,13 @@
 #include "mthca_dev.h"
 
 enum {
-	MTHCA_CATAS_POLL_INTERVAL	= 5 * HZ,
-
 	MTHCA_CATAS_TYPE_INTERNAL	= 0,
 	MTHCA_CATAS_TYPE_UPLINK		= 3,
 	MTHCA_CATAS_TYPE_DDR		= 4,
 	MTHCA_CATAS_TYPE_PARITY		= 5,
 };
+
+#define	MTHCA_CATAS_POLL_INTERVAL	(5 * HZ)
 
 static DEFINE_SPINLOCK(catas_lock);
 
@@ -174,7 +174,12 @@ void mthca_stop_catas_poll(struct mthca_dev *dev)
 	del_timer_sync(&dev->catas_err.timer);
 
 	if (dev->catas_err.map)
+#ifdef __linux__
 		iounmap(dev->catas_err.map);
+#else
+		pmap_unmapdev((vm_offset_t)dev->catas_err.map,
+		    dev->catas_err.size * 4);
+#endif
 
 	spin_lock_irq(&catas_lock);
 	list_del(&dev->catas_err.list);

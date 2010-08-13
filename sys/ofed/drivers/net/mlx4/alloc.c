@@ -194,6 +194,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 {
 	dma_addr_t t;
 
+	buf->direct.buf = NULL;
 	if (size <= max_direct) {
 		buf->nbufs        = 1;
 		buf->npages       = 1;
@@ -234,6 +235,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 			memset(buf->page_list[i].buf, 0, PAGE_SIZE);
 		}
 
+#ifdef __linux__
 		if (BITS_PER_LONG == 64) {
 			struct page **pages;
 			pages = kmalloc(sizeof *pages * buf->nbufs, GFP_KERNEL);
@@ -246,6 +248,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 			if (!buf->direct.buf)
 				goto err_free;
 		}
+#endif
 	}
 
 	return 0;
@@ -265,8 +268,10 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf)
 		dma_free_coherent(&dev->pdev->dev, size, buf->direct.buf,
 				  buf->direct.map);
 	else {
+#ifdef __linux__
 		if (BITS_PER_LONG == 64)
 			vunmap(buf->direct.buf);
+#endif
 
 		for (i = 0; i < buf->nbufs; ++i)
 			if (buf->page_list[i].buf)
@@ -275,6 +280,7 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf)
 						  buf->page_list[i].map);
 		kfree(buf->page_list);
 	}
+	buf->direct.buf = NULL;
 }
 EXPORT_SYMBOL_GPL(mlx4_buf_free);
 

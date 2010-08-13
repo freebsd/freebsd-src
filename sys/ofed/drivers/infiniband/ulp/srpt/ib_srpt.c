@@ -2597,7 +2597,7 @@ static bool srpt_must_wait_for_cred(struct srpt_rdma_ch *ch, int req_lim_min)
 static void srpt_wait_for_cred(struct srpt_rdma_ch *ch, int req_lim_min)
 {
 	while (unlikely(srpt_must_wait_for_cred(ch, req_lim_min)))
-		schedule();
+		sched_yield();
 }
 
 /**

@@ -3890,6 +3890,6 @@ static void __exit ib_cm_cleanup(void)
 	idr_destroy(&cm.local_id_table);
 }
 
-module_init(ib_cm_init);
+module_init_order(ib_cm_init, SI_ORDER_SECOND);
 module_exit(ib_cm_cleanup);
 

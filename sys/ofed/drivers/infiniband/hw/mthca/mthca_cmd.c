@@ -161,17 +161,13 @@ enum {
 	CMD_TIME_CLASS_D = 60 * HZ
 };
 #else
-enum {
-	CMD_TIME_CLASS_A = 60 * HZ,
-	CMD_TIME_CLASS_B = 60 * HZ,
-	CMD_TIME_CLASS_C = 60 * HZ,
-	CMD_TIME_CLASS_D = 60 * HZ
-};
+#define	CMD_TIME_CLASS_A	(60 * HZ)
+#define	CMD_TIME_CLASS_B	(60 * HZ)
+#define	CMD_TIME_CLASS_C	(60 * HZ)
+#define	CMD_TIME_CLASS_D	(60 * HZ)
 #endif
 
-enum {
-	GO_BIT_TIMEOUT = HZ * 10
-};
+#define	GO_BIT_TIMEOUT		(HZ * 10)
 
 struct mthca_cmd_context {
 	struct completion done;
@@ -237,10 +233,8 @@ static int mthca_cmd_post_hcr(struct mthca_dev *dev,
 	if (event) {
 		unsigned long end = jiffies + GO_BIT_TIMEOUT;
 
-		while (go_bit(dev) && time_before(jiffies, end)) {
-			set_current_state(TASK_RUNNING);
-			schedule();
-		}
+		while (go_bit(dev) && time_before(jiffies, end))
+			sched_yield();
 	}
 
 	if (go_bit(dev))
@@ -323,10 +317,8 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 		goto out;
 
 	end = timeout + jiffies;
-	while (go_bit(dev) && time_before(jiffies, end)) {
-		set_current_state(TASK_RUNNING);
-		schedule();
-	}
+	while (go_bit(dev) && time_before(jiffies, end))
+		sched_yield();
 
 	if (go_bit(dev)) {
 		err = -EBUSY;
@@ -498,7 +490,11 @@ int mthca_cmd_init(struct mthca_dev *dev)
 					MTHCA_MAILBOX_SIZE,
 					MTHCA_MAILBOX_SIZE, 0);
 	if (!dev->cmd.pool) {
+#ifdef __linux__
 		iounmap(dev->hcr);
+#else
+		pmap_unmapdev((vm_offset_t)dev->hcr, MTHCA_HCR_SIZE);
+#endif
 		return -ENOMEM;
 	}
 
@@ -508,9 +504,18 @@ int mthca_cmd_init(struct mthca_dev *dev)
 void mthca_cmd_cleanup(struct mthca_dev *dev)
 {
 	pci_pool_destroy(dev->cmd.pool);
+#ifdef __linux__
 	iounmap(dev->hcr);
+#else
+	pmap_unmapdev((vm_offset_t)dev->hcr, MTHCA_HCR_SIZE);
+#endif
 	if (dev->cmd.flags & MTHCA_CMD_POST_DOORBELLS)
+#ifdef __linux__
 		iounmap(dev->cmd.dbell_map);
+#else
+		pmap_unmapdev((vm_offset_t)dev->cmd.dbell_map,
+		    dev->cmd.dbell_size);
+#endif
 }
 
 /*
@@ -728,7 +733,8 @@ static void mthca_setup_cmd_doorbells(struct mthca_dev *dev, u64 base)
 
 	addr = pci_resource_start(dev->pdev, 2) +
 		((pci_resource_len(dev->pdev, 2) - 1) & base);
-	dev->cmd.dbell_map = ioremap(addr, max_off + sizeof(u32));
+	dev->cmd.dbell_size = max_off + sizeof(u32);
+	dev->cmd.dbell_map = ioremap(addr, dev->cmd.dbell_size);
 	if (!dev->cmd.dbell_map)
 		return;
 

@@ -128,6 +128,7 @@ struct mthca_cmd {
 	struct mthca_cmd_context *context;
 	u16                       token_mask;
 	u32                       flags;
+	u32			  dbell_size;
 	void __iomem             *dbell_map;
 	u16                       dbell_offsets[MTHCA_CMD_NUM_DBELL_DWORDS];
 };
@@ -220,6 +221,8 @@ struct mthca_mr_table {
 		void __iomem   *mpt_base;
 		void __iomem   *mtt_base;
 		struct mthca_buddy mtt_buddy;
+		u32		mtt_size;
+		u32		mpt_size;
 	} tavor_fmr;
 };
 
@@ -359,6 +362,8 @@ struct mthca_dev {
 	u8                    rate[MTHCA_MAX_PORTS];
 	int		      active;
 };
+
+#define	CONFIG_INFINIBAND_MTHCA_DEBUG
 
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 extern int mthca_debug_level;

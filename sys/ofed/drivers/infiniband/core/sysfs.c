@@ -265,12 +265,15 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 		container_of(attr, struct port_table_attribute, attr);
 	union ib_gid gid;
 	ssize_t ret;
+	u16 *raw;
 
 	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid);
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%pI6\n", gid.raw);
+	raw = (u16 *)gid.raw;
+	return sprintf(buf, "%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x\n",
+	    raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7]);
 }
 
 static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
@@ -439,6 +442,7 @@ static void ib_device_release(struct device *device)
 	kfree(dev);
 }
 
+#ifdef __linux__
 static int ib_device_uevent(struct device *device,
 			    struct kobj_uevent_env *env)
 {
@@ -453,6 +457,7 @@ static int ib_device_uevent(struct device *device,
 
 	return 0;
 }
+#endif
 
 static struct attribute **
 alloc_group_attrs(ssize_t (*show)(struct ib_port *,
@@ -545,7 +550,9 @@ static int add_port(struct ib_device *device, int port_num)
 
 	list_add_tail(&p->kobj.entry, &device->port_list);
 
+#ifdef __linux__
 	kobject_uevent(&p->kobj, KOBJ_ADD);
+#endif
 	return 0;
 
 err_free_pkey:
@@ -658,7 +665,9 @@ static struct device_attribute *ib_class_attributes[] = {
 static struct class ib_class = {
 	.name    = "infiniband",
 	.dev_release = ib_device_release,
+#ifdef __linux__
 	.dev_uevent = ib_device_uevent,
+#endif
 };
 
 /* Show a given an attribute in the statistics group */
@@ -666,7 +675,7 @@ static ssize_t show_protocol_stat(const struct device *device,
 			    struct device_attribute *attr, char *buf,
 			    unsigned offset)
 {
-	struct ib_device *dev = container_of(device, struct ib_device, dev);
+	struct ib_device *dev = container_of(__DECONST(struct device *, device), struct ib_device, dev);
 	union rdma_protocol_stats stats;
 	ssize_t ret;
 
