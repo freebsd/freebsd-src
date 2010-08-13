@@ -956,12 +956,21 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 */
 	IFNET_WLOCK();
 	ifindex_free_locked(ifp->if_index);
+	IFNET_WUNLOCK();
+
+	/*
+	 * Perform interface-specific reassignment tasks, if provided by
+	 * the driver.
+	 */
+	if (ifp->if_reassign != NULL)
+		ifp->if_reassign(ifp, new_vnet, NULL);
 
 	/*
 	 * Switch to the context of the target vnet.
 	 */
 	CURVNET_SET_QUIET(new_vnet);
 
+	IFNET_WLOCK();
 	if (ifindex_alloc_locked(&idx) != 0) {
 		IFNET_WUNLOCK();
 		panic("if_index overflow");
