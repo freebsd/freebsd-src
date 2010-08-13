@@ -1058,7 +1058,7 @@ devclass_driver_added(devclass_t dc, driver_t *driver)
  * @param dc		the devclass to edit
  * @param driver	the driver to register
  */
-static int
+int
 devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
 {
 	driverlink_t dl;
@@ -1120,7 +1120,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
  * @param dc		the devclass to edit
  * @param driver	the driver to unregister
  */
-static int
+int
 devclass_delete_driver(devclass_t busclass, driver_t *driver)
 {
 	devclass_t dc = devclass_find(driver->name);
