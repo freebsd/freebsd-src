@@ -87,6 +87,11 @@ device		cpufreq
 device		acpi
 device		pci
 
+# Infiniband Bus and drivers
+device		infiniband
+device		mlx4
+device		mthca
+
 # Floppy drives
 device		fdc
 
