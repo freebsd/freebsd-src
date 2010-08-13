@@ -35,6 +35,7 @@ CPU_SENTRY5	opt_global.h
 CPU_HAVEFPU	opt_global.h
 CPU_SB1 	opt_global.h
 CPU_CNMIPS	opt_global.h
+CPU_RMI		opt_global.h
 
 ISA_MIPS1	opt_cputype.h
 ISA_MIPS3	opt_cputype.h
@@ -51,7 +52,6 @@ CFE_ENV_SIZE	opt_global.h
 
 NOFPU		opt_global.h
 TARGET_EMULATOR	opt_ddb.h
-TARGET_XLR_XLS  opt_global.h
 
 TICK_USE_YAMON_FREQ	opt_global.h
 TICK_USE_MALTA_RTC	opt_global.h
