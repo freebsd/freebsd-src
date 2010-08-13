@@ -43,6 +43,12 @@ if [ -r /var/run/rc.suspend.pid ]; then
 	echo 'rc.resume: killed rc.suspend that was still around'
 fi
 
+if [ -r /var/run/rc.suspend.tch ]; then
+	_t=`cat /var/run/rc.suspend.tch`
+	/sbin/sysctl -n kern.timecounter.hardware=$_t > /dev/null 2>&1
+	/bin/rm -f /var/run/rc.suspend.tch
+fi
+
 # Turns on a power supply of a card in the slot inactivated.
 # See also contrib/pccardq.c (only for PAO users).
 # pccardq | awk -F '~' '$5 == "inactive" \
