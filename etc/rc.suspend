@@ -64,11 +64,11 @@ esac
 # suspend and reloading it on resume.  Example:
 # kldunload usb
 
-logger -t $subsystem suspend at `date +'%Y%m%d %H:%M:%S'`
-sync && sync && sync
-sleep 3
+/usr/bin/logger -t $subsystem suspend at `/bin/date +'%Y%m%d %H:%M:%S'`
+/bin/sync && /bin/sync && /bin/sync
+/bin/sleep 3
 
-rm -f /var/run/rc.suspend.pid
+/bin/rm -f /var/run/rc.suspend.pid
 if [ $subsystem = "apm" ]; then
 	/usr/sbin/zzz
 else
