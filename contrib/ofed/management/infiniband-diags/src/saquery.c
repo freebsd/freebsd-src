@@ -56,6 +56,8 @@
 #include <infiniband/complib/cl_debug.h>
 #include <infiniband/complib/cl_nodenamemap.h>
 
+#include <netinet/in.h>
+
 #include "ibdiag_common.h"
 
 struct query_cmd {
