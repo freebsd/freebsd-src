@@ -42,6 +42,8 @@
 #include <fcntl.h>
 #include <string.h>
 
+#include <sys/sysctl.h>
+
 #include "ibverbs.h"
 
 static char *sysfs_path;
@@ -78,22 +80,21 @@ const char *ibv_get_sysfs_path(void)
 int ibv_read_sysfs_file(const char *dir, const char *file,
 			char *buf, size_t size)
 {
-	char *path;
+	char *path, *s;
 	int fd;
-	int len;
+	size_t len;
 
 	if (asprintf(&path, "%s/%s", dir, file) < 0)
 		return -1;
 
-	fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		free(path);
+	for (s = &path[0]; *s != '\0'; s++)
+		if (*s == '/')
+			*s = '.';
+
+        len = size;
+        if (sysctlbyname(&path[1], buf, &len, NULL, 0) == -1)
 		return -1;
-	}
 
-	len = read(fd, buf, size);
-
-	close(fd);
 	free(path);
 
 	if (len > 0 && buf[len - 1] == '\n')

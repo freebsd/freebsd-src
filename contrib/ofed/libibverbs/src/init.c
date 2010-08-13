@@ -79,6 +79,7 @@ static struct ibv_driver *head_driver, *tail_driver;
 
 static int find_sysfs_devs(void)
 {
+#ifdef __linux__
 	char class_path[IBV_SYSFS_PATH_MAX];
 	DIR *class_dir;
 	struct dirent *dent;
@@ -151,6 +152,57 @@ static int find_sysfs_devs(void)
 
 	closedir(class_dir);
 	return ret;
+#else
+	char class_path[IBV_SYSFS_PATH_MAX];
+	struct ibv_sysfs_dev *sysfs_dev = NULL;
+	char value[8];
+	int ret = 0;
+	int i;
+
+	snprintf(class_path, sizeof class_path, "%s/class/infiniband_verbs",
+		 ibv_get_sysfs_path());
+
+	for (i = 0; i < 256; i++) {
+		if (!sysfs_dev)
+			sysfs_dev = malloc(sizeof *sysfs_dev);
+		if (!sysfs_dev) {
+			ret = ENOMEM;
+			goto out;
+		}
+
+		snprintf(sysfs_dev->sysfs_path, sizeof sysfs_dev->sysfs_path,
+			 "%s/uverbs%d", class_path, i);
+
+		snprintf(sysfs_dev->sysfs_name, sizeof sysfs_dev->sysfs_name,
+			"uverbs%d", i);
+
+		if (ibv_read_sysfs_file(sysfs_dev->sysfs_path, "ibdev",
+					sysfs_dev->ibdev_name,
+					sizeof sysfs_dev->ibdev_name) < 0)
+			continue;
+
+		snprintf(sysfs_dev->ibdev_path, sizeof sysfs_dev->ibdev_path,
+			 "/dev/%s", sysfs_dev->ibdev_name);
+
+		sysfs_dev->next        = sysfs_dev_list;
+		sysfs_dev->have_driver = 0;
+		if (ibv_read_sysfs_file(sysfs_dev->sysfs_path, "abi_version",
+					value, sizeof value) > 0)
+			sysfs_dev->abi_ver = strtol(value, NULL, 10);
+		else
+			sysfs_dev->abi_ver = 0;
+
+		sysfs_dev_list = sysfs_dev;
+		sysfs_dev      = NULL;
+	}
+
+ out:
+	if (sysfs_dev)
+		free(sysfs_dev);
+
+	return ret;
+	
+#endif
 }
 
 void ibv_register_driver(const char *name, ibv_driver_init_func init_func)
@@ -333,13 +385,19 @@ static struct ibv_device *try_driver(struct ibv_driver *driver,
 				     struct ibv_sysfs_dev *sysfs_dev)
 {
 	struct ibv_device *dev;
+	char *path;
 	char value[8];
 
 	dev = driver->init_func(sysfs_dev->sysfs_path, sysfs_dev->abi_ver);
 	if (!dev)
 		return NULL;
 
-	if (ibv_read_sysfs_file(sysfs_dev->ibdev_path, "node_type", value, sizeof value) < 0) {
+	if (asprintf(&path, "/sys/class/infiniband/%s",
+	    strrchr(sysfs_dev->ibdev_path, '/')+1) < 0) {
+		dev->node_type = IBV_NODE_UNKNOWN;
+		goto out;
+	}
+	if (ibv_read_sysfs_file(path, "node_type", value, sizeof value) < 0) {
 		fprintf(stderr, PFX "Warning: no node_type attr under %s.\n",
 			sysfs_dev->ibdev_path);
 			dev->node_type = IBV_NODE_UNKNOWN;
@@ -348,6 +406,8 @@ static struct ibv_device *try_driver(struct ibv_driver *driver,
 		if (dev->node_type < IBV_NODE_CA || dev->node_type > IBV_NODE_RNIC)
 			dev->node_type = IBV_NODE_UNKNOWN;
 	}
+	free(path);
+out:
 
 	switch (dev->node_type) {
 	case IBV_NODE_CA:
