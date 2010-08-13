@@ -46,7 +46,7 @@
 # $FreeBSD$
 
 machine 	mips
-cpu 		CPU_MIPS4KC
+cpu 		CPU_RMI
 ident 		XLR
 
 makeoptions	MODULES_OVERRIDE=""
