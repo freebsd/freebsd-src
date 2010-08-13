@@ -142,7 +142,7 @@ idr_remove(struct idr *idr, int id)
 	 * We could make this non-fatal and unwind but linux dumps a stack
 	 * and a warning so I don't think it's necessary.
 	 */
-	if (il == NULL || (il->bitmap & (1 << idx)) == 0)
+	if (il == NULL || (il->bitmap & (1 << idx)) != 0)
 		panic("idr_remove: Item %d not allocated (%p, %p)\n",
 		    id, idr, il);
 	il->ary[idx] = NULL;
@@ -173,7 +173,7 @@ idr_replace(struct idr *idr, void *ptr, int id)
 	/*
 	 * Replace still returns an error if the item was not allocated.
 	 */
-	if (il != NULL && (il->bitmap & (1 << idx)) == 0) {
+	if (il != NULL && (il->bitmap & (1 << idx)) != 0) {
 		res = il->ary[idx];
 		il->ary[idx] = ptr;
 	}

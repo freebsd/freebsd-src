@@ -29,6 +29,8 @@
 #ifndef	_LINUX_IDR_H_
 #define	_LINUX_IDR_H_
 
+#include <sys/kernel.h>
+
 #define	IDR_BITS	5
 #define	IDR_SIZE	(1 << IDR_BITS)
 #define	IDR_MASK	(IDR_SIZE - 1)
@@ -44,13 +46,16 @@ struct idr_layer {
 };
 
 struct idr {
+	struct mtx		lock;
 	struct idr_layer	*top;
 	struct idr_layer	*free;
 	int			layers;
-	struct mtx		lock;
 };
 
-#define DEFINE_IDR(name)        struct idr name
+#define DEFINE_IDR(name)						\
+	struct idr name;						\
+	SYSINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
+	    idr_init, &(name));
 
 void	*idr_find(struct idr *idp, int id);
 int	idr_pre_get(struct idr *idp, gfp_t gfp_mask);
