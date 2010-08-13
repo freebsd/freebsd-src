@@ -248,23 +248,16 @@ taskqueue_run(struct taskqueue *queue, struct task **tpp)
 void
 taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
-	if (queue->tq_spin) {		/* XXX */
-		mtx_lock_spin(&queue->tq_mutex);
-		while (task->ta_pending != 0 ||
-		    (task->ta_running != NULL && task == *task->ta_running)) {
-			msleep_spin(task, &queue->tq_mutex, "-", 0);
-		}
-		mtx_unlock_spin(&queue->tq_mutex);
-	} else {
+
+	if (!queue->tq_spin)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
-		mtx_lock(&queue->tq_mutex);
-		while (task->ta_pending != 0 ||
-		    (task->ta_running != NULL && task == *task->ta_running)) {
-			msleep(task, &queue->tq_mutex, PWAIT, "-", 0);
-		}
-		mtx_unlock(&queue->tq_mutex);
+	TQ_LOCK(queue);
+	while (task->ta_pending != 0 ||
+	    (task->ta_running != NULL && task == *task->ta_running)) {
+		TQ_SLEEP(queue, task, &queue->tq_mutex, PWAIT, "-", 0);
 	}
+	TQ_UNLOCK(queue);
 }
 
 static void
