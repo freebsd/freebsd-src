@@ -641,7 +641,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	char *lastarg;
 	int realstatus;
 	int do_clearcmdentry;
-	char *path = pathval();
+	const char *path = pathval();
 
 	/* First expand the arguments. */
 	TRACE(("evalcommand(%p, %d) called\n", (void *)cmd, flags));
