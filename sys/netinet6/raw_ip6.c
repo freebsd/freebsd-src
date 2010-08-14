@@ -248,6 +248,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			}
 			if (blocked != MCAST_PASS) {
 				IP6STAT_INC(ip6s_notmember);
+				INP_RUNLOCK(in6p);
 				continue;
 			}
 		}
