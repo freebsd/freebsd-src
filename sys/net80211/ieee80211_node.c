@@ -817,7 +817,8 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	if (ieee80211_iserp_rateset(&ni->ni_rates))
 		ni->ni_flags |= IEEE80211_NODE_ERP;
 	ieee80211_node_setuptxparms(ni);
-	ieee80211_ratectl_node_init(ni);
+	if (vap->iv_caps & IEEE80211_C_RATECTL)
+		ieee80211_ratectl_node_init(ni);
 
 	return ieee80211_sta_join1(ieee80211_ref_node(ni));
 }
@@ -1037,7 +1038,8 @@ node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 
-	ieee80211_ratectl_node_deinit(ni);
+	if (ni->ni_vap->iv_caps & IEEE80211_C_RATECTL)
+		ieee80211_ratectl_node_deinit(ni);
 	ic->ic_node_cleanup(ni);
 	ieee80211_ies_cleanup(&ni->ni_ies);
 	ieee80211_psq_cleanup(&ni->ni_psq);

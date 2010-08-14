@@ -511,7 +511,8 @@ bwi_attach(struct bwi_softc *sc)
 		      IEEE80211_C_SHPREAMBLE |
 		      IEEE80211_C_WPA |
 		      IEEE80211_C_BGSCAN |
-		      IEEE80211_C_MONITOR;
+		      IEEE80211_C_MONITOR |
+		      IEEE80211_C_RATECTL;
 	ic->ic_opmode = IEEE80211_M_STA;
 	ieee80211_ifattach(ic, macaddr);
 
