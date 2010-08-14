@@ -221,7 +221,7 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, inflight, CTLFLAG_RW, 0,
     "TCP inflight data limiting");
 
-static VNET_DEFINE(int, tcp_inflight_enable) = 1;
+static VNET_DEFINE(int, tcp_inflight_enable) = 0;
 #define	V_tcp_inflight_enable		VNET(tcp_inflight_enable)
 SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, enable, CTLFLAG_RW,
     &VNET_NAME(tcp_inflight_enable), 0,
