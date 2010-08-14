@@ -1018,7 +1018,7 @@ load_rc_config()
 
 	# Old variable name support -- Remove before 9.0-RELEASE
 	#
-	[ -n "$enable_quotas" ] && err 1 "enable_quotas is deprecated, use quotas_enable"
+	[ -n "$enable_quotas" ] && err 1 "enable_quotas is deprecated, use quota_enable"
 
 	# Set defaults if defined.
 	for _var in $rcvar $rcvars; do
