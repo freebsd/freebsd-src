@@ -115,7 +115,7 @@ ar5416IQCalibration(struct ath_hal *ah, uint8_t numChains)
 			if (qCoff > 15)
 				qCoff = 15;
 			else if (qCoff <= -16)
-				qCoff = 16;
+				qCoff = -16;
 			HALDEBUG(ah, HAL_DEBUG_PERCAL,
 			    " : iCoff = 0x%x  qCoff = 0x%x\n", iCoff, qCoff);
 
