@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Convert an expression of the following forms to a int64_t.
- * 	1) A positive decimal number.
+ *	1) A positive decimal number.
  *	2) A positive decimal number followed by a 'b' or 'B' (mult by 1).
  *	3) A positive decimal number followed by a 'k' or 'K' (mult by 1 << 10).
  *	4) A positive decimal number followed by a 'm' or 'M' (mult by 1 << 20).
@@ -47,14 +47,12 @@ __FBSDID("$FreeBSD$");
  *	8) A positive decimal number followed by a 'e' or 'E' (mult by 1 << 60).
  */
 int
-expand_number(const char *buf, int64_t *num)
+expand_number(const char *buf, uint64_t *num)
 {
-	static const char unit[] = "bkmgtpe";
-	char *endptr, s;
-	int64_t number;
-	int i;
+	uint64_t number;
+	char *endptr;
 
-	number = strtoimax(buf, &endptr, 0);
+	number = strtoumax(buf, &endptr, 0);
 
 	if (endptr == buf) {
 		/* No valid digits. */
@@ -68,15 +66,23 @@ expand_number(const char *buf, int64_t *num)
 		return (0);
 	}
 
-	s = tolower(*endptr);
-	switch (s) {
-	case 'b':
-	case 'k':
-	case 'm':
-	case 'g':
-	case 't':
-	case 'p':
+#define SHIFT(n, b)							\
+	do { if ((n << b) < n) goto overflow; n <<= b; } while (0)
+
+	switch (tolower((unsigned char)*endptr)) {
 	case 'e':
+		SHIFT(number, 10);
+	case 'p':
+		SHIFT(number, 10);
+	case 't':
+		SHIFT(number, 10);
+	case 'g':
+		SHIFT(number, 10);
+	case 'm':
+		SHIFT(number, 10);
+	case 'k':
+		SHIFT(number, 10);
+	case 'b':
 		break;
 	default:
 		/* Unrecognized unit. */
@@ -84,17 +90,11 @@ expand_number(const char *buf, int64_t *num)
 		return (-1);
 	}
 
-	for (i = 0; unit[i] != '\0'; i++) {
-		if (s == unit[i])
-			break;
-		if ((number < 0 && (number << 10) > number) ||
-		    (number >= 0 && (number << 10) < number)) {
-			errno = ERANGE;
-			return (-1);
-		}
-		number <<= 10;
-	}
-
 	*num = number;
 	return (0);
+
+overflow:
+	/* Overflow */
+	errno = ERANGE;
+	return (-1);
 }
