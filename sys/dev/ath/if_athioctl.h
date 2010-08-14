@@ -118,7 +118,8 @@ struct ath_stats {
 	u_int32_t	ast_tdma_ack;	/* TDMA tx failed 'cuz ACK required */
 	u_int32_t	ast_tx_raw_fail;/* raw tx failed 'cuz h/w down */
 	u_int32_t	ast_tx_nofrag;	/* tx dropped 'cuz no ath frag buffer */
-	u_int32_t	ast_pad[14];
+	u_int32_t	ast_be_missed;	/* missed beacons */
+	u_int32_t	ast_pad[13];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
