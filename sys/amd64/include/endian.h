@@ -83,7 +83,7 @@ __byte_swap_int_var(__uint32_t x)
 #ifdef __OPTIMIZE__
 
 #define	__byte_swap_int_const(x) \
-	((((x) & 0xff000000) >> 24) | \
+	(__uint32_t)((((x) & 0xff000000) >> 24) | \
 	 (((x) & 0x00ff0000) >>  8) | \
 	 (((x) & 0x0000ff00) <<  8) | \
 	 (((x) & 0x000000ff) << 24))
@@ -109,7 +109,7 @@ __byte_swap_long_var(__uint64_t x)
 #ifdef __OPTIMIZE__
 
 #define	__byte_swap_long_const(x) \
-	((__uint64_t)(((__uint64_t)x >> 56) |		\
+	(__uint64_t)((((__uint64_t)x >> 56) |		\
 	 (((__uint64_t)x >> 40) & 0xff00) |		\
 	 (((__uint64_t)x >> 24) & 0xff0000) |		\
 	 (((__uint64_t)x >> 8) & 0xff000000) |		\
