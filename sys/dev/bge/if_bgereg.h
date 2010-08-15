@@ -2086,9 +2086,6 @@ struct bge_status_block {
 	struct bge_sts_idx	bge_idx[16];
 };
 
-#define	BGE_TX_CONSIDX(x, i) x->bge_idx[i].bge_tx_considx
-#define	BGE_RX_PRODIDX(x, i) x->bge_idx[i].bge_rx_prodidx
-
 #define	BGE_STATFLAG_UPDATED		0x00000001
 #define	BGE_STATFLAG_LINKSTATE_CHANGED	0x00000002
 #define	BGE_STATFLAG_ERROR		0x00000004
@@ -2475,14 +2472,8 @@ struct bge_gib {
 	pci_write_config(dev, reg, (pci_read_config(dev, reg, s) & ~(x)), s)
 
 /*
- * Memory management stuff. Note: the SSLOTS, MSLOTS and JSLOTS
- * values are tuneable. They control the actual amount of buffers
- * allocated for the standard, mini and jumbo receive rings.
+ * Memory management stuff.
  */
-
-#define	BGE_SSLOTS	256
-#define	BGE_MSLOTS	256
-#define	BGE_JSLOTS	384
 
 #define	BGE_NSEG_JUMBO	4
 #define	BGE_NSEG_NEW	32
