@@ -6313,6 +6313,7 @@ struct fw_info {
 
 #define BCE_DMA_ALIGN		8
 #define BCE_DMA_BOUNDARY	0
+#define BCE_RX_BUF_ALIGN	16
 
 #define BCE_MAX_CONTEXT		4
 
