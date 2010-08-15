@@ -480,7 +480,7 @@ sge_rxfilter(struct sge_softc *sc)
 		}
 		if_maddr_runlock(ifp);
 	}
-	CSR_WRITE_2(sc, RxMacControl, rxfilt | 0x02);
+	CSR_WRITE_2(sc, RxMacControl, rxfilt);
 	CSR_WRITE_4(sc, RxHashTable, hashes[0]);
 	CSR_WRITE_4(sc, RxHashTable2, hashes[1]);
 }
@@ -1118,8 +1118,7 @@ sge_newbuf(struct sge_softc *sc, int prod)
 	desc->sge_flags = htole32(segs[0].ds_len);
 	if (prod == SGE_RX_RING_CNT - 1)
 		desc->sge_flags |= htole32(RING_END);
-	desc->sge_cmdsts = htole32(RDC_OWN | RDC_INTR | RDC_IP_CSUM |
-	    RDC_TCP_CSUM | RDC_UDP_CSUM);
+	desc->sge_cmdsts = htole32(RDC_OWN | RDC_INTR);
 	return (0);
 }
 
@@ -1133,8 +1132,7 @@ sge_discard_rxbuf(struct sge_softc *sc, int index)
 	desc->sge_flags = htole32(MCLBYTES - SGE_RX_BUF_ALIGN);
 	if (index == SGE_RX_RING_CNT - 1)
 		desc->sge_flags |= htole32(RING_END);
-	desc->sge_cmdsts = htole32(RDC_OWN | RDC_INTR | RDC_IP_CSUM |
-	    RDC_TCP_CSUM | RDC_UDP_CSUM);
+	desc->sge_cmdsts = htole32(RDC_OWN | RDC_INTR);
 }
 
 /*
@@ -1665,7 +1663,7 @@ sge_init_locked(struct sge_softc *sc)
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		CSR_WRITE_1(sc, RxMacAddr + i, IF_LLADDR(ifp)[i]);
 	/* Configure RX MAC. */
-	rxfilt = RXMAC_STRIP_FCS | RXMAC_PAD_ENB;
+	rxfilt = RXMAC_STRIP_FCS | RXMAC_PAD_ENB | RXMAC_CSUM_ENB;
 	CSR_WRITE_2(sc, RxMacControl, rxfilt);
 	sge_rxfilter(sc);
 	sge_setvlan(sc);
