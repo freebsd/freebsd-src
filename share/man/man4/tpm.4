@@ -15,14 +15,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2010
+.Dd August 15, 2010
 .Dt TPM 4
 .Os
 .Sh NAME
 .Nm tpm
 .Nd Trusted Platform Module
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device tpm"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+tpm_load="YES"
+.Ed
 .Pp
 In
 .Pa /boot/device.hints :
@@ -62,7 +74,7 @@ interrupt vector in
 .Pa /boot/device.hints .
 .Sh SEE ALSO
 .Xr intro 4 ,
-.Xr files.conf 5,
+.Xr device.hints 5 ,
 .Xr config 8
 .Sh AUTHORS
 .An -nosplit
