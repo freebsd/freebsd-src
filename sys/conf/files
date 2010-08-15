@@ -285,6 +285,7 @@ contrib/dev/acpica/utilities/utmath.c		optional acpi
 contrib/dev/acpica/utilities/utmisc.c		optional acpi
 contrib/dev/acpica/utilities/utmutex.c		optional acpi
 contrib/dev/acpica/utilities/utobject.c		optional acpi
+contrib/dev/acpica/utilities/utosi.c		optional acpi
 contrib/dev/acpica/utilities/utresrc.c		optional acpi
 contrib/dev/acpica/utilities/utstate.c		optional acpi
 contrib/dev/acpica/utilities/utxface.c		optional acpi
@@ -428,7 +429,6 @@ dev/aac/aac_disk.c		optional aac
 dev/aac/aac_linux.c		optional aac compat_linux
 dev/aac/aac_pci.c		optional aac pci
 dev/acpi_support/acpi_wmi.c	optional acpi_wmi acpi
-dev/acpi_support/acpi_aiboost.c	optional acpi_aiboost acpi
 dev/acpi_support/acpi_asus.c	optional acpi_asus acpi
 dev/acpi_support/acpi_fujitsu.c	optional acpi_fujitsu acpi
 dev/acpi_support/acpi_hp.c	optional acpi_hp acpi
@@ -1220,7 +1220,21 @@ iwn6000fw.fwo			optional iwn6000fw | iwnfw		\
 	clean		"iwn6000fw.fwo"
 iwn6000.fw			optional iwn6000fw | iwnfw		\
 	dependency	".PHONY"					\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.193.4.1.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.221.4.1.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwn6000.fw"
+iwn6050fw.c			optional iwn6050fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6050.fw:iwn6050fw -miwn6050fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn6050fw.c"
+iwn6050fw.fwo			optional iwn6050fw | iwnfw		\
+	dependency	"iwn6050.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6050.fw" \
+	no-implicit-rule						\
+	clean		"iwn6050fw.fwo"
+iwn6050.fw			optional iwn6050fw | iwnfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6050-9.201.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn6000.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
@@ -1845,7 +1859,7 @@ dev/wi/if_wi_pccard.c		optional wi pccard
 dev/wi/if_wi_pci.c		optional wi pci
 dev/wl/if_wl.c			optional wl isa
 wpifw.c			optional wpifw					\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk wpi.fw:wpifw:2144 -lintel_wpi -mwpi -c${.TARGET}" \
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk wpi.fw:wpifw:2144 -mwpi -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
 	clean		"wpifw.c"
 wpifw.fwo			optional wpifw				\
@@ -1900,7 +1914,6 @@ fs/nfsclient/nfs_clrpcops.c	optional nfscl
 fs/nfsclient/nfs_clvnops.c	optional nfscl
 fs/nfsclient/nfs_clnode.c	optional nfscl
 fs/nfsclient/nfs_clvfsops.c	optional nfscl
-fs/nfsclient/nfs_cllock.c	optional nfscl
 fs/nfsclient/nfs_clport.c	optional nfscl
 fs/nfsclient/nfs_clbio.c	optional nfscl
 fs/nfsclient/nfs_clnfsiod.c	optional nfscl
@@ -2667,6 +2680,7 @@ netsmb/smb_subr.c		optional netsmb
 netsmb/smb_trantcp.c		optional netsmb
 netsmb/smb_usr.c		optional netsmb
 nfs/nfs_common.c		optional nfsclient | nfsserver
+nfs/nfs_lock.c			optional nfsclient | nfscl
 nfsclient/bootp_subr.c		optional bootp nfsclient
 nfsclient/krpc_subr.c		optional bootp nfsclient
 nfsclient/nfs_bio.c		optional nfsclient
@@ -2677,7 +2691,6 @@ nfsclient/nfs_subs.c		optional nfsclient
 nfsclient/nfs_nfsiod.c		optional nfsclient
 nfsclient/nfs_vfsops.c		optional nfsclient
 nfsclient/nfs_vnops.c		optional nfsclient
-nfsclient/nfs_lock.c		optional nfsclient
 nfsserver/nfs_fha.c		optional nfsserver
 nfsserver/nfs_serv.c		optional nfsserver
 nfsserver/nfs_srvkrpc.c		optional nfsserver

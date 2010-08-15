@@ -105,7 +105,6 @@ static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
 static int do_execve(struct thread *td, struct image_args *args,
     struct mac *mac_p);
-static void exec_free_args(struct image_args *);
 
 /* XXX This should be vm_size_t. */
 SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
@@ -376,7 +375,7 @@ do_execve(td, args, mac_p)
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
 	imgp->opened = 0;
-	imgp->interpreter_name = args->buf + PATH_MAX + ARG_MAX;
+	imgp->interpreter_name = NULL;
 	imgp->auxargs = NULL;
 	imgp->vp = NULL;
 	imgp->object = NULL;
@@ -753,12 +752,11 @@ interpret:
 	p->p_flag &= ~P_INEXEC;
 
 	/*
-	 * If tracing the process, trap to debugger so breakpoints
-	 * can be set before the program executes.
-	 * Use tdsignal to deliver signal to current thread, using
-	 * psignal may cause the signal to be delivered to wrong thread
-	 * because that thread will exit, remember we are going to enter
-	 * single thread mode.
+	 * If tracing the process, trap to the debugger so that
+	 * breakpoints can be set before the program executes.  We
+	 * have to use tdsignal() to deliver the signal to the current
+	 * thread since any other threads in this process will exit if
+	 * execve() succeeds.
 	 */
 	if (p->p_flag & P_TRACED)
 		tdsignal(td, SIGTRAP);
@@ -1080,32 +1078,31 @@ exec_copyin_args(struct image_args *args, char *fname,
 	bzero(args, sizeof(*args));
 	if (argv == NULL)
 		return (EFAULT);
+
 	/*
-	 * Allocate temporary demand zeroed space for argument and
-	 *	environment strings:
-	 *
-	 * o ARG_MAX for argument and environment;
-	 * o MAXSHELLCMDLEN for the name of interpreters.
+	 * Allocate demand-paged memory for the file name, argument, and
+	 * environment strings.
 	 */
-	args->buf = (char *) kmem_alloc_wait(exec_map,
-	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
-	if (args->buf == NULL)
-		return (ENOMEM);
-	args->begin_argv = args->buf;
-	args->endp = args->begin_argv;
-	args->stringspace = ARG_MAX;
+	error = exec_alloc_args(args);
+	if (error != 0)
+		return (error);
+
 	/*
 	 * Copy the file name.
 	 */
 	if (fname != NULL) {
-		args->fname = args->buf + ARG_MAX;
+		args->fname = args->buf;
 		error = (segflg == UIO_SYSSPACE) ?
 		    copystr(fname, args->fname, PATH_MAX, &length) :
 		    copyinstr(fname, args->fname, PATH_MAX, &length);
 		if (error != 0)
 			goto err_exit;
 	} else
-		args->fname = NULL;
+		length = 0;
+
+	args->begin_argv = args->buf + length;
+	args->endp = args->begin_argv;
+	args->stringspace = ARG_MAX;
 
 	/*
 	 * extract arguments first
@@ -1156,14 +1153,31 @@ err_exit:
 	return (error);
 }
 
-static void
+/*
+ * Allocate temporary demand-paged, zero-filled memory for the file name,
+ * argument, and environment strings.  Returns zero if the allocation succeeds
+ * and ENOMEM otherwise.
+ */
+int
+exec_alloc_args(struct image_args *args)
+{
+
+	args->buf = (char *)kmem_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
+	return (args->buf != NULL ? 0 : ENOMEM);
+}
+
+void
 exec_free_args(struct image_args *args)
 {
 
-	if (args->buf) {
+	if (args->buf != NULL) {
 		kmem_free_wakeup(exec_map, (vm_offset_t)args->buf,
-		    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
+		    PATH_MAX + ARG_MAX);
 		args->buf = NULL;
+	}
+	if (args->fname_buf != NULL) {
+		free(args->fname_buf, M_TEMP);
+		args->fname_buf = NULL;
 	}
 }
 

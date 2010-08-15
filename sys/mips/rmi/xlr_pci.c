@@ -223,7 +223,7 @@ static uint32_t
 pci_cfg_read_32bit(uint32_t addr)
 {
 	uint32_t temp = 0;
-	uint32_t *p = (uint32_t *) ((uint32_t) xlr_pci_config_base + (addr & ~3));
+	uint32_t *p = (uint32_t *)xlr_pci_config_base + addr / sizeof(uint32_t);
 	uint64_t cerr_cpu_log = 0;
 
 	disable_and_clear_cache_error();
@@ -285,7 +285,7 @@ xlr_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
 		data = val;
 	}
 
-	p = (uint32_t *)((uint32_t) xlr_pci_config_base + (cfgaddr & ~3));
+	p = (uint32_t *)xlr_pci_config_base + cfgaddr / sizeof(uint32_t);
 	*p = bswap32(data);
 
 	return;
@@ -410,7 +410,7 @@ bridge_pcix_mask_ack(void *arg)
 static void
 bridge_pcie_ack(void *arg)
 {
-	int irq = (int)arg;
+	int irq = (intptr_t)arg;
 	uint32_t reg;
 	xlr_reg_t *pcie_mmio_le = xlr_io_mmio(XLR_IO_PCIE_1_OFFSET);
 

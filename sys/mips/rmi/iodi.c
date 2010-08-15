@@ -115,7 +115,7 @@ iodi_setup_intr(device_t dev, device_t child,
 		int irq;
 
 		/* This is a hack to pass in the irq */
-		irq = (int)ires->__r_i;
+		irq = (intptr_t)ires->__r_i;
 		if (rmi_spin_mutex_safe)
 			mtx_lock_spin(&xlr_pic_lock);
 		reg = xlr_read_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE);
@@ -178,10 +178,10 @@ iodi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 		res->r_bustag = uart_bus_space_mem;
 	} else if (strcmp(device_get_name(child), "ehci") == 0) {
-		res->r_bushandle = 0xbef24000;
+		res->r_bushandle = MIPS_PHYS_TO_KSEG1(0x1ef24000);
 		res->r_bustag = rmi_pci_bus_space;
 	} else if (strcmp(device_get_name(child), "cfi") == 0) {
-		res->r_bushandle = 0xbc000000;
+		res->r_bushandle = MIPS_PHYS_TO_KSEG1(0x1c000000);
 		res->r_bustag = 0;
 	}
 	/* res->r_start = *rid; */

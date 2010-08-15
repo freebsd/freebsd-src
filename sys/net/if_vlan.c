@@ -688,6 +688,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	struct ifvlan *ifv;
 	struct ifnet *ifp;
 	struct ifnet *p;
+	struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
 	struct vlanreq vlr;
 	static const u_char eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
@@ -786,6 +788,9 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_baudrate = 0;
 	ifp->if_type = IFT_L2VLAN;
 	ifp->if_hdrlen = ETHER_VLAN_ENCAP_LEN;
+	ifa = ifp->if_addr;
+	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+	sdl->sdl_type = IFT_L2VLAN;
 
 	if (ethertag) {
 		error = vlan_config(ifv, p, tag);

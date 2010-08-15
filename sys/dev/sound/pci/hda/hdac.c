@@ -4314,7 +4314,6 @@ hdac_attach_fail:
 	hdac_dma_free(sc, &sc->corb_dma);
 	hdac_mem_free(sc);
 	snd_mtxfree(sc->lock);
-	free(sc, M_DEVBUF);
 
 	return (ENXIO);
 }

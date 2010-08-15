@@ -16,8 +16,12 @@ CFLAGS+=	-I${.CURDIR}/../../contrib/libfdt/ -I${.CURDIR}/../common/ \
 
 CFLAGS+=	-ffreestanding
 
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-m32
 .endif
 
 CFLAGS+=	-Wformat -Wall

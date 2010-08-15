@@ -851,7 +851,7 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		 * IPI the target cpu to force it to reschedule with the new
 		 * workload.
 		 */
-		ipi_selected(1 << TDQ_ID(low), IPI_PREEMPT);
+		ipi_cpu(TDQ_ID(low), IPI_PREEMPT);
 	}
 	tdq_unlock_pair(high, low);
 	return (moved);
@@ -974,7 +974,7 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 			return;
 	}
 	tdq->tdq_ipipending = 1;
-	ipi_selected(1 << cpu, IPI_PREEMPT);
+	ipi_cpu(cpu, IPI_PREEMPT);
 }
 
 /*
@@ -2411,7 +2411,7 @@ sched_affinity(struct thread *td)
 	cpu = ts->ts_cpu;
 	ts->ts_cpu = sched_pickcpu(td, 0);
 	if (cpu != PCPU_GET(cpuid))
-		ipi_selected(1 << cpu, IPI_PREEMPT);
+		ipi_cpu(cpu, IPI_PREEMPT);
 #endif
 }
 
@@ -2656,16 +2656,16 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	}
 	sbuf_printf(sb, "</cpu>\n");
 
-	sbuf_printf(sb, "%*s <flags>", indent, "");
 	if (cg->cg_flags != 0) {
+		sbuf_printf(sb, "%*s <flags>", indent, "");
 		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
 			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>");
 		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
 			sbuf_printf(sb, "<flag name=\"THREAD\">THREAD group</flag>");
 		if ((cg->cg_flags & CG_FLAG_SMT) != 0)
 			sbuf_printf(sb, "<flag name=\"SMT\">SMT group</flag>");
+		sbuf_printf(sb, "</flags>\n");
 	}
-	sbuf_printf(sb, "</flags>\n");
 
 	if (cg->cg_children > 0) {
 		sbuf_printf(sb, "%*s <children>\n", indent, "");

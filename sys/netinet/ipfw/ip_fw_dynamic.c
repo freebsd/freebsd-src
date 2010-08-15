@@ -894,10 +894,7 @@ struct mbuf *
 ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
     u_int32_t ack, int flags)
 {
-#ifndef __FreeBSD__
-	return NULL;
-#else
-	struct mbuf *m;
+	struct mbuf *m = NULL;		/* stupid compiler */
 	int len, dir;
 	struct ip *h = NULL;		/* stupid compiler */
 #ifdef INET6
@@ -1033,7 +1030,6 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 	}
 
 	return (m);
-#endif /* __FreeBSD__ */
 }
 
 /*
@@ -1131,8 +1127,8 @@ ipfw_tick(void * vnetx)
 	}
 #endif
 done:
-	callout_reset(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
-		      ipfw_tick, vnetx);
+	callout_reset_on(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
+		      ipfw_tick, vnetx, 0);
 	CURVNET_RESTORE();
 }
 
@@ -1173,7 +1169,7 @@ ipfw_dyn_init(void)
         
         V_dyn_max = 4096;       /* max # of dynamic rules */
         callout_init(&V_ipfw_timeout, CALLOUT_MPSAFE);
-        callout_reset(&V_ipfw_timeout, hz, ipfw_tick, curvnet);
+        callout_reset_on(&V_ipfw_timeout, hz, ipfw_tick, curvnet, 0);
 }
 
 void

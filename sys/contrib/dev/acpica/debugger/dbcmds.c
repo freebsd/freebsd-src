@@ -1336,6 +1336,98 @@ AcpiDbDisplayObjects (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDbDisplayInterfaces
+ *
+ * PARAMETERS:  ActionArg           - Null, "install", or "remove"
+ *              InterfaceNameArg    - Name for install/remove options
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display or modify the global _OSI interface list
+ *
+ ******************************************************************************/
+
+void
+AcpiDbDisplayInterfaces (
+    char                    *ActionArg,
+    char                    *InterfaceNameArg)
+{
+    ACPI_INTERFACE_INFO     *NextInterface;
+    char                    *SubString;
+    ACPI_STATUS             Status;
+
+
+    /* If no arguments, just display current interface list */
+
+    if (!ActionArg)
+    {
+        (void) AcpiOsAcquireMutex (AcpiGbl_OsiMutex,
+                    ACPI_WAIT_FOREVER);
+
+        NextInterface = AcpiGbl_SupportedInterfaces;
+
+        while (NextInterface)
+        {
+            if (!(NextInterface->Flags & ACPI_OSI_INVALID))
+            {
+                AcpiOsPrintf ("%s\n", NextInterface->Name);
+            }
+            NextInterface = NextInterface->Next;
+        }
+
+        AcpiOsReleaseMutex (AcpiGbl_OsiMutex);
+        return;
+    }
+
+    /* If ActionArg exists, so must InterfaceNameArg */
+
+    if (!InterfaceNameArg)
+    {
+        AcpiOsPrintf ("Missing Interface Name argument\n");
+        return;
+    }
+
+    /* Uppercase the action for match below */
+
+    AcpiUtStrupr (ActionArg);
+
+    /* Install - install an interface */
+
+    SubString = ACPI_STRSTR ("INSTALL", ActionArg);
+    if (SubString)
+    {
+        Status = AcpiInstallInterface (InterfaceNameArg);
+        if (ACPI_FAILURE (Status))
+        {
+            AcpiOsPrintf ("%s, while installing \"%s\"\n",
+                AcpiFormatException (Status), InterfaceNameArg);
+        }
+        return;
+    }
+
+    /* Remove - remove an interface */
+
+    SubString = ACPI_STRSTR ("REMOVE", ActionArg);
+    if (SubString)
+    {
+        Status = AcpiRemoveInterface (InterfaceNameArg);
+        if (ACPI_FAILURE (Status))
+        {
+            AcpiOsPrintf ("%s, while removing \"%s\"\n",
+                AcpiFormatException (Status), InterfaceNameArg);
+        }
+        return;
+    }
+
+    /* Invalid ActionArg */
+
+    AcpiOsPrintf ("Invalid action argument: %s\n", ActionArg);
+    return;
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDbWalkAndMatchName
  *
  * PARAMETERS:  Callback from WalkNamespace

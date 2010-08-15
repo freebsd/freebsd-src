@@ -596,6 +596,10 @@ struct ccb_pathinq {
 		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
 	u_int		maxio;		/* Max supported I/O size, in bytes. */
+	u_int16_t	hba_vendor;	/* HBA vendor ID */
+	u_int16_t	hba_device;	/* HBA device ID */
+	u_int16_t	hba_subvendor;	/* HBA subvendor ID */
+	u_int16_t	hba_subdevice;	/* HBA subdevice ID */
 };
 
 /* Path Statistics CCB */

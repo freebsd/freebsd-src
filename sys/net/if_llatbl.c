@@ -234,8 +234,6 @@ lltable_init(struct ifnet *ifp, int af)
 	register int i;
 
 	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK);
-	if (llt == NULL)
-		return (NULL);
 
 	llt->llt_af = af;
 	llt->llt_ifp = ifp;
@@ -323,7 +321,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	LLTABLE_RUNLOCK();
 	KASSERT(llt != NULL, ("Yep, ugly hacks are bad\n"));
 
-	if (flags && LLE_CREATE)
+	if (flags & LLE_CREATE)
 		flags |= LLE_EXCLUSIVE;
 	
 	IF_AFDATA_LOCK(ifp);
@@ -337,6 +335,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			 * LLE_DELETED flag, and reset the expiration timer
 			 */
 			bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
+			lle->la_flags |= (flags & (LLE_PUB | LLE_PROXY));
 			lle->la_flags |= LLE_VALID;
 			lle->la_flags &= ~LLE_DELETED;
 #ifdef INET6

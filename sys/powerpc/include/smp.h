@@ -40,6 +40,7 @@
 #ifndef LOCORE
 
 void	ipi_all_but_self(int ipi);
+void	ipi_cpu(int cpu, u_int ipi);
 void	ipi_selected(cpumask_t cpus, int ipi);
 
 struct cpuref {
@@ -48,6 +49,7 @@ struct cpuref {
 };
 
 void	pmap_cpu_bootstrap(int);
+void	cpudep_ap_early_bootstrap(void);
 uintptr_t cpudep_ap_bootstrap(void);
 void	cpudep_ap_setup(void);
 void	machdep_ap_bootstrap(void);

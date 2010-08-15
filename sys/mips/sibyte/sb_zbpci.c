@@ -457,7 +457,6 @@ static device_method_t zbpci_methods[] ={
  * consider drivers belonging to the "pcib" when probing children of
  * "zbpci".
  */
-DECLARE_CLASS(pcib_driver);
 DEFINE_CLASS_1(zbpci, zbpci_driver, zbpci_methods, 0, pcib_driver);
 
 static devclass_t zbpci_devclass;

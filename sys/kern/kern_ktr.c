@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifndef KTR_MASK
-#define	KTR_MASK	(KTR_GEN)
+#define	KTR_MASK	(0)
 #endif
 
 #ifndef KTR_CPUMASK

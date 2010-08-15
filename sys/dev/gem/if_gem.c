@@ -136,7 +136,7 @@ MODULE_DEPEND(gem, miibus, 1, 1, 1);
 
 #ifdef GEM_DEBUG
 #include <sys/ktr.h>
-#define	KTR_GEM		KTR_CT2
+#define	KTR_GEM		KTR_SPARE2
 #endif
 
 #define	GEM_BANK1_BITWAIT(sc, r, clr, set)				\

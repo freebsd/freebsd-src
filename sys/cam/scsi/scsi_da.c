@@ -1310,6 +1310,10 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 	strlcpy(softc->disk->d_ident, cgd->serial_num,
 	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
+	softc->disk->d_hba_vendor = cpi.hba_vendor;
+	softc->disk->d_hba_device = cpi.hba_device;
+	softc->disk->d_hba_subvendor = cpi.hba_subvendor;
+	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
 

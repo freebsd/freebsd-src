@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-.PATH: ${.CURDIR}/${MACHINE_ARCH:S/amd64/i386/}
+.PATH: ${.CURDIR}/${MACHINE_ARCH:S/amd64/i386/:S/powerpc64/powerpc/}
 BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 		prefix.c search.c stack.c tools.c vm.c words.c
 
@@ -14,7 +14,7 @@ CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=	-mno-sse3
 .endif
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "arm" 
 CFLAGS+=	-msoft-float
 .endif
 .if ${MACHINE} == "pc98"
@@ -45,7 +45,11 @@ SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
 CFLAGS+=	-m32 -march=i386 -I.
 .endif
 
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH:S/amd64/i386/} \
+.if ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-m32 -mcpu=powerpc -I.
+.endif
+
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH:S/amd64/i386/:S/powerpc64/powerpc/} \
 		-I${.CURDIR}/../common
 
 softcore.c: ${SOFTWORDS} softcore.awk

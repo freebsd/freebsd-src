@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 OUTPUT_FORMAT("elf32-powerpc", "elf32-powerpc", "elf32-powerpc")
-OUTPUT_ARCH(powerpc)
+OUTPUT_ARCH(powerpc:common)
 ENTRY(_start)
 SEARCH_DIR(/usr/lib);
 PROVIDE (__stack = 0);

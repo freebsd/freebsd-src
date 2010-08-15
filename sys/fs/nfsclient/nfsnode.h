@@ -68,16 +68,6 @@ struct nfsdmap {
 #define	ndm_cookies	ndm_un1.ndmu3_cookies
 #define	ndm4_cookies	ndm_un1.ndmu4_cookies
 
-#define	n_ac_ts_tid		n_ac_ts.nfs_ac_ts_tid
-#define	n_ac_ts_pid		n_ac_ts.nfs_ac_ts_pid
-#define	n_ac_ts_syscalls	n_ac_ts.nfs_ac_ts_syscalls
-
-struct nfs_attrcache_timestamp {
-	lwpid_t		nfs_ac_ts_tid;
-	pid_t		nfs_ac_ts_pid;
-	unsigned long	nfs_ac_ts_syscalls;	
-};
-
 struct nfs_accesscache {
 	u_int32_t		mode;	/* ACCESS mode cache */
 	uid_t			uid;	/* credentials having mode */
@@ -132,7 +122,6 @@ struct nfsnode {
 	u_int32_t		n_flag;		/* Flag for locking.. */
 	int			n_directio_opens;
 	int                     n_directio_asyncwr;
-	struct nfs_attrcache_timestamp n_ac_ts;
 	u_int64_t		 n_change;	/* old Change attribute */
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
 };

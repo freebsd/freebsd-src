@@ -59,7 +59,7 @@ const struct cam_status_entry cam_status_table[] = {
 	{ CAM_REQ_ABORTED,	 "CCB request aborted by the host"	     },
 	{ CAM_UA_ABORT,		 "Unable to abort CCB request"		     },
 	{ CAM_REQ_CMP_ERR,	 "CCB request completed with an error"	     },
-	{ CAM_BUSY,		 "CAM subsytem is busy"			     },
+	{ CAM_BUSY,		 "CAM subsystem is busy"		     },
 	{ CAM_REQ_INVALID,	 "CCB request was invalid"		     },
 	{ CAM_PATH_INVALID,	 "Supplied Path ID is invalid"		     },
 	{ CAM_DEV_NOT_THERE,	 "Device Not Present"			     },

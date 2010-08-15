@@ -29,14 +29,8 @@
 #ifndef _MACHINE_LBC_H_
 #define	_MACHINE_LBC_H_
 
-#define	LBC_IVAR_DEVTYPE	1
-
 /* Maximum number of devices on Local Bus */
 #define	LBC_DEV_MAX	8
-
-/* Device types. */
-#define	LBC_DEVTYPE_CFI		1
-#define	LBC_DEVTYPE_RTC		2
 
 /* Local access registers */
 #define	LBC85XX_BR(n)	(8 * n)
@@ -61,18 +55,42 @@
 #define	LBCRES_ATOM_RAWA	1
 #define	LBCRES_ATOM_WARA	2
 
-struct lbc_resource {
-	int		lbr_devtype;	/* LBC device type */
-	int		lbr_unit;	/* Resource table entry number */
-	vm_paddr_t	lbr_base_addr;	/* Device mem region base address */
-	size_t		lbr_size;	/* Device mem region size */
-	int		lbr_port_size;	/* Data bus width */
-	uint8_t		lbr_msel;	/* LBC machine select */
-	uint8_t		lbr_decc;	/* Data error checking mode */
-	uint8_t		lbr_atom;	/* Atomic operation mode */
-	uint8_t		lbr_wp;		/* Write protect */
+struct lbc_bank {
+	u_long		pa;		/* physical addr of the bank */
+	u_long		size;		/* bank size */
+	vm_offset_t	va;		/* VA of the bank */
+
+	/*
+	 * XXX the following bank attributes do not have properties specified
+	 * in the LBC DTS bindings yet (11.2009), so they are mainly a
+	 * placeholder for future extensions.
+	 */
+	int		width;		/* data bus width */
+	uint8_t		msel;		/* machine select */
+	uint8_t		atom;		/* atomic op mode */
+	uint8_t		wp;		/* write protect */
+	uint8_t		decc;		/* data error checking */
 };
 
-extern const struct lbc_resource mpc85xx_lbc_resources[];
+struct lbc_softc {
+	device_t		sc_dev;
+	struct resource		*sc_res;
+	bus_space_handle_t	sc_bsh;
+	bus_space_tag_t		sc_bst;
+	int			sc_rid;
+
+	struct rman		sc_rman;
+
+	int			sc_addr_cells;
+	int			sc_size_cells;
+
+	struct lbc_bank		sc_banks[LBC_DEV_MAX];
+};
+
+struct lbc_devinfo {
+	struct ofw_bus_devinfo	di_ofw;
+	struct resource_list	di_res;
+	int			di_bank;
+};
 
 #endif /* _MACHINE_LBC_H_ */

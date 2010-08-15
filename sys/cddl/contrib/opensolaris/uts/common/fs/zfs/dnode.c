@@ -156,7 +156,7 @@ dnode_verify(dnode_t *dn)
 	}
 	if (dn->dn_phys->dn_type != DMU_OT_NONE)
 		ASSERT3U(dn->dn_phys->dn_nlevels, <=, dn->dn_nlevels);
-	ASSERT(dn->dn_object == DMU_META_DNODE_OBJECT || dn->dn_dbuf != NULL);
+	ASSERT(DMU_OBJECT_IS_SPECIAL(dn->dn_object) || dn->dn_dbuf != NULL);
 	if (dn->dn_dbuf != NULL) {
 		ASSERT3P(dn->dn_phys, ==,
 		    (dnode_phys_t *)dn->dn_dbuf->db.db_data +
@@ -320,6 +320,7 @@ dnode_destroy(dnode_t *dn)
 	}
 	ASSERT(NULL == list_head(&dn->dn_dbufs));
 #endif
+	ASSERT(dn->dn_oldphys == NULL);
 
 	mutex_enter(&os->os_lock);
 	list_remove(&os->os_dnodes, dn);
@@ -550,6 +551,22 @@ dnode_hold_impl(objset_impl_t *os, uint64_t object, int flag,
 	 */
 	ASSERT(spa_config_held(os->os_spa, SCL_ALL, RW_WRITER) == 0);
 
+	if (object == DMU_USERUSED_OBJECT || object == DMU_GROUPUSED_OBJECT) {
+		dn = (object == DMU_USERUSED_OBJECT) ?
+		    os->os_userused_dnode : os->os_groupused_dnode;
+		if (dn == NULL)
+			return (ENOENT);
+		type = dn->dn_type;
+		if ((flag & DNODE_MUST_BE_ALLOCATED) && type == DMU_OT_NONE)
+			return (ENOENT);
+		if ((flag & DNODE_MUST_BE_FREE) && type != DMU_OT_NONE)
+			return (EEXIST);
+		DNODE_VERIFY(dn);
+		(void) refcount_add(&dn->dn_holds, tag);
+		*dnp = dn;
+		return (0);
+	}
+
 	if (object == 0 || object >= DN_MAX_OBJECT)
 		return (EINVAL);
 
@@ -608,7 +625,8 @@ dnode_hold_impl(objset_impl_t *os, uint64_t object, int flag,
 	type = dn->dn_type;
 	if (dn->dn_free_txg ||
 	    ((flag & DNODE_MUST_BE_ALLOCATED) && type == DMU_OT_NONE) ||
-	    ((flag & DNODE_MUST_BE_FREE) && type != DMU_OT_NONE)) {
+	    ((flag & DNODE_MUST_BE_FREE) &&
+	    (type != DMU_OT_NONE || dn->dn_oldphys))) {
 		mutex_exit(&dn->dn_mtx);
 		dbuf_rele(db, FTAG);
 		return (type == DMU_OT_NONE ? ENOENT : EEXIST);
@@ -673,8 +691,10 @@ dnode_setdirty(dnode_t *dn, dmu_tx_t *tx)
 	objset_impl_t *os = dn->dn_objset;
 	uint64_t txg = tx->tx_txg;
 
-	if (dn->dn_object == DMU_META_DNODE_OBJECT)
+	if (DMU_OBJECT_IS_SPECIAL(dn->dn_object)) {
+		dsl_dataset_dirty(os->os_dsl_dataset, tx);
 		return;
+	}
 
 	DNODE_VERIFY(dn);
 
@@ -1270,7 +1290,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 	dprintf("probing object %llu offset %llx level %d of %u\n",
 	    dn->dn_object, *offset, lvl, dn->dn_phys->dn_nlevels);
 
-	hole = flags & DNODE_FIND_HOLE;
+	hole = ((flags & DNODE_FIND_HOLE) != 0);
 	inc = (flags & DNODE_FIND_BACKWARDS) ? -1 : 1;
 	ASSERT(txg == 0 || !hole);
 

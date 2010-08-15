@@ -1451,7 +1451,7 @@ pmap_ipi(pmap_t pmap, char *func, uint64_t arg1, uint64_t arg2)
 {
 
 	int i, cpu_count, retried;
-	u_int cpus;
+	cpumask_t cpus;
 	cpumask_t cpumask, active, curactive;
 	cpumask_t active_total, ackmask;
 	uint16_t *cpulist;

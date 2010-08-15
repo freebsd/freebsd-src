@@ -256,8 +256,8 @@ ichwd_tmr_set(struct ichwd_softc *sc, unsigned int timeout)
 		uint8_t tmr_val8 = ichwd_read_tco_1(sc, TCO_TMR1);
 
 		tmr_val8 &= 0xc0;
-		if (timeout > 0xbf)
-			timeout = 0xbf;
+		if (timeout > 0x3f)
+			timeout = 0x3f;
 		tmr_val8 |= timeout;
 		ichwd_write_tco_1(sc, TCO_TMR1, tmr_val8);
 	} else {

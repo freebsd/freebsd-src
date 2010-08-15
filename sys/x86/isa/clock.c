@@ -66,9 +66,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
 
+#ifdef PC98
+#include <pc98/pc98/pc98_machdep.h>
+#else
 #include <isa/rtc.h>
+#endif
 #ifdef DEV_ISA
+#ifdef PC98
+#include <pc98/cbus/cbus.h>
+#else
 #include <isa/isareg.h>
+#endif
 #include <isa/isavar.h>
 #endif
 
@@ -78,7 +86,11 @@ __FBSDID("$FreeBSD$");
 
 int	clkintr_pending;
 #ifndef TIMER_FREQ
+#ifdef PC98
+#define TIMER_FREQ   2457600
+#else
 #define TIMER_FREQ   1193182
+#endif
 #endif
 u_int	i8254_freq = TIMER_FREQ;
 TUNABLE_INT("hw.i8254.freq", &i8254_freq);
@@ -94,8 +106,13 @@ static	int	i8254_ticked;
 
 struct attimer_softc {
 	int intr_en;
-	int intr_rid;
+	int port_rid, intr_rid;
+	struct resource *port_res;
 	struct resource *intr_res;
+#ifdef PC98
+	int port_rid2;
+	struct resource *port_res2;
+#endif
 	void *intr_handler;
 	struct timecounter tc;
 	struct eventtimer et;
@@ -131,10 +148,8 @@ clkintr(void *arg)
 		mtx_unlock_spin(&clock_lock);
 	}
 
-	if (sc && sc->et.et_active) {
-		sc->et.et_event_cb(&sc->et,
-		    sc->et.et_arg ? sc->et.et_arg : curthread->td_intr_frame);
-	}
+	if (sc && sc->et.et_active)
+		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
 #ifdef DEV_MCA
 	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
@@ -149,7 +164,11 @@ timer_spkr_acquire(void)
 {
 	int mode;
 
+#ifdef PC98
+	mode = TIMER_SEL1 | TIMER_SQWAVE | TIMER_16BIT;
+#else
 	mode = TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT;
+#endif
 
 	if (timer2_state != RELEASED)
 		return (-1);
@@ -162,7 +181,11 @@ timer_spkr_acquire(void)
 	 * and this is probably good enough for timer2, so we aren't as
 	 * careful with it as with timer0.
 	 */
+#ifdef PC98
+	outb(TIMER_MODE, TIMER_SEL1 | (mode & 0x3f));
+#else
 	outb(TIMER_MODE, TIMER_SEL2 | (mode & 0x3f));
+#endif
 	ppi_spkr_on();		/* enable counter2 output to speaker */
 	return (0);
 }
@@ -174,7 +197,11 @@ timer_spkr_release(void)
 	if (timer2_state != ACQUIRED)
 		return (-1);
 	timer2_state = RELEASED;
+#ifdef PC98
+	outb(TIMER_MODE, TIMER_SEL1 | TIMER_SQWAVE | TIMER_16BIT);
+#else
 	outb(TIMER_MODE, TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT);
+#endif
 	ppi_spkr_off();		/* disable counter2 output to speaker */
 	return (0);
 }
@@ -185,8 +212,13 @@ timer_spkr_setfreq(int freq)
 
 	freq = i8254_freq / freq;
 	mtx_lock_spin(&clock_lock);
+#ifdef PC98
+	outb(TIMER_CNTR1, freq & 0xff);
+	outb(TIMER_CNTR1, freq >> 8);
+#else
 	outb(TIMER_CNTR2, freq & 0xff);
 	outb(TIMER_CNTR2, freq >> 8);
+#endif
 	mtx_unlock_spin(&clock_lock);
 }
 
@@ -292,7 +324,11 @@ DELAY(int n)
 	while (ticks_left > 0) {
 #ifdef KDB
 		if (kdb_active) {
+#ifdef PC98
+			outb(0x5f, 0);
+#else
 			inb(0x84);
+#endif
 			tick = prev_tick - 1;
 			if (tick <= 0)
 				tick = i8254_max_count;
@@ -376,7 +412,9 @@ timer_restore(void)
 {
 
 	i8254_restore();		/* restore i8254_freq and hz */
+#ifndef PC98
 	atrtc_restore();		/* reenable RTC interrupts */
+#endif
 }
 #endif
 
@@ -386,6 +424,10 @@ i8254_init(void)
 {
 
 	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_NOPROFILE);
+#ifdef PC98
+	if (pc98_machine_type & M_8M)
+		i8254_freq = 1996800L; /* 1.9968 MHz */
+#endif
 	set_i8254_freq(i8254_freq, 0);
 }
 
@@ -505,6 +547,51 @@ static struct isa_pnp_id attimer_ids[] = {
 	{ 0 }
 };
 
+#ifdef PC98
+static void
+pc98_alloc_resource(device_t dev)
+{
+	static bus_addr_t iat1[] = {0, 2, 4, 6};
+	static bus_addr_t iat2[] = {0, 4};
+	struct attimer_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	sc->port_rid = 0;
+	bus_set_resource(dev, SYS_RES_IOPORT, sc->port_rid, IO_TIMER1, 1);
+	sc->port_res = isa_alloc_resourcev(dev, SYS_RES_IOPORT,
+	    &sc->port_rid, iat1, 4, RF_ACTIVE);
+	if (sc->port_res == NULL)
+		device_printf(dev, "Warning: Couldn't map I/O.\n");
+	else
+		isa_load_resourcev(sc->port_res, iat1, 4);
+
+	sc->port_rid2 = 4;
+	bus_set_resource(dev, SYS_RES_IOPORT, sc->port_rid2, TIMER_CNTR1, 1);
+	sc->port_res2 = isa_alloc_resourcev(dev, SYS_RES_IOPORT,
+	    &sc->port_rid2, iat2, 2, RF_ACTIVE);
+	if (sc->port_res2 == NULL)
+		device_printf(dev, "Warning: Couldn't map I/O.\n");
+	else
+		isa_load_resourcev(sc->port_res2, iat2, 2);
+}
+
+static void
+pc98_release_resource(device_t dev)
+{
+	struct attimer_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->port_res)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->port_rid,
+		    sc->port_res);
+	if (sc->port_res2)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->port_rid2,
+		    sc->port_res2);
+}
+#endif
+
 static int
 attimer_probe(device_t dev)
 {
@@ -514,6 +601,11 @@ attimer_probe(device_t dev)
 	/* ENOENT means no PnP-ID, device is hinted. */
 	if (result == ENOENT) {
 		device_set_desc(dev, "AT timer");
+#ifdef PC98
+		/* To print resources correctly. */
+		pc98_alloc_resource(dev);
+		pc98_release_resource(dev);
+#endif
 		return (BUS_PROBE_LOW_PRIORITY);
 	}
 	return (result);
@@ -523,10 +615,18 @@ static int
 attimer_attach(device_t dev)
 {
 	struct attimer_softc *sc;
+	u_long s;
 	int i;
 
 	attimer_sc = sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct attimer_softc));
+#ifdef PC98
+	pc98_alloc_resource(dev);
+#else
+	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
+	    &sc->port_rid, IO_TIMER1, IO_TIMER1 + 3, 4, RF_ACTIVE)))
+		device_printf(dev,"Warning: Couldn't map I/O.\n");
+#endif
 	i8254_intsrc = intr_lookup_source(0);
 	if (i8254_intsrc != NULL)
 		i8254_pending = i8254_intsrc->is_pic->pic_source_pending;
@@ -541,7 +641,9 @@ attimer_attach(device_t dev)
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "clock", &i) != 0 || i != 0) {
 	    	sc->intr_rid = 0;
-		bus_delete_resource(dev, SYS_RES_IRQ, sc->intr_rid);
+		while (bus_get_resource(dev, SYS_RES_IRQ, sc->intr_rid,
+		    &s, NULL) == 0 && s != 0)
+			sc->intr_rid++;
 		if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
 		    &sc->intr_rid, 0, 0, 1, RF_ACTIVE))) {
 			device_printf(dev,"Can't map interrupt.\n");
@@ -563,6 +665,12 @@ attimer_attach(device_t dev)
 		sc->et.et_flags = ET_FLAGS_PERIODIC;
 		sc->et.et_quality = 100;
 		sc->et.et_frequency = i8254_freq;
+		sc->et.et_min_period.sec = 0;
+		sc->et.et_min_period.frac =
+		    ((0x0002LLU << 48) / i8254_freq) << 16;
+		sc->et.et_max_period.sec = 0xffff / i8254_freq;
+		sc->et.et_max_period.frac =
+		    ((0xfffeLLU << 48) / i8254_freq) << 16;
 		sc->et.et_start = attimer_start;
 		sc->et.et_stop = attimer_stop;
 		sc->et.et_priv = dev;

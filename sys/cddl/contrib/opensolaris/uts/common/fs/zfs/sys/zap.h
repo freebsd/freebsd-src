@@ -186,6 +186,9 @@ int zap_lookup_norm(objset_t *ds, uint64_t zapobj, const char *name,
     matchtype_t mt, char *realname, int rn_len,
     boolean_t *normalization_conflictp);
 
+int zap_count_write(objset_t *os, uint64_t zapobj, const char *name,
+    int add, uint64_t *towrite, uint64_t *tooverwrite);
+
 /*
  * Create an attribute with the given name and value.
  *

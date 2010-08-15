@@ -5,6 +5,9 @@
 
 .include <bsd.own.mk>
 
+# backwards compat option for older systems.
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
 KERNEL?=	kernel
@@ -12,7 +15,7 @@ KODIR?=		/boot/${KERNEL}
 LDSCRIPT_NAME?=	ldscript.$M
 LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 
-M=	${MACHINE_ARCH}
+M=	${MACHINE_CPUARCH}
 
 AWK?=		awk
 LINT?=		lint
@@ -90,9 +93,17 @@ INCLUDES+= -I$S/dev/cxgb
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
 .if ${CC} != "icc"
+.if ${CC} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
+.if ${MACHINE_CPUARCH} != "mips"
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
+.else
+# XXX Actually a gross hack just for Octeon because of the Simple Executive.
+CFLAGS+= --param inline-unit-growth=1000
+CFLAGS+= --param large-function-growth=100000
+.endif
+.endif
 WERROR?= -Werror
 .endif
 
@@ -100,8 +111,8 @@ WERROR?= -Werror
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-.if ${CC} == "icc"
-.error "Profiling doesn't work with icc yet"
+.if ${CC} == "icc" || ${CC} == "clang"
+.error "Profiling doesn't work with icc or clang yet"
 .endif
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2
@@ -156,6 +167,7 @@ SYSTEM_DEP+= ${LDSCRIPT}
 # them.
 
 MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
+MKMODULESENV+=	MACHINE_CPUARCH=${MACHINE_CPUARCH}
 .if (${KERN_IDENT} == LINT)
 MKMODULESENV+=	ALL_MODULES=LINT
 .endif

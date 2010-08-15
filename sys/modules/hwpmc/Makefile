@@ -28,7 +28,7 @@ SRCS+=	device_if.h bus_if.h
 SRCS+=	hwpmc_ia64.c
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 SRCS+=	hwpmc_powerpc.c
 .endif
 

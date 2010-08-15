@@ -8,6 +8,8 @@
 #####################################################################
 # CPU OPTIONS
 
+machine		powerpc powerpc
+
 #
 # You must specify at least one CPU (the one you intend to run on).
 cpu		AIM
@@ -18,6 +20,7 @@ options 	FPU_EMU
 #options 	MPC85XX
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
+options		MAMBO			#IBM Mambo Full System Simulator
 
 options 	SC_OFWFB		# OFW frame buffer
 

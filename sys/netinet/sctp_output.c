@@ -2186,21 +2186,31 @@ sctp_is_ifa_addr_preferred(struct sctp_ifa *ifa,
 	/* dest_is_priv is true if destination is a private address */
 	/* dest_is_loop is true if destination is a loopback addresses */
 
-	/*
+	/**
 	 * Here we determine if its a preferred address. A preferred address
 	 * means it is the same scope or higher scope then the destination.
 	 * L = loopback, P = private, G = global
-	 * ----------------------------------------- src    |  dest | result
-	 * ---------------------------------------- L     |    L  |    yes
-	 * ----------------------------------------- P     |    L  |
-	 * yes-v4 no-v6 ----------------------------------------- G     |
-	 * L  |    yes-v4 no-v6 ----------------------------------------- L
-	 * |    P  |    no ----------------------------------------- P     |
-	 * P  |    yes ----------------------------------------- G     |
-	 * P  |    no ----------------------------------------- L     |    G
-	 * |    no ----------------------------------------- P     |    G  |
-	 * no ----------------------------------------- G     |    G  |
-	 * yes -----------------------------------------
+	 * -----------------------------------------
+         *    src    |  dest | result
+         *  ----------------------------------------
+         *     L     |    L  |    yes
+         *  -----------------------------------------
+         *     P     |    L  |    yes-v4 no-v6
+         *  -----------------------------------------
+         *     G     |    L  |    yes-v4 no-v6
+         *  -----------------------------------------
+         *     L     |    P  |    no
+         *  -----------------------------------------
+         *     P     |    P  |    yes
+         *  -----------------------------------------
+         *     G     |    P  |    no
+         *   -----------------------------------------
+         *     L     |    G  |    no
+         *   -----------------------------------------
+         *     P     |    G  |    no
+         *    -----------------------------------------
+         *     G     |    G  |    yes
+         *    -----------------------------------------
 	 */
 
 	if (ifa->address.sa.sa_family != fam) {
@@ -2270,7 +2280,6 @@ sctp_is_ifa_addr_acceptable(struct sctp_ifa *ifa,
     sa_family_t fam)
 {
 	uint8_t dest_is_global = 0;
-
 
 	/*
 	 * Here we determine if its a acceptable address. A acceptable
@@ -2731,6 +2740,15 @@ sctp_select_nth_preferred_addr_from_ifn_boundall(struct sctp_ifn *ifn,
 			}
 		}
 		if (stcb) {
+			if (sctp_is_address_in_scope(ifa,
+			    stcb->asoc.ipv4_addr_legal,
+			    stcb->asoc.ipv6_addr_legal,
+			    stcb->asoc.loopback_scope,
+			    stcb->asoc.ipv4_local_scope,
+			    stcb->asoc.local_scope,
+			    stcb->asoc.site_scope, 0) == 0) {
+				continue;
+			}
 			if (((non_asoc_addr_ok == 0) &&
 			    (sctp_is_addr_restricted(stcb, sifa))) ||
 			    (non_asoc_addr_ok &&
@@ -2774,6 +2792,15 @@ sctp_count_num_preferred_boundall(struct sctp_ifn *ifn,
 			continue;
 		}
 		if (stcb) {
+			if (sctp_is_address_in_scope(ifa,
+			    stcb->asoc.ipv4_addr_legal,
+			    stcb->asoc.ipv6_addr_legal,
+			    stcb->asoc.loopback_scope,
+			    stcb->asoc.ipv4_local_scope,
+			    stcb->asoc.local_scope,
+			    stcb->asoc.site_scope, 0) == 0) {
+				continue;
+			}
 			if (((non_asoc_addr_ok == 0) &&
 			    (sctp_is_addr_restricted(stcb, sifa))) ||
 			    (non_asoc_addr_ok &&
@@ -2954,6 +2981,15 @@ bound_all_plan_b:
 		if (sifa == NULL)
 			continue;
 		if (stcb) {
+			if (sctp_is_address_in_scope(sifa,
+			    stcb->asoc.ipv4_addr_legal,
+			    stcb->asoc.ipv6_addr_legal,
+			    stcb->asoc.loopback_scope,
+			    stcb->asoc.ipv4_local_scope,
+			    stcb->asoc.local_scope,
+			    stcb->asoc.site_scope, 0) == 0) {
+				continue;
+			}
 			if (((non_asoc_addr_ok == 0) &&
 			    (sctp_is_addr_restricted(stcb, sifa))) ||
 			    (non_asoc_addr_ok &&
@@ -2996,6 +3032,15 @@ plan_d:
 			if (sifa == NULL)
 				continue;
 			if (stcb) {
+				if (sctp_is_address_in_scope(sifa,
+				    stcb->asoc.ipv4_addr_legal,
+				    stcb->asoc.ipv6_addr_legal,
+				    stcb->asoc.loopback_scope,
+				    stcb->asoc.ipv4_local_scope,
+				    stcb->asoc.local_scope,
+				    stcb->asoc.site_scope, 0) == 0) {
+					continue;
+				}
 				if (((non_asoc_addr_ok == 0) &&
 				    (sctp_is_addr_restricted(stcb, sifa))) ||
 				    (non_asoc_addr_ok &&
@@ -6580,6 +6625,8 @@ sctp_clean_up_ctl(struct sctp_tcb *stcb, struct sctp_association *asoc)
 				chk->data = NULL;
 			}
 			asoc->ctrl_queue_cnt--;
+			if (chk->rec.chunk_id.id == SCTP_FORWARD_CUM_TSN)
+				asoc->fwd_tsn_cnt--;
 			sctp_free_a_chunk(stcb, chk);
 		} else if (chk->rec.chunk_id.id == SCTP_STREAM_RESET) {
 			/* special handling, we must look into the param */
@@ -7800,7 +7847,7 @@ again_one_more_time:
 			} else
 				omtu = 0;
 			/* Here we do NOT factor the r_mtu */
-			if ((chk->send_size < (int)(mtu - omtu)) ||
+			if ((chk->send_size <= (int)(mtu - omtu)) ||
 			    (chk->flags & CHUNK_FLAGS_FRAGMENT_OK)) {
 				/*
 				 * We probably should glom the mbuf chain
@@ -9705,6 +9752,7 @@ send_forward_tsn(struct sctp_tcb *stcb,
 	if (chk == NULL) {
 		return;
 	}
+	asoc->fwd_tsn_cnt++;
 	chk->copy_by_ref = 0;
 	chk->rec.chunk_id.id = SCTP_FORWARD_CUM_TSN;
 	chk->rec.chunk_id.can_take_data = 0;
@@ -9736,8 +9784,7 @@ sctp_fill_in_rest:
 		unsigned int cnt_of_skipped = 0;
 
 		TAILQ_FOREACH(at, &asoc->sent_queue, sctp_next) {
-			if ((at->sent != SCTP_FORWARD_TSN_SKIP) &&
-			    (at->sent != SCTP_DATAGRAM_ACKED)) {
+			if (at->sent != SCTP_FORWARD_TSN_SKIP) {
 				/* no more to look at */
 				break;
 			}
@@ -9800,7 +9847,8 @@ sctp_fill_in_rest:
 			 * peer ack point
 			 */
 			advance_peer_ack_point = last->rec.data.TSN_seq;
-			space_needed -= (cnt_of_skipped * sizeof(struct sctp_strseq));
+			space_needed = sizeof(struct sctp_forward_tsn_chunk) +
+			    cnt_of_skipped * sizeof(struct sctp_strseq);
 		}
 		chk->send_size = space_needed;
 		/* Setup the chunk */
@@ -9809,8 +9857,6 @@ sctp_fill_in_rest:
 		fwdtsn->ch.chunk_flags = 0;
 		fwdtsn->ch.chunk_type = SCTP_FORWARD_CUM_TSN;
 		fwdtsn->new_cumulative_tsn = htonl(advance_peer_ack_point);
-		chk->send_size = (sizeof(struct sctp_forward_tsn_chunk) +
-		    (cnt_of_skipped * sizeof(struct sctp_strseq)));
 		SCTP_BUF_LEN(chk->data) = chk->send_size;
 		fwdtsn++;
 		/*-

@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/ocpbus.h>
 #include <machine/pio.h>
 
-#include <powerpc/mpc85xx/ocpbus.h>
+#include <powerpc/mpc85xx/mpc85xx.h>
 
 #include <dev/ic/i8259.h>
 

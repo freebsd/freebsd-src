@@ -830,14 +830,6 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 		entry->gpe_pp = NULL;
 	}
 
-	if (entry->gpe_created) {
-		LIST_REMOVE(entry, gpe_entry);
-		g_free(entry);
-	} else {
-		entry->gpe_modified = 0;
-		entry->gpe_deleted = 1;
-	}
-
 	if (pp != NULL)
 		g_wither_provider(pp, ENXIO);
 
@@ -849,6 +841,14 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
+	}
+
+	if (entry->gpe_created) {
+		LIST_REMOVE(entry, gpe_entry);
+		g_free(entry);
+	} else {
+		entry->gpe_modified = 0;
+		entry->gpe_deleted = 1;
 	}
 	return (0);
 }
@@ -1739,6 +1739,7 @@ static void
 g_part_orphan(struct g_consumer *cp)
 {
 	struct g_provider *pp;
+	struct g_part_table *table;
 
 	pp = cp->provider;
 	KASSERT(pp != NULL, (__func__));
@@ -1746,6 +1747,9 @@ g_part_orphan(struct g_consumer *cp)
 	g_topology_assert();
 
 	KASSERT(pp->error != 0, (__func__));
+	table = cp->geom->softc;
+	if (table != NULL && table->gpt_opened)
+		g_access(cp, -1, -1, -1);
 	g_part_wither(cp->geom, pp->error);
 }
 

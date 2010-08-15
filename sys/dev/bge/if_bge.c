@@ -436,6 +436,7 @@ static int bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 static void bge_sig_post_reset(struct bge_softc *, int);
 static void bge_sig_legacy(struct bge_softc *, int);
 static void bge_sig_pre_reset(struct bge_softc *, int);
+static void bge_stop_fw(struct bge_softc *);
 static int bge_reset(struct bge_softc *);
 static void bge_link_upd(struct bge_softc *);
 
@@ -832,7 +833,7 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5906 &&
 	    (reg == BRGPHY_MII_1000CTL || reg == BRGPHY_MII_AUXCTL))
-		return(0);
+		return (0);
 
 	/* Reading with autopolling on may trigger PCI errors */
 	autopoll = CSR_READ_4(sc, BGE_MI_MODE);
@@ -1237,10 +1238,9 @@ bge_setvlan(struct bge_softc *sc)
 }
 
 static void
-bge_sig_pre_reset(sc, type)
-	struct bge_softc *sc;
-	int type;
+bge_sig_pre_reset(struct bge_softc *sc, int type)
 {
+
 	/*
 	 * Some chips don't like this so only do this if ASF is enabled
 	 */
@@ -1260,10 +1260,9 @@ bge_sig_pre_reset(sc, type)
 }
 
 static void
-bge_sig_post_reset(sc, type)
-	struct bge_softc *sc;
-	int type;
+bge_sig_post_reset(struct bge_softc *sc, int type)
 {
+
 	if (sc->bge_asf_mode & ASF_NEW_HANDSHAKE) {
 		switch (type) {
 		case BGE_RESET_START:
@@ -1278,10 +1277,9 @@ bge_sig_post_reset(sc, type)
 }
 
 static void
-bge_sig_legacy(sc, type)
-	struct bge_softc *sc;
-	int type;
+bge_sig_legacy(struct bge_softc *sc, int type)
 {
+
 	if (sc->bge_asf_mode) {
 		switch (type) {
 		case BGE_RESET_START:
@@ -1294,10 +1292,8 @@ bge_sig_legacy(sc, type)
 	}
 }
 
-void bge_stop_fw(struct bge_softc *);
-void
-bge_stop_fw(sc)
-	struct bge_softc *sc;
+static void
+bge_stop_fw(struct bge_softc *sc)
 {
 	int i;
 
@@ -2537,7 +2533,7 @@ bge_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = BGE_PCI_BAR0;
+	rid = PCIR_BAR(0);
 	sc->bge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 
@@ -3048,7 +3044,7 @@ bge_release_resources(struct bge_softc *sc)
 
 	if (sc->bge_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    BGE_PCI_BAR0, sc->bge_res);
+		    PCIR_BAR(0), sc->bge_res);
 
 	if (sc->bge_ifp != NULL)
 		if_free(sc->bge_ifp);
@@ -3092,7 +3088,7 @@ bge_reset(struct bge_softc *sc)
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5752 ||
 	    BGE_IS_5755_PLUS(sc)) {
 		if (bootverbose)
-			device_printf(sc->bge_dev, "Disabling fastboot\n");
+			device_printf(dev, "Disabling fastboot\n");
 		CSR_WRITE_4(sc, BGE_FASTBOOT_PC, 0x0);
 	}
 
@@ -3121,7 +3117,7 @@ bge_reset(struct bge_softc *sc)
 	 * powered up in D0 uninitialized.
 	 */
 	if (BGE_IS_5705_PLUS(sc))
-		reset |= 0x04000000;
+		reset |= BGE_MISCCFG_GPHY_PD_OVERRIDE;
 
 	/* Issue global reset */
 	write_op(sc, BGE_MISC_CFG, reset);
@@ -3213,7 +3209,7 @@ bge_reset(struct bge_softc *sc)
 			DELAY(100);
 		}
 		if (i == BGE_TIMEOUT) {
-			device_printf(sc->bge_dev, "reset timed out\n");
+			device_printf(dev, "reset timed out\n");
 			return (1);
 		}
 	} else {
@@ -3231,8 +3227,9 @@ bge_reset(struct bge_softc *sc)
 		}
 
 		if ((sc->bge_flags & BGE_FLAG_EADDR) && i == BGE_TIMEOUT)
-			device_printf(sc->bge_dev, "firmware handshake timed out, "
-			    "found 0x%08x\n", val);
+			device_printf(dev,
+			    "firmware handshake timed out, found 0x%08x\n",
+			    val);
 	}
 
 	/*
@@ -3247,11 +3244,6 @@ bge_reset(struct bge_softc *sc)
 		if (pci_read_config(dev, BGE_PCI_PCISTATE, 4) == pcistate)
 			break;
 		DELAY(10);
-	}
-
-	if (sc->bge_flags & BGE_FLAG_PCIE) {
-		reset = bge_readmem_ind(sc, 0x7C00);
-		bge_writemem_ind(sc, 0x7C00, reset | (1 << 25));
 	}
 
 	/* Fix up byte swapping. */
@@ -3278,13 +3270,15 @@ bge_reset(struct bge_softc *sc)
 
 	/* XXX: Broadcom Linux driver. */
 	if (sc->bge_flags & BGE_FLAG_PCIE &&
-	    sc->bge_chipid != BGE_CHIPID_BCM5750_A0) {
+	    sc->bge_chipid != BGE_CHIPID_BCM5750_A0 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5785) {
+		/* Enable Data FIFO protection. */
 		val = CSR_READ_4(sc, 0x7C00);
 		CSR_WRITE_4(sc, 0x7C00, val | (1 << 25));
 	}
 	DELAY(10000);
 
-	return(0);
+	return (0);
 }
 
 static __inline void
@@ -4272,7 +4266,8 @@ bge_init_locked(struct bge_softc *sc)
 	if (ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN >
 	    (MCLBYTES - ETHER_ALIGN)) {
 		if (bge_init_rx_ring_jumbo(sc) != 0) {
-			device_printf(sc->bge_dev, "no memory for std Rx buffers.\n");
+			device_printf(sc->bge_dev,
+			    "no memory for jumbo Rx buffers.\n");
 			bge_stop(sc);
 			return;
 		}

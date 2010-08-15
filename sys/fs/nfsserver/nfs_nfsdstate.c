@@ -45,7 +45,7 @@ NFSV4ROOTLOCKMUTEX;
 NFSSTATESPINLOCK;
 
 /*
- * Hash and lru lists for nfs V4.
+ * Hash lists for nfs V4.
  * (Some would put them in the .h file, but I don't like declaring storage
  *  in a .h)
  */
@@ -542,7 +542,6 @@ nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 	 * file.
 	 */
 	NFSLOCKV4ROOTMUTEX();
-	nfsv4_relref(&nfsv4rootfs_lock);
 	do {
 		igotlock = nfsv4_lock(&nfsv4rootfs_lock, 1, NULL,
 		    NFSV4ROOTLOCKMUTEXPTR);
@@ -601,6 +600,13 @@ nfsrv_dumpclients(struct nfsd_dumpclients *dumpp, int maxcnt)
 	struct nfsclient *clp;
 	int i = 0, cnt = 0;
 
+	/*
+	 * First, get a reference on the nfsv4rootfs_lock so that an
+	 * exclusive lock cannot be acquired while dumping the clients.
+	 */
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR);
+	NFSUNLOCKV4ROOTMUTEX();
 	NFSLOCKSTATE();
 	/*
 	 * Rattle through the client lists until done.
@@ -617,6 +623,9 @@ nfsrv_dumpclients(struct nfsd_dumpclients *dumpp, int maxcnt)
 	if (cnt < maxcnt)
 	    dumpp[cnt].ndcl_clid.nclid_idlen = 0;
 	NFSUNLOCKSTATE();
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_relref(&nfsv4rootfs_lock);
+	NFSUNLOCKV4ROOTMUTEX();
 }
 
 /*
@@ -692,12 +701,22 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 	fhandle_t nfh;
 
 	ret = nfsrv_getlockfh(vp, 0, NULL, &nfh, p);
+	/*
+	 * First, get a reference on the nfsv4rootfs_lock so that an
+	 * exclusive lock on it cannot be acquired while dumping the locks.
+	 */
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR);
+	NFSUNLOCKV4ROOTMUTEX();
 	NFSLOCKSTATE();
 	if (!ret)
 		ret = nfsrv_getlockfile(0, NULL, &lfp, &nfh, 0);
 	if (ret) {
 		ldumpp[0].ndlck_clid.nclid_idlen = 0;
 		NFSUNLOCKSTATE();
+		NFSLOCKV4ROOTMUTEX();
+		nfsv4_relref(&nfsv4rootfs_lock);
+		NFSUNLOCKV4ROOTMUTEX();
 		return;
 	}
 
@@ -798,6 +817,9 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 	if (cnt < maxcnt)
 		ldumpp[cnt].ndlck_clid.nclid_idlen = 0;
 	NFSUNLOCKSTATE();
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_relref(&nfsv4rootfs_lock);
+	NFSUNLOCKV4ROOTMUTEX();
 }
 
 /*
@@ -1016,7 +1038,6 @@ nfsrv_freedeleg(struct nfsstate *stp)
 
 /*
  * This function frees an open owner and all associated opens.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_freeopenowner(struct nfsstate *stp, int cansleep, NFSPROC_T *p)
@@ -1162,7 +1183,6 @@ nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
 
 /*
  * Free an nfslock structure.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_freenfslock(struct nfslock *lop)
@@ -1179,7 +1199,6 @@ nfsrv_freenfslock(struct nfslock *lop)
 
 /*
  * This function frees an nfslockfile structure.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_freenfslockfile(struct nfslockfile *lfp)
@@ -1359,11 +1378,6 @@ tryagain:
 		}
 	}
 
-	/*
-	 * Since the code is manipulating lists that are also
-	 * manipulated by nfsrv_servertimer(), soft clock interrupts
-	 * must be masked off.
-	 */
 	if (specialid == 0) {
 	    if (new_stp->ls_flags & NFSLCK_TEST) {
 		/*
@@ -1972,9 +1986,6 @@ tryagain:
 	NFSLOCKSTATE();
 	/*
 	 * Get the nfsclient structure.
-	 * Since the code is manipulating lists that are also
-	 * manipulated by nfsrv_servertimer(), soft clock interrupts
-	 * must be masked off.
 	 */
 	error = nfsrv_getclient(clientid, CLOPS_RENEW, &clp,
 	    (nfsquad_t)((u_quad_t)0), NULL, p);
@@ -3177,7 +3188,6 @@ nfsrv_getlockfile(u_short flags, struct nfslockfile **new_lfpp,
  * This function adds a nfslock lock structure to the list for the associated
  * nfsstate and nfslockfile structures. It will be inserted after the
  * entry pointed at by insert_lop.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_insertlock(struct nfslock *new_lop, struct nfslock *insert_lop,
@@ -3229,7 +3239,6 @@ nfsrv_insertlock(struct nfslock *new_lop, struct nfslock *insert_lop,
  * are NFSLCK_READ or NFSLCK_WRITE and non-overlapping (aka POSIX style).
  * It always adds new_lop to the list and sometimes uses the one pointed
  * at by other_lopp.
- * Must be called with soft clock interrupts disabled.
  */
 static void
 nfsrv_updatelock(struct nfsstate *stp, struct nfslock **new_lopp,

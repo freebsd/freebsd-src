@@ -33,7 +33,6 @@
 #include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
-#include "opt_carp.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -81,6 +80,7 @@
 /*XXX*/
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/ip_carp.h>
 #ifdef INET6
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
@@ -88,11 +88,6 @@
 #endif
 #ifdef INET
 #include <netinet/if_ether.h>
-#endif
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
-#include <netinet/ip_carp.h>
-#endif
 #endif
 
 #include <security/mac/mac_framework.h>
@@ -130,6 +125,22 @@ SX_SYSINIT(ifdescr_sx, &ifdescr_sx, "ifnet descr");
 void	(*bstp_linkstate_p)(struct ifnet *ifp, int state);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
+/* These are external hooks for CARP. */
+void	(*carp_linkstate_p)(struct ifnet *ifp);
+#if defined(INET) || defined(INET6)
+struct ifnet *(*carp_forus_p)(struct ifnet *ifp, u_char *dhost);
+int	(*carp_output_p)(struct ifnet *ifp, struct mbuf *m,
+    struct sockaddr *sa, struct rtentry *rt);
+#endif
+#ifdef INET
+int (*carp_iamatch_p)(struct ifnet *, struct in_ifaddr *, struct in_addr *,
+    u_int8_t **);
+#endif
+#ifdef INET6
+struct ifaddr *(*carp_iamatch6_p)(struct ifnet *ifp, struct in6_addr *taddr6);
+caddr_t (*carp_macmatch6_p)(struct ifnet *ifp, struct mbuf *m,
+    const struct in6_addr *taddr);
+#endif
 
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 
@@ -945,12 +956,21 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 */
 	IFNET_WLOCK();
 	ifindex_free_locked(ifp->if_index);
+	IFNET_WUNLOCK();
+
+	/*
+	 * Perform interface-specific reassignment tasks, if provided by
+	 * the driver.
+	 */
+	if (ifp->if_reassign != NULL)
+		ifp->if_reassign(ifp, new_vnet, NULL);
 
 	/*
 	 * Switch to the context of the target vnet.
 	 */
 	CURVNET_SET_QUIET(new_vnet);
 
+	IFNET_WLOCK();
 	if (ifindex_alloc_locked(&idx) != 0) {
 		IFNET_WUNLOCK();
 		panic("if_index overflow");
@@ -1728,7 +1748,7 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 	u_int af = addr->sa_family;
 
 	if (af >= AF_MAX)
-		return (0);
+		return (NULL);
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != af)
@@ -1813,12 +1833,8 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	ifp->if_qflush(ifp);
 
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	if (ifp->if_carp)
-		carp_carpdev_state(ifp->if_carp);
-#endif
-#endif
+		(*carp_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 }
 
@@ -1839,12 +1855,8 @@ if_route(struct ifnet *ifp, int flag, int fam)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFUP, ifa->ifa_addr);
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	if (ifp->if_carp)
-		carp_carpdev_state(ifp->if_carp);
-#endif
-#endif
+		(*carp_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 #ifdef INET6
 	in6_if_up(ifp);
@@ -1887,12 +1899,8 @@ do_link_state_change(void *arg, int pending)
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
 	    IFP2AC(ifp)->ac_netgraph != NULL)
 		(*ng_ether_link_state_p)(ifp, link_state);
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	if (ifp->if_carp)
-		carp_carpdev_state(ifp->if_carp);
-#endif
-#endif
+		(*carp_linkstate_p)(ifp);
 	if (ifp->if_bridge) {
 		KASSERT(bstp_linkstate_p != NULL,("if_bridge bstp not loaded!"));
 		(*bstp_linkstate_p)(ifp, link_state);

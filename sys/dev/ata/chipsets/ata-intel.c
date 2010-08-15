@@ -336,7 +336,8 @@ ata_intel_new_setmode(device_t dev, int target, int mode)
 	u_int8_t utimings[] = { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
 
 	mode = min(mode, ctlr->chip->max_dma);
-	if (mode > ATA_UDMA2 && !(reg54 & (0x10 << devno))) {
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+	    !(reg54 & (0x10 << devno))) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;
 	}
@@ -553,8 +554,12 @@ ata_intel_31244_tf_write(struct ata_request *request)
 static void
 ata_intel_31244_reset(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
+    else
+	ch->devices = 0;
 }
 
 ATA_DECLARE_DRIVER(ata_intel);

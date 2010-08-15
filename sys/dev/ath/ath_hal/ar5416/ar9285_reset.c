@@ -792,7 +792,7 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
          * for last gain, pdGainBoundary == Pmax_t2, so will
          * have to extrapolate
          */
-        if (tgtIndex > maxIndex) {  /* need to extrapolate above */
+        if (tgtIndex >= maxIndex) {  /* need to extrapolate above */
             while ((ss <= tgtIndex) && (k < (AR5416_NUM_PDADC_VALUES - 1))) {
                 tmpVal = (int16_t)((vpdTableI[i][sizeCurrVpdTable - 1] +
                           (ss - maxIndex +1) * vpdStep));

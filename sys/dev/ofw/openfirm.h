@@ -91,6 +91,7 @@ int		OF_init(void *cookie);
 
 #define	OFW_STD_DIRECT	"ofw_std"	/* Standard OF interface */
 #define	OFW_STD_REAL	"ofw_real"	/* Real-mode OF interface */
+#define	OFW_STD_32BIT	"ofw_32bit"	/* 32-bit OF interface */
 #define	OFW_FDT		"ofw_fdt"	/* Flattened Device Tree */
 
 /* Generic functions */

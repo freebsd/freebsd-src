@@ -52,15 +52,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/hwfunc.h>
 
-struct mips_cpuinfo cpuinfo;
+static void cpu_identify(void);
 
-union	cpuprid cpu_id;
-union	cpuprid fpu_id;
+struct mips_cpuinfo cpuinfo;
 
 /*
  * Attempt to identify the MIPS CPU as much as possible.
  *
- * XXX: Assumes the CPU is MIPS32 compliant.
+ * XXX: Assumes the CPU is MIPS{32,64}{,r2} compliant.
  * XXX: For now, skip config register selections 2 and 3
  * as we don't currently use L2/L3 cache or additional
  * MIPS32 processor features.
@@ -117,7 +116,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 		cpuinfo->l1.dc_nsets = 
 		    1 << (((cfg1 & MIPS_CONFIG1_DS_MASK) >> MIPS_CONFIG1_DS_SHIFT) + 6);
 	}
-#ifdef TARGET_OCTEON
+#ifdef CPU_CNMIPS
 	/*
 	 * Octeon does 128 byte line-size. But Config-Sel1 doesn't show
 	 * 128 line-size, 1 Set, 64 ways.
@@ -148,7 +147,7 @@ mips_cpu_init(void)
 	cpu_identify();
 }
 
-void
+static void
 cpu_identify(void)
 {
 	uint32_t cfg0, cfg1, cfg2, cfg3;

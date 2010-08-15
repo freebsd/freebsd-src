@@ -1834,3 +1834,45 @@ fdt_win_setup(void)
 
 	return (0);
 }
+
+static void
+fdt_fixup_busfreq(phandle_t root)
+{
+	phandle_t sb;
+	pcell_t freq;
+
+	/*
+	 * This fixup sets the simple-bus bus-frequency property.
+	 */
+
+	if ((sb = fdt_find_compatible(root, "simple-bus", 1)) == 0)
+		return;
+
+	freq = cpu_to_fdt32(get_tclk());
+	OF_setprop(sb, "bus-frequency", (void *)&freq, sizeof(freq));
+}
+
+struct fdt_fixup_entry fdt_fixup_table[] = {
+	{ "mrvl,DB-88F6281", &fdt_fixup_busfreq },
+	{ NULL, NULL }
+};
+
+static int
+fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
+    int *pol)
+{
+
+	if (!fdt_is_compatible(node, "mrvl,pic"))
+		return (ENXIO);
+
+	*interrupt = fdt32_to_cpu(intr[0]);
+	*trig = INTR_TRIGGER_CONFORM;
+	*pol = INTR_POLARITY_CONFORM;
+
+	return (0);
+}
+
+fdt_pic_decode_t fdt_pic_table[] = {
+	&fdt_pic_decode_ic,
+	NULL
+};

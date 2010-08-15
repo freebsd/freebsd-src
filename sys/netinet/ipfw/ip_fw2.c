@@ -351,7 +351,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 				return(1);
 		}
 	} else {
-#ifdef	__FreeBSD__	/* and OSX too ? */
+#ifdef __FreeBSD__	/* and OSX too ? */
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
@@ -1329,7 +1329,7 @@ do {								\
 				/* For diverted packets, args->rule.info
 				 * contains the divert port (in host format)
 				 * reason and direction.
-	 			 */
+				 */
 				uint32_t i = args->rule.info;
 				match = (i&IPFW_IS_MASK) == IPFW_IS_DIVERT &&
 				    cmd->arg1 & ((i & IPFW_INFO_IN) ? 1 : 2);
@@ -2084,6 +2084,8 @@ do {								\
 				set_match(args, f_pos, chain);
 				args->rule.info = (cmd->arg1 == IP_FW_TABLEARG) ?
 					tablearg : cmd->arg1;
+				if (V_fw_one_pass)
+					args->rule.info |= IPFW_ONEPASS;
 				retval = (cmd->opcode == O_NETGRAPH) ?
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
 				l = 0;          /* exit inner loop */

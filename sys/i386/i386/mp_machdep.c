@@ -174,7 +174,7 @@ static u_long *ipi_statclock_counts[MAXCPU];
  * Local data and functions.
  */
 
-static u_int logical_cpus;
+static cpumask_t logical_cpus;
 static volatile cpumask_t ipi_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
@@ -210,8 +210,8 @@ static int	start_all_aps(void);
 static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
-static int	hlt_logical_cpus;
-static u_int	hyperthreading_cpus;
+static cpumask_t	hlt_logical_cpus;
+static cpumask_t	hyperthreading_cpus;
 static cpumask_t	hyperthreading_cpus_mask;
 static int	hyperthreading_allowed = 1;
 static struct	sysctl_ctx_list logical_cpu_clist;
@@ -1175,6 +1175,30 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
+/*
+ * Send an IPI to specified CPU handling the bitmap logic.
+ */
+static void
+ipi_send_cpu(int cpu, u_int ipi)
+{
+	u_int bitmap, old_pending, new_pending;
+
+	KASSERT(cpu_apic_ids[cpu] != -1, ("IPI to non-existent CPU %d", cpu));
+
+	if (IPI_IS_BITMAPED(ipi)) {
+		bitmap = 1 << ipi;
+		ipi = IPI_BITMAP_VECTOR;
+		do {
+			old_pending = cpu_ipi_pending[cpu];
+			new_pending = old_pending | bitmap;
+		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
+		    old_pending, new_pending));	
+		if (old_pending)
+			return;
+	}
+	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+}
+
 void
 smp_cache_flush(void)
 {
@@ -1298,14 +1322,6 @@ void
 ipi_selected(cpumask_t cpus, u_int ipi)
 {
 	int cpu;
-	u_int bitmap = 0;
-	u_int old_pending;
-	u_int new_pending;
-
-	if (IPI_IS_BITMAPED(ipi)) { 
-		bitmap = 1 << ipi;
-		ipi = IPI_BITMAP_VECTOR;
-	}
 
 	/*
 	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
@@ -1319,23 +1335,27 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
 		cpus &= ~(1 << cpu);
-
-		KASSERT(cpu_apic_ids[cpu] != -1,
-		    ("IPI to non-existent CPU %d", cpu));
-
-		if (bitmap) {
-			do {
-				old_pending = cpu_ipi_pending[cpu];
-				new_pending = old_pending | bitmap;
-			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],old_pending, new_pending));	
-
-			if (old_pending)
-				continue;
-		}
-
-		lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+		ipi_send_cpu(cpu, ipi);
 	}
+}
 
+/*
+ * send an IPI to a specific CPU.
+ */
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	/*
+	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
+	 * of help in order to understand what is the source.
+	 * Set the mask of receiving CPUs for this purpose.
+	 */
+	if (ipi == IPI_STOP_HARD)
+		atomic_set_int(&ipi_nmi_pending, 1 << cpu);
+
+	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
+	ipi_send_cpu(cpu, ipi);
 }
 
 /*
@@ -1388,8 +1408,11 @@ ipi_nmi_handler()
 void
 cpustop_handler(void)
 {
-	int cpu = PCPU_GET(cpuid);
-	int cpumask = PCPU_GET(cpumask);
+	cpumask_t cpumask;
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	savectx(&stoppcbs[cpu]);
 
@@ -1557,19 +1580,23 @@ SYSINIT(cpu_hlt, SI_SUB_SMP, SI_ORDER_ANY, cpu_hlt_setup, NULL);
 int
 mp_grab_cpu_hlt(void)
 {
-	u_int mask = PCPU_GET(cpumask);
+	cpumask_t mask;
 #ifdef MP_WATCHDOG
-	u_int cpuid = PCPU_GET(cpuid);
+	u_int cpuid;
 #endif
 	int retval;
 
+	mask = PCPU_GET(cpumask);
 #ifdef MP_WATCHDOG
+	cpuid = PCPU_GET(cpuid);
 	ap_watchdog(cpuid);
 #endif
 
-	retval = mask & hlt_cpus_mask;
-	while (mask & hlt_cpus_mask)
+	retval = 0;
+	while (mask & hlt_cpus_mask) {
+		retval = 1;
 		__asm __volatile("sti; hlt" : : : "memory");
+	}
 	return (retval);
 }
 

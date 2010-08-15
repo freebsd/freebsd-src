@@ -30,7 +30,5 @@
 #define	_MACHINE_TICK_H_
 
 void	tick_init(u_long clock);
-void	tick_start(void);
-void	tick_stop(void);
 
 #endif
