@@ -232,7 +232,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		    "not complete in time; noisy environment?\n", __func__);
 		return AH_FALSE;
 	}
-        
+
 	/* Initialize list pointers */
 	cal->cal_list = cal->cal_last = cal->cal_curr = AH_NULL;
 
