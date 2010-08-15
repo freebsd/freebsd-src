@@ -627,7 +627,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	struct inpcb *inp = NULL;
 	struct socket *so;
 	struct tcpcb *tp;
-	int error = 0;
+	int error;
 	char *s;
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
