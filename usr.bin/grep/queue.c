@@ -60,7 +60,7 @@ enqueue(struct str *x)
 	item->data.len = x->len;
 	item->data.line_no = x->line_no;
 	item->data.off = x->off;
-	strcpy(item->data.dat, x->dat);
+	memcpy(item->data.dat, x->dat, x->len);
 	item->data.file = x->file;
 
 	STAILQ_INSERT_TAIL(&queue, item, list);

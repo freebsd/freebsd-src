@@ -46,8 +46,8 @@ __FBSDID("$FreeBSD$");
 
 #include "grep.h"
 
-static int	grep_cmp(const unsigned char *, const unsigned char *, size_t);
-static void	grep_revstr(unsigned char *, int);
+static inline int	grep_cmp(const unsigned char *, const unsigned char *, size_t);
+static inline void	grep_revstr(unsigned char *, int);
 
 void
 fgrepcomp(fastgrep_t *fg, const char *pat)
@@ -273,7 +273,7 @@ grep_search(fastgrep_t *fg, unsigned char *data, size_t len, regmatch_t *pmatch)
  * Returns:	i >= 0 on failure (position that it failed)
  *		-1 on success
  */
-static int
+static inline int
 grep_cmp(const unsigned char *pat, const unsigned char *data, size_t len)
 {
 	size_t size;
@@ -318,7 +318,7 @@ grep_cmp(const unsigned char *pat, const unsigned char *data, size_t len)
 	return (-1);
 }
 
-static void
+static inline void
 grep_revstr(unsigned char *str, int len)
 {
 	int i;
