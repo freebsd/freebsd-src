@@ -51,7 +51,6 @@ CFE_ENV		opt_global.h
 CFE_ENV_SIZE	opt_global.h
 
 NOFPU		opt_global.h
-TARGET_EMULATOR	opt_ddb.h
 
 TICK_USE_YAMON_FREQ	opt_global.h
 TICK_USE_MALTA_RTC	opt_global.h
