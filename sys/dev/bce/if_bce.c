@@ -3088,6 +3088,8 @@ bce_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	bus_addr_t *busaddr = arg;
 
+	KASSERT(nseg == 1, ("%s(): Too many segments returned (%d)!",
+	    __FUNCTION__, nseg));
 	/* Simulate a mapping failure. */
 	DBRUNIF(DB_RANDOMTRUE(dma_map_addr_failed_sim_control),
 	    error = ENOMEM);
@@ -3144,10 +3146,10 @@ bce_dma_alloc(device_t dev)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
-	if (bus_dma_tag_create(NULL, 1,	BCE_DMA_BOUNDARY,
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, BCE_DMA_BOUNDARY,
 	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MAXBSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE_32BIT,
-	    0, NULL, NULL, &sc->parent_tag)) {
+	    BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->parent_tag)) {
 		BCE_PRINTF("%s(%d): Could not allocate parent DMA tag!\n",
 		    __FILE__, __LINE__);
 		rc = ENOMEM;
@@ -3170,14 +3172,13 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if(bus_dmamem_alloc(sc->status_tag, (void **)&sc->status_block,
-	    BUS_DMA_NOWAIT, &sc->status_map)) {
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &sc->status_map)) {
 		BCE_PRINTF("%s(%d): Could not allocate status block "
 		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
-
-	bzero((char *)sc->status_block, BCE_STATUS_BLK_SZ);
 
 	error = bus_dmamap_load(sc->status_tag,	sc->status_map,
 	    sc->status_block, BCE_STATUS_BLK_SZ, bce_dma_map_addr,
@@ -3209,14 +3210,12 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if (bus_dmamem_alloc(sc->stats_tag, (void **)&sc->stats_block,
-	    BUS_DMA_NOWAIT,	&sc->stats_map)) {
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, &sc->stats_map)) {
 		BCE_PRINTF("%s(%d): Could not allocate statistics block "
 		    "DMA memory!\n", __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
-
-	bzero((char *)sc->stats_block, BCE_STATS_BLK_SZ);
 
 	error = bus_dmamap_load(sc->stats_tag, sc->stats_map,
 	    sc->stats_block, BCE_STATS_BLK_SZ, bce_dma_map_addr,
@@ -3263,15 +3262,13 @@ bce_dma_alloc(device_t dev)
 
 			if(bus_dmamem_alloc(sc->ctx_tag,
 			    (void **)&sc->ctx_block[i],
-			    BUS_DMA_NOWAIT,
+			    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 			    &sc->ctx_map[i])) {
 				BCE_PRINTF("%s(%d): Could not allocate CTX "
 				    "DMA memory!\n", __FILE__, __LINE__);
 				rc = ENOMEM;
 				goto bce_dma_alloc_exit;
 			}
-
-			bzero((char *)sc->ctx_block[i], BCM_PAGE_SIZE);
 
 			error = bus_dmamap_load(sc->ctx_tag, sc->ctx_map[i],
 			    sc->ctx_block[i], BCM_PAGE_SIZE, bce_dma_map_addr,
@@ -3308,7 +3305,8 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < TX_PAGES; i++) {
 
 		if(bus_dmamem_alloc(sc->tx_bd_chain_tag,
-		    (void **)&sc->tx_bd_chain[i], BUS_DMA_NOWAIT,
+		    (void **)&sc->tx_bd_chain[i],
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 		    &sc->tx_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate TX descriptor "
 			    "chain DMA memory!\n", __FILE__, __LINE__);
@@ -3384,15 +3382,14 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < RX_PAGES; i++) {
 
 		if (bus_dmamem_alloc(sc->rx_bd_chain_tag,
-		    (void **)&sc->rx_bd_chain[i], BUS_DMA_NOWAIT,
+		    (void **)&sc->rx_bd_chain[i],
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 		    &sc->rx_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate RX descriptor "
 			    "chain DMA memory!\n", __FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
-
-		bzero((char *)sc->rx_bd_chain[i], BCE_RX_CHAIN_PAGE_SZ);
 
 		error = bus_dmamap_load(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], sc->rx_bd_chain[i],
@@ -3427,9 +3424,10 @@ bce_dma_alloc(device_t dev)
 	    "size = 0x%jX)\n", __FUNCTION__, (uintmax_t) max_size,
 	     max_segments, (uintmax_t) max_seg_size);
 
-	if (bus_dma_tag_create(sc->parent_tag, 1, BCE_DMA_BOUNDARY,
-	    sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL, max_size,
-	   max_segments, max_seg_size, 0, NULL, NULL, &sc->rx_mbuf_tag)) {
+	if (bus_dma_tag_create(sc->parent_tag, 1,
+	    BCE_DMA_BOUNDARY, sc->max_bus_addr, BUS_SPACE_MAXADDR, NULL, NULL,
+	    max_size, max_segments, max_seg_size, 0, NULL, NULL,
+	    &sc->rx_mbuf_tag)) {
 		BCE_PRINTF("%s(%d): Could not allocate RX mbuf DMA tag!\n",
 		    __FILE__, __LINE__);
 		rc = ENOMEM;
@@ -3466,7 +3464,8 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < PG_PAGES; i++) {
 
 		if (bus_dmamem_alloc(sc->pg_bd_chain_tag,
-		    (void **)&sc->pg_bd_chain[i], BUS_DMA_NOWAIT,
+		    (void **)&sc->pg_bd_chain[i],
+		    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 		    &sc->pg_bd_chain_map[i])) {
 			BCE_PRINTF("%s(%d): Could not allocate page "
 			    "descriptor chain DMA memory!\n",
@@ -3474,8 +3473,6 @@ bce_dma_alloc(device_t dev)
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
-
-		bzero((char *)sc->pg_bd_chain[i], BCE_PG_CHAIN_PAGE_SZ);
 
 		error = bus_dmamap_load(sc->pg_bd_chain_tag,
 		    sc->pg_bd_chain_map[i], sc->pg_bd_chain[i],
@@ -5858,6 +5855,10 @@ bce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	BCE_LOCK(sc);
 
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		BCE_UNLOCK(sc);
+		return;
+	}
 	mii = device_get_softc(sc->bce_miibus);
 
 	mii_pollstat(mii);
