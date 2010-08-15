@@ -423,13 +423,13 @@ static void bce_start			(struct ifnet *);
 static int  bce_ioctl			(struct ifnet *, u_long, caddr_t);
 static void bce_watchdog		(struct bce_softc *);
 static int  bce_ifmedia_upd		(struct ifnet *);
-static void bce_ifmedia_upd_locked	(struct ifnet *);
+static int  bce_ifmedia_upd_locked	(struct ifnet *);
 static void bce_ifmedia_sts		(struct ifnet *, struct ifmediareq *);
 static void bce_init_locked		(struct bce_softc *);
 static void bce_init			(void *);
 static void bce_mgmt_init_locked	(struct bce_softc *sc);
 
-static void bce_init_ctx		(struct bce_softc *);
+static int  bce_init_ctx		(struct bce_softc *);
 static void bce_get_mac_addr		(struct bce_softc *);
 static void bce_set_mac_addr		(struct bce_softc *);
 static void bce_phy_intr		(struct bce_softc *);
@@ -2264,7 +2264,8 @@ bce_init_nvram(struct bce_softc *sc)
 		sc->bce_flash_info = NULL;
 		BCE_PRINTF("%s(%d): Unknown Flash NVRAM found!\n",
 		    __FILE__, __LINE__);
-		rc = ENODEV;
+		DBEXIT(BCE_VERBOSE_NVRAM);
+		return (ENODEV);
 	}
 
 bce_init_nvram_get_flash_size:
@@ -4395,16 +4396,18 @@ bce_init_cpus(struct bce_softc *sc)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static int
 bce_init_ctx(struct bce_softc *sc)
 {
+	u32 offset, val, vcid_addr;
+	int i, j, rc, retry_cnt;
 
+	rc = 0;
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_CTX);
 
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
 	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
-		int i, retry_cnt = CTX_INIT_RETRY_COUNT;
-		u32 val;
+		retry_cnt = CTX_INIT_RETRY_COUNT;
 
 		DBPRINT(sc, BCE_INFO_CTX, "Initializing 5709 context.\n");
 
@@ -4425,15 +4428,14 @@ bce_init_ctx(struct bce_softc *sc)
 				break;
 			DELAY(2);
 		}
-
-		/* ToDo: Consider returning an error here. */
-		DBRUNIF((val & BCE_CTX_COMMAND_MEM_INIT),
-		    BCE_PRINTF("%s(): Context memory initialization "
-		    "failed!\n", __FUNCTION__));
+		if ((val & BCE_CTX_COMMAND_MEM_INIT) != 0) {
+			BCE_PRINTF("%s(): Context memory initialization failed!\n",
+			    __FUNCTION__);
+			rc = EBUSY;
+			goto init_ctx_fail;
+		}
 
 		for (i = 0; i < sc->ctx_pages; i++) {
-			int j;
-
 			/* Set the physical address of the context memory. */
 			REG_WR(sc, BCE_CTX_HOST_PAGE_TBL_DATA0,
 			    BCE_ADDR_LO(sc->ctx_paddr[i] & 0xfffffff0) |
@@ -4451,14 +4453,14 @@ bce_init_ctx(struct bce_softc *sc)
 					break;
 				DELAY(5);
 			}
-
-			/* ToDo: Consider returning an error here. */
-			DBRUNIF((val & BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ),
-			    BCE_PRINTF("%s(): Failed to initialize "
-			    "context page %d!\n", __FUNCTION__, i));
+			if ((val & BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ) != 0) {
+				BCE_PRINTF("%s(): Failed to initialize "
+				    "context page %d!\n", __FUNCTION__, i);
+				rc = EBUSY;
+				goto init_ctx_fail;
+			}
 		}
 	} else {
-		u32 vcid_addr, offset;
 
 		DBPRINT(sc, BCE_INFO, "Initializing 5706/5708 context.\n");
 
@@ -4485,7 +4487,9 @@ bce_init_ctx(struct bce_softc *sc)
 		}
 
 	}
+init_ctx_fail:
 	DBEXIT(BCE_VERBOSE_RESET | BCE_VERBOSE_CTX);
+	return (rc);
 }
 
 
@@ -4573,17 +4577,12 @@ static void
 bce_stop(struct bce_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmedia_entry *ifm;
-	struct mii_data *mii = NULL;
-	int mtmp, itmp;
 
 	DBENTER(BCE_VERBOSE_RESET);
 
 	BCE_LOCK_ASSERT(sc);
 
 	ifp = sc->bce_ifp;
-
-	mii = device_get_softc(sc->bce_miibus);
 
 	callout_stop(&sc->bce_tick_callout);
 
@@ -4603,25 +4602,6 @@ bce_stop(struct bce_softc *sc)
 	/* Free TX buffers. */
 	bce_free_tx_chain(sc);
 
-	/*
-	 * Isolate/power down the PHY, but leave the media selection
-	 * unchanged so that things will be put back to normal when
-	 * we bring the interface back up.
-	 */
-
-	itmp = ifp->if_flags;
-	ifp->if_flags |= IFF_UP;
-
-	/* If we are called from bce_detach(), mii is already NULL. */
-	if (mii != NULL) {
-		ifm = mii->mii_media.ifm_cur;
-		mtmp = ifm->ifm_media;
-		ifm->ifm_media = IFM_ETHER | IFM_NONE;
-		mii_mediachg(mii);
-		ifm->ifm_media = mtmp;
-	}
-
-	ifp->if_flags = itmp;
 	sc->watchdog_timer = 0;
 
 	sc->bce_link_up = FALSE;
@@ -4784,7 +4764,8 @@ bce_chipinit(struct bce_softc *sc)
 	    BCE_MISC_ENABLE_STATUS_BITS_CONTEXT_ENABLE);
 
 	/* Initialize context mapping and zero out the quick contexts. */
-	bce_init_ctx(sc);
+	if ((rc = bce_init_ctx(sc)) != 0)
+		goto bce_chipinit_exit;
 
 	/* Initialize the on-boards CPUs */
 	bce_init_cpus(sc);
@@ -4796,10 +4777,8 @@ bce_chipinit(struct bce_softc *sc)
 	}
 
 	/* Prepare NVRAM for access. */
-	if (bce_init_nvram(sc)) {
-		rc = ENODEV;
+	if ((rc = bce_init_nvram(sc)) != 0)
 		goto bce_chipinit_exit;
-	}
 
 	/* Set the kernel bypass block size */
 	val = REG_RD(sc, BCE_MQ_CONFIG);
@@ -5813,15 +5792,16 @@ static int
 bce_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bce_softc *sc = ifp->if_softc;
+	int error;
 
 	DBENTER(BCE_VERBOSE);
 
 	BCE_LOCK(sc);
-	bce_ifmedia_upd_locked(ifp);
+	error = bce_ifmedia_upd_locked(ifp);
 	BCE_UNLOCK(sc);
 
 	DBEXIT(BCE_VERBOSE);
-	return (0);
+	return (error);
 }
 
 
@@ -5831,14 +5811,16 @@ bce_ifmedia_upd(struct ifnet *ifp)
 /* Returns:                                                                 */
 /*   Nothing.                                                               */
 /****************************************************************************/
-static void
+static int
 bce_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct bce_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+	int error;
 
 	DBENTER(BCE_VERBOSE_PHY);
 
+	error = 0;
 	BCE_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->bce_miibus);
@@ -5852,10 +5834,11 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 			LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			    mii_phy_reset(miisc);
 		}
-		mii_mediachg(mii);
+		error = mii_mediachg(mii);
 	}
 
 	DBEXIT(BCE_VERBOSE_PHY);
+	return (error);
 }
 
 
