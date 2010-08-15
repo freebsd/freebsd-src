@@ -522,18 +522,26 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 		free(buf);
 		dprintf("res_nsearch failed (%d)\n", n, statp);
 		*h_errnop = statp->res_h_errno;
-		return (0);
+		return (NS_NOTFOUND);
 	} else if (n > sizeof(buf->buf)) {
 		free(buf);
 		dprintf("static buffer is too small (%d)\n", n, statp);
 		*h_errnop = statp->res_h_errno;
-		return (0);
+		return (NS_UNAVAIL);
 	}
 	error = gethostanswer(buf, n, name, type, &he, hed, statp);
 	free(buf);
 	if (error != 0) {
 		*h_errnop = statp->res_h_errno;
-		return (NS_NOTFOUND);
+		switch (statp->res_h_errno) {
+		case HOST_NOT_FOUND:
+			return (NS_NOTFOUND);
+		case TRY_AGAIN:
+			return (NS_TRYAGAIN);
+		default:
+			return (NS_UNAVAIL);
+		}
+		/*NOTREACHED*/
 	}
 	if (__copy_hostent(&he, hptr, buffer, buflen) != 0) {
 		*errnop = errno;
@@ -632,7 +640,15 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	if (gethostanswer(buf, n, qbuf, T_PTR, &he, hed, statp) != 0) {
 		free(buf);
 		*h_errnop = statp->res_h_errno;
-		return (NS_NOTFOUND);	/* h_errno was set by gethostanswer() */
+		switch (statp->res_h_errno) {
+		case HOST_NOT_FOUND:
+			return (NS_NOTFOUND);
+		case TRY_AGAIN:
+			return (NS_TRYAGAIN);
+		default:
+			return (NS_UNAVAIL);
+		}
+		/*NOTREACHED*/
 	}
 	free(buf);
 #ifdef SUNSECURITY
