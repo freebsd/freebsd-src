@@ -10,7 +10,7 @@ case "${dir}" in
 	maindir="`pwd`/${dir}/../.."
 	;;
 esac
-fstest="${maindir}/fstest"
+fstest="${maindir}/pjdfstest"
 . ${maindir}/tests/conf
 
 expect()
@@ -42,7 +42,7 @@ jexpect()
 	d="${2}"
 	e="${3}"
 	shift 3
-	r=`jail -s ${s} / fstest 127.0.0.1 /bin/sh -c "cd ${d} && ${fstest} $* 2>/dev/null" | tail -1`
+	r=`jail -s ${s} / pjdfstest 127.0.0.1 /bin/sh -c "cd ${d} && ${fstest} $* 2>/dev/null" | tail -1`
 	echo "${r}" | ${GREP} -Eq '^'${e}'$'
 	if [ $? -eq 0 ]; then
 		if [ -z "${todomsg}" ]; then
@@ -89,7 +89,7 @@ todo()
 
 namegen()
 {
-	echo "fstest_`dd if=/dev/urandom bs=1k count=1 2>/dev/null | openssl md5`"
+	echo "pjdfstest_`dd if=/dev/urandom bs=1k count=1 2>/dev/null | openssl md5`"
 }
 
 namegen_len()

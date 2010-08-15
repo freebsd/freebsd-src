@@ -1,6 +1,6 @@
 $FreeBSD$
 
-License for all regression tests available with fstest:
+License for all regression tests available with pjdfstest:
 
 Copyright (c) 2006-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 All rights reserved.

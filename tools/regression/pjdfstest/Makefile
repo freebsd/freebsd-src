@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	fstest
+PROG=	pjdfstest
 
 ${PROG}:	${PROG}.c
 	@OSTYPE=`uname`; \
