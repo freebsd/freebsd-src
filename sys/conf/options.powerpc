@@ -17,3 +17,6 @@ PSIM
 SC_OFWFB		opt_ofwfb.h
 
 OFWCONS_POLL_HZ		opt_ofw.h
+
+# Needed for the compatibility mapping for amd64 -- will go away soon
+COMPAT_IA32		opt_dontuse.h
