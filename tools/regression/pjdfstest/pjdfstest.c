@@ -264,7 +264,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: fstest [-U umask] [-u uid] [-g gid1[,gid2[...]]] syscall args ...\n");
+	fprintf(stderr, "usage: pjdfstest [-U umask] [-u uid] [-g gid1[,gid2[...]]] syscall args ...\n");
 	exit(1);
 }
 

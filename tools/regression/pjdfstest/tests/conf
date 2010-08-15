@@ -1,5 +1,5 @@
 # $FreeBSD$
-# fstest configuration file
+# pjdfstest configuration file
 
 # Supported operating systems: FreeBSD, Darwin, SunOS, Linux
 os=`uname`
