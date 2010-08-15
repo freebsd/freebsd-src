@@ -994,7 +994,7 @@ MLINKS+=rtalloc.9 rtalloc1.9 \
 	rtalloc.9 rtalloc_ign.9 \
 	rtalloc.9 RTFREE.9 \
 	rtalloc.9 rtfree.9
-MLINKS+=runqueue.9 chooseproc.9 \
+MLINKS+=runqueue.9 choosethread.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
 	runqueue.9 setrunqueue.9
