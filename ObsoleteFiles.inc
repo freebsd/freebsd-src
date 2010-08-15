@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20100815: retired last traces of chooseproc(9)
+OLD_FILES+=usr/share/man/man9/chooseproc.9.gz
 # 20100806: removal of unused libcompat routines
 OLD_FILES+=usr/share/man/man3/ascftime.3.gz
 OLD_FILES+=usr/share/man/man3/cfree.3.gz
