@@ -745,6 +745,7 @@ int t3_mc7_bd_read(struct mc7 *mc7, unsigned int start, unsigned int n,
 
 int t3_mac_init(struct cmac *mac);
 void t3b_pcs_reset(struct cmac *mac);
+void t3c_pcs_force_los(struct cmac *mac);
 void t3_mac_disable_exact_filters(struct cmac *mac);
 void t3_mac_enable_exact_filters(struct cmac *mac);
 int t3_mac_enable(struct cmac *mac, int which);

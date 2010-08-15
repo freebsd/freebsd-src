@@ -97,9 +97,38 @@ void t3b_pcs_reset(struct cmac *mac)
 {
 	t3_set_reg_field(mac->adapter, A_XGM_RESET_CTRL + mac->offset,
 			 F_PCS_RESET_, 0);
-	udelay(20);
+
+	/* No delay required */
+
 	t3_set_reg_field(mac->adapter, A_XGM_RESET_CTRL + mac->offset, 0,
 			 F_PCS_RESET_);
+}
+
+void t3c_pcs_force_los(struct cmac *mac)
+{
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT0 + mac->offset,
+	    F_LOWSIGFORCEEN0 | F_LOWSIGFORCEVALUE0,
+	    F_LOWSIGFORCEEN0 | F_LOWSIGFORCEVALUE0);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT1 + mac->offset,
+	    F_LOWSIGFORCEEN1 | F_LOWSIGFORCEVALUE1,
+	    F_LOWSIGFORCEEN1 | F_LOWSIGFORCEVALUE1);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT2 + mac->offset,
+	    F_LOWSIGFORCEEN2 | F_LOWSIGFORCEVALUE2,
+	    F_LOWSIGFORCEEN2 | F_LOWSIGFORCEVALUE2);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT3 + mac->offset,
+	    F_LOWSIGFORCEEN3 | F_LOWSIGFORCEVALUE3,
+	    F_LOWSIGFORCEEN3 | F_LOWSIGFORCEVALUE3);
+
+	/* No delay required */
+
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT0 + mac->offset,
+	    F_LOWSIGFORCEEN0, 0);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT1 + mac->offset,
+	    F_LOWSIGFORCEEN1, 0);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT2 + mac->offset,
+	    F_LOWSIGFORCEEN2, 0);
+	t3_set_reg_field(mac->adapter, A_XGM_SERDES_STAT3 + mac->offset,
+	    F_LOWSIGFORCEEN3, 0);
 }
 
 /**
