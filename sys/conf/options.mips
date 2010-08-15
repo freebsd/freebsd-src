@@ -55,3 +55,6 @@ TARGET_EMULATOR	opt_ddb.h
 
 TICK_USE_YAMON_FREQ	opt_global.h
 TICK_USE_MALTA_RTC	opt_global.h
+
+# Needed for the compatibility mapping for amd64 -- will go away soon
+COMPAT_IA32		opt_dontuse.h

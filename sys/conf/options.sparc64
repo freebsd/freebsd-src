@@ -30,3 +30,6 @@ SCHIZO_DEBUG		opt_schizo.h
 
 SUNKBD_DFLT_KEYMAP	opt_sunkbd.h
 SUNKBD_EMULATE_ATKBD	opt_sunkbd.h
+
+# Needed for the compatibility mapping for amd64 -- will go away soon
+COMPAT_IA32		opt_dontuse.h

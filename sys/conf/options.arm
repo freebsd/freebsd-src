@@ -36,3 +36,6 @@ VERBOSE_INIT_ARM	opt_global.h
 AT91_BWCT		opt_at91.h
 AT91_TSC		opt_at91.h
 AT91_KWIKBYTE		opt_at91.h
+
+# Needed for the compatibility mapping for amd64 -- will go away soon
+COMPAT_IA32		opt_dontuse.h
