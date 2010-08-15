@@ -1053,7 +1053,7 @@ ste_attach(device_t dev)
 	struct ste_softc *sc;
 	struct ifnet *ifp;
 	uint16_t eaddr[ETHER_ADDR_LEN / 2];
-	int error = 0, pmc, rid;
+	int error = 0, pmc, prefer_iomap, rid;
 
 	sc = device_get_softc(dev);
 	sc->ste_dev = dev;
@@ -1075,12 +1075,25 @@ ste_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	/* Prefer memory space register mapping over IO space. */
-	sc->ste_res_id = PCIR_BAR(1);
-	sc->ste_res_type = SYS_RES_MEMORY;
-	sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
-	    &sc->ste_res_id, RF_ACTIVE);
-	if (sc->ste_res == NULL) {
+	/*
+	 * Prefer memory space register mapping over IO space but use
+	 * IO space for a device that is known to have issues on memory
+	 * mapping.
+	 */
+	prefer_iomap = 0;
+	if (pci_get_device(dev) == ST_DEVICEID_ST201_1)
+		prefer_iomap = 1;
+	else
+		resource_int_value(device_get_name(sc->ste_dev),
+		    device_get_unit(sc->ste_dev), "prefer_iomap",
+		    &prefer_iomap);
+	if (prefer_iomap == 0) {
+		sc->ste_res_id = PCIR_BAR(1);
+		sc->ste_res_type = SYS_RES_MEMORY;
+		sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
+		    &sc->ste_res_id, RF_ACTIVE);
+	}
+	if (prefer_iomap || sc->ste_res == NULL) {
 		sc->ste_res_id = PCIR_BAR(0);
 		sc->ste_res_type = SYS_RES_IOPORT;
 		sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
