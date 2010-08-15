@@ -567,13 +567,13 @@ ar5212SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
 
-	if (keyidx >= HAL_DECOMP_MASK_SIZE)
-		return HAL_EINVAL; 
-	OS_REG_WRITE(ah, AR_DCM_A, keyidx);
-	OS_REG_WRITE(ah, AR_DCM_D, en ? AR_DCM_D_EN : 0);
-	ahp->ah_decompMask[keyidx] = en;
+        if (keyidx >= HAL_DECOMP_MASK_SIZE)
+                return HAL_EINVAL; 
+        OS_REG_WRITE(ah, AR_DCM_A, keyidx);
+        OS_REG_WRITE(ah, AR_DCM_D, en ? AR_DCM_D_EN : 0);
+        ahp->ah_decompMask[keyidx] = en;
 
-	return AH_TRUE;
+        return AH_TRUE;
 }
 
 /* Setup coverage class */
@@ -646,7 +646,7 @@ ar5212Use32KHzclock(struct ath_hal *ah, HAL_OPMODE opmode)
 		struct ath_hal_5212 *ahp = AH5212(ah);
 		return ath_hal_eepromGetFlag(ah, AR_EEP_32KHZCRYSTAL) &&
 		       (ahp->ah_enable32kHzClock == USE_32KHZ ||
-			ahp->ah_enable32kHzClock == AUTO_32KHZ);
+		        ahp->ah_enable32kHzClock == AUTO_32KHZ);
 	} else
 		return AH_FALSE;
 }
@@ -675,16 +675,16 @@ ar5212SetupClock(struct ath_hal *ah, HAL_OPMODE opmode)
 
 		if (IS_2413(ah) || IS_5413(ah) || IS_2417(ah)) {
 			OS_REG_WRITE(ah, AR_PHY_SLEEP_CTR_LIMIT,   0x26);
-			OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,	0x0d);
-			OS_REG_WRITE(ah, AR_PHY_M_SLEEP,	   0x07);
-			OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,	 0x3f);
+			OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,        0x0d);
+			OS_REG_WRITE(ah, AR_PHY_M_SLEEP,           0x07);
+			OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,         0x3f);
 			/* # Set sleep clock rate to 32 KHz. */
 			OS_REG_RMW_FIELD(ah, AR_PCICFG, AR_PCICFG_SCLK_RATE_IND, 0x2);
 		} else {
 			OS_REG_WRITE(ah, AR_PHY_SLEEP_CTR_LIMIT,   0x0a);
-			OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,	0x0c);
-			OS_REG_WRITE(ah, AR_PHY_M_SLEEP,	   0x03);
-			OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,	 0x20);
+			OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,        0x0c);
+			OS_REG_WRITE(ah, AR_PHY_M_SLEEP,           0x03);
+			OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,         0x20);
 			OS_REG_RMW_FIELD(ah, AR_PCICFG, AR_PCICFG_SCLK_RATE_IND, 0x3);
 		}
 	} else {
@@ -702,8 +702,8 @@ ar5212SetupClock(struct ath_hal *ah, HAL_OPMODE opmode)
 			OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL, 0x32);
 		else
 			OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL, 0x0e);
-		OS_REG_WRITE(ah, AR_PHY_M_SLEEP,	   0x0c);
-		OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,	 0xff);
+		OS_REG_WRITE(ah, AR_PHY_M_SLEEP,           0x0c);
+		OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,         0xff);
 		OS_REG_WRITE(ah, AR_PHY_REFCLKPD,
 		    IS_RAD5112_ANY(ah) || IS_5413(ah) || IS_2417(ah) ? 0x14 : 0x18);
 		OS_REG_RMW_FIELD(ah, AR_USEC, AR_USEC_USEC32,
@@ -731,9 +731,9 @@ ar5212RestoreClock(struct ath_hal *ah, HAL_OPMODE opmode)
 		 */
 		OS_REG_WRITE(ah, AR_PHY_SLEEP_CTR_CONTROL, 0x1f);
 		OS_REG_WRITE(ah, AR_PHY_SLEEP_CTR_LIMIT,   0x7f);
-		OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,	0x0e);
-		OS_REG_WRITE(ah, AR_PHY_M_SLEEP,	   0x0c);
-		OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,	 0xff);
+		OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,        0x0e);
+		OS_REG_WRITE(ah, AR_PHY_M_SLEEP,           0x0c);
+		OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,         0xff);
 		OS_REG_WRITE(ah, AR_PHY_REFCLKPD,
 		    IS_RAD5112_ANY(ah) || IS_5413(ah) ?  0x14 : 0x18);
 	}
@@ -1106,4 +1106,3 @@ ar5212WaitNFCalComplete(struct ath_hal *ah, int i)
 	}
 	return AH_FALSE;
 }
-
