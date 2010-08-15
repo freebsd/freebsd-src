@@ -67,7 +67,7 @@ expand_number(const char *buf, uint64_t *num)
 	}
 
 #define SHIFT(n, b)							\
-	do { if ((n << b) < n) goto overflow; n <<= b; } while (0)
+	do { if (((n << b) >> b) != n) goto overflow; n <<= b; } while (0)
 
 	switch (tolower((unsigned char)*endptr)) {
 	case 'e':
