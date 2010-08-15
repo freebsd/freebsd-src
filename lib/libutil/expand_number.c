@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 
 /*
- * Convert an expression of the following forms to a int64_t.
+ * Convert an expression of the following forms to a uint64_t.
  *	1) A positive decimal number.
  *	2) A positive decimal number followed by a 'b' or 'B' (mult by 1).
  *	3) A positive decimal number followed by a 'k' or 'K' (mult by 1 << 10).
@@ -50,6 +50,7 @@ int
 expand_number(const char *buf, uint64_t *num)
 {
 	uint64_t number;
+	unsigned shift;
 	char *endptr;
 
 	number = strtoumax(buf, &endptr, 0);
@@ -60,41 +61,41 @@ expand_number(const char *buf, uint64_t *num)
 		return (-1);
 	}
 
-	if (*endptr == '\0') {
-		/* No unit. */
-		*num = number;
-		return (0);
-	}
-
-#define SHIFT(n, b) \
-	do { if (((n << b) >> b) != n) goto overflow; n <<= b; } while (0)
-
 	switch (tolower((unsigned char)*endptr)) {
 	case 'e':
-		SHIFT(number, 10);
-	case 'p':
-		SHIFT(number, 10);
-	case 't':
-		SHIFT(number, 10);
-	case 'g':
-		SHIFT(number, 10);
-	case 'm':
-		SHIFT(number, 10);
-	case 'k':
-		SHIFT(number, 10);
-	case 'b':
+		shift = 60;
 		break;
+	case 'p':
+		shift = 50;
+		break;
+	case 't':
+		shift = 40;
+		break;
+	case 'g':
+		shift = 30;
+		break;
+	case 'm':
+		shift = 20;
+		break;
+	case 'k':
+		shift = 10;
+		break;
+	case 'b':
+	case '\0': /* No unit. */
+		*num = number;
+		return (0);
 	default:
 		/* Unrecognized unit. */
 		errno = EINVAL;
 		return (-1);
 	}
 
-	*num = number;
-	return (0);
+	if ((number << shift) >> shift != number) {
+		/* Overflow */
+		errno = ERANGE;
+		return (-1);
+	}
 
-overflow:
-	/* Overflow */
-	errno = ERANGE;
-	return (-1);
+	*num = number << shift;
+	return (0);
 }
