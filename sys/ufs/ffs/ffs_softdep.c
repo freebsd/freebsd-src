@@ -857,6 +857,7 @@ static	int journal_mount(struct mount *, struct fs *, struct ucred *);
 static	void journal_unmount(struct mount *);
 static	int journal_space(struct ufsmount *, int);
 static	void journal_suspend(struct ufsmount *);
+static	int journal_unsuspend(struct ufsmount *ump);
 static	void softdep_prelink(struct vnode *, struct vnode *);
 static	void add_to_journal(struct worklist *);
 static	void remove_from_journal(struct worklist *);
@@ -1390,6 +1391,8 @@ softdep_process_worklist(mp, full)
 		if (!full && starttime != time_second)
 			break;
 	}
+	if (full == 0)
+		journal_unsuspend(ump);
 	FREE_LOCK(&lk);
 	return (matchcnt);
 }
@@ -2436,6 +2439,27 @@ journal_suspend(ump)
 	MNT_IUNLOCK(mp);
 }
 
+static int
+journal_unsuspend(struct ufsmount *ump)
+{
+	struct jblocks *jblocks;
+	struct mount *mp;
+
+	mp = UFSTOVFS(ump);
+	jblocks = ump->softdep_jblocks;
+
+	if (jblocks != NULL && jblocks->jb_suspended &&
+	    journal_space(ump, jblocks->jb_min)) {
+		jblocks->jb_suspended = 0;
+		FREE_LOCK(&lk);
+		mp->mnt_susp_owner = curthread;
+		vfs_write_resume(mp);
+		ACQUIRE_LOCK(&lk);
+		return (1);
+	}
+	return (0);
+}
+
 /*
  * Called before any allocation function to be certain that there is
  * sufficient space in the journal prior to creating any new records.
@@ -2852,15 +2876,9 @@ softdep_process_journal(mp, flags)
 	 * space either try to sync it here to make some progress or
 	 * unsuspend it if we already have.
 	 */
-	if (flags == 0 && jblocks && jblocks->jb_suspended) {
-		if (journal_space(ump, jblocks->jb_min)) {
-			FREE_LOCK(&lk);
-			jblocks->jb_suspended = 0;
-			mp->mnt_susp_owner = curthread;
-			vfs_write_resume(mp);
-			ACQUIRE_LOCK(&lk);
+	if (flags == 0 && jblocks->jb_suspended) {
+		if (journal_unsuspend(ump))
 			return;
-		}
 		FREE_LOCK(&lk);
 		VFS_SYNC(mp, MNT_NOWAIT);
 		ffs_sbupdate(ump, MNT_WAIT, 0);

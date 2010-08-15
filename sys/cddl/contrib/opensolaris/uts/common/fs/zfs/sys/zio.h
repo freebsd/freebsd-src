@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -132,12 +132,15 @@ enum zio_compress {
 #define	ZIO_FLAG_IO_RETRY		0x00400
 #define	ZIO_FLAG_IO_REWRITE		0x00800
 
-#define	ZIO_FLAG_PROBE			0x01000
+#define	ZIO_FLAG_SELF_HEAL		0x01000
 #define	ZIO_FLAG_RESILVER		0x02000
 #define	ZIO_FLAG_SCRUB			0x04000
 #define	ZIO_FLAG_SCRUB_THREAD		0x08000
 
-#define	ZIO_FLAG_GANG_CHILD		0x10000
+#define	ZIO_FLAG_PROBE			0x10000
+#define	ZIO_FLAG_GANG_CHILD		0x20000
+#define	ZIO_FLAG_RAW			0x40000
+#define	ZIO_FLAG_GODFATHER		0x80000
 
 #define	ZIO_FLAG_GANG_INHERIT		\
 	(ZIO_FLAG_CANFAIL |		\
@@ -146,6 +149,7 @@ enum zio_compress {
 	ZIO_FLAG_DONT_RETRY |		\
 	ZIO_FLAG_DONT_CACHE |		\
 	ZIO_FLAG_DONT_AGGREGATE |	\
+	ZIO_FLAG_SELF_HEAL |		\
 	ZIO_FLAG_RESILVER |		\
 	ZIO_FLAG_SCRUB |		\
 	ZIO_FLAG_SCRUB_THREAD)
@@ -155,6 +159,14 @@ enum zio_compress {
 	ZIO_FLAG_IO_REPAIR |		\
 	ZIO_FLAG_IO_RETRY |		\
 	ZIO_FLAG_PROBE)
+
+#define	ZIO_FLAG_AGG_INHERIT		\
+	(ZIO_FLAG_DONT_AGGREGATE |	\
+	ZIO_FLAG_IO_REPAIR |		\
+	ZIO_FLAG_SELF_HEAL |		\
+	ZIO_FLAG_RESILVER |		\
+	ZIO_FLAG_SCRUB |		\
+	ZIO_FLAG_SCRUB_THREAD)
 
 #define	ZIO_PIPELINE_CONTINUE		0x100
 #define	ZIO_PIPELINE_STOP		0x101
@@ -254,6 +266,13 @@ typedef int zio_pipe_stage_t(zio_t *zio);
 #define	ZIO_REEXECUTE_NOW	0x01
 #define	ZIO_REEXECUTE_SUSPEND	0x02
 
+typedef struct zio_link {
+	zio_t		*zl_parent;
+	zio_t		*zl_child;
+	list_node_t	zl_parent_node;
+	list_node_t	zl_child_node;
+} zio_link_t;
+
 struct zio {
 	/* Core information about this I/O */
 	zbookmark_t	io_bookmark;
@@ -263,15 +282,14 @@ struct zio {
 	int		io_cmd;
 	uint8_t		io_priority;
 	uint8_t		io_reexecute;
-	uint8_t		io_async_root;
+	uint8_t		io_state[ZIO_WAIT_TYPES];
 	uint64_t	io_txg;
 	spa_t		*io_spa;
 	blkptr_t	*io_bp;
 	blkptr_t	io_bp_copy;
-	zio_t		*io_parent;
-	zio_t		*io_child;
-	zio_t		*io_sibling_prev;
-	zio_t		*io_sibling_next;
+	list_t		io_parent_list;
+	list_t		io_child_list;
+	zio_link_t	*io_walk_link;
 	zio_t		*io_logical;
 	zio_transform_t *io_transform_stack;
 
@@ -294,8 +312,6 @@ struct zio {
 	avl_node_t	io_offset_node;
 	avl_node_t	io_deadline_node;
 	avl_tree_t	*io_vdev_tree;
-	zio_t		*io_delegate_list;
-	zio_t		*io_delegate_next;
 
 	/* Internal pipeline state */
 	int		io_flags;
@@ -308,6 +324,7 @@ struct zio {
 	int		io_child_error[ZIO_CHILD_TYPES];
 	uint64_t	io_children[ZIO_CHILD_TYPES][ZIO_WAIT_TYPES];
 	uint64_t	*io_stall;
+	zio_t		*io_gang_leader;
 	zio_gang_node_t	*io_gang_tree;
 	void		*io_executor;
 	void		*io_waiter;
@@ -323,7 +340,7 @@ struct zio {
 #endif
 };
 
-extern zio_t *zio_null(zio_t *pio, spa_t *spa,
+extern zio_t *zio_null(zio_t *pio, spa_t *spa, vdev_t *vd,
     zio_done_func_t *done, void *private, int flags);
 
 extern zio_t *zio_root(spa_t *spa,
@@ -371,6 +388,11 @@ extern void zio_nowait(zio_t *zio);
 extern void zio_execute(zio_t *zio);
 extern void zio_interrupt(zio_t *zio);
 
+extern zio_t *zio_walk_parents(zio_t *cio);
+extern zio_t *zio_walk_children(zio_t *pio);
+extern zio_t *zio_unique_parent(zio_t *cio);
+extern void zio_add_child(zio_t *pio, zio_t *cio);
+
 extern void *zio_buf_alloc(size_t size);
 extern void zio_buf_free(void *buf, size_t size);
 extern void *zio_data_buf_alloc(size_t size);
@@ -397,7 +419,7 @@ extern uint8_t zio_checksum_select(uint8_t child, uint8_t parent);
 extern uint8_t zio_compress_select(uint8_t child, uint8_t parent);
 
 extern void zio_suspend(spa_t *spa, zio_t *zio);
-extern void zio_resume(spa_t *spa);
+extern int zio_resume(spa_t *spa);
 extern void zio_resume_wait(spa_t *spa);
 
 /*

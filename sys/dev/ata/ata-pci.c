@@ -769,7 +769,8 @@ DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, 0, 0);
 int
 ata_legacy(device_t dev)
 {
-    return (((pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV)&&
+    return (((pci_read_config(dev, PCIR_SUBCLASS, 1) == PCIS_STORAGE_IDE) &&
+	     (pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV)&&
 	     ((pci_read_config(dev, PCIR_PROGIF, 1) &
 	       (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)) !=
 	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC))) ||
@@ -806,17 +807,23 @@ ata_setup_interrupt(device_t dev, void *intr_func)
 	if (msi && pci_msi_count(dev) > 0 && pci_alloc_msi(dev, &msi) == 0) {
 	    ctlr->r_irq_rid = 0x1;
 	} else {
+	    msi = 0;
 	    ctlr->r_irq_rid = ATA_IRQ_RID;
 	}
 	if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		&ctlr->r_irq_rid, RF_SHAREABLE | RF_ACTIVE))) {
 	    device_printf(dev, "unable to map interrupt\n");
+	    if (msi)
+		    pci_release_msi(dev);
 	    return ENXIO;
 	}
 	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS, NULL,
 			    intr_func, ctlr, &ctlr->handle))) {
-	    /* SOS XXX release r_irq */
 	    device_printf(dev, "unable to setup interrupt\n");
+	    bus_release_resource(dev,
+		SYS_RES_IRQ, ctlr->r_irq_rid, ctlr->r_irq);
+	    if (msi)
+		    pci_release_msi(dev);
 	    return ENXIO;
 	}
     }

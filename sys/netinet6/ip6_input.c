@@ -514,10 +514,54 @@ passin:
 	     (struct sockaddr *)&dst6);
 	IF_AFDATA_UNLOCK(ifp);
 	if ((lle != NULL) && (lle->la_flags & LLE_IFADDR)) {
-		ours = 1;
-		deliverifp = ifp;
+		struct ifaddr *ifa;
+		struct in6_ifaddr *ia6;
+		int bad;
+
+		bad = 1;
+#define	sa_equal(a1, a2)						\
+	(bcmp((a1), (a2), ((a1))->sin6_len) == 0)
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != dst6.sin6_family)
+				continue;
+			if (sa_equal(&dst6, ifa->ifa_addr))
+				break;
+		}
+		KASSERT(ifa != NULL, ("%s: ifa not found for lle %p",
+		    __func__, lle));
+#undef sa_equal
+
+		ia6 = (struct in6_ifaddr *)ifa;
+		if (!(ia6->ia6_flags & IN6_IFF_NOTREADY)) {
+			/* Count the packet in the ip address stats */
+			ia6->ia_ifa.if_ipackets++;
+			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+
+			/*
+			 * record address information into m_tag.
+			 */
+			(void)ip6_setdstifaddr(m, ia6);
+
+			bad = 0;
+		} else {
+			char ip6bufs[INET6_ADDRSTRLEN];
+			char ip6bufd[INET6_ADDRSTRLEN];
+			/* address is not ready, so discard the packet. */
+			nd6log((LOG_INFO,
+			    "ip6_input: packet to an unready address %s->%s\n",
+			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
+			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
+		}
+		IF_ADDR_UNLOCK(ifp);
 		LLE_RUNLOCK(lle);
-		goto hbhcheck;
+		if (bad)
+			goto bad;
+		else {
+			ours = 1;
+			deliverifp = ifp;
+			goto hbhcheck;
+		}
 	}
 	if (lle != NULL)
 		LLE_RUNLOCK(lle);

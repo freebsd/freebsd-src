@@ -193,8 +193,8 @@ struct ofw_map {
  */
 static struct	mem_region *regions;
 static struct	mem_region *pregions;
-u_int           phys_avail_count;
-int		regions_sz, pregions_sz;
+static u_int    phys_avail_count;
+static int	regions_sz, pregions_sz;
 static struct	ofw_map *translations;
 
 extern struct pmap ofw_pmap;

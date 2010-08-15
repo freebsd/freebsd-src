@@ -305,6 +305,18 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (g_handleattr_str(bp, "GEOM::ident", dp->d_ident))
 			break;
+		else if (g_handleattr(bp, "GEOM::hba_vendor",
+		    &dp->d_hba_vendor, 2))
+			break;
+		else if (g_handleattr(bp, "GEOM::hba_device",
+		    &dp->d_hba_device, 2))
+			break;
+		else if (g_handleattr(bp, "GEOM::hba_subvendor",
+		    &dp->d_hba_subvendor, 2))
+			break;
+		else if (g_handleattr(bp, "GEOM::hba_subdevice",
+		    &dp->d_hba_subdevice, 2))
+			break;
 		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_disk_kerneldump(bp, dp);
 		else 

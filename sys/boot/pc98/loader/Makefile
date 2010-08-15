@@ -94,6 +94,6 @@ FILES+=	${.CURDIR}/../../i386/loader/loader.rc
 OBJS=	${BTXCRT} 
 
 DPADD=	${LIBFICL} ${LIBPC98} ${LIBSTAND}
-LDADD=	${LIBFICL} ${LIBPC98} -lstand
+LDADD=	${LIBFICL} ${LIBPC98} ${LIBSTAND}
 
 .include <bsd.prog.mk>

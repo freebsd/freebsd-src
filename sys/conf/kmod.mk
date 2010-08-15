@@ -60,6 +60,9 @@
 #		Unload a module.
 #
 
+# backwards compat option for older systems.
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
@@ -111,7 +114,7 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${CC} != "icc"
+.if ${CC} != "icc" && ${CC} != "clang"
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
@@ -129,7 +132,7 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
 
@@ -229,8 +232,8 @@ ${FULLPROG}: ${OBJS}
 .endif
 
 _ILINKS=@ machine
-.if ${MACHINE} != ${MACHINE_ARCH}
-_ILINKS+=${MACHINE_ARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH}
+_ILINKS+=${MACHINE_CPUARCH}
 .endif
 
 all: objwarn ${PROG}
@@ -257,8 +260,8 @@ SYSDIR=	${_dir}
 
 ${_ILINKS}:
 	@case ${.TARGET} in \
-	${MACHINE_ARCH}) \
-		path=${SYSDIR}/${MACHINE_ARCH}/include ;; \
+	${MACHINE_CPUARCH}) \
+		path=${SYSDIR}/${MACHINE_CPUARCH}/include ;; \
 	machine) \
 		path=${SYSDIR}/${MACHINE}/include ;; \
 	@) \
@@ -454,11 +457,11 @@ assym.s: @/kern/genassym.sh
 .endif
 	sh @/kern/genassym.sh genassym.o > ${.TARGET}
 .if exists(@)
-genassym.o: @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c
+genassym.o: @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
 .endif
 genassym.o: @ machine ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
-	    @/${MACHINE_ARCH}/${MACHINE_ARCH}/genassym.c
+	    @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
 .endif
 
 lint: ${SRCS}

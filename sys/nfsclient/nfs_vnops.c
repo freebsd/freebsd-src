@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsnode.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfs_kdtrace.h>
-#include <nfsclient/nfs_lock.h>
+#include <nfs/nfs_lock.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
 
@@ -521,31 +521,23 @@ nfs_open(struct vop_open_args *ap)
 	 */
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NMODIFIED) {
-		mtx_unlock(&np->n_mtx);			
+		mtx_unlock(&np->n_mtx);
 		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		if (error == EINTR || error == EIO)
 			return (error);
+		mtx_lock(&np->n_mtx);
 		np->n_attrstamp = 0;
 		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 		if (vp->v_type == VDIR)
 			np->n_direofoffset = 0;
+		mtx_unlock(&np->n_mtx);
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return (error);
 		mtx_lock(&np->n_mtx);
 		np->n_mtime = vattr.va_mtime;
-		mtx_unlock(&np->n_mtx);
 	} else {
-		struct thread *td = curthread;
-
-		if (np->n_ac_ts_syscalls != td->td_syscalls ||
-		    np->n_ac_ts_tid != td->td_tid || 
-		    td->td_proc == NULL ||
-		    np->n_ac_ts_pid != td->td_proc->p_pid) {
-			np->n_attrstamp = 0;
-			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-		}
-		mtx_unlock(&np->n_mtx);						
+		mtx_unlock(&np->n_mtx);
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return (error);
@@ -561,22 +553,22 @@ nfs_open(struct vop_open_args *ap)
 			mtx_lock(&np->n_mtx);
 			np->n_mtime = vattr.va_mtime;
 		}
-		mtx_unlock(&np->n_mtx);
 	}
 	/*
 	 * If the object has >= 1 O_DIRECT active opens, we disable caching.
 	 */
 	if (nfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
 		if (np->n_directio_opens == 0) {
+			mtx_unlock(&np->n_mtx);
 			error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error)
 				return (error);
 			mtx_lock(&np->n_mtx);
 			np->n_flag |= NNONCACHE;
-			mtx_unlock(&np->n_mtx);
 		}
 		np->n_directio_opens++;
 	}
+	mtx_unlock(&np->n_mtx);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }
@@ -970,8 +962,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 */
 		newvp = *vpp;
 		newnp = VTONFS(newvp);
-		if ((cnp->cn_flags & (ISLASTCN | ISOPEN)) ==
-		    (ISLASTCN | ISOPEN) && !(newnp->n_flag & NMODIFIED)) {
+		if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+		    !(newnp->n_flag & NMODIFIED)) {
 			mtx_lock(&newnp->n_mtx);
 			newnp->n_attrstamp = 0;
 			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
@@ -1121,6 +1113,20 @@ nfs_lookup(struct vop_lookup_args *ap)
 			return (error);
 		}
 		newvp = NFSTOV(np);
+
+		/*
+		 * Flush the attribute cache when opening a leaf node
+		 * to ensure that fresh attributes are fetched in
+		 * nfs_open() if we are unable to fetch attributes
+		 * from the LOOKUP reply.
+		 */
+		if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+		    !(np->n_flag & NMODIFIED)) {
+			mtx_lock(&np->n_mtx);
+			np->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
+			mtx_unlock(&np->n_mtx);
+		}
 	}
 	if (v3) {
 		nfsm_postop_attr(newvp, attrflag);
@@ -1738,7 +1744,9 @@ nfs_remove(struct vop_remove_args *ap)
 			error = 0;
 	} else if (!np->n_sillyrename)
 		error = nfs_sillyrename(dvp, vp, cnp);
+	mtx_lock(&np->n_mtx);
 	np->n_attrstamp = 0;
+	mtx_unlock(&np->n_mtx);
 	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 	return (error);
 }

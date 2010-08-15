@@ -176,7 +176,7 @@ MODULE_DEPEND(cas, miibus, 1, 1, 1);
 
 #ifdef CAS_DEBUG
 #include <sys/ktr.h>
-#define	KTR_CAS		KTR_CT2
+#define	KTR_CAS		KTR_SPARE2
 #endif
 
 static int

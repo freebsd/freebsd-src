@@ -253,23 +253,8 @@ cpu_halt(void)
 		;
 }
 
-SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo, CTLFLAG_RD, &bootinfo,
+SYSCTL_STRUCT(_machdep, OID_AUTO, bootinfo, CTLFLAG_RD, &bootinfo,
     bootinfo, "Bootinfo struct: kernel filename, BIOS harddisk geometry, etc");
-
-#ifdef PORT_TO_JMIPS
-static int
-sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
-{
-}
-
-SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT | CTLFLAG_RW,
-    &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
-    "Local offset from GMT in seconds");
-SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set, CTLFLAG_RW,
-    &disable_rtc_set, 0, "Disable setting the real time clock to system time");
-SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock, CTLFLAG_RW,
-    &wall_cmos_clock, 0, "Wall CMOS clock assumed");
-#endif	/* PORT_TO_JMIPS */
 
 /*
  * Initialize per cpu data structures, include curthread.
@@ -322,7 +307,9 @@ mips_proc0_init(void)
 void
 cpu_initclocks(void)
 {
+
 	platform_initclocks();
+	cpu_initclocks_bsp();
 }
 
 struct msgbuf *msgbufp=0;
@@ -344,19 +331,19 @@ mips_vector_init(void)
 	if (MipsCacheEnd - MipsCache > 0x80)
 		panic("startup: Cache error code too large");
 
-	bcopy(MipsTLBMiss, (void *)TLB_MISS_EXC_VEC,
+	bcopy(MipsTLBMiss, (void *)MIPS_UTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
-#if defined(TARGET_OCTEON) || defined(TARGET_XLR_XLS)
+#if defined(CPU_CNMIPS) || defined(CPU_RMI)
 /* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
-	bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
+	bcopy(MipsTLBMiss, (void *)MIPS3_XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 #endif
 
-	bcopy(MipsException, (void *)GEN_EXC_VEC,
+	bcopy(MipsException, (void *)MIPS3_GEN_EXC_VEC,
 	      MipsExceptionEnd - MipsException);
 
-	bcopy(MipsCache, (void *)CACHE_ERR_EXC_VEC,
+	bcopy(MipsCache, (void *)MIPS3_CACHE_ERR_EXC_VEC,
 	      MipsCacheEnd - MipsCache);
 
 	/*
@@ -369,10 +356,10 @@ mips_vector_init(void)
 	 * Mask all interrupts. Each interrupt will be enabled
 	 * when handler is installed for it
 	 */
-	set_intr_mask(ALL_INT_MASK);
+	set_intr_mask(MIPS_SR_INT_MASK);
 
 	/* Clear BEV in SR so we start handling our own exceptions */
-	mips_wr_status(mips_rd_status() & ~SR_BOOT_EXC_VEC);
+	mips_wr_status(mips_rd_status() & ~MIPS_SR_BEV);
 }
 
 /*
@@ -489,7 +476,7 @@ spinlock_exit(void)
 void
 cpu_idle(int busy)
 {
-	if (mips_rd_status() & SR_INT_ENAB)
+	if (mips_rd_status() & MIPS_SR_INT_IE)
 		__asm __volatile ("wait");
 	else
 		panic("ints disabled in idleproc!");

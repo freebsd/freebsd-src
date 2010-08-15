@@ -50,17 +50,17 @@
 struct trapframe {
 	register_t fixreg[32];
 	register_t lr;
-	int	cr;
-	int	xer;
+	register_t cr;
+	register_t xer;
 	register_t ctr;
 	register_t srr0;
 	register_t srr1;
-	int	exc;
+	register_t exc;
 	union {
 		struct {
 			/* dar & dsisr are only filled on a DSI trap */
 			register_t dar;
-			int	dsisr;
+			register_t dsisr;
 		} aim;
 		struct {
 			register_t dear;
@@ -71,14 +71,31 @@ struct trapframe {
 };
 
 /*
- * This is to ensure alignment of the stackpointer
+ * FRAMELEN is the size of the stack region used by the low-level trap
+ * handler. It is the size of its data (trapframe) plus the callframe
+ * header (sizeof(struct callframe) - 3 register widths). It must also
+ * be 16-byte aligned.
  */
-#define	FRAMELEN	roundup(sizeof(struct trapframe) + 8, 16)
+#define	FRAMELEN	roundup(sizeof(struct trapframe) + \
+			    sizeof(struct callframe) - 3*sizeof(register_t), 16)
 #define	trapframe(td)	((td)->td_frame)
 
 /*
  * Call frame for PowerPC used during fork.
  */
+#ifdef __powerpc64__
+struct callframe {
+	register_t	cf_dummy_fp;	/* dummy frame pointer */
+	register_t	cf_cr;
+	register_t	cf_lr;
+	register_t	cf_compiler;
+	register_t	cf_linkeditor;
+	register_t	cf_toc;
+	register_t	cf_func;
+	register_t	cf_arg0;
+	register_t	cf_arg1;
+};
+#else
 struct callframe {
 	register_t	cf_dummy_fp;	/* dummy frame pointer */
 	register_t	cf_lr;		/* space for link register save */
@@ -86,10 +103,15 @@ struct callframe {
 	register_t	cf_arg0;
 	register_t	cf_arg1;
 };
+#endif
+
+/* Definitions for syscalls */
+#define	FIRSTARG	3				/* first arg in reg 3 */
 
 /* Definitions for syscalls */
 #define	FIRSTARG	3				/* first arg in reg 3 */
 #define	NARGREG		8				/* 8 args in regs */
-#define	MOREARGS(sp)	((caddr_t)((int)(sp) + 8))	/* more args go here */
+#define	MOREARGS(sp)	((caddr_t)((uintptr_t)(sp) + \
+    sizeof(struct callframe) - 3*sizeof(register_t))) /* more args go here */
 
 #endif	/* _MACHINE_FRAME_H_ */

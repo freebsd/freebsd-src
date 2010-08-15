@@ -87,30 +87,31 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__GNUCLIKE_ASM) && !defined(lint)
 
-#define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
-#define	fnclex()		__asm("fnclex")
-#define	fninit()		__asm("fninit")
+#define	fldcw(cw)		__asm __volatile("fldcw %0" : : "m" (cw))
+#define	fnclex()		__asm __volatile("fnclex")
+#define	fninit()		__asm __volatile("fninit")
 #define	fnsave(addr)		__asm __volatile("fnsave %0" : "=m" (*(addr)))
 #define	fnstcw(addr)		__asm __volatile("fnstcw %0" : "=m" (*(addr)))
-#define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
-#define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fnop")
-#define	frstor(addr)		__asm("frstor %0" : : "m" (*(addr)))
+#define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=am" (*(addr)))
+#define	fp_divide_by_0()	__asm __volatile( \
+				    "fldz; fld1; fdiv %st,%st(1); fnop")
+#define	frstor(addr)		__asm __volatile("frstor %0" : : "m" (*(addr)))
 #ifdef CPU_ENABLE_SSE
-#define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
+#define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
-#define	ldmxcsr(__csr)		__asm __volatile("ldmxcsr %0" : : "m" (__csr))
 #endif
 #ifdef XEN
-#define start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
-#define stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
+#define	start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
+#define	stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
 #else
-#define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
-				      : : "n" (CR0_TS) : "ax")
-#define	stop_emulating()	__asm("clts")
+#define	start_emulating()	__asm __volatile( \
+				    "smsw %%ax; orb %0,%%al; lmsw %%ax" \
+				    : : "n" (CR0_TS) : "ax")
+#define	stop_emulating()	__asm __volatile("clts")
 #endif
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
-void	fldcw(caddr_t addr);
+void	fldcw(u_short cw);
 void	fnclex(void);
 void	fninit(void);
 void	fnsave(caddr_t addr);
@@ -265,7 +266,7 @@ npx_probe(device_t dev)
 			 * 16 works.
 			 */
 			control &= ~(1 << 2);	/* enable divide by 0 trap */
-			fldcw(&control);
+			fldcw(control);
 #ifdef FPU_ERROR_BROKEN
 			/*
 			 * FPU error signal doesn't work on some CPU
@@ -363,7 +364,7 @@ npxinit(void)
 		fninit();
 #endif
 	control = __INITIAL_NPXCW__;
-	fldcw(&control);
+	fldcw(control);
 	start_emulating();
 	intr_restore(savecrit);
 }
@@ -682,7 +683,7 @@ npxdna(void)
 		 */
 		fpurstor(&npx_initialstate);
 		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
-			fldcw(&pcb->pcb_initial_npxcw);
+			fldcw(pcb->pcb_initial_npxcw);
 		pcb->pcb_flags |= PCB_NPXINITDONE;
 		if (PCB_USER_FPU(pcb))
 			pcb->pcb_flags |= PCB_NPXUSERINITDONE;

@@ -153,7 +153,7 @@ tcp_output(struct tcpcb *tp)
 	int idle, sendalot;
 	int sack_rxmit, sack_bytes_rxmt;
 	struct sackhole *p;
-	int tso = 0;
+	int tso;
 	struct tcpopt to;
 #if 0
 	int maxburst = TCP_MAXBURST;
@@ -211,6 +211,7 @@ again:
 	    SEQ_LT(tp->snd_nxt, tp->snd_max))
 		tcp_sack_adjust(tp);
 	sendalot = 0;
+	tso = 0;
 	off = tp->snd_nxt - tp->snd_una;
 	sendwin = min(tp->snd_wnd, tp->snd_cwnd);
 	sendwin = min(sendwin, tp->snd_bwnd);
@@ -490,9 +491,9 @@ after_sack_rexmit:
 		} else {
 			len = tp->t_maxseg;
 			sendalot = 1;
-			tso = 0;
 		}
 	}
+
 	if (sack_rxmit) {
 		if (SEQ_LT(p->rxmit + len, tp->snd_una + so->so_snd.sb_cc))
 			flags &= ~TH_FIN;
@@ -1051,6 +1052,8 @@ send:
 	 * XXX: Fixme: This is currently not the case for IPv6.
 	 */
 	if (tso) {
+		KASSERT(len > tp->t_maxopd - optlen,
+		    ("%s: len <= tso_segsz", __func__));
 		m->m_pkthdr.csum_flags |= CSUM_TSO;
 		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
 	}
@@ -1183,8 +1186,10 @@ timer:
 	 * This might not be the best thing to do according to RFC3390
 	 * Section 2. However the tcp hostcache migitates the problem
 	 * so it affects only the first tcp connection with a host.
+	 *
+	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
 	 */
-	if (V_path_mtu_discovery)
+	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
 		ip->ip_off |= IP_DF;
 
 	error = ip_output(m, tp->t_inpcb->inp_options, NULL,

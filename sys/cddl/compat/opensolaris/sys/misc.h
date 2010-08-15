@@ -43,10 +43,13 @@
 #define	_FIO_SEEK_DATA	FIOSEEKDATA
 #define	_FIO_SEEK_HOLE	FIOSEEKHOLE
 
+#ifdef _KERNEL
 struct opensolaris_utsname {
 	char *nodename;
 };
 
 extern char hw_serial[11];
 extern struct opensolaris_utsname utsname;
+#endif
+
 #endif	/* _OPENSOLARIS_SYS_MISC_H_ */

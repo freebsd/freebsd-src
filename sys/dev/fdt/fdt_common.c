@@ -63,7 +63,7 @@ vm_offset_t fdt_immr_va;
 vm_offset_t fdt_immr_size;
 
 int
-fdt_immr_addr(void)
+fdt_immr_addr(vm_offset_t immr_va)
 {
 	pcell_t ranges[6], *rangesptr;
 	phandle_t node;
@@ -122,7 +122,7 @@ moveon:
 	size = fdt_data_get((void *)rangesptr, size_cells);
 
 	fdt_immr_pa = base;
-	fdt_immr_va = FDT_IMMR_VA;
+	fdt_immr_va = immr_va;
 	fdt_immr_size = size;
 
 	return (0);
@@ -529,8 +529,8 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 		debugf("decoded intr = %d, trig = %d, pol = %d\n", interrupt,
 		    trig, pol);
 
-		intr_sl[intr_num].trig = trig;
-		intr_sl[intr_num].pol = pol;
+		intr_sl[i].trig = trig;
+		intr_sl[i].pol = pol;
 
 		resource_list_add(rl, SYS_RES_IRQ, i, interrupt, interrupt, 1);
 	}

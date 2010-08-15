@@ -627,6 +627,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	struct inpcb *inp = NULL;
 	struct socket *so;
 	struct tcpcb *tp;
+	int error;
 	char *s;
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
@@ -675,7 +676,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	}
 #endif
 	inp->inp_lport = sc->sc_inc.inc_lport;
-	if (in_pcbinshash(inp) != 0) {
+	if ((error = in_pcbinshash(inp)) != 0) {
 		/*
 		 * Undo the assignments above if we failed to
 		 * put the PCB on the hash lists.
@@ -687,6 +688,12 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #endif
 			inp->inp_laddr.s_addr = INADDR_ANY;
 		inp->inp_lport = 0;
+		if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: in_pcbinshash failed "
+			    "with error %i\n",
+			    s, __func__, error);
+			free(s, M_TCPLOG);
+		}
 		goto abort;
 	}
 #ifdef IPSEC
@@ -721,9 +728,15 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		laddr6 = inp->in6p_laddr;
 		if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 			inp->in6p_laddr = sc->sc_inc.inc6_laddr;
-		if (in6_pcbconnect(inp, (struct sockaddr *)&sin6,
-		    thread0.td_ucred)) {
+		if ((error = in6_pcbconnect(inp, (struct sockaddr *)&sin6,
+		    thread0.td_ucred)) != 0) {
 			inp->in6p_laddr = laddr6;
+			if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
+				log(LOG_DEBUG, "%s; %s: in6_pcbconnect failed "
+				    "with error %i\n",
+				    s, __func__, error);
+				free(s, M_TCPLOG);
+			}
 			goto abort;
 		}
 		/* Override flowlabel from in6_pcbconnect. */
@@ -750,9 +763,15 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		laddr = inp->inp_laddr;
 		if (inp->inp_laddr.s_addr == INADDR_ANY)
 			inp->inp_laddr = sc->sc_inc.inc_laddr;
-		if (in_pcbconnect(inp, (struct sockaddr *)&sin,
-		    thread0.td_ucred)) {
+		if ((error = in_pcbconnect(inp, (struct sockaddr *)&sin,
+		    thread0.td_ucred)) != 0) {
 			inp->inp_laddr = laddr;
+			if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
+				log(LOG_DEBUG, "%s; %s: in_pcbconnect failed "
+				    "with error %i\n",
+				    s, __func__, error);
+				free(s, M_TCPLOG);
+			}
 			goto abort;
 		}
 	}
@@ -804,8 +823,9 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 
 	/*
 	 * If the SYN,ACK was retransmitted, reset cwnd to 1 segment.
+	 * NB: sc_rxmits counts all SYN,ACK transmits, not just retransmits.
 	 */
-	if (sc->sc_rxmits)
+	if (sc->sc_rxmits > 1)
 		tp->snd_cwnd = tp->t_maxseg;
 	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 

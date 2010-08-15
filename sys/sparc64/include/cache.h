@@ -49,7 +49,7 @@
 #define	DCACHE_COLORS		(1 << DCACHE_COLOR_BITS)
 #define	DCACHE_COLOR_MASK	(DCACHE_COLORS - 1)
 #define	DCACHE_COLOR(va)	(((va) >> PAGE_SHIFT) & DCACHE_COLOR_MASK)
-#define	DCACHE_OTHER_COLOR(color) \
+#define	DCACHE_OTHER_COLOR(color)					\
 	((color) ^ DCACHE_COLOR_BITS)
 
 #define	DC_TAG_SHIFT	2
@@ -88,6 +88,8 @@ struct cacheinfo {
 };
 
 #ifdef _KERNEL
+
+extern u_int dcache_color_ignore;
 
 struct pcpu;
 

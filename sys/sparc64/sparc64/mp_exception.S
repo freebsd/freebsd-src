@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  */
 ENTRY(tl_ipi_spitfire_dcache_page_inval)
 #if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "ipi_dcache_page_inval: pa=%#lx"
+	CATR(KTR_SMP, "tl_ipi_spitfire_dcache_page_inval: pa=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[%g5 + ICA_PA], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -87,7 +87,7 @@ END(tl_ipi_spitfire_dcache_page_inval)
  */
 ENTRY(tl_ipi_spitfire_icache_page_inval)
 #if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "ipi_icache_page_inval: pa=%#lx"
+	CATR(KTR_SMP, "tl_ipi_spitfire_icache_page_inval: pa=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[%g5 + ICA_PA], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -126,7 +126,7 @@ END(tl_ipi_spitfire_icache_page_inval)
  */
 ENTRY(tl_ipi_cheetah_dcache_page_inval)
 #if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "ipi_dcache_page_inval: pa=%#lx"
+	CATR(KTR_SMP, "tl_ipi_cheetah_dcache_page_inval: pa=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[%g5 + ICA_PA], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -256,7 +256,7 @@ END(tl_ipi_tlb_range_demap)
  */
 ENTRY(tl_ipi_tlb_context_demap)
 #if KTR_COMPILE & KTR_SMP
-	CATR(KTR_SMP, "ipi_tlb_page_demap: pm=%p va=%#lx"
+	CATR(KTR_SMP, "tl_ipi_tlb_context_demap: pm=%p va=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[%g5 + ITA_PMAP], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -274,3 +274,27 @@ ENTRY(tl_ipi_tlb_context_demap)
 	IPI_DONE(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_tlb_context_demap)
+
+/*
+ * Read %stick.
+ */
+ENTRY(tl_ipi_stick_rd)
+	ldx	[%g5 + IRA_VAL], %g1
+	rd	%asr24, %g2
+	stx	%g2, [%g1]
+
+	IPI_DONE(%g5, %g1, %g2, %g3)
+	retry
+END(tl_ipi_stick_rd)
+
+/*
+ * Read %tick.
+ */
+ENTRY(tl_ipi_tick_rd)
+	ldx	[%g5 + IRA_VAL], %g1
+	rd	%tick, %g2
+	stx	%g2, [%g1]
+
+	IPI_DONE(%g5, %g1, %g2, %g3)
+	retry
+END(tl_ipi_tick_rd)

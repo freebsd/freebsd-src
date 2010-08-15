@@ -80,7 +80,6 @@
  * 
  */
 #include <machine/cpufunc.h>
-#include <machine/cpu.h>
 /* The packed define for 64 bit platforms */
 #ifndef SCTP_PACKED
 #define SCTP_PACKED __attribute__((packed))

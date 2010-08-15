@@ -263,6 +263,11 @@ lapic_init(vm_paddr_t addr)
 			lapic_et.et_quality -= 100;
 		}
 		lapic_et.et_frequency = 0;
+		/* We don't know frequency yet, so trying to guess. */
+		lapic_et.et_min_period.sec = 0;
+		lapic_et.et_min_period.frac = 0x00001000LL << 32;
+		lapic_et.et_max_period.sec = 1;
+		lapic_et.et_max_period.frac = 0;
 		lapic_et.et_start = lapic_et_start;
 		lapic_et.et_stop = lapic_et_stop;
 		lapic_et.et_priv = NULL;
@@ -493,6 +498,12 @@ lapic_et_start(struct eventtimer *et,
 			printf("lapic: Divisor %lu, Frequency %lu Hz\n",
 			    lapic_timer_divisor, value);
 		et->et_frequency = value;
+		et->et_min_period.sec = 0;
+		et->et_min_period.frac =
+		    ((0x00000002LLU << 32) / et->et_frequency) << 32;
+		et->et_max_period.sec = 0xfffffffeLLU / et->et_frequency;
+		et->et_max_period.frac =
+		    ((0xfffffffeLLU << 32) / et->et_frequency) << 32;
 	}
 	la = &lapics[lapic_id()];
 	/*
@@ -800,11 +811,12 @@ lapic_handle_timer(struct trapframe *frame)
 	critical_enter();
 	if (lapic_et.et_active) {
 		td = curthread;
+		td->td_intr_nesting_level++;
 		oldframe = td->td_intr_frame;
 		td->td_intr_frame = frame;
-		lapic_et.et_event_cb(&lapic_et,
-		    lapic_et.et_arg ? lapic_et.et_arg : frame);
+		lapic_et.et_event_cb(&lapic_et, lapic_et.et_arg);
 		td->td_intr_frame = oldframe;
+		td->td_intr_nesting_level--;
 	}
 	critical_exit();
 }

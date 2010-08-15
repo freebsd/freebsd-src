@@ -182,9 +182,7 @@ s3c2xx0_bs_map(void *t, bus_addr_t bpa, bus_size_t size,
 	startpa = trunc_page(bpa);
 	endpa = round_page(bpa + size);
 
-	/* XXX use extent manager to check duplicate mapping */
-
-	va = kmem_alloc(kernel_map, endpa - startpa);
+	va = kmem_alloc_nofault(kernel_map, endpa - startpa);
 	if (!va)
 		return (ENOMEM);
 

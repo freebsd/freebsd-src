@@ -71,7 +71,7 @@ static int write_behind = 1;
 SYSCTL_INT(_vfs, OID_AUTO, write_behind, CTLFLAG_RW, &write_behind, 0,
     "Cluster write-behind; 0: disable, 1: enable, 2: backed off");
 
-static int read_max = 8;
+static int read_max = 32;
 SYSCTL_INT(_vfs, OID_AUTO, read_max, CTLFLAG_RW, &read_max, 0,
     "Cluster read-ahead max block count");
 

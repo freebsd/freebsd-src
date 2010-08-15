@@ -30,8 +30,10 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # reserved for user applications.
 #
 .if ${MACHINE_ARCH} == "i386" && ${CC} != "icc"
-CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2 \
-		-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
+.if ${CC} != "clang"
+CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
+.endif
+CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
 INLINE_LIMIT?=	8000
 .endif
 
@@ -74,7 +76,7 @@ INLINE_LIMIT?=	8000
 # floating point registers for integer operations which it has a tendency to do.
 # Also explicitly disable Altivec instructions inside the kernel.
 #
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 CFLAGS+=	-msoft-float -mno-altivec
 INLINE_LIMIT?=	15000
 .endif

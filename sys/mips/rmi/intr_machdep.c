@@ -144,11 +144,11 @@ cpu_intr(struct trapframe *tf)
 		return;
 	}
 	/*
-	 * No need to clear the EIRR here. the handler is gonna write to
-	 * compare which clears eirr also
+	 * No need to clear the EIRR here as the handler writes to
+	 * compare which ACKs the interrupt.
 	 */
 	if (eirr & (1 << IRQ_TIMER)) {
-		count_compare_clockhandler(tf);
+		intr_event_handle(mips_intr_events[IRQ_TIMER], tf);
 		critical_exit();
 		return;
 	}

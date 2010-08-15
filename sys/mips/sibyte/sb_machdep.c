@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <machine/cpuregs.h>
 
 #include "opt_ddb.h"
 #include "opt_kdb.h"
@@ -190,11 +189,11 @@ mips_init(void)
 			("CFE DRAM region is not available?"));
 
 		if (bootverbose)
-			printf("cfe_enummem: 0x%016jx/%llu.\n", addr, len);
+			printf("cfe_enummem: 0x%016jx/%ju.\n", addr, len);
 
 		if (maxmem != 0) {
 			if (addr >= maxmem) {
-				printf("Ignoring %llu bytes of memory at 0x%jx "
+				printf("Ignoring %ju bytes of memory at 0x%jx "
 				       "that is above maxmem %dMB\n",
 				       len, addr,
 				       (int)(maxmem / (1024 * 1024)));
@@ -202,7 +201,7 @@ mips_init(void)
 			}
 
 			if (addr + len > maxmem) {
-				printf("Ignoring %llu bytes of memory "
+				printf("Ignoring %ju bytes of memory "
 				       "that is above maxmem %dMB\n",
 				       (addr + len) - maxmem,
 				       (int)(maxmem / (1024 * 1024)));
@@ -253,7 +252,7 @@ mips_init(void)
 	 * code to the XTLB exception vector.
 	 */
 	{
-		bcopy(MipsTLBMiss, (void *)XTLB_MISS_EXC_VEC,
+		bcopy(MipsTLBMiss, (void *)MIPS3_XTLB_MISS_EXC_VEC,
 		      MipsTLBMissEnd - MipsTLBMiss);
 
 		mips_icache_sync_all();
@@ -314,7 +313,7 @@ kseg0_map_coherent(void)
 	const int CFG_K0_COHERENT = 5;
 
 	config = mips_rd_config();
-	config &= ~CFG_K0_MASK;
+	config &= ~MIPS3_CONFIG_K0_MASK;
 	config |= CFG_K0_COHERENT;
 	mips_wr_config(config);
 }
@@ -371,7 +370,7 @@ platform_init_ap(int cpuid)
 	 */
 	clock_int_mask = hard_int_mask(5);
 	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
-	set_intr_mask(ALL_INT_MASK & ~(ipi_int_mask | clock_int_mask));
+	set_intr_mask(MIPS_SR_INT_MASK & ~(ipi_int_mask | clock_int_mask));
 }
 
 int
@@ -455,6 +454,4 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 	mips_init();
 
 	mips_timer_init_params(sb_cpu_speed(), 0);
-
-	set_cputicker(sb_zbbus_cycle_count, sb_cpu_speed() / 2, 1);
 }

@@ -29,6 +29,12 @@
 #ifndef	_MACHINE_PTE_H_
 #define	_MACHINE_PTE_H_
 
+#ifndef _LOCORE
+/* pt_entry_t is 32 bit for now, has to be made 64 bit for n64 */
+typedef	uint32_t pt_entry_t;
+typedef	pt_entry_t *pd_entry_t;
+#endif
+
 /*
  * TLB and PTE management.  Most things operate within the context of
  * EntryLo0,1, and begin with TLBLO_.  Things which work with EntryHi
@@ -65,24 +71,35 @@
 #define	TLBLO_PTE_TO_PA(pte)	(TLBLO_PFN_TO_PA(TLBLO_PTE_TO_PFN((pte))))
 
 /*
+ * XXX This comment is not correct for anything more modern than R4K.
+ *
  * VPN for EntryHi register.  Upper two bits select user, supervisor,
  * or kernel.  Bits 61 to 40 copy bit 63.  VPN2 is bits 39 and down to
  * as low as 13, down to PAGE_SHIFT, to index 2 TLB pages*.  From bit 12
  * to bit 8 there is a 5-bit 0 field.  Low byte is ASID.
  *
+ * XXX This comment is not correct for FreeBSD.
  * Note that in FreeBSD, we map 2 TLB pages is equal to 1 VM page.
  */
 #define	TLBHI_ASID_MASK		(0xff)
+#if defined(__mips_n64)
+#define	TLBHI_R_SHIFT		62
+#define	TLBHI_R_USER		(0x00UL << TLBHI_R_SHIFT)
+#define	TLBHI_R_SUPERVISOR	(0x01UL << TLBHI_R_SHIFT)
+#define	TLBHI_R_KERNEL		(0x03UL << TLBHI_R_SHIFT)
+#define	TLBHI_R_MASK		(0x03UL << TLBHI_R_SHIFT)
+#define	TLBHI_VA_R(va)		((va) & TLBHI_R_MASK)
+#define	TLBHI_FILL_SHIFT	40
+#define	TLBHI_VPN2_SHIFT	(TLB_PAGE_SHIFT + 1)
+#define	TLBHI_VPN2_MASK		(((~((1UL << TLBHI_VPN2_SHIFT) - 1)) << (63 - TLBHI_FILL_SHIFT)) >> (63 - TLBHI_FILL_SHIFT))
+#define	TLBHI_VA_TO_VPN2(va)	((va) & TLBHI_VPN2_MASK)
+#define	TLBHI_ENTRY(va, asid)	((TLBHI_VA_R((va))) /* Region. */ | \
+				 (TLBHI_VA_TO_VPN2((va))) /* VPN2. */ | \
+				 ((asid) & TLBHI_ASID_MASK))
+#else
 #define	TLBHI_PAGE_MASK		(2 * PAGE_SIZE - 1)
 #define	TLBHI_ENTRY(va, asid)	(((va) & ~TLBHI_PAGE_MASK) | ((asid) & TLBHI_ASID_MASK))
-
-#ifndef _LOCORE
-typedef	uint32_t pt_entry_t;
-typedef	pt_entry_t *pd_entry_t;
 #endif
-
-#define	PDESIZE		sizeof(pd_entry_t)	/* for assembly files */
-#define	PTESIZE		sizeof(pt_entry_t)	/* for assembly files */
 
 /*
  * TLB flags managed in hardware:
@@ -96,17 +113,8 @@ typedef	pt_entry_t *pd_entry_t;
  * 		it is matched.
  */
 #define	PTE_C(attr)	((attr & 0x07) << 3)
-#define	PTE_C_UNCACHED	(PTE_C(0x02))
-/*
- * The preferred cache attribute for cacheable pages, this can be 
- * implementation dependent. We will use the standard value 0x3 as 
- * default.
- */
-#if defined(CPU_SB1)
-#define	PTE_C_CACHE	(PTE_C(0x05))
-#else
-#define	PTE_C_CACHE	(PTE_C(0x03))
-#endif
+#define	PTE_C_UNCACHED	(PTE_C(MIPS_CCA_UNCACHED))
+#define	PTE_C_CACHE	(PTE_C(MIPS_CCA_CACHED))
 #define	PTE_D		0x04
 #define	PTE_V		0x02
 #define	PTE_G		0x01

@@ -1,6 +1,6 @@
 /*-
- * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
- * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
+ * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski
+ * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1563,7 +1563,7 @@ tsec_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (device_get_unit(dev) != phy)
+	if (sc->phyaddr != phy)
 		return (0);
 
 	sc = tsec0_sc;
@@ -1591,9 +1591,8 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	sc = device_get_softc(dev);
 
-	if (device_get_unit(dev) != phy)
-		device_printf(dev, "Trying to write to an alien PHY(%d)\n",
-		    phy);
+	if (sc->phyaddr != phy)
+		return (0);
 
 	sc = tsec0_sc;
 

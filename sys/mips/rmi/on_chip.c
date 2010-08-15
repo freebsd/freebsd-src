@@ -210,8 +210,8 @@ xlr_msgring_handler(struct trapframe *tf)
 
 			if (!tx_stn_handlers[tx_stid].action) {
 				printf("[%s]: No Handler for message from stn_id=%d, bucket=%d, "
-				    "size=%d, msg0=%llx, dropping message\n",
-				    __FUNCTION__, tx_stid, bucket, size, msg.msg0);
+				    "size=%d, msg0=%jx, dropping message\n",
+				    __FUNCTION__, tx_stid, bucket, size, (uintmax_t)msg.msg0);
 			} else {
 				//printf("[%s]: rx_stid = %d\n", __FUNCTION__, rx_stid);
 				msgrng_flags_restore(mflags);
@@ -356,7 +356,7 @@ create_msgring_thread(int core, int cpu)
 	sched_class(td, PRI_ITHD);
 	sched_add(td, SRQ_INTR);
 	thread_unlock(td);
-	CTR2(KTR_INTR, "%s: created %s", __func__, ithd_name[core]);
+	CTR2(KTR_INTR, "%s: created %s", __func__, td->td_name);
 }
 
 int 

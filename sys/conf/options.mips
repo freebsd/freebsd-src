@@ -35,6 +35,7 @@ CPU_SENTRY5	opt_global.h
 CPU_HAVEFPU	opt_global.h
 CPU_SB1 	opt_global.h
 CPU_CNMIPS	opt_global.h
+CPU_RMI		opt_global.h
 
 ISA_MIPS1	opt_cputype.h
 ISA_MIPS3	opt_cputype.h
@@ -50,9 +51,6 @@ CFE_ENV		opt_global.h
 CFE_ENV_SIZE	opt_global.h
 
 NOFPU		opt_global.h
-TARGET_OCTEON	opt_global.h
-TARGET_EMULATOR	opt_ddb.h
-TARGET_XLR_XLS  opt_global.h
 
 TICK_USE_YAMON_FREQ	opt_global.h
 TICK_USE_MALTA_RTC	opt_global.h
@@ -61,3 +59,9 @@ TICK_USE_MALTA_RTC	opt_global.h
 # The highest memory address that can be used by the kernel in units of KB.
 #
 MAXMEM			opt_global.h
+
+#
+# Options that control the Cavium Simple Executive.
+#
+OCTEON_VENDOR_LANNER		opt_cvmx.h
+OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h

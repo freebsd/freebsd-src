@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: if_iwnreg.h,v 1.37 2010/02/17 18:23:00 damien Exp $	*/
+/*	$OpenBSD: if_iwnreg.h,v 1.40 2010/05/05 19:41:57 damien Exp $	*/
 
 /*-
  * Copyright (c) 2007, 2008
@@ -204,6 +204,7 @@
 #define IWN_HW_REV_TYPE_1000	6
 #define IWN_HW_REV_TYPE_6000	7
 #define IWN_HW_REV_TYPE_6050	8
+#define IWN_HW_REV_TYPE_6005	11
 
 /* Possible flags for register IWN_GIO_CHICKEN. */
 #define IWN_GIO_CHICKEN_L1A_NO_L0S_RX	(1 << 23)
@@ -1259,6 +1260,34 @@ struct iwn_fw_dump {
 	uint32_t	time[2];
 } __packed;
 
+/* TLV firmware header. */
+struct iwn_fw_tlv_hdr {
+	uint32_t	zero;	/* Always 0, to differentiate from legacy. */
+	uint32_t	signature;
+#define IWN_FW_SIGNATURE	0x0a4c5749	/* "IWL\n" */
+
+	uint8_t		descr[64];
+	uint32_t	rev;
+#define IWN_FW_API(x)	(((x) >> 8) & 0xff)
+
+	uint32_t	build;
+	uint64_t	altmask;
+} __packed;
+
+/* TLV header. */
+struct iwn_fw_tlv {
+	uint16_t	type;
+#define IWN_FW_TLV_MAIN_TEXT		1
+#define IWN_FW_TLV_MAIN_DATA		2
+#define IWN_FW_TLV_INIT_TEXT		3
+#define IWN_FW_TLV_INIT_DATA		4
+#define IWN_FW_TLV_BOOT_TEXT		5
+#define IWN_FW_TLV_PBREQ_MAXLEN		6
+
+	uint16_t	alt;
+	uint32_t	len;
+} __packed;
+
 #define IWN4965_FW_TEXT_MAXSZ	( 96 * 1024)
 #define IWN4965_FW_DATA_MAXSZ	( 40 * 1024)
 #define IWN5000_FW_TEXT_MAXSZ	(256 * 1024)
@@ -1266,8 +1295,6 @@ struct iwn_fw_dump {
 #define IWN_FW_BOOT_TEXT_MAXSZ	1024
 #define IWN4965_FWSZ		(IWN4965_FW_TEXT_MAXSZ + IWN4965_FW_DATA_MAXSZ)
 #define IWN5000_FWSZ		IWN5000_FW_TEXT_MAXSZ
-
-#define IWN_FW_API(x)	(((x) >> 8) & 0xff)
 
 /*
  * Offsets into EEPROM.

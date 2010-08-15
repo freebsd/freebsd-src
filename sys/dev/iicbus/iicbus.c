@@ -181,7 +181,7 @@ iicbus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	default:
 		return (EINVAL);
 	case IICBUS_IVAR_ADDR:
-		*(uint32_t *)result = devi->addr;
+		*result = devi->addr;
 		break;
 	}
 	return (0);

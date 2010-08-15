@@ -136,7 +136,7 @@ struct	pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	uint32_t		pm_gen_count;	/* generation count (pmap lock dropped) */
 	u_int			pm_retries;
-	int			pm_active;	/* active on cpus */
+	cpumask_t			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 };

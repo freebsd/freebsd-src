@@ -50,8 +50,8 @@
 #include <stdio.h>
 #include <strings.h>
 #include <stdlib.h>
-#define log(x, arg...)  fprintf(stderr, ## arg)
-#define panic(x)        fprintf(stderr, "PANIC: %s", x), exit(1)
+#define log(x, arg...)	fprintf(stderr, ## arg)
+#define panic(x)	fprintf(stderr, "PANIC: %s", x), exit(1)
 #define min(a, b) ((a) < (b) ? (a) : (b) )
 #include <net/radix.h>
 #endif /* !_KERNEL */

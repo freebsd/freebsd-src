@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/uma.h>
 
-#include <machine/bootinfo.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/platform.h>
@@ -2507,7 +2506,6 @@ struct pmap_md *
 mmu_booke_scan_md(mmu_t mmu, struct pmap_md *prev)
 {
 	static struct pmap_md md;
-	struct bi_mem_region *mr;
 	pte_t *pte;
 	vm_offset_t va;
  
@@ -2565,16 +2563,18 @@ mmu_booke_scan_md(mmu_t mmu, struct pmap_md *prev)
 			return (NULL);
 		}
 	} else { /* minidumps */
-		mr = bootinfo_mr();
+		mem_regions(&physmem_regions, &physmem_regions_sz,
+		    &availmem_regions, &availmem_regions_sz);
+
 		if (prev == NULL) {
 			/* first physical chunk. */
-			md.md_paddr = mr->mem_base;
-			md.md_size = mr->mem_size;
+			md.md_paddr = physmem_regions[0].mr_start;
+			md.md_size = physmem_regions[0].mr_size;
 			md.md_vaddr = ~0UL;
 			md.md_index = 1;
-		} else if (md.md_index < bootinfo->bi_mem_reg_no) {
-			md.md_paddr = mr[md.md_index].mem_base;
-			md.md_size = mr[md.md_index].mem_size;
+		} else if (md.md_index < physmem_regions_sz) {
+			md.md_paddr = physmem_regions[md.md_index].mr_start;
+			md.md_size = physmem_regions[md.md_index].mr_size;
 			md.md_vaddr = ~0UL;
 			md.md_index++;
 		} else {

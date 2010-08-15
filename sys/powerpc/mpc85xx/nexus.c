@@ -112,13 +112,10 @@ static int
 nexus_probe (device_t dev)
 {
 
-	/*
-	 * Add OCP (on-chip peripheral) bus
-	 */
-	device_add_child(dev, "ocpbus", 0);
+	device_add_child(dev, "fdtbus", 0);
+	device_quiet(dev);
 
-	device_set_desc(dev, "MPC85xx Nexus device");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

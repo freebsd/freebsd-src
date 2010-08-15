@@ -125,7 +125,7 @@ struct filterops sig_filtops = {
 	.f_event = filt_signal,
 };
 
-int	kern_logsigexit = 1;
+static int	kern_logsigexit = 1;
 SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, 
     &kern_logsigexit, 0, 
     "Log processes quitting on abnormal signals to syslog(3)");
@@ -167,7 +167,7 @@ SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
 	    (cr1)->cr_ruid == (cr2)->cr_uid || \
 	    (cr1)->cr_uid == (cr2)->cr_uid)
 
-int sugid_coredump;
+static int	sugid_coredump;
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, 
     &sugid_coredump, 0, "Allow setuid and setgid processes to dump core");
 
@@ -2029,9 +2029,9 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	if (!_SIG_VALID(sig))
-		panic("tdsignal(): invalid signal %d", sig);
+		panic("%s(): invalid signal %d", __func__, sig);
 
-	KASSERT(ksi == NULL || !KSI_ONQ(ksi), ("tdsignal: ksi on queue"));
+	KASSERT(ksi == NULL || !KSI_ONQ(ksi), ("%s: ksi on queue", __func__));
 
 	/*
 	 * IEEE Std 1003.1-2001: return success when killing a zombie.

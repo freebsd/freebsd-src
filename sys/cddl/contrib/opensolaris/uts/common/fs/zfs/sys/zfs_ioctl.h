@@ -169,6 +169,13 @@ typedef struct zfs_cmd {
 	zinject_record_t zc_inject_record;
 } zfs_cmd_t;
 
+typedef struct zfs_useracct {
+	char zu_domain[256];
+	uid_t zu_rid;
+	uint32_t zu_pad;
+	uint64_t zu_space;
+} zfs_useracct_t;
+
 #define	ZVOL_MAX_MINOR	(1 << 16)
 #define	ZFS_MIN_MINOR	(ZVOL_MAX_MINOR + 1)
 

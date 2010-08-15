@@ -62,6 +62,9 @@ int	ofw_elf_loadfile(char *, vm_offset_t, struct preloaded_file **);
 int	ofw_elf_exec(struct preloaded_file *);
 
 extern struct file_format	ofw_elf;
+#ifdef __powerpc__
+extern struct file_format	ofw_elf64;
+#endif
 
 extern void	reboot(void);
 
