@@ -72,7 +72,7 @@ file_matching(const char *fname)
 	return (ret);
 }
 
-bool
+static inline bool
 dir_matching(const char *dname)
 {
 	bool ret;
@@ -144,9 +144,10 @@ grep_tree(char **argv)
 			if (dexclude || dinclude) {
 				if ((d = strrchr(p->fts_path, '/')) != NULL) {
 					dir = grep_malloc(sizeof(char) *
-					    (d - p->fts_path + 2));
-					strlcpy(dir, p->fts_path,
 					    (d - p->fts_path + 1));
+					memcpy(dir, p->fts_path,
+					    d - p->fts_path);
+					dir[d - p->fts_path] = '\0';
 				}
 				ok = dir_matching(dir);
 				free(dir);
@@ -276,7 +277,7 @@ procfile(const char *fn)
  * matches.  The matching lines are passed to printline() to display the
  * appropriate output.
  */
-static int
+static inline int
 procline(struct str *l, int nottext)
 {
 	regmatch_t matches[MAX_LINE_MATCHES];
@@ -317,30 +318,20 @@ procline(struct str *l, int nottext)
 					    (size_t)pmatch.rm_eo != l->len)
 						r = REG_NOMATCH;
 				/* Check for whole word match */
-				if (r == 0 && wflag && pmatch.rm_so != 0 &&
-				    (size_t)pmatch.rm_eo != l->len) {
-					wchar_t *wbegin;
-					wint_t wend;
-					size_t size;
+				if (r == 0 && wflag && pmatch.rm_so != 0) {
+					wint_t wbegin, wend;
 
-					size = mbstowcs(NULL, l->dat,
-					    pmatch.rm_so);
-
-					if (size == ((size_t) - 1))
+					wbegin = wend = L' ';
+					if (pmatch.rm_so != 0 &&
+					    sscanf(&l->dat[pmatch.rm_so - 1],
+					    "%lc", &wbegin) != 1)
 						r = REG_NOMATCH;
-					else {
-						wbegin = grep_malloc(size);
-						if (mbstowcs(wbegin, l->dat,
-						    pmatch.rm_so) == ((size_t) - 1))
-							r = REG_NOMATCH;
-						else if (sscanf(&l->dat[pmatch.rm_eo],
-						    "%lc", &wend) != 1)
-							r = REG_NOMATCH;
-						else if (iswword(wbegin[wcslen(wbegin)]) ||
-						    iswword(wend))
-							r = REG_NOMATCH;
-						free(wbegin);
-					}
+					else if ((size_t)pmatch.rm_eo != l->len &&
+					    sscanf(&l->dat[pmatch.rm_eo],
+					    "%lc", &wend) != 1)
+						r = REG_NOMATCH;
+					else if (iswword(wbegin) || iswword(wend))
+						r = REG_NOMATCH;
 				}
 				if (r == 0) {
 					if (m == 0)
