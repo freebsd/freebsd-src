@@ -121,8 +121,8 @@ int	 devbehave = DEV_READ;		/* -D: handling of devices */
 int	 dirbehave = DIR_READ;		/* -dRr: handling of directories */
 int	 linkbehave = LINK_READ;	/* -OpS: handling of symlinks */
 
-bool	 dexclude, dinclude;	/* --exclude amd --include */
-bool	 fexclude, finclude;	/* --exclude-dir and --include-dir */
+bool	 dexclude, dinclude;	/* --exclude-dir and --include-dir */
+bool	 fexclude, finclude;	/* --exclude and --include */
 
 enum {
 	BIN_OPT = CHAR_MAX + 1,
@@ -236,7 +236,8 @@ add_pattern(char *pat, size_t len)
 		--len;
 	/* pat may not be NUL-terminated */
 	pattern[patterns] = grep_malloc(len + 1);
-	strlcpy(pattern[patterns], pat, len + 1);
+	memcpy(pattern[patterns], pat, len);
+	pattern[patterns][len] = '\0';
 	++patterns;
 }
 
@@ -355,38 +356,33 @@ main(int argc, char *argv[])
 
 	eopts = getenv("GREP_OPTIONS");
 
-	eargc = 1;
+	/* support for extra arguments in GREP_OPTIONS */
+	eargc = 0;
 	if (eopts != NULL) {
 		char *str;
 
-		for(i = 0; i < strlen(eopts); i++)
-			if (eopts[i] == ' ')
+		/* make an estimation of how many extra arguments we have */
+		for (unsigned int j = 0; j < strlen(eopts); j++)
+			if (eopts[j] == ' ')
 				eargc++;
 
 		eargv = (char **)grep_malloc(sizeof(char *) * (eargc + 1));
 
-		str = strtok(eopts, " ");
 		eargc = 0;
-
-		while(str != NULL) {
-			eargv[++eargc] = (char *)grep_malloc(sizeof(char) *
-			    (strlen(str) + 1));
-			strlcpy(eargv[eargc], str, strlen(str) + 1);
-			str = strtok(NULL, " ");
-		}
-		eargv[++eargc] = NULL;
+		/* parse extra arguments */
+		while ((str = strsep(&eopts, " ")) != NULL)
+			eargv[eargc++] = grep_strdup(str);
 
 		aargv = (char **)grep_calloc(eargc + argc + 1,
 		    sizeof(char *));
+
 		aargv[0] = argv[0];
+		for (i = 0; i < eargc; i++)
+			aargv[i + 1] = eargv[i];
+		for (int j = 1; j < argc; j++, i++)
+			aargv[i + 1] = argv[j];
 
-		for(i = 1; i < eargc; i++)
-			aargv[i] = eargv[i];
-		for(int j = 1; j < argc; j++)
-			aargv[i++] = argv[j];
-
-		aargc = eargc + argc - 1;
-
+		aargc = eargc + argc;
 	} else {
 		aargv = argv;
 		aargc = argc;
@@ -609,11 +605,11 @@ main(int argc, char *argv[])
 			add_fpattern(optarg, EXCL_PAT);
 			break;
 		case R_DINCLUDE_OPT:
-			dexclude = true;
+			dinclude = true;
 			add_dpattern(optarg, INCL_PAT);
 			break;
 		case R_DEXCLUDE_OPT:
-			dinclude = true;
+			dexclude = true;
 			add_dpattern(optarg, EXCL_PAT);
 			break;
 		case HELP_OPT:
@@ -685,12 +681,15 @@ main(int argc, char *argv[])
 
 	if (dirbehave == DIR_RECURSE)
 		c = grep_tree(aargv);
-	else 
+	else {
+		if (aargc == 1)
+			hflag = true;
 		for (c = 0; aargc--; ++aargv) {
 			if ((finclude || fexclude) && !file_matching(*aargv))
 				continue;
 			c+= procfile(*aargv);
 		}
+	}
 
 #ifndef WITHOUT_NLS
 	catclose(catalog);

@@ -67,14 +67,14 @@ static int	 bzerr;
  * Returns a single character according to the file type.
  * Returns -1 on failure.
  */
-int
+static inline int
 grep_fgetc(struct file *f)
 {
 	unsigned char c;
 
 	switch (filebehave) {
 	case FILE_STDIO:
-		return (fgetc(f->f));
+		return (getc_unlocked(f->f));
 	case FILE_GZIP:
 		return (gzgetc(f->gzf));
 	case FILE_BZIP:
@@ -92,13 +92,13 @@ grep_fgetc(struct file *f)
  * Returns true if the file position is a EOF, returns false
  * otherwise.
  */
-int
+static inline int
 grep_feof(struct file *f)
 {
 
 	switch (filebehave) {
 	case FILE_STDIO:
-		return (feof(f->f));
+		return (feof_unlocked(f->f));
 	case FILE_GZIP:
 		return (gzeof(f->gzf));
 	case FILE_BZIP:
@@ -131,6 +131,9 @@ grep_fgetln(struct file *f, size_t *len)
 				st.st_size = MAXBUFSIZ;
 			else if (stat(fname, &st) != 0)
 				err(2, NULL);
+			/* no need to allocate buffer. */
+			if (st.st_size == 0)
+				return (NULL);
 
 			bufsiz = (MAXBUFSIZ > (st.st_size * PREREAD_M)) ?
 			    (st.st_size / 2) : MAXBUFSIZ;
@@ -142,6 +145,8 @@ grep_fgetln(struct file *f, size_t *len)
 				if (ch == EOF)
 					break;
 				binbuf[i++] = ch;
+				if ((ch == '\n') && lbflag)
+					break;
 			}
 
 			f->binary = memchr(binbuf, (filebehave != FILE_GZIP) ?
@@ -184,11 +189,16 @@ grep_stdin_open(void)
 {
 	struct file *f;
 
+	/* Processing stdin implies --line-buffered for tail -f to work. */
+	lbflag = true;
+
 	snprintf(fname, sizeof fname, "%s", getstr(1));
 
 	f = grep_malloc(sizeof *f);
 
+	binbuf = NULL;
 	if ((f->f = fdopen(STDIN_FILENO, "r")) != NULL) {
+		flockfile(f->f);
 		f->stdin = true;
 		return (f);
 	}
@@ -209,11 +219,14 @@ grep_open(const char *path)
 
 	f = grep_malloc(sizeof *f);
 
+	binbuf = NULL;
 	f->stdin = false;
 	switch (filebehave) {
 	case FILE_STDIO:
-		if ((f->f = fopen(path, "r")) != NULL)
+		if ((f->f = fopen(path, "r")) != NULL) {
+			flockfile(f->f);
 			return (f);
+		}
 		break;
 	case FILE_GZIP:
 		if ((f->gzf = gzopen(fname, "r")) != NULL)
@@ -238,6 +251,7 @@ grep_close(struct file *f)
 
 	switch (filebehave) {
 	case FILE_STDIO:
+		funlockfile(f->f);
 		fclose(f->f);
 		break;
 	case FILE_GZIP:
@@ -251,5 +265,4 @@ grep_close(struct file *f)
 	/* Reset read buffer for the file we are closing */
 	binbufptr = NULL;
 	free(binbuf);
-
 }
