@@ -939,7 +939,7 @@ should be used by specifying ``6:g''.
 Similarly the channel width can be specified by appending it
 with ``/''; e.g. ``6/40'' specifies a 40MHz wide channel,
 These attributes can be combined as in: ``6:ht/40''.
-The full set of flags specified following a `:'' are:
+The full set of flags specified following a ``:'' are:
 .Cm a
 (802.11a),
 .Cm b
@@ -966,7 +966,7 @@ The full set of channel widths following a '/' are:
 (20MHz mostly for use in specifying ht20),
 and
 .Cm 40 
-(40MHz mostly for use in specifying ht40),
+(40MHz mostly for use in specifying ht40).
 In addition,
 a 40MHz HT channel specification may include the location
 of the extension channel by appending ``+'' or ``-'' for above and below,
@@ -999,7 +999,7 @@ according to a least-congested criteria.
 DFS support is mandatory for some 5Ghz frequencies in certain
 locales (e.g. ETSI).
 By default DFS is enabled according to the regulatory definitions
-specified in /etc/regdomain.xml and the curent country code, regdomain,
+specified in /etc/regdomain.xml and the current country code, regdomain,
 and channel.
 Note the underlying device (and driver) must support radar detection
 for full DFS support to work.
@@ -1719,7 +1719,7 @@ If an
 .Ar index
 is not given, key 1 is set.
 A WEP key will be either 5 or 13
-characters (40 or 104 bits) depending of the local network and the
+characters (40 or 104 bits) depending on the local network and the
 capabilities of the adaptor.
 It may be specified either as a plain
 string or as a string of hexadecimal digits preceded by
@@ -1942,7 +1942,7 @@ Nodes on the mesh without a path to this root mesh station with try to
 discover a path to us.
 .It Cm PROACTIVE
 Send broadcast path requests every two seconds and every node must reply with
-with a path reply even if it already has a path to this root mesh station,
+with a path reply even if it already has a path to this root mesh station.
 .It Cm RANN
 Send broadcast root announcement (RANN) frames.
 Nodes on the mesh without a path to this root mesh station with try to
