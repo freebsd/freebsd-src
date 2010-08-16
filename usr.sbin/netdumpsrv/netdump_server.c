@@ -23,6 +23,7 @@
  * SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -111,6 +112,8 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
     struct netdump_client *client;
     struct hostent *hp;
     int i, fd, bufsz;
+
+    assert(ip != NULL);
 
     client = calloc(1, sizeof(*client));
     if (!client)
@@ -269,6 +272,9 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
 
 static void free_client(struct netdump_client *client)
 {
+
+    assert(client != NULL);
+
     /* Remove from the list */
     SLIST_REMOVE(&clients, client, netdump_client, iter);
     fclose(client->infofile);
@@ -279,8 +285,11 @@ static void free_client(struct netdump_client *client)
 
 static void exec_handler(struct netdump_client *client, const char *reason)
 {
-    int pid=fork();
+    int pid;
 
+    assert(client != NULL);
+
+    pid=fork();
     if (pid == -1)
     {
 	perror("fork");
@@ -304,6 +313,9 @@ static void exec_handler(struct netdump_client *client, const char *reason)
 
 static void handle_timeout(struct netdump_client *client)
 {
+
+    assert(client != NULL);
+
     printf("Client %s timed out\n", client_ntoa(client));
     fputs("Dump incomplete: client timed out\n", client->infofile);
     exec_handler(client, "timeout");
@@ -337,6 +349,8 @@ static void send_ack(struct netdump_client *client, struct netdump_msg *msg)
     struct netdump_ack ack;
     int tryagain;
     
+    assert(client != NULL && msg != NULL);
+
     bzero(&ack, sizeof(ack));
     ack.seqno = htonl(msg->hdr.seqno);
 
@@ -365,6 +379,8 @@ static int handle_herald(struct sockaddr_in *from,
 	struct netdump_client *client, struct netdump_msg *msg)
 {
     int freed_client=0;
+
+    assert(from != NULL && msg != NULL);
 
     if (client)
     {
@@ -401,11 +417,13 @@ static int handle_herald(struct sockaddr_in *from,
 
 static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 {
-    struct kerneldumpheader *h=(void *)msg->data;
+    struct kerneldumpheader *h;
     uint64_t dumplen;
     FILE *f;
     time_t t;
     int parity_check;
+
+    assert(msg != NULL);
 
     if (!client)
     {
@@ -413,7 +431,7 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
     }
 
     client->any_data_rcvd = 1;
-
+    h=(struct kerneldumpheader *)msg->data;
     f = client->infofile;
     
     if (msg->hdr.len < sizeof(struct kerneldumpheader))
@@ -460,6 +478,9 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 
 static int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
 {
+
+    assert(msg != NULL);
+
     if (!client)
     {
 	return 0;
@@ -492,6 +513,9 @@ static int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
 
 static int handle_finish(struct netdump_client *client, struct netdump_msg *msg)
 {
+
+    assert(msg != NULL);
+
     if (!client)
     {
 	return 0;
@@ -518,6 +542,8 @@ static int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
 {
     socklen_t fromlen;
     ssize_t len;
+
+    assert(from != NULL && fromstr != NULL && msg != NULL);
 
     bzero(from, sizeof(*from));
     from->sin_family = AF_INET;
@@ -562,6 +588,8 @@ static int handle_packet(struct netdump_client *client,
 	struct sockaddr_in *from, const char *fromstr, struct netdump_msg *msg)
 {
     int freed_client;
+
+    assert(from != NULL && fromstr != NULL && msg != NULL);
 
     if (client)
     {
