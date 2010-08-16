@@ -205,11 +205,11 @@ method.
 Transmit a raw 802.11 frame.
 The default method drops the frame and generates a message on the console.
 .It Dv ic_updateslot
-Update hardware state after an 802.11 IFS slot time change,
+Update hardware state after an 802.11 IFS slot time change.
 There is no default method; the pointer may be NULL in which case
 it will not be used.
 .It Dv ic_update_mcast
-Update hardware for a change in the multicast packet filter,
+Update hardware for a change in the multicast packet filter.
 The default method prints a console message.
 .It Dv ic_update_promisc
 Update hardware for a change in the promiscuous mode setting.
@@ -261,13 +261,13 @@ The default method ages frames on the power-save queue (in AP mode)
 and pending frames in the receive reorder queues (for stations using A-MPDU).
 .It Dv ic_node_drain
 Reclaim all optional resources associated with a node.
-This call is used to free up resources when they are in short supply,
+This call is used to free up resources when they are in short supply.
 .It Dv ic_node_getrssi
 Return the Receive Signal Strength Indication (RSSI) in .5 dBm units for
 the specified node.
 This interface returns a subset of the information
 returned by
-.Dv ic_node_getsignal ,
+.Dv ic_node_getsignal .
 The default method calculates a filtered average over the last ten
 samples passed in to
 .Xr ieee80211_input 9
@@ -341,7 +341,7 @@ Drivers may interpose this method if they need to setup private state
 for handling transmit A-MPDU.
 .It Dv ic_addb_response
 Process a received ADDBA Response Action frame and setup resources as
-needed for doing transmit A-MPDU,
+needed for doing transmit A-MPDU.
 .It Dv ic_addb_stop
 Shutdown an A-MPDU transmit stream for the specified station and AC.
 The default method reclaims local state after sending a DelBA Action frame.
@@ -490,7 +490,7 @@ Devices supports hardware CKIP cipher.
 The follow general 802.11n capabilities are defined.
 The first capabilities are defined exactly as they appear in the
 802.11n specification.
-Capabilities beginning with IEEE80211_HTC_AMPDU are used soley by the
+Capabilities beginning with IEEE80211_HTC_AMPDU are used solely by the
 .Nm
 layer.
 .Bl -tag -width IEEE80211_C_8023ENCAP

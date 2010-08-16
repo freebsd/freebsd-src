@@ -531,7 +531,7 @@ The message can be examined using the
 macro, or completely extracted from the item using the
 .Fn NGI_GET_MSG
 which also removes the reference within the item.
-If the Item still holds a reference to the message when it is freed
+If the item still holds a reference to the message when it is freed
 (using the
 .Fn NG_FREE_ITEM
 macro), then the message will also be freed appropriately.

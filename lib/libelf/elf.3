@@ -463,7 +463,7 @@ Close an ELF descriptor and release all its resources.
 .It Fn elf_memory
 Opens an
 .Xr ar 1
-archive or ELF object present in a memory arena.
+archive or ELF object present in a memory area.
 .It Fn elf_version
 Sets the operating version.
 .El
@@ -563,7 +563,7 @@ descriptor and can set the
 member of the descriptor to point to a region of memory allocated
 using
 .Xr malloc 3 .
-It is the applications responsibility to free this arena, though the
+It is the applications responsibility to free this area, though the
 library will reclaim the space used by the
 .Vt Elf_Data
 descriptor itself.
