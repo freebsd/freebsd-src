@@ -5,6 +5,7 @@ command -pV true
 command -pV /bin/ls
 
 fun() {
+	:
 }
 command -pV fun
 command -pV break
