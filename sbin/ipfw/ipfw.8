@@ -1917,7 +1917,7 @@ and
 .Pp
 The SCHED_MASK is used to assign flows to one or more
 scheduler instances, one for each
-value of the packet's 5-fuple after applying SCHED_MASK.
+value of the packet's 5-tuple after applying SCHED_MASK.
 As an example, using ``src-ip 0xffffff00'' creates one instance
 for each /24 destination subnet.
 .Pp
@@ -2098,7 +2098,7 @@ with either delay or probability first, according
 to the chosen format.
 The unit for delay is milliseconds.
 Data points do not need to be sorted.
-Also, tne number of actual lines can be different
+Also, the number of actual lines can be different
 from the value of the "samples" parameter:
 .Nm
 utility will sort and interpolate
