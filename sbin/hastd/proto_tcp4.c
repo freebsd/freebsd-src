@@ -156,8 +156,7 @@ tcp4_addr(const char *addr, struct sockaddr_in *sinp)
 		size = (size_t)(pp - addr + 1);
 		if (size > sizeof(iporhost))
 			return (ENAMETOOLONG);
-		if (strlcpy(iporhost, addr, size) >= size)
-			return (ENAMETOOLONG);
+		(void)strlcpy(iporhost, addr, size);
 	}
 	/* Convert string (IP address or host name) to in_addr_t. */
 	ip = str2ip(iporhost);
