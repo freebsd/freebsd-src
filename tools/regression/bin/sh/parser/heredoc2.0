@@ -17,11 +17,6 @@ EOF
 )" = "ast*que?non"'
 
 check '"$(cat <<EOF
-${s+"x"}
-EOF
-)" = ${dq}x${dq}'
-
-check '"$(cat <<EOF
 ${s+'$sq'x'$sq'}
 EOF
 )" = ${sq}x${sq}'
