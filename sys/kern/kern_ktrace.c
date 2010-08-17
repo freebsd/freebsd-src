@@ -741,7 +741,6 @@ ktrace(td, uap)
 				PROC_UNLOCK(p); 
 				continue;
 			}
-			PROC_UNLOCK(p); 
 			nfound++;
 			if (descend)
 				ret |= ktrsetchildren(td, p, ops, facs, vp);
@@ -758,18 +757,13 @@ ktrace(td, uap)
 		 * by pid
 		 */
 		p = pfind(uap->pid);
-		if (p == NULL) {
-			sx_sunlock(&proctree_lock);
+		if (p == NULL)
 			error = ESRCH;
-			goto done;
-		}
-		error = p_cansee(td, p);
-		/*
-		 * The slock of the proctree lock will keep this process
-		 * from going away, so unlocking the proc here is ok.
-		 */
-		PROC_UNLOCK(p);
+		else
+			error = p_cansee(td, p);
 		if (error) {
+			if (p != NULL)
+				PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
 			goto done;
 		}
@@ -841,10 +835,15 @@ ktrops(td, p, ops, facs, vp)
 	struct vnode *tracevp = NULL;
 	struct ucred *tracecred = NULL;
 
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!ktrcanset(td, p)) {
 		PROC_UNLOCK(p);
 		return (0);
+	}
+	if (p->p_flag & P_WEXIT) {
+		/* If the process is exiting, just ignore it. */
+		PROC_UNLOCK(p);
+		return (1);
 	}
 	mtx_lock(&ktrace_mtx);
 	if (ops == KTROP_SET) {
@@ -900,6 +899,7 @@ ktrsetchildren(td, top, ops, facs, vp)
 	register int ret = 0;
 
 	p = top;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sx_assert(&proctree_lock, SX_LOCKED);
 	for (;;) {
 		ret |= ktrops(td, p, ops, facs, vp);
@@ -919,6 +919,7 @@ ktrsetchildren(td, top, ops, facs, vp)
 			}
 			p = p->p_pptr;
 		}
+		PROC_LOCK(p);
 	}
 	/*NOTREACHED*/
 }
