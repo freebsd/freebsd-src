@@ -620,7 +620,8 @@ pmap_init_pat(void)
 		if (sysenv != NULL) {
 			if (strncmp(sysenv, "MacBook5,1", 10) == 0 ||
 			    strncmp(sysenv, "MacBookPro5,5", 13) == 0 ||
-			    strncmp(sysenv, "Macmini3,1", 10) == 0)
+			    strncmp(sysenv, "Macmini3,1", 10) == 0 ||
+			    strncmp(sysenv, "iMac9,1", 7) == 0)
 				pat_works = 0;
 			freeenv(sysenv);
 		}
