@@ -40,6 +40,7 @@
 #include <sys/mount.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/utsname.h>
 #include <sys/ktrace.h>
@@ -84,6 +85,9 @@ typedef struct Struct_DoneList {
  */
 static const char *basename(const char *);
 static void die(void) __dead2;
+static void digest_dynamic1(Obj_Entry *, int, const Elf_Dyn **,
+    const Elf_Dyn **);
+static void digest_dynamic2(Obj_Entry *, const Elf_Dyn *, const Elf_Dyn *);
 static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
@@ -97,7 +101,7 @@ static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
 static void init_dag1(Obj_Entry *, Obj_Entry *, DoneList *);
-static void init_rtld(caddr_t);
+static void init_rtld(caddr_t, Elf_Auxinfo **);
 static void initlist_add_neededs(Needed_Entry *, Objlist *);
 static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
 static bool is_exported(const Elf_Sym *);
@@ -187,6 +191,8 @@ extern Elf_Dyn _DYNAMIC;
 #ifndef RTLD_IS_DYNAMIC
 #define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
 #endif
+
+int osreldate, pagesize;
 
 /*
  * These are the functions the dynamic linker exports to application
@@ -350,7 +356,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     /* Initialize and relocate ourselves. */
     assert(aux_info[AT_BASE] != NULL);
-    init_rtld((caddr_t) aux_info[AT_BASE]->a_un.a_ptr);
+    init_rtld((caddr_t) aux_info[AT_BASE]->a_un.a_ptr, aux_info);
 
     __progname = obj_rtld.path;
     argv0 = argv[0] != NULL ? argv[0] : "(null)";
@@ -737,13 +743,15 @@ die(void)
  * information in its Obj_Entry structure.
  */
 static void
-digest_dynamic(Obj_Entry *obj, int early)
+digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
+    const Elf_Dyn **dyn_soname)
 {
     const Elf_Dyn *dynp;
     Needed_Entry **needed_tail = &obj->needed;
-    const Elf_Dyn *dyn_rpath = NULL;
-    const Elf_Dyn *dyn_soname = NULL;
     int plttype = DT_REL;
+
+    *dyn_rpath = NULL;
+    *dyn_soname = NULL;
 
     obj->bind_now = false;
     for (dynp = obj->dynamic;  dynp->d_tag != DT_NULL;  dynp++) {
@@ -868,11 +876,11 @@ digest_dynamic(Obj_Entry *obj, int early)
 	     * We have to wait until later to process this, because we
 	     * might not have gotten the address of the string table yet.
 	     */
-	    dyn_rpath = dynp;
+	    *dyn_rpath = dynp;
 	    break;
 
 	case DT_SONAME:
-	    dyn_soname = dynp;
+	    *dyn_soname = dynp;
 	    break;
 
 	case DT_INIT:
@@ -961,6 +969,12 @@ digest_dynamic(Obj_Entry *obj, int early)
 	obj->pltrelasize = obj->pltrelsize;
 	obj->pltrelsize = 0;
     }
+}
+
+static void
+digest_dynamic2(Obj_Entry *obj, const Elf_Dyn *dyn_rpath,
+    const Elf_Dyn *dyn_soname)
+{
 
     if (obj->z_origin && obj->origin_path == NULL) {
 	obj->origin_path = xmalloc(PATH_MAX);
@@ -976,6 +990,16 @@ digest_dynamic(Obj_Entry *obj, int early)
 
     if (dyn_soname != NULL)
 	object_add_name(obj, obj->strtab + dyn_soname->d_un.d_val);
+}
+
+static void
+digest_dynamic(Obj_Entry *obj, int early)
+{
+	const Elf_Dyn *dyn_rpath;
+	const Elf_Dyn *dyn_soname;
+
+	digest_dynamic1(obj, early, &dyn_rpath, &dyn_soname);
+	digest_dynamic2(obj, dyn_rpath, dyn_soname);
 }
 
 /*
@@ -1304,9 +1328,11 @@ init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *dlp)
  * this function is to relocate the dynamic linker.
  */
 static void
-init_rtld(caddr_t mapbase)
+init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 {
     Obj_Entry objtmp;	/* Temporary rtld object */
+    const Elf_Dyn *dyn_rpath;
+    const Elf_Dyn *dyn_soname;
 
     /*
      * Conjure up an Obj_Entry structure for the dynamic linker.
@@ -1323,7 +1349,7 @@ init_rtld(caddr_t mapbase)
 #endif
     if (RTLD_IS_DYNAMIC()) {
 	objtmp.dynamic = rtld_dynamic(&objtmp);
-	digest_dynamic(&objtmp, 1);
+	digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname);
 	assert(objtmp.needed == NULL);
 #if !defined(__mips__)
 	/* MIPS and SH{3,5} have a bogus DT_TEXTREL. */
@@ -1343,6 +1369,13 @@ init_rtld(caddr_t mapbase)
 
     /* Now that non-local variables can be accesses, copy out obj_rtld. */
     memcpy(&obj_rtld, &objtmp, sizeof(obj_rtld));
+
+    if (aux_info[AT_PAGESZ] != NULL)
+	    pagesize = aux_info[AT_PAGESZ]->a_un.a_val;
+    if (aux_info[AT_OSRELDATE] != NULL)
+	    osreldate = aux_info[AT_OSRELDATE]->a_un.a_val;
+
+    digest_dynamic2(&obj_rtld, dyn_rpath, dyn_soname);
 
     /* Replace the path with a dynamically allocated copy. */
     obj_rtld.path = xstrdup(PATH_RTLD);
@@ -3629,4 +3662,24 @@ fetch_ventry(const Obj_Entry *obj, unsigned long symnum)
 	}
     }
     return NULL;
+}
+
+int
+__getosreldate(void)
+{
+	size_t len;
+	int oid[2];
+	int error, osrel;
+
+	if (osreldate != 0)
+		return (osreldate);
+
+	oid[0] = CTL_KERN;
+	oid[1] = KERN_OSRELDATE;
+	osrel = 0;
+	len = sizeof(osrel);
+	error = sysctl(oid, 2, &osrel, &len, NULL, 0);
+	if (error == 0 && osrel > 0 && len == sizeof(osrel))
+		osreldate = osrel;
+	return (osreldate);
 }
