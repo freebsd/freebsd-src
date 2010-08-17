@@ -958,6 +958,8 @@ dainit(void)
 static void
 daoninvalidate(struct cam_periph *periph)
 {
+	struct ccb_abort cab;
+	struct ccb_hdr *ccb_h, *ccb_h_t;
 	struct da_softc *softc;
 
 	softc = (struct da_softc *)periph->softc;
@@ -967,15 +969,29 @@ daoninvalidate(struct cam_periph *periph)
 	 */
 	xpt_register_async(0, daasync, periph, periph->path);
 
+	/*
+	 * Invalidate the pack label
+	 */
 	softc->flags |= DA_FLAG_PACK_INVALID;
 
 	/*
 	 * Return all queued I/O with ENXIO.
-	 * XXX Handle any transactions queued to the card
-	 *     with XPT_ABORT_CCB.
 	 */
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 
+	/*
+	 * Issue aborts for any pending commands.
+	 */
+	xpt_setup_ccb(&cab.ccb_h, periph->path, CAM_PRIORITY_NORMAL+1);
+	cab.ccb_h.func_code = XPT_ABORT;
+	LIST_FOREACH_SAFE(ccb_h, &softc->pending_ccbs, periph_links.le, ccb_h_t) {
+		cab.abort_ccb = (union ccb *)ccb_h;
+		xpt_action((union ccb *)&cab);
+	}
+
+	/*
+	 * This disk is *history*....
+	 */
 	disk_gone(softc->disk);
 	xpt_print(periph->path, "lost device\n");
 }
