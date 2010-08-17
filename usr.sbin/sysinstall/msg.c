@@ -233,7 +233,7 @@ msgFatal(char *fmt, ...)
     mvaddstr(StatusLine, 0, errstr);
     addstr(" - ");
     addstr("PRESS ANY KEY TO ");
-    if (getpid() == 1)
+    if (RunningAsInit)
 	addstr("REBOOT");
     else
 	addstr("QUIT");
