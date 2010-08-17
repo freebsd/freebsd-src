@@ -541,6 +541,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     dbg("initializing key program variables");
     set_program_var("__progname", argv[0] != NULL ? basename(argv[0]) : "");
     set_program_var("environ", env);
+    set_program_var("__elf_aux_vector", aux);
 
     dbg("initializing thread locks");
     lockdflt_init();
