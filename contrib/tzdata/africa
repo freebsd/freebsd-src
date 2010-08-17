@@ -1,5 +1,5 @@
 # <pre>
-# @(#)africa	8.27
+# @(#)africa	8.28
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -311,8 +311,8 @@ Rule	Egypt	2007	only	-	Sep	Thu>=1	23:00s	0	-
 
 Rule	Egypt	2008	only	-	Aug	lastThu	23:00s	0	-
 Rule	Egypt	2009	only	-	Aug	20	23:00s	0	-
-Rule	Egypt	2010	only	-	Aug	10	23:00s	0	-
-Rule	Egypt	2010	only	-	Sep	9	0:00s	1:00	S
+Rule	Egypt	2010	only	-	Aug	11	0:00	0	-
+Rule	Egypt	2010	only	-	Sep	10	0:00	1:00	S
 Rule	Egypt	2010	max	-	Sep	lastThu	23:00s	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
