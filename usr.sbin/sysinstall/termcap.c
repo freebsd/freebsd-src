@@ -105,7 +105,7 @@ set_termcap(void)
     else {
 	int i, on;
 
-	if (getpid() == 1) {
+	if (RunningAsInit) {
 	    DebugFD = open("/dev/ttyv1", O_WRONLY);
 	    if (DebugFD != -1) {
 		on = 1;
