@@ -6,7 +6,7 @@
 # Note that the newly added -Wcast-qual is responsible for generating 
 # most of the remaining warnings.  Warnings introduced with -Wall will
 # also pop up, but are easier to fix.
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 #CWARNFLAGS=	-w2	# use this if you are terribly bored
 CWARNFLAGS=
 .else
@@ -29,8 +29,8 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # operations inside the kernel itself.  These operations are exclusively
 # reserved for user applications.
 #
-.if ${MACHINE_ARCH} == "i386" && ${CC} != "icc"
-.if ${CC} != "clang"
+.if ${MACHINE_ARCH} == "i386" && ${CC:T:Micc} != "icc"
+.if ${CC:T:Mclang} != "clang"
 CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
 .endif
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
@@ -93,20 +93,20 @@ INLINE_LIMIT?=	8000
 # GCC 3.0 and above like to do certain optimizations based on the
 # assumption that the program is linked against libc.  Stop this.
 #
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 CFLAGS+=	-nolib_inline
 .else
 CFLAGS+=	-ffreestanding
 .endif
 
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 CFLAGS+=	-restrict
 .endif
 
 #
 # GCC SSP support.
 #
-.if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_ARCH} != "ia64" && \
+.if ${MK_SSP} != "no" && ${CC:T:Micc} != "icc" && ${MACHINE_ARCH} != "ia64" && \
 	${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 CFLAGS+=	-fstack-protector
 .endif
