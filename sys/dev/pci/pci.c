@@ -69,13 +69,6 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pci_if.h"
 
-#ifdef __HAVE_ACPI
-#include <contrib/dev/acpica/include/acpi.h>
-#include "acpi_if.h"
-#else
-#define	ACPI_PWR_FOR_SLEEP(x, y, z)
-#endif
-
 static pci_addr_t	pci_mapbase(uint64_t mapreg);
 static const char	*pci_maptype(uint64_t mapreg);
 static int		pci_mapsize(uint64_t testval);
@@ -2914,16 +2907,13 @@ int
 pci_suspend(device_t dev)
 {
 	int dstate, error, i, numdevs;
-	device_t acpi_dev, child, *devlist;
+	device_t child, *devlist, pcib;
 	struct pci_devinfo *dinfo;
 
 	/*
 	 * Save the PCI configuration space for each child and set the
 	 * device in the appropriate power state for this sleep state.
 	 */
-	acpi_dev = NULL;
-	if (pci_do_power_resume)
-		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
 	if ((error = device_get_children(dev, &devlist, &numdevs)) != 0)
 		return (error);
 	for (i = 0; i < numdevs; i++) {
@@ -2940,22 +2930,23 @@ pci_suspend(device_t dev)
 	}
 
 	/*
-	 * Always set the device to D3.  If ACPI suggests a different
-	 * power state, use it instead.  If ACPI is not present, the
-	 * firmware is responsible for managing device power.  Skip
-	 * children who aren't attached since they are powered down
-	 * separately.  Only manage type 0 devices for now.
+	 * Always set the device to D3.  If the firmware suggests a
+	 * different power state, use it instead.  If power management
+	 * is not present, the firmware is responsible for managing
+	 * device power.  Skip children who aren't attached since they
+	 * are powered down separately.  Only manage type 0 devices
+	 * for now.
 	 */
-	for (i = 0; acpi_dev && i < numdevs; i++) {
+	pcib = device_get_parent(dev);
+	for (i = 0; pci_do_power_resume && i < numdevs; i++) {
 		child = devlist[i];
 		dinfo = (struct pci_devinfo *) device_get_ivars(child);
+		dstate = PCI_POWERSTATE_D3;
 		if (device_is_attached(child) &&
 		    (dinfo->cfg.hdrtype & PCIM_HDRTYPE) ==
-		    PCIM_HDRTYPE_NORMAL) {
-			dstate = PCI_POWERSTATE_D3;
-			ACPI_PWR_FOR_SLEEP(acpi_dev, child, &dstate);
+		    PCIM_HDRTYPE_NORMAL &&
+		    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
 			pci_set_powerstate(child, dstate);
-		}
 	}
 	free(devlist, M_TEMP);
 	return (0);
@@ -2965,31 +2956,29 @@ int
 pci_resume(device_t dev)
 {
 	int i, numdevs, error;
-	device_t acpi_dev, child, *devlist;
+	device_t child, *devlist, pcib;
 	struct pci_devinfo *dinfo;
 
 	/*
 	 * Set each child to D0 and restore its PCI configuration space.
 	 */
-	acpi_dev = NULL;
-	if (pci_do_power_resume)
-		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
 	if ((error = device_get_children(dev, &devlist, &numdevs)) != 0)
 		return (error);
+	pcib = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
 		/*
-		 * Notify ACPI we're going to D0 but ignore the result.  If
-		 * ACPI is not present, the firmware is responsible for
-		 * managing device power.  Only manage type 0 devices for now.
+		 * Notify power managment we're going to D0 but ignore
+		 * the result.  If power management is not present,
+		 * the firmware is responsible for managing device
+		 * power.  Only manage type 0 devices for now.
 		 */
 		child = devlist[i];
 		dinfo = (struct pci_devinfo *) device_get_ivars(child);
-		if (acpi_dev && device_is_attached(child) &&
+		if (device_is_attached(child) &&
 		    (dinfo->cfg.hdrtype & PCIM_HDRTYPE) ==
-		    PCIM_HDRTYPE_NORMAL) {
-			ACPI_PWR_FOR_SLEEP(acpi_dev, child, NULL);
+		    PCIM_HDRTYPE_NORMAL &&
+		    PCIB_POWER_FOR_SLEEP(pcib, dev, NULL) == 0)
 			pci_set_powerstate(child, PCI_POWERSTATE_D0);
-		}
 
 		/* Now the device is powered up, restore its config space. */
 		pci_cfg_restore(child, dinfo);

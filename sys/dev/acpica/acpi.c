@@ -129,8 +129,6 @@ static char	*acpi_device_id_probe(device_t bus, device_t dev, char **ids);
 static ACPI_STATUS acpi_device_eval_obj(device_t bus, device_t dev,
 		    ACPI_STRING pathname, ACPI_OBJECT_LIST *parameters,
 		    ACPI_BUFFER *ret);
-static int	acpi_device_pwr_for_sleep(device_t bus, device_t dev,
-		    int *dstate);
 static ACPI_STATUS acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level,
 		    void *context, void **retval);
 static ACPI_STATUS acpi_device_scan_children(device_t bus, device_t dev,
@@ -1415,7 +1413,7 @@ acpi_device_eval_obj(device_t bus, device_t dev, ACPI_STRING pathname,
     return (AcpiEvaluateObject(h, pathname, parameters, ret));
 }
 
-static int
+int
 acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
 {
     struct acpi_softc *sc;

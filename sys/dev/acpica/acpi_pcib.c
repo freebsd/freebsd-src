@@ -275,3 +275,14 @@ out:
 
     return_VALUE (interrupt);
 }
+
+int
+acpi_pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
+{
+    device_t acpi_dev;
+
+    acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
+    acpi_device_pwr_for_sleep(acpi_dev, dev, pstate);
+    return (0);
+}
+
