@@ -11,7 +11,7 @@
 # the default is gnu99 for now
 CSTD		?= gnu99
 
-.if ${CC} != "icc"
+.if ${CC:T:Micc} != "icc"
 . if ${CSTD} == "k&r"
 CFLAGS		+= -traditional
 . elif ${CSTD} == "c89" || ${CSTD} == "c90"
@@ -24,7 +24,7 @@ CFLAGS		+= -std=iso9899:1999
 CFLAGS		+= -std=${CSTD}
 . endif
 .endif
-.if !defined(NO_WARNS) && ${CC} != "icc"
+.if !defined(NO_WARNS) && ${CC:T:Micc} != "icc"
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS		+= -pedantic
 . if defined(WARNS)
@@ -79,7 +79,7 @@ CWARNFLAGS	+=	-Werror
 CWARNFLAGS	+=	-Wno-unknown-pragmas
 .endif
 
-.if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_ARCH} != "ia64" && \
+.if ${MK_SSP} != "no" && ${CC:T:Micc} != "icc" && ${MACHINE_ARCH} != "ia64" && \
 	${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 # Don't use -Wstack-protector as it breaks world with -Werror.
 SSP_CFLAGS	?=	-fstack-protector

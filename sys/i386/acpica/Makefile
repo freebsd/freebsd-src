@@ -9,7 +9,7 @@ DEPENDFILE=
 MAKESRCPATH= ${.CURDIR}
 CLEANFILES= acpi_wakecode.h acpi_wakecode.bin acpi_wakecode.o
 .endif
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 CFLAGS+=	-restrict
 NOSTDINC=	-X
 .else

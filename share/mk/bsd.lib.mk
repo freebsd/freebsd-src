@@ -65,7 +65,7 @@ PICFLAG=-fpic
 .endif
 .endif
 
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 PO_FLAG=-p
 .else
 PO_FLAG=-pg
