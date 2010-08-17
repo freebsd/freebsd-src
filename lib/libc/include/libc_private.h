@@ -213,4 +213,6 @@ extern int	__sys_fcntl(int, int, ...);
 /* execve() with PATH processing to implement posix_spawnp() */
 int _execvpe(const char *, char * const *, char * const *);
 
+int _elf_aux_info(int aux, void *buf, int buflen);
+
 #endif /* _LIBC_PRIVATE_H_ */
