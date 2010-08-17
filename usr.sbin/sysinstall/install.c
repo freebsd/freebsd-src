@@ -1274,7 +1274,7 @@ installVarDefaults(dialogMenuItem *self)
 	    variable_set2(VAR_FIXIT_TTY,		"serial", 0);
     variable_set2(VAR_PKG_TMPDIR,		"/var/tmp", 0);
     variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT), 0);
-    if (getpid() != 1)
+    if (!RunningAsInit)
 	variable_set2(SYSTEM_STATE,		"update", 0);
     else
 	variable_set2(SYSTEM_STATE,		"init", 0);
