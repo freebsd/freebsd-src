@@ -2,7 +2,8 @@
 
 /*-
  * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
- * Copyright (C) 2008-2009 Gabor Kovesdan <gabor@FreeBSD.org>
+ * Copyright (C) 2008-2010 Gabor Kovesdan <gabor@FreeBSD.org>
+ * Copyright (C) 2010 Dimitry Andric <dimitry@andric.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <bzlib.h>
 #include <err.h>
 #include <errno.h>
-#include <stdio.h>
+#include <fcntl.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -47,222 +49,204 @@ __FBSDID("$FreeBSD$");
 
 #include "grep.h"
 
-static char	 fname[MAXPATHLEN];	/* file name */
+#define	MAXBUFSIZ	(32 * 1024)
+#define	LNBUFBUMP	80
 
-#define		 MAXBUFSIZ	(16 * 1024)
-#define		 PREREAD_M	0.2
+static gzFile gzbufdesc;
+static BZFILE* bzbufdesc;
 
-/* Some global variables for the buffering and reading. */
-static char	*lnbuf;
-static size_t	 lnbuflen;
-static unsigned char *binbuf;
-static int	 binbufsiz;
-unsigned char	*binbufptr;
-static int	 bzerr;
+static unsigned char buffer[MAXBUFSIZ];
+static unsigned char *bufpos;
+static size_t bufrem;
 
-#define iswbinary(ch)	(!iswspace((ch)) && iswcntrl((ch)) && \
-			    (ch != L'\b') && (ch != L'\0'))
+static unsigned char *lnbuf;
+static size_t lnbuflen;
 
-/*
- * Returns a single character according to the file type.
- * Returns -1 on failure.
- */
 static inline int
-grep_fgetc(struct file *f)
+grep_refill(struct file *f)
 {
-	unsigned char c;
+	ssize_t nr;
+	int bzerr;
 
-	switch (filebehave) {
-	case FILE_STDIO:
-		return (getc_unlocked(f->f));
-	case FILE_GZIP:
-		return (gzgetc(f->gzf));
-	case FILE_BZIP:
-		BZ2_bzRead(&bzerr, f->bzf, &c, 1);
-		if (bzerr == BZ_STREAM_END)
-			return (-1);
-		else if (bzerr != BZ_SEQUENCE_ERROR && bzerr != BZ_OK)
-			errx(2, "%s", getstr(2));
-		return (c);
-	}
-	return (-1);
-}
+	bufpos = buffer;
+	bufrem = 0;
 
-/*
- * Returns true if the file position is a EOF, returns false
- * otherwise.
- */
-static inline int
-grep_feof(struct file *f)
-{
-
-	switch (filebehave) {
-	case FILE_STDIO:
-		return (feof_unlocked(f->f));
-	case FILE_GZIP:
-		return (gzeof(f->gzf));
-	case FILE_BZIP:
-		return (bzerr == BZ_STREAM_END);
-	}
-	return (1);
-}
-
-/*
- * At the first call, fills in an internal buffer and checks if the given
- * file is a binary file and sets the binary flag accordingly.  Then returns
- * a single line and sets len to the length of the returned line.
- * At any other call returns a single line either from the internal buffer
- * or from the file if the buffer is exhausted and sets len to the length
- * of the line.
- */
-char *
-grep_fgetln(struct file *f, size_t *len)
-{
-	struct stat st;
-	size_t bufsiz, i = 0;
-	int ch = 0;
-
-	/* Fill in the buffer if it is empty. */
-	if (binbufptr == NULL) {
-
-		/* Only pre-read to the buffer if we need the binary check. */
-		if (binbehave != BINFILE_TEXT) {
-			if (f->stdin)
-				st.st_size = MAXBUFSIZ;
-			else if (stat(fname, &st) != 0)
-				err(2, NULL);
-			/* no need to allocate buffer. */
-			if (st.st_size == 0)
-				return (NULL);
-
-			bufsiz = (MAXBUFSIZ > (st.st_size * PREREAD_M)) ?
-			    (st.st_size / 2) : MAXBUFSIZ;
-
-			binbuf = grep_malloc(sizeof(char) * bufsiz);
-
-			while (i < bufsiz) {
-				ch = grep_fgetc(f);
-				if (ch == EOF)
-					break;
-				binbuf[i++] = ch;
-				if ((ch == '\n') && lbflag)
-					break;
-			}
-
-			f->binary = memchr(binbuf, (filebehave != FILE_GZIP) ?
-			    '\0' : '\200', i - 1) != NULL;
-		}
-		binbufsiz = i;
-		binbufptr = binbuf;
-	}
-
-	/* Read a line whether from the buffer or from the file itself. */
-	for (i = 0; !(grep_feof(f) &&
-	    (binbufptr == &binbuf[binbufsiz])); i++) {
-		if (binbufptr == &binbuf[binbufsiz]) {
-			ch = grep_fgetc(f);
-		} else {
-			ch = binbufptr[0];
-			binbufptr++;
-		}
-		if (i >= lnbuflen) {
-			lnbuflen *= 2;
-			lnbuf = grep_realloc(lnbuf, ++lnbuflen);
-		}
-		if ((ch == '\n') || (ch == EOF)) {
-			lnbuf[i] = '\0';
+	if (filebehave == FILE_GZIP)
+		nr = gzread(gzbufdesc, buffer, MAXBUFSIZ);
+	else if (filebehave == FILE_BZIP && bzbufdesc != NULL) {
+		nr = BZ2_bzRead(&bzerr, bzbufdesc, buffer, MAXBUFSIZ);
+		switch (bzerr) {
+		case BZ_OK:
+		case BZ_STREAM_END:
+			/* No problem, nr will be okay */
 			break;
-		} else
-			lnbuf[i] = ch;
-	}
-	if (grep_feof(f) && (i == 0) && (ch != '\n'))
-		return (NULL);
-	*len = i;
-	return (lnbuf);
+		case BZ_DATA_ERROR_MAGIC:
+			/*
+			 * As opposed to gzread(), which simply returns the
+			 * plain file data, if it is not in the correct
+			 * compressed format, BZ2_bzRead() instead aborts.
+			 *
+			 * So, just restart at the beginning of the file again,
+			 * and use plain reads from now on.
+			 */
+			BZ2_bzReadClose(&bzerr, bzbufdesc);
+			bzbufdesc = NULL;
+			if (lseek(f->fd, 0, SEEK_SET) == -1)
+				return (-1);
+			nr = read(f->fd, buffer, MAXBUFSIZ);
+			break;
+		default:
+			/* Make sure we exit with an error */
+			nr = -1;
+		}
+	} else
+		nr = read(f->fd, buffer, MAXBUFSIZ);
+
+	if (nr < 0)
+		return (-1);
+
+	bufrem = nr;
+	return (0);
 }
 
-/*
- * Opens the standard input for processing.
- */
-struct file *
-grep_stdin_open(void)
+static inline int
+grep_lnbufgrow(size_t newlen)
 {
-	struct file *f;
 
-	/* Processing stdin implies --line-buffered for tail -f to work. */
-	lbflag = true;
-
-	snprintf(fname, sizeof fname, "%s", getstr(1));
-
-	f = grep_malloc(sizeof *f);
-
-	binbuf = NULL;
-	if ((f->f = fdopen(STDIN_FILENO, "r")) != NULL) {
-		flockfile(f->f);
-		f->stdin = true;
-		return (f);
+	if (lnbuflen < newlen) {
+		lnbuf = grep_realloc(lnbuf, newlen);
+		lnbuflen = newlen;
 	}
 
+	return (0);
+}
+
+char *
+grep_fgetln(struct file *f, size_t *lenp)
+{
+	unsigned char *p;
+	char *ret;
+	size_t len;
+	size_t off;
+	ptrdiff_t diff;
+
+	/* Fill the buffer, if necessary */
+	if (bufrem == 0 && grep_refill(f) != 0)
+		goto error;
+
+	if (bufrem == 0) {
+		/* Return zero length to indicate EOF */
+		*lenp = 0;
+		return (bufpos);
+	}
+
+	/* Look for a newline in the remaining part of the buffer */
+	if ((p = memchr(bufpos, '\n', bufrem)) != NULL) {
+		++p; /* advance over newline */
+		ret = bufpos;
+		len = p - bufpos;
+		bufrem -= len;
+		bufpos = p;
+		*lenp = len;
+		return (ret);
+	}
+
+	/* We have to copy the current buffered data to the line buffer */
+	for (len = bufrem, off = 0; ; len += bufrem) {
+		/* Make sure there is room for more data */
+		if (grep_lnbufgrow(len + LNBUFBUMP))
+			goto error;
+		memcpy(lnbuf + off, bufpos, len - off);
+		off = len;
+		if (grep_refill(f) != 0)
+			goto error;
+		if (bufrem == 0)
+			/* EOF: return partial line */
+			break;
+		if ((p = memchr(bufpos, '\n', bufrem)) == NULL)
+			continue;
+		/* got it: finish up the line (like code above) */
+		++p;
+		diff = p - bufpos;
+		len += diff;
+		if (grep_lnbufgrow(len))
+		    goto error;
+		memcpy(lnbuf + off, bufpos, diff);
+		bufrem -= diff;
+		bufpos = p;
+		break;
+	}
+	*lenp = len;
+	return (lnbuf);
+
+error:
+	*lenp = 0;
+	return (NULL);
+}
+
+static inline struct file *
+grep_file_init(struct file *f)
+{
+
+	if (filebehave == FILE_GZIP &&
+	    (gzbufdesc = gzdopen(f->fd, "r")) == NULL)
+		goto error;
+
+	if (filebehave == FILE_BZIP &&
+	    (bzbufdesc = BZ2_bzdopen(f->fd, "r")) == NULL)
+		goto error;
+
+	/* Fill read buffer, also catches errors early */
+	if (grep_refill(f) != 0)
+		goto error;
+
+	/* Check for binary stuff, if necessary */
+	if (binbehave != BINFILE_TEXT && memchr(bufpos, '\0', bufrem) != NULL)
+		f->binary = true;
+
+	return (f);
+error:
+	close(f->fd);
 	free(f);
 	return (NULL);
 }
 
 /*
- * Opens a normal, a gzipped or a bzip2 compressed file for processing.
+ * Opens a file for processing.
  */
 struct file *
 grep_open(const char *path)
 {
 	struct file *f;
 
-	snprintf(fname, sizeof fname, "%s", path);
-
 	f = grep_malloc(sizeof *f);
-
-	binbuf = NULL;
-	f->stdin = false;
-	switch (filebehave) {
-	case FILE_STDIO:
-		if ((f->f = fopen(path, "r")) != NULL) {
-			flockfile(f->f);
-			return (f);
-		}
-		break;
-	case FILE_GZIP:
-		if ((f->gzf = gzopen(fname, "r")) != NULL)
-			return (f);
-		break;
-	case FILE_BZIP:
-		if ((f->bzf = BZ2_bzopen(fname, "r")) != NULL)
-			return (f);
-		break;
+	memset(f, 0, sizeof *f);
+	if (path == NULL) {
+		/* Processing stdin implies --line-buffered. */
+		lbflag = true;
+		f->fd = STDIN_FILENO;
+	} else if ((f->fd = open(path, O_RDONLY)) == -1) {
+		free(f);
+		return (NULL);
 	}
 
-	free(f);
-	return (NULL);
+	return (grep_file_init(f));
 }
 
 /*
- * Closes a normal, a gzipped or a bzip2 compressed file.
+ * Closes a file.
  */
 void
 grep_close(struct file *f)
 {
 
-	switch (filebehave) {
-	case FILE_STDIO:
-		funlockfile(f->f);
-		fclose(f->f);
-		break;
-	case FILE_GZIP:
-		gzclose(f->gzf);
-		break;
-	case FILE_BZIP:
-		BZ2_bzclose(f->bzf);
-		break;
-	}
+	close(f->fd);
 
-	/* Reset read buffer for the file we are closing */
-	binbufptr = NULL;
-	free(binbuf);
+	/* Reset read buffer and line buffer */
+	bufpos = buffer;
+	bufrem = 0;
+
+	free(lnbuf);
+	lnbuf = NULL;
+	lnbuflen = 0;
 }
