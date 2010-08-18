@@ -565,6 +565,7 @@ extern	int tcp_log_in_vain;
 VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_delack_enabled);
+VNET_DECLARE(int, tcp_do_rfc3390);
 VNET_DECLARE(int, tcp_do_newreno);
 VNET_DECLARE(int, path_mtu_discovery);
 VNET_DECLARE(int, ss_fltsz);
@@ -575,6 +576,7 @@ VNET_DECLARE(int, ss_fltsz_local);
 #define	V_tcp_mssdflt		VNET(tcp_mssdflt)
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
+#define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
 #define	V_tcp_do_newreno	VNET(tcp_do_newreno)
 #define	V_path_mtu_discovery	VNET(path_mtu_discovery)
 #define	V_ss_fltsz		VNET(ss_fltsz)
