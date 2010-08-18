@@ -184,7 +184,7 @@ procfile(const char *fn)
 
 	if (strcmp(fn, "-") == 0) {
 		fn = label != NULL ? label : getstr(1);
-		f = grep_stdin_open();
+		f = grep_open(NULL);
 	} else {
 		if (!stat(fn, &sb)) {
 			/* Check if we need to process the file */
@@ -215,7 +215,7 @@ procfile(const char *fn)
 
 	for (c = 0;  c == 0 || !(lflag || qflag); ) {
 		ln.off += ln.len + 1;
-		if ((ln.dat = grep_fgetln(f, &ln.len)) == NULL) {
+		if ((ln.dat = grep_fgetln(f, &ln.len)) == NULL || ln.len == 0) {
 			if (ln.line_no == 0 && matchall)
 				exit(0);
 			else
