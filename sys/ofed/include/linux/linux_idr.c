@@ -146,6 +146,7 @@ idr_remove(struct idr *idr, int id)
 		panic("idr_remove: Item %d not allocated (%p, %p)\n",
 		    id, idr, il);
 	il->ary[idx] = NULL;
+	il->bitmap |= 1 << idx;
 	mtx_unlock(&idr->lock);
 	return;
 }
@@ -226,7 +227,7 @@ idr_pre_get(struct idr *idr, gfp_t gfp_mask)
 			iln = malloc(sizeof(*il), M_IDR, M_ZERO | gfp_mask);
 			if (iln == NULL)
 				break;
-			iln->bitmap = IDR_MASK;
+			bitmap_fill(&iln->bitmap, IDR_SIZE);
 			if (head != NULL) {
 				il->ary[0] = iln;
 				il = iln;
@@ -327,6 +328,10 @@ idr_get_new(struct idr *idr, void *ptr, int *idp)
 	error = 0;
 out:
 	mtx_unlock(&idr->lock);
+	if (error == 0 && idr_find(idr, id) != ptr) {
+		panic("idr_get_new: Failed for idr %p, id %d, ptr %p\n",
+		    idr, id, ptr);
+	}
 	return (error);
 }
 
