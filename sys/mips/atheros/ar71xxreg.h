@@ -491,5 +491,15 @@ ar71xx_ahb_freq(void)
 	return (freq);
 }
 
+static inline void
+ar71xx_ddr_flush(uint32_t reg)
+{ 
+	ATH_WRITE_REG(reg, 1);
+	while ((ATH_READ_REG(reg) & 0x1))
+		;
+	ATH_WRITE_REG(reg, 1);
+	while ((ATH_READ_REG(reg) & 0x1))
+		;
+} 
 
 #endif /* _AR71XX_REG_H_ */
