@@ -814,16 +814,9 @@ buildkernel:
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 3.2: building the kernel"
+	@echo ">>> stage 3.2: building everything"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} kernel-all -DNO_MODULES_OBJ
-	@echo
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
-	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 3.3: building the modules"
-	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} modules-all -DNO_MODULES_OBJ
-.endif
+	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} all -DNO_MODULES_OBJ
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} completed on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
