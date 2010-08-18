@@ -275,6 +275,9 @@ static const struct uplcom_product {
 	/* Mobile Action MA-620 Infrared Adapter */
 	{ USB_VENDOR_MOBILEACTION, USB_PRODUCT_MOBILEACTION_MA620, -1,
 	  TYPE_PL2303X },
+	/* Corega CG-USBRS232R */
+	{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_CGUSBRS232R, -1,
+	  TYPE_PL2303X },
 	{ 0, 0 }
 };
 
