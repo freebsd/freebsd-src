@@ -611,6 +611,8 @@ void	 tcp_destroy(void);
 void	 tcp_fini(void *);
 char 	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
+char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
+	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
 void	 tcp_reass_init(void);
 #ifdef VIMAGE
