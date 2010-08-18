@@ -198,7 +198,7 @@ fastcomp(fastgrep_t *fg, const char *pat)
 }
 
 int
-grep_search(fastgrep_t *fg, unsigned char *data, size_t len, regmatch_t *pmatch)
+grep_search(fastgrep_t *fg, const unsigned char *data, size_t len, regmatch_t *pmatch)
 {
 	unsigned int j;
 	int ret = REG_NOMATCH;

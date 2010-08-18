@@ -77,12 +77,8 @@ extern const char		*errstr[];
 #define MAX_LINE_MATCHES	32
 
 struct file {
-	struct mmfile	*mmf;
-	BZFILE		*bzf;
-	FILE		*f;
-	gzFile		*gzf;
+	int		 fd;
 	bool		 binary;
-	bool		 stdin;
 };
 
 struct str {
@@ -150,11 +146,10 @@ void	 clearqueue(void);
 
 /* file.c */
 void		 grep_close(struct file *f);
-struct file	*grep_stdin_open(void);
 struct file	*grep_open(const char *path);
 char		*grep_fgetln(struct file *f, size_t *len);
 
 /* fastgrep.c */
 int		 fastcomp(fastgrep_t *, const char *);
 void		 fgrepcomp(fastgrep_t *, const char *);
-int		 grep_search(fastgrep_t *, unsigned char *, size_t, regmatch_t *);
+int		 grep_search(fastgrep_t *, const unsigned char *, size_t, regmatch_t *);
