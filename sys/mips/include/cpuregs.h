@@ -76,8 +76,10 @@
  * Caching of mapped addresses is controlled by bits in the TLB entry.
  */
 
-#define	MIPS_KSEG0_LARGEST_PHYS         (0x20000000)
-#define	MIPS_PHYS_MASK			(0x1fffffff)
+#define	MIPS_KSEG0_LARGEST_PHYS		(0x20000000)
+#define	MIPS_KSEG0_PHYS_MASK		(0x1fffffff)
+#define	MIPS_XKPHYS_LARGEST_PHYS	(0x10000000000)  /* 40 bit PA */
+#define	MIPS_XKPHYS_PHYS_MASK		(0x0ffffffffff)
 
 #ifndef LOCORE
 #define	MIPS_KUSEG_START		0x00000000
@@ -95,8 +97,8 @@
 
 #define	MIPS_PHYS_TO_KSEG0(x)		((uintptr_t)(x) | MIPS_KSEG0_START)
 #define	MIPS_PHYS_TO_KSEG1(x)		((uintptr_t)(x) | MIPS_KSEG1_START)
-#define	MIPS_KSEG0_TO_PHYS(x)		((uintptr_t)(x) & MIPS_PHYS_MASK)
-#define	MIPS_KSEG1_TO_PHYS(x)		((uintptr_t)(x) & MIPS_PHYS_MASK)
+#define	MIPS_KSEG0_TO_PHYS(x)		((uintptr_t)(x) & MIPS_KSEG0_PHYS_MASK)
+#define	MIPS_KSEG1_TO_PHYS(x)		((uintptr_t)(x) & MIPS_KSEG0_PHYS_MASK)
 
 #define	MIPS_IS_KSEG0_ADDR(x)					\
 	(((vm_offset_t)(x) >= MIPS_KSEG0_START) &&		\
@@ -106,9 +108,6 @@
 	    ((vm_offset_t)(x) <= MIPS_KSEG1_END))
 #define	MIPS_IS_VALID_PTR(x)		(MIPS_IS_KSEG0_ADDR(x) || \
 					    MIPS_IS_KSEG1_ADDR(x))
-
-#define	MIPS_XKPHYS_START		0x8000000000000000
-#define	MIPS_XKPHYS_END			0xbfffffffffffffff
 
 /*
  * Cache Coherency Attributes:
@@ -180,19 +179,34 @@
 #define	MIPS_PHYS_TO_XKPHYS_UNCACHED(x) \
 	((0x2ULL << 62) | ((unsigned long long)(MIPS_CCA_UNCACHED) << 59) | (x))
 
-#define	MIPS_XKPHYS_TO_PHYS(x)		((x) & 0x07ffffffffffffffULL)
+#define	MIPS_XKPHYS_TO_PHYS(x)		((uintptr_t)(x) & MIPS_XKPHYS_PHYS_MASK)
 
+#define	MIPS_XKPHYS_START		0x8000000000000000
+#define	MIPS_XKPHYS_END			0xbfffffffffffffff
 #define	MIPS_XUSEG_START		0x0000000000000000
 #define	MIPS_XUSEG_END			0x0000010000000000
-
 #define	MIPS_XKSEG_START		0xc000000000000000
 #define	MIPS_XKSEG_END			0xc00000ff80000000
+
+#ifdef __mips_n64
+#define	MIPS_DIRECT_MAPPABLE(pa)	1
+#define	MIPS_PHYS_TO_DIRECT(pa)		MIPS_PHYS_TO_XKPHYS_CACHED(pa)
+#define	MIPS_PHYS_TO_DIRECT_UNCACHED(pa)	MIPS_PHYS_TO_XKPHYS_UNCACHED(pa)
+#define	MIPS_DIRECT_TO_PHYS(va)		MIPS_XKPHYS_TO_PHYS(va)
+#else
+#define	MIPS_DIRECT_MAPPABLE(pa)	((pa) < MIPS_KSEG0_LARGEST_PHYS)
+#define	MIPS_PHYS_TO_DIRECT(pa)		MIPS_PHYS_TO_KSEG0(pa)
+#define	MIPS_PHYS_TO_DIRECT_UNCACHED(pa)	MIPS_PHYS_TO_KSEG1(pa)
+#define	MIPS_DIRECT_TO_PHYS(va)		MIPS_KSEG0_TO_PHYS(va)
+#endif
 
 /* CPU dependent mtc0 hazard hook */
 #ifdef CPU_CNMIPS
 #define	COP0_SYNC  nop; nop; nop; nop; nop;
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
+#elif defined(CPU_RMI)
+#define COP0_SYNC
 #else
 /*
  * Pick a reasonable default based on the "typical" spacing described in the
