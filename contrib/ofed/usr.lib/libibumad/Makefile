@@ -4,8 +4,6 @@ SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
 
-IBMADDIR= 	../../management/libibmad
-COMMONDIR=	../../management/libibcommon/include
 UMADDIR=	../../management/libibumad
 IBSRCDIR=	${UMADDIR}/src
 OFEDSYS= 	../../../../sys/ofed
@@ -19,8 +17,7 @@ NO_PROFILE=
 SRCS=	umad.c
 
 CFLAGS+= -DHAVE_CONFIG_H
-CFLAGS+= -I${.CURDIR} -I${IBSRCDIR} -I${IBMADDIR}/include -I${COMMONDIR}
-CFLAGS+= -I${OFEDSYS}/include -I${UMADDIR}/include/infiniband
+CFLAGS+= -I${.CURDIR} -I/usr/include/infiniband -I${OFEDSYS}/include 
 
 VERSION_MAP= ${IBSRCDIR}/libibumad.map
 

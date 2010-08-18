@@ -140,7 +140,7 @@ _do_madrpc(int port_id, void *sndbuf, void *rcvbuf, int agentid, int len,
 
 		length = len;
 		if (umad_send(port_id, agentid, sndbuf, length, timeout, 0) < 0) {
-			IBWARN("send failed; %m");
+			IBWARN("send failed; %s", strerror(errno));
 			return -1;
 		}
 
@@ -148,7 +148,7 @@ _do_madrpc(int port_id, void *sndbuf, void *rcvbuf, int agentid, int len,
 		/* send packet is lost somewhere. */
 		do {
 			if (umad_recv(port_id, rcvbuf, &length, timeout) < 0) {
-				IBWARN("recv failed: %m");
+				IBWARN("recv failed: %s", strerror(errno));
 				return -1;
 			}
 

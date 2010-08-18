@@ -79,7 +79,7 @@ typedef struct ib_user_mad_reg_req {
 #define TRACE	if (umaddebug)	IBWARN
 #define DEBUG	if (umaddebug)	IBWARN
 
-int umaddebug = 1;
+int umaddebug = 0;
 
 #define UMAD_DEV_FILE_SZ	256
 

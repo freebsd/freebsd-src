@@ -16,8 +16,7 @@ NO_PROFILE=
 
 SRCS=	sysfs.c util.c hash.c stack.c time.c
 
-CFLAGS+= -I${.CURDIR} -I${IBSRCDIR} -I${IBCOMMONDIR}/include
-CFLAGS+= -I${OFEDSYS}/include -I${IBCOMMONDIR}/include/infiniband
+CFLAGS+= -I${.CURDIR} -I${IBSRCDIR} -I${OFEDSYS}/include -I/usr/include/infiniband
 
 VERSION_MAP= ${IBSRCDIR}/libibcommon.map
 
