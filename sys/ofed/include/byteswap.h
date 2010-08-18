@@ -34,6 +34,9 @@
  */
 #include <sys/types.h>
 #include <sys/endian.h>
-#define	bswap_64	bswap64
+
+#define bswap_16        bswap16
+#define bswap_32        bswap32
+#define bswap_64        bswap64
 
 #endif	/* _OFED_INCLUDE_BYTESWAP_H_ */

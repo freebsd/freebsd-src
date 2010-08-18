@@ -29,5 +29,14 @@
  * This file is included for compatibility with the userland libraries
  * accompanying the infiniband stack.
  */
+
+#ifndef _OFED_INCLUDE_ENDIAN_H_
+#define	_OFED_INCLUDE_ENDIAN_H_
+
 #include <sys/types.h>
 #include <sys/endian.h>
+#define	__LITTLE_ENDIAN	_LITTLE_ENDIAN
+#define	__BIG_ENDIAN	_BIG_ENDIAN
+#define __BYTE_ORDER    _BYTE_ORDER
+
+#endif /* _OFED_INCLUDE_ENDIAN_H_ */
