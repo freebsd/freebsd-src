@@ -111,6 +111,7 @@ struct ib_umad_device {
 struct ib_umad_file {
 	struct mutex		mutex;
 	struct ib_umad_port    *port;
+	struct file	       *filp;
 	struct list_head	recv_list;
 	struct list_head	send_list;
 	struct list_head	port_list;
@@ -174,6 +175,7 @@ static int queue_packet(struct ib_umad_file *file,
 	     packet->mad.hdr.id++)
 		if (agent == __get_agent(file, packet->mad.hdr.id)) {
 			list_add_tail(&packet->list, &file->recv_list);
+			selwakeup(&file->filp->f_selinfo);
 			wake_up_interruptible(&file->recv_wait);
 			ret = 0;
 			break;
@@ -824,6 +826,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 	init_waitqueue_head(&file->recv_wait);
 
 	file->port = port;
+	file->filp = filp;
 	filp->private_data = file;
 
 	list_add_tail(&file->port_list, &port->file_list);
