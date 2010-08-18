@@ -273,7 +273,8 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 
 	raw = (u16 *)gid.raw;
 	return sprintf(buf, "%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x\n",
-	    raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7]);
+	    htons(raw[0]), htons(raw[1]), htons(raw[2]), htons(raw[3]),
+	    htons(raw[4]), htons(raw[5]), htons(raw[6]), htons(raw[7]));
 }
 
 static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
