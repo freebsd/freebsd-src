@@ -892,9 +892,9 @@ ahci_ch_attach(device_t dev)
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &rid, RF_SHAREABLE | RF_ACTIVE))) {
-		bus_release_resource(dev, SYS_RES_MEMORY, ch->unit, ch->r_mem);
 		device_printf(dev, "Unable to map interrupt\n");
-		return (ENXIO);
+		error = ENXIO;
+		goto err0;
 	}
 	if ((bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS, NULL,
 	    ahci_ch_intr_locked, dev, &ch->ih))) {
@@ -928,9 +928,10 @@ ahci_ch_attach(device_t dev)
 	    (ch->caps & AHCI_CAP_SNCQ) ? ch->numslots : 0,
 	    devq);
 	if (ch->sim == NULL) {
+		cam_simq_free(devq);
 		device_printf(dev, "unable to allocate sim\n");
 		error = ENOMEM;
-		goto err2;
+		goto err1;
 	}
 	if (xpt_bus_register(ch->sim, dev, 0) != CAM_SUCCESS) {
 		device_printf(dev, "unable to register xpt bus\n");
@@ -957,6 +958,7 @@ err2:
 	cam_sim_free(ch->sim, /*free_devq*/TRUE);
 err1:
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
+err0:
 	bus_release_resource(dev, SYS_RES_MEMORY, ch->unit, ch->r_mem);
 	mtx_unlock(&ch->mtx);
 	return (error);
