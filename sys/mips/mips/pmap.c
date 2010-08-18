@@ -267,6 +267,7 @@ static struct local_sysmaps sysmap_lmem[MAXCPU];
 static __inline pd_entry_t *
 pmap_segmap(pmap_t pmap, vm_offset_t va)
 {
+
 	return (&pmap->pm_segtab[pmap_seg_index(va)]);
 }
 
@@ -295,13 +296,15 @@ pmap_pde(pmap_t pmap, vm_offset_t va)
 static __inline pd_entry_t *
 pmap_pdpe_to_pde(pd_entry_t *pdpe, vm_offset_t va)
 {
-	return pdpe;
+
+	return (pdpe);
 }
 
 static __inline 
 pd_entry_t *pmap_pde(pmap_t pmap, vm_offset_t va)
 {
-	return pmap_segmap(pmap, va);
+
+	return (pmap_segmap(pmap, va));
 }
 #endif
 
@@ -356,7 +359,7 @@ pmap_steal_memory(vm_size_t size)
 	}
 	va = MIPS_PHYS_TO_KSEG0(pa);
 	bzero((caddr_t)va, size);
-	return va;
+	return (va);
 }
 
 /*
@@ -750,7 +753,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 		retval = TLBLO_PTE_TO_PA(*pte) | (va & PAGE_MASK);
 	}
 	PMAP_UNLOCK(pmap);
-	return retval;
+	return (retval);
 }
 
 /*
@@ -1007,7 +1010,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			pmap->pm_ptphint = mpte;
 		}
 	}
-	return pmap_unwire_pte_hold(pmap, va, mpte);
+	return (pmap_unwire_pte_hold(pmap, va, mpte));
 }
 
 void
@@ -1561,7 +1564,7 @@ pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va)
 
 		pmap_remove_entry(pmap, m, va);
 	}
-	return pmap_unuse_pt(pmap, va, NULL);
+	return (pmap_unuse_pt(pmap, va, NULL));
 }
 
 /*
@@ -2609,10 +2612,10 @@ pmap_testbit(vm_page_t m, int bit)
 	boolean_t rv = FALSE;
 
 	if (m->flags & PG_FICTITIOUS)
-		return rv;
+		return (rv);
 
 	if (TAILQ_FIRST(&m->md.pv_list) == NULL)
-		return rv;
+		return (rv);
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2933,7 +2936,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	 * pa > 0x20000000 we should make proper mapping * using pmap_kenter.
 	 */
 	if ((pa + size - 1) < MIPS_KSEG0_LARGEST_PHYS)
-		return (void *)MIPS_PHYS_TO_KSEG1(pa);
+		return ((void *)MIPS_PHYS_TO_KSEG1(pa));
 	else {
 		offset = pa & PAGE_MASK;
 		size = roundup(size + offset, PAGE_SIZE);
@@ -3239,11 +3242,11 @@ page_is_managed(vm_offset_t pa)
 
 		m = PHYS_TO_VM_PAGE(pa);
 		if (m == NULL)
-			return 0;
+			return (0);
 		if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
-			return 1;
+			return (1);
 	}
-	return 0;
+	return (0);
 }
 
 static int
