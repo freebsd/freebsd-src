@@ -165,6 +165,8 @@ uftdi_match(device_t self)
 	     uaa->product == USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13M ||
 	     uaa->product == USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13S ||
 	     uaa->product == USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13U ||
+	     uaa->product == USB_PRODUCT_FTDI_GAMMASCOUT ||
+	     uaa->product == USB_PRODUCT_FTDI_KBS ||
 	     uaa->product == USB_PRODUCT_FTDI_EISCOU ||
 	     uaa->product == USB_PRODUCT_FTDI_UOPTBR ||
 	     uaa->product == USB_PRODUCT_FTDI_EMCU2D ||
