@@ -35,7 +35,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_fpu_emu.h"
-#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/kdb.h>
@@ -51,9 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
-#ifdef KTRACE
-#include <sys/ktrace.h>
-#endif
 #include <sys/vmmeter.h>
 
 #include <security/audit/audit.h>
