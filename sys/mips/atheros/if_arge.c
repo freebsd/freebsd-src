@@ -79,6 +79,7 @@ MODULE_DEPEND(arge, miibus, 1, 1, 1);
 
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/if_argevar.h>
+#include <mips/atheros/ar71xx_cpudef.h>
 
 #undef ARGE_DEBUG
 #ifdef ARGE_DEBUG
@@ -181,14 +182,11 @@ MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_DEF);
 static void
 arge_flush_ddr(struct arge_softc *sc)
 {
-
-	ATH_WRITE_REG(sc->arge_ddr_flush_reg, 1);
-	while (ATH_READ_REG(sc->arge_ddr_flush_reg) & 1)
-		;
-
-	ATH_WRITE_REG(sc->arge_ddr_flush_reg, 1);
-	while (ATH_READ_REG(sc->arge_ddr_flush_reg) & 1)
-		;
+	if (sc->arge_mac_unit == 0) {
+		ar71xx_device_flush_ddr_ge0();
+	} else {
+		ar71xx_device_flush_ddr_ge1();
+	}
 }
 
 static int 
@@ -237,11 +235,9 @@ arge_attach(device_t dev)
 	KASSERT(((sc->arge_mac_unit == 0) || (sc->arge_mac_unit == 1)), 
 	    ("if_arge: Only MAC0 and MAC1 supported"));
 	if (sc->arge_mac_unit == 0) {
-		sc->arge_ddr_flush_reg = AR71XX_WB_FLUSH_GE0;
 		sc->arge_pll_reg = AR71XX_PLL_ETH_INT0_CLK;
 		sc->arge_pll_reg_shift = 17;
 	} else {
-		sc->arge_ddr_flush_reg = AR71XX_WB_FLUSH_GE1;
 		sc->arge_pll_reg = AR71XX_PLL_ETH_INT1_CLK;
 		sc->arge_pll_reg_shift = 19;
 	}
@@ -381,19 +377,9 @@ arge_attach(device_t dev)
 	DELAY(20);
 
 	/* Step 2. Punt the MAC core from the central reset register */
-	reg = ATH_READ_REG(AR71XX_RST_RESET);
-	if (sc->arge_mac_unit == 0) 
-		reg |= RST_RESET_GE0_MAC;
-	else if (sc->arge_mac_unit == 1) 
-		reg |= RST_RESET_GE1_MAC;
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
 	DELAY(100);
-	reg = ATH_READ_REG(AR71XX_RST_RESET);
-	if (sc->arge_mac_unit == 0) 
-		reg &= ~RST_RESET_GE0_MAC;
-	else if (sc->arge_mac_unit == 1) 
-		reg &= ~RST_RESET_GE1_MAC;
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg);
+	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
 
 	/* Step 3. Reconfigure MAC block */
 	ARGE_WRITE(sc, AR71XX_MAC_CFG1, 
