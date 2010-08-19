@@ -2473,8 +2473,8 @@ igb_setup_msix(struct adapter *adapter)
 	if ((adapter->hw.mac.type == e1000_82575) && (queues > 4))
 		queues = 4;
 
-	/* Limit the VF adapter to one queues */
-	if ((adapter->hw.mac.type == e1000_vfadapt) && (queues > 2))
+	/* Limit the VF adapter to one queue */
+	if (adapter->hw.mac.type == e1000_vfadapt)
 		queues = 1;
 
 	/*
