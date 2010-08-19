@@ -17,3 +17,4 @@ mips/mips/intr_machdep.c        standard
 mips/mips/tick.c		standard
 mips/atheros/ar71xx_setup.c	standard
 mips/atheros/ar71xx_chip.c	standard
+mips/atheros/ar91xx_chip.c	standard
