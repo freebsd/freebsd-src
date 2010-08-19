@@ -34,10 +34,10 @@ System Query Commands
     list-components
         Returns a listing of the available components which can be installed
 
-    list-mirrors
+    list-mirrors [country]
         Returns a listing of the available FTP mirrors
 
-    list-packages
+    list-packages [category] [package]
         Returns a listing of the available packages
 
     list-rsync-backups <user> <host> <port>
@@ -54,6 +54,9 @@ System Query Commands
 
     sys-mem
         Return the size of installed system RAM in MegaBytes
+
+    set-mirror <mirror>
+        Set FTP mirror
 
     test-netup
         Test if an internet connection is available
