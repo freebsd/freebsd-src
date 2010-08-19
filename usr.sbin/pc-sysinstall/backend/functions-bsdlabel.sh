@@ -58,20 +58,13 @@ get_fs_line_xvars()
     echo $LINE | grep '^ZFS' >/dev/null 2>/dev/null
     if [ "$?" = "0" ] ; then
       ZTYPE="NONE"
-      ZFSVARS="`echo $LINE | cut -d '(' -f 2- | cut -d ')' -f 1`"
+      ZFSVARS="`echo $LINE | cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
 
-      # Check if we are doing raidz setup
-      echo $ZFSVARS | grep "^raidz:" >/dev/null 2>/dev/null
-      if [ "$?" = "0" ] ; then
-       ZTYPE="raidz" 
-       ZFSVARS="`echo $ZFSVARS | sed 's|raidz: ||g' | sed 's|raidz:||g'`"
-      fi
-
-      echo $ZFSVARS | grep "^mirror:" >/dev/null 2>/dev/null
-      if [ "$?" = "0" ] ; then
-        ZTYPE="mirror" 
-        ZFSVARS="`echo $ZFSVARS | sed 's|mirror: ||g' | sed 's|mirror:||g'`"
-      fi
+      echo $ZFSVARS | grep -E "^(disk|file|mirror|raidz(1|2)?|spare|log|cache):" >/dev/null 2>/dev/null
+	  if [ "$?" = "0" ] ; then
+       ZTYPE=`echo $ZFSVARS | cut -f1 -d:`
+       ZFSVARS=`echo $ZFSVARS | sed "s|$ZTYPE: ||g" | sed "s|$ZTYPE:||g"`
+	  fi
 
       # Return the ZFS options
       if [ "${ZTYPE}" = "NONE" ] ; then
