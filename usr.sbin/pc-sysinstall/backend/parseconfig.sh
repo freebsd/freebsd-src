@@ -35,12 +35,15 @@
 . ${BACKEND}/functions-disk.sh
 . ${BACKEND}/functions-extractimage.sh
 . ${BACKEND}/functions-installcomponents.sh
+. ${BACKEND}/functions-installpackages.sh
 . ${BACKEND}/functions-localize.sh
 . ${BACKEND}/functions-mountdisk.sh
 . ${BACKEND}/functions-networking.sh
 . ${BACKEND}/functions-newfs.sh
+. ${BACKEND}/functions-packages.sh
 . ${BACKEND}/functions-parse.sh
 . ${BACKEND}/functions-runcommands.sh
+. ${BACKEND}/functions-ftp.sh
 . ${BACKEND}/functions-unmount.sh
 . ${BACKEND}/functions-upgrade.sh
 . ${BACKEND}/functions-users.sh
@@ -117,6 +120,9 @@ then
   # Check if we have any optional modules to load 
   install_components
 
+  # Check if we have any packages to install
+  install_packages
+
   # Do any localization in configuration
   run_localize
   
@@ -157,6 +163,9 @@ else
 
   # Check if we have any optional modules to load 
   install_components
+
+  # Check if we have any packages to install
+  install_packages
 
   # All finished, unmount the file-systems
   unmount_upgrade

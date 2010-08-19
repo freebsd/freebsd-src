@@ -34,10 +34,13 @@
 
 get_package_index()
 {
-	FTP_SERVER="${1}"
-	FTP_DIR="ftp://${FTP_SERVER}/pub/FreeBSD/releases/${FBSD_ARCH}/${FBSD_BRANCH}/packages"
 	INDEX_FILE="INDEX"
 	USE_BZIP2=0
+
+	get_ftp_mirror
+	FTP_SERVER="${VAL}"
+
+	FTP_DIR="ftp://${FTP_SERVER}/pub/FreeBSD/releases/${FBSD_ARCH}/${FBSD_BRANCH}/packages"
 
 	if [ -f "/usr/bin/bzip2" ]
 	then
@@ -45,18 +48,16 @@ get_package_index()
 		USE_BZIP2=1
 	fi
 
-	ftp "${FTP_DIR}/${INDEX_FILE}"
-	if [ -f "${INDEX_FILE}" ]
-	then
-		if [ "${USE_BZIP2}" -eq  "1" ]
-		then
-			bzip2 -d "${INDEX_FILE}"
-			INDEX_FILE="${INDEX_FILE%.bz2}"
-		fi
+	fetch_file "${FTP_DIR}/${INDEX_FILE}" "${PKGDIR}/${INDEX_FILE}" "1"
 
-		mv "${INDEX_FILE}" "${PKGDIR}"
+	HERE=`pwd`
+	cd "${PKGDIR}"
+	if [ -f "${INDEX_FILE}" ] && [ "${USE_BZIP2}" -eq "1" ]
+	then
+		bzip2 -d "${INDEX_FILE}"
 	fi
-}
+	cd "${HERE}"
+};
 
 parse_package_index()
 {
@@ -67,9 +68,11 @@ parse_package_index()
 
 	while read -r line
 	do
+		PKGNAME=""
 		CATEGORY=""
 		PACKAGE=""
 		DESC=""
+		DEPS=""
 		i=0
 
 		SAVE_IFS="${IFS}"
@@ -77,7 +80,11 @@ parse_package_index()
 
 		for part in ${line}
 		do
-			if [ "${i}" -eq "1" ]
+			if [ "${i}" -eq "0" ]
+			then
+				PKGNAME="${part}"
+
+			elif [ "${i}" -eq "1" ]
 			then
 				PACKAGE=`basename "${part}"`
 
@@ -88,17 +95,23 @@ parse_package_index()
 			elif [ "${i}" -eq "6" ]
 			then
 				CATEGORY=`echo "${part}" | cut -f1 -d' '`
+
+			elif [ "${i}" -eq "8" ]
+			then
+				DEPS="${part}"
 			fi
 
 			i=$((i+1))
 		done
 
 		echo "${CATEGORY}|${PACKAGE}|${DESC}" >> "${INDEX_FILE}.parsed"
+		echo "${PACKAGE}|${PKGNAME}|${DEPS}" >> "${INDEX_FILE}.deps"
+
 		IFS="${SAVE_IFS}"
 	done
 
 	exec 0<&3
-}
+};
 
 show_package_file()
 {
@@ -117,7 +130,7 @@ show_package_file()
 	done
 
 	exec 0<&3
-}
+};
 
 show_packages_by_category()
 {
@@ -128,7 +141,7 @@ show_packages_by_category()
 	grep "^${CATEGORY}|" "${INDEX_FILE}" > "${TMPFILE}"
 	show_package_file "${TMPFILE}"
 	rm "${TMPFILE}"
-}
+};
 
 show_package_by_name()
 {
@@ -140,9 +153,118 @@ show_package_by_name()
 	grep "^${CATEGORY}|${PACKAGE}" "${INDEX_FILE}" > "${TMPFILE}"
 	show_package_file "${TMPFILE}"
 	rm "${TMPFILE}"
-}
+};
 
 show_packages()
 {
 	show_package_file "${PKGDIR}/INDEX.parsed"
-}
+};
+
+get_package_dependencies()
+{
+	PACKAGE="${1}"
+	LONG="${2:-0}"
+	RES=0
+
+	INDEX_FILE="${PKGDIR}/INDEX.deps"
+	REGEX="^${PACKAGE}|"
+
+	if [ "${LONG}" -ne "0" ]
+	then
+		REGEX="^.*|${PACKAGE}|"
+	fi
+
+	LINE=`grep "${REGEX}" "${INDEX_FILE}" 2>/dev/null`
+	DEPS=`echo "${LINE}"|cut -f3 -d'|'`
+
+	VAL="${DEPS}"
+	export VAL
+
+	if [ -z "${VAL}" ]
+	then
+		RES=1
+	fi
+
+	return ${RES}
+};
+
+get_package_name()
+{
+	PACKAGE="${1}"
+	RES=0
+
+	INDEX_FILE="${PKGDIR}/INDEX.deps"
+	REGEX="^${PACKAGE}|"
+	
+	LINE=`grep "${REGEX}" "${INDEX_FILE}" 2>/dev/null`
+	NAME=`echo "${LINE}"|cut -f2 -d'|'`
+
+	VAL="${NAME}"
+	export VAL
+
+	if [ -z "${VAL}" ]
+	then
+		RES=1
+	fi
+
+	return ${RES}
+};
+
+get_package_short_name()
+{
+	PACKAGE="${1}"
+	RES=0
+
+	INDEX_FILE="${PKGDIR}/INDEX.deps"
+	REGEX="^.*|${PACKAGE}|"
+	
+	LINE=`grep "${REGEX}" "${INDEX_FILE}" 2>/dev/null`
+	NAME=`echo "${LINE}"|cut -f1 -d'|'`
+
+	VAL="${NAME}"
+	export VAL
+
+	if [ -z "${VAL}" ]
+	then
+		RES=1
+	fi
+
+	return ${RES}
+};
+
+get_package_category()
+{
+	PACKAGE="${1}"
+	INDEX_FILE="${PKGDIR}/INDEX.parsed"
+	RES=0
+
+	LINE=`grep "|${PACKAGE}|" "${INDEX_FILE}" 2>/dev/null`
+	NAME=`echo "${LINE}"|cut -f1 -d'|'`
+
+	VAL="${NAME}"
+	export VAL
+
+	if [ -z "${VAL}" ]
+	then
+		RES=1
+	fi
+
+	return ${RES}
+};
+
+fetch_package()
+{
+	CATEGORY="${1}"
+	PACKAGE="${2}"
+
+	get_ftp_mirror
+	FTP_SERVER="${VAL}"
+
+	PACKAGE="${PACKAGE}.tbz"
+	if [ ! -f "${PKGTMPDIR}/${PACKAGE}" ]
+	then
+		PKGPATH="${CATEGORY}/${PACKAGE}"
+		FTP_PATH="ftp://${FTP_SERVER}/pub/FreeBSD/releases/${FBSD_ARCH}/${FBSD_BRANCH}/packages/${PKGPATH}"
+		fetch_file "${FTP_PATH}" "${PKGTMPDIR}/" "0"
+	fi
+};
