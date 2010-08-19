@@ -257,6 +257,7 @@ SUBDIR=	${_3dfx} \
 	${_scsi_low} \
 	sdhci \
 	sem \
+	send \
 	sf \
 	sge \
 	siba_bwn \
