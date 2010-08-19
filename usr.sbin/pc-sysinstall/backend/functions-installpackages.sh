@@ -45,7 +45,7 @@ determine_package_dependencies()
 
 		for d in ${DEPS}
 		do
-			get_all_package_dependencies "${d}" "${DEPFILE}"
+			determine_package_dependencies "${d}" "${DEPFILE}"
 		done
 	fi
 };
@@ -55,9 +55,11 @@ fetch_package_dependencies()
 {
 	local DEPFILE
 	local DEPS
+	local SAVEDIR
 
 	DEPFILE="${1}"
 	DEPS=`cat "${DEPFILE}"`
+	SAVEDIR="${2}"
 
 	for d in ${DEPS}
 	do
@@ -67,7 +69,7 @@ fetch_package_dependencies()
 		get_package_category "${SNAME}"
 		CATEGORY="${VAL}"
 
-		fetch_package "${CATEGORY}" "${d}"
+		fetch_package "${CATEGORY}" "${d}" "${SAVEDIR}"
 	done
 };
 
@@ -78,10 +80,19 @@ install_packages()
 	get_value_from_cfg installPackages
 	if [ ! -z "${VAL}" ]
 	then
-	  mkdir -p "${PKGTMPDIR}"
-
 	  HERE=`pwd`
-	  cd "${PKGTMPDIR}"
+	  rc_nohalt "mkdir -p ${FSMNT}/${PKGTMPDIR}"
+	  rc_nohalt "cd ${FSMNT}/${PKGTMPDIR}"
+
+	  if [ ! -f "${CONFDIR}/INDEX" ]
+	  then
+		get_package_index
+	  fi
+
+	  if [ ! -f "${CONFDIR}/INDEX.parsed" ]
+	  then
+		parse_package_index
+	  fi
 
       # Lets start by cleaning up the string and getting it ready to parse
       strip_white_space ${VAL}
@@ -91,28 +102,24 @@ install_packages()
 		if get_package_name "${i}"
 		then
 			PKGNAME="${VAL}"
-			DEPFILE="${PKGTMPDIR}/.${PKGNAME}.deps"
+			DEPFILE="${FSMNT}/${PKGTMPDIR}/.${PKGNAME}.deps"
 
-			touch "${DEPFILE}"
+			rc_nohalt "touch ${DEPFILE}"
 			determine_package_dependencies "${PKGNAME}" "${DEPFILE}"
-			fetch_package_dependencies "${DEPFILE}"
+			fetch_package_dependencies "${DEPFILE}" "${FSMNT}/${PKGTMPDIR}"
 
 			# If the package is not already installed, install it!
 			if ! run_chroot_cmd "pkg_info -e ${PKGNAME}"
 			then
-				echo_log "Adding package ${PKGNAME}"
-				pkg_add -C "${FSMNT}" "${PKGNAME}.tbz" >/dev/null 2>&1
-				if [ "$?" -eq "0" ]
-				then
-					echo_log "${PKGNAME} successfully installed!"
-				fi
+				rc_nohalt "pkg_add -C ${FSMNT} ${PKGTMPDIR}/${PKGNAME}.tbz"
 			fi
 
-			rm "${DEPFILE}"
+			rc_nohalt "rm ${DEPFILE}"
 		fi
+
+		rc_nohalt "cd ${HERE}"
 	  done
 
-	  #rm -rf "${PKGTMPDIR}"
-	  cd "${HERE}"
+	  #rm -rf "${FSMNT}/${PKGTMPDIR}"
 	fi
 };
