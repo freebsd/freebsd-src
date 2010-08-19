@@ -62,10 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/cpuset.h>
 #include <sys/sbuf.h>
-#ifdef KTRACE
-#include <sys/uio.h>
-#include <sys/ktrace.h>
-#endif
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
