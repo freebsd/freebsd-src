@@ -171,7 +171,8 @@ uftdi_match(device_t self)
 	     uaa->product == USB_PRODUCT_FTDI_UOPTBR ||
 	     uaa->product == USB_PRODUCT_FTDI_EMCU2D ||
 	     uaa->product == USB_PRODUCT_FTDI_PCMSFU ||
-	     uaa->product == USB_PRODUCT_FTDI_EMCU2H ))
+	     uaa->product == USB_PRODUCT_FTDI_EMCU2H ||
+	     uaa->product == USB_PRODUCT_FTDI_MAXSTREAM ))
 		return (UMATCH_VENDOR_PRODUCT);
 	if (uaa->vendor == USB_VENDOR_SIIG2 &&
 	    (uaa->product == USB_PRODUCT_SIIG2_US2308))
