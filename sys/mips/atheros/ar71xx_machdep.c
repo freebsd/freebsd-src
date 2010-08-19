@@ -121,9 +121,7 @@ platform_identify(void)
 void
 platform_reset(void)
 {
-	uint32_t reg = ATH_READ_REG(AR71XX_RST_RESET);
-
-	ATH_WRITE_REG(AR71XX_RST_RESET, reg | RST_RESET_FULL_CHIP);
+	ar71xx_device_stop(RST_RESET_FULL_CHIP);
 	/* Wait for reset */
 	while(1)
 		;
