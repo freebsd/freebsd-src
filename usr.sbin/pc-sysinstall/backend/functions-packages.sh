@@ -63,6 +63,22 @@ get_package_index_by_fs()
 	fetch_file "${INDEX_FILE}" "${CONFDIR}/" "0"
 };
 
+get_package_index_size()
+{
+	if [ -f "${CONFDIR}/INDEX" ]
+	then
+		SIZE=`ls -l ${CONFDIR}/INDEX | awk '{ print $5 }'`
+	else
+		get_ftp_mirror
+		FTPHOST="${VAL}"
+
+		FTPDIR="/pub/FreeBSD/releases/${FBSD_ARCH}/${FBSD_BRANCH}"
+		FTPPATH="ftp://${FTPHOST}${FTPDIR}/packages"
+
+		fetch -s "${FTPPATH}/INDEX.bz2"
+	fi
+};
+
 get_package_index()
 {
 	RES=0

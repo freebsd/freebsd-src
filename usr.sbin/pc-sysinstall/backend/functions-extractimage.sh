@@ -123,7 +123,7 @@ start_extract_split()
 	cd "${dir}"
 	if [ -f "install.sh" ]
 	then
-	  echo "Extracting" `basename ${dir}`
+	  echo_log "Extracting" `basename ${dir}`
       echo "y" | sh install.sh >/dev/null
       if [ "$?" != "0" ]
       then
@@ -139,7 +139,7 @@ start_extract_split()
   cd "${KERNELS}"
   if [ -f "install.sh" ]
   then
-	echo "Extracting" `basename ${KERNELS}`
+	echo_log "Extracting" `basename ${KERNELS}`
     echo "y" | sh install.sh generic >/dev/null
     if [ "$?" != "0" ]
     then
@@ -155,7 +155,7 @@ start_extract_split()
   cd "${SOURCE}"
   if [ -f "install.sh" ]
   then
-	echo "Extracting" `basename ${SOURCE}`
+	echo_log "Extracting" `basename ${SOURCE}`
     echo "y" | sh install.sh all >/dev/null
     if [ "$?" != "0" ]
     then
@@ -259,8 +259,8 @@ bye
 
 EOF
 
-   # Fetch the files via ftp
-   echo "$ INSTALL" | ftp -N "${NETRC}" "${FTPHOST}"
+  # Fetch the files via ftp
+  echo "$ INSTALL" | ftp -N "${NETRC}" "${FTPHOST}"
 
   # Done fetching, now reset the INSFILE to our downloaded archived
   INSFILE="${OUTFILE}" ; export INSFILE
