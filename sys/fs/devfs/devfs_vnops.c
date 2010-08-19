@@ -848,6 +848,8 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 			*dm_unlock = 0;
 			sx_xunlock(&dmp->dm_lock);
 			devfs_unmount_final(dmp);
+			if (cdev != NULL)
+				dev_rel(cdev);
 			return (ENOENT);
 		}
 		if (cdev == NULL)
@@ -859,6 +861,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 			*dm_unlock = 0;
 			sx_xunlock(&dmp->dm_lock);
 			devfs_unmount_final(dmp);
+			dev_rel(cdev);
 			return (ENOENT);
 		}
 
