@@ -681,15 +681,12 @@ main(int argc, char *argv[])
 
 	if (dirbehave == DIR_RECURSE)
 		c = grep_tree(aargv);
-	else {
-		if (aargc == 1)
-			hflag = true;
+	else
 		for (c = 0; aargc--; ++aargv) {
 			if ((finclude || fexclude) && !file_matching(*aargv))
 				continue;
 			c+= procfile(*aargv);
 		}
-	}
 
 #ifndef WITHOUT_NLS
 	catclose(catalog);
