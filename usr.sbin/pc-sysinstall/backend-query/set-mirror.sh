@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2010 iXsystems, Inc.  All rights reserved.
+# Copyright (c) 2010 iXSystems, Inc.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,28 +25,16 @@
 #
 # $FreeBSD$
 
-# Script which lists the available packages for this release
-###########################################################################
-
 . ${PROGDIR}/backend/functions.sh
-. ${PROGDIR}/backend/functions-packages.sh
+. ${PROGDIR}/backend/functions-ftp.sh
 
-ID=`id -u`
-if [ "${ID}" -ne "0" ]
+MIRROR="${1}"
+
+if [ -z "${MIRROR}" ]
 then
-	echo "Error: must be root!" 
+	echo "Error: No mirror specified!"
 	exit 1
 fi
 
-if [ ! -f "${PKGDIR}/INDEX" ]
-then
-	get_package_index
-fi
-
-if [ -f "${PKGDIR}/INDEX" ]
-then
-	echo "${PKGDIR}/INDEX"
-	exit 0
-fi
-
-exit 1
+set_ftp_mirror "${MIRROR}"
+exit 0
