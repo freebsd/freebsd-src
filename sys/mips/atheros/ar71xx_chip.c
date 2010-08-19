@@ -77,9 +77,6 @@ __FBSDID("$FreeBSD$");
 #define AR71XX_AHB_DIV_SHIFT            20
 #define AR71XX_AHB_DIV_MASK             0x7
 
-#define AR71XX_ETH0_PLL_SHIFT           17
-#define AR71XX_ETH1_PLL_SHIFT           19
-
 /* XXX these shouldn't be in here - this file is a per-chip file */
 /* XXX these should be in the top-level ar71xx type, not ar71xx -chip */
 uint32_t u_ar71xx_cpu_freq;
@@ -143,14 +140,51 @@ ar71xx_chip_device_stopped(uint32_t mask)
         return ((reg & mask) == mask);
 }
 
+/* Speed is either 10, 100 or 1000 */
 static void
 ar71xx_chip_set_pll_ge0(int speed)
 {
+	uint32_t pll;
+
+	switch(speed) {
+		case 10:
+			pll = PLL_ETH_INT_CLK_10;
+			break;
+		case 100:
+			pll = PLL_ETH_INT_CLK_100;
+			break;
+		case 1000:
+			pll = PLL_ETH_INT_CLK_1000;
+			break;
+		default:
+			printf("ar71xx_chip_set_pll_ge0: invalid speed %d\n", speed);
+			return;
+	}
+
+	ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG, AR71XX_PLL_ETH_INT0_CLK, pll, AR71XX_PLL_ETH0_SHIFT);
 }
 
 static void
 ar71xx_chip_set_pll_ge1(int speed)
 {
+	uint32_t pll;
+
+	switch(speed) {
+		case 10:
+			pll = PLL_ETH_INT_CLK_10;
+			break;
+		case 100:
+			pll = PLL_ETH_INT_CLK_100;
+			break;
+		case 1000:
+			pll = PLL_ETH_INT_CLK_1000;
+			break;
+		default:
+			printf("ar71xx_chip_set_pll_ge1: invalid speed %d\n", speed);
+			return;
+	}
+
+	ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG, AR71XX_PLL_ETH_INT1_CLK, pll, AR71XX_PLL_ETH1_SHIFT);
 }
 
 static void
