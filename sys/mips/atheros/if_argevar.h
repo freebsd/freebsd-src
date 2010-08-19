@@ -150,7 +150,6 @@ struct arge_softc {
 	uint32_t		arge_intr_status;
 	int			arge_mac_unit;
 	int			arge_phymask;
-	uint32_t		arge_ddr_flush_reg;
 	uint32_t		arge_pll_reg;
 	uint32_t		arge_pll_reg_shift;
 	int			arge_if_flags;
