@@ -786,14 +786,12 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			goto freeit;
 		}
 		if (send_sendso_input_hook != NULL) {
-			IP6_EXTHDR_CHECK(m, off,
+			IP6_EXTHDR_CHECK(n, off,
 			    icmp6len, IPPROTO_DONE);
                         error = send_sendso_input_hook(n, ifp,
 			    SND_IN, ip6len);
-			if (error == 0) {
-				m_freem(n);
-				return (IPPROTO_DONE);
-			}
+			if (error == 0)
+				goto freeit;
 			/* -1 == no app on SEND socket */
 			nd6_rs_input(n, off, icmp6len);
 		} else
@@ -819,14 +817,13 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			} else
 				nd6_ra_input(m, off, icmp6len);
 			m = NULL;
-			m_freem(n);
 			goto freeit;
 		}
 		if (send_sendso_input_hook != NULL) {
 			error = send_sendso_input_hook(n, ifp,
 			    SND_IN, ip6len);
 			if (error == 0)
-				return (IPPROTO_DONE);
+				goto freeit;
 			nd6_ra_input(n, off, icmp6len);
 		} else
 			nd6_ra_input(n, off, icmp6len);
@@ -848,7 +845,6 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 				nd6_ns_input(m, off, icmp6len);
 			} else
 				nd6_ns_input(m, off, icmp6len);
-			m_freem(n);
 			m = NULL;
 			goto freeit;
 		}
@@ -856,7 +852,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			error = send_sendso_input_hook(n, ifp,
 			    SND_IN, ip6len);
 			if (error == 0)
-				return (IPPROTO_DONE);
+				goto freeit;
 			nd6_ns_input(n, off, icmp6len);
 		} else
 			nd6_ns_input(n, off, icmp6len);
@@ -880,7 +876,6 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 				nd6_na_input(m, off, icmp6len);
 			} else
 				nd6_na_input(m, off, icmp6len);
-			m_freem(n);
 			m = NULL;
 			goto freeit;
 		}
@@ -888,7 +883,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			error = send_sendso_input_hook(n, ifp,
 			    SND_IN, ip6len);
 			if (error == 0)
-				return (IPPROTO_DONE);
+				goto freeit;
 			nd6_na_input(n, off, icmp6len);
 		} else
 			nd6_na_input(n, off, icmp6len);
@@ -910,7 +905,6 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			    icmp6_redirect_input(m, off);
 			} else
 				icmp6_redirect_input(m, off);
-			m_freem(n);
 			m = NULL;
 			goto freeit;
 		}
@@ -918,7 +912,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			error = send_sendso_input_hook(n, ifp,
 			    SND_IN, ip6len);
 			if (error == 0)
-				return (IPPROTO_DONE);
+				goto freeit;
 			icmp6_redirect_input(n, off);
 		} else
 			icmp6_redirect_input(n, off);
