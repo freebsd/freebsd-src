@@ -43,8 +43,11 @@ export PROGDIR
 COMPDIR="${PROGDIR}/components"
 export COMPDIR
 
+CONFDIR="${PROGDIR}/conf"
+export CONFDIR
+
 # Set this to the packages location
-PKGDIR="${PROGDIR}/conf"
+PKGDIR="${CONFDIR}"
 export PKGDIR
 
 # End of user-editable configuration
@@ -182,6 +185,10 @@ case $1 in
 
   # Function to get package index
   get-packages) ${QUERYDIR}/get-packages.sh "${2}"
+  ;;
+
+  # Function to set FTP mirror
+  set-mirror) ${QUERYDIR}/set-mirror.sh "${2}"
   ;;
 
   # Function which allows setting up of SSH keys

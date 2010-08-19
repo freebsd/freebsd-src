@@ -30,6 +30,8 @@
 . ${BACKEND}/functions.sh
 . ${BACKEND}/functions-parse.sh
 
+DEFAULT_FTP_SERVER="ftp.freebsd.org"
+
 MAIN_FTP_SERVERS="\
 Main Site: ftp.freebsd.org"
 
@@ -274,7 +276,25 @@ show_mirrors()
     done
     IFS="${SAVE_IFS}"
   fi
-}
+};
+
+set_ftp_mirror()
+{
+	MIRROR="${1}"
+	echo "${MIRROR}" > "${CONFDIR}/mirrors.conf"
+};
+
+get_ftp_mirror()
+{
+	MIRROR="${DEFAULT_FTP_SERVER}"
+	if [ -f "${CONFDIR}/mirrors.conf" ]
+	then
+		MIRROR=`cat "${CONFDIR}/mirrors.conf"`
+	fi
+
+	VAL="${MIRROR}"
+	export VAL
+};
 
 get_ftp_mirrors()
 {
@@ -371,4 +391,4 @@ get_ftp_mirrors()
   fi
 
   export VAL
-}
+};

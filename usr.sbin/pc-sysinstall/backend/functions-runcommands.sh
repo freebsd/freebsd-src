@@ -37,7 +37,10 @@ run_chroot_cmd()
   echo "$CMD" >${FSMNT}/.runcmd.sh
   chmod 755 ${FSMNT}/.runcmd.sh
   chroot ${FSMNT} sh /.runcmd.sh
+  RES=$?
+
   rm ${FSMNT}/.runcmd.sh
+  return ${RES}
 };
 
 run_chroot_script()
@@ -50,8 +53,10 @@ run_chroot_script()
 
   echo_log "Running chroot script: ${SCRIPT}"
   chroot ${FSMNT} /.${SBASE}
+  RES=$?
 
   rm ${FSMNT}/.${SBASE}
+  return ${RES}
 };
 
 
@@ -64,7 +69,10 @@ run_ext_cmd()
   echo "${CMD}"> ${TMPDIR}/.runcmd.sh
   chmod 755 ${TMPDIR}/.runcmd.sh
   sh ${TMPDIR}/.runcmd.sh
+  RES=$?
+
   rm ${TMPDIR}/.runcmd.sh
+  return ${RES}
 };
 
 
