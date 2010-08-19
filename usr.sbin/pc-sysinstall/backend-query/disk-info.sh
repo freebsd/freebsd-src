@@ -54,15 +54,18 @@ HEADS="${VAL}"
 get_disk_sectors "${DISK}"
 SECS="${VAL}"
 
-echo "cylinders=${CYLS}"
-echo "heads=${HEADS}"
-echo "sectors=${SECS}"
 
 # Now get the disks size in MB
 KB="`diskinfo -v ${1} | grep 'bytes' | cut -d '#' -f 1 | tr -s '\t' ' ' | tr -d ' '`"
 MB=$(convert_byte_to_megabyte ${KB})
-echo "size=$MB"
 
 # Now get the Controller Type
 CTYPE="`dmesg | grep "^${1}:" | grep "B <" | cut -d '>' -f 2 | cut -d ' ' -f 3-10`"
+
+
+echo "cylinders=${CYLS}"
+echo "heads=${HEADS}"
+echo "sectors=${SECS}"
+echo "size=$MB"
 echo "type=$CTYPE"
+
