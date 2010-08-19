@@ -1,7 +1,7 @@
 /*	$OpenBSD: util.c,v 1.36 2007/10/02 17:59:18 otto Exp $	*/
 
 /*-
- * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1999 James Howard and Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * Copyright (C) 2008 Gabor Kovesdan <gabor@FreeBSD.org>
  * All rights reserved.
  *
