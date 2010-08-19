@@ -180,6 +180,7 @@ void devfs_populate (struct devfs_mount *dm);
 void devfs_cleanup (struct devfs_mount *dm);
 void devfs_unmount_final(struct devfs_mount *mp);
 struct devfs_dirent *devfs_newdirent (char *name, int namelen);
+struct devfs_dirent *devfs_parent_dirent(struct devfs_dirent *de);
 struct devfs_dirent *devfs_vmkdir (struct devfs_mount *, char *name, int namelen, struct devfs_dirent *dotdot, u_int inode);
 struct devfs_dirent *devfs_find (struct devfs_dirent *dd, const char *name, int namelen);
 
