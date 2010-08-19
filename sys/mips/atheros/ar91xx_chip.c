@@ -117,11 +117,45 @@ ar91xx_chip_device_stopped(uint32_t mask)
 static void
 ar91xx_chip_set_pll_ge0(int speed)
 {
+	uint32_t pll;
+
+	switch(speed) {
+		case 10:
+			pll = AR91XX_PLL_VAL_10;
+			break;
+		case 100:
+			pll = AR91XX_PLL_VAL_100;
+			break;
+		case 1000:
+			pll = AR91XX_PLL_VAL_1000;
+			break;
+		default:
+			printf("ar91xx_chip_set_pll_ge0: invalid speed %d\n", speed);
+			return;
+	}
+	ar71xx_write_pll(AR91XX_PLL_REG_ETH_CONFIG, AR91XX_PLL_REG_ETH0_INT_CLOCK, pll, AR91XX_ETH0_PLL_SHIFT);
 }
 
 static void
 ar91xx_chip_set_pll_ge1(int speed)
 {
+	uint32_t pll;
+
+	switch(speed) {
+		case 10:
+			pll = AR91XX_PLL_VAL_10;
+			break;
+		case 100:
+			pll = AR91XX_PLL_VAL_100;
+			break;
+		case 1000:
+			pll = AR91XX_PLL_VAL_1000;
+			break;
+		default:
+			printf("ar91xx_chip_set_pll_ge0: invalid speed %d\n", speed);
+			return;
+	}
+	ar71xx_write_pll(AR91XX_PLL_REG_ETH_CONFIG, AR91XX_PLL_REG_ETH1_INT_CLOCK, pll, AR91XX_ETH1_PLL_SHIFT);
 }
 
 static void
