@@ -8,7 +8,8 @@
 #####################################################################
 # CPU OPTIONS
 
-machine		powerpc powerpc
+# You must specify a machine directive to choose powerpc or powerpc64
+#machine		powerpc powerpc[64]
 
 #
 # You must specify at least one CPU (the one you intend to run on).
@@ -44,6 +45,7 @@ device		snd_davbus	# Apple Davbus Audio
 #####################################################################
 # Devices we don't want to deal with
 
+nodevice	bktr
 nodevice	fdc
 nodevice	ppc
 nodevice	splash
