@@ -87,7 +87,7 @@ ar71xx_detect_sys_type(void)
 		minor = id & AR71XX_REV_ID_MINOR_MASK;
 		rev = id >> AR71XX_REV_ID_REVISION_SHIFT;
 		rev &= AR71XX_REV_ID_REVISION_MASK;
-		ar71xx_cpu_ops	= &ar71xx_chip_def;
+		ar71xx_cpu_ops = &ar71xx_chip_def;
 		switch (minor) {
 		case AR71XX_REV_ID_MINOR_AR7130:
 			ar71xx_soc = AR71XX_SOC_AR7130;
@@ -109,21 +109,21 @@ ar71xx_detect_sys_type(void)
 	case REV_ID_MAJOR_AR7240:
 		ar71xx_soc = AR71XX_SOC_AR7240;
 		chip = "7240";
-		ar71xx_cpu_ops	= &ar724x_chip_def;
+		ar71xx_cpu_ops = &ar724x_chip_def;
 		rev = (id & AR724X_REV_ID_REVISION_MASK);
 		break;
 
 	case REV_ID_MAJOR_AR7241:
 		ar71xx_soc = AR71XX_SOC_AR7241;
 		chip = "7241";
-		ar71xx_cpu_ops	= &ar724x_chip_def;
+		ar71xx_cpu_ops = &ar724x_chip_def;
 		rev = (id & AR724X_REV_ID_REVISION_MASK);
 		break;
 
 	case REV_ID_MAJOR_AR7242:
 		ar71xx_soc = AR71XX_SOC_AR7242;
 		chip = "7242";
-		ar71xx_cpu_ops	= &ar724x_chip_def;
+		ar71xx_cpu_ops = &ar724x_chip_def;
 		rev = (id & AR724X_REV_ID_REVISION_MASK);
 		break;
 
@@ -131,7 +131,7 @@ ar71xx_detect_sys_type(void)
 		minor = id & AR91XX_REV_ID_MINOR_MASK;
 		rev = id >> AR91XX_REV_ID_REVISION_SHIFT;
 		rev &= AR91XX_REV_ID_REVISION_MASK;
-		ar71xx_cpu_ops	= &ar91xx_chip_def;
+		ar71xx_cpu_ops = &ar91xx_chip_def;
 		switch (minor) {
 		case AR91XX_REV_ID_MINOR_AR9130:
 			ar71xx_soc = AR71XX_SOC_AR9130;
