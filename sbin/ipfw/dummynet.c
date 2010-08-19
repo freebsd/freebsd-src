@@ -1130,7 +1130,7 @@ end_mask:
 			NEED(p, "burst");
 			NEED1("burst needs argument\n");
 			errno = 0;
-			if (expand_number(av[0], (int64_t *)&p->burst) < 0)
+			if (expand_number(av[0], &p->burst) < 0)
 				if (errno != ERANGE)
 					errx(EX_DATAERR,
 					    "burst: invalid argument");
