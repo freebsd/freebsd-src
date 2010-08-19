@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_cpudef.h>
 
 #include <mips/atheros/ar71xx_chip.h>
+#include <mips/atheros/ar91xx_chip.h>
 
 #define	AR71XX_SYS_TYPE_LEN		128
 
@@ -103,6 +104,25 @@ ar71xx_detect_sys_type(void)
 			break;
 		}
 		break;
+
+	case REV_ID_MAJOR_AR913X:
+		minor = id & AR91XX_REV_ID_MINOR_MASK;
+		rev = id >> AR91XX_REV_ID_REVISION_SHIFT;
+		rev &= AR91XX_REV_ID_REVISION_MASK;
+		ar71xx_cpu_ops	= &ar91xx_chip_def;
+		switch (minor) {
+		case AR91XX_REV_ID_MINOR_AR9130:
+			ar71xx_soc = AR71XX_SOC_AR9130;
+			chip = "9130";
+			break;
+
+		case AR91XX_REV_ID_MINOR_AR9132:
+			ar71xx_soc = AR71XX_SOC_AR9132;
+			chip = "9132";
+			break;
+		}
+		break;
+
 
 	default:
 		panic("ar71xx: unknown chip id:0x%08x\n", id);
