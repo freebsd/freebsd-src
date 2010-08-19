@@ -144,7 +144,6 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	uint64_t platform_counter_freq;
-	uint32_t reg;
 	int argc, i, count = 0;
 	char **argv, **envp;
 	vm_offset_t kernend;
