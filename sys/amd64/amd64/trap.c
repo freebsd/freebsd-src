@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 #include "opt_kdb.h"
 #include "opt_kdtrace.h"
-#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -70,9 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/uio.h>
 #include <sys/vmmeter.h>
-#ifdef KTRACE
-#include <sys/ktrace.h>
-#endif
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
