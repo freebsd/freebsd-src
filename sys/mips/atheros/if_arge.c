@@ -233,13 +233,6 @@ arge_attach(device_t dev)
 
 	KASSERT(((sc->arge_mac_unit == 0) || (sc->arge_mac_unit == 1)), 
 	    ("if_arge: Only MAC0 and MAC1 supported"));
-	if (sc->arge_mac_unit == 0) {
-		sc->arge_pll_reg = AR71XX_PLL_ETH_INT0_CLK;
-		sc->arge_pll_reg_shift = 17;
-	} else {
-		sc->arge_pll_reg = AR71XX_PLL_ETH_INT1_CLK;
-		sc->arge_pll_reg_shift = 19;
-	}
 
 	/*
 	 *  Get which PHY of 5 available we should use for this unit
@@ -668,7 +661,8 @@ arge_link_task(void *arg, int pending)
 static void
 arge_set_pll(struct arge_softc *sc, int media, int duplex)
 {
-	uint32_t		cfg, ifcontrol, rx_filtmask, pll, sec_cfg;
+	uint32_t		cfg, ifcontrol, rx_filtmask;
+	int if_speed;
 
 	cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
 	cfg &= ~(MAC_CFG2_IFACE_MODE_1000 
@@ -687,21 +681,21 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	switch(media) {
 	case IFM_10_T:
 		cfg |= MAC_CFG2_IFACE_MODE_10_100;
-		pll = PLL_ETH_INT_CLK_10;
+		if_speed = 10;
 		break;
 	case IFM_100_TX:
 		cfg |= MAC_CFG2_IFACE_MODE_10_100;
 		ifcontrol |= MAC_IFCONTROL_SPEED;
-		pll = PLL_ETH_INT_CLK_100;
+		if_speed = 100;
 		break;
 	case IFM_1000_T:
 	case IFM_1000_SX:
 		cfg |= MAC_CFG2_IFACE_MODE_1000;
 		rx_filtmask |= FIFO_RX_MASK_BYTE_MODE;
-		pll = PLL_ETH_INT_CLK_1000;
+		if_speed = 1000;
 		break;
 	default:
-		pll = PLL_ETH_INT_CLK_100;
+		if_speed = 100;
 		device_printf(sc->arge_dev, 
 		    "Unknown media %d\n", media);
 	}
@@ -715,22 +709,10 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	    rx_filtmask);
 
 	/* set PLL registers */
-	sec_cfg = ATH_READ_REG(AR71XX_PLL_SEC_CONFIG);
-	sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
-	sec_cfg |= (2 << sc->arge_pll_reg_shift);
-
-	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-	DELAY(100);
-
-	ATH_WRITE_REG(sc->arge_pll_reg, pll);
-
-	sec_cfg |= (3 << sc->arge_pll_reg_shift);
-	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-	DELAY(100);
-
-	sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
-	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-	DELAY(100);
+	if (sc->arge_mac_unit == 0)
+		ar71xx_device_set_pll_ge0(if_speed);
+	else
+		ar71xx_device_set_pll_ge1(if_speed);
 }
 
 
