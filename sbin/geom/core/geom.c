@@ -237,7 +237,7 @@ static void
 set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 {
 	char *s;
-	intmax_t number;
+	uint64_t number;
 
 	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER ||
 	    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
