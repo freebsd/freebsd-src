@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2007
+.Dd June 15, 2010
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -611,6 +611,25 @@ when
 .Va daily_queuerun_enable
 is set to
 .Dq Li YES .
+.It Va daily_scrub_zfs_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run a zfs scrub periodically.
+.It Va daily_scrub_zfs_pools
+.Pq Vt str
+A space separated list of names of zfs pools to scrub.
+If the list is empty or not set, all zfs pools are scrubbed.
+.It Va daily_scrub_zfs_default_threshold
+.Pq Vt int
+Number of days between a scrub if no pool-specific threshold is set.
+The default value if no value is set is 30.
+.It Va daily_scrub_zfs_ Ns Ao Ar poolname Ac Ns Va _threshold
+.Pq Vt int
+The same as
+.Va daily_scrub_zfs_default_threshold
+but specific to the pool
+.Va Ns Ao Ar poolname Ac Ns .
 .It Va daily_local
 .Pq Vt str
 Set to a list of extra scripts that should be run after all other

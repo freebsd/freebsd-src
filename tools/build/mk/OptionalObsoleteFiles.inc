@@ -344,6 +344,8 @@ OLD_FILES+=usr/lib/libuutil.so
 .if ${MK_ZFS} == no
 OLD_LIBS+=lib/libzfs.so.1
 OLD_LIBS+=lib/libzpool.so.1
+OLD_FILES+=etc/periodic/daily/404.status-zfs
+OLD_FILES+=etc/periodic/daily/800.scrub-zfs
 OLD_FILES+=sbin/zfs
 OLD_FILES+=sbin/zpool
 OLD_FILES+=usr/lib/libzfs.a
