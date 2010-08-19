@@ -127,7 +127,7 @@ extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
  * Local data and functions.
  */
 
-static cpumask_t logical_cpus;
+static u_int logical_cpus;
 static volatile cpumask_t ipi_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
@@ -162,8 +162,8 @@ static int	start_all_aps(void);
 static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
-static cpumask_t	hlt_logical_cpus;
-static cpumask_t	hyperthreading_cpus;
+static int	hlt_logical_cpus;
+static u_int	hyperthreading_cpus;
 static cpumask_t	hyperthreading_cpus_mask;
 static int	hyperthreading_allowed = 1;
 static struct	sysctl_ctx_list logical_cpu_clist;
