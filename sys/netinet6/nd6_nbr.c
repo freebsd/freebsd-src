@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
 #include <netinet/ip_carp.h>
+#include <netinet6/send.h>
 
 #define SDL(s) ((struct sockaddr_dl *)s)
 
@@ -379,6 +380,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
     const struct in6_addr *taddr6, struct llentry *ln, int dad)
 {
 	struct mbuf *m;
+	struct m_tag *mtag;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_solicit *nd_ns;
 	struct in6_addr *src, src_in;
@@ -557,6 +559,15 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	nd_ns->nd_ns_cksum =
 	    in6_cksum(m, IPPROTO_ICMPV6, sizeof(*ip6), icmp6len);
 
+	if (send_sendso_input_hook != NULL) {
+		mtag = m_tag_get(PACKET_TAG_ND_OUTGOING,
+			sizeof(unsigned short), M_NOWAIT);
+		if (mtag == NULL)
+			goto bad;
+		*(unsigned short *)(mtag + 1) = nd_ns->nd_ns_type;
+		m_tag_prepend(m, mtag);
+	}
+
 	ip6_output(m, NULL, &ro, dad ? IPV6_UNSPECSRC : 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
@@ -604,6 +615,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	struct llentry *ln = NULL;
 	union nd_opts ndopts;
 	struct mbuf *chain = NULL;
+	struct m_tag *mtag;
 	struct sockaddr_in6 sin6;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
@@ -873,6 +885,15 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * we assume ifp is not a loopback here, so just set
 			 * the 2nd argument as the 1st one.
 			 */
+
+			if (send_sendso_input_hook != NULL) {
+				mtag = m_tag_get(PACKET_TAG_ND_OUTGOING,
+				    sizeof(unsigned short), M_NOWAIT);
+				if (mtag == NULL)
+					goto bad;
+				m_tag_prepend(m, mtag);
+			}
+
 			nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &chain);
 		}
 	}
@@ -917,6 +938,7 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
     struct sockaddr *sdl0)
 {
 	struct mbuf *m;
+	struct m_tag *mtag;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
 	struct ip6_moptions im6o;
@@ -1054,6 +1076,15 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	nd_na->nd_na_cksum = 0;
 	nd_na->nd_na_cksum =
 	    in6_cksum(m, IPPROTO_ICMPV6, sizeof(struct ip6_hdr), icmp6len);
+
+	if (send_sendso_input_hook != NULL) {
+		mtag = m_tag_get(PACKET_TAG_ND_OUTGOING,
+		    sizeof(unsigned short), M_NOWAIT);
+		if (mtag == NULL)
+			goto bad;
+		*(unsigned short *)(mtag + 1) = nd_na->nd_na_type;
+		m_tag_prepend(m, mtag);
+	}
 
 	ip6_output(m, NULL, &ro, 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);

@@ -252,6 +252,7 @@ __END_DECLS
 
 /* Only used internally, so can be outside the range of valid IP protocols. */
 #define	IPPROTO_DIVERT		258		/* divert pseudo-protocol */
+#define	IPPROTO_SEND		259		/* SeND pseudo-protocol */
 
 /*
  * Defined to avoid confusion.  The master value is defined by
