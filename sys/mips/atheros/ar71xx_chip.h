@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Oleksandr Tymoshenko
+ * Copyright (c) 2010 Adrian Chadd
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,55 +22,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
-#include "opt_uart.h"
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/* $FreeBSD$ */
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
+#ifndef	__AR71XX_CHIP_H__
+#define	__AR71XX_CHIP_H__
 
-#include <machine/bus.h>
+extern struct ar71xx_cpu_def ar71xx_chip_def;
 
-#include <dev/uart/uart.h>
-#include <dev/uart/uart_cpu.h>
-
-#include <mips/atheros/ar71xxreg.h>
-#include <mips/atheros/ar71xx_cpudef.h>
-#include <mips/atheros/ar71xx_bus_space_reversed.h>
-
-bus_space_tag_t uart_bus_space_io;
-bus_space_tag_t uart_bus_space_mem;
-
-int
-uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
-{
-	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
-}
-
-int
-uart_cpu_getdev(int devtype, struct uart_devinfo *di)
-{
-	uint64_t freq;
-
-	freq = ar71xx_ahb_freq();
-
-	di->ops = uart_getops(&uart_ns8250_class);
-	di->bas.chan = 0;
-	di->bas.bst = ar71xx_bus_space_reversed;
-	di->bas.regshft = 2;
-	di->bas.rclk = freq;
-	di->baudrate = 115200;
-	di->databits = 8;
-	di->stopbits = 1;
-
-	di->parity = UART_PARITY_NONE;
-
-	uart_bus_space_io = NULL;
-	uart_bus_space_mem = ar71xx_bus_space_reversed;
-	di->bas.bsh = MIPS_PHYS_TO_KSEG1(AR71XX_UART_ADDR);
-	return (0);
-}
+#endif
