@@ -182,6 +182,8 @@
 #define		PLL_BYPASS			(1 << 1)
 #define		PLL_POWER_DOWN			(1 << 0)
 #define	AR71XX_PLL_SEC_CONFIG		0x18050004
+#define		AR71XX_PLL_ETH0_SHIFT		17
+#define		AR71XX_PLL_ETH1_SHIFT		19
 #define	AR71XX_PLL_CPU_CLK_CTRL		0x18050008
 #define	AR71XX_PLL_ETH_INT0_CLK		0x18050010
 #define	AR71XX_PLL_ETH_INT1_CLK		0x18050014
@@ -500,5 +502,28 @@ ar71xx_ddr_flush(uint32_t reg)
 	while ((ATH_READ_REG(reg) & 0x1))
 		;
 } 
+
+static inline void
+ar71xx_write_pll(uint32_t cfg_reg, uint32_t pll_reg, uint32_t pll, uint32_t pll_reg_shift)
+{
+	uint32_t sec_cfg;
+
+	/* set PLL registers */
+	sec_cfg = ATH_READ_REG(cfg_reg);
+	sec_cfg &= ~(3 << pll_reg_shift);
+	sec_cfg |= (2 << pll_reg_shift);
+
+	ATH_WRITE_REG(cfg_reg, sec_cfg);
+	DELAY(100);
+
+	ATH_WRITE_REG(pll_reg, pll);
+	sec_cfg |= (3 << pll_reg_shift);
+	ATH_WRITE_REG(cfg_reg, sec_cfg);
+	DELAY(100);
+
+	sec_cfg &= ~(3 << pll_reg_shift);
+	ATH_WRITE_REG(cfg_reg, sec_cfg);
+	DELAY(100);
+}
 
 #endif /* _AR71XX_REG_H_ */
