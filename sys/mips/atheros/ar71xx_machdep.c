@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/ar71xxreg.h>
 
+#include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xx_cpudef.h>
+
 extern char edata[], end[];
 
 uint32_t ar711_base_mac[ETHER_ADDR_LEN];
@@ -202,10 +205,20 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * should be called first.
 	 */
 	init_param1();
+
+	/* Detect the system type - this is needed for subsequent chipset-specific calls */
+	ar71xx_detect_sys_type();
+	ar71xx_detect_sys_frequency();
+
 	platform_counter_freq = ar71xx_cpu_freq();
 	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
 	init_static_kenv(boot1_env, sizeof(boot1_env));
+
+	printf("CPU platform: %s\n", ar71xx_get_system_type());
+	printf("CPU Frequency=%d MHz\n", u_ar71xx_cpu_freq / 1000000);
+	printf("CPU DDR Frequency=%d MHz\n", u_ar71xx_ddr_freq / 1000000);
+	printf("CPU AHB Frequency=%d MHz\n", u_ar71xx_ahb_freq / 1000000); 
 
 	printf("platform frequency: %lld\n", platform_counter_freq);
 	printf("arguments: \n");
