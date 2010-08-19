@@ -256,6 +256,9 @@
 #define		AR71XX_REV_ID_REVISION_MASK	0x3
 #define		AR71XX_REV_ID_REVISION_SHIFT	2
 
+/* AR724X chipset revision details */
+#define		AR724X_REV_ID_REVISION_MASK	0x3
+
 /* AR91XX chipset revision details */
 #define		AR91XX_REV_ID_MINOR_MASK	0x3
 #define		AR91XX_REV_ID_MINOR_AR9130	0x0
