@@ -107,7 +107,7 @@ static int data_lengths[] = {
 	0,					/* KTR_NAMEI */
 	sizeof(struct ktr_genio),		/* KTR_GENIO */
 	sizeof(struct ktr_psig),		/* KTR_PSIG */
-	sizeof(struct ktr_csw),			/* KTR_CSW */
+	sizeof(struct ktr_csw),		/* KTR_CSW */
 	0,					/* KTR_USER */
 	0,					/* KTR_STRUCT */
 	0,					/* KTR_SYSCTL */
@@ -336,7 +336,7 @@ ktr_drain(struct thread *td)
 	ktrace_assert(td);
 	sx_assert(&ktrace_sx, SX_XLOCKED);
 
-	STAILQ_INIT(&local_queue);	/* XXXRW: needed? */
+	STAILQ_INIT(&local_queue);
 
 	if (!STAILQ_EMPTY(&td->td_proc->p_ktr)) {
 		mtx_lock(&ktrace_mtx);
