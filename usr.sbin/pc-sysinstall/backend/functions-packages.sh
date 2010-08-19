@@ -32,15 +32,14 @@
 . ${BACKEND}/functions-ftp.sh
 
 
-get_package_index()
+get_package_index_by_ftp()
 {
+	local INDEX_FILE
+	local FTP_SERVER
+
+	FTP_SERVER="${1}"
 	INDEX_FILE="INDEX"
 	USE_BZIP2=0
-
-	get_ftp_mirror
-	FTP_SERVER="${VAL}"
-
-	FTP_DIR="ftp://${FTP_SERVER}/pub/FreeBSD/releases/${FBSD_ARCH}/${FBSD_BRANCH}/packages"
 
 	if [ -f "/usr/bin/bzip2" ]
 	then
@@ -48,15 +47,65 @@ get_package_index()
 		USE_BZIP2=1
 	fi
 
-	fetch_file "${FTP_DIR}/${INDEX_FILE}" "${PKGDIR}/${INDEX_FILE}" "1"
-
-	HERE=`pwd`
-	cd "${PKGDIR}"
-	if [ -f "${INDEX_FILE}" ] && [ "${USE_BZIP2}" -eq "1" ]
+	INDEX_PATH="${CONFDIR}/${INDEX_FILE}"
+	fetch_file "${FTP_SERVER}/${INDEX_FILE}" "${INDEX_PATH}" "1"
+	if [ -f "${INDEX_PATH}" ] && [ "${USE_BZIP2}" -eq "1" ]
 	then
-		bzip2 -d "${INDEX_FILE}"
+		bzip2 -d "${INDEX_PATH}"
 	fi
-	cd "${HERE}"
+};
+
+get_package_index_by_fs()
+{
+	local INDEX_FILE
+
+	INDEX_FILE="${CDMNT}/packages/INDEX"
+	fetch_file "${INDEX_FILE}" "${CONFDIR}/" "0"
+};
+
+get_package_index()
+{
+	RES=0
+
+	if [ -z "${INSTALLMODE}" ]
+	then
+		get_ftp_mirror
+		FTPHOST="${VAL}"
+
+		FTPDIR="/pub/FreeBSD/releases/${FBSD_ARCH}/${FBSD_BRANCH}"
+		FTPPATH="ftp://${FTPHOST}${FTPDIR}/packages"
+
+		get_package_index_by_ftp "${FTPPATH}"
+
+	else
+		get_value_from_cfg ftpHost
+		if [ -z "$VAL" ]
+		then
+			exit_err "ERROR: Install medium was set to ftp, but no ftpHost was provided!" 
+		fi
+		FTPHOST="${VAL}"
+
+		get_value_from_cfg ftpDir
+		if [ -z "$VAL" ]
+		then
+			exit_err "ERROR: Install medium was set to ftp, but no ftpDir was provided!" 
+		fi
+		FTPDIR="${VAL}"
+
+		FTPPATH="ftp://${FTPHOST}${FTPDIR}"
+
+		case "${INSTALLMEDIUM}" in
+		usb|dvd) get_package_index_by_fs
+			;;
+		ftp) get_package_index_by_ftp "${FTPPATH}"
+			;;
+		*) RES=1
+			;;
+		esac
+
+	fi
+
+	return ${RES}
 };
 
 parse_package_index()
@@ -116,6 +165,8 @@ parse_package_index()
 show_package_file()
 {
 	PKGFILE="${1}"
+
+	echo "Available Packages:"
 
 	exec 3<&0
 	exec 0<"${PKGFILE}"
@@ -252,19 +303,62 @@ get_package_category()
 	return ${RES}
 };
 
+fetch_package_by_ftp()
+{
+	CATEGORY="${1}"
+	PACKAGE="${2}"
+	SAVEDIR="${3}"
+
+	get_value_from_cfg ftpHost
+	if [ -z "$VAL" ]
+	then
+		exit_err "ERROR: Install medium was set to ftp, but no ftpHost was provided!" 
+	fi
+	FTPHOST="${VAL}"
+
+	get_value_from_cfg ftpDir
+	if [ -z "$VAL" ]
+	then
+		exit_err "ERROR: Install medium was set to ftp, but no ftpDir was provided!" 
+	fi
+	FTPDIR="${VAL}"
+
+	PACKAGE="${PACKAGE}.tbz"
+	FTP_SERVER="ftp://${FTPHOST}${FTPDIR}"
+
+	if [ ! -f "${SAVEDIR}/${PACKAGE}" ]
+	then
+		PKGPATH="${CATEGORY}/${PACKAGE}"
+		FTP_PATH="${FTP_HOST}/packages/${PKGPATH}"
+		fetch_file "${FTP_PATH}" "${SAVEDIR}/" "0"
+	fi
+};
+
+fetch_package_by_fs()
+{
+	CATEGORY="${1}"
+	PACKAGE="${2}"
+	SAVEDIR="${3}"
+
+	PACKAGE="${PACKAGE}.tbz"
+	if [ ! -f "${SAVEDIR}/${PACKAGE}" ]
+	then
+		fetch_file "${CDMNT}/packages/${CATEGORY}/${PACKAGE}" "${SAVEDIR}/" "0"
+	fi
+};
+
 fetch_package()
 {
 	CATEGORY="${1}"
 	PACKAGE="${2}"
+	SAVEDIR="${3}"
 
-	get_ftp_mirror
-	FTP_SERVER="${VAL}"
-
-	PACKAGE="${PACKAGE}.tbz"
-	if [ ! -f "${PKGTMPDIR}/${PACKAGE}" ]
-	then
-		PKGPATH="${CATEGORY}/${PACKAGE}"
-		FTP_PATH="ftp://${FTP_SERVER}/pub/FreeBSD/releases/${FBSD_ARCH}/${FBSD_BRANCH}/packages/${PKGPATH}"
-		fetch_file "${FTP_PATH}" "${PKGTMPDIR}/" "0"
-	fi
+	case "${INSTALLMEDIUM}" in
+	usb|dvd)
+		fetch_package_by_fs "${CATEGORY}" "${PACKAGE}" "${SAVEDIR}"
+		;;
+	ftp)
+		fetch_package_by_ftp "${CATEGORY}" "${PACKAGE}" "${SAVEDIR}"
+		;;
+	esac
 };
