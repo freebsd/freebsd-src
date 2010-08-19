@@ -73,10 +73,6 @@ struct ktr_header {
 	if (KTRCHECKDRAIN(td))						\
 		ktruserret(td);						\
 } while (0)
-#define	KTRPROCEXIT(td) do {						\
-	if (KTRCHECKDRAIN(td))						\
-		ktrprocexit(td);					\
-} while (0)
 
 /*
  * ktrace record types
