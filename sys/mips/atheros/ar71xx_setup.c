@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_cpudef.h>
 
 #include <mips/atheros/ar71xx_chip.h>
+#include <mips/atheros/ar724x_chip.h>
 #include <mips/atheros/ar91xx_chip.h>
 
 #define	AR71XX_SYS_TYPE_LEN		128
@@ -103,6 +104,27 @@ ar71xx_detect_sys_type(void)
 			chip = "7161";
 			break;
 		}
+		break;
+
+	case REV_ID_MAJOR_AR7240:
+		ar71xx_soc = AR71XX_SOC_AR7240;
+		chip = "7240";
+		ar71xx_cpu_ops	= &ar724x_chip_def;
+		rev = (id & AR724X_REV_ID_REVISION_MASK);
+		break;
+
+	case REV_ID_MAJOR_AR7241:
+		ar71xx_soc = AR71XX_SOC_AR7241;
+		chip = "7241";
+		ar71xx_cpu_ops	= &ar724x_chip_def;
+		rev = (id & AR724X_REV_ID_REVISION_MASK);
+		break;
+
+	case REV_ID_MAJOR_AR7242:
+		ar71xx_soc = AR71XX_SOC_AR7242;
+		chip = "7242";
+		ar71xx_cpu_ops	= &ar724x_chip_def;
+		rev = (id & AR724X_REV_ID_REVISION_MASK);
 		break;
 
 	case REV_ID_MAJOR_AR913X:

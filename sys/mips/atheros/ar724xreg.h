@@ -47,6 +47,9 @@
 
 #define	AR724X_BASE_FREQ		5000000
 
+#define	AR724X_RESET_REG_RESET_MODULE	AR71XX_RST_BLOCK_BASE + 0x1c
+#define	AR724X_RESET_MODULE_USB_OHCI_DLL	(1 << 3)
+
 /* XXX so USB requires different init code? -adrian */
 #define	AR7240_OHCI_BASE		0x1b000000
 #define	AR7240_OHCI_SIZE		0x01000000
