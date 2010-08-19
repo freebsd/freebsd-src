@@ -161,6 +161,7 @@
 #define			GPIO_FUNC_USB_CLK_EN    (0)
 
 #define	AR71XX_BASE_FREQ		40000000
+#define	AR71XX_PLL_CPU_BASE		0x18050000
 #define	AR71XX_PLL_CPU_CONFIG		0x18050000
 #define		PLL_SW_UPDATE			(1 << 31)
 #define		PLL_LOCKED			(1 << 30)
@@ -234,6 +235,23 @@
 #define		RST_RESET_USB_PHY	(1 <<  4)
 #define		RST_RESET_PCI_BUS	(1 <<  1)
 #define		RST_RESET_PCI_CORE	(1 <<  0)
+
+/* Chipset revision details */
+#define	AR71XX_RST_RESET_REG_REV_ID	0x18060090
+#define		REV_ID_MAJOR_MASK	0xfff0
+#define		REV_ID_MAJOR_AR71XX	0x00a0
+#define		REV_ID_MAJOR_AR913X	0x00b0
+#define		REV_ID_MAJOR_AR7240	0x00c0
+#define		REV_ID_MAJOR_AR7241	0x0100
+#define		REV_ID_MAJOR_AR7242	0x1100
+
+/* AR71XX chipset revision details */
+#define		AR71XX_REV_ID_MINOR_MASK	0x3
+#define		AR71XX_REV_ID_MINOR_AR7130	0x0
+#define		AR71XX_REV_ID_MINOR_AR7141	0x1
+#define		AR71XX_REV_ID_MINOR_AR7161	0x2
+#define		AR71XX_REV_ID_REVISION_MASK	0x3
+#define		AR71XX_REV_ID_REVISION_SHIFT	2
 
 /*
  * GigE adapters region
@@ -458,38 +476,6 @@
 
 #define ATH_WRITE_REG(reg, val) \
     *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
-
-static inline uint64_t
-ar71xx_cpu_freq(void)
-{
-        uint32_t pll_config, div;
-        uint64_t freq;
-
-        /* PLL freq */
-        pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-        div = ((pll_config >> PLL_FB_SHIFT) & PLL_FB_MASK) + 1;
-        freq = div * AR71XX_BASE_FREQ;
-        /* CPU freq */
-        div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK)
-            + 1;
-        freq = freq / div;
-
-	return (freq);
-}
-
-static inline uint64_t
-ar71xx_ahb_freq(void)
-{
-        uint32_t pll_config, div;
-        uint64_t freq;
-
-        /* PLL freq */
-        pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-        /* AHB freq */
-        div = (((pll_config >> PLL_AHB_DIV_SHIFT) & PLL_AHB_DIV_MASK) + 1) * 2;
-        freq = ar71xx_cpu_freq() / div;
-	return (freq);
-}
 
 static inline void
 ar71xx_ddr_flush(uint32_t reg)
