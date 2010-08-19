@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_cpudef.h>
 
 struct ar71xx_wdog_softc {
 	device_t dev;
