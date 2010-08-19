@@ -56,14 +56,26 @@ then
 	NARGS=$((NARGS+1))
 fi
 
-echo "Available Packages:"
 if [ "${NARGS}" -eq "0" ]
 then
 	show_packages
 
 elif [ "${NARGS}" -eq "1" ]
 then
-	show_packages_by_category "${PACKAGE_CATEGORY}"
+	
+	if [ "${PACKAGE_CATEGORY}" = "@INDEX@" ]
+	then
+		if [ -f "${PKGDIR}/INDEX" ]
+		then
+			echo "${PKGDIR}/INDEX"
+			exit 0
+		else
+			exit 1
+		fi
+		
+	else
+		show_packages_by_category "${PACKAGE_CATEGORY}"
+	fi
 
 elif [ "${NARGS}" -eq "2" ]
 then
