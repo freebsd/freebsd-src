@@ -143,7 +143,7 @@ case $1 in
   ;;
 
   # The user is wanting to query which disks are available
-  disk-list) ${QUERYDIR}/disk-list.sh
+  disk-list) ${QUERYDIR}/disk-list.sh "${2}"
   ;;
   
   # The user is wanting to query a disk's partitions

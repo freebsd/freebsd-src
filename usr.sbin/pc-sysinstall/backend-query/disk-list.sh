@@ -25,8 +25,18 @@
 #
 # $FreeBSD$
 
+ARGS=$1
+
 # Create our device listing
 SYSDISK=$(sysctl -n kern.disks)
+if [ "${ARGS}" = "-m" ]
+then
+	MDS=`mdconfig -l`
+	if [ -n "${MDS}" ]
+	then
+		SYSDISK="${SYSDISK} ${MDS}"
+	fi
+fi
 
 # Now loop through these devices, and list the disk drives
 for i in ${SYSDISK}
@@ -44,6 +54,10 @@ do
   NEWLINE=$(dmesg | sed -n "s/^$DEV: .*<\(.*\)>.*$/ <\1>/p" | head -n 1)
   if [ -z "$NEWLINE" ]; then
     NEWLINE=" <Unknown Device>"
+  fi
+  if echo "${DEV}" | grep -E '^md[0-9]+' >/dev/null 2>/dev/null
+  then
+	NEWLINE=" <Memory Disk>"
   fi
 
   # Save the disk list
