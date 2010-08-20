@@ -83,7 +83,7 @@ nameiinit(void *dummy __unused)
 	error = getnewvnode("crossmp", NULL, &dead_vnodeops, &vp_crossmp);
 	if (error != 0)
 		panic("nameiinit: getnewvnode");
-	vp_crossmp->v_vnlock->lk_flags &= ~LK_NOSHARE;
+	VN_LOCK_ASHARE(vp_crossmp);
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 

@@ -192,7 +192,7 @@ rescan:
 	if (dvp) {
 		np->n_parent = VTONW(dvp)->n_fid;
 	}
-	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
+	VN_LOCK_AREC(vp);
 	sx_xlock(&nwhashlock);
 	/*
 	 * Another process can create vnode while we blocked in malloc() or
