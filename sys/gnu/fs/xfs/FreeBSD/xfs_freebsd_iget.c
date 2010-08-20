@@ -29,6 +29,8 @@
  * For further information regarding this notice, see:
  *
  * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ *
+ * $FreeBSD$
  */
 
 #include "xfs.h"
@@ -389,7 +391,7 @@ xfs_vn_allocate(xfs_mount_t *mp, xfs_inode_t *ip, struct xfs_vnode **vpp)
 		return (error);
 	}
 
-	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
+	VN_LOCK_AREC(vp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 	error = insmntque(vp, XVFSTOMNT(XFS_MTOVFS(mp)));
 	if (error != 0) {
