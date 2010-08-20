@@ -434,7 +434,8 @@ rip6_output(m, va_alist)
 	 * XXX: we may still need to determine the zone later.
 	 */
 	if (!(so->so_state & SS_ISCONNECTED)) {
-		if (!optp->ip6po_pktinfo || !optp->ip6po_pktinfo->ipi6_ifindex)
+		if (!optp || !optp->ip6po_pktinfo ||
+		    !optp->ip6po_pktinfo->ipi6_ifindex)
 			use_defzone = V_ip6_use_defzone;
 		if (dstsock->sin6_scope_id == 0 && !use_defzone)
 			scope_ambiguous = 1;
