@@ -555,6 +555,40 @@ lockinit(lkp, prio, wmesg, timo, flags)
 }
 
 /*
+ * XXX: Gross hacks to manipulate external lock flags after
+ * initialization.  Used for certain vnode and buf locks.
+ */
+void
+lockallowshare(lkp)
+	struct lock *lkp;
+{
+
+	mtx_lock(lkp->lk_interlock);
+	lkp->lk_flags &= ~LK_NOSHARE;
+	mtx_unlock(lkp->lk_interlock);
+}
+
+void
+lockallowrecurse(lkp)
+	struct lock *lkp;
+{
+
+	mtx_lock(lkp->lk_interlock);
+	lkp->lk_flags |= LK_CANRECURSE;
+	mtx_unlock(lkp->lk_interlock);
+}
+
+void
+lockdisablerecurse(lkp)
+	struct lock *lkp;
+{
+
+	mtx_lock(lkp->lk_interlock);
+	lkp->lk_flags &= ~LK_CANRECURSE;
+	mtx_unlock(lkp->lk_interlock);
+}
+
+/*
  * Destroy a lock.
  */
 void

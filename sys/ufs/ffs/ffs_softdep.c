@@ -5291,9 +5291,7 @@ top:
 		return (0);
 loop:
 	/* While syncing snapshots, we must allow recursive lookups */
-	mtx_lock(bp->b_lock.lk_interlock);
-	bp->b_lock.lk_flags |= LK_CANRECURSE;
-	mtx_unlock(bp->b_lock.lk_interlock);
+	lockallowrecurse(&bp->b_lock);
 	ACQUIRE_LOCK(&lk);
 	/*
 	 * As we hold the buffer locked, none of its dependencies
@@ -5435,9 +5433,7 @@ loop:
 		/* We reach here only in error and unlocked */
 		if (error == 0)
 			panic("softdep_sync_metadata: zero error");
-		mtx_lock(bp->b_lock.lk_interlock);
-		bp->b_lock.lk_flags &= ~LK_CANRECURSE;
-		mtx_unlock(bp->b_lock.lk_interlock);
+		lockdisablerecurse(&bp->b_lock);
 		bawrite(bp);
 		return (error);
 	}
@@ -5449,9 +5445,7 @@ loop:
 			break;
 	}
 	VI_UNLOCK(vp);
-	mtx_lock(bp->b_lock.lk_interlock);
-	bp->b_lock.lk_flags &= ~LK_CANRECURSE;
-	mtx_unlock(bp->b_lock.lk_interlock);
+	lockdisablerecurse(&bp->b_lock);
 	bawrite(bp);
 	if (nbp != NULL) {
 		bp = nbp;
