@@ -214,6 +214,9 @@ void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);
 int	lockcount(struct lock *);
 int	lockwaiters(struct lock *);
+void	lockallowshare(struct lock *);
+void	lockallowrecurse(struct lock *);
+void	lockdisablerecurse(struct lock *);
 
 #define	lockmgr(lock, flags, mtx, td)					\
 	_lockmgr((lock), (flags), (mtx), (td), LOCK_FILE, LOCK_LINE)
