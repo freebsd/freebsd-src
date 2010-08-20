@@ -411,6 +411,7 @@ sleepq_catch_signals(void *wchan, int pri)
 	if ((td->td_pflags & TDP_WAKEUP) != 0) {
 		td->td_pflags &= ~TDP_WAKEUP;
 		ret = EINTR;
+		thread_lock(td);
 		goto out;
 	}
 
