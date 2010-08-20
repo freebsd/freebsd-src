@@ -904,8 +904,8 @@ MTX_SYSINIT(softdep_lock, &lk, "Softdep Lock", MTX_DEF);
 #define ACQUIRE_LOCK(lk)		mtx_lock(lk)
 #define FREE_LOCK(lk)			mtx_unlock(lk)
 
-#define	BUF_AREC(bp)	((bp)->b_lock.lock_object.lo_flags |= LO_RECURSABLE)
-#define	BUF_NOREC(bp)	((bp)->b_lock.lock_object.lo_flags &= ~LO_RECURSABLE)
+#define	BUF_AREC(bp)			lockallowrecurse(&(bp)->b_lock)
+#define	BUF_NOREC(bp)			lockdisablerecurse(&(bp)->b_lock)
 
 /*
  * Worklist queue management.
