@@ -140,6 +140,14 @@ static	struct pr_usrreqs nousrreqs;
 #define PR_LISTEN	0
 #define PR_ABRTACPTDIS	0
 
+/* Spacer for loadable protocols. */
+#define IP6PROTOSPACER   			\
+{						\
+	.pr_domain =		&inet6domain,	\
+	.pr_protocol =		PROTO_SPACER,	\
+	.pr_usrreqs =		&nousrreqs	\
+}
+
 struct ip6protosw inet6sw[] = {
 {
 	.pr_type =		0,
@@ -335,6 +343,15 @@ struct ip6protosw inet6sw[] = {
 	.pr_usrreqs =		&rip6_usrreqs
 },
 #endif /* DEV_CARP */
+/* Spacer n-times for loadable protocols. */
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
+IP6PROTOSPACER,
 /* raw wildcard */
 {
 	.pr_type =		SOCK_RAW,
