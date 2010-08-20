@@ -162,6 +162,14 @@ cond_cancel_handler(void *arg)
 	_mutex_cv_lock(info->mutex, info->count);
 }
 
+/*
+ * Cancellation behaivor:
+ *   Thread may be canceled at start, if thread is canceled, it means it
+ *   did not get a wakeup from pthread_cond_signal(), otherwise, it is
+ *   not canceled.
+ *   Thread cancellation never cause wakeup from pthread_cond_signal()
+ *   to be lost.
+ */
 static int
 cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 	const struct timespec *abstime, int cancel)
@@ -179,6 +187,8 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 	if (__predict_false(*cond == NULL &&
 	    (ret = init_static(curthread, cond)) != 0))
 		return (ret);
+
+	_thr_testcancel(curthread);
 
 	cv = *cond;
 	THR_UMUTEX_LOCK(curthread, &cv->c_lock);
@@ -200,10 +210,10 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
 	if (cancel) {
 		THR_CLEANUP_PUSH(curthread, cond_cancel_handler, &info);
-		_thr_cancel_enter_defer(curthread);
+		_thr_cancel_enter_defer(curthread, 0);
 		ret = _thr_ucond_wait(&cv->c_kerncv, &cv->c_lock, tsp, 1);
 		info.cond = NULL;
-		_thr_cancel_leave_defer(curthread, ret);
+		_thr_cancel_leave_defer(curthread, (ret != 0));
 		THR_CLEANUP_POP(curthread, 0);
 	} else {
 		ret = _thr_ucond_wait(&cv->c_kerncv, &cv->c_lock, tsp, 0);
