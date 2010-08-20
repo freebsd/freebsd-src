@@ -67,8 +67,6 @@ sigcancel_handler(int sig __unused,
 {
 	struct pthread *curthread = _get_curthread();
 
-	if (curthread->cancel_defer && curthread->cancel_pending)
-		thr_wake(curthread->tid);
 	curthread->in_sigcancel_handler++;
 	_thr_ast(curthread);
 	curthread->in_sigcancel_handler--;
@@ -77,13 +75,50 @@ sigcancel_handler(int sig __unused,
 void
 _thr_ast(struct pthread *curthread)
 {
-	if (!THR_IN_CRITICAL(curthread)) {
-		_thr_testcancel(curthread);
-		if (__predict_false((curthread->flags &
-		    (THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED))
-			== THR_FLAGS_NEED_SUSPEND))
-			_thr_suspend_check(curthread);
+
+	if (THR_IN_CRITICAL(curthread))
+		return;
+
+	if (curthread->cancel_pending && curthread->cancel_enable
+		&& !curthread->cancelling) {
+		if (curthread->cancel_async) {
+			/*
+		 	 * asynchronous cancellation mode, act upon
+			 * immediately.
+		 	 */
+			_pthread_exit(PTHREAD_CANCELED);
+		} else {
+			/*
+		 	 * Otherwise, we are in defer mode, and we are at
+			 * cancel point, tell kernel to not block the current
+			 * thread on next cancelable system call.
+			 * 
+			 * There are two cases we should call thr_wake() to 
+			 * turn on TDP_WAKEUP in kernel:
+			 * 1) we are going to call a cancelable system call,
+			 *    non-zero cancel_point means we are already in
+			 *    cancelable state, next system call is cancelable.
+			 * 2) because _thr_ast() may be called by
+			 *    THR_CRITICAL_LEAVE() which is used by rtld rwlock
+			 *    and any libthr internal locks, when rtld rwlock
+			 *    is used, it is mostly caused my an unresolved PLT.
+			 *    those routines may clear the TDP_WAKEUP flag by
+			 *    invoking some system calls, in those cases, we
+			 *    also should reenable the flag.
+		 	 */
+			if (curthread->cancel_point) {
+				if (curthread->cancel_defer)
+					thr_wake(curthread->tid);
+				else
+					_pthread_exit(PTHREAD_CANCELED);
+			}
+		}
 	}
+
+	if (__predict_false((curthread->flags &
+	    (THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED))
+		== THR_FLAGS_NEED_SUSPEND))
+		_thr_suspend_check(curthread);
 }
 
 void
@@ -296,6 +331,11 @@ _sigtimedwait(const sigset_t *set, siginfo_t *info,
 	return (ret);
 }
 
+/*
+ * Cancellation behavior:
+ *   Thread may be canceled at start, if thread got signal,
+ *   it is not canceled.
+ */
 int
 __sigtimedwait(const sigset_t *set, siginfo_t *info,
 	const struct timespec * timeout)
@@ -311,9 +351,9 @@ __sigtimedwait(const sigset_t *set, siginfo_t *info,
 		pset = &newset;
 	} else
 		pset = set;
-	_thr_cancel_enter(curthread);
+	_thr_cancel_enter_defer(curthread, 1);
 	ret = __sys_sigtimedwait(pset, info, timeout);
-	_thr_cancel_leave(curthread);
+	_thr_cancel_leave_defer(curthread, (ret == -1));
 	return (ret);
 }
 
@@ -335,6 +375,11 @@ _sigwaitinfo(const sigset_t *set, siginfo_t *info)
 	return (ret);
 }
 
+/*
+ * Cancellation behavior:
+ *   Thread may be canceled at start, if thread got signal,
+ *   it is not canceled.
+ */ 
 int
 __sigwaitinfo(const sigset_t *set, siginfo_t *info)
 {
@@ -350,9 +395,9 @@ __sigwaitinfo(const sigset_t *set, siginfo_t *info)
 	} else
 		pset = set;
 
-	_thr_cancel_enter(curthread);
+	_thr_cancel_enter_defer(curthread, 1);
 	ret = __sys_sigwaitinfo(pset, info);
-	_thr_cancel_leave(curthread);
+	_thr_cancel_leave_defer(curthread, ret == -1);
 	return (ret);
 }
 
@@ -374,6 +419,11 @@ _sigwait(const sigset_t *set, int *sig)
 	return (ret);
 }
 
+/*
+ * Cancellation behavior:
+ *   Thread may be canceled at start, if thread got signal,
+ *   it is not canceled.
+ */ 
 int
 __sigwait(const sigset_t *set, int *sig)
 {
@@ -389,8 +439,8 @@ __sigwait(const sigset_t *set, int *sig)
 	} else 
 		pset = set;
 
-	_thr_cancel_enter(curthread);
+	_thr_cancel_enter_defer(curthread, 1);
 	ret = __sys_sigwait(pset, sig);
-	_thr_cancel_leave(curthread);
+	_thr_cancel_leave_defer(curthread, (ret != 0));
 	return (ret);
 }
