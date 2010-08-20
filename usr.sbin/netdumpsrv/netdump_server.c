@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <syslog.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -53,6 +54,15 @@
 #define CLIENT_TIMEOUT 120
 /* Host name length (keep at least as big as INET_ADDRSTRLEN) */
 #define MAXHOSTNAMELEN 256
+
+#define	LOGERR(m, ...)							\
+	syslog(LOG_ERR | LOG_DAEMON, (m), ## __VA_ARGS__)
+#define	LOGERR_PERROR(m)						\
+	syslog(LOG_ERR | LOG_DAEMON, "%s: %s\n", m, strerror(errno))
+#define	LOGINFO(m, ...)							\
+	syslog(LOG_INFO | LOG_DAEMON, (m), ## __VA_ARGS__)
+#define	LOGWARN(m, ...)							\
+	syslog(LOG_WARNING | LOG_DAEMON, (m), ## __VA_ARGS__)
 
 #define	client_ntoa(cl)		inet_ntoa((cl)->ip)
 
@@ -118,7 +128,7 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
     client = calloc(1, sizeof(*client));
     if (!client)
     {
-	perror("calloc");
+	LOGERR_PERROR("calloc()");
 	return NULL;
     }
     bcopy(ip, &client->ip, sizeof(*ip));
@@ -154,12 +164,12 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
     /* Set up the client socket */
     if ((client->sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
-	perror("socket");
+	LOGERR_PERROR("socket()");
 	free(client);
 	return NULL;
     }
     if (fcntl(client->sock, F_SETFL, O_NONBLOCK) == -1) {
-	perror("fcntl(client->sock, F_SETFL, O_NONBLOCK)");
+	LOGERR_PERROR("fcntl()");
 	close(client->sock);
 	free(client);
 	return NULL;
@@ -170,7 +180,7 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
     saddr.sin_addr.s_addr = bindip.s_addr;
     saddr.sin_port = htons(0);
     if (bind(client->sock, (struct sockaddr *)&saddr, sizeof(saddr))) {
-	perror("bind");
+	LOGERR_PERROR("bind()");
 	close(client->sock);
 	free(client);
 	return NULL;
@@ -181,7 +191,7 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
     saddr.sin_addr.s_addr = ip->s_addr;
     saddr.sin_port = htons(NETDUMP_ACKPORT);
     if (connect(client->sock, (struct sockaddr *)&saddr, sizeof(saddr))) {
-	perror("connect");
+	LOGERR_PERROR("connect()");
 	close(client->sock);
 	free(client);
 	return NULL;
@@ -190,9 +200,9 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
 		   * plenty for any 1 client. */
     if (setsockopt(client->sock, SOL_SOCKET, SO_RCVBUF, &bufsz, sizeof(bufsz)))
     {
-	perror("setsockopt(SOL_SOCKET, SO_RCVBUF)");
-	fprintf(stderr, "Warning: May drop packets from %s due to small receive"
-		" buffer\n", client->hostname);
+	LOGERR_PERROR("setsockopt()");
+	LOGWARN("May drop packets from %s due to small receive buffer\n",
+	    client->hostname);
     }
 
     /* Try info.host.0 through info.host.255 in sequence */
@@ -211,14 +221,12 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
 	    {
 		continue;
 	    }
-
-	    fprintf(stderr, "open(\"%s\"): %s\n", client->infofilename,
-			    strerror(errno));
+	    LOGERR("open(\"%s\"): %s\n", client->infofilename, strerror(errno));
 	    continue;
 	}
 	if (!(client->infofile = fdopen(fd, "w")))
 	{
-	    perror("fdopen");
+	    LOGERR_PERROR("fdopen()");
 	    close(fd);
 	    /* XXX */
 	    unlink(client->infofilename);
@@ -238,9 +246,7 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
 	    {
 		continue;
 	    }
-
-	    fprintf(stderr, "open(\"%s\"): %s\n", client->corefilename,
-			    strerror(errno));
+	    LOGERR("open(\"%s\"): %s\n", client->corefilename, strerror(errno));
 	    continue;
 	}
 	client->corefd = fd;
@@ -249,8 +255,8 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
 
     if (!client->infofile || client->corefd == -1)
     {
-	fprintf(stderr, "Can't create output files for new client %s [%s]\n",
-		client->hostname, client_ntoa(client));
+	LOGERR("Can't create output files for new client %s [%s]\n",
+	    client->hostname, client_ntoa(client));
 	if (client->infofile)
 	{
 	    fclose(client->infofile);
@@ -292,7 +298,7 @@ static void exec_handler(struct netdump_client *client, const char *reason)
     pid=fork();
     if (pid == -1)
     {
-	perror("fork");
+	LOGERR_PERROR("fork()");
 	return;
     }
     else if (pid)
@@ -303,11 +309,12 @@ static void exec_handler(struct netdump_client *client, const char *reason)
     {
 	close(sock);
 	pidfile_close(pfh);
-	execl(handler_script, handler_script, reason, client_ntoa(client),
+	if (execl(handler_script, handler_script, reason, client_ntoa(client),
 		client->hostname, client->infofilename, client->corefilename,
-		NULL);
-	perror("execl");
-	_exit(1);
+		NULL) == -1) {
+		LOGERR_PERROR("fork()");
+		_exit(1);
+	}
     }
 }
 
@@ -316,7 +323,7 @@ static void handle_timeout(struct netdump_client *client)
 
     assert(client != NULL);
 
-    printf("Client %s timed out\n", client_ntoa(client));
+    LOGINFO("Client %s timed out\n", client_ntoa(client));
     fputs("Dump incomplete: client timed out\n", client->infofile);
     exec_handler(client, "timeout");
     free_client(client);
@@ -369,7 +376,7 @@ static void send_ack(struct netdump_client *client, struct netdump_msg *msg)
 	    /* XXX: On EAGAIN, we should probably queue the packet to be sent
 	     * when the socket is writable... but that's too much effort, since
 	     * it's mostly harmless to wait for the client to retransmit. */
-	    perror("sendto");
+	    LOGERR_PERROR("send()");
 	}
     }
     while (tryagain);
@@ -407,8 +414,8 @@ static int handle_herald(struct sockaddr_in *from,
     fprintf(client->infofile, "Dump from %s [%s]\n", client->hostname,
 	    client_ntoa(client));
 
-    printf("New dump from client %s [%s] (to %s)\n", client->hostname,
-	    client_ntoa(client), client->corefilename);
+    LOGINFO("New dump from client %s [%s] (to %s)\n", client->hostname,
+        client_ntoa(client), client->corefilename);
 
     send_ack(client, msg);
 
@@ -436,8 +443,8 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
     
     if (msg->hdr.len < sizeof(struct kerneldumpheader))
     {
-	fprintf(stderr, "Bad KDH from %s [%s]: packet too small\n",
-		client->hostname, client_ntoa(client));
+	LOGERR("Bad KDH from %s [%s]: packet too small\n", client->hostname,
+	    client_ntoa(client));
 	fputs("Bad KDH: packet too small\n", f);
 	fflush(f);
 	send_ack(client, msg);
@@ -467,9 +474,7 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
     fprintf(f, "  Header parity check: %s\n", parity_check ? "Fail" : "Pass");
     fflush(f);
 
-    fprintf(stdout, "(KDH from %s [%s])", client->hostname,
-	    client_ntoa(client));
-    fflush(stdout);
+    LOGINFO("(KDH from %s [%s])", client->hostname, client_ntoa(client));
 
     send_ack(client, msg);
     
@@ -491,14 +496,13 @@ static int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
     if (msg->hdr.seqno % 11523 == 0)
     {
 	/* Approximately every 16MB with MTU of 1500 */
-	putc('.', stdout);
-	fflush(stdout);
+	LOGINFO(".");
     }
 
     if (pwrite(client->corefd, msg->data, msg->hdr.len, msg->hdr.offset) == -1)
     {
-	fprintf(stderr, "pwrite (for client %s [%s]): %s\n", client->hostname,
-		client_ntoa(client), strerror(errno));
+	LOGERR("pwrite (for client %s [%s]): %s\n", client->hostname,
+	    client_ntoa(client), strerror(errno));
 	fprintf(client->infofile, "Dump unsuccessful: write error at offset %08"PRIx64": %s\n",
 		msg->hdr.offset, strerror(errno));
 	exec_handler(client, "error");
@@ -522,9 +526,8 @@ static int handle_finish(struct netdump_client *client, struct netdump_msg *msg)
     }
 
 
-    printf("\nCompleted dump from client %s [%s]\n", client->hostname,
-	    client_ntoa(client));
-    fflush(stdout);
+    LOGINFO("\nCompleted dump from client %s [%s]\n", client->hostname,
+	client_ntoa(client));
     fputs("Dump complete\n", client->infofile);
 
     /* Do this before we free the client */
@@ -563,8 +566,8 @@ static int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
 
     if ((size_t)len < sizeof(struct netdump_msg_hdr))
     {
-	fprintf(stderr, "Ignoring runt packet from %s (got %zu)\n", fromstr,
-		(size_t)len);
+	LOGERR("Ignoring runt packet from %s (got %zu)\n", fromstr,
+	    (size_t)len);
 	return 0;
     }
 
@@ -576,8 +579,9 @@ static int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
 
     if ((size_t)len < sizeof(struct netdump_msg_hdr) + msg->hdr.len)
     {
-	fprintf(stderr, "Packet too small from %s (got %zu, expected %zu)\n",
-		fromstr, (size_t)len, sizeof(struct netdump_msg_hdr) + msg->hdr.len);
+	LOGERR("Packet too small from %s (got %zu, expected %zu)\n",
+	    fromstr, (size_t)len,
+	    sizeof(struct netdump_msg_hdr) + msg->hdr.len);
 	return 0;
     }
 
@@ -612,8 +616,8 @@ static int handle_packet(struct netdump_client *client,
 	    break;
 	default:
 	    freed_client=0;
-	    fprintf(stderr, "Received unknown message type %d from %s\n",
-		    msg->hdr.type, fromstr);
+	    LOGERR("Received unknown message type %d from %s\n",
+		msg->hdr.type, fromstr);
     }
 
     return freed_client;
@@ -653,7 +657,7 @@ static void eventloop()
 		continue;
 	    }
 
-	    perror("select");
+	    LOGERR_PERROR("select()");
 	    /* Errors with select() probably won't go away if we just try to
 	     * select() again */
 	    exit(1);
@@ -675,8 +679,7 @@ static void eventloop()
 
 		if (errno != EAGAIN)
 		{
-		    /* Server socket is broken for some reason */
-		    perror("recvfrom");
+		    LOGERR_PERROR("recvfrom()");
 		    exit(1);
 		}
 	    }
@@ -707,8 +710,8 @@ static void eventloop()
 		if (client && msg.hdr.type != NETDUMP_HERALD &&
 			!client->printed_port_warning)
 		{
-		    printf("Warning: Client %s responding on server port\n",
-			    client->hostname);
+		    LOGWARN("Client %s responding on server port\n",
+			client->hostname);
 		    client->printed_port_warning = 1;
 		}
 
@@ -728,7 +731,7 @@ static void eventloop()
 			continue;
 		    }
 
-		    perror("recvfrom");
+		    LOGERR_PERROR("recvfrom()");
 		    /* Client socket is broken for some reason */
 		    handle_timeout(client);
 		    /* The client pointer is now invalid */
@@ -762,7 +765,7 @@ static void eventloop()
 	timeout_clients();
     }
 
-    puts("Shutting down...");
+    LOGINFO("Shutting down...");
     /* Clients is the head of the list, so clients != NULL iff the list isn't
      * empty. Call it a timeout so that the scripts get run. */
     while (!SLIST_EMPTY(&clients))
@@ -790,7 +793,6 @@ int main(int argc, char **argv)
             printf("Impossible to open the pid file\n");
         exit(1);
     }
-    pidfile_write(pfh);
 
     /* Check argc and set the bindaddr and handler_script */
     switch (argc)
@@ -847,11 +849,18 @@ int main(int argc, char **argv)
     strncpy(dumpdir, argv[1], sizeof(dumpdir)-1);
     dumpdir[sizeof(dumpdir)-1]='\0';
 
+    if (daemon(0, 0) == -1) {
+	pidfile_remove(pfh);
+	perror("daemon()");
+	return 1;
+    }
+    pidfile_write(pfh);
+
     /* Set up the server socket */
     if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
         pidfile_remove(pfh);
-	perror("socket");
+	LOGERR_PERROR("socket()");
 	return 1;
     }
     bzero(&bindaddr, sizeof(bindaddr));
@@ -862,13 +871,13 @@ int main(int argc, char **argv)
     if (bind(sock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)))
     {
         pidfile_remove(pfh);
-	perror("bind");
+	LOGERR_PERROR("bind()");
 	close(sock);
 	return 1;
     }
     if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
         pidfile_remove(pfh);
-	perror("fcntl(sock, F_SETFL, O_NONBLOCK)");
+	LOGERR_PERROR("fcntl()");
 	close(sock);
 	return 1;
     }
@@ -879,7 +888,7 @@ int main(int argc, char **argv)
     if (sigaction(SIGINT, &sa, NULL) || sigaction(SIGTERM, &sa, NULL))
     {
         pidfile_remove(pfh);
-	perror("sigaction");
+	LOGERR_PERROR("sigaction(SIGINT | SIGTERM)");
 	close(sock);
 	return 1;
     }
@@ -889,13 +898,12 @@ int main(int argc, char **argv)
     if (sigaction(SIGCHLD, &sa, NULL))
     {
         pidfile_remove(pfh);
-	perror("sigaction");
+	LOGERR_PERROR("sigaction(SIGCHLD)");
 	close(sock);
 	return 1;
     }
 
-    printf("Waiting for clients.\n");
-    fflush(stdout);
+    LOGINFO("Waiting for clients.\n");
 
     do_shutdown=0;
     eventloop();
