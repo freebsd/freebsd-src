@@ -408,6 +408,12 @@ sleepq_catch_signals(void *wchan, int pri)
 	sc = SC_LOOKUP(wchan);
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 	MPASS(wchan != NULL);
+	if ((td->td_pflags & TDP_WAKEUP) != 0) {
+		td->td_pflags &= ~TDP_WAKEUP;
+		ret = EINTR;
+		goto out;
+	}
+
 	/*
 	 * See if there are any pending signals for this thread.  If not
 	 * we can switch immediately.  Otherwise do the signal processing
@@ -453,6 +459,7 @@ sleepq_catch_signals(void *wchan, int pri)
 		sleepq_switch(wchan, pri);
 		return (0);
 	}
+out:
 	/*
 	 * There were pending signals and this thread is still
 	 * on the sleep queue, remove it from the sleep queue.
