@@ -412,8 +412,8 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
 	} else {
 		vp->v_type = VBAD;
 	}
-	VN_LOCK_ASHARE(vp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_NOWITNESS);
+	VN_LOCK_ASHARE(vp);
 	mtx_lock(&devfs_de_interlock);
 	vp->v_data = de;
 	de->de_vnode = vp;
