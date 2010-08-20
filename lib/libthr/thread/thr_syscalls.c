@@ -242,8 +242,6 @@ __fcntl(int fd, int cmd,...)
 	int	ret;
 	va_list	ap;
 	
-	_thr_cancel_enter(curthread);
-
 	va_start(ap, cmd);
 	switch (cmd) {
 	case F_DUPFD:
@@ -257,6 +255,17 @@ __fcntl(int fd, int cmd,...)
 	case F_GETFL:
 		ret = __sys_fcntl(fd, cmd);
 		break;
+
+	case F_OSETLKW:
+	case F_SETLKW:
+		_thr_cancel_enter(curthread);
+#ifdef SYSCALL_COMPAT
+		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
+#else
+		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
+#endif
+		_thr_cancel_leave(curthread);
+		break;
 	default:
 #ifdef SYSCALL_COMPAT
 		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
@@ -265,8 +274,6 @@ __fcntl(int fd, int cmd,...)
 #endif
 	}
 	va_end(ap);
-
-	_thr_cancel_leave(curthread);
 
 	return (ret);
 }
