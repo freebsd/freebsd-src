@@ -68,6 +68,10 @@ _pthread_timedjoin_np(pthread_t pthread, void **thread_return,
 	return (join_common(pthread, thread_return, abstime));
 }
 
+/*
+ * Cancellation behavior:
+ *   if the thread is canceled, joinee is not recycled.
+ */
 static int
 join_common(pthread_t pthread, void **thread_return,
 	const struct timespec *abstime)
@@ -103,10 +107,11 @@ join_common(pthread_t pthread, void **thread_return,
 	THREAD_LIST_UNLOCK(curthread);
 
 	THR_CLEANUP_PUSH(curthread, backout_join, pthread);
-	_thr_cancel_enter(curthread);
+	_thr_cancel_enter_defer(curthread, 1);
 
 	tid = pthread->tid;
 	while (pthread->tid != TID_TERMINATED) {
+		_thr_testcancel(curthread);
 		if (abstime != NULL) {
 			clock_gettime(CLOCK_REALTIME, &ts);
 			TIMESPEC_SUB(&ts2, abstime, &ts);
@@ -122,7 +127,7 @@ join_common(pthread_t pthread, void **thread_return,
 			break;
 	}
 
-	_thr_cancel_leave(curthread);
+	_thr_cancel_leave_defer(curthread, 0);
 	THR_CLEANUP_POP(curthread, 0);
 
 	if (ret == ETIMEDOUT) {
