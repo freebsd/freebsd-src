@@ -64,7 +64,10 @@
 #define	LOGWARN(m, ...)							\
 	syslog(LOG_WARNING | LOG_DAEMON, (m), ## __VA_ARGS__)
 
-#define	client_ntoa(cl)		inet_ntoa((cl)->ip)
+#define	client_ntoa(cl)							\
+	inet_ntoa((cl)->ip)
+#define	client_pinfo(cl, f, ...)					\
+	fprintf((cl)->infofile, (f), ## __VA_ARGS__)
 
 struct netdump_client
 {
@@ -228,7 +231,6 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
 	{
 	    LOGERR_PERROR("fdopen()");
 	    close(fd);
-	    /* XXX */
 	    unlink(client->infofilename);
 	    continue;
 	}
@@ -281,7 +283,7 @@ static void free_client(struct netdump_client *client)
 
     assert(client != NULL);
 
-    /* Remove from the list */
+    /* Remove from the list.  Ignore errors from close() routines. */
     SLIST_REMOVE(&clients, client, netdump_client, iter);
     fclose(client->infofile);
     close(client->corefd);
@@ -296,6 +298,11 @@ static void exec_handler(struct netdump_client *client, const char *reason)
     assert(client != NULL);
 
     pid=fork();
+
+    /*
+     * The function is invoked in critical conditions, thus just exiting
+     * without reporting errors is fine.
+     */
     if (pid == -1)
     {
 	LOGERR_PERROR("fork()");
@@ -324,7 +331,7 @@ static void handle_timeout(struct netdump_client *client)
     assert(client != NULL);
 
     LOGINFO("Client %s timed out\n", client_ntoa(client));
-    fputs("Dump incomplete: client timed out\n", client->infofile);
+    client_pinfo(client, "Dump incomplete: client timed out\n");
     exec_handler(client, "timeout");
     free_client(client);
 }
@@ -407,12 +414,12 @@ static int handle_herald(struct sockaddr_in *from,
 
     if (!client)
     {
-	/* alloc_client would have printed an error message already */
+	LOGERR("handle_herald(): new client allocation failure\n");
 	return freed_client;
     }
 
-    fprintf(client->infofile, "Dump from %s [%s]\n", client->hostname,
-	    client_ntoa(client));
+    client_pinfo(client, "Dump from %s [%s]\n", client->hostname,
+	client_ntoa(client));
 
     LOGINFO("New dump from client %s [%s] (to %s)\n", client->hostname,
         client_ntoa(client), client->corefilename);
@@ -426,7 +433,6 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 {
     struct kerneldumpheader *h;
     uint64_t dumplen;
-    FILE *f;
     time_t t;
     int parity_check;
 
@@ -439,14 +445,13 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 
     client->any_data_rcvd = 1;
     h=(struct kerneldumpheader *)msg->data;
-    f = client->infofile;
     
     if (msg->hdr.len < sizeof(struct kerneldumpheader))
     {
 	LOGERR("Bad KDH from %s [%s]: packet too small\n", client->hostname,
 	    client_ntoa(client));
-	fputs("Bad KDH: packet too small\n", f);
-	fflush(f);
+	client_pinfo(client, "Bad KDH: packet too small\n");
+	fflush(client->infofile);
 	send_ack(client, msg);
 
 	return 0;
@@ -460,19 +465,21 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
     h->versionstring[sizeof(h->versionstring)-1] = '\0';
     h->panicstring[sizeof(h->panicstring)-1] = '\0';
 
-    fprintf(f, "  Architecture: %s\n", h->architecture);
-    fprintf(f, "  Architecture version: %d\n", dtoh32(h->architectureversion));
+    client_pinfo(client, "  Architecture: %s\n", h->architecture);
+    client_pinfo(client, "  Architecture version: %d\n",
+	dtoh32(h->architectureversion));
     dumplen = dtoh64(h->dumplength);
-    fprintf(f, "  Dump length: %lldB (%lld MB)\n", (long long)dumplen,
-	    (long long)(dumplen >> 20));
-    fprintf(f, "  Blocksize: %d\n", dtoh32(h->blocksize));
+    client_pinfo(client, "  Dump length: %lldB (%lld MB)\n",
+	(long long)dumplen, (long long)(dumplen >> 20));
+    client_pinfo(client, "  blocksize: %d\n", dtoh32(h->blocksize));
     t = dtoh64(h->dumptime);
-    fprintf(f, "  Dumptime: %s", ctime(&t));
-    fprintf(f, "  Hostname: %s\n", h->hostname);
-    fprintf(f, "  Versionstring: %s", h->versionstring);
-    fprintf(f, "  Panicstring: %s\n", h->panicstring);
-    fprintf(f, "  Header parity check: %s\n", parity_check ? "Fail" : "Pass");
-    fflush(f);
+    client_pinfo(client, "  Dumptime: %s", ctime(&t));
+    client_pinfo(client, "  Hostname: %s\n", h->hostname);
+    client_pinfo(client, "  Versionstring: %s", h->versionstring);
+    client_pinfo(client, "  Panicstring: %s\n", h->panicstring);
+    client_pinfo(client, "  Header parity check: %s\n",
+	parity_check ? "Fail" : "Pass");
+    fflush(client->infofile);
 
     LOGINFO("(KDH from %s [%s])", client->hostname, client_ntoa(client));
 
@@ -503,7 +510,7 @@ static int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
     {
 	LOGERR("pwrite (for client %s [%s]): %s\n", client->hostname,
 	    client_ntoa(client), strerror(errno));
-	fprintf(client->infofile, "Dump unsuccessful: write error at offset %08"PRIx64": %s\n",
+	client_pinfo(client, "Dump unsuccessful: write error at offset %08"PRIx64": %s\n",
 		msg->hdr.offset, strerror(errno));
 	exec_handler(client, "error");
 	free_client(client);
@@ -528,7 +535,7 @@ static int handle_finish(struct netdump_client *client, struct netdump_msg *msg)
 
     LOGINFO("\nCompleted dump from client %s [%s]\n", client->hostname,
 	client_ntoa(client));
-    fputs("Dump complete\n", client->infofile);
+    client_pinfo(client, "Dump complete\n");
 
     /* Do this before we free the client */
     send_ack(client, msg);
