@@ -60,7 +60,7 @@ if (( $? != 0 )); then
 	exit 4
 fi
 
-$dtrace -c "/usr/sbin/ping -U $dest" -qs /dev/stdin <<EOF | grep -v 'is alive'
+$dtrace -c "/sbin/ping -U $dest" -qs /dev/stdin <<EOF | grep -v 'is alive'
 BEGIN
 {
 	ipsend = udpsend = 0;

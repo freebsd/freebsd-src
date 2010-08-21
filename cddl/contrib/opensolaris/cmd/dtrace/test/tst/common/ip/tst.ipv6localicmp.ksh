@@ -55,7 +55,7 @@ else
 	removeinet6=0
 fi
 
-$dtrace -c "/usr/sbin/ping -A inet6 $local 3" -qs /dev/stdin <<EOF | sort -n
+$dtrace -c "/sbin/ping -A inet6 $local 3" -qs /dev/stdin <<EOF | sort -n
 ip:::send
 /args[2]->ip_saddr == "$local" && args[2]->ip_daddr == "$local" &&
     args[5]->ipv6_nexthdr == IPPROTO_ICMPV6/
