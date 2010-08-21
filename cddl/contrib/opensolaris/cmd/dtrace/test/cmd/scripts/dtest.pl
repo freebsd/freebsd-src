@@ -43,7 +43,7 @@ $USAGE = "Usage: $PNAME [-abfghjlnqs] [-d dir] [-i isa] "
 
 @dtrace_argv = ();
 
-$ksh_path = '/bin/sh';
+$ksh_path = '/usr/local/bin/ksh';
 
 @files = ();
 %exceptions = ();

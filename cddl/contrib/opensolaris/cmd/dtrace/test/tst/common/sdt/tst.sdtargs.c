@@ -27,11 +27,16 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <unistd.h>
+#ifndef __FreeBSD__
 #include <sys/uadmin.h>
+#endif
 
 int
 main(int argc, char **argv)
 {
+#ifdef __FreeBSD__
+	return (1);
+#else
 	while (1) {
 		if (uadmin(A_SDTTEST, 0, 0) < 0) {
 			perror("uadmin");
@@ -42,4 +47,5 @@ main(int argc, char **argv)
 	}
 
 	return (0);
+#endif
 }
