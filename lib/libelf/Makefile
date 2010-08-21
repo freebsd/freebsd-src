@@ -55,6 +55,7 @@ SRCS=	elf_begin.c						\
 	${GENSRCS}
 INCS=	libelf.h gelf.h
 
+INSTALL_PIC_ARCHIVE=yes
 GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
 CLEANFILES=	${GENSRCS}
 CFLAGS+=	-I. -I${.CURDIR}
