@@ -1142,7 +1142,7 @@ gnu/lib/libgcc__L: lib/libc__L
 _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
-		lib/libbz2 lib/libcom_err lib/libcrypt \
+		lib/libbz2 lib/libcom_err lib/libcrypt lib/libelf \
 		lib/libexpat lib/libfetch \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
