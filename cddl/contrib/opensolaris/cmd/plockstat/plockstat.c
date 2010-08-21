@@ -24,7 +24,9 @@
  * Use is subject to license terms.
  */
 
+#if defined(sun)
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
+#endif
 
 #include <assert.h>
 #include <dtrace.h>
@@ -41,6 +43,7 @@
 #include <sys/wait.h>
 #include <libgen.h>
 #include <libproc.h>
+#include <libproc_compat.h>
 
 static char *g_pname;
 static dtrace_hdl_t *g_dtp;
@@ -502,7 +505,12 @@ getsym(struct ps_prochandle *P, uintptr_t addr, char *buf, size_t size,
 {
 	char name[256];
 	GElf_Sym sym;
+#if defined(sun)
 	prsyminfo_t info;
+#else
+	prmap_t *map;
+	int info; /* XXX unused */
+#endif
 	size_t len;
 
 	if (P == NULL || Pxlookup_by_addr(P, addr, name, sizeof (name),
@@ -510,6 +518,7 @@ getsym(struct ps_prochandle *P, uintptr_t addr, char *buf, size_t size,
 		(void) snprintf(buf, size, "%#lx", addr);
 		return (0);
 	}
+#if defined(sun)
 	if (info.prs_object == NULL)
 		info.prs_object = "<unknown>";
 
@@ -520,15 +529,19 @@ getsym(struct ps_prochandle *P, uintptr_t addr, char *buf, size_t size,
 	}
 
 	len = snprintf(buf, size, "%s`%s", info.prs_object, info.prs_name);
+#else
+	map = proc_addr2map(P, addr);
+	len = snprintf(buf, size, "%s`%s", map->pr_mapname, name);
+#endif
 	buf += len;
 	size -= len;
 
 	if (sym.st_value != addr)
 		len = snprintf(buf, size, "+%#lx", addr - sym.st_value);
 
-	if (nolocks && strcmp("libc.so.1", info.prs_object) == 0 &&
-	    (strstr("mutex", info.prs_name) == 0 ||
-	    strstr("rw", info.prs_name) == 0))
+	if (nolocks && strcmp("libc.so.1", map->pr_mapname) == 0 &&
+	    (strstr("mutex", name) == 0 ||
+	    strstr("rw", name) == 0))
 		return (-1);
 
 	return (0);
@@ -655,8 +668,13 @@ process_aggregate(const dtrace_aggdata_t **aggsdata, int naggvars, void *arg)
 static void
 prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 {
+#if defined(sun)
 	const psinfo_t *prp = Ppsinfo(P);
 	int pid = Pstatus(P)->pr_pid;
+#else
+	int pid = proc_getpid(P);
+	int wstat = proc_getwstat(P);
+#endif
 	char name[SIG2STR_MAX];
 
 	if (msg != NULL) {
@@ -674,13 +692,13 @@ prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 		 * When /proc provides a stable pr_wstat in the status file,
 		 * this code can be improved by examining this new pr_wstat.
 		 */
-		if (prp != NULL && WIFSIGNALED(prp->pr_wstat)) {
+		if (WIFSIGNALED(wstat)) {
 			notice("pid %d terminated by %s\n", pid,
-			    proc_signame(WTERMSIG(prp->pr_wstat),
+			    proc_signame(WTERMSIG(wstat),
 			    name, sizeof (name)));
-		} else if (prp != NULL && WEXITSTATUS(prp->pr_wstat) != 0) {
+		} else if (WEXITSTATUS(wstat) != 0) {
 			notice("pid %d exited with status %d\n",
-			    pid, WEXITSTATUS(prp->pr_wstat));
+			    pid, WEXITSTATUS(wstat));
 		} else {
 			notice("pid %d has exited\n", pid);
 		}
@@ -755,7 +773,9 @@ intr(int signo)
 int
 main(int argc, char **argv)
 {
+#if defined(sun)
 	ucred_t *ucp;
+#endif
 	int err;
 	int opt_C = 0, opt_H = 0, opt_p = 0, opt_v = 0;
 	char c, *p, *end;
@@ -764,7 +784,7 @@ main(int argc, char **argv)
 
 	g_pname = basename(argv[0]);
 	argv[0] = g_pname; /* rewrite argv[0] for getopt errors */
-
+#if defined(sun)
 	/*
 	 * Make sure we have the required dtrace_proc privilege.
 	 */
@@ -777,6 +797,7 @@ main(int argc, char **argv)
 
 		ucred_free(ucp);
 	}
+#endif
 
 	while ((c = getopt(argc, argv, PLOCKSTAT_OPTSTR)) != EOF) {
 		switch (c) {
@@ -907,7 +928,7 @@ main(int argc, char **argv)
 
 	if (opt_H) {
 		dprog_add(g_hold_init);
-		if (g_opt_s == NULL)
+		if (!g_opt_s)
 			dprog_add(g_hold_times);
 		else
 			dprog_add(g_hold_histogram);
@@ -915,7 +936,7 @@ main(int argc, char **argv)
 
 	if (opt_C) {
 		dprog_add(g_ctnd_init);
-		if (g_opt_s == NULL)
+		if (!g_opt_s)
 			dprog_add(g_ctnd_times);
 		else
 			dprog_add(g_ctnd_histogram);
@@ -941,7 +962,7 @@ main(int argc, char **argv)
 		if ((g_pr = dtrace_proc_grab(g_dtp, (pid_t)pid, 0)) == NULL)
 			dfatal(NULL);
 	} else {
-		if ((g_pr = dtrace_proc_create(g_dtp, argv[0], argv)) == NULL)
+		if ((g_pr = dtrace_proc_create(g_dtp, argv[0], argv, NULL, NULL)) == NULL)
 			dfatal(NULL);
 	}
 
@@ -966,7 +987,11 @@ main(int argc, char **argv)
 
 	if (opt_v)
 		(void) printf("%s: tracing enabled for pid %d\n", g_pname,
+#if defined(sun)
 		    (int)Pstatus(g_pr)->pr_pid);
+#else
+		    (int)proc_getpid(g_pr));
+#endif
 
 	do {
 		if (!g_intr && !done)
