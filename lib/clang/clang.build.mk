@@ -28,6 +28,10 @@ LLVM_REQUIRES_RTTI=
 CFLAGS+=-fno-rtti
 .endif
 
+.ifdef TOOLS_PREFIX
+CFLAGS+=-DCLANG_PREFIX=\"${TOOLS_PREFIX}\"
+.endif
+
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
 TBLGEN=tblgen ${CFLAGS:M-I*}
