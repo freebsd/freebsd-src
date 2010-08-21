@@ -42,84 +42,61 @@ static char sccsid[] = "@(#)sleep.c	8.3 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
+#include <err.h>
 #include <limits.h>
+#include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
-void usage(void);
+static void usage(void);
+
+static volatile sig_atomic_t report_requested;
+static void
+report_request(int signo __unused)
+{
+
+	report_requested = 1;
+}
 
 int
 main(int argc, char *argv[])
 {
 	struct timespec time_to_sleep;
-	long l;
-	int neg;
-	char *p;
+	double d;
+	time_t original;
+	char buf[2];
 
-	if (argc != 2) {
+	if (argc != 2)
 		usage();
-		return(1);
+
+	if (sscanf(argv[1], "%lf%1s", &d, buf) != 1)
+		usage();
+	if (d > INT_MAX)
+		usage();
+	if (d <= 0)
+		return (0);
+	original = time_to_sleep.tv_sec = (time_t)d;
+	time_to_sleep.tv_nsec = 1e9 * (d - time_to_sleep.tv_sec);
+
+	signal(SIGINFO, report_request);
+	while (nanosleep(&time_to_sleep, &time_to_sleep) != 0) {
+		if (report_requested) {
+			/* Reporting does not bother with nanoseconds. */
+			warnx("about %d second(s) left out of the original %d",
+			    (int)time_to_sleep.tv_sec, (int)original);
+			report_requested = 0;
+		} else
+			break;
 	}
-
-	p = argv[1];
-
-	/* Skip over leading whitespaces. */
-	while (isspace((unsigned char)*p))
-		++p;
-
-	/* Check for optional `+' or `-' sign. */
-	neg = 0;
-	if (*p == '-') {
-		neg = 1;
-		++p;
-		if (!isdigit((unsigned char)*p) && *p != '.') {
-			usage();
-			return(1);
-		}
-	}
-	else if (*p == '+')
-		++p;
-
-	/* Calculate seconds. */
-	if (isdigit((unsigned char)*p)) {
-		l = strtol(p, &p, 10);
-		if (l > INT_MAX) {
-			/*
-			 * Avoid overflow when `seconds' is huge.  This assumes
-			 * that the maximum value for a time_t is <= INT_MAX.
-			 */
-			l = INT_MAX;
-		}
-	} else
-		l = 0;
-	time_to_sleep.tv_sec = (time_t)l;
-
-	/* Calculate nanoseconds. */
-	time_to_sleep.tv_nsec = 0;
-
-	if (*p == '.') {		/* Decimal point. */
-		l = 100000000L;
-		do {
-			if (isdigit((unsigned char)*++p))
-				time_to_sleep.tv_nsec += (*p - '0') * l;
-			else
-				break;
-			l /= 10;
-		} while (l);
-	}
-
-	if (!neg && (time_to_sleep.tv_sec > 0 || time_to_sleep.tv_nsec > 0))
-		(void)nanosleep(&time_to_sleep, (struct timespec *)NULL);
-
-	return(0);
+	return (0);
 }
 
-void
+static void
 usage(void)
 {
-	const char msg[] = "usage: sleep seconds\n";
 
-	write(STDERR_FILENO, msg, sizeof(msg) - 1);
+	fprintf(stderr, "usage: sleep seconds\n");
+	exit(1);
 }
