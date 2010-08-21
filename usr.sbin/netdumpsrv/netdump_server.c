@@ -98,18 +98,18 @@ static void		 eventloop(void);
 static void		 exec_handler(struct netdump_client *client,
 			    const char *reason);
 static void		 free_client(struct netdump_client *client);
-static int		 handle_finish(struct netdump_client *client,
+static void		 handle_finish(struct netdump_client *client,
 			    struct netdump_msg *msg);
-static int		 handle_herald(struct sockaddr_in *from,
+static void		 handle_herald(struct sockaddr_in *from,
 			    struct netdump_client *client,
 			    struct netdump_msg *msg);
-static int		 handle_kdh(struct netdump_client *client,
+static void		 handle_kdh(struct netdump_client *client,
 			    struct netdump_msg *msg);
-static int		 handle_packet(struct netdump_client *client,
+static void		 handle_packet(struct netdump_client *client,
 			    struct sockaddr_in *from, const char *fromstr,
 			    struct netdump_msg *msg);
 static void		 handle_timeout(struct netdump_client *client);
-static int		 handle_vmcore(struct netdump_client *client,
+static void		 handle_vmcore(struct netdump_client *client,
 			    struct netdump_msg *msg);
 static int		 receive_message(int sock, struct sockaddr_in *from,
 			    char *fromstr, size_t fromstrlen,
@@ -389,10 +389,9 @@ static void send_ack(struct netdump_client *client, struct netdump_msg *msg)
     while (tryagain);
 }
 
-static int handle_herald(struct sockaddr_in *from,
+static void handle_herald(struct sockaddr_in *from,
 	struct netdump_client *client, struct netdump_msg *msg)
 {
-    int freed_client=0;
 
     assert(from != NULL && msg != NULL);
 
@@ -402,12 +401,11 @@ static int handle_herald(struct sockaddr_in *from,
 	{
 	    /* Must be a retransmit of the herald packet. */
 	    send_ack(client, msg);
-	    return 0;
+	    return;
 	}
 
 	/* An old connection must have timed out. Clean it up first */
 	handle_timeout(client);
-	freed_client=1;
     }
 
     client = alloc_client(&from->sin_addr);
@@ -415,7 +413,7 @@ static int handle_herald(struct sockaddr_in *from,
     if (!client)
     {
 	LOGERR("handle_herald(): new client allocation failure\n");
-	return freed_client;
+	return;
     }
 
     client_pinfo(client, "Dump from %s [%s]\n", client->hostname,
@@ -425,11 +423,9 @@ static int handle_herald(struct sockaddr_in *from,
         client_ntoa(client), client->corefilename);
 
     send_ack(client, msg);
-
-    return freed_client;
 }
 
-static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
+static void handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 {
     struct kerneldumpheader *h;
     uint64_t dumplen;
@@ -440,7 +436,7 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 
     if (!client)
     {
-	return 0;
+	return;
     }
 
     client->any_data_rcvd = 1;
@@ -453,8 +449,7 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 	client_pinfo(client, "Bad KDH: packet too small\n");
 	fflush(client->infofile);
 	send_ack(client, msg);
-
-	return 0;
+	return;
     }
 
     parity_check = kerneldump_parity(h);
@@ -484,18 +479,17 @@ static int handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
     LOGINFO("(KDH from %s [%s])", client->hostname, client_ntoa(client));
 
     send_ack(client, msg);
-    
-    return 0;
 }
 
-static int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
+static void handle_vmcore(struct netdump_client *client,
+    struct netdump_msg *msg)
 {
 
     assert(msg != NULL);
 
     if (!client)
     {
-	return 0;
+	return;
     }
 
     client->any_data_rcvd = 1;
@@ -514,22 +508,21 @@ static int handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
 		msg->hdr.offset, strerror(errno));
 	exec_handler(client, "error");
 	free_client(client);
-	return 1;
+	return;
     }
 
     send_ack(client, msg);
-
-    return 0;
 }
 
-static int handle_finish(struct netdump_client *client, struct netdump_msg *msg)
+static void handle_finish(struct netdump_client *client,
+    struct netdump_msg *msg)
 {
 
     assert(msg != NULL);
 
     if (!client)
     {
-	return 0;
+	return;
     }
 
 
@@ -542,8 +535,6 @@ static int handle_finish(struct netdump_client *client, struct netdump_msg *msg)
 
     exec_handler(client, "success");
     free_client(client);
-
-    return 1;
 }
 
 
@@ -595,10 +586,9 @@ static int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
     return len;
 }
 
-static int handle_packet(struct netdump_client *client,
+static void handle_packet(struct netdump_client *client,
 	struct sockaddr_in *from, const char *fromstr, struct netdump_msg *msg)
 {
-    int freed_client;
 
     assert(from != NULL && fromstr != NULL && msg != NULL);
 
@@ -610,24 +600,21 @@ static int handle_packet(struct netdump_client *client,
     switch (msg->hdr.type)
     {
 	case NETDUMP_HERALD:
-	    freed_client = handle_herald(from, client, msg);
+	    handle_herald(from, client, msg);
 	    break;
 	case NETDUMP_KDH:
-	    freed_client = handle_kdh(client, msg);
+	    handle_kdh(client, msg);
 	    break;
 	case NETDUMP_VMCORE:
-	    freed_client = handle_vmcore(client, msg);
+	    handle_vmcore(client, msg);
 	    break;
 	case NETDUMP_FINISHED:
-	    freed_client = handle_finish(client, msg);
+	    handle_finish(client, msg);
 	    break;
 	default:
-	    freed_client=0;
 	    LOGERR("Received unknown message type %d from %s\n",
 		msg->hdr.type, fromstr);
     }
-
-    return freed_client;
 }
 
 static void eventloop()
@@ -638,7 +625,7 @@ static void eventloop()
     {
 	fd_set readfds;
 	int maxfd=sock+1;
-	struct netdump_client *client;
+	struct netdump_client *client, *tmp;
 	struct timeval tv;
 	struct sockaddr_in from;
 	char fromstr[INET_ADDRSTRLEN+6]; /* Long enough for IP+':'+port+'\0' */
@@ -726,7 +713,11 @@ static void eventloop()
 	    }
 	}
 
-	SLIST_FOREACH(client, &clients, iter) {
+	/*
+	 * handle_packet() and handle_timeout() may free the client,
+	 * handle stale pointers.
+	 */
+	SLIST_FOREACH_SAFE(client, &clients, iter, tmp) {
 	    if (FD_ISSET(client->sock, &readfds))
 	    {
 		int len = receive_message(client->sock, &from, fromstr,
@@ -741,12 +732,6 @@ static void eventloop()
 		    LOGERR_PERROR("recvfrom()");
 		    /* Client socket is broken for some reason */
 		    handle_timeout(client);
-		    /* The client pointer is now invalid */
-		    client = SLIST_FIRST(&clients);
-		    if (!client)
-		    {
-			break;
-		    }
 		}
 		else if (len == 0)
 		{
@@ -756,15 +741,7 @@ static void eventloop()
 		else
 		{
 		    FD_CLR(client->sock, &readfds);
-		    if (handle_packet(client, &from, fromstr, &msg))
-		    {
-			/* Client was freed; we have a stale pointer */
-		    	client = SLIST_FIRST(&clients);
-			if (!client)
-			{
-			    break;
-			}
-		    }
+		    handle_packet(client, &from, fromstr, &msg);
 		}
 	    }
 	}
