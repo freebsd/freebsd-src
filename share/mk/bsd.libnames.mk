@@ -45,7 +45,6 @@ LIBDTRACE?=	${DESTDIR}${LIBDIR}/libdtrace.a
 LIBDWARF?=	${DESTDIR}${LIBDIR}/libdwarf.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
 LIBELF?=	${DESTDIR}${LIBDIR}/libelf.a
-LIBELF_PIC?=	${DESTDIR}${LIBDIR}/libelf_pic.a
 LIBFETCH?=	${DESTDIR}${LIBDIR}/libfetch.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
