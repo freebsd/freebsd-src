@@ -42,7 +42,7 @@ fi
 
 dtrace=$1
 
-bname=`/bin/basename $0`
+bname=`/usr/bin/basename $0`
 
 dfilename=/var/tmp/$bname.$$
 
@@ -85,6 +85,6 @@ if [[ ${outarray[0]} != 1 || ${outarray[1]} != 2 || ${outarray[2]} != 3 || \
 	exit 1
 fi
 
-/usr/bin/rm -f $dfilename
+/bin/rm -f $dfilename
 exit 0
 

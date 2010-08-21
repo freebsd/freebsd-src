@@ -62,9 +62,9 @@ fi
 #
 # Shake loose any ICMPv6 Neighbor advertisement messages before tracing.
 #
-/usr/sbin/ping $dest 3 > /dev/null 2>&1
+/sbin/ping $dest 3 > /dev/null 2>&1
 
-$dtrace -c "/usr/sbin/ping $dest 3" -qs /dev/stdin <<EOF | \
+$dtrace -c "/sbin/ping $dest 3" -qs /dev/stdin <<EOF | \
     grep -v 'is alive' | sort -n
 ip:::send
 /args[2]->ip_saddr == "$source" && args[2]->ip_daddr == "$dest" &&
