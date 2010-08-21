@@ -57,7 +57,7 @@ fi
 dtrace=$1
 local=127.0.0.1
 
-$dtrace -c "/usr/sbin/ping -U $local" -qs /dev/stdin <<EOF | grep -v 'is alive'
+$dtrace -c "/sbin/ping -U $local" -qs /dev/stdin <<EOF | grep -v 'is alive'
 BEGIN
 {
 	ipsend = udpsend = ipreceive = 0;
