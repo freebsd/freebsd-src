@@ -74,7 +74,7 @@ struct netdump_client
     SLIST_ENTRY(netdump_client) iter;
     char infofilename[MAXPATHLEN];
     char corefilename[MAXPATHLEN];
-    char hostname[MAXHOSTNAMELEN];
+    char hostname[NI_MAXHOST];
     struct in_addr ip;
     FILE *infofile;
     int corefd;
@@ -93,7 +93,7 @@ struct in_addr bindip;
 struct pidfh *pfh;
 int sock;
 
-static struct netdump_client	*alloc_client(struct in_addr *ip);
+static struct netdump_client	*alloc_client(struct sockaddr_in *sip);
 static void		 eventloop(void);
 static void		 exec_handler(struct netdump_client *client,
 			    const char *reason);
@@ -119,14 +119,15 @@ static void		 send_ack(struct netdump_client *client,
 static void		 signal_shutdown(int sig);
 static void		 timeout_clients(void);
 
-static struct netdump_client *alloc_client(struct in_addr *ip)
+static struct netdump_client *alloc_client(struct sockaddr_in *sip)
 {
     struct sockaddr_in saddr;
     struct netdump_client *client;
-    struct hostent *hp;
-    int i, fd, bufsz;
+    struct in_addr *ip;
+    char *firstdot;
+    int i, ecode, fd, bufsz;
 
-    assert(ip != NULL);
+    assert(sip != NULL);
 
     client = calloc(1, sizeof(*client));
     if (!client)
@@ -134,27 +135,25 @@ static struct netdump_client *alloc_client(struct in_addr *ip)
 	LOGERR_PERROR("calloc()");
 	return NULL;
     }
+    ip = &sip->sin_addr;
     bcopy(ip, &client->ip, sizeof(*ip));
     client->corefd = -1;
     client->sock = -1;
     client->last_msg = now;
 
-    /* XXX: To be replaced by getnameinfo(). Get the hostname */
-    if ((hp = gethostbyaddr((const char *)ip, sizeof(*ip), AF_INET)) == NULL ||
-	    !hp->h_name || strlen(hp->h_name) == 0)
-    {
-#if 0
-	/* Can't resolve; use IP */
-	addr2ascii(AF_INET, ip, sizeof(*ip), client->hostname);
-#endif
-    }
-    else
-    {
-	char *firstdot;
+    ecode = getnameinfo((struct sockaddr *)sip, sip->sin_len, client->hostname,
+	sizeof(client->hostname), NULL, 0, NI_NAMEREQD);
+    if (ecode != 0) {
 
-	/* Grab the hostname */
-	strncpy(client->hostname, hp->h_name, MAXHOSTNAMELEN);
-	hp->h_name[MAXHOSTNAMELEN-1]='\0';
+	/* Can't resolve, try with a numeric IP. */
+	ecode = getnameinfo((struct sockaddr *)sip, sip->sin_len,
+	    client->hostname, sizeof(client->hostname), NULL, 0, 0);
+	if (ecode != 0) {
+		LOGERR("getnameinfo(): %s\n", gai_strerror(ecode));
+		free(client);
+		return NULL;
+	}
+    } else {
 
 	/* Strip off the domain name */
 	firstdot = strchr(client->hostname, '.');
@@ -408,7 +407,7 @@ static void handle_herald(struct sockaddr_in *from,
 	handle_timeout(client);
     }
 
-    client = alloc_client(&from->sin_addr);
+    client = alloc_client(from);
 
     if (!client)
     {
