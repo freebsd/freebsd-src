@@ -36,6 +36,7 @@
 #include <alloca.h>
 #else
 #include <sys/sysctl.h>
+#include <libproc_compat.h>
 #endif
 #include <limits.h>
 
@@ -264,11 +265,7 @@ dt_aggregate_usym(dtrace_hdl_t *dtp, uint64_t *data)
 
 	dt_proc_lock(dtp, P);
 
-#if defined(sun)
 	if (Plookup_by_addr(P, *pc, NULL, 0, &sym) == 0)
-#else
-	if (proc_addr2sym(P, *pc, NULL, 0, &sym) == 0)
-#endif
 		*pc = sym.st_value;
 
 	dt_proc_unlock(dtp, P);
@@ -291,11 +288,7 @@ dt_aggregate_umod(dtrace_hdl_t *dtp, uint64_t *data)
 
 	dt_proc_lock(dtp, P);
 
-#if defined(sun)
 	if ((map = Paddr_to_map(P, *pc)) != NULL)
-#else
-	if ((map = proc_addr2map(P, *pc)) != NULL)
-#endif
 		*pc = map->pr_vaddr;
 
 	dt_proc_unlock(dtp, P);
