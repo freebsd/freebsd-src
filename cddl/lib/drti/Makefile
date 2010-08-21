@@ -8,7 +8,7 @@ FILESOWN=	${LIBOWN}
 FILESGRP=	${LIBGRP}
 FILESMODE=	${LIBMODE}
 FILESDIR=	${LIBDIR}/dtrace
-CLEANFILES=	${FILES} ${FILES}.tmp
+CLEANFILES=	${FILES}
 
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
@@ -17,11 +17,5 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common \
 		-DPIC -fpic
-
-.c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
-	mv ${FILES} ${FILES}.tmp
-	${LD} -o ${FILES} -r ${FILES}.tmp ${LIBELF_PIC}
-	rm -f ${FILES}.tmp
 
 .include <bsd.prog.mk>
