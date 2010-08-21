@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -920,7 +921,7 @@ badport_bandlim(int which)
 		 * the previous behaviour at the expense of added complexity.
 		 */
 		if (icmplim_output && opps > icmplim)
-			printf("Limiting %s from %d to %d packets/sec\n",
+			log(LOG_NOTICE, "Limiting %s from %d to %d packets/sec\n",
 				r->type, opps, icmplim);
 	}
 	return 0;			/* okay to send packet */
