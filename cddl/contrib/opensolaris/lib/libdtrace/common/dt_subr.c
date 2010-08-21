@@ -40,6 +40,7 @@
 #include <alloca.h>
 #else
 #include <sys/sysctl.h>
+#include <libproc_compat.h>
 #endif
 #include <assert.h>
 #include <libgen.h>
@@ -963,13 +964,8 @@ dtrace_uaddr2str(dtrace_hdl_t *dtp, pid_t pid,
 
 	dt_proc_lock(dtp, P);
 
-#if defined(sun)
 	if (Plookup_by_addr(P, addr, name, sizeof (name), &sym) == 0) {
 		(void) Pobjname(P, addr, objname, sizeof (objname));
-#else
-	if (proc_addr2sym(P, addr, name, sizeof (name), &sym) == 0) {
-		(void) proc_objname(P, addr, objname, sizeof (objname));
-#endif
 
 		obj = dt_basename(objname);
 
@@ -979,11 +975,7 @@ dtrace_uaddr2str(dtrace_hdl_t *dtp, pid_t pid,
 		} else {
 			(void) snprintf(c, sizeof (c), "%s`%s", obj, name);
 		}
-#if defined(sun)
 	} else if (Pobjname(P, addr, objname, sizeof (objname)) != 0) {
-#else
-	} else if (proc_objname(P, addr, objname, sizeof (objname)) != 0) {
-#endif
 		(void) snprintf(c, sizeof (c), "%s`0x%llx",
 		    dt_basename(objname), addr);
 	} else {
