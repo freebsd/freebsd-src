@@ -3,7 +3,7 @@
 #
 # $FreeBSD$
 
-machine		sun4v
+machine		sun4v sparc64
 
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices
