@@ -12,7 +12,7 @@ _zdb=	zdb
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == amd64 || ${MACHINE_ARCH} == i386
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _dtrace=	dtrace
 _lockstat=	lockstat
 .endif
