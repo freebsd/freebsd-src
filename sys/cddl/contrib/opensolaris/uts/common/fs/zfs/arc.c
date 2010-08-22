@@ -3611,7 +3611,6 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 {
 #ifdef _KERNEL
 	uint64_t inflight_data = arc_anon->arcs_size;
-	uint64_t available_memory = ptoa((uintmax_t)cnt.v_free_count);
 	uint64_t available_memory = ptoa((uintmax_t)cnt.v_free_count
 	    + cnt.v_cache_count);
 	static uint64_t page_load = 0;
