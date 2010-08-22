@@ -1330,11 +1330,9 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					    if (!mtu)
 						mtu = ip_next_mtu(ip->ip_len,
 						 1);
-					    if (mtu < max(296, V_tcp_minmss
-						 + sizeof(struct tcpiphdr)))
-						mtu = 0;
-					    if (!mtu)
-						mtu = V_tcp_mssdflt
+					    if (mtu < V_tcp_minmss
+						 + sizeof(struct tcpiphdr))
+						mtu = V_tcp_minmss
 						 + sizeof(struct tcpiphdr);
 					    /*
 					     * Only cache the the MTU if it
