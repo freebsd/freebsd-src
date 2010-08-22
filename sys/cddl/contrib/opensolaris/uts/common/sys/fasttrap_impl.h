@@ -158,10 +158,16 @@ typedef struct fasttrap_hash {
  */
 #define	fasttrap_copyout	copyout
 #define	fasttrap_fuword32	fuword32
-#define	fasttrap_suword32	suword32
+#define	fasttrap_suword32(_k, _u)	copyout((_k), (_u), sizeof(uint32_t))
+#define	fasttrap_suword64(_k, _u)	copyout((_k), (_u), sizeof(uint64_t))
 
-#define	fasttrap_fulword	fulword
-#define	fasttrap_sulword	sulword
+#ifdef __amd64__
+#define	fasttrap_fulword	fuword64
+#define	fasttrap_sulword	fasttrap_suword64
+#else
+#define	fasttrap_fulword	fuword32
+#define	fasttrap_sulword	fasttrap_suword32
+#endif
 
 extern void fasttrap_sigtrap(proc_t *, kthread_t *, uintptr_t);
 
@@ -179,8 +185,9 @@ extern int fasttrap_tracepoint_init(proc_t *, fasttrap_tracepoint_t *,
 extern int fasttrap_tracepoint_install(proc_t *, fasttrap_tracepoint_t *);
 extern int fasttrap_tracepoint_remove(proc_t *, fasttrap_tracepoint_t *);
 
-extern int fasttrap_pid_probe(struct regs *);
-extern int fasttrap_return_probe(struct regs *);
+struct reg;
+extern int fasttrap_pid_probe(struct reg *);
+extern int fasttrap_return_probe(struct reg *);
 
 extern uint64_t fasttrap_pid_getarg(void *, dtrace_id_t, void *, int, int);
 extern uint64_t fasttrap_usdt_getarg(void *, dtrace_id_t, void *, int, int);
