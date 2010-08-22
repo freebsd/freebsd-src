@@ -39,9 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/dtrace_bsd.h>
 
 #define KDTRACE_PROC_SIZE	64
-#define KDTRACE_PROC_ZERO	8
 #define	KDTRACE_THREAD_SIZE	256
-#define	KDTRACE_THREAD_ZERO	64
 
 MALLOC_DEFINE(M_KDTRACE, "kdtrace", "DTrace hooks");
 
@@ -56,9 +54,8 @@ kdtrace_proc_size()
 static void
 kdtrace_proc_ctor(void *arg __unused, struct proc *p)
 {
-	p->p_dtrace = malloc(KDTRACE_PROC_SIZE, M_KDTRACE, M_WAITOK);
 
-	bzero(p->p_dtrace, KDTRACE_PROC_ZERO);
+	p->p_dtrace = malloc(KDTRACE_PROC_SIZE, M_KDTRACE, M_WAITOK|M_ZERO);
 }
 
 static void
@@ -75,15 +72,15 @@ kdtrace_proc_dtor(void *arg __unused, struct proc *p)
 size_t
 kdtrace_thread_size()
 {
+
 	return (KDTRACE_THREAD_SIZE);
 }
 
 static void
 kdtrace_thread_ctor(void *arg __unused, struct thread *td)
 {
-	td->td_dtrace = malloc(KDTRACE_THREAD_SIZE, M_KDTRACE, M_WAITOK);
 
-	bzero(td->td_dtrace, KDTRACE_THREAD_ZERO);
+	td->td_dtrace = malloc(KDTRACE_THREAD_SIZE, M_KDTRACE, M_WAITOK|M_ZERO);
 }
 
 static void
