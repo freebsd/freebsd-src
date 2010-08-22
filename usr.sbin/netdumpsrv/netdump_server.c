@@ -50,6 +50,7 @@
 
 #define	MAX_DUMPS	256	/* Dumps per IP before to be cleaned out. */
 #define	CLIENT_TIMEOUT	120	/* Clients timeout (secs). */
+#define	CLIENT_TPASS	10	/* Clients timeout pass (secs). */
 
 #define	PFLAGS_ABIND	0x01
 #define	PFLAGS_DDIR	0x02
@@ -95,6 +96,7 @@ static struct in_addr bindip;
 /* Miscellaneous handlers. */
 static struct pidfh *pfh;
 static time_t now;
+static time_t last_timeout_check;
 static int do_shutdown;
 static int sock;
 
@@ -277,88 +279,78 @@ alloc_client(struct sockaddr_in *sip)
 	return (client);
 }
 
-static void free_client(struct netdump_client *client)
+static void
+free_client(struct netdump_client *client)
 {
 
-    assert(client != NULL);
+	assert(client != NULL);
 
-    /* Remove from the list.  Ignore errors from close() routines. */
-    SLIST_REMOVE(&clients, client, netdump_client, iter);
-    fclose(client->infofile);
-    close(client->corefd);
-    close(client->sock);
-    free(client);
+	/* Remove from the list.  Ignore errors from close() routines. */
+	SLIST_REMOVE(&clients, client, netdump_client, iter);
+	fclose(client->infofile);
+	close(client->corefd);
+	close(client->sock);
+	free(client);
 }
 
-static void exec_handler(struct netdump_client *client, const char *reason)
+static void
+exec_handler(struct netdump_client *client, const char *reason)
 {
-    int pid;
+	int pid;
 
-    assert(client != NULL);
+	assert(client != NULL);
 
-    /* If no script is specified this is a no-op. */
-    if ((pflags & PFLAGS_SCRIPT) == 0)
-	return;
+	/* If no script is specified this is a no-op. */
+	if ((pflags & PFLAGS_SCRIPT) == 0)
+		return;
 
-    pid=fork();
+	pid = fork();
 
-    /*
-     * The function is invoked in critical conditions, thus just exiting
-     * without reporting errors is fine.
-     */
-    if (pid == -1)
-    {
-	LOGERR_PERROR("fork()");
-	return;
-    }
-    else if (pid)
-    {
-	return;
-    }
-    else
-    {
-	close(sock);
-	pidfile_close(pfh);
-	if (execl(handler_script, handler_script, reason, client_ntoa(client),
-		client->hostname, client->infofilename, client->corefilename,
-		NULL) == -1) {
+	/*
+	 * The function is invoked in critical conditions, thus just exiting
+	 * without reporting errors is fine.
+	 */
+	if (pid == -1) {
 		LOGERR_PERROR("fork()");
-		_exit(1);
+		return;
+	} else if (pid != 0) {
+		close(sock);
+		pidfile_close(pfh);
+		if (execl(handler_script, handler_script, reason,
+		    client_ntoa(client), client->hostname,
+		    client->infofilename, client->corefilename, NULL) == -1) {
+			LOGERR_PERROR("fork()");
+			_exit(1);
+		}
 	}
-    }
 }
 
-static void handle_timeout(struct netdump_client *client)
+static void
+handle_timeout(struct netdump_client *client)
 {
 
-    assert(client != NULL);
+	assert(client != NULL);
 
-    LOGINFO("Client %s timed out\n", client_ntoa(client));
-    client_pinfo(client, "Dump incomplete: client timed out\n");
-    exec_handler(client, "timeout");
-    free_client(client);
+	LOGINFO("Client %s timed out\n", client_ntoa(client));
+	client_pinfo(client, "Dump incomplete: client timed out\n");
+	exec_handler(client, "timeout");
+	free_client(client);
 }
 
-static void timeout_clients()
+static void
+timeout_clients()
 {
-    static time_t last_timeout_check;
-    struct netdump_client *client, *tmp;
+	struct netdump_client *client, *tmp;
     
-    /* Only time out clients every 10 seconds */
-    if (now - last_timeout_check < 10)
-    {
-	return;
-    }
+	/* Only time out clients every 10 seconds. */
+	if (now - last_timeout_check < CLIENT_TPASS)
+		return;
+	last_timeout_check = now;
 
-    last_timeout_check = now;
-
-    /* Traverse the list looking for stale clients */
-    SLIST_FOREACH_SAFE(client, &clients, iter, tmp) {
-	if (client->last_msg+CLIENT_TIMEOUT < now)
-	{
-	    handle_timeout(client);
-	}
-    }
+	/* Traverse the list looking for stale clients. */
+	SLIST_FOREACH_SAFE(client, &clients, iter, tmp)
+		if (client->last_msg + CLIENT_TIMEOUT < now)
+			handle_timeout(client);
 }
 
 static void send_ack(struct netdump_client *client, struct netdump_msg *msg)
