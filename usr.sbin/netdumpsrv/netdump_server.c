@@ -118,12 +118,12 @@ static void		 handle_packet(struct netdump_client *client,
 static void		 handle_timeout(struct netdump_client *client);
 static void		 handle_vmcore(struct netdump_client *client,
 			    struct netdump_msg *msg);
-static int		 receive_message(int sock, struct sockaddr_in *from,
+static int		 receive_message(int isock, struct sockaddr_in *from,
 			    char *fromstr, size_t fromstrlen,
 			    struct netdump_msg *msg);
 static void		 send_ack(struct netdump_client *client,
 			    struct netdump_msg *msg);
-static void		 signal_shutdown(int sig);
+static void		 signal_shutdown(int sig __unused);
 static void		 timeout_clients(void);
 static void		 usage(const char *cmd);
 
@@ -512,7 +512,7 @@ handle_finish(struct netdump_client *client, struct netdump_msg *msg)
 
 
 static int
-receive_message(int sock, struct sockaddr_in *from, char *fromstr,
+receive_message(int isock, struct sockaddr_in *from, char *fromstr,
     size_t fromstrlen, struct netdump_msg *msg)
 {
 	socklen_t fromlen;
@@ -526,7 +526,7 @@ receive_message(int sock, struct sockaddr_in *from, char *fromstr,
 	from->sin_port = 0;
 	from->sin_addr.s_addr = INADDR_ANY;
 
-	len = recvfrom(sock, msg, sizeof(*msg), 0, (struct sockaddr *)from,
+	len = recvfrom(isock, msg, sizeof(*msg), 0, (struct sockaddr *)from,
 	    &fromlen);
 	if (len == -1) {
 
@@ -721,7 +721,7 @@ eventloop()
 }
 
 static void
-signal_shutdown(int sig)
+signal_shutdown(int sig __unused)
 {
 
     do_shutdown = 1;
