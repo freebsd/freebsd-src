@@ -1130,8 +1130,10 @@ timer:
 	 * This might not be the best thing to do according to RFC3390
 	 * Section 2. However the tcp hostcache migitates the problem
 	 * so it affects only the first tcp connection with a host.
+	 *
+	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
 	 */
-	if (path_mtu_discovery)
+	if (path_mtu_discovery && tp->t_maxopd > tcp_minmss)
 		ip->ip_off |= IP_DF;
 
 	error = ip_output(m, tp->t_inpcb->inp_options, NULL,
