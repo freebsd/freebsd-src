@@ -84,7 +84,7 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , create);
+SDT_PROBE_DEFINE(proc, kernel, , create, create);
 SDT_PROBE_ARGTYPE(proc, kernel, , create, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , create, 1, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , create, 2, "int");
