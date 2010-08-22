@@ -511,83 +511,83 @@ handle_finish(struct netdump_client *client, struct netdump_msg *msg)
 }
 
 
-static int receive_message(int sock, struct sockaddr_in *from, char *fromstr,
-	size_t fromstrlen, struct netdump_msg *msg)
+static int
+receive_message(int sock, struct sockaddr_in *from, char *fromstr,
+    size_t fromstrlen, struct netdump_msg *msg)
 {
-    socklen_t fromlen;
-    ssize_t len;
+	socklen_t fromlen;
+	ssize_t len;
 
-    assert(from != NULL && fromstr != NULL && msg != NULL);
+	assert(from != NULL && fromstr != NULL && msg != NULL);
 
-    bzero(from, sizeof(*from));
-    from->sin_family = AF_INET;
-    from->sin_len = fromlen = sizeof(*from);
-    from->sin_port = 0;
-    from->sin_addr.s_addr = INADDR_ANY;
+	bzero(from, sizeof(*from));
+	from->sin_family = AF_INET;
+	from->sin_len = fromlen = sizeof(*from);
+	from->sin_port = 0;
+	from->sin_addr.s_addr = INADDR_ANY;
 
-    if ((len = recvfrom(sock, msg, sizeof(*msg), 0,
-		    (struct sockaddr *)from, &fromlen)) == -1)
-    {
-	/* The caller can use errno to find the error */
-	return -1;
-    }
+	len = recvfrom(sock, msg, sizeof(*msg), 0, (struct sockaddr *)from,
+	    &fromlen);
+	if (len == -1) {
 
-    snprintf(fromstr, fromstrlen, "%s:%hu", inet_ntoa(from->sin_addr),
+		/*
+		 * As long as some callers may discard the errors printing
+		 * in defined circumstances, leave them the choice and avoid
+		 * any error reporting.
+		 */
+		return (-1);
+	}
+
+	snprintf(fromstr, fromstrlen, "%s:%hu", inet_ntoa(from->sin_addr),
 	    ntohs(from->sin_port));
+	if ((size_t)len < sizeof(struct netdump_msg_hdr)) {
+		LOGERR("Ignoring runt packet from %s (got %zu)\n", fromstr,
+		    (size_t)len);
+		return (0);
+	}
 
-    if ((size_t)len < sizeof(struct netdump_msg_hdr))
-    {
-	LOGERR("Ignoring runt packet from %s (got %zu)\n", fromstr,
-	    (size_t)len);
-	return 0;
-    }
+	/* Convert byte order. */
+	msg->hdr.type = ntohl(msg->hdr.type);
+	msg->hdr.seqno = ntohl(msg->hdr.seqno);
+	msg->hdr.offset = be64toh(msg->hdr.offset);
+	msg->hdr.len = ntohl(msg->hdr.len);
 
-    /* Convert byte order */
-    msg->hdr.type = ntohl(msg->hdr.type);
-    msg->hdr.seqno = ntohl(msg->hdr.seqno);
-    msg->hdr.offset = be64toh(msg->hdr.offset);
-    msg->hdr.len = ntohl(msg->hdr.len);
-
-    if ((size_t)len < sizeof(struct netdump_msg_hdr) + msg->hdr.len)
-    {
-	LOGERR("Packet too small from %s (got %zu, expected %zu)\n",
-	    fromstr, (size_t)len,
-	    sizeof(struct netdump_msg_hdr) + msg->hdr.len);
-	return 0;
-    }
-
-    return len;
+	if ((size_t)len < sizeof(struct netdump_msg_hdr) + msg->hdr.len) {
+		LOGERR("Packet too small from %s (got %zu, expected %zu)\n",
+		    fromstr, (size_t)len,
+		    sizeof(struct netdump_msg_hdr) + msg->hdr.len);
+		return (0);
+	}
+	return (len);
 }
 
-static void handle_packet(struct netdump_client *client,
-	struct sockaddr_in *from, const char *fromstr, struct netdump_msg *msg)
+static void
+handle_packet(struct netdump_client *client, struct sockaddr_in *from,
+    const char *fromstr, struct netdump_msg *msg)
 {
 
-    assert(from != NULL && fromstr != NULL && msg != NULL);
+	assert(from != NULL && fromstr != NULL && msg != NULL);
 
-    if (client)
-    {
-	client->last_msg = time(NULL);
-    }
+	if (client != NULL)
+		client->last_msg = time(NULL);
 
-    switch (msg->hdr.type)
-    {
+	switch (msg->hdr.type) {
 	case NETDUMP_HERALD:
-	    handle_herald(from, client, msg);
-	    break;
+		handle_herald(from, client, msg);
+		break;
 	case NETDUMP_KDH:
-	    handle_kdh(client, msg);
-	    break;
+		handle_kdh(client, msg);
+		break;
 	case NETDUMP_VMCORE:
-	    handle_vmcore(client, msg);
-	    break;
+		handle_vmcore(client, msg);
+		break;
 	case NETDUMP_FINISHED:
-	    handle_finish(client, msg);
-	    break;
+		handle_finish(client, msg);
+		break;
 	default:
-	    LOGERR("Received unknown message type %d from %s\n",
-		msg->hdr.type, fromstr);
-    }
+		LOGERR("Received unknown message type %d from %s\n",
+		    msg->hdr.type, fromstr);
+	}
 }
 
 static void eventloop()
@@ -733,9 +733,11 @@ static void eventloop()
     }
 }
 
-static void signal_shutdown(int sig)
+static void
+signal_shutdown(int sig)
 {
-    do_shutdown=1;
+
+    do_shutdown = 1;
 }
 
 int main(int argc, char **argv)
