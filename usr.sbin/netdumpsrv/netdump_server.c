@@ -590,147 +590,134 @@ handle_packet(struct netdump_client *client, struct sockaddr_in *from,
 	}
 }
 
-static void eventloop()
+static void
+eventloop()
 {
-    struct netdump_msg msg;
-
-    while (!do_shutdown)
-    {
+	struct netdump_msg msg;
+	char fromstr[INET_ADDRSTRLEN + 6];
 	fd_set readfds;
-	int maxfd=sock+1;
-	struct netdump_client *client, *tmp;
-	struct timeval tv;
 	struct sockaddr_in from;
-	char fromstr[INET_ADDRSTRLEN+6]; /* Long enough for IP+':'+port+'\0' */
-	
-	FD_ZERO(&readfds);
-	FD_SET(sock, &readfds);
-	SLIST_FOREACH(client, &clients, iter) {
-	    FD_SET(client->sock, &readfds);
-	    if (maxfd <= client->sock)
-	    {
-		maxfd = client->sock+1;
-	    }
-	}
+	struct timeval tv;
+	struct netdump_client *client, *tmp;
+	int len, maxfd;
 
-	/* So that we time out clients regularly */
-	tv.tv_sec = 10;
-	tv.tv_usec = 0;
-
-	if (select(maxfd, &readfds, NULL, NULL, &tv) == -1)
-	{
-	    if (errno == EINTR)
-	    {
-		continue;
-	    }
-
-	    LOGERR_PERROR("select()");
-	    /* Errors with select() probably won't go away if we just try to
-	     * select() again */
-	    pidfile_remove(pfh);
-	    exit(1);
-	}
-
-	now = time(NULL);
-
-	if (FD_ISSET(sock, &readfds)) {
-	    int len;
-
-	    len = receive_message(sock, &from, fromstr, sizeof(fromstr), &msg);
-
-	    if (len == -1)
-	    {
-		if (errno == EINTR)
-		{
-		    continue;
-		}
-
-		if (errno != EAGAIN)
-		{
-		    pidfile_remove(pfh);
-		    LOGERR_PERROR("recvfrom()");
-		    exit(1);
-		}
-	    }
-	    else if (len == 0)
-	    {
-		/* The packet was rejected (probably because it was too small).
-		 * Just ignore it. */
-	    }
-	    else
-	    {
-		/* Check if they're on the clients list */
+	while (do_shutdown == 0) {
+		maxfd = sock + 1;
+		FD_ZERO(&readfds);
+		FD_SET(sock, &readfds);
 		SLIST_FOREACH(client, &clients, iter) {
-		    if (client->ip.s_addr == from.sin_addr.s_addr)
-		    {
-			break;
-		    }
+			FD_SET(client->sock, &readfds);
+			if (maxfd <= client->sock)
+				maxfd = client->sock+1;
 		}
 
-		/* Technically, clients shouldn't be responding on the server
-		 * port, so client should be NULL, however, if they insist on
-		 * doing so, it's not really going to hurt anything (except
-		 * maybe fill up the server socket's receive buffer), so still
-		 * accept it. The only possibly legitimate case is if there's
-		 * a new dump starting and the previous one didn't finish
-		 * cleanly. Handle this by suppressing the error on HERALD
-		 * packets.
+		/* So that we time out clients regularly. */
+		tv.tv_sec = CLIENT_TPASS;
+		tv.tv_usec = 0;
+		if (select(maxfd, &readfds, NULL, NULL, &tv) == -1) {
+			if (errno == EINTR)
+				continue;
+			LOGERR_PERROR("select()");
+
+			/*
+			 * Errors with select() probably will not go away
+			 * with simple retrying.
+			 */
+			pidfile_remove(pfh);
+			exit(1);
+		}
+		now = time(NULL);
+		if (FD_ISSET(sock, &readfds)) {
+			len = receive_message(sock, &from, fromstr,
+			    sizeof(fromstr), &msg);
+			if (len == -1) {
+				if (errno == EINTR)
+					continue;
+				if (errno != EAGAIN) {
+					pidfile_remove(pfh);
+					LOGERR_PERROR("recvfrom()");
+					exit(1);
+				}
+			} else if (len != 0) {
+
+				/*
+				 * With len == 0 the packet was rejected
+				 * (probably because it was too small) so just
+				 * ignore this case.
+				 */
+
+				/* Check if they are on the clients list. */
+				SLIST_FOREACH(client, &clients, iter)
+					if (client->ip.s_addr ==
+					    from.sin_addr.s_addr)
+						break;
+
+				/*
+				 * Technically, clients should not be
+				 * responding on the server port, so client
+				 * should be NULL, however, if they insist on
+				 * doing so, it's not really going to hurt
+				 * anything (except maybe fill up the server
+				 * socket's receive buffer), so still
+				 * accept it. The only possibly legitimate case
+				 * is if there's a new dump starting and the
+				 * previous one didn't finish cleanly. Handle
+				 * this by suppressing the error on HERALD
+				 * packets.
+				 */
+				if (client != NULL &&
+				    msg.hdr.type != NETDUMP_HERALD &&
+				    client->printed_port_warning == 0) {
+			    LOGWARN("Client %s responding on server port\n",
+					    client->hostname);
+					client->printed_port_warning = 1;
+				}
+				handle_packet(client, &from, fromstr, &msg);
+			}
+		}
+
+		/*
+		 * handle_packet() and handle_timeout() may free the client,
+		 * handle stale pointers.
 		 */
-		if (client && msg.hdr.type != NETDUMP_HERALD &&
-			!client->printed_port_warning)
-		{
-		    LOGWARN("Client %s responding on server port\n",
-			client->hostname);
-		    client->printed_port_warning = 1;
-		}
+		SLIST_FOREACH_SAFE(client, &clients, iter, tmp) {
+			if (FD_ISSET(client->sock, &readfds)) {
+				len = receive_message(client->sock, &from,
+				    fromstr, sizeof(fromstr), &msg);
+				if (len == -1) {
+					if (errno == EINTR || errno == EAGAIN)
+						continue;
+					LOGERR_PERROR("recvfrom()");
 
-		handle_packet(client, &from, fromstr, &msg);
-	    }
+					/*
+					 * Client socket is broken for
+					 * some reason.
+					 */
+					handle_timeout(client);
+				} else if (len != 0) {
+
+					/*
+					 * With len == 0 the packet was
+					 * rejected (probably because it was
+					 * too small) so just ignore this case.
+					 */
+
+					FD_CLR(client->sock, &readfds);
+					handle_packet(client, &from, fromstr,
+					    &msg);
+				}
+			}
+		}
+		timeout_clients();
 	}
+	LOGINFO("Shutting down...");
 
 	/*
-	 * handle_packet() and handle_timeout() may free the client,
-	 * handle stale pointers.
+	 * Clients is the head of the list, so clients != NULL iff the list
+	 * is not empty. Call it a timeout so that the scripts get run.
 	 */
-	SLIST_FOREACH_SAFE(client, &clients, iter, tmp) {
-	    if (FD_ISSET(client->sock, &readfds))
-	    {
-		int len = receive_message(client->sock, &from, fromstr,
-			sizeof(fromstr), &msg);
-		if (len == -1)
-		{
-		    if (errno == EINTR || errno == EAGAIN)
-		    {
-			continue;
-		    }
-
-		    LOGERR_PERROR("recvfrom()");
-		    /* Client socket is broken for some reason */
-		    handle_timeout(client);
-		}
-		else if (len == 0)
-		{
-		    /* The packet was rejected (probably because it was too
-		     * small). Just ignore it. */
-		}
-		else
-		{
-		    FD_CLR(client->sock, &readfds);
-		    handle_packet(client, &from, fromstr, &msg);
-		}
-	    }
-	}
-
-	timeout_clients();
-    }
-
-    LOGINFO("Shutting down...");
-    /* Clients is the head of the list, so clients != NULL iff the list isn't
-     * empty. Call it a timeout so that the scripts get run. */
-    while (!SLIST_EMPTY(&clients))
-    {
-	handle_timeout(SLIST_FIRST(&clients));
-    }
+	while (!SLIST_EMPTY(&clients))
+		handle_timeout(SLIST_FIRST(&clients));
 }
 
 static void
