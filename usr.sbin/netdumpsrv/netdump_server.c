@@ -727,154 +727,151 @@ signal_shutdown(int sig)
     do_shutdown = 1;
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
-    struct stat statbuf;
-    struct sockaddr_in bindaddr;
-    struct sigaction sa;
-    int ch;
+	struct stat statbuf;
+	struct sockaddr_in bindaddr;
+	struct sigaction sa;
+	int ch;
 
-    pfh = pidfile_open(NULL, 0600, NULL);
-    if (pfh == NULL) {
-        if (errno == EEXIST)
-            printf("Instance of netdump already running\n");
-        else
-            printf("Impossible to open the pid file\n");
-        exit(1);
-    }
-
-    while ((ch = getopt(argc, argv, "a:d:i:")) != -1) {
-	switch (ch) {
-	case 'a':
-		pflags |= PFLAGS_ABIND;
-		if (!inet_aton(optarg, &bindip)) {
-			pidfile_remove(pfh);
-			fprintf(stderr, "Invalid bind IP specified\n");
-			exit(1);
-		}
-		printf("Listening on IP %s\n", optarg);
-		break;
-	case 'd':
-		pflags |= PFLAGS_DDIR;
-		assert(dumpdir[0] == '\0');
-		strncpy(dumpdir, optarg, sizeof(dumpdir) - 1);
-		break;
-	case 'i':
-		pflags |= PFLAGS_SCRIPT;
-
-		/*
-		 * When suddently closing the process for an error,
-		 * it is unuseful to take care of handler_script deallocation
-		 * as long as the process will _exit(2) anyway.
-		 */
-		handler_script = strdup(optarg);
-		if (handler_script == NULL) {
-                	pidfile_remove(pfh);
-			perror("strdup()");
-			fprintf(stderr, "Unable to set script file\n");
-			exit(1);
-		}
-		if (access(handler_script, F_OK|X_OK)) {
-			pidfile_remove(pfh);
-			perror("access()");
-			fprintf(stderr, "Unable to access script file\n");
-			exit(1);
-		}
-		break;
-	default:
-		pidfile_remove(pfh);
-		usage(argv[0]);
+	pfh = pidfile_open(NULL, 0600, NULL);
+	if (pfh == NULL) {
+		if (errno == EEXIST)
+			printf("Instance of netdump already running\n");
+		else
+			printf("Impossible to open the pid file\n");
 		exit(1);
 	}
-    }
-    if ((pflags & PFLAGS_ABIND) == 0) {
-	bindip.s_addr = INADDR_ANY;
-	printf("Default: listening on all interfaces\n");
-    }
-    if ((pflags & PFLAGS_DDIR) == 0) {
-	strcpy(dumpdir, "/var/crash");
-	printf("Default: dumping on /var/crash/\n");
-    }
 
-    /* Check dump location for sanity */
-    if (stat(dumpdir, &statbuf)) {
-        pidfile_remove(pfh);
-	perror("stat()");
-	fprintf(stderr, "Invalid dump location specified\n");
-	exit(1);
-    }
-    if ((statbuf.st_mode & S_IFMT) != S_IFDIR) {
-        pidfile_remove(pfh);
-	fprintf(stderr, "Dump location is not a directory\n");
-	exit(1);
-    }
-    if (access(dumpdir, F_OK|W_OK)) {
-	fprintf(stderr,
-	    "Warning: May be unable to write into dump location: %s\n",
-	    strerror(errno));
-    }
+	while ((ch = getopt(argc, argv, "a:d:i:")) != -1) {
+		switch (ch) {
+		case 'a':
+			pflags |= PFLAGS_ABIND;
+			if (!inet_aton(optarg, &bindip)) {
+				pidfile_remove(pfh);
+				fprintf(stderr, "Invalid bind IP specified\n");
+				exit(1);
+			}
+			printf("Listening on IP %s\n", optarg);
+			break;
+		case 'd':
+			pflags |= PFLAGS_DDIR;
+			assert(dumpdir[0] == '\0');
+			strncpy(dumpdir, optarg, sizeof(dumpdir) - 1);
+			break;
+		case 'i':
+			pflags |= PFLAGS_SCRIPT;
 
-    if (daemon(0, 0) == -1) {
+			/*
+			 * When suddenly closing the process for an error,
+			 * it is unuseful to take care of handler_script
+			 * deallocation as long as the process will _exit(2)
+			 * anyway.
+			 */
+			handler_script = strdup(optarg);
+			if (handler_script == NULL) {
+				pidfile_remove(pfh);
+				perror("strdup()");
+				fprintf(stderr, "Unable to set script file\n");
+				exit(1);
+			}
+			if (access(handler_script, F_OK | X_OK)) {
+				pidfile_remove(pfh);
+				perror("access()");
+				fprintf(stderr,
+				    "Unable to access script file\n");
+				exit(1);
+			}
+			break;
+		default:
+			pidfile_remove(pfh);
+			usage(argv[0]);
+			exit(1);
+		}
+	}
+	if ((pflags & PFLAGS_ABIND) == 0) {
+		bindip.s_addr = INADDR_ANY;
+		printf("Default: listening on all interfaces\n");
+	}
+	if ((pflags & PFLAGS_DDIR) == 0) {
+		strcpy(dumpdir, "/var/crash");
+		printf("Default: dumping on /var/crash/\n");
+	}
+
+	/* Further sanity checks on dump location. */
+	if (stat(dumpdir, &statbuf)) {
+		pidfile_remove(pfh);
+		perror("stat()");
+		fprintf(stderr, "Invalid dump location specified\n");
+		exit(1);
+	}
+	if ((statbuf.st_mode & S_IFMT) != S_IFDIR) {
+		pidfile_remove(pfh);
+		fprintf(stderr, "Dump location is not a directory\n");
+		exit(1);
+	}
+	if (access(dumpdir, F_OK | W_OK)) {
+		fprintf(stderr,
+		    "Warning: May be unable to write into dump location: %s\n",
+		    strerror(errno));
+	}
+
+	if (daemon(0, 0) == -1) {
+		pidfile_remove(pfh);
+		perror("daemon()");
+		fprintf(stderr, "Impossible to demonize the process\n");
+		exit(1);
+	}
+	pidfile_write(pfh);
+
+	/* Set up the server socket. */
+	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (sock == -1) {
+		pidfile_remove(pfh);
+		LOGERR_PERROR("socket()");
+		exit(1);
+	}
+	bzero(&bindaddr, sizeof(bindaddr));
+	bindaddr.sin_len = sizeof(bindaddr);
+	bindaddr.sin_family = AF_INET;
+	bindaddr.sin_addr.s_addr = bindip.s_addr;
+	bindaddr.sin_port = htons(NETDUMP_PORT);
+	if (bind(sock, (struct sockaddr *)&bindaddr, sizeof(bindaddr))) {
+		pidfile_remove(pfh);
+		close(sock);
+		LOGERR_PERROR("bind()");
+		exit(1);
+	}
+	if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
+		pidfile_remove(pfh);
+		close(sock);
+		LOGERR_PERROR("fcntl()");
+		exit(1);
+	}
+
+	/* Override some signal handlers. */
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = signal_shutdown;
+	if (sigaction(SIGINT, &sa, NULL) || sigaction(SIGTERM, &sa, NULL)) {
+		pidfile_remove(pfh);
+		close(sock);
+		LOGERR_PERROR("sigaction(SIGINT | SIGTERM)");
+		exit(1);
+	}
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = SIG_IGN;
+	sa.sa_flags = SA_NOCLDWAIT;
+	if (sigaction(SIGCHLD, &sa, NULL)) {
+		pidfile_remove(pfh);
+		LOGERR_PERROR("sigaction(SIGCHLD)");
+		close(sock);
+		exit(1);
+	}
+
+	LOGINFO("Waiting for clients.\n");
+	eventloop();
+
 	pidfile_remove(pfh);
-	perror("daemon()");
-	fprintf(stderr, "Impossible to demonize the process\n");
-	exit(1);
-    }
-    pidfile_write(pfh);
-
-    /* Set up the server socket */
-    if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-    {
-        pidfile_remove(pfh);
-	LOGERR_PERROR("socket()");
-	exit(1);
-    }
-    bzero(&bindaddr, sizeof(bindaddr));
-    bindaddr.sin_len = sizeof(bindaddr);
-    bindaddr.sin_family = AF_INET;
-    bindaddr.sin_addr.s_addr = bindip.s_addr;
-    bindaddr.sin_port = htons(NETDUMP_PORT);
-    if (bind(sock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)))
-    {
-        pidfile_remove(pfh);
-	close(sock);
-	LOGERR_PERROR("bind()");
-	exit(1);
-    }
-    if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
-        pidfile_remove(pfh);
-	close(sock);
-	LOGERR_PERROR("fcntl()");
-	exit(1);
-    }
-
-    /* Signal handlers */
-    bzero(&sa, sizeof(sa));
-    sa.sa_handler = signal_shutdown;
-    if (sigaction(SIGINT, &sa, NULL) || sigaction(SIGTERM, &sa, NULL))
-    {
-        pidfile_remove(pfh);
-	close(sock);
-	LOGERR_PERROR("sigaction(SIGINT | SIGTERM)");
-	exit(1);
-    }
-    bzero(&sa, sizeof(sa));
-    sa.sa_handler = SIG_IGN;
-    sa.sa_flags = SA_NOCLDWAIT;
-    if (sigaction(SIGCHLD, &sa, NULL))
-    {
-        pidfile_remove(pfh);
-	LOGERR_PERROR("sigaction(SIGCHLD)");
-	close(sock);
-	exit(1);
-    }
-
-    LOGINFO("Waiting for clients.\n");
-
-    do_shutdown=0;
-    eventloop();
-
-    pidfile_remove(pfh);
-    return 0;
+	return (0);
 }
-
