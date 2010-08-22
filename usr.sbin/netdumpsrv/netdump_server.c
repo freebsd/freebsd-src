@@ -55,6 +55,10 @@
 /* Host name length (keep at least as big as INET_ADDRSTRLEN) */
 #define MAXHOSTNAMELEN 256
 
+#define	PFLAGS_ABIND	0x01
+#define	PFLAGS_DDIR	0x02
+#define	PFLAGS_SCRIPT	0x04
+
 #define	LOGERR(m, ...)							\
 	syslog(LOG_ERR | LOG_DAEMON, (m), ## __VA_ARGS__)
 #define	LOGERR_PERROR(m)						\
@@ -86,6 +90,7 @@ struct netdump_client
 
 SLIST_HEAD(, netdump_client) clients = SLIST_HEAD_INITIALIZER(clients);
 char dumpdir[MAXPATHLEN];
+uint32_t pflags = 0;
 char *handler_script=NULL;
 time_t now;
 int do_shutdown;
@@ -118,6 +123,15 @@ static void		 send_ack(struct netdump_client *client,
 			    struct netdump_msg *msg);
 static void		 signal_shutdown(int sig);
 static void		 timeout_clients(void);
+static void		 usage(const char *cmd);
+
+static void
+usage(const char *cmd)
+{
+
+	fprintf(stderr, "Usage: %s [-a bind_addr] [-d dump_dir] [-i script]\n",
+	    cmd);
+}
 
 static struct netdump_client *alloc_client(struct sockaddr_in *sip)
 {
@@ -295,6 +309,10 @@ static void exec_handler(struct netdump_client *client, const char *reason)
     int pid;
 
     assert(client != NULL);
+
+    /* If no script is specified this is a no-op. */
+    if ((pflags & PFLAGS_SCRIPT) == 0)
+	return;
 
     pid=fork();
 
@@ -653,6 +671,7 @@ static void eventloop()
 	    LOGERR_PERROR("select()");
 	    /* Errors with select() probably won't go away if we just try to
 	     * select() again */
+	    pidfile_remove(pfh);
 	    exit(1);
 	}
 
@@ -672,6 +691,7 @@ static void eventloop()
 
 		if (errno != EAGAIN)
 		{
+		    pidfile_remove(pfh);
 		    LOGERR_PERROR("recvfrom()");
 		    exit(1);
 		}
@@ -767,6 +787,7 @@ int main(int argc, char **argv)
     struct stat statbuf;
     struct sockaddr_in bindaddr;
     struct sigaction sa;
+    int ch;
 
     pfh = pidfile_open(NULL, 0600, NULL);
     if (pfh == NULL) {
@@ -777,65 +798,82 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    /* Check argc and set the bindaddr and handler_script */
-    switch (argc)
-    {
-	case 4:
-	    handler_script = strdup(argv[3]);
-	    if (access(handler_script, F_OK|X_OK))
-	    {
-                pidfile_remove(pfh);
-		fputs("Warning: may be unable to execute handler script\n",
-			stderr);
-		free(handler_script);
-		return 1;
-	    }
-	case 3:
-	    if (!inet_aton(argv[2], &bindip))
-	    {
-                pidfile_remove(pfh);
-		fputs("Invalid bind IP specified\n", stderr);
-		return 1;
-	    }
-	    printf("Listening on IP %s\n", argv[2]);
-	    break;
-	case 2:
-	    bindip.s_addr = INADDR_ANY;
-	    puts("Listening on all interfaces");
-	    break;
+    while ((ch = getopt(argc, argv, "a:d:i:")) != -1) {
+	switch (ch) {
+	case 'a':
+		pflags |= PFLAGS_ABIND;
+		if (!inet_aton(optarg, &bindip)) {
+			pidfile_remove(pfh);
+			fprintf(stderr, "Invalid bind IP specified\n");
+			exit(1);
+		}
+		printf("Listening on IP %s\n", optarg);
+		break;
+	case 'd':
+		pflags |= PFLAGS_DDIR;
+		bzero(dumpdir, sizeof(dumpdir));
+		strncpy(dumpdir, optarg, sizeof(dumpdir) - 1);
+		break;
+	case 'i':
+		pflags |= PFLAGS_SCRIPT;
+
+		/*
+		 * When suddently closing the process for an error,
+		 * it is unuseful to take care of handler_script deallocation
+		 * as long as the process will _exit(2) anyway.
+		 */
+		handler_script = strdup(optarg);
+		if (handler_script == NULL) {
+                	pidfile_remove(pfh);
+			perror("strdup()");
+			fprintf(stderr, "Unable to set script file\n");
+			exit(1);
+		}
+		if (access(handler_script, F_OK|X_OK)) {
+			pidfile_remove(pfh);
+			perror("access()");
+			fprintf(stderr, "Unable to access script file\n");
+			exit(1);
+		}
+		break;
 	default:
-            pidfile_remove(pfh);
-	    fprintf(stderr, "Usage: %s <dump location> "
-		    "[bind IP [handler script]]\n", argv[0]);
-	    return 1;
+		pidfile_remove(pfh);
+		usage(argv[0]);
+		exit(1);
+	}
+    }
+    if ((pflags & PFLAGS_ABIND) == 0) {
+	bindip.s_addr = INADDR_ANY;
+	printf("Default: listening on all interfaces\n");
+    }
+    if ((pflags & PFLAGS_DDIR) == 0) {
+	strcpy(dumpdir, "/var/crash");
+	printf("Default: dumping on /var/crash/\n");
     }
 
     /* Check dump location for sanity */
-    if (stat(argv[1], &statbuf))
-    {
+    if (stat(dumpdir, &statbuf)) {
         pidfile_remove(pfh);
-	perror("stat");
-	fputs("Invalid dump location specified\n", stderr);
-	return 1;
+	perror("stat()");
+	fprintf(stderr, "Invalid dump location specified\n");
+	exit(1);
     }
-    if ((statbuf.st_mode & S_IFMT) != S_IFDIR)
-    {
+    if ((statbuf.st_mode & S_IFMT) != S_IFDIR) {
         pidfile_remove(pfh);
-	fputs("Dump location is not a directory\n", stderr);
-	return 1;
+	fprintf(stderr, "Dump location is not a directory\n");
+	exit(1);
     }
-    if (access(argv[1], F_OK|W_OK))
-    {
-	fprintf(stderr, "Warning: May be unable to write into dump "
-		"location: %s\n", strerror(errno));
+    if (access(dumpdir, F_OK|W_OK)) {
+	fprintf(stderr,
+	    "Warning: May be unable to write into dump location: %s\n",
+	    strerror(errno));
     }
-    strncpy(dumpdir, argv[1], sizeof(dumpdir)-1);
-    dumpdir[sizeof(dumpdir)-1]='\0';
 
     if (daemon(0, 0) == -1) {
 	pidfile_remove(pfh);
 	perror("daemon()");
-	return 1;
+	fprintf(stderr, "Impossible to demonize the process\n");
+	exit(1);
     }
     pidfile_write(pfh);
 
@@ -844,7 +882,7 @@ int main(int argc, char **argv)
     {
         pidfile_remove(pfh);
 	LOGERR_PERROR("socket()");
-	return 1;
+	exit(1);
     }
     bzero(&bindaddr, sizeof(bindaddr));
     bindaddr.sin_len = sizeof(bindaddr);
@@ -854,15 +892,15 @@ int main(int argc, char **argv)
     if (bind(sock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)))
     {
         pidfile_remove(pfh);
-	LOGERR_PERROR("bind()");
 	close(sock);
-	return 1;
+	LOGERR_PERROR("bind()");
+	exit(1);
     }
     if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
         pidfile_remove(pfh);
-	LOGERR_PERROR("fcntl()");
 	close(sock);
-	return 1;
+	LOGERR_PERROR("fcntl()");
+	exit(1);
     }
 
     /* Signal handlers */
@@ -871,9 +909,9 @@ int main(int argc, char **argv)
     if (sigaction(SIGINT, &sa, NULL) || sigaction(SIGTERM, &sa, NULL))
     {
         pidfile_remove(pfh);
-	LOGERR_PERROR("sigaction(SIGINT | SIGTERM)");
 	close(sock);
-	return 1;
+	LOGERR_PERROR("sigaction(SIGINT | SIGTERM)");
+	exit(1);
     }
     bzero(&sa, sizeof(sa));
     sa.sa_handler = SIG_IGN;
@@ -883,7 +921,7 @@ int main(int argc, char **argv)
         pidfile_remove(pfh);
 	LOGERR_PERROR("sigaction(SIGCHLD)");
 	close(sock);
-	return 1;
+	exit(1);
     }
 
     LOGINFO("Waiting for clients.\n");
@@ -891,12 +929,7 @@ int main(int argc, char **argv)
     do_shutdown=0;
     eventloop();
 
-    if (handler_script)
-    {
-	free(handler_script);
-    }
     pidfile_remove(pfh);
-
     return 0;
 }
 
