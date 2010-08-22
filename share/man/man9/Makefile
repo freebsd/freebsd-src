@@ -700,6 +700,7 @@ MLINKS+=ieee80211_vap.9 ieee80211_vap_attach.9 \
 MLINKS+=ifnet.9 ifaddr.9 \
 	ifnet.9 if_data.9 \
 	ifnet.9 ifqueue.9
+MLINKS+=insmntque.9 insmntque1.9
 MLINKS+=ithread.9 ithread_add_handler.9 \
 	ithread.9 ithread_create.9 \
 	ithread.9 ithread_destroy.9 \
