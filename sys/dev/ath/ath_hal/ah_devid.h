@@ -74,6 +74,7 @@
 /* AR5416 compatible devid's  */
 #define AR5416_DEVID_PCI	0x0023          /* AR5416 PCI (MB/CB) Owl */
 #define AR5416_DEVID_PCIE	0x0024          /* AR5416 PCI-E (XB) Owl */
+#define AR5416_DEVID_AR9100	0x000b		/* AR9100 (SoC) */
 #define AR9160_DEVID_PCI	0x0027          /* AR9160 PCI Sowl */
 #define AR9280_DEVID_PCI	0x0029          /* AR9280 PCI Merlin */
 #define AR9280_DEVID_PCIE	0x002a          /* AR9280 PCI-E Merlin */
