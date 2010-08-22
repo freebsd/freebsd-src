@@ -353,183 +353,161 @@ timeout_clients()
 			handle_timeout(client);
 }
 
-static void send_ack(struct netdump_client *client, struct netdump_msg *msg)
+static void
+send_ack(struct netdump_client *client, struct netdump_msg *msg)
 {
-    struct netdump_ack ack;
-    int tryagain;
+	struct netdump_ack ack;
+	int tryagain;
     
-    assert(client != NULL && msg != NULL);
+	assert(client != NULL && msg != NULL);
 
-    bzero(&ack, sizeof(ack));
-    ack.seqno = htonl(msg->hdr.seqno);
+	bzero(&ack, sizeof(ack));
+	ack.seqno = htonl(msg->hdr.seqno);
+	do {
+		tryagain = 0;
+		if (send(client->sock, &ack, sizeof(ack), 0) == -1) {
+			if (errno == EINTR) {
+				tryagain = 1;
+				continue;
+			}
 
-    do
-    {
-	tryagain=0;
-
-	if (send(client->sock, &ack, sizeof(ack), 0) == -1)
-	{
-	    if (errno == EINTR)
-	    {
-		tryagain=1;
-		continue;
-	    }
-
-	    /* XXX: On EAGAIN, we should probably queue the packet to be sent
-	     * when the socket is writable... but that's too much effort, since
-	     * it's mostly harmless to wait for the client to retransmit. */
-	    LOGERR_PERROR("send()");
-	}
-    }
-    while (tryagain);
+			/*
+			 * XXX: On EAGAIN, we should probably queue the packet
+			 * to be sent when the socket is writable but
+			 * that is too much effort, since it is mostly
+			 * harmless to wait for the client to retransmit.
+			 */
+			LOGERR_PERROR("send()");
+		}
+	} while (tryagain);
 }
 
-static void handle_herald(struct sockaddr_in *from,
-	struct netdump_client *client, struct netdump_msg *msg)
+static void
+handle_herald(struct sockaddr_in *from, struct netdump_client *client,
+    struct netdump_msg *msg)
 {
 
-    assert(from != NULL && msg != NULL);
+	assert(from != NULL && msg != NULL);
 
-    if (client)
-    {
-	if (!client->any_data_rcvd)
-	{
-	    /* Must be a retransmit of the herald packet. */
-	    send_ack(client, msg);
-	    return;
+	if (client != NULL) {
+		if (client->any_data_rcvd == 0) {
+
+			/* Must be a retransmit of the herald packet. */
+			send_ack(client, msg);
+			return;
+		}
+
+		/* An old connection must have timed out. Clean it up first. */
+		handle_timeout(client);
 	}
 
-	/* An old connection must have timed out. Clean it up first */
-	handle_timeout(client);
-    }
-
-    client = alloc_client(from);
-
-    if (!client)
-    {
-	LOGERR("handle_herald(): new client allocation failure\n");
-	return;
-    }
-
-    client_pinfo(client, "Dump from %s [%s]\n", client->hostname,
-	client_ntoa(client));
-
-    LOGINFO("New dump from client %s [%s] (to %s)\n", client->hostname,
-        client_ntoa(client), client->corefilename);
-
-    send_ack(client, msg);
-}
-
-static void handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
-{
-    struct kerneldumpheader *h;
-    uint64_t dumplen;
-    time_t t;
-    int parity_check;
-
-    assert(msg != NULL);
-
-    if (!client)
-    {
-	return;
-    }
-
-    client->any_data_rcvd = 1;
-    h=(struct kerneldumpheader *)msg->data;
-    
-    if (msg->hdr.len < sizeof(struct kerneldumpheader))
-    {
-	LOGERR("Bad KDH from %s [%s]: packet too small\n", client->hostname,
+	client = alloc_client(from);
+	if (client == NULL) {
+		LOGERR("handle_herald(): new client allocation failure\n");
+		return;
+	}
+	client_pinfo(client, "Dump from %s [%s]\n", client->hostname,
 	    client_ntoa(client));
-	client_pinfo(client, "Bad KDH: packet too small\n");
-	fflush(client->infofile);
+	LOGINFO("New dump from client %s [%s] (to %s)\n", client->hostname,
+	    client_ntoa(client), client->corefilename);
 	send_ack(client, msg);
-	return;
-    }
-
-    parity_check = kerneldump_parity(h);
-
-    /* Make sure we null terminate all the strings */
-    h->architecture[sizeof(h->architecture)-1] = '\0';
-    h->hostname[sizeof(h->hostname)-1] = '\0';
-    h->versionstring[sizeof(h->versionstring)-1] = '\0';
-    h->panicstring[sizeof(h->panicstring)-1] = '\0';
-
-    client_pinfo(client, "  Architecture: %s\n", h->architecture);
-    client_pinfo(client, "  Architecture version: %d\n",
-	dtoh32(h->architectureversion));
-    dumplen = dtoh64(h->dumplength);
-    client_pinfo(client, "  Dump length: %lldB (%lld MB)\n",
-	(long long)dumplen, (long long)(dumplen >> 20));
-    client_pinfo(client, "  blocksize: %d\n", dtoh32(h->blocksize));
-    t = dtoh64(h->dumptime);
-    client_pinfo(client, "  Dumptime: %s", ctime(&t));
-    client_pinfo(client, "  Hostname: %s\n", h->hostname);
-    client_pinfo(client, "  Versionstring: %s", h->versionstring);
-    client_pinfo(client, "  Panicstring: %s\n", h->panicstring);
-    client_pinfo(client, "  Header parity check: %s\n",
-	parity_check ? "Fail" : "Pass");
-    fflush(client->infofile);
-
-    LOGINFO("(KDH from %s [%s])", client->hostname, client_ntoa(client));
-
-    send_ack(client, msg);
 }
 
-static void handle_vmcore(struct netdump_client *client,
-    struct netdump_msg *msg)
+static void
+handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
+{
+	time_t t;
+	uint64_t dumplen;
+	struct kerneldumpheader *h;
+	int parity_check;
+
+	assert(msg != NULL);
+
+	if (client == NULL)
+		return;
+
+	client->any_data_rcvd = 1;
+	h = (struct kerneldumpheader *)msg->data;
+	if (msg->hdr.len < sizeof(struct kerneldumpheader)) {
+		LOGERR("Bad KDH from %s [%s]: packet too small\n",
+		    client->hostname, client_ntoa(client));
+		client_pinfo(client, "Bad KDH: packet too small\n");
+		fflush(client->infofile);
+		send_ack(client, msg);
+		return;
+	}
+	parity_check = kerneldump_parity(h);
+
+	/* Make sure all the strings are null-terminated. */
+	h->architecture[sizeof(h->architecture) - 1] = '\0';
+	h->hostname[sizeof(h->hostname) - 1] = '\0';
+	h->versionstring[sizeof(h->versionstring) - 1] = '\0';
+	h->panicstring[sizeof(h->panicstring) - 1] = '\0';
+
+	client_pinfo(client, "  Architecture: %s\n", h->architecture);
+	client_pinfo(client, "  Architecture version: %d\n",
+	    dtoh32(h->architectureversion));
+	dumplen = dtoh64(h->dumplength);
+	client_pinfo(client, "  Dump length: %lldB (%lld MB)\n",
+	    (long long)dumplen, (long long)(dumplen >> 20));
+	client_pinfo(client, "  blocksize: %d\n", dtoh32(h->blocksize));
+	t = dtoh64(h->dumptime);
+	client_pinfo(client, "  Dumptime: %s", ctime(&t));
+	client_pinfo(client, "  Hostname: %s\n", h->hostname);
+	client_pinfo(client, "  Versionstring: %s", h->versionstring);
+	client_pinfo(client, "  Panicstring: %s\n", h->panicstring);
+	client_pinfo(client, "  Header parity check: %s\n",
+	    parity_check ? "Fail" : "Pass");
+	fflush(client->infofile);
+
+	LOGINFO("(KDH from %s [%s])", client->hostname, client_ntoa(client));
+	send_ack(client, msg);
+}
+
+static void
+handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
 {
 
-    assert(msg != NULL);
+	assert(msg != NULL);
 
-    if (!client)
-    {
-	return;
-    }
+	if (client == NULL)
+		return;
 
-    client->any_data_rcvd = 1;
+	client->any_data_rcvd = 1;
+	if (msg->hdr.seqno % 11523 == 0) {
 
-    if (msg->hdr.seqno % 11523 == 0)
-    {
-	/* Approximately every 16MB with MTU of 1500 */
-	LOGINFO(".");
-    }
+		/* Approximately every 16MB with MTU of 1500 */
+		LOGINFO(".");
+	}
+	if (pwrite(client->corefd, msg->data, msg->hdr.len,
+	    msg->hdr.offset) == -1) {
+		LOGERR("pwrite (for client %s [%s]): %s\n", client->hostname,
+		    client_ntoa(client), strerror(errno));
+		client_pinfo(client,
+		    "Dump unsuccessful: write error @ offset %08"PRIx64": %s\n",
+		    msg->hdr.offset, strerror(errno));
+		exec_handler(client, "error");
+		free_client(client);
+		return;
+	}
+	send_ack(client, msg);
+}
 
-    if (pwrite(client->corefd, msg->data, msg->hdr.len, msg->hdr.offset) == -1)
-    {
-	LOGERR("pwrite (for client %s [%s]): %s\n", client->hostname,
-	    client_ntoa(client), strerror(errno));
-	client_pinfo(client, "Dump unsuccessful: write error at offset %08"PRIx64": %s\n",
-		msg->hdr.offset, strerror(errno));
-	exec_handler(client, "error");
+static void
+handle_finish(struct netdump_client *client, struct netdump_msg *msg)
+{
+
+	assert(msg != NULL);
+
+	if (client == NULL)
+		return;
+
+	LOGINFO("\nCompleted dump from client %s [%s]\n", client->hostname,
+	    client_ntoa(client));
+	client_pinfo(client, "Dump complete\n");
+	send_ack(client, msg);
+	exec_handler(client, "success");
 	free_client(client);
-	return;
-    }
-
-    send_ack(client, msg);
-}
-
-static void handle_finish(struct netdump_client *client,
-    struct netdump_msg *msg)
-{
-
-    assert(msg != NULL);
-
-    if (!client)
-    {
-	return;
-    }
-
-
-    LOGINFO("\nCompleted dump from client %s [%s]\n", client->hostname,
-	client_ntoa(client));
-    client_pinfo(client, "Dump complete\n");
-
-    /* Do this before we free the client */
-    send_ack(client, msg);
-
-    exec_handler(client, "success");
-    free_client(client);
 }
 
 
