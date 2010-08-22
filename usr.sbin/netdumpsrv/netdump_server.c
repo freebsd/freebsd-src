@@ -48,12 +48,8 @@
 #include <inttypes.h>
 #include <libutil.h>
 
-/* How many dumps to allow per IP before they need to be cleaned out */
-#define MAX_DUMPS 256
-/* Clients time out after two minutes */
-#define CLIENT_TIMEOUT 120
-/* Host name length (keep at least as big as INET_ADDRSTRLEN) */
-#define MAXHOSTNAMELEN 256
+#define	MAX_DUMPS	256	/* Dumps per IP before to be cleaned out. */
+#define	CLIENT_TIMEOUT	120	/* Clients timeout (secs). */
 
 #define	PFLAGS_ABIND	0x01
 #define	PFLAGS_DDIR	0x02
@@ -73,30 +69,34 @@
 #define	client_pinfo(cl, f, ...)					\
 	fprintf((cl)->infofile, (f), ## __VA_ARGS__)
 
-struct netdump_client
-{
-    SLIST_ENTRY(netdump_client) iter;
-    char infofilename[MAXPATHLEN];
-    char corefilename[MAXPATHLEN];
-    char hostname[NI_MAXHOST];
-    struct in_addr ip;
-    FILE *infofile;
-    int corefd;
-    int sock;
-    time_t last_msg;
-    unsigned int printed_port_warning : 1;
-    unsigned int any_data_rcvd : 1;
+struct netdump_client {
+	char		infofilename[MAXPATHLEN];
+	char		corefilename[MAXPATHLEN];
+	char		hostname[NI_MAXHOST];
+	time_t		last_msg;
+	SLIST_ENTRY(netdump_client) iter;
+	struct in_addr	ip;
+	FILE		*infofile;
+	int		corefd;
+	int		sock;
+	unsigned short	printed_port_warning: 1;
+	unsigned short	any_data_rcvd: 1;
 };
 
-SLIST_HEAD(, netdump_client) clients = SLIST_HEAD_INITIALIZER(clients);
-char dumpdir[MAXPATHLEN];
-uint32_t pflags = 0;
-char *handler_script=NULL;
-time_t now;
-int do_shutdown;
-struct in_addr bindip;
-struct pidfh *pfh;
-int sock;
+/* Clients list. */
+static SLIST_HEAD(, netdump_client) clients = SLIST_HEAD_INITIALIZER(clients);
+
+/* Program arguments handlers. */
+static uint32_t pflags;
+static char dumpdir[MAXPATHLEN];
+static char *handler_script;
+static struct in_addr bindip;
+
+/* Miscellaneous handlers. */
+static struct pidfh *pfh;
+static time_t now;
+static int do_shutdown;
+static int sock;
 
 static struct netdump_client	*alloc_client(struct sockaddr_in *sip);
 static void		 eventloop(void);
@@ -811,7 +811,7 @@ int main(int argc, char **argv)
 		break;
 	case 'd':
 		pflags |= PFLAGS_DDIR;
-		bzero(dumpdir, sizeof(dumpdir));
+		assert(dumpdir[0] == '\0');
 		strncpy(dumpdir, optarg, sizeof(dumpdir) - 1);
 		break;
 	case 'i':
