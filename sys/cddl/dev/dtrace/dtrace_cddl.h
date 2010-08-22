@@ -36,6 +36,7 @@ typedef struct kdtrace_proc {
 	int		p_dtrace_probes;	/* Are there probes for this proc? */
 	u_int64_t	p_dtrace_count;		/* Number of DTrace tracepoints */
 	void		*p_dtrace_helpers;	/* DTrace helpers, if any */
+	int		p_dtrace_model;
 
 } kdtrace_proc_t;
 
@@ -59,6 +60,9 @@ typedef struct kdtrace_thread {
 					/* Handling a return probe. */
 			u_int8_t	_td_dtrace_ast;
 					/* Saved ast flag. */
+#ifdef __amd64__
+			u_int8_t	_td_dtrace_reg;
+#endif
 		} _tds;
 		u_long	_td_dtrace_ft;	/* Bitwise or of these flags. */
 	} _tdu;
@@ -67,6 +71,7 @@ typedef struct kdtrace_thread {
 #define	td_dtrace_step	_tdu._tds._td_dtrace_step
 #define	td_dtrace_ret	_tdu._tds._td_dtrace_ret
 #define	td_dtrace_ast	_tdu._tds._td_dtrace_ast
+#define	td_dtrace_reg	_tdu._tds._td_dtrace_reg
 
 	uintptr_t	td_dtrace_pc;	/* DTrace saved pc from fasttrap. */
 	uintptr_t	td_dtrace_npc;	/* DTrace next pc from fasttrap. */
@@ -74,6 +79,9 @@ typedef struct kdtrace_thread {
 					/* DTrace per-thread scratch location. */
 	uintptr_t	td_dtrace_astpc;
 					/* DTrace return sequence location. */
+#ifdef __amd64__
+	uintptr_t	td_dtrace_regv;
+#endif
 	u_int64_t	td_hrtime;	/* Last time on cpu. */
 	int		td_errno;	/* Syscall return value. */
 } kdtrace_thread_t;
@@ -89,16 +97,38 @@ typedef struct kdtrace_thread {
 #define	t_dtrace_stop	td_dtrace->td_dtrace_stop
 #define	t_dtrace_sig	td_dtrace->td_dtrace_sig
 #define	t_predcache	td_dtrace->td_predcache
-#define p_dtrace_helpers	p_dtrace->p_dtrace_helpers
+#define	t_dtrace_ft	td_dtrace->td_dtrace_ft
+#define	t_dtrace_on	td_dtrace->td_dtrace_on
+#define	t_dtrace_step	td_dtrace->td_dtrace_step
+#define	t_dtrace_ret	td_dtrace->td_dtrace_ret
+#define	t_dtrace_ast	td_dtrace->td_dtrace_ast
+#define	t_dtrace_reg	td_dtrace->td_dtrace_reg
+#define	t_dtrace_pc	td_dtrace->td_dtrace_pc
+#define	t_dtrace_npc	td_dtrace->td_dtrace_npc
+#define	t_dtrace_scrpc	td_dtrace->td_dtrace_scrpc
+#define	t_dtrace_astpc	td_dtrace->td_dtrace_astpc
+#define	t_dtrace_regv	td_dtrace->td_dtrace_regv
+#define	p_dtrace_helpers	p_dtrace->p_dtrace_helpers
+#define	p_dtrace_count	p_dtrace->p_dtrace_count
+#define	p_dtrace_probes	p_dtrace->p_dtrace_probes
+#define	p_model		p_dtrace->p_dtrace_model
+#define	DATAMODEL_NATIVE	0
+#ifdef __amd64__
+#define	DATAMODEL_LP64		0
+#define	DATAMODEL_ILP32		1
+#else
+#define	DATAMODEL_LP64		1
+#define	DATAMODEL_ILP32		0
+#endif
 
 /*
- * Definitions for fields in struct proc which are named differntly in FreeBSD.
+ * Definitions for fields in struct proc which are named differently in FreeBSD.
  */
 #define	p_cred		p_ucred
 #define	p_parent	p_pptr
 
 /*
- * Definitions for fields in struct thread which are named differntly in FreeBSD.
+ * Definitions for fields in struct thread which are named differently in FreeBSD.
  */
 #define	t_procp		td_proc
 #define	t_tid		td_tid
