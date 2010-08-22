@@ -216,6 +216,9 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	ahp = &ahp5416->ah_5212;
 	ah = &ahp->ah_priv.h;
 
+	if (devid == AR5416_AR9100_DEVID)
+		AH_PRIVATE((ah))->ah_macVersion = AR_XSREV_VERSION_9100;
+
 	if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON)) {
 		/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: couldn't reset chip\n", __func__);
@@ -833,6 +836,8 @@ ar5416Probe(uint16_t vendorid, uint16_t devid)
 	if (vendorid == ATHEROS_VENDOR_ID &&
 	    (devid == AR5416_DEVID_PCI || devid == AR5416_DEVID_PCIE))
 		return "Atheros 5416";
+	if (vendorid == ATHEROS_VENDOR_ID && devid == AR5416_AR9100_DEVID)
+		return "Atheros 910x";
 	return AH_NULL;
 }
 AH_CHIP(AR5416, ar5416Probe, ar5416Attach);

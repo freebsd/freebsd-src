@@ -576,6 +576,7 @@
 #define	AR_XSREV_REVISION_OWL_10	0	/* Owl 1.0 */
 #define	AR_XSREV_REVISION_OWL_20	1	/* Owl 2.0/2.1 */
 #define	AR_XSREV_REVISION_OWL_22	2	/* Owl 2.2 */
+#define	AR_XSREV_VERSION_9100		0x14
 #define	AR_XSREV_VERSION_SOWL		0x40
 #define	AR_XSREV_REVISION_SOWL_10	0	/* Sowl 1.0 */
 #define	AR_XSREV_REVISION_SOWL_11	1	/* Sowl 1.1 */
@@ -587,6 +588,11 @@
 #define	AR_XSREV_REVISION_KITE_10	0	/* Kite 1.0 */
 #define	AR_XSREV_REVISION_KITE_11	1	/* Kite 1.1 */
 #define	AR_XSREV_REVISION_KITE_12	2	/* Kite 1.2 */
+
+#define	AR_SREV_9100(_ah) \
+	    (AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_9100)
+#define	AR_SREV_9100_OR_LATER(_ah) \
+	    (AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_9100)
 
 #define	AR_SREV_OWL_20_OR_LATER(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_SOWL || \
