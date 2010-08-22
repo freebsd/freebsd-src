@@ -49,7 +49,8 @@ MALLOC_DEFINE(M_KDTRACE, "kdtrace", "DTrace hooks");
 size_t
 kdtrace_proc_size()
 {
-	return(KDTRACE_PROC_SIZE);
+
+	return (KDTRACE_PROC_SIZE);
 }
 
 static void
@@ -63,6 +64,7 @@ kdtrace_proc_ctor(void *arg __unused, struct proc *p)
 static void
 kdtrace_proc_dtor(void *arg __unused, struct proc *p)
 {
+
 	if (p->p_dtrace != NULL) {
 		free(p->p_dtrace, M_KDTRACE);
 		p->p_dtrace = NULL;
@@ -73,7 +75,7 @@ kdtrace_proc_dtor(void *arg __unused, struct proc *p)
 size_t
 kdtrace_thread_size()
 {
-	return(KDTRACE_THREAD_SIZE);
+	return (KDTRACE_THREAD_SIZE);
 }
 
 static void
@@ -87,6 +89,7 @@ kdtrace_thread_ctor(void *arg __unused, struct thread *td)
 static void
 kdtrace_thread_dtor(void *arg __unused, struct thread *td)
 {
+
 	if (td->td_dtrace != NULL) {
 		free(td->td_dtrace, M_KDTRACE);
 		td->td_dtrace = NULL;
@@ -99,10 +102,15 @@ kdtrace_thread_dtor(void *arg __unused, struct thread *td)
 static void
 init_dtrace(void *dummy __unused)
 {
-	EVENTHANDLER_REGISTER(process_ctor, kdtrace_proc_ctor, NULL, EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(process_dtor, kdtrace_proc_dtor, NULL, EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(thread_ctor, kdtrace_thread_ctor, NULL, EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(thread_dtor, kdtrace_thread_dtor, NULL, EVENTHANDLER_PRI_ANY);
+
+	EVENTHANDLER_REGISTER(process_ctor, kdtrace_proc_ctor, NULL,
+	    EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(process_dtor, kdtrace_proc_dtor, NULL,
+	    EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(thread_ctor, kdtrace_thread_ctor, NULL,
+	    EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(thread_dtor, kdtrace_thread_dtor, NULL,
+	    EVENTHANDLER_PRI_ANY);
 }
 
 SYSINIT(kdtrace, SI_SUB_KDTRACE, SI_ORDER_FIRST, init_dtrace, NULL);
