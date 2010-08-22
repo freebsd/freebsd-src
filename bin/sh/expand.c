@@ -109,7 +109,6 @@ STATIC void expmeta(char *, char *);
 STATIC void addfname(char *);
 STATIC struct strlist *expsort(struct strlist *);
 STATIC struct strlist *msort(struct strlist *, int);
-STATIC int pmatch(const char *, const char *, int);
 STATIC char *cvtnum(int, char *);
 STATIC int collate_range_cmp(int, int);
 
@@ -1101,7 +1100,7 @@ expandmeta(struct strlist *str, int flag __unused)
 		for (;;) {			/* fast check for meta chars */
 			if ((c = *p++) == '\0')
 				goto nometa;
-			if (c == '*' || c == '?' || c == '[' || c == '!')
+			if (c == '*' || c == '?' || c == '[')
 				break;
 		}
 		savelastp = exparg.lastp;
@@ -1168,8 +1167,6 @@ expmeta(char *enddir, char *name)
 					break;
 				}
 			}
-		} else if (*p == '!' && p[1] == '!'	&& (p == name || p[-1] == '/')) {
-			metaflag = 1;
 		} else if (*p == '\0')
 			break;
 		else if (*p == CTLQUOTEMARK)
@@ -1353,18 +1350,6 @@ msort(struct strlist *list, int len)
 int
 patmatch(const char *pattern, const char *string, int squoted)
 {
-#ifdef notdef
-	if (pattern[0] == '!' && pattern[1] == '!')
-		return 1 - pmatch(pattern + 2, string);
-	else
-#endif
-		return pmatch(pattern, string, squoted);
-}
-
-
-STATIC int
-pmatch(const char *pattern, const char *string, int squoted)
-{
 	const char *p, *q;
 	char c;
 
@@ -1406,7 +1391,7 @@ pmatch(const char *pattern, const char *string, int squoted)
 				}
 			}
 			do {
-				if (pmatch(p, q, squoted))
+				if (patmatch(p, q, squoted))
 					return 1;
 				if (squoted && *q == CTLESC)
 					q++;
