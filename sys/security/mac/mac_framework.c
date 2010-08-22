@@ -94,10 +94,12 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DEFINE(mac);
 SDT_PROVIDER_DEFINE(mac_framework);
 
-SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, "int",
+SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, modevent, "int",
     "struct mac_policy_conf *mpc");
-SDT_PROBE_DEFINE1(mac, kernel, policy, register, "struct mac_policy_conf *");
-SDT_PROBE_DEFINE1(mac, kernel, policy, unregister, "struct mac_policy_conf *");
+SDT_PROBE_DEFINE1(mac, kernel, policy, register, register,
+    "struct mac_policy_conf *");
+SDT_PROBE_DEFINE1(mac, kernel, policy, unregister, unregister,
+    "struct mac_policy_conf *");
 
 /*
  * Root sysctl node for all MAC and MAC policy controls.
