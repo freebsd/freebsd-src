@@ -42,7 +42,8 @@ struct ksiginfo;
 typedef	int	sy_call_t(struct thread *, void *);
 
 /* Used by the machine dependent syscall() code. */
-typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *);
+typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *,
+    int);
 
 /*
  * Used by loaded syscalls to convert arguments to a DTrace array
