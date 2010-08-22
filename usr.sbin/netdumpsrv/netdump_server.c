@@ -133,162 +133,148 @@ usage(const char *cmd)
 	    cmd);
 }
 
-static struct netdump_client *alloc_client(struct sockaddr_in *sip)
+static struct netdump_client *
+alloc_client(struct sockaddr_in *sip)
 {
-    struct sockaddr_in saddr;
-    struct netdump_client *client;
-    struct in_addr *ip;
-    char *firstdot;
-    int i, ecode, fd, bufsz;
+	struct sockaddr_in saddr;
+	struct netdump_client *client;
+	struct in_addr *ip;
+	char *firstdot;
+	int i, ecode, fd, bufsz;
 
-    assert(sip != NULL);
+	assert(sip != NULL);
 
-    client = calloc(1, sizeof(*client));
-    if (!client)
-    {
-	LOGERR_PERROR("calloc()");
-	return NULL;
-    }
-    ip = &sip->sin_addr;
-    bcopy(ip, &client->ip, sizeof(*ip));
-    client->corefd = -1;
-    client->sock = -1;
-    client->last_msg = now;
+	client = calloc(1, sizeof(*client));
+	if (client == NULL) {
+		LOGERR_PERROR("calloc()");
+		return (NULL);
+	}
+	ip = &sip->sin_addr;
+	bcopy(ip, &client->ip, sizeof(*ip));
+	client->corefd = -1;
+	client->sock = -1;
+	client->last_msg = now;
 
-    ecode = getnameinfo((struct sockaddr *)sip, sip->sin_len, client->hostname,
-	sizeof(client->hostname), NULL, 0, NI_NAMEREQD);
-    if (ecode != 0) {
-
-	/* Can't resolve, try with a numeric IP. */
 	ecode = getnameinfo((struct sockaddr *)sip, sip->sin_len,
-	    client->hostname, sizeof(client->hostname), NULL, 0, 0);
+	    client->hostname, sizeof(client->hostname), NULL, 0, NI_NAMEREQD);
 	if (ecode != 0) {
-		LOGERR("getnameinfo(): %s\n", gai_strerror(ecode));
+
+		/* Can't resolve, try with a numeric IP. */
+		ecode = getnameinfo((struct sockaddr *)sip, sip->sin_len,
+		    client->hostname, sizeof(client->hostname), NULL, 0, 0);
+		if (ecode != 0) {
+			LOGERR("getnameinfo(): %s\n", gai_strerror(ecode));
+			free(client);
+			return (NULL);
+		}
+	} else {
+
+		/* Strip off the domain name */
+		firstdot = strchr(client->hostname, '.');
+		if (firstdot)
+			*firstdot = '\0';
+	}
+
+	client->sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (client->sock == -1) {
+		LOGERR_PERROR("socket()");
 		free(client);
-		return NULL;
+		return (NULL);
 	}
-    } else {
-
-	/* Strip off the domain name */
-	firstdot = strchr(client->hostname, '.');
-	if (firstdot)
-	{
-	    *firstdot='\0';
+	if (fcntl(client->sock, F_SETFL, O_NONBLOCK) == -1) {
+		LOGERR_PERROR("fcntl()");
+		close(client->sock);
+		free(client);
+		return (NULL);
 	}
-    }
+	bzero(&saddr, sizeof(saddr));
+	saddr.sin_len = sizeof(saddr);
+	saddr.sin_family = AF_INET;
+	saddr.sin_addr.s_addr = bindip.s_addr;
+	saddr.sin_port = htons(0);
+	if (bind(client->sock, (struct sockaddr *)&saddr, sizeof(saddr))) {
+		LOGERR_PERROR("bind()");
+		close(client->sock);
+		free(client);
+		return (NULL);
+	}
+	bzero(&saddr, sizeof(saddr));
+	saddr.sin_len = sizeof(saddr);
+	saddr.sin_family = AF_INET;
+	saddr.sin_addr.s_addr = ip->s_addr;
+	saddr.sin_port = htons(NETDUMP_ACKPORT);
+	if (connect(client->sock, (struct sockaddr *)&saddr, sizeof(saddr))) {
+		LOGERR_PERROR("connect()");
+		close(client->sock);
+		free(client);
+		return (NULL);
+	}
 
-    /* Set up the client socket */
-    if ((client->sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-    {
-	LOGERR_PERROR("socket()");
-	free(client);
-	return NULL;
-    }
-    if (fcntl(client->sock, F_SETFL, O_NONBLOCK) == -1) {
-	LOGERR_PERROR("fcntl()");
-	close(client->sock);
-	free(client);
-	return NULL;
-    }
-    bzero(&saddr, sizeof(saddr));
-    saddr.sin_len = sizeof(saddr);
-    saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = bindip.s_addr;
-    saddr.sin_port = htons(0);
-    if (bind(client->sock, (struct sockaddr *)&saddr, sizeof(saddr))) {
-	LOGERR_PERROR("bind()");
-	close(client->sock);
-	free(client);
-	return NULL;
-    }
-    bzero(&saddr, sizeof(saddr));
-    saddr.sin_len = sizeof(saddr);
-    saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = ip->s_addr;
-    saddr.sin_port = htons(NETDUMP_ACKPORT);
-    if (connect(client->sock, (struct sockaddr *)&saddr, sizeof(saddr))) {
-	LOGERR_PERROR("connect()");
-	close(client->sock);
-	free(client);
-	return NULL;
-    }
-    bufsz=131072; /* XXX: Enough to hold approx twice the chunk size. Should be
-		   * plenty for any 1 client. */
-    if (setsockopt(client->sock, SOL_SOCKET, SO_RCVBUF, &bufsz, sizeof(bufsz)))
-    {
-	LOGERR_PERROR("setsockopt()");
+	/* It should be enough to hold approximatively twize the chunk size. */
+	bufsz = 131072;
+	if (setsockopt(client->sock, SOL_SOCKET, SO_RCVBUF, &bufsz,
+	    sizeof(bufsz))) {
+		LOGERR_PERROR("setsockopt()");
 	LOGWARN("May drop packets from %s due to small receive buffer\n",
-	    client->hostname);
-    }
-
-    /* Try info.host.0 through info.host.255 in sequence */
-    for (i=0; i < MAX_DUMPS; i++)
-    {
-	snprintf(client->infofilename, sizeof(client->infofilename),
-			"%s/info.%s.%d", dumpdir, client->hostname, i);
-	snprintf(client->corefilename, sizeof(client->corefilename),
-			"%s/vmcore.%s.%d", dumpdir, client->hostname, i);
-
-	/* Try the info file first */
-	if ((fd = open(client->infofilename, O_WRONLY|O_CREAT|O_EXCL,
-		DEFFILEMODE)) == -1)
-	{
-	    if (errno == EEXIST)
-	    {
-		continue;
-	    }
-	    LOGERR("open(\"%s\"): %s\n", client->infofilename, strerror(errno));
-	    continue;
-	}
-	if (!(client->infofile = fdopen(fd, "w")))
-	{
-	    LOGERR_PERROR("fdopen()");
-	    close(fd);
-	    unlink(client->infofilename);
-	    continue;
+		    client->hostname);
 	}
 
-	/* Next make the core file */
-	if ((fd = open(client->corefilename, O_RDWR|O_CREAT|O_EXCL,
-		DEFFILEMODE)) == -1)
-	{
-	    /* Failed. Keep the numbers in sync. */
-	    fclose(client->infofile);
-	    unlink(client->infofilename);
-	    client->infofile = NULL;
+	/* Try info.host.0 through info.host.255 in sequence. */
+	for (i = 0; i < MAX_DUMPS; i++) {
+		snprintf(client->infofilename, sizeof(client->infofilename),
+		    "%s/info.%s.%d", dumpdir, client->hostname, i);
+		snprintf(client->corefilename, sizeof(client->corefilename),
+		    "%s/vmcore.%s.%d", dumpdir, client->hostname, i);
 
-	    if (errno == EEXIST)
-	    {
-		continue;
-	    }
-	    LOGERR("open(\"%s\"): %s\n", client->corefilename, strerror(errno));
-	    continue;
-	}
-	client->corefd = fd;
-	break;
-    }
+		/* Try the info file first. */
+		fd = open(client->infofilename, O_WRONLY|O_CREAT|O_EXCL,
+		    DEFFILEMODE);
+		if (fd == -1) {
+			if (errno != EEXIST)
+				LOGERR("open(\"%s\"): %s\n",
+				    client->infofilename, strerror(errno));
+			continue;
+		}
+		client->infofile = fdopen(fd, "w");
+		if (client->infofile == NULL) {
+			LOGERR_PERROR("fdopen()");
+			close(fd);
+			unlink(client->infofilename);
+			continue;
+		}
 
-    if (!client->infofile || client->corefd == -1)
-    {
-	LOGERR("Can't create output files for new client %s [%s]\n",
-	    client->hostname, client_ntoa(client));
-	if (client->infofile)
-	{
-	    fclose(client->infofile);
+		/* Next make the core file. */
+		fd = open(client->corefilename, O_RDWR|O_CREAT|O_EXCL,
+		    DEFFILEMODE);
+		if (fd == -1) {
+
+			/* Failed. Keep the numbers in sync. */
+			fclose(client->infofile);
+			unlink(client->infofilename);
+			client->infofile = NULL;
+			if (errno != EEXIST)
+				LOGERR("open(\"%s\"): %s\n",
+				    client->corefilename, strerror(errno));
+			continue;
+		}
+		client->corefd = fd;
+		break;
 	}
-	if (client->corefd != -1)
-	{
-	    close(client->corefd);
+
+	if (client->infofile == NULL || client->corefd == -1) {
+		LOGERR("Can't create output files for new client %s [%s]\n",
+		    client->hostname, client_ntoa(client));
+		if (client->infofile)
+			fclose(client->infofile);
+		if (client->corefd != -1)
+			close(client->corefd);
+		if (client->sock != -1)
+			close(client->sock);
+		free(client);
+		return (NULL);
 	}
-	if (client->sock != -1)
-	{
-	    close(client->sock);
-	}
-	free(client);
-	return NULL;
-    }
-    SLIST_INSERT_HEAD(&clients, client, iter);
-    return client;
+	SLIST_INSERT_HEAD(&clients, client, iter);
+	return (client);
 }
 
 static void free_client(struct netdump_client *client)
