@@ -185,6 +185,43 @@ devfs_clear_cdevpriv(void)
 	devfs_fpdrop(fp);
 }
 
+/*
+ * On success devfs_populate_vp() returns with dmp->dm_lock held.
+ */
+static int
+devfs_populate_vp(struct vnode *vp)
+{
+	struct devfs_mount *dmp;
+	int locked;
+
+	ASSERT_VOP_LOCKED(vp, "devfs_populate_vp");
+
+	dmp = VFSTODEVFS(vp->v_mount);
+	locked = VOP_ISLOCKED(vp);
+
+	sx_xlock(&dmp->dm_lock);
+	DEVFS_DMP_HOLD(dmp);
+
+	/* Can't call devfs_populate() with the vnode lock held. */
+	VOP_UNLOCK(vp, 0);
+	devfs_populate(dmp);
+
+	sx_xunlock(&dmp->dm_lock);
+	vn_lock(vp, locked | LK_RETRY);
+	sx_xlock(&dmp->dm_lock);
+	if (DEVFS_DMP_DROP(dmp)) {
+		sx_xunlock(&dmp->dm_lock);
+		devfs_unmount_final(dmp);
+		return (EBADF);
+	}
+	if (vp->v_iflag & VI_DOOMED) {
+		sx_xunlock(&dmp->dm_lock);
+		return (EBADF);
+	}
+
+	return (0);
+}
+
 static int
 devfs_vptocnp(struct vop_vptocnp_args *ap)
 {
@@ -813,14 +850,6 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		return (error);
 	}
 
-	DEVFS_DMP_HOLD(dmp);
-	devfs_populate(dmp);
-	if (DEVFS_DMP_DROP(dmp)) {
-		*dm_unlock = 0;
-		sx_xunlock(&dmp->dm_lock);
-		devfs_unmount_final(dmp);
-		return (ENOENT);
-	}
 	dd = dvp->v_data;
 	de = devfs_find(dd, cnp->cn_nameptr, cnp->cn_namelen, 0);
 	while (de == NULL) {	/* While(...) so we can use break */
@@ -843,7 +872,20 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		EVENTHANDLER_INVOKE(dev_clone,
 		    td->td_ucred, pname, strlen(pname), &cdev);
 		sx_sunlock(&clone_drain_lock);
-		sx_xlock(&dmp->dm_lock);
+
+		if (cdev == NULL)
+			sx_xlock(&dmp->dm_lock);
+		else if (devfs_populate_vp(dvp) != 0) {
+			*dm_unlock = 0;
+			sx_xlock(&dmp->dm_lock);
+			if (DEVFS_DMP_DROP(dmp)) {
+				sx_xunlock(&dmp->dm_lock);
+				devfs_unmount_final(dmp);
+			} else
+				sx_xunlock(&dmp->dm_lock);
+			dev_rel(cdev);
+			return (ENOENT);
+		}
 		if (DEVFS_DMP_DROP(dmp)) {
 			*dm_unlock = 0;
 			sx_xunlock(&dmp->dm_lock);
@@ -852,18 +894,9 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 				dev_rel(cdev);
 			return (ENOENT);
 		}
+
 		if (cdev == NULL)
 			break;
-
-		DEVFS_DMP_HOLD(dmp);
-		devfs_populate(dmp);
-		if (DEVFS_DMP_DROP(dmp)) {
-			*dm_unlock = 0;
-			sx_xunlock(&dmp->dm_lock);
-			devfs_unmount_final(dmp);
-			dev_rel(cdev);
-			return (ENOENT);
-		}
 
 		dev_lock();
 		dde = &cdev2priv(cdev)->cdp_dirents[dmp->dm_idx];
@@ -909,9 +942,11 @@ devfs_lookup(struct vop_lookup_args *ap)
 	struct devfs_mount *dmp;
 	int dm_unlock;
 
+	if (devfs_populate_vp(ap->a_dvp) != 0)
+		return (ENOTDIR);
+
 	dmp = VFSTODEVFS(ap->a_dvp->v_mount);
 	dm_unlock = 1;
-	sx_xlock(&dmp->dm_lock);
 	j = devfs_lookupx(ap, &dm_unlock);
 	if (dm_unlock == 1)
 		sx_xunlock(&dmp->dm_lock);
@@ -1139,12 +1174,7 @@ devfs_readdir(struct vop_readdir_args *ap)
 	}
 
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
-	sx_xlock(&dmp->dm_lock);
-	DEVFS_DMP_HOLD(dmp);
-	devfs_populate(dmp);
-	if (DEVFS_DMP_DROP(dmp)) {
-		sx_xunlock(&dmp->dm_lock);
-		devfs_unmount_final(dmp);
+	if (devfs_populate_vp(ap->a_vp) != 0) {
 		if (tmp_ncookies != NULL)
 			ap->a_ncookies = tmp_ncookies;
 		return (EIO);
