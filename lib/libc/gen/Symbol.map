@@ -446,6 +446,7 @@ FBSDprivate_1.0 {
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
+	_rtld_addr_phdr;
 	_rtld_atfork_pre;
 	_rtld_atfork_post;
 	_rtld_error;		/* for private use */
