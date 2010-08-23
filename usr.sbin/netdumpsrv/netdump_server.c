@@ -44,6 +44,7 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,16 +55,17 @@
 
 #define	PFLAGS_ABIND	0x01
 #define	PFLAGS_DDIR	0x02
-#define	PFLAGS_SCRIPT	0x04
+#define	PFLAGS_DEBUG	0x04
+#define	PFLAGS_SCRIPT	0x08
 
 #define	LOGERR(m, ...)							\
-	syslog(LOG_ERR | LOG_DAEMON, (m), ## __VA_ARGS__)
+	(*phook)(LOG_ERR | LOG_DAEMON, (m), ## __VA_ARGS__)
 #define	LOGERR_PERROR(m)						\
-	syslog(LOG_ERR | LOG_DAEMON, "%s: %s\n", m, strerror(errno))
+	(*phook)(LOG_ERR | LOG_DAEMON, "%s: %s\n", m, strerror(errno))
 #define	LOGINFO(m, ...)							\
-	syslog(LOG_INFO | LOG_DAEMON, (m), ## __VA_ARGS__)
+	(*phook)(LOG_INFO | LOG_DAEMON, (m), ## __VA_ARGS__)
 #define	LOGWARN(m, ...)							\
-	syslog(LOG_WARNING | LOG_DAEMON, (m), ## __VA_ARGS__)
+	(*phook)(LOG_WARNING | LOG_DAEMON, (m), ## __VA_ARGS__)
 
 #define	client_ntoa(cl)							\
 	inet_ntoa((cl)->ip)
@@ -100,6 +102,9 @@ static time_t last_timeout_check;
 static int do_shutdown;
 static int sock;
 
+/* Daemon print functions hook. */
+static void (*phook)(int, const char *, ...);
+
 static struct netdump_client	*alloc_client(struct sockaddr_in *sip);
 static void		 eventloop(void);
 static void		 exec_handler(struct netdump_client *client,
@@ -118,6 +123,9 @@ static void		 handle_packet(struct netdump_client *client,
 static void		 handle_timeout(struct netdump_client *client);
 static void		 handle_vmcore(struct netdump_client *client,
 			    struct netdump_msg *msg);
+static void		 phook_printf(int priority __unused,
+			    const char *message, ...);
+static void		 phook_syslog(int priority, const char *message, ...);
 static int		 receive_message(int isock, struct sockaddr_in *from,
 			    char *fromstr, size_t fromstrlen,
 			    struct netdump_msg *msg);
@@ -133,6 +141,24 @@ usage(const char *cmd)
 
 	fprintf(stderr, "Usage: %s [-a bind_addr] [-d dump_dir] [-i script]\n",
 	    cmd);
+}
+
+static void
+phook_printf(int priority __unused, const char *message, ...)
+{
+	va_list ap;
+
+	va_start(ap, message);
+	vprintf(message, ap);
+}
+
+static void
+phook_syslog(int priority, const char *message, ...)
+{
+	va_list ap;
+
+	va_start(ap, message);
+	vsyslog(priority, message, ap);
 }
 
 static struct netdump_client *
@@ -744,7 +770,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	while ((ch = getopt(argc, argv, "a:d:i:")) != -1) {
+	while ((ch = getopt(argc, argv, "a:Dd:i:")) != -1) {
 		switch (ch) {
 		case 'a':
 			pflags |= PFLAGS_ABIND;
@@ -754,6 +780,9 @@ main(int argc, char **argv)
 				exit(1);
 			}
 			printf("Listening on IP %s\n", optarg);
+			break;
+		case 'D':
+			pflags |= PFLAGS_DEBUG;
 			break;
 		case 'd':
 			pflags |= PFLAGS_DDIR;
@@ -798,6 +827,10 @@ main(int argc, char **argv)
 		strcpy(dumpdir, "/var/crash");
 		printf("Default: dumping on /var/crash/\n");
 	}
+	if ((pflags & PFLAGS_DEBUG) == 0)
+		phook = phook_syslog;
+	else
+		phook = phook_printf;
 
 	/* Further sanity checks on dump location. */
 	if (stat(dumpdir, &statbuf)) {
@@ -817,7 +850,7 @@ main(int argc, char **argv)
 		    strerror(errno));
 	}
 
-	if (daemon(0, 0) == -1) {
+	if ((pflags & PFLAGS_DEBUG) == 0 && daemon(0, 0) == -1) {
 		pidfile_remove(pfh);
 		perror("daemon()");
 		fprintf(stderr, "Impossible to demonize the process\n");
