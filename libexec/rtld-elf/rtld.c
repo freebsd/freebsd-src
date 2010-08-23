@@ -147,6 +147,8 @@ static int  rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
 static int  object_match_name(const Obj_Entry *, const char *);
 static void ld_utrace_log(int, void *, void *, size_t, int, const char *);
+static void rtld_fill_dl_phdr_info(const Obj_Entry *obj,
+    struct dl_phdr_info *phdr_info);
 
 void r_debug_state(struct r_debug *, struct link_map *);
 
@@ -220,6 +222,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dl_iterate_phdr,
     (func_ptr_type) &_rtld_atfork_pre,
     (func_ptr_type) &_rtld_atfork_post,
+    (func_ptr_type) &_rtld_addr_phdr,
     NULL
 };
 
@@ -2261,6 +2264,24 @@ dlvsym(void *handle, const char *name, const char *version)
 }
 
 int
+_rtld_addr_phdr(const void *addr, struct dl_phdr_info *phdr_info)
+{
+    const Obj_Entry *obj;
+    int lockstate;
+
+    lockstate = rlock_acquire(rtld_bind_lock);
+    obj = obj_from_addr(addr);
+    if (obj == NULL) {
+        _rtld_error("No shared object contains address");
+	rlock_release(rtld_bind_lock, lockstate);
+        return (0);
+    }
+    rtld_fill_dl_phdr_info(obj, phdr_info);
+    rlock_release(rtld_bind_lock, lockstate);
+    return (1);
+}
+
+int
 dladdr(const void *addr, Dl_info *info)
 {
     const Obj_Entry *obj;
@@ -2362,6 +2383,21 @@ dlinfo(void *handle, int request, void *p)
     return (error);
 }
 
+static void
+rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
+{
+
+	phdr_info->dlpi_addr = (Elf_Addr)obj->relocbase;
+	phdr_info->dlpi_name = STAILQ_FIRST(&obj->names) ?
+	    STAILQ_FIRST(&obj->names)->name : obj->path;
+	phdr_info->dlpi_phdr = obj->phdr;
+	phdr_info->dlpi_phnum = obj->phsize / sizeof(obj->phdr[0]);
+	phdr_info->dlpi_tls_modid = obj->tlsindex;
+	phdr_info->dlpi_tls_data = obj->tlsinit;
+	phdr_info->dlpi_adds = obj_loads;
+	phdr_info->dlpi_subs = obj_loads - obj_count;
+}
+
 int
 dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 {
@@ -2375,16 +2411,7 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
     error = 0;
 
     for (obj = obj_list;  obj != NULL;  obj = obj->next) {
-	phdr_info.dlpi_addr = (Elf_Addr)obj->relocbase;
-	phdr_info.dlpi_name = STAILQ_FIRST(&obj->names) ?
-	    STAILQ_FIRST(&obj->names)->name : obj->path;
-	phdr_info.dlpi_phdr = obj->phdr;
-	phdr_info.dlpi_phnum = obj->phsize / sizeof(obj->phdr[0]);
-	phdr_info.dlpi_tls_modid = obj->tlsindex;
-	phdr_info.dlpi_tls_data = obj->tlsinit;
-	phdr_info.dlpi_adds = obj_loads;
-	phdr_info.dlpi_subs = obj_loads - obj_count;
-
+	rtld_fill_dl_phdr_info(obj, &phdr_info);
 	if ((error = callback(&phdr_info, sizeof phdr_info, param)) != 0)
 		break;
 

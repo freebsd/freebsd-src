@@ -27,4 +27,5 @@ FBSDprivate_1.0 {
     _rtld_free_tls;
     _rtld_atfork_pre;
     _rtld_atfork_post;
+    _rtld_addr_phdr;
 };
