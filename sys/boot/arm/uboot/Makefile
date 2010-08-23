@@ -77,7 +77,7 @@ CLEANFILES+=	vers.c loader.help
 
 CFLAGS+=	-ffreestanding
 
-LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.${MACHINE_ARCH}
+LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
 
 # Pull in common loader code
 .PATH:		${.CURDIR}/../../uboot/common
