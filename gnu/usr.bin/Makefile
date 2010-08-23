@@ -28,16 +28,16 @@ _groff=		groff
 .endif
 .endif
 
+.if ${MK_BSD_GREP} != "yes"
+_grep=          grep
+.endif
+
 .if ${MK_CVS} != "no"
 _cvs=		cvs
 .endif
 
 .if ${MK_FDT}	!= "no"
 _dtc=		dtc
-.endif
-
-.if ${MK_GNU_GREP} != "no"
-_grep=		grep
 .endif
 
 .if ${MK_INFO} != "no"

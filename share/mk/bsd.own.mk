@@ -419,9 +419,9 @@ MK_${var}:=	yes
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    BSD_GREP \
     ${_clang_no} \
     FDT \
-    GNU_GREP \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
