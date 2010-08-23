@@ -3692,6 +3692,10 @@ fetch_ventry(const Obj_Entry *obj, unsigned long symnum)
     return NULL;
 }
 
+/*
+ * Overrides for libc_pic-provided functions.
+ */
+
 int
 __getosreldate(void)
 {
@@ -3710,4 +3714,12 @@ __getosreldate(void)
 	if (error == 0 && osrel > 0 && len == sizeof(osrel))
 		osreldate = osrel;
 	return (osreldate);
+}
+
+/*
+ * No unresolved symbols for rtld.
+ */
+void
+__pthread_cxa_finalize(struct dl_phdr_info *a)
+{
 }

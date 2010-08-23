@@ -740,6 +740,9 @@ _thr_check_init(void)
 		_libpthread_init(NULL);
 }
 
+struct dl_phdr_info;
+void __pthread_cxa_finalize(struct dl_phdr_info *phdr_info);
+
 __END_DECLS
 
 #endif  /* !_THR_PRIVATE_H */
