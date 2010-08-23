@@ -29,7 +29,6 @@
 #		obj depend all install clean cleandepend cleanobj
 
 .include <bsd.own.mk>
-
 .include <bsd.arch.inc.mk>
 
 # We must do share/info early so that installation of info `dir'
