@@ -123,8 +123,7 @@ static void		 handle_packet(struct netdump_client *client,
 static void		 handle_timeout(struct netdump_client *client);
 static void		 handle_vmcore(struct netdump_client *client,
 			    struct netdump_msg *msg);
-static void		 phook_printf(int priority __unused,
-			    const char *message, ...);
+static void		 phook_printf(int priority, const char *message, ...);
 static void		 phook_syslog(int priority, const char *message, ...);
 static int		 receive_message(int isock, struct sockaddr_in *from,
 			    char *fromstr, size_t fromstrlen,
@@ -144,12 +143,16 @@ usage(const char *cmd)
 }
 
 static void
-phook_printf(int priority __unused, const char *message, ...)
+phook_printf(int priority, const char *message, ...)
 {
 	va_list ap;
 
 	va_start(ap, message);
-	vprintf(message, ap);
+	if ((priority & LOG_INFO) != 0) {
+		assert((priority & (LOG_WARNING | LOG_ERR) == 0);
+		vprintf(message, ap);
+	} else
+		vfprintf(stderr, message, ap);
 }
 
 static void
