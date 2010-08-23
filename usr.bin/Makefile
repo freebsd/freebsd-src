@@ -277,16 +277,16 @@ _bluetooth=	bluetooth
 _cpio=		cpio
 .endif
 
+.if ${MK_BSD_GREP} != "no"
+_grep=		grep
+.endif
+
 .if ${MK_CALENDAR} != "no"
 _calendar=	calendar
 .endif
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
-.endif
-
-.if ${MK_GNU_GREP} != "yes"
-_grep=		grep
 .endif
 
 .if ${MK_HESIOD} != "no"
