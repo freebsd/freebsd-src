@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd January 19, 2010
+.Dd July 23, 2010
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -27,6 +27,7 @@
 .Nm
 .Op Fl CFNPnrsv
 .Op Fl R Ar tagname
+.Op Fl S Ar pidfile
 .Op Fl a Ar directory
 .Op Fl d Ar directory
 .Op Fl f Ar config_file
@@ -215,6 +216,12 @@ Skipping the signal step will also mean that
 will return faster, since
 .Nm
 normally waits a few seconds after any signal that is sent.
+.It Fl S Ar pidfile
+Use
+.Ar pidfile
+as
+.Xr syslogd 8 Ns 's
+pidfile.
 .El
 .Pp
 If additional command line arguments are given,
