@@ -192,6 +192,7 @@ FBSDprivate_1.0 {
 	__poll;
 	__pthread_cond_timedwait;
 	__pthread_cond_wait;
+	__pthread_cxa_finalize;
 	__pthread_mutex_init;
 	__pthread_mutex_lock;
 	__pthread_mutex_timedlock;
