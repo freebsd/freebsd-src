@@ -6,7 +6,7 @@
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
 .\"
-.\" Author: Harti Brandt <harti@freebsd.org>
+.\" Author: Harti Brandt <harti@FreeBSD.org>
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -558,7 +558,7 @@ For modules that implement SNMP client functions besides SNMP agent functions
 it may be necessary to identify SNMP requests by their identifier to allow
 easier routing of responses to the correct sub-system.
 Request id ranges
-provide a way to aquire globally non-overlapping sub-ranges of the entire
+provide a way to acquire globally non-overlapping sub-ranges of the entire
 31-bit id range.
 .Pp
 A request id range is allocated with
@@ -586,7 +586,7 @@ The function
 .Fn reqid_istype
 checks whether the request id
 .Fa reqid
-is withing the range identified by
+is within the range identified by
 .Fa type .
 The function
 .Fn reqid_type
@@ -777,7 +777,8 @@ is used for GET or GETNEXT.
 The function
 .It Fn string_get_max
 can be used instead of
-.Nf stringto ensure that the returned string has a certain maximum length.
+.Fn string_get
+to ensure that the returned string has a certain maximum length.
 If
 .Fa len
 is -1, the length is computed via
@@ -925,4 +926,4 @@ beginning at position
 This implementation conforms to the applicable IETF RFCs and ITU-T
 recommendations.
 .Sh AUTHORS
-.An Hartmut Brandt Aq harti@freebsd.org
+.An Hartmut Brandt Aq harti@FreeBSD.org
