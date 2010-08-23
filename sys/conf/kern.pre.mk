@@ -32,7 +32,7 @@ CTFFLAGS+=	-g
 . else
 _MINUS_O=	-O2
 . endif
-. if ${MACHINE_ARCH} == "amd64"
+. if ${MACHINE_CPUARCH} == "amd64"
 COPTFLAGS?=-O2 -frename-registers -pipe
 . else
 COPTFLAGS?=${_MINUS_O} -pipe
