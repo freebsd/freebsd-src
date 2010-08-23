@@ -186,6 +186,8 @@ char daytime[DAYTIME_LEN];	/* The current time in human readable form,
 				 * used for rotation-tracking messages. */
 char hostname[MAXHOSTNAMELEN];	/* hostname */
 
+const char *path_syslogpid = _PATH_SYSLOGPID;
+
 static struct conf_entry *get_worklist(char **files);
 static void parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 		struct conf_entry **glob_p, struct conf_entry **defconf_p);
@@ -632,6 +634,9 @@ parse_args(int argc, char **argv)
 			rotatereq++;
 			requestor = strdup(optarg);
 			break;
+		case 'S':
+			path_syslogpid = optarg;
+			break;
 		case 'm':	/* Used by OpenBSD for "monitor mode" */
 		default:
 			usage();
@@ -724,7 +729,7 @@ usage(void)
 
 	fprintf(stderr,
 	    "usage: newsyslog [-CFNnrsv] [-a directory] [-d directory] [-f config-file]\n"
-	    "                 [ [-R requestor] filename ... ]\n");
+	    "                 [-S pidfile] [ [-R requestor] filename ... ]\n");
 	exit(1);
 }
 
@@ -1318,7 +1323,7 @@ no_trimat:
 				working->flags &= ~CE_SIGNALGROUP;
 			}
 			if (needroot)
-				working->pid_file = strdup(_PATH_SYSLOGPID);
+				working->pid_file = strdup(path_syslogpid);
 		}
 
 		/*
