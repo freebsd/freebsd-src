@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} != "ia64"
+.if ${MACHINE_CPUARCH} != "ia64"
 _wizard=	wizard.c
 .endif
 

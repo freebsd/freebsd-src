@@ -112,10 +112,10 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_bind} \
 	${_clang}
 
-.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
-_csu=csu/${MACHINE_ARCH}-elf
-.elif exists(${.CURDIR}/csu/${MACHINE_ARCH}/Makefile)
-_csu=csu/${MACHINE_ARCH}
+.if exists(${.CURDIR}/csu/${MACHINE_CPUARCH}-elf)
+_csu=csu/${MACHINE_CPUARCH}-elf
+.elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}/Makefile)
+_csu=csu/${MACHINE_CPUARCH}
 .else
 _csu=csu
 .endif
@@ -168,7 +168,7 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
@@ -178,16 +178,22 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
 _libsmb=	libsmb
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_NCP} != "no"
+_libncp=	libncp
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _libsmb=	libsmb
 .endif
 

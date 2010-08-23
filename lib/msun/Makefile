@@ -76,7 +76,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 # Location of fpmath.h and _fpmath.h
 LIBCDIR=	${.CURDIR}/../libc
 CFLAGS+=	-I${.CURDIR}/src -I${LIBCDIR}/include \
-	-I${LIBCDIR}/${MACHINE_ARCH}
+	-I${LIBCDIR}/${MACHINE_CPUARCH}
 SYM_MAPS+=	${.CURDIR}/Symbol.map
 
 VERSION_DEF=	${LIBCDIR}/Versions.def
