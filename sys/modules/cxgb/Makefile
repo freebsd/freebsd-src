@@ -28,11 +28,11 @@ _toecore = toecore
 #_tom = tom
 .endif
 
-.if ${MACHINE_ARCH} == "i386" && exists(${_toe_header})
+.if ${MACHINE_CPUARCH} == "i386" && exists(${_toe_header})
 _iw_cxgb = iw_cxgb
 .endif
 
-.if ${MACHINE_ARCH} == "amd64" && exists(${_toe_header})
+.if ${MACHINE_CPUARCH} == "amd64" && exists(${_toe_header})
 _iw_cxgb = iw_cxgb
 .endif
 
