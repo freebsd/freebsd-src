@@ -1,2 +1,0 @@
-.\" $FreeBSD$
-Set to build the base system with GNU grep instead of BSD grep
