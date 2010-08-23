@@ -2,8 +2,7 @@
 
 SUBDIR=	doc libgdb gdb gdbtui kgdb
 
-TARGET_ARCH?= ${MACHINE_ARCH}
-.if exists(${.CURDIR}/gdbserver/reg-${TARGET_ARCH}.c)
+.if exists(${.CURDIR}/gdbserver/reg-${MACHINE_CPUARCH}.c)
 SUBDIR+=gdbserver
 .endif
 

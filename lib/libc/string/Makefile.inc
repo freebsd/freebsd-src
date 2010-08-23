@@ -1,7 +1,7 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/${MACHINE_ARCH}/string ${.CURDIR}/string
+.PATH: ${.CURDIR}/${MACHINE_CPUARCH}/string ${.CURDIR}/string
 
 CFLAGS+= -I${.CURDIR}/locale
 
@@ -26,8 +26,8 @@ SYM_MAPS+=	${.CURDIR}/string/Symbol.map
 
 
 # machine-dependent string sources
-.if exists(${.CURDIR}/${MACHINE_ARCH}/string/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_ARCH}/string/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_CPUARCH}/string/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_CPUARCH}/string/Makefile.inc"
 .endif
 
 MAN+=	bcmp.3 bcopy.3 bstring.3 bzero.3 ffs.3 index.3 memccpy.3 memchr.3 \

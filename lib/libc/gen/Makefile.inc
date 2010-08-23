@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent gen sources
-.PATH: ${.CURDIR}/${MACHINE_ARCH}/gen ${.CURDIR}/gen
+.PATH: ${.CURDIR}/${MACHINE_CPUARCH}/gen ${.CURDIR}/gen
 
 SRCS+=  __getosreldate.c __xuname.c \
 	_once_stub.c _pthread_stubs.c _rand48.c _spinlock_stub.c \
@@ -38,8 +38,8 @@ SRCS+=  __getosreldate.c __xuname.c \
 SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 
 # machine-dependent gen sources
-.if exists(${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_CPUARCH}/gen/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_CPUARCH}/gen/Makefile.inc"
 .endif
 
 MAN+=	alarm.3 arc4random.3 \

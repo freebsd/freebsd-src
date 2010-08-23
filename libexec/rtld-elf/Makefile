@@ -10,7 +10,7 @@ SRCS=		rtld_start.S \
 MAN=		rtld.1
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
-CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}/${MACHINE_CPUARCH} -I${.CURDIR}
 .if ${MACHINE_ARCH} == "powerpc64"
 LDFLAGS+=	-nostdlib -e _rtld_start
 .else
@@ -29,7 +29,7 @@ LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic -lssp_nonshared
 
-.if ${MACHINE_ARCH} != "ia64"
+.if ${MACHINE_CPUARCH} != "ia64"
 .if ${MK_SYMVER} == "yes"
 LIBCDIR=	${.CURDIR}/../../lib/libc
 VERSION_DEF=	${LIBCDIR}/Versions.def
@@ -39,14 +39,14 @@ LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
 ${PROG}:	${VERSION_MAP}
 
-.if exists(${.CURDIR}/${MACHINE_ARCH}/Symbol.map)
-SYMBOL_MAPS+=	${.CURDIR}/${MACHINE_ARCH}/Symbol.map
+.if exists(${.CURDIR}/${MACHINE_CPUARCH}/Symbol.map)
+SYMBOL_MAPS+=	${.CURDIR}/${MACHINE_CPUARCH}/Symbol.map
 .endif
 .endif
 .endif
 
-.if exists(${.CURDIR}/${MACHINE_ARCH}/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_ARCH}/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_CPUARCH}/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_CPUARCH}/Makefile.inc"
 .endif
 
 # Since moving rtld-elf to /libexec, we need to create a symlink.
@@ -56,7 +56,7 @@ beforeinstall:
 	-chflags noschg ${DESTDIR}/usr/libexec/${PROG}
 .endif
 
-.PATH: ${.CURDIR}/${MACHINE_ARCH}
+.PATH: ${.CURDIR}/${MACHINE_CPUARCH}
 
 .include <bsd.symver.mk>
 .include <bsd.prog.mk>

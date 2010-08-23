@@ -145,7 +145,7 @@ CRUNCH_LIBS+= -lzfs -lnvpair -luutil -lavl
 .endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lreadline -lsbuf -lufs -lz
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 #.if ${MK_NCP} != "no"
@@ -161,15 +161,15 @@ CRUNCH_PROGS_sbin+= bsdlabel
 CRUNCH_SRCDIR_fdisk= $(.CURDIR)/../../sbin/fdisk_pc98
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 CRUNCH_PROGS_sbin+= mca
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 CRUNCH_PROGS_sbin+= bsdlabel sunlabel
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 CRUNCH_PROGS_sbin+= bsdlabel fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif

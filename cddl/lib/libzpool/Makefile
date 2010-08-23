@@ -51,7 +51,7 @@ CFLAGS+=	-I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libnvpair
 CFLAGS+=	-DWANTS_MUTEX_OWNED
 CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/thread
 CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/sys
-CFLAGS+=	-I${.CURDIR}/../../../lib/libthr/arch/${MACHINE_ARCH}/include
+CFLAGS+=	-I${.CURDIR}/../../../lib/libthr/arch/${MACHINE_CPUARCH}/include
 
 DPADD=		${LIBPTHREAD} ${LIBZ}
 LDADD=		-lpthread -lz
