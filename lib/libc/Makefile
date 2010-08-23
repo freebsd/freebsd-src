@@ -124,7 +124,7 @@ libkern.${MACHINE_ARCH}:: ${KMSRCS}
 .if defined(KMSRCS) && !empty(KMSRCS)
 	cp -p ${.ALLSRC} ${DESTDIR}/sys/libkern/${MACHINE_ARCH}
 .endif
-        
+
 .include <bsd.lib.mk>
 
 # Disable warnings in contributed sources.
