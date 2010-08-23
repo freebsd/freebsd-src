@@ -23,30 +23,30 @@
  * SUCH DAMAGE.
  */
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <stdbool.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <sys/endian.h>
-#include <sys/errno.h>
-#include <sys/stat.h>
 #include <sys/errno.h>
 #include <sys/kerneldump.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <netinet/netdump.h>
-#include <inttypes.h>
+
+#include <fcntl.h>
 #include <libutil.h>
+#include <netdb.h>
+#include <syslog.h>
+#include <unistd.h>
+
+#include <assert.h>
+#include <inttypes.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define	MAX_DUMPS	256	/* Dumps per IP before to be cleaned out. */
 #define	CLIENT_TIMEOUT	120	/* Clients timeout (secs). */
