@@ -323,8 +323,8 @@ SUBDIR=	${_3dfx} \
 	${_zfs} \
 	zlib \
 
-.if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_ARCH} != "arm" && \
-	${MACHINE_ARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_CPUARCH} != "mips"
 _syscons=	syscons
 _vpo=		vpo
 .endif
@@ -360,7 +360,7 @@ _pf=		pf
 _pflog=		pflog
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 # XXX some of these can move to the general case when de-i386'ed
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
@@ -500,7 +500,7 @@ _snc=		snc
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 _aac=		aac
 _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -590,7 +590,7 @@ _zfs=		zfs
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 _aac=		aac
 _aic=		aic
 _an=		an
@@ -647,7 +647,7 @@ _zfs=		zfs
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _auxio=		auxio
 _em=		em
 _epic=		epic

@@ -14,7 +14,7 @@ SUBDIR=		dtmalloc	\
 		sdt		\
 		systrace
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SUBDIR+=	fbt
 .endif
 
