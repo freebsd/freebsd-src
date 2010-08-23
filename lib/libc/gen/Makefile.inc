@@ -10,7 +10,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	alarm.c arc4random.c assert.c aux.c basename.c check_utility_compat.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
-	dlfcn.c drand48.c erand48.c err.c errlst.c errno.c \
+	dlfcn.c drand48.c elf_utils.c erand48.c err.c errlst.c errno.c \
 	exec.c fdevname.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
 	fpclassify.c frexp.c fstab.c ftok.c fts.c fts-compat.c ftw.c \
 	getbootfile.c getbsize.c \
