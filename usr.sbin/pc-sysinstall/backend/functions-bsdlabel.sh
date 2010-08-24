@@ -76,7 +76,6 @@ get_fs_line_xvars()
       return
     fi # End of ZFS block
 
-
   fi # End of xtra-options block
 
   # If we got here, set VAR to empty and export
@@ -86,30 +85,31 @@ get_fs_line_xvars()
 };
 
 # Init each zfs mirror disk with a boot sector so we can failover
-setup_zfs_mirror_parts() {
-	
-	_nZFS=""
-	# Using mirroring, setup boot partitions on each disk
-	_mirrline="`echo ${1} | sed 's|mirror ||g'`"
-	for _zvars in $_mirrline
-	do
-		echo "Looping through _zvars: $_zvars" >>${LOGOUT}
-		echo "$_zvars" | grep "${2}" >/dev/null 2>/dev/null
-		if [ "$?" = "0" ] ; then continue ; fi
-		if [ -z "$_zvars" ] ; then continue ; fi
+setup_zfs_mirror_parts()
+{
+  _nZFS=""
 
-		is_disk "$_zvars" >/dev/null 2>/dev/null
-		if [ "$?" = "0" ] ; then
-		echo "Setting up ZFS mirror disk $_zvars" >>${LOGOUT}
-		init_gpt_full_disk "$_zvars" >/dev/null 2>/dev/null
-          	rc_halt "gpart bootcode -p /boot/gptzfsboot -i 1 ${_zvars}" >/dev/null 2>/dev/null
-          	rc_halt "gpart add -t freebsd-zfs ${_zvars}" >/dev/null 2>/dev/null
-			_nZFS="$_nZFS ${_zvars}p2"	
-		else
-			_nZFS="$_nZFS ${_zvars}"	
-		fi	
-	done
-	echo "mirror $2 `echo $_nZFS | tr -s ' '`"
+  # Using mirroring, setup boot partitions on each disk
+  _mirrline="`echo ${1} | sed 's|mirror ||g'`"
+  for _zvars in $_mirrline
+  do
+    echo "Looping through _zvars: $_zvars" >>${LOGOUT}
+    echo "$_zvars" | grep "${2}" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ] ; then continue ; fi
+    if [ -z "$_zvars" ] ; then continue ; fi
+
+    is_disk "$_zvars" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ] ; then
+      echo "Setting up ZFS mirror disk $_zvars" >>${LOGOUT}
+      init_gpt_full_disk "$_zvars" >/dev/null 2>/dev/null
+      rc_halt "gpart bootcode -p /boot/gptzfsboot -i 1 ${_zvars}" >/dev/null 2>/dev/null
+      rc_halt "gpart add -t freebsd-zfs ${_zvars}" >/dev/null 2>/dev/null
+      _nZFS="$_nZFS ${_zvars}p2"	
+    else
+      _nZFS="$_nZFS ${_zvars}"	
+    fi	
+  done
+  echo "mirror $2 `echo $_nZFS | tr -s ' '`"
 } ;
 
 # Function which creates a unique label name for the specified mount
@@ -161,7 +161,6 @@ gen_glabel_name()
 # Function to setup / stamp a legacy MBR bsdlabel
 setup_mbr_partitions()
 {
-
   DISKTAG="$1"
   WRKSLICE="$2"
   FOUNDPARTS="1"
@@ -218,7 +217,7 @@ setup_mbr_partitions()
           
       # Now check that these values are sane
       case $FS in
-       UFS|UFS+S|UFS+J|ZFS|SWAP) ;;
+        UFS|UFS+S|UFS+J|ZFS|SWAP) ;;
        *) exit_err "ERROR: Invalid file system specified on $line" ;;
       esac
 
@@ -316,16 +315,16 @@ setup_mbr_partitions()
 
       # This partition letter is used, get the next one
       case ${PARTLETTER} in
-          a) PARTLETTER="b" ;;
-          b) # When we hit b, add the special c: setup for bsdlabel 
-             echo "c:	*	*	unused" >>${BSDLABEL}
-             PARTLETTER="d" ;;
-          d) PARTLETTER="e" ;;
-          e) PARTLETTER="f" ;;
-          f) PARTLETTER="g" ;;
-          g) PARTLETTER="h" ;;
-          h) PARTLETTER="ERR" ;;
-          *) exit_err "ERROR: bsdlabel only supports up to letter h for partitions." ;;
+        a) PARTLETTER="b" ;;
+        b) # When we hit b, add the special c: setup for bsdlabel 
+           echo "c:	*	*	unused" >>${BSDLABEL}
+           PARTLETTER="d" ;;
+        d) PARTLETTER="e" ;;
+        e) PARTLETTER="f" ;;
+        f) PARTLETTER="g" ;;
+        g) PARTLETTER="h" ;;
+        h) PARTLETTER="ERR" ;;
+        *) exit_err "ERROR: bsdlabel only supports up to letter h for partitions." ;;
       esac
 
     fi # End of subsection locating a slice in config
@@ -402,7 +401,7 @@ setup_gpt_partitions()
           
       # Now check that these values are sane
       case $FS in
-       UFS|UFS+S|UFS+J|ZFS|SWAP) ;;
+        UFS|UFS+S|UFS+J|ZFS|SWAP) ;;
        *) exit_err "ERROR: Invalid file system specified on $line" ;;
       esac
 
@@ -464,9 +463,9 @@ setup_gpt_partitions()
 
       # Figure out the gpart type to use
       case ${FS} in
-          ZFS) PARTYPE="freebsd-zfs" ;;
-         SWAP) PARTYPE="freebsd-swap" ;;
-            *) PARTYPE="freebsd-ufs" ;;
+        ZFS) PARTYPE="freebsd-zfs" ;;
+        SWAP) PARTYPE="freebsd-swap" ;;
+        *) PARTYPE="freebsd-ufs" ;;
       esac
 
       # Create the partition
@@ -507,8 +506,8 @@ setup_gpt_partitions()
       # If this is the boot disk, stamp the right gptboot
       if [ ! -z "${BOOTTYPE}" ] ; then
         case ${BOOTTYPE} in
-           freebsd-ufs) rc_halt "gpart bootcode -p /boot/gptboot -i 1 ${DISK}" ;;
-           freebsd-zfs) rc_halt "gpart bootcode -p /boot/gptzfsboot -i 1 ${DISK}" ;;
+          freebsd-ufs) rc_halt "gpart bootcode -p /boot/gptboot -i 1 ${DISK}" ;;
+          freebsd-zfs) rc_halt "gpart bootcode -p /boot/gptzfsboot -i 1 ${DISK}" ;;
         esac 
       fi
 

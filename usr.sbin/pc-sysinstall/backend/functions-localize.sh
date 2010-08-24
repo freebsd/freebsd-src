@@ -63,66 +63,66 @@ localize_pcbsd()
 
 localize_x_keyboard()
 {
-   KEYMOD="$1"
-   KEYLAY="$2"
-   KEYVAR="$3"
-   COUNTRY="$4"
-   OPTION="grp:alt_shift_toggle"
-   SETXKBMAP=""
+  KEYMOD="$1"
+  KEYLAY="$2"
+  KEYVAR="$3"
+  COUNTRY="$4"
+  OPTION="grp:alt_shift_toggle"
+  SETXKBMAP=""
 
-   if [ "${COUNTRY}" = "NONE" -o "${COUNTRY}" = "us" -o "${COUNTRY}" = "C" ] ; then
-     #In this case we don't need any additional language
-     COUNTRY=""
-     OPTION=""
-   else
-     COUNTRY=",${COUNTRY}"
-   fi
+  if [ "${COUNTRY}" = "NONE" -o "${COUNTRY}" = "us" -o "${COUNTRY}" = "C" ] ; then
+    #In this case we don't need any additional language
+    COUNTRY=""
+    OPTION=""
+  else
+    COUNTRY=",${COUNTRY}"
+  fi
 
-   if [ "${KEYMOD}" != "NONE" ]
-   then
-     SETXKBMAP="-model ${KEYMOD}"
-     KXMODEL="${KEYMOD}"
-   else
-     KXMODEL="pc104"
-   fi
+  if [ "${KEYMOD}" != "NONE" ]
+  then
+    SETXKBMAP="-model ${KEYMOD}"
+    KXMODEL="${KEYMOD}"
+  else
+    KXMODEL="pc104"
+  fi
 
-   if [ "${KEYLAY}" != "NONE" ]
-   then
-     localize_key_layout "$KEYLAY"
-     SETXKBMAP="${SETXKBMAP} -layout ${KEYLAY}"
-     KXLAYOUT="${KEYLAY}"
-   else
-     KXLAYOUT="us"
-   fi
+  if [ "${KEYLAY}" != "NONE" ]
+  then
+    localize_key_layout "$KEYLAY"
+    SETXKBMAP="${SETXKBMAP} -layout ${KEYLAY}"
+    KXLAYOUT="${KEYLAY}"
+  else
+    KXLAYOUT="us"
+  fi
 
-   if [ "${KEYVAR}" != "NONE" ]
-   then
-     SETXKBMAP="${SETXKBMAP} -variant ${KEYVAR}"
-     KXVAR="(${KEYVAR})"
-   else
-     KXVAR=""
-   fi
+  if [ "${KEYVAR}" != "NONE" ]
+  then
+    SETXKBMAP="${SETXKBMAP} -variant ${KEYVAR}"
+    KXVAR="(${KEYVAR})"
+  else
+    KXVAR=""
+  fi
 
-   # Setup .xprofile with our setxkbmap call now
-   if [ ! -z "${SETXKBMAP}" ]
-   then
-     if [ ! -e "${FSMNT}/usr/share/skel/.xprofile" ]
-     then
-       echo "#!/bin/sh" >${FSMNT}/usr/share/skel/.xprofile
-     fi
+  # Setup .xprofile with our setxkbmap call now
+  if [ ! -z "${SETXKBMAP}" ]
+  then
+    if [ ! -e "${FSMNT}/usr/share/skel/.xprofile" ]
+    then
+      echo "#!/bin/sh" >${FSMNT}/usr/share/skel/.xprofile
+    fi
 
-     # Save the keyboard layout for user / root X logins
-     echo "setxkbmap ${SETXKBMAP}" >>${FSMNT}/usr/share/skel/.xprofile
-     chmod 755 ${FSMNT}/usr/share/skel/.xprofile
-     cp ${FSMNT}/usr/share/skel/.xprofile ${FSMNT}/root/.xprofile
+    # Save the keyboard layout for user / root X logins
+    echo "setxkbmap ${SETXKBMAP}" >>${FSMNT}/usr/share/skel/.xprofile
+    chmod 755 ${FSMNT}/usr/share/skel/.xprofile
+    cp ${FSMNT}/usr/share/skel/.xprofile ${FSMNT}/root/.xprofile
 
-     # Save it for KDM
-     echo "setxkbmap ${SETXKBMAP}" >>${FSMNT}/usr/local/kde4/share/config/kdm/Xsetup
-   fi
+    # Save it for KDM
+    echo "setxkbmap ${SETXKBMAP}" >>${FSMNT}/usr/local/kde4/share/config/kdm/Xsetup
+  fi
  
 
    # Create the kxkbrc configuration using these options
-   echo "[Layout]
+  echo "[Layout]
 DisplayNames=${KXLAYOUT}${COUNTRY}
 IndicatorOnly=false
 LayoutList=${KXLAYOUT}${KXVAR}${COUNTRY}
@@ -211,157 +211,194 @@ localize_get_codes()
   TARGETLANG="${1}"
   # Setup the presets for the specific lang
   case $TARGETLANG in
-   af) COUNTRY="C"
-       SETLANG="af"
-       LOCALE="af_ZA"
-       ;;
-   ar) COUNTRY="C"
-       SETLANG="ar"
-       LOCALE="en_US"
-       ;;
-   az) COUNTRY="C"
-       SETLANG="az"
-       LOCALE="en_US"
-       ;;
-   ca) COUNTRY="es"
-       SETLANG="es:ca"
-       LOCALE="ca_ES"
-       ;;
-   be) COUNTRY="be"
-       SETLANG="be"
-       LOCALE="be_BY"
-       ;;
-   bn) COUNTRY="bn"
-       SETLANG="bn"
-       LOCALE="en_US"
-       ;;
-   bg) COUNTRY="bg"
-       SETLANG="bg"
-       LOCALE="bg_BG"
-       ;;
-   cs) COUNTRY="cz"
-       SETLANG="cs"
-       LOCALE="cs_CZ"
-       ;;
-   da) COUNTRY="dk"
-       SETLANG="da"
-       LOCALE="da_DK"
-       ;;
-   de) COUNTRY="de"
-       SETLANG="de"
-       LOCALE="de_DE"
-       ;;
-   en_GB) COUNTRY="gb"
-       SETLANG="en_GB:cy"
-       LOCALE="en_GB"
-       ;;
-   el) COUNTRY="gr"
-       SETLANG="el:gr"
-       LOCALE="el_GR"
-       ;;
-   es) COUNTRY="es"
-       SETLANG="es"
-       LOCALE="es_ES"
-       ;;
-   es_LA) COUNTRY="us"
-          SETLANG="es:en_US"
-          LOCALE="es_ES"
-       ;;
-   et) COUNTRY="ee"
-       SETLANG="et"
-       LOCALE="et_EE"
-       ;;
-   fr) COUNTRY="fr"
-       SETLANG="fr"
-       LOCALE="fr_FR"
-       ;;
-   he) COUNTRY="il"
-       SETLANG="he:ar"
-       LOCALE="he_IL"
-       ;;
-   hr) COUNTRY="hr"
-       SETLANG="hr"
-       LOCALE="hr_HR"
-       ;;
-   hu) COUNTRY="hu"
-       SETLANG="hu"
-       LOCALE="hu_HU"
-       ;;
-   it) COUNTRY="it"
-       SETLANG="it"
-       LOCALE="it_IT"
-       ;;
-   ja) COUNTRY="jp"
-       SETLANG="ja"
-       LOCALE="ja_JP"
-       ;;
-   ko) COUNTRY="kr"
-       SETLANG="ko"
-       LOCALE="ko_KR"
-       ;;
-   nl) COUNTRY="nl"
-       SETLANG="nl"
-       LOCALE="nl_NL"
-       ;;
-   nn) COUNTRY="no"
-       SETLANG="nn"
-       LOCALE="en_US"
-       ;;
-   pa) COUNTRY="pa"
-       SETLANG="pa"
-       LOCALE="en_US"
-       ;;
-   pl) COUNTRY="pl"
-       SETLANG="pl"
-       LOCALE="pl_PL"
-       ;;
-   pt) COUNTRY="pt"
-       SETLANG="pt"
-       LOCALE="pt_PT"
-       ;;
-   pt_BR) COUNTRY="br"
-          SETLANG="pt_BR"
-          LOCALE="pt_BR"
-       ;;
-   ru) COUNTRY="ru"
-       SETLANG="ru"
-       LOCALE="ru_RU"
-       ;;
-   sl) COUNTRY="si"
-       SETLANG="sl"
-       LOCALE="sl_SI"
-       ;;
-   sk) COUNTRY="sk"
-       SETLANG="sk"
-       LOCALE="sk_SK"
-       ;;
-   sv) COUNTRY="se"
-       SETLANG="sv"
-       LOCALE="sv_SE"
-       ;;
-   uk) COUNTRY="ua"
-       SETLANG="uk"
-       LOCALE="uk_UA"
-       ;;
-   vi) COUNTRY="vn"
-       SETLANG="vi"
-       LOCALE="en_US"
-       ;;
-   zh_CN) COUNTRY="cn"
-          SETLANG="zh_CN"
-          LOCALE="zh_CN"
-       ;;
-   zh_TW) COUNTRY="tw"
-          SETLANG="zh_TW"
-          LOCALE="zh_TW"
-       ;;
-   *) COUNTRY="C"
+    af)
+      COUNTRY="C"
+      SETLANG="af"
+      LOCALE="af_ZA"
+      ;;
+    ar)
+	  COUNTRY="C"
+      SETLANG="ar"
+      LOCALE="en_US"
+      ;;
+    az)
+	  COUNTRY="C"
+      SETLANG="az"
+      LOCALE="en_US"
+      ;;
+    ca)
+	  COUNTRY="es"
+      SETLANG="es:ca"
+      LOCALE="ca_ES"
+      ;;
+    be)
+	  COUNTRY="be"
+      SETLANG="be"
+      LOCALE="be_BY"
+      ;;
+    bn)
+	  COUNTRY="bn"
+      SETLANG="bn"
+      LOCALE="en_US"
+      ;;
+    bg)
+	  COUNTRY="bg"
+      SETLANG="bg"
+      LOCALE="bg_BG"
+      ;;
+    cs)
+	  COUNTRY="cz"
+      SETLANG="cs"
+      LOCALE="cs_CZ"
+      ;;
+    da)
+	  COUNTRY="dk"
+      SETLANG="da"
+      LOCALE="da_DK"
+      ;;
+    de)
+	  COUNTRY="de"
+      SETLANG="de"
+      LOCALE="de_DE"
+      ;;
+    en_GB)
+	  COUNTRY="gb"
+      SETLANG="en_GB:cy"
+      LOCALE="en_GB"
+      ;;
+    el)
+	  COUNTRY="gr"
+      SETLANG="el:gr"
+      LOCALE="el_GR"
+      ;;
+    es)
+	  COUNTRY="es"
+      SETLANG="es"
+      LOCALE="es_ES"
+      ;;
+    es_LA)
+	  COUNTRY="us"
+      SETLANG="es:en_US"
+      LOCALE="es_ES"
+      ;;
+    et)
+	  COUNTRY="ee"
+      SETLANG="et"
+      LOCALE="et_EE"
+      ;;
+    fr)
+	  COUNTRY="fr"
+      SETLANG="fr"
+      LOCALE="fr_FR"
+      ;;
+    he)
+	  COUNTRY="il"
+      SETLANG="he:ar"
+      LOCALE="he_IL"
+      ;;
+    hr)
+	  COUNTRY="hr"
+      SETLANG="hr"
+      LOCALE="hr_HR"
+      ;;
+    hu)
+	  COUNTRY="hu"
+      SETLANG="hu"
+      LOCALE="hu_HU"
+      ;;
+    it)
+	  COUNTRY="it"
+      SETLANG="it"
+      LOCALE="it_IT"
+      ;;
+    ja)
+	  COUNTRY="jp"
+      SETLANG="ja"
+      LOCALE="ja_JP"
+      ;;
+    ko)
+	  COUNTRY="kr"
+      SETLANG="ko"
+      LOCALE="ko_KR"
+      ;;
+    nl)
+	  COUNTRY="nl"
+      SETLANG="nl"
+      LOCALE="nl_NL"
+      ;;
+    nn)
+	  COUNTRY="no"
+      SETLANG="nn"
+      LOCALE="en_US"
+      ;;
+    pa)
+	  COUNTRY="pa"
+      SETLANG="pa"
+      LOCALE="en_US"
+      ;;
+    pl)
+	  COUNTRY="pl"
+      SETLANG="pl"
+      LOCALE="pl_PL"
+      ;;
+    pt)
+	  COUNTRY="pt"
+      SETLANG="pt"
+      LOCALE="pt_PT"
+      ;;
+    pt_BR)
+	  COUNTRY="br"
+      SETLANG="pt_BR"
+      LOCALE="pt_BR"
+      ;;
+    ru)
+	  COUNTRY="ru"
+      SETLANG="ru"
+      LOCALE="ru_RU"
+      ;;
+    sl)
+	  COUNTRY="si"
+      SETLANG="sl"
+      LOCALE="sl_SI"
+      ;;
+    sk)
+	  COUNTRY="sk"
+      SETLANG="sk"
+      LOCALE="sk_SK"
+      ;;
+    sv)
+	  COUNTRY="se"
+      SETLANG="sv"
+      LOCALE="sv_SE"
+      ;;
+    uk)
+	  COUNTRY="ua"
+      SETLANG="uk"
+      LOCALE="uk_UA"
+      ;;
+    vi)
+	  COUNTRY="vn"
+      SETLANG="vi"
+      LOCALE="en_US"
+      ;;
+    zh_CN)
+	  COUNTRY="cn"
+      SETLANG="zh_CN"
+      LOCALE="zh_CN"
+      ;;
+    zh_TW)
+	  COUNTRY="tw"
+      SETLANG="zh_TW"
+      LOCALE="zh_TW"
+      ;;
+    *)
+	  COUNTRY="C"
       SETLANG="${TARGETLANG}"
       LOCALE="en_US"
       ;;
   esac
 
- export COUNTRY SETLANG LOCALE
+  export COUNTRY SETLANG LOCALE
 
 };
 

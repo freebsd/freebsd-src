@@ -60,6 +60,6 @@ else
 fi
 
 case ${MIRRORFETCH} in
-   ON|on|yes|YES) fetch -o /tmp/mirrors-list.txt ${MIRRORLIST} >/dev/null 2>/dev/null;;
-   *) ;;
+  ON|on|yes|YES) fetch -o /tmp/mirrors-list.txt ${MIRRORLIST} >/dev/null 2>/dev/null;;
+  *) ;;
 esac

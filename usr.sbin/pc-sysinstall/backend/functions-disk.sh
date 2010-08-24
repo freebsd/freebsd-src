@@ -28,13 +28,14 @@
 # Functions related to disk operations using gpart
 
 # See if device is a full disk or partition/slice
-is_disk() {
-	for _dsk in `sysctl -n kern.disks`
-	do
-		if [ "$_dsk" = "${1}" ] ; then return 0 ; fi
-	done
+is_disk()
+{
+  for _dsk in `sysctl -n kern.disks`
+  do
+    if [ "$_dsk" = "${1}" ] ; then return 0 ; fi
+  done
 
-	return 1
+  return 1
 }
 
 # Get a MBR partitions sysid
@@ -190,9 +191,9 @@ get_disk_partitions()
   for i in ${SLICES}
   do
     case $type in
-       MBR) name="${1}s${i}" ;;
-       GPT) name="${1}p${i}";;
-       *) name="${1}s${i}";;
+      MBR) name="${1}s${i}" ;;
+      GPT) name="${1}p${i}";;
+      *) name="${1}s${i}";;
     esac
     if [ -z "${RSLICES}" ]
     then
@@ -226,8 +227,19 @@ get_disk_heads()
   VAL="${head}" ; export VAL
 };
 
+# Function which returns a target disks mediasize in sectors
+get_disk_mediasize()
+{
+  mediasize=`diskinfo -v ${1} | grep "# mediasize in sectors" | tr -s ' ' | cut -f 2`
+
+  # Not sure why this is, memory disks need it though.
+  mediasize=`expr ${mediasize} - 10`
+  VAL="${mediasize}" ; export VAL
+};
+
 # Function which exports all zpools, making them safe to overwrite potentially
-export_all_zpools() {
+export_all_zpools()
+{
   # Export any zpools
   for i in `zpool list -H -o name`
   do
@@ -434,20 +446,30 @@ setup_disk_slice()
        if [ ! -z "${DISK}" -a ! -z "${PTYPE}" ]
        then
          case ${PTYPE} in
-               all|ALL) if [ "$PSCHEME" = "MBR" -o -z "$PSCHEME" ] ; then
-			  PSCHEME="MBR"
-			  tmpSLICE="${DISK}s1"  
-			else
-			  tmpSLICE="${DISK}p1"  
-			fi
-                        run_gpart_full "${DISK}" "${BMANAGER}" "${PSCHEME}" ;;
-           s1|s2|s3|s4) tmpSLICE="${DISK}${PTYPE}" 
-                        # Get the number of the slice we are working on
-                        s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
-                        run_gpart_slice "${DISK}" "${BMANAGER}" "${s}" ;;
-                 free|FREE) tmpSLICE="${DISK}s${LASTSLICE}"
-                        run_gpart_free "${DISK}" "${LASTSLICE}" "${BMANAGER}" ;;
-                     *) exit_err "ERROR: Unknown PTYPE: $PTYPE" ;;
+           all|ALL)
+		     if [ "$PSCHEME" = "MBR" -o -z "$PSCHEME" ] ; then
+               PSCHEME="MBR"
+               tmpSLICE="${DISK}s1"  
+			 else
+               tmpSLICE="${DISK}p1"  
+			 fi
+
+             run_gpart_full "${DISK}" "${BMANAGER}" "${PSCHEME}"
+			 ;;
+
+           s1|s2|s3|s4)
+			 tmpSLICE="${DISK}${PTYPE}" 
+             # Get the number of the slice we are working on
+             s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
+             run_gpart_slice "${DISK}" "${BMANAGER}" "${s}"
+			 ;;
+
+           free|FREE)
+			 tmpSLICE="${DISK}s${LASTSLICE}"
+             run_gpart_free "${DISK}" "${LASTSLICE}" "${BMANAGER}"
+			 ;;
+
+           *) exit_err "ERROR: Unknown PTYPE: $PTYPE" ;;
          esac
 
          # Now save which disk<num> this is, so we can parse it later during slice partition setup
@@ -478,7 +500,8 @@ setup_disk_slice()
 };
 
 # Stop all gjournals on disk / slice
-stop_gjournal() {
+stop_gjournal()
+{
   _gdsk="$1"
   # Check if we need to shutdown any journals on this drive
   ls /dev/${_gdsk}*.journal >/dev/null 2>/dev/null
@@ -565,7 +588,11 @@ init_mbr_full_disk()
   # Multiply them all together to get our total blocks
   totalblocks="`expr ${cyl} \* ${head}`"
   totalblocks="`expr ${totalblocks} \* ${sec}`"
-
+  if [ -z "${totalblocks}" ]
+  then
+	get_disk_mediasize "${_intDISK}"
+	totalblocks="${VAL}"
+  fi
 
   # Now set the ending block to the total disk block size
   sizeblock="`expr ${totalblocks} - ${startblock}`"

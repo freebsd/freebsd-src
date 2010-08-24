@@ -32,8 +32,8 @@ MIRROR="${1}"
 
 if [ -z "${MIRROR}" ]
 then
-	echo "Error: No mirror specified!"
-	exit 1
+  echo "Error: No mirror specified!"
+  exit 1
 fi
 
 set_ftp_mirror "${MIRROR}"

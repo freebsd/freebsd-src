@@ -35,16 +35,17 @@ rm ${TMPDIR}/AvailUpgrades >/dev/null 2>/dev/null
 FSMNT="/mnt"
 
 # Get the freebsd version on this partition
-get_fbsd_ver() {
+get_fbsd_ver()
+{
 
   VER="`file ${FSMNT}/bin/sh | grep 'for FreeBSD' | sed 's|for FreeBSD |;|g' | cut -d ';' -f 2 | cut -d ',' -f 1`"
   if [ "$?" = "0" ] ; then
-      file ${FSMNT}/bin/sh | grep '32-bit' >/dev/null 2>/dev/null
-      if [ "${?}" = "0" ] ; then
-        echo "${1}: FreeBSD ${VER} (32bit)"
-      else
-        echo "${1}: FreeBSD ${VER} (64bit)"
-      fi
+    file ${FSMNT}/bin/sh | grep '32-bit' >/dev/null 2>/dev/null
+    if [ "${?}" = "0" ] ; then
+      echo "${1}: FreeBSD ${VER} (32bit)"
+    else
+      echo "${1}: FreeBSD ${VER} (64bit)"
+    fi
   fi
 
 }
@@ -62,7 +63,7 @@ do
   # Make sure we don't find any cd devices
   echo "${DEV}" | grep -e "^acd[0-9]" -e "^cd[0-9]" -e "^scd[0-9]" >/dev/null 2>/dev/null
   if [ "$?" != "0" ] ; then
-   DEVS="${DEVS} `ls /dev/${i}*`" 
+    DEVS="${DEVS} `ls /dev/${i}*`" 
   fi
 
 done
@@ -70,25 +71,25 @@ done
 # Search for regular UFS / Geom Partitions to upgrade
 for i in $DEVS
 do
-    if [ ! -e "${i}a.journal" -a ! -e "${i}a" -a ! -e "${i}p2" -a ! -e "${i}p2.journal" ] ; then
-	continue
-    fi
+  if [ ! -e "${i}a.journal" -a ! -e "${i}a" -a ! -e "${i}p2" -a ! -e "${i}p2.journal" ] ; then
+    continue
+  fi
 
-    if [ -e "${i}a.journal" ] ; then
-	_dsk="${i}a.journal" 
-    elif [ -e "${i}a" ] ; then
-	_dsk="${i}a" 
-    elif [ -e "${i}p2" ] ; then
-	_dsk="${i}p2" 
-    elif [ -e "${i}p2.journal" ] ; then
-	_dsk="${i}p2.journal" 
-    fi
+  if [ -e "${i}a.journal" ] ; then
+    _dsk="${i}a.journal" 
+  elif [ -e "${i}a" ] ; then
+    _dsk="${i}a" 
+  elif [ -e "${i}p2" ] ; then
+    _dsk="${i}p2" 
+  elif [ -e "${i}p2.journal" ] ; then
+    _dsk="${i}p2.journal" 
+  fi
 
-   mount -o ro ${_dsk} ${FSMNT} >>${LOGOUT} 2>>${LOGOUT}
-   if [ "${?}" = "0" -a -e "${FSMNT}/bin/sh" ] ; then
-    	get_fbsd_ver "`echo ${_dsk} | sed 's|/dev/||g'`"
-        umount -f ${FSMNT} >/dev/null 2>/dev/null
-   fi
+  mount -o ro ${_dsk} ${FSMNT} >>${LOGOUT} 2>>${LOGOUT}
+  if [ "${?}" = "0" -a -e "${FSMNT}/bin/sh" ] ; then
+    get_fbsd_ver "`echo ${_dsk} | sed 's|/dev/||g'`"
+    umount -f ${FSMNT} >/dev/null 2>/dev/null
+  fi
 done
 
 # Now search for any ZFS root partitions
@@ -101,9 +102,9 @@ umount_all_dir "${FSMNT}"
 _zps="`zpool list | grep -v 'NAME' | cut -d ' ' -f 1`"
 for _zpools in ${_zps}
 do
-   mount -o ro -t zfs ${_zpools} ${FSMNT} >>${LOGOUT} 2>>${LOGOUT}
-   if [ "${?}" = "0" -a -e "${FSMNT}/bin/sh" ] ; then
-    	get_fbsd_ver "${_zpools}"
-        umount -f ${FSMNT} >/dev/null 2>/dev/null
-   fi
+  mount -o ro -t zfs ${_zpools} ${FSMNT} >>${LOGOUT} 2>>${LOGOUT}
+  if [ "${?}" = "0" -a -e "${FSMNT}/bin/sh" ] ; then
+    get_fbsd_ver "${_zpools}"
+    umount -f ${FSMNT} >/dev/null 2>/dev/null
+  fi
 done
