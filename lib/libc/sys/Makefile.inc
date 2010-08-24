@@ -18,7 +18,7 @@
 .endif
 
 # Sources common to both syscall interfaces:
-SRCS+=	stack_protector.c __error.c
+SRCS+=	stack_protector.c stack_protector_compat.c __error.c
 .if !defined(WITHOUT_SYSCALL_COMPAT)
 SRCS+=	fcntl.c ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c
 PSEUDO+= _fcntl.o
