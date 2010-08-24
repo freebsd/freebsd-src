@@ -112,7 +112,9 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_bind} \
 	${_clang}
 
-.if exists(${.CURDIR}/csu/${MACHINE_CPUARCH}-elf)
+.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
+_csu=csu/${MACHINE_ARCH}-elf
+.elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}-elf)
 _csu=csu/${MACHINE_CPUARCH}-elf
 .elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}/Makefile)
 _csu=csu/${MACHINE_CPUARCH}
