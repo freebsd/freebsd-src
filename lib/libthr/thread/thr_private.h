@@ -66,10 +66,6 @@
 	WEAK_REF(func, SYM_FBP10(sym));			\
 	SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
 
-#ifndef __hidden
-#define __hidden		__attribute__((visibility("hidden")))
-#endif
-
 #include "pthread_md.h"
 #include "thr_umtx.h"
 #include "thread_db.h"
