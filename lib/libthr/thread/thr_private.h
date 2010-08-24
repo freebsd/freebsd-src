@@ -709,6 +709,12 @@ int	__sys_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int	__sys_nanosleep(const struct timespec *, struct timespec *);
 #endif
 
+/* #include <sys/ucontext.h> */
+#ifdef _SYS_UCONTEXT_H_
+int	__sys_setcontext(const ucontext_t *ucp);
+int	__sys_swapcontext(ucontext_t *oucp, const ucontext_t *ucp);
+#endif
+
 /* #include <unistd.h> */
 #ifdef  _UNISTD_H_
 int     __sys_close(int);

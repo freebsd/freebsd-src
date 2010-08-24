@@ -342,6 +342,7 @@ FBSDprivate_1.0 {
 	_pthread_timedjoin_np;
 	_pthread_yield;
 	_raise;
+	_setcontext;
 	_sigaction;
 	_sigprocmask;
 	_sigsuspend;
@@ -351,6 +352,7 @@ FBSDprivate_1.0 {
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
+	_swapcontext;
 
 	/* Debugger needs these. */
 	_libthr_debug;
@@ -397,4 +399,6 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	openat;
+	setcontext;
+	swapcontext;
 };
