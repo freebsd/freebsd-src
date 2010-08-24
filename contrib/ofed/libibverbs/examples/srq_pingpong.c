@@ -42,7 +42,6 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <netdb.h>
-#include <malloc.h>
 #include <getopt.h>
 #include <arpa/inet.h>
 #include <time.h>
@@ -139,7 +138,7 @@ static struct pingpong_dest *pp_client_exch_dest(const char *servername, int por
 {
 	struct addrinfo *res, *t;
 	struct addrinfo hints = {
-		.ai_family   = AF_UNSPEC,
+		.ai_family   = AF_INET,
 		.ai_socktype = SOCK_STREAM
 	};
 	char *service;
@@ -223,7 +222,7 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 	struct addrinfo *res, *t;
 	struct addrinfo hints = {
 		.ai_flags    = AI_PASSIVE,
-		.ai_family   = AF_UNSPEC,
+		.ai_family   = AF_INET,
 		.ai_socktype = SOCK_STREAM
 	};
 	char *service;
@@ -335,7 +334,7 @@ static struct pingpong_context *pp_init_ctx(struct ibv_device *ib_dev, int size,
 	ctx->num_qp   = num_qp;
 	ctx->rx_depth = rx_depth;
 
-	ctx->buf = memalign(page_size, size);
+	ctx->buf = malloc(roundup(size, page_size));
 	if (!ctx->buf) {
 		fprintf(stderr, "Couldn't allocate work buf.\n");
 		return NULL;
@@ -612,7 +611,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'd':
-			ib_devname = strdupa(optarg);
+			ib_devname = strdup(optarg);
 			break;
 
 		case 'i':
@@ -662,7 +661,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (optind == argc - 1)
-		servername = strdupa(argv[optind]);
+		servername = strdup(argv[optind]);
 	else if (optind < argc) {
 		usage(argv[0]);
 		return 1;

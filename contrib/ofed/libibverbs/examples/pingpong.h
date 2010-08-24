@@ -33,6 +33,8 @@
 #ifndef IBV_PINGPONG_H
 #define IBV_PINGPONG_H
 
+#include <sys/param.h>
+
 #include <infiniband/verbs.h>
 
 enum ibv_mtu pp_mtu_to_enum(int mtu);
