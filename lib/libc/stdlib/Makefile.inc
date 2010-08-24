@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent stdlib sources
-.PATH: ${.CURDIR}/${MACHINE_CPUARCH}/stdlib ${.CURDIR}/stdlib
+.PATH: ${.CURDIR}/${LIBC_ARCH}/stdlib ${.CURDIR}/stdlib
 
 MISRCS+=_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	bsearch.c div.c exit.c getenv.c getopt.c getopt_long.c \
@@ -16,7 +16,7 @@ MISRCS+=_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 SYM_MAPS+= ${.CURDIR}/stdlib/Symbol.map
 
 # machine-dependent stdlib sources
-.sinclude "${.CURDIR}/${MACHINE_CPUARCH}/stdlib/Makefile.inc"
+.sinclude "${.CURDIR}/${LIBC_ARCH}/stdlib/Makefile.inc"
 
 MAN+=	a64l.3 abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
 	div.3 exit.3 getenv.3 getopt.3 getopt_long.3 getsubopt.3 \
