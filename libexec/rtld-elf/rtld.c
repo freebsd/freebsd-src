@@ -104,7 +104,6 @@ static void init_dag1(Obj_Entry *, Obj_Entry *, DoneList *);
 static void init_rtld(caddr_t, Elf_Auxinfo **);
 static void initlist_add_neededs(Needed_Entry *, Objlist *);
 static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
-static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *, int);
@@ -195,36 +194,6 @@ extern Elf_Dyn _DYNAMIC;
 #endif
 
 int osreldate, pagesize;
-
-/*
- * These are the functions the dynamic linker exports to application
- * programs.  They are the only symbols the dynamic linker is willing
- * to export from itself.
- */
-static func_ptr_type exports[] = {
-    (func_ptr_type) &_rtld_error,
-    (func_ptr_type) &dlclose,
-    (func_ptr_type) &dlerror,
-    (func_ptr_type) &dlopen,
-    (func_ptr_type) &dlsym,
-    (func_ptr_type) &dlfunc,
-    (func_ptr_type) &dlvsym,
-    (func_ptr_type) &dladdr,
-    (func_ptr_type) &dllockinit,
-    (func_ptr_type) &dlinfo,
-    (func_ptr_type) &_rtld_thread_init,
-#ifdef __i386__
-    (func_ptr_type) &___tls_get_addr,
-#endif
-    (func_ptr_type) &__tls_get_addr,
-    (func_ptr_type) &_rtld_allocate_tls,
-    (func_ptr_type) &_rtld_free_tls,
-    (func_ptr_type) &dl_iterate_phdr,
-    (func_ptr_type) &_rtld_atfork_pre,
-    (func_ptr_type) &_rtld_atfork_post,
-    (func_ptr_type) &_rtld_addr_phdr,
-    NULL
-};
 
 /*
  * Global declarations normally provided by crt1.  The dynamic linker is
@@ -1445,19 +1414,6 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
 #define FPTR_TARGET(f)	((Elf_Addr) (f))
 #endif
 
-static bool
-is_exported(const Elf_Sym *def)
-{
-    Elf_Addr value;
-    const func_ptr_type *p;
-
-    value = (Elf_Addr)(obj_rtld.relocbase + def->st_value);
-    for (p = exports;  *p != NULL;  p++)
-	if (FPTR_TARGET(*p) == value)
-	    return true;
-    return false;
-}
-
 /*
  * Given a shared object, traverse its list of needed objects, and load
  * each of them.  Returns 0 on success.  Generates an error message and
@@ -2161,12 +2117,11 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	    /*
 	     * Search the dynamic linker itself, and possibly resolve the
 	     * symbol from there.  This is how the application links to
-	     * dynamic linker services such as dlopen.  Only the values listed
-	     * in the "exports" array can be resolved from the dynamic linker.
+	     * dynamic linker services such as dlopen.
 	     */
 	    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
 		symp = symlook_obj(name, hash, &obj_rtld, ve, flags);
-		if (symp != NULL && is_exported(symp)) {
+		if (symp != NULL) {
 		    def = symp;
 		    defobj = &obj_rtld;
 		}
@@ -2746,12 +2701,11 @@ symlook_default(const char *name, unsigned long hash, const Obj_Entry *refobj,
     /*
      * Search the dynamic linker itself, and possibly resolve the
      * symbol from there.  This is how the application links to
-     * dynamic linker services such as dlopen.  Only the values listed
-     * in the "exports" array can be resolved from the dynamic linker.
+     * dynamic linker services such as dlopen.
      */
     if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
 	symp = symlook_obj(name, hash, &obj_rtld, ventry, flags);
-	if (symp != NULL && is_exported(symp)) {
+	if (symp != NULL) {
 	    def = symp;
 	    defobj = &obj_rtld;
 	}
