@@ -277,7 +277,7 @@ fasttrap_sigtrap(proc_t *p, kthread_t *t, uintptr_t pc)
 	ksi->ksi_code = TRAP_DTRACE;
 	ksi->ksi_addr = (caddr_t)pc;
 	PROC_LOCK(p);
-	(void) pksignal(p, SIGTRAP, ksi);
+	(void) tdksignal(t, SIGTRAP, ksi);
 	PROC_UNLOCK(p);
 #endif
 }
