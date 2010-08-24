@@ -266,6 +266,7 @@ typedef	struct __siginfo {
 /* codes for SIGTRAP */
 #define TRAP_BRKPT	1	/* Process breakpoint.			*/
 #define TRAP_TRACE	2	/* Process trace trap.			*/
+#define	TRAP_DTRACE	3	/* DTrace induced trap.			*/
 
 /* codes for SIGCHLD */
 #define CLD_EXITED	1	/* Child has exited			*/
