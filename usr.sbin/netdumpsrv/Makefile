@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	netdumpsrv
-MAN=	netdumpsrv.1
+MAN=	netdumpsrv.8
 
 CFLAGS+=	-DNDEBUG -I${.CURDIR}
 
