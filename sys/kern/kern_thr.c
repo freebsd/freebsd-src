@@ -312,7 +312,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 	error = 0;
 	ksiginfo_init(&ksi);
 	ksi.ksi_signo = uap->sig;
-	ksi.ksi_code = SI_USER;
+	ksi.ksi_code = SI_LWP;
 	ksi.ksi_pid = p->p_pid;
 	ksi.ksi_uid = td->td_ucred->cr_ruid;
 	PROC_LOCK(p);
@@ -371,7 +371,7 @@ thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 	if (error == 0) {
 		ksiginfo_init(&ksi);
 		ksi.ksi_signo = uap->sig;
-		ksi.ksi_code = SI_USER;
+		ksi.ksi_code = SI_LWP;
 		ksi.ksi_pid = td->td_proc->p_pid;
 		ksi.ksi_uid = td->td_ucred->cr_ruid;
 		if (uap->id == -1) {
