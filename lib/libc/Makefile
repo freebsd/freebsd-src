@@ -8,10 +8,10 @@ SHLIBDIR?= /lib
 # We have to special case powerpc and powerpc64, since they mostly have
 # the same source implementation.  libc is very different due to large
 # ABI differences.
-.if ${LIBC_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc"
 LIBC_ARCH=${MACHINE_ARCH}
 .else
-LIBC_ARCH=${LIBC_ARCH}
+LIBC_ARCH=${MACHINE_CPUARCH}
 .endif
 
 # All library objects contain FreeBSD revision strings by default; they may be
