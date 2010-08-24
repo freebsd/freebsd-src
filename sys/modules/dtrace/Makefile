@@ -15,7 +15,7 @@ SUBDIR=		dtmalloc	\
 		systrace
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-SUBDIR+=	fbt
+SUBDIR+=	fasttrap fbt
 .endif
 
 .include <bsd.subdir.mk>
