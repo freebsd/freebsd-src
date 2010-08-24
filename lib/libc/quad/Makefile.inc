@@ -2,9 +2,9 @@
 # $FreeBSD$
 
 # Quad support, if needed
-.PATH: ${.CURDIR}/${MACHINE_CPUARCH}/quad ${.CURDIR}/quad
+.PATH: ${.CURDIR}/${LIBC_ARCH}/quad ${.CURDIR}/quad
 
-.if ${MACHINE_CPUARCH} == "i386"
+.if ${LIBC_ARCH} == "i386"
 
 SRCS+=	cmpdi2.c divdi3.c moddi3.c qdivrem.c ucmpdi2.c udivdi3.c umoddi3.c
 
