@@ -36,8 +36,6 @@ struct rw_semaphore {
 	struct sx sx;
 };
 
-#define	init_rwsem(_rw)			sx_init_flags(&(_rw)->sx,	\
-					    "lnxrwsem", SX_NOWITNESS)
 #define	down_write(_rw)			sx_xlock(&(_rw)->sx)
 #define	up_write(_rw)			sx_xunlock(&(_rw)->sx)
 #define	down_read(_rw)			sx_slock(&(_rw)->sx)
@@ -46,5 +44,13 @@ struct rw_semaphore {
 #define	down_write_trylock(_rw)		!!sx_try_xlock(&(_rw)->sx)
 #define	downgrade_write(_rw)		sx_downgrade(&(_rw)->sx)
 #define	down_read_nested(_rw, _sc)	down_read(_rw)
+
+static inline void
+init_rwsem(struct rw_semaphore *rw)
+{
+
+	memset(&rw->sx, 0, sizeof(rw->sx));
+	sx_init_flags(&rw->sx, "lnxrwsem", SX_NOWITNESS);
+}
 
 #endif	/* _LINUX_RWSEM_H_ */

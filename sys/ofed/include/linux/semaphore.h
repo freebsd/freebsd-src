@@ -49,6 +49,7 @@ static inline void
 linux_sema_init(struct semaphore *sem, int val)
 {
 
+	memset(&sem->sema, 0, sizeof(sem->sema));
 	sema_init(&sem->sema, val, "lnxsema");
 }
 
@@ -56,6 +57,7 @@ static inline void
 init_MUTEX(struct semaphore *sem)
 {
 
+	memset(&sem->sema, 0, sizeof(sem->sema));
 	sema_init(&sem->sema, 1, "lnxsema");
 }
 

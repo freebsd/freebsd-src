@@ -35,7 +35,6 @@ typedef struct {
 	struct rwlock rw;
 } rwlock_t;
 
-#define	rwlock_init(_l)		rw_init_flags(&(_l)->rw, "lnxrw", RW_NOWITNESS)
 #define	read_lock(_l)		rw_rlock(&(_l)->rw)
 #define	write_lock(_l)		rw_wlock(&(_l)->rw)
 #define	read_unlock(_l)		rw_runlock(&(_l)->rw)
@@ -52,5 +51,13 @@ typedef struct {
     do { read_unlock(lock); } while (0)
 #define	write_unlock_irqrestore(lock, flags)				\
     do { write_unlock(lock); } while (0)
+
+static inline void
+rwlock_init(rwlock_t *lock)
+{
+
+	memset(&lock->rw, 0, sizeof(lock->rw));
+	rw_init_flags(&lock->rw, "lnxrw", RW_NOWITNESS);
+}
 
 #endif	/* _LINUX_RWLOCK_H_ */
