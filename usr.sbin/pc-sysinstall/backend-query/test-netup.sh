@@ -35,15 +35,15 @@ rm ${TMPDIR}/.testftp >/dev/null 2>/dev/null
 ping -c 2 www.pcbsd.org >/dev/null 2>/dev/null
 if [ "$?" = "0" ]
 then
-   echo "ftp: Up"
-   exit 0
+  echo "ftp: Up"
+  exit 0
 fi
 
 ping -c 2 www.freebsd.org >/dev/null 2>/dev/null
 if [ "$?" = "0" ]
 then
-   echo "ftp: Up"
-   exit 0
+  echo "ftp: Up"
+  exit 0
 fi
    
 echo "ftp: Down"

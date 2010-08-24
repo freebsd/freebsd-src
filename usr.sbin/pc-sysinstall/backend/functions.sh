@@ -98,18 +98,18 @@ strip_white_space()
 # Displays an error message and exits with error 1
 exit_err()
 {
-   # Echo the message for the users benefit
-   echo "$1"
+  # Echo the message for the users benefit
+  echo "$1"
 
-   # Save this error to the log file
-   echo "${1}" >>$LOGOUT
+  # Save this error to the log file
+  echo "${1}" >>$LOGOUT
 
-   # Check if we need to unmount any file-systems after this failure
-   unmount_all_filesystems_failure
+  # Check if we need to unmount any file-systems after this failure
+  unmount_all_filesystems_failure
 
-   echo "For more details see log file: $LOGOUT"
+  echo "For more details see log file: $LOGOUT"
 
-   exit 1
+  exit 1
 };
 
 # Run-command, don't halt if command exits with non-0
@@ -195,66 +195,67 @@ echo_log()
 };
 
 # Make sure we have a numeric
-is_num() {
-        expr $1 + 1 2>/dev/null
-        return $?
+is_num()
+{
+  expr $1 + 1 2>/dev/null
+  return $?
 }
 
 # Function which uses "fetch" to download a file, and display a progress report
 fetch_file()
 {
 
-FETCHFILE="$1"
-FETCHOUTFILE="$2"
-EXITFAILED="$3"
+  FETCHFILE="$1"
+  FETCHOUTFILE="$2"
+  EXITFAILED="$3"
 
-SIZEFILE="${TMPDIR}/.fetchSize"
-EXITFILE="${TMPDIR}/.fetchExit"
+  SIZEFILE="${TMPDIR}/.fetchSize"
+  EXITFILE="${TMPDIR}/.fetchExit"
 
-rm ${SIZEFILE} 2>/dev/null >/dev/null
-rm ${FETCHOUTFILE} 2>/dev/null >/dev/null
+  rm ${SIZEFILE} 2>/dev/null >/dev/null
+  rm ${FETCHOUTFILE} 2>/dev/null >/dev/null
 
-fetch -s "${FETCHFILE}" >${SIZEFILE}
-SIZE="`cat ${SIZEFILE}`"
-SIZE="`expr ${SIZE} / 1024`"
-echo "FETCH: ${FETCHFILE}"
-echo "FETCH: ${FETCHOUTFILE}" >>${LOGOUT}
+  fetch -s "${FETCHFILE}" >${SIZEFILE}
+  SIZE="`cat ${SIZEFILE}`"
+  SIZE="`expr ${SIZE} / 1024`"
+  echo "FETCH: ${FETCHFILE}"
+  echo "FETCH: ${FETCHOUTFILE}" >>${LOGOUT}
 
-( fetch -o ${FETCHOUTFILE} "${FETCHFILE}" >/dev/null 2>/dev/null ; echo "$?" > ${EXITFILE} ) &
-PID="$!"
-while
-z=1
-do
+  ( fetch -o ${FETCHOUTFILE} "${FETCHFILE}" >/dev/null 2>/dev/null ; echo "$?" > ${EXITFILE} ) &
+  PID="$!"
+  while
+  z=1
+  do
 
-  if [ -e "${FETCHOUTFILE}" ]
-  then
-    DSIZE=`du -k ${FETCHOUTFILE} | tr -d '\t' | cut -d '/' -f 1`
-    if [ $(is_num "$DSIZE") ] ; then
-	if [ $SIZE -lt $DSIZE ] ; then DSIZE="$SIZE"; fi 
+    if [ -e "${FETCHOUTFILE}" ]
+    then
+      DSIZE=`du -k ${FETCHOUTFILE} | tr -d '\t' | cut -d '/' -f 1`
+      if [ $(is_num "$DSIZE") ] ; then
+      if [ $SIZE -lt $DSIZE ] ; then DSIZE="$SIZE"; fi 
     	echo "SIZE: ${SIZE} DOWNLOADED: ${DSIZE}"
     	echo "SIZE: ${SIZE} DOWNLOADED: ${DSIZE}" >>${LOGOUT}
+      fi
     fi
-  fi
 
-  # Check if the download is finished
-  ps -p ${PID} >/dev/null 2>/dev/null
-  if [ "$?" != "0" ]
+    # Check if the download is finished
+    ps -p ${PID} >/dev/null 2>/dev/null
+    if [ "$?" != "0" ]
+    then
+      break;
+    fi
+
+    sleep 2
+  done
+
+  echo "FETCHDONE"
+
+  EXIT="`cat ${EXITFILE}`"
+  if [ "${EXIT}" != "0" -a "$EXITFAILED" = "1" ]
   then
-   break;
+    exit_err "Error: Failed to download ${FETCHFILE}"
   fi
 
-  sleep 2
-done
-
-echo "FETCHDONE"
-
-EXIT="`cat ${EXITFILE}`"
-if [ "${EXIT}" != "0" -a "$EXITFAILED" = "1" ]
-then
-  exit_err "Error: Failed to download ${FETCHFILE}"
-fi
-
-return $EXIT
+  return $EXIT
 
 };
 
