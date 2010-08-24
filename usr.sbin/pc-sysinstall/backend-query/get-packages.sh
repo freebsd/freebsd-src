@@ -34,19 +34,19 @@
 ID=`id -u`
 if [ "${ID}" -ne "0" ]
 then
-	echo "Error: must be root!" 
-	exit 1
+  echo "Error: must be root!" 
+  exit 1
 fi
 
 if [ ! -f "${PKGDIR}/INDEX" ]
 then
-	get_package_index
+  get_package_index
 fi
 
 if [ -f "${PKGDIR}/INDEX" ]
 then
-	echo "${PKGDIR}/INDEX"
-	exit 0
+  echo "${PKGDIR}/INDEX"
+  exit 0
 fi
 
 exit 1

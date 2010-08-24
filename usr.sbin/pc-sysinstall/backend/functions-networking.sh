@@ -68,8 +68,8 @@ get_first_wired_nic()
       check_is_wifi ${NIC}
       if [ "$?" != "0" ]
       then
-         VAL="${NIC}" ; export VAL
-         return
+        VAL="${NIC}" ; export VAL
+        return
       fi
     done < ${TMPDIR}/.niclist
   fi
@@ -241,22 +241,23 @@ enable_auto_dhcp()
 
     is_nic_active "${NIC}"
     if [ "$?" = "0" ] ; then
-    	echo_log "Trying DHCP on $NIC $DESC"
-    	dhclient ${NIC} >/dev/null 2>/dev/null
-    	if [ "$?" = "0" ] ; then
-   	   # Got a valid DHCP IP, we can return now
-	   WRKNIC="$NIC" ; export WRKNIC
-   	   return 0
-	fi
+      echo_log "Trying DHCP on $NIC $DESC"
+      dhclient ${NIC} >/dev/null 2>/dev/null
+      if [ "$?" = "0" ] ; then
+        # Got a valid DHCP IP, we can return now
+	    WRKNIC="$NIC" ; export WRKNIC
+   	    return 0
+	  fi
     fi
   done < ${TMPDIR}/.niclist 
 
 };
 
 # Get the mac address of a target NIC
-get_nic_mac() {
-	FOUNDMAC="`ifconfig ${1} | grep 'ether' | tr -d '\t' | cut -d ' ' -f 2`"
-	export FOUNDMAC
+get_nic_mac()
+{
+  FOUNDMAC="`ifconfig ${1} | grep 'ether' | tr -d '\t' | cut -d ' ' -f 2`"
+  export FOUNDMAC
 }
 
 # Function which performs the manual setup of a target nic in the cfg

@@ -54,39 +54,41 @@ start_extract_uzip_tar()
   echo_log "pc-sysinstall: Starting Extraction"
 
   case ${PACKAGETYPE} in
-   uzip) # Start by mounting the uzip image
-         MDDEVICE=`mdconfig -a -t vnode -o readonly -f ${INSFILE}`
-         mkdir -p ${FSMNT}.uzip
-         mount -r /dev/${MDDEVICE}.uzip ${FSMNT}.uzip
-         if [ "$?" != "0" ]
-         then
-           exit_err "ERROR: Failed mounting the ${INSFILE}"
-         fi
-         cd ${FSMNT}.uzip
+    uzip)
+	  # Start by mounting the uzip image
+      MDDEVICE=`mdconfig -a -t vnode -o readonly -f ${INSFILE}`
+      mkdir -p ${FSMNT}.uzip
+      mount -r /dev/${MDDEVICE}.uzip ${FSMNT}.uzip
+      if [ "$?" != "0" ]
+      then
+        exit_err "ERROR: Failed mounting the ${INSFILE}"
+      fi
+      cd ${FSMNT}.uzip
 
-         # Copy over all the files now!
-         tar cvf - . 2>/dev/null | tar -xpv -C ${FSMNT} ${TAROPTS} -f - 2>&1 | tee -a ${FSMNT}/.tar-extract.log
-         if [ "$?" != "0" ]
-         then
-           cd /
-           echo "TAR failure occured:" >>${LOGOUT}
-           cat ${FSMNT}/.tar-extract.log | grep "tar:" >>${LOGOUT}
-           umount ${FSMNT}.uzip
-           mdconfig -d -u ${MDDEVICE}
-           exit_err "ERROR: Failed extracting the tar image"
-         fi
+      # Copy over all the files now!
+      tar cvf - . 2>/dev/null | tar -xpv -C ${FSMNT} ${TAROPTS} -f - 2>&1 | tee -a ${FSMNT}/.tar-extract.log
+      if [ "$?" != "0" ]
+      then
+        cd /
+        echo "TAR failure occured:" >>${LOGOUT}
+        cat ${FSMNT}/.tar-extract.log | grep "tar:" >>${LOGOUT}
+        umount ${FSMNT}.uzip
+        mdconfig -d -u ${MDDEVICE}
+        exit_err "ERROR: Failed extracting the tar image"
+      fi
 
-         # All finished, now lets umount and cleanup
-         cd /
-         umount ${FSMNT}.uzip
-         mdconfig -d -u ${MDDEVICE}
-         ;;
-    tar) tar -xpv -C ${FSMNT} -f ${INSFILE} ${TAROPTS} >&1 2>&1
-         if [ "$?" != "0" ]
-         then
-           exit_err "ERROR: Failed extracting the tar image"
-         fi
-         ;;
+      # All finished, now lets umount and cleanup
+      cd /
+      umount ${FSMNT}.uzip
+      mdconfig -d -u ${MDDEVICE}
+       ;;
+    tar)
+	  tar -xpv -C ${FSMNT} -f ${INSFILE} ${TAROPTS} >&1 2>&1
+      if [ "$?" != "0" ]
+      then
+        exit_err "ERROR: Failed extracting the tar image"
+      fi
+      ;;
   esac
 
   # Check if this was a FTP download and clean it up now
@@ -120,10 +122,10 @@ start_extract_split()
   DIRS=`ls -d ${INSDIR}/*|grep -Ev '(uzip|kernels|src)'`
   for dir in ${DIRS}
   do
-	cd "${dir}"
-	if [ -f "install.sh" ]
-	then
-	  echo_log "Extracting" `basename ${dir}`
+    cd "${dir}"
+    if [ -f "install.sh" ]
+    then
+      echo_log "Extracting" `basename ${dir}`
       echo "y" | sh install.sh >/dev/null
       if [ "$?" != "0" ]
       then
@@ -139,13 +141,13 @@ start_extract_split()
   cd "${KERNELS}"
   if [ -f "install.sh" ]
   then
-	echo_log "Extracting" `basename ${KERNELS}`
+    echo_log "Extracting" `basename ${KERNELS}`
     echo "y" | sh install.sh generic >/dev/null
     if [ "$?" != "0" ]
     then
       exit_err "ERROR: Failed extracting ${KERNELS}"
     fi
-	echo 'kernel="GENERIC"' > "${FSMNT}/boot/loader.conf"
+    mv "${FSMNT}/boot/GENERIC" "${FSMNT}/boot/kernel"
   else
     exit_err "ERROR: ${KERNELS}/install.sh does not exist"
   fi
@@ -155,7 +157,7 @@ start_extract_split()
   cd "${SOURCE}"
   if [ -f "install.sh" ]
   then
-	echo_log "Extracting" `basename ${SOURCE}`
+    echo_log "Extracting" `basename ${SOURCE}`
     echo "y" | sh install.sh all >/dev/null
     if [ "$?" != "0" ]
     then
@@ -206,14 +208,14 @@ fetch_install_file()
 # Function which will download freebsd install files
 fetch_split_files()
 {
-  get_value_from_cfg ftpHost
+  get_ftpHost
   if [ -z "$VAL" ]
   then
     exit_err "ERROR: Install medium was set to ftp, but no ftpHost was provided!" 
   fi
   FTPHOST="${VAL}"
 
-  get_value_from_cfg ftpDir
+  get_ftpDir
   if [ -z "$VAL" ]
   then
     exit_err "ERROR: Install medium was set to ftp, but no ftpDir was provided!" 
@@ -228,6 +230,18 @@ fetch_split_files()
     OUTFILE="${FSMNT}/.fetch-${INSFILE}"
   fi
 
+  DIRS="base catpages dict doc games info manpages proflibs kernels src"
+  if [ "${FBSD_ARCH}" = "amd64" ]
+  then
+    DIRS="${DIRS} lib32"
+  fi
+
+  for d in ${DIRS}
+  do
+    mkdir -p "${OUTFILE}/${d}"
+  done
+
+
   NETRC="${OUTFILE}/.netrc"
   cat<<EOF>"${NETRC}"
 machine ${FTPHOST}
@@ -238,22 +252,16 @@ bin
 prompt
 EOF
 
-  DIRS="base catpages dict doc games info manpages proflibs kernels src"
-  if [ "${FBSD_ARCH}" = "amd64" ]
-  then
-	DIRS="${DIRS} lib32"
-  fi
-
   for d in ${DIRS}
   do
-	cat<<EOF>>"${NETRC}"
+    cat<<EOF>>"${NETRC}"
 cd ${FTPDIR}/${d}
 lcd ${OUTFILE}/${d}
 mreget *
 EOF
   done
 
-	cat<<EOF>>"${NETRC}"
+  cat<<EOF>>"${NETRC}"
 bye
 
 
@@ -335,19 +343,19 @@ init_extraction()
     if [ "$INSTALLTYPE" = "FreeBSD" ]
     then
       case $PACKAGETYPE in
-         uzip) INSFILE="${FBSD_UZIP_FILE}" ;;
-          tar) INSFILE="${FBSD_TAR_FILE}" ;;
-		  split)
-			INSDIR="${FBSD_BRANCH_DIR}"
+        uzip) INSFILE="${FBSD_UZIP_FILE}" ;;
+        tar) INSFILE="${FBSD_TAR_FILE}" ;;
+        split)
+          INSDIR="${FBSD_BRANCH_DIR}"
 
-			# This is to trick opt_mount into not failing
-			INSFILE="${INSDIR}"
-			;;
+          # This is to trick opt_mount into not failing
+          INSFILE="${INSDIR}"
+          ;;
       esac
     else
       case $PACKAGETYPE in
-         uzip) INSFILE="${UZIP_FILE}" ;;
-          tar) INSFILE="${TAR_FILE}" ;;
+        uzip) INSFILE="${UZIP_FILE}" ;;
+        tar) INSFILE="${TAR_FILE}" ;;
       esac
     fi
     export INSFILE
@@ -355,33 +363,37 @@ init_extraction()
 
   # Lets start by figuring out what medium we are using
   case ${INSTALLMEDIUM} in
- dvd|usb) # Lets start by mounting the disk 
-          opt_mount 
-		  if [ ! -z "${INSDIR}" ]
-		  then
-          	INSDIR="${CDMNT}/${INSDIR}" ; export INSDIR
-			start_extract_split
+    dvd|usb)
+      # Lets start by mounting the disk 
+      opt_mount 
+      if [ ! -z "${INSDIR}" ]
+      then
+        INSDIR="${CDMNT}/${INSDIR}" ; export INSDIR
+	    start_extract_split
 
-		  else
-          	INSFILE="${CDMNT}/${INSFILE}" ; export INSFILE
-          	start_extract_uzip_tar
-		  fi
-          ;;
-     ftp)
-		  if [ "$PACKAGETYPE" = "split" ]
-		  then
-			fetch_split_files
+      else
+        INSFILE="${CDMNT}/${INSFILE}" ; export INSFILE
+        start_extract_uzip_tar
+      fi
+      ;;
 
-			INSDIR="${INSFILE}" ; export INSDIR
-			start_extract_split
-		  else
-          	fetch_install_file
-          	start_extract_uzip_tar 
-		  fi
-          ;;
-     rsync) start_rsync_copy
-            ;;
-       *) exit_err "ERROR: Unknown install medium" ;;
+    ftp|sftp)
+      if [ "$PACKAGETYPE" = "split" ]
+      then
+        fetch_split_files
+
+        INSDIR="${INSFILE}" ; export INSDIR
+        start_extract_split
+      else
+        fetch_install_file
+        start_extract_uzip_tar 
+      fi
+      ;;
+
+      rsync) start_rsync_copy ;;
+    img)
+		;;
+    *) exit_err "ERROR: Unknown install medium" ;;
   esac
 
 };

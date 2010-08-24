@@ -280,20 +280,43 @@ show_mirrors()
 
 set_ftp_mirror()
 {
-	MIRROR="${1}"
-	echo "${MIRROR}" > "${CONFDIR}/mirrors.conf"
+  MIRROR="${1}"
+  echo "${MIRROR}" > "${CONFDIR}/mirrors.conf"
 };
 
 get_ftp_mirror()
 {
-	MIRROR="${DEFAULT_FTP_SERVER}"
-	if [ -f "${CONFDIR}/mirrors.conf" ]
-	then
-		MIRROR=`cat "${CONFDIR}/mirrors.conf"`
-	fi
+  MIRROR="${DEFAULT_FTP_SERVER}"
+  if [ -f "${CONFDIR}/mirrors.conf" ]
+  then
+    MIRROR=`cat "${CONFDIR}/mirrors.conf"`
+  fi
 
-	VAL="${MIRROR}"
-	export VAL
+  VAL="${MIRROR}"
+  export VAL
+};
+
+
+get_ftpHost()
+{
+  get_value_from_cfg ftpPath
+  ftpPath="$VAL"
+
+  ftpHost=`echo "${ftpPath}" | sed -E 's|^(ftp://)([^/]*)(.*)|\2|'`
+  VAL="${ftpHost}"
+
+  export VAL
+};
+
+get_ftpDir()
+{
+  get_value_from_cfg ftpPath
+  ftpPath="$VAL"
+
+  ftpDir=`echo "${ftpPath}" | sed -E 's|^(ftp://)([^/]*)(.*)|\3|'`
+  VAL="${ftpDir}"
+
+  export VAL
 };
 
 get_ftp_mirrors()
