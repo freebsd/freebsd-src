@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 #
 # dtruss - print process system call time details.
 #          Written using DTrace (Solaris 10 3/05).
@@ -240,7 +240,7 @@ syscall:::entry
  */
 
 /* print 3 args, return as hex */
-syscall::lwp_sigmask:return
+syscall::sigprocmask:return
 /self->start/
 {
 	/* calculate elapsed time */
@@ -268,10 +268,11 @@ syscall::lwp_sigmask:return
 }
 
 /* print 3 args, arg0 as a string */
+syscall::access*:return,
 syscall::stat*:return, 
 syscall::lstat*:return, 
-syscall::open*:return,
-syscall::resolvepath:return
+syscall::readlink*:return,
+syscall::open*:return
 /self->start/
 {
 	/* calculate elapsed time */
@@ -329,7 +330,6 @@ syscall::*read*:return
 }
 
 /* print 0 arg output */
-syscall::gtime:return,
 syscall::*fork*:return
 /self->start/
 {
@@ -357,9 +357,6 @@ syscall::*fork*:return
 }
 
 /* print 1 arg output */
-syscall::brk:return,
-syscall::times:return,
-syscall::stime:return,
 syscall::close:return
 /self->start/
 {
@@ -387,7 +384,7 @@ syscall::close:return
 }
 
 /* print 2 arg output */
-syscall::utime:return,
+syscall::utimes:return,
 syscall::munmap:return
 /self->start/
 {
