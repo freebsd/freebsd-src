@@ -112,6 +112,7 @@ SUBDIR=	${_ac} \
 	${_named.reload} \
 	${_ndiscvt} \
 	${_ndp} \
+	netdumpsrv \
 	newsyslog \
 	nfscbd \
 	nfsd \
