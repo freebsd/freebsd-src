@@ -306,8 +306,8 @@
 #endif
 
 #if __GNUC_PREREQ__(4, 2)
-#define	__hidden	__attribute((visibility("hidden")))
-#define	__exported	__attribute((visibility("default")))
+#define	__hidden	__attribute__((visibility("hidden")))
+#define	__exported	__attribute__((visibility("default")))
 #else
 #define	__hidden
 #define	__exported
