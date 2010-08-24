@@ -43,8 +43,8 @@ mount_target_slice()
   if [ -e "/dev/${MPART}" ] ; then
     rc_nohalt "mount /dev/${MPART} ${FSMNT}"
     if [ "$?" != "0" ] ; then
-    	# Check if we have ZFS tank name
-    	rc_halt "mount -t zfs ${MPART} ${FSMNT}"
+      # Check if we have ZFS tank name
+      rc_halt "mount -t zfs ${MPART} ${FSMNT}"
     fi
   else
     # Check if we have ZFS tank name
@@ -104,7 +104,7 @@ done
     run_chroot_cmd "rm -rf /libexec" >/dev/null 2>/dev/null
   fi
 
-}
+};
 
 # Mount the target upgrade partitions
 mount_upgrade()
@@ -116,33 +116,33 @@ mount_upgrade()
   # We are ready to start mounting, lets read the config and do it
   while read line
   do
-     echo $line | grep "^disk0=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
+    echo $line | grep "^disk0=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
 
-       # Found a disk= entry, lets get the disk we are working on
-       get_value_from_string "${line}"
-       strip_white_space "$VAL"
-       DISK="$VAL"
-     fi
+      # Found a disk= entry, lets get the disk we are working on
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      DISK="$VAL"
+    fi
 
-     echo $line | grep "^commitDiskPart" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       # Found our flag to commit this disk setup / lets do sanity check and do it
-       if [ ! -z "${DISK}" ]
-       then
+    echo $line | grep "^commitDiskPart" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      # Found our flag to commit this disk setup / lets do sanity check and do it
+      if [ ! -z "${DISK}" ]
+      then
 
-         # Start mounting this slice
-         mount_target_slice "${DISK}" 
+        # Start mounting this slice
+        mount_target_slice "${DISK}" 
 
-         # Increment our disk counter to look for next disk and unset
-         unset DISK
-	 break
-       else
-         exit_err "ERROR: commitDiskPart was called without procceding disk<num>= and partition= entries!!!" 
-       fi
-     fi
+        # Increment our disk counter to look for next disk and unset
+        unset DISK
+	    break
+      else
+        exit_err "ERROR: commitDiskPart was called without procceding disk<num>= and partition= entries!!!" 
+      fi
+    fi
 
   done <${CFGF}
 
@@ -151,8 +151,8 @@ mount_upgrade()
 copy_skel_files_upgrade()
 {
 
-    # Now make sure we fix any user profile scripts, which cause problems from 7.x->8.x
-    echo '#!/bin/sh
+  # Now make sure we fix any user profile scripts, which cause problems from 7.x->8.x
+  echo '#!/bin/sh
 
 cd /home
 for i in `ls`
@@ -179,17 +179,17 @@ do
 
 done
 ' >${FSMNT}/.fixUserProfile.sh  
-    chmod 755 ${FSMNT}/.fixUserProfile.sh
-    chroot ${FSMNT} /.fixUserProfile.sh >/dev/null 2>/dev/null
-    rm ${FSMNT}/.fixUserProfile.sh
+  chmod 755 ${FSMNT}/.fixUserProfile.sh
+  chroot ${FSMNT} /.fixUserProfile.sh >/dev/null 2>/dev/null
+  rm ${FSMNT}/.fixUserProfile.sh
 
 
 
-    # if the user wants to keep their original .kde4 profile
-    ###########################################################################
-    get_value_from_cfg "upgradeKeepDesktopProfile"
-    if [ "$VAL" = "YES" -o "$VAL" = "yes" ] ; then
-      echo '#!/bin/sh
+  # if the user wants to keep their original .kde4 profile
+  ###########################################################################
+  get_value_from_cfg "upgradeKeepDesktopProfile"
+  if [ "$VAL" = "YES" -o "$VAL" = "yes" ] ; then
+    echo '#!/bin/sh
       cd /home
 for i in `ls`
 do
@@ -202,11 +202,11 @@ do
   fi
 done
 ' >${FSMNT}/.fixUserProfile.sh
-      chmod 755 ${FSMNT}/.fixUserProfile.sh
-      chroot ${FSMNT} /.fixUserProfile.sh >/dev/null 2>/dev/null
-      rm ${FSMNT}/.fixUserProfile.sh
+    chmod 755 ${FSMNT}/.fixUserProfile.sh
+    chroot ${FSMNT} /.fixUserProfile.sh >/dev/null 2>/dev/null
+    rm ${FSMNT}/.fixUserProfile.sh
 
-    fi
+  fi
 
 };
 
@@ -230,18 +230,18 @@ merge_old_configs()
 unmount_upgrade()
 {
 
-   # If on PC-BSD, make sure we copy any fixed skel files
-   if [ "$INSTALLTYPE" != "FreeBSD" ] ; then
-     copy_skel_files_upgrade
-   fi
+  # If on PC-BSD, make sure we copy any fixed skel files
+  if [ "$INSTALLTYPE" != "FreeBSD" ] ; then
+    copy_skel_files_upgrade
+  fi
 
-   cd /
+  cd /
 
-   # Unmount FS
-   umount_all_dir "${FSMNT}"
+  # Unmount FS
+  umount_all_dir "${FSMNT}"
 
-   # Run our saved unmount script for these file-systems
-   rc_nohalt "umount -f ${FSMNT}"
+  # Run our saved unmount script for these file-systems
+  rc_nohalt "umount -f ${FSMNT}"
  
-   umount ${CDMNT} 
+  umount ${CDMNT} 
 };
