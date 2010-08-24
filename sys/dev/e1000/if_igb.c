@@ -2070,6 +2070,9 @@ igb_identify_hardware(struct adapter *adapter)
 	    pci_read_config(dev, PCIR_SUBVEND_0, 2);
 	adapter->hw.subsystem_device_id =
 	    pci_read_config(dev, PCIR_SUBDEV_0, 2);
+
+	/* Set MAC type early for PCI setup */
+	e1000_set_mac_type(&adapter->hw);
 }
 
 static int
@@ -2470,8 +2473,8 @@ igb_setup_msix(struct adapter *adapter)
 	if ((adapter->hw.mac.type == e1000_82575) && (queues > 4))
 		queues = 4;
 
-	/* Limit the VF adapter to one queues */
-	if ((adapter->hw.mac.type == e1000_vfadapt) && (queues > 2))
+	/* Limit the VF adapter to one queue */
+	if (adapter->hw.mac.type == e1000_vfadapt)
 		queues = 1;
 
 	/*

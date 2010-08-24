@@ -140,7 +140,7 @@ tcp_output(struct tcpcb *tp)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 	long len, recwin, sendwin;
-	int off, flags, error;
+	int off, flags, error, rw;
 	struct mbuf *m;
 	struct ip *ip = NULL;
 	struct ipovly *ipov = NULL;
@@ -153,7 +153,7 @@ tcp_output(struct tcpcb *tp)
 	int idle, sendalot;
 	int sack_rxmit, sack_bytes_rxmt;
 	struct sackhole *p;
-	int tso = 0;
+	int tso;
 	struct tcpopt to;
 #if 0
 	int maxburst = TCP_MAXBURST;
@@ -176,23 +176,34 @@ tcp_output(struct tcpcb *tp)
 	idle = (tp->t_flags & TF_LASTIDLE) || (tp->snd_max == tp->snd_una);
 	if (idle && ticks - tp->t_rcvtime >= tp->t_rxtcur) {
 		/*
-		 * We have been idle for "a while" and no acks are
-		 * expected to clock out any data we send --
-		 * slow start to get ack "clock" running again.
+		 * If we've been idle for more than one retransmit
+		 * timeout the old congestion window is no longer
+		 * current and we have to reduce it to the restart
+		 * window before we can transmit again.
 		 *
-		 * Set the slow-start flight size depending on whether
-		 * this is a local network or not.
+		 * The restart window is the initial window or the last
+		 * CWND, whichever is smaller.
+		 * 
+		 * This is done to prevent us from flooding the path with
+		 * a full CWND at wirespeed, overloading router and switch
+		 * buffers along the way.
+		 *
+		 * See RFC5681 Section 4.1. "Restarting Idle Connections".
 		 */
-		int ss = V_ss_fltsz;
+		if (V_tcp_do_rfc3390)
+			rw = min(4 * tp->t_maxseg,
+				 max(2 * tp->t_maxseg, 4380));
 #ifdef INET6
-		if (isipv6) {
-			if (in6_localaddr(&tp->t_inpcb->in6p_faddr))
-				ss = V_ss_fltsz_local;
-		} else
-#endif /* INET6 */
-		if (in_localaddr(tp->t_inpcb->inp_faddr))
-			ss = V_ss_fltsz_local;
-		tp->snd_cwnd = tp->t_maxseg * ss;
+		else if ((isipv6 ? in6_localaddr(&tp->t_inpcb->in6p_faddr) :
+			  in_localaddr(tp->t_inpcb->inp_faddr)))
+#else
+		else if (in_localaddr(tp->t_inpcb->inp_faddr))
+#endif
+			rw = V_ss_fltsz_local * tp->t_maxseg;
+		else
+			rw = V_ss_fltsz * tp->t_maxseg;
+
+		tp->snd_cwnd = min(rw, tp->snd_cwnd);
 	}
 	tp->t_flags &= ~TF_LASTIDLE;
 	if (idle) {
@@ -211,6 +222,7 @@ again:
 	    SEQ_LT(tp->snd_nxt, tp->snd_max))
 		tcp_sack_adjust(tp);
 	sendalot = 0;
+	tso = 0;
 	off = tp->snd_nxt - tp->snd_una;
 	sendwin = min(tp->snd_wnd, tp->snd_cwnd);
 	sendwin = min(sendwin, tp->snd_bwnd);
@@ -490,9 +502,9 @@ after_sack_rexmit:
 		} else {
 			len = tp->t_maxseg;
 			sendalot = 1;
-			tso = 0;
 		}
 	}
+
 	if (sack_rxmit) {
 		if (SEQ_LT(p->rxmit + len, tp->snd_una + so->so_snd.sb_cc))
 			flags &= ~TH_FIN;
@@ -1051,6 +1063,8 @@ send:
 	 * XXX: Fixme: This is currently not the case for IPv6.
 	 */
 	if (tso) {
+		KASSERT(len > tp->t_maxopd - optlen,
+		    ("%s: len <= tso_segsz", __func__));
 		m->m_pkthdr.csum_flags |= CSUM_TSO;
 		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
 	}
@@ -1183,8 +1197,10 @@ timer:
 	 * This might not be the best thing to do according to RFC3390
 	 * Section 2. However the tcp hostcache migitates the problem
 	 * so it affects only the first tcp connection with a host.
+	 *
+	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
 	 */
-	if (V_path_mtu_discovery)
+	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
 		ip->ip_off |= IP_DF;
 
 	error = ip_output(m, tp->t_inpcb->inp_options, NULL,

@@ -274,6 +274,12 @@ venus_ioctl(void *mdp, struct CodaFid *fid, int com, int flag, caddr_t data,
 	tmp = ((com >> 16) & IOCPARM_MASK) - sizeof (char *) - sizeof (int);
 	inp->cmd |= (tmp & IOCPARM_MASK) << 16;
 
+	if (iap->vi.in_size > VC_MAXMSGSIZE ||
+	    iap->vi.out_size > VC_MAXMSGSIZE) {
+		CODA_FREE(inp, coda_ioctl_size);
+		return (EINVAL);
+	}
+
 	inp->rwflag = flag;
 	inp->len = iap->vi.in_size;
 	inp->data = (char *)(sizeof (struct coda_ioctl_in));

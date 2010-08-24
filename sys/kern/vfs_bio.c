@@ -398,6 +398,8 @@ bufcountwakeup(struct buf *bp)
 
 	KASSERT((bp->b_vflags & BV_INFREECNT) == 0,
 	    ("buf %p already counted as free", bp));
+	if (bp->b_bufobj != NULL)
+		mtx_assert(BO_MTX(bp->b_bufobj), MA_OWNED);
 	bp->b_vflags |= BV_INFREECNT;
 	old = atomic_fetchadd_int(&numfreebuffers, 1);
 	KASSERT(old >= 0 && old < nbuf,
@@ -622,8 +624,11 @@ bufinit(void)
 
 	/*
 	 * Note: The 16 MB upper limit for hirunningspace was chosen
-	 * arbitrarily and may need further tuning. The lower 1 MB
-	 * limit is the historical upper limit for hirunningspace.
+	 * arbitrarily and may need further tuning. It corresponds to
+	 * 128 outstanding write IO requests (if IO size is 128 KiB),
+	 * which fits with many RAID controllers' tagged queuing limits.
+	 * The lower 1 MB limit is the historical upper limit for
+	 * hirunningspace.
 	 */
 	hirunningspace = lmax(lmin(roundup(hibufspace / 64, MAXBSIZE),
 	    16 * 1024 * 1024), 1024 * 1024);
@@ -711,6 +716,8 @@ bremfree(struct buf *bp)
 	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0) {
 		KASSERT((bp->b_vflags & BV_INFREECNT) != 0,
 		    ("buf %p not counted in numfreebuffers", bp));
+		if (bp->b_bufobj != NULL)
+			mtx_assert(BO_MTX(bp->b_bufobj), MA_OWNED);
 		bp->b_vflags &= ~BV_INFREECNT;
 		old = atomic_fetchadd_int(&numfreebuffers, -1);
 		KASSERT(old > 0, ("numfreebuffers dropped to %d", old - 1));
@@ -767,6 +774,8 @@ bremfreel(struct buf *bp)
 	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0) {
 		KASSERT((bp->b_vflags & BV_INFREECNT) != 0,
 		    ("buf %p not counted in numfreebuffers", bp));
+		if (bp->b_bufobj != NULL)
+			mtx_assert(BO_MTX(bp->b_bufobj), MA_OWNED);
 		bp->b_vflags &= ~BV_INFREECNT;
 		old = atomic_fetchadd_int(&numfreebuffers, -1);
 		KASSERT(old > 0, ("numfreebuffers dropped to %d", old - 1));
@@ -1409,8 +1418,16 @@ brelse(struct buf *bp)
 	/* enqueue */
 	mtx_lock(&bqlock);
 	/* Handle delayed bremfree() processing. */
-	if (bp->b_flags & B_REMFREE)
+	if (bp->b_flags & B_REMFREE) {
+		struct bufobj *bo;
+
+		bo = bp->b_bufobj;
+		if (bo != NULL)
+			BO_LOCK(bo);
 		bremfreel(bp);
+		if (bo != NULL)
+			BO_UNLOCK(bo);
+	}
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
 
@@ -1471,8 +1488,16 @@ brelse(struct buf *bp)
 	 * if B_INVAL is set ).
 	 */
 
-	if (!(bp->b_flags & B_DELWRI))
+	if (!(bp->b_flags & B_DELWRI)) {
+		struct bufobj *bo;
+
+		bo = bp->b_bufobj;
+		if (bo != NULL)
+			BO_LOCK(bo);
 		bufcountwakeup(bp);
+		if (bo != NULL)
+			BO_UNLOCK(bo);
+	}
 
 	/*
 	 * Something we can maybe free or reuse
@@ -1501,6 +1526,8 @@ brelse(struct buf *bp)
 void
 bqrelse(struct buf *bp)
 {
+	struct bufobj *bo;
+
 	CTR3(KTR_BUF, "bqrelse(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
 	    ("bqrelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
@@ -1511,10 +1538,15 @@ bqrelse(struct buf *bp)
 		return;
 	}
 
+	bo = bp->b_bufobj;
 	if (bp->b_flags & B_MANAGED) {
 		if (bp->b_flags & B_REMFREE) {
 			mtx_lock(&bqlock);
+			if (bo != NULL)
+				BO_LOCK(bo);
 			bremfreel(bp);
+			if (bo != NULL)
+				BO_UNLOCK(bo);
 			mtx_unlock(&bqlock);
 		}
 		bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
@@ -1524,8 +1556,13 @@ bqrelse(struct buf *bp)
 
 	mtx_lock(&bqlock);
 	/* Handle delayed bremfree() processing. */
-	if (bp->b_flags & B_REMFREE)
+	if (bp->b_flags & B_REMFREE) {
+		if (bo != NULL)
+			BO_LOCK(bo);
 		bremfreel(bp);
+		if (bo != NULL)
+			BO_UNLOCK(bo);
+	}
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("bqrelse: free buffer onto another queue???");
 	/* buffers with stale but valid contents */
@@ -1560,8 +1597,13 @@ bqrelse(struct buf *bp)
 	}
 	mtx_unlock(&bqlock);
 
-	if ((bp->b_flags & B_INVAL) || !(bp->b_flags & B_DELWRI))
+	if ((bp->b_flags & B_INVAL) || !(bp->b_flags & B_DELWRI)) {
+		if (bo != NULL)
+			BO_LOCK(bo);
 		bufcountwakeup(bp);
+		if (bo != NULL)
+			BO_UNLOCK(bo);
+	}
 
 	/*
 	 * Something we can maybe free or reuse.
@@ -1895,7 +1937,11 @@ restart:
 
 		KASSERT((bp->b_flags & B_DELWRI) == 0, ("delwri buffer %p found in queue %d", bp, qindex));
 
+		if (bp->b_bufobj != NULL)
+			BO_LOCK(bp->b_bufobj);
 		bremfreel(bp);
+		if (bp->b_bufobj != NULL)
+			BO_UNLOCK(bp->b_bufobj);
 		mtx_unlock(&bqlock);
 
 		if (qindex == QUEUE_CLEAN) {
@@ -2632,7 +2678,9 @@ loop:
 			bp->b_flags &= ~B_CACHE;
 		else if ((bp->b_flags & (B_VMIO | B_INVAL)) == 0)
 			bp->b_flags |= B_CACHE;
+		BO_LOCK(bo);
 		bremfree(bp);
+		BO_UNLOCK(bo);
 
 		/*
 		 * check for size inconsistancies for non-VMIO case.
@@ -3203,6 +3251,7 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 {
 	struct cdevsw *csw;
 	struct bio *bip;
+	int ref;
 
 	if ((!bp->b_iocmd) || (bp->b_iocmd & (bp->b_iocmd - 1)))
 		panic("b_iocmd botch");
@@ -3224,7 +3273,7 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 	KASSERT(dev->si_refcount > 0,
 	    ("dev_strategy on un-referenced struct cdev *(%s)",
 	    devtoname(dev)));
-	csw = dev_refthread(dev);
+	csw = dev_refthread(dev, &ref);
 	if (csw == NULL) {
 		g_destroy_bio(bip);
 		bp->b_error = ENXIO;
@@ -3233,7 +3282,7 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 		return;
 	}
 	(*csw->d_strategy)(bip);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 }
 
 /*

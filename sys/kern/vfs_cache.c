@@ -61,28 +61,28 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 SDT_PROVIDER_DECLARE(vfs);
-SDT_PROBE_DEFINE3(vfs, namecache, enter, done, "struct vnode *", "char *",
+SDT_PROBE_DEFINE3(vfs, namecache, enter, done, done, "struct vnode *", "char *",
     "struct vnode *");
-SDT_PROBE_DEFINE2(vfs, namecache, enter_negative, done, "struct vnode *",
+SDT_PROBE_DEFINE2(vfs, namecache, enter_negative, done, done, "struct vnode *",
     "char *");
-SDT_PROBE_DEFINE1(vfs, namecache, fullpath, entry, "struct vnode *");
-SDT_PROBE_DEFINE3(vfs, namecache, fullpath, hit, "struct vnode *",
+SDT_PROBE_DEFINE1(vfs, namecache, fullpath, entry, entry, "struct vnode *");
+SDT_PROBE_DEFINE3(vfs, namecache, fullpath, hit, hit, "struct vnode *",
     "struct char *", "struct vnode *");
-SDT_PROBE_DEFINE1(vfs, namecache, fullpath, miss, "struct vnode *");
-SDT_PROBE_DEFINE3(vfs, namecache, fullpath, return, "int", "struct vnode *",
-    "struct char *");
-SDT_PROBE_DEFINE3(vfs, namecache, lookup, hit, "struct vnode *", "char *",
+SDT_PROBE_DEFINE1(vfs, namecache, fullpath, miss, miss, "struct vnode *");
+SDT_PROBE_DEFINE3(vfs, namecache, fullpath, return, return, "int",
+    "struct vnode *", "struct char *");
+SDT_PROBE_DEFINE3(vfs, namecache, lookup, hit, hit, "struct vnode *", "char *",
     "struct vnode *");
-SDT_PROBE_DEFINE2(vfs, namecache, lookup, hit_negative, "struct vnode *",
+SDT_PROBE_DEFINE2(vfs, namecache, lookup, hit_negative, hit-negative,
+    "struct vnode *", "char *");
+SDT_PROBE_DEFINE2(vfs, namecache, lookup, miss, miss, "struct vnode *",
     "char *");
-SDT_PROBE_DEFINE2(vfs, namecache, lookup, miss, "struct vnode *",
-    "char *");
-SDT_PROBE_DEFINE1(vfs, namecache, purge, done, "struct vnode *");
-SDT_PROBE_DEFINE1(vfs, namecache, purge_negative, done, "struct vnode *");
-SDT_PROBE_DEFINE1(vfs, namecache, purgevfs, done, "struct mount *");
-SDT_PROBE_DEFINE3(vfs, namecache, zap, done, "struct vnode *", "char *",
+SDT_PROBE_DEFINE1(vfs, namecache, purge, done, done, "struct vnode *");
+SDT_PROBE_DEFINE1(vfs, namecache, purge_negative, done, done, "struct vnode *");
+SDT_PROBE_DEFINE1(vfs, namecache, purgevfs, done, done, "struct mount *");
+SDT_PROBE_DEFINE3(vfs, namecache, zap, done, done, "struct vnode *", "char *",
     "struct vnode *");
-SDT_PROBE_DEFINE2(vfs, namecache, zap_negative, done, "struct vnode *",
+SDT_PROBE_DEFINE2(vfs, namecache, zap_negative, done, done, "struct vnode *",
     "char *");
 
 /*

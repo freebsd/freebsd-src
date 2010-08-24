@@ -1476,9 +1476,12 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 		}
 	} else {
 		/* NE2000s are a pain */
-		unsigned char *data;
+		uint8_t *data;
 		int len, wantbyte;
-		unsigned char savebyte[2];
+		union {
+			uint16_t w;
+			uint8_t b[2];
+		} saveword;
 
 		wantbyte = 0;
 
@@ -1488,9 +1491,9 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 				data = mtod(m, caddr_t);
 				/* finish the last word */
 				if (wantbyte) {
-					savebyte[1] = *data;
+					saveword.b[1] = *data;
 					ed_asic_outw(sc, ED_NOVELL_DATA,
-						     *(u_short *)savebyte);
+					    saveword.w);
 					data++;
 					len--;
 					wantbyte = 0;
@@ -1504,7 +1507,7 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 				}
 				/* save last byte, if necessary */
 				if (len == 1) {
-					savebyte[0] = *data;
+					saveword.b[0] = *data;
 					wantbyte = 1;
 				}
 			}
@@ -1512,7 +1515,7 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 		}
 		/* spit last byte */
 		if (wantbyte)
-			ed_asic_outw(sc, ED_NOVELL_DATA, *(u_short *)savebyte);
+			ed_asic_outw(sc, ED_NOVELL_DATA, saveword.w);
 	}
 
 	/*

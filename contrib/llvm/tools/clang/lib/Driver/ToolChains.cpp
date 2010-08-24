@@ -26,6 +26,10 @@
 
 #include <cstdlib> // ::getenv
 
+#ifndef CLANG_PREFIX
+#define CLANG_PREFIX
+#endif
+
 using namespace clang::driver;
 using namespace clang::driver::toolchains;
 
@@ -869,11 +873,9 @@ FreeBSD::FreeBSD(const HostInfo &Host, const llvm::Triple& Triple, bool Lib32)
   getProgramPaths().push_back(getDriver().Dir + "/../libexec");
   getProgramPaths().push_back("/usr/libexec");
   if (Lib32) {
-    getFilePaths().push_back(getDriver().Dir + "/../lib32");
-    getFilePaths().push_back("/usr/lib32");
+    getFilePaths().push_back(CLANG_PREFIX "/usr/lib32");
   } else {
-    getFilePaths().push_back(getDriver().Dir + "/../lib");
-    getFilePaths().push_back("/usr/lib");
+    getFilePaths().push_back(CLANG_PREFIX "/usr/lib");
   }
 }
 

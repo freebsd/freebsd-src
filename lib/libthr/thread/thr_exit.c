@@ -81,6 +81,8 @@ _pthread_exit(void *status)
 
 	/* Flag this thread as exiting. */
 	curthread->cancelling = 1;
+	curthread->cancel_enable = 0;
+	curthread->cancel_async = 0;
 	
 	_thr_exit_cleanup();
 

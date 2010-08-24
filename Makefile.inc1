@@ -29,7 +29,6 @@
 #		obj depend all install clean cleandepend cleanobj
 
 .include <bsd.own.mk>
-
 .include <bsd.arch.inc.mk>
 
 # We must do share/info early so that installation of info `dir'
@@ -1078,8 +1077,15 @@ _kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
+.if ${CC:T:Mclang} == "clang"
+_clang=		usr.bin/clang
+_clang_libs=	lib/clang
+.endif
+
 cross-tools:
 .for _tool in \
+    ${_clang_libs} \
+    ${_clang} \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
@@ -1125,8 +1131,8 @@ _prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
 # all shared libraries for ELF.
 #
 _startup_libs=	gnu/lib/csu
-.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
-_startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
+.if exists(${.CURDIR}/lib/csu/${MACHINE_CPUARCH}-elf)
+_startup_libs+=	lib/csu/${MACHINE_CPUARCH}-elf
 .elif exists(${.CURDIR}/lib/csu/${MACHINE_CPUARCH}-elf)
 _startup_libs+=	lib/csu/${MACHINE_CPUARCH}-elf
 .elif exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})

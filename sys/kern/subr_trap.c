@@ -312,7 +312,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 		 */
 		if (systrace_probe_func != NULL && sa->callp->sy_entry != 0)
 			(*systrace_probe_func)(sa->callp->sy_entry, sa->code,
-			    sa->callp, sa->args);
+			    sa->callp, sa->args, 0);
 #endif
 
 		AUDIT_SYSCALL_ENTER(sa->code, td);
@@ -330,7 +330,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 		 */
 		if (systrace_probe_func != NULL && sa->callp->sy_return != 0)
 			(*systrace_probe_func)(sa->callp->sy_return, sa->code,
-			    sa->callp, sa->args);
+			    sa->callp, NULL, (error) ? -1 : td->td_retval[0]);
 #endif
 		syscall_thread_exit(td, sa->callp);
 		CTR4(KTR_SYSC, "syscall: p=%p error=%d return %#lx %#lx",

@@ -243,6 +243,7 @@ struct xvnode {
 #define	VV_ROOT		0x0001	/* root of its filesystem */
 #define	VV_ISTTY	0x0002	/* vnode represents a tty */
 #define	VV_NOSYNC	0x0004	/* unlinked, stop syncing */
+#define	VV_ETERNALDEV	0x0008	/* device that is never destroyed */
 #define	VV_CACHEDLABEL	0x0010	/* Vnode has valid cached MAC label */
 #define	VV_TEXT		0x0020	/* vnode is a pure text prototype */
 #define	VV_COPYONWRITE	0x0040	/* vnode is doing copy-on-write */
@@ -418,10 +419,8 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 #define	VI_UNLOCK(vp)	mtx_unlock(&(vp)->v_interlock)
 #define	VI_MTX(vp)	(&(vp)->v_interlock)
 
-#define	VN_LOCK_AREC(vp)						\
-	((vp)->v_vnlock->lock_object.lo_flags |= LO_RECURSABLE)
-#define	VN_LOCK_ASHARE(vp)						\
-	((vp)->v_vnlock->lock_object.lo_flags &= ~LK_NOSHARE)
+#define	VN_LOCK_AREC(vp)	lockallowrecurse((vp)->v_vnlock)
+#define	VN_LOCK_ASHARE(vp)	lockallowshare((vp)->v_vnlock)
 
 #endif /* _KERNEL */
 

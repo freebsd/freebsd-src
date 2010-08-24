@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../dev/uart
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 uart_bus_ebus=	uart_bus_ebus.c
 ofw_bus_if=	ofw_bus_if.h
 .endif

@@ -115,8 +115,8 @@ INCSLINKS+=	machine/$i ${INCLUDEDIR}/$i
 INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
 .endfor
 
-.if ${MACHINE} != ${MACHINE_ARCH}
-_MARCH=${MACHINE_ARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH}
+_MARCH=${MACHINE_CPUARCH}
 .endif
 
 .include <bsd.prog.mk>

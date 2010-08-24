@@ -24,6 +24,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-SUBDIR=	simple medium lots faulty rptluns
+SUBDIR=	simple medium lots faulty rptluns mptest
 
 .include <bsd.subdir.mk>

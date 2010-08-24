@@ -131,7 +131,7 @@ pid_t	proc_getpid(struct proc_handle *);
 int	proc_wstatus(struct proc_handle *);
 int	proc_getwstat(struct proc_handle *);
 char *	proc_signame(int, char *, size_t);
-int	proc_read(struct proc_handle *, char *, size_t, size_t);
+int	proc_read(struct proc_handle *, void *, size_t, size_t);
 const lwpstatus_t *
 	proc_getlwpstatus(struct proc_handle *);
 void	proc_free(struct proc_handle *);

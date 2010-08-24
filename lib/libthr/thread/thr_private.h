@@ -66,10 +66,6 @@
 	WEAK_REF(func, SYM_FBP10(sym));			\
 	SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
 
-#ifndef __hidden
-#define __hidden		__attribute__((visibility("hidden")))
-#endif
-
 #include "pthread_md.h"
 #include "thr_umtx.h"
 #include "thread_db.h"
@@ -644,7 +640,8 @@ void	_thread_printf(int, const char *, ...) __hidden;
 void	_thr_spinlock_init(void) __hidden;
 void	_thr_cancel_enter(struct pthread *) __hidden;
 void	_thr_cancel_leave(struct pthread *) __hidden;
-void	_thr_cancel_enter_defer(struct pthread *) __hidden;
+void	_thr_cancel_leave2(struct pthread *, int) __hidden;
+void	_thr_cancel_enter_defer(struct pthread *, int) __hidden;
 void	_thr_cancel_leave_defer(struct pthread *, int) __hidden;
 void	_thr_testcancel(struct pthread *) __hidden;
 void	_thr_signal_block(struct pthread *) __hidden;
@@ -708,6 +705,12 @@ int	__sys_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int	__sys_nanosleep(const struct timespec *, struct timespec *);
 #endif
 
+/* #include <sys/ucontext.h> */
+#ifdef _SYS_UCONTEXT_H_
+int	__sys_setcontext(const ucontext_t *ucp);
+int	__sys_swapcontext(ucontext_t *oucp, const ucontext_t *ucp);
+#endif
+
 /* #include <unistd.h> */
 #ifdef  _UNISTD_H_
 int     __sys_close(int);
@@ -738,6 +741,9 @@ _thr_check_init(void)
 	if (_thr_initial == NULL)
 		_libpthread_init(NULL);
 }
+
+struct dl_phdr_info;
+void __pthread_cxa_finalize(struct dl_phdr_info *phdr_info);
 
 __END_DECLS
 

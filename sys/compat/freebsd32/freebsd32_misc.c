@@ -1616,8 +1616,9 @@ freebsd32_sendfile(struct thread *td, struct freebsd32_sendfile_args *uap)
 }
 
 static void
-copy_stat( struct stat *in, struct stat32 *out)
+copy_stat(struct stat *in, struct stat32 *out)
 {
+
 	CP(*in, *out, st_dev);
 	CP(*in, *out, st_ino);
 	CP(*in, *out, st_mode);
@@ -1633,6 +1634,7 @@ copy_stat( struct stat *in, struct stat32 *out)
 	CP(*in, *out, st_blksize);
 	CP(*in, *out, st_flags);
 	CP(*in, *out, st_gen);
+	TS_CP(*in, *out, st_birthtim);
 }
 
 int
@@ -2523,11 +2525,13 @@ syscall32_helper_unregister(struct syscall_helper_data *sd)
 register_t *
 freebsd32_copyout_strings(struct image_params *imgp)
 {
-	int argc, envc;
+	int argc, envc, i;
 	u_int32_t *vectp;
 	char *stringp, *destp;
 	u_int32_t *stack_base;
 	struct freebsd32_ps_strings *arginfo;
+	char canary[sizeof(long) * 8];
+	int32_t pagesizes32[MAXPAGESIZES];
 	size_t execpath_len;
 	int szsigcode;
 
@@ -2539,11 +2543,14 @@ freebsd32_copyout_strings(struct image_params *imgp)
 		execpath_len = strlen(imgp->execpath) + 1;
 	else
 		execpath_len = 0;
-	arginfo = (struct freebsd32_ps_strings *)FREEBSD32_PS_STRINGS;
+	arginfo = (struct freebsd32_ps_strings *)curproc->p_sysent->
+	    sv_psstrings;
 	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
-		roundup(execpath_len, sizeof(char *)) -
-		roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
+	    roundup(execpath_len, sizeof(char *)) -
+	    roundup(sizeof(canary), sizeof(char *)) -
+	    roundup(sizeof(pagesizes32), sizeof(char *)) -
+	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
 	 * install sigcode
@@ -2560,6 +2567,25 @@ freebsd32_copyout_strings(struct image_params *imgp)
 		copyout(imgp->execpath, (void *)imgp->execpathp,
 		    execpath_len);
 	}
+
+	/*
+	 * Prepare the canary for SSP.
+	 */
+	arc4rand(canary, sizeof(canary), 0);
+	imgp->canary = (uintptr_t)arginfo - szsigcode - execpath_len -
+	    sizeof(canary);
+	copyout(canary, (void *)imgp->canary, sizeof(canary));
+	imgp->canarylen = sizeof(canary);
+
+	/*
+	 * Prepare the pagesizes array.
+	 */
+	for (i = 0; i < MAXPAGESIZES; i++)
+		pagesizes32[i] = (uint32_t)pagesizes[i];
+	imgp->pagesizes = (uintptr_t)arginfo - szsigcode - execpath_len -
+	    roundup(sizeof(canary), sizeof(char *)) - sizeof(pagesizes32);
+	copyout(pagesizes32, (void *)imgp->pagesizes, sizeof(pagesizes32));
+	imgp->pagesizeslen = sizeof(pagesizes32);
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room

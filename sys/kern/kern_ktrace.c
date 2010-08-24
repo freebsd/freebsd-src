@@ -107,7 +107,7 @@ static int data_lengths[] = {
 	0,					/* KTR_NAMEI */
 	sizeof(struct ktr_genio),		/* KTR_GENIO */
 	sizeof(struct ktr_psig),		/* KTR_PSIG */
-	sizeof(struct ktr_csw),			/* KTR_CSW */
+	sizeof(struct ktr_csw),		/* KTR_CSW */
 	0,					/* KTR_USER */
 	0,					/* KTR_STRUCT */
 	0,					/* KTR_SYSCTL */
@@ -218,7 +218,8 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_ktrace, OID_AUTO, request_pool, CTLTYPE_UINT|CTLFLAG_RW,
-    &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU", "");
+    &ktr_requestpool, 0, sysctl_kern_ktrace_request_pool, "IU",
+    "Pool buffer size for ktrace(1)");
 
 static u_int
 ktrace_resize_pool(u_int newsize)
@@ -335,7 +336,7 @@ ktr_drain(struct thread *td)
 	ktrace_assert(td);
 	sx_assert(&ktrace_sx, SX_XLOCKED);
 
-	STAILQ_INIT(&local_queue);	/* XXXRW: needed? */
+	STAILQ_INIT(&local_queue);
 
 	if (!STAILQ_EMPTY(&td->td_proc->p_ktr)) {
 		mtx_lock(&ktrace_mtx);
@@ -740,7 +741,6 @@ ktrace(td, uap)
 				PROC_UNLOCK(p); 
 				continue;
 			}
-			PROC_UNLOCK(p); 
 			nfound++;
 			if (descend)
 				ret |= ktrsetchildren(td, p, ops, facs, vp);
@@ -757,18 +757,13 @@ ktrace(td, uap)
 		 * by pid
 		 */
 		p = pfind(uap->pid);
-		if (p == NULL) {
-			sx_sunlock(&proctree_lock);
+		if (p == NULL)
 			error = ESRCH;
-			goto done;
-		}
-		error = p_cansee(td, p);
-		/*
-		 * The slock of the proctree lock will keep this process
-		 * from going away, so unlocking the proc here is ok.
-		 */
-		PROC_UNLOCK(p);
+		else
+			error = p_cansee(td, p);
 		if (error) {
+			if (p != NULL)
+				PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
 			goto done;
 		}
@@ -840,10 +835,15 @@ ktrops(td, p, ops, facs, vp)
 	struct vnode *tracevp = NULL;
 	struct ucred *tracecred = NULL;
 
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!ktrcanset(td, p)) {
 		PROC_UNLOCK(p);
 		return (0);
+	}
+	if (p->p_flag & P_WEXIT) {
+		/* If the process is exiting, just ignore it. */
+		PROC_UNLOCK(p);
+		return (1);
 	}
 	mtx_lock(&ktrace_mtx);
 	if (ops == KTROP_SET) {
@@ -899,6 +899,7 @@ ktrsetchildren(td, top, ops, facs, vp)
 	register int ret = 0;
 
 	p = top;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sx_assert(&proctree_lock, SX_LOCKED);
 	for (;;) {
 		ret |= ktrops(td, p, ops, facs, vp);
@@ -918,6 +919,7 @@ ktrsetchildren(td, top, ops, facs, vp)
 			}
 			p = p->p_pptr;
 		}
+		PROC_LOCK(p);
 	}
 	/*NOTREACHED*/
 }

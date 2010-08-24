@@ -1501,6 +1501,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	/*
 	 * FFS supports recursive locking.
 	 */
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	VN_LOCK_AREC(vp);
 	vp->v_data = ip;
 	vp->v_bufobj.bo_bsize = fs->fs_bsize;
@@ -1518,7 +1519,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	}
 #endif
 
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	if (ffs_flags & FFSV_FORCEINSMQ)
 		vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, mp);

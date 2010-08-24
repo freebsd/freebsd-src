@@ -132,19 +132,19 @@ file_sanity_check()
   then
     for i in $1
     do
-       grep "^${i}=" $CFGF >/dev/null 2>/dev/null
-       if [ "$?" = "0" ]
-       then
-         LN=`grep "^${i}=" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
-         if [ -z "${LN}" ]
-         then
-           echo "Error: Config fails sanity test! ${i}= is empty"
-           exit 1
-         fi
-       else
-         echo "Error: Config fails sanity test! Missing ${i}="
-         exit 1
-       fi
+      grep "^${i}=" $CFGF >/dev/null 2>/dev/null
+      if [ "$?" = "0" ]
+      then
+        LN=`grep "^${i}=" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
+        if [ -z "${LN}" ]
+        then
+          echo "Error: Config fails sanity test! ${i}= is empty"
+          exit 1
+        fi
+      else
+        echo "Error: Config fails sanity test! Missing ${i}="
+        exit 1
+      fi
     done
   else
     echo "Error: Missing config file, and / or values to sanity check for!"

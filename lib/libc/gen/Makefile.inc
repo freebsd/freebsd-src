@@ -2,15 +2,15 @@
 # $FreeBSD$
 
 # machine-independent gen sources
-.PATH: ${.CURDIR}/${MACHINE_ARCH}/gen ${.CURDIR}/gen
+.PATH: ${.CURDIR}/${MACHINE_CPUARCH}/gen ${.CURDIR}/gen
 
 SRCS+=  __getosreldate.c __xuname.c \
 	_once_stub.c _pthread_stubs.c _rand48.c _spinlock_stub.c \
 	_thread_init.c \
-	alarm.c arc4random.c assert.c basename.c check_utility_compat.c \
+	alarm.c arc4random.c assert.c aux.c basename.c check_utility_compat.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
-	dlfcn.c drand48.c erand48.c err.c errlst.c errno.c \
+	dlfcn.c drand48.c elf_utils.c erand48.c err.c errlst.c errno.c \
 	exec.c fdevname.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
 	fpclassify.c frexp.c fstab.c ftok.c fts.c fts-compat.c ftw.c \
 	getbootfile.c getbsize.c \
@@ -38,8 +38,8 @@ SRCS+=  __getosreldate.c __xuname.c \
 SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 
 # machine-dependent gen sources
-.if exists(${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_CPUARCH}/gen/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_CPUARCH}/gen/Makefile.inc"
 .endif
 
 MAN+=	alarm.3 arc4random.3 \

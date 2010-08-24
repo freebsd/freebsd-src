@@ -419,7 +419,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 #if defined(__mips_n32) 
 	td->td_frame->sr |= MIPS_SR_PX;
 #elif  defined(__mips_n64)
-	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX;
+	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
 #endif
 #ifdef CPU_CNMIPS
 	tf->sr |=  MIPS_SR_INT_IE | MIPS_SR_COP_0_BIT | MIPS_SR_PX | MIPS_SR_UX |

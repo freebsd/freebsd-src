@@ -81,102 +81,112 @@ setup_zfs_filesystem()
 setup_filesystems()
 {
 
-   # Create the keydir
-   rm -rf ${GELIKEYDIR} >/dev/null 2>/dev/null
-   mkdir ${GELIKEYDIR}
+  # Create the keydir
+  rm -rf ${GELIKEYDIR} >/dev/null 2>/dev/null
+  mkdir ${GELIKEYDIR}
 
-   # Lets go ahead and read through the saved partitions we created, and determine if we need to run
-   # newfs on any of them
-   for PART in `ls ${PARTDIR}`
-   do
-     if [ ! -e "/dev/${PART}" ]
-     then
-       exit_err "ERROR: The partition ${PART} does not exist. Failure in bsdlabel?"
-     fi 
+  # Lets go ahead and read through the saved partitions we created, and determine if we need to run
+  # newfs on any of them
+  for PART in `ls ${PARTDIR}`
+  do
+    if [ ! -e "/dev/${PART}" ]
+    then
+      exit_err "ERROR: The partition ${PART} does not exist. Failure in bsdlabel?"
+    fi 
      
-     PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-     PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
-     PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d ':' -f 4`"
-     PARTGEOM="`cat ${PARTDIR}/${PART} | cut -d ':' -f 5`"
-     PARTXTRAOPTS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 6`"
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
+    PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
+    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d ':' -f 4`"
+    PARTGEOM="`cat ${PARTDIR}/${PART} | cut -d ':' -f 5`"
+    PARTXTRAOPTS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 6`"
 
-     # Make sure journaling isn't enabled on this device
-     if [ -e "/dev/${PART}.journal" ]
-     then
-       rc_nohalt "gjournal stop -f ${PART}.journal"
-       rc_nohalt "gjournal clear ${PART}"
-     fi
+    # Make sure journaling isn't enabled on this device
+    if [ -e "/dev/${PART}.journal" ]
+    then
+      rc_nohalt "gjournal stop -f ${PART}.journal"
+      rc_nohalt "gjournal clear ${PART}"
+    fi
 
-     # Setup encryption if necessary
-     if [ "${PARTENC}" = "ON" -a "${PARTFS}" != "SWAP" ]
-     then
-       echo_log "Creating geli provider for ${PART}"
-       rc_halt "dd if=/dev/random of=${GELIKEYDIR}/${PART}.key bs=64 count=1"
-       rc_halt "geli init -b -s 4096 -P -K ${GELIKEYDIR}/${PART}.key /dev/${PART}"
-       rc_halt "geli attach -p -k ${GELIKEYDIR}/${PART}.key /dev/${PART}"
+    # Setup encryption if necessary
+    if [ "${PARTENC}" = "ON" -a "${PARTFS}" != "SWAP" ]
+    then
+      echo_log "Creating geli provider for ${PART}"
+      rc_halt "dd if=/dev/random of=${GELIKEYDIR}/${PART}.key bs=64 count=1"
+      rc_halt "geli init -b -s 4096 -P -K ${GELIKEYDIR}/${PART}.key /dev/${PART}"
+      rc_halt "geli attach -p -k ${GELIKEYDIR}/${PART}.key /dev/${PART}"
 
-       EXT=".eli"
-     else
-       # No Encryption
-       EXT=""
-     fi
+      EXT=".eli"
+    else
+      # No Encryption
+      EXT=""
+    fi
 
-     case ${PARTFS} in
-         UFS) echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
-              sleep 2
-              rc_halt "newfs /dev/${PART}${EXT}"
-              sleep 2
-              rc_halt "sync"
-              rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
-              rc_halt "sync"
+    case ${PARTFS} in
+      UFS)
+        echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
+        sleep 2
+        rc_halt "newfs /dev/${PART}${EXT}"
+        sleep 2
+        rc_halt "sync"
+        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
+        rc_halt "sync"
 
-	      # Set flag that we've found a boot partition
-	      if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
-		HAVEBOOT="YES"
-  	      fi
-              sleep 2
-              ;;
-       UFS+S) echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
-              sleep 2
-              rc_halt "newfs -U /dev/${PART}${EXT}"
-              sleep 2
-              rc_halt "sync"
-              rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
-              rc_halt "sync"
-	      # Set flag that we've found a boot partition
-	      if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
-		HAVEBOOT="YES"
-  	      fi
-              sleep 2
-              ;;
-       UFS+J) echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
-              sleep 2
-              rc_halt "newfs /dev/${PART}${EXT}"
-              sleep 2
-              rc_halt "gjournal label -f /dev/${PART}${EXT}"
-              sleep 2
-              rc_halt "newfs -O 2 -J /dev/${PART}${EXT}.journal"
-              sleep 2
-              rc_halt "sync"
-              rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal"
-              rc_halt "sync"
-	      # Set flag that we've found a boot partition
-	      if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
-		HAVEBOOT="YES"
-  	      fi
-              sleep 2
-              ;;
-         ZFS) echo_log "NEWFS: /dev/${PART} - ${PARTFS}" 
-              setup_zfs_filesystem "${PART}" "${PARTFS}" "${PARTMNT}" "${EXT}" "${PARTGEOM}" "${PARTXTRAOPTS}"
-              ;;
-        SWAP) rc_halt "sync"
-              rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}" 
-              rc_halt "sync"
-              sleep 2
-              ;;
-           *) exit_err "ERROR: Got unknown file-system type $PARTFS" ;;
-     esac
+        # Set flag that we've found a boot partition
+        if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
+		  HAVEBOOT="YES"
+        fi
+        sleep 2
+        ;;
 
-   done
+      UFS+S)
+        echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
+        sleep 2
+        rc_halt "newfs -U /dev/${PART}${EXT}"
+        sleep 2
+        rc_halt "sync"
+        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
+        rc_halt "sync"
+	    # Set flag that we've found a boot partition
+	    if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
+          HAVEBOOT="YES"
+        fi
+        sleep 2
+        ;;
+
+      UFS+J)
+        echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
+        sleep 2
+        rc_halt "newfs /dev/${PART}${EXT}"
+        sleep 2
+        rc_halt "gjournal label -f /dev/${PART}${EXT}"
+        sleep 2
+        rc_halt "newfs -O 2 -J /dev/${PART}${EXT}.journal"
+        sleep 2
+        rc_halt "sync"
+        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal"
+        rc_halt "sync"
+	    # Set flag that we've found a boot partition
+	    if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
+          HAVEBOOT="YES"
+  	    fi
+        sleep 2
+        ;;
+
+      ZFS)
+        echo_log "NEWFS: /dev/${PART} - ${PARTFS}" 
+        setup_zfs_filesystem "${PART}" "${PARTFS}" "${PARTMNT}" "${EXT}" "${PARTGEOM}" "${PARTXTRAOPTS}"
+        ;;
+
+      SWAP)
+        rc_halt "sync"
+        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}" 
+        rc_halt "sync"
+        sleep 2
+        ;;
+
+      *) exit_err "ERROR: Got unknown file-system type $PARTFS" ;;
+    esac
+
+  done
 };

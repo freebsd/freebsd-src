@@ -50,7 +50,7 @@ my $local = "";
 my $remote = "";
 my %Local;
 my $up;
-open IFCONFIG, '/usr/sbin/ifconfig -a inet6 |'
+open IFCONFIG, '/sbin/ifconfig -a inet6 |'
     or die "Couldn't run ifconfig: $!\n";
 while (<IFCONFIG>) {
 	next if /^lo/;
@@ -74,7 +74,7 @@ exit 1 if $local eq "";
 # Find the first remote host that responds to an icmp echo,
 # which isn't a local address.
 #
-open PING, "/usr/sbin/ping -ns -A inet6 $MULTICAST 56 $MAXHOSTS |" or
+open PING, "/sbin/ping -ns -A inet6 $MULTICAST 56 $MAXHOSTS |" or
     die "Couldn't run ping: $!\n";
 while (<PING>) {
 	if (/bytes from (.*): / and not defined $Local{$1}) {

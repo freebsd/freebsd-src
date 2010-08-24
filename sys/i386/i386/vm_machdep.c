@@ -596,7 +596,8 @@ cpu_reset()
 #endif
 
 #ifdef SMP
-	u_int cnt, map;
+	cpumask_t map;
+	u_int cnt;
 
 	if (smp_active) {
 		map = PCPU_GET(other_cpus) & ~stopped_cpus;

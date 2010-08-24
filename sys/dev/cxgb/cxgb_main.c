@@ -1778,11 +1778,12 @@ cxgb_init_locked(struct port_info *p)
 	struct adapter *sc = p->adapter;
 	struct ifnet *ifp = p->ifp;
 	struct cmac *mac = &p->mac;
-	int i, rc = 0, may_sleep = 0;
+	int i, rc = 0, may_sleep = 0, gave_up_lock = 0;
 
 	ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	while (!IS_DOOMED(p) && IS_BUSY(sc)) {
+		gave_up_lock = 1;
 		if (mtx_sleep(&sc->flags, &sc->lock, PCATCH, "cxgbinit", 0)) {
 			rc = EINTR;
 			goto done;
@@ -1802,6 +1803,7 @@ cxgb_init_locked(struct port_info *p)
 
 	if (may_sleep) {
 		SET_BUSY(sc);
+		gave_up_lock = 1;
 		ADAPTER_UNLOCK(sc);
 	}
 
@@ -1849,8 +1851,9 @@ done:
 		ADAPTER_LOCK(sc);
 		KASSERT(IS_BUSY(sc), ("%s: controller not busy.", __func__));
 		CLR_BUSY(sc);
-		wakeup_one(&sc->flags);
 	}
+	if (gave_up_lock)
+		wakeup_one(&sc->flags);
 	ADAPTER_UNLOCK(sc);
 	return (rc);
 }

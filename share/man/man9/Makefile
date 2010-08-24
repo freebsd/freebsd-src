@@ -700,6 +700,7 @@ MLINKS+=ieee80211_vap.9 ieee80211_vap_attach.9 \
 MLINKS+=ifnet.9 ifaddr.9 \
 	ifnet.9 if_data.9 \
 	ifnet.9 ifqueue.9
+MLINKS+=insmntque.9 insmntque1.9
 MLINKS+=ithread.9 ithread_add_handler.9 \
 	ithread.9 ithread_create.9 \
 	ithread.9 ithread_destroy.9 \
@@ -769,8 +770,13 @@ MLINKS+=lock.9 lockdestroy.9 \
 	lock.9 lockstatus.9
 MLINKS+=LOCK_PROFILING.9 MUTEX_PROFILING.9
 MLINKS+=make_dev.9 destroy_dev.9 \
+	make_dev.9 destroy_dev_drain.9 \
+	make_dev.9 destroy_dev_sched.9 \
+	make_dev.9 destroy_dev_sched_cb.9 \
 	make_dev.9 dev_depends.9 \
-	make_dev.9 make_dev_alias.9
+	make_dev.9 make_dev_alias.9 \
+	make_dev.9 make_dev_cred.9 \
+	make_dev.9 make_dev_credf.9
 MLINKS+=malloc.9 free.9 \
 	malloc.9 MALLOC_DECLARE.9 \
 	malloc.9 MALLOC_DEFINE.9 \
@@ -989,7 +995,7 @@ MLINKS+=rtalloc.9 rtalloc1.9 \
 	rtalloc.9 rtalloc_ign.9 \
 	rtalloc.9 RTFREE.9 \
 	rtalloc.9 rtfree.9
-MLINKS+=runqueue.9 chooseproc.9 \
+MLINKS+=runqueue.9 choosethread.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
 	runqueue.9 setrunqueue.9

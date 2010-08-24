@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
+#include <netinet/ip_var.h>
 #include <netinet6/ip6protosw.h>
 #include <netinet6/ip6_mroute.h>
 #include <netinet6/in6_pcb.h>
@@ -99,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/raw_ip6.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/send.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -248,6 +250,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			}
 			if (blocked != MCAST_PASS) {
 				IP6STAT_INC(ip6s_notmember);
+				INP_RUNLOCK(in6p);
 				continue;
 			}
 		}
@@ -389,6 +392,7 @@ rip6_output(m, va_alist)
 #endif
 {
 	struct mbuf *control;
+	struct m_tag *mtag;
 	struct socket *so;
 	struct sockaddr_in6 *dstsock;
 	struct in6_addr *dst;
@@ -400,6 +404,7 @@ rip6_output(m, va_alist)
 	struct ifnet *oifp = NULL;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
 	int scope_ambiguous = 0;
+	int use_defzone = 0;
 	struct in6_addr in6a;
 	va_list ap;
 
@@ -429,9 +434,12 @@ rip6_output(m, va_alist)
 	 * XXX: we may still need to determine the zone later.
 	 */
 	if (!(so->so_state & SS_ISCONNECTED)) {
-		if (dstsock->sin6_scope_id == 0 && !V_ip6_use_defzone)
+		if (!optp || !optp->ip6po_pktinfo ||
+		    !optp->ip6po_pktinfo->ipi6_ifindex)
+			use_defzone = V_ip6_use_defzone;
+		if (dstsock->sin6_scope_id == 0 && !use_defzone)
 			scope_ambiguous = 1;
-		if ((error = sa6_embedscope(dstsock, V_ip6_use_defzone)) != 0)
+		if ((error = sa6_embedscope(dstsock, use_defzone)) != 0)
 			goto bad;
 	}
 
@@ -526,6 +534,23 @@ rip6_output(m, va_alist)
 		p = (u_int16_t *)(mtod(n, caddr_t) + off);
 		*p = 0;
 		*p = in6_cksum(m, ip6->ip6_nxt, sizeof(*ip6), plen);
+	}
+
+	/*
+	 * Send RA/RS messages to user land for protection, before sending
+	 * them to rtadvd/rtsol.
+	 */
+	if ((send_sendso_input_hook != NULL) &&
+	    so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
+		switch (type) {
+		case ND_ROUTER_ADVERT:
+		case ND_ROUTER_SOLICIT:
+			mtag = m_tag_get(PACKET_TAG_ND_OUTGOING,
+				sizeof(unsigned short), M_NOWAIT);
+			if (mtag == NULL)
+				goto bad;
+			m_tag_prepend(m, mtag);
+		}
 	}
 
 	error = ip6_output(m, optp, NULL, 0, in6p->in6p_moptions, &oifp, in6p);

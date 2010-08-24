@@ -243,7 +243,7 @@ SlowFault:
 	and     a0, a0, a2              ; \
         mtc0    a0, MIPS_COP_0_STATUS   ; \
 	ITLBNOPFIX
-#elif defined(TARGET_XLR_XLS)
+#elif defined(CPU_RMI)
 #define CLEAR_STATUS \
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT) ; \
@@ -434,12 +434,6 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 /*
  * Save all of the registers except for the kernel temporaries in u.u_pcb.
  */
-	mfc0	k0, MIPS_COP_0_STATUS
-	HAZARD_DELAY
-#ifdef __mips_n64
-	ori	k1, k0, MIPS_SR_KX
-	mtc0	k1, MIPS_COP_0_STATUS
-#endif
 	GET_CPU_PCPU(k1)
 	PTR_L	k1, PC_CURPCB(k1)
 	SAVE_U_PCB_REG(AT, AST, k1)
@@ -457,7 +451,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	SAVE_U_PCB_REG(t2, T2, k1)
 	SAVE_U_PCB_REG(t3, T3, k1)
 	SAVE_U_PCB_REG(ta0, TA0, k1)
-	move	a0, k0				# First arg is the status reg.
+	mfc0	a0, MIPS_COP_0_STATUS		# First arg is the status reg.
 	SAVE_U_PCB_REG(ta1, TA1, k1)
 	SAVE_U_PCB_REG(ta2, TA2, k1)
 	SAVE_U_PCB_REG(ta3, TA3, k1)
@@ -491,7 +485,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS3_SR_KSU_MASK | MIPS_SR_INT_IE)
 #if defined(CPU_CNMIPS)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
-#elif defined(TARGET_XLR_XLS)	
+#elif defined(CPU_RMI)	
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
 #endif	
 	mtc0	t0, MIPS_COP_0_STATUS
@@ -656,12 +650,6 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
  * Save the relevant user registers into the u.u_pcb struct.
  * We don't need to save s0 - s8 because the compiler does it for us.
  */
-	mfc0	k0, MIPS_COP_0_STATUS
-	HAZARD_DELAY
-#ifdef __mips_n64
-	ori	k1, k0, MIPS_SR_KX
-	mtc0	k1, MIPS_COP_0_STATUS
-#endif
 	GET_CPU_PCPU(k1)
 	PTR_L	k1, PC_CURPCB(k1)
 	SAVE_U_PCB_REG(AT, AST, k1)
@@ -700,7 +688,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 
 	mflo	v0			# get lo/hi late to avoid stall
 	mfhi	v1
-	move	a0, k0
+	mfc0	a0, MIPS_COP_0_STATUS
 	mfc0	a1, MIPS_COP_0_CAUSE
 	MFC0	a3, MIPS_COP_0_EXC_PC
 	SAVE_U_PCB_REG(v0, MULLO, k1)
@@ -715,7 +703,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS3_SR_KSU_MASK)
 #ifdef CPU_CNMIPS
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
-#elif defined(TARGET_XLR_XLS)	
+#elif defined(CPU_RMI)	
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
 #endif	
 	mtc0	t0, MIPS_COP_0_STATUS
@@ -1179,7 +1167,7 @@ eintrcnt:
 	.text
 VECTOR(MipsCache, unknown)
 	PTR_LA	k0, _C_LABEL(MipsCacheException)
-	li	k1, MIPS_PHYS_MASK
+	li	k1, MIPS_KSEG0_PHYS_MASK
 	and	k0, k1
 	PTR_LI	k1, MIPS_KSEG1_START
 	or	k0, k1

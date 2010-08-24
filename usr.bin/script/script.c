@@ -63,19 +63,18 @@ static const char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #include <termios.h>
 #include <unistd.h>
 
-FILE	*fscript;
-int	master, slave;
-int	child;
-const char *fname;
-int	qflg, ttyflg;
+static FILE *fscript;
+static int master, slave;
+static int child;
+static const char *fname;
+static int qflg, ttyflg;
 
-struct	termios tt;
+static struct termios tt;
 
-void	done(int) __dead2;
-void	dooutput(void);
-void	doshell(char **);
-void	fail(void);
-void	finish(void);
+static void done(int) __dead2;
+static void doshell(char **);
+static void fail(void);
+static void finish(void);
 static void usage(void);
 
 int
@@ -216,7 +215,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 finish(void)
 {
 	int e, status;
@@ -232,7 +231,7 @@ finish(void)
 	}
 }
 
-void
+static void
 doshell(char **av)
 {
 	const char *shell;
@@ -254,14 +253,14 @@ doshell(char **av)
 	fail();
 }
 
-void
+static void
 fail(void)
 {
 	(void)kill(0, SIGTERM);
 	done(1);
 }
 
-void
+static void
 done(int eno)
 {
 	time_t tvec;

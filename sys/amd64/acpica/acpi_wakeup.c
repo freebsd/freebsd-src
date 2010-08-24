@@ -71,7 +71,7 @@ extern struct pcb	**susppcbs;
 static struct pcb	**susppcbs;
 #endif
 
-int			acpi_restorecpu(struct pcb *, vm_offset_t);
+int			acpi_restorecpu(vm_offset_t, struct pcb *);
 
 static void		*acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
@@ -176,7 +176,6 @@ static void
 acpi_wakeup_cpus(struct acpi_softc *sc, cpumask_t wakeup_cpus)
 {
 	uint32_t	mpbioswarmvec;
-	cpumask_t	map;
 	int		cpu;
 	u_char		mpbiosreason;
 
@@ -193,8 +192,7 @@ acpi_wakeup_cpus(struct acpi_softc *sc, cpumask_t wakeup_cpus)
 
 	/* Wake up each AP. */
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
-		map = 1ul << cpu;
-		if ((wakeup_cpus & map) != map)
+		if ((wakeup_cpus & (1 << cpu)) == 0)
 			continue;
 		if (acpi_wakeup_ap(sc, cpu) == 0) {
 			/* restore the warmstart vector */
@@ -280,6 +278,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		for (;;)
 			ia32_pause();
 	} else {
+		PCPU_SET(switchtime, 0);
+		PCPU_SET(switchticks, ticks);
 #ifdef SMP
 		if (wakeup_cpus != 0)
 			acpi_wakeup_cpus(sc, wakeup_cpus);

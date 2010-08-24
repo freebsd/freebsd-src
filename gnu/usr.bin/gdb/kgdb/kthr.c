@@ -44,26 +44,25 @@ __FBSDID("$FreeBSD$");
 #include "kgdb.h"
 #include <machine/pcb.h>
 
-static uintptr_t dumppcb;
+static CORE_ADDR dumppcb;
 static int dumptid;
 
-static uintptr_t stoppcbs;
+static CORE_ADDR stoppcbs;
 static __cpumask_t stopped_cpus;
 
 static struct kthr *first;
 struct kthr *curkthr;
 
-uintptr_t
+CORE_ADDR
 kgdb_lookup(const char *sym)
 {
-	struct nlist nl[2];
+	CORE_ADDR addr;
+	char *name;
 
-	nl[0].n_type = N_UNDF;
-	nl[0].n_name = (char *)(uintptr_t)sym;
-	nl[1].n_name = NULL;
-	if (kvm_nlist(kvm, nl) != 0)
-		return (0);
-	return (nl[0].n_value);
+	asprintf(&name, "&%s", sym);
+	addr = kgdb_parse(name);
+	free(name);
+	return (addr);
 }
 
 struct kthr *
@@ -78,7 +77,8 @@ kgdb_thr_init(void)
 	struct proc p;
 	struct thread td;
 	struct kthr *kt;
-	uintptr_t addr, paddr;
+	CORE_ADDR addr;
+	uintptr_t paddr;
 	
 	while (first != NULL) {
 		kt = first;
@@ -86,32 +86,28 @@ kgdb_thr_init(void)
 		free(kt);
 	}
 
-	addr = kgdb_lookup("_allproc");
-	if (addr == 0) {
-		warnx("kvm_nlist(_allproc): %s", kvm_geterr(kvm));
+	addr = kgdb_lookup("allproc");
+	if (addr == 0)
 		return (NULL);
-	}
 	kvm_read(kvm, addr, &paddr, sizeof(paddr));
 
-	dumppcb = kgdb_lookup("_dumppcb");
-	if (dumppcb == 0) {
-		warnx("kvm_nlist(_dumppcb): %s", kvm_geterr(kvm));
+	dumppcb = kgdb_lookup("dumppcb");
+	if (dumppcb == 0)
 		return (NULL);
-	}
 
-	addr = kgdb_lookup("_dumptid");
+	addr = kgdb_lookup("dumptid");
 	if (addr != 0)
 		kvm_read(kvm, addr, &dumptid, sizeof(dumptid));
 	else
 		dumptid = -1;
 
-	addr =  kgdb_lookup("_stopped_cpus");
+	addr = kgdb_lookup("stopped_cpus");
 	if (addr != 0)
 		kvm_read(kvm, addr, &stopped_cpus, sizeof(stopped_cpus));
 	else
 		stopped_cpus = 0;
 
-	stoppcbs = kgdb_lookup("_stoppcbs");
+	stoppcbs = kgdb_lookup("stoppcbs");
 
 	while (paddr != 0) {
 		if (kvm_read(kvm, paddr, &p, sizeof(p)) != sizeof(p)) {

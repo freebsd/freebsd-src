@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	drti \
+SUBDIR=	${_drti} \
 	libavl \
 	libctf \
 	${_libdtrace} \
@@ -19,7 +19,8 @@ _libzpool=	libzpool
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == amd64 || ${MACHINE_ARCH} == i386
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+_drti=		drti
 _libdtrace=	libdtrace
 .endif
 

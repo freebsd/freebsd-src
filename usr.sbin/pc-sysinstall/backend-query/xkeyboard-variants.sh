@@ -36,7 +36,7 @@ do
     echo $line | grep '! ' >/dev/null 2>/dev/null
     if [ "$?" = "0" ]
     then
-     exit 0
+      exit 0
     else 
       echo "$line"
     fi 

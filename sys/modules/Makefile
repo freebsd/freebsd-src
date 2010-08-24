@@ -112,6 +112,7 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_ie} \
 	if_bridge \
+	if_carp \
 	if_disc \
 	if_edsc \
 	if_ef \
@@ -256,6 +257,7 @@ SUBDIR=	${_3dfx} \
 	${_scsi_low} \
 	sdhci \
 	sem \
+	send \
 	sf \
 	sge \
 	siba_bwn \
@@ -282,6 +284,7 @@ SUBDIR=	${_3dfx} \
 	ti \
 	tl \
 	tmpfs \
+	${_tpm} \
 	trm \
 	${_twa} \
 	twe \
@@ -320,8 +323,8 @@ SUBDIR=	${_3dfx} \
 	${_zfs} \
 	zlib \
 
-.if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_ARCH} != "arm" && \
-	${MACHINE_ARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_CPUARCH} != "mips"
 _syscons=	syscons
 _vpo=		vpo
 .endif
@@ -357,7 +360,7 @@ _pf=		pf
 _pflog=		pflog
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 # XXX some of these can move to the general case when de-i386'ed
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
@@ -479,6 +482,7 @@ _nfe=		nfe
 _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
+_tpm=		tpm
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -496,7 +500,7 @@ _snc=		snc
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 _aac=		aac
 _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -574,6 +578,7 @@ _sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
+_tpm=		tpm
 _twa=		twa
 _vesa=		vesa
 _x86bios=	x86bios
@@ -585,7 +590,7 @@ _zfs=		zfs
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 _aac=		aac
 _aic=		aic
 _an=		an
@@ -618,6 +623,7 @@ _sound=		sound
 _splash=	splash
 _sppp=		sppp
 _streams=	streams
+_tpm=		tpm
 _twa=		twa
 _wi=		wi
 _xe=		xe
@@ -641,7 +647,7 @@ _zfs=		zfs
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 _auxio=		auxio
 _em=		em
 _epic=		epic

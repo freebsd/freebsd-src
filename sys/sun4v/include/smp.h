@@ -59,12 +59,12 @@ struct cpu_start_args {
 };
 
 struct ipi_cache_args {
-	u_int	ica_mask;
+	cpumask_t ica_mask;
 	vm_paddr_t ica_pa;
 };
 
 struct ipi_tlb_args {
-	u_int	ita_mask;
+	cpumask_t ita_mask;
 	struct	pmap *ita_pmap;
 	u_long	ita_start;
 	u_long	ita_end;
@@ -85,8 +85,9 @@ void cpu_ipi_preempt(struct trapframe *tf);
 void cpu_ipi_hardclock(struct trapframe *tf);
 void cpu_ipi_statclock(struct trapframe *tf);
 
-void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all_but_self(u_int ipi);
+void	ipi_cpu(int cpu, u_int ipi);
+void	ipi_selected(u_int cpus, u_int ipi);
 
 vm_offset_t mp_tramp_alloc(void);
 void        mp_set_tsb_desc_ra(vm_paddr_t);

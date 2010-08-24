@@ -51,18 +51,18 @@ __FBSDID("$FreeBSD$");
 #include "control.h"
 
 static void
-control_set_role(struct hastd_config *cfg, struct nv *nvout, uint8_t role,
-    struct hast_resource *res, const char *name, unsigned int no)
+control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
+    uint8_t role, struct hast_resource *res, const char *name, unsigned int no)
 {
 
-	assert(cfg != NULL);
-	assert(nvout != NULL);
-	assert(name != NULL);
-
 	/* Name is always needed. */
-	nv_add_string(nvout, name, "resource%u", no);
+	if (name != NULL)
+		nv_add_string(nvout, name, "resource%u", no);
 
 	if (res == NULL) {
+		assert(cfg != NULL);
+		assert(name != NULL);
+
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (strcmp(res->hr_name, name) == 0)
 				break;
@@ -113,6 +113,13 @@ control_set_role(struct hastd_config *cfg, struct nv *nvout, uint8_t role,
 	if (role == HAST_ROLE_PRIMARY)
 		hastd_primary(res);
 	pjdlog_prefix_set("%s", "");
+}
+
+void
+control_set_role(struct hast_resource *res, uint8_t role)
+{
+
+	control_set_role_common(NULL, NULL, role, res, NULL, 0);
 }
 
 static void
@@ -306,7 +313,7 @@ control_handle(struct hastd_config *cfg)
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			switch (cmd) {
 			case HASTCTL_SET_ROLE:
-				control_set_role(cfg, nvout, role, res,
+				control_set_role_common(cfg, nvout, role, res,
 				    res->hr_name, ii++);
 				break;
 			case HASTCTL_STATUS:
@@ -329,8 +336,8 @@ control_handle(struct hastd_config *cfg)
 				break;
 			switch (cmd) {
 			case HASTCTL_SET_ROLE:
-				control_set_role(cfg, nvout, role, NULL, str,
-				    ii);
+				control_set_role_common(cfg, nvout, role, NULL,
+				    str, ii);
 				break;
 			case HASTCTL_STATUS:
 				control_status(cfg, nvout, NULL, str, ii);

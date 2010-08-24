@@ -419,6 +419,7 @@ MAN=	aac.4 \
 	ti.4 \
 	tl.4 \
 	tnt4882.4 \
+	${_tpm.4} \
 	trm.4 \
 	tty.4 \
 	tun.4 \
@@ -627,7 +628,7 @@ MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 MLINKS+=zyd.4 if_zyd.4
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
@@ -670,13 +671,14 @@ _padlock.4=	padlock.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4
+_tpm.4=		tpm.4
 _urtw.4=	urtw.4
 _wpi.4=		wpi.4
 
 MLINKS+=lindev.4 full.4
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 _atp.4=		atp.4
 .endif
 

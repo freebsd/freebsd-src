@@ -12,7 +12,7 @@ SRCS=	syslogd.c ttymsg.c
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
-WARNS?=	3
+WARNS?= 3
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6

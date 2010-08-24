@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "hast.h"
+#include "pjdlog.h"
 #include "proto_impl.h"
 
 #define	UDS_CTX_MAGIC	0xd541c
@@ -257,15 +258,15 @@ uds_local_address(const void *ctx, char *addr, size_t size)
 
 	sunlen = sizeof(sun);
 	if (getsockname(uctx->uc_fd, (struct sockaddr *)&sun, &sunlen) < 0) {
-		strlcpy(addr, "N/A", size);
+		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
 	assert(sun.sun_family == AF_UNIX);
 	if (sun.sun_path[0] == '\0') {
-		strlcpy(addr, "N/A", size);
+		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	snprintf(addr, size, "uds://%s", sun.sun_path);
+	PJDLOG_VERIFY(snprintf(addr, size, "uds://%s", sun.sun_path) < (ssize_t)size);
 }
 
 static void
@@ -281,12 +282,12 @@ uds_remote_address(const void *ctx, char *addr, size_t size)
 
 	sunlen = sizeof(sun);
 	if (getpeername(uctx->uc_fd, (struct sockaddr *)&sun, &sunlen) < 0) {
-		strlcpy(addr, "N/A", size);
+		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
 	assert(sun.sun_family == AF_UNIX);
 	if (sun.sun_path[0] == '\0') {
-		strlcpy(addr, "N/A", size);
+		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
 	snprintf(addr, size, "uds://%s", sun.sun_path);
@@ -326,5 +327,5 @@ static __constructor void
 uds_ctor(void)
 {
 
-	proto_register(&uds_proto);
+	proto_register(&uds_proto, false);
 }

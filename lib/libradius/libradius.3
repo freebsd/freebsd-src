@@ -464,7 +464,7 @@ subsequent library calls using the same handle.
 To free the resources used by the RADIUS library, call
 .Fn rad_close .
 .Ss Server operation
-Server mode operates much alike to client mode, except packet send and receieve
+Server mode operates much alike to client mode, except packet send and receive
 steps are swapped. To operate as server you should obtain server context with
 .Fn rad_server_open
 function, passing opened and bound UDP socket file descriptor as argument.

@@ -312,7 +312,7 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 	error = 0;
 	ksiginfo_init(&ksi);
 	ksi.ksi_signo = uap->sig;
-	ksi.ksi_code = SI_USER;
+	ksi.ksi_code = SI_LWP;
 	ksi.ksi_pid = p->p_pid;
 	ksi.ksi_uid = td->td_ucred->cr_ruid;
 	PROC_LOCK(p);
@@ -371,7 +371,7 @@ thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 	if (error == 0) {
 		ksiginfo_init(&ksi);
 		ksi.ksi_signo = uap->sig;
-		ksi.ksi_code = SI_USER;
+		ksi.ksi_code = SI_LWP;
 		ksi.ksi_pid = td->td_proc->p_pid;
 		ksi.ksi_uid = td->td_ucred->cr_ruid;
 		if (uap->id == -1) {
@@ -430,15 +430,12 @@ int
 kern_thr_suspend(struct thread *td, struct timespec *tsp)
 {
 	struct timeval tv;
-	int error = 0, hz = 0;
+	int error = 0;
+	int timo = 0;
 
 	if (tsp != NULL) {
 		if (tsp->tv_nsec < 0 || tsp->tv_nsec > 1000000000)
 			return (EINVAL);
-		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
-			return (ETIMEDOUT);
-		TIMESPEC_TO_TIMEVAL(&tv, tsp);
-		hz = tvtohz(&tv);
 	}
 
 	if (td->td_pflags & TDP_WAKEUP) {
@@ -447,9 +444,17 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 	}
 
 	PROC_LOCK(td->td_proc);
-	if ((td->td_flags & TDF_THRWAKEUP) == 0)
-		error = msleep((void *)td, &td->td_proc->p_mtx, PCATCH, "lthr",
-		    hz);
+	if ((td->td_flags & TDF_THRWAKEUP) == 0) {
+		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
+			error = EWOULDBLOCK;
+		else {
+			TIMESPEC_TO_TIMEVAL(&tv, tsp);
+			timo = tvtohz(&tv);
+			error = msleep((void *)td, &td->td_proc->p_mtx,
+				 PCATCH, "lthr", timo);
+		}
+	}
+
 	if (td->td_flags & TDF_THRWAKEUP) {
 		thread_lock(td);
 		td->td_flags &= ~TDF_THRWAKEUP;
@@ -461,7 +466,7 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 	if (error == EWOULDBLOCK)
 		error = ETIMEDOUT;
 	else if (error == ERESTART) {
-		if (hz != 0)
+		if (timo != 0)
 			error = EINTR;
 	}
 	return (error);

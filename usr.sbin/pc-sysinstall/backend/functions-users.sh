@@ -72,99 +72,99 @@ setup_users()
   while read line
   do
 
-     echo $line | grep "^userName=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       get_value_from_string "${line}"
-       USERNAME="$VAL"
-     fi
+    echo $line | grep "^userName=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      get_value_from_string "${line}"
+      USERNAME="$VAL"
+    fi
 
-     echo $line | grep "^userComment=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       get_value_from_string "${line}"
-       USERCOMMENT="$VAL"
-     fi
+    echo $line | grep "^userComment=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      get_value_from_string "${line}"
+      USERCOMMENT="$VAL"
+    fi
 
-     echo $line | grep "^userPass=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       get_value_from_string "${line}"
-       USERPASS="$VAL"
-     fi
+    echo $line | grep "^userPass=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      get_value_from_string "${line}"
+      USERPASS="$VAL"
+    fi
 
-     echo $line | grep "^userShell=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       get_value_from_string "${line}"
-       strip_white_space "$VAL"
-       USERSHELL="$VAL"
-     fi
+    echo $line | grep "^userShell=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      USERSHELL="$VAL"
+    fi
 
-     echo $line | grep "^userHome=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       get_value_from_string "${line}"
-       USERHOME="$VAL"
-     fi
+    echo $line | grep "^userHome=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      get_value_from_string "${line}"
+      USERHOME="$VAL"
+    fi
 
-     echo $line | grep "^userGroups=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       get_value_from_string "${line}"
-       USERGROUPS="$VAL"
-     fi
+    echo $line | grep "^userGroups=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      get_value_from_string "${line}"
+      USERGROUPS="$VAL"
+    fi
 
 
-     echo $line | grep "^commitUser" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       # Found our flag to commit this user, lets check and do it
-       if [ ! -z "${USERNAME}" ]
-       then
+    echo $line | grep "^commitUser" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      # Found our flag to commit this user, lets check and do it
+      if [ ! -z "${USERNAME}" ]
+      then
 
-         # Now add this user to the system, by building our args list
-         ARGS="-n ${USERNAME}"
+        # Now add this user to the system, by building our args list
+        ARGS="-n ${USERNAME}"
 
-         if [ ! -z "${USERCOMMENT}" ]
-         then
-           ARGS="${ARGS} -c \"${USERCOMMENT}\""
-         fi
+        if [ ! -z "${USERCOMMENT}" ]
+        then
+          ARGS="${ARGS} -c \"${USERCOMMENT}\""
+        fi
          
-         if [ ! -z "${USERPASS}" ]
-         then
-           ARGS="${ARGS} -h 0"
-           echo "${USERPASS}" >${FSMNT}/.tmpPass
-         else
-           ARGS="${ARGS} -h -"
-           rm ${FSMNT}/.tmpPass 2>/dev/null 2>/dev/null
-         fi
+        if [ ! -z "${USERPASS}" ]
+        then
+          ARGS="${ARGS} -h 0"
+          echo "${USERPASS}" >${FSMNT}/.tmpPass
+        else
+          ARGS="${ARGS} -h -"
+          rm ${FSMNT}/.tmpPass 2>/dev/null 2>/dev/null
+        fi
 
-         if [ ! -z "${USERSHELL}" ]
-         then
-           ARGS="${ARGS} -s \"${USERSHELL}\""
-         else
-           ARGS="${ARGS} -s \"/nonexistant\""
-         fi
+        if [ ! -z "${USERSHELL}" ]
+        then
+          ARGS="${ARGS} -s \"${USERSHELL}\""
+        else
+          ARGS="${ARGS} -s \"/nonexistant\""
+        fi
          
-         if [ ! -z "${USERHOME}" ]
-         then
-           ARGS="${ARGS} -m -d \"${USERHOME}\""
-         fi
+        if [ ! -z "${USERHOME}" ]
+        then
+          ARGS="${ARGS} -m -d \"${USERHOME}\""
+        fi
 
-         if [ ! -z "${USERGROUPS}" ]
-         then
-           ARGS="${ARGS} -G \"${USERGROUPS}\""
-         fi
+        if [ ! -z "${USERGROUPS}" ]
+        then
+          ARGS="${ARGS} -G \"${USERGROUPS}\""
+        fi
 
-         add_user "${ARGS}"
+        add_user "${ARGS}"
 
-         # Unset our vars before looking for any more users
-         unset USERNAME USERCOMMENT USERPASS USERSHELL USERHOME USERGROUPS
-       else
-         exit_err "ERROR: commitUser was called without any userName= entry!!!" 
-       fi
-     fi
+        # Unset our vars before looking for any more users
+        unset USERNAME USERCOMMENT USERPASS USERSHELL USERHOME USERGROUPS
+      else
+        exit_err "ERROR: commitUser was called without any userName= entry!!!" 
+      fi
+    fi
 
   done <${CFGF}
 

@@ -620,7 +620,8 @@ pmap_init_pat(void)
 		if (sysenv != NULL) {
 			if (strncmp(sysenv, "MacBook5,1", 10) == 0 ||
 			    strncmp(sysenv, "MacBookPro5,5", 13) == 0 ||
-			    strncmp(sysenv, "Macmini3,1", 10) == 0)
+			    strncmp(sysenv, "Macmini3,1", 10) == 0 ||
+			    strncmp(sysenv, "iMac9,1", 7) == 0)
 				pat_works = 0;
 			freeenv(sysenv);
 		}
@@ -926,8 +927,7 @@ pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde)
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	u_int cpumask;
-	u_int other_cpus;
+	cpumask_t cpumask, other_cpus;
 
 	sched_pin();
 	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
@@ -947,8 +947,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	u_int cpumask;
-	u_int other_cpus;
+	cpumask_t cpumask, other_cpus;
 	vm_offset_t addr;
 
 	sched_pin();
@@ -972,8 +971,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_invalidate_all(pmap_t pmap)
 {
-	u_int cpumask;
-	u_int other_cpus;
+	cpumask_t cpumask, other_cpus;
 
 	sched_pin();
 	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {

@@ -36,15 +36,21 @@
 # User-editable configuration variables
 
 # Set this to the program location
-PROGDIR="/usr/share/pc-sysinstall"
-export PROGDIR
+if [ -z "${PROGDIR}" ]
+then
+  PROGDIR="/usr/share/pc-sysinstall"
+  export PROGDIR
+fi
 
 # Set this to the components location
 COMPDIR="${PROGDIR}/components"
 export COMPDIR
 
+CONFDIR="${PROGDIR}/conf"
+export CONFDIR
+
 # Set this to the packages location
-PKGDIR="${PROGDIR}/conf"
+PKGDIR="${CONFDIR}"
 export PKGDIR
 
 # End of user-editable configuration
@@ -83,29 +89,31 @@ fi
 # Check if we are called without any flags and display help
 if [ -z "${1}" ]
 then
-   # Display the help index
-   display_help
-   exit 0
+  # Display the help index
+  display_help
+  exit 0
 fi
 
 case $1 in
   # The -c flag has been given, time to parse the script
-  -c) if [ -z "${2}" ]
-        then
-          display_help
-        else
-          ${BACKEND}/parseconfig.sh ${2}
-          exit $?
-        fi
+  -c)
+    if [ -z "${2}" ]
+    then
+      display_help
+    else
+      ${BACKEND}/parseconfig.sh ${2}
+      exit $?
+    fi
   ;;
 
   # The user requsted help
-  help) if [ -z "${2}" ]
-        then
-          display_help
-        else
-          display_command_help ${2}
-        fi
+  help)
+    if [ -z "${2}" ]
+    then
+      display_help
+    else
+      display_command_help ${2}
+    fi
   ;;
 
   # Parse an auto-install directive, and begin the installation
@@ -137,7 +145,7 @@ case $1 in
   ;;
 
   # The user is wanting to query which disks are available
-  disk-list) ${QUERYDIR}/disk-list.sh
+  disk-list) ${QUERYDIR}/disk-list.sh $*
   ;;
   
   # The user is wanting to query a disk's partitions
@@ -182,6 +190,10 @@ case $1 in
 
   # Function to get package index
   get-packages) ${QUERYDIR}/get-packages.sh "${2}"
+  ;;
+
+  # Function to set FTP mirror
+  set-mirror) ${QUERYDIR}/set-mirror.sh "${2}"
   ;;
 
   # Function which allows setting up of SSH keys

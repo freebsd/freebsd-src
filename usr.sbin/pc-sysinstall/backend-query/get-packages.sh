@@ -31,30 +31,22 @@
 . ${PROGDIR}/backend/functions.sh
 . ${PROGDIR}/backend/functions-packages.sh
 
-DEFAULT_FTP_SERVER="ftp.freebsd.org"
-FTP_SERVER="${1}"
 ID=`id -u`
-
 if [ "${ID}" -ne "0" ]
 then
-	echo "Error: must be root!" 
-	exit 1
-fi
-
-if [ -z "${FTP_SERVER}" ]
-then
-	FTP_SERVER="${DEFAULT_FTP_SERVER}"
+  echo "Error: must be root!" 
+  exit 1
 fi
 
 if [ ! -f "${PKGDIR}/INDEX" ]
 then
-	get_package_index "${FTP_SERVER}"
+  get_package_index
 fi
 
 if [ -f "${PKGDIR}/INDEX" ]
 then
-	echo "${PKGDIR}/INDEX"
-	exit 0
+  echo "${PKGDIR}/INDEX"
+  exit 0
 fi
 
 exit 1

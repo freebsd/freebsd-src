@@ -65,7 +65,6 @@ struct acpi_pcib_lookup_info {
 
 static int		acpi_pcib_pci_probe(device_t bus);
 static int		acpi_pcib_pci_attach(device_t bus);
-static int		acpi_pcib_pci_resume(device_t bus);
 static int		acpi_pcib_read_ivar(device_t dev, device_t child,
 			    int which, uintptr_t *result);
 static int		acpi_pcib_pci_route_interrupt(device_t pcib,
@@ -75,39 +74,21 @@ static device_method_t acpi_pcib_pci_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		acpi_pcib_pci_probe),
     DEVMETHOD(device_attach,		acpi_pcib_pci_attach),
-    DEVMETHOD(device_shutdown,		bus_generic_shutdown),
-    DEVMETHOD(device_suspend,		bus_generic_suspend),
-    DEVMETHOD(device_resume,		acpi_pcib_pci_resume),
 
     /* Bus interface */
-    DEVMETHOD(bus_print_child,		bus_generic_print_child),
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
-    DEVMETHOD(bus_write_ivar,		pcib_write_ivar),
-    DEVMETHOD(bus_alloc_resource,	pcib_alloc_resource),
-    DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-    DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
-    DEVMETHOD(bus_deactivate_resource, 	bus_generic_deactivate_resource),
-    DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
-    DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
     /* pcib interface */
-    DEVMETHOD(pcib_maxslots,		pcib_maxslots),
-    DEVMETHOD(pcib_read_config,		pcib_read_config),
-    DEVMETHOD(pcib_write_config,	pcib_write_config),
     DEVMETHOD(pcib_route_interrupt,	acpi_pcib_pci_route_interrupt),
-    DEVMETHOD(pcib_alloc_msi,		pcib_alloc_msi),
-    DEVMETHOD(pcib_release_msi,		pcib_release_msi),
-    DEVMETHOD(pcib_alloc_msix,		pcib_alloc_msix),
-    DEVMETHOD(pcib_release_msix,	pcib_release_msix),
-    DEVMETHOD(pcib_map_msi,		pcib_map_msi),
+    DEVMETHOD(pcib_power_for_sleep,	acpi_pcib_power_for_sleep),
 
     {0, 0}
 };
 
 static devclass_t pcib_devclass;
 
-DEFINE_CLASS_0(pcib, acpi_pcib_pci_driver, acpi_pcib_pci_methods,
-    sizeof(struct acpi_pcib_softc));
+DEFINE_CLASS_1(pcib, acpi_pcib_pci_driver, acpi_pcib_pci_methods,
+    sizeof(struct acpi_pcib_softc), pcib_driver);
 DRIVER_MODULE(acpi_pcib, pci, acpi_pcib_pci_driver, pcib_devclass, 0, 0);
 MODULE_DEPEND(acpi_pcib, acpi, 1, 1, 1);
 
@@ -139,13 +120,6 @@ acpi_pcib_pci_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->ap_handle = acpi_get_handle(dev);
     return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_pcibsc.secbus));
-}
-
-static int
-acpi_pcib_pci_resume(device_t dev)
-{
-
-    return (acpi_pcib_resume(dev));
 }
 
 static int

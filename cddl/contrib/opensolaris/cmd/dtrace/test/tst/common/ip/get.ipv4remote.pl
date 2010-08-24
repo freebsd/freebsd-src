@@ -50,7 +50,7 @@ my $local = "";
 my $remote = "";
 my %Broadcast;
 my $up;
-open IFCONFIG, '/usr/sbin/ifconfig -a |' or die "Couldn't run ifconfig: $!\n";
+open IFCONFIG, '/sbin/ifconfig -a |' or die "Couldn't run ifconfig: $!\n";
 while (<IFCONFIG>) {
 	next if /^lo/;
 
@@ -73,7 +73,7 @@ die "Could not determine local IP address" if $local eq "";
 # Find the first remote host that responds to an icmp echo,
 # which isn't a local address.
 #
-open PING, "/usr/sbin/ping -ns $Broadcast{$local} 56 $MAXHOSTS |" or
+open PING, "/sbin/ping -ns $Broadcast{$local} 56 $MAXHOSTS |" or
     die "Couldn't run ping: $!\n";
 while (<PING>) {
 	if (/bytes from (.*): / and not defined $Broadcast{$1}) {

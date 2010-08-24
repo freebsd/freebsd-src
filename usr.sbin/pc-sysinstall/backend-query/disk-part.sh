@@ -51,8 +51,6 @@ MB=$(convert_byte_to_megabyte ${KB})
 TOTALSIZE="$MB"
 TOTALB="`diskinfo -v ${1} | grep 'in sectors' | tr -s '\t' ' ' | cut -d ' ' -f 2`"
 
-
-
 gpart show ${1} >/dev/null 2>/dev/null
 if [ "$?" != "0" ] ; then
   # No partitions on this disk, display entire disk size and exit
@@ -85,14 +83,14 @@ do
 
   # First get the sysid / label for this partition
   if [ "$TYPE" = "MBR" ] ; then
-     get_partition_sysid_mbr "${DISK}" "${curpart}"
-     echo "${curpart}-sysid: ${VAL}"
-     get_partition_label_mbr "${DISK}" "${curpart}"
-     echo "${curpart}-label: ${VAL}"
+    get_partition_sysid_mbr "${DISK}" "${curpart}"
+    echo "${curpart}-sysid: ${VAL}"
+    get_partition_label_mbr "${DISK}" "${curpart}"
+    echo "${curpart}-label: ${VAL}"
   else
-     get_partition_label_gpt "${DISK}" "${curpart}"
-     echo "${curpart}-sysid: ${VAL}"
-     echo "${curpart}-label: ${VAL}"
+    get_partition_label_gpt "${DISK}" "${curpart}"
+    echo "${curpart}-sysid: ${VAL}"
+    echo "${curpart}-label: ${VAL}"
   fi
 
   # Now get the startblock, blocksize and MB size of this partition

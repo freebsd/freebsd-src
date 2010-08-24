@@ -81,7 +81,7 @@ OBJCOPY?=	objcopy
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 .else
 . if !empty(CFLAGS:M-O[23s]) && empty(CFLAGS:M-fno-strict-aliasing)
@@ -94,7 +94,7 @@ CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
 # Don't use any standard or source-relative include directories.
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 NOSTDINC=	-X
 .else
 CSTD=		c99
@@ -114,7 +114,7 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${CC} != "icc" && ${CC} != "clang"
+.if ${CC:T:Micc} != "icc" && ${CC:T:Mclang} != "clang"
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
@@ -122,7 +122,7 @@ CFLAGS+= --param large-function-growth=1000
 
 # Disallow common variables, and if we end up with commons from
 # somewhere unexpected, allocate storage for them in the module itself.
-.if ${CC} != "icc"
+.if ${CC:T:Micc} != "icc"
 CFLAGS+=	-fno-common
 .endif
 LDFLAGS+=	-d -warn-common

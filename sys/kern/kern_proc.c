@@ -64,10 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/vnode.h>
 #include <sys/eventhandler.h>
-#ifdef KTRACE
-#include <sys/uio.h>
-#include <sys/ktrace.h>
-#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -86,30 +82,30 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE(proc, kernel, ctor, entry);
+SDT_PROBE_DEFINE(proc, kernel, ctor, entry, entry);
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 2, "void *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, ctor, return);
+SDT_PROBE_DEFINE(proc, kernel, ctor, return, return);
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 2, "void *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, dtor, entry);
+SDT_PROBE_DEFINE(proc, kernel, dtor, entry, entry);
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 2, "void *");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 3, "struct thread *");
-SDT_PROBE_DEFINE(proc, kernel, dtor, return);
+SDT_PROBE_DEFINE(proc, kernel, dtor, return, return);
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 2, "void *");
-SDT_PROBE_DEFINE(proc, kernel, init, entry);
+SDT_PROBE_DEFINE(proc, kernel, init, entry, entry);
 SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 2, "int");
-SDT_PROBE_DEFINE(proc, kernel, init, return);
+SDT_PROBE_DEFINE(proc, kernel, init, return, return);
 SDT_PROBE_ARGTYPE(proc, kernel, init, return, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, init, return, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, init, return, 2, "int");
@@ -717,9 +713,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_textvp = p->p_textvp;
 #ifdef KTRACE
 	kp->ki_tracep = p->p_tracevp;
-	mtx_lock(&ktrace_mtx);
 	kp->ki_traceflag = p->p_traceflag;
-	mtx_unlock(&ktrace_mtx);
 #endif
 	kp->ki_fd = p->p_fd;
 	kp->ki_vmspace = p->p_vmspace;

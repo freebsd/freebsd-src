@@ -28,13 +28,14 @@
 # Functions related to disk operations using gpart
 
 # See if device is a full disk or partition/slice
-is_disk() {
-	for _dsk in `sysctl -n kern.disks`
-	do
-		if [ "$_dsk" = "${1}" ] ; then return 0 ; fi
-	done
+is_disk()
+{
+  for _dsk in `sysctl -n kern.disks`
+  do
+    if [ "$_dsk" = "${1}" ] ; then return 0 ; fi
+  done
 
-	return 1
+  return 1
 }
 
 # Get a MBR partitions sysid
@@ -190,9 +191,9 @@ get_disk_partitions()
   for i in ${SLICES}
   do
     case $type in
-       MBR) name="${1}s${i}" ;;
-       GPT) name="${1}p${i}";;
-       *) name="${1}s${i}";;
+      MBR) name="${1}s${i}" ;;
+      GPT) name="${1}p${i}";;
+      *) name="${1}s${i}";;
     esac
     if [ -z "${RSLICES}" ]
     then
@@ -226,8 +227,19 @@ get_disk_heads()
   VAL="${head}" ; export VAL
 };
 
+# Function which returns a target disks mediasize in sectors
+get_disk_mediasize()
+{
+  mediasize=`diskinfo -v ${1} | grep "# mediasize in sectors" | tr -s ' ' | cut -f 2`
+
+  # Not sure why this is, memory disks need it though.
+  mediasize=`expr ${mediasize} - 10`
+  VAL="${mediasize}" ; export VAL
+};
+
 # Function which exports all zpools, making them safe to overwrite potentially
-export_all_zpools() {
+export_all_zpools()
+{
   # Export any zpools
   for i in `zpool list -H -o name`
   do
@@ -406,6 +418,18 @@ setup_disk_slice()
        fi
      fi
 
+     # Check if we have a partscheme specified
+     echo $line | grep "^partscheme=" >/dev/null 2>/dev/null
+     if [ "$?" = "0" ] ; then
+       # Found a partscheme= entry, lets read / set it 
+       get_value_from_string "${line}"
+       strip_white_space "$VAL"
+       PSCHEME="$VAL"
+       if [ "$PSCHEME" != "GPT" -a "$PSCHEME" != "MBR" ] ; then
+	 exit_err "Unknown partition scheme: $PSCHEME" 
+       fi
+     fi
+
      echo $line | grep "^bootManager=" >/dev/null 2>/dev/null
      if [ "$?" = "0" ]
      then
@@ -422,15 +446,30 @@ setup_disk_slice()
        if [ ! -z "${DISK}" -a ! -z "${PTYPE}" ]
        then
          case ${PTYPE} in
-                   all|ALL) tmpSLICE="${DISK}p1"  
-                        run_gpart_full "${DISK}" "${BMANAGER}" ;;
-           s1|s2|s3|s4) tmpSLICE="${DISK}${PTYPE}" 
-                        # Get the number of the slice we are working on
-                        s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
-                        run_gpart_slice "${DISK}" "${BMANAGER}" "${s}" ;;
-                 free|FREE) tmpSLICE="${DISK}s${LASTSLICE}"
-                        run_gpart_free "${DISK}" "${LASTSLICE}" "${BMANAGER}" ;;
-                     *) exit_err "ERROR: Unknown PTYPE: $PTYPE" ;;
+           all|ALL)
+		     if [ "$PSCHEME" = "MBR" -o -z "$PSCHEME" ] ; then
+               PSCHEME="MBR"
+               tmpSLICE="${DISK}s1"  
+			 else
+               tmpSLICE="${DISK}p1"  
+			 fi
+
+             run_gpart_full "${DISK}" "${BMANAGER}" "${PSCHEME}"
+			 ;;
+
+           s1|s2|s3|s4)
+			 tmpSLICE="${DISK}${PTYPE}" 
+             # Get the number of the slice we are working on
+             s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
+             run_gpart_slice "${DISK}" "${BMANAGER}" "${s}"
+			 ;;
+
+           free|FREE)
+			 tmpSLICE="${DISK}s${LASTSLICE}"
+             run_gpart_free "${DISK}" "${LASTSLICE}" "${BMANAGER}"
+			 ;;
+
+           *) exit_err "ERROR: Unknown PTYPE: $PTYPE" ;;
          esac
 
          # Now save which disk<num> this is, so we can parse it later during slice partition setup
@@ -449,7 +488,7 @@ setup_disk_slice()
 
 
          # Increment our disk counter to look for next disk and unset
-         unset BMANAGER PTYPE DISK MIRRORDISK MIRRORBAL
+         unset BMANAGER PTYPE DISK MIRRORDISK MIRRORBAL PSCHEME
          disknum="`expr $disknum + 1`"
        else
          exit_err "ERROR: commitDiskPart was called without procceding disk<num>= and partition= entries!!!" 
@@ -461,7 +500,8 @@ setup_disk_slice()
 };
 
 # Stop all gjournals on disk / slice
-stop_gjournal() {
+stop_gjournal()
+{
   _gdsk="$1"
   # Check if we need to shutdown any journals on this drive
   ls /dev/${_gdsk}*.journal >/dev/null 2>/dev/null
@@ -477,7 +517,7 @@ stop_gjournal() {
   fi
 } ;
 
-# Function which runs gpart and creates a single large slice
+# Function which runs gpart and creates a single large GPT partition scheme
 init_gpt_full_disk()
 {
   _intDISK=$1
@@ -506,14 +546,86 @@ init_gpt_full_disk()
 
 }
 
+# Function which runs gpart and creates a single large MBR partition scheme
+init_mbr_full_disk()
+{
+  _intDISK=$1
+  _intBOOT=$2
+ 
+  startblock="63"
+
+  # Set our sysctl so we can overwrite any geom using drives
+  sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+
+  # Stop any journaling
+  stop_gjournal "${_intDISK}"
+
+  # Remove any existing partitions
+  delete_all_gpart "${_intDISK}"
+
+  #Erase any existing bootloader
+  echo_log "Cleaning up ${_intDISK}"
+  rc_halt "dd if=/dev/zero of=/dev/${_intDISK} count=2048"
+
+  sleep 2
+
+  echo_log "Running gpart on ${_intDISK}"
+  rc_halt "gpart create -s mbr ${_intDISK}"
+
+  # Lets figure out disk size in blocks
+  # Get the cyl of this disk
+  get_disk_cyl "${_intDISK}"
+  cyl="${VAL}"
+
+  # Get the heads of this disk
+  get_disk_heads "${_intDISK}"
+  head="${VAL}"
+
+  # Get the tracks/sectors of this disk
+  get_disk_sectors "${_intDISK}"
+  sec="${VAL}"
+
+  # Multiply them all together to get our total blocks
+  totalblocks="`expr ${cyl} \* ${head}`"
+  totalblocks="`expr ${totalblocks} \* ${sec}`"
+  if [ -z "${totalblocks}" ]
+  then
+	get_disk_mediasize "${_intDISK}"
+	totalblocks="${VAL}"
+  fi
+
+  # Now set the ending block to the total disk block size
+  sizeblock="`expr ${totalblocks} - ${startblock}`"
+
+  # Install new partition setup
+  echo_log "Running gpart add on ${_intDISK}"
+  rc_halt "gpart add -b ${startblock} -s ${sizeblock} -t freebsd -i 1 ${_intDISK}"
+  sleep 2
+  
+  echo_log "Cleaning up ${_intDISK}s1"
+  rc_halt "dd if=/dev/zero of=/dev/${_intDISK}s1 count=1024"
+  
+  if [ "$_intBOOT" = "bsd" ] ; then
+    echo_log "Stamping boot sector on ${_intDISK}"
+    rc_halt "gpart bootcode -b /boot/boot0 ${_intDISK}"
+  fi
+
+}
+
 # Function which runs gpart and creates a single large slice
 run_gpart_full()
 {
   DISK=$1
+  BOOT=$2
+  SCHEME=$3
 
-  init_gpt_full_disk "$DISK"
-
-  slice="${DISK}-1-gpt"
+  if [ "$SCHEME" = "MBR" ] ; then
+    init_mbr_full_disk "$DISK" "$BOOT"
+    slice="${DISK}-1-mbr"
+  else
+    init_gpt_full_disk "$DISK"
+    slice="${DISK}-1-gpt"
+  fi
 
   # Lets save our slice, so we know what to look for in the config file later on
   if [ -z "$WORKINGSLICES" ]

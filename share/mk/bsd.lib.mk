@@ -58,14 +58,14 @@ STRIP?=	-s
 .SUFFIXES: .out .o .po .So .S .asm .s .c .cc .cpp .cxx .m .C .f .y .l .ln
 
 .if !defined(PICFLAG)
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 PICFLAG=-fPIC
 .else
 PICFLAG=-fpic
 .endif
 .endif
 
-.if ${CC} == "icc"
+.if ${CC:T:Micc} == "icc"
 PO_FLAG=-p
 .else
 PO_FLAG=-pg

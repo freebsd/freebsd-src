@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet/icmp6.h>
+#include <netinet6/send.h>
 
 #include <sys/limits.h>
 
@@ -120,6 +121,8 @@ VNET_DEFINE(int, nd6_recalc_reachtm_interval) = ND6_RECALC_REACHTM_INTERVAL;
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
 
 static struct sockaddr_in6 all1_sa;
+
+int	(*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
 
 static int nd6_is_new_addr_neighbor __P((struct sockaddr_in6 *,
 	struct ifnet *));
@@ -1758,9 +1761,12 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	struct mbuf **chain)
 {
 	struct mbuf *m = m0;
+	struct m_tag *mtag;
 	struct llentry *ln = lle;
+	struct ip6_hdr *ip6;
 	int error = 0;
 	int flags = 0;
+	int ip6len;
 
 #ifdef INVARIANTS
 	if (lle != NULL) {
@@ -1935,6 +1941,28 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 #ifdef MAC
 	mac_netinet6_nd6_send(ifp, m);
 #endif
+
+	/*
+	 * If called from nd6_ns_output() (NS), nd6_na_output() (NA),
+	 * icmp6_redirect_output() (REDIRECT) or from rip6_output() (RS, RA
+	 * as handled by rtsol and rtadvd), mbufs will be tagged for SeND
+	 * to be diverted to user space.  When re-injected into the kernel,
+	 * send_output() will directly dispatch them to the outgoing interface.
+	 */
+	if (send_sendso_input_hook != NULL) {
+		mtag = m_tag_find(m, PACKET_TAG_ND_OUTGOING, NULL);
+		if (mtag != NULL) {
+			ip6 = mtod(m, struct ip6_hdr *);
+			ip6len = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen);
+			/* Use the SEND socket */
+			error = send_sendso_input_hook(m, ifp, SND_OUT,
+			    ip6len);
+			/* -1 == no app on SEND socket */
+			if (error == 0 || error != -1)
+			    return (error);
+		}
+	}
+
 	/*
 	 * We were passed in a pointer to an lle with the lock held 
 	 * this means that we can't call if_output as we will

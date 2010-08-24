@@ -99,7 +99,7 @@ VECTOR(_locore, unknown)
 
 	/* Reset these bits */
         li	t0, ~(MIPS_SR_DE | MIPS_SR_SOFT_RESET | MIPS_SR_ERL | MIPS_SR_EXL | MIPS_SR_INT_IE)
-#elif defined (TARGET_XLR_XLS)
+#elif defined (CPU_RMI)
 	/* Set these bits */
         li	t1, (MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT | MIPS_SR_KX | MIPS_SR_UX)
 
@@ -117,6 +117,9 @@ VECTOR(_locore, unknown)
 	 *	Enable FPU
 	 */
 	li	t1, MIPS_SR_COP_1_BIT
+#ifdef __mips_n64
+	or	t1, MIPS_SR_KX | MIPS_SR_UX
+#endif
 #endif
 	/*
 	 * Read coprocessor 0 status register, clear bits not
@@ -130,7 +133,7 @@ VECTOR(_locore, unknown)
 	COP0_SYNC
 
 	/* Make sure KSEG0 is cached */
-	li	t0, MIPS_CCA_CNC
+	li	t0, MIPS_CCA_CACHED
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 

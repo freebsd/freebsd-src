@@ -351,9 +351,11 @@ update_option(const char *this, char *val, int flags)
 			return;
 		}
 	}
-	fprintf(stderr, "Compat option %s not listed in options file.\n",
-	    this);
-	exit(1);
+	/*
+	 * Option not found, but that's OK, we just ignore it since it
+	 * may be for another arch.
+	 */
+	return;
 }
 
 static int

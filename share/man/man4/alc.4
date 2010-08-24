@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2009
+.Dd August 9, 2010
 .Dt ALC 4
 .Os
 .Sh NAME
 .Nm alc
-.Nd Atheros AR8131/AR8132 Gigabit/Fast Ethernet driver
+.Nd Atheros AR813x/AR815x Gigabit/Fast Ethernet driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -48,9 +48,8 @@ if_alc_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-device driver provides support for Atheros AR8131 PCI Express
-Gigabit Ethernet controllers and Atheros AR8132 PCI Express
-Fast Ethernet controllers.
+device driver provides support for Atheros AR813x and AR815x PCI
+Express Gigabit/Fast Ethernet controllers.
 .Pp
 All LOMs supported by the
 .Nm
@@ -59,8 +58,9 @@ segmentation offload (TSO), hardware VLAN tag stripping/insertion
 features, Wake On Lan (WOL) and an interrupt moderation mechanism
 as well as a 64-bit multicast hash filter.
 .Pp
-The AR8131/AR8132 supports Jumbo Frames (up to 9216 bytes), which can
-be configured via the interface MTU setting.
+The AR813x and AR815x supports Jumbo Frames (up to 9216 and 6144
+bytes, respectively), which can be configured via the interface
+MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
 utility configures the adapter to receive and transmit Jumbo Frames.
@@ -104,6 +104,14 @@ device driver provides support for the following Ethernet controllers:
 Atheros AR8131 PCI Express Gigabit Ethernet controller
 .It
 Atheros AR8132 PCI Express Fast Ethernet controller
+.It
+Atheros AR8151 v1.0 PCI Express Gigabit Ethernet controller
+.It
+Atheros AR8151 v2.0 PCI Express Gigabit Ethernet controller
+.It
+Atheros AR8152 v1.1 PCI Express Fast Ethernet controller
+.It
+Atheros AR8152 v2.0 PCI Express Fast Ethernet controller
 .El
 .Sh LOADER TUNABLES
 Tunables can be set at the
@@ -133,7 +141,7 @@ Value 0 completely disables the interrupt moderation.
 .It Va dev.alc.%d.int_tx_mod
 Maximum amount of time to delay transmit interrupt processing in
 units of 1us.
-The accepted range is 0 to 130000, the default is 50000(50ms).
+The accepted range is 0 to 130000, the default is 1000(1ms).
 Value 0 completely disables the interrupt moderation.
 .It Va dev.alc.%d.process_limit
 Maximum amount of Rx frames to be processed in the event loop before
