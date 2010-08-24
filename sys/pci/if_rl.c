@@ -1302,6 +1302,7 @@ rl_rxeof(struct rl_softc *sc)
 		    total_len < ETHER_MIN_LEN ||
 		    total_len > ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN) {
 			ifp->if_ierrors++;
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			rl_init_locked(sc);
 			return (rx_npkts);
 		}
@@ -1413,6 +1414,7 @@ rl_txeof(struct rl_softc *sc)
 				CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG);
 			oldthresh = sc->rl_txthresh;
 			/* error recovery */
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			rl_init_locked(sc);
 			/* restore original threshold */
 			sc->rl_txthresh = oldthresh;
@@ -1606,8 +1608,10 @@ rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		/* XXX We should check behaviour on receiver stalls. */
 
-		if (status & RL_ISR_SYSTEM_ERR)
+		if (status & RL_ISR_SYSTEM_ERR) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			rl_init_locked(sc);
+		}
 	}
 	return (rx_npkts);
 }
@@ -1645,8 +1649,10 @@ rl_intr(void *arg)
 			rl_rxeof(sc);
 		if ((status & RL_ISR_TX_OK) || (status & RL_ISR_TX_ERR))
 			rl_txeof(sc);
-		if (status & RL_ISR_SYSTEM_ERR)
+		if (status & RL_ISR_SYSTEM_ERR) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			rl_init_locked(sc);
+		}
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1807,6 +1813,9 @@ rl_init_locked(struct rl_softc *sc)
 	RL_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->rl_miibus);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -2036,6 +2045,7 @@ rl_watchdog(struct rl_softc *sc)
 
 	rl_txeof(sc);
 	rl_rxeof(sc);
+	sc->rl_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	rl_init_locked(sc);
 }
 
