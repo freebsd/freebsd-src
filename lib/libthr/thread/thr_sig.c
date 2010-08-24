@@ -59,7 +59,29 @@ int	_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int	__sigwait(const sigset_t *set, int *sig);
 int	_sigwait(const sigset_t *set, int *sig);
 int	__sigsuspend(const sigset_t *sigmask);
+int	_setcontext(const ucontext_t *);
+int	_swapcontext(ucontext_t *, const ucontext_t *);
 
+static void
+remove_thr_signals(sigset_t *set)
+{
+	if (SIGISMEMBER(*set, SIGCANCEL))
+		SIGDELSET(*set, SIGCANCEL);
+}
+
+static const sigset_t *
+thr_remove_thr_signals(const sigset_t *set, sigset_t *newset)
+{
+	const sigset_t *pset;
+
+	if (SIGISMEMBER(*set, SIGCANCEL)) {
+		*newset = *set;
+		SIGDELSET(*newset, SIGCANCEL);
+		pset = newset;
+	} else
+		pset = set;
+	return (pset);
+}
 
 static void
 sigcancel_handler(int sig __unused,
@@ -268,20 +290,6 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 
 __weak_reference(__sigsuspend, sigsuspend);
 
-static const sigset_t *
-thr_remove_thr_signals(const sigset_t *set, sigset_t *newset)
-{
-	const sigset_t *pset;
-
-	if (SIGISMEMBER(*set, SIGCANCEL)) {
-		*newset = *set;
-		SIGDELSET(*newset, SIGCANCEL);
-		pset = newset;
-	} else
-		pset = set;
-	return (pset);
-}
-
 int
 _sigsuspend(const sigset_t * set)
 {
@@ -388,4 +396,27 @@ __sigwait(const sigset_t *set, int *sig)
 	ret = __sys_sigwait(thr_remove_thr_signals(set, &newset), sig);
 	_thr_cancel_leave_defer(curthread, (ret != 0));
 	return (ret);
+}
+
+__weak_reference(_setcontext, setcontext);
+int
+_setcontext(const ucontext_t *ucp)
+{
+	ucontext_t uc;
+
+	(void) memcpy(&uc, ucp, sizeof (uc));
+	remove_thr_signals(&uc.uc_sigmask);
+
+	return __sys_setcontext(&uc);
+}
+
+__weak_reference(_swapcontext, swapcontext);
+int
+_swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
+{
+	ucontext_t uc;
+
+	(void) memcpy(&uc, ucp, sizeof (uc));
+	remove_thr_signals(&uc.uc_sigmask);
+	return __sys_swapcontext(oucp, &uc);
 }
