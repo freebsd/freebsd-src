@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # sys sources
-.PATH: ${.CURDIR}/${MACHINE_CPUARCH}/sys ${.CURDIR}/sys
+.PATH: ${.CURDIR}/${LIBC_ARCH}/sys ${.CURDIR}/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
@@ -13,9 +13,7 @@
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
-.if exists(${.CURDIR}/${MACHINE_CPUARCH}/sys/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_CPUARCH}/sys/Makefile.inc"
-.endif
+.sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
 
 # Sources common to both syscall interfaces:
 SRCS+=	stack_protector.c stack_protector_compat.c __error.c
