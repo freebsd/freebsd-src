@@ -223,14 +223,19 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 			return -1;
 		n = INO_TO_VBO(n, inode);
 #if defined(UFS1_ONLY)
-		dp1 = ((struct ufs1_dinode *)blkbuf)[n];
+		memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
+		    sizeof(struct ufs1_dinode));
 #elif defined(UFS2_ONLY)
-		dp2 = ((struct ufs2_dinode *)blkbuf)[n];
+		memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
+		    sizeof(struct ufs2_dinode));
 #else
 		if (fs->fs_magic == FS_UFS1_MAGIC)
-			dp1 = ((struct ufs1_dinode *)blkbuf)[n];
+			memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
+			    sizeof(struct ufs1_dinode));
 		else
-			dp2 = ((struct ufs2_dinode *)blkbuf)[n];
+			memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
+			    sizeof(struct ufs2_dinode));
+
 #endif
 		inomap = inode;
 		fs_off = 0;
