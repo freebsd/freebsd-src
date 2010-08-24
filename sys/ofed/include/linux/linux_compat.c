@@ -46,6 +46,8 @@
 #include <linux/sysfs.h>
 #include <linux/mm.h>
 
+#include <vm/vm_pager.h>
+
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
 #include <linux/rbtree.h>
@@ -376,35 +378,56 @@ static int
 linux_dev_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int nprot, vm_memattr_t *memattr)
 {
+
+	/* XXX memattr not honored. */
+	*paddr = offset;
+	return (0);
+}
+
+static int
+linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **object, int nprot)
+{
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct file *file;
 	struct vm_area_struct vma;
+	vm_paddr_t paddr;
+	vm_page_t m;
 	int error;
 
 	file = curthread->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
-		return (0);
+		return (ENODEV);
+	if (size != PAGE_SIZE)
+		return (EINVAL);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
 	vma.vm_start = 0;
 	vma.vm_end = PAGE_SIZE;
-	vma.vm_pgoff = offset / PAGE_SIZE;
+	vma.vm_pgoff = *offset / PAGE_SIZE;
 	vma.vm_pfn = 0;
-	vma.vm_page_prot = *memattr;
+	vma.vm_page_prot = 0;
 	if (filp->f_op->mmap) {
 		error = -filp->f_op->mmap(filp, &vma);
 		if (error == 0) {
-			*paddr = (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT;
-			*memattr = vma.vm_page_prot;
+			paddr = (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT;
+			*offset = paddr;
+			m = PHYS_TO_VM_PAGE(paddr);
+			*object = vm_pager_allocate(OBJT_DEVICE, dev,
+			    PAGE_SIZE, nprot, *offset, curthread->td_ucred);
+		        if (*object == NULL)
+               			 return (EINVAL);
 		}
 	} else
 		error = ENODEV;
 
 	return (error);
 }
+
+
 
 struct cdevsw linuxcdevsw = {
 	.d_version = D_VERSION,
@@ -414,6 +437,7 @@ struct cdevsw linuxcdevsw = {
 	.d_read = linux_dev_read,
 	.d_write = linux_dev_write,
 	.d_ioctl = linux_dev_ioctl,
+	.d_mmap_single = linux_dev_mmap_single,
 	.d_mmap = linux_dev_mmap,
 	.d_poll = linux_dev_poll,
 };
