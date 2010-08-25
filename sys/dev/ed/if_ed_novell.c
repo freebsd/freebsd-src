@@ -136,6 +136,9 @@ ed_probe_Novell_generic(device_t dev, int flags)
 		sc->isa16bit = 1;
 		sc->type = ED_TYPE_NE2000;
 		sc->type_str = "NE2000";
+		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+		ed_nic_outb(sc, ED_P0_PSTART, 16384 / ED_PAGE_SIZE);
+		ed_nic_outb(sc, ED_P0_PSTOP, 32768 / ED_PAGE_SIZE);
 	} else {
 		/*
 		 * Write a test pattern in byte mode. If this fails, then there
