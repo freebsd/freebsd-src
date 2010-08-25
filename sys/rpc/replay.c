@@ -144,8 +144,8 @@ replay_prune(struct replay_cache *rc)
 	bool_t freed_one;
 
 	if (rc->rc_count >= REPLAY_MAX || rc->rc_size > rc->rc_maxsize) {
-		freed_one = FALSE;
 		do {
+			freed_one = FALSE;
 			/*
 			 * Try to free an entry. Don't free in-progress entries
 			 */
