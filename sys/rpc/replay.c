@@ -90,8 +90,10 @@ void
 replay_setsize(struct replay_cache *rc, size_t newmaxsize)
 {
 
+	mtx_lock(&rc->rc_lock);
 	rc->rc_maxsize = newmaxsize;
 	replay_prune(rc);
+	mtx_unlock(&rc->rc_lock);
 }
 
 void
