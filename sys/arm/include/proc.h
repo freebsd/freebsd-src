@@ -60,6 +60,21 @@ struct mdproc {
 	void	*md_sigtramp;
 };
 
+#ifdef __ARM_EABI__
+#define	KINFO_PROC_SIZE 816
+#else
 #define	KINFO_PROC_SIZE 792
+#endif
+
+#ifdef _KERNEL
+struct syscall_args {
+	u_int code;
+	struct sysent *callp;
+	register_t args[8];
+	int narg;
+};
+#define	HAVE_SYSCALL_ARGS_DEF 1
+
+#endif
 
 #endif /* !_MACHINE_PROC_H_ */
