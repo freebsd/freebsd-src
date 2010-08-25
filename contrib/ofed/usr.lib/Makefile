@@ -1,5 +1,6 @@
 .include <bsd.own.mk>
 
-SUBDIR = libibcommon libibmad libibumad libibverbs libmlx4 libmthca libosmcomp
+SUBDIR	= libibcommon libibmad libibumad libibverbs libmlx4 libmthca
+SUBDIR	+= libopensm libosmcomp libosmvendor
 
 .include <bsd.subdir.mk>
