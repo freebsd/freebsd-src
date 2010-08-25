@@ -369,12 +369,13 @@ lapic_setup(int boot)
 	if (la->la_timer_mode != 0) {
 		KASSERT(la->la_timer_period != 0, ("lapic%u: zero divisor",
 		    lapic_id()));
+		lapic_timer_stop();
 		lapic_timer_set_divisor(lapic_timer_divisor);
+		lapic_timer_enable_intr();
 		if (la->la_timer_mode == 1)
 			lapic_timer_periodic(la->la_timer_period);
 		else
 			lapic_timer_oneshot(la->la_timer_period);
-		lapic_timer_enable_intr();
 	}
 
 	/* Program error LVT and clear any existing errors. */
@@ -505,12 +506,10 @@ lapic_et_start(struct eventtimer *et,
 		et->et_max_period.frac =
 		    ((0xfffffffeLLU << 32) / et->et_frequency) << 32;
 	}
-	la = &lapics[lapic_id()];
-	/*
-	 * Start up the timer on the BSP.  The APs will kick off their
-	 * timer during lapic_setup().
-	 */
+	lapic_timer_stop();
 	lapic_timer_set_divisor(lapic_timer_divisor);
+	lapic_timer_enable_intr();
+	la = &lapics[lapic_id()];
 	if (period != NULL) {
 		la->la_timer_mode = 1;
 		la->la_timer_period =
@@ -526,7 +525,6 @@ lapic_et_start(struct eventtimer *et,
 			la->la_timer_period += et->et_frequency * first->sec;
 		lapic_timer_oneshot(la->la_timer_period);
 	}
-	lapic_timer_enable_intr();
 	return (0);
 }
 
@@ -862,8 +860,9 @@ lapic_timer_stop(void)
 
 	value = lapic->lvt_timer;
 	value &= ~APIC_LVTT_TM;
-	value &= ~APIC_LVT_M;
+	value |= APIC_LVT_M;
 	lapic->lvt_timer = value;
+	lapic->icr_timer = 0;
 }
 
 static void
