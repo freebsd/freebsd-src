@@ -816,7 +816,7 @@ vesa_bios_init(void)
 	}
 	if (bootverbose)
 		printf("VESA: INT 0x10 vector 0x%04x:0x%04x\n",
-		    X86BIOS_PHYSTOSEG(offs), X86BIOS_PHYSTOOFF(offs));
+		    (offs >> 16) & 0xffff, offs & 0xffff);
 
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f00;
