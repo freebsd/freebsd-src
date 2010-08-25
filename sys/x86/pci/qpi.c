@@ -62,7 +62,8 @@ qpi_identify(driver_t *driver, device_t parent)
 {
 
         /* Check CPUID to ensure this is an i7 CPU of some sort. */
-        if (!(cpu_vendor_id == CPU_VENDOR_INTEL && CPUID_TO_FAMILY(cpu_id) &&
+        if (!(cpu_vendor_id == CPU_VENDOR_INTEL &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 	    (CPUID_TO_MODEL(cpu_id) == 0x1a || CPUID_TO_MODEL(cpu_id) == 0x2c)))
                 return;
 
