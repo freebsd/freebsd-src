@@ -49,18 +49,19 @@ static struct _pcsid
 	const char	*desc;
 } pci_ids[] =
 {
-	{ ED_RTL8029_PCI_ID, "RealTek 8029" }, /* Needs realtek full duplex */
+	{ 0x140111f6, "Compex RL2000" },
+	{ 0x005812c3, "Holtek HT80232" },
+	{ 0x30008e2e, "KTI ET32P2" },
 	{ 0x50004a14, "NetVin NV5000SC" },
 	{ 0x09401050, "ProLAN" },
-	{ 0x140111f6, "Compex RL2000" },
-	{ 0x30008e2e, "KTI ET32P2" },
-	{ 0x19808c4a, "Winbond W89C940" },
+	{ ED_RTL8029_PCI_ID, "RealTek 8029" }, /* Needs realtek full duplex */
 	{ 0x0e3410bd, "Surecom NE-34" },
-	{ 0x09261106, "VIA VT86C926" },		/* only do 16-bit */
+	{ 0x09261106, "VIA VT86C926" },
+	{ 0x19808c4a, "Winbond W89C940" },
 	{ 0x5a5a1050, "Winbond W89C940F" },
 #if 0
-	/* Holtek needs special lovin', disabled by default */
-	{ 0x005812c3, "Holtek HT80232" },	/* Only 16-bit I/O, Holtek fdx */
+	/* some Holtek needs special lovin', disabled by default */
+	/* The Holtek can report/do full duplex, but that's unimplemented */
 	{ 0x559812c3, "Holtek HT80229" },	/* Only 32-bit I/O, Holtek fdx, STOP_PG_60? */
 #endif
 	{ 0x00000000, NULL }
@@ -87,7 +88,6 @@ static int
 ed_pci_attach(device_t dev)
 {
 	struct	ed_softc *sc = device_get_softc(dev);
-	int	flags = 0;
 	int	error = ENXIO;
 
 	/*
@@ -96,9 +96,10 @@ ed_pci_attach(device_t dev)
 	 * are areally just generic ne-2000 cards.
 	 */
 	if (pci_get_devid(dev) == ED_RTL8029_PCI_ID)
-		error = ed_probe_RTL80x9(dev, PCIR_BAR(0), flags);
+		error = ed_probe_RTL80x9(dev, PCIR_BAR(0), 0);
 	if (error)
-		error = ed_probe_Novell(dev, PCIR_BAR(0), flags);
+		error = ed_probe_Novell(dev, PCIR_BAR(0),
+		    ED_FLAGS_FORCE_16BIT_MODE);
 	if (error) {
 		ed_release_resources(dev);
 		return (error);
