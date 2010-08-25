@@ -278,14 +278,31 @@ mips_init(void)
 	mutex_init();
 }
 
+u_int
+platform_get_timecount(struct timecounter *tc __unused)
+{
+
+	return (0xffffffffU - pic_timer_count32(PIC_CLOCK_TIMER));
+}
+
 static void 
 xlr_pic_init(void)
 {
+	struct timecounter pic_timecounter = {
+		platform_get_timecount, /* get_timecount */
+		0,                      /* no poll_pps */
+		~0U,                    /* counter_mask */
+		PIC_TIMER_HZ,           /* frequency */
+		"XLRPIC",               /* name */
+		2000,                   /* quality (adjusted in code) */
+	};
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 	int i, level, irq;
 
 	mtx_init(&xlr_pic_lock, "pic", NULL, MTX_SPIN);
 	xlr_write_reg(mmio, PIC_CTRL, 0);
+
+	/* Initialize all IRT entries */
 	for (i = 0; i < PIC_NUM_IRTS; i++) {
 		irq = PIC_INTR_TO_IRQ(i);
 		level = PIC_IRQ_IS_EDGE_TRIGGERED(irq);
@@ -300,6 +317,11 @@ xlr_pic_init(void)
 		xlr_write_reg(mmio, PIC_IRT_1(i), (level << 30) | (1 << 6) |
 		    irq);
 	}
+
+	/* Setup timer 7 of PIC as a timestamp, no interrupts */
+	pic_init_timer(PIC_CLOCK_TIMER);
+	pic_set_timer(PIC_CLOCK_TIMER, ~UINT64_C(0));
+	platform_timecounter = &pic_timecounter;
 }
 
 static void
