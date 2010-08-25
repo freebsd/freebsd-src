@@ -53,10 +53,6 @@
 #include <compat/arm/freebsd_oabi.h>
 #include <compat/arm/freebsd_oabi_proto.h>
 
-#if !defined(PAD64_REQUIRED) && defined(__powerpc__)
-#define PAD64_REQUIRED
-#endif
-
 ; Reserved/unimplemented system calls in the range 0-150 inclusive
 ; are reserved for use in future Berkeley releases.
 ; Additional system calls implemented in vendor and other
