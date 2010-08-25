@@ -93,7 +93,6 @@
 #define	PIC_TIMER_COUNT_0_BASE		0x120
 #define	PIC_TIMER_COUNT_1_BASE		0x130
 
-
 #define	PIC_IRT_0(picintr)	(PIC_IRT_0_BASE + (picintr))
 #define	PIC_IRT_1(picintr)	(PIC_IRT_1_BASE + (picintr))
 
@@ -102,7 +101,14 @@
 #define	PIC_TIMER_COUNT_0(i)	(PIC_TIMER_COUNT_0_BASE + (i))
 #define	PIC_TIMER_COUNT_1(i)	(PIC_TIMER_COUNT_0_BASE + (i))
 
+/*
+ * We use a simple mapping form PIC interrupts to CPU IRQs.
+ * The PIC interrupts 0-31 are mapped to CPU irq's 8-39.
+ * this leaves the lower 0-7 for the cpu interrupts (like 
+ * count/compare, msgrng) and 40-63 for IPIs
+ */
 #define	PIC_IRQ_BASE		8
+#define	PIC_INTR_TO_IRQ(i)	(PIC_IRQ_BASE + (i))
 #define	PIC_IRT_FIRST_IRQ	PIC_IRQ_BASE
 
 #define	PIC_WD_IRQ		(PIC_IRQ_BASE + PIC_IRT_WD_INDEX)
