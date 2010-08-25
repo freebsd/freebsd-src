@@ -844,21 +844,6 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 	}
 }
 
-static __inline int
-bintime_cmp(struct bintime *bt1, struct bintime *bt2)
-{
-
-	if (bt1->sec < bt2->sec)
-		return (-1);
-	else if (bt1->sec > bt2->sec)
-		return (1);
-	if (bt1->frac < bt2->frac)
-		return (-1);
-	else if (bt1->frac > bt2->frac)
-		return (1);
-	return (0);
-}
-
 static void
 g_mirror_done(struct bio *bp)
 {
