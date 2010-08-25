@@ -618,9 +618,17 @@ devfs_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
-	int error = 0;
+	int error;
 	struct devfs_dirent *de;
+	struct devfs_mount *dmp;
 	struct cdev *dev;
+
+	error = devfs_populate_vp(vp);
+	if (error != 0)
+		return (error);
+
+	dmp = VFSTODEVFS(vp->v_mount);
+	sx_xunlock(&dmp->dm_lock);
 
 	de = vp->v_data;
 	KASSERT(de != NULL, ("Null dirent in devfs_getattr vp=%p", vp));
