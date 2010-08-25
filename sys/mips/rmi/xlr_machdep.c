@@ -89,7 +89,6 @@ struct mtx xlr_pic_lock;
  * Parameters from boot loader
  */
 struct boot1_info xlr_boot1_info;
-struct xlr_loader_info xlr_loader_info;	/* FIXME : Unused */
 int xlr_run_mode;
 int xlr_argc;
 int32_t *xlr_argv, *xlr_envp;
@@ -574,8 +573,7 @@ void
 platform_ipi_send(int cpuid)
 {
 
-	pic_send_ipi(xlr_cpuid_to_hwtid[cpuid],
-	    platform_ipi_intrnum(), 0);
+	pic_send_ipi(xlr_cpuid_to_hwtid[cpuid], platform_ipi_intrnum());
 
 }
 

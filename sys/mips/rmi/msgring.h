@@ -25,6 +25,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * $FreeBSD$
  *
  * RMI_BSD */
 #ifndef _RMI_MSGRING_H_
@@ -471,13 +472,13 @@ extern struct stn_cc xls_cc_table_sec;
 
 
 #define msgrng_access_save(lock, mflags) do {                \
-  if (rmi_spin_mutex_safe) mtx_lock_spin(lock);              \
+  mtx_lock_spin(lock);                                       \
   msgrng_flags_save(mflags);                                 \
  }while(0)
 
 #define msgrng_access_restore(lock, mflags) do {             \
   msgrng_flags_restore(mflags);                              \
-  if (rmi_spin_mutex_safe) mtx_unlock_spin(lock);            \
+  mtx_unlock_spin(lock);                                     \
  }while(0)
 
 #define msgrng_access_enable(mflags) do {   \
