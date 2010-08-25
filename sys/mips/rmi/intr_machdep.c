@@ -168,7 +168,7 @@ cpu_intr(struct trapframe *tf)
 			mips_intrcnt_inc(mips_intr_counters[i]);
 		}
 		write_c0_eirr64(1ULL << i);
-		pic_ack(i, 0);
+		pic_ack(i);
 		if (!ie || TAILQ_EMPTY(&ie->ie_handlers)) {
 			printf("stray interrupt %d\n", i);
 			continue;
@@ -176,7 +176,7 @@ cpu_intr(struct trapframe *tf)
 		if (intr_event_handle(ie, tf) != 0) {
 			printf("stray interrupt %d\n", i);
 		}
-		pic_delayed_ack(i, 0);
+		pic_delayed_ack(i);
 	}
 	critical_exit();
 }

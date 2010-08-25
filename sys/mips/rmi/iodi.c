@@ -91,53 +91,28 @@ struct iodi_softc *iodi_softc;	/* There can be only one. */
 
 static int
 iodi_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_filter_t * filt, driver_intr_t * intr, void *arg,
-    void **cookiep)
+    struct resource *ires, int flags, driver_filter_t * filt,
+    driver_intr_t *intr, void *arg, void **cookiep)
 {
-	int level;
-	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-	xlr_reg_t reg;
 
-	/* FIXME is this the right place to fiddle with PIC? */
 	if (strcmp(device_get_name(child), "uart") == 0) {
 		/* FIXME uart 1? */
-		if (rmi_spin_mutex_safe)
-			mtx_lock_spin(&xlr_pic_lock);
-		level = PIC_IRQ_IS_EDGE_TRIGGERED(PIC_IRT_UART_0_INDEX);
-		xlr_write_reg(mmio, PIC_IRT_0_UART_0, 0x01);
-		xlr_write_reg(mmio, PIC_IRT_1_UART_0, ((1 << 31) | (level << 30) | (1 << 6) | (PIC_UART_0_IRQ)));
-		if (rmi_spin_mutex_safe)
-			mtx_unlock_spin(&xlr_pic_lock);
-		cpu_establish_hardintr("uart", filt,
-		    (driver_intr_t *) intr, (void *)arg, PIC_UART_0_IRQ, flags, cookiep);
-
+		cpu_establish_hardintr("uart", filt, intr, arg,
+		    PIC_UART_0_IRQ, flags, cookiep);
+		pic_setup_intr(PIC_IRT_UART_0_INDEX, PIC_UART_0_IRQ, 0x1);
 	} else if (strcmp(device_get_name(child), "rge") == 0) {
 		int irq;
 
 		/* This is a hack to pass in the irq */
 		irq = (intptr_t)ires->__r_i;
-		if (rmi_spin_mutex_safe)
-			mtx_lock_spin(&xlr_pic_lock);
-		reg = xlr_read_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE);
-		xlr_write_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE, reg | (1 << 6) | (1 << 30) | (1 << 31));
-		if (rmi_spin_mutex_safe)
-			mtx_unlock_spin(&xlr_pic_lock);
-		cpu_establish_hardintr("rge", filt, (driver_intr_t *) intr, (void *)arg, irq, flags, cookiep);
-
+		cpu_establish_hardintr("rge", filt, intr, arg, irq, flags,
+		    cookiep);
+		pic_setup_intr(irq - PIC_IRQ_BASE, irq, 0x1);
 	} else if (strcmp(device_get_name(child), "ehci") == 0) {
-		if (rmi_spin_mutex_safe)
-			mtx_lock_spin(&xlr_pic_lock);
-		reg = xlr_read_reg(mmio, PIC_IRT_1_BASE + PIC_USB_IRQ - PIC_IRQ_BASE);
-		xlr_write_reg(mmio, PIC_IRT_1_BASE + PIC_USB_IRQ - PIC_IRQ_BASE, reg | (1 << 6) | (1 << 30) | (1 << 31));
-		if (rmi_spin_mutex_safe)
-			mtx_unlock_spin(&xlr_pic_lock);
-		cpu_establish_hardintr("ehci", filt, (driver_intr_t *) intr, (void *)arg, PIC_USB_IRQ, flags, cookiep);
+		cpu_establish_hardintr("ehci", filt, intr, arg, PIC_USB_IRQ, flags,
+		    cookiep);
+		pic_setup_intr(PIC_USB_IRQ - PIC_IRQ_BASE, PIC_USB_IRQ, 0x1);
 	}
-	/*
-	 * This causes a panic and looks recursive to me (RRS).
-	 * BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt,
-	 * intr, arg, cookiep);
-	 */
 
 	return (0);
 }

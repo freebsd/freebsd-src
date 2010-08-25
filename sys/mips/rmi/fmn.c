@@ -362,14 +362,10 @@ register_msgring_handler(int major,
 	if (major >= MAX_TX_STNS)
 		return 1;
 
-	//dbg_msg("major=%d, action=%p, dev_id=%p\n", major, action, dev_id);
-
-	if (rmi_spin_mutex_safe)
-	  mtx_lock_spin(&msgrng_lock);
+	mtx_lock_spin(&msgrng_lock);
 	tx_stn_handlers[major].action = action;
 	tx_stn_handlers[major].dev_id = dev_id;
-	if (rmi_spin_mutex_safe)
-	  mtx_unlock_spin(&msgrng_lock);
+	mtx_unlock_spin(&msgrng_lock);
 
 	if (xlr_test_and_set(&msgring_int_enabled)) {
 		create_msgring_thread(0, 0);
