@@ -100,6 +100,8 @@
 #define	PIC_TIMER_MAXVAL_1(i)	(PIC_TIMER_MAXVAL_1_BASE + (i))
 #define	PIC_TIMER_COUNT_0(i)	(PIC_TIMER_COUNT_0_BASE + (i))
 #define	PIC_TIMER_COUNT_1(i)	(PIC_TIMER_COUNT_0_BASE + (i))
+#define	PIC_TIMER_HZ		66000000U
+
 
 /*
  * We use a simple mapping form PIC interrupts to CPU IRQs.
@@ -239,6 +241,56 @@ void pic_setup_intr(int picintr, int irq, uint32_t cpumask)
 	xlr_write_reg(mmio, PIC_IRT_1(picintr), ((1 << 31) | (level << 30) |
 	    (1 << 6) | irq));
 	mtx_unlock_spin(&xlr_pic_lock);
+}
+
+static __inline void 
+pic_init_timer(int timer)
+{
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+	uint32_t val;
+ 
+	mtx_lock_spin(&xlr_pic_lock);
+	val = xlr_read_reg(mmio, PIC_CTRL);
+	val |= (1 << (8 + timer));
+	xlr_write_reg(mmio, PIC_CTRL, val);
+	mtx_unlock_spin(&xlr_pic_lock);
+}
+ 
+static __inline void
+pic_set_timer(int timer, uint64_t maxval)
+{
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+
+	xlr_write_reg(mmio, PIC_TIMER_MAXVAL_0(timer),
+	    (maxval & 0xffffffff)); 
+	xlr_write_reg(mmio, PIC_TIMER_MAXVAL_1(timer), 
+	    (maxval >> 32) & 0xffffffff);
+}
+
+static __inline uint32_t
+pic_timer_count32(int timer)
+ {
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+
+	return (xlr_read_reg(mmio, PIC_TIMER_COUNT_0(timer))); 
+}
+
+/*
+ * The timer can wrap 32 bits between the two reads, so we
+ * need additional logic to detect that.
+ */
+static __inline uint64_t
+pic_timer_count(int timer)
+{
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+	uint32_t tu1, tu2, tl;
+
+	tu1 = xlr_read_reg(mmio, PIC_TIMER_COUNT_1(timer)); 
+	tl = xlr_read_reg(mmio, PIC_TIMER_COUNT_0(timer)); 
+	tu2 = xlr_read_reg(mmio, PIC_TIMER_COUNT_1(timer)); 
+	if (tu2 != tu1)
+		tl = xlr_read_reg(mmio, PIC_TIMER_COUNT_0(timer));
+	return (((uint64_t)tu2 << 32) | tl);
 }
 
 #endif	/* _RMI_PIC_H_ */
