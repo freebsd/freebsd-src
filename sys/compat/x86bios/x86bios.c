@@ -801,7 +801,8 @@ x86bios_get_orm(uint32_t offset)
 
 	/* Does the shadow ROM contain BIOS POST code for x86? */
 	p = x86bios_offset(offset);
-	if (p == NULL || p[0] != 0x55 || p[1] != 0xaa || p[3] != 0xe9)
+	if (p == NULL || p[0] != 0x55 || p[1] != 0xaa ||
+	    (p[3] != 0xe9 && p[3] != 0xeb))
 		return (NULL);
 
 	return (p);
