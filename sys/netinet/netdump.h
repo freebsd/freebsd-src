@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2005-2006 Sandvine Incorporated. All rights reserved.
- *   - Modified by Adrian Dewhurst to work with FreeBSD 5.2, send a dump header,
- *     and improve performance.
- *
+ * Copyright (c) 2005-2010 Sandvine Incorporated
  * Copyright (c) 2000 Darrell Anderson <anderson@cs.duke.edu>
  * All rights reserved.
  *
