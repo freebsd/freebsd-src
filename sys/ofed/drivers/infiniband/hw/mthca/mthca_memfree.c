@@ -448,6 +448,13 @@ static u64 mthca_uarc_virt(struct mthca_dev *dev, struct mthca_uar *uar, int pag
 		page * MTHCA_ICM_PAGE_SIZE;
 }
 
+#include <vm/vm_map.h>
+#include <vm/vm_pageout.h>
+#include <vm/pmap.h>
+
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
+
 int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 		      struct mthca_user_db_table *db_tab, int index, u64 uaddr)
 {
@@ -510,14 +517,99 @@ out:
 	mutex_unlock(&db_tab->mutex);
 	return ret;
 #else
-	return -EINVAL;
+	struct proc *proc;
+	vm_offset_t start;
+	vm_paddr_t paddr;
+	pmap_t pmap;
+	vm_page_t m;
+	int ret = 0;
+	u8 status;
+	int i;
+
+	if (!mthca_is_memfree(dev))
+		return 0;
+
+	if (index < 0 || index > dev->uar_table.uarc_size / 8)
+		return -EINVAL;
+
+	mutex_lock(&db_tab->mutex);
+
+	i = index / MTHCA_DB_REC_PER_PAGE;
+	start = 0;
+
+	if ((db_tab->page[i].refcount >= MTHCA_DB_REC_PER_PAGE)       ||
+	    (db_tab->page[i].uvirt && db_tab->page[i].uvirt != uaddr) ||
+	    (uaddr & 4095)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (db_tab->page[i].refcount) {
+		++db_tab->page[i].refcount;
+		goto out;
+	}
+
+	proc = curproc;
+	pmap = vm_map_pmap(&proc->p_vmspace->vm_map);
+	PROC_LOCK(proc);
+	if (ptoa(pmap_wired_count(pmap) + 1) > lim_cur(proc, RLIMIT_MEMLOCK)) {
+		PROC_UNLOCK(proc);
+		ret = -ENOMEM;
+		goto out;
+	}
+	PROC_UNLOCK(proc);
+	if (cnt.v_wire_count + 1 > vm_page_max_wired) {
+		ret = -EAGAIN;
+		goto out;
+	}
+	start = uaddr & PAGE_MASK;
+	ret = vm_map_wire(&proc->p_vmspace->vm_map, start, start + PAGE_SIZE,
+	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES /* | VM_MAP_WIRE_READ |
+	    VM_MAP_WIRE_WRITE */);
+        if (ret != KERN_SUCCESS) {
+		start = 0;
+		ret = -ENOMEM;
+		goto out;
+	}
+	paddr = pmap_extract(pmap, uaddr);
+	if (paddr == 0) {
+		ret = -EFAULT;
+		goto out;
+	}
+	m = PHYS_TO_VM_PAGE(paddr);
+
+	sg_set_page(&db_tab->page[i].mem, m, MTHCA_ICM_PAGE_SIZE,
+			uaddr & ~PAGE_MASK);
+
+	ret = pci_map_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
+	if (ret < 0)
+		goto out;
+
+	ret = mthca_MAP_ICM_page(dev, sg_dma_address(&db_tab->page[i].mem),
+				 mthca_uarc_virt(dev, uar, i), &status);
+	if (!ret && status)
+		ret = -EINVAL;
+	if (ret) {
+		pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
+		goto out;
+	}
+
+	db_tab->page[i].uvirt    = uaddr;
+	db_tab->page[i].refcount = 1;
+
+out:
+	if (ret < 0 && start)
+		vm_map_unwire(&curthread->td_proc->p_vmspace->vm_map,
+		    start, start + PAGE_SIZE,
+		    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+	mutex_unlock(&db_tab->mutex);
+	return ret;
 #endif
 }
 
 void mthca_unmap_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 			 struct mthca_user_db_table *db_tab, int index)
 {
-#ifdef __linux__
 	if (!mthca_is_memfree(dev))
 		return;
 
@@ -531,7 +623,6 @@ void mthca_unmap_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 	--db_tab->page[index / MTHCA_DB_REC_PER_PAGE].refcount;
 
 	mutex_unlock(&db_tab->mutex);
-#endif
 }
 
 struct mthca_user_db_table *mthca_init_user_db_tab(struct mthca_dev *dev)
@@ -573,6 +664,13 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
 			pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
 #ifdef __linux__
 			put_page(sg_page(&db_tab->page[i].mem));
+#else
+			vm_offset_t start;
+
+			start = db_tab->page[i].uvirt & PAGE_MASK;
+			vm_map_unwire(&curthread->td_proc->p_vmspace->vm_map,
+			    start, start + PAGE_SIZE,
+			    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 #endif
 		}
 	}
