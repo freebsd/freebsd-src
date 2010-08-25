@@ -47,7 +47,7 @@ struct netdump_msg_hdr {
 	uint32_t	seqno;	/* Match acks with msgs. */
 	uint64_t	offset;	/* vmcore offset (bytes). */
 	uint32_t	len;	/* Attached data (bytes). */
-	uint8_t		pad[4];	/* Pad for parifying 32 and 64 bits. */
+	uint8_t		pad[4];	/* Pad space matching 32- and 64-bits archs. */
 };
 
 struct netdump_ack {
