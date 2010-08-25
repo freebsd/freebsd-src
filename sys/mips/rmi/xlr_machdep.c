@@ -282,22 +282,23 @@ static void
 xlr_pic_init(void)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-	int i, level;
+	int i, level, irq;
 
 	mtx_init(&xlr_pic_lock, "pic", NULL, MTX_SPIN);
 	xlr_write_reg(mmio, PIC_CTRL, 0);
 	for (i = 0; i < PIC_NUM_IRTS; i++) {
-		level = PIC_IRQ_IS_EDGE_TRIGGERED(i);
+		irq = PIC_INTR_TO_IRQ(i);
+		level = PIC_IRQ_IS_EDGE_TRIGGERED(irq);
 
 		/* Bind all PIC irqs to cpu 0 */
-		xlr_write_reg(mmio, PIC_IRT_0_BASE + i, 0x01);
+		xlr_write_reg(mmio, PIC_IRT_0(i), 0x01);
 
 		/*
 		 * Use local scheduling and high polarity for all IRTs
 		 * Invalidate all IRTs, by default
 		 */
-		xlr_write_reg(mmio, PIC_IRT_1_BASE + i, (level << 30) | (1 << 6) |
-		    (PIC_IRQ_BASE + i));
+		xlr_write_reg(mmio, PIC_IRT_1(i), (level << 30) | (1 << 6) |
+		    irq);
 	}
 }
 
