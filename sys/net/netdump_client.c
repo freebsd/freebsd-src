@@ -135,11 +135,12 @@ static uint16_t nd_server_port = NETDUMP_PORT; /* port to respond on */
 static unsigned char buf[MAXDUMPPGS*PAGE_SIZE]; /* Must be at least as big as
 						 * the chunks dumpsys() gives
 						 * us */
-static struct ether_addr nd_server_mac;
+static struct ether_addr nd_gw_mac;
 
 static int nd_enable = 0;  /* if we should perform a network dump */
 static struct in_addr nd_server = {INADDR_ANY}; /* server address */
 static struct in_addr nd_client = {INADDR_ANY}; /* client (our) address */
+static struct in_addr nd_gw = {INADDR_ANY}; /* gw, if set */
 struct ifnet *nd_nic = NULL;
 static int nd_polls=10000; /* Times to poll the NIC (0.5ms each poll) before
 			    * assuming packetloss occurred: 5s by default */
@@ -312,6 +313,8 @@ SYSCTL_PROC(_net_dump, OID_AUTO, server, CTLTYPE_STRING|CTLFLAG_RW, &nd_server,
 	0, sysctl_ip, "A", "dump server");
 SYSCTL_PROC(_net_dump, OID_AUTO, client, CTLTYPE_STRING|CTLFLAG_RW, &nd_client,
 	0, sysctl_ip, "A", "dump client");
+SYSCTL_PROC(_net_dump, OID_AUTO, gateway, CTLTYPE_STRING|CTLFLAG_RW, &nd_gw,
+	0, sysctl_ip, "A", "dump default gateway");
 SYSCTL_PROC(_net_dump, OID_AUTO, nic, CTLTYPE_STRING|CTLFLAG_RW, &nd_nic,
 	IFNAMSIZ, sysctl_nic, "A", "NIC to dump on");
 SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT|CTLFLAG_RW, &nd_polls, 0,
@@ -465,7 +468,7 @@ netdump_udp_output(struct mbuf *m)
 		return ENOBUFS;
 	}
 
-	return netdump_ether_output(m, nd_nic, nd_server_mac, ETHERTYPE_IP);
+	return netdump_ether_output(m, nd_nic, nd_gw_mac, ETHERTYPE_IP);
 }
 
 /*
@@ -506,7 +509,7 @@ netdump_send_arp()
 	bcopy(IF_LLADDR(nd_nic), ar_sha(ah), ETHER_ADDR_LEN);
 	((struct in_addr *)ar_spa(ah))->s_addr = nd_client.s_addr;
 	bzero(ar_tha(ah), ETHER_ADDR_LEN);
-	((struct in_addr *)ar_tpa(ah))->s_addr = nd_server.s_addr;
+	((struct in_addr *)ar_tpa(ah))->s_addr = nd_gw.s_addr;
 
 	return netdump_ether_output(m, nd_nic, bcast, ETHERTYPE_ARP);
 }
@@ -948,18 +951,18 @@ nd_handle_arp(struct mbuf **mb)
 	}
 
 	if (op == ARPOP_REPLY) {
-		if (isaddr.s_addr != nd_server.s_addr) {
+		if (isaddr.s_addr != nd_gw.s_addr) {
 			char buf[INET_ADDRSTRLEN];
 			inet_ntoa_r(isaddr, buf);
 			NETDDEBUG("nd_handle_arp: ignoring ARP reply from "
 			    "%s (not netdump server)\n", buf);
 			return;
 		}
-		bcopy(ar_sha(ah), nd_server_mac.octet,
+		bcopy(ar_sha(ah), nd_gw_mac.octet,
 				min(ah->ar_hln, ETHER_ADDR_LEN));
 		have_server_mac = 1;
 		NETDDEBUG("\nnd_handle_arp: Got server MAC address %6D\n",
-		    nd_server_mac.octet, ":");
+		    nd_gw_mac.octet, ":");
 		return;
 	}
 
@@ -1242,6 +1245,9 @@ netdump_trigger(void *arg, int howto)
 		goto abort;
 	}
 
+	if (nd_gw.s_addr == INADDR_ANY) {
+		nd_gw.s_addr = nd_server.s_addr;
+	}
 	printf("\n-----------------------------------\n");
 	printf("netdump in progress. searching for server.. ");
 	if (netdump_arp_server()) {
@@ -1253,7 +1259,7 @@ netdump_trigger(void *arg, int howto)
 		goto abort;
 	}
 	printf("dumping to %s (%6D)\n", inet_ntoa(nd_server),
-			nd_server_mac.octet, ":");
+			nd_gw_mac.octet, ":");
 	printf("-----------------------------------\n");
 
 	/*
