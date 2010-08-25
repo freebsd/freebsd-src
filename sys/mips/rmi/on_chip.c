@@ -1,4 +1,4 @@
-/*-
+ /*-
  * Copyright (c) 2003-2009 RMI Corporation
  * All rights reserved.
  *
@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <mips/rmi/interrupt.h>
 #include <mips/rmi/msgring.h>
-#include <mips/rmi/iomap.h>
-#include <mips/rmi/debug.h>
 #include <mips/rmi/pic.h>
 #include <mips/rmi/board.h>
 
@@ -102,14 +100,11 @@ do { \
 /* make this a read/write spinlock */
 static struct mtx msgrng_lock;
 static int msgring_int_enabled;
-struct mtx xlr_pic_lock;
-
 static int msgring_pop_num_buckets;
 static uint32_t msgring_pop_bucket_mask;
 static int msgring_int_type;
 static int msgring_watermark_count;
 static uint32_t msgring_thread_mask;
-
 uint32_t msgrng_msg_cycles = 0;
 
 void xlr_msgring_handler(struct trapframe *);
@@ -169,10 +164,11 @@ xlr_msgring_cpu_init(void)
 void 
 xlr_msgring_config(void)
 {
+	mtx_init(&msgrng_lock, "msgring", NULL, MTX_SPIN | MTX_RECURSE);
 	msgring_int_type = 0x02;
 	msgring_pop_num_buckets = 8;
 	msgring_pop_bucket_mask = 0xff;
-
+	msgring_int_enabled = 0;
 	msgring_watermark_count = 1;
 	msgring_thread_mask = 0x01;
 }
@@ -221,9 +217,6 @@ xlr_msgring_handler(struct trapframe *tf)
 			}
 		}
 	}
-
-	xlr_set_counter(MSGRNG_EXIT_STATUS, msgrng_read_status());
-
 	msgrng_flags_restore(mflags);
 }
 
@@ -385,48 +378,6 @@ register_msgring_handler(int major,
 			INTR_TYPE_NET | INTR_FAST, &cookie);
 	}
 	return 0;
-}
-
-static void 
-pic_init(void)
-{
-	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-	int i = 0;
-	int level;
-
-	dbg_msg("Initializing PIC...\n");
-	for (i = 0; i < PIC_NUM_IRTS; i++) {
-
-		level = PIC_IRQ_IS_EDGE_TRIGGERED(i);
-
-		/* Bind all PIC irqs to cpu 0 */
-		xlr_write_reg(mmio, PIC_IRT_0_BASE + i, 0x01);
-
-		/*
-		 * Use local scheduling and high polarity for all IRTs
-		 * Invalidate all IRTs, by default
-		 */
-		xlr_write_reg(mmio, PIC_IRT_1_BASE + i, (level << 30) | (1 << 6) |
-		    (PIC_IRQ_BASE + i));
-	}
-	dbg_msg("PIC init now done\n");
-}
-
-void 
-on_chip_init(void)
-{
-	/* Set xlr_io_base to the run time value */
-	mtx_init(&msgrng_lock, "msgring", NULL, MTX_SPIN | MTX_RECURSE);
-	mtx_init(&xlr_pic_lock, "pic", NULL, MTX_SPIN);
-
-	xlr_board_info_setup();
-
-	msgring_int_enabled = 0;
-
-	xlr_msgring_config();
-	pic_init();
-
-	xlr_msgring_cpu_init();
 }
 
 static void
