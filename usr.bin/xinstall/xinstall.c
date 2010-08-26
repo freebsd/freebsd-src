@@ -734,7 +734,7 @@ strip(const char *to_name)
 
 /*
  * install_dir --
- *	build directory heirarchy
+ *	build directory hierarchy
  */
 void
 install_dir(char *path)

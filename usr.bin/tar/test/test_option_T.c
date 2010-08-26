@@ -43,7 +43,7 @@ DEFINE_TEST(test_option_T)
 	int r;
 	struct stat st;
 
-	/* Create a simple dir heirarchy; bail if anything fails. */
+	/* Create a simple dir hierarchy; bail if anything fails. */
 	if (!assertEqualInt(0, mkdir("d1", 0755))) return;
 	if (!assertEqualInt(0, mkdir("d1/d2", 0755)))	return;
 	if (!touch("d1/f1")) return;
