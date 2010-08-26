@@ -3,6 +3,7 @@
 .include <bsd.own.mk>
 
 SUBDIR=	${_dtrace} \
+	${_dtruss} \
 	${_lockstat} \
 	${_zdb}
 
@@ -14,6 +15,7 @@ _zdb=	zdb
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _dtrace=	dtrace
+_dtruss=	dtruss
 _lockstat=	lockstat
 .endif
 
