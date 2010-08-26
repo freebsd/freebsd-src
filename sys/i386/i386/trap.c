@@ -119,8 +119,12 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
  */
 systrace_probe_func_t	systrace_probe_func;
 
-dtrace_pid_probe_ptr_t	dtrace_pid_probe_ptr;
-dtrace_return_probe_ptr_t dtrace_return_probe_ptr;
+/*
+ * These hooks are necessary for the pid, usdt and fasttrap providers.
+ */
+dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
+dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
+dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
 
 extern void trap(struct trapframe *frame);
