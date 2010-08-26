@@ -886,11 +886,11 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		nap -= 2;
 		ap += 2;
 	}
- 	if (p->p_sysent->sv_mask)
- 		sa->code &= p->p_sysent->sv_mask;
+	if (p->p_sysent->sv_mask)
+		sa->code &= p->p_sysent->sv_mask;
 
- 	if (sa->code >= p->p_sysent->sv_size)
- 		sa->callp = &p->p_sysent->sv_table[0];
+	if (sa->code >= p->p_sysent->sv_size)
+		sa->callp = &p->p_sysent->sv_table[0];
   	else
  		sa->callp = &p->p_sysent->sv_table[sa->code];
 
