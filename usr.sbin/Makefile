@@ -412,7 +412,8 @@ _crunch=	crunch
 .endif
 
 .if ${MK_USB} != "no"
-.if ${MACHINE_ARCH} != "ia64"
+.if ${MACHINE_ARCH} != "ia64" && \
+	!(${MACHINE_ARCH} == "mips" && ${TARGET_ABI} == "n64")
 _uathload=	uathload
 .endif
 _uhsoctl=	uhsoctl
