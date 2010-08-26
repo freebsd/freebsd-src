@@ -191,11 +191,11 @@ DTOR_LIST_BEGIN;
 #elif defined(DTORS_SECTION_ASM_OP)
 asm (DTORS_SECTION_ASM_OP);
 STATIC func_ptr __DTOR_LIST__[1]
-  __attribute__ ((aligned(sizeof(func_ptr))))
+  __attribute__ ((used, aligned(sizeof(func_ptr))))
   = { (func_ptr) (-1) };
 #else
 STATIC func_ptr __DTOR_LIST__[1]
-  __attribute__((section(".dtors"), aligned(sizeof(func_ptr))))
+  __attribute__((used, section(".dtors"), aligned(sizeof(func_ptr))))
   = { (func_ptr) (-1) };
 #endif /* __DTOR_LIST__ alternatives */
 
@@ -203,7 +203,7 @@ STATIC func_ptr __DTOR_LIST__[1]
 /* Stick a label at the beginning of the frame unwind info so we can register
    and deregister it with the exception handling library code.  */
 STATIC EH_FRAME_SECTION_CONST char __EH_FRAME_BEGIN__[]
-     __attribute__((section(EH_FRAME_SECTION_NAME), aligned(4)))
+     __attribute__((used, section(EH_FRAME_SECTION_NAME), aligned(4)))
      = { };
 #endif /* USE_EH_FRAME_REGISTRY */
 
@@ -459,11 +459,11 @@ CTOR_LIST_END;
 static func_ptr force_to_data[1] __attribute__ ((__used__)) = { };
 asm (CTORS_SECTION_ASM_OP);
 STATIC func_ptr __CTOR_END__[1]
-  __attribute__((aligned(sizeof(func_ptr))))
+  __attribute__((used, aligned(sizeof(func_ptr))))
   = { (func_ptr) 0 };
 #else
 STATIC func_ptr __CTOR_END__[1]
-  __attribute__((section(".ctors"), aligned(sizeof(func_ptr))))
+  __attribute__((used, section(".ctors"), aligned(sizeof(func_ptr))))
   = { (func_ptr) 0 };
 #endif
 
