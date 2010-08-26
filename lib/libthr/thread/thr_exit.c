@@ -55,16 +55,6 @@ _thread_exit(const char *fname, int lineno, const char *msg)
 	abort();
 }
 
-/*
- * Only called when a thread is cancelled.  It may be more useful
- * to call it from pthread_exit() if other ways of asynchronous or
- * abnormal thread termination can be found.
- */
-void
-_thr_exit_cleanup(void)
-{
-}
-
 void
 _pthread_exit(void *status)
 {
@@ -84,8 +74,6 @@ _pthread_exit(void *status)
 	curthread->cancel_enable = 0;
 	curthread->cancel_async = 0;
 	
-	_thr_exit_cleanup();
-
 	/* Save the return value: */
 	curthread->ret = status;
 	while (curthread->cleanup != NULL) {
