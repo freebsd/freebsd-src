@@ -1,0 +1,18 @@
+To build
+    ./cleanup
+    ./autogen.sh
+    ./configure
+    make
+
+Changing version
+    * src/qperf.c: Change VER_MAJ, VER_MIN and VER_INC.
+    * configure.in: Change in AC_INIT and AM_INIT_AUTOMAKE
+    * qperf.spec: Change line beginning with Version:
+    * Note ensure that qperf.spec is modified last so that cleanup does not
+      delete it.
+
+Notes
+    * If the library ibverbs is not found, a version of qperf is built that
+      does not support the RDMA tests.
+    * Running "make clean" does not seem to clean up everything.  Run
+      "./cleanup" instead.

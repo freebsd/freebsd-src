@@ -1,0 +1,979 @@
+Main
+    Synopsis
+        qperf
+        qperf SERVERNODE [OPTIONS] TESTS
+
+    Description
+        qperf measures bandwidth and latency between two nodes.  It can work
+        over TCP/IP as well as the RDMA transports.  On one of the nodes, qperf
+        is typically run with no arguments designating it the server node.  One
+        may then run qperf on a client node to obtain measurements such as
+        bandwidth, latency and cpu utilization.
+
+        In its most basic form, qperf is run on one node in server mode by
+        invoking it with no arguments.  On the other node, it is run with two
+        arguments: the name of the server node followed by the name of the
+        test.  A list of tests can be found in the section, TESTS.  A variety
+        of options may also be specified.
+
+        One can get more detailed information on qperf by using the --help
+        option.  Below are examples of using the --help option:
+
+            qperf --help examples       Some examples of using qperf
+            qperf --help opts           Summary of options
+            qperf --help options        Description of options
+            qperf --help tests          Short summary and description of tests
+            qperf --help TESTNAME       More information on test TESTNAME
+Author
+    Written by Johann George.
+Bugs
+    None of the RDMA tests are available if qperf is compiled without the RDMA
+    libraries.  The -f option is not yet implemented in many of the tests.
+Categories -RDMA
+    To get help on a particular category, you may type:
+        qperf --help CATEGORY
+    where CATEGORY might be one of the following:
+        categories          This current list being displayed
+        examples            Some examples
+        options             A long list of options
+        opts                A short description of the options
+        tests               A list and description of the various tests
+    or one of the following tests:
+        conf
+        quit
+        rds_bw
+        rds_lat
+        sctp_bw
+        sctp_lat
+        sdp_bw
+        sdp_lat
+        tcp_bw
+        tcp_lat
+        udp_bw
+        udp_lat
+Categories +RDMA
+    To get help on a particular category, you may type:
+        qperf --help CATEGORY
+    where CATEGORY might be one of the following:
+        categories          This current list being displayed
+        examples            Some examples
+        options             A long list of options
+        opts                A short description of the options
+        tests               A list of tests
+    CATEGORY may also be one of the following tests
+        conf
+        quit
+        rc_bi_bw
+        rc_bw
+        rc_compare_swap_mr
+        rc_fetch_add_mr
+        rc_lat
+        rc_rdma_read_bw
+        rc_rdma_read_lat
+        rc_rdma_write_bw
+        rc_rdma_write_lat
+        rc_rdma_write_poll_lat
+        rds_bw
+        rds_lat
+        sctp_bw
+        sctp_lat
+        sdp_bw
+        sdp_lat
+        tcp_bw
+        tcp_lat
+        uc_bi_bw
+        uc_bw
+        uc_lat
+        uc_rdma_write_bw
+        uc_rdma_write_lat
+        uc_rdma_write_poll_lat
+        ud_bi_bw
+        ud_bw
+        ud_lat
+        udp_bw
+        udp_lat
+        ver_rc_compare_swap
+        ver_rc_fetch_add
+        xrc_bi_bw
+        xrc_bw
+        xrc_lat
+Examples
+    In these examples, we first run qperf on a node called myserver in server
+    mode by invoking it with no arguments.  In all the subsequent examples, we
+    run qperf on another node and connect to the server which we assume has a
+    hostname of myserver.
+        * To run a TCP bandwidth and latency test:
+            qperf myserver tcp_bw tcp_lat
+        * To run a SDP bandwidth test for 10 seconds:
+            qperf myserver -t 10 sdp_bw
+        * To run a UDP latency test and then cause the server to terminate:
+            qperf myserver udp_lat quit
+        * To measure the RDMA UD latency and bandwidth:
+            qperf myserver ud_lat ud_bw
+        * To measure RDMA UC bi-directional bandwidth:
+            qperf myserver rc_bi_bw
+        * To get a range of TCP latencies with a message size from 1 to 64K
+            qperf myserver -oo msg_size:1:64K:*2 -vu tcp_lat
+Opts
+    --access_recv OnOff (-ar)           Turn on/off accessing received data
+      -ar1                              Cause received data to be accessed
+    --alt_port Port (-ap)               Set alternate path port
+      --loc_alt_port Port (-lap)        Set local alternate path port
+      --rem_alt_port Port (-rap)        Set remote alternate path port
+    --cpu_affinity PN (-ca)             Set processor affinity
+      --loc_cpu_affinity PN (-lca)      Set local processor affinity
+      --rem_cpu_affinity PN (-rca)      Set remote processor affinity
+    --flip OnOff (-f)                   Flip on/off sender and receiver
+      -f1                               Flip (on) sender and receiver
+    --help Topic (-h)                   Get more information on a topic
+    --host Node (-H)                    Identify server node
+    --id Device:Port (-i)               Set RDMA device and port
+      --loc_id Device:Port (-li)        Set local RDMA device and port
+      --rem_id Device:Port (-ri)        Set remote RDMA device and port
+    --listen_port Port (-lp)            Set server listen port
+    --loop Var:Init:Last:Incr (-oo)     Sequence through values
+    --msg_size Size (-m)                Set message size
+    --mtu_size Size (-mt)               Set MTU size (RDMA only)
+    --no_msgs Count (-n)                Send Count messages
+    --cq_poll OnOff                     Set polling mode on/off
+      --loc_cq_poll OnOff (-lcp)        Set local polling mode on/off
+      --rem_cq_poll OnOff (-rcp)        Set remote polling mode on/off
+      -cp1                              Turn polling mode on
+      -lcp1                             Turn local polling mode on
+      -rcp1                             Turn remote polling mode on
+    --ip_port Port (-ip)                Set TCP port used for tests
+    --precision Digits (-e)             Set precision reported
+    --rd_atomic Max (-nr)               Set RDMA read/atomic count
+        --loc_rd_atomic Max (-lnr)      Set local RDMA read/atomic count
+        --rem_rd_atomic Max (-rnr)      Set remote RDMA read/atomic count
+    --service_level SL (-sl)            Set service level
+      --service_level SL (-lsl)         Set local service level
+      --service_level SL (-rsl)         Set remote service level
+    --sock_buf_size Size (-sb)          Set socket buffer size
+      --loc_sock_buf_size Size (-lsb)   Set local socket buffer size
+      --rem_sock_buf_size Size (-rsb)   Set remote socket buffer size
+    --src_path_bits num (-sp)           Set source path bits
+      --loc_src_path_bits num (-lsp)    Set local source path bits
+      --rem_src_path_bits num (-rsp)    Set remote source path bits
+    --static_rate (-sr)                 Set IB static rate
+      --loc_static_rate (-lsr)          Set local IB static rate
+      --rem_static_rate (-rsr)          Set remote IB static rate
+    --time Time (-t)                    Set test duration
+    --timeout Time (-to)                Set timeout
+      --loc_timeout Time (-lto)         Set local timeout
+      --rem_timeout Time (-rto)         Set remote timeout
+    --unify_nodes (-un)                 Unify nodes
+    --unify_units (-uu)                 Unify units
+    --use_bits_per_sec (-ub)            Use bits/sec rather than bytes/sec
+    --use_cm OnOff (-cm)                Use RDMA Connection Manager or not
+      -cm1                              Use RDMA Connection Manager
+    --verbose (-v)                      Verbose; turn on all of -v[cstu]
+      --verbose_conf (-vc)              Show configuration information
+      --verbose_stat (-vs)              Show statistical information
+      --verbose_time (-vt)              Show timing information
+      --verbose_used (-vu)              Show information on parameters
+      --verbose_more (-vv)              More verbose; turn on all of -v[CSTU]
+      --verbose_more_conf (-vvc)        Show more configuration information
+      --verbose_more_stat (-vvs)        Show more statistical information
+      --verbose_more_time (-vvt)        Show more timing information
+      --verbose_more_used (-vvu)        Show more information on parameters
+    --version (-V)                      Print out version
+    --wait_server Time (-ws)            Set time to wait for server
+Options
+    --access_recv OnOff (-ar)
+          If OnOff is non-zero, data is accessed once received.  Otherwise,
+          data is ignored.  By default, OnOff is 0.  This can help to mimic
+          some applications.
+      -ar1
+          Cause received data to be accessed.
+    --alt_port Port (-ap)
+          Set alternate path port. This enables automatic path failover.
+      --loc_alt_port Port (-lap)
+          Set local alternate path port. This enables automatic path failover.
+      --rem_alt_port Port (-rap)
+          Set remote alternate path port. This enables automatic path failover.
+    --cpu_affinity PN (-ca)
+          Set cpu affinity to PN.  CPUs are numbered sequentially from 0.  If
+          PN is "any", any cpu is allowed otherwise the cpu is limited to the
+          one specified.
+      --loc_cpu_affinity PN (-lca)
+          Set local processor affinity to PN.
+      --rem_cpu_affinity PN (-rca)
+          Set remote processor affinity to PN.
+    --flip OnOff (-f)
+          If non-zero, cause sender and receiver to play opposite roles.
+      -f1
+          Cause sender and receiver to play opposite roles.
+    --help Topic (-h)
+          Print out information about Topic.  To see the list of topics, type
+              qperf --help
+    --host Host (-H)
+          Run test between the current node and the qperf running on node Host.
+          This can also be specified as the first non-option argument.
+    --id Device:Port (-i)
+          Use RDMA Device and Port.
+      --loc_id Device:Port (-li)
+          Use local RDMA Device and Port.
+      --rem_id Device:Port (-ri)
+          Use remote RDMA Device and Port.
+    --listen_port Port (-lp)
+          Set the port we listen on to ListenPort.  This must be set to the
+          same port on both the server and client machines.  The default value
+          is 19765.
+    --loop Var:Init:Last:Incr (-oo)
+        Run a test multiple times sequencing through a series of values.  Var
+        is the loop variable; Init is the initial value; Last is the value it
+        must not exceed and Incr is the increment.  It is useful to set the
+        --verbose_used (-vu) option in conjunction with this option.
+    --msg_size Size (-m)
+          Set the message size to Size.  The default value varies by test.  It
+          is assumed that the value is specified in bytes however, a trailing
+          kib or K, mib or M, or gib or G indicates that the size is being
+          specified in kibibytes, mebibytes or gibibytes respectively while a
+          trailing kb or k, mb or m, or gb or g indicates kilobytes, megabytes
+          or gigabytes respectively.
+    --mtu_size Size (-mt)
+          Set the MTU size.  Only relevant to the RDMA UC/RC tests.  Units are
+          specified in the same manner as the --msg_size option.
+    --no_msgs N (-n)
+        Set test duration by number of messages sent instead of time.
+    --cq_poll OnOff (-cp)
+          Turn polling mode on or off.  This is only relevant to the RDMA tests
+          and determines whether they poll or wait on the completion queues.
+          If OnOff is 0, they wait; otherwise they poll.
+      --loc_cq_poll OnOff (-lcp)
+          Locally turn polling mode on or off.
+      --rem_cq_poll OnOff (-rcp)
+          Remotely turn polling mode on or off.
+      -cp1
+          Turn polling mode on.
+      -lcp1
+          Turn local polling mode on.
+      -rcp1
+          Turn remote polling mode on.
+    --ip_port Port (-ip)
+          Use Port to run the socket tests.  This is different from
+          --listen_port which is used for synchronization.  This is only
+          relevant for the socket tests and refers to the TCP/UDP/SDP/RDS/SCTP
+          port that the test is run on.
+    --precision Digits (-e)
+          Set the number of significant digits that are used to report results.
+    --rd_atomic Max (-nr)
+          Set the number of in-flight operations that can be handled for a RDMA
+          read or atomic operation to Max.  This is only relevant to the RDMA
+          Read and Atomic tests.
+      --loc_rd_atomic Max (-lnr)
+          Set local read/atomic count.
+      --rem_rd_atomic Max (-rnr)
+          Set remote read/atomic count.
+    --service_level SL (-sl)
+          Set RDMA service level to SL.  This is only used by the RDMA tests.
+          The service level must be between 0 and 15.  The default service
+          level is 0.
+      --loc_service_level SL (-lsl)
+          Set local service level.
+      --rem_service_level SL (-rsl)
+          Set remote service level.
+    --sock_buf_size Size (-sb)
+          Set the socket buffer size.  This is only relevant to the socket
+          tests.
+      --loc_sock_buf_size Size (-lsb)
+          Set local socket buffer size.
+      --rem_sock_buf_size Size (-rsb)
+          Set remote socket buffer size.
+    --src_path_bits N (-sp)
+          Set source path bits. If the LMC is not zero, this will cause the
+          connection to use a LID with the low order LMC bits set to N.
+      --loc_src_path_bits N (-lsp)
+          Set local source path bits.
+      --rem_src_path_bits N (-rsp)
+          Set remote source path bits.
+    --static_rate Rate (-sr)
+          Force InfiniBand static rate.  Rate can be one of: 2.5, 5, 10, 20,
+          30, 40, 60, 80, 120, 1xSDR (2.5 Gbps), 1xDDR (5 Gbps), 1xQDR (10
+          Gbps), 4xSDR (2.5 Gbps), 4xDDR (5 Gbps), 4xQDR (10 Gbps), 8xSDR (2.5
+          Gbps), 8xDDR (5 Gbps), 8xQDR (10 Gbps).
+      --loc_static_rate (-lsr)
+          Force local InfiniBand static rate
+      --rem_static_rate (-rsr)
+          Force remote InfiniBand static rate
+    --time Time (-t)
+          Set test duration to Time.  Specified in seconds however a trailing
+          m, h or d indicates that the time is specified in minutes, hours or
+          days respectively.
+    --timeout Time (-to)
+          Set timeout to Time.  This is the timeout used for various things
+          such as exchanging messages.  The default is 5 seconds.
+      --loc_timeout Time (-lto)
+          Set local timeout to Time.  This may be used on the server to set
+          the timeout when initially exchanging data with each client.
+          However, as soon as we receive the client's parameters, the client's
+          remote timeout will override this parameter.
+      --rem_timeout Time (-rto)
+          Set remote timeout to Time.
+    --unify_nodes (-un)
+          Unify the nodes.  Describe them in terms of local and remote rather
+          than send and receive.
+    --unify_units (-uu)
+          Unify the units that results are shown in.  Uses the lowest common
+          denominator.  Helpful for scripts.
+    --use_bits_per_sec (-ub)
+          Use bits/sec rather than bytes/sec when displaying networking speed.
+    --use_cm OnOff (-cm)
+          Use the RDMA Connection Manager (CM) if OnOff is non-zero.  It is
+          necessary to use the CM for iWARP devices.  The default is to
+          establish the connection without using the CM.  This only works for
+          the tests that use the RC transport.
+      -cm1
+          Use RDMA Connection Manager.
+    --verbose (-v)
+          Provide more detailed output.  Turns on -vc, -vs, -vt and -vu.
+      --verbose_conf (-vc)
+          Provide information on configuration.
+      --verbose_stat (-vs)
+          Provide information on statistics.
+      --verbose_time (-vt)
+          Provide information on timing.
+      --verbose_used (-vu)
+          Provide information on parameters used.
+      --verbose_more (-vv)
+          Provide even more detailed output.  Turns on -vvc, -vvs, -vvt and
+          -vvu.
+      --verbose_more_conf (-vvc)
+          Provide more information on configuration.
+      --verbose_more_stat (-vvs)
+          Provide more information on statistics.
+      --verbose_more_time (-vvt)
+          Provide more information on timing.
+      --verbose_more_used (-vvu)
+          Provide more information on parameters used.
+    --version (-V)
+          The current version of qperf is printed.
+    --wait_server Time (-ws)
+          If the server is not ready, continue to try connecting for Time
+          seconds before giving up.  The default is 5 seconds.
+Tests -RDMA
+    Miscellaneous
+        conf                    Show configuration
+        quit                    Cause the server to quit
+    Socket Based
+        rds_bw                  RDS streaming one way bandwidth
+        rds_lat                 RDS one way latency
+        sctp_bw                 SCTP streaming one way bandwidth
+        sctp_lat                SCTP one way latency
+        sdp_bw                  SDP streaming one way bandwidth
+        sdp_lat                 SDP one way latency
+        tcp_bw                  TCP streaming one way bandwidth
+        tcp_lat                 TCP one way latency
+        udp_bw                  UDP streaming one way bandwidth
+        udp_lat                 UDP one way latency
+Tests +RDMA
+    Miscellaneous
+        conf                    Show configuration
+        quit                    Cause the server to quit
+    Socket Based
+        rds_bw                  RDS streaming one way bandwidth
+        rds_lat                 RDS one way latency
+        sctp_bw                 SCTP streaming one way bandwidth
+        sctp_lat                SCTP one way latency
+        sdp_bw                  SDP streaming one way bandwidth
+        sdp_lat                 SDP one way latency
+        tcp_bw                  TCP streaming one way bandwidth
+        tcp_lat                 TCP one way latency
+        udp_bw                  UDP streaming one way bandwidth
+        udp_lat                 UDP one way latency
+    RDMA Send/Receive
+        rc_bi_bw                RC streaming two way bandwidth
+        rc_bw                   RC streaming one way bandwidth
+        rc_lat                  RC one way latency
+        uc_bi_bw                UC streaming two way bandwidth
+        uc_bw                   UC streaming one way bandwidth
+        uc_lat                  UC one way latency
+        ud_bi_bw                UD streaming two way bandwidth
+        ud_bw                   UD streaming one way bandwidth
+        ud_lat                  UD one way latency
+        xrc_bi_bw               XRC streaming two way bandwidth
+        xrc_bw                  XRC streaming one way bandwidth
+        xrc_lat                 XRC one way latency
+    RDMA
+        rc_rdma_read_bw         RC RDMA read streaming one way bandwidth
+        rc_rdma_read_lat        RC RDMA read one way latency
+        rc_rdma_write_bw        RC RDMA write streaming one way bandwidth
+        rc_rdma_write_lat       RC RDMA write one way latency
+        rc_rdma_write_poll_lat  RC RDMA write one way polling latency
+        uc_rdma_write_bw        UC RDMA write streaming one way bandwidth
+        uc_rdma_write_lat       UC RDMA write one way latency
+        uc_rdma_write_poll_lat  UC RDMA write one way polling latency
+    InfiniBand Atomics
+        rc_compare_swap_mr      RC compare and swap messaging rate
+        rc_fetch_add_mr         RC fetch and add messaging rate
+    Verification
+        ver_rc_compare_swap     Verify RC compare and swap
+        ver_rc_fetch_add        Verify RC fetch and add
+conf
+    Purpose
+        Show configuration
+    Common Options
+        None
+    Description
+        Shows the node name, CPUs and OS of both nodes being used.
+quit
+    Purpose
+        Quit
+    Common Options
+        None
+    Description
+        Causes the server to quit.
+rds_bw
+    Purpose
+        RDS streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client repeatedly sends messages to the server while the server
+        notes how many were received.
+rds_lat
+    Purpose
+        RDS one way latency
+    Common Options
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        repeatedly using RDS sockets.
+sctp_bw
+    Purpose
+        SCTP streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client repeatedly sends messages to the server while the server
+        notes how many were received.
+sctp_lat
+    Purpose
+        SCTP one way latency
+    Common Options
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        repeatedly using STCP sockets.
+sdp_bw
+    Purpose
+        SDP streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client repeatedly sends messages to the server while the server
+        notes how many were received.
+sdp_lat
+    Purpose
+        SDP one way latency
+    Common Options
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        repeatedly using SDP sockets.
+tcp_bw
+    Purpose
+        TCP streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client repeatedly sends messages to the server while the server
+        notes how many were received.
+tcp_lat
+    Purpose
+        TCP one way latency
+    Common Options
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        repeatedly using TCP sockets.
+udp_bw
+    Purpose
+        UDP streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client repeatedly sends messages to the server while the server
+        notes how many were received.
+udp_lat
+    Purpose
+        UDP one way latency
+    Common Options
+        --cpu_affinity PN (-ca)     Set processor affinity
+        --msg_size Size (-m)        Set message size
+        --sock_buf_size Size (-sb)  Set socket buffer size
+        --time (-t)                 Set test duration
+    Other Options
+        --listen_port, --ip_port, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        repeatedly using UDP sockets.
+ud_bw +RDMA
+    Purpose
+        UD streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --id Device:Port (-i)       Set RDMA device and port
+        --msg_size Size (-m)        Set message size
+        --cq_poll OnOff             Set polling mode on/off
+        --time (-t)                 Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client sends messages to the server who notes how many it received.
+        The UD Send/Receive mechanism is used.
+ud_bi_bw +RDMA
+    Purpose
+        UD streaming two way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --id Device:Port (-i)       Set RDMA device and port
+        --msg_size Size (-m)        Set message size
+        --cq_poll OnOff             Set polling mode on/off
+        --time (-t)                 Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        Both the client and server exchange messages with each other using the
+        UD Send/Receive mechanism and note how many were received.
+ud_lat +RDMA
+    Purpose
+        UD one way latency
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        repeatedly using UD Send/Receive.
+rc_bw +RDMA
+    Purpose
+        RC streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --id Device:Port (-i)       Set RDMA device and port
+        --msg_size Size (-m)        Set message size
+        --cq_poll OnOff             Set polling mode on/off
+        --time (-t)                 Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client sends messages to the server who notes how many it received.
+        The RC Send/Receive mechanism is used.
+rc_bi_bw +RDMA
+    Purpose
+        RC streaming two way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --id Device:Port (-i)       Set RDMA device and port
+        --msg_size Size (-m)        Set message size
+        --cq_poll OnOff             Set polling mode on/off
+        --time (-t)                 Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        Both the client and server exchange messages with each other using the
+        RC Send/Receive mechanism and note how many were received.
+rc_lat +RDMA
+    Purpose
+        RC one way latency
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        repeatedly using RC Send/Receive.
+uc_bw +RDMA
+    Purpose
+        UC streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --id Device:Port (-i)       Set RDMA device and port
+        --msg_size Size (-m)        Set message size
+        --cq_poll OnOff             Set polling mode on/off
+        --time (-t)                 Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client sends messages to the server who notes how many it received.
+        The UC Send/Receive mechanism is used.
+uc_bi_bw +RDMA
+    Purpose
+        UC streaming two way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --id Device:Port (-i)       Set RDMA device and port
+        --msg_size Size (-m)        Set message size
+        --cq_poll OnOff             Set polling mode on/off
+        --time (-t)                 Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        Both the client and server exchange messages with each other using the
+        UC Send/Receive mechanism and note how many were received.
+uc_lat +RDMA
+    Purpose
+        UC one way latency
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        repeatedly using UC Send/Receive.
+rc_rdma_read_bw +RDMA
+    Purpose
+        RC RDMA read streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --id Device:Port (-i)       Set RDMA device and port
+        --msg_size Size (-m)        Set message size
+        --cq_poll OnOff             Set polling mode on/off
+        --time (-t)                 Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --rd_atomic, --static_rate,
+        --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client repeatedly performs RC RDMA Read operations and notes how
+        many of them complete.
+rc_rdma_read_lat +RDMA
+    Purpose
+        RC RDMA read one way latency
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        The client repeatedly performs RC RDMA Read operations waiting for
+        completion before starting the next one.
+rc_rdma_write_bw +RDMA
+    Purpose
+        RC RDMA write streaming one way bandwidth
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client repeatedly performs RC RDMA Write operations and notes how
+        many of them complete.
+rc_rdma_write_lat +RDMA
+    Purpose
+        RC RDMA write one way latency
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        using RC RDMA write operations.
+rc_rdma_write_poll_lat +RDMA
+    Purpose
+        RC RDMA write one way polling latency
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test using RC RDMA Write operations.  First the
+        client performs an RDMA Write while the server stays in a tight loop
+        waiting for the memory buffer to change.  The first and last bytes of
+        the memory buffer are tested to ensure that the entire message was
+        received.  This is then repeated with both sides playing opposite
+        roles.  Since this does not use completion queues, the --cq_poll flag
+        has no effect.
+uc_rdma_write_bw +RDMA
+    Purpose
+        UC RDMA write streaming one way bandwidth
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client repeatedly performs UC RDMA Write operations and notes how
+        many of them complete.
+uc_rdma_write_lat +RDMA
+    Purpose
+        UC RDMA write one way latency
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        using UC RDMA write operations.
+uc_rdma_write_poll_lat +RDMA
+    Purpose
+        UC RDMA write one way polling latency
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test using UC RDMA Write operations.  First the
+        client performs an RDMA Write while the server stays in a tight loop
+        waiting for the memory buffer to change.  The first and last bytes of
+        the memory buffer are tested to ensure that the entire message was
+        received.  This is then repeated with both sides playing opposite
+        roles.  Since this does not use completion queues, the --cq_poll flag
+        has no effect.
+rc_compare_swap_mr +RDMA
+    Purpose
+        RC compare and swap messaging rate
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --rd_atomic, --static_rate,
+        --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        The client repeatedly performs the RC Atomic Compare and Swap operation
+        and determines how many of them complete.
+rc_fetch_add_mr +RDMA
+    Purpose
+        RC fetch and add messaging rate
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --rd_atomic, --static_rate,
+        --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        The client repeatedly performs the RC Atomic Fetch and Add operation
+        and determines how many of them complete.
+ver_rc_compare_swap +RDMA
+    Purpose
+        Verify RC compare and swap
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --msg_size, --mtu_size, --rd_atomic,
+        --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        Test the RC Compare and Swap Atomic operation.  The server's memory
+        location starts with zero and the client successively makes exchanges
+        with a variety of different values.  The results are checked for
+        correctness.
+ver_rc_fetch_add +RDMA
+    Purpose
+        Verify RC fetch and add
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --msg_size, --mtu_size, --rd_atomic,
+        --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        Tests the RC Fetch and Add Atomic operation.  The server's memory
+        location starts with zero and the client successively adds one.  The
+        results are checked for correctness.
+xrc_bw +RDMA
+    Purpose
+        XRC streaming one way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --id Device:Port (-i)       Set RDMA device and port
+        --msg_size Size (-m)        Set message size
+        --cq_poll OnOff             Set polling mode on/off
+        --time (-t)                 Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        The client sends messages to the server who notes how many it received.
+        The XRC Send/Receive mechanism is used.
+xrc_bi_bw +RDMA
+    Purpose
+        XRC streaming two way bandwidth
+    Common Options
+        --access_recv OnOff (-ar)   Access received data
+        --id Device:Port (-i)       Set RDMA device and port
+        --msg_size Size (-m)        Set message size
+        --cq_poll OnOff             Set polling mode on/off
+        --time (-t)                 Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --use_bits_per_sec,
+        --verbose
+    Description
+        Both the client and server exchange messages with each other using the
+        XRC Send/Receive mechanism and note how many were received.
+xrc_lat +RDMA
+    Purpose
+        XRC one way latency
+    Common Options
+        --id Device:Port (-i)   Set RDMA device and port
+        --msg_size Size (-m)    Set message size
+        --cq_poll OnOff         Set polling mode on/off
+        --time (-t)             Set test duration
+    Other Options
+        --cpu_affinity, --listen_port, --mtu_size, --static_rate, --timeout
+    Display Options
+        --precision, --unify_nodes, --unify_units, --verbose
+    Description
+        A ping pong latency test where the server and client exchange messages
+        repeatedly using XRC Send/Receive.

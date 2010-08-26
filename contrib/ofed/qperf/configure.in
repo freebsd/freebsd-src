@@ -1,0 +1,8 @@
+AC_INIT(qperf, 0.4.6, general@lists.openfabrics.org)
+AM_INIT_AUTOMAKE(qperf, 0.4.6)
+AC_PROG_CC
+AC_CHECK_LIB(ibverbs, ibv_open_device, RDMA=1)
+AC_CHECK_LIB(rdmacm, rdma_create_id)
+AM_CONDITIONAL(RDMA, test -n "$RDMA")
+AC_CONFIG_FILES([qperf.spec])
+AC_OUTPUT(Makefile src/Makefile)

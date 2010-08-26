@@ -1,0 +1,38 @@
+#!/bin/sh
+# autotools makes such a mess.  Clean up after it.
+#
+for f in AUTHORS NEWS README ChangeLog; do
+    [ -s "$f" ] || rm -f "$f"
+done
+rm -r -f autom4te.cache .deps src/.deps
+rm -f `cat <<EOF
+    INSTALL
+    Makefile
+    Makefile.in
+    aclocal.m4
+    config.log
+    config.status
+    configure
+    depcomp
+    install-sh
+    missing
+    src/Makefile
+    src/Makefile.in
+    src/*.o
+    src/help.c
+    src/qperf.1
+    src/qperf
+EOF`
+
+# We need to keep qperf.spec around for the OFED scripts but delete it if we do
+# not think it is correct.  This might be due to three reasons: (1) it does not
+# represent the RDMA version, (2) qperf.spec.in is newer and (3) configure.in
+# is newer.
+#
+if
+    ! grep -q -s '^BuildRequires: *libibverbs-devel' qperf.spec ||
+    [ qperf.spec.in -nt qperf.spec ] ||
+    [ configure.in -nt qperf.spec ]
+then
+    rm -f qperf.spec
+fi
