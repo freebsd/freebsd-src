@@ -149,8 +149,8 @@ _thr_rtld_lock_release(void *lock)
 	
 	state = l->lock.rw_state;
 	if (_thr_rwlock_unlock(&l->lock) == 0) {
-		curthread->rdlock_count--;
 		if ((state & URWLOCK_WRITE_OWNER) == 0) {
+			curthread->rdlock_count--;
 			THR_CRITICAL_LEAVE(curthread);
 		} else {
 			_thr_signal_unblock(curthread);
