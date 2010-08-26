@@ -211,7 +211,7 @@ STATIC EH_FRAME_SECTION_CONST char __EH_FRAME_BEGIN__[]
 /* Stick a label at the beginning of the java class registration info
    so we can register them properly.  */
 STATIC void *__JCR_LIST__[]
-  __attribute__ ((unused, section(JCR_SECTION_NAME), aligned(sizeof(void*))))
+  __attribute__ ((used, section(JCR_SECTION_NAME), aligned(sizeof(void*))))
   = { };
 #endif /* JCR_SECTION_NAME */
 
@@ -472,11 +472,11 @@ DTOR_LIST_END;
 #elif defined(DTORS_SECTION_ASM_OP)
 asm (DTORS_SECTION_ASM_OP);
 STATIC func_ptr __DTOR_END__[1]
-  __attribute__ ((unused, aligned(sizeof(func_ptr))))
+  __attribute__ ((used, aligned(sizeof(func_ptr))))
   = { (func_ptr) 0 };
 #else
 STATIC func_ptr __DTOR_END__[1]
-  __attribute__((unused, section(".dtors"), aligned(sizeof(func_ptr))))
+  __attribute__((used, section(".dtors"), aligned(sizeof(func_ptr))))
   = { (func_ptr) 0 };
 #endif
 
@@ -493,7 +493,7 @@ typedef short int32;
 #  error "Missing a 4 byte integer"
 # endif
 STATIC EH_FRAME_SECTION_CONST int32 __FRAME_END__[]
-     __attribute__ ((unused, section(EH_FRAME_SECTION_NAME),
+     __attribute__ ((used, section(EH_FRAME_SECTION_NAME),
 		     aligned(sizeof(int32))))
      = { 0 };
 #endif /* EH_FRAME_SECTION_NAME */
@@ -501,7 +501,7 @@ STATIC EH_FRAME_SECTION_CONST int32 __FRAME_END__[]
 #ifdef JCR_SECTION_NAME
 /* Null terminate the .jcr section array.  */
 STATIC void *__JCR_END__[1] 
-   __attribute__ ((unused, section(JCR_SECTION_NAME),
+   __attribute__ ((used, section(JCR_SECTION_NAME),
 		   aligned(sizeof(void *))))
    = { 0 };
 #endif /* JCR_SECTION_NAME */
