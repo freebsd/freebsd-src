@@ -55,7 +55,7 @@ struct workqueue_struct *mlx4_wq;
 
 #ifdef CONFIG_MLX4_DEBUG
 
-int mlx4_debug_level = 1;
+int mlx4_debug_level = 0;
 module_param_named(debug_level, mlx4_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 

@@ -363,8 +363,6 @@ struct mthca_dev {
 	int		      active;
 };
 
-#define	CONFIG_INFINIBAND_MTHCA_DEBUG
-
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 extern int mthca_debug_level;
 

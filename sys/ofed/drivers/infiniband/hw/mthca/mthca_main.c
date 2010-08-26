@@ -52,7 +52,7 @@ MODULE_VERSION(DRV_VERSION);
 
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 
-int mthca_debug_level = 1;
+int mthca_debug_level = 0;
 module_param_named(debug_level, mthca_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 

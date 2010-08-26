@@ -41,7 +41,6 @@
 
 int mthca_reset(struct mthca_dev *mdev)
 {
-#ifdef __linux__
 	int i;
 	int err = 0;
 	u32 *hca_header    = NULL;
@@ -71,6 +70,7 @@ int mthca_reset(struct mthca_dev *mdev)
 	if (!(mdev->mthca_flags & MTHCA_FLAG_PCIE)) {
 		/* Look for the bridge -- its device ID will be 2 more
 		   than HCA's device ID. */
+#ifdef __linux__
 		while ((bridge = pci_get_device(mdev->pdev->vendor,
 						mdev->pdev->device + 2,
 						bridge)) != NULL) {
@@ -91,7 +91,11 @@ int mthca_reset(struct mthca_dev *mdev)
 			mthca_warn(mdev, "No bridge found for %s\n",
 				  pci_name(mdev->pdev));
 		}
+#else
+		mthca_warn(mdev, "Reset on PCI-X is not supported.\n");
+		goto out;
 
+#endif
 	}
 
 	/* For Arbel do we need to save off the full 4K PCI Express header?? */
@@ -117,6 +121,7 @@ int mthca_reset(struct mthca_dev *mdev)
 	hca_pcix_cap = pci_find_capability(mdev->pdev, PCI_CAP_ID_PCIX);
 	hca_pcie_cap = pci_find_capability(mdev->pdev, PCI_CAP_ID_EXP);
 
+#ifdef __linux__
 	if (bridge) {
 		bridge_header = kmalloc(256, GFP_KERNEL);
 		if (!bridge_header) {
@@ -144,6 +149,7 @@ int mthca_reset(struct mthca_dev *mdev)
 				goto out;
 		}
 	}
+#endif
 
 	/* actually hit reset */
 	{
@@ -158,7 +164,11 @@ int mthca_reset(struct mthca_dev *mdev)
 		}
 
 		writel(MTHCA_RESET_VALUE, reset);
+#ifdef __linux__
 		iounmap(reset);
+#else
+		pmap_unmapdev((vm_offset_t)reset, 4);
+#endif
 	}
 
 	/* Docs say to wait one second before accessing device */
@@ -281,13 +291,12 @@ good:
 	}
 
 out:
+#ifdef __linux__
 	if (bridge)
 		pci_dev_put(bridge);
+#endif
 	kfree(bridge_header);
 	kfree(hca_header);
 
 	return err;
-#else
-	return 0;
-#endif
 }

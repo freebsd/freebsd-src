@@ -44,8 +44,6 @@
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
 
-#define	CONFIG_MLX4_DEBUG
-
 
 #define MLX4_IB_DRV_NAME	"mlx4_ib"
 
