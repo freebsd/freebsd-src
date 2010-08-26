@@ -623,7 +623,6 @@ void	_mutex_fork(struct pthread *curthread) __hidden;
 void	_libpthread_init(struct pthread *) __hidden;
 struct pthread *_thr_alloc(struct pthread *) __hidden;
 void	_thread_exit(const char *, int, const char *) __hidden __dead2;
-void	_thr_exit_cleanup(void) __hidden;
 int	_thr_ref_add(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_ref_delete(struct pthread *, struct pthread *) __hidden;
 void	_thr_ref_delete_unlocked(struct pthread *, struct pthread *) __hidden;
@@ -635,7 +634,6 @@ void	_thr_stack_free(struct pthread_attr *) __hidden;
 void	_thr_free(struct pthread *, struct pthread *) __hidden;
 void	_thr_gc(struct pthread *) __hidden;
 void    _thread_cleanupspecific(void) __hidden;
-void    _thread_dump_info(void) __hidden;
 void	_thread_printf(int, const char *, ...) __hidden;
 void	_thr_spinlock_init(void) __hidden;
 void	_thr_cancel_enter(struct pthread *) __hidden;
@@ -671,9 +669,6 @@ int	_schedparam_to_rtp(int policy, const struct sched_param *param,
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
 int	_sched_yield(void);
-void	_thr_sem_prefork(void);
-void	_thr_sem_postfork(void);
-void	_thr_sem_child_postfork(void);
 
 void	_pthread_cleanup_push(void (*)(void *), void *);
 void	_pthread_cleanup_pop(int);
