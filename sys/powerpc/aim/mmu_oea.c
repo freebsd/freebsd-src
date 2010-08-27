@@ -2436,8 +2436,6 @@ moea_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 	
-	GIANT_REQUIRED;
-
 	/*
 	 * If the physical address lies within a valid BAT table entry,
 	 * return the 1:1 mapping. This currently doesn't work
