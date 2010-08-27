@@ -739,6 +739,7 @@ _thr_check_init(void)
 
 struct dl_phdr_info;
 void __pthread_cxa_finalize(struct dl_phdr_info *phdr_info);
+void _thr_tsd_unload(struct dl_phdr_info *phdr_info) __hidden;
 
 __END_DECLS
 
