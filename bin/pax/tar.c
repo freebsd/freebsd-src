@@ -1095,7 +1095,7 @@ name_split(char *name, int len)
 	 * to find the biggest piece to fit in the name field (or the smallest
 	 * prefix we can find)
 	 */
-	start = name + len - TNMSZ - 1;
+	start = name + len - TNMSZ;
 	while ((*start != '\0') && (*start != '/'))
 		++start;
 
