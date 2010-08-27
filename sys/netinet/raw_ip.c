@@ -1007,8 +1007,8 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	 */
 	if (req->oldptr == 0) {
 		n = V_ripcbinfo.ipi_count;
-		req->oldidx = 2 * (sizeof xig)
-		    + (n + n/8) * sizeof(struct xinpcb);
+		n += imax(n / 8, 10);
+		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xinpcb);
 		return (0);
 	}
 
