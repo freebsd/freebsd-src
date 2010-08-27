@@ -151,7 +151,11 @@ static pthread_mutex_t metadata_lock;
  */
 #define	HAST_NCOMPONENTS	2
 /*
- * Number of seconds to sleep before next reconnect try.
+ * Number of seconds to sleep between keepalive packets.
+ */
+#define	KEEPALIVE_SLEEP		10
+/*
+ * Number of seconds to sleep between reconnect retries.
  */
 #define	RECONNECT_SLEEP		5
 
@@ -886,11 +890,14 @@ remote_close(struct hast_resource *res, int ncomp)
 	sync_stop();
 
 	/*
-	 * Wake up guard thread, so it can immediately start reconnect.
+	 * Wake up guard thread (if we are not called from within guard thread),
+	 * so it can immediately start reconnect.
 	 */
-	mtx_lock(&hio_guard_lock);
-	cv_signal(&hio_guard_cond);
-	mtx_unlock(&hio_guard_lock);
+	if (!mtx_owned(&hio_guard_lock)) {
+		mtx_lock(&hio_guard_lock);
+		cv_signal(&hio_guard_cond);
+		mtx_unlock(&hio_guard_lock);
+	}
 }
 
 /*
@@ -1734,7 +1741,7 @@ sighandler(int sig)
 		assert(!"invalid condition");
 	}
 	/*
-	 * XXX: Racy, but if we cannot obtain hio_guard_lock here, we don't
+	 * Racy, but if we cannot obtain hio_guard_lock here, we don't
 	 * want to risk deadlock.
 	 */
 	unlock = mtx_trylock(&hio_guard_lock);
@@ -1851,6 +1858,32 @@ failed:
 	pjdlog_warning("Configuration not reloaded.");
 }
 
+static void
+keepalive_send(struct hast_resource *res, unsigned int ncomp)
+{
+	struct nv *nv;
+
+	nv = nv_alloc();
+	nv_add_uint8(nv, HIO_KEEPALIVE, "cmd");
+	if (nv_error(nv) != 0) {
+		nv_free(nv);
+		pjdlog_debug(1,
+		    "keepalive_send: Unable to prepare header to send.");
+		return;
+	}
+	if (hast_proto_send(res, res->hr_remoteout, nv, NULL, 0) < 0) {
+		pjdlog_common(LOG_DEBUG, 1, errno,
+		    "keepalive_send: Unable to send request");
+		nv_free(nv);
+		rw_unlock(&hio_remote_lock[ncomp]);
+		remote_close(res, ncomp);
+		rw_rlock(&hio_remote_lock[ncomp]);
+		return;
+	}
+	nv_free(nv);
+	pjdlog_debug(2, "keepalive_send: Request sent.");
+}
+
 /*
  * Thread guards remote connections and reconnects when needed, handles
  * signals, etc.
@@ -1874,20 +1907,19 @@ guard_thread(void *arg)
 			sighup_received = false;
 			config_reload();
 		}
-		/*
-		 * If all the connection will be fine, we will sleep until
-		 * someone wakes us up.
-		 * If any of the connections will be broken and we won't be
-		 * able to connect, we will sleep only for RECONNECT_SLEEP
-		 * seconds so we can retry soon.
-		 */
-		timeout = 0;
+
+		timeout = KEEPALIVE_SLEEP;
 		pjdlog_debug(2, "remote_guard: Checking connections.");
 		mtx_lock(&hio_guard_lock);
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
 			rw_rlock(&hio_remote_lock[ii]);
+			if (ISCONNECTED(res, ii)) {
+				assert(res->hr_remotein != NULL);
+				assert(res->hr_remoteout != NULL);
+				keepalive_send(res, ii);
+			}
 			if (ISCONNECTED(res, ii)) {
 				assert(res->hr_remotein != NULL);
 				assert(res->hr_remoteout != NULL);
