@@ -618,6 +618,7 @@ retransmit:
 		nd_msg_hdr->type = htonl(type);
 		nd_msg_hdr->offset = htonll(offset+sent_so_far);
 		nd_msg_hdr->len = htonl(pktlen);
+		nd_msg_hdr->_pad = 0;
 
 		if (pktlen) {
 			if ((m2 = m_get(M_DONTWAIT, MT_DATA)) == NULL) {
