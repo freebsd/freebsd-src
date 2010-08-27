@@ -61,6 +61,7 @@ static char depth0_control[HAST_ADDRSIZE];
 static char depth0_listen[HAST_ADDRSIZE];
 static int depth0_replication;
 static int depth0_timeout;
+static char depth0_exec[PATH_MAX];
 
 static char depth1_provname[PATH_MAX];
 static char depth1_localpath[PATH_MAX];
@@ -130,6 +131,7 @@ yy_config_parse(const char *config, bool exitonerror)
 	depth0_replication = HAST_REPLICATION_MEMSYNC;
 	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
 	strlcpy(depth0_listen, HASTD_LISTEN, sizeof(depth0_listen));
+	depth0_exec[0] = '\0';
 
 	lconfig = calloc(1, sizeof(*lconfig));
 	if (lconfig == NULL) {
@@ -190,6 +192,14 @@ yy_config_parse(const char *config, bool exitonerror)
 			 */
 			curres->hr_timeout = depth0_timeout;
 		}
+		if (curres->hr_exec[0] == '\0') {
+			/*
+			 * Exec is not set at resource-level.
+			 * Use global or default setting.
+			 */
+			strlcpy(curres->hr_exec, depth0_exec,
+			    sizeof(curres->hr_exec));
+		}
 	}
 
 	return (lconfig);
@@ -208,7 +218,7 @@ yy_config_free(struct hastd_config *config)
 }
 %}
 
-%token CONTROL LISTEN PORT REPLICATION TIMEOUT EXTENTSIZE RESOURCE NAME LOCAL REMOTE ON
+%token CONTROL LISTEN PORT REPLICATION TIMEOUT EXEC EXTENTSIZE RESOURCE NAME LOCAL REMOTE ON
 %token FULLSYNC MEMSYNC ASYNC
 %token NUM STR OB CB
 
@@ -238,6 +248,8 @@ statement:
 	replication_statement
 	|
 	timeout_statement
+	|
+	exec_statement
 	|
 	node_statement
 	|
@@ -334,6 +346,32 @@ timeout_statement:	TIMEOUT NUM
 			break;
 		default:
 			assert(!"timeout at wrong depth level");
+		}
+	}
+	;
+
+exec_statement:		EXEC STR
+	{
+		switch (depth) {
+		case 0:
+			if (strlcpy(depth0_exec, $2, sizeof(depth0_exec)) >=
+			    sizeof(depth0_exec)) {
+				pjdlog_error("Exec path is too long.");
+				return (1);
+			}
+			break;
+		case 1:
+			if (curres == NULL)
+				break;
+			if (strlcpy(curres->hr_exec, $2,
+			    sizeof(curres->hr_exec)) >=
+			    sizeof(curres->hr_exec)) {
+				pjdlog_error("Exec path is too long.");
+				return (1);
+			}
+			break;
+		default:
+			assert(!"exec at wrong depth level");
 		}
 	}
 	;
@@ -456,6 +494,7 @@ resource_start:	STR
 		curres->hr_previous_role = HAST_ROLE_INIT;
 		curres->hr_replication = -1;
 		curres->hr_timeout = -1;
+		curres->hr_exec[0] = '\0';
 		curres->hr_provname[0] = '\0';
 		curres->hr_localpath[0] = '\0';
 		curres->hr_localfd = -1;
@@ -473,6 +512,8 @@ resource_entry:
 	replication_statement
 	|
 	timeout_statement
+	|
+	exec_statement
 	|
 	name_statement
 	|
