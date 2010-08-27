@@ -99,7 +99,7 @@ iodi_setup_intr(device_t dev, device_t child,
 		/* FIXME uart 1? */
 		cpu_establish_hardintr("uart", filt, intr, arg,
 		    PIC_UART_0_IRQ, flags, cookiep);
-		pic_setup_intr(PIC_IRT_UART_0_INDEX, PIC_UART_0_IRQ, 0x1);
+		pic_setup_intr(PIC_IRT_UART_0_INDEX, PIC_UART_0_IRQ, 0x1, 0);
 	} else if (strcmp(device_get_name(child), "rge") == 0) {
 		int irq;
 
@@ -107,11 +107,11 @@ iodi_setup_intr(device_t dev, device_t child,
 		irq = (intptr_t)ires->__r_i;
 		cpu_establish_hardintr("rge", filt, intr, arg, irq, flags,
 		    cookiep);
-		pic_setup_intr(irq - PIC_IRQ_BASE, irq, 0x1);
+		pic_setup_intr(irq - PIC_IRQ_BASE, irq, 0x1, 0);
 	} else if (strcmp(device_get_name(child), "ehci") == 0) {
 		cpu_establish_hardintr("ehci", filt, intr, arg, PIC_USB_IRQ, flags,
 		    cookiep);
-		pic_setup_intr(PIC_USB_IRQ - PIC_IRQ_BASE, PIC_USB_IRQ, 0x1);
+		pic_setup_intr(PIC_USB_IRQ - PIC_IRQ_BASE, PIC_USB_IRQ, 0x1, 0);
 	}
 
 	return (0);
