@@ -52,6 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/socket.h>
+
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_vlan_var.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -1215,8 +1220,8 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 	}
 }
 
-/* sizeof(*eh) + sizeof(*vhdr) + sizeof(*ip) + sizeof(*tcp) */
-#define TCPPKTHDRSIZE (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + 20 + 20)
+/* sizeof(*eh) + sizeof(*ip) + sizeof(*tcp) */
+#define TCPPKTHDRSIZE (ETHER_HDR_LEN + 20 + 20)
 
 #ifdef VLAN_SUPPORTED
 #define GET_VTAG(cntrl, m) \
@@ -1266,12 +1271,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	txsd = &txq->sdesc[txq->pidx];
 	sgl = txq->txq_sgl;
 	m0 = *m;
-	
-	DPRINTF("t3_encap port_id=%d qsidx=%d ", pi->port_id, pi->first_qset);
-	DPRINTF("mlen=%d txpkt_intf=%d tx_chan=%d\n", m[0]->m_pkthdr.len, pi->txpkt_intf, pi->tx_chan);
-	if (cxgb_debug)
-		printf("mi_base=%p cidx=%d pidx=%d\n\n", txsd->mi.mi_base, txq->cidx, txq->pidx);
-	
+
 	mtx_assert(&txq->lock, MA_OWNED);
 	cntrl = V_TXPKT_INTF(pi->txpkt_intf);
 /*
@@ -1339,11 +1339,11 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		
 		return (0);		
 	} else if (tso_info) {
-		int min_size = TCPPKTHDRSIZE, eth_type, tagged;
+		int eth_type;
 		struct cpl_tx_pkt_lso *hdr = (struct cpl_tx_pkt_lso *)txd;
+		struct ether_header *eh;
 		struct ip *ip;
 		struct tcphdr *tcp;
-		char *pkthdr;
 
 		txd->flit[2] = 0;
 		GET_VTAG(cntrl, m0);
@@ -1352,13 +1352,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		mlen = m0->m_pkthdr.len;
 		hdr->len = htonl(mlen | 0x80000000);
 
-		DPRINTF("tso buf len=%d\n", mlen);
-
-		tagged = m0->m_flags & M_VLANTAG;
-		if (!tagged)
-			min_size -= ETHER_VLAN_ENCAP_LEN;
-
-		if (__predict_false(mlen < min_size)) {
+		if (__predict_false(mlen < TCPPKTHDRSIZE)) {
 			printf("mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
 			    m0, mlen, m0->m_pkthdr.tso_segsz,
 			    m0->m_pkthdr.csum_flags, m0->m_flags);
@@ -1366,25 +1360,23 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		}
 
 		/* Make sure that ether, ip, tcp headers are all in m0 */
-		if (__predict_false(m0->m_len < min_size)) {
-			m0 = m_pullup(m0, min_size);
+		if (__predict_false(m0->m_len < TCPPKTHDRSIZE)) {
+			m0 = m_pullup(m0, TCPPKTHDRSIZE);
 			if (__predict_false(m0 == NULL)) {
 				/* XXX panic probably an overreaction */
 				panic("couldn't fit header into mbuf");
 			}
 		}
-		pkthdr = m0->m_data;
 
-		if (tagged) {
+		eh = mtod(m0, struct ether_header *);
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 			eth_type = CPL_ETH_II_VLAN;
-			ip = (struct ip *)(pkthdr + ETHER_HDR_LEN +
-			    ETHER_VLAN_ENCAP_LEN);
+			ip = (struct ip *)((struct ether_vlan_header *)eh + 1);
 		} else {
 			eth_type = CPL_ETH_II;
-			ip = (struct ip *)(pkthdr + ETHER_HDR_LEN);
+			ip = (struct ip *)(eh + 1);
 		}
-		tcp = (struct tcphdr *)((uint8_t *)ip +
-		    sizeof(*ip)); 
+		tcp = (struct tcphdr *)(ip + 1);
 
 		tso_info |= V_LSO_ETH_TYPE(eth_type) |
 			    V_LSO_IPHDR_WORDS(ip->ip_hl) |
@@ -1392,11 +1384,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		hdr->lso_info = htonl(tso_info);
 
 		if (__predict_false(mlen <= PIO_LEN)) {
-			/* pkt not undersized but fits in PIO_LEN
+			/*
+			 * pkt not undersized but fits in PIO_LEN
 			 * Indicates a TSO bug at the higher levels.
 			 */
-			DPRINTF("**5592 Fix** mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
-			    m0, mlen, m0->m_pkthdr.tso_segsz, m0->m_pkthdr.csum_flags, m0->m_flags);
 			txq_prod(txq, 1, &txqs);
 			m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[3]);
 			m_freem(m0);
@@ -3487,6 +3478,9 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "credits",
 			    CTLFLAG_RD, &qs->rspq.credits,
 			    0, "#credits");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "starved",
+			    CTLFLAG_RD, &qs->rspq.starved,
+			    0, "#times starved");
 			SYSCTL_ADD_XLONG(ctx, rspqpoidlist, OID_AUTO, "phys_addr",
 			    CTLFLAG_RD, &qs->rspq.phys_addr,
 			    "physical_address_of the queue");

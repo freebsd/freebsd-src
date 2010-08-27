@@ -149,7 +149,7 @@ enum {
 
 #define FL_Q_SIZE	4096
 #define JUMBO_Q_SIZE	1024
-#define RSPQ_Q_SIZE	1024
+#define RSPQ_Q_SIZE	2048
 #define TX_ETH_Q_SIZE	1024
 
 enum { TXQ_ETH = 0,
@@ -187,6 +187,7 @@ struct sge_rspq {
 	uint32_t        offload_bundles;
 	uint32_t        pure_rsps;
 	uint32_t        unhandled_irqs;
+	uint32_t        starved;
 
 	bus_addr_t	phys_addr;
 	bus_dma_tag_t	desc_tag;
