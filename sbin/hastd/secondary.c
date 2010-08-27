@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -101,6 +102,26 @@ static pthread_cond_t hio_send_list_cond;
 static void *recv_thread(void *arg);
 static void *disk_thread(void *arg);
 static void *send_thread(void *arg);
+
+#define	QUEUE_INSERT(name, hio)	do {					\
+	bool _wakeup;							\
+									\
+	mtx_lock(&hio_##name##_list_lock);				\
+	_wakeup = TAILQ_EMPTY(&hio_##name##_list);			\
+	TAILQ_INSERT_TAIL(&hio_##name##_list, (hio), hio_next);		\
+	mtx_unlock(&hio_##name##_list_lock);				\
+	if (_wakeup)							\
+		cv_signal(&hio_##name##_list_cond);			\
+} while (0)
+#define	QUEUE_TAKE(name, hio)	do {					\
+	mtx_lock(&hio_##name##_list_lock);				\
+	while (((hio) = TAILQ_FIRST(&hio_##name##_list)) == NULL) {	\
+		cv_wait(&hio_##name##_list_cond,			\
+		    &hio_##name##_list_lock);				\
+	}								\
+	TAILQ_REMOVE(&hio_##name##_list, (hio), hio_next);		\
+	mtx_unlock(&hio_##name##_list_lock);				\
+} while (0)
 
 static void
 init_environment(void)
@@ -478,24 +499,22 @@ recv_thread(void *arg)
 {
 	struct hast_resource *res = arg;
 	struct hio *hio;
-	bool wakeup;
 
 	for (;;) {
 		pjdlog_debug(2, "recv: Taking free request.");
-		mtx_lock(&hio_free_list_lock);
-		while ((hio = TAILQ_FIRST(&hio_free_list)) == NULL) {
-			pjdlog_debug(2, "recv: No free requests, waiting.");
-			cv_wait(&hio_free_list_cond, &hio_free_list_lock);
-		}
-		TAILQ_REMOVE(&hio_free_list, hio, hio_next);
-		mtx_unlock(&hio_free_list_lock);
+		QUEUE_TAKE(free, hio);
 		pjdlog_debug(2, "recv: (%p) Got request.", hio);
 		if (hast_proto_recv_hdr(res->hr_remotein, &hio->hio_nv) < 0) {
 			pjdlog_exit(EX_TEMPFAIL,
 			    "Unable to receive request header");
 		}
-		if (requnpack(res, hio) != 0)
-			goto send_queue;
+		if (requnpack(res, hio) != 0) {
+			pjdlog_debug(2,
+			    "recv: (%p) Moving request to the send queue.",
+			    hio);
+			QUEUE_INSERT(send, hio);
+			continue;
+		}
 		reqlog(LOG_DEBUG, 2, -1, hio,
 		    "recv: (%p) Got request header: ", hio);
 		if (hio->hio_cmd == HIO_WRITE) {
@@ -507,22 +526,7 @@ recv_thread(void *arg)
 		}
 		pjdlog_debug(2, "recv: (%p) Moving request to the disk queue.",
 		    hio);
-		mtx_lock(&hio_disk_list_lock);
-		wakeup = TAILQ_EMPTY(&hio_disk_list);
-		TAILQ_INSERT_TAIL(&hio_disk_list, hio, hio_next);
-		mtx_unlock(&hio_disk_list_lock);
-		if (wakeup)
-			cv_signal(&hio_disk_list_cond);
-		continue;
-send_queue:
-		pjdlog_debug(2, "recv: (%p) Moving request to the send queue.",
-		    hio);
-		mtx_lock(&hio_send_list_lock);
-		wakeup = TAILQ_EMPTY(&hio_send_list);
-		TAILQ_INSERT_TAIL(&hio_send_list, hio, hio_next);
-		mtx_unlock(&hio_send_list_lock);
-		if (wakeup)
-			cv_signal(&hio_send_list_cond);
+		QUEUE_INSERT(disk, hio);
 	}
 	/* NOTREACHED */
 	return (NULL);
@@ -538,19 +542,13 @@ disk_thread(void *arg)
 	struct hast_resource *res = arg;
 	struct hio *hio;
 	ssize_t ret;
-	bool clear_activemap, wakeup;
+	bool clear_activemap;
 
 	clear_activemap = true;
 
 	for (;;) {
 		pjdlog_debug(2, "disk: Taking request.");
-		mtx_lock(&hio_disk_list_lock);
-		while ((hio = TAILQ_FIRST(&hio_disk_list)) == NULL) {
-			pjdlog_debug(2, "disk: No requests, waiting.");
-			cv_wait(&hio_disk_list_cond, &hio_disk_list_lock);
-		}
-		TAILQ_REMOVE(&hio_disk_list, hio, hio_next);
-		mtx_unlock(&hio_disk_list_lock);
+		QUEUE_TAKE(disk, hio);
 		while (clear_activemap) {
 			unsigned char *map;
 			size_t mapsize;
@@ -628,12 +626,7 @@ disk_thread(void *arg)
 		}
 		pjdlog_debug(2, "disk: (%p) Moving request to the send queue.",
 		    hio);
-		mtx_lock(&hio_send_list_lock);
-		wakeup = TAILQ_EMPTY(&hio_send_list);
-		TAILQ_INSERT_TAIL(&hio_send_list, hio, hio_next);
-		mtx_unlock(&hio_send_list_lock);
-		if (wakeup)
-			cv_signal(&hio_send_list_cond);
+		QUEUE_INSERT(send, hio);
 	}
 	/* NOTREACHED */
 	return (NULL);
@@ -650,17 +643,10 @@ send_thread(void *arg)
 	struct hio *hio;
 	void *data;
 	size_t length;
-	bool wakeup;
 
 	for (;;) {
 		pjdlog_debug(2, "send: Taking request.");
-		mtx_lock(&hio_send_list_lock);
-		while ((hio = TAILQ_FIRST(&hio_send_list)) == NULL) {
-			pjdlog_debug(2, "send: No requests, waiting.");
-			cv_wait(&hio_send_list_cond, &hio_send_list_lock);
-		}
-		TAILQ_REMOVE(&hio_send_list, hio, hio_next);
-		mtx_unlock(&hio_send_list_lock);
+		QUEUE_TAKE(send, hio);
 		reqlog(LOG_DEBUG, 2, -1, hio, "send: (%p) Got request: ", hio);
 		nvout = nv_alloc();
 		/* Copy sequence number. */
@@ -697,12 +683,7 @@ send_thread(void *arg)
 		    hio);
 		nv_free(hio->hio_nv);
 		hio->hio_error = 0;
-		mtx_lock(&hio_free_list_lock);
-		wakeup = TAILQ_EMPTY(&hio_free_list);
-		TAILQ_INSERT_TAIL(&hio_free_list, hio, hio_next);
-		mtx_unlock(&hio_free_list_lock);
-		if (wakeup)
-			cv_signal(&hio_free_list_cond);
+		QUEUE_INSERT(free, hio);
 	}
 	/* NOTREACHED */
 	return (NULL);
