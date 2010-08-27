@@ -939,8 +939,9 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (req->oldptr == NULL) {
 		m = syncache_pcbcount();
 		n = tcbinfo.ipi_count;
-		req->oldidx = 2 * (sizeof xig)
-			+ ((m + n) + n/8) * sizeof(struct xtcpcb);
+		n += imax(n / 8, 10);
+		req->oldidx = 2 * (sizeof xig) +
+		    (m + n) * sizeof(struct xtcpcb);
 		return (0);
 	}
 
