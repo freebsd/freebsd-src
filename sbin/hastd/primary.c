@@ -1507,18 +1507,16 @@ sync_thread(void *arg __unused)
 
 	ncomps = HAST_NCOMPONENTS;
 	dorewind = true;
-	synced = -1;
+	synced = 0;
+	offset = -1;
 
 	for (;;) {
 		mtx_lock(&sync_lock);
-		if (synced == -1)
-			synced = 0;
-		else if (!sync_inprogress) {
+		if (offset >= 0 && !sync_inprogress) {
 			pjdlog_info("Synchronization interrupted. "
 			    "%jd bytes synchronized so far.",
 			    (intmax_t)synced);
-			hook_exec(res->hr_exec, "syncintr",
-			    res->hr_name, NULL);
+			hook_exec(res->hr_exec, "syncintr", res->hr_name, NULL);
 		}
 		while (!sync_inprogress) {
 			dorewind = true;
