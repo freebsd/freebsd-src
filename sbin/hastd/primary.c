@@ -867,16 +867,18 @@ remote_close(struct hast_resource *res, int ncomp)
 	assert(res->hr_remotein != NULL);
 	assert(res->hr_remoteout != NULL);
 
-	pjdlog_debug(2, "Closing old incoming connection to %s.",
+	pjdlog_debug(2, "Closing incoming connection to %s.",
 	    res->hr_remoteaddr);
 	proto_close(res->hr_remotein);
 	res->hr_remotein = NULL;
-	pjdlog_debug(2, "Closing old outgoing connection to %s.",
+	pjdlog_debug(2, "Closing outgoing connection to %s.",
 	    res->hr_remoteaddr);
 	proto_close(res->hr_remoteout);
 	res->hr_remoteout = NULL;
 
 	rw_unlock(&hio_remote_lock[ncomp]);
+
+	pjdlog_warning("Disconnected from %s.", res->hr_remoteaddr);
 
 	/*
 	 * Stop synchronization if in-progress.
