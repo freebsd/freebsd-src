@@ -62,7 +62,7 @@ const char *cfgpath = HAST_CONFIG;
 /* Hastd configuration. */
 static struct hastd_config *cfg;
 /* Was SIGCHLD signal received? */
-static bool sigchld_received = false;
+bool sigchld_received = false;
 /* Was SIGHUP signal received? */
 bool sighup_received = false;
 /* Was SIGINT or SIGTERM signal received? */
@@ -189,6 +189,8 @@ resource_needs_restart(const struct hast_resource *res0,
 			return (true);
 		if (res0->hr_timeout != res1->hr_timeout)
 			return (true);
+		if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
+			return (true);
 	}
 	return (false);
 }
@@ -210,6 +212,8 @@ resource_needs_reload(const struct hast_resource *res0,
 	if (res0->hr_replication != res1->hr_replication)
 		return (true);
 	if (res0->hr_timeout != res1->hr_timeout)
+		return (true);
+	if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
 		return (true);
 	return (false);
 }
