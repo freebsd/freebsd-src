@@ -731,6 +731,8 @@ sge_slow_intr_handler(void *arg, int ncount)
 	adapter_t *sc = arg;
 
 	t3_slow_intr_handler(sc);
+	t3_write_reg(sc, A_PL_INT_ENABLE0, sc->slow_intr_mask);
+	(void) t3_read_reg(sc, A_PL_INT_ENABLE0);
 }
 
 /**
@@ -3009,8 +3011,11 @@ t3b_intr(void *data)
 	if (!map) 
 		return;
 
-	if (__predict_false(map & F_ERRINTR))
+	if (__predict_false(map & F_ERRINTR)) {
+		t3_write_reg(adap, A_PL_INT_ENABLE0, 0);
+		(void) t3_read_reg(adap, A_PL_INT_ENABLE0);
 		taskqueue_enqueue(adap->tq, &adap->slow_intr_task);
+	}
 
 	mtx_lock(&q0->lock);
 	for_each_port(adap, i)
@@ -3038,8 +3043,11 @@ t3_intr_msi(void *data)
 	    if (process_responses_gts(adap, &adap->sge.qs[i].rspq)) 
 		    new_packets = 1;
 	mtx_unlock(&q0->lock);
-	if (new_packets == 0)
+	if (new_packets == 0) {
+		t3_write_reg(adap, A_PL_INT_ENABLE0, 0);
+		(void) t3_read_reg(adap, A_PL_INT_ENABLE0);
 		taskqueue_enqueue(adap->tq, &adap->slow_intr_task);
+	}
 }
 
 void
