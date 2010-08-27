@@ -413,6 +413,9 @@ reqlog(int loglevel, int debuglevel, int error, struct hio *hio, const char *fmt
 			    "WRITE(%ju, %ju).", (uintmax_t)hio->hio_offset,
 			    (uintmax_t)hio->hio_length);
 			break;
+		case HIO_KEEPALIVE:
+			(void)snprintf(msg + len, sizeof(msg) - len, "KEEPALIVE.");
+			break;
 		default:
 			(void)snprintf(msg + len, sizeof(msg) - len,
 			    "UNKNOWN(%u).", (unsigned int)hio->hio_cmd);
@@ -433,6 +436,8 @@ requnpack(struct hast_resource *res, struct hio *hio)
 		goto end;
 	}
 	switch (hio->hio_cmd) {
+	case HIO_KEEPALIVE:
+		break;
 	case HIO_READ:
 	case HIO_WRITE:
 	case HIO_DELETE:
@@ -517,7 +522,14 @@ recv_thread(void *arg)
 		}
 		reqlog(LOG_DEBUG, 2, -1, hio,
 		    "recv: (%p) Got request header: ", hio);
-		if (hio->hio_cmd == HIO_WRITE) {
+		if (hio->hio_cmd == HIO_KEEPALIVE) {
+			pjdlog_debug(2,
+			    "recv: (%p) Moving request to the free queue.",
+			    hio);
+			nv_free(hio->hio_nv);
+			QUEUE_INSERT(free, hio);
+			continue;
+		} else if (hio->hio_cmd == HIO_WRITE) {
 			if (hast_proto_recv_data(res, res->hr_remotein,
 			    hio->hio_nv, hio->hio_data, MAXPHYS) < 0) {
 				pjdlog_exit(EX_TEMPFAIL,
