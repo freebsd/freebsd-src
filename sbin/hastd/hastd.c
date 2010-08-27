@@ -82,6 +82,10 @@ sighandler(int sig)
 {
 
 	switch (sig) {
+	case SIGINT:
+	case SIGTERM:
+		sigexit_received = true;
+		break;
 	case SIGCHLD:
 		sigchld_received = true;
 		break;
@@ -374,6 +378,25 @@ failed:
 }
 
 static void
+terminate_workers(void)
+{
+	struct hast_resource *res;
+
+	pjdlog_info("Termination signal received, exiting.");
+	TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
+		if (res->hr_workerpid == 0)
+			continue;
+		pjdlog_info("Terminating worker process (resource=%s, role=%s, pid=%u).",
+		    res->hr_name, role2str(res->hr_role), res->hr_workerpid);
+		if (kill(res->hr_workerpid, SIGTERM) == 0)
+			continue;
+		pjdlog_errno(LOG_WARNING,
+		    "Unable to send signal to worker process (resource=%s, role=%s, pid=%u).",
+		    res->hr_name, role2str(res->hr_role), res->hr_workerpid);
+	}
+}
+
+static void
 listen_accept(void)
 {
 	struct hast_resource *res;
@@ -599,6 +622,11 @@ main_loop(void)
 	int cfd, lfd, maxfd, ret;
 
 	for (;;) {
+		if (sigexit_received) {
+			sigexit_received = false;
+			terminate_workers();
+			exit(EX_OK);
+		}
 		if (sigchld_received) {
 			sigchld_received = false;
 			child_exit();
@@ -692,6 +720,8 @@ main(int argc, char *argv[])
 	cfg = yy_config_parse(cfgpath, true);
 	assert(cfg != NULL);
 
+	signal(SIGINT, sighandler);
+	signal(SIGTERM, sighandler);
 	signal(SIGHUP, sighandler);
 	signal(SIGCHLD, sighandler);
 
