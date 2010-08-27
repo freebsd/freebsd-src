@@ -127,7 +127,7 @@ tcp_output(struct tcpcb *tp)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 	long len, recwin, sendwin;
-	int off, flags, error;
+	int off, flags, error, rw;
 	struct mbuf *m;
 	struct ip *ip = NULL;
 	struct ipovly *ipov = NULL;
@@ -163,23 +163,34 @@ tcp_output(struct tcpcb *tp)
 	idle = (tp->t_flags & TF_LASTIDLE) || (tp->snd_max == tp->snd_una);
 	if (idle && (ticks - (int)tp->t_rcvtime) >= tp->t_rxtcur) {
 		/*
-		 * We have been idle for "a while" and no acks are
-		 * expected to clock out any data we send --
-		 * slow start to get ack "clock" running again.
+		 * If we've been idle for more than one retransmit
+		 * timeout the old congestion window is no longer
+		 * current and we have to reduce it to the restart
+		 * window before we can transmit again.
 		 *
-		 * Set the slow-start flight size depending on whether
-		 * this is a local network or not.
+		 * The restart window is the initial window or the last
+		 * CWND, whichever is smaller.
+		 * 
+		 * This is done to prevent us from flooding the path with
+		 * a full CWND at wirespeed, overloading router and switch
+		 * buffers along the way.
+		 *
+		 * See RFC5681 Section 4.1. "Restarting Idle Connections".
 		 */
-		int ss = ss_fltsz;
+		if (tcp_do_rfc3390)
+			rw = min(4 * tp->t_maxseg,
+				 max(2 * tp->t_maxseg, 4380));
 #ifdef INET6
-		if (isipv6) {
-			if (in6_localaddr(&tp->t_inpcb->in6p_faddr))
-				ss = ss_fltsz_local;
-		} else
-#endif /* INET6 */
-		if (in_localaddr(tp->t_inpcb->inp_faddr))
-			ss = ss_fltsz_local;
-		tp->snd_cwnd = tp->t_maxseg * ss;
+		else if ((isipv6 ? in6_localaddr(&tp->t_inpcb->in6p_faddr) :
+			  in_localaddr(tp->t_inpcb->inp_faddr)))
+#else
+		else if (in_localaddr(tp->t_inpcb->inp_faddr))
+#endif
+			rw = ss_fltsz_local * tp->t_maxseg;
+		else
+			rw = ss_fltsz * tp->t_maxseg;
+
+		tp->snd_cwnd = min(rw, tp->snd_cwnd);
 	}
 	tp->t_flags &= ~TF_LASTIDLE;
 	if (idle) {
