@@ -235,6 +235,8 @@ uma_zone_t sack_hole_zone;
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static void	tcp_isn_tick(void *);
+static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
+		    void *ip4hdr, const void *ip6hdr);
 
 /*
  * Target size of TCP PCB hash tables. Must be a power of two.
@@ -2120,7 +2122,31 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
  * and ip6_hdr pointers have to be passed as void pointers.
  */
 char *
+tcp_log_vain(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
+    const void *ip6hdr)
+{
+
+	/* Is logging enabled? */
+	if (tcp_log_in_vain == 0)
+		return (NULL);
+
+	return (tcp_log_addr(inc, th, ip4hdr, ip6hdr));
+}
+
+char *
 tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
+    const void *ip6hdr)
+{
+
+	/* Is logging enabled? */
+	if (tcp_log_debug == 0)
+		return (NULL);
+
+	return (tcp_log_addr(inc, th, ip4hdr, ip6hdr));
+}
+
+static char *
+tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
     const void *ip6hdr)
 {
 	char *s, *sp;
@@ -2144,10 +2170,6 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 #else
 	    2 * INET_ADDRSTRLEN;
 #endif /* INET6 */
-
-	/* Is logging enabled? */
-	if (tcp_log_debug == 0 && tcp_log_in_vain == 0)
-		return (NULL);
 
 	s = malloc(size, M_TCPLOG, M_ZERO|M_NOWAIT);
 	if (s == NULL)
