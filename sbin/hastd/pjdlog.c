@@ -217,6 +217,7 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
 		if (error != -1)
 			fprintf(out, ": %s.", strerror(error));
 		fprintf(out, "\n");
+		fflush(out);
 		break;
 	    }
 	case PJDLOG_MODE_SYSLOG:
