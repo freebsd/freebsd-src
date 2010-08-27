@@ -305,7 +305,7 @@ xlr_pic_init(void)
 	/* Initialize all IRT entries */
 	for (i = 0; i < PIC_NUM_IRTS; i++) {
 		irq = PIC_INTR_TO_IRQ(i);
-		level = PIC_IRQ_IS_EDGE_TRIGGERED(irq);
+		level = PIC_IS_EDGE_TRIGGERED(i);
 
 		/* Bind all PIC irqs to cpu 0 */
 		xlr_write_reg(mmio, PIC_IRT_0(i), 0x01);
@@ -575,11 +575,11 @@ platform_init_ap(int cpuid)
 	stat |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT;
 	mips_wr_status(stat);
 
-	xlr_unmask_hard_irq((void *)IRQ_IPI);
-	xlr_unmask_hard_irq((void *)IRQ_TIMER);
+	xlr_enable_irq(IRQ_IPI);
+	xlr_enable_irq(IRQ_TIMER);
 	if (xlr_thr_id() == 0) {
 		xlr_msgring_cpu_init(); 
-	 	xlr_unmask_hard_irq((void *)IRQ_MSGRING);
+	 	xlr_enable_irq(IRQ_MSGRING);
 	}
 
 	return;

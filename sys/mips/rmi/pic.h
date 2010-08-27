@@ -29,16 +29,15 @@
  *
  * RMI_BSD */
 #ifndef _RMI_PIC_H_
-#define _RMI_PIC_H_
-#include <sys/cdefs.h>
+#define	_RMI_PIC_H_
 
+#include <sys/cdefs.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <mips/rmi/iomap.h>
 
 #define	PIC_IRT_WD_INDEX		0
 #define	PIC_IRT_TIMER_INDEX(i)		(1 + (i))
-#define	PIC_IRT_CLOCK_INDEX		PIC_IRT_TIMER_7_INDEX
 #define	PIC_IRT_UART_0_INDEX		9
 #define	PIC_IRT_UART_1_INDEX		10
 #define	PIC_IRT_I2C_0_INDEX		11
@@ -70,7 +69,6 @@
 #define	PIC_IRT_PCIE_FATAL_INDEX	29
 #define	PIC_IRT_GPIO_B_INDEX		30
 #define	PIC_IRT_USB_INDEX		31
-
 #define	PIC_NUM_IRTS			32
 
 #define	PIC_CLOCK_TIMER			7
@@ -102,7 +100,6 @@
 #define	PIC_TIMER_COUNT_1(i)	(PIC_TIMER_COUNT_0_BASE + (i))
 #define	PIC_TIMER_HZ		66000000U
 
-
 /*
  * We use a simple mapping form PIC interrupts to CPU IRQs.
  * The PIC interrupts 0-31 are mapped to CPU irq's 8-39.
@@ -111,7 +108,7 @@
  */
 #define	PIC_IRQ_BASE		8
 #define	PIC_INTR_TO_IRQ(i)	(PIC_IRQ_BASE + (i))
-#define	PIC_IRT_FIRST_IRQ	PIC_IRQ_BASE
+#define	PIC_IRQ_TO_INTR(i)	((i) - PIC_IRQ_BASE)
 
 #define	PIC_WD_IRQ		(PIC_IRQ_BASE + PIC_IRT_WD_INDEX)
 #define	PIC_TIMER_IRQ(i)	(PIC_IRQ_BASE + PIC_IRT_TIMER_INDEX(i))
@@ -137,7 +134,6 @@
 #define	PIC_BRIDGE_BERR_IRQ	(PIC_IRQ_BASE + PIC_IRT_BRIDGE_BERR_INDEX)
 #define	PIC_BRIDGE_TB_IRQ	(PIC_IRQ_BASE + PIC_IRT_BRIDGE_TB_INDEX)
 #define	PIC_BRIDGE_AERR_NMI_IRQ	(PIC_IRQ_BASE + PIC_IRT_BRIDGE_AERR_NMI_INDEX)
-
 #define	PIC_BRIDGE_ERR_IRQ	(PIC_IRQ_BASE + PIC_IRT_BRIDGE_ERR_INDEX)
 #define	PIC_PCIE_LINK0_IRQ	(PIC_IRQ_BASE + PIC_IRT_PCIE_LINK0_INDEX)
 #define	PIC_PCIE_LINK1_IRQ	(PIC_IRQ_BASE + PIC_IRT_PCIE_LINK1_INDEX)
@@ -148,9 +144,10 @@
 #define	PIC_GPIO_B_IRQ		(PIC_IRQ_BASE + PIC_IRT_GPIO_B_INDEX)
 #define	PIC_USB_IRQ		(PIC_IRQ_BASE + PIC_IRT_USB_INDEX)
 
-#define	PIC_IRT_LAST_IRQ	PIC_USB_IRQ
-#define	PIC_IRQ_IS_EDGE_TRIGGERED(irq) (((irq) >= PIC_TIMER_IRQ(0)) && ((irq) <= PIC_TIMER_IRQ(7)))
-#define	PIC_IRQ_IS_IRT(irq)	(((irq) >= PIC_IRT_FIRST_IRQ) && ((irq) <= PIC_IRT_LAST_IRQ))
+#define	PIC_IRQ_IS_PICINTR(irq)	((irq) >= PIC_IRQ_BASE && 		\
+				 (irq) < PIC_IRQ_BASE + PIC_NUM_IRTS)
+#define	PIC_IS_EDGE_TRIGGERED(i) ((i) >= PIC_IRT_TIMER_INDEX(0) &&	\
+				  (i) <= PIC_IRT_TIMER_INDEX(7))
 
 extern struct mtx xlr_pic_lock;
 
@@ -187,35 +184,11 @@ pic_update_control(__uint32_t control)
 }
 
 static __inline void 
-pic_ack(int irq)
+pic_ack(int picintr)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-	/* ack the pic, if needed */
-	if (!PIC_IRQ_IS_IRT(irq))
-		return;
-
-	if (PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
-		mtx_lock_spin(&xlr_pic_lock);
-		xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
-		mtx_unlock_spin(&xlr_pic_lock);
-	}
-	return;
-}
-
-static __inline void 
-pic_delayed_ack(int irq)
-{
-	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-
-	if (!PIC_IRQ_IS_IRT(irq))
-		return;
-	if (!PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
-		mtx_lock_spin(&xlr_pic_lock);
-		xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
-		mtx_unlock_spin(&xlr_pic_lock);
-	}
-	return;
+	xlr_write_reg(mmio, PIC_INT_ACK, 1 << picintr);
 }
 
 static __inline
@@ -230,13 +203,11 @@ void pic_send_ipi(int cpu, int ipi)
 }
 
 static __inline
-void pic_setup_intr(int picintr, int irq, uint32_t cpumask)
+void pic_setup_intr(int picintr, int irq, uint32_t cpumask, int level)
 {
         xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-	int level;
 
 	mtx_lock_spin(&xlr_pic_lock);
-	level = PIC_IRQ_IS_EDGE_TRIGGERED(irq);
 	xlr_write_reg(mmio, PIC_IRT_0(picintr), cpumask);
 	xlr_write_reg(mmio, PIC_IRT_1(picintr), ((1 << 31) | (level << 30) |
 	    (1 << 6) | irq));

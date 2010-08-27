@@ -40,10 +40,9 @@
  * XLR needs custom pre and post handlers for PCI/PCI-e interrupts
  * XXX: maybe follow i386 intsrc model
  */
-void xlr_cpu_establish_hardintr(const char *, driver_filter_t *,
-    driver_intr_t *, void *, int, int, void **, void (*)(void *),
-    void (*)(void *), void (*)(void *), int (*)(void *, u_char));
-void xlr_mask_hard_irq(void *);
-void xlr_unmask_hard_irq(void *);
+void xlr_establish_intr(const char *name, driver_filter_t filt,
+    driver_intr_t handler, void *arg, int irq, int flags,
+    void **cookiep, void (*busack)(int));
+void xlr_enable_irq(int irq);
 
 #endif				/* _RMI_INTERRUPT_H_ */
