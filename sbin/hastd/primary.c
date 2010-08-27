@@ -1495,10 +1495,17 @@ sync_thread(void *arg __unused)
 
 	ncomps = HAST_NCOMPONENTS;
 	dorewind = true;
-	synced = 0;
+	synced = -1;
 
 	for (;;) {
 		mtx_lock(&sync_lock);
+		if (synced == -1)
+			synced = 0;
+		else if (!sync_inprogress) {
+			pjdlog_info("Synchronization interrupted. "
+			    "%jd bytes synchronized so far.",
+			    (intmax_t)synced);
+		}
 		while (!sync_inprogress) {
 			dorewind = true;
 			synced = 0;
@@ -1559,10 +1566,6 @@ sync_thread(void *arg __unused)
 				    (uintmax_t)res->hr_secondary_localcnt);
 				(void)metadata_write(res);
 				mtx_unlock(&metadata_lock);
-			} else if (synced > 0) {
-				pjdlog_info("Synchronization interrupted. "
-				    "%jd bytes synchronized so far.",
-				    (intmax_t)synced);
 			}
 			rw_unlock(&hio_remote_lock[ncomp]);
 			continue;
