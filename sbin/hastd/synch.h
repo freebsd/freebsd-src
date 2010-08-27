@@ -33,7 +33,9 @@
 #define	_SYNCH_H_
 
 #include <assert.h>
+#include <errno.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include <stdbool.h>
 #include <time.h>
 
@@ -69,6 +71,12 @@ mtx_unlock(pthread_mutex_t *lock)
 
 	error = pthread_mutex_unlock(lock);
 	assert(error == 0);
+}
+static __inline bool
+mtx_owned(pthread_mutex_t *lock)
+{
+
+	return (pthread_mutex_isowned_np(lock) != 0);
 }
 
 static __inline void
