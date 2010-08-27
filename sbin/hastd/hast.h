@@ -48,7 +48,12 @@
 
 #include "proto.h"
 
-#define	HAST_PROTO_VERSION	0
+/*
+ * Version history:
+ * 0 - initial version
+ * 1 - HIO_KEEPALIVE added
+ */
+#define	HAST_PROTO_VERSION	1
 
 #define	EHAST_OK		0
 #define	EHAST_NOENTRY		1
@@ -74,6 +79,7 @@
 #define	HIO_WRITE		2
 #define	HIO_DELETE		3
 #define	HIO_FLUSH		4
+#define	HIO_KEEPALIVE		5
 
 #define	HAST_TIMEOUT	5
 #define	HAST_CONFIG	"/etc/hast.conf"
