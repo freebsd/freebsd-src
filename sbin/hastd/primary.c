@@ -1988,7 +1988,9 @@ guard_thread(void *arg)
 				rw_unlock(&hio_remote_lock[ii]);
 			}
 		}
-		(void)cv_timedwait(&hio_guard_cond, &hio_guard_lock, timeout);
+		/* Sleep only if a signal wasn't delivered in the meantime. */
+		if (!sigexit_received && !sighup_received && !sigchld_received)
+			cv_timedwait(&hio_guard_cond, &hio_guard_lock, timeout);
 		mtx_unlock(&hio_guard_lock);
 	}
 	/* NOTREACHED */
