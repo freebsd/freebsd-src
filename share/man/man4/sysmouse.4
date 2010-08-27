@@ -94,18 +94,18 @@ Right button status; cleared if pressed, otherwise set.
 .El
 .It Byte 2
 The first half of horizontal movement count in two's complement;
--128 through 127.
+\-128 through 127.
 .It Byte 3
 The first half of vertical movement count in two's complement;
--128 through 127.
+\-128 through 127.
 .It Byte 4
 The second half of the horizontal movement count in two's complement;
--128 through 127.
+\-128 through 127.
 To obtain the full horizontal movement count, add
 the byte 2 and 4.
 .It Byte 5
 The second half of the vertical movement count in two's complement;
--128 through 127.
+\-128 through 127.
 To obtain the full vertical movement count, add
 the byte 3 and 5.
 .El
@@ -148,7 +148,7 @@ These commands manipulate the operation level of the mouse driver.
 Returns the hardware information of the attached device in the following
 structure.
 Only the
-.Dv iftype
+.Va iftype
 field is guaranteed to be filled with the correct value in the current
 version of the
 .Nm
@@ -164,16 +164,16 @@ typedef struct mousehw {
 .Ed
 .Pp
 The
-.Dv buttons
+.Va buttons
 field holds the number of buttons detected by the driver.
 .Pp
 The
-.Dv iftype
+.Va iftype
 is always
 .Dv MOUSE_IF_SYSMOUSE .
 .Pp
 The
-.Dv type
+.Va type
 tells the device type:
 .Dv MOUSE_MOUSE ,
 .Dv MOUSE_TRACKBALL ,
@@ -183,7 +183,7 @@ or
 .Dv MOUSE_UNKNOWN .
 .Pp
 The
-.Dv model
+.Va model
 is always
 .Dv MOUSE_MODEL_GENERIC
 at the operation level 0.
@@ -194,7 +194,7 @@ or one of
 constants at higher operation levels.
 .Pp
 The
-.Dv hwid
+.Va hwid
 is always zero.
 .Pp
 .It Dv MOUSE_GETMODE Ar mousemode_t *mode
@@ -213,7 +213,7 @@ typedef struct mousemode {
 .Ed
 .Pp
 The
-.Dv protocol
+.Va protocol
 field tells the format in which the device status is returned
 when the mouse data is read by the user program.
 It is
@@ -223,19 +223,19 @@ at the operation level zero.
 at the operation level one.
 .Pp
 The
-.Dv rate
-is always set to -1.
+.Va rate
+is always set to \-1.
 .Pp
 The
-.Dv resolution
-is always set to -1.
+.Va resolution
+is always set to \-1.
 .Pp
 The
-.Dv accelfactor
+.Va accelfactor
 is always 0.
 .Pp
 The
-.Dv packetsize
+.Va packetsize
 field specifies the length of the data packet.
 It depends on the
 operation level.
@@ -248,13 +248,13 @@ operation level.
 .El
 .Pp
 The array
-.Dv syncmask
+.Va syncmask
 holds a bit mask and pattern to detect the first byte of the
 data packet.
-.Dv syncmask[0]
+.Va syncmask[0]
 is the bit mask to be ANDed with a byte.
 If the result is equal to
-.Dv syncmask[1] ,
+.Va syncmask[1] ,
 the byte is likely to be the first byte of the data packet.
 Note that this method of detecting the first byte is not 100% reliable;
 thus, it should be taken only as an advisory measure.
@@ -264,7 +264,7 @@ The command changes the current operation parameters of the mouse driver
 as specified in
 .Ar mode .
 Only
-.Dv level
+.Va level
 may be modifiable.
 Setting values in the other field does not generate
 error and has no effect.
@@ -323,7 +323,7 @@ struct mouse_info {
 .Ed
 .Pp
 .Bl -tag -width operation -compact
-.It Dv operation
+.It Va operation
 This can be one of
 .Pp
 .Bl -tag -width MOUSE_MOVEABS -compact
@@ -333,21 +333,21 @@ Enables and displays mouse cursor.
 Disables and hides mouse cursor.
 .It Dv MOUSE_MOVEABS
 Moves mouse cursor to position supplied in
-.Dv u.data .
+.Va u.data .
 .It Dv MOUSE_MOVEREL
 Adds position supplied in
-.Dv u.data
+.Va u.data
 to current position.
 .It Dv MOUSE_GETINFO
 Returns current mouse position in the current virtual console
 and button status in
-.Dv u.data .
+.Va u.data .
 .It Dv MOUSE_MODE
 This sets the
 .Xr signal 3
 to be delivered to the current process when a button is pressed.
 The signal to be delivered is set in
-.Dv u.mode .
+.Va u.mode .
 .El
 .Pp
 The above operations are for virtual consoles.
@@ -360,7 +360,7 @@ to pass mouse data to the console driver.
 .It Dv MOUSE_ACTION
 .It Dv MOUSE_MOTION_EVENT
 These operations take the information in
-.Dv u.data
+.Va u.data
 and act upon it.
 Mouse data will be sent to the
 .Nm
@@ -370,7 +370,7 @@ also processes button press actions and sends signal to the process if
 requested or performs cut and paste operations
 if the current console is a text interface.
 .It Dv MOUSE_BUTTON_EVENT
-.Dv u.data
+.Va u.data
 specifies a button and its click count.
 The console driver will
 use this information for signal delivery if requested or
@@ -385,11 +385,11 @@ They are intended to replace functions performed by
 .Dv MOUSE_ACTION
 alone.
 .Pp
-.It Dv Sq u
+.It Va u
 This union is one of
 .Pp
 .Bl -tag -width data -compact
-.It Dv data
+.It Va data
 .Bd -literal
 struct mouse_data {
     int x;
@@ -399,18 +399,17 @@ struct mouse_data {
 };
 .Ed
 .Pp
-.Dv x ,
-.Dv y
+.Va x , y
 and
-.Dv z
+.Va z
 represent movement of the mouse along respective directions.
-.Dv buttons
+.Va buttons
 tells the state of buttons.
 It encodes up to 31 buttons in the bit 0 though
 the bit 30.
 If a button is held down, the corresponding bit is set.
 .Pp
-.It Dv mode
+.It Va mode
 .Bd -literal
 struct mouse_mode {
     int mode;
@@ -419,16 +418,16 @@ struct mouse_mode {
 .Ed
 .Pp
 The
-.Dv signal
+.Va signal
 field specifies the signal to be delivered to the process.
 It must be
 one of the values defined in
 .In signal.h .
 The
-.Dv mode
+.Va mode
 field is currently unused.
 .Pp
-.It Dv event
+.It Va event
 .Bd -literal
 struct mouse_event {
     int id;
@@ -437,12 +436,12 @@ struct mouse_event {
 .Ed
 .Pp
 The
-.Dv id
+.Va id
 field specifies a button number as in
-.Dv u.data.buttons .
+.Va u.data.buttons .
 Only one bit/button is set.
 The
-.Dv value
+.Va value
 field
 holds the click count: the number of times the user has clicked the button
 successively.
