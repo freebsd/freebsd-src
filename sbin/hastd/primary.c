@@ -686,6 +686,16 @@ sync_start(void)
 }
 
 static void
+sync_stop(void)
+{
+
+	mtx_lock(&sync_lock);
+	if (sync_inprogress)
+		sync_inprogress = false;
+	mtx_unlock(&sync_lock);
+}
+
+static void
 init_ggate(struct hast_resource *res)
 {
 	struct g_gate_ctl_create ggiocreate;
@@ -871,10 +881,7 @@ remote_close(struct hast_resource *res, int ncomp)
 	/*
 	 * Stop synchronization if in-progress.
 	 */
-	mtx_lock(&sync_lock);
-	if (sync_inprogress)
-		sync_inprogress = false;
-	mtx_unlock(&sync_lock);
+	sync_stop();
 
 	/*
 	 * Wake up guard thread, so it can immediately start reconnect.
@@ -1526,9 +1533,7 @@ sync_thread(void *arg __unused)
 			}
 		}
 		if (offset < 0) {
-			mtx_lock(&sync_lock);
-			sync_inprogress = false;
-			mtx_unlock(&sync_lock);
+			sync_stop();
 			pjdlog_debug(1, "Nothing to synchronize.");
 			/*
 			 * Synchronization complete, make both localcnt and
