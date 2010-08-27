@@ -127,6 +127,8 @@ struct hast_resource {
 	int	hr_extentsize;
 	/* Maximum number of extents that are kept dirty. */
 	int	hr_keepdirty;
+	/* Path to a program to execute on various events. */
+	char	hr_exec[PATH_MAX];
 
 	/* Path to local component. */
 	char	hr_localpath[PATH_MAX];
