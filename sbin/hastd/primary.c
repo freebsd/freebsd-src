@@ -1699,15 +1699,14 @@ sync_thread(void *arg __unused)
 			    strerror(hio->hio_errors[ncomp]));
 			goto free_queue;
 		}
+
+		synced += length;
 free_queue:
 		mtx_lock(&range_lock);
 		rangelock_del(range_sync, offset, length);
 		if (range_regular_wait)
 			cv_signal(&range_regular_cond);
 		mtx_unlock(&range_lock);
-
-		synced += length;
-
 		pjdlog_debug(2, "sync: (%p) Moving request to the free queue.",
 		    hio);
 		QUEUE_INSERT2(hio, free);
