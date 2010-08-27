@@ -256,13 +256,13 @@ control_statement:	CONTROL STR
 			}
 			break;
 		case 1:
-			if (mynode) {
-				if (strlcpy(lconfig->hc_controladdr, $2,
-				    sizeof(lconfig->hc_controladdr)) >=
-				    sizeof(lconfig->hc_controladdr)) {
-					pjdlog_error("control argument is too long.");
-					return (1);
-				}
+			if (!mynode)
+				break;
+			if (strlcpy(lconfig->hc_controladdr, $2,
+			    sizeof(lconfig->hc_controladdr)) >=
+			    sizeof(lconfig->hc_controladdr)) {
+				pjdlog_error("control argument is too long.");
+				return (1);
 			}
 			break;
 		default:
@@ -283,13 +283,13 @@ listen_statement:	LISTEN STR
 			}
 			break;
 		case 1:
-			if (mynode) {
-				if (strlcpy(lconfig->hc_listenaddr, $2,
-				    sizeof(lconfig->hc_listenaddr)) >=
-				    sizeof(lconfig->hc_listenaddr)) {
-					pjdlog_error("listen argument is too long.");
-					return (1);
-				}
+			if (!mynode)
+				break;
+			if (strlcpy(lconfig->hc_listenaddr, $2,
+			    sizeof(lconfig->hc_listenaddr)) >=
+			    sizeof(lconfig->hc_listenaddr)) {
+				pjdlog_error("listen argument is too long.");
+				return (1);
 			}
 			break;
 		default:
@@ -493,14 +493,14 @@ name_statement:		NAME STR
 			}
 			break;
 		case 2:
-			if (mynode) {
-				assert(curres != NULL);
-				if (strlcpy(curres->hr_provname, $2,
-				    sizeof(curres->hr_provname)) >=
-				    sizeof(curres->hr_provname)) {
-					pjdlog_error("name argument is too long.");
-					return (1);
-				}
+			if (!mynode)
+				break;
+			assert(curres != NULL);
+			if (strlcpy(curres->hr_provname, $2,
+			    sizeof(curres->hr_provname)) >=
+			    sizeof(curres->hr_provname)) {
+				pjdlog_error("name argument is too long.");
+				return (1);
 			}
 			break;
 		default:
@@ -521,14 +521,14 @@ local_statement:	LOCAL STR
 			}
 			break;
 		case 2:
-			if (mynode) {
-				assert(curres != NULL);
-				if (strlcpy(curres->hr_localpath, $2,
-				    sizeof(curres->hr_localpath)) >=
-				    sizeof(curres->hr_localpath)) {
-					pjdlog_error("local argument is too long.");
-					return (1);
-				}
+			if (!mynode)
+				break;
+			assert(curres != NULL);
+			if (strlcpy(curres->hr_localpath, $2,
+			    sizeof(curres->hr_localpath)) >=
+			    sizeof(curres->hr_localpath)) {
+				pjdlog_error("local argument is too long.");
+				return (1);
 			}
 			break;
 		default:
