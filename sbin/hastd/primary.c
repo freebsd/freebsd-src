@@ -1517,6 +1517,8 @@ sync_thread(void *arg __unused)
 			pjdlog_info("Synchronization interrupted. "
 			    "%jd bytes synchronized so far.",
 			    (intmax_t)synced);
+			hook_exec(res->hr_exec, "syncintr",
+			    res->hr_name, NULL);
 		}
 		while (!sync_inprogress) {
 			dorewind = true;
@@ -1549,6 +1551,8 @@ sync_thread(void *arg __unused)
 				pjdlog_info("Synchronization started. %ju bytes to go.",
 				    (uintmax_t)(res->hr_extentsize *
 				    activemap_ndirty(res->hr_amp)));
+				hook_exec(res->hr_exec, "syncstart",
+				    res->hr_name, NULL);
 			}
 		}
 		if (offset < 0) {
@@ -1565,6 +1569,8 @@ sync_thread(void *arg __unused)
 					pjdlog_info("Synchronization complete. "
 					    "%jd bytes synchronized.",
 					    (intmax_t)synced);
+					hook_exec(res->hr_exec, "syncdone",
+					    res->hr_name, NULL);
 				}
 				mtx_lock(&metadata_lock);
 				res->hr_syncsrc = HAST_SYNCSRC_UNDEF;
