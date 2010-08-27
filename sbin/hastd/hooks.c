@@ -61,8 +61,21 @@ descriptors(void)
 		pjdlog_errno(LOG_WARNING, "sysconf(_SC_OPEN_MAX) failed");
 		maxfd = 1024;
 	}
-	for (fd = 0; fd <= maxfd; fd++)
-		close(fd);
+	for (fd = 0; fd <= maxfd; fd++) {
+		switch (fd) {
+		case STDIN_FILENO:
+		case STDOUT_FILENO:
+		case STDERR_FILENO:
+			if (pjdlog_mode_get() == PJDLOG_MODE_STD)
+				break;
+			/* FALLTHROUGH */
+		default:
+			close(fd);
+			break;
+		}
+	}
+	if (pjdlog_mode_get() == PJDLOG_MODE_STD)
+		return;
 	/*
 	 * Redirect stdin, stdout and stderr to /dev/null.
 	 */
