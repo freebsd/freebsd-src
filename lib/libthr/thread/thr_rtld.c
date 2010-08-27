@@ -81,8 +81,11 @@ static void
 _thr_rtld_lock_destroy(void *lock)
 {
 	int locki;
+	size_t i;
 
 	locki = (struct rtld_lock *)lock - &lock_place[0];
+	for (i = 0; i < sizeof(struct rtld_lock); ++i)
+		((char *)lock)[i] = 0;
 	busy_places &= ~(1 << locki);
 }
 
