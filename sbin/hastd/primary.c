@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "hast.h"
 #include "hast_proto.h"
 #include "hastd.h"
+#include "hooks.h"
 #include "metadata.h"
 #include "proto.h"
 #include "pjdlog.h"
@@ -433,6 +434,7 @@ init_environment(struct hast_resource *res __unused)
 	signal(SIGINT, sighandler);
 	signal(SIGTERM, sighandler);
 	signal(SIGHUP, sighandler);
+	signal(SIGCHLD, sighandler);
 }
 
 static void
@@ -791,6 +793,7 @@ hastd_primary(struct hast_resource *res)
 	signal(SIGHUP, SIG_DFL);
 	signal(SIGCHLD, SIG_DFL);
 
+	hook_init();
 	init_local(res);
 	if (real_remote(res) && init_remote(res, NULL, NULL))
 		sync_start();
@@ -1737,6 +1740,9 @@ sighandler(int sig)
 	case SIGHUP:
 		sighup_received = true;
 		break;
+	case SIGCHLD:
+		sigchld_received = true;
+		break;
 	default:
 		assert(!"invalid condition");
 	}
@@ -1788,6 +1794,7 @@ config_reload(void)
 #define MODIFIED_REMOTEADDR	0x1
 #define MODIFIED_REPLICATION	0x2
 #define MODIFIED_TIMEOUT	0x4
+#define MODIFIED_EXEC		0x8
 	modified = 0;
 	if (strcmp(gres->hr_remoteaddr, res->hr_remoteaddr) != 0) {
 		/*
@@ -1804,6 +1811,10 @@ config_reload(void)
 	if (gres->hr_timeout != res->hr_timeout) {
 		gres->hr_timeout = res->hr_timeout;
 		modified |= MODIFIED_TIMEOUT;
+	}
+	if (strcmp(gres->hr_exec, res->hr_exec) != 0) {
+		strlcpy(gres->hr_exec, res->hr_exec, sizeof(gres->hr_exec));
+		modified |= MODIFIED_EXEC;
 	}
 	/*
 	 * If only timeout was modified we only need to change it without
@@ -1830,7 +1841,8 @@ config_reload(void)
 				    "Unable to set connection timeout");
 			}
 		}
-	} else {
+	} else if ((modified &
+	    (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) != 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -1844,6 +1856,7 @@ config_reload(void)
 #undef	MODIFIED_REMOTEADDR
 #undef	MODIFIED_REPLICATION
 #undef	MODIFIED_TIMEOUT
+#undef	MODIFIED_EXEC
 
 	pjdlog_info("Configuration reloaded successfully.");
 	return;
@@ -1907,6 +1920,9 @@ guard_thread(void *arg)
 			sighup_received = false;
 			config_reload();
 		}
+		hook_check(sigchld_received);
+		if (sigchld_received)
+			sigchld_received = false;
 
 		timeout = KEEPALIVE_SLEEP;
 		pjdlog_debug(2, "remote_guard: Checking connections.");
