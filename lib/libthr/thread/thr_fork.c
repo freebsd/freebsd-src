@@ -114,6 +114,7 @@ __pthread_cxa_finalize(struct dl_phdr_info *phdr_info)
 		}
 	}
 	THR_UMUTEX_UNLOCK(curthread, &_thr_atfork_lock);
+	_thr_tsd_unload(phdr_info);
 }
 
 __weak_reference(_fork, fork);
