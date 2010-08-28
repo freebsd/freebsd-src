@@ -384,11 +384,13 @@ g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
 	u_char off[8], hash[SHA256_DIGEST_LENGTH];
 	SHA256_CTX ctx;
 
-	if (!(sc->sc_flags & G_ELI_FLAG_NATIVE_BYTE_ORDER))
+	if ((sc->sc_flags & G_ELI_FLAG_NATIVE_BYTE_ORDER) != 0)
+		bcopy(&offset, off, sizeof(off));
+	else
 		le64enc(off, (uint64_t)offset);
 	/* Copy precalculated SHA256 context for IV-Key. */
 	bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
-	SHA256_Update(&ctx, (uint8_t *)&offset, sizeof(offset));
+	SHA256_Update(&ctx, off, sizeof(off));
 	SHA256_Final(hash, &ctx);
 	bcopy(hash, iv, size);
 }
@@ -544,7 +546,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	sc->sc_crypto = G_ELI_CRYPTO_SW;
 	sc->sc_flags = md->md_flags;
 	/* Backward compatibility. */
-	if (md->md_version < 2)
+	if (md->md_version < 4)
 		sc->sc_flags |= G_ELI_FLAG_NATIVE_BYTE_ORDER;
 	sc->sc_ealgo = md->md_ealgo;
 	sc->sc_nkey = nkey;
