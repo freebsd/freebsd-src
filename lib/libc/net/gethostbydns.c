@@ -536,9 +536,12 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 		return (NS_NOTFOUND);
 	}
 	if (__copy_hostent(&he, hptr, buffer, buflen) != 0) {
+		*errnop = errno;
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		*h_errnop = statp->res_h_errno;
-		return (NS_NOTFOUND);
+		return (NS_RETURN);
 	}
+	RES_SET_H_ERRNO(statp, NETDB_SUCCESS);
 	*((struct hostent **)rval) = hptr;
 	return (NS_SUCCESS);
 }
@@ -683,11 +686,13 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 		he.h_addrtype = AF_INET6;
 		he.h_length = NS_IN6ADDRSZ;
 	}
-	RES_SET_H_ERRNO(statp, NETDB_SUCCESS);
 	if (__copy_hostent(&he, hptr, buffer, buflen) != 0) {
+		*errnop = errno;
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		*h_errnop = statp->res_h_errno;
-		return (NS_NOTFOUND);
+		return (NS_RETURN);
 	}
+	RES_SET_H_ERRNO(statp, NETDB_SUCCESS);
 	*((struct hostent **)rval) = hptr;
 	return (NS_SUCCESS);
 }
