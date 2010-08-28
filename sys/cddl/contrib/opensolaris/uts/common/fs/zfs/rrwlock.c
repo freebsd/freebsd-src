@@ -82,7 +82,7 @@ rrn_find(rrwlock_t *rrl)
 	rrw_node_t *rn;
 
 	if (refcount_count(&rrl->rr_linked_rcount) == 0)
-		return (B_FALSE);
+		return (NULL);
 
 	for (rn = tsd_get(rrw_tsd_key); rn != NULL; rn = rn->rn_next) {
 		if (rn->rn_rrl == rrl)
