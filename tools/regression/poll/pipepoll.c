@@ -44,16 +44,34 @@ decode_events(int events)
 }
 
 static void
-report(int num, const char *state, int expected, int got)
+report_state(const char *state)
 {
-	if (expected == got)
-		printf("ok %-2d    ", num);
-	else
-		printf("not ok %-2d", num);
-	printf(" %s state %s: expected %s; got %s\n",
+
+	printf(" %s state %s: ",
 	    filetype == FT_PIPE ? "Pipe" :
 	    filetype == FT_SOCKETPAIR ? "Sock" : "FIFO",
-	    state, decode_events(expected), decode_events(got));
+	    state);
+}
+
+static void
+report(int num, const char *state, int expected, int got, int res,
+    int res_expected)
+{
+
+	if (res != res_expected) {
+		printf("not ok %-2d", num);
+		report_state(state);
+		printf("poll result %d expected %d. ",
+		    res, res_expected);
+	} else {
+		if (expected == got)
+			printf("ok %-2d    ", num);
+		else
+			printf("not ok %-2d", num);
+		report_state(state);
+	}
+	printf("expected %s; got %s\n", decode_events(expected),
+	    decode_events(got));
 	fflush(stdout);
 }
 
@@ -62,8 +80,9 @@ static pid_t ppid;
 static volatile sig_atomic_t state;
 
 static void
-catch(int sig)
+catch(int sig __unused)
 {
+
 	state++;
 }
 
@@ -71,7 +90,7 @@ static void
 child(int fd, int num)
 {
 	struct pollfd pfd;
-	int fd2;
+	int fd2, res;
 	char buf[256];
 
 	if (filetype == FT_FIFO) {
@@ -83,9 +102,9 @@ child(int fd, int num)
 	pfd.events = POLLIN;
 
 	if (filetype == FT_FIFO) {
-		if (poll(&pfd, 1, 0) < 0)
+		if ((res = poll(&pfd, 1, 0)) < 0)
 			err(1, "poll");
-		report(num++, "0", 0, pfd.revents);
+		report(num++, "0", 0, pfd.revents, res, 0);
 	}
 	kill(ppid, SIGUSR1);
 
@@ -101,30 +120,30 @@ child(int fd, int num)
 		state = 4;
 		goto state4;
 	}
-	if (poll(&pfd, 1, 0) < 0)
+	if ((res = poll(&pfd, 1, 0)) < 0)
 		err(1, "poll");
-	report(num++, "1", 0, pfd.revents);
+	report(num++, "1", 0, pfd.revents, res, 0);
 	kill(ppid, SIGUSR1);
 
 	usleep(1);
 	while (state != 2)
 		;
-	if (poll(&pfd, 1, 0) < 0)
+	if ((res = poll(&pfd, 1, 0)) < 0)
 		err(1, "poll");
-	report(num++, "2", POLLIN, pfd.revents);
+	report(num++, "2", POLLIN, pfd.revents, res, 1);
 	if (read(fd, buf, sizeof buf) != 1)
 		err(1, "read");
-	if (poll(&pfd, 1, 0) < 0)
+	if ((res = poll(&pfd, 1, 0)) < 0)
 		err(1, "poll");
-	report(num++, "2a", 0, pfd.revents);
+	report(num++, "2a", 0, pfd.revents, res, 0);
 	kill(ppid, SIGUSR1);
 
 	usleep(1);
 	while (state != 3)
 		;
-	if (poll(&pfd, 1, 0) < 0)
+	if ((res = poll(&pfd, 1, 0)) < 0)
 		err(1, "poll");
-	report(num++, "3", POLLHUP, pfd.revents);
+	report(num++, "3", POLLHUP, pfd.revents, res, 1);
 	kill(ppid, SIGUSR1);
 
 	/*
@@ -137,17 +156,17 @@ child(int fd, int num)
 	while (state != 4)
 		;
 state4:
-	if (poll(&pfd, 1, 0) < 0)
+	if ((res = poll(&pfd, 1, 0)) < 0)
 		err(1, "poll");
-	report(num++, "4", 0, pfd.revents);
+	report(num++, "4", 0, pfd.revents, res, 0);
 	kill(ppid, SIGUSR1);
 
 	usleep(1);
 	while (state != 5)
 		;
-	if (poll(&pfd, 1, 0) < 0)
+	if ((res = poll(&pfd, 1, 0)) < 0)
 		err(1, "poll");
-	report(num++, "5", POLLIN, pfd.revents);
+	report(num++, "5", POLLIN, pfd.revents, res, 1);
 	kill(ppid, SIGUSR1);
 
 	usleep(1);
@@ -163,14 +182,14 @@ state4:
 	 * is an example of a broken program that quits on POLLHUP only --
 	 * see its event-loop.c.
 	 */
-	if (poll(&pfd, 1, 0) < 0)
+	if ((res = poll(&pfd, 1, 0)) < 0)
 		err(1, "poll");
-	report(num++, "6", POLLIN | POLLHUP, pfd.revents);
+	report(num++, "6", POLLIN | POLLHUP, pfd.revents, res, 1);
 	if (read(fd, buf, sizeof buf) != 1)
 		err(1, "read");
-	if (poll(&pfd, 1, 0) < 0)
+	if ((res = poll(&pfd, 1, 0)) < 0)
 		err(1, "poll");
-	report(num++, "6a", POLLHUP, pfd.revents);
+	report(num++, "6a", POLLHUP, pfd.revents, res, 1);
 	if (filetype == FT_FIFO) {
 		/*
 		 * Check that POLLHUP is sticky for a new reader and for
@@ -180,17 +199,17 @@ state4:
 		if (fd2 < 0)
 			err(1, "open for read");
 		pfd.fd = fd2;
-		if (poll(&pfd, 1, 0) < 0)
+		if ((res = poll(&pfd, 1, 0)) < 0)
 			err(1, "poll");
-		report(num++, "6b", POLLHUP, pfd.revents);
+		report(num++, "6b", POLLHUP, pfd.revents, res, 1);
 		pfd.fd = fd;
-		if (poll(&pfd, 1, 0) < 0)
+		if ((res = poll(&pfd, 1, 0)) < 0)
 			err(1, "poll");
-		report(num++, "6c", POLLHUP, pfd.revents);
+		report(num++, "6c", POLLHUP, pfd.revents, res, 1);
 		close(fd2);
-		if (poll(&pfd, 1, 0) < 0)
+		if ((res = poll(&pfd, 1, 0)) < 0)
 			err(1, "poll");
-		report(num++, "6d", POLLHUP, pfd.revents);
+		report(num++, "6d", POLLHUP, pfd.revents, res, 1);
 	}
 	close(fd);
 	kill(ppid, SIGUSR1);
