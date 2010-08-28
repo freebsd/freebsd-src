@@ -112,6 +112,7 @@ sctp_do_peeloff(struct socket *head, struct socket *so, sctp_assoc_t assoc_id)
 	n_inp->sctp_features = inp->sctp_features;
 	n_inp->sctp_mobility_features = inp->sctp_mobility_features;
 	n_inp->sctp_frag_point = inp->sctp_frag_point;
+	n_inp->sctp_cmt_on_off = inp->sctp_cmt_on_off;
 	n_inp->partial_delivery_point = inp->partial_delivery_point;
 	n_inp->sctp_context = inp->sctp_context;
 	n_inp->inp_starting_point_for_iterator = NULL;
@@ -183,6 +184,7 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	    (SCTP_PCB_COPY_FLAGS & inp->sctp_flags));
 	n_inp->sctp_features = inp->sctp_features;
 	n_inp->sctp_frag_point = inp->sctp_frag_point;
+	n_inp->sctp_cmt_on_off = inp->sctp_cmt_on_off;
 	n_inp->partial_delivery_point = inp->partial_delivery_point;
 	n_inp->sctp_context = inp->sctp_context;
 	n_inp->inp_starting_point_for_iterator = NULL;

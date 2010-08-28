@@ -155,10 +155,8 @@ struct sctp_paramhdr {
 /* CMT ON/OFF socket option */
 #define SCTP_CMT_ON_OFF                 0x00001200
 #define SCTP_CMT_USE_DAC                0x00001201
-/* EY - NR_SACK on/off socket option */
-#define SCTP_NR_SACK_ON_OFF                 0x00001300
 /* JRS - Pluggable Congestion Control Socket option */
-#define SCTP_PLUGGABLE_CC				0x00001202
+#define SCTP_PLUGGABLE_CC               0x00001202
 
 /* read only */
 #define SCTP_GET_SNDBUF_USE		0x00001101
