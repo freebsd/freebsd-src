@@ -1036,7 +1036,7 @@ vfs_domount(
 		MNT_IUNLOCK(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 			if (mp->mnt_syncer == NULL)
-				error = vfs_allocate_syncvnode(mp);
+				vfs_allocate_syncvnode(mp);
 		} else {
 			if (mp->mnt_syncer != NULL)
 				vrele(mp->mnt_syncer);
@@ -1078,10 +1078,8 @@ vfs_domount(
 		mountcheckdirs(vp, newdp);
 		vrele(newdp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
-			error = vfs_allocate_syncvnode(mp);
+			vfs_allocate_syncvnode(mp);
 		vfs_unbusy(mp);
-		if (error)
-			vrele(vp);
 	} else {
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
@@ -1311,7 +1309,7 @@ dounmount(mp, flags, td)
 		mp->mnt_kern_flag &= ~MNTK_NOINSMNTQ;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 && mp->mnt_syncer == NULL) {
 			MNT_IUNLOCK(mp);
-			(void) vfs_allocate_syncvnode(mp);
+			vfs_allocate_syncvnode(mp);
 			MNT_ILOCK(mp);
 		}
 		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
