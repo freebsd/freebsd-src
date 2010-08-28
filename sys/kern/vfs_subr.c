@@ -3365,7 +3365,7 @@ static struct vop_vector sync_vnodeops = {
 /*
  * Create a new filesystem syncer vnode for the specified mount point.
  */
-int
+void
 vfs_allocate_syncvnode(struct mount *mp)
 {
 	struct vnode *vp;
@@ -3374,16 +3374,15 @@ vfs_allocate_syncvnode(struct mount *mp)
 	int error;
 
 	/* Allocate a new vnode */
-	if ((error = getnewvnode("syncer", mp, &sync_vnodeops, &vp)) != 0) {
-		mp->mnt_syncer = NULL;
-		return (error);
-	}
+	error = getnewvnode("syncer", mp, &sync_vnodeops, &vp);
+	if (error != 0)
+		panic("vfs_allocate_syncvnode: getnewvnode() failed");
 	vp->v_type = VNON;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, mp);
 	if (error != 0)
-		panic("vfs_allocate_syncvnode: insmntque failed");
+		panic("vfs_allocate_syncvnode: insmntque() failed");
 	vp->v_vflag &= ~VV_FORCEINSMQ;
 	VOP_UNLOCK(vp, 0);
 	/*
@@ -3411,7 +3410,6 @@ vfs_allocate_syncvnode(struct mount *mp)
 	mtx_unlock(&sync_mtx);
 	BO_UNLOCK(bo);
 	mp->mnt_syncer = vp;
-	return (0);
 }
 
 /*
