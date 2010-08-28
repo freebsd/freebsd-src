@@ -533,8 +533,6 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		    NFSV4ROOTLOCKMUTEXPTR);
 	NFSUNLOCKV4ROOTMUTEX();
 	if (igotlock) {
-		NFSLOCKSTATE();	/* to avoid a race with */
-		NFSUNLOCKSTATE();	/* nfsrv_servertimer() */
 		/*
 		 * If I got the lock, I can update the stable storage file.
 		 * Done when the grace period is over or a client has long
