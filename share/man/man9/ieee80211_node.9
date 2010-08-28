@@ -101,7 +101,7 @@ Node table entries are reference counted.
 That is, there is a count of all long term references that determines
 when an entry may be reclaimed.
 References are held by every in-flight frame sent to a station to
-insure the entry is not reclaimed while the frame is queued or otherwise
+ensure the entry is not reclaimed while the frame is queued or otherwise
 held by a driver.
 Routines that lookup a table entry return a
 .Dq held reference
