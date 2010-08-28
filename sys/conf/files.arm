@@ -47,6 +47,9 @@ arm/arm/vm_machdep.c		standard
 arm/fpe-arm/armfpe_glue.S	optional	armfpe
 arm/fpe-arm/armfpe_init.c	optional	armfpe
 arm/fpe-arm/armfpe.S		optional	armfpe
+compat/arm/freebsd_oabi_misc.c		optional compat_oabi
+compat/arm/freebsd_oabi_syscalls.c	optional compat_oabi
+compat/arm/freebsd_oabi_sysent.c	optional compat_oabi
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/ofw/openfirm.c		optional	fdt
 dev/ofw/openfirmio.c		optional	fdt
