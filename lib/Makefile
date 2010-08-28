@@ -114,8 +114,8 @@ SUBDIR=	${SUBDIR_ORDERED} \
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
-.elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}-elf)
-_csu=csu/${MACHINE_CPUARCH}-elf
+.elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
+_csu=csu/${MACHINE_ARCH}
 .elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}/Makefile)
 _csu=csu/${MACHINE_CPUARCH}
 .else
