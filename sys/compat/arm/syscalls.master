@@ -418,20 +418,23 @@
 231	AUE_SHMGET	NOSTD|NOPROTO	{ int shmget(key_t key, int size, \
 				    int shmflg); }
 ;
-232	AUE_NULL	NOPROTO	{ int clock_gettime(clockid_t clock_id, \
-				    struct timespec *tp); }
-233	AUE_CLOCK_SETTIME	NOPROTO	{ int clock_settime( \
+232	AUE_NULL	STD	{ int freebsd_oabi_clock_gettime( \
 				    clockid_t clock_id, \
-				    const struct timespec *tp); }
-234	AUE_NULL	NOPROTO	{ int clock_getres(clockid_t clock_id, \
-				    struct timespec *tp); }
+				    struct timespec_oabi *tp); }
+233	AUE_CLOCK_SETTIME	STD	{ int freebsd_oabi_clock_settime( \
+				    clockid_t clock_id, \
+				    const struct timespec_oabi *tp); }
+234	AUE_NULL	STD	{ int freebsd_oabi_clock_getres( \
+				    clockid_t clock_id, \
+				    struct timespec_oabi *tp); }
 235	AUE_NULL	UNIMPL	timer_create
 236	AUE_NULL	UNIMPL	timer_delete
 237	AUE_NULL	UNIMPL	timer_settime
 238	AUE_NULL	UNIMPL	timer_gettime
 239	AUE_NULL	UNIMPL	timer_getoverrun
-240	AUE_NULL	NOPROTO	{ int nanosleep(const struct timespec *rqtp, \
-				    struct timespec *rmtp); }
+240	AUE_NULL	STD	{ int freebsd_oabi_nanosleep( \
+				    const struct timespec_oabi *rqtp, \
+				    struct timespec_oabi *rmtp); }
 241	AUE_NULL	UNIMPL	nosys
 242	AUE_NULL	UNIMPL	nosys
 243	AUE_NULL	UNIMPL	nosys
@@ -537,7 +540,8 @@
 				    struct aiocb_oabi *aiocbp); }
 315	AUE_NULL	NOSTD	{ int freebsd_oabi_aio_suspend( \
 				    struct aiocb_oabi * const * aiocbp, \
-				    int nent, const struct timespec *timeout); }
+				    int nent, \
+				    const struct timespec_oabi *timeout); }
 316	AUE_NULL	NOSTD	{ int freebsd_oabi_aio_cancel(int fd, \
 				    struct aiocb_oabi *aiocbp); }
 317	AUE_NULL	NOSTD	{ int freebsd_oabi_aio_error( \
@@ -569,8 +573,9 @@
 331	AUE_NULL	NOPROTO	{ int sched_yield (void); }
 332	AUE_NULL	NOPROTO	{ int sched_get_priority_max (int policy); }
 333	AUE_NULL	NOPROTO	{ int sched_get_priority_min (int policy); }
-334	AUE_NULL	NOPROTO	{ int sched_rr_get_interval (pid_t pid, \
-				    struct timespec *interval); }
+334	AUE_NULL	STD	{ int freebsd_oabi_sched_rr_get_interval ( \
+				    pid_t pid, \
+				    struct timespec_oabi *interval); }
 335	AUE_NULL	NOPROTO	{ int utrace(const void *addr, size_t len); }
 336	AUE_SENDFILE	COMPAT4	{ int sendfile(int fd, int s, off_t offset, \
 				    size_t nbytes, struct sf_hdtr *hdtr, \
@@ -588,9 +593,9 @@
 343	AUE_SIGPENDING	NOPROTO	{ int sigpending(sigset_t *set); }
 344	AUE_SIGRETURN	COMPAT4	{ int freebsd_oabi_sigreturn( \
 		    const struct freebsd4_freebsd_oabi_ucontext *sigcntxp); }
-345	AUE_SIGWAIT	NOPROTO	{ int sigtimedwait(const sigset_t *set, \
-				    siginfo_t *info, \
-				    const struct timespec *timeout); }
+345	AUE_SIGWAIT	STD	{ int freebsd_oabi_sigtimedwait( \
+				    const sigset_t *set, siginfo_t *info, \
+				    const struct timespec_oabi *timeout); }
 346	AUE_NULL	NOPROTO	{ int sigwaitinfo(const sigset_t *set, \
 				    siginfo_t *info); }
 347	AUE_NULL	NOPROTO	{ int __acl_get_file(const char *path, \
@@ -625,17 +630,17 @@
 				    const char *attrname); }
 359	AUE_NULL	NOSTD	{ int freebsd_oabi_aio_waitcomplete( \
 				    struct aiocb_oabi **aiocbp, \
-				    struct timespec *timeout); }
+				    struct timespec_oabi *timeout); }
 360	AUE_GETRESUID	NOPROTO	{ int getresuid(uid_t *ruid, uid_t *euid, \
 				    uid_t *suid); }
 361	AUE_GETRESGID	NOPROTO	{ int getresgid(gid_t *rgid, gid_t *egid, \
 				    gid_t *sgid); }
 362	AUE_KQUEUE	NOPROTO	{ int kqueue(void); }
-363	AUE_NULL	NOPROTO	{ int kevent(int fd, \
+363	AUE_NULL	STD	{ int freebsd_oabi_kevent(int fd, \
 				    const struct kevent *changelist, \
 				    int nchanges, \
 				    struct kevent *eventlist, int nevents, \
-				    const struct timespec *timeout); }
+				    const struct timespec_oabi *timeout); }
 364	AUE_NULL	UNIMPL	__cap_get_proc
 365	AUE_NULL	UNIMPL	__cap_set_proc
 366	AUE_NULL	UNIMPL	__cap_get_fd
@@ -763,10 +768,10 @@
 				    const char *path, int attrnamespace, \
 				    void *data, size_t nbytes); }
 440	AUE_NULL	UNIMPL	kse_switchin
-441	AUE_NULL	NOPROTO|NOSTD	{ int ksem_timedwait(semid_t id, \
-				    const struct timespec *abstime); }
-442	AUE_NULL	NOPROTO	{ int thr_suspend( \
-				    const struct timespec *timeout); }
+441	AUE_NULL	NOSTD	{ int freebsd_oabi_ksem_timedwait(semid_t id, \
+				    const struct timespec_oabi *abstime); }
+442	AUE_NULL	STD	{ int freebsd_oabi_thr_suspend( \
+				    const struct timespec_oabi *timeout); }
 443	AUE_NULL	NOPROTO	{ int thr_wake(long id); }
 444	AUE_MODUNLOAD	NOPROTO	{ int kldunloadf(int fileid, int flags); }
 445	AUE_AUDIT	NOPROTO	{ int audit(const void *record, \
@@ -798,14 +803,14 @@
 458	AUE_NULL	NOPROTO|NOSTD	{ int kmq_setattr(int mqd, \
 				    const struct mq_attr *attr,	\
 				    struct mq_attr *oattr); }
-459	AUE_NULL	NOPROTO|NOSTD	{ int kmq_timedreceive(int mqd, 	\
+459	AUE_NULL	NOSTD	{ int freebsd_oabi_kmq_timedreceive(int mqd, \
 				    char *msg_ptr, size_t msg_len,	\
 				    unsigned *msg_prio,			\
-				    const struct timespec *abs_timeout); }
-460	AUE_NULL	NOPROTO|NOSTD	{ int kmq_timedsend(int mqd,		\
+				    const struct timespec_oabi *abs_timeout); }
+460	AUE_NULL	NOSTD	{ int freebsd_oabi_kmq_timedsend(int mqd, \
 				    const char *msg_ptr, size_t msg_len,\
 				    unsigned msg_prio,			\
-				    const struct timespec *abs_timeout);}
+				    const struct timespec_oabi *abs_timeout);}
 461	AUE_NULL	NOPROTO|NOSTD	{ int kmq_notify(int mqd,	\
 				    const struct sigevent *sigev); }
 462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
@@ -916,6 +921,7 @@
 519	AUE_PDKILL	UNIMPL	pdkill
 520	AUE_PDGETPID	UNIMPL	pdgetpid
 521	AUE_PDWAIT	UNIMPL	pdwait
-522	AUE_SELECT	NOPROTO	{ int pselect(int nd, fd_set *in, fd_set *ou, \
-				    fd_set *ex, const struct timespec *ts, \
+522	AUE_SELECT	STD	{ int freebsd_oabi_pselect(int nd, fd_set *in, \
+				    fd_set *ou, fd_set *ex, \
+				    const struct timespec_oabi *ts, \
 				    const sigset_t *sm); }
