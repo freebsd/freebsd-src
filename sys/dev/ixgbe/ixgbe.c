@@ -524,6 +524,15 @@ ixgbe_attach(device_t dev)
 		goto err_out;
 	}
 
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u8) * IXGBE_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_late;
+	}
+
 	/* Initialize the shared code */
 	error = ixgbe_init_shared_code(hw);
 	if (error == IXGBE_ERR_SFP_NOT_PRESENT) {
@@ -636,6 +645,7 @@ err_out:
 	if (adapter->ifp != NULL)
 		if_free(adapter->ifp);
 	ixgbe_free_pci_resources(adapter);
+	free(adapter->mta, M_DEVBUF);
 	return (error);
 
 }
@@ -706,6 +716,7 @@ ixgbe_detach(device_t dev)
 
 	ixgbe_free_transmit_structures(adapter);
 	ixgbe_free_receive_structures(adapter);
+	free(adapter->mta, M_DEVBUF);
 
 	IXGBE_CORE_LOCK_DESTROY(adapter);
 	return (0);
@@ -1808,13 +1819,17 @@ static void
 ixgbe_set_multi(struct adapter *adapter)
 {
 	u32	fctrl;
-	u8	mta[MAX_NUM_MULTICAST_ADDRESSES * IXGBE_ETH_LENGTH_OF_ADDRESS];
+	u8	*mta;
 	u8	*update_ptr;
 	struct	ifmultiaddr *ifma;
 	int	mcnt = 0;
 	struct ifnet   *ifp = adapter->ifp;
 
 	IOCTL_DEBUGOUT("ixgbe_set_multi: begin");
+
+	mta = adapter->mta;
+	bzero(mta, sizeof(u8) * IXGBE_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES);
 
 	fctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
 	fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
