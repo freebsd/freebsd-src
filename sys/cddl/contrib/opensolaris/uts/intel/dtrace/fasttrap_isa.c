@@ -1066,7 +1066,6 @@ fasttrap_pid_probe(struct reg *rp)
 		return (-1);
 	}
 
-	printf("found tracepoint\n");
 	/*
 	 * Set the program counter to the address of the traced instruction
 	 * so that it looks right in ustack() output.
