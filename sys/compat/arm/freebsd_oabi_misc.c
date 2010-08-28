@@ -101,6 +101,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/arm/freebsd_oabi.h>
 #include <compat/arm/freebsd_oabi_proto.h>
 
+#ifndef __ARM_EABI__
+#error COMPAT_OABI requires an ARM EABI kernel
+#endif
+
 CTASSERT(sizeof(struct aiocb_oabi) == 96);
 CTASSERT(sizeof(fd_set) == 128);
 CTASSERT(sizeof(struct fhandle) == 28);
@@ -121,7 +125,7 @@ CTASSERT(sizeof(struct statfs) == 472);
 CTASSERT(sizeof(struct thr_param) == 52);
 CTASSERT(sizeof(struct rusage_oabi) == 80);
 CTASSERT(sizeof(struct sigaction) == 24);
-CTASSERT(sizeof(struct timespec) == 12);
+CTASSERT(sizeof(struct timespec_oabi) == 12);
 CTASSERT(sizeof(struct timeval_oabi) == 12);
 CTASSERT(sizeof(struct timezone) == 8);
 
@@ -536,5 +540,67 @@ freebsd_oabi_cpuset_setid(struct thread *td,
     struct freebsd_oabi_cpuset_setid_args *uap)
 {
 	panic("freebsd_oabi_cpuset_setid");
+}
+
+int
+freebsd_oabi_clock_gettime(struct thread *td,
+    struct freebsd_oabi_clock_gettime_args *uap)
+{
+	panic("freebsd_oabi_clock_gettime");
+}
+
+int
+freebsd_oabi_clock_settime(struct thread *td,
+    struct freebsd_oabi_clock_settime_args *uap)
+{
+	panic("freebsd_oabi_clock_settime");
+}
+
+int
+freebsd_oabi_clock_getres(struct thread *td,
+    struct freebsd_oabi_clock_getres_args *uap)
+{
+	panic("freebsd_oabi_clock_getres");
+}
+
+int
+freebsd_oabi_nanosleep(struct thread *td,
+    struct freebsd_oabi_nanosleep_args *uap)
+{
+	panic("freebsd_oabi_nanosleep");
+}
+
+int
+freebsd_oabi_sched_rr_get_interval(struct thread *td,
+    struct freebsd_oabi_sched_rr_get_interval_args *uap)
+{
+	panic("freebsd_oabi_sched_rr_get_interval");
+}
+
+int
+freebsd_oabi_sigtimedwait(struct thread *td,
+    struct freebsd_oabi_sigtimedwait_args *uap)
+{
+	panic("freebsd_oabi_sigtimedwait");
+}
+
+int
+freebsd_oabi_kevent(struct thread *td,
+    struct freebsd_oabi_kevent_args *uap)
+{
+	panic("freebsd_oabi_kevent");
+}
+
+int
+freebsd_oabi_thr_suspend(struct thread *td,
+    struct freebsd_oabi_thr_suspend_args *uap)
+{
+	panic("freebsd_oabi_thr_suspend");
+}
+
+int
+freebsd_oabi_pselect(struct thread *td, struct freebsd_oabi_pselect_args *uap)
+{
+	panic("freebsd_oabi_pselect");
 }
 
