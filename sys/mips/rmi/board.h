@@ -147,7 +147,8 @@ struct xlr_board_info {
 	int is_xls;
 	int nr_cpus;
 	int usb;		/* usb enabled ? */
-	int cfi;		/* compact flash driver for NOR? */
+	int cfi;		/* NOR flash */
+	int ata;		/* PCMCIA/compactflash driver */
 	int pci_irq;
 	struct stn_cc **credit_configs;	/* pointer to Core station credits */
 	struct bucket_size *bucket_sizes;	/* pointer to Core station
