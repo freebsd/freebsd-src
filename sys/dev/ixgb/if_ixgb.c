@@ -324,6 +324,15 @@ ixgb_attach(device_t dev)
 	}
 	adapter->rx_desc_base = (struct ixgb_rx_desc *) adapter->rxdma.dma_vaddr;
 
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u_int8_t) * IXGB_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_hw_init;
+	}
+
 	/* Initialize the hardware */
 	if (ixgb_hardware_init(adapter)) {
 		device_printf(dev, "Unable to initialize the hardware\n");
@@ -351,6 +360,7 @@ err_pci:
 		if_free(adapter->ifp);
 	ixgb_free_pci_resources(adapter);
 	sysctl_ctx_free(&adapter->sysctl_ctx);
+	free(adapter->mta, M_DEVBUF);
 	return (error);
 
 }
@@ -412,6 +422,7 @@ ixgb_detach(device_t dev)
 		adapter->next->prev = adapter->prev;
 	if (adapter->prev != NULL)
 		adapter->prev->next = adapter->next;
+	free(adapter->mta, M_DEVBUF);
 
 	IXGB_LOCK_DESTROY(adapter);
 	return (0);
@@ -1069,12 +1080,16 @@ static void
 ixgb_set_multi(struct adapter * adapter)
 {
 	u_int32_t       reg_rctl = 0;
-	u_int8_t        mta[MAX_NUM_MULTICAST_ADDRESSES * IXGB_ETH_LENGTH_OF_ADDRESS];
+	u_int8_t        *mta;
 	struct ifmultiaddr *ifma;
 	int             mcnt = 0;
 	struct ifnet   *ifp = adapter->ifp;
 
 	IOCTL_DEBUGOUT("ixgb_set_multi: begin");
+
+	mta = adapter->mta;
+	bzero(mta, sizeof(u_int8_t) * IXGB_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES);
 
 	if_maddr_rlock(ifp);
 #if __FreeBSD_version < 500000
