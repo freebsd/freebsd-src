@@ -203,13 +203,6 @@ LD += -EB
 .endif
 
 .if ${MACHINE_ARCH} == "mips" 
-. if defined(TARGET_BIG_ENDIAN)
-CFLAGS += -EB
-LD += -EB
-. else
-CFLAGS += -EL
-LD += -EL
-. endif
 CFLAGS += -G0
 .endif
 
