@@ -634,6 +634,7 @@ wpi_attach(device_t dev)
 		| IEEE80211_C_WME		/* 802.11e */
 		| IEEE80211_C_HOSTAP		/* Host access point mode */
 #endif
+		| IEEE80211_C_RATECTL		/* use ratectl */
 		;
 
 	/*
