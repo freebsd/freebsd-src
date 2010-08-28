@@ -11001,9 +11001,12 @@ sctp_send_packet_dropped(struct sctp_tcb *stcb, struct sctp_nets *net,
 		switch (ch->chunk_type) {
 		case SCTP_PACKET_DROPPED:
 		case SCTP_ABORT_ASSOCIATION:
-			/*-
-			 * we don't respond with an PKT-DROP to an ABORT
-			 * or PKT-DROP
+		case SCTP_INITIATION_ACK:
+			/**
+			 * We don't respond with an PKT-DROP to an ABORT
+			 * or PKT-DROP. We also do not respond to an
+			 * INIT-ACK, because we can't know if the initiation
+			 * tag is correct or not.
 			 */
 			sctp_free_a_chunk(stcb, chk);
 			return;
