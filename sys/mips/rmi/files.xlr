@@ -21,6 +21,7 @@ mips/rmi/bus_space_rmi_pci.c			standard
 mips/rmi/dev/sec/rmisec.c			optional rmisec
 mips/rmi/dev/sec/rmilib.c			optional rmisec
 mips/rmi/dev/xlr/rge.c				optional rge
+mips/rmi/dev/nlge/if_nlge.c			optional nlge
 dev/iicbus/xlr_rtc.c				optional xlr_rtc
 dev/iicbus/xlr_temperature.c			optional xlr_temperature
 dev/iicbus/xlr_eeprom.c				optional xlr_eeprom

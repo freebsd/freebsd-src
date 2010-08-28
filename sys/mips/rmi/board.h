@@ -132,41 +132,53 @@ xlr_is_xls4xx_lite(void)
 	uint32_t chipid = xlr_processor_id();
 
 	return (chipid == 0x88 || chipid == 0x8c);
-}
+  }
+  
+/* SPI-4 --> 8 ports, 1G MAC --> 4 ports and 10G MAC --> 1 port */
+#define	MAX_NA_PORTS					8
 
 /* all our knowledge of chip and board that cannot be detected run-time goes here */
-enum gmac_block_types {
-	XLR_GMAC, XLR_XGMAC, XLR_SPI4
-};
-
-enum gmac_block_modes {
-	XLR_RGMII, XLR_SGMII, XLR_PORT0_RGMII
-};
+enum gmac_block_types { XLR_GMAC, XLR_XGMAC, XLR_SPI4};
+enum gmac_port_types  { XLR_RGMII, XLR_SGMII, XLR_PORT0_RGMII, XLR_XGMII, XLR_XAUI };
 
 struct xlr_board_info {
 	int is_xls;
 	int nr_cpus;
-	int usb;		/* usb enabled ? */
-	int cfi;		/* NOR flash */
-	int ata;		/* PCMCIA/compactflash driver */
+	int usb;                               /* usb enabled ? */
+	int cfi;                               /* compact flash driver for NOR? */
+	int ata;                               /* ata driver */
 	int pci_irq;
-	struct stn_cc **credit_configs;	/* pointer to Core station credits */
-	struct bucket_size *bucket_sizes;	/* pointer to Core station
-						 * bucket */
-	int *msgmap;		/* mapping of message station to devices */
-	int gmacports;		/* number of gmac ports on the board */
-	struct xlr_gmac_block_t {
-		int type;	/* see  enum gmac_block_types */
-		unsigned int enabled;	/* mask of ports enabled */
-		struct stn_cc *credit_config;	/* credit configuration */
-		int station_txbase;	/* station id for tx */
-		int station_rfr;/* free desc bucket */
-		int mode;	/* see gmac_block_modes */
-		uint32_t baseaddr;	/* IO base */
-		int baseirq;	/* first irq for this block, the rest are in
-				 * sequence */
-		int baseinst;	/* the first rge unit for this block */
-	}  gmac_block[3];
+	struct stn_cc **credit_configs;        /* pointer to Core station credits */
+	struct bucket_size *bucket_sizes;      /* pointer to Core station bucket */
+	int *msgmap;                           /* mapping of message station to devices */
+	int gmacports;                         /* number of gmac ports on the board */
+	struct xlr_gmac_block_t {              /* refers to the set of GMACs controlled by a 
+                                                  network accelarator */
+		int  type;                     /* see  enum gmac_block_types */
+		unsigned int enabled;          /* mask of ports enabled */   
+		struct stn_cc *credit_config;  /* credit configuration */
+		int station_id;		       /* station id for sending msgs */
+		int station_txbase;            /* station id for tx */
+		int station_rfr;               /* free desc bucket */
+		int  mode;                     /* see gmac_block_modes */
+		uint32_t baseaddr;             /* IO base */
+		int baseirq;        /* first irq for this block, the rest are in sequence */
+		int baseinst;       /* the first rge unit for this block */
+		int num_ports;
+		struct xlr_gmac_port {
+			int valid;
+			int type;		/* see enum gmac_port_types */
+			uint32_t instance;	/* identifies the GMAC to which
+						   this port is bound to. */
+			uint32_t phy_addr;
+			uint32_t base_addr;
+			uint32_t mii_addr;
+			uint32_t pcs_addr;
+			uint32_t serdes_addr;
+			uint32_t tx_bucket_id;
+			uint32_t mdint_id;
+		} gmac_port[MAX_NA_PORTS];
+	} gmac_block [3];
 };
 
 extern struct xlr_board_info xlr_board_info;
