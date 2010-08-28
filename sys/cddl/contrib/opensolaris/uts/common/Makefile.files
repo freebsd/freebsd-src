@@ -19,9 +19,6 @@
 # CDDL HEADER END
 #
 
-ZUT_OBJS +=			\
-	zut.o
-
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
@@ -109,3 +106,6 @@ ZFS_OBJS +=			\
 	zfs_vfsops.o		\
 	zfs_vnops.o		\
 	zvol.o
+
+ZUT_OBJS +=			\
+	zut.o
