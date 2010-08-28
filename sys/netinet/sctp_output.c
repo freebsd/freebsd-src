@@ -3686,7 +3686,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 						 * Stop any running T3
 						 * timers here?
 						 */
-						if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf)) {
+						if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+						    (stcb->asoc.sctp_cmt_pf > 0)) {
 							net->dest_state &= ~SCTP_ADDR_PF;
 							SCTPDBG(SCTP_DEBUG_OUTPUT1, "Destination %p moved from PF to unreachable.\n",
 							    net);
@@ -4323,11 +4324,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable)) {
 		pr_supported->chunk_types[num_ext++] = SCTP_AUTHENTICATION;
 	}
-	/*
-	 * EY  if the initiator supports nr_sacks, need to report that to
-	 * responder in INIT chunk
-	 */
-	if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off)) {
+	if (stcb->asoc.sctp_nr_sack_on_off == 1) {
 		pr_supported->chunk_types[num_ext++] = SCTP_NR_SELECTIVE_ACK;
 	}
 	p_len = sizeof(*pr_supported) + num_ext;
@@ -5447,10 +5444,6 @@ do_a_abort:
 	pr_supported->chunk_types[num_ext++] = SCTP_STREAM_RESET;
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable))
 		pr_supported->chunk_types[num_ext++] = SCTP_AUTHENTICATION;
-	/*
-	 * EY  if the sysctl variable is set, tell the assoc. initiator that
-	 * we do nr_sack
-	 */
 	if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off))
 		pr_supported->chunk_types[num_ext++] = SCTP_NR_SELECTIVE_ACK;
 	p_len = sizeof(*pr_supported) + num_ext;
@@ -7267,7 +7260,8 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		if (sp == NULL) {
 			break;
 		}
-		if ((sp->net != net) && (SCTP_BASE_SYSCTL(sctp_cmt_on_off) == 0)) {
+		if ((sp->net != net) &&
+		    (asoc->sctp_cmt_on_off == 0)) {
 			/* none for this network */
 			if (locked) {
 				break;
@@ -7326,11 +7320,11 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		*quit_now = 1;
 
 	if (total_moved == 0) {
-		if ((SCTP_BASE_SYSCTL(sctp_cmt_on_off) == 0) &&
+		if ((stcb->asoc.sctp_cmt_on_off == 0) &&
 		    (net == stcb->asoc.primary_destination)) {
 			/* ran dry for primary network net */
 			SCTP_STAT_INCR(sctps_primary_randry);
-		} else if (SCTP_BASE_SYSCTL(sctp_cmt_on_off)) {
+		} else if (stcb->asoc.sctp_cmt_on_off == 1) {
 			/* ran dry with CMT on */
 			SCTP_STAT_INCR(sctps_cmt_randry);
 		}
@@ -7363,7 +7357,8 @@ sctp_move_to_an_alt(struct sctp_tcb *stcb,
 	 * destination using the PF algorithm for finding alternate
 	 * destinations.
 	 */
-	if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf)) {
+	if ((asoc->sctp_cmt_on_off == 1) &&
+	    (asoc->sctp_cmt_pf > 0)) {
 		a_net = sctp_find_alternate_net(stcb, net, 2);
 	} else {
 		a_net = sctp_find_alternate_net(stcb, net, 0);
@@ -7499,7 +7494,8 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 				}
 				continue;
 			}
-			if ((SCTP_BASE_SYSCTL(sctp_cmt_on_off) == 0) && (net->ref_count < 2)) {
+			if ((asoc->sctp_cmt_on_off == 0) &&
+			    (net->ref_count < 2)) {
 				/* nothing can be in queue for this guy */
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_LOGGING_ENABLE) {
 					sctp_log_cwnd(stcb, net, 2,
@@ -7534,7 +7530,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 		*reason_code = 8;
 		return (0);
 	}
-	if (SCTP_BASE_SYSCTL(sctp_cmt_on_off)) {
+	if (asoc->sctp_cmt_on_off == 1) {
 		/* get the last start point */
 		start_at = asoc->last_net_cmt_send_started;
 		if (start_at == NULL) {
@@ -7560,7 +7556,7 @@ again_one_more_time:
 			break;
 		}
 		tsns_sent = 0xa;
-		if ((SCTP_BASE_SYSCTL(sctp_cmt_on_off) == 0) && (net->ref_count < 2)) {
+		if ((asoc->sctp_cmt_on_off == 0) && (net->ref_count < 2)) {
 			/*
 			 * Ref-count of 1 so we cannot have data or control
 			 * queued to this address. Skip it (non-CMT).
@@ -8034,15 +8030,15 @@ again_one_more_time:
 			}
 		}
 		/* JRI: if dest is in PF state, do not send data to it */
-		if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) &&
-		    SCTP_BASE_SYSCTL(sctp_cmt_pf) &&
+		if ((asoc->sctp_cmt_on_off == 1) &&
+		    (asoc->sctp_cmt_pf > 0) &&
 		    (net->dest_state & SCTP_ADDR_PF)) {
 			goto no_data_fill;
 		}
 		if (net->flight_size >= net->cwnd) {
 			goto no_data_fill;
 		}
-		if ((SCTP_BASE_SYSCTL(sctp_cmt_on_off)) &&
+		if ((asoc->sctp_cmt_on_off == 1) &&
 		    (net->flight_size > max_rwnd_per_dest)) {
 			goto no_data_fill;
 		}
@@ -8096,7 +8092,7 @@ again_one_more_time:
 					break;
 				}
 				nchk = TAILQ_NEXT(chk, sctp_next);
-				if (SCTP_BASE_SYSCTL(sctp_cmt_on_off)) {
+				if (asoc->sctp_cmt_on_off == 1) {
 					if (chk->whoTo != net) {
 						/*
 						 * For CMT, steal the data
@@ -8271,8 +8267,8 @@ no_data_fill:
 				 * restart it.
 				 */
 				sctp_timer_start(SCTP_TIMER_TYPE_SEND, inp, stcb, net);
-			} else if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) &&
-				    SCTP_BASE_SYSCTL(sctp_cmt_pf) &&
+			} else if ((asoc->sctp_cmt_on_off == 1) &&
+				    (asoc->sctp_cmt_pf > 0) &&
 				    pf_hbflag &&
 				    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF) &&
 			    (!SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer))) {
@@ -9579,8 +9575,8 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			 */
 			if (net->ref_count > 1)
 				sctp_move_to_an_alt(stcb, asoc, net);
-		} else if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) &&
-			    SCTP_BASE_SYSCTL(sctp_cmt_pf) &&
+		} else if ((asoc->sctp_cmt_on_off == 1) &&
+			    (asoc->sctp_cmt_pf > 0) &&
 		    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 			/*
 			 * JRS 5/14/07 - If CMT PF is on and the current
@@ -9926,8 +9922,8 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	uint8_t flags;
 	uint8_t type;
 
-	if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) &&
-	    stcb->asoc.peer_supports_nr_sack) {
+	if ((stcb->asoc.sctp_nr_sack_on_off == 1) &&
+	    (stcb->asoc.peer_supports_nr_sack == 1)) {
 		type = SCTP_NR_SELECTIVE_ACK;
 	} else {
 		type = SCTP_SELECTIVE_ACK;
@@ -10071,7 +10067,8 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	else
 		flags = 0;
 
-	if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) {
+	if ((asoc->sctp_cmt_on_off == 1) &&
+	    SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) {
 		/*-
 		 * CMT DAC algorithm: If 2 (i.e., 0x10) packets have been
 		 * received, then set high bit to 1, else 0. Reset
@@ -10839,7 +10836,8 @@ sctp_send_hb(struct sctp_tcb *stcb, int user_req, struct sctp_nets *u_net)
 	 * heartbeat is being sent is in PF state, do NOT do threshold
 	 * management.
 	 */
-	if ((SCTP_BASE_SYSCTL(sctp_cmt_pf) == 0) || ((net->dest_state & SCTP_ADDR_PF) != SCTP_ADDR_PF)) {
+	if ((stcb->asoc.sctp_cmt_pf == 0) ||
+	    ((net->dest_state & SCTP_ADDR_PF) != SCTP_ADDR_PF)) {
 		/* ok we have a destination that needs a beat */
 		/* lets do the theshold management Qiaobing style */
 		if (sctp_threshold_management(stcb->sctp_ep, stcb, net,
@@ -12105,7 +12103,7 @@ sctp_sosend(struct socket *so,
 	struct sctp_sndrcvinfo srcv;
 	struct sockaddr *addr_to_use;
 
-#ifdef INET6
+#if defined(INET) && defined(INET6)
 	struct sockaddr_in sin;
 
 #endif
@@ -12120,7 +12118,7 @@ sctp_sosend(struct socket *so,
 		}
 	}
 	addr_to_use = addr;
-#if defined(INET6)  && !defined(__Userspace__)	/* TODO port in6_sin6_2_sin */
+#if defined(INET) && defined(INET6)
 	if ((addr) && (addr->sa_family == AF_INET6)) {
 		struct sockaddr_in6 *sin6;
 
@@ -12212,20 +12210,33 @@ sctp_lower_sosend(struct socket *so,
 	SCTPDBG(SCTP_DEBUG_OUTPUT1, "Send called addr:%p send length %d\n",
 	    addr,
 	    sndlen);
-	/*-
+	/**
 	 * Pre-screen address, if one is given the sin-len
 	 * must be set correctly!
 	 */
 	if (addr) {
-		if ((addr->sa_family == AF_INET) &&
-		    (addr->sa_len != sizeof(struct sockaddr_in))) {
-			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
-			error = EINVAL;
-			goto out_unlocked;
-		} else if ((addr->sa_family == AF_INET6) &&
-		    (addr->sa_len != sizeof(struct sockaddr_in6))) {
-			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
-			error = EINVAL;
+		switch (addr->sa_family) {
+#if defined(INET)
+		case AF_INET:
+			if (addr->sa_len != sizeof(struct sockaddr_in)) {
+				SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+				error = EINVAL;
+				goto out_unlocked;
+			}
+			break;
+#endif
+#if defined(INET6)
+		case AF_INET6:
+			if (addr->sa_len != sizeof(struct sockaddr_in6)) {
+				SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+				error = EINVAL;
+				goto out_unlocked;
+			}
+			break;
+#endif
+		default:
+			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EAFNOSUPPORT);
+			error = EAFNOSUPPORT;
 			goto out_unlocked;
 		}
 	}
@@ -12657,7 +12668,8 @@ sctp_lower_sosend(struct socket *so,
 		error = EINVAL;
 		goto out_unlocked;
 	}
-	if ((net->flight_size > net->cwnd) && (SCTP_BASE_SYSCTL(sctp_cmt_on_off) == 0)) {
+	if ((net->flight_size > net->cwnd) &&
+	    (asoc->sctp_cmt_on_off == 0)) {
 		/*-
 		 * CMT: Added check for CMT above. net above is the primary
 		 * dest. If CMT is ON, sender should always attempt to send
@@ -13075,7 +13087,7 @@ skip_preblock:
 				goto skip_out_eof;
 			}
 			if ((net->flight_size > net->cwnd) &&
-			    (SCTP_BASE_SYSCTL(sctp_cmt_on_off) == 0)) {
+			    (asoc->sctp_cmt_on_off == 0)) {
 				queue_only = 1;
 			} else if (asoc->ifp_had_enobuf) {
 				SCTP_STAT_INCR(sctps_ifnomemqueued);
@@ -13349,7 +13361,7 @@ skip_out_eof:
 		some_on_control = 1;
 	}
 	if ((net->flight_size > net->cwnd) &&
-	    (SCTP_BASE_SYSCTL(sctp_cmt_on_off) == 0)) {
+	    (stcb->asoc.sctp_cmt_on_off == 0)) {
 		queue_only = 1;
 	} else if (asoc->ifp_had_enobuf) {
 		SCTP_STAT_INCR(sctps_ifnomemqueued);
