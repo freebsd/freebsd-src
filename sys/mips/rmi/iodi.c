@@ -89,6 +89,20 @@ iodi_setup_intr(device_t, device_t, struct resource *, int,
 
 struct iodi_softc *iodi_softc;	/* There can be only one. */
 
+/*
+ * We will manage the Flash/PCMCIA devices in IODI for now.
+ * The NOR flash, Compact flash etc. which can be connected on 
+ * various chip selects on the peripheral IO, should have a 
+ * separate bus later.
+ */
+static void
+bridge_pcmcia_ack(int irq)
+{
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_FLASH_OFFSET);
+
+	xlr_write_reg(mmio, 0x60, 0xffffffff);
+}
+
 static int
 iodi_setup_intr(device_t dev, device_t child,
     struct resource *ires, int flags, driver_filter_t * filt,
@@ -112,6 +126,10 @@ iodi_setup_intr(device_t dev, device_t child,
 		cpu_establish_hardintr("ehci", filt, intr, arg, PIC_USB_IRQ, flags,
 		    cookiep);
 		pic_setup_intr(PIC_USB_IRQ - PIC_IRQ_BASE, PIC_USB_IRQ, 0x1, 0);
+	} else if (strcmp(device_get_name(child), "ata") == 0) {
+		xlr_establish_intr("ata", filt, intr, arg, PIC_PCMCIA_IRQ, flags,
+		    cookiep, bridge_pcmcia_ack);
+		pic_setup_intr(PIC_PCMCIA_IRQ - PIC_IRQ_BASE, PIC_PCMCIA_IRQ, 0x1, 0);
 	}
 
 	return (0);
@@ -158,6 +176,9 @@ iodi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	} else if (strcmp(device_get_name(child), "cfi") == 0) {
 		res->r_bushandle = MIPS_PHYS_TO_KSEG1(0x1c000000);
 		res->r_bustag = 0;
+	} else if (strcmp(device_get_name(child), "ata") == 0) {
+		res->r_bushandle = MIPS_PHYS_TO_KSEG1(0x1d000000);
+		res->r_bustag = rmi_pci_bus_space;  /* byte swapping (not really PCI) */
 	}
 	/* res->r_start = *rid; */
 	return (res);
@@ -205,6 +226,9 @@ iodi_attach(device_t dev)
 
 	if (xlr_board_info.cfi)
 		device_add_child(dev, "cfi", 0);
+
+	if (xlr_board_info.ata)
+		device_add_child(dev, "ata", 0);
 
 	if (xlr_board_info.gmac_block[0].enabled) {
 		tmpd = device_add_child(dev, "rge", 0);
