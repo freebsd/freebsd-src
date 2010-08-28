@@ -88,6 +88,16 @@ struct stn_cc *xls_core_cc_configs[] = {&xls_cc_table_cpu_0, &xls_cc_table_cpu_1
 
 struct xlr_board_info xlr_board_info;
 
+static int
+xlr_pcmcia_present(void)
+{
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_GPIO_OFFSET);
+	uint32_t resetconf;
+
+	resetconf = xlr_read_reg(mmio, 21);
+	return ((resetconf & 0x4000) != 0);
+}
+
 /*
  * All our knowledge of chip and board that cannot be detected by probing
  * at run-time goes here
@@ -103,6 +113,7 @@ xlr_board_info_setup()
 		/* Board version 8 has NAND flash */
 		xlr_board_info.cfi =
 		    (xlr_boot1_info.board_major_version != RMI_XLR_BOARD_ARIZONA_VIII);
+		xlr_board_info.ata = xlr_pcmcia_present();
 		xlr_board_info.pci_irq = 0;
 		xlr_board_info.credit_configs = xls_core_cc_configs;
 		xlr_board_info.bucket_sizes = &xls_bucket_sizes;
@@ -155,6 +166,7 @@ xlr_board_info_setup()
 		xlr_board_info.nr_cpus = 32;
 		xlr_board_info.usb = 0;
 		xlr_board_info.cfi = 1;
+		xlr_board_info.ata = xlr_pcmcia_present();
 		xlr_board_info.pci_irq = 0;
 		xlr_board_info.credit_configs = xlr_core_cc_configs;
 		xlr_board_info.bucket_sizes = &bucket_sizes;
