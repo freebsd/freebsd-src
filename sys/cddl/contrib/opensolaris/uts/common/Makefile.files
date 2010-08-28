@@ -19,6 +19,9 @@
 # CDDL HEADER END
 #
 
+ZUT_OBJS +=			\
+	zut.o
+
 #
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.

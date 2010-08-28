@@ -47,8 +47,7 @@ int	secpolicy_zinject(struct ucred *cred);
 int	secpolicy_fs_unmount(struct ucred *cred, struct mount *vfsp);
 int	secpolicy_basic_link(struct vnode *vp, struct ucred *cred);
 int	secpolicy_vnode_owner(struct vnode *vp, cred_t *cred, uid_t owner);
-int	secpolicy_vnode_chown(struct vnode *vp, cred_t *cred,
-	    boolean_t check_self);
+int	secpolicy_vnode_chown(struct vnode *vp, cred_t *cred, uid_t owner);
 int	secpolicy_vnode_stky_modify(struct ucred *cred);
 int	secpolicy_vnode_remove(struct vnode *vp, struct ucred *cred);
 int	secpolicy_vnode_access(struct ucred *cred, struct vnode *vp,
