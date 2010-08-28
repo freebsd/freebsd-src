@@ -164,8 +164,6 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		    NFSV4ROOTLOCKMUTEXPTR);
 	} while (!igotlock);
 	NFSUNLOCKV4ROOTMUTEX();
-	NFSLOCKSTATE();	/* to avoid a race with */
-	NFSUNLOCKSTATE();	/* nfsrv_servertimer() */
 
 	/*
 	 * Search for a match in the client list.
@@ -416,8 +414,6 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 			    NFSV4ROOTLOCKMUTEXPTR);
 		} while (!igotlock);
 		NFSUNLOCKV4ROOTMUTEX();
-		NFSLOCKSTATE();	/* to avoid a race with */
-		NFSUNLOCKSTATE();	/* nfsrv_servertimer() */
 	} else if (opflags != CLOPS_RENEW) {
 		NFSLOCKSTATE();
 	}
@@ -547,8 +543,6 @@ nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 		    NFSV4ROOTLOCKMUTEXPTR);
 	} while (!igotlock);
 	NFSUNLOCKV4ROOTMUTEX();
-	NFSLOCKSTATE();	/* to avoid a race with */
-	NFSUNLOCKSTATE();	/* nfsrv_servertimer() */
 
 	/*
 	 * Search for a match in the client list.
@@ -824,11 +818,8 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
 
 /*
  * Server timer routine. It can scan any linked list, so long
- * as it holds the spin lock and there is no exclusive lock on
+ * as it holds the spin/mutex lock and there is no exclusive lock on
  * nfsv4rootfs_lock.
- * Must be called by a kernel thread and not a timer interrupt,
- * so that it only runs when the nfsd threads are sleeping on a
- * uniprocessor and uses the State spin lock for an SMP system.
  * (For OpenBSD, a kthread is ok. For FreeBSD, I think it is ok
  *  to do this from a callout, since the spin locks work. For
  *  Darwin, I'm not sure what will work correctly yet.)
@@ -839,7 +830,7 @@ nfsrv_servertimer(void)
 {
 	struct nfsclient *clp, *nclp;
 	struct nfsstate *stp, *nstp;
-	int i;
+	int got_ref, i;
 
 	/*
 	 * Make sure nfsboottime is set. This is used by V3 as well
@@ -867,13 +858,14 @@ nfsrv_servertimer(void)
 	}
 
 	/*
-	 * Return now if an nfsd thread has the exclusive lock on
-	 * nfsv4rootfs_lock. The dirty trick here is that we have
-	 * the spin lock already and the nfsd threads do a:
-	 * NFSLOCKSTATE, NFSUNLOCKSTATE after getting the exclusive
-	 * lock, so they won't race with code after this check.
+	 * Try and get a reference count on the nfsv4rootfs_lock so that
+	 * no nfsd thread can acquire an exclusive lock on it before this
+	 * call is done. If it is already exclusively locked, just return.
 	 */
-	if (nfsv4rootfs_lock.nfslock_lock & NFSV4LOCK_LOCK) {
+	NFSLOCKV4ROOTMUTEX();
+	got_ref = nfsv4_getref_nonblock(&nfsv4rootfs_lock);
+	NFSUNLOCKV4ROOTMUTEX();
+	if (got_ref == 0) {
 		NFSUNLOCKSTATE();
 		return;
 	}
@@ -945,6 +937,9 @@ nfsrv_servertimer(void)
 	    }
 	}
 	NFSUNLOCKSTATE();
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_relref(&nfsv4rootfs_lock);
+	NFSUNLOCKV4ROOTMUTEX();
 }
 
 /*
@@ -4224,8 +4219,6 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, __unused vnode_t vp,
 			    NFSV4ROOTLOCKMUTEXPTR);
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
-		NFSLOCKSTATE();	/* to avoid a race with */
-		NFSUNLOCKSTATE();	/* nfsrv_servertimer() */
 		*haslockp = 1;
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (1);
@@ -4390,8 +4383,6 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 			    NFSV4ROOTLOCKMUTEXPTR);
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
-		NFSLOCKSTATE();	/* to avoid a race with */
-		NFSUNLOCKSTATE();	/* nfsrv_servertimer() */
 		*haslockp = 1;
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (-1);
