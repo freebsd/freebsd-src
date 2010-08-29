@@ -1234,12 +1234,12 @@ remote_send_thread(void *arg)
 		    data != NULL ? length : 0) < 0) {
 			hio->hio_errors[ncomp] = errno;
 			rw_unlock(&hio_remote_lock[ncomp]);
-			remote_close(res, ncomp);
 			pjdlog_debug(2,
 			    "remote_send: (%p) Unable to send request.", hio);
 			reqlog(LOG_ERR, 0, ggio,
 			    "Unable to send request (%s): ",
 			    strerror(hio->hio_errors[ncomp]));
+			remote_close(res, ncomp);
 			/*
 			 * Take request back from the receive queue and move
 			 * it immediately to the done queue.
