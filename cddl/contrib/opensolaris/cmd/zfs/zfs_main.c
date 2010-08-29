@@ -1733,7 +1733,7 @@ zfs_do_userspace(int argc, char **argv)
 	 */
 	(void) execv(pypath, argv-1);
 
-	(void) printf("internal error: %s not found\n"
+	(void) fprintf(stderr, "internal error: %s not found\n"
 	    "falling back on built-in implementation, "
 	    "some features will not work\n", pypath);
 
@@ -3797,7 +3797,7 @@ static int
 zfs_do_python(int argc, char **argv)
 {
 	(void) execv(pypath, argv-1);
-	(void) printf("internal error: %s not found\n", pypath);
+	(void) fprintf(stderr, "internal error: %s not found\n", pypath);
 	return (-1);
 }
 
