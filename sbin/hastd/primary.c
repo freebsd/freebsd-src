@@ -786,7 +786,9 @@ hastd_primary(struct hast_resource *res)
 		res->hr_workerpid = pid;
 		return;
 	}
+
 	(void)pidfile_close(pfh);
+	hook_fini();
 
 	setproctitle("%s (primary)", res->hr_name);
 
