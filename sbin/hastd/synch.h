@@ -48,6 +48,14 @@ mtx_init(pthread_mutex_t *lock)
 	assert(error == 0);
 }
 static __inline void
+mtx_destroy(pthread_mutex_t *lock)
+{
+	int error;
+
+	error = pthread_mutex_destroy(lock);
+	assert(error == 0);
+}
+static __inline void
 mtx_lock(pthread_mutex_t *lock)
 {
 	int error;
@@ -85,6 +93,14 @@ rw_init(pthread_rwlock_t *lock)
 	int error;
 
 	error = pthread_rwlock_init(lock, NULL);
+	assert(error == 0);
+}
+static __inline void
+rw_destroy(pthread_rwlock_t *lock)
+{
+	int error;
+
+	error = pthread_rwlock_destroy(lock);
 	assert(error == 0);
 }
 static __inline void
