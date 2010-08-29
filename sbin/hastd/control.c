@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "hast.h"
 #include "hastd.h"
 #include "hast_proto.h"
+#include "hooks.h"
 #include "nv.h"
 #include "pjdlog.h"
 #include "proto.h"
@@ -54,6 +55,7 @@ static void
 control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
     uint8_t role, struct hast_resource *res, const char *name, unsigned int no)
 {
+	int oldrole;
 
 	/* Name is always needed. */
 	if (name != NULL)
@@ -85,6 +87,7 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 	pjdlog_info("Role changed to %s.", role2str(role));
 
 	/* Change role to the new one. */
+	oldrole = res->hr_role;
 	res->hr_role = role;
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 
@@ -113,6 +116,8 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 	if (role == HAST_ROLE_PRIMARY)
 		hastd_primary(res);
 	pjdlog_prefix_set("%s", "");
+	hook_exec(res->hr_exec, "role", res->hr_name, role2str(oldrole),
+	    role2str(res->hr_role), NULL);
 }
 
 void
