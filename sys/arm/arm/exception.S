@@ -80,7 +80,9 @@ ASENTRY_NP(swi_entry)
 	PUSHFRAME
 
 	mov	r0, sp			/* Pass the frame to any function */
+	sub	sp, sp, #4
 	bl	_C_LABEL(swi_handler)	/* It's a SWI ! */
+	add	sp, sp, #4
 
 	DO_AST
 	PULLFRAME

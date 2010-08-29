@@ -391,6 +391,8 @@ cpu_thread_alloc(struct thread *td)
 	    PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)
 	    ((u_int)td->td_kstack + USPACE_SVC_STACK_TOP - sizeof(struct pcb)) - 1;
+	/* Ensure the frame is aligned to an 8 byte boundary */
+	td->td_frame = (struct trapframe *)((u_int)td->td_frame & ~7);
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
