@@ -748,7 +748,9 @@ The extended tar interchange format specified in the
 .St -p1003.2
 standard.
 The default blocksize for this format is 10240 bytes.
-Pathnames stored by this format must be 250 characters or less in length.
+Pathnames stored by this format must be 255 characters or less in length.
+The directory part may be at most 155 characters and each path component
+must be less than 100 characters.
 .El
 .Pp
 The

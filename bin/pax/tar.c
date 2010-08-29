@@ -1086,7 +1086,7 @@ name_split(char *name, int len)
 	 */
 	if (len <= TNMSZ)
 		return(name);
-	if (len > (TPFSZ + TNMSZ + 1))
+	if (len > TPFSZ + TNMSZ)
 		return(NULL);
 
 	/*
