@@ -126,11 +126,6 @@ typedef struct pv_entry {
 	vm_page_t pv_ptem;	/* VM page for pte */
 }       *pv_entry_t;
 
-
-#if defined(DIAGNOSTIC)
-#define	PMAP_DIAGNOSTIC
-#endif
-
 /*
  * physmem_desc[] is a superset of phys_avail[] and describes all the
  * memory present in the system.
