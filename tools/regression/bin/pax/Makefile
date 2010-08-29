@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-test:
+all test:
 	prove -vmw regress.t
 
 clean:
