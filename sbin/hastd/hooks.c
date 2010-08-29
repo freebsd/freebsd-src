@@ -82,6 +82,9 @@ struct hookproc {
 static TAILQ_HEAD(, hookproc) hookprocs;
 static pthread_mutex_t hookprocs_lock;
 
+static void hook_remove(struct hookproc *hp);
+static void hook_free(struct hookproc *hp);
+
 static void
 descriptors(void)
 {
@@ -147,9 +150,33 @@ void
 hook_init(void)
 {
 
+	assert(!hooks_initialized);
+
 	mtx_init(&hookprocs_lock);
 	TAILQ_INIT(&hookprocs);
 	hooks_initialized = true;
+}
+
+void
+hook_fini(void)
+{
+	struct hookproc *hp;
+
+	assert(hooks_initialized);
+
+	mtx_lock(&hookprocs_lock);
+	while ((hp = TAILQ_FIRST(&hookprocs)) != NULL) {
+		assert(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
+		assert(hp->hp_pid > 0);
+
+		hook_remove(hp);
+		hook_free(hp);
+	}
+	mtx_unlock(&hookprocs_lock);
+
+	mtx_destroy(&hookprocs_lock);
+	TAILQ_INIT(&hookprocs);
+	hooks_initialized = false;
 }
 
 static struct hookproc *
@@ -238,6 +265,34 @@ hook_find(pid_t pid)
 }
 
 void
+hook_check_one(pid_t pid, int status)
+{
+	struct hookproc *hp;
+
+	mtx_lock(&hookprocs_lock);
+	hp = hook_find(pid);
+	if (hp == NULL) {
+		mtx_unlock(&hookprocs_lock);
+		pjdlog_debug(1, "Unknown process pid=%u", pid);
+		return;
+	}
+	hook_remove(hp);
+	mtx_unlock(&hookprocs_lock);
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+		pjdlog_debug(1, "Hook exited gracefully (pid=%u, cmd=[%s]).",
+		    pid, hp->hp_comm);
+	} else if (WIFSIGNALED(status)) {
+		pjdlog_error("Hook was killed (pid=%u, signal=%d, cmd=[%s]).",
+		    pid, WTERMSIG(status), hp->hp_comm);
+	} else {
+		pjdlog_error("Hook exited ungracefully (pid=%u, exitcode=%d, cmd=[%s]).",
+		    pid, WIFEXITED(status) ? WEXITSTATUS(status) : -1,
+		    hp->hp_comm);
+	}
+	hook_free(hp);
+}
+
+void
 hook_check(bool sigchld)
 {
 	struct hookproc *hp, *hp2;
@@ -250,28 +305,9 @@ hook_check(bool sigchld)
 	/*
 	 * If SIGCHLD was received, garbage collect finished processes.
 	 */
-	while (sigchld && (pid = wait3(&status, WNOHANG, NULL)) > 0) {
-		mtx_lock(&hookprocs_lock);
-		hp = hook_find(pid);
-		if (hp == NULL) {
-			mtx_unlock(&hookprocs_lock);
-			pjdlog_warning("Unknown process pid=%u", pid);
-			continue;
-		}
-		hook_remove(hp);
-		mtx_unlock(&hookprocs_lock);
-		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-			pjdlog_debug(1, "Hook exited gracefully (pid=%u, cmd=[%s]).",
-			    pid, hp->hp_comm);
-		} else if (WIFSIGNALED(status)) {
-			pjdlog_error("Hook was killed (pid=%u, signal=%d, cmd=[%s]).",
-			    pid, WTERMSIG(status), hp->hp_comm);
-		} else {
-			pjdlog_error("Hook exited ungracefully (pid=%u, exitcode=%d, cmd=[%s]).",
-			    pid, WIFEXITED(status) ? WEXITSTATUS(status) : -1,
-			    hp->hp_comm);
-		}
-		hook_free(hp);
+	if (sigchld) {
+		while ((pid = wait3(&status, WNOHANG, NULL)) > 0)
+			hook_check_one(pid, status);
 	}
 
 	/*
