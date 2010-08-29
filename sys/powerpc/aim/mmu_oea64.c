@@ -285,6 +285,7 @@ extern void bs_remap_earlyboot(void);
  * Lock for the pteg and pvo tables.
  */
 struct mtx	moea64_table_mutex;
+struct mtx	moea64_slb_mutex;
 
 /*
  * PTEG data.
@@ -1068,6 +1069,7 @@ moea64_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 */
 	mtx_init(&moea64_table_mutex, "pmap table", NULL, MTX_DEF |
 	    MTX_RECURSE);
+	mtx_init(&moea64_slb_mutex, "SLB table", NULL, MTX_DEF);
 
 	/*
 	 * Initialize the TLBIE lock. TLBIE can only be executed by one CPU.
@@ -2054,6 +2056,7 @@ moea64_get_unique_vsid(void) {
 	entropy = 0;
 	__asm __volatile("mftb %0" : "=r"(entropy));
 
+	mtx_lock(&moea64_slb_mutex);
 	for (i = 0; i < NVSIDS; i += VSID_NBPW) {
 		u_int	n;
 
@@ -2083,9 +2086,11 @@ moea64_get_unique_vsid(void) {
 			hash |= i;
 		}
 		moea64_vsid_bitmap[n] |= mask;
+		mtx_unlock(&moea64_slb_mutex);
 		return (hash);
 	}
 
+	mtx_unlock(&moea64_slb_mutex);
 	panic("%s: out of segments",__func__);
 }
 
