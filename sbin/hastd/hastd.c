@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include "hast.h"
 #include "hast_proto.h"
 #include "hastd.h"
+#include "hooks.h"
 #include "subr.h"
 
 /* Path to configuration file. */
@@ -69,6 +70,9 @@ bool sighup_received = false;
 bool sigexit_received = false;
 /* PID file handle. */
 struct pidfh *pfh;
+
+/* How often check for hooks running for too long. */
+#define	REPORT_INTERVAL	10
 
 static void
 usage(void)
@@ -144,8 +148,10 @@ child_exit(void)
 		if (res == NULL) {
 			/*
 			 * This can happen when new connection arrives and we
-			 * cancel child responsible for the old one.
+			 * cancel child responsible for the old one or if this
+			 * was hook which we executed.
 			 */
+			hook_check_one(pid, status);
 			continue;
 		}
 		pjdlog_prefix_set("[%s] (%s) ", res->hr_name,
@@ -620,6 +626,10 @@ main_loop(void)
 {
 	fd_set rfds, wfds;
 	int cfd, lfd, maxfd, ret;
+	struct timeval timeout;
+
+	timeout.tv_sec = REPORT_INTERVAL;
+	timeout.tv_usec = 0;
 
 	for (;;) {
 		if (sigexit_received) {
@@ -648,8 +658,10 @@ main_loop(void)
 		FD_SET(cfd, &wfds);
 		FD_SET(lfd, &wfds);
 
-		ret = select(maxfd + 1, &rfds, &wfds, NULL, NULL);
-		if (ret == -1) {
+		ret = select(maxfd + 1, &rfds, &wfds, NULL, &timeout);
+		if (ret == 0)
+			hook_check(false);
+		else if (ret == -1) {
 			if (errno == EINTR)
 				continue;
 			KEEP_ERRNO((void)pidfile_remove(pfh));
@@ -753,6 +765,8 @@ main(int argc, char *argv[])
 			    "Unable to write PID to a file");
 		}
 	}
+
+	hook_init();
 
 	main_loop();
 
