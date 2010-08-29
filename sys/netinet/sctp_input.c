@@ -3068,7 +3068,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
     struct sctp_nets *net, uint8_t flg)
 {
 	switch (desc->chunk_type) {
-		case SCTP_DATA:
+	case SCTP_DATA:
 		/* find the tsn to resend (possibly */
 		{
 			uint32_t tsn;
@@ -5717,13 +5717,16 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	struct ip *ip;
 	struct sctphdr *sh;
 	struct sctp_inpcb *inp = NULL;
-
-	uint32_t check, calc_check;
 	struct sctp_nets *net;
 	struct sctp_tcb *stcb = NULL;
 	struct sctp_chunkhdr *ch;
 	int refcount_up = 0;
 	int length, mlen, offset;
+
+#if !defined(SCTP_WITH_NO_CSUM)
+	uint32_t check, calc_check;
+
+#endif
 
 	if (SCTP_GET_PKT_VRFID(i_pak, vrf_id)) {
 		SCTP_RELEASE_PKT(i_pak);
@@ -5799,18 +5802,14 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	    m->m_pkthdr.len,
 	    if_name(m->m_pkthdr.rcvif),
 	    m->m_pkthdr.csum_flags);
+#if defined(SCTP_WITH_NO_CSUM)
+	SCTP_STAT_INCR(sctps_recvnocrc);
+#else
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP_VALID) {
 		SCTP_STAT_INCR(sctps_recvhwcrc);
 		goto sctp_skip_csum_4;
 	}
 	check = sh->checksum;	/* save incoming checksum */
-	if ((check == 0) && (SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback)) &&
-	    ((ip->ip_src.s_addr == ip->ip_dst.s_addr) ||
-	    (SCTP_IS_IT_LOOPBACK(m)))
-	    ) {
-		SCTP_STAT_INCR(sctps_recvnocrc);
-		goto sctp_skip_csum_4;
-	}
 	sh->checksum = 0;	/* prepare for calc */
 	calc_check = sctp_calculate_cksum(m, iphlen);
 	sh->checksum = check;
@@ -5840,6 +5839,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 		goto bad;
 	}
 sctp_skip_csum_4:
+#endif
 	/* destination port of 0 is illegal, based on RFC2960. */
 	if (sh->dest_port == 0) {
 		SCTP_STAT_INCR(sctps_hdrops);
