@@ -1736,6 +1736,7 @@ zfs_do_userspace(int argc, char **argv)
 	(void) fprintf(stderr, "internal error: %s not found\n"
 	    "falling back on built-in implementation, "
 	    "some features will not work\n", pypath);
+	(void) fprintf(stderr, "    install sysutils/py-zfs port to correct this\n");
 
 	if ((zhp = zfs_open(g_zfs, argv[argc-1], ZFS_TYPE_DATASET)) == NULL)
 		return (1);
@@ -3798,6 +3799,7 @@ zfs_do_python(int argc, char **argv)
 {
 	(void) execv(pypath, argv-1);
 	(void) fprintf(stderr, "internal error: %s not found\n", pypath);
+	(void) fprintf(stderr, "    install sysutils/py-zfs port to correct this\n");
 	return (-1);
 }
 
