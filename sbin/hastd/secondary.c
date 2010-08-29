@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "hast.h"
 #include "hast_proto.h"
 #include "hastd.h"
+#include "hooks.h"
 #include "metadata.h"
 #include "proto.h"
 #include "subr.h"
@@ -357,7 +358,9 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		res->hr_workerpid = pid;
 		return;
 	}
+
 	(void)pidfile_close(pfh);
+	hook_fini();
 
 	setproctitle("%s (secondary)", res->hr_name);
 
