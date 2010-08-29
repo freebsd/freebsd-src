@@ -311,6 +311,14 @@
 #define __predict_false(exp)    (exp)
 #endif
 
+#if __GNUC_PREREQ__(4, 2)
+#define	__hidden	__attribute__((__visibility__("hidden")))
+#define	__exported	__attribute__((__visibility__("default")))
+#else
+#define	__hidden
+#define	__exported
+#endif
+
 /*
  * We define this here since <stddef.h>, <sys/queue.h>, and <sys/types.h>
  * require it.
