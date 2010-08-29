@@ -1903,6 +1903,67 @@ keepalive_send(struct hast_resource *res, unsigned int ncomp)
 	pjdlog_debug(2, "keepalive_send: Request sent.");
 }
 
+static void
+guard_one(struct hast_resource *res, unsigned int ncomp)
+{
+	struct proto_conn *in, *out;
+
+	if (!ISREMOTE(ncomp))
+		return;
+
+	rw_rlock(&hio_remote_lock[ncomp]);
+
+	if (!real_remote(res)) {
+		rw_unlock(&hio_remote_lock[ncomp]);
+		return;
+	}
+
+	if (ISCONNECTED(res, ncomp)) {
+		assert(res->hr_remotein != NULL);
+		assert(res->hr_remoteout != NULL);
+		keepalive_send(res, ncomp);
+	}
+
+	if (ISCONNECTED(res, ncomp)) {
+		assert(res->hr_remotein != NULL);
+		assert(res->hr_remoteout != NULL);
+		rw_unlock(&hio_remote_lock[ncomp]);
+		pjdlog_debug(2, "remote_guard: Connection to %s is ok.",
+		    res->hr_remoteaddr);
+		return;
+	}
+
+	assert(res->hr_remotein == NULL);
+	assert(res->hr_remoteout == NULL);
+	/*
+	 * Upgrade the lock. It doesn't have to be atomic as no other thread
+	 * can change connection status from disconnected to connected.
+	 */
+	rw_unlock(&hio_remote_lock[ncomp]);
+	pjdlog_debug(2, "remote_guard: Reconnecting to %s.",
+	    res->hr_remoteaddr);
+	in = out = NULL;
+	if (init_remote(res, &in, &out)) {
+		rw_wlock(&hio_remote_lock[ncomp]);
+		assert(res->hr_remotein == NULL);
+		assert(res->hr_remoteout == NULL);
+		assert(in != NULL && out != NULL);
+		res->hr_remotein = in;
+		res->hr_remoteout = out;
+		rw_unlock(&hio_remote_lock[ncomp]);
+		pjdlog_info("Successfully reconnected to %s.",
+		    res->hr_remoteaddr);
+		sync_start();
+	} else {
+		/* Both connections should be NULL. */
+		assert(res->hr_remotein == NULL);
+		assert(res->hr_remoteout == NULL);
+		assert(in == NULL && out == NULL);
+		pjdlog_debug(2, "remote_guard: Reconnect to %s failed.",
+		    res->hr_remoteaddr);
+	}
+}
+
 /*
  * Thread guards remote connections and reconnects when needed, handles
  * signals, etc.
@@ -1911,11 +1972,12 @@ static void *
 guard_thread(void *arg)
 {
 	struct hast_resource *res = arg;
-	struct proto_conn *in, *out;
 	unsigned int ii, ncomps;
+	time_t lastcheck, now;
 	int timeout;
 
 	ncomps = HAST_NCOMPONENTS;
+	lastcheck = time(NULL);
 
 	for (;;) {
 		if (sigexit_received) {
@@ -1930,63 +1992,24 @@ guard_thread(void *arg)
 		if (sigchld_received)
 			sigchld_received = false;
 
-		timeout = KEEPALIVE_SLEEP;
 		pjdlog_debug(2, "remote_guard: Checking connections.");
 		mtx_lock(&hio_guard_lock);
+		timeout = KEEPALIVE_SLEEP;
 		for (ii = 0; ii < ncomps; ii++) {
-			if (!ISREMOTE(ii))
-				continue;
-			rw_rlock(&hio_remote_lock[ii]);
-			if (ISCONNECTED(res, ii)) {
-				assert(res->hr_remotein != NULL);
-				assert(res->hr_remoteout != NULL);
-				keepalive_send(res, ii);
+			if (!ISCONNECTED(res, ii)) {
+				timeout = RECONNECT_SLEEP;
+				break;
 			}
-			if (ISCONNECTED(res, ii)) {
-				assert(res->hr_remotein != NULL);
-				assert(res->hr_remoteout != NULL);
-				rw_unlock(&hio_remote_lock[ii]);
-				pjdlog_debug(2,
-				    "remote_guard: Connection to %s is ok.",
-				    res->hr_remoteaddr);
-			} else if (real_remote(res)) {
-				assert(res->hr_remotein == NULL);
-				assert(res->hr_remoteout == NULL);
-				/*
-				 * Upgrade the lock. It doesn't have to be
-				 * atomic as no other thread can change
-				 * connection status from disconnected to
-				 * connected.
-				 */
-				rw_unlock(&hio_remote_lock[ii]);
-				pjdlog_debug(2,
-				    "remote_guard: Reconnecting to %s.",
-				    res->hr_remoteaddr);
-				in = out = NULL;
-				if (init_remote(res, &in, &out)) {
-					rw_wlock(&hio_remote_lock[ii]);
-					assert(res->hr_remotein == NULL);
-					assert(res->hr_remoteout == NULL);
-					assert(in != NULL && out != NULL);
-					res->hr_remotein = in;
-					res->hr_remoteout = out;
-					rw_unlock(&hio_remote_lock[ii]);
-					pjdlog_info("Successfully reconnected to %s.",
-					    res->hr_remoteaddr);
-					sync_start();
-				} else {
-					/* Both connections should be NULL. */
-					assert(res->hr_remotein == NULL);
-					assert(res->hr_remoteout == NULL);
-					assert(in == NULL && out == NULL);
-					pjdlog_debug(2,
-					    "remote_guard: Reconnect to %s failed.",
-					    res->hr_remoteaddr);
+		}
+		now = time(NULL);
+		if (lastcheck + timeout <= now) {
+			timeout = KEEPALIVE_SLEEP;
+			for (ii = 0; ii < ncomps; ii++) {
+				guard_one(res, ii);
+				if (!ISCONNECTED(res, ii))
 					timeout = RECONNECT_SLEEP;
-				}
-			} else {
-				rw_unlock(&hio_remote_lock[ii]);
 			}
+			lastcheck = now;
 		}
 		/* Sleep only if a signal wasn't delivered in the meantime. */
 		if (!sigexit_received && !sighup_received && !sigchld_received)
