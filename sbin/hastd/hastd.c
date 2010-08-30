@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <pjdlog.h>
 
 #include "control.h"
+#include "event.h"
 #include "hast.h"
 #include "hast_proto.h"
 #include "hastd.h"
@@ -158,6 +159,11 @@ child_exit(void)
 		    role2str(res->hr_role));
 		child_exit_log(pid, status);
 		proto_close(res->hr_ctrl);
+		res->hr_ctrl = NULL;
+		if (res->hr_event != NULL) {
+			proto_close(res->hr_event);
+			res->hr_event = NULL;
+		}
 		res->hr_workerpid = 0;
 		if (res->hr_role == HAST_ROLE_PRIMARY) {
 			/*
@@ -624,9 +630,10 @@ close:
 static void
 main_loop(void)
 {
-	fd_set rfds;
-	int cfd, lfd, maxfd, ret;
+	struct hast_resource *res;
 	struct timeval timeout;
+	int fd, maxfd, ret;
+	fd_set rfds;
 
 	timeout.tv_sec = REPORT_INTERVAL;
 	timeout.tv_usec = 0;
@@ -646,14 +653,20 @@ main_loop(void)
 			hastd_reload();
 		}
 
-		cfd = proto_descriptor(cfg->hc_controlconn);
-		lfd = proto_descriptor(cfg->hc_listenconn);
-		maxfd = cfd > lfd ? cfd : lfd;
-
 		/* Setup descriptors for select(2). */
 		FD_ZERO(&rfds);
-		FD_SET(cfd, &rfds);
-		FD_SET(lfd, &rfds);
+		maxfd = fd = proto_descriptor(cfg->hc_controlconn);
+		FD_SET(fd, &rfds);
+		fd = proto_descriptor(cfg->hc_listenconn);
+		FD_SET(fd, &rfds);
+		maxfd = fd > maxfd ? fd : maxfd;
+		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
+			if (res->hr_event == NULL)
+				continue;
+			fd = proto_descriptor(res->hr_event);
+			FD_SET(fd, &rfds);
+			maxfd = fd > maxfd ? fd : maxfd;
+		}
 
 		ret = select(maxfd + 1, &rfds, NULL, NULL, &timeout);
 		if (ret == 0)
@@ -665,10 +678,21 @@ main_loop(void)
 			pjdlog_exit(EX_OSERR, "select() failed");
 		}
 
-		if (FD_ISSET(cfd, &rfds))
+		if (FD_ISSET(proto_descriptor(cfg->hc_controlconn), &rfds))
 			control_handle(cfg);
-		if (FD_ISSET(lfd, &rfds))
+		if (FD_ISSET(proto_descriptor(cfg->hc_listenconn), &rfds))
 			listen_accept();
+		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
+			if (res->hr_event == NULL)
+				continue;
+			if (FD_ISSET(proto_descriptor(res->hr_event), &rfds)) {
+				if (event_recv(res) == 0)
+					continue;
+				/* The worker process exited? */
+				proto_close(res->hr_event);
+				res->hr_event = NULL;
+			}
+		}
 	}
 }
 

@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <rangelock.h>
 
 #include "control.h"
+#include "event.h"
 #include "hast.h"
 #include "hast_proto.h"
 #include "hastd.h"
@@ -224,12 +225,6 @@ static void *remote_recv_thread(void *arg);
 static void *ggate_send_thread(void *arg);
 static void *sync_thread(void *arg);
 static void *guard_thread(void *arg);
-
-static void
-dummy_sighandler(int sig __unused)
-{
-	/* Nothing to do. */
-}
 
 static void
 cleanup(struct hast_resource *res)
@@ -429,8 +424,6 @@ init_environment(struct hast_resource *res __unused)
 	/*
 	 * Turn on signals handling.
 	 */
-	/* Because SIGCHLD is ignored by default, setup dummy handler for it. */
-	PJDLOG_VERIFY(signal(SIGCHLD, dummy_sighandler) != SIG_ERR);
 	PJDLOG_VERIFY(sigfillset(&mask) == 0);
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 }
@@ -672,11 +665,11 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		res->hr_remotein = in;
 		res->hr_remoteout = out;
 	}
-	hook_exec(res->hr_exec, "connect", res->hr_name, NULL);
+	event_send(res, EVENT_CONNECT);
 	return (true);
 close:
 	if (errmsg != NULL && strcmp(errmsg, "Split-brain condition!") == 0)
-		hook_exec(res->hr_exec, "split-brain", res->hr_name, NULL);
+		event_send(res, EVENT_SPLITBRAIN);
 	proto_close(out);
 	if (in != NULL)
 		proto_close(in);
@@ -774,6 +767,14 @@ hastd_primary(struct hast_resource *res)
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create control sockets between parent and child");
 	}
+	/*
+	 * Create communication channel between child and parent.
+	 */
+	if (proto_client("socketpair://", &res->hr_event) < 0) {
+		KEEP_ERRNO((void)pidfile_remove(pfh));
+		pjdlog_exit(EX_OSERR,
+		    "Unable to create event sockets between child and parent");
+	}
 
 	pid = fork();
 	if (pid < 0) {
@@ -783,6 +784,8 @@ hastd_primary(struct hast_resource *res)
 
 	if (pid > 0) {
 		/* This is parent. */
+		/* Declare that we are receiver. */
+		proto_recv(res->hr_event, NULL, 0);
 		res->hr_workerpid = pid;
 		return;
 	}
@@ -797,7 +800,9 @@ hastd_primary(struct hast_resource *res)
 	signal(SIGHUP, SIG_DFL);
 	signal(SIGCHLD, SIG_DFL);
 
-	hook_init();
+	/* Declare that we are sender. */
+	proto_send(res->hr_event, NULL, 0);
+
 	init_local(res);
 	if (real_remote(res) && init_remote(res, NULL, NULL))
 		sync_start();
@@ -896,7 +901,7 @@ remote_close(struct hast_resource *res, int ncomp)
 	 */
 	sync_stop();
 
-	hook_exec(res->hr_exec, "disconnect", res->hr_name, NULL);
+	event_send(res, EVENT_DISCONNECT);
 }
 
 /*
@@ -1512,7 +1517,7 @@ sync_thread(void *arg __unused)
 			pjdlog_info("Synchronization interrupted. "
 			    "%jd bytes synchronized so far.",
 			    (intmax_t)synced);
-			hook_exec(res->hr_exec, "syncintr", res->hr_name, NULL);
+			event_send(res, EVENT_SYNCINTR);
 		}
 		while (!sync_inprogress) {
 			dorewind = true;
@@ -1545,8 +1550,7 @@ sync_thread(void *arg __unused)
 				pjdlog_info("Synchronization started. %ju bytes to go.",
 				    (uintmax_t)(res->hr_extentsize *
 				    activemap_ndirty(res->hr_amp)));
-				hook_exec(res->hr_exec, "syncstart",
-				    res->hr_name, NULL);
+				event_send(res, EVENT_SYNCSTART);
 			}
 		}
 		if (offset < 0) {
@@ -1563,8 +1567,7 @@ sync_thread(void *arg __unused)
 					pjdlog_info("Synchronization complete. "
 					    "%jd bytes synchronized.",
 					    (intmax_t)synced);
-					hook_exec(res->hr_exec, "syncdone",
-					    res->hr_name, NULL);
+					event_send(res, EVENT_SYNCDONE);
 				}
 				mtx_lock(&metadata_lock);
 				res->hr_syncsrc = HAST_SYNCSRC_UNDEF;
@@ -1950,7 +1953,6 @@ guard_thread(void *arg)
 	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
-	PJDLOG_VERIFY(sigaddset(&mask, SIGCHLD) == 0);
 
 	timeout.tv_nsec = 0;
 	signo = -1;
@@ -1969,7 +1971,6 @@ guard_thread(void *arg)
 		default:
 			break;
 		}
-		hook_check(signo == SIGCHLD);
 
 		pjdlog_debug(2, "remote_guard: Checking connections.");
 		now = time(NULL);

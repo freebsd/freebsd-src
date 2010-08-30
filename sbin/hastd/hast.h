@@ -181,6 +181,8 @@ struct hast_resource {
 	pid_t	hr_workerpid;
 	/* Control connection between parent and child. */
 	struct proto_conn *hr_ctrl;
+	/* Events from child to parent. */
+	struct proto_conn *hr_event;
 
 	/* Activemap structure. */
 	struct activemap *hr_amp;
