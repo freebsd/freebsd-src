@@ -323,6 +323,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
 		/* Exit on split-brain. */
+		hook_exec(res->hr_exec, "split-brain", res->hr_name, NULL);
 		exit(EX_CONFIG);
 	}
 }
@@ -373,6 +374,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	if (proto_timeout(res->hr_remoteout, res->hr_timeout) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 
+	hook_init();
 	init_local(res);
 	init_remote(res, nvin);
 	init_environment();
