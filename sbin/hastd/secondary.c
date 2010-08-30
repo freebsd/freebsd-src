@@ -74,6 +74,8 @@ struct hio {
 	TAILQ_ENTRY(hio) hio_next;
 };
 
+static struct hast_resource *gres;
+
 /*
  * Free list holds unused structures. When free list is empty, we have to wait
  * until some in-progress requests are freed.
@@ -360,6 +362,8 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		return;
 	}
 
+	gres = res;
+
 	(void)pidfile_close(pfh);
 	hook_fini();
 
@@ -378,6 +382,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	init_local(res);
 	init_remote(res, nvin);
 	init_environment();
+	hook_exec(res->hr_exec, "connect", res->hr_name, NULL);
 
 	error = pthread_create(&td, NULL, recv_thread, res);
 	assert(error == 0);
@@ -501,6 +506,19 @@ end:
 	return (hio->hio_error);
 }
 
+static void
+secondary_exit(int exitcode, const char *fmt, ...)
+{
+	va_list ap;
+
+	assert(exitcode != EX_OK);
+	va_start(ap, fmt);
+	pjdlogv_errno(LOG_ERR, fmt, ap);
+	va_end(ap);
+	hook_exec(gres->hr_exec, "disconnect", gres->hr_name, NULL);
+	exit(exitcode);
+}
+
 /*
  * Thread receives requests from the primary node.
  */
@@ -515,7 +533,7 @@ recv_thread(void *arg)
 		QUEUE_TAKE(free, hio);
 		pjdlog_debug(2, "recv: (%p) Got request.", hio);
 		if (hast_proto_recv_hdr(res->hr_remotein, &hio->hio_nv) < 0) {
-			pjdlog_exit(EX_TEMPFAIL,
+			secondary_exit(EX_TEMPFAIL,
 			    "Unable to receive request header");
 		}
 		if (requnpack(res, hio) != 0) {
@@ -537,7 +555,7 @@ recv_thread(void *arg)
 		} else if (hio->hio_cmd == HIO_WRITE) {
 			if (hast_proto_recv_data(res, res->hr_remotein,
 			    hio->hio_nv, hio->hio_data, MAXPHYS) < 0) {
-				pjdlog_exit(EX_TEMPFAIL,
+				secondary_exit(EX_TEMPFAIL,
 				    "Unable to receive reply data");
 			}
 		}
@@ -693,7 +711,7 @@ send_thread(void *arg)
 			nv_add_int16(nvout, hio->hio_error, "error");
 		if (hast_proto_send(res, res->hr_remoteout, nvout, data,
 		    length) < 0) {
-			pjdlog_exit(EX_TEMPFAIL, "Unable to send reply.");
+			secondary_exit(EX_TEMPFAIL, "Unable to send reply.");
 		}
 		nv_free(nvout);
 		pjdlog_debug(2, "send: (%p) Moving request to the free queue.",
