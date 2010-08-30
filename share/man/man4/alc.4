@@ -133,7 +133,7 @@ Value 0 completely disables the interrupt moderation.
 .It Va dev.alc.%d.int_tx_mod
 Maximum amount of time to delay transmit interrupt processing in
 units of 1us.
-The accepted range is 0 to 130000, the default is 50000(50ms).
+The accepted range is 0 to 130000, the default is 1000(1ms).
 Value 0 completely disables the interrupt moderation.
 .It Va dev.alc.%d.process_limit
 Maximum amount of Rx frames to be processed in the event loop before
