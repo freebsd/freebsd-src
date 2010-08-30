@@ -624,7 +624,7 @@ close:
 static void
 main_loop(void)
 {
-	fd_set rfds, wfds;
+	fd_set rfds;
 	int cfd, lfd, maxfd, ret;
 	struct timeval timeout;
 
@@ -654,11 +654,8 @@ main_loop(void)
 		FD_ZERO(&rfds);
 		FD_SET(cfd, &rfds);
 		FD_SET(lfd, &rfds);
-		FD_ZERO(&wfds);
-		FD_SET(cfd, &wfds);
-		FD_SET(lfd, &wfds);
 
-		ret = select(maxfd + 1, &rfds, &wfds, NULL, &timeout);
+		ret = select(maxfd + 1, &rfds, NULL, NULL, &timeout);
 		if (ret == 0)
 			hook_check(false);
 		else if (ret == -1) {
@@ -668,9 +665,9 @@ main_loop(void)
 			pjdlog_exit(EX_OSERR, "select() failed");
 		}
 
-		if (FD_ISSET(cfd, &rfds) || FD_ISSET(cfd, &wfds))
+		if (FD_ISSET(cfd, &rfds))
 			control_handle(cfg);
-		if (FD_ISSET(lfd, &rfds) || FD_ISSET(lfd, &wfds))
+		if (FD_ISSET(lfd, &rfds))
 			listen_accept();
 	}
 }
