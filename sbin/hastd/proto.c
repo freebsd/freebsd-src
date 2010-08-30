@@ -179,7 +179,7 @@ proto_accept(struct proto_conn *conn, struct proto_conn **newconnp)
 }
 
 int
-proto_send(struct proto_conn *conn, const void *data, size_t size)
+proto_send(const struct proto_conn *conn, const void *data, size_t size)
 {
 	int ret;
 
@@ -196,7 +196,7 @@ proto_send(struct proto_conn *conn, const void *data, size_t size)
 }
 
 int
-proto_recv(struct proto_conn *conn, void *data, size_t size)
+proto_recv(const struct proto_conn *conn, void *data, size_t size)
 {
 	int ret;
 
