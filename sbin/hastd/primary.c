@@ -498,6 +498,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	assert(real_remote(res));
 
 	in = out = NULL;
+	errmsg = NULL;
 
 	/* Prepare outgoing connection with remote node. */
 	if (proto_client(res->hr_remoteaddr, &out) < 0) {
@@ -673,6 +674,8 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	}
 	return (true);
 close:
+	if (errmsg != NULL && strcmp(errmsg, "Split-brain condition!") == 0)
+		hook_exec(res->hr_exec, "split-brain", res->hr_name, NULL);
 	proto_close(out);
 	if (in != NULL)
 		proto_close(in);
