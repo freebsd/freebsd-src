@@ -1363,17 +1363,17 @@ exec_check_permissions(imgp)
 	if (error)
 		return (error);
 #endif
-	
+
 	/*
-	 * 1) Check if file execution is disabled for the filesystem that this
-	 *	file resides on.
-	 * 2) Insure that at least one execute bit is on - otherwise root
-	 *	will always succeed, and we don't want to happen unless the
-	 *	file really is executable.
-	 * 3) Insure that the file is a regular file.
+	 * 1) Check if file execution is disabled for the filesystem that
+	 *    this file resides on.
+	 * 2) Ensure that at least one execute bit is on. Otherwise, a
+	 *    privileged user will always succeed, and we don't want this
+	 *    to happen unless the file really is executable.
+	 * 3) Ensure that the file is a regular file.
 	 */
 	if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
-	    ((attr->va_mode & 0111) == 0) ||
+	    (attr->va_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0 ||
 	    (attr->va_type != VREG))
 		return (EACCES);
 
