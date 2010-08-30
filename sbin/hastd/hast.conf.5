@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2010
+.Dd August 30, 2010
 .Dt HAST.CONF 5
 .Os
 .Sh NAME
@@ -212,6 +212,20 @@ Execute the given program on various HAST events.
 Below is the list of currently implemented events and arguments the given
 program is executed with:
 .Bl -tag -width ".Ic xxxx"
+.It Ic "<path> role <resource> <oldrole> <newrole>"
+.Pp
+Executed on both primary and secondary nodes when resource role is changed.
+.Pp
+.It Ic "<path> connect <resource>"
+.Pp
+Executed on both primary and secondary nodes when connection for the given
+resource between the nodes is established.
+.Pp
+.It Ic "<path> disconnect <resource>"
+.Pp
+Executed on both primary and secondary nodes when connection for the given
+resource between the nodes is lost.
+.Pp
 .It Ic "<path> syncstart <resource>"
 .Pp
 Executed on primary node when synchronization process of secondary node is
@@ -227,10 +241,6 @@ completed successfully.
 Executed on primary node when synchronization process of secondary node is
 interrupted, most likely due to secondary node outage or connection failure
 between the nodes.
-.Pp
-.It Ic "<path> role <resource> <oldrole> <newrole>"
-.Pp
-Executed on both primary and secondary nodes when resource role is changed.
 .Pp
 .It Ic "<path> split-brain <resource>"
 .Pp
