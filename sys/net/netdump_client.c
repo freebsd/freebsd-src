@@ -1164,24 +1164,21 @@ netdump_trigger(void *arg, int howto)
 	if ((howto&(RB_HALT|RB_DUMP))!=RB_DUMP || !nd_enable || cold ||
 	    dumping)
 		return;
-	dumping++;
 
 	if (!nd_nic) {
 		printf("netdump_trigger: Can't netdump: no NIC given\n");
-		dumping--;
 		return;
 	}
 
 	if (nd_server.s_addr == INADDR_ANY) {
 		printf("netdump_trigger: Can't netdump; no server IP given\n");
-		dumping--;
 		return;
 	}
 	if (nd_client.s_addr == INADDR_ANY) {
 		printf("netdump_trigger: Can't netdump; no client IP given\n");
-		dumping--;
 		return;
 	}
+	dumping++;
 
 	/*
 	 * netdump is invoked as a shutdown handler instead of as
