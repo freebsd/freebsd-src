@@ -771,14 +771,14 @@ hastd_primary(struct hast_resource *res)
 	 */
 	if (proto_client("socketpair://", &res->hr_ctrl) < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
-		primary_exit(EX_OSERR,
+		pjdlog_exit(EX_OSERR,
 		    "Unable to create control sockets between parent and child");
 	}
 
 	pid = fork();
 	if (pid < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
-		primary_exit(EX_TEMPFAIL, "Unable to fork");
+		pjdlog_exit(EX_TEMPFAIL, "Unable to fork");
 	}
 
 	if (pid > 0) {
