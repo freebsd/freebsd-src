@@ -374,17 +374,11 @@ message_send(unsigned int size, unsigned int code,
 
 	for (i = 0; i < 16; i++) {
 		status = msgrng_read_status();
-		//dbg_msg("status = %Lx\n", status);
 
 		if (status & 0x6) {
 			continue;
 		} else
 			break;
-	}
-	if (i == 16) {
-		if (dest == 0x61)
-			//dbg_msg("Processor %x: Unable to send msg to %llx\n", processor_id(), dest);
-		return status & 0x6;
 	}
 	return msgrng_read_status() & 0x06;
 }
@@ -417,16 +411,10 @@ static __inline__ int
 message_receive(int pri, int *size, int *code, int *src_id,
     struct msgrng_msg *msg)
 {
-	int res = message_receive_fast(pri, *size, *code, *src_id, msg->msg0, msg->msg1, msg->msg2, msg->msg3);
-
-#ifdef MSGRING_DUMP_MESSAGES
-	if (!res) {
-		dbg_msg("Received msg <%llx, %llx, %llx, %llx> <%d,%d,%d>\n",
-		    msg->msg0, msg->msg1, msg->msg2, msg->msg3,
-		    *size, *code, *src_id);
-	}
-#endif
-
+	int res;
+       
+	res = message_receive_fast(pri, *size, *code, *src_id,
+			msg->msg0, msg->msg1, msg->msg2, msg->msg3);
 	return res;
 }
 
