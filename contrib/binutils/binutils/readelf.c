@@ -1740,6 +1740,37 @@ decode_ARM_machine_flags (unsigned e_flags, char buf[])
 	}
       break;
 
+    case EF_ARM_EABI_VER3:
+      strcat (buf, ", Version3 EABI");
+      break;
+
+    case EF_ARM_EABI_VER4:
+      strcat (buf, ", Version4 EABI");
+      while (e_flags)
+	{
+	  unsigned flag;
+
+	  /* Process flags one bit at a time.  */
+	  flag = e_flags & - e_flags;
+	  e_flags &= ~ flag;
+
+	  switch (flag)
+	    {
+	    case EF_ARM_BE8:
+	      strcat (buf, ", BE8");
+	      break;
+
+	    case EF_ARM_LE8:
+	      strcat (buf, ", LE8");
+	      break;
+
+	    default:
+	      unknown = 1;
+	      break;
+	    }
+	}
+      break;
+
     case EF_ARM_EABI_UNKNOWN:
       strcat (buf, ", GNU EABI");
       while (e_flags)

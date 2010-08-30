@@ -42,10 +42,16 @@
 #define EF_ARM_MAPSYMSFIRST 0x10	/* NB conflicts with EF_APCS_FLOAT */
 #define EF_ARM_EABIMASK      0xFF000000
 
+/* Constants defined in AAELF.  */
+#define EF_ARM_BE8	    0x00800000
+#define EF_ARM_LE8	    0x00400000
+
 #define EF_ARM_EABI_VERSION(flags) ((flags) & EF_ARM_EABIMASK)
 #define EF_ARM_EABI_UNKNOWN  0x00000000
 #define EF_ARM_EABI_VER1     0x01000000
 #define EF_ARM_EABI_VER2     0x02000000
+#define EF_ARM_EABI_VER3     0x03000000
+#define EF_ARM_EABI_VER4     0x04000000
 
 /* Local aliases for some flags to match names used by COFF port.  */
 #define F_INTERWORK	   EF_ARM_INTERWORK

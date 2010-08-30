@@ -110,7 +110,10 @@ bfd_boolean bfd_elf32_arm_process_before_allocation
 #endif
 
 
-#define INTERWORK_FLAG(abfd)   (elf_elfheader (abfd)->e_flags & EF_ARM_INTERWORK)
+/* In lieu of proper flags, assume all EABIv4 objects are interworkable.  */
+#define INTERWORK_FLAG(abfd)  \
+  (EF_ARM_EABI_VERSION (elf_elfheader (abfd)->e_flags) == EF_ARM_EABI_VER4 \
+  || (elf_elfheader (abfd)->e_flags & EF_ARM_INTERWORK))
 
 /* The linker script knows the section names for placement.
    The entry_names are used to do simple name mangling on the stubs.
@@ -2664,6 +2667,22 @@ elf32_arm_print_private_bfd_data (abfd, ptr)
 
       flags &= ~(EF_ARM_SYMSARESORTED | EF_ARM_DYNSYMSUSESEGIDX
 		 | EF_ARM_MAPSYMSFIRST);
+      break;
+
+    case EF_ARM_EABI_VER3:
+      fprintf (file, _(" [Version3 EABI]"));
+      break;
+
+    case EF_ARM_EABI_VER4:
+      fprintf (file, _(" [Version4 EABI]"));
+
+      if (flags & EF_ARM_BE8)
+	fprintf (file, _(" [BE8]"));
+
+      if (flags & EF_ARM_LE8)
+	fprintf (file, _(" [LE8]"));
+
+      flags &= ~(EF_ARM_LE8 | EF_ARM_BE8);
       break;
 
     default:
