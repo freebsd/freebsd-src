@@ -104,10 +104,10 @@ xlr_processor_id(void)
  * These should come up in PCI device mode (not yet)
  */
 static __inline__ int
-xlr_board_pci(void)
+xlr_board_pci(int board_major)
 {
-	return ((xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_III) ||
-		(xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_V));
+	return ((board_major == RMI_XLR_BOARD_ARIZONA_III) ||
+		(board_major == RMI_XLR_BOARD_ARIZONA_V));
 }
 
 static __inline__ int

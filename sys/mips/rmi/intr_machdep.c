@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/hwfunc.h>
-#include <mips/rmi/xlrconfig.h>
+
+#include <mips/rmi/rmi_mips_exts.h>
 #include <mips/rmi/interrupt.h>
-#include <mips/rmi/clock.h>
 #include <mips/rmi/pic.h>
 
 struct xlr_intrsrc {
