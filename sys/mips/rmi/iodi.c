@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/reboot.h>
+#include <sys/rman.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
@@ -48,28 +49,17 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
-#include <machine/bus.h>
-#include <machine/intr_machdep.h>
-#include <mips/rmi/iomap.h>
-#include <mips/rmi/pic.h>
-#include <mips/rmi/shared_structs.h>
-#include <mips/rmi/board.h>
-#include <sys/rman.h>
-
-
 #include <machine/param.h>
 #include <machine/intr_machdep.h>
 #include <machine/clock.h>	/* for DELAY */
-#include <machine/bus.h>
 #include <machine/resource.h>
+
+#include <mips/rmi/board.h>
+#include <mips/rmi/pic.h>
 #include <mips/rmi/interrupt.h>
 #include <mips/rmi/msgring.h>
 #include <mips/rmi/iomap.h>
-#include <mips/rmi/debug.h>
-#include <mips/rmi/pic.h>
-#include <mips/rmi/xlrconfig.h>
-#include <mips/rmi/shared_structs.h>
-#include <mips/rmi/board.h>
+#include <mips/rmi/rmi_mips_exts.h>
 
 #include <mips/rmi/dev/xlr/atx_cpld.h>
 #include <mips/rmi/dev/xlr/xgmac_mdio.h>

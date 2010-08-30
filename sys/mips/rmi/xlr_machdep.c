@@ -66,15 +66,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/fls64.h>
 #include <machine/intr_machdep.h>
 #include <machine/smp.h>
-#include <mips/rmi/rmi_mips_exts.h>
 
 #include <mips/rmi/iomap.h>
-#include <mips/rmi/clock.h>
 #include <mips/rmi/msgring.h>
-#include <mips/rmi/xlrconfig.h>
 #include <mips/rmi/interrupt.h>
 #include <mips/rmi/pic.h>
 #include <mips/rmi/board.h>
+#include <mips/rmi/rmi_mips_exts.h>
+#include <mips/rmi/rmi_boot_info.h>
 
 void mpwait(void);
 unsigned long xlr_io_base = (unsigned long)(DEFAULT_XLR_IO_BASE);
