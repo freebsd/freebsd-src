@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <libgeom.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -132,8 +133,6 @@ static pthread_cond_t sync_cond;
  * The lock below allows to synchornize access to remote connections.
  */
 static pthread_rwlock_t *hio_remote_lock;
-static pthread_mutex_t hio_guard_lock;
-static pthread_cond_t hio_guard_cond;
 
 /*
  * Lock to synchronize metadata updates. Also synchronize access to
@@ -152,13 +151,9 @@ static pthread_mutex_t metadata_lock;
  */
 #define	HAST_NCOMPONENTS	2
 /*
- * Number of seconds to sleep between keepalive packets.
+ * Number of seconds to sleep between reconnect retries or keepalive packets.
  */
-#define	KEEPALIVE_SLEEP		10
-/*
- * Number of seconds to sleep between reconnect retries.
- */
-#define	RECONNECT_SLEEP		5
+#define	RETRY_SLEEP		10
 
 #define	ISCONNECTED(res, no)	\
 	((res)->hr_remotein != NULL && (res)->hr_remoteout != NULL)
@@ -230,7 +225,11 @@ static void *ggate_send_thread(void *arg);
 static void *sync_thread(void *arg);
 static void *guard_thread(void *arg);
 
-static void sighandler(int sig);
+static void
+dummy_sighandler(int sig __unused)
+{
+	/* Nothing to do. */
+}
 
 static void
 cleanup(struct hast_resource *res)
@@ -319,6 +318,7 @@ init_environment(struct hast_resource *res __unused)
 {
 	struct hio *hio;
 	unsigned int ii, ncomps;
+	sigset_t mask;
 
 	/*
 	 * In the future it might be per-resource value.
@@ -389,8 +389,6 @@ init_environment(struct hast_resource *res __unused)
 	TAILQ_INIT(&hio_done_list);
 	mtx_init(&hio_done_list_lock);
 	cv_init(&hio_done_list_cond);
-	mtx_init(&hio_guard_lock);
-	cv_init(&hio_guard_cond);
 	mtx_init(&metadata_lock);
 
 	/*
@@ -431,10 +429,10 @@ init_environment(struct hast_resource *res __unused)
 	/*
 	 * Turn on signals handling.
 	 */
-	signal(SIGINT, sighandler);
-	signal(SIGTERM, sighandler);
-	signal(SIGHUP, sighandler);
-	signal(SIGCHLD, sighandler);
+	/* Because SIGCHLD is ignored by default, setup dummy handler for it. */
+	PJDLOG_VERIFY(signal(SIGCHLD, dummy_sighandler) != SIG_ERR);
+	PJDLOG_VERIFY(sigfillset(&mask) == 0);
+	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 }
 
 static void
@@ -893,16 +891,6 @@ remote_close(struct hast_resource *res, int ncomp)
 	 * Stop synchronization if in-progress.
 	 */
 	sync_stop();
-
-	/*
-	 * Wake up guard thread (if we are not called from within guard thread),
-	 * so it can immediately start reconnect.
-	 */
-	if (!mtx_owned(&hio_guard_lock)) {
-		mtx_lock(&hio_guard_lock);
-		cv_signal(&hio_guard_cond);
-		mtx_unlock(&hio_guard_lock);
-	}
 }
 
 /*
@@ -1734,35 +1722,6 @@ free_queue:
 }
 
 static void
-sighandler(int sig)
-{
-	bool unlock;
-
-	switch (sig) {
-	case SIGINT:
-	case SIGTERM:
-		sigexit_received = true;
-		break;
-	case SIGHUP:
-		sighup_received = true;
-		break;
-	case SIGCHLD:
-		sigchld_received = true;
-		break;
-	default:
-		assert(!"invalid condition");
-	}
-	/*
-	 * Racy, but if we cannot obtain hio_guard_lock here, we don't
-	 * want to risk deadlock.
-	 */
-	unlock = mtx_trylock(&hio_guard_lock);
-	cv_signal(&hio_guard_cond);
-	if (unlock)
-		mtx_unlock(&hio_guard_lock);
-}
-
-static void
 config_reload(void)
 {
 	struct hastd_config *newcfg;
@@ -1973,48 +1932,48 @@ guard_thread(void *arg)
 {
 	struct hast_resource *res = arg;
 	unsigned int ii, ncomps;
+	struct timespec timeout;
 	time_t lastcheck, now;
-	int timeout;
+	sigset_t mask;
+	int signo;
 
 	ncomps = HAST_NCOMPONENTS;
 	lastcheck = time(NULL);
 
+	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGCHLD) == 0);
+
+	timeout.tv_nsec = 0;
+	signo = -1;
+
 	for (;;) {
-		if (sigexit_received) {
+		switch (signo) {
+		case SIGHUP:
+			config_reload();
+			break;
+		case SIGINT:
+		case SIGTERM:
+			sigexit_received = true;
 			primary_exitx(EX_OK,
 			    "Termination signal received, exiting.");
+			break;
+		default:
+			break;
 		}
-		if (sighup_received) {
-			sighup_received = false;
-			config_reload();
-		}
-		hook_check(sigchld_received);
-		if (sigchld_received)
-			sigchld_received = false;
+		hook_check(signo == SIGCHLD);
 
 		pjdlog_debug(2, "remote_guard: Checking connections.");
-		mtx_lock(&hio_guard_lock);
-		timeout = KEEPALIVE_SLEEP;
-		for (ii = 0; ii < ncomps; ii++) {
-			if (!ISCONNECTED(res, ii)) {
-				timeout = RECONNECT_SLEEP;
-				break;
-			}
-		}
 		now = time(NULL);
-		if (lastcheck + timeout <= now) {
-			timeout = KEEPALIVE_SLEEP;
-			for (ii = 0; ii < ncomps; ii++) {
+		if (lastcheck + RETRY_SLEEP <= now) {
+			for (ii = 0; ii < ncomps; ii++)
 				guard_one(res, ii);
-				if (!ISCONNECTED(res, ii))
-					timeout = RECONNECT_SLEEP;
-			}
 			lastcheck = now;
 		}
-		/* Sleep only if a signal wasn't delivered in the meantime. */
-		if (!sigexit_received && !sighup_received && !sigchld_received)
-			cv_timedwait(&hio_guard_cond, &hio_guard_lock, timeout);
-		mtx_unlock(&hio_guard_lock);
+		timeout.tv_sec = RETRY_SLEEP;
+		signo = sigtimedwait(&mask, NULL, &timeout);
 	}
 	/* NOTREACHED */
 	return (NULL);
