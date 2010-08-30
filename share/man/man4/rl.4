@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2007
+.Dd November 1, 2008
 .Dt RL 4
 .Os
 .Sh NAME
@@ -200,6 +200,12 @@ Planex FNW-3800-TX
 SMC EZ Card 10/100 PCI 1211-TX
 .It
 SOHO (PRAGMATIC) UE-1211C
+.El
+.Sh LOADER TUNABLES
+.Bl -tag -width indent
+.It Va dev.rl.%unit.twister_enable
+Non-zero value enables the long cable tuning on the specified device.
+Disabled by default.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
