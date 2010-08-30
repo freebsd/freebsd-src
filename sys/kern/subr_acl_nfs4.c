@@ -162,6 +162,7 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	accmode_t priv_granted = 0;
 	int denied, explicitly_denied, access_mask, is_directory,
 	    must_be_owner = 0;
+	mode_t file_mode;
 
 	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND |
 	    VEXPLICIT_DENY | VREAD_NAMED_ATTRS | VWRITE_NAMED_ATTRS |
@@ -216,6 +217,17 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 			denied = EPERM;
 	}
 
+	/*
+	 * For VEXEC, ensure that at least one execute bit is set for
+	 * non-directories. We have to check the mode here to stay
+	 * consistent with execve(2). See the test in
+	 * exec_check_permissions().
+	 */
+	acl_nfs4_sync_mode_from_acl(&file_mode, aclp);
+	if (!denied && !is_directory && (accmode & VEXEC) &&
+	    (file_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0)
+		denied = EACCES;
+
 	if (!denied)
 		return (0);
 
@@ -236,8 +248,14 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 		    PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
-		if ((accmode & VEXEC) && !priv_check_cred(cred,
-		    PRIV_VFS_EXEC, 0))
+		/*
+		 * Ensure that at least one execute bit is on. Otherwise,
+		 * a privileged user will always succeed, and we don't want
+		 * this to happen unless the file really is executable.
+		 */
+		if ((accmode & VEXEC) && (file_mode &
+		    (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
+		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
