@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/taskqueue.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -63,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 
 #include <net/bpf.h>
-
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
@@ -87,26 +87,22 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuregs.h>
 #include <machine/bus.h>	/* */
 #include <machine/resource.h>
-#include <mips/rmi/interrupt.h>
-#include <mips/rmi/msgring.h>
-#include <mips/rmi/iomap.h>
-#include <mips/rmi/debug.h>
-#include <mips/rmi/pic.h>
-#include <mips/rmi/xlrconfig.h>
-#include <mips/rmi/shared_structs.h>
-#include <mips/rmi/board.h>
-
-#include <mips/rmi/dev/xlr/atx_cpld.h>
-#include <mips/rmi/dev/xlr/xgmac_mdio.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/mii/brgphyreg.h>
 
-#include <sys/sysctl.h>
+#include <mips/rmi/interrupt.h>
+#include <mips/rmi/msgring.h>
+#include <mips/rmi/iomap.h>
+#include <mips/rmi/debug.h>
+#include <mips/rmi/pic.h>
+#include <mips/rmi/rmi_mips_exts.h>
+#include <mips/rmi/rmi_boot_info.h>
+#include <mips/rmi/board.h>
+#include <mips/rmi/dev/xlr/atx_cpld.h>
+#include <mips/rmi/dev/xlr/xgmac_mdio.h>
 #include <mips/rmi/dev/xlr/rge.h>
-
-/* #include "opt_rge.h" */
 
 #include "miibus_if.h"
 

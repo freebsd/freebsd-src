@@ -25,13 +25,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * $FreeBSD$
  *
- * RMI_BSD */
+ * RMI_BSD
+ * $FreeBSD$
+ */
 #ifndef _RMI_MSGRING_H_
 #define _RMI_MSGRING_H_
 
-#include <mips/rmi/xlrconfig.h>
+#include <sys/types.h>
+#include <mips/rmi/rmi_mips_exts.h>
 
 #define MSGRNG_TX_BUF_REG 0
 #define MSGRNG_RX_BUF_REG 1
@@ -367,9 +369,6 @@ message_send(unsigned int size, unsigned int code,
 	msgrng_load_tx_msg3(msg->msg3);
 
 	dest = ((size - 1) << 16) | (code << 8) | (stid);
-
-	//dbg_msg("Sending msg<%Lx,%Lx,%Lx,%Lx> to dest = %x\n",
-	    //msg->msg0, msg->msg1, msg->msg2, msg->msg3, dest);
 
 	msgrng_send(dest);
 

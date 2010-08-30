@@ -26,13 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * RMI_BSD */
+ * RMI_BSD
+ * $FreeBSD$
+ */
 #ifndef _SHARED_STRUCTS_H
 #define _SHARED_STRUCTS_H
 
-/* If you make any changes to the below structs, shared_structs_offsets.h
- * should be regenerated
- */
 #define BOOT1_INFO_VERSION 0x0001
 
 struct boot1_info {
