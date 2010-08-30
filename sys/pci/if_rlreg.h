@@ -319,6 +319,27 @@
 #define RL_CMD_STOPREQ		0x0080
 
 /*
+ * Twister register values.  These are completely undocumented and derived
+ * from public sources.
+ */
+#define RL_CSCFG_LINK_OK	0x0400
+#define RL_CSCFG_CHANGE		0x0800
+#define RL_CSCFG_STATUS		0xf000
+#define RL_CSCFG_ROW3		0x7000
+#define RL_CSCFG_ROW2		0x3000
+#define RL_CSCFG_ROW1		0x1000
+#define RL_CSCFG_LINK_DOWN_OFF_CMD 0x03c0
+#define RL_CSCFG_LINK_DOWN_CMD	0xf3c0
+
+#define RL_NWAYTST_RESET	0
+#define RL_NWAYTST_CBL_TEST	0x20
+
+#define RL_PARA78		0x78
+#define RL_PARA78_DEF		0x78fa8388
+#define RL_PARA7C		0x7C
+#define RL_PARA7C_DEF		0xcb38de43
+#define RL_PARA7C_RETUNE	0xfb38de03
+/*
  * EEPROM control register
  */
 #define RL_EE_DATAOUT		0x01	/* Data out */
@@ -819,6 +840,8 @@ struct rl_list_data {
 	bus_addr_t		rl_tx_list_addr;
 };
 
+enum rl_twist { DONE, CHK_LINK, FIND_ROW, SET_PARAM, RECHK_LONG, RETUNE };
+
 struct rl_softc {
 	struct ifnet		*rl_ifp;	/* interface info */
 	bus_space_handle_t	rl_bhandle;	/* bus space handle */
@@ -847,6 +870,10 @@ struct rl_softc {
 	uint32_t		rl_rxlenmask;
 	int			rl_testmode;
 	int			rl_if_flags;
+	int			rl_twister_enable;
+	enum rl_twist		rl_twister;
+	int			rl_twist_row;
+	int			rl_twist_col;
 	int			suspended;	/* 0 = normal  1 = suspended */
 #ifdef DEVICE_POLLING
 	int			rxcycles;

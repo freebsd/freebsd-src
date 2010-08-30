@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -155,7 +156,7 @@ static struct rl_type rl_devs[] = {
 	{ DELTA_VENDORID, DELTA_DEVICEID_8139, RL_8139,
 		"Delta Electronics 8139 10/100BaseTX" },
 	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_8139, RL_8139,
-		"Addtron Technolgy 8139 10/100BaseTX" },
+		"Addtron Technology 8139 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530TXPLUS, RL_8139,
 		"D-Link DFE-530TX+ 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_690TXD, RL_8139,
@@ -802,13 +803,24 @@ rl_attach(device_t dev)
 	struct ifnet		*ifp;
 	struct rl_softc		*sc;
 	struct rl_type		*t;
+	struct sysctl_ctx_list	*ctx;
+	struct sysctl_oid_list	*children;
 	int			error = 0, hwrev, i, pmc, rid;
 	int			unit;
 	uint16_t		rl_did = 0;
+	char			tn[32];
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	sc->rl_dev = dev;
+
+	sc->rl_twister_enable = 0;
+	snprintf(tn, sizeof(tn), "dev.rl.%d.twister_enable", unit);
+	TUNABLE_INT_FETCH(tn, &sc->rl_twister_enable);
+	ctx = device_get_sysctl_ctx(sc->rl_dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->rl_dev));
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "twister_enable", CTLFLAG_RD,
+	   &sc->rl_twister_enable, 0, "");
 
 	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -1342,7 +1354,7 @@ rl_rxeof(struct rl_softc *sc)
 		RL_LOCK(sc);
 	}
 
-	/* No need to sync Rx memory block as we didn't mofify it. */
+	/* No need to sync Rx memory block as we didn't modify it. */
 }
 
 /*
@@ -1408,20 +1420,142 @@ rl_txeof(struct rl_softc *sc)
 }
 
 static void
+rl_twister_update(struct rl_softc *sc)
+{
+	uint16_t linktest;
+	/*
+	 * Table provided by RealTek (Kinston <shangh@realtek.com.tw>) for
+	 * Linux driver.  Values undocumented otherwise.
+	 */
+	static const uint32_t param[4][4] = {
+		{0xcb39de43, 0xcb39ce43, 0xfb38de03, 0xcb38de43},
+		{0xcb39de43, 0xcb39ce43, 0xcb39ce83, 0xcb39ce83},
+		{0xcb39de43, 0xcb39ce43, 0xcb39ce83, 0xcb39ce83},
+		{0xbb39de43, 0xbb39ce43, 0xbb39ce83, 0xbb39ce83}
+	};
+
+	/*
+	 * Tune the so-called twister registers of the RTL8139.  These
+	 * are used to compensate for impedance mismatches.  The
+	 * method for tuning these registers is undocumented and the
+	 * following procedure is collected from public sources.
+	 */
+	switch (sc->rl_twister)
+	{
+	case CHK_LINK:
+		/*
+		 * If we have a sufficient link, then we can proceed in
+		 * the state machine to the next stage.  If not, then
+		 * disable further tuning after writing sane defaults.
+		 */
+		if (CSR_READ_2(sc, RL_CSCFG) & RL_CSCFG_LINK_OK) {
+			CSR_WRITE_2(sc, RL_CSCFG, RL_CSCFG_LINK_DOWN_OFF_CMD);
+			sc->rl_twister = FIND_ROW;
+		} else {
+			CSR_WRITE_2(sc, RL_CSCFG, RL_CSCFG_LINK_DOWN_CMD);
+			CSR_WRITE_4(sc, RL_NWAYTST, RL_NWAYTST_CBL_TEST);
+			CSR_WRITE_4(sc, RL_PARA78, RL_PARA78_DEF);
+			CSR_WRITE_4(sc, RL_PARA7C, RL_PARA7C_DEF);
+			sc->rl_twister = DONE;
+		}
+		break;
+	case FIND_ROW:
+		/*
+		 * Read how long it took to see the echo to find the tuning
+		 * row to use.
+		 */
+		linktest = CSR_READ_2(sc, RL_CSCFG) & RL_CSCFG_STATUS;
+		if (linktest == RL_CSCFG_ROW3)
+			sc->rl_twist_row = 3;
+		else if (linktest == RL_CSCFG_ROW2)
+			sc->rl_twist_row = 2;
+		else if (linktest == RL_CSCFG_ROW1)
+			sc->rl_twist_row = 1;
+		else
+			sc->rl_twist_row = 0;
+		sc->rl_twist_col = 0;
+		sc->rl_twister = SET_PARAM;
+		break;
+	case SET_PARAM:
+		if (sc->rl_twist_col == 0)
+			CSR_WRITE_4(sc, RL_NWAYTST, RL_NWAYTST_RESET);
+		CSR_WRITE_4(sc, RL_PARA7C,
+		    param[sc->rl_twist_row][sc->rl_twist_col]);
+		if (++sc->rl_twist_col == 4) {
+			if (sc->rl_twist_row == 3)
+				sc->rl_twister = RECHK_LONG;
+			else
+				sc->rl_twister = DONE;
+		}
+		break;
+	case RECHK_LONG:
+		/*
+		 * For long cables, we have to double check to make sure we
+		 * don't mistune.
+		 */
+		linktest = CSR_READ_2(sc, RL_CSCFG) & RL_CSCFG_STATUS;
+		if (linktest == RL_CSCFG_ROW3)
+			sc->rl_twister = DONE;
+		else {
+			CSR_WRITE_4(sc, RL_PARA7C, RL_PARA7C_RETUNE);
+			sc->rl_twister = RETUNE;
+		}
+		break;
+	case RETUNE:
+		/* Retune for a shorter cable (try column 2) */
+		CSR_WRITE_4(sc, RL_NWAYTST, RL_NWAYTST_CBL_TEST);
+		CSR_WRITE_4(sc, RL_PARA78, RL_PARA78_DEF);
+		CSR_WRITE_4(sc, RL_PARA7C, RL_PARA7C_DEF);
+		CSR_WRITE_4(sc, RL_NWAYTST, RL_NWAYTST_RESET);
+		sc->rl_twist_row--;
+		sc->rl_twist_col = 0;
+		sc->rl_twister = SET_PARAM;
+		break;
+
+	case DONE:
+		break;
+	}
+	
+}
+
+static void
 rl_tick(void *xsc)
 {
 	struct rl_softc		*sc = xsc;
 	struct mii_data		*mii;
+	int ticks;
 
 	RL_LOCK_ASSERT(sc);
+	/*
+	 * If we're doing the twister cable calibration, then we need to defer
+	 * watchdog timeouts.  This is a no-op in normal operations, but
+	 * can falsely trigger when the cable calibration takes a while and
+	 * there was traffic ready to go when rl was started.
+	 *
+	 * We don't defer mii_tick since that updates the mii status, which
+	 * helps the twister process, at least according to similar patches
+	 * for the Linux driver I found online while doing the fixes.  Worst
+	 * case is a few extra mii reads during calibration.
+	 */
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
 	if ((sc->rl_flags & RL_FLAG_LINK) == 0)
 		rl_miibus_statchg(sc->rl_dev);
+	if (sc->rl_twister_enable) {
+		if (sc->rl_twister == DONE)
+			rl_watchdog(sc);
+		else
+			rl_twister_update(sc);
+		if (sc->rl_twister == DONE)
+			ticks = hz;
+		else
+			ticks = hz / 10;
+	} else {
+		rl_watchdog(sc);
+		ticks = hz;
+	}
 
-	rl_watchdog(sc);
-
-	callout_reset(&sc->rl_stat_callout, hz, rl_tick, sc);
+	callout_reset(&sc->rl_stat_callout, ticks, rl_tick, sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -1550,7 +1684,7 @@ rl_encap(struct rl_softc *sc, struct mbuf **m_head)
 
 	if (padlen > 0) {
 		/*
-		 * Make security concious people happy: zero out the
+		 * Make security-conscious people happy: zero out the
 		 * bytes in the pad area, since we don't know what
 		 * this mbuf cluster buffer's previous user might
 		 * have left in it.
@@ -1669,6 +1803,15 @@ rl_init_locked(struct rl_softc *sc)
 	rl_stop(sc);
 
 	rl_reset(sc);
+	if (sc->rl_twister_enable) {
+		/*
+		 * Reset twister register tuning state.  The twister
+		 * registers and their tuning are undocumented, but
+		 * are necessary to cope with bad links.  rl_twister =
+		 * DONE here will disable this entirely.
+		 */
+		sc->rl_twister = CHK_LINK;
+	}
 
 	/*
 	 * Init our MAC address.  Even though the chipset
