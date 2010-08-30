@@ -315,6 +315,7 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	tw_cli_req_q_init(ctlr, TW_CLI_BUSY_Q);
 	tw_cli_req_q_init(ctlr, TW_CLI_PENDING_Q);
 	tw_cli_req_q_init(ctlr, TW_CLI_COMPLETE_Q);
+	tw_cli_req_q_init(ctlr, TW_CLI_RESET_Q);
 
 	/* Initialize all locks used by CL. */
 	ctlr->gen_lock = &(ctlr->gen_lock_handle);
@@ -675,15 +676,14 @@ tw_cli_init_connection(struct tw_cli_ctlr_context *ctlr,
 	/* Submit the command, and wait for it to complete. */
 	error = tw_cli_submit_and_poll_request(req,
 		TW_CLI_REQUEST_TIMEOUT_PERIOD);
-	if (error == TW_OSL_ETIMEDOUT)
-		/* Clean-up done by tw_cli_submit_and_poll_request. */
-		return(error);
 	if (error)
 		goto out;
 	if ((error = init_connect->status)) {
+#if       0
 		tw_cli_create_ctlr_event(ctlr,
 			TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
 			&(req->cmd_pkt->cmd_hdr));
+#endif // 0
 		goto out;
 	}
 	if (set_features & TWA_EXTENDED_INIT_CONNECT) {
