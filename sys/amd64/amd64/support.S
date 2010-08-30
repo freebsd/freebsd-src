@@ -729,7 +729,7 @@ ENTRY(rdmsr_safe)
 	rdmsr			/* Read MSR pointed by %ecx. Returns
 				   hi byte in edx, lo in %eax */
 	salq	$32,%rdx	/* sign-shift %rdx left */
-	cltq			/* sign-extend %eax -> %rax */
+	movl	%eax,%eax	/* zero-extend %eax -> %rax */
 	orq	%rdx,%rax
 	movq	%rax,(%rsi)
 	xorq	%rax,%rax
