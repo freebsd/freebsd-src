@@ -672,6 +672,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		res->hr_remotein = in;
 		res->hr_remoteout = out;
 	}
+	hook_exec(res->hr_exec, "connect", res->hr_name, NULL);
 	return (true);
 close:
 	if (errmsg != NULL && strcmp(errmsg, "Split-brain condition!") == 0)
@@ -765,8 +766,6 @@ hastd_primary(struct hast_resource *res)
 	pid_t pid;
 	int error;
 
-	gres = res;
-
 	/*
 	 * Create communication channel between parent and child.
 	 */
@@ -787,6 +786,8 @@ hastd_primary(struct hast_resource *res)
 		res->hr_workerpid = pid;
 		return;
 	}
+
+	gres = res;
 
 	(void)pidfile_close(pfh);
 	hook_fini();
@@ -894,6 +895,8 @@ remote_close(struct hast_resource *res, int ncomp)
 	 * Stop synchronization if in-progress.
 	 */
 	sync_stop();
+
+	hook_exec(res->hr_exec, "disconnect", res->hr_name, NULL);
 }
 
 /*
