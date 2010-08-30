@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <pjdlog.h>
 
 #include "control.h"
+#include "event.h"
 #include "hast.h"
 #include "hast_proto.h"
 #include "hastd.h"
@@ -325,7 +326,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
 		/* Exit on split-brain. */
-		hook_exec(res->hr_exec, "split-brain", res->hr_name, NULL);
+		event_send(res, EVENT_SPLITBRAIN);
 		exit(EX_CONFIG);
 	}
 }
@@ -345,6 +346,14 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create control sockets between parent and child");
 	}
+	/*
+	 * Create communication channel between child and parent.
+	 */
+	if (proto_client("socketpair://", &res->hr_event) < 0) {
+		KEEP_ERRNO((void)pidfile_remove(pfh));
+		pjdlog_exit(EX_OSERR,
+		    "Unable to create event sockets between child and parent");
+	}
 
 	pid = fork();
 	if (pid < 0) {
@@ -358,6 +367,8 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		res->hr_remotein = NULL;
 		proto_close(res->hr_remoteout);
 		res->hr_remoteout = NULL;
+		/* Declare that we are receiver. */
+		proto_recv(res->hr_event, NULL, 0);
 		res->hr_workerpid = pid;
 		return;
 	}
@@ -372,17 +383,19 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	signal(SIGHUP, SIG_DFL);
 	signal(SIGCHLD, SIG_DFL);
 
+	/* Declare that we are sender. */
+	proto_send(res->hr_event, NULL, 0);
+
 	/* Error in setting timeout is not critical, but why should it fail? */
 	if (proto_timeout(res->hr_remotein, 0) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 	if (proto_timeout(res->hr_remoteout, res->hr_timeout) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 
-	hook_init();
 	init_local(res);
 	init_remote(res, nvin);
 	init_environment();
-	hook_exec(res->hr_exec, "connect", res->hr_name, NULL);
+	event_send(res, EVENT_CONNECT);
 
 	error = pthread_create(&td, NULL, recv_thread, res);
 	assert(error == 0);
@@ -515,7 +528,7 @@ secondary_exit(int exitcode, const char *fmt, ...)
 	va_start(ap, fmt);
 	pjdlogv_errno(LOG_ERR, fmt, ap);
 	va_end(ap);
-	hook_exec(gres->hr_exec, "disconnect", gres->hr_name, NULL);
+	event_send(gres, EVENT_DISCONNECT);
 	exit(exitcode);
 }
 
