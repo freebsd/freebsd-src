@@ -104,10 +104,9 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/iomap.h>
 #include <mips/rmi/debug.h>
 #include <mips/rmi/pic.h>
-#include <mips/rmi/xlrconfig.h>
-#include <mips/rmi/shared_structs.h>
 #include <mips/rmi/board.h>
 #include <mips/rmi/rmi_mips_exts.h>
+#include <mips/rmi/rmi_boot_info.h>
 #include <mips/rmi/dev/xlr/atx_cpld.h>
 #include <mips/rmi/dev/xlr/xgmac_mdio.h>
 
@@ -209,7 +208,7 @@ static int	prepare_fmn_message(struct nlge_softc *sc,
     uint64_t fr_stid, struct nlge_tx_desc **tx_desc);
 
 static void	release_mbuf(uint64_t phy_addr);
-static void 	release_tx_desc(struct msgrng_msg *msg, int rel_buf);
+static void 	release_tx_desc(struct msgrng_msg *msg);
 static int	send_fmn_msg_tx(struct nlge_softc *, struct msgrng_msg *,
     uint32_t n_entries);
 
@@ -679,7 +678,7 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 
 	if (ctrl == CTRL_REG_FREE || ctrl == CTRL_JUMBO_FREE) {
 		if (is_p2p)
-			release_tx_desc(msg, 1);
+			release_tx_desc(msg);
 		else {
 			release_mbuf(msg->msg0 & 0xffffffffffULL);
 		}
@@ -725,7 +724,7 @@ nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
 
 	cpu = xlr_core_id();	
 	tid = xlr_thr_id();
-	fr_stid = (cpu << 3) + tid + 4;	/* Each CPU has 8 buckets. */
+	fr_stid = cpu * 8 + tid + 4;
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		return;
@@ -1909,9 +1908,9 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 
 		while (len) {
 			if (msg_sz == (FMN_SZ - 1)) {
-				p2p = uma_zalloc(nl_tx_desc_zone, M_NOWAIT);
-			if (p2p == NULL)
-				return 2;
+				p2p = uma_zalloc(nl_tx_desc_zone, M_WAITOK);
+				if (p2p == NULL)
+					return 2;
 				/*
 				 * As we currently use xlr_paddr_lw on a 32-bit
 				 * OS, both the pointers are laid out in one
@@ -1929,7 +1928,7 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 				return 1;
 			}
 			paddr = vtophys(buf);
-			frag_sz = PAGE_SIZE - (buf & PAGE_MASK) ;
+			frag_sz = PAGE_SIZE - (buf & PAGE_MASK);
 			if (len < frag_sz)
 				frag_sz = len;
 			*cur_p2d++ = (127ULL << 54) | ((uint64_t)frag_sz << 40)
@@ -1993,7 +1992,7 @@ release_mbuf(uint64_t phy_addr)
 }
 
 static void
-release_tx_desc(struct msgrng_msg *msg, int rel_buf)
+release_tx_desc(struct msgrng_msg *msg)
 {
 	vm_paddr_t	paddr;
 	uint64_t	temp;
@@ -2005,17 +2004,12 @@ release_tx_desc(struct msgrng_msg *msg, int rel_buf)
 	paddr += (XLR_MAX_TX_FRAGS * sizeof(uint64_t));
 	sr = xlr_enable_kx();
 	temp = xlr_paddr_lw(paddr);
-	mips_wr_status(sr);
 	tx_desc = (struct nlge_tx_desc*)((intptr_t) temp);
-
-	if (rel_buf) {
-		paddr += sizeof(void *);
-		sr = xlr_enable_kx();
-		temp = xlr_paddr_lw(paddr);
-		mips_wr_status(sr);
-		m = (struct mbuf *)((intptr_t) temp);
-		m_freem(m);
-	}
+	paddr += sizeof(void *);
+	temp = xlr_paddr_lw(paddr);
+	mips_wr_status(sr);
+	m = (struct mbuf *)((intptr_t) temp);
+	m_freem(m);
 
 	uma_zfree(nl_tx_desc_zone, tx_desc);
 }

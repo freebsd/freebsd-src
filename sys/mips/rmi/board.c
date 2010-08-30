@@ -38,9 +38,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpufunc.h>
 #include <mips/rmi/msgring.h>
+#include <mips/rmi/rmi_boot_info.h>
 #include <mips/rmi/board.h>
 #include <mips/rmi/pic.h>
-#include <mips/rmi/shared_structs.h>
 
 static int xlr_rxstn_to_txstn_map[128] = {
 	[0 ... 7] = TX_STN_CPU_0,

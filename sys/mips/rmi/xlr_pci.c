@@ -38,23 +38,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
-#include <machine/bus.h>
-#include <machine/md_var.h>
-#include <machine/intr_machdep.h>
-#include <mips/rmi/rmi_mips_exts.h>
-#include <mips/rmi/interrupt.h>
-#include <machine/cpuregs.h>
+#include <sys/rman.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <sys/rman.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
+#include <machine/bus.h>
+#include <machine/md_var.h>
+#include <machine/intr_machdep.h>
+#include <machine/cpuregs.h>
+
+#include <mips/rmi/rmi_mips_exts.h>
+#include <mips/rmi/interrupt.h>
 #include <mips/rmi/iomap.h>
 #include <mips/rmi/pic.h>
-#include <mips/rmi/shared_structs.h>
 #include <mips/rmi/board.h>
 #include <mips/rmi/pcibus.h>
 
