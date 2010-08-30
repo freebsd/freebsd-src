@@ -106,8 +106,8 @@
 
 #define	ALC_MASTER_CFG			0x1400
 #define	MASTER_RESET			0x00000001
+#define	MASTER_TEST_MODE_MASK		0x0000000C
 #define	MASTER_BERT_START		0x00000010
-#define	MASTER_TEST_MODE_MASK		0x000000C0
 #define	MASTER_MTIMER_ENB		0x00000100
 #define	MASTER_MANUAL_INTR_ENB		0x00000200
 #define	MASTER_IM_TX_TIMER_ENB		0x00000400
@@ -144,7 +144,7 @@
  * alc(4) does not rely on Tx completion interrupts, so set it
  * somewhat large value to reduce Tx completion interrupts.
  */
-#define	ALC_IM_TX_TIMER_DEFAULT		50000	/* 50ms */
+#define	ALC_IM_TX_TIMER_DEFAULT		1000	/* 1ms */
 
 #define	ALC_GPHY_CFG			0x140C	/* 16bits */
 #define	GPHY_CFG_EXT_RESET		0x0001
