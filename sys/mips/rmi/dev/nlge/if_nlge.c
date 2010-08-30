@@ -102,7 +102,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/interrupt.h>
 #include <mips/rmi/msgring.h>
 #include <mips/rmi/iomap.h>
-#include <mips/rmi/debug.h>
 #include <mips/rmi/pic.h>
 #include <mips/rmi/board.h>
 #include <mips/rmi/rmi_mips_exts.h>
