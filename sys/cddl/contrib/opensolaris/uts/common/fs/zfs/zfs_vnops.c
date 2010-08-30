@@ -4247,6 +4247,9 @@ zfs_freebsd_access(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+	vnode_t *vp = ap->a_vp;
+	znode_t *zp = VTOZ(vp);
+	znode_phys_t *zphys = zp->z_phys;
 	accmode_t accmode;
 	int error = 0;
 
@@ -4263,15 +4266,19 @@ zfs_freebsd_access(ap)
 	if (error == 0) {
 		accmode = ap->a_accmode & ~(VREAD|VWRITE|VEXEC|VAPPEND);
 		if (accmode != 0) {
-			vnode_t *vp = ap->a_vp;
-			znode_t *zp = VTOZ(vp);
-			znode_phys_t *zphys = zp->z_phys;
-
 			error = vaccess(vp->v_type, zphys->zp_mode,
 			    zphys->zp_uid, zphys->zp_gid, accmode, ap->a_cred,
 			    NULL);
 		}
 	}
+
+	/*
+	 * For VEXEC, ensure that at least one execute bit is set for
+	 * non-directories.
+	 */
+	if (error == 0 && (ap->a_accmode & VEXEC) != 0 && vp->v_type != VDIR &&
+	    (zphys->zp_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0)
+		error = EACCES;
 
 	return (error);
 }
