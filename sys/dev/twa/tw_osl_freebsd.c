@@ -903,6 +903,10 @@ twa_shutdown(device_t dev)
 	/* Disconnect interrupts. */
 	error = twa_teardown_intr(sc);
 
+	/* Stop watchdog task. */
+	callout_drain(&(sc->watchdog_callout[0]));
+	callout_drain(&(sc->watchdog_callout[1]));
+
 	/* Disconnect from the controller. */
 	if ((error = tw_cl_shutdown_ctlr(&(sc->ctlr_handle), 0))) {
 		tw_osli_printf(sc, "error = %d",
