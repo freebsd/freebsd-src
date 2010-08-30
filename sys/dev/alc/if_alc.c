@@ -569,7 +569,7 @@ alc_attach(device_t dev)
 	struct ifnet *ifp;
 	char *aspm_state[] = { "L0s/L1", "L0s", "L1", "L0s/l1" };
 	uint16_t burst;
-	int base, error, i, msic, msixc, pmc, state;
+	int base, error, i, msic, msixc, state;
 	uint32_t cap, ctl, val;
 
 	error = 0;
@@ -600,6 +600,7 @@ alc_attach(device_t dev)
 	sc->alc_rcb = DMA_CFG_RCB_64;
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &base) == 0) {
 		sc->alc_flags |= ALC_FLAG_PCIE;
+		sc->alc_expcap = base;
 		burst = CSR_READ_2(sc, base + PCIR_EXPRESS_DEVICE_CTL);
 		sc->alc_dma_rd_burst =
 		    (burst & PCIM_EXP_CTL_MAX_READ_REQUEST) >> 12;
@@ -610,6 +611,10 @@ alc_attach(device_t dev)
 			device_printf(dev, "TLP payload size : %u bytes.\n",
 			    alc_dma_burst[sc->alc_dma_wr_burst]);
 		}
+		if (alc_dma_burst[sc->alc_dma_rd_burst] > 1024)
+			sc->alc_dma_rd_burst = 3;
+		if (alc_dma_burst[sc->alc_dma_wr_burst] > 1024)
+			sc->alc_dma_wr_burst = 3;
 		/* Clear data link and flow-control protocol error. */
 		val = CSR_READ_4(sc, ALC_PEX_UNC_ERR_SEV);
 		val &= ~(PEX_UNC_ERR_SEV_DLP | PEX_UNC_ERR_SEV_FCP);
@@ -739,8 +744,11 @@ alc_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
 	ifp->if_hwassist = ALC_CSUM_FEATURES | CSUM_TSO;
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+	if (pci_find_extcap(dev, PCIY_PMG, &base) == 0) {
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
+		sc->alc_flags |= ALC_FLAG_PM;
+		sc->alc_pmcap = base;
+	}
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
@@ -1669,20 +1677,14 @@ static void
 alc_setwol(struct alc_softc *sc)
 {
 	struct ifnet *ifp;
-	uint32_t cap, reg, pmcs;
+	uint32_t reg, pmcs;
 	uint16_t pmstat;
-	int base, pmc;
 
 	ALC_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->alc_dev, PCIY_EXPRESS, &base) == 0) {
-		cap = CSR_READ_2(sc, base + PCIR_EXPRESS_LINK_CAP);
-		if ((cap & PCIM_LINK_CAP_ASPM) != 0) {
-			cap = CSR_READ_2(sc, base + PCIR_EXPRESS_LINK_CTL);
-			alc_disable_l0s_l1(sc);
-		}
-	}
-	if (pci_find_extcap(sc->alc_dev, PCIY_PMG, &pmc) != 0) {
+	alc_disable_l0s_l1(sc);
+	ifp = sc->alc_ifp;
+	if ((sc->alc_flags & ALC_FLAG_PM) == 0) {
 		/* Disable WOL. */
 		CSR_WRITE_4(sc, ALC_WOL_CFG, 0);
 		reg = CSR_READ_4(sc, ALC_PCIE_PHYMISC);
@@ -1690,16 +1692,16 @@ alc_setwol(struct alc_softc *sc)
 		CSR_WRITE_4(sc, ALC_PCIE_PHYMISC, reg);
 		/* Force PHY power down. */
 		alc_phy_down(sc);
+		CSR_WRITE_4(sc, ALC_MASTER_CFG,
+		    CSR_READ_4(sc, ALC_MASTER_CFG) | MASTER_CLK_SEL_DIS);
 		return;
 	}
 
-	ifp = sc->alc_ifp;
 	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
 		if ((sc->alc_flags & ALC_FLAG_FASTETHER) == 0)
 			alc_setlinkspeed(sc);
-		reg = CSR_READ_4(sc, ALC_MASTER_CFG);
-		reg &= ~MASTER_CLK_SEL_DIS;
-		CSR_WRITE_4(sc, ALC_MASTER_CFG, reg);
+		CSR_WRITE_4(sc, ALC_MASTER_CFG,
+		    CSR_READ_4(sc, ALC_MASTER_CFG) & ~MASTER_CLK_SEL_DIS);
 	}
 
 	pmcs = 0;
@@ -1721,13 +1723,17 @@ alc_setwol(struct alc_softc *sc)
 	if ((ifp->if_capenable & IFCAP_WOL) == 0) {
 		/* WOL disabled, PHY power down. */
 		alc_phy_down(sc);
+		CSR_WRITE_4(sc, ALC_MASTER_CFG,
+		    CSR_READ_4(sc, ALC_MASTER_CFG) | MASTER_CLK_SEL_DIS);
 	}
 	/* Request PME. */
-	pmstat = pci_read_config(sc->alc_dev, pmc + PCIR_POWER_STATUS, 2);
+	pmstat = pci_read_config(sc->alc_dev,
+	    sc->alc_pmcap + PCIR_POWER_STATUS, 2);
 	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((ifp->if_capenable & IFCAP_WOL) != 0)
 		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->alc_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+	pci_write_config(sc->alc_dev,
+	    sc->alc_pmcap + PCIR_POWER_STATUS, pmstat, 2);
 }
 
 static int
@@ -1750,20 +1756,19 @@ alc_resume(device_t dev)
 {
 	struct alc_softc *sc;
 	struct ifnet *ifp;
-	int pmc;
 	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
 
 	ALC_LOCK(sc);
-	if (pci_find_extcap(sc->alc_dev, PCIY_PMG, &pmc) == 0) {
+	if ((sc->alc_flags & ALC_FLAG_PM) != 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->alc_dev,
-		    pmc + PCIR_POWER_STATUS, 2);
+		    sc->alc_pmcap + PCIR_POWER_STATUS, 2);
 		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
 			pmstat &= ~PCIM_PSTAT_PMEENABLE;
 			pci_write_config(sc->alc_dev,
-			    pmc + PCIR_POWER_STATUS, pmstat, 2);
+			    sc->alc_pmcap + PCIR_POWER_STATUS, pmstat, 2);
 		}
 	}
 	/* Reset PHY. */
@@ -2986,10 +2991,10 @@ alc_init_locked(struct alc_softc *sc)
 	 */
 	CSR_WRITE_4(sc, ALC_INTR_RETRIG_TIMER, ALC_USECS(0));
 	/* Configure CMB. */
-	CSR_WRITE_4(sc, ALC_CMB_TD_THRESH, 4);
-	if ((sc->alc_flags & ALC_FLAG_CMB_BUG) == 0)
+	if ((sc->alc_flags & ALC_FLAG_CMB_BUG) == 0) {
+		CSR_WRITE_4(sc, ALC_CMB_TD_THRESH, 4);
 		CSR_WRITE_4(sc, ALC_CMB_TX_TIMER, ALC_USECS(5000));
-	else
+	} else
 		CSR_WRITE_4(sc, ALC_CMB_TX_TIMER, ALC_USECS(0));
 	/*
 	 * Hardware can be configured to issue SMB interrupt based
@@ -3226,7 +3231,7 @@ alc_stop_mac(struct alc_softc *sc)
 	/* Disable Rx/Tx MAC. */
 	reg = CSR_READ_4(sc, ALC_MAC_CFG);
 	if ((reg & (MAC_CFG_TX_ENB | MAC_CFG_RX_ENB)) != 0) {
-		reg &= ~MAC_CFG_TX_ENB | MAC_CFG_RX_ENB;
+		reg &= ~(MAC_CFG_TX_ENB | MAC_CFG_RX_ENB);
 		CSR_WRITE_4(sc, ALC_MAC_CFG, reg);
 	}
 	for (i = ALC_TIMEOUT; i > 0; i--) {
