@@ -248,8 +248,7 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
 #ifdef TW_OSL_DEBUG
 			tw_cl_print_ctlr_stats(ctlr->ctlr_handle);
 #endif /* TW_OSL_DEBUG */
-			tw_cl_reset_ctlr(ctlr->ctlr_handle);
-			return(TW_OSL_EIO);
+			continue;
 		}
 
 		/*
@@ -402,9 +401,7 @@ tw_cli_complete_io(struct tw_cli_req_context *req)
 #ifdef TW_OSL_DEBUG
 		tw_cl_print_ctlr_stats(ctlr->ctlr_handle);
 #endif /* TW_OSL_DEBUG */
-		tw_cl_reset_ctlr(ctlr->ctlr_handle);
-		req_pkt->status = TW_CL_ERR_REQ_BUS_RESET;
-		goto out;
+		return;
 	}
 
 	if (req->flags & TW_CLI_REQ_FLAGS_PASSTHRU) {
@@ -483,6 +480,7 @@ tw_cli_scsi_complete(struct tw_cli_req_context *req)
 			cdb[8], cdb[9], cdb[10], cdb[11],
 			cdb[12], cdb[13], cdb[14], cdb[15]);
 
+#if       0
 		/* 
 		 * Print the error. Firmware doesn't yet support
 		 * the 'Mode Sense' cmd.  Don't print if the cmd
@@ -493,6 +491,7 @@ tw_cli_scsi_complete(struct tw_cli_req_context *req)
 			tw_cli_create_ctlr_event(req->ctlr,
 				TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
 				cmd_hdr);
+#endif // 0
 	}
 
 	if (scsi_req->sense_data) {
@@ -530,9 +529,11 @@ tw_cli_param_callback(struct tw_cli_req_context *req)
 	 */
 	if (! req->error_code)
 		if (cmd->param.status) {
+#if       0
 			tw_cli_create_ctlr_event(ctlr,
 				TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
 				&(req->cmd_pkt->cmd_hdr));
+#endif // 0
 			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
 				0x1204, 0x1, TW_CL_SEVERITY_ERROR_STRING,
@@ -590,9 +591,11 @@ tw_cli_aen_callback(struct tw_cli_req_context *req)
 		if ((error = cmd->status)) {
 			cmd_hdr = (struct tw_cl_command_header *)
 				(&(req->cmd_pkt->cmd_hdr));
+#if       0
 			tw_cli_create_ctlr_event(ctlr,
 				TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
 				cmd_hdr);
+#endif // 0
 			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
 				0x1206, 0x1, TW_CL_SEVERITY_ERROR_STRING,
