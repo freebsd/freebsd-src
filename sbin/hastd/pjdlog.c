@@ -57,6 +57,9 @@ pjdlog_mode_set(int mode)
 	assert(mode == PJDLOG_MODE_STD || mode == PJDLOG_MODE_SYSLOG);
 
 	pjdlog_mode = mode;
+
+	if (mode == PJDLOG_MODE_SYSLOG)
+		openlog(NULL, LOG_PID, LOG_DAEMON);
 }
 
 /*
