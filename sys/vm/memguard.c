@@ -399,6 +399,31 @@ memguard_free(void *ptr)
 	vm_map_unlock(memguard_map);
 }
 
+/*
+ * Re-allocate an allocation that was originally guarded.
+ */
+void *
+memguard_realloc(void *addr, unsigned long size, struct malloc_type *mtp,
+    int flags)
+{
+	void *newaddr;
+	u_long old_size;
+
+	/*
+	 * Allocate the new block.  Force the allocation to be guarded
+	 * as the original may have been guarded through random
+	 * chance, and that should be preserved.
+	 */
+	if ((newaddr = memguard_alloc(size, flags)) == NULL)
+		return (NULL);
+
+	/* Copy over original contents. */
+	old_size = *v2sizep(trunc_page((uintptr_t)addr));
+	bcopy(addr, newaddr, min(size, old_size));
+	memguard_free(addr);
+	return (newaddr);
+}
+
 int
 memguard_cmp(struct malloc_type *mtp, unsigned long size)
 {
