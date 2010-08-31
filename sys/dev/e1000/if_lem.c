@@ -200,7 +200,7 @@ static void	lem_txeof(struct adapter *);
 static void	lem_tx_purge(struct adapter *);
 static int	lem_allocate_receive_structures(struct adapter *);
 static int	lem_allocate_transmit_structures(struct adapter *);
-static int	lem_rxeof(struct adapter *, int);
+static bool	lem_rxeof(struct adapter *, int, int *);
 #ifndef __NO_STRICT_ALIGNMENT
 static int	lem_fixup_rx(struct adapter *);
 #endif
@@ -1231,7 +1231,7 @@ lem_init(void *arg)
  *  Legacy polling routine  
  *
  *********************************************************************/
-static void
+static int
 lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter *adapter = ifp->if_softc;
@@ -1240,7 +1240,7 @@ lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	EM_CORE_LOCK(adapter);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		EM_CORE_UNLOCK(adapter);
-		return;
+		return (rx_done);
 	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1255,14 +1255,14 @@ lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	EM_CORE_UNLOCK(adapter);
 
-	rx_done = lem_rxeof(adapter, count);
+	lem_rxeof(adapter, count, &rx_done);
 
 	EM_TX_LOCK(adapter);
 	lem_txeof(adapter);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		lem_start_locked(ifp);
 	EM_TX_UNLOCK(adapter);
-	return;
+	return (rx_done);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1308,7 +1308,7 @@ lem_intr(void *arg)
 
 	EM_TX_LOCK(adapter);
 	lem_txeof(adapter);
-	lem_rxeof(adapter, -1);
+	lem_rxeof(adapter, -1, NULL);
 	lem_txeof(adapter);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1350,7 +1350,7 @@ lem_handle_rxtx(void *context, int pending)
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		if (lem_rxeof(adapter, adapter->rx_process_limit) != 0)
+		if (lem_rxeof(adapter, adapter->rx_process_limit, NULL) != 0)
 			taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
 		EM_TX_LOCK(adapter);
 		lem_txeof(adapter);
@@ -1563,6 +1563,19 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 			adapter->no_tx_desc_avail1++;
 			return (ENOBUFS);
 		}
+	}
+
+	/*
+	** When doing checksum offload, it is critical to
+	** make sure the first mbuf has more than header,
+	** because that routine expects data to be present.
+	*/
+	if ((m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) &&
+	    (m_head->m_len < ETHER_HDR_LEN + sizeof(struct ip))) {
+		m_head = m_pullup(m_head, ETHER_HDR_LEN + sizeof(struct ip));
+		*m_headp = m_head;
+		if (m_head == NULL)
+			return (ENOBUFS);
 	}
 
 	/*
@@ -2851,6 +2864,7 @@ lem_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 
 
 	cmd = hdr_len = ipproto = 0;
+	*txd_upper = *txd_lower = 0;
 	curr_txd = adapter->next_avail_tx_desc;
 
 	/*
@@ -2894,9 +2908,6 @@ lem_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 			*txd_upper |= E1000_TXD_POPTS_IXSM << 8;
 		}
 
-		if (mp->m_len < ehdrlen + ip_hlen)
-			return;	/* failure */
-
 		hdr_len = ehdrlen + ip_hlen;
 		ipproto = ip->ip_p;
 
@@ -2905,18 +2916,13 @@ lem_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
 		ip_hlen = sizeof(struct ip6_hdr); /* XXX: No header stacking. */
 
-		if (mp->m_len < ehdrlen + ip_hlen)
-			return;	/* failure */
-
 		/* IPv6 doesn't have a header checksum. */
 
 		hdr_len = ehdrlen + ip_hlen;
 		ipproto = ip6->ip6_nxt;
-
 		break;
+
 	default:
-		*txd_upper = 0;
-		*txd_lower = 0;
 		return;
 	}
 
@@ -2970,6 +2976,8 @@ lem_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 		break;
 	}
 
+	if (TXD == NULL)
+		return;
 	TXD->tcp_seg_setup.data = htole32(0);
 	TXD->cmd_and_length =
 	    htole32(adapter->txd_cmd | E1000_TXD_CMD_DEXT | cmd);
@@ -3449,8 +3457,8 @@ lem_free_receive_structures(struct adapter *adapter)
  *  
  *  For polling we also now return the number of cleaned packets
  *********************************************************************/
-static int
-lem_rxeof(struct adapter *adapter, int count)
+static bool
+lem_rxeof(struct adapter *adapter, int count, int *done)
 {
 	struct ifnet	*ifp = adapter->ifp;;
 	struct mbuf	*mp;
@@ -3466,8 +3474,10 @@ lem_rxeof(struct adapter *adapter, int count)
 	    BUS_DMASYNC_POSTREAD);
 
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
+		if (done != NULL)
+			*done = rx_sent;
 		EM_RX_UNLOCK(adapter);
-		return (rx_sent);
+		return (FALSE);
 	}
 
 	while ((current_desc->status & E1000_RXD_STAT_DD) &&
@@ -3626,8 +3636,10 @@ discard:
 	if (--i < 0)
 		i = adapter->num_rx_desc - 1;
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), i);
+	if (done != NULL)
+		*done = rx_sent;
 	EM_RX_UNLOCK(adapter);
-	return (rx_sent);
+	return (current_desc->status & E1000_RXD_STAT_DD);
 }
 
 #ifndef __NO_STRICT_ALIGNMENT
