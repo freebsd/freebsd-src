@@ -1,5 +1,12 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
+# XXX: clang can compile the boot code just fine, but boot2 gets too big
+.if ${CC:T:Mclang} == "clang"
+CC=gcc
+.endif
+
 FILES=		boot boot1 boot2
 
 NM?=		nm
