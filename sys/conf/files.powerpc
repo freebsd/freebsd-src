@@ -82,7 +82,6 @@ powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/nexus.c		optional	aim
 powerpc/aim/ofw_machdep.c	optional	aim
 powerpc/aim/ofwmagic.S		optional	aim
-powerpc/aim/platform_chrp.c	optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/aim/swtch32.S		optional	aim powerpc
 powerpc/aim/swtch64.S		optional	aim powerpc64
@@ -143,6 +142,7 @@ powerpc/powermac/kiic.c		optional	powermac kiic
 powerpc/powermac/macgpio.c	optional	powermac pci 
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
+powerpc/powermac/platform_powermac.c optional	powermac
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/pmu.c		optional	powermac pmu 
 powerpc/powermac/smu.c		optional	powermac smu 

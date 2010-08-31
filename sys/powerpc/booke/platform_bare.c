@@ -70,6 +70,8 @@ static int bare_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int bare_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int bare_smp_start_cpu(platform_t, struct pcpu *cpu);
 
+static void e500_reset(platform_t);
+
 static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		bare_probe),
 	PLATFORMMETHOD(platform_mem_regions,	bare_mem_regions),
@@ -79,6 +81,8 @@ static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_smp_next_cpu,	bare_smp_next_cpu),
 	PLATFORMMETHOD(platform_smp_get_bsp,	bare_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	bare_smp_start_cpu),
+
+	PLATFORMMETHOD(platform_reset,		e500_reset);
 
 	{ 0, 0 }
 };
@@ -260,3 +264,30 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	return (ENXIO);
 #endif
 }
+
+static void
+e500_reset(platform_t plat)
+{
+	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
+
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
+	    ver == SVR_MPC8548E || ver == SVR_MPC8548)
+		/* Systems with dedicated reset register */
+		ccsr_write4(OCP85XX_RSTCR, 2);
+	else {
+		/* Clear DBCR0, disables debug interrupts and events. */
+		mtspr(SPR_DBCR0, 0);
+		__asm __volatile("isync");
+
+		/* Enable Debug Interrupts in MSR. */
+		mtmsr(mfmsr() | PSL_DE);
+
+		/* Enable debug interrupts and issue reset. */
+		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM |
+		    DBCR0_RST_SYSTEM);
+	}
+
+	printf("Reset failed...\n");
+	while (1);
+}
+
