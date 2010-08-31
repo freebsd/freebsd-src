@@ -3333,10 +3333,37 @@ typedef struct upgrade_cbdata {
 	int	cb_all;
 	int	cb_first;
 	int	cb_newer;
+	char	cb_poolname[ZPOOL_MAXNAMELEN];
 	int	cb_argc;
 	uint64_t cb_version;
 	char	**cb_argv;
 } upgrade_cbdata_t;
+
+static int
+is_root_pool(zpool_handle_t *zhp)
+{
+	static struct statfs sfs;
+	static char *poolname = NULL;
+	static boolean_t stated = B_FALSE;
+	char *slash;
+
+	while (!stated) {
+		stated = B_TRUE;
+		if (statfs("/", &sfs) == -1) {
+			(void) fprintf(stderr,
+			    "Unable to stat root file system: %s.\n",
+			    strerror(errno));
+			break;
+		}
+		if (strcmp(sfs.f_fstypename, "zfs") != 0)
+			break;
+		poolname = sfs.f_mntfromname;
+		if ((slash = strchr(poolname, '/')) != NULL)
+			*slash = '\0';
+		break;
+	}
+	return (poolname != NULL && strcmp(poolname, zpool_get_name(zhp)) == 0);
+}
 
 static int
 upgrade_cb(zpool_handle_t *zhp, void *arg)
@@ -3371,6 +3398,12 @@ upgrade_cb(zpool_handle_t *zhp, void *arg)
 			if (!ret) {
 				(void) printf(gettext("Successfully upgraded "
 				    "'%s'\n\n"), zpool_get_name(zhp));
+				if (cbp->cb_poolname[0] == '\0' &&
+				    is_root_pool(zhp)) {
+					(void) strlcpy(cbp->cb_poolname,
+					    zpool_get_name(zhp),
+					    sizeof(cbp->cb_poolname));
+				}
 			}
 		}
 	} else if (cbp->cb_newer && version > SPA_VERSION) {
@@ -3428,6 +3461,10 @@ upgrade_one(zpool_handle_t *zhp, void *data)
 		    "from version %llu to version %llu\n\n"),
 		    zpool_get_name(zhp), (u_longlong_t)cur_version,
 		    (u_longlong_t)cbp->cb_version);
+		if (cbp->cb_poolname[0] == '\0' && is_root_pool(zhp)) {
+			(void) strlcpy(cbp->cb_poolname, zpool_get_name(zhp),
+			    sizeof(cbp->cb_poolname));
+		}
 	}
 
 	return (ret != 0);
@@ -3567,6 +3604,16 @@ zpool_do_upgrade(int argc, char **argv)
 	} else {
 		ret = for_each_pool(argc, argv, B_FALSE, NULL,
 		    upgrade_one, &cb);
+	}
+
+	if (cb.cb_poolname[0] != '\0') {
+		(void) printf(
+		    "If you boot from pool '%s', don't forget to update boot code.\n"
+		    "Assuming you use GPT partitioning and da0 is your boot disk\n"
+		    "the following command will do it:\n"
+		    "\n"
+		    "\tgpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 da0\n\n",
+		    cb.cb_poolname);
 	}
 
 	return (ret);
