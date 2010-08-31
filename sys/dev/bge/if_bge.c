@@ -3457,8 +3457,8 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
 	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
 
-	statusword = atomic_readandclear_32(
-	    &sc->bge_ldata.bge_status_block->bge_status);
+	statusword = sc->bge_ldata.bge_status_block->bge_status;
+	sc->bge_ldata.bge_status_block->bge_status = 0;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map,
