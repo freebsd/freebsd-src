@@ -3394,7 +3394,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 static void
 bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 {
-	struct bge_tx_bd *cur_tx = NULL;
+	struct bge_tx_bd *cur_tx;
 	struct ifnet *ifp;
 
 	BGE_LOCK_ASSERT(sc);
@@ -3412,7 +3412,7 @@ bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 	 * frames that have been sent.
 	 */
 	while (sc->bge_tx_saved_considx != tx_cons) {
-		uint32_t		idx = 0;
+		uint32_t		idx;
 
 		idx = sc->bge_tx_saved_considx;
 		cur_tx = &sc->bge_ldata.bge_tx_ring[idx];
@@ -3431,8 +3431,7 @@ bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 		BGE_INC(sc->bge_tx_saved_considx, BGE_TX_RING_CNT);
 	}
 
-	if (cur_tx != NULL)
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	if (sc->bge_txcnt == 0)
 		sc->bge_timer = 0;
 }
