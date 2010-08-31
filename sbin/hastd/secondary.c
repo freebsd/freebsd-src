@@ -569,7 +569,7 @@ recv_thread(void *arg)
 			if (hast_proto_recv_data(res, res->hr_remotein,
 			    hio->hio_nv, hio->hio_data, MAXPHYS) < 0) {
 				secondary_exit(EX_TEMPFAIL,
-				    "Unable to receive reply data");
+				    "Unable to receive request data");
 			}
 		}
 		pjdlog_debug(2, "recv: (%p) Moving request to the disk queue.",
