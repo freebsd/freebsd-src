@@ -188,6 +188,23 @@ xls_board_specific_overrides(struct xlr_board_info* board)
 		blk1->gmac_port[1].mdint_id = 0;
 		blk1->gmac_port[2].mdint_id = 0;
 		blk1->gmac_port[3].mdint_id = 0;
+
+		/* If we have a 4xx lite chip, don't enable the 
+		 * GMACs which are disabled in hardware */
+		if (xlr_is_xls4xx_lite()) {
+			xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_GPIO_OFFSET);
+			uint32_t tmp;
+
+			/* Port 6 & 7 are not enabled on the condor 4xx, figure
+			 * this out from the GPIO fuse bank */
+			tmp = xlr_read_reg(mmio, 35);
+			if ((tmp & (3 << 28)) != 0) {
+				blk1->enabled = 0x3;
+				blk1->gmac_port[2].valid = 0;
+				blk1->gmac_port[3].valid = 0;
+				blk1->num_ports = 2;
+			}
+		}
 		break;
 
 	case RMI_XLR_BOARD_ARIZONA_VIII:
