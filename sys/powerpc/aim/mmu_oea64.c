@@ -2232,12 +2232,14 @@ moea64_qremove(mmu_t mmu, vm_offset_t va, int count)
 void
 moea64_release_vsid(uint64_t vsid)
 {
-        int idx, mask;
+	int idx, mask;
 
-        idx = vsid & (NVSIDS-1);
-        mask = 1 << (idx % VSID_NBPW);
-        idx /= VSID_NBPW;
-        moea64_vsid_bitmap[idx] &= ~mask;
+	mtx_lock(&moea64_slb_mutex);
+	idx = vsid & (NVSIDS-1);
+	mask = 1 << (idx % VSID_NBPW);
+	idx /= VSID_NBPW;
+	moea64_vsid_bitmap[idx] &= ~mask;
+	mtx_unlock(&moea64_slb_mutex);
 }
 	
 
@@ -2253,7 +2255,7 @@ moea64_release(mmu_t mmu, pmap_t pmap)
 	slb_free_user_cache(pmap->pm_slb);
     #else
         if (pmap->pm_sr[0] == 0)
-                panic("moea64_release");
+                panic("moea64_release: pm_sr[0] = 0");
 
 	moea64_release_vsid(pmap->pm_sr[0]);
     #endif
