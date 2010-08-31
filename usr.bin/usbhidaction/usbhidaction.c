@@ -165,7 +165,8 @@ main(int argc, char **argv)
 	if (demon) {
 		fp = open(pidfile, O_WRONLY|O_CREAT, S_IRUSR|S_IRGRP|S_IROTH);
 		if (fp >= 0) {
-			sz1 = snprintf(buf, sizeof buf, "%d\n", getpid());
+			sz1 = snprintf(buf, sizeof buf, "%ld\n", 
+			    (long)getpid());
 			if (sz1 > sizeof buf)
 				sz1 = sizeof buf;
 			write(fp, buf, sz1);
