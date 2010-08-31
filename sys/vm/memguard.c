@@ -247,9 +247,13 @@ SYSINIT(memguard, SI_SUB_KLD, SI_ORDER_ANY, memguard_sysinit, NULL);
 static u_long *
 v2sizep(vm_offset_t va)
 {
+	vm_paddr_t pa;
 	struct vm_page *p;
 
-	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
+	pa = pmap_kextract(va);
+	if (pa == 0)
+		panic("MemGuard detected double-free of %p", (void *)va);
+	p = PHYS_TO_VM_PAGE(pa);
 	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
 	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
 	return ((u_long *)&p->pageq.tqe_next);
