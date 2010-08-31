@@ -355,8 +355,10 @@ static int bge_suspend(device_t);
 static int bge_resume(device_t);
 static void bge_release_resources(struct bge_softc *);
 static void bge_dma_map_addr(void *, bus_dma_segment_t *, int, int);
-static int bge_dma_alloc(device_t);
+static int bge_dma_alloc(struct bge_softc *);
 static void bge_dma_free(struct bge_softc *);
+static int bge_dma_ring_alloc(struct bge_softc *, bus_size_t, bus_size_t,
+    bus_dma_tag_t *, uint8_t **, bus_dmamap_t *, bus_addr_t *, const char *);
 
 static int bge_get_eaddr_fw(struct bge_softc *sc, uint8_t ether_addr[]);
 static int bge_get_eaddr_mem(struct bge_softc *, uint8_t[]);
@@ -614,13 +616,9 @@ bge_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	if (error)
 		return;
 
+	KASSERT(nseg == 1, ("%s: %d segments returned!", __func__, nseg));
+
 	ctx = arg;
-
-	if (nseg > ctx->bge_maxsegs) {
-		ctx->bge_maxsegs = 0;
-		return;
-	}
-
 	ctx->bge_busaddr = segs->ds_addr;
 }
 
@@ -2122,27 +2120,84 @@ bge_dma_free(struct bge_softc *sc)
 	if (sc->bge_cdata.bge_stats_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_stats_tag);
 
+	if (sc->bge_cdata.bge_buffer_tag)
+		bus_dma_tag_destroy(sc->bge_cdata.bge_buffer_tag);
+
 	/* Destroy the parent tag. */
 	if (sc->bge_cdata.bge_parent_tag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_parent_tag);
 }
 
 static int
-bge_dma_alloc(device_t dev)
+bge_dma_ring_alloc(struct bge_softc *sc, bus_size_t alignment,
+    bus_size_t maxsize, bus_dma_tag_t *tag, uint8_t **ring, bus_dmamap_t *map,
+    bus_addr_t *paddr, const char *msg)
 {
 	struct bge_dmamap_arg ctx;
-	struct bge_softc *sc;
 	bus_addr_t lowaddr;
-	bus_size_t sbsz, txsegsz, txmaxsegsz;
-	int i, error;
+	bus_size_t ring_end;
+	int error;
 
-	sc = device_get_softc(dev);
+	lowaddr = BUS_SPACE_MAXADDR;
+again:
+	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
+	    alignment, 0, lowaddr, BUS_SPACE_MAXADDR, NULL,
+	    NULL, maxsize, 1, maxsize, 0, NULL, NULL, tag);
+	if (error != 0) {
+		device_printf(sc->bge_dev,
+		    "could not create %s dma tag\n", msg);
+		return (ENOMEM);
+	}
+	/* Allocate DMA'able memory for ring. */
+	error = bus_dmamem_alloc(*tag, (void **)ring,
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, map);
+	if (error != 0) {
+		device_printf(sc->bge_dev,
+		    "could not allocate DMA'able memory for %s\n", msg);
+		return (ENOMEM);
+	}
+	/* Load the address of the ring. */
+	ctx.bge_busaddr = 0;
+	error = bus_dmamap_load(*tag, *map, *ring, maxsize, bge_dma_map_addr,
+	    &ctx, BUS_DMA_NOWAIT);
+	if (error != 0) {
+		device_printf(sc->bge_dev,
+		    "could not load DMA'able memory for %s\n", msg);
+		return (ENOMEM);
+	}
+	*paddr = ctx.bge_busaddr;
+	ring_end = *paddr + maxsize;
+	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0 &&
+	    BGE_ADDR_HI(*paddr) != BGE_ADDR_HI(ring_end)) {
+		/*
+		 * 4GB boundary crossed.  Limit maximum allowable DMA
+		 * address space to 32bit and try again.
+		 */
+		bus_dmamap_unload(*tag, *map);
+		bus_dmamem_free(*tag, *ring, *map);
+		bus_dma_tag_destroy(*tag);
+		if (bootverbose)
+			device_printf(sc->bge_dev, "4GB boundary crossed, "
+			    "limit DMA address space to 32bit for %s\n", msg);
+		*ring = NULL;
+		*tag = NULL;
+		*map = NULL;
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
+		goto again;
+	}
+	return (0);
+}
+
+static int
+bge_dma_alloc(struct bge_softc *sc)
+{
+	bus_addr_t lowaddr;
+	bus_size_t boundary, sbsz, txsegsz, txmaxsegsz;
+	int i, error;
 
 	lowaddr = BUS_SPACE_MAXADDR;
 	if ((sc->bge_flags & BGE_FLAG_40BIT_BUG) != 0)
 		lowaddr = BGE_DMA_MAXADDR;
-	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0)
-		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
@@ -2150,16 +2205,84 @@ bge_dma_alloc(device_t dev)
 	    1, 0, lowaddr, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
 	    0, NULL, NULL, &sc->bge_cdata.bge_parent_tag);
-
 	if (error != 0) {
 		device_printf(sc->bge_dev,
 		    "could not allocate parent dma tag\n");
 		return (ENOMEM);
 	}
 
+	/* Create tag for standard RX ring. */
+	error = bge_dma_ring_alloc(sc, PAGE_SIZE, BGE_STD_RX_RING_SZ,
+	    &sc->bge_cdata.bge_rx_std_ring_tag,
+	    (uint8_t **)&sc->bge_ldata.bge_rx_std_ring,
+	    &sc->bge_cdata.bge_rx_std_ring_map,
+	    &sc->bge_ldata.bge_rx_std_ring_paddr, "RX ring");
+	if (error)
+		return (error);
+
+	/* Create tag for RX return ring. */
+	error = bge_dma_ring_alloc(sc, PAGE_SIZE, BGE_RX_RTN_RING_SZ(sc),
+	    &sc->bge_cdata.bge_rx_return_ring_tag,
+	    (uint8_t **)&sc->bge_ldata.bge_rx_return_ring,
+	    &sc->bge_cdata.bge_rx_return_ring_map,
+	    &sc->bge_ldata.bge_rx_return_ring_paddr, "RX return ring");
+	if (error)
+		return (error);
+
+	/* Create tag for TX ring. */
+	error = bge_dma_ring_alloc(sc, PAGE_SIZE, BGE_TX_RING_SZ,
+	    &sc->bge_cdata.bge_tx_ring_tag,
+	    (uint8_t **)&sc->bge_ldata.bge_tx_ring,
+	    &sc->bge_cdata.bge_tx_ring_map,
+	    &sc->bge_ldata.bge_tx_ring_paddr, "TX ring");
+	if (error)
+		return (error);
+
 	/*
-	 * Create tag for Tx mbufs.
+	 * Create tag for status block.
+	 * Because we only use single Tx/Rx/Rx return ring, use
+	 * minimum status block size except BCM5700 AX/BX which
+	 * seems to want to see full status block size regardless
+	 * of configured number of ring.
 	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
+		sbsz = BGE_STATUS_BLK_SZ;
+	else
+		sbsz = 32;
+	error = bge_dma_ring_alloc(sc, PAGE_SIZE, sbsz,
+	    &sc->bge_cdata.bge_status_tag,
+	    (uint8_t **)&sc->bge_ldata.bge_status_block,
+	    &sc->bge_cdata.bge_status_map,
+	    &sc->bge_ldata.bge_status_block_paddr, "status block");
+	if (error)
+		return (error);
+
+	/* Create tag for jumbo RX ring. */
+	if (BGE_IS_JUMBO_CAPABLE(sc)) {
+		error = bge_dma_ring_alloc(sc, PAGE_SIZE, BGE_JUMBO_RX_RING_SZ,
+		    &sc->bge_cdata.bge_rx_jumbo_ring_tag,
+		    (uint8_t **)&sc->bge_ldata.bge_rx_jumbo_ring,
+		    &sc->bge_cdata.bge_rx_jumbo_ring_map,
+		    &sc->bge_ldata.bge_rx_jumbo_ring_paddr, "jumbo RX ring");
+		if (error)
+			return (error);
+	}
+
+	/* Create parent tag for buffers. */
+	boundary = 0;
+	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0)
+		boundary = BGE_DMA_4G_BNDRY;
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev),
+	    1, boundary, lowaddr, BUS_SPACE_MAXADDR, NULL,
+	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
+	    0, NULL, NULL, &sc->bge_cdata.bge_buffer_tag);
+	if (error != 0) {
+		device_printf(sc->bge_dev,
+		    "could not allocate buffer dma tag\n");
+		return (ENOMEM);
+	}
+	/* Create tag for Tx mbufs. */
 	if (sc->bge_flags & BGE_FLAG_TSO) {
 		txsegsz = BGE_TSOSEG_SZ;
 		txmaxsegsz = 65535 + sizeof(struct ether_vlan_header);
@@ -2167,7 +2290,7 @@ bge_dma_alloc(device_t dev)
 		txsegsz = MCLBYTES;
 		txmaxsegsz = MCLBYTES * BGE_NSEG_NEW;
 	}
-	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1,
+	error = bus_dma_tag_create(sc->bge_cdata.bge_buffer_tag, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    txmaxsegsz, BGE_NSEG_NEW, txsegsz, 0, NULL, NULL,
 	    &sc->bge_cdata.bge_tx_mtag);
@@ -2177,10 +2300,8 @@ bge_dma_alloc(device_t dev)
 		return (ENOMEM);
 	}
 
-	/*
-	 * Create tag for Rx mbufs.
-	 */
-	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1, 0,
+	/* Create tag for Rx mbufs. */
+	error = bus_dma_tag_create(sc->bge_cdata.bge_buffer_tag, 1, 0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1,
 	    MCLBYTES, 0, NULL, NULL, &sc->bge_cdata.bge_rx_mtag);
 
@@ -2218,42 +2339,9 @@ bge_dma_alloc(device_t dev)
 		}
 	}
 
-	/* Create tag for standard RX ring. */
-	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
-	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, BGE_STD_RX_RING_SZ, 1, BGE_STD_RX_RING_SZ, 0,
-	    NULL, NULL, &sc->bge_cdata.bge_rx_std_ring_tag);
-
-	if (error) {
-		device_printf(sc->bge_dev, "could not allocate dma tag\n");
-		return (ENOMEM);
-	}
-
-	/* Allocate DMA'able memory for standard RX ring. */
-	error = bus_dmamem_alloc(sc->bge_cdata.bge_rx_std_ring_tag,
-	    (void **)&sc->bge_ldata.bge_rx_std_ring, BUS_DMA_NOWAIT,
-	    &sc->bge_cdata.bge_rx_std_ring_map);
-	if (error)
-		return (ENOMEM);
-
-	bzero((char *)sc->bge_ldata.bge_rx_std_ring, BGE_STD_RX_RING_SZ);
-
-	/* Load the address of the standard RX ring. */
-	ctx.bge_maxsegs = 1;
-	ctx.sc = sc;
-
-	error = bus_dmamap_load(sc->bge_cdata.bge_rx_std_ring_tag,
-	    sc->bge_cdata.bge_rx_std_ring_map, sc->bge_ldata.bge_rx_std_ring,
-	    BGE_STD_RX_RING_SZ, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
-
-	if (error)
-		return (ENOMEM);
-
-	sc->bge_ldata.bge_rx_std_ring_paddr = ctx.bge_busaddr;
-
-	/* Create tags for jumbo mbufs. */
+	/* Create tags for jumbo RX buffers. */
 	if (BGE_IS_JUMBO_CAPABLE(sc)) {
-		error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
+		error = bus_dma_tag_create(sc->bge_cdata.bge_buffer_tag,
 		    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 		    NULL, MJUM9BYTES, BGE_NSEG_JUMBO, PAGE_SIZE,
 		    0, NULL, NULL, &sc->bge_cdata.bge_mtag_jumbo);
@@ -2262,41 +2350,6 @@ bge_dma_alloc(device_t dev)
 			    "could not allocate jumbo dma tag\n");
 			return (ENOMEM);
 		}
-
-		/* Create tag for jumbo RX ring. */
-		error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
-		    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-		    NULL, BGE_JUMBO_RX_RING_SZ, 1, BGE_JUMBO_RX_RING_SZ, 0,
-		    NULL, NULL, &sc->bge_cdata.bge_rx_jumbo_ring_tag);
-
-		if (error) {
-			device_printf(sc->bge_dev,
-			    "could not allocate jumbo ring dma tag\n");
-			return (ENOMEM);
-		}
-
-		/* Allocate DMA'able memory for jumbo RX ring. */
-		error = bus_dmamem_alloc(sc->bge_cdata.bge_rx_jumbo_ring_tag,
-		    (void **)&sc->bge_ldata.bge_rx_jumbo_ring,
-		    BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-		    &sc->bge_cdata.bge_rx_jumbo_ring_map);
-		if (error)
-			return (ENOMEM);
-
-		/* Load the address of the jumbo RX ring. */
-		ctx.bge_maxsegs = 1;
-		ctx.sc = sc;
-
-		error = bus_dmamap_load(sc->bge_cdata.bge_rx_jumbo_ring_tag,
-		    sc->bge_cdata.bge_rx_jumbo_ring_map,
-		    sc->bge_ldata.bge_rx_jumbo_ring, BGE_JUMBO_RX_RING_SZ,
-		    bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
-
-		if (error)
-			return (ENOMEM);
-
-		sc->bge_ldata.bge_rx_jumbo_ring_paddr = ctx.bge_busaddr;
-
 		/* Create DMA maps for jumbo RX buffers. */
 		error = bus_dmamap_create(sc->bge_cdata.bge_mtag_jumbo,
 		    0, &sc->bge_cdata.bge_rx_jumbo_sparemap);
@@ -2314,153 +2367,7 @@ bge_dma_alloc(device_t dev)
 				return (ENOMEM);
 			}
 		}
-
 	}
-
-	/* Create tag for RX return ring. */
-	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
-	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, BGE_RX_RTN_RING_SZ(sc), 1, BGE_RX_RTN_RING_SZ(sc), 0,
-	    NULL, NULL, &sc->bge_cdata.bge_rx_return_ring_tag);
-
-	if (error) {
-		device_printf(sc->bge_dev, "could not allocate dma tag\n");
-		return (ENOMEM);
-	}
-
-	/* Allocate DMA'able memory for RX return ring. */
-	error = bus_dmamem_alloc(sc->bge_cdata.bge_rx_return_ring_tag,
-	    (void **)&sc->bge_ldata.bge_rx_return_ring, BUS_DMA_NOWAIT,
-	    &sc->bge_cdata.bge_rx_return_ring_map);
-	if (error)
-		return (ENOMEM);
-
-	bzero((char *)sc->bge_ldata.bge_rx_return_ring,
-	    BGE_RX_RTN_RING_SZ(sc));
-
-	/* Load the address of the RX return ring. */
-	ctx.bge_maxsegs = 1;
-	ctx.sc = sc;
-
-	error = bus_dmamap_load(sc->bge_cdata.bge_rx_return_ring_tag,
-	    sc->bge_cdata.bge_rx_return_ring_map,
-	    sc->bge_ldata.bge_rx_return_ring, BGE_RX_RTN_RING_SZ(sc),
-	    bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
-
-	if (error)
-		return (ENOMEM);
-
-	sc->bge_ldata.bge_rx_return_ring_paddr = ctx.bge_busaddr;
-
-	/* Create tag for TX ring. */
-	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
-	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, BGE_TX_RING_SZ, 1, BGE_TX_RING_SZ, 0, NULL, NULL,
-	    &sc->bge_cdata.bge_tx_ring_tag);
-
-	if (error) {
-		device_printf(sc->bge_dev, "could not allocate dma tag\n");
-		return (ENOMEM);
-	}
-
-	/* Allocate DMA'able memory for TX ring. */
-	error = bus_dmamem_alloc(sc->bge_cdata.bge_tx_ring_tag,
-	    (void **)&sc->bge_ldata.bge_tx_ring, BUS_DMA_NOWAIT,
-	    &sc->bge_cdata.bge_tx_ring_map);
-	if (error)
-		return (ENOMEM);
-
-	bzero((char *)sc->bge_ldata.bge_tx_ring, BGE_TX_RING_SZ);
-
-	/* Load the address of the TX ring. */
-	ctx.bge_maxsegs = 1;
-	ctx.sc = sc;
-
-	error = bus_dmamap_load(sc->bge_cdata.bge_tx_ring_tag,
-	    sc->bge_cdata.bge_tx_ring_map, sc->bge_ldata.bge_tx_ring,
-	    BGE_TX_RING_SZ, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
-
-	if (error)
-		return (ENOMEM);
-
-	sc->bge_ldata.bge_tx_ring_paddr = ctx.bge_busaddr;
-
-	/*
-	 * Create tag for status block.
-	 * Because we only use single Tx/Rx/Rx return ring, use
-	 * minimum status block size except BCM5700 AX/BX which
-	 * seems to want to see full status block size regardless
-	 * of configured number of ring.
-	 */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
-	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
-		sbsz = BGE_STATUS_BLK_SZ;
-	else
-		sbsz = 32;
-	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
-	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, sbsz, 1, sbsz, 0, NULL, NULL, &sc->bge_cdata.bge_status_tag);
-
-	if (error) {
-		device_printf(sc->bge_dev,
-		    "could not allocate status dma tag\n");
-		return (ENOMEM);
-	}
-
-	/* Allocate DMA'able memory for status block. */
-	error = bus_dmamem_alloc(sc->bge_cdata.bge_status_tag,
-	    (void **)&sc->bge_ldata.bge_status_block, BUS_DMA_NOWAIT,
-	    &sc->bge_cdata.bge_status_map);
-	if (error)
-		return (ENOMEM);
-
-	bzero((char *)sc->bge_ldata.bge_status_block, sbsz);
-
-	/* Load the address of the status block. */
-	ctx.sc = sc;
-	ctx.bge_maxsegs = 1;
-
-	error = bus_dmamap_load(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map, sc->bge_ldata.bge_status_block,
-	    sbsz, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
-
-	if (error)
-		return (ENOMEM);
-
-	sc->bge_ldata.bge_status_block_paddr = ctx.bge_busaddr;
-
-	/* Create tag for statistics block. */
-	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
-	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, BGE_STATS_SZ, 1, BGE_STATS_SZ, 0, NULL, NULL,
-	    &sc->bge_cdata.bge_stats_tag);
-
-	if (error) {
-		device_printf(sc->bge_dev, "could not allocate dma tag\n");
-		return (ENOMEM);
-	}
-
-	/* Allocate DMA'able memory for statistics block. */
-	error = bus_dmamem_alloc(sc->bge_cdata.bge_stats_tag,
-	    (void **)&sc->bge_ldata.bge_stats, BUS_DMA_NOWAIT,
-	    &sc->bge_cdata.bge_stats_map);
-	if (error)
-		return (ENOMEM);
-
-	bzero((char *)sc->bge_ldata.bge_stats, BGE_STATS_SZ);
-
-	/* Load the address of the statstics block. */
-	ctx.sc = sc;
-	ctx.bge_maxsegs = 1;
-
-	error = bus_dmamap_load(sc->bge_cdata.bge_stats_tag,
-	    sc->bge_cdata.bge_stats_map, sc->bge_ldata.bge_stats,
-	    BGE_STATS_SZ, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
-
-	if (error)
-		return (ENOMEM);
-
-	sc->bge_ldata.bge_stats_paddr = ctx.bge_busaddr;
 
 	return (0);
 }
@@ -2788,7 +2695,7 @@ bge_attach(device_t dev)
 	else
 		sc->bge_return_ring_cnt = BGE_RETURN_RING_CNT;
 
-	if (bge_dma_alloc(dev)) {
+	if (bge_dma_alloc(sc)) {
 		device_printf(sc->bge_dev,
 		    "failed to allocate DMA resources\n");
 		error = ENXIO;
