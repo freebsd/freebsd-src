@@ -161,3 +161,10 @@ METHOD int smp_start_cpu {
 	struct pcpu	*_cpu;
 };
 
+/**
+ * @brief Reset system
+ */
+METHOD void reset {
+	platform_t	_plat;
+};
+

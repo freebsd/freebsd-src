@@ -527,20 +527,21 @@ openfirmware(void *args)
 }
 
 void
-OF_halt()
-{
-	int retval;	/* dummy, this may not be needed */
-
-	OF_interpret("shut-down", 1, &retval);
-	for (;;);	/* just in case */
-}
-
-void
 OF_reboot()
 {
-	int retval;	/* dummy, this may not be needed */
+	struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+		cell_t arg;
+	} args;
 
-	OF_interpret("reset-all", 1, &retval);
+	args.name = (cell_t)(uintptr_t)"interpret";
+	args.nargs = 1;
+	args.nreturns = 0;
+	args.arg = (cell_t)(uintptr_t)"reset-all";
+	openfirmware_core(&args); /* Don't do rendezvous! */
+
 	for (;;);	/* just in case */
 }
 
