@@ -238,15 +238,6 @@ cpu_exit(td)
 }
 
 /*
- * Reset back to firmware.
- */
-void
-cpu_reset()
-{
-	OF_reboot();
-}
-
-/*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
  */
 static void
