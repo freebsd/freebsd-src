@@ -168,15 +168,6 @@ struct bat	battable[16];
 struct kva_md_info kmi;
 
 static void
-powerpc_ofw_shutdown(void *junk, int howto)
-{
-	if (howto & RB_HALT) {
-		OF_halt();
-	}
-	OF_reboot();
-}
-
-static void
 cpu_startup(void *dummy)
 {
 
@@ -233,9 +224,6 @@ cpu_startup(void *dummy)
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-
-	EVENTHANDLER_REGISTER(shutdown_final, powerpc_ofw_shutdown, 0,
-	    SHUTDOWN_PRI_LAST);
 }
 
 extern char	kernel_text[], _end[];
