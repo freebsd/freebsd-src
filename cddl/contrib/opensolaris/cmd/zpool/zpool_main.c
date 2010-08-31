@@ -3347,20 +3347,19 @@ is_root_pool(zpool_handle_t *zhp)
 	static boolean_t stated = B_FALSE;
 	char *slash;
 
-	while (!stated) {
+	if (!stated) {
 		stated = B_TRUE;
 		if (statfs("/", &sfs) == -1) {
 			(void) fprintf(stderr,
 			    "Unable to stat root file system: %s.\n",
 			    strerror(errno));
-			break;
+			return (0);
 		}
 		if (strcmp(sfs.f_fstypename, "zfs") != 0)
-			break;
+			return (0);
 		poolname = sfs.f_mntfromname;
 		if ((slash = strchr(poolname, '/')) != NULL)
 			*slash = '\0';
-		break;
 	}
 	return (poolname != NULL && strcmp(poolname, zpool_get_name(zhp)) == 0);
 }
