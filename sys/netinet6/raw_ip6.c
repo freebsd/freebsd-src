@@ -401,6 +401,7 @@ rip6_output(m, va_alist)
 	struct ifnet *oifp = NULL;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
 	int scope_ambiguous = 0;
+	int use_defzone = 0;
 	struct in6_addr in6a;
 	va_list ap;
 
@@ -430,9 +431,12 @@ rip6_output(m, va_alist)
 	 * XXX: we may still need to determine the zone later.
 	 */
 	if (!(so->so_state & SS_ISCONNECTED)) {
-		if (dstsock->sin6_scope_id == 0 && !V_ip6_use_defzone)
+		if (!optp || !optp->ip6po_pktinfo ||
+		    !optp->ip6po_pktinfo->ipi6_ifindex)
+			use_defzone = V_ip6_use_defzone;
+		if (dstsock->sin6_scope_id == 0 && !use_defzone)
 			scope_ambiguous = 1;
-		if ((error = sa6_embedscope(dstsock, V_ip6_use_defzone)) != 0)
+		if ((error = sa6_embedscope(dstsock, use_defzone)) != 0)
 			goto bad;
 	}
 
