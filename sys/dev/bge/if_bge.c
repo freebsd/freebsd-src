@@ -2272,7 +2272,7 @@ bge_dma_alloc(struct bge_softc *sc)
 	/* Create parent tag for buffers. */
 	boundary = 0;
 	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0)
-		boundary = BGE_DMA_4G_BNDRY;
+		boundary = BGE_DMA_BNDRY;
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev),
 	    1, boundary, lowaddr, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
