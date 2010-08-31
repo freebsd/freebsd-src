@@ -125,16 +125,6 @@ MODULE_DEPEND(rl, miibus, 1, 1, 1);
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-/*
- * Default to using PIO access for this driver. On SMP systems,
- * there appear to be problems with memory mapped mode: it looks like
- * doing too many memory mapped access back to back in rapid succession
- * can hang the bus. I'm inclined to blame this on crummy design/construction
- * on the part of RealTek. Memory mapped mode does appear to work on
- * uniprocessor systems though.
- */
-#define RL_USEIOSPACE
-
 #include <pci/if_rlreg.h>
 
 /*
@@ -224,14 +214,6 @@ static void rl_txeof(struct rl_softc *);
 static void rl_watchdog(struct rl_softc *);
 static void rl_setwol(struct rl_softc *);
 static void rl_clrwol(struct rl_softc *);
-
-#ifdef RL_USEIOSPACE
-#define RL_RES			SYS_RES_IOPORT
-#define RL_RID			RL_PCI_LOIO
-#else
-#define RL_RES			SYS_RES_MEMORY
-#define RL_RID			RL_PCI_LOMEM
-#endif
 
 static device_method_t rl_methods[] = {
 	/* Device interface */
@@ -806,7 +788,7 @@ rl_attach(device_t dev)
 	struct sysctl_ctx_list	*ctx;
 	struct sysctl_oid_list	*children;
 	int			error = 0, hwrev, i, pmc, rid;
-	int			unit;
+	int			prefer_iomap, unit;
 	uint16_t		rl_did = 0;
 	char			tn[32];
 
@@ -828,10 +810,31 @@ rl_attach(device_t dev)
 
 	pci_enable_busmaster(dev);
 
-	/* Map control/status registers. */
-	rid = RL_RID;
-	sc->rl_res = bus_alloc_resource_any(dev, RL_RES, &rid, RF_ACTIVE);
 
+	/*
+	 * Map control/status registers.
+	 * Default to using PIO access for this driver. On SMP systems,
+	 * there appear to be problems with memory mapped mode: it looks
+	 * like doing too many memory mapped access back to back in rapid
+	 * succession can hang the bus. I'm inclined to blame this on
+	 * crummy design/construction on the part of RealTek. Memory
+	 * mapped mode does appear to work on uniprocessor systems though.
+	 */
+	prefer_iomap = 1;
+	snprintf(tn, sizeof(tn), "dev.rl.%d.prefer_iomap", unit);
+	TUNABLE_INT_FETCH(tn, &prefer_iomap);
+	if (prefer_iomap) {
+		sc->rl_res_id = PCIR_BAR(0);
+		sc->rl_res_type = SYS_RES_IOPORT;
+		sc->rl_res = bus_alloc_resource_any(dev, sc->rl_res_type,
+		    &sc->rl_res_id, RF_ACTIVE);
+	}
+	if (prefer_iomap == 0 || sc->rl_res == NULL) {
+		sc->rl_res_id = PCIR_BAR(1);
+		sc->rl_res_type = SYS_RES_MEMORY;
+		sc->rl_res = bus_alloc_resource_any(dev, sc->rl_res_type,
+		    &sc->rl_res_id, RF_ACTIVE);
+	}
 	if (sc->rl_res == NULL) {
 		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
@@ -1029,7 +1032,8 @@ rl_detach(device_t dev)
 	if (sc->rl_irq[0])
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq[0]);
 	if (sc->rl_res)
-		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+		bus_release_resource(dev, sc->rl_res_type, sc->rl_res_id,
+		    sc->rl_res);
 
 	if (ifp)
 		if_free(ifp);
