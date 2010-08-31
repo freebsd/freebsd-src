@@ -2139,20 +2139,9 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 * We try do the per-process part here.
 	 */
 	if (P_SHOULDSTOP(p)) {
-		/*
-		 * The process is in stopped mode. All the threads should be
-		 * either winding down or already on the suspended queue.
-		 */
-		if (p->p_flag & P_TRACED) {
-			/*
-			 * The traced process is already stopped,
-			 * so no further action is necessary.
-			 * No signal can restart us.
-			 */
-			goto out;
-		}
-
 		if (sig == SIGKILL) {
+			if (p->p_flag & P_TRACED)
+				goto out;
 			/*
 			 * SIGKILL sets process running.
 			 * It will die elsewhere.
@@ -2163,6 +2152,8 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		}
 
 		if (prop & SA_CONT) {
+			if (p->p_flag & P_TRACED)
+				goto out;
 			/*
 			 * If SIGCONT is default (or ignored), we continue the
 			 * process but don't leave the signal in sigqueue as
@@ -2207,6 +2198,8 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		}
 
 		if (prop & SA_STOP) {
+			if (p->p_flag & P_TRACED)
+				goto out;
 			/*
 			 * Already stopped, don't need to stop again
 			 * (If we did the shell could get confused).
