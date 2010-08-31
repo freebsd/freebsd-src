@@ -2487,6 +2487,12 @@ struct bge_gib {
 #define	BGE_DMA_MAXADDR		0xFFFFFFFFFF
 #endif
 
+#if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
+#define	BGE_DMA_4G_BNDRY	0x100000000
+#else
+#define	BGE_DMA_4G_BNDRY	0
+#endif
+
 /*
  * Ring structures. Most of these reside in host memory and we tell
  * the NIC where they are via the ring control blocks. The exceptions
@@ -2530,6 +2536,7 @@ struct bge_ring_data {
  */
 struct bge_chain_data {
 	bus_dma_tag_t		bge_parent_tag;
+	bus_dma_tag_t		bge_buffer_tag;
 	bus_dma_tag_t		bge_rx_std_ring_tag;
 	bus_dma_tag_t		bge_rx_jumbo_ring_tag;
 	bus_dma_tag_t		bge_rx_return_ring_tag;
@@ -2558,12 +2565,7 @@ struct bge_chain_data {
 };
 
 struct bge_dmamap_arg {
-	struct bge_softc	*sc;
 	bus_addr_t		bge_busaddr;
-	uint16_t		bge_flags;
-	int			bge_idx;
-	int			bge_maxsegs;
-	struct bge_tx_bd	*bge_ring;
 };
 
 #define	BGE_HWREV_TIGON		0x01
