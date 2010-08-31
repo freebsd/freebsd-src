@@ -786,7 +786,6 @@ jailparam_export(struct jailparam *jp)
 				    valbuf, sizeof(valbuf)) == NULL) {
 					strerror_r(errno, jail_errmsg,
 					    JAIL_ERRMSGLEN);
-
 					return (NULL);
 				}
 				break;
@@ -796,7 +795,6 @@ jailparam_export(struct jailparam *jp)
 				    valbuf, sizeof(valbuf)) == NULL) {
 					strerror_r(errno, jail_errmsg,
 					    JAIL_ERRMSGLEN);
-
 					return (NULL);
 				}
 				break;
@@ -894,7 +892,7 @@ jailparam_type(struct jailparam *jp)
 				mib[1] = 4;
 				desclen = sizeof(desc);
 				if (sysctl(mib, (miblen / sizeof(int)) + 2,
-					   &desc, &desclen, NULL, 0) < 0) {
+				    &desc, &desclen, NULL, 0) < 0) {
 					snprintf(jail_errmsg,
 					    JAIL_ERRMSGLEN,
 					    "sysctl(0.4.%s): %s", desc.s,
@@ -934,7 +932,7 @@ jailparam_type(struct jailparam *jp)
 		isarray = 1;
 		p[-2] = 0;
 	}
-	/* Look for types we understand */
+	/* Look for types we understand. */
 	jp->jp_ctltype = desc.i;
 	switch (desc.i & CTLTYPE) {
 	case CTLTYPE_INT:
