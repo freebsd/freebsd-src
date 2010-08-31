@@ -424,7 +424,10 @@ init_environment(struct hast_resource *res __unused)
 	/*
 	 * Turn on signals handling.
 	 */
-	PJDLOG_VERIFY(sigfillset(&mask) == 0);
+	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 }
 
