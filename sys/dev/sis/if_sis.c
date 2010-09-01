@@ -393,7 +393,6 @@ sis_read_cmos(struct sis_softc *sc, device_t dev, caddr_t dest, int off, int cnt
 	}
 
 	pci_write_config(bridge, 0x48, reg & ~0x40, 1);
-	return;
 }
 
 static void
@@ -418,7 +417,6 @@ sis_read_mac(struct sis_softc *sc, device_t dev, caddr_t dest)
 
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave);
 	CSR_WRITE_4(sc, SIS_CSR, csrsave);
-	return;
 }
 #endif
 
@@ -789,8 +787,6 @@ sis_setmulti_ns(struct sis_softc *sc)
 	if_maddr_runlock(ifp);
 
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave);
-
-	return;
 }
 
 static void
@@ -876,8 +872,6 @@ sis_reset(struct sis_softc *sc)
 		CSR_WRITE_4(sc, NS_CLKRUN, NS_CLKRUN_PMESTS);
 		CSR_WRITE_4(sc, NS_CLKRUN, 0);
 	}
-
-	return;
 }
 
 /*
@@ -1538,8 +1532,6 @@ sis_txeof(struct sis_softc *sc)
 	}
 
 	sc->sis_watchdog_timer = (sc->sis_tx_cnt == 0) ? 0 : 5;
-
-	return;
 }
 
 static void
