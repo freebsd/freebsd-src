@@ -163,7 +163,7 @@ dtrace_load(void *dummy)
 #else
 	dtrace_dev = make_dev(&dtrace_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "dtrace/dtrace");
-	helper_dev = make_dev(&helper_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	helper_dev = make_dev(&helper_cdevsw, 0, UID_ROOT, GID_WHEEL, 0660,
 	    "dtrace/helper");
 #endif
 
