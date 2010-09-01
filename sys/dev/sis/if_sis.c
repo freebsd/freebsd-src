@@ -203,7 +203,7 @@ sis_reverse(uint16_t n)
 	n = ((n >>  4) & 0x0f0f) | ((n <<  4) & 0xf0f0);
 	n = ((n >>  8) & 0x00ff) | ((n <<  8) & 0xff00);
 
-	return(n);
+	return (n);
 }
 
 static void
@@ -342,7 +342,7 @@ sis_find_bridge(device_t dev)
 	int			i, j;
 
 	if ((pci_devclass = devclass_find("pci")) == NULL)
-		return(NULL);
+		return (NULL);
 
 	devclass_get_devices(pci_devclass, &pci_devices, &pci_count);
 
@@ -363,7 +363,7 @@ sis_find_bridge(device_t dev)
 
 done:
 	free(pci_devices, M_TEMP);
-	return(child);
+	return (child);
 }
 
 static void
@@ -515,7 +515,7 @@ sis_mii_readreg(struct sis_softc *sc, struct sis_mii_frame *frame)
 	 * need to clock through 16 cycles to keep the PHY(s) in sync.
 	 */
 	if (ack) {
-		for(i = 0; i < 16; i++) {
+		for (i = 0; i < 16; i++) {
 			SIO_CLR(SIS_MII_CLK);
 			DELAY(1);
 			SIO_SET(SIS_MII_CLK);
@@ -544,8 +544,8 @@ fail:
 	DELAY(1);
 
 	if (ack)
-		return(1);
-	return(0);
+		return (1);
+	return (0);
 }
 
 /*
@@ -588,7 +588,7 @@ sis_mii_writereg(struct sis_softc *sc, struct sis_mii_frame *frame)
  	 */
  	SIO_CLR(SIS_MII_DIR);
 
- 	return(0);
+ 	return (0);
 }
 
 static int
@@ -601,7 +601,7 @@ sis_miibus_readreg(device_t dev, int phy, int reg)
 
 	if (sc->sis_type == SIS_TYPE_83815) {
 		if (phy != 0)
-			return(0);
+			return (0);
 		/*
 		 * The NatSemi chip can take a while after
 		 * a reset to come ready, during which the BMSR
@@ -627,7 +627,7 @@ sis_miibus_readreg(device_t dev, int phy, int reg)
 		int i, val = 0;
 
 		if (phy != 0)
-			return(0);
+			return (0);
 
 		CSR_WRITE_4(sc, SIS_PHYCTL,
 		    (phy << 11) | (reg << 6) | SIS_PHYOP_READ);
@@ -640,15 +640,15 @@ sis_miibus_readreg(device_t dev, int phy, int reg)
 
 		if (i == SIS_TIMEOUT) {
 			device_printf(sc->sis_dev, "PHY failed to come ready\n");
-			return(0);
+			return (0);
 		}
 
 		val = (CSR_READ_4(sc, SIS_PHYCTL) >> 16) & 0xFFFF;
 
 		if (val == 0xFFFF)
-			return(0);
+			return (0);
 
-		return(val);
+		return (val);
 	} else {
 		bzero((char *)&frame, sizeof(frame));
 
@@ -656,7 +656,7 @@ sis_miibus_readreg(device_t dev, int phy, int reg)
 		frame.mii_regaddr = reg;
 		sis_mii_readreg(sc, &frame);
 
-		return(frame.mii_data);
+		return (frame.mii_data);
 	}
 }
 
@@ -670,9 +670,9 @@ sis_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	if (sc->sis_type == SIS_TYPE_83815) {
 		if (phy != 0)
-			return(0);
+			return (0);
 		CSR_WRITE_4(sc, NS_BMCR + (reg * 4), data);
-		return(0);
+		return (0);
 	}
 
 	/*
@@ -685,7 +685,7 @@ sis_miibus_writereg(device_t dev, int phy, int reg, int data)
 		int i;
 
 		if (phy != 0)
-			return(0);
+			return (0);
 
 		CSR_WRITE_4(sc, SIS_PHYCTL, (data << 16) | (phy << 11) |
 		    (reg << 6) | SIS_PHYOP_WRITE);
@@ -706,7 +706,7 @@ sis_miibus_writereg(device_t dev, int phy, int reg, int data)
 		frame.mii_data = data;
 		sis_mii_writereg(sc, &frame);
 	}
-	return(0);
+	return (0);
 }
 
 static void
@@ -891,7 +891,7 @@ sis_probe(device_t dev)
 
 	t = sis_devs;
 
-	while(t->sis_name != NULL) {
+	while (t->sis_name != NULL) {
 		if ((pci_get_vendor(dev) == t->sis_vid) &&
 		    (pci_get_device(dev) == t->sis_did)) {
 			device_set_desc(dev, t->sis_name);
@@ -900,7 +900,7 @@ sis_probe(device_t dev)
 		t++;
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 /*
@@ -1238,7 +1238,7 @@ fail:
 	if (error)
 		sis_detach(dev);
 
-	return(error);
+	return (error);
 }
 
 /*
@@ -1304,7 +1304,7 @@ sis_detach(device_t dev)
 
 	mtx_destroy(&sc->sis_mtx);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1342,7 +1342,7 @@ sis_ring_init(struct sis_softc *sc)
 	for (i = 0; i < SIS_RX_LIST_CNT; i++, dp++) {
 		error = sis_newbuf(sc, dp, NULL);
 		if (error)
-			return(error);
+			return (error);
 		if (i == (SIS_RX_LIST_CNT - 1))
 			dp->sis_nextdesc = &sc->sis_rx_list[0];
 		else
@@ -1358,7 +1358,7 @@ sis_ring_init(struct sis_softc *sc)
 
 	sc->sis_rx_pdsc = &sc->sis_rx_list[0];
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1369,12 +1369,12 @@ sis_newbuf(struct sis_softc *sc, struct sis_desc *c, struct mbuf *m)
 {
 
 	if (c == NULL)
-		return(EINVAL);
+		return (EINVAL);
 
 	if (m == NULL) {
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL)
-			return(ENOBUFS);
+			return (ENOBUFS);
 	} else
 		m->m_data = m->m_ext.ext_buf;
 
@@ -1387,7 +1387,7 @@ sis_newbuf(struct sis_softc *sc, struct sis_desc *c, struct mbuf *m)
 	    sis_dma_map_desc_ptr, c, 0);
 	bus_dmamap_sync(sc->sis_tag, c->sis_map, BUS_DMASYNC_PREREAD);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1407,7 +1407,7 @@ sis_rxeof(struct sis_softc *sc)
 
 	ifp = sc->sis_ifp;
 
-	for(cur_rx = sc->sis_rx_pdsc; SIS_OWNDESC(cur_rx);
+	for (cur_rx = sc->sis_rx_pdsc; SIS_OWNDESC(cur_rx);
 	    cur_rx = cur_rx->sis_nextdesc) {
 
 #ifdef DEVICE_POLLING
@@ -1729,7 +1729,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 		if (m->m_len != 0) {
 			if ((SIS_TX_LIST_CNT -
 			    (sc->sis_tx_cnt + cnt)) < 2)
-				return(ENOBUFS);
+				return (ENOBUFS);
 			f = &sc->sis_tx_list[frag];
 			f->sis_ctl = SIS_CMDSTS_MORE | m->m_len;
 			bus_dmamap_create(sc->sis_tag, 0, &f->sis_map);
@@ -1747,7 +1747,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	}
 
 	if (m != NULL)
-		return(ENOBUFS);
+		return (ENOBUFS);
 
 	sc->sis_tx_list[cur].sis_mbuf = *m_head;
 	sc->sis_tx_list[cur].sis_ctl &= ~SIS_CMDSTS_MORE;
@@ -1755,7 +1755,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	sc->sis_tx_cnt += cnt;
 	*txidx = frag;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1795,7 +1795,7 @@ sis_startl(struct ifnet *ifp)
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
-	while(sc->sis_tx_list[idx].sis_mbuf == NULL) {
+	while (sc->sis_tx_list[idx].sis_mbuf == NULL) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -2071,7 +2071,7 @@ sis_ifmedia_upd(struct ifnet *ifp)
 	mii_mediachg(mii);
 	SIS_UNLOCK(sc);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -2101,7 +2101,7 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data		*mii;
 	int			error = 0;
 
-	switch(command) {
+	switch (command) {
 	case SIOCSIFFLAGS:
 		SIS_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
@@ -2134,7 +2134,7 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		    !(ifp->if_capenable & IFCAP_POLLING)) {
 			error = ether_poll_register(sis_poll, ifp);
 			if (error)
-				return(error);
+				return (error);
 			SIS_LOCK(sc);
 			/* Disable interrupts */
 			CSR_WRITE_4(sc, SIS_IER, 0);
@@ -2160,7 +2160,7 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	}
 
-	return(error);
+	return (error);
 }
 
 static void
