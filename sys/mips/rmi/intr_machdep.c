@@ -62,8 +62,10 @@ static int intrcnt_index;
 void
 xlr_enable_irq(int irq)
 {
+	uint64_t eimr;
 
-	write_c0_eimr64(read_c0_eimr64() | (1ULL << irq));
+	eimr = read_c0_eimr64();
+	write_c0_eimr64(eimr | (1ULL << irq));
 }
 
 void
@@ -128,9 +130,6 @@ xlr_establish_intr(const char *name, driver_filter_t filt,
 	 * FIXME locking - not needed now, because we do this only on
 	 * startup from CPU0
 	 */
-	printf("[%s] Setup intr %d called on cpu %d (%d)\n", name, irq,
-	    xlr_cpu_id(), PCPU_GET(cpuid));
-
 	src = &xlr_interrupts[irq];
 	ie = src->ie;
 	if (ie == NULL) {
