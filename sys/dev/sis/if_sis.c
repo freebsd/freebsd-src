@@ -1205,7 +1205,6 @@ sis_detach(device_t dev)
 	/* These should only be active if attach succeeded. */
 	if (device_is_attached(dev)) {
 		SIS_LOCK(sc);
-		sis_reset(sc);
 		sis_stop(sc);
 		SIS_UNLOCK(sc);
 		callout_drain(&sc->sis_stat_ch);
@@ -1740,7 +1739,6 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
 
 		if (status & SIS_ISR_SYSERR) {
-			sis_reset(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			sis_initl(sc);
 		}
@@ -1796,7 +1794,6 @@ sis_intr(void *arg)
 			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
 
 		if (status & SIS_ISR_SYSERR) {
-			sis_reset(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			sis_initl(sc);
 			SIS_UNLOCK(sc);
@@ -1980,7 +1977,10 @@ sis_initl(struct sis_softc *sc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	sis_stop(sc);
-
+	/*
+	 * Reset the chip to a known state.
+	 */
+	sis_reset(sc);
 #ifdef notyet
 	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr >= NS_SRR_16A) {
 		/*
@@ -2268,8 +2268,7 @@ sis_watchdog(struct sis_softc *sc)
 	device_printf(sc->sis_dev, "watchdog timeout\n");
 	sc->sis_ifp->if_oerrors++;
 
-	sis_stop(sc);
-	sis_reset(sc);
+	sc->sis_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sis_initl(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&sc->sis_ifp->if_snd))
@@ -2346,7 +2345,6 @@ sis_shutdown(device_t dev)
 
 	sc = device_get_softc(dev);
 	SIS_LOCK(sc);
-	sis_reset(sc);
 	sis_stop(sc);
 	SIS_UNLOCK(sc);
 	return (0);
