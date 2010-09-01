@@ -2203,9 +2203,7 @@ vputx(struct vnode *vp, int func)
 	}
 
 	if (vp->v_usecount != 1) {
-#ifdef DIAGNOSTIC
 		vprint("vputx: negative ref count", vp);
-#endif
 		panic("vputx: negative ref cnt");
 	}
 	CTR2(KTR_VFS, "%s: return vnode %p to the freelist", __func__, vp);
