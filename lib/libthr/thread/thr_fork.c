@@ -100,22 +100,29 @@ _pthread_atfork(void (*prepare)(void), void (*parent)(void),
 void
 __pthread_cxa_finalize(struct dl_phdr_info *phdr_info)
 {
+	atfork_head    temp_list = TAILQ_HEAD_INITIALIZER(temp_list);
 	struct pthread *curthread;
 	struct pthread_atfork *af, *af1;
 
 	_thr_check_init();
 
 	curthread = _get_curthread();
+	THR_CRITICAL_ENTER(curthread);
 	_thr_rwl_wrlock(&_thr_atfork_lock);
 	TAILQ_FOREACH_SAFE(af, &_thr_atfork_list, qe, af1) {
 		if (__elf_phdr_match_addr(phdr_info, af->prepare) ||
 		    __elf_phdr_match_addr(phdr_info, af->parent) ||
 		    __elf_phdr_match_addr(phdr_info, af->child)) {
 			TAILQ_REMOVE(&_thr_atfork_list, af, qe);
-			free(af);
+			TAILQ_INSERT_TAIL(&temp_list, af, qe);
 		}
 	}
 	_thr_rwl_unlock(&_thr_atfork_lock);
+	THR_CRITICAL_LEAVE(curthread);
+	while ((af = TAILQ_FIRST(&temp_list)) != NULL) {
+		TAILQ_REMOVE(&temp_list, af, qe);
+		free(af);
+	}
 	_thr_tsd_unload(phdr_info);
 	_thr_sigact_unload(phdr_info);
 }
