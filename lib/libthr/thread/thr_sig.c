@@ -415,19 +415,17 @@ _thr_signal_init(void)
 	__sys_sigprocmask(SIG_UNBLOCK, &act.sa_mask, NULL);
 }
 
-/*
- * called from rtld with rtld_lock locked, because rtld_lock is
- * a critical region, so all signals have already beeen masked.
- */
 void
 _thr_sigact_unload(struct dl_phdr_info *phdr_info)
 {
+	struct pthread *curthread = _get_curthread();
 	struct urwlock *rwlp;
 	struct sigaction *actp;
 	struct sigaction kact;
 	void (*handler)(int);
 	int sig;
  
+	_thr_signal_block(curthread);
 	for (sig = 1; sig < _SIG_MAXSIG; sig++) {
 		actp = &_thr_sigact[sig].sigact;
 retry:
@@ -447,9 +445,10 @@ retry:
 				kact.sa_handler != SIG_DFL &&
 				kact.sa_handler != SIG_IGN)
 				__sys_sigaction(sig, actp, NULL);
-				_thr_rwl_unlock(rwlp);
+			_thr_rwl_unlock(rwlp);
 		}
 	}
+	_thr_signal_unblock(curthread);
 }
 
 void
