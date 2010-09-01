@@ -1186,7 +1186,8 @@ netdump_trigger(void *arg, int howto)
 	savectx(&dumppcb);
 	dumping++;
 
-	nd_nic->if_netdump->acquire_lock(nd_nic);
+	if (panicstr == NULL)
+		nd_nic->if_netdump->acquire_lock(nd_nic);
 
 	/* Make the card use *our* receive callback */
 	old_if_input = nd_nic->if_input;
@@ -1242,7 +1243,8 @@ netdump_trigger(void *arg, int howto)
 trig_abort:
 	if (old_if_input)
 		nd_nic->if_input = old_if_input;
-	nd_nic->if_netdump->release_lock(nd_nic);
+	if (panicstr == NULL)
+		nd_nic->if_netdump->release_lock(nd_nic);
 	dumping--;
 }
 
