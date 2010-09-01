@@ -471,11 +471,9 @@ struct sis_softc {
 	bus_addr_t		sis_tx_paddr;
 	struct callout		sis_stat_ch;
 	int			sis_watchdog_timer;
-	int			sis_stopped;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
-	int			in_tick;
 	struct mtx		sis_mtx;
 };
 
