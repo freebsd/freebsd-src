@@ -1197,17 +1197,17 @@ netdump_trigger(void *arg, int howto)
 		return;
 	}
 
+	/* Make the card use *our* receive callback */
+	old_if_input = nd_nic->if_input;
+	nd_nic->if_input = netdump_pkt_in;
+
 	/* Check if we can use polling */
 	if (!(nd_nic->if_capenable & IFCAP_POLLING)) {
 		printf("netdump_trigger: Can't dump: interface %s does not have"
 		       " polling enabled.\n", nd_nic->if_xname);
-		dumping--;
-		return;
+		goto trig_abort;
 	}
 
-	/* Make the card use *our* receive callback */
-	old_if_input = nd_nic->if_input;
-	nd_nic->if_input = netdump_pkt_in;
 	if (nd_gw.s_addr == INADDR_ANY) {
 		nd_gw.s_addr = nd_server.s_addr;
 	}
