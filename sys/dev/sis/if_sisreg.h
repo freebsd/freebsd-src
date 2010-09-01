@@ -308,9 +308,9 @@
  */
 struct sis_desc {
 	/* SiS hardware descriptor section */
-	u_int32_t		sis_next;
-	u_int32_t		sis_cmdsts;
-	u_int32_t		sis_ptr;
+	uint32_t		sis_next;
+	uint32_t		sis_cmdsts;
+	uint32_t		sis_ptr;
 };
 
 #define SIS_CMDSTS_BUFLEN	0x00000FFF
@@ -403,18 +403,18 @@ struct sis_desc {
 #define NS_DEVICEID_DP83815	0x0020
 
 struct sis_type {
-	u_int16_t		sis_vid;
-	u_int16_t		sis_did;
+	uint16_t		sis_vid;
+	uint16_t		sis_did;
 	char			*sis_name;
 };
 
 struct sis_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
+	uint8_t			mii_stdelim;
+	uint8_t			mii_opcode;
+	uint8_t			mii_phyaddr;
+	uint8_t			mii_regaddr;
+	uint8_t			mii_turnaround;
+	uint16_t		mii_data;
 };
 
 /*
@@ -447,10 +447,10 @@ struct sis_softc {
 	void			*sis_intrhand;
 	device_t		sis_dev;
 	device_t		sis_miibus;
-	u_int8_t		sis_type;
-	u_int8_t		sis_rev;
-	u_int8_t		sis_link;
-	u_int			sis_srr;
+	uint8_t			sis_type;
+	uint8_t			sis_rev;
+	uint8_t			sis_link;
+	uint32_t		sis_srr;
 	struct sis_desc		*sis_rx_list;
 	struct sis_desc		*sis_tx_list;
 	bus_dma_tag_t		sis_rx_list_tag;
