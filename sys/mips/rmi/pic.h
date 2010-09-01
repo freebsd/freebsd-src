@@ -189,7 +189,7 @@ pic_ack(int picintr)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-	xlr_write_reg(mmio, PIC_INT_ACK, 1 << picintr);
+	xlr_write_reg(mmio, PIC_INT_ACK, 1U << picintr);
 }
 
 static __inline
