@@ -47,6 +47,13 @@ _thr_umutex_init(struct umutex *mtx)
 	*mtx = default_mtx;
 }
 
+void
+_thr_urwlock_init(struct urwlock *rwl)
+{
+	static struct urwlock default_rwl = DEFAULT_URWLOCK;
+	*rwl = default_rwl;
+}
+
 int
 __thr_umutex_lock(struct umutex *mtx, uint32_t id)
 {
