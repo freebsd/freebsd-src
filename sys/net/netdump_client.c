@@ -1185,7 +1185,7 @@ netdump_trigger(void *arg, int howto)
 	 */
 	savectx(&dumppcb);
 
-	/***** Beyond this point, don't return: goto abort *****/
+	/***** Beyond this point, don't return: goto trig_abort *****/
 
 	bzero(broken_state, sizeof(broken_state));
 	error = nd_nic->if_netdump->break_lock(nd_nic, &broke_lock, broken_state, sizeof(broken_state));
@@ -1195,20 +1195,18 @@ netdump_trigger(void *arg, int howto)
 		dumping--;
 		return;
 	}
-	
-	/* At this point, we should 'own' the driver lock */
-
-	/* Make the card use *our* receive callback */
-	old_if_input = nd_nic->if_input;
-	nd_nic->if_input = netdump_pkt_in;
 
 	/* Check if we can use polling */
 	if (!(nd_nic->if_capenable & IFCAP_POLLING)) {
 		printf("netdump_trigger: Can't dump: interface %s does not have"
 		       " polling enabled.\n", nd_nic->if_xname);
-		goto abort;
+		dumping--;
+		return;
 	}
 
+	/* Make the card use *our* receive callback */
+	old_if_input = nd_nic->if_input;
+	nd_nic->if_input = netdump_pkt_in;
 	if (nd_gw.s_addr == INADDR_ANY) {
 		nd_gw.s_addr = nd_server.s_addr;
 	}
@@ -1216,11 +1214,11 @@ netdump_trigger(void *arg, int howto)
 	printf("netdump in progress. searching for server.. ");
 	if (netdump_arp_server()) {
 		printf("Failed to locate server MAC address\n");
-		goto abort;
+		goto trig_abort;
 	}
 	if (netdump_send(NETDUMP_HERALD, 0, NULL, 0) != 0) {
 		printf("Failed to contact netdump server\n");
-		goto abort;
+		goto trig_abort;
 	}
 	printf("dumping to %s (%6D)\n", inet_ntoa(nd_server),
 			nd_gw_mac.octet, ":");
@@ -1237,19 +1235,19 @@ netdump_trigger(void *arg, int howto)
 	/* in dump_machdep.c */
 	dumpsys(&dumper);
 
-	if (dump_failed)
-		goto abort;
+	if (dump_failed) {
+		printf("Failed to dump the actual raw datas\n");
+		goto trig_abort;
+	}
 
 	if (netdump_send(NETDUMP_FINISHED, 0, NULL, 0) != 0) {
-		goto abort;
+		printf("Failed to close the transaction\n");
+		goto trig_abort;
 	}
 	printf("\nnetdump finished.\n");
 	printf("cancelling normal dump\n");
 	set_dumper(NULL);
-	goto cleanup;
-abort:
-	printf("\nnetdump failed, proceeding to normal dump\n");
-cleanup:
+trig_abort:
 	if (old_if_input)
 		nd_nic->if_input = old_if_input;
 	/* Even if we broke the lock, this seems like the most sane thing to
