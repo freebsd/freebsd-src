@@ -406,7 +406,7 @@ sis_read_mac(struct sis_softc *sc, device_t dev, caddr_t dest)
 
 	CSR_WRITE_4(sc, SIS_CSR, SIS_CSR_RELOAD | filtsave);
 	CSR_WRITE_4(sc, SIS_CSR, 0);
-		
+
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave & ~SIS_RXFILTCTL_ENABLE);
 
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR0);
@@ -429,9 +429,9 @@ static void
 sis_mii_sync(struct sis_softc *sc)
 {
 	int		i;
- 
+
  	SIO_SET(SIS_MII_DIR|SIS_MII_DATA);
- 
+
  	for (i = 0; i < 32; i++) {
  		SIO_SET(SIS_MII_CLK);
  		DELAY(1);
@@ -439,7 +439,7 @@ sis_mii_sync(struct sis_softc *sc)
  		DELAY(1);
  	}
 }
- 
+
 /*
  * Clock a series of bits through the MII.
  */
@@ -447,9 +447,9 @@ static void
 sis_mii_send(struct sis_softc *sc, uint32_t bits, int cnt)
 {
 	int			i;
- 
+
 	SIO_CLR(SIS_MII_CLK);
- 
+
 	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
 		if (bits & i) {
 			SIO_SET(SIS_MII_DATA);
@@ -462,7 +462,7 @@ sis_mii_send(struct sis_softc *sc, uint32_t bits, int cnt)
 		SIO_SET(SIS_MII_CLK);
 	}
 }
- 
+
 /*
  * Read an PHY register through the MII.
  */
@@ -470,7 +470,7 @@ static int
 sis_mii_readreg(struct sis_softc *sc, struct sis_mii_frame *frame)
 {
 	int			i, ack;
- 
+
 	/*
 	 * Set up frame for RX.
 	 */
@@ -478,14 +478,14 @@ sis_mii_readreg(struct sis_softc *sc, struct sis_mii_frame *frame)
 	frame->mii_opcode = SIS_MII_READOP;
 	frame->mii_turnaround = 0;
 	frame->mii_data = 0;
- 	
+
 	/*
  	 * Turn on data xmit.
 	 */
 	SIO_SET(SIS_MII_DIR);
 
 	sis_mii_sync(sc);
- 
+
 	/*
 	 * Send command/address info.
 	 */
@@ -493,23 +493,23 @@ sis_mii_readreg(struct sis_softc *sc, struct sis_mii_frame *frame)
 	sis_mii_send(sc, frame->mii_opcode, 2);
 	sis_mii_send(sc, frame->mii_phyaddr, 5);
 	sis_mii_send(sc, frame->mii_regaddr, 5);
- 
+
 	/* Idle bit */
 	SIO_CLR((SIS_MII_CLK|SIS_MII_DATA));
 	DELAY(1);
 	SIO_SET(SIS_MII_CLK);
 	DELAY(1);
- 
+
 	/* Turn off xmit. */
 	SIO_CLR(SIS_MII_DIR);
- 
+
 	/* Check for ack */
 	SIO_CLR(SIS_MII_CLK);
 	DELAY(1);
 	ack = CSR_READ_4(sc, SIS_EECTL) & SIS_MII_DATA;
 	SIO_SET(SIS_MII_CLK);
 	DELAY(1);
- 
+
 	/*
 	 * Now try reading data bits. If the ack failed, we still
 	 * need to clock through 16 cycles to keep the PHY(s) in sync.
@@ -523,7 +523,7 @@ sis_mii_readreg(struct sis_softc *sc, struct sis_mii_frame *frame)
 		}
 		goto fail;
 	}
- 
+
 	for (i = 0x8000; i; i >>= 1) {
 		SIO_CLR(SIS_MII_CLK);
 		DELAY(1);
@@ -547,47 +547,47 @@ fail:
 		return(1);
 	return(0);
 }
- 
+
 /*
  * Write to a PHY register through the MII.
  */
 static int
 sis_mii_writereg(struct sis_softc *sc, struct sis_mii_frame *frame)
 {
- 
+
  	/*
  	 * Set up frame for TX.
  	 */
- 
+
  	frame->mii_stdelim = SIS_MII_STARTDELIM;
  	frame->mii_opcode = SIS_MII_WRITEOP;
  	frame->mii_turnaround = SIS_MII_TURNAROUND;
- 	
+
  	/*
   	 * Turn on data output.
  	 */
  	SIO_SET(SIS_MII_DIR);
- 
+
  	sis_mii_sync(sc);
- 
+
  	sis_mii_send(sc, frame->mii_stdelim, 2);
  	sis_mii_send(sc, frame->mii_opcode, 2);
  	sis_mii_send(sc, frame->mii_phyaddr, 5);
  	sis_mii_send(sc, frame->mii_regaddr, 5);
  	sis_mii_send(sc, frame->mii_turnaround, 2);
  	sis_mii_send(sc, frame->mii_data, 16);
- 
+
  	/* Idle bit. */
  	SIO_SET(SIS_MII_CLK);
  	DELAY(1);
  	SIO_CLR(SIS_MII_CLK);
  	DELAY(1);
- 
+
  	/*
  	 * Turn off xmit.
  	 */
  	SIO_CLR(SIS_MII_DIR);
- 
+
  	return(0);
 }
 
@@ -877,7 +877,7 @@ sis_reset(struct sis_softc *sc)
 		CSR_WRITE_4(sc, NS_CLKRUN, 0);
 	}
 
-        return;
+	return;
 }
 
 /*
@@ -947,8 +947,8 @@ sis_attach(device_t dev)
 	sis_reset(sc);
 
 	if (sc->sis_type == SIS_TYPE_900 &&
-            (sc->sis_rev == SIS_REV_635 ||
-            sc->sis_rev == SIS_REV_900B)) {
+	    (sc->sis_rev == SIS_REV_635 ||
+	    sc->sis_rev == SIS_REV_900B)) {
 		SIO_SET(SIS_CFG_RND_CNT);
 		SIO_SET(SIS_CFG_PERR_DETECT);
 	}
@@ -1065,13 +1065,13 @@ sis_attach(device_t dev)
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
 #define SIS_NSEG_NEW 32
-	 error = bus_dma_tag_create(NULL,	/* parent */ 
+	 error = bus_dma_tag_create(NULL,	/* parent */
 			1, 0,			/* alignment, boundary */
 			BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
 			BUS_SPACE_MAXADDR,	/* highaddr */
 			NULL, NULL,		/* filter, filterarg */
 			MAXBSIZE, SIS_NSEG_NEW,	/* maxsize, nsegments */
-			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */ 
+			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			BUS_DMA_ALLOCNOW,	/* flags */
 			NULL, NULL,		/* lockfunc, lockarg */
 			&sc->sis_parent_tag);
@@ -1213,7 +1213,7 @@ sis_attach(device_t dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	
+
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
@@ -1444,7 +1444,7 @@ sis_rxeof(struct sis_softc *sc)
 			continue;
 		}
 
-		/* No errors; receive the packet. */	
+		/* No errors; receive the packet. */
 #ifdef __NO_STRICT_ALIGNMENT
 		/*
 		 * On architectures without alignment problems we try to
@@ -1655,7 +1655,7 @@ sis_intr(void *arg)
 
 		if (status &
 		    (SIS_ISR_TX_DESC_OK | SIS_ISR_TX_ERR |
-		     SIS_ISR_TX_OK | SIS_ISR_TX_IDLE) )
+		    SIS_ISR_TX_OK | SIS_ISR_TX_IDLE) )
 			sis_txeof(sc);
 
 		if (status & (SIS_ISR_RX_DESC_OK | SIS_ISR_RX_OK |
@@ -1717,7 +1717,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 			return (ENOBUFS);
 		*m_head = m;
 	}
-	
+
 	/*
  	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
@@ -2003,7 +2003,7 @@ sis_initl(struct sis_softc *sc)
 		uint32_t reg;
 
 		/*
-		 * Short Cable Receive Errors (MP21.E) 
+		 * Short Cable Receive Errors (MP21.E)
 		 */
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
 		reg = CSR_READ_4(sc, NS_PHY_DSPCFG) & 0xfff;
@@ -2141,7 +2141,7 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable |= IFCAP_POLLING;
 			SIS_UNLOCK(sc);
 			return (error);
-			
+
 		}
 		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
 		    ifp->if_capenable & IFCAP_POLLING) {
