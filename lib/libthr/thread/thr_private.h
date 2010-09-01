@@ -132,6 +132,7 @@ struct pthread_mutex {
 	int				m_refcount;
 	int				m_spinloops;
 	int				m_yieldloops;
+	int				m_private;
 	/*
 	 * Link for all mutexes a thread currently owns.
 	 */
@@ -587,7 +588,7 @@ extern pthreadlist	_thread_gc_list __hidden;
 
 extern int		_thread_active_threads;
 extern atfork_head	_thr_atfork_list __hidden;
-extern struct umutex	_thr_atfork_lock __hidden;
+extern struct urwlock	_thr_atfork_lock __hidden;
 
 /* Default thread attributes: */
 extern struct pthread_attr _pthread_attr_default __hidden;

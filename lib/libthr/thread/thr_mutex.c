@@ -224,8 +224,12 @@ _pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
 		.m_ceiling = 0
 	};
 	static const struct pthread_mutex_attr *pattr = &attr;
+	int ret;
 
-	return mutex_init(mutex, (pthread_mutexattr_t *)&pattr, calloc_cb);
+	ret = mutex_init(mutex, (pthread_mutexattr_t *)&pattr, calloc_cb);
+	if (ret == 0)
+		(*mutex)->m_private = 1;
+	return (ret);
 }
 
 void
@@ -319,13 +323,16 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 
 	id = TID(curthread);
 	m = *mutex;
+	if (m->m_private)
+		THR_CRITICAL_ENTER(curthread);
 	ret = _thr_umutex_trylock(&m->m_lock, id);
 	if (ret == 0) {
 		ENQUEUE_MUTEX(curthread, m);
 	} else if (m->m_owner == curthread) {
 		ret = mutex_self_trylock(m);
 	} /* else {} */
-
+	if (ret && m->m_private)
+		THR_CRITICAL_LEAVE(curthread);
 	return (ret);
 }
 
@@ -417,13 +424,19 @@ static inline int
 mutex_lock_common(struct pthread *curthread, struct pthread_mutex *m,
 	const struct timespec *abstime)
 {
+	int ret;
 
+	if (m->m_private)
+		THR_CRITICAL_ENTER(curthread);
 	if (_thr_umutex_trylock2(&m->m_lock, TID(curthread)) == 0) {
 		ENQUEUE_MUTEX(curthread, m);
-		return (0);
+		ret = 0;
+	} else {
+		ret = mutex_lock_sleep(curthread, m, abstime);
 	}
-	
-	return (mutex_lock_sleep(curthread, m, abstime));
+	if (ret && m->m_private)
+		THR_CRITICAL_LEAVE(curthread);
+	return (ret);
 }
 
 int
@@ -625,6 +638,8 @@ mutex_unlock_common(pthread_mutex_t *mutex)
 		MUTEX_INIT_LINK(m);
 		_thr_umutex_unlock(&m->m_lock, id);
 	}
+	if (m->m_private)
+		THR_CRITICAL_LEAVE(curthread);
 	return (0);
 }
 
@@ -660,6 +675,9 @@ _mutex_cv_unlock(pthread_mutex_t *mutex, int *count)
 	}
 	MUTEX_INIT_LINK(m);
 	_thr_umutex_unlock(&m->m_lock, TID(curthread));
+
+	if (m->m_private)
+		THR_CRITICAL_LEAVE(curthread);
 	return (0);
 }
 
