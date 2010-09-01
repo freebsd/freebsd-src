@@ -115,6 +115,7 @@ __pthread_cxa_finalize(struct dl_phdr_info *phdr_info)
 	}
 	THR_UMUTEX_UNLOCK(curthread, &_thr_atfork_lock);
 	_thr_tsd_unload(phdr_info);
+	_thr_sigact_unload(phdr_info);
 }
 
 __weak_reference(_fork, fork);
@@ -161,6 +162,7 @@ _fork(void)
 	 * Block all signals until we reach a safe point.
 	 */
 	_thr_signal_block(curthread);
+	_thr_signal_prefork();
 
 	/* Fork a new process: */
 	if ((ret = __sys_fork()) == 0) {
@@ -181,6 +183,8 @@ _fork(void)
 		/* clear other threads locked us. */
 		_thr_umutex_init(&curthread->lock);
 		_thr_umutex_init(&_thr_atfork_lock);
+
+		_thr_signal_postfork_child();
 
 		if (was_threaded)
 			_rtld_atfork_post(rtld_locks);
@@ -210,6 +214,8 @@ _fork(void)
 	} else {
 		/* Parent process */
 		errsave = errno;
+
+		_thr_signal_postfork();
 
 		/* Ready to continue, unblock signals. */ 
 		_thr_signal_unblock(curthread);

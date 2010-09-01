@@ -58,6 +58,11 @@ int __thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp)
 int __thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp) __hidden;
 int __thr_rwlock_unlock(struct urwlock *rwlock) __hidden;
 
+/* Internal used only */
+void _thr_rwl_rdlock(struct urwlock *rwlock) __hidden;
+void _thr_rwl_wrlock(struct urwlock *rwlock) __hidden;
+void _thr_rwl_unlock(struct urwlock *rwlock) __hidden;
+
 static inline int
 _thr_umutex_trylock(struct umutex *mtx, uint32_t id)
 {
