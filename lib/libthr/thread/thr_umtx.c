@@ -217,3 +217,42 @@ __thr_rwlock_unlock(struct urwlock *rwlock)
 {
 	return _umtx_op_err(rwlock, UMTX_OP_RW_UNLOCK, 0, NULL, NULL);
 }
+
+void
+_thr_rwl_rdlock(struct urwlock *rwlock)
+{
+	int ret;
+
+	for (;;) {
+		if (_thr_rwlock_tryrdlock(rwlock, URWLOCK_PREFER_READER) == 0)
+			return;
+		ret = __thr_rwlock_rdlock(rwlock, URWLOCK_PREFER_READER, NULL);
+		if (ret == 0)
+			return;
+		if (ret != EINTR)
+			PANIC("rdlock error");
+	}
+}
+
+void
+_thr_rwl_wrlock(struct urwlock *rwlock)
+{
+	int ret;
+
+	for (;;) {
+		if (_thr_rwlock_trywrlock(rwlock) == 0)
+			return;
+		ret = __thr_rwlock_wrlock(rwlock, NULL);
+		if (ret == 0)
+			return;
+		if (ret != EINTR)
+			PANIC("wrlock error");
+	}
+}
+
+void
+_thr_rwl_unlock(struct urwlock *rwlock)
+{
+	if (_thr_rwlock_unlock(rwlock))
+		PANIC("unlock error");
+}

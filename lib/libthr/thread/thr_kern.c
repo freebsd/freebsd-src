@@ -61,38 +61,6 @@ _thr_setthreaded(int threaded)
 }
 
 void
-_thr_signal_block(struct pthread *curthread)
-{
-	sigset_t set;
-	
-	if (curthread->sigblock > 0) {
-		curthread->sigblock++;
-		return;
-	}
-	SIGFILLSET(set);
-	SIGDELSET(set, SIGBUS);
-	SIGDELSET(set, SIGILL);
-	SIGDELSET(set, SIGFPE);
-	SIGDELSET(set, SIGSEGV);
-	SIGDELSET(set, SIGTRAP);
-	__sys_sigprocmask(SIG_BLOCK, &set, &curthread->sigmask);
-	curthread->sigblock++;
-}
-
-void
-_thr_signal_unblock(struct pthread *curthread)
-{
-	if (--curthread->sigblock == 0)
-		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
-}
-
-int
-_thr_send_sig(struct pthread *thread, int sig)
-{
-	return thr_kill(thread->tid, sig);
-}
-
-void
 _thr_assert_lock_level()
 {
 	PANIC("locklevel <= 0");

@@ -289,7 +289,6 @@ void
 _libpthread_init(struct pthread *curthread)
 {
 	int fd, first = 0;
-	sigset_t sigset, oldset;
 
 	/* Check if this function has already been called: */
 	if ((_thr_initial != NULL) && (curthread == NULL))
@@ -347,13 +346,8 @@ _libpthread_init(struct pthread *curthread)
 	_tcb_set(curthread->tcb);
 
 	if (first) {
-		SIGFILLSET(sigset);
-		SIGDELSET(sigset, SIGTRAP);
-		__sys_sigprocmask(SIG_SETMASK, &sigset, &oldset);
-		_thr_signal_init();
 		_thr_initial = curthread;
-		SIGDELSET(oldset, SIGCANCEL);
-		__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
+		_thr_signal_init();
 		if (_thread_event_mask & TD_CREATE)
 			_thr_report_creation(curthread, curthread);
 	}
