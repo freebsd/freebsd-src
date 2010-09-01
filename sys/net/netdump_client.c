@@ -1198,9 +1198,6 @@ netdump_trigger(void *arg, int howto)
 	
 	/* At this point, we should 'own' the driver lock */
 
-	/* We don't want interrupts potentially messing with our dump process */
-	critical_enter();
-
 	/* Make the card use *our* receive callback */
 	old_if_input = nd_nic->if_input;
 	nd_nic->if_input = netdump_pkt_in;
@@ -1255,7 +1252,6 @@ abort:
 cleanup:
 	if (old_if_input)
 		nd_nic->if_input = old_if_input;
-	critical_exit();
 	/* Even if we broke the lock, this seems like the most sane thing to
 	 * do */
 	nd_nic->if_netdump->release_lock(nd_nic);
