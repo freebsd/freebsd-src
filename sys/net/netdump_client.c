@@ -1186,13 +1186,7 @@ netdump_trigger(void *arg, int howto)
 	savectx(&dumppcb);
 	dumping++;
 
-	error = nd_nic->if_netdump->acquire_lock(nd_nic);
-
-	if(error) {
-		printf("netdump_trigger: Could not acquire lock on %s\n", nd_nic->if_xname);
-		dumping--;
-		return;
-	}
+	nd_nic->if_netdump->acquire_lock(nd_nic);
 
 	/* Make the card use *our* receive callback */
 	old_if_input = nd_nic->if_input;
