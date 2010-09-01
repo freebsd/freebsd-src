@@ -215,6 +215,7 @@ static driver_t ubser_driver = {
 DRIVER_MODULE(ubser, uhub, ubser_driver, ubser_devclass, NULL, 0);
 MODULE_DEPEND(ubser, ucom, 1, 1, 1);
 MODULE_DEPEND(ubser, usb, 1, 1, 1);
+MODULE_VERSION(ubser, 1);
 
 static int
 ubser_probe(device_t dev)

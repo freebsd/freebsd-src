@@ -279,6 +279,7 @@ static driver_t umoscom_driver = {
 DRIVER_MODULE(umoscom, uhub, umoscom_driver, umoscom_devclass, NULL, 0);
 MODULE_DEPEND(umoscom, ucom, 1, 1, 1);
 MODULE_DEPEND(umoscom, usb, 1, 1, 1);
+MODULE_VERSION(umoscom, 1);
 
 static const struct usb_device_id umoscom_devs[] = {
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7703, 0)}
