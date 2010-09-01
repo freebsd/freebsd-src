@@ -294,10 +294,6 @@ static const struct usb_device_id run_devs[] = {
 #undef RUN_DEV
 };
 
-MODULE_DEPEND(run, wlan, 1, 1, 1);
-MODULE_DEPEND(run, usb, 1, 1, 1);
-MODULE_DEPEND(run, firmware, 1, 1, 1);
-
 static device_probe_t	run_match;
 static device_attach_t	run_attach;
 static device_detach_t	run_detach;
@@ -4871,3 +4867,7 @@ static driver_t run_driver = {
 static devclass_t run_devclass;
 
 DRIVER_MODULE(run, uhub, run_driver, run_devclass, NULL, 0);
+MODULE_DEPEND(run, wlan, 1, 1, 1);
+MODULE_DEPEND(run, usb, 1, 1, 1);
+MODULE_DEPEND(run, firmware, 1, 1, 1);
+MODULE_VERSION(run, 1);

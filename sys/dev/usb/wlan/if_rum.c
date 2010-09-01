@@ -139,9 +139,6 @@ static const struct usb_device_id rum_devs[] = {
 #undef RUM_DEV
 };
 
-MODULE_DEPEND(rum, wlan, 1, 1, 1);
-MODULE_DEPEND(rum, usb, 1, 1, 1);
-
 static device_probe_t rum_match;
 static device_attach_t rum_attach;
 static device_detach_t rum_detach;
@@ -2360,3 +2357,6 @@ static driver_t rum_driver = {
 static devclass_t rum_devclass;
 
 DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, NULL, 0);
+MODULE_DEPEND(rum, wlan, 1, 1, 1);
+MODULE_DEPEND(rum, usb, 1, 1, 1);
+MODULE_VERSION(rum, 1);

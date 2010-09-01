@@ -169,6 +169,7 @@ static driver_t uark_driver = {
 DRIVER_MODULE(uark, uhub, uark_driver, uark_devclass, NULL, 0);
 MODULE_DEPEND(uark, ucom, 1, 1, 1);
 MODULE_DEPEND(uark, usb, 1, 1, 1);
+MODULE_VERSION(uark, 1);
 
 static const struct usb_device_id uark_devs[] = {
 	{USB_VPI(USB_VENDOR_ARKMICRO, USB_PRODUCT_ARKMICRO_ARK3116, 0)},
