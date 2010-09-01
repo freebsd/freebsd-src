@@ -1175,17 +1175,18 @@ netdump_trigger(void *arg, int howto)
 		printf("netdump_trigger: Can't netdump; no client IP given\n");
 		return;
 	}
-	dumping++;
 
 	/*
-	 * netdump is invoked as a shutdown handler instead of as
-	 * a real dumpdev dump routine.  (networks are shut down
-	 * before dumpsys() gets called.)  make sure the dump context
-	 * is set so a debugger can find the stack trace.
+	 * netdump is invoked as a pre-sync handler instead of as
+	 * a real dumpdev dump routine  (that is because shutdown handlers
+	 * run as post-sync handlers, earlier than dumping routines
+	 * taking place, and thus network and devices may not be further
+	 * available). 
+	 * Make sure, artificially, the dump context is set so a debugger
+	 * can find the stack trace.
 	 */
 	savectx(&dumppcb);
-
-	/***** Beyond this point, don't return: goto trig_abort *****/
+	dumping++;
 
 	bzero(broken_state, sizeof(broken_state));
 	error = nd_nic->if_netdump->break_lock(nd_nic, &broke_lock, broken_state, sizeof(broken_state));
@@ -1250,8 +1251,6 @@ netdump_trigger(void *arg, int howto)
 trig_abort:
 	if (old_if_input)
 		nd_nic->if_input = old_if_input;
-	/* Even if we broke the lock, this seems like the most sane thing to
-	 * do */
 	nd_nic->if_netdump->release_lock(nd_nic);
 	dumping--;
 }
