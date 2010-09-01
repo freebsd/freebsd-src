@@ -815,7 +815,7 @@ ata_ahci_hardreset(device_t dev, int port, uint32_t *signature)
     if (!ata_sata_phy_reset(dev, port, 0))
 	return (ENOENT);
     /* Wait for clearing busy status. */
-    if (ata_ahci_wait_ready(dev, 10000)) {
+    if (ata_ahci_wait_ready(dev, 15000)) {
 	device_printf(dev, "hardware reset timeout\n");
 	return (EBUSY);
     }
