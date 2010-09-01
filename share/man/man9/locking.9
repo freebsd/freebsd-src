@@ -301,7 +301,7 @@ one of the synchronization primitives discussed:
 .It mutex     Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&ok Ta \&no-3
 .It sx        Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
 .It rwlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&ok Ta \&no-3
-.It rmlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok-2 Ta \&no
+.It rmlock    Ta \&ok Ta \&ok Ta \&ok-5 Ta \&ok Ta \&ok-2 Ta \&ok-5
 .El
 .Pp
 .Em *1
@@ -326,6 +326,13 @@ Though one can sleep holding an sx lock, one can also use
 .Fn sx_sleep
 which will atomically release this primitive when going to sleep and
 reacquire it on wakeup.
+.Pp
+.Em *5
+.Em Read-mostly
+locks can be initialized to support sleeping while holding a write lock.
+See
+.Xr rmlock 9
+for details.
 .Ss Context mode table
 The next table shows what can be used in different contexts.
 At this time this is a rather easy to remember table.
