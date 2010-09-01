@@ -35,6 +35,7 @@
 .Nm rm_init_flags ,
 .Nm rm_destroy ,
 .Nm rm_rlock ,
+.Nm rm_try_rlock ,
 .Nm rm_wlock ,
 .Nm rm_runlock ,
 .Nm rm_wunlock ,
@@ -53,6 +54,8 @@
 .Fn rm_destroy "struct rmlock *rm"
 .Ft void
 .Fn rm_rlock "struct rmlock *rm"  "struct rm_priotracker* tracker"
+.Ft int
+.Fn rm_try_rlock "struct rmlock *rm"  "struct rm_priotracker* tracker"
 .Ft void
 .Fn rm_wlock "struct rmlock *rm"
 .Ft void
@@ -84,14 +87,16 @@ Although reader/writer locks look very similar to
 locks, their usage pattern is different.
 Reader/writer locks can be treated as mutexes (see
 .Xr mutex 9 )
-with shared/exclusive semantics.
+with shared/exclusive semantics unless initialized with
+.Dv RM_SLEEPABLE .
 Unlike
 .Xr sx 9 ,
 an
 .Nm
 can be locked while holding a non-spin mutex, and an
 .Nm
-cannot be held while sleeping.
+cannot be held while sleeping, again unless initialized with
+.Dv RM_SLEEPABLE .
 The
 .Nm
 locks have full priority propagation like mutexes.
@@ -135,6 +140,13 @@ to ignore this lock.
 .It Dv RM_RECURSE
 Allow threads to recursively acquire exclusive locks for
 .Fa rm .
+.It Dv RM_SLEEPABLE
+Allow writers to sleep while holding the lock.
+Readers must not sleep while holding the lock and can avoid to sleep on
+taking the lock by using
+.Fn rm_try_rlock
+instead of
+.Fn rm_rlock .
 .El
 .It Fn rm_rlock "struct rmlock *rm" "struct rm_priotracker* tracker"
 Lock
@@ -161,6 +173,16 @@ access on
 .Fa rm .
 This is called
 .Dq "recursing on a lock" .
+.It Fn rm_try_rlock "struct rmlock *rm" "struct rm_priotracker* tracker"
+Try to lock
+.Fa rm
+as a reader.
+.Fn rm_try_rlock
+will return 0 if the lock cannot be acquired immediately;
+otherwise the lock will be acquired and a non-zero value will be returned.
+Note that
+.Fn rm_try_rlock
+may fail even while the lock is not currently held by a writer.
 .It Fn rm_wlock "struct rmlock *rm"
 Lock
 .Fa rm
@@ -216,6 +238,10 @@ for rwlock and modified to reflect rmlock by
 The
 .Nm
 implementation is currently not optimized for single processor systems.
+.Pp
+.Fn rm_try_rlock
+can fail transiently even when there is no writer, while another reader
+updates the state on the local CPU.
 .Pp
 The
 .Nm
