@@ -1157,10 +1157,7 @@ netdump_trigger(void *arg, int howto)
 	uint8_t broken_state[NETDUMP_BROKEN_STATE_BUFFER_SIZE];
 	void (*old_if_input)(struct ifnet *, struct mbuf *)=NULL;
 	int error;
-#ifdef SMP
-	u_int cpumap=0;
-#endif
-	
+
 	if ((howto&(RB_HALT|RB_DUMP))!=RB_DUMP || !nd_enable || cold ||
 	    dumping)
 		return;
@@ -1190,34 +1187,6 @@ netdump_trigger(void *arg, int howto)
 
 	/***** Beyond this point, don't return: goto abort *****/
 
-	/* Stop all the other CPUs */
-#ifdef SMP
-	if (smp_active != 0) {
-		printf("netdump_trigger called on cpu#%d\n", PCPU_GET(cpuid));
-
-		cpumap = PCPU_GET(other_cpus) & ~ stopped_cpus;
-		if (cpumap != 0) {
-			unsigned long long end_ts;
-
-			printf("netdump_trigger: Stopping other CPUs\n");
-
-			/* 1 second */
-			end_ts = rdtsc() + 1ULL * tsc_freq;
-
-			ipi_selected(cpumap, IPI_STOP);
-
-			while ((atomic_load_acq_int(&stopped_cpus) & cpumap)
-			    != cpumap) {
-				if (rdtsc() > end_ts) {
-					printf("netdump_trigger: Stopping other"
-					       "CPUs timed out. Continuing "
-					       "anyway.\n");
-					break;
-				}
-			}
-		}
-	}
-#endif
 	bzero(broken_state, sizeof(broken_state));
 	error = nd_nic->if_netdump->break_lock(nd_nic, &broke_lock, broken_state, sizeof(broken_state));
 
@@ -1290,11 +1259,6 @@ cleanup:
 	/* Even if we broke the lock, this seems like the most sane thing to
 	 * do */
 	nd_nic->if_netdump->release_lock(nd_nic);
-#ifdef SMP
-	if (cpumap) {
-		restart_cpus(cpumap);
-	}
-#endif
 	dumping--;
 }
 
