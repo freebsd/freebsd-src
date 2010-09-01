@@ -37,6 +37,7 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <net/if.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -110,15 +111,18 @@ in_getaddr(const char *s, int which)
 		char *p = NULL;
 
 		if((p = strrchr(s, '/')) != NULL) {
+			const char *errstr;
 			/* address is `name/masklen' */
 			int masklen;
-			int ret;
 			struct sockaddr_in *min = sintab[MASK];
 			*p = '\0';
-			ret = sscanf(p+1, "%u", &masklen);
-			if(ret != 1 || (masklen < 0 || masklen > 32)) {
+			if (!isdigit(*(p + 1)))
+				errstr = "invalid";
+			else
+				masklen = (int)strtonum(p + 1, 0, 32, &errstr);
+			if (errstr != NULL) {
 				*p = '/';
-				errx(1, "%s: bad value", s);
+				errx(1, "%s: bad value (width %s)", s, errstr);
 			}
 			min->sin_len = sizeof(*min);
 			min->sin_addr.s_addr = htonl(~((1LL << (32 - masklen)) - 1) & 
