@@ -2140,6 +2140,10 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 */
 	if (P_SHOULDSTOP(p)) {
 		if (sig == SIGKILL) {
+			/*
+			 * If traced process is already stopped,
+			 * then no further action is necessary.
+			 */
 			if (p->p_flag & P_TRACED)
 				goto out;
 			/*
@@ -2152,6 +2156,10 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		}
 
 		if (prop & SA_CONT) {
+			/*
+			 * If traced process is already stopped,
+			 * then no further action is necessary.
+			 */
 			if (p->p_flag & P_TRACED)
 				goto out;
 			/*
@@ -2198,6 +2206,10 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		}
 
 		if (prop & SA_STOP) {
+			/*
+			 * If traced process is already stopped,
+			 * then no further action is necessary.
+			 */
 			if (p->p_flag & P_TRACED)
 				goto out;
 			/*
