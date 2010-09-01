@@ -986,6 +986,7 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 MLINKS+=rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_init.9 \
 	rmlock.9 rm_rlock.9 \
+	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_runlock.9 \
 	rmlock.9 RM_SYSINIT.9 \
 	rmlock.9 rm_wlock.9 \
