@@ -2136,6 +2136,7 @@ sis_ifmedia_upd(struct ifnet *ifp)
 {
 	struct sis_softc	*sc;
 	struct mii_data		*mii;
+	int			error;
 
 	sc = ifp->if_softc;
 
@@ -2147,10 +2148,10 @@ sis_ifmedia_upd(struct ifnet *ifp)
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
 	}
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	SIS_UNLOCK(sc);
 
-	return (0);
+	return (error);
 }
 
 /*
