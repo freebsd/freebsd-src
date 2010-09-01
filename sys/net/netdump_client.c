@@ -1153,8 +1153,6 @@ static void
 netdump_trigger(void *arg, int howto)
 {
 	struct dumperinfo dumper;
-	int broke_lock = 0;
-	uint8_t broken_state[NETDUMP_BROKEN_STATE_BUFFER_SIZE];
 	void (*old_if_input)(struct ifnet *, struct mbuf *)=NULL;
 	int error;
 
@@ -1188,8 +1186,7 @@ netdump_trigger(void *arg, int howto)
 	savectx(&dumppcb);
 	dumping++;
 
-	bzero(broken_state, sizeof(broken_state));
-	error = nd_nic->if_netdump->break_lock(nd_nic, &broke_lock, broken_state, sizeof(broken_state));
+	error = nd_nic->if_netdump->acquire_lock(nd_nic);
 
 	if(error) {
 		printf("netdump_trigger: Could not acquire lock on %s\n", nd_nic->if_xname);
@@ -1253,50 +1250,6 @@ trig_abort:
 		nd_nic->if_input = old_if_input;
 	nd_nic->if_netdump->release_lock(nd_nic);
 	dumping--;
-}
-
-/*-
- * Public primitives.
- */
-
-/* this isn't declared in any header file... */
-extern int system_panic;
-
-int
-netdump_break_lock(struct mtx *lock, const char *name, int *broke_lock,
-    uint8_t *broken_state, u_int index, u_int bstatesz)
-{
-	/* XXX: Technically this might be bad because it's possible to be called
-	   from within a critical section (such as when the software watchdog
-	   triggers), although it's only a trylock */
-	if (!mtx_trylock(lock)) {
-		if(system_panic) {
-			/* The lock is already held. Attempting to use the card is
-			 * probably unsafe at this point, but since we're panicking
-			 * anyway, there's nothing to lose. Be horrible and break the
-			 * lock. 
-			 */
-			critical_enter(); /* No interrupts so that this is less likely
-			                   * to mess up 
-			                   */
-			if(bstatesz >= (index + sizeof(*lock))) {
-				bcopy(lock, broken_state + index, sizeof(*lock));
-			} else {
-				printf("Netdump: cannot save state of lock %s!", name);
-			}
-
-			_release_lock_quick(lock);
-			mtx_destroy(lock);
-			mtx_init(lock, name, MTX_NETWORK_LOCK,
-				MTX_DEF);
-			*broke_lock = 1;
-			critical_exit();/* We can't grab a lock in a critical section */
-			mtx_lock(lock);
-		} else {
-			return EAGAIN;
-		}
-	} 
-	return 0;
 }
 
 /*-
