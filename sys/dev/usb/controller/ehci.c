@@ -3804,7 +3804,7 @@ done:
 }
 
 static void
-ehci_get_dma_delay(struct usb_bus *bus, uint32_t *pus)
+ehci_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 {
 	/*
 	 * Wait until the hardware has finished any possible use of
