@@ -892,9 +892,9 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	 * we need to switch before freeing them.
 	 */
 	CURVNET_SET_QUIET(oifp->if_vnet);
-	if_free_type(oifp, IFT_ETHER);
+	if_free(oifp);
 	CURVNET_RESTORE();
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 	free(scb, M_EPAIR);
 	free(sca, M_EPAIR);
 	ifc_free_unit(ifc, unit);
