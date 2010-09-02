@@ -124,7 +124,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
-#include <dev/usb/usb_device.h>
+#include <dev/usb/usbdi_util.h>
 #include "usbdevs.h"
 
 #include <dev/usb/quirk/usb_quirk.h>
@@ -2304,23 +2304,24 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			if (umass_std_transform(sc, ccb, cmd, ccb->csio.cdb_len)) {
 
 				if (sc->sc_transfer.cmd_data[0] == INQUIRY) {
+					const char *pserial;
+
+					pserial = usb_get_serial(sc->sc_udev);
 
 					/*
 					 * Umass devices don't generally report their serial numbers
 					 * in the usual SCSI way.  Emulate it here.
 					 */
 					if ((sc->sc_transfer.cmd_data[1] & SI_EVPD) &&
-					    sc->sc_transfer.cmd_data[2] == SVPD_UNIT_SERIAL_NUMBER &&
-					    sc->sc_udev != NULL &&
-					    sc->sc_udev->serial != NULL &&
-					    sc->sc_udev->serial[0] != '\0') {
+					    (sc->sc_transfer.cmd_data[2] == SVPD_UNIT_SERIAL_NUMBER) &&
+					    (pserial[0] != '\0')) {
 						struct scsi_vpd_unit_serial_number *vpd_serial;
 
 						vpd_serial = (struct scsi_vpd_unit_serial_number *)ccb->csio.data_ptr;
-						vpd_serial->length = strlen(sc->sc_udev->serial);
+						vpd_serial->length = strlen(pserial);
 						if (vpd_serial->length > sizeof(vpd_serial->serial_num))
 							vpd_serial->length = sizeof(vpd_serial->serial_num);
-						memcpy(vpd_serial->serial_num, sc->sc_udev->serial, vpd_serial->length);
+						memcpy(vpd_serial->serial_num, pserial, vpd_serial->length);
 						ccb->csio.scsi_status = SCSI_STATUS_OK;
 						ccb->ccb_h.status = CAM_REQ_CMP;
 						xpt_done(ccb);
@@ -2553,9 +2554,7 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 		    sc->sc_transfer.cmd_data[0] == INQUIRY &&
 		    (sc->sc_transfer.cmd_data[1] & SI_EVPD) &&
 		    sc->sc_transfer.cmd_data[2] == SVPD_SUPPORTED_PAGE_LIST &&
-		    sc->sc_udev != NULL &&
-		    sc->sc_udev->serial != NULL &&
-		    sc->sc_udev->serial[0] != '\0') {
+		    (usb_get_serial(sc->sc_udev)[0] != '\0')) {
 			struct ccb_scsiio *csio;
 			struct scsi_vpd_supported_page_list *page_list;
 

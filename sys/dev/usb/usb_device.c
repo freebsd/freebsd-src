@@ -136,6 +136,24 @@ usb_statestr(enum usb_dev_state state)
 	return ((state < USB_STATE_MAX) ? statestr[state] : "UNKNOWN");
 }
 
+const char *
+usb_get_manufacturer(struct usb_device *udev)
+{
+	return (udev->manufacturer ? udev->manufacturer : "Unknown");
+}
+
+const char *
+usb_get_product(struct usb_device *udev)
+{
+	return (udev->product ? udev->product : "");
+}
+
+const char *
+usb_get_serial(struct usb_device *udev)
+{
+	return (udev->serial ? udev->serial : "");
+}
+
 /*------------------------------------------------------------------------*
  *	usbd_get_ep_by_addr
  *
@@ -1833,7 +1851,8 @@ config_done:
 	udev->ugen_symlink = usb_alloc_symlink(udev->ugen_name);
 
 	/* Announce device */
-	printf("%s: <%s> at %s\n", udev->ugen_name, udev->manufacturer,
+	printf("%s: <%s> at %s\n", udev->ugen_name,
+	    usb_get_manufacturer(udev),
 	    device_get_nameunit(udev->bus->bdev));
 
 	usb_notify_addq("ATTACH", udev);
@@ -1985,7 +2004,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	usb_notify_addq("DETACH", udev);
 
 	printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
-	    udev->manufacturer, device_get_nameunit(bus->bdev));
+	    usb_get_manufacturer(udev), device_get_nameunit(bus->bdev));
 
 	/* Destroy UGEN symlink, if any */
 	if (udev->ugen_symlink) {
@@ -2150,7 +2169,8 @@ usb_devinfo(struct usb_device *udev, char *dst_ptr, uint16_t dst_len)
 	if (udd->bDeviceClass != 0xFF) {
 		snprintf(dst_ptr, dst_len, "%s %s, class %d/%d, rev %x.%02x/"
 		    "%x.%02x, addr %d",
-		    udev->manufacturer, udev->product,
+		    usb_get_manufacturer(udev),
+		    usb_get_product(udev),
 		    udd->bDeviceClass, udd->bDeviceSubClass,
 		    (bcdUSB >> 8), bcdUSB & 0xFF,
 		    (bcdDevice >> 8), bcdDevice & 0xFF,
@@ -2158,7 +2178,8 @@ usb_devinfo(struct usb_device *udev, char *dst_ptr, uint16_t dst_len)
 	} else {
 		snprintf(dst_ptr, dst_len, "%s %s, rev %x.%02x/"
 		    "%x.%02x, addr %d",
-		    udev->manufacturer, udev->product,
+		    usb_get_manufacturer(udev),
+		    usb_get_product(udev),
 		    (bcdUSB >> 8), bcdUSB & 0xFF,
 		    (bcdDevice >> 8), bcdDevice & 0xFF,
 		    udev->address);
@@ -2397,7 +2418,7 @@ usb_notify_addq_compat(const char *type, struct usb_device *udev)
 	    UGETW(udev->ddesc.idProduct),
 	    udev->ddesc.bDeviceClass,
 	    udev->ddesc.bDeviceSubClass,
-	    udev->serial,
+	    usb_get_serial(udev),
 	    UGETW(udev->ddesc.bcdDevice),
 	    udev->port_no,
 	    udev->parent_hub != NULL ?
@@ -2437,7 +2458,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    UGETW(udev->ddesc.idProduct),
 	    udev->ddesc.bDeviceClass,
 	    udev->ddesc.bDeviceSubClass,
-	    udev->serial,
+	    usb_get_serial(udev),
 	    UGETW(udev->ddesc.bcdDevice),
 	    (udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",
 	    udev->port_no,
@@ -2476,7 +2497,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		    UGETW(udev->ddesc.idProduct),
 		    udev->ddesc.bDeviceClass,
 		    udev->ddesc.bDeviceSubClass,
-		    udev->serial,
+		    usb_get_serial(udev),
 		    UGETW(udev->ddesc.bcdDevice),
 		    (udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",
 		    iface->idesc->bInterfaceNumber,
