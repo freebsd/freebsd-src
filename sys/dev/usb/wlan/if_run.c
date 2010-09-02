@@ -1693,7 +1693,6 @@ run_media_change(struct ifnet *ifp)
 	struct ieee80211com *ic = vap->iv_ic;
 	const struct ieee80211_txparam *tp;
 	struct run_softc *sc = ic->ic_ifp->if_softc;
-	struct run_node	*rn = (void *)vap->iv_bss;
 	uint8_t rate, ridx;
 	int error;
 
@@ -1707,13 +1706,19 @@ run_media_change(struct ifnet *ifp)
 
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 	if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+		struct ieee80211_node *ni;
+		struct run_node	*rn;
+
 		rate = ic->ic_sup_rates[ic->ic_curmode].
 		    rs_rates[tp->ucastrate] & IEEE80211_RATE_VAL;
 		for (ridx = 0; ridx < RT2860_RIDX_MAX; ridx++)
 			if (rt2860_rates[ridx].rate == rate)
 				break;
+		ni = ieee80211_ref_node(vap->iv_bss);
+		rn = (struct run_node *)ni;
 		rn->fix_ridx = ridx;
 		DPRINTF("rate=%d, fix_ridx=%d\n", rate, rn->fix_ridx);
+		ieee80211_free_node(ni);
 	}
 
 #if 0
@@ -1736,7 +1741,6 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct run_softc *sc = ic->ic_ifp->if_softc;
 	struct run_vap *rvp = RUN_VAP(vap);
 	enum ieee80211_state ostate;
-	struct ieee80211_node *ni;
 	uint32_t sta[3];
 	uint32_t tmp;
 	uint8_t ratectl;
@@ -1781,7 +1785,6 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 
 	case IEEE80211_S_RUN:
-		ni = vap->iv_bss;
 		if (!(sc->runbmap & bid)) {
 			if(sc->running++)
 				restart_ratectl = 1;
@@ -1817,12 +1820,16 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
+			struct ieee80211_node *ni;
+
 			run_updateslot(ic->ic_ifp);
 			run_enable_mrr(sc);
 			run_set_txpreamble(sc);
 			run_set_basicrates(sc);
+			ni = ieee80211_ref_node(vap->iv_bss);
 			IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
 			run_set_bssid(sc, ni->ni_bssid);
+			ieee80211_free_node(ni);
 			run_enable_tsf_sync(sc);
 
 			/* enable automatic rate adaptation */
