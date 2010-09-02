@@ -1223,7 +1223,7 @@ netdump_trigger(void *arg, int howto)
 	dumper.dumper = netdump_dumper;
 	dumper.priv = NULL;
 	dumper.blocksize = NETDUMP_DATASIZE;
-	dumper.flags = DF_NET;
+	dumper.flags = DIF_NET;
 
 	/* in dump_machdep.c */
 	dumpsys(&dumper);

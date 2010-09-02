@@ -277,13 +277,18 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += PAGE_SIZE;
 
 	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
-		error = ENOSPC;
-		goto fail;
-	}
+	if ((di->flags & DIF_NET) != 0)
+		dumplo = 0;
+	else {
+		if (di->mediasize <
+		    SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
+			error = ENOSPC;
+			goto fail;
+		}
 
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
+		dumplo = di->mediaoffset + di->mediasize - dumpsize;
+		dumplo -= sizeof(kdh) * 2;
+	}
 	progress = dumpsize;
 
 	/* Initialize mdhdr */

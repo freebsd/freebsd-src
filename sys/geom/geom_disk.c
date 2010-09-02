@@ -182,6 +182,7 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	di.blocksize = dp->d_sectorsize;
 	di.maxiosize = dp->d_maxsize;
 	di.mediaoffset = gkd->offset;
+	di.flags = 0;
 	if ((gkd->offset + gkd->length) > dp->d_mediasize)
 		gkd->length = dp->d_mediasize - gkd->offset;
 	di.mediasize = gkd->length;

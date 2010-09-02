@@ -232,12 +232,17 @@ dumpsys(struct dumperinfo *di)
 	hdrgap = fileofs - DEV_ALIGN(hdrsz);
 
 	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
-		error = ENOSPC;
-		goto fail;
+	if ((di->flags & DIF_NET) != 0)
+		dumplo = 0;
+	else {
+		if (di->mediasize <
+		    SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
+			error = ENOSPC;
+			goto fail;
+		}
+		dumplo = di->mediaoffset + di->mediasize - dumpsize;
+		dumplo -= sizeof(kdh) * 2;
 	}
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
 
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_IA64_VERSION, dumpsize, di->blocksize);
 

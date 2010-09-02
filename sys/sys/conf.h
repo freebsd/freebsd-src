@@ -317,6 +317,8 @@ EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 
 /* Stuff relating to kernel-dump */
 
+#define	DIF_NET		0x01		/* Dump over network. */
+
 struct dumperinfo {
 	dumper_t *dumper;	/* Dumping function. */
 	void    *priv;		/* Private parts. */
@@ -324,6 +326,7 @@ struct dumperinfo {
 	u_int	maxiosize;	/* Max size allowed for an individual I/O */
 	off_t   mediaoffset;	/* Initial offset in bytes. */
 	off_t   mediasize;	/* Space available in bytes. */
+	u_int	flags;		/* Dump device flags. */
 };
 
 int set_dumper(struct dumperinfo *);
