@@ -652,7 +652,6 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct ieee80211_node *ni = vap->iv_bss;
 	struct upgt_data *data_cmd;
 	struct upgt_lmac_mem *mem;
 	struct upgt_lmac_filter *filter;
@@ -707,6 +706,9 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 		filter->unknown3 = htole16(UPGT_FILTER_UNKNOWN3);
 		break;
 	case IEEE80211_S_RUN:
+		struct ieee80211_node *ni;
+
+		ni = ieee80211_ref_node(vap->iv_bss);
 		/* XXX monitor mode isn't tested yet.  */
 		if (vap->iv_opmode == IEEE80211_M_MONITOR) {
 			filter->type = htole16(UPGT_FILTER_TYPE_MONITOR);
@@ -730,6 +732,7 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 			filter->rxhw = htole32(sc->sc_eeprom_hwrx);
 			filter->unknown3 = htole16(UPGT_FILTER_UNKNOWN3);
 		}
+		ieee80211_free_node(ni);
 		break;
 	default:
 		device_printf(sc->sc_dev,
