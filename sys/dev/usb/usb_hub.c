@@ -53,6 +53,7 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR uhub_debug
 
@@ -1059,7 +1060,7 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
-		    res.udev->serial,
+		    usb_get_serial(res.udev),
 		    UGETW(res.udev->ddesc.bcdDevice),
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass);

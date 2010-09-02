@@ -62,12 +62,10 @@ __FBSDID("$FreeBSD$");
 #define USB_DEBUG_VAR uhso_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_device.h>
 #include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-#include <dev/usb/serial/usb_serial.h>
 #include <dev/usb/usb_msctest.h>
+
+#include <dev/usb/serial/usb_serial.h>
 
 struct uhso_tty {
 	struct uhso_softc *ht_sc;
@@ -513,7 +511,7 @@ uhso_probe(device_t self)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != 0)
 		return (ENXIO);
-	if (uaa->device->ddesc.bDeviceClass != 0xff)
+	if (uaa->info.bDeviceClass != 0xff)
 		return (ENXIO);
 
 	error = usbd_lookup_id_by_uaa(uhso_devs, sizeof(uhso_devs), uaa);
@@ -603,8 +601,9 @@ uhso_attach(device_t self)
 	/* Announce device */
 	device_printf(self, "<%s port> at <%s %s> on %s\n",
 	    uhso_port_type[UHSO_IFACE_PORT_TYPE(sc->sc_type)],
-	    uaa->device->manufacturer, uaa->device->product,
-	    device_get_nameunit(uaa->device->bus->bdev));
+	    usb_get_manufacturer(uaa->device),
+	    usb_get_product(uaa->device),
+	    device_get_nameunit(device_get_parent(self)));
 
 	if (sc->sc_ttys > 0) {
 		SYSCTL_ADD_INT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "ports",
