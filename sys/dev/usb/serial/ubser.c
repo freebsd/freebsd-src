@@ -104,7 +104,6 @@ __FBSDID("$FreeBSD$");
 #define	USB_DEBUG_VAR ubser_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_device.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -226,7 +225,7 @@ ubser_probe(device_t dev)
 		return (ENXIO);
 	}
 	/* check if this is a BWCT vendor specific ubser interface */
-	if ((strcmp(uaa->device->manufacturer, "BWCT") == 0) &&
+	if ((strcmp(usb_get_manufacturer(uaa->device), "BWCT") == 0) &&
 	    (uaa->info.bInterfaceClass == 0xff) &&
 	    (uaa->info.bInterfaceSubClass == 0x00))
 		return (0);
