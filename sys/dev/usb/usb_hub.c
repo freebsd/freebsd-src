@@ -2133,12 +2133,39 @@ usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode)
 {
 	/* filter input argument */
 	if ((power_mode != USB_POWER_MODE_ON) &&
-	    (power_mode != USB_POWER_MODE_OFF)) {
+	    (power_mode != USB_POWER_MODE_OFF))
 		power_mode = USB_POWER_MODE_SAVE;
-	}
+
+	power_mode = usbd_filter_power_mode(udev, power_mode);	
+
 	udev->power_mode = power_mode;	/* update copy of power mode */
 
 #if USB_HAVE_POWERD
 	usb_bus_power_update(udev->bus);
 #endif
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_filter_power_mode
+ *
+ * This function filters the power mode based on hardware requirements.
+ *------------------------------------------------------------------------*/
+uint8_t
+usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
+{
+	struct usb_bus_methods *mtod;
+	int8_t temp;
+
+	mtod = udev->bus->methods;
+	temp = -1;
+
+	if (mtod->get_power_mode != NULL)
+		(mtod->get_power_mode) (udev, &temp);
+
+	/* check if we should not filter */
+	if (temp < 0)
+		return (power_mode);
+
+	/* use fixed power mode given by hardware driver */
+	return (temp);
 }

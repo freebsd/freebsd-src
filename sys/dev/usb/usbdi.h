@@ -479,6 +479,7 @@ void	usbd_set_parent_iface(struct usb_device *udev, uint8_t iface_index,
 uint8_t	usbd_get_bus_index(struct usb_device *udev);
 uint8_t	usbd_get_device_index(struct usb_device *udev);
 void	usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode);
+uint8_t	usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode);
 uint8_t	usbd_device_attached(struct usb_device *udev);
 
 void	usbd_xfer_status(struct usb_xfer *xfer, int *actlen, int *sumlen,
