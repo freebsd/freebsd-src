@@ -474,7 +474,8 @@ ata_generic_reset(device_t dev)
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_DEV(ATA_MASTER));
     DELAY(10);
     ostat0 = ATA_IDX_INB(ch, ATA_STATUS);
-    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
+    if (((ostat0 & 0xf8) != 0xf8 || (ch->flags & ATA_KNOWN_PRESENCE)) &&
+	    ostat0 != 0xa5) {
 	stat0 = ATA_S_BUSY;
 	mask |= 0x01;
     }
@@ -484,7 +485,8 @@ ata_generic_reset(device_t dev)
 	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_DEV(ATA_SLAVE));
 	DELAY(10);      
 	ostat1 = ATA_IDX_INB(ch, ATA_STATUS);
-	if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
+	if (((ostat1 & 0xf8) != 0xf8 || (ch->flags & ATA_KNOWN_PRESENCE)) &&
+		ostat1 != 0xa5) {
 	    stat1 = ATA_S_BUSY;
 	    mask |= 0x02;
 	}
@@ -570,22 +572,16 @@ ata_generic_reset(device_t dev)
 	    }
 	}
 
-	if (mask == 0x00)       /* nothing to wait for */
-	    break;
-	if (mask == 0x01)       /* wait for master only */
-	    if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 10))
-		break;
-	if (mask == 0x02)       /* wait for slave only */
-	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 10))
-		break;
-	if (mask == 0x03) {     /* wait for both master & slave */
-	    if (!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
-		break;
-	    if ((stat0 == 0xff) && (timeout > 20))
-		mask &= ~0x01;
-	    if ((stat1 == 0xff) && (timeout > 20))
-		mask &= ~0x02;
+	if ((ch->flags & ATA_KNOWN_PRESENCE) == 0 &&
+	    timeout > ((mask == 0x03) ? 20 : 10)) {
+		if ((mask & 0x01) && stat0 == 0xff)
+			mask &= ~0x01;
+		if ((mask & 0x02) && stat1 == 0xff)
+			mask &= ~0x02;
 	}
+	if (((mask & 0x01) == 0 || !(stat0 & ATA_S_BUSY)) &&
+	    ((mask & 0x02) == 0 || !(stat1 & ATA_S_BUSY)))
+		break;
 	ata_udelay(100000);
     }
 
