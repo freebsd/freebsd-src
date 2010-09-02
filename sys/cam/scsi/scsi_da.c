@@ -1354,7 +1354,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 			bioq_remove(&softc->bio_queue, bp);
 
-			if ((softc->flags & DA_FLAG_NEED_OTAG) != 0) {
+			if ((bp->bio_flags & BIO_ORDERED) != 0
+			 || (softc->flags & DA_FLAG_NEED_OTAG) != 0) {
 				softc->flags &= ~DA_FLAG_NEED_OTAG;
 				softc->ordered_tag_count++;
 				tag_code = MSG_ORDERED_Q_TAG;
@@ -1368,7 +1369,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 						/*retries*/da_retry_count,
 						/*cbfcnp*/dadone,
 						/*tag_action*/tag_code,
-						/*read_op*/bp->bio_cmd == BIO_READ,
+						/*read_op*/bp->bio_cmd
+							== BIO_READ,
 						/*byte2*/0,
 						softc->minimum_cmd_size,
 						/*lba*/bp->bio_pblkno,
@@ -1377,17 +1379,24 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 						/*data_ptr*/ bp->bio_data,
 						/*dxfer_len*/ bp->bio_bcount,
 						/*sense_len*/SSD_FULL_SIZE,
-						/*timeout*/da_default_timeout*1000);
+						da_default_timeout * 1000);
 				break;
 			case BIO_FLUSH:
+				/*
+				 * BIO_FLUSH doesn't currently communicate
+				 * range data, so we synchronize the cache
+				 * over the whole disk.  We also force
+				 * ordered tag semantics the flush applies
+				 * to all previously queued I/O.
+				 */
 				scsi_synchronize_cache(&start_ccb->csio,
 						       /*retries*/1,
 						       /*cbfcnp*/dadone,
-						       MSG_SIMPLE_Q_TAG,
-						       /*begin_lba*/0,/* Cover the whole disk */
+						       MSG_ORDERED_Q_TAG,
+						       /*begin_lba*/0,
 						       /*lb_count*/0,
 						       SSD_FULL_SIZE,
-						       /*timeout*/da_default_timeout*1000);
+						       da_default_timeout*1000);
 				break;
 			}
 			start_ccb->ccb_h.ccb_state = DA_CCB_BUFFER_IO;

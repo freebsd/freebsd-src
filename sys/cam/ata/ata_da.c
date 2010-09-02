@@ -874,7 +874,8 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		}
 		bioq_remove(&softc->bio_queue, bp);
 
-		if ((softc->flags & ADA_FLAG_NEED_OTAG) != 0) {
+		if ((bp->bio_flags & BIO_ORDERED) != 0
+		 || (softc->flags & ADA_FLAG_NEED_OTAG) != 0) {
 			softc->flags &= ~ADA_FLAG_NEED_OTAG;
 			softc->ordered_tag_count++;
 			tag_code = 0;
