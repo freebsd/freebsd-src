@@ -284,6 +284,9 @@ get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
 
 		*cpos = dirbuf;
 		*len = (dirbuflen - uio.uio_resid);
+
+		if (*len == 0)
+			return (ENOENT);
 	}
 
 	dp = (struct dirent *)(*cpos);
