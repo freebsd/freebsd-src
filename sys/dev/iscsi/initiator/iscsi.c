@@ -295,12 +295,6 @@ iscsi_read(struct cdev *dev, struct uio *uio, int ioflag)
 	  sprintf(buf, "%d/%d /---- free -----/\n", sc->npdu_alloc, sc->npdu_max);
 	  i = 0;
 	  uiomove(buf, strlen(buf), uio);
-	  TAILQ_FOREACH(pq, &sc->freepdu, pq_link) {
-	       if(uio->uio_resid == 0)
-		    return 0;
-	       sprintf(buf, "%03d] %06x\n", i++, ntohl(pq->pdu.ipdu.bhs.itt));
-	       uiomove(buf, strlen(buf), uio);
-	  }
      }
      else {
 	  int	i = 0;
@@ -704,15 +698,10 @@ iscsi_shutdown(void *v)
 static void
 free_pdus(struct isc_softc *sc)
 {
-     pduq_t	*pq;
 
      debug_called(8);
 
      if(sc->pdu_zone != NULL) {
-	  TAILQ_FOREACH(pq, &sc->freepdu, pq_link) {
-	       TAILQ_REMOVE(&sc->freepdu, pq, pq_link);
-	       uma_zfree(sc->pdu_zone, pq);
-	  }
 	  uma_zdestroy(sc->pdu_zone);
 	  sc->pdu_zone = NULL;
      }
@@ -730,7 +719,6 @@ iscsi_start(void)
      isc->dev = make_dev(&iscsi_cdevsw, max_sessions, UID_ROOT, GID_WHEEL, 0600, "iscsi");
      isc->dev->si_drv1 = isc;
      mtx_init(&isc->isc_mtx, "iscsi", NULL, MTX_DEF);
-     mtx_init(&isc->pdu_mtx, "iscsi pdu pool", NULL, MTX_DEF);
 
      TAILQ_INIT(&isc->isc_sess);
      /*
@@ -744,7 +732,6 @@ iscsi_start(void)
 	  // XXX: should fail...
      }
      uma_zone_set_max(isc->pdu_zone, max_pdus);
-     TAILQ_INIT(&isc->freepdu);
      isc->unit = new_unrhdr(0, max_sessions-1, NULL);
      sx_init(&isc->unit_sx, "iscsi sx");
 
@@ -818,7 +805,6 @@ iscsi_stop(void)
 	       ic_destroy(sp);
      }
      mtx_destroy(&isc->isc_mtx);
-     mtx_destroy(&isc->pdu_mtx);
      sx_destroy(&isc->unit_sx);
 
      free_pdus(isc);
