@@ -1883,8 +1883,8 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head)
 
 	/* Swap the last and the first dmamaps. */
 	map = txd->tx_dmamap;
-	txd->tx_dmamap = sc->sis_txdesc[frag].tx_dmamap;
-	sc->sis_txdesc[frag].tx_dmamap = map;
+	txd->tx_dmamap = sc->sis_txdesc[prod].tx_dmamap;
+	sc->sis_txdesc[prod].tx_dmamap = map;
 	txd->tx_m = *m_head;
 
 	return (0);
