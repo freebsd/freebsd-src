@@ -125,8 +125,6 @@ static int	 sysctl_force_crash(SYSCTL_HANDLER_ARGS);
 static int	 sysctl_ip(SYSCTL_HANDLER_ARGS);
 static int	 sysctl_nic(SYSCTL_HANDLER_ARGS);
 
-extern struct pcb dumppcb; /* cheat.  dumppcb is a static! */
-
 static eventhandler_tag nd_tag = NULL;       /* record of our shutdown event */
 static uint32_t nd_seqno = 1;		     /* current sequence number */
 static uint64_t rcvd_acks;		     /* flags for out of order acks */
@@ -1184,6 +1182,7 @@ netdump_trigger(void *arg, int howto)
 	 * can find the stack trace.
 	 */
 	savectx(&dumppcb);
+	dumptid = curthread->td_tid;
 	dumping++;
 
 	if (panicstr == NULL)
