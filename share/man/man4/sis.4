@@ -157,9 +157,9 @@ This variable controls how to pad short frames for DP83815/DP83816
 controllers on the specified device.
 DP83815/DP83816 controllers are known to pad 0xFF for short frames
 which is violation of RFC 1042.
-A non-zero value have driver manually pad zeros for short frames
-with the cost of extra CPU cycles.
-The default valus is 0 to let hardware automatically pad short frames.
+Set this variable to a non-zero value to let driver manually pad
+each short frame with zeros at the cost of extra CPU cycles.
+The default value is 0 to let hardware perform automatic padding.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
