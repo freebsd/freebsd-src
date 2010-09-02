@@ -720,7 +720,7 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	default:			/* Error */
-		DPRINTFN(0, "error=%s\n", usbd_errstr(error));
+		DPRINTFN(1, "error=%s\n", usbd_errstr(error));
 		break;
 	}
 }
