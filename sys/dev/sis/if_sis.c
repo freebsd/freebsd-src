@@ -1057,7 +1057,12 @@ sis_attach(device_t dev)
 			tmp[2] = sis_reverse(tmp[2]);
 			tmp[1] = sis_reverse(tmp[1]);
 
-			bcopy((char *)&tmp[1], eaddr, ETHER_ADDR_LEN);
+			eaddr[0] = (tmp[1] >> 0) & 0xFF;
+			eaddr[1] = (tmp[1] >> 8) & 0xFF;
+			eaddr[2] = (tmp[2] >> 0) & 0xFF;
+			eaddr[3] = (tmp[2] >> 8) & 0xFF;
+			eaddr[4] = (tmp[3] >> 0) & 0xFF;
+			eaddr[5] = (tmp[3] >> 8) & 0xFF;
 		}
 		break;
 	case SIS_VENDORID:
@@ -1967,6 +1972,7 @@ sis_initl(struct sis_softc *sc)
 {
 	struct ifnet		*ifp = sc->sis_ifp;
 	struct mii_data		*mii;
+	uint8_t			*eaddr;
 
 	SIS_LOCK_ASSERT(sc);
 
@@ -1994,26 +2000,21 @@ sis_initl(struct sis_softc *sc)
 	mii = device_get_softc(sc->sis_miibus);
 
 	/* Set MAC address */
+	eaddr = IF_LLADDR(sc->sis_ifp);
 	if (sc->sis_type == SIS_TYPE_83815) {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR0);
-		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[0]);
+		CSR_WRITE_4(sc, SIS_RXFILT_DATA, eaddr[0] | eaddr[1] << 8);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR1);
-		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[1]);
+		CSR_WRITE_4(sc, SIS_RXFILT_DATA, eaddr[2] | eaddr[3] << 8);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR2);
-		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[2]);
+		CSR_WRITE_4(sc, SIS_RXFILT_DATA, eaddr[4] | eaddr[5] << 8);
 	} else {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR0);
-		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[0]);
+		CSR_WRITE_4(sc, SIS_RXFILT_DATA, eaddr[0] | eaddr[1] << 8);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR1);
-		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[1]);
+		CSR_WRITE_4(sc, SIS_RXFILT_DATA, eaddr[2] | eaddr[3] << 8);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR2);
-		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[2]);
+		CSR_WRITE_4(sc, SIS_RXFILT_DATA, eaddr[4] | eaddr[5] << 8);
 	}
 
 	/* Init circular TX/RX lists. */
