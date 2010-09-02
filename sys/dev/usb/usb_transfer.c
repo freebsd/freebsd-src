@@ -158,12 +158,16 @@ usbd_update_max_frame_size(struct usb_xfer *xfer)
  * Else: milliseconds of DMA delay
  *------------------------------------------------------------------------*/
 usb_timeout_t
-usbd_get_dma_delay(struct usb_bus *bus)
+usbd_get_dma_delay(struct usb_device *udev)
 {
-	uint32_t temp = 0;
+	struct usb_bus_methods *mtod;
+	uint32_t temp;
 
-	if (bus->methods->get_dma_delay) {
-		(bus->methods->get_dma_delay) (bus, &temp);
+	mtod = udev->bus->methods;
+	temp = 0;
+
+	if (mtod->get_dma_delay) {
+		(mtod->get_dma_delay) (udev, &temp);
 		/*
 		 * Round up and convert to milliseconds. Note that we use
 		 * 1024 milliseconds per second. to save a division.
@@ -1094,9 +1098,11 @@ usbd_transfer_unsetup_sub(struct usb_xfer_root *info, uint8_t needs_delay)
 
 	if (needs_delay) {
 		usb_timeout_t temp;
-		temp = usbd_get_dma_delay(info->bus);
-		usb_pause_mtx(&info->bus->bus_mtx,
-		    USB_MS_TO_TICKS(temp));
+		temp = usbd_get_dma_delay(info->udev);
+		if (temp != 0) {
+			usb_pause_mtx(&info->bus->bus_mtx,
+			    USB_MS_TO_TICKS(temp));
+		}
 	}
 
 	/* make sure that our done messages are not queued anywhere */
@@ -2577,7 +2583,7 @@ usbd_callback_wrapper_sub(struct usb_xfer *xfer)
 		/* we can not cancel this delay */
 		xfer->flags_int.can_cancel_immed = 0;
 
-		temp = usbd_get_dma_delay(xfer->xroot->bus);
+		temp = usbd_get_dma_delay(xfer->xroot->udev);
 
 		DPRINTFN(3, "DMA delay, %u ms, "
 		    "on %p\n", temp, xfer);
