@@ -316,6 +316,7 @@ ata_sii_ch_attach(device_t dev)
 	ch->r_io[ATA_SCONTROL].offset = 0x100 + (unit01 << 7) + (unit10 << 8);
 	ch->flags |= ATA_NO_SLAVE;
 	ch->flags |= ATA_SATA;
+	ch->flags |= ATA_KNOWN_PRESENCE;
 
 	/* enable PHY state change interrupt */
 	ATA_OUTL(ctlr->r_res2, 0x148 + (unit01 << 7) + (unit10 << 8),(1 << 16));
