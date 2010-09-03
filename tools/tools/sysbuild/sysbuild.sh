@@ -410,6 +410,9 @@ if [ "x${REMOTEDISTFILES}" != "x" ] ; then
 	mount  ${REMOTEDISTFILES} /freebsd/distfiles
 fi
 
+log_it copy ports config files
+(cd / ; find var/db/ports -print | cpio -dumpv /mnt )
+
 log_it "Start prefetch of ports distfiles"
 ports_prefetch &
 
@@ -482,9 +485,6 @@ if [ -f /etc/localtime ] ; then
 	log_it copy localtime
 	cp /etc/localtime /mnt/etc
 fi
-
-log_it copy ports config files
-(cd / ; find var/db/ports -print | cpio -dumpv /mnt )
 
 log_it ldconfig in chroot
 chroot /mnt sh /etc/rc.d/ldconfig start
