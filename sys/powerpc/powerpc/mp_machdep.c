@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
@@ -60,6 +62,7 @@ volatile static u_int ap_letgo;
 volatile static uint32_t ap_decr;
 volatile static u_quad_t ap_timebase;
 static u_int ipi_msg_cnt[32];
+static struct mtx ap_boot_mtx;
 
 void
 machdep_ap_bootstrap(void)
@@ -80,8 +83,11 @@ machdep_ap_bootstrap(void)
 	mttb(ap_timebase);
 	__asm __volatile("mtdec %0" :: "r"(ap_decr));
 
-	atomic_add_int(&ap_awake, 1);
+	/* Serialize console output and AP count increment */
+	mtx_lock_spin(&ap_boot_mtx);
+	ap_awake++;
 	printf("SMP: AP CPU #%d launched\n", PCPU_GET(cpuid));
+	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* Initialize curthread */
 	PCPU_SET(curthread, PCPU_GET(idlethread));
@@ -202,6 +208,8 @@ cpu_mp_unleash(void *dummy)
 
 	if (mp_ncpus <= 1)
 		return;
+
+	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	cpus = 0;
 	smp_cpus = 0;
