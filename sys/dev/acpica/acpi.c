@@ -1690,10 +1690,10 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
     ACPI_OBJECT_TYPE type;
 
     /*
-     * 1. I/O port and memory system resource holders
-     * 2. Embedded controllers (to handle early accesses)
-     * 3. PCI Link Devices
-     * 100000. CPUs
+     * 1. CPUs
+     * 2. I/O port and memory system resource holders
+     * 3. Embedded controllers (to handle early accesses)
+     * 4. PCI Link Devices
      */
     AcpiGetType(handle, &type);
     if (type == ACPI_TYPE_PROCESSOR)
@@ -1753,8 +1753,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * placeholder so that the probe/attach passes will run
 	     * breadth-first.  Orders less than ACPI_DEV_BASE_ORDER
 	     * are reserved for special objects (i.e., system
-	     * resources).  CPU devices have a very high order to
-	     * ensure they are probed after other devices.
+	     * resources).
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
 	    order = level * 10 + 100;
