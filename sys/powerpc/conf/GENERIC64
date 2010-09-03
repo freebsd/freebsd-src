@@ -76,8 +76,8 @@ options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
-# To make an SMP kernel, the next line is needed
-#options 	SMP			# Symmetric MultiProcessor Kernel
+# Make an SMP-capable kernel by default
+options 	SMP			# Symmetric MultiProcessor Kernel
 
 # CPU frequency control
 device		cpufreq
