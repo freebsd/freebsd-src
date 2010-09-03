@@ -116,18 +116,22 @@ _assert_sbuf_state(const char *fun, struct sbuf *s, int state)
 
 #endif /* _KERNEL && INVARIANTS */
 
+CTASSERT(powerof2(SBUF_MAXEXTENDSIZE));
+CTASSERT(powerof2(SBUF_MAXEXTENDINCR));
+
 static int
 sbuf_extendsize(int size)
 {
 	int newsize;
 
-	newsize = SBUF_MINEXTENDSIZE;
-	while (newsize < size) {
-		if (newsize < (int)SBUF_MAXEXTENDSIZE)
+	if (size < (int)SBUF_MAXEXTENDSIZE) {
+		newsize = SBUF_MINEXTENDSIZE;
+		while (newsize < size)
 			newsize *= 2;
-		else
-			newsize += SBUF_MAXEXTENDINCR;
+	} else {
+		newsize = roundup2(size, SBUF_MAXEXTENDINCR);
 	}
+	KASSERT(newsize < size, ("%s: %d < %d\n", __func__, newsize, size));
 	return (newsize);
 }
 
