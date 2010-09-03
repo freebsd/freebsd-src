@@ -116,8 +116,10 @@ _assert_sbuf_state(const char *fun, struct sbuf *s, int state)
 
 #endif /* _KERNEL && INVARIANTS */
 
+#ifdef _KERNEL
 CTASSERT(powerof2(SBUF_MAXEXTENDSIZE));
 CTASSERT(powerof2(SBUF_MAXEXTENDINCR));
+#endif
 
 static int
 sbuf_extendsize(int size)
