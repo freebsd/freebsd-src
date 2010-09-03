@@ -149,6 +149,8 @@ pmcstat_cgnode_hash_lookup_pc(struct pmcstat_process *pp, pmc_id_t pmcid,
 	 */
 	if ((sym = pmcstat_symbol_search(image, pc)) != NULL)
 		pc = sym->ps_start;
+	else
+		pmcstat_stats.ps_samples_unknown_function++;
 
 	for (hash = i = 0; i < sizeof(uintfptr_t); i++)
 		hash += (pc >> i) & 0xFF;
