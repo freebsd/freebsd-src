@@ -338,12 +338,12 @@ print(const char *name)
  */
 
 static const char *macro[] = {
-	"#define is_digit(c)\t((is_type+SYNBASE)[c] & ISDIGIT)",
+	"#define is_digit(c)\t((is_type+SYNBASE)[(int)c] & ISDIGIT)",
 	"#define is_eof(c)\t((c) == PEOF)",
-	"#define is_alpha(c)\t(((c) < CTLESC || (c) > CTLQUOTEMARK) && isalpha((unsigned char) (c)))",
-	"#define is_name(c)\t(((c) < CTLESC || (c) > CTLQUOTEMARK) && ((c) == '_' || isalpha((unsigned char) (c))))",
-	"#define is_in_name(c)\t(((c) < CTLESC || (c) > CTLQUOTEMARK) && ((c) == '_' || isalnum((unsigned char) (c))))",
-	"#define is_special(c)\t((is_type+SYNBASE)[c] & (ISSPECL|ISDIGIT))",
+	"#define is_alpha(c)\t(((c) < CTLESC || (c) > CTLQUOTEMARK) && (is_type+SYNBASE)[(int)c] & (ISUPPER|ISLOWER))",
+	"#define is_name(c)\t(((c) < CTLESC || (c) > CTLQUOTEMARK) && (is_type+SYNBASE)[(int)c] & (ISUPPER|ISLOWER|ISUNDER))",
+	"#define is_in_name(c)\t(((c) < CTLESC || (c) > CTLQUOTEMARK) && (is_type+SYNBASE)[(int)c] & (ISUPPER|ISLOWER|ISUNDER|ISDIGIT))",
+	"#define is_special(c)\t((is_type+SYNBASE)[(int)c] & (ISSPECL|ISDIGIT))",
 	NULL
 };
 
