@@ -719,6 +719,7 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 char *
 jailparam_export(struct jailparam *jp)
 {
+	size_t *valuelens;
 	char *value, *tvalue, **values;
 	size_t valuelen;
 	int i, nval, ival;
@@ -740,6 +741,7 @@ jailparam_export(struct jailparam *jp)
 		return (value);
 	}
 	values = alloca(nval * sizeof(char *));
+	valuelens = alloca(nval * sizeof(size_t));
 	valuelen = 0;
 	for (i = 0; i < nval; i++) {
 		switch (jp->jp_ctltype & CTLTYPE) {
@@ -784,7 +786,6 @@ jailparam_export(struct jailparam *jp)
 				    valbuf, sizeof(valbuf)) == NULL) {
 					strerror_r(errno, jail_errmsg,
 					    JAIL_ERRMSGLEN);
-
 					return (NULL);
 				}
 				break;
@@ -794,7 +795,6 @@ jailparam_export(struct jailparam *jp)
 				    valbuf, sizeof(valbuf)) == NULL) {
 					strerror_r(errno, jail_errmsg,
 					    JAIL_ERRMSGLEN);
-
 					return (NULL);
 				}
 				break;
@@ -809,11 +809,12 @@ jailparam_export(struct jailparam *jp)
 			errno = ENOENT;
 			return (NULL);
 		}
-		valuelen += strlen(valbuf) + 1;
-		values[i] = alloca(valuelen);
+		valuelens[i] = strlen(valbuf) + 1;
+		valuelen += valuelens[i];
+		values[i] = alloca(valuelens[i]);
 		strcpy(values[i], valbuf);
 	}
-	value = malloc(valuelen + 1);
+	value = malloc(valuelen);
 	if (value == NULL)
 		strerror_r(errno, jail_errmsg, JAIL_ERRMSGLEN);
 	else {
@@ -821,8 +822,8 @@ jailparam_export(struct jailparam *jp)
 		for (i = 0; i < nval; i++) {
 			strcpy(tvalue, values[i]);
 			if (i < nval - 1) {
-				tvalue += strlen(values[i]);
-				*tvalue++ = ',';
+				tvalue += valuelens[i];
+				tvalue[-1] = ',';
 			}
 		}
 	}
@@ -830,7 +831,7 @@ jailparam_export(struct jailparam *jp)
 }
 
 /*
- * Free the contents of a jail parameter list (but not thst list itself).
+ * Free the contents of a jail parameter list (but not the list itself).
  */
 void
 jailparam_free(struct jailparam *jp, unsigned njp)
@@ -891,7 +892,7 @@ jailparam_type(struct jailparam *jp)
 				mib[1] = 4;
 				desclen = sizeof(desc);
 				if (sysctl(mib, (miblen / sizeof(int)) + 2,
-					   &desc, &desclen, NULL, 0) < 0) {
+				    &desc, &desclen, NULL, 0) < 0) {
 					snprintf(jail_errmsg,
 					    JAIL_ERRMSGLEN,
 					    "sysctl(0.4.%s): %s", desc.s,
@@ -931,7 +932,7 @@ jailparam_type(struct jailparam *jp)
 		isarray = 1;
 		p[-2] = 0;
 	}
-	/* Look for types we understand */
+	/* Look for types we understand. */
 	jp->jp_ctltype = desc.i;
 	switch (desc.i & CTLTYPE) {
 	case CTLTYPE_INT:
