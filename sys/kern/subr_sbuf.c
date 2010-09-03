@@ -131,7 +131,7 @@ sbuf_extendsize(int size)
 	} else {
 		newsize = roundup2(size, SBUF_MAXEXTENDINCR);
 	}
-	KASSERT(newsize < size, ("%s: %d < %d\n", __func__, newsize, size));
+	KASSERT(newsize >= size, ("%s: %d < %d\n", __func__, newsize, size));
 	return (newsize);
 }
 
