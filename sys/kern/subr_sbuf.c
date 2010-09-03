@@ -56,7 +56,6 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	KASSERT(e, m)
 #define	SBMALLOC(size)		malloc(size)
 #define	SBFREE(buf)		free(buf)
-#define	min(x,y)		MIN(x,y)
 #endif /* _KERNEL */
 
 /*
@@ -190,11 +189,11 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 		s->s_flags = flags;
 	}
 	s->s_size = length;
-	if (buf) {
+	if (buf != NULL) {
 		s->s_buf = buf;
 		return (s);
 	}
-	if (flags & SBUF_AUTOEXTEND)
+	if ((flags & SBUF_AUTOEXTEND) != 0)
 		s->s_size = sbuf_extendsize(s->s_size);
 	s->s_buf = SBMALLOC(s->s_size);
 	if (s->s_buf == NULL) {
@@ -290,7 +289,7 @@ sbuf_bcat(struct sbuf *s, const void *buf, size_t len)
 			break;
 		s->s_buf[s->s_len++] = *str++;
 	}
-	if (len) {
+	if (len > 0) {
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 		return (-1);
 	}
@@ -314,7 +313,8 @@ sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len)
 		return (0);
 	if (len > SBUF_FREESPACE(s)) {
 		sbuf_extend(s, len - SBUF_FREESPACE(s));
-		len = min(len, SBUF_FREESPACE(s));
+		if (SBUF_FREESPACE(s) < len)
+			len = SBUF_FREESPACE(s);
 	}
 	if (copyin(uaddr, s->s_buf + s->s_len, len) != 0)
 		return (-1);
@@ -351,12 +351,12 @@ sbuf_cat(struct sbuf *s, const char *str)
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
 
-	while (*str) {
+	while (*str != '\0') {
 		if (!SBUF_HASROOM(s) && sbuf_extend(s, strlen(str)) < 0)
 			break;
 		s->s_buf[s->s_len++] = *str++;
 	}
-	if (*str) {
+	if (*str != '\0') {
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 		return (-1);
 	}
@@ -382,7 +382,8 @@ sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
 		len = SBUF_FREESPACE(s);	/* XXX return 0? */
 	if (len > SBUF_FREESPACE(s)) {
 		sbuf_extend(s, len);
-		len = min(len, SBUF_FREESPACE(s));
+		if (SBUF_FREESPACE(s) < len)
+			len = SBUF_FREESPACE(s);
 	}
 	switch (copyinstr(uaddr, s->s_buf + s->s_len, len + 1, &done)) {
 	case ENAMETOOLONG:
@@ -446,9 +447,11 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	 * terminating nul.
 	 *
 	 * vsnprintf() returns the amount that would have been copied,
-	 * given sufficient space, hence the min() calculation below.
+	 * given sufficient space, so don't over-increment s_len.
 	 */
-	s->s_len += min(len, SBUF_FREESPACE(s));
+	if (SBUF_FREESPACE(s) < len)
+		len = SBUF_FREESPACE(s);
+	s->s_len += len;
 	if (!SBUF_HASROOM(s) && !SBUF_CANEXTEND(s))
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 
@@ -492,7 +495,7 @@ sbuf_putc(struct sbuf *s, int c)
 		return (-1);
 	}
 	if (c != '\0')
-	    s->s_buf[s->s_len++] = c;
+		s->s_buf[s->s_len++] = c;
 	return (0);
 }
 
@@ -509,7 +512,7 @@ sbuf_trim(struct sbuf *s)
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
 
-	while (s->s_len && isspace(s->s_buf[s->s_len-1]))
+	while (s->s_len > 0 && isspace(s->s_buf[s->s_len-1]))
 		--s->s_len;
 
 	return (0);
