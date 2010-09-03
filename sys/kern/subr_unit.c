@@ -153,6 +153,7 @@ mtx_assert(struct mtx *mp, int flag)
 }
 
 #define CTASSERT(foo)
+#define WITNESS_WARN(flags, lock, fmt, ...)	(void)0
 
 #endif /* USERLAND */
 
@@ -317,7 +318,7 @@ clean_unrhdr(struct unrhdr *uh)
 /*
  * Allocate a new unrheader set.
  *
- * Highest and lowest valid values given as paramters.
+ * Highest and lowest valid values given as parameters.
  */
 
 struct unrhdr *
@@ -325,8 +326,8 @@ new_unrhdr(int low, int high, struct mtx *mutex)
 {
 	struct unrhdr *uh;
 
-	KASSERT(low <= high,
-	    ("UNR: use error: new_unrhdr(%u, %u)", low, high));
+	KASSERT(low >= 0 && low <= high,
+	    ("UNR: use error: new_unrhdr(%d, %d)", low, high));
 	uh = Malloc(sizeof *uh);
 	if (mutex != NULL)
 		uh->mtx = mutex;
@@ -825,9 +826,9 @@ main(int argc __unused, const char **argv __unused)
 
 	memset(a, 0, sizeof a);
 
-	fprintf(stderr, "sizeof(struct unr) %d\n", sizeof (struct unr));
-	fprintf(stderr, "sizeof(struct unrb) %d\n", sizeof (struct unrb));
-	fprintf(stderr, "sizeof(struct unrhdr) %d\n", sizeof (struct unrhdr));
+	fprintf(stderr, "sizeof(struct unr) %zu\n", sizeof(struct unr));
+	fprintf(stderr, "sizeof(struct unrb) %zu\n", sizeof(struct unrb));
+	fprintf(stderr, "sizeof(struct unrhdr) %zu\n", sizeof(struct unrhdr));
 	fprintf(stderr, "NBITS %d\n", NBITS);
 	x = 1;
 	for (m = 0; m < NN * 100; m++) {
