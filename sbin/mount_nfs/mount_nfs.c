@@ -866,6 +866,7 @@ nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
 	enum clnt_stat stat;
 	enum mountmode trymntmode;
 
+	sotype = 0;
 	trymntmode = mountmode;
 	errbuf[0] = '\0';
 	*errstr = errbuf;
