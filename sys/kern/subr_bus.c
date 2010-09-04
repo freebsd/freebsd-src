@@ -121,7 +121,7 @@ struct device {
 	int		busy;		/**< count of calls to device_busy() */
 	device_state_t	state;		/**< current device state  */
 	uint32_t	devflags;	/**< api level flags for device_get_flags() */
-	u_short		flags;		/**< internal device flags  */
+	u_int		flags;		/**< internal device flags  */
 #define	DF_ENABLED	1		/* device should be probed/attached */
 #define	DF_FIXEDCLASS	2		/* devclass specified at create time */
 #define	DF_WILDCARD	4		/* unit was originally wildcard */
@@ -130,8 +130,7 @@ struct device {
 #define	DF_DONENOMATCH	32		/* don't execute DEVICE_NOMATCH again */
 #define	DF_EXTERNALSOFTC 64		/* softc not allocated by us */
 #define	DF_REBID	128		/* Can rebid after attach */
-	u_char	order;			/**< order from device_add_child_ordered() */
-	u_char	pad;
+	u_int	order;			/**< order from device_add_child_ordered() */
 	void	*ivars;			/**< instance variables  */
 	void	*softc;			/**< current driver's variables  */
 
@@ -1790,12 +1789,12 @@ device_add_child(device_t dev, const char *name, int unit)
  * @returns		the new device
  */
 device_t
-device_add_child_ordered(device_t dev, int order, const char *name, int unit)
+device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	device_t place;
 
-	PDEBUG(("%s at %s with order %d as unit %d",
+	PDEBUG(("%s at %s with order %u as unit %d",
 	    name, DEVICENAME(dev), order, unit));
 
 	child = make_device(dev, name, unit);
