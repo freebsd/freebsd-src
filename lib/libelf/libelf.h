@@ -75,11 +75,12 @@ typedef enum {
 	ELF_T_VNEED,
 	ELF_T_WORD,
 	ELF_T_XWORD,
+	ELF_T_GNUHASH,	/* GNU style hash tables. */
 	ELF_T_NUM
 } Elf_Type;
 
 #define	ELF_T_FIRST	ELF_T_ADDR
-#define	ELF_T_LAST	ELF_T_XWORD
+#define	ELF_T_LAST	ELF_T_GNUHASH
 
 /* Commands */
 typedef enum {

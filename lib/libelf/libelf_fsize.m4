@@ -43,15 +43,18 @@ include(SRCDIR`/elf_types.m4')
  * representations.
  */
 
-/* `Basic' types */
+/* `Basic' types. */
 define(`BYTE_SIZE',	1)
 define(`IDENT_SIZE',	`EI_NIDENT')
-define(`NOTE_SIZE',	1) /* Elf_Note structures have variable length. */
 
-/* Currently unimplemented types */
+/* Types that have variable length. */
+define(`GNUHASH_SIZE',	1)
+define(`NOTE_SIZE',	1)
+
+/* Currently unimplemented types. */
 define(`MOVEP_SIZE',	0)
 
-/* Overrides for 32 bit types that do not exist */
+/* Overrides for 32 bit types that do not exist. */
 define(`XWORD_SIZE32',	0)
 define(`SXWORD_SIZE32',	0)
 

@@ -48,6 +48,7 @@ Elf_Data *
 _libelf_xlate(Elf_Data *dst, const Elf_Data *src, unsigned int encoding,
     int elfclass, int direction)
 {
+	int byteswap;
 	size_t cnt, dsz, fsz, msz;
 	uintptr_t sb, se, db, de;
 
@@ -132,12 +133,17 @@ _libelf_xlate(Elf_Data *dst, const Elf_Data *src, unsigned int encoding,
 	dst->d_type = src->d_type;
 	dst->d_size = dsz;
 
+	byteswap = encoding != LIBELF_PRIVATE(byteorder);
+
 	if (src->d_size == 0 ||
-	    (db == sb && encoding == LIBELF_PRIVATE(byteorder) && fsz == msz))
+	    (db == sb && !byteswap && fsz == msz))
 		return (dst);	/* nothing more to do */
 
-	(_libelf_get_translator(src->d_type, direction, elfclass))(dst->d_buf,
-	    src->d_buf, cnt, encoding != LIBELF_PRIVATE(byteorder));
+	if (!(_libelf_get_translator(src->d_type, direction, elfclass))
+	    (dst->d_buf, dsz, src->d_buf, cnt, byteswap)) {
+		LIBELF_SET_ERROR(DATA, 0);
+		return (NULL);
+	}
 
 	return (dst);
 }
