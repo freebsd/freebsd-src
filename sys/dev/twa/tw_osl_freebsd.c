@@ -472,7 +472,7 @@ twa_watchdog(TW_VOID *arg)
 			(my_req->deadline < current_time)) {
 			tw_cl_set_reset_needed(ctlr_handle);
 #ifdef    TW_OSL_DEBUG
-			device_printf((sc)->bus_dev, "Request %d timed out! d = %p, c = %p\n", i, (void*)my_req->deadline, (void*)current_time);
+			device_printf((sc)->bus_dev, "Request %d timed out! d = %llu, c = %llu\n", i, my_req->deadline, current_time);
 #else  /* TW_OSL_DEBUG */
 			device_printf((sc)->bus_dev, "Request %d timed out!\n", i);
 #endif /* TW_OSL_DEBUG */
