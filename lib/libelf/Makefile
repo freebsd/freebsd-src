@@ -44,6 +44,7 @@ SRCS=	elf_begin.c						\
 	libelf_align.c						\
 	libelf_allocate.c					\
 	libelf_ar.c						\
+	libelf_ar_util.c					\
 	libelf_checksum.c					\
 	libelf_data.c						\
 	libelf_ehdr.c						\
@@ -65,7 +66,8 @@ WARNS?=	6
 MAN=	elf.3							\
 	elf_begin.3						\
 	elf_cntl.3						\
-	elf_end.3 elf_errmsg.3					\
+	elf_end.3						\
+	elf_errmsg.3						\
 	elf_fill.3						\
 	elf_flagdata.3						\
 	elf_getarhdr.3						\
@@ -74,8 +76,11 @@ MAN=	elf.3							\
 	elf_getdata.3						\
 	elf_getident.3						\
 	elf_getscn.3						\
+	elf_getphdrnum.3					\
 	elf_getphnum.3						\
+	elf_getshdrnum.3					\
 	elf_getshnum.3						\
+	elf_getshdrstrndx.3					\
 	elf_getshstrndx.3					\
 	elf_hash.3						\
 	elf_kind.3						\
