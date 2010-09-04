@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <ar.h>
 #include <ctype.h>
 #include <libelf.h>
+#include <unistd.h>
 
 #include "_libelf.h"
 

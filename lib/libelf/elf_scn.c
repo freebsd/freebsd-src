@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Load an ELF section table and create a list of Elf_Scn structures.
  */
-static int
+int
 _libelf_load_scn(Elf *e, void *ehdr)
 {
 	int ec, swapbytes;
