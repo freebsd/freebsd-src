@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006,2008 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,26 +23,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2009
-.Dt ELF_GETSHNUM 3
+.Dd August 4, 2009
 .Os
+.Dt ELF_GETSHDRNUM 3
 .Sh NAME
-.Nm elf_getshnum
+.Nm elf_getshdrnum
 .Nd return the number of sections in an ELF file
 .Sh LIBRARY
 .Lb libelf
 .Sh SYNOPSIS
 .In libelf.h
 .Ft int
-.Fn elf_getshnum "Elf *elf" "size_t *shnum"
+.Fn elf_getshdrnum "Elf *elf" "size_t *shnum"
 .Sh DESCRIPTION
-This function is deprecated.
-Please use
-.Xr elf_getshdrnum 3
-instead.
-.Pp
 Function
-.Fn elf_getshnum
+.Fn elf_getshdrnum
 retrieves the number of ELF sections associated with descriptor
 .Ar elf
 and stores it into the location pointed to by argument
@@ -53,12 +48,11 @@ objects, and ELF objects that use extended section numbering.
 .Pp
 .Sh RETURN VALUES
 Function
-.Fn elf_getshnum
-returns a non-zero value if successful, or zero in case of an
-error.
+.Fn elf_getshdrnum
+returns zero value if successful, or -1 in case of an error.
 .Sh ERRORS
 Function
-.Fn elf_getshnum
+.Fn elf_getshdrnum
 can fail with the following errors:
 .Bl -tag -width "[ELF_E_RESOURCE]"
 .It Bq Er ELF_E_ARGUMENT
