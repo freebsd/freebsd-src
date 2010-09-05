@@ -982,6 +982,23 @@ union sctp_sockstore {
 	struct sockaddr sa;
 };
 
+
+/***********************************/
+/* And something for us old timers */
+/***********************************/
+
+#ifndef ntohll
+#include <sys/endian.h>
+#define ntohll(x) be64toh(x)
+#endif
+
+#ifndef htonll
+#include <sys/endian.h>
+#define htonll(x) htobe64(x)
+#endif
+/***********************************/
+
+
 struct xsctp_inpcb {
 	uint32_t last;
 	uint32_t flags;
@@ -1079,7 +1096,6 @@ sctp_lower_sosend(struct socket *so,
     struct mbuf *i_pak,
     struct mbuf *control,
     int flags,
-    int use_rcvinfo,
     struct sctp_sndrcvinfo *srcv
     ,struct thread *p
 );
