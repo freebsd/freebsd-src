@@ -510,10 +510,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			    rabp = nfs_getcacheblk(vp, rabn, biosize, td);
 			    if (!rabp) {
 				error = newnfs_sigintr(nmp, td);
-				if (error)
-				    return (error);
-				else
-				    break;
+				return (error ? error : EINTR);
 			    }
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
 				rabp->b_flags |= B_ASYNC;
