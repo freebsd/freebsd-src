@@ -235,6 +235,7 @@ sysctl_kern_eventtimer_choice(SYSCTL_HANDLER_ARGS)
 
 	spc = "";
 	error = 0;
+	buf[0] = 0;
 	off = 0;
 	ET_LOCK();
 	SLIST_FOREACH(et, &eventtimers, et_all) {
