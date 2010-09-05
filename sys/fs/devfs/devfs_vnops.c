@@ -82,13 +82,14 @@ struct mtx	cdevpriv_mtx;
 MTX_SYSINIT(cdevpriv_mtx, &cdevpriv_mtx, "cdevpriv lock", MTX_DEF);
 
 static int
-devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
+devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp,
+    int *ref)
 {
 
-	*dswp = devvn_refthread(fp->f_vnode, devp);
+	*dswp = devvn_refthread(fp->f_vnode, devp, ref);
 	if (*devp != fp->f_data) {
 		if (*dswp != NULL)
-			dev_relthread(*devp);
+			dev_relthread(*devp, *ref);
 		return (ENXIO);
 	}
 	KASSERT((*devp)->si_refcount > 0,
@@ -401,6 +402,8 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
 			vp->v_vflag |= VV_ISTTY;
 		dev_unlock();
 		VI_UNLOCK(vp);
+		if ((dev->si_flags & SI_ETERNAL) != 0)
+			vp->v_vflag |= VV_ETERNALDEV;
 		vp->v_op = &devfs_specops;
 	} else if (de->de_dirent->d_type == DT_DIR) {
 		vp->v_type = VDIR;
@@ -465,7 +468,7 @@ devfs_close(struct vop_close_args *ap)
 	struct thread *td = ap->a_td;
 	struct cdev *dev = vp->v_rdev;
 	struct cdevsw *dsw;
-	int vp_locked, error;
+	int vp_locked, error, ref;
 
 	/*
 	 * XXX: Don't call d_close() if we were called because of
@@ -507,7 +510,7 @@ devfs_close(struct vop_close_args *ap)
 	 * sum of the reference counts on all the aliased
 	 * vnodes descends to one, we are on last close.
 	 */
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 	VI_LOCK(vp);
@@ -517,7 +520,7 @@ devfs_close(struct vop_close_args *ap)
 		/* Keep device updated on status. */
 	} else if (count_dev(dev) > 1) {
 		VI_UNLOCK(vp);
-		dev_relthread(dev);
+		dev_relthread(dev, ref);
 		return (0);
 	}
 	vholdl(vp);
@@ -527,7 +530,7 @@ devfs_close(struct vop_close_args *ap)
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	vn_lock(vp, vp_locked | LK_RETRY);
 	vdrop(vp);
 	return (error);
@@ -645,20 +648,20 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 	struct cdevsw *dsw;
 	struct vnode *vp;
 	struct vnode *vpold;
-	int error, i;
+	int error, i, ref;
 	const char *p;
 	struct fiodgname_arg *fgn;
 	struct file *fpop;
 
 	fpop = td->td_fpop;
-	error = devfs_fp_check(fp, &dev, &dsw);
+	error = devfs_fp_check(fp, &dev, &dsw, &ref);
 	if (error)
 		return (error);
 
 	if (com == FIODTYPE) {
 		*(int *)data = dsw->d_flags & D_TYPEMASK;
 		td->td_fpop = fpop;
-		dev_relthread(dev);
+		dev_relthread(dev, ref);
 		return (0);
 	} else if (com == FIODGNAME) {
 		fgn = data;
@@ -669,12 +672,12 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 		else
 			error = copyout(p, fgn->buf, i);
 		td->td_fpop = fpop;
-		dev_relthread(dev);
+		dev_relthread(dev, ref);
 		return (error);
 	}
 	error = dsw->d_ioctl(dev, com, data, fp->f_flag, td);
 	td->td_fpop = NULL;
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
 	if (error == 0 && com == TIOCSCTTY) {
@@ -708,18 +711,18 @@ devfs_kqfilter_f(struct file *fp, struct knote *kn)
 {
 	struct cdev *dev;
 	struct cdevsw *dsw;
-	int error;
+	int error, ref;
 	struct file *fpop;
 	struct thread *td;
 
 	td = curthread;
 	fpop = td->td_fpop;
-	error = devfs_fp_check(fp, &dev, &dsw);
+	error = devfs_fp_check(fp, &dev, &dsw, &ref);
 	if (error)
 		return (error);
 	error = dsw->d_kqfilter(dev, kn);
 	td->td_fpop = fpop;
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return (error);
 }
 
@@ -956,7 +959,7 @@ devfs_open(struct vop_open_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct cdev *dev = vp->v_rdev;
 	struct file *fp = ap->a_fp;
-	int error, vlocked;
+	int error, ref, vlocked;
 	struct cdevsw *dsw;
 	struct file *fpop;
 
@@ -970,7 +973,7 @@ devfs_open(struct vop_open_args *ap)
 	if (dev->si_iosize_max == 0)
 		dev->si_iosize_max = DFLTPHYS;
 
-	dsw = dev_refthread(dev);
+	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
 
@@ -990,7 +993,7 @@ devfs_open(struct vop_open_args *ap)
 	td->td_fpop = fpop;
 
 	vn_lock(vp, vlocked | LK_RETRY);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	if (error)
 		return (error);
 
@@ -1033,16 +1036,16 @@ devfs_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 {
 	struct cdev *dev;
 	struct cdevsw *dsw;
-	int error;
+	int error, ref;
 	struct file *fpop;
 
 	fpop = td->td_fpop;
-	error = devfs_fp_check(fp, &dev, &dsw);
+	error = devfs_fp_check(fp, &dev, &dsw, &ref);
 	if (error)
 		return (poll_no_poll(events));
 	error = dsw->d_poll(dev, events, td);
 	td->td_fpop = fpop;
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 	return(error);
 }
 
@@ -1062,12 +1065,12 @@ static int
 devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
-	int ioflag, error, resid;
+	int ioflag, error, ref, resid;
 	struct cdevsw *dsw;
 	struct file *fpop;
 
 	fpop = td->td_fpop;
-	error = devfs_fp_check(fp, &dev, &dsw);
+	error = devfs_fp_check(fp, &dev, &dsw, &ref);
 	if (error)
 		return (error);
 	resid = uio->uio_resid;
@@ -1082,7 +1085,7 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
 	td->td_fpop = fpop;
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
@@ -1505,12 +1508,12 @@ static int
 devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
-	int error, ioflag, resid;
+	int error, ioflag, ref, resid;
 	struct cdevsw *dsw;
 	struct file *fpop;
 
 	fpop = td->td_fpop;
-	error = devfs_fp_check(fp, &dev, &dsw);
+	error = devfs_fp_check(fp, &dev, &dsw, &ref);
 	if (error)
 		return (error);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p", uio->uio_td, td));
@@ -1528,7 +1531,7 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 		dev->si_mtime = dev->si_ctime;
 	}
 	td->td_fpop = fpop;
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;

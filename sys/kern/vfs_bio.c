@@ -3195,6 +3195,7 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 {
 	struct cdevsw *csw;
 	struct bio *bip;
+	int ref;
 
 	if ((!bp->b_iocmd) || (bp->b_iocmd & (bp->b_iocmd - 1)))
 		panic("b_iocmd botch");
@@ -3216,7 +3217,7 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 	KASSERT(dev->si_refcount > 0,
 	    ("dev_strategy on un-referenced struct cdev *(%s)",
 	    devtoname(dev)));
-	csw = dev_refthread(dev);
+	csw = dev_refthread(dev, &ref);
 	if (csw == NULL) {
 		g_destroy_bio(bip);
 		bp->b_error = ENXIO;
@@ -3225,7 +3226,7 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 		return;
 	}
 	(*csw->d_strategy)(bip);
-	dev_relthread(dev);
+	dev_relthread(dev, ref);
 }
 
 /*
