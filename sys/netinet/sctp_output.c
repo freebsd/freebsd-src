@@ -9840,9 +9840,12 @@ sctp_fill_in_rest:
 			at = TAILQ_FIRST(&asoc->sent_queue);
 			for (i = 0; i < cnt_of_skipped; i++) {
 				tp1 = TAILQ_NEXT(at, sctp_next);
+				if (tp1 == NULL) {
+					break;
+				}
 				at = tp1;
 			}
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
+			if (at && SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
 				sctp_misc_ints(SCTP_FWD_TSN_CHECK,
 				    0xff, cnt_of_skipped, at->rec.data.TSN_seq,
 				    asoc->advanced_peer_ack_point);
@@ -9852,7 +9855,8 @@ sctp_fill_in_rest:
 			 * last now points to last one I can report, update
 			 * peer ack point
 			 */
-			advance_peer_ack_point = last->rec.data.TSN_seq;
+			if (last)
+				advance_peer_ack_point = last->rec.data.TSN_seq;
 			space_needed = sizeof(struct sctp_forward_tsn_chunk) +
 			    cnt_of_skipped * sizeof(struct sctp_strseq);
 		}
@@ -9885,6 +9889,8 @@ sctp_fill_in_rest:
 		at = TAILQ_FIRST(&asoc->sent_queue);
 		for (i = 0; i < cnt_of_skipped; i++) {
 			tp1 = TAILQ_NEXT(at, sctp_next);
+			if (tp1 == NULL)
+				break;
 			if (at->rec.data.rcv_flags & SCTP_DATA_UNORDERED) {
 				/* We don't report these */
 				i--;
@@ -10560,7 +10566,8 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 		udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 		udp->uh_dport = port;
 		udp->uh_ulen = htons(sizeof(struct sctp_shutdown_complete_msg) + sizeof(struct udphdr));
-		udp->uh_sum = in_pseudo(iph_out->ip_src.s_addr, iph_out->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
+		if (iph_out)
+			udp->uh_sum = in_pseudo(iph_out->ip_src.s_addr, iph_out->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
 		offset_out += sizeof(struct udphdr);
 		comp_cp = (struct sctp_shutdown_complete_msg *)((caddr_t)comp_cp + sizeof(struct udphdr));
 	}
