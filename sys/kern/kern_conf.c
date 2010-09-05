@@ -1235,3 +1235,71 @@ devdtr_init(void *dummy __unused)
 }
 
 SYSINIT(devdtr, SI_SUB_DEVFS, SI_ORDER_SECOND, devdtr_init, NULL);
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <sys/kernel.h>
+
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(cdev, db_show_cdev)
+{
+	struct cdev_priv *cdp;
+	struct cdev *dev;
+	u_int flags;
+	char buf[512];
+
+	if (!have_addr) {
+		TAILQ_FOREACH(cdp, &cdevp_list, cdp_list) {
+			dev = &cdp->cdp_c;
+			db_printf("%s %p\n", dev->si_name, dev);
+			if (db_pager_quit)
+				break;
+		}
+		return;
+	}
+
+	dev = (struct cdev *)addr;
+	cdp = cdev2priv(dev);
+	db_printf("dev %s ref %d use %ld thr %ld inuse %u fdpriv %p\n",
+	    dev->si_name, dev->si_refcount, dev->si_usecount,
+	    dev->si_threadcount, cdp->cdp_inuse, cdp->cdp_fdpriv.lh_first);
+	db_printf("devsw %p si_drv0 %d si_drv1 %p si_drv2 %p\n",
+	    dev->si_devsw, dev->si_drv0, dev->si_drv1, dev->si_drv2);
+	flags = dev->si_flags;
+#define	SI_FLAG(flag)	do {						\
+	if (flags & (flag)) {						\
+		if (buf[0] != '\0')					\
+			strlcat(buf, ", ", sizeof(buf));		\
+		strlcat(buf, (#flag) + 3, sizeof(buf));			\
+		flags &= ~(flag);					\
+	}								\
+} while (0)
+	buf[0] = '\0';
+	SI_FLAG(SI_ETERNAL);
+	SI_FLAG(SI_ALIAS);
+	SI_FLAG(SI_NAMED);
+	SI_FLAG(SI_CHEAPCLONE);
+	SI_FLAG(SI_CHILD);
+	SI_FLAG(SI_DEVOPEN);
+	SI_FLAG(SI_CONSOPEN);
+	SI_FLAG(SI_DUMPDEV);
+	SI_FLAG(SI_CANDELETE);
+	SI_FLAG(SI_CLONELIST);
+	db_printf("si_flags %s\n", buf);
+
+	flags = cdp->cdp_flags;
+#define	CDP_FLAG(flag)	do {						\
+	if (flags & (flag)) {						\
+		if (buf[0] != '\0')					\
+			strlcat(buf, ", ", sizeof(buf));		\
+		strlcat(buf, (#flag) + 4, sizeof(buf));			\
+		flags &= ~(flag);					\
+	}								\
+} while (0)
+	buf[0] = '\0';
+	CDP_FLAG(CDP_ACTIVE);
+	CDP_FLAG(CDP_SCHED_DTR);
+	db_printf("cdp_flags %s\n", buf);
+}
+#endif
