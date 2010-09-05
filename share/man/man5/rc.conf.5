@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2010
+.Dd September 4, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3503,7 +3503,8 @@ A space separated list of names for jails.
 This is purely a configuration aid to help identify and
 configure multiple jails.
 The names specified in this list will be used to
-identify settings common to an instance of a jail.
+identify settings common to an instance of a jail,
+and should contain alphanumeric characters only.
 Assuming that the jail in question was named
 .Li vjail ,
 you would have the following dependent variables:
