@@ -112,10 +112,10 @@ null_modevent(module_t mod __unused, int type, void *data __unused)
 		if (bootverbose)
 			printf("null: <null device, zero device>\n");
 		zbuf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK | M_ZERO);
-		null_dev = make_dev(&null_cdevsw, 0, UID_ROOT, GID_WHEEL,
-			0666, "null");
-		zero_dev = make_dev(&zero_cdevsw, 0, UID_ROOT, GID_WHEEL,
-			0666, "zero");
+		null_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &null_cdevsw, 0,
+		    NULL, UID_ROOT, GID_WHEEL, 0666, "null");
+		zero_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &zero_cdevsw, 0,
+		    NULL, UID_ROOT, GID_WHEEL, 0666, "zero");
 		break;
 
 	case MOD_UNLOAD:
