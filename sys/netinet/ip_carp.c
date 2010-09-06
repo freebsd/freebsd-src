@@ -2405,4 +2405,4 @@ static moduledata_t carp_mod = {
 	0
 };
 
-DECLARE_MODULE(carp, carp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(carp, carp_mod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
