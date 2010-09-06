@@ -47,24 +47,23 @@ aesni_load="YES"
 .Ed
 .Sh DESCRIPTION
 Starting with some models of Core i5/i7, Intel processors implement
-new set of instructions called AESNI.
+a new set of instructions called AESNI.
 The set of six instructions accelerates the calculation of the key
 schedule for key lengths of 128, 192, and 256 of the Advanced
-Encryption Standard (AES) symmetric cipher, and provides the hardware
+Encryption Standard (AES) symmetric cipher, and provides hardware
 implementation of the regular and the last encryption and decryption
 rounds.
 .Pp
-The processor capability is reported as AESNI in the Features2 line
-at the boot. Driver does not attach on the system that lacks the
-required CPU capability.
+The processor capability is reported as AESNI in the Features2 line at boot.
+Driver does not attach on the system that lacks the required CPU capability.
 .Pp
 The
 .Nm
 driver registers itself to accelerate AES operations for
 .Xr crypto 4 .
-Besides speed, advantage of using the driver is that the AESNI operation
-is data-independend, thus eliminating some attack vectors based on the
-measuring cache use and timings, typically present in the table-driven
+Besides speed, the advantage of using the driver is that the AESNI operation
+is data-independent, thus eliminating some attack vectors based on
+measuring cache use and timings typically present in the table-driven
 implementations.
 .Sh SEE ALSO
 .Xr crypt 3 ,
