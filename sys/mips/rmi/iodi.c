@@ -104,7 +104,7 @@ iodi_setup_intr(device_t dev, device_t child,
 		/* FIXME uart 1? */
 		cpu_establish_hardintr("uart", filt, intr, arg,
 		    PIC_UART_0_IRQ, flags, cookiep);
-		pic_setup_intr(PIC_IRT_UART_0_INDEX, PIC_UART_0_IRQ, 0x1, 0);
+		pic_setup_intr(PIC_IRT_UART_0_INDEX, PIC_UART_0_IRQ, 0x1, 1);
 	} else if (strcmp(name, "rge") == 0 || strcmp(name, "nlge") == 0) {
 		int irq;
 
@@ -112,15 +112,15 @@ iodi_setup_intr(device_t dev, device_t child,
 		irq = (intptr_t)ires->__r_i;
 		cpu_establish_hardintr("rge", filt, intr, arg, irq, flags,
 		    cookiep);
-		pic_setup_intr(irq - PIC_IRQ_BASE, irq, 0x1, 0);
+		pic_setup_intr(irq - PIC_IRQ_BASE, irq, 0x1, 1);
 	} else if (strcmp(name, "ehci") == 0) {
 		cpu_establish_hardintr("ehci", filt, intr, arg, PIC_USB_IRQ, flags,
 		    cookiep);
-		pic_setup_intr(PIC_USB_IRQ - PIC_IRQ_BASE, PIC_USB_IRQ, 0x1, 0);
+		pic_setup_intr(PIC_USB_IRQ - PIC_IRQ_BASE, PIC_USB_IRQ, 0x1, 1);
 	} else if (strcmp(name, "ata") == 0) {
 		xlr_establish_intr("ata", filt, intr, arg, PIC_PCMCIA_IRQ, flags,
 		    cookiep, bridge_pcmcia_ack);
-		pic_setup_intr(PIC_PCMCIA_IRQ - PIC_IRQ_BASE, PIC_PCMCIA_IRQ, 0x1, 0);
+		pic_setup_intr(PIC_PCMCIA_IRQ - PIC_IRQ_BASE, PIC_PCMCIA_IRQ, 0x1, 1);
 	}
 	return (0);
 }
