@@ -42,6 +42,7 @@ SUBDIR=	${_3dfx} \
 	${_bktr} \
 	${_bm} \
 	bridgestp \
+	bwi \
 	bwn \
 	cam \
 	${_canbepm} \
