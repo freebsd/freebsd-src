@@ -9073,7 +9073,7 @@ bwn_pio_rxeof(struct bwn_pio_rxqueue *prq)
 	struct mbuf *m;
 	uint32_t ctl32, macstat, v32;
 	unsigned int i, padding;
-	uint16_t ctl16, len, v16;
+	uint16_t ctl16, len, totlen, v16;
 	unsigned char *mp;
 	char *data;
 
@@ -9132,7 +9132,8 @@ ready:
 	}
 
 	padding = (macstat & BWN_RX_MAC_PADDING) ? 2 : 0;
-	KASSERT(len + padding <= MCLBYTES, ("too big..\n"));
+	totlen = len + padding;
+	KASSERT(totlen <= MCLBYTES, ("too big..\n"));
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		device_printf(sc->sc_dev, "%s: out of memory", __func__);
@@ -9140,12 +9141,12 @@ ready:
 	}
 	mp = mtod(m, unsigned char *);
 	if (prq->prq_rev >= 8) {
-		siba_read_multi_4(sc->sc_dev, mp + padding, (len & ~3),
+		siba_read_multi_4(sc->sc_dev, mp, (totlen & ~3),
 		    prq->prq_base + BWN_PIO8_RXDATA);
-		if (len & 3) {
+		if (totlen & 3) {
 			v32 = bwn_pio_rx_read_4(prq, BWN_PIO8_RXDATA);
-			data = &(mp[len + padding - 1]);
-			switch (len & 3) {
+			data = &(mp[totlen - 1]);
+			switch (totlen & 3) {
 			case 3:
 				*data = (v32 >> 16);
 				data--;
@@ -9157,16 +9158,16 @@ ready:
 			}
 		}
 	} else {
-		siba_read_multi_2(sc->sc_dev, mp + padding, (len & ~1),
+		siba_read_multi_2(sc->sc_dev, mp, (totlen & ~1),
 		    prq->prq_base + BWN_PIO_RXDATA);
-		if (len & 1) {
+		if (totlen & 1) {
 			v16 = bwn_pio_rx_read_2(prq, BWN_PIO_RXDATA);
-			mp[len + padding - 1] = v16;
+			mp[totlen - 1] = v16;
 		}
 	}
 
 	m->m_pkthdr.rcvif = ifp;
-	m->m_len = m->m_pkthdr.len = len + padding;
+	m->m_len = m->m_pkthdr.len = totlen;
 
 	bwn_rxeof(prq->prq_mac, m, &rxhdr);
 
