@@ -167,8 +167,7 @@ dumpsys(struct dumperinfo *di)
 	}
 
 	/* Determine dump offset on device. */
-	dumplo = (di->flags & DIF_NET) != 0 ? 0 :
-	    di->mediaoffset + di->mediasize - totsize;
+	dumplo = di->mediaoffset + di->mediasize - totsize;
 
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_SPARC64_VERSION, size, di->blocksize);
 

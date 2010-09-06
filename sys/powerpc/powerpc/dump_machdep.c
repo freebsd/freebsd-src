@@ -233,8 +233,8 @@ dumpsys(struct dumperinfo *di)
 	dumpsize += fileofs;
 	hdrgap = fileofs - DEV_ALIGN(hdrsz);
 
-	/* Determine dump offset on device. */
-	if ((di->flags & DIF_NET) == 0 && di->mediasize > 0) {
+	/* For block devices, determine the dump offset on the device. */
+	if (di->mediasize > 0) {
 		if (di->mediasize <
 		    SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
 			error = ENOSPC;
