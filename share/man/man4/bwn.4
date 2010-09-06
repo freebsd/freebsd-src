@@ -110,6 +110,20 @@ Join a specific BSS network with 64-bit WEP encryption:
 ifconfig wlan create wlandev bwn0 ssid my_net \e
         wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.bwn.msi_disable
+This tunable disables MSI support on the hardware.
+The default value is 0.
+.It Va hw.bwn.usedma
+This tunable enables DMA operations on the hardware.
+If the value is 0, PIO mode would be used.
+The default value is 1.
+.El
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr bwi 4 ,
