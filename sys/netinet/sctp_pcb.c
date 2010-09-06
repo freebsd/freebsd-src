@@ -517,7 +517,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		    sizeof(struct sctp_ifn), SCTP_M_IFN);
 		if (sctp_ifnp == NULL) {
 #ifdef INVARIANTS
-			panic("No memory for IFN:%u", sctp_ifnp->ifn_index);
+			panic("No memory for IFN");
 #endif
 			return (NULL);
 		}
@@ -2385,6 +2385,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	inp->sctp_associd_counter = 1;
 	inp->partial_delivery_point = SCTP_SB_LIMIT_RCV(so) >> SCTP_PARTIAL_DELIVERY_SHIFT;
 	inp->sctp_frag_point = SCTP_DEFAULT_MAXSEGMENT;
+	inp->sctp_cmt_on_off = SCTP_BASE_SYSCTL(sctp_cmt_on_off);
 	/* init the small hash table we use to track asocid <-> tcb */
 	inp->sctp_asocidhash = SCTP_HASH_INIT(SCTP_STACK_VTAG_HASH_SIZE, &inp->hashasocidmark);
 	if (inp->sctp_asocidhash == NULL) {
@@ -5901,7 +5902,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			}
 #endif
 		default:
-			sa = NULL;
+			return (-1);
 			break;
 		}
 	} else {
@@ -5987,7 +5988,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				}
 				p4 = (struct sctp_ipv4addr_param *)phdr;
 				sin.sin_addr.s_addr = p4->addr;
-				if (IN_MULTICAST(sin.sin_addr.s_addr)) {
+				if (IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
 					/* Skip multi-cast addresses */
 					goto next_param;
 				}
@@ -6241,10 +6242,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					stcb->asoc.peer_supports_pktdrop = 1;
 					break;
 				case SCTP_NR_SELECTIVE_ACK:
-					if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off))
-						stcb->asoc.peer_supports_nr_sack = 1;
-					else
-						stcb->asoc.peer_supports_nr_sack = 0;
+					stcb->asoc.peer_supports_nr_sack = 1;
 					break;
 				case SCTP_STREAM_RESET:
 					stcb->asoc.peer_supports_strreset = 1;

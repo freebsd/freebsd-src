@@ -63,7 +63,12 @@ static const char rcsid[] =
 
 static int cpid = -1;
 
+#ifdef __powerpc64__	/* 32-bit compatibility */
+#include "freebsd32_syscalls.h"
+#define  syscallnames freebsd32_syscallnames
+#else			/* native 32-bit */
 #include "syscalls.h"
+#endif
 
 static int nsyscalls = sizeof(syscallnames) / sizeof(syscallnames[0]);
 

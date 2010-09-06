@@ -316,6 +316,7 @@ ata_sii_ch_attach(device_t dev)
 	ch->r_io[ATA_SCONTROL].offset = 0x100 + (unit01 << 7) + (unit10 << 8);
 	ch->flags |= ATA_NO_SLAVE;
 	ch->flags |= ATA_SATA;
+	ch->flags |= ATA_KNOWN_PRESENCE;
 
 	/* enable PHY state change interrupt */
 	ATA_OUTL(ctlr->r_res2, 0x148 + (unit01 << 7) + (unit10 << 8),(1 << 16));
@@ -364,7 +365,15 @@ ata_sii_status(device_t dev)
 static void
 ata_sii_reset(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
+    int offset = ((ch->unit & 1) << 7) + ((ch->unit & 2) << 8);
+    uint32_t val;
+
+    /* Apply R_ERR on DMA activate FIS errata workaround. */
+    val = ATA_INL(ctlr->r_res2, 0x14c + offset);
+    if ((val & 0x3) == 0x1)
+	ATA_OUTL(ctlr->r_res2, 0x14c + offset, val & ~0x3);
 
     if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);

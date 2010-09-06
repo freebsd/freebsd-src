@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 #include "thr_private.h"
 
@@ -234,4 +235,24 @@ _pthread_getspecific(pthread_key_t key)
 		/* No specific data has been created, so just return NULL: */
 		data = NULL;
 	return (__DECONST(void *, data));
+}
+
+void
+_thr_tsd_unload(struct dl_phdr_info *phdr_info)
+{
+	struct pthread *curthread = _get_curthread();
+	void (*destructor)(void *);
+	int key;
+
+	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
+	for (key = 0; key < PTHREAD_KEYS_MAX; key++) {
+		if (_thread_keytable[key].allocated) {
+			destructor = _thread_keytable[key].destructor;
+			if (destructor != NULL) {
+				if (__elf_phdr_match_addr(phdr_info, destructor))
+					_thread_keytable[key].destructor = NULL;
+			}
+		}
+	}
+	THR_LOCK_RELEASE(curthread, &_keytable_lock);
 }

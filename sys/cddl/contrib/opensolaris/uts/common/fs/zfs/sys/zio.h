@@ -107,14 +107,15 @@ enum zio_compress {
 #define	ZIO_PRIORITY_NOW		(zio_priority_table[0])
 #define	ZIO_PRIORITY_SYNC_READ		(zio_priority_table[1])
 #define	ZIO_PRIORITY_SYNC_WRITE		(zio_priority_table[2])
-#define	ZIO_PRIORITY_ASYNC_READ		(zio_priority_table[3])
-#define	ZIO_PRIORITY_ASYNC_WRITE	(zio_priority_table[4])
-#define	ZIO_PRIORITY_FREE		(zio_priority_table[5])
-#define	ZIO_PRIORITY_CACHE_FILL		(zio_priority_table[6])
-#define	ZIO_PRIORITY_LOG_WRITE		(zio_priority_table[7])
-#define	ZIO_PRIORITY_RESILVER		(zio_priority_table[8])
-#define	ZIO_PRIORITY_SCRUB		(zio_priority_table[9])
-#define	ZIO_PRIORITY_TABLE_SIZE		10
+#define	ZIO_PRIORITY_LOG_WRITE		(zio_priority_table[3])
+#define	ZIO_PRIORITY_CACHE_FILL		(zio_priority_table[4])
+#define	ZIO_PRIORITY_AGG		(zio_priority_table[5])
+#define	ZIO_PRIORITY_FREE		(zio_priority_table[6])
+#define	ZIO_PRIORITY_ASYNC_WRITE	(zio_priority_table[7])
+#define	ZIO_PRIORITY_ASYNC_READ		(zio_priority_table[8])
+#define	ZIO_PRIORITY_RESILVER		(zio_priority_table[9])
+#define	ZIO_PRIORITY_SCRUB		(zio_priority_table[10])
+#define	ZIO_PRIORITY_TABLE_SIZE		11
 
 #define	ZIO_FLAG_MUSTSUCCEED		0x00000
 #define	ZIO_FLAG_CANFAIL		0x00001

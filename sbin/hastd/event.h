@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2009 RMI Corporation
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,14 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of RMI Corporation, nor the names of its contributors,
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,16 +23,24 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * RMI_BSD */
-#ifndef _RMI_CLOCK_H_
-#define _RMI_CLOCK_H_
+ * $FreeBSD$
+ */
 
-#define XLR_PIC_HZ 66000000U
-#define XLR_CPU_HZ (xlr_boot1_info.cpu_frequency)
+#ifndef	_EVENT_H_
+#define	_EVENT_H_
 
-int count_compare_clockhandler(struct trapframe *);
-int pic_hardclockhandler(struct trapframe *);
-int pic_timecounthandler(struct trapframe *);
-void rmi_early_counter_init(void);
+#define	EVENT_NONE		0
+#define	EVENT_CONNECT		1
+#define	EVENT_DISCONNECT	2
+#define	EVENT_SYNCSTART		3
+#define	EVENT_SYNCDONE		4
+#define	EVENT_SYNCINTR		5
+#define	EVENT_SPLITBRAIN	6
 
-#endif				/* _RMI_CLOCK_H_ */
+#define	EVENT_MIN		EVENT_CONNECT
+#define	EVENT_MAX		EVENT_SPLITBRAIN
+
+void event_send(const struct hast_resource *res, int event);
+int event_recv(const struct hast_resource *res);
+
+#endif	/* !_EVENT_H_ */

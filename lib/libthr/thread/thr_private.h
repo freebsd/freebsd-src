@@ -132,6 +132,7 @@ struct pthread_mutex {
 	int				m_refcount;
 	int				m_spinloops;
 	int				m_yieldloops;
+	int				m_private;
 	/*
 	 * Link for all mutexes a thread currently owns.
 	 */
@@ -376,11 +377,20 @@ struct pthread {
 	/* Thread temporary signal mask. */
 	sigset_t		sigmask;
 
-	/* Thread is in SIGCANCEL handler. */
-	int			in_sigcancel_handler;
-
-	/* New thread should unblock SIGCANCEL. */
+	/* Thread should unblock SIGCANCEL. */
 	int			unblock_sigcancel;
+
+	/* In sigsuspend state */
+	int			in_sigsuspend;
+
+	/* deferred signal info	*/
+	siginfo_t		deferred_siginfo;
+
+	/* signal mask to restore. */
+	sigset_t		deferred_sigmask;
+
+	/* the sigaction should be used for deferred signal. */
+	struct sigaction	deferred_sigact;
 
 	/* Force new thread to exit. */
 	int			force_exit;
@@ -578,7 +588,7 @@ extern pthreadlist	_thread_gc_list __hidden;
 
 extern int		_thread_active_threads;
 extern atfork_head	_thr_atfork_list __hidden;
-extern struct umutex	_thr_atfork_lock __hidden;
+extern struct urwlock	_thr_atfork_lock __hidden;
 
 /* Default thread attributes: */
 extern struct pthread_attr _pthread_attr_default __hidden;
@@ -623,26 +633,23 @@ void	_mutex_fork(struct pthread *curthread) __hidden;
 void	_libpthread_init(struct pthread *) __hidden;
 struct pthread *_thr_alloc(struct pthread *) __hidden;
 void	_thread_exit(const char *, int, const char *) __hidden __dead2;
-void	_thr_exit_cleanup(void) __hidden;
 int	_thr_ref_add(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_ref_delete(struct pthread *, struct pthread *) __hidden;
 void	_thr_ref_delete_unlocked(struct pthread *, struct pthread *) __hidden;
 int	_thr_find_thread(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_rtld_init(void) __hidden;
 void	_thr_rtld_fini(void) __hidden;
+void	_thr_rtld_postfork_child(void) __hidden;
 int	_thr_stack_alloc(struct pthread_attr *) __hidden;
 void	_thr_stack_free(struct pthread_attr *) __hidden;
 void	_thr_free(struct pthread *, struct pthread *) __hidden;
 void	_thr_gc(struct pthread *) __hidden;
 void    _thread_cleanupspecific(void) __hidden;
-void    _thread_dump_info(void) __hidden;
 void	_thread_printf(int, const char *, ...) __hidden;
 void	_thr_spinlock_init(void) __hidden;
 void	_thr_cancel_enter(struct pthread *) __hidden;
-void	_thr_cancel_leave(struct pthread *) __hidden;
-void	_thr_cancel_leave2(struct pthread *, int) __hidden;
-void	_thr_cancel_enter_defer(struct pthread *, int) __hidden;
-void	_thr_cancel_leave_defer(struct pthread *, int) __hidden;
+void	_thr_cancel_enter2(struct pthread *, int) __hidden;
+void	_thr_cancel_leave(struct pthread *, int) __hidden;
 void	_thr_testcancel(struct pthread *) __hidden;
 void	_thr_signal_block(struct pthread *) __hidden;
 void	_thr_signal_unblock(struct pthread *) __hidden;
@@ -655,7 +662,6 @@ void	_thr_hash_remove(struct pthread *) __hidden;
 struct pthread *_thr_hash_find(struct pthread *) __hidden;
 void	_thr_link(struct pthread *, struct pthread *) __hidden;
 void	_thr_unlink(struct pthread *, struct pthread *) __hidden;
-void	_thr_suspend_check(struct pthread *) __hidden;
 void	_thr_assert_lock_level(void) __hidden __dead2;
 void	_thr_ast(struct pthread *) __hidden;
 void	_thr_once_init(void) __hidden;
@@ -664,6 +670,9 @@ void	_thr_report_creation(struct pthread *curthread,
 void	_thr_report_death(struct pthread *curthread) __hidden;
 int	_thr_getscheduler(lwpid_t, int *, struct sched_param *) __hidden;
 int	_thr_setscheduler(lwpid_t, int, const struct sched_param *) __hidden;
+void	_thr_signal_prefork(void) __hidden;
+void	_thr_signal_postfork(void) __hidden;
+void	_thr_signal_postfork_child(void) __hidden;
 int	_rtp_to_schedparam(const struct rtprio *rtp, int *policy,
 		struct sched_param *param) __hidden;
 int	_schedparam_to_rtp(int policy, const struct sched_param *param,
@@ -671,12 +680,11 @@ int	_schedparam_to_rtp(int policy, const struct sched_param *param,
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
 int	_sched_yield(void);
-void	_thr_sem_prefork(void);
-void	_thr_sem_postfork(void);
-void	_thr_sem_child_postfork(void);
 
 void	_pthread_cleanup_push(void (*)(void *), void *);
 void	_pthread_cleanup_pop(int);
+void	_pthread_exit_mask(void *status, sigset_t *mask) __dead2 __hidden;
+
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
@@ -692,7 +700,7 @@ int     __sys_sigaction(int, const struct sigaction *, struct sigaction *);
 int     __sys_sigpending(sigset_t *);
 int     __sys_sigprocmask(int, const sigset_t *, sigset_t *);
 int     __sys_sigsuspend(const sigset_t *);
-int     __sys_sigreturn(ucontext_t *);
+int     __sys_sigreturn(const ucontext_t *);
 int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
 int	__sys_sigwait(const sigset_t *, int *);
 int	__sys_sigtimedwait(const sigset_t *, siginfo_t *,
@@ -744,6 +752,8 @@ _thr_check_init(void)
 
 struct dl_phdr_info;
 void __pthread_cxa_finalize(struct dl_phdr_info *phdr_info);
+void _thr_tsd_unload(struct dl_phdr_info *phdr_info) __hidden;
+void _thr_sigact_unload(struct dl_phdr_info *phdr_info) __hidden;
 
 __END_DECLS
 

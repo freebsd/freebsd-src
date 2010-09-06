@@ -57,6 +57,9 @@ pjdlog_mode_set(int mode)
 	assert(mode == PJDLOG_MODE_STD || mode == PJDLOG_MODE_SYSLOG);
 
 	pjdlog_mode = mode;
+
+	if (mode == PJDLOG_MODE_SYSLOG)
+		openlog(NULL, LOG_PID, LOG_DAEMON);
 }
 
 /*
@@ -217,6 +220,7 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
 		if (error != -1)
 			fprintf(out, ": %s.", strerror(error));
 		fprintf(out, "\n");
+		fflush(out);
 		break;
 	    }
 	case PJDLOG_MODE_SYSLOG:

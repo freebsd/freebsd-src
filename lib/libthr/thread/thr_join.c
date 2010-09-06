@@ -107,7 +107,7 @@ join_common(pthread_t pthread, void **thread_return,
 	THREAD_LIST_UNLOCK(curthread);
 
 	THR_CLEANUP_PUSH(curthread, backout_join, pthread);
-	_thr_cancel_enter_defer(curthread, 1);
+	_thr_cancel_enter(curthread);
 
 	tid = pthread->tid;
 	while (pthread->tid != TID_TERMINATED) {
@@ -127,7 +127,7 @@ join_common(pthread_t pthread, void **thread_return,
 			break;
 	}
 
-	_thr_cancel_leave_defer(curthread, 0);
+	_thr_cancel_leave(curthread, 0);
 	THR_CLEANUP_POP(curthread, 0);
 
 	if (ret == ETIMEDOUT) {

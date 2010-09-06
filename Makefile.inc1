@@ -1133,8 +1133,8 @@ _prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
 _startup_libs=	gnu/lib/csu
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
 _startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
-.elif exists(${.CURDIR}/lib/csu/${MACHINE_CPUARCH}-elf)
-_startup_libs+=	lib/csu/${MACHINE_CPUARCH}-elf
+.elif exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
+_startup_libs+=	lib/csu/${MACHINE_ARCH}
 .else
 _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 .endif

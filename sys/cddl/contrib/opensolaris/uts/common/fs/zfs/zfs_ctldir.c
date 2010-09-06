@@ -965,9 +965,10 @@ zfsctl_snapdir_lookup(ap)
 	dmu_objset_close(snap);
 domount:
 	mountpoint_len = strlen(dvp->v_vfsp->mnt_stat.f_mntonname) +
-	    strlen("/.zfs/snapshot/") + strlen(nm) + 1;
+	    strlen("/" ZFS_CTLDIR_NAME "/snapshot/") + strlen(nm) + 1;
 	mountpoint = kmem_alloc(mountpoint_len, KM_SLEEP);
-	(void) snprintf(mountpoint, mountpoint_len, "%s/.zfs/snapshot/%s",
+	(void) snprintf(mountpoint, mountpoint_len,
+	    "%s/" ZFS_CTLDIR_NAME "/snapshot/%s",
 	    dvp->v_vfsp->mnt_stat.f_mntonname, nm);
 	err = mount_snapshot(curthread, vpp, "zfs", mountpoint, snapname, 0);
 	kmem_free(mountpoint, mountpoint_len);

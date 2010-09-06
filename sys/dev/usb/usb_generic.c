@@ -825,9 +825,9 @@ usb_gen_fill_deviceinfo(struct usb_fifo *f, struct usb_device_info *di)
 	di->udi_bus = device_get_unit(udev->bus->bdev);
 	di->udi_addr = udev->address;
 	di->udi_index = udev->device_index;
-	strlcpy(di->udi_serial, udev->serial, sizeof(di->udi_serial));
-	strlcpy(di->udi_vendor, udev->manufacturer, sizeof(di->udi_vendor));
-	strlcpy(di->udi_product, udev->product, sizeof(di->udi_product));
+	strlcpy(di->udi_serial, usb_get_serial(udev), sizeof(di->udi_serial));
+	strlcpy(di->udi_vendor, usb_get_manufacturer(udev), sizeof(di->udi_vendor));
+	strlcpy(di->udi_product, usb_get_product(udev), sizeof(di->udi_product));
 	usb_printbcd(di->udi_release, sizeof(di->udi_release),
 	    UGETW(udev->ddesc.bcdDevice));
 	di->udi_vendorNo = UGETW(udev->ddesc.idVendor);
@@ -1791,10 +1791,9 @@ ugen_get_power_mode(struct usb_fifo *f)
 {
 	struct usb_device *udev = f->udev;
 
-	if ((udev == NULL) ||
-	    (udev->parent_hub == NULL)) {
+	if (udev == NULL)
 		return (USB_POWER_MODE_ON);
-	}
+
 	return (udev->power_mode);
 }
 

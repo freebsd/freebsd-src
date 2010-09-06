@@ -2203,9 +2203,7 @@ vputx(struct vnode *vp, int func)
 	}
 
 	if (vp->v_usecount != 1) {
-#ifdef DIAGNOSTIC
 		vprint("vputx: negative ref count", vp);
-#endif
 		panic("vputx: negative ref cnt");
 	}
 	CTR2(KTR_VFS, "%s: return vnode %p to the freelist", __func__, vp);
@@ -3365,7 +3363,7 @@ static struct vop_vector sync_vnodeops = {
 /*
  * Create a new filesystem syncer vnode for the specified mount point.
  */
-int
+void
 vfs_allocate_syncvnode(struct mount *mp)
 {
 	struct vnode *vp;
@@ -3374,16 +3372,15 @@ vfs_allocate_syncvnode(struct mount *mp)
 	int error;
 
 	/* Allocate a new vnode */
-	if ((error = getnewvnode("syncer", mp, &sync_vnodeops, &vp)) != 0) {
-		mp->mnt_syncer = NULL;
-		return (error);
-	}
+	error = getnewvnode("syncer", mp, &sync_vnodeops, &vp);
+	if (error != 0)
+		panic("vfs_allocate_syncvnode: getnewvnode() failed");
 	vp->v_type = VNON;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, mp);
 	if (error != 0)
-		panic("vfs_allocate_syncvnode: insmntque failed");
+		panic("vfs_allocate_syncvnode: insmntque() failed");
 	vp->v_vflag &= ~VV_FORCEINSMQ;
 	VOP_UNLOCK(vp, 0);
 	/*
@@ -3411,7 +3408,6 @@ vfs_allocate_syncvnode(struct mount *mp)
 	mtx_unlock(&sync_mtx);
 	BO_UNLOCK(bo);
 	mp->mnt_syncer = vp;
-	return (0);
 }
 
 /*
@@ -3621,7 +3617,13 @@ privcheck:
 		    !priv_check_cred(cred, PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
+		/*
+		 * Ensure that at least one execute bit is on. Otherwise,
+		 * a privileged user will always succeed, and we don't want
+		 * this to happen unless the file really is executable.
+		 */
 		if ((accmode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
+		    (file_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
 		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}

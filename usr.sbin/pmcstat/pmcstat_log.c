@@ -2168,6 +2168,7 @@ pmcstat_shutdown_logging(void)
 		PRINT("#samples/total", samples_total);
 		PRINT("#samples/unclaimed", samples_unknown_offset);
 		PRINT("#samples/unknown-object", samples_indeterminable);
+		PRINT("#samples/unknown-function", samples_unknown_function);
 		PRINT("#callchain/dubious-frames", callchain_dubious_frames);
 	}
 

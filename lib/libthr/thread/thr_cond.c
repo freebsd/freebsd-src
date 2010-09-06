@@ -210,10 +210,10 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
 	if (cancel) {
 		THR_CLEANUP_PUSH(curthread, cond_cancel_handler, &info);
-		_thr_cancel_enter_defer(curthread, 0);
+		_thr_cancel_enter2(curthread, 0);
 		ret = _thr_ucond_wait(&cv->c_kerncv, &cv->c_lock, tsp, 1);
 		info.cond = NULL;
-		_thr_cancel_leave_defer(curthread, (ret != 0));
+		_thr_cancel_leave(curthread, (ret != 0));
 		THR_CLEANUP_POP(curthread, 0);
 	} else {
 		ret = _thr_ucond_wait(&cv->c_kerncv, &cv->c_lock, tsp, 0);

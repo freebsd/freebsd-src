@@ -123,39 +123,53 @@ ed_probe_Novell_generic(device_t dev, int flags)
 	ed_nic_outb(sc, ED_P0_PSTART, 8192 / ED_PAGE_SIZE);
 	ed_nic_outb(sc, ED_P0_PSTOP, 16384 / ED_PAGE_SIZE);
 
-	sc->isa16bit = 0;
-
 	/*
-	 * Write a test pattern in byte mode. If this fails, then there
-	 * probably isn't any memory at 8k - which likely means that the board
-	 * is an NE2000.
+	 * Some devices identify themselves.  Some of those devices
+	 * can't handle being probed, so we allow forcing a mode.  If
+	 * these flags are set, force it, otherwise probe.
 	 */
-	ed_pio_writemem(sc, test_pattern, 8192, sizeof(test_pattern));
-	ed_pio_readmem(sc, 8192, test_buffer, sizeof(test_pattern));
-
-	if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
+	if (flags & ED_FLAGS_FORCE_8BIT_MODE) {
+		sc->isa16bit = 0;
 		sc->type = ED_TYPE_NE1000;
 		sc->type_str = "NE1000";
-	} else {
-
-		/* Not an NE1000 - try NE2000 */
+	} else if (flags & ED_FLAGS_FORCE_16BIT_MODE) {
+		sc->isa16bit = 1;
+		sc->type = ED_TYPE_NE2000;
+		sc->type_str = "NE2000";
 		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
 		ed_nic_outb(sc, ED_P0_PSTART, 16384 / ED_PAGE_SIZE);
 		ed_nic_outb(sc, ED_P0_PSTOP, 32768 / ED_PAGE_SIZE);
-
-		sc->isa16bit = 1;
-
+	} else {
 		/*
-		 * Write a test pattern in word mode. If this also fails, then
-		 * we don't know what this board is.
+		 * Write a test pattern in byte mode. If this fails, then there
+		 * probably isn't any memory at 8k - which likely means that the board
+		 * is an NE2000.
 		 */
-		ed_pio_writemem(sc, test_pattern, 16384, sizeof(test_pattern));
-		ed_pio_readmem(sc, 16384, test_buffer, sizeof(test_pattern));
+		ed_pio_writemem(sc, test_pattern, 8192, sizeof(test_pattern));
+		ed_pio_readmem(sc, 8192, test_buffer, sizeof(test_pattern));
+
 		if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
-			sc->type = ED_TYPE_NE2000;
-			sc->type_str = "NE2000";
+			sc->type = ED_TYPE_NE1000;
+			sc->type_str = "NE1000";
+			sc->isa16bit = 0;
 		} else {
-			return (ENXIO);
+			/* Not an NE1000 - try NE2000 */
+			sc->isa16bit = 1;
+			ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+			ed_nic_outb(sc, ED_P0_PSTART, 16384 / ED_PAGE_SIZE);
+			ed_nic_outb(sc, ED_P0_PSTOP, 32768 / ED_PAGE_SIZE);
+			/*
+			 * Write a test pattern in word mode. If this also fails, then
+			 * we don't know what this board is.
+			 */
+			ed_pio_writemem(sc, test_pattern, 16384, sizeof(test_pattern));
+			ed_pio_readmem(sc, 16384, test_buffer, sizeof(test_pattern));
+			if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
+				sc->type = ED_TYPE_NE2000;
+				sc->type_str = "NE2000";
+			} else {
+				return (ENXIO);
+			}
 		}
 	}
 	sc->chip_type = ED_CHIP_TYPE_DP8390;

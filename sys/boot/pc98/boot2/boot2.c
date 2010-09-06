@@ -187,9 +187,8 @@ xfsread(ino_t inode, void *buf, size_t nbyte)
 static inline uint32_t
 memsize(void)
 {
-    u_char *p = (u_char *)PTOV(0);
-
-    return *(p + 0x401) * 128 * 1024 + *(u_int16_t *)(p + 0x594) * 1024 * 1024;
+    return (*(u_char *)PTOV(0x401) * 128 * 1024 +
+	*(uint16_t *)PTOV(0x594) * 1024 * 1024);
 }
 
 static inline void

@@ -317,7 +317,7 @@ find out, how many bytes must be written into the buffer before the
 .IX Header "WARNING"
 As the data is buffered, \fISSL_operation()\fR may return with a \s-1ERROR_SSL_WANT_READ\s0
 condition, but there is still data in the write buffer. An application must
-not rely on the error value of \fISSL_operation()\fR but must assure that the
+not rely on the error value of \fISSL_operation()\fR but must ensure that the
 write buffer is always flushed first. Otherwise a deadlock may occur as
 the peer might be waiting for the data before being able to continue.
 .SH "SEE ALSO"

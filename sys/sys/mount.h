@@ -730,7 +730,7 @@ void	vfs_msync(struct mount *, int);
 int	vfs_busy(struct mount *, int);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
-int	vfs_allocate_syncvnode(struct mount *);
+void	vfs_allocate_syncvnode(struct mount *);
 int	vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions);
 void	vfs_getnewfsid(struct mount *);
 struct cdev *vfs_getrootfsid(struct mount *);

@@ -108,6 +108,10 @@ IDTVEC(dbg)
 	TRAP_NOEN(T_TRCTRAP)
 IDTVEC(bpt)
 	TRAP_NOEN(T_BPTFLT)
+#ifdef KDTRACE_HOOKS
+IDTVEC(dtrace_ret)
+	TRAP_NOEN(T_DTRACE_RET)
+#endif
 
 /* Regular traps; The cpu does not supply tf_err for these. */
 #define	TRAP(a)	 \

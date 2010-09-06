@@ -208,6 +208,10 @@ static void fasttrap_proc_release(fasttrap_proc_t *);
 
 #define	FASTTRAP_PROCS_INDEX(pid) ((pid) & fasttrap_procs.fth_mask)
 
+#if !defined(sun)
+static kmutex_t fasttrap_cpuc_pid_lock[MAXCPU];
+#endif
+
 static int
 fasttrap_highbit(ulong_t i)
 {
@@ -289,24 +293,17 @@ fasttrap_sigtrap(proc_t *p, kthread_t *t, uintptr_t pc)
 static void
 fasttrap_mod_barrier(uint64_t gen)
 {
-#if defined(sun)
 	int i;
-#endif
 
 	if (gen < fasttrap_mod_gen)
 		return;
 
 	fasttrap_mod_gen++;
 
-#if defined(sun)
-	for (i = 0; i < NCPU; i++) {
-		mutex_enter(&cpu_core[i].cpuc_pid_lock);
-		mutex_exit(&cpu_core[i].cpuc_pid_lock);
+	CPU_FOREACH(i) {
+		mutex_enter(&fasttrap_cpuc_pid_lock[i]);
+		mutex_exit(&fasttrap_cpuc_pid_lock[i]);
 	}
-#else
-	/* XXX */
-	__asm __volatile("": : :"memory");
-#endif
 }
 
 /*
@@ -2326,6 +2323,11 @@ fasttrap_load(void)
 	for (i = 0; i < fasttrap_procs.fth_nent; i++)
 		mutex_init(&fasttrap_procs.fth_table[i].ftb_mtx,
 		    "processes bucket mtx", MUTEX_DEFAULT, NULL);
+
+	CPU_FOREACH(i) {
+		mutex_init(&fasttrap_cpuc_pid_lock[i], "fasttrap barrier",
+		    MUTEX_DEFAULT, NULL);
+	}
 #endif
 
 	(void) dtrace_meta_register("fasttrap", &fasttrap_mops, NULL,
@@ -2450,6 +2452,9 @@ fasttrap_unload(void)
 #if !defined(sun)
 	destroy_dev(fasttrap_cdev);
 	mutex_destroy(&fasttrap_count_mtx);
+	CPU_FOREACH(i) {
+		mutex_destroy(&fasttrap_cpuc_pid_lock[i]);
+	}
 #endif
 
 	return (0);

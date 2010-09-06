@@ -34,6 +34,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/signalvar.h>
 #include "un-namespace.h"
 
 #include "libc_private.h"
@@ -55,18 +57,14 @@ _thread_exit(const char *fname, int lineno, const char *msg)
 	abort();
 }
 
-/*
- * Only called when a thread is cancelled.  It may be more useful
- * to call it from pthread_exit() if other ways of asynchronous or
- * abnormal thread termination can be found.
- */
 void
-_thr_exit_cleanup(void)
+_pthread_exit(void *status)
 {
+	_pthread_exit_mask(status, NULL);
 }
 
 void
-_pthread_exit(void *status)
+_pthread_exit_mask(void *status, sigset_t *mask)
 {
 	struct pthread *curthread = _get_curthread();
 
@@ -83,9 +81,18 @@ _pthread_exit(void *status)
 	curthread->cancelling = 1;
 	curthread->cancel_enable = 0;
 	curthread->cancel_async = 0;
-	
-	_thr_exit_cleanup();
+	curthread->cancel_point = 0;
+	if (mask != NULL)
+		__sys_sigprocmask(SIG_SETMASK, mask, NULL);
+	if (curthread->unblock_sigcancel) {
+		sigset_t set;
 
+		curthread->unblock_sigcancel = 0;
+		SIGEMPTYSET(set);
+		SIGADDSET(set, SIGCANCEL);
+		__sys_sigprocmask(SIG_UNBLOCK, mask, NULL);
+	}
+	
 	/* Save the return value: */
 	curthread->ret = status;
 	while (curthread->cleanup != NULL) {

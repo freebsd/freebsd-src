@@ -33,6 +33,7 @@
 #include <zone.h>
 #include <libintl.h>
 #include <libzfs.h>
+#include <libzfs_impl.h>
 #include "zfs_prop.h"
 
 static PyObject *ZFSError;

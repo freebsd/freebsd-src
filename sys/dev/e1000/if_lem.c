@@ -186,7 +186,7 @@ static int	lem_allocate_irq(struct adapter *adapter);
 static void	lem_free_pci_resources(struct adapter *);
 static void	lem_local_timer(void *);
 static int	lem_hardware_init(struct adapter *);
-static void	lem_setup_interface(device_t, struct adapter *);
+static int	lem_setup_interface(device_t, struct adapter *);
 static void	lem_setup_transmit_structures(struct adapter *);
 static void	lem_initialize_transmit_unit(struct adapter *);
 static int	lem_setup_receive_structures(struct adapter *);
@@ -550,6 +550,15 @@ lem_attach(device_t dev)
 	adapter->rx_desc_base =
 	    (struct e1000_rx_desc *)adapter->rxdma.dma_vaddr;
 
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u8) * ETH_ADDR_LEN *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_hw_init;
+	}
+
 	/*
 	** Start from a known state, this is
 	** important in reading the nvm and
@@ -620,7 +629,8 @@ lem_attach(device_t dev)
 	lem_get_wakeup(dev);
 
 	/* Setup OS specific network interface */
-	lem_setup_interface(dev, adapter);
+	if (lem_setup_interface(dev, adapter) != 0)
+		goto err_rx_struct;
 
 	/* Initialize statistics */
 	lem_update_stats_counters(adapter);
@@ -672,7 +682,10 @@ err_rx_desc:
 	lem_dma_free(adapter, &adapter->txdma);
 err_tx_desc:
 err_pci:
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 	lem_free_pci_resources(adapter);
+	free(adapter->mta, M_DEVBUF);
 	EM_TX_LOCK_DESTROY(adapter);
 	EM_RX_LOCK_DESTROY(adapter);
 	EM_CORE_LOCK_DESTROY(adapter);
@@ -759,6 +772,7 @@ lem_detach(device_t dev)
 	}
 
 	lem_release_hw_control(adapter);
+	free(adapter->mta, M_DEVBUF);
 	EM_TX_LOCK_DESTROY(adapter);
 	EM_RX_LOCK_DESTROY(adapter);
 	EM_CORE_LOCK_DESTROY(adapter);
@@ -1939,6 +1953,9 @@ lem_set_multi(struct adapter *adapter)
 
 	IOCTL_DEBUGOUT("lem_set_multi: begin");
 
+	mta = adapter->mta;
+	bzero(mta, sizeof(u8) * ETH_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES);
+
 	if (adapter->hw.mac.type == e1000_82542 && 
 	    adapter->hw.revision_id == E1000_REVISION_2) {
 		reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
@@ -1948,13 +1965,6 @@ lem_set_multi(struct adapter *adapter)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 		msec_delay(5);
 	}
-
-	/* Allocate temporary memory to setup array */
-	mta = malloc(sizeof(u8) *
-	    (ETH_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (mta == NULL)
-		panic("lem_set_multi memory failure\n");
 
 #if __FreeBSD_version < 800000
 	IF_ADDR_LOCK(ifp);
@@ -1993,7 +2003,6 @@ lem_set_multi(struct adapter *adapter)
 		if (adapter->hw.bus.pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
 			e1000_pci_set_mwi(&adapter->hw);
 	}
-	free(mta, M_DEVBUF);
 }
 
 
@@ -2388,7 +2397,7 @@ lem_hardware_init(struct adapter *adapter)
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 lem_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ifnet   *ifp;
@@ -2396,8 +2405,10 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("lem_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  lem_init;
@@ -2473,6 +2484,7 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
+	return (0);
 }
 
 

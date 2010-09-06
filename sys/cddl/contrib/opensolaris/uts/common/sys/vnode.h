@@ -378,6 +378,7 @@ struct taskq;
  * Flags for VOP_READDIR
  */
 #define	V_RDDIR_ENTFLAGS	0x01	/* request dirent flags */
+#define	V_RDDIR_ACCFILTER	0x02	/* filter out inaccessible dirents */
 
 /*
  * Public vnode manipulation functions.

@@ -52,9 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <pjdlog.h>
 
 #include "control.h"
+#include "event.h"
 #include "hast.h"
 #include "hast_proto.h"
 #include "hastd.h"
+#include "hooks.h"
 #include "subr.h"
 
 /* Path to configuration file. */
@@ -62,13 +64,16 @@ const char *cfgpath = HAST_CONFIG;
 /* Hastd configuration. */
 static struct hastd_config *cfg;
 /* Was SIGCHLD signal received? */
-static bool sigchld_received = false;
+bool sigchld_received = false;
 /* Was SIGHUP signal received? */
 bool sighup_received = false;
 /* Was SIGINT or SIGTERM signal received? */
 bool sigexit_received = false;
 /* PID file handle. */
 struct pidfh *pfh;
+
+/* How often check for hooks running for too long. */
+#define	REPORT_INTERVAL	10
 
 static void
 usage(void)
@@ -82,6 +87,10 @@ sighandler(int sig)
 {
 
 	switch (sig) {
+	case SIGINT:
+	case SIGTERM:
+		sigexit_received = true;
+		break;
 	case SIGCHLD:
 		sigchld_received = true;
 		break;
@@ -140,14 +149,21 @@ child_exit(void)
 		if (res == NULL) {
 			/*
 			 * This can happen when new connection arrives and we
-			 * cancel child responsible for the old one.
+			 * cancel child responsible for the old one or if this
+			 * was hook which we executed.
 			 */
+			hook_check_one(pid, status);
 			continue;
 		}
 		pjdlog_prefix_set("[%s] (%s) ", res->hr_name,
 		    role2str(res->hr_role));
 		child_exit_log(pid, status);
 		proto_close(res->hr_ctrl);
+		res->hr_ctrl = NULL;
+		if (res->hr_event != NULL) {
+			proto_close(res->hr_event);
+			res->hr_event = NULL;
+		}
 		res->hr_workerpid = 0;
 		if (res->hr_role == HAST_ROLE_PRIMARY) {
 			/*
@@ -189,6 +205,8 @@ resource_needs_restart(const struct hast_resource *res0,
 			return (true);
 		if (res0->hr_timeout != res1->hr_timeout)
 			return (true);
+		if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
+			return (true);
 	}
 	return (false);
 }
@@ -210,6 +228,8 @@ resource_needs_reload(const struct hast_resource *res0,
 	if (res0->hr_replication != res1->hr_replication)
 		return (true);
 	if (res0->hr_timeout != res1->hr_timeout)
+		return (true);
+	if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
 		return (true);
 	return (false);
 }
@@ -367,6 +387,25 @@ failed:
 		yy_config_free(newcfg);
 	}
 	pjdlog_warning("Configuration not reloaded.");
+}
+
+static void
+terminate_workers(void)
+{
+	struct hast_resource *res;
+
+	pjdlog_info("Termination signal received, exiting.");
+	TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
+		if (res->hr_workerpid == 0)
+			continue;
+		pjdlog_info("Terminating worker process (resource=%s, role=%s, pid=%u).",
+		    res->hr_name, role2str(res->hr_role), res->hr_workerpid);
+		if (kill(res->hr_workerpid, SIGTERM) == 0)
+			continue;
+		pjdlog_errno(LOG_WARNING,
+		    "Unable to send signal to worker process (resource=%s, role=%s, pid=%u).",
+		    res->hr_name, role2str(res->hr_role), res->hr_workerpid);
+	}
 }
 
 static void
@@ -591,10 +630,20 @@ close:
 static void
 main_loop(void)
 {
-	fd_set rfds, wfds;
-	int cfd, lfd, maxfd, ret;
+	struct hast_resource *res;
+	struct timeval timeout;
+	int fd, maxfd, ret;
+	fd_set rfds;
+
+	timeout.tv_sec = REPORT_INTERVAL;
+	timeout.tv_usec = 0;
 
 	for (;;) {
+		if (sigexit_received) {
+			sigexit_received = false;
+			terminate_workers();
+			exit(EX_OK);
+		}
 		if (sigchld_received) {
 			sigchld_received = false;
 			child_exit();
@@ -604,30 +653,46 @@ main_loop(void)
 			hastd_reload();
 		}
 
-		cfd = proto_descriptor(cfg->hc_controlconn);
-		lfd = proto_descriptor(cfg->hc_listenconn);
-		maxfd = cfd > lfd ? cfd : lfd;
-
 		/* Setup descriptors for select(2). */
 		FD_ZERO(&rfds);
-		FD_SET(cfd, &rfds);
-		FD_SET(lfd, &rfds);
-		FD_ZERO(&wfds);
-		FD_SET(cfd, &wfds);
-		FD_SET(lfd, &wfds);
+		maxfd = fd = proto_descriptor(cfg->hc_controlconn);
+		FD_SET(fd, &rfds);
+		fd = proto_descriptor(cfg->hc_listenconn);
+		FD_SET(fd, &rfds);
+		maxfd = fd > maxfd ? fd : maxfd;
+		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
+			if (res->hr_event == NULL)
+				continue;
+			fd = proto_descriptor(res->hr_event);
+			FD_SET(fd, &rfds);
+			maxfd = fd > maxfd ? fd : maxfd;
+		}
 
-		ret = select(maxfd + 1, &rfds, &wfds, NULL, NULL);
-		if (ret == -1) {
+		ret = select(maxfd + 1, &rfds, NULL, NULL, &timeout);
+		if (ret == 0)
+			hook_check(false);
+		else if (ret == -1) {
 			if (errno == EINTR)
 				continue;
 			KEEP_ERRNO((void)pidfile_remove(pfh));
 			pjdlog_exit(EX_OSERR, "select() failed");
 		}
 
-		if (FD_ISSET(cfd, &rfds) || FD_ISSET(cfd, &wfds))
+		if (FD_ISSET(proto_descriptor(cfg->hc_controlconn), &rfds))
 			control_handle(cfg);
-		if (FD_ISSET(lfd, &rfds) || FD_ISSET(lfd, &wfds))
+		if (FD_ISSET(proto_descriptor(cfg->hc_listenconn), &rfds))
 			listen_accept();
+		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
+			if (res->hr_event == NULL)
+				continue;
+			if (FD_ISSET(proto_descriptor(res->hr_event), &rfds)) {
+				if (event_recv(res) == 0)
+					continue;
+				/* The worker process exited? */
+				proto_close(res->hr_event);
+				res->hr_event = NULL;
+			}
+		}
 	}
 }
 
@@ -688,6 +753,8 @@ main(int argc, char *argv[])
 	cfg = yy_config_parse(cfgpath, true);
 	assert(cfg != NULL);
 
+	signal(SIGINT, sighandler);
+	signal(SIGTERM, sighandler);
 	signal(SIGHUP, sighandler);
 	signal(SIGCHLD, sighandler);
 
@@ -719,6 +786,8 @@ main(int argc, char *argv[])
 			    "Unable to write PID to a file");
 		}
 	}
+
+	hook_init();
 
 	main_loop();
 

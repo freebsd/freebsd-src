@@ -109,7 +109,7 @@ clear_fsc(void) {
  */
 
 void
-powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
+powerpc64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   char buf[32];
   struct reg regs;
   void *args;
@@ -254,7 +254,7 @@ powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
  */
 
 long
-powerpc_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
+powerpc64_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 {
   struct reg regs;
   long retval;

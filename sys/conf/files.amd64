@@ -317,6 +317,7 @@ x86/isa/isa.c			standard
 x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
+x86/pci/qpi.c			standard
 x86/x86/io_apic.c		standard
 x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard

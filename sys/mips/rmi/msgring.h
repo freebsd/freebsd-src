@@ -26,11 +26,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * RMI_BSD */
+ * RMI_BSD
+ * $FreeBSD$
+ */
 #ifndef _RMI_MSGRING_H_
 #define _RMI_MSGRING_H_
 
-#include <mips/rmi/xlrconfig.h>
+#include <sys/types.h>
+#include <mips/rmi/rmi_mips_exts.h>
 
 #define MSGRNG_TX_BUF_REG 0
 #define MSGRNG_RX_BUF_REG 1
@@ -367,24 +370,15 @@ message_send(unsigned int size, unsigned int code,
 
 	dest = ((size - 1) << 16) | (code << 8) | (stid);
 
-	//dbg_msg("Sending msg<%Lx,%Lx,%Lx,%Lx> to dest = %x\n",
-	    //msg->msg0, msg->msg1, msg->msg2, msg->msg3, dest);
-
 	msgrng_send(dest);
 
 	for (i = 0; i < 16; i++) {
 		status = msgrng_read_status();
-		//dbg_msg("status = %Lx\n", status);
 
 		if (status & 0x6) {
 			continue;
 		} else
 			break;
-	}
-	if (i == 16) {
-		if (dest == 0x61)
-			//dbg_msg("Processor %x: Unable to send msg to %llx\n", processor_id(), dest);
-		return status & 0x6;
 	}
 	return msgrng_read_status() & 0x06;
 }
@@ -417,16 +411,10 @@ static __inline__ int
 message_receive(int pri, int *size, int *code, int *src_id,
     struct msgrng_msg *msg)
 {
-	int res = message_receive_fast(pri, *size, *code, *src_id, msg->msg0, msg->msg1, msg->msg2, msg->msg3);
-
-#ifdef MSGRING_DUMP_MESSAGES
-	if (!res) {
-		dbg_msg("Received msg <%llx, %llx, %llx, %llx> <%d,%d,%d>\n",
-		    msg->msg0, msg->msg1, msg->msg2, msg->msg3,
-		    *size, *code, *src_id);
-	}
-#endif
-
+	int res;
+       
+	res = message_receive_fast(pri, *size, *code, *src_id,
+			msg->msg0, msg->msg1, msg->msg2, msg->msg3);
 	return res;
 }
 
@@ -471,13 +459,13 @@ extern struct stn_cc xls_cc_table_sec;
 
 
 #define msgrng_access_save(lock, mflags) do {                \
-  if (rmi_spin_mutex_safe) mtx_lock_spin(lock);              \
+  mtx_lock_spin(lock);                                       \
   msgrng_flags_save(mflags);                                 \
  }while(0)
 
 #define msgrng_access_restore(lock, mflags) do {             \
   msgrng_flags_restore(mflags);                              \
-  if (rmi_spin_mutex_safe) mtx_unlock_spin(lock);            \
+  mtx_unlock_spin(lock);                                     \
  }while(0)
 
 #define msgrng_access_enable(mflags) do {   \

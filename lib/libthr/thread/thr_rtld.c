@@ -32,6 +32,7 @@
   */
 #include <sys/cdefs.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "rtld_lock.h"
 #include "thr_private.h"
@@ -81,8 +82,11 @@ static void
 _thr_rtld_lock_destroy(void *lock)
 {
 	int locki;
+	size_t i;
 
 	locki = (struct rtld_lock *)lock - &lock_place[0];
+	for (i = 0; i < sizeof(struct rtld_lock); ++i)
+		((char *)lock)[i] = 0;
 	busy_places &= ~(1 << locki);
 }
 
@@ -129,7 +133,7 @@ _thr_rtld_wlock_acquire(void *lock)
 	SAVE_ERRNO();
 	l = (struct rtld_lock *)lock;
 
-	_thr_signal_block(curthread);
+	THR_CRITICAL_ENTER(curthread);
 	while (_thr_rwlock_wrlock(&l->lock, NULL) != 0)
 		;
 	RESTORE_ERRNO();
@@ -149,12 +153,9 @@ _thr_rtld_lock_release(void *lock)
 	
 	state = l->lock.rw_state;
 	if (_thr_rwlock_unlock(&l->lock) == 0) {
-		curthread->rdlock_count--;
-		if ((state & URWLOCK_WRITE_OWNER) == 0) {
-			THR_CRITICAL_LEAVE(curthread);
-		} else {
-			_thr_signal_unblock(curthread);
-		}
+		if ((state & URWLOCK_WRITE_OWNER) == 0)
+			curthread->rdlock_count--;
+		THR_CRITICAL_LEAVE(curthread);
 	}
 	RESTORE_ERRNO();
 }
@@ -189,6 +190,9 @@ _thr_rtld_init(void)
 	
 	/* force to resolve errno() PLT */
 	__error();
+
+	/* force to resolve memcpy PLT */
+	memcpy(&dummy, &dummy, sizeof(dummy));
 
 	li.lock_create  = _thr_rtld_lock_create;
 	li.lock_destroy = _thr_rtld_lock_destroy;

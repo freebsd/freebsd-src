@@ -340,7 +340,7 @@ sctp_log_lock(struct sctp_inpcb *inp, struct sctp_tcb *stcb, uint8_t from)
 		sctp_clog.x.lock.create_lock = SCTP_LOCK_UNKNOWN;
 	}
 	sctp_clog.x.lock.info_lock = rw_wowned(&SCTP_BASE_INFO(ipi_ep_mtx));
-	if (inp->sctp_socket) {
+	if (inp && (inp->sctp_socket)) {
 		sctp_clog.x.lock.sock_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
 		sctp_clog.x.lock.sockrcvbuf_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
 		sctp_clog.x.lock.socksndbuf_lock = mtx_owned(&(inp->sctp_socket->so_snd.sb_mtx));
@@ -893,10 +893,8 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->max_burst = m->sctp_ep.max_burst;
 	asoc->heart_beat_delay = TICKS_TO_MSEC(m->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
 	asoc->cookie_life = m->sctp_ep.def_cookie_life;
-	asoc->sctp_cmt_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_cmt_on_off);
-	/* EY Init nr_sack variable */
+	asoc->sctp_cmt_on_off = m->sctp_cmt_on_off;
 	asoc->sctp_nr_sack_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_nr_sack_on_off);
-	/* JRS 5/21/07 - Init CMT PF variables */
 	asoc->sctp_cmt_pf = (uint8_t) SCTP_BASE_SYSCTL(sctp_cmt_pf);
 	asoc->sctp_frag_point = m->sctp_frag_point;
 #ifdef INET
@@ -5706,7 +5704,9 @@ get_more_data:
 				if ((SCTP_BUF_NEXT(m) == NULL) &&
 				    (control->end_added)) {
 					out_flags |= MSG_EOR;
-					if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
+					if ((control->do_not_ref_stcb == 0) &&
+					    (control->stcb != NULL) &&
+					    ((control->spec_flags & M_NOTIFICATION) == 0))
 						control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 				}
 				if (control->spec_flags & M_NOTIFICATION) {

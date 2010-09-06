@@ -618,9 +618,17 @@ devfs_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
-	int error = 0;
+	int error;
 	struct devfs_dirent *de;
+	struct devfs_mount *dmp;
 	struct cdev *dev;
+
+	error = devfs_populate_vp(vp);
+	if (error != 0)
+		return (error);
+
+	dmp = VFSTODEVFS(vp->v_mount);
+	sx_xunlock(&dmp->dm_lock);
 
 	de = vp->v_data;
 	KASSERT(de != NULL, ("Null dirent in devfs_getattr vp=%p", vp));
@@ -1531,6 +1539,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 	de->de_gid = 0;
 	de->de_mode = 0755;
 	de->de_inode = alloc_unr(devfs_inos);
+	de->de_dir = dd;
 	de->de_dirent->d_type = DT_LNK;
 	i = strlen(ap->a_target) + 1;
 	de->de_symlink = malloc(i, M_DEVFS, M_WAITOK);

@@ -2,7 +2,13 @@
 
 NO_WERROR=
 PROG=	truss
-SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c ${MACHINE_CPUARCH}-fbsd.c
+SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c
+
+.if exists(${.CURDIR}/${MACHINE_ARCH}-fbsd.c)
+SRCS+= ${MACHINE_ARCH}-fbsd.c
+.else
+SRCS+= ${MACHINE_CPUARCH}-fbsd.c
+.endif
 
 CFLAGS+= -I${.CURDIR} -I.
 CLEANFILES= syscalls.master syscalls.h ioctl.c
@@ -43,6 +49,18 @@ linux32_syscalls.h:	amd64l32-syscalls.master
 		${.CURDIR}/amd64linux32.conf
 
 SRCS+=	amd64-fbsd32.c freebsd32_syscalls.h
+CLEANFILES+=fbsd32-syscalls.master freebsd32_syscalls.h
+
+fbsd32-syscalls.master: ${.CURDIR}/../../sys/compat/freebsd32/syscalls.master
+	cat ${.ALLSRC} > ${.TARGET}
+
+freebsd32_syscalls.h:	fbsd32-syscalls.master
+	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
+		${.CURDIR}/fbsd32.conf
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc64"
+SRCS+=	powerpc-fbsd.c freebsd32_syscalls.h
 CLEANFILES+=fbsd32-syscalls.master freebsd32_syscalls.h
 
 fbsd32-syscalls.master: ${.CURDIR}/../../sys/compat/freebsd32/syscalls.master

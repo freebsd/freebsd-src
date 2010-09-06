@@ -215,7 +215,8 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				 * not in PF state.
 				 */
 				/* Stop any running T3 timers here? */
-				if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf)) {
+				if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+				    (stcb->asoc.sctp_cmt_pf > 0)) {
 					net->dest_state &= ~SCTP_ADDR_PF;
 					SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
 					    net);
@@ -419,7 +420,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 				return (net);
 			}
 			min_errors_net->dest_state &= ~SCTP_ADDR_PF;
-			min_errors_net->cwnd = min_errors_net->mtu * SCTP_BASE_SYSCTL(sctp_cmt_pf);
+			min_errors_net->cwnd = min_errors_net->mtu * stcb->asoc.sctp_cmt_pf;
 			if (SCTP_OS_TIMER_PENDING(&min_errors_net->rxt_timer.timer)) {
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
 				    stcb, min_errors_net,
@@ -481,6 +482,9 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 
 	if (mnet == NULL) {
 		mnet = TAILQ_FIRST(&stcb->asoc.nets);
+		if (mnet == NULL) {
+			return (NULL);
+		}
 	}
 	do {
 		alt = TAILQ_NEXT(mnet, sctp_next);
@@ -490,6 +494,9 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 				break;
 			}
 			alt = TAILQ_FIRST(&stcb->asoc.nets);
+			if (alt == NULL) {
+				return (NULL);
+			}
 		}
 		if (alt->ro.ro_rt == NULL) {
 			if (alt->ro._s_addr) {
@@ -516,6 +523,9 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 		once = 0;
 		mnet = net;
 		do {
+			if (mnet == NULL) {
+				return (TAILQ_FIRST(&stcb->asoc.nets));
+			}
 			alt = TAILQ_NEXT(mnet, sctp_next);
 			if (alt == NULL) {
 				once++;
@@ -843,7 +853,7 @@ start_again:
 			/*
 			 * CMT: Do not allow FRs on retransmitted TSNs.
 			 */
-			if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) == 1) {
+			if (stcb->asoc.sctp_cmt_on_off == 1) {
 				chk->no_fr_allowed = 1;
 			}
 #ifdef THIS_SHOULD_NOT_BE_DONE
@@ -1038,7 +1048,8 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 	 * addition, find an alternate destination with PF-based
 	 * find_alt_net().
 	 */
-	if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf)) {
+	if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+	    (stcb->asoc.sctp_cmt_pf > 0)) {
 		if ((net->dest_state & SCTP_ADDR_PF) != SCTP_ADDR_PF) {
 			net->dest_state |= SCTP_ADDR_PF;
 			net->last_active = sctp_get_tick_count();
@@ -1046,7 +1057,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 			    net);
 		}
 		alt = sctp_find_alternate_net(stcb, net, 2);
-	} else if (SCTP_BASE_SYSCTL(sctp_cmt_on_off)) {
+	} else if (stcb->asoc.sctp_cmt_on_off == 1) {
 		/*
 		 * CMT: Using RTX_SSTHRESH policy for CMT. If CMT is being
 		 * used, then pick dest with largest ssthresh for any
@@ -1162,7 +1173,9 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 				net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
 			}
 		}
-	} else if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf) && (net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF) {
+	} else if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+		    (stcb->asoc.sctp_cmt_pf > 0) &&
+	    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 		/*
 		 * JRS 5/14/07 - If the destination hasn't failed completely
 		 * but is in PF state, a PF-heartbeat needs to be sent

@@ -242,8 +242,8 @@ tcp4_connect(void *ctx)
 		return (errno);
 	}
 	/*
-	 * We make socket non-blocking so we have decided about connection
-	 * timeout.
+	 * We make socket non-blocking so we can handle connection timeout
+	 * manually.
 	 */
 	flags |= O_NONBLOCK;
 	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {

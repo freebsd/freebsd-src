@@ -130,9 +130,6 @@ typedef	pt_entry_t *pd_entry_t;
 
 /*
  * PTE management functions for bits defined above.
- *
- * XXX Can make these atomics, but some users of them are using PTEs in local
- * registers and such and don't need the overhead.
  */
 #define	pte_clear(pte, bit)	(*(pte) &= ~(bit))
 #define	pte_set(pte, bit)	(*(pte) |= (bit))

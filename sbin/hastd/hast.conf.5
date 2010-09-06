@@ -1,4 +1,5 @@
 .\" Copyright (c) 2010 The FreeBSD Foundation
+.\" Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -27,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2010
+.Dd August 30, 2010
 .Dt HAST.CONF 5
 .Os
 .Sh NAME
@@ -59,6 +60,7 @@ control <addr>
 listen <addr>
 replication <mode>
 timeout <seconds>
+exec <path>
 
 on <node> {
 	# Node section
@@ -78,6 +80,7 @@ resource <name> {
 	name <name>
 	local <path>
 	timeout <seconds>
+	exec <path>
 
 	on <node> {
 		# Resource-node section
@@ -203,6 +206,76 @@ replication mode is currently not implemented.
 Connection timeout in seconds.
 The default value is
 .Va 5 .
+.It Ic exec Aq path
+.Pp
+Execute the given program on various HAST events.
+Below is the list of currently implemented events and arguments the given
+program is executed with:
+.Bl -tag -width ".Ic xxxx"
+.It Ic "<path> role <resource> <oldrole> <newrole>"
+.Pp
+Executed on both primary and secondary nodes when resource role is changed.
+.Pp
+.It Ic "<path> connect <resource>"
+.Pp
+Executed on both primary and secondary nodes when connection for the given
+resource between the nodes is established.
+.Pp
+.It Ic "<path> disconnect <resource>"
+.Pp
+Executed on both primary and secondary nodes when connection for the given
+resource between the nodes is lost.
+.Pp
+.It Ic "<path> syncstart <resource>"
+.Pp
+Executed on primary node when synchronization process of secondary node is
+started.
+.Pp
+.It Ic "<path> syncdone <resource>"
+.Pp
+Executed on primary node when synchronization process of secondary node is
+completed successfully.
+.Pp
+.It Ic "<path> syncintr <resource>"
+.Pp
+Executed on primary node when synchronization process of secondary node is
+interrupted, most likely due to secondary node outage or connection failure
+between the nodes.
+.Pp
+.It Ic "<path> split-brain <resource>"
+.Pp
+Executed on both primary and secondary nodes when split-brain condition is
+detected.
+.Pp
+.El
+The
+.Aq path
+argument should contain full path to executable program.
+If the given program exits with code different than
+.Va 0 ,
+.Nm hastd
+will log it as an error.
+.Pp
+The
+.Aq resource
+argument is resource name from the configuration file.
+.Pp
+The
+.Aq oldrole
+argument is previous resource role (before the change).
+It can be one of:
+.Ar init ,
+.Ar secondary ,
+.Ar primary .
+.Pp
+The
+.Aq newrole
+argument is current resource role (after the change).
+It can be one of:
+.Ar init ,
+.Ar secondary ,
+.Ar primary .
+.Pp
 .It Ic name Aq name
 .Pp
 GEOM provider name that will appear as

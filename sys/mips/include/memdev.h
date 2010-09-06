@@ -28,7 +28,7 @@
  */
 
 #define	CDEV_MINOR_MEM	0
-#define	CDEV_MINOR_KMEM 1
+#define	CDEV_MINOR_KMEM	1
 
 d_open_t	memopen;
 d_read_t	memrw;

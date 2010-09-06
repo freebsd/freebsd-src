@@ -105,17 +105,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/tlb.h>
 
-#if defined(DIAGNOSTIC)
-#define	PMAP_DIAGNOSTIC
-#endif
-
 #undef PMAP_DEBUG
 
 #ifndef PMAP_SHPGPERPROC
 #define	PMAP_SHPGPERPROC 200
 #endif
 
-#if !defined(PMAP_DIAGNOSTIC)
+#if !defined(DIAGNOSTIC)
 #define	PMAP_INLINE __inline
 #else
 #define	PMAP_INLINE
@@ -634,22 +630,6 @@ pmap_init(void)
 /***************************************************
  * Low level helper routines.....
  ***************************************************/
-
-#if defined(PMAP_DIAGNOSTIC)
-
-/*
- * This code checks for non-writeable/modified pages.
- * This should be an invalid condition.
- */
-static int
-pmap_nw_modified(pt_entry_t pte)
-{
-	if ((pte & (PTE_D | PTE_RO)) == (PTE_D | PTE_RO))
-		return (1);
-	else
-		return (0);
-}
-#endif
 
 static __inline void
 pmap_invalidate_all_local(pmap_t pmap)
@@ -1598,13 +1578,9 @@ pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va)
 	if (page_is_managed(pa)) {
 		m = PHYS_TO_VM_PAGE(pa);
 		if (pte_test(&oldpte, PTE_D)) {
-#if defined(PMAP_DIAGNOSTIC)
-			if (pmap_nw_modified(oldpte)) {
-				printf(
-				    "pmap_remove: modified page not writable: va: 0x%x, pte: 0x%x\n",
-				    va, oldpte);
-			}
-#endif
+			KASSERT(!pte_test(&oldpte, PTE_RO),
+			    ("%s: modified page not writable: va: %p, pte: 0x%x",
+			    __func__, (void *)va, oldpte));
 			vm_page_dirty(m);
 		}
 		if (m->md.pv_flags & PV_TABLE_REF)
@@ -1761,13 +1737,9 @@ pmap_remove_all(vm_page_t m)
 		 * Update the vm_page_t clean and reference bits.
 		 */
 		if (pte_test(&tpte, PTE_D)) {
-#if defined(PMAP_DIAGNOSTIC)
-			if (pmap_nw_modified(tpte)) {
-				printf(
-				    "pmap_remove_all: modified page not writable: va: 0x%x, pte: 0x%x\n",
-				    pv->pv_va, tpte);
-			}
-#endif
+			KASSERT(!pte_test(&tpte, PTE_RO),
+			    ("%s: modified page not writable: va: %p, pte: 0x%x",
+			    __func__, (void *)pv->pv_va, tpte));
 			vm_page_dirty(m);
 		}
 		pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
@@ -1908,7 +1880,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
 	if (pte == NULL) {
-		panic("pmap_enter: invalid page directory, pdir=%p, va=%p\n",
+		panic("pmap_enter: invalid page directory, pdir=%p, va=%p",
 		    (void *)pmap->pm_segtab, (void *)va);
 	}
 	pa = VM_PAGE_TO_PHYS(m);
@@ -1931,13 +1903,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		else if (!wired && pte_test(&origpte, PTE_W))
 			pmap->pm_stats.wired_count--;
 
-#if defined(PMAP_DIAGNOSTIC)
-		if (pmap_nw_modified(origpte)) {
-			printf(
-			    "pmap_enter: modified page not writable: va: 0x%x, pte: 0x%x\n",
-			    va, origpte);
-		}
-#endif
+		KASSERT(!pte_test(&origpte, PTE_D | PTE_RO),
+		    ("%s: modified page not writable: va: %p, pte: 0x%x",
+		    __func__, (void *)va, origpte));
 
 		/*
 		 * Remove extra pte reference
@@ -2529,13 +2497,11 @@ pmap_remove_pages(pmap_t pmap)
 	}
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	sched_pin();
-	//XXX need to be TAILQ_FOREACH_SAFE ?
-	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
+	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv != NULL; pv = npv) {
 
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		if (!pte_test(pte, PTE_V))
-			panic("pmap_remove_pages: page on pm_pvlist has no pte\n");
+			panic("pmap_remove_pages: page on pm_pvlist has no pte");
 		tpte = *pte;
 
 /*
@@ -2570,7 +2536,6 @@ pmap_remove_pages(pmap_t pmap)
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
 		free_pv_entry(pv);
 	}
-	sched_unpin();
 	pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
 	vm_page_unlock_queues();
@@ -2596,12 +2561,6 @@ pmap_testbit(vm_page_t m, int bit)
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (tb) at va: 0x%x\n", pv->pv_va);
-			continue;
-		}
-#endif
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		rv = pte_test(pte, bit);
@@ -2630,13 +2589,6 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 	 * setting RO do we need to clear the VAC?
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (cb) at va: 0x%x\n", pv->pv_va);
-			continue;
-		}
-#endif
-
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		if (setem) {
@@ -2723,7 +2675,7 @@ pmap_remove_write(vm_page_t m)
 		npv = TAILQ_NEXT(pv, pv_plist);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		if (pte == NULL || !pte_test(pte, PTE_V))
-			panic("page on pm_pvlist has no pte\n");
+			panic("page on pm_pvlist has no pte");
 
 		va = pv->pv_va;
 		pmap_protect(pv->pv_pmap, va, va + PAGE_SIZE,

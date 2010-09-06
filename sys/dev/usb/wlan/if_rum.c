@@ -139,9 +139,6 @@ static const struct usb_device_id rum_devs[] = {
 #undef RUM_DEV
 };
 
-MODULE_DEPEND(rum, wlan, 1, 1, 1);
-MODULE_DEPEND(rum, usb, 1, 1, 1);
-
 static device_probe_t rum_match;
 static device_attach_t rum_attach;
 static device_detach_t rum_detach;
@@ -722,7 +719,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_RUN:
-		ni = vap->iv_bss;
+		ni = ieee80211_ref_node(vap->iv_bss);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
 			rum_update_slot(ic->ic_ifp);
@@ -746,6 +743,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
 			rum_ratectl_start(sc, ni);
+		ieee80211_free_node(ni);
 		break;
 	default:
 		break;
@@ -2226,7 +2224,7 @@ rum_ratectl_task(void *arg, int pending)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct rum_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	int ok, fail;
 	int sum, retrycnt;
 
@@ -2240,8 +2238,10 @@ rum_ratectl_task(void *arg, int pending)
 	sum = ok+fail;
 	retrycnt = (le32toh(sc->sta[5]) & 0xffff) + fail;
 
+	ni = ieee80211_ref_node(vap->iv_bss);
 	ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
 	(void) ieee80211_ratectl_rate(ni, NULL, 0);
+	ieee80211_free_node(ni);
 
 	ifp->if_oerrors += fail;	/* count TX retry-fail as Tx errors */
 
@@ -2360,3 +2360,6 @@ static driver_t rum_driver = {
 static devclass_t rum_devclass;
 
 DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, NULL, 0);
+MODULE_DEPEND(rum, wlan, 1, 1, 1);
+MODULE_DEPEND(rum, usb, 1, 1, 1);
+MODULE_VERSION(rum, 1);

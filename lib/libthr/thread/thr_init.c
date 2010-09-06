@@ -65,7 +65,7 @@ pthreadlist	_thread_list = TAILQ_HEAD_INITIALIZER(_thread_list);
 pthreadlist 	_thread_gc_list = TAILQ_HEAD_INITIALIZER(_thread_gc_list);
 int		_thread_active_threads = 1;
 atfork_head	_thr_atfork_list = TAILQ_HEAD_INITIALIZER(_thr_atfork_list);
-struct umutex	_thr_atfork_lock = DEFAULT_UMUTEX;
+struct urwlock	_thr_atfork_lock = DEFAULT_URWLOCK;
 
 struct pthread_prio	_thr_priorities[3] = {
 	{RTP_PRIO_MIN,  RTP_PRIO_MAX, 0}, /* FIFO */
@@ -289,7 +289,6 @@ void
 _libpthread_init(struct pthread *curthread)
 {
 	int fd, first = 0;
-	sigset_t sigset, oldset;
 
 	/* Check if this function has already been called: */
 	if ((_thr_initial != NULL) && (curthread == NULL))
@@ -347,13 +346,8 @@ _libpthread_init(struct pthread *curthread)
 	_tcb_set(curthread->tcb);
 
 	if (first) {
-		SIGFILLSET(sigset);
-		SIGDELSET(sigset, SIGTRAP);
-		__sys_sigprocmask(SIG_SETMASK, &sigset, &oldset);
-		_thr_signal_init();
 		_thr_initial = curthread;
-		SIGDELSET(oldset, SIGCANCEL);
-		__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
+		_thr_signal_init();
 		if (_thread_event_mask & TD_CREATE)
 			_thr_report_creation(curthread, curthread);
 	}
@@ -433,7 +427,7 @@ init_private(void)
 	_thr_umutex_init(&_cond_static_lock);
 	_thr_umutex_init(&_rwlock_static_lock);
 	_thr_umutex_init(&_keytable_lock);
-	_thr_umutex_init(&_thr_atfork_lock);
+	_thr_urwlock_init(&_thr_atfork_lock);
 	_thr_umutex_init(&_thr_event_lock);
 	_thr_once_init();
 	_thr_spinlock_init();

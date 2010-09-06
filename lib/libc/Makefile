@@ -5,10 +5,11 @@ SHLIBDIR?= /lib
 
 .include <bsd.own.mk>
 
-# We have to special case powerpc and powerpc64, since they mostly have
-# the same source implementation.  libc is very different due to large
-# ABI differences.
-.if ${MACHINE_ARCH} == "powerpc"
+# Pick the current architecture directory for libc. In general, this is
+# named MACHINE_CPUARCH, but some ABIs are different enough to require
+# their own libc, so allow a directory named MACHINE_ARCH to override this.
+
+.if exists(${.CURDIR}/${MACHINE_ARCH})
 LIBC_ARCH=${MACHINE_ARCH}
 .else
 LIBC_ARCH=${MACHINE_CPUARCH}

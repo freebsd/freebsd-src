@@ -178,7 +178,7 @@ static int	igb_setup_msix(struct adapter *);
 static void	igb_free_pci_resources(struct adapter *);
 static void	igb_local_timer(void *);
 static void	igb_reset(struct adapter *);
-static void	igb_setup_interface(device_t, struct adapter *);
+static int	igb_setup_interface(device_t, struct adapter *);
 static int	igb_allocate_queues(struct adapter *);
 static void	igb_configure_queues(struct adapter *);
 
@@ -509,6 +509,20 @@ igb_attach(device_t dev)
 		adapter->stats =
 		    (struct e1000_hw_stats *)malloc(sizeof \
 		    (struct e1000_hw_stats), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (adapter->stats == NULL) {
+		device_printf(dev, "Can not allocate stats memory\n");
+		error = ENOMEM;
+		goto err_late;
+	}
+
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u8) * ETH_ADDR_LEN *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_late;
+	}
 
 	/*
 	** Start from a known state, this is
@@ -559,7 +573,8 @@ igb_attach(device_t dev)
 		goto err_late;
 
 	/* Setup OS specific network interface */
-	igb_setup_interface(dev, adapter);
+	if (igb_setup_interface(dev, adapter) != 0)
+		goto err_late;
 
 	/* Now get a good starting state */
 	igb_reset(adapter);
@@ -608,8 +623,11 @@ err_late:
 	igb_free_transmit_structures(adapter);
 	igb_free_receive_structures(adapter);
 	igb_release_hw_control(adapter);
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 err_pci:
 	igb_free_pci_resources(adapter);
+	free(adapter->mta, M_DEVBUF);
 	IGB_CORE_LOCK_DESTROY(adapter);
 
 	return (error);
@@ -680,6 +698,7 @@ igb_detach(device_t dev)
 
 	igb_free_transmit_structures(adapter);
 	igb_free_receive_structures(adapter);
+	free(adapter->mta, M_DEVBUF);
 
 	IGB_CORE_LOCK_DESTROY(adapter);
 
@@ -1853,11 +1872,15 @@ igb_set_multi(struct adapter *adapter)
 	struct ifnet	*ifp = adapter->ifp;
 	struct ifmultiaddr *ifma;
 	u32 reg_rctl = 0;
-	u8  mta[MAX_NUM_MULTICAST_ADDRESSES * ETH_ADDR_LEN];
+	u8  *mta;
 
 	int mcnt = 0;
 
 	IOCTL_DEBUGOUT("igb_set_multi: begin");
+
+	mta = adapter->mta;
+	bzero(mta, sizeof(uint8_t) * ETH_ADDR_LEN *
+	    MAX_NUM_MULTICAST_ADDRESSES);
 
 #if __FreeBSD_version < 800000
 	IF_ADDR_LOCK(ifp);
@@ -2653,7 +2676,7 @@ igb_reset(struct adapter *adapter)
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 igb_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ifnet   *ifp;
@@ -2661,8 +2684,10 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("igb_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  igb_init;
@@ -2739,6 +2764,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
+	return (0);
 }
 
 
@@ -4893,7 +4919,8 @@ igb_vf_init_stats(struct adapter *adapter)
 	struct e1000_vf_stats	*stats;
 
 	stats = (struct e1000_vf_stats	*)adapter->stats;
-
+	if (stats == NULL)
+		return;
         stats->last_gprc = E1000_READ_REG(hw, E1000_VFGPRC);
         stats->last_gorc = E1000_READ_REG(hw, E1000_VFGORC);
         stats->last_gptc = E1000_READ_REG(hw, E1000_VFGPTC);

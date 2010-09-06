@@ -252,6 +252,7 @@ static driver_t uvisor_driver = {
 DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
 MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
 MODULE_DEPEND(uvisor, usb, 1, 1, 1);
+MODULE_VERSION(uvisor, 1);
 
 static const struct usb_device_id uvisor_devs[] = {
 #define	UVISOR_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }

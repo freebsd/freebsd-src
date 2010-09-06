@@ -832,6 +832,8 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	/* Tell the world, that we are ready to rock. */
 	sca->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	scb->ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_link_state_change(sca->ifp, LINK_STATE_UP);
+	if_link_state_change(scb->ifp, LINK_STATE_UP);
 
 	return (0);
 }
@@ -859,6 +861,8 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	scb = oifp->if_softc;
 
 	DPRINTF("ifp=%p oifp=%p\n", ifp, oifp);
+	if_link_state_change(ifp, LINK_STATE_DOWN);
+	if_link_state_change(oifp, LINK_STATE_DOWN);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	oifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(oifp);
@@ -888,9 +892,9 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	 * we need to switch before freeing them.
 	 */
 	CURVNET_SET_QUIET(oifp->if_vnet);
-	if_free_type(oifp, IFT_ETHER);
+	if_free(oifp);
 	CURVNET_RESTORE();
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 	free(scb, M_EPAIR);
 	free(sca, M_EPAIR);
 	ifc_free_unit(ifc, unit);

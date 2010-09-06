@@ -55,38 +55,41 @@ __FBSDID("$FreeBSD$");
 extern void *ap_pcpu;
 #endif
 
-static int chrp_probe(platform_t);
-void chrp_mem_regions(platform_t, struct mem_region **phys, int *physsz,
+static int powermac_probe(platform_t);
+void powermac_mem_regions(platform_t, struct mem_region **phys, int *physsz,
     struct mem_region **avail, int *availsz);
-static u_long chrp_timebase_freq(platform_t, struct cpuref *cpuref);
-static int chrp_smp_first_cpu(platform_t, struct cpuref *cpuref);
-static int chrp_smp_next_cpu(platform_t, struct cpuref *cpuref);
-static int chrp_smp_get_bsp(platform_t, struct cpuref *cpuref);
-static int chrp_smp_start_cpu(platform_t, struct pcpu *cpu);
+static u_long powermac_timebase_freq(platform_t, struct cpuref *cpuref);
+static int powermac_smp_first_cpu(platform_t, struct cpuref *cpuref);
+static int powermac_smp_next_cpu(platform_t, struct cpuref *cpuref);
+static int powermac_smp_get_bsp(platform_t, struct cpuref *cpuref);
+static int powermac_smp_start_cpu(platform_t, struct pcpu *cpu);
+static void powermac_reset(platform_t);
 
-static platform_method_t chrp_methods[] = {
-	PLATFORMMETHOD(platform_probe, 		chrp_probe),
-	PLATFORMMETHOD(platform_mem_regions,	chrp_mem_regions),
-	PLATFORMMETHOD(platform_timebase_freq,	chrp_timebase_freq),
+static platform_method_t powermac_methods[] = {
+	PLATFORMMETHOD(platform_probe, 		powermac_probe),
+	PLATFORMMETHOD(platform_mem_regions,	powermac_mem_regions),
+	PLATFORMMETHOD(platform_timebase_freq,	powermac_timebase_freq),
 	
-	PLATFORMMETHOD(platform_smp_first_cpu,	chrp_smp_first_cpu),
-	PLATFORMMETHOD(platform_smp_next_cpu,	chrp_smp_next_cpu),
-	PLATFORMMETHOD(platform_smp_get_bsp,	chrp_smp_get_bsp),
-	PLATFORMMETHOD(platform_smp_start_cpu,	chrp_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_first_cpu,	powermac_smp_first_cpu),
+	PLATFORMMETHOD(platform_smp_next_cpu,	powermac_smp_next_cpu),
+	PLATFORMMETHOD(platform_smp_get_bsp,	powermac_smp_get_bsp),
+	PLATFORMMETHOD(platform_smp_start_cpu,	powermac_smp_start_cpu),
+
+	PLATFORMMETHOD(platform_reset,		powermac_reset),
 
 	{ 0, 0 }
 };
 
-static platform_def_t chrp_platform = {
-	"chrp",
-	chrp_methods,
+static platform_def_t powermac_platform = {
+	"powermac",
+	powermac_methods,
 	0
 };
 
-PLATFORM_DEF(chrp_platform);
+PLATFORM_DEF(powermac_platform);
 
 static int
-chrp_probe(platform_t plat)
+powermac_probe(platform_t plat)
 {
 	if (OF_finddevice("/memory") != -1 || OF_finddevice("/memory@0") != -1)
 		return (BUS_PROBE_GENERIC);
@@ -95,14 +98,14 @@ chrp_probe(platform_t plat)
 }
 
 void
-chrp_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
+powermac_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
     struct mem_region **avail, int *availsz)
 {
 	ofw_mem_regions(phys,physsz,avail,availsz);
 }
 
 static u_long
-chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
+powermac_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
 	phandle_t phandle;
 	int32_t ticks = -1;
@@ -119,7 +122,7 @@ chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 
 
 static int
-chrp_smp_fill_cpuref(struct cpuref *cpuref, phandle_t cpu)
+powermac_smp_fill_cpuref(struct cpuref *cpuref, phandle_t cpu)
 {
 	cell_t cpuid, res;
 
@@ -139,7 +142,7 @@ chrp_smp_fill_cpuref(struct cpuref *cpuref, phandle_t cpu)
 }
 
 static int
-chrp_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
+powermac_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 {
 	char buf[8];
 	phandle_t cpu, dev, root;
@@ -175,11 +178,11 @@ chrp_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 	if (cpu == 0)
 		return (ENOENT);
 
-	return (chrp_smp_fill_cpuref(cpuref, cpu));
+	return (powermac_smp_fill_cpuref(cpuref, cpu));
 }
 
 static int
-chrp_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
+powermac_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 {
 	char buf[8];
 	phandle_t cpu;
@@ -195,11 +198,11 @@ chrp_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 	if (cpu == 0)
 		return (ENOENT);
 
-	return (chrp_smp_fill_cpuref(cpuref, cpu));
+	return (powermac_smp_fill_cpuref(cpuref, cpu));
 }
 
 static int
-chrp_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
+powermac_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 {
 	ihandle_t inst;
 	phandle_t bsp, chosen;
@@ -214,11 +217,11 @@ chrp_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 		return (ENXIO);
 
 	bsp = OF_instance_to_package(inst);
-	return (chrp_smp_fill_cpuref(cpuref, bsp));
+	return (powermac_smp_fill_cpuref(cpuref, bsp));
 }
 
 static int
-chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
+powermac_smp_start_cpu(platform_t plat, struct pcpu *pc)
 {
 #ifdef SMP
 	phandle_t cpu;
@@ -275,5 +278,11 @@ chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	/* No SMP support */
 	return (ENXIO);
 #endif
+}
+
+static void
+powermac_reset(platform_t platform)
+{
+	OF_reboot();
 }
 

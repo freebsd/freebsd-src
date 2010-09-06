@@ -1461,6 +1461,7 @@ sanitize_partition(struct dos_partition *partp)
  *   /dev/ad0s1a     => /dev/ad0
  *   /dev/da0a       => /dev/da0
  *   /dev/vinum/root => /dev/vinum/root
+ * A ".eli" part is removed if it exists (see geli(8)).
  */
 static char *
 get_rootdisk(void)
@@ -1469,7 +1470,7 @@ get_rootdisk(void)
 	regex_t re;
 #define NMATCHES 2
 	regmatch_t rm[NMATCHES];
-	char *s;
+	char dev[PATH_MAX], *s;
 	int rv;
 
 	if (statfs("/", &rootfs) == -1)
@@ -1478,7 +1479,11 @@ get_rootdisk(void)
 	if ((rv = regcomp(&re, "^(/dev/[a-z/]+[0-9]+)([sp][0-9]+)?[a-h]?$",
 		    REG_EXTENDED)) != 0)
 		errx(1, "regcomp() failed (%d)", rv);
-	if ((rv = regexec(&re, rootfs.f_mntfromname, NMATCHES, rm, 0)) != 0)
+	strlcpy(dev, rootfs.f_mntfromname, sizeof (dev));
+	if ((s = strstr(dev, ".eli")) != NULL)
+	    memmove(s, s+4, strlen(s + 4) + 1);
+
+	if ((rv = regexec(&re, dev, NMATCHES, rm, 0)) != 0)
 		errx(1,
 "mounted root fs resource doesn't match expectations (regexec returned %d)",
 		    rv);

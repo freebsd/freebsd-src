@@ -53,6 +53,7 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR uhub_debug
 
@@ -170,6 +171,7 @@ static driver_t uhub_driver = {
 
 DRIVER_MODULE(uhub, usbus, uhub_driver, uhub_devclass, 0, 0);
 DRIVER_MODULE(uhub, uhub, uhub_driver, uhub_devclass, NULL, 0);
+MODULE_VERSION(uhub, 1);
 
 static void
 uhub_intr_callback(struct usb_xfer *xfer, usb_error_t error)
@@ -1058,7 +1060,7 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
-		    res.udev->serial,
+		    usb_get_serial(res.udev),
 		    UGETW(res.udev->ddesc.bcdDevice),
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass);
@@ -2104,8 +2106,9 @@ repeat:
 		(udev->bus->methods->device_suspend) (udev);
 
 		/* do DMA delay */
-		temp = usbd_get_dma_delay(udev->bus);
-		usb_pause_mtx(NULL, USB_MS_TO_TICKS(temp));
+		temp = usbd_get_dma_delay(udev);
+		if (temp != 0)
+			usb_pause_mtx(NULL, USB_MS_TO_TICKS(temp));
 
 	}
 	/* suspend current port */
@@ -2131,12 +2134,39 @@ usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode)
 {
 	/* filter input argument */
 	if ((power_mode != USB_POWER_MODE_ON) &&
-	    (power_mode != USB_POWER_MODE_OFF)) {
+	    (power_mode != USB_POWER_MODE_OFF))
 		power_mode = USB_POWER_MODE_SAVE;
-	}
+
+	power_mode = usbd_filter_power_mode(udev, power_mode);	
+
 	udev->power_mode = power_mode;	/* update copy of power mode */
 
 #if USB_HAVE_POWERD
 	usb_bus_power_update(udev->bus);
 #endif
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_filter_power_mode
+ *
+ * This function filters the power mode based on hardware requirements.
+ *------------------------------------------------------------------------*/
+uint8_t
+usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
+{
+	struct usb_bus_methods *mtod;
+	int8_t temp;
+
+	mtod = udev->bus->methods;
+	temp = -1;
+
+	if (mtod->get_power_mode != NULL)
+		(mtod->get_power_mode) (udev, &temp);
+
+	/* check if we should not filter */
+	if (temp < 0)
+		return (power_mode);
+
+	/* use fixed power mode given by hardware driver */
+	return (temp);
 }

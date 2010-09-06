@@ -213,7 +213,7 @@ static int	em_setup_msix(struct adapter *);
 static void	em_free_pci_resources(struct adapter *);
 static void	em_local_timer(void *);
 static void	em_reset(struct adapter *);
-static void	em_setup_interface(device_t, struct adapter *);
+static int	em_setup_interface(device_t, struct adapter *);
 
 static void	em_setup_transmit_structures(struct adapter *);
 static void	em_initialize_transmit_unit(struct adapter *);
@@ -576,6 +576,15 @@ em_attach(device_t dev)
 		goto err_pci;
 	}
 
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u8) * ETH_ADDR_LEN *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_late;
+	}
+
 	/*
 	** Start from a known state, this is
 	** important in reading the nvm and
@@ -628,7 +637,8 @@ em_attach(device_t dev)
 	em_get_wakeup(dev);
 
 	/* Setup OS specific network interface */
-	em_setup_interface(dev, adapter);
+	if (em_setup_interface(dev, adapter) != 0)
+		goto err_late;
 
 	em_reset(adapter);
 
@@ -669,8 +679,11 @@ err_late:
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 	em_release_hw_control(adapter);
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 err_pci:
 	em_free_pci_resources(adapter);
+	free(adapter->mta, M_DEVBUF);
 	EM_CORE_LOCK_DESTROY(adapter);
 
 	return (error);
@@ -736,6 +749,7 @@ em_detach(device_t dev)
 	em_free_receive_structures(adapter);
 
 	em_release_hw_control(adapter);
+	free(adapter->mta, M_DEVBUF);
 
 	return (0);
 }
@@ -1995,6 +2009,9 @@ em_set_multi(struct adapter *adapter)
 
 	IOCTL_DEBUGOUT("em_set_multi: begin");
 
+	mta = adapter->mta;
+	bzero(mta, sizeof(u8) * ETH_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES);
+
 	if (adapter->hw.mac.type == e1000_82542 && 
 	    adapter->hw.revision_id == E1000_REVISION_2) {
 		reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
@@ -2004,13 +2021,6 @@ em_set_multi(struct adapter *adapter)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 		msec_delay(5);
 	}
-
-	/* Allocate temporary memory to setup array */
-	mta = malloc(sizeof(u8) *
-	    (ETH_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (mta == NULL)
-		panic("em_set_multi memory failure\n");
 
 #if __FreeBSD_version < 800000
 	IF_ADDR_LOCK(ifp);
@@ -2049,7 +2059,6 @@ em_set_multi(struct adapter *adapter)
 		if (adapter->hw.bus.pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
 			e1000_pci_set_mwi(&adapter->hw);
 	}
-	free(mta, M_DEVBUF);
 }
 
 
@@ -2646,7 +2655,7 @@ em_reset(struct adapter *adapter)
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 em_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ifnet   *ifp;
@@ -2654,8 +2663,10 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("em_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  em_init;
@@ -2742,6 +2753,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
+	return (0);
 }
 
 
@@ -3837,7 +3849,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		rxbuf = &rxr->rx_buffers[j];
 		rxbuf->m_head = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (rxbuf->m_head == NULL)
-			panic("RX ring hdr initialization failed!\n");
+			return (ENOBUFS);
 		rxbuf->m_head->m_len = MCLBYTES;
 		rxbuf->m_head->m_flags &= ~M_HASFCS; /* we strip it */
 		rxbuf->m_head->m_pkthdr.len = MCLBYTES;
@@ -3846,8 +3858,11 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		error = bus_dmamap_load_mbuf_sg(rxr->rxtag,
 		    rxbuf->map, rxbuf->m_head, seg,
 		    &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0)
-			panic("RX ring dma initialization failed!\n");
+		if (error != 0) {
+			m_freem(rxbuf->m_head);
+			rxbuf->m_head = NULL;
+			return (error);
+		}
 		bus_dmamap_sync(rxr->rxtag,
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
 

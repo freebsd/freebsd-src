@@ -33,6 +33,7 @@
 #define _SYS_RMLOCK_H_
 
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/_lock.h>
 #include <sys/_rmlock.h>
 
@@ -43,6 +44,7 @@
  */
 #define	RM_NOWITNESS	0x00000001
 #define	RM_RECURSE	0x00000002
+#define	RM_SLEEPABLE	0x00000004
 
 void	rm_init(struct rmlock *rm, const char *name);
 void	rm_init_flags(struct rmlock *rm, const char *name, int opts);
@@ -53,14 +55,15 @@ void	rm_sysinit_flags(void *arg);
 
 void	_rm_wlock_debug(struct rmlock *rm, const char *file, int line);
 void	_rm_wunlock_debug(struct rmlock *rm, const char *file, int line);
-void	_rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
-	    const char *file, int line);
+int	_rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
+	    int trylock, const char *file, int line);
 void	_rm_runlock_debug(struct rmlock *rm,  struct rm_priotracker *tracker,
 	    const char *file, int line);
 
 void	_rm_wlock(struct rmlock *rm);
 void	_rm_wunlock(struct rmlock *rm);
-void	_rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker);
+int	_rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker,
+	    int trylock);
 void	_rm_runlock(struct rmlock *rm,  struct rm_priotracker *tracker);
 
 /*
@@ -74,14 +77,17 @@ void	_rm_runlock(struct rmlock *rm,  struct rm_priotracker *tracker);
 #define	rm_wlock(rm)	_rm_wlock_debug((rm), LOCK_FILE, LOCK_LINE)
 #define	rm_wunlock(rm)	_rm_wunlock_debug((rm), LOCK_FILE, LOCK_LINE)
 #define	rm_rlock(rm,tracker)  \
-    _rm_rlock_debug((rm),(tracker), LOCK_FILE, LOCK_LINE )
+    ((void)_rm_rlock_debug((rm),(tracker), 0, LOCK_FILE, LOCK_LINE ))
+#define	rm_try_rlock(rm,tracker)  \
+    _rm_rlock_debug((rm),(tracker), 1, LOCK_FILE, LOCK_LINE )
 #define	rm_runlock(rm,tracker)	\
     _rm_runlock_debug((rm), (tracker), LOCK_FILE, LOCK_LINE )
 #else
-#define	rm_wlock(rm)		_rm_wlock((rm))
-#define	rm_wunlock(rm)		_rm_wunlock((rm))
-#define	rm_rlock(rm,tracker)   	_rm_rlock((rm),(tracker))
-#define	rm_runlock(rm,tracker)	_rm_runlock((rm), (tracker))
+#define	rm_wlock(rm)			_rm_wlock((rm))
+#define	rm_wunlock(rm)			_rm_wunlock((rm))
+#define	rm_rlock(rm,tracker)		((void)_rm_rlock((rm),(tracker), 0))
+#define	rm_try_rlock(rm,tracker)	_rm_rlock((rm),(tracker), 1)
+#define	rm_runlock(rm,tracker)		_rm_runlock((rm), (tracker))
 #endif
 
 struct rm_args {
