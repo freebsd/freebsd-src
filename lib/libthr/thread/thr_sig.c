@@ -418,6 +418,7 @@ _thr_signal_init(void)
 void
 _thr_sigact_unload(struct dl_phdr_info *phdr_info)
 {
+#if 0
 	struct pthread *curthread = _get_curthread();
 	struct urwlock *rwlp;
 	struct sigaction *actp;
@@ -426,13 +427,13 @@ _thr_sigact_unload(struct dl_phdr_info *phdr_info)
 	int sig;
  
 	_thr_signal_block(curthread);
-	for (sig = 1; sig < _SIG_MAXSIG; sig++) {
-		actp = &_thr_sigact[sig].sigact;
+	for (sig = 1; sig <= _SIG_MAXSIG; sig++) {
+		actp = &_thr_sigact[sig-1].sigact;
 retry:
 		handler = actp->sa_handler;
 		if (handler != SIG_DFL && handler != SIG_IGN &&
 		    __elf_phdr_match_addr(phdr_info, handler)) {
-			rwlp = &_thr_sigact[sig].lock;
+			rwlp = &_thr_sigact[sig-1].lock;
 			_thr_rwl_wrlock(rwlp);
 			if (handler != actp->sa_handler) {
 				_thr_rwl_unlock(rwlp);
@@ -449,6 +450,7 @@ retry:
 		}
 	}
 	_thr_signal_unblock(curthread);
+#endif
 }
 
 void
