@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/bus.h>
 #include <sys/sbuf.h>
 #include <sys/module.h>
@@ -116,7 +117,6 @@ struct acpi_hp_inst_seq_pair {
 
 struct acpi_hp_softc {
 	device_t	dev;
-	ACPI_HANDLE	handle;
 	device_t	wmi_dev;
 	int		has_notify;		/* notification GUID found */
 	int		has_cmi;		/* CMI GUID found */
@@ -289,6 +289,7 @@ static struct {
 
 ACPI_SERIAL_DECL(hp, "HP ACPI-WMI Mapping");
 
+static void	acpi_hp_identify(driver_t *driver, device_t parent);
 static int	acpi_hp_probe(device_t dev);
 static int	acpi_hp_attach(device_t dev);
 static int	acpi_hp_detach(device_t dev);
@@ -320,6 +321,7 @@ static struct cdevsw hpcmi_cdevsw = {
 };
 
 static device_method_t acpi_hp_methods[] = {
+	DEVMETHOD(device_identify, acpi_hp_identify),
 	DEVMETHOD(device_probe, acpi_hp_probe),
 	DEVMETHOD(device_attach, acpi_hp_attach),
 	DEVMETHOD(device_detach, acpi_hp_detach),
@@ -405,7 +407,7 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 			    	    "WLAN on air changed to %i "
 			    	    "(new_wlan_status is %i)\n",
 			    	    sc->was_wlan_on_air, new_wlan_status);
-			acpi_UserNotify("HP", sc->handle,
+			acpi_UserNotify("HP", ACPI_ROOT_OBJECT,
 			    0xc0+sc->was_wlan_on_air);
 		}
 	}
@@ -420,7 +422,7 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 				    " to %i (new_bluetooth_status is %i)\n",
 				    sc->was_bluetooth_on_air,
 				    new_bluetooth_status);
-			acpi_UserNotify("HP", sc->handle,
+			acpi_UserNotify("HP", ACPI_ROOT_OBJECT,
 			    0xd0+sc->was_bluetooth_on_air);
 		}
 	}
@@ -433,16 +435,43 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 				    "WWAN on air changed to %i"
 			    	    " (new_wwan_status is %i)\n",
 				    sc->was_wwan_on_air, new_wwan_status);
-			acpi_UserNotify("HP", sc->handle,
+			acpi_UserNotify("HP", ACPI_ROOT_OBJECT,
 			    0xe0+sc->was_wwan_on_air);
 		}
 	}
 }
 
+static void
+acpi_hp_identify(driver_t *driver, device_t parent)
+{
+
+	/* Don't do anything if driver is disabled. */
+	if (acpi_disabled("hp"))
+		return;
+
+	/* Add only a single device instance. */
+	if (device_find_child(parent, "acpi_hp", -1) != NULL)
+		return;
+
+	/* Make sure acpi_wmi driver is present. */
+	if (devclass_find("acpi_wmi") == NULL)
+		return;
+
+	/*
+	 * Add our device with late order, so that it is hopefully
+	 * probed after acpi_wmi.
+	 * XXX User proper constant instead of UINT_MAX for order.
+	 */
+	if (BUS_ADD_CHILD(parent, UINT_MAX, "acpi_hp", -1) == NULL)
+		device_printf(parent, "add acpi_hp child failed\n");
+}
+
 static int
 acpi_hp_probe(device_t dev)
 {
-	if (acpi_disabled("hp") || device_get_unit(dev) != 0)
+
+	/* Skip auto-enumerated devices from ACPI namespace. */
+	if (acpi_get_handle(dev) != NULL)
 		return (ENXIO);
 	device_set_desc(dev, "HP ACPI-WMI Mapping");
 
@@ -460,7 +489,6 @@ acpi_hp_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->handle = acpi_get_handle(dev);
 	sc->has_notify = 0;
 	sc->has_cmi = 0;
 	sc->bluetooth_enable_if_radio_on = 0;
@@ -477,7 +505,7 @@ acpi_hp_attach(device_t dev)
 	sc->verbose = 0;
 	memset(sc->cmi_order, 0, sizeof(sc->cmi_order));
 
-	if (!(wmi_devclass = devclass_find ("acpi_wmi"))) {
+	if (!(wmi_devclass = devclass_find("acpi_wmi"))) {
 		device_printf(dev, "Couldn't find acpi_wmi devclass\n");
 		return (EINVAL);
 	}
