@@ -461,11 +461,11 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 	if (xlr_board_info.is_xls == 0) {
 		xlr_establish_intr(device_get_name(child), filt,
 		    intr, arg, PIC_PCIX_IRQ, flags, cookiep, bridge_pcix_ack);
-		pic_setup_intr(PIC_IRT_PCIX_INDEX, PIC_PCIX_IRQ, 0x1, 0);
+		pic_setup_intr(PIC_IRT_PCIX_INDEX, PIC_PCIX_IRQ, 0x1, 1);
 	} else {
 		xlr_establish_intr(device_get_name(child), filt,
 		    intr, arg, xlrirq, flags, cookiep, bridge_pcie_ack);
-		pic_setup_intr(xlrirq - PIC_IRQ_BASE, xlrirq, 0x1, 0);
+		pic_setup_intr(xlrirq - PIC_IRQ_BASE, xlrirq, 0x1, 1);
 	}
 
 	return (bus_generic_setup_intr(dev, child, irq, flags, filt, intr,
