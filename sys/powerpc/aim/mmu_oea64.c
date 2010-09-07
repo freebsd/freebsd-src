@@ -2108,7 +2108,7 @@ void
 moea64_pinit(mmu_t mmu, pmap_t pmap)
 {
 	int	i;
-	register_t hash;
+	uint32_t hash;
 
 	PMAP_LOCK_INIT(pmap);
 
@@ -2125,6 +2125,8 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 
 	for (i = 0; i < 16; i++) 
 		pmap->pm_sr[i] = VSID_MAKE(i, hash);
+
+	KASSERT(pmap->pm_sr[0] != 0, ("moea64_pinit: pm_sr[0] = 0"));
 }
 #endif
 
@@ -2238,6 +2240,8 @@ moea64_release_vsid(uint64_t vsid)
 	idx = vsid & (NVSIDS-1);
 	mask = 1 << (idx % VSID_NBPW);
 	idx /= VSID_NBPW;
+	KASSERT(moea64_vsid_bitmap[idx] & mask,
+	    ("Freeing unallocated VSID %#jx", vsid));
 	moea64_vsid_bitmap[idx] &= ~mask;
 	mtx_unlock(&moea64_slb_mutex);
 }
@@ -2254,10 +2258,9 @@ moea64_release(mmu_t mmu, pmap_t pmap)
 	free_vsids(pmap);
 	slb_free_user_cache(pmap->pm_slb);
     #else
-        if (pmap->pm_sr[0] == 0)
-                panic("moea64_release: pm_sr[0] = 0");
+	KASSERT(pmap->pm_sr[0] != 0, ("moea64_release: pm_sr[0] = 0"));
 
-	moea64_release_vsid(pmap->pm_sr[0]);
+	moea64_release_vsid(VSID_TO_HASH(pmap->pm_sr[0]));
     #endif
 
 	PMAP_LOCK_DESTROY(pmap);
