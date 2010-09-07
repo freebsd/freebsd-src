@@ -196,7 +196,6 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
-	struct	netdump_methods *if_ndumpfuncs; /* netdump virtual methods */
 	u_char	 if_alloctype;		/* if_type at time of allocation */
 
 	/*
@@ -206,6 +205,7 @@ struct ifnet {
 	 */
 	char	 if_cspare[3];
 	char	*if_description;	/* interface description */
+	struct	netdump_methods *if_ndumpfuncs; /* netdump virtual methods */
 	void	*if_pspare[6];
 	int	if_ispare[4];
 };
