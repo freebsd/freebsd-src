@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pci_cfgreg.h>
 #include <machine/specialreg.h>
 
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
@@ -84,31 +85,62 @@ qpi_probe(device_t dev)
 	return (BUS_PROBE_SPECIFIC);
 }
 
+/*
+ * Look for a PCI bus with the specified bus address.  If one is found,
+ * add a pcib device and return 0.  Otherwise, return an error code.
+ */
 static int
-qpi_attach(device_t dev)
+qpi_probe_pcib(device_t dev, int bus)
 {
 	struct qpi_device *qdev;
 	device_t child;
+	uint32_t devid;
 
 	/*
-	 * Add two Host-PCI bridge devices, one for PCI bus 254 and
-	 * one for PCI bus 255.
+	 * If a PCI bus already exists for this bus number, then
+	 * fail.
 	 */
-	child = BUS_ADD_CHILD(dev, 0, "pcib", -1);
-	if (child == NULL)
-		panic("%s: failed to add pci bus 254",
-		    device_get_nameunit(dev));
-	qdev = malloc(sizeof(struct qpi_device), M_QPI, M_WAITOK);
-	qdev->qd_pcibus = 254;
-	device_set_ivars(child, qdev);
+	if (pci_find_bsf(bus, 0, 0) != NULL)
+		return (EEXIST);
+
+	/*
+	 * Attempt to read the device id for device 0, function 0 on
+	 * the bus.  A value of 0xffffffff means that the bus is not
+	 * present.
+	 */
+	devid = pci_cfgregread(bus, 0, 0, PCIR_DEVVENDOR, 4);
+	if (devid == 0xffffffff)
+		return (ENOENT);
+
+	if ((devid & 0xffff) != 0x8086) {
+		device_printf(dev,
+		    "Device at pci%d.0.0 has non-Intel vendor 0x%x\n", bus,
+		    devid & 0xffff);
+		return (ENXIO);
+	}
 
 	child = BUS_ADD_CHILD(dev, 0, "pcib", -1);
 	if (child == NULL)
-		panic("%s: failed to add pci bus 255",
-		    device_get_nameunit(dev));
+		panic("%s: failed to add pci bus %d", device_get_nameunit(dev),
+		    bus);
 	qdev = malloc(sizeof(struct qpi_device), M_QPI, M_WAITOK);
-	qdev->qd_pcibus = 255;
+	qdev->qd_pcibus = bus;
 	device_set_ivars(child, qdev);
+	return (0);
+}
+
+static int
+qpi_attach(device_t dev)
+{
+	int bus;
+
+	/*
+	 * Each processor socket has a dedicated PCI bus counting down from
+	 * 255.  We keep probing buses until one fails.
+	 */
+	for (bus = 255;; bus--)
+		if (qpi_probe_pcib(dev, bus) != 0)
+			break;
 
 	return (bus_generic_attach(dev));
 }
