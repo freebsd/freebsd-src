@@ -326,51 +326,77 @@ xlr_pcib_identify(driver_t * driver, device_t parent)
 	BUS_ADD_CHILD(parent, 0, "pcib", 0);
 }
 
+/*
+ * XLS PCIe can have upto 4 links, and each link has its on IRQ
+ * Find the link on which the device is on 
+ */
 static int
-xlr_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
+xls_pcie_link(device_t pcib, device_t dev)
 {
-	int pciirq;
-	int i;
 	device_t parent, tmp;
 
 	/* find the lane on which the slot is connected to */
+	printf("xls_pcie_link : bus %s dev %s\n", device_get_nameunit(pcib),
+		device_get_nameunit(dev));
 	tmp = dev;
 	while (1) {
 		parent = device_get_parent(tmp);
 		if (parent == NULL || parent == pcib) {
 			device_printf(dev, "Cannot find parent bus\n");
-			return (ENXIO);
+			return (-1);
 		}
 		if (strcmp(device_get_nameunit(parent), "pci0") == 0)
 			break;
 		tmp = parent;
 	}
+	return (pci_get_slot(tmp));
+}
 
-	switch (pci_get_slot(tmp)) {
+/*
+ * Find the IRQ for the link, each link has a different interrupt 
+ * at the XLS pic
+ */
+static int
+xls_pcie_link_irq(int link)
+{
+
+	switch (link) {
 	case 0:
-		pciirq = PIC_PCIE_LINK0_IRQ;
-		break;
+		return (PIC_PCIE_LINK0_IRQ);
 	case 1:
-		pciirq = PIC_PCIE_LINK1_IRQ;
-		break;
+		return (PIC_PCIE_LINK1_IRQ);
 	case 2:
-		pciirq = PIC_PCIE_LINK2_IRQ;
-		break;
+		return (PIC_PCIE_LINK2_IRQ);
 	case 3:
-		pciirq = PIC_PCIE_LINK3_IRQ;
-		break;
-	default:
-		return (ENXIO);
+		return (PIC_PCIE_LINK3_IRQ);
 	}
+	return (-1);
+}
 
-	irqs[0] = pciirq;
+static int
+xlr_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
+{
+	int i, link;
+
 	/*
-	 * For now put in some fixed values for the other requested MSI,
-	 * TODO handle multiple messages
+	 * Each link has 32 MSIs that can be allocated, but for now
+	 * we only support one device per link.
+	 * msi_alloc() equivalent is needed when we start supporting 
+	 * bridges on the PCIe link.
 	 */
-	for (i = 1; i < count; i++)
-		irqs[i] = pciirq + 64 * i;
+	link = xls_pcie_link(pcib, dev);
+	if (link == -1)
+		return (ENXIO);
 
+	/*
+	 * encode the irq so that we know it is a MSI interrupt when we
+	 * setup interrupts
+	 */
+	for (i = 0; i < count; i++)
+		irqs[i] = 64 + link * 32 + i;
+
+	device_printf(dev, "Alloc MSI count %d maxcount %d irq %d link %d\n",
+			count, maxcount, i, link);
 	return (0);
 }
 
@@ -383,20 +409,18 @@ xlr_release_msi(device_t pcib, device_t dev, int count, int *irqs)
 }
 
 static int
-xlr_map_msi(device_t pcib, device_t dev, int irq, uint64_t * addr,
-    uint32_t * data)
+xlr_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
+    uint32_t *data)
 {
+	int msi;
 
-	switch (irq) {
-	case PIC_PCIE_LINK0_IRQ:
-	case PIC_PCIE_LINK1_IRQ:
-	case PIC_PCIE_LINK2_IRQ:
-	case PIC_PCIE_LINK3_IRQ:
+	device_printf(dev, "MAP MSI irq %d\n", irq);
+	if (irq >= 64) {
+		msi = irq - 64;
 		*addr = MIPS_MSI_ADDR(0);
-		*data = MIPS_MSI_DATA(irq);
+		*data = MIPS_MSI_DATA(msi);
 		return (0);
-
-	default:
+	} else {
 		device_printf(dev, "%s: map_msi for irq %d  - ignored", 
 		    device_get_nameunit(pcib), irq);
 		return (ENXIO);
@@ -437,10 +461,8 @@ bridge_pcie_ack(int irq)
 
 static int
 mips_platform_pci_setup_intr(device_t dev, device_t child,
-    struct resource *irq, int flags,
-    driver_filter_t * filt,
-    driver_intr_t * intr, void *arg,
-    void **cookiep)
+    struct resource *irq, int flags, driver_filter_t *filt,
+    driver_intr_t *intr, void *arg, void **cookiep)
 {
 	int error = 0;
 	int xlrirq;
@@ -454,6 +476,8 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 		return (EINVAL);
 	}
 	xlrirq = rman_get_start(irq);
+	device_printf(dev, "%s: setup intr %d\n", device_get_nameunit(child),
+			xlrirq);
 
 	if (strcmp(device_get_name(dev), "pcib") != 0)
 		return (0);
@@ -463,6 +487,18 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 		    intr, arg, PIC_PCIX_IRQ, flags, cookiep, bridge_pcix_ack);
 		pic_setup_intr(PIC_IRT_PCIX_INDEX, PIC_PCIX_IRQ, 0x1, 1);
 	} else {
+		/* 
+		 * temporary hack for MSI, we support just one device per
+		 * link, and assign the link interrupt to the device interrupt
+		 */
+		if (xlrirq >= 64) {
+			xlrirq -= 64;
+			if (xlrirq % 32 != 0)
+				return (0);
+			xlrirq = xls_pcie_link_irq(xlrirq / 32);
+			if (xlrirq == -1)
+				return (EINVAL);
+		}
 		xlr_establish_intr(device_get_name(child), filt,
 		    intr, arg, xlrirq, flags, cookiep, bridge_pcie_ack);
 		pic_setup_intr(xlrirq - PIC_IRQ_BASE, xlrirq, 0x1, 1);
@@ -491,6 +527,9 @@ xlr_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource *rv;
 	vm_offset_t va;
 	int needactivate = flags & RF_ACTIVE;
+
+	device_printf(child, "Alloc res type %d, rid %d, start %lx, end %lx, count %lx flags %u\n",
+			type, *rid, start, end, count, flags);
 
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -559,28 +598,24 @@ xlr_pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
 static int
 mips_pci_route_interrupt(device_t bus, device_t dev, int pin)
 {
+	int irq, link;
 
 	/*
 	 * Validate requested pin number.
 	 */
+	device_printf(dev, "route intr pin %d (bus %d, slot %d)\n",
+	    pin, pci_get_bus(dev), pci_get_slot(dev));
 	if ((pin < 1) || (pin > 4))
 		return (255);
 
 	if (xlr_board_info.is_xls) {
-		switch (pin) {
-		case 1:
-			return (PIC_PCIE_LINK0_IRQ);
-		case 2:
-			return (PIC_PCIE_LINK1_IRQ);
-		case 3:
-			return (PIC_PCIE_LINK2_IRQ);
-		case 4:
-			return (PIC_PCIE_LINK3_IRQ);
-		}
+		link = xls_pcie_link(bus, dev);
+		irq = xls_pcie_link_irq(link);
+		if (irq != -1)
+			return (irq);
 	} else {
-		if (pin == 1) {
-			return (16);
-		}
+		if (pin == 1)
+			return (PIC_PCIX_IRQ);
 	}
 
 	return (255);
