@@ -2258,6 +2258,15 @@ bge_dma_alloc(struct bge_softc *sc)
 	if (error)
 		return (error);
 
+	/* Create tag for statistics block. */
+	error = bge_dma_ring_alloc(sc, PAGE_SIZE, BGE_STATS_SZ,
+	    &sc->bge_cdata.bge_stats_tag,
+	    (uint8_t **)&sc->bge_ldata.bge_stats,
+	    &sc->bge_cdata.bge_stats_map,
+	    &sc->bge_ldata.bge_stats_paddr, "statistics block");
+	if (error)
+		return (error);
+
 	/* Create tag for jumbo RX ring. */
 	if (BGE_IS_JUMBO_CAPABLE(sc)) {
 		error = bge_dma_ring_alloc(sc, PAGE_SIZE, BGE_JUMBO_RX_RING_SZ,
