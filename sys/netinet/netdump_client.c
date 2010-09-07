@@ -158,7 +158,7 @@ static int nd_retries=10; /* Times to retransmit lost packets */
 static __inline int
 netdump_supported_nic(struct ifnet *ifn)
 {
-	return ifn->if_netdump != NULL;
+	return ifn->if_ndumpfuncs != NULL;
 }
 
 /*-
@@ -288,7 +288,7 @@ sysctl_force_crash(SYSCTL_HANDLER_ARGS)
 		case 3:
 			printf("\nLivelocking system while holding the "
 			    "interface lock\n");
-			nd_nic->if_netdump->test_get_lock(nd_nic);
+			nd_nic->if_ndumpfuncs->test_get_lock(nd_nic);
 			for (;;);
 			break;
 		case 5:
@@ -1075,7 +1075,7 @@ done:
 static void
 netdump_network_poll()
 {
-	nd_nic->if_netdump->poll_locked(nd_nic, POLL_AND_CHECK_STATUS, 1000);
+	nd_nic->if_ndumpfuncs->poll_locked(nd_nic, POLL_AND_CHECK_STATUS, 1000);
 }
 
 /*-
@@ -1186,7 +1186,7 @@ netdump_trigger(void *arg, int howto)
 	dumping++;
 
 	if (panicstr == NULL)
-		nd_nic->if_netdump->acquire_lock(nd_nic);
+		nd_nic->if_ndumpfuncs->acquire_lock(nd_nic);
 
 	/* Make the card use *our* receive callback */
 	old_if_input = nd_nic->if_input;
@@ -1244,7 +1244,7 @@ trig_abort:
 	if (old_if_input)
 		nd_nic->if_input = old_if_input;
 	if (panicstr == NULL)
-		nd_nic->if_netdump->release_lock(nd_nic);
+		nd_nic->if_ndumpfuncs->release_lock(nd_nic);
 	dumping--;
 }
 

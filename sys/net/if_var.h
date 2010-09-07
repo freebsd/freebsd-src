@@ -72,6 +72,7 @@ struct	carp_if;
 struct  ifvlantrunk;
 struct	route;
 struct	vnet;
+struct	netdump_methods;
 #endif
 
 #include <sys/queue.h>		/* get TAILQ macros */
@@ -195,6 +196,7 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
+	struct	netdump_methods *if_ndumpfuncs; /* netdump virtual methods */
 	u_char	 if_alloctype;		/* if_type at time of allocation */
 
 	/*
@@ -204,7 +206,7 @@ struct ifnet {
 	 */
 	char	 if_cspare[3];
 	char	*if_description;	/* interface description */
-	void	*if_pspare[7];
+	void	*if_pspare[6];
 	int	if_ispare[4];
 };
 
