@@ -598,7 +598,7 @@ munmap(td, uap)
 #ifdef HWPMC_HOOKS
 	/* downgrade the lock to prevent a LOR with the pmc-sx lock */
 	vm_map_lock_downgrade(map);
-	if (pkm.pm_address != (uintptr) NULL)
+	if (pkm.pm_address != (uintptr_t) NULL)
 		PMC_CALL_HOOK(td, PMC_FN_MUNMAP, (void *) &pkm);
 	vm_map_unlock_read(map);
 #else
