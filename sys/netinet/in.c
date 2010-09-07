@@ -1042,9 +1042,10 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		if (ia->ia_flags & IFA_ROUTE) {
 #ifdef RADIX_MPATH
 			if (ia->ia_addr.sin_addr.s_addr == 
-			    target->ia_addr.sin_addr.s_addr)
+			    target->ia_addr.sin_addr.s_addr) {
+				IN_IFADDR_RUNLOCK();
 				return (EEXIST);
-			else
+			} else
 				break;
 #endif
 			if (V_sameprefixcarponly &&
