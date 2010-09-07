@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.0.5";
+char em_driver_version[] = "7.0.6";
 
 
 /*********************************************************************
@@ -280,6 +280,8 @@ static void	em_handle_link(void *context, int pending);
 
 static void	em_add_rx_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
+
+static __inline void em_rx_discard(struct rx_ring *, int);
 
 #ifdef DEVICE_POLLING
 static poll_handler_t em_poll;
@@ -2563,11 +2565,11 @@ msi:
        	val = pci_msi_count(dev);
        	if (val == 1 && pci_alloc_msi(dev, &val) == 0) {
                	adapter->msix = 1;
-               	device_printf(adapter->dev,"Using MSI interrupt\n");
+               	device_printf(adapter->dev,"Using an MSI interrupt\n");
 		return (val);
 	} 
-	/* Should only happen due to manual invention */
-	device_printf(adapter->dev,"Setup MSIX failure\n");
+	/* Should only happen due to manual configuration */
+	device_printf(adapter->dev,"No MSI/MSIX using a Legacy IRQ\n");
 	return (0);
 }
 
@@ -3681,14 +3683,27 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 	struct adapter		*adapter = rxr->adapter;
 	struct mbuf		*m;
 	bus_dma_segment_t	segs[1];
-	bus_dmamap_t		map;
 	struct em_buffer	*rxbuf;
 	int			i, error, nsegs, cleaned;
 
 	i = rxr->next_to_refresh;
 	cleaned = -1;
 	while (i != limit) {
+		rxbuf = &rxr->rx_buffers[i];
+		/*
+		** Just skip entries with a buffer,
+		** they can only be due to an error
+		** and are to be reused.
+		*/
+		if (rxbuf->m_head != NULL)
+			continue;
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		/*
+		** If we have a temporary resource shortage
+		** that causes a failure, just abort refresh
+		** for now, we will return to this point when
+		** reinvoked from em_rxeof.
+		*/
 		if (m == NULL)
 			goto update;
 		m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -3696,11 +3711,8 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 		if (adapter->max_frame_size <= (MCLBYTES - ETHER_ALIGN))
 			m_adj(m, ETHER_ALIGN);
 
-		/*
-		 * Using memory from the mbuf cluster pool, invoke the
-		 * bus_dma machinery to arrange the memory mapping.
-		 */
-		error = bus_dmamap_load_mbuf_sg(rxr->rxtag, rxr->rx_sparemap,
+		/* Use bus_dma machinery to setup the memory mapping  */
+		error = bus_dmamap_load_mbuf_sg(rxr->rxtag, rxbuf->map,
 		    m, segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			m_free(m);
@@ -3710,13 +3722,6 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 		/* If nsegs is wrong then the stack is corrupt. */
 		KASSERT(nsegs == 1, ("Too many segments returned!"));
 	
-		rxbuf = &rxr->rx_buffers[i];
-		if (rxbuf->m_head != NULL)
-			bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-	
-		map = rxbuf->map;
-		rxbuf->map = rxr->rx_sparemap;
-		rxr->rx_sparemap = map;
 		bus_dmamap_sync(rxr->rxtag,
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
 		rxbuf->m_head = m;
@@ -3730,8 +3735,10 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 		rxr->next_to_refresh = i;
 	}
 update:
-	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	/*
+	** Update the tail pointer only if,
+	** and as far as we have refreshed.
+	*/
 	if (cleaned != -1) /* Update tail index */
 		E1000_WRITE_REG(&adapter->hw,
 		    E1000_RDT(rxr->me), cleaned);
@@ -3777,15 +3784,6 @@ em_allocate_receive_buffers(struct rx_ring *rxr)
 				&rxr->rxtag);
 	if (error) {
 		device_printf(dev, "%s: bus_dma_tag_create failed %d\n",
-		    __func__, error);
-		goto fail;
-	}
-
-	/* Create the spare map (used by getbuf) */
-	error = bus_dmamap_create(rxr->rxtag, BUS_DMA_NOWAIT,
-	     &rxr->rx_sparemap);
-	if (error) {
-		device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
 		    __func__, error);
 		goto fail;
 	}
@@ -3955,11 +3953,6 @@ em_free_receive_buffers(struct rx_ring *rxr)
 	struct em_buffer	*rxbuf = NULL;
 
 	INIT_DEBUGOUT("free_receive_buffers: begin");
-
-	if (rxr->rx_sparemap) {
-		bus_dmamap_destroy(rxr->rxtag, rxr->rx_sparemap);
-		rxr->rx_sparemap = NULL;
-	}
 
 	if (rxr->rx_buffers != NULL) {
 		for (int i = 0; i < adapter->num_rx_desc; i++) {
@@ -4132,11 +4125,15 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 		eop = (status & E1000_RXD_STAT_EOP) != 0;
 		count--;
 
-		if ((cur->errors & E1000_RXD_ERR_FRAME_ERR_MASK) == 0) {
+		if (((cur->errors & E1000_RXD_ERR_FRAME_ERR_MASK) == 0) &&
+		    (rxr->discard == FALSE)) {
 
 			/* Assign correct length to the current fragment */
 			mp = rxr->rx_buffers[i].m_head;
 			mp->m_len = len;
+
+			/* Trigger for refresh */
+			rxr->rx_buffers[i].m_head = NULL;
 
 			if (rxr->fmp == NULL) {
 				mp->m_pkthdr.len = len;
@@ -4179,19 +4176,12 @@ skip:
 			}
 		} else {
 			ifp->if_ierrors++;
-			/* Reuse loaded DMA map and just update mbuf chain */
-			mp = rxr->rx_buffers[i].m_head;
-			mp->m_len = mp->m_pkthdr.len = MCLBYTES;
-			mp->m_data = mp->m_ext.ext_buf;
-			mp->m_next = NULL;
-			if (adapter->max_frame_size <=
-			    (MCLBYTES - ETHER_ALIGN))
-				m_adj(mp, ETHER_ALIGN);
-			if (rxr->fmp != NULL) {
-				m_freem(rxr->fmp);
-				rxr->fmp = NULL;
-				rxr->lmp = NULL;
-			}
+			++rxr->rx_discarded;
+			if (!eop) /* Catch subsequent segs */
+				rxr->discard = TRUE;
+			else
+				rxr->discard = FALSE;
+			em_rx_discard(rxr, i);
 			sendmp = NULL;
 		}
 
@@ -4232,6 +4222,31 @@ skip:
 	EM_RX_UNLOCK(rxr);
 
 	return ((status & E1000_RXD_STAT_DD) ? TRUE : FALSE);
+}
+
+static __inline void
+em_rx_discard(struct rx_ring *rxr, int i)
+{
+	struct em_buffer	*rbuf;
+	struct mbuf		*m;
+
+	rbuf = &rxr->rx_buffers[i];
+	/* Free any previous pieces */
+	if (rxr->fmp != NULL) {
+		rxr->fmp->m_flags |= M_PKTHDR;
+		m_freem(rxr->fmp);
+		rxr->fmp = NULL;
+		rxr->lmp = NULL;
+	}
+                         
+	/* Reset state, keep loaded DMA map and reuse */
+	m = rbuf->m_head;
+	m->m_len = m->m_pkthdr.len = MCLBYTES;
+	m->m_flags |= M_PKTHDR;
+	m->m_data = m->m_ext.ext_buf;
+	m->m_next = NULL;
+
+	return;
 }
 
 #ifndef __NO_STRICT_ALIGNMENT
@@ -5159,8 +5174,6 @@ em_add_hw_stats(struct adapter *adapter)
 			CTLFLAG_RD, &adapter->stats.hrmpc,
 			"Header Redirection Missed Packet Count");
 
-
-
 }
 
 /**********************************************************************
@@ -5170,7 +5183,6 @@ em_add_hw_stats(struct adapter *adapter)
  *  32 words, stuff that matters is in that extent.
  *
  **********************************************************************/
-
 static int
 em_sysctl_nvm_info(SYSCTL_HANDLER_ARGS)
 {

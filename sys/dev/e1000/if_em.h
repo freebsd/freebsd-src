@@ -320,10 +320,11 @@ struct rx_ring {
         void                    *tag;
         struct resource         *res;
         bus_dma_tag_t           rxtag;
-        bus_dmamap_t            rx_sparemap;
+	bool			discard;
 
         /* Soft stats */
         unsigned long		rx_irq;
+        unsigned long		rx_discarded;
         unsigned long		rx_packets;
         unsigned long		rx_bytes;
 };
@@ -393,6 +394,7 @@ struct adapter {
 
 	/* Multicast array memory */
 	u8		*mta;
+
 	/* Info about the board itself */
 	uint8_t		link_active;
 	uint16_t	link_speed;
