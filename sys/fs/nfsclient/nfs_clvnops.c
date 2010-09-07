@@ -988,7 +988,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct nfsfh *nfhp;
 	struct nfsvattr dnfsva, nfsva;
 	struct vattr vattr;
-	time_t dmtime;
+	struct timespec dmtime;
 	
 	*vpp = NULLVP;
 	if ((flags & ISLASTCN) && (mp->mnt_flag & MNT_RDONLY) &&
@@ -1038,7 +1038,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		}
 		if (nfscl_nodeleg(newvp, 0) == 0 ||
 		    (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
-		    vattr.va_ctime.tv_sec == newnp->n_ctime)) {
+		    timespeccmp(&vattr.va_ctime, &newnp->n_ctime, ==))) {
 			NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
 			if (cnp->cn_nameiop != LOOKUP &&
 			    (flags & ISLASTCN))
@@ -1065,13 +1065,13 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if ((u_int)(ticks - np->n_dmtime_ticks) <
 		    (nmp->nm_negnametimeo * hz) &&
 		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
-		    vattr.va_mtime.tv_sec == np->n_dmtime) {
+		    timespeccmp(&vattr.va_mtime, &np->n_dmtime, ==)) {
 			NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
 			return (ENOENT);
 		}
 		cache_purge_negative(dvp);
 		mtx_lock(&np->n_mtx);
-		np->n_dmtime = 0;
+		timespecclear(&np->n_dmtime);
 		mtx_unlock(&np->n_mtx);
 	}
 
@@ -1086,7 +1086,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	 * the lookup RPC has been performed on the server but before
 	 * n_dmtime is set at the end of this function.
 	 */
-	dmtime = np->n_vattr.na_mtime.tv_sec;
+	dmtime = np->n_vattr.na_mtime;
 	error = 0;
 	newvp = NULLVP;
 	NFSINCRGLOBAL(newnfsstats.lookupcache_misses);
@@ -1139,8 +1139,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			 * lookup.
 			 */
 			mtx_lock(&np->n_mtx);
-			if (np->n_dmtime <= dmtime) {
-				if (np->n_dmtime == 0) {
+			if (timespeccmp(&np->n_dmtime, &dmtime, <=)) {
+				if (!timespecisset(&np->n_dmtime)) {
 					np->n_dmtime = dmtime;
 					np->n_dmtime_ticks = ticks;
 				}
@@ -1241,7 +1241,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		cnp->cn_flags |= SAVENAME;
 	if ((cnp->cn_flags & MAKEENTRY) &&
 	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN))) {
-		np->n_ctime = np->n_vattr.na_vattr.va_ctime.tv_sec;
+		np->n_ctime = np->n_vattr.na_vattr.va_ctime;
 		cache_enter(dvp, newvp, cnp);
 	}
 	*vpp = newvp;
