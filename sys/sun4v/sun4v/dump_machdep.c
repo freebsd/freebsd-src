@@ -160,17 +160,22 @@ dumpsys(struct dumperinfo *di)
 	    DEV_BSIZE);
 	size += hdrsize;
 
-	totsize = size + 2 * sizeof(kdh);
-	if (totsize > di->mediasize) {
-		printf("Insufficient space on device (need %ld, have %ld), "
-		    "refusing to dump.\n", (long)totsize,
-		    (long)di->mediasize);
-		error = ENOSPC;
-		goto fail;
-	}
+	/* If the upper bound is 0, dumper likely will not use disks. */
+	if ((di->mediaoffset + di->mediasize) == 0)
+		dumplo = 0;
+	else {
+		totsize = size + 2 * sizeof(kdh);
+		if (totsize > di->mediasize) {
+			printf("Insufficient space on device (need %ld, "
+			    "have %ld), refusing to dump.\n", (long)totsize,
+			    (long)di->mediasize);
+			error = ENOSPC;
+			goto fail;
+		}
 
-	/* Determine dump offset on device. */
-	dumplo = di->mediaoffset + di->mediasize - totsize;
+		/* Determine dump offset on device. */
+		dumplo = di->mediaoffset + di->mediasize - totsize;
+	}
 
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_SPARC64_VERSION, size, di->blocksize);
 

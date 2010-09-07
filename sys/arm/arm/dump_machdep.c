@@ -303,13 +303,20 @@ dumpsys(struct dumperinfo *di)
 	dumpsize += fileofs;
 	hdrgap = fileofs - DEV_ALIGN(hdrsz);
 
-	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
-		error = ENOSPC;
-		goto fail;
+	/* If the upper bound is 0, dumper likely will not use disks. */
+	if ((di->mediaoffset + di->mediasize) == 0)
+		dumplo = 0;
+	else {
+
+		/* Determine dump offset on device. */
+		if (di->mediasize <
+		    SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
+			error = ENOSPC;
+			goto fail;
+		}
+		dumplo = di->mediaoffset + di->mediasize - dumpsize;
+		dumplo -= sizeof(kdh) * 2;
 	}
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
 
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION, dumpsize, di->blocksize);
 
