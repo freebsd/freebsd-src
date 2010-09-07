@@ -3696,7 +3696,7 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 		** and are to be reused.
 		*/
 		if (rxbuf->m_head != NULL)
-			continue;
+			goto reuse;
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		/*
 		** If we have a temporary resource shortage
@@ -3726,7 +3726,7 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
 		rxbuf->m_head = m;
 		rxr->rx_base[i].buffer_addr = htole64(segs[0].ds_addr);
-
+reuse:
 		cleaned = i;
 		/* Calculate next index */
 		if (++i == adapter->num_rx_desc)
