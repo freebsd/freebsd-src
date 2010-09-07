@@ -52,10 +52,6 @@
 #include <sys/thr.h>
 #include <pthread.h>
 
-#ifndef __hidden
-#define __hidden		__attribute__((visibility("hidden")))
-#endif
-
 #include "pthread_md.h"
 #include "thr_umtx.h"
 #include "thread_db.h"
