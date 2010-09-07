@@ -425,7 +425,6 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 #endif
 
 	if (dmat != NULL) {
-		
                 if (dmat->map_count != 0)
                         return (EBUSY);
 		
@@ -602,20 +601,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
                  *     and handles multi-seg allocations.  Nobody is doing
                  *     multi-seg allocations yet though.
                  */
-	         vm_paddr_t maxphys;
-	         if((uint32_t)dmat->lowaddr >= MIPS_KSEG0_LARGEST_PHYS) {
-		   /* Note in the else case I just put in what was already
-		    * being passed in dmat->lowaddr. I am not sure
-		    * how this would have worked. Since lowaddr is in the
-		    * max address postion. I would have thought that the
-		    * caller would have wanted dmat->highaddr. That is
-		    * presuming they are asking for physical addresses
-		    * which is what contigmalloc takes. - RRS
-		    */
-		   maxphys = MIPS_KSEG0_LARGEST_PHYS - 1;
-		 } else {
-		   maxphys = dmat->lowaddr;
-		 }
                 *vaddr = contigmalloc(dmat->maxsize, M_DEVBUF, mflags,
                     0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
                     dmat->boundary);
@@ -633,7 +618,8 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		void *tmpaddr = (void *)*vaddr;
 
 		if (tmpaddr) {
-			tmpaddr = (void *)MIPS_PHYS_TO_KSEG1(vtophys(tmpaddr));
+			tmpaddr = (void *)pmap_mapdev(vtophys(tmpaddr),
+			    dmat->maxsize);
 			newmap->origbuffer = *vaddr;
 			newmap->allocbuffer = tmpaddr;
 			mips_dcache_wbinv_range((vm_offset_t)*vaddr,
@@ -660,6 +646,8 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		vaddr = map->origbuffer;
 	}
 
+	if (map->flags & DMAMAP_UNCACHEABLE)
+		pmap_unmapdev((vm_offset_t)map->allocbuffer, dmat->maxsize);
         if (map->flags & DMAMAP_MALLOCUSED)
 		free(vaddr, M_DEVBUF);
         else
@@ -1360,7 +1348,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
 		bpage->vaddr_nocache = 
-		    (vm_offset_t)MIPS_PHYS_TO_KSEG1(bpage->busaddr);
+		    (vm_offset_t)pmap_mapdev(bpage->busaddr, PAGE_SIZE);
 		mtx_lock(&bounce_lock);
 		STAILQ_INSERT_TAIL(&bz->bounce_page_list, bpage, links);
 		total_bpages++;
