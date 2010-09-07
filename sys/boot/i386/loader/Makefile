@@ -6,7 +6,7 @@ MK_SSP=		no
 LOADER?=	loader
 PROG=		${LOADER}.sym
 INTERNALPROG=
-NEWVERSWHAT?=	"bootstrap loader" i386
+NEWVERSWHAT?=	"bootstrap loader" x86
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
