@@ -2080,11 +2080,13 @@ moea64_get_unique_vsid(void) {
 				entropy = (moea64_vsidcontext >> 20);
 				continue;
 			}
-			i = ffs(~moea64_vsid_bitmap[i]) - 1;
+			i = ffs(~moea64_vsid_bitmap[n]) - 1;
 			mask = 1 << i;
 			hash &= VSID_HASHMASK & ~(VSID_NBPW - 1);
 			hash |= i;
 		}
+		KASSERT(!(moea64_vsid_bitmap[n] & mask),
+		    ("Allocating in-use VSID %#x\n", hash));
 		moea64_vsid_bitmap[n] |= mask;
 		mtx_unlock(&moea64_slb_mutex);
 		return (hash);
