@@ -377,7 +377,7 @@ init_extraction()
       fi
       ;;
 
-    ftp|sftp)
+    ftp)
       if [ "$PACKAGETYPE" = "split" ]
       then
         fetch_split_files
@@ -390,9 +390,9 @@ init_extraction()
       fi
       ;;
 
-      rsync) start_rsync_copy ;;
-    img)
-		;;
+    sftp) ;;
+
+    rsync) start_rsync_copy ;;
     *) exit_err "ERROR: Unknown install medium" ;;
   esac
 

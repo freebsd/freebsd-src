@@ -231,9 +231,6 @@ get_disk_heads()
 get_disk_mediasize()
 {
   mediasize=`diskinfo -v ${1} | grep "# mediasize in sectors" | tr -s ' ' | cut -f 2`
-
-  # Not sure why this is, memory disks need it though.
-  mediasize=`expr ${mediasize} - 10`
   VAL="${mediasize}" ; export VAL
 };
 
@@ -336,164 +333,205 @@ setup_disk_slice()
   # We are ready to start setting up the disks, lets read the config and do the actions
   while read line
   do
-     echo $line | grep "^disk${disknum}=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
+    echo $line | grep "^disk${disknum}=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
 
-       # Found a disk= entry, lets get the disk we are working on
-       get_value_from_string "${line}"
-       strip_white_space "$VAL"
-       DISK="$VAL"
+      # Found a disk= entry, lets get the disk we are working on
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      DISK="$VAL"
      
-       # Before we go further, lets confirm this disk really exists
-       if [ ! -e "/dev/${DISK}" ]
-       then
-         exit_err "ERROR: The disk ${DISK} does not exist!"
-       fi
+      # Before we go further, lets confirm this disk really exists
+      if [ ! -e "/dev/${DISK}" ]
+      then
+        exit_err "ERROR: The disk ${DISK} does not exist!"
+      fi
 
-       # Make sure we stop any gmirrors on this disk
-       stop_all_gmirror ${DISK}
+      # Make sure we stop any gmirrors on this disk
+      stop_all_gmirror ${DISK}
 
-       # Make sure we stop any geli stuff on this disk
-       stop_all_geli ${DISK}
+      # Make sure we stop any geli stuff on this disk
+      stop_all_geli ${DISK}
 
-       # Make sure we don't have any zpools loaded
-       stop_all_zfs
+      # Make sure we don't have any zpools loaded
+      stop_all_zfs
 
-     fi
+    fi
 
-     # Lets look if this device will be mirrored on another disk
-     echo $line | grep "^mirror=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
+    # Lets look if this device will be mirrored on another disk
+    echo $line | grep "^mirror=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
 
-       # Found a disk= entry, lets get the disk we are working on
-       get_value_from_string "${line}"
-       strip_white_space "$VAL"
-       MIRRORDISK="$VAL"
+      # Found a disk= entry, lets get the disk we are working on
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      MIRRORDISK="$VAL"
      
-       # Before we go further, lets confirm this disk really exists
-       if [ ! -e "/dev/${MIRRORDISK}" ]
-       then
-         exit_err "ERROR: The mirror disk ${MIRRORDISK} does not exist!"
-       fi
-     fi
+      # Before we go further, lets confirm this disk really exists
+      if [ ! -e "/dev/${MIRRORDISK}" ]
+      then
+        exit_err "ERROR: The mirror disk ${MIRRORDISK} does not exist!"
+      fi
+    fi
 
-     # Lets see if we have been given a mirror balance choice
-     echo $line | grep "^mirrorbal=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
+    # Lets see if we have been given a mirror balance choice
+    echo $line | grep "^mirrorbal=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
 
-       # Found a disk= entry, lets get the disk we are working on
-       get_value_from_string "${line}"
-       strip_white_space "$VAL"
-       MIRRORBAL="$VAL"
-     fi
+      # Found a disk= entry, lets get the disk we are working on
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      MIRRORBAL="$VAL"
+    fi
 
-     echo $line | grep "^partition=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       # Found a partition= entry, lets read / set it 
-       get_value_from_string "${line}"
-       strip_white_space "$VAL"
-       PTYPE="$VAL"
+    echo $line | grep "^partition=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      # Found a partition= entry, lets read / set it 
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      PTYPE=`echo $VAL|tr A-Z a-z`
 
-       # We are using free space, figure out the slice number
-       if [ "${PTYPE}" = "free" -o "${PTYPE}" = "FREE" ]
-       then
-         # Lets figure out what number this slice will be
-         LASTSLICE="`gpart show ${DISK} | grep -v ${DISK} | grep -v ' free' |tr -s '\t' ' ' | cut -d ' ' -f 4 | sed '/^$/d' | tail -n 1`"
-         if [ -z "${LASTSLICE}" ]
-         then
-           LASTSLICE="1"
-         else
-           LASTSLICE="`expr $LASTSLICE + 1`"
-         fi
+      # We are using free space, figure out the slice number
+      if [ "${PTYPE}" = "free" ]
+      then
+        # Lets figure out what number this slice will be
+        LASTSLICE="`gpart show ${DISK} \
+			| grep -v ${DISK} \
+			| grep -v ' free' \
+			| tr -s '\t' ' ' \
+			| cut -d ' ' -f 4 \
+			| sed '/^$/d' \
+			| tail -n 1`"
 
-         if [ $LASTSLICE -gt 4 ]
-         then
-           exit_err "ERROR: BSD only supports primary partitions, and there are none availble on $DISK"
-         fi
+        if [ -z "${LASTSLICE}" ]
+        then
+          LASTSLICE="1"
+        else
+          LASTSLICE="`expr $LASTSLICE + 1`"
+        fi
 
-       fi
-     fi
+        if [ $LASTSLICE -gt 4 ]
+        then
+          exit_err "ERROR: BSD only supports primary partitions, and there are none availble on $DISK"
+        fi
 
-     # Check if we have a partscheme specified
-     echo $line | grep "^partscheme=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ] ; then
-       # Found a partscheme= entry, lets read / set it 
-       get_value_from_string "${line}"
-       strip_white_space "$VAL"
-       PSCHEME="$VAL"
-       if [ "$PSCHEME" != "GPT" -a "$PSCHEME" != "MBR" ] ; then
-	 exit_err "Unknown partition scheme: $PSCHEME" 
-       fi
-     fi
+      fi
+    fi
 
-     echo $line | grep "^bootManager=" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       # Found a bootManager= entry, lets read /set it
-       get_value_from_string "${line}"
-       strip_white_space "$VAL"
-       BMANAGER="$VAL"
-     fi
+    # Check if we have an image file defined
+    echo $line | grep "^image=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ] ; then
+      # Found an image= entry, lets read / set it
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      IMAGE="$VAL"
+      if [ ! -f "$IMAGE" ] ; then
+        exit_err "$IMAGE file does not exist"
+      fi
+    fi
 
-     echo $line | grep "^commitDiskPart" >/dev/null 2>/dev/null
-     if [ "$?" = "0" ]
-     then
-       # Found our flag to commit this disk setup / lets do sanity check and do it
-       if [ ! -z "${DISK}" -a ! -z "${PTYPE}" ]
-       then
-         case ${PTYPE} in
-           all|ALL)
-		     if [ "$PSCHEME" = "MBR" -o -z "$PSCHEME" ] ; then
-               PSCHEME="MBR"
-               tmpSLICE="${DISK}s1"  
-			 else
-               tmpSLICE="${DISK}p1"  
-			 fi
+    # Check if we have a partscheme specified
+    echo $line | grep "^partscheme=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ] ; then
+      # Found a partscheme= entry, lets read / set it 
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      PSCHEME="$VAL"
+      if [ "$PSCHEME" != "GPT" -a "$PSCHEME" != "MBR" ] ; then
+        exit_err "Unknown partition scheme: $PSCHEME" 
+      fi
+    fi
 
-             run_gpart_full "${DISK}" "${BMANAGER}" "${PSCHEME}"
-			 ;;
+    echo $line | grep "^bootManager=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      # Found a bootManager= entry, lets read /set it
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      BMANAGER="$VAL"
+    fi
 
-           s1|s2|s3|s4)
-			 tmpSLICE="${DISK}${PTYPE}" 
-             # Get the number of the slice we are working on
-             s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
-             run_gpart_slice "${DISK}" "${BMANAGER}" "${s}"
-			 ;;
+    echo $line | grep "^commitDiskPart" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      # Found our flag to commit this disk setup / lets do sanity check and do it
+      if [ ! -z "${DISK}" -a ! -z "${PTYPE}" ]
+      then
+        case ${PTYPE} in
+          all)
+            if [ "$PSCHEME" = "MBR" -o -z "$PSCHEME" ] ; then
+              PSCHEME="MBR"
+              tmpSLICE="${DISK}s1"  
+			else
+              tmpSLICE="${DISK}p1"  
+            fi
 
-           free|FREE)
-			 tmpSLICE="${DISK}s${LASTSLICE}"
-             run_gpart_free "${DISK}" "${LASTSLICE}" "${BMANAGER}"
-			 ;;
+            run_gpart_full "${DISK}" "${BMANAGER}" "${PSCHEME}"
+            ;;
 
-           *) exit_err "ERROR: Unknown PTYPE: $PTYPE" ;;
-         esac
+          s1|s2|s3|s4)
+            tmpSLICE="${DISK}${PTYPE}" 
+            # Get the number of the slice we are working on
+            s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
+            run_gpart_slice "${DISK}" "${BMANAGER}" "${s}"
+            ;;
 
-         # Now save which disk<num> this is, so we can parse it later during slice partition setup
-         echo "disk${disknum}" >${SLICECFGDIR}/$tmpSLICE
+          free)
+            tmpSLICE="${DISK}s${LASTSLICE}"
+            run_gpart_free "${DISK}" "${LASTSLICE}" "${BMANAGER}"
+            ;;
 
-         # Save any mirror config
-         if [ ! -z "$MIRRORDISK" ]
-         then
-           # Default to round-robin if the user didn't specify
-           if [ -z "$MIRRORBAL" ]
-           then
-             MIRRORBAL="round-robin"
-           fi
-           echo "$MIRRORDISK:$MIRRORBAL" >${MIRRORCFGDIR}/$DISK
-         fi
+          image)
+            if [ -n "${IMAGE}" ]
+            then
+              write_image "${IMAGE}" "${DISK}"
+            else 
+			  exit_err "ERROR: partition type image specified with no image!"
+            fi 
+
+            IMAGE="${DISK}:${IMAGE}"
+            if [ -z "${WORKINGIMAGES}" ]
+            then
+			  WORKINGIMAGES="${IMAGE}"
+            else 
+			  WORKINGIMAGES="${WORKINGIMAGES} ${IMAGE}"
+            fi 
+
+            export WORKINGIMAGES
+            ;;
+
+          *) exit_err "ERROR: Unknown PTYPE: $PTYPE" ;;
+        esac
+
+        # Now save which disk<num> this is, so we can parse it later during slice partition setup
+        if [ -n "${tmpSLICE}" ]
+        then
+          echo "disk${disknum}" >${SLICECFGDIR}/$tmpSLICE
+        fi
+
+        # Save any mirror config
+        if [ ! -z "$MIRRORDISK" ]
+        then
+          # Default to round-robin if the user didn't specify
+          if [ -z "$MIRRORBAL" ]
+          then
+            MIRRORBAL="round-robin"
+          fi
+          echo "$MIRRORDISK:$MIRRORBAL" >${MIRRORCFGDIR}/$DISK
+        fi
 
 
-         # Increment our disk counter to look for next disk and unset
-         unset BMANAGER PTYPE DISK MIRRORDISK MIRRORBAL PSCHEME
-         disknum="`expr $disknum + 1`"
-       else
-         exit_err "ERROR: commitDiskPart was called without procceding disk<num>= and partition= entries!!!" 
-       fi
-     fi
+        # Increment our disk counter to look for next disk and unset
+        unset BMANAGER PTYPE DISK MIRRORDISK MIRRORBAL PSCHEME IMAGE
+        disknum="`expr $disknum + 1`"
+      else
+        exit_err "ERROR: commitDiskPart was called without procceding disk<num>= and partition= entries!!!" 
+      fi
+    fi
 
   done <${CFGF}
 
@@ -590,8 +628,7 @@ init_mbr_full_disk()
   totalblocks="`expr ${totalblocks} \* ${sec}`"
   if [ -z "${totalblocks}" ]
   then
-	get_disk_mediasize "${_intDISK}"
-	totalblocks="${VAL}"
+    totalblocks=`gpart show "${_intDISK}"|tail -2|head -1|awk '{ print $2 }'`
   fi
 
   # Now set the ending block to the total disk block size
