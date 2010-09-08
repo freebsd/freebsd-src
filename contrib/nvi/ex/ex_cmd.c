@@ -68,7 +68,7 @@ EXCMDLIST const cmds[] = {
 	{"&",		ex_subagain,	E_ADDR2,
 	    "s",
 	    "[line [,line]] & [cgr] [count] [#lp]",
-	    "repeat the last subsitution"},
+	    "repeat the last substitution"},
 /* C_STAR */
 	{"*",		ex_at,		0,
 	    "b",
