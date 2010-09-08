@@ -1549,9 +1549,9 @@ static void
 devfs_fixup(struct thread *td)
 {
 	struct nameidata nd;
-	int error;
 	struct vnode *vp, *dvp;
 	struct mount *mp;
+	int error;
 
 	/* Remove our devfs mount from the mountlist and purge the cache */
 	mtx_lock(&mountlist_mtx);
@@ -1575,16 +1575,26 @@ devfs_fixup(struct thread *td)
 	error = namei(&nd);
 	if (error) {
 		printf("Lookup of /dev for devfs, error: %d\n", error);
+		vput(dvp);
+		vfs_unbusy(mp);
 		return;
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if (vp->v_type != VDIR) {
+		printf("/dev is not a directory\n");
+		vput(dvp);
 		vput(vp);
+		vfs_unbusy(mp);
+		return;
 	}
 	error = vinvalbuf(vp, V_SAVE, 0, 0);
 	if (error) {
+		printf("vinvalbuf() of /dev failed, error: %d\n", error);
+		vput(dvp);
 		vput(vp);
+		vfs_unbusy(mp);
+		return;
 	}
 	cache_purge(vp);
 	mp->mnt_vnodecovered = vp;
@@ -1597,7 +1607,9 @@ devfs_fixup(struct thread *td)
 	vfs_unbusy(mp);
 
 	/* Unlink the no longer needed /dev/dev -> / symlink */
-	kern_unlink(td, "/dev/dev", UIO_SYSSPACE);
+	error = kern_unlink(td, "/dev/dev", UIO_SYSSPACE);
+	if (error)
+		printf("kern_unlink of /dev/dev failed, error: %d\n", error);
 }
 
 /*
