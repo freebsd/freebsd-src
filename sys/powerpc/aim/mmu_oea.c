@@ -1618,7 +1618,7 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 				entropy = (moea_vsidcontext >> 20);
 				continue;
 			}
-			i = ffs(~moea_vsid_bitmap[i]) - 1;
+			i = ffs(~moea_vsid_bitmap[n]) - 1;
 			mask = 1 << i;
 			hash &= 0xfffff & ~(VSID_NBPW - 1);
 			hash |= i;
