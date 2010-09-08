@@ -161,7 +161,7 @@ BUILD_ARCH!=	uname -p
 .error To cross-build, set TARGET_ARCH.
 .endif
 .endif
-.if ${MACHINE} == ${TARGET} && !defined(CROSS_BUILD_TESTING)
+.if ${MACHINE} == ${TARGET} && ${MACHINE_ARCH} == ${TARGET_ARCH} && !defined(CROSS_BUILD_TESTING)
 OBJTREE=	${MAKEOBJDIRPREFIX}
 .else
 OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
