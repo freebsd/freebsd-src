@@ -32,54 +32,36 @@
 #ifndef _RMI_MSGRING_H_
 #define _RMI_MSGRING_H_
 
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/types.h>
+
+#include <machine/cpuregs.h>
+#include <machine/cpufunc.h>
 #include <mips/rmi/rmi_mips_exts.h>
 
-#define MSGRNG_TX_BUF_REG 0
-#define MSGRNG_RX_BUF_REG 1
+#define	MSGRNG_TX_BUF_REG	0
+#define	MSGRNG_RX_BUF_REG	1
+#define	MSGRNG_MSG_STATUS_REG	2
+#define	MSGRNG_MSG_CONFIG_REG	3
+#define MSGRNG_MSG_BUCKSIZE_REG	4
 
-#define MSGRNG_MSG_STATUS_REG 2
-#define MSGRNG_MSG_CONFIG_REG 3
-
-#define MSGRNG_MSG_BUCKSIZE_REG 4
-
-#define MSGRNG_CC_0_REG  16
-#define MSGRNG_CC_1_REG  17
-#define MSGRNG_CC_2_REG  18
-#define MSGRNG_CC_3_REG  19
-#define MSGRNG_CC_4_REG  20
-#define MSGRNG_CC_5_REG  21
-#define MSGRNG_CC_6_REG  22
-#define MSGRNG_CC_7_REG  23
-#define MSGRNG_CC_8_REG  24
-#define MSGRNG_CC_9_REG  25
-#define MSGRNG_CC_10_REG 26
-#define MSGRNG_CC_11_REG 27
-#define MSGRNG_CC_12_REG 28
-#define MSGRNG_CC_13_REG 29
-#define MSGRNG_CC_14_REG 30
-#define MSGRNG_CC_15_REG 31
-
-#define msgrng_read_status() read_c2_register32(MSGRNG_MSG_STATUS_REG, 0)
-
-#define msgrng_read_config() read_c2_register32(MSGRNG_MSG_CONFIG_REG, 0)
-#define msgrng_write_config(value) write_c2_register32(MSGRNG_MSG_CONFIG_REG, 0, value)
-
-#define msgrng_read_bucksize(bucket) read_c2_register32(MSGRNG_MSG_BUCKSIZE_REG, bucket)
-#define msgrng_write_bucksize(bucket, value) write_c2_register32(MSGRNG_MSG_BUCKSIZE_REG, bucket, value)
-
-#define msgrng_read_cc(reg, pri) read_c2_register32(reg, pri)
-#define msgrng_write_cc(reg, value, pri) write_c2_register32(reg, pri, value)
-
-#define msgrng_load_rx_msg0() read_c2_register64(MSGRNG_RX_BUF_REG, 0)
-#define msgrng_load_rx_msg1() read_c2_register64(MSGRNG_RX_BUF_REG, 1)
-#define msgrng_load_rx_msg2() read_c2_register64(MSGRNG_RX_BUF_REG, 2)
-#define msgrng_load_rx_msg3() read_c2_register64(MSGRNG_RX_BUF_REG, 3)
-
-#define msgrng_load_tx_msg0(value) write_c2_register64(MSGRNG_TX_BUF_REG, 0, value)
-#define msgrng_load_tx_msg1(value) write_c2_register64(MSGRNG_TX_BUF_REG, 1, value)
-#define msgrng_load_tx_msg2(value) write_c2_register64(MSGRNG_TX_BUF_REG, 2, value)
-#define msgrng_load_tx_msg3(value) write_c2_register64(MSGRNG_TX_BUF_REG, 3, value)
+#define	MSGRNG_CC_0_REG	16
+#define	MSGRNG_CC_1_REG	17
+#define	MSGRNG_CC_2_REG	18
+#define	MSGRNG_CC_3_REG	19
+#define	MSGRNG_CC_4_REG	20
+#define	MSGRNG_CC_5_REG	21
+#define	MSGRNG_CC_6_REG	22
+#define	MSGRNG_CC_7_REG	23
+#define	MSGRNG_CC_8_REG	24
+#define	MSGRNG_CC_9_REG	25
+#define	MSGRNG_CC_10_REG	26
+#define	MSGRNG_CC_11_REG	27
+#define	MSGRNG_CC_12_REG	28
+#define	MSGRNG_CC_13_REG	29
+#define	MSGRNG_CC_14_REG	30
+#define	MSGRNG_CC_15_REG	31
 
 /* Station IDs */
 #define MSGRNG_STNID_CPU0  0x00
@@ -189,54 +171,26 @@
 #define MSGRNG_CODE_SEC 0
 #define MSGRNG_CODE_BOOT_WAKEUP 200
 #define MSGRNG_CODE_SPI4 3
+#define msgrng_read_status() read_c2_register32(MSGRNG_MSG_STATUS_REG, 0)
 
-static inline int 
-msgrng_xgmac_stid_rfr(int id)
-{
-	return !id ? MSGRNG_STNID_XMAC0RFR : MSGRNG_STNID_XMAC1RFR;
-}
+#define msgrng_read_config() read_c2_register32(MSGRNG_MSG_CONFIG_REG, 0)
+#define msgrng_write_config(value) write_c2_register32(MSGRNG_MSG_CONFIG_REG, 0, value)
 
-static inline int 
-msgrng_xgmac_stid_jfr(int id)
-{
-	return !id ? MSGRNG_STNID_XMAC0JFR : MSGRNG_STNID_XMAC1JFR;
-}
+#define msgrng_read_bucksize(bucket) read_c2_register32(MSGRNG_MSG_BUCKSIZE_REG, bucket)
+#define msgrng_write_bucksize(bucket, value) write_c2_register32(MSGRNG_MSG_BUCKSIZE_REG, bucket, value)
 
-static inline int 
-msgrng_xgmac_stid_tx(int id)
-{
-	return !id ? MSGRNG_STNID_XMAC0_00_TX : MSGRNG_STNID_XMAC1_00_TX;
-}
+#define msgrng_read_cc(reg, pri) read_c2_register32(reg, pri)
+#define msgrng_write_cc(reg, value, pri) write_c2_register32(reg, pri, value)
 
-static inline int 
-msgrng_gmac_stid_rfr(int id)
-{
-	return (MSGRNG_STNID_GMACRFR_0);
-}
+#define msgrng_load_rx_msg0() read_c2_register64(MSGRNG_RX_BUF_REG, 0)
+#define msgrng_load_rx_msg1() read_c2_register64(MSGRNG_RX_BUF_REG, 1)
+#define msgrng_load_rx_msg2() read_c2_register64(MSGRNG_RX_BUF_REG, 2)
+#define msgrng_load_rx_msg3() read_c2_register64(MSGRNG_RX_BUF_REG, 3)
 
-static inline int 
-msgrng_gmac_stid_rfr_split_mode(int id)
-{
-	return ((id >> 1) ? MSGRNG_STNID_GMACRFR_1 : MSGRNG_STNID_GMACRFR_0);
-}
-
-static inline int 
-msgrng_gmac_stid_jfr(int id)
-{
-	return MSGRNG_STNID_GMACJFR_0;
-}
-
-static inline int 
-msgrng_gmac_stid_jfr_split_mode(int id)
-{
-	return ((id >> 1) ? MSGRNG_STNID_GMACJFR_1 : MSGRNG_STNID_GMACJFR_0);
-}
-
-static inline int 
-msgrng_gmac_stid_tx(int id)
-{
-	return (MSGRNG_STNID_GMACTX0 + id);
-}
+#define msgrng_load_tx_msg0(value) write_c2_register64(MSGRNG_TX_BUF_REG, 0, value)
+#define msgrng_load_tx_msg1(value) write_c2_register64(MSGRNG_TX_BUF_REG, 1, value)
+#define msgrng_load_tx_msg2(value) write_c2_register64(MSGRNG_TX_BUF_REG, 2, value)
+#define msgrng_load_tx_msg3(value) write_c2_register64(MSGRNG_TX_BUF_REG, 3, value)
 
 static inline void 
 msgrng_send(unsigned int stid)
@@ -280,30 +234,21 @@ msgrng_wait(unsigned int mask)
 	);
 }
 
-#define msgrng_enable(flags)                        \
-do {                                                \
-  __asm__ volatile (                                \
-		    ".set push\n\t"                 \
-		    ".set reorder\n\t"              \
-		    ".set noat\n\t"                 \
-		    "mfc0 %0, $12\n\t"              \
-		    "li  $8, 0x40000001\n\t"        \
-		    "or  $1, %0, $8\n\t"            \
-		    "xori $1, 1\n\t"                \
-		    ".set noreorder\n\t"            \
-		    "mtc0 $1, $12\n\t"              \
-		    ".set\tpop\n\t"                 \
-		    : "=r" (flags)                  \
-		    :                               \
-		    : "$8"                          \
-		    );                              \
-} while (0)
+static __inline uint32_t
+msgrng_access_enable(void)
+{
+	uint32_t sr = mips_rd_status();
 
-#define msgrng_disable(flags) __asm__ volatile (    \
-                 "mtc0 %0, $12" : : "r" (flags))
+	mips_wr_status((sr & ~MIPS_SR_INT_IE) | MIPS_SR_COP_2_BIT);
+	return (sr);
+}
 
-#define msgrng_flags_save(flags) msgrng_enable(flags)
-#define msgrng_flags_restore(flags) msgrng_disable(flags)
+static __inline void
+msgrng_restore(uint32_t sr)
+{
+
+	mips_wr_status(sr);
+}
 
 struct msgrng_msg {
 	__uint64_t msg0;
@@ -355,7 +300,7 @@ message_send_block_fast(int size, unsigned int code, unsigned int stid,
            _tmp;                                                \
         } )
 
-static __inline__ int 
+static __inline int 
 message_send(unsigned int size, unsigned int code,
     unsigned int stid, struct msgrng_msg *msg)
 {
@@ -369,42 +314,35 @@ message_send(unsigned int size, unsigned int code,
 	msgrng_load_tx_msg3(msg->msg3);
 
 	dest = ((size - 1) << 16) | (code << 8) | (stid);
-
 	msgrng_send(dest);
 
-	for (i = 0; i < 16; i++) {
+	/* Wait for the thread pending to clear */
+	do {
 		status = msgrng_read_status();
+		KASSERT(i++ < 10000, ("Too many fails\n"));
+	} while ((status & 0x2) != 0);
 
-		if (status & 0x6) {
-			continue;
-		} else
-			break;
-	}
-	return msgrng_read_status() & 0x06;
+	/* If there is a credit failure, return error */
+	return status & 0x06;
 }
 
-static __inline__ int 
+static __inline int 
 message_send_retry(unsigned int size, unsigned int code,
     unsigned int stid, struct msgrng_msg *msg)
 {
-	int res = 0;
-	int retry = 0;
+	int i, ret;
 
-	for (;;) {
-		res = message_send(size, code, stid, msg);
-		/* retry a pending fail */
-		if (res & 0x02)
-			continue;
-		/* credit fail */
-		if (res & 0x04)
-			retry++;
-		else
-			break;
-		if (retry == 4)
-			return res & 0x06;
+	/*
+	 * we are in with interrupt disabled, retrying too many 
+	 * times is not good
+	 */
+	for (i = 0; i < 16; i++) {
+		ret = message_send(size, code, stid, msg);
+		if (ret == 0)
+			return (0);
 	}
 
-	return 0;
+	return (1);
 }
 
 static __inline__ int 
@@ -457,27 +395,6 @@ extern struct stn_cc xls_cc_table_pcie;
 extern struct stn_cc xls_cc_table_dma;
 extern struct stn_cc xls_cc_table_sec;
 
-
-#define msgrng_access_save(lock, mflags) do {                \
-  mtx_lock_spin(lock);                                       \
-  msgrng_flags_save(mflags);                                 \
- }while(0)
-
-#define msgrng_access_restore(lock, mflags) do {             \
-  msgrng_flags_restore(mflags);                              \
-  mtx_unlock_spin(lock);                                     \
- }while(0)
-
-#define msgrng_access_enable(mflags) do {   \
-  critical_enter();                         \
-  msgrng_flags_save(mflags);                \
-} while(0)
-
-#define msgrng_access_disable(mflags) do {   \
-  msgrng_flags_restore(mflags);              \
-  critical_exit();                           \
-} while(0)
-
 /*
  * NOTE: this is not stationid/8, ie the station numbers below are just
  * for internal use
@@ -504,14 +421,10 @@ enum {
 	MAX_TX_STNS
 };
 
-extern int 
-register_msgring_handler(int major,
+extern int register_msgring_handler(int major,
     void (*action) (int, int, int, int, struct msgrng_msg *, void *),
     void *dev_id);
-	extern void xlr_msgring_cpu_init(void);
-
-	extern void xlr_msgring_config(void);
-
-#define cpu_to_msgring_bucket(cpu) ((((cpu) >> 2)<<3)|((cpu) & 0x03))
+extern void xlr_msgring_cpu_init(void);
+extern void xlr_msgring_config(void);
 
 #endif

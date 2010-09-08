@@ -711,21 +711,27 @@ static __inline__ int
 xlr_mac_send_fr(struct driver_data *priv,
     vm_paddr_t addr, int len)
 {
-	int stid = priv->rfrbucket;
 	struct msgrng_msg msg;
-	int vcpu = xlr_cpu_id();
+	int stid = priv->rfrbucket;
+	int i = 0, code, ret;
+	uint32_t msgrng_flags;
 
 	mac_make_desc_rfr(&msg, addr);
 
 	/* Send the packet to MAC */
 	dbg_msg("mac_%d: Sending free packet %lx to stid %d\n",
 	    priv->instance, (u_long)addr, stid);
-	if (priv->type == XLR_XGMAC) {
-		while (message_send(1, MSGRNG_CODE_XGMAC, stid, &msg));
-	} else {
-		while (message_send(1, MSGRNG_CODE_MAC, stid, &msg));
-		xlr_rge_repl_done[vcpu]++;
-	}
+	if (priv->type == XLR_XGMAC)
+		code = MSGRNG_CODE_XGMAC;        /* WHY? */
+	else
+		code = MSGRNG_CODE_MAC;
+
+	do {
+		msgrng_flags = msgrng_access_enable();
+		ret = message_send_retry(1, code, stid, &msg);
+		msgrng_restore(msgrng_flags);
+		KASSERT(i++ < 100000, ("Too many credit fails\n"));
+	} while (ret != 0);
 
 	return 0;
 }
@@ -1439,37 +1445,16 @@ rmi_xlr_mac_set_duplex(struct driver_data *s,
 #define MAC_TX_PASS 0
 #define MAC_TX_RETRY 1
 
-static __inline__ void
-message_send_block(unsigned int size, unsigned int code,
-    unsigned int stid, struct msgrng_msg *msg)
-{
-	unsigned int dest = 0;
-	unsigned long long status = 0;
-
-	msgrng_load_tx_msg0(msg->msg0);
-	msgrng_load_tx_msg1(msg->msg1);
-	msgrng_load_tx_msg2(msg->msg2);
-	msgrng_load_tx_msg3(msg->msg3);
-
-	dest = ((size - 1) << 16) | (code << 8) | (stid);
-
-	do {
-		msgrng_send(dest);
-		status = msgrng_read_status();
-	} while (status & 0x6);
-
-}
-
 int xlr_dev_queue_xmit_hack = 0;
 
 static int
 mac_xmit(struct mbuf *m, struct rge_softc *sc,
     struct driver_data *priv, int len, struct p2d_tx_desc *tx_desc)
 {
-	struct msgrng_msg msg;
+	struct msgrng_msg msg = {0,0,0,0};
 	int stid = priv->txbucket;
 	uint32_t tx_cycles = 0;
-	unsigned long mflags = 0;
+	uint32_t mflags;
 	int vcpu = xlr_cpu_id();
 	int rv;
 
@@ -1479,17 +1464,17 @@ mac_xmit(struct mbuf *m, struct rge_softc *sc,
 		return MAC_TX_FAIL;
 
 	else {
-		msgrng_access_enable(mflags);
+		mflags = msgrng_access_enable();
 		if ((rv = message_send_retry(1, MSGRNG_CODE_MAC, stid, &msg)) != 0) {
 			msg_snd_failed++;
-			msgrng_access_disable(mflags);
+			msgrng_restore(mflags);
 			release_tx_desc(&msg, 0);
 			xlr_rge_msg_snd_failed[vcpu]++;
 			dbg_msg("Failed packet to cpu %d, rv = %d, stid %d, msg0=%jx\n",
 			    vcpu, rv, stid, (uintmax_t)msg.msg0);
 			return MAC_TX_FAIL;
 		}
-		msgrng_access_disable(mflags);
+		msgrng_restore(mflags);
 		port_inc_counter(priv->instance, PORT_TX);
 	}
 
@@ -1559,7 +1544,6 @@ mac_frin_replenish(void *args /* ignored */ )
 
 		for (i = 0; i < XLR_MAX_MACS; i++) {
 			/* int offset = 0; */
-			unsigned long msgrng_flags;
 			void *m;
 			uint32_t cycles;
 			struct rge_softc *sc;
@@ -1592,14 +1576,11 @@ mac_frin_replenish(void *args /* ignored */ )
 				}
 			}
 			xlr_inc_counter(REPLENISH_FRIN);
-			msgrng_access_enable(msgrng_flags);
 			if (xlr_mac_send_fr(priv, vtophys(m), MAX_FRAME_SIZE)) {
 				free_buf(vtophys(m));
 				printf("[%s]: rx free message_send failed!\n", __FUNCTION__);
-				msgrng_access_disable(msgrng_flags);
 				break;
 			}
-			msgrng_access_disable(msgrng_flags);
 			xlr_set_counter(REPLENISH_CYCLES,
 			    (read_c0_count() - cycles));
 			atomic_subtract_int((&priv->frin_to_be_sent[cpu]), 1);
@@ -2427,7 +2408,6 @@ static int
 rmi_xlr_mac_fill_rxfr(struct rge_softc *sc)
 {
 	struct driver_data *priv = &(sc->priv);
-	unsigned long msgrng_flags;
 	int i;
 	int ret = 0;
 	void *ptr;
@@ -2445,9 +2425,7 @@ rmi_xlr_mac_fill_rxfr(struct rge_softc *sc)
 			break;
 		}
 		/* Send the free Rx desc to the MAC */
-		msgrng_access_enable(msgrng_flags);
 		xlr_mac_send_fr(priv, vtophys(ptr), MAX_FRAME_SIZE);
-		msgrng_access_disable(msgrng_flags);
 	}
 
 	return ret;

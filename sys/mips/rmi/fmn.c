@@ -115,7 +115,7 @@ xlr_msgring_cpu_init(void)
 	struct stn_cc *cc_config;
 	struct bucket_size *bucket_sizes;
 	int id;
-	unsigned long flags;
+	uint32_t flags;
 
 	KASSERT(xlr_thr_id() == 0,
 		("xlr_msgring_cpu_init from non-zero thread\n"));
@@ -125,13 +125,14 @@ xlr_msgring_cpu_init(void)
 	bucket_sizes = xlr_board_info.bucket_sizes;
 	cc_config = xlr_board_info.credit_configs[id];
 
-	msgrng_flags_save(flags);
 
 	/*
 	 * Message Stations are shared among all threads in a cpu core
 	 * Assume, thread 0 on all cores are always active when more than 1
 	 * thread is active in a core
 	 */
+	flags = msgrng_access_enable();
+
 	msgrng_write_bucksize(0, bucket_sizes->bucket[id * 8 + 0]);
 	msgrng_write_bucksize(1, bucket_sizes->bucket[id * 8 + 1]);
 	msgrng_write_bucksize(2, bucket_sizes->bucket[id * 8 + 2]);
@@ -158,7 +159,7 @@ xlr_msgring_cpu_init(void)
 	MSGRNG_CC_INIT_CPU_DEST(14, cc_config->counters);
 	MSGRNG_CC_INIT_CPU_DEST(15, cc_config->counters);
 
-	msgrng_flags_restore(flags);
+	msgrng_restore(flags);
 }
 
 void 
@@ -183,8 +184,7 @@ xlr_msgring_handler(struct trapframe *tf)
 	unsigned int bucket_empty_bm = 0;
 	unsigned int status = 0;
 
-	/* TODO: not necessary to disable preemption */
-	msgrng_flags_save(mflags);
+	mflags = msgrng_access_enable();
 
 	/* First Drain all the high priority messages */
 	for (;;) {
@@ -210,39 +210,37 @@ xlr_msgring_handler(struct trapframe *tf)
 				    __FUNCTION__, tx_stid, bucket, size, (uintmax_t)msg.msg0);
 			} else {
 				//printf("[%s]: rx_stid = %d\n", __FUNCTION__, rx_stid);
-				msgrng_flags_restore(mflags);
+				msgrng_restore(mflags);
 				(*tx_stn_handlers[tx_stid].action) (bucket, size, code, rx_stid,
 				    &msg, tx_stn_handlers[tx_stid].dev_id);
-				msgrng_flags_save(mflags);
+				mflags = msgrng_access_enable();
 			}
 		}
 	}
-	msgrng_flags_restore(mflags);
+	msgrng_restore(mflags);
 }
 
 void 
 enable_msgring_int(void *arg)
 {
-	unsigned long mflags = 0;
+	uint32_t config, mflags;
 
-	msgrng_access_save(&msgrng_lock, mflags);
-	/* enable the message ring interrupts */
-	msgrng_write_config((msgring_watermark_count << 24) | (IRQ_MSGRING << 16)
-	    | (msgring_thread_mask << 8) | msgring_int_type);
-	msgrng_access_restore(&msgrng_lock, mflags);
+	config = (msgring_watermark_count << 24) | (IRQ_MSGRING << 16) |
+	    (msgring_thread_mask << 8) | msgring_int_type;
+	mflags = msgrng_access_enable();
+	msgrng_write_config(config);
+	msgrng_restore(mflags);
 }
 
 void 
 disable_msgring_int(void *arg)
 {
-	unsigned long mflags = 0;
-	uint32_t config;
+	uint32_t config, mflags;
 
-	msgrng_access_save(&msgrng_lock, mflags);
-	config = msgrng_read_config();
-	config &= ~0x3;
+	mflags = msgrng_access_enable();
+	config = msgrng_read_config() & ~0x3;
 	msgrng_write_config(config);
-	msgrng_access_restore(&msgrng_lock, mflags);
+	msgrng_restore(mflags);
 }
 
 static int
