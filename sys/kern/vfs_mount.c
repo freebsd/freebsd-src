@@ -704,9 +704,7 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 		goto bail;
 	}
 
-	mtx_lock(&Giant);
 	error = vfs_domount(td, fstype, fspath, fsflags, optlist);
-	mtx_unlock(&Giant);
 bail:
 	/* copyout the errmsg */
 	if (errmsg_pos != -1 && ((2 * errmsg_pos + 1) < fsoptions->uio_iovcnt)
@@ -795,6 +793,257 @@ mount(td, uap)
 	return (error);
 }
 
+/*
+ * vfs_domount_first(): first file system mount (not update)
+ */
+static int
+vfs_domount_first(
+	struct thread *td,	/* Calling thread. */
+	struct vfsconf *vfsp,	/* File system type. */
+	char *fspath,		/* Mount path. */
+	struct vnode *vp,	/* Vnode to be covered. */
+	int fsflags,		/* Flags common to all filesystems. */
+	void *fsdata		/* Options local to the filesystem. */
+	)
+{
+	struct vattr va;
+	struct mount *mp;
+	struct vnode *newdp;
+	int error;
+
+	mtx_assert(&Giant, MA_OWNED);
+	ASSERT_VOP_ELOCKED(vp, __func__);
+	KASSERT((fsflags & MNT_UPDATE) == 0, ("MNT_UPDATE shouldn't be here"));
+
+	/*
+	 * If the user is not root, ensure that they own the directory
+	 * onto which we are attempting to mount.
+	 */
+	error = VOP_GETATTR(vp, &va, td->td_ucred);
+	if (error == 0 && va.va_uid != td->td_ucred->cr_uid)
+		error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN, 0);
+	if (error == 0)
+		error = vinvalbuf(vp, V_SAVE, 0, 0);
+	if (error == 0 && vp->v_type != VDIR)
+		error = ENOTDIR;
+	if (error == 0) {
+		VI_LOCK(vp);
+		if ((vp->v_iflag & VI_MOUNT) == 0 && vp->v_mountedhere == NULL)
+			vp->v_iflag |= VI_MOUNT;
+		else
+			error = EBUSY;
+		VI_UNLOCK(vp);
+	}
+	if (error != 0) {
+		vput(vp);
+		return (error);
+	}
+	VOP_UNLOCK(vp, 0);
+
+	/* Allocate and initialize the filesystem. */
+	mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
+	/* XXXMAC: pass to vfs_mount_alloc? */
+	mp->mnt_optnew = fsdata;
+	/* Set the mount level flags. */
+	mp->mnt_flag = (fsflags & (MNT_UPDATEMASK | MNT_ROOTFS | MNT_RDONLY));
+
+	/*
+	 * Mount the filesystem.
+	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
+	 * get.  No freeing of cn_pnbuf.
+	 */
+        error = VFS_MOUNT(mp);
+	if (error != 0) {
+		vfs_unbusy(mp);
+		vfs_mount_destroy(mp);
+		vrele(vp);
+		return (error);
+	}
+
+	if (mp->mnt_opt != NULL)
+		vfs_freeopts(mp->mnt_opt);
+	mp->mnt_opt = mp->mnt_optnew;
+	(void)VFS_STATFS(mp, &mp->mnt_stat);
+
+	/*
+	 * Prevent external consumers of mount options from reading mnt_optnew.
+	 */
+	mp->mnt_optnew = NULL;
+
+	MNT_ILOCK(mp);
+	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+		mp->mnt_kern_flag |= MNTK_ASYNC;
+	else
+		mp->mnt_kern_flag &= ~MNTK_ASYNC;
+	MNT_IUNLOCK(mp);
+
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	cache_purge(vp);
+	VI_LOCK(vp);
+	vp->v_iflag &= ~VI_MOUNT;
+	VI_UNLOCK(vp);
+	vp->v_mountedhere = mp;
+	/* Place the new filesystem at the end of the mount list. */
+	mtx_lock(&mountlist_mtx);
+	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	mtx_unlock(&mountlist_mtx);
+	vfs_event_signal(NULL, VQ_MOUNT, 0);
+	if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp))
+		panic("mount: lost mount");
+	VOP_UNLOCK(newdp, 0);
+	VOP_UNLOCK(vp, 0);
+	mountcheckdirs(vp, newdp);
+	vrele(newdp);
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+		vfs_allocate_syncvnode(mp);
+	vfs_unbusy(mp);
+	return (0);
+}
+
+/*
+ * vfs_domount_update(): update of mounted file system
+ */
+static int
+vfs_domount_update(
+	struct thread *td,	/* Calling thread. */
+	struct vnode *vp,	/* Mount point vnode. */
+	int fsflags,		/* Flags common to all filesystems. */
+	void *fsdata		/* Options local to the filesystem. */
+	)
+{
+	struct oexport_args oexport;
+	struct export_args export;
+	struct mount *mp;
+	int error, flag;
+
+	mtx_assert(&Giant, MA_OWNED);
+	ASSERT_VOP_ELOCKED(vp, __func__);
+	KASSERT((fsflags & MNT_UPDATE) != 0, ("MNT_UPDATE should be here"));
+
+	if ((vp->v_vflag & VV_ROOT) == 0) {
+		vput(vp);
+		return (EINVAL);
+	}
+	mp = vp->v_mount;
+	/*
+	 * We only allow the filesystem to be reloaded if it
+	 * is currently mounted read-only.
+	 */
+	flag = mp->mnt_flag;
+	if ((fsflags & MNT_RELOAD) != 0 && (flag & MNT_RDONLY) == 0) {
+		vput(vp);
+		return (EOPNOTSUPP);	/* Needs translation */
+	}
+	/*
+	 * Only privileged root, or (if MNT_USER is set) the user that
+	 * did the original mount is permitted to update it.
+	 */
+	error = vfs_suser(mp, td);
+	if (error != 0) {
+		vput(vp);
+		return (error);
+	}
+	if (vfs_busy(mp, MBF_NOWAIT)) {
+		vput(vp);
+		return (EBUSY);
+	}
+	VI_LOCK(vp);
+	if ((vp->v_iflag & VI_MOUNT) != 0 || vp->v_mountedhere != NULL) {
+		VI_UNLOCK(vp);
+		vfs_unbusy(mp);
+		vput(vp);
+		return (EBUSY);
+	}
+	vp->v_iflag |= VI_MOUNT;
+	VI_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0);
+
+	MNT_ILOCK(mp);
+	mp->mnt_flag &= ~MNT_UPDATEMASK;
+	mp->mnt_flag |= fsflags & (MNT_RELOAD | MNT_FORCE | MNT_UPDATE |
+	    MNT_SNAPSHOT | MNT_ROOTFS | MNT_UPDATEMASK | MNT_RDONLY);
+	if ((mp->mnt_flag & MNT_ASYNC) == 0)
+		mp->mnt_kern_flag &= ~MNTK_ASYNC;
+	MNT_IUNLOCK(mp);
+	mp->mnt_optnew = fsdata;
+	vfs_mergeopts(mp->mnt_optnew, mp->mnt_opt);
+
+	/*
+	 * Mount the filesystem.
+	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
+	 * get.  No freeing of cn_pnbuf.
+	 */
+        error = VFS_MOUNT(mp);
+
+	if (error == 0) {
+		/* Process the export option. */
+		if (vfs_copyopt(mp->mnt_optnew, "export", &export,
+		    sizeof(export)) == 0) {
+			error = vfs_export(mp, &export);
+		} else if (vfs_copyopt(mp->mnt_optnew, "export", &oexport,
+		    sizeof(oexport)) == 0) {
+			export.ex_flags = oexport.ex_flags;
+			export.ex_root = oexport.ex_root;
+			export.ex_anon = oexport.ex_anon;
+			export.ex_addr = oexport.ex_addr;
+			export.ex_addrlen = oexport.ex_addrlen;
+			export.ex_mask = oexport.ex_mask;
+			export.ex_masklen = oexport.ex_masklen;
+			export.ex_indexfile = oexport.ex_indexfile;
+			export.ex_numsecflavors = 0;
+			error = vfs_export(mp, &export);
+		}
+	}
+
+	MNT_ILOCK(mp);
+	if (error == 0) {
+		mp->mnt_flag &=	~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE |
+		    MNT_SNAPSHOT);
+	} else {
+		/*
+		 * If we fail, restore old mount flags. MNT_QUOTA is special,
+		 * because it is not part of MNT_UPDATEMASK, but it could have
+		 * changed in the meantime if quotactl(2) was called.
+		 * All in all we want current value of MNT_QUOTA, not the old
+		 * one.
+		 */
+		mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) | (flag & ~MNT_QUOTA);
+	}
+	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+		mp->mnt_kern_flag |= MNTK_ASYNC;
+	else
+		mp->mnt_kern_flag &= ~MNTK_ASYNC;
+	MNT_IUNLOCK(mp);
+
+	if (error != 0)
+		goto end;
+
+	if (mp->mnt_opt != NULL)
+		vfs_freeopts(mp->mnt_opt);
+	mp->mnt_opt = mp->mnt_optnew;
+	(void)VFS_STATFS(mp, &mp->mnt_stat);
+	/*
+	 * Prevent external consumers of mount options from reading
+	 * mnt_optnew.
+	 */
+	mp->mnt_optnew = NULL;
+
+	if ((mp->mnt_flag & MNT_RDONLY) == 0) {
+		if (mp->mnt_syncer == NULL)
+			vfs_allocate_syncvnode(mp);
+	} else {
+		if (mp->mnt_syncer != NULL)
+			vrele(mp->mnt_syncer);
+		mp->mnt_syncer = NULL;
+	}
+end:
+	vfs_unbusy(mp);
+	VI_LOCK(vp);
+	vp->v_iflag &= ~VI_MOUNT;
+	VI_UNLOCK(vp);
+	vrele(vp);
+	return (error);
+}
 
 /*
  * vfs_domount(): actually attempt a filesystem mount.
@@ -808,16 +1057,11 @@ vfs_domount(
 	void *fsdata		/* Options local to the filesystem. */
 	)
 {
-	struct vnode *vp;
-	struct mount *mp;
 	struct vfsconf *vfsp;
-	struct oexport_args oexport;
-	struct export_args export;
-	int error, flag = 0;
-	struct vattr va;
 	struct nameidata nd;
+	struct vnode *vp;
+	int error;
 
-	mtx_assert(&Giant, MA_OWNED);
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
 	 * variables will fit in our mp buffers, including the
@@ -865,226 +1109,30 @@ vfs_domount(
 		if (jailed(td->td_ucred) && !(vfsp->vfc_flags & VFCF_JAIL))
 			return (EPERM);
 	}
+
 	/*
-	 * Get vnode to be covered
+	 * Get vnode to be covered or mount point's vnode in case of MNT_UPDATE.
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_SYSSPACE,
-	    fspath, td);
-	if ((error = namei(&nd)) != 0)
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	    UIO_SYSSPACE, fspath, td);
+	error = namei(&nd);
+	if (error != 0)
 		return (error);
+	if (!NDHASGIANT(&nd))
+		mtx_lock(&Giant);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
-	if (fsflags & MNT_UPDATE) {
-		if ((vp->v_vflag & VV_ROOT) == 0) {
-			vput(vp);
-			return (EINVAL);
-		}
-		mp = vp->v_mount;
-		MNT_ILOCK(mp);
-		flag = mp->mnt_flag;
-		/*
-		 * We only allow the filesystem to be reloaded if it
-		 * is currently mounted read-only.
-		 */
-		if ((fsflags & MNT_RELOAD) &&
-		    ((mp->mnt_flag & MNT_RDONLY) == 0)) {
-			MNT_IUNLOCK(mp);
-			vput(vp);
-			return (EOPNOTSUPP);	/* Needs translation */
-		}
-		MNT_IUNLOCK(mp);
-		/*
-		 * Only privileged root, or (if MNT_USER is set) the user that
-		 * did the original mount is permitted to update it.
-		 */
-		error = vfs_suser(mp, td);
-		if (error) {
-			vput(vp);
-			return (error);
-		}
-		if (vfs_busy(mp, MBF_NOWAIT)) {
-			vput(vp);
-			return (EBUSY);
-		}
-		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_MOUNT) != 0 ||
-		    vp->v_mountedhere != NULL) {
-			VI_UNLOCK(vp);
-			vfs_unbusy(mp);
-			vput(vp);
-			return (EBUSY);
-		}
-		vp->v_iflag |= VI_MOUNT;
-		VI_UNLOCK(vp);
-		MNT_ILOCK(mp);
-		mp->mnt_flag |= fsflags &
-		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT | MNT_ROOTFS);
-		MNT_IUNLOCK(mp);
-		VOP_UNLOCK(vp, 0);
-		mp->mnt_optnew = fsdata;
-		vfs_mergeopts(mp->mnt_optnew, mp->mnt_opt);
+	if ((fsflags & MNT_UPDATE) == 0) {
+		error = vfs_domount_first(td, vfsp, fspath, vp, fsflags,
+		    fsdata);
 	} else {
-		/*
-		 * If the user is not root, ensure that they own the directory
-		 * onto which we are attempting to mount.
-		 */
-		error = VOP_GETATTR(vp, &va, td->td_ucred);
-		if (error) {
-			vput(vp);
-			return (error);
-		}
-		if (va.va_uid != td->td_ucred->cr_uid) {
-			error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN,
-			    0);
-			if (error) {
-				vput(vp);
-				return (error);
-			}
-		}
-		error = vinvalbuf(vp, V_SAVE, 0, 0);
-		if (error != 0) {
-			vput(vp);
-			return (error);
-		}
-		if (vp->v_type != VDIR) {
-			vput(vp);
-			return (ENOTDIR);
-		}
-		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_MOUNT) != 0 ||
-		    vp->v_mountedhere != NULL) {
-			VI_UNLOCK(vp);
-			vput(vp);
-			return (EBUSY);
-		}
-		vp->v_iflag |= VI_MOUNT;
-		VI_UNLOCK(vp);
-		VOP_UNLOCK(vp, 0);
-
-		/*
-		 * Allocate and initialize the filesystem.
-		 */
-		mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
-
-		/* XXXMAC: pass to vfs_mount_alloc? */
-		mp->mnt_optnew = fsdata;
+		error = vfs_domount_update(td, vp, fsflags, fsdata);
 	}
+	mtx_unlock(&Giant);
 
-	/*
-	 * Set the mount level flags.
-	 */
-	MNT_ILOCK(mp);
-	mp->mnt_flag = (mp->mnt_flag & ~MNT_UPDATEMASK) |
-		(fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS |
-			    MNT_RDONLY));
-	if ((mp->mnt_flag & MNT_ASYNC) == 0)
-		mp->mnt_kern_flag &= ~MNTK_ASYNC;
-	MNT_IUNLOCK(mp);
-	/*
-	 * Mount the filesystem.
-	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
-	 * get.  No freeing of cn_pnbuf.
-	 */
-        error = VFS_MOUNT(mp);
+	ASSERT_VI_UNLOCKED(vp, __func__);
+	ASSERT_VOP_UNLOCKED(vp, __func__);
 
-	/*
-	 * Process the export option only if we are
-	 * updating mount options.
-	 */
-	if (!error && (fsflags & MNT_UPDATE)) {
-		if (vfs_copyopt(mp->mnt_optnew, "export", &export,
-		    sizeof(export)) == 0)
-			error = vfs_export(mp, &export);
-		else if (vfs_copyopt(mp->mnt_optnew, "export", &oexport,
-			sizeof(oexport)) == 0) {
-			export.ex_flags = oexport.ex_flags;
-			export.ex_root = oexport.ex_root;
-			export.ex_anon = oexport.ex_anon;
-			export.ex_addr = oexport.ex_addr;
-			export.ex_addrlen = oexport.ex_addrlen;
-			export.ex_mask = oexport.ex_mask;
-			export.ex_masklen = oexport.ex_masklen;
-			export.ex_indexfile = oexport.ex_indexfile;
-			export.ex_numsecflavors = 0;
-			error = vfs_export(mp, &export);
-		}
-	}
-
-	if (!error) {
-		if (mp->mnt_opt != NULL)
-			vfs_freeopts(mp->mnt_opt);
-		mp->mnt_opt = mp->mnt_optnew;
-		(void)VFS_STATFS(mp, &mp->mnt_stat);
-	}
-	/*
-	 * Prevent external consumers of mount options from reading
-	 * mnt_optnew.
-	*/
-	mp->mnt_optnew = NULL;
-	if (mp->mnt_flag & MNT_UPDATE) {
-		MNT_ILOCK(mp);
-		if (error)
-			mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) |
-				(flag & ~MNT_QUOTA);
-		else
-			mp->mnt_flag &=	~(MNT_UPDATE | MNT_RELOAD |
-					  MNT_FORCE | MNT_SNAPSHOT);
-		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
-			mp->mnt_kern_flag |= MNTK_ASYNC;
-		else
-			mp->mnt_kern_flag &= ~MNTK_ASYNC;
-		MNT_IUNLOCK(mp);
-		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
-			if (mp->mnt_syncer == NULL)
-				vfs_allocate_syncvnode(mp);
-		} else {
-			if (mp->mnt_syncer != NULL)
-				vrele(mp->mnt_syncer);
-			mp->mnt_syncer = NULL;
-		}
-		vfs_unbusy(mp);
-		VI_LOCK(vp);
-		vp->v_iflag &= ~VI_MOUNT;
-		VI_UNLOCK(vp);
-		vrele(vp);
-		return (error);
-	}
-	MNT_ILOCK(mp);
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
-		mp->mnt_kern_flag |= MNTK_ASYNC;
-	else
-		mp->mnt_kern_flag &= ~MNTK_ASYNC;
-	MNT_IUNLOCK(mp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	/*
-	 * Put the new filesystem on the mount list after root.
-	 */
-	cache_purge(vp);
-	VI_LOCK(vp);
-	vp->v_iflag &= ~VI_MOUNT;
-	VI_UNLOCK(vp);
-	if (!error) {
-		struct vnode *newdp;
-
-		vp->v_mountedhere = mp;
-		mtx_lock(&mountlist_mtx);
-		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-		mtx_unlock(&mountlist_mtx);
-		vfs_event_signal(NULL, VQ_MOUNT, 0);
-		if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp))
-			panic("mount: lost mount");
-		VOP_UNLOCK(newdp, 0);
-		VOP_UNLOCK(vp, 0);
-		mountcheckdirs(vp, newdp);
-		vrele(newdp);
-		if ((mp->mnt_flag & MNT_RDONLY) == 0)
-			vfs_allocate_syncvnode(mp);
-		vfs_unbusy(mp);
-	} else {
-		vfs_unbusy(mp);
-		vfs_mount_destroy(mp);
-		vput(vp);
-	}
 	return (error);
 }
 
