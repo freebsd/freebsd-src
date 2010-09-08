@@ -174,6 +174,7 @@ readcmd(int argc __unused, char **argv __unused)
 			continue;
 		if (backslash) {
 			backslash = 0;
+			startword = 0;
 			if (c != '\n')
 				STPUTC(c, p);
 			continue;
