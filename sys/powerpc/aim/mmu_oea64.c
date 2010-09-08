@@ -2086,7 +2086,7 @@ moea64_get_unique_vsid(void) {
 			hash |= i;
 		}
 		KASSERT(!(moea64_vsid_bitmap[n] & mask),
-		    ("Allocating in-use VSID %#x\n", hash));
+		    ("Allocating in-use VSID %#zx\n", hash));
 		moea64_vsid_bitmap[n] |= mask;
 		mtx_unlock(&moea64_slb_mutex);
 		return (hash);
