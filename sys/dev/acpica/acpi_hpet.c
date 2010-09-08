@@ -89,6 +89,8 @@ struct hpet_softc {
 		int			mode;
 		int			intr_rid;
 		int			irq;
+		int			pcpu_cpu;
+		int			pcpu_misrouted;
 		int			pcpu_master;
 		int			pcpu_slaves[MAXCPU];
 		struct resource		*intr_res;
@@ -185,7 +187,7 @@ restart:
 	if (fdiv < 5000) {
 		bus_read_4(sc->mem_res, HPET_TIMER_COMPARATOR(t->num));
 		t->last = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
-		if ((int32_t)(t->last - cmp) < 0) {
+		if ((int32_t)(t->last - cmp) >= 0) {
 			fdiv *= 2;
 			goto restart;
 		}
@@ -215,6 +217,26 @@ hpet_intr_single(void *arg)
 	struct hpet_softc *sc = t->sc;
 	uint32_t now;
 
+	/* Check that per-CPU timer interrupt reached right CPU. */
+	if (t->pcpu_cpu >= 0 && t->pcpu_cpu != curcpu) {
+		if ((++t->pcpu_misrouted) % 32 == 0) {
+			printf("HPET interrupt routed to the wrong CPU"
+			    " (timer %d CPU %d -> %d)!\n",
+			    t->num, t->pcpu_cpu, curcpu);
+		}
+
+		/*
+		 * Reload timer, hoping that next time may be more lucky
+		 * (system will manage proper interrupt binding).
+		 */
+		if ((t->mode == 1 && (t->caps & HPET_TCAP_PER_INT) == 0) ||
+		    t->mode == 2) {
+			t->last = bus_read_4(sc->mem_res, HPET_MAIN_COUNTER);
+			bus_write_4(sc->mem_res, HPET_TIMER_COMPARATOR(t->num),
+			    t->last + sc->freq / 8);
+		}
+		return (FILTER_HANDLED);
+	}
 	if (t->mode == 1 &&
 	    (t->caps & HPET_TCAP_PER_INT) == 0) {
 		t->last += t->div;
@@ -394,6 +416,8 @@ hpet_attach(device_t dev)
 		t->mode = 0;
 		t->intr_rid = -1;
 		t->irq = -1;
+		t->pcpu_cpu = -1;
+		t->pcpu_misrouted = 0;
 		t->pcpu_master = -1;
 		t->caps = bus_read_4(sc->mem_res, HPET_TIMER_CAP_CNF(i));
 		t->vectors = bus_read_4(sc->mem_res, HPET_TIMER_CAP_CNF(i) + 4);
@@ -534,6 +558,7 @@ hpet_attach(device_t dev)
 		if (t->irq >= 0 && num_percpu_t > 0) {
 			if (cur_cpu == CPU_FIRST())
 				pcpu_master = i;
+			t->pcpu_cpu = cur_cpu;
 			t->pcpu_master = pcpu_master;
 			sc->t[pcpu_master].
 			    pcpu_slaves[cur_cpu] = i;
