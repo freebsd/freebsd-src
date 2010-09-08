@@ -113,7 +113,8 @@ get_package_index()
 
     case "${INSTALLMEDIUM}" in
       usb|dvd) get_package_index_by_fs ;;
-      ftp|sftp) get_package_index_by_ftp "${FTPPATH}" ;;
+      ftp) get_package_index_by_ftp "${FTPPATH}" ;;
+      sftp) ;;
       *) RES=1 ;;
     esac
 
@@ -369,6 +370,7 @@ fetch_package()
 
   case "${INSTALLMEDIUM}" in
     usb|dvd) fetch_package_by_fs "${CATEGORY}" "${PACKAGE}" "${SAVEDIR}" ;;
-    ftp|sftp) fetch_package_by_ftp "${CATEGORY}" "${PACKAGE}" "${SAVEDIR}" ;;
+    ftp) fetch_package_by_ftp "${CATEGORY}" "${PACKAGE}" "${SAVEDIR}" ;;
+    sftp) ;;
   esac
 };

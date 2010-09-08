@@ -566,9 +566,8 @@ populate_disk_label()
 setup_disk_label()
 {
   # We are ready to start setting up the label, lets read the config and do the actions
-
   # First confirm that we have a valid WORKINGSLICES
-  if [ -z "${WORKINGSLICES}" ]; then
+  if [ -z "${WORKINGSLICES}" -a -z "${WORKINGIMAGES}" ]; then
     exit_err "ERROR: No slices were setup! Please report this to the maintainers"
   fi
 
@@ -613,6 +612,12 @@ setup_disk_label()
     populate_disk_label "${i}"
   done
 
+  for i in $WORKINGIMAGES
+  do
+    image=`echo "${i}"|cut -f2 -d:`
+    check_image_layout "${image}" 
+  done
+
   # Check if we made a root partition
   if [ "$FOUNDROOT" = "-1" ]
   then
@@ -631,3 +636,166 @@ setup_disk_label()
   fi
 };
 
+check_fstab_mbr()
+{
+  local SLICE
+  local FSTAB
+
+  if [ -z "$2" ]
+  then
+	return 1
+  fi
+
+  SLICE="$1"
+  FSTAB="$2/etc/fstab"
+
+  if [ -f "${FSTAB}" ]
+  then
+    PARTLETTER=`echo "$SLICE" | sed -E 's|^.+([a-h])$|\1|'`
+
+    grep -E '^.+ +/ +' "${FSTAB}" >/dev/null 2>&1
+    if [ "$?" = "0" ]
+    then
+      if [ "${PARTLETTER}" = "a" ]
+      then
+        FOUNDROOT="0"
+      else
+        FOUNDROOT="1"
+      fi
+      export FOUNDROOT
+    fi
+
+    grep -E '^.+ +/boot +' "${FSTAB}" >/dev/null 2>&1
+    if [ "$?" = "0" ]
+    then
+      if [ "${PARTLETTER}" = "a" ]
+      then
+        USINGBOOTPART="0"
+      else 
+        exit_err "/boot partition must be first partition"
+      fi 
+      export USINGBOOTPART
+    fi
+
+    return 0
+  fi
+
+  return 1
+};
+
+check_fstab_gpt()
+{
+  local SLICE
+  local FSTAB
+
+  if [ -z "$2" ]
+  then
+	return 1
+  fi
+
+  SLICE="$1"
+  FSTAB="$2/etc/fstab"
+
+  if [ -f "${FSTAB}" ]
+  then
+    PARTNUMBER=`echo "${SLICE}" | sed -E 's|^.+p([0-9]*)$|\1|'`
+
+    grep -E '^.+ +/ +' "${FSTAB}" >/dev/null 2>&1
+    if [ "$?" = "0" ]
+    then
+      if [ "${PARTNUMBER}" = "2" ]
+      then
+        FOUNDROOT="0"
+      else
+        FOUNDROOT="1"
+      fi
+      export FOUNDROOT
+    fi
+
+    grep -E '^.+ +/boot +' "${FSTAB}" >/dev/null 2>&1
+    if [ "$?" = "0" ]
+    then
+      if [ "${PARTNUMBER}" = "2" ]
+      then
+        USINGBOOTPART="0"
+      else 
+        exit_err "/boot partition must be first partition"
+      fi 
+      export USINGBOOTPART
+    fi
+
+    return 0
+  fi
+
+
+  return 1
+};
+
+check_image_layout()
+{
+  local SLICES
+  local IMAGE
+  local TYPE
+  local RES
+  local MD
+  local F
+
+  IMAGE="$1"
+  TYPE="MBR"
+
+  if [ -z "${IMAGE}" ]
+  then
+	return 1
+  fi
+
+  MD=`mdconfig -af "${IMAGE}"`
+  if [ "$?" != "0" ]
+  then
+	return 1
+  fi
+
+  SLICES=`ls /dev/${MD}s[1-4]*[a-h]* 2>/dev/null`
+  if [ "$?" != "0" ]
+  then
+    SLICES=`ls /dev/${MD}p[0-9]* 2>/dev/null`
+    if [ -n "${SLICES}" ]
+    then
+      TYPE="GPT"
+      RES=0
+    fi
+  else
+    RES=0
+  fi
+
+  for slice in ${SLICES}
+  do
+    F=1
+    mount ${slice} /mnt 2>/dev/null
+    if [ "$?" != "0" ]
+    then
+      continue
+    fi 
+
+    if [ "${TYPE}" = "MBR" ]
+    then
+	  check_fstab_mbr "${slice}" "/mnt"
+      F="$?"
+
+    elif [ "${TYPE}" = "GPT" ]
+    then
+	  check_fstab_gpt "${slice}" "/mnt"
+      F="$?"
+    fi 
+
+    if [ "${F}" = "0" ]
+    then
+      umount /mnt
+      break 
+    fi
+
+    umount /mnt
+  done
+
+  mdconfig -d -u "${MD}"
+  return ${RES}
+};
