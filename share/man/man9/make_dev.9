@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2010
+.Dd September 5, 2010
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
@@ -135,6 +135,7 @@ The following values are currently accepted:
 MAKEDEV_REF	reference the created device
 MAKEDEV_NOWAIT	do not sleep, may return NULL
 MAKEDEV_WAITOK	allow the function to sleep to satisfy malloc
+MAKEDEV_ETERNAL	created device will be never destroyed
 .Ed
 .Pp
 The
@@ -152,6 +153,18 @@ flag when creating a device in response to lookup, to avoid race where
 the device created is destroyed immediately after
 .Xr devfs_lookup 9
 drops his reference to cdev.
+.Pp
+The
+.Dv MAKEDEV_ETERNAL
+flag allows the kernel to not acquire some locks when translating system
+calls into the cdevsw methods calls.
+It is responsibility of the driver author to make sure that
+.Fn destroy_dev
+is never called on the returned cdev.
+For the convenience, use the
+.Dv MAKEDEV_ETERNAL_KLD
+flag for the code that can be compiled into kernel or loaded
+(and unloaded) as loadable module.
 .Pp
 The
 .Fn make_dev_cred
