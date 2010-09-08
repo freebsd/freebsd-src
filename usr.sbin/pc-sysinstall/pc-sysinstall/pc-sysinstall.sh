@@ -116,6 +116,10 @@ case $1 in
     fi
   ;;
 
+  # Install an image file to a device
+  install-image) ${BACKEND}/installimage.sh "${2}" "${3}"
+  ;;
+
   # Parse an auto-install directive, and begin the installation
   start-autoinstall) ${BACKEND}/startautoinstall.sh ${2}
   ;;

@@ -114,7 +114,7 @@ root zpool of the target system to update. I.E:
  # disk0=ada0s1a
 
 
-# partition=(all, free, s1, s1, s3, s4)
+# partition=(all, free, s1, s1, s3, s4, image)
 
 After setting disk[0-9], the partition= variable is used to specify which target
 partition we will be working with for this device.
@@ -124,7 +124,9 @@ Setting this to "all" will setup the disk with a single FreeBSD slice as "s1"
 Setting this to "free" will allow pc-sysinstall to search for the first available
 primary slice with free space, and create the slice. 
 
-Setting this to "s1, s2, s3 or s4" will use the specified MBR slice
+Setting this to "s1, s2, s3 or s4" will use the specified MBR slice.
+
+Setting this to "image" will use an image to configure the disk.
 
 (This tag is unused for upgrades)
 
@@ -150,6 +152,11 @@ specified this defaults to "round-robin"
 
 Setting this option will instruct pc-sysinstall to install the BSD boot Manager,
 or leave it empty
+
+# image=(/path/to/image/file)
+
+Setting this option will instruct pc-sysinstall to write the image file
+specified by the path to the disk.
 
 # commitDiskPart
 
