@@ -67,7 +67,7 @@ _pthread_cancel(pthread_t pthread)
 		THR_THREAD_LOCK(curthread, pthread);
 		if (!pthread->cancel_pending) {
 			pthread->cancel_pending = 1;
-			if (pthread->cancel_enable)
+			if (pthread->state != PS_DEAD)
 				_thr_send_sig(pthread, SIGCANCEL);
 		}
 		THR_THREAD_UNLOCK(curthread, pthread);
