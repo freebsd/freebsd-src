@@ -12124,7 +12124,6 @@ sctp_sosend(struct socket *so,
     struct thread *p
 )
 {
-	struct sctp_inpcb *inp;
 	int error, use_rcvinfo = 0;
 	struct sctp_sndrcvinfo srcv;
 	struct sockaddr *addr_to_use;
@@ -12134,7 +12133,6 @@ sctp_sosend(struct socket *so,
 
 #endif
 
-	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (control) {
 		/* process cmsg snd/rcv info (maybe a assoc-id) */
 		if (sctp_find_cmsg(SCTP_SNDRCV, (void *)&srcv, control,
@@ -12182,7 +12180,7 @@ sctp_lower_sosend(struct socket *so,
 	struct mbuf *top = NULL;
 	int queue_only = 0, queue_only_for_init = 0;
 	int free_cnt_applied = 0;
-	int un_sent = 0;
+	int un_sent;
 	int now_filled = 0;
 	unsigned int inqueue_bytes = 0;
 	struct sctp_block_entry be;
@@ -12525,9 +12523,10 @@ sctp_lower_sosend(struct socket *so,
 			 * change it BEFORE we append the message.
 			 */
 		}
-	}
+	} else
+		asoc = &stcb->asoc;
 	if (srcv == NULL)
-		srcv = (struct sctp_sndrcvinfo *)&stcb->asoc.def_send;
+		srcv = (struct sctp_sndrcvinfo *)&asoc->def_send;
 	if (srcv->sinfo_flags & SCTP_ADDR_OVER) {
 		if (addr)
 			net = sctp_findnet(stcb, addr);
@@ -12542,14 +12541,10 @@ sctp_lower_sosend(struct socket *so,
 	} else {
 		net = stcb->asoc.primary_destination;
 	}
-
-	if ((SCTP_SO_IS_NBIO(so)
-	    || (flags & MSG_NBIO)
-	    )) {
-		non_blocking = 1;
-	}
-	asoc = &stcb->asoc;
 	atomic_add_int(&stcb->total_sends, 1);
+	/* Keep the stcb from being freed under our feet */
+	atomic_add_int(&asoc->refcnt, 1);
+	free_cnt_applied = 1;
 
 	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NO_FRAGMENT)) {
 		if (sndlen > asoc->smallest_mtu) {
@@ -12557,6 +12552,11 @@ sctp_lower_sosend(struct socket *so,
 			error = EMSGSIZE;
 			goto out_unlocked;
 		}
+	}
+	if ((SCTP_SO_IS_NBIO(so)
+	    || (flags & MSG_NBIO)
+	    )) {
+		non_blocking = 1;
 	}
 	/* would we block? */
 	if (non_blocking) {
@@ -12581,17 +12581,6 @@ sctp_lower_sosend(struct socket *so,
 		atomic_add_int(&stcb->asoc.sb_send_resv, sndlen);
 	}
 	local_soresv = sndlen;
-	/* Keep the stcb from being freed under our feet */
-	if (free_cnt_applied) {
-#ifdef INVARIANTS
-		panic("refcnt already incremented");
-#else
-		printf("refcnt:1 already incremented?\n");
-#endif
-	} else {
-		atomic_add_int(&stcb->asoc.refcnt, 1);
-		free_cnt_applied = 1;
-	}
 	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ECONNRESET);
 		error = ECONNRESET;
@@ -12633,26 +12622,6 @@ sctp_lower_sosend(struct socket *so,
 	/* Ok, we will attempt a msgsnd :> */
 	if (p) {
 		p->td_ru.ru_msgsnd++;
-	}
-	if ((net->flight_size > net->cwnd) &&
-	    (asoc->sctp_cmt_on_off == 0)) {
-		/*-
-		 * CMT: Added check for CMT above. net above is the primary
-		 * dest. If CMT is ON, sender should always attempt to send
-		 * with the output routine sctp_fill_outqueue() that loops
-		 * through all destination addresses. Therefore, if CMT is
-		 * ON, queue_only is NOT set to 1 here, so that
-		 * sctp_chunk_output() can be called below.
-		 */
-		queue_only = 1;
-	} else if (asoc->ifp_had_enobuf) {
-		SCTP_STAT_INCR(sctps_ifnomemqueued);
-		if (net->flight_size > (net->mtu * 2))
-			queue_only = 1;
-		asoc->ifp_had_enobuf = 0;
-	} else {
-		un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
-		    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
 	}
 	/* Are we aborting? */
 	if (srcv->sinfo_flags & SCTP_ABORT) {
@@ -12857,7 +12826,6 @@ sctp_lower_sosend(struct socket *so,
 			}
 			inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
 		}
-		inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
 		if (SCTP_SB_LIMIT_SND(so) > inqueue_bytes) {
 			max_len = SCTP_SB_LIMIT_SND(so) - inqueue_bytes;
 		} else {
@@ -12886,9 +12854,7 @@ skip_preblock:
 	if (top == NULL) {
 		struct sctp_stream_queue_pending *sp;
 		struct sctp_stream_out *strm;
-		uint32_t sndout, initial_out;
-
-		initial_out = uio->uio_resid;
+		uint32_t sndout;
 
 		SCTP_TCB_SEND_LOCK(stcb);
 		if ((asoc->stream_locked) &&
@@ -13052,29 +13018,34 @@ skip_preblock:
 				/* Non-blocking io in place out */
 				goto skip_out_eof;
 			}
+			/* What about the INIT, send it maybe */
+			if (queue_only_for_init) {
+				if (hold_tcblock == 0) {
+					SCTP_TCB_LOCK(stcb);
+					hold_tcblock = 1;
+				}
+				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
+					/* a collision took us forward? */
+					queue_only = 0;
+				} else {
+					sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+					SCTP_SET_STATE(asoc, SCTP_STATE_COOKIE_WAIT);
+					queue_only = 1;
+				}
+			}
 			if ((net->flight_size > net->cwnd) &&
 			    (asoc->sctp_cmt_on_off == 0)) {
+				SCTP_STAT_INCR(sctps_send_cwnd_avoid);
 				queue_only = 1;
 			} else if (asoc->ifp_had_enobuf) {
 				SCTP_STAT_INCR(sctps_ifnomemqueued);
-				if (net->flight_size > (net->mtu * 2)) {
+				if (net->flight_size > (2 * net->mtu)) {
 					queue_only = 1;
-				} else {
-					queue_only = 0;
 				}
 				asoc->ifp_had_enobuf = 0;
-				un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
-				    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
-			} else {
-				un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
-				    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
-				if (net->flight_size > net->cwnd) {
-					queue_only = 1;
-					SCTP_STAT_INCR(sctps_send_cwnd_avoid);
-				} else {
-					queue_only = 0;
-				}
 			}
+			un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
+			    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
 			if ((sctp_is_feature_off(inp, SCTP_PCB_FLAGS_NODELAY)) &&
 			    (stcb->asoc.total_flight > 0) &&
 			    (stcb->asoc.stream_queue_cnt < SCTP_MAX_DATA_BUNDLING) &&
@@ -13098,7 +13069,6 @@ skip_preblock:
 				SCTP_STAT_INCR(sctps_naglesent);
 				nagle_applies = 0;
 			}
-			/* What about the INIT, send it maybe */
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 
 				sctp_misc_ints(SCTP_CWNDLOG_PRESEND, queue_only_for_init, queue_only,
@@ -13107,22 +13077,8 @@ skip_preblock:
 				    stcb->asoc.total_flight,
 				    stcb->asoc.chunks_on_out_queue, stcb->asoc.total_flight_count);
 			}
-			if (queue_only_for_init) {
-				if (hold_tcblock == 0) {
-					SCTP_TCB_LOCK(stcb);
-					hold_tcblock = 1;
-				}
-				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
-					/* a collision took us forward? */
-					queue_only_for_init = 0;
-					queue_only = 0;
-				} else {
-					sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
-					SCTP_SET_STATE(asoc, SCTP_STATE_COOKIE_WAIT);
-					queue_only_for_init = 0;
-					queue_only = 1;
-				}
-			}
+			if (queue_only_for_init)
+				queue_only_for_init = 0;
 			if ((queue_only == 0) && (nagle_applies == 0)) {
 				/*-
 				 * need to start chunk output
@@ -13215,7 +13171,7 @@ skip_preblock:
 		if (uio->uio_resid == 0) {
 			got_all_of_the_send = 1;
 		}
-	} else if (top) {
+	} else {
 		/* We send in a 0, since we do NOT have any locks */
 		error = sctp_msg_append(stcb, net, top, srcv, 0);
 		top = NULL;
@@ -13326,29 +13282,33 @@ skip_out_eof:
 	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
 		some_on_control = 1;
 	}
+	if (queue_only_for_init) {
+		if (hold_tcblock == 0) {
+			SCTP_TCB_LOCK(stcb);
+			hold_tcblock = 1;
+		}
+		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
+			/* a collision took us forward? */
+			queue_only = 0;
+		} else {
+			sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+			SCTP_SET_STATE(&stcb->asoc, SCTP_STATE_COOKIE_WAIT);
+			queue_only = 1;
+		}
+	}
 	if ((net->flight_size > net->cwnd) &&
 	    (stcb->asoc.sctp_cmt_on_off == 0)) {
+		SCTP_STAT_INCR(sctps_send_cwnd_avoid);
 		queue_only = 1;
 	} else if (asoc->ifp_had_enobuf) {
 		SCTP_STAT_INCR(sctps_ifnomemqueued);
-		if (net->flight_size > (net->mtu * 2)) {
+		if (net->flight_size > (2 * net->mtu)) {
 			queue_only = 1;
-		} else {
-			queue_only = 0;
 		}
 		asoc->ifp_had_enobuf = 0;
-		un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
-		    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
-	} else {
-		un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
-		    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
-		if (net->flight_size > net->cwnd) {
-			queue_only = 1;
-			SCTP_STAT_INCR(sctps_send_cwnd_avoid);
-		} else {
-			queue_only = 0;
-		}
 	}
+	un_sent = ((stcb->asoc.total_output_queue_size - stcb->asoc.total_flight) +
+	    (stcb->asoc.stream_queue_cnt * sizeof(struct sctp_data_chunk)));
 	if ((sctp_is_feature_off(inp, SCTP_PCB_FLAGS_NODELAY)) &&
 	    (stcb->asoc.total_flight > 0) &&
 	    (stcb->asoc.stream_queue_cnt < SCTP_MAX_DATA_BUNDLING) &&
@@ -13371,22 +13331,15 @@ skip_out_eof:
 		SCTP_STAT_INCR(sctps_naglesent);
 		nagle_applies = 0;
 	}
-	if (queue_only_for_init) {
-		if (hold_tcblock == 0) {
-			SCTP_TCB_LOCK(stcb);
-			hold_tcblock = 1;
-		}
-		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
-			/* a collision took us forward? */
-			queue_only_for_init = 0;
-			queue_only = 0;
-		} else {
-			sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
-			SCTP_SET_STATE(&stcb->asoc, SCTP_STATE_COOKIE_WAIT);
-			queue_only_for_init = 0;
-			queue_only = 1;
-		}
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
+		sctp_misc_ints(SCTP_CWNDLOG_PRESEND, queue_only_for_init, queue_only,
+		    nagle_applies, un_sent);
+		sctp_misc_ints(SCTP_CWNDLOG_PRESEND, stcb->asoc.total_output_queue_size,
+		    stcb->asoc.total_flight,
+		    stcb->asoc.chunks_on_out_queue, stcb->asoc.total_flight_count);
 	}
+	if (queue_only_for_init)
+		queue_only_for_init = 0;
 	if ((queue_only == 0) && (nagle_applies == 0) && (stcb->asoc.peers_rwnd && un_sent)) {
 		/* we can attempt to send too. */
 		if (hold_tcblock == 0) {
