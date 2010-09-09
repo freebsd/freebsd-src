@@ -566,6 +566,7 @@ struct ata_channel {
 #define         ATA_SATA		0x80
 #define         ATA_DMA_BEFORE_CMD	0x100
 #define         ATA_KNOWN_PRESENCE	0x200
+#define         ATA_STATUS_IS_LONG	0x400
 
     int				pm_level;	/* power management level */
     int                         devices;        /* what is present */
