@@ -272,27 +272,59 @@ sbuf_setpos(struct sbuf *s, int pos)
 }
 
 /*
+ * Append a byte to an sbuf.  This is the core function for appending
+ * to an sbuf and is the main place that deals with extending the
+ * buffer and marking overflow.
+ */
+static void
+sbuf_put_byte(int c, struct sbuf *s)
+{
+
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+
+	if (SBUF_HASOVERFLOWED(s))
+		return;
+	if (SBUF_FREESPACE(s) <= 0) {
+		if (sbuf_extend(s, 1) < 0) {
+			SBUF_SETFLAG(s, SBUF_OVERFLOWED);
+			return;
+		}
+	}
+	s->s_buf[s->s_len++] = c;
+}
+
+/*
+ * Append a non-NUL character to an sbuf.  This prototype signature is
+ * suitable for use with kvprintf(9).
+ */
+static void
+sbuf_putc_func(int c, void *arg)
+{
+
+	if (c != '\0')
+		sbuf_put_byte(c, arg);
+}
+
+/*
  * Append a byte string to an sbuf.
  */
 int
 sbuf_bcat(struct sbuf *s, const void *buf, size_t len)
 {
 	const char *str = buf;
+	const char *end = str + len;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
-	for (; len; len--) {
-		if (!SBUF_HASROOM(s) && sbuf_extend(s, len) < 0)
-			break;
-		s->s_buf[s->s_len++] = *str++;
-	}
-	if (len > 0) {
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
-		return (-1);
-	}
+	for (; str < end; str++) {
+		sbuf_put_byte(*str, s);
+		if (SBUF_HASOVERFLOWED(s))
+			return (-1);
+ 	}
 	return (0);
 }
 
@@ -352,13 +384,9 @@ sbuf_cat(struct sbuf *s, const char *str)
 		return (-1);
 
 	while (*str != '\0') {
-		if (!SBUF_HASROOM(s) && sbuf_extend(s, strlen(str)) < 0)
-			break;
-		s->s_buf[s->s_len++] = *str++;
-	}
-	if (*str != '\0') {
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
-		return (-1);
+		sbuf_put_byte(*str, s);
+		if (SBUF_HASOVERFLOWED(s))
+			return (-1);
 	}
 	return (0);
 }
@@ -417,6 +445,23 @@ sbuf_cpy(struct sbuf *s, const char *str)
 /*
  * Format the given argument list and append the resulting string to an sbuf.
  */
+#ifdef _KERNEL
+int
+sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
+{
+
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+
+	KASSERT(fmt != NULL,
+	    ("%s called with a NULL format string", __func__));
+
+	(void)kvprintf(fmt, sbuf_putc_func, s, 10, ap);
+	if (SBUF_HASOVERFLOWED(s))
+		return (-1);
+	return (0);
+}
+#else /* !_KERNEL */
 int
 sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 {
@@ -431,6 +476,12 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
+
+	/*
+	 * For the moment, there is no way to get vsnprintf(3) to hand
+	 * back a character at a time, to push everything into
+	 * sbuf_putc_func() as was done for the kernel.
+	 */
 
 	do {
 		va_copy(ap_copy, ap);
@@ -462,6 +513,7 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 		return (-1);
 	return (0);
 }
+#endif /* _KERNEL */
 
 /*
  * Format the given arguments and append the resulting string to an sbuf.
@@ -485,17 +537,9 @@ int
 sbuf_putc(struct sbuf *s, int c)
 {
 
-	assert_sbuf_integrity(s);
-	assert_sbuf_state(s, 0);
-
+	sbuf_putc_func(c, s);
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
-	if (!SBUF_HASROOM(s) && sbuf_extend(s, 1) < 0) {
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
-		return (-1);
-	}
-	if (c != '\0')
-		s->s_buf[s->s_len++] = c;
 	return (0);
 }
 
