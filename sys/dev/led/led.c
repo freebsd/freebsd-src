@@ -220,15 +220,11 @@ led_write(struct cdev *dev, struct uio *uio, int ioflag)
 			free(s2, M_DEVBUF);
 			return (EINVAL);
 	}
-	sbuf_finish(sb);
+	error = sbuf_finish(sb);
 	free(s2, M_DEVBUF);
-	if (sbuf_overflowed(sb)) {
+	if (error != 0 || sbuf_len(sb) == 0) {
 		sbuf_delete(sb);
-		return (ENOMEM);
-	}
-	if (sbuf_len(sb) == 0) {
-		sbuf_delete(sb);
-		return (0);
+		return (error);
 	}
 
 	return (led_state(dev, sb, 0));
