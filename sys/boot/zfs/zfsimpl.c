@@ -449,8 +449,6 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 		return (ENOENT);
 	}
 
-
-
 	if (strcmp(type, VDEV_TYPE_MIRROR)
 	    && strcmp(type, VDEV_TYPE_DISK)
 	    && strcmp(type, VDEV_TYPE_RAIDZ)
