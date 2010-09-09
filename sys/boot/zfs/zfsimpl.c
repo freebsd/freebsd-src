@@ -488,7 +488,16 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 				vdev->v_name = strdup(type);
 			}
 		}
+	} else {
+		is_new = 0;
+	}
 
+	if (is_new || is_newer) {
+		/*
+		 * This is either new vdev or we've already seen this vdev,
+		 * but from an older vdev label, so let's refresh its state
+		 * from the newer label.
+		 */
 		if (is_offline)
 			vdev->v_state = VDEV_STATE_OFFLINE;
 		else if (is_removed)
@@ -499,26 +508,6 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			vdev->v_state = VDEV_STATE_DEGRADED;
 		else
 			vdev->v_state = VDEV_STATE_HEALTHY;
-	} else {
-		is_new = 0;
-
-		if (is_newer) {
-			/*
-			 * We've already seen this vdev, but from an older
-			 * vdev label, so let's refresh its state from the
-			 * newer label.
-			 */
-			if (is_offline)
-				vdev->v_state = VDEV_STATE_OFFLINE;
-			else if (is_removed)
-				vdev->v_state = VDEV_STATE_REMOVED;
-			else if (is_faulted)
-				vdev->v_state = VDEV_STATE_FAULTED;
-			else if (is_degraded)
-				vdev->v_state = VDEV_STATE_DEGRADED;
-			else
-				vdev->v_state = VDEV_STATE_HEALTHY;
-		}
 	}
 
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN,
