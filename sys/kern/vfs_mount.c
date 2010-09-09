@@ -856,6 +856,9 @@ vfs_domount_first(
 	if (error != 0) {
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
+		VI_UNLOCK(vp);
 		vrele(vp);
 		return (error);
 	}
