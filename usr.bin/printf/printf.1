@@ -355,3 +355,10 @@ Multibyte characters are not recognized in format strings (this is only
 a problem if
 .Ql %
 can appear inside a multibyte character).
+.Pp
+Trying to print a dash ("-") as the first character causes
+.Nm
+to interpet the dash as a program argument.
+.Nm --
+must be used before 
+.Ar format .
