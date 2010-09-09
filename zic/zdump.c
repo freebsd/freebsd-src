@@ -238,7 +238,7 @@ const char * const	zone;
 static void
 usage(stream, status)
 FILE * const	stream;
-const int	status
+const int	status;
 {
 	(void) fprintf(stream,
 _("%s: usage is %s [ --version ] [ --help ] [ -v ] [ -c [loyear,]hiyear ] zonename ...\n\

@@ -5,7 +5,7 @@
 
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)localtime.c	8.13";
+static char	elsieid[] = "@(#)localtime.c	8.14";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -274,22 +274,6 @@ settzname(void)
 		return;
 	}
 #endif /* defined ALL_STATE */
-	for (i = 0; i < sp->typecnt; ++i) {
-		register const struct ttinfo * const	ttisp = &sp->ttis[i];
-
-		tzname[ttisp->tt_isdst] =
-			&sp->chars[ttisp->tt_abbrind];
-#ifdef USG_COMPAT
-		if (ttisp->tt_isdst)
-			daylight = 1;
-		if (i == 0 || !ttisp->tt_isdst)
-			timezone = -(ttisp->tt_gmtoff);
-#endif /* defined USG_COMPAT */
-#ifdef ALTZONE
-		if (i == 0 || ttisp->tt_isdst)
-			altzone = -(ttisp->tt_gmtoff);
-#endif /* defined ALTZONE */
-	}
 	/*
 	** And to get the latest zone names into tzname. . .
 	*/
@@ -300,6 +284,16 @@ settzname(void)
 
 		tzname[ttisp->tt_isdst] =
 			&sp->chars[ttisp->tt_abbrind];
+#ifdef USG_COMPAT
+		if (ttisp->tt_isdst)
+			daylight = 1;
+		if (!ttisp->tt_isdst)
+			timezone = -(ttisp->tt_gmtoff);
+#endif /* defined USG_COMPAT */
+#ifdef ALTZONE
+		if (ttisp->tt_isdst)
+			altzone = -(ttisp->tt_gmtoff);
+#endif /* defined ALTZONE */
 	}
 	/*
 	** Finally, scrub the abbreviations.
