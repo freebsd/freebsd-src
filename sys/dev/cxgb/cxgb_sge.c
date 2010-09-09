@@ -3227,7 +3227,6 @@ t3_dump_rspq(SYSCTL_HANDLER_ARGS)
 	struct sge_rspq *rspq;
 	struct sge_qset *qs;
 	int i, err, dump_end, idx;
-	static int multiplier = 1;
 	struct sbuf *sb;
 	struct rsp_desc *rspd;
 	uint32_t data[4];
@@ -3252,8 +3251,8 @@ t3_dump_rspq(SYSCTL_HANDLER_ARGS)
 	err = t3_sge_read_rspq(qs->port->adapter, rspq->cntxt_id, data);
 	if (err)
 		return (err);
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, QDUMP_SBUF_SIZE, req);
 
 	sbuf_printf(sb, " \n index=%u size=%u MSI-X/RspQ=%u intr enable=%u intr armed=%u\n",
 	    (data[0] & 0xffff), data[0] >> 16, ((data[2] >> 20) & 0x3f),
@@ -3276,13 +3275,11 @@ retry_sbufops:
 		    rspd->rss_hdr.rss_hash_val, be32toh(rspd->flags),
 		    be32toh(rspd->len_cq), rspd->intr_gen);
 	}
-	if (sbuf_overflowed(sb)) {
-		sbuf_delete(sb);
-		multiplier++;
-		goto retry_sbufops;
-	}
-	sbuf_finish(sb);
-	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+
+	err = sbuf_finish(sb);
+	/* Output a trailing NUL. */
+	if (err == 0)
+		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }	
@@ -3293,7 +3290,6 @@ t3_dump_txq_eth(SYSCTL_HANDLER_ARGS)
 	struct sge_txq *txq;
 	struct sge_qset *qs;
 	int i, j, err, dump_end;
-	static int multiplier = 1;
 	struct sbuf *sb;
 	struct tx_desc *txd;
 	uint32_t *WR, wr_hi, wr_lo, gen;
@@ -3321,9 +3317,7 @@ t3_dump_txq_eth(SYSCTL_HANDLER_ARGS)
 	if (err)
 		return (err);
 	
-	    
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+	sb = sbuf_new_for_sysctl(NULL, NULL, QDUMP_SBUF_SIZE, req);
 
 	sbuf_printf(sb, " \n credits=%u GTS=%u index=%u size=%u rspq#=%u cmdq#=%u\n",
 	    (data[0] & 0x7fff), ((data[0] >> 15) & 1), (data[0] >> 16), 
@@ -3350,13 +3344,10 @@ retry_sbufops:
 			    WR[j], WR[j + 1], WR[j + 2], WR[j + 3]);
 
 	}
-	if (sbuf_overflowed(sb)) {
-		sbuf_delete(sb);
-		multiplier++;
-		goto retry_sbufops;
-	}
-	sbuf_finish(sb);
-	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	err = sbuf_finish(sb);
+	/* Output a trailing NUL. */
+	if (err == 0)
+		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }
@@ -3367,7 +3358,6 @@ t3_dump_txq_ctrl(SYSCTL_HANDLER_ARGS)
 	struct sge_txq *txq;
 	struct sge_qset *qs;
 	int i, j, err, dump_end;
-	static int multiplier = 1;
 	struct sbuf *sb;
 	struct tx_desc *txd;
 	uint32_t *WR, wr_hi, wr_lo, gen;
@@ -3391,8 +3381,7 @@ t3_dump_txq_ctrl(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+	sb = sbuf_new_for_sysctl(NULL, NULL, QDUMP_SBUF_SIZE, req);
 	sbuf_printf(sb, " qid=%d start=%d -> end=%d\n", qs->idx,
 	    txq->txq_dump_start,
 	    (txq->txq_dump_start + txq->txq_dump_count) & 255);
@@ -3412,13 +3401,10 @@ retry_sbufops:
 			    WR[j], WR[j + 1], WR[j + 2], WR[j + 3]);
 
 	}
-	if (sbuf_overflowed(sb)) {
-		sbuf_delete(sb);
-		multiplier++;
-		goto retry_sbufops;
-	}
-	sbuf_finish(sb);
-	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	err = sbuf_finish(sb);
+	/* Output a trailing NUL. */
+	if (err == 0)
+		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }
