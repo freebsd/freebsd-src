@@ -460,20 +460,20 @@ cap_pciaf(int fd, struct pci_conf *p, uint8_t ptr)
 void
 list_caps(int fd, struct pci_conf *p)
 {
-	uint16_t cmd;
+	uint16_t sta;
 	uint8_t ptr, cap;
 
 	/* Are capabilities present for this device? */
-	cmd = read_config(fd, &p->pc_sel, PCIR_STATUS, 2);
-	if (!(cmd & PCIM_STATUS_CAPPRESENT))
+	sta = read_config(fd, &p->pc_sel, PCIR_STATUS, 2);
+	if (!(sta & PCIM_STATUS_CAPPRESENT))
 		return;
 
 	switch (p->pc_hdr & PCIM_HDRTYPE) {
-	case 0:
-	case 1:
+	case PCIM_HDRTYPE_NORMAL:
+	case PCIM_HDRTYPE_BRIDGE:
 		ptr = PCIR_CAP_PTR;
 		break;
-	case 2:
+	case PCIM_HDRTYPE_CARDBUS:
 		ptr = PCIR_CAP_PTR_2;
 		break;
 	default:
