@@ -180,7 +180,7 @@ acl_is_trivial_np(const acl_t aclp, int *trivialp)
 		 * it's non trivial by definition.
 		 */
 		if (aclp->ats_acl.acl_cnt > 6) {
-			*trivialp = 1;
+			*trivialp = 0;
 			return (0);
 		}
 			
