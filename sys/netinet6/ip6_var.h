@@ -368,6 +368,9 @@ void	ip6_init __P((void));
 #ifdef VIMAGE
 void	ip6_destroy __P((void));
 #endif
+int	ip6proto_register(short);
+int	ip6proto_unregister(short);
+
 void	ip6_input __P((struct mbuf *));
 struct in6_ifaddr *ip6_getdstifaddr __P((struct mbuf *));
 void	ip6_freepcbopts __P((struct ip6_pktopts *));

@@ -202,6 +202,64 @@ ip6_init(void)
 	netisr_register(&ip6_nh);
 }
 
+/*
+ * The protocol to be inserted into ip6_protox[] must be already registered
+ * in inet6sw[], either statically or through pf_proto_register().
+ */
+int
+ip6proto_register(short ip6proto)
+{
+	struct ip6protosw *pr;
+
+	/* Sanity checks. */
+	if (ip6proto <= 0 || ip6proto >= IPPROTO_MAX)
+		return (EPROTONOSUPPORT);
+
+	/*
+	 * The protocol slot must not be occupied by another protocol
+	 * already.  An index pointing to IPPROTO_RAW is unused.
+	 */
+	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
+	if (pr == NULL)
+		return (EPFNOSUPPORT);
+	if (ip6_protox[ip6proto] != pr - inet6sw)	/* IPPROTO_RAW */
+		return (EEXIST);
+
+	/*
+	 * Find the protocol position in inet6sw[] and set the index.
+	 */
+	for (pr = (struct ip6protosw *)inet6domain.dom_protosw;
+	    pr < (struct ip6protosw *)inet6domain.dom_protoswNPROTOSW; pr++) {
+		if (pr->pr_domain->dom_family == PF_INET6 &&
+		    pr->pr_protocol && pr->pr_protocol == ip6proto) {
+			ip6_protox[pr->pr_protocol] = pr - inet6sw;
+			return (0);
+		}
+	}
+	return (EPROTONOSUPPORT);
+}
+
+int
+ip6proto_unregister(short ip6proto)
+{
+	struct ip6protosw *pr;
+
+	/* Sanity checks. */
+	if (ip6proto <= 0 || ip6proto >= IPPROTO_MAX)
+		return (EPROTONOSUPPORT);
+
+	/* Check if the protocol was indeed registered. */
+	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
+	if (pr == NULL)
+		return (EPFNOSUPPORT);
+	if (ip6_protox[ip6proto] == pr - inet6sw)	/* IPPROTO_RAW */
+		return (ENOENT);
+
+	/* Reset the protocol slot to IPPROTO_RAW. */
+	ip6_protox[ip6proto] = pr - inet6sw;
+	return (0);
+}
+
 #ifdef VIMAGE
 void
 ip6_destroy()
