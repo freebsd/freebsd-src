@@ -203,11 +203,11 @@ disable_and_clear_cache_error(void)
 {
 	uint64_t lsu_cfg0;
 
-	lsu_cfg0 = read_64bit_phnx_ctrl_reg(CPU_BLOCKID_LSU, LSU_CFG0_REGID);
+	lsu_cfg0 = read_xlr_ctrl_register(CPU_BLOCKID_LSU, LSU_CFG0_REGID);
 	lsu_cfg0 = lsu_cfg0 & ~0x2e;
-	write_64bit_phnx_ctrl_reg(CPU_BLOCKID_LSU, LSU_CFG0_REGID, lsu_cfg0);
+	write_xlr_ctrl_register(CPU_BLOCKID_LSU, LSU_CFG0_REGID, lsu_cfg0);
 	/* Clear cache error log */
-	write_64bit_phnx_ctrl_reg(CPU_BLOCKID_LSU, LSU_CERRLOG_REGID, 0);
+	write_xlr_ctrl_register(CPU_BLOCKID_LSU, LSU_CERRLOG_REGID, 0);
 }
 
 static __inline__ void 
@@ -216,13 +216,13 @@ clear_and_enable_cache_error(void)
 	uint64_t lsu_cfg0 = 0;
 
 	/* first clear the cache error logging register */
-	write_64bit_phnx_ctrl_reg(CPU_BLOCKID_LSU, LSU_CERRLOG_REGID, 0);
-	write_64bit_phnx_ctrl_reg(CPU_BLOCKID_LSU, LSU_CERROVF_REGID, 0);
-	write_64bit_phnx_ctrl_reg(CPU_BLOCKID_LSU, LSU_CERRINT_REGID, 0);
+	write_xlr_ctrl_register(CPU_BLOCKID_LSU, LSU_CERRLOG_REGID, 0);
+	write_xlr_ctrl_register(CPU_BLOCKID_LSU, LSU_CERROVF_REGID, 0);
+	write_xlr_ctrl_register(CPU_BLOCKID_LSU, LSU_CERRINT_REGID, 0);
 
-	lsu_cfg0 = read_64bit_phnx_ctrl_reg(CPU_BLOCKID_LSU, LSU_CFG0_REGID);
+	lsu_cfg0 = read_xlr_ctrl_register(CPU_BLOCKID_LSU, LSU_CFG0_REGID);
 	lsu_cfg0 = lsu_cfg0 | 0x2e;
-	write_64bit_phnx_ctrl_reg(CPU_BLOCKID_LSU, LSU_CFG0_REGID, lsu_cfg0);
+	write_xlr_ctrl_register(CPU_BLOCKID_LSU, LSU_CFG0_REGID, lsu_cfg0);
 }
 
 static uint32_t 
@@ -236,7 +236,7 @@ pci_cfg_read_32bit(uint32_t addr)
 	temp = bswap32(*p);
 
 	/* Read cache err log */
-	cerr_cpu_log = read_64bit_phnx_ctrl_reg(CPU_BLOCKID_LSU,
+	cerr_cpu_log = read_xlr_ctrl_register(CPU_BLOCKID_LSU,
 	    LSU_CERRLOG_REGID);
 	if (cerr_cpu_log) {
 		/* Device don't exist. */
