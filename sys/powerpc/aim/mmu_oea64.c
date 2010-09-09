@@ -2424,7 +2424,6 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	 * the bootstrap pool.
 	 */
 
-	moea64_pvo_enter_calls++;
 	first = 0;
 	bootstrap = (flags & PVO_BOOTSTRAP);
 
@@ -2443,6 +2442,8 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	 * there is a mapping.
 	 */
 	LOCK_TABLE();
+
+	moea64_pvo_enter_calls++;
 
 	LIST_FOREACH(pvo, &moea64_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
@@ -2608,14 +2609,15 @@ moea64_pvo_remove(struct pvo_entry *pvo)
 	 * if we aren't going to reuse it.
 	 */
 	LIST_REMOVE(pvo, pvo_olink);
+
+	moea64_pvo_entries--;
+	moea64_pvo_remove_calls++;
+
 	UNLOCK_TABLE();
 
 	if (!(pvo->pvo_vaddr & PVO_BOOTSTRAP))
 		uma_zfree((pvo->pvo_vaddr & PVO_MANAGED) ? moea64_mpvo_zone :
 		    moea64_upvo_zone, pvo);
-
-	moea64_pvo_entries--;
-	moea64_pvo_remove_calls++;
 }
 
 static struct pvo_entry *
