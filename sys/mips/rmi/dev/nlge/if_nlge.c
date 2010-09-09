@@ -148,7 +148,6 @@ static void	nlge_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr);
 
 /* Other internal/helper functions */
 static void 	*get_buf(void);
-static struct mbuf *get_mbuf(void);
 
 static void	nlna_add_to_port_set(struct nlge_port_set *pset,
     struct nlge_softc *sc);
@@ -170,8 +169,6 @@ static void 	nlna_reset_ports(struct nlna_softc *sc,
     struct xlr_gmac_block_t *blk);
 static struct nlna_softc *nlna_sc_init(device_t dev,
     struct xlr_gmac_block_t *blk);
-static __inline__ int nlna_send_free_desc(struct nlna_softc *nlna,
-    vm_paddr_t addr);
 static void	nlna_setup_intr(struct nlna_softc *sc);
 static void	nlna_smp_update_pde(void *dummy __unused);
 static void	nlna_submit_rx_free_desc(struct nlna_softc *sc,
@@ -206,7 +203,6 @@ static int	prepare_fmn_message(struct nlge_softc *sc,
     struct msgrng_msg *msg, uint32_t *n_entries, struct mbuf *m_head,
     uint64_t fr_stid, struct nlge_tx_desc **tx_desc);
 
-static void	release_mbuf(uint64_t phy_addr);
 static void 	release_tx_desc(vm_paddr_t phy_addr);
 static int	send_fmn_msg_tx(struct nlge_softc *, struct msgrng_msg *,
     uint32_t n_entries);
@@ -680,7 +676,7 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 		if (is_p2p) {
 			release_tx_desc(phys_addr);
 		} else {
-			release_mbuf(phys_addr);
+			m_freem((struct mbuf *)(uintptr_t)phys_addr);
 		}
 
 		ifp = sc->nlge_if;
@@ -1009,38 +1005,22 @@ nlna_is_last_active_na(struct nlna_softc *sc)
 	return (id == 2 || xlr_board_info.gmac_block[id + 1].enabled == 0);
 }
 
-static __inline__ int
-nlna_send_free_desc(struct nlna_softc *sc, vm_paddr_t addr)
-{
-	struct msgrng_msg msg;
-	uint32_t msgrng_flags;
-	int i = 0, stid, code, ret;
-
-	stid = sc->rfrbucket;
-	memset(&msg, 0, sizeof(msg));
-	msg.msg0 = (uint64_t) addr & 0xffffffffe0ULL;
-
-	code = (sc->na_type == XLR_XGMAC) ? MSGRNG_CODE_XGMAC : MSGRNG_CODE_MAC;
-	do {
-		msgrng_flags = msgrng_access_enable();
-		ret = message_send_retry(1, code, stid, &msg);
-		msgrng_restore(msgrng_flags);
-		KASSERT(i++ < 100000, ("Too many credit fails\n"));
-	} while (ret != 0);
-	return (0);
-}
-
 static void
 nlna_submit_rx_free_desc(struct nlna_softc *sc, uint32_t n_desc)
 {
+	struct msgrng_msg msg;
 	void           *ptr;
-	int		i;
-	int		ret;
+	uint32_t	msgrng_flags;
+	int		i, n, stid, ret, code;
 
 	if (n_desc > 1) {
 		PDEBUG("Sending %d free-in descriptors to station=%d\n", n_desc,
 		    sc->rfrbucket);
 	}
+
+	stid = sc->rfrbucket;
+	code = (sc->na_type == XLR_XGMAC) ? MSGRNG_CODE_XGMAC : MSGRNG_CODE_MAC;
+	memset(&msg, 0, sizeof(msg));
 
 	for (i = 0; i < n_desc; i++) {
 		ptr = get_buf();
@@ -1051,10 +1031,14 @@ nlna_submit_rx_free_desc(struct nlna_softc *sc, uint32_t n_desc)
 		}
 
 		/* Send the free Rx desc to the MAC */
-		ret = nlna_send_free_desc(sc, vtophys(ptr));
-		if (ret != 0)  /* no point trying other descriptors after
-		             a failure. */
-			break;
+		msg.msg0 = vtophys(ptr) & 0xffffffffe0ULL;
+		n = 0;
+		do {
+			msgrng_flags = msgrng_access_enable();
+			ret = message_send_retry(1, code, stid, &msg);
+			msgrng_restore(msgrng_flags);
+			KASSERT(n++ < 100000, ("Too many credit fails\n"));
+		} while (ret != 0);
 	}
 }
 
@@ -1982,15 +1966,6 @@ send_fmn_msg_tx(struct nlge_softc *sc, struct msgrng_msg *msg,
 }
 
 static void
-release_mbuf(uint64_t phy_addr)
-{
-	struct mbuf	*m;
-
-	m = (struct mbuf *)((uint32_t) phy_addr);
-	m_freem(m);
-}
-
-static void
 release_tx_desc(vm_paddr_t paddr)
 {
 	struct nlge_tx_desc *tx_desc;
@@ -2008,17 +1983,6 @@ release_tx_desc(vm_paddr_t paddr)
 	uma_zfree(nl_tx_desc_zone, tx_desc);
 }
 
-static struct mbuf *
-get_mbuf(void)
-{
-	struct mbuf *m_new;
-
-	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
-		return NULL;
-	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	return (m_new);
-}
-
 static void *
 get_buf(void)
 {
@@ -2026,10 +1990,9 @@ get_buf(void)
 	vm_paddr_t 	temp1, temp2;
 	unsigned int 	*md;
 
-	m_new = get_mbuf();
-	if (m_new == NULL)
-		return m_new;
-
+	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
+		return NULL;
+	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	m_adj(m_new, XLR_CACHELINE_SIZE - ((unsigned int)m_new->m_data & 0x1f));
 	md = (unsigned int *)m_new->m_data;
 	md[0] = (unsigned int)m_new;	/* Back Ptr */
