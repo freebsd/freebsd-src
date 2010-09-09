@@ -376,6 +376,27 @@ vdev_mirror_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	return (rc);
 }
 
+static int
+vdev_replacing_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
+    off_t offset, size_t bytes)
+{
+	vdev_t *kid;
+
+	/*
+	 * Here we should have two kids:
+	 * First one which is the one we are replacing and we can trust
+	 * only this one to have valid data, but it might not be present.
+	 * Second one is that one we are replacing with. It is most likely
+	 * healthy, but we can't trust it has needed data, so we won't use it.
+	 */
+	kid = STAILQ_FIRST(&vdev->v_children);
+	if (kid == NULL)
+		return (EIO);
+	if (kid->v_state != VDEV_STATE_HEALTHY)
+		return (EIO);
+	return (kid->v_read(kid, bp, buf, offset, bytes));
+}
+
 static vdev_t *
 vdev_find(uint64_t guid)
 {
@@ -416,7 +437,7 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 	vdev_t *vdev, *kid;
 	const unsigned char *kids;
 	int nkids, i, is_new;
-	uint64_t is_offline, is_faulted, is_degraded, is_removed;
+	uint64_t is_offline, is_faulted, is_degraded, is_removed, isnt_present;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_GUID,
 			DATA_TYPE_UINT64, 0, &guid)
@@ -428,14 +449,17 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 		return (ENOENT);
 	}
 
+
+
 	if (strcmp(type, VDEV_TYPE_MIRROR)
 	    && strcmp(type, VDEV_TYPE_DISK)
-	    && strcmp(type, VDEV_TYPE_RAIDZ)) {
+	    && strcmp(type, VDEV_TYPE_RAIDZ)
+	    && strcmp(type, VDEV_TYPE_REPLACING)) {
 		printf("ZFS: can only boot from disk, mirror or raidz vdevs\n");
 		return (EIO);
 	}
 
-	is_offline = is_removed = is_faulted = is_degraded = 0;
+	is_offline = is_removed = is_faulted = is_degraded = isnt_present = 0;
 
 	nvlist_find(nvlist, ZPOOL_CONFIG_OFFLINE, DATA_TYPE_UINT64, 0,
 			&is_offline);
@@ -445,6 +469,8 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			&is_faulted);
 	nvlist_find(nvlist, ZPOOL_CONFIG_DEGRADED, DATA_TYPE_UINT64, 0,
 			&is_degraded);
+	nvlist_find(nvlist, ZPOOL_CONFIG_NOT_PRESENT, DATA_TYPE_UINT64, 0,
+			&isnt_present);
 
 	vdev = vdev_find(guid);
 	if (!vdev) {
@@ -454,6 +480,8 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			vdev = vdev_create(guid, vdev_mirror_read);
 		else if (!strcmp(type, VDEV_TYPE_RAIDZ))
 			vdev = vdev_create(guid, vdev_raidz_read);
+		else if (!strcmp(type, VDEV_TYPE_REPLACING))
+			vdev = vdev_create(guid, vdev_replacing_read);
 		else
 			vdev = vdev_create(guid, vdev_disk_read);
 
@@ -506,6 +534,8 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			vdev->v_state = VDEV_STATE_FAULTED;
 		else if (is_degraded)
 			vdev->v_state = VDEV_STATE_DEGRADED;
+		else if (isnt_present)
+			vdev->v_state = VDEV_STATE_CANT_OPEN;
 		else
 			vdev->v_state = VDEV_STATE_HEALTHY;
 	}
