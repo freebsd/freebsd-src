@@ -456,6 +456,16 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 #if defined(sun)
 	ASSERT(p->p_dtrace_count > 0);
 #else
+	if (p->p_dtrace_helpers) {
+		/*
+		 * dtrace_helpers_duplicate() allocates memory.
+		 */
+		PROC_UNLOCK(p);
+		PROC_UNLOCK(cp);
+		dtrace_helpers_duplicate(p, cp);
+		PROC_LOCK(cp);
+		PROC_LOCK(p);
+	}
 	/*
 	 * This check is purposely here instead of in kern_fork.c because,
 	 * for legal resons, we cannot include the dtrace_cddl.h header
@@ -539,6 +549,10 @@ fasttrap_exec_exit(proc_t *p)
 	 * static probes are handled by the meta-provider remove entry point.
 	 */
 	fasttrap_provider_retire(p->p_pid, FASTTRAP_PID_NAME, 0);
+#if !defined(sun)
+	if (p->p_dtrace_helpers)
+		dtrace_helpers_destroy(p);
+#endif
 	PROC_LOCK(p);
 }
 
