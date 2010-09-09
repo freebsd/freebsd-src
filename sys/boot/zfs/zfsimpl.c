@@ -773,6 +773,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	uint64_t val;
 	uint64_t guid;
 	uint64_t pool_txg, pool_guid;
+	uint64_t is_log;
 	const char *pool_name;
 	const unsigned char *vdevs;
 	int i, rc, is_newer;
@@ -848,6 +849,12 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 		/*printf("ZFS: can't find pool details\n");*/
 		return (EIO);
 	}
+
+	is_log = 0;
+	(void) nvlist_find(nvlist, ZPOOL_CONFIG_IS_LOG, DATA_TYPE_UINT64, 0,
+	    &is_log);
+	if (is_log)
+		return (EIO);
 
 	/*
 	 * Create the pool if this is the first time we've seen it.
