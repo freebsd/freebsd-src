@@ -105,7 +105,7 @@ int xlr_hwtid_to_cpuid[MAXCPU];
 static void 
 xlr_setup_mmu_split(void)
 {
-	int mmu_setup;
+	uint64_t mmu_setup;
 	int val = 0;
 
 	if (xlr_threads_per_core == 4 && xlr_shtlb_enabled == 0)
@@ -120,7 +120,7 @@ xlr_setup_mmu_split(void)
 		val = 3; break;
 	}
 	
-	mmu_setup = read_32bit_phnx_ctrl_reg(4, 0);
+	mmu_setup = read_xlr_ctrl_register(4, 0);
 	mmu_setup = mmu_setup & ~0x06;
 	mmu_setup |= (val << 1);
 
@@ -128,7 +128,7 @@ xlr_setup_mmu_split(void)
 	if (xlr_shtlb_enabled)
 		mmu_setup |= 0x01;
 
-	write_32bit_phnx_ctrl_reg(4, 0, mmu_setup);
+	write_xlr_ctrl_register(4, 0, mmu_setup);
 }
 
 static void

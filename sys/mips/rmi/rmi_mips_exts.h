@@ -30,234 +30,286 @@
  * $FreeBSD$
  */
 #ifndef __MIPS_EXTS_H__
-#define __MIPS_EXTS_H__
+#define	__MIPS_EXTS_H__
 
-#define CPU_BLOCKID_IFU      0
-#define CPU_BLOCKID_ICU      1
-#define CPU_BLOCKID_IEU      2
-#define CPU_BLOCKID_LSU      3
-#define CPU_BLOCKID_MMU      4
-#define CPU_BLOCKID_PRF      5
+#define	CPU_BLOCKID_IFU		0
+#define	CPU_BLOCKID_ICU		1
+#define	CPU_BLOCKID_IEU		2
+#define	CPU_BLOCKID_LSU		3
+#define	CPU_BLOCKID_MMU		4
+#define	CPU_BLOCKID_PRF		5
 
-#define LSU_CERRLOG_REGID    9
+#define	LSU_CERRLOG_REGID    9
 
-static __inline__ unsigned int read_32bit_phnx_ctrl_reg(int block, int reg)
+#if defined(__mips_n64) || defined(__mips_n32)
+static __inline uint64_t
+read_xlr_ctrl_register(int block, int reg)
 { 
-	unsigned int __res;
+	uint64_t res;
 
-	__asm__ __volatile__(                                   
-			".set\tpush\n\t"                            
-			".set\tnoreorder\n\t" 
-			"move $9, %1\n" 
-			/* "mfcr\t$8, $9\n\t"          */
-			".word 0x71280018\n"
-			"move %0, $8\n"
-			".set\tpop"       
-			: "=r" (__res) : "r"((block<<8)|reg)
-			: "$8", "$9"
-			);
-	return __res;
+	__asm__ __volatile__(
+	    ".set	push\n\t"
+	    ".set	noreorder\n\t"
+	    "move	$9, %1\n\t"
+	    ".word	0x71280018\n\t"  /* mfcr $8, $9 */
+	    "move	%0, $8\n\t"
+	    ".set	pop\n"
+	    : "=r" (res) : "r"((block << 8) | reg)
+	    : "$8", "$9"
+	);
+	return (res);
 }
 
-static __inline__ void write_32bit_phnx_ctrl_reg(int block, int reg, unsigned int value)
+static __inline void
+write_xlr_ctrl_register(int block, int reg, uint64_t value)
 {
-	__asm__ __volatile__(            
-			".set\tpush\n\t"
-			".set\tnoreorder\n\t"
-			"move $8, %0\n"
-			"move $9, %1\n"
-			/* "mtcr\t$8, $9\n\t"  */
-			".word 0x71280019\n"
-			".set\tpop"
-			:
-			: "r" (value), "r"((block<<8)|reg)
-			: "$8", "$9"
-			);
+	__asm__ __volatile__(
+	    ".set	push\n\t"
+	    ".set	noreorder\n\t"
+	    "move	$8, %0\n"
+	    "move	$9, %1\n"
+	    ".word	0x71280019\n"    /* mtcr $8, $9  */
+	    ".set	pop\n"
+	    :
+	    : "r" (value), "r" ((block << 8) | reg)
+	    : "$8", "$9"
+	);
 }
 
-static __inline__ unsigned long long read_64bit_phnx_ctrl_reg(int block, int reg)
+#else /* !(defined(__mips_n64) || defined(__mips_n32)) */
+
+static __inline uint64_t
+read_xlr_ctrl_register(int block, int reg)
 {	
-	unsigned int high, low;						
-	
-	__asm__ __volatile__(					
-		".set\tmips64\n\t"				
-		"move    $9, %2\n"
-		/* "mfcr    $8, $9\n" */
-		".word   0x71280018\n"
-		"dsrl32  %0, $8, 0\n\t"			        
-		"dsll32  $8, $8, 0\n\t"                         
-		"dsrl32  %1, $8, 0\n\t"                         
-		".set mips0"					
-		: "=r" (high), "=r"(low)
-		: "r"((block<<8)|reg)
-		: "$8", "$9"
-		);	
-		
-	return ( (((unsigned long long)high)<<32) | low);
+	uint32_t high, low;
+
+	__asm__ __volatile__(
+	    ".set	push\n\t"
+	    ".set	noreorder\n\t"
+	    ".set	mips64\n\t"
+	    "move	$9, %2\n"
+	    ".word 	0x71280018\n"  /* "mfcr    $8, $9\n" */
+	    "dsra32	%0, $8, 0\n\t"
+	    "sll	%1, $8, 0\n\t"
+	    ".set	pop"					
+	    : "=r" (high), "=r"(low)
+	    : "r" ((block << 8) | reg)
+	    : "$8", "$9");
+
+	return ( (((uint64_t)high) << 32) | low);
 }
 
-static __inline__ void write_64bit_phnx_ctrl_reg(int block, int reg,unsigned long long value)
+static __inline void
+write_xlr_ctrl_register(int block, int reg, uint64_t value)
 {
-	__uint32_t low, high;
+	uint32_t low, high;
 	high = value >> 32;
 	low = value & 0xffffffff;
 
 	__asm__ __volatile__(
-		".set push\n"
-		".set noreorder\n"
-		".set mips4\n\t"
-		/* Set up "rs" */
-		"move $9, %0\n"
+	   ".set	push\n\t"
+	   ".set	noreorder\n\t"
+	   ".set	mips64\n\t"
+	   "dsll32	$9, %0, 0\n\t"
+	   "dsll32	$8, %1, 0\n\t"
+	   "dsrl32	$8, $8, 0\n\t"
+	   "or		$8, $9, $8\n\t"
+	   "move	$9, %2\n\t"
+	   ".word	0x71280019\n\t" /* mtcr $8, $9 */
+	   ".set	pop\n"
+	   :  /* No outputs */
+	   : "r" (high), "r" (low), "r"((block << 8) | reg)
+	   : "$8", "$9");
+}
+#endif /* defined(__mips_n64) || defined(__mips_n32) */
 
-		/* Store 64 bit value in "rt" */
-		"dsll32 $10, %1, 0  \n\t"
-		"dsll32 $8, %2, 0  \n\t"
-		"dsrl32 $8, $8, 0  \n\t"
-		"or     $10, $8, $8 \n\t"
+/*
+ * 32 bit read write for c0
+ */
+#define read_c0_register32(reg, sel)				\
+({								\
+	 uint32_t __rv;						\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips32\n\t"				\
+	    "mfc0	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	    : "=r" (__rv) : "i" (reg), "i" (sel) );		\
+	__rv;							\
+ })
 
-		".word 0x71280019\n" /* mtcr $8, $9 */
+#define write_c0_register32(reg,  sel, value)			\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips32\n\t"				\
+	    "mtc0	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	: : "r" (value), "i" (reg), "i" (sel) );
 
-		".set pop\n"
+#define read_c2_register32(reg, sel)				\
+({								\
+	uint32_t __rv;						\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips32\n\t"				\
+	    "mfc2	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	    : "=r" (__rv) : "i" (reg), "i" (sel) );		\
+	__rv;							\
+ })
 
-		:  /* No outputs */
-		: "r"((block<<8)|reg), "r" (high), "r" (low)
-		: "$8", "$9", "$10"
-		);
+#define write_c2_register32(reg,  sel, value)			\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips32\n\t"				\
+	    "mtc2	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	: : "r" (value), "i" (reg), "i" (sel) );
+
+#if defined(__mips_n64) || defined(__mips_n32)
+/*
+ * On 64 bit compilation, the operations are simple
+ */
+#define read_c0_register64(reg, sel)				\
+({								\
+	uint64_t __rv;						\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dmfc0	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	    : "=r" (__rv) : "i" (reg), "i" (sel) );		\
+	__rv;							\
+ })
+
+#define write_c0_register64(reg,  sel, value)			\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dmtc0	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	: : "r" (value), "i" (reg), "i" (sel) );
+
+#define read_c2_register64(reg, sel)				\
+({								\
+	uint64_t __rv;						\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dmfc2	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	    : "=r" (__rv) : "i" (reg), "i" (sel) );		\
+	__rv;							\
+ })
+
+#define write_c2_register64(reg,  sel, value)			\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dmtc2	%0, $%1, %2\n\t"			\
+	    ".set	pop\n"					\
+	: : "r" (value), "i" (reg), "i" (sel) );
+
+#else /* ! (defined(__mips_n64) || defined(__mips_n32)) */
+
+/*
+ * 32 bit compilation, 64 bit values has to split 
+ */
+#define read_c0_register64(reg, sel)				\
+({								\
+	uint32_t __high, __low;					\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	noreorder\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dmfc0	$8, $%2, %3\n\t"			\
+	    "dsra32	%0, $8, 0\n\t"				\
+	    "sll	%1, $8, 0\n\t"				\
+	    ".set	pop\n"					\
+	    : "=r"(__high), "=r"(__low): "i"(reg), "i"(sel)	\
+	    : "$8");						\
+	((uint64_t)__high << 32) | __low;			\
+})
+
+#define write_c0_register64(reg, sel, value)			\
+do {								\
+       uint32_t __high = value >> 32;				\
+       uint32_t __low = value & 0xffffffff;			\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	noreorder\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dsll32	$8, %1, 0\n\t"				\
+	    "dsll32	$9, %0, 0\n\t"				\
+	    "dsrl32	$8, $8, 0\n\t"				\
+	    "or		$8, $8, $9\n\t"				\
+	    "dmtc0	$8, $%2, %3\n\t"			\
+	    ".set	pop"					\
+	    :: "r"(__high), "r"(__low),	 "i"(reg), "i"(sel)	\
+	    :"$8", "$9");					\
+} while(0)
+
+#define read_c2_register64(reg, sel)				\
+({								\
+	uint32_t __high, __low;					\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	noreorder\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dmfc2	$8, $%2, %3\n\t"			\
+	    "dsra32	%0, $8, 0\n\t"				\
+	    "sll	%1, $8, 0\n\t"				\
+	    ".set	pop\n"					\
+	    : "=r"(__high), "=r"(__low): "i"(reg), "i"(sel)	\
+	    : "$8");						\
+	((uint64_t)__high << 32) | __low;			\
+})
+
+#define write_c2_register64(reg, sel, value)			\
+do {								\
+       uint32_t __high = value >> 32;				\
+       uint32_t __low = value & 0xffffffff;			\
+	__asm__ __volatile__(					\
+	    ".set	push\n\t"				\
+	    ".set	noreorder\n\t"				\
+	    ".set	mips64\n\t"				\
+	    "dsll32	$8, %1, 0\n\t"				\
+	    "dsll32	$9, %0, 0\n\t"				\
+	    "dsrl32	$8, $8, 0\n\t"				\
+	    "or		$8, $8, $9\n\t"				\
+	    "dmtc2	$8, $%2, %3\n\t"			\
+	    ".set	pop"					\
+	    :: "r"(__high), "r"(__low),	 "i"(reg), "i"(sel)	\
+	    :"$8", "$9");					\
+} while(0)
+
+#endif /* defined(__mips_n64) || defined(__mips_n32) */
+
+static __inline int
+xlr_cpu_id(void)
+{
+
+	return (read_c0_register32(15, 1) & 0x1f);
 }
 
-#define read_c0_register32(reg, sel)                            \
-({ unsigned int __rv;                                           \
-        __asm__ __volatile__(                                   \
-        ".set\tpush\n\t"                                        \
-        ".set mips32\n\t"                                       \
-        "mfc0\t%0,$%1,%2\n\t"                                   \
-        ".set\tpop"                                             \
-        : "=r" (__rv) : "i" (reg), "i" (sel) );                 \
-        __rv;})
+static __inline int
+xlr_core_id(void)
+{
 
-#define write_c0_register32(reg,  sel, value)                   \
-        __asm__ __volatile__(                                   \
-        ".set\tpush\n\t"                                        \
-        ".set mips32\n\t"                                       \
-        "mtc0\t%0,$%1,%2\n\t"                                   \
-        ".set\tpop"                                             \
-        : : "r" (value), "i" (reg), "i" (sel) );
+	return (xlr_cpu_id() / 4);
+}
 
-#define read_c0_register64(reg, sel)                            \
-   ({ unsigned int __high, __low;                               \
-        __asm__ __volatile__(                                   \
-        ".set\tpush\n\t"                                        \
-        ".set mips64\n\t"                                       \
-        "dmfc0\t $8, $%2, %3\n\t"                               \
-        "dsrl32\t%0, $8, 0\n\t"                                 \
-        "dsll32\t$8, $8, 0\n\t"                                 \
-        "dsrl32\t%1, $8, 0\n\t"                                 \
-        ".set\tpop"                                             \
-        : "=r"(__high), "=r"(__low): "i"(reg), "i"(sel): "$8" );\
-        (((unsigned long long)__high << 32) | __low);})
+static __inline int
+xlr_thr_id(void)
+{
 
-#define write_c0_register64(reg, sel, value)                    \
- do{                                                            \
-       unsigned int __high = val>>32;                           \
-       unsigned int __low = val & 0xffffffff;                   \
-        __asm__ __volatile__(                                   \
-        ".set\tpush\n\t"                                        \
-        ".set mips64\n\t"                                       \
-        "dsll32\t$8, %1, 0\n\t"                                 \
-        "dsll32\t$9, %0, 0\n\t"                                 \
-        "or\t    $8, $8, $9\n\t"                                \
-        "dmtc0\t $8, $%2, %3\n\t"                               \
-        ".set\tpop"                                             \
-        :: "r"(high), "r"(low),  "i"(reg), "i"(sel):"$8", "$9");\
-   } while(0)
-
-#define read_c2_register32(reg, sel)                            \
-({ unsigned int __rv;                                           \
-        __asm__ __volatile__(                                   \
-        ".set\tpush\n\t"                                        \
-        ".set mips32\n\t"                                       \
-        "mfc2\t%0,$%1,%2\n\t"                                   \
-        ".set\tpop"                                             \
-        : "=r" (__rv) : "i" (reg), "i" (sel) );                 \
-        __rv;})
-
-#define write_c2_register32(reg,  sel, value)                   \
-        __asm__ __volatile__(                                   \
-        ".set\tpush\n\t"                                        \
-        ".set mips32\n\t"                                       \
-        "mtc2\t%0,$%1,%2\n\t"                                   \
-        ".set\tpop"                                             \
-        : : "r" (value), "i" (reg), "i" (sel) );
-
-#define read_c2_register64(reg, sel)                            \
-   ({ unsigned int __high, __low;                               \
-        __asm__ __volatile__(                                   \
-        ".set mips64\n\t"                                       \
-        "dmfc2\t $8, $%2, %3\n\t"                               \
-        "dsrl32\t%0, $8, 0\n\t"                                 \
-        "dsll32\t$8, $8, 0\n\t"                                 \
-        "dsrl32\t%1, $8, 0\n\t"                                 \
-        ".set\tmips0"                                           \
-        : "=r"(__high), "=r"(__low): "i"(reg), "i"(sel): "$8" );\
-        (((unsigned long long)__high << 32) | __low);})
-
-#define write_c2_register64(reg, sel, value)                    \
- do{                                                            \
-       unsigned int __high = value>>32;                         \
-       unsigned int __low = value & 0xffffffff;                 \
-        __asm__ __volatile__(                                   \
-        ".set mips64\n\t"                                       \
-        "dsll32\t$8, %1, 0\n\t"                                 \
-        "dsll32\t$9, %0, 0\n\t"                                 \
-        "dsrl32\t$8, $8, 0\n\t"                                 \
-        "or\t    $8, $8, $9\n\t"                                \
-        "dmtc2\t $8, $%2, %3\n\t"                               \
-        ".set\tmips0"                                           \
-        :: "r"(__high), "r"(__low),                             \
-           "i"(reg), "i"(sel)                                   \
-        :"$8", "$9");                                           \
-   } while(0)
-
-#define xlr_cpu_id()                                            \
-({int __id;                                                     \
- __asm__ __volatile__ (                                         \
-           ".set push\n"                                        \
-           ".set noreorder\n"                                   \
-           "mfc0 $8, $15, 1\n"                                  \
-           "andi %0, $8, 0x1f\n"                                \
-           ".set pop\n"                                         \
-           : "=r" (__id) : : "$8");                             \
- __id;})
-
-#define xlr_core_id()                                           \
-({int __id;                                                     \
- __asm__ __volatile__ (                                         \
-           ".set push\n"                                        \
-           ".set noreorder\n"                                   \
-           "mfc0 $8, $15, 1\n"                                  \
-           "andi %0, $8, 0x1f\n"                                \
-           ".set pop\n"                                         \
-           : "=r" (__id) : : "$8");                             \
- __id/4;})
-
-#define xlr_thr_id()                                            \
-({int __id;                                                     \
- __asm__ __volatile__ (                                         \
-           ".set push\n"                                        \
-           ".set noreorder\n"                                   \
-           "mfc0 $8, $15, 1\n"                                  \
-           "andi %0, $8, 0x3\n"                                 \
-           ".set pop\n"                                         \
-           : "=r" (__id) : : "$8");                             \
- __id;})
-
+	return (read_c0_register32(15, 1) & 0x3);
+}
 
 /* Additional registers on the XLR */
-#define MIPS_COP_0_OSSCRATCH   22
-
-#define XLR_CACHELINE_SIZE 32
-
-#define XLR_MAX_CORES 8
+#define	MIPS_COP_0_OSSCRATCH	22
+#define	XLR_CACHELINE_SIZE	32
+#define	XLR_MAX_CORES		8
 
 /* functions to write to and read from the extended
  * cp0 registers.
@@ -268,109 +320,32 @@ static __inline__ void write_64bit_phnx_ctrl_reg(int block, int reg,unsigned lon
  *        cp0 register 9 sel 7
  *        bits 0...7 are same as status register 8...15
  */
-
-static inline uint64_t 
+static __inline uint64_t 
 read_c0_eirr64(void)
 {
-	__uint32_t high, low;
 
-	__asm__ __volatile__(
-	            ".set push\n"
-	            ".set noreorder\n"
-	            ".set noat\n"
-	            ".set mips4\n"
-
-	            ".word 0x40214806  \n\t"
-	            "nop               \n\t"
-	            "dsra32 %0, $1, 0  \n\t"
-	            "sll    %1, $1, 0  \n\t"
-
-	            ".set pop\n"
-
-	    :       "=r"(high), "=r"(low)
-	);
-
-	return (((__uint64_t) high) << 32) | low;
+	return (read_c0_register64(9, 6));
 }
 
-static inline __uint64_t 
+static __inline void
+write_c0_eirr64(uint64_t val)
+{
+
+	write_c0_register64(9, 6, val);
+}
+
+static __inline uint64_t 
 read_c0_eimr64(void)
 {
-	__uint32_t high, low;
 
-	__asm__ __volatile__(
-	            ".set push\n"
-	            ".set noreorder\n"
-	            ".set noat\n"
-	            ".set mips4\n"
-
-	            ".word 0x40214807  \n\t"
-	            "nop               \n\t"
-	            "dsra32 %0, $1, 0  \n\t"
-	            "sll    %1, $1, 0  \n\t"
-
-	            ".set pop\n"
-
-	    :       "=r"(high), "=r"(low)
-	);
-
-	return (((__uint64_t) high) << 32) | low;
+	return (read_c0_register64(9, 7));
 }
 
-static inline void 
-write_c0_eirr64(__uint64_t value)
+static __inline void
+write_c0_eimr64(uint64_t val)
 {
-	__uint32_t low, high;
 
-	high = value >> 32;
-	low = value & 0xffffffff;
-
-	__asm__ __volatile__(
-	            ".set push\n"
-	            ".set noreorder\n"
-	            ".set noat\n"
-	            ".set mips4\n\t"
-
-	            "dsll32 $2, %1, 0  \n\t"
-	            "dsll32 $1, %0, 0  \n\t"
-	            "dsrl32 $2, $2, 0  \n\t"
-	            "or     $1, $1, $2 \n\t"
-	            ".word  0x40a14806 \n\t"
-	            "nop               \n\t"
-
-	            ".set pop\n"
-
-	    :
-	    :       "r"(high), "r"(low)
-	    :       "$1", "$2");
-}
-
-static inline void 
-write_c0_eimr64(__uint64_t value)
-{
-	__uint32_t low, high;
-
-	high = value >> 32;
-	low = value & 0xffffffff;
-
-	__asm__ __volatile__(
-	            ".set push\n"
-	            ".set noreorder\n"
-	            ".set noat\n"
-	            ".set mips4\n\t"
-
-	            "dsll32 $2, %1, 0  \n\t"
-	            "dsll32 $1, %0, 0  \n\t"
-	            "dsrl32 $2, $2, 0  \n\t"
-	            "or     $1, $1, $2 \n\t"
-	            ".word  0x40a14807 \n\t"
-	            "nop               \n\t"
-
-	            ".set pop\n"
-
-	    :
-	    :       "r"(high), "r"(low)
-	    :       "$1", "$2");
+	write_c0_register64(9, 7, val);
 }
 
 static __inline__ int 
@@ -378,17 +353,18 @@ xlr_test_and_set(int *lock)
 {
 	int oldval = 0;
 
-	__asm__ __volatile__(".set push\n"
-	            ".set noreorder\n"
-	            "move $9, %2\n"
-	            "li $8, 1\n"
+	__asm__ __volatile__(
+	    ".set push\n"
+	    ".set noreorder\n"
+	    "move $9, %2\n"
+	    "li $8, 1\n"
 	    //      "swapw $8, $9\n"
-	            ".word 0x71280014\n"
-	            "move %1, $8\n"
-	            ".set pop\n"
-	    :       "+m"(*lock), "=r"(oldval)
-	    :       "r"((unsigned long)lock)
-	    :       "$8", "$9"
+	    ".word 0x71280014\n"
+	    "move %1, $8\n"
+	    ".set pop\n"
+	    : "+m"(*lock), "=r"(oldval)
+	    : "r"((unsigned long)lock)
+	    : "$8", "$9"
 	);
 
 	return (oldval == 0 ? 1 /* success */ : 0 /* failure */ );
@@ -400,11 +376,11 @@ xlr_mfcr(uint32_t reg)
 	uint32_t val;
 
 	__asm__ __volatile__(
-	            "move   $8, %1\n"
-	            ".word  0x71090018\n"
-	            "move   %0, $9\n"
-	    :       "=r"(val)
-	    :       "r"(reg):"$8", "$9");
+	    "move   $8, %1\n"
+	    ".word  0x71090018\n"
+	    "move   %0, $9\n"
+	    : "=r"(val)
+	    : "r"(reg):"$8", "$9");
 
 	return val;
 }
@@ -413,35 +389,63 @@ static __inline__ void
 xlr_mtcr(uint32_t reg, uint32_t val)
 {
 	__asm__ __volatile__(
-	            "move   $8, %1\n"
-	            "move   $9, %0\n"
-	            ".word  0x71090019\n"
-	    ::      "r"(val), "r"(reg)
-	    :       "$8", "$9");
+	    "move   $8, %1\n"
+	    "move   $9, %0\n"
+	    ".word  0x71090019\n"
+	    :: "r"(val), "r"(reg)
+	    : "$8", "$9");
 }
 
+#if defined(__mips_n64)
 static __inline__ uint32_t
 xlr_paddr_lw(uint64_t paddr)
 {
-        uint32_t high, low, tmp;
+	
+	paddr |= 0x9800000000000000ULL;
+	return (*(uint32_t *)(uintptr_t)paddr);
+}
 
-        high = 0x98000000 | (paddr >> 32);
-        low = paddr & 0xffffffff;
+#elif defined(__mips_n32)
+static __inline__ uint32_t
+xlr_paddr_lw(uint64_t paddr)
+{
+	uint32_t val;
 
-        __asm__ __volatile__(
-                    ".set push         \n\t"
-                    ".set mips64       \n\t"
-                    "dsll32 %1, %1, 0  \n\t"
-                    "dsll32 %2, %2, 0  \n\t"  /* get rid of the */
-                    "dsrl32 %2, %2, 0  \n\t"  /* sign extend */
-                    "or     %1, %1, %2 \n\t"
-                    "lw     %0, 0(%1)  \n\t"
-                    ".set pop           \n"
-            :       "=r"(tmp)
-            :       "r"(high), "r"(low));
+	paddr |= 0x9800000000000000ULL;
+	__asm__ __volatile__(
+	    ".set	push		\n\t"
+	    ".set	mips64		\n\t"
+	    "lw		%0, 0(%1)	\n\t"
+	    ".set	pop		\n"
+	    : "=r"(val)
+	    : "r"(paddr));
+
+	return (val);
+}
+#else
+static __inline__ uint32_t
+xlr_paddr_lw(uint64_t paddr)
+{
+	uint32_t high, low, tmp;
+
+	high = 0x98000000 | (paddr >> 32);
+	low = paddr & 0xffffffff;
+
+	__asm__ __volatile__(
+	    ".set push         \n\t"
+	    ".set mips64       \n\t"
+	    "dsll32 %1, %1, 0  \n\t"
+	    "dsll32 %2, %2, 0  \n\t"  /* get rid of the */
+	    "dsrl32 %2, %2, 0  \n\t"  /* sign extend */
+	    "or     %1, %1, %2 \n\t"
+	    "lw     %0, 0(%1)  \n\t"
+	    ".set pop           \n"
+	    :       "=r"(tmp)
+	    :       "r"(high), "r"(low));
 
 	return tmp;
 }
+#endif
 
 /* for cpuid to hardware thread id mapping */
 extern uint32_t xlr_hw_thread_mask;
