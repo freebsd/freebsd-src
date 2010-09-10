@@ -115,7 +115,7 @@ static int	nexus_attach(device_t);
 /*
  * Bus interface
  */
-static device_t nexus_add_child(device_t, int, const char *, int);
+static device_t nexus_add_child(device_t, u_int, const char *, int);
 static void	nexus_probe_nomatch(device_t, device_t);
 static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
@@ -262,7 +262,7 @@ nexus_probe_nomatch(device_t dev, device_t child)
 }
 
 static device_t
-nexus_add_child(device_t dev, int order, const char *name, int unit)
+nexus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct nexus_devinfo *dinfo;
