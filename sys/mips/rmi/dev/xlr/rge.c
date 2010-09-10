@@ -713,8 +713,11 @@ xlr_mac_send_fr(struct driver_data *priv,
 {
 	struct msgrng_msg msg;
 	int stid = priv->rfrbucket;
-	int i = 0, code, ret;
+	int code, ret;
 	uint32_t msgrng_flags;
+#ifdef INVARIANTS
+	int i = 0;
+#endif
 
 	mac_make_desc_rfr(&msg, addr);
 
