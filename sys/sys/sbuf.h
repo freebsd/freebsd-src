@@ -51,7 +51,6 @@ struct sbuf {
 #define	SBUF_USRFLAGMSK	0x0000ffff	/* mask of flags the user may specify */
 #define	SBUF_DYNAMIC	0x00010000	/* s_buf must be freed */
 #define	SBUF_FINISHED	0x00020000	/* set by sbuf_finish() */
-#define	SBUF_OVERFLOWED	0x00040000	/* sbuf overflowed */
 #define	SBUF_DYNSTRUCT	0x00080000	/* sbuf must be freed */
 	int		 s_flags;	/* flags */
 };
@@ -76,7 +75,7 @@ int		 sbuf_vprintf(struct sbuf *, const char *, __va_list)
 int		 sbuf_putc(struct sbuf *, int);
 void		 sbuf_set_drain(struct sbuf *, sbuf_drain_func *, void *);
 int		 sbuf_trim(struct sbuf *);
-int		 sbuf_overflowed(struct sbuf *);
+int		 sbuf_error(struct sbuf *);
 int		 sbuf_finish(struct sbuf *);
 char		*sbuf_data(struct sbuf *);
 int		 sbuf_len(struct sbuf *);
