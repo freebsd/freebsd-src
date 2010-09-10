@@ -124,6 +124,10 @@ NANO_HEADS=16
 NANO_BOOT0CFG="-o packet -s 1 -m 3"
 NANO_BOOTLOADER="boot/boot0sio"
 
+# boot2 flags/options
+# default force serial console
+NANO_BOOT2CFG="-h"
+
 # Backing type of md(4) device
 # Can be "file" or "swap"
 NANO_MD_BACKING="file"
@@ -132,7 +136,10 @@ NANO_MD_BACKING="file"
 PPLEVEL=3
 
 #######################################################################
-# Not a variable at this time
+# Architecture to build.  Corresponds to TARGET_ARCH in a buildworld.
+# Unfortunately, there's no way to set TARGET at this time, and it 
+# conflates the two, so architectures where TARGET != TARGET_ARCH do
+# not work.  This defaults to the arch of the current machine.
 
 NANO_ARCH=`uname -p`
 
@@ -354,6 +361,30 @@ prune_usr() (
 		done
 )
 
+populate_slice ( ) (
+	local dev dir mnt
+	dev=$1
+	dir=$2
+	mnt=$3
+	test -z $2 && dir=/var/empty
+	test -d $d || dir=/var/empty
+	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
+	newfs ${NANO_NEWFS} ${dev}
+	mount ${dev} ${mnt}
+	cd ${dir}
+	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
+	df -i ${mnt}
+	umount ${mnt}
+)
+
+populate_cfg_slice ( ) (
+	populate_slice "$1" "$2" "$3"
+)
+
+populate_data_slice ( ) (
+	populate_slice "$1" "$2" "$3"
+)
+
 create_i386_diskimage ( ) (
 	pprint 2 "build diskimage"
 	pprint 3 "log: ${NANO_OBJ}/_.di"
@@ -453,6 +484,7 @@ create_i386_diskimage ( ) (
 	bsdlabel ${MD}s1
 
 	# Create first image
+	# XXX: should use populate_slice for easier override
 	newfs ${NANO_NEWFS} /dev/${MD}s1a
 	mount /dev/${MD}s1a ${MNT}
 	df -i ${MNT}
@@ -471,19 +503,17 @@ create_i386_diskimage ( ) (
 		mount /dev/${MD}s2a ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
-			sed -i "" "s/${NANO_DRIVE}s1/${NANO_DRIVE}s2/g" $f
+			sed -i "" "s=${NANO_DRIVE}s1=${NANO_DRIVE}s2=g" $f
 		done
 		umount ${MNT}
 	fi
 	
 	# Create Config slice
-	newfs ${NANO_NEWFS} /dev/${MD}s3
-	# XXX: fill from where ?
+	populate_cfg_slice /dev/${MD}s3 "${NANO_CFGDIR}" ${MNT}
 
 	# Create Data slice, if any.
 	if [ $NANO_DATASIZE -ne 0 ] ; then
-		newfs ${NANO_NEWFS} /dev/${MD}s4
-		# XXX: fill from where ?
+		populate_data_slice /dev/${MD}s4 "${NANO_DATADIR}" ${MNT}
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
@@ -582,7 +612,7 @@ cust_comconsole () (
 	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
 
 	# Tell loader to use serial console early.
-	echo " -h" > ${NANO_WORLDDIR}/boot.config
+	echo "${NANO_BOOT2CFG}" > ${NANO_WORLDDIR}/boot.config
 )
 
 #######################################################################
@@ -650,19 +680,19 @@ cust_pkg () (
 
 #######################################################################
 # Convenience function:
-# 	Register $1 as customize function.
+# 	Register all args as customize function.
 
 customize_cmd () {
-	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $1"
+	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $*"
 }
 
 #######################################################################
 # Convenience function:
-# 	Register $1 as late customize function to run just before
+# 	Register all args as late customize function to run just before
 #	image creation.
 
 late_customize_cmd () {
-	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $1"
+	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $*"
 }
 
 #######################################################################
@@ -682,12 +712,12 @@ pprint() {
 
 usage () {
 	(
-	echo "Usage: $0 [-bikqvw] [-c config_file]"
+	echo "Usage: $0 [-biknqvw] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-i	suppress disk image build"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
-	echo "	-q	make output more quite"
+	echo "	-q	make output more quiet"
 	echo "	-v	make output more verbose"
 	echo "	-w	suppress buildworld"
 	echo "	-c	specify config file"
