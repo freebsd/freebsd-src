@@ -584,12 +584,15 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		gotchildmax = 1;
 
 	error = vfs_copyopt(opts, "enforce_statfs", &enforce, sizeof(enforce));
-	gotenforce = (error == 0);
-	if (gotenforce) {
-		if (enforce < 0 || enforce > 2)
-			return (EINVAL);
-	} else if (error != ENOENT)
+	if (error == ENOENT)
+		gotenforce = 0;
+	else if (error != 0)
 		goto done_free;
+	else if (enforce < 0 || enforce > 2) {
+		error = EINVAL;
+		goto done_free;
+	} else
+		gotenforce = 1;
 
 	pr_flags = ch_flags = 0;
 	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
