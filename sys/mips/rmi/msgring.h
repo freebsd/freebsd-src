@@ -306,7 +306,9 @@ message_send(unsigned int size, unsigned int code,
 {
 	unsigned int dest = 0;
 	unsigned long long status = 0;
+#ifdef INVARIANTS
 	int i = 0;
+#endif
 
 	msgrng_load_tx_msg0(msg->msg0);
 	msgrng_load_tx_msg1(msg->msg1);
