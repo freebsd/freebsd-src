@@ -63,7 +63,7 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 .if target(beforelinking)
 ${PROG}: ${OBJS} beforelinking
 .else
-${PROG}: ${OBJS} beforelinking
+${PROG}: ${OBJS}
 .endif
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
