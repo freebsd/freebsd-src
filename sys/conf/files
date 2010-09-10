@@ -1064,7 +1064,7 @@ ipw_bss.fwo			optional ipwbssfw | ipwfw		\
 	no-implicit-rule						\
 	clean		"ipw_bss.fwo"
 ipw_bss.fw			optional ipwbssfw | ipwfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/ipw/ipw2100-1.3.fw.uu"		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ipw/ipw2100-1.3.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"ipw_bss.fw"
@@ -1078,7 +1078,7 @@ ipw_ibss.fwo			optional ipwibssfw | ipwfw		\
 	no-implicit-rule						\
 	clean		"ipw_ibss.fwo"
 ipw_ibss.fw			optional ipwibssfw | ipwfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/ipw/ipw2100-1.3-i.fw.uu"	\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ipw/ipw2100-1.3-i.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"ipw_ibss.fw"
@@ -1092,7 +1092,7 @@ ipw_monitor.fwo			optional ipwmonitorfw | ipwfw		\
 	no-implicit-rule						\
 	clean		"ipw_monitor.fwo"
 ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/ipw/ipw2100-1.3-p.fw.uu"	\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ipw/ipw2100-1.3-p.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
@@ -1120,7 +1120,7 @@ iwi_bss.fwo			optional iwibssfw | iwifw		\
 	no-implicit-rule						\
 	clean		"iwi_bss.fwo"
 iwi_bss.fw			optional iwibssfw | iwifw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/iwi/ipw2200-bss.fw.uu"		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-bss.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwi_bss.fw"
@@ -1134,7 +1134,7 @@ iwi_ibss.fwo			optional iwiibssfw | iwifw		\
 	no-implicit-rule						\
 	clean		"iwi_ibss.fwo"
 iwi_ibss.fw			optional iwiibssfw | iwifw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/iwi/ipw2200-ibss.fw.uu"		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-ibss.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwi_ibss.fw"
@@ -1148,7 +1148,7 @@ iwi_monitor.fwo			optional iwimonitorfw | iwifw		\
 	no-implicit-rule						\
 	clean		"iwi_monitor.fwo"
 iwi_monitor.fw			optional iwimonitorfw | iwifw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/iwi/ipw2200-sniffer.fw.uu"	\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwi/ipw2200-sniffer.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwi_monitor.fw"
@@ -1163,7 +1163,7 @@ iwn1000fw.fwo			optional iwn1000fw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn1000fw.fwo"
 iwn1000.fw			optional iwn1000fw | iwnfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-1000-128.50.3.1.fw.uu" \
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-1000-128.50.3.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn1000.fw"
@@ -1177,7 +1177,7 @@ iwn4965fw.fwo			optional iwn4965fw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn4965fw.fwo"
 iwn4965.fw			optional iwn4965fw | iwnfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-4965-228.61.2.24.fw.uu" \
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-228.61.2.24.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn4965.fw"
@@ -1191,7 +1191,7 @@ iwn5000fw.fwo		optional iwn5000fw | iwnfw			\
 	no-implicit-rule						\
 	clean		"iwn5000fw.fwo"
 iwn5000.fw			optional iwn5000fw | iwnfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-5000-8.24.2.12.fw.uu" \
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5000-8.24.2.12.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"iwn5000.fw"
@@ -1205,7 +1205,7 @@ iwn5150fw.fwo			optional iwn5150fw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn5150fw.fwo"
 iwn5150.fw			optional iwn5150fw | iwnfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-5150-8.24.2.2.fw.uu"\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5150-8.24.2.2.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn5150.fw"
@@ -1219,7 +1219,7 @@ iwn6000fw.fwo			optional iwn6000fw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn6000fw.fwo"
 iwn6000.fw			optional iwn6000fw | iwnfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6000-9.221.4.1.fw.uu" \
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.221.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn6000.fw"
@@ -1233,7 +1233,7 @@ iwn6050fw.fwo			optional iwn6050fw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn6050fw.fwo"
 iwn6050.fw			optional iwn6050fw | iwnfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6050-9.201.4.1.fw.uu" \
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6050-9.201.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn6000.fw"
@@ -1356,7 +1356,7 @@ mw88W8363.fwo		optional mwlfw					\
 	no-implicit-rule						\
 	clean		"mw88W8363.fwo"
 mw88W8363.fw		optional mwlfw					\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/mwl/mw88W8363.fw.uu"		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/mwl/mw88W8363.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"mw88W8363.fw"
@@ -1366,7 +1366,7 @@ mwlboot.fwo		optional mwlfw					\
 	no-implicit-rule						\
 	clean		"mwlboot.fwo"
 mwlboot.fw		optional mwlfw					\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/mwl/mwlboot.fw.uu"		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/mwl/mwlboot.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"mwlboot.fw"
@@ -1471,7 +1471,7 @@ rt2561fw.fwo			optional rt2561fw | ralfw		\
 	no-implicit-rule						\
 	clean		"rt2561fw.fwo"
 rt2561.fw			optional rt2561fw | ralfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/ral/rt2561.fw.uu"		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"rt2561.fw"
@@ -1485,7 +1485,7 @@ rt2561sfw.fwo			optional rt2561sfw | ralfw		\
 	no-implicit-rule						\
 	clean		"rt2561sfw.fwo"
 rt2561s.fw			optional rt2561sfw | ralfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/ral/rt2561s.fw.uu"		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561s.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"rt2561s.fw"
@@ -1499,7 +1499,7 @@ rt2661fw.fwo			optional rt2661fw | ralfw		\
 	no-implicit-rule						\
 	clean		"rt2661fw.fwo"
 rt2661.fw			optional rt2661fw | ralfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/ral/rt2661.fw.uu"		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2661.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"rt2661.fw"
@@ -1513,7 +1513,7 @@ rt2860fw.fwo			optional rt2860fw | ralfw		\
 	no-implicit-rule						\
 	clean		"rt2860fw.fwo"
 rt2860.fw			optional rt2860fw | ralfw		\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/ral/rt2860.fw.uu"		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2860.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
@@ -1873,7 +1873,7 @@ wpifw.fwo			optional wpifw				\
 	no-implicit-rule						\
 	clean		"wpifw.fwo"
 wpi.fw			optional wpifw					\
-	dependency	".PHONY"					\
+	dependency	"$S/contrib/dev/wpi/iwlwifi-3945-2.14.4.fw.uu"	\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/wpi/iwlwifi-3945-2.14.4.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"wpi.fw"
