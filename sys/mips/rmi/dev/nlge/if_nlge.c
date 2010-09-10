@@ -1953,7 +1953,10 @@ send_fmn_msg_tx(struct nlge_softc *sc, struct msgrng_msg *msg,
     uint32_t n_entries)
 {
 	uint32_t msgrng_flags;
-	int i = 0, ret;
+	int ret;
+#ifdef INVARIANTS
+	int i = 0;
+#endif
 
 	do {
 		msgrng_flags = msgrng_access_enable();
