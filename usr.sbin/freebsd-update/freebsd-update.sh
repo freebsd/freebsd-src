@@ -572,7 +572,7 @@ fetch_setup_verboselevel () {
 # running *-p[0-9]+, strip off the last part; if the
 # user is running -SECURITY, call it -RELEASE.  Chdir
 # into the working directory.
-fetch_check_params () {
+fetchupgrade_check_params () {
 	export HTTP_USER_AGENT="freebsd-update (${COMMAND}, `uname -r`)"
 
 	_SERVERNAME_z=\
@@ -655,9 +655,21 @@ fetch_check_params () {
 	BDHASH=`echo ${BASEDIR} | sha256 -q`
 }
 
+# Perform sanity checks etc. before fetching updates.
+fetch_check_params () {
+	fetchupgrade_check_params
+
+	if ! [ -z "${TARGETRELEASE}" ]; then
+		echo -n "`basename $0`: "
+		echo -n "-r option is meaningless with 'fetch' command.  "
+		echo "(Did you mean 'upgrade' instead?)"
+		exit 1
+	fi
+}
+
 # Perform sanity checks etc. before fetching upgrades.
 upgrade_check_params () {
-	fetch_check_params
+	fetchupgrade_check_params
 
 	# Unless set otherwise, we're upgrading to the same kernel config.
 	NKERNCONF=${KERNCONF}
