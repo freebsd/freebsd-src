@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2006
+.Dd August 2, 2010
 .Dt MEMGUARD 9
 .Os
 .Sh NAME
@@ -41,54 +41,107 @@ multithreaded kernels where race conditions are more prevalent.
 .Pp
 Currently,
 .Nm
-can only take over
+can take over
 .Fn malloc ,
 .Fn realloc
 and
 .Fn free
-for a particular malloc type.
+for a single malloc type.
+.Nm
+can also guard all allocations larger than
+.Dv PAGE_SIZE ,
+and can guard a random fraction of all allocations.
+There is also a knob to prevent allocations smaller than a specified
+size from being guarded, to limit memory waste.
 .Sh EXAMPLES
 To use
 .Nm
-for memory type compiled into the kernel, one has to add the
-following line to the
+for a memory type, either add an entry to
 .Pa /boot/loader.conf :
 .Bd -literal -offset indent
 vm.memguard.desc=<memory_type>
 .Ed
 .Pp
-Where
-.Ar memory_type
-is a short description of memory type to monitor.
-The short description of memory type is the second argument to
-.Xr MALLOC_DEFINE 9 ,
-so one has to find it in the kernel source.
-.Pp
-To use
-.Nm
-for memory type defined in a kernel module, one has to set
+Or set the
 .Va vm.memguard.desc
 .Xr sysctl 8
-variable before loading the module:
+variable at run-time:
 .Bd -literal -offset indent
 sysctl vm.memguard.desc=<memory_type>
 .Ed
 .Pp
+Where
+.Ar memory_type
+is a short description of the memory type to monitor.
+Only allocations from that
+.Ar memory_type
+made after
+.Va vm.memguard.desc
+is set will potentially be guarded.
+If
+.Va vm.memguard.desc
+is modified at run-time then only allocations of the new
+.Ar memory_type
+will potentially be guarded once the
+.Xr sysctl 8
+is set.
+Existing guarded allocations will still be properly released by
+.Xr free 9 .
+.Pp
+The short description of a
+.Xr malloc 9
+type is the second argument to
+.Xr MALLOC_DEFINE 9 ,
+so one has to find it in the kernel source.
+.Pp
 The
 .Va vm.memguard.divisor
-boot-time tunable is used to scale how much of
-.Va kmem_map
-one wants to allocate for
-.Nm .
-The default is 10, so
-.Va kmem_size Ns /10
-bytes will be used.
-The
-.Va kmem_size
-value can be obtained via the
-.Va vm.kmem_size
-.Xr sysctl 8
-variable.
+boot-time tunable is used to scale how much of the system's physical
+memory
+.Nm
+is allowed to consume.
+The default is 10, so up to
+.Va cnt.v_page_count Ns /10
+pages can be used.
+.Nm
+will reserve
+.Va vm_kmem_max
+/
+.Va vm.memguard.divisor
+bytes of virtual address space, limited by twice the physical memory
+size.
+The physical limit is reported as
+.Va vm.memguard.phys_limit
+and the virtual space reserved for
+.Nm
+is reported as
+.Va vm.memguard.mapsize .
+.Pp
+.Nm
+will not do page promotions for any allocation smaller than
+.Va vm.memguard.minsize
+bytes.
+The default is 0, meaning all allocations can potentially be guarded.
+.Nm
+can guard sufficiently large allocations randomly, with average
+frequency of every one in 100000 /
+.Va vm.memguard.frequency
+allocations.
+The default is 0, meaning no allocations are randomly guarded.
+.Pp
+.Nm
+can optionally add unmapped guard pages around each allocation to
+detect overflow and underflow, if
+.Va vm.memguard.options
+has the 1 bit set.
+This option is enabled by default.
+.Nm
+will optionally guard all allocations of
+.Dv PAGE_SIZE
+or larger if
+.Va vm.memguard.options
+has the 2 bit set.
+This option is off by default.
 .Sh SEE ALSO
 .Xr sysctl 8 ,
 .Xr vmstat 8 ,
@@ -102,10 +155,13 @@ first appeared in
 .Sh AUTHORS
 .An -nosplit
 .Nm
-was written by
+was originally written by
 .An Bosko Milekic Aq bmilekic@FreeBSD.org .
-This manual page was written by
+This manual page was originally written by
 .An Christian Brueffer Aq brueffer@FreeBSD.org .
+Additions have been made by
+.An Matthew Fleming Aq mdf@FreeBSD.org
+to both the implementation and the documentation.
 .Sh BUGS
 Currently, it is not possible to override UMA
 .Xr zone 9

@@ -26,9 +26,30 @@
  * $FreeBSD$
  */
 
-extern u_int vm_memguard_divisor;
+#ifndef _VM_MEMGUARD_H_
+#define	_VM_MEMGUARD_H_
 
-void	memguard_init(vm_map_t parent_map, unsigned long size);
-void 	*memguard_alloc(unsigned long size, int flags);
-void	memguard_free(void *addr);
-int	memguard_cmp(struct malloc_type *mtp);
+#include "opt_vm.h"
+
+struct malloc_type;
+struct vm_map;
+
+#ifdef DEBUG_MEMGUARD
+unsigned long	memguard_fudge(unsigned long, unsigned long);
+void	memguard_init(struct vm_map *);
+void 	*memguard_alloc(unsigned long, int);
+void	*memguard_realloc(void *, unsigned long, struct malloc_type *, int);
+void	memguard_free(void *);
+int	memguard_cmp(struct malloc_type *, unsigned long);
+int	is_memguard_addr(void *);
+#else
+#define	memguard_fudge(size, xxx)	(size)
+#define	memguard_init(map)		do { } while (0)
+#define	memguard_alloc(size, flags)	NULL
+#define	memguard_realloc(a, s, mtp, f)	NULL
+#define	memguard_free(addr)		do { } while (0)
+#define	memguard_cmp(mtp, size)		0
+#define	is_memguard_addr(addr)		0
+#endif
+
+#endif /* _VM_MEMGUARD_H_ */
