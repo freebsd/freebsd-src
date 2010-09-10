@@ -3284,7 +3284,7 @@ resource_list_purge(struct resource_list *rl)
 }
 
 device_t
-bus_generic_add_child(device_t dev, int order, const char *name, int unit)
+bus_generic_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 
 	return (device_add_child_ordered(dev, order, name, unit));
