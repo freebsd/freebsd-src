@@ -2528,6 +2528,10 @@ upgrade_run () {
 	# Leave a note behind to tell the "install" command that the kernel
 	# needs to be installed before the world.
 	touch ${BDHASH}-install/kernelfirst
+
+	# Remind the user that they need to run "freebsd-update install"
+	# to install the downloaded bits, in case they didn't RTFM.
+	echo "To install the downloaded upgrades, run \"$0 install\"."
 }
 
 # Make sure that all the file hashes mentioned in $@ have corresponding
