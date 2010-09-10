@@ -365,8 +365,12 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		   ("malloc(M_WAITOK) in interrupt context"));
 
 #ifdef DEBUG_MEMGUARD
-	if (memguard_cmp(mtp))
-		return memguard_alloc(size, flags);
+	if (memguard_cmp(mtp, size)) {
+		va = memguard_alloc(size, flags);
+		if (va != NULL)
+			return (va);
+		/* This is unfortunate but should not be fatal. */
+	}
 #endif
 
 #ifdef DEBUG_REDZONE
@@ -427,7 +431,7 @@ free(void *addr, struct malloc_type *mtp)
 		return;
 
 #ifdef DEBUG_MEMGUARD
-	if (memguard_cmp(mtp)) {
+	if (is_memguard_addr(addr)) {
 		memguard_free(addr);
 		return;
 	}
@@ -495,10 +499,8 @@ realloc(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 	 */
 
 #ifdef DEBUG_MEMGUARD
-if (memguard_cmp(mtp)) {
-	slab = NULL;
-	alloc = size;
-} else {
+	if (is_memguard_addr(addr))
+		return (memguard_realloc(addr, size, mtp, flags));
 #endif
 
 #ifdef DEBUG_REDZONE
@@ -522,10 +524,6 @@ if (memguard_cmp(mtp)) {
 	    && (size > (alloc >> REALLOC_FRACTION) || alloc == MINALLOCSIZE))
 		return (addr);
 #endif /* !DEBUG_REDZONE */
-
-#ifdef DEBUG_MEMGUARD
-}
-#endif
 
 	/* Allocate a new, bigger (or smaller) block */
 	if ((newaddr = malloc(size, mtp, flags)) == NULL)
@@ -558,7 +556,7 @@ static void
 kmeminit(void *dummy)
 {
 	u_int8_t indx;
-	u_long mem_size;
+	u_long mem_size, tmp;
 	int i;
  
 	mtx_init(&malloc_mtx, "malloc", NULL, MTX_DEF);
@@ -622,8 +620,13 @@ kmeminit(void *dummy)
 	 */
 	init_param3(vm_kmem_size / PAGE_SIZE);
 
+#ifdef DEBUG_MEMGUARD
+	tmp = memguard_fudge(vm_kmem_size, vm_kmem_size_max);
+#else
+	tmp = vm_kmem_size;
+#endif
 	kmem_map = kmem_suballoc(kernel_map, &kmembase, &kmemlimit,
-	    vm_kmem_size, TRUE);
+	    tmp, TRUE);
 	kmem_map->system_map = 1;
 
 #ifdef DEBUG_MEMGUARD
@@ -632,14 +635,7 @@ kmeminit(void *dummy)
 	 * replacement allocator used for detecting tamper-after-free
 	 * scenarios as they occur.  It is only used for debugging.
 	 */
-	vm_memguard_divisor = 10;
-	TUNABLE_INT_FETCH("vm.memguard.divisor", &vm_memguard_divisor);
-
-	/* Pick a conservative value if provided value sucks. */
-	if ((vm_memguard_divisor <= 0) ||
-	    ((vm_kmem_size / vm_memguard_divisor) == 0))
-		vm_memguard_divisor = 10;
-	memguard_init(kmem_map, vm_kmem_size / vm_memguard_divisor);
+	memguard_init(kmem_map);
 #endif
 
 	uma_startup2();
