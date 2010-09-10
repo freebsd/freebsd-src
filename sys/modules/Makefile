@@ -185,6 +185,7 @@ SUBDIR=	${_3dfx} \
 	${_mly} \
 	mmc \
 	mmcsd \
+	mps \
 	mpt \
 	mqueue \
 	msdosfs \
