@@ -402,7 +402,7 @@ zbbus_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 }
 
 static device_t
-zbbus_add_child(device_t bus, int order, const char *name, int unit)
+zbbus_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct zbbus_devinfo *dinfo;
