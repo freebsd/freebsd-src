@@ -1025,10 +1025,10 @@ MLINKS+=sbuf.9 sbuf_bcat.9 \
 	sbuf.9 sbuf_data.9 \
 	sbuf.9 sbuf_delete.9 \
 	sbuf.9 sbuf_done.9 \
+	sbuf.9 sbuf_error.9 \
 	sbuf.9 sbuf_finish.9 \
 	sbuf.9 sbuf_len.9 \
 	sbuf.9 sbuf_new.9 \
-	sbuf.9 sbuf_overflowed.9 \
 	sbuf.9 sbuf_printf.9 \
 	sbuf.9 sbuf_putc.9 \
 	sbuf.9 sbuf_set_drain.9 \

@@ -3093,7 +3093,7 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 		sbuf_printf(&sb, GZ_SUFFIX);
 	}
 #endif
-	if (sbuf_overflowed(&sb)) {
+	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
 		    "long\n", (long)pid, name, (u_long)uid);
 nomem:
