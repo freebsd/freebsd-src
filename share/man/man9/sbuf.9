@@ -45,7 +45,7 @@
 .Nm sbuf_putc ,
 .Nm sbuf_set_drain ,
 .Nm sbuf_trim ,
-.Nm sbuf_overflowed ,
+.Nm sbuf_error ,
 .Nm sbuf_finish ,
 .Nm sbuf_data ,
 .Nm sbuf_len ,
@@ -88,7 +88,7 @@
 .Ft int
 .Fn sbuf_trim "struct sbuf *s"
 .Ft int
-.Fn sbuf_overflowed "struct sbuf *s"
+.Fn sbuf_error "struct sbuf *s"
 .Ft int
 .Fn sbuf_finish "struct sbuf *s"
 .Ft char *
@@ -332,10 +332,15 @@ function removes trailing whitespace from the
 .Fa sbuf .
 .Pp
 The
-.Fn sbuf_overflowed
-function returns a non-zero value if the
+.Fn sbuf_error
+function returns any error value that the
+.Fa sbuf
+may have accumulated, either from the drain function, or ENOMEM if the
 .Fa sbuf
 overflowed.
+This function is generally not needed and instead the error code from
+.Fn sbuf_finish
+is the preferred way to discover whether an sbuf had an error.
 .Pp
 The
 .Fn sbuf_finish
@@ -437,9 +442,9 @@ functions
 all return \-1 if the buffer overflowed, and zero otherwise.
 .Pp
 The
-.Fn sbuf_overflowed
-function
-returns a non-zero value if the buffer overflowed, and zero otherwise.
+.Fn sbuf_error
+function returns a non-zero value if the buffer has an overflow or
+drain error, and zero otherwise.
 .Pp
 The
 .Fn sbuf_data
