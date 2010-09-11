@@ -1031,14 +1031,10 @@ vfs_domount_update(
 	 */
 	mp->mnt_optnew = NULL;
 
-	if ((mp->mnt_flag & MNT_RDONLY) == 0) {
-		if (mp->mnt_syncer == NULL)
-			vfs_allocate_syncvnode(mp);
-	} else {
-		if (mp->mnt_syncer != NULL)
-			vrele(mp->mnt_syncer);
-		mp->mnt_syncer = NULL;
-	}
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+		vfs_allocate_syncvnode(mp);
+	else
+		vfs_deallocate_syncvnode(mp);
 end:
 	vfs_unbusy(mp);
 	VI_LOCK(vp);
@@ -1318,8 +1314,7 @@ dounmount(mp, flags, td)
 	mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
-	if (mp->mnt_syncer != NULL)
-		vrele(mp->mnt_syncer);
+	vfs_deallocate_syncvnode(mp);
 	/*
 	 * For forced unmounts, move process cdir/rdir refs on the fs root
 	 * vnode to the covered vnode.  For non-forced unmounts we want
@@ -1358,7 +1353,7 @@ dounmount(mp, flags, td)
 		}
 		MNT_ILOCK(mp);
 		mp->mnt_kern_flag &= ~MNTK_NOINSMNTQ;
-		if ((mp->mnt_flag & MNT_RDONLY) == 0 && mp->mnt_syncer == NULL) {
+		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 			MNT_IUNLOCK(mp);
 			vfs_allocate_syncvnode(mp);
 			MNT_ILOCK(mp);
