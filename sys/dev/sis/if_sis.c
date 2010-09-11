@@ -1483,15 +1483,6 @@ sis_rxeof(struct sis_softc *sc)
 	return (rx_npkts);
 }
 
-static void
-sis_rxeoc(struct sis_softc *sc)
-{
-
-	SIS_LOCK_ASSERT(sc);
-	sis_rxeof(sc);
-	sis_initl(sc);
-}
-
 /*
  * A frame was downloaded to the chip. It's safe for us to clean up
  * the list buffers.
@@ -1614,7 +1605,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		status = CSR_READ_4(sc, SIS_ISR);
 
 		if (status & (SIS_ISR_RX_ERR|SIS_ISR_RX_OFLOW))
-			sis_rxeoc(sc);
+			ifp->if_ierrors++;
 
 		if (status & (SIS_ISR_RX_IDLE))
 			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
@@ -1672,7 +1663,7 @@ sis_intr(void *arg)
 			sis_rxeof(sc);
 
 		if (status & SIS_ISR_RX_OFLOW)
-			sis_rxeoc(sc);
+			ifp->if_ierrors++;
 
 		if (status & (SIS_ISR_RX_IDLE))
 			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
@@ -2017,7 +2008,7 @@ sis_initl(struct sis_softc *sc)
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
 		reg = CSR_READ_4(sc, NS_PHY_DSPCFG) & 0xfff;
 		CSR_WRITE_4(sc, NS_PHY_DSPCFG, reg | 0x1000);
-		DELAY(100000);
+		DELAY(100);
 		reg = CSR_READ_4(sc, NS_PHY_TDATA) & 0xff;
 		if ((reg & 0x0080) == 0 || (reg > 0xd8 && reg <= 0xff)) {
 			device_printf(sc->sis_dev,
