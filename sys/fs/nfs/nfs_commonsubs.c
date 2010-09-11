@@ -1835,6 +1835,21 @@ nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex)
 }
 
 /*
+ * Get a reference as above, but return failure instead of sleeping if
+ * an exclusive lock is held.
+ */
+APPLESTATIC int
+nfsv4_getref_nonblock(struct nfsv4lock *lp)
+{
+
+	if ((lp->nfslock_lock & NFSV4LOCK_LOCK) != 0)
+		return (0);
+
+	lp->nfslock_usecnt++;
+	return (1);
+}
+
+/*
  * Test for a lock. Return 1 if locked, 0 otherwise.
  */
 APPLESTATIC int
