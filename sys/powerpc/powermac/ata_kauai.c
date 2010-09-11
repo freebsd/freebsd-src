@@ -217,8 +217,10 @@ ata_kauai_probe(device_t dev)
 	ch = &sc->sc_ch.sc_ch;
 
 	compatstring = ofw_bus_get_compat(dev);
-	if (compatstring != NULL && strcmp(compatstring,"shasta-ata") == 0)
+	if (compatstring != NULL && strcmp(compatstring,"shasta-ata") == 0) {
+		ch->flags |= ATA_NO_ATAPI_DMA;
 		sc->shasta = 1;
+	}
 
 	/* Pre-K2 controllers apparently need this hack */
 	if (!sc->shasta &&
