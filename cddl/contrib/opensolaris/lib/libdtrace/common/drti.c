@@ -64,7 +64,7 @@ static int gen;			/* DOF helper generation */
 #if defined(sun)
 extern dof_hdr_t __SUNW_dof;	/* DOF defined in the .SUNW_dof section */
 #endif
-static boolean_t dof_init_debug = B_TRUE;	/* From DTRACE_DOF_INIT_DEBUG */
+static boolean_t dof_init_debug = B_FALSE;	/* From DTRACE_DOF_INIT_DEBUG */
 
 static void
 dprintf(int debug, const char *fmt, ...)
