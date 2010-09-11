@@ -277,6 +277,7 @@ PTHREAD_MLINKS+=pthread_spin_init.3 pthread_spin_destroy.3 \
 PTHREAD_MLINKS+=pthread_switch_add_np.3 pthread_switch_delete_np.3
 PTHREAD_MLINKS+=pthread_testcancel.3 pthread_setcancelstate.3 \
 		pthread_testcancel.3 pthread_setcanceltype.3
+PTHREAD_MLINKS+=pthread_join.3 pthread_timedjoin_np.3
 .endif
 
 .include <bsd.prog.mk>
