@@ -35,6 +35,8 @@
 .Op Fl a Ar mode
 .Op Fl b Ar mode
 .Op Fl i Ar percent
+.Op Fl m Ar freq
+.Op Fl M Ar freq
 .Op Fl n Ar mode
 .Op Fl p Ar ival
 .Op Fl P Ar pidfile
@@ -79,6 +81,10 @@ to use while on battery power.
 Specifies the CPU load percent level when adaptive
 mode should begin to degrade performance to save power.
 The default is 50% or lower.
+.It Fl m Ar freq
+Specifies the minimum frequency to throttle down to.
+.It Fl M Ar freq
+Specifies the maximum frequency to throttle up to.
 .It Fl n Ar mode
 Selects the
 .Ar mode
