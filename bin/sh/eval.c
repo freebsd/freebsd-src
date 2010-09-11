@@ -896,7 +896,7 @@ cmddone:
 	goto out;
 
 parent:	/* parent process gets here (if we forked) */
-	if (mode == 0) {	/* argument to fork */
+	if (mode == FORK_FG) {	/* argument to fork */
 		INTOFF;
 		exitstatus = waitforjob(jp, &realstatus);
 		INTON;
@@ -904,7 +904,7 @@ parent:	/* parent process gets here (if we forked) */
 			evalskip = SKIPBREAK;
 			skipcount = loopnest;
 		}
-	} else if (mode == 2) {
+	} else if (mode == FORK_NOJOB) {
 		backcmd->fd = pip[0];
 		close(pip[1]);
 		backcmd->jp = jp;
