@@ -443,7 +443,7 @@ main(int argc, char * argv[])
 	struct pidfh *pfh = NULL;
 	const char *pidfile = NULL;
 	int freq, curfreq, initfreq, *freqs, i, j, *mwatts, numfreqs, load;
-	int ch, mode, mode_ac, mode_battery, mode_none, idle;
+	int ch, mode, mode_ac, mode_battery, mode_none;
 	int minfreq = -1, maxfreq = -1;
 	uint64_t mjoules_used;
 	size_t len;
@@ -621,7 +621,6 @@ main(int argc, char * argv[])
 		}
 	}
 
-	idle = 0;
 	/* Main loop. */
 	for (;;) {
 		FD_ZERO(&fdset);
