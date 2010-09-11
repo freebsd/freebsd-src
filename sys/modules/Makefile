@@ -111,6 +111,7 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_ie} \
 	if_bridge \
+	if_carp \
 	if_disc \
 	if_edsc \
 	if_ef \

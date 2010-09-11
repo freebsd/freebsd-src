@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_ipstealth.h"
-#include "opt_carp.h"
 #include "opt_sctp.h"
 #include "opt_mpath.h"
 
@@ -110,10 +109,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/udp6_var.h>
 #include <netinet6/pim6_var.h>
 #include <netinet6/nd6.h>
-
-#ifdef DEV_CARP
-#include <netinet/ip_carp.h>
-#endif
 
 #ifdef SCTP
 #include <netinet/in_pcb.h>
@@ -331,18 +326,6 @@ struct ip6protosw inet6sw[] = {
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 },
-#ifdef DEV_CARP
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_CARP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		carp6_input,
-	.pr_output =		rip6_output,
-	.pr_ctloutput =		rip6_ctloutput,
-	.pr_usrreqs =		&rip6_usrreqs
-},
-#endif /* DEV_CARP */
 /* Spacer n-times for loadable protocols. */
 IP6PROTOSPACER,
 IP6PROTOSPACER,

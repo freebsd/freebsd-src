@@ -35,7 +35,6 @@
 #include "opt_inet6.h"
 #include "opt_ipx.h"
 #include "opt_netgraph.h"
-#include "opt_carp.h"
 #include "opt_mbuf_profiling.h"
 
 #include <sys/param.h>
@@ -70,18 +69,13 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+#include <netinet/ip_carp.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
-#endif
-
-#if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
-#include <netinet/ip_carp.h>
-#endif
 #endif
 
 #ifdef IPX
@@ -402,11 +396,9 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 #if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	if (ifp->if_carp &&
-	    (error = carp_output(ifp, m, dst, NULL)))
+	    (error = (*carp_output_p)(ifp, m, dst, NULL)))
 		goto bad;
-#endif
 #endif
 
 	/* Handle ng_ether(4) processing, if any */
@@ -727,7 +719,6 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 #if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 	/*
 	 * Clear M_PROMISC on frame so that carp(4) will see it when the
 	 * mbuf flows up to Layer 3.
@@ -738,10 +729,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 * TODO: Maintain a hash table of ethernet addresses other than
 	 * ether_dhost which may be active on this ifp.
 	 */
-	if (ifp->if_carp && carp_forus(ifp->if_carp, eh->ether_dhost)) {
+	if (ifp->if_carp && (*carp_forus_p)(ifp, eh->ether_dhost)) {
 		m->m_flags &= ~M_PROMISC;
 	} else
-#endif
 #endif
 	{
 		/*
