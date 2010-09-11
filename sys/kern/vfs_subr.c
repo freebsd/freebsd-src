@@ -3405,9 +3405,31 @@ vfs_allocate_syncvnode(struct mount *mp)
 	/* XXX - vn_syncer_add_to_worklist() also grabs and drops sync_mtx. */
 	mtx_lock(&sync_mtx);
 	sync_vnode_count++;
+	if (mp->mnt_syncer == NULL) {
+		mp->mnt_syncer = vp;
+		vp = NULL;
+	}
 	mtx_unlock(&sync_mtx);
 	BO_UNLOCK(bo);
-	mp->mnt_syncer = vp;
+	if (vp != NULL) {
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vgone(vp);
+		vput(vp);
+	}
+}
+
+void
+vfs_deallocate_syncvnode(struct mount *mp)
+{
+	struct vnode *vp;
+
+	mtx_lock(&sync_mtx);
+	vp = mp->mnt_syncer;
+	if (vp != NULL)
+		mp->mnt_syncer = NULL;
+	mtx_unlock(&sync_mtx);
+	if (vp != NULL)
+		vrele(vp);
 }
 
 /*
@@ -3488,15 +3510,16 @@ sync_reclaim(struct vop_reclaim_args *ap)
 
 	bo = &vp->v_bufobj;
 	BO_LOCK(bo);
-	vp->v_mount->mnt_syncer = NULL;
+	mtx_lock(&sync_mtx);
+	if (vp->v_mount->mnt_syncer == vp)
+		vp->v_mount->mnt_syncer = NULL;
 	if (bo->bo_flag & BO_ONWORKLST) {
-		mtx_lock(&sync_mtx);
 		LIST_REMOVE(bo, bo_synclist);
 		syncer_worklist_len--;
 		sync_vnode_count--;
-		mtx_unlock(&sync_mtx);
 		bo->bo_flag &= ~BO_ONWORKLST;
 	}
+	mtx_unlock(&sync_mtx);
 	BO_UNLOCK(bo);
 
 	return (0);
