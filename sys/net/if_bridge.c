@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
@@ -121,9 +120,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #endif
 #if defined(INET) || defined(INET6)
-#ifdef DEV_CARP
 #include <netinet/ip_carp.h>
-#endif
 #endif
 #include <machine/in_cksum.h>
 #include <netinet/if_ether.h> /* for struct arpcom */
@@ -2252,13 +2249,13 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		return (m);
 	}
 
-#if (defined(INET) || defined(INET6)) && defined(DEV_CARP)
+#if (defined(INET) || defined(INET6))
 #   define OR_CARP_CHECK_WE_ARE_DST(iface) \
 	|| ((iface)->if_carp \
-	    && carp_forus((iface)->if_carp, eh->ether_dhost))
+	    && (*carp_forus_p)((iface), eh->ether_dhost))
 #   define OR_CARP_CHECK_WE_ARE_SRC(iface) \
 	|| ((iface)->if_carp \
-	    && carp_forus((iface)->if_carp, eh->ether_shost))
+	    && (*carp_forus_p)((iface), eh->ether_shost))
 #else
 #   define OR_CARP_CHECK_WE_ARE_DST(iface)
 #   define OR_CARP_CHECK_WE_ARE_SRC(iface)
