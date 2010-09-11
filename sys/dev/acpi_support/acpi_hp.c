@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
-#include <sys/limits.h>
 #include <sys/bus.h>
 #include <sys/sbuf.h>
 #include <sys/module.h>
@@ -336,7 +335,7 @@ static driver_t	acpi_hp_driver = {
 
 static devclass_t acpi_hp_devclass;
 
-DRIVER_MODULE(acpi_hp, acpi, acpi_hp_driver, acpi_hp_devclass,
+DRIVER_MODULE(acpi_hp, acpi_wmi, acpi_hp_driver, acpi_hp_devclass,
 		0, 0);
 MODULE_DEPEND(acpi_hp, acpi_wmi, 1, 1, 1);
 MODULE_DEPEND(acpi_hp, acpi, 1, 1, 1);
@@ -453,16 +452,7 @@ acpi_hp_identify(driver_t *driver, device_t parent)
 	if (device_find_child(parent, "acpi_hp", -1) != NULL)
 		return;
 
-	/* Make sure acpi_wmi driver is present. */
-	if (devclass_find("acpi_wmi") == NULL)
-		return;
-
-	/*
-	 * Add our device with late order, so that it is hopefully
-	 * probed after acpi_wmi.
-	 * XXX User proper constant instead of UINT_MAX for order.
-	 */
-	if (BUS_ADD_CHILD(parent, UINT_MAX, "acpi_hp", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "acpi_hp", -1) == NULL)
 		device_printf(parent, "add acpi_hp child failed\n");
 }
 
@@ -470,11 +460,7 @@ static int
 acpi_hp_probe(device_t dev)
 {
 
-	/* Skip auto-enumerated devices from ACPI namespace. */
-	if (acpi_get_handle(dev) != NULL)
-		return (ENXIO);
 	device_set_desc(dev, "HP ACPI-WMI Mapping");
-
 	return (0);
 }
 
@@ -482,7 +468,6 @@ static int
 acpi_hp_attach(device_t dev)
 {
 	struct acpi_hp_softc	*sc;
-	devclass_t		wmi_devclass;
 	int			arg;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
@@ -505,14 +490,7 @@ acpi_hp_attach(device_t dev)
 	sc->verbose = 0;
 	memset(sc->cmi_order, 0, sizeof(sc->cmi_order));
 
-	if (!(wmi_devclass = devclass_find("acpi_wmi"))) {
-		device_printf(dev, "Couldn't find acpi_wmi devclass\n");
-		return (EINVAL);
-	}
-	if (!(sc->wmi_dev = devclass_get_device(wmi_devclass, 0))) {
-		device_printf(dev, "Couldn't find acpi_wmi device\n");
-		return (EINVAL);
-	}
+	sc->wmi_dev = device_get_parent(dev);
 	if (!ACPI_WMI_PROVIDES_GUID_STRING(sc->wmi_dev,
 	    ACPI_HP_WMI_BIOS_GUID)) {
 		device_printf(dev,
