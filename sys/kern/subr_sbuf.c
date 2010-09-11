@@ -441,7 +441,7 @@ sbuf_cat(struct sbuf *s, const char *str)
 		return (-1);
 
 	while (*str != '\0') {
-		sbuf_put_byte(*str, s);
+		sbuf_put_byte(*str++, s);
 		if (s->s_error != 0)
 			return (-1);
 	}
