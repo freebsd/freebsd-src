@@ -52,9 +52,15 @@ et_register(struct eventtimer *et)
 	struct eventtimer *tmp, *next;
 
 	if (et->et_quality >= 0 || bootverbose) {
-		printf("Event timer \"%s\" frequency %ju Hz quality %d\n",
-		    et->et_name, (uintmax_t)et->et_frequency,
-		    et->et_quality);
+		if (et->et_frequency == 0) {
+			printf("Event timer \"%s\" quality %d\n",
+			    et->et_name, et->et_quality);
+		} else {
+			printf("Event timer \"%s\" "
+			    "frequency %ju Hz quality %d\n",
+			    et->et_name, (uintmax_t)et->et_frequency,
+			    et->et_quality);
+		}
 	}
 	et->et_sysctl = SYSCTL_ADD_NODE(NULL,
 	    SYSCTL_STATIC_CHILDREN(_kern_eventtimer_et), OID_AUTO, et->et_name,
