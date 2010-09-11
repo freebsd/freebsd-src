@@ -157,6 +157,12 @@ static struct runq runq_pcpu[MAXCPU];
 long runq_length[MAXCPU];
 #endif
 
+struct pcpuidlestat {
+	u_int idlecalls;
+	u_int oldidlecalls;
+};
+static DPCPU_DEFINE(struct pcpuidlestat, idlestat);
+
 static void
 setup_runqs(void)
 {
@@ -684,6 +690,7 @@ sched_rr_interval(void)
 void
 sched_clock(struct thread *td)
 {
+	struct pcpuidlestat *stat;
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -703,6 +710,10 @@ sched_clock(struct thread *td)
 	if (!TD_IS_IDLETHREAD(td) &&
 	    ticks - PCPU_GET(switchticks) >= sched_quantum)
 		td->td_flags |= TDF_NEEDRESCHED;
+
+	stat = DPCPU_PTR(idlestat);
+	stat->oldidlecalls = stat->idlecalls;
+	stat->idlecalls = 0;
 }
 
 /*
@@ -1137,7 +1148,15 @@ forward_wakeup(int cpunum)
 	}
 	if (map) {
 		forward_wakeups_delivered++;
-		ipi_selected(map, IPI_AST);
+		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+			id = pc->pc_cpumask;
+			if ((map & id) == 0)
+				continue;
+			if (cpu_idle_wakeup(pc->pc_cpuid))
+				map &= ~id;
+		}
+		if (map)
+			ipi_selected(map, IPI_AST);
 		return (1);
 	}
 	if (cpunum == NOCPU)
@@ -1154,7 +1173,8 @@ kick_other_cpu(int pri, int cpuid)
 	pcpu = pcpu_find(cpuid);
 	if (idle_cpus_mask & pcpu->pc_cpumask) {
 		forward_wakeups_delivered++;
-		ipi_cpu(cpuid, IPI_AST);
+		if (!cpu_idle_wakeup(cpuid))
+			ipi_cpu(cpuid, IPI_AST);
 		return;
 	}
 
@@ -1537,12 +1557,16 @@ sched_tick(void)
 void
 sched_idletd(void *dummy)
 {
+	struct pcpuidlestat *stat;
 
+	stat = DPCPU_PTR(idlestat);
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
-		while (sched_runnable() == 0)
-			cpu_idle(0);
+		while (sched_runnable() == 0) {
+			cpu_idle(stat->idlecalls + stat->oldidlecalls > 64);
+			stat->idlecalls++;
+		}
 
 		mtx_lock_spin(&sched_lock);
 		mi_switch(SW_VOL | SWT_IDLE, NULL);
