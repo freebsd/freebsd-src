@@ -59,7 +59,6 @@ extern struct pcpu __pcpu[MAXCPU];
 
 volatile static int ap_awake;
 volatile static u_int ap_letgo;
-volatile static uint32_t ap_decr;
 volatile static u_quad_t ap_timebase;
 static u_int ipi_msg_cnt[32];
 static struct mtx ap_boot_mtx;
@@ -79,9 +78,8 @@ machdep_ap_bootstrap(void)
 		;
 
 	/* Initialize DEC and TB, sync with the BSP values */
-	decr_ap_init();
 	mttb(ap_timebase);
-	__asm __volatile("mtdec %0" :: "r"(ap_decr));
+	decr_ap_init();
 
 	/* Serialize console output and AP count increment */
 	mtx_lock_spin(&ap_boot_mtx);
@@ -95,6 +93,9 @@ machdep_ap_bootstrap(void)
 
 	/* Let the DEC and external interrupts go */
 	mtmsr(mfmsr() | PSL_EE);
+
+	/* Start per-CPU event timers. */
+	cpu_initclocks_ap();
 
 	/* Announce ourselves awake, and enter the scheduler */
 	sched_throw(NULL);
@@ -243,7 +244,6 @@ cpu_mp_unleash(void *dummy)
 	ap_awake = 1;
 
 	/* Provide our current DEC and TB values for APs */
-	__asm __volatile("mfdec %0" : "=r"(ap_decr));
 	ap_timebase = mftb() + 10;
 	__asm __volatile("msync; isync");
 	
@@ -312,6 +312,10 @@ powerpc_ipi_handler(void *arg)
 			atomic_clear_int(&started_cpus, self);
 			atomic_clear_int(&stopped_cpus, self);
 			CTR1(KTR_SMP, "%s: IPI_STOP (restart)", __func__);
+			break;
+		case IPI_HARDCLOCK:
+			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
+			hardclockintr(curthread->td_intr_frame);
 			break;
 		}
 	}

@@ -48,6 +48,8 @@ struct trapframe;
 
 driver_filter_t powerpc_ipi_handler;
 
+void	intrcnt_add(const char *name, u_long **countp);
+
 void	powerpc_register_pic(device_t, u_int);
 int	powerpc_ign_lookup(uint32_t pic_id);
 
