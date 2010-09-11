@@ -29,6 +29,7 @@
 # 
 #
 # The only variable that you should define on your Makefile is 'DTRACEOBJS'.
+# You must include this file before bsd.lib.mk or bsd.prog.mk.
 #
 
 .if defined(WITH_DTRACE)
