@@ -37,6 +37,7 @@
 #define	IPI_STOP		3
 #define	IPI_STOP_HARD		3
 #define	IPI_HARDCLOCK		4
+#define	IPI_STATCLOCK		5
 
 #ifndef LOCORE
 
