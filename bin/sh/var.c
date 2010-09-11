@@ -431,11 +431,15 @@ bltinlookup(const char *name, int doall)
 {
 	struct strlist *sp;
 	struct var *v;
+	char *result;
 
+	result = NULL;
 	for (sp = cmdenviron ; sp ; sp = sp->next) {
 		if (varequal(sp->text, name))
-			return strchr(sp->text, '=') + 1;
+			result = strchr(sp->text, '=') + 1;
 	}
+	if (result != NULL)
+		return result;
 	for (v = *hashvar(name) ; v ; v = v->next) {
 		if (varequal(v->text, name)) {
 			if ((v->flags & VUNSET)
