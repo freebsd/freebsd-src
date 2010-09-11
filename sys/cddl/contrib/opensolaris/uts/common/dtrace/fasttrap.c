@@ -591,7 +591,9 @@ fasttrap_tracepoint_enable(proc_t *p, fasttrap_probe_t *probe, uint_t index)
 	 * Before we make any modifications, make sure we've imposed a barrier
 	 * on the generation in which this probe was last modified.
 	 */
+	PROC_UNLOCK(p);
 	fasttrap_mod_barrier(probe->ftp_gen);
+	PROC_LOCK(p);
 
 	bucket = &fasttrap_tpoints.fth_table[FASTTRAP_TPOINTS_INDEX(pid, pc)];
 
