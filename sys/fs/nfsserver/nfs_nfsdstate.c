@@ -4563,6 +4563,14 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 		return;
 
 	/*
+	 * First, get a reference on the nfsv4rootfs_lock so that an
+	 * exclusive lock cannot be acquired by another thread.
+	 */
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_getref(&nfsv4rootfs_lock, NULL, NFSV4ROOTLOCKMUTEXPTR);
+	NFSUNLOCKV4ROOTMUTEX();
+
+	/*
 	 * Now, call nfsrv_checkremove() in a loop while it returns
 	 * NFSERR_DELAY. Return upon any other error or when timed out.
 	 */
@@ -4576,11 +4584,14 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 			    NFS_REMOVETIMEO &&
 			    ((u_int32_t)mytime.tv_sec - starttime) <
 			    100000)
-				return;
+				break;
 			/* Sleep for a short period of time */
 			(void) nfs_catnap(PZERO, 0, "nfsremove");
 		}
 	} while (error == NFSERR_DELAY);
+	NFSLOCKV4ROOTMUTEX();
+	nfsv4_relref(&nfsv4rootfs_lock);
+	NFSUNLOCKV4ROOTMUTEX();
 }
 
 APPLESTATIC void
