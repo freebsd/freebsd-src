@@ -191,7 +191,7 @@ If that many milliseconds elapse
 and the peer has not acknowledged the data, the data will be
 skipped and no longer transmitted.
 Note that this policy does
-not even ensure that the data will ever be sent.
+not even assure that the data will ever be sent.
 In times of a congestion
 with large amounts of data being queued, the 
 .Fa sinfo->sinfo_timetolive
@@ -218,7 +218,7 @@ policy transforms the
 .Fa sinfo->sinfo_timetolive 
 into a number of retransmissions to allow.
 This policy
-always ensures that at a minimum one send attempt is
+always assures that at a minimum one send attempt is
 made of the data.
 After which no more than 
 .Fa sinfo->sinfo_timetolive
