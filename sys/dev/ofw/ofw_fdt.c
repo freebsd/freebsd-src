@@ -66,7 +66,7 @@ static ssize_t ofw_fdt_canon(ofw_t, const char *, char *, size_t);
 static phandle_t ofw_fdt_finddevice(ofw_t, const char *);
 static ssize_t ofw_fdt_instance_to_path(ofw_t, ihandle_t, char *, size_t);
 static ssize_t ofw_fdt_package_to_path(ofw_t, phandle_t, char *, size_t);
-static int ofw_fdt_interpret(ofw_t, const char *, int, unsigned long *);
+static int ofw_fdt_interpret(ofw_t, const char *, int, cell_t *);
 
 static ofw_method_t ofw_fdt_methods[] = {
 	OFWMETHOD(ofw_init,			ofw_fdt_init),
@@ -435,7 +435,7 @@ ofw_fdt_fixup(ofw_t ofw)
 }
 
 static int
-ofw_fdt_interpret(ofw_t ofw, const char *cmd, int nret, unsigned long *retvals)
+ofw_fdt_interpret(ofw_t ofw, const char *cmd, int nret, cell_t *retvals)
 {
 	int rv;
 
