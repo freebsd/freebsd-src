@@ -261,6 +261,7 @@ extern void *xcalloc(size_t);
 extern void *xmalloc(size_t);
 extern char *xstrdup(const char *);
 extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
+extern Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 
 extern void dump_relocations (Obj_Entry *);
 extern void dump_obj_relocations (Obj_Entry *);

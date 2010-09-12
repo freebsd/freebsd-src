@@ -405,8 +405,13 @@ reloc_jmpslots(Obj_Entry *obj)
 		    (void *)target, basename(defobj->path));
 #endif
 
-		reloc_jmpslot(where, target, defobj, obj,
-		    (const Elf_Rel *) rela);
+		if (def == &sym_zero) {
+			/* Zero undefined weak symbols */
+			bzero(where, sizeof(struct funcdesc));
+		} else {
+			reloc_jmpslot(where, target, defobj, obj,
+			    (const Elf_Rel *) rela);
+		}
 	}
 
 	obj->jmpslots_done = true;
