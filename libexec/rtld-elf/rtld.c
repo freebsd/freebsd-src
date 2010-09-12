@@ -183,7 +183,7 @@ static Objlist list_main =	/* Objects loaded at program startup */
 static Objlist list_fini =	/* Objects needing fini() calls */
   STAILQ_HEAD_INITIALIZER(list_fini);
 
-static Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
+Elf_Sym sym_zero;		/* For resolving undefined weak refs. */
 
 #define GDB_STATE(s,m)	r_debug.r_state = s; r_debug_state(&r_debug,m);
 
