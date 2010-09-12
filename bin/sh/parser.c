@@ -118,8 +118,8 @@ STATIC int readtoken(void);
 STATIC int xxreadtoken(void);
 STATIC int readtoken1(int, char const *, char *, int);
 STATIC int noexpand(char *);
-STATIC void synexpect(int);
-STATIC void synerror(const char *);
+STATIC void synexpect(int) __dead2;
+STATIC void synerror(const char *) __dead2;
 STATIC void setprompt(int);
 
 
