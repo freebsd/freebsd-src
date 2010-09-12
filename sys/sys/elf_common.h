@@ -388,7 +388,7 @@ typedef struct {
 #define	DT_ENCODING	32	/* Values greater than or equal to DT_ENCODING
 				   and less than DT_LOOS follow the rules for
 				   the interpretation of the d_un union
-				   as follows: even == 'd_ptr', even == 'd_val'
+				   as follows: even == 'd_ptr', odd == 'd_val'
 				   or none */
 #define	DT_PREINIT_ARRAY 32	/* Address of the array of pointers to
 				   pre-initialization functions. */
