@@ -3158,8 +3158,6 @@ pmap_remove_all(vm_page_t m)
 			*ptep = 0;
 			PTE_SYNC_CURRENT(pv->pv_pmap, ptep);
 			pmap_free_l2_bucket(pv->pv_pmap, l2b, 1);
-			if (pv->pv_flags & PVF_WIRED)
-				pv->pv_pmap->pm_stats.wired_count--;
 			pv->pv_pmap->pm_stats.resident_count--;
 			flags |= pv->pv_flags;
 		}
