@@ -75,8 +75,8 @@ static void std_load(struct gctl_req *req, unsigned flags);
 static void std_unload(struct gctl_req *req, unsigned flags);
 
 struct g_command std_commands[] = {
-	{ "help", 0, std_help, G_NULL_OPTS, NULL, NULL },
-	{ "list", 0, std_list, G_NULL_OPTS, NULL, 
+	{ "help", 0, std_help, G_NULL_OPTS, NULL },
+	{ "list", 0, std_list, G_NULL_OPTS,
 	    "[name ...]"
 	},
 	{ "status", 0, std_status,
@@ -84,11 +84,11 @@ struct g_command std_commands[] = {
 		{ 's', "script", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-s] [name ...]"
+	    "[-s] [name ...]"
 	},
 	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS,
-	    NULL, NULL },
-	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS, NULL, NULL },
+	    NULL },
+	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS, NULL },
 	G_CMD_SENTINEL
 };
 
@@ -129,8 +129,6 @@ usage_command(struct g_command *cmd, const char *prefix)
 		if (opt->go_val != NULL || G_OPT_TYPE(opt) == G_TYPE_BOOL)
 			fprintf(stderr, "]");
 	}
-	if (cmd->gc_argname)
-		fprintf(stderr, " %s", cmd->gc_argname);
 	fprintf(stderr, "\n");
 }
 
@@ -348,39 +346,24 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 				warnx("Option '%c' not specified.",
 				    opt->go_char);
 				usage();
+			} else if (G_OPT_TYPE(opt) == G_TYPE_ASCNUM &&
+			    *(const char *)opt->go_val == '\0') {
+			    	;	/* add nothing. */
 			} else {
-				if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
-					gctl_ro_param(req, opt->go_name,
-					    sizeof(intmax_t), opt->go_val);
-				} else if (G_OPT_TYPE(opt) == G_TYPE_STRING ||
-				    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
-					if (cmd->gc_argname == NULL ||
-					    opt->go_val == NULL ||
-					    *(const char *)opt->go_val != '\0')
-						gctl_ro_param(req, opt->go_name,
-						    -1, opt->go_val);
-				} else {
-					assert(!"Invalid type");
-				}
+				set_option(req, opt, opt->go_val);
 			}
 		}
 	}
 
-	if (cmd->gc_argname == NULL) {
-		/*
-		 * Add rest of given arguments.
-		 */
-		gctl_ro_param(req, "nargs", sizeof(int), argc);
-		for (i = 0; i < (unsigned)*argc; i++) {
-			char argname[16];
+	/*
+	 * Add rest of given arguments.
+	 */
+	gctl_ro_param(req, "nargs", sizeof(int), argc);
+	for (i = 0; i < (unsigned)*argc; i++) {
+		char argname[16];
 
-			snprintf(argname, sizeof(argname), "arg%u", i);
-			gctl_ro_param(req, argname, -1, (*argv)[i]);
-		}
-	} else {
-		if (*argc != 1)
-			usage();
-		gctl_ro_param(req, cmd->gc_argname, -1, (*argv)[0]);
+		snprintf(argname, sizeof(argname), "arg%u", i);
+		gctl_ro_param(req, argname, -1, (*argv)[i]);
 	}
 }
 

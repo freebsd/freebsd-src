@@ -48,8 +48,9 @@ __FBSDID("$FreeBSD$");
 
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_VIRSTOR_VERSION;
-static intmax_t chunk_size = 4 * 1024 * 1024; /* in kB (default: 4 MB) */
-static intmax_t vir_size = 2ULL << 40; /* in MB (default: 2 TB) */
+
+#define	GVIRSTOR_CHUNK_SIZE	"4M"
+#define	GVIRSTOR_VIR_SIZE	"2T"
 
 #if G_LIB_VERSION == 1
 /* Support RELENG_6 */
@@ -62,44 +63,44 @@ static intmax_t vir_size = 2ULL << 40; /* in MB (default: 2 TB) */
 static void virstor_main(struct gctl_req *req, unsigned flags);
 
 struct g_command class_commands[] = {
-	{"clear", G_FLAG_VERBOSE, virstor_main, G_NULL_OPTS, NULL,
-		"[-v] prov ..."
+	{ "clear", G_FLAG_VERBOSE, virstor_main, G_NULL_OPTS,
+	    "[-v] prov ..."
 	},
-	{"dump", 0, virstor_main, G_NULL_OPTS, NULL,
-		"prov ..."
+	{ "dump", 0, virstor_main, G_NULL_OPTS,
+	    "prov ..."
 	},
-	{"label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, virstor_main,
-		{
-			{'h', "hardcode", NULL, G_TYPE_BOOL},
-			{'m', "chunk_size", &chunk_size, G_TYPE_NUMBER},
-			{'s', "vir_size", &vir_size, G_TYPE_NUMBER},
-			G_OPT_SENTINEL
-		},
-		NULL, "[-h] [-v] [-m chunk_size] [-s vir_size] name provider0 [provider1 ...]"
+	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, virstor_main,
+	    {
+		{ 'h', "hardcode", NULL, G_TYPE_BOOL},
+		{ 'm', "chunk_size", GVIRSTOR_CHUNK_SIZE, G_TYPE_NUMBER},
+		{ 's', "vir_size", GVIRSTOR_VIR_SIZE, G_TYPE_NUMBER},
+		G_OPT_SENTINEL
+	    },
+	    "[-h] [-v] [-m chunk_size] [-s vir_size] name provider0 [provider1 ...]"
 	},
-	{"destroy", G_FLAG_VERBOSE, NULL,
-		{
-			{'f', "force", NULL, G_TYPE_BOOL},
-			G_OPT_SENTINEL
-		},
-		NULL, "[-fv] name ..."
+	{ "destroy", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL},
+		G_OPT_SENTINEL
+	    },
+	    "[-fv] name ..."
 	},
-	{"stop", G_FLAG_VERBOSE, NULL,
-		{
-			{'f', "force", NULL, G_TYPE_BOOL},
-			G_OPT_SENTINEL
-		},
-		NULL, "[-fv] name ... (alias for \"destroy\")"
+	{ "stop", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL},
+		G_OPT_SENTINEL
+	    },
+	    "[-fv] name ... (alias for \"destroy\")"
 	},
-	{"add", G_FLAG_VERBOSE, NULL,
-		{
-			{'h', "hardcode", NULL, G_TYPE_BOOL},
-			G_OPT_SENTINEL
-		},
-		NULL, "[-vh] name prov [prov ...]"
+	{ "add", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'h', "hardcode", NULL, G_TYPE_BOOL},
+		G_OPT_SENTINEL
+	    },
+	    "[-vh] name prov [prov ...]"
 	},
-	{"remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
-		"[-v] name ..."
+	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] name ..."
 	},
 	G_CMD_SENTINEL
 };

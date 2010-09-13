@@ -1327,6 +1327,10 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		parm = 0;
 		switch (ap->name[0]) {
 		case 'a':
+			if (!strcmp(ap->name, "arg0")) {
+				parm = mparms &
+				    (G_PART_PARM_GEOM | G_PART_PARM_PROVIDER);
+			}
 			if (!strcmp(ap->name, "attrib"))
 				parm = G_PART_PARM_ATTRIB;
 			break;
@@ -1346,10 +1350,6 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			if (!strcmp(ap->name, "flags"))
 				parm = G_PART_PARM_FLAGS;
 			break;
-		case 'g':
-			if (!strcmp(ap->name, "geom"))
-				parm = G_PART_PARM_GEOM;
-			break;
 		case 'i':
 			if (!strcmp(ap->name, "index"))
 				parm = G_PART_PARM_INDEX;
@@ -1361,10 +1361,6 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		case 'o':
 			if (!strcmp(ap->name, "output"))
 				parm = G_PART_PARM_OUTPUT;
-			break;
-		case 'p':
-			if (!strcmp(ap->name, "provider"))
-				parm = G_PART_PARM_PROVIDER;
 			break;
 		case 's':
 			if (!strcmp(ap->name, "scheme"))

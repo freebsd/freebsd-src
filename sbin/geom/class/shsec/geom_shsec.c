@@ -52,10 +52,10 @@ static void shsec_dump(struct gctl_req *req);
 static void shsec_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, shsec_main, G_NULL_OPTS, NULL,
+	{ "clear", G_FLAG_VERBOSE, shsec_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
-	{ "dump", 0, shsec_main, G_NULL_OPTS, NULL,
+	{ "dump", 0, shsec_main, G_NULL_OPTS,
 	    "prov ..."
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, shsec_main,
@@ -63,14 +63,14 @@ struct g_command class_commands[] = {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-hv] name prov prov ..."
+	    "[-hv] name prov prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };

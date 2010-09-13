@@ -38,44 +38,37 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_NOP_VERSION;
 
-static intmax_t error = -1;
-static intmax_t rfailprob = -1;
-static intmax_t wfailprob = -1;
-static intmax_t offset = 0;
-static intmax_t secsize = 0;
-static intmax_t size = 0;
-
 struct g_command class_commands[] = {
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
-		{ 'e', "error", &error, G_TYPE_NUMBER },
-		{ 'o', "offset", &offset, G_TYPE_NUMBER },
-		{ 'r', "rfailprob", &rfailprob, G_TYPE_NUMBER },
-		{ 's', "size", &size, G_TYPE_NUMBER },
-		{ 'S', "secsize", &secsize, G_TYPE_NUMBER },
-		{ 'w', "wfailprob", &wfailprob, G_TYPE_NUMBER },
+		{ 'e', "error", "-1", G_TYPE_NUMBER },
+		{ 'o', "offset", "0", G_TYPE_NUMBER },
+		{ 'r', "rfailprob", "-1", G_TYPE_NUMBER },
+		{ 's', "size", "0", G_TYPE_NUMBER },
+		{ 'S', "secsize", "0", G_TYPE_NUMBER },
+		{ 'w', "wfailprob", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-v] [-e error] [-o offset] [-r rfailprob] [-s size] "
+	    "[-v] [-e error] [-o offset] [-r rfailprob] [-s size] "
 	    "[-S secsize] [-w wfailprob] dev ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
-		{ 'e', "error", &error, G_TYPE_NUMBER },
-		{ 'r', "rfailprob", &rfailprob, G_TYPE_NUMBER },
-		{ 'w', "wfailprob", &wfailprob, G_TYPE_NUMBER },
+		{ 'e', "error", "-1", G_TYPE_NUMBER },
+		{ 'r', "rfailprob", "-1", G_TYPE_NUMBER },
+		{ 'w', "wfailprob", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-v] [-e error] [-r rfailprob] [-w wfailprob] prov ..."
+	    "[-v] [-e error] [-r rfailprob] [-w wfailprob] prov ..."
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] prov ..."
+	    "[-fv] prov ..."
 	},
-	{ "reset", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "reset", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
 	G_CMD_SENTINEL
