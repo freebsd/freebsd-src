@@ -900,7 +900,13 @@ acpi_cpu_idle()
 
     /* Find the lowest state that has small enough latency. */
     cx_next_idx = 0;
-    for (i = sc->cpu_cx_lowest; i >= 0; i--) {
+#ifndef __ia64__
+    if (cpu_disable_deep_sleep)
+	i = sc->cpu_non_c3;
+    else
+#endif
+	i = sc->cpu_cx_lowest;
+    for (; i >= 0; i--) {
 	if (sc->cpu_cx_states[i].trans_lat * 3 <= sc->cpu_prev_sleep) {
 	    cx_next_idx = i;
 	    break;
@@ -929,15 +935,17 @@ acpi_cpu_idle()
     /*
      * Execute HLT (or equivalent) and wait for an interrupt.  We can't
      * precisely calculate the time spent in C1 since the place we wake up
-     * is an ISR.  Assume we slept no more then half of quantum.
+     * is an ISR.  Assume we slept no more then half of quantum, unless
+     * we are called inside critical section, delaying context switch.
      */
     if (cx_next->type == ACPI_STATE_C1) {
 	AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
 	acpi_cpu_c1();
 	AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
-        end_time = acpi_TimerDelta(end_time, start_time);
-	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 +
-	    min(PM_USEC(end_time), 500000 / hz)) / 4;
+        end_time = PM_USEC(acpi_TimerDelta(end_time, start_time));
+        if (curthread->td_critnest == 0)
+		end_time = min(end_time, 500000 / hz);
+	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + end_time) / 4;
 	return;
     }
 

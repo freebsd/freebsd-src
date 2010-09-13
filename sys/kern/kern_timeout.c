@@ -111,6 +111,7 @@ struct callout_cpu {
 	int 			cc_softticks;
 	int			cc_cancel;
 	int			cc_waiting;
+	int 			cc_firsttick;
 };
 
 #ifdef SMP
@@ -126,6 +127,7 @@ struct callout_cpu cc_cpu;
 #define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)
 
 static int timeout_cpu;
+void (*callout_new_inserted)(int cpu, int ticks) = NULL;
 
 MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
 
@@ -260,7 +262,7 @@ callout_tick(void)
 	need_softclock = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	cc->cc_ticks++;
+	cc->cc_firsttick = cc->cc_ticks = ticks;
 	for (; (cc->cc_softticks - cc->cc_ticks) <= 0; cc->cc_softticks++) {
 		bucket = cc->cc_softticks & callwheelmask;
 		if (!TAILQ_EMPTY(&cc->cc_callwheel[bucket])) {
@@ -275,6 +277,34 @@ callout_tick(void)
 	 */
 	if (need_softclock)
 		swi_sched(cc->cc_cookie, 0);
+}
+
+int
+callout_tickstofirst(void)
+{
+	struct callout_cpu *cc;
+	struct callout *c;
+	struct callout_tailq *sc;
+	int curticks;
+	int skip = 1;
+
+	cc = CC_SELF();
+	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
+	curticks = cc->cc_ticks;
+	while( skip < ncallout && skip < hz/8 ) {
+		sc = &cc->cc_callwheel[ (curticks+skip) & callwheelmask ];
+		/* search scanning ticks */
+		TAILQ_FOREACH( c, sc, c_links.tqe ){
+			if (c && (c->c_time <= curticks + ncallout)
+			    && (c->c_time > 0))
+				goto out;
+		}
+		skip++;
+	}
+out:
+	cc->cc_firsttick = curticks + skip;
+	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
+	return (skip);
 }
 
 static struct callout_cpu *
@@ -639,9 +669,14 @@ retry:
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
 	c->c_func = ftn;
-	c->c_time = cc->cc_ticks + to_ticks;
+	c->c_time = ticks + to_ticks;
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[c->c_time & callwheelmask], 
 			  c, c_links.tqe);
+	if ((c->c_time - cc->cc_firsttick) < 0) {
+		cc->cc_firsttick = c->c_time;
+		(*callout_new_inserted)(cpu,
+		    to_ticks + (ticks - cc->cc_ticks));
+	}
 	CTR5(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d",
 	    cancelled ? "re" : "", c, c->c_func, c->c_arg, to_ticks);
 	CC_UNLOCK(cc);
