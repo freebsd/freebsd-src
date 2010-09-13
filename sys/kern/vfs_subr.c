@@ -1249,13 +1249,17 @@ flushbuflist( struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		 */
 		if (((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) &&
 		    (flags & V_SAVE)) {
+			BO_LOCK(bo);
 			bremfree(bp);
+			BO_UNLOCK(bo);
 			bp->b_flags |= B_ASYNC;
 			bwrite(bp);
 			BO_LOCK(bo);
 			return (EAGAIN);	/* XXX: why not loop ? */
 		}
+		BO_LOCK(bo);
 		bremfree(bp);
+		BO_UNLOCK(bo);
 		bp->b_flags |= (B_INVAL | B_RELBUF);
 		bp->b_flags &= ~B_ASYNC;
 		brelse(bp);
@@ -1307,7 +1311,9 @@ restart:
 			    BO_MTX(bo)) == ENOLCK)
 				goto restart;
 
+			BO_LOCK(bo);
 			bremfree(bp);
+			BO_UNLOCK(bo);
 			bp->b_flags |= (B_INVAL | B_RELBUF);
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
@@ -1329,7 +1335,9 @@ restart:
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
 			    BO_MTX(bo)) == ENOLCK)
 				goto restart;
+			BO_LOCK(bo);
 			bremfree(bp);
+			BO_UNLOCK(bo);
 			bp->b_flags |= (B_INVAL | B_RELBUF);
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
@@ -1361,7 +1369,9 @@ restartsync:
 			VNASSERT((bp->b_flags & B_DELWRI), vp,
 			    ("buf(%p) on dirty queue without DELWRI", bp));
 
+			BO_LOCK(bo);
 			bremfree(bp);
+			BO_UNLOCK(bo);
 			bawrite(bp);
 			BO_LOCK(bo);
 			goto restartsync;
