@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2010
+.Dd September 13, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1261,86 +1261,26 @@ It is also possible to rename an interface by doing:
 ifconfig_ed0_name="net0"
 ifconfig_net0="inet 192.0.2.1 netmask 0xffffff00"
 .Ed
-.\" Remove in FreeBSD 10.x
 .It Va ipv6_enable
 .Pq Vt bool
-.Pp
-This option is deprecated.
-.Pp
 If the variable is
-.Dq Li YES
-it has no effect.
-To configure IPv6 for an interface see
-.Va ipv6_network_interfaces
-below.
+.Dq Li YES ,
+.Dq Li inet6 accept_rtadv
+is added to all of
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+and the
+.Va ipv6_prefer
+is defined as
+.Dq Li YES .
 .Pp
-If the variable is
-.Dq Li NO
-then other than
-.Dq Li lo0
-IPv6 will be disabled for each interface,
-however the same effect can be achieved by
-not configuring the interface.
-.It Va ipv6_network_interfaces
-.Pq Vt str
-This is the IPv6 equivalent of
-.Va network_interfaces .
-Normally configuration of this variable is not needed,
-the value should be left as
-.Dq Li AUTO .
-.Pp
-If
-.Dq Li INET6
-is configured in the kernel configuration for the
-.Dq Li lo0
-interface will always be performed.
-It is not necessary to list it in
-.Va ipv6_network_interfaces .
-.Pp
-Example configuration to accept Router Advertisements (RA) for the
-.Dq Li ed0
-interface:
-.Bd -literal
-ifconfig_ed0_ipv6="RTADV"
-.Ed
-.Pp
-To configure only a link-local address on the
-.Dq Li ed0
-interface:
-.Bd -literal
-ifconfig_ed0_ipv6="inet6 auto_linklocal"
-.Ed
-.Pp
-To disable RA the
-.Dq Li NORTADV
-option is available, although not required if manual
-configuration is performed as described below.
-.Pp
-An IPv6 interface can be configured manually with
+This variable is deprecated.  Use
+.Va ipv6_prefer
+and
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 .
-For example:
-.Bd -literal
-ifconfig_ed0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
-.Ed
-.Pp
-Manual configuration of an IPv6 address will also
-require configuration of the
-.Va ipv6_defaultrouter
-option.
-.Pp
-Aliases should be set by
-.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
-with the
-.Dq Li inet6
-keyword.
-For example:
-.Pp
-.Bd -literal
-ifconfig_ed0_alias0="inet6 2001:db8:2::1 prefixlen 64"
-.Ed
-.Pp
 .It Va ipv6_prefer
 .Pq Vt bool
+This variable does the following:
+.Pp
 If the variable is
 .Dq Li YES ,
 the default policy of the source address selection set by
@@ -1351,15 +1291,49 @@ If the variable is
 .Dq Li NO ,
 the default policy of the source address selection set by
 .Xr ip6addrctl 8
-will be IPv4-preferred.
+will be IPv4-preferred, and all of interfaces which does not have the
+corrsponding
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+variable will be marked as
+.Dq Li IFDISABLED .
+This means only IPv6 functionality on that interface is completely
+disabled.  For more details of
+.Dq Li IFDISABLED
+flag and keywords
+.Dq Li inet6 ifdisabled ,
+see
+.Xr ifconfig 8 .
 .Pp
-.It Va ipv6_privacy
-.Pq Vt bool
-If the variable is
-.Dq Li YES
-privacy addresses will be generated for each IPv6
-interface as described in RFC 4193.
+.It Va ipv6_network_interfaces
+.Pq Vt str
+This is the IPv6 equivalent of
+.Va network_interfaces .
+Normally manual configuration of this variable is not needed.
 .Pp
+IPv6 functionality on an interface should be configured by
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 ,
+instead of setting ifconfig parameters in
+.Va ifconfig_ Ns Aq Ar interface .
+Aliases should be set by
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
+with
+.Dq Li inet6
+keyword.  For example:
+.Bd -literal
+ifconfig_ed0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
+ifconfig_ed0_alias0="inet6 2001:db8:2::1 prefixlen 64"
+.Ed
+.Pp
+Interfaces that have an
+.Dq Li inet6 accept_rtadv
+keyword in
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+setting will be automatically configured by
+.Xr rtsol 8 .
+Note that this automatic configuration is disabled if the
+.Va ipv6_gateway_enable
+is set to
+.Dq Li YES .
 .It Va ipv6_prefix_ Ns Aq Ar interface
 .Pq Vt str
 If one or more prefixes are defined in
