@@ -59,7 +59,6 @@ uint32_t PUBSYM(lib_version) = G_LIB_VERSION;
 uint32_t PUBSYM(version) = 0;
 
 static char autofill[] = "*";
-static char optional[] = "";
 static char flags[] = "C";
 
 static char sstart[32];
@@ -91,16 +90,16 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'b', "start", autofill, G_TYPE_STRING },
 		{ 's', "size", autofill, G_TYPE_STRING },
 		{ 't', "type", NULL, G_TYPE_STRING },
-		{ 'i', index_param, optional, G_TYPE_ASCNUM },
-		{ 'l', "label", optional, G_TYPE_STRING },
+		{ 'i', index_param, "", G_TYPE_ASCNUM },
+		{ 'l', "label", "", G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
 	{ "bootcode", 0, gpart_bootcode, {
-		{ 'b', bootcode_param, optional, G_TYPE_STRING },
-		{ 'p', partcode_param, optional, G_TYPE_STRING },
-		{ 'i', index_param, optional, G_TYPE_ASCNUM },
+		{ 'b', bootcode_param, "", G_TYPE_STRING },
+		{ 'p', partcode_param, "", G_TYPE_STRING },
+		{ 'i', index_param, "", G_TYPE_ASCNUM },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
@@ -108,7 +107,7 @@ struct g_command PUBSYM(class_commands)[] = {
 	{ "commit", 0, gpart_issue, G_NULL_OPTS, "geom", NULL },
 	{ "create", 0, gpart_issue, {
 		{ 's', "scheme", NULL, G_TYPE_STRING },
-		{ 'n', "entries", optional, G_TYPE_ASCNUM },
+		{ 'n', "entries", "", G_TYPE_ASCNUM },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "provider", NULL
@@ -125,8 +124,8 @@ struct g_command PUBSYM(class_commands)[] = {
 	  "geom", NULL },
 	{ "modify", 0, gpart_issue, {
 		{ 'i', index_param, NULL, G_TYPE_ASCNUM },
-		{ 'l', "label", optional, G_TYPE_STRING },
-		{ 't', "type", optional, G_TYPE_STRING },
+		{ 'l', "label", "", G_TYPE_STRING },
+		{ 't', "type", "", G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL

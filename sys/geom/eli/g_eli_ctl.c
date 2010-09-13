@@ -269,7 +269,7 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "aalgo");
 		return;
 	}
-	if (strcmp(name, "none") != 0) {
+	if (*name != '\0') {
 		md.md_aalgo = g_eli_str2aalgo(name);
 		if (md.md_aalgo >= CRYPTO_ALGORITHM_MIN &&
 		    md.md_aalgo <= CRYPTO_ALGORITHM_MAX) {

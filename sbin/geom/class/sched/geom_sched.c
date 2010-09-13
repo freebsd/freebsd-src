@@ -54,7 +54,7 @@ uint32_t version = G_SCHED_VERSION;
  * storage for parameters used by this geom class.
  * Right now only the scheduler name is used.
  */
-static char algo[] = "rr";	/* default scheduler */
+#define	GSCHED_ALGO	"rr"	/* default scheduler */
 
 /*
  * Adapt to differences in geom library.
@@ -76,7 +76,7 @@ gcmd_createinsert(struct gctl_req *req, unsigned flags __unused)
 	if (gctl_has_param(req, "algo"))
 		reqalgo = gctl_get_ascii(req, "algo");
 	else
-		reqalgo = algo;
+		reqalgo = GSCHED_ALGO;
 
 	snprintf(name, sizeof(name), "gsched_%s", reqalgo);
 	/*
@@ -91,21 +91,21 @@ gcmd_createinsert(struct gctl_req *req, unsigned flags __unused)
 struct g_command class_commands[] = {
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, gcmd_createinsert,
 	    {
-		{ 'a', "algo", algo, G_TYPE_STRING },
+		{ 'a', "algo", GSCHED_ALGO, G_TYPE_STRING },
 		G_OPT_SENTINEL
 	    },
 	    G_ARGNAME "[-v] [-a algorithm_name] dev ..."
 	},
 	{ "insert", G_FLAG_VERBOSE | G_FLAG_LOADKLD, gcmd_createinsert,
 	    {
-		{ 'a', "algo", algo, G_TYPE_STRING },
+		{ 'a', "algo", GSCHED_ALGO, G_TYPE_STRING },
 		G_OPT_SENTINEL
 	    },
 	    G_ARGNAME "[-v] [-a algorithm_name] dev ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
-		{ 'a', "algo", algo, G_TYPE_STRING },
+		{ 'a', "algo", GSCHED_ALGO, G_TYPE_STRING },
 		G_OPT_SENTINEL
 	    },
 	    G_ARGNAME "[-v] [-a algorithm_name] prov ..."

@@ -55,15 +55,12 @@ uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_ELI_VERSION;
 
 #define	GELI_BACKUP_DIR	"/var/backups/"
+#define	GELI_ENC_ALGO	"aes"
 
-static char aalgo[] = "none";
-static char ealgo[] = "aes";
 static intmax_t keylen = 0;
 static intmax_t keyno = -1;
 static intmax_t iterations = -1;
 static intmax_t sectorsize = 0;
-static char keyfile[] = "", newkeyfile[] = "";
-static char backupfile[] = "";
 
 static void eli_main(struct gctl_req *req, unsigned flags);
 static void eli_init(struct gctl_req *req);
@@ -101,12 +98,12 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
 struct g_command class_commands[] = {
 	{ "init", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
+		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
-		{ 'B', "backupfile", backupfile, G_TYPE_STRING },
-		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
+		{ 'B', "backupfile", "", G_TYPE_STRING },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
 		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
-		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
+		{ 'K', "newkeyfile", "", G_TYPE_STRING },
 		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
@@ -116,12 +113,12 @@ struct g_command class_commands[] = {
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
+		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
-		{ 'B', "backupfile", backupfile, G_TYPE_STRING },
-		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
+		{ 'B', "backupfile", "", G_TYPE_STRING },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
 		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
-		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
+		{ 'K', "newkeyfile", "", G_TYPE_STRING },
 		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
@@ -132,7 +129,7 @@ struct g_command class_commands[] = {
 	{ "attach", G_FLAG_VERBOSE | G_FLAG_LOADKLD, eli_main,
 	    {
 		{ 'd', "detach", NULL, G_TYPE_BOOL },
-		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
+		{ 'k', "keyfile", "", G_TYPE_STRING },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'r', "readonly", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
@@ -157,9 +154,9 @@ struct g_command class_commands[] = {
 	},
 	{ "onetime", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
-		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
+		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'd', "detach", NULL, G_TYPE_BOOL },
-		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
 		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
@@ -177,8 +174,8 @@ struct g_command class_commands[] = {
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
-		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
-		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
+		{ 'k', "keyfile", "", G_TYPE_STRING },
+		{ 'K', "newkeyfile", "", G_TYPE_STRING },
 		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
@@ -551,7 +548,7 @@ eli_init(struct gctl_req *req)
 		md.md_flags |= G_ELI_FLAG_BOOT;
 	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
 	str = gctl_get_ascii(req, "aalgo");
-	if (strcmp(str, "none") != 0) {
+	if (*str != '\0') {
 		md.md_aalgo = g_eli_str2aalgo(str);
 		if (md.md_aalgo >= CRYPTO_ALGORITHM_MIN &&
 		    md.md_aalgo <= CRYPTO_ALGORITHM_MAX) {

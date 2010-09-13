@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_MIRROR_VERSION;
 
-static char label_balance[] = "load", configure_balance[] = "none";
+#define	GMIRROR_BALANCE	"load"
+
 static intmax_t label_slice = 4096, configure_slice = -1;
 static intmax_t insert_priority = 0, configure_priority = -1;
 
@@ -64,7 +65,7 @@ struct g_command class_commands[] = {
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'a', "autosync", NULL, G_TYPE_BOOL },
-		{ 'b', "balance", configure_balance, G_TYPE_STRING },
+		{ 'b', "balance", "", G_TYPE_STRING },
 		{ 'd', "dynamic", NULL, G_TYPE_BOOL },
 		{ 'f', "failsync", NULL, G_TYPE_BOOL },
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
@@ -88,7 +89,7 @@ struct g_command class_commands[] = {
 	},
 	{ "label", G_FLAG_VERBOSE, mirror_main,
 	    {
-		{ 'b', "balance", label_balance, G_TYPE_STRING },
+		{ 'b', "balance", GMIRROR_BALANCE, G_TYPE_STRING },
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
