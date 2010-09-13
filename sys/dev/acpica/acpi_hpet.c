@@ -74,6 +74,7 @@ struct hpet_softc {
 	int			irq;
 	int			useirq;
 	int			legacy_route;
+	int			per_cpu;
 	uint32_t		allowed_irqs;
 	struct resource		*mem_res;
 	struct resource		*intr_res;
@@ -501,6 +502,11 @@ hpet_attach(device_t dev)
 	resource_int_value(device_get_name(dev), device_get_unit(dev),
 	     "allowed_irqs", &sc->allowed_irqs);
 
+	/* Get how much per-CPU timers we should try to provide. */
+	sc->per_cpu = 1;
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	     "per_cpu", &sc->per_cpu);
+
 	num_msi = 0;
 	sc->useirq = 0;
 	/* Find IRQ vectors for all timers. */
@@ -556,7 +562,7 @@ hpet_attach(device_t dev)
 	if (sc->legacy_route)
 		hpet_enable(sc);
 	/* Group timers for per-CPU operation. */
-	num_percpu_et = min(num_msi / mp_ncpus, 1);
+	num_percpu_et = min(num_msi / mp_ncpus, sc->per_cpu);
 	num_percpu_t = num_percpu_et * mp_ncpus;
 	pcpu_master = 0;
 	cur_cpu = CPU_FIRST();
