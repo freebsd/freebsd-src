@@ -178,13 +178,13 @@ _fork(void)
 		/* Child process */
 		errsave = errno;
 		curthread->cancel_pending = 0;
-		curthread->flags &= ~THR_FLAGS_NEED_SUSPEND;
+		curthread->flags &= ~(THR_FLAGS_NEED_SUSPEND|THR_FLAGS_DETACHED);
 
 		/*
 		 * Thread list will be reinitialized, and later we call
 		 * _libpthread_init(), it will add us back to list.
 		 */
-		curthread->tlflags &= ~(TLFLAGS_IN_TDLIST | TLFLAGS_DETACHED);
+		curthread->tlflags &= ~TLFLAGS_IN_TDLIST;
 
 		/* child is a new kernel thread. */
 		thr_self(&curthread->tid);
