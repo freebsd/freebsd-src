@@ -326,9 +326,7 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 			if (vm_page_sleep_if_busy(pp, FALSE, "zfsmwb"))
 				continue;
 			vm_page_busy(pp);
-			vm_page_lock_queues();
 			vm_page_undirty(pp);
-			vm_page_unlock_queues();
 		} else {
 			if (__predict_false(obj->cache != NULL)) {
 				vm_page_cache_free(obj, OFF_TO_IDX(start),
