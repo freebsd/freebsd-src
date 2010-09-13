@@ -123,9 +123,12 @@ sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sbuf;
 	struct vm_freelist *fl;
+	char *cbuf;
+	const int cbufsize = vm_nfreelists*(VM_NFREEORDER + 1)*81;
 	int error, flind, oind, pind;
 
-	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	cbuf = malloc(cbufsize, M_TEMP, M_WAITOK | M_ZERO);
+	sbuf_new(&sbuf, cbuf, cbufsize, SBUF_FIXEDLEN);
 	for (flind = 0; flind < vm_nfreelists; flind++) {
 		sbuf_printf(&sbuf, "\nFREE LIST %d:\n"
 		    "\n  ORDER (SIZE)  |  NUMBER"
@@ -146,8 +149,10 @@ sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS)
 			sbuf_printf(&sbuf, "\n");
 		}
 	}
-	error = sbuf_finish(&sbuf);
+	sbuf_finish(&sbuf);
+	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
 	sbuf_delete(&sbuf);
+	free(cbuf, M_TEMP);
 	return (error);
 }
 
@@ -159,9 +164,12 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sbuf;
 	struct vm_phys_seg *seg;
+	char *cbuf;
+	const int cbufsize = VM_PHYSSEG_MAX*(VM_NFREEORDER + 1)*81;
 	int error, segind;
 
-	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	cbuf = malloc(cbufsize, M_TEMP, M_WAITOK | M_ZERO);
+	sbuf_new(&sbuf, cbuf, cbufsize, SBUF_FIXEDLEN);
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		sbuf_printf(&sbuf, "\nSEGMENT %d:\n\n", segind);
 		seg = &vm_phys_segs[segind];
@@ -172,8 +180,10 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 		sbuf_printf(&sbuf, "domain:    %d\n", seg->domain);
 		sbuf_printf(&sbuf, "free list: %p\n", seg->free_queues);
 	}
-	error = sbuf_finish(&sbuf);
+	sbuf_finish(&sbuf);
+	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
 	sbuf_delete(&sbuf);
+	free(cbuf, M_TEMP);
 	return (error);
 }
 
@@ -185,18 +195,23 @@ static int
 sysctl_vm_phys_lookup_lists(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sbuf;
+	char *cbuf;
+	const int cbufsize = (vm_nfreelists + 1) * VM_NDOMAIN * 81;
 	int domain, error, flind, ndomains;
 
 	ndomains = vm_nfreelists - VM_NFREELIST + 1;
-	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	cbuf = malloc(cbufsize, M_TEMP, M_WAITOK | M_ZERO);
+	sbuf_new(&sbuf, cbuf, cbufsize, SBUF_FIXEDLEN);
 	for (domain = 0; domain < ndomains; domain++) {
 		sbuf_printf(&sbuf, "\nDOMAIN %d:\n\n", domain);
 		for (flind = 0; flind < vm_nfreelists; flind++)
 			sbuf_printf(&sbuf, "  [%d]:\t%p\n", flind,
 			    vm_phys_lookup_lists[domain][flind]);
 	}
-	error = sbuf_finish(&sbuf);
+	sbuf_finish(&sbuf);
+	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
 	sbuf_delete(&sbuf);
+	free(cbuf, M_TEMP);
 	return (error);
 }
 #endif

@@ -154,7 +154,8 @@ __FBSDID("$FreeBSD$");
 #define	MAX_W_NAME	64
 
 #define	BADSTACK_SBUF_SIZE	(256 * WITNESS_COUNT)
-#define	FULLGRAPH_SBUF_SIZE	512
+#define	CYCLEGRAPH_SBUF_SIZE	8192
+#define	FULLGRAPH_SBUF_SIZE	32768
 
 /*
  * These flags go in the witness relationship matrix and describe the
@@ -2544,7 +2545,7 @@ sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 	error = 0;
-	sb = sbuf_new_for_sysctl(NULL, NULL, FULLGRAPH_SBUF_SIZE, req);
+	sb = sbuf_new(NULL, NULL, FULLGRAPH_SBUF_SIZE, SBUF_FIXEDLEN);
 	if (sb == NULL)
 		return (ENOMEM);
 	sbuf_printf(sb, "\n");
@@ -2557,9 +2558,19 @@ sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS)
 	mtx_unlock_spin(&w_mtx);
 
 	/*
+	 * While using SBUF_FIXEDLEN, check if the sbuf overflowed.
+	 */
+	if (sbuf_error(sb) != 0) {
+		sbuf_delete(sb);
+		panic("%s: sbuf overflowed, bump FULLGRAPH_SBUF_SIZE value\n",
+		    __func__);
+	}
+
+	/*
 	 * Close the sbuf and return to userland.
 	 */
-	error = sbuf_finish(sb);
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 
 	return (error);
