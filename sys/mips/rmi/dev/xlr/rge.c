@@ -731,7 +731,7 @@ xlr_mac_send_fr(struct driver_data *priv,
 
 	do {
 		msgrng_flags = msgrng_access_enable();
-		ret = message_send_retry(1, code, stid, &msg);
+		ret = message_send(1, code, stid, &msg);
 		msgrng_restore(msgrng_flags);
 		KASSERT(i++ < 100000, ("Too many credit fails\n"));
 	} while (ret != 0);
@@ -1468,7 +1468,7 @@ mac_xmit(struct mbuf *m, struct rge_softc *sc,
 
 	else {
 		mflags = msgrng_access_enable();
-		if ((rv = message_send_retry(1, MSGRNG_CODE_MAC, stid, &msg)) != 0) {
+		if ((rv = message_send(1, MSGRNG_CODE_MAC, stid, &msg)) != 0) {
 			msg_snd_failed++;
 			msgrng_restore(mflags);
 			release_tx_desc(&msg, 0);
