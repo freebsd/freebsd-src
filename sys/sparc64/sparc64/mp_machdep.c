@@ -98,7 +98,6 @@ __FBSDID("$FreeBSD$");
 static ih_func_t cpu_ipi_ast;
 static ih_func_t cpu_ipi_hardclock;
 static ih_func_t cpu_ipi_preempt;
-static ih_func_t cpu_ipi_statclock;
 static ih_func_t cpu_ipi_stop;
 
 /*
@@ -292,7 +291,6 @@ cpu_mp_start(void)
 	intr_setup(PIL_STOP, cpu_ipi_stop, -1, NULL, NULL);
 	intr_setup(PIL_PREEMPT, cpu_ipi_preempt, -1, NULL, NULL);
 	intr_setup(PIL_HARDCLOCK, cpu_ipi_hardclock, -1, NULL, NULL);
-	intr_setup(PIL_STATCLOCK, cpu_ipi_statclock, -1, NULL, NULL);
 
 	cpuid_to_mid[curcpu] = PCPU_GET(mid);
 
@@ -524,15 +522,18 @@ cpu_ipi_preempt(struct trapframe *tf)
 static void
 cpu_ipi_hardclock(struct trapframe *tf)
 {
+	struct trapframe *oldframe;
+	struct thread *td;
 
-	hardclockintr(tf);
-}
-
-static void
-cpu_ipi_statclock(struct trapframe *tf)
-{
-
-	statclockintr(tf);
+	critical_enter();
+	td = curthread;
+	td->td_intr_nesting_level++;
+	oldframe = td->td_intr_frame;
+	td->td_intr_frame = tf;
+	hardclockintr();
+	td->td_intr_frame = oldframe;
+	td->td_intr_nesting_level--;
+	critical_exit();
 }
 
 static void

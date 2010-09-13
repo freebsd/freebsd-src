@@ -111,7 +111,7 @@ void	sched_preempt(struct thread *td);
 void	sched_add(struct thread *td, int flags);
 void	sched_clock(struct thread *td);
 void	sched_rem(struct thread *td);
-void	sched_tick(void);
+void	sched_tick(int cnt);
 void	sched_relinquish(struct thread *td);
 struct thread *sched_choose(void);
 void	sched_idletd(void *);

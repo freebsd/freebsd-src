@@ -488,9 +488,21 @@ cpu_idle (int busy)
 	}
 #endif
 
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
 	/* Freescale E500 core RM section 6.4.1. */
 	msr = msr | PSL_WE;
 	__asm __volatile("msync; mtmsr %0; isync" :: "r" (msr));
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
 }
 
 int

@@ -164,11 +164,7 @@ mips_ipi_handler(void *arg)
 			break;
 		case IPI_HARDCLOCK:
 			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
-			hardclockintr(arg);;
-			break;
-		case IPI_STATCLOCK:
-			CTR1(KTR_SMP, "%s: IPI_STATCLOCK", __func__);
-			statclockintr(arg);;
+			hardclockintr();;
 			break;
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);

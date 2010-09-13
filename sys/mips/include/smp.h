@@ -28,7 +28,6 @@
 #define	IPI_STOP_HARD		0x0008
 #define	IPI_PREEMPT		0x0010
 #define	IPI_HARDCLOCK		0x0020
-#define	IPI_STATCLOCK		0x0040
 
 #ifndef LOCORE
 

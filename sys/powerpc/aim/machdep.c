@@ -638,7 +638,13 @@ cpu_idle(int busy)
 		panic("ints disabled in idleproc!");
 	}
 #endif
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
 	if (powerpc_pow_enabled) {
+		if (!busy) {
+			critical_enter();
+			cpu_idleclock();
+		}
 		switch (vers) {
 		case IBM970:
 		case IBM970FX:
@@ -658,7 +664,13 @@ cpu_idle(int busy)
 			isync();
 			break;
 		}
+		if (!busy) {
+			cpu_activeclock();
+			critical_exit();
+		}
 	}
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
 }
 
 int

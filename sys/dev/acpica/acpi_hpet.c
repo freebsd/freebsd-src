@@ -683,15 +683,15 @@ hpet_detach(device_t dev)
 static int
 hpet_suspend(device_t dev)
 {
-	struct hpet_softc *sc;
+//	struct hpet_softc *sc;
 
 	/*
 	 * Disable the timer during suspend.  The timer will not lose
 	 * its state in S1 or S2, but we are required to disable
 	 * it.
 	 */
-	sc = device_get_softc(dev);
-	hpet_disable(sc);
+//	sc = device_get_softc(dev);
+//	hpet_disable(sc);
 
 	return (0);
 }

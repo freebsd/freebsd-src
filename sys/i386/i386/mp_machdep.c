@@ -167,7 +167,6 @@ u_long *ipi_invlcache_counts[MAXCPU];
 u_long *ipi_rendezvous_counts[MAXCPU];
 u_long *ipi_lazypmap_counts[MAXCPU];
 static u_long *ipi_hardclock_counts[MAXCPU];
-static u_long *ipi_statclock_counts[MAXCPU];
 #endif
 
 /*
@@ -1284,16 +1283,22 @@ smp_masked_invlpg_range(cpumask_t mask, vm_offset_t addr1, vm_offset_t addr2)
 void
 ipi_bitmap_handler(struct trapframe frame)
 {
+	struct trapframe *oldframe;
+	struct thread *td;
 	int cpu = PCPU_GET(cpuid);
 	u_int ipi_bitmap;
 
+	critical_enter();
+	td = curthread;
+	td->td_intr_nesting_level++;
+	oldframe = td->td_intr_frame;
+	td->td_intr_frame = &frame;
 	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
-
 	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
 #ifdef COUNT_IPIS
 		(*ipi_preempt_counts[cpu])++;
 #endif
-		sched_preempt(curthread);
+		sched_preempt(td);
 	}
 	if (ipi_bitmap & (1 << IPI_AST)) {
 #ifdef COUNT_IPIS
@@ -1305,14 +1310,11 @@ ipi_bitmap_handler(struct trapframe frame)
 #ifdef COUNT_IPIS
 		(*ipi_hardclock_counts[cpu])++;
 #endif
-		hardclockintr(&frame); 
+		hardclockintr();
 	}
-	if (ipi_bitmap & (1 << IPI_STATCLOCK)) {
-#ifdef COUNT_IPIS
-		(*ipi_statclock_counts[cpu])++;
-#endif
-		statclockintr(&frame); 
-	}
+	td->td_intr_frame = oldframe;
+	td->td_intr_nesting_level--;
+	critical_exit();
 }
 
 /*
@@ -1627,8 +1629,6 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_lazypmap_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:hardclock", i);
 		intrcnt_add(buf, &ipi_hardclock_counts[i]);
-		snprintf(buf, sizeof(buf), "cpu%d:statclock", i);
-		intrcnt_add(buf, &ipi_statclock_counts[i]);
 	}		
 }
 SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);

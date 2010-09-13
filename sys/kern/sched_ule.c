@@ -196,7 +196,7 @@ static int preempt_thresh = 0;
 #endif
 static int static_boost = PRI_MIN_TIMESHARE;
 static int sched_idlespins = 10000;
-static int sched_idlespinthresh = 64;
+static int sched_idlespinthresh = 16;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -2163,7 +2163,7 @@ sched_clock(struct thread *td)
  * is easier than trying to scale based on stathz.
  */
 void
-sched_tick(void)
+sched_tick(int cnt)
 {
 	struct td_sched *ts;
 
@@ -2175,7 +2175,7 @@ sched_tick(void)
 	if (ts->ts_incrtick == ticks)
 		return;
 	/* Adjust ticks for pctcpu */
-	ts->ts_ticks += 1 << SCHED_TICK_SHIFT;
+	ts->ts_ticks += cnt << SCHED_TICK_SHIFT;
 	ts->ts_ltick = ticks;
 	ts->ts_incrtick = ticks;
 	/*
@@ -2549,7 +2549,7 @@ sched_idletd(void *dummy)
 		if (tdq->tdq_load == 0) {
 			tdq->tdq_cpu_idle = 1;
 			if (tdq->tdq_load == 0) {
-				cpu_idle(switchcnt > sched_idlespinthresh);
+				cpu_idle(switchcnt > sched_idlespinthresh * 4);
 				tdq->tdq_switchcnt++;
 			}
 			tdq->tdq_cpu_idle = 0;
