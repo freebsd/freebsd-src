@@ -41,11 +41,17 @@
 #define	G_TYPE_ASCNUM	0x04
 #define	G_TYPE_MASK	0x0f
 #define	G_TYPE_DONE	0x10
+#define	G_TYPE_MULTI	0x20
+#define	G_TYPE_NUMMASK	0xff00
+#define	G_TYPE_NUMSHIFT	8
 
 #define	G_OPT_MAX	16
 #define	G_OPT_DONE(opt)		do { (opt)->go_type |= G_TYPE_DONE; } while (0)
 #define	G_OPT_ISDONE(opt)	((opt)->go_type & G_TYPE_DONE)
+#define	G_OPT_ISMULTI(opt)	((opt)->go_type & G_TYPE_MULTI)
 #define	G_OPT_TYPE(opt)		((opt)->go_type & G_TYPE_MASK)
+#define	G_OPT_NUM(opt)		(((opt)->go_type & G_TYPE_NUMMASK) >> G_TYPE_NUMSHIFT)
+#define	G_OPT_NUMINC(opt)	((opt)->go_type += (1 << G_TYPE_NUMSHIFT))
 
 #define G_OPT_SENTINEL	{ '\0', NULL, NULL, G_TYPE_NONE }
 #define G_NULL_OPTS	{ G_OPT_SENTINEL }
