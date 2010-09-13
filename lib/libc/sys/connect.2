@@ -28,7 +28,7 @@
 .\"     @(#)connect.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2006
+.Dd September 5, 2010
 .Dt CONNECT 2
 .Os
 .Sh NAME
@@ -95,6 +95,8 @@ The socket is already connected.
 Connection establishment timed out without establishing a connection.
 .It Bq Er ECONNREFUSED
 The attempt to connect was forcefully rejected.
+.It Bq Er ECONNRESET
+The connection was reset by the remote host.
 .It Bq Er ENETUNREACH
 The network is not reachable from this host.
 .It Bq Er EHOSTUNREACH
