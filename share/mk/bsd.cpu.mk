@@ -6,18 +6,18 @@
 
 .if !defined(CPUTYPE) || empty(CPUTYPE)
 _CPUCFLAGS =
-. if ${MACHINE_ARCH} == "i386"
+. if ${MACHINE_CPUARCH} == "i386"
 MACHINE_CPU = i486
-. elif ${MACHINE_ARCH} == "amd64"
+. elif ${MACHINE_CPUARCH} == "amd64"
 MACHINE_CPU = amd64 sse2 sse mmx
-. elif ${MACHINE_ARCH} == "ia64"
+. elif ${MACHINE_CPUARCH} == "ia64"
 MACHINE_CPU = itanium
-. elif ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
+. elif ${MACHINE_CPUARCH} == "powerpc"
 MACHINE_CPU = aim
-. elif ${MACHINE_ARCH} == "sparc64"
-. elif ${MACHINE_ARCH} == "arm"
+. elif ${MACHINE_CPUARCH} == "sparc64"
+. elif ${MACHINE_CPUARCH} == "arm"
 MACHINE_CPU = arm
-. elif ${MACHINE_ARCH} == "mips"
+. elif ${MACHINE_CPUARCH} == "mips"
 MACHINE_CPU = mips
 . endif
 .else
@@ -25,7 +25,7 @@ MACHINE_CPU = mips
 # Handle aliases (not documented in make.conf to avoid user confusion
 # between e.g. i586 and pentium)
 
-. if ${MACHINE_ARCH} == "i386"
+. if ${MACHINE_CPUARCH} == "i386"
 .  if ${CPUTYPE} == "nocona"
 CPUTYPE = prescott
 .  elif ${CPUTYPE} == "core" || ${CPUTYPE} == "core2"
@@ -54,7 +54,7 @@ CPUTYPE = athlon-mp
 .  elif ${CPUTYPE} == "k7"
 CPUTYPE = athlon
 .  endif
-. elif ${MACHINE_ARCH} == "amd64"
+. elif ${MACHINE_CPUARCH} == "amd64"
 .  if ${CPUTYPE} == "prescott" || ${CPUTYPE} == "core2"
 CPUTYPE = nocona
 .  endif
@@ -71,7 +71,7 @@ CPUTYPE = nocona
 #	http://gcc.gnu.org/onlinedocs/gcc/SPARC-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/i386-and-x86_002d64-Options.html
 
-. if ${MACHINE_ARCH} == "i386"
+. if ${MACHINE_CPUARCH} == "i386"
 .  if ${CPUTYPE} == "crusoe"
 _CPUCFLAGS = -march=i686 -falign-functions=0 -falign-jumps=0 -falign-loops=0
 .  elif ${CPUTYPE} == "k5"
@@ -104,9 +104,9 @@ _ICC_CPUCFLAGS = -tpp5
 .  else
 _ICC_CPUCFLAGS =
 .  endif # ICC on 'i386'
-. elif ${MACHINE_ARCH} == "amd64"
+. elif ${MACHINE_CPUARCH} == "amd64"
 _CPUCFLAGS = -march=${CPUTYPE}
-. elif ${MACHINE_ARCH} == "arm"
+. elif ${MACHINE_CPUARCH} == "arm"
 .  if ${CPUTYPE} == "xscale"
 #XXX: gcc doesn't seem to like -mcpu=xscale, and dies while rebuilding itself
 #_CPUCFLAGS = -mcpu=xscale
@@ -123,7 +123,7 @@ _CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
 .  endif
 . elif ${MACHINE_ARCH} == "powerpc64"
 _CPUCFLAGS = -mcpu=${CPUTYPE}
-. elif ${MACHINE_ARCH} == "mips"
+. elif ${MACHINE_CPUARCH} == "mips"
 .  if ${CPUTYPE} == "mips32"
 _CPUCFLAGS = -march=mips32
 .  elif ${CPUTYPE} == "mips32r2"
@@ -143,7 +143,7 @@ _CPUCFLAGS = -march=24kc
 # unordered list to make it easy for client makefiles to test for the
 # presence of a CPU feature.
 
-. if ${MACHINE_ARCH} == "i386"
+. if ${MACHINE_CPUARCH} == "i386"
 .  if ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64"
 MACHINE_CPU = athlon-xp athlon k7 3dnow sse2 sse mmx k6 k5 i586 i486 i386
 .  elif ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
@@ -182,27 +182,27 @@ MACHINE_CPU = i486 i386
 .  elif ${CPUTYPE} == "i386"
 MACHINE_CPU = i386
 .  endif
-. elif ${MACHINE_ARCH} == "amd64"
+. elif ${MACHINE_CPUARCH} == "amd64"
 .  if ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || ${CPUTYPE} == "k8"
 MACHINE_CPU = k8 3dnow
 .  elif ${CPUTYPE} == "nocona"
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
-. elif ${MACHINE_ARCH} == "ia64"
+. elif ${MACHINE_CPUARCH} == "ia64"
 .  if ${CPUTYPE} == "itanium"
 MACHINE_CPU = itanium
 .  endif
 . endif
 .endif
 
-.if ${MACHINE_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
+.if ${MACHINE_CPUARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
 CFLAGS += -mbig-endian
 LDFLAGS += -mbig-endian
 LD += -EB
 .endif
 
-.if ${MACHINE_ARCH} == "mips" 
+.if ${MACHINE_CPUARCH} == "mips" 
 CFLAGS += -G0
 .endif
 
