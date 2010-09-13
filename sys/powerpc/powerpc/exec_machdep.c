@@ -251,9 +251,9 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	tf->fixreg[FIRSTARG] = sig;
 	#ifdef COMPAT_FREEBSD32
 	tf->fixreg[FIRSTARG+2] = (register_t)usfp +
-	    (p->p_sysent->sv_flags & SV_ILP32) ?
+	    ((p->p_sysent->sv_flags & SV_ILP32) ?
 	    offsetof(struct sigframe32, sf_uc) :
-	    offsetof(struct sigframe, sf_uc);
+	    offsetof(struct sigframe, sf_uc));
 	#else
 	tf->fixreg[FIRSTARG+2] = (register_t)usfp +
 	    offsetof(struct sigframe, sf_uc);
