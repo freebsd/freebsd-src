@@ -108,37 +108,34 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 	if (!_thr_isthreaded())
 		exit(0);
 
-	THREAD_LIST_LOCK(curthread);
-	_thread_active_threads--;
-	if (_thread_active_threads == 0) {
-		THREAD_LIST_UNLOCK(curthread);
+	if (atomic_fetchadd_int(&_thread_active_threads, -1) == 1) {
 		exit(0);
 		/* Never reach! */
 	}
-	THREAD_LIST_UNLOCK(curthread);
 
 	/* Tell malloc that the thread is exiting. */
 	_malloc_thread_cleanup();
 
-	THREAD_LIST_LOCK(curthread);
 	THR_LOCK(curthread);
 	curthread->state = PS_DEAD;
 	if (curthread->flags & THR_FLAGS_NEED_SUSPEND) {
 		curthread->cycle++;
 		_thr_umtx_wake(&curthread->cycle, INT_MAX, 0);
 	}
-	THR_UNLOCK(curthread);
 	/*
 	 * Thread was created with initial refcount 1, we drop the
 	 * reference count to allow it to be garbage collected.
 	 */
 	curthread->refcount--;
-	if (curthread->tlflags & TLFLAGS_DETACHED)
-		THR_GCLIST_ADD(curthread);
-	THREAD_LIST_UNLOCK(curthread);
+	_thr_try_gc(curthread, curthread); /* thread lock released */
+
 	if (!curthread->force_exit && SHOULD_REPORT_EVENT(curthread, TD_DEATH))
 		_thr_report_death(curthread);
 
+#if defined(_PTHREADS_INVARIANTS)
+	if (THR_IN_CRITICAL(curthread))
+		PANIC("thread exits with resources held!");
+#endif
 	/*
 	 * Kernel will do wakeup at the address, so joiner thread
 	 * will be resumed if it is sleeping at the address.

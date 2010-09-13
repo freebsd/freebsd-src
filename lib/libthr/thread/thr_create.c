@@ -125,7 +125,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	new_thread->state = PS_RUNNING;
 
 	if (new_thread->attr.flags & PTHREAD_CREATE_DETACHED)
-		new_thread->tlflags |= TLFLAGS_DETACHED;
+		new_thread->flags |= THR_FLAGS_DETACHED;
 
 	/* Add the new thread. */
 	new_thread->refcount = 1;
@@ -185,16 +185,14 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			THR_THREAD_LOCK(curthread, new_thread);
 		new_thread->state = PS_DEAD;
 		new_thread->tid = TID_TERMINATED;
+		new_thread->flags |= THR_FLAGS_DETACHED;
+		new_thread->refcount--;
 		if (new_thread->flags & THR_FLAGS_NEED_SUSPEND) {
 			new_thread->cycle++;
 			_thr_umtx_wake(&new_thread->cycle, INT_MAX, 0);
 		}
-		THR_THREAD_UNLOCK(curthread, new_thread);
-		THREAD_LIST_LOCK(curthread);
-		_thread_active_threads--;
-		new_thread->tlflags |= TLFLAGS_DETACHED;
-		_thr_ref_delete_unlocked(curthread, new_thread);
-		THREAD_LIST_UNLOCK(curthread);
+		_thr_try_gc(curthread, new_thread); /* thread lock released */
+		atomic_add_int(&_thread_active_threads, -1);
 	} else if (locked) {
 		if (cpusetp != NULL) {
 			if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
@@ -202,22 +200,17 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 				ret = errno;
 				/* kill the new thread */
 				new_thread->force_exit = 1;
-				THR_THREAD_UNLOCK(curthread, new_thread);
+				new_thread->flags |= THR_FLAGS_DETACHED;
+				_thr_try_gc(curthread, new_thread);
+				 /* thread lock released */
 				goto out;
 			}
 		}
 
 		_thr_report_creation(curthread, new_thread);
 		THR_THREAD_UNLOCK(curthread, new_thread);
-out:
-		if (ret) {
-			THREAD_LIST_LOCK(curthread);
-			new_thread->tlflags |= TLFLAGS_DETACHED;
-			THR_GCLIST_ADD(new_thread);
-			THREAD_LIST_UNLOCK(curthread);
-		}
 	}
-
+out:
 	if (ret)
 		(*thread) = 0;
 	return (ret);

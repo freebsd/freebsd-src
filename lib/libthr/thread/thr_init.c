@@ -111,7 +111,7 @@ struct umutex	_mutex_static_lock = DEFAULT_UMUTEX;
 struct umutex	_cond_static_lock = DEFAULT_UMUTEX;
 struct umutex	_rwlock_static_lock = DEFAULT_UMUTEX;
 struct umutex	_keytable_lock = DEFAULT_UMUTEX;
-struct umutex	_thr_list_lock = DEFAULT_UMUTEX;
+struct urwlock	_thr_list_lock = DEFAULT_URWLOCK;
 struct umutex	_thr_event_lock = DEFAULT_UMUTEX;
 
 int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
