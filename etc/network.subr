@@ -100,7 +100,7 @@ ifconfig_up()
 				_ipv6_opts="-accept_rtadv"
 			fi
 		else
-			if checkyesno ipv6_prefer; then
+			if checkyesno ipv6_activate_all_interfaces; then
 				_ipv6_opts="-ifdisabled"
 			else
 				_ipv6_opts="ifdisabled"

@@ -23,6 +23,25 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20100913:
+	The $ipv6_prefer variable in rc.conf(5) has been split into
+	$ip6addrctl_policy and $ipv6_activate_all_interfaces.
+
+	The $ip6addrctl_policy is a variable to choose a pre-defined
+	address selection policy set by ip6addrctl(8).  A value
+	"ipv4_prefer", "ipv6_prefer" or "AUTO" can be specified.  The
+	default is "AUTO".
+
+	The $ipv6_activate_all_interfaces specifies whether IFDISABLED
+	flag (see an entry of 20090926) is set on an interface with no
+	corresponding $ifconfig_IF_ipv6 line.  The default is "NO" for
+	security reason.  If you want IPv6 link-local address on all
+	interfaces by default, set this to "YES".
+
+	The old ipv6_prefer="YES" is equivalent to
+	ipv6_activate_all_interfaces="YES" and
+	ip6addrctl_policy="ipv6_prefer".
+
+20100913:
 	DTrace has grown support for userland tracing. Due to this, DTrace is
 	now i386 and amd64 only.
 	dtruss(1) is now installed by default on those systems and a new
