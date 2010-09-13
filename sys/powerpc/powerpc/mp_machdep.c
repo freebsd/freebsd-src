@@ -91,11 +91,11 @@ machdep_ap_bootstrap(void)
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 	PCPU_SET(curpcb, curthread->td_pcb);
 
-	/* Let the DEC and external interrupts go */
-	mtmsr(mfmsr() | PSL_EE);
-
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
+
+	/* Let the DEC and external interrupts go */
+	mtmsr(mfmsr() | PSL_EE);
 
 	/* Announce ourselves awake, and enter the scheduler */
 	sched_throw(NULL);
