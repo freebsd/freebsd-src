@@ -60,11 +60,13 @@ uint32_t version = G_SCHED_VERSION;
  * Adapt to differences in geom library.
  * in V1 struct g_command misses gc_argname, eld, and G_BOOL is undefined
  */
-#if G_LIB_VERSION == 1
-#define G_ARGNAME
+#if G_LIB_VERSION <= 1
 #define G_TYPE_BOOL	G_TYPE_NUMBER
-#else
+#endif
+#if G_LIB_VERSION >= 3 && G_LIB_VERSION <= 4
 #define G_ARGNAME	NULL,
+#else
+#define	G_ARGNAME
 #endif
 
 static void

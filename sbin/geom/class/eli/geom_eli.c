@@ -57,11 +57,6 @@ uint32_t version = G_ELI_VERSION;
 #define	GELI_BACKUP_DIR	"/var/backups/"
 #define	GELI_ENC_ALGO	"aes"
 
-static intmax_t keylen = 0;
-static intmax_t keyno = -1;
-static intmax_t iterations = -1;
-static intmax_t sectorsize = 0;
-
 static void eli_main(struct gctl_req *req, unsigned flags);
 static void eli_init(struct gctl_req *req);
 static void eli_attach(struct gctl_req *req);
@@ -102,14 +97,14 @@ struct g_command class_commands[] = {
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'B', "backupfile", "", G_TYPE_STRING },
 		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
-		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
+		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
 		{ 'K', "newkeyfile", "", G_TYPE_STRING },
-		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
+		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
-		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
+	    "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -117,14 +112,14 @@ struct g_command class_commands[] = {
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'B', "backupfile", "", G_TYPE_STRING },
 		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
-		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
+		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
 		{ 'K', "newkeyfile", "", G_TYPE_STRING },
-		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
+		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
-		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "- an alias for 'init'"
+	    "- an alias for 'init'"
 	},
 	{ "attach", G_FLAG_VERBOSE | G_FLAG_LOADKLD, eli_main,
 	    {
@@ -134,7 +129,7 @@ struct g_command class_commands[] = {
 		{ 'r', "readonly", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-dprv] [-k keyfile] prov"
+	    "[-dprv] [-k keyfile] prov"
 	},
 	{ "detach", 0, NULL,
 	    {
@@ -142,7 +137,7 @@ struct g_command class_commands[] = {
 		{ 'l', "last", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fl] prov ..."
+	    "[-fl] prov ..."
 	},
 	{ "stop", 0, NULL,
 	    {
@@ -150,18 +145,18 @@ struct g_command class_commands[] = {
 		{ 'l', "last", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "- an alias for 'detach'"
+	    "- an alias for 'detach'"
 	},
 	{ "onetime", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
 		{ 'a', "aalgo", "", G_TYPE_STRING },
 		{ 'd', "detach", NULL, G_TYPE_BOOL },
 		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
-		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
-		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
+		{ 'l', "keylen", "0", G_TYPE_NUMBER },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov"
+	    "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov"
 	},
 	{ "configure", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -169,46 +164,46 @@ struct g_command class_commands[] = {
 		{ 'B', "noboot", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-bB] prov ..."
+	    "[-bB] prov ..."
 	},
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
+		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
 		{ 'k', "keyfile", "", G_TYPE_STRING },
 		{ 'K', "newkeyfile", "", G_TYPE_STRING },
-		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
+		{ 'n', "keyno", "-1", G_TYPE_NUMBER },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-pPv] [-n keyno] [-i iterations] [-k keyfile] [-K newkeyfile] prov"
+	    "[-pPv] [-n keyno] [-i iterations] [-k keyfile] [-K newkeyfile] prov"
 	},
 	{ "delkey", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "all", NULL, G_TYPE_BOOL },
 		{ 'f', "force", NULL, G_TYPE_BOOL },
-		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
+		{ 'n', "keyno", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-afv] [-n keyno] prov"
+	    "[-afv] [-n keyno] prov"
 	},
 	{ "kill", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "all", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-av] [prov ...]"
+	    "[-av] [prov ...]"
 	},
-	{ "backup", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
+	{ "backup", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov file"
 	},
-	{ "restore", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
+	{ "restore", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] file prov"
 	},
-	{ "clear", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
+	{ "clear", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
-	{ "dump", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS, NULL,
+	{ "dump", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
 	G_CMD_SENTINEL

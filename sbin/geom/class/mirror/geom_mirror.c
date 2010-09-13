@@ -44,10 +44,9 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_MIRROR_VERSION;
 
-#define	GMIRROR_BALANCE	"load"
-
-static intmax_t label_slice = 4096, configure_slice = -1;
-static intmax_t insert_priority = 0, configure_priority = -1;
+#define	GMIRROR_BALANCE		"load"
+#define	GMIRROR_SLICE		"4096"
+#define	GMIRROR_PRIORITY	"0"
 
 static void mirror_main(struct gctl_req *req, unsigned flags);
 static void mirror_activate(struct gctl_req *req);
@@ -56,10 +55,10 @@ static void mirror_dump(struct gctl_req *req);
 static void mirror_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "activate", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS, NULL,
+	{ "activate", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS,
 	    "[-v] name prov ..."
 	},
-	{ "clear", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS, NULL,
+	{ "clear", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
@@ -71,20 +70,20 @@ struct g_command class_commands[] = {
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
-		{ 'p', "priority", &configure_priority, G_TYPE_NUMBER },
-		{ 's', "slice", &configure_slice, G_TYPE_NUMBER },
+		{ 'p', "priority", "-1", G_TYPE_NUMBER },
+		{ 's', "slice", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-adfFhnv] [-b balance] [-s slice] name\n"
-		  "[-v] -p priority name prov"
+	    "[-adfFhnv] [-b balance] [-s slice] name\n"
+	    "[-v] -p priority name prov"
 	},
-	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
 	},
-	{ "dump", 0, mirror_main, G_NULL_OPTS, NULL,
+	{ "dump", 0, mirror_main, G_NULL_OPTS,
 	    "prov ..."
 	},
-	{ "forget", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "forget", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "name ..."
 	},
 	{ "label", G_FLAG_VERBOSE, mirror_main,
@@ -93,24 +92,24 @@ struct g_command class_commands[] = {
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
-		{ 's', "slice", &label_slice, G_TYPE_NUMBER },
+		{ 's', "slice", GMIRROR_SLICE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-Fhnv] [-b balance] [-s slice] name prov ..."
+	    "[-Fhnv] [-b balance] [-s slice] name prov ..."
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'i', "inactive", NULL, G_TYPE_BOOL },
-		{ 'p', "priority", &insert_priority, G_TYPE_NUMBER },
+		{ 'p', "priority", GMIRROR_PRIORITY, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-hiv] [-p priority] name prov ..."
+	    "[-hiv] [-p priority] name prov ..."
 	},
-	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
 	},
-	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
@@ -118,7 +117,7 @@ struct g_command class_commands[] = {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
