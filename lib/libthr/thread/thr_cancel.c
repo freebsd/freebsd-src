@@ -60,18 +60,16 @@ _pthread_cancel(pthread_t pthread)
 
 	/*
 	 * POSIX says _pthread_cancel should be async cancellation safe.
-	 * _thr_ref_add and _thr_ref_delete will enter and leave critical
+	 * _thr_find_thread and THR_THREAD_UNLOCK will enter and leave critical
 	 * region automatically.
 	 */
-	if ((ret = _thr_ref_add(curthread, pthread, 0)) == 0) {
-		THR_THREAD_LOCK(curthread, pthread);
+	if ((ret = _thr_find_thread(curthread, pthread, 0)) == 0) {
 		if (!pthread->cancel_pending) {
 			pthread->cancel_pending = 1;
 			if (pthread->state != PS_DEAD)
 				_thr_send_sig(pthread, SIGCANCEL);
 		}
 		THR_THREAD_UNLOCK(curthread, pthread);
-		_thr_ref_delete(curthread, pthread);
 	}
 	return (ret);
 }
