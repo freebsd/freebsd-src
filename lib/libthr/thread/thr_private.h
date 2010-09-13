@@ -415,13 +415,13 @@ struct pthread {
 #define THR_FLAGS_PRIVATE	0x0001
 #define	THR_FLAGS_NEED_SUSPEND	0x0002	/* thread should be suspended */
 #define	THR_FLAGS_SUSPENDED	0x0004	/* thread is suspended */
+#define	THR_FLAGS_IN_GCLIST	0x0004	/* thread in gc list */
+#define	THR_FLAGS_DETACHED	0x0008	/* thread is detached */
 
 	/* Thread list flags; only set with thread list lock held. */
 	int			tlflags;
 #define	TLFLAGS_GC_SAFE		0x0001	/* thread safe for cleaning */
 #define	TLFLAGS_IN_TDLIST	0x0002	/* thread in all thread list */
-#define	TLFLAGS_IN_GCLIST	0x0004	/* thread in gc list */
-#define	TLFLAGS_DETACHED	0x0008	/* thread is detached */
 
 	/* Queue of currently owned NORMAL or PRIO_INHERIT type mutexes. */
 	struct mutex_queue	mutexq;
@@ -462,6 +462,10 @@ struct pthread {
 	/* Event */
 	td_event_msg_t		event_buf;
 };
+
+#define THR_SHOULD_GC(thrd) 						\
+	((thrd)->refcount == 0 && (thrd)->state == PS_DEAD &&		\
+	 ((thrd)->flags & THR_FLAGS_DETACHED) != 0)
 
 #define	THR_IN_CRITICAL(thrd)				\
 	(((thrd)->locklevel > 0) ||			\
@@ -517,14 +521,23 @@ do {							\
 #define	THR_THREAD_LOCK(curthrd, thr)	THR_LOCK_ACQUIRE(curthrd, &(thr)->lock)
 #define	THR_THREAD_UNLOCK(curthrd, thr)	THR_LOCK_RELEASE(curthrd, &(thr)->lock)
 
-#define	THREAD_LIST_LOCK(curthrd)				\
+#define	THREAD_LIST_RDLOCK(curthrd)				\
 do {								\
-	THR_LOCK_ACQUIRE((curthrd), &_thr_list_lock);		\
+	(curthrd)->locklevel++;					\
+	_thr_rwl_rdlock(&_thr_list_lock);			\
+} while (0)
+
+#define	THREAD_LIST_WRLOCK(curthrd)				\
+do {								\
+	(curthrd)->locklevel++;					\
+	_thr_rwl_wrlock(&_thr_list_lock);			\
 } while (0)
 
 #define	THREAD_LIST_UNLOCK(curthrd)				\
 do {								\
-	THR_LOCK_RELEASE((curthrd), &_thr_list_lock);		\
+	_thr_rwl_unlock(&_thr_list_lock);			\
+	(curthrd)->locklevel--;					\
+	_thr_ast(curthrd);					\
 } while (0)
 
 /*
@@ -546,18 +559,28 @@ do {								\
 	}							\
 } while (0)
 #define	THR_GCLIST_ADD(thrd) do {				\
-	if (((thrd)->tlflags & TLFLAGS_IN_GCLIST) == 0) {	\
+	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) == 0) {	\
 		TAILQ_INSERT_HEAD(&_thread_gc_list, thrd, gcle);\
-		(thrd)->tlflags |= TLFLAGS_IN_GCLIST;		\
+		(thrd)->flags |= THR_FLAGS_IN_GCLIST;		\
 		_gc_count++;					\
 	}							\
 } while (0)
 #define	THR_GCLIST_REMOVE(thrd) do {				\
-	if (((thrd)->tlflags & TLFLAGS_IN_GCLIST) != 0) {	\
+	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) != 0) {	\
 		TAILQ_REMOVE(&_thread_gc_list, thrd, gcle);	\
-		(thrd)->tlflags &= ~TLFLAGS_IN_GCLIST;		\
+		(thrd)->flags &= ~THR_FLAGS_IN_GCLIST;		\
 		_gc_count--;					\
 	}							\
+} while (0)
+
+#define THR_REF_ADD(curthread, pthread) {			\
+	THR_CRITICAL_ENTER(curthread);				\
+	pthread->refcount++;					\
+} while (0)
+
+#define THR_REF_DEL(curthread, pthread) {			\
+	pthread->refcount--;					\
+	THR_CRITICAL_LEAVE(curthread);				\
 } while (0)
 
 #define GC_NEEDED()	(_gc_count >= 5)
@@ -618,7 +641,7 @@ extern struct umutex	_mutex_static_lock __hidden;
 extern struct umutex	_cond_static_lock __hidden;
 extern struct umutex	_rwlock_static_lock __hidden;
 extern struct umutex	_keytable_lock __hidden;
-extern struct umutex	_thr_list_lock __hidden;
+extern struct urwlock	_thr_list_lock __hidden;
 extern struct umutex	_thr_event_lock __hidden;
 
 /*
@@ -673,6 +696,7 @@ int	_thr_setscheduler(lwpid_t, int, const struct sched_param *) __hidden;
 void	_thr_signal_prefork(void) __hidden;
 void	_thr_signal_postfork(void) __hidden;
 void	_thr_signal_postfork_child(void) __hidden;
+void	_thr_try_gc(struct pthread *, struct pthread *) __hidden;
 int	_rtp_to_schedparam(const struct rtprio *rtp, int *policy,
 		struct sched_param *param) __hidden;
 int	_schedparam_to_rtp(int policy, const struct sched_param *param,

@@ -132,22 +132,23 @@ _pthread_attr_destroy(pthread_attr_t *attr)
 __weak_reference(_pthread_attr_get_np, pthread_attr_get_np);
 
 int
-_pthread_attr_get_np(pthread_t pid, pthread_attr_t *dst)
+_pthread_attr_get_np(pthread_t pthread, pthread_attr_t *dst)
 {
 	struct pthread *curthread;
 	struct pthread_attr attr;
 	int	ret;
 
-	if (pid == NULL || dst == NULL || *dst == NULL)
+	if (pthread == NULL || dst == NULL || *dst == NULL)
 		return (EINVAL);
 
 	curthread = _get_curthread();
-	if ((ret = _thr_ref_add(curthread, pid, /*include dead*/0)) != 0)
+	if ((ret = _thr_find_thread(curthread, pthread, /*include dead*/0)) != 0)
 		return (ret);
-	attr = pid->attr;
-	if (pid->tlflags & TLFLAGS_DETACHED)
+	attr = pthread->attr;
+	if (pthread->flags & THR_FLAGS_DETACHED)
 		attr.flags |= PTHREAD_DETACHED;
-	_thr_ref_delete(curthread, pid);
+	THR_THREAD_UNLOCK(curthread, pthread);
+
 	memcpy(*dst, &attr, sizeof(struct pthread_attr));
 	/* XXX */
 	(*dst)->cpuset = NULL;
