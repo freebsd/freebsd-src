@@ -70,13 +70,13 @@ _pthread_getaffinity_np(pthread_t td, size_t cpusetsize, cpuset_t *cpusetp)
 
 	if (td == curthread) {
 		error = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
-			(td == curthread) ? -1 : tid, cpusetsize, cpusetp);
+			-1, cpusetsize, cpusetp);
 		if (error == -1)
 			error = errno;
 	} else if ((error = _thr_find_thread(curthread, td, 0)) == 0) {
 		tid = TID(td);
-		error = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
-			(td == curthread) ? -1 : tid, cpusetsize, cpusetp);
+		error = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, tid,
+			    cpusetsize, cpusetp);
 		if (error == -1)
 			error = errno;
 		THR_THREAD_UNLOCK(curthread, td);
