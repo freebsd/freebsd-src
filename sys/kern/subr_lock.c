@@ -191,7 +191,8 @@ struct lock_prof_cpu *lp_cpu[MAXCPU];
 volatile int lock_prof_enable = 0;
 static volatile int lock_prof_resetting;
 
-#define LPROF_SBUF_SIZE		256
+/* SWAG: sbuf size = avg stat. line size * number of locks */
+#define LPROF_SBUF_SIZE		256 * 400
 
 static int lock_prof_rejected;
 static int lock_prof_skipspin;
@@ -383,6 +384,8 @@ lock_prof_type_stats(struct lock_prof_type *type, struct sbuf *sb, int spin,
 				continue;
 			lock_prof_sum(l, &lp, i, spin, t);
 			lock_prof_output(&lp, sb);
+			if (sbuf_error(sb) != 0)
+				return;
 		}
 	}
 }
@@ -390,11 +393,13 @@ lock_prof_type_stats(struct lock_prof_type *type, struct sbuf *sb, int spin,
 static int
 dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 {
+	static int multiplier = 1;
 	struct sbuf *sb;
 	int error, cpu, t;
 	int enabled;
 
-	sb = sbuf_new_for_sysctl(NULL, NULL, LPROF_SBUF_SIZE, req);
+retry_sbufops:
+	sb = sbuf_new(NULL, NULL, LPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
 	sbuf_printf(sb, "\n%8s %9s %11s %11s %11s %6s %6s %2s %6s %s\n",
 	    "max", "wait_max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
 	enabled = lock_prof_enable;
@@ -406,13 +411,16 @@ dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 			continue;
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[0], sb, 0, t);
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[1], sb, 1, t);
+		if (sbuf_error(sb) != 0) {
+			sbuf_delete(sb);
+			multiplier++;
+			goto retry_sbufops;
+		}
 	}
 	lock_prof_enable = enabled;
 
-	error = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (error == 0)
-		error = SYSCTL_OUT(req, "", 1);
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 	return (error);
 }
