@@ -94,9 +94,6 @@ machdep_ap_bootstrap(void)
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 
-	/* Let the DEC and external interrupts go */
-	mtmsr(mfmsr() | PSL_EE);
-
 	/* Announce ourselves awake, and enter the scheduler */
 	sched_throw(NULL);
 }
