@@ -29,13 +29,19 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
  * Machine-dependent target parameters for lint1.
  */
 
+#ifdef __powerpc64__
+#include "lp64.h"
+#else
 #include "ilp32.h"
+#endif
 
 /*    
  * Should be set to 1 if the difference of two pointers is of type long
@@ -43,8 +49,13 @@
  * kept in sync with the compiler!
  */     
 
+#ifdef __powerpc64__
+#define	PTRDIFF_IS_LONG		1
+#define	SIZEOF_IS_ULONG		1
+#else
 #define	PTRDIFF_IS_LONG		0
 #define	SIZEOF_IS_ULONG		0
+#endif
 
 #define	FLOAT_SIZE		(4 * CHAR_BIT)
 #define	DOUBLE_SIZE		(8 * CHAR_BIT)
