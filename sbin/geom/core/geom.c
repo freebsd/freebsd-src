@@ -236,8 +236,8 @@ find_option(struct g_command *cmd, char ch)
 static void
 set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 {
-	char *s;
 	uint64_t number;
+	void *ptr;
 
 	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER ||
 	    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
@@ -245,27 +245,29 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 			err(EXIT_FAILURE, "Invalid value for '%c' argument.",
 			    opt->go_char);
 		}
-		if (G_OPT_TYPE(opt) == G_TYPE_NUMBER)
-			opt->go_val = malloc(sizeof(intmax_t));
-		else {
-			asprintf(&s, "%jd", number);
-			opt->go_val = s;
-		}
-		if (opt->go_val == NULL)
-			errx(EXIT_FAILURE, "No memory.");
 		if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
-			*(intmax_t *)opt->go_val = number;
+			ptr = malloc(sizeof(intmax_t));
+			if (ptr == NULL)
+				errx(EXIT_FAILURE, "No memory.");
+			*(intmax_t *)ptr = number;
+			opt->go_val = ptr;
 			gctl_ro_param(req, opt->go_name, sizeof(intmax_t),
 			    opt->go_val);
-		} else
+		} else {
+			asprintf((void *)(&ptr), "%jd", number);
+			if (ptr == NULL)
+				errx(EXIT_FAILURE, "No memory.");
+			opt->go_val = ptr;
 			gctl_ro_param(req, opt->go_name, -1, opt->go_val);
+		}
 	} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
 		gctl_ro_param(req, opt->go_name, -1, val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
-		opt->go_val = malloc(sizeof(int));
-		if (opt->go_val == NULL)
+		ptr = malloc(sizeof(int));
+		if (ptr == NULL)
 			errx(EXIT_FAILURE, "No memory.");
-		*(int *)opt->go_val = *val - '0';
+		*(int *)ptr = *val - '0';
+		opt->go_val = ptr;
 		gctl_ro_param(req, opt->go_name, sizeof(int), opt->go_val);
 	} else {
 		assert(!"Invalid type");
@@ -354,7 +356,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 				    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
 					if (cmd->gc_argname == NULL ||
 					    opt->go_val == NULL ||
-					    *(char *)opt->go_val != '\0')
+					    *(const char *)opt->go_val != '\0')
 						gctl_ro_param(req, opt->go_name,
 						    -1, opt->go_val);
 				} else {
