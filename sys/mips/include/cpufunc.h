@@ -266,6 +266,24 @@ intr_restore(register_t ie)
 	}
 }
 
+static __inline uint32_t
+set_intr_mask(uint32_t mask)
+{
+	uint32_t ostatus;
+
+	ostatus = mips_rd_status();
+	mask = (ostatus & ~MIPS_SR_INT_MASK) | (~mask & MIPS_SR_INT_MASK);
+	mips_wr_status(mask);
+	return (ostatus);
+}
+
+static __inline uint32_t
+get_intr_mask(void)
+{
+
+	return (mips_rd_status() & MIPS_SR_INT_MASK);
+}
+
 static __inline void
 breakpoint(void)
 {
