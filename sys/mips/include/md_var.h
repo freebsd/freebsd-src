@@ -75,9 +75,5 @@ void	mips_postboot_fixup(void);
 void	platform_identify(void);
 
 extern int busdma_swi_pending;
-void busdma_swi(void);
-
-u_int32_t set_intr_mask(u_int32_t);
-u_int32_t get_intr_mask(void);
-
+void	busdma_swi(void);
 #endif /* !_MACHINE_MD_VAR_H_ */
