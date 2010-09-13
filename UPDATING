@@ -22,6 +22,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20100913:
+	DTrace has grown support for userland tracing. Due to this, DTrace is
+	now i386 and amd64 only.
+	dtruss(1) is now installed by default on those systems and a new
+	kernel module is needed for userland tracing: fasttrap.
+	No changes to your kernel config file are necessary to enable
+	userland tracing, but you might consider adding 'STRIP=' and
+	'CFLAGS+=-fno-omit-frame-pointer' to your make.conf if you want
+	to have informative userland stack traces in DTrace (ustack).
+
 20100725:
 	The acpi_aiboost(4) driver has been removed in favor of the new
 	aibs(4) driver. You should update your kernel configuration file.
