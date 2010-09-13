@@ -415,8 +415,8 @@ struct pthread {
 #define THR_FLAGS_PRIVATE	0x0001
 #define	THR_FLAGS_NEED_SUSPEND	0x0002	/* thread should be suspended */
 #define	THR_FLAGS_SUSPENDED	0x0004	/* thread is suspended */
-#define	THR_FLAGS_IN_GCLIST	0x0004	/* thread in gc list */
-#define	THR_FLAGS_DETACHED	0x0008	/* thread is detached */
+#define	THR_FLAGS_IN_GCLIST	0x0008	/* thread in gc list */
+#define	THR_FLAGS_DETACHED	0x0010	/* thread is detached */
 
 	/* Thread list flags; only set with thread list lock held. */
 	int			tlflags;
