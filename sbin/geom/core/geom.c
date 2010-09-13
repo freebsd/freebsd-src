@@ -234,8 +234,30 @@ find_option(struct g_command *cmd, char ch)
 static void
 set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 {
+	const char *optname;
 	uint64_t number;
 	void *ptr;
+
+	if (G_OPT_ISMULTI(opt)) {
+		size_t optnamesize;
+
+		if (G_OPT_NUM(opt) == UCHAR_MAX)
+			errx(EXIT_FAILURE, "Too many -%c options.", opt->go_char);
+
+		/*
+		 * Base option name length plus 3 bytes for option number
+		 * (max. 255 options) plus 1 byte for terminating '\0'.
+		 */
+		optnamesize = strlen(opt->go_name) + 3 + 1;
+		ptr = malloc(optnamesize);
+		if (ptr == NULL)
+			errx(EXIT_FAILURE, "No memory.");
+		snprintf(ptr, optnamesize, "%s%u", opt->go_name, G_OPT_NUM(opt));
+		G_OPT_NUMINC(opt);
+		optname = ptr;
+	} else {
+		optname = opt->go_name;
+	}
 
 	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER ||
 	    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
@@ -249,27 +271,30 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 				errx(EXIT_FAILURE, "No memory.");
 			*(intmax_t *)ptr = number;
 			opt->go_val = ptr;
-			gctl_ro_param(req, opt->go_name, sizeof(intmax_t),
+			gctl_ro_param(req, optname, sizeof(intmax_t),
 			    opt->go_val);
 		} else {
 			asprintf((void *)(&ptr), "%jd", number);
 			if (ptr == NULL)
 				errx(EXIT_FAILURE, "No memory.");
 			opt->go_val = ptr;
-			gctl_ro_param(req, opt->go_name, -1, opt->go_val);
+			gctl_ro_param(req, optname, -1, opt->go_val);
 		}
 	} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
-		gctl_ro_param(req, opt->go_name, -1, val);
+		gctl_ro_param(req, optname, -1, val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
 		ptr = malloc(sizeof(int));
 		if (ptr == NULL)
 			errx(EXIT_FAILURE, "No memory.");
 		*(int *)ptr = *val - '0';
 		opt->go_val = ptr;
-		gctl_ro_param(req, opt->go_name, sizeof(int), opt->go_val);
+		gctl_ro_param(req, optname, sizeof(int), opt->go_val);
 	} else {
 		assert(!"Invalid type");
 	}
+
+	if (G_OPT_ISMULTI(opt))
+		free(__DECONST(char *, optname));
 }
 
 /*
@@ -294,7 +319,10 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 		if (opt->go_name == NULL)
 			break;
 		assert(G_OPT_TYPE(opt) != 0);
-		assert((opt->go_type & ~G_TYPE_MASK) == 0);
+		assert((opt->go_type & ~(G_TYPE_MASK | G_TYPE_MULTI)) == 0);
+		/* Multiple bool arguments makes no sense. */
+		assert(G_OPT_TYPE(opt) != G_TYPE_BOOL ||
+		    (opt->go_type & G_TYPE_MULTI) == 0);
 		strlcatf(opts, sizeof(opts), "%c", opt->go_char);
 		if (G_OPT_TYPE(opt) != G_TYPE_BOOL)
 			strlcat(opts, ":", sizeof(opts));
@@ -314,7 +342,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 		opt = find_option(cmd, ch);
 		if (opt == NULL)
 			usage();
-		if (G_OPT_ISDONE(opt)) {
+		if (!G_OPT_ISMULTI(opt) && G_OPT_ISDONE(opt)) {
 			warnx("Option '%c' specified twice.", opt->go_char);
 			usage();
 		}
