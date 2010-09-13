@@ -12,12 +12,12 @@
 #
 #
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 ARCH_SUBDIR= i387
 .elif ${MACHINE_ARCH} == "powerpc64"
 ARCH_SUBDIR= powerpc
 .else
-ARCH_SUBDIR= ${MACHINE_ARCH}
+ARCH_SUBDIR= ${MACHINE_CPUARCH}
 .endif
 
 .include "${ARCH_SUBDIR}/Makefile.inc"
