@@ -37,7 +37,7 @@
  * Machine-dependent target parameters for lint1.
  */
 
-#include "ilp32.h"
+#include "lp64.h"
 
 /*    
  * Should be set to 1 if the difference of two pointers is of type long
@@ -45,8 +45,8 @@
  * kept in sync with the compiler!
  */     
 
-#define	PTRDIFF_IS_LONG		0
-#define	SIZEOF_IS_ULONG		0
+#define	PTRDIFF_IS_LONG		1
+#define	SIZEOF_IS_ULONG		1
 
 #define	FLOAT_SIZE		(4 * CHAR_BIT)
 #define	DOUBLE_SIZE		(8 * CHAR_BIT)

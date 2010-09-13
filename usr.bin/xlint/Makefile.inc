@@ -7,14 +7,17 @@ WARNS?=		0
 
 # These assignments duplicate much of the functionality of
 # MACHINE_CPUARCH, but there's no easy way to export make functions...
-
 .if defined(TARGET_ARCH)
-TARGET_CPUARCH=${TARGET_ARCH:C/mipse[bl]/mips/:C/armeb/arm/}
+TARGET_CPUARCH=	${TARGET_ARCH:C/mipse[bl]/mips/:C/armeb/arm/}
 .else
-TARGET_CPUARCH=${MACHINE_CPUARCH}
+TARGET_CPUARCH=	${MACHINE_CPUARCH}
+TARGET_ARCH=	${MACHINE_ARCH}
 .endif
-TARGET_ARCH?=	${MACHINE_ARCH}
+.if exists(${.CURDIR}/../arch/${TARGET_ARCH}
+CFLAGS+=	-I${.CURDIR}/../arch/${TARGET_ARCH}
+.else
 CFLAGS+=	-I${.CURDIR}/../arch/${TARGET_CPUARCH}
+.enidf
 CFLAGS+=	-I${.CURDIR}/../common
 
 OBJECT_FMT=	ELF
