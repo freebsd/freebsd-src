@@ -417,32 +417,21 @@ ipv6if()
 		;;
 	esac
 
-	# True if $ifconfig_IF_ipv6 is defined.
-	_tmpargs=`_ifconfig_getargs $_if ipv6`
-	if [ -n "${_tmpargs}" ]; then
-		return 0
-	fi
-
-	# backward compatibility: True if $ipv6_ifconfig_IF is defined.
-	_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
-	if [ -n "${_tmpargs}" ]; then
-		return 0
-	fi
-
 	case "${ipv6_network_interfaces}" in
-	[Aa][Uu][Tt][Oo])
-		return 0
-		;;
-	''|[Nn][Oo][Nn][Ee])
-		return 1
-		;;
-	esac
-
-	for i in ${ipv6_network_interfaces}; do
-		if [ "$i" = "$_if" ]; then
+	$_if|"$_if "*|*" $_if"|*" $_if "*|[Aa][Uu][Tt][Oo])
+		# True if $ifconfig_IF_ipv6 is defined.
+		_tmpargs=`_ifconfig_getargs $_if ipv6`
+		if [ -n "${_tmpargs}" ]; then
 			return 0
 		fi
-	done
+
+		# backward compatibility: True if $ipv6_ifconfig_IF is defined.
+		_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
+		if [ -n "${_tmpargs}" ]; then
+			return 0
+		fi
+		;;
+	esac
 
 	return 1
 }
