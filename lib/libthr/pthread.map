@@ -173,6 +173,7 @@ FBSDprivate_1.0 {
 	___creat;
 	___pause;
 	___pselect;
+	___sigwait;
 	___sleep;
 	___system;
 	___tcdrain;
@@ -206,7 +207,6 @@ FBSDprivate_1.0 {
 	__sendto;
 	__sigsuspend;
 	__sigtimedwait;
-	__sigwait;
 	__sigwaitinfo;
 	__wait3;
 	__wait4;
