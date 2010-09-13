@@ -42,7 +42,7 @@ COPTFLAGS+= -fno-strict-aliasing
 . endif
 .endif
 .if !defined(NO_CPU_COPTFLAGS)
-. if ${CC} == "icc"
+. if ${CC:T:Micc} == "icc"
 COPTFLAGS+= ${_ICC_CPUCFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 . else
 COPTFLAGS+= ${_CPUCFLAGS}
