@@ -1035,7 +1035,7 @@ nlna_submit_rx_free_desc(struct nlna_softc *sc, uint32_t n_desc)
 		n = 0;
 		do {
 			msgrng_flags = msgrng_access_enable();
-			ret = message_send_retry(1, code, stid, &msg);
+			ret = message_send(1, code, stid, &msg);
 			msgrng_restore(msgrng_flags);
 			KASSERT(n++ < 100000, ("Too many credit fails\n"));
 		} while (ret != 0);
@@ -1960,7 +1960,7 @@ send_fmn_msg_tx(struct nlge_softc *sc, struct msgrng_msg *msg,
 
 	do {
 		msgrng_flags = msgrng_access_enable();
-		ret = message_send_retry(n_entries, MSGRNG_CODE_MAC,
+		ret = message_send(n_entries, MSGRNG_CODE_MAC,
 		    sc->tx_bucket_id, msg);
 		msgrng_restore(msgrng_flags);
 		KASSERT(i++ < 100000, ("Too many credit fails\n"));
