@@ -51,10 +51,6 @@ _pthread_setaffinity_np(pthread_t td, size_t cpusetsize, const cpuset_t *cpusetp
 		if (error == -1)
 			error = errno;
 	} else if ((error = _thr_find_thread(curthread, td, 0)) == 0) {
-		if (td->state == PS_DEAD) {
-			THR_THREAD_UNLOCK(curthread, td);
-			return (EINVAL);
-		}
 		tid = TID(td);
 		error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, tid,
 			cpusetsize, cpusetp);
