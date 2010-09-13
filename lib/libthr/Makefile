@@ -22,7 +22,7 @@ CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 CFLAGS+=-I${.CURDIR}/arch/${MACHINE_CPUARCH}/include
 CFLAGS+=-I${.CURDIR}/sys
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
-CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
+CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_CPUARCH}
 CFLAGS+=-I${.CURDIR}/../libthread_db
 CFLAGS+=-Winline
 LDFLAGS+=-Wl,-znodelete
@@ -37,6 +37,8 @@ CFLAGS+=-D_PTHREADS_INVARIANTS
 #CFLAGS+=-g
 
 PRECIOUSLIB=
+
+.PATH: ${.CURDIR}/arch/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}
 
 .include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
