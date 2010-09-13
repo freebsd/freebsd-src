@@ -38,7 +38,7 @@ SLIST_HEAD(et_eventtimers_list, eventtimer);
 static struct et_eventtimers_list eventtimers = SLIST_HEAD_INITIALIZER(et_eventtimers);
 
 struct mtx	et_eventtimers_mtx;
-MTX_SYSINIT(et_eventtimers_init, &et_eventtimers_mtx, "et_mtx", MTX_SPIN);
+MTX_SYSINIT(et_eventtimers_init, &et_eventtimers_mtx, "et_mtx", MTX_DEF);
 
 SYSCTL_NODE(_kern, OID_AUTO, eventtimer, CTLFLAG_RW, 0, "Event timers");
 SYSCTL_NODE(_kern_eventtimer, OID_AUTO, et, CTLFLAG_RW, 0, "");

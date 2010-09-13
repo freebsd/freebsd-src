@@ -237,20 +237,22 @@ void	realitexpire(void *);
 int	sysbeep(int hertz, int period);
 
 void	hardclock(int usermode, uintfptr_t pc);
+void	hardclock_anycpu(int cnt, int usermode);
 void	hardclock_cpu(int usermode);
+void	hardclock_sync(int cpu);
 void	softclock(void *);
 void	statclock(int usermode);
 void	profclock(int usermode, uintfptr_t pc);
-void	timer1clock(int usermode, uintfptr_t pc);
-void	timer2clock(int usermode, uintfptr_t pc);
 
-int	hardclockintr(struct trapframe *frame);
-int	statclockintr(struct trapframe *frame);
+int	hardclockintr(void);
 
 void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);
 void	cpu_startprofclock(void);
 void	cpu_stopprofclock(void);
+void	cpu_idleclock(void);
+void	cpu_activeclock(void);
+extern int	cpu_disable_deep_sleep;
 
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);

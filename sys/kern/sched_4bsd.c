@@ -1547,7 +1547,7 @@ sched_pctcpu(struct thread *td)
 }
 
 void
-sched_tick(void)
+sched_tick(int cnt)
 {
 }
 

@@ -770,16 +770,11 @@ void
 tc_ticktock(void)
 {
 	static int count;
-	static time_t last_calib;
 
 	if (++count < tc_tick)
 		return;
 	count = 0;
 	tc_windup();
-	if (time_uptime != last_calib && !(time_uptime & 0xf)) {
-		cpu_tick_calibrate(0);
-		last_calib = time_uptime;
-	}
 }
 
 static void
@@ -830,9 +825,20 @@ tc_cpu_ticks(void)
 	return (u + base);
 }
 
+void
+cpu_tick_calibration(void)
+{
+	static time_t last_calib;
+
+	if (time_uptime != last_calib && !(time_uptime & 0xf)) {
+		cpu_tick_calibrate(0);
+		last_calib = time_uptime;
+	}
+}
+
 /*
  * This function gets called every 16 seconds on only one designated
- * CPU in the system from hardclock() via tc_ticktock().
+ * CPU in the system from hardclock() via cpu_tick_calibration()().
  *
  * Whenever the real time clock is stepped we get called with reset=1
  * to make sure we handle suspend/resume and similar events correctly.
