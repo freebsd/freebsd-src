@@ -47,7 +47,6 @@
 #define	PIL_STOP	5	/* stop cpu ipi */
 #define	PIL_PREEMPT	6	/* preempt idle thread cpu ipi */
 #define	PIL_HARDCLOCK	7	/* hardclock broadcast */
-#define	PIL_STATCLOCK	8	/* statclock broadcast */
 #define	PIL_FAST	13	/* fast interrupts */
 #define	PIL_TICK	14
 

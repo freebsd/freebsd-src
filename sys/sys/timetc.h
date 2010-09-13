@@ -70,6 +70,7 @@ u_int64_t tc_getfrequency(void);
 void	tc_init(struct timecounter *tc);
 void	tc_setclock(struct timespec *ts);
 void	tc_ticktock(void);
+void	cpu_tick_calibration(void);
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_kern_timecounter);

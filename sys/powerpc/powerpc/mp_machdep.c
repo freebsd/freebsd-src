@@ -315,7 +315,7 @@ powerpc_ipi_handler(void *arg)
 			break;
 		case IPI_HARDCLOCK:
 			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
-			hardclockintr(curthread->td_intr_frame);
+			hardclockintr();
 			break;
 		}
 	}
