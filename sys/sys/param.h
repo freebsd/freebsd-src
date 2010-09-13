@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 900020	/* Master, propagated to newvers */
+#define __FreeBSD_version 900021	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
