@@ -305,6 +305,7 @@ static device_method_t iodi_methods[] = {
 	DEVMETHOD(device_identify, iodi_identify),
 	DEVMETHOD(bus_alloc_resource, iodi_alloc_resource),
 	DEVMETHOD(bus_activate_resource, iodi_activate_resource),
+	DEVMETHOD(bus_add_child, bus_generic_add_child),
 	DEVMETHOD(bus_setup_intr, iodi_setup_intr),
 	{0, 0},
 };
