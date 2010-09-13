@@ -13,11 +13,11 @@ TARGET_CPUARCH=	${TARGET_ARCH:C/mipse[bl]/mips/:C/armeb/arm/}
 TARGET_CPUARCH=	${MACHINE_CPUARCH}
 TARGET_ARCH=	${MACHINE_ARCH}
 .endif
-.if exists(${.CURDIR}/../arch/${TARGET_ARCH}
+.if exists(${.CURDIR}/../arch/${TARGET_ARCH})
 CFLAGS+=	-I${.CURDIR}/../arch/${TARGET_ARCH}
 .else
 CFLAGS+=	-I${.CURDIR}/../arch/${TARGET_CPUARCH}
-.enidf
+.endif
 CFLAGS+=	-I${.CURDIR}/../common
 
 OBJECT_FMT=	ELF
