@@ -381,10 +381,16 @@ runningbufwakeup(struct buf *bp)
  */
 
 static __inline void
-bufcountwakeup(void) 
+bufcountwakeup(struct buf *bp) 
 {
+	int old;
 
-	atomic_add_int(&numfreebuffers, 1);
+	KASSERT((bp->b_vflags & BV_INFREECNT) == 0,
+	    ("buf %p already counted as free", bp));
+	bp->b_vflags |= BV_INFREECNT;
+	old = atomic_fetchadd_int(&numfreebuffers, 1);
+	KASSERT(old >= 0 && old < nbuf,
+	    ("numfreebuffers climbed to %d", old + 1));
 	mtx_lock(&nblock);
 	if (needsbuffer) {
 		needsbuffer &= ~VFS_BIO_NEED_ANY;
@@ -587,7 +593,7 @@ bufinit(void)
 		bp->b_rcred = NOCRED;
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
-		bp->b_vflags = 0;
+		bp->b_vflags = BV_INFREECNT;	/* buf is counted as free */
 		bp->b_xflags = 0;
 		LIST_INIT(&bp->b_dep);
 		BUF_LOCKINIT(bp);
@@ -688,6 +694,7 @@ bfreekva(struct buf *bp)
 void
 bremfree(struct buf *bp)
 {
+	int old;
 
 	CTR3(KTR_BUF, "bremfree(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT(BUF_REFCNT(bp), ("bremfree: buf must be locked."));
@@ -698,8 +705,13 @@ bremfree(struct buf *bp)
 
 	bp->b_flags |= B_REMFREE;
 	/* Fixup numfreebuffers count.  */
-	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0)
-		atomic_subtract_int(&numfreebuffers, 1);
+	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0) {
+		KASSERT((bp->b_vflags & BV_INFREECNT) != 0,
+		    ("buf %p not counted in numfreebuffers", bp));
+		bp->b_vflags &= ~BV_INFREECNT;
+		old = atomic_fetchadd_int(&numfreebuffers, -1);
+		KASSERT(old > 0, ("numfreebuffers dropped to %d", old - 1));
+	}
 }
 
 /*
@@ -725,6 +737,8 @@ bremfreef(struct buf *bp)
 static void
 bremfreel(struct buf *bp)
 {
+	int old;
+
 	CTR3(KTR_BUF, "bremfreel(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(BUF_REFCNT(bp), ("bremfreel: buffer %p not locked.", bp));
@@ -747,8 +761,13 @@ bremfreel(struct buf *bp)
 	 * delayed-write, the buffer was free and we must decrement
 	 * numfreebuffers.
 	 */
-	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0)
-		atomic_subtract_int(&numfreebuffers, 1);
+	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0) {
+		KASSERT((bp->b_vflags & BV_INFREECNT) != 0,
+		    ("buf %p not counted in numfreebuffers", bp));
+		bp->b_vflags &= ~BV_INFREECNT;
+		old = atomic_fetchadd_int(&numfreebuffers, -1);
+		KASSERT(old > 0, ("numfreebuffers dropped to %d", old - 1));
+	}
 }
 
 
@@ -1452,7 +1471,7 @@ brelse(struct buf *bp)
 	 */
 
 	if (!(bp->b_flags & B_DELWRI))
-		bufcountwakeup();
+		bufcountwakeup(bp);
 
 	/*
 	 * Something we can maybe free or reuse
@@ -1542,7 +1561,7 @@ bqrelse(struct buf *bp)
 	mtx_unlock(&bqlock);
 
 	if ((bp->b_flags & B_INVAL) || !(bp->b_flags & B_DELWRI))
-		bufcountwakeup();
+		bufcountwakeup(bp);
 
 	/*
 	 * Something we can maybe free or reuse.
@@ -1922,6 +1941,8 @@ restart:
 		bp->b_flags = 0;
 		bp->b_ioflags = 0;
 		bp->b_xflags = 0;
+		KASSERT((bp->b_vflags & BV_INFREECNT) == 0,
+		    ("buf %p still counted as free?", bp));
 		bp->b_vflags = 0;
 		bp->b_vp = NULL;
 		bp->b_blkno = bp->b_lblkno = 0;
@@ -4082,5 +4103,28 @@ DB_SHOW_COMMAND(vnodebufs, db_show_vnodebufs)
 		db_show_buffer((uintptr_t)bp, 1, 0, NULL);
 		db_printf("\n");
 	}
+}
+
+DB_COMMAND(countfreebufs, db_coundfreebufs)
+{
+	struct buf *bp;
+	int i, used = 0, nfree = 0;
+
+	if (have_addr) {
+		db_printf("usage: countfreebufs\n");
+		return;
+	}
+
+	for (i = 0; i < nbuf; i++) {
+		bp = &buf[i];
+		if ((bp->b_vflags & BV_INFREECNT) != 0)
+			nfree++;
+		else
+			used++;
+	}
+
+	db_printf("Counted %d free, %d used (%d tot)\n", nfree, used,
+	    nfree + used);
+	db_printf("numfreebuffers is %d\n", numfreebuffers);
 }
 #endif /* DDB */

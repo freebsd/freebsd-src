@@ -247,6 +247,7 @@ struct buf {
 #define	BV_SCANNED	0x00000001	/* VOP_FSYNC funcs mark written bufs */
 #define	BV_BKGRDINPROG	0x00000002	/* Background write in progress */
 #define	BV_BKGRDWAIT	0x00000004	/* Background write waiting */
+#define	BV_INFREECNT	0x80000000	/* buf is counted in numfreebufs */
 
 #ifdef _KERNEL
 /*
