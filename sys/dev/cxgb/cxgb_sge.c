@@ -3276,7 +3276,7 @@ retry_sbufops:
 		    rspd->rss_hdr.rss_hash_val, be32toh(rspd->flags),
 		    be32toh(rspd->len_cq), rspd->intr_gen);
 	}
-	if (sbuf_overflowed(sb)) {
+	if (sbuf_error(sb) != 0) {
 		sbuf_delete(sb);
 		multiplier++;
 		goto retry_sbufops;
@@ -3350,7 +3350,7 @@ retry_sbufops:
 			    WR[j], WR[j + 1], WR[j + 2], WR[j + 3]);
 
 	}
-	if (sbuf_overflowed(sb)) {
+	if (sbuf_error(sb) != 0) {
 		sbuf_delete(sb);
 		multiplier++;
 		goto retry_sbufops;
@@ -3412,7 +3412,7 @@ retry_sbufops:
 			    WR[j], WR[j + 1], WR[j + 2], WR[j + 3]);
 
 	}
-	if (sbuf_overflowed(sb)) {
+	if (sbuf_error(sb) != 0) {
 		sbuf_delete(sb);
 		multiplier++;
 		goto retry_sbufops;

@@ -87,6 +87,8 @@ static struct timehands *volatile timehands = &th0;
 struct timecounter *timecounter = &dummy_timecounter;
 static struct timecounter *timecounters = &dummy_timecounter;
 
+int tc_min_ticktock_freq = 1;
+
 time_t time_second = 1;
 time_t time_uptime = 1;
 
@@ -482,6 +484,8 @@ tc_windup(void)
 	if (th->th_counter != timecounter) {
 		th->th_counter = timecounter;
 		th->th_offset_count = ncount;
+		tc_min_ticktock_freq = max(1, timecounter->tc_frequency /
+		    (((uint64_t)timecounter->tc_counter_mask + 1) / 3));
 	}
 
 	/*-
@@ -767,19 +771,15 @@ static int tc_tick;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tc_tick, 0, "");
 
 void
-tc_ticktock(void)
+tc_ticktock(int cnt)
 {
 	static int count;
-	static time_t last_calib;
 
-	if (++count < tc_tick)
+	count += cnt;
+	if (count < tc_tick)
 		return;
 	count = 0;
 	tc_windup();
-	if (time_uptime != last_calib && !(time_uptime & 0xf)) {
-		cpu_tick_calibrate(0);
-		last_calib = time_uptime;
-	}
 }
 
 static void
@@ -830,9 +830,20 @@ tc_cpu_ticks(void)
 	return (u + base);
 }
 
+void
+cpu_tick_calibration(void)
+{
+	static time_t last_calib;
+
+	if (time_uptime != last_calib && !(time_uptime & 0xf)) {
+		cpu_tick_calibrate(0);
+		last_calib = time_uptime;
+	}
+}
+
 /*
  * This function gets called every 16 seconds on only one designated
- * CPU in the system from hardclock() via tc_ticktock().
+ * CPU in the system from hardclock() via cpu_tick_calibration()().
  *
  * Whenever the real time clock is stepped we get called with reset=1
  * to make sure we handle suspend/resume and similar events correctly.

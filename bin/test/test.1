@@ -32,7 +32,7 @@
 .\"     @(#)test.1	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2006
+.Dd September 10, 2010
 .Dt TEST 1
 .Os
 .Sh NAME
@@ -282,7 +282,7 @@ True if either
 or
 .Ar expression2
 are true.
-.It Cm \&( Ns Ar expression Ns Cm \&)
+.It Cm \&( Ar expression Cm \&)
 True if expression is true.
 .El
 .Pp
@@ -302,7 +302,7 @@ manual page.
 The
 .Nm
 grammar is inherently ambiguous.
-In order to ensure a degree of consistency,
+In order to assure a degree of consistency,
 the cases described in the
 .St -p1003.2 ,
 section D11.2/4.62.4, standard
@@ -310,6 +310,14 @@ are evaluated consistently according to the rules specified in the
 standards document.
 All other cases are subject to the ambiguity in the
 command semantics.
+.Pp
+In particular, only expressions containing
+.Fl a ,
+.Fl o ,
+.Cm \&(
+or
+.Cm \&)
+can be ambiguous.
 .Sh EXIT STATUS
 The
 .Nm
@@ -338,12 +346,11 @@ specification.
 Both sides are always evaluated in
 .Fl a
 and
-.Fl o ,
-unlike in the logical operators of
-.Xr sh 1 .
+.Fl o .
 For instance, the writable status of
 .Pa file
 will be tested by the following command even though the former expression
 indicated false, which results in a gratuitous access to the file system:
-.Pp
 .Dl "[ -z abc -a -w file ]"
+To avoid this, write
+.Dl "[ -z abc ] && [ -w file ]"

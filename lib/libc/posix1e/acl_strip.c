@@ -176,6 +176,15 @@ acl_is_trivial_np(const acl_t aclp, int *trivialp)
 
 	case ACL_BRAND_NFS4:
 		/*
+		 * If the ACL has more than canonical six entries,
+		 * it's non trivial by definition.
+		 */
+		if (aclp->ats_acl.acl_cnt > 6) {
+			*trivialp = 0;
+			return (0);
+		}
+			
+		/*
 		 * Calculate trivial ACL - using acl_strip_np - and compare
 		 * with the original.
 		 */

@@ -2560,7 +2560,7 @@ sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS)
 	/*
 	 * While using SBUF_FIXEDLEN, check if the sbuf overflowed.
 	 */
-	if (sbuf_overflowed(sb)) {
+	if (sbuf_error(sb) != 0) {
 		sbuf_delete(sb);
 		panic("%s: sbuf overflowed, bump FULLGRAPH_SBUF_SIZE value\n",
 		    __func__);

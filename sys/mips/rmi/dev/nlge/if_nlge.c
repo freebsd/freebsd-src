@@ -148,7 +148,6 @@ static void	nlge_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr);
 
 /* Other internal/helper functions */
 static void 	*get_buf(void);
-static struct mbuf *get_mbuf(void);
 
 static void	nlna_add_to_port_set(struct nlge_port_set *pset,
     struct nlge_softc *sc);
@@ -170,8 +169,6 @@ static void 	nlna_reset_ports(struct nlna_softc *sc,
     struct xlr_gmac_block_t *blk);
 static struct nlna_softc *nlna_sc_init(device_t dev,
     struct xlr_gmac_block_t *blk);
-static __inline__ int nlna_send_free_desc(struct nlna_softc *nlna,
-    vm_paddr_t addr);
 static void	nlna_setup_intr(struct nlna_softc *sc);
 static void	nlna_smp_update_pde(void *dummy __unused);
 static void	nlna_submit_rx_free_desc(struct nlna_softc *sc,
@@ -206,8 +203,7 @@ static int	prepare_fmn_message(struct nlge_softc *sc,
     struct msgrng_msg *msg, uint32_t *n_entries, struct mbuf *m_head,
     uint64_t fr_stid, struct nlge_tx_desc **tx_desc);
 
-static void	release_mbuf(uint64_t phy_addr);
-static void 	release_tx_desc(struct msgrng_msg *msg);
+static void 	release_tx_desc(vm_paddr_t phy_addr);
 static int	send_fmn_msg_tx(struct nlge_softc *, struct msgrng_msg *,
     uint32_t n_entries);
 
@@ -637,7 +633,7 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 	struct nlna_softc *na_sc;
 	struct nlge_softc *sc;
 	struct ifnet   *ifp;
-	uint64_t	phys_addr;
+	vm_paddr_t	phys_addr;
 	unsigned long	addr;
 	uint32_t	length;
 	int		ctrl;
@@ -655,14 +651,15 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 	tx_error = 0;
 	length = (msg->msg0 >> 40) & 0x3fff;
 	na_sc = (struct nlna_softc *)data;
-	phys_addr = (uint64_t) (msg->msg0 & 0xffffffffe0ULL);
 	if (length == 0) {
 		ctrl = CTRL_REG_FREE;
+		phys_addr = msg->msg0 & 0xffffffffffULL;
 		port = (msg->msg0 >> 54) & 0x0f;
 		is_p2p = (msg->msg0 >> 62) & 0x1;
 		tx_error = (msg->msg0 >> 58) & 0xf;
 	} else {
 		ctrl = CTRL_SNGL;
+		phys_addr = msg->msg0 & 0xffffffffe0ULL;
 		length = length - BYTE_OFFSET - MAC_CRC_LEN;
 		port = msg->msg0 & 0x0f;
 	}
@@ -676,11 +673,12 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 	}
 
 	if (ctrl == CTRL_REG_FREE || ctrl == CTRL_JUMBO_FREE) {
-		if (is_p2p)
-			release_tx_desc(msg);
-		else {
-			release_mbuf(msg->msg0 & 0xffffffffffULL);
+		if (is_p2p) {
+			release_tx_desc(phys_addr);
+		} else {
+			m_freem((struct mbuf *)(uintptr_t)phys_addr);
 		}
+
 		ifp = sc->nlge_if;
 		if (ifp->if_drv_flags & IFF_DRV_OACTIVE){
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -742,7 +740,7 @@ nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
 			goto fail;
 		}
 		sent = send_fmn_msg_tx(sc, &msg, n_entries);
-		if (!sent) {
+		if (sent != 0) {
 			goto fail;
 		}
 	} while(1);
@@ -1007,39 +1005,22 @@ nlna_is_last_active_na(struct nlna_softc *sc)
 	return (id == 2 || xlr_board_info.gmac_block[id + 1].enabled == 0);
 }
 
-static __inline__ int
-nlna_send_free_desc(struct nlna_softc *sc, vm_paddr_t addr)
-{
-	struct msgrng_msg msg;
-	int	stid;
-	int	code;
-	int 	i;
-
-	stid = sc->rfrbucket;
-	memset(&msg, 0, sizeof(msg));
-	msg.msg0 = (uint64_t) addr & 0xffffffffe0ULL;
-
-	code = (sc->na_type == XLR_XGMAC) ? MSGRNG_CODE_XGMAC : MSGRNG_CODE_MAC;
-	for (i = 0; i < MAX_MSG_SND_ATTEMPTS; i++) {
-		if (message_send(1, code, stid, &msg) == 0)
-			return (0);
-	}
-	printf("Error: failed to send free desc to station %d\n", stid);
-	return (1);
-}
-
 static void
 nlna_submit_rx_free_desc(struct nlna_softc *sc, uint32_t n_desc)
 {
+	struct msgrng_msg msg;
 	void           *ptr;
-	unsigned long	msgrng_flags;
-	int		i;
-	int		ret;
+	uint32_t	msgrng_flags;
+	int		i, n, stid, ret, code;
 
 	if (n_desc > 1) {
 		PDEBUG("Sending %d free-in descriptors to station=%d\n", n_desc,
 		    sc->rfrbucket);
 	}
+
+	stid = sc->rfrbucket;
+	code = (sc->na_type == XLR_XGMAC) ? MSGRNG_CODE_XGMAC : MSGRNG_CODE_MAC;
+	memset(&msg, 0, sizeof(msg));
 
 	for (i = 0; i < n_desc; i++) {
 		ptr = get_buf();
@@ -1050,12 +1031,14 @@ nlna_submit_rx_free_desc(struct nlna_softc *sc, uint32_t n_desc)
 		}
 
 		/* Send the free Rx desc to the MAC */
-		msgrng_access_enable(msgrng_flags);
-		ret = nlna_send_free_desc(sc, vtophys(ptr));
-		msgrng_access_disable(msgrng_flags);
-		if (ret)  /* no point trying other descriptors after
-		             a failure. */
-			break;
+		msg.msg0 = vtophys(ptr) & 0xffffffffe0ULL;
+		n = 0;
+		do {
+			msgrng_flags = msgrng_access_enable();
+			ret = message_send(1, code, stid, &msg);
+			msgrng_restore(msgrng_flags);
+			KASSERT(n++ < 100000, ("Too many credit fails\n"));
+		} while (ret != 0);
 	}
 }
 
@@ -1907,9 +1890,10 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 
 		while (len) {
 			if (msg_sz == (FMN_SZ - 1)) {
-				p2p = uma_zalloc(nl_tx_desc_zone, M_WAITOK);
-				if (p2p == NULL)
+				p2p = uma_zalloc(nl_tx_desc_zone, M_NOWAIT);
+				if (p2p == NULL) {
 					return 2;
+				}
 				/*
 				 * As we currently use xlr_paddr_lw on a 32-bit
 				 * OS, both the pointers are laid out in one
@@ -1922,7 +1906,7 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 				    ((vm_offset_t) mbuf_chain);
 				cur_p2d = &p2p->frag[0];
 				is_p2p = 1;
-			} else if (msg_sz == (FMN_SZ - 1 + XLR_MAX_TX_FRAGS)) {
+			} else if (msg_sz == (FMN_SZ - 2 + XLR_MAX_TX_FRAGS)) {
 				uma_zfree(nl_tx_desc_zone, p2p);
 				return 1;
 			}
@@ -1940,26 +1924,24 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 		}
 	}
 
-	if (msg_sz > 0) {
-		cur_p2d[-1] |= (1ULL << 63); /* set eop in most-recent p2d */
-	} else {
+	if (msg_sz ==  0) {
 		printf("Zero-length mbuf chain ??\n");
 		*n_entries = msg_sz ;
 		return 0;
 	}
 
+	cur_p2d[-1] |= (1ULL << 63); /* set eop in most-recent p2d */
+	*cur_p2d = (1ULL << 63) | ((uint64_t)fb_stn_id << 54) |
+	     (vm_offset_t) mbuf_chain;
 	*tx_desc = p2p;
 
 	if (is_p2p) {
 		paddr = vtophys(p2p);
-		fmn_msg->msg3 = (1ULL << 63) | (1ULL << 62) |
-		    ((uint64_t)fb_stn_id << 54) |
+		p2p_sz++;
+		fmn_msg->msg3 = (1ULL << 62) | ((uint64_t)fb_stn_id << 54) |
 		    ((uint64_t)(p2p_sz * 8) << 40) | paddr;
 		*n_entries = FMN_SZ;
 	} else {
-		/* zero-len p2d */
-		*cur_p2d = (1ULL << 63) | ((uint64_t)fb_stn_id << 54) |
-		     (vm_offset_t) mbuf_chain;
 		*n_entries = msg_sz + 1;
 	}
 
@@ -1970,58 +1952,38 @@ static int
 send_fmn_msg_tx(struct nlge_softc *sc, struct msgrng_msg *msg,
     uint32_t n_entries)
 {
-	unsigned long mflags;
+	uint32_t msgrng_flags;
 	int ret;
+#ifdef INVARIANTS
+	int i = 0;
+#endif
 
-	mflags = 0;
-	msgrng_access_enable(mflags);
-	ret = message_send_retry(n_entries, MSGRNG_CODE_MAC, sc->tx_bucket_id,
-	    msg);
-	msgrng_access_disable(mflags);
-	return (!ret);
+	do {
+		msgrng_flags = msgrng_access_enable();
+		ret = message_send(n_entries, MSGRNG_CODE_MAC,
+		    sc->tx_bucket_id, msg);
+		msgrng_restore(msgrng_flags);
+		KASSERT(i++ < 100000, ("Too many credit fails\n"));
+	} while (ret != 0);
+	return (0);
 }
 
 static void
-release_mbuf(uint64_t phy_addr)
+release_tx_desc(vm_paddr_t paddr)
 {
-	struct mbuf	*m;
-
-	m = (struct mbuf *)((uint32_t) phy_addr);
-	m_freem(m);
-}
-
-static void
-release_tx_desc(struct msgrng_msg *msg)
-{
-	vm_paddr_t	paddr;
-	uint64_t	temp;
 	struct nlge_tx_desc *tx_desc;
-	struct mbuf	*m;
 	uint32_t 	sr;
+	uint32_t	val1, val2;
 
-	paddr = msg->msg0 & 0xffffffffffULL;
 	paddr += (XLR_MAX_TX_FRAGS * sizeof(uint64_t));
 	sr = xlr_enable_kx();
-	temp = xlr_paddr_lw(paddr);
-	tx_desc = (struct nlge_tx_desc*)((intptr_t) temp);
+	val1 = xlr_paddr_lw(paddr);
 	paddr += sizeof(void *);
-	temp = xlr_paddr_lw(paddr);
+	val2 = xlr_paddr_lw(paddr);
 	mips_wr_status(sr);
-	m = (struct mbuf *)((intptr_t) temp);
-	m_freem(m);
 
+	tx_desc = (struct nlge_tx_desc*)(intptr_t) val1;
 	uma_zfree(nl_tx_desc_zone, tx_desc);
-}
-
-static struct mbuf *
-get_mbuf(void)
-{
-	struct mbuf *m_new;
-
-	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
-		return NULL;
-	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	return (m_new);
 }
 
 static void *
@@ -2031,10 +1993,9 @@ get_buf(void)
 	vm_paddr_t 	temp1, temp2;
 	unsigned int 	*md;
 
-	m_new = get_mbuf();
-	if (m_new == NULL)
-		return m_new;
-
+	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
+		return NULL;
+	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	m_adj(m_new, XLR_CACHELINE_SIZE - ((unsigned int)m_new->m_data & 0x1f));
 	md = (unsigned int *)m_new->m_data;
 	md[0] = (unsigned int)m_new;	/* Back Ptr */

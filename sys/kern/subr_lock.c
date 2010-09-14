@@ -384,7 +384,7 @@ lock_prof_type_stats(struct lock_prof_type *type, struct sbuf *sb, int spin,
 				continue;
 			lock_prof_sum(l, &lp, i, spin, t);
 			lock_prof_output(&lp, sb);
-			if (sbuf_overflowed(sb))
+			if (sbuf_error(sb) != 0)
 				return;
 		}
 	}
@@ -411,7 +411,7 @@ retry_sbufops:
 			continue;
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[0], sb, 0, t);
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[1], sb, 1, t);
-		if (sbuf_overflowed(sb)) {
+		if (sbuf_error(sb) != 0) {
 			sbuf_delete(sb);
 			multiplier++;
 			goto retry_sbufops;

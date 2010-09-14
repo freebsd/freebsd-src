@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2004
+.Dd September 9, 2010
 .Dt EXPR 1
 .Os
 .Sh NAME
@@ -217,6 +217,9 @@ command, one might rearrange the expression:
 More generally, parenthesize possibly-negative values:
 .Dl "a=$(expr \e( $a \e) + 1)"
 .It
+With shell arithmetic, no escaping is required:
+.Dl "a=$((a + 1))"
+.It
 This example prints the filename portion of a pathname stored
 in variable
 .Va a .
@@ -229,6 +232,12 @@ The
 .Li //
 characters resolve this ambiguity.
 .Dl "expr \*q//$a\*q \&: '.*/\e(.*\e)'"
+.It
+With modern
+.Xr sh 1
+syntax,
+.Dl "\*q${a##*/}\*q"
+expands to the same value.
 .El
 .Pp
 The following examples output the number of characters in variable
@@ -237,19 +246,21 @@ Again, if
 .Va a
 might begin with a hyphen, it is necessary to prevent it from being
 interpreted as an option to
-.Nm .
+.Nm ,
+and
+.Va a
+might be interpreted as an operator.
 .Bl -bullet
 .It
-If the
-.Nm
-command conforms to
-.St -p1003.1-2001 ,
-this is simple:
-.Dl "expr -- \*q$a\*q \&: \*q.*\*q"
-.It
-For portability to older systems, however, a more complicated command
+To deal with all of this, a complicated command
 is required:
 .Dl "expr \e( \*qX$a\*q \&: \*q.*\*q \e) - 1"
+.It
+With modern
+.Xr sh 1
+syntax, this can be done much more easily:
+.Dl "${#a}"
+expands to the required number.
 .El
 .Sh SEE ALSO
 .Xr sh 1 ,

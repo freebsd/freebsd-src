@@ -148,7 +148,7 @@ static int	acpi_cpu_resume(device_t dev);
 static int	acpi_pcpu_get_id(uint32_t idx, uint32_t *acpi_id,
 		    uint32_t *cpu_id);
 static struct resource_list *acpi_cpu_get_rlist(device_t dev, device_t child);
-static device_t	acpi_cpu_add_child(device_t dev, int order, const char *name,
+static device_t	acpi_cpu_add_child(device_t dev, u_int order, const char *name,
 		    int unit);
 static int	acpi_cpu_read_ivar(device_t dev, device_t child, int index,
 		    uintptr_t *result);
@@ -479,7 +479,7 @@ acpi_cpu_get_rlist(device_t dev, device_t child)
 }
 
 static device_t
-acpi_cpu_add_child(device_t dev, int order, const char *name, int unit)
+acpi_cpu_add_child(device_t dev, u_int order, const char *name, int unit)
 {
     struct acpi_cpu_device *ad;
     device_t child;
@@ -690,19 +690,11 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 	    sc->cpu_cx_count++;
 	    continue;
 	case ACPI_STATE_C2:
-	    if (cx_ptr->trans_lat > 100) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				 "acpi_cpu%d: C2[%d] not available.\n",
-				 device_get_unit(sc->cpu_dev), i));
-		continue;
-	    }
 	    sc->cpu_non_c3 = i;
 	    break;
 	case ACPI_STATE_C3:
 	default:
-	    if (cx_ptr->trans_lat > 1000 ||
-		(cpu_quirks & CPU_QUIRK_NO_C3) != 0) {
-
+	    if ((cpu_quirks & CPU_QUIRK_NO_C3) != 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				 "acpi_cpu%d: C3[%d] not available.\n",
 				 device_get_unit(sc->cpu_dev), i));
@@ -900,7 +892,13 @@ acpi_cpu_idle()
 
     /* Find the lowest state that has small enough latency. */
     cx_next_idx = 0;
-    for (i = sc->cpu_cx_lowest; i >= 0; i--) {
+#ifndef __ia64__
+    if (cpu_disable_deep_sleep)
+	i = sc->cpu_non_c3;
+    else
+#endif
+	i = sc->cpu_cx_lowest;
+    for (; i >= 0; i--) {
 	if (sc->cpu_cx_states[i].trans_lat * 3 <= sc->cpu_prev_sleep) {
 	    cx_next_idx = i;
 	    break;
@@ -929,15 +927,17 @@ acpi_cpu_idle()
     /*
      * Execute HLT (or equivalent) and wait for an interrupt.  We can't
      * precisely calculate the time spent in C1 since the place we wake up
-     * is an ISR.  Assume we slept no more then half of quantum.
+     * is an ISR.  Assume we slept no more then half of quantum, unless
+     * we are called inside critical section, delaying context switch.
      */
     if (cx_next->type == ACPI_STATE_C1) {
 	AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
 	acpi_cpu_c1();
 	AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
-        end_time = acpi_TimerDelta(end_time, start_time);
-	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 +
-	    min(PM_USEC(end_time), 500000 / hz)) / 4;
+        end_time = PM_USEC(acpi_TimerDelta(end_time, start_time));
+        if (curthread->td_critnest == 0)
+		end_time = min(end_time, 500000 / hz);
+	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + end_time) / 4;
 	return;
     }
 

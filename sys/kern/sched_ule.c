@@ -196,7 +196,7 @@ static int preempt_thresh = 0;
 #endif
 static int static_boost = PRI_MIN_TIMESHARE;
 static int sched_idlespins = 10000;
-static int sched_idlespinthresh = 4;
+static int sched_idlespinthresh = 16;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -208,6 +208,7 @@ struct tdq {
 	struct mtx	tdq_lock;		/* run queue lock. */
 	struct cpu_group *tdq_cg;		/* Pointer to cpu topology. */
 	volatile int	tdq_load;		/* Aggregate load. */
+	volatile int	tdq_cpu_idle;		/* cpu_idle() is active. */
 	int		tdq_sysload;		/* For loadavg, !ITHD load. */
 	int		tdq_transferable;	/* Transferable thread count. */
 	short		tdq_switchcnt;		/* Switches this tick. */
@@ -966,7 +967,7 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 		 * If the MD code has an idle wakeup routine try that before
 		 * falling back to IPI.
 		 */
-		if (cpu_idle_wakeup(cpu))
+		if (!tdq->tdq_cpu_idle || cpu_idle_wakeup(cpu))
 			return;
 	}
 	tdq->tdq_ipipending = 1;
@@ -2162,7 +2163,7 @@ sched_clock(struct thread *td)
  * is easier than trying to scale based on stathz.
  */
 void
-sched_tick(void)
+sched_tick(int cnt)
 {
 	struct td_sched *ts;
 
@@ -2174,7 +2175,7 @@ sched_tick(void)
 	if (ts->ts_incrtick == ticks)
 		return;
 	/* Adjust ticks for pctcpu */
-	ts->ts_ticks += 1 << SCHED_TICK_SHIFT;
+	ts->ts_ticks += cnt << SCHED_TICK_SHIFT;
 	ts->ts_ltick = ticks;
 	ts->ts_incrtick = ticks;
 	/*
@@ -2545,8 +2546,14 @@ sched_idletd(void *dummy)
 			}
 		}
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
-		if (tdq->tdq_load == 0)
-			cpu_idle(switchcnt > 1);
+		if (tdq->tdq_load == 0) {
+			tdq->tdq_cpu_idle = 1;
+			if (tdq->tdq_load == 0) {
+				cpu_idle(switchcnt > sched_idlespinthresh * 4);
+				tdq->tdq_switchcnt++;
+			}
+			tdq->tdq_cpu_idle = 0;
+		}
 		if (tdq->tdq_load) {
 			thread_lock(td);
 			mi_switch(SW_VOL | SWT_IDLE, NULL);

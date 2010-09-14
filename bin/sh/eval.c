@@ -305,6 +305,8 @@ skipping:	  if (evalskip == SKIPCONT && --skipcount <= 0) {
 			}
 			if (evalskip == SKIPBREAK && --skipcount <= 0)
 				evalskip = 0;
+			if (evalskip == SKIPFUNC || evalskip == SKIPFILE)
+				status = exitstatus;
 			break;
 		}
 		if (n->type == NWHILE) {

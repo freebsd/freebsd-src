@@ -2289,6 +2289,11 @@ extern int dtrace_blksuword32(uintptr_t, uint32_t *, int);
 extern void dtrace_getfsr(uint64_t *);
 #endif
 
+#if !defined(sun)
+extern void dtrace_helpers_duplicate(proc_t *, proc_t *);
+extern void dtrace_helpers_destroy(proc_t *);
+#endif
+
 #define	DTRACE_CPUFLAG_ISSET(flag) \
 	(cpu_core[curcpu].cpuc_dtrace_flags & (flag))
 

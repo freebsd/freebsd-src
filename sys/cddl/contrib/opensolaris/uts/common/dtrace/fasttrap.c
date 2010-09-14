@@ -456,6 +456,18 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 #if defined(sun)
 	ASSERT(p->p_dtrace_count > 0);
 #else
+	if (p->p_dtrace_helpers) {
+		/*
+		 * dtrace_helpers_duplicate() allocates memory.
+		 */
+		_PHOLD(cp);
+		PROC_UNLOCK(p);
+		PROC_UNLOCK(cp);
+		dtrace_helpers_duplicate(p, cp);
+		PROC_LOCK(cp);
+		PROC_LOCK(p);
+		_PRELE(cp);
+	}
 	/*
 	 * This check is purposely here instead of in kern_fork.c because,
 	 * for legal resons, we cannot include the dtrace_cddl.h header
@@ -484,6 +496,8 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	mtx_lock_spin(&cp->p_slock);
 	sprlock_proc(cp);
 	mtx_unlock_spin(&cp->p_slock);
+#else
+	_PHOLD(cp);
 #endif
 
 	/*
@@ -517,6 +531,8 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 #if defined(sun)
 	mutex_enter(&cp->p_lock);
 	sprunlock(cp);
+#else
+	_PRELE(cp);
 #endif
 }
 
@@ -532,6 +548,7 @@ fasttrap_exec_exit(proc_t *p)
 	ASSERT(p == curproc);
 #endif
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	_PHOLD(p);
 	PROC_UNLOCK(p);
 
 	/*
@@ -539,7 +556,12 @@ fasttrap_exec_exit(proc_t *p)
 	 * static probes are handled by the meta-provider remove entry point.
 	 */
 	fasttrap_provider_retire(p->p_pid, FASTTRAP_PID_NAME, 0);
+#if !defined(sun)
+	if (p->p_dtrace_helpers)
+		dtrace_helpers_destroy(p);
+#endif
 	PROC_LOCK(p);
+	_PRELE(p);
 }
 
 
@@ -679,8 +701,6 @@ again:
 		 */
 #if defined(sun)
 		ASSERT(p->p_proc_flag & P_PR_LOCK);
-#else
-		PROC_LOCK_ASSERT(p, MA_OWNED);
 #endif
 		p->p_dtrace_count++;
 
@@ -873,8 +893,6 @@ fasttrap_tracepoint_disable(proc_t *p, fasttrap_probe_t *probe, uint_t index)
 		 */
 #if defined(sun)
 		ASSERT(p->p_proc_flag & P_PR_LOCK);
-#else
-		PROC_LOCK_ASSERT(p, MA_OWNED);
 #endif
 		p->p_dtrace_count--;
 	}
@@ -1028,9 +1046,14 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	 * the chance to execute the trap instruction we're about to place
 	 * in their process's text.
 	 */
+#ifdef __FreeBSD__
+	/*
+	 * pfind() returns a locked process.
+	 */
+	_PHOLD(p);
 	PROC_UNLOCK(p);
+#endif
 	fasttrap_enable_callbacks();
-	PROC_LOCK(p);
 
 	/*
 	 * Enable all the tracepoints and add this probe's id to each
@@ -1061,7 +1084,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 			mutex_enter(&p->p_lock);
 			sprunlock(p);
 #else
-			PROC_UNLOCK(p);
+			PRELE(p);
 #endif
 
 			/*
@@ -1076,7 +1099,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	mutex_enter(&p->p_lock);
 	sprunlock(p);
 #else
-	PROC_UNLOCK(p);
+	PRELE(p);
 #endif
 
 	probe->ftp_enabled = 1;
@@ -1105,6 +1128,10 @@ fasttrap_pid_disable(void *arg, dtrace_id_t id, void *parg)
 		mutex_exit(&provider->ftp_mtx);
 		return;
 	}
+#ifdef __FreeBSD__
+	_PHOLD(p);
+	PROC_UNLOCK(p);
+#endif
 
 	/*
 	 * Disable all the associated tracepoints (for fully enabled probes).
@@ -1136,13 +1163,13 @@ fasttrap_pid_disable(void *arg, dtrace_id_t id, void *parg)
 			whack = provider->ftp_marked = 1;
 		mutex_exit(&provider->ftp_mtx);
 	}
-#if !defined(sun)
-	PROC_UNLOCK(p);
-#endif
 
 	if (whack)
 		fasttrap_pid_cleanup();
 
+#ifdef __FreeBSD__
+	PRELE(p);
+#endif
 	if (!probe->ftp_enabled)
 		return;
 

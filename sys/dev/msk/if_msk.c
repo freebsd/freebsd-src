@@ -1334,7 +1334,7 @@ mskc_reset(struct msk_softc *sc)
 
 	pci_write_config(sc->msk_dev, PCIR_STATUS, status |
 	    PCIM_STATUS_PERR | PCIM_STATUS_SERR | PCIM_STATUS_RMABORT |
-	    PCIM_STATUS_RTABORT | PCIM_STATUS_PERRREPORT, 2);
+	    PCIM_STATUS_RTABORT | PCIM_STATUS_MDPERR, 2);
 	CSR_WRITE_2(sc, B0_CTST, CS_MRST_CLR);
 
 	switch (sc->msk_bustype) {
@@ -3405,7 +3405,7 @@ msk_intr_hwerr(struct msk_softc *sc)
 		CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		pci_write_config(sc->msk_dev, PCIR_STATUS, v16 |
 		    PCIM_STATUS_PERR | PCIM_STATUS_SERR | PCIM_STATUS_RMABORT |
-		    PCIM_STATUS_RTABORT | PCIM_STATUS_PERRREPORT, 2);
+		    PCIM_STATUS_RTABORT | PCIM_STATUS_MDPERR, 2);
 		CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	}
 

@@ -266,7 +266,7 @@ options are enabled, the allocator prefers anonymous mappings over the DSS,
 but allocation only fails if memory cannot be acquired via either method.
 If neither option is enabled, then the
 .Dq M
-option is implicitly enabled in order to ensure that there is a method for
+option is implicitly enabled in order to assure that there is a method for
 acquiring memory.
 .It N
 Double/halve the number of arenas.
@@ -437,7 +437,7 @@ rounded up to the nearest multiple of the chunk size.
 .Pp
 Allocations are packed tightly together, which can be an issue for
 multi-threaded applications.
-If you need to ensure that allocations do not suffer from cacheline sharing,
+If you need to assure that allocations do not suffer from cacheline sharing,
 round your allocation requests up to the nearest multiple of the cacheline
 size.
 .Sh DEBUGGING MALLOC PROBLEMS

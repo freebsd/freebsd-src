@@ -28,7 +28,7 @@
 .\"	@(#)dbopen.3	8.5 (Berkeley) 1/2/94
 .\" $FreeBSD$
 .\"
-.Dd January 2, 1994
+.Dd September 10, 2010
 .Dt DBOPEN 3
 .Os
 .Sh NAME
@@ -78,8 +78,8 @@ arguments
 are as specified to the
 .Xr open 2
 routine, however, only the
-.Dv O_CREAT , O_EXCL , O_EXLOCK , O_NONBLOCK ,
-.Dv O_RDONLY , O_RDWR , O_SHLOCK
+.Dv O_CREAT , O_EXCL , O_EXLOCK , O_NOFOLLOW , O_NONBLOCK ,
+.Dv O_RDONLY , O_RDWR , O_SHLOCK , O_SYNC
 and
 .Dv O_TRUNC
 flags are meaningful.

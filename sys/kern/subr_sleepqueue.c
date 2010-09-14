@@ -1141,7 +1141,7 @@ retry_sbufops:
 		LIST_FOREACH(sp, &sleepq_hash[i], sp_link) {
 			sbuf_printf(sb, "%s\t%ld\n",
 			    sp->sp_wmesg, sp->sp_count);
-			if (sbuf_overflowed(sb)) {
+			if (sbuf_error(sb) != 0) {
 				sbuf_delete(sb);
 				multiplier++;
 				goto retry_sbufops;

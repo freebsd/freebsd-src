@@ -1120,40 +1120,36 @@ cpu_halt(void)
 		__asm__ ("hlt");
 }
 
+static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
+TUNABLE_INT("machdep.idle_mwait", &idle_mwait);
+SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
+    0, "Use MONITOR/MWAIT for short idle");
+
+#define	STATE_RUNNING	0x0
+#define	STATE_MWAIT	0x1
+#define	STATE_SLEEPING	0x2
+
 static void
 cpu_idle_hlt(int busy)
 {
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_SLEEPING;
 	/*
-	 * we must absolutely guarentee that hlt is the next instruction
+	 * We must absolutely guarentee that hlt is the next instruction
 	 * after sti or we introduce a timing window.
 	 */
 	disable_intr();
-  	if (sched_runnable())
+	if (sched_runnable())
 		enable_intr();
 	else
 		__asm __volatile("sti; hlt");
-}
-
-static void
-cpu_idle_spin(int busy)
-{
-	return;
-}
-
-void (*cpu_idle_fn)(int) = cpu_idle_hlt;
-
-void
-cpu_idle(int busy)
-{
-#if defined(SMP)
-	if (mp_grab_cpu_hlt())
-		return;
-#endif
-	cpu_idle_fn(busy);
+	*state = STATE_RUNNING;
 }
 
 /*
- * mwait cpu power states.  Lower 4 bits are sub-states.
+ * MWAIT cpu power states.  Lower 4 bits are sub-states.
  */
 #define	MWAIT_C0	0xf0
 #define	MWAIT_C1	0x00
@@ -1161,63 +1157,91 @@ cpu_idle(int busy)
 #define	MWAIT_C3	0x20
 #define	MWAIT_C4	0x30
 
-#define	MWAIT_DISABLED	0x0
-#define	MWAIT_WOKEN	0x1
-#define	MWAIT_WAITING	0x2
-
 static void
 cpu_idle_mwait(int busy)
 {
-	int *mwait;
+	int *state;
 
-	mwait = (int *)PCPU_PTR(monitorbuf);
-	*mwait = MWAIT_WAITING;
-	if (sched_runnable())
-		return;
-	cpu_monitor(mwait, 0, 0);
-	if (*mwait == MWAIT_WAITING)
-		cpu_mwait(0, MWAIT_C1);
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_MWAIT;
+	if (!sched_runnable()) {
+		cpu_monitor(state, 0, 0);
+		if (*state == STATE_MWAIT)
+			cpu_mwait(0, MWAIT_C1);
+	}
+	*state = STATE_RUNNING;
 }
 
 static void
-cpu_idle_mwait_hlt(int busy)
+cpu_idle_spin(int busy)
 {
-	int *mwait;
+	int *state;
+	int i;
 
-	mwait = (int *)PCPU_PTR(monitorbuf);
-	if (busy == 0) {
-		*mwait = MWAIT_DISABLED;
-		cpu_idle_hlt(busy);
-		return;
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_RUNNING;
+	for (i = 0; i < 1000; i++) {
+		if (sched_runnable())
+			return;
+		cpu_spinwait();
 	}
-	*mwait = MWAIT_WAITING;
-	if (sched_runnable())
+}
+
+void (*cpu_idle_fn)(int) = cpu_idle_hlt;
+
+void
+cpu_idle(int busy)
+{
+
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
+#ifdef SMP
+	if (mp_grab_cpu_hlt())
 		return;
-	cpu_monitor(mwait, 0, 0);
-	if (*mwait == MWAIT_WAITING)
-		cpu_mwait(0, MWAIT_C1);
+#endif
+	/* If we are busy - try to use fast methods. */
+	if (busy) {
+		if ((cpu_feature2 & CPUID2_MON) && idle_mwait) {
+			cpu_idle_mwait(busy);
+			goto out;
+		}
+	}
+
+	/* If we have time - switch timers into idle mode. */
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+
+	/* Call main idle method. */
+	cpu_idle_fn(busy);
+
+	/* Switch timers mack into active mode. */
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
+out:
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
 }
 
 int
 cpu_idle_wakeup(int cpu)
 {
 	struct pcpu *pcpu;
-	int *mwait;
+	int *state;
 
-	if (cpu_idle_fn == cpu_idle_spin)
-		return (1);
-	if (cpu_idle_fn != cpu_idle_mwait && cpu_idle_fn != cpu_idle_mwait_hlt)
-		return (0);
 	pcpu = pcpu_find(cpu);
-	mwait = (int *)pcpu->pc_monitorbuf;
+	state = (int *)pcpu->pc_monitorbuf;
 	/*
 	 * This doesn't need to be atomic since missing the race will
 	 * simply result in unnecessary IPIs.
 	 */
-	if (cpu_idle_fn == cpu_idle_mwait_hlt && *mwait == MWAIT_DISABLED)
+	if (*state == STATE_SLEEPING)
 		return (0);
-	*mwait = MWAIT_WOKEN;
-
+	if (*state == STATE_MWAIT)
+		*state = STATE_RUNNING;
 	return (1);
 }
 
@@ -1230,7 +1254,6 @@ struct {
 } idle_tbl[] = {
 	{ cpu_idle_spin, "spin" },
 	{ cpu_idle_mwait, "mwait" },
-	{ cpu_idle_mwait_hlt, "mwait_hlt" },
 	{ cpu_idle_hlt, "hlt" },
 	{ NULL, NULL }
 };
@@ -1254,6 +1277,9 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 	free(avail, M_TEMP);
 	return (error);
 }
+
+SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, idle_sysctl_available, "A", "list of available idle functions");
 
 static int
 idle_sysctl(SYSCTL_HANDLER_ARGS)
@@ -1285,9 +1311,6 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	return (EINVAL);
 }
-
-SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, idle_sysctl_available, "A", "list of available idle functions");
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");

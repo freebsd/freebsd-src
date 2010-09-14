@@ -297,17 +297,14 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 }
 
 static int
-g_part_parm_geom(const char *rawname, struct g_geom **v)
+g_part_parm_geom(const char *name, struct g_geom **v)
 {
 	struct g_geom *gp;
-	const char *pname;
 
-	if (strncmp(rawname, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		pname = rawname + strlen(_PATH_DEV);
-	else
-		pname = rawname;
+	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		name += strlen(_PATH_DEV);
 	LIST_FOREACH(gp, &g_part_class.geom, geom) {
-		if (!strcmp(pname, gp->name))
+		if (!strcmp(name, gp->name))
 			break;
 	}
 	if (gp == NULL)
@@ -317,14 +314,13 @@ g_part_parm_geom(const char *rawname, struct g_geom **v)
 }
 
 static int
-g_part_parm_provider(const char *pname, struct g_provider **v)
+g_part_parm_provider(const char *name, struct g_provider **v)
 {
 	struct g_provider *pp;
 
-	if (strncmp(pname, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		pp = g_provider_by_name(pname + strlen(_PATH_DEV));
-	else
-		pp = g_provider_by_name(pname);
+	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		name += strlen(_PATH_DEV);
+	pp = g_provider_by_name(name);
 	if (pp == NULL)
 		return (EINVAL);
 	*v = pp;
@@ -1327,6 +1323,10 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		parm = 0;
 		switch (ap->name[0]) {
 		case 'a':
+			if (!strcmp(ap->name, "arg0")) {
+				parm = mparms &
+				    (G_PART_PARM_GEOM | G_PART_PARM_PROVIDER);
+			}
 			if (!strcmp(ap->name, "attrib"))
 				parm = G_PART_PARM_ATTRIB;
 			break;
@@ -1346,10 +1346,6 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			if (!strcmp(ap->name, "flags"))
 				parm = G_PART_PARM_FLAGS;
 			break;
-		case 'g':
-			if (!strcmp(ap->name, "geom"))
-				parm = G_PART_PARM_GEOM;
-			break;
 		case 'i':
 			if (!strcmp(ap->name, "index"))
 				parm = G_PART_PARM_INDEX;
@@ -1361,10 +1357,6 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		case 'o':
 			if (!strcmp(ap->name, "output"))
 				parm = G_PART_PARM_OUTPUT;
-			break;
-		case 'p':
-			if (!strcmp(ap->name, "provider"))
-				parm = G_PART_PARM_PROVIDER;
 			break;
 		case 's':
 			if (!strcmp(ap->name, "scheme"))
