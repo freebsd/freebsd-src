@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2010
+.Dd September 14, 2010
 .Dt BWN 4
 .Os
 .Sh NAME
@@ -93,12 +93,11 @@ driver supports Broadcom BCM43xx based wireless devices, including:
 .It "US Robotics 5411	BCM4318	CardBus	b/g"
 .El
 .Pp
-However if the device chipset is one of BCM4301, BCM4303 and BCM4306 rev 2,
-uses
+Users of older Broadcom chipsets (BCM4301, BCM4303 and BCM4306 rev 2)
+must use
 .Xr bwi 4
-instead of
-.Xr bwn 4
-because the vendor dropped the firmware support.
+because the v4 version of the firmware does not support these chips.
+The newer firmware is too big to fit into these old chips.
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
