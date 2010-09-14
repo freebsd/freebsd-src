@@ -90,16 +90,16 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'b', "start", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 's', "size", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 't', "type", NULL, G_TYPE_STRING },
-		{ 'i', GPART_PARAM_INDEX, "", G_TYPE_ASCNUM },
-		{ 'l', "label", "", G_TYPE_STRING },
+		{ 'i', GPART_PARAM_INDEX, G_VAL_OPTIONAL, G_TYPE_ASCNUM },
+		{ 'l', "label", G_VAL_OPTIONAL, G_TYPE_STRING },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	    "[-b start] [-s size] -t type [-i index] [-l label] [-f flags] geom"
 	},
 	{ "bootcode", 0, gpart_bootcode, {
-		{ 'b', GPART_PARAM_BOOTCODE, "", G_TYPE_STRING },
-		{ 'p', GPART_PARAM_PARTCODE, "", G_TYPE_STRING },
-		{ 'i', GPART_PARAM_INDEX, "", G_TYPE_ASCNUM },
+		{ 'b', GPART_PARAM_BOOTCODE, G_VAL_OPTIONAL, G_TYPE_STRING },
+		{ 'p', GPART_PARAM_PARTCODE, G_VAL_OPTIONAL, G_TYPE_STRING },
+		{ 'i', GPART_PARAM_INDEX, G_VAL_OPTIONAL, G_TYPE_ASCNUM },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	    "bootcode [-b bootcode] [-p partcode] [-i index] [-f flags] geom"
@@ -109,7 +109,7 @@ struct g_command PUBSYM(class_commands)[] = {
 	},
 	{ "create", 0, gpart_issue, {
 		{ 's', "scheme", NULL, G_TYPE_STRING },
-		{ 'n', "entries", "", G_TYPE_ASCNUM },
+		{ 'n', "entries", G_VAL_OPTIONAL, G_TYPE_ASCNUM },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	    "-s scheme [-n entries] [-f flags] provider"
@@ -127,8 +127,8 @@ struct g_command PUBSYM(class_commands)[] = {
 	},
 	{ "modify", 0, gpart_issue, {
 		{ 'i', GPART_PARAM_INDEX, NULL, G_TYPE_ASCNUM },
-		{ 'l', "label", "", G_TYPE_STRING },
-		{ 't', "type", "", G_TYPE_STRING },
+		{ 'l', "label", G_VAL_OPTIONAL, G_TYPE_STRING },
+		{ 't', "type", G_VAL_OPTIONAL, G_TYPE_STRING },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	    "-i index [-l label] [-t type] [-f flags] geom"

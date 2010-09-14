@@ -53,6 +53,8 @@
 #define	G_OPT_NUM(opt)		(((opt)->go_type & G_TYPE_NUMMASK) >> G_TYPE_NUMSHIFT)
 #define	G_OPT_NUMINC(opt)	((opt)->go_type += (1 << G_TYPE_NUMSHIFT))
 
+#define	G_VAL_OPTIONAL	((void *)-1)
+
 #define G_OPT_SENTINEL	{ '\0', NULL, NULL, G_TYPE_NONE }
 #define G_NULL_OPTS	{ G_OPT_SENTINEL }
 #define	G_CMD_SENTINEL	{ NULL, 0, NULL, G_NULL_OPTS, NULL }
