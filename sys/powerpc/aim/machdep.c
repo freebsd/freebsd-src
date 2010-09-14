@@ -258,6 +258,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
         char		*env;
 	register_t	msr, scratch;
 	uint8_t		*cache_check;
+	int		cacheline_warn;
 	#ifndef __powerpc64__
 	int		ppc64;
 	#endif
@@ -265,6 +266,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	end = 0;
 	kmdp = NULL;
 	trap_offset = 0;
+	cacheline_warn = 0;
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be done
@@ -360,7 +362,8 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 
 	/*
 	 * Disable translation in case the vector area hasn't been
-	 * mapped (G5).
+	 * mapped (G5). Note that no OFW calls can be made until
+	 * translation is re-enabled.
 	 */
 
 	msr = mfmsr();
@@ -387,7 +390,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 
 	/* Work around psim bug */
 	if (cacheline_size == 0) {
-		printf("WARNING: cacheline size undetermined, setting to 32\n");
+		cacheline_warn = 1;
 		cacheline_size = 32;
 	}
 
@@ -496,6 +499,11 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	mtmsr(msr);
 	isync();
 	
+	/* Warn if cachline size was not determined */
+	if (cacheline_warn == 1) {
+		printf("WARNING: cacheline size undetermined, setting to 32\n");
+	}
+
 	/*
 	 * Choose a platform module so we can get the physical memory map.
 	 */
