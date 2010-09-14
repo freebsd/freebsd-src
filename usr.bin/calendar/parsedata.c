@@ -971,7 +971,7 @@ floattoday(int year, double f)
 	int *cumdays = cumdaytab[isleap(year)];
 
 	for (i = 0; 1 + cumdays[i] < f; i++)
-		;;
+		;
 	m = --i;
 	d = floor(f - 1 - cumdays[i]);
 	f -= floor(f);
