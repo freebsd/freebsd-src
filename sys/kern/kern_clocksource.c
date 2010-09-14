@@ -105,7 +105,7 @@ static int		profiling = 0;	/* Profiling events enabled. */
 static char		timername[32];	/* Wanted timer. */
 TUNABLE_STR("kern.eventtimer.timer", timername, sizeof(timername));
 
-static u_int		singlemul = 0;	/* Multiplier for periodic mode. */
+static int		singlemul = 0;	/* Multiplier for periodic mode. */
 TUNABLE_INT("kern.eventtimer.singlemul", &singlemul);
 SYSCTL_INT(_kern_eventtimer, OID_AUTO, singlemul, CTLFLAG_RW, &singlemul,
     0, "Multiplier for periodic mode");
@@ -425,6 +425,7 @@ setuptimer(void)
 		periodic = 0;
 	else if (!periodic && (timer->et_flags & ET_FLAGS_ONESHOT) == 0)
 		periodic = 1;
+	singlemul = MIN(MAX(singlemul, 1), 20);
 	freq = hz * singlemul;
 	while (freq < (profiling ? profhz : stathz))
 		freq += hz;
@@ -614,7 +615,7 @@ cpu_initclocks_bsp(void)
 	 * We want to run stathz in the neighborhood of 128hz.
 	 * We would like profhz to run as often as possible.
 	 */
-	if (singlemul == 0) {
+	if (singlemul <= 0 || singlemul > 20) {
 		if (hz >= 1500 || (hz % 128) == 0)
 			singlemul = 1;
 		else if (hz >= 750)
@@ -844,7 +845,7 @@ sysctl_kern_eventtimer_timer(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, timer,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, sysctl_kern_eventtimer_timer, "A", "Kernel event timer");
+    0, 0, sysctl_kern_eventtimer_timer, "A", "Chosen event timer");
 
 /*
  * Report or change the active event timer periodicity.
@@ -867,6 +868,6 @@ sysctl_kern_eventtimer_periodic(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, periodic,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, sysctl_kern_eventtimer_periodic, "I", "Kernel event timer periodic");
+    0, 0, sysctl_kern_eventtimer_periodic, "I", "Enable event timer periodic mode");
 
 #endif
