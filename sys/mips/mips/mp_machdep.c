@@ -310,8 +310,6 @@ smp_init_secondary(u_int32_t cpuid)
 	while (smp_started == 0)
 		; /* nothing */
 
-	intr_enable();
-
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 
