@@ -2378,7 +2378,8 @@ remove_from_journal(wk)
 	/*
 	 * We emulate a TAILQ to save space in most structures which do not
 	 * require TAILQ semantics.  Here we must update the tail position
-	 * when removing the tail which is not the final entry.
+	 * when removing the tail which is not the final entry. This works
+	 * only if the worklist linkage are at the beginning of the structure.
 	 */
 	if (ump->softdep_journal_tail == wk)
 		ump->softdep_journal_tail =
@@ -2605,7 +2606,7 @@ jremref_write(jremref, jseg, data)
 	inoref_write(&jremref->jr_ref, jseg, rec);
 }
 
-static	void
+static void
 jmvref_write(jmvref, jseg, data)
 	struct jmvref *jmvref;
 	struct jseg *jseg;
@@ -2906,9 +2907,9 @@ complete_jseg(jseg)
 		waiting = wk->wk_state & IOWAITING;
 		wk->wk_state &= ~(IOSTARTED | IOWAITING);
 		wk->wk_state |= COMPLETE;
-		KASSERT(i < jseg->js_cnt,
+		KASSERT(i++ < jseg->js_cnt,
 		    ("handle_written_jseg: overflow %d >= %d",
-		    i, jseg->js_cnt));
+		    i - 1, jseg->js_cnt));
 		switch (wk->wk_type) {
 		case D_JADDREF:
 			handle_written_jaddref(WK_JADDREF(wk));
@@ -7492,7 +7493,7 @@ handle_written_sbdep(sbdep, bp)
 	if (inodedep_lookup(mp, fs->fs_sujfree, 0, &inodedep) == 0)
 		panic("handle_written_sbdep: lost inodedep");
 	/*
-	 * Now that we have a record of this indode in stable store allow it
+	 * Now that we have a record of this inode in stable store allow it
 	 * to be written to free up pending work.  Inodes may see a lot of
 	 * write activity after they are unlinked which we must not hold up.
 	 */
@@ -7509,8 +7510,7 @@ handle_written_sbdep(sbdep, bp)
 }
 
 /*
- * Mark an inodedep has unlinked and insert it into the in-memory unlinked
- * list.
+ * Mark an inodedep as unlinked and insert it into the in-memory unlinked list.
  */
 static void
 unlinked_inodedep(mp, inodedep)
@@ -7576,7 +7576,7 @@ clear_unlinked_inodedep(inodedep)
 		 * link before us, whether it be the superblock or an inode.
 		 * Unfortunately the list may change while we're waiting
 		 * on the buf lock for either resource so we must loop until
-		 * we lock. the right one.  If both the superblock and an
+		 * we lock the right one.  If both the superblock and an
 		 * inode point to this inode we must clear the inode first
 		 * followed by the superblock.
 		 */
@@ -9094,7 +9094,7 @@ handle_jwork(wkhd)
 /*
  * Handle the bufwait list on an inode when it is safe to release items
  * held there.  This normally happens after an inode block is written but
- * may be delayed and handle later if there are pending journal items that
+ * may be delayed and handled later if there are pending journal items that
  * are not yet safe to be released.
  */
 static struct freefile *
