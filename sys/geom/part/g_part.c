@@ -297,86 +297,155 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 }
 
 static int
-g_part_parm_geom(const char *name, struct g_geom **v)
+g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 {
 	struct g_geom *gp;
+	const char *gname;
 
-	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		name += strlen(_PATH_DEV);
+	gname = gctl_get_asciiparam(req, name);
+	if (gname == NULL)
+		return (ENOATTR);
+	if (strncmp(gname, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		gname += strlen(_PATH_DEV);
 	LIST_FOREACH(gp, &g_part_class.geom, geom) {
-		if (!strcmp(name, gp->name))
+		if (!strcmp(gname, gp->name))
 			break;
 	}
-	if (gp == NULL)
+	if (gp == NULL) {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
+	}
 	*v = gp;
 	return (0);
 }
 
 static int
-g_part_parm_provider(const char *name, struct g_provider **v)
+g_part_parm_provider(struct gctl_req *req, const char *name,
+    struct g_provider **v)
 {
 	struct g_provider *pp;
+	const char *pname;
 
-	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		name += strlen(_PATH_DEV);
-	pp = g_provider_by_name(name);
-	if (pp == NULL)
+	pname = gctl_get_asciiparam(req, name);
+	if (pname == NULL)
+		return (ENOATTR);
+	if (strncmp(pname, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		pname += strlen(_PATH_DEV);
+	pp = g_provider_by_name(pname);
+	if (pp == NULL) {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, pname);
 		return (EINVAL);
+	}
 	*v = pp;
 	return (0);
 }
 
 static int
-g_part_parm_quad(const char *p, quad_t *v)
+g_part_parm_quad(struct gctl_req *req, const char *name, quad_t *v)
 {
+	const char *p;
 	char *x;
 	quad_t q;
 
+	p = gctl_get_asciiparam(req, name);
+	if (p == NULL)
+		return (ENOATTR);
 	q = strtoq(p, &x, 0);
-	if (*x != '\0' || q < 0)
+	if (*x != '\0' || q < 0) {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, p);
 		return (EINVAL);
+	}
 	*v = q;
 	return (0);
 }
 
 static int
-g_part_parm_scheme(const char *p, struct g_part_scheme **v)
+g_part_parm_scheme(struct gctl_req *req, const char *name,
+    struct g_part_scheme **v)
 {
 	struct g_part_scheme *s;
+	const char *p;
 
+	p = gctl_get_asciiparam(req, name);
+	if (p == NULL)
+		return (ENOATTR);
 	TAILQ_FOREACH(s, &g_part_schemes, scheme_list) {
 		if (s == &g_part_null_scheme)
 			continue;
 		if (!strcasecmp(s->name, p))
 			break;
 	}
-	if (s == NULL)
+	if (s == NULL) {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, p);
 		return (EINVAL);
+	}
 	*v = s;
 	return (0);
 }
 
 static int
-g_part_parm_str(const char *p, const char **v)
+g_part_parm_str(struct gctl_req *req, const char *name, const char **v)
 {
+	const char *p;
 
-	if (p[0] == '\0')
+	p = gctl_get_asciiparam(req, name);
+	if (p == NULL)
+		return (ENOATTR);
+	/* An empty label is always valid. */
+	if (strcmp(name, "label") != 0 && p[0] == '\0') {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, p);
 		return (EINVAL);
+	}
 	*v = p;
 	return (0);
 }
 
 static int
-g_part_parm_uint(const char *p, u_int *v)
+g_part_parm_intmax(struct gctl_req *req, const char *name, u_int *v)
 {
-	char *x;
-	long l;
+	const intmax_t *p;
+	int size;
 
-	l = strtol(p, &x, 0);
-	if (*x != '\0' || l < 0 || l > INT_MAX)
+	p = gctl_get_param(req, name, &size);
+	if (p == NULL)
+		return (ENOATTR);
+	if (size != sizeof(*p) || *p < 0 || *p > INT_MAX) {
+		gctl_error(req, "%d %s '%jd'", EINVAL, name, *p);
 		return (EINVAL);
-	*v = (unsigned int)l;
+	}
+	*v = (u_int)*p;
+	return (0);
+}
+
+static int
+g_part_parm_uint32(struct gctl_req *req, const char *name, u_int *v)
+{
+	const uint32_t *p;
+	int size;
+
+	p = gctl_get_param(req, name, &size);
+	if (p == NULL)
+		return (ENOATTR);
+	if (size != sizeof(*p) || *p > INT_MAX) {
+		gctl_error(req, "%d %s '%u'", EINVAL, name, (unsigned int)*p);
+		return (EINVAL);
+	}
+	*v = (u_int)*p;
+	return (0);
+}
+
+static int
+g_part_parm_bootcode(struct gctl_req *req, const char *name, const void **v,
+    unsigned int *s)
+{
+	const void *p;
+	int size;
+
+	p = gctl_get_param(req, name, &size);
+	if (p == NULL)
+		return (ENOATTR);
+	*v = p;
+	*s = size;
 	return (0);
 }
 
@@ -679,7 +748,7 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	g_topology_assert();
 
 	/* Check that there isn't already a g_part geom on the provider. */
-	error = g_part_parm_geom(pp->name, &gp);
+	error = g_part_parm_geom(req, "provider", &gp);
 	if (!error) {
 		null = gp->softc;
 		if (null->gpt_scheme != &g_part_null_scheme) {
@@ -1225,11 +1294,10 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	struct g_part_parms gpp;
 	struct g_part_table *table;
 	struct gctl_req_arg *ap;
-	const char *p;
 	enum g_part_ctl ctlreq;
 	unsigned int i, mparms, oparms, parm;
 	int auto_commit, close_on_error;
-	int error, len, modifies;
+	int error, modifies;
 
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, verb));
 	g_topology_assert();
@@ -1381,69 +1449,64 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			gctl_error(req, "%d param '%s'", EINVAL, ap->name);
 			return;
 		}
-		if (parm == G_PART_PARM_BOOTCODE)
-			p = gctl_get_param(req, ap->name, &len);
-		else
-			p = gctl_get_asciiparam(req, ap->name);
-		if (p == NULL) {
-			gctl_error(req, "%d param '%s'", ENOATTR, ap->name);
-			return;
-		}
 		switch (parm) {
 		case G_PART_PARM_ATTRIB:
-			error = g_part_parm_str(p, &gpp.gpp_attrib);
+			error = g_part_parm_str(req, ap->name, &gpp.gpp_attrib);
 			break;
 		case G_PART_PARM_BOOTCODE:
-			gpp.gpp_codeptr = p;
-			gpp.gpp_codesize = len;
-			error = 0;
+			error = g_part_parm_bootcode(req, ap->name,
+			    &gpp.gpp_codeptr, &gpp.gpp_codesize);
 			break;
 		case G_PART_PARM_ENTRIES:
-			error = g_part_parm_uint(p, &gpp.gpp_entries);
+			error = g_part_parm_intmax(req, ap->name,
+			    &gpp.gpp_entries);
 			break;
 		case G_PART_PARM_FLAGS:
-			if (p[0] == '\0')
-				continue;
-			error = g_part_parm_str(p, &gpp.gpp_flags);
+			error = g_part_parm_str(req, ap->name, &gpp.gpp_flags);
 			break;
 		case G_PART_PARM_GEOM:
-			error = g_part_parm_geom(p, &gpp.gpp_geom);
+			error = g_part_parm_geom(req, ap->name, &gpp.gpp_geom);
 			break;
 		case G_PART_PARM_INDEX:
-			error = g_part_parm_uint(p, &gpp.gpp_index);
+			error = g_part_parm_intmax(req, ap->name, &gpp.gpp_index);
 			break;
 		case G_PART_PARM_LABEL:
-			/* An empty label is always valid. */
-			gpp.gpp_label = p;
-			error = 0;
+			error = g_part_parm_str(req, ap->name, &gpp.gpp_label);
 			break;
 		case G_PART_PARM_OUTPUT:
 			error = 0;	/* Write-only parameter */
 			break;
 		case G_PART_PARM_PROVIDER:
-			error = g_part_parm_provider(p, &gpp.gpp_provider);
+			error = g_part_parm_provider(req, ap->name,
+			    &gpp.gpp_provider);
 			break;
 		case G_PART_PARM_SCHEME:
-			error = g_part_parm_scheme(p, &gpp.gpp_scheme);
+			error = g_part_parm_scheme(req, ap->name,
+			    &gpp.gpp_scheme);
 			break;
 		case G_PART_PARM_SIZE:
-			error = g_part_parm_quad(p, &gpp.gpp_size);
+			error = g_part_parm_quad(req, ap->name, &gpp.gpp_size);
 			break;
 		case G_PART_PARM_START:
-			error = g_part_parm_quad(p, &gpp.gpp_start);
+			error = g_part_parm_quad(req, ap->name, &gpp.gpp_start);
 			break;
 		case G_PART_PARM_TYPE:
-			error = g_part_parm_str(p, &gpp.gpp_type);
+			error = g_part_parm_str(req, ap->name, &gpp.gpp_type);
 			break;
 		case G_PART_PARM_VERSION:
-			error = g_part_parm_uint(p, &gpp.gpp_version);
+			error = g_part_parm_uint32(req, ap->name,
+			    &gpp.gpp_version);
 			break;
 		default:
 			error = EDOOFUS;
+			gctl_error(req, "%d %s", error, ap->name);
 			break;
 		}
-		if (error) {
-			gctl_error(req, "%d %s '%s'", error, ap->name, p);
+		if (error != 0) {
+			if (error == ENOATTR) {
+				gctl_error(req, "%d param '%s'", error,
+				    ap->name);
+			}
 			return;
 		}
 		gpp.gpp_parms |= parm;
