@@ -280,7 +280,7 @@ callout_tick(void)
 }
 
 int
-callout_tickstofirst(void)
+callout_tickstofirst(int limit)
 {
 	struct callout_cpu *cc;
 	struct callout *c;
@@ -291,7 +291,7 @@ callout_tickstofirst(void)
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	curticks = cc->cc_ticks;
-	while( skip < ncallout && skip < hz/8 ) {
+	while( skip < ncallout && skip < limit ) {
 		sc = &cc->cc_callwheel[ (curticks+skip) & callwheelmask ];
 		/* search scanning ticks */
 		TAILQ_FOREACH( c, sc, c_links.tqe ){

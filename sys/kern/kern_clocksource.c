@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/timeet.h>
+#include <sys/timetc.h>
 
 #include <machine/atomic.h>
 #include <machine/clock.h>
@@ -247,7 +248,10 @@ getnextcpuevent(struct bintime *event, int idle)
 	state = DPCPU_PTR(timerstate);
 	*event = state->nexthard;
 	if (idle) { /* If CPU is idle - ask callouts for how long. */
-		skip = callout_tickstofirst() - 1;
+		skip = 4;
+		if (curcpu == CPU_FIRST() && tc_min_ticktock_freq > skip)
+			skip = tc_min_ticktock_freq;
+		skip = callout_tickstofirst(hz / skip) - 1;
 		CTR2(KTR_SPARE2, "skip   at %d: %d", curcpu, skip);
 		tmp = hardperiod;
 		bintime_mul(&tmp, skip);

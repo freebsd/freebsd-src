@@ -87,6 +87,8 @@ static struct timehands *volatile timehands = &th0;
 struct timecounter *timecounter = &dummy_timecounter;
 static struct timecounter *timecounters = &dummy_timecounter;
 
+int tc_min_ticktock_freq = 1;
+
 time_t time_second = 1;
 time_t time_uptime = 1;
 
@@ -482,6 +484,8 @@ tc_windup(void)
 	if (th->th_counter != timecounter) {
 		th->th_counter = timecounter;
 		th->th_offset_count = ncount;
+		tc_min_ticktock_freq = max(1, timecounter->tc_frequency /
+		    (((uint64_t)timecounter->tc_counter_mask + 1) / 3));
 	}
 
 	/*-
@@ -767,11 +771,12 @@ static int tc_tick;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tc_tick, 0, "");
 
 void
-tc_ticktock(void)
+tc_ticktock(int cnt)
 {
 	static int count;
 
-	if (++count < tc_tick)
+	count += cnt;
+	if (count < tc_tick)
 		return;
 	count = 0;
 	tc_windup();

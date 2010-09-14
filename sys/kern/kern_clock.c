@@ -457,7 +457,7 @@ hardclock(int usermode, uintfptr_t pc)
 
 	atomic_add_int((volatile int *)&ticks, 1);
 	hardclock_cpu(usermode);
-	tc_ticktock();
+	tc_ticktock(1);
 	cpu_tick_calibration();
 	/*
 	 * If no separate statistics clock is available, run it from here.
@@ -538,7 +538,7 @@ hardclock_anycpu(int cnt, int usermode)
 	if (newticks > 0) {
 		/* Dangerous and no need to call these things concurrently. */
 		if (atomic_cmpset_acq_int(&global_hardclock_run, 0, 1)) {
-			tc_ticktock();
+			tc_ticktock(newticks);
 #ifdef DEVICE_POLLING
 			/* This is very short and quick. */
 			hardclock_device_poll();
