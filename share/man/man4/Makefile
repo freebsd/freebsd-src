@@ -219,6 +219,7 @@ MAN=	aac.4 \
 	mmcsd.4 \
 	mn.4 \
 	mouse.4 \
+	mps.4 \
 	mpt.4 \
 	msk.4 \
 	mtio.4 \
