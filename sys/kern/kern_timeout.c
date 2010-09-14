@@ -672,7 +672,8 @@ retry:
 	c->c_time = ticks + to_ticks;
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[c->c_time & callwheelmask], 
 			  c, c_links.tqe);
-	if ((c->c_time - cc->cc_firsttick) < 0) {
+	if ((c->c_time - cc->cc_firsttick) < 0 &&
+	    callout_new_inserted != NULL) {
 		cc->cc_firsttick = c->c_time;
 		(*callout_new_inserted)(cpu,
 		    to_ticks + (ticks - cc->cc_ticks));
