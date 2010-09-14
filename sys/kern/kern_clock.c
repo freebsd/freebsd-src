@@ -374,8 +374,7 @@ int	ticks;
 int	psratio;
 
 static DPCPU_DEFINE(int, pcputicks);	/* Per-CPU version of ticks. */
-static struct mtx	global_hardclock_mtx;
-MTX_SYSINIT(global_hardclock_mtx, &global_hardclock_mtx, "ghc_mtx", MTX_SPIN);
+static int global_hardclock_run = 0;
 
 /*
  * Initialize clock frequencies and start both clocks running.
@@ -485,8 +484,10 @@ hardclock_anycpu(int cnt, int usermode)
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
 	int *t = DPCPU_PTR(pcputicks);
-	int flags;
-	int global, newticks;
+	int flags, global, newticks;
+#ifdef SW_WATCHDOG
+	int i;
+#endif /* SW_WATCHDOG */
 
 	/*
 	 * Update per-CPU and possibly global ticks values.
@@ -535,19 +536,22 @@ hardclock_anycpu(int cnt, int usermode)
 	callout_tick();
 	/* We are in charge to handle this tick duty. */
 	if (newticks > 0) {
-		mtx_lock_spin(&global_hardclock_mtx);
-		tc_ticktock();
+		/* Dangerous and no need to call these things concurrently. */
+		if (atomic_cmpset_acq_int(&global_hardclock_run, 0, 1)) {
+			tc_ticktock();
 #ifdef DEVICE_POLLING
-		hardclock_device_poll(); /* This is very short and quick. */
+			/* This is very short and quick. */
+			hardclock_device_poll();
 #endif /* DEVICE_POLLING */
+			atomic_store_rel_int(&global_hardclock_run, 0);
+		}
 #ifdef SW_WATCHDOG
 		if (watchdog_enabled > 0) {
-			watchdog_ticks -= newticks;
-			if (watchdog_ticks <= 0)
+			i = atomic_fetchadd_int(&watchdog_ticks, -newticks);
+			if (i > 0 && i <= newticks)
 				watchdog_fire();
 		}
 #endif /* SW_WATCHDOG */
-		mtx_unlock_spin(&global_hardclock_mtx);
 	}
 	if (curcpu == CPU_FIRST())
 		cpu_tick_calibration();
