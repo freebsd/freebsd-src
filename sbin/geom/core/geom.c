@@ -259,8 +259,7 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 		optname = opt->go_name;
 	}
 
-	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER ||
-	    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
+	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
 		if (expand_number(val, &number) == -1) {
 			err(EXIT_FAILURE, "Invalid value for '%c' argument",
 			    opt->go_char);
