@@ -374,9 +374,8 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 				warnx("Option '%c' not specified.",
 				    opt->go_char);
 				usage();
-			} else if (G_OPT_TYPE(opt) == G_TYPE_ASCNUM &&
-			    *(const char *)opt->go_val == '\0') {
-			    	;	/* add nothing. */
+			} else if (opt->go_val == G_VAL_OPTIONAL) {
+				/* add nothing. */
 			} else {
 				set_option(req, opt, opt->go_val);
 			}
