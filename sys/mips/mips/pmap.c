@@ -828,8 +828,8 @@ retry:
 /*
  * add a wired page to the kva
  */
- /* PMAP_INLINE */ void
-pmap_kenter(vm_offset_t va, vm_paddr_t pa)
+static void
+pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr)
 {
 	pt_entry_t *pte;
 	pt_entry_t opte, npte;
@@ -837,18 +837,26 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 #ifdef PMAP_DEBUG
 	printf("pmap_kenter:  va: %p -> pa: %p\n", (void *)va, (void *)pa);
 #endif
-	npte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G | PTE_W;
-
-	if (is_cacheable_mem(pa))
-		npte |= PTE_C_CACHE;
-	else
-		npte |= PTE_C_UNCACHED;
+	npte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G | PTE_W | attr;
 
 	pte = pmap_pte(kernel_pmap, va);
 	opte = *pte;
 	*pte = npte;
 	if (pte_test(&opte, PTE_V) && opte != npte)
 		pmap_update_page(kernel_pmap, va, npte);
+}
+
+void
+pmap_kenter(vm_offset_t va, vm_paddr_t pa)
+{
+	int attr;
+
+	if (is_cacheable_mem(pa))
+		attr = PTE_C_CACHE;
+	else
+		attr = PTE_C_UNCACHED;
+
+	pmap_kenter_attr(va, pa, attr);
 }
 
 /*
@@ -2863,7 +2871,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 			panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 		pa = trunc_page(pa);
 		for (tmpva = va; size > 0;) {
-			pmap_kenter(tmpva, pa);
+			pmap_kenter_attr(tmpva, pa, PTE_C_UNCACHED);
 			size -= PAGE_SIZE;
 			tmpva += PAGE_SIZE;
 			pa += PAGE_SIZE;
