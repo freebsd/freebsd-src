@@ -1226,13 +1226,6 @@ zfs_mount(vfs_t *vfsp)
 	if (error == 0 && ((zfsvfs_t *)vfsp->vfs_data)->z_issnap)
 		VFS_HOLD(mvp->v_vfsp);
 
-	/*
-	 * Add an extra VFS_HOLD on our parent vfs so that it can't
-	 * disappear due to a forced unmount.
-	 */
-	if (error == 0 && ((zfsvfs_t *)vfsp->vfs_data)->z_issnap)
-		VFS_HOLD(mvp->v_vfsp);
-
 out:
 	return (error);
 }
