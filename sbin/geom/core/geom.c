@@ -264,21 +264,12 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 			err(EXIT_FAILURE, "Invalid value for '%c' argument",
 			    opt->go_char);
 		}
-		if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
-			ptr = malloc(sizeof(intmax_t));
-			if (ptr == NULL)
-				errx(EXIT_FAILURE, "No memory.");
-			*(intmax_t *)ptr = number;
-			opt->go_val = ptr;
-			gctl_ro_param(req, optname, sizeof(intmax_t),
-			    opt->go_val);
-		} else {
-			asprintf((void *)(&ptr), "%jd", number);
-			if (ptr == NULL)
-				errx(EXIT_FAILURE, "No memory.");
-			opt->go_val = ptr;
-			gctl_ro_param(req, optname, -1, opt->go_val);
-		}
+		ptr = malloc(sizeof(intmax_t));
+		if (ptr == NULL)
+			errx(EXIT_FAILURE, "No memory.");
+		*(intmax_t *)ptr = number;
+		opt->go_val = ptr;
+		gctl_ro_param(req, optname, sizeof(intmax_t), opt->go_val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
 		gctl_ro_param(req, optname, -1, val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
