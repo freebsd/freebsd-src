@@ -38,7 +38,6 @@
 #define	G_TYPE_BOOL	0x01
 #define	G_TYPE_STRING	0x02
 #define	G_TYPE_NUMBER	0x03
-#define	G_TYPE_ASCNUM	0x04
 #define	G_TYPE_MASK	0x0f
 #define	G_TYPE_DONE	0x10
 #define	G_TYPE_MULTI	0x20
