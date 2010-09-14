@@ -1219,11 +1219,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case MPI2_IOCSTATUS_SCSI_DATA_OVERRUN:
-		/*
-		 * XXX any way to report this?
-		 */
+		/* resid is ignored for this condition */
 		ccb->csio.resid = 0;
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status = CAM_DATA_RUN_ERR;
 		break;
 	case MPI2_IOCSTATUS_SCSI_INVALID_DEVHANDLE:
 	case MPI2_IOCSTATUS_SCSI_DEVICE_NOT_THERE:
