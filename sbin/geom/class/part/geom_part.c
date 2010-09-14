@@ -302,7 +302,7 @@ gpart_autofill_resize(struct gctl_req *req)
 	cp = find_class(&mesh, s);
 	if (cp == NULL)
 		errx(EXIT_FAILURE, "Class %s not found.", s);
-	s = gctl_get_ascii(req, "geom");
+	s = gctl_get_ascii(req, "arg0");
 	if (s == NULL)
 		abort();
 	gp = find_geom(cp, s);
@@ -411,7 +411,7 @@ gpart_autofill(struct gctl_req *req)
 	cp = find_class(&mesh, s);
 	if (cp == NULL)
 		errx(EXIT_FAILURE, "Class %s not found.", s);
-	s = gctl_get_ascii(req, "geom");
+	s = gctl_get_ascii(req, "arg0");
 	if (s == NULL)
 		abort();
 	gp = find_geom(cp, s);
