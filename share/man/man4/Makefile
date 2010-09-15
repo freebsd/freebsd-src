@@ -133,6 +133,7 @@ MAN=	aac.4 \
 	hfa.4 \
 	hifn.4 \
 	hme.4 \
+	hpet.4 \
 	${_hptiop.4} \
 	${_hptmv.4} \
 	${_hptrr.4} \
@@ -544,6 +545,7 @@ MLINKS+=gif.4 if_gif.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
+MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=idt.4 if_idt.4
 MLINKS+=igb.4 if_igb.4
