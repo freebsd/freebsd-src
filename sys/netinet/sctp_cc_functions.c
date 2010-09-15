@@ -171,7 +171,7 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * So, first of all do we need to have a Early FR
 			 * timer running?
 			 */
-			if (((TAILQ_FIRST(&asoc->sent_queue)) &&
+			if ((!TAILQ_EMPTY(&asoc->sent_queue) &&
 			    (net->ref_count > 1) &&
 			    (net->flight_size < net->cwnd)) ||
 			    (reneged_all)) {
@@ -656,7 +656,6 @@ sctp_hs_cwnd_decrease(struct sctp_tcb *stcb, struct sctp_nets *net)
 	int old_cwnd = net->cwnd;
 
 	cur_val = net->cwnd >> 10;
-	indx = net->last_hs_used;
 	if (cur_val < sctp_cwnd_adjust[0].cwnd) {
 		/* normal mode */
 		net->ssthresh = net->cwnd / 2;
@@ -793,7 +792,7 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * So, first of all do we need to have a Early FR
 			 * timer running?
 			 */
-			if (((TAILQ_FIRST(&asoc->sent_queue)) &&
+			if ((!TAILQ_EMPTY(&asoc->sent_queue) &&
 			    (net->ref_count > 1) &&
 			    (net->flight_size < net->cwnd)) ||
 			    (reneged_all)) {
@@ -1279,7 +1278,7 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * So, first of all do we need to have a Early FR
 			 * timer running?
 			 */
-			if (((TAILQ_FIRST(&asoc->sent_queue)) &&
+			if ((!TAILQ_EMPTY(&asoc->sent_queue) &&
 			    (net->ref_count > 1) &&
 			    (net->flight_size < net->cwnd)) ||
 			    (reneged_all)) {
