@@ -5911,10 +5911,10 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	sp->strseq = 0;
 	if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 		sp->net = net;
+		atomic_add_int(&sp->net->ref_count, 1);
 	} else {
-		sp->net = stcb->asoc.primary_destination;
+		sp->net = NULL;
 	}
-	atomic_add_int(&sp->net->ref_count, 1);
 	(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
 	sp->stream = srcv->sinfo_stream;
 	sp->msg_is_complete = 1;
@@ -6513,7 +6513,6 @@ sctp_toss_old_asconf(struct sctp_tcb *stcb)
 
 static void
 sctp_clean_up_datalist(struct sctp_tcb *stcb,
-
     struct sctp_association *asoc,
     struct sctp_tmit_chunk **data_list,
     int bundle_at,
@@ -6524,7 +6523,9 @@ sctp_clean_up_datalist(struct sctp_tcb *stcb,
 
 	for (i = 0; i < bundle_at; i++) {
 		/* off of the send queue */
-		if (i) {
+		TAILQ_REMOVE(&asoc->send_queue, data_list[i], sctp_next);
+		asoc->send_queue_cnt--;
+		if (i > 0) {
 			/*
 			 * Any chunk NOT 0 you zap the time chunk 0 gets
 			 * zapped or set based on if a RTO measurment is
@@ -6535,9 +6536,10 @@ sctp_clean_up_datalist(struct sctp_tcb *stcb,
 		/* record time */
 		data_list[i]->sent_rcv_time = net->last_sent_time;
 		data_list[i]->rec.data.fast_retran_tsn = data_list[i]->rec.data.TSN_seq;
-		TAILQ_REMOVE(&asoc->send_queue,
-		    data_list[i],
-		    sctp_next);
+		if (data_list[i]->whoTo == NULL) {
+			data_list[i]->whoTo = net;
+			atomic_add_int(&net->ref_count, 1);
+		}
 		/* on to the sent queue */
 		tp1 = TAILQ_LAST(&asoc->sent_queue, sctpchunk_listhead);
 		if ((tp1) && (compare_with_wrap(tp1->rec.data.TSN_seq,
@@ -6565,7 +6567,6 @@ sctp_clean_up_datalist(struct sctp_tcb *stcb,
 all_done:
 		/* This does not lower until the cum-ack passes it */
 		asoc->sent_queue_cnt++;
-		asoc->send_queue_cnt--;
 		if ((asoc->peers_rwnd <= 0) &&
 		    (asoc->total_flight == 0) &&
 		    (bundle_at == 1)) {
@@ -6703,7 +6704,7 @@ sctp_can_we_split_this(struct sctp_tcb *stcb,
 }
 
 static uint32_t
-sctp_move_to_outqueue(struct sctp_tcb *stcb, struct sctp_nets *net,
+sctp_move_to_outqueue(struct sctp_tcb *stcb,
     struct sctp_stream_out *strq,
     uint32_t goal_mtu,
     uint32_t frag_point,
@@ -6772,7 +6773,10 @@ one_more_time:
 			}
 			atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 			TAILQ_REMOVE(&strq->outqueue, sp, next);
-			sctp_free_remote_addr(sp->net);
+			if (sp->net) {
+				sctp_free_remote_addr(sp->net);
+				sp->net = NULL;
+			}
 			if (sp->data) {
 				sctp_m_freem(sp->data);
 				sp->data = NULL;
@@ -7089,8 +7093,11 @@ dont_do_it:
 	chk->rec.data.timetodrop = sp->ts;
 	chk->flags = sp->act_flags;
 
-	chk->whoTo = net;
-	atomic_add_int(&chk->whoTo->ref_count, 1);
+	if (sp->net) {
+		chk->whoTo = sp->net;
+		atomic_add_int(&chk->whoTo->ref_count, 1);
+	} else
+		chk->whoTo = NULL;
 
 	if (sp->holds_key_ref) {
 		chk->auth_keyid = sp->auth_keyid;
@@ -7175,7 +7182,10 @@ dont_do_it:
 			send_lock_up = 1;
 		}
 		TAILQ_REMOVE(&strq->outqueue, sp, next);
-		sctp_free_remote_addr(sp->net);
+		if (sp->net) {
+			sctp_free_remote_addr(sp->net);
+			sp->net = NULL;
+		}
 		if (sp->data) {
 			sctp_m_freem(sp->data);
 			sp->data = NULL;
@@ -7248,31 +7258,29 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 	goal_mtu &= 0xfffffffc;
 	if (asoc->locked_on_sending) {
 		/* We are stuck on one stream until the message completes. */
-		strqn = strq = asoc->locked_on_sending;
+		strq = asoc->locked_on_sending;
 		locked = 1;
 	} else {
-		strqn = strq = sctp_select_a_stream(stcb, asoc);
+		strq = sctp_select_a_stream(stcb, asoc);
 		locked = 0;
 	}
-
+	strqn = strq;
 	while ((goal_mtu > 0) && strq) {
 		sp = TAILQ_FIRST(&strq->outqueue);
-		/*
-		 * If CMT is off, we must validate that the stream in
-		 * question has the first item pointed towards are network
-		 * destionation requested by the caller. Note that if we
-		 * turn out to be locked to a stream (assigning TSN's then
-		 * we must stop, since we cannot look for another stream
-		 * with data to send to that destination). In CMT's case, by
-		 * skipping this check, we will send one data packet towards
-		 * the requested net.
-		 */
 		if (sp == NULL) {
 			break;
 		}
-		if ((sp->net != net) &&
-		    (asoc->sctp_cmt_on_off == 0)) {
-			/* none for this network */
+		/**
+		 * Honor the users' choice if given. If not given,
+		 * pull it only to the primary path in case of not using
+		 * CMT.
+		 */
+		if (((sp->net != NULL) &&
+		    (sp->net != net)) ||
+		    ((sp->net == NULL) &&
+		    (asoc->sctp_cmt_on_off == 0) &&
+		    (asoc->primary_destination != net))) {
+			/* Do not pull to this network */
 			if (locked) {
 				break;
 			} else {
@@ -7289,7 +7297,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		}
 		giveup = 0;
 		bail = 0;
-		moved_how_much = sctp_move_to_outqueue(stcb, net, strq, goal_mtu, frag_point, &locked,
+		moved_how_much = sctp_move_to_outqueue(stcb, strq, goal_mtu, frag_point, &locked,
 		    &giveup, eeor_mode, &bail);
 		if (moved_how_much)
 			asoc->last_out_stream = strq;
@@ -7353,41 +7361,30 @@ sctp_fix_ecn_echo(struct sctp_association *asoc)
 	}
 }
 
-static void
-sctp_move_to_an_alt(struct sctp_tcb *stcb,
-    struct sctp_association *asoc,
-    struct sctp_nets *net)
+void
+sctp_move_chunks_from_net(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
+	struct sctp_association *asoc;
+	struct sctp_stream_out *outs;
 	struct sctp_tmit_chunk *chk;
-	struct sctp_nets *a_net;
+	struct sctp_stream_queue_pending *sp;
 
-	SCTP_TCB_LOCK_ASSERT(stcb);
-	/*
-	 * JRS 5/14/07 - If CMT PF is turned on, find an alternate
-	 * destination using the PF algorithm for finding alternate
-	 * destinations.
-	 */
-	if ((asoc->sctp_cmt_on_off == 1) &&
-	    (asoc->sctp_cmt_pf > 0)) {
-		a_net = sctp_find_alternate_net(stcb, net, 2);
-	} else {
-		a_net = sctp_find_alternate_net(stcb, net, 0);
+	if (net == NULL) {
+		return;
 	}
-	if ((a_net != net) &&
-	    ((a_net->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE)) {
-		/*
-		 * We only proceed if a valid alternate is found that is not
-		 * this one and is reachable. Here we must move all chunks
-		 * queued in the send queue off of the destination address
-		 * to our alternate.
-		 */
-		TAILQ_FOREACH(chk, &asoc->send_queue, sctp_next) {
-			if (chk->whoTo == net) {
-				/* Move the chunk to our alternate */
-				sctp_free_remote_addr(chk->whoTo);
-				chk->whoTo = a_net;
-				atomic_add_int(&a_net->ref_count, 1);
+	asoc = &stcb->asoc;
+	TAILQ_FOREACH(outs, &asoc->out_wheel, next_spoke) {
+		TAILQ_FOREACH(sp, &outs->outqueue, next) {
+			if (sp->net == net) {
+				sctp_free_remote_addr(sp->net);
+				sp->net = NULL;
 			}
+		}
+	}
+	TAILQ_FOREACH(chk, &asoc->send_queue, sctp_next) {
+		if (chk->whoTo == net) {
+			sctp_free_remote_addr(chk->whoTo);
+			chk->whoTo = NULL;
 		}
 	}
 }
@@ -7497,7 +7494,8 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 			 * copy by reference (we hope).
 			 */
 			net->window_probe = 0;
-			if ((net->dest_state & SCTP_ADDR_NOT_REACHABLE) || (net->dest_state & SCTP_ADDR_UNCONFIRMED)) {
+			if ((net->dest_state & SCTP_ADDR_NOT_REACHABLE) ||
+			    (net->dest_state & SCTP_ADDR_UNCONFIRMED)) {
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_LOGGING_ENABLE) {
 					sctp_log_cwnd(stcb, net, 1,
 					    SCTP_CWND_LOG_FILL_OUTQ_CALLED);
@@ -7505,6 +7503,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 				continue;
 			}
 			if ((asoc->sctp_cmt_on_off == 0) &&
+			    (asoc->primary_destination != net) &&
 			    (net->ref_count < 2)) {
 				/* nothing can be in queue for this guy */
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_LOGGING_ENABLE) {
@@ -7534,9 +7533,9 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	}
 	/* now service each destination and send out what we can for it */
 	/* Nothing to send? */
-	if ((TAILQ_FIRST(&asoc->control_send_queue) == NULL) &&
-	    (TAILQ_FIRST(&asoc->asconf_send_queue) == NULL) &&
-	    (TAILQ_FIRST(&asoc->send_queue) == NULL)) {
+	if (TAILQ_EMPTY(&asoc->control_send_queue) &&
+	    TAILQ_EMPTY(&asoc->asconf_send_queue) &&
+	    TAILQ_EMPTY(&asoc->send_queue)) {
 		*reason_code = 8;
 		return (0);
 	}
@@ -7566,15 +7565,17 @@ again_one_more_time:
 			break;
 		}
 		tsns_sent = 0xa;
-		if ((asoc->sctp_cmt_on_off == 0) && (net->ref_count < 2)) {
+		if ((asoc->sctp_cmt_on_off == 0) &&
+		    (asoc->primary_destination != net) &&
+		    (net->ref_count < 2)) {
 			/*
 			 * Ref-count of 1 so we cannot have data or control
 			 * queued to this address. Skip it (non-CMT).
 			 */
 			continue;
 		}
-		if ((TAILQ_FIRST(&asoc->control_send_queue) == NULL) &&
-		    (TAILQ_FIRST(&asoc->asconf_send_queue) == NULL) &&
+		if (TAILQ_EMPTY(&asoc->control_send_queue) &&
+		    TAILQ_EMPTY(&asoc->asconf_send_queue) &&
 		    (net->flight_size >= net->cwnd)) {
 			/*
 			 * Nothing on control or asconf and flight is full,
@@ -7778,7 +7779,7 @@ again_one_more_time:
 							 * unreachable
 							 * during this send
 							 */
-							sctp_move_to_an_alt(stcb, asoc, net);
+							sctp_move_chunks_from_net(stcb, net);
 						}
 						*reason_code = 7;
 						continue;
@@ -8001,7 +8002,7 @@ again_one_more_time:
 							 * unreachable
 							 * during this send
 							 */
-							sctp_move_to_an_alt(stcb, asoc, net);
+							sctp_move_chunks_from_net(stcb, net);
 						}
 						*reason_code = 7;
 						continue;
@@ -8102,19 +8103,9 @@ again_one_more_time:
 					break;
 				}
 				nchk = TAILQ_NEXT(chk, sctp_next);
-				if (asoc->sctp_cmt_on_off == 1) {
-					if (chk->whoTo != net) {
-						/*
-						 * For CMT, steal the data
-						 * to this network if its
-						 * not set here.
-						 */
-						sctp_free_remote_addr(chk->whoTo);
-						chk->whoTo = net;
-						atomic_add_int(&chk->whoTo->ref_count, 1);
-					}
-				} else if (chk->whoTo != net) {
-					/* No, not sent to this net */
+				if ((chk->whoTo != NULL) &&
+				    (chk->whoTo != net)) {
+					/* Don't send the chunk on this net */
 					continue;
 				}
 				if ((chk->send_size > omtu) && ((chk->flags & CHUNK_FLAGS_FRAGMENT_OK) == 0)) {
@@ -8330,7 +8321,7 @@ no_data_fill:
 					 * Destination went unreachable
 					 * during this send
 					 */
-					sctp_move_to_an_alt(stcb, asoc, net);
+					sctp_move_chunks_from_net(stcb, net);
 				}
 				*reason_code = 6;
 				/*-
@@ -9584,7 +9575,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			 * out wheel to this alternate address.
 			 */
 			if (net->ref_count > 1)
-				sctp_move_to_an_alt(stcb, asoc, net);
+				sctp_move_chunks_from_net(stcb, net);
 		} else if ((asoc->sctp_cmt_on_off == 1) &&
 			    (asoc->sctp_cmt_pf > 0) &&
 		    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
@@ -9594,7 +9585,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			 * to an alternate desination.
 			 */
 			if (net->ref_count > 1)
-				sctp_move_to_an_alt(stcb, asoc, net);
+				sctp_move_chunks_from_net(stcb, net);
 		} else {
 			/*-
 			 * if ((asoc->sat_network) || (net->addr_is_local))
@@ -12103,10 +12094,10 @@ skip_copy:
 	} else {
 		if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 			sp->net = net;
+			atomic_add_int(&sp->net->ref_count, 1);
 		} else {
-			sp->net = asoc->primary_destination;
+			sp->net = NULL;
 		}
-		atomic_add_int(&sp->net->ref_count, 1);
 		sctp_set_prsctp_policy(sp);
 	}
 out_now:

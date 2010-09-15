@@ -581,8 +581,8 @@ sctp_process_asconf_set_primary(struct mbuf *m,
 			}
 			if (sctp_is_mobility_feature_on(stcb->sctp_ep,
 			    SCTP_MOBILITY_BASE)) {
-				sctp_move_chunks_from_deleted_prim(stcb,
-				    stcb->asoc.primary_destination);
+				sctp_move_chunks_from_net(stcb,
+				    stcb->asoc.deleted_primary);
 			}
 			sctp_delete_prim_timer(stcb->sctp_ep, stcb,
 			    stcb->asoc.deleted_primary);
@@ -1039,47 +1039,6 @@ sctp_asconf_nets_cleanup(struct sctp_tcb *stcb, struct sctp_ifn *ifn)
 			net->src_addr_selected = 0;
 		}
 	}
-}
-
-void
-sctp_move_chunks_from_deleted_prim(struct sctp_tcb *stcb, struct sctp_nets *dst)
-{
-	struct sctp_association *asoc;
-	struct sctp_stream_out *outs;
-	struct sctp_tmit_chunk *chk;
-	struct sctp_stream_queue_pending *sp;
-
-	if (dst->dest_state & SCTP_ADDR_UNCONFIRMED) {
-		return;
-	}
-	if (stcb->asoc.deleted_primary == NULL) {
-		return;
-	}
-	asoc = &stcb->asoc;
-
-	/*
-	 * now through all the streams checking for chunks sent to our bad
-	 * network.
-	 */
-	TAILQ_FOREACH(outs, &asoc->out_wheel, next_spoke) {
-		/* now clean up any chunks here */
-		TAILQ_FOREACH(sp, &outs->outqueue, next) {
-			if (sp->net == asoc->deleted_primary) {
-				sctp_free_remote_addr(sp->net);
-				sp->net = dst;
-				atomic_add_int(&dst->ref_count, 1);
-			}
-		}
-	}
-	/* Now check the pending queue */
-	TAILQ_FOREACH(chk, &asoc->send_queue, sctp_next) {
-		if (chk->whoTo == asoc->deleted_primary) {
-			sctp_free_remote_addr(chk->whoTo);
-			chk->whoTo = dst;
-			atomic_add_int(&dst->ref_count, 1);
-		}
-	}
-
 }
 
 
@@ -2080,13 +2039,11 @@ sctp_asconf_iterator_ep(struct sctp_inpcb *inp, void *ptr, uint32_t val)
 	struct sctp_asconf_iterator *asc;
 	struct sctp_ifa *ifa;
 	struct sctp_laddr *l;
-	int type;
 	int cnt_invalid = 0;
 
 	asc = (struct sctp_asconf_iterator *)ptr;
 	LIST_FOREACH(l, &asc->list_of_work, sctp_nxt_addr) {
 		ifa = l->ifa;
-		type = l->action;
 		if (ifa->address.sa.sa_family == AF_INET6) {
 			/* invalid if we're not a v6 endpoint */
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) == 0) {
