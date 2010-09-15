@@ -562,6 +562,8 @@ lookupvpg:
 		sf_buf_free(sf);
 		sched_unpin();
 		VM_OBJECT_LOCK(vobj);
+		if (error == 0)
+			vm_page_set_valid(m, offset, tlen);
 		vm_page_wakeup(m);
 		VM_OBJECT_UNLOCK(vobj);
 		return	(error);
