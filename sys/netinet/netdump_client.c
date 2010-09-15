@@ -97,8 +97,6 @@
 #define	NETDDEBUGV_IF(i, f, ...)
 #endif
 
-#define	NETDUMP_BROKEN_STATE_BUFFER_SIZE	(5 * sizeof(struct mtx))
-
 static void	 nd_handle_arp(struct mbuf **mb);
 static void	 nd_handle_ip(struct mbuf **mb);
 static int	 netdump_arp_server(void);
