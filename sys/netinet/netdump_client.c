@@ -82,6 +82,10 @@
 #include <ddb/ddb.h>
 #endif
 
+#ifdef VIMAGE
+#error "Netdump kernel support cannot be compiled with VIMAGE option"
+#endif
+
 #ifdef NETDUMP_DEBUG
 #define	NETDDEBUG(f, ...)		printf((f), ## __VA_ARGS__)
 #define	NETDDEBUG_IF(i, f, ...)		if_printf((i), (f), ## __VA_ARGS__)
