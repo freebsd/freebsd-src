@@ -78,6 +78,11 @@ struct ipi_cache_args {
 	vm_paddr_t ica_pa;
 };
 
+struct ipi_rd_args {
+	u_int	ira_mask;
+	register_t *ira_val;
+};
+
 struct ipi_tlb_args {
 	u_int	ita_mask;
 	struct	pmap *ita_pmap;
@@ -102,6 +107,7 @@ void	mp_init(u_int cpu_impl);
 
 extern	struct mtx ipi_mtx;
 extern	struct ipi_cache_args ipi_cache_args;
+extern	struct ipi_rd_args ipi_rd_args;
 extern	struct ipi_tlb_args ipi_tlb_args;
 
 extern	char *mp_tramp_code;
@@ -116,6 +122,10 @@ extern	char tl_ipi_spitfire_dcache_page_inval[];
 extern	char tl_ipi_spitfire_icache_page_inval[];
 
 extern	char tl_ipi_level[];
+
+extern	char tl_ipi_stick_rd[];
+extern	char tl_ipi_tick_rd[];
+
 extern	char tl_ipi_tlb_context_demap[];
 extern	char tl_ipi_tlb_page_demap[];
 extern	char tl_ipi_tlb_range_demap[];
@@ -166,6 +176,22 @@ ipi_icache_page_inval(void *func, vm_paddr_t pa)
 	ica->ica_pa = pa;
 	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)func, (u_long)ica);
 	return (&ica->ica_mask);
+}
+
+static __inline void *
+ipi_rd(u_int cpu, void *func, u_long *val)
+{
+	struct ipi_rd_args *ira;
+
+	if (smp_cpus == 1)
+		return (NULL);
+	sched_pin();
+	ira = &ipi_rd_args;
+	mtx_lock_spin(&ipi_mtx);
+	ira->ira_mask = 1 << cpu | PCPU_GET(cpumask);
+	ira->ira_val = val;
+	cpu_ipi_single(cpu, 0, (u_long)func, (u_long)ira);
+	return (&ira->ira_mask);
 }
 
 static __inline void *
@@ -267,6 +293,13 @@ ipi_dcache_page_inval(void *func __unused, vm_paddr_t pa __unused)
 
 static __inline void *
 ipi_icache_page_inval(void *func __unused, vm_paddr_t pa __unused)
+{
+
+	return (NULL);
+}
+
+static __inline void *
+ipi_rd(u_int cpu __unused, void *func __unused, u_long *val __unused)
 {
 
 	return (NULL);
