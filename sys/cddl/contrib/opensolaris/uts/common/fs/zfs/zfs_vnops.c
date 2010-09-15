@@ -323,8 +323,17 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 	for (;;) {
 		if ((pp = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
 		    vm_page_is_valid(pp, (vm_offset_t)off, nbytes)) {
-			if (vm_page_sleep_if_busy(pp, FALSE, "zfsmwb"))
+			if ((pp->oflags & VPO_BUSY) != 0) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it.
+				 */
+				vm_page_lock_queues();
+				vm_page_flag_set(pp, PG_REFERENCED);
+				vm_page_sleep(pp, "zfsmwb");
 				continue;
+			}
 			vm_page_busy(pp);
 			vm_page_undirty(pp);
 		} else {
@@ -451,8 +460,18 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 again:
 		if ((m = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
 		    vm_page_is_valid(m, (vm_offset_t)off, bytes)) {
-			if (vm_page_sleep_if_busy(m, FALSE, "zfsmrb"))
+			if ((m->oflags & VPO_BUSY) != 0) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it.
+				 */
+				vm_page_lock_queues();
+				vm_page_flag_set(m, PG_REFERENCED);
+				vm_page_sleep(m, "zfsmrb");
 				goto again;
+			}
+
 			vm_page_busy(m);
 			VM_OBJECT_UNLOCK(obj);
 			if (dirbytes > 0) {
@@ -478,8 +497,17 @@ again:
 			 * but it pessimize performance of sendfile/UFS, that's
 			 * why I handle this special case in ZFS code.
 			 */
-			if (vm_page_sleep_if_busy(m, FALSE, "zfsmrb"))
+			if ((m->oflags & VPO_BUSY) != 0) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it.
+				 */
+				vm_page_lock_queues();
+				vm_page_flag_set(m, PG_REFERENCED);
+				vm_page_sleep(m, "zfsmrb");
 				goto again;
+			}
 			vm_page_busy(m);
 			VM_OBJECT_UNLOCK(obj);
 			if (dirbytes > 0) {
