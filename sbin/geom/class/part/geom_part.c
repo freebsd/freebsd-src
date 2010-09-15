@@ -285,12 +285,10 @@ gpart_autofill_resize(struct gctl_req *req)
 	off_t last, size, start, new_size;
 	off_t lba, new_lba;
 	const char *s;
-	char *val;
 	int error, idx;
 
-	s = gctl_get_ascii(req, GPART_PARAM_INDEX);
-	idx = strtol(s, &val, 10);
-	if (idx < 1 || *s == '\0' || *val != '\0')
+	idx = (int)gctl_get_intmax(req, GPART_PARAM_INDEX);
+	if (idx < 1)
 		errx(EXIT_FAILURE, "invalid partition index");
 
 	error = geom_gettree(&mesh);
@@ -775,7 +773,6 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 	struct gclass *classp;
 	struct ggeom *gp;
 	const char *s;
-	char *sp;
 	void *bootcode, *partcode;
 	size_t bootsize, partsize;
 	int error, idx, vtoc8;
@@ -830,9 +827,8 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 	if (gctl_has_param(req, GPART_PARAM_INDEX)) {
 		if (partcode == NULL)
 			errx(EXIT_FAILURE, "-i is only valid with -p");
-		s = gctl_get_ascii(req, GPART_PARAM_INDEX);
-		idx = strtol(s, &sp, 10);
-		if (idx < 1 || *s == '\0' || *sp != '\0')
+		idx = (int)gctl_get_intmax(req, GPART_PARAM_INDEX);
+		if (idx < 1)
 			errx(EXIT_FAILURE, "invalid partition index");
 		error = gctl_delete_param(req, GPART_PARAM_INDEX);
 		if (error)
