@@ -95,6 +95,8 @@ void	cpu_mp_shutdown(void);
 
 typedef	void cpu_ipi_selected_t(u_int, u_long, u_long, u_long);
 extern	cpu_ipi_selected_t *cpu_ipi_selected;
+typedef	void cpu_ipi_single_t(u_int, u_long, u_long, u_long);
+extern	cpu_ipi_single_t *cpu_ipi_single;
 
 void	mp_init(u_int cpu_impl);
 
@@ -229,7 +231,8 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
 	ita->ita_end = end;
-	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap, (u_long)ita);
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap,
+	    (u_long)ita);
 	return (&ita->ita_mask);
 }
 
