@@ -379,12 +379,8 @@ static mmu_method_t moea_methods[] = {
 	{ 0, 0 }
 };
 
-static mmu_def_t oea_mmu = {
-	MMU_TYPE_OEA,
-	moea_methods,
-	0
-};
-MMU_DEF(oea_mmu);
+MMU_DEF(oea_mmu, MMU_TYPE_OEA, moea_methods, 0);
+
 
 static void
 tlbie(vm_offset_t va)
