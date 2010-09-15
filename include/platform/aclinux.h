@@ -147,7 +147,6 @@
 #define ACPI_CACHE_T                struct kmem_cache
 #define ACPI_SPINLOCK               spinlock_t *
 #define ACPI_CPU_FLAGS              unsigned long
-#define ACPI_THREAD_ID              struct task_struct *
 
 #else /* !__KERNEL__ */
 
@@ -160,7 +159,7 @@
 /* Host-dependent types and defines for user-space ACPICA */
 
 #define ACPI_FLUSH_CPU_CACHE()
-#define ACPI_THREAD_ID              pthread_t
+#define ACPI_CAST_PTHREAD_T(pthread) ((ACPI_THREAD_ID) (pthread))
 
 #if defined(__ia64__) || defined(__x86_64__)
 #define ACPI_MACHINE_WIDTH          64

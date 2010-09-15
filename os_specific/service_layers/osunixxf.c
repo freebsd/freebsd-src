@@ -972,16 +972,6 @@ AcpiOsWritePciConfiguration (
     return (AE_OK);
 }
 
-/* TEMPORARY STUB FUNCTION */
-void
-AcpiOsDerivePciId(
-    ACPI_HANDLE             Device,
-    ACPI_HANDLE             Region,
-    ACPI_PCI_ID             **PciId)
-{
-
-}
-
 
 /******************************************************************************
  *
@@ -1168,16 +1158,14 @@ AcpiOsWritable (
  *
  * DESCRIPTION: Get the Id of the current (running) thread
  *
- * NOTE:        The environment header should contain this line:
- *                  #define ACPI_THREAD_ID pthread_t
- *
  *****************************************************************************/
 
 ACPI_THREAD_ID
-AcpiOsGetThreadId (void)
+AcpiOsGetThreadId (
+    void)
 {
 
-    return (pthread_self ());
+    return (ACPI_CAST_PTHREAD_T (pthread_self()));
 }
 
 

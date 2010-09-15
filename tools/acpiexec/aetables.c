@@ -135,7 +135,7 @@ AeLocalGetRootPointer (
 
 /* Default DSDT. This will be replaced with the input DSDT */
 
-unsigned char DsdtCode[] =
+static unsigned char DsdtCode[] =
 {
     0x44,0x53,0x44,0x54,0x24,0x00,0x00,0x00,  /* 00000000    "DSDT$..." */
     0x02,0x6F,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    ".oIntel." */
@@ -144,7 +144,7 @@ unsigned char DsdtCode[] =
     0x04,0x12,0x08,0x20,
 };
 
-unsigned char LocalDsdtCode[] =
+static unsigned char LocalDsdtCode[] =
 {
     0x44,0x53,0x44,0x54,0x24,0x00,0x00,0x00,  /* 00000000    "DSDT$..." */
     0x02,0x2C,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    ".,Intel." */
@@ -155,7 +155,7 @@ unsigned char LocalDsdtCode[] =
 
 /* Several example SSDTs */
 
-unsigned char Ssdt1Code[] = /* Has method _T98 */
+static unsigned char Ssdt1Code[] = /* Has method _T98 */
 {
     0x53,0x53,0x44,0x54,0x30,0x00,0x00,0x00,  /* 00000000    "SSDT0..." */
     0x01,0xB8,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    "..Intel." */
@@ -165,7 +165,7 @@ unsigned char Ssdt1Code[] = /* Has method _T98 */
     0x39,0x38,0x00,0x70,0x0A,0x04,0x60,0xA4,  /* 00000028    "98.p..`." */
 };
 
-unsigned char Ssdt2Code[] = /* Has method _T99 */
+static unsigned char Ssdt2Code[] = /* Has method _T99 */
 {
     0x53,0x53,0x44,0x54,0x30,0x00,0x00,0x00,  /* 00000000    "SSDT0..." */
     0x01,0xB7,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    "..Intel." */
@@ -175,7 +175,7 @@ unsigned char Ssdt2Code[] = /* Has method _T99 */
     0x39,0x39,0x00,0x70,0x0A,0x04,0x60,0xA4,  /* 00000028    "99.p..`." */
 };
 
-unsigned char Ssdt3Code[] = /* Has method _T97 */
+unsigned char Ssdt3Code[] =     /* Has method _T97 */
 {
     0x54,0x53,0x44,0x54,0x30,0x00,0x00,0x00,  /* 00000000    "TSDT0..." */
     0x01,0xB8,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    "..Intel." */
@@ -187,7 +187,7 @@ unsigned char Ssdt3Code[] = /* Has method _T97 */
 
 /* Example OEM table */
 
-unsigned char Oem1Code[] =
+static unsigned char Oem1Code[] =
 {
     0x4F,0x45,0x4D,0x31,0x38,0x00,0x00,0x00,  /* 00000000    "OEM18..." */
     0x01,0x4B,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    ".KIntel." */
@@ -200,7 +200,7 @@ unsigned char Oem1Code[] =
 
 /* ASL source for this table is at the end of this file */
 
-unsigned char OemxCode[] =
+static unsigned char OemxCode[] =
 {
     0x4F,0x45,0x4D,0x58,0xB0,0x00,0x00,0x00,  /* 00000000    "OEMX...." */
     0x02,0x54,0x4D,0x79,0x4F,0x45,0x4D,0x00,  /* 00000008    ".TMyOEM." */
@@ -241,7 +241,7 @@ unsigned char OemxCode[] =
  *
  * Compiled byte code below.
  */
-unsigned char MethodCode[] =
+static unsigned char MethodCode[] =
 {
     0x44,0x53,0x44,0x54,0x53,0x00,0x00,0x00,  /* 00000000    "DSDTS..." */
     0x02,0xF9,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    "..Intel." */
@@ -262,19 +262,19 @@ unsigned char MethodCode[] =
  * even though the underlying OSD HW access functions don't do
  * anything.
  */
-ACPI_TABLE_HEADER           *DsdtToInstallOverride;
-ACPI_TABLE_RSDP             LocalRSDP;
-ACPI_TABLE_FADT             LocalFADT;
-ACPI_TABLE_FACS             LocalFACS;
-ACPI_TABLE_HEADER           LocalTEST;
-ACPI_TABLE_HEADER           LocalBADTABLE;
-ACPI_TABLE_RSDT             *LocalRSDT;
+static ACPI_TABLE_HEADER        *DsdtToInstallOverride;
+static ACPI_TABLE_RSDP          LocalRSDP;
+static ACPI_TABLE_FADT          LocalFADT;
+static ACPI_TABLE_FACS          LocalFACS;
+static ACPI_TABLE_HEADER        LocalTEST;
+static ACPI_TABLE_HEADER        LocalBADTABLE;
+static ACPI_TABLE_RSDT          *LocalRSDT;
 
-#define BASE_RSDT_TABLES    7
-#define BASE_RSDT_SIZE      (sizeof (ACPI_TABLE_RSDT) + ((BASE_RSDT_TABLES -1) * sizeof (UINT32)))
+#define BASE_RSDT_TABLES        7
+#define BASE_RSDT_SIZE          (sizeof (ACPI_TABLE_RSDT) + ((BASE_RSDT_TABLES -1) * sizeof (UINT32)))
 
-#define ACPI_MAX_INIT_TABLES (32)
-static ACPI_TABLE_DESC      Tables[ACPI_MAX_INIT_TABLES];
+#define ACPI_MAX_INIT_TABLES    (32)
+static ACPI_TABLE_DESC          Tables[ACPI_MAX_INIT_TABLES];
 
 
 /******************************************************************************
@@ -357,7 +357,7 @@ AeBuildLocalTables (
     LocalRSDT = AcpiOsAllocate (RsdtSize);
     if (!LocalRSDT)
     {
-        return AE_NO_MEMORY;
+        return (AE_NO_MEMORY);
     }
 
     ACPI_MEMSET (LocalRSDT, 0, RsdtSize);
@@ -398,7 +398,7 @@ AeBuildLocalTables (
             if (DsdtAddress)
             {
                 printf ("Already found a DSDT, only one allowed\n");
-                return AE_ALREADY_EXISTS;
+                return (AE_ALREADY_EXISTS);
             }
 
             /* The incoming user table is a DSDT */
@@ -488,20 +488,24 @@ AeBuildLocalTables (
         /* Miscellaneous FADT fields */
 
         LocalFADT.Gpe0BlockLength = 16;
+        LocalFADT.Gpe0Block = 0x00001234;
+
         LocalFADT.Gpe1BlockLength = 6;
+        LocalFADT.Gpe1Block = 0x00005678;
         LocalFADT.Gpe1Base = 96;
 
         LocalFADT.Pm1EventLength = 4;
-        LocalFADT.Pm1ControlLength = 2;
-        LocalFADT.PmTimerLength  = 4;
-
-        LocalFADT.Gpe0Block = 0x00001234;
-        LocalFADT.Gpe1Block = 0x00005678;
-
         LocalFADT.Pm1aEventBlock = 0x00001aaa;
         LocalFADT.Pm1bEventBlock = 0x00001bbb;
-        LocalFADT.PmTimerBlock = 0xA0;
+
+        LocalFADT.Pm1ControlLength = 2;
         LocalFADT.Pm1aControlBlock = 0xB0;
+
+        LocalFADT.PmTimerLength = 4;
+        LocalFADT.PmTimerBlock = 0xA0;
+
+        LocalFADT.Pm2ControlBlock = 0xC0;
+        LocalFADT.Pm2ControlLength = 1;
 
         /* Setup one example X-64 field */
 
@@ -566,9 +570,15 @@ AeInstallTables (
 {
     ACPI_STATUS             Status;
 
+
     Status = AcpiInitializeTables (Tables, ACPI_MAX_INIT_TABLES, TRUE);
+    AE_CHECK_OK (AcpiInitializeTables, Status);
+
     Status = AcpiReallocateRootTable ();
+    AE_CHECK_OK (AcpiReallocateRootTable, Status);
+
     Status = AcpiLoadTables ();
+    AE_CHECK_OK (AcpiLoadTables, Status);
 
     /*
      * Test run-time control method installation. Do it twice to test code

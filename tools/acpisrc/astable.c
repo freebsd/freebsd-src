@@ -378,6 +378,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_PARSE_STATE",                    SRC_TYPE_STRUCT},
     {"ACPI_PARSE_UPWARDS",                  SRC_TYPE_SIMPLE},
     {"ACPI_PARSE_VALUE",                    SRC_TYPE_UNION},
+    {"ACPI_PCI_DEVICE",                     SRC_TYPE_STRUCT},
     {"ACPI_PCI_ID",                         SRC_TYPE_STRUCT},
     {"ACPI_PCI_ROUTING_TABLE",              SRC_TYPE_STRUCT},
     {"ACPI_PHYSICAL_ADDRESS",               SRC_TYPE_SIMPLE},

@@ -117,8 +117,6 @@
 
 #include "aslcompiler.h"
 #include "aslcompiler.y.h"
-#include "amlcode.h"
-#include "acparser.h"
 #include "acpredef.h"
 
 

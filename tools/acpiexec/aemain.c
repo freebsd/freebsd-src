@@ -122,17 +122,18 @@
 #define _COMPONENT          PARSER
         ACPI_MODULE_NAME    ("aemain")
 
-UINT8           AcpiGbl_BatchMode = 0;
-UINT8           AcpiGbl_RegionFillValue = 0;
-BOOLEAN         AcpiGbl_IgnoreErrors = FALSE;
-BOOLEAN         AcpiGbl_DbOpt_NoRegionSupport = FALSE;
-BOOLEAN         AcpiGbl_DebugTimeout = FALSE;
-char            BatchBuffer[128];
-AE_TABLE_DESC   *AeTableListHead = NULL;
+
+UINT8                   AcpiGbl_RegionFillValue = 0;
+BOOLEAN                 AcpiGbl_IgnoreErrors = FALSE;
+BOOLEAN                 AcpiGbl_DbOpt_NoRegionSupport = FALSE;
+BOOLEAN                 AcpiGbl_DebugTimeout = FALSE;
+
+static UINT8            AcpiGbl_BatchMode = 0;
+static char             BatchBuffer[128];
+static AE_TABLE_DESC    *AeTableListHead = NULL;
 
 #define ASL_MAX_FILES   256
-char                    *FileList[ASL_MAX_FILES];
-int                     FileCount;
+static char             *FileList[ASL_MAX_FILES];
 
 
 #define AE_SUPPORTED_OPTIONS    "?b:d:e:f:gm^ovx:"
@@ -202,6 +203,7 @@ AcpiDbRunBatchMode (
     char                    *Ptr = BatchBuffer;
     char                    *Cmd = Ptr;
     UINT8                   Run = 0;
+
 
     AcpiGbl_MethodExecuting = FALSE;
     AcpiGbl_StepToNextCall = FALSE;
@@ -360,6 +362,7 @@ AsDoWildcard (
 #ifdef WIN32
     void                    *DirInfo;
     char                    *Filename;
+    int                     FileCount;
 
 
     FileCount = 0;
@@ -441,7 +444,7 @@ main (
     ACPI_TABLE_HEADER       *Table = NULL;
     UINT32                  TableCount;
     AE_TABLE_DESC           *TableDesc;
-    char                    **FileList;
+    char                    **WildcardList;
     char                    *Filename;
     char                    *Directory;
     char                    *FullPathname;
@@ -459,7 +462,7 @@ main (
     if (argc < 2)
     {
         usage ();
-        return 0;
+        return (0);
     }
 
     signal (SIGINT, AeCtrlCHandler);
@@ -471,7 +474,8 @@ main (
 
     /* Init ACPI and start debugger thread */
 
-    AcpiInitializeSubsystem ();
+    Status = AcpiInitializeSubsystem ();
+    AE_CHECK_OK (AcpiInitializeSubsystem, Status);
 
     /* Get the command line options */
 
@@ -482,7 +486,7 @@ main (
         {
             printf ("**** The length of command line (%u) exceeded maximum (127)\n",
                 (UINT32) strlen (AcpiGbl_Optarg));
-            return -1;
+            return (-1);
         }
         AcpiGbl_BatchMode = 1;
         strcpy (BatchBuffer, AcpiGbl_Optarg);
@@ -586,7 +590,7 @@ main (
     case 'h':
     default:
         usage();
-        return -1;
+        return (-1);
     }
 
 
@@ -617,21 +621,21 @@ main (
 
             /* Expand wildcards (Windows only) */
 
-            FileList = AsDoWildcard (Directory, Filename);
-            if (!FileList)
+            WildcardList = AsDoWildcard (Directory, Filename);
+            if (!WildcardList)
             {
-                return -1;
+                return (-1);
             }
 
-            while (*FileList)
+            while (*WildcardList)
             {
                 FullPathname = AcpiOsAllocate (
-                    strlen (Directory) + strlen (*FileList) + 1);
+                    strlen (Directory) + strlen (*WildcardList) + 1);
 
                 /* Construct a full path to the file */
 
                 strcpy (FullPathname, Directory);
-                strcat (FullPathname, *FileList);
+                strcat (FullPathname, *WildcardList);
 
                 /* Get one table */
 
@@ -644,9 +648,9 @@ main (
                 }
 
                 AcpiOsFree (FullPathname);
-                AcpiOsFree (*FileList);
-                *FileList = NULL;
-                FileList++;
+                AcpiOsFree (*WildcardList);
+                *WildcardList = NULL;
+                WildcardList++;
 
                 /*
                  * Ignore an FACS or RSDT, we can't use them.
@@ -676,7 +680,7 @@ main (
         Status = AeBuildLocalTables (TableCount, AeTableListHead);
         if (ACPI_FAILURE (Status))
         {
-            return -1;
+            return (-1);
         }
 
         Status = AeInstallTables ();
@@ -730,6 +734,6 @@ enterloop:
         AcpiDbUserCommands (ACPI_DEBUGGER_COMMAND_PROMPT, NULL);
     }
 
-    return 0;
+    return (0);
 }
 

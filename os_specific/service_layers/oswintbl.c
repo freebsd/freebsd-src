@@ -116,16 +116,13 @@
 
 #ifdef WIN32
 #pragma warning(disable:4115)   /* warning C4115: (caused by rpcasync.h) */
-
 #include <windows.h>
-#include <winbase.h>
 
 #elif WIN64
 #include <windowsx.h>
 #endif
 
 #include "acpi.h"
-#include "accommon.h"
 
 #define _COMPONENT          ACPI_OS_SERVICES
         ACPI_MODULE_NAME    ("oswintbl")

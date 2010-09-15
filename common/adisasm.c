@@ -147,18 +147,18 @@ LsSetupNsList (
 
 /* Local prototypes */
 
-void
+static void
 AdCreateTableHeader (
     char                    *Filename,
     ACPI_TABLE_HEADER       *Table);
 
-ACPI_STATUS
+static ACPI_STATUS
 AdDeferredParse (
     ACPI_PARSE_OBJECT       *Op,
     UINT8                   *Aml,
     UINT32                  AmlLength);
 
-ACPI_STATUS
+static ACPI_STATUS
 AdParseDeferredOps (
     ACPI_PARSE_OBJECT       *Root);
 
@@ -634,7 +634,7 @@ AdDisassemblerHeader (
  *
  *****************************************************************************/
 
-void
+static void
 AdCreateTableHeader (
     char                    *Filename,
     ACPI_TABLE_HEADER       *Table)
@@ -781,7 +781,7 @@ AdDisplayTables (
  *
  *****************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AdDeferredParse (
     ACPI_PARSE_OBJECT       *Op,
     UINT8                   *Aml,
@@ -904,7 +904,7 @@ AdDeferredParse (
  *
  *****************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AdParseDeferredOps (
     ACPI_PARSE_OBJECT       *Root)
 {

@@ -116,8 +116,9 @@
 #ifndef __ACMSVC_H__
 #define __ACMSVC_H__
 
-#define COMPILER_DEPENDENT_INT64   __int64
-#define COMPILER_DEPENDENT_UINT64  unsigned __int64
+#define COMPILER_DEPENDENT_INT64    __int64
+#define COMPILER_DEPENDENT_UINT64   unsigned __int64
+#define ACPI_INLINE                 __inline
 
 /*
  * Calling conventions:
@@ -178,6 +179,5 @@
 
 /* warn C4131: uses old-style declarator (iASL compiler only) */
 #pragma warning(disable:4131)
-
 
 #endif /* __ACMSVC_H__ */

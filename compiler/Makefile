@@ -151,6 +151,7 @@ OBJS = \
 	utobject.o \
 	utresrc.o \
 	utstate.o \
+	utxferror.o \
 	utxface.o
 
 INTERMEDIATES = \
@@ -563,6 +564,9 @@ utresrc.o :         $(ACPICA_CORE)/utilities/utresrc.c
 	$(COMPILE)
 
 utstate.o :         $(ACPICA_CORE)/utilities/utstate.c
+	$(COMPILE)
+
+utxferror.o :       $(ACPICA_CORE)/utilities/utxferror.c
 	$(COMPILE)
 
 utxface.o :         $(ACPICA_CORE)/utilities/utxface.c
