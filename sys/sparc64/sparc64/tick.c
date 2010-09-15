@@ -42,9 +42,13 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
+#include <machine/smp.h>
 #include <machine/tick.h>
 #include <machine/ver.h>
 
@@ -76,10 +80,15 @@ u_int hardclock_use_stick = 0;
 SYSCTL_INT(_machdep_tick, OID_AUTO, hardclock_use_stick, CTLFLAG_RD,
     &hardclock_use_stick, 0, "hardclock uses STICK instead of TICK timer");
 
+static struct timecounter stick_tc;
 static struct timecounter tick_tc;
 static u_long tick_increment;
 
 static uint64_t tick_cputicks(void);
+static timecounter_get_t stick_get_timecount_up;
+#ifdef SMP
+static timecounter_get_t stick_get_timecount_mp;
+#endif
 static timecounter_get_t tick_get_timecount_up;
 #ifdef SMP
 static timecounter_get_t tick_get_timecount_mp;
@@ -101,25 +110,31 @@ tick_cputicks(void)
 void
 cpu_initclocks(void)
 {
-	uint32_t clock;
+	uint32_t clock, sclock;
 
 	stathz = hz;
 
+	clock = PCPU_GET(clock);
+	sclock = 0;
+	if (PCPU_GET(impl) == CPU_IMPL_SPARC64V ||
+	    PCPU_GET(impl) >= CPU_IMPL_ULTRASPARCIII) {
+		if (OF_getprop(OF_parent(PCPU_GET(node)), "stick-frequency",
+		    &sclock, sizeof(sclock)) == -1) {
+			panic("%s: could not determine STICK frequency",
+			    __func__);
+		}
+	}
 	/*
 	 * Given that the STICK timers typically are driven at rather low
 	 * frequencies they shouldn't be used except when really necessary.
 	 */
 	if (hardclock_use_stick != 0) {
-		if (OF_getprop(OF_parent(PCPU_GET(node)), "stick-frequency",
-		    &clock, sizeof(clock)) == -1)
-		panic("%s: could not determine STICK frequency", __func__);
 		intr_setup(PIL_TICK, stick_hardclock, -1, NULL, NULL);
 		/*
 		 * We don't provide a CPU ticker as long as the frequency
 		 * supplied isn't actually used per-CPU.
 		 */
 	} else {
-		clock = PCPU_GET(clock);
 		intr_setup(PIL_TICK, PCPU_GET(impl) >= CPU_IMPL_ULTRASPARCI &&
 		    PCPU_GET(impl) < CPU_IMPL_ULTRASPARCIII ?
 		    tick_hardclock_bbwar : tick_hardclock, -1, NULL, NULL);
@@ -136,31 +151,45 @@ cpu_initclocks(void)
 	tick_start();
 
 	/*
-	 * Initialize the TICK-based timecounter.  This must not happen
-	 * before SI_SUB_INTRINSIC for tick_get_timecount_mp() to work.
+	 * Initialize the (S)TICK-based timecounter(s).
+	 * Note that we (try to) sync the (S)TICK timers of APs with the BSP
+	 * during their startup but not afterwards.  The resulting drift can
+	 * cause problems when the time is calculated based on (S)TICK values
+	 * read on different CPUs.  Thus we always read the register on the
+	 * BSP (if necessary via an IPI as sched_bind(9) isn't available in
+	 * all circumstances) and use a low quality for the otherwise high
+	 * quality (S)TICK timers in the MP case.
 	 */
 	tick_tc.tc_get_timecount = tick_get_timecount_up;
 	tick_tc.tc_poll_pps = NULL;
 	tick_tc.tc_counter_mask = ~0u;
-	tick_tc.tc_frequency = PCPU_GET(clock);
+	tick_tc.tc_frequency = clock;
 	tick_tc.tc_name = "tick";
 	tick_tc.tc_quality = TICK_QUALITY_UP;
 	tick_tc.tc_priv = NULL;
 #ifdef SMP
-	/*
-	 * We (try to) sync the (S)TICK timers of APs with the BSP during
-	 * their startup but not afterwards.  The resulting drift can
-	 * cause problems when the time is calculated based on (S)TICK
-	 * values read on different CPUs.  Thus we bind to the BSP for
-	 * reading the register and use a low quality for the otherwise
-	 * high quality (S)TICK timers in the MP case.
-	 */
 	if (cpu_mp_probe()) {
 		tick_tc.tc_get_timecount = tick_get_timecount_mp;
 		tick_tc.tc_quality = TICK_QUALITY_MP;
 	}
 #endif
 	tc_init(&tick_tc);
+	if (sclock != 0) {
+		stick_tc.tc_get_timecount = stick_get_timecount_up;
+		stick_tc.tc_poll_pps = NULL;
+		stick_tc.tc_counter_mask = ~0u;
+		stick_tc.tc_frequency = sclock;
+		stick_tc.tc_name = "stick";
+		stick_tc.tc_quality = TICK_QUALITY_UP;
+		stick_tc.tc_priv = NULL;
+#ifdef SMP
+		if (cpu_mp_probe()) {
+			stick_tc.tc_get_timecount = stick_get_timecount_mp;
+			stick_tc.tc_quality = TICK_QUALITY_MP;
+		}
+#endif
+		tc_init(&stick_tc);
+	}
 }
 
 static inline void
@@ -266,6 +295,13 @@ tick_hardclock_common(struct trapframe *tf, u_long tick, u_long adj)
 }
 
 static u_int
+stick_get_timecount_up(struct timecounter *tc)
+{
+
+	return ((u_int)rdstick());
+}
+
+static u_int
 tick_get_timecount_up(struct timecounter *tc)
 {
 
@@ -274,22 +310,30 @@ tick_get_timecount_up(struct timecounter *tc)
 
 #ifdef SMP
 static u_int
+stick_get_timecount_mp(struct timecounter *tc)
+{
+	u_long stick;
+
+	sched_pin();
+	if (curcpu == 0)
+		stick = rdstick();
+	else
+		ipi_wait(ipi_rd(0, tl_ipi_stick_rd, &stick));
+	sched_unpin();
+	return (stick);
+}
+
+static u_int
 tick_get_timecount_mp(struct timecounter *tc)
 {
-	struct thread *td;
-	u_int tick;
+	u_long tick;
 
-	td = curthread;
-	thread_lock(td);
-	sched_bind(td, 0);
-	thread_unlock(td);
-
-	tick = tick_get_timecount_up(tc);
-
-	thread_lock(td);
-	sched_unbind(td);
-	thread_unlock(td);
-
+	sched_pin();
+	if (curcpu == 0)
+		tick = rd(tick);
+	else
+		ipi_wait(ipi_rd(0, tl_ipi_tick_rd, &tick));
+	sched_unpin();
 	return (tick);
 }
 #endif
