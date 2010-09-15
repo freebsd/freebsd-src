@@ -4843,7 +4843,10 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 					sp->tail_mbuf = NULL;
 				}
 			}
-			sctp_free_remote_addr(sp->net);
+			if (sp->net) {
+				sctp_free_remote_addr(sp->net);
+				sp->net = NULL;
+			}
 			sctp_free_spbufspace(stcb, asoc, sp);
 			if (sp->holds_key_ref)
 				sctp_auth_key_release(stcb, sp->auth_keyid);
@@ -4914,7 +4917,10 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			if (chk->holds_key_ref)
 				sctp_auth_key_release(stcb, chk->auth_keyid);
 			ccnt++;
-			sctp_free_remote_addr(chk->whoTo);
+			if (chk->whoTo) {
+				sctp_free_remote_addr(chk->whoTo);
+				chk->whoTo = NULL;
+			}
 			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
 			SCTP_DECR_CHK_COUNT();
 			/* sa_ignore FREED_MEMORY */
