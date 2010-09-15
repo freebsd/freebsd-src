@@ -264,6 +264,11 @@ thread_start(struct pthread *curthread)
 		__sys_sigprocmask(SIG_SETMASK, &set, NULL);
 	}
 
+#ifdef _PTHREAD_FORCED_UNWIND
+	curthread->unwind_stackend = (char *)curthread->attr.stackaddr_attr +
+		curthread->attr.stacksize_attr;
+#endif
+
 	/* Run the current thread's start routine with argument: */
 	_pthread_exit(curthread->start_routine(curthread->arg));
 

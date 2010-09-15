@@ -413,6 +413,10 @@ init_main_thread(struct pthread *thread)
 		 &sched_param);
 	thread->attr.prio = sched_param.sched_priority;
 
+#ifdef _PTHREAD_FORCED_UNWIND
+	thread->unwind_stackend = _usrstack;
+#endif
+
 	/* Others cleared to zero by thr_alloc() */
 }
 
