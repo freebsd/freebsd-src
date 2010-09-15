@@ -319,10 +319,9 @@ struct aac_softc
 	/* controller features, limits and status */
 	int			aac_state;
 #define AAC_STATE_SUSPEND	(1<<0)
-#define	AAC_STATE_OPEN		(1<<1)
+#define	AAC_STATE_UNUSED0	(1<<1)
 #define AAC_STATE_INTERRUPTS_ON	(1<<2)
 #define AAC_STATE_AIF_SLEEPER	(1<<3)
-	int			aac_open_cnt;
 	struct FsaRevision		aac_revision;
 
 	/* controller hardware interface */
