@@ -474,12 +474,7 @@ static mmu_method_t moea64_methods[] = {
 	{ 0, 0 }
 };
 
-static mmu_def_t oea64_mmu = {
-	MMU_TYPE_G5,
-	moea64_methods,
-	0
-};
-MMU_DEF(oea64_mmu);
+MMU_DEF(oea64_mmu, MMU_TYPE_G5, moea64_methods, 0);
 
 static __inline u_int
 va_to_pteg(uint64_t vsid, vm_offset_t addr, int large)
