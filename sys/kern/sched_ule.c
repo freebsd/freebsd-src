@@ -1885,10 +1885,16 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		srqflag = (flags & SW_PREEMPT) ?
 		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 		    SRQ_OURSELF|SRQ_YIELDING;
+		if (THREAD_CAN_MIGRATE(td) && !THREAD_CAN_SCHED(td, ts->ts_cpu))
+			ts->ts_cpu = sched_pickcpu(td, 0);
 		if (ts->ts_cpu == cpuid)
 			tdq_add(tdq, td, srqflag);
-		else
+		else {
+			KASSERT(THREAD_CAN_MIGRATE(td) ||
+			    (ts->ts_flags & TSF_BOUND) != 0,
+			    ("Thread %p shouldn't migrate", td));
 			mtx = sched_switch_migrate(tdq, td, srqflag);
+		}
 	} else {
 		/* This thread must be going to sleep. */
 		TDQ_LOCK(tdq);
@@ -2536,7 +2542,6 @@ sched_affinity(struct thread *td)
 {
 #ifdef SMP
 	struct td_sched *ts;
-	int cpu;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
@@ -2550,17 +2555,13 @@ sched_affinity(struct thread *td)
 	if (!TD_IS_RUNNING(td))
 		return;
 	td->td_flags |= TDF_NEEDRESCHED;
-	if (!THREAD_CAN_MIGRATE(td))
-		return;
 	/*
-	 * Assign the new cpu and force a switch before returning to
-	 * userspace.  If the target thread is not running locally send
-	 * an ipi to force the issue.
+	 * Force a switch before returning to userspace.  If the
+	 * target thread is not running locally send an ipi to force
+	 * the issue.
 	 */
-	cpu = ts->ts_cpu;
-	ts->ts_cpu = sched_pickcpu(td, 0);
-	if (cpu != PCPU_GET(cpuid))
-		ipi_selected(1 << cpu, IPI_PREEMPT);
+	if (td != curthread)
+		ipi_selected(1 << ts->ts_cpu, IPI_PREEMPT);
 #endif
 }
 
@@ -2577,6 +2578,7 @@ sched_bind(struct thread *td, int cpu)
 	ts = td->td_sched;
 	if (ts->ts_flags & TSF_BOUND)
 		sched_unbind(td);
+	KASSERT(THREAD_CAN_MIGRATE(td), ("%p must be migratable", td));
 	ts->ts_flags |= TSF_BOUND;
 #ifdef SMP
 	sched_pin();
