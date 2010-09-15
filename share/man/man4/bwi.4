@@ -90,6 +90,20 @@ driver supports Broadcom BCM43xx based wireless devices, including:
 .It "TRENDnet TEW-401PCplus	BCM4306	CardBus	b/g"
 .It "US Robotics 5411	BCM4318	CardBus	b/g"
 .El
+.Pp
+The 
+.Nm 
+driver uses the older v3 version of Broadcom's firmware.
+While this older firmware does support most BCM43xx parts, the
+.Xr bwn 4 
+driver works better for the newer chips it supports.
+You must use the 
+.Nm 
+driver if you are using older Broadcom chipsets (BCM4301, BCM4303 and
+BCM4306 rev 2).
+The v4 version of the firmware that 
+.Xr bwn 4 
+uses does not support these chips.
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
