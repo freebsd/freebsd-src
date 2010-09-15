@@ -281,6 +281,10 @@ NFS_ROOT	opt_nfsroot.h
 # SMB/CIFS requester
 NETSMB		opt_netsmb.h
 
+# Netdump client kernel support
+NETDUMP_CLIENT		opt_netdump.h
+NETDUMP_CLIENT_DEBUG	opt_netdump.h
+
 # Options used only in subr_param.c.
 HZ		opt_param.h
 MAXFILES	opt_param.h

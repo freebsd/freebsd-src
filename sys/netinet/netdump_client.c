@@ -34,9 +34,7 @@
 
 #include "opt_ddb.h"
 #include "opt_device_polling.h"
-#if 0
 #include "opt_netdump.h"
-#endif
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -90,10 +88,10 @@
 #error "Netdump kernel support cannot be compiled with VIMAGE option"
 #endif
 
-#ifdef NETDUMP_DEBUG
+#ifdef NETDUMP_CLIENT_DEBUG
 #define	NETDDEBUG(f, ...)		printf((f), ## __VA_ARGS__)
 #define	NETDDEBUG_IF(i, f, ...)		if_printf((i), (f), ## __VA_ARGS__)
-#if NETDUMP_DEBUG > 1
+#if NETDUMP_CLIENT_DEBUG > 1
 #define	NETDDEBUGV(f, ...)		printf((f), ## __VA_ARGS__)
 #define	NETDDEBUGV_IF(i, f, ...)	if_printf((i), (f), ## __VA_ARGS__)
 #else
@@ -127,7 +125,7 @@ static int	 netdump_send_arp(void);
 static void	 netdump_trigger(void *arg, int howto);
 static int	 netdump_udp_output(struct mbuf *m);
 
-#ifdef NETDUMP_DEBUG
+#ifdef NETDUMP_CLIENT_DEBUG
 static int	 sysctl_force_crash(SYSCTL_HANDLER_ARGS);
 #endif
 static int	 sysctl_ip(SYSCTL_HANDLER_ARGS);
@@ -273,7 +271,7 @@ sysctl_nic(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-#ifdef NETDUMP_DEBUG
+#ifdef NETDUMP_CLIENT_DEBUG
 static int
 sysctl_force_crash(SYSCTL_HANDLER_ARGS) 
 {
@@ -330,8 +328,8 @@ SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT|CTLFLAG_RW, &nd_retries, 0,
 SYSCTL_INT(_net_dump, OID_AUTO, enable, CTLTYPE_INT|CTLFLAG_RW, &nd_enable,
 	0, "enable network dump");
 TUNABLE_INT("net.dump.enable", &nd_enable);
-#ifdef NETDUMP_DEBUG
-SYSCTL_DECL(_debug_netdump);
+#ifdef NETDUMP_CLIENT_DEBUG
+SYSCTL_NODE(_debug, OID_AUTO, netdump, CTLFLAG_RW, NULL, "Netdump debugging");
 SYSCTL_PROC(_debug_netdump, OID_AUTO, crash, CTLTYPE_INT|CTLFLAG_RW, 0,
     sizeof(int), sysctl_force_crash, "I", "force crashing");
 #endif
@@ -1316,7 +1314,7 @@ netdump_modevent(module_t mod, int type, void *unused)
 
 		netdump_config_defaults();
 
-#ifdef NETDUMP_DEBUG
+#ifdef NETDUMP_CLIENT_DEBUG
 		if (!nd_nic)
 			printf("netdump: Warning: No default interface "
 			    "found. Manual configuration required.\n");
