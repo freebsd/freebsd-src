@@ -891,6 +891,11 @@ void	if_deregister_com_alloc(u_char type);
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
 
+/*
+ * Keep enum poll_cmd and poll_handler_t specification unconditional from
+ * DEVICE_POLLING because other modules may be needing them as well
+ * (where the most notable one is netdump).
+ */
 enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS };
 
 typedef	int poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
