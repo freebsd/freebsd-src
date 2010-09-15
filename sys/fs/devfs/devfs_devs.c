@@ -275,17 +275,68 @@ devfs_dirent_free(struct devfs_dirent *de)
 }
 
 /*
+ * Removes a directory if it is empty. Also empty parent directories are
+ * removed recursively.
+ */
+static void
+devfs_rmdir_empty(struct devfs_mount *dm, struct devfs_dirent *de)
+{
+	struct devfs_dirent *dd, *de_dot, *de_dotdot;
+
+	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
+	for (;;) {
+		KASSERT(de->de_dirent->d_type == DT_DIR,
+		    ("devfs_rmdir_empty: de is not a directory"));
+
+		if ((de->de_flags & DE_DOOMED) != 0 || de == dm->dm_rootdir)
+			return;
+
+		de_dot = TAILQ_FIRST(&de->de_dlist);
+		KASSERT(de_dot != NULL, ("devfs_rmdir_empty: . missing"));
+		de_dotdot = TAILQ_NEXT(de_dot, de_list);
+		KASSERT(de_dotdot != NULL, ("devfs_rmdir_empty: .. missing"));
+		/* Return if the directory is not empty. */
+		if (TAILQ_NEXT(de_dotdot, de_list) != NULL)
+			return;
+
+		dd = devfs_parent_dirent(de);
+		KASSERT(dd != NULL, ("devfs_rmdir_empty: NULL dd"));
+		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
+		DEVFS_DE_HOLD(dd);
+		devfs_delete(dm, de, DEVFS_DEL_NORECURSE);
+		devfs_delete(dm, de_dot, DEVFS_DEL_NORECURSE);
+		devfs_delete(dm, de_dotdot, DEVFS_DEL_NORECURSE);
+		if (DEVFS_DE_DROP(dd)) {
+			devfs_dirent_free(dd);
+			return;
+		}
+
+		de = dd;
+	}
+}
+
+/*
  * The caller needs to hold the dm for the duration of the call since
  * dm->dm_lock may be temporary dropped.
  */
 void
-devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
+devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int flags)
 {
+	struct devfs_dirent *dd;
 	struct vnode *vp;
 
 	KASSERT((de->de_flags & DE_DOOMED) == 0,
 		("devfs_delete doomed dirent"));
 	de->de_flags |= DE_DOOMED;
+
+	if ((flags & DEVFS_DEL_NORECURSE) == 0) {
+		dd = devfs_parent_dirent(de);
+		if (dd != NULL)
+			DEVFS_DE_HOLD(dd);
+	} else
+		dd = NULL;
+
 	mtx_lock(&devfs_de_interlock);
 	vp = de->de_vnode;
 	if (vp != NULL) {
@@ -293,12 +344,12 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 		mtx_unlock(&devfs_de_interlock);
 		vholdl(vp);
 		sx_unlock(&dm->dm_lock);
-		if (!vp_locked)
+		if ((flags & DEVFS_DEL_VNLOCKED) == 0)
 			vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY);
 		else
 			VI_UNLOCK(vp);
 		vgone(vp);
-		if (!vp_locked)
+		if ((flags & DEVFS_DEL_VNLOCKED) == 0)
 			VOP_UNLOCK(vp, 0);
 		vdrop(vp);
 		sx_xlock(&dm->dm_lock);
@@ -317,6 +368,13 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 	}
 	if (DEVFS_DE_DROP(de))
 		devfs_dirent_free(de);
+
+	if (dd != NULL) {
+		if (DEVFS_DE_DROP(dd))
+			devfs_dirent_free(dd);
+		else
+			devfs_rmdir_empty(dm, dd);
+	}
 }
 
 /*
@@ -331,19 +389,24 @@ devfs_purge(struct devfs_mount *dm, struct devfs_dirent *dd)
 	struct devfs_dirent *de;
 
 	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
+	DEVFS_DE_HOLD(dd);
 	for (;;) {
 		de = TAILQ_FIRST(&dd->de_dlist);
 		if (de == NULL)
 			break;
 		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
-		if (de->de_flags & (DE_DOT|DE_DOTDOT))
-			devfs_delete(dm, de, 0);
+		if (de->de_flags & (DE_DOT | DE_DOTDOT))
+			devfs_delete(dm, de, DEVFS_DEL_NORECURSE);
 		else if (de->de_dirent->d_type == DT_DIR)
 			devfs_purge(dm, de);
-		else 
-			devfs_delete(dm, de, 0);
+		else
+			devfs_delete(dm, de, DEVFS_DEL_NORECURSE);
 	}
-	devfs_delete(dm, dd, 0);
+	if (DEVFS_DE_DROP(dd))
+		devfs_dirent_free(dd);
+	else if ((dd->de_flags & DE_DOOMED) == 0)
+		devfs_delete(dm, dd, DEVFS_DEL_NORECURSE);
 }
 
 /*

@@ -170,12 +170,15 @@ extern unsigned devfs_rule_depth;
 #define DEVFS_DMP_HOLD(dmp)	((dmp)->dm_holdcnt++)
 #define DEVFS_DMP_DROP(dmp)	(--(dmp)->dm_holdcnt == 0)
 
+#define	DEVFS_DEL_VNLOCKED	0x01
+#define	DEVFS_DEL_NORECURSE	0x02
+
 void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
 void devfs_rules_cleanup (struct devfs_mount *dm);
 int devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct thread *td);
 int devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
     struct vnode **vpp);
-void devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked);
+void devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int flags);
 void devfs_dirent_free(struct devfs_dirent *de);
 void devfs_populate (struct devfs_mount *dm);
 void devfs_cleanup (struct devfs_mount *dm);
