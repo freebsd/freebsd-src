@@ -905,7 +905,7 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 		return (-EINVAL);
 	}
 	obj = out.Pointer;
-	if (!obj && obj->Type != ACPI_TYPE_PACKAGE) {
+	if (!obj || obj->Type != ACPI_TYPE_PACKAGE) {
 		acpi_hp_free_buffer(&out);
 		return (-EINVAL);
 	}
