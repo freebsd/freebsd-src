@@ -3803,9 +3803,6 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 					mtu -= sizeof(struct udphdr);
 				}
 				if (mtu && (stcb->asoc.smallest_mtu > mtu)) {
-#ifdef SCTP_PRINT_FOR_B_AND_M
-					SCTP_PRINTF("sctp_mtu_size_reset called after ip_output mtu-change:%d\n", mtu);
-#endif
 					sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
 					net->mtu = mtu;
 				}
@@ -4134,10 +4131,6 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, ro->ro_rt);
 				if (mtu &&
 				    (stcb->asoc.smallest_mtu > mtu)) {
-#ifdef SCTP_PRINT_FOR_B_AND_M
-					SCTP_PRINTF("sctp_mtu_size_reset called after ip6_output mtu-change:%d\n",
-					    mtu);
-#endif
 					sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
 					net->mtu = mtu;
 					if (net->port) {
@@ -4147,10 +4140,6 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			} else if (ifp) {
 				if (ND_IFINFO(ifp)->linkmtu &&
 				    (stcb->asoc.smallest_mtu > ND_IFINFO(ifp)->linkmtu)) {
-#ifdef SCTP_PRINT_FOR_B_AND_M
-					SCTP_PRINTF("sctp_mtu_size_reset called via ifp ND_IFINFO() linkmtu:%d\n",
-					    ND_IFINFO(ifp)->linkmtu);
-#endif
 					sctp_mtu_size_reset(inp,
 					    &stcb->asoc,
 					    ND_IFINFO(ifp)->linkmtu);
