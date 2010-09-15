@@ -34,10 +34,13 @@
 
 #include "opt_ddb.h"
 #include "opt_device_polling.h"
+#if 0
 #include "opt_netdump.h"
+#endif
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -63,7 +66,9 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_options.h>
 #include <netinet/in_var.h>
+#include <netinet/netdump.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <machine/md_var.h>
@@ -75,7 +80,6 @@
 #include <machine/_inttypes.h>
 #include <net/if_media.h>
 #include <net/if_mib.h>
-#include <net/netdump.h>
 #include <machine/clock.h>
 
 #ifdef DDB
@@ -147,6 +151,24 @@ struct ifnet *nd_nic = NULL;
 static int nd_polls=10000; /* Times to poll the NIC (0.5ms each poll) before
 			    * assuming packetloss occurred: 5s by default */
 static int nd_retries=10; /* Times to retransmit lost packets */
+
+/*
+ * [ether_set_broadcast]
+ *
+ * Fills up an ethernet address as broadcast
+ *
+ * Parameters:
+ *	addr	The ethernet address to be filled up
+ *
+ * Returns:
+ *	void
+ */
+static __inline void
+ether_set_broadcast(struct ether_addr *addr)
+{
+
+	memset(addr, 0xFF, ETHER_ADDR_LEN);
+}
 
 /*
  * [netdump_supported_nic]
@@ -493,7 +515,7 @@ netdump_send_arp()
 	struct arphdr *ah;
 	struct ether_addr bcast;
 
-	ETHER_SET_BROADCAST(&bcast);
+	ether_set_broadcast(&bcast);
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
@@ -618,7 +640,7 @@ retransmit:
 		nd_msg_hdr = mtod(m, struct netdump_msg_hdr *);
 		nd_msg_hdr->seqno = htonl(nd_seqno+i);
 		nd_msg_hdr->type = htonl(type);
-		nd_msg_hdr->offset = htonll(offset+sent_so_far);
+		nd_msg_hdr->offset = htobe64(offset + sent_so_far);
 		nd_msg_hdr->len = htonl(pktlen);
 		nd_msg_hdr->_pad = 0;
 
@@ -629,7 +651,7 @@ retransmit:
 				return ENOBUFS;
 			}
 			MEXTADD(m2, data+sent_so_far, pktlen, netdump_mbuf_nop,
-				NULL, M_RDONLY, EXT_MOD_TYPE);
+				NULL, NULL, M_RDONLY, EXT_MOD_TYPE);
 			m2->m_len = pktlen;
 			m->m_next = m2;
 			m->m_pkthdr.len += m2->m_len;
@@ -783,7 +805,7 @@ nd_handle_ip(struct mbuf **mb)
 	/* We would process IP options here, but we'll ignore them instead. */
 	/* Strip IP options */
 	if (hlen > sizeof(struct ip)) {
-		ip_stripoptions(m, (struct mbuf *)0);
+		ip_stripoptions(m, NULL);
 		hlen = sizeof(struct ip);
 	}
 
@@ -900,9 +922,9 @@ nd_handle_arp(struct mbuf **mb)
 	ah = mtod(m, struct arphdr *);
 
 	if (ntohs(ah->ar_hrd) != ARPHRD_ETHER &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE802 &&
-	    ntohs(ar->ar_hrd) != ARPHRD_ARCNET &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394) {
+	    ntohs(ah->ar_hrd) != ARPHRD_IEEE802 &&
+	    ntohs(ah->ar_hrd) != ARPHRD_ARCNET &&
+	    ntohs(ah->ar_hrd) != ARPHRD_IEEE1394) {
 		NETDDEBUG("nd_handle_arp: unknown hardware address fmt "
 		    "0x%2D)\n", (unsigned char *)&ah->ar_hrd, "");
 		return;
@@ -1038,8 +1060,7 @@ netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
 	eh = mtod(m, struct ether_header *);
 	m->m_pkthdr.header = eh;
 	etype = ntohs(eh->ether_type);
-	if ((ifp->if_nvlans && m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL))
-	    || etype == ETHERTYPE_VLAN) {
+	if ((m->m_flags & M_VLANTAG) != 0 || etype == ETHERTYPE_VLAN) {
 		NETDDEBUG_IF(ifp, "ignoring vlan packets\n");
 		goto done;
 	}
@@ -1156,7 +1177,6 @@ netdump_trigger(void *arg, int howto)
 {
 	struct dumperinfo dumper;
 	void (*old_if_input)(struct ifnet *, struct mbuf *)=NULL;
-	int error;
 
 	if ((howto&(RB_HALT|RB_DUMP))!=RB_DUMP || !nd_enable || cold ||
 	    dumping)

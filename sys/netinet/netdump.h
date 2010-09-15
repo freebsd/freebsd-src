@@ -61,11 +61,13 @@ struct netdump_msg {
 
 #ifdef _KERNEL
 
+typedef void ndumplock_handler_t(struct ifnet *);
+
 struct netdump_methods {
-	void	(*test_get_lock)(struct ifnet *);
-	void	(*acquire_lock)(struct ifnet *);
-	void	(*release_lock)(struct ifnet *);
-	int	(*poll_locked)(struct ifnet *, enum poll_cmd, int);
+	ndumplock_handler_t	*test_get_lock;
+	ndumplock_handler_t	*acquire_lock;
+	ndumplock_handler_t	*release_lock;
+	poll_handler_t		*poll_locked;
 };
 
 #endif

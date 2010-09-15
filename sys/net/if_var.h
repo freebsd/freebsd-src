@@ -891,10 +891,11 @@ void	if_deregister_com_alloc(u_char type);
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
 
-#ifdef DEVICE_POLLING
 enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS };
 
 typedef	int poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
+
+#ifdef DEVICE_POLLING
 int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
 int    ether_poll_deregister(struct ifnet *ifp);
 #endif /* DEVICE_POLLING */
