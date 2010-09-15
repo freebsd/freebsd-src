@@ -298,7 +298,6 @@ sctp_init_vrf_list(int vrfid)
 void
 sctp_addr_change(struct ifaddr *ifa, int cmd)
 {
-	struct sctp_ifa *ifap = NULL;
 	uint32_t ifa_flags = 0;
 
 	/*
@@ -339,7 +338,7 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		return;
 	}
 	if (cmd == RTM_ADD) {
-		ifap = sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID, (void *)ifa->ifa_ifp,
+		(void)sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID, (void *)ifa->ifa_ifp,
 		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type,
 		    ifa->ifa_ifp->if_xname,
 		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
