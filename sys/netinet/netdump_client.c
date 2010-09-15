@@ -36,49 +36,41 @@
 #include "opt_device_polling.h"
 #include "opt_netdump.h"
 
-#include <sys/types.h>
+#include <sys/cdefs.h>
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/endian.h>
-#include <sys/mbuf.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/kerneldump.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/reboot.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/lock.h>
-#include <sys/reboot.h>
-#include <sys/eventhandler.h>
-#include <sys/module.h>
-#include <sys/conf.h>
-#include <sys/kerneldump.h>
-#include <sys/smp.h>
-#include <net/if.h>
-#include <net/route.h>
+#include <sys/systm.h>
+
 #include <net/ethernet.h>
-#include <net/if_var.h>
-#include <net/if_vlan_var.h>
+#include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
+#include <net/if_var.h>
+#include <net/route.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
-#include <netinet/in_var.h>
 #include <netinet/netdump.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-#include <machine/md_var.h>
-#include <machine/pcb.h>
+
 #include <machine/in_cksum.h>
-#include <machine/smp.h>
-#include <machine/elf.h>
-#include <machine/md_var.h>
-#include <machine/_inttypes.h>
-#include <net/if_media.h>
-#include <net/if_mib.h>
-#include <machine/clock.h>
+#include <machine/pcb.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
