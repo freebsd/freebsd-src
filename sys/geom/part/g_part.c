@@ -1160,9 +1160,10 @@ g_part_ctl_setunset(struct gctl_req *req, struct g_part_parms *gpp,
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		G_PART_FULLNAME(table, entry, sb, gp->name);
-		sbuf_printf(sb, " has %s %sset\n", gpp->gpp_attrib,
+		sbuf_printf(sb, "%s %sset on ", gpp->gpp_attrib,
 		    (set) ? "" : "un");
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_printf(sb, "\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
