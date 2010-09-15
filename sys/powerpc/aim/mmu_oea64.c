@@ -277,6 +277,7 @@ extern void bs_remap_earlyboot(void);
  * Lock for the pteg and pvo tables.
  */
 struct mtx	moea64_table_mutex;
+struct mtx	moea64_slb_mutex;
 
 /*
  * PTEG data.
@@ -841,6 +842,7 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	 */
 	mtx_init(&moea64_table_mutex, "pmap table", NULL, MTX_DEF |
 	    MTX_RECURSE);
+	mtx_init(&moea64_slb_mutex, "SLB table", NULL, MTX_DEF);
 
 	/*
 	 * Initialize the TLBIE lock. TLBIE can only be executed by one CPU.
@@ -1721,6 +1723,7 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 	/*
 	 * Allocate some segment registers for this pmap.
 	 */
+	mtx_lock(&moea64_slb_mutex);
 	for (i = 0; i < NPMAPS; i += VSID_NBPW) {
 		u_int	hash, n;
 
@@ -1744,19 +1747,24 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 				entropy = (moea64_vsidcontext >> 20);
 				continue;
 			}
-			i = ffs(~moea64_vsid_bitmap[i]) - 1;
+			i = ffs(~moea64_vsid_bitmap[n]) - 1;
 			mask = 1 << i;
 			hash &= 0xfffff & ~(VSID_NBPW - 1);
 			hash |= i;
 		}
+		KASSERT(!(moea64_vsid_bitmap[n] & mask),
+		    ("Allocating in-use VSID %#zx\n", hash));
 		moea64_vsid_bitmap[n] |= mask;
+		mtx_unlock(&moea64_slb_mutex);
+
 		for (i = 0; i < 16; i++) {
 			pmap->pm_sr[i] = VSID_MAKE(i, hash);
 		}
 		return;
 	}
 
-	panic("moea64_pinit: out of segments");
+	mtx_unlock(&moea64_slb_mutex);
+	panic("%s: out of segments",__func__);
 }
 
 /*
@@ -1871,12 +1879,14 @@ moea64_release(mmu_t mmu, pmap_t pmap)
 	 * Free segment register's VSID
 	 */
         if (pmap->pm_sr[0] == 0)
-                panic("moea64_release");
+                panic("moea64_release: pm_sr[0] = 0");
 
-        idx = VSID_TO_HASH(pmap->pm_sr[0]) & (NPMAPS-1);
-        mask = 1 << (idx % VSID_NBPW);
-        idx /= VSID_NBPW;
-        moea64_vsid_bitmap[idx] &= ~mask;
+	mtx_lock(&moea64_slb_mutex);
+	idx = VSID_TO_HASH(pmap->pm_sr[0]) & (NPMAPS-1);
+	mask = 1 << (idx % VSID_NBPW);
+	idx /= VSID_NBPW;
+	moea64_vsid_bitmap[idx] &= ~mask;
+	mtx_unlock(&moea64_slb_mutex);
 	PMAP_LOCK_DESTROY(pmap);
 }
 
