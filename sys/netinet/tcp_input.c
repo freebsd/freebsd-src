@@ -1441,7 +1441,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if (V_tcp_do_autorcvbuf &&
 			    to.to_tsecr &&
 			    (so->so_rcv.sb_flags & SB_AUTOSIZE)) {
-				if (to.to_tsecr > tp->rfbuf_ts &&
+				if (TSTMP_GT(to.to_tsecr, tp->rfbuf_ts) &&
 				    to.to_tsecr - tp->rfbuf_ts < hz) {
 					if (tp->rfbuf_cnt >
 					    (so->so_rcv.sb_hiwat / 8 * 7) &&
