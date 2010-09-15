@@ -933,17 +933,7 @@ again:
 			uioskip(uio, tx_bytes);
 		}
 
-		/*
-		 * XXXPJD: There are some cases (triggered by fsx) where
-		 *         vn_has_cached_data(vp) returns false when it should
-		 *         return true. This should be investigated.
-		 */
-#if 0
-		if (tx_bytes && vn_has_cached_data(vp))
-#else
-		if (tx_bytes && vp->v_object != NULL)
-#endif
-		{
+		if (tx_bytes && vn_has_cached_data(vp)) {
 			update_pages(vp, woff, tx_bytes, zfsvfs->z_os,
 			    zp->z_id, uio->uio_segflg, tx);
 		}
