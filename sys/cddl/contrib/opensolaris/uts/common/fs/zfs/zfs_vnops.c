@@ -479,14 +479,8 @@ again:
 				    dirbytes);
 				dirbytes = 0;
 			}
-			if (error == 0) {
-				sched_pin();
-				sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-				va = (caddr_t)sf_buf_kva(sf);
-				error = uiomove(va + off, bytes, UIO_READ, uio);
-				sf_buf_free(sf);
-				sched_unpin();
-			}
+			if (error == 0)
+				uiomove_fromphys(&m, off, bytes, uio);
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
 		} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
