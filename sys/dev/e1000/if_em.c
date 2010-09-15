@@ -73,7 +73,6 @@
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
-#include <netinet/netdump.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
@@ -180,17 +179,6 @@ static em_vendor_info_t em_vendor_info_array[] =
 
 static char *em_strings[] = {
 	"Intel(R) PRO/1000 Network Connection"
-};
-
-/*********************************************************************
- *  Netdump virtual methods implementation.
- *********************************************************************/
-
-static struct netdump_methods em_netdumpm = {
-	.test_get_lock = em_test_get_lock,
-	.acquire_lock = em_acquire_lock,
-	.release_lock = em_release_lock,
-	.poll_locked = em_poll_locked
 };
 
 /*********************************************************************
