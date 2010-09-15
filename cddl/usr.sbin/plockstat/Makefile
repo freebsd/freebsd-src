@@ -3,7 +3,6 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/plockstat
 
 PROG=		plockstat
-NO_MAN=
 SRCS=		plockstat.c 
 BINDIR?=	/usr/sbin
 
