@@ -51,4 +51,11 @@ ksiddomain_rele(ksiddomain_t *kd)
 	kmem_free(kd, sizeof(*kd));
 }
 
+static __inline int
+ksid_getid(void *ksid)
+{
+
+	panic("%s has been unexpectedly called", __func__);
+}
+
 #endif	/* _OPENSOLARIS_SYS_SID_H_ */

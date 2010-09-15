@@ -456,7 +456,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	if (cp == NULL) {
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
 		error = ENOENT;
-	} else if (cp->acw == 0 && (spa_mode & FWRITE) != 0) {
+	} else if (cp->acw == 0 && (spa_mode(vd->vdev_spa) & FWRITE) != 0) {
 		int i;
 
 		g_topology_lock();

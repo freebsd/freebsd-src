@@ -134,4 +134,6 @@ extern struct mtx zfs_debug_mtx;
 	}								\
 } while (0)
 
+#define	sys_shutdown	rebooting
+
 #endif	/* _SYS_ZFS_CONTEXT_H */

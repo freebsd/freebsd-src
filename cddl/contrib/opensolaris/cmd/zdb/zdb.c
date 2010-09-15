@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -87,8 +87,8 @@ static void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "Usage: %s [-udibcsv] [-U cachefile_path] "
-	    "[-S user:cksumalg] "
+	    "Usage: %s [-udibcsvL] [-U cachefile_path] [-t txg]\n"
+	    "\t   [-S user:cksumalg] "
 	    "dataset [object...]\n"
 	    "       %s -C [pool]\n"
 	    "       %s -l dev\n"
@@ -102,12 +102,16 @@ usage(void)
 	(void) fprintf(stderr, "        -C cached pool configuration\n");
 	(void) fprintf(stderr, "	-i intent logs\n");
 	(void) fprintf(stderr, "	-b block statistics\n");
-	(void) fprintf(stderr, "	-c checksum all data blocks\n");
+	(void) fprintf(stderr, "	-m metaslabs\n");
+	(void) fprintf(stderr, "	-c checksum all metadata (twice for "
+	    "all data) blocks\n");
 	(void) fprintf(stderr, "	-s report stats on zdb's I/O\n");
 	(void) fprintf(stderr, "	-S <user|all>:<cksum_alg|all> -- "
 	    "dump blkptr signatures\n");
 	(void) fprintf(stderr, "	-v verbose (applies to all others)\n");
 	(void) fprintf(stderr, "        -l dump label contents\n");
+	(void) fprintf(stderr, "        -L disable leak tracking (do not "
+	    "load spacemaps)\n");
 	(void) fprintf(stderr, "	-U cachefile_path -- use alternate "
 	    "cachefile\n");
 	(void) fprintf(stderr, "        -R read and display block from a "
@@ -115,11 +119,18 @@ usage(void)
 	(void) fprintf(stderr, "        -e Pool is exported/destroyed/"
 	    "has altroot\n");
 	(void) fprintf(stderr, "	-p <Path to vdev dir> (use with -e)\n");
+	(void) fprintf(stderr, "	-t <txg> highest txg to use when "
+	    "searching for uberblocks\n");
 	(void) fprintf(stderr, "Specify an option more than once (e.g. -bb) "
 	    "to make only that option verbose\n");
 	(void) fprintf(stderr, "Default is to dump everything non-verbosely\n");
 	exit(1);
 }
+
+/*
+ * Called for usage errors that are discovered after a call to spa_open(),
+ * dmu_bonus_hold(), or pool_match().  abort() is called for other errors.
+ */
 
 static void
 fatal(const char *fmt, ...)
@@ -132,7 +143,7 @@ fatal(const char *fmt, ...)
 	va_end(ap);
 	(void) fprintf(stderr, "\n");
 
-	abort();
+	exit(1);
 }
 
 static void
@@ -205,7 +216,7 @@ dump_packed_nvlist(objset_t *os, uint64_t object, void *data, size_t size)
 	size_t nvsize = *(uint64_t *)data;
 	char *packed = umem_alloc(nvsize, UMEM_NOFAIL);
 
-	VERIFY(0 == dmu_read(os, object, 0, nvsize, packed));
+	VERIFY(0 == dmu_read(os, object, 0, nvsize, packed, DMU_READ_PREFETCH));
 
 	VERIFY(nvlist_unpack(packed, nvsize, &nv, 0) == 0);
 
@@ -431,7 +442,7 @@ dump_spacemap(objset_t *os, space_map_obj_t *smo, space_map_t *sm)
 	alloc = 0;
 	for (offset = 0; offset < smo->smo_objsize; offset += sizeof (entry)) {
 		VERIFY(0 == dmu_read(os, smo->smo_object, offset,
-		    sizeof (entry), &entry));
+		    sizeof (entry), &entry, DMU_READ_PREFETCH));
 		if (SM_DEBUG_DECODE(entry)) {
 			(void) printf("\t\t[%4llu] %s: txg %llu, pass %llu\n",
 			    (u_longlong_t)(offset / sizeof (entry)),
@@ -463,6 +474,21 @@ dump_spacemap(objset_t *os, space_map_obj_t *smo, space_map_t *sm)
 }
 
 static void
+dump_metaslab_stats(metaslab_t *msp)
+{
+	char maxbuf[5];
+	space_map_t *sm = &msp->ms_map;
+	avl_tree_t *t = sm->sm_pp_root;
+	int free_pct = sm->sm_space * 100 / sm->sm_size;
+
+	nicenum(space_map_maxsize(sm), maxbuf);
+
+	(void) printf("\t %20s %10lu   %7s  %6s   %4s %4d%%\n",
+	    "segments", avl_numnodes(t), "maxsize", maxbuf,
+	    "freepct", free_pct);
+}
+
+static void
 dump_metaslab(metaslab_t *msp)
 {
 	char freebuf[5];
@@ -472,22 +498,28 @@ dump_metaslab(metaslab_t *msp)
 
 	nicenum(msp->ms_map.sm_size - smo->smo_alloc, freebuf);
 
-	if (dump_opt['d'] <= 5) {
-		(void) printf("\t%10llx   %10llu   %5s\n",
-		    (u_longlong_t)msp->ms_map.sm_start,
-		    (u_longlong_t)smo->smo_object,
-		    freebuf);
-		return;
-	}
-
 	(void) printf(
-	    "\tvdev %llu   offset %08llx   spacemap %4llu   free %5s\n",
+	    "\tvdev %5llu   offset %12llx   spacemap %6llu   free    %5s\n",
 	    (u_longlong_t)vd->vdev_id, (u_longlong_t)msp->ms_map.sm_start,
 	    (u_longlong_t)smo->smo_object, freebuf);
 
-	ASSERT(msp->ms_map.sm_size == (1ULL << vd->vdev_ms_shift));
+	if (dump_opt['m'] > 1) {
+		mutex_enter(&msp->ms_lock);
+		VERIFY(space_map_load(&msp->ms_map, zfs_metaslab_ops,
+		    SM_FREE, &msp->ms_smo, spa->spa_meta_objset) == 0);
+		dump_metaslab_stats(msp);
+		space_map_unload(&msp->ms_map);
+		mutex_exit(&msp->ms_lock);
+	}
 
-	dump_spacemap(spa->spa_meta_objset, smo, &msp->ms_map);
+	if (dump_opt['d'] > 5 || dump_opt['m'] > 2) {
+		ASSERT(msp->ms_map.sm_size == (1ULL << vd->vdev_ms_shift));
+
+		mutex_enter(&msp->ms_lock);
+		dump_spacemap(spa->spa_meta_objset, smo, &msp->ms_map);
+		mutex_exit(&msp->ms_lock);
+	}
+
 }
 
 static void
@@ -502,14 +534,12 @@ dump_metaslabs(spa_t *spa)
 	for (c = 0; c < rvd->vdev_children; c++) {
 		vd = rvd->vdev_child[c];
 
-		(void) printf("\n    vdev %llu\n\n", (u_longlong_t)vd->vdev_id);
+		(void) printf("\t%-10s   %-19s   %-15s   %-10s\n",
+		    "vdev", "offset", "spacemap", "free");
+		(void) printf("\t%10s   %19s   %15s   %10s\n",
+		    "----------", "-------------------",
+		    "---------------", "-------------");
 
-		if (dump_opt['d'] <= 5) {
-			(void) printf("\t%10s   %10s   %5s\n",
-			    "offset", "spacemap", "free");
-			(void) printf("\t%10s   %10s   %5s\n",
-			    "------", "--------", "----");
-		}
 		for (m = 0; m < vd->vdev_ms_count; m++)
 			dump_metaslab(vd->vdev_ms[m]);
 		(void) printf("\n");
@@ -517,44 +547,52 @@ dump_metaslabs(spa_t *spa)
 }
 
 static void
+dump_dtl_seg(space_map_t *sm, uint64_t start, uint64_t size)
+{
+	char *prefix = (void *)sm;
+
+	(void) printf("%s [%llu,%llu) length %llu\n",
+	    prefix,
+	    (u_longlong_t)start,
+	    (u_longlong_t)(start + size),
+	    (u_longlong_t)(size));
+}
+
+static void
 dump_dtl(vdev_t *vd, int indent)
 {
-	avl_tree_t *t = &vd->vdev_dtl_map.sm_root;
-	space_seg_t *ss;
-	vdev_t *pvd;
-	int c;
+	spa_t *spa = vd->vdev_spa;
+	boolean_t required;
+	char *name[DTL_TYPES] = { "missing", "partial", "scrub", "outage" };
+	char prefix[256];
+
+	spa_vdev_state_enter(spa);
+	required = vdev_dtl_required(vd);
+	(void) spa_vdev_state_exit(spa, NULL, 0);
 
 	if (indent == 0)
 		(void) printf("\nDirty time logs:\n\n");
 
-	(void) printf("\t%*s%s\n", indent, "",
+	(void) printf("\t%*s%s [%s]\n", indent, "",
 	    vd->vdev_path ? vd->vdev_path :
-	    vd->vdev_parent ? vd->vdev_ops->vdev_op_type :
-	    spa_name(vd->vdev_spa));
+	    vd->vdev_parent ? vd->vdev_ops->vdev_op_type : spa_name(spa),
+	    required ? "DTL-required" : "DTL-expendable");
 
-	for (ss = avl_first(t); ss; ss = AVL_NEXT(t, ss)) {
-		/*
-		 * Everything in this DTL must appear in all parent DTL unions.
-		 */
-		for (pvd = vd; pvd; pvd = pvd->vdev_parent)
-			ASSERT(vdev_dtl_contains(&pvd->vdev_dtl_map,
-			    ss->ss_start, ss->ss_end - ss->ss_start));
-		(void) printf("\t%*soutage [%llu,%llu] length %llu\n",
-		    indent, "",
-		    (u_longlong_t)ss->ss_start,
-		    (u_longlong_t)ss->ss_end - 1,
-		    (u_longlong_t)(ss->ss_end - ss->ss_start));
+	for (int t = 0; t < DTL_TYPES; t++) {
+		space_map_t *sm = &vd->vdev_dtl[t];
+		if (sm->sm_space == 0)
+			continue;
+		(void) snprintf(prefix, sizeof (prefix), "\t%*s%s",
+		    indent + 2, "", name[t]);
+		mutex_enter(sm->sm_lock);
+		space_map_walk(sm, dump_dtl_seg, (void *)prefix);
+		mutex_exit(sm->sm_lock);
+		if (dump_opt['d'] > 5 && vd->vdev_children == 0)
+			dump_spacemap(spa->spa_meta_objset,
+			    &vd->vdev_dtl_smo, sm);
 	}
 
-	(void) printf("\n");
-
-	if (dump_opt['d'] > 5 && vd->vdev_children == 0) {
-		dump_spacemap(vd->vdev_spa->spa_meta_objset, &vd->vdev_dtl,
-		    &vd->vdev_dtl_map);
-		(void) printf("\n");
-	}
-
-	for (c = 0; c < vd->vdev_children; c++)
+	for (int c = 0; c < vd->vdev_children; c++)
 		dump_dtl(vd->vdev_child[c], indent + 4);
 }
 
@@ -668,7 +706,8 @@ visit_indirect(spa_t *spa, const dnode_phys_t *dnp,
 				break;
 			fill += cbp->blk_fill;
 		}
-		ASSERT3U(fill, ==, bp->blk_fill);
+		if (!err)
+			ASSERT3U(fill, ==, bp->blk_fill);
 		(void) arc_buf_remove_ref(buf, &buf);
 	}
 
@@ -904,6 +943,7 @@ dump_uidgid(objset_t *os, znode_phys_t *zp)
 		/* first find the fuid object.  It lives in the master node */
 		VERIFY(zap_lookup(os, MASTER_NODE_OBJ, ZFS_FUID_TABLES,
 		    8, 1, &fuid_obj) == 0);
+		zfs_fuid_avl_tree_create(&idx_tree, &domain_tree);
 		(void) zfs_fuid_table_load(os, fuid_obj,
 		    &idx_tree, &domain_tree);
 		fuid_table_loaded = B_TRUE;
@@ -1007,6 +1047,8 @@ static object_viewer_t *object_viewer[DMU_OT_NUMTYPES] = {
 	dump_packed_nvlist,	/* FUID nvlist size		*/
 	dump_zap,		/* DSL dataset next clones	*/
 	dump_zap,		/* DSL scrub queue		*/
+	dump_zap,		/* ZFS user/group used		*/
+	dump_zap,		/* ZFS user/group quota		*/
 };
 
 static void
@@ -1070,6 +1112,14 @@ dump_object(objset_t *os, uint64_t object, int verbosity, int *print_header)
 	}
 
 	if (verbosity >= 4) {
+		(void) printf("\tdnode flags: %s%s\n",
+		    (dn->dn_phys->dn_flags & DNODE_FLAG_USED_BYTES) ?
+		    "USED_BYTES " : "",
+		    (dn->dn_phys->dn_flags & DNODE_FLAG_USERUSED_ACCOUNTED) ?
+		    "USERUSED_ACCOUNTED " : "");
+		(void) printf("\tdnode maxblkid: %llu\n",
+		    (longlong_t)dn->dn_phys->dn_maxblkid);
+
 		object_viewer[doi.doi_bonus_type](os, object, bonus, bsize);
 		object_viewer[doi.doi_type](os, object, NULL, 0);
 		*print_header = 1;
@@ -1124,7 +1174,7 @@ dump_dir(objset_t *os)
 	uint64_t object, object_count;
 	uint64_t refdbytes, usedobjs, scratch;
 	char numbuf[8];
-	char blkbuf[BP_SPRINTF_LEN];
+	char blkbuf[BP_SPRINTF_LEN + 20];
 	char osname[MAXNAMELEN];
 	char *type = "UNKNOWN";
 	int verbosity = dump_opt['d'];
@@ -1150,8 +1200,8 @@ dump_dir(objset_t *os)
 	nicenum(refdbytes, numbuf);
 
 	if (verbosity >= 4) {
-		(void) strcpy(blkbuf, ", rootbp ");
-		sprintf_blkptr(blkbuf + strlen(blkbuf),
+		(void) sprintf(blkbuf + strlen(blkbuf), ", rootbp ");
+		(void) sprintf_blkptr(blkbuf + strlen(blkbuf),
 		    BP_SPRINTF_LEN - strlen(blkbuf), os->os->os_rootbp);
 	} else {
 		blkbuf[0] = '\0';
@@ -1186,7 +1236,12 @@ dump_dir(objset_t *os)
 	}
 
 	dump_object(os, 0, verbosity, &print_header);
-	object_count = 1;
+	object_count = 0;
+	if (os->os->os_userused_dnode &&
+	    os->os->os_userused_dnode->dn_type != 0) {
+		dump_object(os, DMU_USERUSED_OBJECT, verbosity, &print_header);
+		dump_object(os, DMU_GROUPUSED_OBJECT, verbosity, &print_header);
+	}
 
 	object = 0;
 	while ((error = dmu_object_next(os, &object, B_FALSE, 0)) == 0) {
@@ -1198,8 +1253,10 @@ dump_dir(objset_t *os)
 
 	(void) printf("\n");
 
-	if (error != ESRCH)
-		fatal("dmu_object_next() = %d", error);
+	if (error != ESRCH) {
+		(void) fprintf(stderr, "dmu_object_next() = %d\n", error);
+		abort();
+	}
 }
 
 static void
@@ -1390,7 +1447,8 @@ static space_map_ops_t zdb_space_map_ops = {
 	zdb_space_map_unload,
 	NULL,	/* alloc */
 	zdb_space_map_claim,
-	NULL	/* free */
+	NULL,	/* free */
+	NULL	/* maxsize */
 };
 
 static void
@@ -1489,8 +1547,9 @@ zdb_count_block(spa_t *spa, zdb_cb_t *zcb, blkptr_t *bp, dmu_object_type_t type)
 		}
 	}
 
-	VERIFY(zio_wait(zio_claim(NULL, spa, spa_first_txg(spa), bp,
-	    NULL, NULL, ZIO_FLAG_MUSTSUCCEED)) == 0);
+	if (!dump_opt['L'])
+		VERIFY(zio_wait(zio_claim(NULL, spa, spa_first_txg(spa), bp,
+		    NULL, NULL, ZIO_FLAG_MUSTSUCCEED)) == 0);
 }
 
 static int
@@ -1499,13 +1558,25 @@ zdb_blkptr_cb(spa_t *spa, blkptr_t *bp, const zbookmark_t *zb,
 {
 	zdb_cb_t *zcb = arg;
 	char blkbuf[BP_SPRINTF_LEN];
+	dmu_object_type_t type;
+	boolean_t is_l0_metadata;
 
 	if (bp == NULL)
 		return (0);
 
-	zdb_count_block(spa, zcb, bp, BP_GET_TYPE(bp));
+	type = BP_GET_TYPE(bp);
 
-	if (dump_opt['c'] || dump_opt['S']) {
+	zdb_count_block(spa, zcb, bp, type);
+
+	/*
+	 * if we do metadata-only checksumming there's no need to checksum
+	 * indirect blocks here because it is done during traverse
+	 */
+	is_l0_metadata = (BP_GET_LEVEL(bp) == 0 && type < DMU_OT_NUMTYPES &&
+	    dmu_ot[type].ot_metadata);
+
+	if (dump_opt['c'] > 1 || dump_opt['S'] ||
+	    (dump_opt['c'] && is_l0_metadata)) {
 		int ioerr, size;
 		void *data;
 
@@ -1517,7 +1588,7 @@ zdb_blkptr_cb(spa_t *spa, blkptr_t *bp, const zbookmark_t *zb,
 		free(data);
 
 		/* We expect io errors on intent log */
-		if (ioerr && BP_GET_TYPE(bp) != DMU_OT_INTENT_LOG) {
+		if (ioerr && type != DMU_OT_INTENT_LOG) {
 			zcb->zcb_haderrors = 1;
 			zcb->zcb_errors[ioerr]++;
 
@@ -1565,9 +1636,12 @@ dump_block_stats(spa_t *spa)
 	int c, e;
 
 	if (!dump_opt['S']) {
-		(void) printf("\nTraversing all blocks to %sverify"
-		    " nothing leaked ...\n",
-		    dump_opt['c'] ? "verify checksums and " : "");
+		(void) printf("\nTraversing all blocks %s%s%s%s%s...\n",
+		    (dump_opt['c'] || !dump_opt['L']) ? "to verify " : "",
+		    (dump_opt['c'] == 1) ? "metadata " : "",
+		    dump_opt['c'] ? "checksums " : "",
+		    (dump_opt['c'] && !dump_opt['L']) ? "and verify " : "",
+		    !dump_opt['L'] ? "nothing leaked " : "");
 	}
 
 	/*
@@ -1578,7 +1652,8 @@ dump_block_stats(spa_t *spa)
 	 * it's not part of any space map) is a double allocation,
 	 * reference to a freed block, or an unclaimed log block.
 	 */
-	zdb_leak_init(spa);
+	if (!dump_opt['L'])
+		zdb_leak_init(spa);
 
 	/*
 	 * If there's a deferred-free bplist, process that first.
@@ -1620,7 +1695,8 @@ dump_block_stats(spa_t *spa)
 	/*
 	 * Report any leaked segments.
 	 */
-	zdb_leak_fini(spa);
+	if (!dump_opt['L'])
+		zdb_leak_fini(spa);
 
 	/*
 	 * If we're interested in printing out the blkptr signatures,
@@ -1646,14 +1722,16 @@ dump_block_stats(spa_t *spa)
 	tzb = &zcb.zcb_type[ZB_TOTAL][DMU_OT_TOTAL];
 
 	if (tzb->zb_asize == alloc + logalloc) {
-		(void) printf("\n\tNo leaks (block sum matches space"
-		    " maps exactly)\n");
+		if (!dump_opt['L'])
+			(void) printf("\n\tNo leaks (block sum matches space"
+			    " maps exactly)\n");
 	} else {
 		(void) printf("block traversal size %llu != alloc %llu "
-		    "(leaked %lld)\n",
+		    "(%s %lld)\n",
 		    (u_longlong_t)tzb->zb_asize,
 		    (u_longlong_t)alloc + logalloc,
-		    (u_longlong_t)(alloc + logalloc - tzb->zb_asize));
+		    (dump_opt['L']) ? "unreachable" : "leaked",
+		    (longlong_t)(alloc + logalloc - tzb->zb_asize));
 		leaks = 1;
 	}
 
@@ -1760,14 +1838,17 @@ dump_zpool(spa_t *spa)
 	if (dump_opt['u'])
 		dump_uberblock(&spa->spa_uberblock);
 
-	if (dump_opt['d'] || dump_opt['i']) {
+	if (dump_opt['d'] || dump_opt['i'] || dump_opt['m']) {
 		dump_dir(dp->dp_meta_objset);
 		if (dump_opt['d'] >= 3) {
 			dump_bplist(dp->dp_meta_objset,
 			    spa->spa_sync_bplist_obj, "Deferred frees");
 			dump_dtl(spa->spa_root_vdev, 0);
-			dump_metaslabs(spa);
 		}
+
+		if (dump_opt['d'] >= 3 || dump_opt['m'])
+			dump_metaslabs(spa);
+
 		(void) dmu_objset_find(spa_name(spa), dump_one_dir, NULL,
 		    DS_FIND_SNAPSHOTS | DS_FIND_CHILDREN);
 	}
@@ -2243,19 +2324,23 @@ main(int argc, char **argv)
 
 	dprintf_setup(&argc, argv);
 
-	while ((c = getopt(argc, argv, "udibcsvCS:U:lRep:")) != -1) {
+	while ((c = getopt(argc, argv, "udibcmsvCLS:U:lRep:t:")) != -1) {
 		switch (c) {
 		case 'u':
 		case 'd':
 		case 'i':
 		case 'b':
 		case 'c':
+		case 'm':
 		case 's':
 		case 'C':
 		case 'l':
 		case 'R':
 			dump_opt[c]++;
 			dump_all = 0;
+			break;
+		case 'L':
+			dump_opt[c]++;
 			break;
 		case 'v':
 			verbose++;
@@ -2286,6 +2371,14 @@ main(int argc, char **argv)
 				zdb_sig_cksumalg = ZIO_CHECKSUM_FLETCHER_2;
 			else
 				usage();
+			break;
+		case 't':
+			ub_max_txg = strtoull(optarg, NULL, 0);
+			if (ub_max_txg < TXG_INITIAL) {
+				(void) fprintf(stderr, "incorrect txg "
+				    "specified: %s\n", optarg);
+				usage();
+			}
 			break;
 		default:
 			usage();
@@ -2374,7 +2467,7 @@ main(int argc, char **argv)
 			}
 
 			if (error == 0)
-				error = spa_import_faulted(argv[0],
+				error = spa_import_verbatim(argv[0],
 				    exported_conf, nvl);
 
 			nvlist_free(nvl);

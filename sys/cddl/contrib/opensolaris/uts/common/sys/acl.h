@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef _SYS_ACL_H
 #define	_SYS_ACL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/acl_impl.h>
@@ -167,6 +165,10 @@ typedef struct ace_object {
     ACE_WRITE_NAMED_ATTRS|ACE_EXECUTE|ACE_DELETE_CHILD|ACE_READ_ATTRIBUTES| \
     ACE_WRITE_ATTRIBUTES|ACE_DELETE|ACE_READ_ACL|ACE_WRITE_ACL| \
     ACE_WRITE_OWNER|ACE_SYNCHRONIZE)
+
+#define	ACE_ALL_WRITE_PERMS (ACE_WRITE_DATA|ACE_APPEND_DATA| \
+    ACE_WRITE_ATTRIBUTES|ACE_WRITE_NAMED_ATTRS|ACE_WRITE_ACL| \
+    ACE_WRITE_OWNER|ACE_DELETE|ACE_DELETE_CHILD)
 
 #define	ACE_READ_PERMS	(ACE_READ_DATA|ACE_READ_ACL|ACE_READ_ATTRIBUTES| \
     ACE_READ_NAMED_ATTRS)
