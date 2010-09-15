@@ -969,46 +969,6 @@ start_again:
 	return (0);
 }
 
-static void
-sctp_move_all_chunks_to_alt(struct sctp_tcb *stcb,
-    struct sctp_nets *net,
-    struct sctp_nets *alt)
-{
-	struct sctp_association *asoc;
-	struct sctp_stream_out *outs;
-	struct sctp_tmit_chunk *chk;
-	struct sctp_stream_queue_pending *sp;
-
-	if (net == alt)
-		/* nothing to do */
-		return;
-
-	asoc = &stcb->asoc;
-
-	/*
-	 * now through all the streams checking for chunks sent to our bad
-	 * network.
-	 */
-	TAILQ_FOREACH(outs, &asoc->out_wheel, next_spoke) {
-		/* now clean up any chunks here */
-		TAILQ_FOREACH(sp, &outs->outqueue, next) {
-			if (sp->net == net) {
-				sctp_free_remote_addr(sp->net);
-				sp->net = alt;
-				atomic_add_int(&alt->ref_count, 1);
-			}
-		}
-	}
-	/* Now check the pending queue */
-	TAILQ_FOREACH(chk, &asoc->send_queue, sctp_next) {
-		if (chk->whoTo == net) {
-			sctp_free_remote_addr(chk->whoTo);
-			chk->whoTo = alt;
-			atomic_add_int(&alt->ref_count, 1);
-		}
-	}
-
-}
 
 int
 sctp_t3rxt_timer(struct sctp_inpcb *inp,
@@ -1141,7 +1101,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 	}
 	if (net->dest_state & SCTP_ADDR_NOT_REACHABLE) {
 		/* Move all pending over too */
-		sctp_move_all_chunks_to_alt(stcb, net, alt);
+		sctp_move_chunks_from_net(stcb, net);
 
 		/*
 		 * Get the address that failed, to force a new src address
@@ -1256,7 +1216,7 @@ sctp_t1init_timer(struct sctp_inpcb *inp,
 
 		alt = sctp_find_alternate_net(stcb, stcb->asoc.primary_destination, 0);
 		if ((alt != NULL) && (alt != stcb->asoc.primary_destination)) {
-			sctp_move_all_chunks_to_alt(stcb, stcb->asoc.primary_destination, alt);
+			sctp_move_chunks_from_net(stcb, stcb->asoc.primary_destination);
 			stcb->asoc.primary_destination = alt;
 		}
 	}
@@ -1396,7 +1356,7 @@ sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * If the address went un-reachable, we need to move to
 		 * alternates for ALL chk's in queue
 		 */
-		sctp_move_all_chunks_to_alt(stcb, net, alt);
+		sctp_move_chunks_from_net(stcb, net);
 	}
 	/* mark the retran info */
 	if (strrst->sent != SCTP_DATAGRAM_RESEND)
@@ -1487,8 +1447,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			 * If the address went un-reachable, we need to move
 			 * to the alternate for ALL chunks in queue
 			 */
-			sctp_move_all_chunks_to_alt(stcb, net, alt);
-			net = alt;
+			sctp_move_chunks_from_net(stcb, net);
 		}
 		/* mark the retran info */
 		if (asconf->sent != SCTP_DATAGRAM_RESEND)
