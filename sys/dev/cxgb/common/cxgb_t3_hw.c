@@ -1441,16 +1441,18 @@ static void t3_gate_rx_traffic(struct cmac *mac, u32 *rx_cfg,
 	t3_mac_disable_exact_filters(mac);
 
 	/* stop broadcast, multicast, promiscuous mode traffic */
-	*rx_cfg = t3_read_reg(mac->adapter, A_XGM_RX_CFG);
-	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG, 
+	*rx_cfg = t3_read_reg(mac->adapter, A_XGM_RX_CFG + mac->offset);
+	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG + mac->offset, 
 			 F_ENHASHMCAST | F_DISBCAST | F_COPYALLFRAMES,
 			 F_DISBCAST);
 
-	*rx_hash_high = t3_read_reg(mac->adapter, A_XGM_RX_HASH_HIGH);
-	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH, 0);
+	*rx_hash_high = t3_read_reg(mac->adapter, A_XGM_RX_HASH_HIGH +
+	    mac->offset);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH + mac->offset, 0);
 
-	*rx_hash_low = t3_read_reg(mac->adapter, A_XGM_RX_HASH_LOW);
-	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW, 0);
+	*rx_hash_low = t3_read_reg(mac->adapter, A_XGM_RX_HASH_LOW +
+	    mac->offset);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW + mac->offset, 0);
 
 	/* Leave time to drain max RX fifo */
 	msleep(1);
@@ -1460,11 +1462,13 @@ static void t3_open_rx_traffic(struct cmac *mac, u32 rx_cfg,
 			       u32 rx_hash_high, u32 rx_hash_low)
 {
 	t3_mac_enable_exact_filters(mac);
-	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG, 
+	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG + mac->offset,
 			 F_ENHASHMCAST | F_DISBCAST | F_COPYALLFRAMES,
 			 rx_cfg);
-	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH, rx_hash_high);
-	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW, rx_hash_low);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH + mac->offset,
+	    rx_hash_high);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW + mac->offset,
+	    rx_hash_low);
 }
 
 static int t3_detect_link_fault(adapter_t *adapter, int port_id)
