@@ -202,7 +202,7 @@ static void
 LsDoHexOutputAsl (
     void);
 
-ACPI_STATUS
+static ACPI_STATUS
 LsTreeWriteWalk (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
@@ -222,7 +222,7 @@ LsTreeWriteWalk (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 LsTreeWriteWalk (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,

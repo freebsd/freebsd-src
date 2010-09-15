@@ -89,6 +89,7 @@ OBJS = \
 	getopt.o \
 	hwacpi.o \
 	hwgpe.o \
+	hwpci.o \
 	hwregs.o \
 	hwsleep.o \
 	hwvalid.o \
@@ -158,6 +159,7 @@ OBJS = \
 	utstate.o \
 	uttrack.o \
 	utosi.o \
+	utxferror.o \
 	utxface.o
 
 
@@ -396,6 +398,9 @@ hwacpi.o :          $(ACPICA_CORE)/hardware/hwacpi.c
 hwgpe.o :           $(ACPICA_CORE)/hardware/hwgpe.c
 	$(COMPILE)
 
+hwpci.o :           $(ACPICA_CORE)/hardware/hwpci.c
+	$(COMPILE)
+
 hwregs.o :          $(ACPICA_CORE)/hardware/hwregs.c
 	$(COMPILE)
 
@@ -598,6 +603,9 @@ uttrack.o :         $(ACPICA_CORE)/utilities/uttrack.c
 	$(COMPILE)
 
 utosi.o :           $(ACPICA_CORE)/utilities/utosi.c
+	$(COMPILE)
+
+utxferror.o :       $(ACPICA_CORE)/utilities/utxferror.c
 	$(COMPILE)
 
 utxface.o :         $(ACPICA_CORE)/utilities/utxface.c

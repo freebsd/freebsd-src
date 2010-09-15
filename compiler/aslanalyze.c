@@ -166,7 +166,7 @@ static UINT32
 AnGetInternalMethodReturnType (
     ACPI_PARSE_OBJECT       *Op);
 
-BOOLEAN
+static BOOLEAN
 AnIsResultUsed (
     ACPI_PARSE_OBJECT       *Op);
 
@@ -1754,7 +1754,7 @@ AnOperandTypecheckWalkEnd (
  *
  ******************************************************************************/
 
-BOOLEAN
+static BOOLEAN
 AnIsResultUsed (
     ACPI_PARSE_OBJECT       *Op)
 {
@@ -1862,6 +1862,7 @@ AnOtherSemanticAnalysisWalkBegin (
             if (Op->Asl.AmlOpcode == AML_DIVIDE_OP)
             {
                 if ((ArgNode->Asl.ParseOpcode == PARSEOP_ZERO) &&
+                    (PrevArgNode) &&
                     (PrevArgNode->Asl.ParseOpcode == PARSEOP_ZERO))
                 {
                     AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED, Op, Op->Asl.ExternalName);

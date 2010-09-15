@@ -130,46 +130,46 @@
 
 /* Local prototypes */
 
-void
+static void
 CheckAscii (
     char                    *Name,
     int                     Count);
 
-void
+static void
 NormalizeSignature (
     char                    *Signature);
 
-unsigned int
+static unsigned int
 GetNextInstance (
     char                    *InputPathname,
     char                    *Signature);
 
-int
+static int
 ExtractTables (
     char                    *InputPathname,
     char                    *Signature,
     unsigned int            MinimumInstances);
 
-size_t
+static size_t
 GetTableHeader (
     FILE                    *InputFile,
     unsigned char           *OutputData);
 
-unsigned int
+static unsigned int
 CountTableInstances (
     char                    *InputPathname,
     char                    *Signature);
 
-int
+static int
 ListTables (
     char                    *InputPathname);
 
-size_t
+static size_t
 ConvertLine (
     char                    *InputLine,
     unsigned char           *OutputData);
 
-void
+static void
 DisplayUsage (
     void);
 
@@ -196,9 +196,9 @@ struct TableInfo
     struct TableInfo        *Next;
 };
 
-struct TableInfo            *ListHead = NULL;
-char                        Filename[16];
-unsigned char               Data[16];
+static struct TableInfo     *ListHead = NULL;
+static char                 Filename[16];
+static unsigned char        Data[16];
 
 
 /******************************************************************************
@@ -209,7 +209,7 @@ unsigned char               Data[16];
  *
  ******************************************************************************/
 
-void
+static void
 DisplayUsage (
     void)
 {
@@ -240,7 +240,7 @@ DisplayUsage (
  *
  ******************************************************************************/
 
-void
+static void
 CheckAscii (
     char                    *Name,
     int                     Count)
@@ -270,7 +270,7 @@ CheckAscii (
  *
  ******************************************************************************/
 
-void
+static void
 NormalizeSignature (
     char                    *Signature)
 {
@@ -295,7 +295,7 @@ NormalizeSignature (
  *
  ******************************************************************************/
 
-size_t
+static size_t
 ConvertLine (
     char                    *InputLine,
     unsigned char           *OutputData)
@@ -353,7 +353,7 @@ ConvertLine (
  *
  ******************************************************************************/
 
-size_t
+static size_t
 GetTableHeader (
     FILE                    *InputFile,
     unsigned char           *OutputData)
@@ -401,7 +401,7 @@ GetTableHeader (
  *
  ******************************************************************************/
 
-unsigned int
+static unsigned int
 CountTableInstances (
     char                    *InputPathname,
     char                    *Signature)
@@ -459,7 +459,7 @@ CountTableInstances (
  *
  ******************************************************************************/
 
-unsigned int
+static unsigned int
 GetNextInstance (
     char                    *InputPathname,
     char                    *Signature)
@@ -520,7 +520,7 @@ GetNextInstance (
  *
  ******************************************************************************/
 
-int
+static int
 ExtractTables (
     char                    *InputPathname,
     char                    *Signature,
@@ -639,8 +639,8 @@ ExtractTables (
                 OutputFile = NULL;
                 State = FIND_HEADER;
 
-                printf ("Acpi table [%4.4s] - % 7d bytes written to %s\n",
-                    ThisSignature, TotalBytesWritten, Filename);
+                printf ("Acpi table [%4.4s] - %u bytes written to %s\n",
+                    ThisSignature, (unsigned int) TotalBytesWritten, Filename);
                 continue;
             }
 
@@ -684,8 +684,8 @@ CleanupAndExit:
         {
             /* Received an EOF while extracting data */
 
-            printf ("Acpi table [%4.4s] - % 7d bytes written to %s\n",
-                ThisSignature, TotalBytesWritten, Filename);
+            printf ("Acpi table [%4.4s] - %u bytes written to %s\n",
+                ThisSignature, (unsigned int) TotalBytesWritten, Filename);
         }
     }
 
@@ -707,7 +707,7 @@ CleanupAndExit:
  *
  ******************************************************************************/
 
-int
+static int
 ListTables (
     char                    *InputPathname)
 {

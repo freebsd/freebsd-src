@@ -126,8 +126,6 @@
 
 #define ACPI_MACHINE_WIDTH      32
 
-#define inline                  __inline
-
 #define ACPI_USE_STANDARD_HEADERS
 
 #ifdef ACPI_DEFINE_ALTERNATE_TYPES

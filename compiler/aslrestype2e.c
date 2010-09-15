@@ -116,7 +116,6 @@
 
 
 #include "aslcompiler.h"
-#include "aslcompiler.y.h"
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslrestype2e")

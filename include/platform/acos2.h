@@ -158,12 +158,6 @@ unsigned short OSPMReleaseGlobalLock (void *);
     n_lo = (unsigned long)(val & 0xffffffff); \
 }
 
-/* IBM VAC does not have inline */
-
-#if __IBMC__ || __IBMCPP__
-#define inline
-#endif
-
 #ifndef ACPI_ASL_COMPILER
 #define ACPI_USE_LOCAL_CACHE
 #undef ACPI_DEBUGGER

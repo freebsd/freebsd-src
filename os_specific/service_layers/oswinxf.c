@@ -1077,7 +1077,7 @@ AcpiOsGetThreadId (
     /* Ensure ID is never 0 */
 
     ThreadId = GetCurrentThreadId ();
-    return (ThreadId + 1);
+    return ((ACPI_THREAD_ID) (ThreadId + 1));
 }
 
 
@@ -1207,17 +1207,6 @@ AcpiOsWritePciConfiguration (
 {
 
     return (AE_OK);
-}
-
-/* TEMPORARY STUB FUNCTION */
-void
-AcpiOsDerivePciId(
-    ACPI_HANDLE             Device,
-    ACPI_HANDLE             Region,
-    ACPI_PCI_ID             **PciId)
-{
-
-    return;
 }
 
 

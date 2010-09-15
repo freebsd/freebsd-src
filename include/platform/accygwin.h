@@ -121,7 +121,6 @@
  */
 #define ACPI_USE_SYSTEM_CLIBRARY
 #define ACPI_USE_DO_WHILE_0
-#define ACPI_THREAD_ID              pthread_t
 #define ACPI_FLUSH_CPU_CACHE()
 /*
  * This is needed since sem_timedwait does not appear to work properly
@@ -151,13 +150,12 @@
 #define __cdecl
 #endif
 
-#ifdef _ANSI
-#define inline
-#endif
-
 #define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) if (GLptr) Acq=1; else Acq=0;
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Pending) Pending = 1
 
+/* On Cygwin, pthread_t is a pointer */
+
+#define ACPI_CAST_PTHREAD_T(pthread) ((ACPI_THREAD_ID) ACPI_TO_INTEGER (pthread))
 
 /* Cygwin uses GCC */
 
