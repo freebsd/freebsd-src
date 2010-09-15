@@ -154,7 +154,7 @@ struct pmap kernel_pmap_store;
 /*
  * Allocate physical memory for use in pmap_bootstrap.
  */
-static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size);
+static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size, uint32_t colors);
 
 /*
  * Map the given physical page at the specified virtual address in the
@@ -308,6 +308,9 @@ pmap_bootstrap(u_int cpu_impl)
 	int i;
 	int j;
 	int sz;
+	uint32_t colors;
+
+	colors = dcache_color_ignore != 0 ? 1 : DCACHE_COLORS;
 
 	/*
 	 * Find out what physical memory is available from the PROM and
@@ -379,7 +382,7 @@ pmap_bootstrap(u_int cpu_impl)
 	/*
 	 * Allocate the kernel TSB and lock it in the TLB.
 	 */
-	pa = pmap_bootstrap_alloc(tsb_kernel_size);
+	pa = pmap_bootstrap_alloc(tsb_kernel_size, colors);
 	if (pa & PAGE_MASK_4M)
 		panic("pmap_bootstrap: tsb unaligned\n");
 	tsb_kernel_phys = pa;
@@ -390,13 +393,13 @@ pmap_bootstrap(u_int cpu_impl)
 	/*
 	 * Allocate and map the dynamic per-CPU area for the BSP.
 	 */
-	pa = pmap_bootstrap_alloc(DPCPU_SIZE);
+	pa = pmap_bootstrap_alloc(DPCPU_SIZE, colors);
 	dpcpu0 = (void *)TLB_PHYS_TO_DIRECT(pa);
 
 	/*
 	 * Allocate and map the message buffer.
 	 */
-	pa = pmap_bootstrap_alloc(MSGBUF_SIZE);
+	pa = pmap_bootstrap_alloc(MSGBUF_SIZE, colors);
 	msgbufp = (struct msgbuf *)TLB_PHYS_TO_DIRECT(pa);
 
 	/*
@@ -458,26 +461,26 @@ pmap_bootstrap(u_int cpu_impl)
 	 * Allocate kva space for temporary mappings.
 	 */
 	pmap_idle_map = virtual_avail;
-	virtual_avail += PAGE_SIZE * DCACHE_COLORS;
+	virtual_avail += PAGE_SIZE * colors;
 	pmap_temp_map_1 = virtual_avail;
-	virtual_avail += PAGE_SIZE * DCACHE_COLORS;
+	virtual_avail += PAGE_SIZE * colors;
 	pmap_temp_map_2 = virtual_avail;
-	virtual_avail += PAGE_SIZE * DCACHE_COLORS;
+	virtual_avail += PAGE_SIZE * colors;
 
 	/*
 	 * Allocate a kernel stack with guard page for thread0 and map it
 	 * into the kernel TSB.  We must ensure that the virtual address is
-	 * coloured properly, since we're allocating from phys_avail so the
-	 * memory won't have an associated vm_page_t.
+	 * colored properly for corresponding CPUs, since we're allocating
+	 * from phys_avail so the memory won't have an associated vm_page_t.
 	 */
-	pa = pmap_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE);
+	pa = pmap_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE, colors);
 	kstack0_phys = pa;
-	virtual_avail += roundup(KSTACK_GUARD_PAGES, DCACHE_COLORS) *
-	    PAGE_SIZE;
+	virtual_avail += roundup(KSTACK_GUARD_PAGES, colors) * PAGE_SIZE;
 	kstack0 = virtual_avail;
-	virtual_avail += roundup(KSTACK_PAGES, DCACHE_COLORS) * PAGE_SIZE;
-	KASSERT(DCACHE_COLOR(kstack0) == DCACHE_COLOR(kstack0_phys),
-	    ("pmap_bootstrap: kstack0 miscoloured"));
+	virtual_avail += roundup(KSTACK_PAGES, colors) * PAGE_SIZE;
+	if (dcache_color_ignore == 0)
+		KASSERT(DCACHE_COLOR(kstack0) == DCACHE_COLOR(kstack0_phys),
+		    ("pmap_bootstrap: kstack0 miscolored"));
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pa = kstack0_phys + i * PAGE_SIZE;
 		va = kstack0 + i * PAGE_SIZE;
@@ -609,12 +612,12 @@ pmap_map_tsb(void)
  * calculated.
  */
 static vm_paddr_t
-pmap_bootstrap_alloc(vm_size_t size)
+pmap_bootstrap_alloc(vm_size_t size, uint32_t colors)
 {
 	vm_paddr_t pa;
 	int i;
 
-	size = roundup(size, PAGE_SIZE * DCACHE_COLORS);
+	size = roundup(size, PAGE_SIZE * colors);
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		if (phys_avail[i + 1] - phys_avail[i] < size)
 			continue;
@@ -751,6 +754,9 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	    ("pmap_cache_enter: fake page"));
 	PMAP_STATS_INC(pmap_ncache_enter);
 
+	if (dcache_color_ignore != 0)
+		return (1);
+
 	/*
 	 * Find the color for this virtual address and note the added mapping.
 	 */
@@ -823,10 +829,14 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 	    m->md.colors[DCACHE_COLOR(va)]);
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_cache_remove: fake page"));
+	PMAP_STATS_INC(pmap_ncache_remove);
+
+	if (dcache_color_ignore != 0)
+		return;
+
 	KASSERT(m->md.colors[DCACHE_COLOR(va)] > 0,
 	    ("pmap_cache_remove: no mappings %d <= 0",
 	    m->md.colors[DCACHE_COLOR(va)]));
-	PMAP_STATS_INC(pmap_ncache_remove);
 
 	/*
 	 * Find the color for this virtual address and note the removal of
@@ -896,7 +906,7 @@ pmap_kenter(vm_offset_t va, vm_page_t m)
 	    va, VM_PAGE_TO_PHYS(m), tp, tp->tte_data);
 	if (DCACHE_COLOR(VM_PAGE_TO_PHYS(m)) != DCACHE_COLOR(va)) {
 		CTR5(KTR_CT2,
-	"pmap_kenter: off colour va=%#lx pa=%#lx o=%p ot=%d pi=%#lx",
+	"pmap_kenter: off color va=%#lx pa=%#lx o=%p ot=%d pi=%#lx",
 		    va, VM_PAGE_TO_PHYS(m), m->object,
 		    m->object ? m->object->type : -1,
 		    m->pindex);
@@ -1609,13 +1619,13 @@ pmap_zero_page(vm_page_t m)
 	    ("pmap_zero_page: fake page"));
 	PMAP_STATS_INC(pmap_nzero_page);
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1) {
-		PMAP_STATS_INC(pmap_nzero_page_nc);
-		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
-	} else if (m->md.color == DCACHE_COLOR(pa)) {
+	if (dcache_color_ignore != 0 || m->md.color == DCACHE_COLOR(pa)) {
 		PMAP_STATS_INC(pmap_nzero_page_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
 		cpu_block_zero((void *)va, PAGE_SIZE);
+	} else if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_nzero_page_nc);
+		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_oc);
 		PMAP_LOCK(kernel_pmap);
@@ -1641,13 +1651,13 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	KASSERT(off + size <= PAGE_SIZE, ("pmap_zero_page_area: bad off/size"));
 	PMAP_STATS_INC(pmap_nzero_page_area);
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1) {
-		PMAP_STATS_INC(pmap_nzero_page_area_nc);
-		aszero(ASI_PHYS_USE_EC, pa + off, size);
-	} else if (m->md.color == DCACHE_COLOR(pa)) {
+	if (dcache_color_ignore != 0 || m->md.color == DCACHE_COLOR(pa)) {
 		PMAP_STATS_INC(pmap_nzero_page_area_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
 		bzero((void *)(va + off), size);
+	} else if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_nzero_page_area_nc);
+		aszero(ASI_PHYS_USE_EC, pa + off, size);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_area_oc);
 		PMAP_LOCK(kernel_pmap);
@@ -1672,13 +1682,13 @@ pmap_zero_page_idle(vm_page_t m)
 	    ("pmap_zero_page_idle: fake page"));
 	PMAP_STATS_INC(pmap_nzero_page_idle);
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1) {
-		PMAP_STATS_INC(pmap_nzero_page_idle_nc);
-		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
-	} else if (m->md.color == DCACHE_COLOR(pa)) {
+	if (dcache_color_ignore != 0 || m->md.color == DCACHE_COLOR(pa)) {
 		PMAP_STATS_INC(pmap_nzero_page_idle_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
 		cpu_block_zero((void *)va, PAGE_SIZE);
+	} else if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_nzero_page_idle_nc);
+		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
 	} else {
 		PMAP_STATS_INC(pmap_nzero_page_idle_oc);
 		va = pmap_idle_map + (m->md.color * PAGE_SIZE);
@@ -1706,15 +1716,16 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	PMAP_STATS_INC(pmap_ncopy_page);
 	pdst = VM_PAGE_TO_PHYS(mdst);
 	psrc = VM_PAGE_TO_PHYS(msrc);
-	if (msrc->md.color == -1 && mdst->md.color == -1) {
-		PMAP_STATS_INC(pmap_ncopy_page_nc);
-		ascopy(ASI_PHYS_USE_EC, psrc, pdst, PAGE_SIZE);
-	} else if (msrc->md.color == DCACHE_COLOR(psrc) &&
-	    mdst->md.color == DCACHE_COLOR(pdst)) {
+	if (dcache_color_ignore != 0 ||
+	    (msrc->md.color == DCACHE_COLOR(psrc) &&
+	    mdst->md.color == DCACHE_COLOR(pdst))) {
 		PMAP_STATS_INC(pmap_ncopy_page_c);
 		vdst = TLB_PHYS_TO_DIRECT(pdst);
 		vsrc = TLB_PHYS_TO_DIRECT(psrc);
 		cpu_block_copy((void *)vsrc, (void *)vdst, PAGE_SIZE);
+	} else if (msrc->md.color == -1 && mdst->md.color == -1) {
+		PMAP_STATS_INC(pmap_ncopy_page_nc);
+		ascopy(ASI_PHYS_USE_EC, psrc, pdst, PAGE_SIZE);
 	} else if (msrc->md.color == -1) {
 		if (mdst->md.color == DCACHE_COLOR(pdst)) {
 			PMAP_STATS_INC(pmap_ncopy_page_dc);

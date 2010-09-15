@@ -51,12 +51,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
 
+#include <machine/cache.h>
 #include <machine/tlb.h>
 
 /*
  * Implement uiomove(9) from physical memory using a combination
  * of the direct mapping and sf_bufs to reduce the creation and
- * destruction of ephemeral mappings.  
+ * destruction of ephemeral mappings.
  */
 int
 uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
@@ -92,7 +93,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		cnt = ulmin(cnt, PAGE_SIZE - page_offset);
 		m = ma[offset >> PAGE_SHIFT];
 		pa = VM_PAGE_TO_PHYS(m);
-		if (m->md.color != DCACHE_COLOR(pa)) {
+		if (dcache_color_ignore == 0 &&
+		    m->md.color != DCACHE_COLOR(pa)) {
 			sf = sf_buf_alloc(m, 0);
 			cp = (char *)sf_buf_kva(sf) + page_offset;
 		} else {

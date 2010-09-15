@@ -95,8 +95,10 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	vm_page_t m;
 	int error;
 	int i;
+	uint32_t colors;
 
 	cnt = 0;
+	colors = 1;
 	error = 0;
 	ova = 0;
 
@@ -134,20 +136,20 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			}
 
 			if (m != NULL) {
+				if (ova == 0) {
 #ifndef SUN4V
-				if (ova == 0)
+					if (dcache_color_ignore == 0)
+						colors = DCACHE_COLORS;
+#endif
 					ova = kmem_alloc_wait(kernel_map,
-					    PAGE_SIZE * DCACHE_COLORS);
-				if (m->md.color != -1)
+					    PAGE_SIZE * colors);
+				}
+#ifndef SUN4V
+				if (colors != 1 && m->md.color != -1)
 					va = ova + m->md.color * PAGE_SIZE;
 				else
-					va = ova;
-#else
-				if (ova == 0)
-					ova = kmem_alloc_wait(kernel_map,
-					    PAGE_SIZE);
-				va = ova;
 #endif
+					va = ova;
 				pmap_qenter(va, &m, 1);
 				error = uiomove((void *)(va + off), cnt,
 				    uio);
@@ -158,8 +160,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				    uio);
 			}
 			break;
-		}
-		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
+		} else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			va = trunc_page(uio->uio_offset);
 			eva = round_page(uio->uio_offset + iov->iov_len);
 
@@ -184,15 +185,12 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		/* else panic! */
 	}
 	if (ova != 0)
-#ifndef SUN4V
-		kmem_free_wakeup(kernel_map, ova, PAGE_SIZE * DCACHE_COLORS);
-#else
-		kmem_free_wakeup(kernel_map, ova, PAGE_SIZE);
-#endif
+		kmem_free_wakeup(kernel_map, ova, PAGE_SIZE * colors);
 	return (error);
 }
 
 void
 dev_mem_md_init(void)
 {
+
 }
