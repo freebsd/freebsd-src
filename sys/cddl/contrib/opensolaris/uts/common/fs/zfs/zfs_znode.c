@@ -171,6 +171,7 @@ zfs_znode_cache_constructor(void *buf, void *arg, int kmflags)
 
 	zp->z_dbuf = NULL;
 	zp->z_dirlocks = NULL;
+	zp->z_acl_cached = NULL;
 	return (0);
 }
 
@@ -193,6 +194,7 @@ zfs_znode_cache_destructor(void *buf, void *arg)
 
 	ASSERT(zp->z_dbuf == NULL);
 	ASSERT(zp->z_dirlocks == NULL);
+	ASSERT(zp->z_acl_cached == NULL);
 }
 
 #ifdef	ZNODE_STATS
@@ -236,6 +238,15 @@ zfs_znode_move_impl(znode_t *ozp, znode_t *nzp)
 	nzp->z_sync_cnt = ozp->z_sync_cnt;
 	nzp->z_phys = ozp->z_phys;
 	nzp->z_dbuf = ozp->z_dbuf;
+
+	/*
+	 * Since this is just an idle znode and kmem is already dealing with
+	 * memory pressure, release any cached ACL.
+	 */
+	if (ozp->z_acl_cached) {
+		zfs_acl_free(ozp->z_acl_cached);
+		ozp->z_acl_cached = NULL;
+	}
 
 	/* Update back pointers. */
 	(void) dmu_buf_update_user(nzp->z_dbuf, ozp, nzp, &nzp->z_phys,
@@ -471,6 +482,7 @@ zfs_znode_dmu_init(zfsvfs_t *zfsvfs, znode_t *zp, dmu_buf_t *db)
 	mutex_enter(&zp->z_lock);
 
 	ASSERT(zp->z_dbuf == NULL);
+	ASSERT(zp->z_acl_cached == NULL);
 	zp->z_dbuf = db;
 	nzp = dmu_buf_set_user_ie(db, zp, &zp->z_phys, znode_evict_error);
 
@@ -954,6 +966,13 @@ zfs_rezget(znode_t *zp)
 		return (EIO);
 	}
 
+	mutex_enter(&zp->z_acl_lock);
+	if (zp->z_acl_cached) {
+		zfs_acl_free(zp->z_acl_cached);
+		zp->z_acl_cached = NULL;
+	}
+	mutex_exit(&zp->z_acl_lock);
+
 	zfs_znode_dmu_init(zfsvfs, zp, db);
 	zp->z_unlinked = (zp->z_phys->zp_links == 0);
 	zp->z_blksz = doi.doi_data_block_size;
@@ -1038,6 +1057,11 @@ zfs_znode_free(znode_t *zp)
 	POINTER_INVALIDATE(&zp->z_zfsvfs);
 	list_remove(&zfsvfs->z_all_znodes, zp);
 	mutex_exit(&zfsvfs->z_znodes_lock);
+
+	if (zp->z_acl_cached) {
+		zfs_acl_free(zp->z_acl_cached);
+		zp->z_acl_cached = NULL;
+	}
 
 	kmem_cache_free(znode_cache, zp);
 
