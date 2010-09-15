@@ -495,7 +495,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	if (cpu_use_vis) {
 		switch (cpu_impl) {
 		case CPU_IMPL_SPARC64:
-		case CPU_IMPL_SPARC64V:
 		case CPU_IMPL_ULTRASPARCI:
 		case CPU_IMPL_ULTRASPARCII:
 		case CPU_IMPL_ULTRASPARCIIi:
@@ -506,6 +505,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		case CPU_IMPL_ULTRASPARCIV:
 		case CPU_IMPL_ULTRASPARCIVp:
 		case CPU_IMPL_ULTRASPARCIIIip:
+			cpu_block_copy = spitfire_block_copy;
+			cpu_block_zero = spitfire_block_zero;
+			break;
+		case CPU_IMPL_SPARC64V:
+			cpu_block_copy = zeus_block_copy;
+			cpu_block_zero = zeus_block_zero;
 			cpu_block_copy = spitfire_block_copy;
 			cpu_block_zero = spitfire_block_zero;
 			break;
