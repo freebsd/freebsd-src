@@ -49,11 +49,12 @@ uint8_t zio_priority_table[ZIO_PRIORITY_TABLE_SIZE] = {
 	0,	/* ZIO_PRIORITY_NOW		*/
 	0,	/* ZIO_PRIORITY_SYNC_READ	*/
 	0,	/* ZIO_PRIORITY_SYNC_WRITE	*/
-	6,	/* ZIO_PRIORITY_ASYNC_READ	*/
-	4,	/* ZIO_PRIORITY_ASYNC_WRITE	*/
-	4,	/* ZIO_PRIORITY_FREE		*/
-	0,	/* ZIO_PRIORITY_CACHE_FILL	*/
 	0,	/* ZIO_PRIORITY_LOG_WRITE	*/
+	1,	/* ZIO_PRIORITY_CACHE_FILL	*/
+	1,	/* ZIO_PRIORITY_AGG		*/
+	4,	/* ZIO_PRIORITY_FREE		*/
+	4,	/* ZIO_PRIORITY_ASYNC_WRITE	*/
+	6,	/* ZIO_PRIORITY_ASYNC_READ	*/
 	10,	/* ZIO_PRIORITY_RESILVER	*/
 	20,	/* ZIO_PRIORITY_SCRUB		*/
 };
@@ -64,7 +65,9 @@ uint8_t zio_priority_table[ZIO_PRIORITY_TABLE_SIZE] = {
  * ==========================================================================
  */
 char *zio_type_name[ZIO_TYPES] = {
-	"null", "read", "write", "free", "claim", "ioctl" };
+	"zio_null", "zio_read", "zio_write", "zio_free", "zio_claim",
+	"zio_ioctl"
+};
 
 #define	SYNC_PASS_DEFERRED_FREE	1	/* defer frees after this pass */
 #define	SYNC_PASS_DONT_COMPRESS	4	/* don't compress after this pass */
@@ -942,6 +945,7 @@ zio_write_bp_init(zio_t *zio)
 static void
 zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 {
+	spa_t *spa = zio->io_spa;
 	zio_type_t t = zio->io_type;
 
 	/*
@@ -958,7 +962,15 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 	if (t == ZIO_TYPE_WRITE && zio->io_vd && zio->io_vd->vdev_aux)
 		t = ZIO_TYPE_NULL;
 
-	(void) taskq_dispatch_safe(zio->io_spa->spa_zio_taskq[t][q],
+	/*
+	 * If this is a high priority I/O, then use the high priority taskq.
+	 */
+	if (zio->io_priority == ZIO_PRIORITY_NOW &&
+	    spa->spa_zio_taskq[t][q + 1] != NULL)
+		q++;
+
+	ASSERT3U(q, <, ZIO_TASKQ_TYPES);
+	(void) taskq_dispatch_safe(spa->spa_zio_taskq[t][q],
 	    (task_func_t *)zio_execute, zio, &zio->io_task);
 }
 
