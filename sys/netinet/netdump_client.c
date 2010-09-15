@@ -153,24 +153,6 @@ static int nd_polls=10000; /* Times to poll the NIC (0.5ms each poll) before
 static int nd_retries=10; /* Times to retransmit lost packets */
 
 /*
- * [ether_set_broadcast]
- *
- * Fills up an ethernet address as broadcast
- *
- * Parameters:
- *	addr	The ethernet address to be filled up
- *
- * Returns:
- *	void
- */
-static __inline void
-ether_set_broadcast(struct ether_addr *addr)
-{
-
-	memset(addr, 0xFF, ETHER_ADDR_LEN);
-}
-
-/*
  * [netdump_supported_nic]
  *
  * Checks for netdump support on a network interface
@@ -515,8 +497,8 @@ netdump_send_arp()
 	struct arphdr *ah;
 	struct ether_addr bcast;
 
-	ether_set_broadcast(&bcast);
-
+	/* Fill-up a broadcast address. */
+	memset(&bcast, 0xFF, ETHER_ADDR_LEN);
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
 		printf("netdump_send_arp: Out of mbufs");
