@@ -70,6 +70,10 @@
 #include "thr_umtx.h"
 #include "thread_db.h"
 
+#ifdef _PTHREAD_FORCED_UNWIND
+#include <unwind-generic.h>
+#endif
+
 typedef TAILQ_HEAD(pthreadlist, pthread) pthreadlist;
 typedef TAILQ_HEAD(atfork_head, pthread_atfork) atfork_head;
 TAILQ_HEAD(mutex_queue, pthread_mutex);
@@ -445,6 +449,11 @@ struct pthread {
 
 	/* Cleanup handlers Link List */
 	struct pthread_cleanup	*cleanup;
+
+#ifdef _PTHREAD_FORCED_UNWIND
+	struct _Unwind_Exception	ex;
+	void			*unwind_stackend;
+#endif
 
 	/*
 	 * Magic value to help recognize a valid thread structure
