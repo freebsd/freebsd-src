@@ -272,7 +272,7 @@ set_intr_mask(uint32_t mask)
 	uint32_t ostatus;
 
 	ostatus = mips_rd_status();
-	mask = (ostatus & ~MIPS_SR_INT_MASK) | (~mask & MIPS_SR_INT_MASK);
+	mask = (ostatus & ~MIPS_SR_INT_MASK) | (mask & MIPS_SR_INT_MASK);
 	mips_wr_status(mask);
 	return (ostatus);
 }
