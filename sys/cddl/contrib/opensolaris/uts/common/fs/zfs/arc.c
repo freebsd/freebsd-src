@@ -2277,12 +2277,12 @@ arc_reclaim_thread(void *dummy __unused)
 		if (arc_eviction_list != NULL)
 			arc_do_user_evicts();
 
-		if (arc_reclaim_needed()) {
-			needfree = 0;
 #ifdef _KERNEL
+		if (needfree) {
+			needfree = 0;
 			wakeup(&needfree);
-#endif
 		}
+#endif
 
 		/* block until needed, or one second, whichever is shorter */
 		CALLB_CPR_SAFE_BEGIN(&cpr);
