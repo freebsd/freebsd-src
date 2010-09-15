@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -581,24 +581,6 @@ zfs_rmnode(znode_t *zp)
 	ASSERT(zp->z_phys->zp_links == 0);
 
 	/*
-	 * If this is a ZIL replay then leave the object in the unlinked set.
-	 * Otherwise we can get a deadlock, because the delete can be
-	 * quite large and span multiple tx's and txgs, but each replay
-	 * creates a tx to atomically run the replay function and mark the
-	 * replay record as complete. We deadlock trying to start a tx in
-	 * a new txg to further the deletion but can't because the replay
-	 * tx hasn't finished.
-	 *
-	 * We actually delete the object if we get a failure to create an
-	 * object in zil_replay_log_record(), or after calling zil_replay().
-	 */
-	if (zfsvfs->z_assign >= TXG_INITIAL) {
-		zfs_znode_dmu_fini(zp);
-		zfs_znode_free(zp);
-		return;
-	}
-
-	/*
 	 * If this is an attribute directory, purge its contents.
 	 */
 	if (ZTOV(zp) != NULL && ZTOV(zp)->v_type == VDIR &&
@@ -842,7 +824,8 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, vnode_t **xvpp, cred_t *cr)
 	znode_t *xzp;
 	dmu_tx_t *tx;
 	int error;
-	zfs_fuid_info_t *fuidp = NULL;
+	zfs_acl_ids_t acl_ids;
+	boolean_t fuid_dirtied;
 
 	*xvpp = NULL;
 
@@ -855,37 +838,41 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, vnode_t **xvpp, cred_t *cr)
 		return (error);
 #endif
 
+	if ((error = zfs_acl_ids_create(zp, IS_XATTR, vap, cr, NULL,
+	    &acl_ids)) != 0)
+		return (error);
+	if (zfs_acl_ids_overquota(zfsvfs, &acl_ids)) {
+		zfs_acl_ids_free(&acl_ids);
+		return (EDQUOT);
+	}
+
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_bonus(tx, zp->z_id);
 	dmu_tx_hold_zap(tx, DMU_NEW_OBJECT, FALSE, NULL);
-	if (IS_EPHEMERAL(crgetuid(cr)) || IS_EPHEMERAL(crgetgid(cr))) {
-		if (zfsvfs->z_fuid_obj == 0) {
-			dmu_tx_hold_bonus(tx, DMU_NEW_OBJECT);
-			dmu_tx_hold_write(tx, DMU_NEW_OBJECT, 0,
-			    FUID_SIZE_ESTIMATE(zfsvfs));
-			dmu_tx_hold_zap(tx, MASTER_NODE_OBJ, FALSE, NULL);
-		} else {
-			dmu_tx_hold_bonus(tx, zfsvfs->z_fuid_obj);
-			dmu_tx_hold_write(tx, zfsvfs->z_fuid_obj, 0,
-			    FUID_SIZE_ESTIMATE(zfsvfs));
-		}
-	}
-	error = dmu_tx_assign(tx, zfsvfs->z_assign);
+	fuid_dirtied = zfsvfs->z_fuid_dirty;
+	if (fuid_dirtied)
+		zfs_fuid_txhold(zfsvfs, tx);
+	error = dmu_tx_assign(tx, TXG_NOWAIT);
 	if (error) {
-		if (error == ERESTART && zfsvfs->z_assign == TXG_NOWAIT)
+		zfs_acl_ids_free(&acl_ids);
+		if (error == ERESTART)
 			dmu_tx_wait(tx);
 		dmu_tx_abort(tx);
 		return (error);
 	}
-	zfs_mknode(zp, vap, tx, cr, IS_XATTR, &xzp, 0, NULL, &fuidp);
+	zfs_mknode(zp, vap, tx, cr, IS_XATTR, &xzp, 0, &acl_ids);
+
+	if (fuid_dirtied)
+		zfs_fuid_sync(zfsvfs, tx);
+
 	ASSERT(xzp->z_phys->zp_parent == zp->z_id);
 	dmu_buf_will_dirty(zp->z_dbuf, tx);
 	zp->z_phys->zp_xattr = xzp->z_id;
 
 	(void) zfs_log_create(zfsvfs->z_log, tx, TX_MKXATTR, zp,
-	    xzp, "", NULL, fuidp, vap);
-	if (fuidp)
-		zfs_fuid_info_free(fuidp);
+	    xzp, "", NULL, acl_ids.z_fuidp, vap);
+
+	zfs_acl_ids_free(&acl_ids);
 	dmu_tx_commit(tx);
 
 	*xvpp = ZTOV(xzp);
@@ -959,7 +946,7 @@ top:
 	error = zfs_make_xattrdir(zp, &va, xvpp, cr);
 	zfs_dirent_unlock(dl);
 
-	if (error == ERESTART && zfsvfs->z_assign == TXG_NOWAIT) {
+	if (error == ERESTART) {
 		/* NB: we already did dmu_tx_wait() if necessary */
 		goto top;
 	}
@@ -990,7 +977,7 @@ zfs_sticky_remove_access(znode_t *zdp, znode_t *zp, cred_t *cr)
 	uid_t		fowner;
 	zfsvfs_t	*zfsvfs = zdp->z_zfsvfs;
 
-	if (zdp->z_zfsvfs->z_assign >= TXG_INITIAL)	/* ZIL replay */
+	if (zdp->z_zfsvfs->z_replay)
 		return (0);
 
 	if ((zdp->z_phys->zp_mode & S_ISVTX) == 0)

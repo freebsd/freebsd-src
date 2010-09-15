@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -100,6 +100,7 @@ extern "C" {
 #define	ZFS_ROOT_OBJ		"ROOT"
 #define	ZPL_VERSION_STR		"VERSION"
 #define	ZFS_FUID_TABLES		"FUID"
+#define	ZFS_SHARES_DIR		"SHARES"
 
 #define	ZFS_MAX_BLOCKSIZE	(SPA_MAXBLOCKSIZE)
 
@@ -186,7 +187,6 @@ typedef struct znode {
 	vnode_t		*z_vnode;
 	uint64_t	z_id;		/* object ID for this znode */
 	kmutex_t	z_lock;		/* znode modification lock */
-	krwlock_t	z_map_lock;	/* page map lock */
 	krwlock_t	z_parent_lock;	/* parent lock for directories */
 	krwlock_t	z_name_lock;	/* "master" lock for dirent locks */
 	zfs_dirlock_t	*z_dirlocks;	/* directory entry lock list */
@@ -338,7 +338,6 @@ extern void	zfs_remove_op_tables();
 extern int	zfs_create_op_tables();
 extern dev_t	zfs_cmpldev(uint64_t);
 extern int	zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value);
-extern int	zfs_set_version(const char *name, uint64_t newvers);
 extern int	zfs_get_stats(objset_t *os, nvlist_t *nv);
 extern void	zfs_znode_dmu_fini(znode_t *);
 
@@ -367,6 +366,7 @@ extern void zfs_log_acl(zilog_t *zilog, dmu_tx_t *tx, znode_t *zp,
 #endif
 extern void zfs_xvattr_set(znode_t *zp, xvattr_t *xvap);
 extern void zfs_upgrade(zfsvfs_t *zfsvfs, dmu_tx_t *tx);
+extern int zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx);
 
 extern zil_get_data_t zfs_get_data;
 extern zil_replay_func_t *zfs_replay_vector[TX_MAX_TYPE];

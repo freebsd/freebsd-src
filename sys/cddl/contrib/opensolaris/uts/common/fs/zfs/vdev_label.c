@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -233,6 +233,10 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 		VERIFY(nvlist_add_string(nv, ZPOOL_CONFIG_PHYS_PATH,
 		    vd->vdev_physpath) == 0);
 
+	if (vd->vdev_fru != NULL)
+		VERIFY(nvlist_add_string(nv, ZPOOL_CONFIG_FRU,
+		    vd->vdev_fru) == 0);
+
 	if (vd->vdev_nparity != 0) {
 		ASSERT(strcmp(vd->vdev_ops->vdev_op_type,
 		    VDEV_TYPE_RAIDZ) == 0);
@@ -277,9 +281,9 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 		    vd->vdev_islog) == 0);
 	}
 
-	if (vd->vdev_dtl.smo_object != 0)
+	if (vd->vdev_dtl_smo.smo_object != 0)
 		VERIFY(nvlist_add_uint64(nv, ZPOOL_CONFIG_DTL,
-		    vd->vdev_dtl.smo_object) == 0);
+		    vd->vdev_dtl_smo.smo_object) == 0);
 
 	if (getstats) {
 		vdev_stat_t vs;
@@ -488,7 +492,7 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 	spa_t *spa = vd->vdev_spa;
 	nvlist_t *label;
 	vdev_phys_t *vp;
-	vdev_boot_header_t *vb;
+	char *pad2;
 	uberblock_t *ub;
 	zio_t *zio;
 	char *buf;
@@ -519,9 +523,6 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 	if (reason != VDEV_LABEL_REMOVE &&
 	    vdev_inuse(vd, crtxg, reason, &spare_guid, &l2cache_guid))
 		return (EBUSY);
-
-	ASSERT(reason != VDEV_LABEL_REMOVE ||
-	    vdev_inuse(vd, crtxg, reason, NULL, NULL));
 
 	/*
 	 * If this is a request to add or replace a spare or l2cache device
@@ -633,22 +634,16 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 	}
 
 	/*
-	 * Initialize boot block header.
-	 */
-	vb = zio_buf_alloc(sizeof (vdev_boot_header_t));
-	bzero(vb, sizeof (vdev_boot_header_t));
-	vb->vb_magic = VDEV_BOOT_MAGIC;
-	vb->vb_version = VDEV_BOOT_VERSION;
-	vb->vb_offset = VDEV_BOOT_OFFSET;
-	vb->vb_size = VDEV_BOOT_SIZE;
-
-	/*
 	 * Initialize uberblock template.
 	 */
 	ub = zio_buf_alloc(VDEV_UBERBLOCK_SIZE(vd));
 	bzero(ub, VDEV_UBERBLOCK_SIZE(vd));
 	*ub = spa->spa_uberblock;
 	ub->ub_txg = 0;
+
+	/* Initialize the 2nd padding area. */
+	pad2 = zio_buf_alloc(VDEV_PAD_SIZE);
+	bzero(pad2, VDEV_PAD_SIZE);
 
 	/*
 	 * Write everything in parallel.
@@ -661,9 +656,14 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 		    offsetof(vdev_label_t, vl_vdev_phys),
 		    sizeof (vdev_phys_t), NULL, NULL, flags);
 
-		vdev_label_write(zio, vd, l, vb,
-		    offsetof(vdev_label_t, vl_boot_header),
-		    sizeof (vdev_boot_header_t), NULL, NULL, flags);
+		/*
+		 * Skip the 1st padding area.
+		 * Zero out the 2nd padding area where it might have
+		 * left over data from previous filesystem format.
+		 */
+		vdev_label_write(zio, vd, l, pad2,
+		    offsetof(vdev_label_t, vl_pad2),
+		    VDEV_PAD_SIZE, NULL, NULL, flags);
 
 		for (int n = 0; n < VDEV_UBERBLOCK_COUNT(vd); n++) {
 			vdev_label_write(zio, vd, l, ub,
@@ -675,8 +675,8 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 	error = zio_wait(zio);
 
 	nvlist_free(label);
+	zio_buf_free(pad2, VDEV_PAD_SIZE);
 	zio_buf_free(ub, VDEV_UBERBLOCK_SIZE(vd));
-	zio_buf_free(vb, sizeof (vdev_boot_header_t));
 	zio_buf_free(vp, sizeof (vdev_phys_t));
 
 	/*
@@ -703,6 +703,11 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
  * uberblock load/sync
  * ==========================================================================
  */
+
+/*
+ * For use by zdb and debugging purposes only
+ */
+uint64_t ub_max_txg = UINT64_MAX;
 
 /*
  * Consider the following situation: txg is safely synced to disk.  We've
@@ -741,7 +746,8 @@ vdev_uberblock_load_done(zio_t *zio)
 
 	if (zio->io_error == 0 && uberblock_verify(ub) == 0) {
 		mutex_enter(&rio->io_lock);
-		if (vdev_uberblock_compare(ub, ubbest) > 0)
+		if (ub->ub_txg <= ub_max_txg &&
+		    vdev_uberblock_compare(ub, ubbest) > 0)
 			*ubbest = *ub;
 		mutex_exit(&rio->io_lock);
 	}
@@ -958,7 +964,7 @@ vdev_label_sync_list(spa_t *spa, int l, uint64_t txg, int flags)
 	for (vd = list_head(dl); vd != NULL; vd = list_next(dl, vd)) {
 		uint64_t *good_writes = kmem_zalloc(sizeof (uint64_t),
 		    KM_SLEEP);
-		zio_t *vio = zio_null(zio, spa,
+		zio_t *vio = zio_null(zio, spa, NULL,
 		    (vd->vdev_islog || vd->vdev_aux != NULL) ?
 		    vdev_label_sync_ignore_done : vdev_label_sync_top_done,
 		    good_writes, flags);

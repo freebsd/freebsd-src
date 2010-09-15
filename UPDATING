@@ -15,6 +15,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20100915:
+	A new version of ZFS (version 15) has been merged.
+	This version uses a python library for the following subcommands:
+	zfs allow, zfs unallow, zfs groupspace, zfs userspace.
+	For full functionality of these commands the following port must
+	be installed: sysutils/py-zfs
+
 20100720:
 	8.1-RELEASE.
 
@@ -1557,6 +1564,22 @@ COMMON ITEMS:
 	upgrade path, and has the highest probability of being successful.
 	Please try this approach before reporting problems with a major
 	version upgrade.
+
+	ZFS notes
+	---------
+	When upgrading the boot ZFS pool to a new version, always follow
+	these two steps:
+
+	1.) recompile and reinstall the ZFS boot loader and boot block
+	(this is part of "make buildworld" and "make installworld")
+
+	2.) update the ZFS boot block on your boot drive
+
+	The following example updates the ZFS boot block on the first
+	partition (freebsd-boot) of a GPT partitioned drive ad0:
+	"gpart bootcode -p /boot/gptzfsboot -i 1 ad0"
+
+	Non-boot pools do not need these updates.
 
 	To build a kernel
 	-----------------

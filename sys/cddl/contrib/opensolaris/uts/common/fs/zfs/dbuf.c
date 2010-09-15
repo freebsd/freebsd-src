@@ -327,7 +327,7 @@ dbuf_verify(dmu_buf_impl_t *db)
 		if (db->db_parent == dn->dn_dbuf) {
 			/* db is pointed to by the dnode */
 			/* ASSERT3U(db->db_blkid, <, dn->dn_nblkptr); */
-			if (db->db.db_object == DMU_META_DNODE_OBJECT)
+			if (DMU_OBJECT_IS_SPECIAL(db->db.db_object))
 				ASSERT(db->db_parent == NULL);
 			else
 				ASSERT(db->db_parent != NULL);
@@ -899,15 +899,11 @@ dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	 * Shouldn't dirty a regular buffer in syncing context.  Private
 	 * objects may be dirtied in syncing context, but only if they
 	 * were already pre-dirtied in open context.
-	 * XXX We may want to prohibit dirtying in syncing context even
-	 * if they did pre-dirty.
 	 */
 	ASSERT(!dmu_tx_is_syncing(tx) ||
 	    BP_IS_HOLE(dn->dn_objset->os_rootbp) ||
-	    dn->dn_object == DMU_META_DNODE_OBJECT ||
-	    dn->dn_objset->os_dsl_dataset == NULL ||
-	    dsl_dir_is_private(dn->dn_objset->os_dsl_dataset->ds_dir));
-
+	    DMU_OBJECT_IS_SPECIAL(dn->dn_object) ||
+	    dn->dn_objset->os_dsl_dataset == NULL);
 	/*
 	 * We make this assert for private objects as well, but after we
 	 * check if we're already dirty.  They are allowed to re-dirty
@@ -965,7 +961,8 @@ dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	/*
 	 * Only valid if not already dirty.
 	 */
-	ASSERT(dn->dn_dirtyctx == DN_UNDIRTIED || dn->dn_dirtyctx ==
+	ASSERT(dn->dn_object == 0 ||
+	    dn->dn_dirtyctx == DN_UNDIRTIED || dn->dn_dirtyctx ==
 	    (dmu_tx_is_syncing(tx) ? DN_DIRTY_SYNC : DN_DIRTY_OPEN));
 
 	ASSERT3U(dn->dn_nlevels, >, db->db_level);
@@ -977,15 +974,13 @@ dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 
 	/*
 	 * We should only be dirtying in syncing context if it's the
-	 * mos, a spa os, or we're initializing the os.  However, we are
-	 * allowed to dirty in syncing context provided we already
-	 * dirtied it in open context.  Hence we must make this
-	 * assertion only if we're not already dirty.
+	 * mos or we're initializing the os or it's a special object.
+	 * However, we are allowed to dirty in syncing context provided
+	 * we already dirtied it in open context.  Hence we must make
+	 * this assertion only if we're not already dirty.
 	 */
-	ASSERT(!dmu_tx_is_syncing(tx) ||
-	    os->os_dsl_dataset == NULL ||
-	    !dsl_dir_is_private(os->os_dsl_dataset->ds_dir) ||
-	    !BP_IS_HOLE(os->os_rootbp));
+	ASSERT(!dmu_tx_is_syncing(tx) || DMU_OBJECT_IS_SPECIAL(dn->dn_object) ||
+	    os->os_dsl_dataset == NULL || BP_IS_HOLE(os->os_rootbp));
 	ASSERT(db->db.db_size != 0);
 
 	dprintf_dbuf(db, "size=%llx\n", (u_longlong_t)db->db.db_size);
@@ -1282,6 +1277,68 @@ dbuf_fill_done(dmu_buf_impl_t *db, dmu_tx_t *tx)
 		cv_broadcast(&db->db_changed);
 	}
 	mutex_exit(&db->db_mtx);
+}
+
+/*
+ * Directly assign a provided arc buf to a given dbuf if it's not referenced
+ * by anybody except our caller. Otherwise copy arcbuf's contents to dbuf.
+ */
+void
+dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
+{
+	ASSERT(!refcount_is_zero(&db->db_holds));
+	ASSERT(db->db_dnode->dn_object != DMU_META_DNODE_OBJECT);
+	ASSERT(db->db_blkid != DB_BONUS_BLKID);
+	ASSERT(db->db_level == 0);
+	ASSERT(DBUF_GET_BUFC_TYPE(db) == ARC_BUFC_DATA);
+	ASSERT(buf != NULL);
+	ASSERT(arc_buf_size(buf) == db->db.db_size);
+	ASSERT(tx->tx_txg != 0);
+
+	arc_return_buf(buf, db);
+	ASSERT(arc_released(buf));
+
+	mutex_enter(&db->db_mtx);
+
+	while (db->db_state == DB_READ || db->db_state == DB_FILL)
+		cv_wait(&db->db_changed, &db->db_mtx);
+
+	ASSERT(db->db_state == DB_CACHED || db->db_state == DB_UNCACHED);
+
+	if (db->db_state == DB_CACHED &&
+	    refcount_count(&db->db_holds) - 1 > db->db_dirtycnt) {
+		mutex_exit(&db->db_mtx);
+		(void) dbuf_dirty(db, tx);
+		bcopy(buf->b_data, db->db.db_data, db->db.db_size);
+		VERIFY(arc_buf_remove_ref(buf, db) == 1);
+		return;
+	}
+
+	if (db->db_state == DB_CACHED) {
+		dbuf_dirty_record_t *dr = db->db_last_dirty;
+
+		ASSERT(db->db_buf != NULL);
+		if (dr != NULL && dr->dr_txg == tx->tx_txg) {
+			ASSERT(dr->dt.dl.dr_data == db->db_buf);
+			if (!arc_released(db->db_buf)) {
+				ASSERT(dr->dt.dl.dr_override_state ==
+				    DR_OVERRIDDEN);
+				arc_release(db->db_buf, db);
+			}
+			dr->dt.dl.dr_data = buf;
+			VERIFY(arc_buf_remove_ref(db->db_buf, db) == 1);
+		} else if (dr == NULL || dr->dt.dl.dr_data != db->db_buf) {
+			arc_release(db->db_buf, db);
+			VERIFY(arc_buf_remove_ref(db->db_buf, db) == 1);
+		}
+		db->db_buf = NULL;
+	}
+	ASSERT(db->db_buf == NULL);
+	dbuf_set_data(db, buf);
+	db->db_state = DB_FILL;
+	mutex_exit(&db->db_mtx);
+	(void) dbuf_dirty(db, tx);
+	dbuf_fill_done(db, tx);
 }
 
 /*
@@ -1825,6 +1882,19 @@ dmu_buf_get_user(dmu_buf_t *db_fake)
 	ASSERT(!refcount_is_zero(&db->db_holds));
 
 	return (db->db_user_ptr);
+}
+
+boolean_t
+dmu_buf_freeable(dmu_buf_t *dbuf)
+{
+	boolean_t res = B_FALSE;
+	dmu_buf_impl_t *db = (dmu_buf_impl_t *)dbuf;
+
+	if (db->db_blkptr)
+		res = dsl_dataset_block_freeable(db->db_objset->os_dsl_dataset,
+		    db->db_blkptr->blk_birth);
+
+	return (res);
 }
 
 static void

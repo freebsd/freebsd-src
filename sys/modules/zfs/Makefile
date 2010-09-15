@@ -23,6 +23,7 @@ SRCS+=	opensolaris_lookup.c
 SRCS+=	opensolaris_policy.c
 SRCS+=	opensolaris_string.c
 SRCS+=	opensolaris_taskq.c
+SRCS+=	opensolaris_uio.c
 SRCS+=	opensolaris_vfs.c
 SRCS+=	opensolaris_zone.c
 

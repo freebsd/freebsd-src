@@ -72,6 +72,7 @@ int	secpolicy_fs_mount(cred_t *cr, vnode_t *mvp, struct mount *vfsp);
 void	secpolicy_fs_mount_clearopts(cred_t *cr, struct mount *vfsp);
 int	secpolicy_xvattr(struct vnode *vp, xvattr_t *xvap, uid_t owner,
 	    cred_t *cr, vtype_t vtype);
+int	secpolicy_smb(cred_t *cr);
 
 #endif	/* _KERNEL */
 
