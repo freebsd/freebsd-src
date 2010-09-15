@@ -415,13 +415,13 @@ struct pthread {
 #define THR_FLAGS_PRIVATE	0x0001
 #define	THR_FLAGS_NEED_SUSPEND	0x0002	/* thread should be suspended */
 #define	THR_FLAGS_SUSPENDED	0x0004	/* thread is suspended */
-#define	THR_FLAGS_IN_GCLIST	0x0008	/* thread in gc list */
-#define	THR_FLAGS_DETACHED	0x0010	/* thread is detached */
+#define	THR_FLAGS_DETACHED	0x0008	/* thread is detached */
 
 	/* Thread list flags; only set with thread list lock held. */
 	int			tlflags;
 #define	TLFLAGS_GC_SAFE		0x0001	/* thread safe for cleaning */
 #define	TLFLAGS_IN_TDLIST	0x0002	/* thread in all thread list */
+#define	TLFLAGS_IN_GCLIST	0x0004	/* thread in gc list */
 
 	/* Queue of currently owned NORMAL or PRIO_INHERIT type mutexes. */
 	struct mutex_queue	mutexq;
@@ -559,16 +559,16 @@ do {								\
 	}							\
 } while (0)
 #define	THR_GCLIST_ADD(thrd) do {				\
-	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) == 0) {	\
+	if (((thrd)->tlflags & TLFLAGS_IN_GCLIST) == 0) {	\
 		TAILQ_INSERT_HEAD(&_thread_gc_list, thrd, gcle);\
-		(thrd)->flags |= THR_FLAGS_IN_GCLIST;		\
+		(thrd)->tlflags |= TLFLAGS_IN_GCLIST;		\
 		_gc_count++;					\
 	}							\
 } while (0)
 #define	THR_GCLIST_REMOVE(thrd) do {				\
-	if (((thrd)->flags & THR_FLAGS_IN_GCLIST) != 0) {	\
+	if (((thrd)->tlflags & TLFLAGS_IN_GCLIST) != 0) {	\
 		TAILQ_REMOVE(&_thread_gc_list, thrd, gcle);	\
-		(thrd)->flags &= ~THR_FLAGS_IN_GCLIST;		\
+		(thrd)->tlflags &= ~TLFLAGS_IN_GCLIST;		\
 		_gc_count--;					\
 	}							\
 } while (0)
