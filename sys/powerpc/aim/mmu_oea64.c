@@ -838,7 +838,7 @@ moea64_bootstrap_slb_prefault(vm_offset_t va, int large)
 	if (large)
 		entry.slbv |= SLBV_L;
 
-	slb_insert(kernel_pmap, cache, &entry);
+	slb_insert_kernel(entry.slbe, entry.slbv);
 }
 #endif
 
@@ -2099,6 +2099,7 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 
 	pmap->pm_slb_tree_root = slb_alloc_tree();
 	pmap->pm_slb = slb_alloc_user_cache();
+	pmap->pm_slb_len = 0;
 }
 #else
 void
