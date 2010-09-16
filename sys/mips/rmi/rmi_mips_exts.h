@@ -348,7 +348,7 @@ write_c0_eimr64(uint64_t val)
 	write_c0_register64(9, 7, val);
 }
 
-static __inline__ int 
+static __inline int 
 xlr_test_and_set(int *lock)
 {
 	int oldval = 0;
@@ -367,10 +367,10 @@ xlr_test_and_set(int *lock)
 	    : "$8", "$9"
 	);
 
-	return (oldval == 0 ? 1 /* success */ : 0 /* failure */ );
+	return (oldval == 0 ? 1 /* success */ : 0 /* failure */);
 }
 
-static __inline__ uint32_t 
+static __inline uint32_t 
 xlr_mfcr(uint32_t reg)
 {
 	uint32_t val;
@@ -385,7 +385,7 @@ xlr_mfcr(uint32_t reg)
 	return val;
 }
 
-static __inline__ void 
+static __inline void 
 xlr_mtcr(uint32_t reg, uint32_t val)
 {
 	__asm__ __volatile__(
@@ -396,26 +396,47 @@ xlr_mtcr(uint32_t reg, uint32_t val)
 	    : "$8", "$9");
 }
 
+/*
+ * Atomic increment a unsigned  int
+ */
+static __inline unsigned int
+xlr_ldaddwu(unsigned int value, unsigned int *addr)
+{
+	__asm__	 __volatile__(
+	    ".set	push\n"
+	    ".set	noreorder\n"
+	    "move	$8, %2\n"
+	    "move	$9, %3\n"
+	    ".word	0x71280011\n"  /* ldaddwu $8, $9 */
+	    "move	%0, $8\n"
+	    ".set	pop\n"
+	    : "=&r"(value), "+m"(*addr)
+	    : "0"(value), "r" ((unsigned long)addr)
+	    :  "$8", "$9");
+
+	return (value);
+}
+
 #if defined(__mips_n64)
-static __inline__ uint32_t
-xlr_paddr_lw(uint64_t paddr)
+static __inline uint64_t
+xlr_paddr_ld(uint64_t paddr)
 {
 	
 	paddr |= 0x9800000000000000ULL;
-	return (*(uint32_t *)(uintptr_t)paddr);
+	return (*(uint64_t *)(uintptr_t)paddr);
 }
 
 #elif defined(__mips_n32)
-static __inline__ uint32_t
-xlr_paddr_lw(uint64_t paddr)
+static __inline uint64_t
+xlr_paddr_ld(uint64_t paddr)
 {
-	uint32_t val;
+	uint64_t val;
 
 	paddr |= 0x9800000000000000ULL;
 	__asm__ __volatile__(
 	    ".set	push		\n\t"
 	    ".set	mips64		\n\t"
-	    "lw		%0, 0(%1)	\n\t"
+	    "ld		%0, 0(%1)	\n\t"
 	    ".set	pop		\n"
 	    : "=r"(val)
 	    : "r"(paddr));
@@ -423,27 +444,62 @@ xlr_paddr_lw(uint64_t paddr)
 	return (val);
 }
 #else
-static __inline__ uint32_t
-xlr_paddr_lw(uint64_t paddr)
+static __inline uint32_t
+xlr_paddr_ld(uint64_t paddr)
 {
-	uint32_t high, low, tmp;
+	uint32_t addrh, addrl;
+       	uint32_t valh, vall;
 
-	high = 0x98000000 | (paddr >> 32);
-	low = paddr & 0xffffffff;
+	addrh = 0x98000000 | (paddr >> 32);
+	addrl = paddr & 0xffffffff;
 
 	__asm__ __volatile__(
 	    ".set push         \n\t"
 	    ".set mips64       \n\t"
-	    "dsll32 %1, %1, 0  \n\t"
-	    "dsll32 %2, %2, 0  \n\t"  /* get rid of the */
-	    "dsrl32 %2, %2, 0  \n\t"  /* sign extend */
-	    "or     %1, %1, %2 \n\t"
-	    "lw     %0, 0(%1)  \n\t"
+	    "dsll32 %2, %2, 0  \n\t"
+	    "dsll32 %3, %3, 0  \n\t"  /* get rid of the */
+	    "dsrl32 %3, %3, 0  \n\t"  /* sign extend */
+	    "or     %2, %2, %3 \n\t"
+	    "lw     %0, 0(%2)  \n\t"
+	    "lw     %1, 4(%2)  \n\t"
 	    ".set pop           \n"
-	    :       "=r"(tmp)
-	    :       "r"(high), "r"(low));
+	    :       "=&r"(valh), "=r"(vall)
+	    :       "r"(addrh), "r"(addrl));
 
-	return tmp;
+	return (((uint64_t)valh << 32) | vall);
+}
+#endif
+
+/*
+ * XXX: Not really needed in n32 or n64, retain for now
+ */
+#if defined(__mips_n64) || defined(__mips_n32)
+static __inline uint32_t
+xlr_enable_kx(void)
+{
+
+	return (0);
+}
+
+static __inline void
+xlr_restore_kx(uint32_t sr)
+{
+}
+#else
+static __inline uint32_t 
+xlr_enable_kx(void)
+{
+	uint32_t sr = mips_rd_status();
+
+	mips_wr_status((sr & ~MIPS_SR_INT_IE) | MIPS_SR_KX);
+	return (sr);
+}
+
+static __inline void
+xlr_restore_kx(uint32_t sr)
+{
+
+	mips_wr_status(sr);
 }
 #endif
 
