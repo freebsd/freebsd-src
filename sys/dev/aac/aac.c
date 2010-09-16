@@ -391,7 +391,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid)
 
 	if (aac_sync_fib(sc, ContainerCommand, 0, fib,
 			 sizeof(struct aac_mntinfo))) {
-		printf("Error probing container %d\n", cid);
+		device_printf(sc->aac_dev, "Error probing container %d\n", cid);
 		return (NULL);
 	}
 
