@@ -438,6 +438,7 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, MPI2_EVENT_SAS_TOPO_PHY_ENTRY 
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_complete = mpssas_remove_device;
 	cm->cm_targ = targ;
+	xpt_freeze_simq(sc->sassc->sim, 1);
 	mps_map_command(sc, cm);
 }
 
@@ -453,6 +454,7 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *cm)
 
 	reply = (MPI2_SCSI_TASK_MANAGE_REPLY *)cm->cm_reply;
 	handle = cm->cm_targ->handle;
+	xpt_release_simq(sc->sassc->sim, 1);
 	if (reply->IOCStatus != MPI2_IOCSTATUS_SUCCESS) {
 		mps_printf(sc, "Failure 0x%x reseting device 0x%04x\n", 
 		   reply->IOCStatus, handle);
@@ -983,6 +985,11 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *cm)
 	mps_printf(sc, "%s: abort request on handle %#04x SMID %d "
 		   "complete\n", __func__, req->DevHandle, req->TaskMID);
 
+	/*
+	 * Release the SIM queue, we froze it when we sent the abort.
+	 */
+	xpt_release_simq(sc->sassc->sim, 1);
+
 	mps_free_command(sc, cm);
 }
 
@@ -1013,10 +1020,19 @@ mpssas_recovery(struct mps_softc *sc, struct mps_command *abort_cm)
 	cm->cm_data = NULL;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
+	/*
+	 * Freeze the SIM queue while we issue the abort.  According to the
+	 * Fusion-MPT 2.0 spec, task management requests are serialized,
+	 * and so the host should not send any I/O requests while task
+	 * management requests are pending.
+	 */
+	xpt_freeze_simq(sc->sassc->sim, 1);
+
 	error = mps_map_command(sc, cm);
 
 	if (error != 0) {
 		mps_printf(sc, "%s: error mapping abort request!\n", __func__);
+		xpt_release_simq(sc->sassc->sim, 1);
 	}
 #if 0
 	error = mpssas_reset(sc, targ, &resetcm);
@@ -1361,7 +1377,13 @@ mpssas_resetdev(struct mpssas_softc *sassc, struct mps_command *cm)
 	cm->cm_data = NULL;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
+	xpt_freeze_simq(sassc->sim, 1);
+
 	error = mps_map_command(sassc->sc, cm);
+
+	if (error != 0)
+		xpt_release_simq(sassc->sim, 1);
+
 	return (error);
 }
 
@@ -1385,6 +1407,9 @@ mpssas_resetdev_complete(struct mps_softc *sc, struct mps_command *cm)
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 
 	mps_free_command(sc, cm);
+
+	xpt_release_simq(sc->sassc->sim, 1);
+
 	xpt_done(ccb);
 }
 
