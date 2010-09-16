@@ -165,6 +165,8 @@
 #include <ctype.h>
 #endif
 
+#define ACPI_CAST_PTHREAD_T(pthread)    ((ACPI_THREAD_ID) ACPI_TO_INTEGER (pthread))
+
 #define ACPI_USE_STANDARD_HEADERS
 
 #define ACPI_FLUSH_CPU_CACHE()
