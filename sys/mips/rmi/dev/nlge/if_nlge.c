@@ -300,31 +300,13 @@ DRIVER_MODULE(miibus, nlge, miibus_driver, miibus_devclass, 0, 0);
 
 static uma_zone_t nl_tx_desc_zone;
 
-/* Function to atomically increment an integer with the given value. */
-static __inline__ unsigned int
-ldadd_wu(unsigned int value, unsigned long *addr)
+static __inline void
+atomic_incr_long(unsigned long *addr)
 {
-	__asm__	 __volatile__( ".set push\n"
-			       ".set noreorder\n"
-			       "move $8, %2\n"
-			       "move $9, %3\n"
-			       /* "ldaddwu $8, $9\n" */
-			       ".word 0x71280011\n"
-			       "move %0, $8\n"
-			       ".set pop\n"
-			       : "=&r"(value), "+m"(*addr)
-			       : "0"(value), "r" ((unsigned long)addr)
-			       :  "$8", "$9");
-	return value;
-}
+	/* XXX: fix for 64 bit */
+	unsigned int *iaddr = (unsigned int *)addr;
 
-static __inline__ uint32_t
-xlr_enable_kx(void)
-{
-	uint32_t sr = mips_rd_status();
-
-	mips_wr_status((sr & ~MIPS_SR_INT_IE) | MIPS_SR_KX);
-	return sr;
+	xlr_ldaddwu(1, iaddr);
 }
 
 static int
@@ -683,7 +665,7 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 		if (ifp->if_drv_flags & IFF_DRV_OACTIVE){
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		}
-		ldadd_wu(1, (tx_error) ? &ifp->if_oerrors: &ifp->if_opackets);
+		atomic_incr_long((tx_error) ? &ifp->if_oerrors: &ifp->if_opackets);
 	} else if (ctrl == CTRL_SNGL || ctrl == CTRL_START) {
 		/* Rx Packet */
 
@@ -766,7 +748,7 @@ fail:
 		//ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		//IF_PREPEND(&ifp->if_snd, m);
 		m_freem(m);
-		ldadd_wu(1, &ifp->if_iqdrops);
+		atomic_incr_long(&ifp->if_iqdrops);
 	}
 	return;
 }
@@ -774,14 +756,15 @@ fail:
 static void
 nlge_rx(struct nlge_softc *sc, vm_paddr_t paddr, int len)
 {
-	struct ifnet   *ifp;
-	struct mbuf    *m;
-	uint32_t tm, mag, sr;
+	struct ifnet	*ifp;
+	struct mbuf	*m;
+	uint64_t	tm, mag;
+	uint32_t	sr;
 
 	sr = xlr_enable_kx();
-	tm = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE);
-	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
-	mips_wr_status(sr);
+	tm = xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE);
+	mag = xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE + sizeof(uint64_t));
+	xlr_restore_kx(sr);
 
 	m = (struct mbuf *)(intptr_t)tm;
 	if (mag != 0xf00bad) {
@@ -797,7 +780,7 @@ nlge_rx(struct nlge_softc *sc, vm_paddr_t paddr, int len)
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_pkthdr.rcvif = ifp;
 
-	ldadd_wu(1, &ifp->if_ipackets);
+	atomic_incr_long(&ifp->if_ipackets);
 	(*ifp->if_input)(ifp, m);
 }
 
@@ -1895,15 +1878,11 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 					return 2;
 				}
 				/*
-				 * As we currently use xlr_paddr_lw on a 32-bit
-				 * OS, both the pointers are laid out in one
-				 * 64-bit location - this makes it easy to
-				 * retrieve the pointers when processing the
-				 * tx free-back descriptor.
+				 * Save the virtual address in the descriptor,
+				 * it makes freeing easy.
 				 */
 				p2p->frag[XLR_MAX_TX_FRAGS] =
-				    (((uint64_t) (vm_offset_t) p2p) << 32) |
-				    ((vm_offset_t) mbuf_chain);
+				    (uint64_t)(vm_offset_t)p2p;
 				cur_p2d = &p2p->frag[0];
 				is_p2p = 1;
 			} else if (msg_sz == (FMN_SZ - 2 + XLR_MAX_TX_FRAGS)) {
@@ -1932,7 +1911,7 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 
 	cur_p2d[-1] |= (1ULL << 63); /* set eop in most-recent p2d */
 	*cur_p2d = (1ULL << 63) | ((uint64_t)fb_stn_id << 54) |
-	     (vm_offset_t) mbuf_chain;
+	     (vm_offset_t) mbuf_chain;   /* XXX: fix 64 bit */
 	*tx_desc = p2p;
 
 	if (is_p2p) {
@@ -1973,39 +1952,41 @@ release_tx_desc(vm_paddr_t paddr)
 {
 	struct nlge_tx_desc *tx_desc;
 	uint32_t 	sr;
-	uint32_t	val1, val2;
+	uint64_t	vaddr;
 
 	paddr += (XLR_MAX_TX_FRAGS * sizeof(uint64_t));
 	sr = xlr_enable_kx();
-	val1 = xlr_paddr_lw(paddr);
-	paddr += sizeof(void *);
-	val2 = xlr_paddr_lw(paddr);
-	mips_wr_status(sr);
+	vaddr = xlr_paddr_ld(paddr);
+	xlr_restore_kx(sr);
 
-	tx_desc = (struct nlge_tx_desc*)(intptr_t) val1;
+	tx_desc = (struct nlge_tx_desc*)(intptr_t)vaddr;
 	uma_zfree(nl_tx_desc_zone, tx_desc);
 }
 
 static void *
 get_buf(void)
 {
-	struct mbuf    *m_new;
-	vm_paddr_t 	temp1, temp2;
-	unsigned int 	*md;
+	struct mbuf	*m_new;
+	uint64_t 	*md;
+#ifdef INVARIANTS
+	vm_paddr_t	temp1, temp2;
+#endif
 
 	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
-		return NULL;
+		return (NULL);
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	m_adj(m_new, XLR_CACHELINE_SIZE - ((unsigned int)m_new->m_data & 0x1f));
-	md = (unsigned int *)m_new->m_data;
-	md[0] = (unsigned int)m_new;	/* Back Ptr */
+	md = (uint64_t *)m_new->m_data;
+	md[0] = (intptr_t)m_new;	/* Back Ptr */
 	md[1] = 0xf00bad;
 	m_adj(m_new, XLR_CACHELINE_SIZE);
 
+#ifdef INVARIANTS
 	temp1 = vtophys((vm_offset_t) m_new->m_data);
 	temp2 = vtophys((vm_offset_t) m_new->m_data + 1536);
 	if ((temp1 + 1536) != temp2)
 		panic("ALLOCED BUFFER IS NOT CONTIGUOUS\n");
+#endif
 
 	return ((void *)m_new->m_data);
 }
