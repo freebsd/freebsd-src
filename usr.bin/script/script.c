@@ -235,14 +235,21 @@ static void
 doshell(char **av)
 {
 	const char *shell;
+	int k;
 
 	shell = getenv("SHELL");
 	if (shell == NULL)
 		shell = _PATH_BSHELL;
 
+	if (av[0])
+		for (k = 0 ; av[k] ; ++k)
+			fprintf(fscript, "%s%s", k ? " " : "", av[k]);
+		fprintf(fscript, "\r\n");
+
 	(void)close(master);
 	(void)fclose(fscript);
 	login_tty(slave);
+	setenv("SCRIPT", fname, 1);
 	if (av[0]) {
 		execvp(av[0], av);
 		warn("%s", av[0]);
