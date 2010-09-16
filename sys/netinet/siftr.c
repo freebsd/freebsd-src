@@ -193,7 +193,7 @@ struct pkt_node {
 	u_long			snd_wnd;
 	/* Receive Window (bytes). */
 	u_long			rcv_wnd;
-	/* Bandwidth Controlled Window (bytes). */
+	/* Unused (was: Bandwidth Controlled Window (bytes)). */
 	u_long			snd_bwnd;
 	/* Slow Start Threshold (bytes). */
 	u_long			snd_ssthresh;
@@ -775,7 +775,7 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->snd_cwnd = tp->snd_cwnd;
 	pn->snd_wnd = tp->snd_wnd;
 	pn->rcv_wnd = tp->rcv_wnd;
-	pn->snd_bwnd = tp->snd_bwnd;
+	pn->snd_bwnd = 0;		/* Unused, kept for compat. */
 	pn->snd_ssthresh = tp->snd_ssthresh;
 	pn->snd_scale = tp->snd_scale;
 	pn->rcv_scale = tp->rcv_scale;
