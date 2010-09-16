@@ -337,6 +337,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			 * LLE_DELETED flag, and reset the expiration timer
 			 */
 			bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
+			lle->la_flags |= (flags & (LLE_PUB | LLE_PROXY));
 			lle->la_flags |= LLE_VALID;
 			lle->la_flags &= ~LLE_DELETED;
 #ifdef INET6
