@@ -1105,7 +1105,6 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	tp->t_state = TCPS_SYN_SENT;
 	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 	tp->iss = tcp_new_isn(tp);
-	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
 
 	return 0;
@@ -1168,7 +1167,6 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	tp->t_state = TCPS_SYN_SENT;
 	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 	tp->iss = tcp_new_isn(tp);
-	tp->t_bw_rtseq = tp->iss;
 	tcp_sendseqinit(tp);
 
 	return 0;
@@ -1214,7 +1212,7 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 	ti->tcpi_rcv_space = tp->rcv_wnd;
 	ti->tcpi_rcv_nxt = tp->rcv_nxt;
 	ti->tcpi_snd_wnd = tp->snd_wnd;
-	ti->tcpi_snd_bwnd = tp->snd_bwnd;
+	ti->tcpi_snd_bwnd = 0;		/* Unused, kept for compat. */
 	ti->tcpi_snd_nxt = tp->snd_nxt;
 	ti->tcpi_snd_mss = tp->t_maxseg;
 	ti->tcpi_rcv_mss = tp->t_maxseg;
@@ -1795,26 +1793,24 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->rcv_adv, tp->rcv_wnd, tp->rcv_up);
 
 	db_print_indent(indent);
-	db_printf("snd_wnd: %lu   snd_cwnd: %lu   snd_bwnd: %lu\n",
-	   tp->snd_wnd, tp->snd_cwnd, tp->snd_bwnd);
+	db_printf("snd_wnd: %lu   snd_cwnd: %lu\n",
+	   tp->snd_wnd, tp->snd_cwnd);
 
 	db_print_indent(indent);
-	db_printf("snd_ssthresh: %lu   snd_bandwidth: %lu   snd_recover: "
-	    "0x%08x\n", tp->snd_ssthresh, tp->snd_bandwidth,
-	    tp->snd_recover);
+	db_printf("snd_ssthresh: %lu   snd_recover: "
+	    "0x%08x\n", tp->snd_ssthresh, tp->snd_recover);
 
 	db_print_indent(indent);
 	db_printf("t_maxopd: %u   t_rcvtime: %u   t_startime: %u\n",
 	    tp->t_maxopd, tp->t_rcvtime, tp->t_starttime);
 
 	db_print_indent(indent);
-	db_printf("t_rttime: %u   t_rtsq: 0x%08x   t_bw_rtttime: %u\n",
-	    tp->t_rtttime, tp->t_rtseq, tp->t_bw_rtttime);
+	db_printf("t_rttime: %u   t_rtsq: 0x%08x\n",
+	    tp->t_rtttime, tp->t_rtseq);
 
 	db_print_indent(indent);
-	db_printf("t_bw_rtseq: 0x%08x   t_rxtcur: %d   t_maxseg: %u   "
-	    "t_srtt: %d\n", tp->t_bw_rtseq, tp->t_rxtcur, tp->t_maxseg,
-	    tp->t_srtt);
+	db_printf("t_rxtcur: %d   t_maxseg: %u   t_srtt: %d\n",
+	    tp->t_rxtcur, tp->t_maxseg, tp->t_srtt);
 
 	db_print_indent(indent);
 	db_printf("t_rttvar: %d   t_rxtshift: %d   t_rttmin: %u   "
