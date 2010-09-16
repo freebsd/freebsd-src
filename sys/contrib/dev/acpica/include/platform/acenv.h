@@ -275,6 +275,12 @@
 #define ACPI_FLUSH_CPU_CACHE()
 #endif
 
+/* "inline" keywords - configurable since inline is not standardized */
+
+#ifndef ACPI_INLINE
+#define ACPI_INLINE
+#endif
+
 /*
  * Configurable calling conventions:
  *
