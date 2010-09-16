@@ -287,7 +287,8 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 		}
 		r = (struct ipfw_rule_ref *)(tag + 1);
 		*r = fwa->rule;
-		r->info = dir ? IPFW_INFO_IN : IPFW_INFO_OUT;
+		r->info &= IPFW_ONEPASS;  /* keep this info */
+		r->info |= dir ? IPFW_INFO_IN : IPFW_INFO_OUT;
 		m_tag_prepend(m, tag);
 
 	} else
