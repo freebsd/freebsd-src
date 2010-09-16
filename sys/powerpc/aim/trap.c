@@ -445,33 +445,37 @@ syscall(struct trapframe *frame)
 static int 
 handle_slb_spill(pmap_t pm, vm_offset_t addr)
 {
-	struct slb slb_entry;
-	int error, i;
+	struct slb kern_entry, *user_entry;
+	uint64_t esid;
+	int i;
+
+	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
 
 	if (pm == kernel_pmap) {
-		error = va_to_slb_entry(pm, addr, &slb_entry);
-		if (error)
-			return (error);
+		kern_entry.slbv = kernel_va_to_slbv(addr);
+		kern_entry.slbe = (esid << SLBE_ESID_SHIFT) | SLBE_VALID;
 
-		slb_insert(pm, PCPU_GET(slb), &slb_entry);
+		slb_insert(pm, PCPU_GET(slb), &kern_entry);
 		return (0);
 	}
 
 	PMAP_LOCK(pm);
-	error = va_to_slb_entry(pm, addr, &slb_entry);
-	if (error != 0)
-		(void)allocate_vsid(pm, (uintptr_t)addr >> ADDR_SR_SHFT, 0);
-	else {
+	user_entry = user_va_to_slb_entry(pm, addr);
+
+	if (user_entry == NULL) {
+		/* allocate_vsid auto-spills it */
+		(void)allocate_vsid(pm, esid, 0);
+	} else {
 		/*
 		 * Check that another CPU has not already mapped this.
 		 * XXX: Per-thread SLB caches would be better.
 		 */
 		for (i = 0; i < 64; i++)
-			if (pm->pm_slb[i].slbe == (slb_entry.slbe | i))
+			if (pm->pm_slb[i].slbe == (user_entry->slbe | i))
 				break;
 
 		if (i == 64)
-			slb_insert(pm, pm->pm_slb, &slb_entry);
+			slb_insert(pm, pm->pm_slb, user_entry);
 	}
 	PMAP_UNLOCK(pm);
 
@@ -513,19 +517,7 @@ trap_pfault(struct trapframe *frame, int user)
 			map = &p->p_vmspace->vm_map;
 
 			#ifdef __powerpc64__
-			user_sr = 0;
-			__asm ("slbmfev %0, %1"
-			    : "=r"(user_sr)
-			    : "r"(USER_SR));
-
-			PMAP_LOCK(&p->p_vmspace->vm_pmap);
-			user_sr >>= SLBV_VSID_SHIFT;
-			rv = vsid_to_esid(&p->p_vmspace->vm_pmap, user_sr,
-			    &user_sr);
-			PMAP_UNLOCK(&p->p_vmspace->vm_pmap);
-
-			if (rv != 0) 
-				return (SIGSEGV);
+			user_sr = td->td_pcb->pcb_cpu.aim.usr_segm;
 			#else
 			__asm ("mfsr %0, %1"
 			    : "=r"(user_sr)
