@@ -39,7 +39,8 @@ SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c exfield.c
 SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c exoparg2.c
 SRCS+=	exoparg3.c exoparg6.c exprep.c exregion.c exresnte.c exresolv.c
 SRCS+=	exresop.c exstore.c exstoren.c exstorob.c exsystem.c exutils.c
-SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwtimer.c hwvalid.c hwxface.c
+SRCS+=	hwacpi.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwtimer.c hwvalid.c
+SRCS+=	hwxface.c
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c nsload.c nsnames.c
 SRCS+=	nsobject.c nsparse.c nspredef.c nsrepair.c nsrepair2.c nssearch.c
 SRCS+=	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
@@ -50,7 +51,7 @@ SRCS+=	rsmemory.c rsmisc.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c uteval.c utglobal.c
 SRCS+=	utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c utobject.c
-SRCS+=	utosi.c utresrc.c utstate.c utxface.c
+SRCS+=	utosi.c utresrc.c utstate.c utxface.c utxferror.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c acpi_package.c acpi_pci.c acpi_pcib.c
@@ -101,7 +102,6 @@ CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
 SRCS+=	opt_global.h
 
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	acpi_switch.S opt_global.h
 .if !defined(KERNBUILDDIR)
 CFLAGS+=-DSMP
 .endif

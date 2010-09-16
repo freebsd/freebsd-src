@@ -124,7 +124,7 @@
 
 /* Local prototypes */
 
-static inline void
+static ACPI_INLINE void
 AcpiTbInitGenericAddress (
     ACPI_GENERIC_ADDRESS    *GenericAddress,
     UINT8                   SpaceId,
@@ -273,7 +273,7 @@ static ACPI_FADT_PM_INFO    FadtPmInfoTable[] =
  *
  ******************************************************************************/
 
-static inline void
+static ACPI_INLINE void
 AcpiTbInitGenericAddress (
     ACPI_GENERIC_ADDRESS    *GenericAddress,
     UINT8                   SpaceId,

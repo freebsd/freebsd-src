@@ -127,12 +127,12 @@ static void
 CmFlushSourceCode (
     void);
 
-void
+static void
 FlConsumeAnsiComment (
     ASL_FILE_INFO           *FileInfo,
     ASL_FILE_STATUS         *Status);
 
-void
+static void
 FlConsumeNewComment (
     ASL_FILE_INFO           *FileInfo,
     ASL_FILE_STATUS         *Status);
@@ -345,7 +345,7 @@ CmFlushSourceCode (
  *
  ******************************************************************************/
 
-void
+static void
 FlConsumeAnsiComment (
     ASL_FILE_INFO           *FileInfo,
     ASL_FILE_STATUS         *Status)
@@ -389,7 +389,7 @@ FlConsumeAnsiComment (
 }
 
 
-void
+static void
 FlConsumeNewComment (
     ASL_FILE_INFO           *FileInfo,
     ASL_FILE_STATUS         *Status)

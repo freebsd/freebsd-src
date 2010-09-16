@@ -18,7 +18,8 @@ SRCS+=	evevent.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c	\
 	evxfevnt.c evxfregn.c
 
 # hardware
-SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwvalid.c hwxface.c
+SRCS+=	hwacpi.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwvalid.c	\
+	hwxface.c
 
 # interpreter/dispatcher
 SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c dsobject.c	\
@@ -55,7 +56,7 @@ SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
 	uteval.c utglobal.c utids.c utinit.c utlock.c utmath.c	\
 	utmisc.c utmutex.c utobject.c utosi.c utresrc.c		\
-	utstate.c uttrack.c utxface.c
+	utstate.c uttrack.c utxface.c utxferror.c
 
 MAN=	acpidb.8
 WARNS?=	2

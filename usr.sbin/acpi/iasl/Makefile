@@ -52,7 +52,7 @@ SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
 	utglobal.c utinit.c utlock.c utmath.c utmisc.c		\
 	utmutex.c utobject.c utosi.c utresrc.c utstate.c	\
-	utxface.c
+	utxface.c utxferror.c
 
 WARNS?=	2
 

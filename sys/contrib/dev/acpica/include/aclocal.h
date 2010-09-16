@@ -1270,7 +1270,7 @@ typedef struct acpi_db_method_info
     ACPI_HANDLE                     MainThreadGate;
     ACPI_HANDLE                     ThreadCompleteGate;
     ACPI_HANDLE                     InfoGate;
-    UINT32                          *Threads;
+    ACPI_THREAD_ID                  *Threads;
     UINT32                          NumThreads;
     UINT32                          NumCreated;
     UINT32                          NumCompleted;
