@@ -117,6 +117,19 @@ The results are meant to emulate a hardcopy terminal, not an addressable one.
 The following environment variable is utilized by
 .Nm :
 .Bl -tag -width SHELL
+.It Ev SCRIPT
+The
+.Ev SCRIPT
+environment variable is added to the sub-shell.
+If
+.Ev SCRIPT
+already existed in the users environment,
+its value is overwritten within the sub-shell.
+The value of
+.Ev SCRIPT
+is the name of the
+.Ar typescript
+file.
 .It Ev SHELL
 If the variable
 .Ev SHELL
