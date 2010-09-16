@@ -202,7 +202,7 @@ static devclass_t acpi_wmi_devclass;
 DRIVER_MODULE(acpi_wmi, acpi, acpi_wmi_driver, acpi_wmi_devclass, 0, 0);
 MODULE_VERSION(acpi_wmi, 1);
 MODULE_DEPEND(acpi_wmi, acpi, 1, 1, 1);
-static char *wmi_ids[] = {"PNP0C14", "PNP0c14", NULL};
+static char *wmi_ids[] = {"PNP0C14", NULL};
 
 /*
  * Probe for the PNP0C14 ACPI node
