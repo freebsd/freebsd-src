@@ -1018,7 +1018,7 @@ sleepq_abort(struct thread *td, int intrval)
 
 #ifdef SLEEPQUEUE_PROFILING
 #define	SLEEPQ_PROF_LOCATIONS	1024
-#define	SLEEPQ_SBUFSIZE		(40 * 512)
+#define	SLEEPQ_SBUFSIZE		512
 struct sleepq_prof {
 	LIST_ENTRY(sleepq_prof) sp_link;
 	const char	*sp_wmesg;
@@ -1123,15 +1123,13 @@ reset_sleepq_prof_stats(SYSCTL_HANDLER_ARGS)
 static int
 dump_sleepq_prof_stats(SYSCTL_HANDLER_ARGS)
 {
-	static int multiplier = 1;
 	struct sleepq_prof *sp;
 	struct sbuf *sb;
 	int enabled;
 	int error;
 	int i;
 
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, SLEEPQ_SBUFSIZE * multiplier, SBUF_FIXEDLEN);
+	sb = sbuf_new_for_sysctl(NULL, NULL, SLEEPQ_SBUFSIZE, req);
 	sbuf_printf(sb, "\nwmesg\tcount\n");
 	enabled = prof_enabled;
 	mtx_lock_spin(&sleepq_prof_lock);
@@ -1141,19 +1139,13 @@ retry_sbufops:
 		LIST_FOREACH(sp, &sleepq_hash[i], sp_link) {
 			sbuf_printf(sb, "%s\t%ld\n",
 			    sp->sp_wmesg, sp->sp_count);
-			if (sbuf_error(sb) != 0) {
-				sbuf_delete(sb);
-				multiplier++;
-				goto retry_sbufops;
-			}
 		}
 	}
 	mtx_lock_spin(&sleepq_prof_lock);
 	prof_enabled = enabled;
 	mtx_unlock_spin(&sleepq_prof_lock);
 
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	error = sbuf_finish(sb);
 	sbuf_delete(sb);
 	return (error);
 }
