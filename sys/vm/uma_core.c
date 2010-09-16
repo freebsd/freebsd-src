@@ -3175,36 +3175,16 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	uma_keg_t kz;
 	uma_zone_t z;
 	uma_keg_t k;
-	char *buffer;
-	int buflen, count, error, i;
+	int count, error, i;
 
-	mtx_lock(&uma_mtx);
-restart:
-	mtx_assert(&uma_mtx, MA_OWNED);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+
 	count = 0;
+	mtx_lock(&uma_mtx);
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link)
 			count++;
 	}
-	mtx_unlock(&uma_mtx);
-
-	buflen = sizeof(ush) + count * (sizeof(uth) + sizeof(ups) *
-	    (mp_maxid + 1)) + 1;
-	buffer = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
-
-	mtx_lock(&uma_mtx);
-	i = 0;
-	LIST_FOREACH(kz, &uma_kegs, uk_link) {
-		LIST_FOREACH(z, &kz->uk_zones, uz_link)
-			i++;
-	}
-	if (i > count) {
-		free(buffer, M_TEMP);
-		goto restart;
-	}
-	count =  i;
-
-	sbuf_new(&sbuf, buffer, buflen, SBUF_FIXEDLEN);
 
 	/*
 	 * Insert stream header.
@@ -3213,11 +3193,7 @@ restart:
 	ush.ush_version = UMA_STREAM_VERSION;
 	ush.ush_maxcpus = (mp_maxid + 1);
 	ush.ush_count = count;
-	if (sbuf_bcat(&sbuf, &ush, sizeof(ush)) < 0) {
-		mtx_unlock(&uma_mtx);
-		error = ENOMEM;
-		goto out;
-	}
+	(void)sbuf_bcat(&sbuf, &ush, sizeof(ush));
 
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
@@ -3250,12 +3226,7 @@ restart:
 			uth.uth_frees = z->uz_frees;
 			uth.uth_fails = z->uz_fails;
 			uth.uth_sleeps = z->uz_sleeps;
-			if (sbuf_bcat(&sbuf, &uth, sizeof(uth)) < 0) {
-				ZONE_UNLOCK(z);
-				mtx_unlock(&uma_mtx);
-				error = ENOMEM;
-				goto out;
-			}
+			(void)sbuf_bcat(&sbuf, &uth, sizeof(uth));
 			/*
 			 * While it is not normally safe to access the cache
 			 * bucket pointers while not on the CPU that owns the
@@ -3280,21 +3251,14 @@ restart:
 				ups.ups_allocs = cache->uc_allocs;
 				ups.ups_frees = cache->uc_frees;
 skip:
-				if (sbuf_bcat(&sbuf, &ups, sizeof(ups)) < 0) {
-					ZONE_UNLOCK(z);
-					mtx_unlock(&uma_mtx);
-					error = ENOMEM;
-					goto out;
-				}
+				(void)sbuf_bcat(&sbuf, &ups, sizeof(ups));
 			}
 			ZONE_UNLOCK(z);
 		}
 	}
 	mtx_unlock(&uma_mtx);
-	sbuf_finish(&sbuf);
-	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
-out:
-	free(buffer, M_TEMP);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
 	return (error);
 }
 
