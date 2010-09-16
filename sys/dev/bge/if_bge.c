@@ -3386,9 +3386,11 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 	sc->bge_rx_saved_considx = rx_cons;
 	bge_writembx(sc, BGE_MBX_RX_CONS0_LO, sc->bge_rx_saved_considx);
 	if (stdcnt)
-		bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
+		bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, (sc->bge_std +
+		    BGE_STD_RX_RING_CNT - 1) % BGE_STD_RX_RING_CNT);
 	if (jumbocnt)
-		bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
+		bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, (sc->bge_jumbo +
+		    BGE_JUMBO_RX_RING_CNT - 1) % BGE_JUMBO_RX_RING_CNT);
 #ifdef notyet
 	/*
 	 * This register wraps very quickly under heavy packet drops.
