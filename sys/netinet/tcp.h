@@ -221,7 +221,7 @@ struct tcp_info {
 
 	/* FreeBSD extensions to tcp_info. */
 	u_int32_t	tcpi_snd_wnd;		/* Advertised send window. */
-	u_int32_t	tcpi_snd_bwnd;		/* Bandwidth send window. */
+	u_int32_t	tcpi_snd_bwnd;		/* No longer used. */
 	u_int32_t	tcpi_snd_nxt;		/* Next egress seqno */
 	u_int32_t	tcpi_rcv_nxt;		/* Next ingress seqno */
 	u_int32_t	tcpi_toe_tid;		/* HWTID for TOE endpoints */
