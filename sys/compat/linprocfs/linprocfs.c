@@ -939,15 +939,123 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 	return (0);
 }
 
+extern int proc_rwmem(struct proc *p, struct uio *uio);
+
+#define MAX_ARGV_STR	512	/* Max number of argv-like strings */
+#define UIO_CHUNK_SZ	256	/* Max chunk size (bytes) for uiomove */
+
+static int
+linprocfs_doargv(struct thread *td, struct proc *p, struct sbuf *sb,
+	void (*resolver)(const struct ps_strings, u_long *, int *))
+{
+	struct iovec iov;
+	struct uio tmp_uio;
+	struct ps_strings pss;
+	int ret, i, n_elements, found_end;
+	u_long addr;
+	char* env_vector[MAX_ARGV_STR];
+	char env_string[UIO_CHUNK_SZ];
+	char *pbegin;
+
+
+
+#define	UIO_HELPER(uio, iov, base, len, cnt, offset, sz, flg, rw, td)	\
+do {									\
+	iov.iov_base = (caddr_t)(base);					\
+	iov.iov_len = (len); 						\
+	uio.uio_iov = &(iov); 						\
+	uio.uio_iovcnt = (cnt);	 					\
+	uio.uio_offset = (off_t)(offset);				\
+	uio.uio_resid = (sz); 						\
+	uio.uio_segflg = (flg);						\
+	uio.uio_rw = (rw); 						\
+	uio.uio_td = (td);						\
+} while (0)
+
+	UIO_HELPER(tmp_uio, iov, &pss, sizeof(struct ps_strings), 1,
+	    (off_t)(p->p_sysent->sv_psstrings), sizeof(struct ps_strings),
+	    UIO_SYSSPACE, UIO_READ, td);
+
+	ret = proc_rwmem(p, &tmp_uio);
+	if (ret != 0)
+		return ret;
+
+	/* Get the array address and the number of elements */
+	resolver(pss, &addr, &n_elements);
+
+	/* Consistent with lib/libkvm/kvm_proc.c */
+	if (n_elements > MAX_ARGV_STR || (u_long)addr < VM_MIN_ADDRESS ||
+    	    (u_long)addr >= VM_MAXUSER_ADDRESS) {
+		/* What error code should we return? */
+		return 0;
+	}
+
+ 	UIO_HELPER(tmp_uio, iov, env_vector, MAX_ARGV_STR, 1,
+	    (vm_offset_t)(addr), iov.iov_len, UIO_SYSSPACE, UIO_READ, td);
+
+	ret = proc_rwmem(p, &tmp_uio);
+	if (ret != 0)
+		return ret;
+
+	/* Now we can iterate through the list of strings */
+	for (i = 0; i < n_elements; i++) {
+	    found_end = 0;
+	    pbegin = env_vector[i];
+		while(!found_end) {
+		    UIO_HELPER(tmp_uio, iov, env_string, sizeof(env_string), 1,
+			(vm_offset_t) pbegin, iov.iov_len, UIO_SYSSPACE,
+			UIO_READ, td);
+
+			ret = proc_rwmem(p, &tmp_uio);
+			if (ret != 0)
+				return ret;
+
+			if (!strvalid(env_string, UIO_CHUNK_SZ)) {
+			    /*
+			     * We didn't find the end of the string
+			     * Add the string to the buffer and move
+			     * the pointer
+			     */
+			    sbuf_bcat(sb, env_string, UIO_CHUNK_SZ);
+			    pbegin = &(*pbegin) + UIO_CHUNK_SZ;
+			} else {
+			    found_end = 1;
+			}
+		}
+		sbuf_printf(sb, "%s", env_string);
+	}
+
+#undef UIO_HELPER
+
+	return (0);
+}
+
+static void
+ps_string_env(const struct ps_strings ps, u_long *addr, int *n)
+{
+
+	*addr = (u_long) ps.ps_envstr;
+	*n = ps.ps_nenvstr;
+}
+
 /*
  * Filler function for proc/pid/environ
  */
 static int
 linprocfs_doprocenviron(PFS_FILL_ARGS)
 {
+	int ret;
 
-	sbuf_printf(sb, "doprocenviron\n%c", '\0');
-	return (0);
+	PROC_LOCK(p);
+
+	if ((ret = p_cansee(td, p)) != 0) {
+		PROC_UNLOCK(p);
+		return ret;
+	}
+
+	ret = linprocfs_doargv(td, p, sb, ps_string_env);
+	PROC_UNLOCK(p);
+	return (ret);
 }
 
 /*
