@@ -263,13 +263,14 @@ va_to_vsid(pmap_t pm, vm_offset_t va)
 	entry = user_va_to_slb_entry(pm, va);
 
 	if (entry == NULL)
-		return (allocate_vsid(pm, (uintptr_t)va >> ADDR_SR_SHFT, 0));
+		return (allocate_user_vsid(pm,
+		    (uintptr_t)va >> ADDR_SR_SHFT, 0));
 
 	return ((entry->slbv & SLBV_VSID_MASK) >> SLBV_VSID_SHIFT);
 }
 
 uint64_t
-allocate_vsid(pmap_t pm, uint64_t esid, int large)
+allocate_user_vsid(pmap_t pm, uint64_t esid, int large)
 {
 	uint64_t vsid, slbv;
 	struct slbtnode *ua, *next, *inter;
@@ -327,7 +328,7 @@ allocate_vsid(pmap_t pm, uint64_t esid, int large)
 	 * SLB mapping, so pre-spill this entry.
 	 */
 	eieio();
-	slb_insert(pm, pm->pm_slb, slb);
+	slb_insert_user(pm, slb);
 
 	return (vsid);
 }
@@ -410,57 +411,68 @@ slb_alloc_tree(void)
 	    (slbe & SLBE_ESID_MASK) > 16*SEGMENT_LENGTH) || \
 	    (slbe & SLBE_ESID_MASK) > VM_MAX_KERNEL_ADDRESS)
 void
-slb_insert(pmap_t pm, struct slb *slbcache, struct slb *slb_entry)
+slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 {
-	uint64_t slbe, slbv;
-	int i, j, to_spill;
+	struct slb *slbcache;
+	int i, j;
 
 	/* We don't want to be preempted while modifying the kernel map */
 	critical_enter();
 
-	to_spill = -1;
-	slbv = slb_entry->slbv;
-	slbe = slb_entry->slbe;
+	slbcache = PCPU_GET(slb);
 
-	/* Hunt for a likely candidate */
-
-	for (i = mftb() % 64, j = 0; j < 64; j++, i = (i+1) % 64) {
-		if (pm == kernel_pmap && i == USER_SR)
-				continue;
-
-		if (!(slbcache[i].slbe & SLBE_VALID)) {
-			to_spill = i;
-			break;
+	/* Check for an unused slot, abusing the USER_SR slot as a full flag */
+	if (slbcache[USER_SR].slbe == 0) {
+		for (i = 0; i < USER_SR; i++) {
+			if (!(slbcache[i].slbe & SLBE_VALID)) 
+				goto fillkernslb;
 		}
 
-		if (to_spill < 0 && (pm != kernel_pmap ||
-		    SLB_SPILLABLE(slbcache[i].slbe)))
-			to_spill = i;
+		if (i == USER_SR)
+			slbcache[USER_SR].slbe = 1;
 	}
 
-	if (to_spill < 0)
-		panic("SLB spill on ESID %#lx, but no available candidates!\n",
-		   (slbe & SLBE_ESID_MASK) >> SLBE_ESID_SHIFT);
+	for (i = mftb() % 64, j = 0; j < 64; j++, i = (i+1) % 64) {
+		if (i == USER_SR)
+			continue;
 
-	if (slbcache[to_spill].slbe & SLBE_VALID) {
-		/* Invalidate this first to avoid races */
-		slbcache[to_spill].slbe = 0;
-		mb();
+		if (SLB_SPILLABLE(slbcache[i].slbe))
+			break;
 	}
-	slbcache[to_spill].slbv = slbv;
-	slbcache[to_spill].slbe = slbe | (uint64_t)to_spill;
+
+	KASSERT(j < 64, ("All kernel SLB slots locked!"));
+
+fillkernslb:
+	slbcache[i].slbv = slbv;
+	slbcache[i].slbe = slbe | (uint64_t)i;
 
 	/* If it is for this CPU, put it in the SLB right away */
-	if (pm == kernel_pmap && pmap_bootstrapped) {
+	if (pmap_bootstrapped) {
 		/* slbie not required */
 		__asm __volatile ("slbmte %0, %1" :: 
-		    "r"(slbcache[to_spill].slbv),
-		    "r"(slbcache[to_spill].slbe)); 
+		    "r"(slbcache[i].slbv), "r"(slbcache[i].slbe)); 
 	}
 
 	critical_exit();
 }
 
+void
+slb_insert_user(pmap_t pm, struct slb *slb)
+{
+	int i;
+
+	PMAP_LOCK_ASSERT(pm, MA_OWNED);
+
+	if (pm->pm_slb_len < 64) {
+		i = pm->pm_slb_len;
+		pm->pm_slb_len++;
+	} else {
+		i = mftb() % 64;
+	}
+
+	/* Note that this replacement is atomic with respect to trap_subr */
+	pm->pm_slb[i] = slb;
+}
 
 static void
 slb_zone_init(void *dummy)
@@ -468,18 +480,18 @@ slb_zone_init(void *dummy)
 
 	slbt_zone = uma_zcreate("SLB tree node", sizeof(struct slbtnode),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
-	slb_cache_zone = uma_zcreate("SLB cache", 64*sizeof(struct slb),
+	slb_cache_zone = uma_zcreate("SLB cache", 64*sizeof(struct slb *),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 }
 
-struct slb *
+struct slb **
 slb_alloc_user_cache(void)
 {
 	return (uma_zalloc(slb_cache_zone, M_ZERO));
 }
 
 void
-slb_free_user_cache(struct slb *slb)
+slb_free_user_cache(struct slb **slb)
 {
 	uma_zfree(slb_cache_zone, slb);
 }
