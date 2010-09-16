@@ -120,18 +120,18 @@ struct tcphdr {
 #define	TCP6_MSS	1220
 
 /*
- * Limit the lowest MSS we accept from path MTU discovery and the TCP SYN MSS
- * option.  Allowing too low values of MSS can consume significant amounts of
- * resources and be used as a form of a resource exhaustion attack.
+ * Limit the lowest MSS we accept for path MTU discovery and the TCP SYN MSS
+ * option.  Allowing low values of MSS can consume significant resources and
+ * be used to mount a resource exhaustion attack.
  * Connections requesting lower MSS values will be rounded up to this value
- * and the IP_DF flag is cleared to allow fragmentation along the path.
+ * and the IP_DF flag will be cleared to allow fragmentation along the path.
  *
  * See tcp_subr.c tcp_minmss SYSCTL declaration for more comments.  Setting
  * it to "0" disables the minmss check.
  *
- * The default value is fine for the smallest official link MTU (256 bytes,
- * AX.25 packet radio) in the Internet.  However it is very unlikely to come
- * across such low MTU interfaces these days (anno domini 2003).
+ * The default value is fine for TCP across the Internet's smallest official
+ * link MTU (256 bytes for AX.25 packet radio).  However, a connection is very
+ * unlikely to come across such low MTU interfaces these days (anno domini 2003).
  */
 #define	TCP_MINMSS 216
 
