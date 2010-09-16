@@ -1803,8 +1803,10 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		srqflag = (flags & SW_PREEMPT) ?
 		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 		    SRQ_OURSELF|SRQ_YIELDING;
+#ifdef SMP
 		if (THREAD_CAN_MIGRATE(td) && !THREAD_CAN_SCHED(td, ts->ts_cpu))
 			ts->ts_cpu = sched_pickcpu(td, 0);
+#endif
 		if (ts->ts_cpu == cpuid)
 			tdq_runq_add(tdq, td, srqflag);
 		else {
