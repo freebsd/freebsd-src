@@ -93,7 +93,8 @@ struct	pmap {
 	
     #ifdef __powerpc64__
 	struct slbtnode	*pm_slb_tree_root;
-	struct slb	*pm_slb;
+	struct slb	**pm_slb;
+	int		pm_slb_len;
     #else
 	register_t	pm_sr[16];
     #endif
@@ -142,14 +143,15 @@ uint64_t va_to_vsid(pmap_t pm, vm_offset_t va);
 uint64_t kernel_va_to_slbv(vm_offset_t va);
 struct slb *user_va_to_slb_entry(pmap_t pm, vm_offset_t va);
 
-uint64_t allocate_vsid(pmap_t pm, uint64_t esid, int large);
+uint64_t allocate_user_vsid(pmap_t pm, uint64_t esid, int large);
 void	free_vsid(pmap_t pm, uint64_t esid, int large);
-void	slb_insert(pmap_t pm, struct slb *dst, struct slb *);
+void	slb_insert_user(pmap_t pm, struct slb *slb);
+void	slb_insert_kernel(uint64_t slbe, uint64_t slbv);
 
 struct slbtnode *slb_alloc_tree(void);
 void     slb_free_tree(pmap_t pm);
-struct slb *slb_alloc_user_cache(void);
-void	slb_free_user_cache(struct slb *);
+struct slb **slb_alloc_user_cache(void);
+void	slb_free_user_cache(struct slb **);
 
 #else
 
