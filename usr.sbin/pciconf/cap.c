@@ -460,6 +460,7 @@ cap_pciaf(int fd, struct pci_conf *p, uint8_t ptr)
 void
 list_caps(int fd, struct pci_conf *p)
 {
+	int express;
 	uint16_t sta;
 	uint8_t ptr, cap;
 
@@ -481,6 +482,7 @@ list_caps(int fd, struct pci_conf *p)
 	}
 
 	/* Walk the capability list. */
+	express = 0;
 	ptr = read_config(fd, &p->pc_sel, ptr, 1);
 	while (ptr != 0 && ptr != 0xff) {
 		cap = read_config(fd, &p->pc_sel, ptr + PCICAP_ID, 1);
@@ -514,6 +516,7 @@ list_caps(int fd, struct pci_conf *p)
 			cap_subvendor(fd, p, ptr);
 			break;
 		case PCIY_EXPRESS:
+			express = 1;
 			cap_express(fd, p, ptr);
 			break;
 		case PCIY_MSIX:
@@ -533,7 +536,8 @@ list_caps(int fd, struct pci_conf *p)
 		ptr = read_config(fd, &p->pc_sel, ptr + PCICAP_NEXTPTR, 1);
 	}
 
-	list_ecaps(fd, p);
+	if (express)
+		list_ecaps(fd, p);
 }
 
 /* From <sys/systm.h>. */
