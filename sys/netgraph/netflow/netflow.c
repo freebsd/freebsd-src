@@ -167,6 +167,7 @@ get_export_dgram(priv_p priv)
 		dgram = mtod(m, struct netflow_v5_export_dgram *);
 		dgram->header.count = 0;
 		dgram->header.version = htons(NETFLOW_V5);
+		dgram->header.pad = 0;
 
 	}
 
@@ -644,6 +645,8 @@ export_add(item_p item, struct flow_entry *fle)
 	rec->tos      = fle->f.r.r_tos;
 	rec->dst_mask = fle->f.dst_mask;
 	rec->src_mask = fle->f.src_mask;
+	rec->pad1     = 0;
+	rec->pad2     = 0;
 
 	/* Not supported fields. */
 	rec->src_as = rec->dst_as = 0;
