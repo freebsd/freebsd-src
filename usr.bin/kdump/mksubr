@@ -49,7 +49,7 @@ void
 $name (int arg)
 {
 	int	or = 0;
-        printf("%#x<", arg);
+	printf("%#x<", arg);
 _EOF_
 	egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
 		$include_dir/$file | \
@@ -59,7 +59,7 @@ _EOF_
 		++i; \
 		printf "\tif(!((arg>0)^((%s)>0)))\n\t\tif_print_or(arg, %s, or);\n", $i, $i }'
 cat <<_EOF_
-        printf(">");
+	printf(">");
 	if (or == 0)
 		(void)printf("<invalid>%ld", (long)arg);
 }
@@ -435,7 +435,7 @@ sendrecvflagsname (int flags)
 		return;
 	}
 
-        printf("%#x<", flags);
+	printf("%#x<", flags);
 _EOF_
 egrep "^#[[:space:]]*define[[:space:]]+MSG_[A-Z]+[[:space:]]+0x[0-9]+[[:space:]]*" $include_dir/sys/socket.h | \
 	awk '{ for (i = 1; i <= NF; i++) \
@@ -444,7 +444,7 @@ egrep "^#[[:space:]]*define[[:space:]]+MSG_[A-Z]+[[:space:]]+0x[0-9]+[[:space:]]
 		++i; \
 		printf "\tif(!((flags>0)^((%s)>0)))\n\t\tif_print_or(flags, %s, or);\n", $i, $i }'
 cat <<_EOF_
-        printf(">");
+	printf(">");
 }
 
 _EOF_
