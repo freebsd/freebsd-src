@@ -686,6 +686,10 @@ ACPI_STATUS
 LsDisplayNamespace (
     void);
 
+void
+LsSetupNsList (
+    void                    *Handle);
+
 
 /*
  * aslutils - common compiler utilites
