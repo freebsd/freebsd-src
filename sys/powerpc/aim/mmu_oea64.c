@@ -2097,7 +2097,7 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 {
 	PMAP_LOCK_INIT(pmap);
 
-	SPLAY_INIT(&pmap->pm_slbtree);
+	pmap->pm_slb_tree_root = slb_alloc_tree();
 	pmap->pm_slb = slb_alloc_user_cache();
 }
 #else
@@ -2252,7 +2252,7 @@ moea64_release(mmu_t mmu, pmap_t pmap)
 	 * Free segment registers' VSIDs
 	 */
     #ifdef __powerpc64__
-	free_vsids(pmap);
+	slb_free_tree(pmap);
 	slb_free_user_cache(pmap->pm_slb);
     #else
 	KASSERT(pmap->pm_sr[0] != 0, ("moea64_release: pm_sr[0] = 0"));
@@ -2622,18 +2622,25 @@ moea64_pvo_find_va(pmap_t pm, vm_offset_t va)
 	int		ptegidx;
 	uint64_t	vsid;
 	#ifdef __powerpc64__
-	struct slb	slb;
+	uint64_t	slbv;
 
-	/* The page is not mapped if the segment isn't */
-	if (va_to_slb_entry(pm, va, &slb) != 0)
-		return NULL;
+	if (pm == kernel_pmap) {
+		slbv = kernel_va_to_slbv(va);
+	} else {
+		struct slb *slb;
+		slb = user_va_to_slb_entry(pm, va);
+		/* The page is not mapped if the segment isn't */
+		if (slb == NULL)
+			return NULL;
+		slbv = slb->slbv;
+	}
 
-	vsid = (slb.slbv & SLBV_VSID_MASK) >> SLBV_VSID_SHIFT;
-	if (slb.slbv & SLBV_L)
+	vsid = (slbv & SLBV_VSID_MASK) >> SLBV_VSID_SHIFT;
+	if (slbv & SLBV_L)
 		va &= ~moea64_large_page_mask;
 	else
 		va &= ~ADDR_POFF;
-	ptegidx = va_to_pteg(vsid, va, slb.slbv & SLBV_L);
+	ptegidx = va_to_pteg(vsid, va, slbv & SLBV_L);
 	#else
 	va &= ~ADDR_POFF;
 	vsid = va_to_vsid(pm, va);
