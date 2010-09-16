@@ -221,6 +221,7 @@ contrib/dev/acpica/executer/exsystem.c		optional acpi
 contrib/dev/acpica/executer/exutils.c		optional acpi
 contrib/dev/acpica/hardware/hwacpi.c		optional acpi
 contrib/dev/acpica/hardware/hwgpe.c		optional acpi
+contrib/dev/acpica/hardware/hwpci.c		optional acpi
 contrib/dev/acpica/hardware/hwregs.c		optional acpi
 contrib/dev/acpica/hardware/hwsleep.c		optional acpi
 contrib/dev/acpica/hardware/hwtimer.c		optional acpi
@@ -289,6 +290,7 @@ contrib/dev/acpica/utilities/utosi.c		optional acpi
 contrib/dev/acpica/utilities/utresrc.c		optional acpi
 contrib/dev/acpica/utilities/utstate.c		optional acpi
 contrib/dev/acpica/utilities/utxface.c		optional acpi
+contrib/dev/acpica/utilities/utxferror.c	optional acpi
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \

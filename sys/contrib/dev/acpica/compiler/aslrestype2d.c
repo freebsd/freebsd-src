@@ -347,10 +347,10 @@ RsDoDwordIoDescriptor (
     /* Validate the Min/Max/Len/Gran values */
 
     RsLargeAddressCheck (
-        Descriptor->Address32.Minimum,
-        Descriptor->Address32.Maximum,
-        Descriptor->Address32.AddressLength,
-        Descriptor->Address32.Granularity,
+        (UINT64) Descriptor->Address32.Minimum,
+        (UINT64) Descriptor->Address32.Maximum,
+        (UINT64) Descriptor->Address32.AddressLength,
+        (UINT64) Descriptor->Address32.Granularity,
         Descriptor->Address32.Flags,
         MinOp, MaxOp, LengthOp, GranOp);
 
@@ -583,10 +583,10 @@ RsDoDwordMemoryDescriptor (
     /* Validate the Min/Max/Len/Gran values */
 
     RsLargeAddressCheck (
-        Descriptor->Address32.Minimum,
-        Descriptor->Address32.Maximum,
-        Descriptor->Address32.AddressLength,
-        Descriptor->Address32.Granularity,
+        (UINT64) Descriptor->Address32.Minimum,
+        (UINT64) Descriptor->Address32.Maximum,
+        (UINT64) Descriptor->Address32.AddressLength,
+        (UINT64) Descriptor->Address32.Granularity,
         Descriptor->Address32.Flags,
         MinOp, MaxOp, LengthOp, GranOp);
 
@@ -801,10 +801,10 @@ RsDoDwordSpaceDescriptor (
     /* Validate the Min/Max/Len/Gran values */
 
     RsLargeAddressCheck (
-        Descriptor->Address32.Minimum,
-        Descriptor->Address32.Maximum,
-        Descriptor->Address32.AddressLength,
-        Descriptor->Address32.Granularity,
+        (UINT64) Descriptor->Address32.Minimum,
+        (UINT64) Descriptor->Address32.Maximum,
+        (UINT64) Descriptor->Address32.AddressLength,
+        (UINT64) Descriptor->Address32.Granularity,
         Descriptor->Address32.Flags,
         MinOp, MaxOp, LengthOp, GranOp);
 

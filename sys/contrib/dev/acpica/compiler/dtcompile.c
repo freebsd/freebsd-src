@@ -127,7 +127,7 @@ static char                 VersionString[9];
 
 /* Local prototypes */
 
-static void
+static ACPI_STATUS
 DtInitialize (
     void);
 
@@ -166,7 +166,12 @@ DtDoCompile (
 
     /* Initialize globals */
 
-    DtInitialize ();
+    Status = DtInitialize ();
+    if (ACPI_FAILURE (Status))
+    {
+        printf ("Error during compiler initialization, 0x%X\n", Status);
+        return (Status);
+    }
 
     /*
      * Scan the input file (file is already open) and
@@ -236,26 +241,38 @@ CleanupAndExit:
  *
  * PARAMETERS:  None
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Initialize data table compiler globals. Enables multiple
  *              compiles per invocation.
  *
  *****************************************************************************/
 
-static void
+static ACPI_STATUS
 DtInitialize (
     void)
 {
+    ACPI_STATUS             Status;
 
-    AcpiOsInitialize ();
-    AcpiUtInitGlobals ();
+
+    Status = AcpiOsInitialize ();
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    Status = AcpiUtInitGlobals ();
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
 
     Gbl_FieldList = NULL;
     Gbl_RootTable = NULL;
     Gbl_SubtableStack = NULL;
 
     sprintf (VersionString, "%X", (UINT32) ACPI_CA_VERSION);
+    return (AE_OK);
 }
 
 
