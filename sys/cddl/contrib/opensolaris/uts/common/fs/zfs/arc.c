@@ -2161,10 +2161,10 @@ arc_reclaim_needed(void)
 		return (0);
 
 	/*
-	 * If pages are needed or we're within 2048 pages
-	 * of needing to page need to reclaim
+	 * Cooperate with pagedaemon when it's time for it to scan
+	 * and reclaim some pages.
 	 */
-	if (vm_pages_needed || (vm_paging_target() > -2048))
+	if (vm_paging_need())
 		return (1);
 
 #if 0
