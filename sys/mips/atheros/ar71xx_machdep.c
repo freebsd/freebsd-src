@@ -235,6 +235,10 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	else 
 		printf ("envp is invalid\n");
 
+	/*
+	 * "ethaddr" is passed via envp on RedBoot platforms
+	 * "kmac" is passed via argv on RouterBOOT platforms
+	 */
 	if ((var = getenv("ethaddr")) != NULL ||
 	    (var = getenv("kmac")) != NULL) {
 		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
