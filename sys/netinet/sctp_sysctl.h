@@ -108,6 +108,7 @@ struct sctp_sysctl {
 	uint32_t sctp_enable_sack_immediately;
 	uint32_t sctp_vtag_time_wait;
 	uint32_t sctp_buffer_splitting;
+	uint32_t sctp_initial_cwnd;
 #if defined(SCTP_DEBUG)
 	uint32_t sctp_debug_on;
 #endif
@@ -496,6 +497,12 @@ struct sctp_sysctl {
 #define SCTPCTL_BUFFER_SPLITTING_MIN		0
 #define SCTPCTL_BUFFER_SPLITTING_MAX		0x3
 #define SCTPCTL_BUFFER_SPLITTING_DEFAULT	SCTPCTL_BUFFER_SPLITTING_MIN
+
+/* Initial congestion window in MTU */
+#define SCTPCTL_INITIAL_CWND_DESC	"Initial congestion window in MTU"
+#define SCTPCTL_INITIAL_CWND_MIN	2
+#define SCTPCTL_INITIAL_CWND_MAX	0xffffffff
+#define SCTPCTL_INITIAL_CWND_DEFAULT	3
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */
