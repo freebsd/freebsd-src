@@ -52,10 +52,8 @@ void	cpu_swapin(struct proc *);
 uintptr_t MipsEmulateBranch(struct trapframe *, uintptr_t, int, uintptr_t);
 void MipsSwitchFPState(struct thread *, struct trapframe *);
 u_long	kvtop(void *addr);
-int	is_physical_memory(vm_offset_t addr);
+int	is_cacheable_mem(vm_offset_t addr);
 void	mips_generic_reset(void);
-
-#define	is_cacheable_mem(pa)	is_physical_memory((pa))
 
 #define	MIPS_DEBUG   0
 

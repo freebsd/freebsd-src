@@ -497,7 +497,7 @@ cpu_idle_wakeup(int cpu)
 }
 
 int
-is_physical_memory(vm_offset_t addr)
+is_cacheable_mem(vm_offset_t addr)
 {
 	int i;
 
