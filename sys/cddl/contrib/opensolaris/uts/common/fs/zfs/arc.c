@@ -2155,10 +2155,6 @@ arc_reclaim_needed(void)
 #ifdef _KERNEL
 	if (needfree)
 		return (1);
-	if (arc_size > arc_c_max)
-		return (1);
-	if (arc_size <= arc_c_min)
-		return (0);
 
 	/*
 	 * Cooperate with pagedaemon when it's time for it to scan
