@@ -44,18 +44,27 @@
 #include <netinet/sctp_cc_functions.h>
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 void
 sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
-	/*
-	 * We take the max of the burst limit times a MTU or the
-	 * INITIAL_CWND. We then limit this to 4 MTU's of sending. cwnd must
-	 * be at least 2 MTU.
-	 */
-	net->cwnd = min((net->mtu * 4), max((2 * net->mtu), SCTP_INITIAL_CWND));
-	net->ssthresh = stcb->asoc.peers_rwnd;
+	struct sctp_association *assoc;
+	uint32_t cwnd_in_mtu;
 
-	if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_CWND_MONITOR_ENABLE | SCTP_CWND_LOGGING_ENABLE)) {
+	assoc = &stcb->asoc;
+	/*
+	 * We take the minimum of the burst limit and the initial congestion
+	 * window. The initial congestion window is at least two times the
+	 * MTU.
+	 */
+	cwnd_in_mtu = SCTP_BASE_SYSCTL(sctp_initial_cwnd);
+	if ((assoc->max_burst > 0) && (cwnd_in_mtu > assoc->max_burst))
+		cwnd_in_mtu = assoc->max_burst;
+	net->cwnd = (net->mtu - sizeof(struct sctphdr)) * cwnd_in_mtu;
+	net->ssthresh = assoc->peers_rwnd;
+
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) &
+	    (SCTP_CWND_MONITOR_ENABLE | SCTP_CWND_LOGGING_ENABLE)) {
 		sctp_log_cwnd(stcb, net, 0, SCTP_CWND_INITIALIZATION);
 	}
 }
