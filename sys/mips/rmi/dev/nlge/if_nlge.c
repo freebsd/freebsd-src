@@ -207,6 +207,9 @@ static void 	release_tx_desc(vm_paddr_t phy_addr);
 static int	send_fmn_msg_tx(struct nlge_softc *, struct msgrng_msg *,
     uint32_t n_entries);
 
+static void
+nl_tx_q_wakeup(void *addr);
+
 //#define DEBUG
 #ifdef DEBUG
 static int	mac_debug = 1;
@@ -423,6 +426,10 @@ nlna_attach(device_t dev)
 		    sizeof(struct nlge_tx_desc), NULL, NULL, NULL, NULL,
 		    XLR_CACHELINE_SIZE, 0);
 	}
+
+	/* Other per NA s/w initialization */
+	callout_init(&sc->tx_thr, CALLOUT_MPSAFE);
+	callout_reset(&sc->tx_thr, hz, nl_tx_q_wakeup, sc);
 
 	/* Enable NA interrupts */
 	nlna_setup_intr(sc);
@@ -655,15 +662,23 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 	}
 
 	if (ctrl == CTRL_REG_FREE || ctrl == CTRL_JUMBO_FREE) {
-		if (is_p2p) {
-			release_tx_desc(phys_addr);
-		} else {
-			m_freem((struct mbuf *)(uintptr_t)phys_addr);
-		}
-
 		ifp = sc->nlge_if;
-		if (ifp->if_drv_flags & IFF_DRV_OACTIVE){
-			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if (!tx_error) {
+			if (is_p2p) {
+				release_tx_desc(phys_addr);
+			} else {
+				m_freem((struct mbuf *)(uintptr_t)phys_addr);
+			}
+			NLGE_LOCK(sc);
+			if (ifp->if_drv_flags & IFF_DRV_OACTIVE){
+				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+				callout_reset(&na_sc->tx_thr, hz,
+				    nl_tx_q_wakeup, na_sc);
+			}
+			NLGE_UNLOCK(sc);
+		} else {
+			printf("ERROR: Tx fb error (%d) on port %d\n", tx_error,
+			    port);
 		}
 		atomic_incr_long((tx_error) ? &ifp->if_oerrors: &ifp->if_opackets);
 	} else if (ctrl == CTRL_SNGL || ctrl == CTRL_START) {
@@ -687,7 +702,24 @@ nlge_start(struct ifnet *ifp)
 	nlge_start_locked(ifp, sc);
 	//NLGE_UNLOCK(sc);
 }
-	
+
+static void
+nl_tx_q_wakeup(void *addr)
+{
+	struct nlna_softc *na_sc;
+	struct nlge_softc *sc;
+	int i;
+
+	na_sc = (struct nlna_softc *) addr;
+	for (i = 0; i < XLR_MAX_MACS; i++) { 
+		sc = na_sc->child_sc[i];
+		if (sc == NULL)
+			continue;
+		nlge_start_locked(sc->nlge_if, sc);
+	}
+	callout_reset(&na_sc->tx_thr, 5 * hz, nl_tx_q_wakeup, na_sc);
+}
+
 static void
 nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
 {
@@ -696,20 +728,30 @@ nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
 	struct nlge_tx_desc 	*tx_desc;
 	uint64_t		fr_stid;
 	uint32_t		cpu;	
-	uint32_t		n_entries;	
+	uint32_t		n_entries;
 	uint32_t		tid;
 	int 			ret;
-	int 			sent;
 
 	cpu = xlr_core_id();	
 	tid = xlr_thr_id();
-	fr_stid = cpu * 8 + tid + 4;
+	/* H/w threads [0, 2] --> bucket 6 and [1, 3] --> bucket 7 */
+	fr_stid = cpu * 8 + 6 + (tid % 2); 
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		return;
 	}
 
 	do {
+		/*
+		 * First, remove some freeback messages before transmitting
+		 * any new packets. However, cap the number of messages
+		 * drained to permit this thread to continue with its
+		 * transmission.
+		 *
+		 * Mask for buckets {6, 7} is 0xc0
+		 */
+		xlr_msgring_handler(0xc0, 4);
+
 		/* Grab a packet off the queue. */
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL) {
@@ -721,8 +763,8 @@ nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
 		if (ret) {
 			goto fail;
 		}
-		sent = send_fmn_msg_tx(sc, &msg, n_entries);
-		if (sent != 0) {
+		ret = send_fmn_msg_tx(sc, &msg, n_entries);
+		if (ret != 0) {
 			goto fail;
 		}
 	} while(1);
@@ -734,20 +776,10 @@ fail:
 		uma_zfree(nl_tx_desc_zone, tx_desc);
 	}
 	if (m != NULL) {
-		/*
-		 * TBD: It is observed that only when both of the statements
-		 * below are not enabled, traffic continues till the end.
-		 * Otherwise, the port locks up in the middle and never
-		 * recovers from it. The current theory for this behavior
-		 * is that the queue is full and the upper layer is neither
-		 * able to add to it not invoke nlge_start to drian the
-		 * queue. The driver may have to do something in addition
-		 * to reset'ing the OACTIVE bit when a trasnmit free-back
-		 * is received.
-		 */
-		//ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		//IF_PREPEND(&ifp->if_snd, m);
-		m_freem(m);
+		NLGE_LOCK(sc);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		NLGE_UNLOCK(sc);
+		IF_PREPEND(&ifp->if_snd, m);
 		atomic_incr_long(&ifp->if_iqdrops);
 	}
 	return;
@@ -1020,7 +1052,7 @@ nlna_submit_rx_free_desc(struct nlna_softc *sc, uint32_t n_desc)
 			msgrng_flags = msgrng_access_enable();
 			ret = message_send(1, code, stid, &msg);
 			msgrng_restore(msgrng_flags);
-			KASSERT(n++ < 100000, ("Too many credit fails\n"));
+			KASSERT(n++ < 100000, ("Too many credit fails in rx path\n"));
 		} while (ret != 0);
 	}
 }
@@ -1942,9 +1974,14 @@ send_fmn_msg_tx(struct nlge_softc *sc, struct msgrng_msg *msg,
 		ret = message_send(n_entries, MSGRNG_CODE_MAC,
 		    sc->tx_bucket_id, msg);
 		msgrng_restore(msgrng_flags);
-		KASSERT(i++ < 100000, ("Too many credit fails\n"));
-	} while (ret != 0);
-	return (0);
+		if (ret == 0)
+			return (0);
+		i++;
+	} while (i < 100000);
+
+	KASSERT(i < 100000, ("Too many credit fails in tx path\n"));
+
+	return (1);
 }
 
 static void
