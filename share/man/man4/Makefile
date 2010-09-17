@@ -50,7 +50,7 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	${_atp.4} \
-	${attimer.4} \
+	${_attimer.4} \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
