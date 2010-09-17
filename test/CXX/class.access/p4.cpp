@@ -372,7 +372,7 @@ namespace test15 {
     int private_foo; // expected-note {{declared private here}}
     static int private_sfoo; // expected-note {{declared private here}}
   protected:
-    int protected_foo; // expected-note 4 {{declared protected here}}
+    int protected_foo; // expected-note 3 {{declared protected here}} // expected-note {{object type must derive from context type 'test15::B<int>'}}
     static int protected_sfoo; // expected-note 3 {{declared protected here}}
 
     int test1(A<int> &a) {
@@ -426,4 +426,27 @@ namespace test16 {
   class A { ~A(); }; // expected-note 2{{declared private here}}
   void b() { throw A(); } // expected-error{{temporary of type 'test16::A' has private destructor}} \
   // expected-error{{exception object of type 'test16::A' has private destructor}}
+}
+
+// rdar://problem/8146294
+namespace test17 {
+  class A {
+    template <typename T> class Inner { }; // expected-note {{declared private here}}
+  };
+
+  A::Inner<int> s; // expected-error {{'Inner' is a private member of 'test17::A'}}
+}
+
+namespace test18 {
+  template <class T> class A {};
+  class B : A<int> {
+    A<int> member;
+  };
+
+  // FIXME: this access to A should be forbidden (because C++ is dumb),
+  // but LookupResult can't express the necessary information to do
+  // the check, so we aggressively suppress access control.
+  class C : B {
+    A<int> member;
+  };
 }

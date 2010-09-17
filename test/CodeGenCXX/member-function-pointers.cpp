@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 %s -emit-llvm -o - -triple=x86_64-apple-darwin9 | FileCheck %s
 // RUN: %clang_cc1 %s -emit-llvm -o - -triple=i386-apple-darwin9 | FileCheck -check-prefix LP32 %s
+// RUN: %clang_cc1 %s -emit-llvm -o - -triple=armv7-unknown-unknown | FileCheck -check-prefix ARM %s
 
 struct A { int a; void f(); virtual void vf1(); virtual void vf2(); };
 struct B { int b; virtual void g(); };
@@ -28,50 +29,38 @@ void (C::*pc2)() = &C::f;
 void (A::*pc3)() = &A::vf1;
 
 void f() {
-  // CHECK: store i64 0, i64* getelementptr inbounds (%0* @pa, i32 0, i32 0)
-  // CHECK: store i64 0, i64* getelementptr inbounds (%0* @pa, i32 0, i32 1)
+  // CHECK: store %0 zeroinitializer, %0* @pa
   pa = 0;
 
-  // CHECK: volatile store i64 0, i64* getelementptr inbounds (%0* @vpa, i32 0, i32 0)
-  // CHECK: volatile store i64 0, i64* getelementptr inbounds (%0* @vpa, i32 0, i32 1)
+  // Is this okay?  What are LLVM's volatile semantics for structs?
+  // CHECK: volatile store %0 zeroinitializer, %0* @vpa
   vpa = 0;
 
-  // CHECK: store i64 {{.*}}, i64* getelementptr inbounds (%0* @pc, i32 0, i32 0)
-  // CHECK: [[ADJ:%[a-zA-Z0-9\.]+]] = add i64 {{.*}}, 16
-  // CHECK: store i64 [[ADJ]], i64* getelementptr inbounds (%0* @pc, i32 0, i32 1)
+  // CHECK: [[TMP:%.*]] = load %0* @pa, align 8
+  // CHECK: [[TMPADJ:%.*]] = extractvalue %0 [[TMP]], 1
+  // CHECK: [[ADJ:%.*]] = add nsw i64 [[TMPADJ]], 16
+  // CHECK: [[RES:%.*]] = insertvalue %0 [[TMP]], i64 [[ADJ]], 1
+  // CHECK: store %0 [[RES]], %0* @pc, align 8
   pc = pa;
 
-  // CHECK: store i64 {{.*}}, i64* getelementptr inbounds (%0* @pa, i32 0, i32 0)
-  // CHECK: [[ADJ:%[a-zA-Z0-9\.]+]] = sub i64 {{.*}}, 16
-  // CHECK: store i64 [[ADJ]], i64* getelementptr inbounds (%0* @pa, i32 0, i32 1)
+  // CHECK: [[TMP:%.*]] = load %0* @pc, align 8
+  // CHECK: [[TMPADJ:%.*]] = extractvalue %0 [[TMP]], 1
+  // CHECK: [[ADJ:%.*]] = sub nsw i64 [[TMPADJ]], 16
+  // CHECK: [[RES:%.*]] = insertvalue %0 [[TMP]], i64 [[ADJ]], 1
+  // CHECK: store %0 [[RES]], %0* @pa, align 8
   pa = static_cast<void (A::*)()>(pc);
 }
 
 void f2() {
-  // CHECK: [[pa2ptr:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa2, i32 0, i32 0 
-  // CHECK: store i64 ptrtoint (void (%struct.A*)* @_ZN1A1fEv to i64), i64* [[pa2ptr]]
-  // CHECK: [[pa2adj:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa2, i32 0, i32 1
-  // CHECK: store i64 0, i64* [[pa2adj]]
+  // CHECK:      store %0 { i64 ptrtoint (void (%struct.A*)* @_ZN1A1fEv to i64), i64 0 }
   void (A::*pa2)() = &A::f;
   
-  // CHECK:      [[pa3ptr:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa3, i32 0, i32 0 
-  // CHECK:      store i64 1, i64* [[pa3ptr]]
-  // CHECK:      [[pa3adj:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa3, i32 0, i32 1
-  // CHECK:      store i64 0, i64* [[pa3adj]]
-  // CHECK-LP32: [[pa3ptr:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa3, i32 0, i32 0 
-  // CHECK-LP32: store i32 1, i32* [[pa3ptr]]
-  // CHECK-LP32: [[pa3adj:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa3, i32 0, i32 1
-  // CHECK-LP32: store i32 0, i32* [[pa3adj]]
+  // CHECK:      store %0 { i64 1, i64 0 }
+  // CHECK-LP32: store %0 { i32 1, i32 0 }
   void (A::*pa3)() = &A::vf1;
   
-  // CHECK:      [[pa4ptr:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa4, i32 0, i32 0 
-  // CHECK:      store i64 9, i64* [[pa4ptr]]
-  // CHECK:      [[pa4adj:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa4, i32 0, i32 1
-  // CHECK:      store i64 0, i64* [[pa4adj]]
-  // CHECK-LP32: [[pa4ptr:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa4, i32 0, i32 0 
-  // CHECK-LP32: store i32 5, i32* [[pa4ptr]]
-  // CHECK-LP32: [[pa4adj:%[a-zA-Z0-9\.]+]] = getelementptr inbounds %0* %pa4, i32 0, i32 1
-  // CHECK-LP32: store i32 0, i32* [[pa4adj]]
+  // CHECK:      store %0 { i64 9, i64 0 }
+  // CHECK-LP32: store %0 { i32 5, i32 0 }
   void (A::*pa4)() = &A::vf2;
 }
 
@@ -189,4 +178,34 @@ namespace PR6258 {
 namespace PR7027 {
   struct X { void test( ); };
   void testX() { &X::test; }
+}
+
+namespace test7 {
+  struct A { void foo(); virtual void vfoo(); };
+  struct B { void foo(); virtual void vfoo(); };
+  struct C : A, B { void foo(); virtual void vfoo(); };
+
+  // CHECK-ARM: @_ZN5test74ptr0E = global {{.*}} { i32 ptrtoint ({{.*}}* @_ZN5test71A3fooEv to i32), i32 0 }
+  // CHECK-ARM: @_ZN5test74ptr1E = global {{.*}} { i32 ptrtoint ({{.*}}* @_ZN5test71B3fooEv to i32), i32 8 }
+  // CHECK-ARM: @_ZN5test74ptr2E = global {{.*}} { i32 ptrtoint ({{.*}}* @_ZN5test71C3fooEv to i32), i32 0 }
+  // CHECK-ARM: @_ZN5test74ptr3E = global {{.*}} { i32 0, i32 1 }
+  // CHECK-ARM: @_ZN5test74ptr4E = global {{.*}} { i32 0, i32 9 }
+  // CHECK-ARM: @_ZN5test74ptr5E = global {{.*}} { i32 0, i32 1 }
+  void (C::*ptr0)() = &A::foo;
+  void (C::*ptr1)() = &B::foo;
+  void (C::*ptr2)() = &C::foo;
+  void (C::*ptr3)() = &A::vfoo;
+  void (C::*ptr4)() = &B::vfoo;
+  void (C::*ptr5)() = &C::vfoo;
+}
+
+namespace test8 {
+  struct X { };
+  typedef int (X::*pmf)(int);
+  
+  // CHECK: {{define.*_ZN5test81fEv}}
+  pmf f() {
+    // CHECK: {{ret.*zeroinitializer}}
+    return pmf();
+  }
 }

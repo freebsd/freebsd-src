@@ -1,16 +1,21 @@
 // RUN: %clang_cc1 %s -triple=x86_64-apple-darwin10 -emit-llvm -o %t
+// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin10 -fhidden-weak-vtables -emit-llvm -o %t.hidden
 // RUN: FileCheck --check-prefix=CHECK-1 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-2 %s < %t
+// RUN: FileCheck --check-prefix=CHECK-2-HIDDEN %s < %t.hidden
 // RUN: FileCheck --check-prefix=CHECK-3 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-4 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-5 %s < %t
+// RUN: FileCheck --check-prefix=CHECK-5-HIDDEN %s < %t.hidden
 // RUN: FileCheck --check-prefix=CHECK-6 %s < %t
+// RUN: FileCheck --check-prefix=CHECK-6-HIDDEN %s < %t.hidden
 // RUN: FileCheck --check-prefix=CHECK-7 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-8 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-9 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-10 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-11 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-12 %s < %t
+// RUN: FileCheck --check-prefix=CHECK-13 %s < %t
 
 namespace {
   struct A {
@@ -83,22 +88,27 @@ struct F<char> {
 template struct F<short>;
 extern template struct F<int>;
 
-void use_F(F<char> &fc) {
+void use_F() {
+  F<char> fc;
+  fc.foo();
   F<int> fi;
   fi.foo();
   F<long> fl;
   (void)fl;
-  fc.foo();
 }
 
 // B has a key function that is not defined in this translation unit so its vtable
 // has external linkage.
 // CHECK-1: @_ZTV1B = external constant
 
-// C has no key function, so its vtable should have weak_odr linkage.
+// C has no key function, so its vtable should have weak_odr linkage
+// and hidden visibility (rdar://problem/7523229).
 // CHECK-2: @_ZTV1C = weak_odr constant
 // CHECK-2: @_ZTS1C = weak_odr constant
 // CHECK-2: @_ZTI1C = weak_odr constant
+// CHECK-2-HIDDEN: @_ZTV1C = weak_odr hidden constant
+// CHECK-2-HIDDEN: @_ZTS1C = weak_odr constant
+// CHECK-2-HIDDEN: @_ZTI1C = weak_odr hidden constant
 
 // D has a key function that is defined in this translation unit so its vtable is
 // defined in the translation unit.
@@ -119,12 +129,18 @@ void use_F(F<char> &fc) {
 // CHECK-5: @_ZTV1EIsE = weak_odr constant
 // CHECK-5: @_ZTS1EIsE = weak_odr constant
 // CHECK-5: @_ZTI1EIsE = weak_odr constant
+// CHECK-5-HIDDEN: @_ZTV1EIsE = weak_odr constant
+// CHECK-5-HIDDEN: @_ZTS1EIsE = weak_odr constant
+// CHECK-5-HIDDEN: @_ZTI1EIsE = weak_odr constant
 
 // F<short> is an explicit template instantiation without a key
 // function, so its vtable should have weak_odr linkage
 // CHECK-6: @_ZTV1FIsE = weak_odr constant
 // CHECK-6: @_ZTS1FIsE = weak_odr constant
 // CHECK-6: @_ZTI1FIsE = weak_odr constant
+// CHECK-6-HIDDEN: @_ZTV1FIsE = weak_odr constant
+// CHECK-6-HIDDEN: @_ZTS1FIsE = weak_odr constant
+// CHECK-6-HIDDEN: @_ZTI1FIsE = weak_odr constant
 
 // E<long> is an implicit template instantiation with a key function
 // defined in this translation unit, so its vtable should have
@@ -159,6 +175,12 @@ void use_F(F<char> &fc) {
 // CHECK-12: @_ZTVN12_GLOBAL__N_11AE = internal constant
 // CHECK-12: @_ZTSN12_GLOBAL__N_11AE = internal constant
 // CHECK-12: @_ZTIN12_GLOBAL__N_11AE = internal constant
+
+// F<char> is an explicit specialization without a key function, so
+// its vtable should have weak_odr linkage.
+// CHECK-13: @_ZTV1FIcE = weak_odr constant
+// CHECK-13: @_ZTS1FIcE = weak_odr constant
+// CHECK-13: @_ZTI1FIcE = weak_odr constant
 
 // RUN: FileCheck --check-prefix=CHECK-G %s < %t
 //

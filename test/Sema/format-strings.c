@@ -239,6 +239,8 @@ void test_positional_arguments() {
   printf("%1$2.2d", (int) 2); // no-warning
   printf("%2$*1$.2d", (int) 2, (int) 3); // no-warning
   printf("%2$*8$d", (int) 2, (int) 3); // expected-warning{{specified field width is missing a matching 'int' argument}}
+  printf("%%%1$d", (int) 2); // no-warning
+  printf("%1$d%%", (int) 2); // no-warning
 }
 
 // PR 6697 - Handle format strings where the data argument is not adjacent to the format string
@@ -284,3 +286,18 @@ void bug7377_bad_length_mod_usage() {
   printf("%-0f", 1.23); // expected-warning{{flag '0' is ignored when flag '-' is present}}
   printf("%-+f", 1.23); // no-warning
 }
+
+// PR 7981 - handle '%lc' (wint_t)
+#ifndef wint_t
+typedef int __darwin_wint_t;
+typedef __darwin_wint_t wint_t;
+#endif
+
+void pr7981(wint_t c, wchar_t c2) {
+  printf("%lc", c); // no-warning
+  printf("%lc", 1.0); // expected-warning{{the argument has type 'double'}}
+  printf("%lc", (char) 1); // no-warning
+  printf("%lc", &c); // expected-warning{{the argument has type 'wint_t *' (aka 'int *')}}
+  printf("%lc", c2); // no-warning
+}
+

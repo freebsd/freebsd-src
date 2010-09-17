@@ -6,7 +6,7 @@
   __attribute__((iboutlet)) id myoutlet;
 }
 - (void) __attribute__((ibaction)) myMessage:(id)msg;
-- foo;
+- foo __attribute__((deprecated));
 + fooC;
 
 @end
@@ -56,7 +56,7 @@ int main (int argc, const char * argv[]) {
 
 // Test attribute traversal.
 #define IBOutlet __attribute__((iboutlet))
-#define IBOutletCollection(ClassName) __attribute__((iboutletcollection))
+#define IBOutletCollection(ClassName) __attribute__((iboutletcollection(ClassName)))
 #define IBAction void)__attribute__((ibaction)
 
 @interface TestAttributes {
@@ -78,7 +78,7 @@ struct X0  {};
 // CHECK: <invalid loc>:0:0: attribute(ibaction)=
 // CHECK: c-index-api-loadTU-test.m:8:50: ParmDecl=msg:8:50 (Definition) Extent=[8:47 - 8:53]
 // CHECK: c-index-api-loadTU-test.m:8:47: TypeRef=id:0:0 Extent=[8:47 - 8:49]
-// CHECK: c-index-api-loadTU-test.m:9:1: ObjCInstanceMethodDecl=foo:9:1 Extent=[9:1 - 9:7]
+// CHECK: c-index-api-loadTU-test.m:9:1: ObjCInstanceMethodDecl=foo:9:1 (deprecated) Extent=[9:1 - 9:35]
 // CHECK: c-index-api-loadTU-test.m:10:1: ObjCClassMethodDecl=fooC:10:1 Extent=[10:1 - 10:8]
 // CHECK: c-index-api-loadTU-test.m:14:12: ObjCInterfaceDecl=Bar:14:12 Extent=[14:1 - 18:5]
 // CHECK: c-index-api-loadTU-test.m:14:18: ObjCSuperClassRef=Foo:4:12 Extent=[14:18 - 14:21]
@@ -143,10 +143,15 @@ struct X0  {};
 // CHECK: c-index-api-loadTU-test.m:63:19: ObjCIvarDecl=anOutlet:63:19 (Definition) Extent=[63:19 - 63:27]
 // CHECK: <invalid loc>:0:0: attribute(iboutlet)=
 // CHECK: c-index-api-loadTU-test.m:64:29: ObjCIvarDecl=anOutletCollection:64:29 (Definition) Extent=[64:29 - 64:47]
-// CHECK: <invalid loc>:0:0: attribute(iboutletcollection)=
+// CHECK: <invalid loc>:0:0: attribute(iboutletcollection)= [IBOutletCollection=ObjCObjectPointer]
 // CHECK: c-index-api-loadTU-test.m:64:26: TypeRef=id:0:0 Extent=[64:26 - 64:28]
 // CHECK: c-index-api-loadTU-test.m:66:1: ObjCInstanceMethodDecl=actionMethod::66:1 Extent=[66:1 - 66:35]
 // CHECK: <invalid loc>:0:0: attribute(ibaction)=
 // CHECK: c-index-api-loadTU-test.m:66:31: ParmDecl=arg:66:31 (Definition) Extent=[66:28 - 66:34]
 // CHECK: c-index-api-loadTU-test.m:66:28: TypeRef=id:0:0 Extent=[66:28 - 66:30]
+// CHECK: c-index-api-loadTU-test.m:69:16: StructDecl=X0:69:16 Extent=[69:9 - 69:18]
+// CHECK: c-index-api-loadTU-test.m:69:19: TypedefDecl=X1:69:19 (Definition) Extent=[69:19 - 69:21]
+// CHECK: c-index-api-loadTU-test.m:69:16: TypeRef=struct X0:71:8 Extent=[69:16 - 69:18]
+// CHECK: c-index-api-loadTU-test.m:70:8: StructDecl=X0:70:8 Extent=[70:1 - 70:10]
+// CHECK: c-index-api-loadTU-test.m:71:8: StructDecl=X0:71:8 (Definition) Extent=[71:1 - 71:14]
 

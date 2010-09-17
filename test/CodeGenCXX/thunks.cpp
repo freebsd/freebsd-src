@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 %s -triple=x86_64-apple-darwin10 -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin10 -fhidden-weak-vtables -emit-llvm -o - | FileCheck -check-prefix=HIDDEN %s
 
 namespace Test1 {
 
@@ -243,6 +244,19 @@ namespace Test9 {
   struct D : C { D() {} };
   void test() {
     D d;
+  }
+}
+
+namespace Test10 {
+  struct A { virtual void foo(); };
+  struct B { virtual void foo(); };
+  struct C : A, B { void foo() {} };
+
+  // CHECK-HIDDEN: define linkonce_odr void @_ZN6Test101C3fooEv
+  // CHECK-HIDDEN: define linkonce_odr hidden void @_ZThn8_N6Test101C3fooEv
+
+  void test() {
+    C c;
   }
 }
 

@@ -16,9 +16,12 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/LiteralSupport.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/LexDiagnostic.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
+#include "llvm/Support/CrashRecoveryContext.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
 using namespace clang;
 
@@ -166,6 +169,62 @@ void Preprocessor::Handle_Pragma(Token &Tok) {
       --e;
     }
   }
+  
+  Handle_Pragma(StrVal, PragmaLoc, RParenLoc);
+
+  // Finally, return whatever came after the pragma directive.
+  return Lex(Tok);
+}
+
+/// HandleMicrosoft__pragma - Like Handle_Pragma except the pragma text
+/// is not enclosed within a string literal.
+void Preprocessor::HandleMicrosoft__pragma(Token &Tok) {
+  // Remember the pragma token location.
+  SourceLocation PragmaLoc = Tok.getLocation();
+
+  // Read the '('.
+  Lex(Tok);
+  if (Tok.isNot(tok::l_paren)) {
+    Diag(PragmaLoc, diag::err__Pragma_malformed);
+    return;
+  }
+
+  // Get the tokens enclosed within the __pragma().
+  llvm::SmallVector<Token, 32> PragmaToks;
+  int NumParens = 0;
+  Lex(Tok);
+  while (Tok.isNot(tok::eof)) {
+    if (Tok.is(tok::l_paren))
+      NumParens++;
+    else if (Tok.is(tok::r_paren) && NumParens-- == 0)
+      break;
+    PragmaToks.push_back(Tok);
+    Lex(Tok);
+  }
+
+  if (Tok.is(tok::eof)) {
+    Diag(PragmaLoc, diag::err_unterminated___pragma);
+    return;
+  }
+
+  // Build the pragma string.
+  std::string StrVal = " ";
+  for (llvm::SmallVector<Token, 32>::iterator I =
+       PragmaToks.begin(), E = PragmaToks.end(); I != E; ++I) {
+    StrVal += getSpelling(*I);
+  }
+  
+  SourceLocation RParenLoc = Tok.getLocation();
+
+  Handle_Pragma(StrVal, PragmaLoc, RParenLoc);
+
+  // Finally, return whatever came after the pragma directive.
+  return Lex(Tok);
+}
+
+void Preprocessor::Handle_Pragma(const std::string &StrVal,
+                                 SourceLocation PragmaLoc,
+                                 SourceLocation RParenLoc) {
 
   // Plop the string (including the newline and trailing null) into a buffer
   // where we can lex it.
@@ -183,9 +242,6 @@ void Preprocessor::Handle_Pragma(Token &Tok) {
 
   // With everything set up, lex this as a #pragma directive.
   HandlePragmaDirective();
-
-  // Finally, return whatever came after the pragma directive.
-  return Lex(Tok);
 }
 
 
@@ -328,7 +384,9 @@ void Preprocessor::HandlePragmaDependency(Token &DependencyTok) {
       Lex(DependencyTok);
     }
 
-    Message.erase(Message.end()-1);
+    // Remove the trailing ' ' if present.
+    if (!Message.empty())
+      Message.erase(Message.end()-1);
     Diag(FilenameTok, diag::pp_out_of_date_dependency) << Message;
   }
 }
@@ -483,6 +541,109 @@ void Preprocessor::HandlePragmaMessage(Token &Tok) {
     Callbacks->PragmaMessage(MessageLoc, MessageString);
 }
 
+/// ParsePragmaPushOrPopMacro - Handle parsing of pragma push_macro/pop_macro.  
+/// Return the IdentifierInfo* associated with the macro to push or pop.
+IdentifierInfo *Preprocessor::ParsePragmaPushOrPopMacro(Token &Tok) {
+  // Remember the pragma token location.
+  Token PragmaTok = Tok;
+
+  // Read the '('.
+  Lex(Tok);
+  if (Tok.isNot(tok::l_paren)) {
+    Diag(PragmaTok.getLocation(), diag::err_pragma_push_pop_macro_malformed)
+      << getSpelling(PragmaTok);
+    return 0;
+  }
+
+  // Read the macro name string.
+  Lex(Tok);
+  if (Tok.isNot(tok::string_literal)) {
+    Diag(PragmaTok.getLocation(), diag::err_pragma_push_pop_macro_malformed)
+      << getSpelling(PragmaTok);
+    return 0;
+  }
+
+  // Remember the macro string.
+  std::string StrVal = getSpelling(Tok);
+
+  // Read the ')'.
+  Lex(Tok);
+  if (Tok.isNot(tok::r_paren)) {
+    Diag(PragmaTok.getLocation(), diag::err_pragma_push_pop_macro_malformed)
+      << getSpelling(PragmaTok);
+    return 0;
+  }
+
+  assert(StrVal[0] == '"' && StrVal[StrVal.size()-1] == '"' &&
+         "Invalid string token!");
+
+  // Create a Token from the string.
+  Token MacroTok;
+  MacroTok.startToken();
+  MacroTok.setKind(tok::identifier);
+  CreateString(&StrVal[1], StrVal.size() - 2, MacroTok);
+
+  // Get the IdentifierInfo of MacroToPushTok.
+  return LookUpIdentifierInfo(MacroTok);
+}
+
+/// HandlePragmaPushMacro - Handle #pragma push_macro.  
+/// The syntax is:
+///   #pragma push_macro("macro")
+void Preprocessor::HandlePragmaPushMacro(Token &PushMacroTok) {
+  // Parse the pragma directive and get the macro IdentifierInfo*.
+  IdentifierInfo *IdentInfo = ParsePragmaPushOrPopMacro(PushMacroTok);
+  if (!IdentInfo) return;
+
+  // Get the MacroInfo associated with IdentInfo.
+  MacroInfo *MI = getMacroInfo(IdentInfo);
+ 
+  MacroInfo *MacroCopyToPush = 0;
+  if (MI) {
+    // Make a clone of MI.
+    MacroCopyToPush = CloneMacroInfo(*MI);
+    
+    // Allow the original MacroInfo to be redefined later.
+    MI->setIsAllowRedefinitionsWithoutWarning(true);
+  }
+
+  // Push the cloned MacroInfo so we can retrieve it later.
+  PragmaPushMacroInfo[IdentInfo].push_back(MacroCopyToPush);
+}
+
+/// HandlePragmaPopMacro - Handle #pragma push_macro.  
+/// The syntax is:
+///   #pragma pop_macro("macro")
+void Preprocessor::HandlePragmaPopMacro(Token &PopMacroTok) {
+  SourceLocation MessageLoc = PopMacroTok.getLocation();
+
+  // Parse the pragma directive and get the macro IdentifierInfo*.
+  IdentifierInfo *IdentInfo = ParsePragmaPushOrPopMacro(PopMacroTok);
+  if (!IdentInfo) return;
+
+  // Find the vector<MacroInfo*> associated with the macro.
+  llvm::DenseMap<IdentifierInfo*, std::vector<MacroInfo*> >::iterator iter =
+    PragmaPushMacroInfo.find(IdentInfo);
+  if (iter != PragmaPushMacroInfo.end()) {
+    // Release the MacroInfo currently associated with IdentInfo.
+    MacroInfo *CurrentMI = getMacroInfo(IdentInfo);
+    if (CurrentMI) ReleaseMacroInfo(CurrentMI);
+
+    // Get the MacroInfo we want to reinstall.
+    MacroInfo *MacroToReInstall = iter->second.back();
+
+    // Reinstall the previously pushed macro.
+    setMacroInfo(IdentInfo, MacroToReInstall);
+
+    // Pop PragmaPushMacroInfo stack.
+    iter->second.pop_back();
+    if (iter->second.size() == 0)
+      PragmaPushMacroInfo.erase(iter);
+  } else {
+    Diag(MessageLoc, diag::warn_pragma_pop_macro_no_push)
+      << IdentInfo->getName();
+  }
+}
 
 /// AddPragmaHandler - Add the specified pragma handler to the preprocessor.
 /// If 'Namespace' is non-null, then it is a token required to exist on the
@@ -582,24 +743,51 @@ struct PragmaDependencyHandler : public PragmaHandler {
   }
 };
 
-/// PragmaDiagnosticHandler - e.g. '#pragma GCC diagnostic ignored "-Wformat"'
-/// Since clang's diagnostic supports extended functionality beyond GCC's
-/// the constructor takes a clangMode flag to tell it whether or not to allow
-/// clang's extended functionality, or whether to reject it.
-struct PragmaDiagnosticHandler : public PragmaHandler {
-private:
-  const bool ClangMode;
-public:
-  explicit PragmaDiagnosticHandler(const bool clangMode)
-    : PragmaHandler("diagnostic"), ClangMode(clangMode) {}
+struct PragmaDebugHandler : public PragmaHandler {
+  PragmaDebugHandler() : PragmaHandler("__debug") {}
+  virtual void HandlePragma(Preprocessor &PP, Token &DepToken) {
+    Token Tok;
+    PP.LexUnexpandedToken(Tok);
+    if (Tok.isNot(tok::identifier)) {
+      PP.Diag(Tok, diag::warn_pragma_diagnostic_invalid);
+      return;
+    }
+    IdentifierInfo *II = Tok.getIdentifierInfo();
 
+    if (II->isStr("assert")) {
+      assert(0 && "This is an assertion!");
+    } else if (II->isStr("crash")) {
+      *(volatile int*) 0x11 = 0;
+    } else if (II->isStr("llvm_fatal_error")) {
+      llvm::report_fatal_error("#pragma clang __debug llvm_fatal_error");
+    } else if (II->isStr("llvm_unreachable")) {
+      llvm_unreachable("#pragma clang __debug llvm_unreachable");
+    } else if (II->isStr("overflow_stack")) {
+      DebugOverflowStack();
+    } else if (II->isStr("handle_crash")) {
+      llvm::CrashRecoveryContext *CRC =llvm::CrashRecoveryContext::GetCurrent();
+      if (CRC)
+        CRC->HandleCrash();
+    } else {
+      PP.Diag(Tok, diag::warn_pragma_debug_unexpected_command)
+        << II->getName();
+    }
+  }
+
+  void DebugOverflowStack() {
+    DebugOverflowStack();
+  }
+};
+
+/// PragmaDiagnosticHandler - e.g. '#pragma GCC diagnostic ignored "-Wformat"'
+struct PragmaDiagnosticHandler : public PragmaHandler {
+public:
+  explicit PragmaDiagnosticHandler() : PragmaHandler("diagnostic") {}
   virtual void HandlePragma(Preprocessor &PP, Token &DiagToken) {
     Token Tok;
     PP.LexUnexpandedToken(Tok);
     if (Tok.isNot(tok::identifier)) {
-      unsigned Diag = ClangMode ? diag::warn_pragma_diagnostic_clang_invalid
-                                 : diag::warn_pragma_diagnostic_gcc_invalid;
-      PP.Diag(Tok, Diag);
+      PP.Diag(Tok, diag::warn_pragma_diagnostic_invalid);
       return;
     }
     IdentifierInfo *II = Tok.getIdentifierInfo();
@@ -613,22 +801,16 @@ public:
       Map = diag::MAP_IGNORE;
     else if (II->isStr("fatal"))
       Map = diag::MAP_FATAL;
-    else if (ClangMode) {
-      if (II->isStr("pop")) {
-        if (!PP.getDiagnostics().popMappings())
-          PP.Diag(Tok, diag::warn_pragma_diagnostic_clang_cannot_ppp);
-        return;
-      }
+    else if (II->isStr("pop")) {
+      if (!PP.getDiagnostics().popMappings())
+        PP.Diag(Tok, diag::warn_pragma_diagnostic_cannot_pop);
 
-      if (II->isStr("push")) {
-        PP.getDiagnostics().pushMappings();
-        return;
-      }
-
-      PP.Diag(Tok, diag::warn_pragma_diagnostic_clang_invalid);
+      return;
+    } else if (II->isStr("push")) {
+      PP.getDiagnostics().pushMappings();
       return;
     } else {
-      PP.Diag(Tok, diag::warn_pragma_diagnostic_gcc_invalid);
+      PP.Diag(Tok, diag::warn_pragma_diagnostic_invalid);
       return;
     }
 
@@ -660,9 +842,7 @@ public:
     if (Literal.hadError)
       return;
     if (Literal.Pascal) {
-      unsigned Diag = ClangMode ? diag::warn_pragma_diagnostic_clang_invalid
-                                 : diag::warn_pragma_diagnostic_gcc_invalid;
-      PP.Diag(Tok, Diag);
+      PP.Diag(Tok, diag::warn_pragma_diagnostic_invalid);
       return;
     }
 
@@ -696,6 +876,25 @@ struct PragmaMessageHandler : public PragmaHandler {
   PragmaMessageHandler() : PragmaHandler("message") {}
   virtual void HandlePragma(Preprocessor &PP, Token &CommentTok) {
     PP.HandlePragmaMessage(CommentTok);
+  }
+};
+
+/// PragmaPushMacroHandler - "#pragma push_macro" saves the value of the
+/// macro on the top of the stack.
+struct PragmaPushMacroHandler : public PragmaHandler {
+  PragmaPushMacroHandler() : PragmaHandler("push_macro") {}
+  virtual void HandlePragma(Preprocessor &PP, Token &PushMacroTok) {
+    PP.HandlePragmaPushMacro(PushMacroTok);
+  }
+};
+
+
+/// PragmaPopMacroHandler - "#pragma pop_macro" sets the value of the
+/// macro to the value on the top of the stack.
+struct PragmaPopMacroHandler : public PragmaHandler {
+  PragmaPopMacroHandler() : PragmaHandler("pop_macro") {}
+  virtual void HandlePragma(Preprocessor &PP, Token &PopMacroTok) {
+    PP.HandlePragmaPopMacro(PopMacroTok);
   }
 };
 
@@ -780,17 +979,20 @@ struct PragmaSTDC_UnknownHandler : public PragmaHandler {
 void Preprocessor::RegisterBuiltinPragmas() {
   AddPragmaHandler(new PragmaOnceHandler());
   AddPragmaHandler(new PragmaMarkHandler());
+  AddPragmaHandler(new PragmaPushMacroHandler());
+  AddPragmaHandler(new PragmaPopMacroHandler());
 
   // #pragma GCC ...
   AddPragmaHandler("GCC", new PragmaPoisonHandler());
   AddPragmaHandler("GCC", new PragmaSystemHeaderHandler());
   AddPragmaHandler("GCC", new PragmaDependencyHandler());
-  AddPragmaHandler("GCC", new PragmaDiagnosticHandler(false));
+  AddPragmaHandler("GCC", new PragmaDiagnosticHandler());
   // #pragma clang ...
   AddPragmaHandler("clang", new PragmaPoisonHandler());
   AddPragmaHandler("clang", new PragmaSystemHeaderHandler());
+  AddPragmaHandler("clang", new PragmaDebugHandler());
   AddPragmaHandler("clang", new PragmaDependencyHandler());
-  AddPragmaHandler("clang", new PragmaDiagnosticHandler(true));
+  AddPragmaHandler("clang", new PragmaDiagnosticHandler());
 
   AddPragmaHandler("STDC", new PragmaSTDC_FP_CONTRACTHandler());
   AddPragmaHandler("STDC", new PragmaSTDC_FENV_ACCESSHandler());

@@ -15,17 +15,9 @@ add_clang_library(clangFrontend
   FrontendAction.cpp
   FrontendActions.cpp
   FrontendOptions.cpp
-  GeneratePCH.cpp
   InitHeaderSearch.cpp
   InitPreprocessor.cpp
   LangStandards.cpp
-  PCHReader.cpp
-  PCHReaderDecl.cpp
-  PCHReaderStmt.cpp
-  PCHWriter.cpp
-  PCHWriterDecl.cpp
-  PCHWriterStmt.cpp
-  PrintParserCallbacks.cpp
   PrintPreprocessedOutput.cpp
   StmtXML.cpp
   TextDiagnosticBuffer.cpp

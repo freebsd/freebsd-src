@@ -86,11 +86,11 @@ unsigned r6268365Aux();
 
 void r6268365() {
   unsigned x = 0;
-  x &= r6268365Aux();
+  x &= r6268365Aux(); // expected-warning{{The left operand to '&=' is always 0}}
   unsigned j = 0;
     
   if (x == 0) ++j;
-  if (x == 0) x = x / j; // no-warning
+  if (x == 0) x = x / j; // expected-warning{{Assigned value is always the same as the existing value}} expected-warning{{The right operand to '/' is always 1}}
 }
 
 void divzeroassume(unsigned x, unsigned j) {  
@@ -298,6 +298,7 @@ void rdar_6777209(char *p) {
 typedef void *Opcode;
 Opcode pr_4033_getOpcode();
 void pr_4033(void) {
+  void *lbl = &&next_opcode;
 next_opcode:
   {
     Opcode op = pr_4033_getOpcode();
@@ -406,14 +407,14 @@ void test_trivial_symbolic_comparison(int *x) {
   int test_trivial_symbolic_comparison_aux();
   int a = test_trivial_symbolic_comparison_aux();
   int b = a;
-  if (a != b) {
+  if (a != b) { // expected-warning{{Both operands to '!=' always have the same value}}
     int *p = 0;
     *p = 0xDEADBEEF;     // no-warning
   }
   
   a = a == 1;
   b = b == 1;
-  if (a != b) {
+  if (a != b) { // expected-warning{{Both operands to '!=' always have the same value}}
     int *p = 0;
     *p = 0xDEADBEEF;     // no-warning
   }
@@ -457,7 +458,7 @@ void rdar_7062158_2() {
 // ElementRegion is created.
 unsigned char test_array_index_bitwidth(const unsigned char *p) {
   unsigned short i = 0;
-  for (i = 0; i < 2; i++) p = &p[i];  
+  for (i = 0; i < 2; i++) p = &p[i];
   return p[i+1];
 }
 
@@ -1018,5 +1019,52 @@ void pr7475_warn() {
   if (someStatic == 0)
     pr7475_setUpGlobal();
   *someStatic = 0; // expected-warning{{null pointer}}
+}
+
+// <rdar://problem/8202272> - __imag passed non-complex should not crash
+float f0(_Complex float x) {
+  float l0 = __real x;
+  return  __real l0 + __imag l0;
+}
+
+
+//===----------------------------------------------------------------------===
+// Test that we can reduce symbols to constants whether they are on the left
+//  or right side of an expression.
+//===----------------------------------------------------------------------===
+
+void reduce_to_constant(int x, int y) {
+  if (x != 20)
+    return;
+
+  int a = x + y;
+  int b = y + x;
+
+  if (y == -20 && a != 0)
+    (void)*(char*)0; // no-warning
+  if (y == -20 && b != 0)
+    (void)*(char*)0; // no-warning
+}
+
+// <rdar://problem/8360854> - Test that code after a switch statement with no 
+// 'case:' labels is correctly evaluated.
+void r8360854(int n) {
+  switch (n) {
+   default: ;
+  }
+  int *p = 0;
+  *p = 0xDEADBEEF; // expected-warning{{null pointer}}
+}
+
+// PR 8050 - crash in CastSizeChecker when pointee is an incomplete type
+typedef long unsigned int __darwin_size_t;
+typedef __darwin_size_t size_t;
+void *malloc(size_t);
+
+struct PR8050;
+
+void pr8050(struct PR8050 **arg)
+{
+    *arg = malloc(1);
 }
 

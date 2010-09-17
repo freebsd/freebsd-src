@@ -41,3 +41,30 @@ namespace test2 {
     return Power(2).calculate(10);
   }
 }
+
+// rdar: // 8382559
+namespace radar8382559 {
+  void func(bool& outHasProperty);
+
+  int test3() {
+    __attribute__((__blocks__(byref))) bool hasProperty = false;
+    bool has = true;
+
+    bool (^b)() = ^ {
+     func(hasProperty);
+     if (hasProperty)
+       hasProperty = 0;
+     if (has)
+       hasProperty = 1;
+     return hasProperty;
+     };
+    func(hasProperty);
+    func(has);
+    b();
+    if (hasProperty)
+      hasProperty = 1;
+    if (has)
+      has = 2;
+    return hasProperty = 1;
+  }
+}

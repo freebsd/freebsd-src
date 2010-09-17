@@ -12,11 +12,11 @@ testb *testbvar = new testb;
 struct testc { virtual void a(); };
 inline void testc::a() {}
 
-// Key functions with inline specifier (PR5705)
+// Functions with inline specifier are not key functions (PR5705)
 struct testd { inline virtual void a(); };
 void testd::a() {}
 
-// Key functions with inline specifier (PR5705)
+// Functions with inline specifier are not key functions (PR5705)
 struct teste { inline virtual void a(); };
 teste *testevar = new teste;
 

@@ -24,3 +24,39 @@ int f2(A *a) {
   return f0(a.p1);	// expected-error {{property 'p1' not found on object of type 'A *'}}
 }
 
+// PR7740
+@class NSString;
+
+void f3(id);
+void f4(NSString &tmpstr) {
+  f3(&tmpstr);
+}
+
+// PR7741
+@protocol P1 @end
+@protocol P2 @end
+@protocol P3 @end
+@interface foo<P1> {} @end
+@interface bar : foo <P1, P2> {} @end
+typedef bar baz;
+
+struct ToBar {
+  operator bar&() const;
+};
+
+void f5(foo&);
+void f5b(foo<P1>&);
+void f5c(foo<P2>&);
+void f5d(foo<P3>&);
+void f6(baz* x) { 
+  f5(*x); 
+  f5b(*x); 
+  f5c(*x); 
+  f5d(*x);
+  (void)((foo&)*x);
+  f5(ToBar());
+  f5b(ToBar());
+  f5c(ToBar());
+  f5d(ToBar());
+  (void)((foo&)ToBar());
+}

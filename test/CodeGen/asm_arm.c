@@ -30,3 +30,25 @@ void test4(float *a, float *b) {
                     "vst1.32 {q4},        [%0,:128] \n\t"
                     :: "r"(a), "r"(b));
 }
+
+// {sp, lr, pc} are the canonical names for {r13, r14, r15}.
+//
+// CHECK: @test5
+// CHECK: call void asm sideeffect "", "~{sp},~{lr},~{pc},~{sp},~{lr},~{pc}"()
+void test5() {
+  __asm__("" : : : "r13", "r14", "r15", "sp", "lr", "pc");
+}
+
+// CHECK: @test6
+// CHECK: call void asm sideeffect "", "
+// CHECK: ~{s0},~{s1},~{s2},~{s3},~{s4},~{s5},~{s6},~{s7},
+// CHECK: ~{s8},~{s9},~{s10},~{s11},~{s12},~{s13},~{s14},~{s15},
+// CHECK: ~{s16},~{s17},~{s18},~{s19},~{s20},~{s21},~{s22},~{s23},
+// CHECK: ~{s24},~{s25},~{s26},~{s27},~{s28},~{s29},~{s30},~{s31}"()
+void test6() {
+  __asm__("" : : :
+          "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+          "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15",
+          "s16", "s17", "s18", "s19", "s20", "s21", "s22", "s23",
+          "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31");
+}

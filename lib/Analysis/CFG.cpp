@@ -35,7 +35,7 @@ static SourceLocation GetEndLoc(Decl* D) {
 
   return D->getLocation();
 }
-  
+
 class AddStmtChoice {
 public:
   enum Kind { NotAlwaysAdd = 0,
@@ -99,7 +99,8 @@ public:
                           TryTerminatedBlock(NULL) {}
 
   // buildCFG - Used by external clients to construct the CFG.
-  CFG* buildCFG(const Decl *D, Stmt *Statement, ASTContext *C, bool AddEHEdges,
+  CFG* buildCFG(const Decl *D, Stmt *Statement, ASTContext *C,
+                bool pruneTriviallyFalseEdges, bool AddEHEdges,
                 bool AddScopes);
 
 private:
@@ -174,12 +175,12 @@ private:
   CFGBlock *addStmt(Stmt *S) {
     return Visit(S, AddStmtChoice::AlwaysAdd);
   }
-  
+
   void AppendStmt(CFGBlock *B, Stmt *S,
                   AddStmtChoice asc = AddStmtChoice::AlwaysAdd) {
     B->appendStmt(S, cfg->getBumpVectorContext(), asc.asLValue());
   }
-  
+
   void AddSuccessor(CFGBlock *B, CFGBlock *S) {
     B->addSuccessor(S, cfg->getBumpVectorContext());
   }
@@ -206,6 +207,9 @@ private:
   /// TryEvaluateBool - Try and evaluate the Stmt and return 0 or 1
   /// if we can evaluate to a known value, otherwise return -1.
   TryResult TryEvaluateBool(Expr *S) {
+    if (!PruneTriviallyFalseEdges)
+      return TryResult();
+
     Expr::EvalResult Result;
     if (!S->isTypeDependent() && !S->isValueDependent() &&
         S->Evaluate(Result, *Context) && Result.Val.isInt())
@@ -215,6 +219,9 @@ private:
   }
 
   bool badCFG;
+
+  // True iff trivially false edges should be pruned from the CFG.
+  bool PruneTriviallyFalseEdges;
 
   // True iff EH edges on CallExprs should be added to the CFG.
   bool AddEHEdges;
@@ -243,8 +250,12 @@ static VariableArrayType* FindVA(Type* t) {
 ///  transferred to the caller.  If CFG construction fails, this method returns
 ///  NULL.
 CFG* CFGBuilder::buildCFG(const Decl *D, Stmt* Statement, ASTContext* C,
+                          bool pruneTriviallyFalseEdges,
                           bool addehedges, bool AddScopes) {
+
   AddEHEdges = addehedges;
+  PruneTriviallyFalseEdges = pruneTriviallyFalseEdges;
+
   Context = C;
   assert(cfg.get());
   if (!Statement)
@@ -359,6 +370,7 @@ tryAgain:
       return VisitBreakStmt(cast<BreakStmt>(S));
 
     case Stmt::CallExprClass:
+    case Stmt::CXXOperatorCallExprClass:
       return VisitCallExpr(cast<CallExpr>(S), asc);
 
     case Stmt::CaseStmtClass:
@@ -379,15 +391,21 @@ tryAgain:
     case Stmt::CXXCatchStmtClass:
       return VisitCXXCatchStmt(cast<CXXCatchStmt>(S));
 
+    case Stmt::CXXExprWithTemporariesClass: {
+      // FIXME: Handle temporaries.  For now, just visit the subexpression
+      // so we don't artificially create extra blocks.
+      return Visit(cast<CXXExprWithTemporaries>(S)->getSubExpr(), asc);
+    }
+
     case Stmt::CXXMemberCallExprClass:
       return VisitCXXMemberCallExpr(cast<CXXMemberCallExpr>(S), asc);
 
     case Stmt::CXXThrowExprClass:
       return VisitCXXThrowExpr(cast<CXXThrowExpr>(S));
-      
+
     case Stmt::CXXTryStmtClass:
       return VisitCXXTryStmt(cast<CXXTryStmt>(S));
-      
+
     case Stmt::DeclStmtClass:
       return VisitDeclStmt(cast<DeclStmt>(S));
 
@@ -515,15 +533,15 @@ CFGBlock *CFGBuilder::VisitBinaryOperator(BinaryOperator *B,
 
     // See if this is a known constant.
     TryResult KnownVal = TryEvaluateBool(B->getLHS());
-    if (KnownVal.isKnown() && (B->getOpcode() == BinaryOperator::LOr))
+    if (KnownVal.isKnown() && (B->getOpcode() == BO_LOr))
       KnownVal.negate();
 
     // Now link the LHSBlock with RHSBlock.
-    if (B->getOpcode() == BinaryOperator::LOr) {
+    if (B->getOpcode() == BO_LOr) {
       AddSuccessor(LHSBlock, KnownVal.isTrue() ? NULL : ConfluenceBlock);
       AddSuccessor(LHSBlock, KnownVal.isFalse() ? NULL : RHSBlock);
     } else {
-      assert(B->getOpcode() == BinaryOperator::LAnd);
+      assert(B->getOpcode() == BO_LAnd);
       AddSuccessor(LHSBlock, KnownVal.isFalse() ? NULL : RHSBlock);
       AddSuccessor(LHSBlock, KnownVal.isTrue() ? NULL : ConfluenceBlock);
     }
@@ -532,7 +550,7 @@ CFGBlock *CFGBuilder::VisitBinaryOperator(BinaryOperator *B,
     Block = LHSBlock;
     return addStmt(B->getLHS());
   }
-  else if (B->getOpcode() == BinaryOperator::Comma) { // ,
+  else if (B->getOpcode() == BO_Comma) { // ,
     autoCreateBlock();
     AppendStmt(Block, B, asc);
     addStmt(B->getRHS());
@@ -543,7 +561,7 @@ CFGBlock *CFGBuilder::VisitBinaryOperator(BinaryOperator *B,
       autoCreateBlock();
       AppendStmt(Block, B, asc);
     }
-    
+
     Visit(B->getRHS());
     return Visit(B->getLHS(), AddStmtChoice::AsLValueNotAlwaysAdd);
   }
@@ -586,7 +604,7 @@ static bool CanThrow(Expr *E) {
     Ty = Ty->getAs<PointerType>()->getPointeeType();
   else if (Ty->isBlockPointerType())
     Ty = Ty->getAs<BlockPointerType>()->getPointeeType();
-    
+
   const FunctionType *FT = Ty->getAs<FunctionType>();
   if (FT) {
     if (const FunctionProtoType *Proto = dyn_cast<FunctionProtoType>(FT))
@@ -691,7 +709,10 @@ CFGBlock* CFGBuilder::VisitCompoundStmt(CompoundStmt* C) {
 
   for (CompoundStmt::reverse_body_iterator I=C->body_rbegin(), E=C->body_rend();
        I != E; ++I ) {
-    LastBlock = addStmt(*I);
+    // If we hit a segment of code just containing ';' (NullStmts), we can
+    // get a null block back.  In such cases, just use the LastBlock
+    if (CFGBlock *newBlock = addStmt(*I))
+      LastBlock = newBlock;
 
     if (badCFG)
       return NULL;
@@ -901,7 +922,7 @@ CFGBlock* CFGBuilder::VisitIfStmt(IfStmt* I) {
   // new blocks as the condition may contain control-flow.  Any newly created
   // blocks will be pointed to be "Block".
   Block = addStmt(I->getCond());
-  
+
   // Finally, if the IfStmt contains a condition variable, add both the IfStmt
   // and the condition variable initialization to the CFG.
   if (VarDecl *VD = I->getConditionVariable()) {
@@ -911,7 +932,7 @@ CFGBlock* CFGBuilder::VisitIfStmt(IfStmt* I) {
       addStmt(Init);
     }
   }
-  
+
   return Block;
 }
 
@@ -1029,7 +1050,7 @@ CFGBlock* CFGBuilder::VisitForStmt(ForStmt* F) {
         assert(Block == EntryConditionBlock);
       }
     }
-    
+
     if (Block) {
       if (!FinishBlock(EntryConditionBlock))
         return 0;
@@ -1277,7 +1298,7 @@ CFGBlock* CFGBuilder::VisitWhileStmt(WhileStmt* W) {
     Block = ExitConditionBlock;
     EntryConditionBlock = addStmt(C);
     assert(Block == EntryConditionBlock);
-    
+
     // If this block contains a condition variable, add both the condition
     // variable and initializer to the CFG.
     if (VarDecl *VD = W->getConditionVariable()) {
@@ -1389,7 +1410,7 @@ CFGBlock* CFGBuilder::VisitCXXThrowExpr(CXXThrowExpr* T) {
   if (TryTerminatedBlock)
     // The current try statement is the only successor.
     AddSuccessor(Block, TryTerminatedBlock);
-  else 
+  else
     // otherwise the Exit block is the only successor.
     AddSuccessor(Block, &cfg->getExit());
 
@@ -1465,18 +1486,22 @@ CFGBlock *CFGBuilder::VisitDoStmt(DoStmt* D) {
         return 0;
     }
 
-    // Add an intermediate block between the BodyBlock and the
-    // ExitConditionBlock to represent the "loop back" transition.  Create an
-    // empty block to represent the transition block for looping back to the
-    // head of the loop.
-    // FIXME: Can we do this more efficiently without adding another block?
-    Block = NULL;
-    Succ = BodyBlock;
-    CFGBlock *LoopBackBlock = createBlock();
-    LoopBackBlock->setLoopTarget(D);
+    if (!KnownVal.isFalse()) {
+      // Add an intermediate block between the BodyBlock and the
+      // ExitConditionBlock to represent the "loop back" transition.  Create an
+      // empty block to represent the transition block for looping back to the
+      // head of the loop.
+      // FIXME: Can we do this more efficiently without adding another block?
+      Block = NULL;
+      Succ = BodyBlock;
+      CFGBlock *LoopBackBlock = createBlock();
+      LoopBackBlock->setLoopTarget(D);
 
-    // Add the loop body entry as a successor to the condition.
-    AddSuccessor(ExitConditionBlock, KnownVal.isFalse() ? NULL : LoopBackBlock);
+      // Add the loop body entry as a successor to the condition.
+      AddSuccessor(ExitConditionBlock, LoopBackBlock);
+    }
+    else
+      AddSuccessor(ExitConditionBlock, NULL);
   }
 
   // Link up the condition block with the code that follows the loop.
@@ -1589,7 +1614,7 @@ CFGBlock* CFGBuilder::VisitSwitchStmt(SwitchStmt* Terminator) {
   assert(Terminator->getCond() && "switch condition must be non-NULL");
   Block = SwitchTerminatedBlock;
   Block = addStmt(Terminator->getCond());
-  
+
   // Finally, if the SwitchStmt contains a condition variable, add both the
   // SwitchStmt and the condition variable initialization to the CFG.
   if (VarDecl *VD = Terminator->getConditionVariable()) {
@@ -1599,16 +1624,37 @@ CFGBlock* CFGBuilder::VisitSwitchStmt(SwitchStmt* Terminator) {
       addStmt(Init);
     }
   }
-  
+
   return Block;
 }
 
 CFGBlock* CFGBuilder::VisitCaseStmt(CaseStmt* CS) {
   // CaseStmts are essentially labels, so they are the first statement in a
   // block.
+  CFGBlock *TopBlock = 0, *LastBlock = 0;
+  
+  if (Stmt *Sub = CS->getSubStmt()) {
+    // For deeply nested chains of CaseStmts, instead of doing a recursion
+    // (which can blow out the stack), manually unroll and create blocks
+    // along the way.
+    while (isa<CaseStmt>(Sub)) {
+      CFGBlock *CurrentBlock = createBlock(false);
+      CurrentBlock->setLabel(CS);
 
-  if (CS->getSubStmt())
-    addStmt(CS->getSubStmt());
+      if (TopBlock)
+        AddSuccessor(LastBlock, CurrentBlock);
+      else
+        TopBlock = CurrentBlock;
+
+      AddSuccessor(SwitchTerminatedBlock, CurrentBlock);
+      LastBlock = CurrentBlock;
+
+      CS = cast<CaseStmt>(Sub);
+      Sub = CS->getSubStmt();
+    }
+
+    addStmt(Sub);
+  }
 
   CFGBlock* CaseBlock = Block;
   if (!CaseBlock)
@@ -1629,10 +1675,16 @@ CFGBlock* CFGBuilder::VisitCaseStmt(CaseStmt* CS) {
   // We set Block to NULL to allow lazy creation of a new block (if necessary)
   Block = NULL;
 
-  // This block is now the implicit successor of other blocks.
-  Succ = CaseBlock;
+  if (TopBlock) {
+    AddSuccessor(LastBlock, CaseBlock);
+    Succ = TopBlock;
+  }
+  else {
+    // This block is now the implicit successor of other blocks.
+    Succ = CaseBlock;
+  }
 
-  return CaseBlock;
+  return Succ;
 }
 
 CFGBlock* CFGBuilder::VisitDefaultStmt(DefaultStmt* Terminator) {
@@ -1742,9 +1794,9 @@ CFGBlock* CFGBuilder::VisitCXXCatchStmt(CXXCatchStmt* CS) {
   return CatchBlock;
 }
 
-CFGBlock *CFGBuilder::VisitCXXMemberCallExpr(CXXMemberCallExpr *C, 
+CFGBlock *CFGBuilder::VisitCXXMemberCallExpr(CXXMemberCallExpr *C,
                                              AddStmtChoice asc) {
-  AddStmtChoice::Kind K = asc.asLValue() ? AddStmtChoice::AlwaysAddAsLValue 
+  AddStmtChoice::Kind K = asc.asLValue() ? AddStmtChoice::AlwaysAddAsLValue
                                          : AddStmtChoice::AlwaysAdd;
   autoCreateBlock();
   AppendStmt(Block, C, AddStmtChoice(K));
@@ -1795,9 +1847,11 @@ CFGBlock* CFG::createBlock() {
 /// buildCFG - Constructs a CFG from an AST.  Ownership of the returned
 ///  CFG is returned to the caller.
 CFG* CFG::buildCFG(const Decl *D, Stmt* Statement, ASTContext *C,
+                   bool PruneTriviallyFalse,
                    bool AddEHEdges, bool AddScopes) {
   CFGBuilder Builder;
-  return Builder.buildCFG(D, Statement, C, AddEHEdges, AddScopes);
+  return Builder.buildCFG(D, Statement, C, PruneTriviallyFalse,
+                          AddEHEdges, AddScopes);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1814,10 +1868,10 @@ static void FindSubExprAssignments(Stmt *S,
     return;
 
   for (Stmt::child_iterator I=S->child_begin(), E=S->child_end(); I!=E; ++I) {
-    Stmt *child = *I;    
+    Stmt *child = *I;
     if (!child)
       continue;
-    
+
     if (BinaryOperator* B = dyn_cast<BinaryOperator>(child))
       if (B->isAssignmentOp()) Set.insert(B);
 
@@ -2037,10 +2091,10 @@ public:
     B->getLHS()->printPretty(OS, Helper, Policy);
 
     switch (B->getOpcode()) {
-      case BinaryOperator::LOr:
+      case BO_LOr:
         OS << " || ...";
         return;
-      case BinaryOperator::LAnd:
+      case BO_LAnd:
         OS << " && ...";
         return;
       default:
@@ -2057,7 +2111,6 @@ public:
 
 static void print_stmt(llvm::raw_ostream &OS, StmtPrinterHelper* Helper,
                        const CFGElement &E) {
-  Stmt *Terminator = E;
 
   if (E.asStartScope()) {
     OS << "start scope\n";
@@ -2068,9 +2121,11 @@ static void print_stmt(llvm::raw_ostream &OS, StmtPrinterHelper* Helper,
     return;
   }
 
+  Stmt *S = E;
+  
   if (Helper) {
     // special printing for statement-expressions.
-    if (StmtExpr* SE = dyn_cast<StmtExpr>(Terminator)) {
+    if (StmtExpr* SE = dyn_cast<StmtExpr>(S)) {
       CompoundStmt* Sub = SE->getSubStmt();
 
       if (Sub->child_begin() != Sub->child_end()) {
@@ -2082,8 +2137,8 @@ static void print_stmt(llvm::raw_ostream &OS, StmtPrinterHelper* Helper,
     }
 
     // special printing for comma expressions.
-    if (BinaryOperator* B = dyn_cast<BinaryOperator>(Terminator)) {
-      if (B->getOpcode() == BinaryOperator::Comma) {
+    if (BinaryOperator* B = dyn_cast<BinaryOperator>(S)) {
+      if (B->getOpcode() == BO_Comma) {
         OS << "... , ";
         Helper->handledStmt(B->getRHS(),OS);
         OS << '\n';
@@ -2092,10 +2147,19 @@ static void print_stmt(llvm::raw_ostream &OS, StmtPrinterHelper* Helper,
     }
   }
 
-  Terminator->printPretty(OS, Helper, PrintingPolicy(Helper->getLangOpts()));
+  S->printPretty(OS, Helper, PrintingPolicy(Helper->getLangOpts()));
+  
+  if (isa<CXXOperatorCallExpr>(S)) {
+    OS << " (OperatorCall)";    
+  }
+  else if (isa<CXXBindTemporaryExpr>(S)) {
+    OS << " (BindTemporary)";    
+  }
+
 
   // Expressions need a newline.
-  if (isa<Expr>(Terminator)) OS << '\n';
+  if (isa<Expr>(S))
+    OS << '\n';
 }
 
 static void print_block(llvm::raw_ostream& OS, const CFG* cfg,

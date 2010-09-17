@@ -54,3 +54,35 @@ extern "C"
         return f2((char *)0);
     }
 }
+
+// PR6991
+extern "C" typedef int (*PutcFunc_t)(int);
+
+
+// PR7859
+extern "C" void pr7859_a(int) {} // expected-note {{previous definition}}
+extern "C" void pr7859_a(int) {} // expected-error {{redefinition}}
+
+extern "C" void pr7859_b() {} // expected-note {{previous definition}}
+extern "C" void pr7859_b(int) {} // expected-error {{conflicting}}
+
+extern "C" void pr7859_c(short) {} // expected-note {{previous definition}}
+extern "C" void pr7859_c(int) {} // expected-error {{conflicting}}
+
+// <rdar://problem/8318976>
+extern "C" {
+  struct s0 {
+  private:
+    s0();
+    s0(const s0 &);
+  };
+}
+
+//PR7754
+extern "C++" template <class T> int pr7754(T param);
+
+namespace N {
+  int value;
+}
+
+extern "C++" using N::value;

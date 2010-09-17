@@ -151,21 +151,10 @@ public:
   struct EmptyShell { };
 
 protected:
-  /// DestroyChildren - Invoked by destructors of subclasses of Stmt to
-  ///  recursively release child AST nodes.
-  void DestroyChildren(ASTContext& Ctx);
-
   /// \brief Construct an empty statement.
   explicit Stmt(StmtClass SC, EmptyShell) : sClass(SC), RefCount(1) {
     if (Stmt::CollectingStats()) Stmt::addStmtClass(SC);
   }
-
-  /// \brief Virtual method that performs the actual destruction of
-  /// this statement.
-  ///
-  /// Subclasses should override this method (not Destroy()) to
-  /// provide class-specific destruction.
-  virtual void DoDestroy(ASTContext &Ctx);
 
 public:
   Stmt(StmtClass SC) : sClass(SC), RefCount(1) {
@@ -180,13 +169,6 @@ public:
     return (RefCount >= 1);
   }
 #endif
-
-  /// \brief Destroy the current statement and its children.
-  void Destroy(ASTContext &Ctx) {
-    assert(RefCount >= 1);
-    if (--RefCount == 0)
-      DoDestroy(Ctx);
-  }
 
   /// \brief Increases the reference count for this statement.
   ///
@@ -221,6 +203,7 @@ public:
   /// This is useful in a debugger.
   void dump() const;
   void dump(SourceManager &SM) const;
+  void dump(llvm::raw_ostream &OS, SourceManager &SM) const;
 
   /// dumpAll - This does a dump of the specified AST fragment and all subtrees.
   void dumpAll() const;
@@ -294,9 +277,6 @@ public:
 class DeclStmt : public Stmt {
   DeclGroupRef DG;
   SourceLocation StartLoc, EndLoc;
-
-protected:
-  virtual void DoDestroy(ASTContext &Ctx);
 
 public:
   DeclStmt(DeclGroupRef dg, SourceLocation startLoc,
@@ -671,9 +651,6 @@ public:
   // over the initialization expression referenced by the condition variable.
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
-
-protected:
-  virtual void DoDestroy(ASTContext &Ctx);
 };
 
 /// SwitchStmt - This represents a 'switch' stmt.
@@ -684,9 +661,6 @@ class SwitchStmt : public Stmt {
   // This points to a linked list of case and default statements.
   SwitchCase *FirstCase;
   SourceLocation SwitchLoc;
-
-protected:
-  virtual void DoDestroy(ASTContext &Ctx);
 
 public:
   SwitchStmt(ASTContext &C, VarDecl *Var, Expr *cond);
@@ -794,9 +768,6 @@ public:
   // Iterators
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
-  
-protected:
-  virtual void DoDestroy(ASTContext &Ctx);
 };
 
 /// DoStmt - This represents a 'do/while' stmt.
@@ -910,9 +881,6 @@ public:
   // Iterators
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
-  
-protected:
-  virtual void DoDestroy(ASTContext &Ctx);
 };
 
 /// GotoStmt - This represents a direct goto.
@@ -1113,9 +1081,6 @@ class AsmStmt : public Stmt {
   StringLiteral **Constraints;
   Stmt **Exprs;
   StringLiteral **Clobbers;
-
-protected:
-  virtual void DoDestroy(ASTContext &Ctx);
   
 public:
   AsmStmt(ASTContext &C, SourceLocation asmloc, bool issimple, bool isvolatile, 

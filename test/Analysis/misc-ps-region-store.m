@@ -253,7 +253,7 @@ void rdar_7249327(unsigned int A[2*32]) {
   a = A;
   b = B;
   
-  n = *a++;
+  n = *a++; // expected-warning{{Assigned value is always the same as the existing value}}
   if (n)
     x += *b++; // no-warning
 }
@@ -1039,5 +1039,104 @@ void pr_7450() {
   void *p = __builtin_alloca(10);
   // Don't crash when analyzing the following statement.
   pr_7450_aux(p + 8);
+}
+
+// <rdar://problem/8243408> - Symbolicate struct values returned by value.
+struct s_rdar_8243408 { int x; };
+extern struct s_rdar_8243408 rdar_8243408_aux(void);
+void rdar_8243408(void) {
+  struct s_rdar_8243408 a = { 1 }, *b = 0;
+  while (a.x && !b)
+    a = rdar_8243408_aux();
+
+  // Previously there was a false error here with 'b' being null.
+  (void) (a.x && b->x); // no-warning
+
+  // Introduce a null deref to ensure we are checking this path.
+  int *p = 0;
+  *p = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+}
+
+// <rdar://problem/8258814>
+int r8258814()
+{
+  int foo;
+  int * a = &foo;
+  a[0] = 10;
+  // Do not warn that the value of 'foo' is uninitialized.
+  return foo; // no-warning
+}
+
+// PR 8052 - Don't crash when reasoning about loads from a function address.\n
+typedef unsigned int __uint32_t;
+typedef unsigned long vm_offset_t;
+typedef __uint32_t pd_entry_t;
+typedef unsigned char u_char;
+typedef unsigned int u_int;
+typedef unsigned long u_long;
+extern int      bootMP_size;
+void            bootMP(void);
+static void 
+pr8052(u_int boot_addr)
+{
+    int             x;
+    int             size = *(int *) ((u_long) & bootMP_size);
+    u_char         *src = (u_char *) ((u_long) bootMP);
+    u_char         *dst = (u_char *) boot_addr + ((vm_offset_t) ((((((((1 <<
+12) / (sizeof(pd_entry_t))) - 1) - 1) - (260 - 2))) << 22) | ((0) << 12)));
+    for (x = 0;
+         x < size;
+         ++x)
+        *dst++ = *src++;
+}
+
+// PR 8015 - don't return undefined values for arrays when using a valid
+// symbolic index
+int pr8015_A();
+void pr8015_B(const char *);
+
+void pr8015_C() {
+  int number = pr8015_A();
+  const char *numbers[] = { "zero" };    
+  if (number == 0) {
+      pr8015_B(numbers[number]); // no-warning
+  }
+}
+
+// FIXME: This is a false positive due to not reasoning about symbolic
+// array indices correctly.  Discussion in PR 8015.
+void pr8015_D_FIXME() {
+  int number = pr8015_A();
+  const char *numbers[] = { "zero" };
+  if (number == 0) {
+    if (numbers[number] == numbers[0])
+      return;
+    int *p = 0;
+    *p = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+  }
+}
+
+void pr8015_E() {
+  // Similar to pr8015_C, but number is allowed to be a valid range.
+  unsigned number = pr8015_A();
+  const char *numbers[] = { "zero", "one", "two" };
+  if (number < 3) {
+    pr8015_B(numbers[number]); // no-warning
+  }
+}
+
+void pr8015_F_FIXME() {
+  // Similar to pr8015_E, but like pr8015_D we check if the pointer
+  // is the same as one of the string literals.  The null dereference
+  // here is not feasible in practice, so this is a false positive.
+  int number = pr8015_A();
+  const char *numbers[] = { "zero", "one", "two" };
+  if (number < 3) {
+    const char *p = numbers[number];
+    if (p == numbers[0] || p == numbers[1] || p == numbers[2])
+      return;
+    int *q = 0;
+    *q = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+  }
 }
 

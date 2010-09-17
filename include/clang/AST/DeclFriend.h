@@ -68,16 +68,16 @@ public:
                             SourceLocation FriendL);
   static FriendDecl *Create(ASTContext &C, EmptyShell Empty);
 
-  /// If this friend declaration names an (untemplated but
-  /// possibly dependent) type, return the type;  otherwise
-  /// return null.  This is used only for C++0x's unelaborated
-  /// friend type declarations.
+  /// If this friend declaration names an (untemplated but possibly
+  /// dependent) type, return the type; otherwise return null.  This
+  /// is used for elaborated-type-specifiers and, in C++0x, for
+  /// arbitrary friend type declarations.
   TypeSourceInfo *getFriendType() const {
     return Friend.dyn_cast<TypeSourceInfo*>();
   }
 
-  /// If this friend declaration doesn't name an unelaborated
-  /// type, return the inner declaration.
+  /// If this friend declaration doesn't name a type, return the inner
+  /// declaration.
   NamedDecl *getFriendDecl() const {
     return Friend.dyn_cast<NamedDecl*>();
   }
@@ -92,8 +92,8 @@ public:
   static bool classof(const FriendDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == Decl::Friend; }
 
-  friend class PCHDeclReader;
-  friend class PCHDeclWriter;
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// An iterator over the friend declarations of a class.

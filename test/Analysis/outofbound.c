@@ -71,3 +71,27 @@ void sizeof_vla(int a) {
     y[5] = 5; // expected-warning{{out-of-bound}}
   }
 }
+
+void alloca_region(int a) {
+  if (a == 5) {
+    char *x = __builtin_alloca(a);
+    x[4] = 4; // no-warning
+    x[5] = 5; // expected-warning{{out-of-bound}}
+  }
+}
+
+int symbolic_index(int a) {
+  int x[2] = {1, 2};
+  if (a == 2) {
+    return x[a]; // expected-warning{{out-of-bound}}
+  }
+  return 0;
+}
+
+int symbolic_index2(int a) {
+  int x[2] = {1, 2};
+  if (a < 0) {
+    return x[a]; // expected-warning{{out-of-bound}}
+  }
+  return 0;
+}

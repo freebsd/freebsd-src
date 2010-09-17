@@ -4,6 +4,7 @@ add_clang_library(clangChecker
   AdjustedReturnValueChecker.cpp
   AggExprVisitor.cpp
   AnalysisConsumer.cpp
+  AnalysisManager.cpp
   ArrayBoundChecker.cpp
   AttrNonNullChecker.cpp
   BasicConstraintManager.cpp
@@ -15,7 +16,6 @@ add_clang_library(clangChecker
   BuiltinFunctionChecker.cpp
   CFRefCount.cpp
   CallAndMessageChecker.cpp
-  CallInliner.cpp
   CastSizeChecker.cpp
   CastToStructChecker.cpp
   CheckDeadStores.cpp
@@ -24,6 +24,7 @@ add_clang_library(clangChecker
   CheckSecuritySyntaxOnly.cpp
   CheckSizeofPointer.cpp
   Checker.cpp
+  CheckerHelpers.cpp
   CocoaConventions.cpp
   CStringChecker.cpp
   DereferenceChecker.cpp
@@ -74,6 +75,7 @@ add_clang_library(clangChecker
   UndefinedArraySubscriptChecker.cpp
   UndefinedAssignmentChecker.cpp
   UnixAPIChecker.cpp
+  UnreachableCodeChecker.cpp
   VLASizeChecker.cpp
   ValueManager.cpp
   )

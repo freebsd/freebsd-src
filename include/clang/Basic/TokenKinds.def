@@ -96,6 +96,7 @@ TOK(unknown)             // Not a token.
 TOK(eof)                 // End of file.
 TOK(eom)                 // End of macro (end of line inside a macro).
 TOK(code_completion)     // Code completion marker
+TOK(cxx_defaultarg_end)  // C++ default argument end marker
 
 // C99 6.4.9: Comments.
 TOK(comment)             // Comment (only in -E -C[C] mode)
@@ -185,6 +186,7 @@ PUNCTUATOR(at,                  "@")
 //   KEYCXX0X - This is a C++ keyword introduced to C++ in C++0x
 //   KEYGNU   - This is a keyword if GNU extensions are enabled
 //   KEYMS    - This is a keyword if Microsoft extensions are enabled
+//   KEYBORLAND - This is a keyword if Borland extensions are enabled
 //
 KEYWORD(auto                        , KEYALL)
 KEYWORD(break                       , KEYALL)
@@ -272,16 +274,11 @@ CXX_KEYWORD_OPERATOR(xor_eq  , caretequal)
 
 // C++0x keywords
 KEYWORD(alignof                     , KEYCXX0X)
-KEYWORD(axiom                       , KEYCXX0X)
 KEYWORD(char16_t                    , KEYCXX0X)
 KEYWORD(char32_t                    , KEYCXX0X)
-KEYWORD(concept                     , KEYCXX0X)
-KEYWORD(concept_map                 , KEYCXX0X)
 KEYWORD(constexpr                   , KEYCXX0X)
 KEYWORD(decltype                    , KEYCXX0X)
-KEYWORD(late_check                  , KEYCXX0X)
 KEYWORD(nullptr                     , KEYCXX0X)
-KEYWORD(requires                    , KEYCXX0X)
 KEYWORD(static_assert               , KEYCXX0X)
 KEYWORD(thread_local                , KEYCXX0X)
 
@@ -339,6 +336,9 @@ KEYWORD(__fastcall                  , KEYALL)
 KEYWORD(__thiscall                  , KEYALL)
 KEYWORD(__forceinline               , KEYALL)
 
+// Borland Extension.
+KEYWORD(__pascal                    , KEYALL)
+
 // Altivec Extension.
 KEYWORD(__vector                    , KEYALTIVEC)
 KEYWORD(__pixel                     , KEYALTIVEC)
@@ -374,6 +374,9 @@ ALIAS("_cdecl"       , __cdecl    , KEYMS)
 ALIAS("_fastcall"    , __fastcall , KEYMS)
 ALIAS("_stdcall"     , __stdcall  , KEYMS)
 ALIAS("_thiscall"    , __thiscall , KEYMS)
+
+// Borland Extensions which should be disabled in strict conformance mode.
+ALIAS("_pascal"      , __pascal   , KEYBORLAND)
 
 //===----------------------------------------------------------------------===//
 // Objective-C @-preceeded keywords.
