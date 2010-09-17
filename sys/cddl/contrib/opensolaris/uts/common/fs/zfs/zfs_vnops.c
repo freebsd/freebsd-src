@@ -523,8 +523,10 @@ again:
 			if (error == 0)
 				vm_page_set_valid(m, off, bytes);
 			vm_page_wakeup(m);
-			if (error == 0)
+			if (error == 0) {
 				uio->uio_resid -= bytes;
+				uio->uio_offset += bytes;
+			}
 		} else {
 			dirbytes += bytes;
 		}
