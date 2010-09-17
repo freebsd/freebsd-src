@@ -50,6 +50,7 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	${_atp.4} \
+	${_atrtc.4} \
 	${_attimer.4} \
 	audit.4 \
 	auditpipe.4 \
@@ -645,6 +646,7 @@ _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
 _aesni.4=	aesni.4
+_atrtc.4=	atrtc.4
 _attimer.4=	attimer.4
 _aibs.4=	aibs.4
 _amdsbwd.4=	amdsbwd.4
