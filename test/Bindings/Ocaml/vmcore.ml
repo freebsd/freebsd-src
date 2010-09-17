@@ -1,5 +1,5 @@
 (* RUN: %ocamlopt -warn-error A llvm.cmxa llvm_analysis.cmxa llvm_bitwriter.cmxa %s -o %t
- * RUN: ./%t %t.bc
+ * RUN: %t %t.bc
  * RUN: llvm-dis < %t.bc > %t.ll
  *)
 
@@ -296,12 +296,6 @@ let test_constants () =
   insist ((struct_type context [| i16_type; i16_type; i32_type; i32_type |])
         = (type_of c));
 
-  group "union";
-  let t = union_type context [| i1_type; i16_type; i64_type; double_type |] in
-  let c = const_union t one in
-  ignore (define_global "const_union" c m);
-  insist (t = (type_of c));
-  
   (* RUN: grep {const_null.*zeroinit} < %t.ll
    *)
   group "null";
@@ -436,7 +430,7 @@ let test_constants () =
    * RUN: grep {const_select.*select} < %t.ll
    * RUN: grep {const_extractelement.*extractelement} < %t.ll
    * RUN: grep {const_insertelement.*insertelement} < %t.ll
-   * RUN: grep {const_shufflevector.*shufflevector} < %t.ll
+   * RUN: grep {const_shufflevector = global <4 x i32> <i32 0, i32 1, i32 1, i32 0>} < %t.ll
    *)
   ignore (define_global "const_size_of" (size_of (pointer_type i8_type)) m);
   ignore (define_global "const_gep" (const_gep foldbomb_gv [| five |]) m);
@@ -455,7 +449,8 @@ let test_constants () =
   ignore (define_global "const_shufflevector" (const_shufflevector
     (const_vector [| zero; one |])
     (const_vector [| one; zero |])
-    (const_bitcast foldbomb (vector_type i32_type 2))) m);
+    (const_vector [| const_int i32_type 0; const_int i32_type 1;
+                     const_int i32_type 2; const_int i32_type 3 |])) m);
 
   group "asm"; begin
     let ft = function_type void_type [| i32_type; i32_type; i32_type |] in
@@ -642,10 +637,17 @@ let test_users () =
 
   let p1 = param fn 0 in
   let p2 = param fn 1 in
+  let a3 = build_alloca i32_type "user_alloca" b in
+  let p3 = build_load a3 "user_load" b in
   let i = build_add p1 p2 "sum" b in
 
+  insist ((num_operands i) = 2);
   insist ((operand i 0) = p1);
   insist ((operand i 1) = p2);
+
+  set_operand i 1 p3;
+  insist ((operand i 1) != p2);
+  insist ((operand i 1) = p3);
 
   ignore (build_unreachable b)
 
@@ -1154,13 +1156,13 @@ let test_builder () =
   group "comparisons"; begin
     (* RUN: grep {%build_icmp_ne = icmp ne i32 %P1, %P2} < %t.ll
      * RUN: grep {%build_icmp_sle = icmp sle i32 %P2, %P1} < %t.ll
-     * RUN: grep {%build_icmp_false = fcmp false float %F1, %F2} < %t.ll
-     * RUN: grep {%build_icmp_true = fcmp true float %F2, %F1} < %t.ll
+     * RUN: grep {%build_fcmp_false = fcmp false float %F1, %F2} < %t.ll
+     * RUN: grep {%build_fcmp_true = fcmp true float %F2, %F1} < %t.ll
      *)
     ignore (build_icmp Icmp.Ne    p1 p2 "build_icmp_ne" atentry);
     ignore (build_icmp Icmp.Sle   p2 p1 "build_icmp_sle" atentry);
-    ignore (build_fcmp Fcmp.False f1 f2 "build_icmp_false" atentry);
-    ignore (build_fcmp Fcmp.True  f2 f1 "build_icmp_true" atentry)
+    ignore (build_fcmp Fcmp.False f1 f2 "build_fcmp_false" atentry);
+    ignore (build_fcmp Fcmp.True  f2 f1 "build_fcmp_true" atentry)
   end;
   
   group "miscellaneous"; begin
@@ -1229,12 +1231,18 @@ let test_builder () =
 
   group "dbg"; begin
     (* RUN: grep {%dbg = add i32 %P1, %P2, !dbg !1} < %t.ll
-     * RUN: grep {!1 = metadata !\{i32 2, metadata !"dbg test"\}} < %t.ll
+     * RUN: grep {!1 = metadata !\{i32 2, i32 3, metadata !2, metadata !2\}} < %t.ll
      *)
-    let m1 = const_int i32_type 2 in
-    let m2 = mdstring context "dbg test" in
-    let md = mdnode context [| m1; m2 |] in
+    insist ((current_debug_location atentry) = None);
+
+    let m_line = const_int i32_type 2 in
+    let m_col = const_int i32_type 3 in
+    let m_scope = mdnode context [| |] in
+    let m_inlined = mdnode context [| |] in
+    let md = mdnode context [| m_line; m_col; m_scope; m_inlined |] in
     set_current_debug_location atentry md;
+
+    insist ((current_debug_location atentry) = Some md);
 
     let i = build_add p1 p2 "dbg" atentry in
     insist ((has_metadata i) = true);

@@ -1,8 +1,8 @@
 // Check that hooks can be invoked from 'output_suffix'.
 // RUN: tblgen -I %p/../../include --gen-llvmc %s -o %t
 // RUN: FileCheck -input-file %t %s
-// RUN: %compile_cxx -fexceptions -x c++ %t
-// XFAIL: *
+// RUN: %compile_cxx %t
+// XFAIL: vg_leak
 
 include "llvm/CompilerDriver/Common.td"
 
@@ -13,7 +13,7 @@ def OptList : OptionList<[
 ]>;
 
 def dummy_tool : Tool<[
-(cmd_line "dummy_cmd $INFILE"),
+(command "dummy_cmd"),
 (in_language "dummy_lang"),
 (out_language "dummy_lang"),
 (actions (case
@@ -21,4 +21,4 @@ def dummy_tool : Tool<[
          (switch_on "dummy1"), (output_suffix "$CALL(MyHook)")))
 ]>;
 
-def DummyGraph : CompilationGraph<[SimpleEdge<"root", "dummy_tool">]>;
+def DummyGraph : CompilationGraph<[(edge "root", "dummy_tool")]>;

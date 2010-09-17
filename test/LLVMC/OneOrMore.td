@@ -2,7 +2,7 @@
 // The dummy tool and graph are required to silence warnings.
 // RUN: tblgen -I %p/../../include --gen-llvmc %s -o %t
 // RUN: FileCheck -input-file %t %s
-// RUN: %compile_cxx -fexceptions -x c++ %t
+// RUN: %compile_cxx %t
 // XFAIL: vg_leak
 
 include "llvm/CompilerDriver/Common.td"
@@ -22,4 +22,4 @@ def dummy_tool : Tool<[
          (not_empty "baz"), (forward "baz")))
 ]>;
 
-def DummyGraph : CompilationGraph<[SimpleEdge<"root", "dummy_tool">]>;
+def DummyGraph : CompilationGraph<[(edge "root", "dummy_tool")]>;

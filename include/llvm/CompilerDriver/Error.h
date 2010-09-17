@@ -7,28 +7,22 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  Exception classes for llvmc.
+//  Error handling.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_INCLUDE_COMPILER_DRIVER_ERROR_H
 #define LLVM_INCLUDE_COMPILER_DRIVER_ERROR_H
 
-#include <stdexcept>
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvmc {
 
-  /// error_code - This gets thrown during the compilation process if a tool
-  /// invocation returns a non-zero exit code.
-  class error_code: public std::runtime_error {
-    int Code_;
-  public:
-    error_code (int c)
-      : std::runtime_error("Tool returned error code"), Code_(c)
-    {}
-
-    int code() const { return Code_; }
-  };
+  inline void PrintError(llvm::StringRef Err) {
+    extern const char* ProgramName;
+    llvm::errs() << ProgramName << ": " << Err << '\n';
+  }
 
 }
 

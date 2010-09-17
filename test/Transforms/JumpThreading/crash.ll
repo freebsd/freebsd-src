@@ -216,6 +216,9 @@ bb61:
 
 ; PR5698
 define void @test7(i32 %x) {
+entry:
+  br label %tailrecurse
+
 tailrecurse:
   switch i32 %x, label %return [
     i32 2, label %bb2
@@ -433,4 +436,51 @@ for.cond1040:                                     ; preds = %for.body1044, %for.
   ret void
 }
 
+; PR7755
+define void @test16(i1 %c, i1 %c2, i1 %c3, i1 %c4) nounwind ssp {
+entry:
+  %cmp = icmp sgt i32 undef, 1                    ; <i1> [#uses=1]
+  br i1 %c, label %land.end, label %land.rhs
 
+land.rhs:                                         ; preds = %entry
+  br i1 %c2, label %lor.lhs.false.i, label %land.end
+
+lor.lhs.false.i:                                  ; preds = %land.rhs
+  br i1 %c3, label %land.end, label %land.end
+
+land.end:                            
+  %0 = phi i1 [ true, %entry ], [ false, %land.rhs ], [false, %lor.lhs.false.i], [false, %lor.lhs.false.i] ; <i1> [#uses=1]
+  %cmp12 = and i1 %cmp, %0 
+  %xor1 = xor i1 %cmp12, %c4
+  br i1 %xor1, label %if.then, label %if.end
+
+if.then:                      
+  ret void
+
+if.end:                       
+  ret void
+}
+
+define void @test17() {
+entry:
+  br i1 undef, label %bb269.us.us, label %bb269.us.us.us
+
+bb269.us.us.us:
+  %indvar = phi i64 [ %indvar.next, %bb287.us.us.us ], [ 0, %entry ]
+  %0 = icmp eq i16 undef, 0
+  br i1 %0, label %bb287.us.us.us, label %bb286.us.us.us
+
+bb287.us.us.us:
+  %indvar.next = add i64 %indvar, 1
+  %exitcond = icmp eq i64 %indvar.next, 4
+  br i1 %exitcond, label %bb288.bb289.loopexit_crit_edge, label %bb269.us.us.us
+
+bb286.us.us.us:
+  unreachable
+
+bb269.us.us:
+	unreachable
+
+bb288.bb289.loopexit_crit_edge:
+  unreachable
+}

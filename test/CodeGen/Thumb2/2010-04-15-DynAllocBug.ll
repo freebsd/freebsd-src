@@ -7,17 +7,12 @@
 define void @t() nounwind ssp {
 entry:
 ; CHECK: t:
-; CHECK: mov r0, sp
-; CHECK: bfc r0, #0, #3
-; CHECK: subs r0, #16
-; CHECK: mov sp, r0
-; Yes, this is stupid codegen, but it's correct.
-; CHECK: mov r0, sp
-; CHECK: bfc r0, #0, #3
-; CHECK: subs r0, #16
-; CHECK: mov sp, r0
   %size = mul i32 8, 2
+; CHECK:  subs  r0, #16
+; CHECK:  mov sp, r0
   %vla_a = alloca i8, i32 %size, align 8
+; CHECK:  subs  r0, #16
+; CHECK:  mov sp, r0
   %vla_b = alloca i8, i32 %size, align 8
   unreachable
 }

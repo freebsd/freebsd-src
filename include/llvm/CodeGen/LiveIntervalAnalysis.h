@@ -42,7 +42,7 @@ namespace llvm {
   class TargetInstrInfo;
   class TargetRegisterClass;
   class VirtRegMap;
-  
+
   class LiveIntervals : public MachineFunctionPass {
     MachineFunction* mf_;
     MachineRegisterInfo* mri_;
@@ -68,7 +68,7 @@ namespace llvm {
 
   public:
     static char ID; // Pass identification, replacement for typeid
-    LiveIntervals() : MachineFunctionPass(&ID) {}
+    LiveIntervals() : MachineFunctionPass(ID) {}
 
     // Calculate the spill weight to assign to a single instruction.
     static float getSpillWeight(bool isDef, bool isUse, unsigned loopDepth);
@@ -105,6 +105,12 @@ namespace llvm {
       return r2iMap_.count(reg);
     }
 
+    /// isAllocatable - is the physical register reg allocatable in the current
+    /// function?
+    bool isAllocatable(unsigned reg) const {
+      return allocatableRegs_.test(reg);
+    }
+
     /// getScaledIntervalSize - get the size of an interval in "units,"
     /// where every function is composed of one thousand units.  This
     /// measure scales properly with empty index slots in the function.
@@ -117,7 +123,7 @@ namespace llvm {
     unsigned getFuncInstructionCount() {
       return indexes_->getFunctionSize();
     }
-    
+
     /// getApproximateInstructionCount - computes an estimate of the number
     /// of instructions in a given LiveInterval.
     unsigned getApproximateInstructionCount(LiveInterval& I) {
@@ -149,7 +155,7 @@ namespace llvm {
     /// dupInterval - Duplicate a live interval. The caller is responsible for
     /// managing the allocated memory.
     LiveInterval *dupInterval(LiveInterval *li);
-    
+
     /// addLiveRangeToEndOfBlock - Given a register and an instruction,
     /// adds a live range from that instruction to the end of its MBB.
     LiveRange addLiveRangeToEndOfBlock(unsigned reg,
@@ -181,7 +187,7 @@ namespace llvm {
     SlotIndex getInstructionIndex(const MachineInstr *instr) const {
       return indexes_->getInstructionIndex(instr);
     }
-    
+
     /// Returns the instruction associated with the given index.
     MachineInstr* getInstructionFromIndex(SlotIndex index) const {
       return indexes_->getInstructionFromIndex(index);
@@ -190,12 +196,32 @@ namespace llvm {
     /// Return the first index in the given basic block.
     SlotIndex getMBBStartIdx(const MachineBasicBlock *mbb) const {
       return indexes_->getMBBStartIdx(mbb);
-    } 
+    }
 
     /// Return the last index in the given basic block.
     SlotIndex getMBBEndIdx(const MachineBasicBlock *mbb) const {
       return indexes_->getMBBEndIdx(mbb);
-    } 
+    }
+
+    bool isLiveInToMBB(const LiveInterval &li,
+                       const MachineBasicBlock *mbb) const {
+      return li.liveAt(getMBBStartIdx(mbb));
+    }
+
+    LiveRange* findEnteringRange(LiveInterval &li,
+                                 const MachineBasicBlock *mbb) {
+      return li.getLiveRangeContaining(getMBBStartIdx(mbb));
+    }
+
+    bool isLiveOutOfMBB(const LiveInterval &li,
+                        const MachineBasicBlock *mbb) const {
+      return li.liveAt(getMBBEndIdx(mbb).getPrevSlot());
+    }
+
+    LiveRange* findExitingRange(LiveInterval &li,
+                                const MachineBasicBlock *mbb) {
+      return li.getLiveRangeContaining(getMBBEndIdx(mbb).getPrevSlot());
+    }
 
     MachineBasicBlock* getMBBFromIndex(SlotIndex index) const {
       return indexes_->getMBBFromIndex(index);
@@ -215,6 +241,10 @@ namespace llvm {
 
     void ReplaceMachineInstrInMaps(MachineInstr *MI, MachineInstr *NewMI) {
       indexes_->replaceMachineInstrInMaps(MI, NewMI);
+    }
+
+    void InsertMBBInMaps(MachineBasicBlock *MBB) {
+      indexes_->insertMBBInMaps(MBB);
     }
 
     bool findLiveInMBBs(SlotIndex Start, SlotIndex End,
@@ -276,7 +306,7 @@ namespace llvm {
     /// within a single basic block.
     bool intervalIsInOneMBB(const LiveInterval &li) const;
 
-  private:      
+  private:
     /// computeIntervals - Compute live intervals.
     void computeIntervals();
 
@@ -290,7 +320,7 @@ namespace llvm {
 
     /// isPartialRedef - Return true if the specified def at the specific index
     /// is partially re-defining the specified live interval. A common case of
-    /// this is a definition of the sub-register. 
+    /// this is a definition of the sub-register.
     bool isPartialRedef(SlotIndex MIIdx, MachineOperand &MO,
                         LiveInterval &interval);
 

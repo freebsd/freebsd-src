@@ -1,4 +1,6 @@
-// RUN: llvm-mc -triple x86_64-unknown-unknown %s | FileCheck %s
+// RUN: llvm-mc -triple x86_64-unknown-unknown %s > %t 2> %t.err
+// RUN: FileCheck < %t %s
+// RUN: FileCheck --check-prefix=CHECK-STDERR < %t.err %s
 
 // CHECK: subb %al, %al
         subb %al, %al
@@ -56,7 +58,7 @@
         subl %eax, %ebx
         
 // FIXME: Check that this matches the correct instruction.
-// CHECK: call *%rax
+// CHECK: callq *%rax
         call *%rax
 
 // FIXME: Check that this matches the correct instruction.
@@ -151,3 +153,23 @@ fadd %st(7)
 // CHECK: int3
 INT3
 
+
+// Allow scale factor without index register.
+// CHECK: movaps	%xmm3, (%esi)
+// CHECK-STDERR: warning: scale factor without index register is ignored
+movaps %xmm3, (%esi, 2)
+
+// CHECK: imull $12, %eax, %eax
+imul $12, %eax
+
+// CHECK: imull %ecx, %eax
+imull %ecx, %eax
+
+// PR8114
+// CHECK: outb	%al, %dx
+// CHECK: outw	%ax, %dx
+// CHECK: outl	%eax, %dx
+
+out %al, (%dx)
+out %ax, (%dx)
+outl %eax, (%dx)

@@ -104,7 +104,7 @@ namespace {
   public:
     static char ID;
     explicit CppWriter(formatted_raw_ostream &o) :
-      ModulePass(&ID), Out(o), uniqueNum(0), is_inline(false), indent_level(0){}
+      ModulePass(ID), Out(o), uniqueNum(0), is_inline(false), indent_level(0){}
 
     virtual const char *getPassName() const { return "C++ backend"; }
 
@@ -288,6 +288,8 @@ void CppWriter::printLinkageType(GlobalValue::LinkageTypes LT) {
     Out << "GlobalValue::LinkerPrivateLinkage"; break;
   case GlobalValue::LinkerPrivateWeakLinkage:
     Out << "GlobalValue::LinkerPrivateWeakLinkage"; break;
+  case GlobalValue::LinkerPrivateWeakDefAutoLinkage:
+    Out << "GlobalValue::LinkerPrivateWeakDefAutoLinkage"; break;
   case GlobalValue::AvailableExternallyLinkage:
     Out << "GlobalValue::AvailableExternallyLinkage "; break;
   case GlobalValue::LinkOnceAnyLinkage:
@@ -471,14 +473,22 @@ void CppWriter::printAttributes(const AttrListPtr &PAL,
       HANDLE_ATTR(Nest);
       HANDLE_ATTR(ReadNone);
       HANDLE_ATTR(ReadOnly);
-      HANDLE_ATTR(InlineHint);
       HANDLE_ATTR(NoInline);
       HANDLE_ATTR(AlwaysInline);
       HANDLE_ATTR(OptimizeForSize);
       HANDLE_ATTR(StackProtect);
       HANDLE_ATTR(StackProtectReq);
       HANDLE_ATTR(NoCapture);
+      HANDLE_ATTR(NoRedZone);
+      HANDLE_ATTR(NoImplicitFloat);
+      HANDLE_ATTR(Naked);
+      HANDLE_ATTR(InlineHint);
 #undef HANDLE_ATTR
+      if (attrs & Attribute::StackAlignment)
+        Out << " | Attribute::constructStackAlignmentFromInt("
+            << Attribute::getStackAlignmentFromAttrs(attrs)
+            << ")"; 
+      attrs &= ~Attribute::StackAlignment;
       assert(attrs == 0 && "Unhandled attribute!");
       Out << ";";
       nl(Out);
@@ -1404,7 +1414,8 @@ void CppWriter::printInstruction(const Instruction *I,
         nl(Out);
       }
       Out << "CallInst* " << iName << " = CallInst::Create("
-          << opNames[call->getNumArgOperands()] << ", " << iName << "_params.begin(), "
+          << opNames[call->getNumArgOperands()] << ", "
+          << iName << "_params.begin(), "
           << iName << "_params.end(), \"";
     } else if (call->getNumArgOperands() == 1) {
       Out << "CallInst* " << iName << " = CallInst::Create("

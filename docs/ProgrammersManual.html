@@ -309,8 +309,6 @@ to write maintainable code more than where to put your curly braces.</p>
 <div class="doc_text">
 
 <ol>
-<li><a href="http://www.psc.edu/%7Esemke/cvs_branches.html">CVS
-Branch and Tag Primer</a></li>
 <li><a href="http://www.fortran-2000.com/ArnaudRecipes/sharedlib.html">Using
 static and shared libraries across platforms</a></li>
 </ol>
@@ -1436,7 +1434,7 @@ to the key string for a value.</p>
 
 <p>The StringMap is very fast for several reasons: quadratic probing is very
 cache efficient for lookups, the hash value of strings in buckets is not
-recomputed when lookup up an element, StringMap rarely has to touch the
+recomputed when looking up an element, StringMap rarely has to touch the
 memory for unrelated objects when looking up a value (even when hash collisions
 happen), hash table growth does not recompute the hash values for strings
 already in the table, and each pair in the map is store in a single allocation
@@ -3942,7 +3940,7 @@ arguments. An argument has a pointer to the parent Function.</p>
   <a href="mailto:dhurjati@cs.uiuc.edu">Dinakar Dhurjati</a> and
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-07-15 00:38:02 +0200 (Thu, 15 Jul 2010) $
+  Last modified: $Date: 2010-08-04 17:59:16 +0200 (Wed, 04 Aug 2010) $
 </address>
 
 </body>

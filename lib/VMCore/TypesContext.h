@@ -180,32 +180,6 @@ public:
   }
 };
 
-// UnionValType - Define a class to hold the key that goes into the TypeMap
-//
-class UnionValType {
-  std::vector<const Type*> ElTypes;
-public:
-  UnionValType(const Type* const* Types, unsigned NumTypes)
-    : ElTypes(&Types[0], &Types[NumTypes]) {}
-
-  static UnionValType get(const UnionType *UT) {
-    std::vector<const Type *> ElTypes;
-    ElTypes.reserve(UT->getNumElements());
-    for (unsigned i = 0, e = UT->getNumElements(); i != e; ++i)
-      ElTypes.push_back(UT->getElementType(i));
-
-    return UnionValType(&ElTypes[0], ElTypes.size());
-  }
-
-  static unsigned hashTypeStructure(const UnionType *UT) {
-    return UT->getNumElements();
-  }
-
-  inline bool operator<(const UnionValType &UTV) const {
-    return (ElTypes < UTV.ElTypes);
-  }
-};
-
 // FunctionValType - Define a class to hold the key that goes into the TypeMap
 //
 class FunctionValType {
@@ -370,7 +344,7 @@ public:
         // We already have this type in the table.  Get rid of the newly refined
         // type.
         TypeClass *NewTy = cast<TypeClass>((Type*)I->second.get());
-        Ty->unlockedRefineAbstractTypeTo(NewTy);
+        Ty->refineAbstractTypeTo(NewTy);
         return;
       }
     } else {
@@ -385,31 +359,33 @@ public:
         if (I->second == Ty) {
           // Remember the position of the old type if we see it in our scan.
           Entry = I;
-        } else {
-          if (TypesEqual(Ty, I->second)) {
-            TypeClass *NewTy = cast<TypeClass>((Type*)I->second.get());
-
-            // Remove the old entry form TypesByHash.  If the hash values differ
-            // now, remove it from the old place.  Otherwise, continue scanning
-            // withing this hashcode to reduce work.
-            if (NewTypeHash != OldTypeHash) {
-              RemoveFromTypesByHash(OldTypeHash, Ty);
-            } else {
-              if (Entry == E) {
-                // Find the location of Ty in the TypesByHash structure if we
-                // haven't seen it already.
-                while (I->second != Ty) {
-                  ++I;
-                  assert(I != E && "Structure doesn't contain type??");
-                }
-                Entry = I;
-              }
-              TypesByHash.erase(Entry);
-            }
-            Ty->unlockedRefineAbstractTypeTo(NewTy);
-            return;
-          }
+          continue;
         }
+        
+        if (!TypesEqual(Ty, I->second))
+          continue;
+        
+        TypeClass *NewTy = cast<TypeClass>((Type*)I->second.get());
+
+        // Remove the old entry form TypesByHash.  If the hash values differ
+        // now, remove it from the old place.  Otherwise, continue scanning
+        // withing this hashcode to reduce work.
+        if (NewTypeHash != OldTypeHash) {
+          RemoveFromTypesByHash(OldTypeHash, Ty);
+        } else {
+          if (Entry == E) {
+            // Find the location of Ty in the TypesByHash structure if we
+            // haven't seen it already.
+            while (I->second != Ty) {
+              ++I;
+              assert(I != E && "Structure doesn't contain type??");
+            }
+            Entry = I;
+          }
+          TypesByHash.erase(Entry);
+        }
+        Ty->refineAbstractTypeTo(NewTy);
+        return;
       }
 
       // If there is no existing type of the same structure, we reinsert an

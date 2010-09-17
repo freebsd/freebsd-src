@@ -53,6 +53,14 @@ TEST(StringRefTest, StringOps) {
   EXPECT_EQ( 1, StringRef("aab").compare("aaa"));
   EXPECT_EQ(-1, StringRef("aab").compare("aabb"));
   EXPECT_EQ( 1, StringRef("aab").compare("aa"));
+  EXPECT_EQ( 1, StringRef("\xFF").compare("\1"));
+
+  EXPECT_EQ(-1, StringRef("AaB").compare_lower("aAd"));
+  EXPECT_EQ( 0, StringRef("AaB").compare_lower("aab"));
+  EXPECT_EQ( 1, StringRef("AaB").compare_lower("AAA"));
+  EXPECT_EQ(-1, StringRef("AaB").compare_lower("aaBb"));
+  EXPECT_EQ( 1, StringRef("AaB").compare_lower("aA"));
+  EXPECT_EQ( 1, StringRef("\xFF").compare_lower("\1"));
 
   EXPECT_EQ(-1, StringRef("aab").compare_numeric("aad"));
   EXPECT_EQ( 0, StringRef("aab").compare_numeric("aab"));
@@ -64,6 +72,7 @@ TEST(StringRefTest, StringOps) {
   EXPECT_EQ( 0, StringRef("10a").compare_numeric("10a"));
   EXPECT_EQ( 1, StringRef("2").compare_numeric("1"));
   EXPECT_EQ( 0, StringRef("llvm_v1i64_ty").compare_numeric("llvm_v1i64_ty"));
+  EXPECT_EQ( 1, StringRef("\xFF").compare_numeric("\1"));
 }
 
 TEST(StringRefTest, Operators) {

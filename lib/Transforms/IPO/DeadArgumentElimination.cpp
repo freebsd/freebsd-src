@@ -122,11 +122,11 @@ namespace {
 
   protected:
     // DAH uses this to specify a different ID.
-    explicit DAE(void *ID) : ModulePass(ID) {}
+    explicit DAE(char &ID) : ModulePass(ID) {}
 
   public:
     static char ID; // Pass identification, replacement for typeid
-    DAE() : ModulePass(&ID) {}
+    DAE() : ModulePass(ID) {}
 
     bool runOnModule(Module &M);
 
@@ -151,8 +151,7 @@ namespace {
 
 
 char DAE::ID = 0;
-static RegisterPass<DAE>
-X("deadargelim", "Dead Argument Elimination");
+INITIALIZE_PASS(DAE, "deadargelim", "Dead Argument Elimination", false, false);
 
 namespace {
   /// DAH - DeadArgumentHacking pass - Same as dead argument elimination, but
@@ -160,15 +159,16 @@ namespace {
   /// by bugpoint.
   struct DAH : public DAE {
     static char ID;
-    DAH() : DAE(&ID) {}
+    DAH() : DAE(ID) {}
 
     virtual bool ShouldHackArguments() const { return true; }
   };
 }
 
 char DAH::ID = 0;
-static RegisterPass<DAH>
-Y("deadarghaX0r", "Dead Argument Hacking (BUGPOINT USE ONLY; DO NOT USE)");
+INITIALIZE_PASS(DAH, "deadarghaX0r", 
+                "Dead Argument Hacking (BUGPOINT USE ONLY; DO NOT USE)",
+                false, false);
 
 /// createDeadArgEliminationPass - This pass removes arguments from functions
 /// which are not used by the body of the function.
@@ -220,11 +220,11 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
   //
   std::vector<Value*> Args;
   while (!Fn.use_empty()) {
-    CallSite CS = CallSite::get(Fn.use_back());
+    CallSite CS(Fn.use_back());
     Instruction *Call = CS.getInstruction();
 
     // Pass all the same arguments.
-    Args.assign(CS.arg_begin(), CS.arg_begin()+NumArgs);
+    Args.assign(CS.arg_begin(), CS.arg_begin() + NumArgs);
 
     // Drop any attributes that were on the vararg arguments.
     AttrListPtr PAL = CS.getAttributes();
@@ -250,8 +250,7 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
       if (cast<CallInst>(Call)->isTailCall())
         cast<CallInst>(New)->setTailCall();
     }
-    if (MDNode *N = Call->getDbgMetadata())
-      New->setDbgMetadata(N);
+    New->setDebugLoc(Call->getDebugLoc());
 
     Args.clear();
 
@@ -725,7 +724,7 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
   //
   std::vector<Value*> Args;
   while (!F->use_empty()) {
-    CallSite CS = CallSite::get(F->use_back());
+    CallSite CS(F->use_back());
     Instruction *Call = CS.getInstruction();
 
     AttributesVec.clear();
@@ -780,8 +779,7 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
       if (cast<CallInst>(Call)->isTailCall())
         cast<CallInst>(New)->setTailCall();
     }
-    if (MDNode *N = Call->getDbgMetadata())
-      New->setDbgMetadata(N);
+    New->setDebugLoc(Call->getDebugLoc());
 
     Args.clear();
 

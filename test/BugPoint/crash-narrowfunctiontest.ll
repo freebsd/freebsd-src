@@ -1,6 +1,8 @@
 ; Test that bugpoint can narrow down the testcase to the important function
+; FIXME: This likely fails on windows
 ;
-; RUN: bugpoint %s -output-prefix %t -bugpoint-crashcalls -silence-passes > /dev/null
+; RUN: bugpoint -load %llvmlibsdir/BugpointPasses%shlibext %s -output-prefix %t -bugpoint-crashcalls -silence-passes > /dev/null
+; XFAIL: mingw
 
 define i32 @foo() { ret i32 1 }
 

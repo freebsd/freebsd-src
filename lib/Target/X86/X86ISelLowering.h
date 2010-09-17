@@ -248,6 +248,44 @@ namespace llvm {
       // PTEST - Vector bitwise comparisons
       PTEST,
 
+      // TESTP - Vector packed fp sign bitwise comparisons
+      TESTP,
+
+      // Several flavors of instructions with vector shuffle behaviors.
+      PALIGN,
+      PSHUFD,
+      PSHUFHW,
+      PSHUFLW,
+      PSHUFHW_LD,
+      PSHUFLW_LD,
+      SHUFPD,
+      SHUFPS,
+      MOVDDUP,
+      MOVSHDUP,
+      MOVSLDUP,
+      MOVSHDUP_LD,
+      MOVSLDUP_LD,
+      MOVLHPS,
+      MOVLHPD,
+      MOVHLPS,
+      MOVHLPD,
+      MOVLPS,
+      MOVLPD,
+      MOVSD,
+      MOVSS,
+      UNPCKLPS,
+      UNPCKLPD,
+      UNPCKHPS,
+      UNPCKHPD,
+      PUNPCKLBW,
+      PUNPCKLWD,
+      PUNPCKLDQ,
+      PUNPCKLQDQ,
+      PUNPCKHBW,
+      PUNPCKHWD,
+      PUNPCKHDQ,
+      PUNPCKHQDQ,
+
       // VASTART_SAVE_XMM_REGS - Save xmm argument registers to the stack,
       // according to %al. An operator is needed so that this can be expanded
       // with control flow.
@@ -265,7 +303,13 @@ namespace llvm {
       ATOMXOR64_DAG,
       ATOMAND64_DAG,
       ATOMNAND64_DAG,
-      ATOMSWAP64_DAG
+      ATOMSWAP64_DAG,
+      
+      // Memory barrier
+      MEMBARRIER,
+      MFENCE,
+      SFENCE,
+      LFENCE
 
       // WARNING: Do not add anything in the end unless you want the node to
       // have memop! In fact, starting from ATOMADD64_DAG all opcodes will be
@@ -584,11 +628,18 @@ namespace llvm {
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
 
+    unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                                 MachineFunction &MF) const;
+
     /// getStackCookieLocation - Return true if the target stores stack
     /// protector cookies at a fixed offset in some non-standard address
     /// space, and populates the address space and offset as
     /// appropriate.
     virtual bool getStackCookieLocation(unsigned &AddressSpace, unsigned &Offset) const;
+
+  protected:
+    std::pair<const TargetRegisterClass*, uint8_t>
+    findRepresentativeClass(EVT VT) const;
 
   private:
     /// Subtarget - Keep a pointer to the X86Subtarget around so that we can
@@ -710,11 +761,16 @@ namespace llvm {
     SDValue LowerCTLZ(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerCTTZ(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerMUL_V2I64(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSHL(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerXALUO(SDValue Op, SelectionDAG &DAG) const;
 
     SDValue LowerCMP_SWAP(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerLOAD_SUB(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerREADCYCLECOUNTER(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerMEMBARRIER(SDValue Op, SelectionDAG &DAG) const;
+
+    // Utility functions to help LowerVECTOR_SHUFFLE
+    SDValue LowerVECTOR_SHUFFLEv8i16(SDValue Op, SelectionDAG &DAG) const;
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,

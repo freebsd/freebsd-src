@@ -214,6 +214,9 @@ if (LLVM_NATIVE_ARCH)
     set(LLVM_NATIVE_ARCH)
   else ()
     message(STATUS "Native target architecture is ${LLVM_NATIVE_ARCH}")
+    set(LLVM_NATIVE_TARGET LLVMInitialize${LLVM_NATIVE_ARCH}Target)
+    set(LLVM_NATIVE_TARGETINFO LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo)
+    set(LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter)
   endif ()
 endif()
 
@@ -259,9 +262,16 @@ else( ENABLE_THREADS )
   message(STATUS "Threads disabled.")
 endif()
 
+set(LLVM_PREFIX ${CMAKE_INSTALL_PREFIX})
+
 configure_file(
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/config.h.cmake
   ${LLVM_BINARY_DIR}/include/llvm/Config/config.h
+  )
+
+configure_file(
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/llvm-config.h.cmake
+  ${LLVM_BINARY_DIR}/include/llvm/Config/llvm-config.h
   )
 
 configure_file(

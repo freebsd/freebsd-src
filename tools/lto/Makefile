@@ -25,15 +25,22 @@ LINK_COMPONENTS := $(TARGETS_TO_BUILD) ipo scalaropts linker bitreader bitwriter
 include $(LEVEL)/Makefile.common
 
 ifeq ($(HOST_OS),Darwin)
+    # Special hack to allow libLTO to have an offset version number.
+    ifdef LLVM_LTO_VERSION_OFFSET
+        LTO_LIBRARY_VERSION := $(shell expr $(LLVM_SUBMIT_VERSION) + \
+                                            $(LLVM_LTO_VERSION_OFFSET))
+    else
+        LTO_LIBRARY_VERSION := $(LLVM_SUBMIT_VERSION)
+    endif
+
     # set dylib internal version number to llvmCore submission number
     ifdef LLVM_SUBMIT_VERSION
         LLVMLibsOptions := $(LLVMLibsOptions) -Wl,-current_version \
-                        -Wl,$(LLVM_SUBMIT_VERSION).$(LLVM_SUBMIT_SUBVERSION) \
+                        -Wl,$(LTO_LIBRARY_VERSION).$(LLVM_SUBMIT_SUBVERSION) \
                         -Wl,-compatibility_version -Wl,1
     endif
     # extra options to override libtool defaults 
     LLVMLibsOptions    := $(LLVMLibsOptions)  \
-                         -avoid-version \
                          -Wl,-dead_strip \
                          -Wl,-seg1addr -Wl,0xE0000000 
 
@@ -41,7 +48,7 @@ ifeq ($(HOST_OS),Darwin)
     DARWIN_VERS := $(shell echo $(TARGET_TRIPLE) | sed 's/.*darwin\([0-9]*\).*/\1/')
     ifneq ($(DARWIN_VERS),8)
        LLVMLibsOptions    := $(LLVMLibsOptions)  \
-                            -no-undefined -Wl,-install_name \
+                            -Wl,-install_name \
                             -Wl,"@executable_path/../lib/lib$(LIBRARYNAME)$(SHLIBEXT)"
     endif
 endif

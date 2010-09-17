@@ -25,6 +25,7 @@
           <li><a href="#linkage_private">'<tt>private</tt>' Linkage</a></li>
           <li><a href="#linkage_linker_private">'<tt>linker_private</tt>' Linkage</a></li>
           <li><a href="#linkage_linker_private_weak">'<tt>linker_private_weak</tt>' Linkage</a></li>
+          <li><a href="#linkage_linker_private_weak_def_auto">'<tt>linker_private_weak_def_auto</tt>' Linkage</a></li>
           <li><a href="#linkage_internal">'<tt>internal</tt>' Linkage</a></li>
           <li><a href="#linkage_available_externally">'<tt>available_externally</tt>' Linkage</a></li>
           <li><a href="#linkage_linkonce">'<tt>linkonce</tt>' Linkage</a></li>
@@ -73,7 +74,6 @@
               <li><a href="#t_array">Array Type</a></li>
               <li><a href="#t_struct">Structure Type</a></li>
               <li><a href="#t_pstruct">Packed Structure Type</a></li>
-              <li><a href="#t_union">Union Type</a></li>
               <li><a href="#t_vector">Vector Type</a></li>
             </ol>
           </li>
@@ -491,20 +491,21 @@
    the "hello world" module:</p>
 
 <pre class="doc_code">
-<i>; Declare the string constant as a global constant.</i>
-<a href="#identifiers">@.LC0</a> = <a href="#linkage_internal">internal</a> <a href="#globalvars">constant</a> <a href="#t_array">[13 x i8]</a> c"hello world\0A\00"    <i>; [13 x i8]*</i>
+<i>; Declare the string constant as a global constant.</i>&nbsp;
+<a href="#identifiers">@.LC0</a> = <a href="#linkage_internal">internal</a> <a href="#globalvars">constant</a> <a href="#t_array">[13 x i8]</a> c"hello world\0A\00"      <i>; [13 x i8]*</i>&nbsp;
 
-<i>; External declaration of the puts function</i>
-<a href="#functionstructure">declare</a> i32 @puts(i8*)                                     <i>; i32 (i8*)* </i>
+<i>; External declaration of the puts function</i>&nbsp;
+<a href="#functionstructure">declare</a> i32 @puts(i8*)                                      <i>; i32 (i8*)* </i>&nbsp;
 
 <i>; Definition of main function</i>
-define i32 @main() {                                        <i>; i32()* </i>
-  <i>; Convert [13 x i8]* to i8  *...</i>
-  %cast210 = <a href="#i_getelementptr">getelementptr</a> [13 x i8]* @.LC0, i64 0, i64 0   <i>; i8*</i>
+define i32 @main() {   <i>; i32()* </i>&nbsp;
+  <i>; Convert [13 x i8]* to i8  *...</i>&nbsp;
+  %cast210 = <a href="#i_getelementptr">getelementptr</a> [13 x i8]* @.LC0, i64 0, i64 0   <i>; i8*</i>&nbsp;
 
-  <i>; Call puts function to write out the string to stdout.</i>
-  <a href="#i_call">call</a> i32 @puts(i8* %cast210)                             <i>; i32</i>
-  <a href="#i_ret">ret</a> i32 0<br>}
+  <i>; Call puts function to write out the string to stdout.</i>&nbsp;
+  <a href="#i_call">call</a> i32 @puts(i8* %cast210)           <i>; i32</i>&nbsp;
+  <a href="#i_ret">ret</a> i32 0&nbsp;
+}
 
 <i>; Named metadata</i>
 !1 = metadata !{i32 41}
@@ -555,6 +556,15 @@ define i32 @main() {                                        <i>; i32()* </i>
       <tt>linker_private_weak</tt> symbols are subject to coalescing by the
       linker. The symbols are removed by the linker from the final linked image
       (executable or dynamic library).</dd>
+
+  <dt><tt><b><a name="linkage_linker_private_weak_def_auto">linker_private_weak_def_auto</a></b></tt></dt>
+  <dd>Similar to "<tt>linker_private_weak</tt>", but it's known that the address
+      of the object is not taken. For instance, functions that had an inline
+      definition, but the compiler decided not to inline it. Note,
+      unlike <tt>linker_private</tt> and <tt>linker_private_weak</tt>,
+      <tt>linker_private_weak_def_auto</tt> may have only <tt>default</tt>
+      visibility.  The symbols are removed by the linker from the final linked
+      image (executable or dynamic library).</dd>
 
   <dt><tt><b><a name="linkage_internal">internal</a></b></tt></dt>
   <dd>Similar to private, but the value shows as a local symbol
@@ -788,7 +798,7 @@ define i32 @main() {                                        <i>; i32()* </i>
 </pre>
 
 <p>You may give a name to any <a href="#typesystem">type</a> except
-   "<a href="t_void">void</a>".  Type name aliases may be used anywhere a type
+   "<a href="#t_void">void</a>".  Type name aliases may be used anywhere a type
    is expected with the syntax "%mytype".</p>
 
 <p>Note that type names are aliases for the structural type that they indicate,
@@ -949,15 +959,17 @@ define [<a href="#linkage">linkage</a>] [<a href="#visibility">visibility</a>]
 <div class="doc_text">
 
 <p>Named metadata is a collection of metadata. <a href="#metadata">Metadata
-   nodes</a> (but not metadata strings) and null are the only valid operands for
+   nodes</a> (but not metadata strings) are the only valid operands for
    a named metadata.</p>
 
 <h5>Syntax:</h5>
 <pre class="doc_code">
-; An unnamed metadata node, which is referenced by the named metadata.
+; Some unnamed metadata nodes, which are referenced by the named metadata.
+!0 = metadata !{metadata !"zero"}
 !1 = metadata !{metadata !"one"}
+!2 = metadata !{metadata !"two"}
 ; A named metadata.
-!name = !{null, !1}
+!name = !{!0, !1, !2}
 </pre>
 
 </div>
@@ -1462,7 +1474,6 @@ Classifications</a> </div>
           <a href="#t_pointer">pointer</a>,
           <a href="#t_vector">vector</a>,
           <a href="#t_struct">structure</a>,
-          <a href="#t_union">union</a>,
           <a href="#t_array">array</a>,
           <a href="#t_label">label</a>,
           <a href="#t_metadata">metadata</a>.
@@ -1482,7 +1493,6 @@ Classifications</a> </div>
           <a href="#t_pointer">pointer</a>,
           <a href="#t_struct">structure</a>,
           <a href="#t_pstruct">packed structure</a>,
-          <a href="#t_union">union</a>,
           <a href="#t_vector">vector</a>,
           <a href="#t_opaque">opaque</a>.
       </td>
@@ -1630,8 +1640,8 @@ Classifications</a> </div>
 
 <p>Aggregate Types are a subset of derived types that can contain multiple
   member types. <a href="#t_array">Arrays</a>,
-  <a href="#t_struct">structs</a>, <a href="#t_vector">vectors</a> and
-  <a href="#t_union">unions</a> are aggregate types.</p>
+  <a href="#t_struct">structs</a>, and <a href="#t_vector">vectors</a> are
+  aggregate types.</p>
 
 </div>
 
@@ -1701,9 +1711,7 @@ Classifications</a> </div>
 <h5>Overview:</h5>
 <p>The function type can be thought of as a function signature.  It consists of
    a return type and a list of formal parameter types. The return type of a
-   function type is a scalar type, a void type, a struct type, or a union
-   type.  If the return type is a struct type then all struct elements must be
-   of first class types, and the struct must have at least one element.</p>
+   function type is a first class type or a void type.</p>
 
 <h5>Syntax:</h5>
 <pre>
@@ -1816,53 +1824,6 @@ Classifications</a> </div>
   <td class="left">
 <tt>&lt;&nbsp;{&nbsp;float,&nbsp;i32&nbsp;(i32)*&nbsp;}&nbsp;&gt;</tt></td>
     <td class="left">A pair, where the first element is a <tt>float</tt> and the
-      second element is a <a href="#t_pointer">pointer</a> to a
-      <a href="#t_function">function</a> that takes an <tt>i32</tt>, returning
-      an <tt>i32</tt>.</td>
-  </tr>
-</table>
-
-</div>
-
-<!-- _______________________________________________________________________ -->
-<div class="doc_subsubsection"> <a name="t_union">Union Type</a> </div>
-
-<div class="doc_text">
-
-<h5>Overview:</h5>
-<p>A union type describes an object with size and alignment suitable for
-   an object of any one of a given set of types (also known as an "untagged"
-   union). It is similar in concept and usage to a
-   <a href="#t_struct">struct</a>, except that all members of the union
-   have an offset of zero. The elements of a union may be any type that has a
-   size. Unions must have at least one member - empty unions are not allowed.
-   </p>
-
-<p>The size of the union as a whole will be the size of its largest member,
-   and the alignment requirements of the union as a whole will be the largest
-   alignment requirement of any member.</p>
-
-<p>Union members are accessed using '<tt><a href="#i_load">load</a></tt> and
-   '<tt><a href="#i_store">store</a></tt>' by getting a pointer to a field with
-   the '<tt><a href="#i_getelementptr">getelementptr</a></tt>' instruction.
-   Since all members are at offset zero, the getelementptr instruction does
-   not affect the address, only the type of the resulting pointer.</p>
-
-<h5>Syntax:</h5>
-<pre>
-  union { &lt;type list&gt; }
-</pre>
-
-<h5>Examples:</h5>
-<table class="layout">
-  <tr class="layout">
-    <td class="left"><tt>union { i32, i32*, float }</tt></td>
-    <td class="left">A union of three types: an <tt>i32</tt>, a pointer to
-      an <tt>i32</tt>, and a <tt>float</tt>.</td>
-  </tr><tr class="layout">
-    <td class="left">
-      <tt>union {&nbsp;float,&nbsp;i32&nbsp;(i32)&nbsp;*&nbsp;}</tt></td>
-    <td class="left">A union, where the first element is a <tt>float</tt> and the
       second element is a <a href="#t_pointer">pointer</a> to a
       <a href="#t_function">function</a> that takes an <tt>i32</tt>, returning
       an <tt>i32</tt>.</td>
@@ -2111,14 +2072,6 @@ Classifications</a> </div>
       Structure constants must have <a href="#t_struct">structure type</a>, and
       the number and types of elements must match those specified by the
       type.</dd>
-
-  <dt><b>Union constants</b></dt>
-  <dd>Union constants are represented with notation similar to a structure with
-      a single element - that is, a single typed element surrounded
-      by braces (<tt>{}</tt>)).  For example: "<tt>{ i32 4 }</tt>".  The
-      <a href="#t_union">union type</a> can be initialized with a single-element
-      struct as long as the type of the struct element matches the type of
-      one of the union members.</dd>
 
   <dt><b>Array constants</b></dt>
   <dd>Array constants are represented with notation similar to array type
@@ -4140,7 +4093,7 @@ Instruction</a> </div>
 
 <h5>Arguments:</h5>
 <p>The first operand of an '<tt>extractvalue</tt>' instruction is a value
-   of <a href="#t_struct">struct</a>, <a href="#t_union">union</a>  or
+   of <a href="#t_struct">struct</a> or
    <a href="#t_array">array</a> type.  The operands are constant indices to
    specify which value to extract in a similar manner as indices in a
    '<tt><a href="#i_getelementptr">getelementptr</a></tt>' instruction.</p>
@@ -4174,7 +4127,7 @@ Instruction</a> </div>
 
 <h5>Arguments:</h5>
 <p>The first operand of an '<tt>insertvalue</tt>' instruction is a value
-   of <a href="#t_struct">struct</a>, <a href="#t_union">union</a> or
+   of <a href="#t_struct">struct</a> or
    <a href="#t_array">array</a> type.  The second operand is a first-class
    value to insert.  The following operands are constant indices indicating
    the position at which to insert the value in a similar manner as indices in a
@@ -4407,12 +4360,12 @@ Instruction</a> </div>
    indexes a value of the type pointed to (not necessarily the value directly
    pointed to, since the first index can be non-zero), etc. The first type
    indexed into must be a pointer value, subsequent types can be arrays,
-   vectors, structs and unions. Note that subsequent types being indexed into
+   vectors, and structs. Note that subsequent types being indexed into
    can never be pointers, since that would require loading the pointer before
    continuing calculation.</p>
 
 <p>The type of each index argument depends on the type it is indexing into.
-   When indexing into a (optionally packed) structure or union, only <tt>i32</tt>
+   When indexing into a (optionally packed) structure, only <tt>i32</tt>
    integer <b>constants</b> are allowed.  When indexing into an array, pointer
    or vector, integers of any width are allowed, and they are not required to be
    constant.</p>
@@ -6117,8 +6070,8 @@ LLVM</a>.</p>
 
 <h5>Syntax:</h5>
 <p>This is an overloaded intrinsic. You can use llvm.memset on any integer bit
-   width and for different address spaces. Not all targets support all bit
-   widths however.</p>
+   width and for different address spaces. However, not all targets support all
+   bit widths.</p>
 
 <pre>
   declare void @llvm.memset.p0i8.i32(i8* &lt;dest&gt;, i8 &lt;val&gt;,
@@ -6132,14 +6085,14 @@ LLVM</a>.</p>
    particular byte value.</p>
 
 <p>Note that, unlike the standard libc function, the <tt>llvm.memset</tt>
-   intrinsic does not return a value, takes extra alignment/volatile arguments,
-   and the destination can be in an arbitrary address space.</p>
+   intrinsic does not return a value and takes extra alignment/volatile
+   arguments.  Also, the destination can be in an arbitrary address space.</p>
 
 <h5>Arguments:</h5>
 <p>The first argument is a pointer to the destination to fill, the second is the
-   byte value to fill it with, the third argument is an integer argument
+   byte value with which to fill it, the third argument is an integer argument
    specifying the number of bytes to fill, and the fourth argument is the known
-   alignment of destination location.</p>
+   alignment of the destination location.</p>
 
 <p>If the call to this intrinsic has an alignment value that is not 0 or 1,
    then the caller guarantees that the destination pointer is aligned to that
@@ -7746,7 +7699,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-07-13 21:48:13 +0200 (Tue, 13 Jul 2010) $
+  Last modified: $Date: 2010-08-28 06:09:24 +0200 (Sat, 28 Aug 2010) $
 </address>
 
 </body>

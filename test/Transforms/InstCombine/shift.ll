@@ -130,8 +130,8 @@ define i8 @test13(i8 %A) {
 ;; D = ((B | 1234) << 4) === ((B << 4)|(1234 << 4)
 define i32 @test14(i32 %A) {
 ; CHECK: @test14
-; CHECK-NEXT: or i32 %A, 19744
-; CHECK-NEXT: and i32
+; CHECK-NEXT: %B = and i32 %A, -19760
+; CHECK-NEXT: or i32 %B, 19744
 ; CHECK-NEXT: ret i32
         %B = lshr i32 %A, 4             ; <i32> [#uses=1]
         %C = or i32 %B, 1234            ; <i32> [#uses=1]
@@ -343,3 +343,101 @@ bb2:
 }
 
 
+define i32 @test29(i64 %d18) {
+entry:
+	%tmp916 = lshr i64 %d18, 32
+	%tmp917 = trunc i64 %tmp916 to i32
+	%tmp10 = lshr i32 %tmp917, 31
+	ret i32 %tmp10
+; CHECK: @test29
+; CHECK:  %tmp916 = lshr i64 %d18, 63
+; CHECK:  %tmp10 = trunc i64 %tmp916 to i32
+}
+
+
+define i32 @test30(i32 %A, i32 %B, i32 %C) {
+	%X = shl i32 %A, %C
+	%Y = shl i32 %B, %C
+	%Z = and i32 %X, %Y
+	ret i32 %Z
+; CHECK: @test30
+; CHECK: %X1 = and i32 %A, %B
+; CHECK: %Z = shl i32 %X1, %C
+}
+
+define i32 @test31(i32 %A, i32 %B, i32 %C) {
+	%X = lshr i32 %A, %C
+	%Y = lshr i32 %B, %C
+	%Z = or i32 %X, %Y
+	ret i32 %Z
+; CHECK: @test31
+; CHECK: %X1 = or i32 %A, %B
+; CHECK: %Z = lshr i32 %X1, %C
+}
+
+define i32 @test32(i32 %A, i32 %B, i32 %C) {
+	%X = ashr i32 %A, %C
+	%Y = ashr i32 %B, %C
+	%Z = xor i32 %X, %Y
+	ret i32 %Z
+; CHECK: @test32
+; CHECK: %X1 = xor i32 %A, %B
+; CHECK: %Z = ashr i32 %X1, %C
+; CHECK: ret i32 %Z
+}
+
+define i1 @test33(i32 %X) {
+        %tmp1 = shl i32 %X, 7
+        %tmp2 = icmp slt i32 %tmp1, 0
+        ret i1 %tmp2
+; CHECK: @test33
+; CHECK: %tmp1.mask = and i32 %X, 16777216
+; CHECK: %tmp2 = icmp ne i32 %tmp1.mask, 0
+}
+
+define i1 @test34(i32 %X) {
+        %tmp1 = lshr i32 %X, 7
+        %tmp2 = icmp slt i32 %tmp1, 0
+        ret i1 %tmp2
+; CHECK: @test34
+; CHECK: ret i1 false
+}
+
+define i1 @test35(i32 %X) {
+        %tmp1 = ashr i32 %X, 7
+        %tmp2 = icmp slt i32 %tmp1, 0
+        ret i1 %tmp2
+; CHECK: @test35
+; CHECK: %tmp2 = icmp slt i32 %X, 0
+; CHECK: ret i1 %tmp2
+}
+
+define i128 @test36(i128 %A, i128 %B) {
+entry:
+  %tmp27 = shl i128 %A, 64
+  %tmp23 = shl i128 %B, 64
+  %ins = or i128 %tmp23, %tmp27
+  %tmp45 = lshr i128 %ins, 64
+  ret i128 %tmp45
+  
+; CHECK: @test36
+; CHECK:  %tmp231 = or i128 %B, %A
+; CHECK:  %ins = and i128 %tmp231, 18446744073709551615
+; CHECK:  ret i128 %ins
+}
+
+define i64 @test37(i128 %A, i32 %B) {
+entry:
+  %tmp27 = shl i128 %A, 64
+  %tmp22 = zext i32 %B to i128
+  %tmp23 = shl i128 %tmp22, 96
+  %ins = or i128 %tmp23, %tmp27
+  %tmp45 = lshr i128 %ins, 64
+  %tmp46 = trunc i128 %tmp45 to i64
+  ret i64 %tmp46
+  
+; CHECK: @test37
+; CHECK:  %tmp23 = shl i128 %tmp22, 32
+; CHECK:  %ins = or i128 %tmp23, %A
+; CHECK:  %tmp46 = trunc i128 %ins to i64
+}
