@@ -465,9 +465,8 @@ after_sack_rexmit:
 	}
 
 	/*
-	 * Truncate to the maximum segment length or enable TCP Segmentation
-	 * Offloading (if supported by hardware) and ensure that FIN is removed
-	 * if the length no longer contains the last data byte.
+	 * Decide if we can use TCP Segmentation Offloading (if supported by
+	 * hardware).
 	 *
 	 * TSO may only be used if we are in a pure bulk sending state.  The
 	 * presence of TCP-MD5, SACK retransmits, SACK advertizements and
@@ -475,10 +474,6 @@ after_sack_rexmit:
 	 * (except for the sequence number) for all generated packets.  This
 	 * makes it impossible to transmit any options which vary per generated
 	 * segment or packet.
-	 *
-	 * The length of TSO bursts is limited to TCP_MAXWIN.  That limit and
-	 * removal of FIN (if not already catched here) are handled later after
-	 * the exact length of the TCP options are known.
 	 */
 #ifdef IPSEC
 	/*
@@ -487,22 +482,15 @@ after_sack_rexmit:
 	 */
 	ipsec_optlen = ipsec_hdrsiz_tcp(tp);
 #endif
-	if (len > tp->t_maxseg) {
-		if ((tp->t_flags & TF_TSO) && V_tcp_do_tso &&
-		    ((tp->t_flags & TF_SIGNATURE) == 0) &&
-		    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
-		    tp->t_inpcb->inp_options == NULL &&
-		    tp->t_inpcb->in6p_options == NULL
+	if ((tp->t_flags & TF_TSO) && V_tcp_do_tso && len > tp->t_maxseg &&
+	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
+	    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
 #ifdef IPSEC
-		    && ipsec_optlen == 0
+	    ipsec_optlen == 0 &&
 #endif
-		    ) {
-			tso = 1;
-		} else {
-			len = tp->t_maxseg;
-			sendalot = 1;
-		}
-	}
+	    tp->t_inpcb->inp_options == NULL &&
+	    tp->t_inpcb->in6p_options == NULL)
+		tso = 1;
 
 	if (sack_rxmit) {
 		if (SEQ_LT(p->rxmit + len, tp->snd_una + so->so_snd.sb_cc))
@@ -732,28 +720,53 @@ send:
 	 * bump the packet length beyond the t_maxopd length.
 	 * Clear the FIN bit because we cut off the tail of
 	 * the segment.
-	 *
-	 * When doing TSO limit a burst to TCP_MAXWIN minus the
-	 * IP, TCP and Options length to keep ip->ip_len from
-	 * overflowing.  Prevent the last segment from being
-	 * fractional thus making them all equal sized and set
-	 * the flag to continue sending.  TSO is disabled when
-	 * IP options or IPSEC are present.
 	 */
 	if (len + optlen + ipoptlen > tp->t_maxopd) {
 		flags &= ~TH_FIN;
+
 		if (tso) {
-			if (len > TCP_MAXWIN - hdrlen - optlen) {
-				len = TCP_MAXWIN - hdrlen - optlen;
-				len = len - (len % (tp->t_maxopd - optlen));
+			KASSERT(ipoptlen == 0,
+			    ("%s: TSO can't do IP options", __func__));
+
+			/*
+			 * Limit a burst to IP_MAXPACKET minus IP,
+			 * TCP and options length to keep ip->ip_len
+			 * from overflowing.
+			 */
+			if (len > IP_MAXPACKET - hdrlen) {
+				len = IP_MAXPACKET - hdrlen;
 				sendalot = 1;
-			} else if (tp->t_flags & TF_NEEDFIN)
+			}
+
+			/*
+			 * Prevent the last segment from being
+			 * fractional unless the send sockbuf can
+			 * be emptied.
+			 */
+			if (sendalot && off + len < so->so_snd.sb_cc) {
+				len -= len % (tp->t_maxopd - optlen);
 				sendalot = 1;
+			}
+
+			/*
+			 * Send the FIN in a separate segment
+			 * after the bulk sending is done.
+			 * We don't trust the TSO implementations
+			 * to clear the FIN flag on all but the
+			 * last segment.
+			 */
+			if (tp->t_flags & TF_NEEDFIN)
+				sendalot = 1;
+
 		} else {
 			len = tp->t_maxopd - optlen - ipoptlen;
 			sendalot = 1;
 		}
-	}
+	} else
+		tso = 0;
+
+	KASSERT(len + hdrlen + ipoptlen <= IP_MAXPACKET,
+	    ("%s: len > IP_MAXPACKET", __func__));
 
 /*#ifdef DIAGNOSTIC*/
 #ifdef INET6
@@ -1067,6 +1080,9 @@ send:
 		m->m_pkthdr.csum_flags |= CSUM_TSO;
 		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
 	}
+
+	KASSERT(len + hdrlen + ipoptlen == m_length(m, NULL),
+	    ("%s: mbuf chain shorter than expected", __func__));
 
 	/*
 	 * In transmit state, time the transmission and arrange for
