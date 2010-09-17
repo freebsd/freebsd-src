@@ -74,9 +74,10 @@
 // C94:#define __STDC_VERSION__ 199409L
 //
 // 
-// RUN: %clang_cc1 -fms-extensions -E -dM < /dev/null | FileCheck -check-prefix MSEXT %s
+// RUN: %clang_cc1 -fms-extensions -triple i686-pc-win32 -E -dM < /dev/null | FileCheck -check-prefix MSEXT %s
 //
 // MSEXT-NOT:#define __STDC__
+// MSEXT:#define _INTEGRAL_MAX_BITS 64
 // MSEXT:#define __int16 __INT16_TYPE__
 // MSEXT:#define __int32 __INT32_TYPE__
 // MSEXT:#define __int64 __INT64_TYPE__
@@ -116,6 +117,13 @@
 // SCHAR:#define __STDC__ 1
 // SCHAR-NOT:#define __UNSIGNED_CHAR__
 // SCHAR:#define __clang__ 1
+//
+// RUN: %clang_cc1 -E -dM -fshort-wchar < /dev/null | FileCheck -check-prefix SHORTWCHAR %s
+//
+// SHORTWCHAR: #define __SIZEOF_WCHAR_T__ 2
+// SHORTWCHAR: #define __WCHAR_MAX__ 65535U
+// SHORTWCHAR: #define __WCHAR_TYPE__ unsigned short
+// SHORTWCHAR: #define __WCHAR_WIDTH__ 16
 //
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=arm-none-none < /dev/null | FileCheck -check-prefix ARM %s
 //

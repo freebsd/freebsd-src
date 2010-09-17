@@ -19,11 +19,12 @@ struct f2_s1 : public f2_s0 { char d;};
 void f2(f2_s1 a0) { }
 
 // PR5831
+// CHECK: define void @_Z2f34s3_1(i64 %x.coerce)
 struct s3_0 {};
 struct s3_1 { struct s3_0 a; long b; };
 void f3(struct s3_1 x) {}
 
-// CHECK: define i64 @_Z4f4_0M2s4i(i64 %a.coerce)
+// CHECK: define i64 @_Z4f4_0M2s4i(i64 %a)
 // CHECK: define {{.*}} @_Z4f4_1M2s4FivE(i64 %a.coerce0, i64 %a.coerce1)
 struct s4 {};
 typedef int s4::* s4_mdp;
@@ -44,4 +45,73 @@ void foo() {
   // CHECK: call void @_ZN6PR752310AddKeywordENS_9StringRefEi(i8* {{.*}}, i32 4)
   AddKeyword(StringRef(), 4);
 }
+}
+
+namespace PR7742 { // Also rdar://8250764
+  struct s2 {
+    float a[2];
+  };
+  
+  struct c2 : public s2 {};
+  
+  // CHECK: define double @_ZN6PR77423fooEPNS_2c2E(%"struct.PR7742::c2"* %P)
+  c2 foo(c2 *P) {
+  }
+  
+}
+
+namespace PR5179 {
+  struct B {};
+
+  struct B1 : B {
+    int* pa;
+  };
+
+  struct B2 : B {
+    B1 b1;
+  };
+
+  // CHECK: define i8* @_ZN6PR51793barENS_2B2E(i32* %b2.coerce)
+  const void *bar(B2 b2) {
+    return b2.b1.pa;
+  }
+}
+
+namespace test5 {
+  struct Xbase { };
+  struct Empty { };
+  struct Y;
+  struct X : public Xbase {
+    Empty empty;
+    Y f();
+  };
+  struct Y : public X { 
+    Empty empty;
+  };
+  X getX();
+  int takeY(const Y&, int y);
+  void g() {
+    // rdar://8340348 - The temporary for the X object needs to have a defined
+    // address when passed into X::f as 'this'.
+    takeY(getX().f(), 42);
+  }
+  // CHECK: void @_ZN5test51gEv()
+  // CHECK: alloca %"struct.test5::Y"
+  // CHECK: alloca %"struct.test5::X"
+  // CHECK: alloca %"struct.test5::Y"
+}
+
+
+// rdar://8360877
+namespace test6 {
+  struct outer {
+    int x;
+    struct epsilon_matcher {} e;
+    int f;
+  };
+
+  int test(outer x) {
+    return x.x + x.f;
+  }
+  // CHECK: define i32 @_ZN5test64testENS_5outerE(i64 %x.coerce0, i32 %x.coerce1)
 }

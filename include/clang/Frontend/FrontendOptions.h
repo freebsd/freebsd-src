@@ -25,6 +25,7 @@ namespace frontend {
     ASTPrintXML,            ///< Parse ASTs and print them in XML.
     ASTView,                ///< Parse ASTs and view them in Graphviz.
     BoostCon,               ///< BoostCon mode.
+    CreateModule,           ///< Create module definition
     DumpRawTokens,          ///< Dump out raw tokens.
     DumpTokens,             ///< Dump out preprocessed tokens.
     EmitAssembly,           ///< Emit a .s file.
@@ -39,11 +40,10 @@ namespace frontend {
     GeneratePTH,            ///< Generate pre-tokenized header.
     InheritanceView,        ///< View C++ inheritance for a specified class.
     InitOnly,               ///< Only execute frontend initialization.
-    ParseNoop,              ///< Parse with noop callbacks.
-    ParsePrintCallbacks,    ///< Parse and print each callback.
     ParseSyntaxOnly,        ///< Parse and perform semantic analysis.
     PluginAction,           ///< Run a plugin action, \see ActionName.
     PrintDeclContext,       ///< Print DeclContext and their Decls.
+    PrintPreamble,          ///< Print the "preamble" of the input file
     PrintPreprocessedInput, ///< -E mode.
     RewriteMacros,          ///< Expand macros but not #includes.
     RewriteObjC,            ///< ObjC->C Rewriter.
@@ -60,21 +60,25 @@ public:
                                            /// completion results.
   unsigned DisableFree : 1;                ///< Disable memory freeing on exit.
   unsigned RelocatablePCH : 1;             ///< When generating PCH files,
-                                           /// instruct the PCH writer to create
+                                           /// instruct the AST writer to create
                                            /// relocatable PCH files.
   unsigned ChainedPCH : 1;                 ///< When generating PCH files,
-                                           /// instruct the PCH writer to create
+                                           /// instruct the AST writer to create
                                            /// chained PCH files.
   unsigned ShowHelp : 1;                   ///< Show the -help text.
   unsigned ShowMacrosInCodeCompletion : 1; ///< Show macros in code completion
                                            /// results.
   unsigned ShowCodePatternsInCodeCompletion : 1; ///< Show code patterns in code
                                                  /// completion results.
+  unsigned ShowGlobalSymbolsInCodeCompletion : 1; ///< Show top-level decls in
+                                                  /// code completion results.
   unsigned ShowStats : 1;                  ///< Show frontend performance
                                            /// metrics and statistics.
   unsigned ShowTimers : 1;                 ///< Show timers for individual
                                            /// actions.
   unsigned ShowVersion : 1;                ///< Show the -version text.
+  unsigned FixWhatYouCan : 1;              ///< Apply fixes even if there are
+                                           /// unfixable errors.
 
   /// The input files and their types.
   std::vector<std::pair<InputKind, std::string> > Inputs;
@@ -106,6 +110,9 @@ public:
   /// \brief The list of AST files to merge.
   std::vector<std::string> ASTMergeFiles;
 
+  /// \brief The list of modules to import.
+  std::vector<std::string> Modules;
+
   /// \brief A list of arguments to forward to LLVM's option processing; this
   /// should only be used for debugging and experimental features.
   std::vector<std::string> LLVMArgs;
@@ -121,6 +128,7 @@ public:
     ShowHelp = 0;
     ShowMacrosInCodeCompletion = 0;
     ShowCodePatternsInCodeCompletion = 0;
+    ShowGlobalSymbolsInCodeCompletion = 1;
     ShowStats = 0;
     ShowTimers = 0;
     ShowVersion = 0;

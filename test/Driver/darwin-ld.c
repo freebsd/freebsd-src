@@ -3,20 +3,6 @@
 // RUN: %clang -ccc-host-triple i386-apple-darwin9 -arch i386 -arch x86_64 %s -### -o foo 2> %t.log
 // RUN: grep '".*ld.*" .*"-arch_multiple" "-final_output" "foo"' %t.log
 
-// RUN: %clang -ccc-host-triple i386-apple-darwin9 -### -filelist FOO -static 2> %t.log
-// RUN: grep '"-lcrt0.o" .*"-lgcc_static"' %t.log
-// RUN: grep '"-lgcc"' %t.log | count 0
-// RUN: %clang -ccc-host-triple i386-apple-darwin7 -### -filelist FOO 2> %t.log
-// RUN: grep '"-lcrt1.o" .*"-lgcc" "-lSystem"' %t.log
-// RUN: grep '"-lgcc_s"' %t.log | count 0
-// RUN: %clang -ccc-host-triple i386-apple-darwin8 -### -filelist FOO 2> %t.log
-// RUN: grep '"-lcrt1.o" .*"-lgcc_s.10.4" "-lgcc" "-lSystem"' %t.log
-// RUN: %clang -ccc-host-triple i386-apple-darwin9 -### -filelist FOO 2> %t.log
-// RUN: grep '"-lcrt1.10.5.o" .*"-lgcc_s.10.5" "-lgcc" "-lSystem"' %t.log
-// RUN: %clang -ccc-host-triple i386-apple-darwin10 -### -filelist FOO 2> %t.log
-// RUN: grep '"-lcrt1.10.6.o" .*"-lSystem" "-lgcc"' %t.log
-// RUN: grep '"-lgcc_s"' %t.log | count 0
-
 // Make sure we run dsymutil on source input files.
 // RUN: %clang -ccc-host-triple i386-apple-darwin9 -### -g %s -o BAR 2> %t.log
 // RUN: grep '".*dsymutil" "BAR"' %t.log
@@ -82,3 +68,26 @@
 //
 // LINK_EXPLICIT_NO_PIE: ld"
 // LINK_EXPLICIT_NO_PIE: "-no_pie"
+
+// RUN: %clang -ccc-host-triple x86_64-apple-darwin10 -### %t.o \
+// RUN:   -mlinker-version=100 2> %t.log
+// RUN: FileCheck -check-prefix=LINK_NEWER_DEMANGLE %s < %t.log
+//
+// LINK_NEWER_DEMANGLE: ld"
+// LINK_NEWER_DEMANGLE: "-demangle"
+
+// RUN: %clang -ccc-host-triple x86_64-apple-darwin10 -### %t.o \
+// RUN:   -mlinker-version=100 -Wl,--no-demangle 2> %t.log
+// RUN: FileCheck -check-prefix=LINK_NEWER_NODEMANGLE %s < %t.log
+//
+// LINK_NEWER_NODEMANGLE: ld"
+// LINK_NEWER_NODEMANGLE-NOT: "-demangle"
+// LINK_NEWER_NODEMANGLE: "-lSystem"
+
+// RUN: %clang -ccc-host-triple x86_64-apple-darwin10 -### %t.o \
+// RUN:   -mlinker-version=95 2> %t.log
+// RUN: FileCheck -check-prefix=LINK_OLDER_NODEMANGLE %s < %t.log
+//
+// LINK_OLDER_NODEMANGLE: ld"
+// LINK_OLDER_NODEMANGLE-NOT: "-demangle"
+// LINK_OLDER_NODEMANGLE: "-lSystem"

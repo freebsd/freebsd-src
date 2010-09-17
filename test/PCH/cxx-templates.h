@@ -88,7 +88,8 @@ template<unsigned N>
 bool isInt(int x);
 
 template<> bool isInt<8>(int x) {
-    return true;
+  try { ++x; } catch(...) { --x; }
+  return true;
 }
 
 template<typename _CharT>
@@ -100,3 +101,37 @@ class basic_streambuf
   friend int __copy_streambufs_eof<>(int);
 };
 
+// PR 7660
+template<typename T> struct S_PR7660 { void g(void (*)(T)); };
+ template<> void S_PR7660<int>::g(void(*)(int)) {}
+
+// PR 7670
+template<typename> class C_PR7670;
+template<> class C_PR7670<int>;
+template<> class C_PR7670<int>;
+
+template <bool B>
+struct S2 {
+    static bool V;
+};
+
+extern template class S2<true>;
+
+template <typename T>
+struct S3 {
+    void m();
+};
+
+template <typename T>
+inline void S3<T>::m() { }
+
+template <typename T>
+struct S4 {
+    void m() { }
+};
+extern template struct S4<int>;
+
+void S4ImplicitInst() {
+    S4<int> s;
+    s.m();
+}

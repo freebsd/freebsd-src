@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
 // RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=basic -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
 // RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
 // RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
@@ -150,7 +150,7 @@ void f15(unsigned x, unsigned y) {
 
 int f16(int x) {
   x = x * 2;
-  x = sizeof(int [x = (x || x + 1) * 2]) // expected-warning{{Although the value stored to 'x' is used}}
+  x = sizeof(int [x = (x || x + 1) * 2]) // expected-warning{{Although the value stored to 'x' is used}} expected-warning{{The left operand to '*' is always 1}}
       ? 5 : 8;
   return x;
 }
@@ -158,7 +158,7 @@ int f16(int x) {
 // Self-assignments should not be flagged as dead stores.
 void f17() {
   int x = 1;
-  x = x; // no-warning
+  x = x;
 }
 
 // <rdar://problem/6506065>
@@ -458,7 +458,31 @@ void rdar8014335() {
     // Note that the next value stored to 'i' is never executed
     // because the next statement to be executed is the 'break'
     // in the increment code of the first loop.
-    i = i * 3; // expected-warning{{Value stored to 'i' is never read}}
+    i = i * 3; // expected-warning{{Value stored to 'i' is never read}} expected-warning{{The left operand to '*' is always 1}}
   }
+}
+
+// <rdar://problem/8320674> NullStmts followed by do...while() can lead to disconnected CFG
+//
+// This previously caused bogus dead-stores warnings because the body of the first do...while was
+// disconnected from the entry of the function.
+typedef struct { float r; float i; } s_rdar8320674;
+typedef struct { s_rdar8320674 x[1]; } s2_rdar8320674;
+
+void rdar8320674(s_rdar8320674 *z, unsigned y, s2_rdar8320674 *st, int m)
+{
+    s_rdar8320674 * z2;
+    s_rdar8320674 * tw1 = st->x;
+    s_rdar8320674 t;
+    z2 = z + m;
+    do{
+        ; ;
+        do{ (t).r = (*z2).r*(*tw1).r - (*z2).i*(*tw1).i; (t).i = (*z2).r*(*tw1).i + (*z2).i*(*tw1).r; }while(0);
+        tw1 += y;
+        do { (*z2).r=(*z).r-(t).r; (*z2).i=(*z).i-(t).i; }while(0);
+        do { (*z).r += (t).r; (*z).i += (t).i; }while(0);
+        ++z2;
+        ++z;
+    }while (--m);
 }
 

@@ -121,3 +121,33 @@ namespace test6 {
   }
 }
 
+// C++0x says it's okay to skip non-trivial initializers on static
+// locals, and we implement that in '03 as well.
+namespace test7 {
+  struct C { C(); };
+
+  void test() {
+    goto foo;
+    static C c;
+  foo:
+    return;
+  }
+}
+
+// PR7789
+namespace test8 {
+  void test1(int c) {
+    switch (c) {
+    case 0:
+      int x = 56; // expected-note {{jump bypasses variable initialization}}
+    case 1:       // expected-error {{switch case is in protected scope}}
+      x = 10;
+    }
+  }
+
+  void test2() {
+    goto l2;     // expected-error {{goto into protected scope}}
+  l1: int x = 5; // expected-note {{jump bypasses variable initialization}}
+  l2: x++;
+  }
+}

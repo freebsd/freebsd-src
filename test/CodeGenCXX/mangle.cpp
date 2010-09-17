@@ -507,3 +507,120 @@ namespace test13 {
   // CHECK: define weak_odr void @_ZN6test133fooINS_1BEEEvRKNS_1AIT_EE(
   template void foo(const A<B> &a);
 }
+
+namespace test14 {
+  extern "C" {
+    struct S {
+      static int a(), x;
+    };
+    // CHECK: define i32 @_ZN6test141S1aEv
+    // CHECK: load i32* @_ZN6test141S1xE
+    int S::a() { return S::x; }
+  }
+}
+
+// rdar://problem/8204122
+namespace test15 {
+  enum E { e = 3 };
+  template <int I> struct S {};
+
+  template <int I> void f(S<I + e>) {}
+
+  // CHECK: define weak_odr void @_ZN6test151fILi7EEEvNS_1SIXplT_LNS_1EE3EEEE(
+  template void f<7>(S<7 + e>);
+}
+
+// rdar://problem/8125400.  Don't crash.
+namespace test16 {
+  static union {};
+  static union { union {}; };
+  static union { struct {}; };
+  static union { union { union {}; }; };
+  static union { union { struct {}; }; };
+  static union { struct { union {}; }; };
+  static union { struct { struct {}; }; };
+}
+
+// rdar://problem/8302148
+namespace test17 {
+  template <int N> struct A {};
+
+  struct B {
+    static int foo(void);
+  };
+
+  template <class T> A<sizeof(T::foo())> func(void);
+
+  // CHECK: define void @_ZN6test174testEv()
+  // CHECK: call {{.*}} @_ZN6test174funcINS_1BEEENS_1AIXszclsrT_3fooEEEEv()
+  void test() {
+    func<B>();
+  }
+}
+
+// PR7891
+namespace test18 {
+  struct A {
+    int operator+();
+    int operator-();
+    int operator*();
+    int operator&();
+  };
+  template <int (A::*)()> struct S {};
+
+  template <typename T> void f(S<&T::operator+>) {}
+  template void f<A>(S<&A::operator+>);
+
+  template <typename T> void f(S<&T::operator- >) {}
+  template void f<A>(S<&A::operator- >);
+
+  template <typename T> void f(S<&T::operator*>) {}
+  template void f<A>(S<&A::operator*>);
+
+  template <typename T> void f(S<&T::operator&>) {}
+  template void f<A>(S<&A::operator&>);
+
+  // CHECK: define weak_odr void @_ZN6test181fINS_1AEEEvNS_1SIXadsrT_plEEE
+  // CHECK: define weak_odr void @_ZN6test181fINS_1AEEEvNS_1SIXadsrT_miEEE
+  // CHECK: define weak_odr void @_ZN6test181fINS_1AEEEvNS_1SIXadsrT_mlEEE
+  // CHECK: define weak_odr void @_ZN6test181fINS_1AEEEvNS_1SIXadsrT_anEEE
+}
+
+// rdar://problem/8332117
+namespace test19 {
+  struct A {
+    template <typename T> int f();
+    int operator+();
+    operator int();
+    template <typename T> int operator-();
+  };
+
+  template <int (A::*)()> struct S {};
+
+  template <typename T> void g (S<&T::template f<int> >) {}
+  template <typename T> void g (S<&T::operator+ >) {}
+  template <typename T> void g (S<&T::operator int>) {}
+  template <typename T> void g (S<&T::template operator- <double> >) {}
+
+  // CHECK: define weak_odr void @_ZN6test191gINS_1AEEEvNS_1SIXadsrT_1fIiEEEE(
+  template void g<A>(S<&A::f<int> >);
+  // CHECK: define weak_odr void @_ZN6test191gINS_1AEEEvNS_1SIXadsrT_plEEE(
+  template void g<A>(S<&A::operator+>);
+  // CHECK: define weak_odr void @_ZN6test191gINS_1AEEEvNS_1SIXadsrT_cviEEE(
+  template void g<A>(S<&A::operator int>);
+  // CHECK: define weak_odr void @_ZN6test191gINS_1AEEEvNS_1SIXadsrT_miIdEEEE(
+  template void g<A>(S<&A::operator-<double> >);
+}
+
+namespace test20 {
+  template <class T> T *f(const T&);
+  template <class T> T *f(T*);
+
+  // CHECK: define weak_odr void @_ZN6test205test0IiEEvDTcl1fIPT_ELi0EEE(
+  template <class T> void test0(decltype(f<T*>(0))) {}
+  template void test0<int>(decltype(f<int*>(0)));
+
+  // CHECK: define weak_odr void @_ZN6test205test1IiEEvDTcl1fIEcvT__EEE(
+  template <class T> void test1(decltype(f<>(T()))) {}
+  template void test1<int>(decltype(f<>(int())));
+}

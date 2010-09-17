@@ -124,8 +124,9 @@ class OnDiskChainedHashTableGenerator {
     Item *next;
     const uint32_t hash;
 
-    Item(typename Info::key_type_ref k, typename Info::data_type_ref d)
-    : key(k), data(d), next(0), hash(Info::ComputeHash(k)) {}
+    Item(typename Info::key_type_ref k, typename Info::data_type_ref d,
+         Info &InfoObj)
+    : key(k), data(d), next(0), hash(InfoObj.ComputeHash(k)) {}
   };
 
   class Bucket {
@@ -168,10 +169,17 @@ public:
 
   void insert(typename Info::key_type_ref key,
               typename Info::data_type_ref data) {
+    Info InfoObj;
+    insert(key, data, InfoObj);
+  }
+
+  void insert(typename Info::key_type_ref key,
+              typename Info::data_type_ref data, Info &InfoObj) {
 
     ++NumEntries;
     if (4*NumEntries >= 3*NumBuckets) resize(NumBuckets*2);
-    insert(Buckets, NumBuckets, new (BA.Allocate<Item>()) Item(key, data));
+    insert(Buckets, NumBuckets, new (BA.Allocate<Item>()) Item(key, data,
+                                                               InfoObj));
   }
 
   io::Offset Emit(llvm::raw_ostream &out) {
@@ -278,8 +286,8 @@ public:
       InfoPtr = &InfoObj;
 
     using namespace io;
-    const internal_key_type& iKey = Info::GetInternalKey(eKey);
-    unsigned key_hash = Info::ComputeHash(iKey);
+    const internal_key_type& iKey = InfoObj.GetInternalKey(eKey);
+    unsigned key_hash = InfoObj.ComputeHash(iKey);
 
     // Each bucket is just a 32-bit offset into the hash table file.
     unsigned idx = key_hash & (NumBuckets - 1);
@@ -326,6 +334,71 @@ public:
 
   iterator end() const { return iterator(); }
 
+  /// \brief Iterates over all the entries in the table, returning
+  /// a key/data pair.
+  class item_iterator {
+    const unsigned char* Ptr;
+    unsigned NumItemsInBucketLeft;
+    unsigned NumEntriesLeft;
+    Info *InfoObj;
+  public:
+    typedef std::pair<external_key_type, data_type> value_type;
+
+    item_iterator(const unsigned char* const Ptr, unsigned NumEntries,
+                  Info *InfoObj)
+      : Ptr(Ptr), NumItemsInBucketLeft(0), NumEntriesLeft(NumEntries),
+        InfoObj(InfoObj) { }
+    item_iterator()
+      : Ptr(0), NumItemsInBucketLeft(0), NumEntriesLeft(0), InfoObj(0) { }
+
+    bool operator==(const item_iterator& X) const {
+      return X.NumEntriesLeft == NumEntriesLeft;
+    }
+    bool operator!=(const item_iterator& X) const {
+      return X.NumEntriesLeft != NumEntriesLeft;
+    }
+    
+    item_iterator& operator++() {  // Preincrement
+      if (!NumItemsInBucketLeft) {
+        // 'Items' starts with a 16-bit unsigned integer representing the
+        // number of items in this bucket.
+        NumItemsInBucketLeft = io::ReadUnalignedLE16(Ptr);
+      }
+      Ptr += 4; // Skip the hash.
+      // Determine the length of the key and the data.
+      const std::pair<unsigned, unsigned>& L = Info::ReadKeyDataLength(Ptr);
+      Ptr += L.first + L.second;
+      assert(NumItemsInBucketLeft);
+      --NumItemsInBucketLeft;
+      assert(NumEntriesLeft);
+      --NumEntriesLeft;
+      return *this;
+    }
+    item_iterator operator++(int) {  // Postincrement
+      item_iterator tmp = *this; ++*this; return tmp;
+    }
+
+    value_type operator*() const {
+      const unsigned char* LocalPtr = Ptr;
+      if (!NumItemsInBucketLeft)
+        LocalPtr += 2; // number of items in bucket
+      LocalPtr += 4; // Skip the hash.
+
+      // Determine the length of the key and the data.
+      const std::pair<unsigned, unsigned>& L = Info::ReadKeyDataLength(LocalPtr);
+
+      // Read the key.
+      const internal_key_type& Key =
+        InfoObj->ReadKey(LocalPtr, L.first);
+      return std::make_pair(InfoObj->GetExternalKey(Key),
+                          InfoObj->ReadData(Key, LocalPtr + L.first, L.second));
+    }
+  };
+  
+  item_iterator item_begin() {
+    return item_iterator(Base + 4, getNumEntries(), &InfoObj);
+  }
+  item_iterator item_end() { return item_iterator(); }
 
   static OnDiskChainedHashTable* Create(const unsigned char* buckets,
                                         const unsigned char* const base,

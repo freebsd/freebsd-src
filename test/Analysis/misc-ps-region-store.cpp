@@ -132,3 +132,30 @@ int TestHandleThis::null_deref_positive() {
   return 0;  
 }
 
+// PR 7675 - passing literals by-reference
+void pr7675(const double &a);
+void pr7675(const int &a);
+void pr7675(const char &a);
+void pr7675_i(const _Complex double &a);
+
+void pr7675_test() {
+  pr7675(10.0);
+  pr7675(10);
+  pr7675('c');
+  pr7675_i(4.0i);
+  // Add null deref to ensure we are analyzing the code up to this point.
+  int *p = 0;
+  *p = 0xDEADBEEF; // expected-warning{{null pointer}}
+}
+
+// <rdar://problem/8375510> - CFGBuilder should handle temporaries.
+struct R8375510 {
+  R8375510();
+  ~R8375510();
+  R8375510 operator++(int);
+};
+
+int r8375510(R8375510 x, R8375510 y) {
+  for (; ; x++) { }
+}
+

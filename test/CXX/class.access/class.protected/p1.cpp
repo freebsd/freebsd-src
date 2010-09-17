@@ -68,7 +68,7 @@ namespace test1 {
 
 namespace test2 {
   class A {
-    protected: int x; // expected-note 3 {{declared}}
+    protected: int x; // expected-note 3 {{object type must derive}}
     static int sx;
     static void test(A&);
   };
@@ -103,7 +103,7 @@ namespace test2 {
 namespace test3 {
   class B;
   class A {
-    protected: int x; // expected-note {{declared}}
+    protected: int x; // expected-note {{object type must derive}}
     static int sx;
     static void test(B&);
   };
@@ -138,7 +138,7 @@ namespace test3 {
 namespace test4 {
   class C;
   class A {
-    protected: int x; // expected-note 3 {{declared}}
+    protected: int x; // expected-note {{declared}} expected-note 2 {{object type must derive}}
     static int sx;    // expected-note 3{{member is declared here}}
     static void test(C&);
   };
@@ -215,7 +215,7 @@ namespace test6 {
   class Static {};
   class A {
   protected:
-    void foo(int); // expected-note 3 {{declared}}
+    void foo(int); // expected-note 3 {{object type must derive}}
     void foo(long);
     static void foo(Static);
 
@@ -253,7 +253,7 @@ namespace test7 {
   class Static {};
   class A {
     protected:
-    void foo(int); // expected-note 3 {{declared}}
+    void foo(int); // expected-note 3 {{object type must derive}}
     void foo(long);
     static void foo(Static);
 
@@ -291,7 +291,7 @@ namespace test8 {
   class Static {};
   class A {
     protected:
-    void foo(int); // expected-note 3 {{declared}}
+    void foo(int); // expected-note 3 {{object type must derive}}
     void foo(long);
     static void foo(Static);
 
@@ -329,8 +329,7 @@ namespace test8 {
 
 namespace test9 {
   class A { // expected-note {{member is declared here}}
-  protected: int foo(); // expected-note 8 {{declared}} \
-    // expected-note {{member is declared here}}
+  protected: int foo(); // expected-note 4 {{declared}} expected-note 2 {{object type must derive}} expected-note {{object type 'test9::A' must derive}}
   };
 
   class B : public A { // expected-note {{member is declared here}}
@@ -338,7 +337,7 @@ namespace test9 {
   };
 
   class C : protected B { // expected-note {{declared}} \
-                          // expected-note 6 {{constrained}}
+                          // expected-note 9 {{constrained}}
   };
 
   class D : public A {
@@ -351,7 +350,7 @@ namespace test9 {
 
     static void test(B &b) {
       b.foo();
-      b.A::foo(); // expected-error {{'foo' is a protected member}}
+      b.A::foo();
       b.B::foo();
       b.C::foo(); // expected-error {{'foo' is a protected member}}
     }
@@ -359,8 +358,7 @@ namespace test9 {
     static void test(C &c) {
       c.foo();    // expected-error {{'foo' is a protected member}} \
                   // expected-error {{cannot cast}}
-      c.A::foo(); // expected-error {{'foo' is a protected member}} \
-                  // expected-error {{'A' is a protected member}} \
+      c.A::foo(); // expected-error {{'A' is a protected member}} \
                   // expected-error {{cannot cast}}
       c.B::foo(); // expected-error {{'B' is a protected member}} \
                   // expected-error {{cannot cast}}
@@ -387,4 +385,51 @@ namespace test10 {
   };
 
   template class A<int>;
+}
+
+// rdar://problem/8360285: class.protected friendship
+namespace test11 {
+  class A {
+  protected:
+    int foo();
+  };
+
+  class B : public A {
+    friend class C;
+  };
+
+  class C {
+    void test() {
+      B b;
+      b.A::foo();
+    }
+  };
+}
+
+// This friendship is considered because a public member of A would be
+// a private member of C.
+namespace test12 {
+  class A { protected: int foo(); };
+  class B : public virtual A {};
+  class C : private B { friend void test(); };
+  class D : private C, public virtual A {};
+
+  void test() {
+    D d;
+    d.A::foo();
+  }
+}
+
+// This friendship is not considered because a public member of A is
+// inaccessible in C.
+namespace test13 {
+  class A { protected: int foo(); }; // expected-note {{declared protected here}}
+  class B : private virtual A {};
+  class C : private B { friend void test(); };
+  class D : public virtual A {};
+
+  void test() {
+    D d;
+    d.A::foo(); // expected-error {{protected member}}
+  }
 }

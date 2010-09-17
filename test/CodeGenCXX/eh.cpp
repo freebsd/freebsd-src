@@ -39,6 +39,7 @@ void test2() {
 // CHECK:       [[FREEVAR:%.*]] = alloca i1
 // CHECK-NEXT:  [[EXNOBJVAR:%.*]] = alloca i8*
 // CHECK-NEXT:  [[EXNSLOTVAR:%.*]] = alloca i8*
+// CHECK-NEXT:  [[CLEANUPDESTVAR:%.*]] = alloca i32
 // CHECK-NEXT:  store i1 false, i1* [[FREEVAR]]
 // CHECK-NEXT:  [[EXNOBJ:%.*]] = call i8* @__cxa_allocate_exception(i64 16)
 // CHECK-NEXT:  store i8* [[EXNOBJ]], i8** [[EXNOBJVAR]]
@@ -124,6 +125,7 @@ namespace test7 {
 // CHECK-NEXT: [[EXNALLOCVAR:%.*]] = alloca i8*
 // CHECK-NEXT: [[CAUGHTEXNVAR:%.*]] = alloca i8*
 // CHECK-NEXT: [[INTCATCHVAR:%.*]] = alloca i32
+// CHECK-NEXT: [[EHCLEANUPDESTVAR:%.*]] = alloca i32
 // CHECK-NEXT: store i1 false, i1* [[FREEEXNOBJ]]
     try {
       try {
@@ -153,6 +155,7 @@ namespace test7 {
 // CHECK:      [[CAUGHTEXN:%.*]] = call i8* @llvm.eh.exception()
 // CHECK-NEXT: store i8* [[CAUGHTEXN]], i8** [[CAUGHTEXNVAR]]
 // CHECK-NEXT: call i32 (i8*, i8*, ...)* @llvm.eh.selector(i8* [[CAUGHTEXN]], i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*), i8* null)
+// CHECK-NEXT: store i32 1, i32* [[EHCLEANUPDESTVAR]]
 // CHECK-NEXT: call void @__cxa_end_catch()
 // CHECK-NEXT: br label
 // CHECK:      load i8** [[CAUGHTEXNVAR]]
@@ -247,5 +250,167 @@ namespace test10 {
     }
 
     // CHECK: call void @_ZN6test101AD1Ev(
+  }
+}
+
+// __cxa_begin_catch returns pointers by value, even when catching by reference
+// <rdar://problem/8212123>
+namespace test11 {
+  void opaque();
+
+  // CHECK: define void @_ZN6test113fooEv()
+  void foo() {
+    try {
+      // CHECK:      invoke void @_ZN6test116opaqueEv()
+      opaque();
+    } catch (int**&p) {
+      // CHECK:      [[EXN:%.*]] = load i8**
+      // CHECK-NEXT: call i8* @__cxa_begin_catch(i8* [[EXN]]) nounwind
+      // CHECK-NEXT: [[ADJ1:%.*]] = getelementptr i8* [[EXN]], i32 32
+      // CHECK-NEXT: [[ADJ2:%.*]] = bitcast i8* [[ADJ1]] to i32***
+      // CHECK-NEXT: store i32*** [[ADJ2]], i32**** [[P:%.*]]
+      // CHECK-NEXT: call void @__cxa_end_catch() nounwind
+    }
+  }
+
+  struct A {};
+
+  // CHECK: define void @_ZN6test113barEv()
+  void bar() {
+    try {
+      // CHECK:      [[EXNSLOT:%.*]] = alloca i8*
+      // CHECK-NEXT: [[P:%.*]] = alloca [[A:%.*]]**,
+      // CHECK-NEXT: [[TMP:%.*]] = alloca [[A]]*
+      // CHECK-NEXT: invoke void @_ZN6test116opaqueEv()
+      opaque();
+    } catch (A*&p) {
+      // CHECK:      [[EXN:%.*]] = load i8** [[EXNSLOT]]
+      // CHECK-NEXT: [[ADJ1:%.*]] = call i8* @__cxa_begin_catch(i8* [[EXN]]) nounwind
+      // CHECK-NEXT: [[ADJ2:%.*]] = bitcast i8* [[ADJ1]] to [[A]]*
+      // CHECK-NEXT: store [[A]]* [[ADJ2]], [[A]]** [[TMP]]
+      // CHECK-NEXT: store [[A]]** [[TMP]], [[A]]*** [[P]]
+      // CHECK-NEXT: call void @__cxa_end_catch() nounwind
+    }
+  }
+}
+
+// PR7686
+namespace test12 {
+  struct A { ~A(); };
+  bool opaque(const A&);
+
+  // CHECK: define void @_ZN6test124testEv()
+  void test() {
+    // CHECK: [[X:%.*]] = alloca [[A:%.*]],
+    // CHECK: [[EHCLEANUPDEST:%.*]] = alloca i32
+    // CHECK: [[Y:%.*]] = alloca [[A]]
+    // CHECK: [[Z:%.*]] = alloca [[A]]
+    // CHECK: [[CLEANUPDEST:%.*]] = alloca i32
+
+    A x;
+    // CHECK: invoke zeroext i1 @_ZN6test126opaqueERKNS_1AE(
+    if (opaque(x)) {
+      A y;
+      A z;
+
+      // CHECK: invoke void @_ZN6test121AD1Ev([[A]]* [[Z]])
+      // CHECK: invoke void @_ZN6test121AD1Ev([[A]]* [[Y]])
+
+      // It'd be great if something eliminated this switch.
+      // CHECK:      load i32* [[CLEANUPDEST]]
+      // CHECK-NEXT: switch i32
+      goto success;
+    }
+
+  success:
+    bool _ = true;
+
+    // CHECK: call void @_ZN6test121AD1Ev([[A]]* [[X]])
+    // CHECK-NEXT: ret void
+  }
+}
+
+// Reduced from some TableGen code that was causing a self-host crash.
+namespace test13 {
+  struct A { ~A(); };
+
+  void test0(int x) {
+    try {
+      switch (x) {
+      case 0:
+        break;
+      case 1:{
+        A a;
+        break;
+      }
+      default:
+        return;
+      }
+      return;
+    } catch (int x) {
+    }
+    return;
+  }
+
+  void test1(int x) {
+    A y;
+    try {
+      switch (x) {
+      default: break;
+      }
+    } catch (int x) {}
+  }
+}
+
+// rdar://problem/8231514
+namespace test14 {
+  struct A { ~A(); };
+  struct B { ~B(); };
+
+  B b();
+  void opaque();
+
+  void foo() {
+    A a;
+    try {
+      B str = b();
+      opaque();
+    } catch (int x) {
+    }
+  }
+}
+
+// rdar://problem/8231514
+// JumpDests shouldn't get confused by scopes that aren't normal cleanups.
+namespace test15 {
+  struct A { ~A(); };
+
+  bool opaque(int);
+
+  // CHECK: define void @_ZN6test153fooEv()
+  void foo() {
+    A a;
+
+    try {
+      // CHECK:      [[X:%.*]] = alloca i32
+      // CHECK:      store i32 10, i32* [[X]]
+      // CHECK-NEXT: br label
+      //   -> while.cond
+      int x = 10;
+
+      while (true) {
+        // CHECK:      load i32* [[X]]
+        // CHECK-NEXT: [[COND:%.*]] = invoke zeroext i1 @_ZN6test156opaqueEi
+        // CHECK:      br i1 [[COND]]
+        if (opaque(x))
+        // CHECK:      br label
+          break;
+
+        // CHECK:      br label
+      }
+      // CHECK:      br label
+    } catch (int x) { }
+
+    // CHECK: call void @_ZN6test151AD1Ev
   }
 }

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fblocks -triple i386-apple-darwin9 -emit-llvm -o %t %s
+// RUN: %clang_cc1 -w -fblocks -triple i386-apple-darwin9 -emit-llvm -o %t %s
 // RUN: FileCheck < %t %s
 
 // CHECK: define signext i8 @f0()
@@ -214,3 +214,17 @@ struct __attribute__((aligned(32))) s53 {
   int y;
 };
 void f53(struct s53 x) {}
+
+typedef unsigned short v2i16 __attribute__((__vector_size__(4)));
+
+// CHECK: define i32 @f54(i32 %arg.coerce)
+// rdar://8359483
+v2i16 f54(v2i16 arg) { return arg+arg; }
+
+
+typedef int v4i32 __attribute__((__vector_size__(16)));
+
+// CHECK: define <2 x i64> @f55(<4 x i32> %arg)
+// PR8029
+v4i32 f55(v4i32 arg) { return arg+arg; }
+

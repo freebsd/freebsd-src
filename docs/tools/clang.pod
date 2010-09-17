@@ -168,6 +168,10 @@ Enable support for Pascal-style strings with "\pfoo".
 
 Enable support for Microsoft extensions.
 
+=item B<-fborland-extensions>
+
+Enable support for Borland extensions.
+
 =item B<-fwritable-strings>
 
 Make all string literals default to writable.  This disables uniquing of
@@ -395,6 +399,7 @@ Show commands to run and use verbose output.
 B<-fshow-source-location>
 B<-fcaret-diagnostics>
 B<-fdiagnostics-fixit-info>
+B<-fdiagnostics-parseable-fixits>
 B<-fdiagnostics-print-source-range-info>
 B<-fprint-source-range-info>
 B<-fdiagnostics-show-option>
@@ -515,7 +520,6 @@ targets.
 
 =head1 BUGS
 
-Clang currently does not have C++ support, and this manual page is incomplete.
 To report bugs, please visit L<http://llvm.org/bugs/>.  Most bug reports should
 include preprocessed source files (use the B<-E> option) and the full output of 
 the compiler, along with information to reproduce.

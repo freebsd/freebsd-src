@@ -44,6 +44,11 @@ void test9(short v) {
 
   // PR7600: Pointers are implicitly casted to integers and back.
   void *old_ptr = __sync_val_compare_and_swap((void**)0, 0, 0);
+
+  // Ensure the return type is correct even when implicit casts are stripped
+  // away. This triggers an assertion while checking the comparison otherwise.
+  if (__sync_fetch_and_add(&old, 1) == 1) {
+  }
 }
 
 
@@ -74,4 +79,19 @@ void test12(void) {
 
 void test_unknown_builtin(int a, int b) {
   __builtin_foo(a, b); // expected-error{{use of unknown builtin}}
+}
+
+int test13() {
+  __builtin_eh_return(0, 0); // no warning, eh_return never returns.
+}
+
+// <rdar://problem/8228293>
+void test14() {
+  int old;
+  old = __sync_fetch_and_min((volatile int *)&old, 1);
+}
+
+// <rdar://problem/8336581>
+void test15(const char *s) {
+  __builtin_printf("string is %s\n", s);
 }

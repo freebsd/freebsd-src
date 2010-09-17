@@ -97,9 +97,7 @@ void f(Yb& a) {
 class AutoPtrRef { };
 
 class AutoPtr {
-  // FIXME: Using 'unavailable' since we do not have access control yet.
-  // FIXME: The error message isn't so good.
-  AutoPtr(AutoPtr &) __attribute__((unavailable)); // expected-note{{explicitly marked}}
+  AutoPtr(AutoPtr &); // expected-note{{declared private here}}
   
 public:
   AutoPtr();
@@ -115,7 +113,7 @@ AutoPtr test_auto_ptr(bool Cond) {
   
   AutoPtr p;
   if (Cond)
-    return p; // expected-error{{call to deleted constructor}}
+    return p; // expected-error{{calling a private constructor}}
   
   return AutoPtr();
 }
@@ -125,11 +123,12 @@ struct A1 {
   ~A1();
 
 private:
-  A1(const A1&) __attribute__((unavailable)); // expected-note{{here}}
+  A1(const A1&); // expected-note 2 {{declared private here}}
 };
 
 A1 f() {
-  return "Hello"; // expected-error{{invokes deleted constructor}}
+  // FIXME: redundant diagnostics!
+  return "Hello"; // expected-error {{calling a private constructor}} expected-warning {{an accessible copy constructor}}
 }
 
 namespace source_locations {
@@ -214,4 +213,115 @@ struct Other {
 
 void test_any() {
   Any any = Other(); // expected-error{{cannot pass object of non-POD type 'Other' through variadic constructor; call will abort at runtime}}
+}
+
+namespace PR7055 {
+  // Make sure that we don't allow too many conversions in an
+  // auto_ptr-like template. In particular, we can't create multiple
+  // temporary objects when binding to a reference.
+  struct auto_ptr {
+    struct auto_ptr_ref { };
+
+    auto_ptr(auto_ptr&);
+    auto_ptr(auto_ptr_ref);
+    explicit auto_ptr(int *);
+
+    operator auto_ptr_ref();
+  };
+
+  struct X {
+    X(auto_ptr);
+  };
+
+  X f() {
+    X x(auto_ptr(new int));
+    return X(auto_ptr(new int));
+  }
+
+  auto_ptr foo();
+
+  X e(foo());
+
+  struct Y {
+    Y(X);
+  };
+  
+  Y f2(foo());
+}
+
+namespace PR7934 {
+  typedef unsigned char uint8;
+
+  struct MutablePtr {
+    MutablePtr() : ptr(0) {}
+    void *ptr;
+
+    operator void*() { return ptr; }
+
+  private:
+    operator uint8*() { return reinterpret_cast<uint8*>(ptr); }
+    operator const char*() const { return reinterpret_cast<const char*>(ptr); }
+  };
+
+  void fake_memcpy(const void *);
+
+  void use() {
+    MutablePtr ptr;
+    fake_memcpy(ptr);
+  }
+}
+
+namespace rdar8018274 {
+  struct X { };
+  struct Y {
+    operator const struct X *() const;
+  };
+
+  struct Z : Y {
+    operator struct X * ();
+  };
+
+  void test() {
+    Z x;
+    (void) (x != __null);
+  }
+
+
+  struct Base {
+    operator int();
+  };
+
+  struct Derived1 : Base { };
+
+  struct Derived2 : Base { };
+
+  struct SuperDerived : Derived1, Derived2 { 
+    using Derived1::operator int;
+  };
+
+  struct UeberDerived : SuperDerived {
+    operator long();
+  };
+
+  void test2(UeberDerived ud) {
+    int i = ud; // expected-error{{ambiguous conversion from derived class 'rdar8018274::SuperDerived' to base class 'rdar8018274::Base'}}
+  }
+
+  struct Base2 {
+    operator int();
+  };
+
+  struct Base3 {
+    operator int();
+  };
+
+  struct Derived23 : Base2, Base3 { 
+    using Base2::operator int;
+  };
+
+  struct ExtraDerived23 : Derived23 { };
+
+  void test3(ExtraDerived23 ed) {
+    int i = ed;
+  }
 }

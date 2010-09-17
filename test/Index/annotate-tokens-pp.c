@@ -7,7 +7,25 @@ int BAR STILL_NOTHING;
 #include "foo.h"
 #undef BAR
 
-// RUN: c-index-test -test-annotate-tokens=%s:2:1:9:1 -I%S/Inputs %s | FileCheck %s
+#define REVERSE_MACRO(x,y) y + x
+#define TWICE_MACRO(y) y + y
+
+void test_macro_args() {
+  int z = 1;
+  int t = 2;
+  int k = REVERSE_MACRO(t,z);
+  int j = TWICE_MACRO(k + k);
+  int w = j + j;
+}
+
+#define fun_with_macro_bodies(x, y) do { if (x) y } while (0) 
+
+void test() {
+  int x = 10;
+  fun_with_macro_bodies(x, { int z = x; ++z; });
+}
+
+// RUN: c-index-test -test-annotate-tokens=%s:2:1:26:1 -I%S/Inputs %s | FileCheck %s
 // CHECK: Punctuation: "#" [2:1 - 2:2] preprocessing directive=
 // CHECK: Identifier: "define" [2:2 - 2:8] preprocessing directive=
 // CHECK: Identifier: "STILL_NOTHING" [2:9 - 2:22] macro definition=STILL_NOTHING
@@ -56,3 +74,114 @@ int BAR STILL_NOTHING;
 // CHECK: Punctuation: "#" [8:1 - 8:2] preprocessing directive=
 // CHECK: Identifier: "undef" [8:2 - 8:7] preprocessing directive=
 // CHECK: Identifier: "BAR" [8:8 - 8:11] preprocessing directive=
+// CHECK: Punctuation: "#" [10:1 - 10:2] preprocessing directive=
+// CHECK: Identifier: "define" [10:2 - 10:8] preprocessing directive=
+// CHECK: Identifier: "REVERSE_MACRO" [10:9 - 10:22] macro definition=REVERSE_MACRO
+// CHECK: Punctuation: "(" [10:22 - 10:23] preprocessing directive=
+// CHECK: Identifier: "x" [10:23 - 10:24] preprocessing directive=
+// CHECK: Punctuation: "," [10:24 - 10:25] preprocessing directive=
+// CHECK: Identifier: "y" [10:25 - 10:26] preprocessing directive=
+// CHECK: Punctuation: ")" [10:26 - 10:27] preprocessing directive=
+// CHECK: Identifier: "y" [10:28 - 10:29] preprocessing directive=
+// CHECK: Punctuation: "+" [10:30 - 10:31] preprocessing directive=
+// CHECK: Identifier: "x" [10:32 - 10:33] preprocessing directive=
+// CHECK: Punctuation: "#" [11:1 - 11:2] preprocessing directive=
+// CHECK: Identifier: "define" [11:2 - 11:8] preprocessing directive=
+// CHECK: Identifier: "TWICE_MACRO" [11:9 - 11:20] macro definition=TWICE_MACRO
+// CHECK: Punctuation: "(" [11:20 - 11:21] preprocessing directive=
+// CHECK: Identifier: "y" [11:21 - 11:22] preprocessing directive=
+// CHECK: Punctuation: ")" [11:22 - 11:23] preprocessing directive=
+// CHECK: Identifier: "y" [11:24 - 11:25] preprocessing directive=
+// CHECK: Punctuation: "+" [11:26 - 11:27] preprocessing directive=
+// CHECK: Identifier: "y" [11:28 - 11:29] preprocessing directive=
+// CHECK: Keyword: "void" [13:1 - 13:5] FunctionDecl=test_macro_args:13:6 (Definition)
+// CHECK: Identifier: "test_macro_args" [13:6 - 13:21] FunctionDecl=test_macro_args:13:6 (Definition)
+// CHECK: Punctuation: "(" [13:21 - 13:22] FunctionDecl=test_macro_args:13:6 (Definition)
+// CHECK: Punctuation: ")" [13:22 - 13:23] FunctionDecl=test_macro_args:13:6 (Definition)
+// CHECK: Punctuation: "{" [13:24 - 13:25] UnexposedStmt=
+// CHECK: Keyword: "int" [14:3 - 14:6] VarDecl=z:14:7 (Definition)
+// CHECK: Identifier: "z" [14:7 - 14:8] VarDecl=z:14:7 (Definition)
+// CHECK: Punctuation: "=" [14:9 - 14:10] VarDecl=z:14:7 (Definition)
+// CHECK: Literal: "1" [14:11 - 14:12] UnexposedExpr=
+// CHECK: Punctuation: ";" [14:12 - 14:13] UnexposedStmt=
+// CHECK: Keyword: "int" [15:3 - 15:6] VarDecl=t:15:7 (Definition)
+// CHECK: Identifier: "t" [15:7 - 15:8] VarDecl=t:15:7 (Definition)
+// CHECK: Punctuation: "=" [15:9 - 15:10] VarDecl=t:15:7 (Definition)
+// CHECK: Literal: "2" [15:11 - 15:12] UnexposedExpr=
+// CHECK: Punctuation: ";" [15:12 - 15:13] UnexposedStmt=
+// CHECK: Keyword: "int" [16:3 - 16:6] VarDecl=k:16:7 (Definition)
+// CHECK: Identifier: "k" [16:7 - 16:8] VarDecl=k:16:7 (Definition)
+// CHECK: Punctuation: "=" [16:9 - 16:10] VarDecl=k:16:7 (Definition)
+// CHECK: Identifier: "REVERSE_MACRO" [16:11 - 16:24] macro instantiation=REVERSE_MACRO:10:9
+// CHECK: Punctuation: "(" [16:24 - 16:25] UnexposedStmt=
+// CHECK: Identifier: "t" [16:25 - 16:26] DeclRefExpr=t:15:7
+// CHECK: Punctuation: "," [16:26 - 16:27] UnexposedStmt=
+// CHECK: Identifier: "z" [16:27 - 16:28] DeclRefExpr=z:14:7
+// CHECK: Punctuation: ")" [16:28 - 16:29] UnexposedStmt=
+// CHECK: Punctuation: ";" [16:29 - 16:30] UnexposedStmt=
+// CHECK: Keyword: "int" [17:3 - 17:6] VarDecl=j:17:7 (Definition)
+// CHECK: Identifier: "j" [17:7 - 17:8] VarDecl=j:17:7 (Definition)
+// CHECK: Punctuation: "=" [17:9 - 17:10] VarDecl=j:17:7 (Definition)
+// CHECK: Identifier: "TWICE_MACRO" [17:11 - 17:22] macro instantiation=TWICE_MACRO:11:9
+// CHECK: Punctuation: "(" [17:22 - 17:23] UnexposedStmt=
+// CHECK: Identifier: "k" [17:23 - 17:24] DeclRefExpr=k:16:7
+// CHECK: Punctuation: "+" [17:25 - 17:26] UnexposedStmt=
+// CHECK: Identifier: "k" [17:27 - 17:28] DeclRefExpr=k:16:7
+// CHECK: Punctuation: ")" [17:28 - 17:29] UnexposedStmt=
+// CHECK: Punctuation: ";" [17:29 - 17:30] UnexposedStmt=
+// CHECK: Keyword: "int" [18:3 - 18:6] VarDecl=w:18:7 (Definition)
+// CHECK: Identifier: "w" [18:7 - 18:8] VarDecl=w:18:7 (Definition)
+// CHECK: Punctuation: "=" [18:9 - 18:10] VarDecl=w:18:7 (Definition)
+// CHECK: Identifier: "j" [18:11 - 18:12] DeclRefExpr=j:17:7
+// CHECK: Punctuation: "+" [18:13 - 18:14] UnexposedExpr=
+// CHECK: Identifier: "j" [18:15 - 18:16] DeclRefExpr=j:17:7
+// CHECK: Punctuation: ";" [18:16 - 18:17] UnexposedStmt=
+// CHECK: Punctuation: "}" [19:1 - 19:2] UnexposedStmt=
+// CHECK: Punctuation: "#" [21:1 - 21:2] preprocessing directive=
+// CHECK: Identifier: "define" [21:2 - 21:8] preprocessing directive=
+// CHECK: Identifier: "fun_with_macro_bodies" [21:9 - 21:30] macro definition=fun_with_macro_bodies
+// CHECK: Punctuation: "(" [21:30 - 21:31] preprocessing directive=
+// CHECK: Identifier: "x" [21:31 - 21:32] preprocessing directive=
+// CHECK: Punctuation: "," [21:32 - 21:33] preprocessing directive=
+// CHECK: Identifier: "y" [21:34 - 21:35] preprocessing directive=
+// CHECK: Punctuation: ")" [21:35 - 21:36] preprocessing directive=
+// CHECK: Keyword: "do" [21:37 - 21:39] preprocessing directive=
+// CHECK: Punctuation: "{" [21:40 - 21:41] preprocessing directive=
+// CHECK: Keyword: "if" [21:42 - 21:44] preprocessing directive=
+// CHECK: Punctuation: "(" [21:45 - 21:46] preprocessing directive=
+// CHECK: Identifier: "x" [21:46 - 21:47] preprocessing directive=
+// CHECK: Punctuation: ")" [21:47 - 21:48] preprocessing directive=
+// CHECK: Identifier: "y" [21:49 - 21:50] preprocessing directive=
+// CHECK: Punctuation: "}" [21:51 - 21:52] preprocessing directive=
+// CHECK: Keyword: "while" [21:53 - 21:58] preprocessing directive=
+// CHECK: Punctuation: "(" [21:59 - 21:60] preprocessing directive=
+// CHECK: Literal: "0" [21:60 - 21:61] preprocessing directive=
+// CHECK: Punctuation: ")" [21:61 - 21:62] preprocessing directive=
+// CHECK: Keyword: "void" [23:1 - 23:5] FunctionDecl=test:23:6 (Definition)
+// CHECK: Identifier: "test" [23:6 - 23:10] FunctionDecl=test:23:6 (Definition)
+// CHECK: Punctuation: "(" [23:10 - 23:11] FunctionDecl=test:23:6 (Definition)
+// CHECK: Punctuation: ")" [23:11 - 23:12] FunctionDecl=test:23:6 (Definition)
+// CHECK: Punctuation: "{" [23:13 - 23:14] UnexposedStmt=
+// CHECK: Keyword: "int" [24:3 - 24:6] VarDecl=x:24:7 (Definition)
+// CHECK: Identifier: "x" [24:7 - 24:8] VarDecl=x:24:7 (Definition)
+// CHECK: Punctuation: "=" [24:9 - 24:10] VarDecl=x:24:7 (Definition)
+// CHECK: Literal: "10" [24:11 - 24:13] UnexposedExpr=
+// CHECK: Punctuation: ";" [24:13 - 24:14] UnexposedStmt=
+// CHECK: Identifier: "fun_with_macro_bodies" [25:3 - 25:24] macro instantiation=fun_with_macro_bodies:21:9
+// CHECK: Punctuation: "(" [25:24 - 25:25] UnexposedStmt=
+// CHECK: Identifier: "x" [25:25 - 25:26] DeclRefExpr=x:24:7
+// CHECK: Punctuation: "," [25:26 - 25:27] UnexposedStmt=
+// CHECK: Punctuation: "{" [25:28 - 25:29] UnexposedStmt=
+// CHECK: Keyword: "int" [25:30 - 25:33] UnexposedStmt=
+// CHECK: Identifier: "z" [25:34 - 25:35] VarDecl=z:25:3 (Definition)
+// CHECK: Punctuation: "=" [25:36 - 25:37] UnexposedStmt=
+// CHECK: Identifier: "x" [25:38 - 25:39] DeclRefExpr=x:24:7
+// CHECK: Punctuation: ";" [25:39 - 25:40] UnexposedStmt=
+// CHECK: Punctuation: "++" [25:41 - 25:43] UnexposedExpr=
+// CHECK: Identifier: "z" [25:43 - 25:44] DeclRefExpr=z:25:3
+// CHECK: Punctuation: ";" [25:44 - 25:45] UnexposedStmt=
+// CHECK: Punctuation: "}" [25:46 - 25:47] UnexposedStmt=
+// CHECK: Punctuation: ")" [25:47 - 25:48] UnexposedStmt=
+// CHECK: Punctuation: ";" [25:48 - 25:49] UnexposedStmt=
+// CHECK: Punctuation: "}" [26:1 - 26:2] UnexposedStmt=
+

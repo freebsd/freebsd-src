@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
+#include "CGCXXABI.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/Intrinsics.h"
 
@@ -30,9 +31,10 @@ static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
   QualType T = D.getType();
   bool isVolatile = Context.getCanonicalType(T).isVolatileQualified();
 
+  unsigned Alignment = Context.getDeclAlign(&D).getQuantity();
   if (!CGF.hasAggregateLLVMType(T)) {
     llvm::Value *V = CGF.EmitScalarExpr(Init);
-    CGF.EmitStoreOfScalar(V, DeclPtr, isVolatile, T);
+    CGF.EmitStoreOfScalar(V, DeclPtr, isVolatile, Alignment, T);
   } else if (T->isAnyComplexType()) {
     CGF.EmitComplexExprIntoAddr(Init, DeclPtr, isVolatile);
   } else {
@@ -45,19 +47,15 @@ static void EmitDeclDestroy(CodeGenFunction &CGF, const VarDecl &D,
   CodeGenModule &CGM = CGF.CGM;
   ASTContext &Context = CGF.getContext();
   
-  const Expr *Init = D.getInit();
   QualType T = D.getType();
-  if (!CGF.hasAggregateLLVMType(T) || T->isAnyComplexType())
-    return;
-                                
-  // Avoid generating destructor(s) for initialized objects. 
-  if (!isa<CXXConstructExpr>(Init))
-    return;
   
+  // Drill down past array types.
   const ConstantArrayType *Array = Context.getAsConstantArrayType(T);
   if (Array)
     T = Context.getBaseElementType(Array);
   
+  /// If that's not a record, we're done.
+  /// FIXME:  __attribute__((cleanup)) ?
   const RecordType *RT = T->getAs<RecordType>();
   if (!RT)
     return;
@@ -94,8 +92,9 @@ void CodeGenFunction::EmitCXXGlobalVarDeclInit(const VarDecl &D,
     return;
   }
 
+  unsigned Alignment = getContext().getDeclAlign(&D).getQuantity();
   RValue RV = EmitReferenceBindingToExpr(Init, &D);
-  EmitStoreOfScalar(RV.getScalarVal(), DeclPtr, false, T);
+  EmitStoreOfScalar(RV.getScalarVal(), DeclPtr, false, Alignment, T);
 }
 
 void
@@ -174,13 +173,26 @@ CodeGenModule::EmitCXXGlobalVarDeclInitFunc(const VarDecl *D) {
     unsigned int order = D->getAttr<InitPriorityAttr>()->getPriority();
     OrderGlobalInits Key(order, PrioritizedCXXGlobalInits.size());
     PrioritizedCXXGlobalInits.push_back(std::make_pair(Key, Fn));
+    DelayedCXXInitPosition.erase(D);
   }
-  else
-    CXXGlobalInits.push_back(Fn);
+  else {
+    llvm::DenseMap<const Decl *, unsigned>::iterator I =
+      DelayedCXXInitPosition.find(D);
+    if (I == DelayedCXXInitPosition.end()) {
+      CXXGlobalInits.push_back(Fn);
+    } else {
+      assert(CXXGlobalInits[I->second] == 0);
+      CXXGlobalInits[I->second] = Fn;
+      DelayedCXXInitPosition.erase(I);
+    }
+  }
 }
 
 void
 CodeGenModule::EmitCXXGlobalInitFunc() {
+  while (!CXXGlobalInits.empty() && !CXXGlobalInits.back())
+    CXXGlobalInits.pop_back();
+
   if (CXXGlobalInits.empty() && PrioritizedCXXGlobalInits.empty())
     return;
 
@@ -200,8 +212,7 @@ CodeGenModule::EmitCXXGlobalInitFunc() {
       llvm::Function *Fn = PrioritizedCXXGlobalInits[i].second;
       LocalCXXGlobalInits.push_back(Fn);
     }
-    for (unsigned i = 0; i < CXXGlobalInits.size(); i++)
-      LocalCXXGlobalInits.push_back(CXXGlobalInits[i]);
+    LocalCXXGlobalInits.append(CXXGlobalInits.begin(), CXXGlobalInits.end());
     CodeGenFunction(*this).GenerateCXXGlobalInitFunc(Fn,
                                                     &LocalCXXGlobalInits[0],
                                                     LocalCXXGlobalInits.size());
@@ -247,7 +258,8 @@ void CodeGenFunction::GenerateCXXGlobalInitFunc(llvm::Function *Fn,
                 SourceLocation());
 
   for (unsigned i = 0; i != NumDecls; ++i)
-    Builder.CreateCall(Decls[i]);
+    if (Decls[i])
+      Builder.CreateCall(Decls[i]);
 
   FinishFunction();
 }
@@ -316,6 +328,20 @@ static llvm::Constant *getGuardAbortFn(CodeGenFunction &CGF) {
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_guard_abort");
 }
 
+namespace {
+  struct CallGuardAbort : EHScopeStack::Cleanup {
+    llvm::GlobalVariable *Guard;
+    CallGuardAbort(llvm::GlobalVariable *Guard) : Guard(Guard) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      // It shouldn't be possible for this to throw, but if it can,
+      // this should allow for the possibility of an invoke.
+      CGF.Builder.CreateCall(getGuardAbortFn(CGF), Guard)
+        ->setDoesNotThrow();
+    }
+  };
+}
+
 void
 CodeGenFunction::EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
                                                llvm::GlobalVariable *GV) {
@@ -325,10 +351,10 @@ CodeGenFunction::EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
   bool ThreadsafeStatics = getContext().getLangOptions().ThreadsafeStatics;
   
   llvm::SmallString<256> GuardVName;
-  CGM.getMangleContext().mangleGuardVariable(&D, GuardVName);
+  CGM.getCXXABI().getMangleContext().mangleGuardVariable(&D, GuardVName);
 
   // Create the guard variable.
-  llvm::GlobalValue *GuardVariable =
+  llvm::GlobalVariable *GuardVariable =
     new llvm::GlobalVariable(CGM.getModule(), Int64Ty,
                              false, GV->getLinkage(),
                              llvm::Constant::getNullValue(Int64Ty),
@@ -360,23 +386,25 @@ CodeGenFunction::EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
                          InitBlock, EndBlock);
   
     // Call __cxa_guard_abort along the exceptional edge.
-    if (Exceptions) {
-      CleanupBlock Cleanup(*this, EHCleanup);
-      Builder.CreateCall(getGuardAbortFn(*this), GuardVariable);
-    }
+    if (Exceptions)
+      EHStack.pushCleanup<CallGuardAbort>(EHCleanup, GuardVariable);
     
     EmitBlock(InitBlock);
   }
 
   if (D.getType()->isReferenceType()) {
+    unsigned Alignment = getContext().getDeclAlign(&D).getQuantity();
     QualType T = D.getType();
     RValue RV = EmitReferenceBindingToExpr(D.getInit(), &D);
-    EmitStoreOfScalar(RV.getScalarVal(), GV, /*Volatile=*/false, T);
-
+    EmitStoreOfScalar(RV.getScalarVal(), GV, /*Volatile=*/false, Alignment, T);
   } else
     EmitDeclInit(*this, D, GV);
 
   if (ThreadsafeStatics) {
+    // Pop the guard-abort cleanup if we pushed one.
+    if (Exceptions)
+      PopCleanupBlock();
+
     // Call __cxa_guard_release.  This cannot throw.
     Builder.CreateCall(getGuardReleaseFn(*this), GuardVariable);    
   } else {

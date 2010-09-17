@@ -11,7 +11,19 @@ public:
 };
 
 void f1() {
-  // CHECK-SANE: declare noalias i8* @_Znwj(
-  // CHECK-SANENOT: declare i8* @_Znwj(
+  // SANE: declare noalias i8* @_Znwj(
+  // SANENOT: declare i8* @_Znwj(
   new teste();
+}
+
+
+// rdar://5739832 - operator new should check for overflow in multiply.
+void *f2(long N) {
+  return new int[N];
+  
+// SANE:      [[UWO:%.*]] = call {{.*}} @llvm.umul.with.overflow
+// SANE-NEXT: [[OVER:%.*]] = extractvalue {{.*}} [[UWO]], 1
+// SANE-NEXT: [[SUM:%.*]] = extractvalue {{.*}} [[UWO]], 0
+// SANE-NEXT: [[RESULT:%.*]] = select i1 [[OVER]], i32 -1, i32 [[SUM]]
+// SANE-NEXT: call noalias i8* @_Znaj(i32 [[RESULT]])
 }

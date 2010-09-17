@@ -64,13 +64,13 @@ int f4_b() {
   short array[2];
   uintptr_t x = array; // expected-warning{{incompatible pointer to integer conversion}}
   short *p = x; // expected-warning{{incompatible integer to pointer conversion}}
-  
+
   // The following branch should be infeasible.
-  if (!(p = &array[0])) {
+  if (!(p == &array[0])) { // expected-warning{{Both operands to '==' always have the same value}}
     p = 0;
     *p = 1; // no-warning
   }
-  
+
   if (p) {
     *p = 5; // no-warning
     p = 0;
@@ -80,7 +80,6 @@ int f4_b() {
   *p += 10; // expected-warning{{Dereference of null pointer}}
   return 0;
 }
-
 
 int f5() {
   
@@ -280,7 +279,7 @@ void f12(HF12ITEM i, char *q) {
 // Test handling of translating between integer "pointers" and back.
 void f13() {
   int *x = 0;
-  if (((((int) x) << 2) + 1) >> 1) *x = 1; // no-warning
+  if (((((int) x) << 2) + 1) >> 1) *x = 1;
 }
 
 // PR 4759 - Attribute non-null checking by the analyzer was not correctly

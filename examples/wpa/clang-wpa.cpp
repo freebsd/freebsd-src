@@ -62,6 +62,10 @@ public:
     return AST->getPreprocessor();
   }
 
+  virtual Diagnostic &getDiagnostic() {
+    return AST->getDiagnostics();
+  }
+
   virtual DeclReferenceMap &getDeclReferenceMap() {
     return DeclRefMap;
   }
@@ -87,7 +91,7 @@ int main(int argc, char **argv) {
     = CompilerInstance::createDiagnostics(DiagOpts, argc, argv);
   for (unsigned i = 0, e = InputFilenames.size(); i != e; ++i) {
     const std::string &InFile = InputFilenames[i];
-    llvm::OwningPtr<ASTUnit> AST(ASTUnit::LoadFromPCHFile(InFile, Diags));
+    llvm::OwningPtr<ASTUnit> AST(ASTUnit::LoadFromASTFile(InFile, Diags));
     if (!AST)
       return 1;
 
@@ -129,17 +133,18 @@ int main(int argc, char **argv) {
   AnalysisManager AMgr(TU->getASTContext(), PP.getDiagnostics(),
                        PP.getLangOptions(), /* PathDiagnostic */ 0,
                        CreateRegionStoreManager,
-                       CreateRangeConstraintManager,
+                       CreateRangeConstraintManager, &Idxer,
                        /* MaxNodes */ 300000, /* MaxLoop */ 3,
                        /* VisualizeEG */ false, /* VisualizeEGUbi */ false,
                        /* PurgeDead */ true, /* EagerlyAssume */ false,
-                       /* TrimGraph */ false, /* InlineCall */ true);
+                       /* TrimGraph */ false, /* InlineCall */ true, 
+                       /* UseUnoptimizedCFG */ false);
 
   GRTransferFuncs* TF = MakeCFRefCountTF(AMgr.getASTContext(), /*GC*/false,
                                          AMgr.getLangOptions());
   GRExprEngine Eng(AMgr, TF);
 
-  Eng.ExecuteWorkList(AMgr.getStackFrame(FD), AMgr.getMaxNodes());
+  Eng.ExecuteWorkList(AMgr.getStackFrame(FD, TU), AMgr.getMaxNodes());
   
   return 0;
 }

@@ -23,6 +23,7 @@ namespace clang {
 class ASTContext;
 class ASTUnit;
 class Attr;
+class CXXBaseSpecifier;
 class Decl;
 class Expr;
 class MacroDefinition;
@@ -31,6 +32,7 @@ class NamedDecl;
 class ObjCInterfaceDecl;
 class ObjCProtocolDecl;
 class Stmt;
+class TemplateDecl;
 class TypeDecl;
 
 namespace cxcursor {
@@ -70,10 +72,32 @@ std::pair<ObjCInterfaceDecl *, SourceLocation>
 
 /// \brief Create a type reference at the given location.
 CXCursor MakeCursorTypeRef(TypeDecl *Type, SourceLocation Loc, ASTUnit *TU);
-
+                               
 /// \brief Unpack a TypeRef cursor into the class it references
 /// and optionally the location where the reference occurred.
 std::pair<TypeDecl *, SourceLocation> getCursorTypeRef(CXCursor C);
+
+/// \brief Create a reference to a template at the given location.
+CXCursor MakeCursorTemplateRef(TemplateDecl *Template, SourceLocation Loc,
+                               ASTUnit *TU);
+
+/// \brief Unpack a TemplateRef cursor into the template it references and
+/// the location where the reference occurred.
+std::pair<TemplateDecl *, SourceLocation> getCursorTemplateRef(CXCursor C);
+
+/// \brief Create a reference to a namespace or namespace alias at the given 
+/// location.
+CXCursor MakeCursorNamespaceRef(NamedDecl *NS, SourceLocation Loc, ASTUnit *TU);
+
+/// \brief Unpack a NamespaceRef cursor into the namespace or namespace alias
+/// it references and the location where the reference occurred.
+std::pair<NamedDecl *, SourceLocation> getCursorNamespaceRef(CXCursor C);
+
+/// \brief Create a CXX base specifier cursor.
+CXCursor MakeCursorCXXBaseSpecifier(CXXBaseSpecifier *B, ASTUnit *TU);
+
+/// \brief Unpack a CXXBaseSpecifier cursor into a CXXBaseSpecifier.
+CXXBaseSpecifier *getCursorCXXBaseSpecifier(CXCursor C);
 
 /// \brief Create a preprocessing directive cursor.
 CXCursor MakePreprocessingDirectiveCursor(SourceRange Range, ASTUnit *TU);
@@ -98,6 +122,8 @@ MacroInstantiation *getCursorMacroInstantiation(CXCursor C);
 Decl *getCursorDecl(CXCursor Cursor);
 Expr *getCursorExpr(CXCursor Cursor);
 Stmt *getCursorStmt(CXCursor Cursor);
+Attr *getCursorAttr(CXCursor Cursor);
+
 ASTContext &getCursorContext(CXCursor Cursor);
 ASTUnit *getCursorASTUnit(CXCursor Cursor);
   

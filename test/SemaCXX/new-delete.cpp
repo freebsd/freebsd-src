@@ -310,3 +310,47 @@ namespace rdar8018245 {
   template int *f<X1>(); // expected-note{{in instantiation of}}
 
 }
+
+// <rdar://problem/8248780>
+namespace Instantiate {
+  template<typename T> struct X { 
+    operator T*();
+  };
+
+  void f(X<int> &xi) {
+    delete xi;
+  }
+}
+
+namespace PR7810 {
+  struct X {
+    // cv is ignored in arguments
+    static void operator delete(void *const);
+  };
+  struct Y {
+    // cv is ignored in arguments
+    static void operator delete(void *volatile);
+  };
+}
+
+// Don't crash on template delete operators
+namespace TemplateDestructors {
+  struct S {
+    virtual ~S() {}
+
+    void* operator new(const size_t size);
+    template<class T> void* operator new(const size_t, const int, T*);
+    void operator delete(void*, const size_t);
+    template<class T> void operator delete(void*, const size_t, const int, T*);
+  };
+}
+
+namespace DeleteParam {
+  struct X {
+    void operator delete(X*); // expected-error{{first parameter of 'operator delete' must have type 'void *'}}
+  };
+
+  struct Y {
+    void operator delete(void* const);
+  };
+}
