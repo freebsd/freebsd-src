@@ -64,7 +64,8 @@ endif
 
 ifeq ($(MAKECMDGOALS),install-clang)
   DIRS := tools/clang/tools/driver tools/clang/lib/Headers \
-          tools/clang/runtime tools/clang/docs
+          tools/clang/runtime tools/clang/docs \
+          tools/lto
   OPTIONAL_DIRS :=
   NO_INSTALL = 1
 endif
@@ -78,7 +79,8 @@ ifeq ($(MAKECMDGOALS),install-clang-c)
 endif
 
 ifeq ($(MAKECMDGOALS),clang-only)
-  DIRS := $(filter-out tools runtime docs unittests, $(DIRS)) tools/clang
+  DIRS := $(filter-out tools runtime docs unittests, $(DIRS)) \
+          tools/clang tools/lto
   OPTIONAL_DIRS :=
 endif
 
@@ -110,7 +112,8 @@ cross-compile-build-tools:
 		--host=$(BUILD_TRIPLE) --target=$(BUILD_TRIPLE); \
 	  cd .. ; \
 	fi; \
-        ($(MAKE) -C BuildTools \
+	(unset SDKROOT; \
+	 $(MAKE) -C BuildTools \
 	  BUILD_DIRS_ONLY=1 \
 	  UNIVERSAL= \
 	  ENABLE_OPTIMIZED=$(ENABLE_OPTIMIZED) \
@@ -167,7 +170,7 @@ FilesToConfig := \
   include/llvm/Config/AsmParsers.def \
   include/llvm/Config/Disassemblers.def \
   include/llvm/System/DataTypes.h \
-  tools/llvmc/plugins/Base/Base.td
+  tools/llvmc/src/Base.td
 FilesToConfigPATH  := $(addprefix $(LLVM_OBJ_ROOT)/,$(FilesToConfig))
 
 all-local:: $(FilesToConfigPATH)
@@ -191,9 +194,6 @@ endif
 
 check-llvm2cpp:
 	$(Verb)$(MAKE) check TESTSUITE=Feature RUNLLVM2CPP=1
-
-check-one:
-	$(Verb)$(MAKE) -C test check-one TESTONE=$(TESTONE)
 
 srpm: $(LLVM_OBJ_ROOT)/llvm.spec
 	rpmbuild -bs $(LLVM_OBJ_ROOT)/llvm.spec

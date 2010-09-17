@@ -1,7 +1,7 @@
 // Test for the OptionPreprocessor and related functionality.
 // RUN: tblgen -I %p/../../include --gen-llvmc %s -o %t
 // RUN: FileCheck -input-file %t %s
-// RUN: %compile_cxx -fexceptions -x c++ %t
+// RUN: %compile_cxx %t
 // XFAIL: vg_leak
 
 include "llvm/CompilerDriver/Common.td"
@@ -63,5 +63,5 @@ def dummy : Tool<
                 (not_empty "foo_l"), (error)))
 ]>;
 
-def Graph : CompilationGraph<[Edge<"root", "dummy">]>;
+def Graph : CompilationGraph<[(edge "root", "dummy")]>;
 

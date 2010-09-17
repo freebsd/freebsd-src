@@ -27,7 +27,7 @@ STATISTIC(NumPromoted, "Number of alloca's promoted");
 namespace {
   struct PromotePass : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
-    PromotePass() : FunctionPass(&ID) {}
+    PromotePass() : FunctionPass(ID) {}
 
     // runOnFunction - To run this pass, first we calculate the alloca
     // instructions that are safe for promotion, then we promote each one.
@@ -49,7 +49,8 @@ namespace {
 }  // end of anonymous namespace
 
 char PromotePass::ID = 0;
-static RegisterPass<PromotePass> X("mem2reg", "Promote Memory to Register");
+INITIALIZE_PASS(PromotePass, "mem2reg", "Promote Memory to Register",
+                false, false);
 
 bool PromotePass::runOnFunction(Function &F) {
   std::vector<AllocaInst*> Allocas;
@@ -81,8 +82,6 @@ bool PromotePass::runOnFunction(Function &F) {
   return Changed;
 }
 
-// Publically exposed interface to pass...
-const PassInfo *const llvm::PromoteMemoryToRegisterID = &X;
 // createPromoteMemoryToRegister - Provide an entry point to create this pass.
 //
 FunctionPass *llvm::createPromoteMemoryToRegisterPass() {

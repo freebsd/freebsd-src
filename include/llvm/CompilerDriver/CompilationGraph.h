@@ -36,7 +36,7 @@ namespace llvmc {
   public:
 
     /// GetLanguage -  Find the language name corresponding to a given file.
-    const std::string& GetLanguage(const llvm::sys::Path&) const;
+    const std::string* GetLanguage(const llvm::sys::Path&) const;
   };
 
   /// Edge - Represents an edge of the compilation graph.
@@ -46,7 +46,7 @@ namespace llvmc {
     virtual ~Edge() {}
 
     const std::string& ToolName() const { return ToolName_; }
-    virtual unsigned Weight(const InputLanguagesSet& InLangs) const = 0;
+    virtual int Weight(const InputLanguagesSet& InLangs) const = 0;
   private:
     std::string ToolName_;
   };
@@ -55,7 +55,7 @@ namespace llvmc {
   class SimpleEdge : public Edge {
   public:
     SimpleEdge(const std::string& T) : Edge(T) {}
-    unsigned Weight(const InputLanguagesSet&) const { return 1; }
+    int Weight(const InputLanguagesSet&) const { return 1; }
   };
 
   /// Node - A node (vertex) of the compilation graph.
@@ -132,32 +132,32 @@ namespace llvmc {
     void insertNode(Tool* T);
 
     /// insertEdge - Insert a new edge into the graph. Takes ownership
-    /// of the Edge object.
-    void insertEdge(const std::string& A, Edge* E);
+    /// of the Edge object. Returns non-zero value on error.
+    int insertEdge(const std::string& A, Edge* E);
 
-    /// Build - Build target(s) from the input file set. Command-line
-    /// options are passed implicitly as global variables.
+    /// Build - Build target(s) from the input file set. Command-line options
+    /// are passed implicitly as global variables. Returns non-zero value on
+    /// error (usually the failed program's exit code).
     int Build(llvm::sys::Path const& TempDir, const LanguageMap& LangMap);
 
-    /// Check - Check the compilation graph for common errors like
-    /// cycles, input/output language mismatch and multiple default
-    /// edges. Prints error messages and in case it finds any errors.
+    /// Check - Check the compilation graph for common errors like cycles,
+    /// input/output language mismatch and multiple default edges. Prints error
+    /// messages and in case it finds any errors.
     int Check();
 
-    /// getNode - Return a reference to the node correponding to the
-    /// given tool name. Throws std::runtime_error.
-    Node& getNode(const std::string& ToolName);
-    const Node& getNode(const std::string& ToolName) const;
+    /// getNode - Return a reference to the node corresponding to the given tool
+    /// name. Returns 0 on error.
+    Node* getNode(const std::string& ToolName);
+    const Node* getNode(const std::string& ToolName) const;
 
-    /// viewGraph - This function is meant for use from the debugger.
-    /// You can just say 'call G->viewGraph()' and a ghostview window
-    /// should pop up from the program, displaying the compilation
-    /// graph. This depends on there being a 'dot' and 'gv' program
-    /// in your path.
+    /// viewGraph - This function is meant for use from the debugger. You can
+    /// just say 'call G->viewGraph()' and a ghostview window should pop up from
+    /// the program, displaying the compilation graph. This depends on there
+    /// being a 'dot' and 'gv' program in your path.
     void viewGraph();
 
     /// writeGraph - Write Graphviz .dot source file to the current direcotry.
-    void writeGraph(const std::string& OutputFilename);
+    int writeGraph(const std::string& OutputFilename);
 
     // GraphTraits support.
     friend NodesIterator GraphBegin(CompilationGraph*);
@@ -167,16 +167,15 @@ namespace llvmc {
     // Helper functions.
 
     /// getToolsVector - Return a reference to the list of tool names
-    /// corresponding to the given language name. Throws
-    /// std::runtime_error.
-    const tools_vector_type& getToolsVector(const std::string& LangName) const;
+    /// corresponding to the given language name. Returns 0 on error.
+    const tools_vector_type* getToolsVector(const std::string& LangName) const;
 
-    /// PassThroughGraph - Pass the input file through the toolchain
-    /// starting at StartNode.
-    void PassThroughGraph (const llvm::sys::Path& In, const Node* StartNode,
-                           const InputLanguagesSet& InLangs,
-                           const llvm::sys::Path& TempDir,
-                           const LanguageMap& LangMap) const;
+    /// PassThroughGraph - Pass the input file through the toolchain starting at
+    /// StartNode.
+    int PassThroughGraph (const llvm::sys::Path& In, const Node* StartNode,
+                          const InputLanguagesSet& InLangs,
+                          const llvm::sys::Path& TempDir,
+                          const LanguageMap& LangMap) const;
 
     /// FindToolChain - Find head of the toolchain corresponding to
     /// the given file.
@@ -185,26 +184,32 @@ namespace llvmc {
                               InputLanguagesSet& InLangs,
                               const LanguageMap& LangMap) const;
 
-    /// BuildInitial - Traverse the initial parts of the toolchains.
-    void BuildInitial(InputLanguagesSet& InLangs,
-                      const llvm::sys::Path& TempDir,
-                      const LanguageMap& LangMap);
+    /// BuildInitial - Traverse the initial parts of the toolchains. Returns
+    /// non-zero value on error.
+    int BuildInitial(InputLanguagesSet& InLangs,
+                     const llvm::sys::Path& TempDir,
+                     const LanguageMap& LangMap);
 
-    /// TopologicalSort - Sort the nodes in topological order.
-    void TopologicalSort(std::vector<const Node*>& Out);
-    /// TopologicalSortFilterJoinNodes - Call TopologicalSort and
-    /// filter the resulting list to include only Join nodes.
-    void TopologicalSortFilterJoinNodes(std::vector<const Node*>& Out);
+    /// TopologicalSort - Sort the nodes in topological order. Returns non-zero
+    /// value on error.
+    int TopologicalSort(std::vector<const Node*>& Out);
+    /// TopologicalSortFilterJoinNodes - Call TopologicalSort and filter the
+    /// resulting list to include only Join nodes. Returns non-zero value on
+    /// error.
+    int TopologicalSortFilterJoinNodes(std::vector<const Node*>& Out);
 
     // Functions used to implement Check().
 
-    /// CheckLanguageNames - Check that output/input language names
-    /// match for all nodes.
+    /// CheckLanguageNames - Check that output/input language names match for
+    /// all nodes. Returns non-zero value on error (number of errors
+    /// encountered).
     int CheckLanguageNames() const;
-    /// CheckMultipleDefaultEdges - check that there are no multiple
-    /// default default edges.
+    /// CheckMultipleDefaultEdges - check that there are no multiple default
+    /// default edges. Returns non-zero value on error (number of errors
+    /// encountered).
     int CheckMultipleDefaultEdges() const;
-    /// CheckCycles - Check that there are no cycles in the graph.
+    /// CheckCycles - Check that there are no cycles in the graph. Returns
+    /// non-zero value on error (number of errors encountered).
     int CheckCycles();
 
   };
@@ -270,7 +275,7 @@ namespace llvmc {
     }
 
     inline pointer operator*() const {
-      return &OwningGraph->getNode((*EdgeIter)->ToolName());
+      return OwningGraph->getNode((*EdgeIter)->ToolName());
     }
     inline pointer operator->() const {
       return this->operator*();
@@ -301,7 +306,7 @@ namespace llvm {
     typedef llvmc::NodeChildIterator ChildIteratorType;
 
     static NodeType* getEntryNode(GraphType* G) {
-      return &G->getNode("root");
+      return G->getNode("root");
     }
 
     static ChildIteratorType child_begin(NodeType* N) {

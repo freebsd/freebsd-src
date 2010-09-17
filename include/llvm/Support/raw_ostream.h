@@ -58,10 +58,6 @@ private:
     ExternalBuffer
   } BufferMode;
 
-  /// Error This flag is true if an error of any kind has been detected.
-  ///
-  bool Error;
-
 public:
   // color order matches ANSI escape sequence, don't change
   enum Colors {
@@ -77,7 +73,7 @@ public:
   };
 
   explicit raw_ostream(bool unbuffered=false)
-    : BufferMode(unbuffered ? Unbuffered : InternalBuffer), Error(false) {
+    : BufferMode(unbuffered ? Unbuffered : InternalBuffer) {
     // Start out ready to flush.
     OutBufStart = OutBufEnd = OutBufCur = 0;
   }
@@ -86,21 +82,6 @@ public:
 
   /// tell - Return the current offset with the file.
   uint64_t tell() const { return current_pos() + GetNumBytesInBuffer(); }
-
-  /// has_error - Return the value of the flag in this raw_ostream indicating
-  /// whether an output error has been encountered.
-  /// This doesn't implicitly flush any pending output.
-  bool has_error() const {
-    return Error;
-  }
-
-  /// clear_error - Set the flag read by has_error() to false. If the error
-  /// flag is set at the time when this raw_ostream's destructor is called,
-  /// report_fatal_error is called to report the error. Use clear_error()
-  /// after handling the error to avoid this behavior.
-  void clear_error() {
-    Error = false;
-  }
 
   //===--------------------------------------------------------------------===//
   // Configuration Interface
@@ -234,7 +215,7 @@ public:
   /// @param bold bold/brighter text, default false
   /// @param bg if true change the background, default: change foreground
   /// @returns itself so it can be used within << invocations
-  virtual raw_ostream &changeColor(enum Colors, bool = false, bool = false) { 
+  virtual raw_ostream &changeColor(enum Colors, bool = false, bool = false) {
     return *this; }
 
   /// Resets the colors to terminal defaults. Call this when you are done
@@ -285,10 +266,6 @@ protected:
   /// underlying output mechanism.
   virtual size_t preferred_buffer_size() const;
 
-  /// error_detected - Set the flag indicating that an output error has
-  /// been encountered.
-  void error_detected() { Error = true; }
-
   /// getBufferStart - Return the beginning of the current stream buffer, or 0
   /// if the stream is unbuffered.
   const char *getBufferStart() const { return OutBufStart; }
@@ -319,6 +296,11 @@ private:
 class raw_fd_ostream : public raw_ostream {
   int FD;
   bool ShouldClose;
+
+  /// Error This flag is true if an error of any kind has been detected.
+  ///
+  bool Error;
+
   uint64_t pos;
 
   /// write_impl - See raw_ostream::write_impl.
@@ -330,6 +312,10 @@ class raw_fd_ostream : public raw_ostream {
 
   /// preferred_buffer_size - Determine an efficient buffer size.
   virtual size_t preferred_buffer_size() const;
+
+  /// error_detected - Set the flag indicating that an output error has
+  /// been encountered.
+  void error_detected() { Error = true; }
 
 public:
 
@@ -353,8 +339,11 @@ public:
   /// be immediately destroyed; the string will be empty if no error occurred.
   /// This allows optional flags to control how the file will be opened.
   ///
-  /// \param Filename - The file to open. If this is "-" then the
-  /// stream will use stdout instead.
+  /// As a special case, if Filename is "-", then the stream will use
+  /// STDOUT_FILENO instead of opening a file. Note that it will still consider
+  /// itself to own the file descriptor. In particular, it will close the
+  /// file descriptor when it is done (this is necessary to detect
+  /// output errors).
   raw_fd_ostream(const char *Filename, std::string &ErrorInfo,
                  unsigned Flags = 0);
 
@@ -362,15 +351,17 @@ public:
   /// ShouldClose is true, this closes the file when the stream is destroyed.
   raw_fd_ostream(int fd, bool shouldClose,
                  bool unbuffered=false) : raw_ostream(unbuffered), FD(fd),
-                                          ShouldClose(shouldClose) {}
+                                          ShouldClose(shouldClose),
+                                          Error(false) {}
 
   ~raw_fd_ostream();
 
   /// close - Manually flush the stream and close the file.
+  /// Note that this does not call fsync.
   void close();
 
   /// seek - Flushes the stream and repositions the underlying file descriptor
-  ///  positition to the offset specified from the beginning of the file.
+  /// positition to the offset specified from the beginning of the file.
   uint64_t seek(uint64_t off);
 
   virtual raw_ostream &changeColor(enum Colors colors, bool bold=false,
@@ -378,24 +369,27 @@ public:
   virtual raw_ostream &resetColor();
 
   virtual bool is_displayed() const;
-};
 
-/// raw_stdout_ostream - This is a stream that always prints to stdout.
-///
-class raw_stdout_ostream : public raw_fd_ostream {
-  // An out of line virtual method to provide a home for the class vtable.
-  virtual void handle();
-public:
-  raw_stdout_ostream();
-};
+  /// has_error - Return the value of the flag in this raw_fd_ostream indicating
+  /// whether an output error has been encountered.
+  /// This doesn't implicitly flush any pending output.  Also, it doesn't
+  /// guarantee to detect all errors unless the the stream has been closed.
+  bool has_error() const {
+    return Error;
+  }
 
-/// raw_stderr_ostream - This is a stream that always prints to stderr.
-///
-class raw_stderr_ostream : public raw_fd_ostream {
-  // An out of line virtual method to provide a home for the class vtable.
-  virtual void handle();
-public:
-  raw_stderr_ostream();
+  /// clear_error - Set the flag read by has_error() to false. If the error
+  /// flag is set at the time when this raw_ostream's destructor is called,
+  /// report_fatal_error is called to report the error. Use clear_error()
+  /// after handling the error to avoid this behavior.
+  ///
+  ///   "Errors should never pass silently.
+  ///    Unless explicitly silenced."
+  ///      - from The Zen of Python, by Tim Peters
+  ///
+  void clear_error() {
+    Error = false;
+  }
 };
 
 /// outs() - This returns a reference to a raw_ostream for standard output.
@@ -461,7 +455,7 @@ public:
   /// outside of the raw_svector_ostream's control.  It is only safe to do this
   /// if the raw_svector_ostream has previously been flushed.
   void resync();
-  
+
   /// str - Flushes the stream contents to the target vector and return a
   /// StringRef for the vector contents.
   StringRef str();
@@ -479,6 +473,45 @@ class raw_null_ostream : public raw_ostream {
 public:
   explicit raw_null_ostream() {}
   ~raw_null_ostream();
+};
+
+/// tool_output_file - This class contains a raw_fd_ostream and adds a
+/// few extra features commonly needed for compiler-like tool output files:
+///   - The file is automatically deleted if the process is killed.
+///   - The file is automatically deleted when the tool_output_file
+///     object is destroyed unless the client calls keep().
+class tool_output_file {
+  /// Installer - This class is declared before the raw_fd_ostream so that
+  /// it is constructed before the raw_fd_ostream is constructed and
+  /// destructed after the raw_fd_ostream is destructed. It installs
+  /// cleanups in its constructor and uninstalls them in its destructor.
+  class CleanupInstaller {
+    /// Filename - The name of the file.
+    std::string Filename;
+  public:
+    /// Keep - The flag which indicates whether we should not delete the file.
+    bool Keep;
+
+    explicit CleanupInstaller(const char *filename);
+    ~CleanupInstaller();
+  } Installer;
+
+  /// OS - The contained stream. This is intentionally declared after
+  /// Installer.
+  raw_fd_ostream OS;
+
+public:
+  /// tool_output_file - This constructor's arguments are passed to
+  /// to raw_fd_ostream's constructor.
+  tool_output_file(const char *filename, std::string &ErrorInfo,
+                   unsigned Flags = 0);
+
+  /// os - Return the contained raw_fd_ostream.
+  raw_fd_ostream &os() { return OS; }
+
+  /// keep - Indicate that the tool's job wrt this output file has been
+  /// successful and the file should not be deleted.
+  void keep() { Installer.Keep = true; }
 };
 
 } // end llvm namespace

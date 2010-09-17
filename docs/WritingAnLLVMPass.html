@@ -290,7 +290,7 @@ function.</p>
 initialization value is not important.</p>
 
 <div class="doc_code"><pre>
-  RegisterPass&lt;Hello&gt; X("<i>hello</i>", "<i>Hello World Pass</i>",
+  INITIALIZE_PASS(Hello, "<i>hello</i>", "<i>Hello World Pass</i>",
                         false /* Only looks at CFG */,
                         false /* Analysis Pass */);
 }  <i>// end of anonymous namespace</i>
@@ -299,7 +299,7 @@ initialization value is not important.</p>
 <p>Lastly, we <a href="#registration">register our class</a> <tt>Hello</tt>, 
 giving it a command line
 argument "<tt>hello</tt>", and a name "<tt>Hello World Pass</tt>".
-Last two RegisterPass arguments are optional. Their default value is false.
+Last two arguments describe its behavior.
 If a pass walks CFG without modifying it then third argument is set to true. 
 If  a pass is an analysis pass, for example dominator tree pass, then true 
 is supplied as fourth argument. </p>
@@ -326,8 +326,9 @@ is supplied as fourth argument. </p>
   };
   
   char Hello::ID = 0;
-  RegisterPass&lt;Hello&gt; X("<i>hello</i>", "<i>Hello World Pass</i>");
+  INITIALIZE_PASS(Hello, "<i>Hello</i>", "<i>Hello World Pass</i>", false, false);
 }
+
 </pre></div>
 
 <p>Now that it's all together, compile the file with a simple "<tt>gmake</tt>"
@@ -348,7 +349,7 @@ them) to be useful.</p>
 
 <p>Now that you have a brand new shiny shared object file, we can use the
 <tt>opt</tt> command to run an LLVM program through your pass.  Because you
-registered your pass with the <tt>RegisterPass</tt> template, you will be able to
+registered your pass with the <tt>INITIALIZE_PASS</tt> macro, you will be able to
 use the <tt>opt</tt> tool to access it, once loaded.</p>
 
 <p>To test it, follow the example at the end of the <a
@@ -966,9 +967,8 @@ remember, you may not modify the LLVM <tt>Function</tt> or its contents from a
 pass registration works, and discussed some of the reasons that it is used and
 what it does.  Here we discuss how and why passes are registered.</p>
 
-<p>As we saw above, passes are registered with the <b><tt>RegisterPass</tt></b>
-template, which requires you to pass at least two
-parameters.  The first parameter is the name of the pass that is to be used on
+<p>As we saw above, passes are registered with the <b><tt>INITIALIZE_PASS</tt></b>
+macro.  The first parameter is the name of the pass that is to be used on
 the command line to specify that the pass should be added to a program (for
 example, with <tt>opt</tt> or <tt>bugpoint</tt>).  The second argument is the
 name of the pass, which is to be used for the <tt>-help</tt> output of
@@ -1247,7 +1247,7 @@ between passes</a> still apply.</p>
 
 <p>Although <a href="#registration">Pass Registration</a> is optional for normal
 passes, all analysis group implementations must be registered, and must use the
-<A href="#registerag"><tt>RegisterAnalysisGroup</tt></a> template to join the
+<A href="#registerag"><tt>INITIALIZE_AG_PASS</tt></a> template to join the
 implementation pool.  Also, a default implementation of the interface
 <b>must</b> be registered with <A
 href="#registerag"><tt>RegisterAnalysisGroup</tt></a>.</p>
@@ -1283,8 +1283,10 @@ hypothetical example) instead.</p>
 <div class="doc_text">
 
 <p>The <tt>RegisterAnalysisGroup</tt> template is used to register the analysis
-group itself as well as add pass implementations to the analysis group.  First,
-an analysis should be registered, with a human readable name provided for it.
+group itself, while the <tt>INITIALIZE_AG_PASS</tt> is used to add pass
+implementations to the analysis group.  First,
+an analysis group should be registered, with a human readable name
+provided for it.
 Unlike registration of passes, there is no command line argument to be specified
 for the Analysis Group Interface itself, because it is "abstract":</p>
 
@@ -1297,35 +1299,36 @@ implementations of the interface by using the following code:</p>
 
 <div class="doc_code"><pre>
 <b>namespace</b> {
-  //<i> Analysis Group implementations <b>must</b> be registered normally...</i>
-  RegisterPass&lt;FancyAA&gt;
-  B("<i>somefancyaa</i>", "<i>A more complex alias analysis implementation</i>");
-
   //<i> Declare that we implement the AliasAnalysis interface</i>
-  RegisterAnalysisGroup&lt;<a href="http://llvm.org/doxygen/classllvm_1_1AliasAnalysis.html">AliasAnalysis</a>&gt; C(B);
+  INITIALIZE_AG_PASS(FancyAA, <a href="http://llvm.org/doxygen/classllvm_1_1AliasAnalysis.html">AliasAnalysis</a>, "<i>somefancyaa</i>",
+                     "<i>A more complex alias analysis implementation</i>",
+                     false, // <i>Is CFG Only?</i>
+                     true,  // <i>Is Analysis?</i>
+                     false, // <i>Is default Analysis Group implementation?</i>
+                    );
 }
 </pre></div>
 
-<p>This just shows a class <tt>FancyAA</tt> that is registered normally, then
-uses the <tt>RegisterAnalysisGroup</tt> template to "join" the <tt><a
-href="http://llvm.org/doxygen/classllvm_1_1AliasAnalysis.html">AliasAnalysis</a></tt>
+<p>This just shows a class <tt>FancyAA</tt> that 
+uses the <tt>INITIALIZE_AG_PASS</tt> macro both to register and
+to "join" the <tt><a href="http://llvm.org/doxygen/classllvm_1_1AliasAnalysis.html">AliasAnalysis</a></tt>
 analysis group.  Every implementation of an analysis group should join using
-this template.  A single pass may join multiple different analysis groups with
-no problem.</p>
+this macro.</p>
 
 <div class="doc_code"><pre>
 <b>namespace</b> {
-  //<i> Analysis Group implementations <b>must</b> be registered normally...</i>
-  RegisterPass&lt;<a href="http://llvm.org/doxygen/structBasicAliasAnalysis.html">BasicAliasAnalysis</a>&gt;
-  D("<i>basicaa</i>", "<i>Basic Alias Analysis (default AA impl)</i>");
-
   //<i> Declare that we implement the AliasAnalysis interface</i>
-  RegisterAnalysisGroup&lt;<a href="http://llvm.org/doxygen/classllvm_1_1AliasAnalysis.html">AliasAnalysis</a>, <b>true</b>&gt; E(D);
+  INITIALIZE_AG_PASS(BasicAA, <a href="http://llvm.org/doxygen/classllvm_1_1AliasAnalysis.html">AliasAnalysis</a>, "<i>basicaa</i>",
+                     "<i>Basic Alias Analysis (default AA impl)</i>",
+                     false, // <i>Is CFG Only?</i>
+                     true,  // <i>Is Analysis?</i>
+                     true, // <i>Is default Analysis Group implementation?</i>
+                    );
 }
 </pre></div>
 
-<p>Here we show how the default implementation is specified (using the extra
-argument to the <tt>RegisterAnalysisGroup</tt> template).  There must be exactly
+<p>Here we show how the default implementation is specified (using the final
+argument to the <tt>INITIALIZE_AG_PASS</tt> template).  There must be exactly
 one default implementation available at all times for an Analysis Group to be
 used.  Only default implementation can derive from <tt>ImmutablePass</tt>. 
 Here we declare that the
@@ -1830,7 +1833,7 @@ Despite that, we have kept the LLVM passes SMP ready, and you should too.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-07-08 10:27:18 +0200 (Thu, 08 Jul 2010) $
+  Last modified: $Date: 2010-07-22 01:07:00 +0200 (Thu, 22 Jul 2010) $
 </address>
 
 </body>

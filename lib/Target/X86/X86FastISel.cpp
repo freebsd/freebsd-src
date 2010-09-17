@@ -960,9 +960,11 @@ bool X86FastISel::X86SelectBranch(const Instruction *I) {
   MachineBasicBlock *TrueMBB = FuncInfo.MBBMap[BI->getSuccessor(0)];
   MachineBasicBlock *FalseMBB = FuncInfo.MBBMap[BI->getSuccessor(1)];
 
-  // Fold the common case of a conditional branch with a comparison.
+  // Fold the common case of a conditional branch with a comparison
+  // in the same block (values defined on other blocks may not have
+  // initialized registers).
   if (const CmpInst *CI = dyn_cast<CmpInst>(BI->getCondition())) {
-    if (CI->hasOneUse()) {
+    if (CI->hasOneUse() && CI->getParent() == I->getParent()) {
       EVT VT = TLI.getValueType(CI->getOperand(0)->getType());
 
       // Try to take advantage of fallthrough opportunities.
@@ -1058,10 +1060,8 @@ bool X86FastISel::X86SelectBranch(const Instruction *I) {
           const MachineInstr &MI = *RI;
 
           if (MI.definesRegister(Reg)) {
-            unsigned Src, Dst, SrcSR, DstSR;
-
-            if (getInstrInfo()->isMoveInstr(MI, Src, Dst, SrcSR, DstSR)) {
-              Reg = Src;
+            if (MI.isCopy()) {
+              Reg = MI.getOperand(1).getReg();
               continue;
             }
 
@@ -1648,15 +1648,26 @@ bool X86FastISel::X86SelectCall(const Instruction *I) {
   MachineInstrBuilder MIB;
   if (CalleeOp) {
     // Register-indirect call.
-    unsigned CallOpc = Subtarget->is64Bit() ? X86::CALL64r : X86::CALL32r;
+    unsigned CallOpc;
+    if (Subtarget->isTargetWin64())
+      CallOpc = X86::WINCALL64r;
+    else if (Subtarget->is64Bit())
+      CallOpc = X86::CALL64r;
+    else
+      CallOpc = X86::CALL32r;
     MIB = BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, TII.get(CallOpc))
       .addReg(CalleeOp);
     
   } else {
     // Direct call.
     assert(GV && "Not a direct call");
-    unsigned CallOpc =
-      Subtarget->is64Bit() ? X86::CALL64pcrel32 : X86::CALLpcrel32;
+    unsigned CallOpc;
+    if (Subtarget->isTargetWin64())
+      CallOpc = X86::WINCALL64pcrel32;
+    else if (Subtarget->is64Bit())
+      CallOpc = X86::CALL64pcrel32;
+    else
+      CallOpc = X86::CALLpcrel32;
     
     // See if we need any target-specific flags on the GV operand.
     unsigned char OpFlags = 0;

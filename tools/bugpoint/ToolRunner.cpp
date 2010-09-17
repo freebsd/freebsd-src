@@ -627,8 +627,8 @@ CBE *AbstractInterpreter::createCBE(const char *Argv0,
 // GCC abstraction
 //
 
-static bool IsARMArchitecture(std::vector<std::string> Args) {
-  for (std::vector<std::string>::const_iterator
+static bool IsARMArchitecture(std::vector<const char*> Args) {
+  for (std::vector<const char*>::const_iterator
          I = Args.begin(), E = Args.end(); I != E; ++I) {
     if (StringRef(*I).equals_lower("-arch")) {
       ++I;
@@ -673,7 +673,7 @@ int GCC::ExecuteProgram(const std::string &ProgramFile,
       // explicitly told what architecture it is working on, so we get
       // it from gcc flags
       if ((TargetTriple.getOS() == Triple::Darwin) &&
-          !IsARMArchitecture(ArgsForGCC))
+          !IsARMArchitecture(GCCArgs))
         GCCArgs.push_back("-force_cpusubtype_ALL");
     }
   }
@@ -721,6 +721,10 @@ int GCC::ExecuteProgram(const std::string &ProgramFile,
 
   std::vector<const char*> ProgramArgs;
 
+  // Declared here so that the destructor only runs after
+  // ProgramArgs is used.
+  std::string Exec;
+
   if (RemoteClientPath.isEmpty())
     ProgramArgs.push_back(OutputBinary.c_str());
   else {
@@ -741,7 +745,7 @@ int GCC::ExecuteProgram(const std::string &ProgramFile,
     // Full path to the binary. We need to cd to the exec directory because
     // there is a dylib there that the exec expects to find in the CWD
     char* env_pwd = getenv("PWD");
-    std::string Exec = "cd ";
+    Exec = "cd ";
     Exec += env_pwd;
     Exec += "; ./";
     Exec += OutputBinary.c_str();

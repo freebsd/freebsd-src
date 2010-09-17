@@ -36,7 +36,7 @@ namespace {
     InlineCostAnalyzer CA;
   public:
     // Use extremely low threshold. 
-    AlwaysInliner() : Inliner(&ID, -2000000000) {}
+    AlwaysInliner() : Inliner(ID, -2000000000) {}
     static char ID; // Pass identification, replacement for typeid
     InlineCost getInlineCost(CallSite CS) {
       return CA.getInlineCost(CS, NeverInline);
@@ -61,8 +61,8 @@ namespace {
 }
 
 char AlwaysInliner::ID = 0;
-static RegisterPass<AlwaysInliner>
-X("always-inline", "Inliner for always_inline functions");
+INITIALIZE_PASS(AlwaysInliner, "always-inline",
+                "Inliner for always_inline functions", false, false);
 
 Pass *llvm::createAlwaysInlinerPass() { return new AlwaysInliner(); }
 

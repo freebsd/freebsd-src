@@ -1540,7 +1540,7 @@ Value *ForExprAST::Codegen() {
     StepVal = ConstantFP::get(getGlobalContext(), APFloat(1.0));
   }
   
-  Value *NextVar = Builder.CreateAdd(Variable, StepVal, "nextvar");
+  Value *NextVar = Builder.CreateFAdd(Variable, StepVal, "nextvar");
 
   // Compute the end condition.
   Value *EndCond = End-&gt;Codegen();
@@ -1808,7 +1808,7 @@ int main() {
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-06-21 22:31:30 +0200 (Mon, 21 Jun 2010) $
+  Last modified: $Date: 2010-09-01 22:09:20 +0200 (Wed, 01 Sep 2010) $
 </address>
 </body>
 </html>

@@ -21,7 +21,6 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "llvm/Assembly/AsmAnnotationWriter.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -29,8 +28,7 @@
 using namespace llvm;
 
 char IVUsers::ID = 0;
-static RegisterPass<IVUsers>
-X("iv-users", "Induction Variable Users", false, true);
+INITIALIZE_PASS(IVUsers, "iv-users", "Induction Variable Users", false, true);
 
 Pass *llvm::createIVUsersPass() {
   return new IVUsers();
@@ -39,27 +37,31 @@ Pass *llvm::createIVUsersPass() {
 /// isInteresting - Test whether the given expression is "interesting" when
 /// used by the given expression, within the context of analyzing the
 /// given loop.
-static bool isInteresting(const SCEV *S, const Instruction *I, const Loop *L) {
-  // Anything loop-invariant is interesting.
-  if (!isa<SCEVUnknown>(S) && S->isLoopInvariant(L))
-    return true;
-
+static bool isInteresting(const SCEV *S, const Instruction *I, const Loop *L,
+                          ScalarEvolution *SE) {
   // An addrec is interesting if it's affine or if it has an interesting start.
   if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(S)) {
     // Keep things simple. Don't touch loop-variant strides.
     if (AR->getLoop() == L)
       return AR->isAffine() || !L->contains(I);
-    // Otherwise recurse to see if the start value is interesting.
-    return isInteresting(AR->getStart(), I, L);
+    // Otherwise recurse to see if the start value is interesting, and that
+    // the step value is not interesting, since we don't yet know how to
+    // do effective SCEV expansions for addrecs with interesting steps.
+    return isInteresting(AR->getStart(), I, L, SE) &&
+          !isInteresting(AR->getStepRecurrence(*SE), I, L, SE);
   }
 
-  // An add is interesting if any of its operands is.
+  // An add is interesting if exactly one of its operands is interesting.
   if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(S)) {
+    bool AnyInterestingYet = false;
     for (SCEVAddExpr::op_iterator OI = Add->op_begin(), OE = Add->op_end();
          OI != OE; ++OI)
-      if (isInteresting(*OI, I, L))
-        return true;
-    return false;
+      if (isInteresting(*OI, I, L, SE)) {
+        if (AnyInterestingYet)
+          return false;
+        AnyInterestingYet = true;
+      }
+    return AnyInterestingYet;
   }
 
   // Nothing else is interesting here.
@@ -85,7 +87,7 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
 
   // If we've come to an uninteresting expression, stop the traversal and
   // call this a user.
-  if (!isInteresting(ISE, I, L))
+  if (!isInteresting(ISE, I, L, SE))
     return false;
 
   SmallPtrSet<Instruction *, 4> UniqueUsers;
@@ -141,7 +143,7 @@ IVStrideUse &IVUsers::AddUser(Instruction *User, Value *Operand) {
 }
 
 IVUsers::IVUsers()
- : LoopPass(&ID) {
+ : LoopPass(ID) {
 }
 
 void IVUsers::getAnalysisUsage(AnalysisUsage &AU) const {
@@ -176,9 +178,6 @@ void IVUsers::print(raw_ostream &OS, const Module *M) const {
   }
   OS << ":\n";
 
-  // Use a default AssemblyAnnotationWriter to suppress the default info
-  // comments, which aren't relevant here.
-  AssemblyAnnotationWriter Annotator;
   for (ilist<IVStrideUse>::const_iterator UI = IVUses.begin(),
        E = IVUses.end(); UI != E; ++UI) {
     OS << "  ";
@@ -192,7 +191,7 @@ void IVUsers::print(raw_ostream &OS, const Module *M) const {
       OS << ")";
     }
     OS << " in  ";
-    UI->getUser()->print(OS, &Annotator);
+    UI->getUser()->print(OS);
     OS << '\n';
   }
 }

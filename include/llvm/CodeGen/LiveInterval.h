@@ -39,7 +39,7 @@ namespace llvm {
   /// This class holds information about a machine level values, including
   /// definition and use points.
   ///
-  /// Care must be taken in interpreting the def index of the value. The 
+  /// Care must be taken in interpreting the def index of the value. The
   /// following rules apply:
   ///
   /// If the isDefAccurate() method returns false then def does not contain the
@@ -108,7 +108,7 @@ namespace llvm {
 
     /// For a stack interval, returns the reg which this stack interval was
     /// defined from.
-    /// For a register interval the behaviour of this method is undefined. 
+    /// For a register interval the behaviour of this method is undefined.
     unsigned getReg() const { return cr.reg; }
     /// For a stack interval, set the defining register.
     /// This method should not be called on register intervals as it may lead
@@ -189,7 +189,7 @@ namespace llvm {
     }
 
     /// containsRange - Return true if the given range, [S, E), is covered by
-    /// this range. 
+    /// this range.
     bool containsRange(SlotIndex S, SlotIndex E) const {
       assert((S < E) && "Backwards interval?");
       return (start <= S && S < end) && (start < E && E <= end);
@@ -236,7 +236,7 @@ namespace llvm {
     float weight;        // weight of this interval
     Ranges ranges;       // the ranges in which this register is live
     VNInfoList valnos;   // value#'s
-    
+
     struct InstrSlots {
       enum {
         LOAD  = 0,
@@ -281,7 +281,7 @@ namespace llvm {
       while (I->end <= Pos) ++I;
       return I;
     }
-    
+
     void clear() {
       valnos.clear();
       ranges.clear();
@@ -305,7 +305,7 @@ namespace llvm {
     bool containsOneValue() const { return valnos.size() == 1; }
 
     unsigned getNumValNums() const { return (unsigned)valnos.size(); }
-    
+
     /// getValNumInfo - Returns pointer to the specified val#.
     ///
     inline VNInfo *getValNumInfo(unsigned ValNo) {
@@ -336,6 +336,11 @@ namespace llvm {
       return VNI;
     }
 
+    /// RenumberValues - Renumber all values in order of appearance and remove
+    /// unused values.
+    /// Recalculate phi-kill flags in case any phi-def values were removed.
+    void RenumberValues(LiveIntervals &lis);
+
     /// isOnlyLROfValNo - Return true if the specified live range is the only
     /// one defined by the its val#.
     bool isOnlyLROfValNo(const LiveRange *LR) {
@@ -346,7 +351,7 @@ namespace llvm {
       }
       return true;
     }
-    
+
     /// MergeValueNumberInto - This method is called when two value nubmers
     /// are found to be equivalent.  This eliminates V1, replacing all
     /// LiveRanges with the V1 value number with the V2 value number.  This can
@@ -387,7 +392,7 @@ namespace llvm {
     /// except for the register of the interval.
     void Copy(const LiveInterval &RHS, MachineRegisterInfo *MRI,
               VNInfo::Allocator &VNInfoAllocator);
-    
+
     bool empty() const { return ranges.empty(); }
 
     /// beginIndex - Return the lowest numbered slot covered by interval.
@@ -454,17 +459,19 @@ namespace llvm {
     iterator FindLiveRangeContaining(SlotIndex Idx);
 
     /// findDefinedVNInfo - Find the by the specified
-    /// index (register interval) or defined 
+    /// index (register interval) or defined
     VNInfo *findDefinedVNInfoForRegInt(SlotIndex Idx) const;
 
     /// findDefinedVNInfo - Find the VNInfo that's defined by the specified
     /// register (stack inteval only).
     VNInfo *findDefinedVNInfoForStackInt(unsigned Reg) const;
 
-    
+
     /// overlaps - Return true if the intersection of the two live intervals is
     /// not empty.
     bool overlaps(const LiveInterval& other) const {
+      if (other.empty())
+        return false;
       return overlapsFrom(other, other.begin());
     }
 
@@ -514,6 +521,15 @@ namespace llvm {
     ///
     unsigned getSize() const;
 
+    /// Returns true if the live interval is zero length, i.e. no live ranges
+    /// span instructions. It doesn't pay to spill such an interval.
+    bool isZeroLength() const {
+      for (const_iterator i = begin(), e = end(); i != e; ++i)
+        if (i->end.getPrevIndex() > i->start)
+          return false;
+      return true;
+    }
+
     /// isSpillable - Can this interval be spilled?
     bool isSpillable() const {
       return weight != HUGE_VALF;
@@ -543,6 +559,7 @@ namespace llvm {
     Ranges::iterator addRangeFrom(LiveRange LR, Ranges::iterator From);
     void extendIntervalEndTo(Ranges::iterator I, SlotIndex NewEnd);
     Ranges::iterator extendIntervalStartTo(Ranges::iterator I, SlotIndex NewStr);
+    void markValNoForDeletion(VNInfo *V);
 
     LiveInterval& operator=(const LiveInterval& rhs); // DO NOT IMPLEMENT
 

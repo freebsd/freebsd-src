@@ -1,15 +1,16 @@
-; RUN: llc < %s -march=x86-64 
-; RUN: llc < %s -march=x86-64 -disable-mmx
+; RUN: llc < %s -march=x86-64 -mcpu=core2
+; RUN: llc < %s -march=x86-64 -mcpu=core2 -disable-mmx
+
 
 define <8 x i32> @a(<8 x i16> %a) nounwind {
   %c = sext <8 x i16> %a to <8 x i32>
   ret <8 x i32> %c
 }
 
-define <3 x i32> @b(<3 x i16> %a) nounwind {
-  %c = sext <3 x i16> %a to <3 x i32>
-  ret <3 x i32> %c
-}
+;define <3 x i32> @b(<3 x i16> %a) nounwind {
+;  %c = sext <3 x i16> %a to <3 x i32>
+;  ret <3 x i32> %c
+;}
 
 define <1 x i32> @c(<1 x i16> %a) nounwind {
   %c = sext <1 x i16> %a to <1 x i32>
@@ -21,10 +22,10 @@ define <8 x i32> @d(<8 x i16> %a) nounwind {
   ret <8 x i32> %c
 }
 
-define <3 x i32> @e(<3 x i16> %a) nounwind {
-  %c = zext <3 x i16> %a to <3 x i32>
-  ret <3 x i32> %c
-}
+;define <3 x i32> @e(<3 x i16> %a) nounwind {
+;  %c = zext <3 x i16> %a to <3 x i32>
+;  ret <3 x i32> %c
+;}
 
 define <1 x i32> @f(<1 x i16> %a) nounwind {
   %c = zext <1 x i16> %a to <1 x i32>

@@ -39,7 +39,7 @@ namespace {
   public:
     static char ID; // Class identification, replacement for typeinfo
     explicit ProfileEstimatorPass(const double execcount = 0)
-      : FunctionPass(&ID), ExecCount(execcount) {
+      : FunctionPass(ID), ExecCount(execcount) {
       if (execcount == 0) ExecCount = LoopWeight;
     }
 
@@ -59,8 +59,8 @@ namespace {
     /// an analysis interface through multiple inheritance.  If needed, it
     /// should override this to adjust the this pointer as needed for the
     /// specified pass info.
-    virtual void *getAdjustedAnalysisPointer(const PassInfo *PI) {
-      if (PI->isPassID(&ProfileInfo::ID))
+    virtual void *getAdjustedAnalysisPointer(AnalysisID PI) {
+      if (PI == &ProfileInfo::ID)
         return (ProfileInfo*)this;
       return this;
     }
@@ -72,13 +72,11 @@ namespace {
 }  // End of anonymous namespace
 
 char ProfileEstimatorPass::ID = 0;
-static RegisterPass<ProfileEstimatorPass>
-X("profile-estimator", "Estimate profiling information", false, true);
-
-static RegisterAnalysisGroup<ProfileInfo> Y(X);
+INITIALIZE_AG_PASS(ProfileEstimatorPass, ProfileInfo, "profile-estimator",
+                "Estimate profiling information", false, true, false);
 
 namespace llvm {
-  const PassInfo *ProfileEstimatorPassID = &X;
+  char &ProfileEstimatorPassID = ProfileEstimatorPass::ID;
 
   FunctionPass *createProfileEstimatorPass() {
     return new ProfileEstimatorPass();
