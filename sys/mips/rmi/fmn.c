@@ -60,11 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/pic.h>
 #include <mips/rmi/board.h>
 
-void 
-disable_msgring_int(void *arg);
-void 
-enable_msgring_int(void *arg);
-
 /* definitions */
 struct tx_stn_handler {
 	void (*action) (int, int, int, int, struct msgrng_msg *, void *);
@@ -101,13 +96,11 @@ do { \
 static struct mtx msgrng_lock;
 static int msgring_int_enabled;
 static int msgring_pop_num_buckets;
-static uint32_t msgring_pop_bucket_mask;
+static uint8_t msgring_pop_bucket_mask;
 static int msgring_int_type;
 static int msgring_watermark_count;
 static uint32_t msgring_thread_mask;
 uint32_t msgrng_msg_cycles = 0;
-
-void xlr_msgring_handler(struct trapframe *);
 
 void 
 xlr_msgring_cpu_init(void)
@@ -174,28 +167,34 @@ xlr_msgring_config(void)
 	msgring_thread_mask = 0x01;
 }
 
-void 
-xlr_msgring_handler(struct trapframe *tf)
+/*
+ * Drain out max_messages for the buckets set in the bucket mask. 
+ * Use max_messages = 0 to drain out all messages.
+ */
+uint32_t
+xlr_msgring_handler(uint8_t bucket_mask, uint32_t max_messages)
 {
-	unsigned long mflags;
 	int bucket = 0;
 	int size = 0, code = 0, rx_stid = 0, tx_stid = 0;
 	struct msgrng_msg msg;
-	unsigned int bucket_empty_bm = 0;
+	uint8_t bucket_empty_bm = 0;
 	unsigned int status = 0;
+	unsigned long mflags;
+	uint32_t  n_msgs;
 
+	n_msgs = 0;
 	mflags = msgrng_access_enable();
-
 	/* First Drain all the high priority messages */
 	for (;;) {
-		bucket_empty_bm = (msgrng_read_status() >> 24) & msgring_pop_bucket_mask;
+		bucket_empty_bm = (msgrng_read_status() >> 24) & bucket_mask;
 
 		/* all buckets empty, break */
-		if (bucket_empty_bm == msgring_pop_bucket_mask)
+		if (bucket_empty_bm == bucket_mask)
 			break;
 
 		for (bucket = 0; bucket < msgring_pop_num_buckets; bucket++) {
-			if ((bucket_empty_bm & (1 << bucket)) /* empty */ )
+			if (!((1 << bucket) & bucket_mask)        /* bucket not in mask */
+			    || (bucket_empty_bm & (1 << bucket))) /* empty */
 				continue;
 
 			status = message_receive(bucket, &size, &code, &rx_stid, &msg);
@@ -203,6 +202,7 @@ xlr_msgring_handler(struct trapframe *tf)
 				continue;
 
 			tx_stid = xlr_board_info.msgmap[rx_stid];
+			n_msgs++;
 
 			if (!tx_stn_handlers[tx_stid].action) {
 				printf("[%s]: No Handler for message from stn_id=%d, bucket=%d, "
@@ -215,13 +215,19 @@ xlr_msgring_handler(struct trapframe *tf)
 				    &msg, tx_stn_handlers[tx_stid].dev_id);
 				mflags = msgrng_access_enable();
 			}
+			if (max_messages > 0 && n_msgs >= max_messages)
+				goto done;
 		}
 	}
+
+done:
 	msgrng_restore(mflags);
+
+	return (n_msgs);
 }
 
-void 
-enable_msgring_int(void *arg)
+static void 
+enable_msgring_int(void)
 {
 	uint32_t config, mflags;
 
@@ -232,8 +238,8 @@ enable_msgring_int(void *arg)
 	msgrng_restore(mflags);
 }
 
-void 
-disable_msgring_int(void *arg)
+static void 
+disable_msgring_int(void)
 {
 	uint32_t config, mflags;
 
@@ -259,7 +265,7 @@ msgring_process_fast_intr(void *arg)
 	 * Interrupt thread will enable the interrupts after processing all
 	 * messages
 	 */
-	disable_msgring_int(NULL);
+	disable_msgring_int();
 	atomic_store_rel_int(&it->i_pending, 1);
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
@@ -291,7 +297,7 @@ msgring_process(void *arg)
 
 	atomic_store_rel_ptr((volatile uintptr_t *)&msgring_ithreads[ithd->i_core],
 	     (uintptr_t)arg);
-	enable_msgring_int(NULL);
+	enable_msgring_int();
 	
 	while (1) {
 		while (ithd->i_pending) {
@@ -300,9 +306,9 @@ msgring_process(void *arg)
 			 * make sure that this write posts before any of the
 			 * memory or device accesses in the handlers.
 			 */
-			xlr_msgring_handler(NULL);
+			xlr_msgring_handler(msgring_pop_bucket_mask, 0);
 			atomic_store_rel_int(&ithd->i_pending, 0);
-			enable_msgring_int(NULL);
+			enable_msgring_int();
 		}
 		if (!ithd->i_pending) {
 			thread_lock(td);
