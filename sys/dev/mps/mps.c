@@ -1416,7 +1416,7 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 			chain = mps_alloc_chain(sc);
 			if (chain == NULL) {
 				/* Resource shortage, roll back! */
-				printf("out of chain frames\n");
+				mps_printf(sc, "out of chain frames\n");
 				return;
 			}
 

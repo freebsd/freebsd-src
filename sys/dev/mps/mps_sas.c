@@ -596,6 +596,7 @@ mps_attach_sas(struct mps_softc *sc)
 {
 	struct mpssas_softc *sassc;
 	int error = 0;
+	int num_sim_reqs;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
@@ -605,15 +606,30 @@ mps_attach_sas(struct mps_softc *sc)
 	sc->sassc = sassc;
 	sassc->sc = sc;
 
-	if ((sassc->devq = cam_simq_alloc(sc->num_reqs)) == NULL) {
+	/*
+	 * Tell CAM that we can handle 5 fewer requests than we have
+	 * allocated.  If we allow the full number of requests, all I/O
+	 * will halt when we run out of resources.  Things work fine with
+	 * just 1 less request slot given to CAM than we have allocated.
+	 * We also need a couple of extra commands so that we can send down
+	 * abort, reset, etc. requests when commands time out.  Otherwise
+	 * we could wind up in a situation with sc->num_reqs requests down
+	 * on the card and no way to send an abort.
+	 *
+	 * XXX KDM need to figure out why I/O locks up if all commands are
+	 * used.
+	 */
+	num_sim_reqs = sc->num_reqs - 5;
+
+	if ((sassc->devq = cam_simq_alloc(num_sim_reqs)) == NULL) {
 		mps_dprint(sc, MPS_FAULT, "Cannot allocate SIMQ\n");
 		error = ENOMEM;
 		goto out;
 	}
 
 	sassc->sim = cam_sim_alloc(mpssas_action, mpssas_poll, "mps", sassc,
-	    device_get_unit(sc->mps_dev), &sc->mps_mtx, sc->num_reqs, sc->num_reqs,
-	    sassc->devq);
+	    device_get_unit(sc->mps_dev), &sc->mps_mtx, num_sim_reqs,
+	    num_sim_reqs, sassc->devq);
 	if (sassc->sim == NULL) {
 		mps_dprint(sc, MPS_FAULT, "Cannot allocate SIM\n");
 		error = EINVAL;
@@ -930,6 +946,9 @@ mpssas_scsiio_timeout(void *data)
 	struct mps_softc *sc;
 	struct mps_command *cm;
 	struct mpssas_target *targ;
+#if 0
+	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
+#endif
 
 	cm = (struct mps_command *)data;
 	sc = cm->cm_sc;
@@ -954,6 +973,22 @@ mpssas_scsiio_timeout(void *data)
 
 	xpt_print(ccb->ccb_h.path, "SCSI command timeout on device handle "
 		  "0x%04x SMID %d\n", targ->handle, cm->cm_desc.Default.SMID);
+	/*
+	 * XXX KDM this is useful for debugging purposes, but the existing
+	 * scsi_op_desc() implementation can't handle a NULL value for
+	 * inq_data.  So this will remain commented out until I bring in
+	 * those changes as well.
+	 */
+#if 0
+	xpt_print(ccb->ccb_h.path, "Timed out command: %s. CDB %s\n",
+		  scsi_op_desc((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+		  		ccb->csio.cdb_io.cdb_ptr[0] :
+				ccb->csio.cdb_io.cdb_bytes[0], NULL),
+		  scsi_cdb_string((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+				   ccb->csio.cdb_io.cdb_ptr :
+				   ccb->csio.cdb_io.cdb_bytes, cdb_str,
+		  		   sizeof(cdb_str)));
+#endif
 
 	/* Inform CAM about the timeout and that recovery is starting. */
 #if 0
