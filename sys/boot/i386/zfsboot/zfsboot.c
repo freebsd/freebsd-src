@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD$");
 #define V86_CY(x)	((x) & 1)
 #define V86_ZR(x)	((x) & 0x40)
 
-#define BIOS_NUMDRIVES		0x475
+#define BIOS_NUMDRIVES	0x475
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
 
@@ -667,7 +667,12 @@ main(void)
      * will find any other available pools and it may fill in missing
      * vdevs for the boot pool.
      */
-    for (i = 0; i < *(unsigned char *)PTOV(BIOS_NUMDRIVES); i++) {
+#ifndef VIRTUALBOX
+    for (i = 0; i < *(unsigned char *)PTOV(BIOS_NUMDRIVES); i++)
+#else
+    for (i = 0; i < MAXBDDEV; i++)
+#endif
+    {
 	if ((i | DRV_HARD) == *(uint8_t *)PTOV(ARGS))
 	    continue;
 
