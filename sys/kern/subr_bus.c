@@ -3998,15 +3998,6 @@ bus_setup_intr(device_t dev, struct resource *r, int flags,
 		return (error);
 	if (handler != NULL && !(flags & INTR_MPSAFE))
 		device_printf(dev, "[GIANT-LOCKED]\n");
-	if (bootverbose && (flags & INTR_MPSAFE))
-		device_printf(dev, "[MPSAFE]\n");
-	if (filter != NULL) {
-		if (handler == NULL)
-			device_printf(dev, "[FILTER]\n");
-		else 
-			device_printf(dev, "[FILTER+ITHREAD]\n");
-	} else 
-		device_printf(dev, "[ITHREAD]\n");
 	return (0);
 }
 
