@@ -42,6 +42,11 @@ Default value is 1.
 .It Va hint.attimer. Ns Ar X Ns Va .timecounter
 controls time counter functionality support. Setting to 0, disables it.
 Default value is 1.
+.It Va hw.i8254.freq
+allows to override default counter frequency.
+The same value is also available in run-time via
+.Va machdep.i8254_freq
+sysctl.
 .El
 .Sh DESCRIPTION
 This driver uses i8254 Programmable Interval Timer (AT Timer) hardware
