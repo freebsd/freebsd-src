@@ -171,6 +171,8 @@ devfs_find(struct devfs_dirent *dd, const char *name, int namelen, int type)
 			continue;
 		break;
 	}
+	KASSERT(de == NULL || (de->de_flags & DE_DOOMED) == 0,
+	    ("devfs_find: returning a doomed entry"));
 	return (de);
 }
 
@@ -302,6 +304,8 @@ devfs_rmdir_empty(struct devfs_mount *dm, struct devfs_dirent *de)
 
 		dd = devfs_parent_dirent(de);
 		KASSERT(dd != NULL, ("devfs_rmdir_empty: NULL dd"));
+		TAILQ_REMOVE(&de->de_dlist, de_dot, de_list);
+		TAILQ_REMOVE(&de->de_dlist, de_dotdot, de_list);
 		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
 		DEVFS_DE_HOLD(dd);
 		devfs_delete(dm, de, DEVFS_DEL_NORECURSE);
