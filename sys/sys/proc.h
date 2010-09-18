@@ -262,6 +262,7 @@ struct thread {
 	struct ksiginfo td_dbgksi;	/* (c) ksi reflected to debugger. */
 	int		td_ng_outbound;	/* (k) Thread entered ng from above. */
 	struct osd	td_osd;		/* (k) Object specific data. */
+	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
 #define	td_endzero td_base_pri
 
 /* Copied during fork1() or thread_sched_upcall(). */
