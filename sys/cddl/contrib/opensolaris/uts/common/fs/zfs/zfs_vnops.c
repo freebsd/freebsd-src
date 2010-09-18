@@ -19,8 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -3344,7 +3343,7 @@ zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr,
 	if (VOP_REALVP(tdvp, &realvp, ct) == 0)
 		tdvp = realvp;
 
-	if (tdvp->v_vfsp != sdvp->v_vfsp) {
+	if (tdvp->v_vfsp != sdvp->v_vfsp || zfsctl_is_node(tdvp)) {
 		ZFS_EXIT(zfsvfs);
 		return (EXDEV);
 	}
@@ -3862,6 +3861,7 @@ zfs_link(vnode_t *tdvp, vnode_t *svp, char *name, cred_t *cr,
 	vnode_t		*realvp;
 	int		error;
 	int		zf = ZNEW;
+	uint64_t	parent;
 	uid_t		owner;
 
 	ASSERT(tdvp->v_type == VDIR);
@@ -3873,12 +3873,29 @@ zfs_link(vnode_t *tdvp, vnode_t *svp, char *name, cred_t *cr,
 	if (VOP_REALVP(svp, &realvp, ct) == 0)
 		svp = realvp;
 
-	if (svp->v_vfsp != tdvp->v_vfsp) {
+	/*
+	 * POSIX dictates that we return EPERM here.
+	 * Better choices include ENOTSUP or EISDIR.
+	 */
+	if (svp->v_type == VDIR) {
+		ZFS_EXIT(zfsvfs);
+		return (EPERM);
+	}
+
+	if (svp->v_vfsp != tdvp->v_vfsp || zfsctl_is_node(svp)) {
 		ZFS_EXIT(zfsvfs);
 		return (EXDEV);
 	}
+
 	szp = VTOZ(svp);
 	ZFS_VERIFY_ZP(szp);
+
+	/* Prevent links to .zfs/shares files */
+
+	if (szp->z_phys->zp_parent == zfsvfs->z_shares_dir) {
+		ZFS_EXIT(zfsvfs);
+		return (EPERM);
+	}
 
 	if (zfsvfs->z_utf8 && u8_validate(name,
 	    strlen(name), NULL, U8_VALIDATE_ENTIRE, &error) < 0) {
@@ -3888,7 +3905,6 @@ zfs_link(vnode_t *tdvp, vnode_t *svp, char *name, cred_t *cr,
 	if (flags & FIGNORECASE)
 		zf |= ZCILOOK;
 
-top:
 	/*
 	 * We do not support links between attributes and non-attributes
 	 * because of the potential security risk of creating links
@@ -3901,14 +3917,6 @@ top:
 		return (EINVAL);
 	}
 
-	/*
-	 * POSIX dictates that we return EPERM here.
-	 * Better choices include ENOTSUP or EISDIR.
-	 */
-	if (svp->v_type == VDIR) {
-		ZFS_EXIT(zfsvfs);
-		return (EPERM);
-	}
 
 	owner = zfs_fuid_map_id(zfsvfs, szp->z_phys->zp_uid, cr, ZFS_OWNER);
 	if (owner != crgetuid(cr) &&
@@ -3922,6 +3930,7 @@ top:
 		return (error);
 	}
 
+top:
 	/*
 	 * Attempt to lock directory; fail if entry already exists.
 	 */

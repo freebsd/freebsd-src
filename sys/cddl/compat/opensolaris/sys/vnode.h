@@ -74,6 +74,7 @@ vn_is_readonly(vnode_t *vp)
 #define	vn_invalid(vp)		do { } while (0)
 #define	vn_renamepath(tdvp, svp, tnm, lentnm)	do { } while (0)
 #define	vn_free(vp)		do { } while (0)
+#define	vn_matchops(vp, vops)	((vp)->v_op == &(vops))
 
 #define	VN_HOLD(v)	vref(v)
 #define	VN_RELE(v)	vrele(v)
