@@ -335,15 +335,15 @@ timercb(struct eventtimer *et, void *arg)
 	bcast = 0;
 	if ((et->et_flags & ET_FLAGS_PERCPU) == 0 && smp_started) {
 		CPU_FOREACH(cpu) {
-			if (curcpu == cpu)
-				continue;
 			state = DPCPU_ID_PTR(cpu, timerstate);
 			ET_HW_LOCK(state);
 			state->now = now;
 			if (bintime_cmp(&now, &state->nextevent, >=)) {
 				state->nextevent.sec++;
-				state->ipi = 1;
-				bcast = 1;
+				if (curcpu != cpu) {
+					state->ipi = 1;
+					bcast = 1;
+				}
 			}
 			ET_HW_UNLOCK(state);
 		}
