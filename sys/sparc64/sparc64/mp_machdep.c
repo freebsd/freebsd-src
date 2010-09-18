@@ -436,7 +436,6 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	cpu_setregs(pc);
 
 	/* Enable interrupts. */
-	wrpr(pil, 0, PIL_TICK);
 	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	/* Start the (S)TICK interrupts. */
