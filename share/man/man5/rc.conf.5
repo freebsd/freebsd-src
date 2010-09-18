@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2010
+.Dd September 18, 2010
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -401,7 +401,7 @@ variable for interface
 .Ar iface
 only.
 .It Va synchronous_dhclient
-.Pq Bt bool
+.Pq Vt bool
 Set to
 .Dq Li YES
 to start
@@ -1156,9 +1156,10 @@ To create a vlan device named
 .Li em0.101
 on
 .Li em0
-with the vlan tag 101:
+with the vlan tag 101 and the optional the IPv4 address 192.0.2.1/24:
 .Bd -literal
 vlans_em0="101"
+ifconfig_em0_101="inet 192.0.2.1/24"
 .Ed
 .Pp
 To create a vlan device named
@@ -4133,14 +4134,14 @@ Must set properly if multiple profiles used in the same time.
 .Pq Vt bool
 Tells
 .Xr rfcomm_pppd 8
-if it should register Serial Port service on the speficied RFCOMM channel.
+if it should register Serial Port service on the specified RFCOMM channel.
 Default
 .Dq Li NO .
 .It Va rfcomm_pppd_server_ Ns Ao Ar profile Ac Ns _register_dun
 .Pq Vt bool
 Tells
 .Xr rfcomm_pppd 8
-if it should register Dial-Up Networking service on the speficied
+if it should register Dial-Up Networking service on the specified
 RFCOMM channel.
 Default
 .Dq Li NO .
@@ -4157,12 +4158,12 @@ variables.
 .It Va ubthidhci_busnum
 Bus number where the USB Bluetooth controller is located.
 Check the output of
-.Xr usbconfig 1
+.Xr usbconfig 8
 on your system to find this information.
 .It Va ubthidhci_addr
 Bus address of the USB Bluetooth controller.
 Check the output of
-.Xr usbconfig 1
+.Xr usbconfig 8
 on your system to find this information.
 .El
 .Sh FILES
@@ -4179,7 +4180,6 @@ on your system to find this information.
 .Xr kbdcontrol 1 ,
 .Xr makewhatis 1 ,
 .Xr sh 1 ,
-.Xr usbconfig 1 ,
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
 .Xr bridge 4 ,
@@ -4255,6 +4255,7 @@ on your system to find this information.
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr timed 8 ,
+.Xr usbconfig 8 ,
 .Xr wlandebug 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,
