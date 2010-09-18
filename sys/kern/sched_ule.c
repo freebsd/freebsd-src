@@ -2648,7 +2648,7 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	int i, first;
 
 	sbuf_printf(sb, "%*s<group level=\"%d\" cache-level=\"%d\">\n", indent,
-	    "", indent, cg->cg_level);
+	    "", 1 + indent / 2, cg->cg_level);
 	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"0x%x\">", indent, "",
 	    cg->cg_count, cg->cg_mask);
 	first = TRUE;
