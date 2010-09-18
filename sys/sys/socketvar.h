@@ -234,17 +234,6 @@ struct xsocket {
 	}								\
 } while (0)
 
-#define	sotryfree(so) do {						\
-	ACCEPT_LOCK_ASSERT();						\
-	SOCK_LOCK_ASSERT(so);						\
-	if ((so)->so_count == 0)					\
-		sofree(so);						\
-	else {								\
-		SOCK_UNLOCK(so);					\
-		ACCEPT_UNLOCK();					\
-	}								\
-} while(0)
-
 /*
  * In sorwakeup() and sowwakeup(), acquire the socket buffer lock to
  * avoid a non-atomic test-and-wakeup.  However, sowakeup is
