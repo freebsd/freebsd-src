@@ -124,6 +124,8 @@ struct attimer_softc {
 };
 static struct attimer_softc *attimer_sc = NULL;
 
+static int timer0_period = -2;
+
 /* Values for timerX_state: */
 #define	RELEASED	0
 #define	RELEASE_PENDING	1
@@ -367,36 +369,41 @@ DELAY(int n)
 static void
 set_i8254_freq(int mode, uint32_t period)
 {
-	int val;
+	int new_count;
 
 	mtx_lock_spin(&clock_lock);
-	if (period == 0)
-		val = 0x10000;
-	else
-		val = min(((uint64_t)i8254_freq * period) >> 32, 0x10000);
-	if (val == 0x10000)
-		i8254_max_count = 0xffff;
-	else
-		i8254_max_count = val;
-	if (mode == MODE_STOP && i8254_timecounter)
-		mode = MODE_PERIODIC;
+	if (mode == MODE_STOP) {
+		if (i8254_timecounter) {
+			mode = MODE_PERIODIC;
+			new_count = 0x10000;
+		} else
+			new_count = -1;
+	} else {
+		new_count = min(((uint64_t)i8254_freq * period +
+		    0x80000000LLU) >> 32, 0x10000);
+	}
+	if (new_count == timer0_period)
+		goto out;
+	i8254_max_count = ((new_count & ~0xffff) != 0) ? 0xffff : new_count;
+	timer0_period = (mode == MODE_PERIODIC) ? new_count : -1;
 	switch (mode) {
 	case MODE_STOP:
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_INTTC | TIMER_16BIT);
-		outb(TIMER_CNTR0, 0xff);
-		outb(TIMER_CNTR0, 0xff);
+		outb(TIMER_CNTR0, 0);
+		outb(TIMER_CNTR0, 0);
 		break;
 	case MODE_PERIODIC:
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-		outb(TIMER_CNTR0, val & 0xff);
-		outb(TIMER_CNTR0, val >> 8);
+		outb(TIMER_CNTR0, new_count & 0xff);
+		outb(TIMER_CNTR0, new_count >> 8);
 		break;
 	case MODE_ONESHOT:
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_INTTC | TIMER_16BIT);
-		outb(TIMER_CNTR0, val & 0xff);
-		outb(TIMER_CNTR0, val >> 8);
+		outb(TIMER_CNTR0, new_count & 0xff);
+		outb(TIMER_CNTR0, new_count >> 8);
 		break;
 	}
+out:
 	mtx_unlock_spin(&clock_lock);
 }
 
@@ -404,7 +411,8 @@ static void
 i8254_restore(void)
 {
 
-	if (attimer_sc)
+	timer0_period = -2;
+	if (attimer_sc != NULL)
 		set_i8254_freq(attimer_sc->mode, attimer_sc->period);
 	else
 		set_i8254_freq(0, 0);
@@ -473,7 +481,7 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL) {
 		i8254_freq = freq;
-		if (attimer_sc) {
+		if (attimer_sc != NULL) {
 			set_i8254_freq(attimer_sc->mode, attimer_sc->period);
 			attimer_sc->tc.tc_frequency = freq;
 		} else {
