@@ -185,7 +185,6 @@ struct vm_map {
 	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
 	pmap_t pmap;			/* (c) Physical map */
-	vm_map_entry_t deferred_freelist;
 #define	min_offset	header.start	/* (c) */
 #define	max_offset	header.end	/* (c) */
 };
@@ -267,6 +266,7 @@ vmspace_pmap(struct vmspace *vmspace)
 
 void _vm_map_lock(vm_map_t map, const char *file, int line);
 void _vm_map_unlock(vm_map_t map, const char *file, int line);
+void _vm_map_unlock_nodefer(vm_map_t map, const char *file, int line);
 void _vm_map_lock_read(vm_map_t map, const char *file, int line);
 void _vm_map_unlock_read(vm_map_t map, const char *file, int line);
 int _vm_map_trylock(vm_map_t map, const char *file, int line);
@@ -279,6 +279,8 @@ void vm_map_wakeup(vm_map_t map);
 
 #define	vm_map_lock(map)	_vm_map_lock(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock(map)	_vm_map_unlock(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_unlock_nodefer(map)	\
+			_vm_map_unlock_nodefer(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_lock_read(map)	_vm_map_lock_read(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock_read(map)	_vm_map_unlock_read(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_trylock(map)	_vm_map_trylock(map, LOCK_FILE, LOCK_LINE)
