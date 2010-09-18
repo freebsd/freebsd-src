@@ -173,6 +173,10 @@ static device_method_t acpi_wmi_methods[] = {
 	DEVMETHOD(device_attach, acpi_wmi_attach),
 	DEVMETHOD(device_detach, acpi_wmi_detach),
 
+	/* bus interface */
+	DEVMETHOD(bus_add_child,	bus_generic_add_child),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+
 	/* acpi_wmi interface */
 	DEVMETHOD(acpi_wmi_provides_guid_string,
 		    acpi_wmi_provides_guid_string_method),
@@ -268,6 +272,11 @@ acpi_wmi_attach(device_t dev)
 		ret = 0;
 	}
 	ACPI_SERIAL_END(acpi_wmi);
+
+	if (ret == 0) {
+		bus_generic_probe(dev);
+		ret = bus_generic_attach(dev);
+	}
 
 	return (ret);
 }
