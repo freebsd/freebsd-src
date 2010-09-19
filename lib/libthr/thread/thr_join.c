@@ -48,7 +48,7 @@ static void backout_join(void *arg)
 
 	THR_THREAD_LOCK(curthread, pthread);
 	pthread->joiner = NULL;
-	THR_THREAD_LOCK(curthread, pthread);
+	THR_THREAD_UNLOCK(curthread, pthread);
 }
 
 int
