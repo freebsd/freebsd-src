@@ -7,7 +7,7 @@ INCDIR=	lib/Target/X86
 SRCS=	X86AsmLexer.cpp \
 	X86AsmParser.cpp
 
-TGHDRS= X86GenAsmMatcher \
+TGHDRS=	X86GenAsmMatcher \
 	X86GenInstrNames \
 	X86GenRegisterNames
 

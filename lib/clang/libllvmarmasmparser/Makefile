@@ -7,7 +7,7 @@ INCDIR=	lib/Target/ARM
 SRCS=	ARMAsmParser.cpp \
 	ARMAsmLexer.cpp
 
-TGHDRS= ARMGenInstrNames \
+TGHDRS=	ARMGenInstrNames \
 	ARMGenRegisterInfo.h \
 	ARMGenRegisterNames
 
