@@ -515,7 +515,11 @@ int cvmx_spi_training_cb(int interface, cvmx_spi_mode_t mode, int timeout)
     // Wait for the training sequence to complete
     cvmx_dprintf ("SPI%d: Waiting for training\n", interface);
     cvmx_wait (1000 * MS);
+#if !defined(OCTEON_VENDOR_LANNER)
     timeout_time = cvmx_get_cycle() + 1000ull * MS * 600;  /* Wait a really long time here */
+#else
+    timeout_time = cvmx_get_cycle() + 1000ull * MS * 10;
+#endif
     /* The HRM says we must wait for 34 + 16 * MAXDIST training sequences.
         We'll be pessimistic and wait for a lot more */
     rx_training_needed = 500;
