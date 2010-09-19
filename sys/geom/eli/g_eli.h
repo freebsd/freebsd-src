@@ -228,8 +228,9 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 		return (EINVAL);
 	return (0);
 }
+
 static __inline int
-eli_metadata_decode_v1v2v3(const u_char *data, struct g_eli_metadata *md)
+eli_metadata_decode_v1v2v3v4(const u_char *data, struct g_eli_metadata *md)
 {
 	MD5_CTX ctx;
 	const u_char *p;
@@ -266,7 +267,8 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 	case 1:
 	case 2:
 	case 3:
-		error = eli_metadata_decode_v1v2v3(data, md);
+	case 4:
+		error = eli_metadata_decode_v1v2v3v4(data, md);
 		break;
 	default:
 		error = EINVAL;
