@@ -6,6 +6,6 @@ SRCDIR=	lib/Bitcode/Reader
 SRCS=	BitReader.cpp \
 	BitcodeReader.cpp
 
-TGHDRS= Intrinsics
+TGHDRS=	Intrinsics
 
 .include "../clang.lib.mk"
