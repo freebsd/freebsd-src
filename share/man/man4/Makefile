@@ -357,6 +357,7 @@ MAN=	aac.4 \
 	sctp.4 \
 	sdhci.4 \
 	sem.4 \
+	send.4 \
 	ses.4 \
 	sf.4 \
 	sge.4 \
