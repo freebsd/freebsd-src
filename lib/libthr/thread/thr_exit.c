@@ -70,18 +70,31 @@ static void
 thread_uw_init(void)
 {
 	static int inited = 0;
+	Dl_info dlinfo;
 	void *handle;
+	void *forcedunwind, *resume, *getcfa;
 
 	if (inited)
-		return;
-	inited = 1;
+	    return;
 	handle = RTLD_DEFAULT;
-	if ((uwl_forcedunwind = dlsym(handle, "_Unwind_ForcedUnwind")) == NULL||
-	    (uwl_resume = dlsym(handle, "_Unwind_Resume")) == NULL ||
-	    (uwl_getcfa = dlsym(handle, "_Unwind_GetCFA")) == NULL) {
-		uwl_forcedunwind = NULL;
-		return;
+	if ((forcedunwind = dlsym(handle, "_Unwind_ForcedUnwind")) != NULL) {
+	    if (dladdr(forcedunwind, &dlinfo)) {
+		if ((handle = dlopen(dlinfo.dli_fname, RTLD_LAZY)) != NULL) {
+		    forcedunwind = dlsym(handle, "_Unwind_ForcedUnwind");
+		    resume = dlsym(handle, "_Unwind_Resume");
+		    getcfa = dlsym(handle, "_Unwind_GetCFA");
+		    if (forcedunwind != NULL && resume != NULL &&
+			getcfa != NULL) {
+			uwl_forcedunwind = forcedunwind;
+			uwl_resume = resume;
+			uwl_getcfa = getcfa;
+		    } else {
+			dlclose(handle);
+		    }
+		}
+	    }
 	}
+	inited = 1;
 }
 
 void
