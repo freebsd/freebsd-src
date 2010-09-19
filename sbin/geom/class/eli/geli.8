@@ -217,7 +217,7 @@ The metadata can be recovered with the
 subcommand described below.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar aalgo"
+.Bl -tag -width ".Fl a Ar newkeyfile"
 .It Fl a Ar aalgo
 Enable data integrity verification (authentication) using the given algorithm.
 This will reduce size of available storage and also reduce speed.
@@ -302,7 +302,7 @@ provider's name with an
 suffix.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar algo"
+.Bl -tag -width ".Fl a Ar keyfile"
 .It Fl d
 If specified, a decrypted provider will be detached automatically on last close.
 This can help with short memory - user does not have to remember to detach the
@@ -332,7 +332,7 @@ Detach the given providers, which means remove the devfs entry
 and clear the keys from memory.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar algo"
+.Bl -tag -width ".Fl f"
 .It Fl f
 Force detach - detach even if the provider is open.
 .It Fl l
@@ -347,7 +347,7 @@ Attach the given providers with random, one-time keys.
 The command can be used to encrypt swap partitions or temporary file systems.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar aalgo"
+.Bl -tag -width ".Fl a Ar sectorsize"
 .It Fl a Ar aalgo
 Enable data integrity verification (authentication).
 For more information, see the description of the
@@ -402,7 +402,7 @@ When a provider is attached, the user does not have to provide
 an old passphrase/keyfile.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar algo"
+.Bl -tag -width ".Fl a Ar iterations"
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2.
 If 0 is given, PKCS#5v2 will not be used.
@@ -432,7 +432,7 @@ will not be detached even if all keys will be destroyed.
 It can be even rescued with the
 .Cm setkey
 subcommand.
-.Bl -tag -width ".Fl a Ar algo"
+.Bl -tag -width ".Fl a Ar keyno"
 .It Fl a
 Destroy all keys (does not need
 .Fl f
@@ -456,7 +456,7 @@ backup, your data is gone for good.
 In case the provider was attached with the
 .Fl r
 flag, the keys will not be destroyed, only the provider will be detached.
-.Bl -tag -width ".Fl a Ar algo"
+.Bl -tag -width ".Fl a"
 .It Fl a
 If specified, all currently attached providers will be killed.
 .El
