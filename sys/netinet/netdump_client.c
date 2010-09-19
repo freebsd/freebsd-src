@@ -33,7 +33,6 @@
 */
 
 #include "opt_ddb.h"
-#include "opt_device_polling.h"
 #include "opt_netdump.h"
 
 #include <sys/cdefs.h>
