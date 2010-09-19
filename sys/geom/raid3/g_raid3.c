@@ -231,31 +231,31 @@ g_raid3_uma_dtor(void *mem, int size, void *arg)
 	sz->sz_inuse--;
 }
 
-#define	g_raid3_xor(src1, src2, dst, size)				\
-	_g_raid3_xor((uint64_t *)(src1), (uint64_t *)(src2),		\
+#define	g_raid3_xor(src, dst, size)					\
+	_g_raid3_xor((uint64_t *)(src),					\
 	    (uint64_t *)(dst), (size_t)size)
 static void
-_g_raid3_xor(uint64_t *src1, uint64_t *src2, uint64_t *dst, size_t size)
+_g_raid3_xor(uint64_t *src, uint64_t *dst, size_t size)
 {
 
 	KASSERT((size % 128) == 0, ("Invalid size: %zu.", size));
 	for (; size > 0; size -= 128) {
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
-		*dst++ = (*src1++) ^ (*src2++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
+		*dst++ ^= (*src++);
 	}
 }
 
@@ -1049,6 +1049,7 @@ g_raid3_scatter(struct bio *pbp)
 	struct g_raid3_disk *disk;
 	struct bio *bp, *cbp, *tmpbp;
 	off_t atom, cadd, padd, left;
+	int first;
 
 	sc = pbp->bio_to->geom->softc;
 	bp = NULL;
@@ -1079,12 +1080,18 @@ g_raid3_scatter(struct bio *pbp)
 		/*
 		 * Calculate parity.
 		 */
-		bzero(bp->bio_data, bp->bio_length);
+		first = 1;
 		G_RAID3_FOREACH_SAFE_BIO(pbp, cbp, tmpbp) {
 			if (cbp == bp)
 				continue;
-			g_raid3_xor(cbp->bio_data, bp->bio_data, bp->bio_data,
-			    bp->bio_length);
+			if (first) {
+				bcopy(cbp->bio_data, bp->bio_data,
+				    bp->bio_length);
+				first = 0;
+			} else {
+				g_raid3_xor(cbp->bio_data, bp->bio_data,
+				    bp->bio_length);
+			}
 			if ((cbp->bio_cflags & G_RAID3_BIO_CFLAG_NODISK) != 0)
 				g_raid3_destroy_bio(sc, cbp);
 		}
@@ -1216,7 +1223,7 @@ g_raid3_gather(struct bio *pbp)
 		G_RAID3_FOREACH_BIO(pbp, cbp) {
 			if ((cbp->bio_cflags & G_RAID3_BIO_CFLAG_PARITY) != 0)
 				continue;
-			g_raid3_xor(cbp->bio_data, xbp->bio_data, xbp->bio_data,
+			g_raid3_xor(cbp->bio_data, xbp->bio_data,
 			    xbp->bio_length);
 		}
 		xbp->bio_cflags &= ~G_RAID3_BIO_CFLAG_PARITY;
@@ -1639,7 +1646,7 @@ g_raid3_sync_request(struct bio *bp)
 				bcopy(src, dst, atom);
 				src += atom;
 				for (n = 1; n < sc->sc_ndisks - 1; n++) {
-					g_raid3_xor(src, dst, dst, atom);
+					g_raid3_xor(src, dst, atom);
 					src += atom;
 				}
 				dst += atom;
