@@ -1373,7 +1373,8 @@ vm_mmap_shm(struct thread *td, vm_size_t objsize,
 {
 	int error;
 
-	if ((*maxprotp & VM_PROT_WRITE) == 0 &&
+	if ((*flagsp & MAP_SHARED) != 0 &&
+	    (*maxprotp & VM_PROT_WRITE) == 0 &&
 	    (prot & PROT_WRITE) != 0)
 		return (EACCES);
 #ifdef MAC
