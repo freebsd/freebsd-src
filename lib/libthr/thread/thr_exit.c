@@ -63,7 +63,6 @@ static _Unwind_Reason_Code thread_unwind_stop(int version,
 /* unwind library pointers */
 static _Unwind_Reason_Code (*uwl_forcedunwind)(struct _Unwind_Exception *,
 	_Unwind_Stop_Fn, void *);
-static void (*uwl_resume)(struct _Unwind_Exception *exc);
 static _Unwind_Word (*uwl_getcfa)(struct _Unwind_Context *);
 
 static void
@@ -72,22 +71,24 @@ thread_uw_init(void)
 	static int inited = 0;
 	Dl_info dlinfo;
 	void *handle;
-	void *forcedunwind, *resume, *getcfa;
+	void *forcedunwind, *getcfa;
 
 	if (inited)
 	    return;
 	handle = RTLD_DEFAULT;
 	if ((forcedunwind = dlsym(handle, "_Unwind_ForcedUnwind")) != NULL) {
 	    if (dladdr(forcedunwind, &dlinfo)) {
+		/*
+		 * Make sure the address is always valid by holding the library,
+		 * also assume functions are in same library.
+		 */
 		if ((handle = dlopen(dlinfo.dli_fname, RTLD_LAZY)) != NULL) {
 		    forcedunwind = dlsym(handle, "_Unwind_ForcedUnwind");
-		    resume = dlsym(handle, "_Unwind_Resume");
 		    getcfa = dlsym(handle, "_Unwind_GetCFA");
-		    if (forcedunwind != NULL && resume != NULL &&
-			getcfa != NULL) {
-			uwl_forcedunwind = forcedunwind;
-			uwl_resume = resume;
+		    if (forcedunwind != NULL && getcfa != NULL) {
 			uwl_getcfa = getcfa;
+			atomic_store_rel_ptr((volatile void *)&uwl_forcedunwind,
+				(uintptr_t)forcedunwind);
 		    } else {
 			dlclose(handle);
 		    }
@@ -97,12 +98,6 @@ thread_uw_init(void)
 	inited = 1;
 }
 
-void
-_Unwind_Resume(struct _Unwind_Exception *ex)
-{
-	(*uwl_resume)(ex);
-}
- 
 _Unwind_Reason_Code
 _Unwind_ForcedUnwind(struct _Unwind_Exception *ex, _Unwind_Stop_Fn stop_func,
 	void *stop_arg)
@@ -118,7 +113,6 @@ _Unwind_GetCFA(struct _Unwind_Context *context)
 #else
 #pragma weak _Unwind_GetCFA
 #pragma weak _Unwind_ForcedUnwind
-#pragma weak _Unwind_Resume
 #endif /* PIC */
 
 static void
