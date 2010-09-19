@@ -282,7 +282,8 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	/* Wait for Carrier Detect. */
 	if (!TTY_CALLOUT(tp, dev) && (oflags & O_NONBLOCK) == 0 &&
-	    (tp->t_termios.c_cflag & CLOCAL) == 0) {
+	    (tp->t_termios.c_cflag & CLOCAL) == 0 &&
+	    dev != dev_console) {
 		while ((ttydevsw_modem(tp, 0, 0) & SER_DCD) == 0) {
 			error = tty_wait(tp, &tp->t_dcdwait);
 			if (error != 0)

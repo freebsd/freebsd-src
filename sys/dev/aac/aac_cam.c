@@ -569,7 +569,7 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 	sc = camsc->inf->aac_sc;
 
 	if (sc == NULL) {
-		printf("Null sc?\n");
+		printf("aac: Null sc?\n");
 		return (CAM_REQ_ABORTED);
 	}
 

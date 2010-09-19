@@ -386,10 +386,11 @@ enum {
 	MAX_TX_STNS
 };
 
-extern int register_msgring_handler(int major,
+int register_msgring_handler(int major,
     void (*action) (int, int, int, int, struct msgrng_msg *, void *),
     void *dev_id);
-extern void xlr_msgring_cpu_init(void);
-extern void xlr_msgring_config(void);
+uint32_t xlr_msgring_handler(uint8_t bucket_mask, uint32_t max_messages);
+void xlr_msgring_cpu_init(void);
+void xlr_msgring_config(void);
 
 #endif

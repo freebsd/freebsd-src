@@ -25,6 +25,14 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_CPUARCH}
 CFLAGS+=-I${.CURDIR}/../libthread_db
 CFLAGS+=-Winline
+
+LIBTHR_UNWIND_STACK=yes
+
+.ifdef LIBTHR_UNWIND_STACK
+CFLAGS+=-I${.CURDIR}/../../contrib/gcc -fexceptions 
+CFLAGS+=-D_PTHREAD_FORCED_UNWIND
+.endif
+
 LDFLAGS+=-Wl,-znodelete
 
 VERSION_DEF=${.CURDIR}/../libc/Versions.def

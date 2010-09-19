@@ -348,16 +348,16 @@ AcpiUtAcquireMutex (
                 if (i == MutexId)
                 {
                     ACPI_ERROR ((AE_INFO,
-                        "Mutex [%s] already acquired by this thread [%p]",
+                        "Mutex [%s] already acquired by this thread [%u]",
                         AcpiUtGetMutexName (MutexId),
-                        ACPI_CAST_PTR (void, ThisThreadId)));
+                        (UINT32) ThisThreadId));
 
                     return (AE_ALREADY_ACQUIRED);
                 }
 
                 ACPI_ERROR ((AE_INFO,
-                    "Invalid acquire order: Thread %p owns [%s], wants [%s]",
-                    ACPI_CAST_PTR (void, ThisThreadId), AcpiUtGetMutexName (i),
+                    "Invalid acquire order: Thread %u owns [%s], wants [%s]",
+                    (UINT32) ThisThreadId, AcpiUtGetMutexName (i),
                     AcpiUtGetMutexName (MutexId)));
 
                 return (AE_ACQUIRE_DEADLOCK);
@@ -367,15 +367,15 @@ AcpiUtAcquireMutex (
 #endif
 
     ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX,
-        "Thread %p attempting to acquire Mutex [%s]\n",
-        ACPI_CAST_PTR (void, ThisThreadId), AcpiUtGetMutexName (MutexId)));
+        "Thread %u attempting to acquire Mutex [%s]\n",
+        (UINT32) ThisThreadId, AcpiUtGetMutexName (MutexId)));
 
     Status = AcpiOsAcquireMutex (AcpiGbl_MutexInfo[MutexId].Mutex,
                 ACPI_WAIT_FOREVER);
     if (ACPI_SUCCESS (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %p acquired Mutex [%s]\n",
-            ACPI_CAST_PTR (void, ThisThreadId), AcpiUtGetMutexName (MutexId)));
+        ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %u acquired Mutex [%s]\n",
+            (UINT32) ThisThreadId, AcpiUtGetMutexName (MutexId)));
 
         AcpiGbl_MutexInfo[MutexId].UseCount++;
         AcpiGbl_MutexInfo[MutexId].ThreadId = ThisThreadId;
@@ -383,8 +383,8 @@ AcpiUtAcquireMutex (
     else
     {
         ACPI_EXCEPTION ((AE_INFO, Status,
-            "Thread %p could not acquire Mutex [0x%X]",
-            ACPI_CAST_PTR (void, ThisThreadId), MutexId));
+            "Thread %u could not acquire Mutex [0x%X]",
+            (UINT32) ThisThreadId, MutexId));
     }
 
     return (Status);
@@ -414,8 +414,8 @@ AcpiUtReleaseMutex (
 
 
     ThisThreadId = AcpiOsGetThreadId ();
-    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %p releasing Mutex [%s]\n",
-        ACPI_CAST_PTR (void, ThisThreadId), AcpiUtGetMutexName (MutexId)));
+    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %u releasing Mutex [%s]\n",
+        (UINT32) ThisThreadId, AcpiUtGetMutexName (MutexId)));
 
     if (MutexId > ACPI_MAX_MUTEX)
     {

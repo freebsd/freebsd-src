@@ -828,25 +828,11 @@ sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
 	struct malloc_type_internal *mtip;
 	struct malloc_type_header mth;
 	struct malloc_type *mtp;
-	int buflen, count, error, i;
+	int error, i;
 	struct sbuf sbuf;
-	char *buffer;
 
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	mtx_lock(&malloc_mtx);
-restart:
-	mtx_assert(&malloc_mtx, MA_OWNED);
-	count = kmemcount;
-	mtx_unlock(&malloc_mtx);
-	buflen = sizeof(mtsh) + count * (sizeof(mth) +
-	    sizeof(struct malloc_type_stats) * MAXCPU) + 1;
-	buffer = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
-	mtx_lock(&malloc_mtx);
-	if (count < kmemcount) {
-		free(buffer, M_TEMP);
-		goto restart;
-	}
-
-	sbuf_new(&sbuf, buffer, buflen, SBUF_FIXEDLEN);
 
 	/*
 	 * Insert stream header.
@@ -855,11 +841,7 @@ restart:
 	mtsh.mtsh_version = MALLOC_TYPE_STREAM_VERSION;
 	mtsh.mtsh_maxcpus = MAXCPU;
 	mtsh.mtsh_count = kmemcount;
-	if (sbuf_bcat(&sbuf, &mtsh, sizeof(mtsh)) < 0) {
-		mtx_unlock(&malloc_mtx);
-		error = ENOMEM;
-		goto out;
-	}
+	(void)sbuf_bcat(&sbuf, &mtsh, sizeof(mtsh));
 
 	/*
 	 * Insert alternating sequence of type headers and type statistics.
@@ -872,30 +854,19 @@ restart:
 		 */
 		bzero(&mth, sizeof(mth));
 		strlcpy(mth.mth_name, mtp->ks_shortdesc, MALLOC_MAX_NAME);
-		if (sbuf_bcat(&sbuf, &mth, sizeof(mth)) < 0) {
-			mtx_unlock(&malloc_mtx);
-			error = ENOMEM;
-			goto out;
-		}
+		(void)sbuf_bcat(&sbuf, &mth, sizeof(mth));
 
 		/*
 		 * Insert type statistics for each CPU.
 		 */
 		for (i = 0; i < MAXCPU; i++) {
-			if (sbuf_bcat(&sbuf, &mtip->mti_stats[i],
-			    sizeof(mtip->mti_stats[i])) < 0) {
-				mtx_unlock(&malloc_mtx);
-				error = ENOMEM;
-				goto out;
-			}
+			(void)sbuf_bcat(&sbuf, &mtip->mti_stats[i],
+			    sizeof(mtip->mti_stats[i]));
 		}
 	}
 	mtx_unlock(&malloc_mtx);
-	sbuf_finish(&sbuf);
-	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
-out:
+	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
-	free(buffer, M_TEMP);
 	return (error);
 }
 
@@ -1005,26 +976,19 @@ DB_SHOW_COMMAND(multizone_matches, db_show_multizone_matches)
 static int
 sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 {
-	int linesize = 64;
 	struct sbuf sbuf;
 	uint64_t count;
 	uint64_t waste;
 	uint64_t mem;
-	int bufsize;
 	int error;
-	char *buf;
 	int rsize;
 	int size;
 	int i;
 
-	bufsize = linesize * (KMEM_ZSIZE + 1);
-	bufsize += 128; 	/* For the stats line */
-	bufsize += 128; 	/* For the banner line */
 	waste = 0;
 	mem = 0;
 
-	buf = malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
-	sbuf_new(&sbuf, buf, bufsize, SBUF_FIXEDLEN);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	sbuf_printf(&sbuf, 
 	    "\n  Size                    Requests  Real Size\n");
 	for (i = 0; i < KMEM_ZSIZE; i++) {
@@ -1042,12 +1006,8 @@ sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(&sbuf,
 	    "\nTotal memory used:\t%30llu\nTotal Memory wasted:\t%30llu\n",
 	    (unsigned long long)mem, (unsigned long long)waste);
-	sbuf_finish(&sbuf);
-
-	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
-
+	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
-	free(buf, M_TEMP);
 	return (error);
 }
 

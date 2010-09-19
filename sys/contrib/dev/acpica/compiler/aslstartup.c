@@ -124,9 +124,8 @@
 
 
 #define ASL_MAX_FILES   256
-char                    *FileList[ASL_MAX_FILES];
-int                     FileCount;
-BOOLEAN                 AslToFile = TRUE;
+static char             *FileList[ASL_MAX_FILES];
+static BOOLEAN          AslToFile = TRUE;
 
 
 /* Local prototypes */
@@ -136,7 +135,7 @@ AsDoWildcard (
     char                    *DirectoryPathname,
     char                    *FileSpecifier);
 
-UINT8
+static UINT8
 AslDetectSourceFileType (
     ASL_FILE_INFO           *Info);
 
@@ -210,6 +209,7 @@ AsDoWildcard (
 #ifdef WIN32
     void                    *DirInfo;
     char                    *Filename;
+    int                     FileCount;
 
 
     FileCount = 0;
@@ -277,7 +277,7 @@ AsDoWildcard (
  *
  ******************************************************************************/
 
-UINT8
+static UINT8
 AslDetectSourceFileType (
     ASL_FILE_INFO           *Info)
 {
@@ -397,7 +397,7 @@ AslDoOneFile (
         /* Shutdown compiler and ACPICA subsystem */
 
         AeClearErrorLog ();
-        AcpiTerminate ();
+        (void) AcpiTerminate ();
 
         /*
          * Gbl_Files[ASL_FILE_INPUT].Filename was replaced with the
@@ -487,7 +487,7 @@ AslDoOneFile (
         }
 
         Status = CmDoCompile ();
-        AcpiTerminate ();
+        (void) AcpiTerminate ();
 
         /*
          * Return non-zero exit code if there have been errors, unless the
@@ -533,7 +533,7 @@ AslDoOnePathname (
     ASL_PATHNAME_CALLBACK   PathCallback)
 {
     ACPI_STATUS             Status = AE_OK;
-    char                    **FileList;
+    char                    **WildcardList;
     char                    *Filename;
     char                    *FullPathname;
 
@@ -548,16 +548,16 @@ AslDoOnePathname (
 
     /* Expand possible wildcard into a file list (Windows/DOS only) */
 
-    FileList = AsDoWildcard (Gbl_DirectoryPath, Filename);
-    while (*FileList)
+    WildcardList = AsDoWildcard (Gbl_DirectoryPath, Filename);
+    while (*WildcardList)
     {
         FullPathname = ACPI_ALLOCATE (
-            strlen (Gbl_DirectoryPath) + strlen (*FileList) + 1);
+            strlen (Gbl_DirectoryPath) + strlen (*WildcardList) + 1);
 
         /* Construct a full path to the file */
 
         strcpy (FullPathname, Gbl_DirectoryPath);
-        strcat (FullPathname, *FileList);
+        strcat (FullPathname, *WildcardList);
 
         /*
          * If -p not specified, we will use the input filename as the
@@ -573,9 +573,9 @@ AslDoOnePathname (
         Status |= (*PathCallback) (FullPathname);
 
         ACPI_FREE (FullPathname);
-        ACPI_FREE (*FileList);
-        *FileList = NULL;
-        FileList++;
+        ACPI_FREE (*WildcardList);
+        *WildcardList = NULL;
+        WildcardList++;
     }
 
     ACPI_FREE (Gbl_DirectoryPath);

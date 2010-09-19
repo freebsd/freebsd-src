@@ -158,7 +158,7 @@ DtWriteBinary (
 #define DT_SLASH_SLASH_COMMENT      4
 #define DT_END_COMMENT              5
 
-UINT32  Gbl_NextLineOffset;
+static UINT32  Gbl_NextLineOffset;
 
 
 /******************************************************************************

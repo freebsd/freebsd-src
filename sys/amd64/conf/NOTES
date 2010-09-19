@@ -421,6 +421,7 @@ options 	SAFE_RNDTEST	# enable rndtest support
 # vpd: Vital Product Data kernel interface
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card
+# tpm: Trusted Platform Module
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -436,6 +437,7 @@ device		smbios
 device		vpd
 device		asmc
 #device		si
+device		tpm
 
 #
 # Laptop/Notebook options:

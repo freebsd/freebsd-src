@@ -438,6 +438,7 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, MPI2_EVENT_SAS_TOPO_PHY_ENTRY 
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_complete = mpssas_remove_device;
 	cm->cm_targ = targ;
+	xpt_freeze_simq(sc->sassc->sim, 1);
 	mps_map_command(sc, cm);
 }
 
@@ -453,6 +454,7 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *cm)
 
 	reply = (MPI2_SCSI_TASK_MANAGE_REPLY *)cm->cm_reply;
 	handle = cm->cm_targ->handle;
+	xpt_release_simq(sc->sassc->sim, 1);
 	if (reply->IOCStatus != MPI2_IOCSTATUS_SUCCESS) {
 		mps_printf(sc, "Failure 0x%x reseting device 0x%04x\n", 
 		   reply->IOCStatus, handle);
@@ -594,6 +596,7 @@ mps_attach_sas(struct mps_softc *sc)
 {
 	struct mpssas_softc *sassc;
 	int error = 0;
+	int num_sim_reqs;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
@@ -603,15 +606,30 @@ mps_attach_sas(struct mps_softc *sc)
 	sc->sassc = sassc;
 	sassc->sc = sc;
 
-	if ((sassc->devq = cam_simq_alloc(sc->num_reqs)) == NULL) {
+	/*
+	 * Tell CAM that we can handle 5 fewer requests than we have
+	 * allocated.  If we allow the full number of requests, all I/O
+	 * will halt when we run out of resources.  Things work fine with
+	 * just 1 less request slot given to CAM than we have allocated.
+	 * We also need a couple of extra commands so that we can send down
+	 * abort, reset, etc. requests when commands time out.  Otherwise
+	 * we could wind up in a situation with sc->num_reqs requests down
+	 * on the card and no way to send an abort.
+	 *
+	 * XXX KDM need to figure out why I/O locks up if all commands are
+	 * used.
+	 */
+	num_sim_reqs = sc->num_reqs - 5;
+
+	if ((sassc->devq = cam_simq_alloc(num_sim_reqs)) == NULL) {
 		mps_dprint(sc, MPS_FAULT, "Cannot allocate SIMQ\n");
 		error = ENOMEM;
 		goto out;
 	}
 
 	sassc->sim = cam_sim_alloc(mpssas_action, mpssas_poll, "mps", sassc,
-	    device_get_unit(sc->mps_dev), &sc->mps_mtx, sc->num_reqs, sc->num_reqs,
-	    sassc->devq);
+	    device_get_unit(sc->mps_dev), &sc->mps_mtx, num_sim_reqs,
+	    num_sim_reqs, sassc->devq);
 	if (sassc->sim == NULL) {
 		mps_dprint(sc, MPS_FAULT, "Cannot allocate SIM\n");
 		error = EINVAL;
@@ -928,6 +946,9 @@ mpssas_scsiio_timeout(void *data)
 	struct mps_softc *sc;
 	struct mps_command *cm;
 	struct mpssas_target *targ;
+#if 0
+	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
+#endif
 
 	cm = (struct mps_command *)data;
 	sc = cm->cm_sc;
@@ -952,6 +973,22 @@ mpssas_scsiio_timeout(void *data)
 
 	xpt_print(ccb->ccb_h.path, "SCSI command timeout on device handle "
 		  "0x%04x SMID %d\n", targ->handle, cm->cm_desc.Default.SMID);
+	/*
+	 * XXX KDM this is useful for debugging purposes, but the existing
+	 * scsi_op_desc() implementation can't handle a NULL value for
+	 * inq_data.  So this will remain commented out until I bring in
+	 * those changes as well.
+	 */
+#if 0
+	xpt_print(ccb->ccb_h.path, "Timed out command: %s. CDB %s\n",
+		  scsi_op_desc((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+		  		ccb->csio.cdb_io.cdb_ptr[0] :
+				ccb->csio.cdb_io.cdb_bytes[0], NULL),
+		  scsi_cdb_string((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+				   ccb->csio.cdb_io.cdb_ptr :
+				   ccb->csio.cdb_io.cdb_bytes, cdb_str,
+		  		   sizeof(cdb_str)));
+#endif
 
 	/* Inform CAM about the timeout and that recovery is starting. */
 #if 0
@@ -983,6 +1020,11 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *cm)
 	mps_printf(sc, "%s: abort request on handle %#04x SMID %d "
 		   "complete\n", __func__, req->DevHandle, req->TaskMID);
 
+	/*
+	 * Release the SIM queue, we froze it when we sent the abort.
+	 */
+	xpt_release_simq(sc->sassc->sim, 1);
+
 	mps_free_command(sc, cm);
 }
 
@@ -1013,10 +1055,19 @@ mpssas_recovery(struct mps_softc *sc, struct mps_command *abort_cm)
 	cm->cm_data = NULL;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
+	/*
+	 * Freeze the SIM queue while we issue the abort.  According to the
+	 * Fusion-MPT 2.0 spec, task management requests are serialized,
+	 * and so the host should not send any I/O requests while task
+	 * management requests are pending.
+	 */
+	xpt_freeze_simq(sc->sassc->sim, 1);
+
 	error = mps_map_command(sc, cm);
 
 	if (error != 0) {
 		mps_printf(sc, "%s: error mapping abort request!\n", __func__);
+		xpt_release_simq(sc->sassc->sim, 1);
 	}
 #if 0
 	error = mpssas_reset(sc, targ, &resetcm);
@@ -1219,11 +1270,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case MPI2_IOCSTATUS_SCSI_DATA_OVERRUN:
-		/*
-		 * XXX any way to report this?
-		 */
+		/* resid is ignored for this condition */
 		ccb->csio.resid = 0;
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status = CAM_DATA_RUN_ERR;
 		break;
 	case MPI2_IOCSTATUS_SCSI_INVALID_DEVHANDLE:
 	case MPI2_IOCSTATUS_SCSI_DEVICE_NOT_THERE:
@@ -1363,7 +1412,13 @@ mpssas_resetdev(struct mpssas_softc *sassc, struct mps_command *cm)
 	cm->cm_data = NULL;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
+	xpt_freeze_simq(sassc->sim, 1);
+
 	error = mps_map_command(sassc->sc, cm);
+
+	if (error != 0)
+		xpt_release_simq(sassc->sim, 1);
+
 	return (error);
 }
 
@@ -1387,6 +1442,9 @@ mpssas_resetdev_complete(struct mps_softc *sc, struct mps_command *cm)
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 
 	mps_free_command(sc, cm);
+
+	xpt_release_simq(sc->sassc->sim, 1);
+
 	xpt_done(ccb);
 }
 

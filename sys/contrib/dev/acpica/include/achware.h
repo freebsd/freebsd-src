@@ -251,6 +251,16 @@ AcpiHwEnableRuntimeGpeBlock (
 
 
 /*
+ * hwpci - PCI configuration support
+ */
+ACPI_STATUS
+AcpiHwDerivePciId (
+    ACPI_PCI_ID             *PciId,
+    ACPI_HANDLE             RootPciDevice,
+    ACPI_HANDLE             PciRegion);
+
+
+/*
  * hwtimer - ACPI Timer prototypes
  */
 ACPI_STATUS

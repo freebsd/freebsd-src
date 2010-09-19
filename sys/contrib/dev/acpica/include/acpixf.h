@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20100806
+#define ACPI_CA_VERSION                 0x20100915
 
 #include <contrib/dev/acpica/include/actypes.h>
 #include <contrib/dev/acpica/include/actbl.h>
@@ -130,6 +130,7 @@
  */
 extern UINT32               AcpiCurrentGpeCount;
 extern ACPI_TABLE_FADT      AcpiGbl_FADT;
+extern BOOLEAN              AcpiGbl_SystemAwakeAndRunning;
 
 /* Runtime configuration of debug print levels */
 

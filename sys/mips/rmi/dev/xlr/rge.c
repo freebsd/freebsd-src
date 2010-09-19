@@ -184,35 +184,8 @@ int xlr_rge_tx_ok_done[MAXCPU];
 int xlr_rge_rx_done[MAXCPU];
 int xlr_rge_repl_done[MAXCPU];
 
-static __inline__ unsigned int
-ldadd_wu(unsigned int value, unsigned long *addr)
-{
-	__asm__ __volatile__(".set push\n"
-	            ".set noreorder\n"
-	            "move $8, %2\n"
-	            "move $9, %3\n"
-	/* "ldaddwu $8, $9\n" */
-	            ".word 0x71280011\n"
-	            "move %0, $8\n"
-	            ".set pop\n"
-	    :       "=&r"(value), "+m"(*addr)
-	    :       "0"(value), "r"((unsigned long)addr)
-	    :       "$8", "$9");
-
-	return value;
-}
-
-static __inline__ uint32_t 
-xlr_enable_kx(void)
-{
-	uint32_t sr = mips_rd_status();
-
-	mips_wr_status((sr & ~MIPS_SR_INT_IE) | MIPS_SR_KX);
-	return sr;
-}
-
 /* #define mac_stats_add(x, val) ({(x) += (val);}) */
-#define mac_stats_add(x, val) ldadd_wu(val, &x)
+#define mac_stats_add(x, val) xlr_ldaddwu(val, &x)
 
 #define XLR_MAX_CORE 8
 #define RGE_LOCK_INIT(_sc, _name) \
@@ -611,25 +584,16 @@ static void
 free_buf(vm_paddr_t paddr)
 {
 	struct mbuf *m;
-	uint32_t mag;
-#ifdef __mips_n64
-	uint64_t *vaddr;
-
-	vaddr = (uint64_t *)MIPS_PHYS_TO_XKPHYS_CACHED(paddr);
-	m = (struct mbuf *)vaddr[0];
-	mag = (uint32_t)vaddr[1];
-#else
+	uint64_t mag;
 	uint32_t sr;
 
 	sr = xlr_enable_kx();
-	m = (struct mbuf *)(intptr_t)xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
-	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + 3 * sizeof(uint32_t));
-	mips_wr_status(sr);
-#endif
-
+	m = (struct mbuf *)(intptr_t)xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE);
+	mag = xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE + sizeof(uint64_t));
+	xlr_restore_kx(sr);
 	if (mag != 0xf00bad) {
-		printf("Something is wrong kseg:%lx found mag:%x not 0xf00bad\n",
-		    (u_long)paddr, mag);
+		printf("Something is wrong kseg:%lx found mag:%lx not 0xf00bad\n",
+		    (u_long)paddr, (u_long)mag);
 		return;
 	}
 	if (m != NULL)
@@ -2022,15 +1986,8 @@ static void
 rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 {
 	struct mbuf *m;
-	uint32_t mag;
 	struct ifnet *ifp = sc->rge_ifp;
-#ifdef __mips_n64
-	uint64_t *vaddr;
-
-	vaddr =(uint64_t *)MIPS_PHYS_TO_XKPHYS_CACHED(paddr - XLR_CACHELINE_SIZE);
-	m = (struct mbuf *)vaddr[0];
-	mag = (uint32_t)vaddr[1];
-#else
+	uint64_t mag;
 	uint32_t sr;
 	/*
 	 * On 32 bit machines we use XKPHYS to get the values stores with
@@ -2038,10 +1995,9 @@ rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 	 * KX is enabled to prevent this setting leaking to other code.
 	 */
 	sr = xlr_enable_kx();
-	m = (struct mbuf *)(intptr_t)xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
-	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + 3 * sizeof(uint32_t));
-	mips_wr_status(sr);
-#endif
+	m = (struct mbuf *)(intptr_t)xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE);
+	mag = xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE + sizeof(uint64_t));
+	xlr_restore_kx(sr);
 	if (mag != 0xf00bad) {
 		/* somebody else packet Error - FIXME in intialization */
 		printf("cpu %d: *ERROR* Not my packet paddr %p\n",

@@ -128,6 +128,7 @@ static int vm_map_zinit(void *mem, int ize, int flags);
 static void vm_map_zfini(void *mem, int size);
 static void _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min,
     vm_offset_t max);
+static void vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map);
 static void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
 #ifdef INVARIANTS
 static void vm_map_zdtor(void *mem, int size, void *arg);
@@ -454,30 +455,39 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 	map->timestamp++;
 }
 
-void
-_vm_map_unlock(vm_map_t map, const char *file, int line)
+static void
+vm_map_process_deferred(void)
 {
-	vm_map_entry_t free_entry, entry;
-	vm_object_t object;
+	struct thread *td;
+	vm_map_entry_t entry;
 
-	free_entry = map->deferred_freelist;
-	map->deferred_freelist = NULL;
+	td = curthread;
+
+	while ((entry = td->td_map_def_user) != NULL) {
+		td->td_map_def_user = entry->next;
+		vm_map_entry_deallocate(entry, FALSE);
+	}
+}
+
+void
+_vm_map_unlock_nodefer(vm_map_t map, const char *file, int line)
+{
 
 	if (map->system_map)
 		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
 	else
 		_sx_xunlock(&map->lock, file, line);
+}
 
-	while (free_entry != NULL) {
-		entry = free_entry;
-		free_entry = free_entry->next;
+void
+_vm_map_unlock(vm_map_t map, const char *file, int line)
+{
 
-		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
-			object = entry->object.vm_object;
-			vm_object_deallocate(object);
-		}
-
-		vm_map_entry_dispose(map, entry);
+	if (map->system_map)
+		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+	else {
+		_sx_xunlock(&map->lock, file, line);
+		vm_map_process_deferred();
 	}
 }
 
@@ -497,8 +507,10 @@ _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 
 	if (map->system_map)
 		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
-	else
+	else {
 		_sx_sunlock(&map->lock, file, line);
+		vm_map_process_deferred();
+	}
 }
 
 int
@@ -548,6 +560,7 @@ _vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 		if (!_sx_try_upgrade(&map->lock, file, line)) {
 			last_timestamp = map->timestamp;
 			_sx_sunlock(&map->lock, file, line);
+			vm_map_process_deferred();
 			/*
 			 * If the map's timestamp does not change while the
 			 * map is unlocked, then the upgrade succeeds.
@@ -631,7 +644,7 @@ vm_map_unlock_and_wait(vm_map_t map, int timo)
 {
 
 	mtx_lock(&map_sleep_mtx);
-	vm_map_unlock(map);
+	vm_map_unlock_nodefer(map);
 	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps", timo));
 }
 
@@ -699,7 +712,6 @@ _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 	map->flags = 0;
 	map->root = NULL;
 	map->timestamp = 0;
-	map->deferred_freelist = NULL;
 }
 
 void
@@ -2602,6 +2614,15 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 	entry->wired_count = 0;
 }
 
+static void
+vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map)
+{
+
+	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0)
+		vm_object_deallocate(entry->object.vm_object);
+	uma_zfree(system_map ? kmapentzone : mapentzone, entry);
+}
+
 /*
  *	vm_map_entry_delete:	[ internal use only ]
  *
@@ -2656,6 +2677,12 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		VM_OBJECT_UNLOCK(object);
 	} else
 		entry->object.vm_object = NULL;
+	if (map->system_map)
+		vm_map_entry_deallocate(entry, TRUE);
+	else {
+		entry->next = curthread->td_map_def_user;
+		curthread->td_map_def_user = entry;
+	}
 }
 
 /*
@@ -2744,8 +2771,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		 * will be set in the wrong object!)
 		 */
 		vm_map_entry_delete(map, entry);
-		entry->next = map->deferred_freelist;
-		map->deferred_freelist = entry;
 		entry = next;
 	}
 	return (KERN_SUCCESS);

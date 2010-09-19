@@ -1110,6 +1110,7 @@ struct nlna_softc {
         int		mac_type;
         xlr_reg_t	*base;
 
+	struct callout 	tx_thr;
 	struct fr_desc *frin_spill;
 	struct fr_desc *frout_spill;
 	union rx_tx_desc *class_0_spill;

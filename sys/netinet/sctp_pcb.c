@@ -3916,9 +3916,6 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		} else {
 			net->mtu = 0;
 		}
-#ifdef SCTP_PRINT_FOR_B_AND_M
-		SCTP_PRINTF("We have found an interface mtu of %d\n", net->mtu);
-#endif
 		if (net->mtu == 0) {
 			/* Huh ?? */
 			net->mtu = SCTP_DEFAULT_MTU;
@@ -3926,9 +3923,6 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 			uint32_t rmtu;
 
 			rmtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, net->ro.ro_rt);
-#ifdef SCTP_PRINT_FOR_B_AND_M
-			SCTP_PRINTF("The route mtu is %d\n", rmtu);
-#endif
 			if (rmtu == 0) {
 				/*
 				 * Start things off to match mtu of
@@ -3946,9 +3940,6 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 			}
 		}
 		if (from == SCTP_ALLOC_ASOC) {
-#ifdef SCTP_PRINT_FOR_B_AND_M
-			SCTP_PRINTF("New assoc sets mtu to :%d\n", net->mtu);
-#endif
 			stcb->asoc.smallest_mtu = net->mtu;
 		}
 	} else {
@@ -3966,10 +3957,6 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		net->mtu -= sizeof(struct udphdr);
 	}
 	if (stcb->asoc.smallest_mtu > net->mtu) {
-#ifdef SCTP_PRINT_FOR_B_AND_M
-		SCTP_PRINTF("new address mtu:%d smaller than smallest:%d\n",
-		    net->mtu, stcb->asoc.smallest_mtu);
-#endif
 		stcb->asoc.smallest_mtu = net->mtu;
 	}
 	/* JRS - Use the congestion control given in the CC module */
@@ -4835,7 +4822,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 					/* Still an open socket - report */
 					sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL, stcb,
 					    SCTP_NOTIFY_DATAGRAM_UNSENT,
-					    (void *)sp, 0);
+					    (void *)sp, SCTP_SO_LOCKED);
 				}
 				if (sp->data) {
 					sctp_m_freem(sp->data);
@@ -4843,7 +4830,10 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 					sp->tail_mbuf = NULL;
 				}
 			}
-			sctp_free_remote_addr(sp->net);
+			if (sp->net) {
+				sctp_free_remote_addr(sp->net);
+				sp->net = NULL;
+			}
 			sctp_free_spbufspace(stcb, asoc, sp);
 			if (sp->holds_key_ref)
 				sctp_auth_key_release(stcb, sp->auth_keyid);
@@ -4904,7 +4894,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				if (so) {
 					/* Still a socket? */
 					sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-					    SCTP_NOTIFY_DATAGRAM_UNSENT, chk, 0);
+					    SCTP_NOTIFY_DATAGRAM_UNSENT, chk, SCTP_SO_LOCKED);
 				}
 				if (chk->data) {
 					sctp_m_freem(chk->data);
@@ -4914,7 +4904,10 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			if (chk->holds_key_ref)
 				sctp_auth_key_release(stcb, chk->auth_keyid);
 			ccnt++;
-			sctp_free_remote_addr(chk->whoTo);
+			if (chk->whoTo) {
+				sctp_free_remote_addr(chk->whoTo);
+				chk->whoTo = NULL;
+			}
 			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
 			SCTP_DECR_CHK_COUNT();
 			/* sa_ignore FREED_MEMORY */
@@ -4936,7 +4929,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				if (so) {
 					/* Still a socket? */
 					sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-					    SCTP_NOTIFY_DATAGRAM_SENT, chk, 0);
+					    SCTP_NOTIFY_DATAGRAM_SENT, chk, SCTP_SO_LOCKED);
 				}
 				if (chk->data) {
 					sctp_m_freem(chk->data);

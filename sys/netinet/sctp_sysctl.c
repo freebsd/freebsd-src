@@ -109,6 +109,8 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_mobility_base) = SCTPCTL_MOBILITY_BASE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_mobility_fasthandoff) = SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_vtag_time_wait) = SCTPCTL_TIME_WAIT_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_buffer_splitting) = SCTPCTL_BUFFER_SPLITTING_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_initial_cwnd) = SCTPCTL_INITIAL_CWND_DEFAULT;
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
 #endif
@@ -199,8 +201,6 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 		ipv4_addr_legal = 1;
 		ipv6_addr_legal = 0;
 	}
-
-	error = 0;
 
 	/* neither Mac OS X nor FreeBSD support mulitple routing functions */
 	if ((vrf = sctp_find_vrf(inp->def_vrf_id)) == NULL) {
@@ -622,7 +622,8 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_default_cc_module), SCTPCTL_DEFAULT_CC_MODULE_MIN, SCTPCTL_DEFAULT_CC_MODULE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_default_frag_interleave), SCTPCTL_DEFAULT_FRAG_INTERLEAVE_MIN, SCTPCTL_DEFAULT_FRAG_INTERLEAVE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_vtag_time_wait), SCTPCTL_TIME_WAIT_MIN, SCTPCTL_TIME_WAIT_MAX);
-
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_buffer_splitting), SCTPCTL_BUFFER_SPLITTING_MIN, SCTPCTL_BUFFER_SPLITTING_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_initial_cwnd), SCTPCTL_INITIAL_CWND_MIN, SCTPCTL_INITIAL_CWND_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_mobility_base), SCTPCTL_MOBILITY_BASE_MIN, SCTPCTL_MOBILITY_BASE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_mobility_fasthandoff), SCTPCTL_MOBILITY_FASTHANDOFF_MIN, SCTPCTL_MOBILITY_FASTHANDOFF_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_udp_tunneling_for_client_enable), SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN, SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MAX);
@@ -1068,6 +1069,14 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, nat_friendly_init, CTLTYPE_INT | CTLFLAG_R
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, vtag_time_wait, CTLTYPE_INT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_vtag_time_wait), 0, sysctl_sctp_check, "IU",
     SCTPCTL_TIME_WAIT_DESC);
+
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, buffer_splitting, CTLTYPE_INT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_buffer_splitting), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_BUFFER_SPLITTING_DESC);
+
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, initial_cwnd, CTLTYPE_INT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_initial_cwnd), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_INITIAL_CWND_DESC);
 
 #ifdef SCTP_DEBUG
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, debug, CTLTYPE_INT | CTLFLAG_RW,

@@ -207,6 +207,9 @@ static void 	release_tx_desc(vm_paddr_t phy_addr);
 static int	send_fmn_msg_tx(struct nlge_softc *, struct msgrng_msg *,
     uint32_t n_entries);
 
+static void
+nl_tx_q_wakeup(void *addr);
+
 //#define DEBUG
 #ifdef DEBUG
 static int	mac_debug = 1;
@@ -300,31 +303,13 @@ DRIVER_MODULE(miibus, nlge, miibus_driver, miibus_devclass, 0, 0);
 
 static uma_zone_t nl_tx_desc_zone;
 
-/* Function to atomically increment an integer with the given value. */
-static __inline__ unsigned int
-ldadd_wu(unsigned int value, unsigned long *addr)
+static __inline void
+atomic_incr_long(unsigned long *addr)
 {
-	__asm__	 __volatile__( ".set push\n"
-			       ".set noreorder\n"
-			       "move $8, %2\n"
-			       "move $9, %3\n"
-			       /* "ldaddwu $8, $9\n" */
-			       ".word 0x71280011\n"
-			       "move %0, $8\n"
-			       ".set pop\n"
-			       : "=&r"(value), "+m"(*addr)
-			       : "0"(value), "r" ((unsigned long)addr)
-			       :  "$8", "$9");
-	return value;
-}
+	/* XXX: fix for 64 bit */
+	unsigned int *iaddr = (unsigned int *)addr;
 
-static __inline__ uint32_t
-xlr_enable_kx(void)
-{
-	uint32_t sr = mips_rd_status();
-
-	mips_wr_status((sr & ~MIPS_SR_INT_IE) | MIPS_SR_KX);
-	return sr;
+	xlr_ldaddwu(1, iaddr);
 }
 
 static int
@@ -441,6 +426,10 @@ nlna_attach(device_t dev)
 		    sizeof(struct nlge_tx_desc), NULL, NULL, NULL, NULL,
 		    XLR_CACHELINE_SIZE, 0);
 	}
+
+	/* Other per NA s/w initialization */
+	callout_init(&sc->tx_thr, CALLOUT_MPSAFE);
+	callout_reset(&sc->tx_thr, hz, nl_tx_q_wakeup, sc);
 
 	/* Enable NA interrupts */
 	nlna_setup_intr(sc);
@@ -673,17 +662,25 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 	}
 
 	if (ctrl == CTRL_REG_FREE || ctrl == CTRL_JUMBO_FREE) {
-		if (is_p2p) {
-			release_tx_desc(phys_addr);
-		} else {
-			m_freem((struct mbuf *)(uintptr_t)phys_addr);
-		}
-
 		ifp = sc->nlge_if;
-		if (ifp->if_drv_flags & IFF_DRV_OACTIVE){
-			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if (!tx_error) {
+			if (is_p2p) {
+				release_tx_desc(phys_addr);
+			} else {
+				m_freem((struct mbuf *)(uintptr_t)phys_addr);
+			}
+			NLGE_LOCK(sc);
+			if (ifp->if_drv_flags & IFF_DRV_OACTIVE){
+				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+				callout_reset(&na_sc->tx_thr, hz,
+				    nl_tx_q_wakeup, na_sc);
+			}
+			NLGE_UNLOCK(sc);
+		} else {
+			printf("ERROR: Tx fb error (%d) on port %d\n", tx_error,
+			    port);
 		}
-		ldadd_wu(1, (tx_error) ? &ifp->if_oerrors: &ifp->if_opackets);
+		atomic_incr_long((tx_error) ? &ifp->if_oerrors: &ifp->if_opackets);
 	} else if (ctrl == CTRL_SNGL || ctrl == CTRL_START) {
 		/* Rx Packet */
 
@@ -705,7 +702,24 @@ nlge_start(struct ifnet *ifp)
 	nlge_start_locked(ifp, sc);
 	//NLGE_UNLOCK(sc);
 }
-	
+
+static void
+nl_tx_q_wakeup(void *addr)
+{
+	struct nlna_softc *na_sc;
+	struct nlge_softc *sc;
+	int i;
+
+	na_sc = (struct nlna_softc *) addr;
+	for (i = 0; i < XLR_MAX_MACS; i++) { 
+		sc = na_sc->child_sc[i];
+		if (sc == NULL)
+			continue;
+		nlge_start_locked(sc->nlge_if, sc);
+	}
+	callout_reset(&na_sc->tx_thr, 5 * hz, nl_tx_q_wakeup, na_sc);
+}
+
 static void
 nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
 {
@@ -714,20 +728,30 @@ nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
 	struct nlge_tx_desc 	*tx_desc;
 	uint64_t		fr_stid;
 	uint32_t		cpu;	
-	uint32_t		n_entries;	
+	uint32_t		n_entries;
 	uint32_t		tid;
 	int 			ret;
-	int 			sent;
 
 	cpu = xlr_core_id();	
 	tid = xlr_thr_id();
-	fr_stid = cpu * 8 + tid + 4;
+	/* H/w threads [0, 2] --> bucket 6 and [1, 3] --> bucket 7 */
+	fr_stid = cpu * 8 + 6 + (tid % 2); 
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		return;
 	}
 
 	do {
+		/*
+		 * First, remove some freeback messages before transmitting
+		 * any new packets. However, cap the number of messages
+		 * drained to permit this thread to continue with its
+		 * transmission.
+		 *
+		 * Mask for buckets {6, 7} is 0xc0
+		 */
+		xlr_msgring_handler(0xc0, 4);
+
 		/* Grab a packet off the queue. */
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL) {
@@ -739,8 +763,8 @@ nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
 		if (ret) {
 			goto fail;
 		}
-		sent = send_fmn_msg_tx(sc, &msg, n_entries);
-		if (sent != 0) {
+		ret = send_fmn_msg_tx(sc, &msg, n_entries);
+		if (ret != 0) {
 			goto fail;
 		}
 	} while(1);
@@ -752,21 +776,11 @@ fail:
 		uma_zfree(nl_tx_desc_zone, tx_desc);
 	}
 	if (m != NULL) {
-		/*
-		 * TBD: It is observed that only when both of the statements
-		 * below are not enabled, traffic continues till the end.
-		 * Otherwise, the port locks up in the middle and never
-		 * recovers from it. The current theory for this behavior
-		 * is that the queue is full and the upper layer is neither
-		 * able to add to it not invoke nlge_start to drian the
-		 * queue. The driver may have to do something in addition
-		 * to reset'ing the OACTIVE bit when a trasnmit free-back
-		 * is received.
-		 */
-		//ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		//IF_PREPEND(&ifp->if_snd, m);
-		m_freem(m);
-		ldadd_wu(1, &ifp->if_iqdrops);
+		NLGE_LOCK(sc);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		NLGE_UNLOCK(sc);
+		IF_PREPEND(&ifp->if_snd, m);
+		atomic_incr_long(&ifp->if_iqdrops);
 	}
 	return;
 }
@@ -774,14 +788,15 @@ fail:
 static void
 nlge_rx(struct nlge_softc *sc, vm_paddr_t paddr, int len)
 {
-	struct ifnet   *ifp;
-	struct mbuf    *m;
-	uint32_t tm, mag, sr;
+	struct ifnet	*ifp;
+	struct mbuf	*m;
+	uint64_t	tm, mag;
+	uint32_t	sr;
 
 	sr = xlr_enable_kx();
-	tm = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE);
-	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
-	mips_wr_status(sr);
+	tm = xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE);
+	mag = xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE + sizeof(uint64_t));
+	xlr_restore_kx(sr);
 
 	m = (struct mbuf *)(intptr_t)tm;
 	if (mag != 0xf00bad) {
@@ -797,7 +812,7 @@ nlge_rx(struct nlge_softc *sc, vm_paddr_t paddr, int len)
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_pkthdr.rcvif = ifp;
 
-	ldadd_wu(1, &ifp->if_ipackets);
+	atomic_incr_long(&ifp->if_ipackets);
 	(*ifp->if_input)(ifp, m);
 }
 
@@ -1037,7 +1052,7 @@ nlna_submit_rx_free_desc(struct nlna_softc *sc, uint32_t n_desc)
 			msgrng_flags = msgrng_access_enable();
 			ret = message_send(1, code, stid, &msg);
 			msgrng_restore(msgrng_flags);
-			KASSERT(n++ < 100000, ("Too many credit fails\n"));
+			KASSERT(n++ < 100000, ("Too many credit fails in rx path\n"));
 		} while (ret != 0);
 	}
 }
@@ -1895,15 +1910,11 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 					return 2;
 				}
 				/*
-				 * As we currently use xlr_paddr_lw on a 32-bit
-				 * OS, both the pointers are laid out in one
-				 * 64-bit location - this makes it easy to
-				 * retrieve the pointers when processing the
-				 * tx free-back descriptor.
+				 * Save the virtual address in the descriptor,
+				 * it makes freeing easy.
 				 */
 				p2p->frag[XLR_MAX_TX_FRAGS] =
-				    (((uint64_t) (vm_offset_t) p2p) << 32) |
-				    ((vm_offset_t) mbuf_chain);
+				    (uint64_t)(vm_offset_t)p2p;
 				cur_p2d = &p2p->frag[0];
 				is_p2p = 1;
 			} else if (msg_sz == (FMN_SZ - 2 + XLR_MAX_TX_FRAGS)) {
@@ -1932,7 +1943,7 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 
 	cur_p2d[-1] |= (1ULL << 63); /* set eop in most-recent p2d */
 	*cur_p2d = (1ULL << 63) | ((uint64_t)fb_stn_id << 54) |
-	     (vm_offset_t) mbuf_chain;
+	     (vm_offset_t) mbuf_chain;   /* XXX: fix 64 bit */
 	*tx_desc = p2p;
 
 	if (is_p2p) {
@@ -1963,9 +1974,14 @@ send_fmn_msg_tx(struct nlge_softc *sc, struct msgrng_msg *msg,
 		ret = message_send(n_entries, MSGRNG_CODE_MAC,
 		    sc->tx_bucket_id, msg);
 		msgrng_restore(msgrng_flags);
-		KASSERT(i++ < 100000, ("Too many credit fails\n"));
-	} while (ret != 0);
-	return (0);
+		if (ret == 0)
+			return (0);
+		i++;
+	} while (i < 100000);
+
+	KASSERT(i < 100000, ("Too many credit fails in tx path\n"));
+
+	return (1);
 }
 
 static void
@@ -1973,39 +1989,41 @@ release_tx_desc(vm_paddr_t paddr)
 {
 	struct nlge_tx_desc *tx_desc;
 	uint32_t 	sr;
-	uint32_t	val1, val2;
+	uint64_t	vaddr;
 
 	paddr += (XLR_MAX_TX_FRAGS * sizeof(uint64_t));
 	sr = xlr_enable_kx();
-	val1 = xlr_paddr_lw(paddr);
-	paddr += sizeof(void *);
-	val2 = xlr_paddr_lw(paddr);
-	mips_wr_status(sr);
+	vaddr = xlr_paddr_ld(paddr);
+	xlr_restore_kx(sr);
 
-	tx_desc = (struct nlge_tx_desc*)(intptr_t) val1;
+	tx_desc = (struct nlge_tx_desc*)(intptr_t)vaddr;
 	uma_zfree(nl_tx_desc_zone, tx_desc);
 }
 
 static void *
 get_buf(void)
 {
-	struct mbuf    *m_new;
-	vm_paddr_t 	temp1, temp2;
-	unsigned int 	*md;
+	struct mbuf	*m_new;
+	uint64_t 	*md;
+#ifdef INVARIANTS
+	vm_paddr_t	temp1, temp2;
+#endif
 
 	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
-		return NULL;
+		return (NULL);
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	m_adj(m_new, XLR_CACHELINE_SIZE - ((unsigned int)m_new->m_data & 0x1f));
-	md = (unsigned int *)m_new->m_data;
-	md[0] = (unsigned int)m_new;	/* Back Ptr */
+	md = (uint64_t *)m_new->m_data;
+	md[0] = (intptr_t)m_new;	/* Back Ptr */
 	md[1] = 0xf00bad;
 	m_adj(m_new, XLR_CACHELINE_SIZE);
 
+#ifdef INVARIANTS
 	temp1 = vtophys((vm_offset_t) m_new->m_data);
 	temp2 = vtophys((vm_offset_t) m_new->m_data + 1536);
 	if ((temp1 + 1536) != temp2)
 		panic("ALLOCED BUFFER IS NOT CONTIGUOUS\n");
+#endif
 
 	return ((void *)m_new->m_data);
 }

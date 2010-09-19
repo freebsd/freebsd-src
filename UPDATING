@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20100915:
+	A workaround for a fixed ld bug has been removed in kernel code,
+	so make sure that your system ld is built from sources after
+	revision 210245 (r211583 if building head kernel on stable/8,
+	r211584 for stable/7).  A symptom of incorrect ld version is
+	different addresses for set_pcpu section and __start_set_pcpu
+	symbol in kernel and/or modules.
+
 20100913:
 	The $ipv6_prefer variable in rc.conf(5) has been split into
 	$ip6addrctl_policy and $ipv6_activate_all_interfaces.

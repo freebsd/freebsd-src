@@ -50,6 +50,8 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	${_atp.4} \
+	${_atrtc.4} \
+	${_attimer.4} \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
@@ -133,6 +135,7 @@ MAN=	aac.4 \
 	hfa.4 \
 	hifn.4 \
 	hme.4 \
+	hpet.4 \
 	${_hptiop.4} \
 	${_hptmv.4} \
 	${_hptrr.4} \
@@ -219,6 +222,7 @@ MAN=	aac.4 \
 	mmcsd.4 \
 	mn.4 \
 	mouse.4 \
+	mps.4 \
 	mpt.4 \
 	msk.4 \
 	mtio.4 \
@@ -353,6 +357,7 @@ MAN=	aac.4 \
 	sctp.4 \
 	sdhci.4 \
 	sem.4 \
+	send.4 \
 	ses.4 \
 	sf.4 \
 	sge.4 \
@@ -543,7 +548,9 @@ MLINKS+=gif.4 if_gif.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
+MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
+MLINKS+=${_attimer.4} ${_i8254.4}
 MLINKS+=idt.4 if_idt.4
 MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
@@ -640,6 +647,8 @@ _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
 _aesni.4=	aesni.4
+_atrtc.4=	atrtc.4
+_attimer.4=	attimer.4
 _aibs.4=	aibs.4
 _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
@@ -652,6 +661,7 @@ _dpms.4=	dpms.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
+_i8254.4=	i8254.4
 _ichwd.4=	ichwd.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4

@@ -107,6 +107,8 @@ struct sctp_sysctl {
 	uint32_t sctp_udp_tunneling_port;
 	uint32_t sctp_enable_sack_immediately;
 	uint32_t sctp_vtag_time_wait;
+	uint32_t sctp_buffer_splitting;
+	uint32_t sctp_initial_cwnd;
 #if defined(SCTP_DEBUG)
 	uint32_t sctp_debug_on;
 #endif
@@ -478,19 +480,29 @@ struct sctp_sysctl {
 #define SCTPCTL_SACK_IMMEDIATELY_ENABLE_MAX	1
 #define SCTPCTL_SACK_IMMEDIATELY_ENABLE_DEFAULT	SCTPCTL_SACK_IMMEDIATELY_ENABLE_MIN
 
-/* Enable sending of the SACK-IMMEDIATELY bit */
+/* Enable sending of the NAT-FRIENDLY message */
 #define SCTPCTL_NAT_FRIENDLY_INITS_DESC	"Enable sending of the nat-friendly SCTP option on INITs."
 #define SCTPCTL_NAT_FRIENDLY_INITS_MIN	0
 #define SCTPCTL_NAT_FRIENDLY_INITS_MAX	1
 #define SCTPCTL_NAT_FRIENDLY_INITS_DEFAULT	SCTPCTL_NAT_FRIENDLY_INITS_MIN
 
-
-/* Vtag tiem wait bits */
-#define SCTPCTL_TIME_WAIT_DESC	"Vtag time wait time 0 disables."
+/* Vtag time wait in seconds */
+#define SCTPCTL_TIME_WAIT_DESC	"Vtag time wait time in seconds, 0 disables it."
 #define SCTPCTL_TIME_WAIT_MIN	0
 #define SCTPCTL_TIME_WAIT_MAX	0xffffffff
 #define SCTPCTL_TIME_WAIT_DEFAULT	SCTP_TIME_WAIT
 
+/* Enable Send/Receive buffer splitting */
+#define SCTPCTL_BUFFER_SPLITTING_DESC		"Enable send/receive buffer splitting."
+#define SCTPCTL_BUFFER_SPLITTING_MIN		0
+#define SCTPCTL_BUFFER_SPLITTING_MAX		0x3
+#define SCTPCTL_BUFFER_SPLITTING_DEFAULT	SCTPCTL_BUFFER_SPLITTING_MIN
+
+/* Initial congestion window in MTU */
+#define SCTPCTL_INITIAL_CWND_DESC	"Initial congestion window in MTUs"
+#define SCTPCTL_INITIAL_CWND_MIN	1
+#define SCTPCTL_INITIAL_CWND_MAX	0xffffffff
+#define SCTPCTL_INITIAL_CWND_DEFAULT	3
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */

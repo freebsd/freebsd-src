@@ -40,7 +40,6 @@
 #include <zone.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/zio.h>
-#include <strings.h>
 #include <umem.h>
 
 #include "zfs_namecheck.h"

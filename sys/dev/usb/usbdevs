@@ -488,7 +488,7 @@ vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor IDQUANTIQUE	0x0aba	id Quantique
 vendor ZYDAS		0x0ace	Zydas Technology Corporation
 vendor NEODIO		0x0aec	Neodio
-vendor OPTION		0x0af0	Option N.V:
+vendor OPTION		0x0af0	Option N.V.
 vendor ASUS		0x0b05	ASUSTeK Computer
 vendor TODOS		0x0b0c	Todos Data System
 vendor SIIG2		0x0b39	SIIG
@@ -1444,7 +1444,7 @@ product EDIMAX EW7718		0x7718	EW-7718
 /* eGalax Products */
 product EGALAX TPANEL		0x0001	Touch Panel
 product EGALAX TPANEL2		0x0002	Touch Panel
-product EGALAX2 TPANEL		0x0001	Touch Panel   
+product EGALAX2 TPANEL		0x0001	Touch Panel
 
 /* Eicon Networks */
 product EICON DIVA852		0x4905	Diva 852 ISDN TA
@@ -2096,7 +2096,7 @@ product MELCO LUATX1		0x0001	LUA-TX Ethernet
 product MELCO LUATX5		0x0005	LUA-TX Ethernet
 product MELCO LUA2TX5		0x0009	LUA2-TX Ethernet
 product MELCO LUAKTX		0x0012	LUA-KTX Ethernet
-product MELCO DUBPXXG		0x001c	USB-IDE Bridge: DUB-PxxG
+product MELCO DUBPXXG		0x001c	DUB-PxxG
 product MELCO LUAU2KTX		0x003d	LUA-U2-KTX Ethernet
 product MELCO KG54YB		0x005e	WLI-U2-KG54-YB WLAN
 product MELCO KG54		0x0066	WLI-U2-KG54 WLAN
@@ -2456,7 +2456,7 @@ product PANASONIC TYTP50P6S	0x3900	TY-TP50P6-S 50in Touch Panel
 
 /* PARA Industrial products */
 product PARA RT3070		0x8888	RT3070
- 	 
+
 /* Pegatron products */
 product PEGATRON RT2870		0x0002	RT2870
 product PEGATRON RT3070		0x000c	RT3070
@@ -2742,7 +2742,7 @@ product SAGEM XG76NA		0x0062	XG-76NA
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 product SAMSUNG YP_U2		0x5050	YP-U2 MP3 Player
 product SAMSUNG YP_U4		0x5092	YP-U4 MP3 Player
-product SAMSUNG I500		0x6601	I500 Palm USB Phone 
+product SAMSUNG I500		0x6601	I500 Palm USB Phone
 product SAMSUNG I330		0x8001	I330 phone cradle
 product SAMSUNG2 RT2870_1	0x2018	RT2870
 
@@ -3371,7 +3371,7 @@ product ZOOM 2986L		0x9700	2986L Fax modem
 product ZORAN EX20DSC		0x4343	Digital Camera EX-20 DSC
 
 /* Zydas Technology Corporation products */
-product ZYDAS ZD1211		0x1211	ZD1211 WLAN abg 
+product ZYDAS ZD1211		0x1211	ZD1211 WLAN abg
 product ZYDAS ZD1211B		0x1215	ZD1211B
 
 /* ZyXEL Communication Co. products */

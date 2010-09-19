@@ -213,6 +213,7 @@ iodi_attach(device_t dev)
 	device_add_child(dev, "uart", 0);
 	device_add_child(dev, "xlr_i2c", 0);
 	device_add_child(dev, "pcib", 0);
+	device_add_child(dev, "rmisec", -1);
 
 	if (xlr_board_info.usb)
 		device_add_child(dev, "ehci", 0);
