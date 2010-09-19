@@ -82,6 +82,21 @@ int __cvmx_helper_spi_probe(int interface)
     {
         num_ports = 10;
     }
+#if defined(OCTEON_VENDOR_LANNER)
+    else if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_LANNER_MR955)
+    {
+        cvmx_pko_reg_crc_enable_t enable;
+	if (interface == 1) {
+	    num_ports = 12;
+	} else {
+	    /* XXX This is not entirely true.  */
+	    num_ports = 0;
+	}
+        enable.u64 = cvmx_read_csr(CVMX_PKO_REG_CRC_ENABLE);
+        enable.s.enable &= 0xffff << (16 - (interface*16));
+        cvmx_write_csr(CVMX_PKO_REG_CRC_ENABLE, enable.u64);
+    }
+#endif
     else
     {
         cvmx_pko_reg_crc_enable_t enable;

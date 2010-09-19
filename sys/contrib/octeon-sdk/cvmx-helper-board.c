@@ -114,6 +114,9 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
         case CVMX_BOARD_TYPE_EBT5800:
         case CVMX_BOARD_TYPE_THUNDER:
         case CVMX_BOARD_TYPE_NICPRO2:
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
+#endif
             /* Interface 0 is SPI4, interface 1 is RGMII */
             if ((ipd_port >= 16) && (ipd_port < 20))
                 return ipd_port - 16;
@@ -616,6 +619,12 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
             if (interface == 1)
                 return 0;
 	    break;
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
+	    if (interface == 1)
+	        return 12;
+	    break;
+#endif
     }
 #ifdef CVMX_BUILD_FOR_UBOOT
     if (CVMX_HELPER_INTERFACE_MODE_SPI == cvmx_helper_interface_get_mode(interface) && getenv("disable_spi"))
