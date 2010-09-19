@@ -5359,7 +5359,7 @@ iwn5000_rx_calib_result(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	len = (le32toh(desc->len) & FRAME_SIZE_MASK);
 
-	/* Remove length filed itself. */
+	/* Remove length field itself. */
 	len -= 4;
 
 	/*
