@@ -1137,6 +1137,7 @@ nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
 	struct nfslockfile *lfp = NULL;
 	int gottvp = 0;
 	vnode_t tvp = NULL;
+	uint64_t first, end;
 
 	lop = LIST_FIRST(&stp->ls_lock);
 	while (lop != LIST_END(&stp->ls_lock)) {
@@ -1167,14 +1168,16 @@ nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
 		if (tvp != NULL) {
 			if (cansleep == 0)
 				panic("allnfs2");
-			nfsrv_localunlock(tvp, lfp, lop->lo_first,
-			    lop->lo_end, p);
+			first = lop->lo_first;
+			end = lop->lo_end;
+			nfsrv_freenfslock(lop);
+			nfsrv_localunlock(tvp, lfp, first, end, p);
 			LIST_FOREACH_SAFE(rlp, &lfp->lf_rollback, rlck_list,
 			    nrlp)
 				free(rlp, M_NFSDROLLBACK);
 			LIST_INIT(&lfp->lf_rollback);
-		}
-		nfsrv_freenfslock(lop);
+		} else
+			nfsrv_freenfslock(lop);
 		lop = nlop;
 	}
 	if (vp == NULL && tvp != NULL)
