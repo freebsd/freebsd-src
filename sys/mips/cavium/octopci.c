@@ -384,6 +384,8 @@ static device_method_t octopci_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 
+	DEVMETHOD(bus_add_child,	bus_generic_add_child),
+
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,	octopci_maxslots),
 	DEVMETHOD(pcib_read_config,	octopci_read_config),
