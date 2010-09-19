@@ -266,7 +266,7 @@ vmspace_pmap(struct vmspace *vmspace)
 
 void _vm_map_lock(vm_map_t map, const char *file, int line);
 void _vm_map_unlock(vm_map_t map, const char *file, int line);
-void _vm_map_unlock_nodefer(vm_map_t map, const char *file, int line);
+int _vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line);
 void _vm_map_lock_read(vm_map_t map, const char *file, int line);
 void _vm_map_unlock_read(vm_map_t map, const char *file, int line);
 int _vm_map_trylock(vm_map_t map, const char *file, int line);
@@ -274,13 +274,12 @@ int _vm_map_trylock_read(vm_map_t map, const char *file, int line);
 int _vm_map_lock_upgrade(vm_map_t map, const char *file, int line);
 void _vm_map_lock_downgrade(vm_map_t map, const char *file, int line);
 int vm_map_locked(vm_map_t map);
-int vm_map_unlock_and_wait(vm_map_t map, int timo);
 void vm_map_wakeup(vm_map_t map);
 
 #define	vm_map_lock(map)	_vm_map_lock(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock(map)	_vm_map_unlock(map, LOCK_FILE, LOCK_LINE)
-#define	vm_map_unlock_nodefer(map)	\
-			_vm_map_unlock_nodefer(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_unlock_and_wait(map, timo)	\
+			_vm_map_unlock_and_wait(map, timo, LOCK_FILE, LOCK_LINE)
 #define	vm_map_lock_read(map)	_vm_map_lock_read(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock_read(map)	_vm_map_unlock_read(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_trylock(map)	_vm_map_trylock(map, LOCK_FILE, LOCK_LINE)
