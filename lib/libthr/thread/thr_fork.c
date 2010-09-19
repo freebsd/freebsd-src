@@ -137,7 +137,7 @@ _fork(void)
 	struct pthread *curthread;
 	struct pthread_atfork *af;
 	pid_t ret;
-	int errsave;
+	int errsave, cancelsave;
 	int was_threaded;
 	int rtld_locks[MAX_RTLD_LOCKS];
 
@@ -145,7 +145,8 @@ _fork(void)
 		return (__sys_fork());
 
 	curthread = _get_curthread();
-
+	cancelsave = curthread->no_cancel;
+	curthread->no_cancel = 1;
 	_thr_rwl_rdlock(&_thr_atfork_lock);
 
 	/* Run down atfork prepare handlers. */
@@ -223,6 +224,7 @@ _fork(void)
 				af->child();
 		}
 		_thr_rwlock_unlock(&_thr_atfork_lock);
+		curthread->no_cancel = cancelsave;
 	} else {
 		/* Parent process */
 		errsave = errno;
@@ -244,6 +246,9 @@ _fork(void)
 		}
 
 		_thr_rwlock_unlock(&_thr_atfork_lock);
+		curthread->no_cancel = cancelsave;
+		/* test async cancel */
+		_thr_testcancel(curthread);
 	}
 	errno = errsave;
 

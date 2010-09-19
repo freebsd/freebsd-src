@@ -187,7 +187,6 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	struct pthread *curthread = _get_curthread();
 	ucontext_t uc2;
 	__siginfohandler_t *sigfunc;
-	int cancel_defer;
 	int cancel_point;
 	int cancel_async;
 	int cancel_enable;
@@ -213,12 +212,10 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	 * cancellation is pending, to avoid this problem while thread is in
 	 * deferring mode, cancellation is temporarily disabled.
 	 */
-	cancel_defer = curthread->cancel_defer;
 	cancel_point = curthread->cancel_point;
 	cancel_async = curthread->cancel_async;
 	cancel_enable = curthread->cancel_enable;
 	curthread->cancel_point = 0;
-	curthread->cancel_defer = 0;
 	if (!cancel_async)
 		curthread->cancel_enable = 0;
 
@@ -245,7 +242,6 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	err = errno;
 
 	curthread->in_sigsuspend = in_sigsuspend;
-	curthread->cancel_defer = cancel_defer;
 	curthread->cancel_point = cancel_point;
 	curthread->cancel_enable = cancel_enable;
 
@@ -275,7 +271,7 @@ check_cancel(struct pthread *curthread, ucontext_t *ucp)
 {
 
 	if (__predict_true(!curthread->cancel_pending || !curthread->cancel_enable ||
-	    curthread->cancelling))
+	    curthread->no_cancel))
 		return;
 
 	if (curthread->cancel_async) {
