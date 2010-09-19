@@ -206,7 +206,7 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 
 	/* Flag this thread as exiting. */
 	curthread->cancelling = 1;
-	curthread->cancel_enable = 0;
+	curthread->no_cancel = 1;
 	curthread->cancel_async = 0;
 	curthread->cancel_point = 0;
 	if (mask != NULL)

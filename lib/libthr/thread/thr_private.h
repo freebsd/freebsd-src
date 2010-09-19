@@ -356,9 +356,9 @@ struct pthread {
 	struct pthread_attr	attr;
 
 #define	SHOULD_CANCEL(thr)					\
-	((thr)->cancel_pending &&				\
+	((thr)->cancel_pending && (thr)->cancel_enable &&	\
 	 ((thr)->cancel_point || (thr)->cancel_async) &&	\
-	 (thr)->cancel_enable && (thr)->cancelling == 0)
+	 (thr)->no_cancel == 0)
 
 	/* Cancellation is enabled */
 	int			cancel_enable;
@@ -369,8 +369,8 @@ struct pthread {
 	/* Thread is at cancellation point */
 	int			cancel_point;
 
-	/* Cancellation should be synchoronized */
-	int			cancel_defer;
+	/* Cancellation is temporarily disabled */
+	int			no_cancel;
 
 	/* Asynchronouse cancellation is enabled */
 	int			cancel_async;
