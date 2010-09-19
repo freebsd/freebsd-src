@@ -470,16 +470,6 @@ vm_map_process_deferred(void)
 }
 
 void
-_vm_map_unlock_nodefer(vm_map_t map, const char *file, int line)
-{
-
-	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
-	else
-		_sx_xunlock(&map->lock, file, line);
-}
-
-void
 _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
 
@@ -637,19 +627,37 @@ _vm_map_assert_locked_read(vm_map_t map, const char *file, int line)
 #endif
 
 /*
- *	vm_map_unlock_and_wait:
+ *	_vm_map_unlock_and_wait:
+ *
+ *	Atomically releases the lock on the specified map and puts the calling
+ *	thread to sleep.  The calling thread will remain asleep until either
+ *	vm_map_wakeup() is performed on the map or the specified timeout is
+ *	exceeded.
+ *
+ *	WARNING!  This function does not perform deferred deallocations of
+ *	objects and map	entries.  Therefore, the calling thread is expected to
+ *	reacquire the map lock after reawakening and later perform an ordinary
+ *	unlock operation, such as vm_map_unlock(), before completing its
+ *	operation on the map.
  */
 int
-vm_map_unlock_and_wait(vm_map_t map, int timo)
+_vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line)
 {
 
 	mtx_lock(&map_sleep_mtx);
-	vm_map_unlock_nodefer(map);
-	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps", timo));
+	if (map->system_map)
+		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+	else
+		_sx_xunlock(&map->lock, file, line);
+	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps",
+	    timo));
 }
 
 /*
  *	vm_map_wakeup:
+ *
+ *	Awaken any threads that have slept on the map using
+ *	vm_map_unlock_and_wait().
  */
 void
 vm_map_wakeup(vm_map_t map)
@@ -657,8 +665,8 @@ vm_map_wakeup(vm_map_t map)
 
 	/*
 	 * Acquire and release map_sleep_mtx to prevent a wakeup()
-	 * from being performed (and lost) between the vm_map_unlock()
-	 * and the msleep() in vm_map_unlock_and_wait().
+	 * from being performed (and lost) between the map unlock
+	 * and the msleep() in _vm_map_unlock_and_wait().
 	 */
 	mtx_lock(&map_sleep_mtx);
 	mtx_unlock(&map_sleep_mtx);
