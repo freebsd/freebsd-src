@@ -66,6 +66,7 @@ static void eli_delkey(struct gctl_req *req);
 static void eli_kill(struct gctl_req *req);
 static void eli_backup(struct gctl_req *req);
 static void eli_restore(struct gctl_req *req);
+static void eli_resize(struct gctl_req *req);
 static void eli_clear(struct gctl_req *req);
 static void eli_dump(struct gctl_req *req);
 
@@ -86,7 +87,8 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
  * delkey [-afv] [-n keyno] prov
  * kill [-av] [prov ...]
  * backup [-v] prov file
- * restore [-v] file prov
+ * restore [-fv] file prov
+ * resize [-v] -s oldsize prov
  * clear [-v] prov ...
  * dump [-v] prov ...
  */
@@ -197,8 +199,19 @@ struct g_command class_commands[] = {
 	{ "backup", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov file"
 	},
-	{ "restore", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
-	    "[-v] file prov"
+	{ "restore", G_FLAG_VERBOSE, eli_main,
+	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-fv] file prov"
+	},
+	{ "resize", G_FLAG_VERBOSE, eli_main,
+	    {
+		{ 's', "oldsize", NULL, G_TYPE_NUMBER },
+		G_OPT_SENTINEL
+	    },
+	    "[-v] -s oldsize prov"
 	},
 	{ "clear", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov ..."
@@ -264,6 +277,8 @@ eli_main(struct gctl_req *req, unsigned flags)
 		eli_backup(req);
 	else if (strcmp(name, "restore") == 0)
 		eli_restore(req);
+	else if (strcmp(name, "resize") == 0)
+		eli_resize(req);
 	else if (strcmp(name, "dump") == 0)
 		eli_dump(req);
 	else if (strcmp(name, "clear") == 0)
@@ -683,6 +698,7 @@ eli_attach(struct gctl_req *req)
 	struct g_eli_metadata md;
 	unsigned char key[G_ELI_USERKEYLEN];
 	const char *prov;
+	off_t mediasize;
 	int nargs;
 
 	nargs = gctl_get_int(req, "nargs");
@@ -694,6 +710,12 @@ eli_attach(struct gctl_req *req)
 
 	if (eli_metadata_read(req, prov, &md) == -1)
 		return;
+
+	mediasize = g_get_mediasize(prov);
+	if (md.md_provsize != (uint64_t)mediasize) {
+		gctl_error(req, "Provider size mismatch.");
+		return;
+	}
 
 	if (eli_genkey(req, &md, key, 0) == NULL) {
 		bzero(key, sizeof(key));
@@ -1212,6 +1234,17 @@ eli_restore(struct gctl_req *req)
 		gctl_error(req, "MD5 hash mismatch: not a geli backup file?");
 		goto out;
 	}
+	/* Check if the provider size has changed since we did the backup. */
+	if (md.md_provsize != (uint64_t)mediasize) {
+		if (gctl_get_int(req, "force")) {
+			md.md_provsize = mediasize;
+			eli_metadata_encode(&md, sector);
+		} else {
+			gctl_error(req, "Provider size mismatch: "
+			    "wrong backup file?");
+			goto out;
+		}
+	}
 	/* Write metadata from the provider. */
 	if (pwrite(provfd, sector, secsize, mediasize - secsize) !=
 	    (ssize_t)secsize) {
@@ -1223,6 +1256,111 @@ out:
 		close(provfd);
 	if (filefd > 0)
 		close(filefd);
+	if (sector != NULL) {
+		bzero(sector, secsize);
+		free(sector);
+	}
+}
+
+static void
+eli_resize(struct gctl_req *req)
+{
+	struct g_eli_metadata md;
+	const char *prov;
+	unsigned char *sector;
+	unsigned secsize;
+	off_t mediasize, oldsize;
+	int nargs, provfd;
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 1) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	prov = gctl_get_ascii(req, "arg0");
+
+	provfd = -1;
+	sector = NULL;
+	secsize = 0;
+
+	provfd = open(prov, O_RDWR);
+	if (provfd == -1 && errno == ENOENT && prov[0] != '/') {
+		char devprov[MAXPATHLEN];
+
+		snprintf(devprov, sizeof(devprov), "%s%s", _PATH_DEV, prov);
+		provfd = open(devprov, O_RDWR);
+	}
+	if (provfd == -1) {
+		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
+		goto out;
+	}
+
+	mediasize = g_get_mediasize(prov);
+	secsize = g_get_sectorsize(prov);
+	if (mediasize == 0 || secsize == 0) {
+		gctl_error(req, "Cannot get information about %s: %s.", prov,
+		    strerror(errno));
+		goto out;
+	}
+
+	sector = malloc(secsize);
+	if (sector == NULL) {
+		gctl_error(req, "Cannot allocate memory.");
+		goto out;
+	}
+
+	oldsize = gctl_get_intmax(req, "oldsize");
+	if (oldsize < 0 || oldsize > mediasize) {
+		gctl_error(req, "Invalid oldsize: Out of range.");
+		goto out;
+	}
+
+	/* Read metadata from the 'oldsize' offset. */
+	if (pread(provfd, sector, secsize, oldsize - secsize) !=
+	    (ssize_t)secsize) {
+		gctl_error(req, "Cannot read old metadata: %s.",
+		    strerror(errno));
+		goto out;
+	}
+
+	/* Check if this sector contains geli metadata. */
+	if (eli_metadata_decode(sector, &md) != 0) {
+		gctl_error(req, "MD5 hash mismatch: no metadata for oldsize.");
+		goto out;
+	}
+
+	/*
+	 * If the old metadata doesn't have a correct provider size, refuse
+	 * to resize.
+	 */
+	if (md.md_provsize != (uint64_t)oldsize) {
+		gctl_error(req, "Provider size mismatch at oldsize.");
+		goto out;
+	}
+
+	/*
+	 * Update the old metadata with the current provider size and write
+	 * it back to the correct place on the provider.
+	 */
+	md.md_provsize = mediasize;
+	eli_metadata_encode(&md, sector);
+	if (pwrite(provfd, sector, secsize, mediasize - secsize) !=
+	    (ssize_t)secsize) {
+		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
+		goto out;
+	}
+
+	/* Now trash the old metadata. */
+	arc4rand(sector, secsize);
+	if (pwrite(provfd, sector, secsize, oldsize - secsize) !=
+	    (ssize_t)secsize) {
+		gctl_error(req, "Failed to clobber old metadata: %s.",
+		    strerror(errno));
+		goto out;
+	}
+out:
+	if (provfd > 0)
+		close(provfd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);

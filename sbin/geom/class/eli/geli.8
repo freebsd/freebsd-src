@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2008
+.Dd September 20, 2010
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -111,8 +111,13 @@ utility:
 .Ar file
 .Nm
 .Cm restore
-.Op Fl v
+.Op Fl fv
 .Ar file
+.Ar prov
+.Nm
+.Cm resize
+.Op Fl v
+.Fl s Ar oldsize
 .Ar prov
 .Nm
 .Cm clear
@@ -464,6 +469,34 @@ If specified, all currently attached providers will be killed.
 Backup metadata from the given provider to the given file.
 .It Cm restore
 Restore metadata from the given file to the given provider.
+.Bl -tag -width ".Fl f"
+.It Fl f
+Metadata contains the size of the provider to ensure that the correct
+partition or slice is attached.
+If an attempt is made to restore metadata to a provider that has a different
+size,
+.Nm
+will refuse to restore the data unless the
+.Fl f
+switch is used.
+If the partition or slice has been grown, the
+.Cm resize
+subcommand should be used rather than attempting to relocate the metadata
+through
+.Cm backup
+and
+.Cm restore .
+.El
+.It Cm resize
+Inform
+.Nm
+that the provider has been resized.
+The old metadata block is relocated to the correct position at the end of the
+provider and the provider size is updated.
+.Bl -tag -width ".Fl s Ar oldsize"
+.It Fl s Ar oldsize
+The size of the provider before it was resized.
+.El
 .It Cm clear
 Clear metadata from the given providers.
 .It Cm dump
@@ -664,6 +697,17 @@ geli: Cannot read metadata from /dev/da0: Invalid argument.
 # geli restore /var/backups/da0.eli /dev/da0
 # geli attach /dev/da0
 Enter passphrase:
+.Ed
+.Pp
+If an encrypted filesystem is extended, it is necessary to relocate and
+update the metadata:
+.Bd -literal -offset indent
+# gpart create -s GPT ada0
+# gpart add -s 1g -t freebsd-ufs -i 1 ada0
+# geli init -K keyfile -P ada0p1
+# gpart resize -s 2g -i 1 ada0
+# geli resize -s 1g ada0p1
+# geli attach -k keyfile -p ada0p1
 .Ed
 .Sh DATA AUTHENTICATION
 .Nm
