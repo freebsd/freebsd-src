@@ -3,6 +3,9 @@
 ** Created by Kevin from config.h.in **
 ***************************************/
 
+#ifndef CONFIG_H
+#define CONFIG_H
+
 /* Define if dlopen(0) will open the symbols of the program */
 #undef CAN_DLOPEN_SELF
 
@@ -525,7 +528,7 @@
 #cmakedefine LLVM_PATH_TWOPI "${LLVM_PATH_TWOPI}"
 
 /* Installation prefix directory */
-#undef LLVM_PREFIX
+#cmakedefine LLVM_PREFIX "${LLVM_PREFIX}"
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #cmakedefine LTDL_DLOPEN_DEPLIBS ${LTDL_DLOPEN_DEPLIBS}
@@ -623,5 +626,16 @@
 /* Define to a function implementing strdup */
 #cmakedefine strdup ${strdup}
 
-/* Native LLVM architecture */
-#cmakedefine LLVM_NATIVE_ARCH ${LLVM_NATIVE_ARCH}Target
+/* LLVM architecture name for the native architecture, if available */
+#cmakedefine LLVM_NATIVE_ARCH ${LLVM_NATIVE_ARCH}
+  
+/* LLVM name for the native Target init function, if available */
+#cmakedefine LLVM_NATIVE_TARGET LLVMInitialize${LLVM_NATIVE_ARCH}Target
+ 
+/* LLVM name for the native TargetInfo init function, if available */
+#cmakedefine LLVM_NATIVE_TARGETINFO LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo
+ 
+/* LLVM name for the native AsmPrinter init function, if available */
+#cmakedefine LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter
+
+#endif

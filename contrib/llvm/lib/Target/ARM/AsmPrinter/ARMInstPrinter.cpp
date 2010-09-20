@@ -158,7 +158,7 @@ void ARMInstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
   if ((MI->getOpcode() == ARM::VSTMS_UPD || MI->getOpcode() ==ARM::VSTMD_UPD) &&
       MI->getOperand(0).getReg() == ARM::SP) {
     const MCOperand &MO1 = MI->getOperand(2);
-    if (ARM_AM::getAM5SubMode(MO1.getImm()) == ARM_AM::db) {
+    if (ARM_AM::getAM4SubMode(MO1.getImm()) == ARM_AM::db) {
       O << '\t' << "vpush";
       printPredicateOperand(MI, 3, O);
       O << '\t';
@@ -171,7 +171,7 @@ void ARMInstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
   if ((MI->getOpcode() == ARM::VLDMS_UPD || MI->getOpcode() ==ARM::VLDMD_UPD) &&
       MI->getOperand(0).getReg() == ARM::SP) {
     const MCOperand &MO1 = MI->getOperand(2);
-    if (ARM_AM::getAM5SubMode(MO1.getImm()) == ARM_AM::ia) {
+    if (ARM_AM::getAM4SubMode(MO1.getImm()) == ARM_AM::ia) {
       O << '\t' << "vpop";
       printPredicateOperand(MI, 3, O);
       O << '\t';
@@ -278,15 +278,13 @@ void ARMInstPrinter::printSORegOperand(const MCInst *MI, unsigned OpNum,
   O << getRegisterName(MO1.getReg());
   
   // Print the shift opc.
-  O << ", "
-    << ARM_AM::getShiftOpcStr(ARM_AM::getSORegShOp(MO3.getImm()))
-    << ' ';
-  
+  ARM_AM::ShiftOpc ShOpc = ARM_AM::getSORegShOp(MO3.getImm());
+  O << ", " << ARM_AM::getShiftOpcStr(ShOpc);
   if (MO2.getReg()) {
-    O << getRegisterName(MO2.getReg());
+    O << ' ' << getRegisterName(MO2.getReg());
     assert(ARM_AM::getSORegOffset(MO3.getImm()) == 0);
-  } else {
-    O << "#" << ARM_AM::getSORegOffset(MO3.getImm());
+  } else if (ShOpc != ARM_AM::rrx) {
+    O << " #" << ARM_AM::getSORegOffset(MO3.getImm());
   }
 }
 
@@ -414,16 +412,6 @@ void ARMInstPrinter::printAddrMode5Operand(const MCInst *MI, unsigned OpNum,
     return;
   }
   
-  if (Modifier && strcmp(Modifier, "submode") == 0) {
-    ARM_AM::AMSubMode Mode = ARM_AM::getAM5SubMode(MO2.getImm());
-    O << ARM_AM::getAMSubModeStr(Mode);
-    return;
-  } else if (Modifier && strcmp(Modifier, "base") == 0) {
-    // Used for FSTM{D|S} and LSTM{D|S} operations.
-    O << getRegisterName(MO1.getReg());
-    return;
-  }
-  
   O << "[" << getRegisterName(MO1.getReg());
   
   if (unsigned ImmOffs = ARM_AM::getAM5Offset(MO2.getImm())) {
@@ -463,15 +451,40 @@ void ARMInstPrinter::printAddrModePCOperand(const MCInst *MI, unsigned OpNum,
   assert(0 && "FIXME: Implement printAddrModePCOperand");
 }
 
-void ARMInstPrinter::printBitfieldInvMaskImmOperand (const MCInst *MI,
-                                                     unsigned OpNum,
-                                                     raw_ostream &O) {
+void ARMInstPrinter::printBitfieldInvMaskImmOperand(const MCInst *MI,
+                                                    unsigned OpNum,
+                                                    raw_ostream &O) {
   const MCOperand &MO = MI->getOperand(OpNum);
   uint32_t v = ~MO.getImm();
   int32_t lsb = CountTrailingZeros_32(v);
   int32_t width = (32 - CountLeadingZeros_32 (v)) - lsb;
   assert(MO.isImm() && "Not a valid bf_inv_mask_imm value!");
   O << '#' << lsb << ", #" << width;
+}
+
+void ARMInstPrinter::printMemBOption(const MCInst *MI, unsigned OpNum,
+                                     raw_ostream &O) {
+  unsigned val = MI->getOperand(OpNum).getImm();
+  O << ARM_MB::MemBOptToString(val);
+}
+
+void ARMInstPrinter::printShiftImmOperand(const MCInst *MI, unsigned OpNum,
+                                          raw_ostream &O) {
+  unsigned ShiftOp = MI->getOperand(OpNum).getImm();
+  ARM_AM::ShiftOpc Opc = ARM_AM::getSORegShOp(ShiftOp);
+  switch (Opc) {
+  case ARM_AM::no_shift:
+    return;
+  case ARM_AM::lsl:
+    O << ", lsl #";
+    break;
+  case ARM_AM::asr:
+    O << ", asr #";
+    break;
+  default:
+    assert(0 && "unexpected shift opcode for shift immediate operand");
+  }
+  O << ARM_AM::getSORegOffset(ShiftOp);
 }
 
 void ARMInstPrinter::printRegisterList(const MCInst *MI, unsigned OpNum,
@@ -669,12 +682,11 @@ void ARMInstPrinter::printT2SOOperand(const MCInst *MI, unsigned OpNum,
   O << getRegisterName(Reg);
 
   // Print the shift opc.
-  O << ", "
-    << ARM_AM::getShiftOpcStr(ARM_AM::getSORegShOp(MO2.getImm()))
-    << " ";
-
   assert(MO2.isImm() && "Not a valid t2_so_reg value!");
-  O << "#" << ARM_AM::getSORegOffset(MO2.getImm());
+  ARM_AM::ShiftOpc ShOpc = ARM_AM::getSORegShOp(MO2.getImm());
+  O << ", " << ARM_AM::getShiftOpcStr(ShOpc);
+  if (ShOpc != ARM_AM::rrx)
+    O << " #" << ARM_AM::getSORegOffset(MO2.getImm());
 }
 
 void ARMInstPrinter::printT2AddrModeImm12Operand(const MCInst *MI,

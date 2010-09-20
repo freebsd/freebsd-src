@@ -13,20 +13,30 @@
 #ifndef LLVM_CLANG_SEMA_CODECOMPLETECONSUMER_H
 #define LLVM_CLANG_SEMA_CODECOMPLETECONSUMER_H
 
+#include "clang/AST/Type.h"
+#include "clang/AST/CanonicalType.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "clang-c/Index.h"
 #include <memory>
 #include <string>
 
 namespace llvm {
-class raw_ostream;
+  class raw_ostream;
 }
 
 namespace clang {
 
+class Decl;
+  
 /// \brief Default priority values for code-completion results based
 /// on their kind.
 enum {
+  /// \brief Priority for the next initialization in a constructor initializer
+  /// list.
+  CCP_NextInitializer = 7,
+  /// \brief Priority for a send-to-super completion.
+  CCP_SuperCompletion = 8,
   /// \brief Priority for a declaration that is in the local scope.
   CCP_LocalDeclaration = 8,
   /// \brief Priority for a member declaration found from the current
@@ -37,12 +47,12 @@ enum {
   CCP_Keyword = 30,
   /// \brief Priority for a code pattern.
   CCP_CodePattern = 30,
-  /// \brief Priority for a type.
-  CCP_Type = 40,
   /// \brief Priority for a non-type declaration.
   CCP_Declaration = 50,
   /// \brief Priority for a constant value (e.g., enumerator).
   CCP_Constant = 60,
+  /// \brief Priority for a type.
+  CCP_Type = 65,
   /// \brief Priority for a preprocessor macro.
   CCP_Macro = 70,
   /// \brief Priority for a nested-name-specifier.
@@ -52,11 +62,23 @@ enum {
   CCP_Unlikely = 80
 };
 
-/// \brief Priority value deltas that are applied to code-completion results
+/// \brief Priority value deltas that are added to code-completion results
 /// based on the context of the result.
 enum {
   /// \brief The result is in a base class.
-  CCD_InBaseClass = 2
+  CCD_InBaseClass = 2,
+  /// \brief The result is a type match against void.
+  ///
+  /// Since everything converts to "void", we don't give as drastic an 
+  /// adjustment for matching void.
+  CCD_VoidMatch = -5,
+  /// \brief The result is a C++ non-static member function whose qualifiers
+  /// exactly match the object type on which the member function can be called.
+  CCD_ObjectQualifierMatch = -1,
+  /// \brief The selector of the given message exactly matches the selector
+  /// of the current method, which might imply that some kind of delegation
+  /// is occurring.
+  CCD_SelectorMatch = -3
 };
 
 /// \brief Priority value factors by which we will divide or multiply the
@@ -70,6 +92,41 @@ enum {
   /// Objective-C object pointer types).
   CCF_SimilarTypeMatch = 2
 };
+
+/// \brief A simplified classification of types used when determining
+/// "similar" types for code completion.
+enum SimplifiedTypeClass {
+  STC_Arithmetic,
+  STC_Array,
+  STC_Block,
+  STC_Function,
+  STC_ObjectiveC,
+  STC_Other,
+  STC_Pointer,
+  STC_Record,
+  STC_Void
+};
+  
+/// \brief Determine the simplified type class of the given canonical type.
+SimplifiedTypeClass getSimplifiedTypeClass(CanQualType T);
+  
+/// \brief Determine the type that this declaration will have if it is used
+/// as a type or in an expression.
+QualType getDeclUsageType(ASTContext &C, NamedDecl *ND);
+  
+/// \brief Determine the priority to be given to a macro code completion result
+/// with the given name.
+///
+/// \param MacroName The name of the macro.
+///
+/// \param PreferredTypeIsPointer Whether the preferred type for the context
+/// of this macro is a pointer type.
+unsigned getMacroUsagePriority(llvm::StringRef MacroName, 
+                               bool PreferredTypeIsPointer = false);
+
+/// \brief Determine the libclang cursor kind associated with the given
+/// declaration.
+CXCursorKind getCursorKindForDecl(Decl *D);
   
 class FunctionDecl;
 class FunctionType;
@@ -78,6 +135,121 @@ class IdentifierInfo;
 class NamedDecl;
 class NestedNameSpecifier;
 class Sema;
+
+/// \brief The context in which code completion occurred, so that the
+/// code-completion consumer can process the results accordingly.
+class CodeCompletionContext {
+public:
+  enum Kind {
+    /// \brief An unspecified code-completion context.
+    CCC_Other,
+    /// \brief Code completion occurred within a "top-level" completion context,
+    /// e.g., at namespace or global scope.
+    CCC_TopLevel,
+    /// \brief Code completion occurred within an Objective-C interface,
+    /// protocol, or category interface.
+    CCC_ObjCInterface,
+    /// \brief Code completion occurred within an Objective-C implementation
+    /// or category implementation.
+    CCC_ObjCImplementation,
+    /// \brief Code completion occurred within the instance variable list of
+    /// an Objective-C interface, implementation, or category implementation.
+    CCC_ObjCIvarList,
+    /// \brief Code completion occurred within a class, struct, or union.
+    CCC_ClassStructUnion,
+    /// \brief Code completion occurred where a statement (or declaration) is
+    /// expected in a function, method, or block.
+    CCC_Statement,
+    /// \brief Code completion occurred where an expression is expected.
+    CCC_Expression,
+    /// \brief Code completion occurred where an Objective-C message receiver
+    /// is expected.
+    CCC_ObjCMessageReceiver,
+    /// \brief Code completion occurred on the right-hand side of a member
+    /// access expression.
+    ///
+    /// The results of this completion are the members of the type being 
+    /// accessed. The type itself is available via 
+    /// \c CodeCompletionContext::getType().
+    CCC_MemberAccess,
+    /// \brief Code completion occurred after the "enum" keyword, to indicate
+    /// an enumeration name.
+    CCC_EnumTag,
+    /// \brief Code completion occurred after the "union" keyword, to indicate
+    /// a union name.
+    CCC_UnionTag,
+    /// \brief Code completion occurred after the "struct" or "class" keyword,
+    /// to indicate a struct or class name.
+    CCC_ClassOrStructTag,
+    /// \brief Code completion occurred where a protocol name is expected.
+    CCC_ObjCProtocolName,
+    /// \brief Code completion occurred where a namespace or namespace alias
+    /// is expected.
+    CCC_Namespace,
+    /// \brief Code completion occurred where a type name is expected.
+    CCC_Type,
+    /// \brief Code completion occurred where a new name is expected.
+    CCC_Name,
+    /// \brief Code completion occurred where a new name is expected and a
+    /// qualified name is permissible.
+    CCC_PotentiallyQualifiedName,
+    /// \brief Code completion occurred where an macro is being defined.
+    CCC_MacroName,
+    /// \brief Code completion occurred where a macro name is expected
+    /// (without any arguments, in the case of a function-like macro).
+    CCC_MacroNameUse,
+    /// \brief Code completion occurred within a preprocessor expression.
+    CCC_PreprocessorExpression,
+    /// \brief Code completion occurred where a preprocessor directive is 
+    /// expected.
+    CCC_PreprocessorDirective,
+    /// \brief Code completion occurred in a context where natural language is
+    /// expected, e.g., a comment or string literal.
+    ///
+    /// This context usually implies that no completions should be added,
+    /// unless they come from an appropriate natural-language dictionary.
+    CCC_NaturalLanguage,
+    /// \brief Code completion for a selector, as in an @selector expression.
+    CCC_SelectorName,
+    /// \brief Code completion within a type-qualifier list.
+    CCC_TypeQualifiers
+  };
+
+private:
+  enum Kind Kind;
+
+  /// \brief The type that would prefer to see at this point (e.g., the type
+  /// of an initializer or function parameter).
+  QualType PreferredType;
+  
+  /// \brief The type of the base object in a member access expression.
+  QualType BaseType;
+  
+public:
+  /// \brief Construct a new code-completion context of the given kind.
+  CodeCompletionContext(enum Kind Kind) : Kind(Kind) { }
+  
+  /// \brief Construct a new code-completion context of the given kind.
+  CodeCompletionContext(enum Kind Kind, QualType T) : Kind(Kind) { 
+    if (Kind == CCC_MemberAccess)
+      BaseType = T;
+    else
+      PreferredType = T;
+  }
+  
+  /// \brief Retrieve the kind of code-completion context.
+  enum Kind getKind() const { return Kind; }
+  
+  /// \brief Retrieve the type that this expression would prefer to have, e.g.,
+  /// if the expression is a variable initializer or a function argument, the
+  /// type of the corresponding variable or function parameter.
+  QualType getPreferredType() const { return PreferredType; }
+  
+  /// \brief Retrieve the type of the base object in a member-access 
+  /// expression.
+  QualType getBaseType() const { return BaseType; }
+};
+
 
 /// \brief A "string" used to describe how code completion can
 /// be performed for an entity.
@@ -274,7 +446,10 @@ public:
   std::string getAsString() const; 
   
   /// \brief Clone this code-completion string.
-  CodeCompletionString *Clone() const;
+  ///
+  /// \param Result If non-NULL, points to an empty code-completion
+  /// result that will be given a cloned copy of
+  CodeCompletionString *Clone(CodeCompletionString *Result = 0) const;
   
   /// \brief Serialize this code-completion string to the given stream.
   void Serialize(llvm::raw_ostream &OS) const;
@@ -284,6 +459,169 @@ public:
   /// \returns true if successful, false otherwise.
   bool Deserialize(const char *&Str, const char *StrEnd);
 };
+
+/// \brief Captures a result of code completion.
+class CodeCompletionResult {
+public:
+  /// \brief Describes the kind of result generated.
+  enum ResultKind {
+    RK_Declaration = 0, //< Refers to a declaration
+    RK_Keyword,         //< Refers to a keyword or symbol.
+    RK_Macro,           //< Refers to a macro
+    RK_Pattern          //< Refers to a precomputed pattern.
+  };
+    
+  /// \brief The kind of result stored here.
+  ResultKind Kind;
+    
+  union {
+    /// \brief When Kind == RK_Declaration, the declaration we are referring
+    /// to.
+    NamedDecl *Declaration;
+      
+    /// \brief When Kind == RK_Keyword, the string representing the keyword 
+    /// or symbol's spelling.
+    const char *Keyword;
+      
+    /// \brief When Kind == RK_Pattern, the code-completion string that
+    /// describes the completion text to insert.
+    CodeCompletionString *Pattern;
+      
+    /// \brief When Kind == RK_Macro, the identifier that refers to a macro.
+    IdentifierInfo *Macro;
+  };
+
+  /// \brief The priority of this particular code-completion result.
+  unsigned Priority;
+
+  /// \brief The cursor kind that describes this result.
+  CXCursorKind CursorKind;
+    
+  /// \brief The availability of this result.
+  CXAvailabilityKind Availability;
+    
+  /// \brief Specifies which parameter (of a function, Objective-C method,
+  /// macro, etc.) we should start with when formatting the result.
+  unsigned StartParameter;
+    
+  /// \brief Whether this result is hidden by another name.
+  bool Hidden : 1;
+    
+  /// \brief Whether this result was found via lookup into a base class.
+  bool QualifierIsInformative : 1;
+    
+  /// \brief Whether this declaration is the beginning of a 
+  /// nested-name-specifier and, therefore, should be followed by '::'.
+  bool StartsNestedNameSpecifier : 1;
+
+  /// \brief Whether all parameters (of a function, Objective-C
+  /// method, etc.) should be considered "informative".
+  bool AllParametersAreInformative : 1;
+
+  /// \brief Whether we're completing a declaration of the given entity,
+  /// rather than a use of that entity.
+  bool DeclaringEntity : 1;
+    
+  /// \brief If the result should have a nested-name-specifier, this is it.
+  /// When \c QualifierIsInformative, the nested-name-specifier is 
+  /// informative rather than required.
+  NestedNameSpecifier *Qualifier;
+    
+  /// \brief Build a result that refers to a declaration.
+  CodeCompletionResult(NamedDecl *Declaration, 
+                       NestedNameSpecifier *Qualifier = 0,
+                       bool QualifierIsInformative = false)
+    : Kind(RK_Declaration), Declaration(Declaration), 
+      Priority(getPriorityFromDecl(Declaration)), 
+      Availability(CXAvailability_Available), StartParameter(0), 
+      Hidden(false), QualifierIsInformative(QualifierIsInformative),
+      StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
+      DeclaringEntity(false), Qualifier(Qualifier) { 
+    computeCursorKindAndAvailability();
+  }
+    
+  /// \brief Build a result that refers to a keyword or symbol.
+  CodeCompletionResult(const char *Keyword, unsigned Priority = CCP_Keyword)
+    : Kind(RK_Keyword), Keyword(Keyword), Priority(Priority), 
+      Availability(CXAvailability_Available), 
+      StartParameter(0), Hidden(false), QualifierIsInformative(0), 
+      StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
+      DeclaringEntity(false), Qualifier(0) {
+    computeCursorKindAndAvailability();
+  }
+    
+  /// \brief Build a result that refers to a macro.
+  CodeCompletionResult(IdentifierInfo *Macro, unsigned Priority = CCP_Macro)
+    : Kind(RK_Macro), Macro(Macro), Priority(Priority), 
+      Availability(CXAvailability_Available), StartParameter(0), 
+      Hidden(false), QualifierIsInformative(0), 
+      StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
+      DeclaringEntity(false), Qualifier(0) { 
+    computeCursorKindAndAvailability();
+  }
+
+  /// \brief Build a result that refers to a pattern.
+  CodeCompletionResult(CodeCompletionString *Pattern,
+                       unsigned Priority = CCP_CodePattern,
+                       CXCursorKind CursorKind = CXCursor_NotImplemented,
+                   CXAvailabilityKind Availability = CXAvailability_Available)
+    : Kind(RK_Pattern), Pattern(Pattern), Priority(Priority), 
+      CursorKind(CursorKind), Availability(Availability), StartParameter(0), 
+      Hidden(false), QualifierIsInformative(0), 
+      StartsNestedNameSpecifier(false), AllParametersAreInformative(false), 
+      DeclaringEntity(false), Qualifier(0) 
+  { 
+  }
+    
+  /// \brief Retrieve the declaration stored in this result.
+  NamedDecl *getDeclaration() const {
+    assert(Kind == RK_Declaration && "Not a declaration result");
+    return Declaration;
+  }
+    
+  /// \brief Retrieve the keyword stored in this result.
+  const char *getKeyword() const {
+    assert(Kind == RK_Keyword && "Not a keyword result");
+    return Keyword;
+  }
+    
+  /// \brief Create a new code-completion string that describes how to insert
+  /// this result into a program.
+  ///
+  /// \param S The semantic analysis that created the result.
+  ///
+  /// \param Result If non-NULL, the already-allocated, empty
+  /// code-completion string that will be populated with the
+  /// appropriate code completion string for this result.
+  CodeCompletionString *CreateCodeCompletionString(Sema &S,
+                                           CodeCompletionString *Result = 0);
+    
+  void Destroy();
+    
+  /// brief Determine a base priority for the given declaration.
+  static unsigned getPriorityFromDecl(NamedDecl *ND);
+    
+private:
+  void computeCursorKindAndAvailability();
+};
+  
+bool operator<(const CodeCompletionResult &X, const CodeCompletionResult &Y);
+  
+inline bool operator>(const CodeCompletionResult &X, 
+                      const CodeCompletionResult &Y) {
+  return Y < X;
+}
+  
+inline bool operator<=(const CodeCompletionResult &X, 
+                      const CodeCompletionResult &Y) {
+  return !(Y < X);
+}
+
+inline bool operator>=(const CodeCompletionResult &X, 
+                       const CodeCompletionResult &Y) {
+  return !(X < Y);
+}
+
   
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, 
                               const CodeCompletionString &CCS);
@@ -299,125 +637,15 @@ protected:
   /// the completion results.
   bool IncludeCodePatterns;
   
+  /// \brief Whether to include global (top-level) declarations and names in
+  /// the completion results.
+  bool IncludeGlobals;
+  
   /// \brief Whether the output format for the code-completion consumer is
   /// binary.
   bool OutputIsBinary;
   
 public:
-  /// \brief Captures a result of code completion.
-  struct Result {
-    /// \brief Describes the kind of result generated.
-    enum ResultKind {
-      RK_Declaration = 0, //< Refers to a declaration
-      RK_Keyword,         //< Refers to a keyword or symbol.
-      RK_Macro,           //< Refers to a macro
-      RK_Pattern          //< Refers to a precomputed pattern.
-    };
-    
-    /// \brief The kind of result stored here.
-    ResultKind Kind;
-    
-    union {
-      /// \brief When Kind == RK_Declaration, the declaration we are referring
-      /// to.
-      NamedDecl *Declaration;
-      
-      /// \brief When Kind == RK_Keyword, the string representing the keyword 
-      /// or symbol's spelling.
-      const char *Keyword;
-      
-      /// \brief When Kind == RK_Pattern, the code-completion string that
-      /// describes the completion text to insert.
-      CodeCompletionString *Pattern;
-      
-      /// \brief When Kind == RK_Macro, the identifier that refers to a macro.
-      IdentifierInfo *Macro;
-    };
-
-    /// \brief The priority of this particular code-completion result.
-    unsigned Priority;
-
-    /// \brief Specifies which parameter (of a function, Objective-C method,
-    /// macro, etc.) we should start with when formatting the result.
-    unsigned StartParameter;
-    
-    /// \brief Whether this result is hidden by another name.
-    bool Hidden : 1;
-    
-    /// \brief Whether this result was found via lookup into a base class.
-    bool QualifierIsInformative : 1;
-    
-    /// \brief Whether this declaration is the beginning of a 
-    /// nested-name-specifier and, therefore, should be followed by '::'.
-    bool StartsNestedNameSpecifier : 1;
-
-    /// \brief Whether all parameters (of a function, Objective-C
-    /// method, etc.) should be considered "informative".
-    bool AllParametersAreInformative : 1;
-
-    /// \brief Whether we're completing a declaration of the given entity,
-    /// rather than a use of that entity.
-    bool DeclaringEntity : 1;
-    
-    /// \brief If the result should have a nested-name-specifier, this is it.
-    /// When \c QualifierIsInformative, the nested-name-specifier is 
-    /// informative rather than required.
-    NestedNameSpecifier *Qualifier;
-    
-    /// \brief Build a result that refers to a declaration.
-    Result(NamedDecl *Declaration, 
-           NestedNameSpecifier *Qualifier = 0,
-           bool QualifierIsInformative = false)
-      : Kind(RK_Declaration), Declaration(Declaration), 
-        Priority(getPriorityFromDecl(Declaration)), StartParameter(0), 
-        Hidden(false), QualifierIsInformative(QualifierIsInformative),
-        StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
-        DeclaringEntity(false), Qualifier(Qualifier) { 
-    }
-    
-    /// \brief Build a result that refers to a keyword or symbol.
-    Result(const char *Keyword, unsigned Priority = CCP_Keyword)
-      : Kind(RK_Keyword), Keyword(Keyword), Priority(Priority), 
-        StartParameter(0), Hidden(false), QualifierIsInformative(0), 
-        StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
-        DeclaringEntity(false), Qualifier(0) { }
-    
-    /// \brief Build a result that refers to a macro.
-    Result(IdentifierInfo *Macro, unsigned Priority = CCP_Macro)
-     : Kind(RK_Macro), Macro(Macro), Priority(Priority), StartParameter(0), 
-       Hidden(false), QualifierIsInformative(0), 
-       StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
-       DeclaringEntity(false), Qualifier(0) { }
-
-    /// \brief Build a result that refers to a pattern.
-    Result(CodeCompletionString *Pattern, unsigned Priority = CCP_CodePattern)
-      : Kind(RK_Pattern), Pattern(Pattern), Priority(Priority), 
-        StartParameter(0), Hidden(false), QualifierIsInformative(0), 
-        StartsNestedNameSpecifier(false), AllParametersAreInformative(false),
-        DeclaringEntity(false), Qualifier(0) { }
-    
-    /// \brief Retrieve the declaration stored in this result.
-    NamedDecl *getDeclaration() const {
-      assert(Kind == RK_Declaration && "Not a declaration result");
-      return Declaration;
-    }
-    
-    /// \brief Retrieve the keyword stored in this result.
-    const char *getKeyword() const {
-      assert(Kind == RK_Keyword && "Not a keyword result");
-      return Keyword;
-    }
-    
-    /// \brief Create a new code-completion string that describes how to insert
-    /// this result into a program.
-    CodeCompletionString *CreateCodeCompletionString(Sema &S);
-    
-    void Destroy();
-    
-    /// brief Determine a base priority for the given declaration.
-    static unsigned getPriorityFromDecl(NamedDecl *ND);
-  };
-    
   class OverloadCandidate {
   public:
     /// \brief Describes the type of overload candidate.
@@ -482,18 +710,22 @@ public:
                                                 Sema &S) const;    
   };
   
-  CodeCompleteConsumer() : IncludeMacros(false), OutputIsBinary(false) { }
+  CodeCompleteConsumer() : IncludeMacros(false), IncludeCodePatterns(false),
+                           IncludeGlobals(true), OutputIsBinary(false) { }
   
   CodeCompleteConsumer(bool IncludeMacros, bool IncludeCodePatterns,
-                       bool OutputIsBinary)
+                       bool IncludeGlobals, bool OutputIsBinary)
     : IncludeMacros(IncludeMacros), IncludeCodePatterns(IncludeCodePatterns),
-      OutputIsBinary(OutputIsBinary) { }
+      IncludeGlobals(IncludeGlobals), OutputIsBinary(OutputIsBinary) { }
   
   /// \brief Whether the code-completion consumer wants to see macros.
   bool includeMacros() const { return IncludeMacros; }
 
   /// \brief Whether the code-completion consumer wants to see code patterns.
   bool includeCodePatterns() const { return IncludeCodePatterns; }
+  
+  /// \brief Whether to include global (top-level) declaration results.
+  bool includeGlobals() const { return IncludeGlobals; }
   
   /// \brief Determine whether the output of this consumer is binary.
   bool isOutputBinary() const { return OutputIsBinary; }
@@ -504,7 +736,9 @@ public:
   /// \name Code-completion callbacks
   //@{
   /// \brief Process the finalized code-completion results.
-  virtual void ProcessCodeCompleteResults(Sema &S, Result *Results,
+  virtual void ProcessCodeCompleteResults(Sema &S, 
+                                          CodeCompletionContext Context,
+                                          CodeCompletionResult *Results,
                                           unsigned NumResults) { }
 
   /// \param S the semantic-analyzer object for which code-completion is being
@@ -520,7 +754,7 @@ public:
                                          unsigned NumCandidates) { }
   //@}
 };
-  
+
 /// \brief A simple code-completion consumer that prints the results it 
 /// receives in a simple format.
 class PrintingCodeCompleteConsumer : public CodeCompleteConsumer {
@@ -531,11 +765,15 @@ public:
   /// \brief Create a new printing code-completion consumer that prints its
   /// results to the given raw output stream.
   PrintingCodeCompleteConsumer(bool IncludeMacros, bool IncludeCodePatterns,
+                               bool IncludeGlobals,
                                llvm::raw_ostream &OS)
-    : CodeCompleteConsumer(IncludeMacros, IncludeCodePatterns, false), OS(OS) {}
+    : CodeCompleteConsumer(IncludeMacros, IncludeCodePatterns, IncludeGlobals,
+                           false), OS(OS) {}
   
   /// \brief Prints the finalized code-completion results.
-  virtual void ProcessCodeCompleteResults(Sema &S, Result *Results,
+  virtual void ProcessCodeCompleteResults(Sema &S, 
+                                          CodeCompletionContext Context,
+                                          CodeCompletionResult *Results,
                                           unsigned NumResults);
   
   virtual void ProcessOverloadCandidates(Sema &S, unsigned CurrentArg,
@@ -554,18 +792,21 @@ public:
   /// results to the given raw output stream in a format readable to the CIndex
   /// library.
   CIndexCodeCompleteConsumer(bool IncludeMacros, bool IncludeCodePatterns,
-                             llvm::raw_ostream &OS)
-    : CodeCompleteConsumer(IncludeMacros, IncludeCodePatterns, true), OS(OS) {}
+                             bool IncludeGlobals, llvm::raw_ostream &OS)
+    : CodeCompleteConsumer(IncludeMacros, IncludeCodePatterns, IncludeGlobals,
+                           true), OS(OS) {}
   
   /// \brief Prints the finalized code-completion results.
-  virtual void ProcessCodeCompleteResults(Sema &S, Result *Results, 
+  virtual void ProcessCodeCompleteResults(Sema &S, 
+                                          CodeCompletionContext Context,
+                                          CodeCompletionResult *Results,
                                           unsigned NumResults);
   
   virtual void ProcessOverloadCandidates(Sema &S, unsigned CurrentArg,
                                          OverloadCandidate *Candidates,
                                          unsigned NumCandidates);  
 };
-  
+
 } // end namespace clang
 
 #endif // LLVM_CLANG_SEMA_CODECOMPLETECONSUMER_H

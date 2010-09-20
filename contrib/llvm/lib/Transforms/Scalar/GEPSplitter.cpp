@@ -27,13 +27,13 @@ namespace {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const;
   public:
     static char ID; // Pass identification, replacement for typeid
-    explicit GEPSplitter() : FunctionPass(&ID) {}
+    explicit GEPSplitter() : FunctionPass(ID) {}
   };
 }
 
 char GEPSplitter::ID = 0;
-static RegisterPass<GEPSplitter> X("split-geps",
-                                   "split complex GEPs into simple GEPs");
+INITIALIZE_PASS(GEPSplitter, "split-geps",
+                "split complex GEPs into simple GEPs", false, false);
 
 FunctionPass *llvm::createGEPSplitterPass() {
   return new GEPSplitter();

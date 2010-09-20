@@ -30,7 +30,7 @@ namespace {
     DebugInfoFinder Finder;
   public:
     static char ID; // Pass identification, replacement for typeid
-    ModuleDebugInfoPrinter() : ModulePass(&ID) {}
+    ModuleDebugInfoPrinter() : ModulePass(ID) {}
 
     virtual bool runOnModule(Module &M);
 
@@ -42,9 +42,8 @@ namespace {
 }
 
 char ModuleDebugInfoPrinter::ID = 0;
-static RegisterPass<ModuleDebugInfoPrinter>
-X("module-debuginfo",
-  "Decodes module-level debug info", false, true);
+INITIALIZE_PASS(ModuleDebugInfoPrinter, "module-debuginfo",
+                "Decodes module-level debug info", false, true);
 
 ModulePass *llvm::createModuleDebugInfoPrinterPass() {
   return new ModuleDebugInfoPrinter();

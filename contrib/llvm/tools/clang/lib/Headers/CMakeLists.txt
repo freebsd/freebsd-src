@@ -1,12 +1,15 @@
 set(files
   altivec.h
+  avxintrin.h
   emmintrin.h	
   float.h		
+  immintrin.h
   iso646.h	
   limits.h	
   mm_malloc.h	
   mmintrin.h	
   pmmintrin.h	
+  smmintrin.h
   stdarg.h	
   stdbool.h	
   stddef.h	

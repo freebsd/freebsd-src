@@ -276,20 +276,20 @@ Path::GetCurrentDirectory() {
   char pathname[MAXPATHLEN];
   if (!getcwd(pathname,MAXPATHLEN)) {
     assert (false && "Could not query current working directory.");
-    return Path("");
+    return Path();
   }
 
   return Path(pathname);
 }
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined (__NetBSD__) || defined(__minix)
 static int
 test_dir(char buf[PATH_MAX], char ret[PATH_MAX],
     const char *dir, const char *bin)
 {
   struct stat sb;
 
-  snprintf(buf, PATH_MAX, "%s//%s", dir, bin);
+  snprintf(buf, PATH_MAX, "%s/%s", dir, bin);
   if (realpath(buf, ret) == NULL)
     return (1);
   if (stat(buf, &sb) != 0)
@@ -334,7 +334,7 @@ getprogpath(char ret[PATH_MAX], const char *bin)
   free(pv);
   return (NULL);
 }
-#endif // __FreeBSD__
+#endif // __FreeBSD__ || __NetBSD__
 
 /// GetMainExecutable - Return the path to the main executable, given the
 /// value of argv[0] from program startup.
@@ -350,7 +350,7 @@ Path Path::GetMainExecutable(const char *argv0, void *MainAddr) {
     if (realpath(exe_path, link_path))
       return Path(std::string(link_path));
   }
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined (__NetBSD__) || defined(__minix)
   char exe_path[PATH_MAX];
 
   if (getprogpath(exe_path, argv0) != NULL)
@@ -408,7 +408,7 @@ Path::getSuffix() const {
 
   std::string::size_type dot = path.rfind('.');
   if (dot == std::string::npos || dot < slash)
-    return StringRef("");
+    return StringRef();
   else
     return StringRef(path).substr(dot + 1);
 }

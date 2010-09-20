@@ -53,7 +53,7 @@ InputFilename(cl::Positional, cl::desc("<input bitcode file>"),
 
 static cl::opt<std::string>
 OutputFilename("o", cl::desc("Override output filename"),
-               cl::value_desc("filename"), cl::init("-"));
+               cl::value_desc("filename"));
 
 static cl::opt<bool>
 Force("f", cl::desc("Enable binary output on terminals"));
@@ -138,17 +138,19 @@ namespace {
 struct CallGraphSCCPassPrinter : public CallGraphSCCPass {
   static char ID;
   const PassInfo *PassToPrint;
-  CallGraphSCCPassPrinter(const PassInfo *PI) :
-    CallGraphSCCPass(&ID), PassToPrint(PI) {}
+  raw_ostream &Out;
+  CallGraphSCCPassPrinter(const PassInfo *PI, raw_ostream &out) :
+    CallGraphSCCPass(ID), PassToPrint(PI), Out(out) {}
 
   virtual bool runOnSCC(CallGraphSCC &SCC) {
     if (!Quiet) {
-      outs() << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
+      Out << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
 
       for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
         Function *F = (*I)->getFunction();
         if (F)
-          getAnalysisID<Pass>(PassToPrint).print(outs(), F->getParent());
+          getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out, 
+                F->getParent());
       }
     }
     // Get and print pass...
@@ -158,7 +160,7 @@ struct CallGraphSCCPassPrinter : public CallGraphSCCPass {
   virtual const char *getPassName() const { return "'Pass' Printer"; }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequiredID(PassToPrint);
+    AU.addRequiredID(PassToPrint->getTypeInfo());
     AU.setPreservesAll();
   }
 };
@@ -168,13 +170,14 @@ char CallGraphSCCPassPrinter::ID = 0;
 struct ModulePassPrinter : public ModulePass {
   static char ID;
   const PassInfo *PassToPrint;
-  ModulePassPrinter(const PassInfo *PI) : ModulePass(&ID),
-                                          PassToPrint(PI) {}
+  raw_ostream &Out;
+  ModulePassPrinter(const PassInfo *PI, raw_ostream &out)
+    : ModulePass(ID), PassToPrint(PI), Out(out) {}
 
   virtual bool runOnModule(Module &M) {
     if (!Quiet) {
-      outs() << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
-      getAnalysisID<Pass>(PassToPrint).print(outs(), &M);
+      Out << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
+      getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out, &M);
     }
 
     // Get and print pass...
@@ -184,7 +187,7 @@ struct ModulePassPrinter : public ModulePass {
   virtual const char *getPassName() const { return "'Pass' Printer"; }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequiredID(PassToPrint);
+    AU.addRequiredID(PassToPrint->getTypeInfo());
     AU.setPreservesAll();
   }
 };
@@ -192,24 +195,26 @@ struct ModulePassPrinter : public ModulePass {
 char ModulePassPrinter::ID = 0;
 struct FunctionPassPrinter : public FunctionPass {
   const PassInfo *PassToPrint;
+  raw_ostream &Out;
   static char ID;
-  FunctionPassPrinter(const PassInfo *PI) : FunctionPass(&ID),
-                                            PassToPrint(PI) {}
+  FunctionPassPrinter(const PassInfo *PI, raw_ostream &out)
+    : FunctionPass(ID), PassToPrint(PI), Out(out) {}
 
   virtual bool runOnFunction(Function &F) {
     if (!Quiet) {
-      outs() << "Printing analysis '" << PassToPrint->getPassName()
-              << "' for function '" << F.getName() << "':\n";
+      Out << "Printing analysis '" << PassToPrint->getPassName()
+          << "' for function '" << F.getName() << "':\n";
     }
     // Get and print pass...
-    getAnalysisID<Pass>(PassToPrint).print(outs(), F.getParent());
+    getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out,
+            F.getParent());
     return false;
   }
 
   virtual const char *getPassName() const { return "FunctionPass Printer"; }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequiredID(PassToPrint);
+    AU.addRequiredID(PassToPrint->getTypeInfo());
     AU.setPreservesAll();
   }
 };
@@ -219,13 +224,14 @@ char FunctionPassPrinter::ID = 0;
 struct LoopPassPrinter : public LoopPass {
   static char ID;
   const PassInfo *PassToPrint;
-  LoopPassPrinter(const PassInfo *PI) :
-    LoopPass(&ID), PassToPrint(PI) {}
+  raw_ostream &Out;
+  LoopPassPrinter(const PassInfo *PI, raw_ostream &out) :
+    LoopPass(ID), PassToPrint(PI), Out(out) {}
 
   virtual bool runOnLoop(Loop *L, LPPassManager &LPM) {
     if (!Quiet) {
-      outs() << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
-      getAnalysisID<Pass>(PassToPrint).print(outs(),
+      Out << "Printing analysis '" << PassToPrint->getPassName() << "':\n";
+      getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out,
                                   L->getHeader()->getParent()->getParent());
     }
     // Get and print pass...
@@ -235,7 +241,7 @@ struct LoopPassPrinter : public LoopPass {
   virtual const char *getPassName() const { return "'Pass' Printer"; }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequiredID(PassToPrint);
+    AU.addRequiredID(PassToPrint->getTypeInfo());
     AU.setPreservesAll();
   }
 };
@@ -244,25 +250,27 @@ char LoopPassPrinter::ID = 0;
 
 struct BasicBlockPassPrinter : public BasicBlockPass {
   const PassInfo *PassToPrint;
+  raw_ostream &Out;
   static char ID;
-  BasicBlockPassPrinter(const PassInfo *PI)
-    : BasicBlockPass(&ID), PassToPrint(PI) {}
+  BasicBlockPassPrinter(const PassInfo *PI, raw_ostream &out)
+    : BasicBlockPass(ID), PassToPrint(PI), Out(out) {}
 
   virtual bool runOnBasicBlock(BasicBlock &BB) {
     if (!Quiet) {
-      outs() << "Printing Analysis info for BasicBlock '" << BB.getName()
-             << "': Pass " << PassToPrint->getPassName() << ":\n";
+      Out << "Printing Analysis info for BasicBlock '" << BB.getName()
+          << "': Pass " << PassToPrint->getPassName() << ":\n";
     }
 
     // Get and print pass...
-    getAnalysisID<Pass>(PassToPrint).print(outs(), BB.getParent()->getParent());
+    getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out, 
+            BB.getParent()->getParent());
     return false;
   }
 
   virtual const char *getPassName() const { return "BasicBlockPass Printer"; }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequiredID(PassToPrint);
+    AU.addRequiredID(PassToPrint->getTypeInfo());
     AU.setPreservesAll();
   }
 };
@@ -351,6 +359,11 @@ void AddStandardLinkPasses(PassManagerBase &PM) {
 int main(int argc, char **argv) {
   sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram X(argc, argv);
+
+  if (AnalyzeOnly && NoOutput) {
+    errs() << argv[0] << ": analyze mode conflicts with no-output mode.\n";
+    return 1;
+  }
   
   // Enable debug stream buffering.
   EnableDebugBuffering = true;
@@ -377,35 +390,22 @@ int main(int argc, char **argv) {
   }
 
   // Figure out what stream we are supposed to write to...
-  raw_ostream *Out = 0;
-  bool DeleteStream = false;
-  if (!NoOutput && !AnalyzeOnly) {
-    if (OutputFilename == "-") {
-      // Print to stdout.
-      Out = &outs();
-      // If we're printing a bitcode file, switch stdout to binary mode.
-      // FIXME: This switches outs() globally, not just for the bitcode output.
-      if (!OutputAssembly)
-        sys::Program::ChangeStdoutToBinary(); 
-    } else {
-      if (NoOutput || AnalyzeOnly) {
-        errs() << "WARNING: The -o (output filename) option is ignored when\n"
-                  "the --disable-output or --analyze options are used.\n";
-      } else {
-        // Make sure that the Output file gets unlinked from the disk if we get
-        // a SIGINT.
-        sys::RemoveFileOnSignal(sys::Path(OutputFilename));
+  OwningPtr<tool_output_file> Out;
+  if (NoOutput) {
+    if (!OutputFilename.empty())
+      errs() << "WARNING: The -o (output filename) option is ignored when\n"
+                "the --disable-output option is used.\n";
+  } else {
+    // Default to standard output.
+    if (OutputFilename.empty())
+      OutputFilename = "-";
 
-        std::string ErrorInfo;
-        Out = new raw_fd_ostream(OutputFilename.c_str(), ErrorInfo,
-                                 raw_fd_ostream::F_Binary);
-        if (!ErrorInfo.empty()) {
-          errs() << ErrorInfo << '\n';
-          delete Out;
-          return 1;
-        }
-        DeleteStream = true;
-      }
+    std::string ErrorInfo;
+    Out.reset(new tool_output_file(OutputFilename.c_str(), ErrorInfo,
+                                   raw_fd_ostream::F_Binary));
+    if (!ErrorInfo.empty()) {
+      errs() << ErrorInfo << '\n';
+      return 1;
     }
   }
 
@@ -413,7 +413,7 @@ int main(int argc, char **argv) {
   // console, print out a warning message and refuse to do it.  We don't
   // impress anyone by spewing tons of binary goo to a terminal.
   if (!Force && !NoOutput && !AnalyzeOnly && !OutputAssembly)
-    if (CheckBitcodeOutputToConsole(*Out, !Quiet))
+    if (CheckBitcodeOutputToConsole(Out->os(), !Quiet))
       NoOutput = true;
 
   // Create a PassManager to hold and optimize the collection of passes we are
@@ -489,19 +489,19 @@ int main(int argc, char **argv) {
       if (AnalyzeOnly) {
         switch (Kind) {
         case PT_BasicBlock:
-          Passes.add(new BasicBlockPassPrinter(PassInf));
+          Passes.add(new BasicBlockPassPrinter(PassInf, Out->os()));
           break;
         case PT_Loop:
-          Passes.add(new LoopPassPrinter(PassInf));
+          Passes.add(new LoopPassPrinter(PassInf, Out->os()));
           break;
         case PT_Function:
-          Passes.add(new FunctionPassPrinter(PassInf));
+          Passes.add(new FunctionPassPrinter(PassInf, Out->os()));
           break;
         case PT_CallGraphSCC:
-          Passes.add(new CallGraphSCCPassPrinter(PassInf));
+          Passes.add(new CallGraphSCCPassPrinter(PassInf, Out->os()));
           break;
         default:
-          Passes.add(new ModulePassPrinter(PassInf));
+          Passes.add(new ModulePassPrinter(PassInf, Out->os()));
           break;
         }
       }
@@ -538,19 +538,20 @@ int main(int argc, char **argv) {
   if (!NoVerify && !VerifyEach)
     Passes.add(createVerifierPass());
 
-  // Write bitcode or assembly out to disk or outs() as the last step...
+  // Write bitcode or assembly to the output as the last step...
   if (!NoOutput && !AnalyzeOnly) {
     if (OutputAssembly)
-      Passes.add(createPrintModulePass(Out));
+      Passes.add(createPrintModulePass(&Out->os()));
     else
-      Passes.add(createBitcodeWriterPass(*Out));
+      Passes.add(createBitcodeWriterPass(Out->os()));
   }
 
   // Now that we have all of the passes ready, run them.
   Passes.run(*M.get());
 
-  // Delete the raw_fd_ostream.
-  if (DeleteStream)
-    delete Out;
+  // Declare success.
+  if (!NoOutput)
+    Out->keep();
+
   return 0;
 }

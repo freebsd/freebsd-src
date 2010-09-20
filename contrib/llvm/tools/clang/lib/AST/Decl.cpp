@@ -97,8 +97,14 @@ static Linkage getLinkageForTemplateArgumentList(const TemplateArgument *Args,
   return L;
 }
 
+static Linkage
+getLinkageForTemplateArgumentList(const TemplateArgumentList &TArgs) {
+  return getLinkageForTemplateArgumentList(TArgs.getFlatArgumentList(), 
+                                           TArgs.flat_size());
+}
+
 static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
-  assert(D->getDeclContext()->getLookupContext()->isFileContext() &&
+  assert(D->getDeclContext()->getRedeclContext()->isFileContext() &&
          "Not a name having namespace scope");
   ASTContext &Context = D->getASTContext();
 
@@ -110,7 +116,7 @@ static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
   // (This bullet corresponds to C99 6.2.2p3.)
   if (const VarDecl *Var = dyn_cast<VarDecl>(D)) {
     // Explicitly declared static.
-    if (Var->getStorageClass() == VarDecl::Static)
+    if (Var->getStorageClass() == SC_Static)
       return InternalLinkage;
 
     // - an object or reference that is explicitly declared const
@@ -119,8 +125,8 @@ static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
     // (there is no equivalent in C99)
     if (Context.getLangOptions().CPlusPlus &&
         Var->getType().isConstant(Context) && 
-        Var->getStorageClass() != VarDecl::Extern &&
-        Var->getStorageClass() != VarDecl::PrivateExtern) {
+        Var->getStorageClass() != SC_Extern &&
+        Var->getStorageClass() != SC_PrivateExtern) {
       bool FoundExtern = false;
       for (const VarDecl *PrevVar = Var->getPreviousDeclaration();
            PrevVar && !FoundExtern; 
@@ -143,7 +149,7 @@ static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
       Function = cast<FunctionDecl>(D);
 
     // Explicitly declared static.
-    if (Function->getStorageClass() == FunctionDecl::Static)
+    if (Function->getStorageClass() == SC_Static)
       return InternalLinkage;
   } else if (const FieldDecl *Field = dyn_cast<FieldDecl>(D)) {
     //   - a data member of an anonymous union.
@@ -159,8 +165,8 @@ static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
   //     - an object or reference, unless it has internal linkage; or
   if (const VarDecl *Var = dyn_cast<VarDecl>(D)) {
     if (!Context.getLangOptions().CPlusPlus &&
-        (Var->getStorageClass() == VarDecl::Extern ||
-         Var->getStorageClass() == VarDecl::PrivateExtern)) {
+        (Var->getStorageClass() == SC_Extern ||
+         Var->getStorageClass() == SC_PrivateExtern)) {
       // C99 6.2.2p4:
       //   For an identifier declared with the storage-class specifier
       //   extern in a scope in which a prior declaration of that
@@ -194,9 +200,9 @@ static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
     //   as if it were declared with the storage-class specifier
     //   extern.
     if (!Context.getLangOptions().CPlusPlus &&
-        (Function->getStorageClass() == FunctionDecl::Extern ||
-         Function->getStorageClass() == FunctionDecl::PrivateExtern ||
-         Function->getStorageClass() == FunctionDecl::None)) {
+        (Function->getStorageClass() == SC_Extern ||
+         Function->getStorageClass() == SC_PrivateExtern ||
+         Function->getStorageClass() == SC_None)) {
       // C99 6.2.2p4:
       //   For an identifier declared with the storage-class specifier
       //   extern in a scope in which a prior declaration of that
@@ -219,10 +225,7 @@ static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
                                = Function->getTemplateSpecializationInfo()) {
       Linkage L = SpecInfo->getTemplate()->getLinkage();
       const TemplateArgumentList &TemplateArgs = *SpecInfo->TemplateArguments;
-      L = minLinkage(L, 
-                     getLinkageForTemplateArgumentList(
-                                          TemplateArgs.getFlatArgumentList(), 
-                                          TemplateArgs.flat_size()));
+      L = minLinkage(L, getLinkageForTemplateArgumentList(TemplateArgs));
       return L;
     }
 
@@ -245,9 +248,7 @@ static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
       if (const ClassTemplateSpecializationDecl *Spec
             = dyn_cast<ClassTemplateSpecializationDecl>(Tag)) {
         const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
-        Linkage L = getLinkageForTemplateArgumentList(
-                                          TemplateArgs.getFlatArgumentList(),
-                                                 TemplateArgs.flat_size());
+        Linkage L = getLinkageForTemplateArgumentList(TemplateArgs);
         return minLinkage(L, Spec->getSpecializedTemplate()->getLinkage());
       }
 
@@ -279,6 +280,47 @@ static Linkage getLinkageForNamespaceScopeDecl(const NamedDecl *D) {
   return NoLinkage;
 }
 
+static Linkage getLinkageForClassMember(const NamedDecl *D) {
+  if (!(isa<CXXMethodDecl>(D) ||
+        isa<VarDecl>(D) ||
+        (isa<TagDecl>(D) &&
+         (D->getDeclName() || cast<TagDecl>(D)->getTypedefForAnonDecl()))))
+    return NoLinkage;
+
+  // Class members only have linkage if their class has external linkage.
+  Linkage L = cast<RecordDecl>(D->getDeclContext())->getLinkage();
+  if (!isExternalLinkage(L)) return NoLinkage;
+
+  // If the class already has unique-external linkage, we can't improve.
+  if (L == UniqueExternalLinkage) return UniqueExternalLinkage;
+
+  // If this is a method template specialization, use the linkage for
+  // the template parameters and arguments.
+  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
+    if (FunctionTemplateSpecializationInfo *SpecInfo
+           = MD->getTemplateSpecializationInfo()) {
+      Linkage ArgLinkage =
+        getLinkageForTemplateArgumentList(*SpecInfo->TemplateArguments);
+      Linkage ParamLinkage =
+        getLinkageForTemplateParameterList(
+                           SpecInfo->getTemplate()->getTemplateParameters());
+      return minLinkage(ArgLinkage, ParamLinkage);
+    }
+
+  // Similarly for member class template specializations.
+  } else if (const ClassTemplateSpecializationDecl *Spec
+               = dyn_cast<ClassTemplateSpecializationDecl>(D)) {
+    Linkage ArgLinkage =
+      getLinkageForTemplateArgumentList(Spec->getTemplateArgs());
+    Linkage ParamLinkage =
+      getLinkageForTemplateParameterList(
+                    Spec->getSpecializedTemplate()->getTemplateParameters());
+    return minLinkage(ArgLinkage, ParamLinkage);
+  }
+
+  return ExternalLinkage;
+}
+
 Linkage NamedDecl::getLinkage() const {
 
   // Objective-C: treat all Objective-C declarations as having external
@@ -303,7 +345,7 @@ Linkage NamedDecl::getLinkage() const {
   }
 
   // Handle linkage for namespace-scope names.
-  if (getDeclContext()->getLookupContext()->isFileContext())
+  if (getDeclContext()->getRedeclContext()->isFileContext())
     if (Linkage L = getLinkageForNamespaceScopeDecl(this))
       return L;
   
@@ -314,14 +356,8 @@ Linkage NamedDecl::getLinkage() const {
   //   that the class or enumeration has the typedef name for linkage
   //   purposes (7.1.3), has external linkage if the name of the class
   //   has external linkage.
-  if (getDeclContext()->isRecord() &&
-      (isa<CXXMethodDecl>(this) || isa<VarDecl>(this) ||
-       (isa<TagDecl>(this) &&
-        (getDeclName() || cast<TagDecl>(this)->getTypedefForAnonDecl())))) {
-    Linkage L = cast<RecordDecl>(getDeclContext())->getLinkage();
-    if (isExternalLinkage(L))
-      return L;
-  }
+  if (getDeclContext()->isRecord())
+    return getLinkageForClassMember(this);
 
   // C++ [basic.link]p6:
   //   The name of a function declared in block scope and the name of
@@ -347,8 +383,8 @@ Linkage NamedDecl::getLinkage() const {
     }
 
     if (const VarDecl *Var = dyn_cast<VarDecl>(this))
-      if (Var->getStorageClass() == VarDecl::Extern ||
-          Var->getStorageClass() == VarDecl::PrivateExtern) {
+      if (Var->getStorageClass() == SC_Extern ||
+          Var->getStorageClass() == SC_PrivateExtern) {
         if (Var->getPreviousDeclaration())
           if (Linkage L = Var->getPreviousDeclaration()->getLinkage())
             return L;
@@ -531,13 +567,6 @@ static SourceLocation getTemplateOrInnerLocStart(const DeclT *decl) {
     return decl->getInnerLocStart();
 }
 
-DeclaratorDecl::~DeclaratorDecl() {}
-void DeclaratorDecl::Destroy(ASTContext &C) {
-  if (hasExtInfo())
-    C.Deallocate(getExtInfo());
-  ValueDecl::Destroy(C);
-}
-
 SourceLocation DeclaratorDecl::getTypeSpecStartLoc() const {
   TypeSourceInfo *TSI = getTypeSourceInfo();
   if (TSI) return TSI->getTypeLoc().getBeginLoc();
@@ -602,24 +631,18 @@ QualifierInfo::setTemplateParameterListsInfo(ASTContext &Context,
   }
 }
 
-void QualifierInfo::Destroy(ASTContext &Context) {
-  // FIXME: Deallocate template parameter lists themselves!
-  if (TemplParamLists)
-    Context.Deallocate(TemplParamLists);
-}
-
 //===----------------------------------------------------------------------===//
 // VarDecl Implementation
 //===----------------------------------------------------------------------===//
 
 const char *VarDecl::getStorageClassSpecifierString(StorageClass SC) {
   switch (SC) {
-  case VarDecl::None:          break;
-  case VarDecl::Auto:          return "auto"; break;
-  case VarDecl::Extern:        return "extern"; break;
-  case VarDecl::PrivateExtern: return "__private_extern__"; break;
-  case VarDecl::Register:      return "register"; break;
-  case VarDecl::Static:        return "static"; break;
+  case SC_None:          break;
+  case SC_Auto:          return "auto"; break;
+  case SC_Extern:        return "extern"; break;
+  case SC_PrivateExtern: return "__private_extern__"; break;
+  case SC_Register:      return "register"; break;
+  case SC_Static:        return "static"; break;
   }
 
   assert(0 && "Invalid storage class");
@@ -630,22 +653,6 @@ VarDecl *VarDecl::Create(ASTContext &C, DeclContext *DC, SourceLocation L,
                          IdentifierInfo *Id, QualType T, TypeSourceInfo *TInfo,
                          StorageClass S, StorageClass SCAsWritten) {
   return new (C) VarDecl(Var, DC, L, Id, T, TInfo, S, SCAsWritten);
-}
-
-void VarDecl::Destroy(ASTContext& C) {
-  Expr *Init = getInit();
-  if (Init) {
-    Init->Destroy(C);
-    if (EvaluatedStmt *Eval = this->Init.dyn_cast<EvaluatedStmt *>()) {
-      Eval->~EvaluatedStmt();
-      C.Deallocate(Eval);
-    }
-  }
-  this->~VarDecl();
-  DeclaratorDecl::Destroy(C);
-}
-
-VarDecl::~VarDecl() {
 }
 
 SourceLocation VarDecl::getInnerLocStart() const {
@@ -665,14 +672,14 @@ bool VarDecl::isExternC() const {
   ASTContext &Context = getASTContext();
   if (!Context.getLangOptions().CPlusPlus)
     return (getDeclContext()->isTranslationUnit() &&
-            getStorageClass() != Static) ||
+            getStorageClass() != SC_Static) ||
       (getDeclContext()->isFunctionOrMethod() && hasExternalStorage());
 
   for (const DeclContext *DC = getDeclContext(); !DC->isTranslationUnit();
        DC = DC->getParent()) {
     if (const LinkageSpecDecl *Linkage = dyn_cast<LinkageSpecDecl>(DC))  {
       if (Linkage->getLanguage() == LinkageSpecDecl::lang_c)
-        return getStorageClass() != Static;
+        return getStorageClass() != SC_Static;
 
       break;
     }
@@ -717,8 +724,8 @@ VarDecl::DefinitionKind VarDecl::isThisDeclarationADefinition() const {
   if (hasExternalStorage())
     return DeclarationOnly;
   
-  if (getStorageClassAsWritten() == Extern ||
-       getStorageClassAsWritten() == PrivateExtern) {
+  if (getStorageClassAsWritten() == SC_Extern ||
+       getStorageClassAsWritten() == SC_PrivateExtern) {
     for (const VarDecl *PrevVar = getPreviousDeclaration();
          PrevVar; PrevVar = PrevVar->getPreviousDeclaration()) {
       if (PrevVar->getLinkage() == InternalLinkage && PrevVar->hasInit())
@@ -912,28 +919,6 @@ SourceRange ParmVarDecl::getDefaultArgRange() const {
 // FunctionDecl Implementation
 //===----------------------------------------------------------------------===//
 
-void FunctionDecl::Destroy(ASTContext& C) {
-  if (Body && Body.isOffset())
-    Body.get(C.getExternalSource())->Destroy(C);
-
-  for (param_iterator I=param_begin(), E=param_end(); I!=E; ++I)
-    (*I)->Destroy(C);
-
-  FunctionTemplateSpecializationInfo *FTSInfo
-    = TemplateOrSpecialization.dyn_cast<FunctionTemplateSpecializationInfo*>();
-  if (FTSInfo)
-    C.Deallocate(FTSInfo);
-  
-  MemberSpecializationInfo *MSInfo
-    = TemplateOrSpecialization.dyn_cast<MemberSpecializationInfo*>();
-  if (MSInfo)
-    C.Deallocate(MSInfo);
-  
-  C.Deallocate(ParamInfo);
-
-  DeclaratorDecl::Destroy(C);
-}
-
 void FunctionDecl::getNameForDiagnostic(std::string &S,
                                         const PrintingPolicy &Policy,
                                         bool Qualified) const {
@@ -984,7 +969,7 @@ void FunctionDecl::setBody(Stmt *B) {
 bool FunctionDecl::isMain() const {
   ASTContext &Context = getASTContext();
   return !Context.getLangOptions().Freestanding &&
-    getDeclContext()->getLookupContext()->isTranslationUnit() &&
+    getDeclContext()->getRedeclContext()->isTranslationUnit() &&
     getIdentifier() && getIdentifier()->isStr("main");
 }
 
@@ -993,17 +978,20 @@ bool FunctionDecl::isExternC() const {
   // In C, any non-static, non-overloadable function has external
   // linkage.
   if (!Context.getLangOptions().CPlusPlus)
-    return getStorageClass() != Static && !getAttr<OverloadableAttr>();
+    return getStorageClass() != SC_Static && !getAttr<OverloadableAttr>();
 
   for (const DeclContext *DC = getDeclContext(); !DC->isTranslationUnit();
        DC = DC->getParent()) {
     if (const LinkageSpecDecl *Linkage = dyn_cast<LinkageSpecDecl>(DC))  {
       if (Linkage->getLanguage() == LinkageSpecDecl::lang_c)
-        return getStorageClass() != Static &&
+        return getStorageClass() != SC_Static &&
                !getAttr<OverloadableAttr>();
 
       break;
     }
+    
+    if (DC->isRecord())
+      break;
   }
 
   return false;
@@ -1013,7 +1001,7 @@ bool FunctionDecl::isGlobal() const {
   if (const CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(this))
     return Method->isStatic();
 
-  if (getStorageClass() == Static)
+  if (getStorageClass() == SC_Static)
     return false;
 
   for (const DeclContext *DC = getDeclContext();
@@ -1072,7 +1060,7 @@ unsigned FunctionDecl::getBuiltinID() const {
   // function or whether it just has the same name.
 
   // If this is a static function, it's not a builtin.
-  if (getStorageClass() == Static)
+  if (getStorageClass() == SC_Static)
     return 0;
 
   // If this function is at translation-unit scope and we're not in
@@ -1206,7 +1194,7 @@ bool FunctionDecl::isInlineDefinitionExternallyVisible() const {
     for (redecl_iterator Redecl = redecls_begin(), RedeclEnd = redecls_end();
          Redecl != RedeclEnd;
          ++Redecl) {
-      if (Redecl->isInlineSpecified() && Redecl->getStorageClass() != Extern)
+      if (Redecl->isInlineSpecified() && Redecl->getStorageClass() != SC_Extern)
         return true;
     }
     
@@ -1225,7 +1213,7 @@ bool FunctionDecl::isInlineDefinitionExternallyVisible() const {
     if (!Redecl->getLexicalDeclContext()->isTranslationUnit())
       continue;
     
-    if (!Redecl->isInlineSpecified() || Redecl->getStorageClass() == Extern) 
+    if (!Redecl->isInlineSpecified() || Redecl->getStorageClass() == SC_Extern) 
       return true; // Not an inline definition
   }
   
@@ -1400,14 +1388,15 @@ FunctionDecl::setFunctionTemplateSpecialization(FunctionTemplateDecl *Template,
   if (InsertPos)
     Template->getSpecializations().InsertNode(Info, InsertPos);
   else {
-    // Try to insert the new node. If there is an existing node, remove it 
-    // first.
+    // Try to insert the new node. If there is an existing node, leave it, the
+    // set will contain the canonical decls while
+    // FunctionTemplateDecl::findSpecialization will return
+    // the most recent redeclarations.
     FunctionTemplateSpecializationInfo *Existing
       = Template->getSpecializations().GetOrInsertNode(Info);
-    if (Existing) {
-      Template->getSpecializations().RemoveNode(Existing);
-      Template->getSpecializations().GetOrInsertNode(Info);
-    }
+    (void)Existing;
+    assert((!Existing || Existing->Function->isCanonicalDecl()) &&
+           "Set is supposed to only contain canonical decls");
   }
 }
 
@@ -1564,12 +1553,6 @@ bool FieldDecl::isAnonymousStructOrUnion() const {
 // TagDecl Implementation
 //===----------------------------------------------------------------------===//
 
-void TagDecl::Destroy(ASTContext &C) {
-  if (hasExtInfo())
-    C.Deallocate(getExtInfo());
-  TypeDecl::Destroy(C);
-}
-
 SourceLocation TagDecl::getOuterLocStart() const {
   return getTemplateOrInnerLocStart(this);
 }
@@ -1590,14 +1573,7 @@ void TagDecl::setTypedefForAnonDecl(TypedefDecl *TDD) {
 }
 
 void TagDecl::startDefinition() {
-  if (TagType *TagT = const_cast<TagType *>(TypeForDecl->getAs<TagType>())) {
-    TagT->decl.setPointer(this);
-    TagT->decl.setInt(1);
-  } else if (InjectedClassNameType *Injected
-               = const_cast<InjectedClassNameType *>(
-                                 TypeForDecl->getAs<InjectedClassNameType>())) {
-    Injected->Decl = cast<CXXRecordDecl>(this);
-  }
+  IsBeingDefined = true;
 
   if (isa<CXXRecordDecl>(this)) {
     CXXRecordDecl *D = cast<CXXRecordDecl>(this);
@@ -1614,17 +1590,7 @@ void TagDecl::completeDefinition() {
          "definition completed but not started");
 
   IsDefinition = true;
-  if (TagType *TagT = const_cast<TagType *>(TypeForDecl->getAs<TagType>())) {
-    assert(TagT->decl.getPointer() == this &&
-           "Attempt to redefine a tag definition?");
-    TagT->decl.setInt(0);
-  } else if (InjectedClassNameType *Injected
-               = const_cast<InjectedClassNameType *>(
-                                TypeForDecl->getAs<InjectedClassNameType>())) {
-    assert(Injected->Decl == this &&
-           "Attempt to redefine a class template definition?");
-    (void)Injected;
-  }
+  IsBeingDefined = false;
 }
 
 TagDecl* TagDecl::getDefinition() const {
@@ -1675,10 +1641,6 @@ EnumDecl *EnumDecl::Create(ASTContext &C, EmptyShell Empty) {
   return new (C) EnumDecl(0, SourceLocation(), 0, 0, SourceLocation());
 }
 
-void EnumDecl::Destroy(ASTContext& C) {
-  TagDecl::Destroy(C);
-}
-
 void EnumDecl::completeDefinition(QualType NewType,
                                   QualType NewPromotionType,
                                   unsigned NumPositiveBits,
@@ -1719,13 +1681,6 @@ RecordDecl *RecordDecl::Create(ASTContext &C, EmptyShell Empty) {
                             SourceLocation());
 }
 
-RecordDecl::~RecordDecl() {
-}
-
-void RecordDecl::Destroy(ASTContext& C) {
-  TagDecl::Destroy(C);
-}
-
 bool RecordDecl::isInjectedClassName() const {
   return isImplicit() && getDeclName() && getDeclContext()->isRecord() &&
     cast<RecordDecl>(getDeclContext())->getDeclName() == getDeclName();
@@ -1752,20 +1707,6 @@ ValueDecl *RecordDecl::getAnonymousStructOrUnionObject() {
 //===----------------------------------------------------------------------===//
 // BlockDecl Implementation
 //===----------------------------------------------------------------------===//
-
-BlockDecl::~BlockDecl() {
-}
-
-void BlockDecl::Destroy(ASTContext& C) {
-  if (Body)
-    Body->Destroy(C);
-
-  for (param_iterator I=param_begin(), E=param_end(); I!=E; ++I)
-    (*I)->Destroy(C);
-
-  C.Deallocate(ParamInfo);
-  Decl::Destroy(C);
-}
 
 void BlockDecl::setParams(ParmVarDecl **NewParamInfo,
                           unsigned NParms) {
@@ -1798,27 +1739,17 @@ NamespaceDecl *NamespaceDecl::Create(ASTContext &C, DeclContext *DC,
   return new (C) NamespaceDecl(DC, L, Id);
 }
 
-void NamespaceDecl::Destroy(ASTContext& C) {
-  // NamespaceDecl uses "NextDeclarator" to chain namespace declarations
-  // together. They are all top-level Decls.
-
-  this->~NamespaceDecl();
-  Decl::Destroy(C);
-}
-
-
 ImplicitParamDecl *ImplicitParamDecl::Create(ASTContext &C, DeclContext *DC,
     SourceLocation L, IdentifierInfo *Id, QualType T) {
   return new (C) ImplicitParamDecl(ImplicitParam, DC, L, Id, T);
 }
 
 FunctionDecl *FunctionDecl::Create(ASTContext &C, DeclContext *DC,
-                                   SourceLocation L,
-                                   DeclarationName N, QualType T,
-                                   TypeSourceInfo *TInfo,
+                                   const DeclarationNameInfo &NameInfo,
+                                   QualType T, TypeSourceInfo *TInfo,
                                    StorageClass S, StorageClass SCAsWritten,
                                    bool isInline, bool hasWrittenPrototype) {
-  FunctionDecl *New = new (C) FunctionDecl(Function, DC, L, N, T, TInfo,
+  FunctionDecl *New = new (C) FunctionDecl(Function, DC, NameInfo, T, TInfo,
                                            S, SCAsWritten, isInline);
   New->HasWrittenPrototype = hasWrittenPrototype;
   return New;
@@ -1835,9 +1766,11 @@ EnumConstantDecl *EnumConstantDecl::Create(ASTContext &C, EnumDecl *CD,
   return new (C) EnumConstantDecl(CD, L, Id, T, E, V);
 }
 
-void EnumConstantDecl::Destroy(ASTContext& C) {
-  if (Init) Init->Destroy(C);
-  ValueDecl::Destroy(C);
+SourceRange EnumConstantDecl::getSourceRange() const {
+  SourceLocation End = getLocation();
+  if (Init)
+    End = Init->getLocEnd();
+  return SourceRange(getLocation(), End);
 }
 
 TypedefDecl *TypedefDecl::Create(ASTContext &C, DeclContext *DC,
@@ -1845,9 +1778,6 @@ TypedefDecl *TypedefDecl::Create(ASTContext &C, DeclContext *DC,
                                  TypeSourceInfo *TInfo) {
   return new (C) TypedefDecl(DC, L, Id, TInfo);
 }
-
-// Anchor TypedefDecl's vtable here.
-TypedefDecl::~TypedefDecl() {}
 
 FileScopeAsmDecl *FileScopeAsmDecl::Create(ASTContext &C, DeclContext *DC,
                                            SourceLocation L,

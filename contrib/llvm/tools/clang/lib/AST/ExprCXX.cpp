@@ -118,14 +118,6 @@ void CXXNewExpr::AllocateArgsArray(ASTContext &C, bool isArray,
 }
 
 
-void CXXNewExpr::DoDestroy(ASTContext &C) {
-  DestroyChildren(C);
-  if (SubExprs)
-    C.Deallocate(SubExprs);
-  this->~CXXNewExpr();
-  C.Deallocate((void*)this);
-}
-
 Stmt::child_iterator CXXNewExpr::child_begin() { return &SubExprs[0]; }
 Stmt::child_iterator CXXNewExpr::child_end() {
   return &SubExprs[0] + Array + getNumPlacementArgs() + getNumConstructorArgs();
@@ -167,8 +159,9 @@ UnresolvedLookupExpr *
 UnresolvedLookupExpr::Create(ASTContext &C, bool Dependent,
                              CXXRecordDecl *NamingClass,
                              NestedNameSpecifier *Qualifier,
-                             SourceRange QualifierRange, DeclarationName Name,
-                             SourceLocation NameLoc, bool ADL,
+                             SourceRange QualifierRange,
+                             const DeclarationNameInfo &NameInfo,
+                             bool ADL,
                              const TemplateArgumentListInfo &Args,
                              UnresolvedSetIterator Begin, 
                              UnresolvedSetIterator End) 
@@ -179,8 +172,8 @@ UnresolvedLookupExpr::Create(ASTContext &C, bool Dependent,
     = new (Mem) UnresolvedLookupExpr(C, 
                                      Dependent ? C.DependentTy : C.OverloadTy,
                                      Dependent, NamingClass,
-                                     Qualifier, QualifierRange,
-                                     Name, NameLoc, ADL,
+                                     Qualifier, QualifierRange, NameInfo,
+                                     ADL,
                                      /*Overload*/ true,
                                      /*ExplicitTemplateArgs*/ true,
                                      Begin, End);
@@ -204,14 +197,14 @@ UnresolvedLookupExpr::CreateEmpty(ASTContext &C, unsigned NumTemplateArgs) {
 
 OverloadExpr::OverloadExpr(StmtClass K, ASTContext &C, QualType T, 
                            bool Dependent, NestedNameSpecifier *Qualifier, 
-                           SourceRange QRange, DeclarationName Name, 
-                           SourceLocation NameLoc, bool HasTemplateArgs,
+                           SourceRange QRange,
+                           const DeclarationNameInfo &NameInfo,
+                           bool HasTemplateArgs,
                            UnresolvedSetIterator Begin, 
                            UnresolvedSetIterator End)
   : Expr(K, T, Dependent, Dependent),
-  Results(0), NumResults(0), Name(Name), Qualifier(Qualifier), 
-  QualifierRange(QRange), NameLoc(NameLoc), 
-  HasExplicitTemplateArgs(HasTemplateArgs)
+  Results(0), NumResults(0), NameInfo(NameInfo), Qualifier(Qualifier), 
+  QualifierRange(QRange), HasExplicitTemplateArgs(HasTemplateArgs)
 {
   initializeResults(C, Begin, End);
 }
@@ -270,8 +263,7 @@ DependentScopeDeclRefExpr *
 DependentScopeDeclRefExpr::Create(ASTContext &C,
                                   NestedNameSpecifier *Qualifier,
                                   SourceRange QualifierRange,
-                                  DeclarationName Name,
-                                  SourceLocation NameLoc,
+                                  const DeclarationNameInfo &NameInfo,
                                   const TemplateArgumentListInfo *Args) {
   std::size_t size = sizeof(DependentScopeDeclRefExpr);
   if (Args) size += ExplicitTemplateArgumentList::sizeFor(*Args);
@@ -280,8 +272,7 @@ DependentScopeDeclRefExpr::Create(ASTContext &C,
   DependentScopeDeclRefExpr *DRE
     = new (Mem) DependentScopeDeclRefExpr(C.DependentTy,
                                           Qualifier, QualifierRange,
-                                          Name, NameLoc,
-                                          Args != 0);
+                                          NameInfo, Args != 0);
 
   if (Args)
     reinterpret_cast<ExplicitTemplateArgumentList*>(DRE+1)
@@ -299,7 +290,7 @@ DependentScopeDeclRefExpr::CreateEmpty(ASTContext &C,
   void *Mem = C.Allocate(size);
 
   return new (Mem) DependentScopeDeclRefExpr(QualType(), 0, SourceRange(),
-                                             DeclarationName(),SourceLocation(),
+                                             DeclarationNameInfo(),
                                              NumTemplateArgs != 0);
 }
 
@@ -395,6 +386,118 @@ bool UnaryTypeTraitExpr::EvaluateTrait(ASTContext& C) const {
           C.getBaseElementType(QueriedType)->getAs<RecordType>())
       return cast<CXXRecordDecl>(RT->getDecl())->hasTrivialDestructor();
     return false;
+  // TODO: Propagate nothrowness for implicitly declared special members.
+  case UTT_HasNothrowAssign:
+    // http://gcc.gnu.org/onlinedocs/gcc/Type-Traits.html:
+    //   If type is const qualified or is a reference type then the
+    //   trait is false. Otherwise if __has_trivial_assign (type)
+    //   is true then the trait is true, else if type is a cv class
+    //   or union type with copy assignment operators that are known
+    //   not to throw an exception then the trait is true, else it is
+    //   false.
+    if (C.getBaseElementType(QueriedType).isConstQualified())
+      return false;
+    if (QueriedType->isReferenceType())
+      return false;
+    if (QueriedType->isPODType())
+      return true;
+    if (const RecordType *RT = QueriedType->getAs<RecordType>()) {
+      CXXRecordDecl* RD = cast<CXXRecordDecl>(RT->getDecl());
+      if (RD->hasTrivialCopyAssignment())
+        return true;
+
+      bool FoundAssign = false;
+      bool AllNoThrow = true;
+      DeclarationName Name = C.DeclarationNames.getCXXOperatorName(OO_Equal);
+      DeclContext::lookup_const_iterator Op, OpEnd;
+      for (llvm::tie(Op, OpEnd) = RD->lookup(Name);
+           Op != OpEnd; ++Op) {
+        CXXMethodDecl *Operator = cast<CXXMethodDecl>(*Op);
+        if (Operator->isCopyAssignmentOperator()) {
+          FoundAssign = true;
+          const FunctionProtoType *CPT
+              = Operator->getType()->getAs<FunctionProtoType>();
+          if (!CPT->hasEmptyExceptionSpec()) {
+            AllNoThrow = false;
+            break;
+          }
+        }
+      }
+
+      return FoundAssign && AllNoThrow;
+    }
+    return false;
+  case UTT_HasNothrowCopy:
+    // http://gcc.gnu.org/onlinedocs/gcc/Type-Traits.html:
+    //   If __has_trivial_copy (type) is true then the trait is true, else
+    //   if type is a cv class or union type with copy constructors that are
+    //   known not to throw an exception then the trait is true, else it is
+    //   false.
+    if (QueriedType->isPODType() || QueriedType->isReferenceType())
+      return true;
+    if (const RecordType *RT = QueriedType->getAs<RecordType>()) {
+      CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+      if (RD->hasTrivialCopyConstructor())
+        return true;
+
+      bool FoundConstructor = false;
+      bool AllNoThrow = true;
+      unsigned FoundTQs;
+      DeclarationName ConstructorName
+          = C.DeclarationNames.getCXXConstructorName(
+                                          C.getCanonicalType(QueriedType));
+      DeclContext::lookup_const_iterator Con, ConEnd;
+      for (llvm::tie(Con, ConEnd) = RD->lookup(ConstructorName);
+           Con != ConEnd; ++Con) {
+        CXXConstructorDecl *Constructor = cast<CXXConstructorDecl>(*Con);
+        if (Constructor->isCopyConstructor(FoundTQs)) {
+          FoundConstructor = true;
+          const FunctionProtoType *CPT
+              = Constructor->getType()->getAs<FunctionProtoType>();
+          if (!CPT->hasEmptyExceptionSpec()) {
+            AllNoThrow = false;
+            break;
+          }
+        }
+      }
+
+      return FoundConstructor && AllNoThrow;
+    }
+    return false;
+  case UTT_HasNothrowConstructor:
+    // http://gcc.gnu.org/onlinedocs/gcc/Type-Traits.html:
+    //   If __has_trivial_constructor (type) is true then the trait is
+    //   true, else if type is a cv class or union type (or array
+    //   thereof) with a default constructor that is known not to
+    //   throw an exception then the trait is true, else it is false.
+    if (QueriedType->isPODType())
+      return true;
+    if (const RecordType *RT =
+          C.getBaseElementType(QueriedType)->getAs<RecordType>()) {
+      CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+      if (RD->hasTrivialConstructor())
+        return true;
+
+      if (CXXConstructorDecl *Constructor = RD->getDefaultConstructor()) {
+        const FunctionProtoType *CPT
+            = Constructor->getType()->getAs<FunctionProtoType>();
+        // TODO: check whether evaluating default arguments can throw.
+        // For now, we'll be conservative and assume that they can throw.
+        if (CPT->hasEmptyExceptionSpec() && CPT->getNumArgs() == 0)
+          return true;
+      }
+    }
+    return false;
+  case UTT_HasVirtualDestructor:
+    // http://gcc.gnu.org/onlinedocs/gcc/Type-Traits.html:
+    //   If type is a class type with a virtual destructor ([class.dtor])
+    //   then the trait is true, else it is false.
+    if (const RecordType *Record = QueriedType->getAs<RecordType>()) {
+      CXXRecordDecl *RD = cast<CXXRecordDecl>(Record->getDecl());
+      if (CXXDestructorDecl *Destructor = RD->getDestructor())
+        return Destructor->isVirtual();
+    }
+    return false;
   }
 }
 
@@ -468,6 +571,100 @@ const char *CXXNamedCastExpr::getCastName() const {
   }
 }
 
+CXXStaticCastExpr *CXXStaticCastExpr::Create(ASTContext &C, QualType T,
+                                             CastKind K, Expr *Op,
+                                             const CXXCastPath *BasePath,
+                                             TypeSourceInfo *WrittenTy,
+                                             SourceLocation L) {
+  unsigned PathSize = (BasePath ? BasePath->size() : 0);
+  void *Buffer = C.Allocate(sizeof(CXXStaticCastExpr)
+                            + PathSize * sizeof(CXXBaseSpecifier*));
+  CXXStaticCastExpr *E =
+    new (Buffer) CXXStaticCastExpr(T, K, Op, PathSize, WrittenTy, L);
+  if (PathSize) E->setCastPath(*BasePath);
+  return E;
+}
+
+CXXStaticCastExpr *CXXStaticCastExpr::CreateEmpty(ASTContext &C,
+                                                  unsigned PathSize) {
+  void *Buffer =
+    C.Allocate(sizeof(CXXStaticCastExpr) + PathSize * sizeof(CXXBaseSpecifier*));
+  return new (Buffer) CXXStaticCastExpr(EmptyShell(), PathSize);
+}
+
+CXXDynamicCastExpr *CXXDynamicCastExpr::Create(ASTContext &C, QualType T,
+                                               CastKind K, Expr *Op,
+                                               const CXXCastPath *BasePath,
+                                               TypeSourceInfo *WrittenTy,
+                                               SourceLocation L) {
+  unsigned PathSize = (BasePath ? BasePath->size() : 0);
+  void *Buffer = C.Allocate(sizeof(CXXDynamicCastExpr)
+                            + PathSize * sizeof(CXXBaseSpecifier*));
+  CXXDynamicCastExpr *E =
+    new (Buffer) CXXDynamicCastExpr(T, K, Op, PathSize, WrittenTy, L);
+  if (PathSize) E->setCastPath(*BasePath);
+  return E;
+}
+
+CXXDynamicCastExpr *CXXDynamicCastExpr::CreateEmpty(ASTContext &C,
+                                                    unsigned PathSize) {
+  void *Buffer =
+    C.Allocate(sizeof(CXXDynamicCastExpr) + PathSize * sizeof(CXXBaseSpecifier*));
+  return new (Buffer) CXXDynamicCastExpr(EmptyShell(), PathSize);
+}
+
+CXXReinterpretCastExpr *
+CXXReinterpretCastExpr::Create(ASTContext &C, QualType T, CastKind K, Expr *Op,
+                               const CXXCastPath *BasePath,
+                               TypeSourceInfo *WrittenTy, SourceLocation L) {
+  unsigned PathSize = (BasePath ? BasePath->size() : 0);
+  void *Buffer =
+    C.Allocate(sizeof(CXXReinterpretCastExpr) + PathSize * sizeof(CXXBaseSpecifier*));
+  CXXReinterpretCastExpr *E =
+    new (Buffer) CXXReinterpretCastExpr(T, K, Op, PathSize, WrittenTy, L);
+  if (PathSize) E->setCastPath(*BasePath);
+  return E;
+}
+
+CXXReinterpretCastExpr *
+CXXReinterpretCastExpr::CreateEmpty(ASTContext &C, unsigned PathSize) {
+  void *Buffer = C.Allocate(sizeof(CXXReinterpretCastExpr)
+                            + PathSize * sizeof(CXXBaseSpecifier*));
+  return new (Buffer) CXXReinterpretCastExpr(EmptyShell(), PathSize);
+}
+
+CXXConstCastExpr *CXXConstCastExpr::Create(ASTContext &C, QualType T, Expr *Op,
+                                           TypeSourceInfo *WrittenTy,
+                                           SourceLocation L) {
+  return new (C) CXXConstCastExpr(T, Op, WrittenTy, L);
+}
+
+CXXConstCastExpr *CXXConstCastExpr::CreateEmpty(ASTContext &C) {
+  return new (C) CXXConstCastExpr(EmptyShell());
+}
+
+CXXFunctionalCastExpr *
+CXXFunctionalCastExpr::Create(ASTContext &C, QualType T,
+                              TypeSourceInfo *Written, SourceLocation L,
+                              CastKind K, Expr *Op, const CXXCastPath *BasePath,
+                               SourceLocation R) {
+  unsigned PathSize = (BasePath ? BasePath->size() : 0);
+  void *Buffer = C.Allocate(sizeof(CXXFunctionalCastExpr)
+                            + PathSize * sizeof(CXXBaseSpecifier*));
+  CXXFunctionalCastExpr *E =
+    new (Buffer) CXXFunctionalCastExpr(T, Written, L, K, Op, PathSize, R);
+  if (PathSize) E->setCastPath(*BasePath);
+  return E;
+}
+
+CXXFunctionalCastExpr *
+CXXFunctionalCastExpr::CreateEmpty(ASTContext &C, unsigned PathSize) {
+  void *Buffer = C.Allocate(sizeof(CXXFunctionalCastExpr)
+                            + PathSize * sizeof(CXXBaseSpecifier*));
+  return new (Buffer) CXXFunctionalCastExpr(EmptyShell(), PathSize);
+}
+
+
 CXXDefaultArgExpr *
 CXXDefaultArgExpr::Create(ASTContext &C, SourceLocation Loc, 
                           ParmVarDecl *Param, Expr *SubExpr) {
@@ -476,21 +673,9 @@ CXXDefaultArgExpr::Create(ASTContext &C, SourceLocation Loc,
                                      SubExpr);
 }
 
-void CXXDefaultArgExpr::DoDestroy(ASTContext &C) {
-  if (Param.getInt())
-    getExpr()->Destroy(C);
-  this->~CXXDefaultArgExpr();
-  C.Deallocate(this);
-}
-
 CXXTemporary *CXXTemporary::Create(ASTContext &C,
                                    const CXXDestructorDecl *Destructor) {
   return new (C) CXXTemporary(Destructor);
-}
-
-void CXXTemporary::Destroy(ASTContext &Ctx) {
-  this->~CXXTemporary();
-  Ctx.Deallocate(this);
 }
 
 CXXBindTemporaryExpr *CXXBindTemporaryExpr::Create(ASTContext &C,
@@ -500,25 +685,6 @@ CXXBindTemporaryExpr *CXXBindTemporaryExpr::Create(ASTContext &C,
          "Expression bound to a temporary must have record type!");
 
   return new (C) CXXBindTemporaryExpr(Temp, SubExpr);
-}
-
-void CXXBindTemporaryExpr::DoDestroy(ASTContext &C) {
-  Temp->Destroy(C);
-  this->~CXXBindTemporaryExpr();
-  C.Deallocate(this);
-}
-
-CXXBindReferenceExpr *CXXBindReferenceExpr::Create(ASTContext &C, Expr *SubExpr,
-                                                   bool ExtendsLifetime, 
-                                                   bool RequiresTemporaryCopy) {
-  return new (C) CXXBindReferenceExpr(SubExpr, 
-                                      ExtendsLifetime,
-                                      RequiresTemporaryCopy);
-}
-
-void CXXBindReferenceExpr::DoDestroy(ASTContext &C) {
-  this->~CXXBindReferenceExpr();
-  C.Deallocate(this);
 }
 
 CXXTemporaryObjectExpr::CXXTemporaryObjectExpr(ASTContext &C,
@@ -569,14 +735,6 @@ CXXConstructExpr::CXXConstructExpr(ASTContext &C, StmtClass SC, QualType T,
   }
 }
 
-void CXXConstructExpr::DoDestroy(ASTContext &C) {
-  DestroyChildren(C);
-  if (Args)
-    C.Deallocate(Args);
-  this->~CXXConstructExpr();
-  C.Deallocate(this);
-}
-
 CXXExprWithTemporaries::CXXExprWithTemporaries(ASTContext &C,
                                                Expr *subexpr,
                                                CXXTemporary **temps,
@@ -605,31 +763,12 @@ CXXExprWithTemporaries *CXXExprWithTemporaries::Create(ASTContext &C,
   return new (C) CXXExprWithTemporaries(C, SubExpr, Temps, NumTemps);
 }
 
-void CXXExprWithTemporaries::DoDestroy(ASTContext &C) {
-  DestroyChildren(C);
-  if (Temps)
-    C.Deallocate(Temps);
-  this->~CXXExprWithTemporaries();
-  C.Deallocate(this);
-}
-
-CXXExprWithTemporaries::~CXXExprWithTemporaries() {}
-
 // CXXBindTemporaryExpr
 Stmt::child_iterator CXXBindTemporaryExpr::child_begin() {
   return &SubExpr;
 }
 
 Stmt::child_iterator CXXBindTemporaryExpr::child_end() {
-  return &SubExpr + 1;
-}
-
-// CXXBindReferenceExpr
-Stmt::child_iterator CXXBindReferenceExpr::child_begin() {
-  return &SubExpr;
-}
-
-Stmt::child_iterator CXXBindReferenceExpr::child_end() {
   return &SubExpr + 1;
 }
 
@@ -705,8 +844,7 @@ CXXDependentScopeMemberExpr::CXXDependentScopeMemberExpr(ASTContext &C,
                                                  NestedNameSpecifier *Qualifier,
                                                  SourceRange QualifierRange,
                                           NamedDecl *FirstQualifierFoundInScope,
-                                                 DeclarationName Member,
-                                                 SourceLocation MemberLoc,
+                                          DeclarationNameInfo MemberNameInfo,
                                    const TemplateArgumentListInfo *TemplateArgs)
   : Expr(CXXDependentScopeMemberExprClass, C.DependentTy, true, true),
     Base(Base), BaseType(BaseType), IsArrow(IsArrow),
@@ -714,9 +852,9 @@ CXXDependentScopeMemberExpr::CXXDependentScopeMemberExpr(ASTContext &C,
     OperatorLoc(OperatorLoc),
     Qualifier(Qualifier), QualifierRange(QualifierRange),
     FirstQualifierFoundInScope(FirstQualifierFoundInScope),
-    Member(Member), MemberLoc(MemberLoc) {
+    MemberNameInfo(MemberNameInfo) {
   if (TemplateArgs)
-    getExplicitTemplateArgumentList()->initializeFrom(*TemplateArgs);
+    getExplicitTemplateArgs().initializeFrom(*TemplateArgs);
 }
 
 CXXDependentScopeMemberExpr *
@@ -726,15 +864,14 @@ CXXDependentScopeMemberExpr::Create(ASTContext &C,
                                 NestedNameSpecifier *Qualifier,
                                 SourceRange QualifierRange,
                                 NamedDecl *FirstQualifierFoundInScope,
-                                DeclarationName Member,
-                                SourceLocation MemberLoc,
+                                DeclarationNameInfo MemberNameInfo,
                                 const TemplateArgumentListInfo *TemplateArgs) {
   if (!TemplateArgs)
     return new (C) CXXDependentScopeMemberExpr(C, Base, BaseType,
                                                IsArrow, OperatorLoc,
                                                Qualifier, QualifierRange,
                                                FirstQualifierFoundInScope,
-                                               Member, MemberLoc);
+                                               MemberNameInfo);
 
   std::size_t size = sizeof(CXXDependentScopeMemberExpr);
   if (TemplateArgs)
@@ -745,7 +882,7 @@ CXXDependentScopeMemberExpr::Create(ASTContext &C,
                                                IsArrow, OperatorLoc,
                                                Qualifier, QualifierRange,
                                                FirstQualifierFoundInScope,
-                                               Member, MemberLoc, TemplateArgs);
+                                               MemberNameInfo, TemplateArgs);
 }
 
 CXXDependentScopeMemberExpr *
@@ -755,8 +892,7 @@ CXXDependentScopeMemberExpr::CreateEmpty(ASTContext &C,
     return new (C) CXXDependentScopeMemberExpr(C, 0, QualType(),
                                                0, SourceLocation(), 0,
                                                SourceRange(), 0,
-                                               DeclarationName(),
-                                               SourceLocation());
+                                               DeclarationNameInfo());
 
   std::size_t size = sizeof(CXXDependentScopeMemberExpr) +
                      ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
@@ -765,8 +901,7 @@ CXXDependentScopeMemberExpr::CreateEmpty(ASTContext &C,
     =  new (Mem) CXXDependentScopeMemberExpr(C, 0, QualType(),
                                              0, SourceLocation(), 0,
                                              SourceRange(), 0,
-                                             DeclarationName(),
-                                             SourceLocation(), 0);
+                                             DeclarationNameInfo(), 0);
   E->HasExplicitTemplateArgs = true;
   return E;
 }
@@ -789,13 +924,12 @@ UnresolvedMemberExpr::UnresolvedMemberExpr(ASTContext &C, QualType T,
                                            SourceLocation OperatorLoc,
                                            NestedNameSpecifier *Qualifier,
                                            SourceRange QualifierRange,
-                                           DeclarationName MemberName,
-                                           SourceLocation MemberLoc,
+                                   const DeclarationNameInfo &MemberNameInfo,
                                    const TemplateArgumentListInfo *TemplateArgs,
                                            UnresolvedSetIterator Begin, 
                                            UnresolvedSetIterator End)
   : OverloadExpr(UnresolvedMemberExprClass, C, T, Dependent,
-                 Qualifier, QualifierRange, MemberName, MemberLoc,
+                 Qualifier, QualifierRange, MemberNameInfo,
                  TemplateArgs != 0, Begin, End),
     IsArrow(IsArrow), HasUnresolvedUsing(HasUnresolvedUsing),
     Base(Base), BaseType(BaseType), OperatorLoc(OperatorLoc) {
@@ -810,8 +944,7 @@ UnresolvedMemberExpr::Create(ASTContext &C, bool Dependent,
                              SourceLocation OperatorLoc,
                              NestedNameSpecifier *Qualifier,
                              SourceRange QualifierRange,
-                             DeclarationName Member,
-                             SourceLocation MemberLoc,
+                             const DeclarationNameInfo &MemberNameInfo,
                              const TemplateArgumentListInfo *TemplateArgs,
                              UnresolvedSetIterator Begin, 
                              UnresolvedSetIterator End) {
@@ -824,7 +957,7 @@ UnresolvedMemberExpr::Create(ASTContext &C, bool Dependent,
                              Dependent ? C.DependentTy : C.OverloadTy,
                              Dependent, HasUnresolvedUsing, Base, BaseType,
                              IsArrow, OperatorLoc, Qualifier, QualifierRange,
-                             Member, MemberLoc, TemplateArgs, Begin, End);
+                             MemberNameInfo, TemplateArgs, Begin, End);
 }
 
 UnresolvedMemberExpr *

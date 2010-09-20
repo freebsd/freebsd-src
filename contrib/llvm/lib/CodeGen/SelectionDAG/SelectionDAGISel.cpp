@@ -132,14 +132,16 @@ namespace llvm {
     const TargetLowering &TLI = IS->getTargetLowering();
 
     if (OptLevel == CodeGenOpt::None)
-      return createFastDAGScheduler(IS, OptLevel);
+      return createSourceListDAGScheduler(IS, OptLevel);
     if (TLI.getSchedulingPreference() == Sched::Latency)
       return createTDListDAGScheduler(IS, OptLevel);
     if (TLI.getSchedulingPreference() == Sched::RegPressure)
       return createBURRListDAGScheduler(IS, OptLevel);
-    assert(TLI.getSchedulingPreference() == Sched::Hybrid &&
+    if (TLI.getSchedulingPreference() == Sched::Hybrid)
+      return createHybridListDAGScheduler(IS, OptLevel);
+    assert(TLI.getSchedulingPreference() == Sched::ILP &&
            "Unknown sched type!");
-    return createHybridListDAGScheduler(IS, OptLevel);
+    return createILPListDAGScheduler(IS, OptLevel);
   }
 }
 
@@ -169,7 +171,7 @@ TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
 //===----------------------------------------------------------------------===//
 
 SelectionDAGISel::SelectionDAGISel(const TargetMachine &tm, CodeGenOpt::Level OL) :
-  MachineFunctionPass(&ID), TM(tm), TLI(*tm.getTargetLowering()),
+  MachineFunctionPass(ID), TM(tm), TLI(*tm.getTargetLowering()),
   FuncInfo(new FunctionLoweringInfo(TLI)),
   CurDAG(new SelectionDAG(tm)),
   SDB(new SelectionDAGBuilder(*CurDAG, *FuncInfo, OL)),
@@ -216,7 +218,7 @@ static bool FunctionCallsSetJmp(const Function *F) {
         for (Value::const_use_iterator
                I = Callee->use_begin(), E = Callee->use_end();
              I != E; ++I)
-          if (const CallInst *CI = dyn_cast<CallInst>(I))
+          if (const CallInst *CI = dyn_cast<CallInst>(*I))
             if (CI->getParent()->getParent() == F)
               return true;
     }
@@ -360,38 +362,6 @@ SelectionDAGISel::SelectBasicBlock(BasicBlock::const_iterator Begin,
 
   // Final step, emit the lowered DAG as machine code.
   CodeGenAndEmitDAG();
-}
-
-namespace {
-/// WorkListRemover - This class is a DAGUpdateListener that removes any deleted
-/// nodes from the worklist.
-class SDOPsWorkListRemover : public SelectionDAG::DAGUpdateListener {
-  SmallVector<SDNode*, 128> &Worklist;
-  SmallPtrSet<SDNode*, 128> &InWorklist;
-public:
-  SDOPsWorkListRemover(SmallVector<SDNode*, 128> &wl,
-                       SmallPtrSet<SDNode*, 128> &inwl)
-    : Worklist(wl), InWorklist(inwl) {}
-
-  void RemoveFromWorklist(SDNode *N) {
-    if (!InWorklist.erase(N)) return;
-    
-    SmallVector<SDNode*, 128>::iterator I =
-    std::find(Worklist.begin(), Worklist.end(), N);
-    assert(I != Worklist.end() && "Not in worklist");
-    
-    *I = Worklist.back();
-    Worklist.pop_back();
-  }
-  
-  virtual void NodeDeleted(SDNode *N, SDNode *E) {
-    RemoveFromWorklist(N);
-  }
-
-  virtual void NodeUpdated(SDNode *N) {
-    // Ignore updates.
-  }
-};
 }
 
 void SelectionDAGISel::ComputeLiveOutVRegInfo() {

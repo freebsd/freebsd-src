@@ -78,14 +78,14 @@ namespace {
     static char ID; // Pass identification, replacement for typeid
     explicit LowerInvoke(const TargetLowering *tli = NULL,
                          bool useExpensiveEHSupport = ExpensiveEHSupport)
-      : FunctionPass(&ID), useExpensiveEHSupport(useExpensiveEHSupport),
+      : FunctionPass(ID), useExpensiveEHSupport(useExpensiveEHSupport),
         TLI(tli) { }
     bool doInitialization(Module &M);
     bool runOnFunction(Function &F);
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       // This is a cluster of orthogonal Transforms
-      AU.addPreservedID(PromoteMemoryToRegisterID);
+      AU.addPreserved("mem2reg");
       AU.addPreservedID(LowerSwitchID);
     }
 
@@ -100,10 +100,11 @@ namespace {
 }
 
 char LowerInvoke::ID = 0;
-static RegisterPass<LowerInvoke>
-X("lowerinvoke", "Lower invoke and unwind, for unwindless code generators");
+INITIALIZE_PASS(LowerInvoke, "lowerinvoke",
+                "Lower invoke and unwind, for unwindless code generators",
+                false, false);
 
-const PassInfo *const llvm::LowerInvokePassID = &X;
+char &llvm::LowerInvokePassID = LowerInvoke::ID;
 
 // Public Interface To the LowerInvoke pass.
 FunctionPass *llvm::createLowerInvokePass(const TargetLowering *TLI) {

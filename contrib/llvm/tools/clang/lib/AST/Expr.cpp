@@ -44,8 +44,8 @@ bool Expr::isKnownToHaveBooleanValue() const {
   
   if (const UnaryOperator *UO = dyn_cast<UnaryOperator>(this)) {
     switch (UO->getOpcode()) {
-    case UnaryOperator::Plus:
-    case UnaryOperator::Extension:
+    case UO_Plus:
+    case UO_Extension:
       return UO->getSubExpr()->isKnownToHaveBooleanValue();
     default:
       return false;
@@ -60,25 +60,25 @@ bool Expr::isKnownToHaveBooleanValue() const {
   if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(this)) {
     switch (BO->getOpcode()) {
     default: return false;
-    case BinaryOperator::LT:   // Relational operators.
-    case BinaryOperator::GT:
-    case BinaryOperator::LE:
-    case BinaryOperator::GE:
-    case BinaryOperator::EQ:   // Equality operators.
-    case BinaryOperator::NE:
-    case BinaryOperator::LAnd: // AND operator.
-    case BinaryOperator::LOr:  // Logical OR operator.
+    case BO_LT:   // Relational operators.
+    case BO_GT:
+    case BO_LE:
+    case BO_GE:
+    case BO_EQ:   // Equality operators.
+    case BO_NE:
+    case BO_LAnd: // AND operator.
+    case BO_LOr:  // Logical OR operator.
       return true;
         
-    case BinaryOperator::And:  // Bitwise AND operator.
-    case BinaryOperator::Xor:  // Bitwise XOR operator.
-    case BinaryOperator::Or:   // Bitwise OR operator.
+    case BO_And:  // Bitwise AND operator.
+    case BO_Xor:  // Bitwise XOR operator.
+    case BO_Or:   // Bitwise OR operator.
       // Handle things like (x==2)|(y==12).
       return BO->getLHS()->isKnownToHaveBooleanValue() &&
              BO->getRHS()->isKnownToHaveBooleanValue();
         
-    case BinaryOperator::Comma:
-    case BinaryOperator::Assign:
+    case BO_Comma:
+    case BO_Assign:
       return BO->getRHS()->isKnownToHaveBooleanValue();
     }
   }
@@ -151,7 +151,7 @@ void DeclRefExpr::computeDependence() {
     ValueDependent = true;
   }
   //  (TD)  - a template-id that is dependent,
-  else if (hasExplicitTemplateArgumentList() && 
+  else if (hasExplicitTemplateArgs() && 
            TemplateSpecializationType::anyDependentTemplateArguments(
                                                        getTemplateArgs(), 
                                                        getNumTemplateArgs())) {
@@ -204,7 +204,29 @@ DeclRefExpr::DeclRefExpr(NestedNameSpecifier *Qualifier,
   }
       
   if (TemplateArgs)
-    getExplicitTemplateArgumentList()->initializeFrom(*TemplateArgs);
+    getExplicitTemplateArgs().initializeFrom(*TemplateArgs);
+
+  computeDependence();
+}
+
+DeclRefExpr::DeclRefExpr(NestedNameSpecifier *Qualifier,
+                         SourceRange QualifierRange,
+                         ValueDecl *D, const DeclarationNameInfo &NameInfo,
+                         const TemplateArgumentListInfo *TemplateArgs,
+                         QualType T)
+  : Expr(DeclRefExprClass, T, false, false),
+    DecoratedD(D,
+               (Qualifier? HasQualifierFlag : 0) |
+               (TemplateArgs ? HasExplicitTemplateArgumentListFlag : 0)),
+    Loc(NameInfo.getLoc()), DNLoc(NameInfo.getInfo()) {
+  if (Qualifier) {
+    NameQualifier *NQ = getNameQualifier();
+    NQ->NNS = Qualifier;
+    NQ->Range = QualifierRange;
+  }
+
+  if (TemplateArgs)
+    getExplicitTemplateArgs().initializeFrom(*TemplateArgs);
 
   computeDependence();
 }
@@ -216,6 +238,18 @@ DeclRefExpr *DeclRefExpr::Create(ASTContext &Context,
                                  SourceLocation NameLoc,
                                  QualType T,
                                  const TemplateArgumentListInfo *TemplateArgs) {
+  return Create(Context, Qualifier, QualifierRange, D,
+                DeclarationNameInfo(D->getDeclName(), NameLoc),
+                T, TemplateArgs);
+}
+
+DeclRefExpr *DeclRefExpr::Create(ASTContext &Context,
+                                 NestedNameSpecifier *Qualifier,
+                                 SourceRange QualifierRange,
+                                 ValueDecl *D,
+                                 const DeclarationNameInfo &NameInfo,
+                                 QualType T,
+                                 const TemplateArgumentListInfo *TemplateArgs) {
   std::size_t Size = sizeof(DeclRefExpr);
   if (Qualifier != 0)
     Size += sizeof(NameQualifier);
@@ -224,7 +258,7 @@ DeclRefExpr *DeclRefExpr::Create(ASTContext &Context,
     Size += ExplicitTemplateArgumentList::sizeFor(*TemplateArgs);
   
   void *Mem = Context.Allocate(Size, llvm::alignof<DeclRefExpr>());
-  return new (Mem) DeclRefExpr(Qualifier, QualifierRange, D, NameLoc,
+  return new (Mem) DeclRefExpr(Qualifier, QualifierRange, D, NameInfo,
                                TemplateArgs, T);
 }
 
@@ -242,12 +276,10 @@ DeclRefExpr *DeclRefExpr::CreateEmpty(ASTContext &Context, bool HasQualifier,
 }
 
 SourceRange DeclRefExpr::getSourceRange() const {
-  // FIXME: Does not handle multi-token names well, e.g., operator[].
-  SourceRange R(Loc);
-  
+  SourceRange R = getNameInfo().getSourceRange();
   if (hasQualifier())
     R.setBegin(getQualifierRange().getBegin());
-  if (hasExplicitTemplateArgumentList())
+  if (hasExplicitTemplateArgs())
     R.setEnd(getRAngleLoc());
   return R;
 }
@@ -342,6 +374,44 @@ std::string PredefinedExpr::ComputeName(IdentType IT, const Decl *CurrentDecl) {
   return "";
 }
 
+void APNumericStorage::setIntValue(ASTContext &C, const llvm::APInt &Val) {
+  if (hasAllocation())
+    C.Deallocate(pVal);
+
+  BitWidth = Val.getBitWidth();
+  unsigned NumWords = Val.getNumWords();
+  const uint64_t* Words = Val.getRawData();
+  if (NumWords > 1) {
+    pVal = new (C) uint64_t[NumWords];
+    std::copy(Words, Words + NumWords, pVal);
+  } else if (NumWords == 1)
+    VAL = Words[0];
+  else
+    VAL = 0;
+}
+
+IntegerLiteral *
+IntegerLiteral::Create(ASTContext &C, const llvm::APInt &V,
+                       QualType type, SourceLocation l) {
+  return new (C) IntegerLiteral(C, V, type, l);
+}
+
+IntegerLiteral *
+IntegerLiteral::Create(ASTContext &C, EmptyShell Empty) {
+  return new (C) IntegerLiteral(Empty);
+}
+
+FloatingLiteral *
+FloatingLiteral::Create(ASTContext &C, const llvm::APFloat &V,
+                        bool isexact, QualType Type, SourceLocation L) {
+  return new (C) FloatingLiteral(C, V, isexact, Type, L);
+}
+
+FloatingLiteral *
+FloatingLiteral::Create(ASTContext &C, EmptyShell Empty) {
+  return new (C) FloatingLiteral(Empty);
+}
+
 /// getValueAsApproximateDouble - This returns the value as an inaccurate
 /// double.  Note that this may cause loss of precision, but is useful for
 /// debugging dumps, etc.
@@ -390,15 +460,7 @@ StringLiteral *StringLiteral::CreateEmpty(ASTContext &C, unsigned NumStrs) {
   return SL;
 }
 
-void StringLiteral::DoDestroy(ASTContext &C) {
-  C.Deallocate(const_cast<char*>(StrData));
-  Expr::DoDestroy(C);
-}
-
 void StringLiteral::setString(ASTContext &C, llvm::StringRef Str) {
-  if (StrData)
-    C.Deallocate(const_cast<char*>(StrData));
-
   char *AStrData = new (C, 1) char[Str.size()];
   memcpy(AStrData, Str.data(), Str.size());
   StrData = AStrData;
@@ -410,48 +472,47 @@ void StringLiteral::setString(ASTContext &C, llvm::StringRef Str) {
 const char *UnaryOperator::getOpcodeStr(Opcode Op) {
   switch (Op) {
   default: assert(0 && "Unknown unary operator");
-  case PostInc: return "++";
-  case PostDec: return "--";
-  case PreInc:  return "++";
-  case PreDec:  return "--";
-  case AddrOf:  return "&";
-  case Deref:   return "*";
-  case Plus:    return "+";
-  case Minus:   return "-";
-  case Not:     return "~";
-  case LNot:    return "!";
-  case Real:    return "__real";
-  case Imag:    return "__imag";
-  case Extension: return "__extension__";
-  case OffsetOf: return "__builtin_offsetof";
+  case UO_PostInc: return "++";
+  case UO_PostDec: return "--";
+  case UO_PreInc:  return "++";
+  case UO_PreDec:  return "--";
+  case UO_AddrOf:  return "&";
+  case UO_Deref:   return "*";
+  case UO_Plus:    return "+";
+  case UO_Minus:   return "-";
+  case UO_Not:     return "~";
+  case UO_LNot:    return "!";
+  case UO_Real:    return "__real";
+  case UO_Imag:    return "__imag";
+  case UO_Extension: return "__extension__";
   }
 }
 
-UnaryOperator::Opcode
+UnaryOperatorKind
 UnaryOperator::getOverloadedOpcode(OverloadedOperatorKind OO, bool Postfix) {
   switch (OO) {
   default: assert(false && "No unary operator for overloaded function");
-  case OO_PlusPlus:   return Postfix ? PostInc : PreInc;
-  case OO_MinusMinus: return Postfix ? PostDec : PreDec;
-  case OO_Amp:        return AddrOf;
-  case OO_Star:       return Deref;
-  case OO_Plus:       return Plus;
-  case OO_Minus:      return Minus;
-  case OO_Tilde:      return Not;
-  case OO_Exclaim:    return LNot;
+  case OO_PlusPlus:   return Postfix ? UO_PostInc : UO_PreInc;
+  case OO_MinusMinus: return Postfix ? UO_PostDec : UO_PreDec;
+  case OO_Amp:        return UO_AddrOf;
+  case OO_Star:       return UO_Deref;
+  case OO_Plus:       return UO_Plus;
+  case OO_Minus:      return UO_Minus;
+  case OO_Tilde:      return UO_Not;
+  case OO_Exclaim:    return UO_LNot;
   }
 }
 
 OverloadedOperatorKind UnaryOperator::getOverloadedOperator(Opcode Opc) {
   switch (Opc) {
-  case PostInc: case PreInc: return OO_PlusPlus;
-  case PostDec: case PreDec: return OO_MinusMinus;
-  case AddrOf: return OO_Amp;
-  case Deref: return OO_Star;
-  case Plus: return OO_Plus;
-  case Minus: return OO_Minus;
-  case Not: return OO_Tilde;
-  case LNot: return OO_Exclaim;
+  case UO_PostInc: case UO_PreInc: return OO_PlusPlus;
+  case UO_PostDec: case UO_PreDec: return OO_MinusMinus;
+  case UO_AddrOf: return OO_Amp;
+  case UO_Deref: return OO_Star;
+  case UO_Plus: return OO_Plus;
+  case UO_Minus: return OO_Minus;
+  case UO_Not: return OO_Tilde;
+  case UO_LNot: return OO_Exclaim;
   default: return OO_None;
   }
 }
@@ -496,13 +557,6 @@ CallExpr::CallExpr(ASTContext &C, StmtClass SC, EmptyShell Empty)
   SubExprs = new (C) Stmt*[1];
 }
 
-void CallExpr::DoDestroy(ASTContext& C) {
-  DestroyChildren(C);
-  if (SubExprs) C.Deallocate(SubExprs);
-  this->~CallExpr();
-  C.Deallocate(this);
-}
-
 Decl *CallExpr::getCalleeDecl() {
   Expr *CEE = getCallee()->IgnoreParenCasts();
   if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CEE))
@@ -526,8 +580,6 @@ void CallExpr::setNumArgs(ASTContext& C, unsigned NumArgs) {
 
   // If shrinking # arguments, just delete the extras and forgot them.
   if (NumArgs < getNumArgs()) {
-    for (unsigned i = NumArgs, e = getNumArgs(); i != e; ++i)
-      getArg(i)->Destroy(C);
     this->NumArgs = NumArgs;
     return;
   }
@@ -640,7 +692,7 @@ MemberExpr *MemberExpr::Create(ASTContext &C, Expr *base, bool isarrow,
                                SourceRange qualrange,
                                ValueDecl *memberdecl,
                                DeclAccessPair founddecl,
-                               SourceLocation l,
+                               DeclarationNameInfo nameinfo,
                                const TemplateArgumentListInfo *targs,
                                QualType ty) {
   std::size_t Size = sizeof(MemberExpr);
@@ -655,7 +707,7 @@ MemberExpr *MemberExpr::Create(ASTContext &C, Expr *base, bool isarrow,
     Size += ExplicitTemplateArgumentList::sizeFor(*targs);
 
   void *Mem = C.Allocate(Size, llvm::alignof<MemberExpr>());
-  MemberExpr *E = new (Mem) MemberExpr(base, isarrow, memberdecl, l, ty);
+  MemberExpr *E = new (Mem) MemberExpr(base, isarrow, memberdecl, nameinfo, ty);
 
   if (hasQualOrFound) {
     if (qual && qual->isDependent()) {
@@ -672,7 +724,7 @@ MemberExpr *MemberExpr::Create(ASTContext &C, Expr *base, bool isarrow,
 
   if (targs) {
     E->HasExplicitTemplateArgumentList = true;
-    E->getExplicitTemplateArgumentList()->initializeFrom(*targs);
+    E->getExplicitTemplateArgs().initializeFrom(*targs);
   }
 
   return E;
@@ -680,70 +732,66 @@ MemberExpr *MemberExpr::Create(ASTContext &C, Expr *base, bool isarrow,
 
 const char *CastExpr::getCastKindName() const {
   switch (getCastKind()) {
-  case CastExpr::CK_Unknown:
+  case CK_Unknown:
     return "Unknown";
-  case CastExpr::CK_BitCast:
+  case CK_BitCast:
     return "BitCast";
-  case CastExpr::CK_LValueBitCast:
+  case CK_LValueBitCast:
     return "LValueBitCast";
-  case CastExpr::CK_NoOp:
+  case CK_NoOp:
     return "NoOp";
-  case CastExpr::CK_BaseToDerived:
+  case CK_BaseToDerived:
     return "BaseToDerived";
-  case CastExpr::CK_DerivedToBase:
+  case CK_DerivedToBase:
     return "DerivedToBase";
-  case CastExpr::CK_UncheckedDerivedToBase:
+  case CK_UncheckedDerivedToBase:
     return "UncheckedDerivedToBase";
-  case CastExpr::CK_Dynamic:
+  case CK_Dynamic:
     return "Dynamic";
-  case CastExpr::CK_ToUnion:
+  case CK_ToUnion:
     return "ToUnion";
-  case CastExpr::CK_ArrayToPointerDecay:
+  case CK_ArrayToPointerDecay:
     return "ArrayToPointerDecay";
-  case CastExpr::CK_FunctionToPointerDecay:
+  case CK_FunctionToPointerDecay:
     return "FunctionToPointerDecay";
-  case CastExpr::CK_NullToMemberPointer:
+  case CK_NullToMemberPointer:
     return "NullToMemberPointer";
-  case CastExpr::CK_BaseToDerivedMemberPointer:
+  case CK_BaseToDerivedMemberPointer:
     return "BaseToDerivedMemberPointer";
-  case CastExpr::CK_DerivedToBaseMemberPointer:
+  case CK_DerivedToBaseMemberPointer:
     return "DerivedToBaseMemberPointer";
-  case CastExpr::CK_UserDefinedConversion:
+  case CK_UserDefinedConversion:
     return "UserDefinedConversion";
-  case CastExpr::CK_ConstructorConversion:
+  case CK_ConstructorConversion:
     return "ConstructorConversion";
-  case CastExpr::CK_IntegralToPointer:
+  case CK_IntegralToPointer:
     return "IntegralToPointer";
-  case CastExpr::CK_PointerToIntegral:
+  case CK_PointerToIntegral:
     return "PointerToIntegral";
-  case CastExpr::CK_ToVoid:
+  case CK_ToVoid:
     return "ToVoid";
-  case CastExpr::CK_VectorSplat:
+  case CK_VectorSplat:
     return "VectorSplat";
-  case CastExpr::CK_IntegralCast:
+  case CK_IntegralCast:
     return "IntegralCast";
-  case CastExpr::CK_IntegralToFloating:
+  case CK_IntegralToFloating:
     return "IntegralToFloating";
-  case CastExpr::CK_FloatingToIntegral:
+  case CK_FloatingToIntegral:
     return "FloatingToIntegral";
-  case CastExpr::CK_FloatingCast:
+  case CK_FloatingCast:
     return "FloatingCast";
-  case CastExpr::CK_MemberPointerToBoolean:
+  case CK_MemberPointerToBoolean:
     return "MemberPointerToBoolean";
-  case CastExpr::CK_AnyPointerToObjCPointerCast:
+  case CK_AnyPointerToObjCPointerCast:
     return "AnyPointerToObjCPointerCast";
-  case CastExpr::CK_AnyPointerToBlockPointerCast:
+  case CK_AnyPointerToBlockPointerCast:
     return "AnyPointerToBlockPointerCast";
+  case CK_ObjCObjectLValueCast:
+    return "ObjCObjectLValueCast";
   }
 
   assert(0 && "Unhandled cast kind!");
   return 0;
-}
-
-void CastExpr::DoDestroy(ASTContext &C)
-{
-  BasePath.Destroy();
-  Expr::DoDestroy(C);
 }
 
 Expr *CastExpr::getSubExprAsWritten() {
@@ -758,9 +806,9 @@ Expr *CastExpr::getSubExprAsWritten() {
     
     // Conversions by constructor and conversion functions have a
     // subexpression describing the call; strip it off.
-    if (E->getCastKind() == CastExpr::CK_ConstructorConversion)
+    if (E->getCastKind() == CK_ConstructorConversion)
       SubExpr = cast<CXXConstructExpr>(SubExpr)->getArg(0);
-    else if (E->getCastKind() == CastExpr::CK_UserDefinedConversion)
+    else if (E->getCastKind() == CK_UserDefinedConversion)
       SubExpr = cast<CXXMemberCallExpr>(SubExpr)->getImplicitObjectArgument();
     
     // If the subexpression we're left with is an implicit cast, look
@@ -770,82 +818,142 @@ Expr *CastExpr::getSubExprAsWritten() {
   return SubExpr;
 }
 
+CXXBaseSpecifier **CastExpr::path_buffer() {
+  switch (getStmtClass()) {
+#define ABSTRACT_STMT(x)
+#define CASTEXPR(Type, Base) \
+  case Stmt::Type##Class: \
+    return reinterpret_cast<CXXBaseSpecifier**>(static_cast<Type*>(this)+1);
+#define STMT(Type, Base)
+#include "clang/AST/StmtNodes.inc"
+  default:
+    llvm_unreachable("non-cast expressions not possible here");
+    return 0;
+  }
+}
+
+void CastExpr::setCastPath(const CXXCastPath &Path) {
+  assert(Path.size() == path_size());
+  memcpy(path_buffer(), Path.data(), Path.size() * sizeof(CXXBaseSpecifier*));
+}
+
+ImplicitCastExpr *ImplicitCastExpr::Create(ASTContext &C, QualType T,
+                                           CastKind Kind, Expr *Operand,
+                                           const CXXCastPath *BasePath,
+                                           ExprValueKind VK) {
+  unsigned PathSize = (BasePath ? BasePath->size() : 0);
+  void *Buffer =
+    C.Allocate(sizeof(ImplicitCastExpr) + PathSize * sizeof(CXXBaseSpecifier*));
+  ImplicitCastExpr *E =
+    new (Buffer) ImplicitCastExpr(T, Kind, Operand, PathSize, VK);
+  if (PathSize) E->setCastPath(*BasePath);
+  return E;
+}
+
+ImplicitCastExpr *ImplicitCastExpr::CreateEmpty(ASTContext &C,
+                                                unsigned PathSize) {
+  void *Buffer =
+    C.Allocate(sizeof(ImplicitCastExpr) + PathSize * sizeof(CXXBaseSpecifier*));
+  return new (Buffer) ImplicitCastExpr(EmptyShell(), PathSize);
+}
+
+
+CStyleCastExpr *CStyleCastExpr::Create(ASTContext &C, QualType T,
+                                       CastKind K, Expr *Op,
+                                       const CXXCastPath *BasePath,
+                                       TypeSourceInfo *WrittenTy,
+                                       SourceLocation L, SourceLocation R) {
+  unsigned PathSize = (BasePath ? BasePath->size() : 0);
+  void *Buffer =
+    C.Allocate(sizeof(CStyleCastExpr) + PathSize * sizeof(CXXBaseSpecifier*));
+  CStyleCastExpr *E =
+    new (Buffer) CStyleCastExpr(T, K, Op, PathSize, WrittenTy, L, R);
+  if (PathSize) E->setCastPath(*BasePath);
+  return E;
+}
+
+CStyleCastExpr *CStyleCastExpr::CreateEmpty(ASTContext &C, unsigned PathSize) {
+  void *Buffer =
+    C.Allocate(sizeof(CStyleCastExpr) + PathSize * sizeof(CXXBaseSpecifier*));
+  return new (Buffer) CStyleCastExpr(EmptyShell(), PathSize);
+}
+
 /// getOpcodeStr - Turn an Opcode enum value into the punctuation char it
 /// corresponds to, e.g. "<<=".
 const char *BinaryOperator::getOpcodeStr(Opcode Op) {
   switch (Op) {
-  case PtrMemD:   return ".*";
-  case PtrMemI:   return "->*";
-  case Mul:       return "*";
-  case Div:       return "/";
-  case Rem:       return "%";
-  case Add:       return "+";
-  case Sub:       return "-";
-  case Shl:       return "<<";
-  case Shr:       return ">>";
-  case LT:        return "<";
-  case GT:        return ">";
-  case LE:        return "<=";
-  case GE:        return ">=";
-  case EQ:        return "==";
-  case NE:        return "!=";
-  case And:       return "&";
-  case Xor:       return "^";
-  case Or:        return "|";
-  case LAnd:      return "&&";
-  case LOr:       return "||";
-  case Assign:    return "=";
-  case MulAssign: return "*=";
-  case DivAssign: return "/=";
-  case RemAssign: return "%=";
-  case AddAssign: return "+=";
-  case SubAssign: return "-=";
-  case ShlAssign: return "<<=";
-  case ShrAssign: return ">>=";
-  case AndAssign: return "&=";
-  case XorAssign: return "^=";
-  case OrAssign:  return "|=";
-  case Comma:     return ",";
+  case BO_PtrMemD:   return ".*";
+  case BO_PtrMemI:   return "->*";
+  case BO_Mul:       return "*";
+  case BO_Div:       return "/";
+  case BO_Rem:       return "%";
+  case BO_Add:       return "+";
+  case BO_Sub:       return "-";
+  case BO_Shl:       return "<<";
+  case BO_Shr:       return ">>";
+  case BO_LT:        return "<";
+  case BO_GT:        return ">";
+  case BO_LE:        return "<=";
+  case BO_GE:        return ">=";
+  case BO_EQ:        return "==";
+  case BO_NE:        return "!=";
+  case BO_And:       return "&";
+  case BO_Xor:       return "^";
+  case BO_Or:        return "|";
+  case BO_LAnd:      return "&&";
+  case BO_LOr:       return "||";
+  case BO_Assign:    return "=";
+  case BO_MulAssign: return "*=";
+  case BO_DivAssign: return "/=";
+  case BO_RemAssign: return "%=";
+  case BO_AddAssign: return "+=";
+  case BO_SubAssign: return "-=";
+  case BO_ShlAssign: return "<<=";
+  case BO_ShrAssign: return ">>=";
+  case BO_AndAssign: return "&=";
+  case BO_XorAssign: return "^=";
+  case BO_OrAssign:  return "|=";
+  case BO_Comma:     return ",";
   }
 
   return "";
 }
 
-BinaryOperator::Opcode
+BinaryOperatorKind
 BinaryOperator::getOverloadedOpcode(OverloadedOperatorKind OO) {
   switch (OO) {
   default: assert(false && "Not an overloadable binary operator");
-  case OO_Plus: return Add;
-  case OO_Minus: return Sub;
-  case OO_Star: return Mul;
-  case OO_Slash: return Div;
-  case OO_Percent: return Rem;
-  case OO_Caret: return Xor;
-  case OO_Amp: return And;
-  case OO_Pipe: return Or;
-  case OO_Equal: return Assign;
-  case OO_Less: return LT;
-  case OO_Greater: return GT;
-  case OO_PlusEqual: return AddAssign;
-  case OO_MinusEqual: return SubAssign;
-  case OO_StarEqual: return MulAssign;
-  case OO_SlashEqual: return DivAssign;
-  case OO_PercentEqual: return RemAssign;
-  case OO_CaretEqual: return XorAssign;
-  case OO_AmpEqual: return AndAssign;
-  case OO_PipeEqual: return OrAssign;
-  case OO_LessLess: return Shl;
-  case OO_GreaterGreater: return Shr;
-  case OO_LessLessEqual: return ShlAssign;
-  case OO_GreaterGreaterEqual: return ShrAssign;
-  case OO_EqualEqual: return EQ;
-  case OO_ExclaimEqual: return NE;
-  case OO_LessEqual: return LE;
-  case OO_GreaterEqual: return GE;
-  case OO_AmpAmp: return LAnd;
-  case OO_PipePipe: return LOr;
-  case OO_Comma: return Comma;
-  case OO_ArrowStar: return PtrMemI;
+  case OO_Plus: return BO_Add;
+  case OO_Minus: return BO_Sub;
+  case OO_Star: return BO_Mul;
+  case OO_Slash: return BO_Div;
+  case OO_Percent: return BO_Rem;
+  case OO_Caret: return BO_Xor;
+  case OO_Amp: return BO_And;
+  case OO_Pipe: return BO_Or;
+  case OO_Equal: return BO_Assign;
+  case OO_Less: return BO_LT;
+  case OO_Greater: return BO_GT;
+  case OO_PlusEqual: return BO_AddAssign;
+  case OO_MinusEqual: return BO_SubAssign;
+  case OO_StarEqual: return BO_MulAssign;
+  case OO_SlashEqual: return BO_DivAssign;
+  case OO_PercentEqual: return BO_RemAssign;
+  case OO_CaretEqual: return BO_XorAssign;
+  case OO_AmpEqual: return BO_AndAssign;
+  case OO_PipeEqual: return BO_OrAssign;
+  case OO_LessLess: return BO_Shl;
+  case OO_GreaterGreater: return BO_Shr;
+  case OO_LessLessEqual: return BO_ShlAssign;
+  case OO_GreaterGreaterEqual: return BO_ShrAssign;
+  case OO_EqualEqual: return BO_EQ;
+  case OO_ExclaimEqual: return BO_NE;
+  case OO_LessEqual: return BO_LE;
+  case OO_GreaterEqual: return BO_GE;
+  case OO_AmpAmp: return BO_LAnd;
+  case OO_PipePipe: return BO_LOr;
+  case OO_Comma: return BO_Comma;
+  case OO_ArrowStar: return BO_PtrMemI;
   }
 }
 
@@ -897,9 +1005,6 @@ void InitListExpr::reserveInits(ASTContext &C, unsigned NumInits) {
 }
 
 void InitListExpr::resizeInits(ASTContext &C, unsigned NumInits) {
-  for (unsigned Idx = NumInits, LastIdx = InitExprs.size();
-       Idx < LastIdx; ++Idx)
-    InitExprs[Idx]->Destroy(C);
   InitExprs.resize(C, NumInits, 0);
 }
 
@@ -963,24 +1068,24 @@ bool Expr::isUnusedResultAWarning(SourceLocation &Loc, SourceRange &R1,
 
     switch (UO->getOpcode()) {
     default: break;
-    case UnaryOperator::PostInc:
-    case UnaryOperator::PostDec:
-    case UnaryOperator::PreInc:
-    case UnaryOperator::PreDec:                 // ++/--
+    case UO_PostInc:
+    case UO_PostDec:
+    case UO_PreInc:
+    case UO_PreDec:                 // ++/--
       return false;  // Not a warning.
-    case UnaryOperator::Deref:
+    case UO_Deref:
       // Dereferencing a volatile pointer is a side-effect.
       if (Ctx.getCanonicalType(getType()).isVolatileQualified())
         return false;
       break;
-    case UnaryOperator::Real:
-    case UnaryOperator::Imag:
+    case UO_Real:
+    case UO_Imag:
       // accessing a piece of a volatile complex is a side-effect.
       if (Ctx.getCanonicalType(UO->getSubExpr()->getType())
           .isVolatileQualified())
         return false;
       break;
-    case UnaryOperator::Extension:
+    case UO_Extension:
       return UO->getSubExpr()->isUnusedResultAWarning(Loc, R1, R2, Ctx);
     }
     Loc = UO->getOperatorLoc();
@@ -994,7 +1099,7 @@ bool Expr::isUnusedResultAWarning(SourceLocation &Loc, SourceRange &R1,
         break;
       // Consider the RHS of comma for side effects. LHS was checked by
       // Sema::CheckCommaOperands.
-      case BinaryOperator::Comma:
+      case BO_Comma:
         // ((foo = <blah>), 0) is an idiom for hiding the result (and
         // lvalue-ness) of an assignment written in a macro.
         if (IntegerLiteral *IE =
@@ -1003,8 +1108,8 @@ bool Expr::isUnusedResultAWarning(SourceLocation &Loc, SourceRange &R1,
             return false;
         return BO->getRHS()->isUnusedResultAWarning(Loc, R1, R2, Ctx);
       // Consider '||', '&&' to have side effects if the LHS or RHS does.
-      case BinaryOperator::LAnd:
-      case BinaryOperator::LOr:
+      case BO_LAnd:
+      case BO_LOr:
         if (!BO->getLHS()->isUnusedResultAWarning(Loc, R1, R2, Ctx) ||
             !BO->getRHS()->isUnusedResultAWarning(Loc, R1, R2, Ctx))
           return false;
@@ -1137,8 +1242,8 @@ bool Expr::isUnusedResultAWarning(SourceLocation &Loc, SourceRange &R1,
     
     // If this is a cast to void or a constructor conversion, check the operand.
     // Otherwise, the result of the cast is unused.
-    if (CE->getCastKind() == CastExpr::CK_ToVoid ||
-        CE->getCastKind() == CastExpr::CK_ConstructorConversion)
+    if (CE->getCastKind() == CK_ToVoid ||
+        CE->getCastKind() == CK_ConstructorConversion)
       return (cast<CastExpr>(this)->getSubExpr()
               ->isUnusedResultAWarning(Loc, R1, R2, Ctx));
     Loc = cast<CXXFunctionalCastExpr>(this)->getTypeBeginLoc();
@@ -1287,7 +1392,7 @@ bool Expr::isDefaultArgument() const {
 /// expressions.
 static const Expr *skipTemporaryBindingsAndNoOpCasts(const Expr *E) {
   while (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E)) {
-    if (ICE->getCastKind() == CastExpr::CK_NoOp)
+    if (ICE->getCastKind() == CK_NoOp)
       E = ICE->getSubExpr();
     else
       break;
@@ -1297,7 +1402,7 @@ static const Expr *skipTemporaryBindingsAndNoOpCasts(const Expr *E) {
     E = BE->getSubExpr();
 
   while (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E)) {
-    if (ICE->getCastKind() == CastExpr::CK_NoOp)
+    if (ICE->getCastKind() == CK_NoOp)
       E = ICE->getSubExpr();
     else
       break;
@@ -1314,8 +1419,8 @@ const Expr *Expr::getTemporaryObject() const {
   if (const CastExpr *Cast = dyn_cast<CastExpr>(E)) {
     // Only user-defined and constructor conversions can produce
     // temporary objects.
-    if (Cast->getCastKind() != CastExpr::CK_ConstructorConversion &&
-        Cast->getCastKind() != CastExpr::CK_UserDefinedConversion)
+    if (Cast->getCastKind() != CK_ConstructorConversion &&
+        Cast->getCastKind() != CK_UserDefinedConversion)
       return 0;
 
     // Strip off temporary bindings and no-op casts.
@@ -1323,12 +1428,12 @@ const Expr *Expr::getTemporaryObject() const {
 
     // If this is a constructor conversion, see if we have an object
     // construction.
-    if (Cast->getCastKind() == CastExpr::CK_ConstructorConversion)
+    if (Cast->getCastKind() == CK_ConstructorConversion)
       return dyn_cast<CXXConstructExpr>(Sub);
 
     // If this is a user-defined conversion, see if we have a call to
     // a function that itself returns a temporary object.
-    if (Cast->getCastKind() == CastExpr::CK_UserDefinedConversion)
+    if (Cast->getCastKind() == CK_UserDefinedConversion)
       if (const CallExpr *CE = dyn_cast<CallExpr>(Sub))
         if (CE->getCallReturnType()->isRecordType())
           return CE;
@@ -1368,15 +1473,20 @@ bool Expr::hasAnyValueDependentArguments(Expr** Exprs, unsigned NumExprs) {
   return false;
 }
 
-bool Expr::isConstantInitializer(ASTContext &Ctx) const {
+bool Expr::isConstantInitializer(ASTContext &Ctx, bool IsForRef) const {
   // This function is attempting whether an expression is an initializer
   // which can be evaluated at compile-time.  isEvaluatable handles most
   // of the cases, but it can't deal with some initializer-specific
   // expressions, and it can't deal with aggregates; we deal with those here,
   // and fall back to isEvaluatable for the other cases.
 
-  // FIXME: This function assumes the variable being assigned to
-  // isn't a reference type!
+  // If we ever capture reference-binding directly in the AST, we can
+  // kill the second parameter.
+
+  if (IsForRef) {
+    EvalResult Result;
+    return EvaluateAsLValue(Result, Ctx) && !Result.HasSideEffects;
+  }
 
   switch (getStmtClass()) {
   default: break;
@@ -1384,12 +1494,27 @@ bool Expr::isConstantInitializer(ASTContext &Ctx) const {
   case ObjCStringLiteralClass:
   case ObjCEncodeExprClass:
     return true;
+  case CXXTemporaryObjectExprClass:
+  case CXXConstructExprClass: {
+    const CXXConstructExpr *CE = cast<CXXConstructExpr>(this);
+
+    // Only if it's
+    // 1) an application of the trivial default constructor or
+    if (!CE->getConstructor()->isTrivial()) return false;
+    if (!CE->getNumArgs()) return true;
+
+    // 2) an elidable trivial copy construction of an operand which is
+    //    itself a constant initializer.  Note that we consider the
+    //    operand on its own, *not* as a reference binding.
+    return CE->isElidable() &&
+           CE->getArg(0)->isConstantInitializer(Ctx, false);
+  }
   case CompoundLiteralExprClass: {
     // This handles gcc's extension that allows global initializers like
     // "struct x {int x;} x = (struct x) {};".
     // FIXME: This accepts other cases it shouldn't!
     const Expr *Exp = cast<CompoundLiteralExpr>(this)->getInitializer();
-    return Exp->isConstantInitializer(Ctx);
+    return Exp->isConstantInitializer(Ctx, false);
   }
   case InitListExprClass: {
     // FIXME: This doesn't deal with fields with reference types correctly.
@@ -1398,7 +1523,7 @@ bool Expr::isConstantInitializer(ASTContext &Ctx) const {
     const InitListExpr *Exp = cast<InitListExpr>(this);
     unsigned numInits = Exp->getNumInits();
     for (unsigned i = 0; i < numInits; i++) {
-      if (!Exp->getInit(i)->isConstantInitializer(Ctx))
+      if (!Exp->getInit(i)->isConstantInitializer(Ctx, false))
         return false;
     }
     return true;
@@ -1406,36 +1531,41 @@ bool Expr::isConstantInitializer(ASTContext &Ctx) const {
   case ImplicitValueInitExprClass:
     return true;
   case ParenExprClass:
-    return cast<ParenExpr>(this)->getSubExpr()->isConstantInitializer(Ctx);
+    return cast<ParenExpr>(this)->getSubExpr()
+      ->isConstantInitializer(Ctx, IsForRef);
   case UnaryOperatorClass: {
     const UnaryOperator* Exp = cast<UnaryOperator>(this);
-    if (Exp->getOpcode() == UnaryOperator::Extension)
-      return Exp->getSubExpr()->isConstantInitializer(Ctx);
+    if (Exp->getOpcode() == UO_Extension)
+      return Exp->getSubExpr()->isConstantInitializer(Ctx, false);
     break;
   }
   case BinaryOperatorClass: {
     // Special case &&foo - &&bar.  It would be nice to generalize this somehow
     // but this handles the common case.
     const BinaryOperator *Exp = cast<BinaryOperator>(this);
-    if (Exp->getOpcode() == BinaryOperator::Sub &&
+    if (Exp->getOpcode() == BO_Sub &&
         isa<AddrLabelExpr>(Exp->getLHS()->IgnoreParenNoopCasts(Ctx)) &&
         isa<AddrLabelExpr>(Exp->getRHS()->IgnoreParenNoopCasts(Ctx)))
       return true;
     break;
   }
+  case CXXFunctionalCastExprClass:
+  case CXXStaticCastExprClass:
   case ImplicitCastExprClass:
   case CStyleCastExprClass:
     // Handle casts with a destination that's a struct or union; this
     // deals with both the gcc no-op struct cast extension and the
     // cast-to-union extension.
     if (getType()->isRecordType())
-      return cast<CastExpr>(this)->getSubExpr()->isConstantInitializer(Ctx);
+      return cast<CastExpr>(this)->getSubExpr()
+        ->isConstantInitializer(Ctx, false);
       
     // Integer->integer casts can be handled here, which is important for
     // things like (int)(&&x-&&y).  Scary but true.
     if (getType()->isIntegerType() &&
         cast<CastExpr>(this)->getSubExpr()->getType()->isIntegerType())
-      return cast<CastExpr>(this)->getSubExpr()->isConstantInitializer(Ctx);
+      return cast<CastExpr>(this)->getSubExpr()
+        ->isConstantInitializer(Ctx, false);
       
     break;
   }
@@ -1508,7 +1638,8 @@ FieldDecl *Expr::getBitField() {
   Expr *E = this->IgnoreParens();
 
   while (ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E)) {
-    if (ICE->isLvalueCast() && ICE->getCastKind() == CastExpr::CK_NoOp)
+    if (ICE->getValueKind() != VK_RValue &&
+        ICE->getCastKind() == CK_NoOp)
       E = ICE->getSubExpr()->IgnoreParens();
     else
       break;
@@ -1530,7 +1661,8 @@ bool Expr::refersToVectorElement() const {
   const Expr *E = this->IgnoreParens();
   
   while (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E)) {
-    if (ICE->isLvalueCast() && ICE->getCastKind() == CastExpr::CK_NoOp)
+    if (ICE->getValueKind() != VK_RValue &&
+        ICE->getCastKind() == CK_NoOp)
       E = ICE->getSubExpr()->IgnoreParens();
     else
       break;
@@ -1773,27 +1905,6 @@ void ShuffleVectorExpr::setExprs(ASTContext &C, Expr ** Exprs,
   memcpy(SubExprs, Exprs, sizeof(Expr *) * NumExprs);
 }
 
-void ShuffleVectorExpr::DoDestroy(ASTContext& C) {
-  DestroyChildren(C);
-  if (SubExprs) C.Deallocate(SubExprs);
-  this->~ShuffleVectorExpr();
-  C.Deallocate(this);
-}
-
-void SizeOfAlignOfExpr::DoDestroy(ASTContext& C) {
-  // Override default behavior of traversing children. If this has a type
-  // operand and the type is a variable-length array, the child iteration
-  // will iterate over the size expression. However, this expression belongs
-  // to the type, not to this, so we don't want to delete it.
-  // We still want to delete this expression.
-  if (isArgumentType()) {
-    this->~SizeOfAlignOfExpr();
-    C.Deallocate(this);
-  }
-  else
-    Expr::DoDestroy(C);
-}
-
 //===----------------------------------------------------------------------===//
 //  DesignatedInitExpr
 //===----------------------------------------------------------------------===//
@@ -1878,8 +1989,6 @@ DesignatedInitExpr *DesignatedInitExpr::CreateEmpty(ASTContext &C,
 void DesignatedInitExpr::setDesignators(ASTContext &C,
                                         const Designator *Desigs,
                                         unsigned NumDesigs) {
-  DestroyDesignators(C);
-
   Designators = new (C) Designator[NumDesigs];
   NumDesignators = NumDesigs;
   for (unsigned I = 0; I != NumDesigs; ++I)
@@ -1950,21 +2059,8 @@ void DesignatedInitExpr::ExpandDesignator(ASTContext &C, unsigned Idx,
   std::copy(First, Last, NewDesignators + Idx);
   std::copy(Designators + Idx + 1, Designators + NumDesignators,
             NewDesignators + Idx + NumNewDesignators);
-  DestroyDesignators(C);
   Designators = NewDesignators;
   NumDesignators = NumDesignators - 1 + NumNewDesignators;
-}
-
-void DesignatedInitExpr::DoDestroy(ASTContext &C) {
-  DestroyDesignators(C);
-  Expr::DoDestroy(C);
-}
-
-void DesignatedInitExpr::DestroyDesignators(ASTContext &C) {
-  for (unsigned I = 0; I != NumDesignators; ++I)
-    Designators[I].~Designator();
-  C.Deallocate(Designators);
-  Designators = 0;
 }
 
 ParenListExpr::ParenListExpr(ASTContext& C, SourceLocation lparenloc,
@@ -1978,13 +2074,6 @@ ParenListExpr::ParenListExpr(ASTContext& C, SourceLocation lparenloc,
   Exprs = new (C) Stmt*[nexprs];
   for (unsigned i = 0; i != nexprs; ++i)
     Exprs[i] = exprs[i];
-}
-
-void ParenListExpr::DoDestroy(ASTContext& C) {
-  DestroyChildren(C);
-  if (Exprs) C.Deallocate(Exprs);
-  this->~ParenListExpr();
-  C.Deallocate(this);
 }
 
 //===----------------------------------------------------------------------===//

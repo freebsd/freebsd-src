@@ -2,6 +2,9 @@
 /* include/llvm/Config/config.h.  Generated from config.h.in by configure.  */
 /* include/llvm/Config/config.h.in.  Generated from autoconf/configure.ac by autoheader.  */
 
+#ifndef CONFIG_H
+#define CONFIG_H
+
 /* 32 bit multilib directory. */
 #define CXX_INCLUDE_32BIT_DIR ""
 
@@ -64,6 +67,9 @@
 
 /* Define to 1 if you have the `closedir' function. */
 #define HAVE_CLOSEDIR 1
+
+/* Define to 1 if you have the <CrashReporterClient.h> header file. */
+/* #undef HAVE_CRASHREPORTERCLIENT_H */
 
 /* Define to 1 if you have the <ctype.h> header file. */
 #define HAVE_CTYPE_H 1
@@ -144,6 +150,9 @@
 /* Define to 1 if you have the `getrusage' function. */
 #define HAVE_GETRUSAGE 1
 
+/* Have Darwin getsect() support */
+/* #undef HAVE_GETSECT */
+
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
 
@@ -216,6 +225,9 @@
 
 /* Define to 1 if you have the <mach-o/dyld.h> header file. */
 /* #undef HAVE_MACH_O_DYLD_H */
+
+/* Define to 1 if you have the <mach-o/getsect.h> header file. */
+/* #undef HAVE_MACH_O_GETSECT_H */
 
 /* Define if mallinfo() is available on this platform. */
 /* #undef HAVE_MALLINFO */
@@ -463,6 +475,9 @@
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86Target
 
+/* Short LLVM architecture name for the native architecture, if available */
+#define LLVM_NATIVE_ARCHNAME X86
+
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
 
@@ -494,7 +509,7 @@
 /* #undef LLVM_PATH_TWOPI */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX "/usr/local"
+#define LLVM_PREFIX "/usr"
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #define LTDL_DLOPEN_DEPLIBS 1
@@ -567,3 +582,5 @@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */
+
+#endif
