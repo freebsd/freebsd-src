@@ -1016,11 +1016,9 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * resource-intensive to repeat twice on every request.
 	 */
 	if (req->oldptr == NULL) {
-		m = syncache_pcbcount();
-		n = V_tcbinfo.ipi_count;
-		n += imax((m + n) / 8, 10);
-		req->oldidx = 2 * (sizeof xig) +
-		    (m + n) * sizeof(struct xtcpcb);
+		n = V_tcbinfo.ipi_count + syncache_pcbcount();
+		n += imax(n / 8, 10);
+		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
 		return (0);
 	}
 
