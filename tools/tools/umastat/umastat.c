@@ -230,7 +230,7 @@ uma_print_bucketlist(kvm_t *kvm, struct bucketlist *bucketlist,
 	}
 
 	printf("\n");
-	printf("%s};  // total cnt %llu, total entries %llu\n", spaces,
+	printf("%s};  // total cnt %ju, total entries %ju\n", spaces,
 	    total_cnt, total_entries);
 }
 
@@ -242,8 +242,8 @@ uma_print_cache(kvm_t *kvm, struct uma_cache *cache, const char *name,
 	int ret;
 
 	printf("%s%s[%d] = {\n", spaces, name, cpu);
-	printf("%s  uc_frees = %llu;\n", spaces, cache->uc_frees);
-	printf("%s  uc_allocs = %llu;\n", spaces, cache->uc_allocs);
+	printf("%s  uc_frees = %ju;\n", spaces, cache->uc_frees);
+	printf("%s  uc_allocs = %ju;\n", spaces, cache->uc_allocs);
 
 	if (cache->uc_freebucket != NULL) {
 		ret = kread(kvm, cache->uc_freebucket, &ub, sizeof(ub), 0);
@@ -412,20 +412,20 @@ main(int argc, char *argv[])
 			}
 			printf("  Zone {\n");
 			printf("    uz_name = \"%s\";\n", name);
-			printf("    uz_allocs = %llu;\n",
+			printf("    uz_allocs = %ju;\n",
 			    uzp_userspace->uz_allocs);
-			printf("    uz_frees = %llu;\n",
+			printf("    uz_frees = %ju;\n",
 			    uzp_userspace->uz_frees);
-			printf("    uz_fails = %llu;\n",
+			printf("    uz_fails = %ju;\n",
 			    uzp_userspace->uz_fails);
 			printf("    uz_fills = %u;\n",
 			    uzp_userspace->uz_fills);
 			printf("    uz_count = %u;\n",
 			    uzp_userspace->uz_count);
-			uma_print_bucketlist(kvm, (struct bucketlist *)
+			uma_print_bucketlist(kvm, (void *)
 			    &uzp_userspace->uz_full_bucket, "uz_full_bucket",
 			    "    ");
-			uma_print_bucketlist(kvm, (struct bucketlist *)
+			uma_print_bucketlist(kvm, (void *)
 			    &uzp_userspace->uz_free_bucket, "uz_free_bucket",
 			    "    ");
 
