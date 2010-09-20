@@ -118,14 +118,14 @@ struct device {
 	device_state_t	state;		/**< current device state  */
 	u_int32_t	devflags;	/**< api level flags for device_get_flags() */
 	u_int		flags;		/**< internal device flags  */
-#define	DF_ENABLED	1		/* device should be probed/attached */
-#define	DF_FIXEDCLASS	2		/* devclass specified at create time */
-#define	DF_WILDCARD	4		/* unit was originally wildcard */
-#define	DF_DESCMALLOCED	8		/* description was malloced */
-#define	DF_QUIET	16		/* don't print verbose attach message */
-#define	DF_DONENOMATCH	32		/* don't execute DEVICE_NOMATCH again */
-#define	DF_EXTERNALSOFTC 64		/* softc not allocated by us */
-#define	DF_REBID	128		/* Can rebid after attach */
+#define	DF_ENABLED	0x01		/* device should be probed/attached */
+#define	DF_FIXEDCLASS	0x02		/* devclass specified at create time */
+#define	DF_WILDCARD	0x04		/* unit was originally wildcard */
+#define	DF_DESCMALLOCED	0x08		/* description was malloced */
+#define	DF_QUIET	0x10		/* don't print verbose attach message */
+#define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
+#define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
+#define	DF_REBID	0x80		/* Can rebid after attach */
 	u_int	order;			/**< order from device_add_child_ordered() */
 	void	*ivars;			/**< instance variables  */
 	void	*softc;			/**< current driver's variables  */
