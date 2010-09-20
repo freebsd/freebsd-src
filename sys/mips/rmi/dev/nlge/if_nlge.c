@@ -381,8 +381,6 @@ nlna_attach(device_t dev)
 #ifdef DEBUG
 	dump_board_info(&xlr_board_info);
 #endif
-	block_info->baseaddr += DEFAULT_XLR_IO_BASE;
-
 	/* Initialize nlna state in softc structure */
 	sc = nlna_sc_init(dev, block_info);
 
@@ -621,21 +619,15 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 {
 	struct nlna_softc *na_sc;
 	struct nlge_softc *sc;
-	struct ifnet   *ifp;
+	struct ifnet	*ifp;
+	struct mbuf	*m;
 	vm_paddr_t	phys_addr;
-	unsigned long	addr;
 	uint32_t	length;
 	int		ctrl;
-	int		cpu;
 	int		tx_error;
 	int		port;
-	int 		vcpu;
 	int		is_p2p;
 
-	cpu = xlr_core_id();
-	vcpu = (cpu << 2) + xlr_thr_id();
-
-	addr = 0;
 	is_p2p = 0;
 	tx_error = 0;
 	length = (msg->msg0 >> 40) & 0x3fff;
@@ -667,7 +659,13 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 			if (is_p2p) {
 				release_tx_desc(phys_addr);
 			} else {
-				m_freem((struct mbuf *)(uintptr_t)phys_addr);
+#ifdef __mips64
+				m = (struct mbuf *)(uintptr_t)xlr_paddr_ld(phys_addr);
+				m->m_nextpkt = NULL;
+#else
+				m = (struct mbuf *)(uintptr_t)phys_addr;
+#endif
+				m_freem(m);
 			}
 			NLGE_LOCK(sc);
 			if (ifp->if_drv_flags & IFF_DRV_OACTIVE){
@@ -687,7 +685,7 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 		nlge_rx(sc, phys_addr, length);
 		nlna_submit_rx_free_desc(na_sc, 1);	/* return free descr to NA */
 	} else {
-		printf("[%s]: unrecognized ctrl=%d!\n", __FUNCTION__, ctrl);
+		printf("[%s]: unrecognized ctrl=%d!\n", __func__, ctrl);
 	}
 
 }
@@ -801,8 +799,8 @@ nlge_rx(struct nlge_softc *sc, vm_paddr_t paddr, int len)
 	m = (struct mbuf *)(intptr_t)tm;
 	if (mag != 0xf00bad) {
 		/* somebody else's packet. Error - FIXME in intialization */
-		printf("cpu %d: *ERROR* Not my packet paddr %llx\n",
-		    xlr_core_id(), (uint64_t) paddr);
+		printf("cpu %d: *ERROR* Not my packet paddr %jx\n",
+		    xlr_core_id(), (uintmax_t)paddr);
 		return;
 	}
 
@@ -882,7 +880,7 @@ nlna_sc_init(device_t dev, struct xlr_gmac_block_t *blk)
 	sc = device_get_softc(dev);
 	memset(sc, 0, sizeof(*sc));
 	sc->nlna_dev = dev;
-	sc->base = (xlr_reg_t *) blk->baseaddr;
+	sc->base = xlr_io_mmio(blk->baseaddr);
 	sc->rfrbucket = blk->station_rfr;
 	sc->station_id = blk->station_id;
 	sc->na_type = blk->type;
@@ -1302,10 +1300,7 @@ nlna_reset_ports(struct nlna_softc *sc, struct xlr_gmac_block_t *blk)
 	/* Refer Section 13.9.3 in the PRM for the reset sequence */
 
 	for (i = 0; i < sc->num_ports; i++) {
-		uint32_t base = (uint32_t)DEFAULT_XLR_IO_BASE;
-
-		base += blk->gmac_port[i].base_addr;
-		addr = (xlr_reg_t *) base;
+		addr = xlr_io_mmio(blk->gmac_port[i].base_addr);
 
 		/* 1. Reset RxEnable in MAC_CONFIG */
 		switch (sc->mac_type) {
@@ -1359,10 +1354,7 @@ nlna_disable_ports(struct nlna_softc *sc)
 
 	blk = device_get_ivars(sc->nlna_dev);
 	for (i = 0; i < sc->num_ports; i++) {
-		uint32_t base = (uint32_t)DEFAULT_XLR_IO_BASE;
-
-		base += blk->gmac_port[i].base_addr;
-		addr = (xlr_reg_t *) base;
+		addr = xlr_io_mmio(blk->gmac_port[i].base_addr);
 		nlge_port_disable(i, addr, blk->gmac_port[i].type);
 	}
 }
@@ -1473,7 +1465,6 @@ static void
 nlge_sgmii_init(struct nlge_softc *sc)
 {
 	xlr_reg_t *mmio_gpio;
-	int i;
 	int phy;
 
 	if (sc->port_type != XLR_SGMII)
@@ -1491,12 +1482,26 @@ nlge_sgmii_init(struct nlge_softc *sc)
 	nlge_mii_write_internal(sc->serdes_addr, 26, 9, 0x0000);
 	nlge_mii_write_internal(sc->serdes_addr, 26,10, 0x0000);
 
-	for(i=0;i<10000000;i++){}	/* delay */
 	/* program  GPIO values for serdes init parameters */
-	mmio_gpio = (xlr_reg_t *) (DEFAULT_XLR_IO_BASE + XLR_IO_GPIO_OFFSET);
-	mmio_gpio[0x20] = 0x7e6802;
-	mmio_gpio[0x10] = 0x7104;
-	for(i=0;i<100000000;i++){}
+	DELAY(100);
+	mmio_gpio = xlr_io_mmio(XLR_IO_GPIO_OFFSET);
+	xlr_write_reg(mmio_gpio, 0x20, 0x7e6802);
+	xlr_write_reg(mmio_gpio, 0x10, 0x7104);
+	DELAY(100);
+
+	/* 
+	 * This kludge is needed to setup serdes (?) clock correctly on some
+	 * XLS boards
+	 */
+	if ((xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XI ||
+	    xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_XII) &&
+	    xlr_boot1_info.board_minor_version == 4) {
+		/* use 125 Mhz instead of 156.25Mhz ref clock */
+		DELAY(100);
+		xlr_write_reg(mmio_gpio, 0x10, 0x7103);
+		xlr_write_reg(mmio_gpio, 0x21, 0x7103);
+		DELAY(100);
+	}
 
 	/* enable autoneg - more magic */
 	phy = sc->phy_addr % 4 + 27;
@@ -1888,14 +1893,14 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 	struct mbuf     *m;
 	struct nlge_tx_desc *p2p;
 	uint64_t        *cur_p2d;
+	uint64_t        fbpaddr;
 	vm_offset_t	buf;
 	vm_paddr_t      paddr;
-	int             msg_sz, p2p_sz, is_p2p;
-	int             len, frag_sz;
+	int             msg_sz, p2p_sz, len, frag_sz;
 	/* Num entries per FMN msg is 4 for XLR/XLS */
 	const int       FMN_SZ = sizeof(*fmn_msg) / sizeof(uint64_t);
 
-	msg_sz = p2p_sz = is_p2p = 0;
+	msg_sz = p2p_sz = 0;
 	p2p = NULL;
 	cur_p2d = &fmn_msg->msg0;
 
@@ -1916,10 +1921,9 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 				p2p->frag[XLR_MAX_TX_FRAGS] =
 				    (uint64_t)(vm_offset_t)p2p;
 				cur_p2d = &p2p->frag[0];
-				is_p2p = 1;
 			} else if (msg_sz == (FMN_SZ - 2 + XLR_MAX_TX_FRAGS)) {
 				uma_zfree(nl_tx_desc_zone, p2p);
-				return 1;
+				return (1);
 			}
 			paddr = vtophys(buf);
 			frag_sz = PAGE_SIZE - (buf & PAGE_MASK);
@@ -1928,7 +1932,7 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 			*cur_p2d++ = (127ULL << 54) | ((uint64_t)frag_sz << 40)
 			    | paddr;
 			msg_sz++;
-			if (is_p2p)
+			if (p2p != NULL)
 				p2p_sz++;
 			len -= frag_sz;
 			buf += frag_sz;
@@ -1938,15 +1942,28 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 	if (msg_sz ==  0) {
 		printf("Zero-length mbuf chain ??\n");
 		*n_entries = msg_sz ;
-		return 0;
+		return (0);
 	}
 
-	cur_p2d[-1] |= (1ULL << 63); /* set eop in most-recent p2d */
-	*cur_p2d = (1ULL << 63) | ((uint64_t)fb_stn_id << 54) |
-	     (vm_offset_t) mbuf_chain;   /* XXX: fix 64 bit */
+	/* set eop in most-recent p2d */
+	cur_p2d[-1] |= (1ULL << 63);
+
+#ifdef __mips64
+	/* 
+	 * On n64, we cannot store our mbuf pointer(64 bit) in the freeback
+	 * message (40bit available), so we put the mbuf in m_nextpkt and 
+	 * use the physical addr of that in freeback message.
+	 */ 
+	mbuf_chain->m_nextpkt = mbuf_chain;
+	fbpaddr = vtophys(&mbuf_chain->m_nextpkt);
+#else
+	/* Careful, don't sign extend when going to 64bit */
+	fbpaddr = (uint64_t)(uintptr_t)mbuf_chain; 
+#endif
+	*cur_p2d = (1ULL << 63) | ((uint64_t)fb_stn_id << 54) | fbpaddr;
 	*tx_desc = p2p;
 
-	if (is_p2p) {
+	if (p2p != NULL) {
 		paddr = vtophys(p2p);
 		p2p_sz++;
 		fmn_msg->msg3 = (1ULL << 62) | ((uint64_t)fb_stn_id << 54) |
@@ -1965,9 +1982,7 @@ send_fmn_msg_tx(struct nlge_softc *sc, struct msgrng_msg *msg,
 {
 	uint32_t msgrng_flags;
 	int ret;
-#ifdef INVARIANTS
 	int i = 0;
-#endif
 
 	do {
 		msgrng_flags = msgrng_access_enable();
@@ -1979,7 +1994,7 @@ send_fmn_msg_tx(struct nlge_softc *sc, struct msgrng_msg *msg,
 		i++;
 	} while (i < 100000);
 
-	KASSERT(i < 100000, ("Too many credit fails in tx path\n"));
+	device_printf(sc->nlge_dev, "Too many credit fails in tx path\n");
 
 	return (1);
 }
@@ -2012,7 +2027,7 @@ get_buf(void)
 	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
 		return (NULL);
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	m_adj(m_new, XLR_CACHELINE_SIZE - ((unsigned int)m_new->m_data & 0x1f));
+	m_adj(m_new, XLR_CACHELINE_SIZE - ((uintptr_t)m_new->m_data & 0x1f));
 	md = (uint64_t *)m_new->m_data;
 	md[0] = (intptr_t)m_new;	/* Back Ptr */
 	md[1] = 0xf00bad;
@@ -2107,16 +2122,12 @@ nlge_set_port_attribs(struct nlge_softc *sc,
 {
 	sc->instance = port_info->instance % 4;	/* TBD: will not work for SPI-4 */
 	sc->port_type = port_info->type;
-	sc->base = (xlr_reg_t *) (port_info->base_addr +
-	    (uint32_t)DEFAULT_XLR_IO_BASE);
-	sc->mii_base = (xlr_reg_t *) (port_info->mii_addr +
-	    (uint32_t)DEFAULT_XLR_IO_BASE);
+	sc->base = xlr_io_mmio(port_info->base_addr);
+	sc->mii_base = xlr_io_mmio(port_info->mii_addr);
 	if (port_info->pcs_addr != 0)
-		sc->pcs_addr = (xlr_reg_t *) (port_info->pcs_addr +
-		    (uint32_t)DEFAULT_XLR_IO_BASE);
+		sc->pcs_addr = xlr_io_mmio(port_info->pcs_addr);
 	if (port_info->serdes_addr != 0)
-		sc->serdes_addr = (xlr_reg_t *) (port_info->serdes_addr +
-		    (uint32_t)DEFAULT_XLR_IO_BASE);
+		sc->serdes_addr = xlr_io_mmio(port_info->serdes_addr);
 	sc->phy_addr = port_info->phy_addr;
 
 	PDEBUG("Port%d: base=%p, mii_base=%p, phy_addr=%d\n", sc->id, sc->base,
