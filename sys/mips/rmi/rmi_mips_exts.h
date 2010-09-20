@@ -418,6 +418,14 @@ xlr_ldaddwu(unsigned int value, unsigned int *addr)
 }
 
 #if defined(__mips_n64)
+static __inline uint32_t
+xlr_paddr_lw(uint64_t paddr)
+{
+	
+	paddr |= 0x9800000000000000ULL;
+	return (*(uint32_t *)(uintptr_t)paddr);
+}
+
 static __inline uint64_t
 xlr_paddr_ld(uint64_t paddr)
 {
@@ -427,6 +435,23 @@ xlr_paddr_ld(uint64_t paddr)
 }
 
 #elif defined(__mips_n32)
+static __inline uint32_t
+xlr_paddr_lw(uint32_t paddr)
+{
+	uint32_t val;
+
+	paddr |= 0x9800000000000000ULL;
+	__asm__ __volatile__(
+	    ".set	push		\n\t"
+	    ".set	mips64		\n\t"
+	    "lw		%0, 0(%1)	\n\t"
+	    ".set	pop		\n"
+	    : "=r"(val)
+	    : "r"(paddr));
+
+	return (val);
+}
+
 static __inline uint64_t
 xlr_paddr_ld(uint64_t paddr)
 {
@@ -443,8 +468,33 @@ xlr_paddr_ld(uint64_t paddr)
 
 	return (val);
 }
-#else
+
+#else   /* o32 compilation */
 static __inline uint32_t
+xlr_paddr_lw(uint64_t paddr)
+{
+	uint32_t addrh, addrl;
+       	uint32_t val;
+
+	addrh = 0x98000000 | (paddr >> 32);
+	addrl = paddr & 0xffffffff;
+
+	__asm__ __volatile__(
+	    ".set	push		\n\t"
+	    ".set	mips64		\n\t"
+	    "dsll32	%1, %1, 0	\n\t"
+	    "dsll32	%2, %2, 0	\n\t"  /* get rid of the */
+	    "dsrl32	%2, %2, 0	\n\t"  /* sign extend */
+	    "or		%0, %1, %2	\n\t"
+	    "lw		%0, 0(%0)	\n\t"
+	    ".set	pop		\n"
+	    :       "=&r"(val)
+	    :       "r"(addrh), "r"(addrl));
+
+	return (val);
+}
+
+static __inline uint64_t
 xlr_paddr_ld(uint64_t paddr)
 {
 	uint32_t addrh, addrl;
@@ -454,15 +504,15 @@ xlr_paddr_ld(uint64_t paddr)
 	addrl = paddr & 0xffffffff;
 
 	__asm__ __volatile__(
-	    ".set push         \n\t"
-	    ".set mips64       \n\t"
-	    "dsll32 %2, %2, 0  \n\t"
-	    "dsll32 %3, %3, 0  \n\t"  /* get rid of the */
-	    "dsrl32 %3, %3, 0  \n\t"  /* sign extend */
-	    "or     %2, %2, %3 \n\t"
-	    "lw     %0, 0(%2)  \n\t"
-	    "lw     %1, 4(%2)  \n\t"
-	    ".set pop           \n"
+	    ".set	push		\n\t"
+	    ".set	mips64		\n\t"
+	    "dsll32	%2, %2, 0	\n\t"
+	    "dsll32	%3, %3, 0	\n\t"  /* get rid of the */
+	    "dsrl32	%3, %3, 0	\n\t"  /* sign extend */
+	    "or		%0, %2, %3	\n\t"
+	    "lw		%1, 4(%0)	\n\t"
+	    "lw		%0, 0(%0)	\n\t"
+	    ".set	pop		\n"
 	    :       "=&r"(valh), "=r"(vall)
 	    :       "r"(addrh), "r"(addrl));
 
@@ -485,7 +535,13 @@ static __inline void
 xlr_restore_kx(uint32_t sr)
 {
 }
-#else
+
+#else /* !defined(__mips_n64) && !defined(__mips_n32) */
+/*
+ * o32 compilation, we will disable interrupts and enable
+ * the KX bit so that we can use XKPHYS to access any 40bit
+ * physical address
+ */
 static __inline uint32_t 
 xlr_enable_kx(void)
 {
@@ -501,7 +557,7 @@ xlr_restore_kx(uint32_t sr)
 
 	mips_wr_status(sr);
 }
-#endif
+#endif /* defined(__mips_n64) || defined(__mips_n32) */
 
 /* for cpuid to hardware thread id mapping */
 extern uint32_t xlr_hw_thread_mask;
