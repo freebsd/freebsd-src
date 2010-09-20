@@ -135,9 +135,16 @@ NANO_MD_BACKING="file"
 # Progress Print level
 PPLEVEL=3
 
+# Set NANO_LABEL to non-blank to form the basis for using /dev/ufs/label
+# in preference to /dev/${NANO_DRIVE}
+# Root partition will be ${NANO_LABEL}s{1,2}
+# /cfg partition will be ${NANO_LABEL}s3
+# /data partition will be ${NANO_LABEL}s4
+NANO_LABEL=""
+
 #######################################################################
 # Architecture to build.  Corresponds to TARGET_ARCH in a buildworld.
-# Unfortunately, there's no way to set TARGET at this time, and it 
+# Unfortunately, there's no way to set TARGET at this time, and it
 # conflates the two, so architectures where TARGET != TARGET_ARCH do
 # not work.  This defaults to the arch of the current machine.
 
@@ -361,16 +368,26 @@ prune_usr() (
 		done
 )
 
+newfs_part ( ) (
+	local dev mnt lbl
+	dev=$1
+	mnt=$2
+	lbl=$3
+	echo newfs ${NANO_NEWFS} ${NANO_LABEL:+-L${NANO_LABEL}${lbl}} ${dev}
+	newfs ${NANO_NEWFS} ${NANO_LABEL:+-L${NANO_LABEL}${lbl}} ${dev}
+	mount ${dev} ${mnt}
+)
+
 populate_slice ( ) (
-	local dev dir mnt
+	local dev dir mnt lbl
 	dev=$1
 	dir=$2
 	mnt=$3
+	lbl=$4
 	test -z $2 && dir=/var/empty
-	test -d $d || dir=/var/empty
+	test -d $dir || dir=/var/empty
 	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
-	newfs ${NANO_NEWFS} ${dev}
-	mount ${dev} ${mnt}
+	newfs_part $dev $mnt $lbl
 	cd ${dir}
 	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
 	df -i ${mnt}
@@ -378,11 +395,11 @@ populate_slice ( ) (
 )
 
 populate_cfg_slice ( ) (
-	populate_slice "$1" "$2" "$3"
+	populate_slice "$1" "$2" "$3" "$4"
 )
 
 populate_data_slice ( ) (
-	populate_slice "$1" "$2" "$3"
+	populate_slice "$1" "$2" "$3" "$4"
 )
 
 create_i386_diskimage ( ) (
@@ -484,13 +501,8 @@ create_i386_diskimage ( ) (
 	bsdlabel ${MD}s1
 
 	# Create first image
-	# XXX: should use populate_slice for easier override
-	newfs ${NANO_NEWFS} /dev/${MD}s1a
+	populate_slice /dev/${MD}s1a ${NANO_WORLDDIR} ${MNT} "s1"
 	mount /dev/${MD}s1a ${MNT}
-	df -i ${MNT}
-	echo "Copying worlddir..."
-	( cd ${NANO_WORLDDIR} && find . -print | cpio -dump ${MNT} )
-	df -i ${MNT}
 	echo "Generating mtree..."
 	( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
 	( cd ${MNT} && du -k ) > ${NANO_OBJ}/_.du
@@ -506,14 +518,17 @@ create_i386_diskimage ( ) (
 			sed -i "" "s=${NANO_DRIVE}s1=${NANO_DRIVE}s2=g" $f
 		done
 		umount ${MNT}
+		if [ ! -z ${NANO_LABEL} ]; then
+			tunefs -L ${NANO_LABEL}"s2" /dev/${MD}s2a
+		fi
 	fi
 	
 	# Create Config slice
-	populate_cfg_slice /dev/${MD}s3 "${NANO_CFGDIR}" ${MNT}
+	populate_cfg_slice /dev/${MD}s3 "${NANO_CFGDIR}" ${MNT} "s3"
 
 	# Create Data slice, if any.
 	if [ $NANO_DATASIZE -ne 0 ] ; then
-		populate_data_slice /dev/${MD}s4 "${NANO_DATADIR}" ${MNT}
+		populate_data_slice /dev/${MD}s4 "${NANO_DATADIR}" ${MNT} "s4"
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
@@ -612,7 +627,7 @@ cust_comconsole () (
 	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
 
 	# Tell loader to use serial console early.
-	echo "${NANO_BOOT2CFG}" > ${NANO_WORLDDIR}/boot.config
+	echo " -h" > ${NANO_WORLDDIR}/boot.config
 )
 
 #######################################################################
@@ -820,6 +835,11 @@ else
 	NANO_PMAKE="${NANO_PMAKE} -DNO_CLEAN"
 fi
 
+# Override user's NANO_DRIVE if they specified a NANO_LABEL
+if [ ! -z "${NANO_LABEL}" ]; then
+	NANO_DRIVE=ufs/${NANO_LABEL}
+fi
+
 export MAKEOBJDIRPREFIX
 
 export NANO_ARCH
@@ -844,6 +864,7 @@ export NANO_TOOLS
 export NANO_WORLDDIR
 export NANO_BOOT0CFG
 export NANO_BOOTLOADER
+export NANO_LABEL
 
 #######################################################################
 # And then it is as simple as that...
