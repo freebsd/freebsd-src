@@ -1821,9 +1821,15 @@ type_check(symbol_t *symbol, expression_t *expression, int opcode)
 {
 	symbol_node_t *node;
 	int and_op;
+	uint8_t invalid_bits;
 
 	and_op = FALSE;
-	if (opcode == AIC_OP_AND || opcode == AIC_OP_JNZ || AIC_OP_JZ)
+	if (opcode == AIC_OP_AND
+	 || opcode == AIC_OP_BMOV
+	 || opcode == AIC_OP_JE
+	 || opcode == AIC_OP_JNE
+	 || opcode == AIC_OP_JNZ
+	 || opcode == AIC_OP_JZ)
 		and_op = TRUE;
 
 	/*
@@ -1831,12 +1837,11 @@ type_check(symbol_t *symbol, expression_t *expression, int opcode)
 	 * that hasn't been defined.  If this is an and operation,
 	 * this is a mask, so "undefined" bits are okay.
 	 */
-	if (and_op == FALSE
-	 && (expression->value & ~symbol->info.rinfo->valid_bitmask) != 0) {
+	invalid_bits = expression->value & ~symbol->info.rinfo->valid_bitmask;
+	if (and_op == FALSE && invalid_bits != 0) {
 		snprintf(errbuf, sizeof(errbuf),
 			 "Invalid bit(s) 0x%x in immediate written to %s",
-			 expression->value & ~symbol->info.rinfo->valid_bitmask,
-			 symbol->name);
+			 invalid_bits, symbol->name);
 		stop(errbuf, EX_DATAERR);
 		/* NOTREACHED */
 	}
