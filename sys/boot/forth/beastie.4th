@@ -240,7 +240,10 @@ set-current
 		drop
 		10
 	else
-		0 0 2swap >number drop drop drop
+		2dup s" -1" compare 0= if
+			0 boot
+		then
+		0 s>d 2swap >number 2drop drop
 	then
 	begin
 		dup tkey
