@@ -965,8 +965,8 @@ nfs4_lookup(struct vop_lookup_args *ap)
 		struct vattr vattr;
 
 		newvp = *vpp;
-		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td)
-		 && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+		if (VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td) == 0 &&
+		    timespeccmp(&vattr.va_ctime, &VTONFS(newvp)->n_ctime, ==)) {
 		     nfsstats.lookupcache_hits++;
 		     if (cnp->cn_nameiop != LOOKUP &&
 			 (flags & ISLASTCN))
@@ -1081,7 +1081,7 @@ nfs4_lookup(struct vop_lookup_args *ap)
 		cnp->cn_flags |= SAVENAME;
 	if ((cnp->cn_flags & MAKEENTRY) &&
 	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN))) {
-		np->n_ctime = np->n_vattr.va_ctime.tv_sec;
+		np->n_ctime = np->n_vattr.va_ctime;
 		cache_enter(dvp, newvp, cnp);
 	}
 	*vpp = newvp;
