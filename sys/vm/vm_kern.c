@@ -354,11 +354,7 @@ kmem_back(vm_map_t map, vm_offset_t addr, vm_size_t size, int flags)
 	vm_page_t m;
 	int pflags;
 
-	/*
-	 * XXX the map must be locked for write on entry, but there's
-	 * no easy way to assert that.
-	 */
-
+	KASSERT(vm_map_locked(map), ("kmem_back: map %p is not locked", map));
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	vm_object_reference(kmem_object);
 	vm_map_insert(map, kmem_object, offset, addr, addr + size,
