@@ -31,7 +31,7 @@ namespace {
   /// or handle in alias analyses.
   struct ExternalFunctionsPassedConstants : public ModulePass {
     static char ID; // Pass ID, replacement for typeid
-    ExternalFunctionsPassedConstants() : ModulePass(&ID) {}
+    ExternalFunctionsPassedConstants() : ModulePass(ID) {}
     virtual bool runOnModule(Module &M) {
       for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
         if (!I->isDeclaration()) continue;
@@ -42,8 +42,8 @@ namespace {
           Instruction *User = dyn_cast<Instruction>(*UI);
           if (!User) continue;
           
-          CallSite CS = CallSite::get(User);
-          if (!CS.getInstruction()) continue;
+          CallSite CS(cast<Value>(User));
+          if (!CS) continue;
           
           for (CallSite::arg_iterator AI = CS.arg_begin(),
                E = CS.arg_end(); AI != E; ++AI) {
@@ -66,15 +66,17 @@ namespace {
       AU.setPreservesAll();
     }
   };
+}
 
-  char ExternalFunctionsPassedConstants::ID = 0;
-  RegisterPass<ExternalFunctionsPassedConstants>
+char ExternalFunctionsPassedConstants::ID = 0;
+static RegisterPass<ExternalFunctionsPassedConstants>
   P1("print-externalfnconstants",
      "Print external fn callsites passed constants");
 
+namespace {
   struct CallGraphPrinter : public ModulePass {
     static char ID; // Pass ID, replacement for typeid
-    CallGraphPrinter() : ModulePass(&ID) {}
+    CallGraphPrinter() : ModulePass(ID) {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
@@ -85,8 +87,8 @@ namespace {
       return false;
     }
   };
-
-  char CallGraphPrinter::ID = 0;
-  RegisterPass<CallGraphPrinter>
-    P2("print-callgraph", "Print a call graph");
 }
+
+char CallGraphPrinter::ID = 0;
+static RegisterPass<CallGraphPrinter>
+  P2("print-callgraph", "Print a call graph");

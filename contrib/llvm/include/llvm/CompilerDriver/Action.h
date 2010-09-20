@@ -34,12 +34,16 @@ namespace llvmc {
     std::string OutFile_;
 
   public:
-    Action (const std::string& C, const StrVector& A,
-            bool S, const std::string& O)
-      : Command_(C), Args_(A), StopCompilation_(S), OutFile_(O)
-    {}
+    void Construct (const std::string& C, const StrVector& A,
+                    bool S, const std::string& O) {
+      Command_ = C;
+      Args_ = A;
+      StopCompilation_ = S;
+      OutFile_ = O;
+    }
+    bool IsConstructed () { return (Command_.size() != 0);}
 
-    /// Execute - Executes the represented action.
+    /// Execute - Executes the command. Returns -1 on error.
     int Execute () const;
     bool StopCompilation () const { return StopCompilation_; }
     const std::string& OutFile() { return OutFile_; }

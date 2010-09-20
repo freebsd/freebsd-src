@@ -92,15 +92,6 @@ private:
                                                 AliasAnalysis *AA) const;
 
 public:
-  /// isMoveInstr - Return true if the instruction is a register to register
-  /// move and return the source and dest operands and their sub-register
-  /// indices by reference.
-  virtual bool isMoveInstr(const MachineInstr& MI,
-                           unsigned& SrcReg, unsigned& DstReg,
-                           unsigned& SrcSubIdx, unsigned& DstSubIdx) const {
-    return false;
-  }
-
   /// isCoalescableExtInstr - Return true if the instruction is a "coalescable"
   /// extension instruction. That is, it's like a copy where it's legal for the
   /// source to overlap the destination. e.g. X86::MOVSX64rr32. If this returns
@@ -113,22 +104,6 @@ public:
     return false;
   }
 
-  /// isIdentityCopy - Return true if the instruction is a copy (or
-  /// extract_subreg, insert_subreg, subreg_to_reg) where the source and
-  /// destination registers are the same.
-  bool isIdentityCopy(const MachineInstr &MI) const {
-    unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
-    if (isMoveInstr(MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx) &&
-        SrcReg == DstReg)
-      return true;
-
-    if ((MI.getOpcode() == TargetOpcode::INSERT_SUBREG ||
-         MI.getOpcode() == TargetOpcode::SUBREG_TO_REG) &&
-        MI.getOperand(0).getReg() == MI.getOperand(2).getReg())
-      return true;
-    return false;
-  }
-  
   /// isLoadFromStackSlot - If the specified machine instruction is a direct
   /// load from a stack slot, return the virtual or physical register number of
   /// the destination along with the FrameIndex of the loaded stack slot.  If
@@ -591,18 +566,6 @@ public:
                                     const MachineBasicBlock *MBB,
                                     const MachineFunction &MF) const = 0;
 
-  /// GetInstSize - Returns the size of the specified Instruction.
-  /// 
-  virtual unsigned GetInstSizeInBytes(const MachineInstr *MI) const {
-    assert(0 && "Target didn't implement TargetInstrInfo::GetInstSize!");
-    return 0;
-  }
-
-  /// GetFunctionSizeInBytes - Returns the size of the specified
-  /// MachineFunction.
-  /// 
-  virtual unsigned GetFunctionSizeInBytes(const MachineFunction &MF) const = 0;
-  
   /// Measure the specified inline asm to determine an approximation of its
   /// length.
   virtual unsigned getInlineAsmLength(const char *Str,
@@ -613,6 +576,21 @@ public:
   /// register allocation.
   virtual ScheduleHazardRecognizer*
   CreateTargetPostRAHazardRecognizer(const InstrItineraryData&) const = 0;
+
+  /// AnalyzeCompare - For a comparison instruction, return the source register
+  /// in SrcReg and the value it compares against in CmpValue. Return true if
+  /// the comparison instruction can be analyzed.
+  virtual bool AnalyzeCompare(const MachineInstr *MI,
+                              unsigned &SrcReg, int &CmpValue) const {
+    return false;
+  }
+
+  /// ConvertToSetZeroFlag - Convert the instruction to set the zero flag so
+  /// that we can remove a "comparison with zero".
+  virtual bool ConvertToSetZeroFlag(MachineInstr *Instr,
+                                    MachineInstr *CmpInstr) const {
+    return false;
+  }
 };
 
 /// TargetInstrInfoImpl - This is the default implementation of
@@ -646,7 +624,6 @@ public:
   virtual bool isSchedulingBoundary(const MachineInstr *MI,
                                     const MachineBasicBlock *MBB,
                                     const MachineFunction &MF) const;
-  virtual unsigned GetFunctionSizeInBytes(const MachineFunction &MF) const;
 
   virtual ScheduleHazardRecognizer *
   CreateTargetPostRAHazardRecognizer(const InstrItineraryData&) const;

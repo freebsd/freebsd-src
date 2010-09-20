@@ -134,6 +134,11 @@ N: Gabor Greif
 E: ggreif@gmail.com
 D: Improvements for space efficiency
 
+N: James Grosbach
+E: grosbach@apple.com
+D: SjLj exception handling support
+D: General fixes and improvements for the ARM back-end
+
 N: Lang Hames
 E: lhames@gmail.com
 D: PBQP-based register allocator
@@ -247,6 +252,12 @@ N: Scott Michel
 E: scottm@aero.org
 D: Added STI Cell SPU backend.
 
+N: Takumi Nakamura
+E: geek4civic@gmail.com
+E: chapuni@hf.rim.or.jp
+D: Cygwin and MinGW support.
+S: Yokohama, Japan
+
 N: Edward O'Callaghan
 E: eocallaghan@auroraux.org
 W: http://www.auroraux.org
@@ -277,6 +288,11 @@ N: Sandeep Patel
 E: deeppatel1987@gmail.com
 D: ARM calling conventions rewrite, hard float support
 
+N: Wesley Peck
+E: peckw@wesleypeck.com
+W: http://wesleypeck.com/
+D: MicroBlaze backend
+
 N: Vladimir Prus
 W: http://vladimir_prus.blogspot.com
 E: ghost@cs.msu.su
@@ -288,7 +304,10 @@ D: MSIL backend
 
 N: Duncan Sands
 E: baldrick@free.fr
-D: Ada front-end, exception handling improvements
+D: Ada support in llvm-gcc
+D: Dragonegg plugin
+D: Exception handling improvements
+D: Type legalizer rewrite
 
 N: Ruchira Sasanka
 E: sasanka@uiuc.edu
@@ -305,6 +324,10 @@ D: Miscellaneous bug fixes
 N: Anand Shukla
 E: ashukla@cs.uiuc.edu
 D: The `paths' pass
+
+N: Michael J. Spencer
+E: bigcheesegs@gmail.com
+D: Shepherding Windows COFF support into MC.
 
 N: Reid Spencer
 E: rspencer@reidspencer.com
@@ -329,14 +352,9 @@ E: xerxes@zafena.se
 D: Cmake dependency chain and various bug fixes
 
 N: Bill Wendling
-E: isanbard@gmail.com
+E: wendling@apple.com
 D: Bunches of stuff
 
 N: Bob Wilson
 E: bob.wilson@acm.org
 D: Advanced SIMD (NEON) support in the ARM backend
-
-N: Wesley Peck
-E: peckw@wesleypeck.com
-W: http://wesleypeck.com/
-D: MicroBlaze backend

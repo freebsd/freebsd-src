@@ -34,6 +34,7 @@
 #include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Lex/ScratchBuffer.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/TargetInfo.h"
@@ -53,8 +54,9 @@ Preprocessor::Preprocessor(Diagnostic &diags, const LangOptions &opts,
                            bool OwnsHeaders)
   : Diags(&diags), Features(opts), Target(target),FileMgr(Headers.getFileMgr()),
     SourceMgr(SM), HeaderInfo(Headers), ExternalSource(0),
-    Identifiers(opts, IILookup), BuiltinInfo(Target), CodeCompletionFile(0),
-    CurPPLexer(0), CurDirLookup(0), Callbacks(0), MacroArgCache(0), Record(0) {
+    Identifiers(opts, IILookup), BuiltinInfo(Target), CodeComplete(0),
+    CodeCompletionFile(0), SkipMainFilePreamble(0, true), CurPPLexer(0), 
+    CurDirLookup(0), Callbacks(0), MacroArgCache(0), Record(0) {
   ScratchBuf = new ScratchBuffer(SourceMgr);
   CounterValue = 0; // __COUNTER__ starts at 0.
   OwnsHeaderSearch = OwnsHeaders;
@@ -110,7 +112,7 @@ Preprocessor::~Preprocessor() {
     // will be released when the BumpPtrAllocator 'BP' object gets
     // destroyed.  We still need to run the dtor, however, to free
     // memory alocated by MacroInfo.
-    I->second->Destroy(BP);
+    I->second->Destroy();
     I->first->setHasMacroDefinition(false);
   }
   for (std::vector<MacroInfo*>::iterator I = MICache.begin(),
@@ -119,7 +121,7 @@ Preprocessor::~Preprocessor() {
     // will be released when the BumpPtrAllocator 'BP' object gets
     // destroyed.  We still need to run the dtor, however, to free
     // memory alocated by MacroInfo.
-    (*I)->Destroy(BP);
+    (*I)->Destroy();
   }
 
   // Free any cached macro expanders.
@@ -163,7 +165,7 @@ void Preprocessor::DumpToken(const Token &Tok, bool DumpFlags) const {
     llvm::errs() << " [ExpandDisabled]";
   if (Tok.needsCleaning()) {
     const char *Start = SourceMgr.getCharacterData(Tok.getLocation());
-    llvm::errs() << " [UnClean='" << std::string(Start, Start+Tok.getLength())
+    llvm::errs() << " [UnClean='" << llvm::StringRef(Start, Tok.getLength())
                  << "']";
   }
 
@@ -280,6 +282,13 @@ bool Preprocessor::isCodeCompletionFile(SourceLocation FileLoc) const {
   return CodeCompletionFile && FileLoc.isFileID() &&
     SourceMgr.getFileEntryForID(SourceMgr.getFileID(FileLoc))
       == CodeCompletionFile;
+}
+
+void Preprocessor::CodeCompleteNaturalLanguage() {
+  SetCodeCompletionPoint(0, 0, 0);
+  getDiagnostics().setSuppressAllDiagnostics(true);
+  if (CodeComplete)
+    CodeComplete->CodeCompleteNaturalLanguage();
 }
 
 //===----------------------------------------------------------------------===//
@@ -508,6 +517,12 @@ void Preprocessor::EnterMainSourceFile() {
   // Enter the main file source buffer.
   EnterSourceFile(MainFileID, 0, SourceLocation());
 
+  // If we've been asked to skip bytes in the main file (e.g., as part of a
+  // precompiled preamble), do so now.
+  if (SkipMainFilePreamble.first > 0)
+    CurLexer->SkipBytes(SkipMainFilePreamble.first, 
+                        SkipMainFilePreamble.second);
+  
   // Tell the header info that the main file was entered.  If the file is later
   // #imported, it won't be re-entered.
   if (const FileEntry *FE = SourceMgr.getFileEntryForID(MainFileID))
@@ -516,7 +531,7 @@ void Preprocessor::EnterMainSourceFile() {
   // Preprocess Predefines to populate the initial preprocessor state.
   llvm::MemoryBuffer *SB =
     llvm::MemoryBuffer::getMemBufferCopy(Predefines, "<built-in>");
-  assert(SB && "Cannot fail to create predefined source buffer");
+  assert(SB && "Cannot create predefined source buffer");
   FileID FID = SourceMgr.createFileIDForMemBuffer(SB);
   assert(!FID.isInvalid() && "Could not create FileID for predefines?");
 
@@ -638,6 +653,8 @@ bool Preprocessor::HandleComment(Token &result, SourceRange Comment) {
 }
 
 CommentHandler::~CommentHandler() { }
+
+CodeCompletionHandler::~CodeCompletionHandler() { }
 
 void Preprocessor::createPreprocessingRecord() {
   if (Record)

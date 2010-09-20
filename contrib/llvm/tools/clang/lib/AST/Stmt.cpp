@@ -119,7 +119,7 @@ bool Stmt::hasImplicitControlFlow() const {
 
     case Stmt::BinaryOperatorClass: {
       const BinaryOperator* B = cast<BinaryOperator>(this);
-      if (B->isLogicalOp() || B->getOpcode() == BinaryOperator::Comma)
+      if (B->isLogicalOp() || B->getOpcode() == BO_Comma)
         return true;
       else
         return false;
@@ -215,8 +215,9 @@ int AsmStmt::getNamedOperand(llvm::StringRef SymbolicName) const {
 /// true, otherwise return false.
 unsigned AsmStmt::AnalyzeAsmString(llvm::SmallVectorImpl<AsmStringPiece>&Pieces,
                                    ASTContext &C, unsigned &DiagOffs) const {
-  const char *StrStart = getAsmString()->getStrData();
-  const char *StrEnd = StrStart + getAsmString()->getByteLength();
+  llvm::StringRef Str = getAsmString()->getString();
+  const char *StrStart = Str.begin();
+  const char *StrEnd = Str.end();
   const char *CurPtr = StrStart;
 
   // "Simple" inline asms have no constraints or operands, just convert the asm
@@ -451,52 +452,21 @@ CXXTryStmt *CXXTryStmt::Create(ASTContext &C, SourceLocation tryLoc,
   return new (Mem) CXXTryStmt(tryLoc, tryBlock, handlers, numHandlers);
 }
 
+CXXTryStmt *CXXTryStmt::Create(ASTContext &C, EmptyShell Empty,
+                               unsigned numHandlers) {
+  std::size_t Size = sizeof(CXXTryStmt);
+  Size += ((numHandlers + 1) * sizeof(Stmt));
+
+  void *Mem = C.Allocate(Size, llvm::alignof<CXXTryStmt>());
+  return new (Mem) CXXTryStmt(Empty, numHandlers);
+}
+
 CXXTryStmt::CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
                        Stmt **handlers, unsigned numHandlers)
   : Stmt(CXXTryStmtClass), TryLoc(tryLoc), NumHandlers(numHandlers) {
   Stmt **Stmts = reinterpret_cast<Stmt **>(this + 1);
   Stmts[0] = tryBlock;
   std::copy(handlers, handlers + NumHandlers, Stmts + 1);
-}
-
-//===----------------------------------------------------------------------===//
-// AST Destruction.
-//===----------------------------------------------------------------------===//
-
-void Stmt::DestroyChildren(ASTContext &C) {
-  for (child_iterator I = child_begin(), E = child_end(); I !=E; )
-    if (Stmt* Child = *I++) Child->Destroy(C);
-}
-
-static void BranchDestroy(ASTContext &C, Stmt *S, Stmt **SubExprs,
-                          unsigned NumExprs) {
-  // We do not use child_iterator here because that will include
-  // the expressions referenced by the condition variable.
-  for (Stmt **I = SubExprs, **E = SubExprs + NumExprs; I != E; ++I)
-    if (Stmt *Child = *I) Child->Destroy(C);
-  
-  S->~Stmt();
-  C.Deallocate((void *) S);
-}
-
-void Stmt::DoDestroy(ASTContext &C) {
-  DestroyChildren(C);
-  this->~Stmt();
-  C.Deallocate((void *)this);
-}
-
-void CXXCatchStmt::DoDestroy(ASTContext& C) {
-  if (ExceptionDecl)
-    ExceptionDecl->Destroy(C);
-  Stmt::DoDestroy(C);
-}
-
-void DeclStmt::DoDestroy(ASTContext &C) {
-  // Don't use StmtIterator to iterate over the Decls, as that can recurse
-  // into VLA size expressions (which are owned by the VLA).  Further, Decls
-  // are owned by the DeclContext, and will be destroyed with them.
-  if (DG.isDeclGroup())
-    DG.getDeclGroup().Destroy(C);
 }
 
 IfStmt::IfStmt(ASTContext &C, SourceLocation IL, VarDecl *var, Expr *cond, 
@@ -526,10 +496,6 @@ void IfStmt::setConditionVariable(ASTContext &C, VarDecl *V) {
   SubExprs[VAR] = new (C) DeclStmt(DeclGroupRef(V), 
                                    V->getSourceRange().getBegin(),
                                    V->getSourceRange().getEnd());
-}
-
-void IfStmt::DoDestroy(ASTContext &C) {
-  BranchDestroy(C, this, SubExprs, END_EXPR);
 }
 
 ForStmt::ForStmt(ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar, 
@@ -563,10 +529,6 @@ void ForStmt::setConditionVariable(ASTContext &C, VarDecl *V) {
                                        V->getSourceRange().getEnd());
 }
 
-void ForStmt::DoDestroy(ASTContext &C) {
-  BranchDestroy(C, this, SubExprs, END_EXPR);
-}
-
 SwitchStmt::SwitchStmt(ASTContext &C, VarDecl *Var, Expr *cond) 
   : Stmt(SwitchStmtClass), FirstCase(0) 
 {
@@ -592,20 +554,6 @@ void SwitchStmt::setConditionVariable(ASTContext &C, VarDecl *V) {
   SubExprs[VAR] = new (C) DeclStmt(DeclGroupRef(V), 
                                    V->getSourceRange().getBegin(),
                                    V->getSourceRange().getEnd());
-}
-
-void SwitchStmt::DoDestroy(ASTContext &C) {
-  // Destroy the SwitchCase statements in this switch. In the normal
-  // case, this loop will merely decrement the reference counts from
-  // the Retain() calls in addSwitchCase();
-  SwitchCase *SC = FirstCase;
-  while (SC) {
-    SwitchCase *Next = SC->getNextSwitchCase();
-    SC->Destroy(C);
-    SC = Next;
-  }
-  
-  BranchDestroy(C, this, SubExprs, END_EXPR);
 }
 
 WhileStmt::WhileStmt(ASTContext &C, VarDecl *Var, Expr *cond, Stmt *body, 
@@ -635,22 +583,6 @@ void WhileStmt::setConditionVariable(ASTContext &C, VarDecl *V) {
   SubExprs[VAR] = new (C) DeclStmt(DeclGroupRef(V), 
                                    V->getSourceRange().getBegin(),
                                    V->getSourceRange().getEnd());
-}
-
-void WhileStmt::DoDestroy(ASTContext &C) {
-  BranchDestroy(C, this, SubExprs, END_EXPR);
-}
-
-void AsmStmt::DoDestroy(ASTContext &C) {
-  DestroyChildren(C);
-  
-  C.Deallocate(Names);
-  C.Deallocate(Constraints);
-  C.Deallocate(Exprs);
-  C.Deallocate(Clobbers);
-  
-  this->~AsmStmt();
-  C.Deallocate((void *)this);
 }
 
 //===----------------------------------------------------------------------===//

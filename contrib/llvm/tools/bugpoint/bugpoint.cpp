@@ -29,13 +29,6 @@
 #include "llvm/LinkAllVMCore.h"
 using namespace llvm;
 
-// AsChild - Specifies that this invocation of bugpoint is being generated
-// from a parent process. It is not intended to be used by users so the 
-// option is hidden.
-static cl::opt<bool> 
-AsChild("as-child", cl::desc("Run bugpoint as child process"), 
-        cl::ReallyHidden);
-          
 static cl::opt<bool> 
 FindBugs("find-bugs", cl::desc("Run many different optimization sequences "
                                "on program to find bugs"), cl::init(false));
@@ -90,8 +83,9 @@ namespace {
     AddToDriver(BugDriver &_D) : D(_D) {}
     
     virtual void add(Pass *P) {
-      const PassInfo *PI = P->getPassInfo();
-      D.addPasses(&PI, &PI + 1);
+      const void *ID = P->getPassID();
+      const PassInfo *PI = PassRegistry::getPassRegistry()->getPassInfo(ID);
+      D.addPass(PI->getPassArgument());
     }
   };
 }
@@ -110,8 +104,8 @@ int main(int argc, char **argv) {
   // If we have an override, set it and then track the triple we want Modules
   // to use.
   if (!OverrideTriple.empty()) {
-    TargetTriple.setTriple(OverrideTriple);
-    outs() << "Override triple set to '" << OverrideTriple << "'\n";
+    TargetTriple.setTriple(Triple::normalize(OverrideTriple));
+    outs() << "Override triple set to '" << TargetTriple.getTriple() << "'\n";
   }
 
   if (MemoryLimit < 0) {
@@ -123,7 +117,7 @@ int main(int argc, char **argv) {
       MemoryLimit = 100;
   }
 
-  BugDriver D(argv[0], AsChild, FindBugs, TimeoutValue, MemoryLimit,
+  BugDriver D(argv[0], FindBugs, TimeoutValue, MemoryLimit,
               UseValgrind, Context);
   if (D.addSources(InputFilenames)) return 1;
   
@@ -143,7 +137,13 @@ int main(int argc, char **argv) {
                             /*RunInliner=*/true,
                             /*VerifyEach=*/false);
 
-  D.addPasses(PassList.begin(), PassList.end());
+
+  for (std::vector<const PassInfo*>::iterator I = PassList.begin(),
+         E = PassList.end();
+       I != E; ++I) {
+    const PassInfo* PI = *I;
+    D.addPass(PI->getPassArgument());
+  }
 
   // Bugpoint has the ability of generating a plethora of core files, so to
   // avoid filling up the disk, we prevent it

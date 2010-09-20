@@ -403,13 +403,14 @@ void CodeGenFunction::GenerateObjCSetter(ObjCImplementationDecl *IMP,
     // Objective-C pointer types, we can always bit cast the RHS in these cases.
     if (getContext().getCanonicalType(Ivar->getType()) !=
         getContext().getCanonicalType(ArgDecl->getType())) {
-      ImplicitCastExpr ArgCasted(Ivar->getType(), CastExpr::CK_BitCast, &Arg,
-                                 CXXBaseSpecifierArray(), false);
-      BinaryOperator Assign(&IvarRef, &ArgCasted, BinaryOperator::Assign,
+      ImplicitCastExpr ArgCasted(ImplicitCastExpr::OnStack,
+                                 Ivar->getType(), CK_BitCast, &Arg,
+                                 VK_RValue);
+      BinaryOperator Assign(&IvarRef, &ArgCasted, BO_Assign,
                             Ivar->getType(), Loc);
       EmitStmt(&Assign);
     } else {
-      BinaryOperator Assign(&IvarRef, &Arg, BinaryOperator::Assign,
+      BinaryOperator Assign(&IvarRef, &Arg, BO_Assign,
                             Ivar->getType(), Loc);
       EmitStmt(&Assign);
     }
@@ -571,7 +572,7 @@ void CodeGenFunction::EmitObjCSuperPropertySet(const Expr *Exp,
   Args.push_back(std::make_pair(Src, Exp->getType()));
   CGM.getObjCRuntime().GenerateMessageSendSuper(*this,
                                                 ReturnValueSlot(),
-                                                Exp->getType(),
+                                                getContext().VoidTy,
                                                 S,
                                                 OMD->getClassInterface(),
                                                 isCategoryImpl,
@@ -792,7 +793,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
 
   BreakContinueStack.pop_back();
 
-  EmitBlock(AfterBody.Block);
+  EmitBlock(AfterBody.getBlock());
 
   llvm::BasicBlock *FetchMore = createBasicBlock("fetchmore");
 
@@ -828,7 +829,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
                         LV.getAddress());
   }
 
-  EmitBlock(LoopEnd.Block);
+  EmitBlock(LoopEnd.getBlock());
 }
 
 void CodeGenFunction::EmitObjCAtTryStmt(const ObjCAtTryStmt &S) {

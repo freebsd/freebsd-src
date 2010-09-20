@@ -88,10 +88,13 @@ static char TypeCharForSymbol(GlobalValue &GV) {
 
 static void DumpSymbolNameForGlobalValue(GlobalValue &GV) {
   // Private linkage and available_externally linkage don't exist in symtab.
-  if (GV.hasPrivateLinkage() || GV.hasLinkerPrivateLinkage() ||
-      GV.hasLinkerPrivateWeakLinkage() || GV.hasAvailableExternallyLinkage())
+  if (GV.hasPrivateLinkage() ||
+      GV.hasLinkerPrivateLinkage() ||
+      GV.hasLinkerPrivateWeakLinkage() ||
+      GV.hasLinkerPrivateWeakDefAutoLinkage() ||
+      GV.hasAvailableExternallyLinkage())
     return;
-  
+
   const std::string SymbolAddrStr = "        "; // Not used yet...
   char TypeChar = TypeCharForSymbol(GV);
   if ((TypeChar != 'U') && UndefinedOnly)
@@ -145,13 +148,13 @@ static void DumpSymbolNamesFromFile(std::string &Filename) {
     Module *Result = 0;
     if (Buffer.get())
       Result = ParseBitcodeFile(Buffer.get(), Context, &ErrorMessage);
-    
+
     if (Result) {
       DumpSymbolNamesFromModule(Result);
       delete Result;
     } else
       errs() << ToolName << ": " << Filename << ": " << ErrorMessage << "\n";
-    
+
   } else if (aPath.isArchive()) {
     std::string ErrMsg;
     Archive* archive = Archive::OpenAndLoad(sys::Path(Filename), Context,
@@ -176,7 +179,7 @@ int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
-  
+
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm symbol table dumper\n");
 

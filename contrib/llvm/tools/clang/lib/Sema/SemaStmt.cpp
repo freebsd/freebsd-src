@@ -11,8 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Sema.h"
-#include "SemaInit.h"
+#include "clang/Sema/SemaInternal.h"
+#include "clang/Sema/Scope.h"
+#include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/Initialization.h"
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
@@ -26,19 +28,11 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 using namespace clang;
+using namespace sema;
 
-Sema::OwningStmtResult Sema::ActOnExprStmt(FullExprArg expr) {
-  Expr *E = expr->takeAs<Expr>();
+StmtResult Sema::ActOnExprStmt(FullExprArg expr) {
+  Expr *E = expr.get();
   assert(E && "ActOnExprStmt(): missing expression");
-  if (E->getType()->isObjCObjectType()) {
-    if (LangOpts.ObjCNonFragileABI)
-      Diag(E->getLocEnd(), diag::err_indirection_requires_nonfragile_object)
-             << E->getType();
-    else
-      Diag(E->getLocEnd(), diag::err_direct_interface_unsupported)
-             << E->getType();
-    return StmtError();
-  }
   // C99 6.8.3p2: The expression in an expression statement is evaluated as a
   // void expression for its side effects.  Conversion to void allows any
   // operand, even incomplete types.
@@ -48,11 +42,11 @@ Sema::OwningStmtResult Sema::ActOnExprStmt(FullExprArg expr) {
 }
 
 
-Sema::OwningStmtResult Sema::ActOnNullStmt(SourceLocation SemiLoc) {
+StmtResult Sema::ActOnNullStmt(SourceLocation SemiLoc) {
   return Owned(new (Context) NullStmt(SemiLoc));
 }
 
-Sema::OwningStmtResult Sema::ActOnDeclStmt(DeclGroupPtrTy dg,
+StmtResult Sema::ActOnDeclStmt(DeclGroupPtrTy dg,
                                            SourceLocation StartLoc,
                                            SourceLocation EndLoc) {
   DeclGroupRef DG = dg.getAsVal<DeclGroupRef>();
@@ -141,10 +135,10 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
     }
   }
 
-  Diag(Loc, DiagID) << R1 << R2;
+  DiagRuntimeBehavior(Loc, PDiag(DiagID) << R1 << R2);
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnCompoundStmt(SourceLocation L, SourceLocation R,
                         MultiStmtArg elts, bool isStmtExpr) {
   unsigned NumElts = elts.size();
@@ -179,70 +173,60 @@ Sema::ActOnCompoundStmt(SourceLocation L, SourceLocation R,
   return Owned(new (Context) CompoundStmt(Context, Elts, NumElts, L, R));
 }
 
-Action::OwningStmtResult
-Sema::ActOnCaseStmt(SourceLocation CaseLoc, ExprArg lhsval,
-                    SourceLocation DotDotDotLoc, ExprArg rhsval,
+StmtResult
+Sema::ActOnCaseStmt(SourceLocation CaseLoc, Expr *LHSVal,
+                    SourceLocation DotDotDotLoc, Expr *RHSVal,
                     SourceLocation ColonLoc) {
-  assert((lhsval.get() != 0) && "missing expression in case statement");
+  assert((LHSVal != 0) && "missing expression in case statement");
 
   // C99 6.8.4.2p3: The expression shall be an integer constant.
   // However, GCC allows any evaluatable integer expression.
-  Expr *LHSVal = static_cast<Expr*>(lhsval.get());
   if (!LHSVal->isTypeDependent() && !LHSVal->isValueDependent() &&
       VerifyIntegerConstantExpression(LHSVal))
     return StmtError();
 
   // GCC extension: The expression shall be an integer constant.
 
-  Expr *RHSVal = static_cast<Expr*>(rhsval.get());
   if (RHSVal && !RHSVal->isTypeDependent() && !RHSVal->isValueDependent() &&
       VerifyIntegerConstantExpression(RHSVal)) {
     RHSVal = 0;  // Recover by just forgetting about it.
-    rhsval = 0;
   }
 
-  if (getSwitchStack().empty()) {
+  if (getCurFunction()->SwitchStack.empty()) {
     Diag(CaseLoc, diag::err_case_not_in_switch);
     return StmtError();
   }
 
-  // Only now release the smart pointers.
-  lhsval.release();
-  rhsval.release();
   CaseStmt *CS = new (Context) CaseStmt(LHSVal, RHSVal, CaseLoc, DotDotDotLoc,
                                         ColonLoc);
-  getSwitchStack().back()->addSwitchCase(CS);
+  getCurFunction()->SwitchStack.back()->addSwitchCase(CS);
   return Owned(CS);
 }
 
 /// ActOnCaseStmtBody - This installs a statement as the body of a case.
-void Sema::ActOnCaseStmtBody(StmtTy *caseStmt, StmtArg subStmt) {
+void Sema::ActOnCaseStmtBody(Stmt *caseStmt, Stmt *SubStmt) {
   CaseStmt *CS = static_cast<CaseStmt*>(caseStmt);
-  Stmt *SubStmt = subStmt.takeAs<Stmt>();
   CS->setSubStmt(SubStmt);
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnDefaultStmt(SourceLocation DefaultLoc, SourceLocation ColonLoc,
-                       StmtArg subStmt, Scope *CurScope) {
-  Stmt *SubStmt = subStmt.takeAs<Stmt>();
-
-  if (getSwitchStack().empty()) {
+                       Stmt *SubStmt, Scope *CurScope) {
+  if (getCurFunction()->SwitchStack.empty()) {
     Diag(DefaultLoc, diag::err_default_not_in_switch);
     return Owned(SubStmt);
   }
 
   DefaultStmt *DS = new (Context) DefaultStmt(DefaultLoc, ColonLoc, SubStmt);
-  getSwitchStack().back()->addSwitchCase(DS);
+  getCurFunction()->SwitchStack.back()->addSwitchCase(DS);
   return Owned(DS);
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnLabelStmt(SourceLocation IdentLoc, IdentifierInfo *II,
-                     SourceLocation ColonLoc, StmtArg subStmt) {
-  Stmt *SubStmt = subStmt.takeAs<Stmt>();
+                     SourceLocation ColonLoc, Stmt *SubStmt) {
   // Look up the record for this label identifier.
-  LabelStmt *&LabelDecl = getLabelMap()[II];
+  LabelStmt *&LabelDecl = getCurFunction()->LabelMap[II];
 
   // If not forward referenced or defined already, just create a new LabelStmt.
   if (LabelDecl == 0)
@@ -265,15 +249,15 @@ Sema::ActOnLabelStmt(SourceLocation IdentLoc, IdentifierInfo *II,
   return Owned(LabelDecl);
 }
 
-Action::OwningStmtResult
-Sema::ActOnIfStmt(SourceLocation IfLoc, FullExprArg CondVal, DeclPtrTy CondVar,
-                  StmtArg ThenVal, SourceLocation ElseLoc,
-                  StmtArg ElseVal) {
-  OwningExprResult CondResult(CondVal.release());
+StmtResult
+Sema::ActOnIfStmt(SourceLocation IfLoc, FullExprArg CondVal, Decl *CondVar,
+                  Stmt *thenStmt, SourceLocation ElseLoc,
+                  Stmt *elseStmt) {
+  ExprResult CondResult(CondVal.release());
 
   VarDecl *ConditionVar = 0;
-  if (CondVar.get()) {
-    ConditionVar = CondVar.getAs<VarDecl>();
+  if (CondVar) {
+    ConditionVar = cast<VarDecl>(CondVar);
     CondResult = CheckConditionVariable(ConditionVar, IfLoc, true);
     if (CondResult.isInvalid())
       return StmtError();
@@ -282,22 +266,19 @@ Sema::ActOnIfStmt(SourceLocation IfLoc, FullExprArg CondVal, DeclPtrTy CondVar,
   if (!ConditionExpr)
     return StmtError();
   
-  Stmt *thenStmt = ThenVal.takeAs<Stmt>();
   DiagnoseUnusedExprResult(thenStmt);
 
   // Warn if the if block has a null body without an else value.
   // this helps prevent bugs due to typos, such as
   // if (condition);
   //   do_stuff();
-  if (!ElseVal.get()) {
+  if (!elseStmt) {
     if (NullStmt* stmt = dyn_cast<NullStmt>(thenStmt))
       Diag(stmt->getSemiLoc(), diag::warn_empty_if_body);
   }
 
-  Stmt *elseStmt = ElseVal.takeAs<Stmt>();
   DiagnoseUnusedExprResult(elseStmt);
 
-  CondResult.release();
   return Owned(new (Context) IfStmt(Context, IfLoc, ConditionVar, ConditionExpr, 
                                     thenStmt, ElseLoc, elseStmt));
 }
@@ -404,64 +385,63 @@ static QualType GetTypeBeforeIntegralPromotion(const Expr* expr) {
   return expr->getType();
 }
 
-Action::OwningStmtResult
-Sema::ActOnStartOfSwitchStmt(SourceLocation SwitchLoc, ExprArg Cond, 
-                             DeclPtrTy CondVar) {
+StmtResult
+Sema::ActOnStartOfSwitchStmt(SourceLocation SwitchLoc, Expr *Cond, 
+                             Decl *CondVar) {
+  ExprResult CondResult;
+
   VarDecl *ConditionVar = 0;
-  if (CondVar.get()) {
-    ConditionVar = CondVar.getAs<VarDecl>();
-    OwningExprResult CondE = CheckConditionVariable(ConditionVar, SourceLocation(), false);
-    if (CondE.isInvalid())
+  if (CondVar) {
+    ConditionVar = cast<VarDecl>(CondVar);
+    CondResult = CheckConditionVariable(ConditionVar, SourceLocation(), false);
+    if (CondResult.isInvalid())
       return StmtError();
     
-    Cond = move(CondE);
+    Cond = CondResult.release();
   }
   
-  if (!Cond.get())
+  if (!Cond)
     return StmtError();
   
-  Expr *CondExpr = static_cast<Expr *>(Cond.get());
-  OwningExprResult ConvertedCond 
-    = ConvertToIntegralOrEnumerationType(SwitchLoc, move(Cond), 
+  CondResult
+    = ConvertToIntegralOrEnumerationType(SwitchLoc, Cond, 
                           PDiag(diag::err_typecheck_statement_requires_integer),
                                    PDiag(diag::err_switch_incomplete_class_type)
-                                     << CondExpr->getSourceRange(),
+                                     << Cond->getSourceRange(),
                                    PDiag(diag::err_switch_explicit_conversion),
                                          PDiag(diag::note_switch_conversion),
                                    PDiag(diag::err_switch_multiple_conversions),
                                          PDiag(diag::note_switch_conversion),
                                          PDiag(0));
-  if (ConvertedCond.isInvalid())
-    return StmtError();
+  if (CondResult.isInvalid()) return StmtError();
+  Cond = CondResult.take();
   
-  CondExpr = ConvertedCond.takeAs<Expr>();
-  
-  if (!CondVar.get()) {
-    CondExpr = MaybeCreateCXXExprWithTemporaries(CondExpr);
-    if (!CondExpr)
+  if (!CondVar) {
+    CondResult = MaybeCreateCXXExprWithTemporaries(Cond);
+    if (CondResult.isInvalid())
       return StmtError();
+    Cond = CondResult.take();
   }
+
+  getCurFunction()->setHasBranchIntoScope();
     
-  SwitchStmt *SS = new (Context) SwitchStmt(Context, ConditionVar, CondExpr);
-  getSwitchStack().push_back(SS);
+  SwitchStmt *SS = new (Context) SwitchStmt(Context, ConditionVar, Cond);
+  getCurFunction()->SwitchStack.push_back(SS);
   return Owned(SS);
 }
 
-Action::OwningStmtResult
-Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, StmtArg Switch,
-                            StmtArg Body) {
-  Stmt *BodyStmt = Body.takeAs<Stmt>();
-
-  SwitchStmt *SS = getSwitchStack().back();
-  assert(SS == (SwitchStmt*)Switch.get() && "switch stack missing push/pop!");
+StmtResult
+Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
+                            Stmt *BodyStmt) {
+  SwitchStmt *SS = cast<SwitchStmt>(Switch);
+  assert(SS == getCurFunction()->SwitchStack.back() &&
+         "switch stack missing push/pop!");
 
   SS->setBody(BodyStmt, SwitchLoc);
-  getSwitchStack().pop_back();
+  getCurFunction()->SwitchStack.pop_back();
 
-  if (SS->getCond() == 0) {
-    SS->Destroy(Context);
+  if (SS->getCond() == 0)
     return StmtError();
-  }
     
   Expr *CondExpr = SS->getCond();
   Expr *CondExprBeforePromotion = CondExpr;
@@ -556,7 +536,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, StmtArg Switch,
 
       // If the LHS is not the same type as the condition, insert an implicit
       // cast.
-      ImpCastExprToType(Lo, CondType, CastExpr::CK_IntegralCast);
+      ImpCastExprToType(Lo, CondType, CK_IntegralCast);
       CS->setLHS(Lo);
 
       // If this is a case range, remember it in CaseRanges, otherwise CaseVals.
@@ -635,7 +615,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, StmtArg Switch,
 
         // If the LHS is not the same type as the condition, insert an implicit
         // cast.
-        ImpCastExprToType(Hi, CondType, CastExpr::CK_IntegralCast);
+        ImpCastExprToType(Hi, CondType, CK_IntegralCast);
         CR->setRHS(Hi);
 
         // If the low value is bigger than the high value, the case is empty.
@@ -804,65 +784,55 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, StmtArg Switch,
   if (CaseListIsErroneous)
     return StmtError();
 
-  Switch.release();
   return Owned(SS);
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnWhileStmt(SourceLocation WhileLoc, FullExprArg Cond, 
-                     DeclPtrTy CondVar, StmtArg Body) {
-  OwningExprResult CondResult(Cond.release());
+                     Decl *CondVar, Stmt *Body) {
+  ExprResult CondResult(Cond.release());
   
   VarDecl *ConditionVar = 0;
-  if (CondVar.get()) {
-    ConditionVar = CondVar.getAs<VarDecl>();
+  if (CondVar) {
+    ConditionVar = cast<VarDecl>(CondVar);
     CondResult = CheckConditionVariable(ConditionVar, WhileLoc, true);
     if (CondResult.isInvalid())
       return StmtError();
   }
-  Expr *ConditionExpr = CondResult.takeAs<Expr>();
+  Expr *ConditionExpr = CondResult.take();
   if (!ConditionExpr)
     return StmtError();
   
-  Stmt *bodyStmt = Body.takeAs<Stmt>();
-  DiagnoseUnusedExprResult(bodyStmt);
+  DiagnoseUnusedExprResult(Body);
 
-  CondResult.release();
   return Owned(new (Context) WhileStmt(Context, ConditionVar, ConditionExpr,
-                                       bodyStmt, WhileLoc));
+                                       Body, WhileLoc));
 }
 
-Action::OwningStmtResult
-Sema::ActOnDoStmt(SourceLocation DoLoc, StmtArg Body,
+StmtResult
+Sema::ActOnDoStmt(SourceLocation DoLoc, Stmt *Body,
                   SourceLocation WhileLoc, SourceLocation CondLParen,
-                  ExprArg Cond, SourceLocation CondRParen) {
-  Expr *condExpr = Cond.takeAs<Expr>();
-  assert(condExpr && "ActOnDoStmt(): missing expression");
+                  Expr *Cond, SourceLocation CondRParen) {
+  assert(Cond && "ActOnDoStmt(): missing expression");
 
-  if (CheckBooleanCondition(condExpr, DoLoc)) {
-    Cond = condExpr;
+  if (CheckBooleanCondition(Cond, DoLoc))
     return StmtError();
-  }
 
-  condExpr = MaybeCreateCXXExprWithTemporaries(condExpr);
-  if (!condExpr)
+  ExprResult CondResult = MaybeCreateCXXExprWithTemporaries(Cond);
+  if (CondResult.isInvalid())
     return StmtError();
+  Cond = CondResult.take();
   
-  Stmt *bodyStmt = Body.takeAs<Stmt>();
-  DiagnoseUnusedExprResult(bodyStmt);
+  DiagnoseUnusedExprResult(Body);
 
-  Cond.release();
-  return Owned(new (Context) DoStmt(bodyStmt, condExpr, DoLoc,
-                                    WhileLoc, CondRParen));
+  return Owned(new (Context) DoStmt(Body, Cond, DoLoc, WhileLoc, CondRParen));
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnForStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
-                   StmtArg first, FullExprArg second, DeclPtrTy secondVar,
+                   Stmt *First, FullExprArg second, Decl *secondVar,
                    FullExprArg third,
-                   SourceLocation RParenLoc, StmtArg body) {
-  Stmt *First  = static_cast<Stmt*>(first.get());
-
+                   SourceLocation RParenLoc, Stmt *Body) {
   if (!getLangOptions().CPlusPlus) {
     if (DeclStmt *DS = dyn_cast_or_null<DeclStmt>(First)) {
       // C99 6.8.5p3: The declaration part of a 'for' statement shall only
@@ -880,38 +850,32 @@ Sema::ActOnForStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
     }
   }
 
-  OwningExprResult SecondResult(second.release());
+  ExprResult SecondResult(second.release());
   VarDecl *ConditionVar = 0;
-  if (secondVar.get()) {
-    ConditionVar = secondVar.getAs<VarDecl>();
+  if (secondVar) {
+    ConditionVar = cast<VarDecl>(secondVar);
     SecondResult = CheckConditionVariable(ConditionVar, ForLoc, true);
     if (SecondResult.isInvalid())
       return StmtError();
   }
   
   Expr *Third  = third.release().takeAs<Expr>();
-  Stmt *Body  = static_cast<Stmt*>(body.get());
   
   DiagnoseUnusedExprResult(First);
   DiagnoseUnusedExprResult(Third);
   DiagnoseUnusedExprResult(Body);
 
-  first.release();
-  body.release();
   return Owned(new (Context) ForStmt(Context, First, 
-                                     SecondResult.takeAs<Expr>(), ConditionVar, 
+                                     SecondResult.take(), ConditionVar, 
                                      Third, Body, ForLoc, LParenLoc, 
                                      RParenLoc));
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnObjCForCollectionStmt(SourceLocation ForLoc,
                                  SourceLocation LParenLoc,
-                                 StmtArg first, ExprArg second,
-                                 SourceLocation RParenLoc, StmtArg body) {
-  Stmt *First  = static_cast<Stmt*>(first.get());
-  Expr *Second = static_cast<Expr*>(second.get());
-  Stmt *Body  = static_cast<Stmt*>(body.get());
+                                 Stmt *First, Expr *Second,
+                                 SourceLocation RParenLoc, Stmt *Body) {
   if (First) {
     QualType FirstType;
     if (DeclStmt *DS = dyn_cast<DeclStmt>(First)) {
@@ -950,19 +914,39 @@ Sema::ActOnObjCForCollectionStmt(SourceLocation ForLoc,
     if (!SecondType->isObjCObjectPointerType())
       Diag(ForLoc, diag::err_collection_expr_type)
         << SecondType << Second->getSourceRange();
+    else if (const ObjCObjectPointerType *OPT =
+             SecondType->getAsObjCInterfacePointerType()) {
+      llvm::SmallVector<IdentifierInfo *, 4> KeyIdents;
+      IdentifierInfo* selIdent = 
+        &Context.Idents.get("countByEnumeratingWithState");
+      KeyIdents.push_back(selIdent);
+      selIdent = &Context.Idents.get("objects");
+      KeyIdents.push_back(selIdent);
+      selIdent = &Context.Idents.get("count");
+      KeyIdents.push_back(selIdent);
+      Selector CSelector = Context.Selectors.getSelector(3, &KeyIdents[0]);
+      if (ObjCInterfaceDecl *IDecl = OPT->getInterfaceDecl()) {
+        if (!IDecl->isForwardDecl() && 
+            !IDecl->lookupInstanceMethod(CSelector)) {
+          // Must further look into private implementation methods.
+          if (!LookupPrivateInstanceMethod(CSelector, IDecl))
+            Diag(ForLoc, diag::warn_collection_expr_type)
+              << SecondType << CSelector << Second->getSourceRange();
+        }
+      }
+    }
   }
-  first.release();
-  second.release();
-  body.release();
   return Owned(new (Context) ObjCForCollectionStmt(First, Second, Body,
                                                    ForLoc, RParenLoc));
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnGotoStmt(SourceLocation GotoLoc, SourceLocation LabelLoc,
                     IdentifierInfo *LabelII) {
   // Look up the record for this label identifier.
-  LabelStmt *&LabelDecl = getLabelMap()[LabelII];
+  LabelStmt *&LabelDecl = getCurFunction()->LabelMap[LabelII];
+
+  getCurFunction()->setHasBranchIntoScope();
 
   // If we haven't seen this label yet, create a forward reference.
   if (LabelDecl == 0)
@@ -971,11 +955,10 @@ Sema::ActOnGotoStmt(SourceLocation GotoLoc, SourceLocation LabelLoc,
   return Owned(new (Context) GotoStmt(LabelDecl, GotoLoc, LabelLoc));
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnIndirectGotoStmt(SourceLocation GotoLoc, SourceLocation StarLoc,
-                            ExprArg DestExp) {
+                            Expr *E) {
   // Convert operand to void*
-  Expr* E = DestExp.takeAs<Expr>();
   if (!E->isTypeDependent()) {
     QualType ETy = E->getType();
     QualType DestTy = Context.getPointerType(Context.VoidTy.withConst());
@@ -984,10 +967,13 @@ Sema::ActOnIndirectGotoStmt(SourceLocation GotoLoc, SourceLocation StarLoc,
     if (DiagnoseAssignmentResult(ConvTy, StarLoc, DestTy, ETy, E, AA_Passing))
       return StmtError();
   }
+
+  getCurFunction()->setHasIndirectGoto();
+
   return Owned(new (Context) IndirectGotoStmt(GotoLoc, StarLoc, E));
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnContinueStmt(SourceLocation ContinueLoc, Scope *CurScope) {
   Scope *S = CurScope->getContinueParent();
   if (!S) {
@@ -998,7 +984,7 @@ Sema::ActOnContinueStmt(SourceLocation ContinueLoc, Scope *CurScope) {
   return Owned(new (Context) ContinueStmt(ContinueLoc));
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnBreakStmt(SourceLocation BreakLoc, Scope *CurScope) {
   Scope *S = CurScope->getBreakParent();
   if (!S) {
@@ -1050,7 +1036,7 @@ static const VarDecl *getNRVOCandidate(ASTContext &Ctx, QualType RetType,
 
 /// ActOnBlockReturnStmt - Utility routine to figure out block's return type.
 ///
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnBlockReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   // If this is the first return we've seen in the block, infer the type of
   // the block from it.
@@ -1086,7 +1072,6 @@ Sema::ActOnBlockReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   if (CurBlock->ReturnType->isVoidType()) {
     if (RetValExp) {
       Diag(ReturnLoc, diag::err_return_block_has_expr);
-      RetValExp->Destroy(Context);
       RetValExp = 0;
     }
     Result = new (Context) ReturnStmt(ReturnLoc, RetValExp, 0);
@@ -1105,7 +1090,7 @@ Sema::ActOnBlockReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
       // In C++ the return statement is handled via a copy initialization.
       // the C version of which boils down to CheckSingleAssignmentConstraints.
       NRVOCandidate = getNRVOCandidate(Context, FnRetType, RetValExp);
-      OwningExprResult Res = PerformCopyInitialization(
+      ExprResult Res = PerformCopyInitialization(
                                InitializedEntity::InitializeResult(ReturnLoc, 
                                                                    FnRetType,
                                                             NRVOCandidate != 0),
@@ -1136,9 +1121,8 @@ Sema::ActOnBlockReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   return Owned(Result);
 }
 
-Action::OwningStmtResult
-Sema::ActOnReturnStmt(SourceLocation ReturnLoc, ExprArg rex) {
-  Expr *RetValExp = rex.takeAs<Expr>();
+StmtResult
+Sema::ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   if (getCurBlock())
     return ActOnBlockReturnStmt(ReturnLoc, RetValExp);
 
@@ -1197,7 +1181,7 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, ExprArg rex) {
       // In C++ the return statement is handled via a copy initialization.
       // the C version of which boils down to CheckSingleAssignmentConstraints.
       NRVOCandidate = getNRVOCandidate(Context, FnRetType, RetValExp);
-      OwningExprResult Res = PerformCopyInitialization(
+      ExprResult Res = PerformCopyInitialization(
                                InitializedEntity::InitializeResult(ReturnLoc, 
                                                                    FnRetType,
                                                             NRVOCandidate != 0),
@@ -1261,7 +1245,7 @@ static bool CheckAsmLValue(const Expr *E, Sema &S) {
 }
 
 
-Sema::OwningStmtResult Sema::ActOnAsmStmt(SourceLocation AsmLoc,
+StmtResult Sema::ActOnAsmStmt(SourceLocation AsmLoc,
                                           bool IsSimple,
                                           bool IsVolatile,
                                           unsigned NumOutputs,
@@ -1269,15 +1253,15 @@ Sema::OwningStmtResult Sema::ActOnAsmStmt(SourceLocation AsmLoc,
                                           IdentifierInfo **Names,
                                           MultiExprArg constraints,
                                           MultiExprArg exprs,
-                                          ExprArg asmString,
+                                          Expr *asmString,
                                           MultiExprArg clobbers,
                                           SourceLocation RParenLoc,
                                           bool MSAsm) {
   unsigned NumClobbers = clobbers.size();
   StringLiteral **Constraints =
     reinterpret_cast<StringLiteral**>(constraints.get());
-  Expr **Exprs = reinterpret_cast<Expr **>(exprs.get());
-  StringLiteral *AsmString = cast<StringLiteral>((Expr *)asmString.get());
+  Expr **Exprs = exprs.get();
+  StringLiteral *AsmString = cast<StringLiteral>(asmString);
   StringLiteral **Clobbers = reinterpret_cast<StringLiteral**>(clobbers.get());
 
   llvm::SmallVector<TargetInfo::ConstraintInfo, 4> OutputConstraintInfos;
@@ -1373,10 +1357,6 @@ Sema::OwningStmtResult Sema::ActOnAsmStmt(SourceLocation AsmLoc,
                   diag::err_asm_unknown_register_name) << Clobber);
   }
 
-  constraints.release();
-  exprs.release();
-  asmString.release();
-  clobbers.release();
   AsmStmt *NS =
     new (Context) AsmStmt(Context, AsmLoc, IsSimple, IsVolatile, MSAsm, 
                           NumOutputs, NumInputs, Names, Constraints, Exprs, 
@@ -1388,7 +1368,6 @@ Sema::OwningStmtResult Sema::ActOnAsmStmt(SourceLocation AsmLoc,
   if (unsigned DiagID = NS->AnalyzeAsmString(Pieces, Context, DiagOffs)) {
     Diag(getLocationOfStringLiteralByte(AsmString, DiagOffs), DiagID)
            << AsmString->getSourceRange();
-    DeleteStmt(NS);
     return StmtError();
   }
 
@@ -1479,45 +1458,41 @@ Sema::OwningStmtResult Sema::ActOnAsmStmt(SourceLocation AsmLoc,
          diag::err_asm_tying_incompatible_types)
       << InTy << OutTy << OutputExpr->getSourceRange()
       << InputExpr->getSourceRange();
-    DeleteStmt(NS);
     return StmtError();
   }
 
   return Owned(NS);
 }
 
-Action::OwningStmtResult
+StmtResult
 Sema::ActOnObjCAtCatchStmt(SourceLocation AtLoc,
-                           SourceLocation RParen, DeclPtrTy Parm,
-                           StmtArg Body) {
-  VarDecl *Var = cast_or_null<VarDecl>(Parm.getAs<Decl>());
+                           SourceLocation RParen, Decl *Parm,
+                           Stmt *Body) {
+  VarDecl *Var = cast_or_null<VarDecl>(Parm);
   if (Var && Var->isInvalidDecl())
     return StmtError();
   
-  return Owned(new (Context) ObjCAtCatchStmt(AtLoc, RParen, Var, 
-                                             Body.takeAs<Stmt>()));
+  return Owned(new (Context) ObjCAtCatchStmt(AtLoc, RParen, Var, Body));
 }
 
-Action::OwningStmtResult
-Sema::ActOnObjCAtFinallyStmt(SourceLocation AtLoc, StmtArg Body) {
-  return Owned(new (Context) ObjCAtFinallyStmt(AtLoc,
-                                           static_cast<Stmt*>(Body.release())));
+StmtResult
+Sema::ActOnObjCAtFinallyStmt(SourceLocation AtLoc, Stmt *Body) {
+  return Owned(new (Context) ObjCAtFinallyStmt(AtLoc, Body));
 }
 
-Action::OwningStmtResult
-Sema::ActOnObjCAtTryStmt(SourceLocation AtLoc, StmtArg Try, 
-                         MultiStmtArg CatchStmts, StmtArg Finally) {
-  FunctionNeedsScopeChecking() = true;
+StmtResult
+Sema::ActOnObjCAtTryStmt(SourceLocation AtLoc, Stmt *Try, 
+                         MultiStmtArg CatchStmts, Stmt *Finally) {
+  getCurFunction()->setHasBranchProtectedScope();
   unsigned NumCatchStmts = CatchStmts.size();
-  return Owned(ObjCAtTryStmt::Create(Context, AtLoc, Try.takeAs<Stmt>(),
-                                     (Stmt **)CatchStmts.release(),
+  return Owned(ObjCAtTryStmt::Create(Context, AtLoc, Try,
+                                     CatchStmts.release(),
                                      NumCatchStmts,
-                                     Finally.takeAs<Stmt>()));
+                                     Finally));
 }
 
-Sema::OwningStmtResult Sema::BuildObjCAtThrowStmt(SourceLocation AtLoc,
-                                                  ExprArg ThrowE) {
-  Expr *Throw = static_cast<Expr *>(ThrowE.get());
+StmtResult Sema::BuildObjCAtThrowStmt(SourceLocation AtLoc,
+                                                  Expr *Throw) {
   if (Throw) {
     QualType ThrowType = Throw->getType();
     // Make sure the expression type is an ObjC pointer or "void *".
@@ -1530,13 +1505,13 @@ Sema::OwningStmtResult Sema::BuildObjCAtThrowStmt(SourceLocation AtLoc,
     }
   }
   
-  return Owned(new (Context) ObjCAtThrowStmt(AtLoc, ThrowE.takeAs<Expr>()));
+  return Owned(new (Context) ObjCAtThrowStmt(AtLoc, Throw));
 }
 
-Action::OwningStmtResult
-Sema::ActOnObjCAtThrowStmt(SourceLocation AtLoc, ExprArg Throw, 
+StmtResult
+Sema::ActOnObjCAtThrowStmt(SourceLocation AtLoc, Expr *Throw, 
                            Scope *CurScope) {
-  if (!Throw.get()) {
+  if (!Throw) {
     // @throw without an expression designates a rethrow (which much occur
     // in the context of an @catch clause).
     Scope *AtCatchParent = CurScope;
@@ -1546,16 +1521,15 @@ Sema::ActOnObjCAtThrowStmt(SourceLocation AtLoc, ExprArg Throw,
       return StmtError(Diag(AtLoc, diag::error_rethrow_used_outside_catch));
   } 
   
-  return BuildObjCAtThrowStmt(AtLoc, move(Throw));
+  return BuildObjCAtThrowStmt(AtLoc, Throw);
 }
 
-Action::OwningStmtResult
-Sema::ActOnObjCAtSynchronizedStmt(SourceLocation AtLoc, ExprArg SynchExpr,
-                                  StmtArg SynchBody) {
-  FunctionNeedsScopeChecking() = true;
+StmtResult
+Sema::ActOnObjCAtSynchronizedStmt(SourceLocation AtLoc, Expr *SyncExpr,
+                                  Stmt *SyncBody) {
+  getCurFunction()->setHasBranchProtectedScope();
 
   // Make sure the expression type is an ObjC pointer or "void *".
-  Expr *SyncExpr = static_cast<Expr*>(SynchExpr.get());
   if (!SyncExpr->getType()->isDependentType() &&
       !SyncExpr->getType()->isObjCObjectPointerType()) {
     const PointerType *PT = SyncExpr->getType()->getAs<PointerType>();
@@ -1564,21 +1538,21 @@ Sema::ActOnObjCAtSynchronizedStmt(SourceLocation AtLoc, ExprArg SynchExpr,
                        << SyncExpr->getType() << SyncExpr->getSourceRange());
   }
 
-  return Owned(new (Context) ObjCAtSynchronizedStmt(AtLoc,
-                                                    SynchExpr.takeAs<Stmt>(),
-                                                    SynchBody.takeAs<Stmt>()));
+  return Owned(new (Context) ObjCAtSynchronizedStmt(AtLoc, SyncExpr, SyncBody));
 }
 
 /// ActOnCXXCatchBlock - Takes an exception declaration and a handler block
 /// and creates a proper catch handler from them.
-Action::OwningStmtResult
-Sema::ActOnCXXCatchBlock(SourceLocation CatchLoc, DeclPtrTy ExDecl,
-                         StmtArg HandlerBlock) {
+StmtResult
+Sema::ActOnCXXCatchBlock(SourceLocation CatchLoc, Decl *ExDecl,
+                         Stmt *HandlerBlock) {
   // There's nothing to test that ActOnExceptionDecl didn't already test.
   return Owned(new (Context) CXXCatchStmt(CatchLoc,
-                                  cast_or_null<VarDecl>(ExDecl.getAs<Decl>()),
-                                          HandlerBlock.takeAs<Stmt>()));
+                                          cast_or_null<VarDecl>(ExDecl),
+                                          HandlerBlock));
 }
+
+namespace {
 
 class TypeWithHandler {
   QualType t;
@@ -1602,22 +1576,23 @@ public:
     return t == other.t;
   }
 
-  QualType getQualType() const { return t; }
   CXXCatchStmt *getCatchStmt() const { return stmt; }
   SourceLocation getTypeSpecStartLoc() const {
     return stmt->getExceptionDecl()->getTypeSpecStartLoc();
   }
 };
 
+}
+
 /// ActOnCXXTryBlock - Takes a try compound-statement and a number of
 /// handlers and creates a try statement from them.
-Action::OwningStmtResult
-Sema::ActOnCXXTryBlock(SourceLocation TryLoc, StmtArg TryBlock,
+StmtResult
+Sema::ActOnCXXTryBlock(SourceLocation TryLoc, Stmt *TryBlock,
                        MultiStmtArg RawHandlers) {
   unsigned NumHandlers = RawHandlers.size();
   assert(NumHandlers > 0 &&
          "The parser shouldn't call this if there are no handlers.");
-  Stmt **Handlers = reinterpret_cast<Stmt**>(RawHandlers.get());
+  Stmt **Handlers = RawHandlers.get();
 
   llvm::SmallVector<TypeWithHandler, 8> TypesWithHandlers;
 
@@ -1657,15 +1632,14 @@ Sema::ActOnCXXTryBlock(SourceLocation TryLoc, StmtArg TryBlock,
     }
   }
 
+  getCurFunction()->setHasBranchProtectedScope();
+
   // FIXME: We should detect handlers that cannot catch anything because an
   // earlier handler catches a superclass. Need to find a method that is not
   // quadratic for this.
   // Neither of these are explicitly forbidden, but every compiler detects them
   // and warns.
 
-  FunctionNeedsScopeChecking() = true;
-  RawHandlers.release();
-  return Owned(CXXTryStmt::Create(Context, TryLoc,
-                                  static_cast<Stmt*>(TryBlock.release()),
+  return Owned(CXXTryStmt::Create(Context, TryLoc, TryBlock,
                                   Handlers, NumHandlers));
 }

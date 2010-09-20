@@ -6,11 +6,14 @@ SUBDIR=	libclanganalysis \
 	libclangchecker \
 	libclangcodegen \
 	libclangdriver \
+	libclangindex \
 	libclangfrontend \
+	libclangfrontendtool \
 	libclanglex \
 	libclangparse \
 	libclangrewrite \
 	libclangsema \
+	libclangserialization \
 	\
 	libllvmanalysis \
 	libllvmasmparser \
@@ -44,6 +47,7 @@ SUBDIR=	libclanganalysis \
 	libllvmx86asmparser \
 	libllvmx86asmprinter \
 	libllvmx86codegen \
+	libllvmx86disassembler \
 	libllvmx86info \
 	\
 	include

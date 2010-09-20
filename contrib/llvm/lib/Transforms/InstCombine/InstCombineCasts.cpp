@@ -396,6 +396,11 @@ static bool CanEvaluateTruncated(Value *V, const Type *Ty) {
   case Instruction::Trunc:
     // trunc(trunc(x)) -> trunc(x)
     return true;
+  case Instruction::ZExt:
+  case Instruction::SExt:
+    // trunc(ext(x)) -> ext(x) if the source type is smaller than the new dest
+    // trunc(ext(x)) -> trunc(x) if the source type is larger than the new dest
+    return true;
   case Instruction::Select: {
     SelectInst *SI = cast<SelectInst>(I);
     return CanEvaluateTruncated(SI->getTrueValue(), Ty) &&
@@ -453,6 +458,29 @@ Instruction *InstCombiner::visitTrunc(TruncInst &CI) {
     Src = Builder->CreateAnd(Src, One, "tmp");
     Value *Zero = Constant::getNullValue(Src->getType());
     return new ICmpInst(ICmpInst::ICMP_NE, Src, Zero);
+  }
+  
+  // Transform trunc(lshr (zext A), Cst) to eliminate one type conversion.
+  Value *A = 0; ConstantInt *Cst = 0;
+  if (match(Src, m_LShr(m_ZExt(m_Value(A)), m_ConstantInt(Cst))) &&
+      Src->hasOneUse()) {
+    // We have three types to worry about here, the type of A, the source of
+    // the truncate (MidSize), and the destination of the truncate. We know that
+    // ASize < MidSize   and MidSize > ResultSize, but don't know the relation
+    // between ASize and ResultSize.
+    unsigned ASize = A->getType()->getPrimitiveSizeInBits();
+    
+    // If the shift amount is larger than the size of A, then the result is
+    // known to be zero because all the input bits got shifted out.
+    if (Cst->getZExtValue() >= ASize)
+      return ReplaceInstUsesWith(CI, Constant::getNullValue(CI.getType()));
+
+    // Since we're doing an lshr and a zero extend, and know that the shift
+    // amount is smaller than ASize, it is always safe to do the shift in A's
+    // type, then zero extend or truncate to the result.
+    Value *Shift = Builder->CreateLShr(A, Cst->getZExtValue());
+    Shift->takeName(Src);
+    return CastInst::CreateIntegerCast(Shift, CI.getType(), false);
   }
 
   return 0;
@@ -538,8 +566,7 @@ Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
           
         if (CI.getType() == In->getType())
           return ReplaceInstUsesWith(CI, In);
-        else
-          return CastInst::CreateIntegerCast(In, CI.getType(), false/*ZExt*/);
+        return CastInst::CreateIntegerCast(In, CI.getType(), false/*ZExt*/);
       }
     }
   }
@@ -1097,6 +1124,38 @@ Instruction *InstCombiner::visitFPTrunc(FPTruncInst &CI) {
       break;  
     }
   }
+  
+  // Fold (fptrunc (sqrt (fpext x))) -> (sqrtf x)
+  // NOTE: This should be disabled by -fno-builtin-sqrt if we ever support it.
+  CallInst *Call = dyn_cast<CallInst>(CI.getOperand(0));
+  if (Call && Call->getCalledFunction() &&
+      Call->getCalledFunction()->getName() == "sqrt" &&
+      Call->getNumArgOperands() == 1) {
+    CastInst *Arg = dyn_cast<CastInst>(Call->getArgOperand(0));
+    if (Arg && Arg->getOpcode() == Instruction::FPExt &&
+        CI.getType()->isFloatTy() &&
+        Call->getType()->isDoubleTy() &&
+        Arg->getType()->isDoubleTy() &&
+        Arg->getOperand(0)->getType()->isFloatTy()) {
+      Function *Callee = Call->getCalledFunction();
+      Module *M = CI.getParent()->getParent()->getParent();
+      Constant *SqrtfFunc = M->getOrInsertFunction("sqrtf", 
+                                                   Callee->getAttributes(),
+                                                   Builder->getFloatTy(),
+                                                   Builder->getFloatTy(),
+                                                   NULL);
+      CallInst *ret = CallInst::Create(SqrtfFunc, Arg->getOperand(0),
+                                       "sqrtfcall");
+      ret->setAttributes(Callee->getAttributes());
+      
+      
+      // Remove the old Call.  With -fmath-errno, it won't get marked readnone.
+      Call->replaceAllUsesWith(UndefValue::get(Call->getType()));
+      EraseInstFromFunction(*Call);
+      return ret;
+    }
+  }
+  
   return 0;
 }
 
@@ -1308,6 +1367,199 @@ static Instruction *OptimizeVectorResize(Value *InVal, const VectorType *DestTy,
   return new ShuffleVectorInst(InVal, V2, Mask);
 }
 
+static bool isMultipleOfTypeSize(unsigned Value, const Type *Ty) {
+  return Value % Ty->getPrimitiveSizeInBits() == 0;
+}
+
+static unsigned getTypeSizeIndex(unsigned Value, const Type *Ty) {
+  return Value / Ty->getPrimitiveSizeInBits();
+}
+
+/// CollectInsertionElements - V is a value which is inserted into a vector of
+/// VecEltTy.  Look through the value to see if we can decompose it into
+/// insertions into the vector.  See the example in the comment for
+/// OptimizeIntegerToVectorInsertions for the pattern this handles.
+/// The type of V is always a non-zero multiple of VecEltTy's size.
+///
+/// This returns false if the pattern can't be matched or true if it can,
+/// filling in Elements with the elements found here.
+static bool CollectInsertionElements(Value *V, unsigned ElementIndex,
+                                     SmallVectorImpl<Value*> &Elements,
+                                     const Type *VecEltTy) {
+  // Undef values never contribute useful bits to the result.
+  if (isa<UndefValue>(V)) return true;
+  
+  // If we got down to a value of the right type, we win, try inserting into the
+  // right element.
+  if (V->getType() == VecEltTy) {
+    // Inserting null doesn't actually insert any elements.
+    if (Constant *C = dyn_cast<Constant>(V))
+      if (C->isNullValue())
+        return true;
+    
+    // Fail if multiple elements are inserted into this slot.
+    if (ElementIndex >= Elements.size() || Elements[ElementIndex] != 0)
+      return false;
+    
+    Elements[ElementIndex] = V;
+    return true;
+  }
+  
+  if (Constant *C = dyn_cast<Constant>(V)) {
+    // Figure out the # elements this provides, and bitcast it or slice it up
+    // as required.
+    unsigned NumElts = getTypeSizeIndex(C->getType()->getPrimitiveSizeInBits(),
+                                        VecEltTy);
+    // If the constant is the size of a vector element, we just need to bitcast
+    // it to the right type so it gets properly inserted.
+    if (NumElts == 1)
+      return CollectInsertionElements(ConstantExpr::getBitCast(C, VecEltTy),
+                                      ElementIndex, Elements, VecEltTy);
+    
+    // Okay, this is a constant that covers multiple elements.  Slice it up into
+    // pieces and insert each element-sized piece into the vector.
+    if (!isa<IntegerType>(C->getType()))
+      C = ConstantExpr::getBitCast(C, IntegerType::get(V->getContext(),
+                                       C->getType()->getPrimitiveSizeInBits()));
+    unsigned ElementSize = VecEltTy->getPrimitiveSizeInBits();
+    const Type *ElementIntTy = IntegerType::get(C->getContext(), ElementSize);
+    
+    for (unsigned i = 0; i != NumElts; ++i) {
+      Constant *Piece = ConstantExpr::getLShr(C, ConstantInt::get(C->getType(),
+                                                               i*ElementSize));
+      Piece = ConstantExpr::getTrunc(Piece, ElementIntTy);
+      if (!CollectInsertionElements(Piece, ElementIndex+i, Elements, VecEltTy))
+        return false;
+    }
+    return true;
+  }
+  
+  if (!V->hasOneUse()) return false;
+  
+  Instruction *I = dyn_cast<Instruction>(V);
+  if (I == 0) return false;
+  switch (I->getOpcode()) {
+  default: return false; // Unhandled case.
+  case Instruction::BitCast:
+    return CollectInsertionElements(I->getOperand(0), ElementIndex,
+                                    Elements, VecEltTy);  
+  case Instruction::ZExt:
+    if (!isMultipleOfTypeSize(
+                          I->getOperand(0)->getType()->getPrimitiveSizeInBits(),
+                              VecEltTy))
+      return false;
+    return CollectInsertionElements(I->getOperand(0), ElementIndex,
+                                    Elements, VecEltTy);  
+  case Instruction::Or:
+    return CollectInsertionElements(I->getOperand(0), ElementIndex,
+                                    Elements, VecEltTy) &&
+           CollectInsertionElements(I->getOperand(1), ElementIndex,
+                                    Elements, VecEltTy);
+  case Instruction::Shl: {
+    // Must be shifting by a constant that is a multiple of the element size.
+    ConstantInt *CI = dyn_cast<ConstantInt>(I->getOperand(1));
+    if (CI == 0) return false;
+    if (!isMultipleOfTypeSize(CI->getZExtValue(), VecEltTy)) return false;
+    unsigned IndexShift = getTypeSizeIndex(CI->getZExtValue(), VecEltTy);
+    
+    return CollectInsertionElements(I->getOperand(0), ElementIndex+IndexShift,
+                                    Elements, VecEltTy);
+  }
+      
+  }
+}
+
+
+/// OptimizeIntegerToVectorInsertions - If the input is an 'or' instruction, we
+/// may be doing shifts and ors to assemble the elements of the vector manually.
+/// Try to rip the code out and replace it with insertelements.  This is to
+/// optimize code like this:
+///
+///    %tmp37 = bitcast float %inc to i32
+///    %tmp38 = zext i32 %tmp37 to i64
+///    %tmp31 = bitcast float %inc5 to i32
+///    %tmp32 = zext i32 %tmp31 to i64
+///    %tmp33 = shl i64 %tmp32, 32
+///    %ins35 = or i64 %tmp33, %tmp38
+///    %tmp43 = bitcast i64 %ins35 to <2 x float>
+///
+/// Into two insertelements that do "buildvector{%inc, %inc5}".
+static Value *OptimizeIntegerToVectorInsertions(BitCastInst &CI,
+                                                InstCombiner &IC) {
+  const VectorType *DestVecTy = cast<VectorType>(CI.getType());
+  Value *IntInput = CI.getOperand(0);
+
+  SmallVector<Value*, 8> Elements(DestVecTy->getNumElements());
+  if (!CollectInsertionElements(IntInput, 0, Elements,
+                                DestVecTy->getElementType()))
+    return 0;
+
+  // If we succeeded, we know that all of the element are specified by Elements
+  // or are zero if Elements has a null entry.  Recast this as a set of
+  // insertions.
+  Value *Result = Constant::getNullValue(CI.getType());
+  for (unsigned i = 0, e = Elements.size(); i != e; ++i) {
+    if (Elements[i] == 0) continue;  // Unset element.
+    
+    Result = IC.Builder->CreateInsertElement(Result, Elements[i],
+                                             IC.Builder->getInt32(i));
+  }
+  
+  return Result;
+}
+
+
+/// OptimizeIntToFloatBitCast - See if we can optimize an integer->float/double
+/// bitcast.  The various long double bitcasts can't get in here.
+static Instruction *OptimizeIntToFloatBitCast(BitCastInst &CI,InstCombiner &IC){
+  Value *Src = CI.getOperand(0);
+  const Type *DestTy = CI.getType();
+
+  // If this is a bitcast from int to float, check to see if the int is an
+  // extraction from a vector.
+  Value *VecInput = 0;
+  // bitcast(trunc(bitcast(somevector)))
+  if (match(Src, m_Trunc(m_BitCast(m_Value(VecInput)))) &&
+      isa<VectorType>(VecInput->getType())) {
+    const VectorType *VecTy = cast<VectorType>(VecInput->getType());
+    unsigned DestWidth = DestTy->getPrimitiveSizeInBits();
+
+    if (VecTy->getPrimitiveSizeInBits() % DestWidth == 0) {
+      // If the element type of the vector doesn't match the result type,
+      // bitcast it to be a vector type we can extract from.
+      if (VecTy->getElementType() != DestTy) {
+        VecTy = VectorType::get(DestTy,
+                                VecTy->getPrimitiveSizeInBits() / DestWidth);
+        VecInput = IC.Builder->CreateBitCast(VecInput, VecTy);
+      }
+    
+      return ExtractElementInst::Create(VecInput, IC.Builder->getInt32(0));
+    }
+  }
+  
+  // bitcast(trunc(lshr(bitcast(somevector), cst))
+  ConstantInt *ShAmt = 0;
+  if (match(Src, m_Trunc(m_LShr(m_BitCast(m_Value(VecInput)),
+                                m_ConstantInt(ShAmt)))) &&
+      isa<VectorType>(VecInput->getType())) {
+    const VectorType *VecTy = cast<VectorType>(VecInput->getType());
+    unsigned DestWidth = DestTy->getPrimitiveSizeInBits();
+    if (VecTy->getPrimitiveSizeInBits() % DestWidth == 0 &&
+        ShAmt->getZExtValue() % DestWidth == 0) {
+      // If the element type of the vector doesn't match the result type,
+      // bitcast it to be a vector type we can extract from.
+      if (VecTy->getElementType() != DestTy) {
+        VecTy = VectorType::get(DestTy,
+                                VecTy->getPrimitiveSizeInBits() / DestWidth);
+        VecInput = IC.Builder->CreateBitCast(VecInput, VecTy);
+      }
+      
+      unsigned Elt = ShAmt->getZExtValue() / DestWidth;
+      return ExtractElementInst::Create(VecInput, IC.Builder->getInt32(Elt));
+    }
+  }
+  return 0;
+}
 
 Instruction *InstCombiner::visitBitCast(BitCastInst &CI) {
   // If the operands are integer typed then apply the integer transforms,
@@ -1359,6 +1611,11 @@ Instruction *InstCombiner::visitBitCast(BitCastInst &CI) {
                                                ((Instruction*)NULL));
     }
   }
+  
+  // Try to optimize int -> float bitcasts.
+  if ((DestTy->isFloatTy() || DestTy->isDoubleTy()) && isa<IntegerType>(SrcTy))
+    if (Instruction *I = OptimizeIntToFloatBitCast(CI, *this))
+      return I;
 
   if (const VectorType *DestVTy = dyn_cast<VectorType>(DestTy)) {
     if (DestVTy->getNumElements() == 1 && !SrcTy->isVectorTy()) {
@@ -1368,16 +1625,24 @@ Instruction *InstCombiner::visitBitCast(BitCastInst &CI) {
       // FIXME: Canonicalize bitcast(insertelement) -> insertelement(bitcast)
     }
     
-    // If this is a cast from an integer to vector, check to see if the input
-    // is a trunc or zext of a bitcast from vector.  If so, we can replace all
-    // the casts with a shuffle and (potentially) a bitcast.
-    if (isa<IntegerType>(SrcTy) && (isa<TruncInst>(Src) || isa<ZExtInst>(Src))){
-      CastInst *SrcCast = cast<CastInst>(Src);
-      if (BitCastInst *BCIn = dyn_cast<BitCastInst>(SrcCast->getOperand(0)))
-        if (isa<VectorType>(BCIn->getOperand(0)->getType()))
-          if (Instruction *I = OptimizeVectorResize(BCIn->getOperand(0),
+    if (isa<IntegerType>(SrcTy)) {
+      // If this is a cast from an integer to vector, check to see if the input
+      // is a trunc or zext of a bitcast from vector.  If so, we can replace all
+      // the casts with a shuffle and (potentially) a bitcast.
+      if (isa<TruncInst>(Src) || isa<ZExtInst>(Src)) {
+        CastInst *SrcCast = cast<CastInst>(Src);
+        if (BitCastInst *BCIn = dyn_cast<BitCastInst>(SrcCast->getOperand(0)))
+          if (isa<VectorType>(BCIn->getOperand(0)->getType()))
+            if (Instruction *I = OptimizeVectorResize(BCIn->getOperand(0),
                                                cast<VectorType>(DestTy), *this))
-            return I;
+              return I;
+      }
+      
+      // If the input is an 'or' instruction, we may be doing shifts and ors to
+      // assemble the elements of the vector manually.  Try to rip the code out
+      // and replace it with insertelements.
+      if (Value *V = OptimizeIntegerToVectorInsertions(CI, *this))
+        return ReplaceInstUsesWith(CI, V);
     }
   }
 

@@ -49,11 +49,14 @@ INSTALL_LIBLTO="$9"
 # A yes/no parameter that controls whether to cross-build for an ARM host.
 ARM_HOSTED_BUILD="${10}"
 
+# A yes/no parameter that controls whether to cross-build for the iOS simulator
+IOS_SIM_BUILD="${11}"
+
 # The version number of the submission, e.g. 1007.
-LLVM_SUBMIT_VERSION="${11}"
+LLVM_SUBMIT_VERSION="${12}"
 
 # The subversion number of the submission, e.g. 03.
-LLVM_SUBMIT_SUBVERSION="${12}"
+LLVM_SUBMIT_SUBVERSION="${13}"
 
 # The current working directory is where the build will happen. It may already
 # contain a partial result of an interrupted build, in which case this script
@@ -97,7 +100,7 @@ if [ "$ARM_HOSTED_BUILD" = yes ]; then
   # Try to use the platform llvm-gcc. Fall back to gcc if it's not available.
   for prog in gcc g++ ; do
     P=$DIR/bin/arm-apple-darwin$DARWIN_VERS-${prog}
-    T=`xcrun -find llvm-${prog}`
+    T=`xcrun -sdk $SDKROOT -find llvm-${prog}`
     if [ "x$T" = "x" ] ; then
       T=`xcrun -sdk $SDKROOT -find ${prog}`
     fi
@@ -124,6 +127,10 @@ fi
 if [ "$ARM_HOSTED_BUILD" = yes ]; then
   configure_opts="--enable-targets=arm --host=arm-apple-darwin10 \
                   --target=arm-apple-darwin10 --build=i686-apple-darwin10"
+elif [ "$IOS_SIM_BUILD" = yes ]; then
+  # Use a non-standard "darwin_sim" host triple to trigger a cross-build.
+  configure_opts="--enable-targets=x86 --host=i686-apple-darwin_sim \
+                  --build=i686-apple-darwin10"
 else
   configure_opts="--enable-targets=arm,x86,powerpc,cbe"
 fi
@@ -317,9 +324,20 @@ if [ "$INSTALL_LIBLTO" = "yes" ]; then
   mkdir -p $DT_HOME/lib
   mv lib/libLTO.dylib $DT_HOME/lib/libLTO.dylib
 
+  # Save a copy of the unstripped dylib
+  mkdir -p $SYM_DIR/Developer/usr/lib
+  cp $DT_HOME/lib/libLTO.dylib $SYM_DIR/Developer/usr/lib/libLTO.dylib
+
   # Use '-l' to strip i386 modules. N.B. that flag doesn't work with kext or
   # PPC objects!
   strip -arch all -Sl $DT_HOME/lib/libLTO.dylib
+
+  if [ "x$DISABLE_USR_LINKS" == "x" ]; then
+    # Add a symlink in /usr/lib for B&I.
+    mkdir -p $DEST_DIR/usr/lib/
+    (cd $DEST_DIR/usr/lib && \
+      ln -s ../../Developer/usr/lib/libLTO.dylib ./libLTO.dylib)
+  fi
 else
   rm -f lib/libLTO.dylib
 fi
@@ -348,15 +366,6 @@ chgrp -R wheel $DEST_DIR
 # Remove the docs directory
 
 rm -rf $DEST_DIR$DEST_ROOT/docs
-
-################################################################################
-# symlinks so that B&I can find things
-
-if [ "$INSTALL_LIBLTO" = "yes" ]; then
-  mkdir -p $DEST_DIR/usr/lib/
-  cd $DEST_DIR/usr/lib && \
-    ln -s ../../Developer/usr/lib/libLTO.dylib ./libLTO.dylib
-fi
 
 ################################################################################
 # w00t! Done!

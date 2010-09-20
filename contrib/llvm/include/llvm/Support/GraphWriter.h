@@ -89,7 +89,7 @@ class GraphWriter {
 
 public:
   GraphWriter(raw_ostream &o, const GraphType &g, bool SN) : O(o), G(g) {
-  DTraits = DOTTraits(SN); 
+  DTraits = DOTTraits(SN);
 }
 
   void writeHeader(const std::string &Name) {
@@ -271,6 +271,12 @@ public:
       O << "[" << Attrs << "]";
     O << ";\n";
   }
+
+  /// getOStream - Get the raw output stream into the graph file. Useful to
+  /// write fancy things using addCustomGraphFeatures().
+  raw_ostream &getOStream() {
+    return O;
+  }
 };
 
 template<typename GraphType>
@@ -316,7 +322,7 @@ sys::Path WriteGraph(const GraphType &G, const std::string &Name,
   raw_fd_ostream O(Filename.c_str(), ErrorInfo);
 
   if (ErrorInfo.empty()) {
-    WriteGraph(O, G, ShortNames, Name, Title);
+    llvm::WriteGraph(O, G, ShortNames, Name, Title);
     errs() << " done. \n";
   } else {
     errs() << "error opening file '" << Filename.str() << "' for writing!\n";
@@ -333,7 +339,7 @@ template<typename GraphType>
 void ViewGraph(const GraphType &G, const std::string &Name,
                bool ShortNames = false, const std::string &Title = "",
                GraphProgram::Name Program = GraphProgram::DOT) {
-  sys::Path Filename = WriteGraph(G, Name, ShortNames, Title);
+  sys::Path Filename = llvm::WriteGraph(G, Name, ShortNames, Title);
 
   if (Filename.isEmpty())
     return;

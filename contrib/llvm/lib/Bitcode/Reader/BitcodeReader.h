@@ -156,6 +156,9 @@ class BitcodeReader : public GVMaterializer {
   // stored here with their replacement function.
   typedef std::vector<std::pair<Function*, Function*> > UpgradedIntrinsicMap;
   UpgradedIntrinsicMap UpgradedIntrinsics;
+
+  // Map the bitcode's custom MDKind ID to the Module's MDKind ID.
+  DenseMap<unsigned, unsigned> MDKindMap;
   
   // After the module header has been read, the FunctionsWithBodies list is 
   // reversed.  This keeps track of whether we've done this yet.
@@ -170,11 +173,18 @@ class BitcodeReader : public GVMaterializer {
   /// are resolved lazily when functions are loaded.
   typedef std::pair<unsigned, GlobalVariable*> BlockAddrRefTy;
   DenseMap<Function*, std::vector<BlockAddrRefTy> > BlockAddrFwdRefs;
+
+  /// LLVM2_7MetadataDetected - True if metadata produced by LLVM 2.7 or
+  /// earlier was detected, in which case we behave slightly differently,
+  /// for compatibility.
+  /// FIXME: Remove in LLVM 3.0.
+  bool LLVM2_7MetadataDetected;
   
 public:
   explicit BitcodeReader(MemoryBuffer *buffer, LLVMContext &C)
     : Context(C), TheModule(0), Buffer(buffer), BufferOwned(false),
-      ErrorString(0), ValueList(C), MDValueList(C) {
+      ErrorString(0), ValueList(C), MDValueList(C),
+      LLVM2_7MetadataDetected(false) {
     HasReversedFunctionsWithBodies = false;
   }
   ~BitcodeReader() {

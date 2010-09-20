@@ -39,6 +39,7 @@ def MRM_E8 : Format<39>;
 def MRM_F0 : Format<40>;
 def MRM_F8 : Format<41>;
 def MRM_F9 : Format<42>;
+def RawFrmImm16 : Format<43>;
 
 // ImmType - This specifies the immediate type used by an instruction. This is
 // part of the ad-hoc solution used to emit machine instruction encodings by our
@@ -210,7 +211,7 @@ class Ii32PCRel<bits<8> o, Format f, dag outs, dag ins, string asm,
 class FPI<bits<8> o, Format F, dag outs, dag ins, string asm>
   : I<o, F, outs, ins, asm, []> {}
 
-// FpI_ - Floating Point Psuedo Instruction template. Not Predicated.
+// FpI_ - Floating Point Pseudo Instruction template. Not Predicated.
 class FpI_<dag outs, dag ins, FPFormat fp, list<dag> pattern>
   : X86Inst<0, Pseudo, NoImm, outs, ins, ""> {
   let FPForm = fp;
@@ -224,13 +225,13 @@ class FpI_<dag outs, dag ins, FPFormat fp, list<dag> pattern>
 //   Iseg32 - 16-bit segment selector, 32-bit offset
 
 class Iseg16 <bits<8> o, Format f, dag outs, dag ins, string asm, 
-              list<dag> pattern> : X86Inst<o, f, NoImm, outs, ins, asm> {
+              list<dag> pattern> : X86Inst<o, f, Imm16, outs, ins, asm> {
   let Pattern = pattern;
   let CodeSize = 3;
 }
 
 class Iseg32 <bits<8> o, Format f, dag outs, dag ins, string asm, 
-              list<dag> pattern> : X86Inst<o, f, NoImm, outs, ins, asm> {
+              list<dag> pattern> : X86Inst<o, f, Imm32, outs, ins, asm> {
   let Pattern = pattern;
   let CodeSize = 3;
 }
@@ -411,6 +412,20 @@ class SS42AI<bits<8> o, Format F, dag outs, dag ins, string asm,
       : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA,
         Requires<[HasSSE42]>;
 
+// AVX Instruction Templates:
+//   Instructions introduced in AVX (no SSE equivalent forms)
+//
+//   AVX8I - AVX instructions with T8 and OpSize prefix.
+//   AVXAIi8 - AVX instructions with TA, OpSize prefix and ImmT = Imm8.
+class AVX8I<bits<8> o, Format F, dag outs, dag ins, string asm,
+            list<dag> pattern>
+      : I<o, F, outs, ins, asm, pattern, SSEPackedInt>, T8, OpSize,
+        Requires<[HasAVX]>;
+class AVXAIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
+              list<dag> pattern>
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA, OpSize,
+        Requires<[HasAVX]>;
+
 // AES Instruction Templates:
 //
 // AES8I
@@ -424,6 +439,18 @@ class AESAI<bits<8> o, Format F, dag outs, dag ins, string asm,
             list<dag> pattern>
       : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA,
         Requires<[HasAES]>;
+
+// CLMUL Instruction Templates
+class CLMULIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
+               list<dag>pattern>
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA,
+        OpSize, VEX_4V, Requires<[HasAVX, HasCLMUL]>;
+
+// FMA3 Instruction Templates
+class FMA3<bits<8> o, Format F, dag outs, dag ins, string asm,
+           list<dag>pattern>
+      : I<o, F, outs, ins, asm, pattern, SSEPackedInt>, T8,
+        OpSize, VEX_4V, Requires<[HasFMA3]>;
 
 // X86-64 Instruction templates...
 //

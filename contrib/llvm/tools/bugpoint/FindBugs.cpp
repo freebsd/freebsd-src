@@ -29,7 +29,7 @@ using namespace llvm;
 /// If the passes did not compile correctly, output the command required to 
 /// recreate the failure. This returns true if a compiler error is found.
 ///
-bool BugDriver::runManyPasses(const std::vector<const PassInfo*> &AllPasses,
+bool BugDriver::runManyPasses(const std::vector<std::string> &AllPasses,
                               std::string &ErrMsg) {
   setPassesToRun(AllPasses);
   outs() << "Starting bug finding procedure...\n\n";
@@ -58,11 +58,11 @@ bool BugDriver::runManyPasses(const std::vector<const PassInfo*> &AllPasses,
     //
     outs() << "Running selected passes on program to test for crash: ";
     for(int i = 0, e = PassesToRun.size(); i != e; i++) {
-      outs() << "-" << PassesToRun[i]->getPassArgument() << " ";
+      outs() << "-" << PassesToRun[i] << " ";
     }
     
     std::string Filename;
-    if(runPasses(PassesToRun, Filename, false)) {
+    if(runPasses(Program, PassesToRun, Filename, false)) {
       outs() << "\n";
       outs() << "Optimizer passes caused failure!\n\n";
       debugOptimizerCrash();
@@ -89,7 +89,7 @@ bool BugDriver::runManyPasses(const std::vector<const PassInfo*> &AllPasses,
     // output (created above).
     //
     outs() << "*** Checking if passes caused miscompliation:\n";
-    bool Diff = diffProgram(Filename, "", false, &Error);
+    bool Diff = diffProgram(Program, Filename, "", false, &Error);
     if (Error.empty() && Diff) {
       outs() << "\n*** diffProgram returned true!\n";
       debugMiscompilation(&Error);

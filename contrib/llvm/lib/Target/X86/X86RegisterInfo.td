@@ -241,6 +241,10 @@ let Namespace = "X86" in {
   def CR6 : Register<"cr6">;
   def CR7 : Register<"cr7">;
   def CR8 : Register<"cr8">;
+
+  // Pseudo index registers
+  def EIZ : Register<"eiz">;
+  def RIZ : Register<"riz">;
 }
 
 
@@ -804,7 +808,7 @@ def VR128 : RegisterClass<"X86", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],128,
   }];
 }
 
-def VR256 : RegisterClass<"X86", [v8i32, v4i64, v8f32, v4f64], 256,
+def VR256 : RegisterClass<"X86", [v32i8, v8i32, v4i64, v8f32, v4f64], 256,
                           [YMM0, YMM1, YMM2, YMM3, YMM4, YMM5, YMM6, YMM7,
                            YMM8, YMM9, YMM10, YMM11,
                            YMM12, YMM13, YMM14, YMM15]> {
@@ -829,4 +833,15 @@ def VR256 : RegisterClass<"X86", [v8i32, v4i64, v8f32, v4f64], 256,
 // Status flags registers.
 def CCR : RegisterClass<"X86", [i32], 32, [EFLAGS]> {
   let CopyCost = -1;  // Don't allow copying of status registers.
+
+  // EFLAGS is not allocatable.
+  let MethodProtos = [{
+    iterator allocation_order_end(const MachineFunction &MF) const;
+  }];
+  let MethodBodies = [{
+    CCRClass::iterator
+    CCRClass::allocation_order_end(const MachineFunction &MF) const {
+      return allocation_order_begin(MF);
+    }
+  }];
 }

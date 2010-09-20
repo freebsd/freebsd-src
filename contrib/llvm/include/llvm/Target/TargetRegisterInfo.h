@@ -301,7 +301,7 @@ public:
     /// considered to be a 'virtual' register, which is part of the SSA
     /// namespace.  This must be the same for all targets, which means that each
     /// target is limited to this fixed number of registers.
-    FirstVirtualRegister = 1024
+    FirstVirtualRegister = 16384
   };
 
   /// isPhysicalRegister - Return true if the specified register number is in
@@ -593,6 +593,13 @@ public:
     return false;
   }
 
+  /// requiresVirtualBaseRegisters - Returns true if the target wants the
+  /// LocalStackAllocation pass to be run and virtual base registers
+  /// used for more efficient stack access.
+  virtual bool requiresVirtualBaseRegisters(const MachineFunction &MF) const {
+    return false;
+  }
+
   /// hasFP - Return true if the specified function should have a dedicated
   /// frame pointer register. For most targets this is true only if the function
   /// has variable sized allocas or if frame pointer elimination is disabled.
@@ -603,18 +610,18 @@ public:
   /// immediately on entry to the current function. This eliminates the need for
   /// add/sub sp brackets around call sites. Returns true if the call frame is
   /// included as part of the stack frame.
-  virtual bool hasReservedCallFrame(MachineFunction &MF) const {
+  virtual bool hasReservedCallFrame(const MachineFunction &MF) const {
     return !hasFP(MF);
   }
 
   /// canSimplifyCallFramePseudos - When possible, it's best to simplify the
   /// call frame pseudo ops before doing frame index elimination. This is
   /// possible only when frame index references between the pseudos won't
-  /// need adjusted for the call frame adjustments. Normally, that's true
+  /// need adjusting for the call frame adjustments. Normally, that's true
   /// if the function has a reserved call frame or a frame pointer. Some
   /// targets (Thumb2, for example) may have more complicated criteria,
   /// however, and can override this behavior.
-  virtual bool canSimplifyCallFramePseudos(MachineFunction &MF) const {
+  virtual bool canSimplifyCallFramePseudos(const MachineFunction &MF) const {
     return hasReservedCallFrame(MF) || hasFP(MF);
   }
 
@@ -624,7 +631,7 @@ public:
   /// reserved as its spill slot. This tells PEI not to create a new stack frame
   /// object for the given register. It should be called only after
   /// processFunctionBeforeCalleeSavedScan().
-  virtual bool hasReservedSpillSlot(MachineFunction &MF, unsigned Reg,
+  virtual bool hasReservedSpillSlot(const MachineFunction &MF, unsigned Reg,
                                     int &FrameIdx) const {
     return false;
   }
@@ -634,6 +641,44 @@ public:
   /// for.
   virtual bool needsStackRealignment(const MachineFunction &MF) const {
     return false;
+  }
+
+  /// getFrameIndexInstrOffset - Get the offset from the referenced frame
+  /// index in the instruction, if the is one.
+  virtual int64_t getFrameIndexInstrOffset(const MachineInstr *MI,
+                                           int Idx) const {
+    return 0;
+  }
+
+  /// needsFrameBaseReg - Returns true if the instruction's frame index
+  /// reference would be better served by a base register other than FP
+  /// or SP. Used by LocalStackFrameAllocation to determine which frame index
+  /// references it should create new base registers for.
+  virtual bool needsFrameBaseReg(MachineInstr *MI, int64_t Offset) const {
+    return false;
+  }
+
+  /// materializeFrameBaseRegister - Insert defining instruction(s) for
+  /// BaseReg to be a pointer to FrameIdx before insertion point I.
+  virtual void materializeFrameBaseRegister(MachineBasicBlock::iterator I,
+                                            unsigned BaseReg, int FrameIdx,
+                                            int64_t Offset) const {
+    assert(0 && "materializeFrameBaseRegister does not exist on this target");
+  }
+
+  /// resolveFrameIndex - Resolve a frame index operand of an instruction
+  /// to reference the indicated base register plus offset instead.
+  virtual void resolveFrameIndex(MachineBasicBlock::iterator I,
+                                 unsigned BaseReg, int64_t Offset) const {
+    assert(0 && "resolveFrameIndex does not exist on this target");
+  }
+
+  /// isFrameOffsetLegal - Determine whether a given offset immediate is
+  /// encodable to resolve a frame index.
+  virtual bool isFrameOffsetLegal(const MachineInstr *MI,
+                                  int64_t Offset) const {
+    assert(0 && "isFrameOffsetLegal does not exist on this target");
+    return false; // Must return a value in order to compile with VS 2005
   }
 
   /// getCallFrameSetup/DestroyOpcode - These methods return the opcode of the
@@ -671,7 +716,7 @@ public:
   }
 
   /// processFunctionBeforeFrameFinalized - This method is called immediately
-  /// before the specified functions frame layout (MF.getFrameInfo()) is
+  /// before the specified function's frame layout (MF.getFrameInfo()) is
   /// finalized.  Once the frame is finalized, MO_FrameIndex operands are
   /// replaced with direct constants.  This method is optional.
   ///
@@ -698,14 +743,8 @@ public:
   /// specified instruction, as long as it keeps the iterator pointing at the
   /// finished product. SPAdj is the SP adjustment due to call frame setup
   /// instruction.
-  ///
-  /// When -enable-frame-index-scavenging is enabled, the virtual register
-  /// allocated for this frame index is returned and its value is stored in
-  /// *Value.
-  typedef std::pair<unsigned, int> FrameIndexValue;
-  virtual unsigned eliminateFrameIndex(MachineBasicBlock::iterator MI,
-                                       int SPAdj, FrameIndexValue *Value = NULL,
-                                       RegScavenger *RS=NULL) const = 0;
+  virtual void eliminateFrameIndex(MachineBasicBlock::iterator MI,
+                                   int SPAdj, RegScavenger *RS=NULL) const = 0;
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.

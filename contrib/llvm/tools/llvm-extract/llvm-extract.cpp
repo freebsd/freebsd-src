@@ -44,10 +44,6 @@ Force("f", cl::desc("Enable binary output on terminals"));
 static cl::opt<bool>
 DeleteFn("delete", cl::desc("Delete specified Globals from Module"));
 
-static cl::opt<bool>
-Relink("relink",
-       cl::desc("Turn external linkage for callees of function to delete"));
-
 // ExtractFuncs - The functions to extract from the module... 
 static cl::list<std::string>
 ExtractFuncs("func", cl::desc("Specify function to extract"),
@@ -71,9 +67,10 @@ int main(int argc, char **argv) {
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm extractor\n");
 
+  // Use lazy loading, since we only care about selected global values.
   SMDiagnostic Err;
   std::auto_ptr<Module> M;
-  M.reset(ParseIRFile(InputFilename, Err, Context));
+  M.reset(getLazyIRFileModule(InputFilename, Err, Context));
 
   if (M.get() == 0) {
     Err.Print(argv[0], errs());
@@ -104,36 +101,47 @@ int main(int argc, char **argv) {
     GVs.push_back(GV);
   }
 
+  // Materialize requisite global values.
+  for (size_t i = 0, e = GVs.size(); i != e; ++i) {
+    GlobalValue *GV = GVs[i];
+    if (GV->isMaterializable()) {
+      std::string ErrInfo;
+      if (GV->Materialize(&ErrInfo)) {
+        errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
+        return 1;
+      }
+    }
+  }
+
   // In addition to deleting all other functions, we also want to spiff it
   // up a little bit.  Do this now.
   PassManager Passes;
   Passes.add(new TargetData(M.get())); // Use correct TargetData
 
-  Passes.add(createGVExtractionPass(GVs, DeleteFn, Relink));
+  Passes.add(createGVExtractionPass(GVs, DeleteFn));
   if (!DeleteFn)
     Passes.add(createGlobalDCEPass());           // Delete unreachable globals
   Passes.add(createStripDeadDebugInfoPass());    // Remove dead debug info
   Passes.add(createDeadTypeEliminationPass());   // Remove dead types...
   Passes.add(createStripDeadPrototypesPass());   // Remove dead func decls
 
-  // Make sure that the Output file gets unlinked from the disk if we get a
-  // SIGINT
-  sys::RemoveFileOnSignal(sys::Path(OutputFilename));
-
   std::string ErrorInfo;
-  raw_fd_ostream Out(OutputFilename.c_str(), ErrorInfo,
-                     raw_fd_ostream::F_Binary);
+  tool_output_file Out(OutputFilename.c_str(), ErrorInfo,
+                       raw_fd_ostream::F_Binary);
   if (!ErrorInfo.empty()) {
     errs() << ErrorInfo << '\n';
     return 1;
   }
 
   if (OutputAssembly)
-    Passes.add(createPrintModulePass(&Out));
-  else if (Force || !CheckBitcodeOutputToConsole(Out, true))
-    Passes.add(createBitcodeWriterPass(Out));
+    Passes.add(createPrintModulePass(&Out.os()));
+  else if (Force || !CheckBitcodeOutputToConsole(Out.os(), true))
+    Passes.add(createBitcodeWriterPass(Out.os()));
 
   Passes.run(*M.get());
+
+  // Declare success.
+  Out.keep();
 
   return 0;
 }

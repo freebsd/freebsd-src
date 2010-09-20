@@ -12,11 +12,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/BitVector.h"
-#include "Sema.h"
+#include "clang/Sema/SemaInternal.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtCXX.h"
+#include "llvm/ADT/BitVector.h"
 using namespace clang;
 
 namespace {
@@ -180,12 +181,6 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S, unsigned ParentScope) {
   
   // If we found a label, remember that it is in ParentScope scope.
   switch (S->getStmtClass()) {
-  case Stmt::LabelStmtClass:
-  case Stmt::DefaultStmtClass:
-  case Stmt::CaseStmtClass:
-    LabelAndGotoScopes[S] = ParentScope;
-    break;
-
   case Stmt::AddrLabelExprClass:
     IndirectJumpTargets.push_back(cast<AddrLabelExpr>(S)->getLabel());
     break;
@@ -224,6 +219,24 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S, unsigned ParentScope) {
     
     Stmt *SubStmt = *CI;
     if (SubStmt == 0) continue;
+
+    // Cases, labels, and defaults aren't "scope parents".  It's also
+    // important to handle these iteratively instead of recursively in
+    // order to avoid blowing out the stack.
+    while (true) {
+      Stmt *Next;
+      if (isa<CaseStmt>(SubStmt))
+        Next = cast<CaseStmt>(SubStmt)->getSubStmt();
+      else if (isa<DefaultStmt>(SubStmt))
+        Next = cast<DefaultStmt>(SubStmt)->getSubStmt();
+      else if (isa<LabelStmt>(SubStmt))
+        Next = cast<LabelStmt>(SubStmt)->getSubStmt();
+      else
+        break;
+
+      LabelAndGotoScopes[SubStmt] = ParentScope;
+      SubStmt = Next;
+    }
 
     // If this is a declstmt with a VLA definition, it defines a scope from here
     // to the end of the containing context.

@@ -317,13 +317,13 @@ MipsTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     BB->addSuccessor(sinkMBB);
 
     //  sinkMBB:
-    //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
+    //   %Result = phi [ %TrueValue, thisMBB ], [ %FalseValue, copy0MBB ]
     //  ...
     BB = sinkMBB;
     BuildMI(*BB, BB->begin(), dl,
             TII->get(Mips::PHI), MI->getOperand(0).getReg())
-      .addReg(MI->getOperand(2).getReg()).addMBB(copy0MBB)
-      .addReg(MI->getOperand(3).getReg()).addMBB(thisMBB);
+      .addReg(MI->getOperand(2).getReg()).addMBB(thisMBB)
+      .addReg(MI->getOperand(3).getReg()).addMBB(copy0MBB);
 
     MI->eraseFromParent();   // The pseudo instruction is gone now.
     return BB;
@@ -542,7 +542,7 @@ LowerJumpTable(SDValue Op, SelectionDAG &DAG) const
 
   SDValue JTI = DAG.getTargetJumpTable(JT->getIndex(), PtrVT, OpFlag);
 
-  if (IsPIC) {
+  if (!IsPIC) {
     SDValue Ops[] = { JTI };
     HiPart = DAG.getNode(MipsISD::Hi, dl, DAG.getVTList(MVT::i32), Ops, 1);
   } else // Emit Load from Global Pointer

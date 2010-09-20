@@ -118,16 +118,6 @@ public:
     return getIdentifier() ? getIdentifier()->getName() : "";
   }
 
-  /// getNameAsCString - Get the name of identifier for this declaration as a
-  /// C string (const char*).  This requires that the declaration have a name
-  /// and that it be a simple identifier.
-  //
-  // FIXME: Deprecated, move clients to getName().
-  const char *getNameAsCString() const {
-    assert(Name.isIdentifier() && "Name is not a simple identifier");
-    return getIdentifier() ? getIdentifier()->getNameStart() : "";
-  }
-
   /// getNameAsString - Get a human-readable name for the declaration, even if
   /// it is one of the special kinds of names (C++ constructor, Objective-C
   /// selector, etc).  Creating this name requires expensive string
@@ -229,6 +219,8 @@ inline llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
 
 /// NamespaceDecl - Represent a C++ namespace.
 class NamespaceDecl : public NamedDecl, public DeclContext {
+  bool IsInline : 1;
+
   SourceLocation LBracLoc, RBracLoc;
 
   // For extended namespace definitions:
@@ -239,7 +231,7 @@ class NamespaceDecl : public NamedDecl, public DeclContext {
   // there will be one NamespaceDecl for each declaration.
   // NextNamespace points to the next extended declaration.
   // OrigNamespace points to the original namespace declaration.
-  // OrigNamespace of the first namespace decl points to itself.
+  // OrigNamespace of the first namespace decl points to its anonymous namespace
   NamespaceDecl *NextNamespace;
 
   /// \brief A pointer to either the original namespace definition for
@@ -258,28 +250,36 @@ class NamespaceDecl : public NamedDecl, public DeclContext {
 
   NamespaceDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id)
     : NamedDecl(Namespace, DC, L, Id), DeclContext(Namespace),
-      NextNamespace(0), OrigOrAnonNamespace(0, true) { }
+      IsInline(false), NextNamespace(0), OrigOrAnonNamespace(0, true) { }
 
 public:
   static NamespaceDecl *Create(ASTContext &C, DeclContext *DC,
                                SourceLocation L, IdentifierInfo *Id);
 
-  virtual void Destroy(ASTContext& C);
-
-  // \brief Returns true if this is an anonymous namespace declaration.
-  //
-  // For example:
+  /// \brief Returns true if this is an anonymous namespace declaration.
+  ///
+  /// For example:
   /// \code
-  //   namespace {
-  //     ...
-  //   };
-  // \endcode
-  // q.v. C++ [namespace.unnamed]
+  ///   namespace {
+  ///     ...
+  ///   };
+  /// \endcode
+  /// q.v. C++ [namespace.unnamed]
   bool isAnonymousNamespace() const {
     return !getIdentifier();
   }
 
-  /// \brief Return the next extended namespace declaration or null if this
+  /// \brief Returns true if this is an inline namespace declaration.
+  bool isInline() const {
+    return IsInline;
+  }
+
+  /// \brief Set whether this is an inline namespace declaration.
+  void setInline(bool Inline) {
+    IsInline = Inline;
+  }
+
+  /// \brief Return the next extended namespace declaration or null if there
   /// is none.
   NamespaceDecl *getNextNamespace() { return NextNamespace; }
   const NamespaceDecl *getNextNamespace() const { return NextNamespace; }
@@ -345,8 +345,8 @@ public:
     return static_cast<NamespaceDecl *>(const_cast<DeclContext*>(DC));
   }
   
-  friend class PCHDeclReader;
-  friend class PCHDeclWriter;
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// ValueDecl - Represent the declaration of a variable (in which case it is
@@ -392,8 +392,6 @@ struct QualifierInfo {
                                      unsigned NumTPLists,
                                      TemplateParameterList **TPLists);
   
-  void Destroy(ASTContext &Context);
-  
 private:
   // Copy constructor and copy assignment are disabled.
   QualifierInfo(const QualifierInfo&);
@@ -421,9 +419,6 @@ protected:
     : ValueDecl(DK, DC, L, N, T), DeclInfo(TInfo) {}
 
 public:
-  virtual ~DeclaratorDecl();
-  virtual void Destroy(ASTContext &C);
-
   TypeSourceInfo *getTypeSourceInfo() const {
     return hasExtInfo()
       ? getExtInfo()->TInfo
@@ -507,36 +502,11 @@ struct EvaluatedStmt {
   APValue Evaluated;
 };
 
-// \brief Describes the kind of template specialization that a
-// particular template specialization declaration represents.
-enum TemplateSpecializationKind {
-  /// This template specialization was formed from a template-id but
-  /// has not yet been declared, defined, or instantiated.
-  TSK_Undeclared = 0,
-  /// This template specialization was implicitly instantiated from a
-  /// template. (C++ [temp.inst]).
-  TSK_ImplicitInstantiation,
-  /// This template specialization was declared or defined by an
-  /// explicit specialization (C++ [temp.expl.spec]) or partial
-  /// specialization (C++ [temp.class.spec]).
-  TSK_ExplicitSpecialization,
-  /// This template specialization was instantiated from a template
-  /// due to an explicit instantiation declaration request
-  /// (C++0x [temp.explicit]).
-  TSK_ExplicitInstantiationDeclaration,
-  /// This template specialization was instantiated from a template
-  /// due to an explicit instantiation definition request
-  /// (C++ [temp.explicit]).
-  TSK_ExplicitInstantiationDefinition
-};
-  
 /// VarDecl - An instance of this class is created to represent a variable
 /// declaration or definition.
 class VarDecl : public DeclaratorDecl, public Redeclarable<VarDecl> {
 public:
-  enum StorageClass {
-    None, Auto, Register, Extern, Static, PrivateExtern
-  };
+  typedef clang::StorageClass StorageClass;
 
   /// getStorageClassSpecifierString - Return the string used to
   /// specify the storage class \arg SC.
@@ -568,10 +538,6 @@ private:
   bool ThreadSpecified : 1;
   bool HasCXXDirectInit : 1;
 
-  /// DeclaredInCondition - Whether this variable was declared in a
-  /// condition, e.g., if (int x = foo()) { ... }.
-  bool DeclaredInCondition : 1;
-
   /// \brief Whether this variable is the exception variable in a C++ catch
   /// or an Objective-C @catch statement.
   bool ExceptionVar : 1;
@@ -587,7 +553,7 @@ protected:
           StorageClass SCAsWritten)
     : DeclaratorDecl(DK, DC, L, Id, T, TInfo), Init(),
       ThreadSpecified(false), HasCXXDirectInit(false),
-      DeclaredInCondition(false), ExceptionVar(false), NRVOVariable(false) {
+      ExceptionVar(false), NRVOVariable(false) {
     SClass = SC;
     SClassAsWritten = SCAsWritten;
   }
@@ -609,9 +575,6 @@ public:
                          QualType T, TypeSourceInfo *TInfo, StorageClass S,
                          StorageClass SCAsWritten);
 
-  virtual void Destroy(ASTContext& C);
-  virtual ~VarDecl();
-
   virtual SourceLocation getInnerLocStart() const;
   virtual SourceRange getSourceRange() const;
 
@@ -619,8 +582,14 @@ public:
   StorageClass getStorageClassAsWritten() const {
     return (StorageClass) SClassAsWritten;
   }
-  void setStorageClass(StorageClass SC) { SClass = SC; }
-  void setStorageClassAsWritten(StorageClass SC) { SClassAsWritten = SC; }
+  void setStorageClass(StorageClass SC) {
+    assert(isLegalForVariable(SC));
+    SClass = SC;
+  }
+  void setStorageClassAsWritten(StorageClass SC) {
+    assert(isLegalForVariable(SC));
+    SClassAsWritten = SC;
+  }
 
   void setThreadSpecified(bool T) { ThreadSpecified = T; }
   bool isThreadSpecified() const {
@@ -630,25 +599,26 @@ public:
   /// hasLocalStorage - Returns true if a variable with function scope
   ///  is a non-static local variable.
   bool hasLocalStorage() const {
-    if (getStorageClass() == None)
+    if (getStorageClass() == SC_None)
       return !isFileVarDecl();
 
     // Return true for:  Auto, Register.
     // Return false for: Extern, Static, PrivateExtern.
 
-    return getStorageClass() <= Register;
+    return getStorageClass() >= SC_Auto;
   }
 
   /// isStaticLocal - Returns true if a variable with function scope is a 
   /// static local variable.
   bool isStaticLocal() const {
-    return getStorageClass() == Static && !isFileVarDecl();
+    return getStorageClass() == SC_Static && !isFileVarDecl();
   }
   
   /// hasExternStorage - Returns true if a variable has extern or
   /// __private_extern__ storage.
   bool hasExternalStorage() const {
-    return getStorageClass() == Extern || getStorageClass() == PrivateExtern;
+    return getStorageClass() == SC_Extern ||
+           getStorageClass() == SC_PrivateExtern;
   }
 
   /// hasGlobalStorage - Returns true for all variables that do not
@@ -670,7 +640,7 @@ public:
     if (getKind() != Decl::Var)
       return false;
     if (const DeclContext *DC = getDeclContext())
-      return DC->getLookupContext()->isFunctionOrMethod();
+      return DC->getRedeclContext()->isFunctionOrMethod();
     return false;
   }
 
@@ -679,10 +649,8 @@ public:
   bool isFunctionOrMethodVarDecl() const {
     if (getKind() != Decl::Var)
       return false;
-    if (const DeclContext *DC = getDeclContext())
-      return DC->getLookupContext()->isFunctionOrMethod() &&
-             DC->getLookupContext()->getDeclKind() != Decl::Block;
-    return false;
+    const DeclContext *DC = getDeclContext()->getRedeclContext();
+    return DC->isFunctionOrMethod() && DC->getDeclKind() != Decl::Block;
   }
 
   /// \brief Determines whether this is a static data member.
@@ -696,7 +664,7 @@ public:
   /// \endcode
   bool isStaticDataMember() const {
     // If it wasn't static, it would be a FieldDecl.
-    return getDeclContext()->isRecord();
+    return getKind() != Decl::ParmVar && getDeclContext()->isRecord();
   }
 
   virtual VarDecl *getCanonicalDecl();
@@ -743,11 +711,10 @@ public:
   bool isFileVarDecl() const {
     if (getKind() != Decl::Var)
       return false;
-    if (const DeclContext *Ctx = getDeclContext()) {
-      Ctx = Ctx->getLookupContext();
-      if (isa<TranslationUnitDecl>(Ctx) || isa<NamespaceDecl>(Ctx) )
-        return true;
-    }
+    
+    if (getDeclContext()->getRedeclContext()->isFileContext())
+      return true;
+    
     if (isStaticDataMember())
       return true;
 
@@ -912,18 +879,6 @@ public:
     return HasCXXDirectInit;
   }
 
-  /// isDeclaredInCondition - Whether this variable was declared as
-  /// part of a condition in an if/switch/while statement, e.g.,
-  /// @code
-  /// if (int x = foo()) { ... }
-  /// @endcode
-  bool isDeclaredInCondition() const {
-    return DeclaredInCondition;
-  }
-  void setDeclaredInCondition(bool InCondition) {
-    DeclaredInCondition = InCondition;
-  }
-  
   /// \brief Determine whether this variable is the exception variable in a
   /// C++ catch statememt or an Objective-C @catch statement.
   bool isExceptionVariable() const {
@@ -973,7 +928,7 @@ class ImplicitParamDecl : public VarDecl {
 protected:
   ImplicitParamDecl(Kind DK, DeclContext *DC, SourceLocation L,
                     IdentifierInfo *Id, QualType Tw)
-    : VarDecl(DK, DC, L, Id, Tw, /*TInfo=*/0, VarDecl::None, VarDecl::None) {}
+    : VarDecl(DK, DC, L, Id, Tw, /*TInfo=*/0, SC_None, SC_None) {}
 public:
   static ImplicitParamDecl *Create(ASTContext &C, DeclContext *DC,
                                    SourceLocation L, IdentifierInfo *Id,
@@ -1117,9 +1072,7 @@ public:
 class FunctionDecl : public DeclaratorDecl, public DeclContext,
                      public Redeclarable<FunctionDecl> {
 public:
-  enum StorageClass {
-    None, Extern, Static, PrivateExtern
-  };
+  typedef clang::StorageClass StorageClass;
 
   /// \brief The kind of templated function a FunctionDecl can be.
   enum TemplatedKind {
@@ -1179,11 +1132,15 @@ private:
                       DependentFunctionTemplateSpecializationInfo *>
     TemplateOrSpecialization;
 
+  /// DNLoc - Provides source/type location info for the
+  /// declaration name embedded in the DeclaratorDecl base class.
+  DeclarationNameLoc DNLoc;
+
 protected:
-  FunctionDecl(Kind DK, DeclContext *DC, SourceLocation L,
-               DeclarationName N, QualType T, TypeSourceInfo *TInfo,
+  FunctionDecl(Kind DK, DeclContext *DC, const DeclarationNameInfo &NameInfo,
+               QualType T, TypeSourceInfo *TInfo,
                StorageClass S, StorageClass SCAsWritten, bool isInline)
-    : DeclaratorDecl(DK, DC, L, N, T, TInfo),
+    : DeclaratorDecl(DK, DC, NameInfo.getLoc(), NameInfo.getName(), T, TInfo),
       DeclContext(DK),
       ParamInfo(0), Body(),
       SClass(S), SClassAsWritten(SCAsWritten), IsInline(isInline),
@@ -1191,10 +1148,9 @@ protected:
       HasWrittenPrototype(true), IsDeleted(false), IsTrivial(false),
       IsCopyAssignment(false),
       HasImplicitReturnZero(false),
-      EndRangeLoc(L), TemplateOrSpecialization() {}
-
-  virtual ~FunctionDecl() {}
-  virtual void Destroy(ASTContext& C);
+      EndRangeLoc(NameInfo.getEndLoc()),
+      TemplateOrSpecialization(),
+      DNLoc(NameInfo.getInfo()) {}
 
   typedef Redeclarable<FunctionDecl> redeclarable_base;
   virtual FunctionDecl *getNextRedeclaration() { return RedeclLink.getNext(); }
@@ -1211,10 +1167,26 @@ public:
   static FunctionDecl *Create(ASTContext &C, DeclContext *DC, SourceLocation L,
                               DeclarationName N, QualType T,
                               TypeSourceInfo *TInfo,
-                              StorageClass S = None,
-                              StorageClass SCAsWritten = None,
+                              StorageClass S = SC_None,
+                              StorageClass SCAsWritten = SC_None,
+                              bool isInline = false,
+                              bool hasWrittenPrototype = true) {
+    DeclarationNameInfo NameInfo(N, L);
+    return FunctionDecl::Create(C, DC, NameInfo, T, TInfo, S, SCAsWritten,
+                                isInline, hasWrittenPrototype);
+  }
+
+  static FunctionDecl *Create(ASTContext &C, DeclContext *DC,
+                              const DeclarationNameInfo &NameInfo,
+                              QualType T, TypeSourceInfo *TInfo,
+                              StorageClass S = SC_None,
+                              StorageClass SCAsWritten = SC_None,
                               bool isInline = false,
                               bool hasWrittenPrototype = true);
+
+  DeclarationNameInfo getNameInfo() const {
+    return DeclarationNameInfo(getDeclName(), getLocation(), DNLoc);
+  }
 
   virtual void getNameForDiagnostic(std::string &S,
                                     const PrintingPolicy &Policy,
@@ -1245,7 +1217,7 @@ public:
   /// set that function declaration to the actual declaration
   /// containing the body (if there is one).
   /// NOTE: For checking if there is a body, use hasBody() instead, to avoid
-  /// unnecessary PCH de-serialization of the body.
+  /// unnecessary AST de-serialization of the body.
   Stmt *getBody(const FunctionDecl *&Definition) const;
 
   virtual Stmt *getBody() const {
@@ -1389,12 +1361,18 @@ public:
   }
                        
   StorageClass getStorageClass() const { return StorageClass(SClass); }
-  void setStorageClass(StorageClass SC) { SClass = SC; }
+  void setStorageClass(StorageClass SC) {
+    assert(isLegalForFunction(SC));
+    SClass = SC;
+  }
 
   StorageClass getStorageClassAsWritten() const {
     return StorageClass(SClassAsWritten);
   }
-  void setStorageClassAsWritten(StorageClass SC) { SClassAsWritten = SC; }
+  void setStorageClassAsWritten(StorageClass SC) {
+    assert(isLegalForFunction(SC));
+    SClassAsWritten = SC;
+  }
 
   /// \brief Determine whether the "inline" keyword was specified for this
   /// function.
@@ -1632,8 +1610,8 @@ public:
     return static_cast<FunctionDecl *>(const_cast<DeclContext*>(DC));
   }
 
-  friend class PCHDeclReader;
-  friend class PCHDeclWriter;
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 
@@ -1705,15 +1683,12 @@ protected:
                    const llvm::APSInt &V)
     : ValueDecl(EnumConstant, DC, L, Id, T), Init((Stmt*)E), Val(V) {}
 
-  virtual ~EnumConstantDecl() {}
 public:
 
   static EnumConstantDecl *Create(ASTContext &C, EnumDecl *DC,
                                   SourceLocation L, IdentifierInfo *Id,
                                   QualType T, Expr *E,
                                   const llvm::APSInt &V);
-
-  virtual void Destroy(ASTContext& C);
 
   const Expr *getInitExpr() const { return (const Expr*) Init; }
   Expr *getInitExpr() { return (Expr*) Init; }
@@ -1722,6 +1697,8 @@ public:
   void setInitExpr(Expr *E) { Init = (Stmt*) E; }
   void setInitVal(const llvm::APSInt &V) { Val = V; }
 
+  SourceRange getSourceRange() const;
+  
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const EnumConstantDecl *D) { return true; }
@@ -1769,8 +1746,6 @@ class TypedefDecl : public TypeDecl, public Redeclarable<TypedefDecl> {
   TypedefDecl(DeclContext *DC, SourceLocation L,
               IdentifierInfo *Id, TypeSourceInfo *TInfo)
     : TypeDecl(Typedef, DC, L, Id), TInfo(TInfo) {}
-
-  virtual ~TypedefDecl();
 
 protected:
   typedef Redeclarable<TypedefDecl> redeclarable_base;
@@ -1832,6 +1807,9 @@ private:
   /// it is a declaration ("struct foo;").
   bool IsDefinition : 1;
 
+  /// IsBeingDefined - True if this is currently being defined.
+  bool IsBeingDefined : 1;
+
   /// IsEmbeddedInDeclarator - True if this tag declaration is
   /// "embedded" (i.e., defined or declared for the very first time)
   /// in the syntax of a declarator.
@@ -1873,6 +1851,7 @@ protected:
            "EnumDecl not matched with TTK_Enum");
     TagDeclKind = TK;
     IsDefinition = false;
+    IsBeingDefined = false;
     IsEmbeddedInDeclarator = false;
     setPreviousDeclaration(PrevDecl);
   }
@@ -1881,8 +1860,6 @@ protected:
   virtual TagDecl *getNextRedeclaration() { return RedeclLink.getNext(); }
 
 public:
-  void Destroy(ASTContext &C);
-
   typedef redeclarable_base::redecl_iterator redecl_iterator;
   redecl_iterator redecls_begin() const {
     return redeclarable_base::redecls_begin();
@@ -1911,9 +1888,20 @@ public:
     return const_cast<TagDecl*>(this)->getCanonicalDecl();
   }
 
+  /// isThisDeclarationADefinition() - Return true if this declaration
+  /// defines the type.  Provided for consistency.
+  bool isThisDeclarationADefinition() const {
+    return isDefinition();
+  }
+
   /// isDefinition - Return true if this decl has its body specified.
   bool isDefinition() const {
     return IsDefinition;
+  }
+
+  /// isBeingDefined - Return true if this decl is currently being defined.
+  bool isBeingDefined() const {
+    return IsBeingDefined;
   }
 
   bool isEmbeddedInDeclarator() const {
@@ -2003,8 +1991,8 @@ public:
     return static_cast<TagDecl *>(const_cast<DeclContext*>(DC));
   }
 
-  friend class PCHDeclReader;
-  friend class PCHDeclWriter;
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// EnumDecl - Represents an enum.  As an extension, we allow forward-declared
@@ -2037,6 +2025,8 @@ class EnumDecl : public TagDecl {
            IdentifierInfo *Id, EnumDecl *PrevDecl, SourceLocation TKL)
     : TagDecl(Enum, TTK_Enum, DC, L, Id, PrevDecl, TKL), InstantiatedFrom(0) {
       IntegerType = QualType();
+      NumNegativeBits = 0;
+      NumPositiveBits = 0;
     }
 public:
   EnumDecl *getCanonicalDecl() {
@@ -2057,8 +2047,6 @@ public:
                           SourceLocation L, IdentifierInfo *Id,
                           SourceLocation TKL, EnumDecl *PrevDecl);
   static EnumDecl *Create(ASTContext &C, EmptyShell Empty);
-
-  virtual void Destroy(ASTContext& C);
 
   /// completeDefinition - When created, the EnumDecl corresponds to a
   /// forward-declared enum. This method is used to mark the
@@ -2167,7 +2155,6 @@ protected:
   RecordDecl(Kind DK, TagKind TK, DeclContext *DC,
              SourceLocation L, IdentifierInfo *Id,
              RecordDecl *PrevDecl, SourceLocation TKL);
-  virtual ~RecordDecl();
 
 public:
   static RecordDecl *Create(ASTContext &C, TagKind TK, DeclContext *DC,
@@ -2182,8 +2169,6 @@ public:
   RecordDecl *getPreviousDeclaration() {
     return cast_or_null<RecordDecl>(TagDecl::getPreviousDeclaration());
   }
-
-  virtual void Destroy(ASTContext& C);
 
   bool hasFlexibleArrayMember() const { return HasFlexibleArrayMember; }
   void setHasFlexibleArrayMember(bool V) { HasFlexibleArrayMember = V; }
@@ -2306,9 +2291,6 @@ protected:
     : Decl(Block, DC, CaretLoc), DeclContext(Block),
       IsVariadic(false), ParamInfo(0), NumParams(0), Body(0),
       SignatureAsWritten(0) {}
-
-  virtual ~BlockDecl();
-  virtual void Destroy(ASTContext& C);
 
 public:
   static BlockDecl *Create(ASTContext &C, DeclContext *DC, SourceLocation L);
