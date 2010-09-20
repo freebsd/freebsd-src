@@ -519,7 +519,7 @@ end:
 	return (hio->hio_error);
 }
 
-static void
+static __dead2 void
 secondary_exit(int exitcode, const char *fmt, ...)
 {
 	va_list ap;

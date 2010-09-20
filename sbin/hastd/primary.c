@@ -258,7 +258,7 @@ cleanup(struct hast_resource *res)
 	errno = rerrno;
 }
 
-static void
+static __dead2 void
 primary_exit(int exitcode, const char *fmt, ...)
 {
 	va_list ap;
@@ -271,7 +271,7 @@ primary_exit(int exitcode, const char *fmt, ...)
 	exit(exitcode);
 }
 
-static void
+static __dead2 void
 primary_exitx(int exitcode, const char *fmt, ...)
 {
 	va_list ap;
