@@ -2593,7 +2593,7 @@ init386(first)
 	default_proc_ldt.ldt_base = (caddr_t)ldt;
 	default_proc_ldt.ldt_len = 6;
 	_default_ldt = (int)&default_proc_ldt;
-	PCPU_SET(currentldt, _default_ldt)
+	PCPU_SET(currentldt, _default_ldt);
 	PT_SET_MA(ldt, *vtopte((unsigned long)ldt) & ~PG_RW);
 	xen_set_ldt((unsigned long) ldt, (sizeof ldt_segs / sizeof ldt_segs[0]));
 	
