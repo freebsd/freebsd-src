@@ -92,7 +92,7 @@ namespace {
   public:
     static char ID;
     PreAllocSplitting()
-      : MachineFunctionPass(&ID) {}
+      : MachineFunctionPass(ID) {}
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
 
@@ -203,10 +203,11 @@ namespace {
 
 char PreAllocSplitting::ID = 0;
 
-static RegisterPass<PreAllocSplitting>
-X("pre-alloc-splitting", "Pre-Register Allocation Live Interval Splitting");
+INITIALIZE_PASS(PreAllocSplitting, "pre-alloc-splitting",
+                "Pre-Register Allocation Live Interval Splitting",
+                false, false);
 
-const PassInfo *const llvm::PreAllocSplittingID = &X;
+char &llvm::PreAllocSplittingID = PreAllocSplitting::ID;
 
 /// findSpillPoint - Find a gap as far away from the given MI that's suitable
 /// for spilling the current live interval. The index must be before any
@@ -676,11 +677,7 @@ void PreAllocSplitting::ReconstructLiveInterval(LiveInterval* LI) {
     VNInfo* NewVN = LI->getNextValue(DefIdx, 0, true, Alloc);
     
     // If the def is a move, set the copy field.
-    unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
-    if (TII->isMoveInstr(*DI, SrcReg, DstReg, SrcSubIdx, DstSubIdx)) {
-      if (DstReg == LI->reg)
-        NewVN->setCopy(&*DI);
-    } else if (DI->isCopyLike() && DI->getOperand(0).getReg() == LI->reg)
+    if (DI->isCopyLike() && DI->getOperand(0).getReg() == LI->reg)
       NewVN->setCopy(&*DI);
 
     NewVNs[&*DI] = NewVN;

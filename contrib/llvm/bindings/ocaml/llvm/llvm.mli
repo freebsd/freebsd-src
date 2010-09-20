@@ -72,7 +72,6 @@ module TypeKind : sig
   | Opaque
   | Vector
   | Metadata
-  | Union
 end
 
 (** The linkage of a global value, accessed with {!linkage} and
@@ -408,19 +407,6 @@ external struct_element_types : lltype -> lltype array
 external is_packed : lltype -> bool = "llvm_is_packed"
 
 
-(** {7 Operations on union types} *)
-
-(** [union_type context tys] returns the union type in the context [context]
-    containing the types in the array [tys]. See the method
-    [llvm::UnionType::get] *)
-external union_type : llcontext -> lltype array -> lltype = "llvm_union_type"
-
-(** [union_element_types uty] returns the constituent types of the union type
-    [uty]. See the method [llvm::UnionType::getElementType]. *)
-external union_element_types : lltype -> lltype array
-                             = "llvm_union_element_types"
-
-
 (** {7 Operations on pointer, vector, and array types} *)
 
 (** [array_type ty n] returns the array type containing [n] elements of type
@@ -557,6 +543,14 @@ val fold_right_uses : (lluse -> 'a -> 'a) -> llvalue -> 'a -> 'a
     method [llvm::User::getOperand]. *)
 external operand : llvalue -> int -> llvalue = "llvm_operand"
 
+(** [set_operand v i o] sets the operand of the value [v] at the index [i] to
+    the value [o].
+    See the method [llvm::User::setOperand]. *)
+external set_operand : llvalue -> int -> llvalue -> unit = "llvm_set_operand"
+
+(** [num_operands v] returns the number of operands for the value [v].
+    See the method [llvm::User::getNumOperands]. *)
+external num_operands : llvalue -> int = "llvm_num_operands"
 
 (** {7 Operations on constants of (mostly) any type} *)
 
@@ -688,10 +682,6 @@ external const_packed_struct : llcontext -> llvalue array -> llvalue
     [vector_type (type_of elts.(0)) (Array.length elts)] and containing the
     values [elts]. See the method [llvm::ConstantVector::get]. *)
 external const_vector : llvalue array -> llvalue = "llvm_const_vector"
-
-(** [const_union ty v] returns the union constant of type [union_type tys] and
-    containing the value [v]. See the method [llvm::ConstantUnion::get]. *)
-external const_union : lltype -> llvalue -> llvalue = "LLVMConstUnion"
 
 
 (** {7 Constant expressions} *)
@@ -991,7 +981,7 @@ external const_insertelement : llvalue -> llvalue -> llvalue -> llvalue
                              = "LLVMConstInsertElement"
 
 (** [const_shufflevector a b mask] returns a constant [shufflevector].
-    See the LLVM Language Reference for details on the [sufflevector]
+    See the LLVM Language Reference for details on the [shufflevector]
     instruction.
     See the method [llvm::ConstantExpr::getShuffleVector]. *)
 external const_shufflevector : llvalue -> llvalue -> llvalue -> llvalue

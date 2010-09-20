@@ -7,6 +7,7 @@ SRCS=	ADCE.cpp \
 	BasicBlockPlacement.cpp \
 	CodeGenPrepare.cpp \
 	ConstantProp.cpp \
+	CorrelatedValuePropagation.cpp \
 	DCE.cpp \
 	DeadStoreElimination.cpp \
 	GEPSplitter.cpp \
@@ -22,14 +23,12 @@ SRCS=	ADCE.cpp \
 	LoopUnswitch.cpp \
 	MemCpyOptimizer.cpp \
 	Reassociate.cpp \
-	Reg2Mem.cpp \
 	SCCP.cpp \
-	Scalar.cpp \
 	ScalarReplAggregates.cpp \
 	SimplifyCFGPass.cpp \
-	Sink.cpp \
 	SimplifyHalfPowrLibCalls.cpp \
 	SimplifyLibCalls.cpp \
+	Sink.cpp \
 	TailDuplication.cpp \
 	TailRecursionElimination.cpp
 

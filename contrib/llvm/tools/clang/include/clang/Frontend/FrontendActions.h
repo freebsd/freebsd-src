@@ -74,6 +74,17 @@ protected:
   virtual bool usesCompleteTranslationUnit() { return false; }
 
   virtual bool hasASTFileSupport() const { return false; }
+
+public:
+  /// \brief Compute the AST consumer arguments that will be used to
+  /// create the PCHGenerator instance returned by CreateASTConsumer.
+  ///
+  /// \returns true if an error occurred, false otherwise.
+  static bool ComputeASTConsumerArguments(CompilerInstance &CI,
+                                          llvm::StringRef InFile,
+                                          std::string &Sysroot,
+                                          llvm::raw_ostream *&OS,
+                                          bool &Chaining);
 };
 
 class InheritanceViewAction : public ASTFrontendAction {
@@ -134,6 +145,16 @@ public:
   virtual bool hasCodeCompletionSupport() const;
 };
 
+class PrintPreambleAction : public FrontendAction {
+protected:
+  void ExecuteAction();
+  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &, llvm::StringRef) { 
+    return 0; 
+  }
+  
+  virtual bool usesPreprocessorOnly() const { return true; }
+};
+  
 //===----------------------------------------------------------------------===//
 // Preprocessor Actions
 //===----------------------------------------------------------------------===//
@@ -153,17 +174,7 @@ protected:
   void ExecuteAction();
 };
 
-class ParseOnlyAction : public PreprocessorFrontendAction {
-protected:
-  void ExecuteAction();
-};
-
 class PreprocessOnlyAction : public PreprocessorFrontendAction {
-protected:
-  void ExecuteAction();
-};
-
-class PrintParseAction : public PreprocessorFrontendAction {
 protected:
   void ExecuteAction();
 };
@@ -174,7 +185,7 @@ protected:
 
   virtual bool hasPCHSupport() const { return true; }
 };
-
+  
 }  // end namespace clang
 
 #endif

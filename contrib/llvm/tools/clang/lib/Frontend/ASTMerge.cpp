@@ -40,9 +40,15 @@ void ASTMergeAction::ExecuteAction() {
                                        &CI.getASTContext());
   llvm::IntrusiveRefCntPtr<Diagnostic> Diags(&CI.getDiagnostics());
   for (unsigned I = 0, N = ASTFiles.size(); I != N; ++I) {
-    ASTUnit *Unit = ASTUnit::LoadFromPCHFile(ASTFiles[I], Diags, false);
+    ASTUnit *Unit = ASTUnit::LoadFromASTFile(ASTFiles[I], Diags, false);
     if (!Unit)
       continue;
+
+    // Reset the argument -> string function so that it has the AST
+    // context we want, since the Sema object created by
+    // LoadFromASTFile will override it.
+    CI.getDiagnostics().SetArgToStringFn(&FormatASTNodeDiagnosticArgument,
+                                         &CI.getASTContext());
 
     ASTImporter Importer(CI.getDiagnostics(),
                          CI.getASTContext(), 

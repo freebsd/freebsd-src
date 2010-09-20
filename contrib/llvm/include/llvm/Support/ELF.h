@@ -216,6 +216,27 @@ enum {
   R_X86_64_TLSDESC    = 36
 };
 
+// i386 relocations.
+// TODO: this is just a subset
+enum {
+  R_386_NONE          = 0,
+  R_386_32            = 1,
+  R_386_PC32          = 2,
+  R_386_GOT32         = 3,
+  R_386_PLT32         = 4,
+  R_386_COPY          = 5,
+  R_386_GLOB_DAT      = 6,
+  R_386_JUMP_SLOT     = 7,
+  R_386_RELATIVE      = 8,
+  R_386_GOTOFF        = 9,
+  R_386_GOTPC         = 10,
+  R_386_32PLT         = 11,
+  R_386_16            = 20,
+  R_386_PC16          = 21,
+  R_386_8             = 22,
+  R_386_PC8           = 23
+};
+
 // Section header.
 struct Elf32_Shdr {
   Elf32_Word sh_name;      // Section name (index into string table)
@@ -257,22 +278,29 @@ enum {
 
 // Section types.
 enum {
-  SHT_NULL     = 0,  // No associated section (inactive entry).
-  SHT_PROGBITS = 1,  // Program-defined contents.
-  SHT_SYMTAB   = 2,  // Symbol table.
-  SHT_STRTAB   = 3,  // String table.
-  SHT_RELA     = 4,  // Relocation entries; explicit addends.
-  SHT_HASH     = 5,  // Symbol hash table.
-  SHT_DYNAMIC  = 6,  // Information for dynamic linking.
-  SHT_NOTE     = 7,  // Information about the file.
-  SHT_NOBITS   = 8,  // Data occupies no space in the file.
-  SHT_REL      = 9,  // Relocation entries; no explicit addends.
-  SHT_SHLIB    = 10, // Reserved.
-  SHT_DYNSYM   = 11, // Symbol table.
-  SHT_LOPROC   = 0x70000000, // Lowest processor architecture-specific type.
-  SHT_HIPROC   = 0x7fffffff, // Highest processor architecture-specific type.
-  SHT_LOUSER   = 0x80000000, // Lowest type reserved for applications.
-  SHT_HIUSER   = 0xffffffff  // Highest type reserved for applications.
+  SHT_NULL          = 0,  // No associated section (inactive entry).
+  SHT_PROGBITS      = 1,  // Program-defined contents.
+  SHT_SYMTAB        = 2,  // Symbol table.
+  SHT_STRTAB        = 3,  // String table.
+  SHT_RELA          = 4,  // Relocation entries; explicit addends.
+  SHT_HASH          = 5,  // Symbol hash table.
+  SHT_DYNAMIC       = 6,  // Information for dynamic linking.
+  SHT_NOTE          = 7,  // Information about the file.
+  SHT_NOBITS        = 8,  // Data occupies no space in the file.
+  SHT_REL           = 9,  // Relocation entries; no explicit addends.
+  SHT_SHLIB         = 10, // Reserved.
+  SHT_DYNSYM        = 11, // Symbol table.
+  SHT_INIT_ARRAY    = 14, // Pointers to initialisation functions.
+  SHT_FINI_ARRAY    = 15, // Pointers to termination functions.
+  SHT_PREINIT_ARRAY = 16, // Pointers to pre-init functions.
+  SHT_GROUP         = 17, // Section group.
+  SHT_SYMTAB_SHNDX  = 18, // Indicies for SHN_XINDEX entries.
+  SHT_LOOS          = 0x60000000, // Lowest operating system-specific type.
+  SHT_HIOS          = 0x6fffffff, // Highest operating system-specific type.
+  SHT_LOPROC        = 0x70000000, // Lowest processor architecture-specific type.
+  SHT_HIPROC        = 0x7fffffff, // Highest processor architecture-specific type.
+  SHT_LOUSER        = 0x80000000, // Lowest type reserved for applications.
+  SHT_HIUSER        = 0xffffffff  // Highest type reserved for applications.
 };
 
 // Section flags.
@@ -323,6 +351,12 @@ struct Elf64_Sym {
   }
 };
 
+// The size (in bytes) of symbol table entries.
+enum {
+  SYMENTRY_SIZE32 = 16, // 32-bit symbol entry size
+  SYMENTRY_SIZE64 = 24  // 64-bit symbol entry size.
+};
+
 // Symbol bindings.
 enum {
   STB_LOCAL = 0,   // Local symbol, not visible outside obj file containing def
@@ -339,8 +373,17 @@ enum {
   STT_FUNC    = 2,   // Symbol is executable code (function, etc.)
   STT_SECTION = 3,   // Symbol refers to a section
   STT_FILE    = 4,   // Local, absolute symbol that refers to a file
+  STT_COMMON  = 5,   // An uninitialised common block
+  STT_TLS     = 6,   // Thread local data object
   STT_LOPROC  = 13,  // Lowest processor-specific symbol type
   STT_HIPROC  = 15   // Highest processor-specific symbol type
+};
+
+enum {
+  STV_DEFAULT   = 0,  // Visibility is specified by binding type
+  STV_INTERNAL  = 1,  // Defined by processor supplements
+  STV_HIDDEN    = 2,  // Not visible to other components
+  STV_PROTECTED = 3   // Visible in other components but not preemptable
 };
 
 // Relocation entry, without explicit addend.
@@ -356,7 +399,7 @@ struct Elf32_Rel {
   void setType(unsigned char t) { setSymbolAndType(getSymbol(), t); }
   void setSymbolAndType(Elf32_Word s, unsigned char t) {
     r_info = (s << 8) + t;
-  };
+  }
 };
 
 // Relocation entry with explicit addend.
@@ -373,7 +416,7 @@ struct Elf32_Rela {
   void setType(unsigned char t) { setSymbolAndType(getSymbol(), t); }
   void setSymbolAndType(Elf32_Word s, unsigned char t) {
     r_info = (s << 8) + t;
-  };
+  }
 };
 
 // Relocation entry, without explicit addend.
@@ -391,7 +434,7 @@ struct Elf64_Rel {
   void setType(unsigned char t) { setSymbolAndType(getSymbol(), t); }
   void setSymbolAndType(Elf64_Xword s, unsigned char t) {
     r_info = (s << 32) + (t&0xffffffffL);
-  };
+  }
 };
 
 // Relocation entry with explicit addend.
@@ -410,7 +453,7 @@ struct Elf64_Rela {
   void setType(unsigned char t) { setSymbolAndType(getSymbol(), t); }
   void setSymbolAndType(Elf64_Xword s, unsigned char t) {
     r_info = (s << 32) + (t&0xffffffffL);
-  };
+  }
 };
 
 // Program header for ELF32.

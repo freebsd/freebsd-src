@@ -2,8 +2,46 @@
 // Random ideas for the X86 backend: SSE-specific stuff.
 //===---------------------------------------------------------------------===//
 
-- Consider eliminating the unaligned SSE load intrinsics, replacing them with
-  unaligned LLVM load instructions.
+//===---------------------------------------------------------------------===//
+
+SSE Variable shift can be custom lowered to something like this, which uses a
+small table + unaligned load + shuffle instead of going through memory.
+
+__m128i_shift_right:
+	.byte	  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
+	.byte	 -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+
+...
+__m128i shift_right(__m128i value, unsigned long offset) {
+  return _mm_shuffle_epi8(value,
+               _mm_loadu_si128((__m128 *) (___m128i_shift_right + offset)));
+}
+
+//===---------------------------------------------------------------------===//
+
+SSE has instructions for doing operations on complex numbers, we should pattern
+match them.  Compiling this:
+
+_Complex float f32(_Complex float A, _Complex float B) {
+  return A+B;
+}
+
+into:
+
+_f32:
+	movdqa	%xmm0, %xmm2
+	addss	%xmm1, %xmm2
+	pshufd	$16, %xmm2, %xmm2
+	pshufd	$1, %xmm1, %xmm1
+	pshufd	$1, %xmm0, %xmm0
+	addss	%xmm1, %xmm0
+	pshufd	$16, %xmm0, %xmm1
+	movdqa	%xmm2, %xmm0
+	unpcklps	%xmm1, %xmm0
+	ret
+
+seems silly. 
+
 
 //===---------------------------------------------------------------------===//
 

@@ -73,11 +73,7 @@ def GetLo32XForm : SDNodeXForm<imm, [{
   return getI32Imm((unsigned)N->getZExtValue());
 }]>;
 
-def i64immSExt32  : PatLeaf<(i64 imm), [{
-  // i64immSExt32 predicate - True if the 64-bit immediate fits in a 32-bit
-  // sign extended field.
-  return (int64_t)N->getZExtValue() == (int32_t)N->getZExtValue();
-}]>;
+def i64immSExt32  : PatLeaf<(i64 imm), [{ return i64immSExt32(N); }]>;
 
 
 def i64immZExt32  : PatLeaf<(i64 imm), [{
@@ -158,7 +154,7 @@ let isCall = 1 in
 
   // FIXME: We need to teach codegen about single list of call-clobbered 
   // registers.
-let isCall = 1 in
+let isCall = 1, isCodeGenOnly = 1 in
   // All calls clobber the non-callee saved registers. RSP is marked as
   // a use to prevent stack-pointer assignments that appear immediately
   // before calls from potentially appearing dead. Uses for argument
@@ -168,7 +164,7 @@ let isCall = 1 in
               MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7,
               XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, EFLAGS],
       Uses = [RSP] in {
-    def WINCALL64pcrel32 : I<0xE8, RawFrm,
+    def WINCALL64pcrel32 : Ii32PCRel<0xE8, RawFrm,
                              (outs), (ins i64i32imm_pcrel:$dst, variable_ops),
                              "call\t$dst", []>,
                            Requires<[IsWin64]>;
@@ -182,7 +178,8 @@ let isCall = 1 in
   }
 
 
-let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
+let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1,
+    isCodeGenOnly = 1 in
   let Defs = [RAX, RCX, RDX, RSI, RDI, R8, R9, R10, R11,
               FP0, FP1, FP2, FP3, FP4, FP5, FP6, ST0, ST1,
               MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7,
@@ -216,9 +213,9 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {
   def JMP64pcrel32 : I<0xE9, RawFrm, (outs), (ins brtarget:$dst), 
                        "jmp{q}\t$dst", []>;
   def JMP64r     : I<0xFF, MRM4r, (outs), (ins GR64:$dst), "jmp{q}\t{*}$dst",
-                     [(brind GR64:$dst)]>;
+                     [(brind GR64:$dst)]>, Requires<[In64BitMode]>;
   def JMP64m     : I<0xFF, MRM4m, (outs), (ins i64mem:$dst), "jmp{q}\t{*}$dst",
-                     [(brind (loadi64 addr:$dst))]>;
+                     [(brind (loadi64 addr:$dst))]>, Requires<[In64BitMode]>;
   def FARJMP64   : RI<0xFF, MRM5m, (outs), (ins opaque80mem:$dst),
                       "ljmp{q}\t{*}$dst", []>;
 }
@@ -246,7 +243,7 @@ def POPCNT64rm : RI<0xB8, MRMSrcMem, (outs GR64:$dst), (ins i64mem:$src),
 
 let Defs = [RBP,RSP], Uses = [RBP,RSP], mayLoad = 1, neverHasSideEffects = 1 in
 def LEAVE64  : I<0xC9, RawFrm,
-                 (outs), (ins), "leave", []>;
+                 (outs), (ins), "leave", []>, Requires<[In64BitMode]>;
 let Defs = [RSP], Uses = [RSP], neverHasSideEffects=1 in {
 let mayLoad = 1 in {
 def POP64r   : I<0x58, AddRegFrm,
@@ -330,7 +327,7 @@ def CMPS64 : RI<0xA7, RawFrm, (outs), (ins), "cmpsq", []>;
 
 // Fast system-call instructions
 def SYSEXIT64 : RI<0x35, RawFrm,
-                   (outs), (ins), "sysexit", []>, TB;
+                   (outs), (ins), "sysexit", []>, TB, Requires<[In64BitMode]>;
 
 //===----------------------------------------------------------------------===//
 //  Move Instructions...
@@ -374,6 +371,7 @@ def MOV64mi32 : RIi32<0xC7, MRM0m, (outs), (ins i64mem:$dst, i64i32imm:$src),
                       [(store i64immSExt32:$src, addr:$dst)]>;
 
 /// Versions of MOV64rr, MOV64rm, and MOV64mr for i64mem_TC and GR64_TC.
+let isCodeGenOnly = 1 in {
 let neverHasSideEffects = 1 in
 def MOV64rr_TC : RI<0x89, MRMDestReg, (outs GR64_TC:$dst), (ins GR64_TC:$src),
                 "mov{q}\t{$src, $dst|$dst, $src}", []>;
@@ -388,7 +386,13 @@ let mayStore = 1 in
 def MOV64mr_TC : RI<0x89, MRMDestMem, (outs), (ins i64mem_TC:$dst, GR64_TC:$src),
                 "mov{q}\t{$src, $dst|$dst, $src}",
                 []>;
+}
 
+// FIXME: These definitions are utterly broken
+// Just leave them commented out for now because they're useless outside
+// of the large code model, and most compilers won't generate the instructions
+// in question.
+/*
 def MOV64o8a : RIi8<0xA0, RawFrm, (outs), (ins offset8:$src),
                       "mov{q}\t{$src, %rax|%rax, $src}", []>;
 def MOV64o64a : RIi32<0xA1, RawFrm, (outs), (ins offset64:$src),
@@ -397,6 +401,7 @@ def MOV64ao8 : RIi8<0xA2, RawFrm, (outs offset8:$dst), (ins),
                        "mov{q}\t{%rax, $dst|$dst, %rax}", []>;
 def MOV64ao64 : RIi32<0xA3, RawFrm, (outs offset64:$dst), (ins),
                        "mov{q}\t{%rax, $dst|$dst, %rax}", []>;
+*/
 
 // Moves to and from segment registers
 def MOV64rs : RI<0x8C, MRMDestReg, (outs GR64:$dst), (ins SEGMENT_REG:$src),
@@ -1316,14 +1321,13 @@ def BT64mr : RI<0xA3, MRMDestMem, (outs), (ins i64mem:$src1, GR64:$src2),
                 []
                 >, TB;
 
-def BT64ri8 : Ii8<0xBA, MRM4r, (outs), (ins GR64:$src1, i64i8imm:$src2),
+def BT64ri8 : RIi8<0xBA, MRM4r, (outs), (ins GR64:$src1, i64i8imm:$src2),
                 "bt{q}\t{$src2, $src1|$src1, $src2}",
-                [(set EFLAGS, (X86bt GR64:$src1, i64immSExt8:$src2))]>, TB,
-		REX_W;
+                [(set EFLAGS, (X86bt GR64:$src1, i64immSExt8:$src2))]>, TB;
 // Note that these instructions don't need FastBTMem because that
 // only applies when the other operand is in a register. When it's
 // an immediate, bt is still fast.
-def BT64mi8 : Ii8<0xBA, MRM4m, (outs), (ins i64mem:$src1, i64i8imm:$src2),
+def BT64mi8 : RIi8<0xBA, MRM4m, (outs), (ins i64mem:$src1, i64i8imm:$src2),
                 "bt{q}\t{$src2, $src1|$src1, $src2}",
                 [(set EFLAGS, (X86bt (loadi64 addr:$src1),
                                      i64immSExt8:$src2))]>, TB;
@@ -1537,116 +1541,6 @@ def : Pat<(i64 (anyext (i8 (X86setcc_c X86_COND_B, EFLAGS)))),
           (SETB_C64r)>;
 
 //===----------------------------------------------------------------------===//
-//  Conversion Instructions...
-//
-
-// f64 -> signed i64
-def CVTSD2SI64rr: RSDI<0x2D, MRMSrcReg, (outs GR64:$dst), (ins FR64:$src),
-                       "cvtsd2si{q}\t{$src, $dst|$dst, $src}", []>;
-def CVTSD2SI64rm: RSDI<0x2D, MRMSrcMem, (outs GR64:$dst), (ins f64mem:$src),
-                       "cvtsd2si{q}\t{$src, $dst|$dst, $src}", []>;
-def Int_CVTSD2SI64rr: RSDI<0x2D, MRMSrcReg, (outs GR64:$dst), (ins VR128:$src),
-                           "cvtsd2si{q}\t{$src, $dst|$dst, $src}",
-                           [(set GR64:$dst,
-                             (int_x86_sse2_cvtsd2si64 VR128:$src))]>;
-def Int_CVTSD2SI64rm: RSDI<0x2D, MRMSrcMem, (outs GR64:$dst), 
-                           (ins f128mem:$src),
-                           "cvtsd2si{q}\t{$src, $dst|$dst, $src}",
-                           [(set GR64:$dst, (int_x86_sse2_cvtsd2si64
-                                             (load addr:$src)))]>;
-def CVTTSD2SI64rr: RSDI<0x2C, MRMSrcReg, (outs GR64:$dst), (ins FR64:$src),
-                        "cvttsd2si{q}\t{$src, $dst|$dst, $src}",
-                        [(set GR64:$dst, (fp_to_sint FR64:$src))]>;
-def CVTTSD2SI64rm: RSDI<0x2C, MRMSrcMem, (outs GR64:$dst), (ins f64mem:$src),
-                        "cvttsd2si{q}\t{$src, $dst|$dst, $src}",
-                        [(set GR64:$dst, (fp_to_sint (loadf64 addr:$src)))]>;
-def Int_CVTTSD2SI64rr: RSDI<0x2C, MRMSrcReg, (outs GR64:$dst), (ins VR128:$src),
-                            "cvttsd2si{q}\t{$src, $dst|$dst, $src}",
-                            [(set GR64:$dst,
-                              (int_x86_sse2_cvttsd2si64 VR128:$src))]>;
-def Int_CVTTSD2SI64rm: RSDI<0x2C, MRMSrcMem, (outs GR64:$dst), 
-                            (ins f128mem:$src),
-                            "cvttsd2si{q}\t{$src, $dst|$dst, $src}",
-                            [(set GR64:$dst,
-                              (int_x86_sse2_cvttsd2si64
-                               (load addr:$src)))]>;
-
-// Signed i64 -> f64
-def CVTSI2SD64rr: RSDI<0x2A, MRMSrcReg, (outs FR64:$dst), (ins GR64:$src),
-                       "cvtsi2sd{q}\t{$src, $dst|$dst, $src}",
-                       [(set FR64:$dst, (sint_to_fp GR64:$src))]>;
-def CVTSI2SD64rm: RSDI<0x2A, MRMSrcMem, (outs FR64:$dst), (ins i64mem:$src),
-                       "cvtsi2sd{q}\t{$src, $dst|$dst, $src}",
-                       [(set FR64:$dst, (sint_to_fp (loadi64 addr:$src)))]>;
-
-let Constraints = "$src1 = $dst" in {
-def Int_CVTSI2SD64rr: RSDI<0x2A, MRMSrcReg,
-                           (outs VR128:$dst), (ins VR128:$src1, GR64:$src2),
-                           "cvtsi2sd{q}\t{$src2, $dst|$dst, $src2}",
-                           [(set VR128:$dst,
-                             (int_x86_sse2_cvtsi642sd VR128:$src1,
-                              GR64:$src2))]>;
-def Int_CVTSI2SD64rm: RSDI<0x2A, MRMSrcMem,
-                           (outs VR128:$dst), (ins VR128:$src1, i64mem:$src2),
-                           "cvtsi2sd{q}\t{$src2, $dst|$dst, $src2}",
-                           [(set VR128:$dst,
-                             (int_x86_sse2_cvtsi642sd VR128:$src1,
-                              (loadi64 addr:$src2)))]>;
-} // Constraints = "$src1 = $dst"
-
-// Signed i64 -> f32
-def CVTSI2SS64rr: RSSI<0x2A, MRMSrcReg, (outs FR32:$dst), (ins GR64:$src),
-                       "cvtsi2ss{q}\t{$src, $dst|$dst, $src}",
-                       [(set FR32:$dst, (sint_to_fp GR64:$src))]>;
-def CVTSI2SS64rm: RSSI<0x2A, MRMSrcMem, (outs FR32:$dst), (ins i64mem:$src),
-                       "cvtsi2ss{q}\t{$src, $dst|$dst, $src}",
-                       [(set FR32:$dst, (sint_to_fp (loadi64 addr:$src)))]>;
-
-let Constraints = "$src1 = $dst" in {
-  def Int_CVTSI2SS64rr : RSSI<0x2A, MRMSrcReg,
-                              (outs VR128:$dst), (ins VR128:$src1, GR64:$src2),
-                              "cvtsi2ss{q}\t{$src2, $dst|$dst, $src2}",
-                              [(set VR128:$dst,
-                                (int_x86_sse_cvtsi642ss VR128:$src1,
-                                 GR64:$src2))]>;
-  def Int_CVTSI2SS64rm : RSSI<0x2A, MRMSrcMem,
-                              (outs VR128:$dst), 
-                              (ins VR128:$src1, i64mem:$src2),
-                              "cvtsi2ss{q}\t{$src2, $dst|$dst, $src2}",
-                              [(set VR128:$dst,
-                                (int_x86_sse_cvtsi642ss VR128:$src1,
-                                 (loadi64 addr:$src2)))]>;
-} // Constraints = "$src1 = $dst"
-
-// f32 -> signed i64
-def CVTSS2SI64rr: RSSI<0x2D, MRMSrcReg, (outs GR64:$dst), (ins FR32:$src),
-                       "cvtss2si{q}\t{$src, $dst|$dst, $src}", []>;
-def CVTSS2SI64rm: RSSI<0x2D, MRMSrcMem, (outs GR64:$dst), (ins f32mem:$src),
-                       "cvtss2si{q}\t{$src, $dst|$dst, $src}", []>;
-def Int_CVTSS2SI64rr: RSSI<0x2D, MRMSrcReg, (outs GR64:$dst), (ins VR128:$src),
-                           "cvtss2si{q}\t{$src, $dst|$dst, $src}",
-                           [(set GR64:$dst,
-                             (int_x86_sse_cvtss2si64 VR128:$src))]>;
-def Int_CVTSS2SI64rm: RSSI<0x2D, MRMSrcMem, (outs GR64:$dst), (ins f32mem:$src),
-                           "cvtss2si{q}\t{$src, $dst|$dst, $src}",
-                           [(set GR64:$dst, (int_x86_sse_cvtss2si64
-                                             (load addr:$src)))]>;
-def CVTTSS2SI64rr: RSSI<0x2C, MRMSrcReg, (outs GR64:$dst), (ins FR32:$src),
-                        "cvttss2si{q}\t{$src, $dst|$dst, $src}",
-                        [(set GR64:$dst, (fp_to_sint FR32:$src))]>;
-def CVTTSS2SI64rm: RSSI<0x2C, MRMSrcMem, (outs GR64:$dst), (ins f32mem:$src),
-                        "cvttss2si{q}\t{$src, $dst|$dst, $src}",
-                        [(set GR64:$dst, (fp_to_sint (loadf32 addr:$src)))]>;
-def Int_CVTTSS2SI64rr: RSSI<0x2C, MRMSrcReg, (outs GR64:$dst), (ins VR128:$src),
-                            "cvttss2si{q}\t{$src, $dst|$dst, $src}",
-                            [(set GR64:$dst,
-                              (int_x86_sse_cvttss2si64 VR128:$src))]>;
-def Int_CVTTSS2SI64rm: RSSI<0x2C, MRMSrcMem, (outs GR64:$dst),
-                            (ins f32mem:$src),
-                            "cvttss2si{q}\t{$src, $dst|$dst, $src}",
-                            [(set GR64:$dst,
-                              (int_x86_sse_cvttss2si64 (load addr:$src)))]>;
-                              
 // Descriptor-table support instructions
 
 // LLDT is not interpreted specially in 64-bit mode because there is no sign
@@ -1726,6 +1620,14 @@ def MOV64FSrm : RI<0x8B, MRMSrcMem, (outs GR64:$dst), (ins i64mem:$src),
 // Atomic Instructions
 //===----------------------------------------------------------------------===//
 
+// TODO: Get this to fold the constant into the instruction.           
+let hasSideEffects = 1, Defs = [ESP] in
+def Int_MemBarrierNoSSE64  : RI<0x09, MRM1r, (outs), (ins GR64:$zero),
+                           "lock\n\t"
+                           "or{q}\t{$zero, (%rsp)|(%rsp), $zero}",
+                           [(X86MemBarrierNoSSE GR64:$zero)]>,
+													 Requires<[In64BitMode]>, LOCK;
+
 let Defs = [RAX, EFLAGS], Uses = [RAX] in {
 def LCMPXCHG64 : RI<0xB1, MRMDestMem, (outs), (ins i64mem:$ptr, GR64:$swap),
                "lock\n\t"
@@ -1772,7 +1674,7 @@ def XCHG64ar : RI<0x90, AddRegFrm, (outs), (ins GR64:$src),
 // Optimized codegen when the non-memory output is not used.
 let Defs = [EFLAGS], mayLoad = 1, mayStore = 1 in {
 // FIXME: Use normal add / sub instructions and add lock prefix dynamically.
-def LOCK_ADD64mr : RI<0x03, MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src2),
+def LOCK_ADD64mr : RI<0x01, MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src2),
                       "lock\n\t"
                       "add{q}\t{$src2, $dst|$dst, $src2}", []>, LOCK;
 def LOCK_ADD64mi8 : RIi8<0x83, MRM0m, (outs),

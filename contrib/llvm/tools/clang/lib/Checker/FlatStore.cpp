@@ -44,11 +44,10 @@ public:
   }
 
   SVal ArrayToPointer(Loc Array);
-  const GRState *RemoveDeadBindings(GRState &state, 
-                           const StackFrameContext *LCtx,
+  Store RemoveDeadBindings(Store store, const StackFrameContext *LCtx,
                            SymbolReaper& SymReaper,
                          llvm::SmallVectorImpl<const MemRegion*>& RegionRoots){
-    return StateMgr.getPersistentState(state);
+    return store;
   }
 
   Store BindDecl(Store store, const VarRegion *VR, SVal initVal);
@@ -57,13 +56,10 @@ public:
 
   typedef llvm::DenseSet<SymbolRef> InvalidatedSymbols;
   
-  Store InvalidateRegion(Store store, const MemRegion *R, const Expr *E, 
-                         unsigned Count, InvalidatedSymbols *IS);
-  
   Store InvalidateRegions(Store store, const MemRegion * const *I,
                           const MemRegion * const *E, const Expr *Ex,
                           unsigned Count, InvalidatedSymbols *IS,
-                          bool invalidateGlobals);
+                          bool invalidateGlobals, InvalidatedRegions *Regions);
 
   void print(Store store, llvm::raw_ostream& Out, const char* nl, 
              const char *sep);
@@ -74,7 +70,14 @@ private:
     return RegionBindings(static_cast<const RegionBindings::TreeTy*>(store));
   }
 
-  Interval RegionToInterval(const MemRegion *R);
+  class RegionInterval {
+  public:
+    const MemRegion *R;
+    Interval I;
+    RegionInterval(const MemRegion *r, int64_t s, int64_t e) : R(r), I(s, e){}
+  };
+
+  RegionInterval RegionToInterval(const MemRegion *R);
 
   SVal RetrieveRegionWithNoBinding(const MemRegion *R, QualType T);
 };
@@ -86,11 +89,15 @@ StoreManager *clang::CreateFlatStoreManager(GRStateManager &StMgr) {
 
 SVal FlatStoreManager::Retrieve(Store store, Loc L, QualType T) {
   const MemRegion *R = cast<loc::MemRegionVal>(L).getRegion();
-  Interval I = RegionToInterval(R);
+  RegionInterval RI = RegionToInterval(R);
+  // FIXME: FlatStore should handle regions with unknown intervals.
+  if (!RI.R)
+    return UnknownVal();
+
   RegionBindings B = getRegionBindings(store);
-  const BindingVal *BV = B.lookup(R);
+  const BindingVal *BV = B.lookup(RI.R);
   if (BV) {
-    const SVal *V = BVFactory.Lookup(*BV, I);
+    const SVal *V = BVFactory.Lookup(*BV, RI.I);
     if (V)
       return *V;
     else
@@ -116,9 +123,12 @@ Store FlatStoreManager::Bind(Store store, Loc L, SVal val) {
   if (V)
     BV = *V;
 
-  Interval I = RegionToInterval(R);
-  BV = BVFactory.Add(BV, I, val);
-  B = RBFactory.Add(B, R, BV);
+  RegionInterval RI = RegionToInterval(R);
+  // FIXME: FlatStore should handle regions with unknown intervals.
+  if (!RI.R)
+    return B.getRoot();
+  BV = BVFactory.Add(BV, RI.I, val);
+  B = RBFactory.Add(B, RI.R, BV);
   return B.getRoot();
 }
 
@@ -139,7 +149,7 @@ SVal FlatStoreManager::ArrayToPointer(Loc Array) {
 
 Store FlatStoreManager::BindDecl(Store store, const VarRegion *VR, 
                                  SVal initVal) {
-  return store;
+  return Bind(store, ValMgr.makeLoc(VR), initVal);
 }
 
 Store FlatStoreManager::BindDeclWithNoInit(Store store, const VarRegion *VR) {
@@ -147,18 +157,12 @@ Store FlatStoreManager::BindDeclWithNoInit(Store store, const VarRegion *VR) {
 }
 
 Store FlatStoreManager::InvalidateRegions(Store store,
-                                            const MemRegion * const *I,
-                                            const MemRegion * const *E,
-                                            const Expr *Ex, unsigned Count,
-                                            InvalidatedSymbols *IS,
-                                            bool invalidateGlobals) {
-  assert(false && "Not implemented");
-  return store;
-}
-
-Store FlatStoreManager::InvalidateRegion(Store store, const MemRegion *R,
-                                         const Expr *E, unsigned Count,
-                                         InvalidatedSymbols *IS) {
+                                          const MemRegion * const *I,
+                                          const MemRegion * const *E,
+                                          const Expr *Ex, unsigned Count,
+                                          InvalidatedSymbols *IS,
+                                          bool invalidateGlobals,
+                                          InvalidatedRegions *Regions) {
   assert(false && "Not implemented");
   return store;
 }
@@ -170,15 +174,29 @@ void FlatStoreManager::print(Store store, llvm::raw_ostream& Out,
 void FlatStoreManager::iterBindings(Store store, BindingsHandler& f) {
 }
 
-Interval FlatStoreManager::RegionToInterval(const MemRegion *R) { 
+FlatStoreManager::RegionInterval 
+FlatStoreManager::RegionToInterval(const MemRegion *R) { 
   switch (R->getKind()) {
   case MemRegion::VarRegionKind: {
-    QualType T = cast<VarRegion>(R)->getValueType(Ctx);
-    uint64_t Size = Ctx.getTypeSize(T);
-    return Interval(0, Size-1);
+    QualType T = cast<VarRegion>(R)->getValueType();
+    int64_t Size = Ctx.getTypeSize(T);
+    return RegionInterval(R, 0, Size-1);
   }
+
+  case MemRegion::ElementRegionKind: 
+  case MemRegion::FieldRegionKind: {
+    RegionOffset Offset = R->getAsOffset();
+    // We cannot compute offset for all regions, for example, elements
+    // with symbolic offsets.
+    if (!Offset.getRegion())
+      return RegionInterval(0, 0, 0);
+    int64_t Start = Offset.getOffset();
+    int64_t Size = Ctx.getTypeSize(cast<TypedRegion>(R)->getValueType());
+    return RegionInterval(Offset.getRegion(), Start, Start+Size);
+  }
+
   default:
     llvm_unreachable("Region kind unhandled.");
-    return Interval(0, 0);
+    return RegionInterval(0, 0, 0);
   }
 }

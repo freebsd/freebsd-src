@@ -95,9 +95,9 @@ namespace {
   public:
     static char ID; // Pass identification
     StackSlotColoring() :
-      MachineFunctionPass(&ID), ColorWithRegs(false), NextColor(-1) {}
+      MachineFunctionPass(ID), ColorWithRegs(false), NextColor(-1) {}
     StackSlotColoring(bool RegColor) :
-      MachineFunctionPass(&ID), ColorWithRegs(RegColor), NextColor(-1) {}
+      MachineFunctionPass(ID), ColorWithRegs(RegColor), NextColor(-1) {}
     
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
@@ -119,7 +119,6 @@ namespace {
 
   private:
     void InitializeSlots();
-    bool CheckForSetJmpCall(const MachineFunction &MF) const;
     void ScanForSpillSlotRefs(MachineFunction &MF);
     bool OverlapWithAssignments(LiveInterval *li, int Color) const;
     int ColorSlot(LiveInterval *li);
@@ -146,8 +145,8 @@ namespace {
 
 char StackSlotColoring::ID = 0;
 
-static RegisterPass<StackSlotColoring>
-X("stack-slot-coloring", "Stack Slot Coloring");
+INITIALIZE_PASS(StackSlotColoring, "stack-slot-coloring",
+                "Stack Slot Coloring", false, false);
 
 FunctionPass *llvm::createStackSlotColoringPass(bool RegColor) {
   return new StackSlotColoring(RegColor);

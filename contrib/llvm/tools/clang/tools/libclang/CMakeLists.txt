@@ -5,10 +5,11 @@ set(LLVM_NO_RTTI 1)
 set(LLVM_USED_LIBS
   clangFrontend
   clangDriver
+  clangSerialization
+  clangParse
   clangSema
   clangAnalysis
   clangAST
-  clangParse
   clangLex
   clangBasic)
 
@@ -20,28 +21,34 @@ set( LLVM_LINK_COMPONENTS
 
 add_clang_library(libclang
   CIndex.cpp
+  CIndexCXX.cpp
   CIndexCodeCompletion.cpp
   CIndexDiagnostic.cpp
   CIndexInclusionStack.cpp
   CIndexUSRs.cpp
   CIndexer.cpp
   CXCursor.cpp
-  CXTypes.cpp
+  CXType.cpp
   ../../include/clang-c/Index.h
 )
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  # FIXME: Deal with LLVM_SUBMIT_VERSION?
+  # dylib versioning information
+  # FIXME: Is there a more CMake-ish way to handle this?
+  set(LIBCLANG_VERSION 1 
+      CACHE STRING "Version number of the libclang library")
+  set(LIBCLANG_SUBVERSION 0
+      CACHE STRING "Minor version number of the libclang library")
+  set(LIBCLANG_LINK_FLAGS 
+      "-Wl,-current_version -Wl,${LIBCLANG_VERSION}.${LIBCLANG_SUBVERSION} -Wl,-compatibility_version -Wl,1")
 
-  # FIXME: This uses a special darwin-specific exports file in order to
-  # get underscore-prefixed names. It would be better to have build rules
-  # which know how to produce a darwin-suitable exports file from the
-  # regular exports file.
+  set(LIBCLANG_LINK_FLAGS 
+      "${LIBCLANG_LINK_FLAGS} -Wl,-dead_strip -Wl,-seg1addr -Wl,0xE0000000")
+
   set_target_properties(libclang
     PROPERTIES
-    LINK_FLAGS "-avoid-version -Wl,-exported_symbols_list -Wl,${CMAKE_CURRENT_SOURCE_DIR}/libclang.darwin.exports -Wl,-dead_strip -Wl,-seg1addr -Wl,0xE0000000"
-    INSTALL_NAME_DIR "@executable_path/../lib"
-    )
+    LINK_FLAGS "${LIBCLANG_LINK_FLAGS}"
+    INSTALL_NAME_DIR "@executable_path/../lib")
 endif()
 
 if(MSVC)

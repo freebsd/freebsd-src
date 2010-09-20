@@ -27,16 +27,17 @@ using namespace clang;
 
 FixItRewriter::FixItRewriter(Diagnostic &Diags, SourceManager &SourceMgr,
                              const LangOptions &LangOpts,
-                             FixItPathRewriter *PathRewriter)
+                             FixItOptions *FixItOpts)
   : Diags(Diags),
     Rewrite(SourceMgr, LangOpts),
-    PathRewriter(PathRewriter),
+    FixItOpts(FixItOpts),
     NumFailures(0) {
-  Client = Diags.getClient();
+  Client = Diags.takeClient();
   Diags.setClient(this);
 }
 
 FixItRewriter::~FixItRewriter() {
+  Diags.takeClient();
   Diags.setClient(Client);
 }
 
@@ -49,16 +50,14 @@ bool FixItRewriter::WriteFixedFile(FileID ID, llvm::raw_ostream &OS) {
 }
 
 bool FixItRewriter::WriteFixedFiles() {
-  if (NumFailures > 0) {
+  if (NumFailures > 0 && !FixItOpts->FixWhatYouCan) {
     Diag(FullSourceLoc(), diag::warn_fixit_no_changes);
     return true;
   }
 
   for (iterator I = buffer_begin(), E = buffer_end(); I != E; ++I) {
     const FileEntry *Entry = Rewrite.getSourceMgr().getFileEntryForID(I->first);
-    std::string Filename = Entry->getName();
-    if (PathRewriter)
-      Filename = PathRewriter->RewriteFilename(Filename);
+    std::string Filename = FixItOpts->RewriteFilename(Entry->getName());
     std::string Err;
     llvm::raw_fd_ostream OS(Filename.c_str(), Err,
                             llvm::raw_fd_ostream::F_Binary);
@@ -98,12 +97,6 @@ void FixItRewriter::HandleDiagnostic(Diagnostic::Level DiagLevel,
       CanRewrite = false;
       break;
     }
-
-    if (Hint.InsertionLoc.isValid() &&
-        !Rewrite.isRewritable(Hint.InsertionLoc)) {
-      CanRewrite = false;
-      break;
-    }
   }
 
   if (!CanRewrite) {
@@ -122,12 +115,6 @@ void FixItRewriter::HandleDiagnostic(Diagnostic::Level DiagLevel,
   for (unsigned Idx = 0, Last = Info.getNumFixItHints();
        Idx < Last; ++Idx) {
     const FixItHint &Hint = Info.getFixItHint(Idx);
-    if (!Hint.RemoveRange.isValid()) {
-      // We're adding code.
-      if (Rewrite.InsertTextBefore(Hint.InsertionLoc, Hint.CodeToInsert))
-        Failed = true;
-      continue;
-    }
 
     if (Hint.CodeToInsert.empty()) {
       // We're removing code.
@@ -158,10 +145,12 @@ void FixItRewriter::Diag(FullSourceLoc Loc, unsigned DiagID) {
   // When producing this diagnostic, we temporarily bypass ourselves,
   // clear out any current diagnostic, and let the downstream client
   // format the diagnostic.
+  Diags.takeClient();
   Diags.setClient(Client);
   Diags.Clear();
   Diags.Report(Loc, DiagID);
+  Diags.takeClient();
   Diags.setClient(this);
 }
 
-FixItPathRewriter::~FixItPathRewriter() {}
+FixItOptions::~FixItOptions() {}

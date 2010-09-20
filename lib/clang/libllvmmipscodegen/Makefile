@@ -15,13 +15,12 @@ SRCS=	MipsDelaySlotFiller.cpp \
 	MipsTargetObjectFile.cpp
 
 TGHDRS=	Intrinsics \
-	MipsGenAsmWriter \
 	MipsGenCallingConv \
 	MipsGenDAGISel \
 	MipsGenInstrInfo \
 	MipsGenInstrNames \
-	MipsGenRegisterInfo.h \
 	MipsGenRegisterInfo \
+	MipsGenRegisterInfo.h \
 	MipsGenRegisterNames \
 	MipsGenSubtarget
 

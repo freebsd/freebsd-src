@@ -11,19 +11,14 @@
 #define LLVM_CODEGEN_SPILLER_H
 
 #include "llvm/ADT/SmallVector.h"
-#include <vector>
 
 namespace llvm {
 
   class LiveInterval;
-  class LiveIntervals;
-  class LiveStacks;
   class MachineFunction;
-  class MachineInstr;
-  class MachineLoopInfo;
+  class MachineFunctionPass;
   class SlotIndex;
   class VirtRegMap;
-  class VNInfo;
 
   /// Spiller interface.
   ///
@@ -40,18 +35,16 @@ namespace llvm {
     /// @param spillIs       A list of intervals that are about to be spilled,
     ///                      and so cannot be used for remat etc.
     /// @param newIntervals  The newly created intervals will be appended here.
-    /// @param earliestIndex The earliest point for splitting. (OK, it's another
-    ///                      pointer to the allocator guts).
     virtual void spill(LiveInterval *li,
-                       std::vector<LiveInterval*> &newIntervals,
-                       SmallVectorImpl<LiveInterval*> &spillIs,
-                       SlotIndex *earliestIndex = 0) = 0;
+                       SmallVectorImpl<LiveInterval*> &newIntervals,
+                       SmallVectorImpl<LiveInterval*> &spillIs) = 0;
 
   };
 
   /// Create and return a spiller object, as specified on the command line.
-  Spiller* createSpiller(MachineFunction *mf, LiveIntervals *li,
-                         const MachineLoopInfo *loopInfo, VirtRegMap *vrm);
+  Spiller* createSpiller(MachineFunctionPass &pass,
+                         MachineFunction &mf,
+                         VirtRegMap &vrm);
 }
 
 #endif

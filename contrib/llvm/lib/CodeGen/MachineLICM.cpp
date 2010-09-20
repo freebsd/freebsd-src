@@ -68,16 +68,16 @@ namespace {
 
     BitVector AllocatableSet;
 
-    // For each opcode, keep a list of potentail CSE instructions.
+    // For each opcode, keep a list of potential CSE instructions.
     DenseMap<unsigned, std::vector<const MachineInstr*> > CSEMap;
 
   public:
     static char ID; // Pass identification, replacement for typeid
     MachineLICM() :
-      MachineFunctionPass(&ID), PreRegAlloc(true) {}
+      MachineFunctionPass(ID), PreRegAlloc(true) {}
 
     explicit MachineLICM(bool PreRA) :
-      MachineFunctionPass(&ID), PreRegAlloc(PreRA) {}
+      MachineFunctionPass(ID), PreRegAlloc(PreRA) {}
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
 
@@ -189,8 +189,8 @@ namespace {
 } // end anonymous namespace
 
 char MachineLICM::ID = 0;
-static RegisterPass<MachineLICM>
-X("machinelicm", "Machine Loop Invariant Code Motion");
+INITIALIZE_PASS(MachineLICM, "machinelicm",
+                "Machine Loop Invariant Code Motion", false, false);
 
 FunctionPass *llvm::createMachineLICMPass(bool PreRegAlloc) {
   return new MachineLICM(PreRegAlloc);
@@ -488,9 +488,14 @@ void MachineLICM::HoistRegion(MachineDomTreeNode *N) {
     MII = NextMII;
   }
 
-  const std::vector<MachineDomTreeNode*> &Children = N->getChildren();
-  for (unsigned I = 0, E = Children.size(); I != E; ++I)
-    HoistRegion(Children[I]);
+  // Don't hoist things out of a large switch statement.  This often causes
+  // code to be hoisted that wasn't going to be executed, and increases
+  // register pressure in a situation where it's likely to matter.
+  if (BB->succ_size() < 25) {
+    const std::vector<MachineDomTreeNode*> &Children = N->getChildren();
+    for (unsigned I = 0, E = Children.size(); I != E; ++I)
+      HoistRegion(Children[I]);
+  }
 }
 
 /// IsLICMCandidate - Returns true if the instruction may be a suitable

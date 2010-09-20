@@ -37,7 +37,7 @@ namespace {
     unsigned NumLoops;
 
     explicit LoopExtractor(unsigned numLoops = ~0) 
-      : LoopPass(&ID), NumLoops(numLoops) {}
+      : LoopPass(ID), NumLoops(numLoops) {}
 
     virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
 
@@ -50,8 +50,8 @@ namespace {
 }
 
 char LoopExtractor::ID = 0;
-static RegisterPass<LoopExtractor>
-X("loop-extract", "Extract loops into new functions");
+INITIALIZE_PASS(LoopExtractor, "loop-extract",
+                "Extract loops into new functions", false, false);
 
 namespace {
   /// SingleLoopExtractor - For bugpoint.
@@ -62,8 +62,8 @@ namespace {
 } // End anonymous namespace
 
 char SingleLoopExtractor::ID = 0;
-static RegisterPass<SingleLoopExtractor>
-Y("loop-extract-single", "Extract at most one loop into a new function");
+INITIALIZE_PASS(SingleLoopExtractor, "loop-extract-single",
+                "Extract at most one loop into a new function", false, false);
 
 // createLoopExtractorPass - This pass extracts all natural loops from the
 // program into a function if it can.
@@ -147,27 +147,26 @@ namespace {
     std::vector<std::pair<std::string, std::string> > BlocksToNotExtractByName;
   public:
     static char ID; // Pass identification, replacement for typeid
-    explicit BlockExtractorPass(const std::vector<BasicBlock*> &B) 
-      : ModulePass(&ID), BlocksToNotExtract(B) {
+    BlockExtractorPass() : ModulePass(ID) {
       if (!BlockFile.empty())
         LoadFile(BlockFile.c_str());
     }
-    BlockExtractorPass() : ModulePass(&ID) {}
 
     bool runOnModule(Module &M);
   };
 }
 
 char BlockExtractorPass::ID = 0;
-static RegisterPass<BlockExtractorPass>
-XX("extract-blocks", "Extract Basic Blocks From Module (for bugpoint use)");
+INITIALIZE_PASS(BlockExtractorPass, "extract-blocks",
+                "Extract Basic Blocks From Module (for bugpoint use)",
+                false, false);
 
 // createBlockExtractorPass - This pass extracts all blocks (except those
 // specified in the argument list) from the functions in the module.
 //
-ModulePass *llvm::createBlockExtractorPass(const std::vector<BasicBlock*> &BTNE)
+ModulePass *llvm::createBlockExtractorPass()
 {
-  return new BlockExtractorPass(BTNE);
+  return new BlockExtractorPass();
 }
 
 void BlockExtractorPass::LoadFile(const char *Filename) {

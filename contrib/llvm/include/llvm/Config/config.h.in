@@ -1,5 +1,8 @@
 /* include/llvm/Config/config.h.in.  Generated from autoconf/configure.ac by autoheader.  */
 
+#ifndef CONFIG_H
+#define CONFIG_H
+
 /* 32 bit multilib directory. */
 #undef CXX_INCLUDE_32BIT_DIR
 
@@ -458,6 +461,9 @@
 /* Define to 1 if you have the `__dso_handle' function. */
 #undef HAVE___DSO_HANDLE
 
+/* Linker version detected at compile time. */
+#undef HOST_LINK_VERSION
+
 /* Installation directory for binary executables */
 #undef LLVM_BINDIR
 
@@ -493,6 +499,15 @@
 
 /* LLVM architecture name for the native architecture, if available */
 #undef LLVM_NATIVE_ARCH
+
+/* LLVM name for the native AsmPrinter init function, if available */
+#undef LLVM_NATIVE_ASMPRINTER
+
+/* LLVM name for the native Target init function, if available */
+#undef LLVM_NATIVE_TARGET
+
+/* LLVM name for the native TargetInfo init function, if available */
+#undef LLVM_NATIVE_TARGETINFO
 
 /* Define if this is Unixish platform */
 #undef LLVM_ON_UNIX
@@ -598,3 +613,5 @@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
+
+#endif

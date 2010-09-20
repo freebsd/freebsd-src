@@ -35,6 +35,7 @@
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/raw_ostream.h"
@@ -229,13 +230,16 @@ public:
     return 0;
   }
 
+  /// Edge type.
+  typedef std::pair<BlockT*, BlockT*> Edge;
+
   /// getExitEdges - Return all pairs of (_inside_block_,_outside_block_).
-  typedef std::pair<const BlockT*,const BlockT*> Edge;
-  void getExitEdges(SmallVectorImpl<Edge> &ExitEdges) const {
+  template <typename EdgeT>
+  void getExitEdges(SmallVectorImpl<EdgeT> &ExitEdges) const {
     // Sort the blocks vector so that we can use binary search to do quick
     // lookups.
     SmallVector<BlockT*, 128> LoopBBs(block_begin(), block_end());
-    std::sort(LoopBBs.begin(), LoopBBs.end());
+    array_pod_sort(LoopBBs.begin(), LoopBBs.end());
 
     typedef GraphTraits<BlockT*> BlockTraits;
     for (block_iterator BI = block_begin(), BE = block_end(); BI != BE; ++BI)
@@ -244,7 +248,7 @@ public:
            I != E; ++I)
         if (!std::binary_search(LoopBBs.begin(), LoopBBs.end(), *I))
           // Not in current loop? It must be an exit block.
-          ExitEdges.push_back(std::make_pair(*BI, *I));
+          ExitEdges.push_back(EdgeT(*BI, *I));
   }
 
   /// getLoopPreheader - If there is a preheader for this loop, return it.  A
@@ -505,6 +509,12 @@ protected:
   }
 };
 
+template<class BlockT, class LoopT>
+raw_ostream& operator<<(raw_ostream &OS, const LoopBase<BlockT, LoopT> &Loop) {
+  Loop.print(OS);
+  return OS;
+}
+
 class Loop : public LoopBase<BasicBlock, Loop> {
 public:
   Loop() {}
@@ -551,12 +561,6 @@ public:
   /// variable.
   ///
   PHINode *getCanonicalInductionVariable() const;
-
-  /// getCanonicalInductionVariableIncrement - Return the LLVM value that holds
-  /// the canonical induction variable value for the "next" iteration of the
-  /// loop.  This always succeeds if getCanonicalInductionVariable succeeds.
-  ///
-  Instruction *getCanonicalInductionVariableIncrement() const;
 
   /// getTripCount - Return a loop-invariant LLVM value indicating the number of
   /// times the loop will be executed.  Note that this means that the backedge
@@ -936,7 +940,7 @@ class LoopInfo : public FunctionPass {
 public:
   static char ID; // Pass identification, replacement for typeid
 
-  LoopInfo() : FunctionPass(&ID) {}
+  LoopInfo() : FunctionPass(ID) {}
 
   LoopInfoBase<BasicBlock, Loop>& getBase() { return LI; }
 

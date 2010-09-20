@@ -11,10 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Parse/Designator.h"
 #include "clang/Parse/Parser.h"
 #include "clang/Parse/ParseDiagnostic.h"
-#include "clang/Parse/Scope.h"
+#include "clang/Sema/Designator.h"
+#include "clang/Sema/Scope.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
@@ -71,7 +71,7 @@ static void CheckArrayDesignatorSyntax(Parser &P, SourceLocation Loc,
 /// initializer (because it is an expression).  We need to consider this case
 /// when parsing array designators.
 ///
-Parser::OwningExprResult Parser::ParseInitializerWithPotentialDesignator() {
+ExprResult Parser::ParseInitializerWithPotentialDesignator() {
 
   // If this is the old-style GNU extension:
   //   designation ::= identifier ':'
@@ -137,7 +137,7 @@ Parser::OwningExprResult Parser::ParseInitializerWithPotentialDesignator() {
     //   [4][foo bar]      -> obsolete GNU designation with objc message send.
     //
     SourceLocation StartLoc = ConsumeBracket();
-    OwningExprResult Idx(Actions);
+    ExprResult Idx;
 
     // If Objective-C is enabled and this is a typename (class message
     // send) or send to 'super', parse this as a message send
@@ -149,8 +149,9 @@ Parser::OwningExprResult Parser::ParseInitializerWithPotentialDesignator() {
           NextToken().isNot(tok::period) && getCurScope()->isInObjcMethodScope()) {
         CheckArrayDesignatorSyntax(*this, StartLoc, Desig);
         return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
-                                                           ConsumeToken(), 0, 
-                                                           ExprArg(Actions));
+                                                           ConsumeToken(),
+                                                           ParsedType(), 
+                                                           0);
       }
 
       // Parse the receiver, which is either a type or an expression.
@@ -167,35 +168,35 @@ Parser::OwningExprResult Parser::ParseInitializerWithPotentialDesignator() {
         CheckArrayDesignatorSyntax(*this, StartLoc, Desig);
         return ParseAssignmentExprWithObjCMessageExprStart(StartLoc, 
                                                            SourceLocation(), 
-                                                           TypeOrExpr, 
-                                                           ExprArg(Actions));
+                                   ParsedType::getFromOpaquePtr(TypeOrExpr),
+                                                           0);
       }
 
       // If the receiver was an expression, we still don't know
       // whether we have a message send or an array designator; just
       // adopt the expression for further analysis below.
       // FIXME: potentially-potentially evaluated expression above?
-      Idx = OwningExprResult(Actions, TypeOrExpr);
+      Idx = ExprResult(static_cast<Expr*>(TypeOrExpr));
     } else if (getLang().ObjC1 && Tok.is(tok::identifier)) {
       IdentifierInfo *II = Tok.getIdentifierInfo();
       SourceLocation IILoc = Tok.getLocation();
-      TypeTy *ReceiverType;
+      ParsedType ReceiverType;
       // Three cases. This is a message send to a type: [type foo]
       // This is a message send to super:  [super foo]
       // This is a message sent to an expr:  [super.bar foo]
-      switch (Action::ObjCMessageKind Kind
+      switch (Sema::ObjCMessageKind Kind
                 = Actions.getObjCMessageKind(getCurScope(), II, IILoc, 
                                              II == Ident_super,
                                              NextToken().is(tok::period),
                                              ReceiverType)) {
-      case Action::ObjCSuperMessage:
-      case Action::ObjCClassMessage:
+      case Sema::ObjCSuperMessage:
+      case Sema::ObjCClassMessage:
         CheckArrayDesignatorSyntax(*this, StartLoc, Desig);
-        if (Kind == Action::ObjCSuperMessage)
+        if (Kind == Sema::ObjCSuperMessage)
           return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
                                                              ConsumeToken(),
-                                                             0,
-                                                             ExprArg(Actions));
+                                                             ParsedType(),
+                                                             0);
         ConsumeToken(); // the identifier
         if (!ReceiverType) {
           SkipUntil(tok::r_square);
@@ -205,9 +206,9 @@ Parser::OwningExprResult Parser::ParseInitializerWithPotentialDesignator() {
         return ParseAssignmentExprWithObjCMessageExprStart(StartLoc, 
                                                            SourceLocation(), 
                                                            ReceiverType, 
-                                                           ExprArg(Actions));
+                                                           0);
 
-      case Action::ObjCInstanceMessage:
+      case Sema::ObjCInstanceMessage:
         // Fall through; we'll just parse the expression and
         // (possibly) treat this like an Objective-C message send
         // later.
@@ -239,7 +240,8 @@ Parser::OwningExprResult Parser::ParseInitializerWithPotentialDesignator() {
       CheckArrayDesignatorSyntax(*this, Tok.getLocation(), Desig);
       return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
                                                          SourceLocation(),
-                                                         0, move(Idx));
+                                                         ParsedType(),
+                                                         Idx.take());
     }
 
     // If this is a normal array designator, remember it.
@@ -250,7 +252,7 @@ Parser::OwningExprResult Parser::ParseInitializerWithPotentialDesignator() {
       Diag(Tok, diag::ext_gnu_array_range);
       SourceLocation EllipsisLoc = ConsumeToken();
 
-      OwningExprResult RHS(ParseConstantExpression());
+      ExprResult RHS(ParseConstantExpression());
       if (RHS.isInvalid()) {
         SkipUntil(tok::r_square);
         return move(RHS);
@@ -307,7 +309,7 @@ Parser::OwningExprResult Parser::ParseInitializerWithPotentialDesignator() {
 ///         designation[opt] initializer
 ///         initializer-list ',' designation[opt] initializer
 ///
-Parser::OwningExprResult Parser::ParseBraceInitializer() {
+ExprResult Parser::ParseBraceInitializer() {
   SourceLocation LBraceLoc = ConsumeBrace();
 
   /// InitExprs - This is the actual list of expressions contained in the
@@ -319,7 +321,7 @@ Parser::OwningExprResult Parser::ParseBraceInitializer() {
     if (!getLang().CPlusPlus)
       Diag(LBraceLoc, diag::ext_gnu_empty_initializer);
     // Match the '}'.
-    return Actions.ActOnInitList(LBraceLoc, Action::MultiExprArg(Actions),
+    return Actions.ActOnInitList(LBraceLoc, MultiExprArg(Actions),
                                  ConsumeBrace());
   }
 
@@ -330,7 +332,7 @@ Parser::OwningExprResult Parser::ParseBraceInitializer() {
 
     // If we know that this cannot be a designation, just parse the nested
     // initializer directly.
-    OwningExprResult SubElt(Actions);
+    ExprResult SubElt;
     if (MayBeDesignationStart(Tok.getKind(), PP))
       SubElt = ParseInitializerWithPotentialDesignator();
     else

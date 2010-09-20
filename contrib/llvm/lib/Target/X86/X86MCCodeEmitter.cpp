@@ -365,7 +365,7 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
                                            const TargetInstrDesc &Desc,
                                            raw_ostream &OS) const {
   bool HasVEX_4V = false;
-  if (TSFlags & X86II::VEX_4V)
+  if ((TSFlags >> 32) & X86II::VEX_4V)
     HasVEX_4V = true;
 
   // VEX_R: opcode externsion equivalent to REX.R in
@@ -429,10 +429,10 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
   if (TSFlags & X86II::OpSize)
     VEX_PP = 0x01;
 
-  if (TSFlags & X86II::VEX_W)
+  if ((TSFlags >> 32) & X86II::VEX_W)
     VEX_W = 1;
 
-  if (TSFlags & X86II::VEX_L)
+  if ((TSFlags >> 32) & X86II::VEX_L)
     VEX_L = 1;
 
   switch (TSFlags & X86II::Op0Mask) {
@@ -469,33 +469,39 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
 
   unsigned NumOps = MI.getNumOperands();
   unsigned CurOp = 0;
+  bool IsDestMem = false;
 
   switch (TSFlags & X86II::FormMask) {
   case X86II::MRMInitReg: assert(0 && "FIXME: Remove this!");
+  case X86II::MRMDestMem:
+    IsDestMem = true;
+    // The important info for the VEX prefix is never beyond the address
+    // registers. Don't check beyond that.
+    NumOps = CurOp = X86::AddrNumOperands;
   case X86II::MRM0m: case X86II::MRM1m:
   case X86II::MRM2m: case X86II::MRM3m:
   case X86II::MRM4m: case X86II::MRM5m:
   case X86II::MRM6m: case X86II::MRM7m:
-  case X86II::MRMDestMem:
-    NumOps = CurOp = X86::AddrNumOperands;
   case X86II::MRMSrcMem:
   case X86II::MRMSrcReg:
     if (MI.getNumOperands() > CurOp && MI.getOperand(CurOp).isReg() &&
         X86InstrInfo::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
       VEX_R = 0x0;
-
-    // CurOp and NumOps are equal when VEX_R represents a register used
-    // to index a memory destination (which is the last operand)
-    CurOp = (CurOp == NumOps) ? 0 : CurOp+1;
+    CurOp++;
 
     if (HasVEX_4V) {
-      VEX_4V = getVEXRegisterEncoding(MI, CurOp);
+      VEX_4V = getVEXRegisterEncoding(MI, IsDestMem ? CurOp-1 : CurOp);
       CurOp++;
     }
 
+    // To only check operands before the memory address ones, start
+    // the search from the begining
+    if (IsDestMem)
+      CurOp = 0;
+
     // If the last register should be encoded in the immediate field
     // do not use any bit from VEX prefix to this register, ignore it
-    if (TSFlags & X86II::VEX_I8IMM)
+    if ((TSFlags >> 32) & X86II::VEX_I8IMM)
       NumOps--;
 
     for (; CurOp != NumOps; ++CurOp) {
@@ -508,7 +514,10 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
         VEX_X = 0x0;
     }
     break;
-  default: // MRMDestReg, MRM0r-MRM7r
+  default: // MRMDestReg, MRM0r-MRM7r, RawFrm
+    if (!MI.getNumOperands())
+      break;
+
     if (MI.getOperand(CurOp).isReg() &&
         X86InstrInfo::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
       VEX_B = 0;
@@ -524,7 +533,6 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
         VEX_R = 0x0;
     }
     break;
-    assert(0 && "Not implemented!");
   }
 
   // Emit segment override opcode prefix as needed.
@@ -793,9 +801,9 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   // It uses the VEX.VVVV field?
   bool HasVEX_4V = false;
 
-  if (TSFlags & X86II::VEX)
+  if ((TSFlags >> 32) & X86II::VEX)
     HasVEXPrefix = true;
-  if (TSFlags & X86II::VEX_4V)
+  if ((TSFlags >> 32) & X86II::VEX_4V)
     HasVEX_4V = true;
 
   // Determine where the memory operand starts, if present.
@@ -819,6 +827,14 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   case X86II::RawFrm:
     EmitByte(BaseOpcode, CurByte, OS);
     break;
+      
+  case X86II::RawFrmImm16:
+    EmitByte(BaseOpcode, CurByte, OS);
+    EmitImmediate(MI.getOperand(CurOp++),
+                  X86II::getSizeOfImm(TSFlags), getImmFixupKind(TSFlags),
+                  CurByte, OS, Fixups);
+    EmitImmediate(MI.getOperand(CurOp++), 2, FK_Data_2, CurByte, OS, Fixups);
+    break;
 
   case X86II::AddRegFrm:
     EmitByte(BaseOpcode + GetX86RegNum(MI.getOperand(CurOp++)), CurByte, OS);
@@ -833,10 +849,15 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
 
   case X86II::MRMDestMem:
     EmitByte(BaseOpcode, CurByte, OS);
+    SrcRegNum = CurOp + X86::AddrNumOperands;
+
+    if (HasVEX_4V) // Skip 1st src (which is encoded in VEX_VVVV)
+      SrcRegNum++;
+
     EmitMemModRMByte(MI, CurOp,
-                     GetX86RegNum(MI.getOperand(CurOp + X86::AddrNumOperands)),
+                     GetX86RegNum(MI.getOperand(SrcRegNum)),
                      TSFlags, CurByte, OS, Fixups);
-    CurOp += X86::AddrNumOperands + 1;
+    CurOp = SrcRegNum + 1;
     break;
 
   case X86II::MRMSrcReg:
@@ -934,7 +955,7 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   if (CurOp != NumOps) {
     // The last source register of a 4 operand instruction in AVX is encoded
     // in bits[7:4] of a immediate byte, and bits[3:0] are ignored.
-    if (TSFlags & X86II::VEX_I8IMM) {
+    if ((TSFlags >> 32) & X86II::VEX_I8IMM) {
       const MCOperand &MO = MI.getOperand(CurOp++);
       bool IsExtReg =
         X86InstrInfo::isX86_64ExtendedReg(MO.getReg());

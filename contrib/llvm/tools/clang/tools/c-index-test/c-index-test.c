@@ -1,6 +1,7 @@
 /* c-index-test.c */
 
 #include "clang-c/Index.h"
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,6 +29,18 @@ char *basename(const char* path)
 extern char *basename(const char *);
 #endif
 
+/** \brief Return the default parsing options. */
+static unsigned getDefaultParsingOptions() {
+  unsigned options = CXTranslationUnit_DetailedPreprocessingRecord;
+
+  if (getenv("CINDEXTEST_EDITING"))
+    options |= clang_defaultEditingTranslationUnitOptions();
+  if (getenv("CINDEXTEST_COMPLETION_CACHING"))
+    options |= CXTranslationUnit_CacheCompletionResults;
+  
+  return options;
+}
+
 static void PrintExtent(FILE *out, unsigned begin_line, unsigned begin_column,
                         unsigned end_line, unsigned end_column) {
   fprintf(out, "[%d:%d - %d:%d]", begin_line, begin_column,
@@ -38,7 +51,7 @@ static unsigned CreateTranslationUnit(CXIndex Idx, const char *file,
                                       CXTranslationUnit *TU) {
 
   *TU = clang_createTranslationUnit(Idx, file);
-  if (!TU) {
+  if (!*TU) {
     fprintf(stderr, "Unable to load translation unit from '%s'!\n", file);
     return 0;
   }
@@ -52,6 +65,7 @@ void free_remapped_files(struct CXUnsavedFile *unsaved_files,
     free((char *)unsaved_files[i].Filename);
     free((char *)unsaved_files[i].Contents);
   }
+  free(unsaved_files);
 }
 
 int parse_remapped_files(int argc, const char **argv, int start_arg,
@@ -75,8 +89,8 @@ int parse_remapped_files(int argc, const char **argv, int start_arg,
     return 0;
 
   *unsaved_files
-  = (struct CXUnsavedFile *)malloc(sizeof(struct CXUnsavedFile) *
-                                   *num_unsaved_files);
+    = (struct CXUnsavedFile *)malloc(sizeof(struct CXUnsavedFile) *
+                                     *num_unsaved_files);
   for (arg = start_arg, i = 0; i != *num_unsaved_files; ++i, ++arg) {
     struct CXUnsavedFile *unsaved = *unsaved_files + i;
     const char *arg_string = argv[arg] + prefix_len;
@@ -152,7 +166,8 @@ static void PrintCursor(CXCursor Cursor) {
     CXString string, ks;
     CXCursor Referenced;
     unsigned line, column;
-
+    CXCursor SpecializationOf;
+    
     ks = clang_getCursorKindSpelling(Cursor.kind);
     string = clang_getCursorSpelling(Cursor);
     printf("%s=%s", clang_getCString(ks),
@@ -169,6 +184,57 @@ static void PrintCursor(CXCursor Cursor) {
 
     if (clang_isCursorDefinition(Cursor))
       printf(" (Definition)");
+    
+    switch (clang_getCursorAvailability(Cursor)) {
+      case CXAvailability_Available:
+        break;
+        
+      case CXAvailability_Deprecated:
+        printf(" (deprecated)");
+        break;
+        
+      case CXAvailability_NotAvailable:
+        printf(" (unavailable)");
+        break;
+    }
+    
+    if (Cursor.kind == CXCursor_IBOutletCollectionAttr) {
+      CXType T =
+        clang_getCanonicalType(clang_getIBOutletCollectionType(Cursor));
+      CXString S = clang_getTypeKindSpelling(T.kind);
+      printf(" [IBOutletCollection=%s]", clang_getCString(S));
+      clang_disposeString(S);
+    }
+    
+    if (Cursor.kind == CXCursor_CXXBaseSpecifier) {
+      enum CX_CXXAccessSpecifier access = clang_getCXXAccessSpecifier(Cursor);
+      unsigned isVirtual = clang_isVirtualBase(Cursor);
+      const char *accessStr = 0;
+
+      switch (access) {
+        case CX_CXXInvalidAccessSpecifier:
+          accessStr = "invalid"; break;
+        case CX_CXXPublic:
+          accessStr = "public"; break;
+        case CX_CXXProtected:
+          accessStr = "protected"; break;
+        case CX_CXXPrivate:
+          accessStr = "private"; break;
+      }      
+      
+      printf(" [access=%s isVirtual=%s]", accessStr,
+             isVirtual ? "true" : "false");
+    }
+    
+    SpecializationOf = clang_getSpecializedCursorTemplate(Cursor);
+    if (!clang_equalCursors(SpecializationOf, clang_getNullCursor())) {
+      CXSourceLocation Loc = clang_getCursorLocation(SpecializationOf);
+      CXString Name = clang_getCursorSpelling(SpecializationOf);
+      clang_getInstantiationLocation(Loc, 0, &line, &column, 0);
+      printf(" [Specialization of %s:%d:%d]", 
+             clang_getCString(Name), line, column);
+      clang_disposeString(Name);
+    }
   }
 }
 
@@ -477,6 +543,8 @@ static enum CXChildVisitResult PrintTypeKind(CXCursor cursor, CXCursor p,
         clang_disposeString(RS);
       }
     }
+    /* Print if this is a non-POD type. */
+    printf(" [isPOD=%d]", clang_isPODType(T));
 
     printf("\n");
   }
@@ -558,7 +626,7 @@ int perform_test_load_source(int argc, const char **argv,
   struct CXUnsavedFile *unsaved_files = 0;
   int num_unsaved_files = 0;
   int result;
-
+  
   Idx = clang_createIndex(/* excludeDeclsFromPCH */
                           !strcmp(filter, "local") ? 1 : 0,
                           /* displayDiagnosics=*/1);
@@ -578,10 +646,65 @@ int perform_test_load_source(int argc, const char **argv,
                                                  unsaved_files);
   if (!TU) {
     fprintf(stderr, "Unable to load translation unit!\n");
+    free_remapped_files(unsaved_files, num_unsaved_files);
     clang_disposeIndex(Idx);
     return 1;
   }
 
+  result = perform_test_load(Idx, TU, filter, NULL, Visitor, PV);
+  free_remapped_files(unsaved_files, num_unsaved_files);
+  clang_disposeIndex(Idx);
+  return result;
+}
+
+int perform_test_reparse_source(int argc, const char **argv, int trials,
+                                const char *filter, CXCursorVisitor Visitor,
+                                PostVisitTU PV) {
+  const char *UseExternalASTs =
+  getenv("CINDEXTEST_USE_EXTERNAL_AST_GENERATION");
+  CXIndex Idx;
+  CXTranslationUnit TU;
+  struct CXUnsavedFile *unsaved_files = 0;
+  int num_unsaved_files = 0;
+  int result;
+  int trial;
+  
+  Idx = clang_createIndex(/* excludeDeclsFromPCH */
+                          !strcmp(filter, "local") ? 1 : 0,
+                          /* displayDiagnosics=*/1);
+  
+  if (UseExternalASTs && strlen(UseExternalASTs))
+    clang_setUseExternalASTGeneration(Idx, 1);
+  
+  if (parse_remapped_files(argc, argv, 0, &unsaved_files, &num_unsaved_files)) {
+    clang_disposeIndex(Idx);
+    return -1;
+  }
+  
+  /* Load the initial translation unit -- we do this without honoring remapped
+   * files, so that we have a way to test results after changing the source. */
+  TU = clang_parseTranslationUnit(Idx, 0,
+                                  argv + num_unsaved_files,
+                                  argc - num_unsaved_files,
+                                  0, 0, getDefaultParsingOptions());
+  if (!TU) {
+    fprintf(stderr, "Unable to load translation unit!\n");
+    free_remapped_files(unsaved_files, num_unsaved_files);
+    clang_disposeIndex(Idx);
+    return 1;
+  }
+  
+  for (trial = 0; trial < trials; ++trial) {
+    if (clang_reparseTranslationUnit(TU, num_unsaved_files, unsaved_files,
+                                     clang_defaultReparseOptions(TU))) {
+      fprintf(stderr, "Unable to reparse translation unit!\n");
+      clang_disposeTranslationUnit(TU);
+      free_remapped_files(unsaved_files, num_unsaved_files);
+      clang_disposeIndex(Idx);
+      return -1;      
+    }
+  }
+  
   result = perform_test_load(Idx, TU, filter, NULL, Visitor, PV);
   free_remapped_files(unsaved_files, num_unsaved_files);
   clang_disposeIndex(Idx);
@@ -795,8 +918,40 @@ void print_completion_result(CXCompletionResult *completion_result,
   clang_disposeString(ks);
 
   print_completion_string(completion_result->CompletionString, file);
-  fprintf(file, " (%u)\n", 
+  fprintf(file, " (%u)", 
           clang_getCompletionPriority(completion_result->CompletionString));
+  switch (clang_getCompletionAvailability(completion_result->CompletionString)){
+  case CXAvailability_Available:
+    break;
+    
+  case CXAvailability_Deprecated:
+    fprintf(file, " (deprecated)");
+    break;
+    
+  case CXAvailability_NotAvailable:
+    fprintf(file, " (unavailable)");
+    break;
+  }
+  fprintf(file, "\n");
+}
+
+int my_stricmp(const char *s1, const char *s2) {
+  while (*s1 && *s2) {
+    int c1 = tolower(*s1), c2 = tolower(*s2);
+    if (c1 < c2)
+      return -1;
+    else if (c1 > c2)
+      return 1;
+    
+    ++s1;
+    ++s2;
+  }
+  
+  if (*s1)
+    return 1;
+  else if (*s2)
+    return -1;
+  return 0;
 }
 
 int perform_code_completion(int argc, const char **argv, int timing_only) {
@@ -809,7 +964,8 @@ int perform_code_completion(int argc, const char **argv, int timing_only) {
   struct CXUnsavedFile *unsaved_files = 0;
   int num_unsaved_files = 0;
   CXCodeCompleteResults *results = 0;
-
+  CXTranslationUnit *TU = 0;
+  
   if (timing_only)
     input += strlen("-code-completion-timing=");
   else
@@ -823,17 +979,43 @@ int perform_code_completion(int argc, const char **argv, int timing_only) {
     return -1;
 
   CIdx = clang_createIndex(0, 1);
-  results = clang_codeComplete(CIdx,
-                               argv[argc - 1], argc - num_unsaved_files - 3,
-                               argv + num_unsaved_files + 2,
-                               num_unsaved_files, unsaved_files,
-                               filename, line, column);
+  if (getenv("CINDEXTEST_EDITING")) {
+    unsigned I, Repeats = 5;
+    TU = clang_parseTranslationUnit(CIdx, 0,
+                                    argv + num_unsaved_files + 2,
+                                    argc - num_unsaved_files - 2,
+                                    0, 0, getDefaultParsingOptions());
+    if (!TU) {
+      fprintf(stderr, "Unable to load translation unit!\n");
+      return 1;
+    }
+    for (I = 0; I != Repeats; ++I) {
+      results = clang_codeCompleteAt(TU, filename, line, column,
+                                     unsaved_files, num_unsaved_files,
+                                     clang_defaultCodeCompleteOptions());
+      if (!results) {
+        fprintf(stderr, "Unable to perform code completion!\n");
+        return 1;
+      }
+      if (I != Repeats-1)
+        clang_disposeCodeCompleteResults(results);
+    }
+  } else
+    results = clang_codeComplete(CIdx,
+                                 argv[argc - 1], argc - num_unsaved_files - 3,
+                                 argv + num_unsaved_files + 2,
+                                 num_unsaved_files, unsaved_files,
+                                 filename, line, column);
 
   if (results) {
     unsigned i, n = results->NumResults;
-    if (!timing_only)
+    if (!timing_only) {      
+      /* Sort the code-completion results based on the typed text. */
+      clang_sortCodeCompletionResults(results->Results, results->NumResults);
+
       for (i = 0; i != n; ++i)
         print_completion_result(results->Results + i, stdout);
+    }
     n = clang_codeCompleteGetNumDiagnostics(results);
     for (i = 0; i != n; ++i) {
       CXDiagnostic diag = clang_codeCompleteGetDiagnostic(results, i);
@@ -842,7 +1024,7 @@ int perform_code_completion(int argc, const char **argv, int timing_only) {
     }
     clang_disposeCodeCompleteResults(results);
   }
-
+  clang_disposeTranslationUnit(TU);
   clang_disposeIndex(CIdx);
   free(filename);
 
@@ -1197,6 +1379,43 @@ int print_usrs_file(const char *file_name) {
 /******************************************************************************/
 /* Command line processing.                                                   */
 /******************************************************************************/
+int write_pch_file(const char *filename, int argc, const char *argv[]) {
+  CXIndex Idx;
+  CXTranslationUnit TU;
+  struct CXUnsavedFile *unsaved_files = 0;
+  int num_unsaved_files = 0;
+  
+  Idx = clang_createIndex(/* excludeDeclsFromPCH */1, /* displayDiagnosics=*/1);
+  
+  if (parse_remapped_files(argc, argv, 0, &unsaved_files, &num_unsaved_files)) {
+    clang_disposeIndex(Idx);
+    return -1;
+  }
+  
+  TU = clang_parseTranslationUnit(Idx, 0,
+                                  argv + num_unsaved_files,
+                                  argc - num_unsaved_files,
+                                  unsaved_files,
+                                  num_unsaved_files,
+                                  CXTranslationUnit_Incomplete);
+  if (!TU) {
+    fprintf(stderr, "Unable to load translation unit!\n");
+    free_remapped_files(unsaved_files, num_unsaved_files);
+    clang_disposeIndex(Idx);
+    return 1;
+  }
+
+  if (clang_saveTranslationUnit(TU, filename, clang_defaultSaveOptions(TU)))
+    fprintf(stderr, "Unable to write PCH file %s\n", filename);
+  clang_disposeTranslationUnit(TU);
+  free_remapped_files(unsaved_files, num_unsaved_files);
+  clang_disposeIndex(Idx);
+  return 0;  
+}
+
+/******************************************************************************/
+/* Command line processing.                                                   */
+/******************************************************************************/
 
 static CXCursorVisitor GetVisitor(const char *s) {
   if (s[0] == '\0')
@@ -1219,14 +1438,19 @@ static void print_usage(void) {
            "[FileCheck prefix]\n"
     "       c-index-test -test-load-source <symbol filter> {<args>}*\n");
   fprintf(stderr,
+    "       c-index-test -test-load-source-reparse <trials> <symbol filter> "
+    "          {<args>}*\n"
     "       c-index-test -test-load-source-usrs <symbol filter> {<args>}*\n"
     "       c-index-test -test-annotate-tokens=<range> {<args>}*\n"
     "       c-index-test -test-inclusion-stack-source {<args>}*\n"
     "       c-index-test -test-inclusion-stack-tu <AST file>\n"
     "       c-index-test -test-print-linkage-source {<args>}*\n"
     "       c-index-test -test-print-typekind {<args>}*\n"
-    "       c-index-test -print-usr [<CursorKind> {<args>}]*\n"
-    "       c-index-test -print-usr-file <file>\n\n"
+    "       c-index-test -print-usr [<CursorKind> {<args>}]*\n");
+  fprintf(stderr,
+    "       c-index-test -print-usr-file <file>\n"
+    "       c-index-test -write-pch <file> <compiler arguments>\n\n");
+  fprintf(stderr,
     " <symbol filter> values:\n%s",
     "   all - load all symbols, including those from PCH\n"
     "   local - load all symbols except those in PCH\n"
@@ -1251,6 +1475,14 @@ int main(int argc, const char **argv) {
     if (I)
       return perform_test_load_tu(argv[2], argv[3], argc >= 5 ? argv[4] : 0, I,
                                   NULL);
+  }
+  else if (argc >= 5 && strncmp(argv[1], "-test-load-source-reparse", 25) == 0){
+    CXCursorVisitor I = GetVisitor(argv[1] + 25);
+    if (I) {
+      int trials = atoi(argv[2]);
+      return perform_test_reparse_source(argc - 4, argv + 4, trials, argv[3], I, 
+                                         NULL);
+    }
   }
   else if (argc >= 4 && strncmp(argv[1], "-test-load-source", 17) == 0) {
     CXCursorVisitor I = GetVisitor(argv[1] + 17);
@@ -1284,7 +1516,9 @@ int main(int argc, const char **argv) {
   }
   else if (argc > 2 && strcmp(argv[1], "-print-usr-file") == 0)
     return print_usrs_file(argv[2]);
-
+  else if (argc > 2 && strcmp(argv[1], "-write-pch") == 0)
+    return write_pch_file(argv[2], argc - 3, argv + 3);
+           
   print_usage();
   return 1;
 }

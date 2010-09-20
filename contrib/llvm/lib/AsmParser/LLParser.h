@@ -32,7 +32,6 @@ namespace llvm {
   class GlobalValue;
   class MDString;
   class MDNode;
-  class UnionType;
 
   /// ValID - Represents a reference of a definition of some sort with no type.
   /// There are several cases where we have to parse the value but where the
@@ -80,6 +79,14 @@ namespace llvm {
     
     // Instruction metadata resolution.  Each instruction can have a list of
     // MDRef info associated with them.
+    //
+    // The simpler approach of just creating temporary MDNodes and then calling
+    // RAUW on them when the definition is processed doesn't work because some
+    // instruction metadata kinds, such as dbg, get stored in the IR in an
+    // "optimized" format which doesn't participate in the normal value use
+    // lists. This means that RAUW doesn't work, even on temporary MDNodes
+    // which otherwise support RAUW. Instead, we defer resolving MDNode
+    // references until the definitions have been processed.
     struct MDRef {
       SMLoc Loc;
       unsigned MDKind, MDSlot;
@@ -180,7 +187,6 @@ namespace llvm {
     bool ParseOptionalCallingConv(CallingConv::ID &CC);
     bool ParseOptionalAlignment(unsigned &Alignment);
     bool ParseOptionalStackAlignment(unsigned &Alignment);
-    bool ParseInstructionMetadata(Instruction *Inst);
     bool ParseOptionalCommaAlign(unsigned &Alignment, bool &AteExtraComma);
     bool ParseIndexList(SmallVectorImpl<unsigned> &Indices,bool &AteExtraComma);
     bool ParseIndexList(SmallVectorImpl<unsigned> &Indices) {
@@ -222,7 +228,6 @@ namespace llvm {
     }
     bool ParseTypeRec(PATypeHolder &H);
     bool ParseStructType(PATypeHolder &H, bool Packed);
-    bool ParseUnionType(PATypeHolder &H);
     bool ParseArrayVectorType(PATypeHolder &H, bool isVector);
     bool ParseFunctionType(PATypeHolder &Result);
     PATypeHolder HandleUpRefs(const Type *Ty);
@@ -291,7 +296,6 @@ namespace llvm {
       return ParseTypeAndBasicBlock(BB, Loc, PFS);
     }
 
-    bool ParseUnionValue(const UnionType* utype, ValID &ID, Value *&V);
 
     struct ParamInfo {
       LocTy Loc;
@@ -308,8 +312,10 @@ namespace llvm {
     bool ParseGlobalValue(const Type *Ty, Constant *&V);
     bool ParseGlobalTypeAndValue(Constant *&V);
     bool ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts);
+    bool ParseMetadataListValue(ValID &ID, PerFunctionState *PFS);
     bool ParseMetadataValue(ValID &ID, PerFunctionState *PFS);
     bool ParseMDNodeVector(SmallVectorImpl<Value*> &, PerFunctionState *PFS);
+    bool ParseInstructionMetadata(Instruction *Inst, PerFunctionState *PFS);
 
     // Function Parsing.
     struct ArgInfo {
