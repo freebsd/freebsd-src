@@ -191,7 +191,7 @@ METHOD void driver_added {
  */
 METHOD device_t add_child {
 	device_t _dev;
-	int _order;
+	u_int _order;
 	const char *_name;
 	int _unit;
 };
