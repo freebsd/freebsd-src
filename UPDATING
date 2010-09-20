@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20100920:	p3	FreeBSD-SA-10:08.bzip2
+	Fix an integer overflow in RLE length parsing when decompressing
+	corrupt bzip2 data.
+
 20100713:	p2	FreeBSD-SA-10:07.mbuf
 	Correctly copy the M_RDONLY flag when duplicating a reference
 	to an mbuf external buffer.
