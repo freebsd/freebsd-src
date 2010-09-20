@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 static int	atkbdc_isa_probe(device_t dev);
 static int	atkbdc_isa_attach(device_t dev);
-static device_t	atkbdc_isa_add_child(device_t bus, int order, char *name,
+static device_t	atkbdc_isa_add_child(device_t bus, u_int order, char *name,
 				 int unit);
 
 static device_method_t atkbdc_isa_methods[] = {
@@ -227,7 +227,7 @@ atkbdc_isa_attach(device_t dev)
 }
 
 static device_t
-atkbdc_isa_add_child(device_t bus, int order, char *name, int unit)
+atkbdc_isa_add_child(device_t bus, u_int order, char *name, int unit)
 {
 	atkbdc_device_t	*ivar;
 	device_t	child;
