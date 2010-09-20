@@ -692,19 +692,11 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 	    sc->cpu_cx_count++;
 	    continue;
 	case ACPI_STATE_C2:
-	    if (cx_ptr->trans_lat > 100) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				 "acpi_cpu%d: C2[%d] not available.\n",
-				 device_get_unit(sc->cpu_dev), i));
-		continue;
-	    }
 	    sc->cpu_non_c3 = i;
 	    break;
 	case ACPI_STATE_C3:
 	default:
-	    if (cx_ptr->trans_lat > 1000 ||
-		(cpu_quirks & CPU_QUIRK_NO_C3) != 0) {
-
+	    if ((cpu_quirks & CPU_QUIRK_NO_C3) != 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				 "acpi_cpu%d: C3[%d] not available.\n",
 				 device_get_unit(sc->cpu_dev), i));
