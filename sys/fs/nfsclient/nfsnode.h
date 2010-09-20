@@ -102,10 +102,10 @@ struct nfsnode {
 	time_t			n_attrstamp;	/* Attr. cache timestamp */
 	struct nfs_accesscache	n_accesscache[NFS_ACCESSCACHESIZE];
 	struct timespec		n_mtime;	/* Prev modify time. */
-	time_t			n_ctime;	/* Prev create time. */
-	time_t			n_dmtime;	/* Prev dir modify time. */
+	time_t			n_unused0;
+	time_t			n_unused1;
 	int			n_dmtime_ticks;	/* Tick of -ve cache entry */
-	time_t			n_expiry;	/* Lease expiry time */
+	time_t			n_unused2;
 	struct nfsfh		*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
 	struct vnode		*n_dvp;		/* parent vnode */
@@ -131,6 +131,8 @@ struct nfsnode {
 	struct nfs_attrcache_timestamp n_unused;
 	u_int64_t		 n_change;	/* old Change attribute */
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
+	struct timespec		n_ctime;	/* Prev create time. */
+	struct timespec		n_dmtime;	/* Prev dir modify time. */
 };
 
 #define	n_atim		n_un1.nf_atim
