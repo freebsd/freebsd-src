@@ -281,16 +281,10 @@ sysctl_force_crash(SYSCTL_HANDLER_ARGS)
 			panic("netdump forced crash");
 			break;
 		case 3:
-			printf("\nLivelocking system while holding the "
-			    "interface lock\n");
-			nd_nic->if_ndumpfuncs->test_get_lock(nd_nic);
-			for (;;);
-			break;
-		case 5:
 			critical_enter();
 			panic("Forcing spourious critical section");
 			break;
-		case 6:
+		case 4:
 			critical_enter();
 			printf("\nLivelocking in a critical section\n");
 			for (;;);
