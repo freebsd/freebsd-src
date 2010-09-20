@@ -24,7 +24,9 @@
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/MC/MCParser/AsmParser.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCStreamer.h"
@@ -141,7 +143,7 @@ void AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
   // Construct the invocation.
 
   // Target Options
-  Opts.Triple = Args->getLastArgValue(OPT_triple);
+  Opts.Triple = Triple::normalize(Args->getLastArgValue(OPT_triple));
   if (Opts.Triple.empty()) // Use the host triple if unspecified.
     Opts.Triple = sys::getHostTriple();
 
@@ -253,38 +255,38 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
     return false;
   }
 
-  OwningPtr<MCCodeEmitter> CE;
   OwningPtr<MCStreamer> Str;
-  OwningPtr<TargetAsmBackend> TAB;
 
   if (Opts.OutputType == AssemblerInvocation::FT_Asm) {
     MCInstPrinter *IP =
       TheTarget->createMCInstPrinter(Opts.OutputAsmVariant, *MAI);
+    MCCodeEmitter *CE = 0;
     if (Opts.ShowEncoding)
-      CE.reset(TheTarget->createCodeEmitter(*TM, Ctx));
+      CE = TheTarget->createCodeEmitter(*TM, Ctx);
     Str.reset(createAsmStreamer(Ctx, *Out,TM->getTargetData()->isLittleEndian(),
-                                /*asmverbose*/true, IP, CE.get(),
-                                Opts.ShowInst));
+                                /*asmverbose*/true, IP, CE, Opts.ShowInst));
   } else if (Opts.OutputType == AssemblerInvocation::FT_Null) {
     Str.reset(createNullStreamer(Ctx));
   } else {
     assert(Opts.OutputType == AssemblerInvocation::FT_Obj &&
            "Invalid file type!");
-    CE.reset(TheTarget->createCodeEmitter(*TM, Ctx));
-    TAB.reset(TheTarget->createAsmBackend(Opts.Triple));
-    Str.reset(createMachOStreamer(Ctx, *TAB, *Out, CE.get(), Opts.RelaxAll));
+    MCCodeEmitter *CE = TheTarget->createCodeEmitter(*TM, Ctx);
+    TargetAsmBackend *TAB = TheTarget->createAsmBackend(Opts.Triple);
+    Str.reset(TheTarget->createObjectStreamer(Opts.Triple, Ctx, *TAB, *Out,
+                                              CE, Opts.RelaxAll));
   }
 
-  AsmParser Parser(*TheTarget, SrcMgr, Ctx, *Str.get(), *MAI);
-  OwningPtr<TargetAsmParser> TAP(TheTarget->createAsmParser(Parser));
+  OwningPtr<MCAsmParser> Parser(createMCAsmParser(*TheTarget, SrcMgr, Ctx,
+                                                  *Str.get(), *MAI));
+  OwningPtr<TargetAsmParser> TAP(TheTarget->createAsmParser(*Parser, *TM));
   if (!TAP) {
     Diags.Report(diag::err_target_unknown_triple) << Opts.Triple;
     return false;
   }
 
-  Parser.setTargetParser(*TAP.get());
+  Parser->setTargetParser(*TAP.get());
 
-  bool Success = !Parser.Run(Opts.NoInitialTextSection);
+  bool Success = !Parser->Run(Opts.NoInitialTextSection);
 
   // Close the output.
   delete Out;
@@ -320,14 +322,15 @@ int cc1as_main(const char **ArgBegin, const char **ArgEnd,
   InitializeAllAsmParsers();
 
   // Construct our diagnostic client.
-  TextDiagnosticPrinter DiagClient(errs(), DiagnosticOptions());
-  DiagClient.setPrefix("clang -cc1as");
-  Diagnostic Diags(&DiagClient);
+  TextDiagnosticPrinter *DiagClient
+    = new TextDiagnosticPrinter(errs(), DiagnosticOptions());
+  DiagClient->setPrefix("clang -cc1as");
+  Diagnostic Diags(DiagClient);
 
   // Set an error handler, so that any LLVM backend diagnostics go through our
   // error handler.
-  install_fatal_error_handler(LLVMErrorHandler,
-                                    static_cast<void*>(&Diags));
+  ScopedFatalErrorHandler FatalErrorHandler
+    (LLVMErrorHandler, static_cast<void*>(&Diags));
 
   // Parse the arguments.
   AssemblerInvocation Asm;

@@ -28,7 +28,7 @@ namespace {
   class LoopDeletion : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
-    LoopDeletion() : LoopPass(&ID) {}
+    LoopDeletion() : LoopPass(ID) {}
     
     // Possibly eliminate loop L if it is dead.
     bool runOnLoop(Loop* L, LPPassManager& LPM);
@@ -38,9 +38,9 @@ namespace {
                     bool &Changed, BasicBlock *Preheader);
 
     virtual void getAnalysisUsage(AnalysisUsage& AU) const {
-      AU.addRequired<ScalarEvolution>();
       AU.addRequired<DominatorTree>();
       AU.addRequired<LoopInfo>();
+      AU.addRequired<ScalarEvolution>();
       AU.addRequiredID(LoopSimplifyID);
       AU.addRequiredID(LCSSAID);
       
@@ -55,7 +55,8 @@ namespace {
 }
   
 char LoopDeletion::ID = 0;
-static RegisterPass<LoopDeletion> X("loop-deletion", "Delete dead loops");
+INITIALIZE_PASS(LoopDeletion, "loop-deletion",
+                "Delete dead loops", false, false);
 
 Pass* llvm::createLoopDeletionPass() {
   return new LoopDeletion();

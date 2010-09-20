@@ -12,8 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Checker/PathSensitive/AnalysisManager.h"
 #include "clang/Checker/PathSensitive/GRCoreEngine.h"
 #include "clang/Checker/PathSensitive/GRExprEngine.h"
+#include "clang/Index/TranslationUnit.h"
 #include "clang/AST/Expr.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/ADT/DenseMap.h"
@@ -23,6 +25,12 @@
 using llvm::cast;
 using llvm::isa;
 using namespace clang;
+
+// This should be removed in the future.
+namespace clang {
+GRTransferFuncs* MakeCFRefCountTF(ASTContext& Ctx, bool GCEnabled,
+                                  const LangOptions& lopts);
+}
 
 //===----------------------------------------------------------------------===//
 // Worklist classes for exploration of reachable states.
@@ -118,47 +126,15 @@ GRWorkList* GRWorkList::MakeBFSBlockDFSContents() {
 //===----------------------------------------------------------------------===//
 // Core analysis engine.
 //===----------------------------------------------------------------------===//
-void GRCoreEngine::ProcessEndPath(GREndPathNodeBuilder& Builder) {
-  SubEngine.ProcessEndPath(Builder);
-}
-
-void GRCoreEngine::ProcessStmt(CFGElement E, GRStmtNodeBuilder& Builder) {
-  SubEngine.ProcessStmt(E, Builder);
-}
-
-bool GRCoreEngine::ProcessBlockEntrance(CFGBlock* Blk, const ExplodedNode *Pred,
-                                        GRBlockCounter BC) {
-  return SubEngine.ProcessBlockEntrance(Blk, Pred, BC);
-}
-
-void GRCoreEngine::ProcessBranch(Stmt* Condition, Stmt* Terminator,
-                   GRBranchNodeBuilder& Builder) {
-  SubEngine.ProcessBranch(Condition, Terminator, Builder);
-}
-
-void GRCoreEngine::ProcessIndirectGoto(GRIndirectGotoNodeBuilder& Builder) {
-  SubEngine.ProcessIndirectGoto(Builder);
-}
-
-void GRCoreEngine::ProcessSwitch(GRSwitchNodeBuilder& Builder) {
-  SubEngine.ProcessSwitch(Builder);
-}
-
-void GRCoreEngine::ProcessCallEnter(GRCallEnterNodeBuilder &Builder) {
-  SubEngine.ProcessCallEnter(Builder);
-}
-
-void GRCoreEngine::ProcessCallExit(GRCallExitNodeBuilder &Builder) {
-  SubEngine.ProcessCallExit(Builder);
-}
 
 /// ExecuteWorkList - Run the worklist algorithm for a maximum number of steps.
-bool GRCoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps) {
+bool GRCoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps,
+                                   const GRState *InitState) {
 
   if (G->num_roots() == 0) { // Initialize the analysis by constructing
     // the root if none exists.
 
-    CFGBlock* Entry = &(L->getCFG()->getEntry());
+    const CFGBlock* Entry = &(L->getCFG()->getEntry());
 
     assert (Entry->empty() &&
             "Entry block must be empty.");
@@ -167,7 +143,7 @@ bool GRCoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps) {
             "Entry block must have 1 successor.");
 
     // Get the solitary successor.
-    CFGBlock* Succ = *(Entry->succ_begin());
+    const CFGBlock* Succ = *(Entry->succ_begin());
 
     // Construct an edge representing the
     // starting location in the function.
@@ -176,8 +152,11 @@ bool GRCoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps) {
     // Set the current block counter to being empty.
     WList->setBlockCounter(BCounterFactory.GetEmptyCounter());
 
-    // Generate the root.
-    GenerateNode(StartLoc, getInitialState(L), 0);
+    if (!InitState)
+      // Generate the root.
+      GenerateNode(StartLoc, getInitialState(L), 0);
+    else
+      GenerateNode(StartLoc, InitState, 0);
   }
 
   while (Steps && WList->hasWork()) {
@@ -221,14 +200,25 @@ bool GRCoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps) {
     }
   }
 
-  SubEngine.ProcessEndWorklist(WList->hasWork() || BlockAborted);
+  SubEngine.ProcessEndWorklist(hasWorkRemaining());
   return WList->hasWork();
+}
+
+void GRCoreEngine::ExecuteWorkListWithInitialState(const LocationContext *L, 
+                                                   unsigned Steps,
+                                                   const GRState *InitState, 
+                                                   ExplodedNodeSet &Dst) {
+  ExecuteWorkList(L, Steps, InitState);
+  for (llvm::SmallVectorImpl<ExplodedNode*>::iterator I = G->EndNodes.begin(), 
+                                           E = G->EndNodes.end(); I != E; ++I) {
+    Dst.Add(*I);
+  }
 }
 
 void GRCoreEngine::HandleCallEnter(const CallEnter &L, const CFGBlock *Block,
                                    unsigned Index, ExplodedNode *Pred) {
-  GRCallEnterNodeBuilder Builder(*this, Pred, L.getCallExpr(), L.getCallee(), 
-                                 Block, Index);
+  GRCallEnterNodeBuilder Builder(*this, Pred, L.getCallExpr(), 
+                                 L.getCalleeContext(), Block, Index);
   ProcessCallEnter(Builder);
 }
 
@@ -239,7 +229,7 @@ void GRCoreEngine::HandleCallExit(const CallExit &L, ExplodedNode *Pred) {
 
 void GRCoreEngine::HandleBlockEdge(const BlockEdge& L, ExplodedNode* Pred) {
 
-  CFGBlock* Blk = L.getDst();
+  const CFGBlock* Blk = L.getDst();
 
   // Check if we are entering the EXIT block.
   if (Blk == &(L.getLocationContext()->getCFG()->getExit())) {
@@ -260,8 +250,9 @@ void GRCoreEngine::HandleBlockEdge(const BlockEdge& L, ExplodedNode* Pred) {
   if (ProcessBlockEntrance(Blk, Pred, WList->getBlockCounter()))
     GenerateNode(BlockEntrance(Blk, Pred->getLocationContext()),
                  Pred->State, Pred);
-  else
-    BlockAborted = true;
+  else {
+    blocksAborted.push_back(std::make_pair(L, Pred));
+  }
 }
 
 void GRCoreEngine::HandleBlockEntrance(const BlockEntrance& L,
@@ -284,9 +275,9 @@ void GRCoreEngine::HandleBlockEntrance(const BlockEntrance& L,
     HandleBlockExit(L.getBlock(), Pred);
 }
 
-void GRCoreEngine::HandleBlockExit(CFGBlock * B, ExplodedNode* Pred) {
+void GRCoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode* Pred) {
 
-  if (Stmt* Term = B->getTerminator()) {
+  if (const Stmt* Term = B->getTerminator()) {
     switch (Term->getStmtClass()) {
       default:
         assert(false && "Analysis for this terminator not implemented.");
@@ -372,8 +363,8 @@ void GRCoreEngine::HandleBlockExit(CFGBlock * B, ExplodedNode* Pred) {
                Pred->State, Pred);
 }
 
-void GRCoreEngine::HandleBranch(Stmt* Cond, Stmt* Term, CFGBlock * B,
-                                ExplodedNode* Pred) {
+void GRCoreEngine::HandleBranch(const Stmt* Cond, const Stmt* Term, 
+                                const CFGBlock * B, ExplodedNode* Pred) {
   assert (B->succ_size() == 2);
 
   GRBranchNodeBuilder Builder(B, *(B->succ_begin()), *(B->succ_begin()+1),
@@ -382,7 +373,7 @@ void GRCoreEngine::HandleBranch(Stmt* Cond, Stmt* Term, CFGBlock * B,
   ProcessBranch(Cond, Term, Builder);
 }
 
-void GRCoreEngine::HandlePostStmt(const PostStmt& L, CFGBlock* B,
+void GRCoreEngine::HandlePostStmt(const PostStmt& L, const CFGBlock* B,
                                   unsigned StmtIdx, ExplodedNode* Pred) {
 
   assert (!B->empty());
@@ -415,7 +406,7 @@ void GRCoreEngine::GenerateNode(const ProgramPoint& Loc,
   if (IsNew) WList->Enqueue(Node);
 }
 
-GRStmtNodeBuilder::GRStmtNodeBuilder(CFGBlock* b, unsigned idx,
+GRStmtNodeBuilder::GRStmtNodeBuilder(const CFGBlock* b, unsigned idx,
                                      ExplodedNode* N, GRCoreEngine* e,
                                      GRStateManager &mgr)
   : Eng(*e), B(*b), Idx(idx), Pred(N), Mgr(mgr), Auditor(0),
@@ -438,7 +429,7 @@ void GRStmtNodeBuilder::GenerateAutoTransition(ExplodedNode* N) {
   if (isa<CallEnter>(N->getLocation())) {
     // Still use the index of the CallExpr. It's needed to create the callee
     // StackFrameContext.
-    Eng.WList->Enqueue(N, B, Idx);
+    Eng.WList->Enqueue(N, &B, Idx);
     return;
   }
 
@@ -447,7 +438,7 @@ void GRStmtNodeBuilder::GenerateAutoTransition(ExplodedNode* N) {
   if (Loc == N->getLocation()) {
     // Note: 'N' should be a fresh node because otherwise it shouldn't be
     // a member of Deferred.
-    Eng.WList->Enqueue(N, B, Idx+1);
+    Eng.WList->Enqueue(N, &B, Idx+1);
     return;
   }
 
@@ -456,10 +447,10 @@ void GRStmtNodeBuilder::GenerateAutoTransition(ExplodedNode* N) {
   Succ->addPredecessor(N, *Eng.G);
 
   if (IsNew)
-    Eng.WList->Enqueue(Succ, B, Idx+1);
+    Eng.WList->Enqueue(Succ, &B, Idx+1);
 }
 
-ExplodedNode* GRStmtNodeBuilder::MakeNode(ExplodedNodeSet& Dst, Stmt* S, 
+ExplodedNode* GRStmtNodeBuilder::MakeNode(ExplodedNodeSet& Dst, const Stmt* S, 
                                           ExplodedNode* Pred, const GRState* St,
                                           ProgramPoint::Kind K) {
   const GRState* PredState = GetState(Pred);
@@ -692,6 +683,59 @@ void GREndPathNodeBuilder::GenerateCallExitNode(const GRState *state) {
 
 void GRCallEnterNodeBuilder::GenerateNode(const GRState *state,
                                           const LocationContext *LocCtx) {
+  // Check if the callee is in the same translation unit.
+  if (CalleeCtx->getTranslationUnit() != 
+      Pred->getLocationContext()->getTranslationUnit()) {
+    // Create a new engine. We must be careful that the new engine should not
+    // reference data structures owned by the old engine.
+
+    AnalysisManager &OldMgr = Eng.SubEngine.getAnalysisManager();
+    
+    // Get the callee's translation unit.
+    idx::TranslationUnit *TU = CalleeCtx->getTranslationUnit();
+
+    // Create a new AnalysisManager with components of the callee's
+    // TranslationUnit.
+    // The Diagnostic is actually shared when we create ASTUnits from AST files.
+    AnalysisManager AMgr(TU->getASTContext(), TU->getDiagnostic(), 
+                         OldMgr.getLangOptions(), 
+                         OldMgr.getPathDiagnosticClient(),
+                         OldMgr.getStoreManagerCreator(),
+                         OldMgr.getConstraintManagerCreator(),
+                         OldMgr.getIndexer(),
+                         OldMgr.getMaxNodes(), OldMgr.getMaxLoop(),
+                         OldMgr.shouldVisualizeGraphviz(),
+                         OldMgr.shouldVisualizeUbigraph(),
+                         OldMgr.shouldPurgeDead(),
+                         OldMgr.shouldEagerlyAssume(),
+                         OldMgr.shouldTrimGraph(),
+                         OldMgr.shouldInlineCall(),
+                     OldMgr.getAnalysisContextManager().getUseUnoptimizedCFG());
+    llvm::OwningPtr<GRTransferFuncs> TF(MakeCFRefCountTF(AMgr.getASTContext(),
+                                                         /* GCEnabled */ false,
+                                                        AMgr.getLangOptions()));
+    // Create the new engine.
+    GRExprEngine NewEng(AMgr, TF.take());
+
+    // Create the new LocationContext.
+    AnalysisContext *NewAnaCtx = AMgr.getAnalysisContext(CalleeCtx->getDecl(), 
+                                               CalleeCtx->getTranslationUnit());
+    const StackFrameContext *OldLocCtx = cast<StackFrameContext>(LocCtx);
+    const StackFrameContext *NewLocCtx = AMgr.getStackFrame(NewAnaCtx, 
+                                               OldLocCtx->getParent(),
+                                               OldLocCtx->getCallSite(),
+                                               OldLocCtx->getCallSiteBlock(), 
+                                               OldLocCtx->getIndex());
+
+    // Now create an initial state for the new engine.
+    const GRState *NewState = NewEng.getStateManager().MarshalState(state,
+                                                                    NewLocCtx);
+    ExplodedNodeSet ReturnNodes;
+    NewEng.ExecuteWorkListWithInitialState(NewLocCtx, AMgr.getMaxNodes(), 
+                                           NewState, ReturnNodes);
+    return;
+  }
+
   // Get the callee entry block.
   const CFGBlock *Entry = &(LocCtx->getCFG()->getEntry());
   assert(Entry->empty());
@@ -721,6 +765,6 @@ void GRCallExitNodeBuilder::GenerateNode(const GRState *state) {
   ExplodedNode *Node = Eng.G->getNode(Loc, state, &isNew);
   Node->addPredecessor(const_cast<ExplodedNode*>(Pred), *Eng.G);
   if (isNew)
-    Eng.WList->Enqueue(Node, *const_cast<CFGBlock*>(LocCtx->getCallSiteBlock()),
+    Eng.WList->Enqueue(Node, LocCtx->getCallSiteBlock(),
                        LocCtx->getIndex() + 1);
 }

@@ -82,12 +82,12 @@ class ValueMap {
   typedef typename Config::ExtraData ExtraData;
   MapT Map;
   ExtraData Data;
+  ValueMap(const ValueMap&); // DO NOT IMPLEMENT
+  ValueMap& operator=(const ValueMap&); // DO NOT IMPLEMENT
 public:
   typedef KeyT key_type;
   typedef ValueT mapped_type;
   typedef std::pair<KeyT, ValueT> value_type;
-
-  ValueMap(const ValueMap& Other) : Map(Other.Map), Data(Other.Data) {}
 
   explicit ValueMap(unsigned NumInitBuckets = 64)
     : Map(NumInitBuckets), Data() {}
@@ -149,7 +149,7 @@ public:
   bool erase(const KeyT &Val) {
     return Map.erase(Wrap(Val));
   }
-  bool erase(iterator I) {
+  void erase(iterator I) {
     return Map.erase(I.base());
   }
 
@@ -159,12 +159,6 @@ public:
 
   ValueT &operator[](const KeyT &Key) {
     return Map[Wrap(Key)];
-  }
-
-  ValueMap& operator=(const ValueMap& Other) {
-    Map = Other.Map;
-    Data = Other.Data;
-    return *this;
   }
 
   /// isPointerIntoBucketsArray - Return true if the specified pointer points
@@ -248,12 +242,6 @@ public:
     if (M)
       M->release();
   }
-};
-
-  
-template<typename KeyT, typename ValueT, typename Config, typename ValueInfoT>
-struct isPodLike<ValueMapCallbackVH<KeyT, ValueT, Config, ValueInfoT> > {
-  static const bool value = true;
 };
 
 template<typename KeyT, typename ValueT, typename Config, typename ValueInfoT>

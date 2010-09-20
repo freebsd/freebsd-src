@@ -19,10 +19,13 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/LiteralSupport.h"
+#include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/LexDiagnostic.h"
 #include "llvm/ADT/APSInt.h"
 using namespace clang;
+
+namespace {
 
 /// PPValue - Represents the value of a subexpression of a preprocessor
 /// conditional and the source range covered by it.
@@ -46,6 +49,8 @@ public:
   void setBegin(SourceLocation L) { Range.setBegin(L); }
   void setEnd(SourceLocation L) { Range.setEnd(L); }
 };
+
+}
 
 static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
                                      Token &PeekTok, bool ValueLive,
@@ -88,6 +93,12 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     PP.LexUnexpandedToken(PeekTok);
   }
 
+  if (PeekTok.is(tok::code_completion)) {
+    if (PP.getCodeCompletionHandler())
+      PP.getCodeCompletionHandler()->CodeCompleteMacroName(false);
+    PP.LexUnexpandedToken(PeekTok);
+  }
+  
   // If we don't have a pp-identifier now, this is an error.
   if ((II = PeekTok.getIdentifierInfo()) == 0) {
     PP.Diag(PeekTok, diag::err_pp_defined_requires_identifier);
@@ -138,6 +149,12 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
                           bool ValueLive, Preprocessor &PP) {
   DT.State = DefinedTracker::Unknown;
 
+  if (PeekTok.is(tok::code_completion)) {
+    if (PP.getCodeCompletionHandler())
+      PP.getCodeCompletionHandler()->CodeCompletePreprocessorExpression();
+    PP.LexUnexpandedToken(PeekTok);
+  }
+      
   // If this token's spelling is a pp-identifier, check to see if it is
   // 'defined' or if it is a macro.  Note that we check here because many
   // keywords are pp-identifiers, so we can't check the kind.
@@ -693,7 +710,7 @@ EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
   // Peek ahead one token.
   Token Tok;
   Lex(Tok);
-
+  
   // C99 6.10.1p3 - All expressions are evaluated as intmax_t or uintmax_t.
   unsigned BitWidth = getTargetInfo().getIntMaxTWidth();
 

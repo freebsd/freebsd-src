@@ -611,27 +611,6 @@ constant which was already loaded).  Not sure what's necessary to do that.
 
 //===---------------------------------------------------------------------===//
 
-Given the following on ARMv7:
-int test1(int A, int B) {
-  return (A&-8388481)|(B&8388480);
-}
-
-We currently generate:
-	bfc	r0, #7, #16
-	movw	r2, #:lower16:8388480
-	movt	r2, #:upper16:8388480
-	and	r1, r1, r2
-	orr	r0, r1, r0
-	bx	lr
-
-The following is much shorter:
-	lsr	r1, r1, #7
-	bfi	r0, r1, #7, #16
-	bx	lr
-
-
-//===---------------------------------------------------------------------===//
-
 The code generated for bswap on armv4/5 (CPUs without rev) is less than ideal:
 
 int a(int x) { return __builtin_bswap32(x); }
@@ -657,3 +636,24 @@ A custom Thumb version would also be a slight improvement over the generic
 version.
 
 //===---------------------------------------------------------------------===//
+
+Consider the following simple C code:
+
+void foo(unsigned char *a, unsigned char *b, int *c) {
+ if ((*a | *b) == 0) *c = 0;
+}
+
+currently llvm-gcc generates something like this (nice branchless code I'd say):
+
+       ldrb    r0, [r0]
+       ldrb    r1, [r1]
+       orr     r0, r1, r0
+       tst     r0, #255
+       moveq   r0, #0
+       streq   r0, [r2]
+       bx      lr
+
+Note that both "tst" and "moveq" are redundant.
+
+//===---------------------------------------------------------------------===//
+

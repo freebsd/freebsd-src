@@ -45,17 +45,29 @@ vec_perm(vector signed char a, vector signed char b, vector unsigned char c);
 static vector unsigned char __ATTRS_o_ai
 vec_perm(vector unsigned char a, vector unsigned char b, vector unsigned char c);
 
+static vector bool char __ATTRS_o_ai
+vec_perm(vector bool char a, vector bool char b, vector unsigned char c);
+
 static vector short __ATTRS_o_ai
 vec_perm(vector short a, vector short b, vector unsigned char c);
 
 static vector unsigned short __ATTRS_o_ai
 vec_perm(vector unsigned short a, vector unsigned short b, vector unsigned char c);
 
+static vector bool short __ATTRS_o_ai
+vec_perm(vector bool short a, vector bool short b, vector unsigned char c);
+
+static vector pixel __ATTRS_o_ai
+vec_perm(vector pixel a, vector pixel b, vector unsigned char c);
+
 static vector int __ATTRS_o_ai
 vec_perm(vector int a, vector int b, vector unsigned char c);
 
 static vector unsigned int __ATTRS_o_ai
 vec_perm(vector unsigned int a, vector unsigned int b, vector unsigned char c);
+
+static vector bool int __ATTRS_o_ai
+vec_perm(vector bool int a, vector bool int b, vector unsigned char c);
 
 static vector float __ATTRS_o_ai
 vec_perm(vector float a, vector float b, vector unsigned char c);
@@ -123,10 +135,34 @@ vec_add(vector signed char a, vector signed char b)
   return a + b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_add(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a + b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_add(vector signed char a, vector bool char b)
+{
+  return a + (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_add(vector unsigned char a, vector unsigned char b)
 {
   return a + b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_add(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a + b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_add(vector unsigned char a, vector bool char b)
+{
+  return a + (vector unsigned char)b;
 }
 
 static vector short __ATTRS_o_ai
@@ -135,10 +171,34 @@ vec_add(vector short a, vector short b)
   return a + b;
 }
 
+static vector short __ATTRS_o_ai
+vec_add(vector bool short a, vector short b)
+{
+  return (vector short)a + b;
+}
+
+static vector short __ATTRS_o_ai
+vec_add(vector short a, vector bool short b)
+{
+  return a + (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_add(vector unsigned short a, vector unsigned short b)
 {
   return a + b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_add(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a + b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_add(vector unsigned short a, vector bool short b)
+{
+  return a + (vector unsigned short)b;
 }
 
 static vector int __ATTRS_o_ai
@@ -147,10 +207,34 @@ vec_add(vector int a, vector int b)
   return a + b;
 }
 
+static vector int __ATTRS_o_ai
+vec_add(vector bool int a, vector int b)
+{
+  return (vector int)a + b;
+}
+
+static vector int __ATTRS_o_ai
+vec_add(vector int a, vector bool int b)
+{
+  return a + (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_add(vector unsigned int a, vector unsigned int b)
 {
   return a + b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_add(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a + b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_add(vector unsigned int a, vector bool int b)
+{
+  return a + (vector unsigned int)b;
 }
 
 static vector float __ATTRS_o_ai
@@ -169,10 +253,34 @@ vec_vaddubm(vector signed char a, vector signed char b)
   return a + b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vaddubm(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a + b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vaddubm(vector signed char a, vector bool char b)
+{
+  return a + (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_vaddubm(vector unsigned char a, vector unsigned char b)
 {
   return a + b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vaddubm(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a + b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vaddubm(vector unsigned char a, vector bool char b)
+{
+  return a + (vector unsigned char)b;
 }
 
 /* vec_vadduhm */
@@ -185,10 +293,34 @@ vec_vadduhm(vector short a, vector short b)
   return a + b;
 }
 
+static vector short __ATTRS_o_ai
+vec_vadduhm(vector bool short a, vector short b)
+{
+  return (vector short)a + b;
+}
+
+static vector short __ATTRS_o_ai
+vec_vadduhm(vector short a, vector bool short b)
+{
+  return a + (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_vadduhm(vector unsigned short a, vector unsigned short b)
 {
   return a + b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vadduhm(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a + b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vadduhm(vector unsigned short a, vector bool short b)
+{
+  return a + (vector unsigned short)b;
 }
 
 /* vec_vadduwm */
@@ -201,10 +333,34 @@ vec_vadduwm(vector int a, vector int b)
   return a + b;
 }
 
+static vector int __ATTRS_o_ai
+vec_vadduwm(vector bool int a, vector int b)
+{
+  return (vector int)a + b;
+}
+
+static vector int __ATTRS_o_ai
+vec_vadduwm(vector int a, vector bool int b)
+{
+  return a + (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_vadduwm(vector unsigned int a, vector unsigned int b)
 {
   return a + b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vadduwm(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a + b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vadduwm(vector unsigned int a, vector bool int b)
+{
+  return a + (vector unsigned int)b;
 }
 
 /* vec_vaddfp */
@@ -241,10 +397,34 @@ vec_adds(vector signed char a, vector signed char b)
   return __builtin_altivec_vaddsbs(a, b);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_adds(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vaddsbs((vector signed char)a, b);
+}
+
+static vector signed char __ATTRS_o_ai
+vec_adds(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vaddsbs(a, (vector signed char)b);
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_adds(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vaddubs(a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_adds(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vaddubs((vector unsigned char)a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_adds(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vaddubs(a, (vector unsigned char)b);
 }
 
 static vector short __ATTRS_o_ai
@@ -253,10 +433,34 @@ vec_adds(vector short a, vector short b)
   return __builtin_altivec_vaddshs(a, b);
 }
 
+static vector short __ATTRS_o_ai
+vec_adds(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vaddshs((vector short)a, b);
+}
+
+static vector short __ATTRS_o_ai
+vec_adds(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vaddshs(a, (vector short)b);
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_adds(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vadduhs(a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_adds(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vadduhs((vector unsigned short)a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_adds(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vadduhs(a, (vector unsigned short)b);
 }
 
 static vector int __ATTRS_o_ai
@@ -265,58 +469,154 @@ vec_adds(vector int a, vector int b)
   return __builtin_altivec_vaddsws(a, b);
 }
 
+static vector int __ATTRS_o_ai
+vec_adds(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vaddsws((vector int)a, b);
+}
+
+static vector int __ATTRS_o_ai
+vec_adds(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vaddsws(a, (vector int)b);
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_adds(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vadduws(a, b);
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_adds(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vadduws((vector unsigned int)a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_adds(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vadduws(a, (vector unsigned int)b);
+}
+
 /* vec_vaddsbs */
 
-static vector signed char __attribute__((__always_inline__))
+static vector signed char __ATTRS_o_ai
 vec_vaddsbs(vector signed char a, vector signed char b)
 {
   return __builtin_altivec_vaddsbs(a, b);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vaddsbs(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vaddsbs((vector signed char)a, b);
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vaddsbs(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vaddsbs(a, (vector signed char)b);
+}
+
 /* vec_vaddubs */
 
-static vector unsigned char __attribute__((__always_inline__))
+static vector unsigned char __ATTRS_o_ai
 vec_vaddubs(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vaddubs(a, b);
 }
 
+static vector unsigned char __ATTRS_o_ai
+vec_vaddubs(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vaddubs((vector unsigned char)a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vaddubs(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vaddubs(a, (vector unsigned char)b);
+}
+
 /* vec_vaddshs */
 
-static vector short __attribute__((__always_inline__))
+static vector short __ATTRS_o_ai
 vec_vaddshs(vector short a, vector short b)
 {
   return __builtin_altivec_vaddshs(a, b);
 }
 
+static vector short __ATTRS_o_ai
+vec_vaddshs(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vaddshs((vector short)a, b);
+}
+
+static vector short __ATTRS_o_ai
+vec_vaddshs(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vaddshs(a, (vector short)b);
+}
+
 /* vec_vadduhs */
 
-static vector unsigned short __attribute__((__always_inline__))
+static vector unsigned short __ATTRS_o_ai
 vec_vadduhs(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vadduhs(a, b);
 }
 
+static vector unsigned short __ATTRS_o_ai
+vec_vadduhs(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vadduhs((vector unsigned short)a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vadduhs(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vadduhs(a, (vector unsigned short)b);
+}
+
 /* vec_vaddsws */
 
-static vector int __attribute__((__always_inline__))
+static vector int __ATTRS_o_ai
 vec_vaddsws(vector int a, vector int b)
 {
   return __builtin_altivec_vaddsws(a, b);
 }
 
+static vector int __ATTRS_o_ai
+vec_vaddsws(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vaddsws((vector int)a, b);
+}
+
+static vector int __ATTRS_o_ai
+vec_vaddsws(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vaddsws(a, (vector int)b);
+}
+
 /* vec_vadduws */
 
-static vector unsigned int __attribute__((__always_inline__))
+static vector unsigned int __ATTRS_o_ai
 vec_vadduws(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vadduws(a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vadduws(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vadduws((vector unsigned int)a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vadduws(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vadduws(a, (vector unsigned int)b);
 }
 
 /* vec_and */
@@ -329,8 +629,38 @@ vec_and(vector signed char a, vector signed char b)
   return a & b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_and(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a & b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_and(vector signed char a, vector bool char b)
+{
+  return a & (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_and(vector unsigned char a, vector unsigned char b)
+{
+  return a & b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_and(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a & b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_and(vector unsigned char a, vector bool char b)
+{
+  return a & (vector unsigned char)b;
+}
+
+static vector bool char __ATTRS_o_ai
+vec_and(vector bool char a, vector bool char b)
 {
   return a & b;
 }
@@ -341,8 +671,38 @@ vec_and(vector short a, vector short b)
   return a & b;
 }
 
+static vector short __ATTRS_o_ai
+vec_and(vector bool short a, vector short b)
+{
+  return (vector short)a & b;
+}
+
+static vector short __ATTRS_o_ai
+vec_and(vector short a, vector bool short b)
+{
+  return a & (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_and(vector unsigned short a, vector unsigned short b)
+{
+  return a & b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_and(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a & b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_and(vector unsigned short a, vector bool short b)
+{
+  return a & (vector unsigned short)b;
+}
+
+static vector bool short __ATTRS_o_ai
+vec_and(vector bool short a, vector bool short b)
 {
   return a & b;
 }
@@ -353,14 +713,58 @@ vec_and(vector int a, vector int b)
   return a & b;
 }
 
+static vector int __ATTRS_o_ai
+vec_and(vector bool int a, vector int b)
+{
+  return (vector int)a & b;
+}
+
+static vector int __ATTRS_o_ai
+vec_and(vector int a, vector bool int b)
+{
+  return a & (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_and(vector unsigned int a, vector unsigned int b)
 {
   return a & b;
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_and(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a & b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_and(vector unsigned int a, vector bool int b)
+{
+  return a & (vector unsigned int)b;
+}
+
+static vector bool int __ATTRS_o_ai
+vec_and(vector bool int a, vector bool int b)
+{
+  return a & b;
+}
+
 static vector float __ATTRS_o_ai
 vec_and(vector float a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a & (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_and(vector bool int a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a & (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_and(vector float a, vector bool int b)
 {
   vector unsigned int res = (vector unsigned int)a & (vector unsigned int)b;
   return (vector float)res;
@@ -374,8 +778,38 @@ vec_vand(vector signed char a, vector signed char b)
   return a & b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vand(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a & b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vand(vector signed char a, vector bool char b)
+{
+  return a & (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_vand(vector unsigned char a, vector unsigned char b)
+{
+  return a & b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vand(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a & b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vand(vector unsigned char a, vector bool char b)
+{
+  return a & (vector unsigned char)b;
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vand(vector bool char a, vector bool char b)
 {
   return a & b;
 }
@@ -386,8 +820,38 @@ vec_vand(vector short a, vector short b)
   return a & b;
 }
 
+static vector short __ATTRS_o_ai
+vec_vand(vector bool short a, vector short b)
+{
+  return (vector short)a & b;
+}
+
+static vector short __ATTRS_o_ai
+vec_vand(vector short a, vector bool short b)
+{
+  return a & (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_vand(vector unsigned short a, vector unsigned short b)
+{
+  return a & b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vand(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a & b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vand(vector unsigned short a, vector bool short b)
+{
+  return a & (vector unsigned short)b;
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vand(vector bool short a, vector bool short b)
 {
   return a & b;
 }
@@ -398,14 +862,58 @@ vec_vand(vector int a, vector int b)
   return a & b;
 }
 
+static vector int __ATTRS_o_ai
+vec_vand(vector bool int a, vector int b)
+{
+  return (vector int)a & b;
+}
+
+static vector int __ATTRS_o_ai
+vec_vand(vector int a, vector bool int b)
+{
+  return a & (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_vand(vector unsigned int a, vector unsigned int b)
 {
   return a & b;
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_vand(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a & b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vand(vector unsigned int a, vector bool int b)
+{
+  return a & (vector unsigned int)b;
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vand(vector bool int a, vector bool int b)
+{
+  return a & b;
+}
+
 static vector float __ATTRS_o_ai
 vec_vand(vector float a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a & (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_vand(vector bool int a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a & (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_vand(vector float a, vector bool int b)
 {
   vector unsigned int res = (vector unsigned int)a & (vector unsigned int)b;
   return (vector float)res;
@@ -421,8 +929,38 @@ vec_andc(vector signed char a, vector signed char b)
   return a & ~b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_andc(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a & ~b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_andc(vector signed char a, vector bool char b)
+{
+  return a & ~(vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_andc(vector unsigned char a, vector unsigned char b)
+{
+  return a & ~b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_andc(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a & ~b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_andc(vector unsigned char a, vector bool char b)
+{
+  return a & ~(vector unsigned char)b;
+}
+
+static vector bool char __ATTRS_o_ai
+vec_andc(vector bool char a, vector bool char b)
 {
   return a & ~b;
 }
@@ -433,8 +971,38 @@ vec_andc(vector short a, vector short b)
   return a & ~b;
 }
 
+static vector short __ATTRS_o_ai
+vec_andc(vector bool short a, vector short b)
+{
+  return (vector short)a & ~b;
+}
+
+static vector short __ATTRS_o_ai
+vec_andc(vector short a, vector bool short b)
+{
+  return a & ~(vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_andc(vector unsigned short a, vector unsigned short b)
+{
+  return a & ~b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_andc(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a & ~b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_andc(vector unsigned short a, vector bool short b)
+{
+  return a & ~(vector unsigned short)b;
+}
+
+static vector bool short __ATTRS_o_ai
+vec_andc(vector bool short a, vector bool short b)
 {
   return a & ~b;
 }
@@ -445,14 +1013,58 @@ vec_andc(vector int a, vector int b)
   return a & ~b;
 }
 
+static vector int __ATTRS_o_ai
+vec_andc(vector bool int a, vector int b)
+{
+  return (vector int)a & ~b;
+}
+
+static vector int __ATTRS_o_ai
+vec_andc(vector int a, vector bool int b)
+{
+  return a & ~(vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_andc(vector unsigned int a, vector unsigned int b)
 {
   return a & ~b;
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_andc(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a & ~b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_andc(vector unsigned int a, vector bool int b)
+{
+  return a & ~(vector unsigned int)b;
+}
+
+static vector bool int __ATTRS_o_ai
+vec_andc(vector bool int a, vector bool int b)
+{
+  return a & ~b;
+}
+
 static vector float __ATTRS_o_ai
 vec_andc(vector float a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a & ~(vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_andc(vector bool int a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a & ~(vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_andc(vector float a, vector bool int b)
 {
   vector unsigned int res = (vector unsigned int)a & ~(vector unsigned int)b;
   return (vector float)res;
@@ -466,8 +1078,38 @@ vec_vandc(vector signed char a, vector signed char b)
   return a & ~b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vandc(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a & ~b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vandc(vector signed char a, vector bool char b)
+{
+  return a & ~(vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_vandc(vector unsigned char a, vector unsigned char b)
+{
+  return a & ~b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vandc(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a & ~b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vandc(vector unsigned char a, vector bool char b)
+{
+  return a & ~(vector unsigned char)b;
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vandc(vector bool char a, vector bool char b)
 {
   return a & ~b;
 }
@@ -478,8 +1120,38 @@ vec_vandc(vector short a, vector short b)
   return a & ~b;
 }
 
+static vector short __ATTRS_o_ai
+vec_vandc(vector bool short a, vector short b)
+{
+  return (vector short)a & ~b;
+}
+
+static vector short __ATTRS_o_ai
+vec_vandc(vector short a, vector bool short b)
+{
+  return a & ~(vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_vandc(vector unsigned short a, vector unsigned short b)
+{
+  return a & ~b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vandc(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a & ~b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vandc(vector unsigned short a, vector bool short b)
+{
+  return a & ~(vector unsigned short)b;
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vandc(vector bool short a, vector bool short b)
 {
   return a & ~b;
 }
@@ -490,14 +1162,58 @@ vec_vandc(vector int a, vector int b)
   return a & ~b;
 }
 
+static vector int __ATTRS_o_ai
+vec_vandc(vector bool int a, vector int b)
+{
+  return (vector int)a & ~b;
+}
+
+static vector int __ATTRS_o_ai
+vec_vandc(vector int a, vector bool int b)
+{
+  return a & ~(vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_vandc(vector unsigned int a, vector unsigned int b)
 {
   return a & ~b;
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_vandc(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a & ~b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vandc(vector unsigned int a, vector bool int b)
+{
+  return a & ~(vector unsigned int)b;
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vandc(vector bool int a, vector bool int b)
+{
+  return a & ~b;
+}
+
 static vector float __ATTRS_o_ai
 vec_vandc(vector float a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a & ~(vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_vandc(vector bool int a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a & ~(vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_vandc(vector float a, vector bool int b)
 {
   vector unsigned int res = (vector unsigned int)a & ~(vector unsigned int)b;
   return (vector float)res;
@@ -623,214 +1339,218 @@ vec_vcmpbfp(vector float a, vector float b)
 
 /* vec_cmpeq */
 
-static vector /*bool*/ char __ATTRS_o_ai
+static vector bool char __ATTRS_o_ai
 vec_cmpeq(vector signed char a, vector signed char b)
 {
-  return __builtin_altivec_vcmpequb((vector char)a, (vector char)b);
+  return (vector bool char)
+    __builtin_altivec_vcmpequb((vector char)a, (vector char)b);
 }
 
-static vector /*bool*/ char __ATTRS_o_ai
+static vector bool char __ATTRS_o_ai
 vec_cmpeq(vector unsigned char a, vector unsigned char b)
 {
-  return __builtin_altivec_vcmpequb((vector char)a, (vector char)b);
+  return (vector bool char)
+    __builtin_altivec_vcmpequb((vector char)a, (vector char)b);
 }
 
-static vector /*bool*/ short __ATTRS_o_ai
+static vector bool short __ATTRS_o_ai
 vec_cmpeq(vector short a, vector short b)
 {
-  return __builtin_altivec_vcmpequh(a, b);
+  return (vector bool short)__builtin_altivec_vcmpequh(a, b);
 }
 
-static vector /*bool*/ short __ATTRS_o_ai
+static vector bool short __ATTRS_o_ai
 vec_cmpeq(vector unsigned short a, vector unsigned short b)
 {
-  return __builtin_altivec_vcmpequh((vector short)a, (vector short)b);
+  return (vector bool short)
+    __builtin_altivec_vcmpequh((vector short)a, (vector short)b);
 }
 
-static vector /*bool*/ int __ATTRS_o_ai
+static vector bool int __ATTRS_o_ai
 vec_cmpeq(vector int a, vector int b)
 {
-  return __builtin_altivec_vcmpequw(a, b);
+  return (vector bool int)__builtin_altivec_vcmpequw(a, b);
 }
 
-static vector /*bool*/ int __ATTRS_o_ai
+static vector bool int __ATTRS_o_ai
 vec_cmpeq(vector unsigned int a, vector unsigned int b)
 {
-  return __builtin_altivec_vcmpequw((vector int)a, (vector int)b);
+  return (vector bool int)
+    __builtin_altivec_vcmpequw((vector int)a, (vector int)b);
 }
 
-static vector /*bool*/ int __ATTRS_o_ai
+static vector bool int __ATTRS_o_ai
 vec_cmpeq(vector float a, vector float b)
 {
-  return __builtin_altivec_vcmpeqfp(a, b);
+  return (vector bool int)__builtin_altivec_vcmpeqfp(a, b);
 }
 
 /* vec_cmpge */
 
-static vector /*bool*/ int __attribute__((__always_inline__))
+static vector bool int __attribute__((__always_inline__))
 vec_cmpge(vector float a, vector float b)
 {
-  return __builtin_altivec_vcmpgefp(a, b);
+  return (vector bool int)__builtin_altivec_vcmpgefp(a, b);
 }
 
 /* vec_vcmpgefp */
 
-static vector /*bool*/ int __attribute__((__always_inline__))
+static vector bool int __attribute__((__always_inline__))
 vec_vcmpgefp(vector float a, vector float b)
 {
-  return __builtin_altivec_vcmpgefp(a, b);
+  return (vector bool int)__builtin_altivec_vcmpgefp(a, b);
 }
 
 /* vec_cmpgt */
 
-static vector /*bool*/ char __ATTRS_o_ai
+static vector bool char __ATTRS_o_ai
 vec_cmpgt(vector signed char a, vector signed char b)
 {
-  return __builtin_altivec_vcmpgtsb(a, b);
+  return (vector bool char)__builtin_altivec_vcmpgtsb(a, b);
 }
 
-static vector /*bool*/ char __ATTRS_o_ai
+static vector bool char __ATTRS_o_ai
 vec_cmpgt(vector unsigned char a, vector unsigned char b)
 {
-  return __builtin_altivec_vcmpgtub(a, b);
+  return (vector bool char)__builtin_altivec_vcmpgtub(a, b);
 }
 
-static vector /*bool*/ short __ATTRS_o_ai
+static vector bool short __ATTRS_o_ai
 vec_cmpgt(vector short a, vector short b)
 {
-  return __builtin_altivec_vcmpgtsh(a, b);
+  return (vector bool short)__builtin_altivec_vcmpgtsh(a, b);
 }
 
-static vector /*bool*/ short __ATTRS_o_ai
+static vector bool short __ATTRS_o_ai
 vec_cmpgt(vector unsigned short a, vector unsigned short b)
 {
-  return __builtin_altivec_vcmpgtuh(a, b);
+  return (vector bool short)__builtin_altivec_vcmpgtuh(a, b);
 }
 
-static vector /*bool*/ int __ATTRS_o_ai
+static vector bool int __ATTRS_o_ai
 vec_cmpgt(vector int a, vector int b)
 {
-  return __builtin_altivec_vcmpgtsw(a, b);
+  return (vector bool int)__builtin_altivec_vcmpgtsw(a, b);
 }
 
-static vector /*bool*/ int __ATTRS_o_ai
+static vector bool int __ATTRS_o_ai
 vec_cmpgt(vector unsigned int a, vector unsigned int b)
 {
-  return __builtin_altivec_vcmpgtuw(a, b);
+  return (vector bool int)__builtin_altivec_vcmpgtuw(a, b);
 }
 
-static vector /*bool*/ int __ATTRS_o_ai
+static vector bool int __ATTRS_o_ai
 vec_cmpgt(vector float a, vector float b)
 {
-  return __builtin_altivec_vcmpgtfp(a, b);
+  return (vector bool int)__builtin_altivec_vcmpgtfp(a, b);
 }
 
 /* vec_vcmpgtsb */
 
-static vector /*bool*/ char __attribute__((__always_inline__))
+static vector bool char __attribute__((__always_inline__))
 vec_vcmpgtsb(vector signed char a, vector signed char b)
 {
-  return __builtin_altivec_vcmpgtsb(a, b);
+  return (vector bool char)__builtin_altivec_vcmpgtsb(a, b);
 }
 
 /* vec_vcmpgtub */
 
-static vector /*bool*/ char __attribute__((__always_inline__))
+static vector bool char __attribute__((__always_inline__))
 vec_vcmpgtub(vector unsigned char a, vector unsigned char b)
 {
-  return __builtin_altivec_vcmpgtub(a, b);
+  return (vector bool char)__builtin_altivec_vcmpgtub(a, b);
 }
 
 /* vec_vcmpgtsh */
 
-static vector /*bool*/ short __attribute__((__always_inline__))
+static vector bool short __attribute__((__always_inline__))
 vec_vcmpgtsh(vector short a, vector short b)
 {
-  return __builtin_altivec_vcmpgtsh(a, b);
+  return (vector bool short)__builtin_altivec_vcmpgtsh(a, b);
 }
 
 /* vec_vcmpgtuh */
 
-static vector /*bool*/ short __attribute__((__always_inline__))
+static vector bool short __attribute__((__always_inline__))
 vec_vcmpgtuh(vector unsigned short a, vector unsigned short b)
 {
-  return __builtin_altivec_vcmpgtuh(a, b);
+  return (vector bool short)__builtin_altivec_vcmpgtuh(a, b);
 }
 
 /* vec_vcmpgtsw */
 
-static vector /*bool*/ int __attribute__((__always_inline__))
+static vector bool int __attribute__((__always_inline__))
 vec_vcmpgtsw(vector int a, vector int b)
 {
-  return __builtin_altivec_vcmpgtsw(a, b);
+  return (vector bool int)__builtin_altivec_vcmpgtsw(a, b);
 }
 
 /* vec_vcmpgtuw */
 
-static vector /*bool*/ int __attribute__((__always_inline__))
+static vector bool int __attribute__((__always_inline__))
 vec_vcmpgtuw(vector unsigned int a, vector unsigned int b)
 {
-  return __builtin_altivec_vcmpgtuw(a, b);
+  return (vector bool int)__builtin_altivec_vcmpgtuw(a, b);
 }
 
 /* vec_vcmpgtfp */
 
-static vector /*bool*/ int __attribute__((__always_inline__))
+static vector bool int __attribute__((__always_inline__))
 vec_vcmpgtfp(vector float a, vector float b)
 {
-  return __builtin_altivec_vcmpgtfp(a, b);
+  return (vector bool int)__builtin_altivec_vcmpgtfp(a, b);
 }
 
 /* vec_cmple */
 
-static vector /*bool*/ int __attribute__((__always_inline__))
+static vector bool int __attribute__((__always_inline__))
 vec_cmple(vector float a, vector float b)
 {
-  return __builtin_altivec_vcmpgefp(b, a);
+  return (vector bool int)__builtin_altivec_vcmpgefp(b, a);
 }
 
 /* vec_cmplt */
 
-static vector /*bool*/ char __ATTRS_o_ai
+static vector bool char __ATTRS_o_ai
 vec_cmplt(vector signed char a, vector signed char b)
 {
-  return __builtin_altivec_vcmpgtsb(b, a);
+  return (vector bool char)__builtin_altivec_vcmpgtsb(b, a);
 }
 
-static vector /*bool*/ char __ATTRS_o_ai
+static vector bool char __ATTRS_o_ai
 vec_cmplt(vector unsigned char a, vector unsigned char b)
 {
-  return __builtin_altivec_vcmpgtub(b, a);
+  return (vector bool char)__builtin_altivec_vcmpgtub(b, a);
 }
 
-static vector /*bool*/ short __ATTRS_o_ai
+static vector bool short __ATTRS_o_ai
 vec_cmplt(vector short a, vector short b)
 {
-  return __builtin_altivec_vcmpgtsh(b, a);
+  return (vector bool short)__builtin_altivec_vcmpgtsh(b, a);
 }
 
-static vector /*bool*/ short __ATTRS_o_ai
+static vector bool short __ATTRS_o_ai
 vec_cmplt(vector unsigned short a, vector unsigned short b)
 {
-  return __builtin_altivec_vcmpgtuh(b, a);
+  return (vector bool short)__builtin_altivec_vcmpgtuh(b, a);
 }
 
-static vector /*bool*/ int __ATTRS_o_ai
+static vector bool int __ATTRS_o_ai
 vec_cmplt(vector int a, vector int b)
 {
-  return __builtin_altivec_vcmpgtsw(b, a);
+  return (vector bool int)__builtin_altivec_vcmpgtsw(b, a);
 }
 
-static vector /*bool*/ int __ATTRS_o_ai
+static vector bool int __ATTRS_o_ai
 vec_cmplt(vector unsigned int a, vector unsigned int b)
 {
-  return __builtin_altivec_vcmpgtuw(b, a);
+  return (vector bool int)__builtin_altivec_vcmpgtuw(b, a);
 }
 
-static vector /*bool*/ int __ATTRS_o_ai
+static vector bool int __ATTRS_o_ai
 vec_cmplt(vector float a, vector float b)
 {
-  return __builtin_altivec_vcmpgtfp(b, a);
+  return (vector bool int)__builtin_altivec_vcmpgtfp(b, a);
 }
 
 /* vec_ctf */
@@ -1001,6 +1721,12 @@ vec_ld(int a, unsigned char *b)
   return (vector unsigned char)__builtin_altivec_lvx(a, b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_ld(int a, vector bool char *b)
+{
+  return (vector bool char)__builtin_altivec_lvx(a, b);
+}
+
 static vector short __ATTRS_o_ai
 vec_ld(int a, vector short *b)
 {
@@ -1025,6 +1751,18 @@ vec_ld(int a, unsigned short *b)
   return (vector unsigned short)__builtin_altivec_lvx(a, b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_ld(int a, vector bool short *b)
+{
+  return (vector bool short)__builtin_altivec_lvx(a, b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_ld(int a, vector pixel *b)
+{
+  return (vector pixel)__builtin_altivec_lvx(a, b);
+}
+
 static vector int __ATTRS_o_ai
 vec_ld(int a, vector int *b)
 {
@@ -1047,6 +1785,12 @@ static vector unsigned int __ATTRS_o_ai
 vec_ld(int a, unsigned int *b)
 {
   return (vector unsigned int)__builtin_altivec_lvx(a, b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_ld(int a, vector bool int *b)
+{
+  return (vector bool int)__builtin_altivec_lvx(a, b);
 }
 
 static vector float __ATTRS_o_ai
@@ -1087,6 +1831,12 @@ vec_lvx(int a, unsigned char *b)
   return (vector unsigned char)__builtin_altivec_lvx(a, b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_lvx(int a, vector bool char *b)
+{
+  return (vector bool char)__builtin_altivec_lvx(a, b);
+}
+
 static vector short __ATTRS_o_ai
 vec_lvx(int a, vector short *b)
 {
@@ -1111,6 +1861,18 @@ vec_lvx(int a, unsigned short *b)
   return (vector unsigned short)__builtin_altivec_lvx(a, b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_lvx(int a, vector bool short *b)
+{
+  return (vector bool short)__builtin_altivec_lvx(a, b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_lvx(int a, vector pixel *b)
+{
+  return (vector pixel)__builtin_altivec_lvx(a, b);
+}
+
 static vector int __ATTRS_o_ai
 vec_lvx(int a, vector int *b)
 {
@@ -1133,6 +1895,12 @@ static vector unsigned int __ATTRS_o_ai
 vec_lvx(int a, unsigned int *b)
 {
   return (vector unsigned int)__builtin_altivec_lvx(a, b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_lvx(int a, vector bool int *b)
+{
+  return (vector bool int)__builtin_altivec_lvx(a, b);
 }
 
 static vector float __ATTRS_o_ai
@@ -1265,6 +2033,12 @@ vec_ldl(int a, unsigned char *b)
   return (vector unsigned char)__builtin_altivec_lvxl(a, b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_ldl(int a, vector bool char *b)
+{
+  return (vector bool char)__builtin_altivec_lvxl(a, b);
+}
+
 static vector short __ATTRS_o_ai
 vec_ldl(int a, vector short *b)
 {
@@ -1289,6 +2063,18 @@ vec_ldl(int a, unsigned short *b)
   return (vector unsigned short)__builtin_altivec_lvxl(a, b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_ldl(int a, vector bool short *b)
+{
+  return (vector bool short)__builtin_altivec_lvxl(a, b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_ldl(int a, vector pixel *b)
+{
+  return (vector pixel short)__builtin_altivec_lvxl(a, b);
+}
+
 static vector int __ATTRS_o_ai
 vec_ldl(int a, vector int *b)
 {
@@ -1311,6 +2097,12 @@ static vector unsigned int __ATTRS_o_ai
 vec_ldl(int a, unsigned int *b)
 {
   return (vector unsigned int)__builtin_altivec_lvxl(a, b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_ldl(int a, vector bool int *b)
+{
+  return (vector bool int)__builtin_altivec_lvxl(a, b);
 }
 
 static vector float __ATTRS_o_ai
@@ -1351,6 +2143,12 @@ vec_lvxl(int a, unsigned char *b)
   return (vector unsigned char)__builtin_altivec_lvxl(a, b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_lvxl(int a, vector bool char *b)
+{
+  return (vector bool char)__builtin_altivec_lvxl(a, b);
+}
+
 static vector short __ATTRS_o_ai
 vec_lvxl(int a, vector short *b)
 {
@@ -1375,6 +2173,18 @@ vec_lvxl(int a, unsigned short *b)
   return (vector unsigned short)__builtin_altivec_lvxl(a, b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_lvxl(int a, vector bool short *b)
+{
+  return (vector bool short)__builtin_altivec_lvxl(a, b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_lvxl(int a, vector pixel *b)
+{
+  return (vector pixel)__builtin_altivec_lvxl(a, b);
+}
+
 static vector int __ATTRS_o_ai
 vec_lvxl(int a, vector int *b)
 {
@@ -1397,6 +2207,12 @@ static vector unsigned int __ATTRS_o_ai
 vec_lvxl(int a, unsigned int *b)
 {
   return (vector unsigned int)__builtin_altivec_lvxl(a, b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_lvxl(int a, vector bool int *b)
+{
+  return (vector bool int)__builtin_altivec_lvxl(a, b);
 }
 
 static vector float __ATTRS_o_ai
@@ -1549,15 +2365,39 @@ vec_vmhaddshs(vector signed short a, vector signed short b, vector signed short 
 /* vec_max */
 
 static vector signed char __ATTRS_o_ai
-vec_max(vector signed  char a, vector signed char b)
+vec_max(vector signed char a, vector signed char b)
 {
   return __builtin_altivec_vmaxsb(a, b);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_max(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vmaxsb((vector signed char)a, b);
+}
+
+static vector signed char __ATTRS_o_ai
+vec_max(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vmaxsb(a, (vector signed char)b);
+}
+
 static vector unsigned char __ATTRS_o_ai
-vec_max(vector unsigned  char a, vector unsigned char b)
+vec_max(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vmaxub(a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_max(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vmaxub((vector unsigned char)a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_max(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vmaxub(a, (vector unsigned char)b);
 }
 
 static vector short __ATTRS_o_ai
@@ -1566,10 +2406,34 @@ vec_max(vector short a, vector short b)
   return __builtin_altivec_vmaxsh(a, b);
 }
 
+static vector short __ATTRS_o_ai
+vec_max(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vmaxsh((vector short)a, b);
+}
+
+static vector short __ATTRS_o_ai
+vec_max(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vmaxsh(a, (vector short)b);
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_max(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vmaxuh(a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_max(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vmaxuh((vector unsigned short)a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_max(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vmaxuh(a, (vector unsigned short)b);
 }
 
 static vector int __ATTRS_o_ai
@@ -1578,10 +2442,34 @@ vec_max(vector int a, vector int b)
   return __builtin_altivec_vmaxsw(a, b);
 }
 
+static vector int __ATTRS_o_ai
+vec_max(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vmaxsw((vector int)a, b);
+}
+
+static vector int __ATTRS_o_ai
+vec_max(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vmaxsw(a, (vector int)b);
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_max(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vmaxuw(a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_max(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vmaxuw((vector unsigned int)a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_max(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vmaxuw(a, (vector unsigned int)b);
 }
 
 static vector float __ATTRS_o_ai
@@ -1592,50 +2480,122 @@ vec_max(vector float a, vector float b)
 
 /* vec_vmaxsb */
 
-static vector signed char __attribute__((__always_inline__))
-vec_vmaxsb(vector signed  char a, vector signed char b)
+static vector signed char __ATTRS_o_ai
+vec_vmaxsb(vector signed char a, vector signed char b)
 {
   return __builtin_altivec_vmaxsb(a, b);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vmaxsb(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vmaxsb((vector signed char)a, b);
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vmaxsb(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vmaxsb(a, (vector signed char)b);
+}
+
 /* vec_vmaxub */
 
-static vector unsigned char __attribute__((__always_inline__))
-vec_vmaxub(vector unsigned  char a, vector unsigned char b)
+static vector unsigned char __ATTRS_o_ai
+vec_vmaxub(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vmaxub(a, b);
 }
 
+static vector unsigned char __ATTRS_o_ai
+vec_vmaxub(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vmaxub((vector unsigned char)a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vmaxub(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vmaxub(a, (vector unsigned char)b);
+}
+
 /* vec_vmaxsh */
 
-static vector short __attribute__((__always_inline__))
+static vector short __ATTRS_o_ai
 vec_vmaxsh(vector short a, vector short b)
 {
   return __builtin_altivec_vmaxsh(a, b);
 }
 
+static vector short __ATTRS_o_ai
+vec_vmaxsh(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vmaxsh((vector short)a, b);
+}
+
+static vector short __ATTRS_o_ai
+vec_vmaxsh(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vmaxsh(a, (vector short)b);
+}
+
 /* vec_vmaxuh */
 
-static vector unsigned short __attribute__((__always_inline__))
+static vector unsigned short __ATTRS_o_ai
 vec_vmaxuh(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vmaxuh(a, b);
 }
 
+static vector unsigned short __ATTRS_o_ai
+vec_vmaxuh(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vmaxuh((vector unsigned short)a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vmaxuh(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vmaxuh(a, (vector unsigned short)b);
+}
+
 /* vec_vmaxsw */
 
-static vector int __attribute__((__always_inline__))
+static vector int __ATTRS_o_ai
 vec_vmaxsw(vector int a, vector int b)
 {
   return __builtin_altivec_vmaxsw(a, b);
 }
 
+static vector int __ATTRS_o_ai
+vec_vmaxsw(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vmaxsw((vector int)a, b);
+}
+
+static vector int __ATTRS_o_ai
+vec_vmaxsw(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vmaxsw(a, (vector int)b);
+}
+
 /* vec_vmaxuw */
 
-static vector unsigned int __attribute__((__always_inline__))
+static vector unsigned int __ATTRS_o_ai
 vec_vmaxuw(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vmaxuw(a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vmaxuw(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vmaxuw((vector unsigned int)a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vmaxuw(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vmaxuw(a, (vector unsigned int)b);
 }
 
 /* vec_vmaxfp */
@@ -1664,6 +2624,14 @@ vec_mergeh(vector unsigned char a, vector unsigned char b)
      0x04, 0x14, 0x05, 0x15, 0x06, 0x16, 0x07, 0x17));
 }
 
+static vector bool char __ATTRS_o_ai
+vec_mergeh(vector bool char a, vector bool char b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x00, 0x10, 0x01, 0x11, 0x02, 0x12, 0x03, 0x13, 
+     0x04, 0x14, 0x05, 0x15, 0x06, 0x16, 0x07, 0x17));
+}
+
 static vector short __ATTRS_o_ai
 vec_mergeh(vector short a, vector short b)
 {
@@ -1680,6 +2648,22 @@ vec_mergeh(vector unsigned short a, vector unsigned short b)
      0x04, 0x05, 0x14, 0x15, 0x06, 0x07, 0x16, 0x17));
 }
 
+static vector bool short __ATTRS_o_ai
+vec_mergeh(vector bool short a, vector bool short b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x00, 0x01, 0x10, 0x11, 0x02, 0x03, 0x12, 0x13,
+     0x04, 0x05, 0x14, 0x15, 0x06, 0x07, 0x16, 0x17));
+}
+
+static vector pixel __ATTRS_o_ai
+vec_mergeh(vector pixel a, vector pixel b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x00, 0x01, 0x10, 0x11, 0x02, 0x03, 0x12, 0x13,
+     0x04, 0x05, 0x14, 0x15, 0x06, 0x07, 0x16, 0x17));
+}
+
 static vector int __ATTRS_o_ai
 vec_mergeh(vector int a, vector int b)
 {
@@ -1690,6 +2674,14 @@ vec_mergeh(vector int a, vector int b)
 
 static vector unsigned int __ATTRS_o_ai
 vec_mergeh(vector unsigned int a, vector unsigned int b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13,
+     0x04, 0x05, 0x06, 0x07, 0x14, 0x15, 0x16, 0x17));
+}
+
+static vector bool int __ATTRS_o_ai
+vec_mergeh(vector bool int a, vector bool int b)
 {
   return vec_perm(a, b, (vector unsigned char)
     (0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13,
@@ -1724,6 +2716,14 @@ vec_vmrghb(vector unsigned char a, vector unsigned char b)
      0x04, 0x14, 0x05, 0x15, 0x06, 0x16, 0x07, 0x17));
 }
 
+static vector bool char __ATTRS_o_ai
+vec_vmrghb(vector bool char a, vector bool char b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x00, 0x10, 0x01, 0x11, 0x02, 0x12, 0x03, 0x13, 
+     0x04, 0x14, 0x05, 0x15, 0x06, 0x16, 0x07, 0x17));
+}
+
 /* vec_vmrghh */
 
 #define __builtin_altivec_vmrghh vec_vmrghh
@@ -1744,6 +2744,22 @@ vec_vmrghh(vector unsigned short a, vector unsigned short b)
      0x04, 0x05, 0x14, 0x15, 0x06, 0x07, 0x16, 0x17));
 }
 
+static vector bool short __ATTRS_o_ai
+vec_vmrghh(vector bool short a, vector bool short b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x00, 0x01, 0x10, 0x11, 0x02, 0x03, 0x12, 0x13,
+     0x04, 0x05, 0x14, 0x15, 0x06, 0x07, 0x16, 0x17));
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vmrghh(vector pixel a, vector pixel b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x00, 0x01, 0x10, 0x11, 0x02, 0x03, 0x12, 0x13,
+     0x04, 0x05, 0x14, 0x15, 0x06, 0x07, 0x16, 0x17));
+}
+
 /* vec_vmrghw */
 
 #define __builtin_altivec_vmrghw vec_vmrghw
@@ -1758,6 +2774,14 @@ vec_vmrghw(vector int a, vector int b)
 
 static vector unsigned int __ATTRS_o_ai
 vec_vmrghw(vector unsigned int a, vector unsigned int b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13,
+     0x04, 0x05, 0x06, 0x07, 0x14, 0x15, 0x16, 0x17));
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vmrghw(vector bool int a, vector bool int b)
 {
   return vec_perm(a, b, (vector unsigned char)
     (0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13,
@@ -1790,6 +2814,14 @@ vec_mergel(vector unsigned char a, vector unsigned char b)
      0x0C, 0x1C, 0x0D, 0x1D, 0x0E, 0x1E, 0x0F, 0x1F));
 }
 
+static vector bool char __ATTRS_o_ai
+vec_mergel(vector bool char a, vector bool char b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x08, 0x18, 0x09, 0x19, 0x0A, 0x1A, 0x0B, 0x1B, 
+     0x0C, 0x1C, 0x0D, 0x1D, 0x0E, 0x1E, 0x0F, 0x1F));
+}
+
 static vector short __ATTRS_o_ai
 vec_mergel(vector short a, vector short b)
 {
@@ -1806,6 +2838,22 @@ vec_mergel(vector unsigned short a, vector unsigned short b)
      0x0C, 0x0D, 0x1C, 0x1D, 0x0E, 0x0F, 0x1E, 0x1F));
 }
 
+static vector bool short __ATTRS_o_ai
+vec_mergel(vector bool short a, vector bool short b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x08, 0x09, 0x18, 0x19, 0x0A, 0x0B, 0x1A, 0x1B,
+     0x0C, 0x0D, 0x1C, 0x1D, 0x0E, 0x0F, 0x1E, 0x1F));
+}
+
+static vector pixel __ATTRS_o_ai
+vec_mergel(vector pixel a, vector pixel b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x08, 0x09, 0x18, 0x19, 0x0A, 0x0B, 0x1A, 0x1B,
+     0x0C, 0x0D, 0x1C, 0x1D, 0x0E, 0x0F, 0x1E, 0x1F));
+}
+
 static vector int __ATTRS_o_ai
 vec_mergel(vector int a, vector int b)
 {
@@ -1816,6 +2864,14 @@ vec_mergel(vector int a, vector int b)
 
 static vector unsigned int __ATTRS_o_ai
 vec_mergel(vector unsigned int a, vector unsigned int b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x08, 0x09, 0x0A, 0x0B, 0x18, 0x19, 0x1A, 0x1B,
+     0x0C, 0x0D, 0x0E, 0x0F, 0x1C, 0x1D, 0x1E, 0x1F));
+}
+
+static vector bool int __ATTRS_o_ai
+vec_mergel(vector bool int a, vector bool int b)
 {
   return vec_perm(a, b, (vector unsigned char)
     (0x08, 0x09, 0x0A, 0x0B, 0x18, 0x19, 0x1A, 0x1B,
@@ -1850,6 +2906,14 @@ vec_vmrglb(vector unsigned char a, vector unsigned char b)
      0x0C, 0x1C, 0x0D, 0x1D, 0x0E, 0x1E, 0x0F, 0x1F));
 }
 
+static vector bool char __ATTRS_o_ai
+vec_vmrglb(vector bool char a, vector bool char b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x08, 0x18, 0x09, 0x19, 0x0A, 0x1A, 0x0B, 0x1B, 
+     0x0C, 0x1C, 0x0D, 0x1D, 0x0E, 0x1E, 0x0F, 0x1F));
+}
+
 /* vec_vmrglh */
 
 #define __builtin_altivec_vmrglh vec_vmrglh
@@ -1864,6 +2928,22 @@ vec_vmrglh(vector short a, vector short b)
 
 static vector unsigned short __ATTRS_o_ai
 vec_vmrglh(vector unsigned short a, vector unsigned short b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x08, 0x09, 0x18, 0x19, 0x0A, 0x0B, 0x1A, 0x1B,
+     0x0C, 0x0D, 0x1C, 0x1D, 0x0E, 0x0F, 0x1E, 0x1F));
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vmrglh(vector bool short a, vector bool short b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x08, 0x09, 0x18, 0x19, 0x0A, 0x0B, 0x1A, 0x1B,
+     0x0C, 0x0D, 0x1C, 0x1D, 0x0E, 0x0F, 0x1E, 0x1F));
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vmrglh(vector pixel a, vector pixel b)
 {
   return vec_perm(a, b, (vector unsigned char)
     (0x08, 0x09, 0x18, 0x19, 0x0A, 0x0B, 0x1A, 0x1B,
@@ -1890,6 +2970,14 @@ vec_vmrglw(vector unsigned int a, vector unsigned int b)
      0x0C, 0x0D, 0x0E, 0x0F, 0x1C, 0x1D, 0x1E, 0x1F));
 }
 
+static vector bool int __ATTRS_o_ai
+vec_vmrglw(vector bool int a, vector bool int b)
+{
+  return vec_perm(a, b, (vector unsigned char)
+    (0x08, 0x09, 0x0A, 0x0B, 0x18, 0x19, 0x1A, 0x1B,
+     0x0C, 0x0D, 0x0E, 0x0F, 0x1C, 0x1D, 0x1E, 0x1F));
+}
+
 static vector float __ATTRS_o_ai
 vec_vmrglw(vector float a, vector float b)
 {
@@ -1909,15 +2997,39 @@ vec_mfvscr(void)
 /* vec_min */
 
 static vector signed char __ATTRS_o_ai
-vec_min(vector signed  char a, vector signed char b)
+vec_min(vector signed char a, vector signed char b)
 {
   return __builtin_altivec_vminsb(a, b);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_min(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vminsb((vector signed char)a, b);
+}
+
+static vector signed char __ATTRS_o_ai
+vec_min(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vminsb(a, (vector signed char)b);
+}
+
 static vector unsigned char __ATTRS_o_ai
-vec_min(vector unsigned  char a, vector unsigned char b)
+vec_min(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vminub(a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_min(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vminub((vector unsigned char)a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_min(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vminub(a, (vector unsigned char)b);
 }
 
 static vector short __ATTRS_o_ai
@@ -1926,10 +3038,34 @@ vec_min(vector short a, vector short b)
   return __builtin_altivec_vminsh(a, b);
 }
 
+static vector short __ATTRS_o_ai
+vec_min(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vminsh((vector short)a, b);
+}
+
+static vector short __ATTRS_o_ai
+vec_min(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vminsh(a, (vector short)b);
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_min(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vminuh(a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_min(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vminuh((vector unsigned short)a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_min(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vminuh(a, (vector unsigned short)b);
 }
 
 static vector int __ATTRS_o_ai
@@ -1938,10 +3074,34 @@ vec_min(vector int a, vector int b)
   return __builtin_altivec_vminsw(a, b);
 }
 
+static vector int __ATTRS_o_ai
+vec_min(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vminsw((vector int)a, b);
+}
+
+static vector int __ATTRS_o_ai
+vec_min(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vminsw(a, (vector int)b);
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_min(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vminuw(a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_min(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vminuw((vector unsigned int)a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_min(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vminuw(a, (vector unsigned int)b);
 }
 
 static vector float __ATTRS_o_ai
@@ -1952,50 +3112,122 @@ vec_min(vector float a, vector float b)
 
 /* vec_vminsb */
 
-static vector signed char __attribute__((__always_inline__))
-vec_vminsb(vector signed  char a, vector signed char b)
+static vector signed char __ATTRS_o_ai
+vec_vminsb(vector signed char a, vector signed char b)
 {
   return __builtin_altivec_vminsb(a, b);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vminsb(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vminsb((vector signed char)a, b);
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vminsb(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vminsb(a, (vector signed char)b);
+}
+
 /* vec_vminub */
 
-static vector unsigned char __attribute__((__always_inline__))
-vec_vminub(vector unsigned  char a, vector unsigned char b)
+static vector unsigned char __ATTRS_o_ai
+vec_vminub(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vminub(a, b);
 }
 
+static vector unsigned char __ATTRS_o_ai
+vec_vminub(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vminub((vector unsigned char)a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vminub(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vminub(a, (vector unsigned char)b);
+}
+
 /* vec_vminsh */
 
-static vector short __attribute__((__always_inline__))
+static vector short __ATTRS_o_ai
 vec_vminsh(vector short a, vector short b)
 {
   return __builtin_altivec_vminsh(a, b);
 }
 
+static vector short __ATTRS_o_ai
+vec_vminsh(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vminsh((vector short)a, b);
+}
+
+static vector short __ATTRS_o_ai
+vec_vminsh(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vminsh(a, (vector short)b);
+}
+
 /* vec_vminuh */
 
-static vector unsigned short __attribute__((__always_inline__))
+static vector unsigned short __ATTRS_o_ai
 vec_vminuh(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vminuh(a, b);
 }
 
+static vector unsigned short __ATTRS_o_ai
+vec_vminuh(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vminuh((vector unsigned short)a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vminuh(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vminuh(a, (vector unsigned short)b);
+}
+
 /* vec_vminsw */
 
-static vector int __attribute__((__always_inline__))
+static vector int __ATTRS_o_ai
 vec_vminsw(vector int a, vector int b)
 {
   return __builtin_altivec_vminsw(a, b);
 }
 
+static vector int __ATTRS_o_ai
+vec_vminsw(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vminsw((vector int)a, b);
+}
+
+static vector int __ATTRS_o_ai
+vec_vminsw(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vminsw(a, (vector int)b);
+}
+
 /* vec_vminuw */
 
-static vector unsigned int __attribute__((__always_inline__))
+static vector unsigned int __ATTRS_o_ai
 vec_vminuw(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vminuw(a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vminuw(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vminuw((vector unsigned int)a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vminuw(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vminuw(a, (vector unsigned int)b);
 }
 
 /* vec_vminfp */
@@ -2179,6 +3411,12 @@ vec_mtvscr(vector unsigned char a)
 }
 
 static void __ATTRS_o_ai
+vec_mtvscr(vector bool char a)
+{
+  __builtin_altivec_mtvscr((vector int)a);
+}
+
+static void __ATTRS_o_ai
 vec_mtvscr(vector short a)
 {
   __builtin_altivec_mtvscr((vector int)a);
@@ -2191,6 +3429,18 @@ vec_mtvscr(vector unsigned short a)
 }
 
 static void __ATTRS_o_ai
+vec_mtvscr(vector bool short a)
+{
+  __builtin_altivec_mtvscr((vector int)a);
+}
+
+static void __ATTRS_o_ai
+vec_mtvscr(vector pixel a)
+{
+  __builtin_altivec_mtvscr((vector int)a);
+}
+
+static void __ATTRS_o_ai
 vec_mtvscr(vector int a)
 {
   __builtin_altivec_mtvscr((vector int)a);
@@ -2198,6 +3448,12 @@ vec_mtvscr(vector int a)
 
 static void __ATTRS_o_ai
 vec_mtvscr(vector unsigned int a)
+{
+  __builtin_altivec_mtvscr((vector int)a);
+}
+
+static void __ATTRS_o_ai
+vec_mtvscr(vector bool int a)
 {
   __builtin_altivec_mtvscr((vector int)a);
 }
@@ -2356,6 +3612,12 @@ vec_nor(vector unsigned char a, vector unsigned char b)
   return ~(a | b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_nor(vector bool char a, vector bool char b)
+{
+  return ~(a | b);
+}
+
 static vector short __ATTRS_o_ai
 vec_nor(vector short a, vector short b)
 {
@@ -2368,6 +3630,12 @@ vec_nor(vector unsigned short a, vector unsigned short b)
   return ~(a | b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_nor(vector bool short a, vector bool short b)
+{
+  return ~(a | b);
+}
+
 static vector int __ATTRS_o_ai
 vec_nor(vector int a, vector int b)
 {
@@ -2376,6 +3644,12 @@ vec_nor(vector int a, vector int b)
 
 static vector unsigned int __ATTRS_o_ai
 vec_nor(vector unsigned int a, vector unsigned int b)
+{
+  return ~(a | b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_nor(vector bool int a, vector bool int b)
 {
   return ~(a | b);
 }
@@ -2401,6 +3675,12 @@ vec_vnor(vector unsigned char a, vector unsigned char b)
   return ~(a | b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_vnor(vector bool char a, vector bool char b)
+{
+  return ~(a | b);
+}
+
 static vector short __ATTRS_o_ai
 vec_vnor(vector short a, vector short b)
 {
@@ -2413,6 +3693,12 @@ vec_vnor(vector unsigned short a, vector unsigned short b)
   return ~(a | b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_vnor(vector bool short a, vector bool short b)
+{
+  return ~(a | b);
+}
+
 static vector int __ATTRS_o_ai
 vec_vnor(vector int a, vector int b)
 {
@@ -2421,6 +3707,12 @@ vec_vnor(vector int a, vector int b)
 
 static vector unsigned int __ATTRS_o_ai
 vec_vnor(vector unsigned int a, vector unsigned int b)
+{
+  return ~(a | b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vnor(vector bool int a, vector bool int b)
 {
   return ~(a | b);
 }
@@ -2442,8 +3734,38 @@ vec_or(vector signed char a, vector signed char b)
   return a | b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_or(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a | b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_or(vector signed char a, vector bool char b)
+{
+  return a | (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_or(vector unsigned char a, vector unsigned char b)
+{
+  return a | b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_or(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a | b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_or(vector unsigned char a, vector bool char b)
+{
+  return a | (vector unsigned char)b;
+}
+
+static vector bool char __ATTRS_o_ai
+vec_or(vector bool char a, vector bool char b)
 {
   return a | b;
 }
@@ -2454,8 +3776,38 @@ vec_or(vector short a, vector short b)
   return a | b;
 }
 
+static vector short __ATTRS_o_ai
+vec_or(vector bool short a, vector short b)
+{
+  return (vector short)a | b;
+}
+
+static vector short __ATTRS_o_ai
+vec_or(vector short a, vector bool short b)
+{
+  return a | (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_or(vector unsigned short a, vector unsigned short b)
+{
+  return a | b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_or(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a | b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_or(vector unsigned short a, vector bool short b)
+{
+  return a | (vector unsigned short)b;
+}
+
+static vector bool short __ATTRS_o_ai
+vec_or(vector bool short a, vector bool short b)
 {
   return a | b;
 }
@@ -2466,14 +3818,58 @@ vec_or(vector int a, vector int b)
   return a | b;
 }
 
+static vector int __ATTRS_o_ai
+vec_or(vector bool int a, vector int b)
+{
+  return (vector int)a | b;
+}
+
+static vector int __ATTRS_o_ai
+vec_or(vector int a, vector bool int b)
+{
+  return a | (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_or(vector unsigned int a, vector unsigned int b)
 {
   return a | b;
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_or(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a | b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_or(vector unsigned int a, vector bool int b)
+{
+  return a | (vector unsigned int)b;
+}
+
+static vector bool int __ATTRS_o_ai
+vec_or(vector bool int a, vector bool int b)
+{
+  return a | b;
+}
+
 static vector float __ATTRS_o_ai
 vec_or(vector float a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a | (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_or(vector bool int a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a | (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_or(vector float a, vector bool int b)
 {
   vector unsigned int res = (vector unsigned int)a | (vector unsigned int)b;
   return (vector float)res;
@@ -2487,8 +3883,38 @@ vec_vor(vector signed char a, vector signed char b)
   return a | b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vor(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a | b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vor(vector signed char a, vector bool char b)
+{
+  return a | (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_vor(vector unsigned char a, vector unsigned char b)
+{
+  return a | b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vor(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a | b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vor(vector unsigned char a, vector bool char b)
+{
+  return a | (vector unsigned char)b;
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vor(vector bool char a, vector bool char b)
 {
   return a | b;
 }
@@ -2499,8 +3925,38 @@ vec_vor(vector short a, vector short b)
   return a | b;
 }
 
+static vector short __ATTRS_o_ai
+vec_vor(vector bool short a, vector short b)
+{
+  return (vector short)a | b;
+}
+
+static vector short __ATTRS_o_ai
+vec_vor(vector short a, vector bool short b)
+{
+  return a | (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_vor(vector unsigned short a, vector unsigned short b)
+{
+  return a | b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vor(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a | b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vor(vector unsigned short a, vector bool short b)
+{
+  return a | (vector unsigned short)b;
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vor(vector bool short a, vector bool short b)
 {
   return a | b;
 }
@@ -2511,14 +3967,58 @@ vec_vor(vector int a, vector int b)
   return a | b;
 }
 
+static vector int __ATTRS_o_ai
+vec_vor(vector bool int a, vector int b)
+{
+  return (vector int)a | b;
+}
+
+static vector int __ATTRS_o_ai
+vec_vor(vector int a, vector bool int b)
+{
+  return a | (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_vor(vector unsigned int a, vector unsigned int b)
 {
   return a | b;
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_vor(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a | b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vor(vector unsigned int a, vector bool int b)
+{
+  return a | (vector unsigned int)b;
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vor(vector bool int a, vector bool int b)
+{
+  return a | b;
+}
+
 static vector float __ATTRS_o_ai
 vec_vor(vector float a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a | (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_vor(vector bool int a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a | (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_vor(vector float a, vector bool int b)
 {
   vector unsigned int res = (vector unsigned int)a | (vector unsigned int)b;
   return (vector float)res;
@@ -2542,6 +4042,14 @@ vec_pack(vector unsigned short a, vector unsigned short b)
      0x11, 0x13, 0x15, 0x17, 0x19, 0x1B, 0x1D, 0x1F));
 }
 
+static vector bool char __ATTRS_o_ai
+vec_pack(vector bool short a, vector bool short b)
+{
+  return (vector bool char)vec_perm(a, b, (vector unsigned char)
+    (0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F,
+     0x11, 0x13, 0x15, 0x17, 0x19, 0x1B, 0x1D, 0x1F));
+}
+
 static vector short __ATTRS_o_ai
 vec_pack(vector int a, vector int b)
 {
@@ -2554,6 +4062,14 @@ static vector unsigned short __ATTRS_o_ai
 vec_pack(vector unsigned int a, vector unsigned int b)
 {
   return (vector unsigned short)vec_perm(a, b, (vector unsigned char)
+    (0x02, 0x03, 0x06, 0x07, 0x0A, 0x0B, 0x0E, 0x0F,
+     0x12, 0x13, 0x16, 0x17, 0x1A, 0x1B, 0x1E, 0x1F));
+}
+
+static vector bool short __ATTRS_o_ai
+vec_pack(vector bool int a, vector bool int b)
+{
+  return (vector bool short)vec_perm(a, b, (vector unsigned char)
     (0x02, 0x03, 0x06, 0x07, 0x0A, 0x0B, 0x0E, 0x0F,
      0x12, 0x13, 0x16, 0x17, 0x1A, 0x1B, 0x1E, 0x1F));
 }
@@ -2578,6 +4094,14 @@ vec_vpkuhum(vector unsigned short a, vector unsigned short b)
      0x11, 0x13, 0x15, 0x17, 0x19, 0x1B, 0x1D, 0x1F));
 }
 
+static vector bool char __ATTRS_o_ai
+vec_vpkuhum(vector bool short a, vector bool short b)
+{
+  return (vector bool char)vec_perm(a, b, (vector unsigned char)
+    (0x01, 0x03, 0x05, 0x07, 0x09, 0x0B, 0x0D, 0x0F,
+     0x11, 0x13, 0x15, 0x17, 0x19, 0x1B, 0x1D, 0x1F));
+}
+
 /* vec_vpkuwum */
 
 #define __builtin_altivec_vpkuwum vec_vpkuwum
@@ -2594,6 +4118,14 @@ static vector unsigned short __ATTRS_o_ai
 vec_vpkuwum(vector unsigned int a, vector unsigned int b)
 {
   return (vector unsigned short)vec_perm(a, b, (vector unsigned char)
+    (0x02, 0x03, 0x06, 0x07, 0x0A, 0x0B, 0x0E, 0x0F,
+     0x12, 0x13, 0x16, 0x17, 0x1A, 0x1B, 0x1E, 0x1F));
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vpkuwum(vector bool int a, vector bool int b)
+{
+  return (vector bool short)vec_perm(a, b, (vector unsigned char)
     (0x02, 0x03, 0x06, 0x07, 0x0A, 0x0B, 0x0E, 0x0F,
      0x12, 0x13, 0x16, 0x17, 0x1A, 0x1B, 0x1E, 0x1F));
 }
@@ -2740,6 +4272,12 @@ vec_perm(vector unsigned char a, vector unsigned char b, vector unsigned char c)
   return (vector unsigned char)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
 }
 
+vector bool char __ATTRS_o_ai
+vec_perm(vector bool char a, vector bool char b, vector unsigned char c)
+{
+  return (vector bool char)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
+}
+
 vector short __ATTRS_o_ai
 vec_perm(vector short a, vector short b, vector unsigned char c)
 {
@@ -2752,6 +4290,18 @@ vec_perm(vector unsigned short a, vector unsigned short b, vector unsigned char 
   return (vector unsigned short)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
 }
 
+vector bool short __ATTRS_o_ai
+vec_perm(vector bool short a, vector bool short b, vector unsigned char c)
+{
+  return (vector bool short)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
+}
+
+vector pixel __ATTRS_o_ai
+vec_perm(vector pixel a, vector pixel b, vector unsigned char c)
+{
+  return (vector pixel)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
+}
+
 vector int __ATTRS_o_ai
 vec_perm(vector int a, vector int b, vector unsigned char c)
 {
@@ -2762,6 +4312,12 @@ vector unsigned int __ATTRS_o_ai
 vec_perm(vector unsigned int a, vector unsigned int b, vector unsigned char c)
 {
   return (vector unsigned int)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
+}
+
+vector bool int __ATTRS_o_ai
+vec_perm(vector bool int a, vector bool int b, vector unsigned char c)
+{
+  return (vector bool int)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
 }
 
 vector float __ATTRS_o_ai
@@ -2784,6 +4340,12 @@ vec_vperm(vector unsigned char a, vector unsigned char b, vector unsigned char c
   return (vector unsigned char)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
 }
 
+vector bool char __ATTRS_o_ai
+vec_vperm(vector bool char a, vector bool char b, vector unsigned char c)
+{
+  return (vector bool char)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
+}
+
 vector short __ATTRS_o_ai
 vec_vperm(vector short a, vector short b, vector unsigned char c)
 {
@@ -2796,6 +4358,18 @@ vec_vperm(vector unsigned short a, vector unsigned short b, vector unsigned char
   return (vector unsigned short)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
 }
 
+vector bool short __ATTRS_o_ai
+vec_vperm(vector bool short a, vector bool short b, vector unsigned char c)
+{
+  return (vector bool short)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
+}
+
+vector pixel __ATTRS_o_ai
+vec_vperm(vector pixel a, vector pixel b, vector unsigned char c)
+{
+  return (vector pixel)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
+}
+
 vector int __ATTRS_o_ai
 vec_vperm(vector int a, vector int b, vector unsigned char c)
 {
@@ -2806,6 +4380,12 @@ vector unsigned int __ATTRS_o_ai
 vec_vperm(vector unsigned int a, vector unsigned int b, vector unsigned char c)
 {
   return (vector unsigned int)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
+}
+
+vector bool int __ATTRS_o_ai
+vec_vperm(vector bool int a, vector bool int b, vector unsigned char c)
+{
+  return (vector bool int)__builtin_altivec_vperm_4si((vector int)a, (vector int)b, c);
 }
 
 vector float __ATTRS_o_ai
@@ -2952,8 +4532,32 @@ vec_sel(vector signed char a, vector signed char b, vector unsigned char c)
   return (a & ~(vector signed char)c) | (b & (vector signed char)c);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_sel(vector signed char a, vector signed char b, vector bool char c)
+{
+  return (a & ~(vector signed char)c) | (b & (vector signed char)c);
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_sel(vector unsigned char a, vector unsigned char b, vector unsigned char c)
+{
+  return (a & ~c) | (b & c);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_sel(vector unsigned char a, vector unsigned char b, vector bool char c)
+{
+  return (a & ~(vector unsigned char)c) | (b & (vector unsigned char)c);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_sel(vector bool char a, vector bool char b, vector unsigned char c)
+{
+  return (a & ~(vector bool char)c) | (b & (vector bool char)c);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_sel(vector bool char a, vector bool char b, vector bool char c)
 {
   return (a & ~c) | (b & c);
 }
@@ -2964,8 +4568,32 @@ vec_sel(vector short a, vector short b, vector unsigned short c)
   return (a & ~(vector short)c) | (b & (vector short)c);
 }
 
+static vector short __ATTRS_o_ai
+vec_sel(vector short a, vector short b, vector bool short c)
+{
+  return (a & ~(vector short)c) | (b & (vector short)c);
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_sel(vector unsigned short a, vector unsigned short b, vector unsigned short c)
+{
+  return (a & ~c) | (b & c);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_sel(vector unsigned short a, vector unsigned short b, vector bool short c)
+{
+  return (a & ~(vector unsigned short)c) | (b & (vector unsigned short)c);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_sel(vector bool short a, vector bool short b, vector unsigned short c)
+{
+  return (a & ~(vector bool short)c) | (b & (vector bool short)c);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_sel(vector bool short a, vector bool short b, vector bool short c)
 {
   return (a & ~c) | (b & c);
 }
@@ -2976,14 +4604,45 @@ vec_sel(vector int a, vector int b, vector unsigned int c)
   return (a & ~(vector int)c) | (b & (vector int)c);
 }
 
+static vector int __ATTRS_o_ai
+vec_sel(vector int a, vector int b, vector bool int c)
+{
+  return (a & ~(vector int)c) | (b & (vector int)c);
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_sel(vector unsigned int a, vector unsigned int b, vector unsigned int c)
 {
   return (a & ~c) | (b & c);
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_sel(vector unsigned int a, vector unsigned int b, vector bool int c)
+{
+  return (a & ~(vector unsigned int)c) | (b & (vector unsigned int)c);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_sel(vector bool int a, vector bool int b, vector unsigned int c)
+{
+  return (a & ~(vector bool int)c) | (b & (vector bool int)c);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_sel(vector bool int a, vector bool int b, vector bool int c)
+{
+  return (a & ~c) | (b & c);
+}
+
 static vector float __ATTRS_o_ai
 vec_sel(vector float a, vector float b, vector unsigned int c)
+{
+  vector int res = ((vector int)a & ~(vector int)c) | ((vector int)b & (vector int)c);
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_sel(vector float a, vector float b, vector bool int c)
 {
   vector int res = ((vector int)a & ~(vector int)c) | ((vector int)b & (vector int)c);
   return (vector float)res;
@@ -2997,8 +4656,32 @@ vec_vsel(vector signed char a, vector signed char b, vector unsigned char c)
   return (a & ~(vector signed char)c) | (b & (vector signed char)c);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vsel(vector signed char a, vector signed char b, vector bool char c)
+{
+  return (a & ~(vector signed char)c) | (b & (vector signed char)c);
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_vsel(vector unsigned char a, vector unsigned char b, vector unsigned char c)
+{
+  return (a & ~c) | (b & c);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vsel(vector unsigned char a, vector unsigned char b, vector bool char c)
+{
+  return (a & ~(vector unsigned char)c) | (b & (vector unsigned char)c);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vsel(vector bool char a, vector bool char b, vector unsigned char c)
+{
+  return (a & ~(vector bool char)c) | (b & (vector bool char)c);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vsel(vector bool char a, vector bool char b, vector bool char c)
 {
   return (a & ~c) | (b & c);
 }
@@ -3009,8 +4692,32 @@ vec_vsel(vector short a, vector short b, vector unsigned short c)
   return (a & ~(vector short)c) | (b & (vector short)c);
 }
 
+static vector short __ATTRS_o_ai
+vec_vsel(vector short a, vector short b, vector bool short c)
+{
+  return (a & ~(vector short)c) | (b & (vector short)c);
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_vsel(vector unsigned short a, vector unsigned short b, vector unsigned short c)
+{
+  return (a & ~c) | (b & c);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vsel(vector unsigned short a, vector unsigned short b, vector bool short c)
+{
+  return (a & ~(vector unsigned short)c) | (b & (vector unsigned short)c);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vsel(vector bool short a, vector bool short b, vector unsigned short c)
+{
+  return (a & ~(vector bool short)c) | (b & (vector bool short)c);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vsel(vector bool short a, vector bool short b, vector bool short c)
 {
   return (a & ~c) | (b & c);
 }
@@ -3021,14 +4728,45 @@ vec_vsel(vector int a, vector int b, vector unsigned int c)
   return (a & ~(vector int)c) | (b & (vector int)c);
 }
 
+static vector int __ATTRS_o_ai
+vec_vsel(vector int a, vector int b, vector bool int c)
+{
+  return (a & ~(vector int)c) | (b & (vector int)c);
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_vsel(vector unsigned int a, vector unsigned int b, vector unsigned int c)
 {
   return (a & ~c) | (b & c);
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_vsel(vector unsigned int a, vector unsigned int b, vector bool int c)
+{
+  return (a & ~(vector unsigned int)c) | (b & (vector unsigned int)c);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vsel(vector bool int a, vector bool int b, vector unsigned int c)
+{
+  return (a & ~(vector bool int)c) | (b & (vector bool int)c);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vsel(vector bool int a, vector bool int b, vector bool int c)
+{
+  return (a & ~c) | (b & c);
+}
+
 static vector float __ATTRS_o_ai
 vec_vsel(vector float a, vector float b, vector unsigned int c)
+{
+  vector int res = ((vector int)a & ~(vector int)c) | ((vector int)b & (vector int)c);
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_vsel(vector float a, vector float b, vector bool int c)
 {
   vector int res = ((vector int)a & ~(vector int)c) | ((vector int)b & (vector int)c);
   return (vector float)res;
@@ -3127,7 +4865,7 @@ vec_vslw(vector unsigned int a, vector unsigned int b)
 static vector signed char __ATTRS_o_ai
 vec_sld(vector signed char a, vector signed char b, unsigned char c)
 {
-  return (vector signed char)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3135,7 +4873,7 @@ vec_sld(vector signed char a, vector signed char b, unsigned char c)
 static vector unsigned char __ATTRS_o_ai
 vec_sld(vector unsigned char a, vector unsigned char b, unsigned char c)
 {
-  return (vector unsigned char)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3143,7 +4881,7 @@ vec_sld(vector unsigned char a, vector unsigned char b, unsigned char c)
 static vector short __ATTRS_o_ai
 vec_sld(vector short a, vector short b, unsigned char c)
 {
-  return (vector short)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3151,7 +4889,15 @@ vec_sld(vector short a, vector short b, unsigned char c)
 static vector unsigned short __ATTRS_o_ai
 vec_sld(vector unsigned short a, vector unsigned short b, unsigned char c)
 {
-  return (vector unsigned short)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
+    (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
+     c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
+}
+
+static vector pixel __ATTRS_o_ai
+vec_sld(vector pixel a, vector pixel b, unsigned char c)
+{
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3167,7 +4913,7 @@ vec_sld(vector int a, vector int b, unsigned char c)
 static vector unsigned int __ATTRS_o_ai
 vec_sld(vector unsigned int a, vector unsigned int b, unsigned char c)
 {
-  return (vector unsigned int)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3175,7 +4921,7 @@ vec_sld(vector unsigned int a, vector unsigned int b, unsigned char c)
 static vector float __ATTRS_o_ai
 vec_sld(vector float a, vector float b, unsigned char c)
 {
-  return (vector float)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3185,7 +4931,7 @@ vec_sld(vector float a, vector float b, unsigned char c)
 static vector signed char __ATTRS_o_ai
 vec_vsldoi(vector signed char a, vector signed char b, unsigned char c)
 {
-  return (vector signed char)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3193,7 +4939,7 @@ vec_vsldoi(vector signed char a, vector signed char b, unsigned char c)
 static vector unsigned char __ATTRS_o_ai
 vec_vsldoi(vector unsigned char a, vector unsigned char b, unsigned char c)
 {
-  return (vector unsigned char)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3201,7 +4947,7 @@ vec_vsldoi(vector unsigned char a, vector unsigned char b, unsigned char c)
 static vector short __ATTRS_o_ai
 vec_vsldoi(vector short a, vector short b, unsigned char c)
 {
-  return (vector short)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3209,7 +4955,15 @@ vec_vsldoi(vector short a, vector short b, unsigned char c)
 static vector unsigned short __ATTRS_o_ai
 vec_vsldoi(vector unsigned short a, vector unsigned short b, unsigned char c)
 {
-  return (vector unsigned short)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
+    (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
+     c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vsldoi(vector pixel a, vector pixel b, unsigned char c)
+{
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3225,7 +4979,7 @@ vec_vsldoi(vector int a, vector int b, unsigned char c)
 static vector unsigned int __ATTRS_o_ai
 vec_vsldoi(vector unsigned int a, vector unsigned int b, unsigned char c)
 {
-  return (vector unsigned int)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3233,7 +4987,7 @@ vec_vsldoi(vector unsigned int a, vector unsigned int b, unsigned char c)
 static vector float __ATTRS_o_ai
 vec_vsldoi(vector float a, vector float b, unsigned char c)
 {
-  return (vector float)vec_perm(a, b, (vector unsigned char)
+  return vec_perm(a, b, (vector unsigned char)
     (c,   c+1, c+2,  c+3,  c+4,  c+5,  c+6,  c+7, 
      c+8, c+9, c+10, c+11, c+12, c+13, c+14, c+15));
 }
@@ -3276,6 +5030,24 @@ vec_sll(vector unsigned char a, vector unsigned int b)
   return (vector unsigned char)__builtin_altivec_vsl((vector int)a, (vector int)b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_sll(vector bool char a, vector unsigned char b)
+{
+  return (vector bool char)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_sll(vector bool char a, vector unsigned short b)
+{
+  return (vector bool char)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_sll(vector bool char a, vector unsigned int b)
+{
+  return (vector bool char)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
 static vector short __ATTRS_o_ai
 vec_sll(vector short a, vector unsigned char b)
 {
@@ -3312,6 +5084,42 @@ vec_sll(vector unsigned short a, vector unsigned int b)
   return (vector unsigned short)__builtin_altivec_vsl((vector int)a, (vector int)b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_sll(vector bool short a, vector unsigned char b)
+{
+  return (vector bool short)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_sll(vector bool short a, vector unsigned short b)
+{
+  return (vector bool short)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_sll(vector bool short a, vector unsigned int b)
+{
+  return (vector bool short)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_sll(vector pixel a, vector unsigned char b)
+{
+  return (vector pixel)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_sll(vector pixel a, vector unsigned short b)
+{
+  return (vector pixel)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_sll(vector pixel a, vector unsigned int b)
+{
+  return (vector pixel)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
 static vector int __ATTRS_o_ai
 vec_sll(vector int a, vector unsigned char b)
 {
@@ -3346,6 +5154,24 @@ static vector unsigned int __ATTRS_o_ai
 vec_sll(vector unsigned int a, vector unsigned int b)
 {
   return (vector unsigned int)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_sll(vector bool int a, vector unsigned char b)
+{
+  return (vector bool int)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_sll(vector bool int a, vector unsigned short b)
+{
+  return (vector bool int)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_sll(vector bool int a, vector unsigned int b)
+{
+  return (vector bool int)__builtin_altivec_vsl((vector int)a, (vector int)b);
 }
 
 /* vec_vsl */
@@ -3386,6 +5212,24 @@ vec_vsl(vector unsigned char a, vector unsigned int b)
   return (vector unsigned char)__builtin_altivec_vsl((vector int)a, (vector int)b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_vsl(vector bool char a, vector unsigned char b)
+{
+  return (vector bool char)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vsl(vector bool char a, vector unsigned short b)
+{
+  return (vector bool char)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vsl(vector bool char a, vector unsigned int b)
+{
+  return (vector bool char)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
 static vector short __ATTRS_o_ai
 vec_vsl(vector short a, vector unsigned char b)
 {
@@ -3422,6 +5266,42 @@ vec_vsl(vector unsigned short a, vector unsigned int b)
   return (vector unsigned short)__builtin_altivec_vsl((vector int)a, (vector int)b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_vsl(vector bool short a, vector unsigned char b)
+{
+  return (vector bool short)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vsl(vector bool short a, vector unsigned short b)
+{
+  return (vector bool short)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vsl(vector bool short a, vector unsigned int b)
+{
+  return (vector bool short)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vsl(vector pixel a, vector unsigned char b)
+{
+  return (vector pixel)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vsl(vector pixel a, vector unsigned short b)
+{
+  return (vector pixel)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vsl(vector pixel a, vector unsigned int b)
+{
+  return (vector pixel)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
 static vector int __ATTRS_o_ai
 vec_vsl(vector int a, vector unsigned char b)
 {
@@ -3456,6 +5336,24 @@ static vector unsigned int __ATTRS_o_ai
 vec_vsl(vector unsigned int a, vector unsigned int b)
 {
   return (vector unsigned int)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vsl(vector bool int a, vector unsigned char b)
+{
+  return (vector bool int)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vsl(vector bool int a, vector unsigned short b)
+{
+  return (vector bool int)__builtin_altivec_vsl((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vsl(vector bool int a, vector unsigned int b)
+{
+  return (vector bool int)__builtin_altivec_vsl((vector int)a, (vector int)b);
 }
 
 /* vec_slo */
@@ -3506,6 +5404,18 @@ static vector unsigned short __ATTRS_o_ai
 vec_slo(vector unsigned short a, vector unsigned char b)
 {
   return (vector unsigned short)__builtin_altivec_vslo((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_slo(vector pixel a, vector signed char b)
+{
+  return (vector pixel)__builtin_altivec_vslo((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_slo(vector pixel a, vector unsigned char b)
+{
+  return (vector pixel)__builtin_altivec_vslo((vector int)a, (vector int)b);
 }
 
 static vector int __ATTRS_o_ai
@@ -3594,6 +5504,18 @@ vec_vslo(vector unsigned short a, vector unsigned char b)
   return (vector unsigned short)__builtin_altivec_vslo((vector int)a, (vector int)b);
 }
 
+static vector pixel __ATTRS_o_ai
+vec_vslo(vector pixel a, vector signed char b)
+{
+  return (vector pixel)__builtin_altivec_vslo((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vslo(vector pixel a, vector unsigned char b)
+{
+  return (vector pixel)__builtin_altivec_vslo((vector int)a, (vector int)b);
+}
+
 static vector int __ATTRS_o_ai
 vec_vslo(vector int a, vector signed char b)
 {
@@ -3635,20 +5557,26 @@ vec_vslo(vector float a, vector unsigned char b)
 static vector signed char __ATTRS_o_ai
 vec_splat(vector signed char a, unsigned char b)
 {
-  return (vector signed char)vec_perm(a, a, (vector unsigned char)(b));
+  return vec_perm(a, a, (vector unsigned char)(b));
 }
 
 static vector unsigned char __ATTRS_o_ai
 vec_splat(vector unsigned char a, unsigned char b)
 {
-  return (vector unsigned char)vec_perm(a, a, (vector unsigned char)(b));
+  return vec_perm(a, a, (vector unsigned char)(b));
+}
+
+static vector bool char __ATTRS_o_ai
+vec_splat(vector bool char a, unsigned char b)
+{
+  return vec_perm(a, a, (vector unsigned char)(b));
 }
 
 static vector short __ATTRS_o_ai
 vec_splat(vector short a, unsigned char b)
 { 
   b *= 2;
-  return (vector short)vec_perm(a, a, (vector unsigned char)
+  return vec_perm(a, a, (vector unsigned char)
     (b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1));
 }
 
@@ -3656,7 +5584,23 @@ static vector unsigned short __ATTRS_o_ai
 vec_splat(vector unsigned short a, unsigned char b)
 { 
   b *= 2;
-  return (vector unsigned short)vec_perm(a, a, (vector unsigned char)
+  return vec_perm(a, a, (vector unsigned char)
+    (b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1));
+}
+
+static vector bool short __ATTRS_o_ai
+vec_splat(vector bool short a, unsigned char b)
+{ 
+  b *= 2;
+  return vec_perm(a, a, (vector unsigned char)
+    (b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1));
+}
+
+static vector pixel __ATTRS_o_ai
+vec_splat(vector pixel a, unsigned char b)
+{ 
+  b *= 2;
+  return vec_perm(a, a, (vector unsigned char)
     (b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1));
 }
 
@@ -3672,7 +5616,15 @@ static vector unsigned int __ATTRS_o_ai
 vec_splat(vector unsigned int a, unsigned char b)
 { 
   b *= 4;
-  return (vector unsigned int)vec_perm(a, a, (vector unsigned char)
+  return vec_perm(a, a, (vector unsigned char)
+    (b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3));
+}
+
+static vector bool int __ATTRS_o_ai
+vec_splat(vector bool int a, unsigned char b)
+{ 
+  b *= 4;
+  return vec_perm(a, a, (vector unsigned char)
     (b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3));
 }
 
@@ -3680,7 +5632,7 @@ static vector float __ATTRS_o_ai
 vec_splat(vector float a, unsigned char b)
 { 
   b *= 4;
-  return (vector float)vec_perm(a, a, (vector unsigned char)
+  return vec_perm(a, a, (vector unsigned char)
     (b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3));
 }
 
@@ -3691,13 +5643,19 @@ vec_splat(vector float a, unsigned char b)
 static vector signed char __ATTRS_o_ai
 vec_vspltb(vector signed char a, unsigned char b)
 {
-  return (vector signed char)vec_perm(a, a, (vector unsigned char)(b));
+  return vec_perm(a, a, (vector unsigned char)(b));
 }
 
 static vector unsigned char __ATTRS_o_ai
 vec_vspltb(vector unsigned char a, unsigned char b)
 {
-  return (vector unsigned char)vec_perm(a, a, (vector unsigned char)(b));
+  return vec_perm(a, a, (vector unsigned char)(b));
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vspltb(vector bool char a, unsigned char b)
+{
+  return vec_perm(a, a, (vector unsigned char)(b));
 }
 
 /* vec_vsplth */
@@ -3708,7 +5666,7 @@ static vector short __ATTRS_o_ai
 vec_vsplth(vector short a, unsigned char b)
 {
   b *= 2;
-  return (vector short)vec_perm(a, a, (vector unsigned char)
+  return vec_perm(a, a, (vector unsigned char)
     (b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1));
 }
 
@@ -3716,7 +5674,23 @@ static vector unsigned short __ATTRS_o_ai
 vec_vsplth(vector unsigned short a, unsigned char b)
 {
   b *= 2;
-  return (vector unsigned short)vec_perm(a, a, (vector unsigned char)
+  return vec_perm(a, a, (vector unsigned char)
+    (b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1));
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vsplth(vector bool short a, unsigned char b)
+{
+  b *= 2;
+  return vec_perm(a, a, (vector unsigned char)
+    (b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1));
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vsplth(vector pixel a, unsigned char b)
+{
+  b *= 2;
+  return vec_perm(a, a, (vector unsigned char)
     (b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1, b, b+1));
 }
 
@@ -3728,7 +5702,7 @@ static vector int __ATTRS_o_ai
 vec_vspltw(vector int a, unsigned char b)
 {
   b *= 4;
-  return (vector int)vec_perm(a, a, (vector unsigned char)
+  return vec_perm(a, a, (vector unsigned char)
     (b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3));
 }
 
@@ -3736,7 +5710,15 @@ static vector unsigned int __ATTRS_o_ai
 vec_vspltw(vector unsigned int a, unsigned char b)
 {
   b *= 4;
-  return (vector unsigned int)vec_perm(a, a, (vector unsigned char)
+  return vec_perm(a, a, (vector unsigned char)
+    (b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3));
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vspltw(vector bool int a, unsigned char b)
+{
+  b *= 4;
+  return vec_perm(a, a, (vector unsigned char)
     (b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3));
 }
 
@@ -3744,7 +5726,7 @@ static vector float __ATTRS_o_ai
 vec_vspltw(vector float a, unsigned char b)
 {
   b *= 4;
-  return (vector float)vec_perm(a, a, (vector unsigned char)
+  return vec_perm(a, a, (vector unsigned char)
     (b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3, b, b+1, b+2, b+3));
 }
 
@@ -4039,6 +6021,24 @@ vec_srl(vector unsigned char a, vector unsigned int b)
   return (vector unsigned char)__builtin_altivec_vsr((vector int)a, (vector int)b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_srl(vector bool char a, vector unsigned char b)
+{
+  return (vector bool char)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_srl(vector bool char a, vector unsigned short b)
+{
+  return (vector bool char)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_srl(vector bool char a, vector unsigned int b)
+{
+  return (vector bool char)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
 static vector short __ATTRS_o_ai
 vec_srl(vector short a, vector unsigned char b)
 {
@@ -4075,6 +6075,42 @@ vec_srl(vector unsigned short a, vector unsigned int b)
   return (vector unsigned short)__builtin_altivec_vsr((vector int)a, (vector int)b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_srl(vector bool short a, vector unsigned char b)
+{
+  return (vector bool short)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_srl(vector bool short a, vector unsigned short b)
+{
+  return (vector bool short)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_srl(vector bool short a, vector unsigned int b)
+{
+  return (vector bool short)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_srl(vector pixel a, vector unsigned char b)
+{
+  return (vector pixel)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_srl(vector pixel a, vector unsigned short b)
+{
+  return (vector pixel)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_srl(vector pixel a, vector unsigned int b)
+{
+  return (vector pixel)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
 static vector int __ATTRS_o_ai
 vec_srl(vector int a, vector unsigned char b)
 {
@@ -4109,6 +6145,24 @@ static vector unsigned int __ATTRS_o_ai
 vec_srl(vector unsigned int a, vector unsigned int b)
 {
   return (vector unsigned int)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_srl(vector bool int a, vector unsigned char b)
+{
+  return (vector bool int)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_srl(vector bool int a, vector unsigned short b)
+{
+  return (vector bool int)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_srl(vector bool int a, vector unsigned int b)
+{
+  return (vector bool int)__builtin_altivec_vsr((vector int)a, (vector int)b);
 }
 
 /* vec_vsr */
@@ -4149,6 +6203,24 @@ vec_vsr(vector unsigned char a, vector unsigned int b)
   return (vector unsigned char)__builtin_altivec_vsr((vector int)a, (vector int)b);
 }
 
+static vector bool char __ATTRS_o_ai
+vec_vsr(vector bool char a, vector unsigned char b)
+{
+  return (vector bool char)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vsr(vector bool char a, vector unsigned short b)
+{
+  return (vector bool char)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vsr(vector bool char a, vector unsigned int b)
+{
+  return (vector bool char)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
 static vector short __ATTRS_o_ai
 vec_vsr(vector short a, vector unsigned char b)
 {
@@ -4185,6 +6257,42 @@ vec_vsr(vector unsigned short a, vector unsigned int b)
   return (vector unsigned short)__builtin_altivec_vsr((vector int)a, (vector int)b);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_vsr(vector bool short a, vector unsigned char b)
+{
+  return (vector bool short)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vsr(vector bool short a, vector unsigned short b)
+{
+  return (vector bool short)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vsr(vector bool short a, vector unsigned int b)
+{
+  return (vector bool short)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vsr(vector pixel a, vector unsigned char b)
+{
+  return (vector pixel)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vsr(vector pixel a, vector unsigned short b)
+{
+  return (vector pixel)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vsr(vector pixel a, vector unsigned int b)
+{
+  return (vector pixel)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
 static vector int __ATTRS_o_ai
 vec_vsr(vector int a, vector unsigned char b)
 {
@@ -4219,6 +6327,24 @@ static vector unsigned int __ATTRS_o_ai
 vec_vsr(vector unsigned int a, vector unsigned int b)
 {
   return (vector unsigned int)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vsr(vector bool int a, vector unsigned char b)
+{
+  return (vector bool int)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vsr(vector bool int a, vector unsigned short b)
+{
+  return (vector bool int)__builtin_altivec_vsr((vector int)a, (vector int)b);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vsr(vector bool int a, vector unsigned int b)
+{
+  return (vector bool int)__builtin_altivec_vsr((vector int)a, (vector int)b);
 }
 
 /* vec_sro */
@@ -4269,6 +6395,18 @@ static vector unsigned short __ATTRS_o_ai
 vec_sro(vector unsigned short a, vector unsigned char b)
 {
   return (vector unsigned short)__builtin_altivec_vsro((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_sro(vector pixel a, vector signed char b)
+{
+  return (vector pixel)__builtin_altivec_vsro((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_sro(vector pixel a, vector unsigned char b)
+{
+  return (vector pixel)__builtin_altivec_vsro((vector int)a, (vector int)b);
 }
 
 static vector int __ATTRS_o_ai
@@ -4357,6 +6495,18 @@ vec_vsro(vector unsigned short a, vector unsigned char b)
   return (vector unsigned short)__builtin_altivec_vsro((vector int)a, (vector int)b);
 }
 
+static vector pixel __ATTRS_o_ai
+vec_vsro(vector pixel a, vector signed char b)
+{
+  return (vector pixel)__builtin_altivec_vsro((vector int)a, (vector int)b);
+}
+
+static vector pixel __ATTRS_o_ai
+vec_vsro(vector pixel a, vector unsigned char b)
+{
+  return (vector pixel)__builtin_altivec_vsro((vector int)a, (vector int)b);
+}
+
 static vector int __ATTRS_o_ai
 vec_vsro(vector int a, vector signed char b)
 {
@@ -4420,6 +6570,24 @@ vec_st(vector unsigned char a, int b, unsigned char *c)
 }
 
 static void __ATTRS_o_ai
+vec_st(vector bool char a, int b, signed char *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector bool char a, int b, unsigned char *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector bool char a, int b, vector bool char *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_st(vector short a, int b, vector short *c)
 {
   __builtin_altivec_stvx((vector int)a, b, c);
@@ -4444,6 +6612,42 @@ vec_st(vector unsigned short a, int b, unsigned short *c)
 }
 
 static void __ATTRS_o_ai
+vec_st(vector bool short a, int b, short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector bool short a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector bool short a, int b, vector bool short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector pixel a, int b, short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector pixel a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector pixel a, int b, vector pixel *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_st(vector int a, int b, vector int *c)
 {
   __builtin_altivec_stvx(a, b, c);
@@ -4463,6 +6667,24 @@ vec_st(vector unsigned int a, int b, vector unsigned int *c)
 
 static void __ATTRS_o_ai
 vec_st(vector unsigned int a, int b, unsigned int *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector bool int a, int b, int *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector bool int a, int b, unsigned int *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_st(vector bool int a, int b, vector bool int *c)
 {
   __builtin_altivec_stvx((vector int)a, b, c);
 }
@@ -4506,6 +6728,24 @@ vec_stvx(vector unsigned char a, int b, unsigned char *c)
 }
 
 static void __ATTRS_o_ai
+vec_stvx(vector bool char a, int b, signed char *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector bool char a, int b, unsigned char *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector bool char a, int b, vector bool char *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_stvx(vector short a, int b, vector short *c)
 {
   __builtin_altivec_stvx((vector int)a, b, c);
@@ -4530,6 +6770,42 @@ vec_stvx(vector unsigned short a, int b, unsigned short *c)
 }
 
 static void __ATTRS_o_ai
+vec_stvx(vector bool short a, int b, short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector bool short a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector bool short a, int b, vector bool short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector pixel a, int b, short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector pixel a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector pixel a, int b, vector pixel *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_stvx(vector int a, int b, vector int *c)
 {
   __builtin_altivec_stvx(a, b, c);
@@ -4549,6 +6825,24 @@ vec_stvx(vector unsigned int a, int b, vector unsigned int *c)
 
 static void __ATTRS_o_ai
 vec_stvx(vector unsigned int a, int b, unsigned int *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector bool int a, int b, int *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector bool int a, int b, unsigned int *c)
+{
+  __builtin_altivec_stvx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvx(vector bool int a, int b, vector bool int *c)
 {
   __builtin_altivec_stvx((vector int)a, b, c);
 }
@@ -4580,6 +6874,18 @@ vec_ste(vector unsigned char a, int b, unsigned char *c)
 }
 
 static void __ATTRS_o_ai
+vec_ste(vector bool char a, int b, signed char *c)
+{
+  __builtin_altivec_stvebx((vector char)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_ste(vector bool char a, int b, unsigned char *c)
+{
+  __builtin_altivec_stvebx((vector char)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_ste(vector short a, int b, short *c)
 {
   __builtin_altivec_stvehx(a, b, c);
@@ -4592,6 +6898,30 @@ vec_ste(vector unsigned short a, int b, unsigned short *c)
 }
 
 static void __ATTRS_o_ai
+vec_ste(vector bool short a, int b, short *c)
+{
+  __builtin_altivec_stvehx((vector short)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_ste(vector bool short a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvehx((vector short)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_ste(vector pixel a, int b, short *c)
+{
+  __builtin_altivec_stvehx((vector short)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_ste(vector pixel a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvehx((vector short)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_ste(vector int a, int b, int *c)
 {
   __builtin_altivec_stvewx(a, b, c);
@@ -4599,6 +6929,18 @@ vec_ste(vector int a, int b, int *c)
 
 static void __ATTRS_o_ai
 vec_ste(vector unsigned int a, int b, unsigned int *c)
+{
+  __builtin_altivec_stvewx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_ste(vector bool int a, int b, int *c)
+{
+  __builtin_altivec_stvewx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_ste(vector bool int a, int b, unsigned int *c)
 {
   __builtin_altivec_stvewx((vector int)a, b, c);
 }
@@ -4623,6 +6965,18 @@ vec_stvebx(vector unsigned char a, int b, unsigned char *c)
   __builtin_altivec_stvebx((vector char)a, b, c);
 }
 
+static void __ATTRS_o_ai
+vec_stvebx(vector bool char a, int b, signed char *c)
+{
+  __builtin_altivec_stvebx((vector char)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvebx(vector bool char a, int b, unsigned char *c)
+{
+  __builtin_altivec_stvebx((vector char)a, b, c);
+}
+
 /* vec_stvehx */
 
 static void __ATTRS_o_ai
@@ -4637,6 +6991,30 @@ vec_stvehx(vector unsigned short a, int b, unsigned short *c)
   __builtin_altivec_stvehx((vector short)a, b, c);
 }
 
+static void __ATTRS_o_ai
+vec_stvehx(vector bool short a, int b, short *c)
+{
+  __builtin_altivec_stvehx((vector short)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvehx(vector bool short a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvehx((vector short)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvehx(vector pixel a, int b, short *c)
+{
+  __builtin_altivec_stvehx((vector short)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvehx(vector pixel a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvehx((vector short)a, b, c);
+}
+
 /* vec_stvewx */
 
 static void __ATTRS_o_ai
@@ -4647,6 +7025,18 @@ vec_stvewx(vector int a, int b, int *c)
 
 static void __ATTRS_o_ai
 vec_stvewx(vector unsigned int a, int b, unsigned int *c)
+{
+  __builtin_altivec_stvewx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvewx(vector bool int a, int b, int *c)
+{
+  __builtin_altivec_stvewx((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvewx(vector bool int a, int b, unsigned int *c)
 {
   __builtin_altivec_stvewx((vector int)a, b, c);
 }
@@ -4684,6 +7074,24 @@ vec_stl(vector unsigned char a, int b, unsigned char *c)
 }
 
 static void __ATTRS_o_ai
+vec_stl(vector bool char a, int b, signed char *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector bool char a, int b, unsigned char *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector bool char a, int b, vector bool char *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_stl(vector short a, int b, vector short *c)
 {
   __builtin_altivec_stvxl((vector int)a, b, c);
@@ -4708,6 +7116,42 @@ vec_stl(vector unsigned short a, int b, unsigned short *c)
 }
 
 static void __ATTRS_o_ai
+vec_stl(vector bool short a, int b, short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector bool short a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector bool short a, int b, vector bool short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector pixel a, int b, short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector pixel a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector pixel a, int b, vector pixel *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_stl(vector int a, int b, vector int *c)
 {
   __builtin_altivec_stvxl(a, b, c);
@@ -4727,6 +7171,24 @@ vec_stl(vector unsigned int a, int b, vector unsigned int *c)
 
 static void __ATTRS_o_ai
 vec_stl(vector unsigned int a, int b, unsigned int *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector bool int a, int b, int *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector bool int a, int b, unsigned int *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stl(vector bool int a, int b, vector bool int *c)
 {
   __builtin_altivec_stvxl((vector int)a, b, c);
 }
@@ -4770,6 +7232,24 @@ vec_stvxl(vector unsigned char a, int b, unsigned char *c)
 }
 
 static void __ATTRS_o_ai
+vec_stvxl(vector bool char a, int b, signed char *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector bool char a, int b, unsigned char *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector bool char a, int b, vector bool char *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_stvxl(vector short a, int b, vector short *c)
 {
   __builtin_altivec_stvxl((vector int)a, b, c);
@@ -4789,6 +7269,42 @@ vec_stvxl(vector unsigned short a, int b, vector unsigned short *c)
 
 static void __ATTRS_o_ai
 vec_stvxl(vector unsigned short a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector bool short a, int b, short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector bool short a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector bool short a, int b, vector bool short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector pixel a, int b, short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector pixel a, int b, unsigned short *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector pixel a, int b, vector pixel *c)
 {
   __builtin_altivec_stvxl((vector int)a, b, c);
 }
@@ -4818,6 +7334,24 @@ vec_stvxl(vector unsigned int a, int b, unsigned int *c)
 }
 
 static void __ATTRS_o_ai
+vec_stvxl(vector bool int a, int b, int *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector bool int a, int b, unsigned int *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
+vec_stvxl(vector bool int a, int b, vector bool int *c)
+{
+  __builtin_altivec_stvxl((vector int)a, b, c);
+}
+
+static void __ATTRS_o_ai
 vec_stvxl(vector float a, int b, vector float *c)
 {
   __builtin_altivec_stvxl((vector int)a, b, c);
@@ -4837,10 +7371,34 @@ vec_sub(vector signed char a, vector signed char b)
   return a - b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_sub(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a - b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_sub(vector signed char a, vector bool char b)
+{
+  return a - (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_sub(vector unsigned char a, vector unsigned char b)
 {
   return a - b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_sub(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a - b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_sub(vector unsigned char a, vector bool char b)
+{
+  return a - (vector unsigned char)b;
 }
 
 static vector short __ATTRS_o_ai
@@ -4849,10 +7407,34 @@ vec_sub(vector short a, vector short b)
   return a - b;
 }
 
+static vector short __ATTRS_o_ai
+vec_sub(vector bool short a, vector short b)
+{
+  return (vector short)a - b;
+}
+
+static vector short __ATTRS_o_ai
+vec_sub(vector short a, vector bool short b)
+{
+  return a - (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_sub(vector unsigned short a, vector unsigned short b)
 {
   return a - b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_sub(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a - b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_sub(vector unsigned short a, vector bool short b)
+{
+  return a - (vector unsigned short)b;
 }
 
 static vector int __ATTRS_o_ai
@@ -4861,10 +7443,34 @@ vec_sub(vector int a, vector int b)
   return a - b;
 }
 
+static vector int __ATTRS_o_ai
+vec_sub(vector bool int a, vector int b)
+{
+  return (vector int)a - b;
+}
+
+static vector int __ATTRS_o_ai
+vec_sub(vector int a, vector bool int b)
+{
+  return a - (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_sub(vector unsigned int a, vector unsigned int b)
 {
   return a - b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_sub(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a - b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_sub(vector unsigned int a, vector bool int b)
+{
+  return a - (vector unsigned int)b;
 }
 
 static vector float __ATTRS_o_ai
@@ -4883,10 +7489,34 @@ vec_vsububm(vector signed char a, vector signed char b)
   return a - b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vsububm(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a - b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vsububm(vector signed char a, vector bool char b)
+{
+  return a - (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_vsububm(vector unsigned char a, vector unsigned char b)
 {
   return a - b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vsububm(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a - b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vsububm(vector unsigned char a, vector bool char b)
+{
+  return a - (vector unsigned char)b;
 }
 
 /* vec_vsubuhm */
@@ -4899,10 +7529,34 @@ vec_vsubuhm(vector short a, vector short b)
   return a - b;
 }
 
+static vector short __ATTRS_o_ai
+vec_vsubuhm(vector bool short a, vector short b)
+{
+  return (vector short)a - b;
+}
+
+static vector short __ATTRS_o_ai
+vec_vsubuhm(vector short a, vector bool short b)
+{
+  return a - (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_vsubuhm(vector unsigned short a, vector unsigned short b)
 {
   return a - b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vsubuhm(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a - b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vsubuhm(vector unsigned short a, vector bool short b)
+{
+  return a - (vector unsigned short)b;
 }
 
 /* vec_vsubuwm */
@@ -4915,10 +7569,34 @@ vec_vsubuwm(vector int a, vector int b)
   return a - b;
 }
 
+static vector int __ATTRS_o_ai
+vec_vsubuwm(vector bool int a, vector int b)
+{
+  return (vector int)a - b;
+}
+
+static vector int __ATTRS_o_ai
+vec_vsubuwm(vector int a, vector bool int b)
+{
+  return a - (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_vsubuwm(vector unsigned int a, vector unsigned int b)
 {
   return a - b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vsubuwm(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a - b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vsubuwm(vector unsigned int a, vector bool int b)
+{
+  return a - (vector unsigned int)b;
 }
 
 /* vec_vsubfp */
@@ -4955,10 +7633,34 @@ vec_subs(vector signed char a, vector signed char b)
   return __builtin_altivec_vsubsbs(a, b);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_subs(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vsubsbs((vector signed char)a, b);
+}
+
+static vector signed char __ATTRS_o_ai
+vec_subs(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vsubsbs(a, (vector signed char)b);
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_subs(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vsububs(a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_subs(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vsububs((vector unsigned char)a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_subs(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vsububs(a, (vector unsigned char)b);
 }
 
 static vector short __ATTRS_o_ai
@@ -4967,10 +7669,34 @@ vec_subs(vector short a, vector short b)
   return __builtin_altivec_vsubshs(a, b);
 }
 
+static vector short __ATTRS_o_ai
+vec_subs(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vsubshs((vector short)a, b);
+}
+
+static vector short __ATTRS_o_ai
+vec_subs(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vsubshs(a, (vector short)b);
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_subs(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vsubuhs(a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_subs(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vsubuhs((vector unsigned short)a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_subs(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vsubuhs(a, (vector unsigned short)b);
 }
 
 static vector int __ATTRS_o_ai
@@ -4979,58 +7705,154 @@ vec_subs(vector int a, vector int b)
   return __builtin_altivec_vsubsws(a, b);
 }
 
+static vector int __ATTRS_o_ai
+vec_subs(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vsubsws((vector int)a, b);
+}
+
+static vector int __ATTRS_o_ai
+vec_subs(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vsubsws(a, (vector int)b);
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_subs(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vsubuws(a, b);
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_subs(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vsubuws((vector unsigned int)a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_subs(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vsubuws(a, (vector unsigned int)b);
+}
+
 /* vec_vsubsbs */
 
-static vector signed char __attribute__((__always_inline__))
+static vector signed char __ATTRS_o_ai
 vec_vsubsbs(vector signed char a, vector signed char b)
 {
   return __builtin_altivec_vsubsbs(a, b);
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vsubsbs(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vsubsbs((vector signed char)a, b);
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vsubsbs(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vsubsbs(a, (vector signed char)b);
+}
+
 /* vec_vsububs */
 
-static vector unsigned char __attribute__((__always_inline__))
+static vector unsigned char __ATTRS_o_ai
 vec_vsububs(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vsububs(a, b);
 }
 
+static vector unsigned char __ATTRS_o_ai
+vec_vsububs(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vsububs((vector unsigned char)a, b);
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vsububs(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vsububs(a, (vector unsigned char)b);
+}
+
 /* vec_vsubshs */
 
-static vector short __attribute__((__always_inline__))
+static vector short __ATTRS_o_ai
 vec_vsubshs(vector short a, vector short b)
 {
   return __builtin_altivec_vsubshs(a, b);
 }
 
+static vector short __ATTRS_o_ai
+vec_vsubshs(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vsubshs((vector short)a, b);
+}
+
+static vector short __ATTRS_o_ai
+vec_vsubshs(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vsubshs(a, (vector short)b);
+}
+
 /* vec_vsubuhs */
 
-static vector unsigned short __attribute__((__always_inline__))
+static vector unsigned short __ATTRS_o_ai
 vec_vsubuhs(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vsubuhs(a, b);
 }
 
+static vector unsigned short __ATTRS_o_ai
+vec_vsubuhs(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vsubuhs((vector unsigned short)a, b);
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vsubuhs(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vsubuhs(a, (vector unsigned short)b);
+}
+
 /* vec_vsubsws */
 
-static vector int __attribute__((__always_inline__))
+static vector int __ATTRS_o_ai
 vec_vsubsws(vector int a, vector int b)
 {
   return __builtin_altivec_vsubsws(a, b);
 }
 
+static vector int __ATTRS_o_ai
+vec_vsubsws(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vsubsws((vector int)a, b);
+}
+
+static vector int __ATTRS_o_ai
+vec_vsubsws(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vsubsws(a, (vector int)b);
+}
+
 /* vec_vsubuws */
 
-static vector unsigned int __attribute__((__always_inline__))
+static vector unsigned int __ATTRS_o_ai
 vec_vsubuws(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vsubuws(a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vsubuws(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vsubuws((vector unsigned int)a, b);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vsubuws(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vsubuws(a, (vector unsigned int)b);
 }
 
 /* vec_sum4s */
@@ -5133,26 +7955,62 @@ vec_unpackh(vector signed char a)
   return __builtin_altivec_vupkhsb((vector char)a);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_unpackh(vector bool char a)
+{
+  return (vector bool short)__builtin_altivec_vupkhsb((vector char)a);
+}
+
 static vector int __ATTRS_o_ai
 vec_unpackh(vector short a)
 {
   return __builtin_altivec_vupkhsh(a);
 }
 
+static vector bool int __ATTRS_o_ai
+vec_unpackh(vector bool short a)
+{
+  return (vector bool int)__builtin_altivec_vupkhsh((vector short)a);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_unpackh(vector pixel a)
+{
+  return (vector unsigned int)__builtin_altivec_vupkhsh((vector short)a);
+}
+
 /* vec_vupkhsb */
 
-static vector short __attribute__((__always_inline__))
+static vector short __ATTRS_o_ai
 vec_vupkhsb(vector signed char a)
 {
   return __builtin_altivec_vupkhsb((vector char)a);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_vupkhsb(vector bool char a)
+{
+  return (vector bool short)__builtin_altivec_vupkhsb((vector char)a);
+}
+
 /* vec_vupkhsh */
 
-static vector int __attribute__((__always_inline__))
+static vector int __ATTRS_o_ai
 vec_vupkhsh(vector short a)
 {
   return __builtin_altivec_vupkhsh(a);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vupkhsh(vector bool short a)
+{
+  return (vector bool int)__builtin_altivec_vupkhsh((vector short)a);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vupkhsh(vector pixel a)
+{
+  return (vector unsigned int)__builtin_altivec_vupkhsh((vector short)a);
 }
 
 /* vec_unpackl */
@@ -5163,26 +8021,62 @@ vec_unpackl(vector signed char a)
   return __builtin_altivec_vupklsb((vector char)a);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_unpackl(vector bool char a)
+{
+  return (vector bool short)__builtin_altivec_vupklsb((vector char)a);
+}
+
 static vector int __ATTRS_o_ai
 vec_unpackl(vector short a)
 {
   return __builtin_altivec_vupklsh(a);
 }
 
+static vector bool int __ATTRS_o_ai
+vec_unpackl(vector bool short a)
+{
+  return (vector bool int)__builtin_altivec_vupklsh((vector short)a);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_unpackl(vector pixel a)
+{
+  return (vector unsigned int)__builtin_altivec_vupklsh((vector short)a);
+}
+
 /* vec_vupklsb */
 
-static vector short __attribute__((__always_inline__))
+static vector short __ATTRS_o_ai
 vec_vupklsb(vector signed char a)
 {
   return __builtin_altivec_vupklsb((vector char)a);
 }
 
+static vector bool short __ATTRS_o_ai
+vec_vupklsb(vector bool char a)
+{
+  return (vector bool short)__builtin_altivec_vupklsb((vector char)a);
+}
+
 /* vec_vupklsh */
 
-static vector int __attribute__((__always_inline__))
+static vector int __ATTRS_o_ai
 vec_vupklsh(vector short a)
 {
   return __builtin_altivec_vupklsh(a);
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vupklsh(vector bool short a)
+{
+  return (vector bool int)__builtin_altivec_vupklsh((vector short)a);
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vupklsh(vector pixel a)
+{
+  return (vector unsigned int)__builtin_altivec_vupklsh((vector short)a);
 }
 
 /* vec_xor */
@@ -5195,8 +8089,38 @@ vec_xor(vector signed char a, vector signed char b)
   return a ^ b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_xor(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a ^ b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_xor(vector signed char a, vector bool char b)
+{
+  return a ^ (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_xor(vector unsigned char a, vector unsigned char b)
+{
+  return a ^ b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_xor(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a ^ b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_xor(vector unsigned char a, vector bool char b)
+{
+  return a ^ (vector unsigned char)b;
+}
+
+static vector bool char __ATTRS_o_ai
+vec_xor(vector bool char a, vector bool char b)
 {
   return a ^ b;
 }
@@ -5207,8 +8131,38 @@ vec_xor(vector short a, vector short b)
   return a ^ b;
 }
 
+static vector short __ATTRS_o_ai
+vec_xor(vector bool short a, vector short b)
+{
+  return (vector short)a ^ b;
+}
+
+static vector short __ATTRS_o_ai
+vec_xor(vector short a, vector bool short b)
+{
+  return a ^ (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_xor(vector unsigned short a, vector unsigned short b)
+{
+  return a ^ b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_xor(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a ^ b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_xor(vector unsigned short a, vector bool short b)
+{
+  return a ^ (vector unsigned short)b;
+}
+
+static vector bool short __ATTRS_o_ai
+vec_xor(vector bool short a, vector bool short b)
 {
   return a ^ b;
 }
@@ -5219,14 +8173,58 @@ vec_xor(vector int a, vector int b)
   return a ^ b;
 }
 
+static vector int __ATTRS_o_ai
+vec_xor(vector bool int a, vector int b)
+{
+  return (vector int)a ^ b;
+}
+
+static vector int __ATTRS_o_ai
+vec_xor(vector int a, vector bool int b)
+{
+  return a ^ (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_xor(vector unsigned int a, vector unsigned int b)
 {
   return a ^ b;
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_xor(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a ^ b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_xor(vector unsigned int a, vector bool int b)
+{
+  return a ^ (vector unsigned int)b;
+}
+
+static vector bool int __ATTRS_o_ai
+vec_xor(vector bool int a, vector bool int b)
+{
+  return a ^ b;
+}
+
 static vector float __ATTRS_o_ai
 vec_xor(vector float a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a ^ (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_xor(vector bool int a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a ^ (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_xor(vector float a, vector bool int b)
 {
   vector unsigned int res = (vector unsigned int)a ^ (vector unsigned int)b;
   return (vector float)res;
@@ -5240,8 +8238,38 @@ vec_vxor(vector signed char a, vector signed char b)
   return a ^ b;
 }
 
+static vector signed char __ATTRS_o_ai
+vec_vxor(vector bool char a, vector signed char b)
+{
+  return (vector signed char)a ^ b;
+}
+
+static vector signed char __ATTRS_o_ai
+vec_vxor(vector signed char a, vector bool char b)
+{
+  return a ^ (vector signed char)b;
+}
+
 static vector unsigned char __ATTRS_o_ai
 vec_vxor(vector unsigned char a, vector unsigned char b)
+{
+  return a ^ b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vxor(vector bool char a, vector unsigned char b)
+{
+  return (vector unsigned char)a ^ b;
+}
+
+static vector unsigned char __ATTRS_o_ai
+vec_vxor(vector unsigned char a, vector bool char b)
+{
+  return a ^ (vector unsigned char)b;
+}
+
+static vector bool char __ATTRS_o_ai
+vec_vxor(vector bool char a, vector bool char b)
 {
   return a ^ b;
 }
@@ -5252,8 +8280,38 @@ vec_vxor(vector short a, vector short b)
   return a ^ b;
 }
 
+static vector short __ATTRS_o_ai
+vec_vxor(vector bool short a, vector short b)
+{
+  return (vector short)a ^ b;
+}
+
+static vector short __ATTRS_o_ai
+vec_vxor(vector short a, vector bool short b)
+{
+  return a ^ (vector short)b;
+}
+
 static vector unsigned short __ATTRS_o_ai
 vec_vxor(vector unsigned short a, vector unsigned short b)
+{
+  return a ^ b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vxor(vector bool short a, vector unsigned short b)
+{
+  return (vector unsigned short)a ^ b;
+}
+
+static vector unsigned short __ATTRS_o_ai
+vec_vxor(vector unsigned short a, vector bool short b)
+{
+  return a ^ (vector unsigned short)b;
+}
+
+static vector bool short __ATTRS_o_ai
+vec_vxor(vector bool short a, vector bool short b)
 {
   return a ^ b;
 }
@@ -5264,14 +8322,58 @@ vec_vxor(vector int a, vector int b)
   return a ^ b;
 }
 
+static vector int __ATTRS_o_ai
+vec_vxor(vector bool int a, vector int b)
+{
+  return (vector int)a ^ b;
+}
+
+static vector int __ATTRS_o_ai
+vec_vxor(vector int a, vector bool int b)
+{
+  return a ^ (vector int)b;
+}
+
 static vector unsigned int __ATTRS_o_ai
 vec_vxor(vector unsigned int a, vector unsigned int b)
 {
   return a ^ b;
 }
 
+static vector unsigned int __ATTRS_o_ai
+vec_vxor(vector bool int a, vector unsigned int b)
+{
+  return (vector unsigned int)a ^ b;
+}
+
+static vector unsigned int __ATTRS_o_ai
+vec_vxor(vector unsigned int a, vector bool int b)
+{
+  return a ^ (vector unsigned int)b;
+}
+
+static vector bool int __ATTRS_o_ai
+vec_vxor(vector bool int a, vector bool int b)
+{
+  return a ^ b;
+}
+
 static vector float __ATTRS_o_ai
 vec_vxor(vector float a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a ^ (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_vxor(vector bool int a, vector float b)
+{
+  vector unsigned int res = (vector unsigned int)a ^ (vector unsigned int)b;
+  return (vector float)res;
+}
+
+static vector float __ATTRS_o_ai
+vec_vxor(vector float a, vector bool int b)
 {
   vector unsigned int res = (vector unsigned int)a ^ (vector unsigned int)b;
   return (vector float)res;
@@ -5288,7 +8390,37 @@ vec_all_eq(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_all_eq(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_eq(vector unsigned char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector bool char a, vector bool char b)
 {
   return __builtin_altivec_vcmpequb_p(__CR6_LT, (vector char)a, (vector char)b);
 }
@@ -5300,7 +8432,43 @@ vec_all_eq(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_all_eq(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT, a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_eq(vector unsigned short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector pixel a, vector pixel b)
 {
   return __builtin_altivec_vcmpequh_p(__CR6_LT, (vector short)a, (vector short)b);
 }
@@ -5312,7 +8480,37 @@ vec_all_eq(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_all_eq(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT, a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_eq(vector unsigned int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_eq(vector bool int a, vector bool int b)
 {
   return __builtin_altivec_vcmpequw_p(__CR6_LT, (vector int)a, (vector int)b);
 }
@@ -5332,9 +8530,41 @@ vec_all_ge(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_all_ge(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtsb_p(__CR6_EQ, (vector signed char)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_all_ge(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vcmpgtub_p(__CR6_EQ, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ, (vector unsigned char)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ, (vector unsigned char)b, 
+                                                (vector unsigned char)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ, b, (vector unsigned char)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector bool char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ, (vector unsigned char)b, 
+                                                (vector unsigned char)a);
 }
 
 static int __ATTRS_o_ai
@@ -5344,9 +8574,41 @@ vec_all_ge(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_all_ge(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtsh_p(__CR6_EQ, (vector short)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_all_ge(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, (vector unsigned short)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, (vector unsigned short)b, 
+                                                (vector unsigned short)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, b, (vector unsigned short)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, (vector unsigned short)b, 
+                                                (vector unsigned short)a);
 }
 
 static int __ATTRS_o_ai
@@ -5356,9 +8618,41 @@ vec_all_ge(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_all_ge(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtsw_p(__CR6_EQ, (vector int)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_all_ge(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, (vector unsigned int)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, (vector unsigned int)b, 
+                                                (vector unsigned int)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, b, (vector unsigned int)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_ge(vector bool int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, (vector unsigned int)b, 
+                                                (vector unsigned int)a);
 }
 
 static int __ATTRS_o_ai
@@ -5376,9 +8670,41 @@ vec_all_gt(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_all_gt(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtsb_p(__CR6_LT, a, (vector signed char)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_gt(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vcmpgtub_p(__CR6_LT, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT, a, (vector unsigned char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT, (vector unsigned char)a, 
+                                                (vector unsigned char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT, (vector unsigned char)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector bool char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT, (vector unsigned char)a, 
+                                                (vector unsigned char)b);
 }
 
 static int __ATTRS_o_ai
@@ -5388,9 +8714,41 @@ vec_all_gt(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_all_gt(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtsh_p(__CR6_LT, a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_gt(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vcmpgtuh_p(__CR6_LT, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT, a, (vector unsigned short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT, (vector unsigned short)a, 
+                                                (vector unsigned short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT, (vector unsigned short)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT, (vector unsigned short)a, 
+                                                (vector unsigned short)b);
 }
 
 static int __ATTRS_o_ai
@@ -5400,9 +8758,41 @@ vec_all_gt(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_all_gt(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtsw_p(__CR6_LT, a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_gt(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vcmpgtuw_p(__CR6_LT, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT, a, (vector unsigned int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT, (vector unsigned int)a, 
+                                                (vector unsigned int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT, (vector unsigned int)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_gt(vector bool int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT, (vector unsigned int)a, 
+                                                (vector unsigned int)b);
 }
 
 static int __ATTRS_o_ai
@@ -5428,9 +8818,41 @@ vec_all_le(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_all_le(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtsb_p(__CR6_EQ, a, (vector signed char)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_le(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vcmpgtub_p(__CR6_EQ, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ, a, (vector unsigned char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ, (vector unsigned char)a, 
+                                                (vector unsigned char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ, (vector unsigned char)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector bool char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ, (vector unsigned char)a, 
+                                                (vector unsigned char)b);
 }
 
 static int __ATTRS_o_ai
@@ -5440,9 +8862,41 @@ vec_all_le(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_all_le(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtsh_p(__CR6_EQ, a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_le(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, a, (vector unsigned short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, (vector unsigned short)a, 
+                                                (vector unsigned short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, (vector unsigned short)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ, (vector unsigned short)a, 
+                                                (vector unsigned short)b);
 }
 
 static int __ATTRS_o_ai
@@ -5452,9 +8906,41 @@ vec_all_le(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_all_le(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtsw_p(__CR6_EQ, a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_le(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, a, (vector unsigned int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, (vector unsigned int)a, 
+                                                (vector unsigned int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, (vector unsigned int)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_all_le(vector bool int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ, (vector unsigned int)a, 
+                                                (vector unsigned int)b);
 }
 
 static int __ATTRS_o_ai
@@ -5472,9 +8958,41 @@ vec_all_lt(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_all_lt(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtsb_p(__CR6_LT, (vector signed char)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_all_lt(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vcmpgtub_p(__CR6_LT, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT, (vector unsigned char)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT, (vector unsigned char)b, 
+                                                (vector unsigned char)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT, b, (vector unsigned char)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector bool char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT, (vector unsigned char)b, 
+                                                (vector unsigned char)a);
 }
 
 static int __ATTRS_o_ai
@@ -5484,9 +9002,41 @@ vec_all_lt(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_all_lt(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtsh_p(__CR6_LT, (vector short)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_all_lt(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vcmpgtuh_p(__CR6_LT, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT, (vector unsigned short)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT, (vector unsigned short)b, 
+                                                (vector unsigned short)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT, b, (vector unsigned short)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT, (vector unsigned short)b, 
+                                                (vector unsigned short)a);
 }
 
 static int __ATTRS_o_ai
@@ -5496,9 +9046,41 @@ vec_all_lt(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_all_lt(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtsw_p(__CR6_LT, (vector int)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_all_lt(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vcmpgtuw_p(__CR6_LT, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT, (vector unsigned int)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT, (vector unsigned int)b, 
+                                                (vector unsigned int)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT, b, (vector unsigned int)a);
+}
+
+static int __ATTRS_o_ai
+vec_all_lt(vector bool int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT, (vector unsigned int)b, 
+                                                (vector unsigned int)a);
 }
 
 static int __ATTRS_o_ai
@@ -5524,7 +9106,37 @@ vec_all_ne(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_all_ne(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_ne(vector unsigned char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector bool char a, vector bool char b)
 {
   return __builtin_altivec_vcmpequb_p(__CR6_EQ, (vector char)a, (vector char)b);
 }
@@ -5536,7 +9148,43 @@ vec_all_ne(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_all_ne(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ, a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_ne(vector unsigned short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector pixel a, vector pixel b)
 {
   return __builtin_altivec_vcmpequh_p(__CR6_EQ, (vector short)a, (vector short)b);
 }
@@ -5548,7 +9196,37 @@ vec_all_ne(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_all_ne(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ, a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
 vec_all_ne(vector unsigned int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_all_ne(vector bool int a, vector bool int b)
 {
   return __builtin_altivec_vcmpequw_p(__CR6_EQ, (vector int)a, (vector int)b);
 }
@@ -5608,7 +9286,37 @@ vec_any_eq(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_any_eq(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_eq(vector unsigned char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_EQ_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector bool char a, vector bool char b)
 {
   return __builtin_altivec_vcmpequb_p(__CR6_EQ_REV, (vector char)a, (vector char)b);
 }
@@ -5620,7 +9328,43 @@ vec_any_eq(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_any_eq(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ_REV, a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_eq(vector unsigned short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_EQ_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector pixel a, vector pixel b)
 {
   return __builtin_altivec_vcmpequh_p(__CR6_EQ_REV, (vector short)a, (vector short)b);
 }
@@ -5632,7 +9376,37 @@ vec_any_eq(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_any_eq(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ_REV, a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_eq(vector unsigned int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ_REV, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ_REV, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ_REV, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_EQ_REV, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_eq(vector bool int a, vector bool int b)
 {
   return __builtin_altivec_vcmpequw_p(__CR6_EQ_REV, (vector int)a, (vector int)b);
 }
@@ -5652,9 +9426,41 @@ vec_any_ge(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_any_ge(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtsb_p(__CR6_LT_REV, (vector signed char)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_any_ge(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, (vector unsigned char)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, (vector unsigned char)b, 
+                                                    (vector unsigned char)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, b, (vector unsigned char)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector bool char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, (vector unsigned char)b, 
+                                                    (vector unsigned char)a);
 }
 
 static int __ATTRS_o_ai
@@ -5664,9 +9470,42 @@ vec_any_ge(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_any_ge(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtsh_p(__CR6_LT_REV, (vector short)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_any_ge(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, (vector unsigned short)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, (vector unsigned short)b, 
+                                                    (vector unsigned short)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector bool short a, vector unsigned short b)
+{
+  return 
+    __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, b, (vector unsigned short)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, (vector unsigned short)b, 
+                                                    (vector unsigned short)a);
 }
 
 static int __ATTRS_o_ai
@@ -5676,9 +9515,41 @@ vec_any_ge(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_any_ge(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtsw_p(__CR6_LT_REV, (vector int)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_any_ge(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, (vector unsigned int)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, (vector unsigned int)b, 
+                                                    (vector unsigned int)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, b, (vector unsigned int)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_ge(vector bool int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, (vector unsigned int)b, 
+                                                    (vector unsigned int)a);
 }
 
 static int __ATTRS_o_ai
@@ -5696,9 +9567,43 @@ vec_any_gt(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_any_gt(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtsb_p(__CR6_EQ_REV, a, (vector signed char)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_gt(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector unsigned char a, vector bool char b)
+{
+  return 
+    __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, a, (vector unsigned char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, (vector unsigned char)a,
+                                                    (vector unsigned char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector bool char a, vector unsigned char b)
+{
+  return 
+    __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, (vector unsigned char)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector bool char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, (vector unsigned char)a,
+                                                    (vector unsigned char)b);
 }
 
 static int __ATTRS_o_ai
@@ -5708,9 +9613,42 @@ vec_any_gt(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_any_gt(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtsh_p(__CR6_EQ_REV, a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_gt(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector unsigned short a, vector bool short b)
+{
+  return 
+    __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, a, (vector unsigned short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, (vector unsigned short)a,
+                                                    (vector unsigned short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, (vector unsigned short)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, (vector unsigned short)a, 
+                                                    (vector unsigned short)b);
 }
 
 static int __ATTRS_o_ai
@@ -5720,9 +9658,41 @@ vec_any_gt(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_any_gt(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtsw_p(__CR6_EQ_REV, a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_gt(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, a, (vector unsigned int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, (vector unsigned int)a,
+                                                    (vector unsigned int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, (vector unsigned int)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_gt(vector bool int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, (vector unsigned int)a,
+                                                    (vector unsigned int)b);
 }
 
 static int __ATTRS_o_ai
@@ -5740,9 +9710,43 @@ vec_any_le(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_any_le(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtsb_p(__CR6_LT_REV, a, (vector signed char)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_le(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector unsigned char a, vector bool char b)
+{
+  return 
+    __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, a, (vector unsigned char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, (vector unsigned char)a,
+                                                    (vector unsigned char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector bool char a, vector unsigned char b)
+{
+  return 
+    __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, (vector unsigned char)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector bool char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_LT_REV, (vector unsigned char)a,
+                                                    (vector unsigned char)b);
 }
 
 static int __ATTRS_o_ai
@@ -5752,9 +9756,43 @@ vec_any_le(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_any_le(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtsh_p(__CR6_LT_REV, a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_le(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector unsigned short a, vector bool short b)
+{
+  return 
+    __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, a, (vector unsigned short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, (vector unsigned short)a,
+                                                    (vector unsigned short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector bool short a, vector unsigned short b)
+{
+  return 
+    __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, (vector unsigned short)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_LT_REV, (vector unsigned short)a,
+                                                    (vector unsigned short)b);
 }
 
 static int __ATTRS_o_ai
@@ -5764,9 +9802,41 @@ vec_any_le(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_any_le(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtsw_p(__CR6_LT_REV, a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_le(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, a, (vector unsigned int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, (vector unsigned int)a,
+                                                    (vector unsigned int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, (vector unsigned int)a, b);
+}
+
+static int __ATTRS_o_ai
+vec_any_le(vector bool int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_LT_REV, (vector unsigned int)a,
+                                                    (vector unsigned int)b);
 }
 
 static int __ATTRS_o_ai
@@ -5784,9 +9854,43 @@ vec_any_lt(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_any_lt(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtsb_p(__CR6_EQ_REV, (vector signed char)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_any_lt(vector unsigned char a, vector unsigned char b)
 {
   return __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector unsigned char a, vector bool char b)
+{
+  return 
+    __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, (vector unsigned char)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, (vector unsigned char)b,
+                                                    (vector unsigned char)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector bool char a, vector unsigned char b)
+{
+  return 
+    __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, b, (vector unsigned char)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector bool char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpgtub_p(__CR6_EQ_REV, (vector unsigned char)b,
+                                                    (vector unsigned char)a);
 }
 
 static int __ATTRS_o_ai
@@ -5796,9 +9900,43 @@ vec_any_lt(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_any_lt(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtsh_p(__CR6_EQ_REV, (vector short)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_any_lt(vector unsigned short a, vector unsigned short b)
 {
   return __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector unsigned short a, vector bool short b)
+{
+  return 
+    __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, (vector unsigned short)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, (vector unsigned short)b,
+                                                    (vector unsigned short)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector bool short a, vector unsigned short b)
+{
+  return 
+    __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, b, (vector unsigned short)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpgtuh_p(__CR6_EQ_REV, (vector unsigned short)b,
+                                                    (vector unsigned short)a);
 }
 
 static int __ATTRS_o_ai
@@ -5808,9 +9946,41 @@ vec_any_lt(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_any_lt(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtsw_p(__CR6_EQ_REV, (vector int)b, a);
+}
+
+static int __ATTRS_o_ai
 vec_any_lt(vector unsigned int a, vector unsigned int b)
 {
   return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, (vector unsigned int)b, a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, (vector unsigned int)b,
+                                                    (vector unsigned int)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, b, (vector unsigned int)a);
+}
+
+static int __ATTRS_o_ai
+vec_any_lt(vector bool int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpgtuw_p(__CR6_EQ_REV, (vector unsigned int)b,
+                                                    (vector unsigned int)a);
 }
 
 static int __ATTRS_o_ai
@@ -5836,7 +10006,37 @@ vec_any_ne(vector signed char a, vector signed char b)
 }
 
 static int __ATTRS_o_ai
+vec_any_ne(vector signed char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_ne(vector unsigned char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector unsigned char a, vector bool char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector bool char a, vector signed char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector bool char a, vector unsigned char b)
+{
+  return __builtin_altivec_vcmpequb_p(__CR6_LT_REV, (vector char)a, (vector char)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector bool char a, vector bool char b)
 {
   return __builtin_altivec_vcmpequb_p(__CR6_LT_REV, (vector char)a, (vector char)b);
 }
@@ -5848,7 +10048,43 @@ vec_any_ne(vector short a, vector short b)
 }
 
 static int __ATTRS_o_ai
+vec_any_ne(vector short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT_REV, a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_ne(vector unsigned short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector unsigned short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector bool short a, vector short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector bool short a, vector unsigned short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector bool short a, vector bool short b)
+{
+  return __builtin_altivec_vcmpequh_p(__CR6_LT_REV, (vector short)a, (vector short)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector pixel a, vector pixel b)
 {
   return __builtin_altivec_vcmpequh_p(__CR6_LT_REV, (vector short)a, (vector short)b);
 }
@@ -5860,7 +10096,37 @@ vec_any_ne(vector int a, vector int b)
 }
 
 static int __ATTRS_o_ai
+vec_any_ne(vector int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT_REV, a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
 vec_any_ne(vector unsigned int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT_REV, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector unsigned int a, vector bool int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT_REV, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector bool int a, vector int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT_REV, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector bool int a, vector unsigned int b)
+{
+  return __builtin_altivec_vcmpequw_p(__CR6_LT_REV, (vector int)a, (vector int)b);
+}
+
+static int __ATTRS_o_ai
+vec_any_ne(vector bool int a, vector bool int b)
 {
   return __builtin_altivec_vcmpequw_p(__CR6_LT_REV, (vector int)a, (vector int)b);
 }

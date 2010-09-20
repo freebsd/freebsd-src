@@ -6,6 +6,7 @@ lto_module_get_num_symbols
 lto_module_get_symbol_attribute
 lto_module_get_symbol_name
 lto_module_get_target_triple
+lto_module_set_target_triple
 lto_module_is_object_file
 lto_module_is_object_file_for_target
 lto_module_is_object_file_in_memory
@@ -20,4 +21,6 @@ lto_codegen_set_debug_model
 lto_codegen_set_pic_model
 lto_codegen_write_merged_modules
 lto_codegen_debug_options
+lto_codegen_set_assembler_args
 lto_codegen_set_assembler_path
+lto_codegen_set_cpu

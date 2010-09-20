@@ -42,7 +42,7 @@ class CCIf<string predicate, CCAction A> : CCPredicateAction<A> {
 class CCIfByVal<CCAction A> : CCIf<"ArgFlags.isByVal()", A> {
 }
 
-/// CCIfCC - Match of the current calling convention is 'CC'.
+/// CCIfCC - Match if the current calling convention is 'CC'.
 class CCIfCC<string CC, CCAction A>
   : CCIf<!strconcat("State.getCallingConv() == ", CC), A> {}
 
@@ -87,6 +87,13 @@ class CCAssignToRegWithShadow<list<Register> regList,
 class CCAssignToStack<int size, int align> : CCAction {
   int Size = size;
   int Align = align;
+}
+
+/// CCAssignToStackWithShadow - Same as CCAssignToStack, but with a register
+/// to be shadowed.
+class CCAssignToStackWithShadow<int size, int align, Register reg> :
+        CCAssignToStack<size, align> {
+  Register ShadowReg = reg;
 }
 
 /// CCPassByVal - This action always matches: it assigns the value to a stack

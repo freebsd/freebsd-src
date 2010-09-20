@@ -93,8 +93,7 @@ ModulePass *createGlobalDCEPass();
 /// possible, except for the global values specified.
 ///
 ModulePass *createGVExtractionPass(std::vector<GlobalValue*>& GVs, bool 
-                                   deleteFn = false, 
-                                   bool relinkCallees = false);
+                                   deleteFn = false);
 
 //===----------------------------------------------------------------------===//
 /// createFunctionInliningPass - Return a new pass object that uses a heuristic
@@ -181,7 +180,7 @@ Pass *createSingleLoopExtractorPass();
 /// createBlockExtractorPass - This pass extracts all blocks (except those
 /// specified in the argument list) from the functions in the module.
 ///
-ModulePass *createBlockExtractorPass(const std::vector<BasicBlock*> &BTNE);
+ModulePass *createBlockExtractorPass();
 
 /// createStripDeadPrototypesPass - This pass removes any function declarations
 /// (prototypes) that are not used.

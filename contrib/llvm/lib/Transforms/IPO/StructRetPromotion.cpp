@@ -1,4 +1,4 @@
-//===-- StructRetPromotion.cpp - Promote sret arguments ------------------===//
+//===-- StructRetPromotion.cpp - Promote sret arguments -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -50,20 +50,19 @@ namespace {
 
     virtual bool runOnSCC(CallGraphSCC &SCC);
     static char ID; // Pass identification, replacement for typeid
-    SRETPromotion() : CallGraphSCCPass(&ID) {}
+    SRETPromotion() : CallGraphSCCPass(ID) {}
 
   private:
     CallGraphNode *PromoteReturn(CallGraphNode *CGN);
     bool isSafeToUpdateAllCallers(Function *F);
     Function *cloneFunctionBody(Function *F, const StructType *STy);
     CallGraphNode *updateCallSites(Function *F, Function *NF);
-    bool nestedStructType(const StructType *STy);
   };
 }
 
 char SRETPromotion::ID = 0;
-static RegisterPass<SRETPromotion>
-X("sretpromotion", "Promote sret arguments to multiple ret values");
+INITIALIZE_PASS(SRETPromotion, "sretpromotion",
+                "Promote sret arguments to multiple ret values", false, false);
 
 Pass *llvm::createStructRetPromotionPass() {
   return new SRETPromotion();
@@ -156,7 +155,7 @@ bool SRETPromotion::isSafeToUpdateAllCallers(Function *F) {
        FnUseI != FnUseE; ++FnUseI) {
     // The function is passed in as an argument to (possibly) another function,
     // we can't change it!
-    CallSite CS = CallSite::get(*FnUseI);
+    CallSite CS(*FnUseI);
     Instruction *Call = CS.getInstruction();
     // The function is used by something else than a call or invoke instruction,
     // we can't change it!
@@ -187,7 +186,7 @@ bool SRETPromotion::isSafeToUpdateAllCallers(Function *F) {
           return false;
         for (Value::use_iterator GEPI = GEP->use_begin(), GEPE = GEP->use_end();
              GEPI != GEPE; ++GEPI) 
-          if (!isa<LoadInst>(GEPI))
+          if (!isa<LoadInst>(*GEPI))
             return false;
       } 
       // Any other FirstArg users make this function unsuitable for sret 
@@ -271,7 +270,7 @@ CallGraphNode *SRETPromotion::updateCallSites(Function *F, Function *NF) {
   CallGraphNode *NF_CGN = CG.getOrInsertFunction(NF);
 
   while (!F->use_empty()) {
-    CallSite CS = CallSite::get(*F->use_begin());
+    CallSite CS(*F->use_begin());
     Instruction *Call = CS.getInstruction();
 
     const AttrListPtr &PAL = F->getAttributes();
@@ -351,14 +350,3 @@ CallGraphNode *SRETPromotion::updateCallSites(Function *F, Function *NF) {
   return NF_CGN;
 }
 
-/// nestedStructType - Return true if STy includes any
-/// other aggregate types
-bool SRETPromotion::nestedStructType(const StructType *STy) {
-  unsigned Num = STy->getNumElements();
-  for (unsigned i = 0; i < Num; i++) {
-    const Type *Ty = STy->getElementType(i);
-    if (!Ty->isSingleValueType() && !Ty->isVoidTy())
-      return true;
-  }
-  return false;
-}

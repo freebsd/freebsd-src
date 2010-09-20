@@ -36,7 +36,7 @@ using namespace llvm;
 namespace {
   struct CFGSCC : public FunctionPass {
     static char ID;  // Pass identification, replacement for typeid
-    CFGSCC() : FunctionPass(&ID) {}
+    CFGSCC() : FunctionPass(ID) {}
     bool runOnFunction(Function& func);
 
     void print(raw_ostream &O, const Module* = 0) const { }
@@ -48,7 +48,7 @@ namespace {
 
   struct CallGraphSCC : public ModulePass {
     static char ID;  // Pass identification, replacement for typeid
-    CallGraphSCC() : ModulePass(&ID) {}
+    CallGraphSCC() : ModulePass(ID) {}
 
     // run - Print out SCCs in the call graph for the specified module.
     bool runOnModule(Module &M);
@@ -61,30 +61,30 @@ namespace {
       AU.addRequired<CallGraph>();
     }
   };
-
-  char CFGSCC::ID = 0;
-  RegisterPass<CFGSCC>
-  Y("print-cfg-sccs", "Print SCCs of each function CFG");
-
-  char CallGraphSCC::ID = 0;
-  RegisterPass<CallGraphSCC>
-  Z("print-callgraph-sccs", "Print SCCs of the Call Graph");
 }
+
+char CFGSCC::ID = 0;
+static RegisterPass<CFGSCC>
+Y("print-cfg-sccs", "Print SCCs of each function CFG");
+
+char CallGraphSCC::ID = 0;
+static RegisterPass<CallGraphSCC>
+Z("print-callgraph-sccs", "Print SCCs of the Call Graph");
 
 bool CFGSCC::runOnFunction(Function &F) {
   unsigned sccNum = 0;
-  outs() << "SCCs for Function " << F.getName() << " in PostOrder:";
+  errs() << "SCCs for Function " << F.getName() << " in PostOrder:";
   for (scc_iterator<Function*> SCCI = scc_begin(&F),
          E = scc_end(&F); SCCI != E; ++SCCI) {
     std::vector<BasicBlock*> &nextSCC = *SCCI;
-    outs() << "\nSCC #" << ++sccNum << " : ";
+    errs() << "\nSCC #" << ++sccNum << " : ";
     for (std::vector<BasicBlock*>::const_iterator I = nextSCC.begin(),
            E = nextSCC.end(); I != E; ++I)
-      outs() << (*I)->getName() << ", ";
+      errs() << (*I)->getName() << ", ";
     if (nextSCC.size() == 1 && SCCI.hasLoop())
-      outs() << " (Has self-loop).";
+      errs() << " (Has self-loop).";
   }
-  outs() << "\n";
+  errs() << "\n";
 
   return true;
 }
@@ -94,19 +94,19 @@ bool CFGSCC::runOnFunction(Function &F) {
 bool CallGraphSCC::runOnModule(Module &M) {
   CallGraphNode* rootNode = getAnalysis<CallGraph>().getRoot();
   unsigned sccNum = 0;
-  outs() << "SCCs for the program in PostOrder:";
+  errs() << "SCCs for the program in PostOrder:";
   for (scc_iterator<CallGraphNode*> SCCI = scc_begin(rootNode),
          E = scc_end(rootNode); SCCI != E; ++SCCI) {
     const std::vector<CallGraphNode*> &nextSCC = *SCCI;
-    outs() << "\nSCC #" << ++sccNum << " : ";
+    errs() << "\nSCC #" << ++sccNum << " : ";
     for (std::vector<CallGraphNode*>::const_iterator I = nextSCC.begin(),
            E = nextSCC.end(); I != E; ++I)
-      outs() << ((*I)->getFunction() ? (*I)->getFunction()->getNameStr()
+      errs() << ((*I)->getFunction() ? (*I)->getFunction()->getNameStr()
                  : std::string("external node")) << ", ";
     if (nextSCC.size() == 1 && SCCI.hasLoop())
-      outs() << " (Has self-loop).";
+      errs() << " (Has self-loop).";
   }
-  outs() << "\n";
+  errs() << "\n";
 
   return true;
 }

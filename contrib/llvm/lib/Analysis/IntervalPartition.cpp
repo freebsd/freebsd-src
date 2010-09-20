@@ -16,8 +16,8 @@
 using namespace llvm;
 
 char IntervalPartition::ID = 0;
-static RegisterPass<IntervalPartition>
-X("intervals", "Interval Partition Construction", true, true);
+INITIALIZE_PASS(IntervalPartition, "intervals",
+                "Interval Partition Construction", true, true);
 
 //===----------------------------------------------------------------------===//
 // IntervalPartition Implementation
@@ -91,7 +91,7 @@ bool IntervalPartition::runOnFunction(Function &F) {
 // distinguish it from a copy constructor.  Always pass in false for now.
 //
 IntervalPartition::IntervalPartition(IntervalPartition &IP, bool)
-  : FunctionPass(&ID) {
+  : FunctionPass(ID) {
   assert(IP.getRootInterval() && "Cannot operate on empty IntervalPartitions!");
 
   // Pass false to intervals_begin because we take ownership of it's memory

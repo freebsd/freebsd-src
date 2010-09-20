@@ -13,9 +13,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Sema.h"
-#include "AnalysisBasedWarnings.h"
+#include "clang/Sema/AnalysisBasedWarnings.h"
+#include "clang/Sema/SemaInternal.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/AST/DeclObjC.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtObjC.h"
@@ -197,6 +199,8 @@ static ControlFlowKind CheckFallThrough(AnalysisContext &AC) {
   return AlwaysFallThrough;
 }
 
+namespace {
+
 struct CheckFallThroughDiagnostics {
   unsigned diag_MaybeFallThrough_HasNoReturn;
   unsigned diag_MaybeFallThrough_ReturnsNonVoid;
@@ -265,6 +269,8 @@ struct CheckFallThroughDiagnostics {
                 == Diagnostic::Ignored || !ReturnsVoid);
   }
 };
+
+}
 
 /// CheckFallThroughForFunctionDef - Check that we don't fall off the end of a
 /// function that should return a value.  Check that we don't fall off the end
@@ -375,19 +381,16 @@ AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
       S.SourceMgr.isInSystemHeader(D->getLocation()))
     return;
 
-  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-    // For function templates, class templates and member function templates
-    // we'll do the analysis at instantiation time.
-    if (FD->isDependentContext())
-      return;
-  }
+  // For code in dependent contexts, we'll do this at instantiation time.
+  if (cast<DeclContext>(D)->isDependentContext())
+    return;
 
   const Stmt *Body = D->getBody();
   assert(Body);
 
   // Don't generate EH edges for CallExprs as we'd like to avoid the n^2
   // explosion for destrutors that can result and the compile time hit.
-  AnalysisContext AC(D, false);
+  AnalysisContext AC(D, 0, false);
 
   // Warning: check missing 'return'
   if (P.enableCheckFallThrough) {
@@ -400,4 +403,22 @@ AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
   // Warning: check for unreachable code
   if (P.enableCheckUnreachable)
     CheckUnreachable(S, AC);
+}
+
+void clang::sema::
+AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
+                                     const BlockExpr *E) {
+  return IssueWarnings(P, E->getBlockDecl(), E->getType());
+}
+
+void clang::sema::
+AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
+                                     const ObjCMethodDecl *D) {
+  return IssueWarnings(P, D, QualType());
+}
+
+void clang::sema::
+AnalysisBasedWarnings::IssueWarnings(sema::AnalysisBasedWarnings::Policy P,
+                                     const FunctionDecl *D) {
+  return IssueWarnings(P, D, QualType());
 }

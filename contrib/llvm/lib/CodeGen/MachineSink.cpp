@@ -26,11 +26,21 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-STATISTIC(NumSunk, "Number of machine instructions sunk");
+static cl::opt<bool> 
+SplitEdges("machine-sink-split",
+           cl::desc("Split critical edges during machine sinking"),
+           cl::init(false), cl::Hidden);
+static cl::opt<unsigned>
+SplitLimit("split-limit",
+           cl::init(~0u), cl::Hidden);
+
+STATISTIC(NumSunk,  "Number of machine instructions sunk");
+STATISTIC(NumSplit, "Number of critical edges split");
 
 namespace {
   class MachineSinking : public MachineFunctionPass {
@@ -44,7 +54,7 @@ namespace {
 
   public:
     static char ID; // Pass identification
-    MachineSinking() : MachineFunctionPass(&ID) {}
+    MachineSinking() : MachineFunctionPass(ID) {}
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
 
@@ -59,21 +69,28 @@ namespace {
     }
   private:
     bool ProcessBlock(MachineBasicBlock &MBB);
+    MachineBasicBlock *SplitCriticalEdge(MachineBasicBlock *From,
+                                         MachineBasicBlock *To);
     bool SinkInstruction(MachineInstr *MI, bool &SawStore);
-    bool AllUsesDominatedByBlock(unsigned Reg, MachineBasicBlock *MBB) const;
+    bool AllUsesDominatedByBlock(unsigned Reg, MachineBasicBlock *MBB,
+                               MachineBasicBlock *DefMBB, bool &LocalUse) const;
   };
 } // end anonymous namespace
 
 char MachineSinking::ID = 0;
-static RegisterPass<MachineSinking>
-X("machine-sink", "Machine code sinking");
+INITIALIZE_PASS(MachineSinking, "machine-sink",
+                "Machine code sinking", false, false);
 
 FunctionPass *llvm::createMachineSinkingPass() { return new MachineSinking(); }
 
 /// AllUsesDominatedByBlock - Return true if all uses of the specified register
-/// occur in blocks dominated by the specified block.
+/// occur in blocks dominated by the specified block. If any use is in the
+/// definition block, then return false since it is never legal to move def
+/// after uses.
 bool MachineSinking::AllUsesDominatedByBlock(unsigned Reg,
-                                             MachineBasicBlock *MBB) const {
+                                             MachineBasicBlock *MBB,
+                                             MachineBasicBlock *DefMBB,
+                                             bool &LocalUse) const {
   assert(TargetRegisterInfo::isVirtualRegister(Reg) &&
          "Only makes sense for vregs");
   // Ignoring debug uses is necessary so debug info doesn't affect the code.
@@ -91,6 +108,9 @@ bool MachineSinking::AllUsesDominatedByBlock(unsigned Reg,
       // PHI nodes use the operand in the predecessor block, not the block with
       // the PHI.
       UseBlock = UseInst->getOperand(I.getOperandNo()+1).getMBB();
+    } else if (UseBlock == DefMBB) {
+      LocalUse = true;
+      return false;
     }
 
     // Check that it dominates.
@@ -164,6 +184,66 @@ bool MachineSinking::ProcessBlock(MachineBasicBlock &MBB) {
   } while (!ProcessedBegin);
 
   return MadeChange;
+}
+
+MachineBasicBlock *MachineSinking::SplitCriticalEdge(MachineBasicBlock *FromBB,
+                                                     MachineBasicBlock *ToBB) {
+  // Avoid breaking back edge. From == To means backedge for single BB loop.
+  if (!SplitEdges || NumSplit == SplitLimit || FromBB == ToBB)
+    return 0;
+
+  // Check for more "complex" loops.
+  if (LI->getLoopFor(FromBB) != LI->getLoopFor(ToBB) ||
+      !LI->isLoopHeader(ToBB)) {
+    // It's not always legal to break critical edges and sink the computation
+    // to the edge.
+    //
+    // BB#1:
+    // v1024
+    // Beq BB#3
+    // <fallthrough>
+    // BB#2:
+    // ... no uses of v1024
+    // <fallthrough>
+    // BB#3:
+    // ...
+    //       = v1024
+    //
+    // If BB#1 -> BB#3 edge is broken and computation of v1024 is inserted:
+    //
+    // BB#1:
+    // ...
+    // Bne BB#2
+    // BB#4:
+    // v1024 =
+    // B BB#3
+    // BB#2:
+    // ... no uses of v1024
+    // <fallthrough>
+    // BB#3:
+    // ...
+    //       = v1024
+    //
+    // This is incorrect since v1024 is not computed along the BB#1->BB#2->BB#3
+    // flow. We need to ensure the new basic block where the computation is
+    // sunk to dominates all the uses.
+    // It's only legal to break critical edge and sink the computation to the
+    // new block if all the predecessors of "To", except for "From", are
+    // not dominated by "From". Given SSA property, this means these
+    // predecessors are dominated by "To".
+    for (MachineBasicBlock::pred_iterator PI = ToBB->pred_begin(),
+           E = ToBB->pred_end(); PI != E; ++PI) {
+      if (*PI == FromBB)
+        continue;
+      if (!DT->dominates(ToBB, *PI))
+        return 0;
+    }
+
+    // FIXME: Determine if it's cost effective to break this edge.
+    return FromBB->SplitCriticalEdge(ToBB, this);
+  }
+
+  return 0;
 }
 
 /// SinkInstruction - Determine whether it is safe to sink the specified machine
@@ -246,7 +326,8 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
       if (SuccToSinkTo) {
         // If a previous operand picked a block to sink to, then this operand
         // must be sinkable to the same block.
-        if (!AllUsesDominatedByBlock(Reg, SuccToSinkTo))
+        bool LocalUse = false;
+        if (!AllUsesDominatedByBlock(Reg, SuccToSinkTo, ParentBlock, LocalUse))
           return false;
 
         continue;
@@ -256,10 +337,14 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
       // we should sink to.
       for (MachineBasicBlock::succ_iterator SI = ParentBlock->succ_begin(),
            E = ParentBlock->succ_end(); SI != E; ++SI) {
-        if (AllUsesDominatedByBlock(Reg, *SI)) {
+        bool LocalUse = false;
+        if (AllUsesDominatedByBlock(Reg, *SI, ParentBlock, LocalUse)) {
           SuccToSinkTo = *SI;
           break;
         }
+        if (LocalUse)
+          // Def is used locally, it's never safe to move this def.
+          return false;
       }
 
       // If we couldn't find a block to sink to, ignore this instruction.
@@ -303,27 +388,44 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
   if (SuccToSinkTo->pred_size() > 1) {
     // We cannot sink a load across a critical edge - there may be stores in
     // other code paths.
+    bool TryBreak = false;
     bool store = true;
     if (!MI->isSafeToMove(TII, AA, store)) {
-      DEBUG(dbgs() << " *** PUNTING: Wont sink load along critical edge.\n");
-      return false;
+      DEBUG(dbgs() << " *** NOTE: Won't sink load along critical edge.\n");
+      TryBreak = true;
     }
 
     // We don't want to sink across a critical edge if we don't dominate the
     // successor. We could be introducing calculations to new code paths.
-    if (!DT->dominates(ParentBlock, SuccToSinkTo)) {
-      DEBUG(dbgs() << " *** PUNTING: Critical edge found\n");
-      return false;
+    if (!TryBreak && !DT->dominates(ParentBlock, SuccToSinkTo)) {
+      DEBUG(dbgs() << " *** NOTE: Critical edge found\n");
+      TryBreak = true;
     }
 
     // Don't sink instructions into a loop.
-    if (LI->isLoopHeader(SuccToSinkTo)) {
-      DEBUG(dbgs() << " *** PUNTING: Loop header found\n");
-      return false;
+    if (!TryBreak && LI->isLoopHeader(SuccToSinkTo)) {
+      DEBUG(dbgs() << " *** NOTE: Loop header found\n");
+      TryBreak = true;
     }
 
     // Otherwise we are OK with sinking along a critical edge.
-    DEBUG(dbgs() << "Sinking along critical edge.\n");
+    if (!TryBreak)
+      DEBUG(dbgs() << "Sinking along critical edge.\n");
+    else {
+      MachineBasicBlock *NewSucc = SplitCriticalEdge(ParentBlock, SuccToSinkTo);
+      if (!NewSucc) {
+        DEBUG(dbgs() <<
+              " *** PUNTING: Not legal or profitable to break critical edge\n");
+        return false;
+      } else {
+        DEBUG(dbgs() << " *** Splitting critical edge:"
+              " BB#" << ParentBlock->getNumber()
+              << " -- BB#" << NewSucc->getNumber()
+              << " -- BB#" << SuccToSinkTo->getNumber() << '\n');
+        SuccToSinkTo = NewSucc;
+        ++NumSplit;
+      }
+    }
   }
 
   // Determine where to insert into. Skip phi nodes.

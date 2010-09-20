@@ -33,10 +33,8 @@ using namespace llvm;
 User::op_iterator CallSite::getCallee() const {
   Instruction *II(getInstruction());
   return isCall()
-    ? (CallInst::ArgOffset
-       ? cast</*FIXME: CallInst*/User>(II)->op_begin()
-       : cast</*FIXME: CallInst*/User>(II)->op_end() - 1)
-    : cast<InvokeInst>(II)->op_end() - 3; // Skip BB, BB, Function
+    ? cast<CallInst>(II)->op_end() - 1 // Skip Callee
+    : cast<InvokeInst>(II)->op_end() - 3; // Skip BB, BB, Callee
 }
 
 //===----------------------------------------------------------------------===//
@@ -233,7 +231,7 @@ CallInst::~CallInst() {
 
 void CallInst::init(Value *Func, Value* const *Params, unsigned NumParams) {
   assert(NumOperands == NumParams+1 && "NumOperands not set up?");
-  Op<ArgOffset -1>() = Func;
+  Op<-1>() = Func;
 
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
@@ -246,15 +244,15 @@ void CallInst::init(Value *Func, Value* const *Params, unsigned NumParams) {
     assert((i >= FTy->getNumParams() || 
             FTy->getParamType(i) == Params[i]->getType()) &&
            "Calling a function with a bad signature!");
-    OperandList[i + ArgOffset] = Params[i];
+    OperandList[i] = Params[i];
   }
 }
 
 void CallInst::init(Value *Func, Value *Actual1, Value *Actual2) {
   assert(NumOperands == 3 && "NumOperands not set up?");
-  Op<ArgOffset -1>() = Func;
-  Op<ArgOffset + 0>() = Actual1;
-  Op<ArgOffset + 1>() = Actual2;
+  Op<-1>() = Func;
+  Op<0>() = Actual1;
+  Op<1>() = Actual2;
 
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
@@ -273,8 +271,8 @@ void CallInst::init(Value *Func, Value *Actual1, Value *Actual2) {
 
 void CallInst::init(Value *Func, Value *Actual) {
   assert(NumOperands == 2 && "NumOperands not set up?");
-  Op<ArgOffset -1>() = Func;
-  Op<ArgOffset + 0>() = Actual;
+  Op<-1>() = Func;
+  Op<0>() = Actual;
 
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
@@ -290,7 +288,7 @@ void CallInst::init(Value *Func, Value *Actual) {
 
 void CallInst::init(Value *Func) {
   assert(NumOperands == 1 && "NumOperands not set up?");
-  Op<ArgOffset -1>() = Func;
+  Op<-1>() = Func;
 
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
@@ -893,6 +891,8 @@ AllocaInst::~AllocaInst() {
 
 void AllocaInst::setAlignment(unsigned Align) {
   assert((Align & (Align-1)) == 0 && "Alignment is not a power of 2!");
+  assert(Align <= MaximumAlignment &&
+         "Alignment is greater than MaximumAlignment!");
   setInstructionSubclassData(Log2_32(Align) + 1);
   assert(getAlignment() == Align && "Alignment representation error!");
 }
@@ -1028,8 +1028,11 @@ LoadInst::LoadInst(Value *Ptr, const char *Name, bool isVolatile,
 
 void LoadInst::setAlignment(unsigned Align) {
   assert((Align & (Align-1)) == 0 && "Alignment is not a power of 2!");
+  assert(Align <= MaximumAlignment &&
+         "Alignment is greater than MaximumAlignment!");
   setInstructionSubclassData((getSubclassDataFromInstruction() & 1) |
                              ((Log2_32(Align)+1)<<1));
+  assert(getAlignment() == Align && "Alignment representation error!");
 }
 
 //===----------------------------------------------------------------------===//
@@ -1124,8 +1127,11 @@ StoreInst::StoreInst(Value *val, Value *addr, bool isVolatile,
 
 void StoreInst::setAlignment(unsigned Align) {
   assert((Align & (Align-1)) == 0 && "Alignment is not a power of 2!");
+  assert(Align <= MaximumAlignment &&
+         "Alignment is greater than MaximumAlignment!");
   setInstructionSubclassData((getSubclassDataFromInstruction() & 1) |
                              ((Log2_32(Align)+1) << 1));
+  assert(getAlignment() == Align && "Alignment representation error!");
 }
 
 //===----------------------------------------------------------------------===//
@@ -1424,9 +1430,24 @@ bool ShuffleVectorInst::isValidOperands(const Value *V1, const Value *V2,
     return false;
   
   const VectorType *MaskTy = dyn_cast<VectorType>(Mask->getType());
-  if (!isa<Constant>(Mask) || MaskTy == 0 ||
-      !MaskTy->getElementType()->isIntegerTy(32))
+  if (MaskTy == 0 || !MaskTy->getElementType()->isIntegerTy(32))
     return false;
+
+  // Check to see if Mask is valid.
+  if (const ConstantVector *MV = dyn_cast<ConstantVector>(Mask)) {
+    const VectorType *VTy = cast<VectorType>(V1->getType());
+    for (unsigned i = 0, e = MV->getNumOperands(); i != e; ++i) {
+      if (ConstantInt* CI = dyn_cast<ConstantInt>(MV->getOperand(i))) {
+        if (CI->uge(VTy->getNumElements()*2))
+          return false;
+      } else if (!isa<UndefValue>(MV->getOperand(i))) {
+        return false;
+      }
+    }
+  }
+  else if (!isa<UndefValue>(Mask) && !isa<ConstantAggregateZero>(Mask))
+    return false;
+  
   return true;
 }
 

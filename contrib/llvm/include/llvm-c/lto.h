@@ -18,6 +18,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "llvm/System/DataTypes.h"
 
 #define LTO_API_VERSION 3
 
@@ -135,11 +136,17 @@ lto_module_dispose(lto_module_t mod);
 extern const char*
 lto_module_get_target_triple(lto_module_t mod);
 
+/**
+ * Sets triple string with which the object will be codegened.
+ */
+extern void
+lto_module_set_target_triple(lto_module_t mod, const char *triple);
+
 
 /**
  * Returns the number of symbols in the object module.
  */
-extern unsigned int
+extern uint32_t
 lto_module_get_num_symbols(lto_module_t mod);
 
 
@@ -147,14 +154,14 @@ lto_module_get_num_symbols(lto_module_t mod);
  * Returns the name of the ith symbol in the object module.
  */
 extern const char*
-lto_module_get_symbol_name(lto_module_t mod, unsigned int index);
+lto_module_get_symbol_name(lto_module_t mod, uint32_t index);
 
 
 /**
  * Returns the attributes of the ith symbol in the object module.
  */
 extern lto_symbol_attributes
-lto_module_get_symbol_attribute(lto_module_t mod, unsigned int index);
+lto_module_get_symbol_attribute(lto_module_t mod, uint32_t index);
 
 
 /**
@@ -200,11 +207,10 @@ lto_codegen_set_pic_model(lto_code_gen_t cg, lto_codegen_model);
 
 
 /**
- * Sets the location of the "gcc" to run. If not set, libLTO will search for
- * "gcc" on the path.
+ * Sets the cpu to generate code for.
  */
 extern void
-lto_codegen_set_gcc_path(lto_code_gen_t cg, const char* path);
+lto_codegen_set_cpu(lto_code_gen_t cg, const char *cpu);
 
 
 /**
@@ -214,6 +220,12 @@ lto_codegen_set_gcc_path(lto_code_gen_t cg, const char* path);
 extern void
 lto_codegen_set_assembler_path(lto_code_gen_t cg, const char* path);
 
+/**
+ * Sets extra arguments that libLTO should pass to the assembler.
+ */
+extern void
+lto_codegen_set_assembler_args(lto_code_gen_t cg, const char **args,
+                               int nargs);
 
 /**
  * Adds to a list of all global symbols that must exist in the final

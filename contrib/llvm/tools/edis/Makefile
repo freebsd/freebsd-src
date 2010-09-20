@@ -9,8 +9,8 @@
 
 LEVEL = ../..
 LIBRARYNAME = EnhancedDisassembly
-
-BUILT_SOURCES = EDInfo.inc
+LINK_LIBS_IN_SHARED = 1
+SHARED_LIBRARY = 1
 
 EXPORTED_SYMBOL_FILE = $(PROJ_SRC_DIR)/EnhancedDisassembly.exports
 
@@ -19,23 +19,23 @@ EXPORTED_SYMBOL_FILE = $(PROJ_SRC_DIR)/EnhancedDisassembly.exports
 # early so we can set up LINK_COMPONENTS before including Makefile.rules
 include $(LEVEL)/Makefile.config
 
-ifeq ($(ENABLE_PIC),1)
-  ifneq ($(DISABLE_EDIS),1)
-    ifneq ($(TARGET_OS), $(filter $(TARGET_OS), Cygwin MingW))
-	LINK_LIBS_IN_SHARED = 1
-	SHARED_LIBRARY = 1
-    endif
-  endif
+LINK_COMPONENTS := mcdisassembler
+
+# If the X86 target is enabled, link in the asmprinter and disassembler.
+ifneq ($(filter $(TARGETS_TO_BUILD), X86),)
+LINK_COMPONENTS += x86asmprinter x86disassembler
 endif
 
-LINK_COMPONENTS := $(TARGETS_TO_BUILD) x86asmprinter x86disassembler
+# If the X86 target is enabled, link in the asmprinter and disassembler.
+ifneq ($(filter $(TARGETS_TO_BUILD), ARM),)
+LINK_COMPONENTS += armasmprinter armdisassembler
+endif
 
 include $(LEVEL)/Makefile.common
 
 ifeq ($(HOST_OS),Darwin)
     # extra options to override libtool defaults 
     LLVMLibsOptions    := $(LLVMLibsOptions)  \
-                         -avoid-version \
                          -Wl,-dead_strip
 
     ifdef EDIS_VERSION
@@ -47,14 +47,8 @@ ifeq ($(HOST_OS),Darwin)
     DARWIN_VERS := $(shell echo $(TARGET_TRIPLE) | sed 's/.*darwin\([0-9]*\).*/\1/')
     ifneq ($(DARWIN_VERS),8)
        LLVMLibsOptions    := $(LLVMLibsOptions)  \
-                            -no-undefined -Wl,-install_name \
+                            -Wl,-install_name \
                             -Wl,"@rpath/lib$(LIBRARYNAME)$(SHLIBEXT)"
     endif
 endif
 
-EDInfo.inc:	$(TBLGEN)
-	$(Echo) "Building semantic information header"
-	$(Verb) $(TableGen) -o $(call SYSPATH, $@) -gen-enhanced-disassembly-header /dev/null
-
-clean::
-	-$(Verb) $(RM) -f EDInfo.inc

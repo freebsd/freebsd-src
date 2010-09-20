@@ -50,7 +50,7 @@ namespace llvm {
       CALL,          // PIC16 Call instruction 
       CALLW,         // PIC16 CALLW instruction 
       SUBCC,         // Compare for equality or inequality.
-      SELECT_ICC,    // Psuedo to be caught in schedular and expanded to brcond.
+      SELECT_ICC,    // Pseudo to be caught in scheduler and expanded to brcond.
       BRCOND,        // Conditional branch.
       RET,           // Return.
       Dummy
@@ -181,6 +181,9 @@ namespace llvm {
       // FIXME: The function never seems to be aligned.
       return 1;
     }
+  protected:
+    std::pair<const TargetRegisterClass*, uint8_t>
+    findRepresentativeClass(EVT VT) const;
   private:
     // If the Node is a BUILD_PAIR representing a direct Address,
     // then this function will return true.
