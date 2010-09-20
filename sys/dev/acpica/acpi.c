@@ -100,7 +100,7 @@ static int	acpi_attach(device_t dev);
 static int	acpi_suspend(device_t dev);
 static int	acpi_resume(device_t dev);
 static int	acpi_shutdown(device_t dev);
-static device_t	acpi_add_child(device_t bus, int order, const char *name,
+static device_t	acpi_add_child(device_t bus, u_int order, const char *name,
 			int unit);
 static int	acpi_print_child(device_t bus, device_t child);
 static void	acpi_probe_nomatch(device_t bus, device_t child);
@@ -744,7 +744,7 @@ acpi_shutdown(device_t dev)
  * Handle a new device being added
  */
 static device_t
-acpi_add_child(device_t bus, int order, const char *name, int unit)
+acpi_add_child(device_t bus, u_int order, const char *name, int unit)
 {
     struct acpi_device	*ad;
     device_t		child;

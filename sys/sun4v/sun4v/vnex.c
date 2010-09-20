@@ -204,7 +204,7 @@ vnex_attach(device_t dev)
 }
 
 static device_t
-vnex_add_child(device_t dev, int order, const char *name, int unit)
+vnex_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t cdev;
 	struct vnex_devinfo *vndi;
