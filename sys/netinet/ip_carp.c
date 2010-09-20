@@ -2358,13 +2358,13 @@ carp_mod_load(void)
 		printf("carp: error %d attaching to PF_INET6\n",
 		    proto_reg[CARP_INET6]);
 		carp_mod_cleanup();
-		return (EINVAL);
+		return (proto_reg[CARP_INET6]);
 	}
 	err = ip6proto_register(IPPROTO_CARP);
 	if (err) {
 		printf("carp: error %d registering with INET6\n", err);
 		carp_mod_cleanup();
-		return (EINVAL);
+		return (err);
 	}
 #endif
 #ifdef INET
@@ -2374,13 +2374,13 @@ carp_mod_load(void)
 		printf("carp: error %d attaching to PF_INET\n",
 		    proto_reg[CARP_INET]);
 		carp_mod_cleanup();
-		return (EINVAL);
+		return (proto_reg[CARP_INET]);
 	}
 	err = ipproto_register(IPPROTO_CARP);
 	if (err) {
 		printf("carp: error %d registering with INET\n", err);
 		carp_mod_cleanup();
-		return (EINVAL);
+		return (err);
 	}
 #endif
 	return 0;
