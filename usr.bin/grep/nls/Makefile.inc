@@ -10,6 +10,7 @@ NLS+=	ja_JP.UTF-8
 NLS+=	pt_BR.ISO8859-1
 NLS+=	ru_RU.KOI8-R
 NLS+=	uk_UA.UTF-8
+NLS+=	zh_CN.UTF-8
 
 NLSSRCDIR= ${.CURDIR}/nls
 .for lang in ${NLS}
