@@ -358,8 +358,7 @@ static caddr_t
 zfs_map_page(vm_page_t pp, struct sf_buf **sfp)
 {
 
-	sched_pin();
-	*sfp = sf_buf_alloc(pp, SFB_CPUPRIVATE);
+	*sfp = sf_buf_alloc(pp, 0);
 	return ((caddr_t)sf_buf_kva(*sfp));
 }
 
@@ -368,7 +367,6 @@ zfs_unmap_page(struct sf_buf *sf)
 {
 
 	sf_buf_free(sf);
-	sched_unpin();
 }
 
 
