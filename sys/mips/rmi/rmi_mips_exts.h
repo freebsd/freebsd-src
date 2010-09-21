@@ -436,7 +436,7 @@ xlr_paddr_ld(uint64_t paddr)
 
 #elif defined(__mips_n32)
 static __inline uint32_t
-xlr_paddr_lw(uint32_t paddr)
+xlr_paddr_lw(uint64_t paddr)
 {
 	uint32_t val;
 
