@@ -957,7 +957,7 @@ int
 cpu_idle_wakeup(int cpu)
 {
 
-	return (0);
+	return (1);
 }
 
 int
