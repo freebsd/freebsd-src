@@ -56,7 +56,7 @@ typedef struct fsid { int32_t val[2]; } fsid_t;	/* filesystem id type */
 
 struct fid {
 	u_short		fid_len;		/* length of data in bytes */
-	u_short		fid_reserved;		/* force longword alignment */
+	u_short		fid_data0;		/* force longword alignment */
 	char		fid_data[MAXFIDSZ];	/* data (variable length) */
 };
 
