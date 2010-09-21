@@ -37,6 +37,7 @@
 
 #include <err.h>
 #include <kvm.h>
+#include <limits.h>
 #include <memstat.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -196,7 +197,7 @@ uma_print_keg_align(struct uma_keg *ukp, const char *spaces)
 LIST_HEAD(bucketlist, uma_bucket);
 
 static void
-uma_print_bucket(struct uma_bucket *ubp, const char *spaces)
+uma_print_bucket(struct uma_bucket *ubp, const char *spaces __unused)
 {
 
 	printf("{ ub_cnt = %d, ub_entries = %d }", ubp->ub_cnt,
@@ -286,6 +287,7 @@ main(int argc, char *argv[])
 	size_t uzp_userspace_len;
 	char *memf, *nlistf;
 	int ch;
+	char errbuf[_POSIX2_LINE_MAX];
 
 	memf = nlistf = NULL;
 	while ((ch = getopt(argc, argv, "M:N:")) != -1) {
@@ -308,9 +310,9 @@ main(int argc, char *argv[])
 	if (nlistf != NULL && memf == NULL)
 		usage();
 
-	kvm = kvm_open(nlistf, memf, NULL, 0, "umastat");
+	kvm = kvm_openfiles(nlistf, memf, NULL, 0, errbuf);
 	if (kvm == NULL)
-		err(-1, "kvm_open");
+		errx(-1, "kvm_openfiles: %s", errbuf);
 
 	if (kvm_nlist(kvm, namelist) != 0)
 		err(-1, "kvm_nlist");
