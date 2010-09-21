@@ -510,14 +510,11 @@ again:
 				dirbytes = 0;
 			}
 			if (error == 0) {
-				sched_pin();
-				sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-				va = (caddr_t)sf_buf_kva(sf);
+				va = zfs_map_page(m, &sf);
 				error = dmu_read(os, zp->z_id, start + off,
 				    bytes, (void *)(va + off),
 				    DMU_READ_PREFETCH);
-				sf_buf_free(sf);
-				sched_unpin();
+				zfs_unmap_page(sf);
 			}
 			VM_OBJECT_LOCK(obj);
 			if (error == 0)
