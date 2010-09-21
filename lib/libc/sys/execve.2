@@ -28,7 +28,7 @@
 .\"     @(#)execve.2	8.5 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd September 21, 2010
 .Dt EXECVE 2
 .Os
 .Sh NAME
@@ -256,9 +256,11 @@ A component of the path prefix is not a directory.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or an entire path name exceeded 1023 characters.
-.It Bq Er ENAMETOOLONG
-When invoking an interpreted script, the interpreter name
-exceeds
+.It Bq Er ENOEXEC
+When invoking an interpreted script, the length of the first line,
+inclusive of the
+.Sy \&#!
+prefix and terminating newline, exceeds
 .Dv MAXSHELLCMDLEN
 characters.
 .It Bq Er ENOENT
