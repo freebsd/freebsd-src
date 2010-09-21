@@ -785,14 +785,18 @@ cpu_new_callout(int cpu, int ticks)
 	}
 	/*
 	 * If timer is periodic - just update next event time for target CPU.
+	 * If timer is global - there is chance it is already programmed.
 	 */
-	if (periodic) {
+	if (periodic || (timer->et_flags & ET_FLAGS_PERCPU) == 0) {
 		state->nextevent = state->nexthard;
 		tmp = hardperiod;
 		bintime_mul(&tmp, ticks - 1);
 		bintime_add(&state->nextevent, &tmp);
-		ET_HW_UNLOCK(state);
-		return;
+		if (periodic ||
+		    bintime_cmp(&state->nextevent, &nexttick, >=)) {
+			ET_HW_UNLOCK(state);
+			return;
+		}
 	}
 	/*
 	 * Otherwise we have to wake that CPU up, as we can't get present
