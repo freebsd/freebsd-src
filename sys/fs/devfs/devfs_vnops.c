@@ -299,29 +299,34 @@ finished:
 }
 
 /*
- * Construct the fully qualified path name relative to the mountpoint
+ * Construct the fully qualified path name relative to the mountpoint.
+ * If a NULL cnp is provided, no '/' is appended to the resulting path.
  */
-static char *
-devfs_fqpn(char *buf, struct vnode *dvp, struct componentname *cnp)
+char *
+devfs_fqpn(char *buf, struct devfs_mount *dmp, struct devfs_dirent *dd,
+    struct componentname *cnp)
 {
 	int i;
-	struct devfs_dirent *de, *dd;
-	struct devfs_mount *dmp;
+	struct devfs_dirent *de;
 
-	dmp = VFSTODEVFS(dvp->v_mount);
-	dd = dvp->v_data;
+	sx_assert(&dmp->dm_lock, SA_LOCKED);
+
 	i = SPECNAMELEN;
 	buf[i] = '\0';
-	i -= cnp->cn_namelen;
+	if (cnp != NULL)
+		i -= cnp->cn_namelen;
 	if (i < 0)
 		 return (NULL);
-	bcopy(cnp->cn_nameptr, buf + i, cnp->cn_namelen);
+	if (cnp != NULL)
+		bcopy(cnp->cn_nameptr, buf + i, cnp->cn_namelen);
 	de = dd;
 	while (de != dmp->dm_rootdir) {
-		i--;
-		if (i < 0)
-			 return (NULL);
-		buf[i] = '/';
+		if (cnp != NULL || i < SPECNAMELEN) {
+			i--;
+			if (i < 0)
+				 return (NULL);
+			buf[i] = '/';
+		}
 		i -= de->de_dirent->d_namlen;
 		if (i < 0)
 			 return (NULL);
@@ -878,7 +883,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		 * OK, we didn't have an entry for the name we were asked for
 		 * so we try to see if anybody can create it on demand.
 		 */
-		pname = devfs_fqpn(specname, dvp, cnp);
+		pname = devfs_fqpn(specname, dmp, dd, cnp);
 		if (pname == NULL)
 			break;
 
