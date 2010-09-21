@@ -115,7 +115,10 @@ powermac_nvram_probe(device_t dev)
 	if (type == NULL || compatible == NULL)
 		return ENXIO;
 
-	if (strcmp(type, "nvram") != 0 || strcmp(compatible, "amd-0137") != 0)
+	if (strcmp(type, "nvram") != 0)
+		return ENXIO;
+	if (strcmp(compatible, "amd-0137") != 0 &&
+	    strcmp(compatible, "nvram,flash") != 0)
 		return ENXIO;
 
 	device_set_desc(dev, "Apple NVRAM");
@@ -126,6 +129,7 @@ static int
 powermac_nvram_attach(device_t dev)
 {
 	struct powermac_nvram_softc *sc;
+	const char	*compatible;
 	phandle_t node;
 	u_int32_t reg[3];
 	int gen0, gen1, i;
@@ -138,6 +142,12 @@ powermac_nvram_attach(device_t dev)
 
 	sc->sc_dev = dev;
 	sc->sc_node = node;
+
+	compatible = ofw_bus_get_compat(dev);
+	if (strcmp(compatible, "amd-0137") == 0)
+		sc->sc_type = FLASH_TYPE_AMD;
+	else
+		sc->sc_type = FLASH_TYPE_SM;
 
 	/*
 	 * Find which byte of reg corresponds to the 32-bit physical address.
@@ -342,7 +352,7 @@ adler_checksum(uint8_t *data, int len)
 #define	OUTB_DELAY(a, v)	outb(a, v); DELAY(1);
 
 static int
-wait_operation_complete(uint8_t *bank)
+wait_operation_complete_amd(uint8_t *bank)
 {
 	int i;
 
@@ -353,7 +363,7 @@ wait_operation_complete(uint8_t *bank)
 }
 
 static int
-erase_bank(device_t dev, uint8_t *bank)
+erase_bank_amd(device_t dev, uint8_t *bank)
 {
 	unsigned int i;
 
@@ -368,7 +378,7 @@ erase_bank(device_t dev, uint8_t *bank)
 	OUTB_DELAY(bank + 0x2aa, 0x55);
 	OUTB_DELAY(bank, 0x30);
 
-	if (wait_operation_complete(bank) != 0) {
+	if (wait_operation_complete_amd(bank) != 0) {
 		device_printf(dev, "flash erase timeout\n");
 		return -1;
 	}
@@ -386,7 +396,7 @@ erase_bank(device_t dev, uint8_t *bank)
 }
 
 static int
-write_bank(device_t dev, uint8_t *bank, uint8_t *data)
+write_bank_amd(device_t dev, uint8_t *bank, uint8_t *data)
 {
 	unsigned int i;
 
@@ -399,7 +409,7 @@ write_bank(device_t dev, uint8_t *bank, uint8_t *data)
 		/* Write single word */
 		OUTB_DELAY(bank + 0x555, 0xa0);
 		OUTB_DELAY(bank + i, data[i]);
-		if (wait_operation_complete(bank) != 0) {
+		if (wait_operation_complete_amd(bank) != 0) {
 			device_printf(dev, "flash write timeout\n");
 			return -1;
 		}
@@ -415,4 +425,92 @@ write_bank(device_t dev, uint8_t *bank, uint8_t *data)
 		}
 	}
 	return 0;
+}
+
+static int
+wait_operation_complete_sm(uint8_t *bank)
+{
+	int i;
+
+	for (i = 1000000; i != 0; i--) {
+		outb(bank, SM_FLASH_CMD_READ_STATUS);
+		if (inb(bank) & SM_FLASH_STATUS_DONE)
+			return (0);
+	}
+	return (-1);
+}
+
+static int
+erase_bank_sm(device_t dev, uint8_t *bank)
+{
+	unsigned int i;
+
+	outb(bank, SM_FLASH_CMD_ERASE_SETUP);
+	outb(bank, SM_FLASH_CMD_ERASE_CONFIRM);
+
+	if (wait_operation_complete_sm(bank) != 0) {
+		device_printf(dev, "flash erase timeout\n");
+		return (-1);
+	}
+
+	outb(bank, SM_FLASH_CMD_CLEAR_STATUS);
+	outb(bank, SM_FLASH_CMD_RESET);
+
+	for (i = 0; i < NVRAM_SIZE; i++) {
+		if (bank[i] != 0xff) {
+			device_printf(dev, "flash write has failed\n");
+			return (-1);
+		}
+	}
+	return (0);
+}
+
+static int
+write_bank_sm(device_t dev, uint8_t *bank, uint8_t *data)
+{
+	unsigned int i;
+
+	for (i = 0; i < NVRAM_SIZE; i++) {
+		OUTB_DELAY(bank + i, SM_FLASH_CMD_WRITE_SETUP);
+		outb(bank + i, data[i]);
+		if (wait_operation_complete_sm(bank) != 0) {
+			device_printf(dev, "flash write error/timeout\n");
+			break;
+		}
+	}
+
+	outb(bank, SM_FLASH_CMD_CLEAR_STATUS);
+	outb(bank, SM_FLASH_CMD_RESET);
+
+	for (i = 0; i < NVRAM_SIZE; i++) {
+		if (bank[i] != data[i]) {
+			device_printf(dev, "flash write has failed\n");
+			return (-1);
+		}
+	}
+	return (0);
+}
+
+static int
+erase_bank(device_t dev, uint8_t *bank)
+{
+	struct powermac_nvram_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->sc_type == FLASH_TYPE_AMD)
+		return (erase_bank_amd(dev, bank));
+	else
+		return (erase_bank_sm(dev, bank));
+}
+
+static int
+write_bank(device_t dev, uint8_t *bank, uint8_t *data)
+{
+	struct powermac_nvram_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->sc_type == FLASH_TYPE_AMD)
+		return (write_bank_amd(dev, bank, data));
+	else
+		return (write_bank_sm(dev, bank, data));
 }
