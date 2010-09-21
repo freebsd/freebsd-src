@@ -488,7 +488,8 @@ filemon_wrapper_sys_exit(struct thread *td, struct sys_exit_args *uap)
 		/* Lock the found filemon structure. */
 		filemon_filemon_lock(filemon);
 
-		len = snprintf(filemon->msgbufr, sizeof(filemon->msgbufr), "X %d\n", curproc->p_pid);
+		len = snprintf(filemon->msgbufr, sizeof(filemon->msgbufr),
+		    "X %d %d\n", curproc->p_pid, uap->rval);
 
 		filemon_output(filemon, filemon->msgbufr, len);
 
