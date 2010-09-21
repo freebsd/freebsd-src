@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_kdb.h"
+#include "opt_stack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -37,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/stack.h>
 #include <sys/sysctl.h>
 
 #include <machine/kdb.h>
@@ -300,6 +302,15 @@ kdb_backtrace(void)
 		printf("KDB: stack backtrace:\n");
 		kdb_dbbe->dbbe_trace();
 	}
+#ifdef STACK
+	else {
+		struct stack st;
+
+		printf("KDB: stack backtrace:\n");
+		stack_save(&st);
+		stack_print(&st);
+	}
+#endif
 }
 
 /*
