@@ -91,7 +91,7 @@ case "$d" in
 */sys/*)
 	SRCDIR=${d##*obj}
 	if [ -n "$MACHINE" ]; then
-		SRCDIR=${SRCDIR##/$MACHINE}
+		SRCDIR=${SRCDIR##/$MACHINE.$MACHINE_ARCH}
 	fi
 	SRCDIR=${SRCDIR%%/sys/*}
 
