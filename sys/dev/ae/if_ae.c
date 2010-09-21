@@ -565,6 +565,8 @@ ae_init_locked(ae_softc_t *sc)
 	AE_LOCK_ASSERT(sc);
 
 	ifp = sc->ifp;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return (0);
 	mii = device_get_softc(sc->miibus);
 
 	ae_stop(sc);
@@ -1786,7 +1788,10 @@ ae_int_task(void *arg, int pending)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		if ((val & (AE_ISR_DMAR_TIMEOUT | AE_ISR_DMAW_TIMEOUT |
 		    AE_ISR_PHY_LINKDOWN)) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ae_init_locked(sc);
+			AE_UNLOCK(sc);
+			return;
 		}
 		if ((val & AE_ISR_TX_EVENT) != 0)
 			ae_tx_intr(sc);
@@ -1997,6 +2002,7 @@ ae_watchdog(ae_softc_t *sc)
 		if_printf(ifp, "watchdog timeout - resetting.\n");
 
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ae_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(sc->tq, &sc->tx_task);
@@ -2107,8 +2113,10 @@ ae_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			AE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				ae_init_locked(sc);
+			}
 			AE_UNLOCK(sc);
 		}
 		break;
