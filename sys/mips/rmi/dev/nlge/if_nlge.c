@@ -659,7 +659,7 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 			if (is_p2p) {
 				release_tx_desc(phys_addr);
 			} else {
-#ifdef __mips64
+#ifdef __mips_n64
 				m = (struct mbuf *)(uintptr_t)xlr_paddr_ld(phys_addr);
 				m->m_nextpkt = NULL;
 #else
@@ -1912,7 +1912,7 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 			if (msg_sz == (FMN_SZ - 1)) {
 				p2p = uma_zalloc(nl_tx_desc_zone, M_NOWAIT);
 				if (p2p == NULL) {
-					return 2;
+					return (2);
 				}
 				/*
 				 * Save the virtual address in the descriptor,
@@ -1948,7 +1948,7 @@ prepare_fmn_message(struct nlge_softc *sc, struct msgrng_msg *fmn_msg,
 	/* set eop in most-recent p2d */
 	cur_p2d[-1] |= (1ULL << 63);
 
-#ifdef __mips64
+#ifdef __mips_n64
 	/* 
 	 * On n64, we cannot store our mbuf pointer(64 bit) in the freeback
 	 * message (40bit available), so we put the mbuf in m_nextpkt and 
