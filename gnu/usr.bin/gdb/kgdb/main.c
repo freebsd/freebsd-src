@@ -222,11 +222,13 @@ kgdb_dmesg(void)
 		return;
 	bufp = kgdb_parse("msgbufp->msg_ptr");
 	size = (int)kgdb_parse("msgbufp->msg_size");
+	if (bufp == 0 || size == 0)
+		return;
 	rseq = (int)kgdb_parse("msgbufp->msg_rseq");
 	wseq = (int)kgdb_parse("msgbufp->msg_wseq");
 	rseq = MSGBUF_SEQ_TO_POS(size, rseq);
 	wseq = MSGBUF_SEQ_TO_POS(size, wseq);
-	if (bufp == 0 || size == 0 || rseq == wseq)
+	if (rseq == wseq)
 		return;
 
 	printf("\nUnread portion of the kernel message buffer:\n");
