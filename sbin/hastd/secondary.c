@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <libgeom.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -334,6 +335,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 void
 hastd_secondary(struct hast_resource *res, struct nv *nvin)
 {
+	sigset_t mask;
 	pthread_t td;
 	pid_t pid;
 	int error;
@@ -380,8 +382,8 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 
 	setproctitle("%s (secondary)", res->hr_name);
 
-	signal(SIGHUP, SIG_DFL);
-	signal(SIGCHLD, SIG_DFL);
+	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
 	/* Declare that we are sender. */
 	proto_send(res->hr_event, NULL, 0);
