@@ -26,9 +26,7 @@ __FBSDID("$FreeBSD$");
 #define _PATH_LOADER	"/boot/loader"
 #define _PATH_KERNEL	"/boot/kernel/kernel"
 
-#define BSIZEMAX	16384
-
-typedef int putc_func_t(int c, void *arg);
+typedef int putc_func_t(char c, void *arg);
 typedef int32_t ofwh_t;
 
 struct sp_data {
@@ -43,11 +41,6 @@ static char bootpath[128];
 static char bootargs[128];
 
 static ofwh_t bootdev;
-
-static struct fs fs;
-static ino_t inomap;
-static char blkbuf[BSIZEMAX];
-static unsigned int fsblks;
 
 static uint32_t fs_off;
 
@@ -66,14 +59,13 @@ static int mount(const char *device);
 
 static void panic(const char *fmt, ...) __dead2;
 static int printf(const char *fmt, ...);
-static int putchar(int c, void *arg);
+static int putchar(char c, void *arg);
 static int vprintf(const char *fmt, va_list ap);
 static int vsnprintf(char *str, size_t sz, const char *fmt, va_list ap);
 
 static int __printf(const char *fmt, putc_func_t *putc, void *arg, va_list ap);
-static int __putc(int c, void *arg);
 static int __puts(const char *s, putc_func_t *putc, void *arg);
-static int __sputc(int c, void *arg);
+static int __sputc(char c, void *arg);
 static char *__uitoa(char *buf, u_int val, int base);
 static char *__ultoa(char *buf, u_long val, int base);
 
@@ -83,19 +75,18 @@ static char *__ultoa(char *buf, u_long val, int base);
 typedef u_int64_t	ofwcell_t;
 typedef u_int32_t	u_ofwh_t;
 typedef int (*ofwfp_t)(ofwcell_t []);
-ofwfp_t ofw;			/* the prom Open Firmware entry */
+static ofwfp_t ofw;			/* the PROM Open Firmware entry */
 
 void ofw_init(int, int, int, int, ofwfp_t);
-ofwh_t ofw_finddevice(const char *);
-ofwh_t ofw_open(const char *);
-int ofw_getprop(ofwh_t, const char *, void *, size_t);
-int ofw_read(ofwh_t, void *, size_t);
-int ofw_write(ofwh_t, const void *, size_t);
-int ofw_seek(ofwh_t, u_int64_t);
-void ofw_exit(void) __dead2;
+static ofwh_t ofw_finddevice(const char *);
+static ofwh_t ofw_open(const char *);
+static int ofw_getprop(ofwh_t, const char *, void *, size_t);
+static int ofw_read(ofwh_t, void *, size_t);
+static int ofw_write(ofwh_t, const void *, size_t);
+static int ofw_seek(ofwh_t, u_int64_t);
+static void ofw_exit(void) __dead2;
 
-ofwh_t bootdevh;
-ofwh_t stdinh, stdouth;
+static ofwh_t stdinh, stdouth;
 
 /*
  * This has to stay here, as the PROM seems to ignore the
@@ -138,7 +129,7 @@ ofw_init(int d, int d1, int d2, int d3, ofwfp_t ofwaddr)
 	exit(main(ac, av));
 }
 
-ofwh_t
+static ofwh_t
 ofw_finddevice(const char *name)
 {
 	ofwcell_t args[] = {
@@ -156,7 +147,7 @@ ofw_finddevice(const char *name)
 	return (args[4]);
 }
 
-int
+static int
 ofw_getprop(ofwh_t ofwh, const char *name, void *buf, size_t len)
 {
 	ofwcell_t args[] = {
@@ -178,7 +169,7 @@ ofw_getprop(ofwh_t ofwh, const char *name, void *buf, size_t len)
 	return (0);
 }
 
-ofwh_t
+static ofwh_t
 ofw_open(const char *path)
 {
 	ofwcell_t args[] = {
@@ -196,7 +187,7 @@ ofw_open(const char *path)
 	return (args[4]);
 }
 
-int
+static int
 ofw_close(ofwh_t devh)
 {
 	ofwcell_t args[] = {
@@ -213,12 +204,12 @@ ofw_close(ofwh_t devh)
 	return (0);
 }
 
-int
+static int
 ofw_read(ofwh_t devh, void *buf, size_t len)
 {
 	ofwcell_t args[] = {
 		(ofwcell_t)"read",
-		4,
+		3,
 		1,
 		(u_ofwh_t)devh,
 		(ofwcell_t)buf,
@@ -233,7 +224,7 @@ ofw_read(ofwh_t devh, void *buf, size_t len)
 	return (0);
 }
 
-int
+static int
 ofw_write(ofwh_t devh, const void *buf, size_t len)
 {
 	ofwcell_t args[] = {
@@ -253,12 +244,12 @@ ofw_write(ofwh_t devh, const void *buf, size_t len)
 	return (0);
 }
 
-int
+static int
 ofw_seek(ofwh_t devh, u_int64_t off)
 {
 	ofwcell_t args[] = {
 		(ofwcell_t)"seek",
-		4,
+		3,
 		1,
 		(u_ofwh_t)devh,
 		off >> 32,
@@ -273,7 +264,7 @@ ofw_seek(ofwh_t devh, u_int64_t off)
 	return (0);
 }
 
-void
+static void
 ofw_exit(void)
 {
 	ofwcell_t args[3];
@@ -299,6 +290,7 @@ bcopy(const void *src, void *dst, size_t len)
 static void
 memcpy(void *dst, const void *src, size_t len)
 {
+
 	bcopy(src, dst, len);
 }
 
@@ -314,6 +306,7 @@ bzero(void *b, size_t len)
 static int
 strcmp(const char *s1, const char *s2)
 {
+
 	for (; *s1 == *s2 && *s1; s1++, s2++)
 		;
 	return ((u_char)*s1 - (u_char)*s2);
@@ -431,6 +424,7 @@ load(const char *fname)
 static int
 dskread(void *buf, u_int64_t lba, int nblk)
 {
+
 	/*
 	 * The Open Firmware should open the correct partition for us.
 	 * That means, if we read from offset zero on an open instance handle,
@@ -468,7 +462,7 @@ printf(const char *fmt, ...)
 }
 
 static int
-putchar(int c, void *arg)
+putchar(char c, void *arg)
 {
 	char buf;
 
@@ -614,7 +608,7 @@ reswitch:	c = *fmt++;
 }
 
 static int
-__sputc(int c, void *arg)
+__sputc(char c, void *arg)
 {
 	struct sp_data *sp;
 
