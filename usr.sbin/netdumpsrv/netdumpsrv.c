@@ -359,7 +359,7 @@ handle_timeout(struct netdump_client *client)
 }
 
 static void
-timeout_clients()
+timeout_clients(void)
 {
 	struct netdump_client *client, *tmp;
     
@@ -612,7 +612,7 @@ handle_packet(struct netdump_client *client, struct sockaddr_in *from,
 }
 
 static void
-eventloop()
+eventloop(void)
 {
 	struct netdump_msg msg;
 	char fromstr[INET_ADDRSTRLEN + 6];
