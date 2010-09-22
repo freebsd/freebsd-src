@@ -501,7 +501,7 @@ create_i386_diskimage ( ) (
 	bsdlabel ${MD}s1
 
 	# Create first image
-	populate_slice /dev/${MD}s1a ${NANO_WORLDDIR} ${MNT} "s1"
+	populate_slice /dev/${MD}s1a ${NANO_WORLDDIR} ${MNT} "s1a"
 	mount /dev/${MD}s1a ${MNT}
 	echo "Generating mtree..."
 	( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
@@ -518,8 +518,10 @@ create_i386_diskimage ( ) (
 			sed -i "" "s=${NANO_DRIVE}s1=${NANO_DRIVE}s2=g" $f
 		done
 		umount ${MNT}
+		# Override the label from the first partition so we
+		# don't confuse glabel with duplicates.
 		if [ ! -z ${NANO_LABEL} ]; then
-			tunefs -L ${NANO_LABEL}"s2" /dev/${MD}s2a
+			tunefs -L ${NANO_LABEL}"s2a" /dev/${MD}s2a
 		fi
 	fi
 	
