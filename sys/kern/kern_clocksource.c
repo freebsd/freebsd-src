@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 /* XEN has own timer routines now. */
 #ifndef XEN
 
+#include "opt_device_polling.h"
 #include "opt_kdtrace.h"
 
 #include <sys/param.h>
@@ -721,7 +722,11 @@ cpu_idleclock(void)
 	struct pcpu_state *state;
 
 	if (idletick || busy ||
-	    (periodic && (timer->et_flags & ET_FLAGS_PERCPU)))
+	    (periodic && (timer->et_flags & ET_FLAGS_PERCPU))
+#ifdef DEVICE_POLLING
+	    || curcpu == CPU_FIRST()
+#endif
+	    )
 		return;
 	state = DPCPU_PTR(timerstate);
 	if (periodic)
