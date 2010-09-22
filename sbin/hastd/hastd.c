@@ -158,13 +158,7 @@ child_exit(void)
 		pjdlog_prefix_set("[%s] (%s) ", res->hr_name,
 		    role2str(res->hr_role));
 		child_exit_log(pid, status);
-		proto_close(res->hr_ctrl);
-		res->hr_ctrl = NULL;
-		if (res->hr_event != NULL) {
-			proto_close(res->hr_event);
-			res->hr_event = NULL;
-		}
-		res->hr_workerpid = 0;
+		child_cleanup(res);
 		if (res->hr_role == HAST_ROLE_PRIMARY) {
 			/*
 			 * Restart child process if it was killed by signal
@@ -553,7 +547,7 @@ listen_accept(void)
 			} else {
 				child_exit_log(res->hr_workerpid, status);
 			}
-			res->hr_workerpid = 0;
+			child_cleanup(res);
 		} else if (res->hr_remotein != NULL) {
 			char oaddr[256];
 
