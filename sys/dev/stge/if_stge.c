@@ -1944,13 +1944,11 @@ stge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 				    "Host interface error, resetting...\n");
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				stge_init_locked(sc);
-				break;
 			}
 			if ((status & IS_TxComplete) != 0) {
 				if (stge_tx_error(sc) != 0) {
 					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 					stge_init_locked(sc);
-					break;
 				}
 			}
 		}
