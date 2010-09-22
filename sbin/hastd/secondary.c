@@ -393,17 +393,27 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 
 	init_local(res);
-	init_remote(res, nvin);
 	init_environment();
+
+	/*
+	 * Create the control thread before sending any event to the parent,
+	 * as we can deadlock when parent sends control request to worker,
+	 * but worker has no control thread started yet, so parent waits.
+	 * In the meantime worker sends an event to the parent, but parent
+	 * is unable to handle the event, because it waits for control
+	 * request response.
+	 */
+	error = pthread_create(&td, NULL, ctrl_thread, res);
+	assert(error == 0);
+
+	init_remote(res, nvin);
 	event_send(res, EVENT_CONNECT);
 
 	error = pthread_create(&td, NULL, recv_thread, res);
 	assert(error == 0);
 	error = pthread_create(&td, NULL, disk_thread, res);
 	assert(error == 0);
-	error = pthread_create(&td, NULL, send_thread, res);
-	assert(error == 0);
-	(void)ctrl_thread(res);
+	(void)send_thread(res);
 }
 
 static void
