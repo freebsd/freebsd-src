@@ -233,11 +233,10 @@ setpeer0(host, port)
 		/* res->ai_addr <= sizeof(peeraddr) is guaranteed */
 		memcpy(&peeraddr, res->ai_addr, res->ai_addrlen);
 		if (res->ai_canonname) {
-			(void) strncpy(hostname, res->ai_canonname,
+			(void) strlcpy(hostname, res->ai_canonname,
 				sizeof(hostname));
 		} else
-			(void) strncpy(hostname, host, sizeof(hostname));
-		hostname[sizeof(hostname)-1] = 0;
+			(void) strlcpy(hostname, host, sizeof(hostname));
 		connected = 1;
 	}
 
