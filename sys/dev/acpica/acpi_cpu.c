@@ -894,7 +894,7 @@ acpi_cpu_idle()
     cx_next_idx = 0;
 #ifndef __ia64__
     if (cpu_disable_deep_sleep)
-	i = sc->cpu_non_c3;
+	i = min(sc->cpu_cx_lowest, sc->cpu_non_c3);
     else
 #endif
 	i = sc->cpu_cx_lowest;
