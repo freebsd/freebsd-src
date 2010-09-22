@@ -54,12 +54,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/file.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <netinet/in.h>
-
 #include <arpa/inet.h>
+#include <arpa/tftp.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -72,119 +74,212 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "extern.h"
+#include "tftp-utils.h"
+#include "tftp-io.h"
+#include "tftp-options.h"
+#include "tftp.h"
 
 #define	MAXLINE		200
 #define	TIMEOUT		5		/* secs between rexmt's */
 
-struct	sockaddr_storage peeraddr;
-int	f;
-int	trace;
-int	verbose;
-int	connected;
-char	mode[32];
-char	line[MAXLINE];
-int	margc;
-#define	MAX_MARGV	20
-char	*margv[MAX_MARGV];
-jmp_buf	toplevel;
-volatile int txrx_error;
+static struct	sockaddr_storage peeraddr;
+static int	connected;
+static char	mode[32];
+jmp_buf		toplevel;
+volatile int	txrx_error;
+static int	peer;
 
-void	get(int, char **);
-void	help(int, char **);
-void	intr(int);
-void	modecmd(int, char **);
-void	put(int, char **);
-void	quit(int, char **);
-void	setascii(int, char **);
-void	setbinary(int, char **);
-void	setpeer0(char *, const char *);
-void	setpeer(int, char **);
-void	setrexmt(int, char **);
-void	settimeout(int, char **);
-void	settrace(int, char **);
-void	setverbose(int, char **);
-void	status(int, char **);
+#define	MAX_MARGV	20
+static int	margc;
+static char	*margv[MAX_MARGV];
+
+int		verbose;
+char		*port = NULL;
+
+static void	get(int, char **);
+static void	help(int, char **);
+static void	intr(int);
+static void	modecmd(int, char **);
+static void	put(int, char **);
+static void	quit(int, char **);
+static void	setascii(int, char **);
+static void	setbinary(int, char **);
+static void	setpeer0(char *, const char *);
+static void	setpeer(int, char **);
+static void	settimeoutpacket(int, char **);
+static void	settimeoutnetwork(int, char **);
+static void	setdebug(int, char **);
+static void	setverbose(int, char **);
+static void	showstatus(int, char **);
+static void	setblocksize(int, char **);
+static void	setblocksize2(int, char **);
+static void	setoptions(int, char **);
+static void	setrollover(int, char **);
+static void	setpacketdrop(int, char **);
 
 static void command(void) __dead2;
 static const char *command_prompt(void);
 
-static void getusage(const char *);
-static void makeargv(void);
-static void putusage(const char *);
+static void urihandling(char *URI);
+static void getusage(char *);
+static void makeargv(char *line);
+static void putusage(char *);
 static void settftpmode(const char *);
 
-char	*tail(char *);
-struct	cmd *getcmd(char *);
+static char	*tail(char *);
+static struct	cmd *getcmd(char *);
 
 #define HELPINDENT (sizeof("connect"))
 
 struct cmd {
 	const char	*name;
-	char	*help;
 	void	(*handler)(int, char **);
+	const char	*help;
 };
 
-char	vhelp[] = "toggle verbose mode";
-char	thelp[] = "toggle packet tracing";
-char	chelp[] = "connect to remote tftp";
-char	qhelp[] = "exit tftp";
-char	hhelp[] = "print help information";
-char	shelp[] = "send file";
-char	rhelp[] = "receive file";
-char	mhelp[] = "set file transfer mode";
-char	sthelp[] = "show current status";
-char	xhelp[] = "set per-packet retransmission timeout";
-char	ihelp[] = "set total retransmission timeout";
-char    ashelp[] = "set mode to netascii";
-char    bnhelp[] = "set mode to octet";
+static struct cmd cmdtab[] = {
+	{ "connect",	setpeer,	"connect to remote tftp"	},
+	{ "mode",	modecmd,	"set file transfer mode"	},
+	{ "put",	put,		"send file"			},
+	{ "get",	get,		"receive file"			},
+	{ "quit",	quit,		"exit tftp"			},
+	{ "verbose",	setverbose,	"toggle verbose mode"		},
+	{ "status",	showstatus,	"show current status"		},
+	{ "binary",     setbinary,	"set mode to octet"		},
+	{ "ascii",      setascii,	"set mode to netascii"		},
+	{ "rexmt",	settimeoutpacket,
+	  "set per-packet retransmission timeout[-]" },
+	{ "timeout",	settimeoutnetwork,
+	  "set total retransmission timeout" },
+	{ "trace",	setdebug,	"enable 'debug packet'[-]"	},
+	{ "debug",	setdebug,	"enable verbose output"		},
+	{ "blocksize",	setblocksize,	"set blocksize[*]"		},
+	{ "blocksize2",	setblocksize2,	"set blocksize as a power of 2[**]" },
+	{ "rollover",	setrollover,	"rollover after 64K packets[**]" },
+	{ "options",	setoptions,
+	  "enable or disable RFC2347 style options" },
+	{ "help",	help,		"print help information"	},
+	{ "packetdrop",	setpacketdrop,	"artifical packetloss feature"	},
+	{ "?",		help,		"print help information"	},
+	{ NULL,		NULL,		NULL				}
+};
 
-struct cmd cmdtab[] = {
-	{ "connect",	chelp,		setpeer },
-	{ "mode",       mhelp,          modecmd },
-	{ "put",	shelp,		put },
-	{ "get",	rhelp,		get },
-	{ "quit",	qhelp,		quit },
-	{ "verbose",	vhelp,		setverbose },
-	{ "trace",	thelp,		settrace },
-	{ "status",	sthelp,		status },
-	{ "binary",     bnhelp,         setbinary },
-	{ "ascii",      ashelp,         setascii },
-	{ "rexmt",	xhelp,		setrexmt },
-	{ "timeout",	ihelp,		settimeout },
-	{ "?",		hhelp,		help },
-	{ NULL, NULL, NULL }
+static struct	modes {
+	const char *m_name;
+	const char *m_mode;
+} modes[] = {
+	{ "ascii",	"netascii" },
+	{ "netascii",	"netascii" },
+	{ "binary",	"octet" },
+	{ "image",	"octet" },
+	{ "octet",	"octet" },
+	{ NULL,		NULL }
 };
 
 int
 main(int argc, char *argv[])
 {
-	f = -1;
+
+	acting_as_client = 1;
+	peer = -1;
 	strcpy(mode, "netascii");
 	signal(SIGINT, intr);
 	if (argc > 1) {
 		if (setjmp(toplevel) != 0)
 			exit(txrx_error);
+
+		if (strncmp(argv[1], "tftp://", 7) == 0) {
+			urihandling(argv[1]);
+			exit(txrx_error);
+		}
+
 		setpeer(argc, argv);
 	}
 	if (setjmp(toplevel) != 0)
 		(void)putchar('\n');
+
+	init_options();
 	command();
 }
 
-char    hostname[MAXHOSTNAMELEN];
+/*
+ * RFC3617 handling of TFTP URIs:
+ *
+ *    tftpURI         = "tftp://" host "/" file [ mode ]
+ *    mode            = ";"  "mode=" ( "netascii" / "octet" )
+ *    file            = *( unreserved / escaped )
+ *    host            = <as specified by RFC 2732>
+ *    unreserved      = <as specified in RFC 2396>
+ *    escaped         = <as specified in RFC 2396>
+ *
+ * We are cheating a little bit by allowing any mode as specified in the
+ * modes table defined earlier on in this file and mapping it on the real
+ * mode.
+ */
+static void
+urihandling(char *URI)
+{
+	char	uri[ARG_MAX];
+	char	*host = NULL;
+	char	*path = NULL;
+	char	*options = NULL;
+	char	*mode = "octet";
+	char	*s;
+	char	line[MAXLINE];
+	int	i;
 
-void
-setpeer0(char *host, const char *port)
+	strncpy(uri, URI, ARG_MAX);
+	host = uri + 7;
+
+	if ((s = strchr(host, '/')) == NULL) {
+		fprintf(stderr,
+		    "Invalid URI: Couldn't find / after hostname\n");
+		exit(1);
+	}
+	*s = '\0';
+	path = s + 1;
+
+	if ((s = strchr(path, ';')) != NULL) {
+		*s = '\0';
+		options = s + 1;
+
+		if (strncmp(options, "mode=", 5) == 0) {
+			mode = options;
+			mode += 5;
+
+			for (i = 0; modes[i].m_name != NULL; i++) {
+				if (strcmp(modes[i].m_name, mode) == 0)
+					break;
+			}
+			if (modes[i].m_name == NULL) {
+				fprintf(stderr, "Invalid mode: '%s'\n", mode);
+				exit(1);
+			}
+			settftpmode(modes[i].m_mode);
+		}
+	} else {
+		settftpmode("octet");
+	}
+
+	setpeer0(host, NULL);
+
+	sprintf(line, "get %s", path);
+	makeargv(line);
+	get(margc, margv);
+}
+
+static char    hostname[MAXHOSTNAMELEN];
+
+static void
+setpeer0(char *host, const char *lport)
 {
 	struct addrinfo hints, *res0, *res;
 	int error;
-	struct sockaddr_storage ss;
 	const char *cause = "unknown";
 
 	if (connected) {
-		close(f);
-		f = -1;
+		close(peer);
+		peer = -1;
 	}
 	connected = 0;
 
@@ -193,9 +288,9 @@ setpeer0(char *host, const char *port)
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_flags = AI_CANONNAME;
-	if (!port)
-		port = "tftp";
-	error = getaddrinfo(host, port, &hints, &res0);
+	if (!lport)
+		lport = "tftp";
+	error = getaddrinfo(host, lport, &hints, &res0);
 	if (error) {
 		warnx("%s", gai_strerror(error));
 		return;
@@ -204,50 +299,53 @@ setpeer0(char *host, const char *port)
 	for (res = res0; res; res = res->ai_next) {
 		if (res->ai_addrlen > sizeof(peeraddr))
 			continue;
-		f = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		if (f < 0) {
+		peer = socket(res->ai_family, res->ai_socktype,
+			res->ai_protocol);
+		if (peer < 0) {
 			cause = "socket";
 			continue;
 		}
 
-		memset(&ss, 0, sizeof(ss));
-		ss.ss_family = res->ai_family;
-		ss.ss_len = res->ai_addrlen;
-		if (bind(f, (struct sockaddr *)&ss, ss.ss_len) < 0) {
+		memset(&peer_sock, 0, sizeof(peer_sock));
+		peer_sock.ss_family = res->ai_family;
+		peer_sock.ss_len = res->ai_addrlen;
+		if (bind(peer, (struct sockaddr *)&peer_sock, peer_sock.ss_len) < 0) {
 			cause = "bind";
-			close(f);
-			f = -1;
+			close(peer);
+			peer = -1;
 			continue;
 		}
 
 		break;
 	}
 
-	if (f < 0)
+	if (peer < 0)
 		warn("%s", cause);
 	else {
 		/* res->ai_addr <= sizeof(peeraddr) is guaranteed */
-		memcpy(&peeraddr, res->ai_addr, res->ai_addrlen);
+		memcpy(&peer_sock, res->ai_addr, res->ai_addrlen);
 		if (res->ai_canonname) {
-			(void) strlcpy(hostname, res->ai_canonname,
+			(void) strncpy(hostname, res->ai_canonname,
 				sizeof(hostname));
 		} else
-			(void) strlcpy(hostname, host, sizeof(hostname));
+			(void) strncpy(hostname, host, sizeof(hostname));
+		hostname[sizeof(hostname)-1] = 0;
 		connected = 1;
 	}
 
 	freeaddrinfo(res0);
 }
 
-void
+static void
 setpeer(int argc, char *argv[])
 {
+	char	line[MAXLINE];
 
 	if (argc < 2) {
 		strcpy(line, "Connect ");
 		printf("(to) ");
 		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv();
+		makeargv(line);
 		argc = margc;
 		argv = margv;
 	}
@@ -255,26 +353,14 @@ setpeer(int argc, char *argv[])
 		printf("usage: %s [host [port]]\n", argv[0]);
 		return;
 	}
-	if (argc == 3)
+	if (argc == 3) {
+		port = argv[2];
 		setpeer0(argv[1], argv[2]);
-	else
+	} else
 		setpeer0(argv[1], NULL);
 }
 
-struct	modes {
-	const char *m_name;
-	const char *m_mode;
-} modes[] = {
-	{ "ascii",	"netascii" },
-	{ "netascii",   "netascii" },
-	{ "binary",     "octet" },
-	{ "image",      "octet" },
-	{ "octet",     "octet" },
-/*      { "mail",       "mail" },       */
-	{ 0,		0 }
-};
-
-void
+static void
 modecmd(int argc, char *argv[])
 {
 	struct modes *p;
@@ -298,7 +384,7 @@ modecmd(int argc, char *argv[])
 
 	printf("usage: %s [", argv[0]);
 	sep = " ";
-	for (p = modes; p->m_name; p++) {
+	for (p = modes; p->m_name != NULL; p++) {
 		printf("%s%s", sep, p->m_name);
 		if (*sep == ' ')
 			sep = " | ";
@@ -307,14 +393,14 @@ modecmd(int argc, char *argv[])
 	return;
 }
 
-void
+static void
 setbinary(int argc __unused, char *argv[] __unused)
 {
 
 	settftpmode("octet");
 }
 
-void
+static void
 setascii(int argc __unused, char *argv[] __unused)
 {
 
@@ -324,6 +410,7 @@ setascii(int argc __unused, char *argv[] __unused)
 static void
 settftpmode(const char *newmode)
 {
+
 	strcpy(mode, newmode);
 	if (verbose)
 		printf("mode set to %s\n", mode);
@@ -333,18 +420,20 @@ settftpmode(const char *newmode)
 /*
  * Send file(s).
  */
-void
+static void
 put(int argc, char *argv[])
 {
-	int fd;
-	int n;
-	char *cp, *targ;
+	int	fd;
+	int	n;
+	char	*cp, *targ;
+	char	line[MAXLINE];
+	struct stat sb;
 
 	if (argc < 2) {
 		strcpy(line, "send ");
 		printf("(file) ");
 		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv();
+		makeargv(line);
 		argc = margc;
 		argv = margv;
 	}
@@ -381,10 +470,14 @@ put(int argc, char *argv[])
 			warn("%s", cp);
 			return;
 		}
+
+		stat(cp, &sb);
+		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
+
 		if (verbose)
 			printf("putting %s to %s:%s [%s]\n",
-				cp, hostname, targ, mode);
-		xmitfile(fd, targ, mode);
+			    cp, hostname, targ, mode);
+		xmitfile(peer, port, fd, targ, mode);
 		return;
 	}
 				/* this assumes the target is a directory */
@@ -398,36 +491,43 @@ put(int argc, char *argv[])
 			warn("%s", argv[n]);
 			continue;
 		}
+
+		stat(cp, &sb);
+		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
+
 		if (verbose)
 			printf("putting %s to %s:%s [%s]\n",
-				argv[n], hostname, targ, mode);
-		xmitfile(fd, targ, mode);
+			    argv[n], hostname, targ, mode);
+		xmitfile(peer, port, fd, targ, mode);
 	}
 }
 
 static void
-putusage(const char *s)
+putusage(char *s)
 {
-	printf("usage: %s file [[host:]remotename]\n", s);
+
+	printf("usage: %s file [remotename]\n", s);
+	printf("       %s file host:remotename\n", s);
 	printf("       %s file1 file2 ... fileN [[host:]remote-directory]\n", s);
 }
 
 /*
  * Receive file(s).
  */
-void
+static void
 get(int argc, char *argv[])
 {
 	int fd;
 	int n;
 	char *cp;
 	char *src;
+	char	line[MAXLINE];
 
 	if (argc < 2) {
 		strcpy(line, "get ");
 		printf("(files) ");
 		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv();
+		makeargv(line);
 		argc = margc;
 		argv = margv;
 	}
@@ -438,6 +538,8 @@ get(int argc, char *argv[])
 	if (!connected) {
 		for (n = 1; n < argc ; n++)
 			if (rindex(argv[n], ':') == 0) {
+				printf("No remote host specified and "
+				    "no host given for file '%s'\n", argv[n]);
 				getusage(argv[0]);
 				return;
 			}
@@ -468,8 +570,8 @@ get(int argc, char *argv[])
 			}
 			if (verbose)
 				printf("getting from %s:%s to %s [%s]\n",
-					hostname, src, cp, mode);
-			recvfile(fd, src, mode);
+				    hostname, src, cp, mode);
+			recvfile(peer, port, fd, src, mode);
 			break;
 		}
 		cp = tail(src);         /* new .. jdg */
@@ -480,30 +582,31 @@ get(int argc, char *argv[])
 		}
 		if (verbose)
 			printf("getting from %s:%s to %s [%s]\n",
-				hostname, src, cp, mode);
-		recvfile(fd, src, mode);
+			    hostname, src, cp, mode);
+		recvfile(peer, port, fd, src, mode);
 	}
 }
 
 static void
-getusage(const char *s)
+getusage(char *s)
 {
-	printf("usage: %s [host:]file [localname]\n", s);
+
+	printf("usage: %s file [localname]\n", s);
+	printf("       %s [host:]file [localname]\n", s);
 	printf("       %s [host1:]file1 [host2:]file2 ... [hostN:]fileN\n", s);
 }
 
-int	rexmtval = TIMEOUT;
-
-void
-setrexmt(int argc, char *argv[])
+static void
+settimeoutpacket(int argc, char *argv[])
 {
 	int t;
+	char	line[MAXLINE];
 
 	if (argc < 2) {
-		strcpy(line, "Rexmt-timeout ");
+		strcpy(line, "Packet timeout ");
 		printf("(value) ");
 		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv();
+		makeargv(line);
 		argc = margc;
 		argv = margv;
 	}
@@ -512,24 +615,25 @@ setrexmt(int argc, char *argv[])
 		return;
 	}
 	t = atoi(argv[1]);
-	if (t < 0)
+	if (t < 0) {
 		printf("%s: bad value\n", argv[1]);
-	else
-		rexmtval = t;
+		return;
+	}
+
+	settimeouts(t, timeoutnetwork, maxtimeouts);
 }
 
-int	maxtimeout = 5 * TIMEOUT;
-
-void
-settimeout(int argc, char *argv[])
+static void
+settimeoutnetwork(int argc, char *argv[])
 {
 	int t;
+	char	line[MAXLINE];
 
 	if (argc < 2) {
-		strcpy(line, "Maximum-timeout ");
+		strcpy(line, "Network timeout ");
 		printf("(value) ");
 		fgets(&line[strlen(line)], sizeof line - strlen(line), stdin);
-		makeargv();
+		makeargv(line);
 		argc = margc;
 		argv = margv;
 	}
@@ -538,26 +642,36 @@ settimeout(int argc, char *argv[])
 		return;
 	}
 	t = atoi(argv[1]);
-	if (t < 0)
+	if (t < 0) {
 		printf("%s: bad value\n", argv[1]);
-	else
-		maxtimeout = t;
+		return;
+	}
+
+	settimeouts(timeoutpacket, t, maxtimeouts);
 }
 
-void
-status(int argc __unused, char *argv[] __unused)
+static void
+showstatus(int argc __unused, char *argv[] __unused)
 {
-	if (connected)
-		printf("Connected to %s.\n", hostname);
-	else
-		printf("Not connected.\n");
-	printf("Mode: %s Verbose: %s Tracing: %s\n", mode,
-		verbose ? "on" : "off", trace ? "on" : "off");
-	printf("Rexmt-interval: %d seconds, Max-timeout: %d seconds\n",
-		rexmtval, maxtimeout);
+
+	printf("Remote host: %s\n",
+	    connected ? hostname : "none specified yet");
+	printf("RFC2347 Options support: %s\n",
+	    options_rfc_enabled ? "enabled" : "disabled");
+	printf("Non-RFC defined options support: %s\n",
+	    options_extra_enabled ? "enabled" : "disabled");
+	printf("Mode: %s\n", mode);
+	printf("Verbose: %s\n", verbose ? "on" : "off");
+	printf("Debug: %s\n", debug_show(debug));
+	printf("Artificial packetloss: %d in 100 packets\n",
+	    packetdroppercentage);
+	printf("Segment size: %d bytes\n", segsize);
+	printf("Network timeout: %d seconds\n", timeoutpacket);
+	printf("Maximum network timeout: %d seconds\n", timeoutnetwork);
+	printf("Maximum timeouts: %d \n", maxtimeouts);
 }
 
-void
+static void
 intr(int dummy __unused)
 {
 
@@ -566,7 +680,7 @@ intr(int dummy __unused)
 	longjmp(toplevel, -1);
 }
 
-char *
+static char *
 tail(char *filename)
 {
 	char *s;
@@ -583,7 +697,7 @@ tail(char *filename)
 }
 
 static const char *
-command_prompt(void)
+command_prompt()
 {
 
 	return ("tftp> ");
@@ -602,6 +716,7 @@ command(void)
 	const char *bp;
 	char *cp;
 	int len, num, vrbose;
+	char	line[MAXLINE];
 
 	vrbose = isatty(0);
 	if (vrbose) {
@@ -623,6 +738,7 @@ command(void)
                         line[len] = '\0';
                         history(hist, &he, H_ENTER, bp);
 		} else {
+			line[0] = 0;
 			if (fgets(line, sizeof line , stdin) == 0) {
 				if (feof(stdin)) {
 					exit(txrx_error);
@@ -635,7 +751,7 @@ command(void)
 			*cp = '\0';
 		if (line[0] == 0)
 			continue;
-		makeargv();
+		makeargv(line);
 		if (margc == 0)
 			continue;
 		c = getcmd(margv[0]);
@@ -651,7 +767,7 @@ command(void)
 	}
 }
 
-struct cmd *
+static struct cmd *
 getcmd(char *name)
 {
 	const char *p, *q;
@@ -683,15 +799,15 @@ getcmd(char *name)
  * Slice a string up into argc/argv.
  */
 static void
-makeargv(void)
+makeargv(char *line)
 {
 	char *cp;
 	char **argp = margv;
 
 	margc = 0;
-	if ((cp = strchr(line, '\n')))
+	if ((cp = strchr(line, '\n')) != NULL)
 		*cp = '\0';
-	for (cp = line; margc < MAX_MARGV - 1 && *cp;) {
+	for (cp = line; margc < MAX_MARGV - 1 && *cp != '\0';) {
 		while (isspace(*cp))
 			cp++;
 		if (*cp == '\0')
@@ -707,16 +823,17 @@ makeargv(void)
 	*argp++ = 0;
 }
 
-void
+static void
 quit(int argc __unused, char *argv[] __unused)
 {
+
 	exit(txrx_error);
 }
 
 /*
  * Help command.
  */
-void
+static void
 help(int argc, char *argv[])
 {
 	struct cmd *c;
@@ -725,6 +842,10 @@ help(int argc, char *argv[])
 		printf("Commands may be abbreviated.  Commands are:\n\n");
 		for (c = cmdtab; c->name; c++)
 			printf("%-*s\t%s\n", (int)HELPINDENT, c->name, c->help);
+
+		printf("\n[-] : You shouldn't use these ones anymore.\n");
+		printf("[*] : RFC2834 options support required.\n");
+		printf("[**] : Non-standard RFC2834 option.\n");
 		return;
 	}
 	while (--argc > 0) {
@@ -732,24 +853,211 @@ help(int argc, char *argv[])
 		arg = *++argv;
 		c = getcmd(arg);
 		if (c == (struct cmd *)-1)
-			printf("?Ambiguous help command %s\n", arg);
+			printf("?Ambiguous help command: %s\n", arg);
 		else if (c == (struct cmd *)0)
-			printf("?Invalid help command %s\n", arg);
+			printf("?Invalid help command: %s\n", arg);
 		else
 			printf("%s\n", c->help);
 	}
 }
 
-void
-settrace(int argc __unused, char **argv __unused)
+static void
+setverbose(int argc __unused, char *argv[] __unused)
 {
-	trace = !trace;
-	printf("Packet tracing %s.\n", trace ? "on" : "off");
-}
 
-void
-setverbose(int argc __unused, char **argv __unused)
-{
 	verbose = !verbose;
 	printf("Verbose mode %s.\n", verbose ? "on" : "off");
+}
+
+static void
+setoptions(int argc, char *argv[])
+{
+
+	if (argc == 2) {
+		if (strcasecmp(argv[1], "enable") == 0 ||
+		    strcasecmp(argv[1], "on") == 0) {
+			options_extra_enabled = 1;
+			options_rfc_enabled = 1;
+		}
+		if (strcasecmp(argv[1], "disable") == 0 ||
+		    strcasecmp(argv[1], "off") == 0) {
+			options_extra_enabled = 0;
+			options_rfc_enabled = 0;
+		}
+		if (strcasecmp(argv[1], "extra") == 0)
+			options_extra_enabled = !options_extra_enabled;
+	}
+	printf("Support for RFC2347 style options are now %s.\n",
+	    options_rfc_enabled ? "enabled" : "disabled");
+	printf("Support for non-RFC defined options are now %s.\n",
+	    options_extra_enabled ? "enabled" : "disabled");
+
+	printf("\nThe following options are available:\n"
+	    "\toptions on	: enable support for RFC2347 style options\n"
+	    "\toptions off	: disable support for RFC2347 style options\n"
+	    "\toptions extra	: toggle support for non-RFC defined options\n"
+	);
+}
+
+static void
+setrollover(int argc, char *argv[])
+{
+
+	if (argc == 2) {
+		if (strcasecmp(argv[1], "never") == 0 ||
+		    strcasecmp(argv[1], "none") == 0) {
+			free(options[OPT_ROLLOVER].o_request);
+			options[OPT_ROLLOVER].o_request = NULL;
+		}
+		if (strcasecmp(argv[1], "1") == 0) {
+			free(options[OPT_ROLLOVER].o_request);
+			options[OPT_ROLLOVER].o_request = strdup("1");
+		}
+		if (strcasecmp(argv[1], "0") == 0) {
+			free(options[OPT_ROLLOVER].o_request);
+			options[OPT_ROLLOVER].o_request = strdup("0");
+		}
+	}
+	printf("Support for the rollover options is %s.\n",
+	    options[OPT_ROLLOVER].o_request != NULL ? "enabled" : "disabled");
+	if (options[OPT_ROLLOVER].o_request != NULL)
+		printf("Block rollover will be to block %s.\n",
+		    options[OPT_ROLLOVER].o_request);
+
+
+	printf("\nThe following rollover options are available:\n"
+	    "\trollover 0	: rollover to block zero (default)\n"
+	    "\trollover 1	: rollover to block one\n"
+	    "\trollover never	: do not support the rollover option\n"
+	    "\trollover none	: do not support the rollover option\n"
+	);
+}
+
+static void
+setdebug(int argc, char *argv[])
+{
+	int i;
+
+	if (argc != 1) {
+		i = 1;
+		while (i < argc)
+			debug ^= debug_find(argv[i++]);
+	}
+	printf("The following debugging is enabled: %s\n", debug_show(debug));
+
+	printf("\nThe following debugs are available:\n");
+	i = 0;
+	while (debugs[i].name != NULL) {
+		printf("\t%s\t%s\n", debugs[i].name, debugs[i].desc);
+		i++;
+	}
+}
+
+static void
+setblocksize(int argc, char *argv[])
+{
+
+	if (!options_rfc_enabled)
+		printf("RFC2347 style options are not enabled "
+		    "(but proceding anyway)\n");
+
+	if (argc != 1) {
+		int size = atoi(argv[1]);
+		size_t max;
+		char maxbuffer[100];
+		int *maxdgram;
+
+		max = sizeof(maxbuffer);
+		if (sysctlbyname("net.inet.udp.maxdgram",
+			maxbuffer, &max, NULL, 0) < 0) {
+			perror("sysctl: net.inet.udp.maxdgram");
+			return;
+		}
+		maxdgram = (int *)maxbuffer;
+
+		if (size < BLKSIZE_MIN || size > BLKSIZE_MAX) {
+			printf("Blocksize should be between %d and %d bytes.\n",
+				BLKSIZE_MIN, BLKSIZE_MAX);
+			return;
+		} else if (size > *maxdgram - 4) {
+			printf("Blocksize can't be bigger than %d bytes due "
+			    "to the net.inet.udp.maxdgram sysctl limitation.\n",
+			    *maxdgram - 4);
+			asprintf(&options[OPT_BLKSIZE].o_request,
+			    "%d", *maxdgram - 4);
+		} else {
+			asprintf(&options[OPT_BLKSIZE].o_request, "%d", size);
+		}
+	}
+	printf("Blocksize is now %s bytes.\n", options[OPT_BLKSIZE].o_request);
+}
+
+static void
+setblocksize2(int argc, char *argv[])
+{
+
+	if (!options_rfc_enabled || !options_extra_enabled)
+		printf(
+		    "RFC2347 style or non-RFC defined options are not enabled "
+		    "(but proceding anyway)\n");
+
+	if (argc != 1) {
+		int size = atoi(argv[1]);
+		int i;
+		size_t max;
+		char maxbuffer[100];
+		int *maxdgram;
+
+		int sizes[] = {
+			8, 16, 32, 64, 128, 256, 512, 1024,
+			2048, 4096, 8192, 16384, 32768, 0
+		};
+
+		max = sizeof(maxbuffer);
+		if (sysctlbyname("net.inet.udp.maxdgram",
+			maxbuffer, &max, NULL, 0) < 0) {
+			perror("sysctl: net.inet.udp.maxdgram");
+			return;
+		}
+		maxdgram = (int *)maxbuffer;
+
+		for (i = 0; sizes[i] != 0; i++) {
+			if (sizes[i] == size) break;
+		}
+		if (sizes[i] == 0) {
+			printf("Blocksize2 should be a power of two between "
+			    "8 and 32768.\n");
+			return;
+		}
+
+		if (size < BLKSIZE_MIN || size > BLKSIZE_MAX) {
+			printf("Blocksize2 should be between "
+			    "%d and %d bytes.\n", BLKSIZE_MIN, BLKSIZE_MAX);
+			return;
+		} else if (size > *maxdgram - 4) {
+			printf("Blocksize2 can't be bigger than %d bytes due "
+			    "to the net.inet.udp.maxdgram sysctl limitation.\n",
+			    *maxdgram - 4);
+			for (i = 0; sizes[i+1] != 0; i++) {
+				if (*maxdgram < sizes[i+1]) break;
+			}
+			asprintf(&options[OPT_BLKSIZE2].o_request,
+			    "%d", sizes[i]);
+		} else {
+			asprintf(&options[OPT_BLKSIZE2].o_request, "%d", size);
+		}
+	}
+	printf("Blocksize2 is now %s bytes.\n",
+	    options[OPT_BLKSIZE2].o_request);
+}
+
+static void
+setpacketdrop(int argc, char *argv[])
+{
+
+	if (argc != 1)
+		packetdroppercentage = atoi(argv[1]);
+
+	printf("Randomly %d in 100 packets will be dropped\n",
+	    packetdroppercentage);
 }
