@@ -155,6 +155,7 @@ elf64_dump_thread(struct thread *td __unused, void *dst __unused,
 #define _RF_G		0x10000000		/* GOT offset */
 #define _RF_B		0x08000000		/* Load address relative */
 #define _RF_U		0x04000000		/* Unaligned */
+#define	_RF_X		0x02000000		/* Bare symbols, needs proc */
 #define _RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
 #define _RF_RS(s)	( (s) & 0xff)		/* right shift */
 static const int reloc_target_flags[] = {
@@ -167,10 +168,10 @@ static const int reloc_target_flags[] = {
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* DISP_32 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_30 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HI22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 13 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LO10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* HI22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 13 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* LO10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT13 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(10),	/* GOT22 */
@@ -189,29 +190,29 @@ static const int reloc_target_flags[] = {
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* PCPLT32 */
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(10),	/* PCPLT22 */
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* PCPLT10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 11 */
-	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* 64 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 11 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(64) | _RF_RS(0),		/* 64 */
 	_RF_S|_RF_A|/*extra*/	_RF_SZ(32) | _RF_RS(0),		/* OLO10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(42),	/* HH22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(32),	/* HM10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* LM22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(42),	/* HH22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(32),	/* HM10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* LM22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(42),	/* PC_HH22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(32),	/* PC_HM10 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(10),	/* PC_LM22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP16 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP19 */
 	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* GLOB_JMP */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 7 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 5 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 6 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 7 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 5 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 6 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(64) | _RF_RS(0),		/* DISP64 */
 	      _RF_A|		_RF_SZ(64) | _RF_RS(0),		/* PLT64 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HIX22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LOX10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(22),	/* H44 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(12),	/* M44 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* L44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* HIX22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* LOX10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(22),	/* H44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(12),	/* M44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* L44 */
 	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* REGISTER */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(64) | _RF_RS(0),		/* UA64 */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(16) | _RF_RS(0),		/* UA16 */
@@ -238,6 +239,7 @@ static const char *reloc_names[] = {
 #define RELOC_BASE_RELATIVE(t)		((reloc_target_flags[t] & _RF_B) != 0)
 #define RELOC_UNALIGNED(t)		((reloc_target_flags[t] & _RF_U) != 0)
 #define RELOC_USE_ADDEND(t)		((reloc_target_flags[t] & _RF_A) != 0)
+#define	RELOC_BARE_SYMBOL(t)		((reloc_target_flags[t] & _RF_X) != 0)
 #define RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
 #define RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
 
@@ -334,6 +336,8 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 		if (addr == 0)
 			return (-1);
 		value += addr;
+		if (RELOC_BARE_SYMBOL(rtype))
+			value = elf_relocaddr(lf, value);
 	}
 
 	if (rtype == R_SPARC_OLO10)
