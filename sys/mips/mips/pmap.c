@@ -828,7 +828,7 @@ retry:
 /*
  * add a wired page to the kva
  */
-static void
+void
 pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr)
 {
 	pt_entry_t *pte;
@@ -849,14 +849,11 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr)
 void
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
-	int attr;
 
-	if (is_cacheable_mem(pa))
-		attr = PTE_C_CACHE;
-	else
-		attr = PTE_C_UNCACHED;
+	KASSERT(is_cacheable_mem(pa),
+		("pmap_kenter: memory at 0x%lx is not cacheable", (u_long)pa));
 
-	pmap_kenter_attr(va, pa, attr);
+	pmap_kenter_attr(va, pa, PTE_C_CACHE);
 }
 
 /*
