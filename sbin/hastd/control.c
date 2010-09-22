@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "hast.h"
 #include "hastd.h"
@@ -50,6 +51,17 @@ __FBSDID("$FreeBSD$");
 #include "subr.h"
 
 #include "control.h"
+
+void
+child_cleanup(struct hast_resource *res)
+{
+
+	proto_close(res->hr_ctrl);
+	res->hr_ctrl = NULL;
+	proto_close(res->hr_event);
+	res->hr_event = NULL;
+	res->hr_workerpid = 0;
+}
 
 static void
 control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
@@ -109,7 +121,7 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 			pjdlog_debug(1, "Worker process %u stopped.",
 			    (unsigned int)res->hr_workerpid);
 		}
-		res->hr_workerpid = 0;
+		child_cleanup(res);
 	}
 
 	/* Start worker process if we are changing to primary. */
