@@ -650,18 +650,22 @@ main_loop(void)
 		/* Setup descriptors for select(2). */
 		FD_ZERO(&rfds);
 		maxfd = fd = proto_descriptor(cfg->hc_controlconn);
+		assert(fd >= 0);
 		FD_SET(fd, &rfds);
 		fd = proto_descriptor(cfg->hc_listenconn);
+		assert(fd >= 0);
 		FD_SET(fd, &rfds);
 		maxfd = fd > maxfd ? fd : maxfd;
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
 			fd = proto_descriptor(res->hr_event);
+			assert(fd >= 0);
 			FD_SET(fd, &rfds);
 			maxfd = fd > maxfd ? fd : maxfd;
 		}
 
+		assert(maxfd + 1 <= (int)FD_SETSIZE);
 		ret = select(maxfd + 1, &rfds, NULL, NULL, &timeout);
 		if (ret == 0)
 			hook_check(false);
