@@ -27,7 +27,7 @@
 .\" $OpenBSD: basename.3,v 1.12 2000/04/18 03:01:25 aaron Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2006
+.Dd October 6, 2009
 .Dt BASENAME 3
 .Os
 .Sh NAME
@@ -37,6 +37,8 @@
 .In libgen.h
 .Ft char *
 .Fn basename "const char *path"
+.Ft char *
+.Fn basename_r "const char *path" "char *bname"
 .Sh DESCRIPTION
 The
 .Fn basename
@@ -58,6 +60,12 @@ If
 is a null pointer or the empty string, a pointer to the string
 .Qq \&.
 is returned.
+.Pp
+The
+.Fn basename_r
+variation accepts a buffer of at least
+.Dv MAXPATHLEN
+bytes in which to store the resulting component.
 .Sh IMPLEMENTATION NOTES
 The
 .Fn basename
@@ -65,15 +73,17 @@ function
 returns a pointer to internal storage space allocated on the first call
 that will be overwritten
 by subsequent calls.
+.Fn basename_r
+is therefore preferred for threaded applications.
 .Sh RETURN VALUES
 On successful completion,
 .Fn basename
-returns a pointer to the last component of
+and
+.Fn basename_r
+return pointers to the last component of
 .Fa path .
 .Pp
-If
-.Fn basename
-fails, a null pointer is returned and the global variable
+If they fail, a null pointer is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
