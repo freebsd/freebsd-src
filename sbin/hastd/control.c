@@ -387,7 +387,8 @@ ctrl_thread(void *arg)
 				pthread_exit(NULL);
 			pjdlog_errno(LOG_ERR,
 			    "Unable to receive control message");
-			continue;
+			kill(getpid(), SIGTERM);
+			pthread_exit(NULL);
 		}
 		cmd = nv_get_uint8(nvin, "cmd");
 		if (cmd == 0) {
