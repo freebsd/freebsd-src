@@ -313,7 +313,6 @@ init_environment(struct hast_resource *res __unused)
 {
 	struct hio *hio;
 	unsigned int ii, ncomps;
-	sigset_t mask;
 
 	/*
 	 * In the future it might be per-resource value.
@@ -420,15 +419,6 @@ init_environment(struct hast_resource *res __unused)
 		hio->hio_ggio.gctl_error = 0;
 		TAILQ_INSERT_HEAD(&hio_free_list, hio, hio_free_next);
 	}
-
-	/*
-	 * Turn on signals handling.
-	 */
-	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
-	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
-	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
-	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
-	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 }
 
 static void
@@ -799,9 +789,6 @@ hastd_primary(struct hast_resource *res)
 	hook_fini();
 
 	setproctitle("%s (primary)", res->hr_name);
-
-	signal(SIGHUP, SIG_DFL);
-	signal(SIGCHLD, SIG_DFL);
 
 	/* Declare that we are sender. */
 	proto_send(res->hr_event, NULL, 0);

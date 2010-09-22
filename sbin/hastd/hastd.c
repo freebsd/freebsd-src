@@ -63,10 +63,6 @@ __FBSDID("$FreeBSD$");
 const char *cfgpath = HAST_CONFIG;
 /* Hastd configuration. */
 static struct hastd_config *cfg;
-/* Was SIGCHLD signal received? */
-bool sigchld_received = false;
-/* Was SIGHUP signal received? */
-bool sighup_received = false;
 /* Was SIGINT or SIGTERM signal received? */
 bool sigexit_received = false;
 /* PID file handle. */
@@ -80,26 +76,6 @@ usage(void)
 {
 
 	errx(EX_USAGE, "[-dFh] [-c config] [-P pidfile]");
-}
-
-static void
-sighandler(int sig)
-{
-
-	switch (sig) {
-	case SIGINT:
-	case SIGTERM:
-		sigexit_received = true;
-		break;
-	case SIGCHLD:
-		sigchld_received = true;
-		break;
-	case SIGHUP:
-		sighup_received = true;
-		break;
-	default:
-		assert(!"invalid condition");
-	}
 }
 
 static void
@@ -625,26 +601,41 @@ static void
 main_loop(void)
 {
 	struct hast_resource *res;
-	struct timeval timeout;
-	int fd, maxfd, ret;
+	struct timeval seltimeout;
+	struct timespec sigtimeout;
+	int fd, maxfd, ret, signo;
+	sigset_t mask;
 	fd_set rfds;
 
-	timeout.tv_sec = REPORT_INTERVAL;
-	timeout.tv_usec = 0;
+	seltimeout.tv_sec = REPORT_INTERVAL;
+	seltimeout.tv_usec = 0;
+	sigtimeout.tv_sec = 0;
+	sigtimeout.tv_nsec = 0;
+
+	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGCHLD) == 0);
 
 	for (;;) {
-		if (sigexit_received) {
-			sigexit_received = false;
-			terminate_workers();
-			exit(EX_OK);
-		}
-		if (sigchld_received) {
-			sigchld_received = false;
-			child_exit();
-		}
-		if (sighup_received) {
-			sighup_received = false;
-			hastd_reload();
+		while ((signo = sigtimedwait(&mask, NULL, &sigtimeout)) != -1) {
+			switch (signo) {
+			case SIGINT:
+			case SIGTERM:
+				sigexit_received = true;
+				terminate_workers();
+				exit(EX_OK);
+				break;
+			case SIGCHLD:
+				child_exit();
+				break;
+			case SIGHUP:
+				hastd_reload();
+				break;
+			default:
+				assert(!"invalid condition");
+			}
 		}
 
 		/* Setup descriptors for select(2). */
@@ -666,7 +657,7 @@ main_loop(void)
 		}
 
 		assert(maxfd + 1 <= (int)FD_SETSIZE);
-		ret = select(maxfd + 1, &rfds, NULL, NULL, &timeout);
+		ret = select(maxfd + 1, &rfds, NULL, NULL, &seltimeout);
 		if (ret == 0)
 			hook_check(false);
 		else if (ret == -1) {
@@ -701,6 +692,7 @@ main(int argc, char *argv[])
 	pid_t otherpid;
 	bool foreground;
 	int debuglevel;
+	sigset_t mask;
 
 	g_gate_load();
 
@@ -751,10 +743,12 @@ main(int argc, char *argv[])
 	cfg = yy_config_parse(cfgpath, true);
 	assert(cfg != NULL);
 
-	signal(SIGINT, sighandler);
-	signal(SIGTERM, sighandler);
-	signal(SIGHUP, sighandler);
-	signal(SIGCHLD, sighandler);
+	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
+	PJDLOG_VERIFY(sigaddset(&mask, SIGCHLD) == 0);
+	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
 	/* Listen on control address. */
 	if (proto_server(cfg->hc_controladdr, &cfg->hc_controlconn) < 0) {
