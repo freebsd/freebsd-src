@@ -807,10 +807,20 @@ hastd_primary(struct hast_resource *res)
 	proto_send(res->hr_event, NULL, 0);
 
 	init_local(res);
-	if (real_remote(res) && init_remote(res, NULL, NULL))
-		sync_start();
 	init_ggate(res);
 	init_environment(res);
+	/*
+	 * Create the control thread before sending any event to the parent,
+	 * as we can deadlock when parent sends control request to worker,
+	 * but worker has no control thread started yet, so parent waits.
+	 * In the meantime worker sends an event to the parent, but parent
+	 * is unable to handle the event, because it waits for control
+	 * request response.
+	 */
+	error = pthread_create(&td, NULL, ctrl_thread, res);
+	assert(error == 0);
+	if (real_remote(res) && init_remote(res, NULL, NULL))
+		sync_start();
 	error = pthread_create(&td, NULL, ggate_recv_thread, res);
 	assert(error == 0);
 	error = pthread_create(&td, NULL, local_send_thread, res);
@@ -822,8 +832,6 @@ hastd_primary(struct hast_resource *res)
 	error = pthread_create(&td, NULL, ggate_send_thread, res);
 	assert(error == 0);
 	error = pthread_create(&td, NULL, sync_thread, res);
-	assert(error == 0);
-	error = pthread_create(&td, NULL, ctrl_thread, res);
 	assert(error == 0);
 	(void)guard_thread(res);
 }
