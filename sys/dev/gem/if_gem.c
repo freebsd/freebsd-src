@@ -268,10 +268,17 @@ gem_attach(struct gem_softc *sc)
 		sc->sc_rxsoft[i].rxs_mbuf = NULL;
 	}
 
+	/* Bypass probing PHYs if we already know for sure to use a SERDES. */
+	if ((sc->sc_flags & GEM_SERDES) != 0)
+		goto serdes;
+
 	/* Bad things will happen when touching this register on ERI. */
-	if (sc->sc_variant != GEM_SUN_ERI)
+	if (sc->sc_variant != GEM_SUN_ERI) {
 		GEM_BANK1_WRITE_4(sc, GEM_MII_DATAPATH_MODE,
 		    GEM_MII_DATAPATH_MII);
+		GEM_BANK1_BARRIER(sc, GEM_MII_DATAPATH_MODE, 4,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	}
 
 	gem_mifinit(sc);
 
@@ -283,6 +290,8 @@ gem_attach(struct gem_softc *sc)
 	if ((v & GEM_MIF_CONFIG_MDI1) != 0) {
 		v |= GEM_MIF_CONFIG_PHY_SEL;
 		GEM_BANK1_WRITE_4(sc, GEM_MIF_CONFIG, v);
+		GEM_BANK1_BARRIER(sc, GEM_MIF_CONFIG, 4,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 		switch (sc->sc_variant) {
 		case GEM_SUN_ERI:
 			sc->sc_phyad = GEM_PHYAD_EXTERNAL;
@@ -304,6 +313,8 @@ gem_attach(struct gem_softc *sc)
 	    ((v & GEM_MIF_CONFIG_MDI0) != 0 || GEM_IS_APPLE(sc))) {
 		v &= ~GEM_MIF_CONFIG_PHY_SEL;
 		GEM_BANK1_WRITE_4(sc, GEM_MIF_CONFIG, v);
+		GEM_BANK1_BARRIER(sc, GEM_MIF_CONFIG, 4,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 		switch (sc->sc_variant) {
 		case GEM_SUN_ERI:
 		case GEM_APPLE_K2_GMAC:
@@ -324,17 +335,23 @@ gem_attach(struct gem_softc *sc)
 	 * Try the external PCS SERDES if we didn't find any PHYs.
 	 */
 	if (error != 0 && sc->sc_variant == GEM_SUN_GEM) {
+ serdes:
 		GEM_BANK1_WRITE_4(sc, GEM_MII_DATAPATH_MODE,
 		    GEM_MII_DATAPATH_SERDES);
+		GEM_BANK1_BARRIER(sc, GEM_MII_DATAPATH_MODE, 4,
+		    BUS_SPACE_BARRIER_WRITE);
 		GEM_BANK1_WRITE_4(sc, GEM_MII_SLINK_CONTROL,
 		    GEM_MII_SLINK_LOOPBACK | GEM_MII_SLINK_EN_SYNC_D);
+		GEM_BANK1_BARRIER(sc, GEM_MII_SLINK_CONTROL, 4,
+		    BUS_SPACE_BARRIER_WRITE);
 		GEM_BANK1_WRITE_4(sc, GEM_MII_CONFIG, GEM_MII_CONFIG_ENABLE);
+		GEM_BANK1_BARRIER(sc, GEM_MII_CONFIG, 4,
+		    BUS_SPACE_BARRIER_WRITE);
 		sc->sc_flags |= GEM_SERDES;
 		sc->sc_phyad = GEM_PHYAD_EXTERNAL;
 		error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
 		    gem_mediachange, gem_mediastatus);
 	}
-
 	if (error != 0) {
 		device_printf(sc->sc_dev, "PHY probe failed: %d\n", error);
 		goto fail_rxd;
@@ -918,8 +935,9 @@ gem_init_locked(struct gem_softc *sc)
 	    __func__);
 #endif
 
-	/* Re-initialize the MIF. */
-	gem_mifinit(sc);
+	if ((sc->sc_flags & GEM_SERDES) == 0)
+		/* Re-initialize the MIF. */
+		gem_mifinit(sc);
 
 	/* step 3.  Setup data structures in host memory. */
 	if (gem_meminit(sc) != 0)
@@ -1800,6 +1818,8 @@ gem_mifinit(struct gem_softc *sc)
 	/* Configure the MIF in frame mode. */
 	GEM_BANK1_WRITE_4(sc, GEM_MIF_CONFIG,
 	    GEM_BANK1_READ_4(sc, GEM_MIF_CONFIG) & ~GEM_MIF_CONFIG_BB_ENA);
+	GEM_BANK1_BARRIER(sc, GEM_MIF_CONFIG, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 /*
@@ -1914,10 +1934,16 @@ gem_mii_writereg(device_t dev, int phy, int reg, int val)
 			GEM_BANK1_BARRIER(sc, GEM_MII_CONFIG, 4,
 			    BUS_SPACE_BARRIER_WRITE);
 			GEM_BANK1_WRITE_4(sc, GEM_MII_ANAR, val);
+			GEM_BANK1_BARRIER(sc, GEM_MII_ANAR, 4,
+			    BUS_SPACE_BARRIER_WRITE);
 			GEM_BANK1_WRITE_4(sc, GEM_MII_SLINK_CONTROL,
 			    GEM_MII_SLINK_LOOPBACK | GEM_MII_SLINK_EN_SYNC_D);
+			GEM_BANK1_BARRIER(sc, GEM_MII_SLINK_CONTROL, 4,
+			    BUS_SPACE_BARRIER_WRITE);
 			GEM_BANK1_WRITE_4(sc, GEM_MII_CONFIG,
 			    GEM_MII_CONFIG_ENABLE);
+			GEM_BANK1_BARRIER(sc, GEM_MII_CONFIG, 4,
+			    BUS_SPACE_BARRIER_WRITE);
 			return (0);
 		case MII_ANLPAR:
 			reg = GEM_MII_ANLPAR;
@@ -1928,6 +1954,8 @@ gem_mii_writereg(device_t dev, int phy, int reg, int val)
 			return (0);
 		}
 		GEM_BANK1_WRITE_4(sc, reg, val);
+		GEM_BANK1_BARRIER(sc, reg, 4,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 		return (0);
 	}
 
