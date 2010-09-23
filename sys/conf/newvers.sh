@@ -48,7 +48,6 @@ else
 		${SYSDIR}/sys/param.h)
 fi
 
-
 b=share/examples/etc/bsd-style-copyright
 year=`date '+%Y'`
 # look for copyright template
