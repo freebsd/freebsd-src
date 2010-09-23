@@ -252,10 +252,12 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crd->crd_skip = 0;
 		crd->crd_len = secsize;
 		crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
+		if (sc->sc_nekeys > 1)
+			crd->crd_flags |= CRD_F_KEY_EXPLICIT;
 		if (bp->bio_cmd == BIO_WRITE)
 			crd->crd_flags |= CRD_F_ENCRYPT;
 		crd->crd_alg = sc->sc_ealgo;
-		crd->crd_key = sc->sc_ekey;
+		crd->crd_key = g_eli_crypto_key(sc, dstoff, secsize);
 		crd->crd_klen = sc->sc_ekeylen;
 		g_eli_crypto_ivgen(sc, dstoff, crd->crd_iv,
 		    sizeof(crd->crd_iv));
