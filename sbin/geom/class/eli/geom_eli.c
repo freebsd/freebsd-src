@@ -1081,8 +1081,8 @@ static int
 eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 {
 	struct g_eli_metadata md;
-	unsigned secsize;
 	unsigned char *sector;
+	ssize_t secsize;
 	off_t mediasize;
 	int filefd, provfd, ret;
 
@@ -1091,13 +1091,7 @@ eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 	sector = NULL;
 	secsize = 0;
 
-	provfd = open(prov, O_RDONLY);
-	if (provfd == -1 && errno == ENOENT && prov[0] != '/') {
-		char devprov[MAXPATHLEN];
-
-		snprintf(devprov, sizeof(devprov), "%s%s", _PATH_DEV, prov);
-		provfd = open(devprov, O_RDONLY);
-	}
+	provfd = g_open(prov, 0);
 	if (provfd == -1) {
 		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
 		goto out;
@@ -1108,9 +1102,9 @@ eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 		goto out;
 	}
 
-	mediasize = g_get_mediasize(prov);
-	secsize = g_get_sectorsize(prov);
-	if (mediasize == 0 || secsize == 0) {
+	mediasize = g_mediasize(provfd);
+	secsize = g_sectorsize(provfd);
+	if (mediasize == -1 || secsize == -1) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
 		goto out;
@@ -1123,8 +1117,7 @@ eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 	}
 
 	/* Read metadata from the provider. */
-	if (pread(provfd, sector, secsize, mediasize - secsize) !=
-	    (ssize_t)secsize) {
+	if (pread(provfd, sector, secsize, mediasize - secsize) != secsize) {
 		gctl_error(req, "Cannot read metadata: %s.", strerror(errno));
 		goto out;
 	}
@@ -1134,18 +1127,19 @@ eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 		goto out;
 	}
 	/* Write metadata to the destination file. */
-	if (write(filefd, sector, secsize) != (ssize_t)secsize) {
+	if (write(filefd, sector, secsize) != secsize) {
 		gctl_error(req, "Cannot write to %s: %s.", file,
 		    strerror(errno));
 		goto out;
 	}
+	(void)fsync(filefd);
 	/* Success. */
 	ret = 0;
 out:
-	if (provfd > 0)
-		close(provfd);
-	if (filefd > 0)
-		close(filefd);
+	if (provfd >= 0)
+		(void)g_close(provfd);
+	if (filefd >= 0)
+		(void)close(filefd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);
