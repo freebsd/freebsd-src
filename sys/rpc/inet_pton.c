@@ -218,11 +218,4 @@ inet_pton6(const char *src, u_char *dst)
 	return (1);
 }
 
-/*
- * Weak aliases for applications that use certain private entry points,
- * and fail to include <arpa/inet.h>.
- */
-#undef inet_pton
-__weak_reference(__inet_pton, inet_pton);
-
 /*! \file */
