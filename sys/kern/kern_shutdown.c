@@ -686,7 +686,9 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
     off_t offset, size_t length)
 {
 
-	if (length != 0 && (offset < di->mediaoffset ||
+	/* If the upper bound is 0, dumper likely will not use disks. */
+	if ((di->mediaoffset + di->mediasize) != 0 && length != 0 &&
+	    (offset < di->mediaoffset ||
 	    offset - di->mediaoffset + length > di->mediasize)) {
 		printf("Attempt to write outside dump device boundaries.\n");
 		return (ENXIO);
