@@ -597,25 +597,33 @@ static const int32_t uplcom_rates[] = {
 static int
 uplcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
+	struct uplcom_softc *sc = ucom->sc_parent;
 	uint8_t i;
 
 	DPRINTF("\n");
 
-	/* check requested baud rate */
-
-	for (i = 0;; i++) {
-
-		if (i != N_UPLCOM_RATES) {
-			if (uplcom_rates[i] == t->c_ospeed) {
-				break;
-			}
-		} else {
-			DPRINTF("invalid baud rate (%d)\n", t->c_ospeed);
-			return (EIO);
+	/**
+	 * Check requested baud rate.
+	 *
+	 * The PL2303 can only set specific baud rates, up to 1228800 baud.
+	 * The PL2303X can set any baud rate up to 6Mb.
+	 * The PL2303HX rev. D can set any baud rate up to 12Mb.
+	 *
+	 * XXX: We currently cannot identify the PL2303HX rev. D, so treat
+	 *      it the same as the PL2303X.
+	 */
+	if (sc->sc_chiptype == TYPE_PL2303) {
+		for (i = 0; i < N_UPLCOM_RATES; i++) {
+			if (uplcom_rates[i] == t->c_ospeed)
+				return (0);
 		}
+ 	} else {
+		if (t->c_ospeed <= 6000000)
+			return (0);
 	}
 
-	return (0);
+	DPRINTF("uplcom_param: bad baud rate (%d)\n", t->c_ospeed);
+	return (EIO);
 }
 
 static void
