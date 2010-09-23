@@ -105,7 +105,7 @@ The default extent size is
 Maximum number of dirty extents to keep dirty all the time.
 Most recently used extents are kept dirty to reduce number of metadata
 updates.
-The default numer of most recently used extents which will be kept
+The default number of most recently used extents which will be kept
 dirty is
 .Va 64 .
 .It Fl m Ar mediasize
@@ -153,6 +153,20 @@ Print debugging information.
 This option can be specified multiple times to raise the verbosity
 level.
 .El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/hastctl" -compact
+.It Pa /etc/hast.conf
+Configuration file for
+.Nm
+and
+.Xr hastd 8 .
+.It Pa /var/run/hastctl
+Control socket used by
+.Nm
+to communicate with the
+.Xr hastd 8
+daemon.
+.El
 .Sh EXIT STATUS
 Exit status is 0 on success, or one of the values described in
 .Xr sysexits 3
@@ -164,7 +178,7 @@ nodeB# hastctl create shared
 nodeB# hastd
 nodeB# hastctl role secondary shared
 
-nodeB# hastctl create shared
+nodeA# hastctl create shared
 nodeA# hastd
 nodeA# hastctl role primary shared
 nodeA# newfs -U /dev/hast/shared
@@ -185,20 +199,6 @@ nodeB# fsck -t ufs /dev/hast/shared
 nodeB# mount -o noatime /dev/hast/shared /shared
 nodeB# application_start
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /var/run/hastctl" -compact
-.It Pa /etc/hast.conf
-Configuration file for
-.Nm
-and
-.Xr hastd 8 .
-.It Pa /var/run/hastctl
-Control socket used by
-.Nm
-to communicate with the
-.Xr hastd 8
-daemon.
-.El
 .Sh SEE ALSO
 .Xr sysexits 3 ,
 .Xr geom 4 ,
