@@ -739,6 +739,13 @@ g_eli_kill_one(struct g_eli_softc *sc)
 				if (error == 0)
 					error = err;
 			}
+			err = g_io_flush(cp);
+			if (err != 0) {
+				G_ELI_DEBUG(0, "Cannot flush %s (error=%d).",
+				    pp->name, err);
+				if (error == 0)
+					error = err;
+			}
 		}
 		free(sector, M_ELI);
 	}
