@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2010
+.Dd September 23, 2010
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -151,11 +151,12 @@ framework, so when there is crypto hardware available,
 will make use of it automatically.
 .It
 Supports many cryptographic algorithms (currently
-.Nm AES ,
-.Nm Blowfish ,
-.Nm Camellia
+.Nm AES-XTS ,
+.Nm AES-CBC ,
+.Nm Blowfish-CBC ,
+.Nm Camellia-CBC
 and
-.Nm 3DES ) .
+.Nm 3DES-CBC ) .
 .It
 Can optionally perform data authentication (integrity verification) utilizing
 one of the following algorithms:
@@ -257,13 +258,14 @@ as the
 .It Fl e Ar ealgo
 Encryption algorithm to use.
 Currently supported algorithms are:
-.Nm AES ,
-.Nm Blowfish ,
-.Nm Camellia
+.Nm AES-XTS ,
+.Nm AES-CBC ,
+.Nm Blowfish-CBC ,
+.Nm Camellia-CBC
 and
-.Nm 3DES .
+.Nm 3DES-CBC .
 The default and recommended algorithm is
-.Nm AES .
+.Nm AES-XTS .
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2.
 If this option is not specified,
@@ -283,13 +285,13 @@ Here is how more than one file with a key component can be used:
 Key length to use with the given cryptographic algorithm.
 If not given, the default key length for the given algorithm is used, which is:
 128 for
-.Nm AES ,
-128 for
-.Nm Blowfish ,
-128 for
-.Nm Camellia
+.Nm AES-XTS ,
+.Nm AES-CBC ,
+.Nm Blowfish-CBC
+and
+.Nm Camellia-CBC
 and 192 for
-.Nm 3DES .
+.Nm 3DES-CBC .
 .It Fl P
 Do not use passphrase as the key component.
 .It Fl s Ar sectorsize
@@ -709,6 +711,21 @@ update the metadata:
 # geli resize -s 1g ada0p1
 # geli attach -k keyfile -p ada0p1
 .Ed
+.Sh ENCRYPTION MODES
+.Nm
+supports two encryption modes:
+.Nm XTS ,
+which was standarized as
+.Nm IEE P1619
+and
+.Nm CBC
+with unpredictable IV.
+The
+.Nm CBC
+mode used by
+.Nm
+is very similar to the mode
+.Nm ESSIV .
 .Sh DATA AUTHENTICATION
 .Nm
 can verify data integrity when an authentication algorithm is specified.
