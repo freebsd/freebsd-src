@@ -175,8 +175,9 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	struct cryptodesc *crd;
 	struct uio *uio;
 	struct iovec *iov;
-	u_int i, nsec, add, secsize;
+	u_int i, nsec, secsize;
 	int err, error;
+	off_t dstoff;
 	size_t size;
 	u_char *p, *data;
 
@@ -219,7 +220,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	}
 
 	error = 0;
-	for (i = 0, add = 0; i < nsec; i++, add += secsize) {
+	for (i = 0, dstoff = bp->bio_offset; i < nsec; i++, dstoff += secsize) {
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
 		crd = (struct cryptodesc *)p;	p += sizeof(*crd);
 		uio = (struct uio *)p;		p += sizeof(*uio);
@@ -256,7 +257,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crd->crd_alg = sc->sc_ealgo;
 		crd->crd_key = sc->sc_ekey;
 		crd->crd_klen = sc->sc_ekeylen;
-		g_eli_crypto_ivgen(sc, bp->bio_offset + add, crd->crd_iv,
+		g_eli_crypto_ivgen(sc, dstoff, crd->crd_iv,
 		    sizeof(crd->crd_iv));
 		crd->crd_next = NULL;
 
