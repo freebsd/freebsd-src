@@ -60,7 +60,7 @@
  * 3 - Added 'configure' subcommand.
  * 4 - IV is generated from offset converted to little-endian
  *     (flag G_ELI_FLAG_NATIVE_BYTE_ORDER will be set for older versions).
- * 5 - Added multiple encrypton keys.
+ * 5 - Added multiple encrypton keys and AES-XTS support.
  */
 #define	G_ELI_VERSION		5
 
@@ -294,13 +294,25 @@ g_eli_str2ealgo(const char *name)
 
 	if (strcasecmp("null", name) == 0)
 		return (CRYPTO_NULL_CBC);
+	else if (strcasecmp("null-cbc", name) == 0)
+		return (CRYPTO_NULL_CBC);
 	else if (strcasecmp("aes", name) == 0)
+		return (CRYPTO_AES_XTS);
+	else if (strcasecmp("aes-cbc", name) == 0)
 		return (CRYPTO_AES_CBC);
+	else if (strcasecmp("aes-xts", name) == 0)
+		return (CRYPTO_AES_XTS);
 	else if (strcasecmp("blowfish", name) == 0)
+		return (CRYPTO_BLF_CBC);
+	else if (strcasecmp("blowfish-cbc", name) == 0)
 		return (CRYPTO_BLF_CBC);
 	else if (strcasecmp("camellia", name) == 0)
 		return (CRYPTO_CAMELLIA_CBC);
+	else if (strcasecmp("camellia-cbc", name) == 0)
+		return (CRYPTO_CAMELLIA_CBC);
 	else if (strcasecmp("3des", name) == 0)
+		return (CRYPTO_3DES_CBC);
+	else if (strcasecmp("3des-cbc", name) == 0)
 		return (CRYPTO_3DES_CBC);
 	return (CRYPTO_ALGORITHM_MIN - 1);
 }
@@ -333,6 +345,8 @@ g_eli_algo2str(u_int algo)
 		return ("NULL");
 	case CRYPTO_AES_CBC:
 		return ("AES-CBC");
+	case CRYPTO_AES_XTS:
+		return ("AES-XTS");
 	case CRYPTO_BLF_CBC:
 		return ("Blowfish-CBC");
 	case CRYPTO_CAMELLIA_CBC:
@@ -413,6 +427,16 @@ g_eli_keylen(u_int algo, u_int keylen)
 			return (128);
 		case 128:
 		case 192:
+		case 256:
+			return (keylen);
+		default:
+			return (0);
+		}
+	case CRYPTO_AES_XTS:
+		switch (keylen) {
+		case 0:
+			return (128);
+		case 128:
 		case 256:
 			return (keylen);
 		default:
