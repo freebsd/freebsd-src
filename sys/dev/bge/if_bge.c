@@ -2644,12 +2644,11 @@ bge_attach(device_t dev)
 		goto fail;
 	}
 
-	if (bootverbose)
-		device_printf(dev,
-		    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; %s\n",
-		    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev,
-		    (sc->bge_flags & BGE_FLAG_PCIX) ? "PCI-X" :
-		    ((sc->bge_flags & BGE_FLAG_PCIE) ? "PCI-E" : "PCI"));
+	device_printf(dev,
+	    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; %s\n",
+	    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev,
+	    (sc->bge_flags & BGE_FLAG_PCIX) ? "PCI-X" :
+	    ((sc->bge_flags & BGE_FLAG_PCIE) ? "PCI-E" : "PCI"));
 
 	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
