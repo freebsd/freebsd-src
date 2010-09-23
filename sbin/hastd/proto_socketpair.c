@@ -140,6 +140,10 @@ sp_send(void *ctx, const unsigned char *data, size_t size)
 		abort();
 	}
 
+	/* Someone is just trying to decide about side. */
+	if (data == NULL)
+		return (0);
+
 	return (proto_common_send(fd, data, size));
 }
 
@@ -173,6 +177,10 @@ sp_recv(void *ctx, unsigned char *data, size_t size)
 	default:
 		abort();
 	}
+
+	/* Someone is just trying to decide about side. */
+	if (data == NULL)
+		return (0);
 
 	return (proto_common_recv(fd, data, size));
 }
@@ -271,5 +279,5 @@ static __constructor void
 sp_ctor(void)
 {
 
-	proto_register(&sp_proto);
+	proto_register(&sp_proto, false);
 }

@@ -5,7 +5,7 @@
 PROG=	hastd
 SRCS=	activemap.c
 SRCS+=	control.c
-SRCS+=	ebuf.c
+SRCS+=	ebuf.c event.c
 SRCS+=	hast_proto.c hastd.c hooks.c
 SRCS+=	metadata.c
 SRCS+=	nv.c

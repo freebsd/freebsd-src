@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
- *
- * This software was developed by Pawel Jakub Dawidek under sponsorship from
- * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,21 +26,21 @@
  * $FreeBSD$
  */
 
-#ifndef	_HASTD_H_
-#define	_HASTD_H_
+#ifndef	_EVENT_H_
+#define	_EVENT_H_
 
-#include <sys/param.h>
-#include <libutil.h>
+#define	EVENT_NONE		0
+#define	EVENT_CONNECT		1
+#define	EVENT_DISCONNECT	2
+#define	EVENT_SYNCSTART		3
+#define	EVENT_SYNCDONE		4
+#define	EVENT_SYNCINTR		5
+#define	EVENT_SPLITBRAIN	6
 
-#include <nv.h>
+#define	EVENT_MIN		EVENT_CONNECT
+#define	EVENT_MAX		EVENT_SPLITBRAIN
 
-#include "hast.h"
+void event_send(const struct hast_resource *res, int event);
+int event_recv(const struct hast_resource *res);
 
-extern const char *cfgpath;
-extern bool sigexit_received;
-extern struct pidfh *pfh;
-
-void hastd_primary(struct hast_resource *res);
-void hastd_secondary(struct hast_resource *res, struct nv *nvin);
-
-#endif	/* !_HASTD_H_ */
+#endif	/* !_EVENT_H_ */
