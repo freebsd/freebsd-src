@@ -1176,7 +1176,7 @@ eli_restore(struct gctl_req *req)
 	struct g_eli_metadata md;
 	const char *file, *prov;
 	unsigned char *sector;
-	unsigned secsize;
+	ssize_t secsize;
 	off_t mediasize;
 	int nargs, filefd, provfd;
 
@@ -1197,21 +1197,15 @@ eli_restore(struct gctl_req *req)
 		gctl_error(req, "Cannot open %s: %s.", file, strerror(errno));
 		goto out;
 	}
-	provfd = open(prov, O_WRONLY);
-	if (provfd == -1 && errno == ENOENT && prov[0] != '/') {
-		char devprov[MAXPATHLEN];
-
-		snprintf(devprov, sizeof(devprov), "%s%s", _PATH_DEV, prov);
-		provfd = open(devprov, O_WRONLY);
-	}
+	provfd = g_open(prov, 1);
 	if (provfd == -1) {
 		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
 		goto out;
 	}
 
-	mediasize = g_get_mediasize(prov);
-	secsize = g_get_sectorsize(prov);
-	if (mediasize == 0 || secsize == 0) {
+	mediasize = g_mediasize(provfd);
+	secsize = g_sectorsize(provfd);
+	if (mediasize == -1 || secsize == -1) {
 		gctl_error(req, "Cannot get informations about %s: %s.", prov,
 		    strerror(errno));
 		goto out;
@@ -1224,7 +1218,7 @@ eli_restore(struct gctl_req *req)
 	}
 
 	/* Read metadata from the backup file. */
-	if (read(filefd, sector, secsize) != (ssize_t)secsize) {
+	if (read(filefd, sector, secsize) != secsize) {
 		gctl_error(req, "Cannot read from %s: %s.", file,
 		    strerror(errno));
 		goto out;
@@ -1246,16 +1240,16 @@ eli_restore(struct gctl_req *req)
 		}
 	}
 	/* Write metadata from the provider. */
-	if (pwrite(provfd, sector, secsize, mediasize - secsize) !=
-	    (ssize_t)secsize) {
+	if (pwrite(provfd, sector, secsize, mediasize - secsize) != secsize) {
 		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
 		goto out;
 	}
+	(void)g_flush(provfd);
 out:
-	if (provfd > 0)
-		close(provfd);
-	if (filefd > 0)
-		close(filefd);
+	if (provfd >= 0)
+		(void)g_close(provfd);
+	if (filefd >= 0)
+		(void)close(filefd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);
@@ -1341,6 +1335,7 @@ eli_resize(struct gctl_req *req)
 		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
 		goto out;
 	}
+	(void)g_flush(provfd);
 
 	/* Now trash the old metadata. */
 	arc4rand(sector, secsize);
