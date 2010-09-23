@@ -259,6 +259,8 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crd->crd_alg = sc->sc_ealgo;
 		crd->crd_key = g_eli_crypto_key(sc, dstoff, secsize);
 		crd->crd_klen = sc->sc_ekeylen;
+		if (sc->sc_ealgo == CRYPTO_AES_XTS)
+			crd->crd_klen <<= 1;
 		g_eli_crypto_ivgen(sc, dstoff, crd->crd_iv,
 		    sizeof(crd->crd_iv));
 		crd->crd_next = NULL;
