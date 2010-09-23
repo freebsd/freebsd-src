@@ -409,18 +409,31 @@ void
 g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size)
 {
-	u_char off[8], hash[SHA256_DIGEST_LENGTH];
-	SHA256_CTX ctx;
+	uint8_t off[8];
 
 	if ((sc->sc_flags & G_ELI_FLAG_NATIVE_BYTE_ORDER) != 0)
 		bcopy(&offset, off, sizeof(off));
 	else
 		le64enc(off, (uint64_t)offset);
-	/* Copy precalculated SHA256 context for IV-Key. */
-	bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
-	SHA256_Update(&ctx, off, sizeof(off));
-	SHA256_Final(hash, &ctx);
-	bcopy(hash, iv, size);
+
+	switch (sc->sc_ealgo) {
+	case CRYPTO_AES_XTS:
+		bcopy(off, iv, sizeof(off));
+		bzero(iv + sizeof(off), size - sizeof(off));
+		break;
+	default:
+	    {
+		u_char hash[SHA256_DIGEST_LENGTH];
+		SHA256_CTX ctx;
+
+		/* Copy precalculated SHA256 context for IV-Key. */
+		bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
+		SHA256_Update(&ctx, off, sizeof(off));
+		SHA256_Final(hash, &ctx);
+		bcopy(hash, iv, MIN(sizeof(hash), size));
+		break;
+	    }
+	}
 }
 
 int
@@ -672,14 +685,23 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 * This is expensive operation and we can do it only once now or for
 	 * every access to sector, so now will be much better.
 	 */
-	SHA256_Init(&sc->sc_ivctx);
-	SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey, sizeof(sc->sc_ivkey));
+	switch (sc->sc_ealgo) {
+	case CRYPTO_AES_XTS:
+		break;
+	default:
+		SHA256_Init(&sc->sc_ivctx);
+		SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey,
+		    sizeof(sc->sc_ivkey));
+		break;
+	}
 
 	LIST_INIT(&sc->sc_workers);
 
 	bzero(&crie, sizeof(crie));
 	crie.cri_alg = sc->sc_ealgo;
 	crie.cri_klen = sc->sc_ekeylen;
+	if (sc->sc_ealgo == CRYPTO_AES_XTS)
+		crie.cri_klen <<= 1;
 	crie.cri_key = sc->sc_ekeys[0];
 	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
 		bzero(&cria, sizeof(cria));
