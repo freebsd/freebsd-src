@@ -1302,6 +1302,10 @@ eli_resize(struct gctl_req *req)
 		gctl_error(req, "Invalid oldsize: Out of range.");
 		goto out;
 	}
+	if (oldsize == mediasize) {
+		gctl_error(req, "Size hasn't changed.");
+		goto out;
+	}
 
 	/* Read metadata from the 'oldsize' offset. */
 	if (pread(provfd, sector, secsize, oldsize - secsize) != secsize) {
