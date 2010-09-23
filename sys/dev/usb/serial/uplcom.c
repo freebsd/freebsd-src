@@ -144,7 +144,7 @@ SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RW,
 #define	RSAQ_STATUS_DCD			0x01
 
 #define	TYPE_PL2303			0
-#define	TYPE_PL2303X			1
+#define	TYPE_PL2303HX			1
 
 enum {
 	UPLCOM_BULK_DT_WR,
@@ -174,7 +174,9 @@ struct uplcom_softc {
 /* prototypes */
 
 static usb_error_t uplcom_reset(struct uplcom_softc *, struct usb_device *);
-static int	uplcom_pl2303x_init(struct usb_device *);
+static usb_error_t uplcom_pl2303_do(struct usb_device *, int8_t, uint8_t,
+			uint16_t, uint16_t, uint16_t);
+static int	uplcom_pl2303_init(struct usb_device *, uint8_t);
 static void	uplcom_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uplcom_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	uplcom_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -243,57 +245,33 @@ static struct ucom_callback uplcom_callback = {
 	.ucom_poll = &uplcom_poll,
 };
 
-#define	UPLCOM_DEV(v,p,rl,rh,t)				\
-  { USB_VENDOR(USB_VENDOR_##v), USB_PRODUCT(USB_PRODUCT_##v##_##p), \
-    USB_DEV_BCD_GTEQ(rl), USB_DEV_BCD_LTEQ(rh), USB_DRIVER_INFO(TYPE_##t) }
+#define	UPLCOM_DEV(v,p)				\
+  { USB_VENDOR(USB_VENDOR_##v), USB_PRODUCT(USB_PRODUCT_##v##_##p) }
 
 static const struct usb_device_id uplcom_devs[] = {
-	/* Belkin F5U257 */
-	UPLCOM_DEV(BELKIN, F5U257, 0, 0xFFFF, PL2303X),
-	/* I/O DATA USB-RSAQ */
-	UPLCOM_DEV(IODATA, USBRSAQ, 0, 0xFFFF, PL2303),
-	/* I/O DATA USB-RSAQ2 */
-	UPLCOM_DEV(PROLIFIC, RSAQ2, 0, 0xFFFF, PL2303),
-	/* I/O DATA USB-RSAQ3 */
-	UPLCOM_DEV(PROLIFIC, RSAQ3, 0, 0xFFFF, PL2303X),
-	/* PLANEX USB-RS232 URS-03 */
-	UPLCOM_DEV(ATEN, UC232A, 0, 0xFFFF, PL2303),
-	/* TrendNet TU-S9 */
-	UPLCOM_DEV(PROLIFIC, PL2303, 0x0400, 0xFFFF, PL2303X),
-	/* ST Lab USB-SERIAL-4 */
-	UPLCOM_DEV(PROLIFIC, PL2303, 0x0300, 0x03FF, PL2303X),
-	/* IOGEAR/ATEN UC-232A (also ST Lab USB-SERIAL-1) */
-	UPLCOM_DEV(PROLIFIC, PL2303, 0, 0x02FF, PL2303),
-	/* TDK USB-PHS Adapter UHA6400 */
-	UPLCOM_DEV(TDK, UHA6400, 0, 0xFFFF, PL2303),
-	/* RATOC REX-USB60 */
-	UPLCOM_DEV(RATOC, REXUSB60, 0, 0xFFFF, PL2303),
-	/* ELECOM UC-SGT */
-	UPLCOM_DEV(ELECOM, UCSGT, 0, 0xFFFF, PL2303),
-	UPLCOM_DEV(ELECOM, UCSGT0, 0, 0xFFFF, PL2303),
-	/* Sagem USB-Serial Controller */
-	UPLCOM_DEV(SAGEM, USBSERIAL, 0, 0xFFFF, PL2303X),
-	/* Sony Ericsson USB Cable */
-	UPLCOM_DEV(SONYERICSSON, DCU10, 0, 0xFFFF, PL2303),
-	/* SOURCENEXT KeikaiDenwa 8 */
-	UPLCOM_DEV(SOURCENEXT, KEIKAI8, 0, 0xFFFF, PL2303),
-	/* SOURCENEXT KeikaiDenwa 8 with charger */
-	UPLCOM_DEV(SOURCENEXT, KEIKAI8_CHG, 0, 0, PL2303),
-	/* HAL Corporation Crossam2+USB */
-	UPLCOM_DEV(HAL, IMR001, 0, 0xFFFF, PL2303),
-	/* Sitecom USB to Serial */
-	UPLCOM_DEV(SITECOM, SERIAL, 0, 0xFFFF, PL2303),
-	/* Tripp-Lite U209-000-R */
-	UPLCOM_DEV(TRIPPLITE, U209, 0, 0xFFFF, PL2303X),
-	UPLCOM_DEV(RADIOSHACK, USBCABLE, 0, 0xFFFF, PL2303),
-	/* Prolific Pharos */
-	UPLCOM_DEV(PROLIFIC, PHAROS, 0, 0xFFFF, PL2303),
-	/* Willcom W-SIM */
-	UPLCOM_DEV(PROLIFIC2, WSIM, 0, 0xFFFF, PL2303X),
-	/* Mobile Action MA-620 Infrared Adapter */
-	UPLCOM_DEV(MOBILEACTION, MA620, 0, 0xFFFF, PL2303X),
-	/* Corega CG-USBRS232R */
-	UPLCOM_DEV(COREGA, CGUSBRS232R, 0, 0xFFFF, PL2303X),
+	UPLCOM_DEV(ATEN, UC232A),		/* PLANEX USB-RS232 URS-03 */
+	UPLCOM_DEV(BELKIN, F5U257),		/* Belkin F5U257 */
+	UPLCOM_DEV(COREGA, CGUSBRS232R),	/* Corega CG-USBRS232R */
+	UPLCOM_DEV(ELECOM, UCSGT),		/* ELECOM UC-SGT */
+	UPLCOM_DEV(ELECOM, UCSGT0),		/* ELECOM UC-SGT */
+	UPLCOM_DEV(HAL, IMR001),		/* HAL Corporation Crossam2+USB */
+	UPLCOM_DEV(IODATA, USBRSAQ),		/* I/O DATA USB-RSAQ */
+	UPLCOM_DEV(IODATA, USBRSAQ5),		/* I/O DATA USB-RSAQ5 */
+	UPLCOM_DEV(MOBILEACTION, MA620),	/* Mobile Action MA-620 Infrared Adapter */
+	UPLCOM_DEV(PROLIFIC, PHAROS),		/* Prolific Pharos */
+	UPLCOM_DEV(PROLIFIC, PL2303),		/* Generic */
+	UPLCOM_DEV(PROLIFIC, RSAQ2),		/* I/O DATA USB-RSAQ2 */
+	UPLCOM_DEV(PROLIFIC, RSAQ3),		/* I/O DATA USB-RSAQ3 */
+	UPLCOM_DEV(PROLIFIC2, WSIM),		/* Willcom W-SIM */
+	UPLCOM_DEV(RADIOSHACK, USBCABLE),
+	UPLCOM_DEV(RATOC, REXUSB60),		/* RATOC REX-USB60 */
+	UPLCOM_DEV(SAGEM, USBSERIAL),		/* Sagem USB-Serial Controller */
+	UPLCOM_DEV(SITECOM, SERIAL),		/* Sitecom USB to Serial */
+	UPLCOM_DEV(SONYERICSSON, DCU10),	/* Sony Ericsson USB Cable */
+	UPLCOM_DEV(SOURCENEXT, KEIKAI8),	/* SOURCENEXT KeikaiDenwa 8 */
+	UPLCOM_DEV(SOURCENEXT, KEIKAI8_CHG),	/* SOURCENEXT KeikaiDenwa 8 with charger */
+	UPLCOM_DEV(TDK, UHA6400),		/* TDK USB-PHS Adapter UHA6400 */
+	UPLCOM_DEV(TRIPPLITE, U209),		/* Tripp-Lite U209-000-R */
 };
 #undef UPLCOM_DEV
 
@@ -343,6 +321,7 @@ uplcom_attach(device_t dev)
 	struct uplcom_softc *sc = device_get_softc(dev);
 	struct usb_interface *iface;
 	struct usb_interface_descriptor *id;
+	struct usb_device_descriptor *dd;
 	int error;
 
 	DPRINTFN(11, "\n");
@@ -352,11 +331,19 @@ uplcom_attach(device_t dev)
 
 	DPRINTF("sc = %p\n", sc);
 
-	sc->sc_chiptype = USB_GET_DRIVER_INFO(uaa);
 	sc->sc_udev = uaa->device;
 
+	/* Determine the chip type.  This algorithm is taken from Linux. */
+	dd = usbd_get_device_descriptor(sc->sc_udev);
+	if (dd->bDeviceClass == 0x02)
+		sc->sc_chiptype = TYPE_PL2303;
+	else if (dd->bMaxPacketSize == 0x40)
+		sc->sc_chiptype = TYPE_PL2303HX;
+	else
+		sc->sc_chiptype = TYPE_PL2303;
+
 	DPRINTF("chiptype: %s\n",
-	    (sc->sc_chiptype == TYPE_PL2303X) ?
+	    (sc->sc_chiptype == TYPE_PL2303HX) ?
 	    "2303X" : "2303");
 
 	/*
@@ -420,11 +407,9 @@ uplcom_attach(device_t dev)
 	 * do the initialization during attach so that the system does not
 	 * sleep during open:
 	 */
-	if (sc->sc_chiptype == TYPE_PL2303X) {
-		if (uplcom_pl2303x_init(uaa->device)) {
-			device_printf(dev, "init failed\n");
-			goto detach;
-		}
+	if (uplcom_pl2303_init(uaa->device, sc->sc_chiptype)) {
+		device_printf(dev, "init failed\n");
+		goto detach;
 	}
 	return (0);
 
@@ -462,53 +447,55 @@ uplcom_reset(struct uplcom_softc *sc, struct usb_device *udev)
 	return (usbd_do_request(udev, NULL, &req, NULL));
 }
 
-struct pl2303x_init {
-	uint8_t	req_type;
-	uint8_t	request;
-	uint16_t value;
-	uint16_t index;
-	uint16_t length;
-};
-
-static const struct pl2303x_init pl2303x[] = {
-	{UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8484, 0, 1},
-	{UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x0404, 0, 0},
-	{UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8484, 0, 1},
-	{UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8383, 0, 1},
-	{UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8484, 0, 1},
-	{UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x0404, 1, 0},
-	{UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8484, 0, 1},
-	{UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8383, 0, 1},
-	{UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0, 1, 0},
-	{UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 1, 0, 0},
-	{UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 2, 0x44, 0},
-	{UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 8, 0, 0},
-	{UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 9, 0, 0},
-};
-
-#define	N_PL2302X_INIT	(sizeof(pl2303x)/sizeof(pl2303x[0]))
-
-static int
-uplcom_pl2303x_init(struct usb_device *udev)
+static usb_error_t
+uplcom_pl2303_do(struct usb_device *udev, int8_t req_type, uint8_t request,
+    uint16_t value, uint16_t index, uint16_t length)
 {
 	struct usb_device_request req;
 	usb_error_t err;
 	uint8_t buf[4];
-	uint8_t i;
 
-	for (i = 0; i != N_PL2302X_INIT; i++) {
-		req.bmRequestType = pl2303x[i].req_type;
-		req.bRequest = pl2303x[i].request;
-		USETW(req.wValue, pl2303x[i].value);
-		USETW(req.wIndex, pl2303x[i].index);
-		USETW(req.wLength, pl2303x[i].length);
+	req.bmRequestType = req_type;
+	req.bRequest = request;
+	USETW(req.wValue, value);
+	USETW(req.wIndex, index);
+	USETW(req.wLength, length);
 
-		err = usbd_do_request(udev, NULL, &req, buf);
-		if (err) {
-			DPRINTF("error=%s\n", usbd_errstr(err));
-			return (EIO);
-		}
+	err = usbd_do_request(udev, NULL, &req, buf);
+	if (err) {
+		DPRINTF("error=%s\n", usbd_errstr(err));
+		return (1);
 	}
+	return (0);
+}
+
+static int
+uplcom_pl2303_init(struct usb_device *udev, uint8_t chiptype)
+{
+	int err;
+
+	if (uplcom_pl2303_do(udev, UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8484, 0, 1)
+	    || uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x0404, 0, 0)
+	    || uplcom_pl2303_do(udev, UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8484, 0, 1)
+	    || uplcom_pl2303_do(udev, UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8383, 0, 1)
+	    || uplcom_pl2303_do(udev, UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8484, 0, 1)
+	    || uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x0404, 1, 0)
+	    || uplcom_pl2303_do(udev, UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8484, 0, 1)
+	    || uplcom_pl2303_do(udev, UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8383, 0, 1)
+	    || uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0, 1, 0)
+	    || uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 1, 0, 0))
+		return (EIO);
+
+	if (chiptype == TYPE_PL2303HX)
+		err = uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 2, 0x44, 0);
+	else
+		err = uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 2, 0x24, 0);
+	if (err)
+		return (EIO);
+	
+	if (uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 8, 0, 0)
+	    || uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 9, 0, 0))
+		return (EIO);
 	return (0);
 }
 
@@ -612,7 +599,7 @@ uplcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 	 * XXX: We currently cannot identify the PL2303HX rev. D, so treat
 	 *      it the same as the PL2303X.
 	 */
-	if (sc->sc_chiptype == TYPE_PL2303) {
+	if (sc->sc_chiptype != TYPE_PL2303HX) {
 		for (i = 0; i < N_UPLCOM_RATES; i++) {
 			if (uplcom_rates[i] == t->c_ospeed)
 				return (0);
@@ -691,7 +678,7 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 		req.bRequest = UPLCOM_SET_REQUEST;
 		USETW(req.wValue, 0);
-		if (sc->sc_chiptype == TYPE_PL2303X)
+		if (sc->sc_chiptype == TYPE_PL2303HX)
 			USETW(req.wIndex, UPLCOM_SET_CRTSCTS_PL2303X);
 		else
 			USETW(req.wIndex, UPLCOM_SET_CRTSCTS);
