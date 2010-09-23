@@ -27,6 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -1015,11 +1018,54 @@ eli_delkey(struct gctl_req *req)
 		eli_delkey_detached(req, prov);
 }
 
+static int
+eli_trash_metadata(struct gctl_req *req, const char *prov, int fd, off_t offset)
+{
+	unsigned int overwrites;
+	unsigned char *sector;
+	ssize_t size;
+	int error;
+
+	size = sizeof(overwrites);
+	if (sysctlbyname("kern.geom.eli.overwrites", &overwrites, &size,
+	    NULL, 0) == -1 || overwrites == 0) {
+		overwrites = G_ELI_OVERWRITES;
+	}
+
+	size = g_sectorsize(fd);
+	if (size <= 0) {
+		gctl_error(req, "Cannot obtain provider sector size %s: %s.",
+		    prov, strerror(errno));
+		return (-1);
+	}
+	sector = malloc(size);
+	if (sector == NULL) {
+		gctl_error(req, "Cannot allocate %zd bytes of memory.", size);
+		return (-1);
+	}
+
+	error = 0;
+	do {
+		arc4rand(sector, size);
+		if (pwrite(fd, sector, size, offset) != size) {
+			if (error == 0)
+				error = errno;
+		}
+		(void)g_flush(fd);
+	} while (--overwrites > 0);
+	if (error != 0) {
+		gctl_error(req, "Cannot trash metadata on provider %s: %s.",
+		    prov, strerror(error));
+		return (-1);
+	}
+	return (0);
+}
+
 static void
 eli_kill_detached(struct gctl_req *req, const char *prov)
 {
-	struct g_eli_metadata md;
-	int error;
+	off_t offset;
+	int fd;
 
 	/*
 	 * NOTE: Maybe we should verify if this is geli provider first,
@@ -1036,12 +1082,22 @@ eli_kill_detached(struct gctl_req *req, const char *prov)
 	}
 #endif
 
-	arc4rand((unsigned char *)&md, sizeof(md));
-	error = g_metadata_store(prov, (unsigned char *)&md, sizeof(md));
-	if (error != 0) {
-		gctl_error(req, "Cannot write metadata to %s: %s.", prov,
-		    strerror(error));
+	fd = g_open(prov, 1);
+	if (fd == -1) {
+		gctl_error(req, "Cannot open provider %s: %s.", prov,
+		    strerror(errno));
+		return;
 	}
+	offset = g_mediasize(fd) - g_sectorsize(fd);
+	if (offset <= 0) {
+		gctl_error(req,
+		    "Cannot obtain media size or sector size for provider %s: %s.",
+		    prov, strerror(errno));
+		(void)g_close(fd);
+		return;
+	}
+	(void)eli_trash_metadata(req, prov, fd, offset);
+	(void)g_close(fd);
 }
 
 static void
@@ -1336,12 +1392,8 @@ eli_resize(struct gctl_req *req)
 	(void)g_flush(provfd);
 
 	/* Now trash the old metadata. */
-	arc4rand(sector, secsize);
-	if (pwrite(provfd, sector, secsize, oldsize - secsize) != secsize) {
-		gctl_error(req, "Failed to clobber old metadata: %s.",
-		    strerror(errno));
+	if (eli_trash_metadata(req, prov, provfd, oldsize - secsize) == -1)
 		goto out;
-	}
 out:
 	if (provfd >= 0)
 		(void)g_close(provfd);
