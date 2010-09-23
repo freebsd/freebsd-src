@@ -2948,8 +2948,8 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 		 *  errored frames.
 		 */
 		status |= RRD_TCP_UDPCSUM_NOK | RRD_IPCSUM_NOK;
-		if ((RRD_ERR_CRC | RRD_ERR_ALIGN | RRD_ERR_TRUNC |
-		    RRD_ERR_RUNT) != 0)
+		if ((status & (RRD_ERR_CRC | RRD_ERR_ALIGN |
+		    RRD_ERR_TRUNC | RRD_ERR_RUNT)) != 0)
 			return;
 	}
 
