@@ -226,7 +226,7 @@ struct auth_hash auth_hash_hmac_ripemd_160 = {
 };
 
 struct auth_hash auth_hash_key_md5 = {
-	CRYPTO_MD5_KPDK, "Keyed MD5", 
+	CRYPTO_MD5_KPDK, "Keyed MD5",
 	0, MD5_KPDK_HASH_LEN, 0, sizeof(MD5_CTX),
 	(void (*)(void *)) MD5Init, MD5Update_int,
 	(void (*)(u_int8_t *, void *)) MD5Final
