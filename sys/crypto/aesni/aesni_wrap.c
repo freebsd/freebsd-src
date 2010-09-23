@@ -105,13 +105,12 @@ aesni_decrypt_ecb(int rounds, const void *key_schedule, size_t len,
 	}
 }
 
-int
-aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
+static int
+aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
+    int keylen)
 {
-	struct thread *td;
-	int error;
 
-	switch (encini->cri_klen) {
+	switch (keylen) {
 	case 128:
 		ses->rounds = AES128_ROUNDS;
 		break;
@@ -124,18 +123,28 @@ aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
 	default:
 		return (EINVAL);
 	}
+ 
+	aesni_set_enckey(key, ses->enc_schedule, ses->rounds);
+	aesni_set_deckey(ses->enc_schedule, ses->dec_schedule, ses->rounds);
+	arc4rand(ses->iv, sizeof(ses->iv), 0);
 
-	td = curthread;
-	error = fpu_kern_enter(td, &ses->fpu_ctx, FPU_KERN_NORMAL);
-	if (error == 0) {
-		aesni_set_enckey(encini->cri_key, ses->enc_schedule,
-		    ses->rounds);
-		aesni_set_deckey(ses->enc_schedule, ses->dec_schedule,
-		    ses->rounds);
-		arc4rand(ses->iv, sizeof(ses->iv), 0);
-		fpu_kern_leave(td, &ses->fpu_ctx);
-	}
-	return (error);
+	return (0);
+}
+
+int
+aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
+{
+	struct thread *td;
+	int error;
+
+ 	td = curthread;
+ 	error = fpu_kern_enter(td, &ses->fpu_ctx, FPU_KERN_NORMAL);
+ 	if (error == 0) {
+		error = aesni_cipher_setup_common(ses, encini->cri_key,
+		    encini->cri_klen);
+ 		fpu_kern_leave(td, &ses->fpu_ctx);
+ 	}
+ 	return (error);
 }
 
 int
@@ -154,6 +163,13 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 	error = fpu_kern_enter(td, &ses->fpu_ctx, FPU_KERN_NORMAL);
 	if (error != 0)
 		goto out;
+ 
+	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
+		error = aesni_cipher_setup_common(ses, enccrd->crd_key,
+		    enccrd->crd_klen);
+		if (error != 0)
+			goto out;
+	}
 
 	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0) {
 		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
