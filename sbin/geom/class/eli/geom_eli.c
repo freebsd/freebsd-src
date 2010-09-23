@@ -1268,7 +1268,7 @@ eli_resize(struct gctl_req *req)
 	struct g_eli_metadata md;
 	const char *prov;
 	unsigned char *sector;
-	unsigned secsize;
+	ssize_t secsize;
 	off_t mediasize, oldsize;
 	int nargs, provfd;
 
@@ -1283,21 +1283,15 @@ eli_resize(struct gctl_req *req)
 	sector = NULL;
 	secsize = 0;
 
-	provfd = open(prov, O_RDWR);
-	if (provfd == -1 && errno == ENOENT && prov[0] != '/') {
-		char devprov[MAXPATHLEN];
-
-		snprintf(devprov, sizeof(devprov), "%s%s", _PATH_DEV, prov);
-		provfd = open(devprov, O_RDWR);
-	}
+	provfd = g_open(prov, 1);
 	if (provfd == -1) {
 		gctl_error(req, "Cannot open %s: %s.", prov, strerror(errno));
 		goto out;
 	}
 
-	mediasize = g_get_mediasize(prov);
-	secsize = g_get_sectorsize(prov);
-	if (mediasize == 0 || secsize == 0) {
+	mediasize = g_mediasize(provfd);
+	secsize = g_sectorsize(provfd);
+	if (mediasize == -1 || secsize == -1) {
 		gctl_error(req, "Cannot get information about %s: %s.", prov,
 		    strerror(errno));
 		goto out;
@@ -1316,8 +1310,7 @@ eli_resize(struct gctl_req *req)
 	}
 
 	/* Read metadata from the 'oldsize' offset. */
-	if (pread(provfd, sector, secsize, oldsize - secsize) !=
-	    (ssize_t)secsize) {
+	if (pread(provfd, sector, secsize, oldsize - secsize) != secsize) {
 		gctl_error(req, "Cannot read old metadata: %s.",
 		    strerror(errno));
 		goto out;
@@ -1344,23 +1337,21 @@ eli_resize(struct gctl_req *req)
 	 */
 	md.md_provsize = mediasize;
 	eli_metadata_encode(&md, sector);
-	if (pwrite(provfd, sector, secsize, mediasize - secsize) !=
-	    (ssize_t)secsize) {
+	if (pwrite(provfd, sector, secsize, mediasize - secsize) != secsize) {
 		gctl_error(req, "Cannot write metadata: %s.", strerror(errno));
 		goto out;
 	}
 
 	/* Now trash the old metadata. */
 	arc4rand(sector, secsize);
-	if (pwrite(provfd, sector, secsize, oldsize - secsize) !=
-	    (ssize_t)secsize) {
+	if (pwrite(provfd, sector, secsize, oldsize - secsize) != secsize) {
 		gctl_error(req, "Failed to clobber old metadata: %s.",
 		    strerror(errno));
 		goto out;
 	}
 out:
-	if (provfd > 0)
-		close(provfd);
+	if (provfd >= 0)
+		(void)g_close(provfd);
 	if (sector != NULL) {
 		bzero(sector, secsize);
 		free(sector);
