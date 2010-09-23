@@ -69,7 +69,7 @@ TUNABLE_INT("kern.geom.eli.visible_passphrase", &g_eli_visible_passphrase);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
     &g_eli_visible_passphrase, 0,
     "Turn on echo when entering the passphrase (for debug purposes only!!)");
-u_int g_eli_overwrites = 5;
+u_int g_eli_overwrites = G_ELI_OVERWRITES;
 TUNABLE_INT("kern.geom.eli.overwrites", &g_eli_overwrites);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,
     0, "Number of times on-disk keys should be overwritten when destroying them");
