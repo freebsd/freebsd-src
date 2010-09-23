@@ -69,14 +69,12 @@ aesni_identify(driver_t *drv, device_t parent)
 static int
 aesni_probe(device_t dev)
 {
-	char capp[32];
 
 	if ((cpu_feature2 & CPUID2_AESNI) == 0) {
 		device_printf(dev, "No AESNI support.\n");
 		return (EINVAL);
 	}
-	strlcpy(capp, "AES-CBC", sizeof(capp));
-	device_set_desc_copy(dev, capp);
+	device_set_desc_copy(dev, "AES-CBC");
 	return (0);
 }
 

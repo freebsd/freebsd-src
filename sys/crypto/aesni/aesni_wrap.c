@@ -147,15 +147,13 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 	int error, allocated;
 
 	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
-	if (buf == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	if (buf == NULL)
+		return (ENOMEM);
 
 	td = curthread;
 	error = fpu_kern_enter(td, &ses->fpu_ctx, FPU_KERN_NORMAL);
 	if (error != 0)
-		goto out1;
+		goto out;
 
 	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0) {
 		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
@@ -184,11 +182,10 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 		crypto_copydata(crp->crp_flags, crp->crp_buf,
 		    enccrd->crd_skip + enccrd->crd_len - AES_BLOCK_LEN,
 		    AES_BLOCK_LEN, ses->iv);
- out1:
+ out:
 	if (allocated) {
 		bzero(buf, enccrd->crd_len);
 		free(buf, M_AESNI);
 	}
- out:
 	return (error);
 }
