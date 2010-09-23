@@ -48,7 +48,12 @@
 
 #include "proto.h"
 
-#define	HAST_PROTO_VERSION	0
+/*
+ * Version history:
+ * 0 - initial version
+ * 1 - HIO_KEEPALIVE added
+ */
+#define	HAST_PROTO_VERSION	1
 
 #define	EHAST_OK		0
 #define	EHAST_NOENTRY		1
@@ -74,6 +79,7 @@
 #define	HIO_WRITE		2
 #define	HIO_DELETE		3
 #define	HIO_FLUSH		4
+#define	HIO_KEEPALIVE		5
 
 #define	HAST_TIMEOUT	5
 #define	HAST_CONFIG	"/etc/hast.conf"
@@ -121,6 +127,8 @@ struct hast_resource {
 	int	hr_extentsize;
 	/* Maximum number of extents that are kept dirty. */
 	int	hr_keepdirty;
+	/* Path to a program to execute on various events. */
+	char	hr_exec[PATH_MAX];
 
 	/* Path to local component. */
 	char	hr_localpath[PATH_MAX];
@@ -173,6 +181,8 @@ struct hast_resource {
 	pid_t	hr_workerpid;
 	/* Control connection between parent and child. */
 	struct proto_conn *hr_ctrl;
+	/* Events from child to parent. */
+	struct proto_conn *hr_event;
 
 	/* Activemap structure. */
 	struct activemap *hr_amp;
@@ -183,7 +193,7 @@ struct hast_resource {
 	TAILQ_ENTRY(hast_resource) hr_next;
 };
 
-struct hastd_config *yy_config_parse(const char *config);
+struct hastd_config *yy_config_parse(const char *config, bool exitonerror);
 void yy_config_free(struct hastd_config *config);
 
 void yyerror(const char *);

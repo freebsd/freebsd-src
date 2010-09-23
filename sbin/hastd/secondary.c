@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -42,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <libgeom.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -53,9 +55,11 @@ __FBSDID("$FreeBSD$");
 #include <pjdlog.h>
 
 #include "control.h"
+#include "event.h"
 #include "hast.h"
 #include "hast_proto.h"
 #include "hastd.h"
+#include "hooks.h"
 #include "metadata.h"
 #include "proto.h"
 #include "subr.h"
@@ -71,6 +75,8 @@ struct hio {
 	uint64_t	 hio_length;
 	TAILQ_ENTRY(hio) hio_next;
 };
+
+static struct hast_resource *gres;
 
 /*
  * Free list holds unused structures. When free list is empty, we have to wait
@@ -102,6 +108,26 @@ static void *recv_thread(void *arg);
 static void *disk_thread(void *arg);
 static void *send_thread(void *arg);
 
+#define	QUEUE_INSERT(name, hio)	do {					\
+	bool _wakeup;							\
+									\
+	mtx_lock(&hio_##name##_list_lock);				\
+	_wakeup = TAILQ_EMPTY(&hio_##name##_list);			\
+	TAILQ_INSERT_TAIL(&hio_##name##_list, (hio), hio_next);		\
+	mtx_unlock(&hio_##name##_list_lock);				\
+	if (_wakeup)							\
+		cv_signal(&hio_##name##_list_cond);			\
+} while (0)
+#define	QUEUE_TAKE(name, hio)	do {					\
+	mtx_lock(&hio_##name##_list_lock);				\
+	while (((hio) = TAILQ_FIRST(&hio_##name##_list)) == NULL) {	\
+		cv_wait(&hio_##name##_list_cond,			\
+		    &hio_##name##_list_lock);				\
+	}								\
+	TAILQ_REMOVE(&hio_##name##_list, (hio), hio_next);		\
+	mtx_unlock(&hio_##name##_list_lock);				\
+} while (0)
+
 static void
 init_environment(void)
 {
@@ -127,14 +153,16 @@ init_environment(void)
 	for (ii = 0; ii < HAST_HIO_MAX; ii++) {
 		hio = malloc(sizeof(*hio));
 		if (hio == NULL) {
-			errx(EX_TEMPFAIL, "cannot allocate %zu bytes of memory "
-			    "for hio request", sizeof(*hio));
+			pjdlog_exitx(EX_TEMPFAIL,
+			    "Unable to allocate memory (%zu bytes) for hio request.",
+			    sizeof(*hio));
 		}
 		hio->hio_error = 0;
 		hio->hio_data = malloc(MAXPHYS);
 		if (hio->hio_data == NULL) {
-			errx(EX_TEMPFAIL, "cannot allocate %zu bytes of memory "
-			    "for gctl_data", (size_t)MAXPHYS);
+			pjdlog_exitx(EX_TEMPFAIL,
+			    "Unable to allocate memory (%zu bytes) for gctl_data.",
+			    (size_t)MAXPHYS);
 		}
 		TAILQ_INSERT_HEAD(&hio_free_list, hio, hio_next);
 	}
@@ -299,6 +327,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
 		/* Exit on split-brain. */
+		event_send(res, EVENT_SPLITBRAIN);
 		exit(EX_CONFIG);
 	}
 }
@@ -306,6 +335,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 void
 hastd_secondary(struct hast_resource *res, struct nv *nvin)
 {
+	sigset_t mask;
 	pthread_t td;
 	pid_t pid;
 	int error;
@@ -317,6 +347,14 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create control sockets between parent and child");
+	}
+	/*
+	 * Create communication channel between child and parent.
+	 */
+	if (proto_client("socketpair://", &res->hr_event) < 0) {
+		KEEP_ERRNO((void)pidfile_remove(pfh));
+		pjdlog_exit(EX_OSERR,
+		    "Unable to create event sockets between child and parent");
 	}
 
 	pid = fork();
@@ -331,12 +369,24 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		res->hr_remotein = NULL;
 		proto_close(res->hr_remoteout);
 		res->hr_remoteout = NULL;
+		/* Declare that we are receiver. */
+		proto_recv(res->hr_event, NULL, 0);
 		res->hr_workerpid = pid;
 		return;
 	}
+
+	gres = res;
+
 	(void)pidfile_close(pfh);
+	hook_fini();
 
 	setproctitle("%s (secondary)", res->hr_name);
+
+	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
+
+	/* Declare that we are sender. */
+	proto_send(res->hr_event, NULL, 0);
 
 	/* Error in setting timeout is not critical, but why should it fail? */
 	if (proto_timeout(res->hr_remotein, 0) < 0)
@@ -345,16 +395,27 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 
 	init_local(res);
-	init_remote(res, nvin);
 	init_environment();
+
+	/*
+	 * Create the control thread before sending any event to the parent,
+	 * as we can deadlock when parent sends control request to worker,
+	 * but worker has no control thread started yet, so parent waits.
+	 * In the meantime worker sends an event to the parent, but parent
+	 * is unable to handle the event, because it waits for control
+	 * request response.
+	 */
+	error = pthread_create(&td, NULL, ctrl_thread, res);
+	assert(error == 0);
+
+	init_remote(res, nvin);
+	event_send(res, EVENT_CONNECT);
 
 	error = pthread_create(&td, NULL, recv_thread, res);
 	assert(error == 0);
 	error = pthread_create(&td, NULL, disk_thread, res);
 	assert(error == 0);
-	error = pthread_create(&td, NULL, send_thread, res);
-	assert(error == 0);
-	(void)ctrl_thread(res);
+	(void)send_thread(res);
 }
 
 static void
@@ -387,6 +448,9 @@ reqlog(int loglevel, int debuglevel, int error, struct hio *hio, const char *fmt
 			    "WRITE(%ju, %ju).", (uintmax_t)hio->hio_offset,
 			    (uintmax_t)hio->hio_length);
 			break;
+		case HIO_KEEPALIVE:
+			(void)snprintf(msg + len, sizeof(msg) - len, "KEEPALIVE.");
+			break;
 		default:
 			(void)snprintf(msg + len, sizeof(msg) - len,
 			    "UNKNOWN(%u).", (unsigned int)hio->hio_cmd);
@@ -407,6 +471,8 @@ requnpack(struct hast_resource *res, struct hio *hio)
 		goto end;
 	}
 	switch (hio->hio_cmd) {
+	case HIO_KEEPALIVE:
+		break;
 	case HIO_READ:
 	case HIO_WRITE:
 	case HIO_DELETE:
@@ -465,6 +531,19 @@ end:
 	return (hio->hio_error);
 }
 
+static __dead2 void
+secondary_exit(int exitcode, const char *fmt, ...)
+{
+	va_list ap;
+
+	assert(exitcode != EX_OK);
+	va_start(ap, fmt);
+	pjdlogv_errno(LOG_ERR, fmt, ap);
+	va_end(ap);
+	event_send(gres, EVENT_DISCONNECT);
+	exit(exitcode);
+}
+
 /*
  * Thread receives requests from the primary node.
  */
@@ -473,51 +552,41 @@ recv_thread(void *arg)
 {
 	struct hast_resource *res = arg;
 	struct hio *hio;
-	bool wakeup;
 
 	for (;;) {
 		pjdlog_debug(2, "recv: Taking free request.");
-		mtx_lock(&hio_free_list_lock);
-		while ((hio = TAILQ_FIRST(&hio_free_list)) == NULL) {
-			pjdlog_debug(2, "recv: No free requests, waiting.");
-			cv_wait(&hio_free_list_cond, &hio_free_list_lock);
-		}
-		TAILQ_REMOVE(&hio_free_list, hio, hio_next);
-		mtx_unlock(&hio_free_list_lock);
+		QUEUE_TAKE(free, hio);
 		pjdlog_debug(2, "recv: (%p) Got request.", hio);
 		if (hast_proto_recv_hdr(res->hr_remotein, &hio->hio_nv) < 0) {
-			pjdlog_exit(EX_TEMPFAIL,
+			secondary_exit(EX_TEMPFAIL,
 			    "Unable to receive request header");
 		}
-		if (requnpack(res, hio) != 0)
-			goto send_queue;
+		if (requnpack(res, hio) != 0) {
+			pjdlog_debug(2,
+			    "recv: (%p) Moving request to the send queue.",
+			    hio);
+			QUEUE_INSERT(send, hio);
+			continue;
+		}
 		reqlog(LOG_DEBUG, 2, -1, hio,
 		    "recv: (%p) Got request header: ", hio);
-		if (hio->hio_cmd == HIO_WRITE) {
+		if (hio->hio_cmd == HIO_KEEPALIVE) {
+			pjdlog_debug(2,
+			    "recv: (%p) Moving request to the free queue.",
+			    hio);
+			nv_free(hio->hio_nv);
+			QUEUE_INSERT(free, hio);
+			continue;
+		} else if (hio->hio_cmd == HIO_WRITE) {
 			if (hast_proto_recv_data(res, res->hr_remotein,
 			    hio->hio_nv, hio->hio_data, MAXPHYS) < 0) {
-				pjdlog_exit(EX_TEMPFAIL,
-				    "Unable to receive reply data");
+				secondary_exit(EX_TEMPFAIL,
+				    "Unable to receive request data");
 			}
 		}
 		pjdlog_debug(2, "recv: (%p) Moving request to the disk queue.",
 		    hio);
-		mtx_lock(&hio_disk_list_lock);
-		wakeup = TAILQ_EMPTY(&hio_disk_list);
-		TAILQ_INSERT_TAIL(&hio_disk_list, hio, hio_next);
-		mtx_unlock(&hio_disk_list_lock);
-		if (wakeup)
-			cv_signal(&hio_disk_list_cond);
-		continue;
-send_queue:
-		pjdlog_debug(2, "recv: (%p) Moving request to the send queue.",
-		    hio);
-		mtx_lock(&hio_send_list_lock);
-		wakeup = TAILQ_EMPTY(&hio_send_list);
-		TAILQ_INSERT_TAIL(&hio_send_list, hio, hio_next);
-		mtx_unlock(&hio_send_list_lock);
-		if (wakeup)
-			cv_signal(&hio_send_list_cond);
+		QUEUE_INSERT(disk, hio);
 	}
 	/* NOTREACHED */
 	return (NULL);
@@ -533,19 +602,13 @@ disk_thread(void *arg)
 	struct hast_resource *res = arg;
 	struct hio *hio;
 	ssize_t ret;
-	bool clear_activemap, wakeup;
+	bool clear_activemap;
 
 	clear_activemap = true;
 
 	for (;;) {
 		pjdlog_debug(2, "disk: Taking request.");
-		mtx_lock(&hio_disk_list_lock);
-		while ((hio = TAILQ_FIRST(&hio_disk_list)) == NULL) {
-			pjdlog_debug(2, "disk: No requests, waiting.");
-			cv_wait(&hio_disk_list_cond, &hio_disk_list_lock);
-		}
-		TAILQ_REMOVE(&hio_disk_list, hio, hio_next);
-		mtx_unlock(&hio_disk_list_lock);
+		QUEUE_TAKE(disk, hio);
 		while (clear_activemap) {
 			unsigned char *map;
 			size_t mapsize;
@@ -623,12 +686,7 @@ disk_thread(void *arg)
 		}
 		pjdlog_debug(2, "disk: (%p) Moving request to the send queue.",
 		    hio);
-		mtx_lock(&hio_send_list_lock);
-		wakeup = TAILQ_EMPTY(&hio_send_list);
-		TAILQ_INSERT_TAIL(&hio_send_list, hio, hio_next);
-		mtx_unlock(&hio_send_list_lock);
-		if (wakeup)
-			cv_signal(&hio_send_list_cond);
+		QUEUE_INSERT(send, hio);
 	}
 	/* NOTREACHED */
 	return (NULL);
@@ -645,17 +703,10 @@ send_thread(void *arg)
 	struct hio *hio;
 	void *data;
 	size_t length;
-	bool wakeup;
 
 	for (;;) {
 		pjdlog_debug(2, "send: Taking request.");
-		mtx_lock(&hio_send_list_lock);
-		while ((hio = TAILQ_FIRST(&hio_send_list)) == NULL) {
-			pjdlog_debug(2, "send: No requests, waiting.");
-			cv_wait(&hio_send_list_cond, &hio_send_list_lock);
-		}
-		TAILQ_REMOVE(&hio_send_list, hio, hio_next);
-		mtx_unlock(&hio_send_list_lock);
+		QUEUE_TAKE(send, hio);
 		reqlog(LOG_DEBUG, 2, -1, hio, "send: (%p) Got request: ", hio);
 		nvout = nv_alloc();
 		/* Copy sequence number. */
@@ -685,19 +736,14 @@ send_thread(void *arg)
 			nv_add_int16(nvout, hio->hio_error, "error");
 		if (hast_proto_send(res, res->hr_remoteout, nvout, data,
 		    length) < 0) {
-			pjdlog_exit(EX_TEMPFAIL, "Unable to send reply.");
+			secondary_exit(EX_TEMPFAIL, "Unable to send reply.");
 		}
 		nv_free(nvout);
 		pjdlog_debug(2, "send: (%p) Moving request to the free queue.",
 		    hio);
 		nv_free(hio->hio_nv);
 		hio->hio_error = 0;
-		mtx_lock(&hio_free_list_lock);
-		wakeup = TAILQ_EMPTY(&hio_free_list);
-		TAILQ_INSERT_TAIL(&hio_free_list, hio, hio_next);
-		mtx_unlock(&hio_free_list_lock);
-		if (wakeup)
-			cv_signal(&hio_free_list_cond);
+		QUEUE_INSERT(free, hio);
 	}
 	/* NOTREACHED */
 	return (NULL);

@@ -170,6 +170,23 @@ stored.
 The default location is
 .Pa /var/run/hastd.pid .
 .El
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/hastctl" -compact
+.It Pa /etc/hast.conf
+The configuration file for
+.Nm
+and
+.Xr hastctl 8 .
+.It Pa /var/run/hastctl
+Control socket used by the
+.Xr hastctl 8
+control utility to communicate with
+.Nm .
+.It Pa /var/run/hastd.pid
+The default location of the
+.Nm
+PID file.
+.El
 .Sh EXIT STATUS
 Exit status is 0 on success, or one of the values described in
 .Xr sysexits 3
@@ -196,23 +213,6 @@ nodeA# hastctl role primary shared
 nodeA# newfs -U /dev/hast/shared
 nodeA# mount -o noatime /dev/hast/shared /shared
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /var/run/hastctl" -compact
-.It Pa /etc/hast.conf
-The configuration file for
-.Nm
-and
-.Xr hastctl 8 .
-.It Pa /var/run/hastctl
-Control socket used by the
-.Xr hastctl 8
-control utility to communicate with
-.Nm .
-.It Pa /var/run/hastd.pid
-The default location of the
-.Nm
-PID file.
-.El
 .Sh SEE ALSO
 .Xr sysexits 3 ,
 .Xr geom 4 ,
