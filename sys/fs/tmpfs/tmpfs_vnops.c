@@ -902,10 +902,14 @@ tmpfs_rename(struct vop_rename_args *v)
 	fnode = VP_TO_TMPFS_NODE(fvp);
 	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
 
-	/* Avoid manipulating '.' and '..' entries. */
+	/* Entry can disappear before we lock fdvp,
+	 * also avoid manipulating '.' and '..' entries. */
 	if (de == NULL) {
-		MPASS(fvp->v_type == VDIR);
-		error = EINVAL;
+		if ((fcnp->cn_flags & ISDOTDOT) != 0 ||
+		    (fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.'))
+			error = EINVAL;
+		else
+			error = ENOENT;
 		goto out_locked;
 	}
 	MPASS(de->td_node == fnode);
