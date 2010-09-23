@@ -649,7 +649,7 @@ ata_siiprb_end_transaction(struct ata_request *request)
     /* update progress */
     if (!(request->status & ATA_S_ERROR) && !(request->flags & ATA_R_TIMEOUT)) {
 	if (request->flags & ATA_R_READ)
-	    request->donecount = prb->transfer_count;
+	    request->donecount = le32toh(prb->transfer_count);
 	else
 	    request->donecount = request->bytecount;
     }
