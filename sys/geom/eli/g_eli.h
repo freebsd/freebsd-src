@@ -97,6 +97,7 @@
 #define	G_ELI_DATAIVKEYLEN	(G_ELI_DATAKEYLEN + G_ELI_IVKEYLEN)
 /* Data-Key, IV-Key, HMAC_SHA512(Derived-Key, Data-Key+IV-Key) */
 #define	G_ELI_MKEYLEN		(G_ELI_DATAIVKEYLEN + SHA512_MDLEN)
+#define	G_ELI_OVERWRITES	5
 
 #ifdef _KERNEL
 extern u_int g_eli_debug;
