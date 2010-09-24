@@ -5,7 +5,6 @@ PROG=	tftpd
 MAN=	tftpd.8
 SRCS=	tftp-file.c tftp-io.c tftp-options.c tftp-transfer.c tftp-utils.c
 SRCS+=	tftpd.c
-WARNS=	3
 WFORMAT=0
 LDFLAGS= -lwrap
 
