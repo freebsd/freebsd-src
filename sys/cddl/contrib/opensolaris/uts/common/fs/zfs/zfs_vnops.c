@@ -500,8 +500,10 @@ again:
 			}
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
-			if (error == 0)
+			if (error == 0) {
 				uio->uio_resid -= bytes;
+				uio->uio_offset += bytes;
+			}
 		} else {
 			dirbytes += bytes;
 		}
