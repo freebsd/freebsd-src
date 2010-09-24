@@ -1557,6 +1557,7 @@ vr_tick(void *xsc)
 		sc->vr_stat.num_restart++;
 		vr_stop(sc);
 		vr_reset(sc);
+		sc->vr_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vr_init_locked(sc);
 		sc->vr_flags &= ~VR_F_RESTART;
 	}
@@ -2008,6 +2009,9 @@ vr_init_locked(struct vr_softc *sc)
 	ifp = sc->vr_ifp;
 	mii = device_get_softc(sc->vr_miibus);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	/* Cancel pending I/O and free all RX/TX buffers. */
 	vr_stop(sc);
 	vr_reset(sc);
@@ -2279,6 +2283,7 @@ vr_watchdog(struct vr_softc *sc)
 			if_printf(sc->vr_ifp, "watchdog timeout "
 			   "(missed link)\n");
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vr_init_locked(sc);
 		return;
 	}
@@ -2288,6 +2293,7 @@ vr_watchdog(struct vr_softc *sc)
 
 	vr_stop(sc);
 	vr_reset(sc);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	vr_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
