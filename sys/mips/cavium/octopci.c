@@ -61,13 +61,19 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
+#define	NPI_WRITE(addr, value)	cvmx_write64_uint32((addr) ^ 4, (value))
+#define	NPI_READ(addr)		cvmx_read64_uint32((addr) ^ 4)
+
 struct octopci_softc {
 	device_t sc_dev;
 
 	unsigned sc_domain;
 	unsigned sc_bus;
 
+	unsigned sc_io_next;
 	struct rman sc_io;
+
+	unsigned sc_mem1_next;
 	struct rman sc_mem1;
 };
 
@@ -86,6 +92,9 @@ static void	octopci_write_config(device_t, u_int, u_int, u_int, u_int,
 				     uint32_t, int);
 static int	octopci_route_interrupt(device_t, device_t, int);
 
+static void	octopci_init_bar(device_t, unsigned, unsigned, unsigned, unsigned);
+static unsigned	octopci_init_device(device_t, unsigned, unsigned, unsigned, unsigned);
+static unsigned	octopci_init_bus(device_t, unsigned);
 static uint64_t	octopci_cs_addr(unsigned, unsigned, unsigned, unsigned);
 
 static void
@@ -108,13 +117,205 @@ static int
 octopci_attach(device_t dev)
 {
 	struct octopci_softc *sc;
+	cvmx_npi_mem_access_subid_t npi_mem_access_subid;
+	cvmx_npi_pci_int_arb_cfg_t npi_pci_int_arb_cfg;
+	cvmx_npi_ctl_status_t npi_ctl_status;
+	cvmx_pci_ctl_status_2_t pci_ctl_status_2;
+	cvmx_pci_cfg56_t pci_cfg56;
+	cvmx_pci_cfg22_t pci_cfg22;
+	cvmx_pci_cfg16_t pci_cfg16;
+	cvmx_pci_cfg19_t pci_cfg19;
+	cvmx_pci_cfg01_t pci_cfg01;
+	unsigned subbus;
+	unsigned i;
 	int error;
 
 	/*
-	 * XXX
-	 * We currently rely on U-Boot to set up the PCI in host state.  We
-	 * should properly initialize the PCI bus here.
+	 * Reset the PCI bus.
 	 */
+	cvmx_write_csr(CVMX_CIU_SOFT_PRST, 0x1);
+	cvmx_read_csr(CVMX_CIU_SOFT_PRST);
+
+	DELAY(2000);
+
+	npi_ctl_status.u64 = 0;
+	npi_ctl_status.s.max_word = 1;
+	npi_ctl_status.s.timer = 1;
+	cvmx_write_csr(CVMX_NPI_CTL_STATUS, npi_ctl_status.u64);
+
+	/*
+	 * Set host mode.
+	 */
+	switch (cvmx_sysinfo_get()->board_type) {
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
+		/* 32-bit PCI-X */
+		cvmx_write_csr(CVMX_CIU_SOFT_PRST, 0x0);
+		break;
+#endif
+	default:
+		/* 64-bit PCI-X */
+		cvmx_write_csr(CVMX_CIU_SOFT_PRST, 0x4);
+		break;
+	}
+	cvmx_read_csr(CVMX_CIU_SOFT_PRST);
+
+	DELAY(2000);
+
+	/*
+	 * Enable BARs and configure big BAR mode.
+	 */
+	pci_ctl_status_2.u32 = 0;
+	pci_ctl_status_2.s.bb1_hole = 5; /* 256MB hole in BAR1 */
+	pci_ctl_status_2.s.bb1_siz = 1; /* BAR1 is 2GB */
+	pci_ctl_status_2.s.bb_ca = 1; /* Bypass cache for big BAR */
+	pci_ctl_status_2.s.bb_es = 1; /* Do big BAR byte-swapping */
+	pci_ctl_status_2.s.bb1 = 1; /* BAR1 is big */
+	pci_ctl_status_2.s.bb0 = 1; /* BAR0 is big */
+	pci_ctl_status_2.s.bar2pres = 1; /* BAR2 present */
+	pci_ctl_status_2.s.pmo_amod = 1; /* Round-robin priority */
+	pci_ctl_status_2.s.tsr_hwm = 1;
+	pci_ctl_status_2.s.bar2_enb = 1; /* Enable BAR2 */
+	pci_ctl_status_2.s.bar2_esx = 1; /* Do BAR2 byte-swapping */
+	pci_ctl_status_2.s.bar2_cax = 1; /* Bypass cache for BAR2 */
+
+	NPI_WRITE(CVMX_NPI_PCI_CTL_STATUS_2, pci_ctl_status_2.u32);
+
+	DELAY(2000);
+
+	pci_ctl_status_2.u32 = NPI_READ(CVMX_NPI_PCI_CTL_STATUS_2);
+
+	device_printf(dev, "%u-bit PCI%s bus.\n",
+	    pci_ctl_status_2.s.ap_64ad ? 64 : 32,
+	    pci_ctl_status_2.s.ap_pcix ? "-X" : "");
+
+	/*
+	 * Set up transaction splitting, etc., parameters.
+	 */
+	pci_cfg19.u32 = 0;
+	pci_cfg19.s.mrbcm = 1;
+	if (pci_ctl_status_2.s.ap_pcix) {
+		pci_cfg19.s.mdrrmc = 0;
+		pci_cfg19.s.tdomc = 4;
+	} else {
+		pci_cfg19.s.mdrrmc = 2;
+		pci_cfg19.s.tdomc = 1;
+	}
+	NPI_WRITE(CVMX_NPI_PCI_CFG19, pci_cfg19.u32);
+	NPI_READ(CVMX_NPI_PCI_CFG19);
+
+	/*
+	 * Set up PCI error handling and memory access.
+	 */
+	pci_cfg01.u32 = 0;
+	pci_cfg01.s.fbbe = 1;
+	pci_cfg01.s.see = 1;
+	pci_cfg01.s.pee = 1;
+	pci_cfg01.s.me = 1;
+	pci_cfg01.s.msae = 1;
+	if (pci_ctl_status_2.s.ap_pcix) {
+		pci_cfg01.s.fbb = 0;
+	} else {
+		pci_cfg01.s.fbb = 1;
+	}
+	NPI_WRITE(CVMX_NPI_PCI_CFG01, pci_cfg01.u32);
+	NPI_READ(CVMX_NPI_PCI_CFG01);
+
+	/*
+	 * Enable the Octeon bus arbiter.
+	 */
+	npi_pci_int_arb_cfg.u64 = 0;
+	npi_pci_int_arb_cfg.s.en = 1;
+	cvmx_write_csr(CVMX_NPI_PCI_INT_ARB_CFG, npi_pci_int_arb_cfg.u64);
+
+	/*
+	 * Disable master latency timer.
+	 */
+	pci_cfg16.u32 = 0;
+	pci_cfg16.s.mltd = 1;
+	NPI_WRITE(CVMX_NPI_PCI_CFG16, pci_cfg16.u32);
+	NPI_READ(CVMX_NPI_PCI_CFG16);
+
+	/*
+	 * Configure master arbiter.
+	 */
+	pci_cfg22.u32 = 0;
+	pci_cfg22.s.flush = 1;
+	pci_cfg22.s.mrv = 255;
+	NPI_WRITE(CVMX_NPI_PCI_CFG22, pci_cfg22.u32);
+	NPI_READ(CVMX_NPI_PCI_CFG22);
+
+	/*
+	 * Set up PCI-X capabilities.
+	 */
+	if (pci_ctl_status_2.s.ap_pcix) {
+		pci_cfg56.u32 = 0;
+		pci_cfg56.s.most = 3;
+		pci_cfg56.s.roe = 1; /* Enable relaxed ordering */
+		pci_cfg56.s.dpere = 1;
+		pci_cfg56.s.ncp = 0xe8;
+		pci_cfg56.s.pxcid = 7;
+		NPI_WRITE(CVMX_NPI_PCI_CFG56, pci_cfg56.u32);
+		NPI_READ(CVMX_NPI_PCI_CFG56);
+	}
+
+	NPI_WRITE(CVMX_NPI_PCI_READ_CMD_6, 0x22);
+	NPI_READ(CVMX_NPI_PCI_READ_CMD_6);
+	NPI_WRITE(CVMX_NPI_PCI_READ_CMD_C, 0x33);
+	NPI_READ(CVMX_NPI_PCI_READ_CMD_C);
+	NPI_WRITE(CVMX_NPI_PCI_READ_CMD_E, 0x33);
+	NPI_READ(CVMX_NPI_PCI_READ_CMD_E);
+
+	/*
+	 * Configure MEM1 sub-DID access.
+	 */
+	npi_mem_access_subid.u64 = 0;
+	npi_mem_access_subid.s.esr = 1; /* Byte-swap on read */
+	npi_mem_access_subid.s.esw = 1; /* Byte-swap on write */
+	switch (cvmx_sysinfo_get()->board_type) {
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
+		npi_mem_access_subid.s.shortl = 1;
+		break;
+#endif
+	default:
+		break;
+	}
+	cvmx_write_csr(CVMX_NPI_MEM_ACCESS_SUBID3, npi_mem_access_subid.u64);
+
+	/*
+	 * Configure BAR2.  Linux says this has to come first.
+	 */
+	NPI_WRITE(CVMX_NPI_PCI_CFG08, 0x00000000);
+	NPI_READ(CVMX_NPI_PCI_CFG08);
+	NPI_WRITE(CVMX_NPI_PCI_CFG09, 0x00000080);
+	NPI_READ(CVMX_NPI_PCI_CFG09);
+
+	/*
+	 * Disable BAR1 IndexX.
+	 */
+	for (i = 0; i < 32; i++) {
+		NPI_WRITE(CVMX_NPI_PCI_BAR1_INDEXX(i), 0);
+		NPI_READ(CVMX_NPI_PCI_BAR1_INDEXX(i));
+	}
+
+	/*
+	 * Configure BAR0 and BAR1.
+	 */
+	NPI_WRITE(CVMX_NPI_PCI_CFG04, 0x00000000);
+	NPI_READ(CVMX_NPI_PCI_CFG04);
+	NPI_WRITE(CVMX_NPI_PCI_CFG05, 0x00000000);
+	NPI_READ(CVMX_NPI_PCI_CFG05);
+
+	NPI_WRITE(CVMX_NPI_PCI_CFG06, 0x80000000);
+	NPI_READ(CVMX_NPI_PCI_CFG06);
+	NPI_WRITE(CVMX_NPI_PCI_CFG07, 0x00000000);
+	NPI_READ(CVMX_NPI_PCI_CFG07);
+
+	/*
+	 * Clear PCI interrupts.
+	 */
+	cvmx_write_csr(CVMX_NPI_PCI_INT_SUM2, 0xffffffffffffffffull);
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -142,6 +343,19 @@ octopci_attach(device_t dev)
 	    CVMX_OCT_PCI_MEM1_BASE + CVMX_OCT_PCI_MEM1_SIZE);
 	if (error != 0)
 		return (error);
+
+	/*
+	 * Next offsets for resource allocation in octopci_init_bar.
+	 */
+	sc->sc_io_next = 0;
+	sc->sc_mem1_next = 0;
+
+	/*
+	 * Configure devices.
+	 */
+	octopci_write_config(dev, 0, 0, 0, PCIR_SUBBUS_1, 0xff, 1);
+	subbus = octopci_init_bus(dev, 0);
+	octopci_write_config(dev, 0, 0, 0, PCIR_SUBBUS_1, subbus, 1);
 
 	device_add_child(dev, "pci", 0);
 
@@ -336,18 +550,204 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
         func = pci_get_function(child);
 
 #if defined(OCTEON_VENDOR_LANNER)
-	if (slot < 32) {
-		if (slot == 3 || slot == 9)
-			irq = pin;
-		else
-			irq = pin - 1;
-		return (CVMX_IRQ_PCI_INT0 + (irq & 3));
+	switch (cvmx_sysinfo_get()->board_type) {
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
+		return (CVMX_IRQ_PCI_INT0 + pin - 1);
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+		if (slot < 32) {
+			if (slot == 3 || slot == 9)
+				irq = pin;
+			else
+				irq = pin - 1;
+			return (CVMX_IRQ_PCI_INT0 + (irq & 3));
+		}
+		break;
+	default:
+		break;
 	}
 #endif
 
 	irq = slot + pin - 3;
 
 	return (CVMX_IRQ_PCI_INT0 + (irq & 3));
+}
+
+static void
+octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barnum)
+{
+	struct octopci_softc *sc;
+	uint32_t bar;
+	unsigned size;
+
+	sc = device_get_softc(dev);
+
+	octopci_write_config(dev, b, s, f, PCIR_BAR(barnum), 0xffffffff, 4);
+	bar = octopci_read_config(dev, b, s, f, PCIR_BAR(barnum), 4);
+
+	if (bar == 0) {
+		/* Bar not implemented.  */
+		return;
+	}
+
+	/* XXX Some of this is wrong for 64-bit busses.  */
+
+	if (PCI_BAR_IO(bar)) {
+		size = ~(bar & PCIM_BAR_IO_BASE) + 1;
+
+		sc->sc_io_next = (sc->sc_io_next + size - 1) & ~(size - 1);
+		if (sc->sc_io_next + size > CVMX_OCT_PCI_IO_SIZE) {
+			device_printf(dev, "%02x.%02x:%02x: no ports for BAR%u.\n",
+			    b, s, f, barnum);
+			return;
+		}
+		octopci_write_config(dev, b, s, f, PCIR_BAR(barnum),
+		    CVMX_OCT_PCI_IO_BASE + sc->sc_io_next, 4);
+		sc->sc_io_next += size;
+	} else {
+		size = ~(bar & (uint32_t)PCIM_BAR_MEM_BASE) + 1;
+
+		sc->sc_mem1_next = (sc->sc_mem1_next + size - 1) & ~(size - 1);
+		if (sc->sc_mem1_next + size > CVMX_OCT_PCI_MEM1_SIZE) {
+			device_printf(dev, "%02x.%02x:%02x: no memory for BAR%u.\n",
+			    b, s, f, barnum);
+			return;
+		}
+		octopci_write_config(dev, b, s, f, PCIR_BAR(barnum),
+		    CVMX_OCT_PCI_MEM1_BASE + sc->sc_mem1_next, 4);
+		sc->sc_mem1_next += size;
+	}
+}
+
+static unsigned
+octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned secbus)
+{
+	unsigned barnum, bars;
+	uint8_t brctl;
+	uint8_t class, subclass;
+	uint8_t command;
+	uint8_t hdrtype;
+
+	/* Read header type (again.)  */
+	hdrtype = octopci_read_config(dev, b, s, f, PCIR_HDRTYPE, 1);
+
+	/* Program BARs.  */
+	switch (hdrtype & PCIM_HDRTYPE) {
+	case PCIM_HDRTYPE_NORMAL:
+		bars = 6;
+		break;
+	case PCIM_HDRTYPE_BRIDGE:
+		bars = 2;
+		break;
+	case PCIM_HDRTYPE_CARDBUS:
+		bars = 0;
+		break;
+	default:
+		device_printf(dev, "%02x.%02x:%02x: invalid header type %#x\n",
+		    b, s, f, hdrtype);
+		return (secbus);
+	}
+
+	for (barnum = 0; barnum < bars; barnum++)
+		octopci_init_bar(dev, b, s, f, barnum);
+
+	/* Enable memory and I/O.  */
+	command = octopci_read_config(dev, b, s, f, PCIR_COMMAND, 1);
+	command |= PCIM_CMD_MEMEN | PCIM_CMD_PORTEN;
+
+	/* Enable bus mastering.  */
+	command |= PCIM_CMD_BUSMASTEREN;
+	octopci_write_config(dev, b, s, f, PCIR_COMMAND, command, 1);
+
+	/* Configure PCI-PCI bridges.  */
+	class = octopci_read_config(dev, b, s, f, PCIR_CLASS, 1);
+	if (class != PCIC_BRIDGE)
+		return (secbus);
+
+	subclass = octopci_read_config(dev, b, s, f, PCIR_SUBCLASS, 1);
+	if (subclass != PCIS_BRIDGE_PCI)
+		return (secbus);
+
+	/* Enable errors and parity checking.  Do a bus reset.  */
+	brctl = octopci_read_config(dev, b, s, f, PCIR_BRIDGECTL_1, 1);
+	brctl |= PCIB_BCR_PERR_ENABLE | PCIB_BCR_SERR_ENABLE;
+
+	/* Perform a secondary bus reset.  */
+	brctl |= PCIB_BCR_SECBUS_RESET;
+	octopci_write_config(dev, b, s, f, PCIR_BRIDGECTL_1, brctl, 1);
+	DELAY(100000);
+	brctl &= ~PCIB_BCR_SECBUS_RESET;
+	octopci_write_config(dev, b, s, f, PCIR_BRIDGECTL_1, brctl, 1);
+
+	secbus++;
+
+	/* Program memory and I/O ranges.  */
+	octopci_write_config(dev, b, s, f, PCIR_MEMBASE_1,
+	    CVMX_OCT_PCI_MEM1_BASE >> 16, 2);
+	octopci_write_config(dev, b, s, f, PCIR_MEMLIMIT_1,
+	    (CVMX_OCT_PCI_MEM1_BASE + CVMX_OCT_PCI_MEM1_SIZE - 1) >> 16, 2);
+
+	octopci_write_config(dev, b, s, f, PCIR_IOBASEL_1,
+	    CVMX_OCT_PCI_IO_BASE >> 8, 1);
+	octopci_write_config(dev, b, s, f, PCIR_IOBASEH_1,
+	    CVMX_OCT_PCI_IO_BASE >> 16, 2);
+
+	octopci_write_config(dev, b, s, f, PCIR_IOLIMITL_1,
+	    (CVMX_OCT_PCI_IO_BASE + CVMX_OCT_PCI_IO_SIZE - 1) >> 8, 1);
+	octopci_write_config(dev, b, s, f, PCIR_IOLIMITH_1,
+	    (CVMX_OCT_PCI_IO_BASE + CVMX_OCT_PCI_IO_SIZE - 1) >> 16, 2);
+
+	/* Program prefetchable memory decoder.  */
+	/* XXX */
+
+	/* Probe secondary/subordinate buses.  */
+	octopci_write_config(dev, b, s, f, PCIR_PRIBUS_1, b, 1);
+	octopci_write_config(dev, b, s, f, PCIR_SECBUS_1, secbus, 1);
+	octopci_write_config(dev, b, s, f, PCIR_SUBBUS_1, 0xff, 1);
+
+	/* Perform a secondary bus reset.  */
+	brctl |= PCIB_BCR_SECBUS_RESET;
+	octopci_write_config(dev, b, s, f, PCIR_BRIDGECTL_1, brctl, 1);
+	DELAY(100000);
+	brctl &= ~PCIB_BCR_SECBUS_RESET;
+	octopci_write_config(dev, b, s, f, PCIR_BRIDGECTL_1, brctl, 1);
+
+	/* Give the bus time to settle now before reading configspace.  */
+	DELAY(100000);
+
+	secbus = octopci_init_bus(dev, secbus);
+
+	octopci_write_config(dev, b, s, f, PCIR_SUBBUS_1, secbus, 1);
+
+	return (secbus);
+}
+
+static unsigned
+octopci_init_bus(device_t dev, unsigned b)
+{
+	unsigned s, f;
+	uint8_t hdrtype;
+	unsigned secbus;
+
+	secbus = b;
+
+	for (s = 0; s <= PCI_SLOTMAX; s++) {
+		for (f = 0; f <= PCI_FUNCMAX; f++) {
+			hdrtype = octopci_read_config(dev, b, s, f, PCIR_HDRTYPE, 1);
+
+			if (hdrtype == 0xff) {
+				if (f == 0)
+					break; /* Next slot.  */
+				continue; /* Next function.  */
+			}
+
+			secbus = octopci_init_device(dev, b, s, f, secbus);
+
+			if (f == 0 && (hdrtype & PCIM_MFDEV) == 0)
+				break; /* Next slot.  */
+		}
+	}
+
+	return (secbus);
 }
 
 static uint64_t
