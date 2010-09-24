@@ -563,7 +563,7 @@ ata_ahci_end_transaction(struct ata_request *request)
     /* record how much data we actually moved */
     clp = (struct ata_ahci_cmd_list *)
 	  (ch->dma.work + ATA_AHCI_CL_OFFSET);
-    request->donecount = clp->bytecount;
+    request->donecount = le32toh(clp->bytecount);
 
     /* release SG list etc */
     ch->dma.unload(request);
