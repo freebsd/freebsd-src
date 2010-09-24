@@ -1781,6 +1781,7 @@ age_watchdog(struct age_softc *sc)
 	if ((sc->age_flags & AGE_FLAG_LINK) == 0) {
 		if_printf(sc->age_ifp, "watchdog timeout (missed link)\n");
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		age_init_locked(sc);
 		return;
 	}
@@ -1793,6 +1794,7 @@ age_watchdog(struct age_softc *sc)
 	}
 	if_printf(sc->age_ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	age_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(sc->age_tq, &sc->age_tx_task);
@@ -1817,8 +1819,10 @@ age_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			AGE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				age_init_locked(sc);
+			}
 			AGE_UNLOCK(sc);
 		}
 		break;
@@ -2165,6 +2169,7 @@ age_int_task(void *arg, int pending)
 			if ((status & INTR_DMA_WR_TO_RST) != 0)
 				device_printf(sc->age_dev,
 				    "DMA write error! -- resetting\n");
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			age_init_locked(sc);
 		}
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -2528,6 +2533,9 @@ age_init_locked(struct age_softc *sc)
 
 	ifp = sc->age_ifp;
 	mii = device_get_softc(sc->age_miibus);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	/*
 	 * Cancel any pending I/O.
