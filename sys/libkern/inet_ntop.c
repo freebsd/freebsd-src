@@ -22,20 +22,18 @@ static const char rcsid[] = "$Id: inet_ntop.c,v 1.3.18.2 2005/11/03 23:02:22 mar
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 
-#include <rpc/types.h>
-#include <rpc/rpc_com.h>
+#include <netinet/in.h>
 
 /*%
  * WARNING: Don't even consider trying to compile this on a system where
  * sizeof(int) < 4.  sizeof(int) > 4 is fine; all the world's not a VAX.
  */
 
-static const char *inet_ntop4(const u_char *src, char *dst, socklen_t size);
-static const char *inet_ntop6(const u_char *src, char *dst, socklen_t size);
+static char	*inet_ntop4(const u_char *src, char *dst, socklen_t size);
+static char	*inet_ntop6(const u_char *src, char *dst, socklen_t size);
 
 /* char *
  * inet_ntop(af, src, dst, size)
@@ -45,9 +43,8 @@ static const char *inet_ntop6(const u_char *src, char *dst, socklen_t size);
  * author:
  *	Paul Vixie, 1996.
  */
-const char *
-__rpc_inet_ntop(int af, const void * __restrict src, char * __restrict dst,
-    socklen_t size)
+char *
+inet_ntop(int af, const void *src, char *dst, socklen_t size)
 {
 	switch (af) {
 	case AF_INET:
@@ -71,7 +68,7 @@ __rpc_inet_ntop(int af, const void * __restrict src, char * __restrict dst,
  * author:
  *	Paul Vixie, 1996.
  */
-static const char *
+static char *
 inet_ntop4(const u_char *src, char *dst, socklen_t size)
 {
 	static const char fmt[] = "%u.%u.%u.%u";
@@ -92,7 +89,7 @@ inet_ntop4(const u_char *src, char *dst, socklen_t size)
  * author:
  *	Paul Vixie, 1996.
  */
-static const char *
+static char *
 inet_ntop6(const u_char *src, char *dst, socklen_t size)
 {
 	/*
