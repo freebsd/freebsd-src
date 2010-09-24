@@ -65,6 +65,9 @@ struct gpt_ent {
 	uint64_t	ent_lba_end;
 	uint64_t	ent_attr;
 #define	GPT_ENT_ATTR_PLATFORM		(1ULL << 0)
+#define	GPT_ENT_ATTR_BOOTME		(1ULL << 59)
+#define	GPT_ENT_ATTR_BOOTONCE		(1ULL << 58)
+#define	GPT_ENT_ATTR_BOOTFAILED		(1ULL << 57)
 	uint16_t	ent_name[36];		/* UTF-16. */
 };
 
