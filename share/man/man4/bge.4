@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2009
+.Dd August 21, 2010
 .Dt BGE 4
 .Os
 .Sh NAME
@@ -218,6 +218,26 @@ prompt before booting the kernel, or stored in
 Allow the ASF feature for cooperating with IPMI.
 Can cause system lockup problems on a small number of systems.
 Disabled by default.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va dev.bge.%d.forced_collapse
+Allow collapsing multiple transmit buffers into a single buffer
+to increase transmit performance with the cost of CPU cycles.
+The default value is 0 to disable transmit buffer collapsing.
+.It Va dev.bge.%d.forced_udpcsum
+Enable UDP transmit checksum offloading even if controller can generate
+UDP datagrams with checksum value 0.
+UDP datagrams with checksum value 0 can confuse receiver host as it means
+sender did not compute UDP checksum.
+The default value is 0 which disables UDP transmit checksum offloading.
+The interface need to be brought down and up again before a change takes
+effect.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
