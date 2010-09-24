@@ -158,6 +158,7 @@ void
 _thr_cancel_leave(struct pthread *curthread, int maycancel)
 {
 	curthread->cancel_point = 0;
-	if (maycancel)
-		testcancel(curthread);
+	if (__predict_false(SHOULD_CANCEL(curthread) &&
+	    !THR_IN_CRITICAL(curthread) && maycancel))
+		_pthread_exit(PTHREAD_CANCELED);
 }
