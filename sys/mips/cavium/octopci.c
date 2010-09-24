@@ -658,6 +658,16 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 	command |= PCIM_CMD_BUSMASTEREN;
 	octopci_write_config(dev, b, s, f, PCIR_COMMAND, command, 1);
 
+	/* 
+	 * Set cache line size.  On Octeon it should be 128 bytes,
+	 * but according to Linux some Intel bridges have trouble
+	 * with values over 64 bytes, so use 64 bytes.
+	 */
+	octopci_write_config(dev, b, s, f, PCIR_CACHELNSZ, 16, 1);
+
+	/* Set latency timer.  */
+	octopci_write_config(dev, b, s, f, PCIR_LATTIMER, 48, 1);
+
 	/* Configure PCI-PCI bridges.  */
 	class = octopci_read_config(dev, b, s, f, PCIR_CLASS, 1);
 	if (class != PCIC_BRIDGE)
@@ -783,6 +793,7 @@ static device_method_t octopci_methods[] = {
 	DEVMETHOD(bus_activate_resource,octopci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 
