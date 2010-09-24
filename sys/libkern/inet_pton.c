@@ -22,12 +22,10 @@ static const char rcsid[] = "$Id: inet_pton.c,v 1.3.18.2 2005/07/28 07:38:07 mar
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 
-#include <rpc/types.h>
-#include <rpc/rpc_com.h>
+#include <netinet/in.h>
 
 #if __FreeBSD_version < 700000
 #define strchr index
@@ -53,7 +51,7 @@ static int	inet_pton6(const char *src, u_char *dst);
  *	Paul Vixie, 1996.
  */
 int
-__rpc_inet_pton(int af, const char * __restrict src, void * __restrict dst)
+inet_pton(int af, const char *src, void *dst)
 {
 	switch (af) {
 	case AF_INET:
