@@ -4894,6 +4894,8 @@ bge_add_sysctls(struct bge_softc *sc)
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *children, *schildren;
 	struct sysctl_oid *tree;
+	char tn[32];
+	int unit;
 
 	ctx = device_get_sysctl_ctx(sc->bge_dev);
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->bge_dev));
@@ -4913,6 +4915,7 @@ bge_add_sysctls(struct bge_softc *sc)
 
 #endif
 
+	unit = device_get_unit(sc->bge_dev);
 	/*
 	 * A common design characteristic for many Broadcom client controllers
 	 * is that they only support a single outstanding DMA read operation
@@ -4925,13 +4928,13 @@ bge_add_sysctls(struct bge_softc *sc)
 	 * performance is about 850Mbps. However forcing coalescing mbufs
 	 * consumes a lot of CPU cycles, so leave it off by default.
 	 */
+	sc->bge_forced_collapse = 0;
+	snprintf(tn, sizeof(tn), "dev.bge.%d.forced_collapse", unit);
+	TUNABLE_INT_FETCH(tn, &sc->bge_forced_collapse);
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "forced_collapse",
 	    CTLFLAG_RW, &sc->bge_forced_collapse, 0,
 	    "Number of fragmented TX buffers of a frame allowed before "
 	    "forced collapsing");
-	resource_int_value(device_get_name(sc->bge_dev),
-	    device_get_unit(sc->bge_dev), "forced_collapse",
-	    &sc->bge_forced_collapse);
 
 	if (BGE_IS_5705_PLUS(sc))
 		return;
