@@ -248,7 +248,8 @@ _fork(void)
 		_thr_rwlock_unlock(&_thr_atfork_lock);
 		curthread->no_cancel = cancelsave;
 		/* test async cancel */
-		_thr_testcancel(curthread);
+		if (curthread->cancel_async)
+			_thr_testcancel(curthread);
 	}
 	errno = errsave;
 
