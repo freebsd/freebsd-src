@@ -525,7 +525,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     /*
      * Now, we repeat some of the above for the user's private entries
      */
-    if ((lc = login_getuserclass(pwd)) != NULL) {
+    if (getuid() == uid && (lc = login_getuserclass(pwd)) != NULL) {
 	mymask = setlogincontext(lc, pwd, mymask, flags);
 	login_close(lc);
     }
