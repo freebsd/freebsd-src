@@ -357,7 +357,6 @@ struct pthread {
 
 #define	SHOULD_CANCEL(thr)					\
 	((thr)->cancel_pending && (thr)->cancel_enable &&	\
-	 ((thr)->cancel_point || (thr)->cancel_async) &&	\
 	 (thr)->no_cancel == 0)
 
 	/* Cancellation is enabled */

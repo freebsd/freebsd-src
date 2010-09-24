@@ -131,9 +131,7 @@ _pthread_testcancel(void)
 {
 	struct pthread *curthread = _get_curthread();
 
-	curthread->cancel_point = 1;
 	testcancel(curthread);
-	curthread->cancel_point = 0;
 }
 
 void
@@ -159,7 +157,7 @@ _thr_cancel_enter2(struct pthread *curthread, int maycancel)
 void
 _thr_cancel_leave(struct pthread *curthread, int maycancel)
 {
+	curthread->cancel_point = 0;
 	if (maycancel)
 		testcancel(curthread);
-	curthread->cancel_point = 0;
 }
