@@ -1666,7 +1666,6 @@ xl_detach(device_t dev)
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		XL_LOCK(sc);
-		xl_reset(sc);
 		xl_stop(sc);
 		XL_UNLOCK(sc);
 		taskqueue_drain(taskqueue_swi, &sc->xl_task);
@@ -2274,7 +2273,6 @@ xl_intr(void *arg)
 		}
 
 		if (status & XL_STAT_ADFAIL) {
-			xl_reset(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			xl_init_locked(sc);
 		}
@@ -2343,7 +2341,6 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			}
 
 			if (status & XL_STAT_ADFAIL) {
-				xl_reset(sc);
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				xl_init_locked(sc);
 			}
@@ -2777,6 +2774,9 @@ xl_init_locked(struct xl_softc *sc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	xl_stop(sc);
+
+	/* Reset the chip to a known state. */
+	xl_reset(sc);
 
 	if (sc->xl_miibus == NULL) {
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_RESET);
@@ -3260,7 +3260,6 @@ xl_watchdog(struct xl_softc *sc)
 		device_printf(sc->xl_dev,
 		    "no carrier - transceiver cable problem?\n");
 
-	xl_reset(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	xl_init_locked(sc);
 
@@ -3359,7 +3358,6 @@ xl_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 
 	XL_LOCK(sc);
-	xl_reset(sc);
 	xl_stop(sc);
 	XL_UNLOCK(sc);
 
@@ -3391,7 +3389,6 @@ xl_resume(device_t dev)
 
 	XL_LOCK(sc);
 
-	xl_reset(sc);
 	if (ifp->if_flags & IFF_UP) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		xl_init_locked(sc);
