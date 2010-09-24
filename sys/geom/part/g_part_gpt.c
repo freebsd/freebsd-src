@@ -100,6 +100,8 @@ static const char *g_part_gpt_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_gpt_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_gpt_read(struct g_part_table *, struct g_consumer *);
+static int g_part_gpt_setunset(struct g_part_table *table,
+    struct g_part_entry *baseentry, const char *attrib, unsigned int set);
 static const char *g_part_gpt_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_gpt_write(struct g_part_table *, struct g_consumer *);
@@ -118,6 +120,7 @@ static kobj_method_t g_part_gpt_methods[] = {
 	KOBJMETHOD(g_part_name,		g_part_gpt_name),
 	KOBJMETHOD(g_part_probe,	g_part_gpt_probe),
 	KOBJMETHOD(g_part_read,		g_part_gpt_read),
+	KOBJMETHOD(g_part_setunset,	g_part_gpt_setunset),
 	KOBJMETHOD(g_part_type,		g_part_gpt_type),
 	KOBJMETHOD(g_part_write,	g_part_gpt_write),
 	{ 0, 0 }
@@ -519,6 +522,16 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		g_gpt_printf_utf16(sb, entry->ent.ent_name,
 		    sizeof(entry->ent.ent_name) >> 1);
 		sbuf_printf(sb, "</label>\n");
+		if (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTME)
+			sbuf_printf(sb, "%s<attrib>bootme</attrib>\n", indent);
+		if (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTONCE) {
+			sbuf_printf(sb, "%s<attrib>bootonce</attrib>\n",
+			    indent);
+		}
+		if (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTFAILED) {
+			sbuf_printf(sb, "%s<attrib>bootfailed</attrib>\n",
+			    indent);
+		}
 		sbuf_printf(sb, "%s<rawtype>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_type);
 		sbuf_printf(sb, "</rawtype>\n");
@@ -752,6 +765,78 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 	}
 
 	g_free(tbl);
+	return (0);
+}
+
+static int
+g_part_gpt_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
+    const char *attrib, unsigned int set)
+{
+	struct g_part_entry *iter;
+	struct g_part_gpt_entry *entry;
+	int changed, bootme, bootonce, bootfailed;
+
+	bootme = bootonce = bootfailed = 0;
+	if (strcasecmp(attrib, "bootme") == 0) {
+		bootme = 1;
+	} else if (strcasecmp(attrib, "bootonce") == 0) {
+		/* BOOTME is set automatically with BOOTONCE, but not unset. */
+		bootonce = 1;
+		if (set)
+			bootme = 1;
+	} else if (strcasecmp(attrib, "bootfailed") == 0) {
+		/*
+		 * It should only be possible to unset BOOTFAILED, but it might
+		 * be useful for test purposes to also be able to set it.
+		 */
+		bootfailed = 1;
+	}
+	if (!bootme && !bootonce && !bootfailed)
+		return (EINVAL);
+
+	LIST_FOREACH(iter, &table->gpt_entry, gpe_entry) {
+		if (iter->gpe_deleted)
+			continue;
+		if (iter != baseentry)
+			continue;
+		changed = 0;
+		entry = (struct g_part_gpt_entry *)iter;
+		if (set) {
+			if (bootme &&
+			    !(entry->ent.ent_attr & GPT_ENT_ATTR_BOOTME)) {
+				entry->ent.ent_attr |= GPT_ENT_ATTR_BOOTME;
+				changed = 1;
+			}
+			if (bootonce &&
+			    !(entry->ent.ent_attr & GPT_ENT_ATTR_BOOTONCE)) {
+				entry->ent.ent_attr |= GPT_ENT_ATTR_BOOTONCE;
+				changed = 1;
+			}
+			if (bootfailed &&
+			    !(entry->ent.ent_attr & GPT_ENT_ATTR_BOOTFAILED)) {
+				entry->ent.ent_attr |= GPT_ENT_ATTR_BOOTFAILED;
+				changed = 1;
+			}
+		} else {
+			if (bootme &&
+			    (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTME)) {
+				entry->ent.ent_attr &= ~GPT_ENT_ATTR_BOOTME;
+				changed = 1;
+			}
+			if (bootonce &&
+			    (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTONCE)) {
+				entry->ent.ent_attr &= ~GPT_ENT_ATTR_BOOTONCE;
+				changed = 1;
+			}
+			if (bootfailed &&
+			    (entry->ent.ent_attr & GPT_ENT_ATTR_BOOTFAILED)) {
+				entry->ent.ent_attr &= ~GPT_ENT_ATTR_BOOTFAILED;
+				changed = 1;
+			}
+		}
+		if (changed && !iter->gpe_created)
+			iter->gpe_modified = 1;
+	}
 	return (0);
 }
 
