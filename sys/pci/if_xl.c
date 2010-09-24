@@ -249,6 +249,7 @@ static int xl_watchdog(struct xl_softc *);
 static int xl_shutdown(device_t);
 static int xl_suspend(device_t);
 static int xl_resume(device_t);
+static void xl_setwol(struct xl_softc *);
 
 #ifdef DEVICE_POLLING
 static void xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
@@ -1175,10 +1176,10 @@ static int
 xl_attach(device_t dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
-	u_int16_t		xcvr[2];
+	u_int16_t		sinfo2, xcvr[2];
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
-	int			media;
+	int			media, pmcap;
 	int			unit, error = 0, rid, res;
 	uint16_t		did;
 
@@ -1436,6 +1437,18 @@ xl_attach(device_t dev)
 	else
 		sc->xl_type = XL_TYPE_90X;
 
+	/* Check availability of WOL. */
+	if ((sc->xl_caps & XL_CAPS_PWRMGMT) != 0 &&
+	    pci_find_extcap(dev, PCIY_PMG, &pmcap) == 0) {
+		sc->xl_pmcap = pmcap;
+		sc->xl_flags |= XL_FLAG_WOL;
+		sinfo2 = 0;
+		xl_read_eeprom(sc, (caddr_t)&sinfo2, XL_EE_SOFTINFO2, 1, 0);
+		if ((sinfo2 & XL_SINFO2_AUX_WOL_CON) == 0 && bootverbose)
+			device_printf(dev,
+			    "No auxiliary remote wakeup connector!\n");
+	}
+
 	/* Set the TX start threshold for best performance. */
 	sc->xl_tx_thresh = XL_MIN_FRAMELEN;
 
@@ -1450,6 +1463,8 @@ xl_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_HWCSUM;
 #endif
 	}
+	if ((sc->xl_flags & XL_FLAG_WOL) != 0)
+		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -2789,6 +2804,15 @@ xl_init_locked(struct xl_softc *sc)
 	if (sc->xl_miibus != NULL)
 		mii = device_get_softc(sc->xl_miibus);
 
+	/*
+	 * Clear WOL status and disable all WOL feature as WOL
+	 * would interfere Rx operation under normal environments.
+	 */
+	if ((sc->xl_flags & XL_FLAG_WOL) != 0) {
+		XL_SEL_WIN(7);
+		CSR_READ_2(sc, XL_W7_BM_PME);
+		CSR_WRITE_2(sc, XL_W7_BM_PME, 0);
+	}
 	/* Init our MAC address */
 	XL_SEL_WIN(2);
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
@@ -3211,6 +3235,9 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_RXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
+			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		XL_UNLOCK(sc);
 		break;
 	default:
@@ -3353,15 +3380,8 @@ xl_stop(struct xl_softc *sc)
 static int
 xl_shutdown(device_t dev)
 {
-	struct xl_softc		*sc;
 
-	sc = device_get_softc(dev);
-
-	XL_LOCK(sc);
-	xl_stop(sc);
-	XL_UNLOCK(sc);
-
-	return (0);
+	return (xl_suspend(dev));
 }
 
 static int
@@ -3373,6 +3393,7 @@ xl_suspend(device_t dev)
 
 	XL_LOCK(sc);
 	xl_stop(sc);
+	xl_setwol(sc);
 	XL_UNLOCK(sc);
 
 	return (0);
@@ -3397,4 +3418,35 @@ xl_resume(device_t dev)
 	XL_UNLOCK(sc);
 
 	return (0);
+}
+
+static void
+xl_setwol(struct xl_softc *sc)
+{
+	struct ifnet		*ifp;
+	u_int16_t		cfg, pmstat;
+
+	if ((sc->xl_flags & XL_FLAG_WOL) == 0)
+		return;
+
+	ifp = sc->xl_ifp;
+	XL_SEL_WIN(7);
+	/* Clear any pending PME events. */
+	CSR_READ_2(sc, XL_W7_BM_PME);
+	cfg = 0;
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		cfg |= XL_BM_PME_MAGIC;
+	CSR_WRITE_2(sc, XL_W7_BM_PME, cfg);
+	/* Enable RX. */
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_ENABLE);
+	/* Request PME. */
+	pmstat = pci_read_config(sc->xl_dev,
+	    sc->xl_pmcap + PCIR_POWER_STATUS, 2);
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		pmstat |= PCIM_PSTAT_PMEENABLE;
+	else
+		pmstat &= ~PCIM_PSTAT_PMEENABLE;
+	pci_write_config(sc->xl_dev,
+	    sc->xl_pmcap + PCIR_POWER_STATUS, pmstat, 2);
 }
