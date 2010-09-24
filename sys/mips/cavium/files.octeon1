@@ -39,30 +39,29 @@ mips/cavium/octopci_bus_space.c			optional pci
 mips/cavium/usb/octusb.c			optional usb octusb
 mips/cavium/usb/octusb_octeon.c			optional usb octusb
 
-contrib/octeon-sdk/cvmx-cmd-queue.c		optional octe
-contrib/octeon-sdk/cvmx-fpa.c			optional octe
-contrib/octeon-sdk/cvmx-helper.c		optional octe
-contrib/octeon-sdk/cvmx-helper-board.c		optional octe
-contrib/octeon-sdk/cvmx-helper-errata.c		optional octe
-contrib/octeon-sdk/cvmx-helper-fpa.c		optional octe
-contrib/octeon-sdk/cvmx-helper-loop.c		optional octe
-contrib/octeon-sdk/cvmx-helper-npi.c		optional octe
-contrib/octeon-sdk/cvmx-helper-rgmii.c		optional octe
-contrib/octeon-sdk/cvmx-helper-sgmii.c		optional octe
-contrib/octeon-sdk/cvmx-helper-spi.c		optional octe
-contrib/octeon-sdk/cvmx-helper-util.c		optional octe
-contrib/octeon-sdk/cvmx-helper-xaui.c		optional octe
-contrib/octeon-sdk/cvmx-pko.c			optional octe
-contrib/octeon-sdk/cvmx-spi.c			optional octe
-contrib/octeon-sdk/cvmx-spi4000.c		optional octe
-contrib/octeon-sdk/cvmx-twsi.c			optional octe
-
 contrib/octeon-sdk/cvmx-usb.c			optional octusb
 
 # XXX Some files could be excluded in some configurations.  Making them
 #     optional but on in the default config would seem reasonable.
+contrib/octeon-sdk/cvmx-cmd-queue.c		standard
 contrib/octeon-sdk/cvmx-bootmem.c		standard
+contrib/octeon-sdk/cvmx-fpa.c			standard
+contrib/octeon-sdk/cvmx-helper.c		standard
+contrib/octeon-sdk/cvmx-helper-board.c		standard
+contrib/octeon-sdk/cvmx-helper-errata.c		standard
+contrib/octeon-sdk/cvmx-helper-fpa.c		standard
+contrib/octeon-sdk/cvmx-helper-loop.c		standard
+contrib/octeon-sdk/cvmx-helper-npi.c		standard
+contrib/octeon-sdk/cvmx-helper-rgmii.c		standard
+contrib/octeon-sdk/cvmx-helper-sgmii.c		standard
+contrib/octeon-sdk/cvmx-helper-spi.c		standard
+contrib/octeon-sdk/cvmx-helper-util.c		standard
+contrib/octeon-sdk/cvmx-helper-xaui.c		standard
+contrib/octeon-sdk/cvmx-pko.c			standard
+contrib/octeon-sdk/cvmx-spi.c			standard
+contrib/octeon-sdk/cvmx-spi4000.c		standard
 contrib/octeon-sdk/cvmx-sysinfo.c		standard
 contrib/octeon-sdk/cvmx-thunder.c		standard
+contrib/octeon-sdk/cvmx-twsi.c			standard
 contrib/octeon-sdk/cvmx-warn.c			standard
 contrib/octeon-sdk/octeon-model.c		standard
