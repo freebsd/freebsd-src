@@ -120,7 +120,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bge/if_bgereg.h>
 
-#define	BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+#define	BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP)
 #define	ETHER_MIN_NOPAD		(ETHER_MIN_LEN - ETHER_CRC_LEN) /* i.e., 60 */
 
 MODULE_DEPEND(bge, pci, 1, 1, 1);
@@ -2795,12 +2795,19 @@ bge_attach(device_t dev)
 		goto fail;
 	}
 
+	bge_add_sysctls(sc);
+
 	/* Set default tuneable values. */
 	sc->bge_stat_ticks = BGE_TICKS_PER_SEC;
 	sc->bge_rx_coal_ticks = 150;
 	sc->bge_tx_coal_ticks = 150;
 	sc->bge_rx_max_coal_bds = 10;
 	sc->bge_tx_max_coal_bds = 10;
+
+	/* Initialize checksum features to use. */
+	sc->bge_csum_features = BGE_CSUM_FEATURES;
+	if (sc->bge_forced_udpcsum != 0)
+		sc->bge_csum_features |= CSUM_UDP;
 
 	/* Set up ifnet structure */
 	ifp = sc->bge_ifp = if_alloc(IFT_ETHER);
@@ -2818,7 +2825,7 @@ bge_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = BGE_TX_RING_CNT - 1;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_hwassist = BGE_CSUM_FEATURES;
+	ifp->if_hwassist = sc->bge_csum_features;
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
 	    IFCAP_VLAN_MTU;
 	if ((sc->bge_flags & BGE_FLAG_TSO) != 0) {
@@ -2974,8 +2981,6 @@ again:
 		bge_detach(dev);
 		device_printf(sc->bge_dev, "couldn't set up irq\n");
 	}
-
-	bge_add_sysctls(sc);
 
 	return (0);
 
@@ -3956,7 +3961,7 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 			return (ENOBUFS);
 		csum_flags |= BGE_TXBDFLAG_CPU_PRE_DMA |
 		    BGE_TXBDFLAG_CPU_POST_DMA;
-	} else if ((m->m_pkthdr.csum_flags & BGE_CSUM_FEATURES) != 0) {
+	} else if ((m->m_pkthdr.csum_flags & sc->bge_csum_features) != 0) {
 		if (m->m_pkthdr.csum_flags & CSUM_IP)
 			csum_flags |= BGE_TXBDFLAG_IP_CSUM;
 		if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) {
@@ -4232,6 +4237,17 @@ bge_init_locked(struct bge_softc *sc)
 
 	/* Program VLAN tag stripping. */
 	bge_setvlan(sc);
+
+	/* Override UDP checksum offloading. */
+	if (sc->bge_forced_udpcsum == 0)
+		sc->bge_csum_features &= ~CSUM_UDP;
+	else
+		sc->bge_csum_features |= CSUM_UDP;
+	if (ifp->if_capabilities & IFCAP_TXCSUM &&
+	    ifp->if_capenable & IFCAP_TXCSUM) {
+		ifp->if_hwassist &= ~(BGE_CSUM_FEATURES | CSUM_UDP);
+		ifp->if_hwassist |= sc->bge_csum_features;
+	}
 
 	/* Init RX ring. */
 	if (bge_init_rx_ring_std(sc) != 0) {
@@ -4558,9 +4574,9 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			if (IFCAP_HWCSUM & ifp->if_capenable &&
 			    IFCAP_HWCSUM & ifp->if_capabilities)
-				ifp->if_hwassist |= BGE_CSUM_FEATURES;
+				ifp->if_hwassist |= sc->bge_csum_features;
 			else
-				ifp->if_hwassist &= ~BGE_CSUM_FEATURES;
+				ifp->if_hwassist &= ~sc->bge_csum_features;
 		}
 
 		if ((mask & IFCAP_TSO4) != 0 &&
@@ -4935,6 +4951,24 @@ bge_add_sysctls(struct bge_softc *sc)
 	    CTLFLAG_RW, &sc->bge_forced_collapse, 0,
 	    "Number of fragmented TX buffers of a frame allowed before "
 	    "forced collapsing");
+
+	/*
+	 * It seems all Broadcom controllers have a bug that can generate UDP
+	 * datagrams with checksum value 0 when TX UDP checksum offloading is
+	 * enabled.  Generating UDP checksum value 0 is RFC 768 violation.
+	 * Even though the probability of generating such UDP datagrams is
+	 * low, I don't want to see FreeBSD boxes to inject such datagrams
+	 * into network so disable UDP checksum offloading by default.  Users
+	 * still override this behavior by setting a sysctl variable,
+	 * dev.bge.0.forced_udpcsum.
+	 */
+	sc->bge_forced_udpcsum = 0;
+	snprintf(tn, sizeof(tn), "dev.bge.%d.bge_forced_udpcsum", unit);
+	TUNABLE_INT_FETCH(tn, &sc->bge_forced_udpcsum);
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "forced_udpcsum",
+	    CTLFLAG_RW, &sc->bge_forced_udpcsum, 0,
+	    "Enable UDP checksum offloading even if controller can "
+	    "generate UDP checksum value 0");
 
 	if (BGE_IS_5705_PLUS(sc))
 		return;
