@@ -2275,6 +2275,7 @@ xl_intr(void *arg)
 
 		if (status & XL_STAT_ADFAIL) {
 			xl_reset(sc);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			xl_init_locked(sc);
 		}
 
@@ -2343,6 +2344,7 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 			if (status & XL_STAT_ADFAIL) {
 				xl_reset(sc);
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				xl_init_locked(sc);
 			}
 
@@ -2769,6 +2771,8 @@ xl_init_locked(struct xl_softc *sc)
 
 	XL_LOCK_ASSERT(sc);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
@@ -3017,6 +3021,7 @@ xl_ifmedia_upd(struct ifnet *ifp)
 	if (sc->xl_media & XL_MEDIAOPT_MII ||
 	    sc->xl_media & XL_MEDIAOPT_BTX ||
 	    sc->xl_media & XL_MEDIAOPT_BT4) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		xl_init_locked(sc);
 	} else {
 		xl_setmode(sc, ifm->ifm_media);
@@ -3132,10 +3137,8 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				CSR_WRITE_2(sc, XL_COMMAND,
 				    XL_CMD_RX_SET_FILT|rxfilt);
 				XL_SEL_WIN(7);
-			} else {
-				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-					xl_init_locked(sc);
-			}
+			} else
+				xl_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				xl_stop(sc);
@@ -3258,6 +3261,7 @@ xl_watchdog(struct xl_softc *sc)
 		    "no carrier - transceiver cable problem?\n");
 
 	xl_reset(sc);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	xl_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
@@ -3388,8 +3392,10 @@ xl_resume(device_t dev)
 	XL_LOCK(sc);
 
 	xl_reset(sc);
-	if (ifp->if_flags & IFF_UP)
+	if (ifp->if_flags & IFF_UP) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		xl_init_locked(sc);
+	}
 
 	XL_UNLOCK(sc);
 
