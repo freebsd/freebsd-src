@@ -1555,8 +1555,6 @@ vr_tick(void *xsc)
 	if ((sc->vr_flags & VR_F_RESTART) != 0) {
 		device_printf(sc->vr_dev, "restarting\n");
 		sc->vr_stat.num_restart++;
-		vr_stop(sc);
-		vr_reset(sc);
 		sc->vr_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vr_init_locked(sc);
 		sc->vr_flags &= ~VR_F_RESTART;
@@ -2291,8 +2289,6 @@ vr_watchdog(struct vr_softc *sc)
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
 
-	vr_stop(sc);
-	vr_reset(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	vr_init_locked(sc);
 
