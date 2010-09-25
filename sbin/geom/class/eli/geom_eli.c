@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -79,14 +80,14 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
 /*
  * Available commands:
  *
- * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] prov
+ * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] prov
  * label - alias for 'init'
- * attach [-dprv] [-k keyfile] prov
+ * attach [-dprv] [-j passfile] [-k keyfile] prov
  * detach [-fl] prov ...
  * stop - alias for 'detach'
  * onetime [-d] [-a aalgo] [-e ealgo] [-l keylen] prov
  * configure [-bB] prov ...
- * setkey [-pPv] [-n keyno] [-k keyfile] [-K newkeyfile] prov
+ * setkey [-pPv] [-n keyno] [-j passfile] [-J newpassfile] [-k keyfile] [-K newkeyfile] prov
  * delkey [-afv] [-n keyno] prov
  * kill [-av] [prov ...]
  * backup [-v] prov file
@@ -103,13 +104,14 @@ struct g_command class_commands[] = {
 		{ 'B', "backupfile", "", G_TYPE_STRING },
 		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
 		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
-		{ 'K', "newkeyfile", "", G_TYPE_STRING },
+		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
+	    "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -118,7 +120,8 @@ struct g_command class_commands[] = {
 		{ 'B', "backupfile", "", G_TYPE_STRING },
 		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
 		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
-		{ 'K', "newkeyfile", "", G_TYPE_STRING },
+		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
@@ -129,12 +132,13 @@ struct g_command class_commands[] = {
 	{ "attach", G_FLAG_VERBOSE | G_FLAG_LOADKLD, eli_main,
 	    {
 		{ 'd', "detach", NULL, G_TYPE_BOOL },
-		{ 'k', "keyfile", "", G_TYPE_STRING },
+		{ 'j', "passfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'k', "keyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'r', "readonly", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-dprv] [-k keyfile] prov"
+	    "[-dprv] [-j passfile] [-k keyfile] prov"
 	},
 	{ "detach", 0, NULL,
 	    {
@@ -174,14 +178,16 @@ struct g_command class_commands[] = {
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
-		{ 'k', "keyfile", "", G_TYPE_STRING },
-		{ 'K', "newkeyfile", "", G_TYPE_STRING },
+		{ 'j', "passfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'k', "keyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'n', "keyno", "-1", G_TYPE_NUMBER },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-pPv] [-n keyno] [-i iterations] [-k keyfile] [-K newkeyfile] prov"
+	    "[-pPv] [-n keyno] [-i iterations] [-j passfile] [-J newpassfile] [-k keyfile] [-K newkeyfile] prov"
 	},
 	{ "delkey", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -249,7 +255,7 @@ eli_protect(struct gctl_req *req)
 }
 
 static void
-eli_main(struct gctl_req *req, unsigned flags)
+eli_main(struct gctl_req *req, unsigned int flags)
 {
 	const char *name;
 
@@ -295,7 +301,7 @@ arc4rand(unsigned char *buf, size_t size)
 {
 	uint32_t *buf4;
 	size_t size4;
-	unsigned i;
+	unsigned int i;
 
 	buf4 = (uint32_t *)buf;
 	size4 = size / 4;
@@ -324,123 +330,216 @@ eli_is_attached(const char *prov)
 	return (0);
 }
 
+static int
+eli_genkey_files(struct gctl_req *req, bool new, const char *type,
+    struct hmac_ctx *ctxp, char *passbuf, size_t passbufsize)
+{
+	char *p, buf[MAXPHYS], argname[16];
+	const char *file;
+	int error, fd, i;
+	ssize_t done;
+
+	assert((strcmp(type, "keyfile") == 0 && ctxp != NULL &&
+	    passbuf == NULL && passbufsize == 0) ||
+	    (strcmp(type, "passfile") == 0 && ctxp == NULL &&
+	    passbuf != NULL && passbufsize > 0));
+	assert(strcmp(type, "keyfile") == 0 || passbuf[0] == '\0');
+
+	for (i = 0; ; i++) {
+		snprintf(argname, sizeof(argname), "%s%s%d",
+		    new ? "new" : "", type, i);
+
+		/* No more {key,pass}files? */
+		if (!gctl_has_param(req, argname))
+			return (i);
+
+		file = gctl_get_ascii(req, argname);
+		assert(file != NULL);
+
+		if (strcmp(file, "-") == 0)
+			fd = STDIN_FILENO;
+		else {
+			fd = open(file, O_RDONLY);
+			if (fd == -1) {
+				gctl_error(req, "Cannot open %s %s: %s.",
+				    type, file, strerror(errno));
+				return (-1);
+			}
+		}
+		if (strcmp(type, "keyfile") == 0) {
+			while ((done = read(fd, buf, sizeof(buf))) > 0)
+				g_eli_crypto_hmac_update(ctxp, buf, done);
+		} else /* if (strcmp(type, "passfile") == 0) */ {
+			while ((done = read(fd, buf, sizeof(buf) - 1)) > 0) {
+				buf[done] = '\0';
+				p = strchr(buf, '\n');
+				if (p != NULL) {
+					*p = '\0';
+					done = p - buf;
+				}
+				if (strlcat(passbuf, buf, passbufsize) >=
+				    passbufsize) {
+					gctl_error(req,
+					    "Passphrase in %s too long.", file);
+					bzero(buf, sizeof(buf));
+					return (-1);
+				}
+				if (p != NULL)
+					break;
+			}
+		}
+		error = errno;
+		if (strcmp(file, "-") != 0)
+			close(fd);
+		bzero(buf, sizeof(buf));
+		if (done == -1) {
+			gctl_error(req, "Cannot read %s %s: %s.",
+			    type, file, strerror(error));
+			return (-1);
+		}
+	}
+	/* NOTREACHED */
+}
+
+static int
+eli_genkey_passphrase_prompt(struct gctl_req *req, bool new, char *passbuf,
+    size_t passbufsize)
+{
+	char *p;
+
+	for (;;) {
+		p = readpassphrase(
+		    new ? "Enter new passphrase:" : "Enter passphrase:",
+		    passbuf, passbufsize, RPP_ECHO_OFF | RPP_REQUIRE_TTY);
+		if (p == NULL) {
+			bzero(passbuf, passbufsize);
+			gctl_error(req, "Cannot read passphrase: %s.",
+			    strerror(errno));
+			return (-1);
+		}
+
+		if (new) {
+			char tmpbuf[BUFSIZ];
+
+			p = readpassphrase("Reenter new passphrase: ",
+			    tmpbuf, sizeof(tmpbuf),
+			    RPP_ECHO_OFF | RPP_REQUIRE_TTY);
+			if (p == NULL) {
+				bzero(passbuf, passbufsize);
+				gctl_error(req,
+				    "Cannot read passphrase: %s.",
+				    strerror(errno));
+				return (-1);
+			}
+
+			if (strcmp(passbuf, tmpbuf) != 0) {
+				bzero(passbuf, passbufsize);
+				fprintf(stderr, "They didn't match.\n");
+				continue;
+			}
+			bzero(tmpbuf, sizeof(tmpbuf));
+		}
+		return (0);
+	}
+	/* NOTREACHED */
+}
+
+static int
+eli_genkey_passphrase(struct gctl_req *req, struct g_eli_metadata *md, bool new,
+    struct hmac_ctx *ctxp)
+{
+	char passbuf[MAXPHYS];
+	bool nopassphrase;
+	int nfiles;
+
+	nopassphrase =
+	    gctl_get_int(req, new ? "nonewpassphrase" : "nopassphrase");
+	if (nopassphrase) {
+		if (gctl_has_param(req, new ? "newpassfile0" : "passfile0")) {
+			gctl_error(req,
+			    "Options -%c and -%c are mutually exclusive.",
+			    new ? 'J' : 'j', new ? 'P' : 'p');
+			return (-1);
+		}
+		return (0);
+	}
+
+	if (!new && md->md_iterations == -1) {
+		gctl_error(req, "Missing -p flag.");
+		return (-1);
+	}
+	passbuf[0] = '\0';
+	nfiles = eli_genkey_files(req, new, "passfile", NULL, passbuf,
+	    sizeof(passbuf));
+	if (nfiles == -1)
+		return (-1);
+	else if (nfiles == 0) {
+		if (eli_genkey_passphrase_prompt(req, new, passbuf,
+		    sizeof(passbuf)) == -1) {
+			return (-1);
+		}
+	}
+	/*
+	 * Field md_iterations equal to -1 means "choose some sane
+	 * value for me".
+	 */
+	if (md->md_iterations == -1) {
+		assert(new);
+		if (verbose)
+			printf("Calculating number of iterations...\n");
+		md->md_iterations = pkcs5v2_calculate(2000000);
+		assert(md->md_iterations > 0);
+		if (verbose) {
+			printf("Done, using %d iterations.\n",
+			    md->md_iterations);
+		}
+	}
+	/*
+	 * If md_iterations is equal to 0, user doesn't want PKCS#5v2.
+	 */
+	if (md->md_iterations == 0) {
+		g_eli_crypto_hmac_update(ctxp, md->md_salt,
+		    sizeof(md->md_salt));
+		g_eli_crypto_hmac_update(ctxp, passbuf, strlen(passbuf));
+	} else /* if (md->md_iterations > 0) */ {
+		unsigned char dkey[G_ELI_USERKEYLEN];
+
+		pkcs5v2_genkey(dkey, sizeof(dkey), md->md_salt,
+		    sizeof(md->md_salt), passbuf, md->md_iterations);
+		g_eli_crypto_hmac_update(ctxp, dkey, sizeof(dkey));
+		bzero(dkey, sizeof(dkey));
+	}
+	bzero(passbuf, sizeof(passbuf));
+
+	return (0);
+}
+
 static unsigned char *
 eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
-    int new)
+    bool new)
 {
 	struct hmac_ctx ctx;
-	const char *str;
-	int error, nopassphrase;
+	bool nopassphrase;
+	int nfiles;
 
 	nopassphrase =
 	    gctl_get_int(req, new ? "nonewpassphrase" : "nopassphrase");
 
 	g_eli_crypto_hmac_init(&ctx, NULL, 0);
 
-	str = gctl_get_ascii(req, new ? "newkeyfile" : "keyfile");
-	if (str[0] == '\0' && nopassphrase) {
+	nfiles = eli_genkey_files(req, new, "keyfile", &ctx, NULL, 0);
+	if (nfiles == -1)
+		return (NULL);
+	else if (nfiles == 0 && nopassphrase) {
 		gctl_error(req, "No key components given.");
 		return (NULL);
-	} else if (str[0] != '\0') {
-		char buf[MAXPHYS];
-		ssize_t done;
-		int fd;
-
-		if (strcmp(str, "-") == 0)
-			fd = STDIN_FILENO;
-		else {
-			fd = open(str, O_RDONLY);
-			if (fd == -1) {
-				gctl_error(req, "Cannot open keyfile %s: %s.",
-				    str, strerror(errno));
-				return (NULL);
-			}
-		}
-		while ((done = read(fd, buf, sizeof(buf))) > 0)
-			g_eli_crypto_hmac_update(&ctx, buf, done);
-		error = errno;
-		if (strcmp(str, "-") != 0)
-			close(fd);
-		bzero(buf, sizeof(buf));
-		if (done == -1) {
-			gctl_error(req, "Cannot read keyfile %s: %s.", str,
-			    strerror(error));
-			return (NULL);
-		}
 	}
 
-	if (!nopassphrase) {
-		char buf1[BUFSIZ], buf2[BUFSIZ], *p;
+	if (eli_genkey_passphrase(req, md, new, &ctx) == -1)
+		return (NULL);
 
-		if (!new && md->md_iterations == -1) {
-			gctl_error(req, "Missing -p flag.");
-			return (NULL);
-		}
-		for (;;) {
-			p = readpassphrase(
-			    new ? "Enter new passphrase:" : "Enter passphrase:",
-			    buf1, sizeof(buf1), RPP_ECHO_OFF | RPP_REQUIRE_TTY);
-			if (p == NULL) {
-				bzero(buf1, sizeof(buf1));
-				gctl_error(req, "Cannot read passphrase: %s.",
-				    strerror(errno));
-				return (NULL);
-			}
-	
-			if (new) {
-				p = readpassphrase("Reenter new passphrase: ",
-				    buf2, sizeof(buf2),
-				    RPP_ECHO_OFF | RPP_REQUIRE_TTY);
-				if (p == NULL) {
-					bzero(buf1, sizeof(buf1));
-					gctl_error(req,
-					    "Cannot read passphrase: %s.",
-					    strerror(errno));
-					return (NULL);
-				}
-	
-				if (strcmp(buf1, buf2) != 0) {
-					bzero(buf2, sizeof(buf2));
-					fprintf(stderr, "They didn't match.\n");
-					continue;
-				}
-				bzero(buf2, sizeof(buf2));
-			}
-			break;
-		}
-		/*
-		 * Field md_iterations equal to -1 means "choose some sane
-		 * value for me".
-		 */
-		if (md->md_iterations == -1) {
-			assert(new);
-			if (verbose)
-				printf("Calculating number of iterations...\n");
-			md->md_iterations = pkcs5v2_calculate(2000000);
-			assert(md->md_iterations > 0);
-			if (verbose) {
-				printf("Done, using %d iterations.\n",
-				    md->md_iterations);
-			}
-		}
-		/*
-		 * If md_iterations is equal to 0, user don't want PKCS#5v2.
-		 */
-		if (md->md_iterations == 0) {
-			g_eli_crypto_hmac_update(&ctx, md->md_salt,
-			    sizeof(md->md_salt));
-			g_eli_crypto_hmac_update(&ctx, buf1, strlen(buf1));
-		} else /* if (md->md_iterations > 0) */ {
-			unsigned char dkey[G_ELI_USERKEYLEN];
-
-			pkcs5v2_genkey(dkey, sizeof(dkey), md->md_salt,
-			    sizeof(md->md_salt), buf1, md->md_iterations);
-			g_eli_crypto_hmac_update(&ctx, dkey, sizeof(dkey));
-			bzero(dkey, sizeof(dkey));
-		}
-		bzero(buf1, sizeof(buf1));
-	}
 	g_eli_crypto_hmac_final(&ctx, key, 0);
+
 	return (key);
 }
 
@@ -640,7 +739,7 @@ eli_init(struct gctl_req *req)
 	arc4rand(md.md_mkeys, sizeof(md.md_mkeys));
 
 	/* Generate user key. */
-	if (eli_genkey(req, &md, key, 1) == NULL) {
+	if (eli_genkey(req, &md, key, true) == NULL) {
 		bzero(key, sizeof(key));
 		bzero(&md, sizeof(md));
 		return;
@@ -720,7 +819,7 @@ eli_attach(struct gctl_req *req)
 		return;
 	}
 
-	if (eli_genkey(req, &md, key, 0) == NULL) {
+	if (eli_genkey(req, &md, key, false) == NULL) {
 		bzero(key, sizeof(key));
 		return;
 	}
@@ -734,7 +833,7 @@ eli_attach(struct gctl_req *req)
 }
 
 static void
-eli_configure_detached(struct gctl_req *req, const char *prov, int boot)
+eli_configure_detached(struct gctl_req *req, const char *prov, bool boot)
 {
 	struct g_eli_metadata md;
 
@@ -761,7 +860,8 @@ static void
 eli_configure(struct gctl_req *req)
 {
 	const char *prov;
-	int i, nargs, boot, noboot;
+	bool boot, noboot;
+	int i, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs == 0) {
@@ -806,7 +906,7 @@ eli_setkey_attached(struct gctl_req *req, struct g_eli_metadata *md)
 		old = md->md_iterations;
 
 	/* Generate key for Master Key encryption. */
-	if (eli_genkey(req, md, key, 1) == NULL) {
+	if (eli_genkey(req, md, key, true) == NULL) {
 		bzero(key, sizeof(key));
 		return;
 	}
@@ -831,8 +931,8 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 {
 	unsigned char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN];
 	unsigned char *mkeydst;
+	unsigned int nkey;
 	intmax_t val;
-	unsigned nkey;
 	int error;
 
 	if (md->md_keys == 0) {
@@ -841,7 +941,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	}
 
 	/* Generate key for Master Key decryption. */
-	if (eli_genkey(req, md, key, 0) == NULL) {
+	if (eli_genkey(req, md, key, false) == NULL) {
 		bzero(key, sizeof(key));
 		return;
 	}
@@ -897,7 +997,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	bzero(mkey, sizeof(mkey));
 
 	/* Generate key for Master Key encryption. */
-	if (eli_genkey(req, md, key, 1) == NULL) {
+	if (eli_genkey(req, md, key, true) == NULL) {
 		bzero(key, sizeof(key));
 		bzero(md, sizeof(*md));
 		return;
@@ -959,9 +1059,9 @@ eli_delkey_detached(struct gctl_req *req, const char *prov)
 {
 	struct g_eli_metadata md;
 	unsigned char *mkeydst;
+	unsigned int nkey;
 	intmax_t val;
-	unsigned nkey;
-	int all, force;
+	bool all, force;
 
 	if (eli_metadata_read(req, prov, &md) == -1)
 		return;
