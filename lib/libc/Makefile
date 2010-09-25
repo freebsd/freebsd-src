@@ -31,6 +31,11 @@ CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=
 PRECIOUSLIB=
 
+.ifndef NO_THREAD_STACK_UNWIND
+CANCELPOINTS_CFLAGS=-fexceptions
+CFLAGS+=${CANCELPOINTS_CFLAGS}
+.endif
+
 #
 # Only link with static libgcc.a (no libgcc_eh.a).
 #
@@ -145,3 +150,5 @@ CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/:C/^$/-w/}
 SSP_CFLAGS:=	${SSP_CFLAGS:S/^-fstack-protector-all$/-fstack-protector/}
 # Disable stack protection for SSP symbols.
 SSP_CFLAGS:=	${.IMPSRC:N*/stack_protector.c:C/^.+$/${SSP_CFLAGS}/}
+# Generate stack unwinding tables for cancellation points
+CANCELPOINTS_CFLAGS:=	${.IMPSRC:Mcancelpoints_*:C/^.+$/${CANCELPOINTS_CFLAGS}/:C/^$//}
