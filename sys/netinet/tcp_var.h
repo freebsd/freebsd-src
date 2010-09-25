@@ -44,10 +44,6 @@
 VNET_DECLARE(int, tcp_do_rfc1323);
 #define	V_tcp_do_rfc1323	VNET(tcp_do_rfc1323)
 
-VNET_DECLARE(int, tcp_reass_qsize);
-VNET_DECLARE(struct uma_zone *, tcp_reass_zone);
-#define	V_tcp_reass_qsize	VNET(tcp_reass_qsize)
-#define	V_tcp_reass_zone	VNET(tcp_reass_zone)
 #endif /* _KERNEL */
 
 /* TCP segment queue entry */
@@ -617,6 +613,7 @@ char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
 void	 tcp_reass_init(void);
+void	 tcp_reass_flush(struct tcpcb *);
 #ifdef VIMAGE
 void	 tcp_reass_destroy(void);
 #endif
