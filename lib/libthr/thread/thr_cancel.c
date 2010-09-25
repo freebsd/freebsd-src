@@ -162,3 +162,15 @@ _thr_cancel_leave(struct pthread *curthread, int maycancel)
 	    !THR_IN_CRITICAL(curthread) && maycancel))
 		_pthread_exit(PTHREAD_CANCELED);
 }
+
+void
+_pthread_cancel_enter(int maycancel)
+{
+	_thr_cancel_enter2(_get_curthread(), maycancel);
+}
+
+void
+_pthread_cancel_leave(int maycancel)
+{
+	_thr_cancel_leave(_get_curthread(), maycancel);
+}

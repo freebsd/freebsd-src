@@ -716,7 +716,8 @@ int	_sched_yield(void);
 void	_pthread_cleanup_push(void (*)(void *), void *);
 void	_pthread_cleanup_pop(int);
 void	_pthread_exit_mask(void *status, sigset_t *mask) __dead2 __hidden;
-
+void	_pthread_cancel_enter(int maycancel);
+void 	_pthread_cancel_leave(int maycancel);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
