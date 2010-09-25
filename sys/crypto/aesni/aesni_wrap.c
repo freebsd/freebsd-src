@@ -232,7 +232,7 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 
 	aesni_set_enckey(key, ses->enc_schedule, ses->rounds);
 	aesni_set_deckey(ses->enc_schedule, ses->dec_schedule, ses->rounds);
-	if (ses->algo == CRYPTO_AES_XTS)
+	if (ses->algo == CRYPTO_AES_CBC)
 		arc4rand(ses->iv, sizeof(ses->iv), 0);
 	else /* if (ses->algo == CRYPTO_AES_XTS) */ {
 		aesni_set_enckey(key + keylen / 16, ses->xts_schedule,
@@ -306,7 +306,7 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 			aesni_decrypt_cbc(ses->rounds, ses->dec_schedule,
 			    enccrd->crd_len, buf, ses->iv);
 		} else /* if (ses->algo == CRYPTO_AES_XTS) */ {
-			aesni_decrypt_xts(ses->rounds, ses->enc_schedule,
+			aesni_decrypt_xts(ses->rounds, ses->dec_schedule,
 			    ses->xts_schedule, enccrd->crd_len, buf, buf,
 			    ses->iv);
 		}
