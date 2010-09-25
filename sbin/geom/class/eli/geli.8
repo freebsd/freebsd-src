@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2010
+.Dd September 25, 2010
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -56,6 +56,7 @@ utility:
 .Op Fl B Ar backupfile
 .Op Fl e Ar ealgo
 .Op Fl i Ar iterations
+.Op Fl J Ar newpassfile
 .Op Fl K Ar newkeyfile
 .Op Fl l Ar keylen
 .Op Fl s Ar sectorsize
@@ -66,6 +67,7 @@ utility:
 .Nm
 .Cm attach
 .Op Fl dprv
+.Op Fl j Ar passfile
 .Op Fl k Ar keyfile
 .Ar prov
 .Nm
@@ -91,6 +93,8 @@ utility:
 .Cm setkey
 .Op Fl pPv
 .Op Fl i Ar iterations
+.Op Fl j Ar passfile
+.Op Fl J Ar newpassfile
 .Op Fl k Ar keyfile
 .Op Fl K Ar newkeyfile
 .Op Fl n Ar keyno
@@ -223,7 +227,7 @@ The metadata can be recovered with the
 subcommand described below.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar newkeyfile"
+.Bl -tag -width ".Fl J Ar newpassfile"
 .It Fl a Ar aalgo
 Enable data integrity verification (authentication) using the given algorithm.
 This will reduce size of available storage and also reduce speed.
@@ -272,15 +276,19 @@ If this option is not specified,
 .Nm
 will find the number of iterations which is equal to 2 seconds of crypto work.
 If 0 is given, PKCS#5v2 will not be used.
+.It Fl J Ar newpassfile
+Specifies a file which contains the passphrase or its part.
+If
+.Ar newpassfile
+is given as -, standard input will be used.
+Only the first line (excluding new-line character) is taken from the given file.
+This argument can be specified multiple times.
 .It Fl K Ar newkeyfile
 Specifies a file which contains part of the key.
 If
 .Ar newkeyfile
 is given as -, standard input will be used.
-Here is how more than one file with a key component can be used:
-.Bd -literal -offset indent
-# cat key1 key2 key3 | geli init -K - /dev/da0
-.Ed
+This argument can be specified multiple times.
 .It Fl l Ar keylen
 Key length to use with the given cryptographic algorithm.
 If not given, the default key length for the given algorithm is used, which is:
@@ -309,7 +317,7 @@ provider's name with an
 suffix.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar keyfile"
+.Bl -tag -width ".Fl j Ar passfile"
 .It Fl d
 If specified, a decrypted provider will be detached automatically on last close.
 This can help with short memory - user does not have to remember to detach the
@@ -320,6 +328,13 @@ Probably a better choice is the
 .Fl l
 option for the
 .Cm detach
+subcommand.
+.It Fl j Ar passfile
+Specifies a file which contains the passphrase or its part.
+For more information see the description of the
+.Fl J
+option for the
+.Cm init
 subcommand.
 .It Fl k Ar keyfile
 Specifies a file which contains part of the key.
@@ -409,13 +424,17 @@ When a provider is attached, the user does not have to provide
 an old passphrase/keyfile.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl a Ar iterations"
+.Bl -tag -width ".Fl J Ar newpassfile"
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2.
 If 0 is given, PKCS#5v2 will not be used.
 To be able to use this option with
 .Cm setkey
 subcommand, only one key have to be defined and this key has to be changed.
+.It Fl j Ar passfile
+Specifies a file which contains the old passphrase or its part.
+.It Fl J Ar newpassfile
+Specifies a file which contains the new passphrase or its part.
 .It Fl k Ar keyfile
 Specifies a file which contains part of the old key.
 .It Fl K Ar newkeyfile
@@ -638,7 +657,7 @@ keyfile:
 # dd if=/dev/random of=/boot/keys/da0.key0 bs=32k count=1
 # dd if=/dev/random of=/boot/keys/da0.key1 bs=32k count=1
 # dd if=/dev/random of=/boot/keys/da0.key2 bs=32k count=1
-# cat /boot/keys/da0.key0 /boot/keys/da0.key1 /boot/keys/da0.key2 | geli init -b -K - da0
+# geli init -b -K /boot/keys/da0.key0 -K /boot/keys/da0.key1 -K /boot/keys/da0.key2 da0
 Enter new passphrase:
 Reenter new passphrase:
 # dd if=/dev/random of=/dev/da1s3a bs=1m
@@ -710,6 +729,22 @@ update the metadata:
 # gpart resize -s 2g -i 1 ada0
 # geli resize -s 1g ada0p1
 # geli attach -k keyfile -p ada0p1
+.Ed
+.Pp
+Initialize provider with passphrase split into two files.
+The provider can be attached by giving those two files or by giving
+.Dq foobar
+passphrase on
+.Nm
+prompt:
+.Bd -literal -offset indent
+# echo foo > da0.pass0
+# echo bar > da0.pass1
+# geli init -J da0.pass0 -J da0.pass1 da0
+# geli attach -j da0.pass0 -j da0.pass1 da0
+# geli detach da0
+# geli attach da0
+Enter passphrase: foobar
 .Ed
 .Sh ENCRYPTION MODES
 .Nm
