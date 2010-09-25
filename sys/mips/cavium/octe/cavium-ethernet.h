@@ -75,6 +75,8 @@ typedef struct {
 
 	struct ifqueue tx_free_queue[16];
 
+	int need_link_update;
+	struct task link_task;
 	struct ifmedia media;
 	int if_flags;
 

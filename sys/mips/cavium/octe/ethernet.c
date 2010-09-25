@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/module.h>
 #include <sys/smp.h>
+#include <sys/taskqueue.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -129,6 +130,40 @@ static struct callout cvm_oct_poll_timer;
  */
 struct ifnet *cvm_oct_device[TOTAL_NUMBER_OF_PORTS];
 
+/**
+ * Task to handle link status changes.
+ */
+static struct taskqueue *cvm_oct_link_taskq;
+
+/**
+ * Function to update link status.
+ */
+static void cvm_oct_update_link(void *context, int pending)
+{
+	cvm_oct_private_t *priv = (cvm_oct_private_t *)context;
+	struct ifnet *ifp = priv->ifp;
+	cvmx_helper_link_info_t link_info;
+
+	link_info.u64 = priv->link_info;
+
+	if (link_info.s.link_up) {
+		if_link_state_change(ifp, LINK_STATE_UP);
+		if (priv->queue != -1)
+			DEBUGPRINT("%s: %u Mbps %s duplex, port %2d, queue %2d\n",
+				   if_name(ifp), link_info.s.speed,
+				   (link_info.s.full_duplex) ? "Full" : "Half",
+				   priv->port, priv->queue);
+		else
+			DEBUGPRINT("%s: %u Mbps %s duplex, port %2d, POW\n",
+				   if_name(ifp), link_info.s.speed,
+				   (link_info.s.full_duplex) ? "Full" : "Half",
+				   priv->port);
+	} else {
+		if_link_state_change(ifp, LINK_STATE_DOWN);
+		DEBUGPRINT("%s: Link down\n", if_name(ifp));
+	}
+	priv->need_link_update = 0;
+}
 
 /**
  * Periodic timer tick for slow management operations
@@ -149,6 +184,10 @@ static void cvm_do_timer(void *arg)
 				if (MDIO_TRYLOCK()) {
 					priv->poll(cvm_oct_device[port]);
 					MDIO_UNLOCK();
+
+					if (priv->need_link_update) {
+						taskqueue_enqueue(cvm_oct_link_taskq, &priv->link_task);
+					}
 				}
 			}
 
@@ -323,6 +362,11 @@ int cvm_oct_init_module(device_t bus)
 
 	memset(cvm_oct_device, 0, sizeof(cvm_oct_device));
 
+	cvm_oct_link_taskq = taskqueue_create("octe link", M_NOWAIT,
+	    taskqueue_thread_enqueue, &cvm_oct_link_taskq);
+	taskqueue_start_threads(&cvm_oct_link_taskq, 1, PI_NET,
+	    "octe link taskq");
+
 	/* Initialize the FAU used for counting packet buffers that need to be freed */
 	cvmx_fau_atomic_write32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 
@@ -345,6 +389,7 @@ int cvm_oct_init_module(device_t bus)
 			priv->imode = CVMX_HELPER_INTERFACE_MODE_DISABLED;
 			priv->port = CVMX_PIP_NUM_INPUT_PORTS;
 			priv->queue = -1;
+			TASK_INIT(&priv->link_task, 0, cvm_oct_update_link, priv);
 
 			device_set_desc(dev, "Cavium Octeon POW Ethernet\n");
 
@@ -398,6 +443,7 @@ int cvm_oct_init_module(device_t bus)
 			priv->fau = fau - cvmx_pko_get_num_queues(port) * 4;
 			for (qos = 0; qos < cvmx_pko_get_num_queues(port); qos++)
 				cvmx_fau_atomic_write32(priv->fau+qos*4, 0);
+			TASK_INIT(&priv->link_task, 0, cvm_oct_update_link, priv);
 
 			switch (priv->imode) {
 
