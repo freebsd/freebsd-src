@@ -403,6 +403,8 @@ FBSDprivate_1.0 {
 	_pthread_attr_setstackaddr;
 	_pthread_attr_setstacksize;
 	_pthread_cancel;
+	_pthread_cancel_enter;
+	_pthread_cancel_leave;
 	_pthread_cleanup_pop;
 	_pthread_cleanup_push;
 	_pthread_cond_broadcast;

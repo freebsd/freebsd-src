@@ -25,7 +25,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	pause.c pmadvise.c popen.c posix_spawn.c \
 	psignal.c pututxline.c pw_scan.c pwcache.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
-	scandir.c seed48.c seekdir.c sem.c sem_new.c semctl.c \
+	scandir.c seed48.c seekdir.c semctl.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c \
 	setproctitle.c setprogname.c siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c statvfs.c stringlist.c strtofflags.c \
@@ -34,6 +34,14 @@ SRCS+=  __getosreldate.c __xuname.c \
 	ttyname.c ttyslot.c ualarm.c ulimit.c uname.c unvis.c \
 	usleep.c utime.c utxdb.c valloc.c vis.c wait.c wait3.c waitpid.c \
 	wordexp.c
+
+CANCELPOINTS_SRCS=sem.c sem_new.c
+.for src in ${CANCELPOINTS_SRCS}
+SRCS+=cancelpoints_${src}
+CLEANFILES+=cancelpoints_${src}
+cancelpoints_${src}:
+	ln -sf ${.CURDIR}/gen/${src} ${.TARGET}
+.endfor
 
 SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 
