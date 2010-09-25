@@ -465,6 +465,7 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	basetable->gpt_first = basetable->gpt_sectors;
 	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
 
+	g_free(buf);
 	return (0);
 }
 
