@@ -124,8 +124,8 @@ geli detach ${md}a.eli
 # 1g to 20m, 2g to 30m and keyfile to tmp.key, and adding -B none
 # to geli init.
 
-gpart create -s GPT md0 || echo -n "not "
-echo ok $i - "Installed an MBR on md0"
+gpart create -s GPT $md || echo -n "not "
+echo ok $i - "Installed an GPT on md0"
 i=$((i + 1))
 gpart add -s 20m -t freebsd-ufs -i 1 $md || echo -n "not "
 echo ok $i - "Added a 20m partition in slot 1"
