@@ -140,17 +140,14 @@ thread_unwind_stop(int version, _Unwind_Action actions,
 	/* XXX assume stack grows down to lower address */
 
 	cfa = _Unwind_GetCFA(context);
-	if (actions & _UA_END_OF_STACK) {
-		done = 1;
-	} else if (cfa >= (uintptr_t)curthread->unwind_stackend) {
+	if (actions & _UA_END_OF_STACK ||
+	    cfa >= (uintptr_t)curthread->unwind_stackend) {
 		done = 1;
 	}
 
 	while ((cur = curthread->cleanup) != NULL &&
-	       (done ||
-		((uintptr_t)cur < (uintptr_t)curthread->unwind_stackend &&
-		 (uintptr_t)cur >= cfa))) {
-			__pthread_cleanup_pop_imp(1);
+	       (done || (uintptr_t)cur <= cfa)) {
+		__pthread_cleanup_pop_imp(1);
 	}
 
 	if (done)
