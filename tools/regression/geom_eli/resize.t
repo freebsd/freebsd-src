@@ -125,7 +125,7 @@ geli detach ${md}a.eli
 # to geli init.
 
 gpart create -s GPT $md || echo -n "not "
-echo ok $i - "Installed an GPT on md0"
+echo ok $i - "Installed an GPT on ${md}"
 i=$((i + 1))
 gpart add -s 20m -t freebsd-ufs -i 1 $md || echo -n "not "
 echo ok $i - "Added a 20m partition in slot 1"
