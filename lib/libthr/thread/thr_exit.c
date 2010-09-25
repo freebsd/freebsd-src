@@ -51,6 +51,7 @@ static void	exit_thread(void) __dead2;
 __weak_reference(_pthread_exit, pthread_exit);
 
 #ifdef _PTHREAD_FORCED_UNWIND
+static int message_printed;
 
 static void thread_unwind(void) __dead2;
 #ifdef PIC
@@ -220,18 +221,28 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 	/* Save the return value: */
 	curthread->ret = status;
 #ifdef _PTHREAD_FORCED_UNWIND
+
 #ifdef PIC
 	thread_uw_init();
-	if (uwl_forcedunwind != NULL) {
-		thread_unwind();
-	}
-#else
-	if (_Unwind_ForcedUnwind != NULL) {
-		thread_unwind();
-	}
 #endif /* PIC */
 
- 	else {
+#ifdef PIC
+	if (uwl_forcedunwind != NULL) {
+#else
+	if (_Unwind_ForcedUnwind != NULL) {
+#endif
+		if (curthread->unwind_disabled) {
+			if (message_printed == 0) {
+				message_printed = 1;
+				_thread_printf(2, "Warning: old _pthread_cleanup_push was called, "
+				  	"stack unwinding is disabled.\n");
+			}
+			goto cleanup;
+		}
+		thread_unwind();
+
+	} else {
+cleanup:
 		while (curthread->cleanup != NULL) {
 			__pthread_cleanup_pop_imp(1);
 		}

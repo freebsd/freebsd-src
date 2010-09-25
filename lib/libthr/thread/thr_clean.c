@@ -78,12 +78,10 @@ __pthread_cleanup_pop_imp(int execute)
 void
 _pthread_cleanup_push(void (*routine) (void *), void *arg)
 {
-#ifdef _PTHREAD_FORCED_UNWIND
-	PANIC("_pthread_cleanup_push is not supported while stack unwinding is enabled.");
-#else
 	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *newbuf;
 
+	curthread->unwind_disabled = 1;
 	if ((newbuf = (struct pthread_cleanup *)
 	    malloc(sizeof(struct _pthread_cleanup_info))) != NULL) {
 		newbuf->routine = routine;
@@ -92,15 +90,10 @@ _pthread_cleanup_push(void (*routine) (void *), void *arg)
 		newbuf->prev = curthread->cleanup;
 		curthread->cleanup = newbuf;
 	}
-#endif
 }
 
 void
 _pthread_cleanup_pop(int execute)
 {
-#ifdef _PTHREAD_FORCED_UNWIND
-	PANIC("_pthread_cleanup_pop is not supported while stack unwinding is enabled.");
-#else
 	__pthread_cleanup_pop_imp(execute);
-#endif
 }
