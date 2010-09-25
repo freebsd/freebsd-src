@@ -452,6 +452,7 @@ struct pthread {
 #ifdef _PTHREAD_FORCED_UNWIND
 	struct _Unwind_Exception	ex;
 	void			*unwind_stackend;
+	int			unwind_disabled;
 #endif
 
 	/*
