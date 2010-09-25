@@ -105,7 +105,7 @@
 #define	G_ELI_KEY_SHIFT		20
 
 #ifdef _KERNEL
-extern u_int g_eli_debug;
+extern int g_eli_debug;
 extern u_int g_eli_overwrites;
 extern u_int g_eli_batch;
 
