@@ -286,15 +286,14 @@ exit_thread(void)
 		curthread->cycle++;
 		_thr_umtx_wake(&curthread->cycle, INT_MAX, 0);
 	}
+	if (!curthread->force_exit && SHOULD_REPORT_EVENT(curthread, TD_DEATH))
+		_thr_report_death(curthread);
 	/*
 	 * Thread was created with initial refcount 1, we drop the
 	 * reference count to allow it to be garbage collected.
 	 */
 	curthread->refcount--;
 	_thr_try_gc(curthread, curthread); /* thread lock released */
-
-	if (!curthread->force_exit && SHOULD_REPORT_EVENT(curthread, TD_DEATH))
-		_thr_report_death(curthread);
 
 #if defined(_PTHREADS_INVARIANTS)
 	if (THR_IN_CRITICAL(curthread))
