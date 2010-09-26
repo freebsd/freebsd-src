@@ -105,7 +105,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'i', GPART_PARAM_INDEX, G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "bootcode [-b bootcode] [-p partcode] [-i index] [-f flags] geom"
+	    "[-b bootcode] [-p partcode] [-i index] [-f flags] geom"
 	},
 	{ "commit", 0, gpart_issue, G_NULL_OPTS,
 	    "geom"
