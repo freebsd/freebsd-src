@@ -31,6 +31,7 @@
 #include <sys/types.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/rtprio.h>
 #include <sys/stat.h>
@@ -115,6 +116,8 @@ main(int argc, char *argv[])
 		signal(SIGTERM, sighandler);
 
 		pidfile_write(pfh);
+		if (madvise(0, 0, MADV_PROTECT) != 0)
+			warn("madvise failed");
 
 		watchdog_loop();
 
