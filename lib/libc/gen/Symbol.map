@@ -366,7 +366,6 @@ FBSD_1.1 {
 };
 
 FBSD_1.2 {
-	basename_r;
 	getpagesizes;
 };
 

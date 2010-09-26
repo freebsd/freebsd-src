@@ -36,7 +36,6 @@
 __BEGIN_DECLS
 
 char	*basename(const char *);
-char	*basename_r(const char *, char *);
 char	*dirname(const char *);
 #if 0
 char	*regcmp(const char *, ...);
