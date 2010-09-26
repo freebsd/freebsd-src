@@ -388,6 +388,7 @@ hook_execv(const char *path, va_list ap)
 	switch (pid) {
 	case -1:	/* Error. */
 		pjdlog_errno(LOG_ERR, "Unable to fork to execute %s", path);
+		hook_free(hp);
 		return;
 	case 0:		/* Child. */
 		descriptors();
