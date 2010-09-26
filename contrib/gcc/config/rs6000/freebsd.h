@@ -219,17 +219,16 @@
       | (TARGET_64BIT ? DW_EH_PE_udata8 : DW_EH_PE_sdata4))		\
    : DW_EH_PE_absptr)
 
+#ifdef __powerpc64__
 #define MD_FROB_UPDATE_CONTEXT(CTX, FS)					\
-  if (TARGET_64BIT) {							\
     if ((FS)->regs.reg[2].how == REG_UNSAVED)				\
       {									\
-	unsigned int *insn						\
-	  = (unsigned int *)						\
+	unsigned int *insn = (unsigned int *)				\
 	    _Unwind_GetGR ((CTX), LINK_REGISTER_REGNUM);		\
-	if (*insn == 0xE8410028)					\
+	if (insn != NULL && *insn == 0xE8410028)			\
 	  _Unwind_SetGRPtr ((CTX), 2, (CTX)->cfa + 40);			\
-      }									\
-  }
+      }
+#endif
 
 /* FreeBSD doesn't support saving and restoring 64-bit regs with a 32-bit
    kernel. This is supported when running on a 64-bit kernel with
