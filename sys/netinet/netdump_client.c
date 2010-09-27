@@ -687,9 +687,6 @@ nd_handle_ip(struct mbuf **mb)
 	int rcv_ackno;
 
 	/* IP processing */
-
-	NETDDEBUGV("nd_handle_ip: Processing IP packet...\n");
-
 	m = *mb;
 	if (m->m_pkthdr.len < sizeof(struct ip)) {
 		NETDDEBUG("nd_handle_ip: dropping packet too small for IP "
@@ -813,8 +810,6 @@ nd_handle_ip(struct mbuf **mb)
 		return;
 	}
 	udp = mtod(m, struct udpiphdr *);
-
-	NETDDEBUG("nd_handle_ip: Processing packet...");
 
 	if (ntohs(udp->ui_u.uh_dport) != NETDUMP_ACKPORT) {
 		NETDDEBUG("not on the netdump port.\n");
@@ -1004,9 +999,6 @@ netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
 	u_short etype;
 
 	/* Ethernet processing */
-
-	NETDDEBUGV_IF(ifp, "Processing packet...\n");
-
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		NETDDEBUG_IF(ifp, "discard frame w/o packet header\n");
 		goto done;
