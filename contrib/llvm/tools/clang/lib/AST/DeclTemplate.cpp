@@ -84,10 +84,59 @@ unsigned TemplateParameterList::getDepth() const {
 }
 
 //===----------------------------------------------------------------------===//
-// TemplateDecl Implementation
+// RedeclarableTemplateDecl Implementation
 //===----------------------------------------------------------------------===//
 
-TemplateDecl::~TemplateDecl() {
+RedeclarableTemplateDecl::CommonBase *RedeclarableTemplateDecl::getCommonPtr() {
+  // Find the first declaration of this function template.
+  RedeclarableTemplateDecl *First = getCanonicalDecl();
+
+  if (First->CommonOrPrev.isNull()) {
+    CommonBase *CommonPtr = First->newCommon();
+    First->CommonOrPrev = CommonPtr;
+    CommonPtr->Latest = First;
+  }
+  return First->CommonOrPrev.get<CommonBase*>();
+}
+
+
+RedeclarableTemplateDecl *RedeclarableTemplateDecl::getCanonicalDeclImpl() {
+  RedeclarableTemplateDecl *Tmpl = this;
+  while (Tmpl->getPreviousDeclaration())
+    Tmpl = Tmpl->getPreviousDeclaration();
+  return Tmpl;
+}
+
+void RedeclarableTemplateDecl::setPreviousDeclarationImpl(
+                                               RedeclarableTemplateDecl *Prev) {
+  if (Prev) {
+    CommonBase *Common = Prev->getCommonPtr();
+    Prev = Common->Latest;
+    Common->Latest = this;
+    CommonOrPrev = Prev;
+  } else {
+    assert(CommonOrPrev.is<CommonBase*>() && "Cannot reset TemplateDecl Prev");
+  }
+}
+
+RedeclarableTemplateDecl *RedeclarableTemplateDecl::getNextRedeclaration() {
+  if (CommonOrPrev.is<RedeclarableTemplateDecl*>())
+    return CommonOrPrev.get<RedeclarableTemplateDecl*>();
+  CommonBase *Common = CommonOrPrev.get<CommonBase*>();
+  return Common ? Common->Latest : this;
+}
+
+template <class EntryType>
+typename RedeclarableTemplateDecl::SpecEntryTraits<EntryType>::DeclType*
+RedeclarableTemplateDecl::findSpecializationImpl(
+                                 llvm::FoldingSet<EntryType> &Specs,
+                                 const TemplateArgument *Args, unsigned NumArgs,
+                                 void *&InsertPos) {
+  typedef SpecEntryTraits<EntryType> SETraits;
+  llvm::FoldingSetNodeID ID;
+  EntryType::Profile(ID,Args,NumArgs, getASTContext());
+  EntryType *Entry = Specs.FindNodeOrInsertPos(ID, InsertPos);
+  return Entry ? SETraits::getMostRecentDeclaration(Entry) : 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -107,37 +156,16 @@ FunctionTemplateDecl *FunctionTemplateDecl::Create(ASTContext &C,
   return new (C) FunctionTemplateDecl(DC, L, Name, Params, Decl);
 }
 
-void FunctionTemplateDecl::Destroy(ASTContext &C) {
-  if (Common *CommonPtr = CommonOrPrev.dyn_cast<Common*>()) {
-    for (llvm::FoldingSet<FunctionTemplateSpecializationInfo>::iterator
-              Spec = CommonPtr->Specializations.begin(),
-           SpecEnd = CommonPtr->Specializations.end();
-         Spec != SpecEnd; ++Spec)
-      C.Deallocate(&*Spec);
-  }
-
-  Decl::Destroy(C);
+RedeclarableTemplateDecl::CommonBase *FunctionTemplateDecl::newCommon() {
+  Common *CommonPtr = new (getASTContext()) Common;
+  getASTContext().AddDeallocation(DeallocateCommon, CommonPtr);
+  return CommonPtr;
 }
 
-FunctionTemplateDecl *FunctionTemplateDecl::getCanonicalDecl() {
-  FunctionTemplateDecl *FunTmpl = this;
-  while (FunTmpl->getPreviousDeclaration())
-    FunTmpl = FunTmpl->getPreviousDeclaration();
-  return FunTmpl;
-}
-
-FunctionTemplateDecl::Common *FunctionTemplateDecl::getCommonPtr() {
-  // Find the first declaration of this function template.
-  FunctionTemplateDecl *First = this;
-  while (First->getPreviousDeclaration())
-    First = First->getPreviousDeclaration();
-
-  if (First->CommonOrPrev.isNull()) {
-    Common *CommonPtr = new (getASTContext()) Common;
-    getASTContext().AddDeallocation(DeallocateCommon, CommonPtr);
-    First->CommonOrPrev = CommonPtr;
-  }
-  return First->CommonOrPrev.get<Common*>();
+FunctionDecl *
+FunctionTemplateDecl::findSpecialization(const TemplateArgument *Args,
+                                         unsigned NumArgs, void *&InsertPos) {
+  return findSpecializationImpl(getSpecializations(), Args, NumArgs, InsertPos);
 }
 
 //===----------------------------------------------------------------------===//
@@ -146,13 +174,6 @@ FunctionTemplateDecl::Common *FunctionTemplateDecl::getCommonPtr() {
 
 void ClassTemplateDecl::DeallocateCommon(void *Ptr) {
   static_cast<Common *>(Ptr)->~Common();
-}
-
-ClassTemplateDecl *ClassTemplateDecl::getCanonicalDecl() {
-  ClassTemplateDecl *Template = this;
-  while (Template->getPreviousDeclaration())
-    Template = Template->getPreviousDeclaration();
-  return Template;
 }
 
 ClassTemplateDecl *ClassTemplateDecl::Create(ASTContext &C,
@@ -167,8 +188,24 @@ ClassTemplateDecl *ClassTemplateDecl::Create(ASTContext &C,
   return New;
 }
 
-void ClassTemplateDecl::Destroy(ASTContext& C) {
-  Decl::Destroy(C);
+RedeclarableTemplateDecl::CommonBase *ClassTemplateDecl::newCommon() {
+  Common *CommonPtr = new (getASTContext()) Common;
+  getASTContext().AddDeallocation(DeallocateCommon, CommonPtr);
+  return CommonPtr;
+}
+
+ClassTemplateSpecializationDecl *
+ClassTemplateDecl::findSpecialization(const TemplateArgument *Args,
+                                      unsigned NumArgs, void *&InsertPos) {
+  return findSpecializationImpl(getSpecializations(), Args, NumArgs, InsertPos);
+}
+
+ClassTemplatePartialSpecializationDecl *
+ClassTemplateDecl::findPartialSpecialization(const TemplateArgument *Args,
+                                             unsigned NumArgs,
+                                             void *&InsertPos) {
+  return findSpecializationImpl(getPartialSpecializations(), Args, NumArgs,
+                                InsertPos);
 }
 
 void ClassTemplateDecl::getPartialSpecializations(
@@ -181,7 +218,7 @@ void ClassTemplateDecl::getPartialSpecializations(
        P = PartialSpecs.begin(), PEnd = PartialSpecs.end();
        P != PEnd; ++P) {
     assert(!PS[P->getSequenceNumber()]);
-    PS[P->getSequenceNumber()] = &*P;
+    PS[P->getSequenceNumber()] = P->getMostRecentDeclaration();
   }
 }
 
@@ -194,7 +231,22 @@ ClassTemplateDecl::findPartialSpecialization(QualType T) {
                           PEnd = getPartialSpecializations().end();
        P != PEnd; ++P) {
     if (Context.hasSameType(P->getInjectedSpecializationType(), T))
-      return &*P;
+      return P->getMostRecentDeclaration();
+  }
+
+  return 0;
+}
+
+ClassTemplatePartialSpecializationDecl *
+ClassTemplateDecl::findPartialSpecInstantiatedFromMember(
+                                    ClassTemplatePartialSpecializationDecl *D) {
+  Decl *DCanon = D->getCanonicalDecl();
+  for (llvm::FoldingSet<ClassTemplatePartialSpecializationDecl>::iterator
+            P = getPartialSpecializations().begin(),
+         PEnd = getPartialSpecializations().end();
+       P != PEnd; ++P) {
+    if (P->getInstantiatedFromMember()->getCanonicalDecl() == DCanon)
+      return P->getMostRecentDeclaration();
   }
 
   return 0;
@@ -237,20 +289,6 @@ ClassTemplateDecl::getInjectedClassNameSpecialization() {
                                             &TemplateArgs[0],
                                             TemplateArgs.size());
   return CommonPtr->InjectedClassNameType;
-}
-
-ClassTemplateDecl::Common *ClassTemplateDecl::getCommonPtr() {
-  // Find the first declaration of this function template.
-  ClassTemplateDecl *First = this;
-  while (First->getPreviousDeclaration())
-    First = First->getPreviousDeclaration();
-
-  if (First->CommonOrPrev.isNull()) {
-    Common *CommonPtr = new (getASTContext()) Common;
-    getASTContext().AddDeallocation(DeallocateCommon, CommonPtr);
-    First->CommonOrPrev = CommonPtr;
-  }
-  return First->CommonOrPrev.get<Common*>();
 }
 
 //===----------------------------------------------------------------------===//
@@ -431,15 +469,6 @@ StructuredArguments.setPointer(NewArgs);
 StructuredArguments.setInt(0); // Doesn't own the pointer.
 }
 
-void TemplateArgumentList::Destroy(ASTContext &C) {
-  if (FlatArguments.getInt())
-    C.Deallocate((void*)FlatArguments.getPointer());
-  if (StructuredArguments.getInt())
-    C.Deallocate((void*)StructuredArguments.getPointer());
-}
-
-TemplateArgumentList::~TemplateArgumentList() {}
-
 //===----------------------------------------------------------------------===//
 // ClassTemplateSpecializationDecl Implementation
 //===----------------------------------------------------------------------===//
@@ -485,16 +514,6 @@ ClassTemplateSpecializationDecl *
 ClassTemplateSpecializationDecl::Create(ASTContext &Context, EmptyShell Empty) {
   return
     new (Context)ClassTemplateSpecializationDecl(ClassTemplateSpecialization);
-}
-
-void ClassTemplateSpecializationDecl::Destroy(ASTContext &C) {
-  delete ExplicitInfo;
-
-  if (SpecializedPartialSpecialization *PartialSpec
-        = SpecializedTemplate.dyn_cast<SpecializedPartialSpecialization*>())
-    C.Deallocate(PartialSpec);
-
-  CXXRecordDecl::Destroy(C);
 }
 
 void
@@ -583,4 +602,9 @@ FriendTemplateDecl *FriendTemplateDecl::Create(ASTContext &Context,
   FriendTemplateDecl *Result
     = new (Context) FriendTemplateDecl(DC, L, NParams, Params, Friend, FLoc);
   return Result;
+}
+
+FriendTemplateDecl *FriendTemplateDecl::Create(ASTContext &Context,
+                                               EmptyShell Empty) {
+  return new (Context) FriendTemplateDecl(Empty);
 }

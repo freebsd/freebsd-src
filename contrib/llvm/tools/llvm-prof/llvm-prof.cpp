@@ -17,12 +17,13 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
-#include "llvm/Assembly/AsmAnnotationWriter.h"
+#include "llvm/Assembly/AssemblyAnnotationWriter.h"
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Analysis/ProfileInfoLoader.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
@@ -75,9 +76,10 @@ namespace {
   class ProfileAnnotator : public AssemblyAnnotationWriter {
     ProfileInfo &PI;
   public:
-    ProfileAnnotator(ProfileInfo& pi) : PI(pi) {}
+    ProfileAnnotator(ProfileInfo &pi) : PI(pi) {}
 
-    virtual void emitFunctionAnnot(const Function *F, raw_ostream &OS) {
+    virtual void emitFunctionAnnot(const Function *F,
+                                   formatted_raw_ostream &OS) {
       double w = PI.getExecutionCount(F);
       if (w != ProfileInfo::MissingValue) {
         OS << ";;; %" << F->getName() << " called "<<(unsigned)w
@@ -85,7 +87,7 @@ namespace {
       }
     }
     virtual void emitBasicBlockStartAnnot(const BasicBlock *BB,
-                                          raw_ostream &OS) {
+                                          formatted_raw_ostream &OS) {
       double w = PI.getExecutionCount(BB);
       if (w != ProfileInfo::MissingValue) {
         if (w != 0) {
@@ -96,7 +98,8 @@ namespace {
       }
     }
 
-    virtual void emitBasicBlockEndAnnot(const BasicBlock *BB, raw_ostream &OS) {
+    virtual void emitBasicBlockEndAnnot(const BasicBlock *BB,
+                                        formatted_raw_ostream &OS) {
       // Figure out how many times each successor executed.
       std::vector<std::pair<ProfileInfo::Edge, double> > SuccCounts;
 
@@ -128,7 +131,7 @@ namespace {
   public:
     static char ID; // Class identification, replacement for typeinfo.
     explicit ProfileInfoPrinterPass(ProfileInfoLoader &_PIL) 
-      : ModulePass(&ID), PIL(_PIL) {}
+      : ModulePass(ID), PIL(_PIL) {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();

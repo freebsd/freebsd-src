@@ -44,12 +44,17 @@ namespace llvm {
   class Loop;
   class LoopInfo;
   class Operator;
+  class SCEVUnknown;
+  class SCEV;
+  template<> struct FoldingSetTrait<SCEV>;
 
   /// SCEV - This class represents an analyzed expression in the program.  These
   /// are opaque objects that the client is not allowed to do much with
   /// directly.
   ///
   class SCEV : public FoldingSetNode {
+    friend struct FoldingSetTrait<SCEV>;
+
     /// FastID - A reference to an Interned FoldingSetNodeID for this node.
     /// The ScalarEvolution's BumpPtrAllocator holds the data.
     FoldingSetNodeIDRef FastID;
@@ -72,9 +77,6 @@ namespace llvm {
       FastID(ID), SCEVType(SCEVTy), SubclassData(0) {}
 
     unsigned getSCEVType() const { return SCEVType; }
-
-    /// Profile - FoldingSet support.
-    void Profile(FoldingSetNodeID& ID) { ID = FastID; }
 
     /// isLoopInvariant - Return true if the value of this SCEV is unchanging in
     /// the specified loop.
@@ -123,6 +125,21 @@ namespace llvm {
     /// dump - This method is used for debugging.
     ///
     void dump() const;
+  };
+
+  // Specialize FoldingSetTrait for SCEV to avoid needing to compute
+  // temporary FoldingSetNodeID values.
+  template<> struct FoldingSetTrait<SCEV> : DefaultFoldingSetTrait<SCEV> {
+    static void Profile(const SCEV &X, FoldingSetNodeID& ID) {
+      ID = X.FastID;
+    }
+    static bool Equals(const SCEV &X, const FoldingSetNodeID &ID,
+                       FoldingSetNodeID &TempID) {
+      return ID == X.FastID;
+    }
+    static unsigned ComputeHash(const SCEV &X, FoldingSetNodeID &TempID) {
+      return X.FastID.ComputeHash();
+    }
   };
 
   inline raw_ostream &operator<<(raw_ostream &OS, const SCEV &S) {
@@ -175,6 +192,7 @@ namespace llvm {
 
     friend class SCEVCallbackVH;
     friend class SCEVExpander;
+    friend class SCEVUnknown;
 
     /// F - The function we are analyzing.
     ///
@@ -196,9 +214,14 @@ namespace llvm {
     /// counts and things.
     SCEVCouldNotCompute CouldNotCompute;
 
-    /// Scalars - This is a cache of the scalars we have analyzed so far.
+    /// ValueExprMapType - The typedef for ValueExprMap.
     ///
-    std::map<SCEVCallbackVH, const SCEV *> Scalars;
+    typedef DenseMap<SCEVCallbackVH, const SCEV *, DenseMapInfo<Value *> >
+      ValueExprMapType;
+
+    /// ValueExprMap - This is a cache of the values we have analyzed so far.
+    ///
+    ValueExprMapType ValueExprMap;
 
     /// BackedgeTakenInfo - Information about the backedge-taken count
     /// of a loop. This currently includes an exact count and a maximum count.
@@ -263,7 +286,7 @@ namespace llvm {
 
     /// ForgetSymbolicValue - This looks up computed SCEV values for all
     /// instructions that depend on the given instruction and removes them from
-    /// the Scalars map if they reference SymName. This is used during PHI
+    /// the ValueExprMap map if they reference SymName. This is used during PHI
     /// resolution.
     void ForgetSymbolicName(Instruction *I, const SCEV *SymName);
 
@@ -350,10 +373,11 @@ namespace llvm {
     std::pair<BasicBlock *, BasicBlock *>
     getPredecessorWithUniqueSuccessorForBB(BasicBlock *BB);
 
-    /// isImpliedCond - Test whether the condition described by Pred, LHS,
-    /// and RHS is true whenever the given Cond value evaluates to true.
-    bool isImpliedCond(Value *Cond, ICmpInst::Predicate Pred,
+    /// isImpliedCond - Test whether the condition described by Pred, LHS, and
+    /// RHS is true whenever the given FoundCondValue value evaluates to true.
+    bool isImpliedCond(ICmpInst::Predicate Pred,
                        const SCEV *LHS, const SCEV *RHS,
+                       Value *FoundCondValue,
                        bool Inverse);
 
     /// isImpliedCondOperands - Test whether the condition described by Pred,
@@ -659,6 +683,11 @@ namespace llvm {
   private:
     FoldingSet<SCEV> UniqueSCEVs;
     BumpPtrAllocator SCEVAllocator;
+
+    /// FirstUnknown - The head of a linked list of all SCEVUnknown
+    /// values that have been allocated. This is used by releaseMemory
+    /// to locate them all and call their destructors.
+    SCEVUnknown *FirstUnknown;
   };
 }
 

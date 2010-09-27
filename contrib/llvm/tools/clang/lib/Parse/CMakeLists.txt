@@ -1,9 +1,7 @@
 set(LLVM_NO_RTTI 1)
 
 add_clang_library(clangParse
-  AttributeList.cpp
-  DeclSpec.cpp
-  MinimalAction.cpp
+  ParseAST.cpp
   ParseCXXInlineMethods.cpp
   ParseDecl.cpp
   ParseDeclCXX.cpp
@@ -18,4 +16,4 @@ add_clang_library(clangParse
   Parser.cpp
   )
 
-add_dependencies(clangParse ClangAttrList ClangDiagnosticParse)
+add_dependencies(clangParse ClangAttrClasses ClangAttrList ClangDeclNodes ClangDiagnosticParse ClangStmtNodes)

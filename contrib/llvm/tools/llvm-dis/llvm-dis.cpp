@@ -18,14 +18,16 @@
 
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
+#include "llvm/Type.h"
 #include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Assembly/AssemblyAnnotationWriter.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Signals.h"
-#include <memory>
 using namespace llvm;
 
 static cl::opt<std::string>
@@ -40,6 +42,29 @@ Force("f", cl::desc("Enable binary output on terminals"));
 
 static cl::opt<bool>
 DontPrint("disable-output", cl::desc("Don't output the .ll file"), cl::Hidden);
+
+static cl::opt<bool>
+ShowAnnotations("show-annotations",
+                cl::desc("Add informational comments to the .ll file"));
+
+namespace {
+  
+class CommentWriter : public AssemblyAnnotationWriter {
+public:
+  void emitFunctionAnnot(const Function *F,
+                         formatted_raw_ostream &OS) {
+    OS << "; [#uses=" << F->getNumUses() << ']';  // Output # uses
+    OS << '\n';
+  }
+  void printInfoComment(const Value &V, formatted_raw_ostream &OS) {
+    if (V.getType()->isVoidTy()) return;
+      
+    OS.PadToColumn(50);
+    OS << "; [#uses=" << V.getNumUses() << ']';  // Output # uses
+  }
+};
+  
+} // end anon namespace
 
 int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
@@ -88,23 +113,25 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Make sure that the Out file gets unlinked from the disk if we get a
-  // SIGINT.
-  if (OutputFilename != "-")
-    sys::RemoveFileOnSignal(sys::Path(OutputFilename));
-
   std::string ErrorInfo;
-  std::auto_ptr<raw_fd_ostream> 
-  Out(new raw_fd_ostream(OutputFilename.c_str(), ErrorInfo,
-                         raw_fd_ostream::F_Binary));
+  OwningPtr<tool_output_file> 
+  Out(new tool_output_file(OutputFilename.c_str(), ErrorInfo,
+                           raw_fd_ostream::F_Binary));
   if (!ErrorInfo.empty()) {
     errs() << ErrorInfo << '\n';
     return 1;
   }
 
+  OwningPtr<AssemblyAnnotationWriter> Annotator;
+  if (ShowAnnotations)
+    Annotator.reset(new CommentWriter());
+  
   // All that llvm-dis does is write the assembly to a file.
   if (!DontPrint)
-    *Out << *M;
+    M->print(Out->os(), Annotator.get());
+
+  // Declare success.
+  Out->keep();
 
   return 0;
 }

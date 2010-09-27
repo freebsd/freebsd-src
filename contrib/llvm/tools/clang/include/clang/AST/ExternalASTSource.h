@@ -14,30 +14,24 @@
 #ifndef LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H
 #define LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H
 
-#include "clang/AST/DeclarationName.h"
-#include "clang/AST/Type.h"
-#include "llvm/ADT/SmallVector.h"
 #include <cassert>
 #include <vector>
+
+namespace llvm {
+template <class T> class SmallVectorImpl;
+}
+
 namespace clang {
 
 class ASTConsumer;
 class Decl;
 class DeclContext;
+class DeclContextLookupResult;
+class DeclarationName;
 class ExternalSemaSource; // layering violation required for downcasting
+class NamedDecl;
+class Selector;
 class Stmt;
-
-/// \brief The deserialized representation of a set of declarations
-/// with the same name that are visible in a given context.
-struct VisibleDeclaration {
-  /// \brief The name of the declarations.
-  DeclarationName Name;
-
-  /// \brief The ID numbers of all of the declarations with this name.
-  ///
-  /// These declarations have not necessarily been de-serialized.
-  llvm::SmallVector<unsigned, 4> Declarations;
-};
 
 /// \brief Abstract interface for external sources of AST nodes.
 ///
@@ -57,6 +51,20 @@ public:
   ExternalASTSource() : SemaSource(false) { }
 
   virtual ~ExternalASTSource();
+
+  /// \brief RAII class for safely pairing a StartedDeserializing call
+  /// with FinishedDeserializing.
+  class Deserializing {
+    ExternalASTSource *Source;
+  public:
+    explicit Deserializing(ExternalASTSource *source) : Source(source) {
+      assert(Source);
+      Source->StartedDeserializing();
+    }
+    ~Deserializing() {
+      Source->FinishedDeserializing();
+    }
+  };
 
   /// \brief Resolve a declaration ID into a declaration, potentially
   /// building a new declaration.
@@ -89,9 +97,17 @@ public:
   /// Generally the final step of this method is either to call
   /// SetExternalVisibleDeclsForName or to recursively call lookup on
   /// the DeclContext after calling SetExternalVisibleDecls.
-  virtual DeclContext::lookup_result
+  virtual DeclContextLookupResult
   FindExternalVisibleDeclsByName(const DeclContext *DC,
                                  DeclarationName Name) = 0;
+
+  /// \brief Deserialize all the visible declarations from external storage.
+  ///
+  /// Name lookup deserializes visible declarations lazily, thus a DeclContext
+  /// may not have a complete name lookup table. This function deserializes
+  /// the rest of visible declarations from the external storage and completes
+  /// the name lookup table of the DeclContext.
+  virtual void MaterializeVisibleDecls(const DeclContext *DC) = 0;
 
   /// \brief Finds all declarations lexically contained within the given
   /// DeclContext.
@@ -99,6 +115,19 @@ public:
   /// \return true if an error occurred
   virtual bool FindExternalLexicalDecls(const DeclContext *DC,
                                 llvm::SmallVectorImpl<Decl*> &Result) = 0;
+
+  /// \brief Notify ExternalASTSource that we started deserialization of
+  /// a decl or type so until FinishedDeserializing is called there may be
+  /// decls that are initializing. Must be paired with FinishedDeserializing.
+  ///
+  /// The default implementation of this method is a no-op.
+  virtual void StartedDeserializing() { }
+
+  /// \brief Notify ExternalASTSource that we finished the deserialization of
+  /// a decl or type. Must be paired with StartedDeserializing.
+  ///
+  /// The default implementation of this method is a no-op.
+  virtual void FinishedDeserializing() { }
 
   /// \brief Function that will be invoked when we begin parsing a new
   /// translation unit involving this external AST source.
@@ -113,30 +142,18 @@ public:
   virtual void PrintStats();
 
 protected:
-  /// \brief Initialize the context's lookup map with the given decls.
-  /// It is assumed that none of the declarations are redeclarations of
-  /// each other.
-  static void SetExternalVisibleDecls(const DeclContext *DC,
-                  const llvm::SmallVectorImpl<VisibleDeclaration> &Decls);
-
-  /// \brief Initialize the context's lookup map with the given decls.
-  /// It is assumed that none of the declarations are redeclarations of
-  /// each other.
-  static void SetExternalVisibleDecls(const DeclContext *DC,
-                              const llvm::SmallVectorImpl<NamedDecl*> &Decls);
-
-  static DeclContext::lookup_result
-  SetExternalVisibleDeclsForName(const DeclContext *DC,
-                                 const VisibleDeclaration &VD);
-
-  static DeclContext::lookup_result
+  static DeclContextLookupResult
   SetExternalVisibleDeclsForName(const DeclContext *DC,
                                  DeclarationName Name,
                                  llvm::SmallVectorImpl<NamedDecl*> &Decls);
 
-  static DeclContext::lookup_result
+  static DeclContextLookupResult
   SetNoExternalVisibleDeclsForName(const DeclContext *DC,
                                    DeclarationName Name);
+
+  void MaterializeVisibleDeclsForName(const DeclContext *DC,
+                                      DeclarationName Name,
+                                 llvm::SmallVectorImpl<NamedDecl*> &Decls);
 };
 
 /// \brief A lazy pointer to an AST node (of base type T) that resides
@@ -145,7 +162,7 @@ protected:
 /// The AST node is identified within the external AST source by a
 /// 63-bit offset, and can be retrieved via an operation on the
 /// external AST source itself.
-template<typename T, T* (ExternalASTSource::*Get)(uint64_t Offset)>
+template<typename T, typename OffsT, T* (ExternalASTSource::*Get)(OffsT Offset)>
 struct LazyOffsetPtr {
   /// \brief Either a pointer to an AST node or the offset within the
   /// external AST source where the AST node can be found.
@@ -203,8 +220,12 @@ public:
 };
 
 /// \brief A lazy pointer to a statement.
-typedef LazyOffsetPtr<Stmt, &ExternalASTSource::GetExternalDeclStmt>
+typedef LazyOffsetPtr<Stmt, uint64_t, &ExternalASTSource::GetExternalDeclStmt>
   LazyDeclStmtPtr;
+
+/// \brief A lazy pointer to a declaration.
+typedef LazyOffsetPtr<Decl, uint32_t, &ExternalASTSource::GetExternalDecl>
+  LazyDeclPtr;
 
 } // end namespace clang
 

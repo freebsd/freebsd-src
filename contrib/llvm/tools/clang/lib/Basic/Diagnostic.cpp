@@ -38,6 +38,8 @@ using namespace clang;
 // Builtin Diagnostic information
 //===----------------------------------------------------------------------===//
 
+namespace {
+
 // Diagnostic classes.
 enum {
   CLASS_NOTE       = 0x01,
@@ -59,10 +61,9 @@ struct StaticDiagInfoRec {
   bool operator<(const StaticDiagInfoRec &RHS) const {
     return DiagID < RHS.DiagID;
   }
-  bool operator>(const StaticDiagInfoRec &RHS) const {
-    return DiagID > RHS.DiagID;
-  }
 };
+
+}
 
 static const StaticDiagInfoRec StaticDiagInfo[] = {
 #define DIAG(ENUM,CLASS,DEFAULT_MAPPING,DESC,GROUP,SFINAE, CATEGORY)    \
@@ -244,6 +245,9 @@ static void DummyArgToStringFn(Diagnostic::ArgumentKind AK, intptr_t QT,
 
 
 Diagnostic::Diagnostic(DiagnosticClient *client) : Client(client) {
+  ArgToStringFn = DummyArgToStringFn;
+  ArgToStringCookie = 0;
+
   AllExtensionsSilenced = 0;
   IgnoreAllWarnings = false;
   WarningsAsErrors = false;
@@ -253,26 +257,15 @@ Diagnostic::Diagnostic(DiagnosticClient *client) : Client(client) {
   ShowOverloads = Ovl_All;
   ExtBehavior = Ext_Ignore;
 
-  ErrorOccurred = false;
-  FatalErrorOccurred = false;
   ErrorLimit = 0;
   TemplateBacktraceLimit = 0;
-
-  NumWarnings = 0;
-  NumErrors = 0;
-  NumErrorsSuppressed = 0;
   CustomDiagInfo = 0;
-  CurDiagID = ~0U;
-  LastDiagLevel = Ignored;
-
-  ArgToStringFn = DummyArgToStringFn;
-  ArgToStringCookie = 0;
-
-  DelayedDiagID = 0;
 
   // Set all mappings to 'unset'.
-  DiagMappings BlankDiags(diag::DIAG_UPPER_LIMIT/2, 0);
-  DiagMappingsStack.push_back(BlankDiags);
+  DiagMappingsStack.clear();
+  DiagMappingsStack.push_back(DiagMappings());
+
+  Reset();
 }
 
 Diagnostic::~Diagnostic() {
@@ -331,10 +324,21 @@ bool Diagnostic::isBuiltinExtensionDiag(unsigned DiagID,
       getBuiltinDiagClass(DiagID) != CLASS_EXTENSION)
     return false;
   
-  EnabledByDefault = StaticDiagInfo[DiagID].Mapping != diag::MAP_IGNORE;
+  EnabledByDefault = GetDefaultDiagMapping(DiagID) != diag::MAP_IGNORE;
   return true;
 }
 
+void Diagnostic::Reset() {
+  ErrorOccurred = false;
+  FatalErrorOccurred = false;
+  
+  NumWarnings = 0;
+  NumErrors = 0;
+  NumErrorsSuppressed = 0;
+  CurDiagID = ~0U;
+  LastDiagLevel = Ignored;
+  DelayedDiagID = 0;
+}
 
 /// getDescription - Given a diagnostic ID, return a description of the
 /// issue.
@@ -572,11 +576,11 @@ bool Diagnostic::ProcessDiag() {
   // If a fatal error has already been emitted, silence all subsequent
   // diagnostics.
   if (FatalErrorOccurred) {
-    if (DiagLevel >= Diagnostic::Error) {
+    if (DiagLevel >= Diagnostic::Error && Client->IncludeInDiagnosticCounts()) {
       ++NumErrors;
       ++NumErrorsSuppressed;
     }
-    
+
     return false;
   }
 
@@ -597,9 +601,11 @@ bool Diagnostic::ProcessDiag() {
   }
 
   if (DiagLevel >= Diagnostic::Error) {
-    ErrorOccurred = true;
-    ++NumErrors;
-    
+    if (Client->IncludeInDiagnosticCounts()) {
+      ErrorOccurred = true;
+      ++NumErrors;
+    }
+
     // If we've emitted a lot of errors, emit a fatal error after it to stop a
     // flood of bogus errors.
     if (ErrorLimit && NumErrors >= ErrorLimit &&
@@ -1146,11 +1152,6 @@ void StoredDiagnostic::Serialize(llvm::raw_ostream &OS) const {
       break;
     }
 
-    if (F->InsertionLoc.isValid() && F->InsertionLoc.isMacroID()) {
-      NumFixIts = 0;
-      break;
-    }
-
     ++NumFixIts;
   }
 
@@ -1160,7 +1161,6 @@ void StoredDiagnostic::Serialize(llvm::raw_ostream &OS) const {
     WriteSourceLocation(OS, SM, F->RemoveRange.getBegin());
     WriteSourceLocation(OS, SM, F->RemoveRange.getEnd());
     WriteUnsigned(OS, F->RemoveRange.isTokenRange());
-    WriteSourceLocation(OS, SM, F->InsertionLoc);
     WriteString(OS, F->CodeToInsert);
   }
 }
@@ -1288,12 +1288,11 @@ StoredDiagnostic::Deserialize(FileManager &FM, SourceManager &SM,
   if (ReadUnsigned(Memory, MemoryEnd, NumFixIts))
     return Diag;
   for (unsigned I = 0; I != NumFixIts; ++I) {
-    SourceLocation RemoveBegin, RemoveEnd, InsertionLoc;
+    SourceLocation RemoveBegin, RemoveEnd;
     unsigned InsertLen = 0, RemoveIsTokenRange;
     if (ReadSourceLocation(FM, SM, Memory, MemoryEnd, RemoveBegin) ||
         ReadSourceLocation(FM, SM, Memory, MemoryEnd, RemoveEnd) ||
         ReadUnsigned(Memory, MemoryEnd, RemoveIsTokenRange) ||
-        ReadSourceLocation(FM, SM, Memory, MemoryEnd, InsertionLoc) ||
         ReadUnsigned(Memory, MemoryEnd, InsertLen) ||
         Memory + InsertLen > MemoryEnd) {
       Diag.FixIts.clear();
@@ -1303,7 +1302,6 @@ StoredDiagnostic::Deserialize(FileManager &FM, SourceManager &SM,
     FixItHint Hint;
     Hint.RemoveRange = CharSourceRange(SourceRange(RemoveBegin, RemoveEnd),
                                        RemoveIsTokenRange);
-    Hint.InsertionLoc = InsertionLoc;
     Hint.CodeToInsert.assign(Memory, Memory + InsertLen);
     Memory += InsertLen;
     Diag.FixIts.push_back(Hint);

@@ -131,9 +131,7 @@ _pthread_testcancel(void)
 {
 	struct pthread *curthread = _get_curthread();
 
-	curthread->cancel_point = 1;
 	testcancel(curthread);
-	curthread->cancel_point = 0;
 }
 
 void
@@ -159,7 +157,20 @@ _thr_cancel_enter2(struct pthread *curthread, int maycancel)
 void
 _thr_cancel_leave(struct pthread *curthread, int maycancel)
 {
-	if (maycancel)
-		testcancel(curthread);
 	curthread->cancel_point = 0;
+	if (__predict_false(SHOULD_CANCEL(curthread) &&
+	    !THR_IN_CRITICAL(curthread) && maycancel))
+		_pthread_exit(PTHREAD_CANCELED);
+}
+
+void
+_pthread_cancel_enter(int maycancel)
+{
+	_thr_cancel_enter2(_get_curthread(), maycancel);
+}
+
+void
+_pthread_cancel_leave(int maycancel)
+{
+	_thr_cancel_leave(_get_curthread(), maycancel);
 }

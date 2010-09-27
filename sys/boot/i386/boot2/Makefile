@@ -3,9 +3,7 @@
 .include <bsd.own.mk>
 
 # XXX: clang can compile the boot code just fine, but boot2 gets too big
-.if ${CC:T:Mclang} == "clang"
-CC=gcc
-.endif
+CC:=${CC:C/^(.*\/)?clang$/gcc/1}
 
 FILES=		boot boot1 boot2
 

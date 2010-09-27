@@ -36,7 +36,6 @@ class CheckerContext {
   const GRState *ST;
   const Stmt *statement;
   const unsigned size;
-  bool DoneEvaluating; // FIXME: This is not a permanent API change.
 public:
   bool *respondsToCallback;
 public:
@@ -166,6 +165,10 @@ public:
     Eng.getBugReporter().EmitReport(R);
   }
 
+  AnalysisContext *getCurrentAnalysisContext() const {
+    return Pred->getLocationContext()->getAnalysisContext();
+  }
+
 private:
   ExplodedNode *GenerateNodeImpl(const Stmt* stmt, const GRState *state,
                              bool markAsSink) {
@@ -223,7 +226,6 @@ private:
   // FIXME: Remove the 'tag' option.
   void GR_VisitBind(ExplodedNodeSet &Dst,
                     GRStmtNodeBuilder &Builder, GRExprEngine &Eng,
-                    const Stmt *AssignE,
                     const Stmt *StoreE, ExplodedNode *Pred, void *tag, 
                     SVal location, SVal val,
                     bool isPrevisit) {
@@ -231,7 +233,7 @@ private:
                      isPrevisit ? ProgramPoint::PreStmtKind :
                      ProgramPoint::PostStmtKind, 0, StoreE);
     assert(isPrevisit && "Only previsit supported for now.");
-    PreVisitBind(C, AssignE, StoreE, location, val);
+    PreVisitBind(C, StoreE, location, val);
   }
   
   // FIXME: Remove the 'tag' option.
@@ -261,15 +263,17 @@ public:
   virtual void _PreVisit(CheckerContext &C, const Stmt *S) {}
   virtual void _PostVisit(CheckerContext &C, const Stmt *S) {}
   virtual void VisitLocation(CheckerContext &C, const Stmt *S, SVal location) {}
-  virtual void PreVisitBind(CheckerContext &C, const Stmt *AssignE,
-                            const Stmt *StoreE, SVal location, SVal val) {}
+  virtual void PreVisitBind(CheckerContext &C, const Stmt *StoreE,
+                            SVal location, SVal val) {}
   virtual void EvalDeadSymbols(CheckerContext &C, SymbolReaper &SymReaper) {}
   virtual void EvalEndPath(GREndPathNodeBuilder &B, void *tag,
                            GRExprEngine &Eng) {}
 
+  virtual void MarkLiveSymbols(const GRState *state, SymbolReaper &SymReaper) {}
+
   virtual void VisitBranchCondition(GRBranchNodeBuilder &Builder,
                                     GRExprEngine &Eng,
-                                    Stmt *Condition, void *tag) {}
+                                    const Stmt *Condition, void *tag) {}
 
   virtual bool EvalNilReceiver(CheckerContext &C, const ObjCMessageExpr *ME) {
     return false;
@@ -280,12 +284,23 @@ public:
   }
 
   virtual const GRState *EvalAssume(const GRState *state, SVal Cond, 
-                                    bool Assumption) {
+                                    bool Assumption, bool *respondsToCallback) {
+    *respondsToCallback = false;
+    return state;
+  }
+
+  virtual bool WantsRegionChangeUpdate(const GRState *state) { return false; }
+
+  virtual const GRState *EvalRegionChanges(const GRState *state,
+                                           const MemRegion * const *Begin,
+                                           const MemRegion * const *End,
+                                           bool *respondsToCallback) {
+    *respondsToCallback = false;
     return state;
   }
 
   virtual void VisitEndAnalysis(ExplodedGraph &G, BugReporter &B,
-                                bool hasWorkRemaining) {}
+                                GRExprEngine &Eng) {}
 };
 } // end clang namespace
 

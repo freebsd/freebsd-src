@@ -36,7 +36,7 @@ STATISTIC(NumPhisDemoted, "Number of phi-nodes demoted");
 namespace {
   struct RegToMem : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
-    RegToMem() : FunctionPass(&ID) {}
+    RegToMem() : FunctionPass(ID) {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequiredID(BreakCriticalEdgesID);
@@ -59,8 +59,8 @@ namespace {
 }
   
 char RegToMem::ID = 0;
-static RegisterPass<RegToMem>
-X("reg2mem", "Demote all values to stack slots");
+INITIALIZE_PASS(RegToMem, "reg2mem", "Demote all values to stack slots",
+                false, false);
 
 
 bool RegToMem::runOnFunction(Function &F) {
@@ -124,7 +124,7 @@ bool RegToMem::runOnFunction(Function &F) {
 
 // createDemoteRegisterToMemory - Provide an entry point to create this pass.
 //
-const PassInfo *const llvm::DemoteRegisterToMemoryID = &X;
+char &llvm::DemoteRegisterToMemoryID = RegToMem::ID;
 FunctionPass *llvm::createDemoteRegisterToMemoryPass() {
   return new RegToMem();
 }

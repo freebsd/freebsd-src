@@ -18,7 +18,9 @@
 #include "clang/Driver/OptTable.h"
 #include "clang/Driver/Option.h"
 #include "clang/Driver/Options.h"
+#include "clang/Basic/Version.h"
 
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -35,13 +37,30 @@ using namespace clang::driver::toolchains;
 
 /// Darwin - Darwin tool chain for i386 and x86_64.
 
-Darwin::Darwin(const HostInfo &Host, const llvm::Triple& Triple,
-               const unsigned (&_DarwinVersion)[3])
+Darwin::Darwin(const HostInfo &Host, const llvm::Triple& Triple)
   : ToolChain(Host, Triple), TargetInitialized(false)
 {
+  // Compute the initial Darwin version based on the host.
+  bool HadExtra;
+  std::string OSName = Triple.getOSName();
+  if (!Driver::GetReleaseVersion(&OSName[6],
+                                 DarwinVersion[0], DarwinVersion[1],
+                                 DarwinVersion[2], HadExtra))
+    getDriver().Diag(clang::diag::err_drv_invalid_darwin_version) << OSName;
+
   llvm::raw_string_ostream(MacosxVersionMin)
-    << "10." << std::max(0, (int)_DarwinVersion[0] - 4) << '.'
-    << _DarwinVersion[1];
+    << "10." << std::max(0, (int)DarwinVersion[0] - 4) << '.'
+    << DarwinVersion[1];
+}
+
+types::ID Darwin::LookupTypeForExtension(const char *Ext) const {
+  types::ID Ty = types::lookupTypeForExtension(Ext);
+
+  // Darwin always preprocesses assembly files (unless -x is used explicitly).
+  if (Ty == types::TY_PP_Asm)
+    return types::TY_Asm;
+
+  return Ty;
 }
 
 // FIXME: Can we tablegen this?
@@ -107,14 +126,13 @@ llvm::StringRef Darwin::getDarwinArchName(const ArgList &Args) const {
   }
 }
 
-DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
-                     const unsigned (&DarwinVersion)[3],
-                     const unsigned (&_GCCVersion)[3])
-  : Darwin(Host, Triple, DarwinVersion)
+DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple)
+  : Darwin(Host, Triple)
 {
-  GCCVersion[0] = _GCCVersion[0];
-  GCCVersion[1] = _GCCVersion[1];
-  GCCVersion[2] = _GCCVersion[2];
+  // We can only work with 4.2.1 currently.
+  GCCVersion[0] = 4;
+  GCCVersion[1] = 2;
+  GCCVersion[2] = 1;
 
   // Set up the tool chain paths to match gcc.
   ToolChainDir = "i686-apple-darwin";
@@ -178,7 +196,9 @@ DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
   Path += ToolChainDir;
   getProgramPaths().push_back(Path);
 
-  getProgramPaths().push_back(getDriver().Dir);
+  getProgramPaths().push_back(getDriver().getInstalledDir());
+  if (getDriver().getInstalledDir() != getDriver().Dir)
+    getProgramPaths().push_back(getDriver().Dir);
 }
 
 Darwin::~Darwin() {
@@ -186,6 +206,38 @@ Darwin::~Darwin() {
   for (llvm::DenseMap<unsigned, Tool*>::iterator
          it = Tools.begin(), ie = Tools.end(); it != ie; ++it)
     delete it->second;
+}
+
+std::string Darwin::ComputeEffectiveClangTriple(const ArgList &Args) const {
+  llvm::Triple Triple(ComputeLLVMTriple(Args));
+
+  // If the target isn't initialized (e.g., an unknown Darwin platform, return
+  // the default triple).
+  if (!isTargetInitialized())
+    return Triple.getTriple();
+    
+  unsigned Version[3];
+  getTargetVersion(Version);
+
+  // Mangle the target version into the OS triple component.  For historical
+  // reasons that make little sense, the version passed here is the "darwin"
+  // version, which drops the 10 and offsets by 4. See inverse code when
+  // setting the OS version preprocessor define.
+  if (!isTargetIPhoneOS()) {
+    Version[0] = Version[1] + 4;
+    Version[1] = Version[2];
+    Version[2] = 0;
+  } else {
+    // Use the environment to communicate that we are targetting iPhoneOS.
+    Triple.setEnvironmentName("iphoneos");
+  }
+
+  llvm::SmallString<16> Str;
+  llvm::raw_svector_ostream(Str) << "darwin" << Version[0]
+                                 << "." << Version[1] << "." << Version[2];
+  Triple.setOSName(Str.str());
+
+  return Triple.getTriple();
 }
 
 Tool &Darwin::SelectTool(const Compilation &C, const JobAction &JA) const {
@@ -249,7 +301,7 @@ void DarwinGCC::AddLinkSearchPathArgs(const ArgList &Args,
     CmdArgs.push_back(Args.MakeArgString("-L/usr/lib/gcc/" + ToolChainDir +
                                          "/x86_64"));
   }
-  
+
   CmdArgs.push_back(Args.MakeArgString("-L/usr/lib/" + ToolChainDir));
 
   Tmp = getDriver().Dir + "/../lib/gcc/" + ToolChainDir;
@@ -318,12 +370,13 @@ void DarwinGCC::AddLinkRuntimeLibArgs(const ArgList &Args,
   }
 }
 
-DarwinClang::DarwinClang(const HostInfo &Host, const llvm::Triple& Triple,
-                         const unsigned (&DarwinVersion)[3])
-  : Darwin(Host, Triple, DarwinVersion)
+DarwinClang::DarwinClang(const HostInfo &Host, const llvm::Triple& Triple)
+  : Darwin(Host, Triple)
 {
   // We expect 'as', 'ld', etc. to be adjacent to our install dir.
-  getProgramPaths().push_back(getDriver().Dir);
+  getProgramPaths().push_back(getDriver().getInstalledDir());
+  if (getDriver().getInstalledDir() != getDriver().Dir)
+    getProgramPaths().push_back(getDriver().Dir);
 }
 
 void DarwinClang::AddLinkSearchPathArgs(const ArgList &Args,
@@ -354,6 +407,39 @@ void DarwinClang::AddLinkSearchPathArgs(const ArgList &Args,
     break;
   }
   P.appendComponent("4.2.1");
+
+  // Determine the arch specific GCC subdirectory.
+  const char *ArchSpecificDir = 0;
+  switch (getTriple().getArch()) {
+  default:
+    break;
+  case llvm::Triple::arm:
+  case llvm::Triple::thumb: {
+    std::string Triple = ComputeLLVMTriple(Args);
+    llvm::StringRef TripleStr = Triple;
+    if (TripleStr.startswith("armv5") || TripleStr.startswith("thumbv5"))
+      ArchSpecificDir = "v5";
+    else if (TripleStr.startswith("armv6") || TripleStr.startswith("thumbv6"))
+      ArchSpecificDir = "v6";
+    else if (TripleStr.startswith("armv7") || TripleStr.startswith("thumbv7"))
+      ArchSpecificDir = "v7";
+    break;
+  }
+  case llvm::Triple::ppc64:
+    ArchSpecificDir = "ppc64";
+    break;
+  case llvm::Triple::x86_64:
+    ArchSpecificDir = "x86_64";
+    break;
+  }
+
+  if (ArchSpecificDir) {
+    P.appendComponent(ArchSpecificDir);
+    if (P.exists())
+      CmdArgs.push_back(Args.MakeArgString("-L" + P.str()));
+    P.eraseComponent();
+  }
+
   if (P.exists())
     CmdArgs.push_back(Args.MakeArgString("-L" + P.str()));
 }
@@ -419,17 +505,8 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
   }
 }
 
-DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
-                                      const char *BoundArch) const {
-  DerivedArgList *DAL = new DerivedArgList(Args.getBaseArgs());
+void Darwin::AddDeploymentTarget(DerivedArgList &Args) const {
   const OptTable &Opts = getDriver().getOpts();
-
-  // FIXME: We really want to get out of the tool chain level argument
-  // translation business, as it makes the driver functionality much
-  // more opaque. For now, we follow gcc closely solely for the
-  // purpose of easily achieving feature parity & testability. Once we
-  // have something that works, we should reevaluate each translation
-  // and try to push it down into tool specific logic.
 
   Arg *OSXVersion = Args.getLastArg(options::OPT_mmacosx_version_min_EQ);
   Arg *iPhoneVersion = Args.getLastArg(options::OPT_miphoneos_version_min_EQ);
@@ -466,17 +543,17 @@ DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
 
     if (OSXTarget) {
       const Option *O = Opts.getOption(options::OPT_mmacosx_version_min_EQ);
-      OSXVersion = DAL->MakeJoinedArg(0, O, OSXTarget);
-      DAL->append(OSXVersion);
+      OSXVersion = Args.MakeJoinedArg(0, O, OSXTarget);
+      Args.append(OSXVersion);
     } else if (iPhoneOSTarget) {
       const Option *O = Opts.getOption(options::OPT_miphoneos_version_min_EQ);
-      iPhoneVersion = DAL->MakeJoinedArg(0, O, iPhoneOSTarget);
-      DAL->append(iPhoneVersion);
+      iPhoneVersion = Args.MakeJoinedArg(0, O, iPhoneOSTarget);
+      Args.append(iPhoneVersion);
     } else {
       // Otherwise, assume we are targeting OS X.
       const Option *O = Opts.getOption(options::OPT_mmacosx_version_min_EQ);
-      OSXVersion = DAL->MakeJoinedArg(0, O, MacosxVersionMin);
-      DAL->append(OSXVersion);
+      OSXVersion = Args.MakeJoinedArg(0, O, MacosxVersionMin);
+      Args.append(OSXVersion);
     }
   }
 
@@ -499,6 +576,19 @@ DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
         << iPhoneVersion->getAsString(Args);
   }
   setTarget(iPhoneVersion, Major, Minor, Micro);
+}
+
+DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
+                                      const char *BoundArch) const {
+  DerivedArgList *DAL = new DerivedArgList(Args.getBaseArgs());
+  const OptTable &Opts = getDriver().getOpts();
+
+  // FIXME: We really want to get out of the tool chain level argument
+  // translation business, as it makes the driver functionality much
+  // more opaque. For now, we follow gcc closely solely for the
+  // purpose of easily achieving feature parity & testability. Once we
+  // have something that works, we should reevaluate each translation
+  // and try to push it down into tool specific logic.
 
   for (ArgList::const_iterator it = Args.begin(),
          ie = Args.end(); it != ie; ++it) {
@@ -677,6 +767,11 @@ DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
       llvm_unreachable("invalid Darwin arch");
   }
 
+  // Add an explicit version min argument for the deployment target. We do this
+  // after argument translation because -Xarch_ arguments may add a version min
+  // argument.
+  AddDeploymentTarget(*DAL);
+
   return DAL;
 }
 
@@ -713,13 +808,20 @@ bool Darwin::SupportsObjCGC() const {
   return !isTargetIPhoneOS();
 }
 
+std::string
+Darwin_Generic_GCC::ComputeEffectiveClangTriple(const ArgList &Args) const {
+  return ComputeLLVMTriple(Args);
+}
+
 /// Generic_GCC - A tool chain using the 'gcc' command to perform
 /// all subcommands; this relies on gcc translating the majority of
 /// command line options.
 
 Generic_GCC::Generic_GCC(const HostInfo &Host, const llvm::Triple& Triple)
   : ToolChain(Host, Triple) {
-  getProgramPaths().push_back(getDriver().Dir);
+  getProgramPaths().push_back(getDriver().getInstalledDir());
+  if (getDriver().getInstalledDir() != getDriver().Dir.c_str())
+    getProgramPaths().push_back(getDriver().Dir);
 }
 
 Generic_GCC::~Generic_GCC() {
@@ -868,8 +970,16 @@ Tool &OpenBSD::SelectTool(const Compilation &C, const JobAction &JA) const {
 
 /// FreeBSD - FreeBSD tool chain which can call as(1) and ld(1) directly.
 
-FreeBSD::FreeBSD(const HostInfo &Host, const llvm::Triple& Triple, bool Lib32)
+FreeBSD::FreeBSD(const HostInfo &Host, const llvm::Triple& Triple)
   : Generic_GCC(Host, Triple) {
+
+  // Determine if we are compiling 32-bit code on an x86_64 platform.
+  bool Lib32 = false;
+  if (Triple.getArch() == llvm::Triple::x86 &&
+      llvm::Triple(getDriver().DefaultHostTriple).getArch() ==
+        llvm::Triple::x86_64)
+    Lib32 = true;
+    
   getProgramPaths().push_back(getDriver().Dir + "/../libexec");
   getProgramPaths().push_back("/usr/libexec");
   if (Lib32) {
@@ -938,7 +1048,9 @@ Tool &Minix::SelectTool(const Compilation &C, const JobAction &JA) const {
 AuroraUX::AuroraUX(const HostInfo &Host, const llvm::Triple& Triple)
   : Generic_GCC(Host, Triple) {
 
-  getProgramPaths().push_back(getDriver().Dir);
+  getProgramPaths().push_back(getDriver().getInstalledDir());
+  if (getDriver().getInstalledDir() != getDriver().Dir.c_str())
+    getProgramPaths().push_back(getDriver().Dir);
 
   getFilePaths().push_back(getDriver().Dir + "/../lib");
   getFilePaths().push_back("/usr/lib");
@@ -975,7 +1087,8 @@ Tool &AuroraUX::SelectTool(const Compilation &C, const JobAction &JA) const {
 
 Linux::Linux(const HostInfo &Host, const llvm::Triple& Triple)
   : Generic_GCC(Host, Triple) {
-  getFilePaths().push_back(getDriver().Dir + "/../lib/clang/1.0/");
+  getFilePaths().push_back(getDriver().Dir +
+                           "/../lib/clang/" CLANG_VERSION_STRING "/");
   getFilePaths().push_back("/lib/");
   getFilePaths().push_back("/usr/lib/");
 
@@ -996,13 +1109,35 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple& Triple)
   // list), but that's messy at best.
 }
 
+Tool &Linux::SelectTool(const Compilation &C, const JobAction &JA) const {
+  Action::ActionClass Key;
+  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
+    Key = Action::AnalyzeJobClass;
+  else
+    Key = JA.getKind();
+
+  Tool *&T = Tools[Key];
+  if (!T) {
+    switch (Key) {
+    case Action::AssembleJobClass:
+      T = new tools::linuxtools::Assemble(*this); break;
+    default:
+      T = &Generic_GCC::SelectTool(C, JA);
+    }
+  }
+
+  return *T;
+}
+
 /// DragonFly - DragonFly tool chain which can call as(1) and ld(1) directly.
 
 DragonFly::DragonFly(const HostInfo &Host, const llvm::Triple& Triple)
   : Generic_GCC(Host, Triple) {
 
   // Path mangling to find libexec
-  getProgramPaths().push_back(getDriver().Dir);
+  getProgramPaths().push_back(getDriver().getInstalledDir());
+  if (getDriver().getInstalledDir() != getDriver().Dir.c_str())
+    getProgramPaths().push_back(getDriver().Dir);
 
   getFilePaths().push_back(getDriver().Dir + "/../lib");
   getFilePaths().push_back("/usr/lib");
@@ -1029,4 +1164,58 @@ Tool &DragonFly::SelectTool(const Compilation &C, const JobAction &JA) const {
   }
 
   return *T;
+}
+
+Windows::Windows(const HostInfo &Host, const llvm::Triple& Triple)
+  : ToolChain(Host, Triple) {
+}
+
+Tool &Windows::SelectTool(const Compilation &C, const JobAction &JA) const {
+  Action::ActionClass Key;
+  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
+    Key = Action::AnalyzeJobClass;
+  else
+    Key = JA.getKind();
+
+  Tool *&T = Tools[Key];
+  if (!T) {
+    switch (Key) {
+    case Action::InputClass:
+    case Action::BindArchClass:
+    case Action::LipoJobClass:
+    case Action::DsymutilJobClass:
+      assert(0 && "Invalid tool kind.");
+    case Action::PreprocessJobClass:
+    case Action::PrecompileJobClass:
+    case Action::AnalyzeJobClass:
+    case Action::CompileJobClass:
+      T = new tools::Clang(*this); break;
+    case Action::AssembleJobClass:
+      T = new tools::ClangAs(*this); break;
+    case Action::LinkJobClass:
+      T = new tools::visualstudio::Link(*this); break;
+    }
+  }
+
+  return *T;
+}
+
+bool Windows::IsIntegratedAssemblerDefault() const {
+  return true;
+}
+
+bool Windows::IsUnwindTablesDefault() const {
+  // FIXME: Gross; we should probably have some separate target
+  // definition, possibly even reusing the one in clang.
+  return getArchName() == "x86_64";
+}
+
+const char *Windows::GetDefaultRelocationModel() const {
+  return "static";
+}
+
+const char *Windows::GetForcedPicModel() const {
+  if (getArchName() == "x86_64")
+    return "pic";
+  return 0;
 }

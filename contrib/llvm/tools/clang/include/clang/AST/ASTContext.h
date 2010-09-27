@@ -18,7 +18,6 @@
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/PartialDiagnostic.h"
-#include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/PrettyPrinter.h"
@@ -50,6 +49,7 @@ namespace clang {
   class SelectorTable;
   class SourceManager;
   class TargetInfo;
+  class CXXABI;
   // Decls
   class DeclContext;
   class CXXMethodDecl;
@@ -198,7 +198,7 @@ class ASTContext {
   ///
   /// Since so few decls have attrs, we keep them in a hash map instead of
   /// wasting space in the Decl class.
-  llvm::DenseMap<const Decl*, Attr*> DeclAttrs;
+  llvm::DenseMap<const Decl*, AttrVec*> DeclAttrs;
 
   /// \brief Keeps track of the static data member templates from which
   /// static data members of class template specializations were instantiated.
@@ -275,13 +275,18 @@ class ASTContext {
   ///  this ASTContext object.
   LangOptions LangOpts;
 
-  /// MallocAlloc/BumpAlloc - The allocator objects used to create AST objects.
-  bool FreeMemory;
-  llvm::MallocAllocator MallocAlloc;
+  /// \brief The allocator used to create AST objects.
+  ///
+  /// AST objects are never destructed; rather, all memory associated with the
+  /// AST objects will be released when the ASTContext itself is destroyed.
   llvm::BumpPtrAllocator BumpAlloc;
 
   /// \brief Allocator for partial diagnostics.
   PartialDiagnostic::StorageAllocator DiagAllocator;
+
+  /// \brief The current C++ ABI.
+  llvm::OwningPtr<CXXABI> ABI;
+  CXXABI *createCXXABI(const TargetInfo &T);
   
 public:
   const TargetInfo &Target;
@@ -301,13 +306,9 @@ public:
   SourceManager& getSourceManager() { return SourceMgr; }
   const SourceManager& getSourceManager() const { return SourceMgr; }
   void *Allocate(unsigned Size, unsigned Align = 8) {
-    return FreeMemory ? MallocAlloc.Allocate(Size, Align) :
-                        BumpAlloc.Allocate(Size, Align);
+    return BumpAlloc.Allocate(Size, Align);
   }
-  void Deallocate(void *Ptr) {
-    if (FreeMemory)
-      MallocAlloc.Deallocate(Ptr);
-  }
+  void Deallocate(void *Ptr) { }
   
   PartialDiagnostic::StorageAllocator &getDiagAllocator() {
     return DiagAllocator;
@@ -320,10 +321,10 @@ public:
   }
 
   /// \brief Retrieve the attributes for the given declaration.
-  Attr*& getDeclAttrs(const Decl *D) { return DeclAttrs[D]; }
+  AttrVec& getDeclAttrs(const Decl *D);
 
   /// \brief Erase the attributes corresponding to the given declaration.
-  void eraseDeclAttrs(const Decl *D) { DeclAttrs.erase(D); }
+  void eraseDeclAttrs(const Decl *D);
 
   /// \brief If this variable is an instantiated static data member of a
   /// class template specialization, returns the templated static data member
@@ -393,7 +394,7 @@ public:
   ASTContext(const LangOptions& LOpts, SourceManager &SM, const TargetInfo &t,
              IdentifierTable &idents, SelectorTable &sels,
              Builtin::Context &builtins,
-             bool FreeMemory = true, unsigned size_reserve=0);
+             unsigned size_reserve);
 
   ~ASTContext();
 
@@ -520,7 +521,7 @@ public:
                             llvm::SmallVectorImpl<const Expr *> &Layout);
 
   /// This builds the struct used for __block variables.
-  QualType BuildByRefType(const char *DeclName, QualType Ty);
+  QualType BuildByRefType(llvm::StringRef DeclName, QualType Ty);
 
   /// Returns true iff we need copy/dispose helpers for the given type.
   bool BlockRequiresCopying(QualType Ty);
@@ -873,7 +874,8 @@ public:
     return getExtQualType(T, Qs);
   }
 
-  DeclarationName getNameForTemplate(TemplateName Name);
+  DeclarationNameInfo getNameForTemplate(TemplateName Name,
+                                         SourceLocation NameLoc);
 
   TemplateName getOverloadedTemplateName(UnresolvedSetIterator Begin,
                                          UnresolvedSetIterator End);
@@ -908,6 +910,11 @@ public:
   /// garbage collection attribute.
   ///
   Qualifiers::GC getObjCGCAttrKind(const QualType &Ty) const;
+
+  /// areCompatibleVectorTypes - Return true if the given vector types either
+  /// are of the same unqualified type or if one is GCC and other - equivalent
+  /// AltiVec vector type.
+  bool areCompatibleVectorTypes(QualType FirstVec, QualType SecondVec);
 
   /// isObjCNSObjectType - Return true if this is an NSObject object with
   /// its NSObject attribute set.
@@ -1002,13 +1009,12 @@ public:
   /// of class definition.
   const CXXMethodDecl *getKeyFunction(const CXXRecordDecl *RD);
 
-  void CollectObjCIvars(const ObjCInterfaceDecl *OI,
-                        llvm::SmallVectorImpl<FieldDecl*> &Fields);
-
   void ShallowCollectObjCIvars(const ObjCInterfaceDecl *OI,
                                llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars);
-  void CollectNonClassIvars(const ObjCInterfaceDecl *OI,
-                               llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars);
+  
+  void DeepCollectObjCIvars(const ObjCInterfaceDecl *OI, bool leafClass,
+                            llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars);
+  
   unsigned CountNonClassIvars(const ObjCInterfaceDecl *OI);
   void CollectInheritedProtocols(const Decl *CDecl,
                           llvm::SmallPtrSet<ObjCProtocolDecl*, 8> &Protocols);
@@ -1067,8 +1073,6 @@ public:
 
   bool UnwrapSimilarPointerTypes(QualType &T1, QualType &T2);
   
-  /// \brief Retrieves the "canonical" declaration of
-
   /// \brief Retrieves the "canonical" nested name specifier for a
   /// given nested name specifier.
   ///
@@ -1218,7 +1222,8 @@ public:
   //===--------------------------------------------------------------------===//
 
   /// Compatibility predicates used to check assignment expressions.
-  bool typesAreCompatible(QualType, QualType); // C99 6.2.7p1
+  bool typesAreCompatible(QualType T1, QualType T2, 
+                          bool CompareUnqualified = false); // C99 6.2.7p1
 
   bool typesAreBlockPointerCompatible(QualType, QualType); 
 
@@ -1235,6 +1240,8 @@ public:
   bool ObjCQualifiedIdTypesAreCompatible(QualType LHS, QualType RHS,
                                          bool ForCompare);
 
+  bool ObjCQualifiedClassTypesAreCompatible(QualType LHS, QualType RHS);
+  
   // Check the safety of assignment from LHS to RHS
   bool canAssignObjCInterfaces(const ObjCObjectPointerType *LHSOPT,
                                const ObjCObjectPointerType *RHSOPT);
@@ -1246,10 +1253,13 @@ public:
   bool areComparableObjCPointerTypes(QualType LHS, QualType RHS);
   QualType areCommonBaseCompatible(const ObjCObjectPointerType *LHSOPT,
                                    const ObjCObjectPointerType *RHSOPT);
-  
+  bool canBindObjCObjectType(QualType To, QualType From);
+
   // Functions for calculating composite types
-  QualType mergeTypes(QualType, QualType, bool OfBlockPointer=false);
-  QualType mergeFunctionTypes(QualType, QualType, bool OfBlockPointer=false);
+  QualType mergeTypes(QualType, QualType, bool OfBlockPointer=false,
+                      bool Unqualified = false);
+  QualType mergeFunctionTypes(QualType, QualType, bool OfBlockPointer=false,
+                              bool Unqualified = false);
   
   QualType mergeObjCGCQualifiers(QualType, QualType);
 
@@ -1257,6 +1267,10 @@ public:
   /// that are common to binary operators (C99 6.3.1.8, C++ [expr]p9)
   /// and returns the result type of that conversion.
   QualType UsualArithmeticConversionsType(QualType lhs, QualType rhs);
+  
+  void ResetObjCLayout(const ObjCContainerDecl *CD) {
+    ObjCLayouts[CD] = 0;
+  }
 
   //===--------------------------------------------------------------------===//
   //                    Integer Predicates
@@ -1337,6 +1351,17 @@ public:
   /// when it is called.
   void AddDeallocation(void (*Callback)(void*), void *Data);
 
+  GVALinkage GetGVALinkageForFunction(const FunctionDecl *FD);
+  GVALinkage GetGVALinkageForVariable(const VarDecl *VD);
+
+  /// \brief Determines if the decl can be CodeGen'ed or deserialized from PCH
+  /// lazily, only when used; this is only relevant for function or file scoped
+  /// var definitions.
+  ///
+  /// \returns true if the function/var must be CodeGen'ed/deserialized even if
+  /// it is not used.
+  bool DeclMustBeEmitted(const Decl *D);
+
   //===--------------------------------------------------------------------===//
   //                    Statistics
   //===--------------------------------------------------------------------===//
@@ -1386,7 +1411,7 @@ private:
  
   const ASTRecordLayout &getObjCLayout(const ObjCInterfaceDecl *D,
                                        const ObjCImplementationDecl *Impl);
-  
+
 private:
   /// \brief A set of deallocations that should be performed when the 
   /// ASTContext is destroyed.

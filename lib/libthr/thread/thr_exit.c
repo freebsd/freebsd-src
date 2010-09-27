@@ -51,6 +51,7 @@ static void	exit_thread(void) __dead2;
 __weak_reference(_pthread_exit, pthread_exit);
 
 #ifdef _PTHREAD_FORCED_UNWIND
+static int message_printed;
 
 static void thread_unwind(void) __dead2;
 #ifdef PIC
@@ -140,17 +141,14 @@ thread_unwind_stop(int version, _Unwind_Action actions,
 	/* XXX assume stack grows down to lower address */
 
 	cfa = _Unwind_GetCFA(context);
-	if (actions & _UA_END_OF_STACK) {
-		done = 1;
-	} else if (cfa >= (uintptr_t)curthread->unwind_stackend) {
+	if (actions & _UA_END_OF_STACK ||
+	    cfa >= (uintptr_t)curthread->unwind_stackend) {
 		done = 1;
 	}
 
 	while ((cur = curthread->cleanup) != NULL &&
-	       (done ||
-		((uintptr_t)cur < (uintptr_t)curthread->unwind_stackend &&
-		 (uintptr_t)cur >= cfa))) {
-			__pthread_cleanup_pop_imp(1);
+	       (done || (uintptr_t)cur <= cfa)) {
+		__pthread_cleanup_pop_imp(1);
 	}
 
 	if (done)
@@ -223,18 +221,28 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 	/* Save the return value: */
 	curthread->ret = status;
 #ifdef _PTHREAD_FORCED_UNWIND
+
 #ifdef PIC
 	thread_uw_init();
-	if (uwl_forcedunwind != NULL) {
-		thread_unwind();
-	}
-#else
-	if (_Unwind_ForcedUnwind != NULL) {
-		thread_unwind();
-	}
 #endif /* PIC */
 
- 	else {
+#ifdef PIC
+	if (uwl_forcedunwind != NULL) {
+#else
+	if (_Unwind_ForcedUnwind != NULL) {
+#endif
+		if (curthread->unwind_disabled) {
+			if (message_printed == 0) {
+				message_printed = 1;
+				_thread_printf(2, "Warning: old _pthread_cleanup_push was called, "
+				  	"stack unwinding is disabled.\n");
+			}
+			goto cleanup;
+		}
+		thread_unwind();
+
+	} else {
+cleanup:
 		while (curthread->cleanup != NULL) {
 			__pthread_cleanup_pop_imp(1);
 		}
@@ -278,15 +286,14 @@ exit_thread(void)
 		curthread->cycle++;
 		_thr_umtx_wake(&curthread->cycle, INT_MAX, 0);
 	}
+	if (!curthread->force_exit && SHOULD_REPORT_EVENT(curthread, TD_DEATH))
+		_thr_report_death(curthread);
 	/*
 	 * Thread was created with initial refcount 1, we drop the
 	 * reference count to allow it to be garbage collected.
 	 */
 	curthread->refcount--;
 	_thr_try_gc(curthread, curthread); /* thread lock released */
-
-	if (!curthread->force_exit && SHOULD_REPORT_EVENT(curthread, TD_DEATH))
-		_thr_report_death(curthread);
 
 #if defined(_PTHREADS_INVARIANTS)
 	if (THR_IN_CRITICAL(curthread))

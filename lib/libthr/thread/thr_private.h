@@ -357,7 +357,6 @@ struct pthread {
 
 #define	SHOULD_CANCEL(thr)					\
 	((thr)->cancel_pending && (thr)->cancel_enable &&	\
-	 ((thr)->cancel_point || (thr)->cancel_async) &&	\
 	 (thr)->no_cancel == 0)
 
 	/* Cancellation is enabled */
@@ -453,6 +452,7 @@ struct pthread {
 #ifdef _PTHREAD_FORCED_UNWIND
 	struct _Unwind_Exception	ex;
 	void			*unwind_stackend;
+	int			unwind_disabled;
 #endif
 
 	/*
@@ -717,7 +717,8 @@ int	_sched_yield(void);
 void	_pthread_cleanup_push(void (*)(void *), void *);
 void	_pthread_cleanup_pop(int);
 void	_pthread_exit_mask(void *status, sigset_t *mask) __dead2 __hidden;
-
+void	_pthread_cancel_enter(int maycancel);
+void 	_pthread_cancel_leave(int maycancel);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_

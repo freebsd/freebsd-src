@@ -54,6 +54,7 @@ namespace llvm {
   class Mangler;
   class TargetLoweringObjectFile;
   class TargetData;
+  class TargetMachine;
   class Twine;
   class Type;
 
@@ -296,7 +297,7 @@ namespace llvm {
     MCSymbol *GetBlockAddressSymbol(const BlockAddress *BA) const;
     MCSymbol *GetBlockAddressSymbol(const BasicBlock *BB) const;
 
-     //===------------------------------------------------------------------===//
+    //===------------------------------------------------------------------===//
     // Emission Helper Routines.
     //===------------------------------------------------------------------===//
   public:
@@ -326,6 +327,12 @@ namespace llvm {
     /// specify the labels.  This implicitly uses .set if it is available.
     void EmitLabelOffsetDifference(const MCSymbol *Hi, uint64_t Offset,
                                    const MCSymbol *Lo, unsigned Size) const;
+
+    /// EmitLabelPlusOffset - Emit something like ".long Label+Offset"
+    /// where the size in bytes of the directive is specified by Size and Label
+    /// specifies the label.  This implicitly uses .set if it is available.
+    void EmitLabelPlusOffset(const MCSymbol *Label, uint64_t Offset,
+                                   unsigned Size) const;
 
     //===------------------------------------------------------------------===//
     // Dwarf Emission Helper Routines
@@ -368,6 +375,10 @@ namespace llvm {
     /// getDebugValueLocation - Get location information encoded by DBG_VALUE
     /// operands.
     virtual MachineLocation getDebugValueLocation(const MachineInstr *MI) const;
+
+    /// getISAEncoding - Get the value for DW_AT_APPLE_isa. Zero if no isa
+    /// encoding specified.
+    virtual unsigned getISAEncoding() { return 0; }
 
     //===------------------------------------------------------------------===//
     // Dwarf Lowering Routines

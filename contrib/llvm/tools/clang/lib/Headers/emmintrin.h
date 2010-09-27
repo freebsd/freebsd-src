@@ -1,4 +1,4 @@
-/*===---- xmmintrin.h - SSE intrinsics -------------------------------------===
+/*===---- emmintrin.h - SSE2 intrinsics ------------------------------------===
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
  *
  *===-----------------------------------------------------------------------===
  */
- 
+
 #ifndef __EMMINTRIN_H
 #define __EMMINTRIN_H
 
@@ -33,6 +33,9 @@
 typedef double __m128d __attribute__((__vector_size__(16)));
 typedef long long __m128i __attribute__((__vector_size__(16)));
 
+/* Type defines.  */
+typedef double __v2df __attribute__ ((__vector_size__ (16)));
+typedef long long __v2di __attribute__ ((__vector_size__ (16)));
 typedef short __v8hi __attribute__((__vector_size__(16)));
 typedef char __v16qi __attribute__((__vector_size__(16)));
 
@@ -1194,7 +1197,7 @@ static __inline__ int __attribute__((__always_inline__, __nodebug__))
 _mm_extract_epi16(__m128i a, int imm)
 {
   __v8hi b = (__v8hi)a;
-  return b[imm];
+  return (unsigned short)b[imm];
 }
 
 static __inline__ __m128i __attribute__((__always_inline__, __nodebug__))

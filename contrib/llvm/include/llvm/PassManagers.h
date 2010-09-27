@@ -14,11 +14,11 @@
 #ifndef LLVM_PASSMANAGERS_H
 #define LLVM_PASSMANAGERS_H
 
-#include "llvm/PassManager.h"
+#include "llvm/Pass.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/DenseMap.h"
-#include <deque>
+#include <vector>
 #include <map>
 
 //===----------------------------------------------------------------------===//
@@ -96,14 +96,8 @@ namespace llvm {
   class StringRef;
   class Value;
   class Timer;
+  class PMDataManager;
 
-/// FunctionPassManager and PassManager, two top level managers, serve 
-/// as the public interface of pass manager infrastructure.
-enum TopLevelManagerType {
-  TLM_Function,  // FunctionPassManager
-  TLM_Pass       // PassManager
-};
-    
 // enums for debugging strings
 enum PassDebuggingString {
   EXECUTION_MSG, // "Executing Pass '"
@@ -138,30 +132,28 @@ public:
 //===----------------------------------------------------------------------===//
 // PMStack
 //
-/// PMStack
+/// PMStack - This class implements a stack data structure of PMDataManager
+/// pointers.
+///
 /// Top level pass managers (see PassManager.cpp) maintain active Pass Managers 
 /// using PMStack. Each Pass implements assignPassManager() to connect itself
 /// with appropriate manager. assignPassManager() walks PMStack to find
 /// suitable manager.
-///
-/// PMStack is just a wrapper around standard deque that overrides pop() and
-/// push() methods.
 class PMStack {
 public:
-  typedef std::deque<PMDataManager *>::reverse_iterator iterator;
-  iterator begin() { return S.rbegin(); }
-  iterator end() { return S.rend(); }
-
-  void handleLastUserOverflow();
+  typedef std::vector<PMDataManager *>::const_reverse_iterator iterator;
+  iterator begin() const { return S.rbegin(); }
+  iterator end() const { return S.rend(); }
 
   void pop();
-  inline PMDataManager *top() { return S.back(); }
+  PMDataManager *top() const { return S.back(); }
   void push(PMDataManager *PM);
-  inline bool empty() { return S.empty(); }
+  bool empty() const { return S.empty(); }
 
-  void dump();
+  void dump() const;
+
 private:
-  std::deque<PMDataManager *> S;
+  std::vector<PMDataManager *> S;
 };
 
 
@@ -171,20 +163,25 @@ private:
 /// PMTopLevelManager manages LastUser info and collects common APIs used by
 /// top level pass managers.
 class PMTopLevelManager {
-public:
+protected:
+  explicit PMTopLevelManager(PMDataManager *PMDM);
 
   virtual unsigned getNumContainedManagers() const {
     return (unsigned)PassManagers.size();
   }
 
+  void initializeAllAnalysisInfo();
+
+private:
+  /// This is implemented by top level pass manager and used by 
+  /// schedulePass() to add analysis info passes that are not available.
+  virtual void addTopLevelPass(Pass  *P) = 0;
+
+public:
   /// Schedule pass P for execution. Make sure that passes required by
   /// P are run before P is run. Update analysis info maintained by
   /// the manager. Remove dead passes. This is a recursive function.
   void schedulePass(Pass *P);
-
-  /// This is implemented by top level pass manager and used by 
-  /// schedulePass() to add analysis info passes that are not available.
-  virtual void addTopLevelPass(Pass  *P) = 0;
 
   /// Set pass P as the last user of the given analysis passes.
   void setLastUser(SmallVector<Pass *, 12> &AnalysisPasses, Pass *P);
@@ -200,7 +197,6 @@ public:
   /// Find analysis usage information for the pass P.
   AnalysisUsage *findAnalysisUsage(Pass *P);
 
-  explicit PMTopLevelManager(enum TopLevelManagerType t);
   virtual ~PMTopLevelManager(); 
 
   /// Add immutable pass and initialize it.
@@ -226,8 +222,6 @@ public:
   // Print passes managed by this top level manager.
   void dumpPasses() const;
   void dumpArguments() const;
-
-  void initializeAllAnalysisInfo();
 
   // Active Pass Managers
   PMStack activeStack;
@@ -302,7 +296,7 @@ public:
   /// through getAnalysis interface.
   virtual void addLowerLevelRequiredPass(Pass *P, Pass *RequiredPass);
 
-  virtual Pass *getOnTheFlyPass(Pass *P, const PassInfo *PI, Function &F);
+  virtual Pass *getOnTheFlyPass(Pass *P, AnalysisID PI, Function &F);
 
   /// Initialize available analysis information.
   void initializeAnalysisInfo() { 
@@ -414,7 +408,7 @@ class FPPassManager : public ModulePass, public PMDataManager {
 public:
   static char ID;
   explicit FPPassManager(int Depth) 
-  : ModulePass(&ID), PMDataManager(Depth) { }
+  : ModulePass(ID), PMDataManager(Depth) { }
   
   /// run - Execute all of the passes scheduled for execution.  Keep track of
   /// whether any of the passes modifies the module, and if so, return true.

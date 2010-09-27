@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 /* XEN has own timer routines now. */
 #ifndef XEN
 
+#include "opt_device_polling.h"
 #include "opt_kdtrace.h"
 
 #include <sys/param.h>
@@ -117,7 +118,8 @@ SYSCTL_INT(_kern_eventtimer, OID_AUTO, idletick, CTLFLAG_RW, &idletick,
     0, "Run periodic events when idle");
 
 static int		periodic = 0;	/* Periodic or one-shot mode. */
-TUNABLE_INT("kern.eventtimer.periodic", &periodic);
+static int		want_periodic = 0; /* What mode to prefer. */
+TUNABLE_INT("kern.eventtimer.periodic", &want_periodic);
 
 struct pcpu_state {
 	struct mtx	et_hw_mtx;	/* Per-CPU timer mutex. */
@@ -587,6 +589,7 @@ cpu_initclocks_bsp(void)
 #ifdef SMP
 	callout_new_inserted = cpu_new_callout;
 #endif
+	periodic = want_periodic;
 	/* Grab requested timer or the best of present. */
 	if (timername[0])
 		timer = et_find(timername, 0, 0);
@@ -719,7 +722,11 @@ cpu_idleclock(void)
 	struct pcpu_state *state;
 
 	if (idletick || busy ||
-	    (periodic && (timer->et_flags & ET_FLAGS_PERCPU)))
+	    (periodic && (timer->et_flags & ET_FLAGS_PERCPU))
+#ifdef DEVICE_POLLING
+	    || curcpu == CPU_FIRST()
+#endif
+	    )
 		return;
 	state = DPCPU_PTR(timerstate);
 	if (periodic)
@@ -783,14 +790,18 @@ cpu_new_callout(int cpu, int ticks)
 	}
 	/*
 	 * If timer is periodic - just update next event time for target CPU.
+	 * If timer is global - there is chance it is already programmed.
 	 */
-	if (periodic) {
+	if (periodic || (timer->et_flags & ET_FLAGS_PERCPU) == 0) {
 		state->nextevent = state->nexthard;
 		tmp = hardperiod;
 		bintime_mul(&tmp, ticks - 1);
 		bintime_add(&state->nextevent, &tmp);
-		ET_HW_UNLOCK(state);
-		return;
+		if (periodic ||
+		    bintime_cmp(&state->nextevent, &nexttick, >=)) {
+			ET_HW_UNLOCK(state);
+			return;
+		}
 	}
 	/*
 	 * Otherwise we have to wake that CPU up, as we can't get present
@@ -841,6 +852,7 @@ sysctl_kern_eventtimer_timer(SYSCTL_HANDLER_ARGS)
 		cpu_disable_deep_sleep++;
 	if (timer->et_flags & ET_FLAGS_C3STOP)
 		cpu_disable_deep_sleep--;
+	periodic = want_periodic;
 	timer = et;
 	et_init(timer, timercb, NULL, NULL);
 	configtimer(1);
@@ -865,7 +877,7 @@ sysctl_kern_eventtimer_periodic(SYSCTL_HANDLER_ARGS)
 		return (error);
 	ET_LOCK();
 	configtimer(0);
-	periodic = val;
+	periodic = want_periodic = val;
 	configtimer(1);
 	ET_UNLOCK();
 	return (error);

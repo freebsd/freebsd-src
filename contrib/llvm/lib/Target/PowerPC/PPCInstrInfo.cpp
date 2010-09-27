@@ -18,8 +18,11 @@
 #include "PPCGenInstrInfo.inc"
 #include "PPCTargetMachine.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -35,67 +38,6 @@ using namespace llvm;
 PPCInstrInfo::PPCInstrInfo(PPCTargetMachine &tm)
   : TargetInstrInfoImpl(PPCInsts, array_lengthof(PPCInsts)), TM(tm),
     RI(*TM.getSubtargetImpl(), *this) {}
-
-bool PPCInstrInfo::isMoveInstr(const MachineInstr& MI,
-                               unsigned& sourceReg,
-                               unsigned& destReg,
-                               unsigned& sourceSubIdx,
-                               unsigned& destSubIdx) const {
-  sourceSubIdx = destSubIdx = 0; // No sub-registers.
-
-  unsigned oc = MI.getOpcode();
-  if (oc == PPC::OR || oc == PPC::OR8 || oc == PPC::VOR ||
-      oc == PPC::OR4To8 || oc == PPC::OR8To4) {                // or r1, r2, r2
-    assert(MI.getNumOperands() >= 3 &&
-           MI.getOperand(0).isReg() &&
-           MI.getOperand(1).isReg() &&
-           MI.getOperand(2).isReg() &&
-           "invalid PPC OR instruction!");
-    if (MI.getOperand(1).getReg() == MI.getOperand(2).getReg()) {
-      sourceReg = MI.getOperand(1).getReg();
-      destReg = MI.getOperand(0).getReg();
-      return true;
-    }
-  } else if (oc == PPC::ADDI) {             // addi r1, r2, 0
-    assert(MI.getNumOperands() >= 3 &&
-           MI.getOperand(0).isReg() &&
-           MI.getOperand(2).isImm() &&
-           "invalid PPC ADDI instruction!");
-    if (MI.getOperand(1).isReg() && MI.getOperand(2).getImm() == 0) {
-      sourceReg = MI.getOperand(1).getReg();
-      destReg = MI.getOperand(0).getReg();
-      return true;
-    }
-  } else if (oc == PPC::ORI) {             // ori r1, r2, 0
-    assert(MI.getNumOperands() >= 3 &&
-           MI.getOperand(0).isReg() &&
-           MI.getOperand(1).isReg() &&
-           MI.getOperand(2).isImm() &&
-           "invalid PPC ORI instruction!");
-    if (MI.getOperand(2).getImm() == 0) {
-      sourceReg = MI.getOperand(1).getReg();
-      destReg = MI.getOperand(0).getReg();
-      return true;
-    }
-  } else if (oc == PPC::FMR || oc == PPC::FMRSD) { // fmr r1, r2
-    assert(MI.getNumOperands() >= 2 &&
-           MI.getOperand(0).isReg() &&
-           MI.getOperand(1).isReg() &&
-           "invalid PPC FMR instruction");
-    sourceReg = MI.getOperand(1).getReg();
-    destReg = MI.getOperand(0).getReg();
-    return true;
-  } else if (oc == PPC::MCRF) {             // mcrf cr1, cr2
-    assert(MI.getNumOperands() >= 2 &&
-           MI.getOperand(0).isReg() &&
-           MI.getOperand(1).isReg() &&
-           "invalid PPC MCRF instruction");
-    sourceReg = MI.getOperand(1).getReg();
-    destReg = MI.getOperand(0).getReg();
-    return true;
-  }
-  return false;
-}
 
 unsigned PPCInstrInfo::isLoadFromStackSlot(const MachineInstr *MI, 
                                            int &FrameIndex) const {
@@ -524,6 +466,14 @@ PPCInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 
   for (unsigned i = 0, e = NewMIs.size(); i != e; ++i)
     MBB.insert(MI, NewMIs[i]);
+
+  const MachineFrameInfo &MFI = *MF.getFrameInfo();
+  MachineMemOperand *MMO =
+    MF.getMachineMemOperand(PseudoSourceValue::getFixedStack(FrameIdx),
+                            MachineMemOperand::MOStore, /*Offset=*/0,
+                            MFI.getObjectSize(FrameIdx),
+                            MFI.getObjectAlignment(FrameIdx));
+  NewMIs.back()->addMemOperand(MF, MMO);
 }
 
 void
@@ -637,6 +587,14 @@ PPCInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   LoadRegFromStackSlot(MF, DL, DestReg, FrameIdx, RC, NewMIs);
   for (unsigned i = 0, e = NewMIs.size(); i != e; ++i)
     MBB.insert(MI, NewMIs[i]);
+
+  const MachineFrameInfo &MFI = *MF.getFrameInfo();
+  MachineMemOperand *MMO =
+    MF.getMachineMemOperand(PseudoSourceValue::getFixedStack(FrameIdx),
+                            MachineMemOperand::MOLoad, /*Offset=*/0,
+                            MFI.getObjectSize(FrameIdx),
+                            MFI.getObjectAlignment(FrameIdx));
+  NewMIs.back()->addMemOperand(MF, MMO);
 }
 
 MachineInstr*
@@ -667,7 +625,7 @@ unsigned PPCInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
     const char *AsmStr = MI->getOperand(0).getSymbolName();
     return getInlineAsmLength(AsmStr, *MF->getTarget().getMCAsmInfo());
   }
-  case PPC::DBG_LABEL:
+  case PPC::PROLOG_LABEL:
   case PPC::EH_LABEL:
   case PPC::GC_LABEL:
   case PPC::DBG_VALUE:

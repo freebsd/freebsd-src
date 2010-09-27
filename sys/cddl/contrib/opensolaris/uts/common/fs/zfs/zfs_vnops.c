@@ -358,8 +358,7 @@ static caddr_t
 zfs_map_page(vm_page_t pp, struct sf_buf **sfp)
 {
 
-	sched_pin();
-	*sfp = sf_buf_alloc(pp, SFB_CPUPRIVATE);
+	*sfp = sf_buf_alloc(pp, 0);
 	return ((caddr_t)sf_buf_kva(*sfp));
 }
 
@@ -368,7 +367,6 @@ zfs_unmap_page(struct sf_buf *sf)
 {
 
 	sf_buf_free(sf);
-	sched_unpin();
 }
 
 
@@ -510,14 +508,11 @@ again:
 				dirbytes = 0;
 			}
 			if (error == 0) {
-				sched_pin();
-				sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-				va = (caddr_t)sf_buf_kva(sf);
+				va = zfs_map_page(m, &sf);
 				error = dmu_read(os, zp->z_id, start + off,
 				    bytes, (void *)(va + off),
 				    DMU_READ_PREFETCH);
-				sf_buf_free(sf);
-				sched_unpin();
+				zfs_unmap_page(sf);
 			}
 			VM_OBJECT_LOCK(obj);
 			if (error == 0)

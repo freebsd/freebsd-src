@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <libgeom.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -334,6 +335,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 void
 hastd_secondary(struct hast_resource *res, struct nv *nvin)
 {
+	sigset_t mask;
 	pthread_t td;
 	pid_t pid;
 	int error;
@@ -380,8 +382,8 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 
 	setproctitle("%s (secondary)", res->hr_name);
 
-	signal(SIGHUP, SIG_DFL);
-	signal(SIGCHLD, SIG_DFL);
+	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
 	/* Declare that we are sender. */
 	proto_send(res->hr_event, NULL, 0);
@@ -393,17 +395,27 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 
 	init_local(res);
-	init_remote(res, nvin);
 	init_environment();
+
+	/*
+	 * Create the control thread before sending any event to the parent,
+	 * as we can deadlock when parent sends control request to worker,
+	 * but worker has no control thread started yet, so parent waits.
+	 * In the meantime worker sends an event to the parent, but parent
+	 * is unable to handle the event, because it waits for control
+	 * request response.
+	 */
+	error = pthread_create(&td, NULL, ctrl_thread, res);
+	assert(error == 0);
+
+	init_remote(res, nvin);
 	event_send(res, EVENT_CONNECT);
 
 	error = pthread_create(&td, NULL, recv_thread, res);
 	assert(error == 0);
 	error = pthread_create(&td, NULL, disk_thread, res);
 	assert(error == 0);
-	error = pthread_create(&td, NULL, send_thread, res);
-	assert(error == 0);
-	(void)ctrl_thread(res);
+	(void)send_thread(res);
 }
 
 static void
@@ -519,7 +531,7 @@ end:
 	return (hio->hio_error);
 }
 
-static void
+static __dead2 void
 secondary_exit(int exitcode, const char *fmt, ...)
 {
 	va_list ap;

@@ -1,4 +1,5 @@
 add_llvm_library(LLVMMC
+  ELFObjectWriter.cpp
   MCAsmInfo.cpp
   MCAsmInfoCOFF.cpp
   MCAsmInfoDarwin.cpp
@@ -7,10 +8,12 @@ add_llvm_library(LLVMMC
   MCCodeEmitter.cpp
   MCContext.cpp
   MCDisassembler.cpp
+  MCELFStreamer.cpp
   MCExpr.cpp
   MCInst.cpp
   MCInstPrinter.cpp
   MCLabel.cpp
+  MCDwarf.cpp
   MCLoggingStreamer.cpp
   MCMachOStreamer.cpp
   MCNullStreamer.cpp

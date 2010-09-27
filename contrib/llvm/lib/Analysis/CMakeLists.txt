@@ -38,12 +38,15 @@ add_llvm_library(LLVMAnalysis
   ProfileInfoLoader.cpp
   ProfileInfoLoaderPass.cpp
   ProfileVerifierPass.cpp
+  RegionInfo.cpp
+  RegionPrinter.cpp
   ScalarEvolution.cpp
   ScalarEvolutionAliasAnalysis.cpp
   ScalarEvolutionExpander.cpp
   ScalarEvolutionNormalization.cpp
   SparsePropagation.cpp
   Trace.cpp
+  TypeBasedAliasAnalysis.cpp
   ValueTracking.cpp
   )
 

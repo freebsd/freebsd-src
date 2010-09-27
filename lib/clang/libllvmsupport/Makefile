@@ -9,24 +9,20 @@ SRCS=	APFloat.cpp \
 	Allocator.cpp \
 	CommandLine.cpp \
 	ConstantRange.cpp \
+	CrashRecoveryContext.cpp \
 	DAGDeltaAlgorithm.cpp \
 	Debug.cpp \
 	DeltaAlgorithm.cpp \
 	Dwarf.cpp \
 	ErrorHandling.cpp \
-	FileUtilities.cpp \
 	FoldingSet.cpp \
 	FormattedStream.cpp \
 	GraphWriter.cpp \
-	IsInf.cpp \
-	IsNAN.cpp \
 	ManagedStatic.cpp \
 	MemoryBuffer.cpp \
-	MemoryObject.cpp \
 	PluginLoader.cpp \
 	PrettyStackTrace.cpp \
 	Regex.cpp \
-	SlowOperationInformer.cpp \
 	SmallPtrSet.cpp \
 	SmallVector.cpp \
 	SourceMgr.cpp \
@@ -35,7 +31,6 @@ SRCS=	APFloat.cpp \
 	StringMap.cpp \
 	StringPool.cpp \
 	StringRef.cpp \
-	SystemUtils.cpp \
 	TargetRegistry.cpp \
 	Timer.cpp \
 	Triple.cpp \

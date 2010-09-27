@@ -84,34 +84,6 @@ namespace {
     }
   };
 
-  class StructEmitter {
-  private:
-    std::string Name;
-    typedef std::pair<const char*, const char*> member;
-    std::vector< member > Members;
-  public:
-    StructEmitter(const char *N) : Name(N) {
-    }
-    void addMember(const char *t, const char *n) {
-      member m(t, n);
-      Members.push_back(m);
-    }
-    void emit(raw_ostream &o, unsigned int &i) {
-      o.indent(i) << "struct " << Name.c_str() << " {" << "\n";
-      i += 2;
-      
-      unsigned int index = 0;
-      unsigned int numMembers = Members.size();
-      for (index = 0; index < numMembers; ++index) {
-        o.indent(i) << Members[index].first << " ";
-        o.indent(i) << Members[index].second << ";" << "\n";
-      }
-      
-      i -= 2;
-      o.indent(i) << "};" << "\n";
-    }
-  };
-  
   class ConstantEmitter {
   public:
     virtual ~ConstantEmitter() { }
@@ -126,10 +98,6 @@ namespace {
       const char* String;
     };
   public:
-    LiteralConstantEmitter(const char *string) : 
-      IsNumber(false),
-      String(string) {
-    }
     LiteralConstantEmitter(int number = 0) : 
       IsNumber(true),
       Number(number) {
@@ -138,11 +106,6 @@ namespace {
       IsNumber = false;
       Number = 0;
       String = string;
-    }
-    void set(int number) {
-      IsNumber = true;
-      String = NULL;
-      Number = number;
     }
     bool is(const char *string) {
       return !strcmp(String, string);
@@ -339,6 +302,7 @@ static int X86TypeFromOpName(LiteralConstantEmitter *type,
   MEM("f80mem");
   MEM("opaque80mem");
   MEM("i128mem");
+  MEM("i256mem");
   MEM("f128mem");
   MEM("f256mem");
   MEM("opaque512mem");
@@ -577,6 +541,7 @@ static void X86ExtractSemantics(
 static int ARMFlagFromOpName(LiteralConstantEmitter *type,
                              const std::string &name) {
   REG("GPR");
+  REG("rGPR");
   REG("tcGPR");
   REG("cc_out");
   REG("s_cc_out");
@@ -597,6 +562,7 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   IMM("cps_opt");
   IMM("vfp_f64imm");
   IMM("vfp_f32imm");
+  IMM("memb_opt");
   IMM("msr_mask");
   IMM("neg_zero");
   IMM("imm0_31");
@@ -605,6 +571,7 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   IMM("jt2block_operand");
   IMM("t_imm_s4");
   IMM("pclabel");
+  IMM("shift_imm");
   
   MISC("brtarget", "kOperandTypeARMBranchTarget");                // ?
   MISC("so_reg", "kOperandTypeARMSoReg");                         // R, R, I
@@ -894,22 +861,4 @@ void EDEmitter::run(raw_ostream &o) {
   o << ";" << "\n";
   
   o << "}\n";
-}
-
-void EDEmitter::runHeader(raw_ostream &o) {
-  EmitSourceFileHeader("Enhanced Disassembly Info Header", o);
-  
-  o << "#ifndef EDInfo_" << "\n";
-  o << "#define EDInfo_" << "\n";
-  o << "\n";
-  o << "#define EDIS_MAX_OPERANDS " << format("%d", EDIS_MAX_OPERANDS) << "\n";
-  o << "#define EDIS_MAX_SYNTAXES " << format("%d", EDIS_MAX_SYNTAXES) << "\n";
-  o << "\n";
-  
-  unsigned int i = 0;
-  
-  emitCommonEnums(o, i);
-  
-  o << "\n";
-  o << "#endif" << "\n";
 }

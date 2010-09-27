@@ -169,10 +169,11 @@ static void DefineTypeSize(llvm::StringRef MacroName, unsigned TypeWidth,
                            llvm::StringRef ValSuffix, bool isSigned,
                            MacroBuilder& Builder) {
   long long MaxVal;
-  if (isSigned)
-    MaxVal = (1LL << (TypeWidth - 1)) - 1;
-  else
-    MaxVal = ~0LL >> (64-TypeWidth);
+  if (isSigned) {
+    assert(TypeWidth != 1);
+    MaxVal = ~0ULL >> (65-TypeWidth);
+  } else
+    MaxVal = ~0ULL >> (64-TypeWidth);
 
   Builder.defineMacro(MacroName, llvm::Twine(MaxVal) + ValSuffix);
 }
@@ -318,7 +319,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       Builder.defineMacro("__cplusplus");
     else
       // C++ [cpp.predefined]p1:
-      //   The name_ _cplusplusis defined to the value199711Lwhen compiling a
+      //   The name_ _cplusplusis defined to the value 199711L when compiling a
       //   C++ translation unit.
       Builder.defineMacro("__cplusplus", "199711L");
     Builder.defineMacro("__private_extern__", "extern");
@@ -339,9 +340,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       // Since we define wchar_t in C++ mode.
       Builder.defineMacro("_WCHAR_T_DEFINED");
       Builder.defineMacro("_NATIVE_WCHAR_T_DEFINED");
-      // FIXME:  This should be temporary until we have a __pragma
-      // solution, to avoid some errors flagged in VC++ headers.
-      Builder.defineMacro("_CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES", "0");
+      Builder.append("class type_info;");
     }
   }
 
@@ -477,7 +476,7 @@ static void InitializeFileRemapping(Diagnostic &Diags,
                                     FileManager &FileMgr,
                                     const PreprocessorOptions &InitOpts) {
   // Remap files in the source manager (with buffers).
-  for (PreprocessorOptions::remapped_file_buffer_iterator
+  for (PreprocessorOptions::const_remapped_file_buffer_iterator
          Remap = InitOpts.remapped_file_buffer_begin(),
          RemapEnd = InitOpts.remapped_file_buffer_end();
        Remap != RemapEnd;
@@ -489,19 +488,21 @@ static void InitializeFileRemapping(Diagnostic &Diags,
     if (!FromFile) {
       Diags.Report(diag::err_fe_remap_missing_from_file)
         << Remap->first;
-      delete Remap->second;
+      if (!InitOpts.RetainRemappedFileBuffers)
+        delete Remap->second;
       continue;
     }
 
     // Override the contents of the "from" file with the contents of
     // the "to" file.
-    SourceMgr.overrideFileContents(FromFile, Remap->second);
+    SourceMgr.overrideFileContents(FromFile, Remap->second,
+                                   InitOpts.RetainRemappedFileBuffers);
   }
 
   // Remap files in the source manager (with other files).
-  for (PreprocessorOptions::remapped_file_iterator
-       Remap = InitOpts.remapped_file_begin(),
-       RemapEnd = InitOpts.remapped_file_end();
+  for (PreprocessorOptions::const_remapped_file_iterator
+         Remap = InitOpts.remapped_file_begin(),
+         RemapEnd = InitOpts.remapped_file_end();
        Remap != RemapEnd;
        ++Remap) {
     // Find the file that we're mapping to.
@@ -596,6 +597,10 @@ void clang::InitializePreprocessor(Preprocessor &PP,
   if (!PP.getLangOptions().AsmPreprocessor)
     Builder.append("# 1 \"<built-in>\" 2");
 
+  // Instruct the preprocessor to skip the preamble.
+  PP.setSkipMainFilePreamble(InitOpts.PrecompiledPreambleBytes.first,
+                             InitOpts.PrecompiledPreambleBytes.second);
+                          
   // Copy PredefinedBuffer into the Preprocessor.
   PP.setPredefines(Predefines.str());
 

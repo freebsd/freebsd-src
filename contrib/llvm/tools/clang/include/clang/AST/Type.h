@@ -289,7 +289,18 @@ public:
     L += R;
     return L;
   }
+  
+  Qualifiers &operator-=(Qualifiers R) {
+    Mask = Mask & ~(R.Mask);
+    return *this;
+  }
 
+  /// \brief Compute the difference between two qualifier sets.
+  friend Qualifiers operator-(Qualifiers L, Qualifiers R) {
+    L -= R;
+    return L;
+  }
+  
   std::string getAsString() const;
   std::string getAsString(const PrintingPolicy &Policy) const {
     std::string Buffer;
@@ -399,7 +410,8 @@ enum CallingConv {
   CC_C,           // __attribute__((cdecl))
   CC_X86StdCall,  // __attribute__((stdcall))
   CC_X86FastCall, // __attribute__((fastcall))
-  CC_X86ThisCall  // __attribute__((thiscall))
+  CC_X86ThisCall, // __attribute__((thiscall))
+  CC_X86Pascal    // __attribute__((pascal))
 };
 
 
@@ -787,12 +799,12 @@ private:
   /// \brief Linkage of this type.
   mutable unsigned CachedLinkage : 2;
 
-  /// \brief FromPCH - Whether this type comes from a PCH file.
-  mutable bool FromPCH : 1;
+  /// \brief FromAST - Whether this type comes from an AST file.
+  mutable bool FromAST : 1;
 
-  /// \brief Set whether this type comes from a PCH file.
-  void setFromPCH(bool V = true) const { 
-    FromPCH = V;
+  /// \brief Set whether this type comes from an AST file.
+  void setFromAST(bool V = true) const { 
+    FromAST = V;
   }
 
 protected:
@@ -806,16 +818,15 @@ protected:
   Type(TypeClass tc, QualType Canonical, bool dependent)
     : CanonicalType(Canonical.isNull() ? QualType(this_(), 0) : Canonical),
       TC(tc), Dependent(dependent), LinkageKnown(false), 
-      CachedLinkage(NoLinkage), FromPCH(false) {}
-  virtual ~Type() {}
-  virtual void Destroy(ASTContext& C);
+      CachedLinkage(NoLinkage), FromAST(false) {}
+  virtual ~Type();
   friend class ASTContext;
 
 public:
   TypeClass getTypeClass() const { return static_cast<TypeClass>(TC); }
 
-  /// \brief Whether this type comes from a PCH file.
-  bool isFromPCH() const { return FromPCH; }
+  /// \brief Whether this type comes from an AST file.
+  bool isFromAST() const { return FromAST; }
 
   bool isCanonicalUnqualified() const {
     return CanonicalType.getTypePtr() == this;
@@ -823,14 +834,6 @@ public:
 
   /// Types are partitioned into 3 broad categories (C99 6.2.5p1):
   /// object types, function types, and incomplete types.
-
-  /// \brief Determines whether the type describes an object in memory.
-  ///
-  /// Note that this definition of object type corresponds to the C++
-  /// definition of object type, which includes incomplete types, as
-  /// opposed to the C definition (which does not include incomplete
-  /// types).
-  bool isObjectType() const;
 
   /// isIncompleteType - Return true if this is an incomplete type.
   /// A type that can describe objects, but which lacks information needed to
@@ -906,6 +909,7 @@ public:
   bool isFunctionPointerType() const;
   bool isMemberPointerType() const;
   bool isMemberFunctionPointerType() const;
+  bool isMemberDataPointerType() const;
   bool isArrayType() const;
   bool isConstantArrayType() const;
   bool isIncompleteArrayType() const;
@@ -926,6 +930,7 @@ public:
   bool isObjCQualifiedInterfaceType() const;    // NSString<foo>
   bool isObjCQualifiedIdType() const;           // id<foo>
   bool isObjCQualifiedClassType() const;        // Class<foo>
+  bool isObjCObjectOrInterfaceType() const;
   bool isObjCIdType() const;                    // id
   bool isObjCClassType() const;                 // Class
   bool isObjCSelType() const;                 // Class
@@ -952,10 +957,22 @@ public:
   /// an objective pointer type for the purpose of GC'ability
   bool hasObjCPointerRepresentation() const;
 
+  /// \brief Determine whether this type has an integer representation
+  /// of some sort, e.g., it is an integer type or a vector.
+  bool hasIntegerRepresentation() const;
+
+  /// \brief Determine whether this type has an signed integer representation
+  /// of some sort, e.g., it is an signed integer type or a vector.
+  bool hasSignedIntegerRepresentation() const;
+
+  /// \brief Determine whether this type has an unsigned integer representation
+  /// of some sort, e.g., it is an unsigned integer type or a vector.
+  bool hasUnsignedIntegerRepresentation() const;
+
   /// \brief Determine whether this type has a floating-point representation
   /// of some sort, e.g., it is a floating-point type or a vector thereof.
   bool hasFloatingRepresentation() const;
-  
+
   // Type Checking Functions: Check to see if this type is structurally the
   // specified type, ignoring typedefs and qualifiers, and return a pointer to
   // the best type we can.
@@ -975,7 +992,8 @@ public:
   /// type of a class template or class template partial specialization.
   CXXRecordDecl *getAsCXXRecordDecl() const;
   
-  // Member-template getAs<specific type>'.  This scheme will eventually
+  // Member-template getAs<specific type>'.  Look through sugar for
+  // an instance of <specific type>.   This scheme will eventually
   // replace the specific getAsXXXX methods above.
   //
   // There are some specializations of this member template listed
@@ -1035,8 +1053,8 @@ public:
   void dump() const;
   static bool classof(const Type *) { return true; }
 
-  friend class PCHReader;
-  friend class PCHWriter;
+  friend class ASTReader;
+  friend class ASTWriter;
 };
 
 template <> inline const TypedefType *Type::getAs() const {
@@ -1353,8 +1371,19 @@ protected:
   virtual Linkage getLinkageImpl() const;
   
 public:
-
   QualType getPointeeType() const { return PointeeType; }
+
+  /// Returns true if the member type (i.e. the pointee type) is a
+  /// function type rather than a data-member type.
+  bool isMemberFunctionPointer() const {
+    return PointeeType->isFunctionProtoType();
+  }
+
+  /// Returns true if the member type (i.e. the pointee type) is a
+  /// data type rather than a function type.
+  bool isMemberDataPointer() const {
+    return !PointeeType->isFunctionProtoType();
+  }
 
   const Type *getClass() const { return Class; }
 
@@ -1454,6 +1483,17 @@ public:
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
 
+  
+  /// \brief Determine the number of bits required to address a member of
+  // an array with the given element type and number of elements.
+  static unsigned getNumAddressingBits(ASTContext &Context,
+                                       QualType ElementType,
+                                       const llvm::APInt &NumElements);
+  
+  /// \brief Determine the maximum number of active bits that an array's size
+  /// can require, which limits the maximum size of the array.
+  static unsigned getMaxSizeBits(ASTContext &Context);
+  
   void Profile(llvm::FoldingSetNodeID &ID) {
     Profile(ID, getElementType(), getSize(),
             getSizeModifier(), getIndexTypeCVRQualifiers());
@@ -1533,7 +1573,6 @@ class VariableArrayType : public ArrayType {
     : ArrayType(VariableArray, et, can, sm, tq),
       SizeExpr((Stmt*) e), Brackets(brackets) {}
   friend class ASTContext;  // ASTContext creates these.
-  virtual void Destroy(ASTContext& C);
 
 public:
   Expr *getSizeExpr() const {
@@ -1592,7 +1631,6 @@ class DependentSizedArrayType : public ArrayType {
     : ArrayType(DependentSizedArray, et, can, sm, tq),
       Context(Context), SizeExpr((Stmt*) e), Brackets(brackets) {}
   friend class ASTContext;  // ASTContext creates these.
-  virtual void Destroy(ASTContext& C);
 
 public:
   Expr *getSizeExpr() const {
@@ -1646,7 +1684,6 @@ class DependentSizedExtVectorType : public Type, public llvm::FoldingSetNode {
       Context(Context), SizeExpr(SizeExpr), ElementType(ElementType),
       loc(loc) {}
   friend class ASTContext;
-  virtual void Destroy(ASTContext& C);
 
 public:
   Expr *getSizeExpr() const { return SizeExpr; }
@@ -1844,13 +1881,13 @@ class FunctionType : public Type {
   // * FunctionNoProtoType::Profile
   // * FunctionProtoType::Profile
   // * TypePrinter::PrintFunctionProto
-  // * PCH read and write
+  // * AST read and write
   // * Codegen
 
   class ExtInfo {
    public:
     // Constructor with no defaults. Use this when you know that you
-    // have all the elements (when reading a PCH file for example).
+    // have all the elements (when reading an AST file for example).
     ExtInfo(bool noReturn, unsigned regParm, CallingConv cc) :
         NoReturn(noReturn), RegParm(regParm), CC(cc) {}
 
@@ -1892,7 +1929,7 @@ class FunctionType : public Type {
     // The value passed to __attribute__((regparm(x)))
     unsigned RegParm;
     // The calling convention as specified via
-    // __attribute__((cdecl|stdcall|fastcall|thiscall))
+    // __attribute__((cdecl|stdcall|fastcall|thiscall|pascal))
     CallingConv CC;
   };
 
@@ -2259,14 +2296,9 @@ public:
 };
 
 class TagType : public Type {
-  /// Stores the TagDecl associated with this type. The decl will
-  /// point to the TagDecl that actually defines the entity (or is a
-  /// definition in progress), if there is such a definition. The
-  /// single-bit value will be non-zero when this tag is in the
-  /// process of being defined.
-  mutable llvm::PointerIntPair<TagDecl *, 1> decl;
-  friend class ASTContext;
-  friend class TagDecl;
+  /// Stores the TagDecl associated with this type. The decl may point to any
+  /// TagDecl that declares the entity.
+  TagDecl * decl;
 
 protected:
   TagType(TypeClass TC, const TagDecl *D, QualType can);
@@ -2274,12 +2306,11 @@ protected:
   virtual Linkage getLinkageImpl() const;
   
 public:
-  TagDecl *getDecl() const { return decl.getPointer(); }
+  TagDecl *getDecl() const;
 
   /// @brief Determines whether this type is in the process of being
   /// defined.
-  bool isBeingDefined() const { return decl.getInt(); }
-  void setBeingDefined(bool Def) const { decl.setInt(Def? 1 : 0); }
+  bool isBeingDefined() const;
 
   static bool classof(const Type *T) {
     return T->getTypeClass() >= TagFirst && T->getTypeClass() <= TagLast;
@@ -2468,8 +2499,6 @@ class TemplateSpecializationType
                              const TemplateArgument *Args,
                              unsigned NumArgs, QualType Canon);
 
-  virtual void Destroy(ASTContext& C);
-
   friend class ASTContext;  // ASTContext creates these
 
 public:
@@ -2574,9 +2603,8 @@ class InjectedClassNameType : public Type {
   QualType InjectedType;
 
   friend class ASTContext; // ASTContext creates these.
-  friend class TagDecl; // TagDecl mutilates the Decl
-  friend class PCHReader; // FIXME: ASTContext::getInjectedClassNameType is not
-                          // currently suitable for PCH reading, too much
+  friend class ASTReader; // FIXME: ASTContext::getInjectedClassNameType is not
+                          // currently suitable for AST reading, too much
                           // interdependencies.
   InjectedClassNameType(CXXRecordDecl *D, QualType TST)
     : Type(InjectedClassName, QualType(), true),
@@ -2592,7 +2620,7 @@ public:
     return cast<TemplateSpecializationType>(InjectedType.getTypePtr());
   }
 
-  CXXRecordDecl *getDecl() const { return Decl; }
+  CXXRecordDecl *getDecl() const;
 
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
@@ -2836,8 +2864,6 @@ class DependentTemplateSpecializationType :
                                       const TemplateArgument *Args,
                                       QualType Canon);
 
-  virtual void Destroy(ASTContext& C);
-
   friend class ASTContext;  // ASTContext creates these
 
 public:
@@ -3014,8 +3040,6 @@ class ObjCObjectTypeImpl : public ObjCObjectType, public llvm::FoldingSetNode {
     : ObjCObjectType(Canonical, Base, Protocols, NumProtocols) {}
 
 public:
-  void Destroy(ASTContext& C); // key function
-
   void Profile(llvm::FoldingSetNodeID &ID);
   static void Profile(llvm::FoldingSetNodeID &ID,
                       QualType Base,
@@ -3049,8 +3073,6 @@ class ObjCInterfaceType : public ObjCObjectType {
       Decl(const_cast<ObjCInterfaceDecl*>(D)) {}
   friend class ASTContext;  // ASTContext creates these.
 public:
-  void Destroy(ASTContext& C); // key function
-
   /// getDecl - Get the declaration of this interface.
   ObjCInterfaceDecl *getDecl() const { return Decl; }
 
@@ -3103,8 +3125,6 @@ protected:
   virtual Linkage getLinkageImpl() const;
   
 public:
-  void Destroy(ASTContext& C);
-
   /// getPointeeType - Gets the type pointed to by this ObjC pointer.
   /// The result will always be an ObjCObjectType or sugar thereof.
   QualType getPointeeType() const { return PointeeType; }
@@ -3486,7 +3506,13 @@ inline bool Type::isMemberPointerType() const {
 }
 inline bool Type::isMemberFunctionPointerType() const {
   if (const MemberPointerType* T = getAs<MemberPointerType>())
-    return T->getPointeeType()->isFunctionType();
+    return T->isMemberFunctionPointer();
+  else
+    return false;
+}
+inline bool Type::isMemberDataPointerType() const {
+  if (const MemberPointerType* T = getAs<MemberPointerType>())
+    return T->isMemberDataPointer();
   else
     return false;
 }
@@ -3523,6 +3549,11 @@ inline bool Type::isObjCObjectPointerType() const {
 inline bool Type::isObjCObjectType() const {
   return isa<ObjCObjectType>(CanonicalType);
 }
+inline bool Type::isObjCObjectOrInterfaceType() const {
+  return isa<ObjCInterfaceType>(CanonicalType) || 
+    isa<ObjCObjectType>(CanonicalType);
+}
+
 inline bool Type::isObjCQualifiedIdType() const {
   if (const ObjCObjectPointerType *OPT = getAs<ObjCObjectPointerType>())
     return OPT->isObjCQualifiedIdType();

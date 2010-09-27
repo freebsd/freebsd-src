@@ -1720,6 +1720,12 @@ zpool_vdev_fault(zpool_handle_t *zhp, uint64_t guid)
 		 */
 		return (zfs_error(hdl, EZFS_NOREPLICAS, msg));
 
+	case EEXIST:
+		/*
+		 * The log device has unplayed logs
+		 */
+		return (zfs_error(hdl, EZFS_UNPLAYED_LOGS, msg));
+
 	default:
 		return (zpool_standard_error(hdl, errno, msg));
 	}

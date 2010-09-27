@@ -58,6 +58,9 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
 
   // Default to no types using fpret.
   RealTypeUsesObjCFPRet = 0;
+
+  // Default to using the Itanium ABI.
+  CXXABI = CXXABI_Itanium;
 }
 
 // Out of line virtual dtor for TargetInfo.
@@ -287,8 +290,15 @@ bool TargetInfo::validateOutputConstraint(ConstraintInfo &Info) const {
       Info.setAllowsRegister();
       Info.setAllowsMemory();
       break;
-    case ',': // FIXME: Until we handle multiple alternative constraints,
-      return true;  // ignore everything after the first comma.
+    case ',': // multiple alternative constraint.  Pass it.
+      Name++;
+      // Handle additional optional '=' or '+' modifiers.
+      if (*Name == '=' || *Name == '+')
+        Name++;
+      break;
+    case '?': // Disparage slightly code.
+    case '!': // Disparage severly.
+      break;  // Pass them.
     }
 
     Name++;
@@ -352,6 +362,7 @@ bool TargetInfo::validateInputConstraint(ConstraintInfo *OutputConstraints,
       if (!resolveSymbolicName(Name, OutputConstraints, NumOutputs, Index))
         return false;
 
+      Info.setTiedOperand(Index, OutputConstraints[Index]);
       break;
     }
     case '%': // commutative
@@ -382,8 +393,11 @@ bool TargetInfo::validateInputConstraint(ConstraintInfo *OutputConstraints,
       Info.setAllowsRegister();
       Info.setAllowsMemory();
       break;
-    case ',': // FIXME: Until we handle multiple alternative constraints,
-      return true;  // ignore everything after the first comma.
+    case ',': // multiple alternative constraint.  Ignore comma.
+      break;
+    case '?': // Disparage slightly code.
+    case '!': // Disparage severly.
+      break;  // Pass them.
     }
 
     Name++;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -175,8 +175,9 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	struct cryptodesc *crd;
 	struct uio *uio;
 	struct iovec *iov;
-	u_int i, nsec, add, secsize;
+	u_int i, nsec, secsize;
 	int err, error;
+	off_t dstoff;
 	size_t size;
 	u_char *p, *data;
 
@@ -219,7 +220,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	}
 
 	error = 0;
-	for (i = 0, add = 0; i < nsec; i++, add += secsize) {
+	for (i = 0, dstoff = bp->bio_offset; i < nsec; i++, dstoff += secsize) {
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
 		crd = (struct cryptodesc *)p;	p += sizeof(*crd);
 		uio = (struct uio *)p;		p += sizeof(*uio);
@@ -251,12 +252,16 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crd->crd_skip = 0;
 		crd->crd_len = secsize;
 		crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
+		if (sc->sc_nekeys > 1)
+			crd->crd_flags |= CRD_F_KEY_EXPLICIT;
 		if (bp->bio_cmd == BIO_WRITE)
 			crd->crd_flags |= CRD_F_ENCRYPT;
 		crd->crd_alg = sc->sc_ealgo;
-		crd->crd_key = sc->sc_ekey;
+		crd->crd_key = g_eli_crypto_key(sc, dstoff, secsize);
 		crd->crd_klen = sc->sc_ekeylen;
-		g_eli_crypto_ivgen(sc, bp->bio_offset + add, crd->crd_iv,
+		if (sc->sc_ealgo == CRYPTO_AES_XTS)
+			crd->crd_klen <<= 1;
+		g_eli_crypto_ivgen(sc, dstoff, crd->crd_iv,
 		    sizeof(crd->crd_iv));
 		crd->crd_next = NULL;
 

@@ -23,6 +23,8 @@ add_clang_library(clangAST
   ExprCXX.cpp
   FullExpr.cpp
   InheritViz.cpp
+  ItaniumCXXABI.cpp
+  MicrosoftCXXABI.cpp
   NestedNameSpecifier.cpp
   ParentMap.cpp
   RecordLayout.cpp
@@ -41,4 +43,4 @@ add_clang_library(clangAST
   )
 
 add_dependencies(clangAST ClangARMNeon ClangAttrClasses ClangAttrList 
-                 ClangDiagnosticAST ClangDeclNodes ClangStmtNodes)
+                 ClangAttrImpl ClangDiagnosticAST ClangDeclNodes ClangStmtNodes)

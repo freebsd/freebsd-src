@@ -407,9 +407,6 @@ struct adapter {
         unsigned long	no_tx_dma_setup;
 	unsigned long	watchdog_events;
 	unsigned long	rx_overruns;
-	unsigned long	rx_irq;
-	unsigned long	tx_irq;
-	unsigned long	link_irq;
 
 	/* 82547 workaround */
 	uint32_t	tx_fifo_size;

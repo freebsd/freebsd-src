@@ -20,11 +20,30 @@ MacroInfo::MacroInfo(SourceLocation DefLoc) : Location(DefLoc) {
   IsC99Varargs = false;
   IsGNUVarargs = false;
   IsBuiltinMacro = false;
+  IsFromAST = false;
   IsDisabled = false;
   IsUsed = true;
+  IsAllowRedefinitionsWithoutWarning = false;
 
   ArgumentList = 0;
   NumArguments = 0;
+}
+
+MacroInfo::MacroInfo(const MacroInfo &MI, llvm::BumpPtrAllocator &PPAllocator) {
+  Location = MI.Location;
+  EndLocation = MI.EndLocation;
+  ReplacementTokens = MI.ReplacementTokens;
+  IsFunctionLike = MI.IsFunctionLike;
+  IsC99Varargs = MI.IsC99Varargs;
+  IsGNUVarargs = MI.IsGNUVarargs;
+  IsBuiltinMacro = MI.IsBuiltinMacro;
+  IsFromAST = MI.IsFromAST;
+  IsDisabled = MI.IsDisabled;
+  IsUsed = MI.IsUsed;
+  IsAllowRedefinitionsWithoutWarning = MI.IsAllowRedefinitionsWithoutWarning;
+  ArgumentList = 0;
+  NumArguments = 0;
+  setArgumentList(MI.ArgumentList, MI.NumArguments, PPAllocator);
 }
 
 /// isIdenticalTo - Return true if the specified macro definition is equal to

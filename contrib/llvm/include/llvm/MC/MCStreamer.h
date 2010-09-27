@@ -54,6 +54,10 @@ namespace llvm {
     /// kept up to date by SwitchSection.
     const MCSection *CurSection;
 
+    /// PrevSection - This is the previous section code is being emitted to, it is
+    /// kept up to date by SwitchSection.
+    const MCSection *PrevSection;
+
   public:
     virtual ~MCStreamer();
 
@@ -95,6 +99,10 @@ namespace llvm {
     /// getCurrentSection - Return the current section that the streamer is
     /// emitting code to.
     const MCSection *getCurrentSection() const { return CurSection; }
+
+    /// getPreviousSection - Return the previous section that the streamer is
+    /// emitting code to.
+    const MCSection *getPreviousSection() const { return PrevSection; }
 
     /// SwitchSection - Set the current section where code is being emitted to
     /// @p Section.  This is required to update CurSection.
@@ -217,12 +225,13 @@ namespace llvm {
     /// @param Size - The size of the integer (in bytes) to emit. This must
     /// match a native machine width.
     virtual void EmitValue(const MCExpr *Value, unsigned Size,
-                           unsigned AddrSpace) = 0;
+                           unsigned AddrSpace = 0) = 0;
 
     /// EmitIntValue - Special case of EmitValue that avoids the client having
     /// to pass in a MCExpr for constant integers.
-    virtual void EmitIntValue(uint64_t Value, unsigned Size,unsigned AddrSpace);
-
+    virtual void EmitIntValue(uint64_t Value, unsigned Size,
+                              unsigned AddrSpace = 0);
+    
     /// EmitSymbolValue - Special case of EmitValue that avoids the client
     /// having to pass in a MCExpr for MCSymbols.
     virtual void EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
@@ -331,7 +340,7 @@ namespace llvm {
   /// InstPrint.
   ///
   /// \param CE - If given, a code emitter to use to show the instruction
-  /// encoding inline with the assembly.
+  /// encoding inline with the assembly. This method takes ownership of \arg CE.
   ///
   /// \param ShowInst - Whether to show the MCInst representation inline with
   /// the assembly.
@@ -343,15 +352,26 @@ namespace llvm {
 
   /// createMachOStreamer - Create a machine code streamer which will generate
   /// Mach-O format object files.
+  ///
+  /// Takes ownership of \arg TAB and \arg CE.
   MCStreamer *createMachOStreamer(MCContext &Ctx, TargetAsmBackend &TAB,
                                   raw_ostream &OS, MCCodeEmitter *CE,
                                   bool RelaxAll = false);
 
   /// createWinCOFFStreamer - Create a machine code streamer which will
   /// generate Microsoft COFF format object files.
+  ///
+  /// Takes ownership of \arg TAB and \arg CE.
   MCStreamer *createWinCOFFStreamer(MCContext &Ctx,
                                     TargetAsmBackend &TAB,
-                                    MCCodeEmitter &CE, raw_ostream &OS);
+                                    MCCodeEmitter &CE, raw_ostream &OS,
+                                    bool RelaxAll = false);
+
+  /// createELFStreamer - Create a machine code streamer which will generate
+  /// ELF format object files.
+  MCStreamer *createELFStreamer(MCContext &Ctx, TargetAsmBackend &TAB,
+				raw_ostream &OS, MCCodeEmitter *CE,
+				bool RelaxAll = false);
 
   /// createLoggingStreamer - Create a machine code streamer which just logs the
   /// API calls and then dispatches to another streamer.

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,9 +56,9 @@ MALLOC_DEFINE(M_ELI, "eli data", "GEOM_ELI Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, eli, CTLFLAG_RW, 0, "GEOM_ELI stuff");
-u_int g_eli_debug = 0;
+int g_eli_debug = 0;
 TUNABLE_INT("kern.geom.eli.debug", &g_eli_debug);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RW, &g_eli_debug, 0,
+SYSCTL_INT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RW, &g_eli_debug, 0,
     "Debug level");
 static u_int g_eli_tries = 3;
 TUNABLE_INT("kern.geom.eli.tries", &g_eli_tries);
@@ -69,7 +69,7 @@ TUNABLE_INT("kern.geom.eli.visible_passphrase", &g_eli_visible_passphrase);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
     &g_eli_visible_passphrase, 0,
     "Turn on echo when entering the passphrase (for debug purposes only!!)");
-u_int g_eli_overwrites = 5;
+u_int g_eli_overwrites = G_ELI_OVERWRITES;
 TUNABLE_INT("kern.geom.eli.overwrites", &g_eli_overwrites);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,
     0, "Number of times on-disk keys should be overwritten when destroying them");
@@ -375,24 +375,65 @@ g_eli_worker(void *arg)
 }
 
 /*
+ * Select encryption key. If G_ELI_FLAG_SINGLE_KEY is present we only have one
+ * key available for all the data. If the flag is not present select the key
+ * based on data offset.
+ */
+uint8_t *
+g_eli_crypto_key(struct g_eli_softc *sc, off_t offset, size_t blocksize)
+{
+	u_int nkey;
+
+	if (sc->sc_nekeys == 1)
+		return (sc->sc_ekeys[0]);
+
+	KASSERT(sc->sc_nekeys > 1, ("%s: sc_nekeys=%u", __func__,
+	    sc->sc_nekeys));
+	KASSERT((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0,
+	    ("%s: SINGLE_KEY flag set, but sc_nekeys=%u", __func__,
+	    sc->sc_nekeys));
+
+	/* We switch key every 2^G_ELI_KEY_SHIFT blocks. */
+	nkey = (offset >> G_ELI_KEY_SHIFT) / blocksize;
+
+	KASSERT(nkey < sc->sc_nekeys, ("%s: nkey=%u >= sc_nekeys=%u", __func__,
+	    nkey, sc->sc_nekeys));
+
+	return (sc->sc_ekeys[nkey]);
+}
+
+/*
  * Here we generate IV. It is unique for every sector.
  */
 void
 g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size)
 {
-	u_char off[8], hash[SHA256_DIGEST_LENGTH];
-	SHA256_CTX ctx;
+	uint8_t off[8];
 
 	if ((sc->sc_flags & G_ELI_FLAG_NATIVE_BYTE_ORDER) != 0)
 		bcopy(&offset, off, sizeof(off));
 	else
 		le64enc(off, (uint64_t)offset);
-	/* Copy precalculated SHA256 context for IV-Key. */
-	bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
-	SHA256_Update(&ctx, off, sizeof(off));
-	SHA256_Final(hash, &ctx);
-	bcopy(hash, iv, size);
+
+	switch (sc->sc_ealgo) {
+	case CRYPTO_AES_XTS:
+		bcopy(off, iv, sizeof(off));
+		bzero(iv + sizeof(off), size - sizeof(off));
+		break;
+	default:
+	    {
+		u_char hash[SHA256_DIGEST_LENGTH];
+		SHA256_CTX ctx;
+
+		/* Copy precalculated SHA256 context for IV-Key. */
+		bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
+		SHA256_Update(&ctx, off, sizeof(off));
+		SHA256_Final(hash, &ctx);
+		bcopy(hash, iv, MIN(sizeof(hash), size));
+		break;
+	    }
+	}
 }
 
 int
@@ -548,13 +589,10 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	/* Backward compatibility. */
 	if (md->md_version < 4)
 		sc->sc_flags |= G_ELI_FLAG_NATIVE_BYTE_ORDER;
+	if (md->md_version < 5)
+		sc->sc_flags |= G_ELI_FLAG_SINGLE_KEY;
 	sc->sc_ealgo = md->md_ealgo;
 	sc->sc_nkey = nkey;
-	/*
-	 * Remember the keys in our softc structure.
-	 */
-	g_eli_mkey_propagate(sc, mkey);
-	sc->sc_ekeylen = md->md_keylen;
 
 	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
 		sc->sc_akeylen = sizeof(sc->sc_akey) * 8;
@@ -583,14 +621,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
 		    sizeof(sc->sc_akey));
 	}
-
-	/*
-	 * Precalculate SHA256 for IV generation.
-	 * This is expensive operation and we can do it only once now or for
-	 * every access to sector, so now will be much better.
-	 */
-	SHA256_Init(&sc->sc_ivctx);
-	SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey, sizeof(sc->sc_ivkey));
 
 	gp->softc = sc;
 	sc->sc_geom = gp;
@@ -633,12 +663,46 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		goto failed;
 	}
 
+	sc->sc_sectorsize = md->md_sectorsize;
+	sc->sc_mediasize = bpp->mediasize;
+	if (!(sc->sc_flags & G_ELI_FLAG_ONETIME))
+		sc->sc_mediasize -= bpp->sectorsize;
+	if (!(sc->sc_flags & G_ELI_FLAG_AUTH))
+		sc->sc_mediasize -= (sc->sc_mediasize % sc->sc_sectorsize);
+	else {
+		sc->sc_mediasize /= sc->sc_bytes_per_sector;
+		sc->sc_mediasize *= sc->sc_sectorsize;
+	}
+
+	/*
+	 * Remember the keys in our softc structure.
+	 */
+	g_eli_mkey_propagate(sc, mkey);
+	sc->sc_ekeylen = md->md_keylen;
+
+	/*
+	 * Precalculate SHA256 for IV generation.
+	 * This is expensive operation and we can do it only once now or for
+	 * every access to sector, so now will be much better.
+	 */
+	switch (sc->sc_ealgo) {
+	case CRYPTO_AES_XTS:
+		break;
+	default:
+		SHA256_Init(&sc->sc_ivctx);
+		SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey,
+		    sizeof(sc->sc_ivkey));
+		break;
+	}
+
 	LIST_INIT(&sc->sc_workers);
 
 	bzero(&crie, sizeof(crie));
 	crie.cri_alg = sc->sc_ealgo;
 	crie.cri_klen = sc->sc_ekeylen;
-	crie.cri_key = sc->sc_ekey;
+	if (sc->sc_ealgo == CRYPTO_AES_XTS)
+		crie.cri_klen <<= 1;
+	crie.cri_key = sc->sc_ekeys[0];
 	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
 		bzero(&cria, sizeof(cria));
 		cria.cri_alg = sc->sc_aalgo;
@@ -715,16 +779,8 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 * Create decrypted provider.
 	 */
 	pp = g_new_providerf(gp, "%s%s", bpp->name, G_ELI_SUFFIX);
-	pp->sectorsize = md->md_sectorsize;
-	pp->mediasize = bpp->mediasize;
-	if (!(sc->sc_flags & G_ELI_FLAG_ONETIME))
-		pp->mediasize -= bpp->sectorsize;
-	if (!(sc->sc_flags & G_ELI_FLAG_AUTH))
-		pp->mediasize -= (pp->mediasize % pp->sectorsize);
-	else {
-		pp->mediasize /= sc->sc_bytes_per_sector;
-		pp->mediasize *= pp->sectorsize;
-	}
+	pp->mediasize = sc->sc_mediasize;
+	pp->sectorsize = sc->sc_sectorsize;
 
 	g_error_provider(pp, 0);
 
@@ -755,6 +811,11 @@ failed:
 	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
+	if (sc->sc_ekeys != NULL) {
+		bzero(sc->sc_ekeys,
+		    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
+		free(sc->sc_ekeys, M_ELI);
+	}
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
 	return (NULL);
@@ -794,6 +855,9 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 	}
 	mtx_destroy(&sc->sc_queue_mtx);
 	gp->softc = NULL;
+	bzero(sc->sc_ekeys,
+	    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
+	free(sc->sc_ekeys, M_ELI);
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
 
@@ -1042,6 +1106,7 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, name);					\
 	}								\
 } while (0)
+		ADD_FLAG(G_ELI_FLAG_SINGLE_KEY, "SINGLE-KEY");
 		ADD_FLAG(G_ELI_FLAG_NATIVE_BYTE_ORDER, "NATIVE-BYTE-ORDER");
 		ADD_FLAG(G_ELI_FLAG_ONETIME, "ONETIME");
 		ADD_FLAG(G_ELI_FLAG_BOOT, "BOOT");

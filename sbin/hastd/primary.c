@@ -258,7 +258,7 @@ cleanup(struct hast_resource *res)
 	errno = rerrno;
 }
 
-static void
+static __dead2 void
 primary_exit(int exitcode, const char *fmt, ...)
 {
 	va_list ap;
@@ -271,7 +271,7 @@ primary_exit(int exitcode, const char *fmt, ...)
 	exit(exitcode);
 }
 
-static void
+static __dead2 void
 primary_exitx(int exitcode, const char *fmt, ...)
 {
 	va_list ap;
@@ -313,7 +313,6 @@ init_environment(struct hast_resource *res __unused)
 {
 	struct hio *hio;
 	unsigned int ii, ncomps;
-	sigset_t mask;
 
 	/*
 	 * In the future it might be per-resource value.
@@ -420,15 +419,6 @@ init_environment(struct hast_resource *res __unused)
 		hio->hio_ggio.gctl_error = 0;
 		TAILQ_INSERT_HEAD(&hio_free_list, hio, hio_free_next);
 	}
-
-	/*
-	 * Turn on signals handling.
-	 */
-	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
-	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
-	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
-	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
-	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 }
 
 static void
@@ -800,17 +790,24 @@ hastd_primary(struct hast_resource *res)
 
 	setproctitle("%s (primary)", res->hr_name);
 
-	signal(SIGHUP, SIG_DFL);
-	signal(SIGCHLD, SIG_DFL);
-
 	/* Declare that we are sender. */
 	proto_send(res->hr_event, NULL, 0);
 
 	init_local(res);
-	if (real_remote(res) && init_remote(res, NULL, NULL))
-		sync_start();
 	init_ggate(res);
 	init_environment(res);
+	/*
+	 * Create the control thread before sending any event to the parent,
+	 * as we can deadlock when parent sends control request to worker,
+	 * but worker has no control thread started yet, so parent waits.
+	 * In the meantime worker sends an event to the parent, but parent
+	 * is unable to handle the event, because it waits for control
+	 * request response.
+	 */
+	error = pthread_create(&td, NULL, ctrl_thread, res);
+	assert(error == 0);
+	if (real_remote(res) && init_remote(res, NULL, NULL))
+		sync_start();
 	error = pthread_create(&td, NULL, ggate_recv_thread, res);
 	assert(error == 0);
 	error = pthread_create(&td, NULL, local_send_thread, res);
@@ -822,8 +819,6 @@ hastd_primary(struct hast_resource *res)
 	error = pthread_create(&td, NULL, ggate_send_thread, res);
 	assert(error == 0);
 	error = pthread_create(&td, NULL, sync_thread, res);
-	assert(error == 0);
-	error = pthread_create(&td, NULL, ctrl_thread, res);
 	assert(error == 0);
 	(void)guard_thread(res);
 }

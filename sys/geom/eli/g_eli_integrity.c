@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -507,8 +507,10 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		if (bp->bio_cmd == BIO_WRITE)
 			crde->crd_flags |= CRD_F_ENCRYPT;
 		crde->crd_alg = sc->sc_ealgo;
-		crde->crd_key = sc->sc_ekey;
+		crde->crd_key = g_eli_crypto_key(sc, dstoff, encr_secsize);
 		crde->crd_klen = sc->sc_ekeylen;
+		if (sc->sc_ealgo == CRYPTO_AES_XTS)
+			crde->crd_klen <<= 1;
 		g_eli_crypto_ivgen(sc, dstoff, crde->crd_iv,
 		    sizeof(crde->crd_iv));
 

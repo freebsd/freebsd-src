@@ -46,9 +46,6 @@ class CGDebugInfo {
   llvm::DICompileUnit TheCU;
   SourceLocation CurLoc, PrevLoc;
   llvm::DIType VTablePtrType;
-  /// FwdDeclCount - This counter is used to ensure unique names for forward
-  /// record decls.
-  unsigned FwdDeclCount;
   
   /// TypeCache - Cache of previously constructed Types.
   llvm::DenseMap<void *, llvm::WeakVH> TypeCache;
@@ -58,10 +55,19 @@ class CGDebugInfo {
 
   std::vector<llvm::TrackingVH<llvm::MDNode> > RegionStack;
   llvm::DenseMap<const Decl *, llvm::WeakVH> RegionMap;
+  // FnBeginRegionCount - Keep track of RegionStack counter at the beginning
+  // of a function. This is used to pop unbalanced regions at the end of a
+  // function.
+  std::vector<unsigned> FnBeginRegionCount;
+
+  /// LineDirectiveFiles - This stack is used to keep track of 
+  /// scopes introduced by #line directives.
+  std::vector<const char *> LineDirectiveFiles;
 
   /// DebugInfoNames - This is a storage for names that are
   /// constructed on demand. For example, C++ destructors, C++ operators etc..
   llvm::BumpPtrAllocator DebugInfoNames;
+  llvm::StringRef CWDName;
 
   llvm::DenseMap<const char *, llvm::WeakVH> DIFileCache;
   llvm::DenseMap<const FunctionDecl *, llvm::WeakVH> SPCache;
@@ -86,6 +92,7 @@ class CGDebugInfo {
   llvm::DIType CreateType(const ArrayType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const LValueReferenceType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const MemberPointerType *Ty, llvm::DIFile F);
+  llvm::DIType CreateEnumType(const EnumDecl *ED, llvm::DIFile Unit);
   llvm::DIType getOrCreateMethodType(const CXXMethodDecl *Method,
                                      llvm::DIFile F);
   llvm::DIType getOrCreateVTablePtrType(llvm::DIFile F);
@@ -98,16 +105,22 @@ class CGDebugInfo {
   
   llvm::DISubprogram CreateCXXMemberFunction(const CXXMethodDecl *Method,
                                              llvm::DIFile F,
-                                             llvm::DICompositeType &RecordTy);
+                                             llvm::DIType RecordTy);
   
   void CollectCXXMemberFunctions(const CXXRecordDecl *Decl,
                                  llvm::DIFile F,
                                  llvm::SmallVectorImpl<llvm::DIDescriptor> &E,
-                                 llvm::DICompositeType &T);
+                                 llvm::DIType T);
+
+  void CollectCXXFriends(const CXXRecordDecl *Decl,
+                       llvm::DIFile F,
+                       llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys,
+                       llvm::DIType RecordTy);
+
   void CollectCXXBases(const CXXRecordDecl *Decl,
                        llvm::DIFile F,
                        llvm::SmallVectorImpl<llvm::DIDescriptor> &EltTys,
-                       llvm::DICompositeType &RecordTy);
+                       llvm::DIType RecordTy);
 
 
   void CollectRecordFields(const RecordDecl *Decl, llvm::DIFile F,
@@ -127,20 +140,27 @@ public:
 
   /// EmitStopPoint - Emit a call to llvm.dbg.stoppoint to indicate a change of
   /// source line.
-  void EmitStopPoint(llvm::Function *Fn, CGBuilderTy &Builder);
+  void EmitStopPoint(CGBuilderTy &Builder);
 
   /// EmitFunctionStart - Emit a call to llvm.dbg.function.start to indicate
   /// start of a new function.
   void EmitFunctionStart(GlobalDecl GD, QualType FnType,
                          llvm::Function *Fn, CGBuilderTy &Builder);
 
+  /// EmitFunctionEnd - Constructs the debug code for exiting a function.
+  void EmitFunctionEnd(CGBuilderTy &Builder);
+
+  /// UpdateLineDirectiveRegion - Update region stack only if #line directive
+  /// has introduced scope change.
+  void UpdateLineDirectiveRegion(CGBuilderTy &Builder);
+
   /// EmitRegionStart - Emit a call to llvm.dbg.region.start to indicate start
   /// of a new block.
-  void EmitRegionStart(llvm::Function *Fn, CGBuilderTy &Builder);
+  void EmitRegionStart(CGBuilderTy &Builder);
 
   /// EmitRegionEnd - Emit call to llvm.dbg.region.end to indicate end of a
   /// block.
-  void EmitRegionEnd(llvm::Function *Fn, CGBuilderTy &Builder);
+  void EmitRegionEnd(CGBuilderTy &Builder);
 
   /// EmitDeclareOfAutoVariable - Emit call to llvm.dbg.declare for an automatic
   /// variable declaration.
@@ -165,6 +185,10 @@ public:
   /// EmitGlobalVariable - Emit information about an objective-c interface.
   void EmitGlobalVariable(llvm::GlobalVariable *GV, ObjCInterfaceDecl *Decl);
 
+  /// EmitGlobalVariable - Emit global variable's debug info.
+  void EmitGlobalVariable(const ValueDecl *VD, llvm::ConstantInt *Init, 
+                          CGBuilderTy &Builder);
+
 private:
   /// EmitDeclare - Emit call to llvm.dbg.declare for a variable declaration.
   void EmitDeclare(const VarDecl *decl, unsigned Tag, llvm::Value *AI,
@@ -182,6 +206,9 @@ private:
   /// getContextDescriptor - Get context info for the decl.
   llvm::DIDescriptor getContextDescriptor(const Decl *Decl,
                                           llvm::DIDescriptor &CU);
+
+  /// getCurrentDirname - Return current directory name.
+  llvm::StringRef getCurrentDirname();
 
   /// CreateCompileUnit - Create new compile unit.
   void CreateCompileUnit();
@@ -205,6 +232,12 @@ private:
   /// name is constructred on demand (e.g. C++ destructor) then the name
   /// is stored on the side.
   llvm::StringRef getFunctionName(const FunctionDecl *FD);
+  /// getObjCMethodName - Returns the unmangled name of an Objective-C method.
+  /// This is the display name for the debugging info.  
+  llvm::StringRef getObjCMethodName(const ObjCMethodDecl *FD);
+
+  /// getClassName - Get class name including template argument list.
+  llvm::StringRef getClassName(RecordDecl *RD);
 
   /// getVTableName - Get vtable name for the given Class.
   llvm::StringRef getVTableName(const CXXRecordDecl *Decl);
