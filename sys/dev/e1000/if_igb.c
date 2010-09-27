@@ -178,7 +178,7 @@ static int	igb_setup_msix(struct adapter *);
 static void	igb_free_pci_resources(struct adapter *);
 static void	igb_local_timer(void *);
 static void	igb_reset(struct adapter *);
-static void	igb_setup_interface(device_t, struct adapter *);
+static int	igb_setup_interface(device_t, struct adapter *);
 static int	igb_allocate_queues(struct adapter *);
 static void	igb_configure_queues(struct adapter *);
 
@@ -564,7 +564,8 @@ igb_attach(device_t dev)
 		goto err_late;
 
 	/* Setup OS specific network interface */
-	igb_setup_interface(dev, adapter);
+	if (igb_setup_interface(dev, adapter) != 0)
+		goto err_late;
 
 	/* Now get a good starting state */
 	igb_reset(adapter);
@@ -613,6 +614,8 @@ err_late:
 	igb_free_transmit_structures(adapter);
 	igb_free_receive_structures(adapter);
 	igb_release_hw_control(adapter);
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 err_pci:
 	igb_free_pci_resources(adapter);
 	IGB_CORE_LOCK_DESTROY(adapter);
@@ -2658,7 +2661,7 @@ igb_reset(struct adapter *adapter)
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 igb_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ifnet   *ifp;
@@ -2666,8 +2669,10 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("igb_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  igb_init;
@@ -2744,6 +2749,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
+	return (0);
 }
 
 

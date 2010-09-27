@@ -181,7 +181,7 @@ static int	lem_allocate_irq(struct adapter *adapter);
 static void	lem_free_pci_resources(struct adapter *);
 static void	lem_local_timer(void *);
 static int	lem_hardware_init(struct adapter *);
-static void	lem_setup_interface(device_t, struct adapter *);
+static int	lem_setup_interface(device_t, struct adapter *);
 static void	lem_setup_transmit_structures(struct adapter *);
 static void	lem_initialize_transmit_unit(struct adapter *);
 static int	lem_setup_receive_structures(struct adapter *);
@@ -608,7 +608,8 @@ lem_attach(device_t dev)
 	lem_get_wakeup(dev);
 
 	/* Setup OS specific network interface */
-	lem_setup_interface(dev, adapter);
+	if (lem_setup_interface(dev, adapter) != 0)
+		goto err_rx_struct;
 
 	/* Initialize statistics */
 	lem_update_stats_counters(adapter);
@@ -662,6 +663,8 @@ err_rx_desc:
 	lem_dma_free(adapter, &adapter->txdma);
 err_tx_desc:
 err_pci:
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 	lem_free_pci_resources(adapter);
 	EM_TX_LOCK_DESTROY(adapter);
 	EM_RX_LOCK_DESTROY(adapter);
@@ -2374,7 +2377,7 @@ lem_hardware_init(struct adapter *adapter)
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 lem_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ifnet   *ifp;
@@ -2382,8 +2385,10 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("lem_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  lem_init;
@@ -2459,6 +2464,7 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
+	return (0);
 }
 
 
