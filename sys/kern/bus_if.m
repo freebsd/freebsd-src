@@ -26,6 +26,8 @@
 # $FreeBSD$
 #
 
+#include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 
 /**
@@ -46,6 +48,14 @@ CODE {
 	    u_long count, u_int flags)
 	{
 	    return (0);
+	}
+
+	static device_t
+	null_add_child(device_t bus, int order, const char *name,
+	    int unit)
+	{
+
+		panic("bus_add_child is not implemented");
 	}
 };
 
@@ -194,7 +204,7 @@ METHOD device_t add_child {
 	u_int _order;
 	const char *_name;
 	int _unit;
-};
+} DEFAULT null_add_child;
 
 /**
  * @brief Allocate a system resource
