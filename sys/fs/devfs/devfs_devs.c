@@ -142,6 +142,27 @@ devfs_alloc(int flags)
 	return (cdev);
 }
 
+int
+devfs_dev_exists(const char *name)
+{
+	struct cdev_priv *cdp;
+
+	mtx_assert(&devmtx, MA_OWNED);
+
+	TAILQ_FOREACH(cdp, &cdevp_list, cdp_list) {
+		if ((cdp->cdp_flags & CDP_ACTIVE) == 0)
+			continue;
+		if (devfs_pathpath(cdp->cdp_c.si_name, name) != 0)
+			return (1);
+		if (devfs_pathpath(name, cdp->cdp_c.si_name) != 0)
+			return (1);
+	}
+	if (devfs_dir_find(name) != 0)
+		return (1);
+
+	return (0);
+}
+
 void
 devfs_free(struct cdev *cdev)
 {
