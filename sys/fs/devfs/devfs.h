@@ -124,6 +124,8 @@ MALLOC_DECLARE(M_DEVFS);
 
 struct componentname;
 
+TAILQ_HEAD(devfs_dlist_head, devfs_dirent);
+
 struct devfs_dirent {
 	struct cdev_priv	*de_cdp;
 	int			de_inode;
@@ -133,10 +135,11 @@ struct devfs_dirent {
 #define	DE_DOTDOT	0x04
 #define	DE_DOOMED	0x08
 #define	DE_COVERED	0x10
+#define	DE_USER		0x20
 	int			de_holdcnt;
 	struct dirent 		*de_dirent;
 	TAILQ_ENTRY(devfs_dirent) de_list;
-	TAILQ_HEAD(, devfs_dirent) de_dlist;
+	struct devfs_dlist_head	de_dlist;
 	struct devfs_dirent	*de_dir;
 	int			de_links;
 	mode_t			de_mode;
