@@ -1085,8 +1085,11 @@ nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep, NFSPROC_T *p)
 	 * associated with the open.
 	 * If there are locks associated with the open, the
 	 * nfslockfile structure can be freed via nfsrv_freelockowner().
-	 * (That is why the call must be here instead of after the loop.)
+	 * Acquire the state mutex to avoid races with calls to
+	 * nfsrv_getlockfile().
 	 */
+	if (cansleep != 0)
+		NFSLOCKSTATE();
 	if (lfp != NULL && LIST_EMPTY(&lfp->lf_open) &&
 	    LIST_EMPTY(&lfp->lf_deleg) && LIST_EMPTY(&lfp->lf_lock) &&
 	    LIST_EMPTY(&lfp->lf_locallock) && LIST_EMPTY(&lfp->lf_rollback) &&
@@ -1096,6 +1099,8 @@ nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep, NFSPROC_T *p)
 		ret = 1;
 	} else
 		ret = 0;
+	if (cansleep != 0)
+		NFSUNLOCKSTATE();
 	FREE((caddr_t)stp, M_NFSDSTATE);
 	newnfsstats.srvopens--;
 	nfsrv_openpluslock--;
