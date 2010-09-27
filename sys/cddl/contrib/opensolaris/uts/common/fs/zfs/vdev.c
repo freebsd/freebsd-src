@@ -39,6 +39,7 @@
 #include <sys/zap.h>
 #include <sys/fs/zfs.h>
 #include <sys/arc.h>
+#include <sys/zil.h>
 
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, vdev, CTLFLAG_RW, 0, "ZFS VDEV");
@@ -765,6 +766,15 @@ vdev_metaslab_init(vdev_t *vd, uint64_t txg)
 	if (vd->vdev_ms_shift == 0)	/* not being allocated from yet */
 		return (0);
 
+	/*
+	 * Compute the raidz-deflation ratio.  Note, we hard-code
+	 * in 128k (1 << 17) because it is the current "typical" blocksize.
+	 * Even if SPA_MAXBLOCKSIZE changes, this algorithm must never change,
+	 * or we will inconsistently account for existing bp's.
+	 */
+	vd->vdev_deflate_ratio = (1 << 17) /
+	    (vdev_psize_to_asize(vd, 1 << 17) >> SPA_MINBLOCKSHIFT);
+
 	ASSERT(oldc <= newc);
 
 	if (vd->vdev_islog)
@@ -998,6 +1008,8 @@ vdev_open(vdev_t *vd)
 	    vd->vdev_state == VDEV_STATE_OFFLINE);
 
 	vd->vdev_stat.vs_aux = VDEV_AUX_NONE;
+	vd->vdev_cant_read = B_FALSE;
+	vd->vdev_cant_write = B_FALSE;
 
 	if (!vd->vdev_removed && vd->vdev_faulted) {
 		ASSERT(vd->vdev_children == 0);
@@ -1110,18 +1122,6 @@ vdev_open(vdev_t *vd)
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 		    VDEV_AUX_IO_FAILURE);
 		return (error);
-	}
-
-	/*
-	 * If this is a top-level vdev, compute the raidz-deflation
-	 * ratio.  Note, we hard-code in 128k (1<<17) because it is the
-	 * current "typical" blocksize.  Even if SPA_MAXBLOCKSIZE
-	 * changes, this algorithm must never change, or we will
-	 * inconsistently account for existing bp's.
-	 */
-	if (vd->vdev_top == vd) {
-		vd->vdev_deflate_ratio = (1<<17) /
-		    (vdev_psize_to_asize(vd, 1<<17) >> SPA_MINBLOCKSHIFT);
 	}
 
 	/*
@@ -1937,7 +1937,8 @@ vdev_online(spa_t *spa, uint64_t guid, uint64_t flags, vdev_state_t *newstate)
 int
 vdev_offline(spa_t *spa, uint64_t guid, uint64_t flags)
 {
-	vdev_t *vd;
+	vdev_t *vd, *tvd;
+	int error;
 
 	spa_vdev_state_enter(spa);
 
@@ -1947,34 +1948,58 @@ vdev_offline(spa_t *spa, uint64_t guid, uint64_t flags)
 	if (!vd->vdev_ops->vdev_op_leaf)
 		return (spa_vdev_state_exit(spa, NULL, ENOTSUP));
 
+	tvd = vd->vdev_top;
+
 	/*
 	 * If the device isn't already offline, try to offline it.
 	 */
 	if (!vd->vdev_offline) {
 		/*
 		 * If this device has the only valid copy of some data,
-		 * don't allow it to be offlined.
+		 * don't allow it to be offlined. Log devices are always
+		 * expendable.
 		 */
-		if (vd->vdev_aux == NULL && vdev_dtl_required(vd))
+		if (!tvd->vdev_islog && vd->vdev_aux == NULL &&
+		    vdev_dtl_required(vd))
 			return (spa_vdev_state_exit(spa, NULL, EBUSY));
 
 		/*
 		 * Offline this device and reopen its top-level vdev.
-		 * If this action results in the top-level vdev becoming
-		 * unusable, undo it and fail the request.
+		 * If the top-level vdev is a log device then just offline
+		 * it. Otherwise, if this action results in the top-level
+		 * vdev becoming unusable, undo it and fail the request.
 		 */
 		vd->vdev_offline = B_TRUE;
-		vdev_reopen(vd->vdev_top);
-		if (vd->vdev_aux == NULL && vdev_is_dead(vd->vdev_top)) {
+		vdev_reopen(tvd);
+
+		if (!tvd->vdev_islog && vd->vdev_aux == NULL &&
+		    vdev_is_dead(tvd)) {
 			vd->vdev_offline = B_FALSE;
-			vdev_reopen(vd->vdev_top);
+			vdev_reopen(tvd);
 			return (spa_vdev_state_exit(spa, NULL, EBUSY));
 		}
 	}
 
 	vd->vdev_tmpoffline = !!(flags & ZFS_OFFLINE_TEMPORARY);
 
-	return (spa_vdev_state_exit(spa, vd, 0));
+	if (!tvd->vdev_islog || !vdev_is_dead(tvd))
+		return (spa_vdev_state_exit(spa, vd, 0));
+
+	(void) spa_vdev_state_exit(spa, vd, 0);
+
+	error = dmu_objset_find(spa_name(spa), zil_vdev_offline,
+	    NULL, DS_FIND_CHILDREN);
+	if (error) {
+		(void) vdev_online(spa, guid, 0, NULL);
+		return (error);
+	}
+	/*
+	 * If we successfully offlined the log device then we need to
+	 * sync out the current txg so that the "stubby" block can be
+	 * removed by zil_sync().
+	 */
+	txg_wait_synced(spa->spa_dsl_pool, 0);
+	return (0);
 }
 
 /*
@@ -2279,6 +2304,7 @@ vdev_space_update(vdev_t *vd, int64_t space_delta, int64_t alloc_delta,
 	 * childrens', thus not accurate enough for us.
 	 */
 	ASSERT((dspace_delta & (SPA_MINBLOCKSIZE-1)) == 0);
+	ASSERT(vd->vdev_deflate_ratio != 0 || vd->vdev_isl2cache);
 	dspace_delta = (dspace_delta >> SPA_MINBLOCKSHIFT) *
 	    vd->vdev_deflate_ratio;
 
@@ -2631,11 +2657,7 @@ vdev_set_state(vdev_t *vd, boolean_t isopen, vdev_state_t state, vdev_aux_t aux)
 boolean_t
 vdev_is_bootable(vdev_t *vd)
 {
-#ifdef __FreeBSD_version
-	return (B_TRUE);
-#else
-	int c;
-
+#ifdef sun
 	if (!vd->vdev_ops->vdev_op_leaf) {
 		char *vdev_type = vd->vdev_ops->vdev_op_type;
 
@@ -2654,6 +2676,35 @@ vdev_is_bootable(vdev_t *vd)
 		if (!vdev_is_bootable(vd->vdev_child[c]))
 			return (B_FALSE);
 	}
+#endif	/* sun */
 	return (B_TRUE);
-#endif
+}
+
+void
+vdev_load_log_state(vdev_t *vd, nvlist_t *nv)
+{
+	uint_t c, children;
+	nvlist_t **child;
+	uint64_t val;
+	spa_t *spa = vd->vdev_spa;
+
+	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children) == 0) {
+		for (c = 0; c < children; c++)
+			vdev_load_log_state(vd->vdev_child[c], child[c]);
+	}
+
+	if (vd->vdev_ops->vdev_op_leaf && nvlist_lookup_uint64(nv,
+	    ZPOOL_CONFIG_OFFLINE, &val) == 0 && val) {
+
+		/*
+		 * It would be nice to call vdev_offline()
+		 * directly but the pool isn't fully loaded and
+		 * the txg threads have not been started yet.
+		 */
+		spa_config_enter(spa, SCL_STATE_ALL, FTAG, RW_WRITER);
+		vd->vdev_offline = val;
+		vdev_reopen(vd->vdev_top);
+		spa_config_exit(spa, SCL_STATE_ALL, FTAG);
+	}
 }
