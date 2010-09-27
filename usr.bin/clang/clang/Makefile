@@ -8,7 +8,6 @@ SRCDIR=	tools/clang/tools/driver
 SRCS=	cc1_main.cpp \
 	cc1as_main.cpp \
 	driver.cpp
-MAN=
 
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++
 
