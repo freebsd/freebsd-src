@@ -14,14 +14,4 @@ CFLAGS += -I${.CURDIR}/../../dev/e1000 -DSMP
 # not advisable since MSIX gives better results
 #CFLAGS  += -DDEVICE_POLLING
 
-clean:
-	rm -f device_if.h bus_if.h pci_if.h setdef*
-	rm -f *.o *.kld *.ko
-	rm -f @ machine
-	rm -f ${CLEANFILES}
-
-man:
-	mv /usr/share/man/man4/igb.4.gz /usr/share/man/man4/igbSAVE.4.gz
-	cp igb.4 /usr/share/man/man4/
-
 .include <bsd.kmod.mk>
