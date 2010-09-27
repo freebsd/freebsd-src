@@ -134,6 +134,15 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 		if (zio->io_flags & ZIO_FLAG_SPECULATIVE)
 			return;
 
+		/*
+		 * If this I/O is not a retry I/O, don't post an ereport.
+		 * Otherwise, we risk making bad diagnoses based on B_FAILFAST
+		 * I/Os.
+		 */
+		if (zio->io_error == EIO &&
+		    !(zio->io_flags & ZIO_FLAG_IO_RETRY))
+			return;
+
 		if (vd != NULL) {
 			/*
 			 * If the vdev has already been marked as failing due
