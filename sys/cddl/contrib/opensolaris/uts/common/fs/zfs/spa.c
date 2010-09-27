@@ -4252,10 +4252,16 @@ spa_sync(spa_t *spa, uint64_t txg)
 				if (svdcount == SPA_DVAS_PER_BP)
 					break;
 			}
-			error = vdev_config_sync(svd, svdcount, txg);
+			error = vdev_config_sync(svd, svdcount, txg, B_FALSE);
+			if (error != 0)
+				error = vdev_config_sync(svd, svdcount, txg,
+				    B_TRUE);
 		} else {
 			error = vdev_config_sync(rvd->vdev_child,
-			    rvd->vdev_children, txg);
+			    rvd->vdev_children, txg, B_FALSE);
+			if (error != 0)
+				error = vdev_config_sync(rvd->vdev_child,
+				    rvd->vdev_children, txg, B_TRUE);
 		}
 
 		spa_config_exit(spa, SCL_STATE, FTAG);
