@@ -1950,6 +1950,7 @@ sdtossd(sd, ssd)
 	ssd->ssd_gran  = sd->sd_gran;
 }
 
+#ifndef XEN
 static int
 add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 {
@@ -2029,78 +2030,13 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	return (1);
 }
 
-/*
- * Populate the (physmap) array with base/bound pairs describing the
- * available physical memory in the system, then test this memory and
- * build the phys_avail array describing the actually-available memory.
- *
- * If we cannot accurately determine the physical memory map, then use
- * value from the 0xE801 call, and failing that, the RTC.
- *
- * Total memory size may be set by the kernel environment variable
- * hw.physmem or the compile-time define MAXMEM.
- *
- * XXX first should be vm_paddr_t.
- */
 static void
-getmemsize(int first)
+basemem_setup(void)
 {
-	int i, off, physmap_idx, pa_indx, da_indx;
-	int hasbrokenint12, has_smap;
-	u_long physmem_tunable;
-	u_int extmem;
-	struct vm86frame vmf;
-	struct vm86context vmc;
-	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
+	vm_paddr_t pa;
 	pt_entry_t *pte;
-	struct bios_smap *smap, *smapbase, *smapend;
-	u_int32_t smapsize;
-	quad_t dcons_addr, dcons_size;
-	caddr_t kmdp;
+	int i;
 
-	has_smap = 0;
-#ifdef XBOX
-	if (arch_i386_is_xbox) {
-		/*
-		 * We queried the memory size before, so chop off 4MB for
-		 * the framebuffer and inform the OS of this.
-		 */
-		physmap[0] = 0;
-		physmap[1] = (arch_i386_xbox_memsize * 1024 * 1024) - XBOX_FB_SIZE;
-		physmap_idx = 0;
-		goto physmap_done;
-	}
-#endif
-#if defined(XEN)
-	has_smap = 0;
-	Maxmem = xen_start_info->nr_pages - init_first;
-	physmem = Maxmem;
-	basemem = 0;
-	physmap[0] = init_first << PAGE_SHIFT;
-	physmap[1] = ptoa(Maxmem) - round_page(MSGBUF_SIZE);
-	physmap_idx = 0;
-	goto physmap_done;
-#endif	
-	hasbrokenint12 = 0;
-	TUNABLE_INT_FETCH("hw.hasbrokenint12", &hasbrokenint12);
-	bzero(&vmf, sizeof(vmf));
-	bzero(physmap, sizeof(physmap));
-	basemem = 0;
-
-	/*
-	 * Some newer BIOSes has broken INT 12H implementation which cause
-	 * kernel panic immediately. In this case, we need to scan SMAP
-	 * with INT 15:E820 first, then determine base memory size.
-	 */
-	if (hasbrokenint12) {
-		goto int15e820;
-	}
-
-	/*
-	 * Perform "base memory" related probes & setup
-	 */
-	vm86_intcall(0x12, &vmf);
-	basemem = vmf.vmf_ax;
 	if (basemem > 640) {
 		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
 			basemem);
@@ -2140,12 +2076,69 @@ getmemsize(int first)
 	pte = (pt_entry_t *)vm86paddr;
 	for (i = basemem / 4; i < 160; i++)
 		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
+}
+#endif
 
-int15e820:
+/*
+ * Populate the (physmap) array with base/bound pairs describing the
+ * available physical memory in the system, then test this memory and
+ * build the phys_avail array describing the actually-available memory.
+ *
+ * If we cannot accurately determine the physical memory map, then use
+ * value from the 0xE801 call, and failing that, the RTC.
+ *
+ * Total memory size may be set by the kernel environment variable
+ * hw.physmem or the compile-time define MAXMEM.
+ *
+ * XXX first should be vm_paddr_t.
+ */
+static void
+getmemsize(int first)
+{
+	int has_smap, off, physmap_idx, pa_indx, da_indx;
+	u_long physmem_tunable;
+	vm_paddr_t physmap[PHYSMAP_SIZE];
+	pt_entry_t *pte;
+	quad_t dcons_addr, dcons_size;
+#ifndef XEN
+	int hasbrokenint12, i;
+	u_int extmem;
+	struct vm86frame vmf;
+	struct vm86context vmc;
+	vm_paddr_t pa;
+	struct bios_smap *smap, *smapbase, *smapend;
+	u_int32_t smapsize;
+	caddr_t kmdp;
+#endif
+
+	has_smap = 0;
+#if defined(XEN)
+	Maxmem = xen_start_info->nr_pages - init_first;
+	physmem = Maxmem;
+	basemem = 0;
+	physmap[0] = init_first << PAGE_SHIFT;
+	physmap[1] = ptoa(Maxmem) - round_page(MSGBUF_SIZE);
+	physmap_idx = 0;
+#else
+#ifdef XBOX
+	if (arch_i386_is_xbox) {
+		/*
+		 * We queried the memory size before, so chop off 4MB for
+		 * the framebuffer and inform the OS of this.
+		 */
+		physmap[0] = 0;
+		physmap[1] = (arch_i386_xbox_memsize * 1024 * 1024) - XBOX_FB_SIZE;
+		physmap_idx = 0;
+		goto physmap_done;
+	}
+#endif
+	bzero(&vmf, sizeof(vmf));
+	bzero(physmap, sizeof(physmap));
+	basemem = 0;
+
 	/*
-	 * Fetch the memory map with INT 15:E820.  First, check to see
-	 * if the loader supplied it and use that if so.  Otherwise,
-	 * use vm86 to invoke the BIOS call directly.
+	 * Check if the loader supplied an SMAP memory map.  If so,
+	 * use that and do not make any VM86 calls.
 	 */
 	physmap_idx = 0;
 	smapbase = NULL;
@@ -2156,9 +2149,10 @@ int15e820:
 		smapbase = (struct bios_smap *)preload_search_info(kmdp,
 		    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase != NULL) {
-		/* subr_module.c says:
+		/*
+		 * subr_module.c says:
 		 * "Consumer may safely assume that size value precedes data."
-		 * ie: an int32_t immediately precedes smap.
+		 * ie: an int32_t immediately precedes SMAP.
 		 */
 		smapsize = *((u_int32_t *)smapbase - 1);
 		smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
@@ -2167,33 +2161,50 @@ int15e820:
 		for (smap = smapbase; smap < smapend; smap++)
 			if (!add_smap_entry(smap, physmap, &physmap_idx))
 				break;
-	} else {
-		/*
-		 * map page 1 R/W into the kernel page table so we can use it
-		 * as a buffer.  The kernel will unmap this page later.
-		 */
-		pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
-		vmc.npages = 0;
-		smap = (void *)vm86_addpage(&vmc, 1, KERNBASE +
-		    (1 << PAGE_SHIFT));
-		vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
-
-		vmf.vmf_ebx = 0;
-		do {
-			vmf.vmf_eax = 0xE820;
-			vmf.vmf_edx = SMAP_SIG;
-			vmf.vmf_ecx = sizeof(struct bios_smap);
-			i = vm86_datacall(0x15, &vmf, &vmc);
-			if (i || vmf.vmf_eax != SMAP_SIG)
-				break;
-			has_smap = 1;
-			if (!add_smap_entry(smap, physmap, &physmap_idx))
-				break;
-		} while (vmf.vmf_ebx != 0);
+		goto have_smap;
 	}
 
 	/*
-	 * Perform "base memory" related probes & setup based on SMAP
+	 * Some newer BIOSes have a broken INT 12H implementation
+	 * which causes a kernel panic immediately.  In this case, we
+	 * need use the SMAP to determine the base memory size.
+	 */
+	hasbrokenint12 = 0;
+	TUNABLE_INT_FETCH("hw.hasbrokenint12", &hasbrokenint12);
+	if (hasbrokenint12 == 0) {
+		/* Use INT12 to determine base memory size. */
+		vm86_intcall(0x12, &vmf);
+		basemem = vmf.vmf_ax;
+		basemem_setup();
+	}
+
+	/*
+	 * Fetch the memory map with INT 15:E820.  Map page 1 R/W into
+	 * the kernel page table so we can use it as a buffer.  The
+	 * kernel will unmap this page later.
+	 */
+	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
+	vmc.npages = 0;
+	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
+	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
+
+	vmf.vmf_ebx = 0;
+	do {
+		vmf.vmf_eax = 0xE820;
+		vmf.vmf_edx = SMAP_SIG;
+		vmf.vmf_ecx = sizeof(struct bios_smap);
+		i = vm86_datacall(0x15, &vmf, &vmc);
+		if (i || vmf.vmf_eax != SMAP_SIG)
+			break;
+		has_smap = 1;
+		if (!add_smap_entry(smap, physmap, &physmap_idx))
+			break;
+	} while (vmf.vmf_ebx != 0);
+
+have_smap:
+	/*
+	 * If we didn't fetch the "base memory" size from INT12,
+	 * figure it out from the SMAP (or just guess).
 	 */
 	if (basemem == 0) {
 		for (i = 0; i <= physmap_idx; i += 2) {
@@ -2203,49 +2214,39 @@ int15e820:
 			}
 		}
 
-		/*
-		 * XXX this function is horribly organized and has to the same
-		 * things that it does above here.
-		 */
+		/* XXX: If we couldn't find basemem from SMAP, just guess. */
 		if (basemem == 0)
 			basemem = 640;
-		if (basemem > 640) {
-			printf(
-		    "Preposterous BIOS basemem of %uK, truncating to 640K\n",
-			    basemem);
-			basemem = 640;
-		}
-
-		/*
-		 * Let vm86 scribble on pages between basemem and
-		 * ISA_HOLE_START, as above.
-		 */
-		for (pa = trunc_page(basemem * 1024);
-		     pa < ISA_HOLE_START; pa += PAGE_SIZE)
-			pmap_kenter(KERNBASE + pa, pa);
-		pte = (pt_entry_t *)vm86paddr;
-		for (i = basemem / 4; i < 160; i++)
-			pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
+		basemem_setup();
 	}
 
 	if (physmap[1] != 0)
 		goto physmap_done;
 
 	/*
-	 * If we failed above, try memory map with INT 15:E801
+	 * If we failed to find an SMAP, figure out the extended
+	 * memory size.  We will then build a simple memory map with
+	 * two segments, one for "base memory" and the second for
+	 * "extended memory".  Note that "extended memory" starts at a
+	 * physical address of 1MB and that both basemem and extmem
+	 * are in units of 1KB.
+	 *
+	 * First, try to fetch the extended memory size via INT 15:E801.
 	 */
 	vmf.vmf_ax = 0xE801;
 	if (vm86_intcall(0x15, &vmf) == 0) {
 		extmem = vmf.vmf_cx + vmf.vmf_dx * 64;
 	} else {
+		/*
+		 * If INT15:E801 fails, this is our last ditch effort
+		 * to determine the extended memory size.  Currently
+		 * we prefer the RTC value over INT15:88.
+		 */
 #if 0
 		vmf.vmf_ah = 0x88;
 		vm86_intcall(0x15, &vmf);
 		extmem = vmf.vmf_ax;
-#elif !defined(XEN)
-		/*
-		 * Prefer the RTC value for extended memory.
-		 */
+#else
 		extmem = rtcin(RTC_EXTLO) + (rtcin(RTC_EXTHI) << 8);
 #endif
 	}
@@ -2270,6 +2271,7 @@ int15e820:
 	physmap[physmap_idx + 1] = physmap[physmap_idx] + extmem * 1024;
 
 physmap_done:
+#endif	
 	/*
 	 * Now, physmap contains a map of physical memory.
 	 */
