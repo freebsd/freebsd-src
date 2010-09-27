@@ -119,7 +119,7 @@ static int	ixgbe_allocate_queues(struct adapter *);
 static int	ixgbe_setup_msix(struct adapter *);
 static void	ixgbe_free_pci_resources(struct adapter *);
 static void     ixgbe_local_timer(void *);
-static void     ixgbe_setup_interface(device_t, struct adapter *);
+static int      ixgbe_setup_interface(device_t, struct adapter *);
 static void     ixgbe_config_link(struct adapter *);
 
 static int      ixgbe_allocate_transmit_buffers(struct tx_ring *);
@@ -580,7 +580,8 @@ ixgbe_attach(device_t dev)
 		goto err_late;
 
 	/* Setup OS specific network interface */
-	ixgbe_setup_interface(dev, adapter);
+	if (ixgbe_setup_interface(dev, adapter) != 0)
+		goto err_late;
 
 	/* Sysctl for limiting the amount of work done in the taskqueue */
 	ixgbe_add_rx_process_limit(adapter, "rx_processing_limit",
@@ -626,6 +627,8 @@ err_late:
 	ixgbe_free_transmit_structures(adapter);
 	ixgbe_free_receive_structures(adapter);
 err_out:
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 	ixgbe_free_pci_resources(adapter);
 	return (error);
 
@@ -2351,7 +2354,7 @@ mem:
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -2360,8 +2363,10 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("ixgbe_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()\n", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = 1000000000;
@@ -2409,7 +2414,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
 
-	return;
+	return (0);
 }
 
 static void

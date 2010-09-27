@@ -213,7 +213,7 @@ static int	em_setup_msix(struct adapter *);
 static void	em_free_pci_resources(struct adapter *);
 static void	em_local_timer(void *);
 static void	em_reset(struct adapter *);
-static void	em_setup_interface(device_t, struct adapter *);
+static int	em_setup_interface(device_t, struct adapter *);
 
 static void	em_setup_transmit_structures(struct adapter *);
 static void	em_initialize_transmit_unit(struct adapter *);
@@ -628,7 +628,8 @@ em_attach(device_t dev)
 	em_get_wakeup(dev);
 
 	/* Setup OS specific network interface */
-	em_setup_interface(dev, adapter);
+	if (em_setup_interface(dev, adapter) != 0)
+		goto err_late;
 
 	em_reset(adapter);
 
@@ -669,6 +670,8 @@ err_late:
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 	em_release_hw_control(adapter);
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 err_pci:
 	em_free_pci_resources(adapter);
 	EM_CORE_LOCK_DESTROY(adapter);
@@ -2646,7 +2649,7 @@ em_reset(struct adapter *adapter)
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 em_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ifnet   *ifp;
@@ -2654,8 +2657,10 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("em_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  em_init;
@@ -2742,6 +2747,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
+	return (0);
 }
 
 
