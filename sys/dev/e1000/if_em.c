@@ -105,7 +105,7 @@
 } while (0)
 #define	EM_TX_UNLOCK_COND(txr, locking) do {				\
 	if ((locking) != 0)						\
-		EM_CORE_UNLOCK(txr);					\
+		EM_TX_UNLOCK(txr);					\
 } while (0)
 
 #endif

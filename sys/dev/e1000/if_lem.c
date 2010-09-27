@@ -103,7 +103,7 @@
 } while (0)
 #define	EM_TX_UNLOCK_COND(adapter, locking) do {			\
 	if ((locking) != 0)						\
-		EM_CORE_UNLOCK(adapter);				\
+		EM_TX_UNLOCK(adapter);					\
 } while (0)
 
 #endif
