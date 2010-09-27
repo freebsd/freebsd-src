@@ -3841,7 +3841,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		rxbuf = &rxr->rx_buffers[j];
 		rxbuf->m_head = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (rxbuf->m_head == NULL)
-			panic("RX ring hdr initialization failed!\n");
+			return (ENOBUFS);
 		rxbuf->m_head->m_len = MCLBYTES;
 		rxbuf->m_head->m_flags &= ~M_HASFCS; /* we strip it */
 		rxbuf->m_head->m_pkthdr.len = MCLBYTES;
@@ -3850,8 +3850,11 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		error = bus_dmamap_load_mbuf_sg(rxr->rxtag,
 		    rxbuf->map, rxbuf->m_head, seg,
 		    &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0)
-			panic("RX ring dma initialization failed!\n");
+		if (error != 0) {
+			m_freem(rxbuf->m_head);
+			rxbuf->m_head = NULL;
+			return (error);
+		}
 		bus_dmamap_sync(rxr->rxtag,
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
 
