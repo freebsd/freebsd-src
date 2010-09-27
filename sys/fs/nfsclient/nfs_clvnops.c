@@ -2939,8 +2939,10 @@ nfs_advlock(struct vop_advlock_args *ap)
 		} else {
 			if (ncl_advlock_p)
 				error = ncl_advlock_p(ap);
-			else
+			else {
+				VOP_UNLOCK(vp, 0);
 				error = ENOLCK;
+			}
 		}
 	}
 	return (error);
