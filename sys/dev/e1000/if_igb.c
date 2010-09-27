@@ -509,6 +509,11 @@ igb_attach(device_t dev)
 		adapter->stats =
 		    (struct e1000_hw_stats *)malloc(sizeof \
 		    (struct e1000_hw_stats), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (adapter->stats == NULL) {
+		device_printf(dev, "Can not allocate stats memory\n");
+		error = ENOMEM;
+		goto err_late;
+	}
 
 	/*
 	** Start from a known state, this is
@@ -4893,7 +4898,8 @@ igb_vf_init_stats(struct adapter *adapter)
 	struct e1000_vf_stats	*stats;
 
 	stats = (struct e1000_vf_stats	*)adapter->stats;
-
+	if (stats == NULL)
+		return;
         stats->last_gprc = E1000_READ_REG(hw, E1000_VFGPRC);
         stats->last_gorc = E1000_READ_REG(hw, E1000_VFGORC);
         stats->last_gptc = E1000_READ_REG(hw, E1000_VFGPTC);
