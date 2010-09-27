@@ -87,6 +87,27 @@
 #include "e1000_api.h"
 #include "if_lem.h"
 
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
+
+#define	EM_CORE_LOCK_COND(adapter, locking) do {			\
+	if ((locking) != 0)						\
+		EM_CORE_LOCK(adapter);					\
+} while (0)
+#define	EM_CORE_UNLOCK_COND(adapter, locking) do {			\
+	if ((locking) != 0)						\
+		EM_CORE_UNLOCK(adapter);				\
+} while (0)
+#define	EM_TX_LOCK_COND(adapter, locking) do {				\
+	if ((locking) != 0)						\
+		EM_TX_LOCK(adapter);					\
+} while (0)
+#define	EM_TX_UNLOCK_COND(adapter, locking) do {			\
+	if ((locking) != 0)						\
+		EM_CORE_UNLOCK(adapter);				\
+} while (0)
+
+#endif
+
 /*********************************************************************
  *  Legacy Em Driver version:
  *********************************************************************/
@@ -1263,11 +1284,9 @@ _lem_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count, int locking)
 	struct adapter *adapter = ifp->if_softc;
 	u32		reg_icr, rx_done = 0;
 
-	if (locking != 0)
-		EM_CORE_LOCK(adapter);
+	EM_CORE_LOCK_COND(adapter, locking);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		if (locking != 0)
-			EM_CORE_UNLOCK(adapter);
+		EM_CORE_UNLOCK_COND(adapter, locking);
 		return (rx_done);
 	}
 
@@ -1281,18 +1300,15 @@ _lem_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count, int locking)
 			    lem_local_timer, adapter);
 		}
 	}
-	if (locking != 0)
-		EM_CORE_UNLOCK(adapter);
+	EM_CORE_UNLOCK_COND(adapter, locking);
 
 	lem_rxeof(adapter, count, &rx_done);
 
-	if (locking != 0)
-		EM_TX_LOCK(adapter);
+	EM_TX_LOCK_COND(adapter, locking);
 	lem_txeof(adapter);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		lem_start_locked(ifp);
-	if (locking != 0)
-		EM_TX_UNLOCK(adapter);
+	EM_TX_UNLOCK_COND(adapter, locking);
 	return (rx_done);
 }
 

@@ -89,6 +89,27 @@
 #include "e1000_82571.h"
 #include "if_em.h"
 
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
+
+#define	EM_CORE_LOCK_COND(adapter, locking) do {			\
+	if ((locking) != 0)						\
+		EM_CORE_LOCK(adapter);					\
+} while (0)
+#define	EM_CORE_UNLOCK_COND(adapter, locking) do {			\
+	if ((locking) != 0)						\
+		EM_CORE_UNLOCK(adapter);				\
+} while (0)
+#define	EM_TX_LOCK_COND(txr, locking) do {				\
+	if ((locking) != 0)						\
+		EM_TX_LOCK(txr);					\
+} while (0)
+#define	EM_TX_UNLOCK_COND(txr, locking) do {				\
+	if ((locking) != 0)						\
+		EM_CORE_UNLOCK(txr);					\
+} while (0)
+
+#endif
+
 /*********************************************************************
  *  Set this to one to display debug statistics
  *********************************************************************/
@@ -1392,11 +1413,9 @@ _em_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count, int locking)
 	u32		reg_icr;
 	int		rx_done;
 
-	if (locking != 0)
-		EM_CORE_LOCK(adapter);
+	EM_CORE_LOCK_COND(adapter, locking);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		if (locking != 0)
-			EM_CORE_UNLOCK(adapter);
+		EM_CORE_UNLOCK_COND(adapter, locking);
 		return (0);
 	}
 
@@ -1410,13 +1429,11 @@ _em_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count, int locking)
 			    em_local_timer, adapter);
 		}
 	}
-	if (locking != 0)
-		EM_CORE_UNLOCK(adapter);
+	EM_CORE_UNLOCK_COND(adapter, locking);
 
 	em_rxeof(rxr, count, &rx_done);
 
-	if (locking != 0)
-		EM_TX_LOCK(txr);
+	EM_TX_LOCK_COND(txr, locking);
 	em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
@@ -1425,8 +1442,7 @@ _em_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count, int locking)
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		em_start_locked(ifp, txr);
 #endif
-	if (locking != 0)
-		EM_TX_UNLOCK(txr);
+	EM_TX_UNLOCK_COND(txr, locking);
 
 	return (rx_done);
 }
