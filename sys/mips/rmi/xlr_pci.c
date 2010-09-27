@@ -310,19 +310,6 @@ static void
 xlr_pcib_identify(driver_t * driver, device_t parent)
 {
 
-	if (xlr_board_info.is_xls) {
-		xlr_reg_t *pcie_mmio_le = xlr_io_mmio(XLR_IO_PCIE_1_OFFSET);
-		xlr_reg_t reg_link0 = xlr_read_reg(pcie_mmio_le, (0x80 >> 2));
-		xlr_reg_t reg_link1 = xlr_read_reg(pcie_mmio_le, (0x84 >> 2));
-
-		if ((uint16_t) reg_link0 & PCIE_LINK_STATE) {
-			device_printf(parent, "Link 0 up\n");
-		}
-		if ((uint16_t) reg_link1 & PCIE_LINK_STATE) {
-			device_printf(parent, "Link 1 up\n");
-		}
-	}
-
 	BUS_ADD_CHILD(parent, 0, "pcib", 0);
 }
 
@@ -366,9 +353,15 @@ xls_pcie_link_irq(int link)
 	case 1:
 		return (PIC_PCIE_LINK1_IRQ);
 	case 2:
-		return (PIC_PCIE_LINK2_IRQ);
+		if (xlr_is_xls_b0())
+			return (PIC_PCIE_B0_LINK2_IRQ);
+		else
+			return (PIC_PCIE_LINK2_IRQ);
 	case 3:
-		return (PIC_PCIE_LINK3_IRQ);
+		if (xlr_is_xls_b0())
+			return (PIC_PCIE_B0_LINK3_IRQ);
+		else
+			return (PIC_PCIE_LINK3_IRQ);
 	}
 	return (-1);
 }
@@ -395,8 +388,6 @@ xlr_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
 	for (i = 0; i < count; i++)
 		irqs[i] = 64 + link * 32 + i;
 
-	device_printf(dev, "Alloc MSI count %d maxcount %d irq %d link %d\n",
-			count, maxcount, i, link);
 	return (0);
 }
 
@@ -414,7 +405,6 @@ xlr_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 {
 	int msi;
 
-	device_printf(dev, "MAP MSI irq %d\n", irq);
 	if (irq >= 64) {
 		msi = irq - 64;
 		*addr = MIPS_MSI_ADDR(0);
@@ -448,9 +438,11 @@ bridge_pcie_ack(int irq)
 		reg = PCIE_LINK1_MSI_STATUS;
 		break;
 	case PIC_PCIE_LINK2_IRQ:
+	case PIC_PCIE_B0_LINK2_IRQ:
 		reg = PCIE_LINK2_MSI_STATUS;
 		break;
 	case PIC_PCIE_LINK3_IRQ:
+	case PIC_PCIE_B0_LINK3_IRQ:
 		reg = PCIE_LINK3_MSI_STATUS;
 		break;
 	default:
@@ -476,8 +468,6 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 		return (EINVAL);
 	}
 	xlrirq = rman_get_start(irq);
-	device_printf(dev, "%s: setup intr %d\n", device_get_nameunit(child),
-			xlrirq);
 
 	if (strcmp(device_get_name(dev), "pcib") != 0)
 		return (0);
@@ -527,9 +517,6 @@ xlr_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource *rv;
 	vm_offset_t va;
 	int needactivate = flags & RF_ACTIVE;
-
-	device_printf(child, "Alloc res type %d, rid %d, start %lx, end %lx, count %lx flags %u\n",
-			type, *rid, start, end, count, flags);
 
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -603,8 +590,6 @@ mips_pci_route_interrupt(device_t bus, device_t dev, int pin)
 	/*
 	 * Validate requested pin number.
 	 */
-	device_printf(dev, "route intr pin %d (bus %d, slot %d)\n",
-	    pin, pci_get_bus(dev), pci_get_slot(dev));
 	if ((pin < 1) || (pin > 4))
 		return (255);
 
