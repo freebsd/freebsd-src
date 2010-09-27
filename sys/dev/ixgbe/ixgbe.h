@@ -380,6 +380,8 @@ struct adapter {
 	u32		rx_mask;
 	u32		rx_process_limit;
 
+	/* Multicast array memory */
+	u8			*mta;
 #ifdef IXGBE_TIMESYNC
 	u64		last_stamp;
 	u64		last_sec;

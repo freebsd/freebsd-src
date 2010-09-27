@@ -391,6 +391,8 @@ struct adapter {
 	bool		has_manage;
 	bool		has_amt;
 
+	/* Multicast array memory */
+	u8		*mta;
 	/* Info about the board itself */
 	uint8_t		link_active;
 	uint16_t	link_speed;
