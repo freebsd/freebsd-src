@@ -338,7 +338,7 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			err = EINVAL;
 			goto out;
 		}
-		if (len == 1)
+		if (len == 1 && msgs[i].flags & IIC_M_RD)
 			WR4(sc, TWI_CR, TWI_CR_START | TWI_CR_STOP);
 		else
 			WR4(sc, TWI_CR, TWI_CR_START);
@@ -348,7 +348,7 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 				if ((sr = RD4(sc, TWI_SR)) & TWI_SR_RXRDY) {
 					len--;
 					*buf++ = RD4(sc, TWI_RHR) & 0xff;
-					if (len == 0 && msgs[i].len != 1)
+					if (len == 1)
 						WR4(sc, TWI_CR, TWI_CR_STOP);
 				}
 			}
@@ -358,8 +358,6 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			}
 		} else {
 			while (len--) {
-				if (len == 0 && msgs[i].len != 1)
-					WR4(sc, TWI_CR, TWI_CR_STOP);
 				if ((err = at91_twi_wait(sc, TWI_SR_TXRDY)))
 					goto out;
 				WR4(sc, TWI_THR, *buf++);

@@ -33,6 +33,7 @@
 */
 
 #include "opt_ddb.h"
+#include "opt_kdb.h"
 #include "opt_netdump.h"
 
 #include <sys/cdefs.h>
@@ -1056,11 +1057,14 @@ done:
 static void
 netdump_network_poll()
 {
-	if (panicstr == NULL)
-		nd_nic->if_ndumpfuncs->poll_locked(nd_nic,
+
+#if defined(KDB) && !defined(KDB_UNATTENDED)
+	if (panicstr != NULL)
+		nd_nic->if_ndumpfuncs->poll_unlocked(nd_nic,
 		    POLL_AND_CHECK_STATUS, 1000);
 	else
-		nd_nic->if_ndumpfuncs->poll_unlocked(nd_nic,
+#endif
+		nd_nic->if_ndumpfuncs->poll_locked(nd_nic,
 		    POLL_AND_CHECK_STATUS, 1000);
 }
 
@@ -1170,8 +1174,12 @@ netdump_trigger(void *arg, int howto)
 	dumptid = curthread->td_tid;
 	dumping++;
 
-	if (panicstr == NULL && (nd_nic->if_capenable & IFCAP_POLLING) == 0)
-		nd_nic->if_ndumpfuncs->disable_intr(nd_nic);
+	if ((nd_nic->if_capenable & IFCAP_POLLING) == 0) {
+#if defined(KDB) && !defined(KDB_UNATTENDED)
+		if (panicstr == NULL)
+#endif
+			nd_nic->if_ndumpfuncs->disable_intr(nd_nic);
+	}
 
 	/* Make the card use *our* receive callback */
 	old_if_input = nd_nic->if_input;
@@ -1221,8 +1229,12 @@ netdump_trigger(void *arg, int howto)
 trig_abort:
 	if (old_if_input)
 		nd_nic->if_input = old_if_input;
-	if (panicstr == NULL && (nd_nic->if_capenable & IFCAP_POLLING) == 0)
-		nd_nic->if_ndumpfuncs->enable_intr(nd_nic);
+	if ((nd_nic->if_capenable & IFCAP_POLLING) == 0) {
+#if defined(KDB) && !defined(KDB_UNATTENDED)
+		if (panicstr == NULL)
+#endif
+			nd_nic->if_ndumpfuncs->enable_intr(nd_nic);
+	}
 	dumping--;
 }
 

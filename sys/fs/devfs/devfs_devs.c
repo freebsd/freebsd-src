@@ -142,6 +142,27 @@ devfs_alloc(int flags)
 	return (cdev);
 }
 
+int
+devfs_dev_exists(const char *name)
+{
+	struct cdev_priv *cdp;
+
+	mtx_assert(&devmtx, MA_OWNED);
+
+	TAILQ_FOREACH(cdp, &cdevp_list, cdp_list) {
+		if ((cdp->cdp_flags & CDP_ACTIVE) == 0)
+			continue;
+		if (devfs_pathpath(cdp->cdp_c.si_name, name) != 0)
+			return (1);
+		if (devfs_pathpath(name, cdp->cdp_c.si_name) != 0)
+			return (1);
+	}
+	if (devfs_dir_find(name) != 0)
+		return (1);
+
+	return (0);
+}
+
 void
 devfs_free(struct cdev *cdev)
 {
@@ -338,6 +359,10 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int flags)
 		dd = devfs_parent_dirent(de);
 		if (dd != NULL)
 			DEVFS_DE_HOLD(dd);
+		if (de->de_flags & DE_USER) {
+			KASSERT(dd != NULL, ("devfs_delete: NULL dd"));
+			devfs_dir_unref_de(dm, dd);
+		}
 	} else
 		dd = NULL;
 
@@ -396,10 +421,17 @@ devfs_purge(struct devfs_mount *dm, struct devfs_dirent *dd)
 
 	DEVFS_DE_HOLD(dd);
 	for (;;) {
-		de = TAILQ_FIRST(&dd->de_dlist);
+		/*
+		 * Use TAILQ_LAST() to remove "." and ".." last.
+		 * We might need ".." to resolve a path in
+		 * devfs_dir_unref_de().
+		 */
+		de = TAILQ_LAST(&dd->de_dlist, devfs_dlist_head);
 		if (de == NULL)
 			break;
 		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
+		if (de->de_flags & DE_USER)
+			devfs_dir_unref_de(dm, dd);
 		if (de->de_flags & (DE_DOT | DE_DOTDOT))
 			devfs_delete(dm, de, DEVFS_DEL_NORECURSE);
 		else if (de->de_dirent->d_type == DT_DIR)
