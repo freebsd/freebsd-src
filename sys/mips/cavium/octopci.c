@@ -92,7 +92,7 @@ static void	octopci_write_config(device_t, u_int, u_int, u_int, u_int,
 				     uint32_t, int);
 static int	octopci_route_interrupt(device_t, device_t, int);
 
-static void	octopci_init_bar(device_t, unsigned, unsigned, unsigned, unsigned);
+static void	octopci_init_bar(device_t, unsigned, unsigned, unsigned, unsigned, uint8_t *);
 static unsigned	octopci_init_device(device_t, unsigned, unsigned, unsigned, unsigned);
 static unsigned	octopci_init_bus(device_t, unsigned);
 static uint64_t	octopci_cs_addr(unsigned, unsigned, unsigned, unsigned);
@@ -148,6 +148,7 @@ octopci_attach(device_t dev)
 	 */
 	switch (cvmx_sysinfo_get()->board_type) {
 #if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
 		/* 32-bit PCI-X */
 		cvmx_write_csr(CVMX_CIU_SOFT_PRST, 0x0);
@@ -422,14 +423,14 @@ octopci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_IOPORT:
 		rman_set_bushandle(res, CVMX_ADDR_DID(CVMX_FULL_DID(CVMX_OCT_DID_PCI, CVMX_OCT_SUBDID_PCI_IO)) + rman_get_start(res));
+#if __mips_n64
+		rman_set_virtual(res, (void *)rman_get_bushandle(res));
+#else
 		/*
 		 * XXX
-		 * We should just disallow use of io ports on !n64 since without
-		 * 64-bit PTEs we can't even do a 32-bit virtual address
-		 * mapped to them.
+		 * We can't access ports via a 32-bit pointer.
 		 */
-#if 0
-		rman_set_virtual(res, (void *)rman_get_bushandle(res));
+		rman_set_virtual(res, NULL);
 #endif
 		break;
 	}
@@ -549,8 +550,19 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
         slot = pci_get_slot(child);
         func = pci_get_function(child);
 
-#if defined(OCTEON_VENDOR_LANNER)
+	/*
+	 * Board types we have to know at compile-time.
+	 */
+#if defined(OCTEON_BOARD_CAPK_0100ND)
+	if (bus == 0 && slot == 12 && func == 0)
+		return (CVMX_IRQ_PCI_INT2);
+#endif
+
+	/*
+	 * For board types we can determine at runtime.
+	 */
 	switch (cvmx_sysinfo_get()->board_type) {
+#if defined(OCTEON_VENDOR_LANNER)
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
 		return (CVMX_IRQ_PCI_INT0 + pin - 1);
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
@@ -562,10 +574,10 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
 			return (CVMX_IRQ_PCI_INT0 + (irq & 3));
 		}
 		break;
+#endif
 	default:
 		break;
 	}
-#endif
 
 	irq = slot + pin - 3;
 
@@ -573,7 +585,7 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
 }
 
 static void
-octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barnum)
+octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barnum, uint8_t *commandp)
 {
 	struct octopci_softc *sc;
 	uint32_t bar;
@@ -603,6 +615,11 @@ octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barn
 		octopci_write_config(dev, b, s, f, PCIR_BAR(barnum),
 		    CVMX_OCT_PCI_IO_BASE + sc->sc_io_next, 4);
 		sc->sc_io_next += size;
+
+		/*
+		 * Enable I/O ports.
+		 */
+		*commandp |= PCIM_CMD_PORTEN;
 	} else {
 		size = ~(bar & (uint32_t)PCIM_BAR_MEM_BASE) + 1;
 
@@ -615,6 +632,11 @@ octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barn
 		octopci_write_config(dev, b, s, f, PCIR_BAR(barnum),
 		    CVMX_OCT_PCI_MEM1_BASE + sc->sc_mem1_next, 4);
 		sc->sc_mem1_next += size;
+
+		/*
+		 * Enable memory access.
+		 */
+		*commandp |= PCIM_CMD_MEMEN;
 	}
 }
 
@@ -629,6 +651,13 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 
 	/* Read header type (again.)  */
 	hdrtype = octopci_read_config(dev, b, s, f, PCIR_HDRTYPE, 1);
+
+	/*
+	 * Disable memory and I/O while programming BARs.
+	 */
+	command = octopci_read_config(dev, b, s, f, PCIR_COMMAND, 1);
+	command &= ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN);
+	octopci_write_config(dev, b, s, f, PCIR_COMMAND, command, 1);
 
 	/* Program BARs.  */
 	switch (hdrtype & PCIM_HDRTYPE) {
@@ -648,14 +677,12 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 	}
 
 	for (barnum = 0; barnum < bars; barnum++)
-		octopci_init_bar(dev, b, s, f, barnum);
-
-	/* Enable memory and I/O.  */
-	command = octopci_read_config(dev, b, s, f, PCIR_COMMAND, 1);
-	command |= PCIM_CMD_MEMEN | PCIM_CMD_PORTEN;
+		octopci_init_bar(dev, b, s, f, barnum, &command);
 
 	/* Enable bus mastering.  */
 	command |= PCIM_CMD_BUSMASTEREN;
+
+	/* Enable whatever facilities the BARs require.  */
 	octopci_write_config(dev, b, s, f, PCIR_COMMAND, command, 1);
 
 	/* 
@@ -668,6 +695,38 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 	/* Set latency timer.  */
 	octopci_write_config(dev, b, s, f, PCIR_LATTIMER, 48, 1);
 
+	/* Board-specific or device-specific fixups and workarounds.  */
+	switch (cvmx_sysinfo_get()->board_type) {
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
+		if (b == 1 && s == 7 && f == 0) {
+			bus_addr_t busaddr, unitbusaddr;
+			uint32_t bar;
+			uint32_t tmp;
+			unsigned unit;
+
+			/*
+			 * Set Tx DMA power.
+			 */
+			bar = octopci_read_config(dev, b, s, f,
+			    PCIR_BAR(3), 4);
+			busaddr = CVMX_ADDR_DID(CVMX_FULL_DID(CVMX_OCT_DID_PCI,
+			    CVMX_OCT_SUBDID_PCI_MEM1));
+			busaddr += (bar & (uint32_t)PCIM_BAR_MEM_BASE);
+			for (unit = 0; unit < 4; unit++) {
+				unitbusaddr = busaddr + 0x430 + (unit << 8);
+				tmp = le32toh(cvmx_read64_uint32(unitbusaddr));
+				tmp &= ~0x700;
+				tmp |= 0x300;
+				cvmx_write64_uint32(unitbusaddr, htole32(tmp));
+			}
+		}
+		break;
+#endif
+	default:
+		break;
+	}
+
 	/* Configure PCI-PCI bridges.  */
 	class = octopci_read_config(dev, b, s, f, PCIR_CLASS, 1);
 	if (class != PCIC_BRIDGE)
@@ -676,6 +735,10 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 	subclass = octopci_read_config(dev, b, s, f, PCIR_SUBCLASS, 1);
 	if (subclass != PCIS_BRIDGE_PCI)
 		return (secbus);
+
+	/* Enable memory and I/O access.  */
+	command |= PCIM_CMD_MEMEN | PCIM_CMD_PORTEN;
+	octopci_write_config(dev, b, s, f, PCIR_COMMAND, command, 1);
 
 	/* Enable errors and parity checking.  Do a bus reset.  */
 	brctl = octopci_read_config(dev, b, s, f, PCIR_BRIDGECTL_1, 1);
