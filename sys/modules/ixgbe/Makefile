@@ -9,9 +9,4 @@ SRCS    += ixgbe_82598.c ixgbe_82599.c
 
 CFLAGS+= -I${.CURDIR}/../../dev/ixgbe
 
-clean:
-	rm -f opt_bdg.h device_if.h bus_if.h pci_if.h setdef* *_StripErr
-	rm -f *.o *.kld *.ko
-	rm -f @ machine
-
 .include <bsd.kmod.mk>
