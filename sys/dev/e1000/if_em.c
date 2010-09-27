@@ -576,6 +576,15 @@ em_attach(device_t dev)
 		goto err_pci;
 	}
 
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u8) * ETH_ADDR_LEN *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_late;
+	}
+
 	/*
 	** Start from a known state, this is
 	** important in reading the nvm and
@@ -674,6 +683,7 @@ err_late:
 		if_free(adapter->ifp);
 err_pci:
 	em_free_pci_resources(adapter);
+	free(adapter->mta, M_DEVBUF);
 	EM_CORE_LOCK_DESTROY(adapter);
 
 	return (error);
@@ -739,6 +749,7 @@ em_detach(device_t dev)
 	em_free_receive_structures(adapter);
 
 	em_release_hw_control(adapter);
+	free(adapter->mta, M_DEVBUF);
 
 	return (0);
 }
@@ -1998,6 +2009,9 @@ em_set_multi(struct adapter *adapter)
 
 	IOCTL_DEBUGOUT("em_set_multi: begin");
 
+	mta = adapter->mta;
+	bzero(mta, sizeof(u8) * ETH_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES);
+
 	if (adapter->hw.mac.type == e1000_82542 && 
 	    adapter->hw.revision_id == E1000_REVISION_2) {
 		reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
@@ -2007,13 +2021,6 @@ em_set_multi(struct adapter *adapter)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 		msec_delay(5);
 	}
-
-	/* Allocate temporary memory to setup array */
-	mta = malloc(sizeof(u8) *
-	    (ETH_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (mta == NULL)
-		panic("em_set_multi memory failure\n");
 
 #if __FreeBSD_version < 800000
 	IF_ADDR_LOCK(ifp);
@@ -2052,7 +2059,6 @@ em_set_multi(struct adapter *adapter)
 		if (adapter->hw.bus.pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
 			e1000_pci_set_mwi(&adapter->hw);
 	}
-	free(mta, M_DEVBUF);
 }
 
 
