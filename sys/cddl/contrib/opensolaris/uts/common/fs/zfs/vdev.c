@@ -928,7 +928,7 @@ vdev_probe(vdev_t *vd, zio_t *zio)
 
 		vps->vps_flags = ZIO_FLAG_CANFAIL | ZIO_FLAG_PROBE |
 		    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_AGGREGATE |
-		    ZIO_FLAG_DONT_RETRY;
+		    ZIO_FLAG_TRYHARD;
 
 		if (spa_config_held(spa, SCL_ZIO, RW_WRITER)) {
 			/*
@@ -1025,7 +1025,7 @@ vdev_open(vdev_t *vd)
 	error = vd->vdev_ops->vdev_op_open(vd, &osize, &ashift);
 
 	if (zio_injection_enabled && error == 0)
-		error = zio_handle_device_injection(vd, ENXIO);
+		error = zio_handle_device_injection(vd, NULL, ENXIO);
 
 	if (error) {
 		if (vd->vdev_removed &&
@@ -2205,6 +2205,16 @@ vdev_stat_update(zio_t *zio, uint64_t psize)
 	}
 
 	if (flags & ZIO_FLAG_SPECULATIVE)
+		return;
+
+	/*
+	 * If this is an I/O error that is going to be retried, then ignore the
+	 * error.  Otherwise, the user may interpret B_FAILFAST I/O errors as
+	 * hard errors, when in reality they can happen for any number of
+	 * innocuous reasons (bus resets, MPxIO link failure, etc).
+	 */
+	if (zio->io_error == EIO &&
+	    !(zio->io_flags & ZIO_FLAG_IO_RETRY))
 		return;
 
 	mutex_enter(&vd->vdev_stat_lock);
