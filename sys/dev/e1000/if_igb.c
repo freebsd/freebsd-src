@@ -4727,9 +4727,9 @@ igb_update_stats_counters(struct adapter *adapter)
 	/* Both registers clear on the read of the high dword */
 
 	adapter->stats.gorc += E1000_READ_REG(&adapter->hw, E1000_GORCL) +
-	  ((u64)E1000_READ_REG(&adapter->hw, E1000_GORCH) << 32);
+	    ((u64)E1000_READ_REG(&adapter->hw, E1000_GORCH) << 32);
 	adapter->stats.gotc += E1000_READ_REG(&adapter->hw, E1000_GOTCL) +
-	  ((u64)E1000_READ_REG(&adapter->hw, E1000_GOTCH) << 32) ;
+	    ((u64)E1000_READ_REG(&adapter->hw, E1000_GOTCH) << 32) ;
 
 	adapter->stats.rnbc += E1000_READ_REG(&adapter->hw, E1000_RNBC);
 	adapter->stats.ruc += E1000_READ_REG(&adapter->hw, E1000_RUC);
@@ -4822,77 +4822,16 @@ igb_update_stats_counters(struct adapter *adapter)
 
 }
 
-
-/** igb_sysctl_tdh_handler - Handler function
- *  Retrieves the TDH value from the hardware
- */
-static int 
-igb_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS)
+/* Export a single 32-bit register via a read-only sysctl. */
+static int
+igb_sysctl_reg_handler(SYSCTL_HANDLER_ARGS)
 {
-	int error;
+	struct adapter *adapter;
+	u_int val;
 
-	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
-	if (!txr) return 0;
-
-	unsigned val = E1000_READ_REG(&txr->adapter->hw, E1000_TDH(txr->me));
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
-/** igb_sysctl_tdt_handler - Handler function
- *  Retrieves the TDT value from the hardware
- */
-static int 
-igb_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
-	if (!txr) return 0;
-
-	unsigned val = E1000_READ_REG(&txr->adapter->hw, E1000_TDT(txr->me));
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
-/** igb_sysctl_rdh_handler - Handler function
- *  Retrieves the RDH value from the hardware
- */
-static int 
-igb_sysctl_rdh_handler(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
-	if (!rxr) return 0;
-
-	unsigned val = E1000_READ_REG(&rxr->adapter->hw, E1000_RDH(rxr->me));
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
-/** igb_sysctl_rdt_handler - Handler function
- *  Retrieves the RDT value from the hardware
- */
-static int 
-igb_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
-	if (!rxr) return 0;
-
-	unsigned val = E1000_READ_REG(&rxr->adapter->hw, E1000_RDT(rxr->me));
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
+	adapter = oidp->oid_arg1;
+	val = E1000_READ_REG(&adapter->hw, oidp->oid_arg2);
+	return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
 /*
@@ -4901,7 +4840,6 @@ igb_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
 static void
 igb_add_hw_stats(struct adapter *adapter)
 {
-
 	device_t dev = adapter->dev;
 
 	struct tx_ring *txr = adapter->tx_rings;
@@ -4928,6 +4866,12 @@ igb_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_dma_fail", 
 			CTLFLAG_RD, &adapter->no_tx_dma_setup,
 			"Driver tx dma failure in xmit");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "rx_overruns",
+			CTLFLAG_RD, &adapter->rx_overruns,
+			"RX overruns");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_timeouts",
+			CTLFLAG_RD, &adapter->watchdog_events,
+			"Watchdog timeouts");
 
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "device_control", 
 			CTLFLAG_RD, &adapter->device_control,
@@ -4954,19 +4898,21 @@ igb_add_hw_stats(struct adapter *adapter)
 			CTLFLAG_RD, &adapter->hw.fc.low_water, 0,
 			"Flow Control Low Watermark");
 
-	for (int i = 0; i < adapter->num_queues; i++, txr++) {
+	for (int i = 0; i < adapter->num_queues; i++, rxr++, txr++) {
+		struct lro_ctrl *lro = &rxr->lro;
+
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
 					    CTLFLAG_RD, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
-				CTLFLAG_RD, txr, sizeof(txr),
-				igb_sysctl_tdh_handler, "IU",
+				CTLFLAG_RD, adapter, E1000_TDH(txr->me),
+				igb_sysctl_reg_handler, "IU",
  				"Transmit Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail", 
-				CTLFLAG_RD, txr, sizeof(txr),
-				igb_sysctl_tdt_handler, "IU",
+				CTLFLAG_RD, adapter, E1000_TDT(txr->me),
+				igb_sysctl_reg_handler, "IU",
  				"Transmit Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
@@ -4974,28 +4920,14 @@ igb_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 				CTLFLAG_RD, &txr->tx_packets,
 				"Queue Packets Transmitted");
-	}
-
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
-		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
-		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, 
-					    CTLFLAG_RD, NULL, "Queue Name");
-		queue_list = SYSCTL_CHILDREN(queue_node);
-
-		struct lro_ctrl *lro = &rxr->lro;
-
-		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
-		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, 
-					    CTLFLAG_RD, NULL, "Queue Name");
-		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
-				CTLFLAG_RD, rxr, sizeof(rxr),
-				igb_sysctl_rdh_handler, "IU",
+				CTLFLAG_RD, adapter, E1000_RDH(rxr->me),
+				igb_sysctl_reg_handler, "IU",
 				"Receive Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail", 
-				CTLFLAG_RD, rxr, sizeof(rxr),
-				igb_sysctl_rdt_handler, "IU",
+				CTLFLAG_RD, adapter, E1000_RDT(rxr->me),
+				igb_sysctl_reg_handler, "IU",
 				"Receive Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 				CTLFLAG_RD, &rxr->rx_packets,
@@ -5011,7 +4943,7 @@ igb_add_hw_stats(struct adapter *adapter)
 				"LRO Flushed");
 	}
 
-	/* MAC stats get the own sub node */
+	/* MAC stats get their own sub node */
 
 	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac_stats", 
 				    CTLFLAG_RD, NULL, "MAC Statistics");
@@ -5078,12 +5010,6 @@ igb_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "coll_ext_errs",
 			CTLFLAG_RD, &adapter->stats.cexterr,
 			"Collision/Carrier extension errors");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_overruns",
-			CTLFLAG_RD, &adapter->rx_overruns,
-			"RX overruns");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "watchdog_timeouts",
-			CTLFLAG_RD, &adapter->watchdog_events,
-			"Watchdog timeouts");
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "xon_recvd",
 			CTLFLAG_RD, &adapter->stats.xonrxc,
 			"XON Received");
@@ -5132,9 +5058,9 @@ igb_add_hw_stats(struct adapter *adapter)
  			"Good Octets Received"); 
 
 	/* Packet Transmission Stats */
- 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octest_txd", 
+ 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_txd", 
  			CTLFLAG_RD, &adapter->stats.gotc, 
- 			"Good Octest Transmitted"); 
+ 			"Good Octets Transmitted"); 
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
 			CTLFLAG_RD, &adapter->stats.tpt,
 			"Total Packets Transmitted");
