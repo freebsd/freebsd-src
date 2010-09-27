@@ -659,6 +659,8 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 	command &= ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN);
 	octopci_write_config(dev, b, s, f, PCIR_COMMAND, command, 1);
 
+	DELAY(10000);
+
 	/* Program BARs.  */
 	switch (hdrtype & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_NORMAL:
@@ -684,6 +686,8 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 
 	/* Enable whatever facilities the BARs require.  */
 	octopci_write_config(dev, b, s, f, PCIR_COMMAND, command, 1);
+
+	DELAY(10000);
 
 	/* 
 	 * Set cache line size.  On Octeon it should be 128 bytes,
