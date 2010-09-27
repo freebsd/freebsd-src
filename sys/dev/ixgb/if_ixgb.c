@@ -108,7 +108,7 @@ static int      ixgb_allocate_pci_resources(struct adapter *);
 static void     ixgb_free_pci_resources(struct adapter *);
 static void     ixgb_local_timer(void *);
 static int      ixgb_hardware_init(struct adapter *);
-static void     ixgb_setup_interface(device_t, struct adapter *);
+static int      ixgb_setup_interface(device_t, struct adapter *);
 static int      ixgb_setup_transmit_structures(struct adapter *);
 static void     ixgb_initialize_transmit_unit(struct adapter *);
 static int      ixgb_setup_receive_structures(struct adapter *);
@@ -336,7 +336,8 @@ ixgb_attach(device_t dev)
 		goto err_hw_init;
 	}
 	/* Setup OS specific network interface */
-	ixgb_setup_interface(dev, adapter);
+	if (ixgb_setup_interface(dev, adapter) != 0)
+		goto err_hw_init;
 
 	/* Initialize statistics */
 	ixgb_clear_hw_cntrs(&adapter->hw);
@@ -351,6 +352,8 @@ err_rx_desc:
 	ixgb_dma_free(adapter, &adapter->txdma);
 err_tx_desc:
 err_pci:
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 	ixgb_free_pci_resources(adapter);
 	sysctl_ctx_free(&adapter->sysctl_ctx);
 	return (error);
@@ -1336,15 +1339,17 @@ ixgb_hardware_init(struct adapter * adapter)
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 ixgb_setup_interface(device_t dev, struct adapter * adapter)
 {
 	struct ifnet   *ifp;
 	INIT_DEBUGOUT("ixgb_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()\n", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 #if __FreeBSD_version >= 502000
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 #else
@@ -1397,7 +1402,7 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
 
-	return;
+	return (0);
 }
 
 /********************************************************************
