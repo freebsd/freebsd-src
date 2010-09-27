@@ -68,6 +68,7 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#include <machine/_inttypes.h>
 #include <machine/in_cksum.h>
 #include <machine/pcb.h>
 
