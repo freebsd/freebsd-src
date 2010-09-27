@@ -64,10 +64,10 @@ struct netdump_msg {
 typedef void ndumplock_handler_t(struct ifnet *);
 
 struct netdump_methods {
-	ndumplock_handler_t	*test_get_lock;
-	ndumplock_handler_t	*acquire_lock;
-	ndumplock_handler_t	*release_lock;
 	poll_handler_t		*poll_locked;
+	poll_handler_t		*poll_unlocked;
+	ndumplock_handler_t	*disable_intr;
+	ndumplock_handler_t	*enable_intr;
 };
 
 #endif

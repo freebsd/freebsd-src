@@ -1063,7 +1063,12 @@ done:
 static void
 netdump_network_poll()
 {
-	nd_nic->if_ndumpfuncs->poll_locked(nd_nic, POLL_AND_CHECK_STATUS, 1000);
+	if (panicstr == NULL)
+		nd_nic->if_ndumpfuncs->poll_locked(nd_nic,
+		    POLL_AND_CHECK_STATUS, 1000);
+	else
+		nd_nic->if_ndumpfuncs->poll_unlocked(nd_nic,
+		    POLL_AND_CHECK_STATUS, 1000);
 }
 
 /*-
@@ -1172,19 +1177,12 @@ netdump_trigger(void *arg, int howto)
 	dumptid = curthread->td_tid;
 	dumping++;
 
-	if (panicstr == NULL)
-		nd_nic->if_ndumpfuncs->acquire_lock(nd_nic);
+	if (panicstr == NULL && (nd_nic->if_capenable & IFCAP_POLLING) == 0)
+		nd_nic->if_ndumpfuncs->disable_intr(nd_nic);
 
 	/* Make the card use *our* receive callback */
 	old_if_input = nd_nic->if_input;
 	nd_nic->if_input = netdump_pkt_in;
-
-	/* Check if we can use polling */
-	if (!(nd_nic->if_capenable & IFCAP_POLLING)) {
-		printf("netdump_trigger: Can't dump: interface %s does not have"
-		       " polling enabled.\n", nd_nic->if_xname);
-		goto trig_abort;
-	}
 
 	if (nd_gw.s_addr == INADDR_ANY) {
 		nd_gw.s_addr = nd_server.s_addr;
@@ -1230,8 +1228,8 @@ netdump_trigger(void *arg, int howto)
 trig_abort:
 	if (old_if_input)
 		nd_nic->if_input = old_if_input;
-	if (panicstr == NULL)
-		nd_nic->if_ndumpfuncs->release_lock(nd_nic);
+	if (panicstr == NULL && (nd_nic->if_capenable & IFCAP_POLLING) == 0)
+		nd_nic->if_ndumpfuncs->enable_intr(nd_nic);
 	dumping--;
 }
 

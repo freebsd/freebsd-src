@@ -35,6 +35,7 @@
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
 #include "opt_inet.h"
+#include "opt_netdump.h"
 #endif
 
 #include <sys/param.h>
@@ -72,6 +73,9 @@
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#ifdef NETDUMP_CLIENT
+#include <netinet/netdump.h>
+#endif
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
@@ -262,13 +266,31 @@ static void	lem_add_rx_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
 #endif /* ~EM_LEGACY_IRQ */
 
-#ifdef DEVICE_POLLING
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
+static int	_lem_poll_generic(struct ifnet *ifp, enum poll_cmd cmd,
+		    int count, int locking);
 static poll_handler_t lem_poll;
-#endif /* POLLING */
+#endif
+#ifdef NETDUMP_CLIENT
+static poll_handler_t lem_poll_unlocked;
+static ndumplock_handler_t lem_ndump_disable_intr;
+static ndumplock_handler_t lem_ndump_enable_intr;
+#endif
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
  *********************************************************************/
+
+#ifdef NETDUMP_CLIENT
+
+static struct netdump_methods lem_ndump_methods = {
+	.poll_locked = lem_poll,
+	.poll_unlocked = lem_poll_unlocked,
+	.disable_intr = lem_ndump_disable_intr,
+	.enable_intr = lem_ndump_enable_intr
+};
+
+#endif
 
 static device_method_t lem_methods[] = {
 	/* Device interface */
@@ -1239,21 +1261,23 @@ lem_init(void *arg)
 }
 
 
-#ifdef DEVICE_POLLING
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
 /*********************************************************************
  *
  *  Legacy polling routine  
  *
  *********************************************************************/
 static int
-lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+_lem_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count, int locking)
 {
 	struct adapter *adapter = ifp->if_softc;
 	u32		reg_icr, rx_done = 0;
 
-	EM_CORE_LOCK(adapter);
+	if (locking != 0)
+		EM_CORE_LOCK(adapter);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		EM_CORE_UNLOCK(adapter);
+		if (locking != 0)
+			EM_CORE_UNLOCK(adapter);
 		return (rx_done);
 	}
 
@@ -1267,18 +1291,59 @@ lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			    lem_local_timer, adapter);
 		}
 	}
-	EM_CORE_UNLOCK(adapter);
+	if (locking != 0)
+		EM_CORE_UNLOCK(adapter);
 
 	lem_rxeof(adapter, count, &rx_done);
 
-	EM_TX_LOCK(adapter);
+	if (locking != 0)
+		EM_TX_LOCK(adapter);
 	lem_txeof(adapter);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		lem_start_locked(ifp);
-	EM_TX_UNLOCK(adapter);
+	if (locking != 0)
+		EM_TX_UNLOCK(adapter);
 	return (rx_done);
 }
-#endif /* DEVICE_POLLING */
+
+static int
+lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+
+	return (_lem_poll_generic(ifp, cmd, count, 1));
+}
+#endif /* !DEVICE_POLLING && !NETDUMP_CLIENT */
+
+#ifdef NETDUMP_CLIENT
+static int
+lem_poll_unlocked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+
+	return (_lem_poll_generic(ifp, cmd, count, 0));
+}
+
+static void
+lem_ndump_disable_intr(struct ifnet *ifp)
+{
+	struct adapter *adapter;
+
+	adapter = ifp->if_softc;
+	EM_CORE_LOCK(adapter);
+	lem_disable_intr(adapter);
+	EM_CORE_UNLOCK(adapter);
+}
+
+static void
+lem_ndump_enable_intr(struct ifnet *ifp)
+{
+	struct adapter *adapter;
+
+	adapter = ifp->if_softc;
+	EM_CORE_LOCK(adapter);
+	lem_enable_intr(adapter);
+	EM_CORE_UNLOCK(adapter);
+}
+#endif /* !NETDUMP_CLIENT */
 
 #ifdef EM_LEGACY_IRQ 
 /*********************************************************************
@@ -2416,6 +2481,9 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = lem_ioctl;
 	ifp->if_start = lem_start;
+#ifdef NETDUMP_CLIENT
+	ifp->if_ndumpfuncs = &lem_ndump_methods;
+#endif
 	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 1);
 	ifp->if_snd.ifq_drv_maxlen = adapter->num_tx_desc - 1;
 	IFQ_SET_READY(&ifp->if_snd);
