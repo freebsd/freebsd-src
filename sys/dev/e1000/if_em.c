@@ -4814,8 +4814,10 @@ em_update_stats_counters(struct adapter *adapter)
 	/* For the 64-bit byte counters the low dword must be read first. */
 	/* Both registers clear on the read of the high dword */
 
-	adapter->stats.gorc += E1000_READ_REG(&adapter->hw, E1000_GORCH);
-	adapter->stats.gotc += E1000_READ_REG(&adapter->hw, E1000_GOTCH);
+	adapter->stats.gorc += E1000_READ_REG(&adapter->hw, E1000_GORCL) +
+	    ((u64)E1000_READ_REG(&adapter->hw, E1000_GORCH) << 32);
+	adapter->stats.gotc += E1000_READ_REG(&adapter->hw, E1000_GOTCL) +
+	    ((u64)E1000_READ_REG(&adapter->hw, E1000_GOTCH) << 32);
 
 	adapter->stats.rnbc += E1000_READ_REG(&adapter->hw, E1000_RNBC);
 	adapter->stats.ruc += E1000_READ_REG(&adapter->hw, E1000_RUC);
@@ -4836,6 +4838,18 @@ em_update_stats_counters(struct adapter *adapter)
 	adapter->stats.ptc1522 += E1000_READ_REG(&adapter->hw, E1000_PTC1522);
 	adapter->stats.mptc += E1000_READ_REG(&adapter->hw, E1000_MPTC);
 	adapter->stats.bptc += E1000_READ_REG(&adapter->hw, E1000_BPTC);
+
+	/* Interrupt Counts */
+
+	adapter->stats.iac += E1000_READ_REG(&adapter->hw, E1000_IAC);
+	adapter->stats.icrxptc += E1000_READ_REG(&adapter->hw, E1000_ICRXPTC);
+	adapter->stats.icrxatc += E1000_READ_REG(&adapter->hw, E1000_ICRXATC);
+	adapter->stats.ictxptc += E1000_READ_REG(&adapter->hw, E1000_ICTXPTC);
+	adapter->stats.ictxatc += E1000_READ_REG(&adapter->hw, E1000_ICTXATC);
+	adapter->stats.ictxqec += E1000_READ_REG(&adapter->hw, E1000_ICTXQEC);
+	adapter->stats.ictxqmtc += E1000_READ_REG(&adapter->hw, E1000_ICTXQMTC);
+	adapter->stats.icrxdmtc += E1000_READ_REG(&adapter->hw, E1000_ICRXDMTC);
+	adapter->stats.icrxoc += E1000_READ_REG(&adapter->hw, E1000_ICRXOC);
 
 	if (adapter->hw.mac.type >= e1000_82543) {
 		adapter->stats.algnerrc += 
@@ -4866,6 +4880,17 @@ em_update_stats_counters(struct adapter *adapter)
 	    adapter->stats.latecol + adapter->watchdog_events;
 }
 
+/* Export a single 32-bit register via a read-only sysctl. */
+static int
+em_sysctl_reg_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *adapter;
+	u_int val;
+
+	adapter = oidp->oid_arg1;
+	val = E1000_READ_REG(&adapter->hw, oidp->oid_arg2);
+	return (sysctl_handle_int(oidp, &val, 0, req));
+}
 
 /*
  * Add sysctl variables, one per statistic, to the system.
@@ -4873,17 +4898,22 @@ em_update_stats_counters(struct adapter *adapter)
 static void
 em_add_hw_stats(struct adapter *adapter)
 {
-
 	device_t dev = adapter->dev;
+
+	struct tx_ring *txr = adapter->tx_rings;
+	struct rx_ring *rxr = adapter->rx_rings;
 
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
 	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
 	struct e1000_hw_stats *stats = &adapter->stats;
 
-	struct sysctl_oid *stat_node, *int_node, *host_node;
-	struct sysctl_oid_list *stat_list, *int_list, *host_list;
+	struct sysctl_oid *stat_node, *queue_node, *int_node;
+	struct sysctl_oid_list *stat_list, *queue_list, *int_list;
 
+#define QUEUE_NAME_LEN 32
+	char namebuf[QUEUE_NAME_LEN];
+	
 	/* Driver Statistics */
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "link_irq", 
 			CTLFLAG_RD, &adapter->link_irq, 0,
@@ -4900,7 +4930,21 @@ em_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_dma_fail", 
 			CTLFLAG_RD, &adapter->no_tx_dma_setup,
 			"Driver tx dma failure in xmit");
-
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "rx_overruns",
+			CTLFLAG_RD, &adapter->rx_overruns,
+			"RX overruns");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_timeouts",
+			CTLFLAG_RD, &adapter->watchdog_events,
+			"Watchdog timeouts");
+	
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "device_control",
+			CTLFLAG_RD, adapter, E1000_CTRL,
+			em_sysctl_reg_handler, "IU",
+			"Device Control Register");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_control",
+			CTLFLAG_RD, adapter, E1000_RCTL,
+			em_sysctl_reg_handler, "IU",
+			"Receiver Control Register");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_high_water",
 			CTLFLAG_RD, &adapter->hw.fc.high_water, 0,
 			"Flow Control High Watermark");
@@ -4908,7 +4952,41 @@ em_add_hw_stats(struct adapter *adapter)
 			CTLFLAG_RD, &adapter->hw.fc.low_water, 0,
 			"Flow Control Low Watermark");
 
-	/* MAC stats get the own sub node */
+	for (int i = 0; i < adapter->num_queues; i++, rxr++, txr++) {
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
+					    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
+				CTLFLAG_RD, adapter, E1000_TDH(txr->me),
+				em_sysctl_reg_handler, "IU",
+ 				"Transmit Descriptor Head");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail", 
+				CTLFLAG_RD, adapter, E1000_TDT(txr->me),
+				em_sysctl_reg_handler, "IU",
+ 				"Transmit Descriptor Tail");
+		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tx_irq",
+				CTLFLAG_RD, &txr->tx_irq,
+				"Queue MSI-X Transmit Interrupts");
+		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "no_desc_avail", 
+				CTLFLAG_RD, &txr->no_desc_avail,
+				"Queue No Descriptor Available");
+		
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
+				CTLFLAG_RD, adapter, E1000_RDH(rxr->me),
+				em_sysctl_reg_handler, "IU",
+				"Receive Descriptor Head");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail", 
+				CTLFLAG_RD, adapter, E1000_RDT(rxr->me),
+				em_sysctl_reg_handler, "IU",
+				"Receive Descriptor Tail");
+		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "rx_irq",
+				CTLFLAG_RD, &rxr->rx_irq,
+				"Queue MSI-X Receive Interrupts");
+	}
+
+	/* MAC stats get their own sub node */
 
 	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac_stats", 
 				    CTLFLAG_RD, NULL, "Statistics");
@@ -4917,6 +4995,18 @@ em_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "excess_coll", 
 			CTLFLAG_RD, &stats->ecol,
 			"Excessive collisions");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "single_coll", 
+			CTLFLAG_RD, &stats->scc,
+			"Single collisions");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "multiple_coll", 
+			CTLFLAG_RD, &stats->mcc,
+			"Multiple collisions");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "late_coll", 
+			CTLFLAG_RD, &stats->latecol,
+			"Late collisions");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "collision_count", 
+			CTLFLAG_RD, &stats->colc,
+			"Collision Count");
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "symbol_errors",
 			CTLFLAG_RD, &adapter->stats.symerrs,
 			"Symbol Errors");
@@ -4932,11 +5022,18 @@ em_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_no_buff",
 			CTLFLAG_RD, &adapter->stats.rnbc,
 			"Receive No Buffers");
-	/* RLEC is inaccurate on some hardware, calculate our own. */
-/* 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_len_errs", */
-/* 			CTLFLAG_RD, adapter->stats.roc + adapter->stats.ruc, */
-/* 			"Receive Length Errors"); */
-
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_undersize",
+			CTLFLAG_RD, &adapter->stats.ruc,
+			"Receive Undersize");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_fragmented",
+			CTLFLAG_RD, &adapter->stats.rfc,
+			"Fragmented Packets Received ");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_oversize",
+			CTLFLAG_RD, &adapter->stats.roc,
+			"Oversized Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_jabber",
+			CTLFLAG_RD, &adapter->stats.rjc,
+			"Recevied Jabber");
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_errs",
 			CTLFLAG_RD, &adapter->stats.rxerrc,
 			"Receive Errors");
@@ -4950,12 +5047,6 @@ em_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "coll_ext_errs",
 			CTLFLAG_RD, &adapter->stats.cexterr,
 			"Collision/Carrier extension errors");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_overruns",
-			CTLFLAG_RD, &adapter->rx_overruns,
-			"RX overruns");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "watchdog_timeouts",
-			CTLFLAG_RD, &adapter->watchdog_events,
-			"Watchdog timeouts");
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "xon_recvd",
 			CTLFLAG_RD, &adapter->stats.xonrxc,
 			"XON Received");
@@ -5005,9 +5096,9 @@ em_add_hw_stats(struct adapter *adapter)
  			"Good Octets Received"); 
 
 	/* Packet Transmission Stats */
- 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octest_txd", 
+ 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_txd", 
  			CTLFLAG_RD, &adapter->stats.gotc, 
- 			"Good Octest Transmitted"); 
+ 			"Good Octets Transmitted"); 
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
 			CTLFLAG_RD, &adapter->stats.tpt,
 			"Total Packets Transmitted");
@@ -5087,63 +5178,6 @@ em_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_QUAD(ctx, int_list, OID_AUTO, "rx_overrun",
 			CTLFLAG_RD, &adapter->stats.icrxoc,
 			"Interrupt Cause Receiver Overrun Count");
-
-	/* Host to Card Stats */
-
-	host_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "host", 
-				    CTLFLAG_RD, NULL, 
-				    "Host to Card Statistics");
-
-	host_list = SYSCTL_CHILDREN(host_node);
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "breaker_tx_pkt",
-			CTLFLAG_RD, &adapter->stats.cbtmpc,
-			"Circuit Breaker Tx Packet Count");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "host_tx_pkt_discard",
-			CTLFLAG_RD, &adapter->stats.htdpmc,
-			"Host Transmit Discarded Packets");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "rx_pkt",
-			CTLFLAG_RD, &adapter->stats.rpthc,
-			"Rx Packets To Host");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "breaker_rx_pkts",
-			CTLFLAG_RD, &adapter->stats.cbrmpc,
-			"Circuit Breaker Rx Packet Count");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "breaker_rx_pkt_drop",
-			CTLFLAG_RD, &adapter->stats.cbrdpc,
-			"Circuit Breaker Rx Dropped Count");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "tx_good_pkt",
-			CTLFLAG_RD, &adapter->stats.hgptc,
-			"Host Good Packets Tx Count");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "breaker_tx_pkt_drop",
-			CTLFLAG_RD, &adapter->stats.htcbdpc,
-			"Host Tx Circuit Breaker Dropped Count");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "rx_good_bytes",
-			CTLFLAG_RD, &adapter->stats.hgorc,
-			"Host Good Octets Received Count");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "tx_good_bytes",
-			CTLFLAG_RD, &adapter->stats.hgotc,
-			"Host Good Octets Transmit Count");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "length_errors",
-			CTLFLAG_RD, &adapter->stats.lenerrs,
-			"Length Errors");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "serdes_violation_pkt",
-			CTLFLAG_RD, &adapter->stats.scvpc,
-			"SerDes/SGMII Code Violation Pkt Count");
-
-	SYSCTL_ADD_QUAD(ctx, host_list, OID_AUTO, "header_redir_missed",
-			CTLFLAG_RD, &adapter->stats.hrmpc,
-			"Header Redirection Missed Packet Count");
-
 
 
 }

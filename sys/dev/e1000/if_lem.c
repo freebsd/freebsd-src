@@ -84,11 +84,6 @@
 #include "if_lem.h"
 
 /*********************************************************************
- *  Set this to one to display debug statistics
- *********************************************************************/
-int	lem_display_debug_stats = 0;
-
-/*********************************************************************
  *  Legacy Em Driver version:
  *********************************************************************/
 char lem_driver_version[] = "1.0.1";
@@ -196,6 +191,7 @@ static void	lem_disable_intr(struct adapter *);
 static void	lem_free_transmit_structures(struct adapter *);
 static void	lem_free_receive_structures(struct adapter *);
 static void	lem_update_stats_counters(struct adapter *);
+static void	lem_add_hw_stats(struct adapter *adapter);
 static void	lem_txeof(struct adapter *);
 static void	lem_tx_purge(struct adapter *);
 static int	lem_allocate_receive_structures(struct adapter *);
@@ -211,7 +207,6 @@ static void	lem_transmit_checksum_setup(struct adapter *, struct mbuf *,
 static void	lem_set_promisc(struct adapter *);
 static void	lem_disable_promisc(struct adapter *);
 static void	lem_set_multi(struct adapter *);
-static void	lem_print_hw_stats(struct adapter *);
 static void	lem_update_link_status(struct adapter *);
 static int	lem_get_buf(struct adapter *, int);
 #if __FreeBSD_version >= 700029
@@ -228,11 +223,9 @@ static void	lem_82547_move_tail(void *);
 static int	lem_dma_malloc(struct adapter *, bus_size_t,
 		    struct em_dma_alloc *, int);
 static void	lem_dma_free(struct adapter *, struct em_dma_alloc *);
-static void	lem_print_debug_info(struct adapter *);
+static int	lem_sysctl_nvm_info(SYSCTL_HANDLER_ARGS);
 static void	lem_print_nvm_info(struct adapter *);
 static int 	lem_is_valid_ether_addr(u8 *);
-static int	lem_sysctl_stats(SYSCTL_HANDLER_ARGS);
-static int	lem_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 static u32	lem_fill_descriptors (bus_addr_t address, u32 length,
 		    PDESC_ARRAY desc_array);
 static int	lem_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
@@ -417,13 +410,8 @@ lem_attach(device_t dev)
 	/* SYSCTL stuff */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "debug", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
-	    lem_sysctl_debug_info, "I", "Debug Information");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "stats", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
-	    lem_sysctl_stats, "I", "Statistics");
+	    OID_AUTO, "nvm", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
+	    lem_sysctl_nvm_info, "I", "NVM Information");
 
 	callout_init_mtx(&adapter->timer, &adapter->core_mtx, 0);
 	callout_init_mtx(&adapter->tx_fifo_timer, &adapter->tx_mtx, 0);
@@ -647,6 +635,8 @@ lem_attach(device_t dev)
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	    lem_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST); 
 #endif
+
+	lem_add_hw_stats(adapter);
 
 	/* Non-AMT based hardware can now take control from firmware */
 	if (adapter->has_manage && !adapter->has_amt)
@@ -2008,7 +1998,6 @@ static void
 lem_local_timer(void *arg)
 {
 	struct adapter	*adapter = arg;
-	struct ifnet	*ifp = adapter->ifp;
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
@@ -2016,9 +2005,6 @@ lem_local_timer(void *arg)
 	    &adapter->rxtx_task);
 	lem_update_link_status(adapter);
 	lem_update_stats_counters(adapter);
-
-	if (lem_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING)
-		lem_print_hw_stats(adapter);
 
 	lem_smartspeed(adapter);
 
@@ -4256,8 +4242,10 @@ lem_update_stats_counters(struct adapter *adapter)
 	/* For the 64-bit byte counters the low dword must be read first. */
 	/* Both registers clear on the read of the high dword */
 
-	adapter->stats.gorc += E1000_READ_REG(&adapter->hw, E1000_GORCH);
-	adapter->stats.gotc += E1000_READ_REG(&adapter->hw, E1000_GOTCH);
+	adapter->stats.gorc += E1000_READ_REG(&adapter->hw, E1000_GORCL) +
+	    ((u64)E1000_READ_REG(&adapter->hw, E1000_GORCH) << 32);
+	adapter->stats.gotc += E1000_READ_REG(&adapter->hw, E1000_GOTCL) +
+	    ((u64)E1000_READ_REG(&adapter->hw, E1000_GOTCH) << 32);
 
 	adapter->stats.rnbc += E1000_READ_REG(&adapter->hw, E1000_RNBC);
 	adapter->stats.ruc += E1000_READ_REG(&adapter->hw, E1000_RUC);
@@ -4308,109 +4296,247 @@ lem_update_stats_counters(struct adapter *adapter)
 	    adapter->stats.latecol + adapter->watchdog_events;
 }
 
-
-/**********************************************************************
- *
- *  This routine is called only when lem_display_debug_stats is enabled.
- *  This routine provides a way to take a look at important statistics
- *  maintained by the driver and hardware.
- *
- **********************************************************************/
-static void
-lem_print_debug_info(struct adapter *adapter)
+/* Export a single 32-bit register via a read-only sysctl. */
+static int
+lem_sysctl_reg_handler(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = adapter->dev;
-	u8 *hw_addr = adapter->hw.hw_addr;
+	struct adapter *adapter;
+	u_int val;
 
-	device_printf(dev, "Adapter hardware address = %p \n", hw_addr);
-	device_printf(dev, "CTRL = 0x%x RCTL = 0x%x \n",
-	    E1000_READ_REG(&adapter->hw, E1000_CTRL),
-	    E1000_READ_REG(&adapter->hw, E1000_RCTL));
-	device_printf(dev, "Packet buffer = Tx=%dk Rx=%dk \n",
-	    ((E1000_READ_REG(&adapter->hw, E1000_PBA) & 0xffff0000) >> 16),\
-	    (E1000_READ_REG(&adapter->hw, E1000_PBA) & 0xffff) );
-	device_printf(dev, "Flow control watermarks high = %d low = %d\n",
-	    adapter->hw.fc.high_water,
-	    adapter->hw.fc.low_water);
-	device_printf(dev, "tx_int_delay = %d, tx_abs_int_delay = %d\n",
-	    E1000_READ_REG(&adapter->hw, E1000_TIDV),
-	    E1000_READ_REG(&adapter->hw, E1000_TADV));
-	device_printf(dev, "rx_int_delay = %d, rx_abs_int_delay = %d\n",
-	    E1000_READ_REG(&adapter->hw, E1000_RDTR),
-	    E1000_READ_REG(&adapter->hw, E1000_RADV));
-	device_printf(dev, "fifo workaround = %lld, fifo_reset_count = %lld\n",
-	    (long long)adapter->tx_fifo_wrk_cnt,
-	    (long long)adapter->tx_fifo_reset_cnt);
-	device_printf(dev, "hw tdh = %d, hw tdt = %d\n",
-	    E1000_READ_REG(&adapter->hw, E1000_TDH(0)),
-	    E1000_READ_REG(&adapter->hw, E1000_TDT(0)));
-	device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
-	    E1000_READ_REG(&adapter->hw, E1000_RDH(0)),
-	    E1000_READ_REG(&adapter->hw, E1000_RDT(0)));
-	device_printf(dev, "Num Tx descriptors avail = %d\n",
-	    adapter->num_tx_desc_avail);
-	device_printf(dev, "Tx Descriptors not avail1 = %ld\n",
-	    adapter->no_tx_desc_avail1);
-	device_printf(dev, "Tx Descriptors not avail2 = %ld\n",
-	    adapter->no_tx_desc_avail2);
-	device_printf(dev, "Std mbuf failed = %ld\n",
-	    adapter->mbuf_alloc_failed);
-	device_printf(dev, "Std mbuf cluster failed = %ld\n",
-	    adapter->mbuf_cluster_failed);
-	device_printf(dev, "Driver dropped packets = %ld\n",
-	    adapter->dropped_pkts);
-	device_printf(dev, "Driver tx dma failure in encap = %ld\n",
-		adapter->no_tx_dma_setup);
+	adapter = oidp->oid_arg1;
+	val = E1000_READ_REG(&adapter->hw, oidp->oid_arg2);
+	return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
+/*
+ * Add sysctl variables, one per statistic, to the system.
+ */
 static void
-lem_print_hw_stats(struct adapter *adapter)
+lem_add_hw_stats(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
 
-	device_printf(dev, "Excessive collisions = %lld\n",
-	    (long long)adapter->stats.ecol);
-#if	(DEBUG_HW > 0)  /* Dont output these errors normally */
-	device_printf(dev, "Symbol errors = %lld\n",
-	    (long long)adapter->stats.symerrs);
-#endif
-	device_printf(dev, "Sequence errors = %lld\n",
-	    (long long)adapter->stats.sec);
-	device_printf(dev, "Defer count = %lld\n",
-	    (long long)adapter->stats.dc);
-	device_printf(dev, "Missed Packets = %lld\n",
-	    (long long)adapter->stats.mpc);
-	device_printf(dev, "Receive No Buffers = %lld\n",
-	    (long long)adapter->stats.rnbc);
-	/* RLEC is inaccurate on some hardware, calculate our own. */
-	device_printf(dev, "Receive Length Errors = %lld\n",
-	    ((long long)adapter->stats.roc + (long long)adapter->stats.ruc));
-	device_printf(dev, "Receive errors = %lld\n",
-	    (long long)adapter->stats.rxerrc);
-	device_printf(dev, "Crc errors = %lld\n",
-	    (long long)adapter->stats.crcerrs);
-	device_printf(dev, "Alignment errors = %lld\n",
-	    (long long)adapter->stats.algnerrc);
-	device_printf(dev, "Collision/Carrier extension errors = %lld\n",
-	    (long long)adapter->stats.cexterr);
-	device_printf(dev, "RX overruns = %ld\n", adapter->rx_overruns);
-	device_printf(dev, "watchdog timeouts = %ld\n",
-	    adapter->watchdog_events);
-	device_printf(dev, "RX MSIX IRQ = %ld TX MSIX IRQ = %ld"
-	    " LINK MSIX IRQ = %ld\n", adapter->rx_irq,
-	    adapter->tx_irq , adapter->link_irq);
-	device_printf(dev, "XON Rcvd = %lld\n",
-	    (long long)adapter->stats.xonrxc);
-	device_printf(dev, "XON Xmtd = %lld\n",
-	    (long long)adapter->stats.xontxc);
-	device_printf(dev, "XOFF Rcvd = %lld\n",
-	    (long long)adapter->stats.xoffrxc);
-	device_printf(dev, "XOFF Xmtd = %lld\n",
-	    (long long)adapter->stats.xofftxc);
-	device_printf(dev, "Good Packets Rcvd = %lld\n",
-	    (long long)adapter->stats.gprc);
-	device_printf(dev, "Good Packets Xmtd = %lld\n",
-	    (long long)adapter->stats.gptc);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+	struct e1000_hw_stats *stats = &adapter->stats;
+
+	struct sysctl_oid *stat_node;
+	struct sysctl_oid_list *stat_list;
+
+	/* Driver Statistics */
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_alloc_fail", 
+			 CTLFLAG_RD, &adapter->mbuf_alloc_failed,
+			 "Std mbuf failed");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "cluster_alloc_fail", 
+			 CTLFLAG_RD, &adapter->mbuf_cluster_failed,
+			 "Std mbuf cluster failed");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped", 
+			CTLFLAG_RD, &adapter->dropped_pkts,
+			"Driver dropped packets");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_dma_fail", 
+			CTLFLAG_RD, &adapter->no_tx_dma_setup,
+			"Driver tx dma failure in xmit");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_desc_fail1",
+			CTLFLAG_RD, &adapter->no_tx_desc_avail1,
+			"Not enough tx descriptors failure in xmit");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_desc_fail2",
+			CTLFLAG_RD, &adapter->no_tx_desc_avail2,
+			"Not enough tx descriptors failure in xmit");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "rx_overruns",
+			CTLFLAG_RD, &adapter->rx_overruns,
+			"RX overruns");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_timeouts",
+			CTLFLAG_RD, &adapter->watchdog_events,
+			"Watchdog timeouts");
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "device_control",
+			CTLFLAG_RD, adapter, E1000_CTRL,
+			lem_sysctl_reg_handler, "IU",
+			"Device Control Register");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_control",
+			CTLFLAG_RD, adapter, E1000_RCTL,
+			lem_sysctl_reg_handler, "IU",
+			"Receiver Control Register");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_high_water",
+			CTLFLAG_RD, &adapter->hw.fc.high_water, 0,
+			"Flow Control High Watermark");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_low_water", 
+			CTLFLAG_RD, &adapter->hw.fc.low_water, 0,
+			"Flow Control Low Watermark");
+	SYSCTL_ADD_QUAD(ctx, child, OID_AUTO, "fifo_workaround",
+			CTLFLAG_RD, &adapter->tx_fifo_wrk_cnt,
+			"TX FIFO workaround events");
+	SYSCTL_ADD_QUAD(ctx, child, OID_AUTO, "fifo_reset",
+			CTLFLAG_RD, &adapter->tx_fifo_reset_cnt,
+			"TX FIFO resets");
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "txd_head", 
+			CTLFLAG_RD, adapter, E1000_TDH(0),
+			lem_sysctl_reg_handler, "IU",
+ 			"Transmit Descriptor Head");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "txd_tail", 
+			CTLFLAG_RD, adapter, E1000_TDT(0),
+			lem_sysctl_reg_handler, "IU",
+ 			"Transmit Descriptor Tail");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rxd_head", 
+			CTLFLAG_RD, adapter, E1000_RDH(0),
+			lem_sysctl_reg_handler, "IU",
+			"Receive Descriptor Head");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rxd_tail", 
+			CTLFLAG_RD, adapter, E1000_RDT(0),
+			lem_sysctl_reg_handler, "IU",
+			"Receive Descriptor Tail");
+	
+
+	/* MAC stats get their own sub node */
+
+	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac_stats", 
+				    CTLFLAG_RD, NULL, "Statistics");
+	stat_list = SYSCTL_CHILDREN(stat_node);
+
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "excess_coll", 
+			CTLFLAG_RD, &stats->ecol,
+			"Excessive collisions");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "single_coll", 
+			CTLFLAG_RD, &stats->scc,
+			"Single collisions");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "multiple_coll", 
+			CTLFLAG_RD, &stats->mcc,
+			"Multiple collisions");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "late_coll", 
+			CTLFLAG_RD, &stats->latecol,
+			"Late collisions");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "collision_count", 
+			CTLFLAG_RD, &stats->colc,
+			"Collision Count");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "symbol_errors",
+			CTLFLAG_RD, &adapter->stats.symerrs,
+			"Symbol Errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "sequence_errors",
+			CTLFLAG_RD, &adapter->stats.sec,
+			"Sequence Errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "defer_count",
+			CTLFLAG_RD, &adapter->stats.dc,
+			"Defer Count");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "missed_packets",
+			CTLFLAG_RD, &adapter->stats.mpc,
+			"Missed Packets");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_no_buff",
+			CTLFLAG_RD, &adapter->stats.rnbc,
+			"Receive No Buffers");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_undersize",
+			CTLFLAG_RD, &adapter->stats.ruc,
+			"Receive Undersize");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_fragmented",
+			CTLFLAG_RD, &adapter->stats.rfc,
+			"Fragmented Packets Received ");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_oversize",
+			CTLFLAG_RD, &adapter->stats.roc,
+			"Oversized Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_jabber",
+			CTLFLAG_RD, &adapter->stats.rjc,
+			"Recevied Jabber");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_errs",
+			CTLFLAG_RD, &adapter->stats.rxerrc,
+			"Receive Errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "crc_errs",
+			CTLFLAG_RD, &adapter->stats.crcerrs,
+			"CRC errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "alignment_errs",
+			CTLFLAG_RD, &adapter->stats.algnerrc,
+			"Alignment Errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "coll_ext_errs",
+			CTLFLAG_RD, &adapter->stats.cexterr,
+			"Collision/Carrier extension errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "xon_recvd",
+			CTLFLAG_RD, &adapter->stats.xonrxc,
+			"XON Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "xon_txd",
+			CTLFLAG_RD, &adapter->stats.xontxc,
+			"XON Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "xoff_recvd",
+			CTLFLAG_RD, &adapter->stats.xoffrxc,
+			"XOFF Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "xoff_txd",
+			CTLFLAG_RD, &adapter->stats.xofftxc,
+			"XOFF Transmitted");
+
+	/* Packet Reception Stats */
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_recvd",
+			CTLFLAG_RD, &adapter->stats.tpr,
+			"Total Packets Received ");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_recvd",
+			CTLFLAG_RD, &adapter->stats.gprc,
+			"Good Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_recvd",
+			CTLFLAG_RD, &adapter->stats.bprc,
+			"Broadcast Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_recvd",
+			CTLFLAG_RD, &adapter->stats.mprc,
+			"Multicast Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_64",
+			CTLFLAG_RD, &adapter->stats.prc64,
+			"64 byte frames received ");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_65_127",
+			CTLFLAG_RD, &adapter->stats.prc127,
+			"65-127 byte frames received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_128_255",
+			CTLFLAG_RD, &adapter->stats.prc255,
+			"128-255 byte frames received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_256_511",
+			CTLFLAG_RD, &adapter->stats.prc511,
+			"256-511 byte frames received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_512_1023",
+			CTLFLAG_RD, &adapter->stats.prc1023,
+			"512-1023 byte frames received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_1024_1522",
+			CTLFLAG_RD, &adapter->stats.prc1522,
+			"1023-1522 byte frames received");
+ 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_recvd", 
+ 			CTLFLAG_RD, &adapter->stats.gorc, 
+ 			"Good Octets Received");
+
+	/* Packet Transmission Stats */
+ 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_txd", 
+ 			CTLFLAG_RD, &adapter->stats.gotc, 
+ 			"Good Octets Transmitted"); 
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
+			CTLFLAG_RD, &adapter->stats.tpt,
+			"Total Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
+			CTLFLAG_RD, &adapter->stats.gptc,
+			"Good Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
+			CTLFLAG_RD, &adapter->stats.bptc,
+			"Broadcast Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_txd",
+			CTLFLAG_RD, &adapter->stats.mptc,
+			"Multicast Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_64",
+			CTLFLAG_RD, &adapter->stats.ptc64,
+			"64 byte frames transmitted ");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_65_127",
+			CTLFLAG_RD, &adapter->stats.ptc127,
+			"65-127 byte frames transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_128_255",
+			CTLFLAG_RD, &adapter->stats.ptc255,
+			"128-255 byte frames transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_256_511",
+			CTLFLAG_RD, &adapter->stats.ptc511,
+			"256-511 byte frames transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_512_1023",
+			CTLFLAG_RD, &adapter->stats.ptc1023,
+			"512-1023 byte frames transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_1024_1522",
+			CTLFLAG_RD, &adapter->stats.ptc1522,
+			"1024-1522 byte frames transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tso_txd",
+			CTLFLAG_RD, &adapter->stats.tsctc,
+			"TSO Contexts Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tso_ctx_fail",
+			CTLFLAG_RD, &adapter->stats.tsctfc,
+			"TSO Contexts Failed");
 }
 
 /**********************************************************************
@@ -4420,6 +4546,33 @@ lem_print_hw_stats(struct adapter *adapter)
  *  32 words, stuff that matters is in that extent.
  *
  **********************************************************************/
+
+static int
+lem_sysctl_nvm_info(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *adapter;
+	int error;
+	int result;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+
+	/*
+	 * This value will cause a hex dump of the
+	 * first 32 16-bit words of the EEPROM to
+	 * the screen.
+	 */
+	if (result == 1) {
+		adapter = (struct adapter *)arg1;
+		lem_print_nvm_info(adapter);
+        }
+
+	return (error);
+}
+
 static void
 lem_print_nvm_info(struct adapter *adapter)
 {
@@ -4438,58 +4591,6 @@ lem_print_nvm_info(struct adapter *adapter)
 		printf("%04x ", eeprom_data);
 	}
 	printf("\n");
-}
-
-static int
-lem_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
-{
-	struct adapter *adapter;
-	int error;
-	int result;
-
-	result = -1;
-	error = sysctl_handle_int(oidp, &result, 0, req);
-
-	if (error || !req->newptr)
-		return (error);
-
-	if (result == 1) {
-		adapter = (struct adapter *)arg1;
-		lem_print_debug_info(adapter);
-	}
-	/*
-	 * This value will cause a hex dump of the
-	 * first 32 16-bit words of the EEPROM to
-	 * the screen.
-	 */
-	if (result == 2) {
-		adapter = (struct adapter *)arg1;
-		lem_print_nvm_info(adapter);
-        }
-
-	return (error);
-}
-
-
-static int
-lem_sysctl_stats(SYSCTL_HANDLER_ARGS)
-{
-	struct adapter *adapter;
-	int error;
-	int result;
-
-	result = -1;
-	error = sysctl_handle_int(oidp, &result, 0, req);
-
-	if (error || !req->newptr)
-		return (error);
-
-	if (result == 1) {
-		adapter = (struct adapter *)arg1;
-		lem_print_hw_stats(adapter);
-	}
-
-	return (error);
 }
 
 static int
