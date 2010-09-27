@@ -38,6 +38,7 @@
 #ifdef _KERNEL
 
 struct devfs_dirent;
+struct devfs_mount;
 
 struct cdev_privdata {
 	struct file		*cdpd_fp;
@@ -75,6 +76,11 @@ void devfs_free(struct cdev *);
 void devfs_create(struct cdev *dev);
 void devfs_destroy(struct cdev *dev);
 void devfs_destroy_cdevpriv(struct cdev_privdata *p);
+
+int	devfs_dir_find(const char *);
+void	devfs_dir_ref_de(struct devfs_mount *, struct devfs_dirent *);
+void	devfs_dir_unref_de(struct devfs_mount *, struct devfs_dirent *);
+int	devfs_pathpath(const char *, const char *);
 
 extern struct unrhdr *devfs_inos;
 extern struct mtx devmtx;
