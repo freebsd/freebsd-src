@@ -203,14 +203,6 @@
 /* PCI Config defines */
 #define IGB_MSIX_BAR		3
 
-/*
-** This is the total number of MSIX vectors you wish
-** to use, it also controls the size of resources.
-** The 82575 has a total of 10, 82576 has 25. Set this
-** to the real amount you need to streamline data storage.
-*/
-#define IGB_MSIX_VEC		6	/* MSIX vectors configured */
-
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
 #define DEBUG_IOCTL 0
@@ -246,12 +238,6 @@
 /* Define the starting Interrupt rate per Queue */
 #define IGB_INTS_PER_SEC        8000
 #define IGB_DEFAULT_ITR          1000000000/(IGB_INTS_PER_SEC * 256)
-
-
-/* Header split codes for get_buf */
-#define IGB_CLEAN_HEADER		0x01
-#define IGB_CLEAN_PAYLOAD		0x02
-#define IGB_CLEAN_BOTH			(IGB_CLEAN_HEADER | IGB_CLEAN_PAYLOAD)
 
 #define IGB_LINK_ITR            2000
 
@@ -385,6 +371,7 @@ struct adapter {
 	int		if_flags;
 	int		max_frame_size;
 	int		min_frame_size;
+	int		pause_frames;
 	struct mtx	core_mtx;
 	int		igb_insert_vlan_header;
         u16		num_queues;
@@ -412,6 +399,9 @@ struct adapter {
 	struct tx_ring		*tx_rings;
         u16			num_tx_desc;
 
+	/* Multicast array pointer */
+	u8			*mta;
+
 	/* 
 	 * Receive rings
 	 */
@@ -422,8 +412,6 @@ struct adapter {
 	u32			rx_mbuf_sz;
 	u32			rx_mask;
 
-	/* Multicast array memory */
-	u8		*mta;
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;
 	unsigned long	mbuf_defrag_failed;

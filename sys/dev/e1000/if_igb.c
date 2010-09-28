@@ -99,7 +99,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.0.1";
+char igb_driver_version[] = "version - 2.0.4";
 
 
 /*********************************************************************
@@ -127,6 +127,8 @@ static igb_vendor_info_t igb_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_82576_SERDES_QUAD,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82576_QUAD_COPPER,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82576_QUAD_COPPER_ET2,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82576_VF,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82580_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -1933,16 +1935,31 @@ igb_local_timer(void *arg)
 	igb_update_link_status(adapter);
 	igb_update_stats_counters(adapter);
 
+	/* 
+	** If flow control has paused us since last checking
+	** it invalidates the watchdog timing, so dont run it.
+	*/
+	if (adapter->pause_frames) {
+		adapter->pause_frames = 0;
+		goto out;
+	}
+
         /*
         ** Watchdog: check for time since any descriptor was cleaned
         */
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
-		if (txr->watchdog_check == FALSE)
+		IGB_TX_LOCK(txr);
+		if ((txr->watchdog_check == FALSE) ||
+		    (txr->tx_avail == adapter->num_tx_desc)) {
+			IGB_TX_UNLOCK(txr);
 			continue;
+		}
 		if ((ticks - txr->watchdog_time) > IGB_WATCHDOG)
 			goto timeout;
+		IGB_TX_UNLOCK(txr);
 	}
 
+out:
 	callout_reset(&adapter->timer, hz, igb_local_timer, adapter);
 	return;
 
@@ -1956,6 +1973,7 @@ timeout:
             txr->me, txr->tx_avail, txr->next_to_clean);
 	adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
+	IGB_TX_UNLOCK(txr);
 	igb_init_locked(adapter);
 }
 
@@ -4192,9 +4210,11 @@ igb_rx_discard(struct rx_ring *rxr, int i)
 	mp = rbuf->m_pack;
 
 	/* Reuse loaded DMA map and just update mbuf chain */
-	mh->m_len = MHLEN;
-	mh->m_flags |= M_PKTHDR;
-	mh->m_next = NULL;
+	if (mh) {	/* with no hdr split would be null */
+		mh->m_len = MHLEN;
+		mh->m_flags |= M_PKTHDR;
+		mh->m_next = NULL;
+	}
 
 	mp->m_len = mp->m_pkthdr.len = adapter->rx_mbuf_sz;
 	mp->m_data = mp->m_ext.ext_buf;
@@ -4805,7 +4825,12 @@ igb_update_stats_counters(struct adapter *adapter)
 	stats->rlec += E1000_READ_REG(hw, E1000_RLEC);
 	stats->xonrxc += E1000_READ_REG(hw, E1000_XONRXC);
 	stats->xontxc += E1000_READ_REG(hw, E1000_XONTXC);
-	stats->xoffrxc += E1000_READ_REG(hw, E1000_XOFFRXC);
+	/*
+	** For watchdog management we need to know if we have been
+	** paused during the last interval, so capture that here.
+	*/ 
+        adapter->pause_frames = E1000_READ_REG(&adapter->hw, E1000_XOFFRXC);
+        stats->xoffrxc += adapter->pause_frames;
 	stats->xofftxc += E1000_READ_REG(hw, E1000_XOFFTXC);
 	stats->fcruc += E1000_READ_REG(hw, E1000_FCRUC);
 	stats->prc64 += E1000_READ_REG(hw, E1000_PRC64);
