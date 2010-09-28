@@ -231,6 +231,11 @@ again:
 		break;
 
 	case IP_FW_NAT:
+		/* honor one-pass in case of successful nat */
+		if (V_fw_one_pass)
+			break; /* ret is already 0 */
+		goto again;
+
 	case IP_FW_REASS:
 		goto again;		/* continue with packet */
 	
