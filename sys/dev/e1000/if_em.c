@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.0.6";
+char em_driver_version[] = "7.0.8";
 
 
 /*********************************************************************
@@ -165,6 +165,7 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_ICH10_R_BM_V,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH10_D_BM_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH10_D_BM_LF,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH10_D_BM_V,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH_M_HV_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH_M_HV_LC,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH_D_HV_DM,	PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -237,9 +238,10 @@ static bool	em_rxeof(struct rx_ring *, int, int *);
 static int	em_fixup_rx(struct rx_ring *);
 #endif
 static void	em_receive_checksum(struct e1000_rx_desc *, struct mbuf *);
-static void	em_transmit_checksum_setup(struct tx_ring *, struct mbuf *,
-		    u32 *, u32 *);
-static bool	em_tso_setup(struct tx_ring *, struct mbuf *, u32 *, u32 *);
+static void	em_transmit_checksum_setup(struct tx_ring *, struct mbuf *, int,
+		    struct ip *, u32 *, u32 *);
+static void	em_tso_setup(struct tx_ring *, struct mbuf *, int, struct ip *,
+		    struct tcphdr *, u32 *, u32 *);
 static void	em_set_promisc(struct adapter *);
 static void	em_disable_promisc(struct adapter *);
 static void	em_set_multi(struct adapter *);
@@ -346,16 +348,8 @@ TUNABLE_INT("hw.em.smart_pwr_down", &em_smart_pwr_down);
 static int em_debug_sbp = FALSE;
 TUNABLE_INT("hw.em.sbp", &em_debug_sbp);
 
-/* Local controls for MSI/MSIX */
-#ifdef EM_MULTIQUEUE
 static int em_enable_msix = TRUE;
-static int em_msix_queues = 2; /* for 82574, can be 1 or 2 */
-#else
-static int em_enable_msix = FALSE;
-static int em_msix_queues = 0; /* disable */
-#endif
 TUNABLE_INT("hw.em.enable_msix", &em_enable_msix);
-TUNABLE_INT("hw.em.msix_queues", &em_msix_queues);
 
 /* How many packets rxeof tries to clean at a time */
 static int em_rx_process_limit = 100;
@@ -870,21 +864,18 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 }
 
 /*
-** Multiqueue capable stack interface, this is not
-** yet truely multiqueue, but that is coming...
+** Multiqueue capable stack interface
 */
 static int
 em_mq_start(struct ifnet *ifp, struct mbuf *m)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	struct tx_ring	*txr;
-	int 		i, error = 0;
+	int 		i = 0, error = 0;
 
 	/* Which queue to use */
 	if ((m->m_flags & M_FLOWID) != 0)
                 i = m->m_pkthdr.flowid % adapter->num_queues;
-	else
-		i = curcpu % adapter->num_queues;
 
 	txr = &adapter->tx_rings[i];
 
@@ -1467,8 +1458,7 @@ em_handle_que(void *context, int pending)
 		more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 
 		EM_TX_LOCK(txr);
-		if (em_txeof(txr))
-			more = TRUE;
+		em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 		if (!drbr_empty(ifp, txr->br))
 			em_mq_start_locked(ifp, txr, NULL);
@@ -1476,6 +1466,7 @@ em_handle_que(void *context, int pending)
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			em_start_locked(ifp, txr);
 #endif
+		em_txeof(txr);
 		EM_TX_UNLOCK(txr);
 		if (more) {
 			taskqueue_enqueue(adapter->tq, &adapter->que_task);
@@ -1580,11 +1571,8 @@ em_handle_tx(void *context, int pending)
 	struct adapter	*adapter = txr->adapter;
 	struct ifnet	*ifp = adapter->ifp;
 
-	if (!EM_TX_TRYLOCK(txr))
-		return;
-
+	EM_TX_LOCK(txr);
 	em_txeof(txr);
-
 #ifdef EM_MULTIQUEUE
 	if (!drbr_empty(ifp, txr->br))
 		em_mq_start_locked(ifp, txr, NULL);
@@ -1592,6 +1580,7 @@ em_handle_tx(void *context, int pending)
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		em_start_locked(ifp, txr);
 #endif
+	em_txeof(txr);
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
 	EM_TX_UNLOCK(txr);
 }
@@ -1745,13 +1734,18 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	struct em_buffer	*tx_buffer, *tx_buffer_mapped;
 	struct e1000_tx_desc	*ctxd = NULL;
 	struct mbuf		*m_head;
+	struct ether_header	*eh;
+	struct ip		*ip = NULL;
+	struct tcphdr		*tp = NULL;
 	u32			txd_upper, txd_lower, txd_used, txd_saved;
+	int			ip_off, poff;
 	int			nsegs, i, j, first, last = 0;
 	int			error, do_tso, tso_desc = 0;
 
 	m_head = *m_headp;
 	txd_upper = txd_lower = txd_used = txd_saved = 0;
 	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
+	ip_off = poff = 0;
 
 	/*
 	** When doing checksum offload, it is critical to
@@ -1767,15 +1761,100 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	}
 
 	/*
-	 * TSO workaround: 
-	 *  If an mbuf is only header we need  
-	 *     to pull 4 bytes of data into it. 
+	 * Intel recommends entire IP/TCP header length reside in a single
+	 * buffer. If multiple descriptors are used to describe the IP and
+	 * TCP header, each descriptor should describe one or more
+	 * complete headers; descriptors referencing only parts of headers
+	 * are not supported. If all layer headers are not coalesced into
+	 * a single buffer, each buffer should not cross a 4KB boundary,
+	 * or be larger than the maximum read request size.
+	 * Controller also requires modifing IP/TCP header to make TSO work
+	 * so we firstly get a writable mbuf chain then coalesce ethernet/
+	 * IP/TCP header into a single buffer to meet the requirement of
+	 * controller. This also simplifies IP/TCP/UDP checksum offloading
+	 * which also has similiar restrictions.
 	 */
-	if (do_tso && (m_head->m_len <= M_TSO_LEN)) {
-		m_head = m_pullup(m_head, M_TSO_LEN + 4);
-		*m_headp = m_head;
-		if (m_head == NULL)
+	if (do_tso || m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) {
+		if (do_tso || (m_head->m_next != NULL && 
+		    m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)) {
+			if (M_WRITABLE(*m_headp) == 0) {
+				m_head = m_dup(*m_headp, M_DONTWAIT);
+				m_freem(*m_headp);
+				if (m_head == NULL) {
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
+				*m_headp = m_head;
+			}
+		}
+		/*
+		 * XXX
+		 * Assume IPv4, we don't have TSO/checksum offload support
+		 * for IPv6 yet.
+		 */
+		ip_off = sizeof(struct ether_header);
+		m_head = m_pullup(m_head, ip_off);
+		if (m_head == NULL) {
+			*m_headp = NULL;
 			return (ENOBUFS);
+		}
+		eh = mtod(m_head, struct ether_header *);
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			ip_off = sizeof(struct ether_vlan_header);
+			m_head = m_pullup(m_head, ip_off);
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
+		}
+		m_head = m_pullup(m_head, ip_off + sizeof(struct ip));
+		if (m_head == NULL) {
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		ip = (struct ip *)(mtod(m_head, char *) + ip_off);
+		poff = ip_off + (ip->ip_hl << 2);
+		m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
+		if (m_head == NULL) {
+			*m_headp = NULL;
+			return (ENOBUFS);
+		}
+		if (do_tso) {
+			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
+			/*
+			 * TSO workaround:
+			 *   pull 4 more bytes of data into it.
+			 */
+			m_head = m_pullup(m_head, poff + (tp->th_off << 2) + 4);
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
+			ip->ip_len = 0;
+			ip->ip_sum = 0;
+			/*
+			 * The pseudo TCP checksum does not include TCP payload
+			 * length so driver should recompute the checksum here
+			 * what hardware expect to see. This is adherence of
+			 * Microsoft's Large Send specification.
+			 */
+			tp->th_sum = in_pseudo(ip->ip_src.s_addr,
+			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+		} else if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
+			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
+			m_head = m_pullup(m_head, poff + (tp->th_off << 2));
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
+		} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
+			m_head = m_pullup(m_head, poff + sizeof(struct udphdr));
+			if (m_head == NULL) {
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
+		}
+		*m_headp = m_head;
 	}
 
 	/*
@@ -1852,16 +1931,15 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	/* Do hardware assists */
 #if __FreeBSD_version >= 700000
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-		error = em_tso_setup(txr, m_head, &txd_upper, &txd_lower);
-		if (error != TRUE)
-			return (ENXIO); /* something foobar */
+		em_tso_setup(txr, m_head, ip_off, ip, tp, &txd_upper,
+		    &txd_lower);
 		/* we need to make a final sentinel transmit desc */
 		tso_desc = TRUE;
 	} else
 #endif
 	if (m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)
-		em_transmit_checksum_setup(txr,  m_head,
-		    &txd_upper, &txd_lower);
+		em_transmit_checksum_setup(txr, m_head,
+		    ip_off, ip, &txd_upper, &txd_lower);
 
 	i = txr->next_avail_desc;
 
@@ -1946,6 +2024,8 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	 */
 	tx_buffer = &txr->tx_buffers[first];
 	tx_buffer->next_eop = last;
+	/* Update the watchdog time early and often */
+	txr->watchdog_time = ticks;
 
 	/*
 	 * Advance the Transmit Descriptor Tail (TDT), this tells the E1000
@@ -2087,6 +2167,14 @@ em_local_timer(void *arg)
 	if (e1000_get_laa_state_82571(&adapter->hw) == TRUE)
 		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
+	/* 
+	** If flow control has paused us since last checking
+	** it invalidates the watchdog timing, so dont run it.
+	*/
+	if (adapter->pause_frames) {
+		adapter->pause_frames = 0;
+		goto out;
+	}
 	/*
 	** Check for time since any descriptor was cleaned
 	*/
@@ -2100,11 +2188,18 @@ em_local_timer(void *arg)
 			goto hung;
 		EM_TX_UNLOCK(txr);
 	}
-
+out:
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 	return;
 hung:
 	device_printf(adapter->dev, "Watchdog timeout -- resetting\n");
+	device_printf(adapter->dev,
+	    "Queue(%d) tdh = %d, hw tdt = %d\n", txr->me,
+	    E1000_READ_REG(&adapter->hw, E1000_TDH(txr->me)),
+	    E1000_READ_REG(&adapter->hw, E1000_TDT(txr->me)));
+	device_printf(adapter->dev,"TX(%d) desc avail = %d,"
+	    "Next TX to Clean = %d\n",
+	    txr->me, txr->tx_avail, txr->next_to_clean);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
 	EM_TX_UNLOCK(txr);
@@ -2118,6 +2213,7 @@ em_update_link_status(struct adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct ifnet *ifp = adapter->ifp;
 	device_t dev = adapter->dev;
+	struct tx_ring *txr = adapter->tx_rings;
 	u32 link_check = 0;
 
 	/* Get the cached link value or read phy for real */
@@ -2175,8 +2271,8 @@ em_update_link_status(struct adapter *adapter)
 			device_printf(dev, "Link is Down\n");
 		adapter->link_active = 0;
 		/* Link down, disable watchdog */
-		// JFV change later
-		//adapter->watchdog_check = FALSE;
+		for (int i = 0; i < adapter->num_queues; i++, txr++)
+			txr->watchdog_check = FALSE;
 		if_link_state_change(ifp, LINK_STATE_DOWN);
 	}
 }
@@ -2378,6 +2474,9 @@ em_allocate_msix(struct adapter *adapter)
 			device_printf(dev, "Failed to register RX handler");
 			return (error);
 		}
+#if __FreeBSD_version >= 800504
+		bus_describe_intr(dev, rxr->res, rxr->tag, "rx %d", i);
+#endif
 		rxr->msix = vector++; /* NOTE increment vector for TX */
 		TASK_INIT(&rxr->rx_task, 0, em_handle_rx, rxr);
 		rxr->tq = taskqueue_create_fast("em_rxq", M_NOWAIT,
@@ -2409,6 +2508,9 @@ em_allocate_msix(struct adapter *adapter)
 			device_printf(dev, "Failed to register TX handler");
 			return (error);
 		}
+#if __FreeBSD_version >= 800504
+		bus_describe_intr(dev, txr->res, txr->tag, "tx %d", i);
+#endif
 		txr->msix = vector++; /* Increment vector for next pass */
 		TASK_INIT(&txr->tx_task, 0, em_handle_tx, txr);
 		txr->tq = taskqueue_create_fast("em_txq", M_NOWAIT,
@@ -2443,6 +2545,9 @@ em_allocate_msix(struct adapter *adapter)
 		device_printf(dev, "Failed to register LINK handler");
 		return (error);
 	}
+#if __FreeBSD_version >= 800504
+		bus_describe_intr(dev, adapter->res, adapter->tag, "link");
+#endif
 	adapter->linkvec = vector;
 	adapter->ivars |=  (8 | vector) << 16;
 	adapter->ivars |= 0x80000000;
@@ -2524,7 +2629,12 @@ em_setup_msix(struct adapter *adapter)
 	int val = 0;
 
 
-	/* Setup MSI/X for Hartwell */
+	/*
+	** Setup MSI/X for Hartwell: tests have shown
+	** use of two queues to be unstable, and to
+	** provide no great gain anyway, so we simply
+	** seperate the interrupts and use a single queue.
+	*/
 	if ((adapter->hw.mac.type == e1000_82574) &&
 	    (em_enable_msix == TRUE)) {
 		/* Map the MSIX BAR */
@@ -2538,21 +2648,16 @@ em_setup_msix(struct adapter *adapter)
 			goto msi;
        		}
 		val = pci_msix_count(dev); 
-		if (val != 5) {
+		if (val < 3) {
 			bus_release_resource(dev, SYS_RES_MEMORY,
 			    PCIR_BAR(EM_MSIX_BAR), adapter->msix_mem);
 			adapter->msix_mem = NULL;
                		device_printf(adapter->dev,
-			    "MSIX vectors wrong, using MSI \n");
+			    "MSIX: insufficient vectors, using MSI\n");
 			goto msi;
 		}
-		if (em_msix_queues == 2) {
-			val = 5;
-			adapter->num_queues = 2;
-		} else {
-			val = 3;
-			adapter->num_queues = 1;
-		}
+		val = 3;
+		adapter->num_queues = 1;
 		if (pci_alloc_msix(dev, &val) == 0) {
 			device_printf(adapter->dev,
 			    "Using MSIX interrupts "
@@ -3069,6 +3174,13 @@ em_setup_transmit_ring(struct tx_ring *txr)
 	/* Set number of descriptors available */
 	txr->tx_avail = adapter->num_tx_desc;
 
+	/* Clear checksum offload context. */
+	txr->last_hw_offload = 0;
+	txr->last_hw_ipcss = 0;
+	txr->last_hw_ipcso = 0;
+	txr->last_hw_tucss = 0;
+	txr->last_hw_tucso = 0;
+
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	EM_TX_UNLOCK(txr);
@@ -3263,146 +3375,138 @@ em_free_transmit_buffers(struct tx_ring *txr)
 
 
 /*********************************************************************
- *
- *  The offload context needs to be set when we transfer the first
- *  packet of a particular protocol (TCP/UDP). This routine has been
- *  enhanced to deal with inserted VLAN headers, and IPV6 (not complete)
- *
- *  Added back the old method of keeping the current context type
- *  and not setting if unnecessary, as this is reported to be a
- *  big performance win.  -jfv
+ *  The offload context is protocol specific (TCP/UDP) and thus
+ *  only needs to be set when the protocol changes. The occasion
+ *  of a context change can be a performance detriment, and
+ *  might be better just disabled. The reason arises in the way
+ *  in which the controller supports pipelined requests from the
+ *  Tx data DMA. Up to four requests can be pipelined, and they may
+ *  belong to the same packet or to multiple packets. However all
+ *  requests for one packet are issued before a request is issued
+ *  for a subsequent packet and if a request for the next packet
+ *  requires a context change, that request will be stalled
+ *  until the previous request completes. This means setting up
+ *  a new context effectively disables pipelined Tx data DMA which
+ *  in turn greatly slow down performance to send small sized
+ *  frames. 
  **********************************************************************/
 static void
-em_transmit_checksum_setup(struct tx_ring *txr, struct mbuf *mp,
-    u32 *txd_upper, u32 *txd_lower)
+em_transmit_checksum_setup(struct tx_ring *txr, struct mbuf *mp, int ip_off,
+    struct ip *ip, u32 *txd_upper, u32 *txd_lower)
 {
 	struct adapter			*adapter = txr->adapter;
 	struct e1000_context_desc	*TXD = NULL;
-	struct em_buffer *tx_buffer;
-	struct ether_vlan_header *eh;
-	struct ip *ip = NULL;
-	struct ip6_hdr *ip6;
-	int cur, ehdrlen;
-	u32 cmd, hdr_len, ip_hlen;
-	u16 etype;
-	u8 ipproto;
+	struct em_buffer		*tx_buffer;
+	int				cur, hdr_len;
+	u32				cmd = 0;
+	u16				offload = 0;
+	u8				ipcso, ipcss, tucso, tucss;
 
-
-	cmd = hdr_len = ipproto = 0;
-	*txd_upper = *txd_lower = 0;
+	ipcss = ipcso = tucss = tucso = 0;
+	hdr_len = ip_off + (ip->ip_hl << 2);
 	cur = txr->next_avail_desc;
 
-	/*
-	 * Determine where frame payload starts.
-	 * Jump over vlan headers if already present,
-	 * helpful for QinQ too.
-	 */
-	eh = mtod(mp, struct ether_vlan_header *);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-		etype = ntohs(eh->evl_proto);
-		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-	} else {
-		etype = ntohs(eh->evl_encap_proto);
-		ehdrlen = ETHER_HDR_LEN;
+	/* Setup of IP header checksum. */
+	if (mp->m_pkthdr.csum_flags & CSUM_IP) {
+		*txd_upper |= E1000_TXD_POPTS_IXSM << 8;
+		offload |= CSUM_IP;
+		ipcss = ip_off;
+		ipcso = ip_off + offsetof(struct ip, ip_sum);
+		/*
+		 * Start offset for header checksum calculation.
+		 * End offset for header checksum calculation.
+		 * Offset of place to put the checksum.
+		 */
+		TXD = (struct e1000_context_desc *)&txr->tx_base[cur];
+		TXD->lower_setup.ip_fields.ipcss = ipcss;
+		TXD->lower_setup.ip_fields.ipcse = htole16(hdr_len);
+		TXD->lower_setup.ip_fields.ipcso = ipcso;
+		cmd |= E1000_TXD_CMD_IP;
 	}
 
-	/*
-	 * We only support TCP/UDP for IPv4 and IPv6 for the moment.
-	 * TODO: Support SCTP too when it hits the tree.
-	 */
-	switch (etype) {
-	case ETHERTYPE_IP:
-		ip = (struct ip *)(mp->m_data + ehdrlen);
-		ip_hlen = ip->ip_hl << 2;
+	if (mp->m_pkthdr.csum_flags & CSUM_TCP) {
+ 		*txd_lower = E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D;
+ 		*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
+ 		offload |= CSUM_TCP;
+ 		tucss = hdr_len;
+ 		tucso = hdr_len + offsetof(struct tcphdr, th_sum);
+ 		/*
+ 		 * Setting up new checksum offload context for every frames
+ 		 * takes a lot of processing time for hardware. This also
+ 		 * reduces performance a lot for small sized frames so avoid
+ 		 * it if driver can use previously configured checksum
+ 		 * offload context.
+ 		 */
+ 		if (txr->last_hw_offload == offload) {
+ 			if (offload & CSUM_IP) {
+ 				if (txr->last_hw_ipcss == ipcss &&
+ 				    txr->last_hw_ipcso == ipcso &&
+ 				    txr->last_hw_tucss == tucss &&
+ 				    txr->last_hw_tucso == tucso)
+ 					return;
+ 			} else {
+ 				if (txr->last_hw_tucss == tucss &&
+ 				    txr->last_hw_tucso == tucso)
+ 					return;
+ 			}
+  		}
+ 		txr->last_hw_offload = offload;
+ 		txr->last_hw_tucss = tucss;
+ 		txr->last_hw_tucso = tucso;
+ 		/*
+ 		 * Start offset for payload checksum calculation.
+ 		 * End offset for payload checksum calculation.
+ 		 * Offset of place to put the checksum.
+ 		 */
+		TXD = (struct e1000_context_desc *)&txr->tx_base[cur];
+ 		TXD->upper_setup.tcp_fields.tucss = hdr_len;
+ 		TXD->upper_setup.tcp_fields.tucse = htole16(0);
+ 		TXD->upper_setup.tcp_fields.tucso = tucso;
+ 		cmd |= E1000_TXD_CMD_TCP;
+ 	} else if (mp->m_pkthdr.csum_flags & CSUM_UDP) {
+ 		*txd_lower = E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D;
+ 		*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
+ 		tucss = hdr_len;
+ 		tucso = hdr_len + offsetof(struct udphdr, uh_sum);
+ 		/*
+ 		 * Setting up new checksum offload context for every frames
+ 		 * takes a lot of processing time for hardware. This also
+ 		 * reduces performance a lot for small sized frames so avoid
+ 		 * it if driver can use previously configured checksum
+ 		 * offload context.
+ 		 */
+ 		if (txr->last_hw_offload == offload) {
+ 			if (offload & CSUM_IP) {
+ 				if (txr->last_hw_ipcss == ipcss &&
+ 				    txr->last_hw_ipcso == ipcso &&
+ 				    txr->last_hw_tucss == tucss &&
+ 				    txr->last_hw_tucso == tucso)
+ 					return;
+ 			} else {
+ 				if (txr->last_hw_tucss == tucss &&
+ 				    txr->last_hw_tucso == tucso)
+ 					return;
+ 			}
+ 		}
+ 		txr->last_hw_offload = offload;
+ 		txr->last_hw_tucss = tucss;
+ 		txr->last_hw_tucso = tucso;
+ 		/*
+ 		 * Start offset for header checksum calculation.
+ 		 * End offset for header checksum calculation.
+ 		 * Offset of place to put the checksum.
+ 		 */
+		TXD = (struct e1000_context_desc *)&txr->tx_base[cur];
+ 		TXD->upper_setup.tcp_fields.tucss = tucss;
+ 		TXD->upper_setup.tcp_fields.tucse = htole16(0);
+ 		TXD->upper_setup.tcp_fields.tucso = tucso;
+  	}
+  
+ 	if (offload & CSUM_IP) {
+ 		txr->last_hw_ipcss = ipcss;
+ 		txr->last_hw_ipcso = ipcso;
+  	}
 
-		/* Setup of IP header checksum. */
-		if (mp->m_pkthdr.csum_flags & CSUM_IP) {
-			/*
-			 * Start offset for header checksum calculation.
-			 * End offset for header checksum calculation.
-			 * Offset of place to put the checksum.
-			 */
-			TXD = (struct e1000_context_desc *)
-			    &txr->tx_base[cur];
-			TXD->lower_setup.ip_fields.ipcss = ehdrlen;
-			TXD->lower_setup.ip_fields.ipcse =
-			    htole16(ehdrlen + ip_hlen);
-			TXD->lower_setup.ip_fields.ipcso =
-			    ehdrlen + offsetof(struct ip, ip_sum);
-			cmd |= E1000_TXD_CMD_IP;
-			*txd_upper |= E1000_TXD_POPTS_IXSM << 8;
-		}
-
-		hdr_len = ehdrlen + ip_hlen;
-		ipproto = ip->ip_p;
-		break;
-
-	case ETHERTYPE_IPV6:
-		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
-		ip_hlen = sizeof(struct ip6_hdr); /* XXX: No header stacking. */
-
-		/* IPv6 doesn't have a header checksum. */
-
-		hdr_len = ehdrlen + ip_hlen;
-		ipproto = ip6->ip6_nxt;
-		break;
-
-	default:
-		return;
-	}
-
-	switch (ipproto) {
-	case IPPROTO_TCP:
-		if (mp->m_pkthdr.csum_flags & CSUM_TCP) {
-			*txd_lower = E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D;
-			*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
-			/* no need for context if already set */
-			if (txr->last_hw_offload == CSUM_TCP)
-				return;
-			txr->last_hw_offload = CSUM_TCP;
-			/*
-			 * Start offset for payload checksum calculation.
-			 * End offset for payload checksum calculation.
-			 * Offset of place to put the checksum.
-			 */
-			TXD = (struct e1000_context_desc *)
-			    &txr->tx_base[cur];
-			TXD->upper_setup.tcp_fields.tucss = hdr_len;
-			TXD->upper_setup.tcp_fields.tucse = htole16(0);
-			TXD->upper_setup.tcp_fields.tucso =
-			    hdr_len + offsetof(struct tcphdr, th_sum);
-			cmd |= E1000_TXD_CMD_TCP;
-		}
-		break;
-	case IPPROTO_UDP:
-	{
-		if (mp->m_pkthdr.csum_flags & CSUM_UDP) {
-			*txd_lower = E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D;
-			*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
-			/* no need for context if already set */
-			if (txr->last_hw_offload == CSUM_UDP)
-				return;
-			txr->last_hw_offload = CSUM_UDP;
-			/*
-			 * Start offset for header checksum calculation.
-			 * End offset for header checksum calculation.
-			 * Offset of place to put the checksum.
-			 */
-			TXD = (struct e1000_context_desc *)
-			    &txr->tx_base[cur];
-			TXD->upper_setup.tcp_fields.tucss = hdr_len;
-			TXD->upper_setup.tcp_fields.tucse = htole16(0);
-			TXD->upper_setup.tcp_fields.tucso =
-			    hdr_len + offsetof(struct udphdr, uh_sum);
-		}
-		/* Fall Thru */
-	}
-	default:
-		break;
-	}
-
-	if (TXD == NULL)
-		return;
 	TXD->tcp_seg_setup.data = htole32(0);
 	TXD->cmd_and_length =
 	    htole32(adapter->txd_cmd | E1000_TXD_CMD_DEXT | cmd);
@@ -3423,124 +3527,52 @@ em_transmit_checksum_setup(struct tx_ring *txr, struct mbuf *mp,
  *  Setup work for hardware segmentation offload (TSO)
  *
  **********************************************************************/
-static bool
-em_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *txd_upper,
-   u32 *txd_lower)
+static void
+em_tso_setup(struct tx_ring *txr, struct mbuf *mp, int ip_off,
+    struct ip *ip, struct tcphdr *tp, u32 *txd_upper, u32 *txd_lower)
 {
 	struct adapter			*adapter = txr->adapter;
 	struct e1000_context_desc	*TXD;
 	struct em_buffer		*tx_buffer;
-	struct ether_vlan_header	*eh;
-	struct ip			*ip;
-	struct ip6_hdr			*ip6;
-	struct tcphdr			*th;
-	int cur, ehdrlen, hdr_len, ip_hlen, isip6;
-	u16 etype;
+	int cur, hdr_len;
 
 	/*
-	 * This function could/should be extended to support IP/IPv6
-	 * fragmentation as well.  But as they say, one step at a time.
+	 * In theory we can use the same TSO context if and only if
+	 * frame is the same type(IP/TCP) and the same MSS. However
+	 * checking whether a frame has the same IP/TCP structure is
+	 * hard thing so just ignore that and always restablish a
+	 * new TSO context.
 	 */
-
-	/*
-	 * Determine where frame payload starts.
-	 * Jump over vlan headers if already present,
-	 * helpful for QinQ too.
-	 */
-	eh = mtod(mp, struct ether_vlan_header *);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-		etype = ntohs(eh->evl_proto);
-		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-	} else {
-		etype = ntohs(eh->evl_encap_proto);
-		ehdrlen = ETHER_HDR_LEN;
-	}
-
-	/* Ensure we have at least the IP+TCP header in the first mbuf. */
-	if (mp->m_len < ehdrlen + sizeof(struct ip) + sizeof(struct tcphdr))
-		return FALSE;	/* -1 */
-
-	/*
-	 * We only support TCP for IPv4 and IPv6 (notyet) for the moment.
-	 * TODO: Support SCTP too when it hits the tree.
-	 */
-	switch (etype) {
-	case ETHERTYPE_IP:
-		isip6 = 0;
-		ip = (struct ip *)(mp->m_data + ehdrlen);
-		if (ip->ip_p != IPPROTO_TCP)
-			return FALSE;	/* 0 */
-		ip->ip_len = 0;
-		ip->ip_sum = 0;
-		ip_hlen = ip->ip_hl << 2;
-		if (mp->m_len < ehdrlen + ip_hlen + sizeof(struct tcphdr))
-			return FALSE;	/* -1 */
-		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
-#if 1
-		th->th_sum = in_pseudo(ip->ip_src.s_addr,
-		    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
-#else
-		th->th_sum = mp->m_pkthdr.csum_data;
-#endif
-		break;
-	case ETHERTYPE_IPV6:
-		isip6 = 1;
-		return FALSE;			/* Not supported yet. */
-		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
-		if (ip6->ip6_nxt != IPPROTO_TCP)
-			return FALSE;	/* 0 */
-		ip6->ip6_plen = 0;
-		ip_hlen = sizeof(struct ip6_hdr); /* XXX: no header stacking. */
-		if (mp->m_len < ehdrlen + ip_hlen + sizeof(struct tcphdr))
-			return FALSE;	/* -1 */
-		th = (struct tcphdr *)((caddr_t)ip6 + ip_hlen);
-#if 0
-		th->th_sum = in6_pseudo(ip6->ip6_src, ip->ip6_dst,
-		    htons(IPPROTO_TCP));	/* XXX: function notyet. */
-#else
-		th->th_sum = mp->m_pkthdr.csum_data;
-#endif
-		break;
-	default:
-		return FALSE;
-	}
-	hdr_len = ehdrlen + ip_hlen + (th->th_off << 2);
-
+	hdr_len = ip_off + (ip->ip_hl << 2) + (tp->th_off << 2);
 	*txd_lower = (E1000_TXD_CMD_DEXT |	/* Extended descr type */
 		      E1000_TXD_DTYP_D |	/* Data descr type */
 		      E1000_TXD_CMD_TSE);	/* Do TSE on this packet */
 
 	/* IP and/or TCP header checksum calculation and insertion. */
-	*txd_upper = ((isip6 ? 0 : E1000_TXD_POPTS_IXSM) |
-		      E1000_TXD_POPTS_TXSM) << 8;
+	*txd_upper = (E1000_TXD_POPTS_IXSM | E1000_TXD_POPTS_TXSM) << 8;
 
 	cur = txr->next_avail_desc;
 	tx_buffer = &txr->tx_buffers[cur];
 	TXD = (struct e1000_context_desc *) &txr->tx_base[cur];
 
-	/* IPv6 doesn't have a header checksum. */
-	if (!isip6) {
-		/*
-		 * Start offset for header checksum calculation.
-		 * End offset for header checksum calculation.
-		 * Offset of place put the checksum.
-		 */
-		TXD->lower_setup.ip_fields.ipcss = ehdrlen;
-		TXD->lower_setup.ip_fields.ipcse =
-		    htole16(ehdrlen + ip_hlen - 1);
-		TXD->lower_setup.ip_fields.ipcso =
-		    ehdrlen + offsetof(struct ip, ip_sum);
-	}
+	/*
+	 * Start offset for header checksum calculation.
+	 * End offset for header checksum calculation.
+	 * Offset of place put the checksum.
+	 */
+	TXD->lower_setup.ip_fields.ipcss = ip_off;
+	TXD->lower_setup.ip_fields.ipcse =
+	    htole16(ip_off + (ip->ip_hl << 2) - 1);
+	TXD->lower_setup.ip_fields.ipcso = ip_off + offsetof(struct ip, ip_sum);
 	/*
 	 * Start offset for payload checksum calculation.
 	 * End offset for payload checksum calculation.
 	 * Offset of place to put the checksum.
 	 */
-	TXD->upper_setup.tcp_fields.tucss =
-	    ehdrlen + ip_hlen;
+	TXD->upper_setup.tcp_fields.tucss = ip_off + (ip->ip_hl << 2);
 	TXD->upper_setup.tcp_fields.tucse = 0;
 	TXD->upper_setup.tcp_fields.tucso =
-	    ehdrlen + ip_hlen + offsetof(struct tcphdr, th_sum);
+	    ip_off + (ip->ip_hl << 2) + offsetof(struct tcphdr, th_sum);
 	/*
 	 * Payload size per packet w/o any headers.
 	 * Length of all headers up to payload.
@@ -3551,7 +3583,7 @@ em_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *txd_upper,
 	TXD->cmd_and_length = htole32(adapter->txd_cmd |
 				E1000_TXD_CMD_DEXT |	/* Extended descr */
 				E1000_TXD_CMD_TSE |	/* TSE context */
-				(isip6 ? 0 : E1000_TXD_CMD_IP) | 
+				E1000_TXD_CMD_IP |	/* Do IP csum */
 				E1000_TXD_CMD_TCP |	/* Do TCP checksum */
 				(mp->m_pkthdr.len - (hdr_len))); /* Total len */
 
@@ -3564,8 +3596,6 @@ em_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *txd_upper,
 	txr->tx_avail--;
 	txr->next_avail_desc = cur;
 	txr->tx_tso = TRUE;
-
-	return TRUE;
 }
 
 
@@ -3580,7 +3610,7 @@ static bool
 em_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;
-        int first, last, done, num_avail;
+        int first, last, done;
         struct em_buffer *tx_buffer;
         struct e1000_tx_desc   *tx_desc, *eop_desc;
 	struct ifnet   *ifp = adapter->ifp;
@@ -3590,7 +3620,6 @@ em_txeof(struct tx_ring *txr)
         if (txr->tx_avail == adapter->num_tx_desc)
                 return (FALSE);
 
-        num_avail = txr->tx_avail;
         first = txr->next_to_clean;
         tx_desc = &txr->tx_base[first];
         tx_buffer = &txr->tx_buffers[first];
@@ -3616,16 +3645,14 @@ em_txeof(struct tx_ring *txr)
                 	tx_desc->upper.data = 0;
                 	tx_desc->lower.data = 0;
                 	tx_desc->buffer_addr = 0;
-                	++num_avail;
+                	++txr->tx_avail;
 
 			if (tx_buffer->m_head) {
-				ifp->if_opackets++;
 				bus_dmamap_sync(txr->txtag,
 				    tx_buffer->map,
 				    BUS_DMASYNC_POSTWRITE);
 				bus_dmamap_unload(txr->txtag,
 				    tx_buffer->map);
-
                         	m_freem(tx_buffer->m_head);
                         	tx_buffer->m_head = NULL;
                 	}
@@ -3638,6 +3665,7 @@ em_txeof(struct tx_ring *txr)
 	                tx_buffer = &txr->tx_buffers[first];
 			tx_desc = &txr->tx_base[first];
 		}
+		++ifp->if_opackets;
 		/* See if we can continue to the next packet */
 		last = tx_buffer->next_eop;
 		if (last != -1) {
@@ -3654,20 +3682,18 @@ em_txeof(struct tx_ring *txr)
         txr->next_to_clean = first;
 
         /*
-         * If we have enough room, clear IFF_DRV_OACTIVE to
-         * tell the stack that it is OK to send packets.
-         * If there are no pending descriptors, clear the watchdog.
+         * If we have enough room, clear IFF_DRV_OACTIVE
+         * to tell the stack that it is OK to send packets.
          */
-        if (num_avail > EM_TX_CLEANUP_THRESHOLD) {                
+        if (txr->tx_avail > EM_TX_CLEANUP_THRESHOLD) {                
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-                if (num_avail == adapter->num_tx_desc) {
+		/* Disable watchdog if all clean */
+                if (txr->tx_avail == adapter->num_tx_desc) {
 			txr->watchdog_check = FALSE;
-        		txr->tx_avail = num_avail;
 			return (FALSE);
 		} 
         }
 
-        txr->tx_avail = num_avail;
 	return (TRUE);
 }
 
@@ -4827,7 +4853,12 @@ em_update_stats_counters(struct adapter *adapter)
 	adapter->stats.rlec += E1000_READ_REG(&adapter->hw, E1000_RLEC);
 	adapter->stats.xonrxc += E1000_READ_REG(&adapter->hw, E1000_XONRXC);
 	adapter->stats.xontxc += E1000_READ_REG(&adapter->hw, E1000_XONTXC);
-	adapter->stats.xoffrxc += E1000_READ_REG(&adapter->hw, E1000_XOFFRXC);
+	/*
+	** For watchdog management we need to know if we have been
+	** paused during the last interval, so capture that here.
+	*/
+	adapter->pause_frames = E1000_READ_REG(&adapter->hw, E1000_XOFFRXC);
+	adapter->stats.xoffrxc += adapter->pause_frames;
 	adapter->stats.xofftxc += E1000_READ_REG(&adapter->hw, E1000_XOFFTXC);
 	adapter->stats.fcruc += E1000_READ_REG(&adapter->hw, E1000_FCRUC);
 	adapter->stats.prc64 += E1000_READ_REG(&adapter->hw, E1000_PRC64);
