@@ -118,9 +118,8 @@ userret(struct thread *td, struct trapframe *frame)
 	/*
 	 * Charge system time if profiling.
 	 */
-	if (p->p_flag & P_PROFIL) {
+	if (p->p_flag & P_PROFIL)
 		addupc_task(td, TRAPF_PC(frame), td->td_pticks * psratio);
-	}
 	/*
 	 * Let the scheduler adjust our priority etc.
 	 */
