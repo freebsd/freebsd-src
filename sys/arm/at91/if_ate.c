@@ -391,10 +391,7 @@ ate_mac_hash(const uint8_t *buf)
 }
 
 /*
- * Compute the multicast filter for this device using the standard
- * algorithm.  I wonder why this isn't in ether somewhere as a lot
- * of different MAC chips use this method (or the reverse the bits)
- * method.
+ * Compute the multicast filter for this device.
  */
 static int
 ate_setmcast(struct ate_softc *sc)
