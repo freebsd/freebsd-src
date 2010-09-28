@@ -458,6 +458,7 @@ struct e1000_adv_tx_context_desc {
 /* RX packet buffer size defines */
 #define E1000_RXPBS_SIZE_MASK_82576  0x0000007F
 void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable);
+void e1000_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf);
 void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable);
 enum e1000_promisc_type {
 	e1000_promisc_disabled = 0,   /* all promisc modes disabled */

@@ -86,7 +86,7 @@
 /*********************************************************************
  *  Legacy Em Driver version:
  *********************************************************************/
-char lem_driver_version[] = "1.0.1";
+char lem_driver_version[] = "1.0.2";
 
 
 /*********************************************************************
@@ -1753,6 +1753,7 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	 */
 	tx_buffer = &adapter->tx_buffer_area[first];
 	tx_buffer->next_eop = last;
+	adapter->watchdog_time = ticks;
 
 	/*
 	 * Advance the Transmit Descriptor Tail (TDT), this tells the E1000
@@ -2010,8 +2011,6 @@ lem_local_timer(void *arg)
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
-	taskqueue_enqueue(adapter->tq,
-	    &adapter->rxtx_task);
 	lem_update_link_status(adapter);
 	lem_update_stats_counters(adapter);
 
