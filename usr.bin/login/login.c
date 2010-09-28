@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
  * login -f name	(for pre-authenticated login: datakit, xterm, etc.)
  */
 
-#include <sys/copyright.h>
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -589,12 +588,6 @@ main(int argc, char *argv[])
 
 	if (!quietlog) {
 		const char *cw;
-
-		cw = login_getcapstr(lc, "copyright", NULL, NULL);
-		if (cw == NULL || motd(cw) == -1)
-			(void)printf("%s", copyright);
-
-		(void)printf("\n");
 
 		cw = login_getcapstr(lc, "welcome", NULL, NULL);
 		if (cw != NULL && access(cw, F_OK) == 0)
