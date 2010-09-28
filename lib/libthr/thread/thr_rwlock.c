@@ -45,6 +45,19 @@ __weak_reference(_pthread_rwlock_unlock, pthread_rwlock_unlock);
 __weak_reference(_pthread_rwlock_wrlock, pthread_rwlock_wrlock);
 __weak_reference(_pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
 
+#define CHECK_AND_INIT_RWLOCK							\
+	if (__predict_false((prwlock = (*rwlock)) <= THR_RWLOCK_DESTROYED)) {	\
+		if (prwlock == THR_RWLOCK_INITIALIZER) {			\
+			int ret;						\
+			ret = init_static(_get_curthread(), rwlock);		\
+			if (ret)						\
+				return (ret);					\
+		} else if (prwlock == THR_RWLOCK_DESTROYED) {			\
+			return (EINVAL);					\
+		}								\
+		prwlock = *rwlock;						\
+	}
+
 /*
  * Prototypes
  */
@@ -64,15 +77,16 @@ rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr __unused)
 int
 _pthread_rwlock_destroy (pthread_rwlock_t *rwlock)
 {
+	pthread_rwlock_t prwlock;
 	int ret;
 
-	if (rwlock == NULL)
+	prwlock = *rwlock;
+	if (prwlock == THR_RWLOCK_INITIALIZER)
+		ret = 0;
+	else if (prwlock == THR_RWLOCK_DESTROYED)
 		ret = EINVAL;
 	else {
-		pthread_rwlock_t prwlock;
-
-		prwlock = *rwlock;
-		*rwlock = NULL;
+		*rwlock = THR_RWLOCK_DESTROYED;
 
 		free(prwlock);
 		ret = 0;
@@ -87,7 +101,7 @@ init_static(struct pthread *thread, pthread_rwlock_t *rwlock)
 
 	THR_LOCK_ACQUIRE(thread, &_rwlock_static_lock);
 
-	if (*rwlock == NULL)
+	if (*rwlock == THR_RWLOCK_INITIALIZER)
 		ret = rwlock_init(rwlock, NULL);
 	else
 		ret = 0;
@@ -113,18 +127,7 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 	int flags;
 	int ret;
 
-	if (__predict_false(rwlock == NULL))
-		return (EINVAL);
-
-	prwlock = *rwlock;
-
-	/* check for static initialization */
-	if (__predict_false(prwlock == NULL)) {
-		if ((ret = init_static(curthread, rwlock)) != 0)
-			return (ret);
-
-		prwlock = *rwlock;
-	}
+	CHECK_AND_INIT_RWLOCK
 
 	if (curthread->rdlock_count) {
 		/*
@@ -206,18 +209,7 @@ _pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
 	int flags;
 	int ret;
 
-	if (__predict_false(rwlock == NULL))
-		return (EINVAL);
-
-	prwlock = *rwlock;
-
-	/* check for static initialization */
-	if (__predict_false(prwlock == NULL)) {
-		if ((ret = init_static(curthread, rwlock)) != 0)
-			return (ret);
-
-		prwlock = *rwlock;
-	}
+	CHECK_AND_INIT_RWLOCK
 
 	if (curthread->rdlock_count) {
 		/*
@@ -250,18 +242,7 @@ _pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
 	pthread_rwlock_t prwlock;
 	int ret;
 
-	if (__predict_false(rwlock == NULL))
-		return (EINVAL);
-
-	prwlock = *rwlock;
-
-	/* check for static initialization */
-	if (__predict_false(prwlock == NULL)) {
-		if ((ret = init_static(curthread, rwlock)) != 0)
-			return (ret);
-
-		prwlock = *rwlock;
-	}
+	CHECK_AND_INIT_RWLOCK
 
 	ret = _thr_rwlock_trywrlock(&prwlock->lock);
 	if (ret == 0)
@@ -277,18 +258,7 @@ rwlock_wrlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 	struct timespec ts, ts2, *tsp;
 	int ret;
 
-	if (__predict_false(rwlock == NULL))
-		return (EINVAL);
-
-	prwlock = *rwlock;
-
-	/* check for static initialization */
-	if (__predict_false(prwlock == NULL)) {
-		if ((ret = init_static(curthread, rwlock)) != 0)
-			return (ret);
-
-		prwlock = *rwlock;
-	}
+	CHECK_AND_INIT_RWLOCK
 
 	/*
 	 * POSIX said the validity of the abstimeout parameter need
@@ -356,12 +326,9 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 	int ret;
 	int32_t state;
 
-	if (__predict_false(rwlock == NULL))
-		return (EINVAL);
-
 	prwlock = *rwlock;
 
-	if (__predict_false(prwlock == NULL))
+	if (__predict_false(prwlock <= THR_RWLOCK_DESTROYED))
 		return (EINVAL);
 
 	state = prwlock->lock.rw_state;

@@ -395,6 +395,16 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_check_alt_mac_addr_generic");
 
+	ret_val = hw->nvm.ops.read(hw, NVM_COMPAT, 1, &nvm_data);
+	if (ret_val)
+		goto out;
+
+	/* Check for LOM (vs. NIC) or one of two valid mezzanine cards */
+	if (!((nvm_data & NVM_COMPAT_LOM) ||
+	      (hw->device_id == E1000_DEV_ID_82571EB_SERDES_DUAL) ||
+	      (hw->device_id == E1000_DEV_ID_82571EB_SERDES_QUAD)))
+		goto out;
+
 	ret_val = hw->nvm.ops.read(hw, NVM_ALT_MAC_ADDR_PTR, 1,
 	                         &nvm_alt_mac_addr_offset);
 	if (ret_val) {

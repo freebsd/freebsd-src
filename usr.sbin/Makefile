@@ -27,6 +27,7 @@ SUBDIR= adduser \
 	fwcontrol \
 	getfmac \
 	getpmac \
+	gpioctl \
 	gstat \
 	i2c \
 	ifmcstat \
