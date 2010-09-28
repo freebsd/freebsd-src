@@ -2300,7 +2300,7 @@ MODULE_VERSION(dummynet, 1);
  * VNET_SYSINIT is also called for each existing vnet and each new vnet.
  */
 //VNET_SYSINIT(vnet_dn_init, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_init, NULL);
- 
+
 /*
  * Shutdown handlers up shop. These are done in REVERSE ORDER, but still
  * after dummynet_modevent() has been called. Not called on reboot.
