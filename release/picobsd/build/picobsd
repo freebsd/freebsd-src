@@ -176,9 +176,9 @@ create_includes_and_libraries2() { # opt_dir opt_target
     ( cd ${SRC};
     # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
     if [ -d "$1" ] ; then
-	cd $1 ; make $2	# specific target, e.g. ld-elf.so
+	cd $1 ; ${BINMAKE} $2	# specific target, e.g. ld-elf.so
     else
-	make _+_= $no toolchain _includes _libraries
+	${BINMAKE} _+_= $no toolchain _includes _libraries
     fi
     )
 }
