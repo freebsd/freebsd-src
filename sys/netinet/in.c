@@ -252,12 +252,15 @@ in_control(so, cmd, data, ifp, td)
 	 * the first one on the interface, if possible.
 	 */
 	if (ifp) {
+		struct in_addr tmp;
+
 		dst = ((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr;
 		LIST_FOREACH(iap, INADDR_HASH(dst.s_addr), ia_hash)
 			if (iap->ia_ifp == ifp &&
 			    iap->ia_addr.sin_addr.s_addr == dst.s_addr) {
+				tmp.s_addr = dst.s_addr;
 				if (td == NULL || !prison_ip(
-				    td->td_ucred, 0, &dst.s_addr))
+				    td->td_ucred, 0, &tmp.s_addr))
 					ia = iap;
 				break;
 			}
@@ -265,9 +268,11 @@ in_control(so, cmd, data, ifp, td)
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				iap = ifatoia(ifa);
 				if (iap->ia_addr.sin_family == AF_INET) {
+					tmp.s_addr =
+					    iap->ia_addr.sin_addr.s_addr;
 					if (td != NULL &&
 					    prison_ip(td->td_ucred, 0,
-					    &iap->ia_addr.sin_addr.s_addr))
+					    &tmp.s_addr))
 						continue;
 					ia = iap;
 					break;
