@@ -893,24 +893,6 @@ do_motd(void)
 {
 	FILE *f;
 	char buf[256];
-#ifdef HAVE_LOGIN_CAP
-	const char *fname;
-#endif
-
-#ifdef HAVE_LOGIN_CAP
-	fname = login_getcapstr(lc, "copyright", NULL, NULL);
-	if (fname != NULL && (f = fopen(fname, "r")) != NULL) {
-		while (fgets(buf, sizeof(buf), f) != NULL)
-			fputs(buf, stdout);
-			fclose(f);
-	} else
-#endif /* HAVE_LOGIN_CAP */
-		(void)printf("%s\n\t%s %s\n",
-	"Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
-	"The Regents of the University of California. ",
-	"All rights reserved.");
-
-	(void)printf("\n");
 
 	if (options.print_motd) {
 #ifdef HAVE_LOGIN_CAP
