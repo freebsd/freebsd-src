@@ -423,7 +423,6 @@ ENTRY(casuword)
 	 */
 
 	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
 END(casuword32)
