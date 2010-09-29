@@ -36,6 +36,8 @@ static char sccsid[] = "@(#)ldexp.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <math.h>
+
 /*
  * ldexp(value, exp): return value * (2 ** exp).
  *
@@ -49,12 +51,16 @@ __FBSDID("$FreeBSD$");
 double
 ldexp (double value, int exp)
 {
-	double temp, texp, temp2;
+	double temp, texp;
+#ifdef __clang__
+	volatile
+#endif
+	double temp2;
 	texp = exp;
 #ifdef __GNUC__
 	__asm ("fscale "
-		: "=u" (temp2), "=t" (temp)
-		: "0" (texp), "1" (value));
+		: "=t" (temp), "=u" (temp2)
+		: "0" (value), "1" (texp));
 #else
 #error unknown asm
 #endif
