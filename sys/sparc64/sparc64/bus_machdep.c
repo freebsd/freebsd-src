@@ -652,7 +652,7 @@ nexus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	}
 	if (*vaddr == NULL)
 		return (ENOMEM);
-	if ((uintptr_t)*vaddr % dmat->dt_alignment)
+	if (vtophys(*vaddr) % dmat->dt_alignment)
 		printf("%s: failed to align memory properly.\n", __func__);
 	return (0);
 }
