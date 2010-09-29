@@ -9464,7 +9464,7 @@ handle_written_indirdep(indirdep, bp, bpp)
 	indirdep->ir_state |= ATTACHED;
 	/*
 	 * Move allocindirs with written pointers to the completehd if
-	 * the the indirdep's pointer is not yet written.  Otherwise
+	 * the indirdep's pointer is not yet written.  Otherwise
 	 * free them here.
 	 */
 	while ((aip = LIST_FIRST(&indirdep->ir_writehd)) != 0) {
