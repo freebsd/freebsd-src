@@ -3216,6 +3216,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	struct aac_mntinforesp *mir;
 	int next, current, found;
 	int count = 0, added = 0, i = 0;
+	uint32_t channel;
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
@@ -3322,6 +3323,27 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				mtx_lock(&sc->aac_io_lock);
 			}
 
+			break;
+
+		case AifEnEnclosureManagement:
+			switch (aif->data.EN.data.EEE.eventType) {
+			case AIF_EM_DRIVE_INSERTION:
+			case AIF_EM_DRIVE_REMOVAL:
+				channel = aif->data.EN.data.EEE.unitID;
+				if (sc->cam_rescan_cb != NULL)
+					sc->cam_rescan_cb(sc,
+					    (channel >> 24) & 0xF,
+					    (channel & 0xFFFF));
+				break;
+			}
+			break;
+
+		case AifEnAddJBOD:
+		case AifEnDeleteJBOD:
+			channel = aif->data.EN.data.ECE.container;
+			if (sc->cam_rescan_cb != NULL)
+				sc->cam_rescan_cb(sc, (channel >> 24) & 0xF,
+				    AAC_CAM_TARGET_WILDCARD);
 			break;
 
 		default:
