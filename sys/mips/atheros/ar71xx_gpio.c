@@ -375,8 +375,8 @@ ar71xx_gpio_attach(device_t dev)
 	}
 
 	sc->dev = dev;
-	ar71xx_gpio_function_enable(sc, GPIO_SPI_CS1_EN);
-	ar71xx_gpio_function_enable(sc, GPIO_SPI_CS2_EN);
+	ar71xx_gpio_function_enable(sc, GPIO_FUNC_SPI_CS1_EN);
+	ar71xx_gpio_function_enable(sc, GPIO_FUNC_SPI_CS2_EN);
 	/* Configure all pins as input */
 	/* disable interrupts for all pins */
 	GPIO_WRITE(sc, AR71XX_GPIO_INT_MASK, 0);
@@ -406,8 +406,8 @@ ar71xx_gpio_detach(device_t dev)
 
 	KASSERT(mtx_initialized(&sc->gpio_mtx), ("gpio mutex not initialized"));
 
-	ar71xx_gpio_function_disable(sc, GPIO_SPI_CS1_EN);
-	ar71xx_gpio_function_disable(sc, GPIO_SPI_CS2_EN);
+	ar71xx_gpio_function_disable(sc, GPIO_FUNC_SPI_CS1_EN);
+	ar71xx_gpio_function_disable(sc, GPIO_FUNC_SPI_CS2_EN);
 	bus_generic_detach(dev);
 
 	if (sc->gpio_mem_res)
