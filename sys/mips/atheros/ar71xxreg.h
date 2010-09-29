@@ -151,11 +151,10 @@
 #define		AR71XX_GPIO_FUNCTION		0x28
 #define			GPIO_FUNC_STEREO_EN     (1 << 17)
 #define			GPIO_FUNC_SLIC_EN       (1 << 16)
-#define			GPIO_FUNC_SPI_CS2_EN    (1 << 15)
+#define			GPIO_FUNC_SPI_CS2_EN    (1 << 13)
 				/* CS2 is shared with GPIO_1 */
-#define			GPIO_FUNC_SPI_CS1_EN    (1 << 14)
+#define			GPIO_FUNC_SPI_CS1_EN    (1 << 12)
 				/* CS1 is shared with GPIO_0 */
-#define			GPIO_FUNC_SPI_EN        (1 << 13)
 #define			GPIO_FUNC_UART_EN       (1 << 8)
 #define			GPIO_FUNC_USB_OC_EN     (1 << 4)
 #define			GPIO_FUNC_USB_CLK_EN    (0)
