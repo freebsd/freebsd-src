@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2008
+.Dd June 14, 2010
 .Dt VFS_UNBUSY 9
 .Os
 .Sh NAME
@@ -40,23 +40,17 @@
 .Sh DESCRIPTION
 The
 .Fn vfs_unbusy
-function un-busies a mount point by unlocking
-.Fa mp->mnt_lock .
-The lock is typically acquired by calling
+function un-busies a mount point by decrementing
+the reference count of a mount point.
+The reference count is typically incremented by calling
 .Xr vfs_busy 9
 prior to this call.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa mp"
 .It Fa mp
-The mount point to unbusy (unlock).
+The mount point to unbusy.
 .El
-.Sh LOCKS
-.Va mnt_lock
-must be locked in
-.Fa mp
-prior to calling
-this function, and it will be unlocked upon return.
 .Sh SEE ALSO
 .Xr vfs_busy 9
 .Sh AUTHORS
