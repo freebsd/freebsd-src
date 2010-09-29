@@ -2899,9 +2899,10 @@ complete_jseg(jseg)
 	struct worklist *wk;
 	struct jmvref *jmvref;
 	int waiting;
-	int i;
+#ifdef INVARIANTS
+	int i = 0;
+#endif
 
-	i = 0;
 	while ((wk = LIST_FIRST(&jseg->js_entries)) != NULL) {
 		WORKLIST_REMOVE(wk);
 		waiting = wk->wk_state & IOWAITING;
