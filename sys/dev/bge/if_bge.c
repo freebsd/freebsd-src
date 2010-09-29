@@ -4220,6 +4220,14 @@ bge_init_locked(struct bge_softc *sc)
 	/* Turn on receiver. */
 	BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
 
+	/*
+	 * Set the number of good frames to receive after RX MBUF
+	 * Low Watermark has been reached. After the RX MAC receives
+	 * this number of frames, it will drop subsequent incoming
+	 * frames until the MBUF High Watermark is reached.
+	 */
+	CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 2);
+
 	/* Tell firmware we're alive. */
 	BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
 
