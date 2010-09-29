@@ -882,10 +882,21 @@ bge_miibus_statchg(device_t dev)
 	else
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_PORTMODE_MII);
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
+	if (IFM_OPTIONS(mii->mii_media_active & IFM_FDX) != 0) {
 		BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-	else
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG1)
+			BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
+		else
+			BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0)
+			BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
+		else
+			BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
+	} else {
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
+		BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
+		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
+	}
 }
 
 /*
