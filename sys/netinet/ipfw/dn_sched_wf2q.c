@@ -318,7 +318,7 @@ wf2qp_free_queue(struct dn_queue *q)
 {
 	struct wf2qp_queue *alg_fq = (struct wf2qp_queue *)q;
 	struct wf2qp_si *si = (struct wf2qp_si *)(q->_si + 1);
-   
+
 	if (alg_fq->S >= alg_fq->F + 1)
 		return 0;	/* nothing to do, not in any heap */
 	si->wsum -= q->fs->fs.par[0];
