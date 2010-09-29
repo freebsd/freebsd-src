@@ -636,6 +636,12 @@ _mutex_cv_unlock(pthread_mutex_t *mutex, int *count)
 	struct pthread_mutex *m;
 
 	m = *mutex;
+	if (__predict_false(m <= THR_MUTEX_DESTROYED)) {
+		if (m == THR_MUTEX_DESTROYED)
+			return (EINVAL);
+		return (EPERM);
+	}
+
 	/*
 	 * Check if the running thread is not the owner of the mutex.
 	 */
