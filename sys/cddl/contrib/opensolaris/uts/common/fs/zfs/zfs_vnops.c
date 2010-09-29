@@ -388,7 +388,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 {
 	vm_object_t obj;
 	struct sf_buf *sf;
-	int64_t off;
+	int off;
 
 	ASSERT(vp->v_mount != NULL);
 	obj = vp->v_object;
@@ -398,7 +398,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 	VM_OBJECT_LOCK(obj);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
 		vm_page_t pp;
-		uint64_t nbytes = MIN(PAGESIZE - off, len);
+		int nbytes = MIN(PAGESIZE - off, len);
 
 		if ((pp = page_lookup(vp, start, off, nbytes)) != NULL) {
 			caddr_t va;
@@ -441,9 +441,10 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 	vm_object_t obj;
 	vm_page_t m;
 	struct sf_buf *sf;
-	int64_t start, off;
+	int64_t start;
 	caddr_t va;
 	int len = nbytes;
+	int off;
 	int error = 0;
 	uint64_t dirbytes;
 
@@ -456,11 +457,11 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 	dirbytes = 0;
 	VM_OBJECT_LOCK(obj);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
-		uint64_t bytes = MIN(PAGESIZE - off, len);
+		int bytes = MIN(PAGESIZE - off, len);
 
 again:
 		if ((m = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
-		    vm_page_is_valid(m, (vm_offset_t)off, bytes)) {
+		    vm_page_is_valid(m, off, bytes)) {
 			if ((m->oflags & VPO_BUSY) != 0) {
 				/*
 				 * Reference the page before unlocking and
