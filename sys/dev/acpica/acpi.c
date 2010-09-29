@@ -497,29 +497,6 @@ acpi_attach(device_t dev)
     acpi_enable_pcie();
 #endif
 
-    /* Install the default address space handlers. */
-    status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
-		ACPI_ADR_SPACE_SYSTEM_MEMORY, ACPI_DEFAULT_HANDLER, NULL, NULL);
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "Could not initialise SystemMemory handler: %s\n",
-		      AcpiFormatException(status));
-	goto out;
-    }
-    status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
-		ACPI_ADR_SPACE_SYSTEM_IO, ACPI_DEFAULT_HANDLER, NULL, NULL);
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "Could not initialise SystemIO handler: %s\n",
-		      AcpiFormatException(status));
-	goto out;
-    }
-    status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
-		ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
-    if (ACPI_FAILURE(status)) {
-	device_printf(dev, "could not initialise PciConfig handler: %s\n",
-		      AcpiFormatException(status));
-	goto out;
-    }
-
     /*
      * Note that some systems (specifically, those with namespace evaluation
      * issues that require the avoidance of parts of the namespace) must
