@@ -499,6 +499,8 @@ again:
 				sched_unpin();
 			}
 			VM_OBJECT_LOCK(obj);
+			if (error == 0)
+				vm_page_set_valid(m, off, bytes);
 			vm_page_wakeup(m);
 			if (error == 0) {
 				uio->uio_resid -= bytes;
