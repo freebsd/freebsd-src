@@ -120,10 +120,6 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, io_fast,
     CTLFLAG_RW, DC(io_fast), 0, "Enable fast dummynet io.");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, debug,
     CTLFLAG_RW, DC(debug), 0, "Dummynet debug level");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
-    CTLFLAG_RW, DC(expire), 0, "Expire empty queues/pipes");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire_cycle,
-    CTLFLAG_RD, DC(expire_cycle), 0, "Expire cycle for queues/pipes");
 
 /* RED parameters */
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_lookup_depth,
@@ -146,6 +142,12 @@ SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_diff,
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_lost,
     CTLFLAG_RD, &tick_lost, 0,
     "Number of ticks coalesced by dummynet taskqueue.");
+
+/* Drain parameters */
+SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
+    CTLFLAG_RW, DC(expire), 0, "Expire empty queues/pipes");
+SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire_cycle,
+    CTLFLAG_RD, DC(expire_cycle), 0, "Expire cycle for queues/pipes");
 
 /* statistics */
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, schk_count,
@@ -463,14 +465,16 @@ serve_sched(struct mq *q, struct dn_sch_inst *si, uint64_t now)
 	done = 0;
 	while (si->credit >= 0 && (m = s->fp->dequeue(si)) != NULL) {
 		uint64_t len_scaled;
+
 		done++;
 		len_scaled = (bw == 0) ? 0 : hz *
-		    (m->m_pkthdr.len * 8 + extra_bits(m, s));
+			(m->m_pkthdr.len * 8 + extra_bits(m, s));
 		si->credit -= len_scaled;
 		/* Move packet in the delay line */
 		dn_tag_get(m)->output_time += s->link.delay ;
 		mq_append(&si->dline.mq, m);
 	}
+
 	/*
 	 * If credit >= 0 the instance is idle, mark time.
 	 * Otherwise put back in the heap, and adjust the output
