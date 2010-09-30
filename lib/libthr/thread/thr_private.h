@@ -71,7 +71,8 @@
 #include "thread_db.h"
 
 #ifdef _PTHREAD_FORCED_UNWIND
-#include <unwind-generic.h>
+#define _BSD_SOURCE
+#include <unwind.h>
 #endif
 
 typedef TAILQ_HEAD(pthreadlist, pthread) pthreadlist;
