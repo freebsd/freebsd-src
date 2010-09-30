@@ -28,6 +28,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #ifndef _UNWIND_H
 #define _UNWIND_H
 
+#include <sys/_types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -76,7 +78,7 @@ typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn) (int, _Unwind_Action,
    IA-64, while being more general.  */
 struct _Unwind_Exception
   {
-    unsigned long exception_class;
+    __int64_t exception_class;
     _Unwind_Exception_Cleanup_Fn exception_cleanup;
     unsigned long private_1;
     unsigned long private_2;
@@ -95,7 +97,7 @@ extern void _Unwind_SetIP (struct _Unwind_Context *, unsigned long);
 extern unsigned long _Unwind_GetLanguageSpecificData (struct _Unwind_Context*);
 extern unsigned long _Unwind_GetRegionStart (struct _Unwind_Context *);
 
-#ifdef _GNU_SOURCE
+#if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
 
 /* Callback for _Unwind_Backtrace().  The backtrace stops immediately
    if the callback returns any value other than _URC_NO_REASON. */
@@ -145,7 +147,7 @@ extern void *_Unwind_FindEnclosingFunction (void *);
 /* See also Linux Standard Base Spec:
     http://www.linuxbase.org/spec/refspecs/LSB_1.3.0/gLSB/gLSB/libgcc-s.html */
 
-#endif /* _GNU_SOURCE */
+#endif /* _GNU_SOURCE || _BSD_SOURCE */
 
 #ifdef __cplusplus
 };
