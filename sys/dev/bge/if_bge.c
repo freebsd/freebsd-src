@@ -4630,14 +4630,18 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 #endif
-		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if (IFCAP_HWCSUM & ifp->if_capenable &&
-			    IFCAP_HWCSUM & ifp->if_capabilities)
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
 				ifp->if_hwassist |= sc->bge_csum_features;
 			else
 				ifp->if_hwassist &= ~sc->bge_csum_features;
 		}
+
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 
 		if ((mask & IFCAP_TSO4) != 0 &&
 		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
