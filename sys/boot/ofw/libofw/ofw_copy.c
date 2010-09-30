@@ -68,7 +68,7 @@ ofw_mapmem(vm_offset_t dest, const size_t len)
 	/*
 	 * Trim area covered by existing mapping, if any
 	 */
-	if (dest < (last_dest + last_len)) {
+	if (dest < (last_dest + last_len) && dest >= last_dest) {
 		nlen -= (last_dest + last_len) - dest;
 		dest = last_dest + last_len;
 	}
