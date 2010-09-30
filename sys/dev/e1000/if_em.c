@@ -328,10 +328,10 @@ static ndumplock_handler_t em_ndump_enable_intr;
 #ifdef NETDUMP_CLIENT
 
 static struct netdump_methods em_ndump_methods = {
-	.poll_locked = em_poll,
-	.poll_unlocked = em_poll_unlocked,
-	.disable_intr = em_ndump_disable_intr,
-	.enable_intr = em_ndump_enable_intr
+	.ne_poll_locked = em_poll,
+	.ne_poll_unlocked = em_poll_unlocked,
+	.ne_disable_intr = em_ndump_disable_intr,
+	.ne_enable_intr = em_ndump_enable_intr
 };
 
 #endif

@@ -23,6 +23,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
@@ -250,7 +251,7 @@ alloc_client(struct sockaddr_in *sip)
 		    "%s/vmcore.%s.%d", dumpdir, client->hostname, i);
 
 		/* Try the info file first. */
-		fd = open(client->infofilename, O_WRONLY|O_CREAT|O_EXCL,
+		fd = open(client->infofilename, O_WRONLY | O_CREAT | O_EXCL,
 		    DEFFILEMODE);
 		if (fd == -1) {
 			if (errno != EEXIST)
@@ -267,7 +268,7 @@ alloc_client(struct sockaddr_in *sip)
 		}
 
 		/* Next make the core file. */
-		fd = open(client->corefilename, O_RDWR|O_CREAT|O_EXCL,
+		fd = open(client->corefilename, O_RDWR | O_CREAT | O_EXCL,
 		    DEFFILEMODE);
 		if (fd == -1) {
 
@@ -383,7 +384,7 @@ send_ack(struct netdump_client *client, struct netdump_msg *msg)
 	assert(client != NULL && msg != NULL);
 
 	bzero(&ack, sizeof(ack));
-	ack.seqno = htonl(msg->hdr.seqno);
+	ack.na_seqno = htonl(msg->nm_hdr.mh_seqno);
 	do {
 		tryagain = 0;
 		if (send(client->sock, &ack, sizeof(ack), 0) == -1) {
@@ -448,8 +449,8 @@ handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 		return;
 
 	client->any_data_rcvd = 1;
-	h = (struct kerneldumpheader *)msg->data;
-	if (msg->hdr.len < sizeof(struct kerneldumpheader)) {
+	h = (struct kerneldumpheader *)msg->nm_data;
+	if (msg->nm_hdr.len < sizeof(struct kerneldumpheader)) {
 		LOGERR("Bad KDH from %s [%s]: packet too small\n",
 		    client->hostname, client_ntoa(client));
 		client_pinfo(client, "Bad KDH: packet too small\n");
@@ -495,18 +496,18 @@ handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
 		return;
 
 	client->any_data_rcvd = 1;
-	if (msg->hdr.seqno % 11523 == 0) {
+	if (msg->nm_hdr.mh_seqno % 11523 == 0) {
 
 		/* Approximately every 16MB with MTU of 1500 */
 		LOGINFO(".");
 	}
-	if (pwrite(client->corefd, msg->data, msg->hdr.len,
-	    msg->hdr.offset) == -1) {
+	if (pwrite(client->corefd, msg->nm_data, msg->nm_hdr.len,
+	    msg->nm_hdr.mh_offset) == -1) {
 		LOGERR("pwrite (for client %s [%s]): %s\n", client->hostname,
 		    client_ntoa(client), strerror(errno));
 		client_pinfo(client,
 		    "Dump unsuccessful: write error @ offset %08"PRIx64": %s\n",
-		    msg->hdr.offset, strerror(errno));
+		    msg->nm_hdr.mh_offset, strerror(errno));
 		exec_handler(client, "error");
 		free_client(client);
 		return;
@@ -568,15 +569,15 @@ receive_message(int isock, struct sockaddr_in *from, char *fromstr,
 	}
 
 	/* Convert byte order. */
-	msg->hdr.type = ntohl(msg->hdr.type);
-	msg->hdr.seqno = ntohl(msg->hdr.seqno);
-	msg->hdr.offset = be64toh(msg->hdr.offset);
-	msg->hdr.len = ntohl(msg->hdr.len);
+	msg->nm_hdr.mh_type = ntohl(msg->nm_hdr.mh_type);
+	msg->nm_hdr.mh_seqno = ntohl(msg->nm_hdr.mh_seqno);
+	msg->nm_hdr.mh_offset = be64toh(msg->nm_hdr.mh_offset);
+	msg->nm_hdr.mh_len = ntohl(msg->nm_hdr.mh_len);
 
-	if ((size_t)len < sizeof(struct netdump_msg_hdr) + msg->hdr.len) {
+	if ((size_t)len < sizeof(struct netdump_msg_hdr) + msg->nm_hdr.mh_len) {
 		LOGERR("Packet too small from %s (got %zu, expected %zu)\n",
 		    fromstr, (size_t)len,
-		    sizeof(struct netdump_msg_hdr) + msg->hdr.len);
+		    sizeof(struct netdump_msg_hdr) + msg->nm_hdr.mh_len);
 		return (0);
 	}
 	return (len);
@@ -592,7 +593,7 @@ handle_packet(struct netdump_client *client, struct sockaddr_in *from,
 	if (client != NULL)
 		client->last_msg = time(NULL);
 
-	switch (msg->hdr.type) {
+	switch (msg->nm_hdr.mh_type) {
 	case NETDUMP_HERALD:
 		handle_herald(from, client, msg);
 		break;
@@ -607,7 +608,7 @@ handle_packet(struct netdump_client *client, struct sockaddr_in *from,
 		break;
 	default:
 		LOGERR("Received unknown message type %d from %s\n",
-		    msg->hdr.type, fromstr);
+		    msg->nm_hdr.mh_type, fromstr);
 	}
 }
 
@@ -687,7 +688,7 @@ eventloop(void)
 				 * packets.
 				 */
 				if (client != NULL &&
-				    msg.hdr.type != NETDUMP_HERALD &&
+				    msg.nm_hdr.mh_type != NETDUMP_HERALD &&
 				    client->printed_port_warning == 0) {
 			    LOGWARN("Client %s responding on server port\n",
 					    client->hostname);

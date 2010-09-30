@@ -43,20 +43,20 @@
 #define	NETDUMP_DATASIZE	8192	/* Packets payload. */
 
 struct netdump_msg_hdr {
-	uint32_t	type;	/* NETDUMP_HERALD, _FINISHED, _VMCORE, _KDH. */
-	uint32_t	seqno;	/* Match acks with msgs. */
-	uint64_t	offset;	/* vmcore offset (bytes). */
-	uint32_t	len;	/* Attached data (bytes). */
-	uint32_t	_pad;	/* Pad space matching 32- and 64-bits archs. */
+	uint32_t	mh_type; /* NETDUMP_HERALD, _FINISHED, _VMCORE, _KDH. */
+	uint32_t	mh_seqno;	/* Match acks with msgs. */
+	uint64_t	mh_offset;	/* vmcore offset (bytes). */
+	uint32_t	mh_len;		/* Attached data (bytes). */
+	uint32_t	mh__pad; /* Pad space matching 32- and 64-bits archs. */
 };
 
 struct netdump_ack {
-	uint32_t	seqno;	/* Match acks with msgs. */
+	uint32_t	na_seqno;	/* Match acks with msgs. */
 };
 
 struct netdump_msg {
-	struct netdump_msg_hdr hdr;
-	uint8_t		data[NETDUMP_DATASIZE];
+	struct netdump_msg_hdr nm_hdr;
+	uint8_t		nm_data[NETDUMP_DATASIZE];
 };
 
 #ifdef _KERNEL
@@ -64,10 +64,10 @@ struct netdump_msg {
 typedef void ndumplock_handler_t(struct ifnet *);
 
 struct netdump_methods {
-	poll_handler_t		*poll_locked;
-	poll_handler_t		*poll_unlocked;
-	ndumplock_handler_t	*disable_intr;
-	ndumplock_handler_t	*enable_intr;
+	poll_handler_t		*ne_poll_locked;
+	poll_handler_t		*ne_poll_unlocked;
+	ndumplock_handler_t	*ne_disable_intr;
+	ndumplock_handler_t	*ne_enable_intr;
 };
 
 #endif

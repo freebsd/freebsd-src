@@ -603,11 +603,11 @@ retransmit:
 		/* leave room for udpip */
 		MH_ALIGN(m, sizeof(struct netdump_msg_hdr));
 		nd_msg_hdr = mtod(m, struct netdump_msg_hdr *);
-		nd_msg_hdr->seqno = htonl(nd_seqno+i);
-		nd_msg_hdr->type = htonl(type);
-		nd_msg_hdr->offset = htobe64(offset + sent_so_far);
-		nd_msg_hdr->len = htonl(pktlen);
-		nd_msg_hdr->_pad = 0;
+		nd_msg_hdr->mh_seqno = htonl(nd_seqno+i);
+		nd_msg_hdr->mh_type = htonl(type);
+		nd_msg_hdr->mh_offset = htobe64(offset + sent_so_far);
+		nd_msg_hdr->mh_len = htonl(pktlen);
+		nd_msg_hdr->mh__pad = 0;
 
 		if (pktlen) {
 			if ((m2 = m_get(M_DONTWAIT, MT_DATA)) == NULL) {
@@ -827,7 +827,7 @@ nd_handle_ip(struct mbuf **mb)
 	 */
 	nd_ack = (struct netdump_ack *)
 		(mtod(m, caddr_t) + sizeof(struct udpiphdr));
-	rcv_ackno = ntohl(nd_ack->seqno);
+	rcv_ackno = ntohl(nd_ack->na_seqno);
 
 	if (nd_server_port == NETDUMP_PORT) {
 	    nd_server_port = ntohs(udp->ui_u.uh_sport);
@@ -1060,11 +1060,11 @@ netdump_network_poll()
 
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 	if (panicstr != NULL)
-		nd_nic->if_ndumpfuncs->poll_unlocked(nd_nic,
+		nd_nic->if_ndumpfuncs->ne_poll_unlocked(nd_nic,
 		    POLL_AND_CHECK_STATUS, 1000);
 	else
 #endif
-		nd_nic->if_ndumpfuncs->poll_locked(nd_nic,
+		nd_nic->if_ndumpfuncs->ne_poll_locked(nd_nic,
 		    POLL_AND_CHECK_STATUS, 1000);
 }
 
@@ -1178,7 +1178,7 @@ netdump_trigger(void *arg, int howto)
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 		if (panicstr == NULL)
 #endif
-			nd_nic->if_ndumpfuncs->disable_intr(nd_nic);
+			nd_nic->if_ndumpfuncs->ne_disable_intr(nd_nic);
 	}
 
 	/* Make the card use *our* receive callback */
@@ -1233,7 +1233,7 @@ trig_abort:
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 		if (panicstr == NULL)
 #endif
-			nd_nic->if_ndumpfuncs->enable_intr(nd_nic);
+			nd_nic->if_ndumpfuncs->ne_enable_intr(nd_nic);
 	}
 	dumping--;
 }
