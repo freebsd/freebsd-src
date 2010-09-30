@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #define HPET_VENDID_AMD		0x4353
 #define HPET_VENDID_INTEL	0x8086
+#define HPET_VENDID_NVIDIA	0x10de
 
 ACPI_SERIAL_DECL(hpet, "ACPI HPET support");
 
@@ -490,6 +491,12 @@ hpet_attach(device_t dev)
 	 * interrupt loss. Avoid legacy IRQs for AMD.
 	 */
 	if (vendor == HPET_VENDID_AMD)
+		sc->allowed_irqs = 0x00000000;
+	/*
+	 * NVidia MCP5x chipsets have number of unexplained interrupt
+	 * problems. For some reason, using HPET interrupts breaks HDA sound.
+	 */
+	if (vendor == HPET_VENDID_NVIDIA && rev <= 0x01)
 		sc->allowed_irqs = 0x00000000;
 	/*
 	 * Neither QEMU nor VirtualBox report supported IRQs correctly.
