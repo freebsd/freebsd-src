@@ -423,8 +423,11 @@ void moea64_zero_page_idle(mmu_t, vm_page_t);
 void moea64_activate(mmu_t, struct thread *);
 void moea64_deactivate(mmu_t, struct thread *);
 void *moea64_mapdev(mmu_t, vm_offset_t, vm_size_t);
+void *moea64_mapdev_attr(mmu_t, vm_offset_t, vm_size_t, vm_memattr_t);
 void moea64_unmapdev(mmu_t, vm_offset_t, vm_size_t);
 vm_offset_t moea64_kextract(mmu_t, vm_offset_t);
+void moea64_page_set_memattr(mmu_t, vm_page_t m, vm_memattr_t ma);
+void moea64_kenter_attr(mmu_t, vm_offset_t, vm_offset_t, vm_memattr_t ma);
 void moea64_kenter(mmu_t, vm_offset_t, vm_offset_t);
 boolean_t moea64_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
 static void moea64_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
@@ -461,14 +464,17 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_zero_page_idle,	moea64_zero_page_idle),
 	MMUMETHOD(mmu_activate,		moea64_activate),
 	MMUMETHOD(mmu_deactivate,      	moea64_deactivate),
+	MMUMETHOD(mmu_page_set_memattr,	moea64_page_set_memattr),
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_bootstrap,       	moea64_bootstrap),
 	MMUMETHOD(mmu_cpu_bootstrap,   	moea64_cpu_bootstrap),
 	MMUMETHOD(mmu_mapdev,		moea64_mapdev),
+	MMUMETHOD(mmu_mapdev_attr,	moea64_mapdev_attr),
 	MMUMETHOD(mmu_unmapdev,		moea64_unmapdev),
 	MMUMETHOD(mmu_kextract,		moea64_kextract),
 	MMUMETHOD(mmu_kenter,		moea64_kenter),
+	MMUMETHOD(mmu_kenter_attr,	moea64_kenter_attr),
 	MMUMETHOD(mmu_dev_direct_mapped,moea64_dev_direct_mapped),
 
 	{ 0, 0 }
@@ -632,10 +638,23 @@ moea64_pte_change(struct lpte *pt, struct lpte *pvo_pt, uint64_t vpn)
 }
 
 static __inline uint64_t
-moea64_calc_wimg(vm_offset_t pa)
+moea64_calc_wimg(vm_offset_t pa, vm_memattr_t ma)
 {
 	uint64_t pte_lo;
 	int i;
+
+	if (ma != VM_MEMATTR_DEFAULT) {
+		switch (ma) {
+		case VM_MEMATTR_UNCACHEABLE:
+			return (LPTE_I | LPTE_G);
+		case VM_MEMATTR_WRITE_COMBINING:
+		case VM_MEMATTR_WRITE_BACK:
+		case VM_MEMATTR_PREFETCHABLE:
+			return (LPTE_I);
+		case VM_MEMATTR_WRITE_THROUGH:
+			return (LPTE_W | LPTE_M);
+		}
+	}
 
 	/*
 	 * Assume the page is cache inhibited and access is guarded unless
@@ -1376,7 +1395,7 @@ void moea64_set_scratchpage_pa(int which, vm_offset_t pa) {
 	moea64_scratchpage_pte[which]->pte_lo &= 
 	    ~(LPTE_WIMG | LPTE_RPGN);
 	moea64_scratchpage_pte[which]->pte_lo |=
-	    moea64_calc_wimg(pa) | (uint64_t)pa;
+	    moea64_calc_wimg(pa, VM_MEMATTR_DEFAULT) | (uint64_t)pa;
 	EIEIO();
 
 	moea64_scratchpage_pte[which]->pte_hi |= LPTE_VALID;
@@ -1524,7 +1543,7 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		zone = moea64_upvo_zone;
 	}
 
-	pte_lo = moea64_calc_wimg(VM_PAGE_TO_PHYS(m));
+	pte_lo = moea64_calc_wimg(VM_PAGE_TO_PHYS(m), pmap_page_get_memattr(m));
 
 	if (prot & VM_PROT_WRITE) {
 		pte_lo |= LPTE_BW;
@@ -1892,23 +1911,48 @@ moea64_ts_referenced(mmu_t mmu, vm_page_t m)
 }
 
 /*
+ * Modify the WIMG settings of all mappings for a page.
+ */
+void
+moea64_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
+{
+	struct	pvo_entry *pvo;
+	struct	lpte *pt;
+	pmap_t	pmap;
+	uint64_t lo;
+
+	vm_page_lock_queues();
+	lo = moea64_calc_wimg(VM_PAGE_TO_PHYS(m), ma);
+	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
+		pmap = pvo->pvo_pmap;
+		PMAP_LOCK(pmap);
+		LOCK_TABLE();
+		pt = moea64_pvo_to_pte(pvo);
+		pvo->pvo_pte.lpte.pte_lo &= ~LPTE_WIMG;
+		pvo->pvo_pte.lpte.pte_lo |= lo;
+		if (pt != NULL) {
+			moea64_pte_change(pt, &pvo->pvo_pte.lpte,
+			    pvo->pvo_vpn);
+			if (pvo->pvo_pmap == kernel_pmap)
+				isync();
+		}
+		UNLOCK_TABLE();
+		PMAP_UNLOCK(pmap);
+	}
+	m->md.mdpg_cache_attrs = ma;
+	vm_page_unlock_queues();
+}
+
+/*
  * Map a wired page into kernel virtual address space.
  */
 void
-moea64_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
+moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 {
 	uint64_t	pte_lo;
 	int		error;	
 
-#if 0
-	if (!pmap_bootstrapped) {
-		if (va >= VM_MIN_KERNEL_ADDRESS && va < virtual_end)
-			panic("Trying to enter an address in KVA -- %#"
-			    PRIxPTR "!\n",pa);
-	}
-#endif
-
-	pte_lo = moea64_calc_wimg(pa);
+	pte_lo = moea64_calc_wimg(pa, ma);
 
 	PMAP_LOCK(kernel_pmap);
 	error = moea64_pvo_enter(kernel_pmap, moea64_upvo_zone,
@@ -1926,6 +1970,13 @@ moea64_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 		__syncicache((void *)va, PAGE_SIZE);
 	}
 	PMAP_UNLOCK(kernel_pmap);
+}
+
+void
+moea64_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
+{
+
+	moea64_kenter_attr(mmu, va, pa, VM_MEMATTR_DEFAULT);
 }
 
 /*
@@ -2976,7 +3027,7 @@ moea64_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
  * NOT real memory.
  */
 void *
-moea64_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
+moea64_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	vm_offset_t va, tmpva, ppa, offset;
 
@@ -2990,13 +3041,20 @@ moea64_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 		panic("moea64_mapdev: Couldn't alloc kernel virtual memory");
 
 	for (tmpva = va; size > 0;) {
-		moea64_kenter(mmu, tmpva, ppa);
+		moea64_kenter_attr(mmu, tmpva, ppa, ma);
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
 		ppa += PAGE_SIZE;
 	}
 
 	return ((void *)(va + offset));
+}
+
+void *
+moea64_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
+{
+
+	return moea64_mapdev_attr(mmu, pa, size, VM_MEMATTR_DEFAULT);
 }
 
 void
