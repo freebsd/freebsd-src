@@ -352,8 +352,7 @@ ata_via_old_setmode(device_t dev, int target, int mode)
 	    piomode = mode;
 	}
 	/* Set WDMA/PIO timings */
-	if (ctlr->chip->cfg1 != VIA133)
-	    pci_write_config(parent, reg - 0x08,timings[ata_mode2idx(piomode)], 1);
+	pci_write_config(parent, reg - 0x08,timings[ata_mode2idx(piomode)], 1);
 	return (mode);
 }
 
