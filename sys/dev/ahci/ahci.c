@@ -1848,6 +1848,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	device_t dev = slot->dev;
 	struct ahci_channel *ch = device_get_softc(dev);
 	union ccb *ccb = slot->ccb;
+	int lastto;
 
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
 	    BUS_DMASYNC_POSTWRITE);
@@ -1949,11 +1950,6 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	ch->oslots &= ~(1 << slot->slot);
 	ch->rslots &= ~(1 << slot->slot);
 	ch->aslots &= ~(1 << slot->slot);
-	if (et != AHCI_ERR_TIMEOUT) {
-		if (ch->toslots == (1 << slot->slot))
-			xpt_release_simq(ch->sim, TRUE);
-		ch->toslots &= ~(1 << slot->slot);
-	}
 	slot->state = AHCI_SLOT_EMPTY;
 	slot->ccb = NULL;
 	/* Update channel stats. */
@@ -1963,6 +1959,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA)) {
 		ch->numtslots--;
 		ch->numtslotspd[ccb->ccb_h.target_id]--;
+	}
+	/* Cancel timeout state if request completed normally. */
+	if (et != AHCI_ERR_TIMEOUT) {
+		lastto = (ch->toslots == (1 << slot->slot));
+		ch->toslots &= ~(1 << slot->slot);
+		if (lastto)
+			xpt_release_simq(ch->sim, TRUE);
 	}
 	/* If it was first request of reset sequence and there is no error,
 	 * proceed to second request. */

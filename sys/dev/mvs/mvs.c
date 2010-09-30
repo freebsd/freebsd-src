@@ -1551,6 +1551,7 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 	device_t dev = slot->dev;
 	struct mvs_channel *ch = device_get_softc(dev);
 	union ccb *ccb = slot->ccb;
+	int lastto;
 
 //device_printf(dev, "cmd done status %d\n", et);
 	bus_dmamap_sync(ch->dma.workrq_tag, ch->dma.workrq_map,
@@ -1633,11 +1634,6 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 	ch->oslots &= ~(1 << slot->slot);
 	ch->rslots &= ~(1 << slot->slot);
 	ch->aslots &= ~(1 << slot->slot);
-	if (et != MVS_ERR_TIMEOUT) {
-		if (ch->toslots == (1 << slot->slot))
-			xpt_release_simq(ch->sim, TRUE);
-		ch->toslots &= ~(1 << slot->slot);
-	}
 	slot->state = MVS_SLOT_EMPTY;
 	slot->ccb = NULL;
 	/* Update channel stats. */
@@ -1656,6 +1652,13 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 	} else {
 		ch->numpslots--;
 		ch->basic_dma = 0;
+	}
+	/* Cancel timeout state if request completed normally. */
+	if (et != MVS_ERR_TIMEOUT) {
+		lastto = (ch->toslots == (1 << slot->slot));
+		ch->toslots &= ~(1 << slot->slot);
+		if (lastto)
+			xpt_release_simq(ch->sim, TRUE);
 	}
 	/* If it was our READ LOG command - process it. */
 	if (ch->readlog) {
