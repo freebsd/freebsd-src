@@ -1174,6 +1174,11 @@ netdump_trigger(void *arg, int howto)
 	dumptid = curthread->td_tid;
 	dumping++;
 
+	/*
+	 * nd_server_port could have switched after the first ack the
+	 * first time it gets called.  Adjust it accordingly.
+	 */
+	nd_server_port = NETDUMP_PORT;
 	if ((nd_nic->if_capenable & IFCAP_POLLING) == 0) {
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 		if (panicstr == NULL)
