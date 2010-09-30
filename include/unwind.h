@@ -66,7 +66,7 @@ typedef void (*_Unwind_Exception_Cleanup_Fn) (_Unwind_Reason_Code,
 					      struct _Unwind_Exception *);
 
 typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn) (int, _Unwind_Action,
-						unsigned long,
+						__int64_t,
 						struct _Unwind_Exception *,
 						struct _Unwind_Context *,
 						void *);
