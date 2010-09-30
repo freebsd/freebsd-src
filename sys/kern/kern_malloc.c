@@ -187,19 +187,19 @@ struct {
 static uma_zone_t mt_zone;
 
 u_long vm_kmem_size;
-SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
     "Size of kernel memory");
 
 static u_long vm_kmem_size_min;
-SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RD, &vm_kmem_size_min, 0,
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RDTUN, &vm_kmem_size_min, 0,
     "Minimum size of kernel memory");
 
 static u_long vm_kmem_size_max;
-SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RD, &vm_kmem_size_max, 0,
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RDTUN, &vm_kmem_size_max, 0,
     "Maximum size of kernel memory");
 
 static u_int vm_kmem_size_scale;
-SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RD, &vm_kmem_size_scale, 0,
+SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RDTUN, &vm_kmem_size_scale, 0,
     "Scale factor for kernel memory size");
 
 /*
