@@ -31,5 +31,3 @@ elf64-amd64-fbsd.c: ${.CURDIR}/elf-fbsd-brand.c ${SRCDIR}/bfd/elf64-x86-64.c
 pepigen.c: peXXigen.c
 	sed -e s/XX/pep/g ${.ALLSRC} > ${.TARGET}
 
-peigen.c: peXXigen.c
-	sed -e s/XX/pe/g ${.ALLSRC} > ${.TARGET}
