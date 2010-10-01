@@ -298,11 +298,8 @@ u_int		moea64_pteg_mask;
  * PVO data.
  */
 struct	pvo_head *moea64_pvo_table;		/* pvo entries by pteg index */
-/* lists of unmanaged pages */
-struct	pvo_head moea64_pvo_kunmanaged =
+struct	pvo_head moea64_pvo_kunmanaged =	/* list of unmanaged pages */
     LIST_HEAD_INITIALIZER(moea64_pvo_kunmanaged);
-struct	pvo_head moea64_pvo_unmanaged =
-    LIST_HEAD_INITIALIZER(moea64_pvo_unmanaged);
 
 uma_zone_t	moea64_upvo_zone; /* zone for pvo entries for unmanaged pages */
 uma_zone_t	moea64_mpvo_zone; /* zone for pvo entries for managed pages */
@@ -492,22 +489,6 @@ va_to_pteg(uint64_t vsid, vm_offset_t addr, int large)
 	hash = (vsid & VSID_HASH_MASK) ^ (((uint64_t)addr & ADDR_PIDX) >>
 	    shift);
 	return (hash & moea64_pteg_mask);
-}
-
-static __inline struct pvo_head *
-pa_to_pvoh(vm_offset_t pa, vm_page_t *pg_p)
-{
-	struct	vm_page *pg;
-
-	pg = PHYS_TO_VM_PAGE(pa);
-
-	if (pg_p != NULL)
-		*pg_p = pg;
-
-	if (pg == NULL)
-		return (&moea64_pvo_unmanaged);
-
-	return (&pg->md.mdpg_pvoh);
 }
 
 static __inline struct pvo_head *
@@ -1917,13 +1898,20 @@ void
 moea64_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
 {
 	struct	pvo_entry *pvo;
+	struct  pvo_head *pvo_head;
 	struct	lpte *pt;
 	pmap_t	pmap;
 	uint64_t lo;
 
+	if (m->flags & PG_FICTITIOUS) {
+		m->md.mdpg_cache_attrs = ma;
+		return;
+	}
+
 	vm_page_lock_queues();
+	pvo_head = vm_page_to_pvoh(m);
 	lo = moea64_calc_wimg(VM_PAGE_TO_PHYS(m), ma);
-	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
+	LIST_FOREACH(pvo, pvo_head, pvo_vlink) {
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
 		LOCK_TABLE();
