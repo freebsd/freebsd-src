@@ -1834,6 +1834,10 @@ bge_blockinit(struct bge_softc *sc)
 	if (BGE_IS_5755_PLUS(sc))
 		val |= BGE_WDMAMODE_STATUS_TAG_FIX;
 
+	/* Request larger DMA burst size to get better performance. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5785)
+		val |= BGE_WDMAMODE_BURST_ALL_DATA;
+
 	/* Turn on write DMA state machine */
 	CSR_WRITE_4(sc, BGE_WDMA_MODE, val);
 	DELAY(40);
