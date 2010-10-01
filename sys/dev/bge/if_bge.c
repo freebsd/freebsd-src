@@ -1052,7 +1052,7 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 		if ((error = bge_newbuf_std(sc, i)) != 0)
 			return (error);
 		BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
-	};
+	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
@@ -1095,7 +1095,7 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 		if ((error = bge_newbuf_jumbo(sc, i)) != 0)
 			return (error);
 		BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
-	};
+	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 	    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
