@@ -1361,7 +1361,7 @@ sta_age(struct ieee80211_scan_state *ss)
 	KASSERT(vap->iv_opmode == IEEE80211_M_STA,
 		("wrong mode %u", vap->iv_opmode));
 	if (vap->iv_roaming == IEEE80211_ROAMING_AUTO &&
-	    (vap->iv_ic->ic_flags & IEEE80211_F_BGSCAN) &&
+	    (vap->iv_flags & IEEE80211_F_BGSCAN) &&
 	    vap->iv_state >= IEEE80211_S_RUN)
 		/* XXX vap is implicit */
 		sta_roam_check(ss, vap);
