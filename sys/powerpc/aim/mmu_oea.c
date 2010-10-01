@@ -221,8 +221,6 @@ u_int		moea_pteg_mask;
 struct	pvo_head *moea_pvo_table;		/* pvo entries by pteg index */
 struct	pvo_head moea_pvo_kunmanaged =
     LIST_HEAD_INITIALIZER(moea_pvo_kunmanaged);	/* list of unmanaged pages */
-struct	pvo_head moea_pvo_unmanaged =
-    LIST_HEAD_INITIALIZER(moea_pvo_unmanaged);	/* list of unmanaged pages */
 
 uma_zone_t	moea_upvo_zone;	/* zone for pvo entries for unmanaged pages */
 uma_zone_t	moea_mpvo_zone;	/* zone for pvo entries for managed pages */
@@ -460,22 +458,6 @@ va_to_pteg(u_int sr, vm_offset_t addr)
 	hash = (sr & SR_VSID_MASK) ^ (((u_int)addr & ADDR_PIDX) >>
 	    ADDR_PIDX_SHFT);
 	return (hash & moea_pteg_mask);
-}
-
-static __inline struct pvo_head *
-pa_to_pvoh(vm_offset_t pa, vm_page_t *pg_p)
-{
-	struct	vm_page *pg;
-
-	pg = PHYS_TO_VM_PAGE(pa);
-
-	if (pg_p != NULL)
-		*pg_p = pg;
-
-	if (pg == NULL)
-		return (&moea_pvo_unmanaged);
-
-	return (&pg->md.mdpg_pvoh);
 }
 
 static __inline struct pvo_head *
@@ -919,6 +901,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 			struct	vm_page m;
 
 			m.phys_addr = translations[i].om_pa + off;
+			m.md.mdpg_cache_attrs = VM_MEMATTR_DEFAULT;
 			m.oflags = VPO_BUSY;
 			PMAP_LOCK(&ofw_pmap);
 			moea_enter_locked(&ofw_pmap,
@@ -1168,7 +1151,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		}
 	}
 
-	pte_lo = moea_calc_wimg(VM_PAGE_TO_PHYS(m), VM_MEMATTR_DEFAULT);
+	pte_lo = moea_calc_wimg(VM_PAGE_TO_PHYS(m), pmap_page_get_memattr(m));
 
 	if (prot & VM_PROT_WRITE) {
 		pte_lo |= PTE_BW;
@@ -1450,16 +1433,23 @@ void
 moea_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
 {
 	struct	pvo_entry *pvo;
+	struct	pvo_head *pvo_head;
 	struct	pte *pt;
 	pmap_t	pmap;
 	u_int	lo;
 
+	if (m->flags & PG_FICTITIOUS) {
+		m->md.mdpg_cache_attrs = ma;
+		return;
+	}
+
 	vm_page_lock_queues();
+	pvo_head = vm_page_to_pvoh(m);
 	lo = moea_calc_wimg(VM_PAGE_TO_PHYS(m), ma);
-	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
+
+	LIST_FOREACH(pvo, pvo_head, pvo_vlink) {
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
-		mtx_lock(&moea_table_mutex);
 		pt = moea_pvo_to_pte(pvo, -1);
 		pvo->pvo_pte.pte.pte_lo &= ~PTE_WIMG;
 		pvo->pvo_pte.pte.pte_lo |= lo;
