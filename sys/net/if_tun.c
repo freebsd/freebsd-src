@@ -497,8 +497,8 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 static int
 tuninit(struct ifnet *ifp)
 {
-#ifdef INET
 	struct tun_softc *tp = ifp->if_softc;
+#ifdef INET
 	struct ifaddr *ifa;
 #endif
 	int error = 0;
