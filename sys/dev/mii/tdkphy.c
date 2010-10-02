@@ -116,12 +116,10 @@ tdkphy_attach(device_t dev)
 		    MII_OUI(ma->mii_id1, ma->mii_id2),
 		    MII_MODEL(ma->mii_id2), MII_REV(ma->mii_id2));
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = tdkphy_service;
 	sc->mii_pdata = mii;
-
-	mii->mii_instance++;
 
 	/*
 	 * Apparently, we can't do loopback on this PHY.
@@ -130,8 +128,7 @@ tdkphy_attach(device_t dev)
 
 	mii_phy_reset(sc);
 
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
@@ -143,29 +140,12 @@ tdkphy_attach(device_t dev)
 static int
 tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -176,11 +156,6 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;

@@ -136,24 +136,16 @@ exphy_attach(device_t dev)
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
 	mii = ma->mii_data;
-
-	/*
-	 * The 3Com PHY can never be isolated, so never allow non-zero
-	 * instances!
-	 */
-	if (mii->mii_instance != 0) {
-		device_printf(dev, "ignoring this PHY, non-zero instance\n");
-		return (ENXIO);
-	}
-
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = exphy_service;
 	sc->mii_pdata = mii;
-	mii->mii_instance++;
 
+	/*
+	 * The 3Com PHY can never be isolated.
+	 */
 	sc->mii_flags |= MIIF_NOISOLATE;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
@@ -163,8 +155,7 @@ exphy_attach(device_t dev)
 
 	exphy_reset(sc);
 
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
@@ -176,13 +167,6 @@ exphy_attach(device_t dev)
 static int
 exphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-
-	/*
-	 * We can't isolate the 3Com PHY, so it has to be the only one!
-	 */
-	if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-		panic("exphy_service: can't isolate 3Com PHY");
 
 	switch (cmd) {
 	case MII_POLLSTAT:

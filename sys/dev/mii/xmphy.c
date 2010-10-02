@@ -110,25 +110,18 @@ xmphy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = xmphy_service;
 	sc->mii_pdata = mii;
 
 	sc->mii_flags |= MIIF_NOISOLATE;
-	mii->mii_instance++;
+	sc->mii_anegticks = MII_ANEGTICKS;
+
+	mii_phy_reset(sc);
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 #define PRINT(s)	printf("%s%s", sep, s); sep = ", "
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
-#if 0
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
-#endif
-
-	mii_phy_reset(sc);
 
 	device_printf(dev, " ");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, 0, sc->mii_inst),
@@ -155,24 +148,9 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -210,12 +188,6 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	case MII_TICK:
 		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
@@ -236,10 +208,8 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if (reg & BMSR_LINK)
 			break;
 
-		/*
-		 * Only retry autonegotiation every 5 seconds.
-		 */
-		if (++sc->mii_ticks <= MII_ANEGTICKS)
+		/* Only retry autonegotiation every mii_anegticks seconds. */
+		if (sc->mii_ticks <= sc->mii_anegticks)
 			break;
 
 		sc->mii_ticks = 0;
