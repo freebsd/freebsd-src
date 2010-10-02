@@ -719,11 +719,11 @@ search_whatis() {
 	bad=${bad#\\n}
 
 	if [ -n "$good" ]; then
-		echo -e $good | $PAGER
+		echo -e "$good" | $PAGER
 	fi
 
 	if [ -n "$bad" ]; then
-		echo -e $bad >&2
+		echo -e "$bad" >&2
 	fi
 
 	exit $rval
