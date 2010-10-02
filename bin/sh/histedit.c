@@ -406,7 +406,7 @@ fc_replace(const char *s, char *p, char *r)
 }
 
 int
-not_fcnumber(char *s)
+not_fcnumber(const char *s)
 {
 	if (s == NULL)
 		return (0);
@@ -416,10 +416,10 @@ not_fcnumber(char *s)
 }
 
 int
-str_to_event(char *str, int last)
+str_to_event(const char *str, int last)
 {
 	HistEvent he;
-	char *s = str;
+	const char *s = str;
 	int relative = 0;
 	int i, retval;
 
