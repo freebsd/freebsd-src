@@ -532,6 +532,7 @@ again:
 	bzero(&td2->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bzero(&td2->td_rux, sizeof(td2->td_rux));
+	td2->td_map_def_user = NULL;
 
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
