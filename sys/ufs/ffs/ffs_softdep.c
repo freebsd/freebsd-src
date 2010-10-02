@@ -580,7 +580,7 @@ softdep_get_depcounts(struct mount *mp,
  * this file is being ported.
  */
 
-#define M_SOFTDEP_FLAGS	(M_WAITOK | M_USE_RESERVE)
+#define M_SOFTDEP_FLAGS	(M_WAITOK)
 
 #define	D_PAGEDEP	0
 #define	D_INODEDEP	1
