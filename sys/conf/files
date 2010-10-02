@@ -2264,6 +2264,7 @@ kern/vfs_hash.c			standard
 kern/vfs_init.c			standard
 kern/vfs_lookup.c		standard
 kern/vfs_mount.c		standard
+kern/vfs_mountroot.c		standard
 kern/vfs_subr.c			standard
 kern/vfs_syscalls.c		standard
 kern/vfs_vnops.c		standard
