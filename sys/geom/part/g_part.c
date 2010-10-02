@@ -1204,6 +1204,7 @@ g_part_wither(struct g_geom *gp, int error)
 
 	table = gp->softc;
 	if (table != NULL) {
+		G_PART_DESTROY(table, NULL);
 		while ((entry = LIST_FIRST(&table->gpt_entry)) != NULL) {
 			LIST_REMOVE(entry, gpe_entry);
 			g_free(entry);
