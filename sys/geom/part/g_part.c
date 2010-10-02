@@ -567,7 +567,7 @@ g_part_ctl_bootcode(struct gctl_req *req, struct g_part_parms *gpp)
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s has bootcode\n", gp->name);
+		sbuf_printf(sb, "bootcode written to %s\n", gp->name);
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -963,7 +963,7 @@ g_part_ctl_move(struct gctl_req *req, struct g_part_parms *gpp)
 {
 	gctl_error(req, "%d verb 'move'", ENOSYS);
 	return (ENOSYS);
-} 
+}
 
 static int
 g_part_ctl_recover(struct gctl_req *req, struct g_part_parms *gpp)
