@@ -60,7 +60,7 @@ struct cmdentry {
 extern const char *pathopt;	/* set by padvance */
 extern int exerrno;		/* last exec error */
 
-void shellexec(char **, char **, const char *, int);
+void shellexec(char **, char **, const char *, int) __dead2;
 char *padvance(const char **, const char *);
 int hashcmd(int, char **);
 void find_command(const char *, struct cmdentry *, int, const char *);
