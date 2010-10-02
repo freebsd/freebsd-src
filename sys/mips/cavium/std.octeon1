@@ -5,15 +5,3 @@
 # $FreeBSD$
 # 
 files	"../cavium/files.octeon1"
-
-#
-# 
-#
-cpu     CPU_MIPS4KC
-#device	pci
-#device	ata
-#device	atadisk
-
-#device clock
-#device obio
-#device uart
