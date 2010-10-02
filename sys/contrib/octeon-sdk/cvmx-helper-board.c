@@ -181,10 +181,11 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 	/* Private vendor-defined boards.  */
 #if defined(OCTEON_VENDOR_LANNER)
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+	    /* Port 0 is a Marvell 88E6161 switch, ports 1 and 2 are Marvell
+	       88E1111 interfaces.  */
 	    switch (ipd_port) {
 	    case 0:
-		/* XXX Switch PHY?  */
-		return -1;
+		return 16;
 	    case 1:
 		return 1;
 	    case 2:
