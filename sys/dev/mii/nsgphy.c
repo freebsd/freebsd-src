@@ -129,12 +129,10 @@ nsgphy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = nsgphy_service;
 	sc->mii_pdata = mii;
-
-	mii->mii_instance++;
 
 	mii_phy_reset(sc);
 
@@ -157,29 +155,12 @@ nsgphy_attach(device_t dev)
 static int
 nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -190,12 +171,6 @@ nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;

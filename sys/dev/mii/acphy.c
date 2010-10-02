@@ -132,17 +132,14 @@ acphy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = acphy_service;
 	sc->mii_pdata = mii;
 
-	mii->mii_instance++;
-
 	acphy_reset(sc);
 
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
@@ -167,21 +164,7 @@ acphy_attach(device_t dev)
 static int
 acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
-
-	/*
-	 * If we're not selected, then do nothing, just isolate and power
-	 * down, if changing media.
-	 */
-	if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-		if (cmd == MII_MEDIACHG) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO | BMCR_PDOWN);
-		}
-
-		return (0);
-	}
 
 	switch (cmd) {
 	case MII_POLLSTAT:
