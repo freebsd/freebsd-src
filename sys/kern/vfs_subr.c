@@ -282,23 +282,34 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 
 /*
  * Initialize the vnode management data structures.
+ *
+ * Reevaluate the following cap on the number of vnodes after the physical
+ * memory size exceeds 512GB.  In the limit, as the physical memory size
+ * grows, the ratio of physical pages to vnodes approaches sixteen to one.
  */
 #ifndef	MAXVNODES_MAX
-#define	MAXVNODES_MAX	100000
+#define	MAXVNODES_MAX	(512 * (1024 * 1024 * 1024 / (int)PAGE_SIZE / 16))
 #endif
 static void
 vntblinit(void *dummy __unused)
 {
+	int physvnodes, virtvnodes;
 
 	/*
-	 * Desiredvnodes is a function of the physical memory size and
-	 * the kernel's heap size.  Specifically, desiredvnodes scales
-	 * in proportion to the physical memory size until two fifths
-	 * of the kernel's heap size is consumed by vnodes and vm
-	 * objects.
+	 * Desiredvnodes is a function of the physical memory size and the
+	 * kernel's heap size.  Generally speaking, it scales with the
+	 * physical memory size.  The ratio of desiredvnodes to physical pages
+	 * is one to four until desiredvnodes exceeds 98,304.  Thereafter, the
+	 * marginal ratio of desiredvnodes to physical pages is one to
+	 * sixteen.  However, desiredvnodes is limited by the kernel's heap
+	 * size.  The memory required by desiredvnodes vnodes and vm objects
+	 * may not exceed one seventh of the kernel's heap size.
 	 */
-	desiredvnodes = min(maxproc + cnt.v_page_count / 4, 2 * vm_kmem_size /
-	    (5 * (sizeof(struct vm_object) + sizeof(struct vnode))));
+	physvnodes = maxproc + cnt.v_page_count / 16 + 3 * min(98304 * 4,
+	    cnt.v_page_count) / 16;
+	virtvnodes = vm_kmem_size / (7 * (sizeof(struct vm_object) +
+	    sizeof(struct vnode)));
+	desiredvnodes = min(physvnodes, virtvnodes);
 	if (desiredvnodes > MAXVNODES_MAX) {
 		if (bootverbose)
 			printf("Reducing kern.maxvnodes %d -> %d\n",
