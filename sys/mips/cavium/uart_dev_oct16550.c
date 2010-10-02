@@ -420,7 +420,7 @@ struct uart_class uart_oct16550_class = {
 	oct16550_methods,
 	sizeof(struct oct16550_softc),
 	.uc_ops = &uart_oct16550_ops,
-	.uc_range = 8,
+	.uc_range = 8 << 3,
 	.uc_rclk = 0
 };
 
