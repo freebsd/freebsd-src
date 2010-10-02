@@ -21,6 +21,7 @@ mips/cavium/cryptocteon/cavium_crypto.c		optional cryptocteon
 mips/cavium/cryptocteon/cryptocteon.c		optional cryptocteon
 
 mips/cavium/octe/ethernet.c			optional octe
+mips/cavium/octe/ethernet-mv88e61xx.c		optional octe octeon_vendor_lanner
 mips/cavium/octe/ethernet-common.c		optional octe
 mips/cavium/octe/ethernet-mdio.c		optional octe
 mips/cavium/octe/ethernet-mem.c			optional octe
