@@ -263,6 +263,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bzero(&newtd->td_rux, sizeof(newtd->td_rux));
+	newtd->td_map_def_user = NULL;
 /* XXX check if we should zero. */
 	bcopy(&oldtd->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));

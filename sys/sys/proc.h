@@ -303,6 +303,7 @@ struct thread {
 	struct vnet	*td_vnet;	/* (k) Effective vnet. */
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
 	struct rusage_ext td_rux;	/* (t) Internal rusage information. */
+	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
