@@ -39,7 +39,7 @@ extern int displayhist;
 void histedit(void);
 void sethistsize(const char *);
 int histcmd(int, char **);
-int not_fcnumber(char *);
-int str_to_event(char *, int);
+int not_fcnumber(const char *);
+int str_to_event(const char *, int);
 int bindcmd(int, char **);
 
