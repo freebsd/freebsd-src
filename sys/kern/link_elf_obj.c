@@ -885,13 +885,13 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	*result = lf;
 
 out:
+	VOP_UNLOCK(nd.ni_vp, 0);
+	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	if (error && lf)
 		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 	if (hdr)
 		free(hdr, M_LINKER);
-	VOP_UNLOCK(nd.ni_vp, 0);
-	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	return error;
 }
