@@ -16,7 +16,7 @@
 #define DIST_CATPAGES		0x00200
 #define DIST_PORTS		0x00400
 #define DIST_LOCAL		0x00800
-#ifdef __amd64__
+#if defined(__amd64__) || defined(__powerpc64__)
 #define DIST_LIB32		0x01000
 #endif
 #define	DIST_KERNEL		0x02000
@@ -74,6 +74,12 @@
 #define DIST_KERNEL_GENERIC	0x00001
 #define DIST_KERNEL_SMP		0x00002
 #define DIST_KERNEL_ALL		0xFFFFF
+
+#ifdef __powerpc64__
+#define GENERIC_KERNEL_NAME	"GENERIC64"
+#else
+#define GENERIC_KERNEL_NAME	"GENERIC"
+#endif
 
 /* Canned distribution sets */
 
