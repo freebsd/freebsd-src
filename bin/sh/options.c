@@ -64,7 +64,7 @@ char *arg0;			/* value of $0 */
 struct shparam shellparam;	/* current positional parameters */
 char **argptr;			/* argument list for builtin commands */
 char *shoptarg;			/* set by nextopt (like getopt) */
-char *optptr;			/* used by nextopt */
+char *nextopt_optptr;		/* used by nextopt */
 
 char *minusc;			/* argument to -c option */
 
@@ -560,7 +560,7 @@ nextopt(const char *optstring)
 	const char *q;
 	char c;
 
-	if ((p = optptr) == NULL || *p == '\0') {
+	if ((p = nextopt_optptr) == NULL || *p == '\0') {
 		p = *argptr;
 		if (p == NULL || *p != '-' || *++p == '\0')
 			return '\0';
@@ -581,6 +581,6 @@ nextopt(const char *optstring)
 		shoptarg = p;
 		p = NULL;
 	}
-	optptr = p;
+	nextopt_optptr = p;
 	return c;
 }

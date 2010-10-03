@@ -132,9 +132,9 @@ STATIC int localevar(const char *);
 
 #ifdef mkinit
 INCLUDE "var.h"
+MKINIT char **environ;
 INIT {
 	char **envp;
-	extern char **environ;
 
 	initvar();
 	for (envp = environ ; *envp ; envp++) {
@@ -255,11 +255,11 @@ setvar(const char *name, const char *val, int flags)
 STATIC int
 localevar(const char *s)
 {
-	static char *lnames[7] = {
+	static const char *lnames[7] = {
 		"ALL", "COLLATE", "CTYPE", "MONETARY",
 		"NUMERIC", "TIME", NULL
 	};
-	char **ss;
+	const char **ss;
 
 	if (*s != 'L')
 		return 0;
@@ -471,9 +471,9 @@ environment(void)
  * VSTACK set since these are currently allocated on the stack.
  */
 
-#ifdef mkinit
 MKINIT void shprocvar(void);
 
+#ifdef mkinit
 SHELLPROC {
 	shprocvar();
 }

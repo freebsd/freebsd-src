@@ -115,7 +115,7 @@ STATIC int xxreadtoken(void);
 STATIC int readtoken1(int, char const *, char *, int);
 STATIC int noexpand(char *);
 STATIC void synexpect(int);
-STATIC void synerror(char *);
+STATIC void synerror(const char *);
 STATIC void setprompt(int);
 
 
@@ -1555,7 +1555,7 @@ synexpect(int token)
 
 
 STATIC void
-synerror(char *msg)
+synerror(const char *msg)
 {
 	if (commandname)
 		outfmt(&errout, "%s: %d: ", commandname, startlinno);
@@ -1584,13 +1584,14 @@ getprompt(void *unused __unused)
 	static char ps[PROMPTLEN];
 	char *fmt;
 	int i, j, trim;
+	static char internal_error[] = "<internal prompt error>";
 
 	/*
 	 * Select prompt format.
 	 */
 	switch (whichprompt) {
 	case 0:
-		fmt = "";
+		fmt = nullstr;
 		break;
 	case 1:
 		fmt = ps1val();
@@ -1599,7 +1600,7 @@ getprompt(void *unused __unused)
 		fmt = ps2val();
 		break;
 	default:
-		return "<internal prompt error>";
+		return internal_error;
 	}
 
 	/*

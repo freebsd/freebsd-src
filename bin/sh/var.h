@@ -108,7 +108,6 @@ void listsetvar(struct strlist *);
 char *lookupvar(const char *);
 char *bltinlookup(const char *, int);
 char **environment(void);
-void shprocvar(void);
 int showvarscmd(int, char **);
 int exportcmd(int, char **);
 int localcmd(int, char **);

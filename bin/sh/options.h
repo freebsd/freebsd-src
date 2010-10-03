@@ -102,7 +102,7 @@ extern char *arg0;		/* $0 */
 extern struct shparam shellparam;  /* $@ */
 extern char **argptr;		/* argument list for builtin commands */
 extern char *shoptarg;		/* set by nextopt */
-extern char *optptr;		/* used by nextopt */
+extern char *nextopt_optptr;	/* used by nextopt */
 
 void procargs(int, char **);
 void optschanged(void);

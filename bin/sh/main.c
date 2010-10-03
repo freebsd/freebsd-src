@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 int rootpid;
 int rootshell;
 
-STATIC void read_profile(char *);
+STATIC void read_profile(const char *);
 STATIC char *find_dot_file(char *);
 
 /*
@@ -250,7 +250,7 @@ cmdloop(int top)
  */
 
 STATIC void
-read_profile(char *name)
+read_profile(const char *name)
 {
 	int fd;
 
@@ -336,8 +336,6 @@ dotcmd(int argc, char **argv)
 int
 exitcmd(int argc, char **argv)
 {
-	extern int oexitstatus;
-
 	if (stoppedjobs())
 		return 0;
 	if (argc > 1)
