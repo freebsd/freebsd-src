@@ -189,6 +189,8 @@ axphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_10_T;
 		if (scr & SCR_FDX)
 			mii->mii_media_active |= IFM_FDX;
+		else
+			mii->mii_media_active |= IFM_HDX;
 #endif
 	} else
 		mii->mii_media_active = ife->ifm_media;
