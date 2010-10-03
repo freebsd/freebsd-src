@@ -73,6 +73,7 @@
 extern int tokpushback;
 #define NEOF ((union node *)&tokpushback)
 extern int whichprompt;		/* 1 == PS1, 2 == PS2 */
+extern const char *const parsekwd[];
 
 
 union node *parsecmd(int);
