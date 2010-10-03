@@ -5,7 +5,7 @@
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
-# XXX Use GNU versions: apropos diff ld man patch whatis
+# XXX Use GNU versions: diff ld patch
 # Moved to secure: bdes
 #
 
@@ -94,6 +94,7 @@ SUBDIR=	alias \
 	lzmainfo \
 	m4 \
 	${_makewhatis} \
+	${_man} \
 	mesg \
 	minigzip \
 	ministat \
@@ -266,6 +267,7 @@ SUBDIR+=	make
 
 .if ${MK_MAN_UTILS} != "no"
 _makewhatis=	makewhatis
+_man=		man
 .endif
 
 .if ${MK_NETCAT} != "no"
