@@ -243,6 +243,8 @@ bmtphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_10_T;
 		if (aux_csr & AUX_CSR_FDX)
 			mii->mii_media_active |= IFM_FDX;
+		else
+			mii->mii_media_active |= IFM_HDX;
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

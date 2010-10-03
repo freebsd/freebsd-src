@@ -217,13 +217,13 @@ tdkphy_status(struct mii_softc *phy)
 		if (anlpar & ANLPAR_TX_FD)
 			mii->mii_media_active |= IFM_100_TX|IFM_FDX;
 		else if (anlpar & ANLPAR_T4)
-			mii->mii_media_active |= IFM_100_T4;
+			mii->mii_media_active |= IFM_100_T4|IFM_HDX;
 		else if (anlpar & ANLPAR_TX)
-			mii->mii_media_active |= IFM_100_TX;
+			mii->mii_media_active |= IFM_100_TX|IFM_HDX;
 		else if (anlpar & ANLPAR_10_FD)
 			mii->mii_media_active |= IFM_10_T|IFM_FDX;
 		else if (anlpar & ANLPAR_10)
-			mii->mii_media_active |= IFM_10_T;
+			mii->mii_media_active |= IFM_10_T|IFM_HDX;
 		else {
 			/*
 			 * ANLPAR isn't set, which leaves two possibilities:
@@ -234,10 +234,12 @@ tdkphy_status(struct mii_softc *phy)
 			 */
 			diag = PHY_READ(phy, MII_DIAG);
 			if (diag & DIAG_NEGFAIL) /* assume 10baseT if no neg */
-				mii->mii_media_active |= IFM_10_T;
+				mii->mii_media_active |= IFM_10_T|IFM_HDX;
 			else {
 				if (diag & DIAG_DUPLEX)
 					mii->mii_media_active |= IFM_FDX;
+				else
+					mii->mii_media_active |= IFM_HDX;
 				if (diag & DIAG_RATE_100)
 					mii->mii_media_active |= IFM_100_TX;
 				else
