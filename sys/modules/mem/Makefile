@@ -6,7 +6,7 @@
 
 KMOD=	mem
 SRCS=	memdev.c mem.c
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} = "powerpc"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "powerpc"
 SRCS+=	memutil.c
 .endif
 .if ${MACHINE_CPUARCH} == "i386"
