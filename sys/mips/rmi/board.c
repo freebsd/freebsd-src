@@ -42,42 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/board.h>
 #include <mips/rmi/pic.h>
 
-static int xlr_rxstn_to_txstn_map[128] = {
-	[0 ... 7] = TX_STN_CPU_0,
-	[8 ... 15] = TX_STN_CPU_1,
-	[16 ... 23] = TX_STN_CPU_2,
-	[24 ... 31] = TX_STN_CPU_3,
-	[32 ... 39] = TX_STN_CPU_4,
-	[40 ... 47] = TX_STN_CPU_5,
-	[48 ... 55] = TX_STN_CPU_6,
-	[56 ... 63] = TX_STN_CPU_7,
-	[64 ... 95] = TX_STN_INVALID,
-	[96 ... 103] = TX_STN_GMAC,
-	[104 ... 107] = TX_STN_DMA,
-	[108 ... 111] = TX_STN_INVALID,
-	[112 ... 113] = TX_STN_XGS_0,
-	[114 ... 115] = TX_STN_XGS_1,
-	[116 ... 119] = TX_STN_INVALID,
-	[120 ... 127] = TX_STN_SAE
-};
-
-static int xls_rxstn_to_txstn_map[128] = {
-	[0 ... 7] = TX_STN_CPU_0,
-	[8 ... 15] = TX_STN_CPU_1,
-	[16 ... 23] = TX_STN_CPU_2,
-	[24 ... 31] = TX_STN_CPU_3,
-	[32 ... 63] = TX_STN_INVALID,
-	[64 ... 71] = TX_STN_PCIE,
-	[72 ... 79] = TX_STN_INVALID,
-	[80 ... 87] = TX_STN_GMAC1,
-	[88 ... 95] = TX_STN_INVALID,
-	[96 ... 103] = TX_STN_GMAC0,
-	[104 ... 107] = TX_STN_DMA,
-	[108 ... 111] = TX_STN_CDE,
-	[112 ... 119] = TX_STN_INVALID,
-	[120 ... 127] = TX_STN_SAE
-};
-
 struct stn_cc *xlr_core_cc_configs[] = { &cc_table_cpu_0, &cc_table_cpu_1,
     &cc_table_cpu_2, &cc_table_cpu_3, &cc_table_cpu_4, &cc_table_cpu_5,
     &cc_table_cpu_6, &cc_table_cpu_7};
@@ -351,7 +315,6 @@ xlr_board_info_setup()
 		xlr_board_info.pci_irq = 0;
 		xlr_board_info.credit_configs = xls_core_cc_configs;
 		xlr_board_info.bucket_sizes   = &xls_bucket_sizes;
-		xlr_board_info.msgmap         = xls_rxstn_to_txstn_map;
 		xlr_board_info.gmacports      = MAX_NA_PORTS;
 
 		/* ---------------- Network Acc 0 ---------------- */
@@ -359,7 +322,7 @@ xlr_board_info_setup()
 		blk0->type 		= XLR_GMAC;
 		blk0->enabled 		= 0xf;
 		blk0->credit_config 	= &xls_cc_table_gmac0;
-		blk0->station_id 	= TX_STN_GMAC0;
+		blk0->station_id 	= MSGRNG_STNID_GMAC;
 		blk0->station_txbase 	= MSGRNG_STNID_GMACTX0;
 		blk0->station_rfr 	= MSGRNG_STNID_GMACRFR_0;
 		blk0->mode 		= XLR_SGMII;
@@ -388,7 +351,7 @@ xlr_board_info_setup()
 		blk1->type 		= XLR_GMAC;
 		blk1->enabled 		= 0xf;
 		blk1->credit_config 	= &xls_cc_table_gmac1;
-		blk1->station_id 	= TX_STN_GMAC1;
+		blk1->station_id 	= MSGRNG_STNID_GMAC1;
 		blk1->station_txbase 	= MSGRNG_STNID_GMAC1_TX0;
 		blk1->station_rfr 	= MSGRNG_STNID_GMAC1_FR_0;
 		blk1->mode 		= XLR_SGMII;
@@ -424,14 +387,13 @@ xlr_board_info_setup()
 		xlr_board_info.pci_irq = 0;
 		xlr_board_info.credit_configs = xlr_core_cc_configs;
 		xlr_board_info.bucket_sizes   = &bucket_sizes;
-		xlr_board_info.msgmap         =  xlr_rxstn_to_txstn_map;
 		xlr_board_info.gmacports         = 4;
 
 		/* ---------------- GMAC0 ---------------- */
 		blk0->type 		= XLR_GMAC;
 		blk0->enabled 		= 0xf;
 		blk0->credit_config 	= &cc_table_gmac;
-		blk0->station_id 	= TX_STN_GMAC;
+		blk0->station_id 	= MSGRNG_STNID_GMAC;
 		blk0->station_txbase 	= MSGRNG_STNID_GMACTX0;
 		blk0->station_rfr 	= MSGRNG_STNID_GMACRFR_0;
 		blk0->mode 		= XLR_RGMII;
@@ -461,7 +423,7 @@ xlr_board_info_setup()
 		blk1->credit_config 	= &cc_table_xgs_0;
 		blk1->station_txbase 	= MSGRNG_STNID_XGS0_TX;
 		blk1->station_rfr 	= MSGRNG_STNID_XMAC0RFR;
-		blk1->station_id 	= TX_STN_XGS_0;	/* TBD: is this correct ? */
+		blk1->station_id 	= MSGRNG_STNID_XGS0FR;
 		blk1->baseaddr 		= XLR_IO_XGMAC_0_OFFSET;
 		blk1->baseirq 		= PIC_XGS_0_IRQ;
 		blk1->baseinst 		= 4;
@@ -481,7 +443,7 @@ xlr_board_info_setup()
 		blk2->credit_config 	= &cc_table_xgs_1;
 		blk2->station_txbase 	= MSGRNG_STNID_XGS1_TX;
 		blk2->station_rfr 	= MSGRNG_STNID_XMAC1RFR;
-		blk2->station_id 	= TX_STN_XGS_1;	/* TBD: is this correct ? */
+		blk2->station_id 	= MSGRNG_STNID_XGS1FR;
 		blk2->baseaddr 		= XLR_IO_XGMAC_1_OFFSET;
 		blk2->baseirq 		= PIC_XGS_1_IRQ;
 		blk2->baseinst 		= 5;

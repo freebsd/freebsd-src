@@ -902,11 +902,12 @@ nlna_hw_init(struct nlna_softc *sc)
 {
 
 	/*
-	 * It is seen that this is a critical function in bringing up FreeBSD.
-	 * When it is not invoked, FreeBSD panics and fails during the
-	 * multi-processor init (SI_SUB_SMP of * mi_startup). The key function
-	 * in this sequence seems to be platform_prep_smp_launch. */
-	if (register_msgring_handler(sc->station_id, nlge_msgring_handler, sc)) {
+	 * Register message ring handler for the NA block, messages from
+	 * the GMAC will have sourec station id to the first bucket of the 
+	 * NA FMN station, so register just that station id.
+	 */
+	if (register_msgring_handler(sc->station_id, sc->station_id + 1,
+	    nlge_msgring_handler, sc)) {
 		panic("Couldn't register msgring handler\n");
 	}
 	nlna_config_fifo_spill_area(sc);
@@ -1143,13 +1144,13 @@ nlna_config_pde(struct nlna_softc *sc)
 	if (smp_started)
 		cpumask = xlr_hw_thread_mask;
 #endif
-
 	bucket_map = 0;
 	for (i = 0; i < 32; i++) {
 		if (cpumask & (1 << i)) {
 			cpu = i;
-			bucket = ((cpu >> 2) << 3);
-			bucket_map |= (1ULL << bucket);
+			/* use bucket 0 and 1 on every core for NA msgs */
+			bucket = cpu/4 * 8;
+			bucket_map |= (3ULL << bucket);
 		}
 	}
 	NLGE_WRITE(sc->base, R_PDE_CLASS_0, (bucket_map & 0xffffffff));
@@ -1165,6 +1166,11 @@ nlna_config_pde(struct nlna_softc *sc)
 	NLGE_WRITE(sc->base, R_PDE_CLASS_3 + 1, ((bucket_map >> 32) & 0xffffffff));
 }
 
+/*
+ * Update the network accelerator packet distribution engine for SMP.
+ * On bootup, we have just the boot hw thread handling all packets, on SMP
+ * start, we can start distributing packets across all the cores which are up.
+ */
 static void
 nlna_smp_update_pde(void *dummy __unused)
 {
@@ -1235,11 +1241,9 @@ nlna_config_common(struct nlna_softc *sc)
 {
 	struct xlr_gmac_block_t *block_info;
 	struct stn_cc 		*gmac_cc_config;
-	int			i, id;
+	int			i;
 
 	block_info = device_get_ivars(sc->nlna_dev);
-
-	id = device_get_unit(sc->nlna_dev);
 	gmac_cc_config = block_info->credit_config;
 	for (i = 0; i < MAX_NUM_MSGRNG_STN_CC; i++) {
 		NLGE_WRITE(sc->base, R_CC_CPU0_0 + i,
