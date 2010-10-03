@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
 #include <sys/mutex.h>
+#include <sys/taskqueue.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -74,6 +75,16 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_NFSSVC, "nfsclient_srvsock", "Nfs server structure");
 
 static void	nfssvc_iod(void *);
+
+struct nfsiod_str {
+	STAILQ_ENTRY(nfsiod_str) ni_links;
+	int *ni_inst;
+	int ni_iod;
+	int ni_error;
+	int ni_done;
+};
+static STAILQ_HEAD(, nfsiod_str) nfsiodhead =
+    STAILQ_HEAD_INITIALIZER(nfsiodhead);
 
 static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 
@@ -159,11 +170,30 @@ SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmax, CTLTYPE_UINT | CTLFLAG_RW, 0,
     sizeof (nfs_iodmax), sysctl_iodmax, "IU",
     "Max number of nfsiod kthreads");
 
+void
+nfs_nfsiodnew_tq(__unused void *arg, int pending)
+{
+	struct nfsiod_str *nip;
+
+	mtx_lock(&nfs_iod_mtx);
+	while ((nip = STAILQ_FIRST(&nfsiodhead)) != NULL) {
+		STAILQ_REMOVE_HEAD(&nfsiodhead, ni_links);
+		mtx_unlock(&nfs_iod_mtx);
+		nip->ni_error = kproc_create(nfssvc_iod, nip->ni_inst, NULL,
+		    RFHIGHPID, 0, "nfsiod %d", nip->ni_iod);
+		nip->ni_done = 1;
+		mtx_lock(&nfs_iod_mtx);
+		wakeup(nip);
+	}
+	mtx_unlock(&nfs_iod_mtx);
+}
+
 int
 nfs_nfsiodnew(int set_iodwant)
 {
 	int error, i;
 	int newiod;
+	struct nfsiod_str *nip;
 
 	if (nfs_numasync >= nfs_iodmax)
 		return (-1);
@@ -179,9 +209,16 @@ nfs_nfsiodnew(int set_iodwant)
 	if (set_iodwant > 0)
 		nfs_iodwant[i] = NFSIOD_CREATED_FOR_NFS_ASYNCIO;
 	mtx_unlock(&nfs_iod_mtx);
-	error = kproc_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
-	    0, "nfsiod %d", newiod);
+	nip = malloc(sizeof(*nip), M_TEMP, M_WAITOK | M_ZERO);
+	nip->ni_inst = nfs_asyncdaemon + i;
+	nip->ni_iod = newiod;
 	mtx_lock(&nfs_iod_mtx);
+	STAILQ_INSERT_TAIL(&nfsiodhead, nip, ni_links);
+	taskqueue_enqueue(taskqueue_thread, &nfs_nfsiodnew_task);
+	while (!nip->ni_done)
+		mtx_sleep(nip, &nfs_iod_mtx, 0, "niwt", 0);
+	error = nip->ni_error;
+	free(nip, M_TEMP);
 	if (error) {
 		if (set_iodwant > 0)
 			nfs_iodwant[i] = NFSIOD_NOT_AVAILABLE;
