@@ -309,7 +309,6 @@ xlr_thr_id(void)
 /* Additional registers on the XLR */
 #define	MIPS_COP_0_OSSCRATCH	22
 #define	XLR_CACHELINE_SIZE	32
-#define	XLR_MAX_CORES		8
 
 /* functions to write to and read from the extended
  * cp0 registers.
@@ -559,7 +558,19 @@ xlr_restore_kx(uint32_t sr)
 }
 #endif /* defined(__mips_n64) || defined(__mips_n32) */
 
-/* for cpuid to hardware thread id mapping */
+/*
+ * XLR/XLS processors have maximum 8 cores, and maximum 4 threads
+ * per core
+ */
+#define	XLR_MAX_CORES		8
+#define	XLR_NTHREADS		4
+
+/*
+ * FreeBSD can be started with few threads and cores turned off,
+ * so have a hardware thread id to FreeBSD cpuid mapping.
+ */
+extern int xlr_ncores;
+extern int xlr_threads_per_core;
 extern uint32_t xlr_hw_thread_mask;
 extern int xlr_cpuid_to_hwtid[];
 extern int xlr_hwtid_to_cpuid[];

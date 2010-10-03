@@ -971,7 +971,7 @@ rmi_xlr_config_pde(struct driver_data *priv)
 		if (cpumask & (1 << i)) {
 			cpu = i;
 			bucket = ((cpu >> 2) << 3);
-			bucket_map |= (1ULL << bucket);
+			bucket_map |= (3ULL << bucket);
 		}
 	}
 	printf("rmi_xlr_config_pde: bucket_map=%jx\n", (uintmax_t)bucket_map);
@@ -2539,17 +2539,20 @@ mac_common_init(void)
 	init_tx_ring();
 
 	if (xlr_board_info.is_xls) {
-		if (register_msgring_handler(TX_STN_GMAC0,
-		    rmi_xlr_mac_msgring_handler, NULL)) {
+		if (register_msgring_handler(MSGRNG_STNID_GMAC,
+		   MSGRNG_STNID_GMAC + 1, rmi_xlr_mac_msgring_handler,
+		   NULL)) {
 			panic("Couldn't register msgring handler\n");
 		}
-		if (register_msgring_handler(TX_STN_GMAC1,
-		    rmi_xlr_mac_msgring_handler, NULL)) {
+		if (register_msgring_handler(MSGRNG_STNID_GMAC1,
+		    MSGRNG_STNID_GMAC1 + 1, rmi_xlr_mac_msgring_handler,
+		    NULL)) {
 			panic("Couldn't register msgring handler\n");
 		}
 	} else {
-		if (register_msgring_handler(TX_STN_GMAC,
-		    rmi_xlr_mac_msgring_handler, NULL)) {
+		if (register_msgring_handler(MSGRNG_STNID_GMAC,
+		   MSGRNG_STNID_GMAC + 1, rmi_xlr_mac_msgring_handler,
+		   NULL)) {
 			panic("Couldn't register msgring handler\n");
 		}
 	}
