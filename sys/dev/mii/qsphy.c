@@ -215,19 +215,19 @@ qsphy_status(struct mii_softc *sc)
 	pctl = PHY_READ(sc, MII_QSPHY_PCTL);
 	switch (pctl & PCTL_OPMASK) {
 	case PCTL_10_T:
-		mii->mii_media_active |= IFM_10_T;
+		mii->mii_media_active |= IFM_10_T|IFM_HDX;
 		break;
 	case PCTL_10_T_FDX:
 		mii->mii_media_active |= IFM_10_T|IFM_FDX;
 		break;
 	case PCTL_100_TX:
-		mii->mii_media_active |= IFM_100_TX;
+		mii->mii_media_active |= IFM_100_TX|IFM_HDX;
 		break;
 	case PCTL_100_TX_FDX:
 		mii->mii_media_active |= IFM_100_TX|IFM_FDX;
 		break;
 	case PCTL_100_T4:
-		mii->mii_media_active |= IFM_100_T4;
+		mii->mii_media_active |= IFM_100_T4|IFM_HDX;
 		break;
 	case PCTL_AN:
 		mii->mii_media_active |= IFM_NONE;
