@@ -85,6 +85,21 @@ extern unsigned char	pc98_system_parameter[]; /* in locore.c */
 #define EPSON_PC486_SR		0x38
 #define EPSON_PC486_HA		0x3b
 
+/* IDE HDD geometry conversion. */
+#define	AD_GEOM_ADJUST_NONE		0	/* Do nothing. */
+#define	AD_GEOM_ADJUST_COMPATIDE	1	/* PC-98 IDE BIOS. */
+#define	AD_GEOM_ADJUST_COMPATSCSI	2	/* PC-98 SCSI. */
+#define	AD_GEOM_ADJUST_COMPATCYL16	100	/* Compat Rev. 1.28. */
+
+#define	MEDIASIZE_4_3G		(4351LL * 1024LL * 1024LL)      /* 4351M */
+#define	MEDIASIZE_8G		(8192LL * 1024LL * 1024LL)      /* 8192M */
+#define	MEDIASIZE_29_5G		(30239LL * 1024LL * 1024LL)	/* 30239M */
+#define	MEDIASIZE_31_5G		(32255LL * 1024 * 1024)         /* 32255M */
+#define	MEDIASIZE_32G		(32768LL * 1024LL * 1024LL)     /* 32768M */
+#define	MEDIASIZE_60G		(61440LL * 1024LL * 1024LL)     /* 61440M */
+#define	MEDIASIZE_120G		(122400LL * 1024LL * 1024LL)    /* 122400M */
+#define	MEDIASIZE_127G		(130558LL * 1024LL * 1024LL)    /* 130558M */
+
 #endif /* _KERNEL */
 
 #endif /* __PC98_PC98_PC98_MACHDEP_H__ */
