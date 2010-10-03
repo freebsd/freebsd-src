@@ -288,6 +288,7 @@ SUBDIR+=	crunch
 .endif
 
 .if ${MK_USB} != "no"
+SUBDIR+=	uathload
 SUBDIR+=	uhsoctl
 SUBDIR+=	usbconfig
 .endif
