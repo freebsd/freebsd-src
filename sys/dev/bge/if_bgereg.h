@@ -1431,6 +1431,7 @@
  */
 #define	BGE_RDMA_MODE			0x4800
 #define	BGE_RDMA_STATUS			0x4804
+#define	BGE_RDMA_RSRVCTRL		0x4900
 
 /* Read DMA mode register */
 #define	BGE_RDMAMODE_RESET		0x00000001
@@ -1461,6 +1462,9 @@
 #define	BGE_RDMASTAT_PCI_FIFOUFLOW_ATTN	0x00000080
 #define	BGE_RDMASTAT_PCI_FIFOOREAD_ATTN	0x00000100
 #define	BGE_RDMASTAT_LOCWRITE_TOOBIG	0x00000200
+
+/* Read DMA Reserved Control register */
+#define	BGE_RDMA_RSRVCTRL_FIFO_OFLW_FIX	0x00000004
 
 /*
  * Write DMA control registers
