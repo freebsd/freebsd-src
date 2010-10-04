@@ -425,9 +425,9 @@ tlbie(vm_offset_t va)
 {
 
 	mtx_lock_spin(&tlbie_mtx);
+	__asm __volatile("ptesync");
 	__asm __volatile("tlbie %0" :: "r"(va));
-	__asm __volatile("tlbsync");
-	powerpc_sync();
+	__asm __volatile("eieio; tlbsync; ptesync");
 	mtx_unlock_spin(&tlbie_mtx);
 }
 
