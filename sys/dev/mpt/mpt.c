@@ -844,13 +844,14 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 		MSG_REQUEST_HEADER *msg_hdr;
 		u_int		    cb_index;
 
-		TAILQ_REMOVE(chain, req, links);
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
 		ioc_status_frame.Function = msg_hdr->Function;
 		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
 		cb_index = MPT_CONTEXT_TO_CBI(le32toh(msg_hdr->MsgContext));
 		mpt_reply_handlers[cb_index](mpt, req, msg_hdr->MsgContext,
 		    &ioc_status_frame);
+		if (mpt_req_on_pending_list(mpt, req) != 0)
+			TAILQ_REMOVE(chain, req, links);
 	}
 }
 
