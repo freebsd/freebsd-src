@@ -707,11 +707,13 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 				va_end(ap);
 			} else {
 				cache_flag = 0;
+				errno = 0;
 				va_start(ap, defaults);
 				result = method(retval, mdata, ap);
 				va_end(ap);
 			}
 #else /* NS_CACHING */
+			errno = 0;
 			va_start(ap, defaults);
 			result = method(retval, mdata, ap);
 			va_end(ap);
