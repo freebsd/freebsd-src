@@ -121,6 +121,16 @@ usb_probe(device_t dev)
 	return (0);
 }
 
+static void
+usb_root_mount_rel(struct usb_bus *bus)
+{
+	if (bus->bus_roothold != NULL) {
+		DPRINTF("Releasing root mount hold %p\n", bus->bus_roothold);
+		root_mount_rel(bus->bus_roothold);
+		bus->bus_roothold = NULL;
+	}
+}
+
 /*------------------------------------------------------------------------*
  *	usb_attach
  *------------------------------------------------------------------------*/
@@ -164,10 +174,7 @@ usb_detach(device_t dev)
 	usb_callout_drain(&bus->power_wdog);
 
 	/* Let the USB explore process detach all devices. */
-	if (bus->bus_roothold != NULL) {
-		root_mount_rel(bus->bus_roothold);
-		bus->bus_roothold = NULL;
-	}
+	usb_root_mount_rel(bus);
 
 	USB_BUS_LOCK(bus);
 	if (usb_proc_msignal(&bus->explore_proc,
@@ -244,10 +251,7 @@ usb_bus_explore(struct usb_proc_msg *pm)
 		(udev->hub->explore) (udev);
 		USB_BUS_LOCK(bus);
 	}
-	if (bus->bus_roothold != NULL) {
-		root_mount_rel(bus->bus_roothold);
-		bus->bus_roothold = NULL;
-	}
+	usb_root_mount_rel(bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -353,6 +357,7 @@ usb_bus_attach(struct usb_proc_msg *pm)
 
 	default:
 		device_printf(bus->bdev, "Unsupported USB revision\n");
+		usb_root_mount_rel(bus);
 		return;
 	}
 
@@ -394,6 +399,7 @@ usb_bus_attach(struct usb_proc_msg *pm)
 	if (err) {
 		device_printf(bus->bdev, "Root HUB problem, error=%s\n",
 		    usbd_errstr(err));
+		usb_root_mount_rel(bus);
 	}
 
 	/* set softc - we are ready */
