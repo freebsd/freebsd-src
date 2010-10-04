@@ -1858,6 +1858,19 @@ bge_blockinit(struct bge_softc *sc)
 		    sc->bge_asicrev == BGE_ASICREV_BCM57780)
 			val |= BGE_RDMAMODE_TSO6_ENABLE;
 	}
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM57780) {
+		/*
+		 * Enable fix for read DMA FIFO overruns.
+		 * The fix is to limit the number of RX BDs
+		 * the hardware would fetch at a fime.
+		 */
+		CSR_WRITE_4(sc, BGE_RDMA_RSRVCTRL,
+		    CSR_READ_4(sc, BGE_RDMA_RSRVCTRL) |
+		    BGE_RDMA_RSRVCTRL_FIFO_OFLW_FIX);
+	}
 	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
 	DELAY(40);
 
