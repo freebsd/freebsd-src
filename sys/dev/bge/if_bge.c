@@ -5092,11 +5092,11 @@ bge_add_sysctl_stats(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
 	    NULL, "BGE RX Statistics");
 	children = SYSCTL_CHILDREN(tree);
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Octets",
-	    children, rxstats.ifHCInOctets, "Octets");
+	    children, rxstats.ifHCInOctets, "ifHCInOctets");
 	BGE_SYSCTL_STAT(sc, ctx, "Fragments",
 	    children, rxstats.etherStatsFragments, "Fragments");
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Unicast Packets",
-	    children, rxstats.ifHCInUcastPkts, "UcastPkts");
+	    children, rxstats.ifHCInUcastPkts, "UnicastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Multicast Packets",
 	    children, rxstats.ifHCInMulticastPkts, "MulticastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "FCS Errors",
@@ -5128,7 +5128,7 @@ bge_add_sysctl_stats(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
 	    NULL, "BGE TX Statistics");
 	children = SYSCTL_CHILDREN(tree);
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Octets",
-	    children, txstats.ifHCOutOctets, "Octets");
+	    children, txstats.ifHCOutOctets, "ifHCOutOctets");
 	BGE_SYSCTL_STAT(sc, ctx, "TX Collisions",
 	    children, txstats.etherStatsCollisions, "Collisions");
 	BGE_SYSCTL_STAT(sc, ctx, "XON Sent",
@@ -5156,7 +5156,7 @@ bge_add_sysctl_stats(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
 	    children, txstats.dot3StatsLateCollisions,
 	    "LateCollisions");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Unicast Packets",
-	    children, txstats.ifHCOutUcastPkts, "UcastPkts");
+	    children, txstats.ifHCOutUcastPkts, "UnicastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Multicast Packets",
 	    children, txstats.ifHCOutMulticastPkts, "MulticastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Broadcast Packets",
@@ -5210,7 +5210,7 @@ bge_add_sysctl_stats_regs(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
 	    &stats->ifHCInOctets, "Inbound Octets");
 	BGE_SYSCTL_STAT_ADD64(ctx, child, "Fragments",
 	    &stats->etherStatsFragments, "Fragments");
-	BGE_SYSCTL_STAT_ADD64(ctx, child, "UcastPkts",
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "UnicastPkts",
 	    &stats->ifHCInUcastPkts, "Inbound Unicast Packets");
 	BGE_SYSCTL_STAT_ADD64(ctx, child, "MulticastPkts",
 	    &stats->ifHCInMulticastPkts, "Inbound Multicast Packets");
@@ -5238,7 +5238,7 @@ bge_add_sysctl_stats_regs(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
 	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "tx", CTLFLAG_RD,
 	    NULL, "BGE TX Statistics");
 	child = SYSCTL_CHILDREN(tree);
-	BGE_SYSCTL_STAT_ADD64(ctx, child, "Octets",
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "ifHCOutOctets",
 	    &stats->ifHCOutOctets, "Outbound Octets");
 	BGE_SYSCTL_STAT_ADD64(ctx, child, "Collisions",
 	    &stats->etherStatsCollisions, "TX Collisions");
@@ -5260,11 +5260,11 @@ bge_add_sysctl_stats_regs(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
 	    &stats->dot3StatsExcessiveCollisions, "Excessive Collisions");
 	BGE_SYSCTL_STAT_ADD64(ctx, child, "LateCollisions",
 	    &stats->dot3StatsLateCollisions, "Late Collisions");
-	BGE_SYSCTL_STAT_ADD64(ctx, child, "UcastPkts",
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "UnicastPkts",
 	    &stats->ifHCOutUcastPkts, "Outbound Unicast Packets");
-	BGE_SYSCTL_STAT_ADD64(ctx, child, "McastPkts",
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "MulticastPkts",
 	    &stats->ifHCOutMulticastPkts, "Outbound Multicast Packets");
-	BGE_SYSCTL_STAT_ADD64(ctx, child, "BcastPkts",
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "BroadcastPkts",
 	    &stats->ifHCOutBroadcastPkts, "Outbound Broadcast Packets");
 }
 
