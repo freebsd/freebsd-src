@@ -95,11 +95,11 @@ bintime_mul(struct bintime *bt, u_int x)
 {
 	uint64_t p1, p2;
 
-	p1 = (bt->frac & 0xffffffffllu) * x;
+	p1 = (bt->frac & 0xffffffffull) * x;
 	p2 = (bt->frac >> 32) * x + (p1 >> 32);
 	bt->sec *= x;
 	bt->sec += (p2 >> 32);
-	bt->frac = (p2 << 32) | (p1 & 0xffffffffllu);
+	bt->frac = (p2 << 32) | (p1 & 0xffffffffull);
 }
 
 #define	bintime_clear(a)	((a)->sec = (a)->frac = 0)
