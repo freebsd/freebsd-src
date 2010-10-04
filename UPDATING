@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20101002:
+	The man(1) utility has been replaced by a new version that no longer
+	uses /etc/manpath.config. Please consult man.conf(5) for how to
+	migrate local entries to the new format.
+
 20100915:
 	A workaround for a fixed ld bug has been removed in kernel code,
 	so make sure that your system ld is built from sources after
