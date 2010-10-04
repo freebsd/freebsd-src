@@ -604,7 +604,6 @@ tftp_rrq(int peer, char *recvbuffer, ssize_t size)
 		 */
 		if (suppress_naks && *filename != '/' && ecode == ENOTFOUND)
 			exit(0);
-		tftp_log(LOG_ERR, "Prevent NAK storm");
 		send_error(peer, ecode);
 		exit(1);
 	}
