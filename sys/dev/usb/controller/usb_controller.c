@@ -103,10 +103,14 @@ static driver_t usb_driver = {
 	.size = 0,
 };
 
+/* Host Only Drivers */
 DRIVER_MODULE(usbus, ohci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uhci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, ehci, usb_driver, usb_devclass, 0, 0);
+
+/* Device Only Drivers */
 DRIVER_MODULE(usbus, at91_udp, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, musbotg, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uss820, usb_driver, usb_devclass, 0, 0);
 
 /*------------------------------------------------------------------------*
