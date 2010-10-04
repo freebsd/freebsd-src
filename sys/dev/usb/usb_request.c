@@ -245,6 +245,8 @@ usb_do_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 		    ep->is_stalled) {
 			ep->toggle_next = 0;
 			ep->is_stalled = 0;
+			/* some hardware needs a callback to clear the data toggle */
+			usbd_clear_stall_locked(udev, ep);
 			/* start up the current or next transfer, if any */
 			usb_command_wrapper(&ep->endpoint_q,
 			    ep->endpoint_q.curr);
@@ -1300,6 +1302,28 @@ usbd_req_get_hub_descriptor(struct usb_device *udev, struct mtx *mtx,
 }
 
 /*------------------------------------------------------------------------*
+ *	usbd_req_get_ss_hub_descriptor
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_get_ss_hub_descriptor(struct usb_device *udev, struct mtx *mtx,
+    struct usb_hub_ss_descriptor *hd, uint8_t nports)
+{
+	struct usb_device_request req;
+	uint16_t len = sizeof(*hd) - 32 + 1 + ((nports + 7) / 8);
+
+	req.bmRequestType = UT_READ_CLASS_DEVICE;
+	req.bRequest = UR_GET_DESCRIPTOR;
+	USETW2(req.wValue, UDESC_SS_HUB, 0);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, len);
+	return (usbd_do_request(udev, mtx, &req, hd));
+}
+
+/*------------------------------------------------------------------------*
  *	usbd_req_get_hub_status
  *
  * Returns:
@@ -1334,6 +1358,7 @@ usb_error_t
 usbd_req_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t addr)
 {
 	struct usb_device_request req;
+	usb_error_t err;
 
 	DPRINTFN(6, "setting device address=%d\n", addr);
 
@@ -1343,9 +1368,25 @@ usbd_req_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t addr)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
 
+	err = USB_ERR_INVAL;
+
+	/* check if USB controller handles set address */
+	if (udev->bus->methods->set_address != NULL)
+		err = (udev->bus->methods->set_address) (udev, mtx, addr);
+
+	if (err != USB_ERR_INVAL)
+		goto done;
+
 	/* Setting the address should not take more than 1 second ! */
-	return (usbd_do_request_flags(udev, mtx, &req, NULL,
-	    USB_DELAY_STATUS_STAGE, NULL, 1000));
+	err = usbd_do_request_flags(udev, mtx, &req, NULL,
+	    USB_DELAY_STATUS_STAGE, NULL, 1000);
+
+done:
+	/* allow device time to set new address */
+	usb_pause_mtx(mtx,
+	    USB_MS_TO_TICKS(USB_SET_ADDRESS_SETTLE));
+
+	return (err);
 }
 
 /*------------------------------------------------------------------------*
@@ -1407,6 +1448,71 @@ usbd_req_set_hub_feature(struct usb_device *udev, struct mtx *mtx,
 	req.bmRequestType = UT_WRITE_CLASS_DEVICE;
 	req.bRequest = UR_SET_FEATURE;
 	USETW(req.wValue, sel);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+	return (usbd_do_request(udev, mtx, &req, 0));
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_set_hub_u1_timeout
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_set_hub_u1_timeout(struct usb_device *udev, struct mtx *mtx,
+    uint8_t port, uint8_t timeout)
+{
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_WRITE_CLASS_OTHER;
+	req.bRequest = UR_SET_FEATURE;
+	USETW(req.wValue, UHF_PORT_U1_TIMEOUT);
+	req.wIndex[0] = port;
+	req.wIndex[1] = timeout;
+	USETW(req.wLength, 0);
+	return (usbd_do_request(udev, mtx, &req, 0));
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_set_hub_u2_timeout
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_set_hub_u2_timeout(struct usb_device *udev, struct mtx *mtx,
+    uint8_t port, uint8_t timeout)
+{
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_WRITE_CLASS_OTHER;
+	req.bRequest = UR_SET_FEATURE;
+	USETW(req.wValue, UHF_PORT_U2_TIMEOUT);
+	req.wIndex[0] = port;
+	req.wIndex[1] = timeout;
+	USETW(req.wLength, 0);
+	return (usbd_do_request(udev, mtx, &req, 0));
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_set_hub_depth
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_set_hub_depth(struct usb_device *udev, struct mtx *mtx,
+    uint16_t depth)
+{
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_WRITE_CLASS_DEVICE;
+	req.bRequest = UR_SET_HUB_DEPTH;
+	USETW(req.wValue, depth);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
 	return (usbd_do_request(udev, mtx, &req, 0));
@@ -1645,6 +1751,68 @@ usbd_req_get_config(struct usb_device *udev, struct mtx *mtx, uint8_t *pconf)
 }
 
 /*------------------------------------------------------------------------*
+ *	usbd_setup_device_desc
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_setup_device_desc(struct usb_device *udev, struct mtx *mtx)
+{
+	usb_error_t err;
+
+	/*
+	 * Get the first 8 bytes of the device descriptor !
+	 *
+	 * NOTE: "usbd_do_request()" will check the device descriptor
+	 * next time we do a request to see if the maximum packet size
+	 * changed! The 8 first bytes of the device descriptor
+	 * contains the maximum packet size to use on control endpoint
+	 * 0. If this value is different from "USB_MAX_IPACKET" a new
+	 * USB control request will be setup!
+	 */
+	switch (udev->speed) {
+	case USB_SPEED_FULL:
+	case USB_SPEED_LOW:
+		err = usbd_req_get_desc(udev, mtx, NULL, &udev->ddesc,
+		    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
+		if (err != 0) {
+			DPRINTFN(0, "getting device descriptor "
+			    "at addr %d failed, %s\n", udev->address,
+			    usbd_errstr(err));
+			return (err);
+		}
+		break;
+	default:
+		DPRINTF("Minimum MaxPacketSize is large enough "
+		    "to hold the complete device descriptor\n");
+		break;
+	}
+
+	/* get the full device descriptor */
+	err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
+
+	/* try one more time, if error */
+	if (err)
+		err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
+
+	if (err) {
+		DPRINTF("addr=%d, getting full desc failed\n",
+		    udev->address);
+		return (err);
+	}
+
+	DPRINTF("adding unit addr=%d, rev=%02x, class=%d, "
+	    "subclass=%d, protocol=%d, maxpacket=%d, len=%d, speed=%d\n",
+	    udev->address, UGETW(udev->ddesc.bcdUSB),
+	    udev->ddesc.bDeviceClass,
+	    udev->ddesc.bDeviceSubClass,
+	    udev->ddesc.bDeviceProtocol,
+	    udev->ddesc.bMaxPacketSize,
+	    udev->ddesc.bLength,
+	    udev->speed);
+
+	return (err);
+}
+
+/*------------------------------------------------------------------------*
  *	usbd_req_re_enumerate
  *
  * NOTE: After this function returns the hardware is in the
@@ -1678,6 +1846,7 @@ retry:
 		    old_addr, usbd_errstr(err));
 		goto done;
 	}
+
 	/*
 	 * After that the port has been reset our device should be at
 	 * address zero:
@@ -1686,6 +1855,9 @@ retry:
 
 	/* reset "bMaxPacketSize" */
 	udev->ddesc.bMaxPacketSize = USB_MAX_IPACKET;
+
+	/* reset USB state */
+	usb_set_device_state(udev, USB_STATE_POWERED);
 
 	/*
 	 * Restore device address:
@@ -1696,29 +1868,16 @@ retry:
 		DPRINTFN(0, "addr=%d, set address failed! (%s, ignored)\n",
 		    old_addr, usbd_errstr(err));
 	}
-	/* restore device address */
-	udev->address = old_addr;
+	/*
+	 * Restore device address, if the controller driver did not
+	 * set a new one:
+	 */
+	if (udev->address == USB_START_ADDR)
+		udev->address = old_addr;
 
-	/* allow device time to set new address */
-	usb_pause_mtx(mtx, USB_MS_TO_TICKS(USB_SET_ADDRESS_SETTLE));
+	/* setup the device descriptor and the initial "wMaxPacketSize" */
+	err = usbd_setup_device_desc(udev, mtx);
 
-	/* get the device descriptor */
-	err = usbd_req_get_desc(udev, mtx, NULL, &udev->ddesc,
-	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
-	if (err) {
-		DPRINTFN(0, "getting device descriptor "
-		    "at addr %d failed, %s\n", udev->address,
-		    usbd_errstr(err));
-		goto done;
-	}
-	/* get the full device descriptor */
-	err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
-	if (err) {
-		DPRINTFN(0, "addr=%d, getting device "
-		    "descriptor failed, %s\n", old_addr, 
-		    usbd_errstr(err));
-		goto done;
-	}
 done:
 	if (err && do_retry) {
 		/* give the USB firmware some time to load */
@@ -1729,7 +1888,11 @@ done:
 		goto retry;
 	}
 	/* restore address */
-	udev->address = old_addr;
+	if (udev->address == USB_START_ADDR)
+		udev->address = old_addr;
+	/* update state, if successful */
+	if (err == 0)
+		usb_set_device_state(udev, USB_STATE_ADDRESSED);
 	return (err);
 }
 
