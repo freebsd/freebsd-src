@@ -912,12 +912,15 @@ axe_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		if ((sc->sc_flags & AXE_FLAG_LINK) == 0) {
+		if ((sc->sc_flags & AXE_FLAG_LINK) == 0 ||
+		    (ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
 			/*
-			 * don't send anything if there is no link !
+			 * Don't send anything if there is no link or
+			 * controller is busy.
 			 */
 			return;
 		}
@@ -988,6 +991,7 @@ tr_setup:
 
 		usbd_xfer_set_frame_len(xfer, 0, pos);
 		usbd_transfer_submit(xfer);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 
 	default:			/* Error */
@@ -995,6 +999,7 @@ tr_setup:
 		    usbd_errstr(error));
 
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -1127,7 +1132,7 @@ axe_stop(struct usb_ether *ue)
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->sc_flags &= ~AXE_FLAG_LINK;
 
 	/*
