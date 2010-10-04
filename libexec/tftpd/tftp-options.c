@@ -79,7 +79,8 @@ int options_extra_enabled = 1;
  */
 
 int
-option_tsize(int peer, struct tftphdr *tp, int mode, struct stat *stbuf)
+option_tsize(int peer __unused, struct tftphdr *tp __unused, int mode,
+    struct stat *stbuf)
 {
 
 	if (options[OPT_TSIZE].o_request == NULL)
@@ -159,21 +160,19 @@ option_rollover(int peer)
 int
 option_blksize(int peer)
 {
-	int *maxdgram;
-	char maxbuffer[100];
+	u_long maxdgram;
 	size_t len;
 
 	if (options[OPT_BLKSIZE].o_request == NULL)
 		return (0);
 
 	/* maximum size of an UDP packet according to the system */
-	len = sizeof(maxbuffer);
+	len = sizeof(maxdgram);
 	if (sysctlbyname("net.inet.udp.maxdgram",
-	    maxbuffer, &len, NULL, 0) < 0) {
+	    &maxdgram, &len, NULL, 0) < 0) {
 		tftp_log(LOG_ERR, "sysctl: net.inet.udp.maxdgram");
 		return (acting_as_client ? 1 : 0);
 	}
-	maxdgram = (int *)maxbuffer;
 
 	int size = atoi(options[OPT_BLKSIZE].o_request);
 	if (size < BLKSIZE_MIN || size > BLKSIZE_MAX) {
@@ -191,20 +190,20 @@ option_blksize(int peer)
 		}
 	}
 
-	if (size > *maxdgram) {
+	if (size > (int)maxdgram) {
 		if (acting_as_client) {
 			tftp_log(LOG_ERR,
 			    "Invalid blocksize (%d bytes), "
 			    "net.inet.udp.maxdgram sysctl limits it to "
-			    "%d bytes.\n", size, *maxdgram);
+			    "%d bytes.\n", size, maxdgram);
 			send_error(peer, EBADOP);
 			return (1);
 		} else {
 			tftp_log(LOG_WARNING,
 			    "Invalid blocksize (%d bytes), "
 			    "net.inet.udp.maxdgram sysctl limits it to "
-			    "%d bytes.\n", size, *maxdgram);
-			size = *maxdgram;
+			    "%d bytes.\n", size, maxdgram);
+			size = maxdgram;
 			/* No reason to return */
 		}
 	}
@@ -220,10 +219,9 @@ option_blksize(int peer)
 }
 
 int
-option_blksize2(int peer)
+option_blksize2(int peer __unused)
 {
-	int	*maxdgram;
-	char	maxbuffer[100];
+	u_long	maxdgram;
 	int	size, i;
 	size_t	len;
 
@@ -236,13 +234,12 @@ option_blksize2(int peer)
 		return (0);
 
 	/* maximum size of an UDP packet according to the system */
-	len = sizeof(maxbuffer);
+	len = sizeof(maxdgram);
 	if (sysctlbyname("net.inet.udp.maxdgram",
-	    maxbuffer, &len, NULL, 0) < 0) {
+	    &maxdgram, &len, NULL, 0) < 0) {
 		tftp_log(LOG_ERR, "sysctl: net.inet.udp.maxdgram");
 		return (acting_as_client ? 1 : 0);
 	}
-	maxdgram = (int *)maxbuffer;
 
 	size = atoi(options[OPT_BLKSIZE2].o_request);
 	for (i = 0; sizes[i] != 0; i++) {
@@ -254,13 +251,13 @@ option_blksize2(int peer)
 		return (acting_as_client ? 1 : 0);
 	}
 
-	if (size > *maxdgram) {
+	if (size > (int)maxdgram) {
 		for (i = 0; sizes[i+1] != 0; i++) {
-			if (*maxdgram < sizes[i+1]) break;
+			if ((int)maxdgram < sizes[i+1]) break;
 		}
 		tftp_log(LOG_INFO,
 		    "Invalid blocksize2 (%d bytes), net.inet.udp.maxdgram "
-		    "sysctl limits it to %d bytes.\n", size, *maxdgram);
+		    "sysctl limits it to %d bytes.\n", size, maxdgram);
 		size = sizes[i];
 		/* No need to return */
 	}
@@ -279,7 +276,7 @@ option_blksize2(int peer)
  * Append the available options to the header
  */
 uint16_t
-make_options(int peer, char *buffer, uint16_t size) {
+make_options(int peer __unused, char *buffer, uint16_t size) {
 	int	i;
 	char	*value;
 	const char *option;

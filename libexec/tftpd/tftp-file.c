@@ -103,13 +103,13 @@ static size_t
 convert_to_net(char *buffer, size_t count, int init)
 {
 	size_t i;
-	static size_t n = 0, read = 0;
+	static size_t n = 0, in = 0;
 	static int newline = 0;
 
 	if (init) {
 		newline = 0;
 		n = 0;
-		read = 0;
+		in = 0;
 		return 0 ;
 	}
 
@@ -124,13 +124,13 @@ convert_to_net(char *buffer, size_t count, int init)
 	}
 
 	while (i < count) {
-		if (n == read) {
+		if (n == in) {
 			/* When done we're done */
 			if (feof(file)) break;
 
 			/* Otherwise read another bunch */
-			read = fread(convbuffer, 1, count, file);
-			if (read == 0) break;
+			in = fread(convbuffer, 1, count, file);
+			if (in == 0) break;
 			n = 0;
 		}
 
@@ -250,7 +250,7 @@ read_close(void)
 
 
 int
-synchnet(int peer)
+synchnet(int peer __unused)
 {
 
 	return 0;
