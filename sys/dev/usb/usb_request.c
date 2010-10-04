@@ -1018,14 +1018,21 @@ usbd_req_get_string_any(struct usb_device *udev, struct mtx *mtx, char *buf,
 		}
 
 		/*
-		 * Filter by default - we don't allow greater and less than
-		 * signs because they might confuse the dmesg printouts!
+		 * Filter by default - We only allow alphanumerical
+		 * and a few more to avoid any problems with scripts
+		 * and daemons.
 		 */
-		if ((*s == '<') || (*s == '>') || (!isprint(*s))) {
-			/* silently skip bad character */
-			continue;
+		if (isalpha(*s) ||
+		    isdigit(*s) ||
+		    *s == '-' ||
+		    *s == '+' ||
+		    *s == ' ' ||
+		    *s == '.' ||
+		    *s == ',') {
+			/* allowed */
+			s++;
 		}
-		s++;
+		/* silently skip bad character */
 	}
 	*s = 0;				/* zero terminate resulting string */
 	return (USB_ERR_NORMAL_COMPLETION);
