@@ -160,6 +160,7 @@ struct usb_device {
 	uint8_t	hs_port_no;		/* high-speed HUB port number */
 	uint8_t	driver_added_refcount;	/* our driver added generation count */
 	uint8_t	power_mode;		/* see USB_POWER_XXX */
+	uint8_t re_enumerate_wait;	/* set if re-enum. is in progress */
 	uint8_t ifaces_max;		/* number of interfaces present */
 	uint8_t endpoints_max;		/* number of endpoints present */
 

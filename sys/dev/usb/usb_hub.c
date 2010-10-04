@@ -236,6 +236,26 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 		/* nothing to do */
 		goto done;
 	}
+	/* check if device should be re-enumerated */
+
+	if (child->flags.usb_mode == USB_MODE_HOST) {
+		usbd_enum_lock(child);
+		if (child->re_enumerate_wait) {
+			err = usbd_set_config_index(child, USB_UNCONFIG_INDEX);
+			if (err == 0)
+				err = usbd_req_re_enumerate(child, NULL);
+			if (err == 0)
+				err = usbd_set_config_index(child, 0);
+			if (err == 0) {
+				err = usb_probe_and_attach(child,
+				    USB_IFACE_INDEX_ANY);
+			}
+			child->re_enumerate_wait = 0;
+			err = 0;
+		}
+		usbd_enum_unlock(child);
+	}
+
 	/* check if probe and attach should be done */
 
 	if (child->driver_added_refcount != refcount) {
@@ -1763,6 +1783,8 @@ static uint8_t
 usb_peer_should_wakeup(struct usb_device *udev)
 {
 	return ((udev->power_mode == USB_POWER_MODE_ON) ||
+	    (udev->driver_added_refcount != udev->bus->driver_added_refcount) ||
+	    (udev->re_enumerate_wait != 0) ||
 	    (udev->pwr_save.type_refs[UE_ISOCHRONOUS] != 0) ||
 	    (udev->pwr_save.write_refs != 0) ||
 	    ((udev->pwr_save.read_refs != 0) &&
