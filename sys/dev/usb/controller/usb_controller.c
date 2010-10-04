@@ -107,6 +107,7 @@ static driver_t usb_driver = {
 DRIVER_MODULE(usbus, ohci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uhci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, ehci, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, xhci, usb_driver, usb_devclass, 0, 0);
 
 /* Device Only Drivers */
 DRIVER_MODULE(usbus, at91_udp, usb_driver, usb_devclass, 0, 0);
@@ -357,6 +358,11 @@ usb_bus_attach(struct usb_proc_msg *pm)
 	case USB_REV_2_5:
 		speed = USB_SPEED_VARIABLE;
 		device_printf(bus->bdev, "480Mbps Wireless USB v2.5\n");
+		break;
+
+	case USB_REV_3_0:
+		speed = USB_SPEED_SUPER;
+		device_printf(bus->bdev, "4.8Gbps Super Speed USB v3.0\n");
 		break;
 
 	default:
