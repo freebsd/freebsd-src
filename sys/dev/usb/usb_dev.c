@@ -1456,7 +1456,7 @@ usb_static_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		struct usb_read_dir *urd;
 		void* data;
 	} u;
-	int err = ENOTTY;
+	int err;
 
 	u.data = data;
 	switch (cmd) {
@@ -1472,12 +1472,16 @@ usb_static_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		case USB_GET_TEMPLATE:
 			*(int *)data = usb_template;
+			err = 0;
 			break;
 		case USB_SET_TEMPLATE:
 			err = priv_check(curthread, PRIV_DRIVER);
 			if (err)
 				break;
 			usb_template = *(int *)data;
+			break;
+		default:
+			err = ENOTTY;
 			break;
 	}
 	return (err);
