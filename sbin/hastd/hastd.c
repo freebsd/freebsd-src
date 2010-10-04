@@ -659,7 +659,7 @@ main_loop(void)
 		assert(maxfd + 1 <= (int)FD_SETSIZE);
 		ret = select(maxfd + 1, &rfds, NULL, NULL, &seltimeout);
 		if (ret == 0)
-			hook_check(false);
+			hook_check();
 		else if (ret == -1) {
 			if (errno == EINTR)
 				continue;
