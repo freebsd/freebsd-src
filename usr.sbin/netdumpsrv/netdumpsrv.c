@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #define	MAX_DUMPS	256	/* Dumps per IP before to be cleaned out. */
-#define	CLIENT_TIMEOUT	120	/* Clients timeout (secs). */
+#define	CLIENT_TIMEOUT	600	/* Clients timeout (secs). */
 #define	CLIENT_TPASS	10	/* Clients timeout pass (secs). */
 
 #define	PFLAGS_ABIND	0x01
@@ -370,9 +370,14 @@ timeout_clients(void)
 	last_timeout_check = now;
 
 	/* Traverse the list looking for stale clients. */
-	SLIST_FOREACH_SAFE(client, &clients, iter, tmp)
-		if (client->last_msg + CLIENT_TIMEOUT < now)
+	SLIST_FOREACH_SAFE(client, &clients, iter, tmp) {
+		if (client->last_msg + CLIENT_TIMEOUT < now) {
+			LOGINFO("Timingout with such values: %jd + %jd < %jd\n",
+			    (intmax_t)client->last_msg,
+			    (intmax_t)CLIENT_TIMEOUT, (intmax_t)now);
 			handle_timeout(client);
+		}
+	}
 }
 
 static void
