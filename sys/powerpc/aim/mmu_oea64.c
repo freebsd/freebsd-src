@@ -211,14 +211,14 @@ TLBIE(uint64_t vpn) {
 	    mfmsr %0; \
 	    mr %1, %0; \
 	    insrdi %1,%5,1,0; \
-	    mtmsrd %1; \
+	    mtmsrd %1; isync; \
 	    ptesync; \
 	    \
 	    sld %1,%2,%4; \
 	    or %1,%1,%3; \
 	    tlbie %1; \
 	    \
-	    mtmsrd %0; \
+	    mtmsrd %0; isync; \
 	    eieio; \
 	    tlbsync; \
 	    ptesync;" 
