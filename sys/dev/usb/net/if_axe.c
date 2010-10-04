@@ -912,7 +912,6 @@ axe_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-		ifp->if_opackets++;
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
@@ -956,6 +955,17 @@ tr_setup:
 			}
 			usbd_m_copy_in(pc, pos, m, 0, m->m_pkthdr.len);
 			pos += m->m_pkthdr.len;
+
+			/*
+			 * XXX
+			 * Update TX packet counter here. This is not
+			 * correct way but it seems that there is no way
+			 * to know how many packets are sent at the end
+			 * of transfer because controller combines
+			 * multiple writes into single one if there is
+			 * room in TX buffer of controller.
+			 */
+			ifp->if_opackets++;
 
 			/*
 			 * if there's a BPF listener, bounce a copy
