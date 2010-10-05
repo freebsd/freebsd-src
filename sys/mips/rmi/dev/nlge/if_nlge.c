@@ -903,7 +903,7 @@ nlna_hw_init(struct nlna_softc *sc)
 
 	/*
 	 * Register message ring handler for the NA block, messages from
-	 * the GMAC will have sourec station id to the first bucket of the 
+	 * the GMAC will have source station id to the first bucket of the 
 	 * NA FMN station, so register just that station id.
 	 */
 	if (register_msgring_handler(sc->station_id, sc->station_id + 1,
