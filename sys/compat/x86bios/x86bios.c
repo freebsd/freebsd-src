@@ -679,7 +679,7 @@ x86bios_unmap_mem(void)
 	free(x86bios_map, M_DEVBUF);
 	if (x86bios_ivt != NULL)
 #ifdef X86BIOS_NATIVE_ARCH
-		pmap_unmapdev((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
+		pmap_unmapbios((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
 #else
 		free(x86bios_ivt, M_DEVBUF);
 #endif
