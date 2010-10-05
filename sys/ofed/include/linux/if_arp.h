@@ -29,5 +29,4 @@
 #define	_LINUX_IF_ARP_H_
 #include <sys/socket.h>
 #include <net/if_arp.h>
-#define	ARPHRD_INFINIBAND	32
 #endif	/* _LINUX_IF_ARP_H_ */
