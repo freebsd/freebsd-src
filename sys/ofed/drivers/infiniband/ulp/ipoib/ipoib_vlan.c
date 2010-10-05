@@ -43,14 +43,14 @@
 static ssize_t show_parent(struct device *d, struct device_attribute *attr,
 			   char *buf)
 {
-	struct net_device *dev = to_net_dev(d);
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ifnet *dev = to_net_dev(d);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	return sprintf(buf, "%s\n", priv->parent->name);
 }
 static DEVICE_ATTR(parent, S_IRUGO, show_parent, NULL);
 
-int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
+int ipoib_vlan_add(struct ifnet *pdev, unsigned short pkey)
 {
 	struct ipoib_dev_priv *ppriv, *priv;
 	char intf_name[IFNAMSIZ];
@@ -59,7 +59,7 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	ppriv = netdev_priv(pdev);
+	ppriv = pdev->if_softc;
 
 	rtnl_lock();
 	mutex_lock(&ppriv->vlan_mutex);
@@ -102,9 +102,9 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	priv->pkey = pkey;
 
-	memcpy(priv->dev->dev_addr, ppriv->dev->dev_addr, INFINIBAND_ALEN);
-	priv->dev->broadcast[8] = pkey >> 8;
-	priv->dev->broadcast[9] = pkey & 0xff;
+	memcpy(IF_LLADDR(priv->dev), ppriv->dev->dev_addr, INFINIBAND_ALEN);
+	priv->broadcastaddr[8] = pkey >> 8;
+	priv->broadcastaddr[9] = pkey & 0xff;
 
 	result = ipoib_dev_init(priv->dev, ppriv->ca, ppriv->port);
 	if (result < 0) {
@@ -157,15 +157,15 @@ err:
 	return result;
 }
 
-int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
+int ipoib_vlan_delete(struct ifnet *pdev, unsigned short pkey)
 {
 	struct ipoib_dev_priv *ppriv, *priv, *tpriv;
-	struct net_device *dev = NULL;
+	struct ifnet *dev = NULL;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	ppriv = netdev_priv(pdev);
+	ppriv = pdev->if_softc;
 
 	rtnl_lock();
 	mutex_lock(&ppriv->vlan_mutex);

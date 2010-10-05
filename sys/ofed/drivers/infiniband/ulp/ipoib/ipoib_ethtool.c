@@ -36,23 +36,23 @@
 
 #include "ipoib.h"
 
-static void ipoib_get_drvinfo(struct net_device *netdev,
+static void ipoib_get_drvinfo(struct ifnet *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
 	strncpy(drvinfo->driver, "ipoib", sizeof(drvinfo->driver) - 1);
 }
 
-static u32 ipoib_get_rx_csum(struct net_device *dev)
+static u32 ipoib_get_rx_csum(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	return test_bit(IPOIB_FLAG_CSUM, &priv->flags) &&
 		!test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
 
-static int ipoib_get_coalesce(struct net_device *dev,
+static int ipoib_get_coalesce(struct ifnet *dev,
 			      struct ethtool_coalesce *coal)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	coal->rx_coalesce_usecs = priv->ethtool.coalesce_usecs;
 	coal->tx_coalesce_usecs = priv->ethtool.coalesce_usecs;
@@ -62,10 +62,10 @@ static int ipoib_get_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static int ipoib_set_coalesce(struct net_device *dev,
+static int ipoib_set_coalesce(struct ifnet *dev,
 			      struct ethtool_coalesce *coal)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	int ret;
 
 	/*
@@ -98,7 +98,7 @@ static const char ipoib_stats_keys[][ETH_GSTRING_LEN] = {
 	"LRO avg aggr", "LRO no desc"
 };
 
-static void ipoib_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
+static void ipoib_get_strings(struct ifnet *netdev, u32 stringset, u8 *data)
 {
 	switch (stringset) {
 	case ETH_SS_STATS:
@@ -107,7 +107,7 @@ static void ipoib_get_strings(struct net_device *netdev, u32 stringset, u8 *data
 	}
 }
 
-static int ipoib_get_sset_count(struct net_device *dev, int sset)
+static int ipoib_get_sset_count(struct ifnet *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
@@ -117,10 +117,10 @@ static int ipoib_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
-static void ipoib_get_ethtool_stats(struct net_device *dev,
+static void ipoib_get_ethtool_stats(struct ifnet *dev,
 				struct ethtool_stats *stats, uint64_t *data)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	int index = 0;
 
 	/* Get LRO statistics */
@@ -146,7 +146,7 @@ static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_ethtool_stats	= ipoib_get_ethtool_stats,
 };
 
-void ipoib_set_ethtool_ops(struct net_device *dev)
+void ipoib_set_ethtool_ops(struct ifnet *dev)
 {
 	SET_ETHTOOL_OPS(dev, &ipoib_ethtool_ops);
 }

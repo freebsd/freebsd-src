@@ -34,6 +34,10 @@
 
 #include "ipoib.h"
 
+static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
+		struct sockaddr *);
+
+
 #include <linux/module.h>
 
 #include <linux/init.h>
@@ -43,41 +47,27 @@
 
 #include <linux/if_arp.h>	/* For ARPHRD_xxx */
 
-#include <linux/ip.h>
-#include <linux/in.h>
-
-#include <net/dst.h>
-
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
-int ipoib_sendq_size __read_mostly = IPOIB_TX_RING_SIZE;
-int ipoib_recvq_size __read_mostly = IPOIB_RX_RING_SIZE;
+int ipoib_sendq_size = IPOIB_TX_RING_SIZE;
+int ipoib_recvq_size = IPOIB_RX_RING_SIZE;
 
 module_param_named(send_queue_size, ipoib_sendq_size, int, 0444);
 MODULE_PARM_DESC(send_queue_size, "Number of descriptors in send queue");
 module_param_named(recv_queue_size, ipoib_recvq_size, int, 0444);
 MODULE_PARM_DESC(recv_queue_size, "Number of descriptors in receive queue");
 
-static int lro;
-module_param(lro, bool, 0444);
-MODULE_PARM_DESC(lro,  "Enable LRO (Large Receive Offload)");
-
-static int lro_max_aggr = IPOIB_LRO_MAX_AGGR;
-module_param(lro_max_aggr, int, 0644);
-MODULE_PARM_DESC(lro_max_aggr, "LRO: Max packets to be aggregated "
-		"(default = 64)");
-
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
-int ipoib_debug_level;
+int ipoib_debug_level = 1;
 
 module_param_named(debug_level, ipoib_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 #endif
 
 struct ipoib_path_iter {
-	struct net_device *dev;
+	struct ifnet *dev;
 	struct ipoib_path  path;
 };
 
@@ -93,6 +83,11 @@ struct ib_sa_client ipoib_sa_client;
 
 static void ipoib_add_one(struct ib_device *device);
 static void ipoib_remove_one(struct ib_device *device);
+static void ipoib_start(struct ifnet *dev);
+static int ipoib_output(struct ifnet *ifp, struct mbuf *m,
+	    struct sockaddr *dst, struct route *ro);
+static int ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
+static void ipoib_input(struct ifnet *ifp, struct mbuf *m);
 
 static struct ib_client ipoib_client = {
 	.name   = "ipoib",
@@ -100,9 +95,9 @@ static struct ib_client ipoib_client = {
 	.remove = ipoib_remove_one
 };
 
-int ipoib_open(struct net_device *dev)
+int ipoib_open(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	ipoib_dbg(priv, "bringing up interface\n");
 
@@ -117,6 +112,7 @@ int ipoib_open(struct net_device *dev)
 	if (ipoib_ib_dev_up(dev))
 		goto err_stop;
 
+#if 0 /* XXX */
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
 
@@ -133,8 +129,9 @@ int ipoib_open(struct net_device *dev)
 		}
 		mutex_unlock(&priv->vlan_mutex);
 	}
-
-	netif_start_queue(dev);
+#endif
+	dev->if_drv_flags |= IFF_DRV_RUNNING;
+	dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	return 0;
 
@@ -147,19 +144,33 @@ err_disable:
 	return -EINVAL;
 }
 
-static int ipoib_stop(struct net_device *dev)
+static void
+ipoib_init(void *arg)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ifnet *dev;
+	struct ipoib_dev_priv *priv;
+
+	priv = arg;
+	dev = priv->dev;
+	if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		ipoib_open(dev);
+}
+
+
+static int ipoib_stop(struct ifnet *dev)
+{
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	ipoib_dbg(priv, "stopping interface\n");
 
 	clear_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
-	netif_stop_queue(dev);
+	dev->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	ipoib_ib_dev_down(dev, 0);
 	ipoib_ib_dev_stop(dev, 0);
 
+#if 0 /* XXX */
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
 
@@ -168,7 +179,7 @@ static int ipoib_stop(struct net_device *dev)
 		list_for_each_entry(cpriv, &priv->child_intfs, list) {
 			int flags;
 
-			flags = cpriv->dev->flags;
+			flags = cpriv->dev->if_flags;
 			if (!(flags & IFF_UP))
 				continue;
 
@@ -176,15 +187,16 @@ static int ipoib_stop(struct net_device *dev)
 		}
 		mutex_unlock(&priv->vlan_mutex);
 	}
+#endif
 
 	return 0;
 }
 
-static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
+static int ipoib_change_mtu(struct ifnet *dev, int new_mtu)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
-	/* dev->mtu > 2K ==> connected mode */
+	/* dev->if_mtu > 2K ==> connected mode */
 	if (ipoib_cm_admin_enabled(dev)) {
 		if (new_mtu > ipoib_cm_max_mtu(dev))
 			return -EINVAL;
@@ -193,7 +205,7 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 			ipoib_warn(priv, "mtu > %d will cause multicast packet drops.\n",
 				   priv->mcast_mtu);
 
-		dev->mtu = new_mtu;
+		dev->if_mtu = new_mtu;
 		return 0;
 	}
 
@@ -202,16 +214,78 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 
 	priv->admin_mtu = new_mtu;
 
-	dev->mtu = min(priv->mcast_mtu, priv->admin_mtu);
+	dev->if_mtu = min(priv->mcast_mtu, priv->admin_mtu);
 
 	queue_work(ipoib_workqueue, &priv->flush_light);
 
 	return 0;
 }
 
-static struct ipoib_path *__path_find(struct net_device *dev, void *gid)
+static int
+ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ifaddr *ifa = (struct ifaddr *) data;
+	struct ifreq *ifr = (struct ifreq *) data;
+	int error = 0;
+
+	switch (command) {
+	case SIOCSIFFLAGS:
+		if (ifp->if_flags & IFF_UP) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+				error = -ipoib_open(ifp);
+		} else
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				ipoib_stop(ifp);
+		break;
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			/* XXX Update multicast info. */
+		}
+		break;
+	case SIOCSIFADDR:
+		ifp->if_flags |= IFF_UP;
+
+		switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+		case AF_INET:
+			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
+			arp_ifinit(ifp, ifa);
+			break;
+#endif
+		default:
+			ifp->if_init(ifp->if_softc);
+			break;
+		}
+		break;
+
+	case SIOCGIFADDR:
+		{
+			struct sockaddr *sa;
+
+			sa = (struct sockaddr *) & ifr->ifr_data;
+			bcopy(IF_LLADDR(ifp),
+			      (caddr_t) sa->sa_data, INFINIBAND_ALEN);
+		}
+		break;
+
+	case SIOCSIFMTU:
+		/*
+		 * Set the interface MTU.
+		 */
+		error = -ipoib_change_mtu(ifp, ifr->ifr_mtu);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
+
+static struct ipoib_path *__path_find(struct ifnet *dev, void *gid)
+{
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct rb_node *n = priv->path_tree.rb_node;
 	struct ipoib_path *path;
 	int ret;
@@ -233,9 +307,9 @@ static struct ipoib_path *__path_find(struct net_device *dev, void *gid)
 	return NULL;
 }
 
-static int __path_add(struct net_device *dev, struct ipoib_path *path)
+static int __path_add(struct ifnet *dev, struct ipoib_path *path)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct rb_node **n = &priv->path_tree.rb_node;
 	struct rb_node *pn = NULL;
 	struct ipoib_path *tpath;
@@ -263,42 +337,22 @@ static int __path_add(struct net_device *dev, struct ipoib_path *path)
 	return 0;
 }
 
-static void path_free(struct net_device *dev, struct ipoib_path *path)
+static void path_free(struct ifnet *dev, struct ipoib_path *path)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ipoib_neigh *neigh, *tn;
-	struct sk_buff *skb;
-	unsigned long flags;
 
-	while ((skb = __skb_dequeue(&path->queue)))
-		dev_kfree_skb_irq(skb);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	list_for_each_entry_safe(neigh, tn, &path->neigh_list, list) {
-		/*
-		 * It's safe to call ipoib_put_ah() inside priv->lock
-		 * here, because we know that path->ah will always
-		 * hold one more reference, so ipoib_put_ah() will
-		 * never do more than decrement the ref count.
-		 */
-		if (neigh->ah)
-			ipoib_put_ah(neigh->ah);
-
-		ipoib_neigh_free(dev, neigh);
-	}
-
-	spin_unlock_irqrestore(&priv->lock, flags);
+	_IF_DRAIN(&path->queue);
 
 	if (path->ah)
 		ipoib_put_ah(path->ah);
+	if (ipoib_cm_get(path))
+		ipoib_cm_destroy_tx(ipoib_cm_get(path));
 
 	kfree(path);
 }
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 
-struct ipoib_path_iter *ipoib_path_iter_init(struct net_device *dev)
+struct ipoib_path_iter *ipoib_path_iter_init(struct ifnet *dev)
 {
 	struct ipoib_path_iter *iter;
 
@@ -319,7 +373,7 @@ struct ipoib_path_iter *ipoib_path_iter_init(struct net_device *dev)
 
 int ipoib_path_iter_next(struct ipoib_path_iter *iter)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(iter->dev);
+	struct ipoib_dev_priv *priv = iter->dev->if_softc;
 	struct rb_node *n;
 	struct ipoib_path *path;
 	int ret = 1;
@@ -354,9 +408,9 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */
 
-void ipoib_mark_paths_invalid(struct net_device *dev)
+void ipoib_mark_paths_invalid(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path, *tp;
 
 	spin_lock_irq(&priv->lock);
@@ -371,14 +425,13 @@ void ipoib_mark_paths_invalid(struct net_device *dev)
 	spin_unlock_irq(&priv->lock);
 }
 
-void ipoib_flush_paths(struct net_device *dev)
+void ipoib_flush_paths(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path, *tp;
 	LIST_HEAD(remove_list);
 	unsigned long flags;
 
-	netif_tx_lock_bh(dev);
 	spin_lock_irqsave(&priv->lock, flags);
 
 	list_splice_init(&priv->path_list, &remove_list);
@@ -390,15 +443,12 @@ void ipoib_flush_paths(struct net_device *dev)
 		if (path->query)
 			ib_sa_cancel_query(path->query_id, path->query);
 		spin_unlock_irqrestore(&priv->lock, flags);
-		netif_tx_unlock_bh(dev);
 		wait_for_completion(&path->done);
 		path_free(dev, path);
-		netif_tx_lock_bh(dev);
 		spin_lock_irqsave(&priv->lock, flags);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-	netif_tx_unlock_bh(dev);
 }
 
 static void path_rec_completion(int status,
@@ -406,13 +456,12 @@ static void path_rec_completion(int status,
 				void *path_ptr)
 {
 	struct ipoib_path *path = path_ptr;
-	struct net_device *dev = path->dev;
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ifnet *dev = path->dev;
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_ah *ah = NULL;
 	struct ipoib_ah *old_ah = NULL;
-	struct ipoib_neigh *neigh, *tn;
-	struct sk_buff_head skqueue;
-	struct sk_buff *skb;
+	struct ifqueue mbqueue;
+	struct mbuf *mb;
 	unsigned long flags;
 
 	if (!status)
@@ -422,7 +471,7 @@ static void path_rec_completion(int status,
 		ipoib_dbg(priv, "PathRec status %d for GID %pI6\n",
 			  status, path->pathrec.dgid.raw);
 
-	skb_queue_head_init(&skqueue);
+	bzero(&mbqueue, sizeof(mbqueue));
 
 	if (!status) {
 		struct ib_ah_attr av;
@@ -442,43 +491,18 @@ static void path_rec_completion(int status,
 		ipoib_dbg(priv, "created address handle %p for LID 0x%04x, SL %d\n",
 			  ah, be16_to_cpu(pathrec->dlid), pathrec->sl);
 
-		while ((skb = __skb_dequeue(&path->queue)))
-			__skb_queue_tail(&skqueue, skb);
-
-		list_for_each_entry_safe(neigh, tn, &path->neigh_list, list) {
-			if (neigh->ah) {
-				WARN_ON(neigh->ah != old_ah);
-				/*
-				 * Dropping the ah reference inside
-				 * priv->lock is safe here, because we
-				 * will hold one more reference from
-				 * the original value of path->ah (ie
-				 * old_ah).
-				 */
-				ipoib_put_ah(neigh->ah);
-			}
-			kref_get(&path->ah->ref);
-			neigh->ah = path->ah;
-			memcpy(&neigh->dgid.raw, &path->pathrec.dgid.raw,
-			       sizeof(union ib_gid));
-
-			if (ipoib_cm_enabled(dev, neigh->neighbour)) {
-				if (!ipoib_cm_get(neigh))
-					ipoib_cm_set(neigh, ipoib_cm_create_tx(dev,
-									       path,
-									       neigh));
-				if (!ipoib_cm_get(neigh)) {
-					list_del(&neigh->list);
-					if (neigh->ah)
-						ipoib_put_ah(neigh->ah);
-					ipoib_neigh_free(dev, neigh);
-					continue;
-				}
-			}
-
-			while ((skb = __skb_dequeue(&neigh->queue)))
-				__skb_queue_tail(&skqueue, skb);
+		for (;;) {
+			_IF_DEQUEUE(&path->queue, mb);
+			if (mb == NULL)
+				break;
+			_IF_ENQUEUE(&mbqueue, mb);
 		}
+
+#if 0 /* XXX */
+		if (ipoib_cm_enabled(dev, path->hwaddr) && !ipoib_cm_get(path))
+			ipoib_cm_set(path, ipoib_cm_create_tx(dev, path));
+#endif
+
 		path->valid = 1;
 	}
 
@@ -490,17 +514,20 @@ static void path_rec_completion(int status,
 	if (old_ah)
 		ipoib_put_ah(old_ah);
 
-	while ((skb = __skb_dequeue(&skqueue))) {
-		skb->dev = dev;
-		if (dev_queue_xmit(skb))
+	for (;;) {
+		_IF_DEQUEUE(&mbqueue, mb);
+		if (mb == NULL)
+			break;
+		mb->m_pkthdr.rcvif = dev;
+		if (dev->if_transmit(dev, mb))
 			ipoib_warn(priv, "dev_queue_xmit failed "
 				   "to requeue packet\n");
 	}
 }
 
-static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
+static struct ipoib_path *path_rec_create(struct ifnet *dev, void *gid)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path;
 
 	if (!priv->broadcast)
@@ -512,9 +539,7 @@ static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 
 	path->dev = dev;
 
-	skb_queue_head_init(&path->queue);
-
-	INIT_LIST_HEAD(&path->neigh_list);
+	bzero(&path->queue, sizeof(path->queue));
 
 	memcpy(path->pathrec.dgid.raw, gid, sizeof (union ib_gid));
 	path->pathrec.sgid	    = priv->local_gid;
@@ -525,17 +550,17 @@ static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 	return path;
 }
 
-static int path_rec_start(struct net_device *dev,
+static int path_rec_start(struct ifnet *dev,
 			  struct ipoib_path *path)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	ib_sa_comp_mask comp_mask = IB_SA_PATH_REC_MTU_SELECTOR | IB_SA_PATH_REC_MTU;
 	struct ib_sa_path_rec p_rec;
 
 	p_rec = path->pathrec;
 	p_rec.mtu_selector = IB_SA_GT;
 
-	switch (roundup_pow_of_two(dev->mtu + IPOIB_ENCAP_LEN)) {
+	switch (roundup_pow_of_two(dev->if_mtu + IPOIB_ENCAP_LEN)) {
 	case 512:
 		p_rec.mtu = IB_MTU_256;
 		break;
@@ -582,120 +607,25 @@ static int path_rec_start(struct net_device *dev,
 	return 0;
 }
 
-static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
+static void
+unicast_send(struct mbuf *mb, struct ifnet *dev, struct ipoib_header *eh)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ipoib_path *path;
-	struct ipoib_neigh *neigh;
-	unsigned long flags;
-
-	neigh = ipoib_neigh_alloc(skb->dst->neighbour, skb->dev);
-	if (!neigh) {
-		++dev->stats.tx_dropped;
-		dev_kfree_skb_any(skb);
-		return;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	path = __path_find(dev, skb->dst->neighbour->ha + 4);
-	if (!path) {
-		path = path_rec_create(dev, skb->dst->neighbour->ha + 4);
-		if (!path)
-			goto err_path;
-
-		__path_add(dev, path);
-	}
-
-	list_add_tail(&neigh->list, &path->neigh_list);
-
-	if (path->ah) {
-		kref_get(&path->ah->ref);
-		neigh->ah = path->ah;
-		memcpy(&neigh->dgid.raw, &path->pathrec.dgid.raw,
-		       sizeof(union ib_gid));
-
-		if (ipoib_cm_enabled(dev, neigh->neighbour)) {
-			if (!ipoib_cm_get(neigh))
-				ipoib_cm_set(neigh, ipoib_cm_create_tx(dev, path, neigh));
-			if (!ipoib_cm_get(neigh)) {
-				list_del(&neigh->list);
-				if (neigh->ah)
-					ipoib_put_ah(neigh->ah);
-				ipoib_neigh_free(dev, neigh);
-				goto err_drop;
-			}
-			if (skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE)
-				__skb_queue_tail(&neigh->queue, skb);
-			else {
-				ipoib_warn(priv, "queue length limit %d. Packet drop.\n",
-					   skb_queue_len(&neigh->queue));
-				goto err_drop;
-			}
-		} else
-			ipoib_send(dev, skb, path->ah, IPOIB_QPN(skb->dst->neighbour->ha));
-	} else {
-		neigh->ah  = NULL;
-
-		if (!path->query && path_rec_start(dev, path))
-			goto err_list;
-
-		__skb_queue_tail(&neigh->queue, skb);
-	}
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-	return;
-
-err_list:
-	list_del(&neigh->list);
-
-err_path:
-	ipoib_neigh_free(dev, neigh);
-err_drop:
-	++dev->stats.tx_dropped;
-	dev_kfree_skb_any(skb);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-static void ipoib_path_lookup(struct sk_buff *skb, struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(skb->dev);
-
-	/* Look up path record for unicasts */
-	if (skb->dst->neighbour->ha[4] != 0xff) {
-		neigh_add_path(skb, dev);
-		return;
-	}
-
-	/* Add in the P_Key for multicasts */
-	skb->dst->neighbour->ha[8] = (priv->pkey >> 8) & 0xff;
-	skb->dst->neighbour->ha[9] = priv->pkey & 0xff;
-	ipoib_mcast_send(dev, skb->dst->neighbour->ha + 4, skb);
-}
-
-static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
-			     struct ipoib_pseudoheader *phdr)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	path = __path_find(dev, phdr->hwaddr + 4);
+	path = __path_find(dev, eh->hwaddr + 4);
 	if (!path || !path->valid) {
 		int new_path = 0;
 
 		if (!path) {
-			path = path_rec_create(dev, phdr->hwaddr + 4);
+			path = path_rec_create(dev, eh->hwaddr + 4);
 			new_path = 1;
 		}
 		if (path) {
-			/* put pseudoheader back on for next time */
-			skb_push(skb, sizeof *phdr);
-			__skb_queue_tail(&path->queue, skb);
-
+			_IF_ENQUEUE(&path->queue, mb);
 			if (!path->query && path_rec_start(dev, path)) {
 				spin_unlock_irqrestore(&priv->lock, flags);
 				if (new_path)
@@ -704,121 +634,78 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 			} else
 				__path_add(dev, path);
 		} else {
-			++dev->stats.tx_dropped;
-			dev_kfree_skb_any(skb);
+			++dev->if_oerrors;
+			m_free(mb);
 		}
 
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
 	}
 
-	if (path->ah) {
-		ipoib_dbg(priv, "Send unicast ARP to %04x\n",
-			  be16_to_cpu(path->pathrec.dlid));
-
-		ipoib_send(dev, skb, path->ah, IPOIB_QPN(phdr->hwaddr));
+	if (ipoib_cm_get(path) && ipoib_cm_up(path)) {
+		ipoib_cm_send(dev, mb, ipoib_cm_get(path));
+	} else if (path->ah) {
+		ipoib_send(dev, mb, path->ah, IPOIB_QPN(eh->hwaddr));
 	} else if ((path->query || !path_rec_start(dev, path)) &&
-		   skb_queue_len(&path->queue) < IPOIB_MAX_PATH_REC_QUEUE) {
-		/* put pseudoheader back on for next time */
-		skb_push(skb, sizeof *phdr);
-		__skb_queue_tail(&path->queue, skb);
+		    path->queue.ifq_len < IPOIB_MAX_PATH_REC_QUEUE) {
+		_IF_ENQUEUE(&path->queue, mb);
 	} else {
-		++dev->stats.tx_dropped;
-		dev_kfree_skb_any(skb);
+		++dev->if_oerrors;
+		m_free(mb);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int
+ipoib_send_one(struct ifnet *dev, struct mbuf *mb)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ipoib_neigh *neigh;
-	unsigned long flags;
+	struct ipoib_dev_priv *priv;
+	struct ipoib_header *eh;
 
-	if (likely(skb->dst && skb->dst->neighbour)) {
-		if (unlikely(!*to_ipoib_neigh(skb->dst->neighbour))) {
-			ipoib_path_lookup(skb, dev);
-			return NETDEV_TX_OK;
-		}
+	eh = mtod(mb, struct ipoib_header *);
+	if (IPOIB_IS_MULTICAST(eh->hwaddr)) {
+		/* Add in the P_Key for multicast*/
+		priv = dev->if_softc;
+		eh->hwaddr[8] = (priv->pkey >> 8) & 0xff;
+		eh->hwaddr[9] = priv->pkey & 0xff;
 
-		neigh = *to_ipoib_neigh(skb->dst->neighbour);
+		ipoib_mcast_send(dev, eh->hwaddr + 4, mb);
+	} else
+		unicast_send(mb, dev, eh);
 
-		if (unlikely((memcmp(&neigh->dgid.raw,
-				     skb->dst->neighbour->ha + 4,
-				     sizeof(union ib_gid))) ||
-			     (neigh->dev != dev))) {
-			spin_lock_irqsave(&priv->lock, flags);
-			/*
-			 * It's safe to call ipoib_put_ah() inside
-			 * priv->lock here, because we know that
-			 * path->ah will always hold one more reference,
-			 * so ipoib_put_ah() will never do more than
-			 * decrement the ref count.
-			 */
-			if (neigh->ah)
-				ipoib_put_ah(neigh->ah);
-			list_del(&neigh->list);
-			ipoib_neigh_free(dev, neigh);
-			spin_unlock_irqrestore(&priv->lock, flags);
-			ipoib_path_lookup(skb, dev);
-			return NETDEV_TX_OK;
-		}
-
-		if (ipoib_cm_get(neigh)) {
-			if (ipoib_cm_up(neigh)) {
-				ipoib_cm_send(dev, skb, ipoib_cm_get(neigh));
-				return NETDEV_TX_OK;
-			}
-		} else if (neigh->ah) {
-			ipoib_send(dev, skb, neigh->ah, IPOIB_QPN(skb->dst->neighbour->ha));
-			return NETDEV_TX_OK;
-		}
-
-		if (skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE) {
-			spin_lock_irqsave(&priv->lock, flags);
-			__skb_queue_tail(&neigh->queue, skb);
-			spin_unlock_irqrestore(&priv->lock, flags);
-		} else {
-			++dev->stats.tx_dropped;
-			dev_kfree_skb_any(skb);
-		}
-	} else {
-		struct ipoib_pseudoheader *phdr =
-			(struct ipoib_pseudoheader *) skb->data;
-		skb_pull(skb, sizeof *phdr);
-
-		if (phdr->hwaddr[4] == 0xff) {
-			/* Add in the P_Key for multicast*/
-			phdr->hwaddr[8] = (priv->pkey >> 8) & 0xff;
-			phdr->hwaddr[9] = priv->pkey & 0xff;
-
-			ipoib_mcast_send(dev, phdr->hwaddr + 4, skb);
-		} else {
-			/* unicast GID -- should be ARP or RARP reply */
-
-			if ((be16_to_cpup((__be16 *) skb->data) != ETH_P_ARP) &&
-			    (be16_to_cpup((__be16 *) skb->data) != ETH_P_RARP)) {
-				ipoib_warn(priv, "Unicast, no %s: type %04x, QPN %06x %pI6\n",
-					   skb->dst ? "neigh" : "dst",
-					   be16_to_cpup((__be16 *) skb->data),
-					   IPOIB_QPN(phdr->hwaddr),
-					   phdr->hwaddr + 4);
-				dev_kfree_skb_any(skb);
-				++dev->stats.tx_dropped;
-				return NETDEV_TX_OK;
-			}
-
-			unicast_arp_send(skb, dev, phdr);
-		}
-	}
-
-	return NETDEV_TX_OK;
+	return 0;
 }
 
-static void ipoib_timeout(struct net_device *dev)
+static void
+ipoib_start(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct mbuf *mb;
+
+	if ((dev->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return;
+
+	while (!IFQ_DRV_IS_EMPTY(&dev->if_snd)) {
+		IFQ_DRV_DEQUEUE(&dev->if_snd, mb);
+		if (mb == NULL)
+			break;
+
+		ipoib_send_one(dev, mb);
+#if 0 /* XXX */
+			dev->if_drv_flags |= IFF_DRV_OACTIVE;
+			IFQ_DRV_PREPEND(&dev->if_snd, m_head);
+			break;
+#endif
+		BPF_MTAP(dev, mb);
+	}
+}
+
+
+#if 0 /* XXX */
+static void ipoib_timeout(struct ifnet *dev)
+{
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	ipoib_warn(priv, "transmit timeout: latency %d msecs\n",
 		   jiffies_to_msecs(jiffies - dev->trans_start));
@@ -828,35 +715,9 @@ static void ipoib_timeout(struct net_device *dev)
 	/* XXX reset QP, etc. */
 }
 
-static int ipoib_hard_header(struct sk_buff *skb,
-			     struct net_device *dev,
-			     unsigned short type,
-			     const void *daddr, const void *saddr, unsigned len)
+static void ipoib_set_mcast_list(struct ifnet *dev)
 {
-	struct ipoib_header *header;
-
-	header = (struct ipoib_header *) skb_push(skb, sizeof *header);
-
-	header->proto = htons(type);
-	header->reserved = 0;
-
-	/*
-	 * If we don't have a neighbour structure, stuff the
-	 * destination address onto the front of the skb so we can
-	 * figure out where to send the packet later.
-	 */
-	if ((!skb->dst || !skb->dst->neighbour) && daddr) {
-		struct ipoib_pseudoheader *phdr =
-			(struct ipoib_pseudoheader *) skb_push(skb, sizeof *phdr);
-		memcpy(phdr->hwaddr, daddr, INFINIBAND_ALEN);
-	}
-
-	return 0;
-}
-
-static void ipoib_set_mcast_list(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags)) {
 		ipoib_dbg(priv, "IPOIB_FLAG_OPER_UP not set");
@@ -865,84 +726,13 @@ static void ipoib_set_mcast_list(struct net_device *dev)
 
 	queue_work(ipoib_workqueue, &priv->restart_task);
 }
+#endif
 
-static void ipoib_neigh_cleanup(struct neighbour *n)
+int ipoib_dev_init(struct ifnet *dev, struct ib_device *ca, int port)
 {
-	struct ipoib_neigh *neigh;
-	struct ipoib_dev_priv *priv = netdev_priv(n->dev);
-	unsigned long flags;
-	struct ipoib_ah *ah = NULL;
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
-	if (n->dev->type != ARPHRD_INFINIBAND)
-		return;
-
-	neigh = *to_ipoib_neigh(n);
-	if (neigh)
-		priv = netdev_priv(neigh->dev);
-	else
-		return;
-	ipoib_dbg(priv,
-		  "neigh_cleanup for %06x %pI6\n",
-		  IPOIB_QPN(n->ha),
-		  n->ha + 4);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	if (neigh->ah)
-		ah = neigh->ah;
-	list_del(&neigh->list);
-	ipoib_neigh_free(n->dev, neigh);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (ah)
-		ipoib_put_ah(ah);
-}
-
-struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neighbour,
-				      struct net_device *dev)
-{
-	struct ipoib_neigh *neigh;
-
-	neigh = kmalloc(sizeof *neigh, GFP_ATOMIC);
-	if (!neigh)
-		return NULL;
-
-	neigh->neighbour = neighbour;
-	neigh->dev = dev;
-	memset(&neigh->dgid.raw, 0, sizeof (union ib_gid));
-	*to_ipoib_neigh(neighbour) = neigh;
-	skb_queue_head_init(&neigh->queue);
-	ipoib_cm_set(neigh, NULL);
-
-	return neigh;
-}
-
-void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh)
-{
-	struct sk_buff *skb;
-	*to_ipoib_neigh(neigh->neighbour) = NULL;
-	while ((skb = __skb_dequeue(&neigh->queue))) {
-		++dev->stats.tx_dropped;
-		dev_kfree_skb_any(skb);
-	}
-	if (ipoib_cm_get(neigh))
-		ipoib_cm_destroy_tx(ipoib_cm_get(neigh));
-	kfree(neigh);
-}
-
-static int ipoib_neigh_setup_dev(struct net_device *dev, struct neigh_parms *parms)
-{
-	parms->neigh_cleanup = ipoib_neigh_cleanup;
-
-	return 0;
-}
-
-int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-
-	/* Allocate RX/TX "rings" to hold queued skbs */
+	/* Allocate RX/TX "rings" to hold queued mbs */
 	priv->rx_ring =	kzalloc(ipoib_recvq_size * sizeof *priv->rx_ring,
 				GFP_KERNEL);
 	if (!priv->rx_ring) {
@@ -951,7 +741,7 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		goto out;
 	}
 
-	priv->tx_ring = vmalloc(ipoib_sendq_size * sizeof *priv->tx_ring);
+	priv->tx_ring = kzalloc(ipoib_sendq_size * sizeof *priv->tx_ring, GFP_KERNEL);
 	if (!priv->tx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate TX ring (%d entries)\n",
 		       ca->name, ipoib_sendq_size);
@@ -967,7 +757,7 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 	return 0;
 
 out_tx_ring_cleanup:
-	vfree(priv->tx_ring);
+	kfree(priv->tx_ring);
 
 out_rx_ring_cleanup:
 	kfree(priv->rx_ring);
@@ -976,39 +766,44 @@ out:
 	return -ENOMEM;
 }
 
-void ipoib_dev_cleanup(struct net_device *dev)
+static void
+ipoib_detach(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev), *cpriv, *tcpriv;
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
-	ipoib_delete_debug_files(dev);
+	bpfdetach(dev);
+	if_detach(dev);
+	if_free(dev);
+	free(priv, M_TEMP);
+}
+
+void ipoib_dev_cleanup(struct ifnet *dev)
+{
+	struct ipoib_dev_priv *priv = dev->if_softc, *cpriv, *tcpriv;
 
 	/* Delete any child interfaces first */
 	list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
-		unregister_netdev(cpriv->dev);
 		ipoib_dev_cleanup(cpriv->dev);
-		free_netdev(cpriv->dev);
+		ipoib_detach(cpriv->dev);
 	}
 
 	ipoib_ib_dev_cleanup(dev);
 
 	kfree(priv->rx_ring);
-	vfree(priv->tx_ring);
+	kfree(priv->tx_ring);
 
 	priv->rx_ring = NULL;
 	priv->tx_ring = NULL;
 }
 
-static const struct header_ops ipoib_header_ops = {
-	.create	= ipoib_hard_header,
-};
-
-static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
+#if 0
+static int get_mb_hdr(struct mbuf *mb, void **iphdr,
 		       void **tcph, u64 *hdr_flags, void *priv)
 {
 	unsigned int ip_len;
 	struct iphdr *iph;
 
-	if (unlikely(skb->protocol != htons(ETH_P_IP)))
+	if (unlikely(mb->protocol != htons(ETH_P_IP)))
 		return -1;
 
 	/*
@@ -1016,21 +811,21 @@ static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
 	 * checksum and allows devices which do not calculate checksum
 	 * to use LRO.
 	 */
-	if (unlikely(skb->ip_summed != CHECKSUM_UNNECESSARY))
+	if (unlikely(mb->ip_summed != CHECKSUM_UNNECESSARY))
 		return -1;
 
 	/* Check for non-TCP packet */
-	skb_reset_network_header(skb);
-	iph = ip_hdr(skb);
+	mb_reset_network_header(mb);
+	iph = ip_hdr(mb);
 	if (iph->protocol != IPPROTO_TCP)
 		return -1;
 
-	ip_len = ip_hdrlen(skb);
-	skb_set_transport_header(skb, ip_len);
-	*tcph = tcp_hdr(skb);
+	ip_len = ip_hdrlen(mb);
+	mb_set_transport_header(mb, ip_len);
+	*tcph = tcp_hdr(mb);
 
 	/* check if IP header and TCP header are complete */
-	if (ntohs(iph->tot_len) < ip_len + tcp_hdrlen(skb))
+	if (ntohs(iph->tot_len) < ip_len + tcp_hdrlen(mb))
 		return -1;
 
 	*hdr_flags = LRO_IPV4 | LRO_TCP;
@@ -1038,61 +833,43 @@ static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
 
 	return 0;
 }
+#endif
 
-static void ipoib_lro_setup(struct ipoib_dev_priv *priv)
+struct ipoib_dev_priv *
+ipoib_intf_alloc(const char *name)
 {
-	priv->lro.lro_mgr.max_aggr	 = lro_max_aggr;
-	priv->lro.lro_mgr.max_desc	 = IPOIB_MAX_LRO_DESCRIPTORS;
-	priv->lro.lro_mgr.lro_arr	 = priv->lro.lro_desc;
-	priv->lro.lro_mgr.get_skb_header = get_skb_hdr;
-	priv->lro.lro_mgr.features	 = LRO_F_NAPI;
-	priv->lro.lro_mgr.dev		 = priv->dev;
-	priv->lro.lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
-}
+	struct ipoib_dev_priv *priv;
+	struct sockaddr_dl *sdl;
+	struct ifnet *dev;
 
-static const struct net_device_ops ipoib_netdev_ops = {
-	.ndo_open		 = ipoib_open,
-	.ndo_stop		 = ipoib_stop,
-	.ndo_change_mtu		 = ipoib_change_mtu,
-	.ndo_start_xmit	 	 = ipoib_start_xmit,
-	.ndo_tx_timeout		 = ipoib_timeout,
-	.ndo_set_multicast_list	 = ipoib_set_mcast_list,
-	.ndo_neigh_setup	 = ipoib_neigh_setup_dev,
-};
-
-static void ipoib_setup(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-
-	dev->netdev_ops		 = &ipoib_netdev_ops;
-	dev->header_ops		 = &ipoib_header_ops;
-
-	ipoib_set_ethtool_ops(dev);
-
-	netif_napi_add(dev, &priv->napi, ipoib_poll, 100);
-
-	dev->watchdog_timeo	 = HZ;
-
-	dev->flags		|= IFF_BROADCAST | IFF_MULTICAST;
-
-	/*
-	 * We add in INFINIBAND_ALEN to allow for the destination
-	 * address "pseudoheader" for skbs without neighbour struct.
-	 */
-	dev->hard_header_len	 = IPOIB_ENCAP_LEN + INFINIBAND_ALEN;
-	dev->addr_len		 = INFINIBAND_ALEN;
-	dev->type		 = ARPHRD_INFINIBAND;
-	dev->tx_queue_len	 = ipoib_sendq_size * 2;
-	dev->features		 = (NETIF_F_VLAN_CHALLENGED	|
-				    NETIF_F_HIGHDMA);
-
-	memcpy(dev->broadcast, ipv4_bcast_addr, INFINIBAND_ALEN);
-
-	netif_carrier_off(dev);
-
+	priv = malloc(sizeof(struct ipoib_dev_priv), M_TEMP, M_ZERO|M_WAITOK);
+	dev = priv->dev = if_alloc(IFT_INFINIBAND);
+	if (!dev) {
+		free(priv, M_TEMP);
+		return NULL;
+	}
+	dev->if_softc = priv;
+	if_initname(dev, name, dev->if_index);
+	dev->if_flags = IFF_BROADCAST | IFF_MULTICAST;
+	dev->if_addrlen = INFINIBAND_ALEN;
+	dev->if_hdrlen = IPOIB_HEADER_LEN;
+	if_attach(dev);
+	dev->if_init = ipoib_init;
+	dev->if_ioctl = ipoib_ioctl;
+	dev->if_start = ipoib_start;
+	dev->if_output = ipoib_output;
+	dev->if_input = ipoib_input;
+	dev->if_resolvemulti = ipoib_resolvemulti;
+	dev->if_baudrate = IF_Gbps(10LL);
+	dev->if_broadcastaddr = priv->broadcastaddr;
+	memcpy(priv->broadcastaddr, ipv4_bcast_addr, INFINIBAND_ALEN);
+	dev->if_snd.ifq_maxlen = ipoib_sendq_size * 2;
+	sdl = (struct sockaddr_dl *)dev->if_addr->ifa_addr;
+	sdl->sdl_type = IFT_INFINIBAND;
+	sdl->sdl_alen = dev->if_addrlen;
 	priv->dev = dev;
 
-	ipoib_lro_setup(priv);
+	bpfattach(dev, DLT_EN10MB, IPOIB_HEADER_LEN);
 
 	spin_lock_init(&priv->lock);
 
@@ -1111,60 +888,12 @@ static void ipoib_setup(struct net_device *dev)
 	INIT_WORK(&priv->flush_heavy,   ipoib_ib_dev_flush_heavy);
 	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task);
 	INIT_DELAYED_WORK(&priv->ah_reap_task, ipoib_reap_ah);
+
+
+	return dev->if_softc;
 }
 
-struct ipoib_dev_priv *ipoib_intf_alloc(const char *name)
-{
-	struct net_device *dev;
-
-	dev = alloc_netdev((int) sizeof (struct ipoib_dev_priv), name,
-			   ipoib_setup);
-	if (!dev)
-		return NULL;
-
-	return netdev_priv(dev);
-}
-
-static ssize_t show_pkey(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(to_net_dev(dev));
-
-	return sprintf(buf, "0x%04x\n", priv->pkey);
-}
-static DEVICE_ATTR(pkey, S_IRUGO, show_pkey, NULL);
-
-static ssize_t show_umcast(struct device *dev,
-			   struct device_attribute *attr, char *buf)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(to_net_dev(dev));
-
-	return sprintf(buf, "%d\n", test_bit(IPOIB_FLAG_UMCAST, &priv->flags));
-}
-
-static ssize_t set_umcast(struct device *dev,
-			  struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(to_net_dev(dev));
-	unsigned long umcast_val = simple_strtoul(buf, NULL, 0);
-
-	if (umcast_val > 0) {
-		set_bit(IPOIB_FLAG_UMCAST, &priv->flags);
-		ipoib_warn(priv, "ignoring multicast groups joined directly "
-				"by userspace\n");
-	} else
-		clear_bit(IPOIB_FLAG_UMCAST, &priv->flags);
-
-	return count;
-}
-static DEVICE_ATTR(umcast, S_IWUSR | S_IRUGO, show_umcast, set_umcast);
-
-int ipoib_add_umcast_attr(struct net_device *dev)
-{
-	return device_create_file(&dev->dev, &dev_attr_umcast);
-}
-
+#if 0
 static ssize_t create_child(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
@@ -1209,11 +938,7 @@ static ssize_t delete_child(struct device *dev,
 
 }
 static DEVICE_ATTR(delete_child, S_IWUGO, NULL, delete_child);
-
-int ipoib_add_pkey_attr(struct net_device *dev)
-{
-	return device_create_file(&dev->dev, &dev_attr_pkey);
-}
+#endif
 
 int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 {
@@ -1238,22 +963,21 @@ int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 
 	kfree(device_attr);
 
+#if 0 /* XXX */
 	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
 		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
 		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 	}
 
-	if (lro)
-		priv->dev->features |= NETIF_F_LRO;
-
 	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
 		priv->dev->features |= NETIF_F_TSO;
+#endif
 
 	return 0;
 }
 
 
-static struct net_device *ipoib_add_port(const char *format,
+static struct ifnet *ipoib_add_port(const char *format,
 					 struct ib_device *hca, u8 port)
 {
 	struct ipoib_dev_priv *priv;
@@ -1264,8 +988,6 @@ static struct net_device *ipoib_add_port(const char *format,
 	if (!priv)
 		goto alloc_mem_failed;
 
-	SET_NETDEV_DEV(priv->dev, hca->dma_device);
-
 	if (!ib_query_port(hca, port, &attr))
 		priv->max_ib_mtu = ib_mtu_enum_to_int(attr.max_mtu);
 	else {
@@ -1275,8 +997,8 @@ static struct net_device *ipoib_add_port(const char *format,
 	}
 
 	/* MTU will be reset when mcast join happens */
-	priv->dev->mtu  = IPOIB_UD_MTU(priv->max_ib_mtu);
-	priv->mcast_mtu  = priv->admin_mtu = priv->dev->mtu;
+	priv->dev->if_mtu  = IPOIB_UD_MTU(priv->max_ib_mtu);
+	priv->mcast_mtu  = priv->admin_mtu = priv->dev->if_mtu;
 
 	result = ib_query_pkey(hca, port, 0, &priv->pkey);
 	if (result) {
@@ -1294,8 +1016,8 @@ static struct net_device *ipoib_add_port(const char *format,
 	 */
 	priv->pkey |= 0x8000;
 
-	priv->dev->broadcast[8] = priv->pkey >> 8;
-	priv->dev->broadcast[9] = priv->pkey & 0xff;
+	priv->broadcastaddr[8] = priv->pkey >> 8;
+	priv->broadcastaddr[9] = priv->pkey & 0xff;
 
 	result = ib_query_gid(hca, port, 0, &priv->local_gid);
 	if (result) {
@@ -1303,7 +1025,7 @@ static struct net_device *ipoib_add_port(const char *format,
 		       hca->name, port, result);
 		goto device_init_failed;
 	} else
-		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
+		memcpy(IF_LLADDR(priv->dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));
 
 	result = ipoib_dev_init(priv->dev, hca, port);
 	if (result < 0) {
@@ -1321,42 +1043,15 @@ static struct net_device *ipoib_add_port(const char *format,
 		       hca->name, port, result);
 		goto event_failed;
 	}
-
-	result = register_netdev(priv->dev);
-	if (result) {
-		printk(KERN_WARNING "%s: couldn't register ipoib port %d; error %d\n",
-		       hca->name, port, result);
-		goto register_failed;
-	}
-
-	ipoib_create_debug_files(priv->dev);
-
-	if (ipoib_cm_add_mode_attr(priv->dev))
-		goto sysfs_failed;
-	if (ipoib_add_pkey_attr(priv->dev))
-		goto sysfs_failed;
-	if (ipoib_add_umcast_attr(priv->dev))
-		goto sysfs_failed;
-	if (device_create_file(&priv->dev->dev, &dev_attr_create_child))
-		goto sysfs_failed;
-	if (device_create_file(&priv->dev->dev, &dev_attr_delete_child))
-		goto sysfs_failed;
+	if_printf(priv->dev, "Attached to %s port %d\n", hca->name, port);
 
 	return priv->dev;
-
-sysfs_failed:
-	ipoib_delete_debug_files(priv->dev);
-	unregister_netdev(priv->dev);
-
-register_failed:
-	ib_unregister_event_handler(&priv->event_handler);
-	flush_workqueue(ipoib_workqueue);
 
 event_failed:
 	ipoib_dev_cleanup(priv->dev);
 
 device_init_failed:
-	free_netdev(priv->dev);
+	ipoib_detach(priv->dev);
 
 alloc_mem_failed:
 	return ERR_PTR(result);
@@ -1365,7 +1060,7 @@ alloc_mem_failed:
 static void ipoib_add_one(struct ib_device *device)
 {
 	struct list_head *dev_list;
-	struct net_device *dev;
+	struct ifnet *dev;
 	struct ipoib_dev_priv *priv;
 	int s, e, p;
 
@@ -1389,9 +1084,9 @@ static void ipoib_add_one(struct ib_device *device)
 	for (p = s; p <= e; ++p) {
 		if (rdma_port_link_layer(device, p) != IB_LINK_LAYER_INFINIBAND)
 			continue;
-		dev = ipoib_add_port("ib%d", device, p);
+		dev = ipoib_add_port("ib", device, p);
 		if (!IS_ERR(dev)) {
-			priv = netdev_priv(dev);
+			priv = dev->if_softc;
 			list_add_tail(&priv->list, dev_list);
 		}
 	}
@@ -1415,15 +1110,12 @@ static void ipoib_remove_one(struct ib_device *device)
 
 		ib_unregister_event_handler(&priv->event_handler);
 
-		rtnl_lock();
-		dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP);
-		rtnl_unlock();
+		/* dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP); */
 
 		flush_workqueue(ipoib_workqueue);
 
-		unregister_netdev(priv->dev);
 		ipoib_dev_cleanup(priv->dev);
-		free_netdev(priv->dev);
+		ipoib_detach(priv->dev);
 	}
 
 	kfree(dev_list);
@@ -1444,16 +1136,6 @@ static int __init ipoib_init_module(void)
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	ipoib_max_conn_qp = min(ipoib_max_conn_qp, IPOIB_CM_MAX_CONN_QP);
 #endif
-
-	/*
-	 * When copying small received packets, we only copy from the
-	 * linear data part of the SKB, so we rely on this condition.
-	 */
-	BUILD_BUG_ON(IPOIB_CM_COPYBREAK > IPOIB_CM_HEAD_SIZE);
-
-	ret = ipoib_register_debugfs();
-	if (ret)
-		return ret;
 
 	/*
 	 * We create our own workqueue mainly because we want to be
@@ -1482,8 +1164,6 @@ err_sa:
 	destroy_workqueue(ipoib_workqueue);
 
 err_fs:
-	ipoib_unregister_debugfs();
-
 	return ret;
 }
 
@@ -1491,8 +1171,317 @@ static void __exit ipoib_cleanup_module(void)
 {
 	ib_unregister_client(&ipoib_client);
 	ib_sa_unregister_client(&ipoib_sa_client);
-	ipoib_unregister_debugfs();
 	destroy_workqueue(ipoib_workqueue);
+}
+
+/*
+ * Infiniband output routine.
+ */
+static int
+ipoib_output(struct ifnet *ifp, struct mbuf *m,
+	struct sockaddr *dst, struct route *ro)
+{
+	u_char edst[INFINIBAND_ALEN];
+	struct llentry *lle = NULL;
+	struct rtentry *rt0 = NULL;
+	struct ipoib_header *eh;
+	int error = 0;
+	short type;
+
+	if (ro != NULL) {
+		if (!(m->m_flags & (M_BCAST | M_MCAST)))
+			lle = ro->ro_lle;
+		rt0 = ro->ro_rt;
+	}
+#ifdef MAC
+	error = mac_ifnet_check_transmit(ifp, m);
+	if (error)
+		goto bad;
+#endif
+
+	M_PROFILE(m);
+	if (ifp->if_flags & IFF_MONITOR) {
+		error = ENETDOWN;
+		goto bad;
+	}
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+		error = ENETDOWN;
+		goto bad;
+	}
+
+	switch (dst->sa_family) {
+#ifdef INET
+	case AF_INET:
+		if (lle != NULL && (lle->la_flags & LLE_VALID))
+			memcpy(edst, &lle->ll_addr.mac8, sizeof(edst));
+		else
+			error = arpresolve(ifp, rt0, m, dst, edst, &lle);
+		if (error)
+			return (error == EWOULDBLOCK ? 0 : error);
+		type = htons(ETHERTYPE_IP);
+		break;
+	case AF_ARP:
+	{
+		struct arphdr *ah;
+		ah = mtod(m, struct arphdr *);
+		ah->ar_hrd = htons(ARPHRD_INFINIBAND);
+
+		switch(ntohs(ah->ar_op)) {
+		case ARPOP_REVREQUEST:
+		case ARPOP_REVREPLY:
+			type = htons(ETHERTYPE_REVARP);
+			break;
+		case ARPOP_REQUEST:
+		case ARPOP_REPLY:
+		default:
+			type = htons(ETHERTYPE_ARP);
+			break;
+		}
+
+		if (m->m_flags & M_BCAST)
+			bcopy(ifp->if_broadcastaddr, edst, INFINIBAND_ALEN);
+		else
+			bcopy(ar_tha(ah), edst, INFINIBAND_ALEN);
+
+	}
+	break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (lle != NULL && (lle->la_flags & LLE_VALID))
+			memcpy(edst, &lle->ll_addr.mac8, sizeof(edst));
+		else
+			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
+		if (error)
+			return error;
+		type = htons(ETHERTYPE_IPV6);
+		break;
+#endif
+
+	default:
+		if_printf(ifp, "can't handle af%d\n", dst->sa_family);
+		error = EAFNOSUPPORT;
+		goto bad;
+	}
+
+#if 0 /* XXX */
+	if (lle != NULL && (lle->la_flags & LLE_IFADDR)) {
+		int csum_flags = 0;
+		if (m->m_pkthdr.csum_flags & CSUM_IP)
+			csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
+			csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+			csum_flags |= CSUM_SCTP_VALID;
+		m->m_pkthdr.csum_flags |= csum_flags;
+		m->m_pkthdr.csum_data = 0xffff;
+		return (if_simloop(ifp, m, dst->sa_family, 0));
+	}
+#endif
+
+	/*
+	 * Add local net header.  If no space in first mbuf,
+	 * allocate another.
+	 */
+	M_PREPEND(m, IPOIB_HEADER_LEN, M_DONTWAIT);
+	if (m == NULL) {
+		error = ENOBUFS;
+		goto bad;
+	}
+	eh = mtod(m, struct ipoib_header *);
+	(void)memcpy(&eh->proto, &type, sizeof(eh->proto));
+	(void)memcpy(&eh->hwaddr, edst, sizeof (edst));
+
+	/*
+	 * Queue message on interface, update output statistics if
+	 * successful, and start output if interface not yet active.
+	 */
+	return ((ifp->if_transmit)(ifp, m));
+bad:
+	if (m != NULL)
+		m_freem(m);
+	return (error);
+}
+
+/*
+ * Upper layer processing for a received Infiniband packet.
+ */
+static void
+ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
+{
+	int isr;
+
+	/*
+	 * Dispatch frame to upper layer.
+	 */
+	switch (proto) {
+#ifdef INET
+	case ETHERTYPE_IP:
+		isr = NETISR_IP;
+		break;
+
+	case ETHERTYPE_ARP:
+		if (ifp->if_flags & IFF_NOARP) {
+			/* Discard packet if ARP is disabled on interface */
+			m_freem(m);
+			return;
+		}
+		isr = NETISR_ARP;
+		break;
+#endif
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		isr = NETISR_IPV6;
+		break;
+#endif
+	default:
+		goto discard;
+	}
+	netisr_dispatch(isr, m);
+	return;
+
+discard:
+	m_freem(m);
+}
+
+/*
+ * Process a received Infiniband packet.
+ */
+static void
+ipoib_input(struct ifnet *ifp, struct mbuf *m)
+{
+	struct ipoib_header *eh;
+
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		m_freem(m);
+		return;
+	}
+	CURVNET_SET_QUIET(ifp->if_vnet);
+
+	eh = mtod(m, struct ipoib_header *);
+	/*
+	 * Reset layer specific mbuf flags to avoid confusing upper layers.
+	 * Strip off Infiniband header.
+	 */
+	m->m_flags &= ~M_VLANTAG;
+	m->m_flags &= ~(M_PROTOFLAGS);
+	m_adj(m, IPOIB_HEADER_LEN);
+
+	if (IPOIB_IS_MULTICAST(eh->hwaddr)) {
+		if (memcmp(eh->hwaddr, ifp->if_broadcastaddr,
+		    ifp->if_addrlen) == 0)
+			m->m_flags |= M_BCAST;
+		else
+			m->m_flags |= M_MCAST;
+		ifp->if_imcasts++;
+	}
+
+#ifdef MAC
+	/*
+	 * Tag the mbuf with an appropriate MAC label before any other
+	 * consumers can get to it.
+	 */
+	mac_ifnet_create_mbuf(ifp, m);
+#endif
+
+	/*
+	 * Give bpf a chance at the packet.
+	 */
+	BPF_MTAP(ifp, m);
+
+	/* Allow monitor mode to claim this frame, after stats are updated. */
+	if (ifp->if_flags & IFF_MONITOR) {
+		if_printf(ifp, "discard frame at IFF_MONITOR\n");
+		m_freem(m);
+		CURVNET_RESTORE();
+		return;
+	}
+	ipoib_demux(ifp, m, ntohs(eh->proto));
+	CURVNET_RESTORE();
+}
+
+static int
+ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
+	struct sockaddr *sa)
+{
+	struct sockaddr_dl *sdl;
+#ifdef INET
+	struct sockaddr_in *sin;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+#endif
+	u_char *e_addr;
+
+	switch(sa->sa_family) {
+	case AF_LINK:
+		/*
+		 * No mapping needed. Just check that it's a valid MC address.
+		 */
+		sdl = (struct sockaddr_dl *)sa;
+		e_addr = LLADDR(sdl);
+		if (!IPOIB_IS_MULTICAST(e_addr))
+			return EADDRNOTAVAIL;
+		*llsa = 0;
+		return 0;
+
+#ifdef INET
+	case AF_INET:
+		sin = (struct sockaddr_in *)sa;
+		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
+			return EADDRNOTAVAIL;
+		sdl = malloc(sizeof *sdl, M_IFMADDR,
+		       M_NOWAIT|M_ZERO);
+		if (sdl == NULL)
+			return ENOMEM;
+		sdl->sdl_len = sizeof *sdl;
+		sdl->sdl_family = AF_LINK;
+		sdl->sdl_index = ifp->if_index;
+		sdl->sdl_type = IFT_INFINIBAND;
+		sdl->sdl_alen = INFINIBAND_ALEN;
+		e_addr = LLADDR(sdl);
+		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
+		*llsa = (struct sockaddr *)sdl;
+		return 0;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)sa;
+		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+			/*
+			 * An IP6 address of 0 means listen to all
+			 * of the Infiniband multicast address used for IP6.
+			 * (This is used for multicast routers.)
+			 */
+			ifp->if_flags |= IFF_ALLMULTI;
+			*llsa = 0;
+			return 0;
+		}
+		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
+			return EADDRNOTAVAIL;
+		sdl = malloc(sizeof *sdl, M_IFMADDR,
+		       M_NOWAIT|M_ZERO);
+		if (sdl == NULL)
+			return (ENOMEM);
+		sdl->sdl_len = sizeof *sdl;
+		sdl->sdl_family = AF_LINK;
+		sdl->sdl_index = ifp->if_index;
+		sdl->sdl_type = IFT_INFINIBAND;
+		sdl->sdl_alen = INFINIBAND_ALEN;
+		e_addr = LLADDR(sdl);
+		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);
+		*llsa = (struct sockaddr *)sdl;
+		return 0;
+#endif
+
+	default:
+		/*
+		 * Well, the text isn't quite right, but it's the name
+		 * that counts...
+		 */
+		return EAFNOSUPPORT;
+	}
 }
 
 module_init(ipoib_init_module);

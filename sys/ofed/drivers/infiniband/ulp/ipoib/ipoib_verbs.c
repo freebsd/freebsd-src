@@ -34,9 +34,9 @@
 #include "ipoib.h"
 #include <linux/ethtool.h>
 
-int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid, int set_qkey)
+int ipoib_mcast_attach(struct ifnet *dev, u16 mlid, union ib_gid *mgid, int set_qkey)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ib_qp_attr *qp_attr = NULL;
 	int ret;
 	u16 pkey_index;
@@ -73,9 +73,9 @@ out:
 	return ret;
 }
 
-int ipoib_init_qp(struct net_device *dev)
+int ipoib_init_qp(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	int ret;
 	struct ib_qp_attr qp_attr;
 	int attr_mask;
@@ -127,9 +127,9 @@ out_fail:
 	return ret;
 }
 
-int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
+int ipoib_transport_dev_init(struct ifnet *dev, struct ib_device *ca)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ib_qp_init_attr init_attr = {
 		.cap = {
 			.max_send_wr  = ipoib_sendq_size,
@@ -143,7 +143,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 
 	int ret, size;
 	int i;
-	struct ethtool_coalesce *coal;
+	/* XXX struct ethtool_coalesce *coal; */
 
 	priv->pd = ib_alloc_pd(priv->ca);
 	if (IS_ERR(priv->pd)) {
@@ -183,6 +183,8 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	if (ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP))
 		goto out_free_send_cq;
 
+#if 0
+	/* XXX */
 	coal = kzalloc(sizeof *coal, GFP_KERNEL);
 	if (coal) {
 		coal->rx_coalesce_usecs = 10;
@@ -192,6 +194,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		dev->ethtool_ops->set_coalesce(dev, coal);
 		kfree(coal);
 	}
+#endif
 
 	init_attr.send_cq = priv->send_cq;
 	init_attr.recv_cq = priv->recv_cq;
@@ -202,8 +205,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	if (priv->hca_caps & IB_DEVICE_BLOCK_MULTICAST_LOOPBACK)
 		init_attr.create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
 
-	if (dev->features & NETIF_F_SG)
-		init_attr.cap.max_send_sge = MAX_SKB_FRAGS + 1;
+	init_attr.cap.max_send_sge = MAX_MB_FRAGS;
 
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
@@ -211,11 +213,11 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		goto out_free_send_cq;
 	}
 
-	priv->dev->dev_addr[1] = (priv->qp->qp_num >> 16) & 0xff;
-	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
-	priv->dev->dev_addr[3] = (priv->qp->qp_num      ) & 0xff;
+	IF_LLADDR(priv->dev)[1] = (priv->qp->qp_num >> 16) & 0xff;
+	IF_LLADDR(priv->dev)[2] = (priv->qp->qp_num >>  8) & 0xff;
+	IF_LLADDR(priv->dev)[3] = (priv->qp->qp_num      ) & 0xff;
 
-	for (i = 0; i < MAX_SKB_FRAGS + 1; ++i)
+	for (i = 0; i < MAX_MB_FRAGS + 1; ++i)
 		priv->tx_sge[i].lkey = priv->mr->lkey;
 
 	priv->tx_wr.opcode	= IB_WR_SEND;
@@ -223,7 +225,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	priv->tx_wr.send_flags	= IB_SEND_SIGNALED;
 
 	priv->rx_sge[0].lkey = priv->mr->lkey;
-	if (ipoib_ud_need_sg(priv->max_ib_mtu)) {
+	if (0 /* XXX ipoib_ud_need_sg(priv->max_ib_mtu)*/) {
 		priv->rx_sge[0].length = IPOIB_UD_HEAD_SIZE;
 		priv->rx_sge[1].length = PAGE_SIZE;
 		priv->rx_sge[1].lkey = priv->mr->lkey;
@@ -252,9 +254,9 @@ out_free_pd:
 	return -ENODEV;
 }
 
-void ipoib_transport_dev_cleanup(struct net_device *dev)
+void ipoib_transport_dev_cleanup(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	if (priv->qp) {
 		if (ib_destroy_qp(priv->qp))

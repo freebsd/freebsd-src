@@ -258,27 +258,27 @@ static const struct file_operations ipoib_path_fops = {
 	.release = seq_release
 };
 
-void ipoib_create_debug_files(struct net_device *dev)
+void ipoib_create_debug_files(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 	char name[IFNAMSIZ + sizeof "_path"];
 
-	snprintf(name, sizeof name, "%s_mcg", dev->name);
+	snprintf(name, sizeof name, "%s_mcg", if_name(dev));
 	priv->mcg_dentry = debugfs_create_file(name, S_IFREG | S_IRUGO,
 					       ipoib_root, dev, &ipoib_mcg_fops);
 	if (!priv->mcg_dentry)
 		ipoib_warn(priv, "failed to create mcg debug file\n");
 
-	snprintf(name, sizeof name, "%s_path", dev->name);
+	snprintf(name, sizeof name, "%s_path", if_name(dev));
 	priv->path_dentry = debugfs_create_file(name, S_IFREG | S_IRUGO,
 						ipoib_root, dev, &ipoib_path_fops);
 	if (!priv->path_dentry)
 		ipoib_warn(priv, "failed to create path debug file\n");
 }
 
-void ipoib_delete_debug_files(struct net_device *dev)
+void ipoib_delete_debug_files(struct ifnet *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	if (priv->mcg_dentry)
 		debugfs_remove(priv->mcg_dentry);
