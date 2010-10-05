@@ -93,9 +93,9 @@ static struct proc *msgring_proc;	/* all threads are under a proc */
 
 /*
  * The maximum number of software message handler threads to be started 
- * per core. Default is 2 per core
+ * per core. Default is 3 per core
  */
-static int	msgring_maxthreads = 2; 
+static int	msgring_maxthreads = 3; 
 TUNABLE_INT("hw.fmn.maxthreads", &msgring_maxthreads);
 
 /* 
@@ -148,8 +148,8 @@ xlr_msgring_cpu_init(void)
 	 * For sending FMN messages, we need credits on the destination
 	 * bucket.  Program the credits this core has on the 128 possible
 	 * destination buckets.
-	 * We cannot use a loop, because the the first argument has to
-	 * be a constant integer value.
+	 * We cannot use a loop here, because the the first argument has
+	 * to be a constant integer value.
 	 */
 	MSGRNG_CC_INIT_CPU_DEST(0,  cc_config->counters);
 	MSGRNG_CC_INIT_CPU_DEST(1,  cc_config->counters);
@@ -262,22 +262,29 @@ msgrng_setconfig(int running, int nthr)
 		switch (running) {
 		case 0: break;		/* keep default */
 		case 1:
-			watermark = 16; break;
-		case 2:
 			watermark = 32; break;
-		case 3: 
+		case 2:
 			watermark = 48; break;
+		case 3: 
+			watermark = 56; break;
 		}
 		wm_intr_value = 0x2;	/* set watermark enable interrupt */
 	}
 	mflags = msgrng_access_enable();
 	config = (watermark << 24) | (IRQ_MSGRING << 16) | (1 << 8) |
 		wm_intr_value;
-	/* clear any pending interrupts */
+	/* clear pending interrupts, they will get re-raised if still valid */
 	write_c0_eirr64(1ULL << IRQ_MSGRING);
 	msgrng_write_config(config);
 	msgrng_restore(mflags);
 }
+
+/* Debug counters */
+static int msgring_nintr[XLR_MAX_CORES];
+static int msgring_badintr[XLR_MAX_CORES];
+static int msgring_wakeup_sleep[XLR_MAX_CORES * XLR_NTHREADS];
+static int msgring_wakeup_nosleep[XLR_MAX_CORES * XLR_NTHREADS];
+static int msgring_nmsgs[XLR_MAX_CORES * XLR_NTHREADS];
 
 static int
 msgring_process_fast_intr(void *arg)
@@ -289,10 +296,11 @@ msgring_process_fast_intr(void *arg)
 
 	core = xlr_core_id();
 	mthd = &msgring_threads[core];
-
+	msgring_nintr[core]++;
 	mtx_lock_spin(&mthd->lock);
 	nt = mthd->running;
 	if(nt >= mthd->nthreads) {
+		msgring_badintr[core]++;
 		mtx_unlock_spin(&mthd->lock);
 		return (FILTER_HANDLED);
 	}
@@ -302,7 +310,8 @@ msgring_process_fast_intr(void *arg)
 
 	/* default value with interrupts disabled */
 	msgrng_write_config((1 << 24) | (IRQ_MSGRING << 16) | (1 << 8));
-
+	/* clear pending interrupts */
+	write_c0_eirr64(1ULL << IRQ_MSGRING);
 	msgrng_restore(mflags);
 	mtx_unlock_spin(&mthd->lock);
 
@@ -310,9 +319,11 @@ msgring_process_fast_intr(void *arg)
 	mthd->threads[nt].needed = 1;
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
+		msgring_wakeup_sleep[core*4+nt]++;
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
-	}
+	} else
+		msgring_wakeup_nosleep[core*4+nt]++;
 	thread_unlock(td);
 	return (FILTER_HANDLED);
 }
@@ -338,12 +349,8 @@ msgring_process(void *arg)
 	sched_bind(td, xlr_hwtid_to_cpuid[hwtid]);
 	thread_unlock(td);
 
-	/*
-	 * Mark ourselves as a running thread, and update the 
-	 * message watermark config for this thread
-	 */
 	mtx_lock_spin(&mthd->lock);
-	++mthd->nthreads;
+	++mthd->nthreads; 		/* Active thread count */
 	mtx_unlock_spin(&mthd->lock);
 
 	/* start processing messages */
@@ -355,6 +362,7 @@ msgring_process(void *arg)
 
 		atomic_store_rel_int(&mthd->threads[tid].needed, 0);
 		nmsgs = xlr_msgring_handler(0xff, 0);
+		msgring_nmsgs[hwtid] += nmsgs;
 
 		mtx_lock_spin(&mthd->lock);
 		--mthd->running;
@@ -384,7 +392,6 @@ create_msgring_thread(int hwtid)
 
 	core = hwtid / 4;
 	tid = hwtid % 4;
-
 	mthd = &msgring_threads[core];
 	if (tid == 0) {
 		mtx_init(&mthd->lock, "msgrngcore", NULL, MTX_SPIN);
@@ -412,7 +419,6 @@ register_msgring_handler(int startb, int endb, msgring_handler action,
 	int	i;
 	static int msgring_int_enabled = 0;
 
-	printf("register handler %d-%d %p %p\n", startb, endb, action, arg);
 	KASSERT(startb >= 0 && startb <= endb && endb < MSGRNG_NSTATIONS,
 	    ("Invalid value for for bucket range %d,%d", startb, endb));
 
@@ -436,6 +442,9 @@ register_msgring_handler(int startb, int endb, msgring_handler action,
 	return (0);
 }
 
+/*
+ * Start message ring processing threads on other CPUs, after SMP start
+ */
 static void
 start_msgring_threads(void *arg)
 {
@@ -451,4 +460,38 @@ start_msgring_threads(void *arg)
 	}
 }
 
-SYSINIT(start_msgring_threads, SI_SUB_SMP, SI_ORDER_MIDDLE, start_msgring_threads, NULL);
+SYSINIT(start_msgring_threads, SI_SUB_SMP, SI_ORDER_MIDDLE,
+    start_msgring_threads, NULL);
+
+/*
+ * DEBUG support, XXX: static buffer, not locked 
+ */
+static int
+sys_print_debug(SYSCTL_HANDLER_ARGS)
+{
+	int error, nb, i, fs;
+	static char xprintb[4096], *buf;
+
+	buf = xprintb;
+	fs = sizeof(xprintb);
+	nb = snprintf(buf, fs,
+	    "\nID      INTR   ER   WU-SLP   WU-ERR     MSGS\n");
+	buf += nb;
+	fs -= nb;
+	for (i = 0; i < 32; i++) {
+		if ((xlr_hw_thread_mask & (1 << i)) == 0)
+			continue;
+		nb = snprintf(buf, fs,
+		    "%2d: %8d %4d %8d %8d %8d\n", i,
+		    msgring_nintr[i/4], msgring_badintr[i/4],
+		    msgring_wakeup_sleep[i], msgring_wakeup_nosleep[i],
+		    msgring_nmsgs[i]);
+		buf += nb;
+		fs -= nb;
+	} 
+	error = SYSCTL_OUT(req, xprintb, buf - xprintb);
+	return (error);
+}
+
+SYSCTL_PROC(_debug, OID_AUTO, msgring, CTLTYPE_STRING | CTLFLAG_RD, 0, 0,
+    sys_print_debug, "A", "msgring debug info");
