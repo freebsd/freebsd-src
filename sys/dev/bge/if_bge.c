@@ -2558,10 +2558,10 @@ bge_attach(device_t dev)
 		sc->bge_phy_flags |= BGE_PHY_5704_A0_BUG;
 	if (pci_get_subvendor(dev) == DELL_VENDORID)
 		sc->bge_phy_flags |= BGE_PHY_NO_3LED;
-	if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
-		sc->bge_phy_flags |= BGE_PHY_ADJUST_TRIM;
-	if (BGE_IS_5705_PLUS(sc) &&
-	    !(sc->bge_phy_flags & BGE_PHY_ADJUST_TRIM)) {
+	if ((BGE_IS_5705_PLUS(sc)) &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM57780) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
@@ -2569,7 +2569,9 @@ bge_attach(device_t dev)
 			if (pci_get_device(dev) != BCOM_DEVICEID_BCM5722 &&
 			    pci_get_device(dev) != BCOM_DEVICEID_BCM5756)
 				sc->bge_phy_flags |= BGE_PHY_JITTER_BUG;
-		} else if (sc->bge_asicrev != BGE_ASICREV_BCM5906)
+			if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
+				sc->bge_phy_flags |= BGE_PHY_ADJUST_TRIM;
+		} else
 			sc->bge_phy_flags |= BGE_PHY_BER_BUG;
 	}
 
