@@ -39,7 +39,7 @@
 #define	CPU_BLOCKID_MMU		4
 #define	CPU_BLOCKID_PRF		5
 
-#define	LSU_CERRLOG_REGID    9
+#define	LSU_CERRLOG_REGID	9
 
 #if defined(__mips_n64) || defined(__mips_n32)
 static __inline uint64_t
@@ -481,14 +481,15 @@ xlr_paddr_lw(uint64_t paddr)
 	__asm__ __volatile__(
 	    ".set	push		\n\t"
 	    ".set	mips64		\n\t"
-	    "dsll32	%1, %1, 0	\n\t"
-	    "dsll32	%2, %2, 0	\n\t"  /* get rid of the */
-	    "dsrl32	%2, %2, 0	\n\t"  /* sign extend */
-	    "or		%0, %1, %2	\n\t"
-	    "lw		%0, 0(%0)	\n\t"
+	    "dsll32	$8, %1, 0	\n\t"
+	    "dsll32	$9, %2, 0	\n\t"  /* get rid of the */
+	    "dsrl32	$9, $9, 0	\n\t"  /* sign extend */
+	    "or		$9, $8, $8	\n\t"
+	    "lw		%0, 0($9)	\n\t"
 	    ".set	pop		\n"
-	    :       "=&r"(val)
-	    :       "r"(addrh), "r"(addrl));
+	    :	"=r"(val)
+	    :	"r"(addrh), "r"(addrl)
+	    :	"$8", "$9");
 
 	return (val);
 }
@@ -505,14 +506,14 @@ xlr_paddr_ld(uint64_t paddr)
 	__asm__ __volatile__(
 	    ".set	push		\n\t"
 	    ".set	mips64		\n\t"
-	    "dsll32	%2, %2, 0	\n\t"
-	    "dsll32	%3, %3, 0	\n\t"  /* get rid of the */
-	    "dsrl32	%3, %3, 0	\n\t"  /* sign extend */
-	    "or		%0, %2, %3	\n\t"
+	    "dsll32	%0, %2, 0	\n\t"
+	    "dsll32	%1, %3, 0	\n\t"  /* get rid of the */
+	    "dsrl32	%1, %1, 0	\n\t"  /* sign extend */
+	    "or		%0, %0, %1	\n\t"
 	    "lw		%1, 4(%0)	\n\t"
 	    "lw		%0, 0(%0)	\n\t"
 	    ".set	pop		\n"
-	    :       "=&r"(valh), "=r"(vall)
+	    :       "=&r"(valh), "=&r"(vall)
 	    :       "r"(addrh), "r"(addrl));
 
 	return (((uint64_t)valh << 32) | vall);
