@@ -2746,6 +2746,28 @@ ofed/drivers/infiniband/core/verbs.c		optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 
+#ofed/drivers/infiniband/ulp/ipoib/ipoib_cm.c	optional ipoib		\
+#	no-depend							\
+#	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
+#ofed/drivers/infiniband/ulp/ipoib/ipoib_fs.c	optional ipoib		\
+#	no-depend							\
+#	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
+ofed/drivers/infiniband/ulp/ipoib/ipoib_ib.c	optional ipoib		\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
+ofed/drivers/infiniband/ulp/ipoib/ipoib_main.c	optional ipoib		\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
+ofed/drivers/infiniband/ulp/ipoib/ipoib_multicast.c	optional ipoib	\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
+ofed/drivers/infiniband/ulp/ipoib/ipoib_verbs.c	optional ipoib		\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
+#ofed/drivers/infiniband/ulp/ipoib/ipoib_vlan.c	optional ipoib		\
+#	no-depend							\
+#	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
+
 ofed/drivers/infiniband/hw/mlx4/ah.c		optional mlx4		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
