@@ -422,6 +422,7 @@ MK_${var}:=	yes
     BSD_GREP \
     ${_clang_no} \
     FDT \
+    GPIO \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})

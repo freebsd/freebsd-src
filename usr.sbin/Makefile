@@ -27,7 +27,6 @@ SUBDIR= adduser \
 	fwcontrol \
 	getfmac \
 	getpmac \
-	gpioctl \
 	gstat \
 	i2c \
 	ifmcstat \
@@ -158,6 +157,10 @@ SUBDIR+=	freebsd-update
 
 .if ${MK_GSSAPI} != no
 SUBDIR+=	gssd
+.endif
+
+.if ${MK_GPIO} != "no"
+SUBDIR+=	gpioctl
 .endif
 
 .if ${MK_INET6} != "no"
