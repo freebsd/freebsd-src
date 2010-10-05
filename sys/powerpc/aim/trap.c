@@ -203,9 +203,19 @@ trap(struct trapframe *frame)
 			enable_vec(td);
 			break;
 
-		case EXC_VECAST:
-			printf("Vector assist exception!\n");
-			sig = SIGILL;
+		case EXC_VECAST_G4:
+		case EXC_VECAST_G5:
+			/*
+			 * We get a VPU assist exception for IEEE mode
+			 * vector operations on denormalized floats.
+			 * Emulating this is a giant pain, so for now,
+			 * just switch off IEEE mode and treat them as
+			 * zero.
+			 */
+
+			save_vec(td);
+			td->td_pcb->pcb_vec.vscr |= ALTIVEC_VSCR_NJ;
+			enable_vec(td);
 			break;
 
 		case EXC_ALI:
