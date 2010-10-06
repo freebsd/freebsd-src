@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/bus.h>
 
-#include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91_twireg.h>
 #include <arm/at91/at91var.h>
 
