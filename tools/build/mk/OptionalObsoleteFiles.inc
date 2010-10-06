@@ -141,6 +141,7 @@ OLD_FILES+=usr/share/man/man8/authpf.8.gz
 .endif
 
 .if ${MK_BIND} == no
+OLD_FILES+=etc/periodic/daily/470.status-named
 OLD_FILES+=usr/bin/dig
 OLD_FILES+=usr/bin/host
 OLD_FILES+=usr/bin/nslookup
@@ -943,6 +944,7 @@ OLD_FILES+=rescue/ping6
 #.endif
 
 .if ${MK_IPFILTER} == no
+OLD_FILES+=etc/periodic/security/510.ipfdenied
 OLD_FILES+=rescue/ipf
 OLD_FILES+=sbin/ipf
 OLD_FILES+=sbin/ipfs
@@ -1517,6 +1519,20 @@ OLD_FILES+=usr/share/man/man8/verify_krb5_conf.8.gz
 # to be filled in
 #.endif
 
+.if ${MK_LOCATE} == no
+OLD_FILES+=etc/locate.rc
+OLD_FILES+=etc/periodic/weekly/310.locate
+OLD_FILES+=usr/bin/locate
+OLD_FILES+=usr/libexec/locate.bigram
+OLD_FILES+=usr/libexec/locate.code
+OLD_FILES+=usr/libexec/locate.concatdb
+OLD_FILES+=usr/libexec/locate.mklocatedb
+OLD_FILES+=usr/libexec/locate.updatedb
+OLD_FILES+=usr/share/man/man1/locate.1.gz
+OLD_FILES+=usr/share/man/man8/locate.updatedb.8.gz
+OLD_FILES+=usr/share/man/man8/updatedb.8.gz
+.endif
+
 .if ${MK_LPR} == no
 OLD_FILES+=etc/hosts.lpd
 OLD_FILES+=etc/printcap
@@ -1549,6 +1565,7 @@ OLD_FILES+=usr/share/man/man8/pac.8.gz
 .endif
 
 .if ${MK_MAIL} == no
+OLD_FILES+=etc/periodic/daily/130.clean-msgs
 OLD_FILES+=usr/bin/Mail
 OLD_FILES+=usr/bin/biff
 OLD_FILES+=usr/bin/from
@@ -1772,7 +1789,12 @@ OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
 .endif
 
 .if ${MK_PKGTOOLS} == no
+OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
 OLD_FILES+=etc/periodic/weekly/400.status-pkg
+OLD_FILES+=usr/include/pkg.h
+OLD_FILES+=usr/lib/libpkg.a
+OLD_FILES+=usr/lib/libpkg.so
+OLD_LIBS+=usr/lib/libpkg.so.0
 OLD_FILES+=usr/sbin/pkg_add
 OLD_FILES+=usr/sbin/pkg_create
 OLD_FILES+=usr/sbin/pkg_delete
@@ -1976,6 +1998,11 @@ OLD_FILES+=usr/share/man/man8/rtquery.8.gz
 .endif
 
 .if ${MK_SENDMAIL} == no
+OLD_FILES+=etc/periodic/daily/150.clean-hoststat
+OLD_FILES+=etc/periodic/daily/210.backup-aliases
+OLD_FILES+=etc/periodic/daily/440.status-mailq
+OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
+OLD_FILES+=etc/periodic/daily/500.queuerun
 OLD_FILES+=bin/rmail
 OLD_FILES+=usr/bin/vacation
 OLD_FILES+=usr/include/libmilter/mfapi.h
