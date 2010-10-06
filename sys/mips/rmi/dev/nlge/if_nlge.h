@@ -1103,12 +1103,12 @@ struct nlge_port_set {
  * for a set of GMAC ports controlled by an NA is done from here.
  */
 struct nlna_softc {
-        device_t	nlna_dev;
+	device_t	nlna_dev;
 
-        uint32_t	num_ports;
-        int		na_type;
-        int		mac_type;
-        xlr_reg_t	*base;
+	uint32_t	num_ports;
+	int		na_type;
+	int		mac_type;
+	xlr_reg_t	*base;
 
 	struct callout 	tx_thr;
 	struct fr_desc *frin_spill;
@@ -1135,19 +1135,20 @@ struct nlge_softc {
 					   mii.c:miibus_attach() */
 	struct mii_data nlge_mii;
 	struct nlge_port_set *mdio_pset;
-        device_t        nlge_dev;
+	device_t	nlge_dev;
 	device_t	mii_bus;
-        xlr_reg_t	*base;
-        xlr_reg_t	*mii_base;
-        xlr_reg_t	*pcs_addr;
-        xlr_reg_t	*serdes_addr;
-        int		port_type;
+	xlr_reg_t	*base;
+	xlr_reg_t	*mii_base;
+	xlr_reg_t	*pcs_addr;
+	xlr_reg_t	*serdes_addr;
+	int		port_type;
+	int		if_flags;
 	xlr_mac_speed_t	speed;
 	xlr_mac_duplex_t duplex;
 	xlr_mac_link_t	link;
 	xlr_mac_fc_t	flow_ctrl;
-        uint32_t	id;
-        uint32_t	instance;
+	uint32_t	id;
+	uint32_t	instance;
 	uint32_t	phy_addr;
 	uint32_t	tx_bucket_id;
 	uint8_t		dev_addr[ETHER_ADDR_LEN];
