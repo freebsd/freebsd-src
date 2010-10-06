@@ -155,6 +155,7 @@ static void	nlna_config_pde(struct nlna_softc *);
 static void	nlna_config_parser(struct nlna_softc *);
 static void	nlna_config_classifier(struct nlna_softc *);
 static void	nlna_config_fifo_spill_area(struct nlna_softc *sc);
+static void	nlna_config_translate_table(struct nlna_softc *sc);
 static void	nlna_config_common(struct nlna_softc *);
 static void	nlna_disable_ports(struct nlna_softc *sc);
 static void	nlna_enable_intr(struct nlna_softc *sc);
@@ -188,7 +189,7 @@ static void 	nlge_mii_write_internal(xlr_reg_t *mii_base, int phyaddr,
     int regidx, int regval);
 void 		nlge_msgring_handler(int bucket, int size, int code,
     int stid, struct msgrng_msg *msg, void *data);
-static void 	nlge_port_disable(int id, xlr_reg_t *base, int port_type);
+static void 	nlge_port_disable(struct nlge_softc *sc);
 static void 	nlge_port_enable(struct nlge_softc *sc);
 static void 	nlge_read_mac_addr(struct nlge_softc *sc);
 static void	nlge_sc_init(struct nlge_softc *sc, device_t dev,
@@ -196,6 +197,7 @@ static void	nlge_sc_init(struct nlge_softc *sc, device_t dev,
 static void 	nlge_set_mac_addr(struct nlge_softc *sc);
 static void	nlge_set_port_attribs(struct nlge_softc *,
     struct xlr_gmac_port *);
+static void	nlge_mac_set_rx_mode(struct nlge_softc *sc);
 static void 	nlge_sgmii_init(struct nlge_softc *sc);
 static void	nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc);
 
@@ -302,6 +304,10 @@ DRIVER_MODULE(nlge, nlna,  nlge_driver, nlge_devclass, 0, 0);
 DRIVER_MODULE(miibus, nlge, miibus_driver, miibus_devclass, 0, 0);
 
 static uma_zone_t nl_tx_desc_zone;
+
+/* Tunables. */
+static int flow_classification = 0;
+TUNABLE_INT("hw.nlge.flow_classification", &flow_classification);
 
 static __inline void
 atomic_incr_long(unsigned long *addr)
@@ -494,7 +500,7 @@ nlge_probe(device_t dev)
 	sc = device_get_softc(dev);
 	nlge_sc_init(sc, dev, port_info);
 
-	nlge_port_disable(sc->id, sc->base, sc->port_type);
+	nlge_port_disable(sc);
 
 	return (0);
 }
@@ -531,8 +537,7 @@ nlge_detach(device_t dev)
 	ifp = sc->nlge_if;
 
 	if (device_is_attached(dev)) {
-		ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
-		nlge_port_disable(sc->id, sc->base, sc->port_type);
+		nlge_port_disable(sc);
 		nlge_irq_fini(sc);
 		ether_ifdetach(ifp);
 		bus_generic_detach(dev);
@@ -567,7 +572,7 @@ nlge_init(void *addr)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
-	nlge_gmac_config_speed(sc, 0);
+	nlge_gmac_config_speed(sc, 1);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	nlge_port_enable(sc);
@@ -590,9 +595,33 @@ nlge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	sc = ifp->if_softc;
 	error = 0;
 	ifr = (struct ifreq *)data;
+
 	switch(command) {
 	case SIOCSIFFLAGS:
+		NLGE_LOCK(sc);
+		if (ifp->if_flags & IFF_UP) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+				nlge_init(sc);
+			}
+			if (ifp->if_flags & IFF_PROMISC &&
+			    !(sc->if_flags & IFF_PROMISC)) {
+				sc->if_flags |= IFF_PROMISC;
+				nlge_mac_set_rx_mode(sc);
+			} else if (!(ifp->if_flags & IFF_PROMISC) &&
+			    sc->if_flags & IFF_PROMISC) {
+				sc->if_flags &= IFF_PROMISC;
+				nlge_mac_set_rx_mode(sc);
+			}
+		} else {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				nlge_port_disable(sc);
+			}
+		}
+		sc->if_flags = ifp->if_flags;
+		NLGE_UNLOCK(sc);
+		error = 0;
 		break;
+		
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		if (sc->mii_bus != NULL) {
@@ -601,9 +630,7 @@ nlge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    command);
 		}
 		break;
-	case SIOCSIFADDR:
-			// intentional fall thru
-	case SIOCSIFMTU:
+	
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
@@ -755,7 +782,7 @@ nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
 		if (m == NULL) {
 			return;
 		}
-
+		
 		tx_desc = NULL;
 		ret = prepare_fmn_message(sc, &msg, &n_entries, m, fr_stid, &tx_desc);
 		if (ret) {
@@ -805,6 +832,7 @@ nlge_rx(struct nlge_softc *sc, vm_paddr_t paddr, int len)
 	}
 
 	ifp = sc->nlge_if;
+
 	/* align the data */
 	m->m_data += BYTE_OFFSET;
 	m->m_pkthdr.len = m->m_len = len;
@@ -1153,6 +1181,7 @@ nlna_config_pde(struct nlna_softc *sc)
 			bucket_map |= (3ULL << bucket);
 		}
 	}
+
 	NLGE_WRITE(sc->base, R_PDE_CLASS_0, (bucket_map & 0xffffffff));
 	NLGE_WRITE(sc->base, R_PDE_CLASS_0 + 1, ((bucket_map >> 32) & 0xffffffff));
 
@@ -1188,6 +1217,7 @@ nlna_smp_update_pde(void *dummy __unused)
 			continue;
 		nlna_disable_ports(na_sc[i]);
 		nlna_config_pde(na_sc[i]);
+		nlna_config_translate_table(na_sc[i]);
 		nlna_enable_ports(na_sc[i]);
 	}
 }
@@ -1196,14 +1226,79 @@ SYSINIT(nlna_smp_update_pde, SI_SUB_SMP, SI_ORDER_ANY, nlna_smp_update_pde,
     NULL);
 
 static void
+nlna_config_translate_table(struct nlna_softc *sc)
+{
+	uint32_t cpu_mask;
+	uint32_t val;
+	int bkts[32]; /* one bucket is assumed for each cpu */
+	int b1, b2, c1, c2, i, j, k;
+	int use_bkt;
+
+	if (!flow_classification)
+		return;
+
+	use_bkt = 1;
+	if (smp_started)
+		cpu_mask = xlr_hw_thread_mask;
+	else
+		return;
+
+	printf("Using %s-based distribution\n", (use_bkt) ? "bucket" : "class");
+
+	j = 0;
+	for(i = 0; i < 32; i++) {
+		if ((1 << i) & cpu_mask){
+		/* for each cpu, mark the 4+threadid bucket */
+			bkts[j] = ((i / 4) * 8) + (i % 4);
+			j++;
+		}
+	}
+
+	/*configure the 128 * 9 Translation table to send to available buckets*/
+	k = 0;
+	c1 = 3;
+	c2 = 0;
+	for(i = 0; i < 64; i++) {
+		/* Get the next 2 pairs of (class, bucket):
+		   (c1, b1), (c2, b2). 
+
+		   c1, c2 limited to {0, 1, 2, 3} 
+		       i.e, the 4 classes defined by h/w
+		   b1, b2 limited to { bkts[i], where 0 <= i < j}
+		       i.e, the set of buckets computed in the
+		       above loop.
+		*/
+
+		c1 = (c1 + 1) & 3;
+		c2 = (c1 + 1) & 3;
+		b1 = bkts[k];
+		k = (k + 1) % j;
+		b2 = bkts[k];
+		k = (k + 1) % j;
+		PDEBUG("Translation table[%d] b1=%d b2=%d c1=%d c2=%d\n",
+		    i, b1, b2, c1, c2);
+		val = ((c1 << 23) | (b1 << 17) | (use_bkt << 16) |
+		    (c2 << 7) | (b2 << 1) | (use_bkt << 0));
+		NLGE_WRITE(sc->base, R_TRANSLATETABLE + i, val);
+		c1 = c2;
+	}
+}
+
+static void
 nlna_config_parser(struct nlna_softc *sc)
 {
+	uint32_t val;
+
 	/*
-	 * Mark it as no classification. The parser extract is gauranteed to
-	 * be zero with no classfication
+	 * Mark it as ETHERNET type.
 	 */
-	NLGE_WRITE(sc->base, R_L2TYPE_0, 0x00);
 	NLGE_WRITE(sc->base, R_L2TYPE_0, 0x01);
+
+	if (!flow_classification)
+		return;
+
+	/* Use 7bit CRChash for flow classification with 127 as CRC polynomial*/
+	NLGE_WRITE(sc->base, R_PARSERCONFIGREG, ((0x7f << 8) | (1 << 1)));
 
 	/* configure the parser : L2 Type is configured in the bootloader */
 	/* extract IP: src, dest protocol */
@@ -1211,7 +1306,14 @@ nlna_config_parser(struct nlna_softc *sc)
 	    (9 << 20) | (1 << 19) | (1 << 18) | (0x01 << 16) |
 	    (0x0800 << 0));
 	NLGE_WRITE(sc->base, R_L3CTABLE + 1,
-	    (12 << 25) | (4 << 21) | (16 << 14) | (4 << 10));
+	    (9 << 25) | (1 << 21) | (12 << 14) | (4 << 10) | (16 << 4) | 4);
+
+	/* Configure to extract SRC port and Dest port for TCP and UDP pkts */
+	NLGE_WRITE(sc->base, R_L4CTABLE, 6);
+	NLGE_WRITE(sc->base, R_L4CTABLE+2, 17);
+	val = ((0 << 21) | (2 << 17) | (2 << 11) | (2 << 7));
+	NLGE_WRITE(sc->base, R_L4CTABLE+1, val);
+	NLGE_WRITE(sc->base, R_L4CTABLE+3, val);
 }
 
 static void
@@ -1352,14 +1454,11 @@ nlna_reset_ports(struct nlna_softc *sc, struct xlr_gmac_block_t *blk)
 static void
 nlna_disable_ports(struct nlna_softc *sc)
 {
-	struct xlr_gmac_block_t *blk;
-	xlr_reg_t *addr;
 	int i;
 
-	blk = device_get_ivars(sc->nlna_dev);
 	for (i = 0; i < sc->num_ports; i++) {
-		addr = xlr_io_mmio(blk->gmac_port[i].base_addr);
-		nlge_port_disable(i, addr, blk->gmac_port[i].type);
+		if (sc->child_sc[i] != NULL)
+			nlge_port_disable(sc->child_sc[i]);
 	}
 }
 
@@ -1398,9 +1497,17 @@ nlna_get_all_softc(device_t iodi_dev, struct nlna_softc **sc_vec,
 }
 
 static void
-nlge_port_disable(int id, xlr_reg_t *base, int port_type)
+nlge_port_disable(struct nlge_softc *sc)
 {
+	struct ifnet *ifp;
+	xlr_reg_t *base;
 	uint32_t rd;
+	int id, port_type;
+
+	id = sc->id;
+	port_type = sc->port_type;
+	base = sc->base;
+	ifp = sc->nlge_if;
 
 	NLGE_UPDATE(base, R_RX_CONTROL, 0x0, 1 << O_RX_CONTROL__RxEnable);
 	do {
@@ -1427,6 +1534,10 @@ nlge_port_disable(int id, xlr_reg_t *base, int port_type)
 		break;
 	default:
 		panic("Unknown MAC type on port %d\n", id);
+	}
+
+	if (ifp) {
+		ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	}
 }
 
@@ -1463,6 +1574,26 @@ nlge_port_enable(struct nlge_softc *sc)
 	default:
 		panic("Unknown MAC type on port %d\n", sc->id);
 	}
+}
+
+static void
+nlge_mac_set_rx_mode(struct nlge_softc *sc)
+{
+	uint32_t regval;
+
+	regval = NLGE_READ(sc->base, R_MAC_FILTER_CONFIG);
+
+	if (sc->if_flags & IFF_PROMISC) {
+		regval |= (1 << O_MAC_FILTER_CONFIG__BROADCAST_EN) |
+		    (1 << O_MAC_FILTER_CONFIG__PAUSE_FRAME_EN) |
+		    (1 << O_MAC_FILTER_CONFIG__ALL_MCAST_EN) |
+		    (1 << O_MAC_FILTER_CONFIG__ALL_UCAST_EN);
+	} else {
+		regval &= ~((1 << O_MAC_FILTER_CONFIG__PAUSE_FRAME_EN) |
+		    (1 << O_MAC_FILTER_CONFIG__ALL_UCAST_EN));
+	}
+
+	NLGE_WRITE(sc->base, R_MAC_FILTER_CONFIG, regval);
 }
 
 static void
@@ -1559,7 +1690,7 @@ nlge_intr(void *arg)
 
 			if (intr_status & 0x2410) {
 				/* update link status for port */
-				nlge_gmac_config_speed(port_sc, 0);
+				nlge_gmac_config_speed(port_sc, 1);
 			} else {
 				printf("%s: Unsupported phy interrupt"
 				    " (0x%08x)\n",
@@ -1745,7 +1876,7 @@ nlge_if_init(struct nlge_softc *sc)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_HWTAGGING;
+	ifp->if_capabilities = 0;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = nlge_ioctl;
 	ifp->if_start = nlge_start;
@@ -2108,7 +2239,7 @@ nlge_gmac_config_speed(struct nlge_softc *sc, int quick)
 	if_link_state_change(sc->nlge_if, link_state);
 	printf("%s: [%sMbps]\n", device_get_nameunit(sc->nlge_dev),
 	    speed_str[sc->speed]);
-		
+
 	return (0);
 }
 
