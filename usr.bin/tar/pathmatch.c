@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Check whether a character 'c' is matched by a list specification [...]:
- *    * Leading '!' negates the class.
+ *    * Leading '!' or '^' negates the class.
  *    * <char>-<char> is a range of characters
  *    * \<char> removes any special meaning for <char>
  *
@@ -60,7 +60,7 @@ pm_list(const char *start, const char *end, const char c, int flags)
 	(void)flags; /* UNUSED */
 
 	/* If this is a negated class, return success for nomatch. */
-	if (*p == '!' && p < end) {
+	if ((*p == '!' || *p == '^') && p < end) {
 		match = 0;
 		nomatch = 1;
 		++p;
