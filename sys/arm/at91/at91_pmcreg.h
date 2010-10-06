@@ -89,7 +89,7 @@
 /* PMC Clock Generator Master Clock Register */
 #define PMC_MCKR_PDIV      (1 << 12)			/* SAM9G20 Only */
 #define PMC_MCKR_PLLADIV2  (1 << 12)			/* SAM9G45 Only */
-#define PMC_MCKR_CSS_MASK  (3 << 8)		
+#define PMC_MCKR_CSS_MASK  (3 << 0)		
 #define PMC_MCKR_MDIV_MASK (3 << 8)		
 #define PMC_MCKR_PRES_MASK (7 << 2)		
 

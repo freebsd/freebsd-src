@@ -1,6 +1,9 @@
 /*
  * Theses defines come from an atmel file that says specifically that it
  * has no copyright.
+ *
+ * These defines are also usable for the AT91SAM9260 which has pin multiplexing
+ * that is identical to the AT91SAM9G20.
  */
 
 /* $FreeBSD$ */
