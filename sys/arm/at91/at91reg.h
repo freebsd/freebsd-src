@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2009 Greg Ansley  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,43 +23,48 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/*
+ * $FreeBSD$
+ */
 
-#ifndef ARM_AT91_AT91_PMCVAR_H
-#define ARM_AT91_AT91_PMCVAR_H
+#ifndef _AT91REG_H_
+#define _AT91REG_H_
 
-struct at91_pmc_clock 
-{
-	char		*name;
-	uint32_t	hz;
-	struct at91_pmc_clock *parent;
-	uint32_t	pmc_mask;
-	void		(*set_mode)(struct at91_pmc_clock *, int);
-	uint32_t	refcnt;
-	unsigned	id:2;
-	unsigned	primary:1;
-	unsigned	pll:1;
-	unsigned	programmable:1;
+#include "opt_at91.h"
 
-	/* PLL Params */
-	uint32_t	pll_min_in;
-	uint32_t	pll_max_in;
-	uint32_t	pll_min_out;
-	uint32_t	pll_max_out;
+/* Where builtin peripherals start in KVM */
+#define AT91_BASE		0xd0000000
 
-	uint32_t	pll_div_shift;
-	uint32_t	pll_div_mask;
-	uint32_t	pll_mul_shift;
-	uint32_t	pll_mul_mask;
+/* A few things that we count on being the same
+ * throught the whole family of SOCs */
 
-	uint32_t	(*set_outb)(int);
-};
+/* SYSC System Controler */
+/* System Registers */
+#define AT91_SYS_BASE	0xffff000
+#define AT91_SYS_SIZE	0x1000
 
-struct at91_pmc_clock * at91_pmc_clock_add(const char *name, uint32_t irq,
-    struct at91_pmc_clock *parent);
-struct at91_pmc_clock *at91_pmc_clock_ref(const char *name);
-void at91_pmc_clock_deref(struct at91_pmc_clock *);
-void at91_pmc_clock_enable(struct at91_pmc_clock *);
-void at91_pmc_clock_disable(struct at91_pmc_clock *);
+#if defined(AT91SAM9G45) || defined(AT91SAM9263)
+#define AT91_DBGU_BASE	0xfffee00
+#else
+#define AT91_DBGU_BASE	0xffff200
+#endif
+#define AT91_DBGU_SIZE	0x200
+#define DBGU_C1R		(64) /* Chip ID1 Register */
+#define DBGU_C2R		(68) /* Chip ID2 Register */
+#define DBGU_FNTR		(72) /* Force NTRST Register */
 
-#endif /* ARM_AT91_AT91_PMCVAR_H */
+#define AT91_CPU_VERSION_MASK 0x0000001f
+#define AT91_CPU_RM9200   0x09290780
+#define AT91_CPU_SAM9260  0x019803a0
+#define AT91_CPU_SAM9261  0x019703a0
+#define AT91_CPU_SAM9263  0x019607a0
+#define AT91_CPU_SAM9G10  0x819903a0
+#define AT91_CPU_SAM9G20  0x019905a0
+#define AT91_CPU_SAM9G45  0x819b05a0
+
+#define AT91_ARCH(chipid)  ((chipid >> 20) & 0xff)
+#define AT91_CPU(chipid)   (chipid & ~AT91_CPU_VERSION_MASK)
+#define AT91_ARCH_SAM9  (0x19)
+#define AT91_ARCH_RM92  (0x92)
+
+#endif /* _AT91REG_H_ */
