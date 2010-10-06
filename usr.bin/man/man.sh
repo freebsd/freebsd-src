@@ -368,7 +368,9 @@ man_find_and_display() {
 				if find_file $p $sect $MACHINE "$1"; then
 					found_page=yes
 					man_display_page
-					if [ -z "$aflag" ]; then
+					if [ -n "$aflag" ]; then
+						continue 2
+					else
 						return
 					fi
 				fi
@@ -378,7 +380,9 @@ man_find_and_display() {
 				if find_file $p $sect $MACHINE_ARCH "$1"; then
 					found_page=yes
 					man_display_page
-					if [ -z "$aflag" ]; then
+					if [ -n "$aflag" ]; then
+						continue 2
+					else
 						return
 					fi
 				fi
@@ -387,7 +391,9 @@ man_find_and_display() {
 				if find_file $p $sect '' "$1"; then
 					found_page=yes
 					man_display_page
-					if [ -z "$aflag" ]; then
+					if [ -n "$aflag" ]; then
+						continue 2
+					else
 						return
 					fi
 				fi
