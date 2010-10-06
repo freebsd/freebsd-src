@@ -431,7 +431,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	int op_ret, val, ret, nrwake;
 	struct linux_emuldata *em;
 	struct waiting_proc *wp;
-	struct futex *f, *f2;
+	struct futex *f, *f2 = NULL;
 	int error = 0;
 
 	/*
