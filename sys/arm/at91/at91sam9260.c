@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_aicreg.h>
-#include <arm/at91/at91sam9g20reg.h>
+#include <arm/at91/at91sam9260reg.h>
 #include <arm/at91/at91_pmcreg.h>
 #include <arm/at91/at91_pmcvar.h>
 
@@ -96,9 +96,9 @@ static const int at91_irq_prio[32] =
 #define DEVICE(_name, _id, _unit)		\
 	{					\
 		_name, _unit,			\
-		AT91SAM9G20_ ## _id ##_BASE,	\
-		AT91SAM9G20_ ## _id ## _SIZE,	\
-		AT91SAM9G20_IRQ_ ## _id		\
+		AT91SAM9260_ ## _id ##_BASE,	\
+		AT91SAM9260_ ## _id ## _SIZE,	\
+		AT91SAM9260_IRQ_ ## _id		\
 	}
 
 static const struct cpu_devs at91_devs[] =
@@ -150,15 +150,15 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 	resource_list_init(&ivar->resources);
 	if (irq0 != -1) {
 		bus_set_resource(kid, SYS_RES_IRQ, 0, irq0, 1);
-		if (irq0 != AT91SAM9G20_IRQ_SYSTEM)
+		if (irq0 != AT91SAM9260_IRQ_SYSTEM)
 			at91_pmc_clock_add(device_get_nameunit(kid), irq0, 0);
 	}
 	if (irq1 != 0)
 		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
 	if (irq2 != 0)
 		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
-	if (addr != 0 && addr < AT91SAM9G20_BASE) 
-		addr += AT91SAM9G20_BASE;
+	if (addr != 0 && addr < AT91SAM9260_BASE) 
+		addr += AT91SAM9260_BASE;
 	if (addr != 0)
 		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
 }
@@ -180,32 +180,24 @@ static uint32_t
 at91_pll_outa(int freq)
 {
 
-	switch (freq / 10000000) {
-		case 747 ... 801: return ((1 << 29) | (0 << 14));
-		case 697 ... 746: return ((1 << 29) | (1 << 14));
-		case 647 ... 696: return ((1 << 29) | (2 << 14));
-		case 597 ... 646: return ((1 << 29) | (3 << 14));
-		case 547 ... 596: return ((1 << 29) | (1 << 14));
-		case 497 ... 546: return ((1 << 29) | (2 << 14));
-		case 447 ... 496: return ((1 << 29) | (3 << 14));
-		case 397 ... 446: return ((1 << 29) | (4 << 14));
-		default: return (1 << 29);
-	}
+	if (freq > 195000000)
+		return (0x20000000);
+	else 
+		return (0x20008000);
 }
 
 static uint32_t
 at91_pll_outb(int freq)
 {
-
-	return (0);
+	return (0x4000);
 }
 
 static void
 at91_identify(driver_t *drv, device_t parent)
 {
 
-	if (at91_cpu_is(AT91_CPU_SAM9G20)) {
-		at91_add_child(parent, 0, "at91sam", 9, 0, 0, -1, 0, 0);
+	if (at91_cpu_is(AT91_CPU_SAM9260)) {
+		at91_add_child(parent, 0, "at91sam9260", 0, 0, 0, -1, 0, 0);
 		at91_cpu_add_builtin_children(parent);
 	}
 }
@@ -214,8 +206,8 @@ static int
 at91_probe(device_t dev)
 {
 
-	if (at91_cpu_is(AT91_CPU_SAM9G20)) {
-		device_set_desc(dev, "AT91SAM9G20");
+	if (at91_cpu_is(AT91_CPU_SAM9260)) {
+		device_set_desc(dev, "AT91SAM9260");
 		return (0);
 	}
 	return (ENXIO);
@@ -235,24 +227,24 @@ at91_attach(device_t dev)
 	sc->dev = dev;
 
 	/* 
-	 * XXX These values work for the RM9200, SAM926[01], and SAM9G20
+	 * XXX These values work for the RM9200, SAM926[01], and SAM9260
 	 * will have to fix this when we want to support anything else. XXX
 	 */
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9G20_SYS_BASE,
-	    AT91SAM9G20_SYS_SIZE, &sc->sc_sys_sh) != 0)
+	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9260_SYS_BASE,
+	    AT91SAM9260_SYS_SIZE, &sc->sc_sys_sh) != 0)
 		panic("Enable to map system registers");
 
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9G20_DBGU_BASE,
-	    AT91SAM9G20_DBGU_SIZE, &sc->sc_dbg_sh) != 0)
+	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9260_DBGU_BASE,
+	    AT91SAM9260_DBGU_SIZE, &sc->sc_dbg_sh) != 0)
 		panic("Enable to map DBGU registers");
 
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9G20_AIC_BASE,
-	    AT91SAM9G20_AIC_SIZE, &sc->sc_aic_sh) != 0)
+	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9260_AIC_BASE,
+	    AT91SAM9260_AIC_SIZE, &sc->sc_aic_sh) != 0)
 		panic("Enable to map system registers");
 
 	/* XXX Hack to tell atmelarm about the AIC */
 	at91sc->sc_aic_sh = sc->sc_aic_sh;
-	at91sc->sc_irq_system = AT91SAM9G20_IRQ_SYSTEM;
+	at91sc->sc_irq_system = AT91SAM9260_IRQ_SYSTEM;
 
 	for (i = 0; i < 32; i++) {
 		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR + 
@@ -276,15 +268,15 @@ at91_attach(device_t dev)
 	bus_space_write_4(sc->sc_st, sc->sc_dbg_sh, 0x0c, 0xffffffff);
 
 	if (bus_space_subregion(sc->sc_st, sc->sc_sh,
-	    AT91SAM9G20_MATRIX_BASE, AT91SAM9G20_MATRIX_SIZE,
+	    AT91SAM9260_MATRIX_BASE, AT91SAM9260_MATRIX_SIZE,
 	    &sc->sc_matrix_sh) != 0)
 		panic("Enable to map matrix registers");
 
 	/* activate NAND*/
 	i = bus_space_read_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9G20_EBICSA);
+	    AT91SAM9260_EBICSA);
 	bus_space_write_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9G20_EBICSA, 
+	    AT91SAM9260_EBICSA, 
 	    i | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA);
 
 
@@ -300,44 +292,52 @@ at91_attach(device_t dev)
 
 	/* Each SOC has different PLL contraints */
 	clk = at91_pmc_clock_ref("plla");
-	clk->pll_min_in    = SAM9G20_PLL_A_MIN_IN_FREQ;		/*   2 MHz */
-	clk->pll_max_in    = SAM9G20_PLL_A_MAX_IN_FREQ;		/*  32 MHz */
-	clk->pll_min_out   = SAM9G20_PLL_A_MIN_OUT_FREQ;	/* 400 MHz */
-	clk->pll_max_out   = SAM9G20_PLL_A_MAX_OUT_FREQ;	/* 800 MHz */
-	clk->pll_mul_shift = SAM9G20_PLL_A_MUL_SHIFT;
-	clk->pll_mul_mask  = SAM9G20_PLL_A_MUL_MASK;
-	clk->pll_div_shift = SAM9G20_PLL_A_DIV_SHIFT;
-	clk->pll_div_mask  = SAM9G20_PLL_A_DIV_MASK;
+	clk->pll_min_in    = SAM9260_PLL_A_MIN_IN_FREQ;		/*   1 MHz */
+	clk->pll_max_in    = SAM9260_PLL_A_MAX_IN_FREQ;		/*  32 MHz */
+	clk->pll_min_out   = SAM9260_PLL_A_MIN_OUT_FREQ;	/*  80 MHz */
+	clk->pll_max_out   = SAM9260_PLL_A_MAX_OUT_FREQ;	/* 240 MHz */
+	clk->pll_mul_shift = SAM9260_PLL_A_MUL_SHIFT;
+	clk->pll_mul_mask  = SAM9260_PLL_A_MUL_MASK;
+	clk->pll_div_shift = SAM9260_PLL_A_DIV_SHIFT;
+	clk->pll_div_mask  = SAM9260_PLL_A_DIV_MASK;
 	clk->set_outb      = at91_pll_outa;
 	at91_pmc_clock_deref(clk);
 
+	/*
+	 * Fudge MAX pll in frequence down below 3.0 Mhz to ensure 
+	 * PMC alogrithm choose the divisor that causes the input clock 
+	 * to be near the optimal 2 Mhz per datasheet. We know
+	 * we are going to be using this for the USB clock at 96 Mhz.
+	 * Causes no extra frequency deviation for all recomended crystal values.
+	 */
 	clk = at91_pmc_clock_ref("pllb");
-	clk->pll_min_in    = SAM9G20_PLL_B_MIN_IN_FREQ;		/*   2 MHz */
-	clk->pll_max_in    = SAM9G20_PLL_B_MAX_IN_FREQ;		/*  32 MHz */
-	clk->pll_min_out   = SAM9G20_PLL_B_MIN_OUT_FREQ;	/*  30 MHz */
-	clk->pll_max_out   = SAM9G20_PLL_B_MAX_OUT_FREQ;	/* 100 MHz */
-	clk->pll_mul_shift = SAM9G20_PLL_B_MUL_SHIFT;
-	clk->pll_mul_mask  = SAM9G20_PLL_B_MUL_MASK;
-	clk->pll_div_shift = SAM9G20_PLL_B_DIV_SHIFT;
-	clk->pll_div_mask  = SAM9G20_PLL_B_DIV_MASK;
+	clk->pll_min_in    = SAM9260_PLL_B_MIN_IN_FREQ;		/*   1 MHz */
+	clk->pll_max_in    = SAM9260_PLL_B_MAX_IN_FREQ;		/*   5 MHz */
+	clk->pll_max_in    = 2999999;				/*  ~3 MHz */
+	clk->pll_min_out   = SAM9260_PLL_B_MIN_OUT_FREQ;	/*  70 MHz */
+	clk->pll_max_out   = SAM9260_PLL_B_MAX_OUT_FREQ;	/* 130 MHz */
+	clk->pll_mul_shift = SAM9260_PLL_B_MUL_SHIFT;
+	clk->pll_mul_mask  = SAM9260_PLL_B_MUL_MASK;
+	clk->pll_div_shift = SAM9260_PLL_B_DIV_SHIFT;
+	clk->pll_div_mask  = SAM9260_PLL_B_DIV_MASK;
 	clk->set_outb      = at91_pll_outb;
 	at91_pmc_clock_deref(clk);
 	return (0);
 }
 
-static device_method_t at91_methods[] = {
+static device_method_t at91sam9260_methods[] = {
 	DEVMETHOD(device_probe, at91_probe),
 	DEVMETHOD(device_attach, at91_attach),
 	DEVMETHOD(device_identify, at91_identify),
 	{0, 0},
 };
 
-static driver_t at91sam9_driver = {
-	"at91sam",
-	at91_methods,
+static driver_t at91sam9260_driver = {
+	"at91sam9260",
+	at91sam9260_methods,
 	sizeof(struct at91sam9_softc),
 };
 
-static devclass_t at91sam9_devclass;
+static devclass_t at91sam9260_devclass;
 
-DRIVER_MODULE(at91sam, atmelarm, at91sam9_driver, at91sam9_devclass, 0, 0);
+DRIVER_MODULE(at91sam9260, atmelarm, at91sam9260_driver, at91sam9260_devclass, 0, 0);
