@@ -114,6 +114,32 @@ g_sectorsize(int fd)
 }
 
 /*
+ * Return stripe size of the given provider.
+ */
+off_t
+g_stripesize(int fd)
+{
+	off_t stripesize;
+
+	if (g_ioctl_arg(fd, DIOCGSTRIPESIZE, &stripesize) == -1)
+		return (-1);
+	return (stripesize);
+}
+
+/*
+ * Return stripe size of the given provider.
+ */
+off_t
+g_stripeoffset(int fd)
+{
+	off_t stripeoffset;
+
+	if (g_ioctl_arg(fd, DIOCGSTRIPEOFFSET, &stripeoffset) == -1)
+		return (-1);
+	return (stripeoffset);
+}
+
+/*
  * Return the correct provider name.
  */
 char *
