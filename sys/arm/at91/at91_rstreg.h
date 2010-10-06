@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2009 Greg Ansley.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,41 +25,35 @@
 
 /* $FreeBSD$ */
 
-#ifndef ARM_AT91_AT91_PMCVAR_H
-#define ARM_AT91_AT91_PMCVAR_H
+#ifndef ARM_AT91_AT91RSTREG_H
+#define ARM_AT91_AT91RSTREG_H
 
-struct at91_pmc_clock 
-{
-	char		*name;
-	uint32_t	hz;
-	struct at91_pmc_clock *parent;
-	uint32_t	pmc_mask;
-	void		(*set_mode)(struct at91_pmc_clock *, int);
-	uint32_t	refcnt;
-	unsigned	id:2;
-	unsigned	primary:1;
-	unsigned	pll:1;
-	unsigned	programmable:1;
+#define	RST_CR		0x0	/* Control Register */
+#define	RST_SR		0x4	/* Status Register */
+#define	RST_MR		0x8	/* Mode Register */
 
-	/* PLL Params */
-	uint32_t	pll_min_in;
-	uint32_t	pll_max_in;
-	uint32_t	pll_min_out;
-	uint32_t	pll_max_out;
+/* RST_CR */
+#define	RST_CR_PROCRST		(1<<0)
+#define	RST_CR_PERRST		(1<<2)
+#define	RST_CR_EXTRST		(1<<3)
+#define	RST_CR_KEY		(0xa5<<24)
 
-	uint32_t	pll_div_shift;
-	uint32_t	pll_div_mask;
-	uint32_t	pll_mul_shift;
-	uint32_t	pll_mul_mask;
+/* RST_SR */
+#define	RST_SR_SRCMP		(1<<17)	/* Software Reset in progress */	
+#define	RST_SR_NRSTL		(1<<16)	/* NRST pin level at MCK */	
+#define	RST_SR_URSTS		(1<<0)	/* NRST pin has been active */	
 
-	uint32_t	(*set_outb)(int);
-};
+#define	RST_SR_RST_POW		(0<<8)	/* General (Power On) reset */	
+#define	RST_SR_RST_WAKE		(1<<8)	/* Wake-up reset */
+#define	RST_SR_RST_WDT		(2<<8)	/* Watchdog reset */
+#define	RST_SR_RST_SOFT		(3<<8)	/* Software  reset */
+#define	RST_SR_RST_USR		(4<<8)	/* User (External) reset */
+#define	RST_SR_RST_MASK		(7<<8)	/* User (External) reset */
 
-struct at91_pmc_clock * at91_pmc_clock_add(const char *name, uint32_t irq,
-    struct at91_pmc_clock *parent);
-struct at91_pmc_clock *at91_pmc_clock_ref(const char *name);
-void at91_pmc_clock_deref(struct at91_pmc_clock *);
-void at91_pmc_clock_enable(struct at91_pmc_clock *);
-void at91_pmc_clock_disable(struct at91_pmc_clock *);
+/* RST_MR */
+#define	RST_MR_URSTEN		(1<<0)	/* User reset enable */	
+#define	RST_MR_URSIEN		(1<<4)	/* User interrupt enable */	
+#define	RST_MR_ERSTL(x)		((x)<<8) /* External reset length */	
+#define	RST_MR_KEY		(0xa5<<24)
 
-#endif /* ARM_AT91_AT91_PMCVAR_H */
+#endif /* ARM_AT91_AT91RSTREG_H */

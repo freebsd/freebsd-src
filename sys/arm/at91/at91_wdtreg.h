@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2005 Gallon Sylvestre.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,43 +23,38 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* 
+ * $FreeBSD$
+ */
 
-#ifndef ARM_AT91_AT91_PMCVAR_H
-#define ARM_AT91_AT91_PMCVAR_H
+#ifndef ARM_AT91_AT91WDTREG_H
+#define ARM_AT91_AT91WDTREG_H
 
-struct at91_pmc_clock 
-{
-	char		*name;
-	uint32_t	hz;
-	struct at91_pmc_clock *parent;
-	uint32_t	pmc_mask;
-	void		(*set_mode)(struct at91_pmc_clock *, int);
-	uint32_t	refcnt;
-	unsigned	id:2;
-	unsigned	primary:1;
-	unsigned	pll:1;
-	unsigned	programmable:1;
+#ifndef WDT_CLOCK
+#define WDT_CLOCK (32768)
+#endif
+#define WDT_DIV (128)	/* Clock is slow clock / 128 */
 
-	/* PLL Params */
-	uint32_t	pll_min_in;
-	uint32_t	pll_max_in;
-	uint32_t	pll_min_out;
-	uint32_t	pll_max_out;
+#define WDT_CR		0x0 /* Control Register */
+#define WDT_MR		0x4 /* Mode Register */
+#define WDT_SR		0x8 /* Status Register */
 
-	uint32_t	pll_div_shift;
-	uint32_t	pll_div_mask;
-	uint32_t	pll_mul_shift;
-	uint32_t	pll_mul_mask;
+/* WDT_CR */
+#define WDT_KEY		(0xa5<<24)
+#define WDT_WDRSTT	0x1
 
-	uint32_t	(*set_outb)(int);
-};
+/* WDT_MR */
+#define WDT_WDV(x)	(x & 0xfff) /* counter value*/
+#define WDT_WDFIEN	(1<<12) /* enable interrupt */
+#define WDT_WDRSTEN	(1<<13) /* enable reset */
+#define WDT_WDRPROC	(1<<14) /* processor reset */
+#define WDT_WDDIS	(1<<15) /* disable */
+#define WDT_WDD(x)	((x & 0xfff) << 16) /* delta value */
+#define WDT_WDDBGHLT	(1<<28) /* halt in debug */
+#define WDT_WDIDLEHLT	(1<<29) /* halt in idle */
 
-struct at91_pmc_clock * at91_pmc_clock_add(const char *name, uint32_t irq,
-    struct at91_pmc_clock *parent);
-struct at91_pmc_clock *at91_pmc_clock_ref(const char *name);
-void at91_pmc_clock_deref(struct at91_pmc_clock *);
-void at91_pmc_clock_enable(struct at91_pmc_clock *);
-void at91_pmc_clock_disable(struct at91_pmc_clock *);
+/* WDT_SR */
+#define WDT_WDUNF	0x1
+#define WDT_WDERR	0x2
 
-#endif /* ARM_AT91_AT91_PMCVAR_H */
+#endif /* ARM_AT91_AT91WDTREG_H */
