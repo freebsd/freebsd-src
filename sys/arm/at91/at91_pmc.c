@@ -331,6 +331,9 @@ at91_pmc_pll_rate(struct at91_pmc_clock *clk, uint32_t reg)
 	div = (reg >> clk->pll_div_shift) & clk->pll_div_mask;
 	mul = (reg >> clk->pll_mul_shift) & clk->pll_mul_mask;
 
+//	printf("pll = (%d /  %d) * %d = %d\n",
+//	    freq, div ,mul + 1, (freq/div) * (mul+1));
+
 	if (div != 0 && mul != 0) {
 		freq /= div;
 		freq *= mul + 1;
@@ -338,6 +341,8 @@ at91_pmc_pll_rate(struct at91_pmc_clock *clk, uint32_t reg)
 		freq = 0;
 	}
 	clk->hz = freq;
+
+
 	return (freq);
 }
 
@@ -444,7 +449,8 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 
 	mdiv = (mckr & PMC_MCKR_MDIV_MASK) >> 8;
 	if (at91_is_sam9()) {
-		mck.hz /= (mdiv) ? (mdiv * 2) : 1;
+		if (mdiv > 0)
+			mck.hz /= mdiv * 2;
 	} else 
 		mck.hz /= (1 + mdiv);
 
