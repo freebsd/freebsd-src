@@ -113,7 +113,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 struct xlr_pcib_softc {
-	int junk;		/* no softc */
+	bus_dma_tag_t	sc_pci_dmat;	/* PCI DMA tag pointer */
 };
 
 static devclass_t pcib_devclass;
@@ -300,7 +300,19 @@ xlr_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
 static int 
 xlr_pcib_attach(device_t dev)
 {
-
+	struct xlr_pcib_softc *sc;
+	sc = device_get_softc(dev);
+	
+	/*
+	 * XLR C revision chips cannot do DMA above 2G physical address
+	 * create a parent tag with this lowaddr
+	 */
+	if (xlr_is_c_revision()) {
+		if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+		    0x7fffffff, ~0, NULL, NULL, 0x7fffffff,
+		    0xff, 0x7fffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
+			panic("%s: bus_dma_tag_create failed", __func__);
+	}
 	device_add_child(dev, "pci", 0);
 	bus_generic_attach(dev);
 	return (0);
@@ -566,6 +578,15 @@ xlr_pci_release_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_release_resource(r));
 }
 
+static bus_dma_tag_t
+xlr_pci_get_dma_tag(device_t bus, device_t child)
+{
+	struct xlr_pcib_softc *sc;
+
+	sc = device_get_softc(bus);
+	return (sc->sc_pci_dmat);
+}
+
 static int
 xlr_pci_activate_resource(device_t bus, device_t child, int type, int rid,
                       struct resource *r)
@@ -618,6 +639,7 @@ static device_method_t xlr_pcib_methods[] = {
 	DEVMETHOD(bus_write_ivar, xlr_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource, xlr_pci_alloc_resource),
 	DEVMETHOD(bus_release_resource, xlr_pci_release_resource),
+	DEVMETHOD(bus_get_dma_tag, xlr_pci_get_dma_tag),
 	DEVMETHOD(bus_activate_resource, xlr_pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, xlr_pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr, mips_platform_pci_setup_intr),

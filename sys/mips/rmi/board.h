@@ -117,6 +117,35 @@ xlr_processor_id(void)
 }
 
 /*
+ * The processor is XLR and C-Series
+ */
+static __inline unsigned int
+xlr_is_c_revision(void)
+{
+	int processor_id = xlr_processor_id();
+	int revision_id  = xlr_revision();
+
+	switch (processor_id) {
+	/* 
+	 * These are the relevant PIDs for XLR
+	 * steppings (hawk and above). For these,
+	 * PIDs, Rev-Ids of [5-9] indicate 'C'.
+	 */
+	case RMI_CHIP_XLR308_C:
+	case RMI_CHIP_XLR508_C:
+	case RMI_CHIP_XLR516_C:
+	case RMI_CHIP_XLR532_C:
+	case RMI_CHIP_XLR716:
+	case RMI_CHIP_XLR732:
+		if (revision_id >= 5 && revision_id <= 9) 
+			return (1);
+	default:
+		return (0);
+	}
+	return (0);
+}
+
+/*
  * RMI Engineering boards which are PCI cards
  * These should come up in PCI device mode (not yet)
  */
