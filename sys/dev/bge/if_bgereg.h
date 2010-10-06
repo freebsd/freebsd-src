@@ -863,9 +863,12 @@
 #define	BGE_MISTS_LINK			0x00000001
 #define	BGE_MISTS_10MBPS		0x00000002
 
+#define	BGE_MIMODE_CLK_10MHZ		0x00000001
 #define	BGE_MIMODE_SHORTPREAMBLE	0x00000002
 #define	BGE_MIMODE_AUTOPOLL		0x00000010
 #define	BGE_MIMODE_CLKCNT		0x001F0000
+#define	BGE_MIMODE_500KHZ_CONST		0x00008000
+#define	BGE_MIMODE_BASE			0x000C0000
 
 
 /*
@@ -1220,6 +1223,51 @@
 
 /* Receive List Selector Status register */
 #define	BGE_RXLSSTAT_ERROR		0x00000004
+
+#define	BGE_CPMU_CTRL			0x3600
+#define	BGE_CPMU_LSPD_10MB_CLK		0x3604
+#define	BGE_CPMU_LSPD_1000MB_CLK	0x360C
+#define	BGE_CPMU_LNK_AWARE_PWRMD	0x3610
+#define	BGE_CPMU_HST_ACC		0x361C
+#define	BGE_CPMU_CLCK_STAT		0x3630
+#define	BGE_CPMU_MUTEX_REQ		0x365C
+#define	BGE_CPMU_MUTEX_GNT		0x3660
+#define	BGE_CPMU_PHY_STRAP		0x3664
+
+/* Central Power Management Unit (CPMU) register */
+#define	BGE_CPMU_CTRL_LINK_IDLE_MODE	0x00000200
+#define	BGE_CPMU_CTRL_LINK_AWARE_MODE	0x00000400
+#define	BGE_CPMU_CTRL_LINK_SPEED_MODE	0x00004000
+#define	BGE_CPMU_CTRL_GPHY_10MB_RXONLY	0x00010000
+
+/* Link Speed 10MB/No Link Power Mode Clock Policy register */
+#define	BGE_CPMU_LSPD_10MB_MACCLK_MASK	0x001F0000
+#define	BGE_CPMU_LSPD_10MB_MACCLK_6_25	0x00130000
+
+/* Link Speed 1000MB Power Mode Clock Policy register */
+#define	BGE_CPMU_LSPD_1000MB_MACCLK_62_5	0x00000000
+#define	BGE_CPMU_LSPD_1000MB_MACCLK_12_5	0x00110000
+#define	BGE_CPMU_LSPD_1000MB_MACCLK_MASK	0x001F0000
+
+/* Link Aware Power Mode Clock Policy register */
+#define	BGE_CPMU_LNK_AWARE_MACCLK_MASK	0x001F0000
+#define	BGE_CPMU_LNK_AWARE_MACCLK_6_25	0x00130000
+
+#define	BGE_CPMU_HST_ACC_MACCLK_MASK	0x001F0000
+#define	BGE_CPMU_HST_ACC_MACCLK_6_25	0x00130000
+
+/* CPMU Clock Status register */
+#define	BGE_CPMU_CLCK_STAT_MAC_CLCK_MASK	0x001F0000
+#define	BGE_CPMU_CLCK_STAT_MAC_CLCK_62_5	0x00000000
+#define	BGE_CPMU_CLCK_STAT_MAC_CLCK_12_5	0x00110000
+#define	BGE_CPMU_CLCK_STAT_MAC_CLCK_6_25	0x00130000
+
+/* CPMU Mutex Request register */
+#define	BGE_CPMU_MUTEX_REQ_DRIVER	0x00001000
+#define	BGE_CPMU_MUTEX_GNT_DRIVER	0x00001000
+
+/* CPMU GPHY Strap register */
+#define	BGE_CPMU_PHY_STRAP_IS_SERDES	0x00000020
 
 /*
  * Mbuf Cluster Free registers (has nothing to do with BSD mbufs)
@@ -2665,6 +2713,7 @@ struct bge_softc {
 #define	BGE_FLAG_JUMBO		0x00000002
 #define	BGE_FLAG_EADDR		0x00000008
 #define	BGE_FLAG_MII_SERDES	0x00000010
+#define	BGE_FLAG_CPMU_PRESENT	0x00000020
 #define	BGE_FLAG_MSI		0x00000100
 #define	BGE_FLAG_PCIX		0x00000200
 #define	BGE_FLAG_PCIE		0x00000400
@@ -2707,7 +2756,9 @@ struct bge_softc {
 	uint32_t		bge_rx_max_coal_bds;
 	uint32_t		bge_tx_max_coal_bds;
 	uint32_t		bge_tx_buf_ratio;
+	uint32_t		bge_mi_mode;
 	int			bge_if_flags;
+	int			bge_phy_addr;
 	int			bge_txcnt;
 	int			bge_link;	/* link state */
 	int			bge_link_evt;	/* pending link event */

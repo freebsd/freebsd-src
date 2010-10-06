@@ -768,38 +768,34 @@ static int
 bge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct bge_softc *sc;
-	uint32_t val, autopoll;
+	uint32_t val;
 	int i;
 
 	sc = device_get_softc(dev);
 
-	/*
-	 * Broadcom's own driver always assumes the internal
-	 * PHY is at GMII address 1. On some chips, the PHY responds
-	 * to accesses at all addresses, which could cause us to
-	 * bogusly attach the PHY 32 times at probe type. Always
-	 * restricting the lookup to address 1 is simpler than
-	 * trying to figure out which chips revisions should be
-	 * special-cased.
-	 */
-	if (phy != 1)
+	/* Prevent the probe from finding incorrect devices. */
+	if (phy != sc->bge_phy_addr)
 		return (0);
 
-	/* Reading with autopolling on may trigger PCI errors */
-	autopoll = CSR_READ_4(sc, BGE_MI_MODE);
-	if (autopoll & BGE_MIMODE_AUTOPOLL) {
-		BGE_CLRBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
-		DELAY(40);
+	/* Clear the autopoll bit if set, otherwise may trigger PCI errors. */
+	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
+		CSR_WRITE_4(sc, BGE_MI_MODE,
+		    sc->bge_mi_mode & ~BGE_MIMODE_AUTOPOLL);
+		DELAY(80);
 	}
 
 	CSR_WRITE_4(sc, BGE_MI_COMM, BGE_MICMD_READ | BGE_MICOMM_BUSY |
 	    BGE_MIPHY(phy) | BGE_MIREG(reg));
 
+	/* Poll for the PHY register access to complete. */
 	for (i = 0; i < BGE_TIMEOUT; i++) {
 		DELAY(10);
 		val = CSR_READ_4(sc, BGE_MI_COMM);
-		if (!(val & BGE_MICOMM_BUSY))
+		if ((val & BGE_MICOMM_BUSY) == 0) {
+			DELAY(5);
+			val = CSR_READ_4(sc, BGE_MI_COMM);
 			break;
+		}
 	}
 
 	if (i == BGE_TIMEOUT) {
@@ -807,16 +803,12 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 		    "PHY read timed out (phy %d, reg %d, val 0x%08x)\n",
 		    phy, reg, val);
 		val = 0;
-		goto done;
 	}
 
-	DELAY(5);
-	val = CSR_READ_4(sc, BGE_MI_COMM);
-
-done:
-	if (autopoll & BGE_MIMODE_AUTOPOLL) {
-		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
-		DELAY(40);
+	/* Restore the autopoll bit if necessary. */
+	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
+		CSR_WRITE_4(sc, BGE_MI_MODE, sc->bge_mi_mode);
+		DELAY(80);
 	}
 
 	if (val & BGE_MICOMM_READFAIL)
@@ -829,7 +821,6 @@ static int
 bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct bge_softc *sc;
-	uint32_t autopoll;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -838,11 +829,11 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 	    (reg == BRGPHY_MII_1000CTL || reg == BRGPHY_MII_AUXCTL))
 		return (0);
 
-	/* Reading with autopolling on may trigger PCI errors */
-	autopoll = CSR_READ_4(sc, BGE_MI_MODE);
-	if (autopoll & BGE_MIMODE_AUTOPOLL) {
-		BGE_CLRBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
-		DELAY(40);
+	/* Clear the autopoll bit if set, otherwise may trigger PCI errors. */
+	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
+		CSR_WRITE_4(sc, BGE_MI_MODE,
+		    sc->bge_mi_mode & ~BGE_MIMODE_AUTOPOLL);
+		DELAY(80);
 	}
 
 	CSR_WRITE_4(sc, BGE_MI_COMM, BGE_MICMD_WRITE | BGE_MICOMM_BUSY |
@@ -857,17 +848,16 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 		}
 	}
 
-	if (i == BGE_TIMEOUT) {
+	/* Restore the autopoll bit if necessary. */
+	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
+		CSR_WRITE_4(sc, BGE_MI_MODE, sc->bge_mi_mode);
+		DELAY(80);
+	}
+
+	if (i == BGE_TIMEOUT)
 		device_printf(sc->bge_dev,
 		    "PHY write timed out (phy %d, reg %d, val %d)\n",
 		    phy, reg, val);
-		return (0);
-	}
-
-	if (autopoll & BGE_MIMODE_AUTOPOLL) {
-		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
-		DELAY(40);
-	}
 
 	return (0);
 }
@@ -2502,6 +2492,9 @@ bge_attach(device_t dev)
 	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
+	/* Set default PHY address. */
+	sc->bge_phy_addr = 1;
+
 	/*
 	 * Don't enable Ethernet@WireSpeed for the 5700, 5906, or the
 	 * 5705 A0 and A1 chips.
@@ -2574,6 +2567,17 @@ bge_attach(device_t dev)
 		} else
 			sc->bge_phy_flags |= BGE_PHY_BER_BUG;
 	}
+
+	/* Identify the chips that use an CPMU. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM57780)
+		sc->bge_flags |= BGE_FLAG_CPMU_PRESENT;
+	if ((sc->bge_flags & BGE_FLAG_CPMU_PRESENT) != 0)
+		sc->bge_mi_mode = BGE_MIMODE_500KHZ_CONST;
+	else
+		sc->bge_mi_mode = BGE_MIMODE_BASE;
 
 	/*
 	 * All controllers that are not 5755 or higher have 4GB
