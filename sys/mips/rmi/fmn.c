@@ -397,7 +397,7 @@ create_msgring_thread(int hwtid)
 		mtx_init(&mthd->lock, "msgrngcore", NULL, MTX_SPIN);
 		mthd->running = mthd->nthreads = 0;
 	}
-	error = kproc_kthread_add(msgring_process, (void *)hwtid,
+	error = kproc_kthread_add(msgring_process, (void *)(uintptr_t)hwtid,
 	    &msgring_proc, &td, RFSTOPPED, 2, "msgrngproc",
 	    "msgthr%d", hwtid);
 	if (error)
