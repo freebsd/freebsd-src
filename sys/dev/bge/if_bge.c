@@ -1092,9 +1092,10 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 
 	sc->bge_jumbo = 0;
 
+	/* Enable the jumbo receive producer ring. */
 	rcb = &sc->bge_ldata.bge_info.bge_jumbo_rx_rcb;
-	rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0,
-				    BGE_RCB_FLAG_USE_EXT_RX_BD);
+	rcb->bge_maxlen_flags =
+	    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_USE_EXT_RX_BD);
 	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
 
 	bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, BGE_JUMBO_RX_RING_CNT - 1);
@@ -1473,7 +1474,7 @@ bge_blockinit(struct bge_softc *sc)
 	bus_size_t vrcb;
 	bge_hostaddr taddr;
 	uint32_t val;
-	int i;
+	int i, limit;
 
 	/*
 	 * Initialize the memory window pointer register so that
@@ -1553,7 +1554,38 @@ bge_blockinit(struct bge_softc *sc)
 		return (ENXIO);
 	}
 
-	/* Initialize the standard RX ring control block */
+	/*
+	 * Summary of rings supported by the controller:
+	 *
+	 * Standard Receive Producer Ring
+	 * - This ring is used to feed receive buffers for "standard"
+	 *   sized frames (typically 1536 bytes) to the controller.
+	 *
+	 * Jumbo Receive Producer Ring
+	 * - This ring is used to feed receive buffers for jumbo sized
+	 *   frames (i.e. anything bigger than the "standard" frames)
+	 *   to the controller.
+	 *
+	 * Mini Receive Producer Ring
+	 * - This ring is used to feed receive buffers for "mini"
+	 *   sized frames to the controller.
+	 * - This feature required external memory for the controller
+	 *   but was never used in a production system.  Should always
+	 *   be disabled.
+	 *
+	 * Receive Return Ring
+	 * - After the controller has placed an incoming frame into a
+	 *   receive buffer that buffer is moved into a receive return
+	 *   ring.  The driver is then responsible to passing the
+	 *   buffer up to the stack.  Many versions of the controller
+	 *   support multiple RR rings.
+	 *
+	 * Send Ring
+	 * - This ring is used for outgoing frames.  Many versions of
+	 *   the controller support multiple send rings.
+	 */
+
+	/* Initialize the standard receive producer ring control block. */
 	rcb = &sc->bge_ldata.bge_info.bge_std_rx_rcb;
 	rcb->bge_hostaddr.bge_addr_lo =
 	    BGE_ADDR_LO(sc->bge_ldata.bge_rx_std_ring_paddr);
@@ -1561,28 +1593,45 @@ bge_blockinit(struct bge_softc *sc)
 	    BGE_ADDR_HI(sc->bge_ldata.bge_rx_std_ring_paddr);
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREREAD);
-	if (BGE_IS_5705_PLUS(sc))
+	if (BGE_IS_5705_PLUS(sc)) {
+		/*
+		 * Bits 31-16: Programmable ring size (512, 256, 128, 64, 32)
+		 * Bits 15-2 : Reserved (should be 0)
+		 * Bit 1     : 1 = Ring Disabled, 0 = Ring Enabled
+		 * Bit 0     : Reserved
+		 */
 		rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(512, 0);
-	else
+	} else {
+		/*
+		 * Ring size is always XXX entries
+		 * Bits 31-16: Maximum RX frame size
+		 * Bits 15-2 : Reserved (should be 0)
+		 * Bit 1     : 1 = Ring Disabled, 0 = Ring Enabled
+		 * Bit 0     : Reserved
+		 */
 		rcb->bge_maxlen_flags =
 		    BGE_RCB_MAXLEN_FLAGS(BGE_MAX_FRAMELEN, 0);
+	}
 	rcb->bge_nicaddr = BGE_STD_RX_RINGS;
+	/* Write the standard receive producer ring control block. */
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_HI, rcb->bge_hostaddr.bge_addr_hi);
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_LO, rcb->bge_hostaddr.bge_addr_lo);
-
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_NICADDR, rcb->bge_nicaddr);
 
+	/* Reset the standard receive producer ring producer index. */
+	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, 0);
+
 	/*
-	 * Initialize the jumbo RX ring control block
-	 * We set the 'ring disabled' bit in the flags
-	 * field until we're actually ready to start
+	 * Initialize the jumbo RX producer ring control
+	 * block.  We set the 'ring disabled' bit in the
+	 * flags field until we're actually ready to start
 	 * using this ring (i.e. once we set the MTU
 	 * high enough to require it).
 	 */
 	if (BGE_IS_JUMBO_CAPABLE(sc)) {
 		rcb = &sc->bge_ldata.bge_info.bge_jumbo_rx_rcb;
-
+		/* Get the jumbo receive producer ring RCB parameters. */
 		rcb->bge_hostaddr.bge_addr_lo =
 		    BGE_ADDR_LO(sc->bge_ldata.bge_rx_jumbo_ring_paddr);
 		rcb->bge_hostaddr.bge_addr_hi =
@@ -1597,20 +1646,31 @@ bge_blockinit(struct bge_softc *sc)
 		    rcb->bge_hostaddr.bge_addr_hi);
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_HADDR_LO,
 		    rcb->bge_hostaddr.bge_addr_lo);
-
+		/* Program the jumbo receive producer ring RCB parameters. */
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS,
 		    rcb->bge_maxlen_flags);
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_NICADDR, rcb->bge_nicaddr);
+		/* Reset the jumbo receive producer ring producer index. */
+		bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, 0);
+	}
 
-		/* Set up dummy disabled mini ring RCB */
+	/* Disable the mini receive producer ring RCB. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
 		rcb = &sc->bge_ldata.bge_info.bge_mini_rx_rcb;
 		rcb->bge_maxlen_flags =
 		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
 		CSR_WRITE_4(sc, BGE_RX_MINI_RCB_MAXLEN_FLAGS,
 		    rcb->bge_maxlen_flags);
+		/* Reset the mini receive producer ring producer index. */
+		bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
 	}
 
 	/*
+	 * The BD ring replenish thresholds control how often the
+	 * hardware fetches new BD's from the producer rings in host
+	 * memory.  Setting the value too low on a busy system can
+	 * starve the hardware and recue the throughpout.
+	 *
 	 * Set the BD ring replentish thresholds. The recommended
 	 * values are 1/8th the number of descriptors allocated to
 	 * each ring.
@@ -1632,61 +1692,67 @@ bge_blockinit(struct bge_softc *sc)
 		    BGE_JUMBO_RX_RING_CNT/8);
 
 	/*
-	 * Disable all unused send rings by setting the 'ring disabled'
-	 * bit in the flags field of all the TX send ring control blocks.
-	 * These are located in NIC memory.
+	 * Disable all send rings by setting the 'ring disabled' bit
+	 * in the flags field of all the TX send ring control blocks,
+	 * located in NIC memory.
 	 */
+	if (!BGE_IS_5705_PLUS(sc))
+		/* 5700 to 5704 had 16 send rings. */
+		limit = BGE_TX_RINGS_EXTSSRAM_MAX;
+	else
+		limit = 1;
 	vrcb = BGE_MEMWIN_START + BGE_SEND_RING_RCB;
-	for (i = 0; i < BGE_TX_RINGS_EXTSSRAM_MAX; i++) {
+	for (i = 0; i < limit; i++) {
 		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
 		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED));
 		RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0);
 		vrcb += sizeof(struct bge_rcb);
 	}
 
-	/* Configure TX RCB 0 (we use only the first ring) */
+	/* Configure send ring RCB 0 (we use only the first ring) */
 	vrcb = BGE_MEMWIN_START + BGE_SEND_RING_RCB;
 	BGE_HOSTADDR(taddr, sc->bge_ldata.bge_tx_ring_paddr);
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_hi, taddr.bge_addr_hi);
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, taddr.bge_addr_lo);
 	RCB_WRITE_4(sc, vrcb, bge_nicaddr,
 	    BGE_NIC_TXRING_ADDR(0, BGE_TX_RING_CNT));
-	if (!(BGE_IS_5705_PLUS(sc)))
-		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
-		    BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0));
+	RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
+	    BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0));
 
-	/* Disable all unused RX return rings */
+	/*
+	 * Disable all receive return rings by setting the
+	 * 'ring diabled' bit in the flags field of all the receive
+	 * return ring control blocks, located in NIC memory.
+	 */
+	if (!BGE_IS_5705_PLUS(sc))
+		limit = BGE_RX_RINGS_MAX;
+	else if (sc->bge_asicrev == BGE_ASICREV_BCM5755)
+		limit = 4;
+	else
+		limit = 1;
+	/* Disable all receive return rings. */
 	vrcb = BGE_MEMWIN_START + BGE_RX_RETURN_RING_RCB;
-	for (i = 0; i < BGE_RX_RINGS_MAX; i++) {
+	for (i = 0; i < limit; i++) {
 		RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_hi, 0);
 		RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, 0);
 		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
-		    BGE_RCB_MAXLEN_FLAGS(sc->bge_return_ring_cnt,
-		    BGE_RCB_FLAG_RING_DISABLED));
+		    BGE_RCB_FLAG_RING_DISABLED);
 		RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0);
 		bge_writembx(sc, BGE_MBX_RX_CONS0_LO +
 		    (i * (sizeof(uint64_t))), 0);
 		vrcb += sizeof(struct bge_rcb);
 	}
 
-	/* Initialize RX ring indexes */
-	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, 0);
-	if (BGE_IS_JUMBO_CAPABLE(sc))
-		bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, 0);
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5700)
-		bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
-
 	/*
-	 * Set up RX return ring 0
-	 * Note that the NIC address for RX return rings is 0x00000000.
-	 * The return rings live entirely within the host, so the
-	 * nicaddr field in the RCB isn't used.
+	 * Set up receive return ring 0.  Note that the NIC address
+	 * for RX return rings is 0x0.  The return rings live entirely
+	 * within the host, so the nicaddr field in the RCB isn't used.
 	 */
 	vrcb = BGE_MEMWIN_START + BGE_RX_RETURN_RING_RCB;
 	BGE_HOSTADDR(taddr, sc->bge_ldata.bge_rx_return_ring_paddr);
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_hi, taddr.bge_addr_hi);
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, taddr.bge_addr_lo);
-	RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0x00000000);
+	RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0);
 	RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
 	    BGE_RCB_MAXLEN_FLAGS(sc->bge_return_ring_cnt, 0));
 
