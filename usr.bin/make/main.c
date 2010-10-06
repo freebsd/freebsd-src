@@ -686,11 +686,9 @@ check_make_level(void)
 	int	level = (value == NULL) ? 0 : atoi(value);
 
 	if (level < 0) {
-		errc(2, EAGAIN, "Invalid value for recursion level (%d).",
-		    level);
+		errx(2, "Invalid value for recursion level (%d).", level);
 	} else if (level > MKLVL_MAXVAL) {
-		errc(2, EAGAIN, "Max recursion level (%d) exceeded.",
-		    MKLVL_MAXVAL);
+		errx(2, "Max recursion level (%d) exceeded.", MKLVL_MAXVAL);
 	} else {
 		char new_value[32];
 		sprintf(new_value, "%d", level + 1);
