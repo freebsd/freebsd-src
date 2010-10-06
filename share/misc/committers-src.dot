@@ -165,6 +165,7 @@ philip [label="Philip Paeps\nphilip@FreBSD.org\n2004/01/21"]
 phk [label="Poul-Henning Kamp\nphk@FreeBSD.org\n1994/02/21"]
 pho [label="Peter Holm\npho@FreeBSD.org\n2008/11/16"]
 pjd [label="Pawel Jakub Dawidek\npjd@FreeBSD.org\n2004/02/02"]
+pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2010\10\05"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
@@ -228,6 +229,8 @@ day1 -> dg
 andre -> qingli
 
 anholt -> jkim
+
+avg -> pluknet
 
 benno -> grehan
 
@@ -377,6 +380,7 @@ kib -> ae
 kib -> dchagin
 kib -> lulf
 kib -> pho
+kib -> pluknet
 kib -> rdivacky
 kib -> rmacklem
 kib -> stas
