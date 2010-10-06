@@ -97,6 +97,8 @@ static uint8_t scsi_cmotech_eject[] =   { 0xff, 0x52, 0x44, 0x45, 0x56, 0x43,
 static uint8_t scsi_huawei_eject[] =	{ 0x11, 0x06, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00 };
+static uint8_t scsi_tct_eject[] =	{ 0x06, 0xf5, 0x04, 0x02, 0x52, 0x70 };
+static uint8_t scsi_tct_dummy[4];
 
 #define	BULK_SIZE		64	/* dummy */
 #define	ERR_CSW_FAILED		-1
@@ -618,6 +620,11 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
 		    &scsi_huawei_eject, sizeof(scsi_huawei_eject),
 		    USB_MS_HZ);
+		break;
+	case MSC_EJECT_TCT:
+		err = bbb_command_start(sc, DIR_IN, 0, &scsi_tct_dummy,
+		    sizeof(scsi_tct_dummy), &scsi_tct_eject,
+		    sizeof(scsi_tct_eject), USB_MS_HZ);
 		break;
 	default:
 		printf("usb_msc_eject: unknown eject method (%d)\n", method);
