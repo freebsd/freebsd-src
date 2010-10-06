@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/queue.h>
 #include <sys/resource.h>
@@ -931,26 +930,6 @@ main(int argc, char **argv)
 #endif
 
 	/*
-	 * Prior to 7.0, FreeBSD/pc98 kernel used to set the
-	 * utsname.machine to "i386", and MACHINE was defined as
-	 * "i386", so it could not be distinguished from FreeBSD/i386.
-	 * Therefore, we had to check machine.ispc98 and adjust the
-	 * MACHINE variable.  NOTE: The code is still here to be able
-	 * to compile new make binary on old FreeBSD/pc98 systems, and
-	 * have the MACHINE variable set properly.
-	 */
-	if ((machine = getenv("MACHINE")) == NULL) {
-		int	ispc98;
-		size_t	len;
-
-		len = sizeof(ispc98);
-		if (!sysctlbyname("machdep.ispc98", &ispc98, &len, NULL, 0)) {
-			if (ispc98)
-				machine = "pc98";
-		}
-	}
-
-	/*
 	 * Get the name of this type of MACHINE from utsname
 	 * so we can share an executable for similar machines.
 	 * (i.e. m68k: amiga hp300, mac68k, sun3, ...)
@@ -958,7 +937,7 @@ main(int argc, char **argv)
 	 * Note that both MACHINE and MACHINE_ARCH are decided at
 	 * run-time.
 	 */
-	if (machine == NULL) {
+	if ((machine = getenv("MACHINE")) == NULL) {
 		static struct utsname utsname;
 
 		if (uname(&utsname) == -1)
