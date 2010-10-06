@@ -198,8 +198,8 @@ cpu_reset(void)
 {
 
 	if (rst_sc) {
-		if (at91_cpu_is(AT91_CPU_SAM9G20))
-			cpu_reset_sam9g20();
+
+		cpu_reset_sam9g20(); /* May be null */
 
 		WR4(rst_sc, RST_MR,
 		    RST_MR_ERSTL(0xd) | RST_MR_URSTEN | RST_MR_KEY);

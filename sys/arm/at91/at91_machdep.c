@@ -368,8 +368,6 @@ initarm(void *arg, void *arg2)
 		(AT91_BASE + AT91_DBGU_BASE + DBGU_C1R);
 
 	memsize = board_init();
-
-	printf("memsize = %d\n", memsize);
 	physmem = memsize / PAGE_SIZE;
 
 	/*
