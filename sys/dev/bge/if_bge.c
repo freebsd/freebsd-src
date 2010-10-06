@@ -5355,7 +5355,7 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 			printf(" - PCI-X Bus\n");
 		if (sc->bge_flags & BGE_FLAG_PCIE)
 			printf(" - PCI Express Bus\n");
-		if (sc->bge_phy_flags & BGE_FLAG_NO_3LED)
+		if (sc->bge_phy_flags & BGE_PHY_NO_3LED)
 			printf(" - No 3 LEDs\n");
 		if (sc->bge_flags & BGE_FLAG_RX_ALIGNBUG)
 			printf(" - RX Alignment Bug\n");
