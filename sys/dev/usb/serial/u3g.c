@@ -93,6 +93,7 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GINIT_WAIT		7	/* Device reappears after a delay */
 #define	U3GINIT_SAEL_M460	8	/* Requires vendor init */
 #define	U3GINIT_HUAWEISCSI	9	/* Requires Huawei SCSI init command */
+#define	U3GINIT_TCT		10	/* Requires TCT Mobile init command */
 
 enum {
 	U3G_BULK_WR,
@@ -492,6 +493,7 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(STELERA, E1011, 0),
 	U3G_DEV(STELERA, E1012, 0),
 	U3G_DEV(TCTMOBILE, X060S, 0),
+	U3G_DEV(TCTMOBILE, X080S, U3GINIT_TCT),
 	U3G_DEV(TELIT, UC864E, 0),
 	U3G_DEV(TELIT, UC864G, 0),
 	U3G_DEV(TLAYTECH, TEU800, 0),
@@ -668,6 +670,9 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 			break;
 		case U3GINIT_CMOTECH:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_CMOTECH);
+			break;
+		case U3GINIT_TCT:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_TCT);
 			break;
 		case U3GINIT_SIERRA:
 			error = u3g_sierra_init(udev);
