@@ -6790,6 +6790,7 @@ struct bce_softc
 	/* Number of VLAN tagged frames stripped. */
 	u32			vlan_tagged_frames_stripped;
 #endif
+	uint8_t *nvram_buf;
 };
 
 #endif /* __BCEREG_H_DEFINED */

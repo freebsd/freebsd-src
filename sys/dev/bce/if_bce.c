@@ -343,6 +343,12 @@ static int  bce_miibus_read_reg		(device_t, int, int);
 static int  bce_miibus_write_reg	(device_t, int, int, int);
 static void bce_miibus_statchg		(device_t);
 
+#ifdef BCE_DEBUG
+static int sysctl_nvram_dump(SYSCTL_HANDLER_ARGS);
+#ifdef BCE_NVRAM_WRITE_SUPPORT
+static int sysctl_nvram_write(SYSCTL_HANDLER_ARGS);
+#endif
+#endif
 
 /****************************************************************************/
 /* BCE NVRAM Access Routines                                                */
@@ -8342,6 +8348,57 @@ bce_sysctl_phy_read(SYSCTL_HANDLER_ARGS)
 }
 
 
+static int
+sysctl_nvram_dump(SYSCTL_HANDLER_ARGS)
+{
+	struct bce_softc *sc = (struct bce_softc *)arg1;
+	int error, i;
+
+	if (sc->nvram_buf == NULL) {
+		sc->nvram_buf = malloc(sc->bce_flash_size,
+				       M_TEMP, M_ZERO | M_WAITOK);
+	}
+	if (sc->nvram_buf == NULL) {
+		return(ENOMEM);
+	}
+	if (req->oldlen == sc->bce_flash_size) {
+		for (i = 0; i < sc->bce_flash_size; i++) {
+			bce_nvram_read(sc, i, &sc->nvram_buf[i], 1);
+		}
+	}
+
+	error = SYSCTL_OUT(req, sc->nvram_buf, sc->bce_flash_size);
+
+	return error;
+}
+
+#ifdef BCE_NVRAM_WRITE_SUPPORT
+static int
+sysctl_nvram_write(SYSCTL_HANDLER_ARGS)
+{
+	struct bce_softc *sc = (struct bce_softc *)arg1;
+	int error;
+
+	if (sc->nvram_buf == NULL) {
+		sc->nvram_buf = malloc(sc->bce_flash_size,
+				       M_TEMP, M_ZERO | M_WAITOK);
+	}
+	if (sc->nvram_buf == NULL) {
+		return(ENOMEM);
+	}
+	bzero(sc->nvram_buf, sc->bce_flash_size);
+	error = SYSCTL_IN(req, sc->nvram_buf, sc->bce_flash_size);
+
+	if (req->newlen == sc->bce_flash_size) {
+		bce_nvram_write(sc, 0, sc->nvram_buf , sc->bce_flash_size);
+	}
+
+
+	return error;
+}
+#endif
+
+
 /****************************************************************************/
 /* Provides a sysctl interface to allow reading a CID.                      */
 /*                                                                          */
@@ -8566,6 +8623,16 @@ bce_add_sysctls(struct bce_softc *sc)
 	    "interrupts_tx",
 	    CTLFLAG_RD, &sc->interrupts_tx,
 	    0, "Number of TX interrupts");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
+	    "nvram_dump", CTLTYPE_OPAQUE | CTLFLAG_RD,
+	    (void *)sc, 0,
+	    sysctl_nvram_dump, "S", "");
+#ifdef BCE_NVRAM_WRITE_SUPPORT
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
+	    "nvram_write", CTLTYPE_OPAQUE | CTLFLAG_WR,
+	    (void *)sc, 0,
+	    sysctl_nvram_write, "S", "");
+#endif
 #endif
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
