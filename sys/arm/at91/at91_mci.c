@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2006 Bernd Walter.  All rights reserved.
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2010 Greg Ansley.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
@@ -52,15 +54,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
-#include <arm/at91/at91rm92reg.h>
+
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_mcireg.h>
 #include <arm/at91/at91_pdcreg.h>
+
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 
 #include "mmcbr_if.h"
+
+#include "opt_at91.h"
 
 #define BBSZ	512
 
@@ -69,8 +74,9 @@ struct at91_mci_softc {
 	device_t dev;
 	int sc_cap;
 #define	CAP_HAS_4WIRE		1	/* Has 4 wire bus */
-#define	CAP_NEEDS_BOUNCE	2	/* broken hardware needing bounce */
+#define	CAP_NEEDS_BYTESWAP	2	/* broken hardware needing bounce */
 	int flags;
+	int has_4wire;
 #define CMD_STARTED	1
 #define STOP_STARTED	2
 	struct resource *irq_res;	/* IRQ resource */
@@ -89,7 +95,7 @@ struct at91_mci_softc {
 static inline uint32_t
 RD4(struct at91_mci_softc *sc, bus_size_t off)
 {
-	return bus_read_4(sc->mem_res, off);
+	return (bus_read_4(sc->mem_res, off));
 }
 
 static inline void
@@ -140,7 +146,13 @@ at91_mci_init(device_t dev)
 	WR4(sc, MCI_IDR, 0xffffffff);		/* Turn off interrupts */
 	WR4(sc, MCI_DTOR, MCI_DTOR_DTOMUL_1M | 1);
 	WR4(sc, MCI_MR, 0x834a);	// XXX GROSS HACK FROM LINUX
+#ifndef  AT91_MCI_SLOT_B
 	WR4(sc, MCI_SDCR, 0);			/* SLOT A, 1 bit bus */
+#else
+	/* XXX Really should add second "unit" but nobody using using 
+	 * a two slot card that we know of. XXX */
+	WR4(sc, MCI_SDCR, 1);			/* SLOT B, 1 bit bus */
+#endif
 }
 
 static void
@@ -165,11 +177,16 @@ static int
 at91_mci_attach(device_t dev)
 {
 	struct at91_mci_softc *sc = device_get_softc(dev);
-	int err;
+	struct sysctl_ctx_list *sctx;
+	struct sysctl_oid *soid;
 	device_t child;
+	int err;
 
 	sc->dev = dev;
-	sc->sc_cap = CAP_NEEDS_BOUNCE;
+
+	sc->sc_cap = 0;
+	if (at91_is_rm92())
+		sc->sc_cap |= CAP_NEEDS_BYTESWAP;
 	err = at91_mci_activate(dev);
 	if (err)
 		goto out;
@@ -201,13 +218,28 @@ at91_mci_attach(device_t dev)
 		AT91_MCI_LOCK_DESTROY(sc);
 		goto out;
 	}
+
+	sctx = device_get_sysctl_ctx(dev);
+	soid = device_get_sysctl_tree(dev);
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "4wire",
+	    CTLFLAG_RW, &sc->has_4wire, 0, "has 4 wire SD Card bus");
+
+#ifdef AT91_MCI_HAS_4WIRE
+	sc->has_4wire = 1;
+#endif
+	if (sc->has_4wire)
+		sc->sc_cap |= CAP_HAS_4WIRE;
+
+	sc->host.f_min = at91_master_clock / 512;
 	sc->host.f_min = 375000;
-	sc->host.f_max = at91_master_clock / 2;	/* Typically 30MHz */
+	sc->host.f_max = at91_master_clock / 2;
+	if (sc->host.f_max > 50000000)	
+		sc->host.f_max = 50000000;	/* Limit to 50MHz */
+
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
+	sc->host.caps = 0;
 	if (sc->sc_cap & CAP_HAS_4WIRE)
-		sc->host.caps = MMC_CAP_4_BIT_DATA;
-	else
-		sc->host.caps = 0;
+		sc->host.caps |= MMC_CAP_4_BIT_DATA;
 	child = device_add_child(dev, "mmc", 0);
 	device_set_ivars(dev, &sc->host);
 	err = bus_generic_attach(dev);
@@ -237,11 +269,13 @@ at91_mci_activate(device_t dev)
 	    RF_ACTIVE);
 	if (sc->mem_res == NULL)
 		goto errout;
+
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
 	if (sc->irq_res == NULL)
 		goto errout;
+
 	return (0);
 errout:
 	at91_mci_deactivate(dev);
@@ -316,14 +350,16 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 	uint32_t *src, *dst;
 	int i;
 	struct mmc_data *data;
-	struct mmc_request *req;
 	void *vaddr;
 	bus_addr_t paddr;
 
 	sc->curcmd = cmd;
 	data = cmd->data;
 	cmdr = cmd->opcode;
-	req = cmd->mrq;
+
+	/* XXX Upper layers don't always set this */
+	cmd->mrq = sc->req;
+
 	if (MMC_RSP(cmd->flags) == MMC_RSP_NONE)
 		cmdr |= MCI_CMDR_RSPTYP_NO;
 	else {
@@ -364,26 +400,30 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 		if (cmdr & MCI_CMDR_TRDIR)
 			vaddr = cmd->data->data;
 		else {
-			if (sc->sc_cap & CAP_NEEDS_BOUNCE) {
-				vaddr = sc->bounce_buffer;
-				src = (uint32_t *)cmd->data->data;
-				dst = (uint32_t *)vaddr;
+			/* Use bounce buffer even if we don't need
+			 * byteswap, since buffer may straddle a page
+			 * boundry, and we don't handle multi-segment
+			 * transfers in hardware.
+			 * (page issues seen from 'bsdlabel -w' which
+			 * uses raw geom access to the volume).
+			 * Greg Ansley (gja (at) ansley.com)
+			 */
+			vaddr = sc->bounce_buffer;
+			src = (uint32_t *)cmd->data->data;
+			dst = (uint32_t *)vaddr;
+			if (sc->sc_cap & CAP_NEEDS_BYTESWAP) {
 				for (i = 0; i < data->len / 4; i++)
 					dst[i] = bswap32(src[i]);
-			}
-			else
-				vaddr = cmd->data->data;
+			} else
+				memcpy(dst, src, data->len);
 		}
 		data->xfer_len = 0;
 		if (bus_dmamap_load(sc->dmatag, sc->map, vaddr, data->len,
 		    at91_mci_getaddr, &paddr, 0) != 0) {
-			if (req->cmd->flags & STOP_STARTED)
-				req->stop->error = MMC_ERR_NO_MEMORY;
-			else
-				req->cmd->error = MMC_ERR_NO_MEMORY;
+			cmd->error = MMC_ERR_NO_MEMORY;
 			sc->req = NULL;
 			sc->curcmd = NULL;
-			req->done(req);
+			cmd->mrq->done(cmd->mrq);
 			return;
 		}
 		sc->mapped++;
@@ -451,7 +491,7 @@ at91_mci_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 	// XXX maybe the idea is naive...
 	if (sc->req != NULL) {
 		AT91_MCI_UNLOCK(sc);
-		return EBUSY;
+		return (EBUSY);
 	}
 	sc->req = req;
 	sc->flags = 0;
@@ -503,7 +543,7 @@ at91_mci_read_done(struct at91_mci_softc *sc)
 	bus_dmamap_sync(sc->dmatag, sc->map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(sc->dmatag, sc->map);
 	sc->mapped--;
-	if (sc->sc_cap & CAP_NEEDS_BOUNCE) {
+	if (sc->sc_cap & CAP_NEEDS_BYTESWAP) {
 		walker = (uint32_t *)cmd->data->data;
 		len = cmd->data->len / 4;
 		for (i = 0; i < len; i++)
@@ -653,6 +693,13 @@ at91_mci_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		*(int *)result = sc->host.ios.vdd;
 		break;
 	case MMCBR_IVAR_CAPS:
+		if (sc->has_4wire) {
+			sc->sc_cap |= CAP_HAS_4WIRE;
+			sc->host.caps |= MMC_CAP_4_BIT_DATA;
+		} else {
+			sc->sc_cap &= ~CAP_HAS_4WIRE;
+			sc->host.caps &= ~MMC_CAP_4_BIT_DATA;
+		}
 		*(int *)result = sc->host.caps;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
