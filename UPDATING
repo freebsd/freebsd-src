@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	uses /etc/manpath.config. Please consult man.conf(5) for how to
 	migrate local entries to the new format.
 
+20100928:
+	The copyright strings printed by login(1) and sshd(8) at the time of a
+	new connection have been removed to follow other operating systems and
+	upstream sshd.
+
 20100915:
 	A workaround for a fixed ld bug has been removed in kernel code,
 	so make sure that your system ld is built from sources after
