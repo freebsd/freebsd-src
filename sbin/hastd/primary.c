@@ -238,6 +238,7 @@ cleanup(struct hast_resource *res)
 	if (res->hr_ggateunit >= 0) {
 		struct g_gate_ctl_destroy ggiod;
 
+		bzero(&ggiod, sizeof(ggiod));
 		ggiod.gctl_version = G_GATE_VERSION;
 		ggiod.gctl_unit = res->hr_ggateunit;
 		ggiod.gctl_force = 1;
@@ -700,6 +701,7 @@ init_ggate(struct hast_resource *res)
 	 * Create provider before trying to connect, as connection failure
 	 * is not critical, but may take some time.
 	 */
+	bzero(&ggiocreate, sizeof(ggiocreate));
 	ggiocreate.gctl_version = G_GATE_VERSION;
 	ggiocreate.gctl_mediasize = res->hr_datasize;
 	ggiocreate.gctl_sectorsize = res->hr_local_sectorsize;
@@ -709,7 +711,6 @@ init_ggate(struct hast_resource *res)
 	ggiocreate.gctl_unit = G_GATE_NAME_GIVEN;
 	snprintf(ggiocreate.gctl_name, sizeof(ggiocreate.gctl_name), "hast/%s",
 	    res->hr_provname);
-	bzero(ggiocreate.gctl_info, sizeof(ggiocreate.gctl_info));
 	if (ioctl(res->hr_ggatefd, G_GATE_CMD_CREATE, &ggiocreate) == 0) {
 		pjdlog_info("Device hast/%s created.", res->hr_provname);
 		res->hr_ggateunit = ggiocreate.gctl_unit;
@@ -727,6 +728,7 @@ init_ggate(struct hast_resource *res)
 	 * provider died and didn't clean up. In that case we will start from
 	 * where he left of.
 	 */
+	bzero(&ggiocancel, sizeof(ggiocancel));
 	ggiocancel.gctl_version = G_GATE_VERSION;
 	ggiocancel.gctl_unit = G_GATE_NAME_GIVEN;
 	snprintf(ggiocancel.gctl_name, sizeof(ggiocancel.gctl_name), "hast/%s",
@@ -928,6 +930,7 @@ ggate_recv_thread(void *arg)
 		QUEUE_TAKE2(hio, free);
 		pjdlog_debug(2, "ggate_recv: (%p) Got free request.", hio);
 		ggio = &hio->hio_ggio;
+		bzero(ggio, sizeof(*ggio));
 		ggio->gctl_unit = res->hr_ggateunit;
 		ggio->gctl_length = MAXPHYS;
 		ggio->gctl_error = 0;
