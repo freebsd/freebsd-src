@@ -2656,14 +2656,12 @@ bge_attach(device_t dev)
 	if (BGE_IS_5755_PLUS(sc) == 0)
 		sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
 
-	/*
-	 * We could possibly check for BCOM_DEVICEID_BCM5788 in bge_probe()
-	 * but I do not know the DEVICEID for the 5788M.
-	 */
-	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
-	if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
-	    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
-		sc->bge_flags |= BGE_FLAG_5788;
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
+		misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
+		if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
+		    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
+			sc->bge_flags |= BGE_FLAG_5788;
+	}
 
 	/*
 	 * Some controllers seem to require a special firmware to use
