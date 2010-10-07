@@ -128,6 +128,7 @@ jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 joe [label="Josef Karthauser\njoe@FreeBSD.org\n1999/10/22"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
+jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/??/??"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
@@ -460,6 +461,7 @@ rwatson -> cperciva
 rwatson -> emaste
 rwatson -> gnn
 rwatson -> jh
+rwatson -> jonathan
 rwatson -> kensmith
 rwatson -> kmacy
 rwatson -> linimon
