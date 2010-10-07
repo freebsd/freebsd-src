@@ -791,6 +791,12 @@ hastd_primary(struct hast_resource *res)
 	init_ggate(res);
 	init_environment(res);
 	/*
+	 * Create the guard thread first, so we can handle signals from the
+	 * very begining.
+	 */
+	error = pthread_create(&td, NULL, guard_thread, res);
+	assert(error == 0);
+	/*
 	 * Create the control thread before sending any event to the parent,
 	 * as we can deadlock when parent sends control request to worker,
 	 * but worker has no control thread started yet, so parent waits.
@@ -812,9 +818,7 @@ hastd_primary(struct hast_resource *res)
 	assert(error == 0);
 	error = pthread_create(&td, NULL, ggate_send_thread, res);
 	assert(error == 0);
-	error = pthread_create(&td, NULL, sync_thread, res);
-	assert(error == 0);
-	(void)guard_thread(res);
+	(void)sync_thread(res);
 }
 
 static void
