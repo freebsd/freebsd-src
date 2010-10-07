@@ -1258,6 +1258,7 @@ abortit:
 		}
 	}
 
+	cache_purge(fvp);
 	VOP_UNLOCK(fvp, 0);
 bad:
 	if (xp)
