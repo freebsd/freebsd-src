@@ -234,12 +234,6 @@ cleanup(struct hast_resource *res)
 	/* Remember errno. */
 	rerrno = errno;
 
-	/*
-	 * Close descriptor to /dev/hast/<name>
-	 * to work-around race in the kernel.
-	 */
-	close(res->hr_localfd);
-
 	/* Destroy ggate provider if we created one. */
 	if (res->hr_ggateunit >= 0) {
 		struct g_gate_ctl_destroy ggiod;
