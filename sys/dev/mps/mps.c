@@ -805,6 +805,9 @@ mps_attach(struct mps_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "hw.mps.%d.debug_level",
 	    device_get_unit(sc->mps_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->mps_debug);
+	snprintf(tmpstr, sizeof(tmpstr), "hw.mps.%d.allow_multiple_tm_cmds",
+	    device_get_unit(sc->mps_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->allow_multiple_tm_cmds);
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
@@ -830,6 +833,11 @@ mps_attach(struct mps_softc *sc)
 	SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    OID_AUTO, "debug_level", CTLFLAG_RW, &sc->mps_debug, 0,
 	    "mps debug level");
+
+	SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	    OID_AUTO, "allow_multiple_tm_cmds", CTLFLAG_RW,
+	    &sc->allow_multiple_tm_cmds, 0,
+	    "allow multiple simultaneous task management cmds");
 
 	if ((error = mps_transition_ready(sc)) != 0)
 		return (error);
@@ -873,6 +881,7 @@ mps_attach(struct mps_softc *sc)
 	    sc->facts->MaxReplyDescriptorPostQueueDepth) - 1;
 	TAILQ_INIT(&sc->req_list);
 	TAILQ_INIT(&sc->chain_list);
+	TAILQ_INIT(&sc->tm_list);
 
 	if (((error = mps_alloc_queues(sc)) != 0) ||
 	    ((error = mps_alloc_replies(sc)) != 0) ||
@@ -1470,6 +1479,10 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	return;
 }
 
+/*
+ * Note that the only error path here is from bus_dmamap_load(), which can
+ * return EINPROGRESS if it is waiting for resources.
+ */
 int
 mps_map_command(struct mps_softc *sc, struct mps_command *cm)
 {
