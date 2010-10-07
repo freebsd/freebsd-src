@@ -356,6 +356,20 @@ man_display_page() {
 man_find_and_display() {
 	local found_page locpath p path sect
 
+	# Check to see if it's a file. But only if it has a '/' in
+	# the filename.
+	case "$1" in
+	*/*)	if [ -f "$1" -a -r "$1" ]; then
+			decho "Found a usable page, displaying that"
+			found_page=yes
+			unset use_cat
+			manpage="$1"
+			man_display_page
+			return
+		fi
+		;;
+	esac
+
 	IFS=:
 	for sect in $MANSECT; do
 		decho "Searching section $sect" 2
