@@ -972,7 +972,7 @@ nd_handle_arp(struct mbuf **mb)
 	m->m_len = sizeof(*ah) + (2 * ah->ar_pln) + (2 * ah->ar_hln);
 	m->m_pkthdr.len = m->m_len;
 
-	bcopy(dst.octet, ar_tha(ah), ETHER_ADDR_LEN);
+	bcopy(ar_tha(ah), dst.octet, ETHER_ADDR_LEN);
 	netdump_ether_output(m, ifp, dst, ETHERTYPE_ARP);
 	*mb = NULL; /* Don't m_free upon return */
 }
