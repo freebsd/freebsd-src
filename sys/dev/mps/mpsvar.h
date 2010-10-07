@@ -81,6 +81,7 @@ struct mps_command {
 #define MPS_CM_FLAGS_DATAOUT		(1 << 3)
 #define MPS_CM_FLAGS_DATAIN		(1 << 4)
 #define MPS_CM_FLAGS_WAKEUP		(1 << 5)
+#define MPS_CM_FLAGS_ACTIVE		(1 << 6)
 	u_int				cm_state;
 #define MPS_CM_STATE_FREE		0
 #define MPS_CM_STATE_BUSY		1
@@ -109,6 +110,8 @@ struct mps_softc {
 #define MPS_FLAGS_BUSY		(1 << 2)
 #define MPS_FLAGS_SHUTDOWN	(1 << 3)
 	u_int				mps_debug;
+	u_int				allow_multiple_tm_cmds;
+	int				tm_cmds_active;
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;
 	struct mps_command		*commands;
@@ -119,6 +122,7 @@ struct mps_softc {
 
 	TAILQ_HEAD(, mps_command)	req_list;
 	TAILQ_HEAD(, mps_chain)		chain_list;
+	TAILQ_HEAD(, mps_command)	tm_list;
 	int				replypostindex;
 	int				replyfreeindex;
 	int				replycurindex;
