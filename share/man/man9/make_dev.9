@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2010
+.Dd October 7, 2010
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
@@ -131,12 +131,18 @@ argument alters the operation of
 .Fn make_dev_credf .
 The following values are currently accepted:
 .Pp
-.Bd -literal -offset indent -compact
-MAKEDEV_REF	reference the created device
-MAKEDEV_NOWAIT	do not sleep, may return NULL
-MAKEDEV_WAITOK	allow the function to sleep to satisfy malloc
-MAKEDEV_ETERNAL	created device will be never destroyed
-.Ed
+.Bl -tag -width "MAKEDEV_CHECKNAME" -compact -offset indent
+.It MAKEDEV_REF
+reference the created device
+.It MAKEDEV_NOWAIT
+do not sleep, may return NULL
+.It MAKEDEV_WAITOK
+allow the function to sleep to satisfy malloc
+.It MAKEDEV_ETERNAL
+created device will be never destroyed
+.It MAKEDEV_CHECKNAME
+return NULL if the device name is invalid or already exists
+.El
 .Pp
 The
 .Dv MAKEDEV_WAITOK
@@ -165,6 +171,9 @@ For the convenience, use the
 .Dv MAKEDEV_ETERNAL_KLD
 flag for the code that can be compiled into kernel or loaded
 (and unloaded) as loadable module.
+.Pp
+A panic will occur if the MAKEDEV_CHECKNAME flag is not specified
+and the device name is invalid or already exists.
 .Pp
 The
 .Fn make_dev_cred
