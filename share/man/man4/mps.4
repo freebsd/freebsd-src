@@ -31,7 +31,7 @@
 .\"
 .\" Author: Ken Merry <ken@FreeBSD.org>
 .\"
-.\" $Id: //depot/SpectraBSD/head/share/man/man4/mps.4#1 $
+.\" $Id: //depot/SpectraBSD/head/share/man/man4/mps.4#4 $
 .\" $FreeBSD$
 .\"
 .Dd September 13, 2010
@@ -97,6 +97,20 @@ driver instances, set the following tunable value in
 .Bd -literal -offset indent
 hw.mps.disable_msix=1
 .Ed
+.Pp
+To allow the driver to send multiple task management commands (like abort,
+LUN reset, etc.), set the following variable:
+.Bd -literal -offset indent
+hw.mps.X.allow_multiple_tm_cmds=1
+.Ed
+.Pp
+via
+.Xr loader.conf 5
+or
+.Xr sysctl 8 ,
+where X is the adapter number.
+By default the driver only sends one task management command at a time, to
+avoid causing a potential controller lock-up.
 .Sh DEBUGGING
 To enable debugging prints from the
 .Nm
