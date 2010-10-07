@@ -242,7 +242,8 @@ cleanup(struct hast_resource *res)
 		ggiod.gctl_unit = res->hr_ggateunit;
 		ggiod.gctl_force = 1;
 		if (ioctl(res->hr_ggatefd, G_GATE_CMD_DESTROY, &ggiod) < 0) {
-			pjdlog_warning("Unable to destroy hast/%s device",
+			pjdlog_errno(LOG_WARNING,
+			    "Unable to destroy hast/%s device",
 			    res->hr_provname);
 		}
 		res->hr_ggateunit = -1;
