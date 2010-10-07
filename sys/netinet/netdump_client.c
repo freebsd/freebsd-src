@@ -379,8 +379,8 @@ netdump_ether_output(struct mbuf *m, struct ifnet *ifp, struct ether_addr dst,
 		return ENOBUFS;
 	}
 	eh = mtod(m, struct ether_header *);
-	bcopy(IF_LLADDR(ifp), eh->ether_shost, ETHER_ADDR_LEN);
-	bcopy(dst.octet, eh->ether_dhost, ETHER_ADDR_LEN);
+	memcpy(eh->ether_shost, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+	memcpy(eh->ether_dhost, dst.octet, ETHER_ADDR_LEN);
 	eh->ether_type = htons(etype);
 
 	if (((ifp->if_flags & (IFF_MONITOR|IFF_UP)) != IFF_UP) ||
@@ -495,7 +495,7 @@ netdump_send_arp()
 	ah->ar_hln = ETHER_ADDR_LEN;
 	ah->ar_pln = sizeof(struct in_addr);
 	ah->ar_op = htons(ARPOP_REQUEST);
-	bcopy(IF_LLADDR(nd_nic), ar_sha(ah), ETHER_ADDR_LEN);
+	memcpy(ar_sha(ah), IF_LLADDR(nd_nic), ETHER_ADDR_LEN);
 	((struct in_addr *)ar_spa(ah))->s_addr = nd_client.s_addr;
 	bzero(ar_tha(ah), ETHER_ADDR_LEN);
 	((struct in_addr *)ar_tpa(ah))->s_addr = nd_gw.s_addr;
@@ -904,8 +904,8 @@ nd_handle_arp(struct mbuf **mb)
 	ah = mtod(m, struct arphdr *);
 
 	op = ntohs(ah->ar_op);
-	bcopy(ar_spa(ah), &isaddr, sizeof(isaddr));
-	bcopy(ar_tpa(ah), &itaddr, sizeof(itaddr));
+	memcpy(&isaddr, ar_spa(ah), sizeof(isaddr));
+	memcpy(&itaddr, ar_tpa(ah), sizeof(itaddr));
 	enaddr = (uint8_t *)IF_LLADDR(ifp);
 	myaddr = nd_client;
 
@@ -943,7 +943,7 @@ nd_handle_arp(struct mbuf **mb)
 			    "%s (not netdump server)\n", buf);
 			return;
 		}
-		bcopy(ar_sha(ah), nd_gw_mac.octet,
+		memcpy(nd_gw_mac.octet, ar_sha(ah),
 				min(ah->ar_hln, ETHER_ADDR_LEN));
 		have_server_mac = 1;
 		NETDDEBUG("\nnd_handle_arp: Got server MAC address %6D\n",
@@ -962,17 +962,17 @@ nd_handle_arp(struct mbuf **mb)
 		return;
 	}
 
-	bcopy(ar_sha(ah), ar_tha(ah), ah->ar_hln);
-	bcopy(enaddr, ar_sha(ah), ah->ar_hln);
-	bcopy(ar_spa(ah), ar_tpa(ah), ah->ar_pln);
-	bcopy(&itaddr, ar_spa(ah), ah->ar_pln);
+	memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
+	memcpy(ar_sha(ah), enaddr, ah->ar_hln);
+	memcpy(ar_tpa(ah), ar_spa(ah), ah->ar_pln);
+	memcpy(ar_spa(ah), &itaddr, ah->ar_pln);
 	ah->ar_op = htons(ARPOP_REPLY);
 	ah->ar_pro = htons(ETHERTYPE_IP); /* let's be sure! */
 	m->m_flags &= ~(M_BCAST|M_MCAST); /* never reply by broadcast */
 	m->m_len = sizeof(*ah) + (2 * ah->ar_pln) + (2 * ah->ar_hln);
 	m->m_pkthdr.len = m->m_len;
 
-	bcopy(ar_tha(ah), dst.octet, ETHER_ADDR_LEN);
+	memcpy(dst.octet, ar_tha(ah), ETHER_ADDR_LEN);
 	netdump_ether_output(m, ifp, dst, ETHERTYPE_ARP);
 	*mb = NULL; /* Don't m_free upon return */
 }
@@ -1114,7 +1114,7 @@ netdump_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
 	else if (offset > 0)
 		offset -= sizeof(struct kerneldumpheader);
 
-	bcopy(virtual, buf, length);
+	memcpy(buf, virtual, length);
 	err=netdump_send(msgtype, offset, buf, length);
 	if (err) {
 		dump_failed=1;
