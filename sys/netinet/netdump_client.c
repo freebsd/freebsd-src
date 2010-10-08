@@ -254,9 +254,11 @@ sysctl_nic(SYSCTL_HANDLER_ARGS)
 		if (!strcmp(buf, "none")) {
 			ifn = NULL;
 		} else {
-			if ((ifn = TAILQ_FIRST(&ifnet)) != NULL) do {
+			IFNET_RLOCK_NOSLEEP();
+			if ((ifn = TAILQ_FIRST(&V_ifnet)) != NULL) do {
 				if (!strcmp(ifn->if_xname, buf)) break;
 			} while ((ifn = TAILQ_NEXT(ifn, if_link)) != NULL);
+			IFNET_RUNLOCK_NOSLEEP();
 
 			if (!ifn) return ENODEV;
 			if (!netdump_supported_nic(ifn)) return EINVAL;
@@ -1289,12 +1291,14 @@ netdump_config_defaults()
 		inet_aton(nd_gw_tun, &nd_gw);
 	if (nd_nic_tun[0] != '\0') {
 		found = 0;
-		TAILQ_FOREACH(ifn, &ifnet, if_link) {
+		IFNET_RLOCK_NOSLEEP();
+		TAILQ_FOREACH(ifn, &V_ifnet, if_link) {
 			if (!strcmp(ifn->if_xname, nd_nic_tun)) {
 				found = 1;
 				break;
 			}
 		}
+		IFNET_RUNLOCK_NOSLEEP();
 		if (found != 0 && netdump_supported_nic(ifn))
 			nd_nic = ifn;
 	}
