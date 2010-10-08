@@ -65,7 +65,7 @@ options 	FLOWTABLE		# per-cpu routing cache
 #options 	KDTRACE_FRAME		# Ensure frames are compiled in
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
-options		NETDUMP_CLIENT
+
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
 options 	DDB			# Support DDB.

@@ -6,6 +6,6 @@ SRCS    += ixgbe.c
 # Shared source
 SRCS    += ixgbe_common.c ixgbe_api.c ixgbe_phy.c
 SRCS    += ixgbe_82599.c ixgbe_82598.c
-CFLAGS+= -I${.CURDIR}/../../dev/ixgbe -DSMP -DNETDUMP_CLIENT -DIXGBE_FDIR
+CFLAGS+= -I${.CURDIR}/../../dev/ixgbe -DSMP -DIXGBE_FDIR
 
 .include <bsd.kmod.mk>
