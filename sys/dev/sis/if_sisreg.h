@@ -304,25 +304,13 @@
 #define NS_FILTADDR_FMEM_HI	0x000003FE
 
 /*
- * DMA descriptor structures. The first part of the descriptor
- * is the hardware descriptor format, which is just three longwords.
- * After this, we include some additional structure members for
- * use by the driver. Note that for this structure will be a different
- * size on the alpha, but that's okay as long as it's a multiple of 4
- * bytes in size.
+ * TX/RX DMA descriptor structures.
  */
 struct sis_desc {
 	/* SiS hardware descriptor section */
 	u_int32_t		sis_next;
 	u_int32_t		sis_cmdsts;
-#define sis_rxstat		sis_cmdsts
-#define sis_txstat		sis_cmdsts
-#define sis_ctl			sis_cmdsts
 	u_int32_t		sis_ptr;
-	/* Driver software section */
-	struct mbuf		*sis_mbuf;
-	struct sis_desc		*sis_nextdesc;
-	bus_dmamap_t		sis_map;
 };
 
 #define SIS_CMDSTS_BUFLEN	0x00000FFF
@@ -331,11 +319,6 @@ struct sis_desc {
 #define SIS_CMDSTS_INTR		0x20000000
 #define SIS_CMDSTS_MORE		0x40000000
 #define SIS_CMDSTS_OWN		0x80000000
-
-#define SIS_LASTDESC(x)		(!((x)->sis_ctl & SIS_CMDSTS_MORE))
-#define SIS_OWNDESC(x)		((x)->sis_ctl & SIS_CMDSTS_OWN)
-#define SIS_INC(x, y)		(x) = ((x) == ((y)-1)) ? 0 : (x)+1
-#define SIS_RXBYTES(x)		(((x)->sis_ctl & SIS_CMDSTS_BUFLEN) - ETHER_CRC_LEN)
 
 #define SIS_RXSTAT_COLL		0x00010000
 #define SIS_RXSTAT_LOOPBK	0x00020000
@@ -367,11 +350,24 @@ struct sis_desc {
 #define SIS_TXSTAT_UNDERRUN	0x02000000
 #define SIS_TXSTAT_TX_ABORT	0x04000000
 
+#define	SIS_DESC_ALIGN		16
+#define	SIS_RX_BUF_ALIGN	4
+#define	SIS_MAXTXSEGS		16
 #define SIS_RX_LIST_CNT		64
 #define SIS_TX_LIST_CNT		128
 
 #define SIS_RX_LIST_SZ		SIS_RX_LIST_CNT * sizeof(struct sis_desc)
 #define SIS_TX_LIST_SZ		SIS_TX_LIST_CNT * sizeof(struct sis_desc)
+
+#define	SIS_ADDR_LO(x)		((uint64_t) (x) & 0xffffffff)
+#define	SIS_ADDR_HI(x)		((uint64_t) (x) >> 32)
+
+#define	SIS_RX_RING_ADDR(sc, i)	\
+	((sc)->sis_rx_paddr + sizeof(struct sis_desc) * (i))
+#define	SIS_TX_RING_ADDR(sc, i)	\
+	((sc)->sis_tx_paddr + sizeof(struct sis_desc) * (i))
+
+#define	SIS_INC(x, y)		(x) = (x + 1) % (y)
 
 /*
  * SiS PCI vendor ID.
@@ -434,6 +430,17 @@ struct sis_mii_frame {
 #define SIS_TYPE_83815	3
 #define SIS_TYPE_83816	4
 
+struct sis_txdesc {
+	struct mbuf		*tx_m;
+	bus_dmamap_t		tx_dmamap;
+};
+
+struct sis_rxdesc {
+	struct mbuf		*rx_m;
+	bus_dmamap_t		rx_dmamap;
+	struct sis_desc		*rx_desc;
+};
+
 struct sis_softc {
 	struct ifnet		*sis_ifp;	/* interface info */
 	struct resource		*sis_res[2];
@@ -446,18 +453,22 @@ struct sis_softc {
 	u_int			sis_srr;
 	struct sis_desc		*sis_rx_list;
 	struct sis_desc		*sis_tx_list;
-	bus_dma_tag_t		sis_rx_tag;
-	bus_dmamap_t		sis_rx_dmamap;
-	bus_dma_tag_t		sis_tx_tag;
-	bus_dmamap_t		sis_tx_dmamap;
+	bus_dma_tag_t		sis_rx_list_tag;
+	bus_dmamap_t		sis_rx_list_map;
+	bus_dma_tag_t		sis_tx_list_tag;
+	bus_dmamap_t		sis_tx_list_map;
 	bus_dma_tag_t		sis_parent_tag;
-	bus_dma_tag_t		sis_tag;
-	struct sis_desc		*sis_rx_pdsc;
+	bus_dma_tag_t		sis_rx_tag;
+	bus_dmamap_t		sis_rx_sparemap;
+	bus_dma_tag_t		sis_tx_tag;
+	struct sis_rxdesc	sis_rxdesc[SIS_RX_LIST_CNT];
+	struct sis_txdesc	sis_txdesc[SIS_TX_LIST_CNT];
 	int			sis_tx_prod;
 	int			sis_tx_cons;
 	int			sis_tx_cnt;
-	u_int32_t		sis_rx_paddr;
-	u_int32_t		sis_tx_paddr;
+	int			sis_rx_cons;;
+	bus_addr_t		sis_rx_paddr;
+	bus_addr_t		sis_tx_paddr;
 	struct callout		sis_stat_ch;
 	int			sis_watchdog_timer;
 	int			sis_stopped;
