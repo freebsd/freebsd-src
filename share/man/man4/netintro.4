@@ -409,7 +409,6 @@ struct ifaliasreq {
         struct  sockaddr        ifra_mask;
 };
 .Ed
-.Pp
 .Bd -literal
 /*
 * Structure used in SIOCGIFCONF request.
@@ -427,7 +426,6 @@ struct ifconf {
 #define ifc_req ifc_ifcu.ifcu_req /* array of structures returned */
 };
 .Ed
-.Pp
 .Bd -literal
 /* Structure used in SIOCIFGCLONERS request. */
 struct if_clonereq {
