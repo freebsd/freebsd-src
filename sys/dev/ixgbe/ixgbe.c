@@ -141,7 +141,7 @@ static void     ixgbe_enable_intr(struct adapter *);
 static void     ixgbe_disable_intr(struct adapter *);
 static void     ixgbe_update_stats_counters(struct adapter *);
 static bool	ixgbe_txeof(struct tx_ring *);
-static bool	ixgbe_rxeof(struct ix_queue *, int);
+static bool	ixgbe_rxeof(struct ix_queue *, int, int *);
 static void	ixgbe_rx_checksum(u32, struct mbuf *, u32);
 static void     ixgbe_set_promisc(struct adapter *);
 static void     ixgbe_disable_promisc(struct adapter *);
@@ -193,6 +193,10 @@ static void	ixgbe_handle_mod(void *, int);
 #ifdef IXGBE_FDIR
 static void	ixgbe_atr(struct tx_ring *, struct mbuf *);
 static void	ixgbe_reinit_fdir(void *, int);
+#endif
+
+#ifdef DEVICE_POLLING
+static poll_handler_t ixgbe_poll;
 #endif
 
 /*********************************************************************
@@ -675,6 +679,11 @@ ixgbe_detach(device_t dev)
 		return (EBUSY);
 	}
 
+#ifdef DEVICE_POLLING
+	if ((adapter->ifp->if_capenable & IFCAP_POLLING) != 0)
+		ether_poll_deregister(adapter->ifp);
+#endif
+
 	IXGBE_CORE_LOCK(adapter);
 	ixgbe_stop(adapter);
 	IXGBE_CORE_UNLOCK(adapter);
@@ -979,6 +988,25 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	{
 		int mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		IOCTL_DEBUGOUT("ioctl: SIOCSIFCAP (Set Capabilities)");
+#ifdef DEVICE_POLLING
+		if ((mask & IFCAP_POLLING) != 0) {
+			if ((ifr->ifr_reqcap & IFCAP_POLLING) != 0) {
+				error = ether_poll_register(ixgbe_poll, ifp);
+				if (error != 0)
+					return (error);
+				IXGBE_CORE_LOCK(adapter);
+				ixgbe_disable_intr(adapter);
+				ifp->if_capenable |= IFCAP_POLLING;
+				IXGBE_CORE_UNLOCK(adapter);
+			} else {
+				error = ether_poll_deregister(ifp);
+				IXGBE_CORE_LOCK(adapter);
+				ixgbe_enable_intr(adapter);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				IXGBE_CORE_UNLOCK(adapter);
+			}
+		}
+#endif /* !DEVICE_POLLING */
 		if (mask & IFCAP_HWCSUM)
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 		if (mask & IFCAP_TSO4)
@@ -1199,8 +1227,13 @@ ixgbe_init_locked(struct adapter *adapter)
 	/* Config/Enable Link */
 	ixgbe_config_link(adapter);
 
-	/* And now turn on interrupts */
-	ixgbe_enable_intr(adapter);
+#ifdef DEVICE_POLLING
+	/* Disable interrupts if polling is on, enable otherwise. */
+	if ((ifp->if_capenable & IFCAP_POLLING) != 0)
+		ixgbe_disable_intr(adapter);
+	else
+#endif
+		ixgbe_enable_intr(adapter);
 
 	/* Now inform the stack we're ready */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -1294,7 +1327,7 @@ ixgbe_handle_que(void *context, int pending)
 	bool		more;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		more = ixgbe_rxeof(que, adapter->rx_process_limit);
+		more = ixgbe_rxeof(que, adapter->rx_process_limit, NULL);
 		IXGBE_TX_LOCK(txr);
 		ixgbe_txeof(txr);
 #if __FreeBSD_version >= 800000
@@ -1333,6 +1366,10 @@ ixgbe_legacy_irq(void *arg)
 	bool		more_tx, more_rx;
 	u32       	reg_eicr, loop = MAX_LOOP;
 
+#ifdef DEVICE_POLLING
+	if ((adapter->ifp->if_capenable & IFCAP_POLLING) != 0)
+		return;
+#endif
 
 	reg_eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
 
@@ -1342,7 +1379,7 @@ ixgbe_legacy_irq(void *arg)
 		return;
 	}
 
-	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
+	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit, NULL);
 
 	IXGBE_TX_LOCK(txr);
 	do {
@@ -1387,13 +1424,13 @@ ixgbe_msix_que(void *arg)
 
 	++que->irqs;
 
-	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
+	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit, NULL);
 
 	IXGBE_TX_LOCK(txr);
 	more_tx = ixgbe_txeof(txr);
 	IXGBE_TX_UNLOCK(txr);
 
-	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
+	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit, NULL);
 
 	/* Do AIM now? */
 
@@ -2417,6 +2454,9 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU | IFCAP_LRO;
 
 	ifp->if_capenable = ifp->if_capabilities;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 
 	/*
 	 * Specify the media types supported by this adapter and register
@@ -3262,6 +3302,52 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 }
 #endif
 
+#ifdef DEVICE_POLLING
+static int
+ixgbe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct adapter *adapter;
+	struct tx_ring *txr;
+	struct ix_queue *que;
+	struct ixgbe_hw *hw;
+	u32 loop, reg_eicr;
+	int rx_npkts;
+	bool more_tx;
+
+	adapter = ifp->if_softc;
+	txr = adapter->tx_rings;
+	que = adapter->queues;
+	hw = &adapter->hw;
+	loop = MAX_LOOP;
+	rx_npkts = 0;
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return (rx_npkts);
+
+	if (cmd == POLL_AND_CHECK_STATUS) {
+		reg_eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
+
+		/* Link status change */
+		if ((reg_eicr & IXGBE_EICR_LSC) != 0)
+			taskqueue_enqueue(adapter->tq, &adapter->link_task);
+	}
+	ixgbe_rxeof(que, count, &rx_npkts);
+	IXGBE_TX_LOCK(txr);
+	do {
+		more_tx = ixgbe_txeof(txr);
+	} while (loop-- && more_tx);
+#if __FreeBSD_version >= 800000
+	if (!drbr_empty(ifp, txr->br))
+		ixgbe_mq_start_locked(ifp, txr, NULL);
+#else
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		ixgbe_start_locked(txr, ifp);
+#endif
+	IXGBE_TX_UNLOCK(txr);
+	return (rx_npkts);
+}
+#endif
+
 /**********************************************************************
  *
  *  Examine each tx_buffer in the used queue. If the hardware is done
@@ -4062,14 +4148,14 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
  *  Return TRUE for more work, FALSE for all clean.
  *********************************************************************/
 static bool
-ixgbe_rxeof(struct ix_queue *que, int count)
+ixgbe_rxeof(struct ix_queue *que, int count, int *rx_npktsp)
 {
 	struct adapter		*adapter = que->adapter;
 	struct rx_ring		*rxr = que->rxr;
 	struct ifnet		*ifp = adapter->ifp;
 	struct lro_ctrl		*lro = &rxr->lro;
 	struct lro_entry	*queued;
-	int			i, nextp, processed = 0;
+	int			i, nextp, processed = 0, rx_npkts = 0;
 	u32			staterr = 0;
 	union ixgbe_adv_rx_desc	*cur;
 	struct ixgbe_rx_buf	*rbuf, *nbuf;
@@ -4273,8 +4359,10 @@ next_desc:
 			i = 0;
 
 		/* Now send to the stack or do LRO */
-		if (sendmp != NULL)
+		if (sendmp != NULL) {
 			ixgbe_rx_input(rxr, ifp, sendmp, ptype);
+			rx_npkts++;
+		}
 
                /* Every 8 descriptors we go to refresh mbufs */
 		if (processed == 8) {
@@ -4307,9 +4395,13 @@ next_desc:
 	*/
 	if ((staterr & IXGBE_RXD_STAT_DD) != 0) {
 		ixgbe_rearm_queues(adapter, (u64)(1 << que->msix));
+		if (rx_npktsp != NULL)
+			*rx_npktsp = rx_npkts;
 		return (TRUE);
 	}
 
+	if (rx_npktsp != NULL)
+		*rx_npktsp = rx_npkts;
 	return (FALSE);
 }
 
