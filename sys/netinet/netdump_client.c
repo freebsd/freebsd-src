@@ -141,6 +141,12 @@ static int nd_polls=10000; /* Times to poll the NIC (0.5ms each poll) before
 			    * assuming packetloss occurred: 5s by default */
 static int nd_retries=10; /* Times to retransmit lost packets */
 
+/* Tunables storages. */
+static char nd_server_tun[INET_ADDRSTRLEN];
+static char nd_client_tun[INET_ADDRSTRLEN];
+static char nd_gw_tun[INET_ADDRSTRLEN];
+static char nd_nic_tun[IFNAMSIZ];
+
 /*
  * [netdump_supported_nic]
  *
@@ -312,12 +318,16 @@ SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT|CTLFLAG_RW, &nd_retries, 0,
 	"times to retransmit lost packets");
 SYSCTL_INT(_net_dump, OID_AUTO, enable, CTLTYPE_INT|CTLFLAG_RW, &nd_enable,
 	0, "enable network dump");
-TUNABLE_INT("net.dump.enable", &nd_enable);
 #ifdef NETDUMP_CLIENT_DEBUG
 SYSCTL_NODE(_debug, OID_AUTO, netdump, CTLFLAG_RW, NULL, "Netdump debugging");
 SYSCTL_PROC(_debug_netdump, OID_AUTO, crash, CTLTYPE_INT|CTLFLAG_RW, 0,
     sizeof(int), sysctl_force_crash, "I", "force crashing");
 #endif
+TUNABLE_STR("net.dump.server", nd_server_tun, sizeof(nd_server_tun));
+TUNABLE_STR("net.dump.client", nd_client_tun, sizeof(nd_client_tun));
+TUNABLE_STR("net.dump.gateway", nd_gw_tun, sizeof(nd_gw_tun));
+TUNABLE_STR("net.dump.nic", nd_nic_tun, sizeof(nd_nic_tun));
+TUNABLE_INT("net.dump.enable", &nd_enable);
 
 /*-
  * Network specific primitives.
@@ -1264,33 +1274,30 @@ static void
 netdump_config_defaults()
 {
 	struct ifnet *ifn;
-	struct ifaddr *ifa;
+	int found;
 
 	nd_nic = NULL;
+	nd_server.s_addr = INADDR_ANY;
 	nd_client.s_addr = INADDR_ANY;
+	nd_gw.s_addr = INADDR_ANY;
 
-	/* Default the nic to the first available interface */
-	if ((ifn = TAILQ_FIRST(&ifnet)) != NULL) do {
-		if ((ifn->if_flags & IFF_UP) == 0)
-			continue;
-
-		if (netdump_supported_nic(ifn) &&
-		    (nd_nic == NULL || nd_nic->if_dunit < ifn->if_dunit))
-			nd_nic = ifn;
-
-	} while ((ifn = TAILQ_NEXT(ifn, if_link)) != NULL && nd_nic == NULL);
-
-	if (nd_nic == NULL)
-		return;
-
-	/* Default the client to the first IP on nd_nic */
-	if ((ifa = TAILQ_FIRST(&nd_nic->if_addrhead)) != NULL) do {
-		if (ifa->ifa_addr->sa_family != AF_INET) {
-			continue;
+	if (nd_server_tun[0] != '\0')
+		inet_aton(nd_server_tun, &nd_server);
+	if (nd_client_tun[0] != '\0')
+		inet_aton(nd_client_tun, &nd_client);
+	if (nd_gw_tun[0] != '\0')
+		inet_aton(nd_gw_tun, &nd_gw);
+	if (nd_nic_tun[0] != '\0') {
+		found = 0;
+		TAILQ_FOREACH(ifn, &ifnet, if_link) {
+			if (!strcmp(ifn->if_xname, nd_nic_tun)) {
+				found = 1;
+				break;
+			}
 		}
-		nd_client = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
-	} while ((ifa = TAILQ_NEXT(ifa, ifa_link)) != NULL &&
-			nd_client.s_addr == INADDR_ANY);
+		if (found != 0 && netdump_supported_nic(ifn))
+			nd_nic = ifn;
+	}
 }
 
 static int
@@ -1298,12 +1305,12 @@ netdump_modevent(module_t mod, int type, void *unused)
 {
 	switch (type) {
 	case MOD_LOAD:
+		netdump_config_defaults();
+
 		/* PRI_FIRST happens before the networks are disabled */
 		nd_tag = EVENTHANDLER_REGISTER(shutdown_pre_sync, 
 					       netdump_trigger, NULL, 
 					       SHUTDOWN_PRI_FIRST);
-
-		netdump_config_defaults();
 
 #ifdef NETDUMP_CLIENT_DEBUG
 		if (!nd_nic)
