@@ -50,7 +50,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.102 2009/02/17 03:22:50 hugh Exp hugh $
+ |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.103 2010/05/20 03:40:29 hugh Exp hugh $
  |
  */
 
@@ -59,7 +59,7 @@ char *ee_copyright_message =
 
 #include "ee_version.h"
 
-char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.102 $";
+char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.103 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -308,7 +308,7 @@ void undel_word P_((void));
 void del_line P_((void));
 void undel_line P_((void));
 void adv_word P_((void));
-void move_rel P_((char *direction, int lines));
+void move_rel P_((char direction, int lines));
 void eol P_((void));
 void bol P_((void));
 void adv_line P_((void));
@@ -552,7 +552,7 @@ char *argv[];
 {
 	int counter;
 
-	for (counter = 1; counter < 24; counter++)
+	for (counter = 1; counter < SIGUNUSED; counter++)
 		signal(counter, SIG_IGN);
 
 	signal(SIGCHLD, SIG_DFL);
@@ -825,7 +825,6 @@ int disp;
 	}
 	else if (curr_line->prev_line != NULL)
 	{
-		absolute_lin--;
 		text_changes = TRUE;
 		left(disp);			/* go to previous line	*/
 		temp_buff = curr_line->next_line;
@@ -1221,11 +1220,11 @@ control()			/* use control for commands		*/
 	else if (in == 13)	/* control m	*/
 		insert_line(TRUE);
 	else if (in == 14)	/* control n	*/
-		move_rel("d", max(5, (last_line - 5)));
+		move_rel('d', max(5, (last_line - 5)));
 	else if (in == 15)	/* control o	*/
 		eol();
 	else if (in == 16)	/* control p	*/
-		move_rel("u", max(5, (last_line - 5)));
+		move_rel('u', max(5, (last_line - 5)));
 	else if (in == 17)	/* control q	*/
 		;
 	else if (in == 18)	/* control r	*/
@@ -1276,7 +1275,7 @@ emacs_control()
 	else if (in == 6)	/* control f	*/
 		right(TRUE);
 	else if (in == 7)	/* control g	*/
-		move_rel("u", max(5, (last_line - 5)));
+		move_rel('u', max(5, (last_line - 5)));
 	else if (in == 8)	/* control h	*/
 		delete(TRUE);
 	else if (in == 9)	/* control i	*/
@@ -1315,7 +1314,7 @@ emacs_control()
 	else if (in == 21)	/* control u	*/
 		bottom();
 	else if (in == 22)	/* control v	*/
-		move_rel("d", max(5, (last_line - 5)));
+		move_rel('d', max(5, (last_line - 5)));
 	else if (in == 23)	/* control w	*/
 		del_word();
 	else if (in == 24)	/* control x	*/
@@ -1550,9 +1549,9 @@ function_key()				/* process function key		*/
 	else if (in == KEY_DOWN)
 		down();
 	else if (in == KEY_NPAGE)
-		move_rel("d", max( 5, (last_line - 5)));
+		move_rel('d', max( 5, (last_line - 5)));
 	else if (in == KEY_PPAGE)
-		move_rel("u", max(5, (last_line - 5)));
+		move_rel('u', max(5, (last_line - 5)));
 	else if (in == KEY_DL)
 		del_line();
 	else if (in == KEY_DC)
@@ -1990,7 +1989,7 @@ char *cmd_str;
 	int number;
 	int i;
 	char *ptr;
-	char *direction = NULL;
+	char direction = '\0';
 	struct text *t_line;
 
 	ptr = cmd_str;
@@ -2007,12 +2006,12 @@ char *cmd_str;
 	{
 		i++;
 		t_line = t_line->prev_line;
-		direction = "u";
+		direction = 'u';
 	}
 	while ((t_line->line_number < number) && (t_line->next_line != NULL))
 	{
 		i++;
-		direction = "d";
+		direction = 'd';
 		t_line = t_line->next_line;
 	}
 	if ((i < 30) && (i > 0))
@@ -2021,7 +2020,7 @@ char *cmd_str;
 	}
 	else
 	{
-		if (!strcmp(direction, "d"))
+		if (direction != 'd')
 		{
 			absolute_lin += i;
 		}
@@ -2218,7 +2217,7 @@ check_fp()		/* open or close files according to flags */
 		if (start_at_line != NULL)
 		{
 			line_num = atoi(start_at_line) - 1;
-			move_rel("d", line_num);
+			move_rel('d', line_num);
 			line_num = 0;
 			start_at_line = NULL;
 		}
@@ -2661,7 +2660,7 @@ int display_message;
 		{
 			if (lines_moved < 30)
 			{
-				move_rel("d", lines_moved);
+				move_rel('d', lines_moved);
 				while (position < iter)
 					right(TRUE);
 			}
@@ -2941,13 +2940,13 @@ while ((position < curr_line->line_length) && ((*point == 32) || (*point == 9)))
 
 void 
 move_rel(direction, lines)	/* move relative to current line	*/
-char *direction;
+char direction;
 int lines;
 {
 	int i;
 	char *tmp;
 
-	if (*direction == 'u')
+	if (direction == 'u')
 	{
 		scr_pos = 0;
 		while (position > 1)
