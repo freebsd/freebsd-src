@@ -930,7 +930,6 @@ ggate_recv_thread(void *arg)
 		QUEUE_TAKE2(hio, free);
 		pjdlog_debug(2, "ggate_recv: (%p) Got free request.", hio);
 		ggio = &hio->hio_ggio;
-		bzero(ggio, sizeof(*ggio));
 		ggio->gctl_unit = res->hr_ggateunit;
 		ggio->gctl_length = MAXPHYS;
 		ggio->gctl_error = 0;
