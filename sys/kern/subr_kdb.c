@@ -92,7 +92,7 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
  */
 #ifdef SMP
 static int kdb_stop_cpus = 1;
-SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLFLAG_RW | CTLFLAG_TUN,
     &kdb_stop_cpus, 0, "stop other CPUs when entering the debugger");
 TUNABLE_INT("debug.kdb.stop_cpus", &kdb_stop_cpus);
 #endif
