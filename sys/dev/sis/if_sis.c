@@ -2136,6 +2136,7 @@ sis_ifmedia_upd(struct ifnet *ifp)
 {
 	struct sis_softc	*sc;
 	struct mii_data		*mii;
+	int			error;
 
 	sc = ifp->if_softc;
 
@@ -2147,10 +2148,10 @@ sis_ifmedia_upd(struct ifnet *ifp)
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
 	}
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	SIS_UNLOCK(sc);
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -2184,10 +2185,19 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		SIS_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
-			sis_initl(sc);
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			    ((ifp->if_flags ^ sc->sis_if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
+				if (sc->sis_type == SIS_TYPE_83815)
+					sis_setmulti_ns(sc);
+				else
+					sis_setmulti_sis(sc);
+			} else
+				sis_initl(sc);
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			sis_stop(sc);
 		}
+		sc->sis_if_flags = ifp->if_flags;
 		SIS_UNLOCK(sc);
 		error = 0;
 		break;
@@ -2199,7 +2209,6 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		else
 			sis_setmulti_sis(sc);
 		SIS_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
