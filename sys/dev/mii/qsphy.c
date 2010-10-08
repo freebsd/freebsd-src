@@ -133,17 +133,14 @@ qsphy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = qsphy_service;
 	sc->mii_pdata = mii;
 
-	mii->mii_instance++;
-
 	qsphy_reset(sc);
 
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
@@ -155,21 +152,6 @@ qsphy_attach(device_t dev)
 static int
 qsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
-
-	/*
-	 * If we're not selected, then do nothing, just isolate, if
-	 * changing media.
-	 */
-	if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-		if (cmd == MII_MEDIACHG) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-		}
-
-		return (0);
-	}
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -233,19 +215,19 @@ qsphy_status(struct mii_softc *sc)
 	pctl = PHY_READ(sc, MII_QSPHY_PCTL);
 	switch (pctl & PCTL_OPMASK) {
 	case PCTL_10_T:
-		mii->mii_media_active |= IFM_10_T;
+		mii->mii_media_active |= IFM_10_T|IFM_HDX;
 		break;
 	case PCTL_10_T_FDX:
 		mii->mii_media_active |= IFM_10_T|IFM_FDX;
 		break;
 	case PCTL_100_TX:
-		mii->mii_media_active |= IFM_100_TX;
+		mii->mii_media_active |= IFM_100_TX|IFM_HDX;
 		break;
 	case PCTL_100_TX_FDX:
 		mii->mii_media_active |= IFM_100_TX|IFM_FDX;
 		break;
 	case PCTL_100_T4:
-		mii->mii_media_active |= IFM_100_T4;
+		mii->mii_media_active |= IFM_100_T4|IFM_HDX;
 		break;
 	case PCTL_AN:
 		mii->mii_media_active |= IFM_NONE;

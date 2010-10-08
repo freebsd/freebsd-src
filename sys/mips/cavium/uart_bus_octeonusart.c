@@ -105,11 +105,10 @@ uart_octeon_probe(device_t dev)
 	sc->sc_bas.bst = uart_bus_space_mem;
 	/*
 	 * XXX
-	 * RBR isn't really a great base address and it'd be great to not have
-	 * a hard-coded 1024.
+	 * RBR isn't really a great base address.
 	 */
-	if (bus_space_map(sc->sc_bas.bst, CVMX_MIO_UARTX_RBR(0), 1024,
-	    0, &sc->sc_bas.bsh) != 0)
+	if (bus_space_map(sc->sc_bas.bst, CVMX_MIO_UARTX_RBR(0),
+	    uart_getrange(sc->sc_class), 0, &sc->sc_bas.bsh) != 0)
 		return (ENXIO);
 	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, unit));
 }

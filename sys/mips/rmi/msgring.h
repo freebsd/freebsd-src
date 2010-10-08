@@ -171,14 +171,12 @@
 #define	MSGRNG_CODE_SEC		0
 #define	MSGRNG_CODE_BOOT_WAKEUP	200
 #define	MSGRNG_CODE_SPI4	3
-#define	msgrng_read_status()	read_c2_register32(MSGRNG_MSG_STATUS_REG, 0)
 
+#define	msgrng_read_status()	read_c2_register32(MSGRNG_MSG_STATUS_REG, 0)
 #define	msgrng_read_config()	read_c2_register32(MSGRNG_MSG_CONFIG_REG, 0)
 #define	msgrng_write_config(v)	write_c2_register32(MSGRNG_MSG_CONFIG_REG, 0, v)
-
 #define	msgrng_read_bucksize(b)	read_c2_register32(MSGRNG_MSG_BUCKSIZE_REG, b)
 #define	msgrng_write_bucksize(b, v)	write_c2_register32(MSGRNG_MSG_BUCKSIZE_REG, b, v)
-
 #define	msgrng_read_cc(r, s)	read_c2_register32(r, s)
 #define	msgrng_write_cc(r, v, s)	write_c2_register32(r, s, v)
 
@@ -321,14 +319,16 @@ message_receive(int bucket, int *size, int *code, int *stid,
 	return (0);
 }
 
-#define MSGRNG_STN_RX_QSIZE 256
+#define	MSGRNG_STN_RX_QSIZE	256
+#define	MSGRNG_NSTATIONS	128
+#define	MSGRNG_CORE_NBUCKETS	8
 
 struct stn_cc {
 	unsigned short counters[16][8];
 };
 
 struct bucket_size {
-	unsigned short bucket[128];
+	unsigned short bucket[MSGRNG_NSTATIONS];
 };
 
 extern struct bucket_size bucket_sizes;
@@ -360,35 +360,9 @@ extern struct stn_cc xls_cc_table_pcie;
 extern struct stn_cc xls_cc_table_dma;
 extern struct stn_cc xls_cc_table_sec;
 
-/*
- * NOTE: this is not stationid/8, ie the station numbers below are just
- * for internal use
- */
-enum {
-	TX_STN_CPU_0,
-	TX_STN_CPU_1,
-	TX_STN_CPU_2,
-	TX_STN_CPU_3,
-	TX_STN_CPU_4,
-	TX_STN_CPU_5,
-	TX_STN_CPU_6,
-	TX_STN_CPU_7,
-	TX_STN_GMAC,
-	TX_STN_DMA,
-	TX_STN_XGS_0,
-	TX_STN_XGS_1,
-	TX_STN_SAE,
-	TX_STN_GMAC0,
-	TX_STN_GMAC1,
-	TX_STN_CDE,
-	TX_STN_PCIE,
-	TX_STN_INVALID,
-	MAX_TX_STNS
-};
-
-int register_msgring_handler(int major,
-    void (*action) (int, int, int, int, struct msgrng_msg *, void *),
-    void *dev_id);
+typedef void (*msgring_handler)(int, int, int, int, struct msgrng_msg *, void *);
+int register_msgring_handler(int startb, int endb, msgring_handler action,
+		    void *arg);
 uint32_t xlr_msgring_handler(uint8_t bucket_mask, uint32_t max_messages);
 void xlr_msgring_cpu_init(void);
 void xlr_msgring_config(void);

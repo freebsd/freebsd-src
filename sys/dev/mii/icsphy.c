@@ -141,14 +141,12 @@ icsphy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = icsphy_service;
 	sc->mii_pdata = mii;
-	sc->mii_anegticks = MII_ANEGTICKS;
-	sc->mii_flags |= MIIF_NOISOLATE;
 
-	mii->mii_instance++;
+	sc->mii_flags |= MIIF_NOISOLATE;
 
 	ifmedia_add(&mii->mii_media,
 	    IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
@@ -170,20 +168,6 @@ icsphy_attach(device_t dev)
 static int
 icsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
-
-	/*
-	 * If we're not selected, then do nothing, just isolate, if
-	 * changing media.
-	 */
-	if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-		if (cmd == MII_MEDIACHG) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-		}
-                return (0);
-        }
 
 	switch (cmd) {
 	case MII_POLLSTAT:

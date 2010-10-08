@@ -863,13 +863,12 @@ axe_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 					err = EINVAL;
 					break;
 				}
-				err = uether_rxbuf(ue, pc, pos, len);
+				uether_rxbuf(ue, pc, pos, len);
 
 				pos += len + (len % 2);
 			}
-		} else {
-			err = uether_rxbuf(ue, pc, 0, actlen);
-		}
+		} else
+			uether_rxbuf(ue, pc, 0, actlen);
 
 		if (err != 0)
 			ifp->if_ierrors++;
@@ -912,13 +911,15 @@ axe_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-		ifp->if_opackets++;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		if ((sc->sc_flags & AXE_FLAG_LINK) == 0) {
+		if ((sc->sc_flags & AXE_FLAG_LINK) == 0 ||
+		    (ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
 			/*
-			 * don't send anything if there is no link !
+			 * Don't send anything if there is no link or
+			 * controller is busy.
 			 */
 			return;
 		}
@@ -958,6 +959,17 @@ tr_setup:
 			pos += m->m_pkthdr.len;
 
 			/*
+			 * XXX
+			 * Update TX packet counter here. This is not
+			 * correct way but it seems that there is no way
+			 * to know how many packets are sent at the end
+			 * of transfer because controller combines
+			 * multiple writes into single one if there is
+			 * room in TX buffer of controller.
+			 */
+			ifp->if_opackets++;
+
+			/*
 			 * if there's a BPF listener, bounce a copy
 			 * of this frame to him:
 			 */
@@ -978,6 +990,7 @@ tr_setup:
 
 		usbd_xfer_set_frame_len(xfer, 0, pos);
 		usbd_transfer_submit(xfer);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 
 	default:			/* Error */
@@ -985,6 +998,7 @@ tr_setup:
 		    usbd_errstr(error));
 
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -1117,7 +1131,7 @@ axe_stop(struct usb_ether *ue)
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->sc_flags &= ~AXE_FLAG_LINK;
 
 	/*

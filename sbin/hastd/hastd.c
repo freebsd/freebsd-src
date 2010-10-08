@@ -69,7 +69,7 @@ bool sigexit_received = false;
 struct pidfh *pfh;
 
 /* How often check for hooks running for too long. */
-#define	REPORT_INTERVAL	10
+#define	REPORT_INTERVAL	5
 
 static void
 usage(void)
@@ -659,7 +659,7 @@ main_loop(void)
 		assert(maxfd + 1 <= (int)FD_SETSIZE);
 		ret = select(maxfd + 1, &rfds, NULL, NULL, &seltimeout);
 		if (ret == 0)
-			hook_check(false);
+			hook_check();
 		else if (ret == -1) {
 			if (errno == EINTR)
 				continue;
@@ -683,6 +683,12 @@ main_loop(void)
 			}
 		}
 	}
+}
+
+static void
+dummy_sighandler(int sig __unused)
+{
+	/* Nothing to do. */
 }
 
 int
@@ -743,6 +749,11 @@ main(int argc, char *argv[])
 	cfg = yy_config_parse(cfgpath, true);
 	assert(cfg != NULL);
 
+	/*
+	 * Because SIGCHLD is ignored by default, setup dummy handler for it,
+	 * so we can mask it.
+	 */
+	PJDLOG_VERIFY(signal(SIGCHLD, dummy_sighandler) != SIG_ERR);
 	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGHUP) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);

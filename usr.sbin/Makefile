@@ -27,7 +27,6 @@ SUBDIR= adduser \
 	fwcontrol \
 	getfmac \
 	getpmac \
-	gpioctl \
 	gstat \
 	i2c \
 	ifmcstat \
@@ -161,6 +160,10 @@ SUBDIR+=	freebsd-update
 SUBDIR+=	gssd
 .endif
 
+.if ${MK_GPIO} != "no"
+SUBDIR+=	gpioctl
+.endif
+
 .if ${MK_INET6} != "no"
 SUBDIR+=	faithd
 SUBDIR+=	ip6addrctl
@@ -289,6 +292,7 @@ SUBDIR+=	crunch
 .endif
 
 .if ${MK_USB} != "no"
+SUBDIR+=	uathload
 SUBDIR+=	uhsoctl
 SUBDIR+=	usbconfig
 .endif

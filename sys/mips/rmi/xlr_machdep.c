@@ -596,7 +596,6 @@ platform_ipi_send(int cpuid)
 {
 
 	pic_send_ipi(xlr_cpuid_to_hwtid[cpuid], platform_ipi_intrnum());
-
 }
 
 void

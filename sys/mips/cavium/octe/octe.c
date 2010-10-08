@@ -224,6 +224,15 @@ octe_miibus_readreg(device_t dev, int phy, int reg)
 
 	priv = device_get_softc(dev);
 
+	/*
+	 * Try interface-specific MII routine.
+	 */
+	if (priv->mdio_read != NULL)
+		return (priv->mdio_read(priv->ifp, phy, reg));
+
+	/*
+	 * Try generic MII routine.
+	 */
 	if (phy != priv->phy_id)
 		return (0);
 
@@ -237,9 +246,19 @@ octe_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	priv = device_get_softc(dev);
 
+	/*
+	 * Try interface-specific MII routine.
+	 */
+	if (priv->mdio_write != NULL) {
+		priv->mdio_write(priv->ifp, phy, reg, val);
+		return (0);
+	}
+
+	/*
+	 * Try generic MII routine.
+	 */
 	KASSERT(phy == priv->phy_id,
 	    ("write to phy %u but our phy is %u", phy, priv->phy_id));
-
 	cvm_oct_mdio_write(priv->ifp, phy, reg, val);
 
 	return (0);

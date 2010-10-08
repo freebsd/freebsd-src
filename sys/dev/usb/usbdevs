@@ -2657,6 +2657,7 @@ product QUALCOMMINC E0076	0x0076	3G modem
 product QUALCOMMINC E0078	0x0078	3G modem
 product QUALCOMMINC E0082	0x0082	3G modem
 product QUALCOMMINC E0086	0x0086	3G modem
+product QUALCOMMINC E2000	0x2000	3G modem
 product QUALCOMMINC E2002	0x2002	3G modem
 product QUALCOMMINC E2003	0x2003	3G modem
 
@@ -3148,6 +3149,7 @@ product TAUGA CAMERAMATE	0x0005	CameraMate (DPCM_USB)
 
 /* TCTMobile products */
 product TCTMOBILE X060S		0x0000	X060S 3G modem
+product TCTMOBILE X080S		0xf000	X080S 3G modem
 
 /* TDK products */
 product TDK UPA9664		0x0115	USB-PDC Adapter UPA9664

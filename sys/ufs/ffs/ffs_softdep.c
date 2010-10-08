@@ -580,7 +580,7 @@ softdep_get_depcounts(struct mount *mp,
  * this file is being ported.
  */
 
-#define M_SOFTDEP_FLAGS	(M_WAITOK | M_USE_RESERVE)
+#define M_SOFTDEP_FLAGS	(M_WAITOK)
 
 #define	D_PAGEDEP	0
 #define	D_INODEDEP	1
@@ -2899,9 +2899,10 @@ complete_jseg(jseg)
 	struct worklist *wk;
 	struct jmvref *jmvref;
 	int waiting;
-	int i;
+#ifdef INVARIANTS
+	int i = 0;
+#endif
 
-	i = 0;
 	while ((wk = LIST_FIRST(&jseg->js_entries)) != NULL) {
 		WORKLIST_REMOVE(wk);
 		waiting = wk->wk_state & IOWAITING;
@@ -9464,7 +9465,7 @@ handle_written_indirdep(indirdep, bp, bpp)
 	indirdep->ir_state |= ATTACHED;
 	/*
 	 * Move allocindirs with written pointers to the completehd if
-	 * the the indirdep's pointer is not yet written.  Otherwise
+	 * the indirdep's pointer is not yet written.  Otherwise
 	 * free them here.
 	 */
 	while ((aip = LIST_FIRST(&indirdep->ir_writehd)) != 0) {

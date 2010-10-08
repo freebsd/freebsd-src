@@ -42,42 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/board.h>
 #include <mips/rmi/pic.h>
 
-static int xlr_rxstn_to_txstn_map[128] = {
-	[0 ... 7] = TX_STN_CPU_0,
-	[8 ... 15] = TX_STN_CPU_1,
-	[16 ... 23] = TX_STN_CPU_2,
-	[24 ... 31] = TX_STN_CPU_3,
-	[32 ... 39] = TX_STN_CPU_4,
-	[40 ... 47] = TX_STN_CPU_5,
-	[48 ... 55] = TX_STN_CPU_6,
-	[56 ... 63] = TX_STN_CPU_7,
-	[64 ... 95] = TX_STN_INVALID,
-	[96 ... 103] = TX_STN_GMAC,
-	[104 ... 107] = TX_STN_DMA,
-	[108 ... 111] = TX_STN_INVALID,
-	[112 ... 113] = TX_STN_XGS_0,
-	[114 ... 115] = TX_STN_XGS_1,
-	[116 ... 119] = TX_STN_INVALID,
-	[120 ... 127] = TX_STN_SAE
-};
-
-static int xls_rxstn_to_txstn_map[128] = {
-	[0 ... 7] = TX_STN_CPU_0,
-	[8 ... 15] = TX_STN_CPU_1,
-	[16 ... 23] = TX_STN_CPU_2,
-	[24 ... 31] = TX_STN_CPU_3,
-	[32 ... 63] = TX_STN_INVALID,
-	[64 ... 71] = TX_STN_PCIE,
-	[72 ... 79] = TX_STN_INVALID,
-	[80 ... 87] = TX_STN_GMAC1,
-	[88 ... 95] = TX_STN_INVALID,
-	[96 ... 103] = TX_STN_GMAC0,
-	[104 ... 107] = TX_STN_DMA,
-	[108 ... 111] = TX_STN_CDE,
-	[112 ... 119] = TX_STN_INVALID,
-	[120 ... 127] = TX_STN_SAE
-};
-
 struct stn_cc *xlr_core_cc_configs[] = { &cc_table_cpu_0, &cc_table_cpu_1,
     &cc_table_cpu_2, &cc_table_cpu_3, &cc_table_cpu_4, &cc_table_cpu_5,
     &cc_table_cpu_6, &cc_table_cpu_7};
@@ -95,6 +59,88 @@ xlr_pcmcia_present(void)
 
 	resetconf = xlr_read_reg(mmio, 21);
 	return ((resetconf & 0x4000) != 0);
+}
+
+static void
+xlr_chip_specific_overrides(struct xlr_board_info* board)
+{
+	struct xlr_gmac_block_t *blk0, *blk1, *blk2;
+	uint32_t chipid;
+	uint32_t revision;
+
+	blk0 = &board->gmac_block[0];
+	blk1 = &board->gmac_block[1];
+	blk2 = &board->gmac_block[2];
+
+	chipid = xlr_processor_id();
+	revision = xlr_revision();
+	
+	if (revision == 0x04) { /* B2 */
+		switch (chipid) { 
+		case 0x07:  /* XLR 508 */
+		case 0x08:  /* XLR 516 */
+		case 0x09:  /* XLR 532 */
+			/* NA[12] not available */
+			memset(blk1, 0, sizeof(*blk1));
+			memset(blk2, 0, sizeof(*blk2));
+			break;
+		case 0x06:  /* XLR 308 */
+			/* NA0 has 3 ports */
+			blk0->gmac_port[3].valid = 0;
+			blk0->num_ports--;
+			/* NA[12] not available */
+			memset(blk1, 0, sizeof(*blk1));
+			memset(blk2, 0, sizeof(*blk2));
+			break;
+		default:
+			break;
+		}
+	} else if (revision == 0x91) { /* C4 */
+		switch (chipid) { 
+		case 0x0B:  /* XLR 508 */
+		case 0x0A:  /* XLR 516 */
+		case 0x08:  /* XLR 532 */
+			/* NA[12] not available */
+			memset(blk1, 0, sizeof(*blk1));
+			memset(blk2, 0, sizeof(*blk2));
+			break;
+		case 0x0F:  /* XLR 308 */
+			/* NA0 has 3 ports */
+			blk0->gmac_port[3].valid = 0;
+			blk0->num_ports--;
+			/* NA[12] not available */
+			memset(blk1, 0, sizeof(*blk1));
+			memset(blk2, 0, sizeof(*blk2));
+			break;
+		default:
+			break;
+		}
+	} else { /* other pre-production silicon */
+		switch (chipid) { 
+			/* XLR 5xx */
+		case 0x0B:
+		case 0x0A:
+		case 0x07:
+		case 0x08:
+		case 0x09:
+			/* NA[12] not available */
+			memset(blk1, 0, sizeof(*blk1));
+			memset(blk2, 0, sizeof(*blk2));
+			break;
+			/* XLR 3xx */
+		case 0x0F:
+		case 0x06:
+			/* NA0 has 3 ports */
+			blk0->gmac_port[3].valid = 0;
+			blk0->num_ports--;
+			/* NA[12] not available */
+			memset(blk1, 0, sizeof(*blk1));
+			memset(blk2, 0, sizeof(*blk2));
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static void
@@ -149,6 +195,35 @@ quad1_xaui(void)
 
 	bit25 = (xlr_read_reg(gpio_mmio, 0x15) >> 25) & 0x1;
 	return (bit25);
+}
+
+static void
+xls_chip_specific_overrides(struct xlr_board_info* board)
+{
+	struct xlr_gmac_block_t *blk0, *blk1;
+	uint32_t chipid;
+
+	blk0 = &board->gmac_block[0];
+	blk1 = &board->gmac_block[1];
+	chipid = xlr_processor_id();
+	
+	switch (chipid) { 
+	case 0x8E: 	/* XLS208 */
+	case 0x8F: 	/* XLS204 */
+		/* NA1 is not available */
+		memset(blk1, 0, sizeof(*blk1));
+		break;
+	case 0xCE:	/* XLS108 */
+	case 0xCF:	/* XLS104 */
+		/* NA0 has 3 ports */
+		blk0->gmac_port[3].valid = 0;
+		blk0->num_ports--;
+		/* NA1 is not available */
+		memset(blk1, 0, sizeof(*blk1));
+		break;
+	default:
+		break;
+	}
 }
 
 static void
@@ -208,22 +283,15 @@ xls_board_specific_overrides(struct xlr_board_info* board)
 		break;
 
 	case RMI_XLR_BOARD_ARIZONA_VIII:
-		/* There is just one Octal PHY on the board and it is 
-		 * connected to the MII interface for NA Quad 0. */
-		blk1->gmac_port[0].mii_addr = XLR_IO_GMAC_0_OFFSET;
-		blk1->gmac_port[1].mii_addr = XLR_IO_GMAC_0_OFFSET;
-		blk1->gmac_port[2].mii_addr = XLR_IO_GMAC_0_OFFSET;
-		blk1->gmac_port[3].mii_addr = XLR_IO_GMAC_0_OFFSET;
 
-		/* Board 8.3 (Lite) has XLS108 */
-		if (xlr_boot1_info.board_minor_version == 3) {
-			/* NA0 has 3 ports */
-			blk0->gmac_port[3].valid = 1;
-			blk0->num_ports--;
-			/* NA1 is completely disabled */
-			blk1->enabled = 0;
+		if (blk1->enabled) { 
+			/* There is just one Octal PHY on the board and it is 
+			 * connected to the MII interface for NA Quad 0. */
+			blk1->gmac_port[0].mii_addr = XLR_IO_GMAC_0_OFFSET;
+			blk1->gmac_port[1].mii_addr = XLR_IO_GMAC_0_OFFSET;
+			blk1->gmac_port[2].mii_addr = XLR_IO_GMAC_0_OFFSET;
+			blk1->gmac_port[3].mii_addr = XLR_IO_GMAC_0_OFFSET;
 		}
-
 		break;
 
 	case RMI_XLR_BOARD_ARIZONA_XI:
@@ -321,16 +389,20 @@ xlr_board_info_setup()
 	 * if (CPU is XLS) {
 	 *    // initialize per XLS architecture
 	 *       // default inits (per chip spec)
+	 *       // chip-specific overrides
 	 *       // board-specific overrides
 	 * } else if (CPU is XLR) {
 	 *    // initialize per XLR architecture
 	 *       // default inits (per chip spec)
+	 *       // chip-specific overrides
 	 *       // board-specific overrides
 	 * }
 	 * 
-	 * Within each CPU-specific initialization, all the default 
-	 * initializations are done first. This is followed up with 
-	 * board specific overrides. 
+	 * For each CPU family, all the default initializations
+	 * are done for a fully-loaded device of that family. 
+	 * This configuration is then adjusted for the actual
+	 * chip id. This is followed up with board specific
+	 * overrides. 
 	 */
 
 	/* start with a clean slate */
@@ -351,7 +423,6 @@ xlr_board_info_setup()
 		xlr_board_info.pci_irq = 0;
 		xlr_board_info.credit_configs = xls_core_cc_configs;
 		xlr_board_info.bucket_sizes   = &xls_bucket_sizes;
-		xlr_board_info.msgmap         = xls_rxstn_to_txstn_map;
 		xlr_board_info.gmacports      = MAX_NA_PORTS;
 
 		/* ---------------- Network Acc 0 ---------------- */
@@ -359,7 +430,7 @@ xlr_board_info_setup()
 		blk0->type 		= XLR_GMAC;
 		blk0->enabled 		= 0xf;
 		blk0->credit_config 	= &xls_cc_table_gmac0;
-		blk0->station_id 	= TX_STN_GMAC0;
+		blk0->station_id 	= MSGRNG_STNID_GMAC;
 		blk0->station_txbase 	= MSGRNG_STNID_GMACTX0;
 		blk0->station_rfr 	= MSGRNG_STNID_GMACRFR_0;
 		blk0->mode 		= XLR_SGMII;
@@ -388,7 +459,7 @@ xlr_board_info_setup()
 		blk1->type 		= XLR_GMAC;
 		blk1->enabled 		= 0xf;
 		blk1->credit_config 	= &xls_cc_table_gmac1;
-		blk1->station_id 	= TX_STN_GMAC1;
+		blk1->station_id 	= MSGRNG_STNID_GMAC1;
 		blk1->station_txbase 	= MSGRNG_STNID_GMAC1_TX0;
 		blk1->station_rfr 	= MSGRNG_STNID_GMAC1_FR_0;
 		blk1->mode 		= XLR_SGMII;
@@ -414,6 +485,7 @@ xlr_board_info_setup()
 		/* ---------------- Network Acc 2 ---------------- */
 		xlr_board_info.gmac_block[2].enabled = 0;  /* disabled on XLS */
 
+		xls_chip_specific_overrides(&xlr_board_info);
 		xls_board_specific_overrides(&xlr_board_info);
 
 	} else {	/* XLR */
@@ -424,14 +496,13 @@ xlr_board_info_setup()
 		xlr_board_info.pci_irq = 0;
 		xlr_board_info.credit_configs = xlr_core_cc_configs;
 		xlr_board_info.bucket_sizes   = &bucket_sizes;
-		xlr_board_info.msgmap         =  xlr_rxstn_to_txstn_map;
 		xlr_board_info.gmacports         = 4;
 
 		/* ---------------- GMAC0 ---------------- */
 		blk0->type 		= XLR_GMAC;
 		blk0->enabled 		= 0xf;
 		blk0->credit_config 	= &cc_table_gmac;
-		blk0->station_id 	= TX_STN_GMAC;
+		blk0->station_id 	= MSGRNG_STNID_GMAC;
 		blk0->station_txbase 	= MSGRNG_STNID_GMACTX0;
 		blk0->station_rfr 	= MSGRNG_STNID_GMACRFR_0;
 		blk0->mode 		= XLR_RGMII;
@@ -461,7 +532,7 @@ xlr_board_info_setup()
 		blk1->credit_config 	= &cc_table_xgs_0;
 		blk1->station_txbase 	= MSGRNG_STNID_XGS0_TX;
 		blk1->station_rfr 	= MSGRNG_STNID_XMAC0RFR;
-		blk1->station_id 	= TX_STN_XGS_0;	/* TBD: is this correct ? */
+		blk1->station_id 	= MSGRNG_STNID_XGS0FR;
 		blk1->baseaddr 		= XLR_IO_XGMAC_0_OFFSET;
 		blk1->baseirq 		= PIC_XGS_0_IRQ;
 		blk1->baseinst 		= 4;
@@ -481,7 +552,7 @@ xlr_board_info_setup()
 		blk2->credit_config 	= &cc_table_xgs_1;
 		blk2->station_txbase 	= MSGRNG_STNID_XGS1_TX;
 		blk2->station_rfr 	= MSGRNG_STNID_XMAC1RFR;
-		blk2->station_id 	= TX_STN_XGS_1;	/* TBD: is this correct ? */
+		blk2->station_id 	= MSGRNG_STNID_XGS1FR;
 		blk2->baseaddr 		= XLR_IO_XGMAC_1_OFFSET;
 		blk2->baseirq 		= PIC_XGS_1_IRQ;
 		blk2->baseinst 		= 5;
@@ -494,7 +565,9 @@ xlr_board_info_setup()
 		blk2->gmac_port[0].tx_bucket_id = blk2->station_txbase;
 		blk2->gmac_port[0].mdint_id 	= 2;
 
-		/* Done with default setup. Now do board-specific tweaks. */
+		/* Done with default setup. Now handle chip and board-specific
+		   variations. */
+		xlr_chip_specific_overrides(&xlr_board_info);
 		xlr_board_specific_overrides(&xlr_board_info);
   	}
   	return 0;

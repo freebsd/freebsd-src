@@ -187,20 +187,25 @@ struct {
 static uma_zone_t mt_zone;
 
 u_long vm_kmem_size;
-SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
     "Size of kernel memory");
 
 static u_long vm_kmem_size_min;
-SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RD, &vm_kmem_size_min, 0,
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RDTUN, &vm_kmem_size_min, 0,
     "Minimum size of kernel memory");
 
 static u_long vm_kmem_size_max;
-SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RD, &vm_kmem_size_max, 0,
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RDTUN, &vm_kmem_size_max, 0,
     "Maximum size of kernel memory");
 
 static u_int vm_kmem_size_scale;
-SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RD, &vm_kmem_size_scale, 0,
+SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RDTUN, &vm_kmem_size_scale, 0,
     "Scale factor for kernel memory size");
+
+static int sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm, OID_AUTO, kmem_map_size,
+    CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kmem_map_size, "LU", "Current kmem_map allocation size");
 
 /*
  * The malloc_mtx protects the kmemstatistics linked list.
@@ -239,6 +244,15 @@ TUNABLE_INT("debug.malloc.failure_rate", &malloc_failure_rate);
 SYSCTL_INT(_debug_malloc, OID_AUTO, failure_count, CTLFLAG_RD,
     &malloc_failure_count, 0, "Number of imposed M_NOWAIT malloc failures");
 #endif
+
+static int
+sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS)
+{
+	u_long size;
+
+	size = kmem_map->size;
+	return (sysctl_handle_long(oidp, &size, 0, req));
+}
 
 /*
  * malloc(9) uma zone separation -- sub-page buffer overruns in one

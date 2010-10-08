@@ -494,7 +494,7 @@ getprotoent_r(struct protoent *pptr, char *buffer, size_t buflen,
 
 	if (rv != NS_SUCCESS) {
 		errno = ret_errno;
-		return ((ret_errno != 0) ? ret_errno : -1);
+		return (ret_errno);
 	}
 	return (0);
 }

@@ -632,11 +632,58 @@
 #define	BGE_RX_BD_RULES_CTL15		0x04F8
 #define	BGE_RX_BD_RULES_MASKVAL15	0x04FC
 #define	BGE_RX_RULES_CFG		0x0500
+#define	BGE_MAX_RX_FRAME_LOWAT		0x0504
 #define	BGE_SERDES_CFG			0x0590
 #define	BGE_SERDES_STS			0x0594
 #define	BGE_SGDIG_CFG			0x05B0
 #define	BGE_SGDIG_STS			0x05B4
-#define	BGE_MAC_STATS			0x0800
+#define	BGE_TX_MAC_STATS_OCTETS		0x0800
+#define	BGE_TX_MAC_STATS_RESERVE_0	0x0804
+#define	BGE_TX_MAC_STATS_COLLS		0x0808
+#define	BGE_TX_MAC_STATS_XON_SENT	0x080C
+#define	BGE_TX_MAC_STATS_XOFF_SENT	0x0810
+#define	BGE_TX_MAC_STATS_RESERVE_1	0x0814
+#define	BGE_TX_MAC_STATS_ERRORS		0x0818
+#define	BGE_TX_MAC_STATS_SINGLE_COLL	0x081C
+#define	BGE_TX_MAC_STATS_MULTI_COLL	0x0820
+#define	BGE_TX_MAC_STATS_DEFERRED	0x0824
+#define	BGE_TX_MAC_STATS_RESERVE_2	0x0828
+#define	BGE_TX_MAC_STATS_EXCESS_COLL	0x082C
+#define	BGE_TX_MAC_STATS_LATE_COLL	0x0830
+#define	BGE_TX_MAC_STATS_RESERVE_3	0x0834
+#define	BGE_TX_MAC_STATS_RESERVE_4	0x0838
+#define	BGE_TX_MAC_STATS_RESERVE_5	0x083C
+#define	BGE_TX_MAC_STATS_RESERVE_6	0x0840
+#define	BGE_TX_MAC_STATS_RESERVE_7	0x0844
+#define	BGE_TX_MAC_STATS_RESERVE_8	0x0848
+#define	BGE_TX_MAC_STATS_RESERVE_9	0x084C
+#define	BGE_TX_MAC_STATS_RESERVE_10	0x0850
+#define	BGE_TX_MAC_STATS_RESERVE_11	0x0854
+#define	BGE_TX_MAC_STATS_RESERVE_12	0x0858
+#define	BGE_TX_MAC_STATS_RESERVE_13	0x085C
+#define	BGE_TX_MAC_STATS_RESERVE_14	0x0860
+#define	BGE_TX_MAC_STATS_RESERVE_15	0x0864
+#define	BGE_TX_MAC_STATS_RESERVE_16	0x0868
+#define	BGE_TX_MAC_STATS_UCAST		0x086C
+#define	BGE_TX_MAC_STATS_MCAST		0x0870
+#define	BGE_TX_MAC_STATS_BCAST		0x0874
+#define	BGE_TX_MAC_STATS_RESERVE_17	0x0878
+#define	BGE_TX_MAC_STATS_RESERVE_18	0x087C
+#define	BGE_RX_MAC_STATS_OCTESTS	0x0880
+#define	BGE_RX_MAC_STATS_RESERVE_0	0x0884
+#define	BGE_RX_MAC_STATS_FRAGMENTS	0x0888
+#define	BGE_RX_MAC_STATS_UCAST		0x088C
+#define	BGE_RX_MAC_STATS_MCAST		0x0890
+#define	BGE_RX_MAC_STATS_BCAST		0x0894
+#define	BGE_RX_MAC_STATS_FCS_ERRORS	0x0898
+#define	BGE_RX_MAC_STATS_ALGIN_ERRORS	0x089C
+#define	BGE_RX_MAC_STATS_XON_RCVD	0x08A0
+#define	BGE_RX_MAC_STATS_XOFF_RCVD	0x08A4
+#define	BGE_RX_MAC_STATS_CTRL_RCVD	0x08A8
+#define	BGE_RX_MAC_STATS_XOFF_ENTERED	0x08AC
+#define	BGE_RX_MAC_STATS_FRAME_TOO_LONG	0x08B0
+#define	BGE_RX_MAC_STATS_JABBERS	0x08B4
+#define	BGE_RX_MAC_STATS_UNDERSIZE	0x08B8
 
 /* Ethernet MAC Mode register */
 #define	BGE_MACMODE_RESET		0x00000001
@@ -816,9 +863,12 @@
 #define	BGE_MISTS_LINK			0x00000001
 #define	BGE_MISTS_10MBPS		0x00000002
 
+#define	BGE_MIMODE_CLK_10MHZ		0x00000001
 #define	BGE_MIMODE_SHORTPREAMBLE	0x00000002
 #define	BGE_MIMODE_AUTOPOLL		0x00000010
 #define	BGE_MIMODE_CLKCNT		0x001F0000
+#define	BGE_MIMODE_500KHZ_CONST		0x00008000
+#define	BGE_MIMODE_BASE			0x000C0000
 
 
 /*
@@ -1174,6 +1224,51 @@
 /* Receive List Selector Status register */
 #define	BGE_RXLSSTAT_ERROR		0x00000004
 
+#define	BGE_CPMU_CTRL			0x3600
+#define	BGE_CPMU_LSPD_10MB_CLK		0x3604
+#define	BGE_CPMU_LSPD_1000MB_CLK	0x360C
+#define	BGE_CPMU_LNK_AWARE_PWRMD	0x3610
+#define	BGE_CPMU_HST_ACC		0x361C
+#define	BGE_CPMU_CLCK_STAT		0x3630
+#define	BGE_CPMU_MUTEX_REQ		0x365C
+#define	BGE_CPMU_MUTEX_GNT		0x3660
+#define	BGE_CPMU_PHY_STRAP		0x3664
+
+/* Central Power Management Unit (CPMU) register */
+#define	BGE_CPMU_CTRL_LINK_IDLE_MODE	0x00000200
+#define	BGE_CPMU_CTRL_LINK_AWARE_MODE	0x00000400
+#define	BGE_CPMU_CTRL_LINK_SPEED_MODE	0x00004000
+#define	BGE_CPMU_CTRL_GPHY_10MB_RXONLY	0x00010000
+
+/* Link Speed 10MB/No Link Power Mode Clock Policy register */
+#define	BGE_CPMU_LSPD_10MB_MACCLK_MASK	0x001F0000
+#define	BGE_CPMU_LSPD_10MB_MACCLK_6_25	0x00130000
+
+/* Link Speed 1000MB Power Mode Clock Policy register */
+#define	BGE_CPMU_LSPD_1000MB_MACCLK_62_5	0x00000000
+#define	BGE_CPMU_LSPD_1000MB_MACCLK_12_5	0x00110000
+#define	BGE_CPMU_LSPD_1000MB_MACCLK_MASK	0x001F0000
+
+/* Link Aware Power Mode Clock Policy register */
+#define	BGE_CPMU_LNK_AWARE_MACCLK_MASK	0x001F0000
+#define	BGE_CPMU_LNK_AWARE_MACCLK_6_25	0x00130000
+
+#define	BGE_CPMU_HST_ACC_MACCLK_MASK	0x001F0000
+#define	BGE_CPMU_HST_ACC_MACCLK_6_25	0x00130000
+
+/* CPMU Clock Status register */
+#define	BGE_CPMU_CLCK_STAT_MAC_CLCK_MASK	0x001F0000
+#define	BGE_CPMU_CLCK_STAT_MAC_CLCK_62_5	0x00000000
+#define	BGE_CPMU_CLCK_STAT_MAC_CLCK_12_5	0x00110000
+#define	BGE_CPMU_CLCK_STAT_MAC_CLCK_6_25	0x00130000
+
+/* CPMU Mutex Request register */
+#define	BGE_CPMU_MUTEX_REQ_DRIVER	0x00001000
+#define	BGE_CPMU_MUTEX_GNT_DRIVER	0x00001000
+
+/* CPMU GPHY Strap register */
+#define	BGE_CPMU_PHY_STRAP_IS_SERDES	0x00000020
+
 /*
  * Mbuf Cluster Free registers (has nothing to do with BSD mbufs)
  */
@@ -1384,6 +1479,7 @@
  */
 #define	BGE_RDMA_MODE			0x4800
 #define	BGE_RDMA_STATUS			0x4804
+#define	BGE_RDMA_RSRVCTRL		0x4900
 
 /* Read DMA mode register */
 #define	BGE_RDMAMODE_RESET		0x00000001
@@ -1415,6 +1511,9 @@
 #define	BGE_RDMASTAT_PCI_FIFOOREAD_ATTN	0x00000100
 #define	BGE_RDMASTAT_LOCWRITE_TOOBIG	0x00000200
 
+/* Read DMA Reserved Control register */
+#define	BGE_RDMA_RSRVCTRL_FIFO_OFLW_FIX	0x00000004
+
 /*
  * Write DMA control registers
  */
@@ -1434,6 +1533,7 @@
 #define	BGE_WDMAMODE_LOCREAD_TOOBIG	0x00000200
 #define	BGE_WDMAMODE_ALL_ATTNS		0x000003FC
 #define	BGE_WDMAMODE_STATUS_TAG_FIX	0x20000000
+#define	BGE_WDMAMODE_BURST_ALL_DATA	0xC0000000
 
 /* Write DMA status register */
 #define	BGE_WDMASTAT_PCI_TGT_ABRT_ATTN	0x00000004
@@ -2348,40 +2448,50 @@ struct bge_tx_mac_stats {
 };
 
 /* Stats counters access through registers */
-struct bge_mac_stats_regs {
-	uint32_t		ifHCOutOctets;
-	uint32_t		Reserved0;
-	uint32_t		etherStatsCollisions;
-	uint32_t		outXonSent;
-	uint32_t		outXoffSent;
-	uint32_t		Reserved1;
-	uint32_t		dot3StatsInternalMacTransmitErrors;
-	uint32_t		dot3StatsSingleCollisionFrames;
-	uint32_t		dot3StatsMultipleCollisionFrames;
-	uint32_t		dot3StatsDeferredTransmissions;
-	uint32_t		Reserved2;
-	uint32_t		dot3StatsExcessiveCollisions;
-	uint32_t		dot3StatsLateCollisions;
-	uint32_t		Reserved3[14];
-	uint32_t		ifHCOutUcastPkts;
-	uint32_t		ifHCOutMulticastPkts;
-	uint32_t		ifHCOutBroadcastPkts;
-	uint32_t		Reserved4[2];
-	uint32_t		ifHCInOctets;
-	uint32_t		Reserved5;
-	uint32_t		etherStatsFragments;
-	uint32_t		ifHCInUcastPkts;
-	uint32_t		ifHCInMulticastPkts;
-	uint32_t		ifHCInBroadcastPkts;
-	uint32_t		dot3StatsFCSErrors;
-	uint32_t		dot3StatsAlignmentErrors;
-	uint32_t		xonPauseFramesReceived;
-	uint32_t		xoffPauseFramesReceived;
-	uint32_t		macControlFramesReceived;
-	uint32_t		xoffStateEntered;
-	uint32_t		dot3StatsFramesTooLong;
-	uint32_t		etherStatsJabbers;
-	uint32_t		etherStatsUndersizePkts;
+struct bge_mac_stats {
+	/* TX MAC statistics */
+	uint64_t		ifHCOutOctets;
+	uint64_t		Reserved0;
+	uint64_t		etherStatsCollisions;
+	uint64_t		outXonSent;
+	uint64_t		outXoffSent;
+	uint64_t		Reserved1;
+	uint64_t		dot3StatsInternalMacTransmitErrors;
+	uint64_t		dot3StatsSingleCollisionFrames;
+	uint64_t		dot3StatsMultipleCollisionFrames;
+	uint64_t		dot3StatsDeferredTransmissions;
+	uint64_t		Reserved2;
+	uint64_t		dot3StatsExcessiveCollisions;
+	uint64_t		dot3StatsLateCollisions;
+	uint64_t		Reserved3[14];
+	uint64_t		ifHCOutUcastPkts;
+	uint64_t		ifHCOutMulticastPkts;
+	uint64_t		ifHCOutBroadcastPkts;
+	uint64_t		Reserved4[2];
+	/* RX MAC statistics */
+	uint64_t		ifHCInOctets;
+	uint64_t		Reserved5;
+	uint64_t		etherStatsFragments;
+	uint64_t		ifHCInUcastPkts;
+	uint64_t		ifHCInMulticastPkts;
+	uint64_t		ifHCInBroadcastPkts;
+	uint64_t		dot3StatsFCSErrors;
+	uint64_t		dot3StatsAlignmentErrors;
+	uint64_t		xonPauseFramesReceived;
+	uint64_t		xoffPauseFramesReceived;
+	uint64_t		macControlFramesReceived;
+	uint64_t		xoffStateEntered;
+	uint64_t		dot3StatsFramesTooLong;
+	uint64_t		etherStatsJabbers;
+	uint64_t		etherStatsUndersizePkts;
+	/* Receive List Placement control */
+	uint64_t		FramesDroppedDueToFilters;
+	uint64_t		DmaWriteQueueFull;
+	uint64_t		DmaWriteHighPriQueueFull;
+	uint64_t		NoMoreRxBDs;
+	uint64_t		InputDiscards;
+	uint64_t		InputErrors;
+	uint64_t		RecvThresholdHit;
 };
 
 struct bge_stats {
@@ -2601,29 +2711,31 @@ struct bge_softc {
 	uint32_t		bge_flags;
 #define	BGE_FLAG_TBI		0x00000001
 #define	BGE_FLAG_JUMBO		0x00000002
-#define	BGE_FLAG_WIRESPEED	0x00000004
 #define	BGE_FLAG_EADDR		0x00000008
 #define	BGE_FLAG_MII_SERDES	0x00000010
+#define	BGE_FLAG_CPMU_PRESENT	0x00000020
 #define	BGE_FLAG_MSI		0x00000100
 #define	BGE_FLAG_PCIX		0x00000200
 #define	BGE_FLAG_PCIE		0x00000400
 #define	BGE_FLAG_TSO		0x00000800
-#define	BGE_FLAG_5700_FAMILY	0x00001000
-#define	BGE_FLAG_5705_PLUS	0x00002000
-#define	BGE_FLAG_5714_FAMILY	0x00004000
-#define	BGE_FLAG_575X_PLUS	0x00008000
-#define	BGE_FLAG_5755_PLUS	0x00010000
-#define	BGE_FLAG_40BIT_BUG	0x00020000
-#define	BGE_FLAG_4G_BNDRY_BUG	0x00040000
-#define	BGE_FLAG_RX_ALIGNBUG	0x00100000
-#define	BGE_FLAG_NO_3LED	0x00200000
-#define	BGE_FLAG_ADC_BUG	0x00400000
-#define	BGE_FLAG_5704_A0_BUG	0x00800000
-#define	BGE_FLAG_JITTER_BUG	0x01000000
-#define	BGE_FLAG_BER_BUG	0x02000000
-#define	BGE_FLAG_ADJUST_TRIM	0x04000000
-#define	BGE_FLAG_CRC_BUG	0x08000000
-#define	BGE_FLAG_5788		0x20000000
+#define	BGE_FLAG_5700_FAMILY	0x00010000
+#define	BGE_FLAG_5705_PLUS	0x00020000
+#define	BGE_FLAG_5714_FAMILY	0x00040000
+#define	BGE_FLAG_575X_PLUS	0x00080000
+#define	BGE_FLAG_5755_PLUS	0x00100000
+#define	BGE_FLAG_5788		0x00200000
+#define	BGE_FLAG_40BIT_BUG	0x01000000
+#define	BGE_FLAG_4G_BNDRY_BUG	0x02000000
+#define	BGE_FLAG_RX_ALIGNBUG	0x04000000
+	uint32_t		bge_phy_flags;
+#define	BGE_PHY_WIRESPEED	0x00000001
+#define	BGE_PHY_ADC_BUG		0x00000002
+#define	BGE_PHY_5704_A0_BUG	0x00000004
+#define	BGE_PHY_JITTER_BUG	0x00000008
+#define	BGE_PHY_BER_BUG		0x00000010
+#define	BGE_PHY_ADJUST_TRIM	0x00000020
+#define	BGE_PHY_CRC_BUG		0x00000040
+#define	BGE_PHY_NO_3LED		0x00000080
 	uint32_t		bge_chipid;
 	uint32_t		bge_asicrev;
 	uint32_t		bge_chiprev;
@@ -2643,8 +2755,9 @@ struct bge_softc {
 	uint32_t		bge_tx_prodidx;
 	uint32_t		bge_rx_max_coal_bds;
 	uint32_t		bge_tx_max_coal_bds;
-	uint32_t		bge_tx_buf_ratio;
+	uint32_t		bge_mi_mode;
 	int			bge_if_flags;
+	int			bge_phy_addr;
 	int			bge_txcnt;
 	int			bge_link;	/* link state */
 	int			bge_link_evt;	/* pending link event */
@@ -2659,6 +2772,7 @@ struct bge_softc {
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif /* DEVICE_POLLING */
+	struct bge_mac_stats	bge_mac_stats;
 	struct task		bge_intr_task;
 	struct taskqueue	*bge_tq;
 };

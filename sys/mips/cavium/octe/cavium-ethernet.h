@@ -72,6 +72,8 @@ typedef struct {
 
 	uint8_t mac[6];
 	int phy_id;
+	int (*mdio_read)(struct ifnet *, int, int);
+	void (*mdio_write)(struct ifnet *, int, int, int);
 
 	struct ifqueue tx_free_queue[16];
 

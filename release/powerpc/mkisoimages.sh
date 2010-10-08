@@ -54,4 +54,4 @@ fi
 LABEL=$1; shift
 NAME=$1; shift
 
-mkisofs $bootable -r -hfs -part -no-desktop -hfs-volid $LABEL -l -J -L -o $NAME $*
+mkisofs $bootable -r -hfs -part -no-desktop -hfs-volid $LABEL -l -J -allow-leading-dots -o $NAME $*

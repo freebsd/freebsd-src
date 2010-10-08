@@ -21,7 +21,7 @@ using namespace std;
 namespace clang {
   
 llvm::StringRef getClangRepositoryPath() {
-  static const char URL[] = "$URL: http://llvm.org/svn/llvm-project/cfe/branches/release_28/lib/Basic/Version.cpp $";
+  static const char URL[] = "$URL: http://llvm.org/svn/llvm-project/cfe/tags/RELEASE_28/lib/Basic/Version.cpp $";
   const char *URLEnd = URL + strlen(URL);
 
   const char *End = strstr(URL, "/lib/Basic");

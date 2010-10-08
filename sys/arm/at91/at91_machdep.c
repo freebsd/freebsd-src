@@ -90,9 +90,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 
 #include <arm/at91/at91board.h>
+#include <arm/at91/at91var.h>
 #include <arm/at91/at91rm92reg.h>
-#include <arm/at91/at91_piovar.h>
-#include <arm/at91/at91_pio_rm9200.h>
+#include <arm/at91/at91sam9g20reg.h>
+#include <arm/at91/at91board.h>
 
 #define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
 #define KERNEL_PT_KERN		1
@@ -140,7 +141,7 @@ static void *boot_arg2;
 static struct trapframe proc0_tf;
 
 /* Static device mappings. */
-static const struct pmap_devmap at91rm9200_devmap[] = {
+const struct pmap_devmap at91_devmap[] = {
 	/*
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
@@ -153,60 +154,88 @@ static const struct pmap_devmap at91rm9200_devmap[] = {
 		 */
 		0xdff00000,
 		0xfff00000,
-		0x100000,
+		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
-	/*
-	 * We can't just map the OHCI registers VA == PA, because
-	 * AT91RM92_OHCI_BASE belongs to the userland address space.
+	/* We can't just map the OHCI registers VA == PA, because
+	 * AT91xx_xxx_BASE belongs to the userland address space.
 	 * We could just choose a different virtual address, but a better
 	 * solution would probably be to just use pmap_mapdev() to allocate
 	 * KVA, as we don't need the OHCI controller before the vm
 	 * initialization is done. However, the AT91 resource allocation
 	 * system doesn't know how to use pmap_mapdev() yet.
+	 * Care must be taken to ensure PA and VM address do not overlap
+	 * between entries.
 	 */
 	{
 		/*
 		 * Add the ohci controller, and anything else that might be
 		 * on this chip select for a VA/PA mapping.
 		 */
+		/* Internal Memory 1MB  */
 		AT91RM92_OHCI_BASE,
 		AT91RM92_OHCI_PA_BASE,
-		AT91RM92_OHCI_SIZE,
+		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
-		/* CompactFlash controller. */
+		/* CompactFlash controller. Portion of EBI CS4 1MB */
 		AT91RM92_CF_BASE,
 		AT91RM92_CF_PA_BASE,
-		AT91RM92_CF_SIZE,
+		0x00100000,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
+	/* The next two should be good for the 9260, 9261 and 9G20 since
+	 * addresses mapping is the same. */
+	{
+		/* Internal Memory 1MB  */
+		AT91SAM9G20_OHCI_BASE,
+		AT91SAM9G20_OHCI_PA_BASE,
+		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
-		0,
-		0,
-		0,
-		0,
-		0,
-	}
+		/* EBI CS3 256MB */
+		AT91SAM9G20_NAND_BASE,
+		AT91SAM9G20_NAND_PA_BASE,
+		AT91SAM9G20_NAND_SIZE,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
+	{ 0, 0, 0, 0, 0, }
 };
 
 long
 at91_ramsize(void)
 {
-	uint32_t *SDRAMC = (uint32_t *)(AT91RM92_BASE + AT91RM92_SDRAMC_BASE);
+	uint32_t *SDRAMC = (uint32_t *)(AT91_BASE + AT91RM92_SDRAMC_BASE);
 	uint32_t cr, mr;
 	int banks, rows, cols, bw;
 
-	cr = SDRAMC[AT91RM92_SDRAMC_CR / 4];
-	mr = SDRAMC[AT91RM92_SDRAMC_MR / 4];
-	bw = (mr & AT91RM92_SDRAMC_MR_DBW_16) ? 1 : 2;
-	banks = (cr & AT91RM92_SDRAMC_CR_NB_4) ? 2 : 1;
-	rows = ((cr & AT91RM92_SDRAMC_CR_NR_MASK) >> 2) + 11;
-	cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
+	if (at91_is_rm92()) {
+		SDRAMC = (uint32_t *)(AT91_BASE + AT91RM92_SDRAMC_BASE);
+		cr = SDRAMC[AT91RM92_SDRAMC_CR / 4];
+		mr = SDRAMC[AT91RM92_SDRAMC_MR / 4];
+		banks = (cr & AT91RM92_SDRAMC_CR_NB_4) ? 2 : 1;
+		rows = ((cr & AT91RM92_SDRAMC_CR_NR_MASK) >> 2) + 11;
+		cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
+		bw = (mr & AT91RM92_SDRAMC_MR_DBW_16) ? 1 : 2;
+	} else {
+		/* This should be good for the 9260, 9261 and 9G20 as addresses
+		 * and registers are the same */
+		SDRAMC = (uint32_t *)(AT91_BASE + AT91SAM9G20_SDRAMC_BASE);
+		cr = SDRAMC[AT91SAM9G20_SDRAMC_CR / 4];
+		mr = SDRAMC[AT91SAM9G20_SDRAMC_MR / 4];
+		banks = (cr & AT91SAM9G20_SDRAMC_CR_NB_4) ? 2 : 1;
+		rows = ((cr & AT91SAM9G20_SDRAMC_CR_NR_MASK) >> 2) + 11;
+		cols = (cr & AT91SAM9G20_SDRAMC_CR_NC_MASK) + 8;
+		bw = (cr & AT91SAM9G20_SDRAMC_CR_DBW_16) ? 1 : 2;
+	}
+
 	return (1 << (cols + rows + banks + bw));
 }
 
@@ -326,12 +355,18 @@ initarm(void *arg, void *arg2)
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
-	pmap_devmap_bootstrap(l1pagetable, at91rm9200_devmap);
+	pmap_devmap_bootstrap(l1pagetable, at91_devmap);
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
+
 	cninit();
+
+	/* Get chip id so device drivers know about differences */
+	at91_chip_id = *(volatile uint32_t *)
+		(AT91_BASE + AT91_DBGU_BASE + DBGU_C1R);
+
 	memsize = board_init();
 	physmem = memsize / PAGE_SIZE;
 

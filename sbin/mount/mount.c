@@ -850,10 +850,18 @@ void
 putfsent(struct statfs *ent)
 {
 	struct fstab *fst;
-	char *opts;
+	char *opts, *rw;
 	int l;
 
+	opts = NULL;
+	/* flags2opts() doesn't return the "rw" option. */
+	if ((ent->f_flags & MNT_RDONLY) != 0)
+		rw = NULL;
+	else
+		rw = catopt(NULL, "rw");
+
 	opts = flags2opts(ent->f_flags);
+	opts = catopt(rw, opts);
 
 	if (strncmp(ent->f_mntfromname, "<below>", 7) == 0 ||
 	    strncmp(ent->f_mntfromname, "<above>", 7) == 0) {
@@ -861,10 +869,6 @@ putfsent(struct statfs *ent)
 		    +1));
 	}
 
-	/*
-	 * "rw" is not a real mount option; this is why we print NULL as "rw"
-	 * if opts is still NULL here.
-	 */
 	l = strlen(ent->f_mntfromname);
 	printf("%s%s%s%s", ent->f_mntfromname,
 	    l < 8 ? "\t" : "",
@@ -876,13 +880,9 @@ putfsent(struct statfs *ent)
 	    l < 16 ? "\t" : "",
 	    l < 24 ? "\t" : " ");
 	printf("%s\t", ent->f_fstypename);
-	if (opts == NULL) {
-		printf("%s\t", "rw");
-	} else {
-		l = strlen(opts);
-		printf("%s%s", opts,
-		    l < 8 ? "\t" : " ");
-	}
+	l = strlen(opts);
+	printf("%s%s", opts,
+	    l < 8 ? "\t" : " ");
 	free(opts);
 
 	if ((fst = getfsspec(ent->f_mntfromname)))

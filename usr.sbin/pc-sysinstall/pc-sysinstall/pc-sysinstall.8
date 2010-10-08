@@ -53,7 +53,6 @@ Perform an installation as directed by
 The
 .Cm command
 can be any one of the following:
-.Pp
 .Bl -tag -width indent
 .It help
 Display a list of all commands.
@@ -62,7 +61,7 @@ Display the help data for the specified command.
 .It disk-list
 Provide a listing of the storage devices detected on this system.
 .It disk-part Ar disk
-Queries the specified storage device and returns information about its 
+Queries the specified storage device and returns information about its
 partitions.
 .It disk-info Ar disk
 Returns information about a storage device's size, cylinders, heads, and
@@ -106,6 +105,7 @@ used by automated install scripts.
 .It setup-ssh-keys Ar user Ar host Ar port
 Setup SSH without a password for the target host, user, and port.  Used to
 prompt the user to log into a server before doing a rsync + ssh restore.
+.El
 .Sh HISTORY
 This version of
 .Nm

@@ -371,6 +371,7 @@ static int bge_rxeof(struct bge_softc *, uint16_t, int);
 
 static void bge_asf_driver_up (struct bge_softc *);
 static void bge_tick(void *);
+static void bge_stats_clear_regs(struct bge_softc *);
 static void bge_stats_update(struct bge_softc *);
 static void bge_stats_update_regs(struct bge_softc *);
 static struct mbuf *bge_setup_tso(struct bge_softc *, struct mbuf *,
@@ -453,6 +454,10 @@ static int bge_sysctl_reg_read(SYSCTL_HANDLER_ARGS);
 static int bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS);
 #endif
 static void bge_add_sysctls(struct bge_softc *);
+static void bge_add_sysctl_stats_regs(struct bge_softc *,
+    struct sysctl_ctx_list *, struct sysctl_oid_list *);
+static void bge_add_sysctl_stats(struct bge_softc *, struct sysctl_ctx_list *,
+    struct sysctl_oid_list *);
 static int bge_sysctl_stats(SYSCTL_HANDLER_ARGS);
 
 static device_method_t bge_methods[] = {
@@ -763,38 +768,34 @@ static int
 bge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct bge_softc *sc;
-	uint32_t val, autopoll;
+	uint32_t val;
 	int i;
 
 	sc = device_get_softc(dev);
 
-	/*
-	 * Broadcom's own driver always assumes the internal
-	 * PHY is at GMII address 1. On some chips, the PHY responds
-	 * to accesses at all addresses, which could cause us to
-	 * bogusly attach the PHY 32 times at probe type. Always
-	 * restricting the lookup to address 1 is simpler than
-	 * trying to figure out which chips revisions should be
-	 * special-cased.
-	 */
-	if (phy != 1)
+	/* Prevent the probe from finding incorrect devices. */
+	if (phy != sc->bge_phy_addr)
 		return (0);
 
-	/* Reading with autopolling on may trigger PCI errors */
-	autopoll = CSR_READ_4(sc, BGE_MI_MODE);
-	if (autopoll & BGE_MIMODE_AUTOPOLL) {
-		BGE_CLRBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
-		DELAY(40);
+	/* Clear the autopoll bit if set, otherwise may trigger PCI errors. */
+	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
+		CSR_WRITE_4(sc, BGE_MI_MODE,
+		    sc->bge_mi_mode & ~BGE_MIMODE_AUTOPOLL);
+		DELAY(80);
 	}
 
 	CSR_WRITE_4(sc, BGE_MI_COMM, BGE_MICMD_READ | BGE_MICOMM_BUSY |
 	    BGE_MIPHY(phy) | BGE_MIREG(reg));
 
+	/* Poll for the PHY register access to complete. */
 	for (i = 0; i < BGE_TIMEOUT; i++) {
 		DELAY(10);
 		val = CSR_READ_4(sc, BGE_MI_COMM);
-		if (!(val & BGE_MICOMM_BUSY))
+		if ((val & BGE_MICOMM_BUSY) == 0) {
+			DELAY(5);
+			val = CSR_READ_4(sc, BGE_MI_COMM);
 			break;
+		}
 	}
 
 	if (i == BGE_TIMEOUT) {
@@ -802,16 +803,12 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 		    "PHY read timed out (phy %d, reg %d, val 0x%08x)\n",
 		    phy, reg, val);
 		val = 0;
-		goto done;
 	}
 
-	DELAY(5);
-	val = CSR_READ_4(sc, BGE_MI_COMM);
-
-done:
-	if (autopoll & BGE_MIMODE_AUTOPOLL) {
-		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
-		DELAY(40);
+	/* Restore the autopoll bit if necessary. */
+	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
+		CSR_WRITE_4(sc, BGE_MI_MODE, sc->bge_mi_mode);
+		DELAY(80);
 	}
 
 	if (val & BGE_MICOMM_READFAIL)
@@ -824,7 +821,6 @@ static int
 bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct bge_softc *sc;
-	uint32_t autopoll;
 	int i;
 
 	sc = device_get_softc(dev);
@@ -833,11 +829,11 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 	    (reg == BRGPHY_MII_1000CTL || reg == BRGPHY_MII_AUXCTL))
 		return (0);
 
-	/* Reading with autopolling on may trigger PCI errors */
-	autopoll = CSR_READ_4(sc, BGE_MI_MODE);
-	if (autopoll & BGE_MIMODE_AUTOPOLL) {
-		BGE_CLRBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
-		DELAY(40);
+	/* Clear the autopoll bit if set, otherwise may trigger PCI errors. */
+	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
+		CSR_WRITE_4(sc, BGE_MI_MODE,
+		    sc->bge_mi_mode & ~BGE_MIMODE_AUTOPOLL);
+		DELAY(80);
 	}
 
 	CSR_WRITE_4(sc, BGE_MI_COMM, BGE_MICMD_WRITE | BGE_MICOMM_BUSY |
@@ -852,17 +848,16 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 		}
 	}
 
-	if (i == BGE_TIMEOUT) {
+	/* Restore the autopoll bit if necessary. */
+	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
+		CSR_WRITE_4(sc, BGE_MI_MODE, sc->bge_mi_mode);
+		DELAY(80);
+	}
+
+	if (i == BGE_TIMEOUT)
 		device_printf(sc->bge_dev,
 		    "PHY write timed out (phy %d, reg %d, val %d)\n",
 		    phy, reg, val);
-		return (0);
-	}
-
-	if (autopoll & BGE_MIMODE_AUTOPOLL) {
-		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
-		DELAY(40);
-	}
 
 	return (0);
 }
@@ -882,10 +877,21 @@ bge_miibus_statchg(device_t dev)
 	else
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_PORTMODE_MII);
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
+	if (IFM_OPTIONS(mii->mii_media_active & IFM_FDX) != 0) {
 		BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-	else
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG1)
+			BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
+		else
+			BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0)
+			BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
+		else
+			BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
+	} else {
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
+		BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
+		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
+	}
 }
 
 /*
@@ -1036,7 +1042,7 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 		if ((error = bge_newbuf_std(sc, i)) != 0)
 			return (error);
 		BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
-	};
+	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
@@ -1079,16 +1085,17 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 		if ((error = bge_newbuf_jumbo(sc, i)) != 0)
 			return (error);
 		BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
-	};
+	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 	    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 
 	sc->bge_jumbo = 0;
 
+	/* Enable the jumbo receive producer ring. */
 	rcb = &sc->bge_ldata.bge_info.bge_jumbo_rx_rcb;
-	rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0,
-				    BGE_RCB_FLAG_USE_EXT_RX_BD);
+	rcb->bge_maxlen_flags =
+	    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_USE_EXT_RX_BD);
 	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
 
 	bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, BGE_JUMBO_RX_RING_CNT - 1);
@@ -1467,7 +1474,7 @@ bge_blockinit(struct bge_softc *sc)
 	bus_size_t vrcb;
 	bge_hostaddr taddr;
 	uint32_t val;
-	int i;
+	int i, limit;
 
 	/*
 	 * Initialize the memory window pointer register so that
@@ -1547,7 +1554,38 @@ bge_blockinit(struct bge_softc *sc)
 		return (ENXIO);
 	}
 
-	/* Initialize the standard RX ring control block */
+	/*
+	 * Summary of rings supported by the controller:
+	 *
+	 * Standard Receive Producer Ring
+	 * - This ring is used to feed receive buffers for "standard"
+	 *   sized frames (typically 1536 bytes) to the controller.
+	 *
+	 * Jumbo Receive Producer Ring
+	 * - This ring is used to feed receive buffers for jumbo sized
+	 *   frames (i.e. anything bigger than the "standard" frames)
+	 *   to the controller.
+	 *
+	 * Mini Receive Producer Ring
+	 * - This ring is used to feed receive buffers for "mini"
+	 *   sized frames to the controller.
+	 * - This feature required external memory for the controller
+	 *   but was never used in a production system.  Should always
+	 *   be disabled.
+	 *
+	 * Receive Return Ring
+	 * - After the controller has placed an incoming frame into a
+	 *   receive buffer that buffer is moved into a receive return
+	 *   ring.  The driver is then responsible to passing the
+	 *   buffer up to the stack.  Many versions of the controller
+	 *   support multiple RR rings.
+	 *
+	 * Send Ring
+	 * - This ring is used for outgoing frames.  Many versions of
+	 *   the controller support multiple send rings.
+	 */
+
+	/* Initialize the standard receive producer ring control block. */
 	rcb = &sc->bge_ldata.bge_info.bge_std_rx_rcb;
 	rcb->bge_hostaddr.bge_addr_lo =
 	    BGE_ADDR_LO(sc->bge_ldata.bge_rx_std_ring_paddr);
@@ -1555,28 +1593,45 @@ bge_blockinit(struct bge_softc *sc)
 	    BGE_ADDR_HI(sc->bge_ldata.bge_rx_std_ring_paddr);
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREREAD);
-	if (BGE_IS_5705_PLUS(sc))
+	if (BGE_IS_5705_PLUS(sc)) {
+		/*
+		 * Bits 31-16: Programmable ring size (512, 256, 128, 64, 32)
+		 * Bits 15-2 : Reserved (should be 0)
+		 * Bit 1     : 1 = Ring Disabled, 0 = Ring Enabled
+		 * Bit 0     : Reserved
+		 */
 		rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(512, 0);
-	else
+	} else {
+		/*
+		 * Ring size is always XXX entries
+		 * Bits 31-16: Maximum RX frame size
+		 * Bits 15-2 : Reserved (should be 0)
+		 * Bit 1     : 1 = Ring Disabled, 0 = Ring Enabled
+		 * Bit 0     : Reserved
+		 */
 		rcb->bge_maxlen_flags =
 		    BGE_RCB_MAXLEN_FLAGS(BGE_MAX_FRAMELEN, 0);
+	}
 	rcb->bge_nicaddr = BGE_STD_RX_RINGS;
+	/* Write the standard receive producer ring control block. */
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_HI, rcb->bge_hostaddr.bge_addr_hi);
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_LO, rcb->bge_hostaddr.bge_addr_lo);
-
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_NICADDR, rcb->bge_nicaddr);
 
+	/* Reset the standard receive producer ring producer index. */
+	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, 0);
+
 	/*
-	 * Initialize the jumbo RX ring control block
-	 * We set the 'ring disabled' bit in the flags
-	 * field until we're actually ready to start
+	 * Initialize the jumbo RX producer ring control
+	 * block.  We set the 'ring disabled' bit in the
+	 * flags field until we're actually ready to start
 	 * using this ring (i.e. once we set the MTU
 	 * high enough to require it).
 	 */
 	if (BGE_IS_JUMBO_CAPABLE(sc)) {
 		rcb = &sc->bge_ldata.bge_info.bge_jumbo_rx_rcb;
-
+		/* Get the jumbo receive producer ring RCB parameters. */
 		rcb->bge_hostaddr.bge_addr_lo =
 		    BGE_ADDR_LO(sc->bge_ldata.bge_rx_jumbo_ring_paddr);
 		rcb->bge_hostaddr.bge_addr_hi =
@@ -1591,20 +1646,31 @@ bge_blockinit(struct bge_softc *sc)
 		    rcb->bge_hostaddr.bge_addr_hi);
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_HADDR_LO,
 		    rcb->bge_hostaddr.bge_addr_lo);
-
+		/* Program the jumbo receive producer ring RCB parameters. */
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS,
 		    rcb->bge_maxlen_flags);
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_NICADDR, rcb->bge_nicaddr);
+		/* Reset the jumbo receive producer ring producer index. */
+		bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, 0);
+	}
 
-		/* Set up dummy disabled mini ring RCB */
+	/* Disable the mini receive producer ring RCB. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
 		rcb = &sc->bge_ldata.bge_info.bge_mini_rx_rcb;
 		rcb->bge_maxlen_flags =
 		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
 		CSR_WRITE_4(sc, BGE_RX_MINI_RCB_MAXLEN_FLAGS,
 		    rcb->bge_maxlen_flags);
+		/* Reset the mini receive producer ring producer index. */
+		bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
 	}
 
 	/*
+	 * The BD ring replenish thresholds control how often the
+	 * hardware fetches new BD's from the producer rings in host
+	 * memory.  Setting the value too low on a busy system can
+	 * starve the hardware and recue the throughpout.
+	 *
 	 * Set the BD ring replentish thresholds. The recommended
 	 * values are 1/8th the number of descriptors allocated to
 	 * each ring.
@@ -1626,61 +1692,67 @@ bge_blockinit(struct bge_softc *sc)
 		    BGE_JUMBO_RX_RING_CNT/8);
 
 	/*
-	 * Disable all unused send rings by setting the 'ring disabled'
-	 * bit in the flags field of all the TX send ring control blocks.
-	 * These are located in NIC memory.
+	 * Disable all send rings by setting the 'ring disabled' bit
+	 * in the flags field of all the TX send ring control blocks,
+	 * located in NIC memory.
 	 */
+	if (!BGE_IS_5705_PLUS(sc))
+		/* 5700 to 5704 had 16 send rings. */
+		limit = BGE_TX_RINGS_EXTSSRAM_MAX;
+	else
+		limit = 1;
 	vrcb = BGE_MEMWIN_START + BGE_SEND_RING_RCB;
-	for (i = 0; i < BGE_TX_RINGS_EXTSSRAM_MAX; i++) {
+	for (i = 0; i < limit; i++) {
 		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
 		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED));
 		RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0);
 		vrcb += sizeof(struct bge_rcb);
 	}
 
-	/* Configure TX RCB 0 (we use only the first ring) */
+	/* Configure send ring RCB 0 (we use only the first ring) */
 	vrcb = BGE_MEMWIN_START + BGE_SEND_RING_RCB;
 	BGE_HOSTADDR(taddr, sc->bge_ldata.bge_tx_ring_paddr);
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_hi, taddr.bge_addr_hi);
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, taddr.bge_addr_lo);
 	RCB_WRITE_4(sc, vrcb, bge_nicaddr,
 	    BGE_NIC_TXRING_ADDR(0, BGE_TX_RING_CNT));
-	if (!(BGE_IS_5705_PLUS(sc)))
-		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
-		    BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0));
+	RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
+	    BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0));
 
-	/* Disable all unused RX return rings */
+	/*
+	 * Disable all receive return rings by setting the
+	 * 'ring diabled' bit in the flags field of all the receive
+	 * return ring control blocks, located in NIC memory.
+	 */
+	if (!BGE_IS_5705_PLUS(sc))
+		limit = BGE_RX_RINGS_MAX;
+	else if (sc->bge_asicrev == BGE_ASICREV_BCM5755)
+		limit = 4;
+	else
+		limit = 1;
+	/* Disable all receive return rings. */
 	vrcb = BGE_MEMWIN_START + BGE_RX_RETURN_RING_RCB;
-	for (i = 0; i < BGE_RX_RINGS_MAX; i++) {
+	for (i = 0; i < limit; i++) {
 		RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_hi, 0);
 		RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, 0);
 		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
-		    BGE_RCB_MAXLEN_FLAGS(sc->bge_return_ring_cnt,
-		    BGE_RCB_FLAG_RING_DISABLED));
+		    BGE_RCB_FLAG_RING_DISABLED);
 		RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0);
 		bge_writembx(sc, BGE_MBX_RX_CONS0_LO +
 		    (i * (sizeof(uint64_t))), 0);
 		vrcb += sizeof(struct bge_rcb);
 	}
 
-	/* Initialize RX ring indexes */
-	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, 0);
-	if (BGE_IS_JUMBO_CAPABLE(sc))
-		bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, 0);
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5700)
-		bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
-
 	/*
-	 * Set up RX return ring 0
-	 * Note that the NIC address for RX return rings is 0x00000000.
-	 * The return rings live entirely within the host, so the
-	 * nicaddr field in the RCB isn't used.
+	 * Set up receive return ring 0.  Note that the NIC address
+	 * for RX return rings is 0x0.  The return rings live entirely
+	 * within the host, so the nicaddr field in the RCB isn't used.
 	 */
 	vrcb = BGE_MEMWIN_START + BGE_RX_RETURN_RING_RCB;
 	BGE_HOSTADDR(taddr, sc->bge_ldata.bge_rx_return_ring_paddr);
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_hi, taddr.bge_addr_hi);
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, taddr.bge_addr_lo);
-	RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0x00000000);
+	RCB_WRITE_4(sc, vrcb, bge_nicaddr, 0);
 	RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
 	    BGE_RCB_MAXLEN_FLAGS(sc->bge_return_ring_cnt, 0));
 
@@ -1818,6 +1890,10 @@ bge_blockinit(struct bge_softc *sc)
 	if (BGE_IS_5755_PLUS(sc))
 		val |= BGE_WDMAMODE_STATUS_TAG_FIX;
 
+	/* Request larger DMA burst size to get better performance. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5785)
+		val |= BGE_WDMAMODE_BURST_ALL_DATA;
+
 	/* Turn on write DMA state machine */
 	CSR_WRITE_4(sc, BGE_WDMA_MODE, val);
 	DELAY(40);
@@ -1837,6 +1913,19 @@ bge_blockinit(struct bge_softc *sc)
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM57780)
 			val |= BGE_RDMAMODE_TSO6_ENABLE;
+	}
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM57780) {
+		/*
+		 * Enable fix for read DMA FIFO overruns.
+		 * The fix is to limit the number of RX BDs
+		 * the hardware would fetch at a fime.
+		 */
+		CSR_WRITE_4(sc, BGE_RDMA_RSRVCTRL,
+		    CSR_READ_4(sc, BGE_RDMA_RSRVCTRL) |
+		    BGE_RDMA_RSRVCTRL_FIFO_OFLW_FIX);
 	}
 	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
 	DELAY(40);
@@ -2469,6 +2558,9 @@ bge_attach(device_t dev)
 	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
+	/* Set default PHY address. */
+	sc->bge_phy_addr = 1;
+
 	/*
 	 * Don't enable Ethernet@WireSpeed for the 5700, 5906, or the
 	 * 5705 A0 and A1 chips.
@@ -2477,7 +2569,7 @@ bge_attach(device_t dev)
 	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5705_A0 &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5705_A1)
-		sc->bge_flags |= BGE_FLAG_WIRESPEED;
+		sc->bge_phy_flags |= BGE_PHY_WIRESPEED;
 
 	if (bge_has_eaddr(sc))
 		sc->bge_flags |= BGE_FLAG_EADDR;
@@ -2514,31 +2606,44 @@ bge_attach(device_t dev)
 		break;
 	}
 
-	/* Set various bug flags. */
+	/* Set various PHY bug flags. */
 	if (sc->bge_chipid == BGE_CHIPID_BCM5701_A0 ||
 	    sc->bge_chipid == BGE_CHIPID_BCM5701_B0)
-		sc->bge_flags |= BGE_FLAG_CRC_BUG;
+		sc->bge_phy_flags |= BGE_PHY_CRC_BUG;
 	if (sc->bge_chiprev == BGE_CHIPREV_5703_AX ||
 	    sc->bge_chiprev == BGE_CHIPREV_5704_AX)
-		sc->bge_flags |= BGE_FLAG_ADC_BUG;
+		sc->bge_phy_flags |= BGE_PHY_ADC_BUG;
 	if (sc->bge_chipid == BGE_CHIPID_BCM5704_A0)
-		sc->bge_flags |= BGE_FLAG_5704_A0_BUG;
+		sc->bge_phy_flags |= BGE_PHY_5704_A0_BUG;
 	if (pci_get_subvendor(dev) == DELL_VENDORID)
-		sc->bge_flags |= BGE_FLAG_NO_3LED;
-	if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
-		sc->bge_flags |= BGE_FLAG_ADJUST_TRIM;
-	if (BGE_IS_5705_PLUS(sc) &&
-	    !(sc->bge_flags & BGE_FLAG_ADJUST_TRIM)) {
+		sc->bge_phy_flags |= BGE_PHY_NO_3LED;
+	if ((BGE_IS_5705_PLUS(sc)) &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM57780) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
 			if (pci_get_device(dev) != BCOM_DEVICEID_BCM5722 &&
 			    pci_get_device(dev) != BCOM_DEVICEID_BCM5756)
-				sc->bge_flags |= BGE_FLAG_JITTER_BUG;
-		} else if (sc->bge_asicrev != BGE_ASICREV_BCM5906)
-			sc->bge_flags |= BGE_FLAG_BER_BUG;
+				sc->bge_phy_flags |= BGE_PHY_JITTER_BUG;
+			if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
+				sc->bge_phy_flags |= BGE_PHY_ADJUST_TRIM;
+		} else
+			sc->bge_phy_flags |= BGE_PHY_BER_BUG;
 	}
+
+	/* Identify the chips that use an CPMU. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM57780)
+		sc->bge_flags |= BGE_FLAG_CPMU_PRESENT;
+	if ((sc->bge_flags & BGE_FLAG_CPMU_PRESENT) != 0)
+		sc->bge_mi_mode = BGE_MIMODE_500KHZ_CONST;
+	else
+		sc->bge_mi_mode = BGE_MIMODE_BASE;
 
 	/*
 	 * All controllers that are not 5755 or higher have 4GB
@@ -2551,14 +2656,12 @@ bge_attach(device_t dev)
 	if (BGE_IS_5755_PLUS(sc) == 0)
 		sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
 
-	/*
-	 * We could possibly check for BCOM_DEVICEID_BCM5788 in bge_probe()
-	 * but I do not know the DEVICEID for the 5788M.
-	 */
-	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
-	if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
-	    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
-		sc->bge_flags |= BGE_FLAG_5788;
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
+		misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
+		if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
+		    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
+			sc->bge_flags |= BGE_FLAG_5788;
+	}
 
 	/*
 	 * Some controllers seem to require a special firmware to use
@@ -3719,15 +3822,127 @@ static void
 bge_stats_update_regs(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
+	struct bge_mac_stats *stats;
 
 	ifp = sc->bge_ifp;
+	stats = &sc->bge_mac_stats;
 
-	ifp->if_collisions += CSR_READ_4(sc, BGE_MAC_STATS +
-	    offsetof(struct bge_mac_stats_regs, etherStatsCollisions));
+	stats->ifHCOutOctets +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_OCTETS);
+	stats->etherStatsCollisions +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_COLLS);
+	stats->outXonSent +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_XON_SENT);
+	stats->outXoffSent +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_XOFF_SENT);
+	stats->dot3StatsInternalMacTransmitErrors +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_ERRORS);
+	stats->dot3StatsSingleCollisionFrames +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_SINGLE_COLL);
+	stats->dot3StatsMultipleCollisionFrames +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_MULTI_COLL);
+	stats->dot3StatsDeferredTransmissions +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_DEFERRED);
+	stats->dot3StatsExcessiveCollisions +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_EXCESS_COLL);
+	stats->dot3StatsLateCollisions +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_LATE_COLL);
+	stats->ifHCOutUcastPkts +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_UCAST);
+	stats->ifHCOutMulticastPkts +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_MCAST);
+	stats->ifHCOutBroadcastPkts +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_BCAST);
 
-	ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_OUT_OF_BDS);
-	ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
-	ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_ERRORS);
+	stats->ifHCInOctets +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_OCTESTS);
+	stats->etherStatsFragments +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_FRAGMENTS);
+	stats->ifHCInUcastPkts +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_UCAST);
+	stats->ifHCInMulticastPkts +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_MCAST);
+	stats->ifHCInBroadcastPkts +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_BCAST);
+	stats->dot3StatsFCSErrors +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_FCS_ERRORS);
+	stats->dot3StatsAlignmentErrors +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_ALGIN_ERRORS);
+	stats->xonPauseFramesReceived +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_XON_RCVD);
+	stats->xoffPauseFramesReceived +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_XOFF_RCVD);
+	stats->macControlFramesReceived +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_CTRL_RCVD);
+	stats->xoffStateEntered +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_XOFF_ENTERED);
+	stats->dot3StatsFramesTooLong +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_FRAME_TOO_LONG);
+	stats->etherStatsJabbers +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_JABBERS);
+	stats->etherStatsUndersizePkts +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_UNDERSIZE);
+
+	stats->FramesDroppedDueToFilters +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_FILTDROP);
+	stats->DmaWriteQueueFull +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_DMA_WRQ_FULL);
+	stats->DmaWriteHighPriQueueFull +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_DMA_HPWRQ_FULL);
+	stats->NoMoreRxBDs +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_OUT_OF_BDS);
+	stats->InputDiscards +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
+	stats->InputErrors +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_ERRORS);
+	stats->RecvThresholdHit +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_RXTHRESH_HIT);
+
+	ifp->if_collisions = (u_long)stats->etherStatsCollisions;
+	ifp->if_ierrors = (u_long)(stats->NoMoreRxBDs + stats->InputDiscards +
+	    stats->InputErrors);
+}
+
+static void
+bge_stats_clear_regs(struct bge_softc *sc)
+{
+
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_OCTETS);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_COLLS);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_XON_SENT);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_XOFF_SENT);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_ERRORS);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_SINGLE_COLL);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_MULTI_COLL);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_DEFERRED);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_EXCESS_COLL);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_LATE_COLL);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_UCAST);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_MCAST);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_BCAST);
+
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_OCTESTS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_FRAGMENTS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_UCAST);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_MCAST);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_BCAST);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_FCS_ERRORS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_ALGIN_ERRORS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_XON_RCVD);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_XOFF_RCVD);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_CTRL_RCVD);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_XOFF_ENTERED);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_FRAME_TOO_LONG);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_JABBERS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_UNDERSIZE);
+
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_FILTDROP);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_DMA_WRQ_FULL);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_DMA_HPWRQ_FULL);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_OUT_OF_BDS);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_ERRORS);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_RXTHRESH_HIT);
 }
 
 static void
@@ -4220,6 +4435,18 @@ bge_init_locked(struct bge_softc *sc)
 	/* Turn on receiver. */
 	BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
 
+	/*
+	 * Set the number of good frames to receive after RX MBUF
+	 * Low Watermark has been reached. After the RX MAC receives
+	 * this number of frames, it will drop subsequent incoming
+	 * frames until the MBUF High Watermark is reached.
+	 */
+	CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 2);
+
+	/* Clear MAC statistics. */
+	if (BGE_IS_5705_PLUS(sc))
+		bge_stats_clear_regs(sc);
+
 	/* Tell firmware we're alive. */
 	BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
 
@@ -4490,14 +4717,18 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 #endif
-		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if (IFCAP_HWCSUM & ifp->if_capenable &&
-			    IFCAP_HWCSUM & ifp->if_capabilities)
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
 				ifp->if_hwassist |= sc->bge_csum_features;
 			else
 				ifp->if_hwassist &= ~sc->bge_csum_features;
 		}
+
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 
 		if ((mask & IFCAP_TSO4) != 0 &&
 		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
@@ -4621,6 +4852,9 @@ bge_stop(struct bge_softc *sc)
 		BGE_CLRBIT(sc, BGE_BMAN_MODE, BGE_BMANMODE_ENABLE);
 		BGE_CLRBIT(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
 	}
+	/* Update MAC statistics. */
+	if (BGE_IS_5705_PLUS(sc))
+		bge_stats_update_regs(sc);
 
 	bge_reset(sc);
 	bge_sig_legacy(sc, BGE_RESET_STOP);
@@ -4819,17 +5053,11 @@ bge_link_upd(struct bge_softc *sc)
 	    BGE_MACSTAT_LINK_CHANGED);
 }
 
-#define BGE_SYSCTL_STAT(sc, ctx, desc, parent, node, oid) \
-	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, oid, CTLTYPE_UINT|CTLFLAG_RD, \
-	    sc, offsetof(struct bge_stats, node), bge_sysctl_stats, "IU", \
-	    desc)
-
 static void
 bge_add_sysctls(struct bge_softc *sc)
 {
 	struct sysctl_ctx_list *ctx;
-	struct sysctl_oid_list *children, *schildren;
-	struct sysctl_oid *tree;
+	struct sysctl_oid_list *children;
 	char tn[32];
 	int unit;
 
@@ -4891,9 +5119,24 @@ bge_add_sysctls(struct bge_softc *sc)
 	    "generate UDP checksum value 0");
 
 	if (BGE_IS_5705_PLUS(sc))
-		return;
+		bge_add_sysctl_stats_regs(sc, ctx, children);
+	else
+		bge_add_sysctl_stats(sc, ctx, children);
+}
 
-	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats", CTLFLAG_RD,
+#define BGE_SYSCTL_STAT(sc, ctx, desc, parent, node, oid) \
+	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, oid, CTLTYPE_UINT|CTLFLAG_RD, \
+	    sc, offsetof(struct bge_stats, node), bge_sysctl_stats, "IU", \
+	    desc)
+
+static void
+bge_add_sysctl_stats(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *parent)
+{
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *children, *schildren;
+
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "stats", CTLFLAG_RD,
 	    NULL, "BGE Statistics");
 	schildren = children = SYSCTL_CHILDREN(tree);
 	BGE_SYSCTL_STAT(sc, ctx, "Frames Dropped Due To Filters",
@@ -4932,11 +5175,11 @@ bge_add_sysctls(struct bge_softc *sc)
 	    NULL, "BGE RX Statistics");
 	children = SYSCTL_CHILDREN(tree);
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Octets",
-	    children, rxstats.ifHCInOctets, "Octets");
+	    children, rxstats.ifHCInOctets, "ifHCInOctets");
 	BGE_SYSCTL_STAT(sc, ctx, "Fragments",
 	    children, rxstats.etherStatsFragments, "Fragments");
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Unicast Packets",
-	    children, rxstats.ifHCInUcastPkts, "UcastPkts");
+	    children, rxstats.ifHCInUcastPkts, "UnicastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Multicast Packets",
 	    children, rxstats.ifHCInMulticastPkts, "MulticastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "FCS Errors",
@@ -4968,7 +5211,7 @@ bge_add_sysctls(struct bge_softc *sc)
 	    NULL, "BGE TX Statistics");
 	children = SYSCTL_CHILDREN(tree);
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Octets",
-	    children, txstats.ifHCOutOctets, "Octets");
+	    children, txstats.ifHCOutOctets, "ifHCOutOctets");
 	BGE_SYSCTL_STAT(sc, ctx, "TX Collisions",
 	    children, txstats.etherStatsCollisions, "Collisions");
 	BGE_SYSCTL_STAT(sc, ctx, "XON Sent",
@@ -4996,7 +5239,7 @@ bge_add_sysctls(struct bge_softc *sc)
 	    children, txstats.dot3StatsLateCollisions,
 	    "LateCollisions");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Unicast Packets",
-	    children, txstats.ifHCOutUcastPkts, "UcastPkts");
+	    children, txstats.ifHCOutUcastPkts, "UnicastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Multicast Packets",
 	    children, txstats.ifHCOutMulticastPkts, "MulticastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Broadcast Packets",
@@ -5009,6 +5252,106 @@ bge_add_sysctls(struct bge_softc *sc)
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Errors",
 	    children, txstats.ifOutErrors, "Errors");
 }
+
+#undef BGE_SYSCTL_STAT
+
+#define	BGE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
+	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+
+static void
+bge_add_sysctl_stats_regs(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *parent)
+{
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child, *schild;
+	struct bge_mac_stats *stats;
+
+	stats = &sc->bge_mac_stats;
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "BGE Statistics");
+	schild = child = SYSCTL_CHILDREN(tree);
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "FramesDroppedDueToFilters",
+	    &stats->FramesDroppedDueToFilters, "Frames Dropped Due to Filters");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "DmaWriteQueueFull",
+	    &stats->DmaWriteQueueFull, "NIC DMA Write Queue Full");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "DmaWriteHighPriQueueFull",
+	    &stats->DmaWriteHighPriQueueFull,
+	    "NIC DMA Write High Priority Queue Full");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "NoMoreRxBDs",
+	    &stats->NoMoreRxBDs, "NIC No More RX Buffer Descriptors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "InputDiscards",
+	    &stats->InputDiscards, "Discarded Input Frames");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "InputErrors",
+	    &stats->InputErrors, "Input Errors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "RecvThresholdHit",
+	    &stats->RecvThresholdHit, "NIC Recv Threshold Hit");
+
+	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "BGE RX Statistics");
+	child = SYSCTL_CHILDREN(tree);
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "ifHCInOctets",
+	    &stats->ifHCInOctets, "Inbound Octets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "Fragments",
+	    &stats->etherStatsFragments, "Fragments");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "UnicastPkts",
+	    &stats->ifHCInUcastPkts, "Inbound Unicast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "MulticastPkts",
+	    &stats->ifHCInMulticastPkts, "Inbound Multicast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "BroadcastPkts",
+	    &stats->ifHCInBroadcastPkts, "Inbound Broadcast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "FCSErrors",
+	    &stats->dot3StatsFCSErrors, "FCS Errors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "AlignmentErrors",
+	    &stats->dot3StatsAlignmentErrors, "Alignment Errors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "xonPauseFramesReceived",
+	    &stats->xonPauseFramesReceived, "XON Pause Frames Received");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "xoffPauseFramesReceived",
+	    &stats->xoffPauseFramesReceived, "XOFF Pause Frames Received");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "ControlFramesReceived",
+	    &stats->macControlFramesReceived, "MAC Control Frames Received");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "xoffStateEntered",
+	    &stats->xoffStateEntered, "XOFF State Entered");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "FramesTooLong",
+	    &stats->dot3StatsFramesTooLong, "Frames Too Long");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "Jabbers",
+	    &stats->etherStatsJabbers, "Jabbers");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "UndersizePkts",
+	    &stats->etherStatsUndersizePkts, "Undersized Packets");
+
+	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "BGE TX Statistics");
+	child = SYSCTL_CHILDREN(tree);
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "ifHCOutOctets",
+	    &stats->ifHCOutOctets, "Outbound Octets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "Collisions",
+	    &stats->etherStatsCollisions, "TX Collisions");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "XonSent",
+	    &stats->outXonSent, "XON Sent");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "XoffSent",
+	    &stats->outXoffSent, "XOFF Sent");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "InternalMacTransmitErrors",
+	    &stats->dot3StatsInternalMacTransmitErrors,
+	    "Internal MAC TX Errors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "SingleCollisionFrames",
+	    &stats->dot3StatsSingleCollisionFrames, "Single Collision Frames");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "MultipleCollisionFrames",
+	    &stats->dot3StatsMultipleCollisionFrames,
+	    "Multiple Collision Frames");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "DeferredTransmissions",
+	    &stats->dot3StatsDeferredTransmissions, "Deferred Transmissions");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "ExcessiveCollisions",
+	    &stats->dot3StatsExcessiveCollisions, "Excessive Collisions");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "LateCollisions",
+	    &stats->dot3StatsLateCollisions, "Late Collisions");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "UnicastPkts",
+	    &stats->ifHCOutUcastPkts, "Outbound Unicast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "MulticastPkts",
+	    &stats->ifHCOutMulticastPkts, "Outbound Multicast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "BroadcastPkts",
+	    &stats->ifHCOutBroadcastPkts, "Outbound Broadcast Packets");
+}
+
+#undef	BGE_SYSCTL_STAT_ADD64
 
 static int
 bge_sysctl_stats(SYSCTL_HANDLER_ARGS)
@@ -5080,7 +5423,7 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 			printf(" - PCI-X Bus\n");
 		if (sc->bge_flags & BGE_FLAG_PCIE)
 			printf(" - PCI Express Bus\n");
-		if (sc->bge_flags & BGE_FLAG_NO_3LED)
+		if (sc->bge_phy_flags & BGE_PHY_NO_3LED)
 			printf(" - No 3 LEDs\n");
 		if (sc->bge_flags & BGE_FLAG_RX_ALIGNBUG)
 			printf(" - RX Alignment Bug\n");
