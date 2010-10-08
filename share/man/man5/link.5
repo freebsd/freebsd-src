@@ -177,7 +177,6 @@ struct section_dispatch_table {
 	long	sdt_plt_sz;
 };
 .Ed
-.Pp
 .Bl -tag -width sdt_filler1
 .It Fa sdt_loaded
 A pointer to the first link map loaded (see below).
@@ -242,7 +241,6 @@ struct sod {
 	long	sod_next;
 };
 .Ed
-.Pp
 .Bl -tag -width sod_library
 .It Fa sod_name
 The offset in the text segment of a string describing this link object.
@@ -356,7 +354,6 @@ struct rrs_hash {
 	int	rh_next;		/* next hash entry */
 };
 .Ed
-.Pp
 .Bl -tag -width rh_symbolnum
 .It Fa rh_symbolnum
 The index of the symbol in the shared object's symbol table (as given by the
@@ -386,7 +383,6 @@ struct rt_symbol {
 	struct so_map		*rt_smp;
 };
 .Ed
-.Pp
 .Bl -tag -width rt_scraddr
 .It Fa rt_sp
 The symbol description.
@@ -427,7 +423,6 @@ struct 	so_debug {
 	struct rt_symbol *dd_cc;
 };
 .Ed
-.Pp
 .Bl -tag -width dd_in_debugger
 .It Fa dd_version
 Version number of this interface.
@@ -563,7 +558,6 @@ Size of strings.
 .It Fa hh_ehints
 Maximum usable offset in hints file.
 .El
-.Pp
 .Bd -literal -offset indent
 /*
  * Hash table element in hints file.
