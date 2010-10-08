@@ -259,7 +259,7 @@ static void
 sis_eeprom_getword(struct sis_softc *sc, int addr, uint16_t *dest)
 {
 	int		i;
-	u_int16_t		word = 0;
+	uint16_t	word = 0;
 
 	/* Force EEPROM to idle state. */
 	sis_eeprom_idle(sc);
@@ -302,11 +302,11 @@ static void
 sis_read_eeprom(struct sis_softc *sc, caddr_t dest, int off, int cnt, int swap)
 {
 	int			i;
-	u_int16_t		word = 0, *ptr;
+	uint16_t		word = 0, *ptr;
 
 	for (i = 0; i < cnt; i++) {
 		sis_eeprom_getword(sc, off + i, &word);
-		ptr = (u_int16_t *)(dest + (i * 2));
+		ptr = (uint16_t *)(dest + (i * 2));
 		if (swap)
 			*ptr = ntohs(word);
 		else
@@ -356,7 +356,7 @@ static void
 sis_read_cmos(struct sis_softc *sc, device_t dev, caddr_t dest, int off, int cnt)
 {
 	device_t		bridge;
-	u_int8_t		reg;
+	uint8_t			reg;
 	int			i;
 	bus_space_tag_t		btag;
 
@@ -384,7 +384,7 @@ sis_read_cmos(struct sis_softc *sc, device_t dev, caddr_t dest, int off, int cnt
 static void
 sis_read_mac(struct sis_softc *sc, device_t dev, caddr_t dest)
 {
-	u_int32_t		filtsave, csrsave;
+	uint32_t		filtsave, csrsave;
 
 	filtsave = CSR_READ_4(sc, SIS_RXFILT_CTL);
 	csrsave = CSR_READ_4(sc, SIS_CSR);
@@ -395,11 +395,11 @@ sis_read_mac(struct sis_softc *sc, device_t dev, caddr_t dest)
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave & ~SIS_RXFILTCTL_ENABLE);
 
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR0);
-	((u_int16_t *)dest)[0] = CSR_READ_2(sc, SIS_RXFILT_DATA);
+	((uint16_t *)dest)[0] = CSR_READ_2(sc, SIS_RXFILT_DATA);
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL,SIS_FILTADDR_PAR1);
-	((u_int16_t *)dest)[1] = CSR_READ_2(sc, SIS_RXFILT_DATA);
+	((uint16_t *)dest)[1] = CSR_READ_2(sc, SIS_RXFILT_DATA);
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR2);
-	((u_int16_t *)dest)[2] = CSR_READ_2(sc, SIS_RXFILT_DATA);
+	((uint16_t *)dest)[2] = CSR_READ_2(sc, SIS_RXFILT_DATA);
 
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave);
 	CSR_WRITE_4(sc, SIS_CSR, csrsave);
@@ -731,7 +731,7 @@ sis_setmulti_ns(struct sis_softc *sc)
 {
 	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
-	u_int32_t		h = 0, i, filtsave;
+	uint32_t		h = 0, i, filtsave;
 	int			bit, index;
 
 	ifp = sc->sis_ifp;
@@ -780,8 +780,8 @@ sis_setmulti_sis(struct sis_softc *sc)
 {
 	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
-	u_int32_t		h, i, n, ctl;
-	u_int16_t		hashes[16];
+	uint32_t		h, i, n, ctl;
+	uint16_t		hashes[16];
 
 	ifp = sc->sis_ifp;
 
@@ -963,7 +963,7 @@ sis_attach(device_t dev)
 		 * Why? Who the hell knows.
 		 */
 		{
-			u_int16_t		tmp[4];
+			uint16_t		tmp[4];
 
 			sis_read_eeprom(sc, (caddr_t)&tmp,
 			    NS_EE_NODEADDR, 4, 0);
@@ -1658,7 +1658,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		sis_startl(ifp);
 
 	if (sc->rxcycles > 0 || cmd == POLL_AND_CHECK_STATUS) {
-		u_int32_t	status;
+		uint32_t	status;
 
 		/* Reading the ISR register clears all interrupts. */
 		status = CSR_READ_4(sc, SIS_ISR);
@@ -1684,7 +1684,7 @@ sis_intr(void *arg)
 {
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
-	u_int32_t		status;
+	uint32_t		status;
 
 	sc = arg;
 	ifp = sc->sis_ifp;
@@ -1922,23 +1922,23 @@ sis_initl(struct sis_softc *sc)
 	if (sc->sis_type == SIS_TYPE_83815) {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR0);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[0]);
+		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[0]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR1);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[1]);
+		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[1]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR2);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[2]);
+		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[2]);
 	} else {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR0);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[0]);
+		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[0]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR1);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[1]);
+		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[1]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR2);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[2]);
+		    ((uint16_t *)IF_LLADDR(sc->sis_ifp))[2]);
 	}
 
 	/* Init circular TX/RX lists. */
