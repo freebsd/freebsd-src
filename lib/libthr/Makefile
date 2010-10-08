@@ -27,7 +27,6 @@ CFLAGS+=-I${.CURDIR}/../libthread_db
 CFLAGS+=-Winline
 
 .ifndef NO_THREAD_UNWIND_STACK
-CFLAGS+=-I${.CURDIR}/../../contrib/gcc -fexceptions 
 CFLAGS+=-D_PTHREAD_FORCED_UNWIND
 .endif
 
