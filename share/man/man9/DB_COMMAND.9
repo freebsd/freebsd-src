@@ -88,7 +88,6 @@ command will display words in decimal form if it is passed the modifier "d".
 .El
 .Sh EXAMPLE
 In your module, the command is declared as:
-.Pp
 .Bd -literal
 DB_COMMAND(mycmd, my_cmd_func)
 {
@@ -98,7 +97,6 @@ DB_COMMAND(mycmd, my_cmd_func)
 .Ed
 .Pp
 Then, when in ddb:
-.Pp
 .Bd -literal
 .Bf Sy
 db> mycmd 0x1000

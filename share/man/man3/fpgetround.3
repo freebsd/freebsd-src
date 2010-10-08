@@ -47,7 +47,6 @@
 .Nd IEEE floating point interface
 .Sh SYNOPSIS
 .In ieeefp.h
-.Pp
 .Bd -literal
 typedef enum {
 	FP_RN,		/* round to nearest */
@@ -60,7 +59,6 @@ typedef enum {
 .Fn fpgetround void
 .Ft fp_rnd_t
 .Fn fpsetround "fp_rnd_t direction"
-.Pp
 .Bd -literal
 typedef enum {
 	FP_PS,		/* 24 bit (single-precision) */
@@ -73,7 +71,6 @@ typedef enum {
 .Fn fpgetprec void
 .Ft fp_prec_t
 .Fn fpsetprec "fp_prec_t precision"
-.Pp
 .Bd -literal
 #define fp_except_t	int
 #define FP_X_INV	0x01	/* invalid operation */

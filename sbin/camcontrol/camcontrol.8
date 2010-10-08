@@ -800,7 +800,6 @@ The
 and
 .Fl y
 arguments can be useful for scripts.
-.Pp
 .Bl -tag -width 6n
 .It Fl q
 Be quiet, do not print any status messages.
@@ -893,7 +892,6 @@ utility will report whether the disk is ready, but will not display sense
 information if the command fails since the
 .Fl v
 switch was not specified.
-.Pp
 .Bd -literal -offset indent
 camcontrol tur da1 -E -C 4 -t 50 -v
 .Ed
@@ -920,7 +918,6 @@ Display the buffer size of cd1,
 and display the first 10 bytes from the cache on cd1.
 Display SCSI sense
 information if the command fails.
-.Pp
 .Bd -literal -offset indent
 camcontrol cmd -n cd -u 1 -v -c "3B 00 00 00 00 00 00 00 0e 00" \e
 	-o 14 "00 00 00 00 1 2 3 4 5 6 v v v v" 7 8 9 8
@@ -933,7 +930,6 @@ Print out sense information if
 the command fails.
 Be very careful with this command, improper use may
 cause data corruption.
-.Pp
 .Bd -literal -offset indent
 camcontrol modepage da3 -m 1 -e -P 3
 .Ed
@@ -960,13 +956,11 @@ changed.
 .Dl camcontrol tags da5 -N 24
 .Pp
 Set the number of concurrent transactions for da5 to 24.
-.Pp
 .Bd -literal -offset indent
 camcontrol negotiate -n da -u 4 -T disable
 .Ed
 .Pp
 Disable tagged queueing for da4.
-.Pp
 .Bd -literal -offset indent
 camcontrol negotiate -n da -u 3 -R 20.000 -O 15 -a
 .Ed
