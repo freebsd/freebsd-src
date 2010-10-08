@@ -34,9 +34,23 @@
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
+#include "opt_netdump.h"
 #endif
 
 #include "ixgbe.h"
+
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
+
+#define	IXGBE_TX_LOCK_COND(txr, locking) do {				\
+	if ((locking) != 0)						\
+		IXGBE_TX_LOCK(txr);					\
+} while (0)
+#define	IXGBE_TX_UNLOCK_COND(txr, locking) do {				\
+	if ((locking) != 0)						\
+		IXGBE_TX_UNLOCK(txr);					\
+} while (0)
+
+#endif
 
 /*********************************************************************
  *  Set this to one to display debug statistics
@@ -195,13 +209,31 @@ static void	ixgbe_atr(struct tx_ring *, struct mbuf *);
 static void	ixgbe_reinit_fdir(void *, int);
 #endif
 
-#ifdef DEVICE_POLLING
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
+static int	_ixgbe_poll_generic(struct ifnet *ifp, enum poll_cmd cmd,
+		    int count, int locking);
 static poll_handler_t ixgbe_poll;
+#endif
+#ifdef NETDUMP_CLIENT
+static poll_handler_t ixgbe_poll_unlocked;
+static ndumplock_handler_t ixgbe_ndump_disable_intr;
+static ndumplock_handler_t ixgbe_ndump_enable_intr;
 #endif
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
  *********************************************************************/
+
+#ifdef NETDUMP_CLIENT
+
+static struct netdump_methods ixgbe_ndump_methods = {
+	.ne_poll_locked = ixgbe_poll,
+	.ne_poll_unlocked = ixgbe_poll_unlocked,
+	.ne_disable_intr = ixgbe_ndump_disable_intr,
+	.ne_enable_intr = ixgbe_ndump_enable_intr
+};
+
+#endif
 
 static device_method_t ixgbe_methods[] = {
 	/* Device interface */
@@ -2438,6 +2470,9 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_qflush = ixgbe_qflush;
 #endif
 	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 2;
+#ifdef NETDUMP_CLIENT
+	ifp->if_ndumpfuncs = &ixgbe_ndump_methods;
+#endif
 
 	ether_ifattach(ifp, adapter->hw.mac.addr);
 
@@ -3302,9 +3337,10 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 }
 #endif
 
-#ifdef DEVICE_POLLING
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
 static int
-ixgbe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+_ixgbe_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count,
+    int locking)
 {
 	struct adapter *adapter;
 	struct tx_ring *txr;
@@ -3332,7 +3368,7 @@ ixgbe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			taskqueue_enqueue(adapter->tq, &adapter->link_task);
 	}
 	ixgbe_rxeof(que, count, &rx_npkts);
-	IXGBE_TX_LOCK(txr);
+	IXGBE_TX_LOCK_COND(txr, locking);
 	do {
 		more_tx = ixgbe_txeof(txr);
 	} while (loop-- && more_tx);
@@ -3343,10 +3379,48 @@ ixgbe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ixgbe_start_locked(txr, ifp);
 #endif
-	IXGBE_TX_UNLOCK(txr);
+	IXGBE_TX_UNLOCK_COND(txr, locking);
 	return (rx_npkts);
 }
-#endif
+
+static int
+ixgbe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+
+	return (_ixgbe_poll_generic(ifp, cmd, count, 1));
+}
+#endif /* !DEVICE_POLLING && !NETDUMP_CLIENT */
+
+#ifdef NETDUMP_CLIENT
+static int
+ixgbe_poll_unlocked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+
+	return (_ixgbe_poll_generic(ifp, cmd, count, 0));
+}
+
+static void
+ixgbe_ndump_disable_intr(struct ifnet *ifp)
+{
+	struct adapter *adapter;
+
+	adapter = ifp->if_softc;
+	IXGBE_CORE_LOCK(adapter);
+	ixgbe_disable_intr(adapter);
+	IXGBE_CORE_UNLOCK(adapter);
+}
+
+static void
+ixgbe_ndump_enable_intr(struct ifnet *ifp)
+{
+	struct adapter *adapter;
+
+	adapter = ifp->if_softc;
+	IXGBE_CORE_LOCK(adapter);
+	ixgbe_enable_intr(adapter);
+	IXGBE_CORE_UNLOCK(adapter);
+}
+#endif /* !NETDUMP_CLIENT */
 
 /**********************************************************************
  *

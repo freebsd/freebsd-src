@@ -66,6 +66,9 @@
 #include <netinet/if_ether.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#ifdef NETDUMP_CLIENT
+#include <netinet/netdump.h>
+#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
 #include <netinet/udp.h>
