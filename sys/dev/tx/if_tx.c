@@ -120,7 +120,7 @@ static void epic_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static int epic_probe(device_t);
 static int epic_attach(device_t);
-static void epic_shutdown(device_t);
+static int epic_shutdown(device_t);
 static int epic_detach(device_t);
 static void epic_release(epic_softc_t *);
 static struct epic_type *epic_devtype(device_t);
@@ -508,7 +508,7 @@ epic_detach(device_t dev)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 epic_shutdown(device_t dev)
 {
 	epic_softc_t *sc;
@@ -516,6 +516,7 @@ epic_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 
 	epic_stop(sc);
+	return (0);
 }
 
 /*
