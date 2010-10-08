@@ -4631,6 +4631,7 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFMTU:
+		BGE_LOCK(sc);
 		if (ifr->ifr_mtu < ETHERMIN ||
 		    ((BGE_IS_JUMBO_CAPABLE(sc)) &&
 		    ifr->ifr_mtu > BGE_JUMBO_MTU) ||
@@ -4639,9 +4640,12 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = EINVAL;
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			bge_init(sc);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				bge_init_locked(sc);
+			}
 		}
+		BGE_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
 		BGE_LOCK(sc);
