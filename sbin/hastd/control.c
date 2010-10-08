@@ -58,8 +58,10 @@ child_cleanup(struct hast_resource *res)
 
 	proto_close(res->hr_ctrl);
 	res->hr_ctrl = NULL;
-	proto_close(res->hr_event);
-	res->hr_event = NULL;
+	if (res->hr_event != NULL) {
+		proto_close(res->hr_event);
+		res->hr_event = NULL;
+	}
 	res->hr_workerpid = 0;
 }
 
