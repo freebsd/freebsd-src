@@ -755,7 +755,7 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	 */
 	pflags = zp->z_phys->zp_flags;
 	if ((pflags & (ZFS_IMMUTABLE | ZFS_READONLY)) ||
-	    ((pflags & ZFS_APPENDONLY) && !(ioflag & FAPPEND) &&
+	    ((pflags & ZFS_APPENDONLY) && !(ioflag & IO_APPEND) &&
 	    (uio->uio_loffset < zp->z_phys->zp_size))) {
 		ZFS_EXIT(zfsvfs);
 		return (EPERM);
