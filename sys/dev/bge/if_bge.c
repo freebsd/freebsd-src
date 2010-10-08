@@ -3403,7 +3403,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 static void
 bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 {
-	struct bge_tx_bd *cur_tx = NULL;
+	struct bge_tx_bd *cur_tx;
 	struct ifnet *ifp;
 
 	BGE_LOCK_ASSERT(sc);
@@ -3421,7 +3421,7 @@ bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 	 * frames that have been sent.
 	 */
 	while (sc->bge_tx_saved_considx != tx_cons) {
-		uint32_t		idx = 0;
+		uint32_t		idx;
 
 		idx = sc->bge_tx_saved_considx;
 		cur_tx = &sc->bge_ldata.bge_tx_ring[idx];
@@ -3440,8 +3440,7 @@ bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 		BGE_INC(sc->bge_tx_saved_considx, BGE_TX_RING_CNT);
 	}
 
-	if (cur_tx != NULL)
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	if (sc->bge_txcnt == 0)
 		sc->bge_timer = 0;
 }
@@ -3466,8 +3465,8 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
 	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
 
-	statusword = atomic_readandclear_32(
-	    &sc->bge_ldata.bge_status_block->bge_status);
+	statusword = sc->bge_ldata.bge_status_block->bge_status;
+	sc->bge_ldata.bge_status_block->bge_status = 0;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map,
