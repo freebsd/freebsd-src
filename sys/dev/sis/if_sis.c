@@ -147,12 +147,15 @@ static void sis_initl(struct sis_softc *);
 static void sis_intr(void *);
 static int sis_ioctl(struct ifnet *, u_long, caddr_t);
 static int sis_newbuf(struct sis_softc *, struct sis_rxdesc *);
+static int sis_resume(device_t);
 static void sis_rxeof(struct sis_softc *);
 static void sis_start(struct ifnet *);
 static void sis_startl(struct ifnet *);
 static void sis_stop(struct sis_softc *);
+static int sis_suspend(device_t);
 static void sis_add_sysctls(struct sis_softc *);
 static void sis_watchdog(struct sis_softc *);
+static void sis_wol(struct sis_softc *);
 
 
 static struct resource_spec sis_res_spec[] = {
@@ -935,6 +938,9 @@ sis_reset(struct sis_softc *sc)
 	if (sc->sis_type == SIS_TYPE_83815) {
 		CSR_WRITE_4(sc, NS_CLKRUN, NS_CLKRUN_PMESTS);
 		CSR_WRITE_4(sc, NS_CLKRUN, 0);
+	} else {
+		/* Disable WOL functions. */
+		CSR_WRITE_4(sc, SIS_PWRMAN_CTL, 0);
 	}
 }
 
@@ -971,7 +977,7 @@ sis_attach(device_t dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
-	int			error = 0, waittime = 0;
+	int			error = 0, pmc, waittime = 0;
 
 	waittime = 0;
 	sc = device_get_softc(dev);
@@ -1146,6 +1152,14 @@ sis_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, SIS_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = SIS_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
+
+	if (pci_find_extcap(sc->sis_dev, PCIY_PMG, &pmc) == 0) {
+		if (sc->sis_type == SIS_TYPE_83815)
+			ifp->if_capabilities |= IFCAP_WOL;
+		else
+			ifp->if_capabilities |= IFCAP_WOL_MAGIC;
+		ifp->if_capenable = ifp->if_capabilities;
+	}
 
 	/*
 	 * Do MII setup.
@@ -2223,7 +2237,7 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct sis_softc	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	int			error = 0;
+	int			error = 0, mask;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
@@ -2260,32 +2274,37 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		/* ok, disable interrupts */
+		SIS_LOCK(sc);
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 #ifdef DEVICE_POLLING
-		if (ifr->ifr_reqcap & IFCAP_POLLING &&
-		    !(ifp->if_capenable & IFCAP_POLLING)) {
-			error = ether_poll_register(sis_poll, ifp);
-			if (error)
-				return (error);
-			SIS_LOCK(sc);
-			/* Disable interrupts */
-			CSR_WRITE_4(sc, SIS_IER, 0);
-			ifp->if_capenable |= IFCAP_POLLING;
-			SIS_UNLOCK(sc);
-			return (error);
-
-		}
-		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
-		    ifp->if_capenable & IFCAP_POLLING) {
-			error = ether_poll_deregister(ifp);
-			/* Enable interrupts. */
-			SIS_LOCK(sc);
-			CSR_WRITE_4(sc, SIS_IER, 1);
-			ifp->if_capenable &= ~IFCAP_POLLING;
-			SIS_UNLOCK(sc);
-			return (error);
+		if ((mask & IFCAP_POLLING) != 0 &&
+		    (IFCAP_POLLING & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_POLLING;
+			if ((IFCAP_POLLING & ifp->if_capenable) != 0) {
+				error = ether_poll_register(sis_poll, ifp);
+				if (error != 0) {
+					SIS_UNLOCK(sc);
+					break;
+				}
+				/* Disable interrupts. */
+				CSR_WRITE_4(sc, SIS_IER, 0);
+                        } else {
+                                error = ether_poll_deregister(ifp);
+                                /* Enable interrupts. */
+				CSR_WRITE_4(sc, SIS_IER, 1);
+                        }
 		}
 #endif /* DEVICE_POLLING */
+		if ((mask & IFCAP_WOL) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
+			if ((mask & IFCAP_WOL_UCAST) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_UCAST;
+			if ((mask & IFCAP_WOL_MCAST) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_MCAST;
+			if ((mask & IFCAP_WOL_MAGIC) != 0)
+				ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		}
+		SIS_UNLOCK(sc);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2380,13 +2399,8 @@ sis_stop(struct sis_softc *sc)
 static int
 sis_shutdown(device_t dev)
 {
-	struct sis_softc	*sc;
 
-	sc = device_get_softc(dev);
-	SIS_LOCK(sc);
-	sis_stop(sc);
-	SIS_UNLOCK(sc);
-	return (0);
+	return (sis_suspend(dev));
 }
 
 static int
@@ -2397,6 +2411,7 @@ sis_suspend(device_t dev)
 	sc = device_get_softc(dev);
 	SIS_LOCK(sc);
 	sis_stop(sc);
+	sis_wol(sc);
 	SIS_UNLOCK(sc);
 	return (0);
 }
@@ -2416,6 +2431,56 @@ sis_resume(device_t dev)
 	}
 	SIS_UNLOCK(sc);
 	return (0);
+}
+
+static void
+sis_wol(struct sis_softc *sc)
+{
+	struct ifnet		*ifp;
+	uint32_t		val;
+	uint16_t		pmstat;
+	int			pmc;
+
+	ifp = sc->sis_ifp;
+	if ((ifp->if_capenable & IFCAP_WOL) == 0)
+		return;
+
+	if (sc->sis_type == SIS_TYPE_83815) {
+		/* Reset RXDP. */
+		CSR_WRITE_4(sc, SIS_RX_LISTPTR, 0);
+
+		/* Configure WOL events. */
+		CSR_READ_4(sc, NS_WCSR);
+		val = 0;
+		if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
+			val |= NS_WCSR_WAKE_UCAST;
+		if ((ifp->if_capenable & IFCAP_WOL_MCAST) != 0)
+			val |= NS_WCSR_WAKE_MCAST;
+		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+			val |= NS_WCSR_WAKE_MAGIC;
+		CSR_WRITE_4(sc, NS_WCSR, val);
+		/* Enable PME and clear PMESTS. */
+		val = CSR_READ_4(sc, NS_CLKRUN);
+		val |= NS_CLKRUN_PMEENB | NS_CLKRUN_PMESTS;
+		CSR_WRITE_4(sc, NS_CLKRUN, val);
+		/* Enable silent RX mode. */
+		SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
+	} else {
+		if (pci_find_extcap(sc->sis_dev, PCIY_PMG, &pmc) != 0)
+			return;
+		val = 0;
+		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+			val |= SIS_PWRMAN_WOL_MAGIC;
+		CSR_WRITE_4(sc, SIS_PWRMAN_CTL, val);
+		/* Request PME. */
+		pmstat = pci_read_config(sc->sis_dev,
+		    pmc + PCIR_POWER_STATUS, 2);
+		pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+		pci_write_config(sc->sis_dev,
+		    pmc + PCIR_POWER_STATUS, pmstat, 2);
+	}
 }
 
 static void
