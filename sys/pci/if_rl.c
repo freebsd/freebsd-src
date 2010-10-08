@@ -1173,9 +1173,9 @@ rl_dma_free(struct rl_softc *sc)
 				    sc->rl_cdata.rl_tx_dmamap[i]);
 				sc->rl_cdata.rl_tx_dmamap[i] = NULL;
 			}
+		}
 		bus_dma_tag_destroy(sc->rl_cdata.rl_tx_tag);
 		sc->rl_cdata.rl_tx_tag = NULL;
-		}
 	}
 
 	if (sc->rl_parent_tag != NULL) {
