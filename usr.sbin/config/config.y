@@ -261,6 +261,7 @@ Mkopt_list:
 
 Mkoption:
 	Save_id { newopt(&mkopt, $1, ns(""), 0); } |
+	Save_id EQUALS { newopt(&mkopt, $1, ns(""), 0); } |
 	Save_id EQUALS Opt_value { newopt(&mkopt, $1, $3, 0); } |
 	Save_id PLUSEQUALS Opt_value { newopt(&mkopt, $1, $3, 1); } ;
 
