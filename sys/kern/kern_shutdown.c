@@ -98,21 +98,24 @@ int debugger_on_panic = 0;
 #else
 int debugger_on_panic = 1;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&debugger_on_panic, 0, "Run debugger on kernel panic");
+TUNABLE_INT("debug.debugger_on_panic", &debugger_on_panic);
 
 #ifdef KDB_TRACE
-int trace_on_panic = 1;
+static int trace_on_panic = 1;
 #else
-int trace_on_panic = 0;
+static int trace_on_panic = 0;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, trace_on_panic, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, trace_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&trace_on_panic, 0, "Print stack trace on kernel panic");
+TUNABLE_INT("debug.trace_on_panic", &trace_on_panic);
 #endif /* KDB */
 
-int sync_on_panic = 0;
-SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW,
+static int sync_on_panic = 0;
+SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
+TUNABLE_INT("kern.sync_on_panic", &sync_on_panic);
 
 SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0, "Shutdown environment");
 
