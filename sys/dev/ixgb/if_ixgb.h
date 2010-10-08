@@ -60,6 +60,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#ifdef NETDUMP_CLIENT
+#include <netinet/netdump.h>
+#endif
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 

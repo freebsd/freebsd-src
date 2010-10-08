@@ -35,9 +35,23 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
+#include "opt_netdump.h"
 #endif
 
 #include <dev/ixgb/if_ixgb.h>
+
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
+
+#define	IXGB_LOCK_COND(adapter, locking) do {				\
+	if ((locking) != 0)						\
+		IXGB_LOCK(adapter);					\
+} while (0)
+#define	IXGB_UNLOCK_COND(adapter, locking) do {				\
+	if ((locking) != 0)						\
+		IXGB_UNLOCK(adapter);					\
+} while (0)
+
+#endif
 
 /*********************************************************************
  *  Set this to one to display debug statistics
@@ -145,13 +159,31 @@ static int
 ixgb_dma_malloc(struct adapter *, bus_size_t,
 		struct ixgb_dma_alloc *, int);
 static void     ixgb_dma_free(struct adapter *, struct ixgb_dma_alloc *);
-#ifdef DEVICE_POLLING
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
+static int      _ixgb_poll_generic(struct ifnet *ifp, enum poll_cmd cmd,
+		    int count, int locking);
 static poll_handler_t ixgb_poll;
+#endif
+#ifdef NETDUMP_CLIENT
+static poll_handler_t ixgb_poll_unlocked;
+static ndumplock_handler_t ixgb_ndump_disable_intr;
+static ndumplock_handler_t ixgb_ndump_enable_intr;
 #endif
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
  *********************************************************************/
+
+#ifdef NETDUMP_CLIENT
+
+static struct netdump_methods ixgb_ndump_methods = {
+	.ne_poll_locked = ixgb_poll,
+	.ne_poll_unlocked = ixgb_poll_unlocked,
+	.ne_disable_intr = ixgb_ndump_disable_intr,
+	.ne_enable_intr = ixgb_ndump_enable_intr
+};
+
+#endif
 
 static device_method_t ixgb_methods[] = {
 	/* Device interface */
@@ -750,7 +782,7 @@ ixgb_init(void *arg)
 	return;
 }
 
-#ifdef DEVICE_POLLING
+#if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
 static int
 ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 {
@@ -776,18 +808,57 @@ ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 }
 
 static int
-ixgb_poll(struct ifnet * ifp, enum poll_cmd cmd, int count)
+_ixgb_poll_generic(struct ifnet * ifp, enum poll_cmd cmd, int count,
+    int locking)
 {
 	struct adapter *adapter = ifp->if_softc;
 	int rx_npkts = 0;
 
-	IXGB_LOCK(adapter);
+	IXGB_LOCK_COND(adapter, locking);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		rx_npkts = ixgb_poll_locked(ifp, cmd, count);
-	IXGB_UNLOCK(adapter);
+	IXGB_UNLOCK_COND(adapter, locking);
 	return (rx_npkts);
 }
-#endif /* DEVICE_POLLING */
+
+static int
+ixgb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+
+	return (_ixgb_poll_generic(ifp, cmd, count, 1));
+}
+#endif /* !DEVICE_POLLING  && !NETDUMP_CLIENT */
+
+#ifdef NETDUMP_CLIENT
+static int
+ixgb_poll_unlocked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+
+	return (_ixgb_poll_generic(ifp, cmd, count, 0));
+}
+
+static void
+ixgb_ndump_disable_intr(struct ifnet *ifp)
+{
+	struct adapter *adapter;
+
+	adapter = ifp->if_softc;
+	IXGB_LOCK(adapter);
+	ixgb_disable_intr(adapter);
+	IXGB_UNLOCK(adapter);
+}
+
+static void
+ixgb_ndump_enable_intr(struct ifnet *ifp)
+{
+	struct adapter *adapter;
+
+	adapter = ifp->if_softc;
+	IXGB_LOCK(adapter);
+	ixgb_enable_intr(adapter);
+	IXGB_UNLOCK(adapter);
+}
+#endif /* !NETDUMP_CLIENT */
 
 /*********************************************************************
  *
@@ -1362,6 +1433,9 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_ioctl = ixgb_ioctl;
 	ifp->if_start = ixgb_start;
 	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 1;
+#ifdef NETDUMP_CLIENT
+	ifp->if_ndumpfuncs = &ixgb_ndump_methods;
+#endif
 
 #if __FreeBSD_version < 500000
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
