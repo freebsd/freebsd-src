@@ -347,21 +347,22 @@ sis_find_bridge(device_t dev)
 	devclass_get_devices(pci_devclass, &pci_devices, &pci_count);
 
 	for (i = 0, busp = pci_devices; i < pci_count; i++, busp++) {
-		pci_childcount = 0;
-		device_get_children(*busp, &pci_children, &pci_childcount);
+		if (device_get_children(*busp, &pci_children, &pci_childcount))
+			continue;
 		for (j = 0, childp = pci_children;
 		    j < pci_childcount; j++, childp++) {
 			if (pci_get_vendor(*childp) == SIS_VENDORID &&
 			    pci_get_device(*childp) == 0x0008) {
 				child = *childp;
+				free(pci_children, M_TEMP);
 				goto done;
 			}
 		}
+		free(pci_children, M_TEMP);
 	}
 
 done:
 	free(pci_devices, M_TEMP);
-	free(pci_children, M_TEMP);
 	return(child);
 }
 
