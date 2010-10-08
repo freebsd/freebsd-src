@@ -1386,6 +1386,7 @@ stge_watchdog(struct stge_softc *sc)
 	ifp = sc->sc_ifp;
 	if_printf(sc->sc_ifp, "device timeout\n");
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	stge_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		stge_start_locked(ifp);
@@ -1414,7 +1415,10 @@ stge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
 			STGE_LOCK(sc);
-			stge_init_locked(sc);
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				stge_init_locked(sc);
+			}
 			STGE_UNLOCK(sc);
 		}
 		break;
@@ -1648,8 +1652,10 @@ stge_intr(void *arg)
 	}
 
 force_init:
-	if (reinit != 0)
+	if (reinit != 0) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		stge_init_locked(sc);
+	}
 
 	/* Re-enable interrupts. */
 	CSR_WRITE_2(sc, STGE_IntEnable, sc->sc_IntEnable);
@@ -1940,11 +1946,14 @@ stge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			if ((status & IS_HostError) != 0) {
 				device_printf(sc->sc_dev,
 				    "Host interface error, resetting...\n");
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				stge_init_locked(sc);
 			}
 			if ((status & IS_TxComplete) != 0) {
-				if (stge_tx_error(sc) != 0)
+				if (stge_tx_error(sc) != 0) {
+					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 					stge_init_locked(sc);
+				}
 			}
 		}
 
@@ -2124,6 +2133,8 @@ stge_init_locked(struct stge_softc *sc)
 	STGE_LOCK_ASSERT(sc);
 
 	ifp = sc->sc_ifp;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 	mii = device_get_softc(sc->sc_miibus);
 
 	/*
