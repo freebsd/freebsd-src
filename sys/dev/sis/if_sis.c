@@ -1738,6 +1738,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & SIS_ISR_SYSERR) {
 			sis_reset(sc);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			sis_initl(sc);
 		}
 	}
@@ -1792,6 +1793,7 @@ sis_intr(void *arg)
 
 		if (status & SIS_ISR_SYSERR) {
 			sis_reset(sc);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			sis_initl(sc);
 			SIS_UNLOCK(sc);
 			return;
@@ -1966,6 +1968,9 @@ sis_initl(struct sis_softc *sc)
 	struct mii_data		*mii;
 
 	SIS_LOCK_ASSERT(sc);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
