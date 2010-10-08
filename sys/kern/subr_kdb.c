@@ -308,7 +308,7 @@ kdb_backtrace(void)
 
 		printf("KDB: stack backtrace:\n");
 		stack_save(&st);
-		stack_print(&st);
+		stack_print_ddb(&st);
 	}
 #endif
 }
