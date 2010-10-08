@@ -1320,6 +1320,8 @@ et_watchdog(struct et_softc *sc)
 
 	if_printf(sc->ifp, "watchdog timed out\n");
 
+	sc->ifp->if_oerrors++;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	et_init_locked(sc);
 	et_start_locked(sc->ifp);
 }
