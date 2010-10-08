@@ -2393,6 +2393,35 @@ sis_shutdown(device_t dev)
 	return (0);
 }
 
+static int
+sis_suspend(device_t dev)
+{
+	struct sis_softc	*sc;
+
+	sc = device_get_softc(dev);
+	SIS_LOCK(sc);
+	sis_stop(sc);
+	SIS_UNLOCK(sc);
+	return (0);
+}
+
+static int
+sis_resume(device_t dev)
+{
+	struct sis_softc	*sc;
+	struct ifnet		*ifp;
+
+	sc = device_get_softc(dev);
+	SIS_LOCK(sc);
+	ifp = sc->sis_ifp;
+	if ((ifp->if_flags & IFF_UP) != 0) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		sis_initl(sc);
+	}
+	SIS_UNLOCK(sc);
+	return (0);
+}
+
 static void
 sis_add_sysctls(struct sis_softc *sc)
 {
@@ -2425,6 +2454,8 @@ static device_method_t sis_methods[] = {
 	DEVMETHOD(device_attach,	sis_attach),
 	DEVMETHOD(device_detach,	sis_detach),
 	DEVMETHOD(device_shutdown,	sis_shutdown),
+	DEVMETHOD(device_suspend,	sis_suspend),
+	DEVMETHOD(device_resume,	sis_resume),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
