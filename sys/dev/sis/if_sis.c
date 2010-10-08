@@ -697,10 +697,86 @@ static void
 sis_miibus_statchg(device_t dev)
 {
 	struct sis_softc	*sc;
+	struct mii_data		*mii;
+	struct ifnet		*ifp;
+	uint32_t		reg;
 
 	sc = device_get_softc(dev);
 	SIS_LOCK_ASSERT(sc);
-	sis_initl(sc);
+
+	mii = device_get_softc(sc->sis_miibus);
+	ifp = sc->sis_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
+	sc->sis_link = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+			sc->sis_link++;
+			CSR_WRITE_4(sc, SIS_TX_CFG, SIS_TXCFG_10);
+			break;
+		case IFM_100_TX:
+			sc->sis_link++;
+			CSR_WRITE_4(sc, SIS_TX_CFG, SIS_TXCFG_100);
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (sc->sis_link == 0) {
+		/*
+		 * Stopping MACs seem to reset SIS_TX_LISTPTR and
+		 * SIS_RX_LISTPTR which in turn requires resetting
+		 * TX/RX buffers.  So just don't do anything for
+		 * lost link.
+		 */
+		return;
+	}
+
+	/* Set full/half duplex mode. */
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
+		SIS_SETBIT(sc, SIS_TX_CFG,
+		    (SIS_TXCFG_IGN_HBEAT | SIS_TXCFG_IGN_CARR));
+		SIS_SETBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
+	} else {
+		SIS_CLRBIT(sc, SIS_TX_CFG,
+		    (SIS_TXCFG_IGN_HBEAT | SIS_TXCFG_IGN_CARR));
+		SIS_CLRBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
+	}
+
+	if (sc->sis_type == SIS_TYPE_83816) {
+		/*
+		 * MPII03.D: Half Duplex Excessive Collisions.
+		 * Also page 49 in 83816 manual
+		 */
+		SIS_SETBIT(sc, SIS_TX_CFG, SIS_TXCFG_MPII03D);
+	}
+
+	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr < NS_SRR_16A &&
+	    IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
+		/*
+		 * Short Cable Receive Errors (MP21.E)
+		 */
+		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
+		reg = CSR_READ_4(sc, NS_PHY_DSPCFG) & 0xfff;
+		CSR_WRITE_4(sc, NS_PHY_DSPCFG, reg | 0x1000);
+		DELAY(100);
+		reg = CSR_READ_4(sc, NS_PHY_TDATA) & 0xff;
+		if ((reg & 0x0080) == 0 || (reg > 0xd8 && reg <= 0xff)) {
+			device_printf(sc->sis_dev,
+			    "Applying short cable fix (reg=%x)\n", reg);
+			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x00e8);
+			SIS_SETBIT(sc, NS_PHY_DSPCFG, 0x20);
+		}
+		CSR_WRITE_4(sc, NS_PHY_PAGE, 0);
+	}
+	/* Enable TX/RX MACs. */
+	SIS_CLRBIT(sc, SIS_CSR, SIS_CSR_TX_DISABLE | SIS_CSR_RX_DISABLE);
+	SIS_SETBIT(sc, SIS_CSR, SIS_CSR_TX_ENABLE | SIS_CSR_RX_ENABLE);
 }
 
 static uint32_t
@@ -1611,23 +1687,14 @@ sis_tick(void *xsc)
 
 	sc = xsc;
 	SIS_LOCK_ASSERT(sc);
-	sc->in_tick = 1;
 	ifp = sc->sis_ifp;
 
 	mii = device_get_softc(sc->sis_miibus);
 	mii_tick(mii);
-
 	sis_watchdog(sc);
-
-	if (!sc->sis_link && mii->mii_media_status & IFM_ACTIVE &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		sc->sis_link++;
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			sis_startl(ifp);
-	}
-
+	if (sc->sis_link == 0)
+		sis_miibus_statchg(sc->sis_dev);
 	callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
-	sc->in_tick = 0;
 }
 
 #ifdef DEVICE_POLLING
@@ -1689,9 +1756,6 @@ sis_intr(void *arg)
 	sc = arg;
 	ifp = sc->sis_ifp;
 
-	if (sc->sis_stopped)	/* Most likely shared interrupt */
-		return;
-
 	SIS_LOCK(sc);
 #ifdef DEVICE_POLLING
 	if (ifp->if_capenable & IFCAP_POLLING) {
@@ -1700,17 +1764,17 @@ sis_intr(void *arg)
 	}
 #endif
 
+	/* Reading the ISR register clears all interrupts. */
+	status = CSR_READ_4(sc, SIS_ISR);
+	if ((status & SIS_INTRS) == 0) {
+		/* Not ours. */
+		SIS_UNLOCK(sc);
+	}
+
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, SIS_IER, 0);
 
-	for (;;) {
-		SIS_LOCK_ASSERT(sc);
-		/* Reading the ISR register clears all interrupts. */
-		status = CSR_READ_4(sc, SIS_ISR);
-
-		if ((status & SIS_INTRS) == 0)
-			break;
-
+	for (;(status & SIS_INTRS) != 0;) {
 		if (status &
 		    (SIS_ISR_TX_DESC_OK | SIS_ISR_TX_ERR |
 		    SIS_ISR_TX_OK | SIS_ISR_TX_IDLE) )
@@ -1729,7 +1793,10 @@ sis_intr(void *arg)
 		if (status & SIS_ISR_SYSERR) {
 			sis_reset(sc);
 			sis_initl(sc);
+			SIS_UNLOCK(sc);
+			return;
 		}
+		status = CSR_READ_4(sc, SIS_ISR);
 	}
 
 	/* Re-enable interrupts. */
@@ -1904,7 +1971,6 @@ sis_initl(struct sis_softc *sc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	sis_stop(sc);
-	sc->sis_stopped = 0;
 
 #ifdef notyet
 	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr >= NS_SRR_16A) {
@@ -1968,7 +2034,6 @@ sis_initl(struct sis_softc *sc)
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0);
 	}
 
-
 	/*
 	 * For the NatSemi chip, we have to explicitly enable the
 	 * reception of ARP frames, as well as turn on the 'perfect
@@ -2026,52 +2091,11 @@ sis_initl(struct sis_softc *sc)
 	/* Accept Long Packets for VLAN support */
 	SIS_SETBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_JABBER);
 
-	/* Set TX configuration */
-	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T) {
-		CSR_WRITE_4(sc, SIS_TX_CFG, SIS_TXCFG_10);
-	} else {
-		CSR_WRITE_4(sc, SIS_TX_CFG, SIS_TXCFG_100);
-	}
-
-	/* Set full/half duplex mode. */
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
-		SIS_SETBIT(sc, SIS_TX_CFG,
-		    (SIS_TXCFG_IGN_HBEAT|SIS_TXCFG_IGN_CARR));
-		SIS_SETBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
-	} else {
-		SIS_CLRBIT(sc, SIS_TX_CFG,
-		    (SIS_TXCFG_IGN_HBEAT|SIS_TXCFG_IGN_CARR));
-		SIS_CLRBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
-	}
-
-	if (sc->sis_type == SIS_TYPE_83816) {
-		/*
-		 * MPII03.D: Half Duplex Excessive Collisions.
-		 * Also page 49 in 83816 manual
-		 */
-		SIS_SETBIT(sc, SIS_TX_CFG, SIS_TXCFG_MPII03D);
-	}
-
-	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr < NS_SRR_16A &&
-	    IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
-		uint32_t reg;
-
-		/*
-		 * Short Cable Receive Errors (MP21.E)
-		 */
-		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
-		reg = CSR_READ_4(sc, NS_PHY_DSPCFG) & 0xfff;
-		CSR_WRITE_4(sc, NS_PHY_DSPCFG, reg | 0x1000);
-		DELAY(100);
-		reg = CSR_READ_4(sc, NS_PHY_TDATA) & 0xff;
-		if ((reg & 0x0080) == 0 || (reg > 0xd8 && reg <= 0xff)) {
-			device_printf(sc->sis_dev,
-			    "Applying short cable fix (reg=%x)\n", reg);
-			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x00e8);
-			SIS_SETBIT(sc, NS_PHY_DSPCFG, 0x20);
-		}
-		CSR_WRITE_4(sc, NS_PHY_PAGE, 0);
-	}
+	/*
+	 * Assume 100Mbps link, actual MAC configuration is done
+	 * after getting a valid link.
+	 */
+	CSR_WRITE_4(sc, SIS_TX_CFG, SIS_TXCFG_100);
 
 	/*
 	 * Enable interrupts.
@@ -2088,19 +2112,16 @@ sis_initl(struct sis_softc *sc)
 #endif
 	CSR_WRITE_4(sc, SIS_IER, 1);
 
-	/* Enable receiver and transmitter. */
-	SIS_CLRBIT(sc, SIS_CSR, SIS_CSR_TX_DISABLE|SIS_CSR_RX_DISABLE);
-	SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
+	/* Clear MAC disable. */
+	SIS_CLRBIT(sc, SIS_CSR, SIS_CSR_TX_DISABLE | SIS_CSR_RX_DISABLE);
 
-#ifdef notdef
+	sc->sis_link = 0;
 	mii_mediachg(mii);
-#endif
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	if (!sc->in_tick)
-		callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
+	callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
 }
 
 /*
@@ -2222,10 +2243,6 @@ sis_watchdog(struct sis_softc *sc)
 {
 
 	SIS_LOCK_ASSERT(sc);
-	if (sc->sis_stopped) {
-		SIS_UNLOCK(sc);
-		return;
-	}
 
 	if (sc->sis_watchdog_timer == 0 || --sc->sis_watchdog_timer >0)
 		return;
@@ -2253,9 +2270,8 @@ sis_stop(struct sis_softc *sc)
 	struct sis_txdesc *txd;
 	int i;
 
-	if (sc->sis_stopped)
-		return;
 	SIS_LOCK_ASSERT(sc);
+
 	ifp = sc->sis_ifp;
 	sc->sis_watchdog_timer = 0;
 
@@ -2299,8 +2315,6 @@ sis_stop(struct sis_softc *sc)
 			txd->tx_m = NULL;
 		}
 	}
-
-	sc->sis_stopped = 1;
 }
 
 /*
