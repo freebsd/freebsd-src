@@ -2164,7 +2164,7 @@ arc_reclaim_needed(void)
 	 * Cooperate with pagedaemon when it's time for it to scan
 	 * and reclaim some pages.
 	 */
-	if (vm_paging_need())
+	if (vm_paging_needed())
 		return (1);
 
 #if 0
