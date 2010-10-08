@@ -1819,8 +1819,12 @@ rum_update_promisc(struct ifnet *ifp)
 static void
 rum_update_mcast(struct ifnet *ifp)
 {
+	static int warning_printed;
 
-	/* XXX do nothing? */
+	if (warning_printed == 0) {
+		if_printf(ifp, "need to implement %s\n", __func__);
+		warning_printed = 1;
+	}
 }
 
 static const char *
