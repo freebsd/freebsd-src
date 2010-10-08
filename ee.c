@@ -50,7 +50,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.103 2010/05/20 03:40:29 hugh Exp hugh $
+ |	$Header: /home/hugh/sources/old_ae/RCS/ee.c,v 1.104 2010/06/04 01:55:31 hugh Exp hugh $
  |
  */
 
@@ -59,7 +59,7 @@ char *ee_copyright_message =
 
 #include "ee_version.h"
 
-char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.103 $";
+char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.104 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -817,7 +817,7 @@ int disp;
 			tp++;
 			temp2++;
 		}
-		if (scr_horz < horiz_offset)
+		if ((scr_horz < horiz_offset) && (horiz_offset > 0))
 		{
 			horiz_offset -= 8;
 			midscreen(scr_vert, point);
@@ -2730,8 +2730,8 @@ del_char()			/* delete current character	*/
 	}
 	else
 	{
-		right(FALSE);
-		delete(FALSE);
+		right(TRUE);
+		delete(TRUE);
 	}
 }
 
