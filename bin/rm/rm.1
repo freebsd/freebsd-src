@@ -32,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2010
+.Dd October 8, 2010
 .Dt RM 1
 .Os
 .Sh NAME
@@ -229,8 +229,8 @@ command appeared in
 .Sh BUGS
 The
 .Fl P
-option assumes that the underlying file system is a fixed-block file
-system.
-UFS is a fixed-block file system, LFS is not.
+option assumes that the underlying file system updates existing blocks
+in-place and does not store new data in a new location.
+This is true for UFS but not for ZFS, which is using a Copy-On-Write strategy.
 In addition, only regular files are overwritten, other types of files
 are not.
