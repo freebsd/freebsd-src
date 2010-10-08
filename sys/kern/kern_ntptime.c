@@ -1037,5 +1037,5 @@ start_periodic_resettodr(void *arg __unused)
 	    periodic_resettodr, NULL);
 }
 
-SYSINIT(periodic_resettodr, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY - 1,
+SYSINIT(periodic_resettodr, SI_SUB_RUN_SCHEDULER, SI_ORDER_MIDDLE,
 	start_periodic_resettodr, NULL);
