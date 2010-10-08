@@ -449,7 +449,10 @@ struct sis_softc {
 	device_t		sis_miibus;
 	uint8_t			sis_type;
 	uint8_t			sis_rev;
-	uint8_t			sis_link;
+	uint32_t		sis_flags;
+#define	SIS_FLAG_MANUAL_PAD	0x0800
+#define	SIS_FLAG_LINK		0x8000
+	int			sis_manual_pad;
 	uint32_t		sis_srr;
 	struct sis_desc		*sis_rx_list;
 	struct sis_desc		*sis_tx_list;

@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -150,6 +151,7 @@ static int sis_rxeof(struct sis_softc *);
 static void sis_start(struct ifnet *);
 static void sis_startl(struct ifnet *);
 static void sis_stop(struct sis_softc *);
+static void sis_add_sysctls(struct sis_softc *);
 static void sis_watchdog(struct sis_softc *);
 
 
@@ -710,24 +712,24 @@ sis_miibus_statchg(device_t dev)
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	sc->sis_link = 0;
+	sc->sis_flags &= ~SIS_FLAG_LINK;
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
 	    (IFM_ACTIVE | IFM_AVALID)) {
 		switch (IFM_SUBTYPE(mii->mii_media_active)) {
 		case IFM_10_T:
-			sc->sis_link++;
 			CSR_WRITE_4(sc, SIS_TX_CFG, SIS_TXCFG_10);
+			sc->sis_flags |= SIS_FLAG_LINK;
 			break;
 		case IFM_100_TX:
-			sc->sis_link++;
 			CSR_WRITE_4(sc, SIS_TX_CFG, SIS_TXCFG_100);
+			sc->sis_flags |= SIS_FLAG_LINK;
 			break;
 		default:
 			break;
 		}
 	}
 
-	if (sc->sis_link == 0) {
+	if ((sc->sis_flags & SIS_FLAG_LINK) == 0) {
 		/*
 		 * Stopping MACs seem to reset SIS_TX_LISTPTR and
 		 * SIS_RX_LISTPTR which in turn requires resetting
@@ -1121,6 +1123,8 @@ sis_attach(device_t dev)
 			    SIS_EE_NODEADDR, 3, 0);
 		break;
 	}
+
+	sis_add_sysctls(sc);
 
 	/* Allocate DMA'able memory. */
 	if ((error = sis_dma_alloc(sc)) != 0)
@@ -1698,7 +1702,7 @@ sis_tick(void *xsc)
 	mii = device_get_softc(sc->sis_miibus);
 	mii_tick(mii);
 	sis_watchdog(sc);
-	if (sc->sis_link == 0)
+	if ((sc->sis_flags & SIS_FLAG_LINK) == 0)
 		sis_miibus_statchg(sc->sis_dev);
 	callout_reset(&sc->sis_stat_ch, hz,  sis_tick, sc);
 }
@@ -1829,9 +1833,41 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head)
 	bus_dma_segment_t	segs[SIS_MAXTXSEGS];
 	bus_dmamap_t		map;
 	int			error, i, frag, nsegs, prod;
+	int			padlen;
 
 	prod = sc->sis_tx_prod;
 	txd = &sc->sis_txdesc[prod];
+	if ((sc->sis_flags & SIS_FLAG_MANUAL_PAD) != 0 &&
+	    (*m_head)->m_pkthdr.len < SIS_MIN_FRAMELEN) {
+		m = *m_head;
+		padlen = SIS_MIN_FRAMELEN - m->m_pkthdr.len;
+		if (M_WRITABLE(m) == 0) {
+			/* Get a writable copy. */
+			m = m_dup(*m_head, M_DONTWAIT);
+			m_freem(*m_head);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+			*m_head = m;
+		}
+		if (m->m_next != NULL || M_TRAILINGSPACE(m) < padlen) {
+			m = m_defrag(m, M_DONTWAIT);
+			if (m == NULL) {
+				m_freem(*m_head);
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+		}
+		/*
+		 * Manually pad short frames, and zero the pad space
+		 * to avoid leaking data.
+		 */
+		bzero(mtod(m, char *) + m->m_pkthdr.len, padlen);
+		m->m_pkthdr.len += padlen;
+		m->m_len = m->m_pkthdr.len;
+		*m_head = m;
+	}
 	error = bus_dmamap_load_mbuf_sg(sc->sis_tx_tag, txd->tx_dmamap,
 	    *m_head, segs, &nsegs, 0);
 	if (error == EFBIG) {
@@ -1918,7 +1954,7 @@ sis_startl(struct ifnet *ifp)
 	SIS_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc->sis_link == 0)
+	    IFF_DRV_RUNNING || (sc->sis_flags & SIS_FLAG_LINK) == 0)
 		return;
 
 	for (queued = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
@@ -2025,6 +2061,13 @@ sis_initl(struct sis_softc *sc)
 		return;
 	}
 
+	if (sc->sis_type == SIS_TYPE_83815 || sc->sis_type == SIS_TYPE_83816) {
+		if (sc->sis_manual_pad != 0)
+			sc->sis_flags |= SIS_FLAG_MANUAL_PAD;
+		else
+			sc->sis_flags &= ~SIS_FLAG_MANUAL_PAD;
+	}
+
 	/*
 	 * Short Cable Receive Errors (MP21.E)
 	 * also: Page 78 of the DP83815 data sheet (september 2002 version)
@@ -2125,7 +2168,7 @@ sis_initl(struct sis_softc *sc)
 	/* Clear MAC disable. */
 	SIS_CLRBIT(sc, SIS_CSR, SIS_CSR_TX_DISABLE | SIS_CSR_RX_DISABLE);
 
-	sc->sis_link = 0;
+	sc->sis_flags &= ~SIS_FLAG_LINK;
 	mii_mediachg(mii);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -2148,7 +2191,6 @@ sis_ifmedia_upd(struct ifnet *ifp)
 
 	SIS_LOCK(sc);
 	mii = device_get_softc(sc->sis_miibus);
-	sc->sis_link = 0;
 	if (mii->mii_instance) {
 		struct mii_softc	*miisc;
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
@@ -2304,7 +2346,7 @@ sis_stop(struct sis_softc *sc)
 	CSR_WRITE_4(sc, SIS_TX_LISTPTR, 0);
 	CSR_WRITE_4(sc, SIS_RX_LISTPTR, 0);
 
-	sc->sis_link = 0;
+	sc->sis_flags &= ~SIS_FLAG_LINK;
 
 	/*
 	 * Free data in the RX lists.
@@ -2349,6 +2391,32 @@ sis_shutdown(device_t dev)
 	sis_stop(sc);
 	SIS_UNLOCK(sc);
 	return (0);
+}
+
+static void
+sis_add_sysctls(struct sis_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *children;
+	char tn[32];
+	int unit;
+
+	ctx = device_get_sysctl_ctx(sc->sis_dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sis_dev));
+
+	unit = device_get_unit(sc->sis_dev);
+	/*
+	 * Unlike most other controllers, NS DP83815/DP83816 controllers
+	 * seem to pad with 0xFF when it encounter short frames.  According
+	 * to RFC 1042 the pad bytes should be 0x00.  Turning this tunable
+	 * on will have driver pad manully but it's disabled by default
+	 * because it will consume extra CPU cycles for short frames.
+	 */
+	sc->sis_manual_pad = 0;
+	snprintf(tn, sizeof(tn), "dev.sis.%d.manual_pad", unit);
+	TUNABLE_INT_FETCH(tn, &sc->sis_manual_pad);
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "manual_pad",
+	    CTLFLAG_RW, &sc->sis_manual_pad, 0, "Manually pad short frames");
 }
 
 static device_method_t sis_methods[] = {
