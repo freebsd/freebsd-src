@@ -842,6 +842,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	struct proc *p;
 
 	p = td->td_proc;
+	kp->ki_tdaddr = td;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	thread_lock(td);
