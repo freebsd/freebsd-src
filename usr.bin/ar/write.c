@@ -163,11 +163,24 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 	if (mtime != 0 && bsdar->options & AR_U && sb.st_mtime <= mtime)
 		goto giveup;
 
-	obj->uid = sb.st_uid;
-	obj->gid = sb.st_gid;
-	obj->md = sb.st_mode;
+	/*
+	 * When option '-D' is specified, mtime and UID / GID from the file
+	 * will be replaced with 0, and file mode with 644. This ensures that 
+	 * checksums will match for two archives containing the exact same
+	 * files.
+	 */
+	if (bsdar->options & AR_D) {
+		obj->uid = 0;
+		obj->gid = 0;
+		obj->mtime = 0;
+		obj->md = S_IFREG | 0644;
+	} else {
+		obj->uid = sb.st_uid;
+		obj->gid = sb.st_gid;
+		obj->mtime = sb.st_mtime;
+		obj->md = sb.st_mode;
+	}
 	obj->size = sb.st_size;
-	obj->mtime = sb.st_mtime;
 	obj->dev = sb.st_dev;
 	obj->ino = sb.st_ino;
 
@@ -621,7 +634,8 @@ write_objs(struct bsdar *bsdar)
 	    bsdar->options & AR_S) {
 		entry = archive_entry_new();
 		archive_entry_copy_pathname(entry, "/");
-		archive_entry_set_mtime(entry, time(NULL), 0);
+		if ((bsdar->options & AR_D) == 0)
+			archive_entry_set_mtime(entry, time(NULL), 0);
 		archive_entry_set_size(entry, (bsdar->s_cnt + 1) *
 		    sizeof(uint32_t) + bsdar->s_sn_sz);
 		AC(archive_write_header(a, entry));
