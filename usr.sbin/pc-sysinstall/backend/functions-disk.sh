@@ -400,12 +400,12 @@ setup_disk_slice()
       then
         # Lets figure out what number this slice will be
         LASTSLICE="`gpart show ${DISK} \
-			| grep -v ${DISK} \
-			| grep -v ' free' \
-			| tr -s '\t' ' ' \
-			| cut -d ' ' -f 4 \
-			| sed '/^$/d' \
-			| tail -n 1`"
+          | grep -v ${DISK} \
+          | grep -v ' free' \
+          | tr -s '\t' ' ' \
+          | cut -d ' ' -f 4 \
+          | sed '/^$/d' \
+          | tail -n 1`"
 
         if [ -z "${LASTSLICE}" ]
         then
@@ -466,7 +466,7 @@ setup_disk_slice()
             if [ "$PSCHEME" = "MBR" -o -z "$PSCHEME" ] ; then
               PSCHEME="MBR"
               tmpSLICE="${DISK}s1"  
-			else
+            else
               tmpSLICE="${DISK}p1"  
             fi
 
@@ -486,29 +486,44 @@ setup_disk_slice()
             ;;
 
           image)
-            if [ -n "${IMAGE}" ]
+            if [ -z "${IMAGE}" ]
             then
-              write_image "${IMAGE}" "${DISK}"
-            else 
-			  exit_err "ERROR: partition type image specified with no image!"
+              exit_err "ERROR: partition type image specified with no image!"
             fi 
-
-            IMAGE="${DISK}:${IMAGE}"
-            if [ -z "${WORKINGIMAGES}" ]
-            then
-			  WORKINGIMAGES="${IMAGE}"
-            else 
-			  WORKINGIMAGES="${WORKINGIMAGES} ${IMAGE}"
-            fi 
-
-            export WORKINGIMAGES
             ;;
 
           *) exit_err "ERROR: Unknown PTYPE: $PTYPE" ;;
         esac
+        
+
+		if [ -n "${IMAGE}" ]
+		then 
+          local DEST
+          
+		  if [ -n "${tmpSLICE}" ]
+          then
+			DEST="${tmpSLICE}"
+          else 
+			DEST="${DISK}"
+          fi 
+
+          if iscompressed "${IMAGE}"
+          then
+            local COMPRESSION
+  
+            get_compression_type "${IMAGE}"
+            COMPRESSION="${VAL}"
+  
+            decompress_file "${IMAGE}" "${COMPRESSION}"
+            IMAGE="${VAL}"
+          fi
+
+          write_image "${IMAGE}" "${DEST}"
+          check_disk_layout "${DEST}"
+		fi
 
         # Now save which disk<num> this is, so we can parse it later during slice partition setup
-        if [ -n "${tmpSLICE}" ]
+        if [ -z "${IMAGE}" ]
         then
           echo "disk${disknum}" >${SLICECFGDIR}/$tmpSLICE
         fi
@@ -523,7 +538,6 @@ setup_disk_slice()
           fi
           echo "$MIRRORDISK:$MIRRORBAL" >${MIRRORCFGDIR}/$DISK
         fi
-
 
         # Increment our disk counter to look for next disk and unset
         unset BMANAGER PTYPE DISK MIRRORDISK MIRRORBAL PSCHEME IMAGE
