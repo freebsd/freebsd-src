@@ -456,7 +456,7 @@ again:
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
-
+	tidhash_add(td2);
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 

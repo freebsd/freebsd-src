@@ -443,6 +443,7 @@ proc0_init(void *dummy __unused)
 	 */
 	LIST_INSERT_HEAD(&allproc, p, p_list);
 	LIST_INSERT_HEAD(PIDHASH(0), p, p_hash);
+	LIST_INSERT_HEAD(TIDHASH(0), td, td_hash);
 	mtx_init(&pgrp0.pg_mtx, "process group", NULL, MTX_DEF | MTX_DUPOK);
 	p->p_pgrp = &pgrp0;
 	LIST_INSERT_HEAD(PGRPHASH(0), &pgrp0, pg_hash);

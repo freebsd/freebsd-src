@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/turnstile.h>
 #include <sys/ktr.h>
+#include <sys/rwlock.h>
 #include <sys/umtx.h>
 #include <sys/cpuset.h>
 #ifdef	HWPMC_HOOKS
@@ -82,6 +83,12 @@ static void thread_zombie(struct thread *);
 
 struct mtx tid_lock;
 static struct unrhdr *tid_unrhdr;
+
+static MALLOC_DEFINE(M_TIDHASH, "tidhash", "thread hash");
+
+struct	tidhashhead *tidhashtbl;
+u_long	tidhash;
+struct	rwlock tidhash_lock;
 
 /*
  * Prepare a thread for use.
@@ -230,6 +237,8 @@ threadinit(void)
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    16 - 1, 0);
+	tidhashtbl = hashinit(maxproc / 2, M_TIDHASH, &tidhash);
+	rw_init(&tidhash_lock, "tidhash");
 }
 
 /*
@@ -748,8 +757,14 @@ thread_suspend_check(int return_instead)
 		 * this thread should just suicide.
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
 		 */
-		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td))
+		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
+			PROC_SUNLOCK(p);
+			PROC_UNLOCK(p);
+			tidhash_remove(td);
+			PROC_LOCK(p);
+			PROC_SLOCK(p);
 			thread_exit();
+		}
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount + 1) {
 				thread_lock(p->p_singlethread);
@@ -922,4 +937,58 @@ thread_find(struct proc *p, lwpid_t tid)
 			break;
 	}
 	return (td);
+}
+
+/* Locate a thread by number; return with proc lock held. */
+struct thread *
+tdfind(lwpid_t tid, pid_t pid)
+{
+#define RUN_THRESH	16
+	struct thread *td;
+	int run = 0;
+
+	rw_rlock(&tidhash_lock);
+	LIST_FOREACH(td, TIDHASH(tid), td_hash) {
+		if (td->td_tid == tid) {
+			if (pid != -1 && td->td_proc->p_pid != pid) {
+				td = NULL;
+				break;
+			}
+			if (td->td_proc->p_state == PRS_NEW) {
+				td = NULL;
+				break;
+			}
+			if (run > RUN_THRESH) {
+				if (rw_try_upgrade(&tidhash_lock)) {
+					LIST_REMOVE(td, td_hash);
+					LIST_INSERT_HEAD(TIDHASH(td->td_tid),
+						td, td_hash);
+					PROC_LOCK(td->td_proc);
+					rw_wunlock(&tidhash_lock);
+					return (td);
+				}
+			}
+			PROC_LOCK(td->td_proc);
+			break;
+		}
+		run++;
+	}
+	rw_runlock(&tidhash_lock);
+	return (td);
+}
+
+void
+tidhash_add(struct thread *td)
+{
+	rw_wlock(&tidhash_lock);
+	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
+	rw_wunlock(&tidhash_lock);
+}
+
+void
+tidhash_remove(struct thread *td)
+{
+	rw_wlock(&tidhash_lock);
+	LIST_REMOVE(td, td_hash);
+	rw_wunlock(&tidhash_lock);
 }

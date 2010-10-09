@@ -295,25 +295,23 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 	else
 		cierror = 0;
 
-	/*
-	 * Though lwpid is unique, only current process is supported
-	 * since there is no efficient way to look up a LWP yet.
-	 */
-	p = td->td_proc;
-	PROC_LOCK(p);
+	if (uap->lwpid == 0 || uap->lwpid == td->td_tid) {
+		p = td->td_proc;
+		td1 = td;
+		PROC_LOCK(p);
+	} else {
+		/* Only look up thread in current process */
+		td1 = tdfind(uap->lwpid, curproc->p_pid);
+		if (td1 == NULL)
+			return (ESRCH);
+		p = td1->td_proc;
+	}
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
 		if ((error = p_cansee(td, p)))
 			break;
-		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
-			td1 = td;
-		else
-			td1 = thread_find(p, uap->lwpid);
-		if (td1 != NULL)
-			pri_to_rtp(td1, &rtp);
-		else
-			error = ESRCH;
+		pri_to_rtp(td1, &rtp);
 		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
@@ -337,15 +335,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			if (error)
 				break;
 		}
-
-		if (uap->lwpid == 0 || uap->lwpid == td->td_tid)
-			td1 = td;
-		else
-			td1 = thread_find(p, uap->lwpid);
-		if (td1 != NULL)
-			error = rtp_to_pri(&rtp, td1);
-		else
-			error = ESRCH;
+		error = rtp_to_pri(&rtp, td1);
 		break;
 	default:
 		error = EINVAL;
