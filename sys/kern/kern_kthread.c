@@ -295,6 +295,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	thread_unlock(oldtd);
 	PROC_UNLOCK(p);
 
+	tidhash_add(newtd);
 
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
@@ -313,6 +314,8 @@ kthread_exit(void)
 	struct proc *p;
 
 	p = curthread->td_proc;
+
+	tidhash_remove(curthread);
 
 	/* A module may be waiting for us to exit. */
 	wakeup(curthread);
