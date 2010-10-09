@@ -1824,7 +1824,7 @@ sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				sf_init_locked(sc);
 				SF_UNLOCK(sc);
-				return (rx_npkts);
+				return;
 			} else if ((status & SF_ISR_NO_TX_CSUM) != 0) {
 				sc->sf_statistics.sf_tx_gfp_stall++;
 #ifdef	SF_GFP_DEBUG
