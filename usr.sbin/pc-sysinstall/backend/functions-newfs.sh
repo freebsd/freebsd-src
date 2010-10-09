@@ -100,6 +100,7 @@ setup_filesystems()
     PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d ':' -f 4`"
     PARTGEOM="`cat ${PARTDIR}/${PART} | cut -d ':' -f 5`"
     PARTXTRAOPTS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 6`"
+    PARTIMAGE="`cat ${PARTDIR}/${PART} | cut -d ':' -f 7`"
 
     # Make sure journaling isn't enabled on this device
     if [ -e "/dev/${PART}.journal" ]
@@ -203,6 +204,11 @@ setup_filesystems()
         rc_halt "sync"
         sleep 2
         ;;
+
+      IMAGE)
+        write_image "${PARTIMAGE}" "${PART}"
+        sleep 2
+        ;; 
 
       *) exit_err "ERROR: Got unknown file-system type $PARTFS" ;;
     esac

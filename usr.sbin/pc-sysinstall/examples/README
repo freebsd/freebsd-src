@@ -153,7 +153,7 @@ specified this defaults to "round-robin"
 Setting this option will instruct pc-sysinstall to install the BSD boot Manager,
 or leave it empty
 
-# image=(/path/to/image/file)
+# image=(/path/to/image/file) (/mountpoint)
 
 Setting this option will instruct pc-sysinstall to write the image file
 specified by the path to the disk.
@@ -218,7 +218,7 @@ If you with to just include the disk into the pool in "basic" mode, then use (ad
 The following settings specify the type, locations and sources
 for this installation
 
-# installMedium=(dvd, usb, ftp, rsync)
+# installMedium=(dvd, usb, ftp, rsync, image)
 
 Set installMedium= to the source type we will be using for this install.
 
@@ -227,6 +227,7 @@ Available Types:
   usb - Search for and mount the USB drive which contains the install archive
   ftp - The install archive will be fetched from a FTP / HTTP server before install
 rsync - Pull the system data from a ssh + rsync server, specified with variables below
+image - Install system from an image
 
 # installType=(PCBSD, FreeBSD)
 
