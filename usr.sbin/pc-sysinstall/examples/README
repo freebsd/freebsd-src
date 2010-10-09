@@ -189,13 +189,14 @@ The notation is as follows:
 Available FileSystems: 
   UFS - Standard UFS2 FileSystem
 UFS+S - UFS2 + Softupdates enabled
+UFS+SUJ - UFS2 + Soft Updates + Journaling enabled
 UFS+J - UFS2 + Journaling through gjournal
   ZFS - Z File System, pools / mounts created automatically
  SWAP - BSD Swap space partition, mountpoint should be set to "none"
 
 Adding the ".eli" extension to any of the above file systems
 will enable disk encryption via geli
-(UFS.eli, UFS+S.eli, UFS+J.eli, ZFS.eli, SWAP.eli)
+(UFS.eli, UFS+S.eli, UFS+SUJ.eli, UFS+J.eli, ZFS.eli, SWAP.eli)
 
 If you with to use a passphrase with this encrypted partition, on the next line
 the flag "encpass=" should be entered:

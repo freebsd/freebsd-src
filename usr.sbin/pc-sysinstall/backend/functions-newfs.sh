@@ -154,6 +154,25 @@ setup_filesystems()
         sleep 2
         ;;
 
+      UFS+SUJ)
+        echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
+        sleep 2
+        rc_halt "newfs -U /dev/${PART}${EXT}"
+        sleep 2
+        rc_halt "sync"
+        rc_halt "tunefs -j enable /dev/${PART}${EXT}"
+        sleep 2
+        rc_halt "sync"
+        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
+        rc_halt "sync"
+	    # Set flag that we've found a boot partition
+	    if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
+          HAVEBOOT="YES"
+        fi
+        sleep 2
+        ;;
+
+
       UFS+J)
         echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
         sleep 2
