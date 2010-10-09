@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20101002: removed manpath.config
+OLD_FILES+=etc/manpath.config
+OLD_FILES+=usr/share/examples/etc/manpath.config
 # 20100910: renamed sbuf_overflowed to sbuf_error
 OLD_FILES+=usr/share/man/man9/sbuf_overflowed.9.gz
 # 20100815: retired last traces of chooseproc(9)
