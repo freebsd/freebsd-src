@@ -107,8 +107,6 @@ static int	killpg1(struct thread *td, int sig, int pgid, int all,
 		    ksiginfo_t *ksi);
 static int	issignal(struct thread *td, int stop_allowed);
 static int	sigprop(int sig);
-static int	tdsendsignal(struct proc *p, struct thread *td, int sig,
-		    ksiginfo_t *ksi);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
 static void	sig_suspend_threads(struct thread *, struct proc *, int);
 static int	filt_sigattach(struct knote *kn);
@@ -1974,27 +1972,22 @@ pksignal(struct proc *p, int sig, ksiginfo_t *ksi)
 	return (tdsendsignal(p, NULL, sig, ksi));
 }
 
+/* Utility function for finding a thread to send signal event to. */
 int
-psignal_event(struct proc *p, struct sigevent *sigev, ksiginfo_t *ksi)
+sigev_findtd(struct proc *p ,struct sigevent *sigev, struct thread **ttd)
 {
-	struct thread *td = NULL;
+	struct thread *td;
 
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	KASSERT(!KSI_ONQ(ksi), ("psignal_event: ksi on queue"));
-
-	/*
-	 * ksi_code and other fields should be set before
-	 * calling this function.
-	 */
-	ksi->ksi_signo = sigev->sigev_signo;
-	ksi->ksi_value = sigev->sigev_value;
 	if (sigev->sigev_notify == SIGEV_THREAD_ID) {
-		td = thread_find(p, sigev->sigev_notify_thread_id);
+		td = tdfind(sigev->sigev_notify_thread_id, p->p_pid);
 		if (td == NULL)
 			return (ESRCH);
+		*ttd = td;
+	} else {
+		*ttd = NULL;
+		PROC_LOCK(p);
 	}
-	return (tdsendsignal(p, td, ksi->ksi_signo, ksi));
+	return (0);
 }
 
 void
@@ -2015,7 +2008,7 @@ tdksignal(struct thread *td, int sig, ksiginfo_t *ksi)
 	(void) tdsendsignal(td->td_proc, td, sig, ksi);
 }
 
-static int
+int
 tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 {
 	sig_t action;
@@ -2026,6 +2019,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	int ret = 0;
 	int wakeup_swapper;
 
+	MPASS(td == NULL || p == td->td_proc);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	if (!_SIG_VALID(sig))

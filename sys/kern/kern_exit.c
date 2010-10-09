@@ -403,6 +403,8 @@ exit1(struct thread *td, int rv)
 	PROC_UNLOCK(p);
 	lim_free(plim);
 
+	tidhash_remove(td);
+
 	/*
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
