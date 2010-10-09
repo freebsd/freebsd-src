@@ -217,7 +217,7 @@ setup_mbr_partitions()
           
       # Now check that these values are sane
       case $FS in
-        UFS|UFS+S|UFS+J|ZFS|SWAP) ;;
+        UFS|UFS+S|UFS+J||UFS+SUJ|ZFS|SWAP) ;;
        *) exit_err "ERROR: Invalid file system specified on $line" ;;
       esac
 
@@ -261,7 +261,7 @@ setup_mbr_partitions()
         check_for_mount "${MNT}" "/boot"
         if [ "${?}" = "0" ] ; then
           USINGBOOTPART="0" ; export USINGBOOTPART
-          if [ "${FS}" != "UFS" -a "${FS}" != "UFS+S" -a "${FS}" != "UFS+J" ]
+          if [ "${FS}" != "UFS" -a "${FS}" != "UFS+S" -a "${FS}" != "UFS+J" -a "${FS}" != "UFS+SUJ" ]
           then
             exit_err "/boot partition must be formatted with UFS"
           fi
@@ -401,7 +401,7 @@ setup_gpt_partitions()
           
       # Now check that these values are sane
       case $FS in
-        UFS|UFS+S|UFS+J|ZFS|SWAP) ;;
+        UFS|UFS+S|UFS+J|UFS+SUJ|ZFS|SWAP) ;;
        *) exit_err "ERROR: Invalid file system specified on $line" ;;
       esac
 
@@ -438,7 +438,7 @@ setup_gpt_partitions()
       if [ "${?}" = "0" ] ; then
         if [ "${CURPART}" = "2" ] ; then
           USINGBOOTPART="0" ; export USINGBOOTPART
-          if [ "${FS}" != "UFS" -a "${FS}" != "UFS+S" -a "${FS}" != "UFS+J" ]
+          if [ "${FS}" != "UFS" -a "${FS}" != "UFS+S" -a "${FS}" != "UFS+J" -a "${FS}" != "UFS+SUJ" ]
           then
             exit_err "/boot partition must be formatted with UFS"
           fi
