@@ -187,8 +187,8 @@ find_geom(struct gclass *classp, const char *name)
 {
 	struct ggeom *gp;
 
-	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		name += strlen(_PATH_DEV);
+	if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+		name += sizeof(_PATH_DEV) - 1;
 	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
 		if (strcmp(gp->lg_name, name) == 0)
 			return (gp);

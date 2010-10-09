@@ -776,8 +776,8 @@ eli_init(struct gctl_req *req)
 		const char *p = prov;
 		unsigned int i;
 
-		if (strncmp(p, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-			p += strlen(_PATH_DEV);
+		if (strncmp(p, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+			p += sizeof(_PATH_DEV) - 1;
 		snprintf(backfile, sizeof(backfile), "%s%s.eli",
 		    GELI_BACKUP_DIR, p);
 		/* Replace all / with _. */

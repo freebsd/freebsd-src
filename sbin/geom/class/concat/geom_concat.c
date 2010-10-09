@@ -153,8 +153,8 @@ concat_label(struct gctl_req *req)
 		if (!hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
-			if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-				name += strlen(_PATH_DEV);
+			if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+				name += sizeof(_PATH_DEV) - 1;
 			strlcpy(md.md_provider, name, sizeof(md.md_provider));
 		}
 		md.md_provsize = g_get_mediasize(name);
