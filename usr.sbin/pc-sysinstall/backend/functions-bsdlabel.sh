@@ -217,7 +217,7 @@ setup_mbr_partitions()
           
       # Now check that these values are sane
       case $FS in
-        UFS|UFS+S|UFS+J||UFS+SUJ|ZFS|SWAP) ;;
+        UFS|UFS+S|UFS+J|UFS+SUJ|ZFS|SWAP) ;;
        *) exit_err "ERROR: Invalid file system specified on $line" ;;
       esac
 
