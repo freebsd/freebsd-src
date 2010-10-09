@@ -294,6 +294,13 @@ ksiginfo_copy(ksiginfo_t *src, ksiginfo_t *dst)
 	(dst)->ksi_flags = (src->ksi_flags & KSI_COPYMASK);
 }
 
+static __inline void
+ksiginfo_set_sigev(ksiginfo_t *dst, struct sigevent *sigev)
+{
+	dst->ksi_signo = sigev->sigev_signo;
+	dst->ksi_value = sigev->sigev_value;
+}
+
 struct pgrp;
 struct proc;
 struct sigio;
@@ -331,7 +338,6 @@ void	pgsigio(struct sigio **sigiop, int sig, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi);
 int	postsig(int sig);
 void	psignal(struct proc *p, int sig);
-int	psignal_event(struct proc *p, struct sigevent *sigev, ksiginfo_t *ksi);
 int	ptracestop(struct thread *td, int sig);
 void	sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *retmask);
 struct sigacts *sigacts_alloc(void);
@@ -340,6 +346,7 @@ void	sigacts_free(struct sigacts *ps);
 struct sigacts *sigacts_hold(struct sigacts *ps);
 int	sigacts_shared(struct sigacts *ps);
 void	sigexit(struct thread *td, int sig) __dead2;
+int	sigev_findtd(struct proc *p, struct sigevent *sigev, struct thread **);
 int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
@@ -349,6 +356,8 @@ void	sigqueue_flush(struct sigqueue *queue);
 void	sigqueue_init(struct sigqueue *queue, struct proc *p);
 void	sigqueue_take(ksiginfo_t *ksi);
 void	tdksignal(struct thread *td, int sig, ksiginfo_t *ksi);
+int	tdsendsignal(struct proc *p, struct thread *td, int sig,
+	   ksiginfo_t *ksi);
 void	tdsigcleanup(struct thread *td);
 void	tdsignal(struct thread *td, int sig);
 void	trapsignal(struct thread *td, ksiginfo_t *ksi);
