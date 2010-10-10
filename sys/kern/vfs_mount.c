@@ -1960,3 +1960,11 @@ kernel_vmount(int flags, ...)
 	error = kernel_mount(ma, flags);
 	return (error);
 }
+
+void
+vfs_oexport_conv(const struct oexport_args *oexp, struct export_args *exp)
+{
+
+	bcopy(oexp, exp, sizeof(*oexp));
+	exp->ex_numsecflavors = 0;
+}
