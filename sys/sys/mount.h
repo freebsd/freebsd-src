@@ -741,6 +741,8 @@ int	vfs_modevent(module_t, int, void *);
 void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
+void	vfs_oexport_conv(const struct oexport_args *oexp,
+	    struct export_args *exp);
 void	vfs_ref(struct mount *);
 void	vfs_rel(struct mount *);
 struct mount *vfs_mount_alloc(struct vnode *, struct vfsconf *, const char *,
