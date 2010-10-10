@@ -61,6 +61,9 @@
 #define	HAVE_LIBARCHIVE 1
 #define	HAVE_LIBBZ2 1
 #define	HAVE_LIBZ 1
+#if __FreeBSD_version >= 800505 /* liblzma introduced */
+#define	HAVE_LIBLZMA 1
+#endif
 #define	HAVE_LIMITS_H 1
 #undef	HAVE_LINUX_EXT2_FS_H
 #undef	HAVE_LINUX_FS_H
