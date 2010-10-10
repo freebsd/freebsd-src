@@ -1443,7 +1443,7 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 	pcb->pcb_rbp = tf->tf_rbp;
 	pcb->pcb_rbx = tf->tf_rbx;
 	pcb->pcb_rip = tf->tf_rip;
-	pcb->pcb_rsp = (ISPL(tf->tf_cs)) ? tf->tf_rsp : (long)(tf + 1) - 8;
+	pcb->pcb_rsp = tf->tf_rsp;
 }
 
 int
