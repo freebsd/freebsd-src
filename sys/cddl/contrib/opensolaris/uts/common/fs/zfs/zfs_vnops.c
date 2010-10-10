@@ -705,7 +705,7 @@ zfs_prefault_write(ssize_t n, struct uio *uio)
  *	IN:	vp	- vnode of file to be written to.
  *		uio	- structure supplying write location, range info,
  *			  and data buffer.
- *		ioflag	- IO_APPEND flag set if in append mode.
+ *		ioflag	- FAPPEND flag set if in append mode.
  *		cr	- credentials of caller.
  *		ct	- caller context (NFS/CIFS fem monitor only)
  *
@@ -755,7 +755,7 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	 */
 	pflags = zp->z_phys->zp_flags;
 	if ((pflags & (ZFS_IMMUTABLE | ZFS_READONLY)) ||
-	    ((pflags & ZFS_APPENDONLY) && !(ioflag & IO_APPEND) &&
+	    ((pflags & ZFS_APPENDONLY) && !(ioflag & FAPPEND) &&
 	    (uio->uio_loffset < zp->z_phys->zp_size))) {
 		ZFS_EXIT(zfsvfs);
 		return (EPERM);
@@ -772,7 +772,7 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	/*
 	 * If in append mode, set the io offset pointer to eof.
 	 */
-	if (ioflag & IO_APPEND) {
+	if (ioflag & FAPPEND) {
 		/*
 		 * Range lock for a file append:
 		 * The value for the start of range will be determined by
@@ -4181,6 +4181,21 @@ zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 }
 
 static int
+ioflags(int ioflags)
+{
+	int flags = 0;
+
+	if (ioflags & IO_APPEND)
+		flags |= FAPPEND;
+	if (ioflags & IO_NDELAY)
+        	flags |= FNONBLOCK;
+	if (ioflags & IO_SYNC)
+		flags |= (FSYNC | FDSYNC | FRSYNC);
+
+	return (flags);
+}
+
+static int
 zfs_freebsd_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -4238,7 +4253,8 @@ zfs_freebsd_read(ap)
 	} */ *ap;
 {
 
-	return (zfs_read(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
+	return (zfs_read(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
+	    ap->a_cred, NULL));
 }
 
 static int
@@ -4254,7 +4270,8 @@ zfs_freebsd_write(ap)
 	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
 		return (EFBIG);
 
-	return (zfs_write(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
+	return (zfs_write(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
+	    ap->a_cred, NULL));
 }
 
 static int
