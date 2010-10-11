@@ -79,6 +79,16 @@ static struct cdevsw mps_cdevsw = {
 	.d_name =	"mps",
 };
 
+typedef int (mps_user_f)(struct mps_command *, struct mps_usr_command *);
+static mps_user_f	mpi_pre_ioc_facts;
+static mps_user_f	mpi_pre_port_facts;
+static mps_user_f	mpi_pre_fw_download;
+static mps_user_f	mpi_pre_fw_upload;
+static mps_user_f	mpi_pre_sata_passthrough;
+static mps_user_f	mpi_pre_smp_passthrough;
+static mps_user_f	mpi_pre_config;
+static mps_user_f	mpi_pre_sas_io_unit_control;
+
 static int mps_user_read_cfg_header(struct mps_softc *,
 				    struct mps_cfg_page_req *);
 static int mps_user_read_cfg_page(struct mps_softc *,
@@ -89,7 +99,8 @@ static int mps_user_read_extcfg_page(struct mps_softc *,
 				     struct mps_ext_cfg_page_req *, void *);
 static int mps_user_write_cfg_page(struct mps_softc *,
 				   struct mps_cfg_page_req *, void *);
-static int mps_user_verify_request(MPI2_REQUEST_HEADER *, MPI2_SGE_IO_UNION **);
+static int mps_user_setup_request(struct mps_command *,
+				  struct mps_usr_command *);
 static int mps_user_command(struct mps_softc *, struct mps_usr_command *);
 
 static MALLOC_DEFINE(M_MPSUSER, "mps_user", "Buffers for mps(4) ioctls");
@@ -311,43 +322,212 @@ mps_user_write_cfg_page(struct mps_softc *sc,
 	return (0);
 }
 
+/*
+ * Prepare the mps_command for an IOC_FACTS request.
+ */
+static int
+mpi_pre_ioc_facts(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_IOC_FACTS_REQUEST *req = (void *)cm->cm_req;
+	MPI2_IOC_FACTS_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	cm->cm_sge = NULL;
+	cm->cm_sglsize = 0;
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a PORT_FACTS request.
+ */
+static int
+mpi_pre_port_facts(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_PORT_FACTS_REQUEST *req = (void *)cm->cm_req;
+	MPI2_PORT_FACTS_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	cm->cm_sge = NULL;
+	cm->cm_sglsize = 0;
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a FW_DOWNLOAD request.
+ */
+static int
+mpi_pre_fw_download(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_FW_DOWNLOAD_REQUEST *req = (void *)cm->cm_req;
+	MPI2_FW_DOWNLOAD_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->SGL;
+	cm->cm_sglsize = sizeof req->SGL;
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a FW_UPLOAD request.
+ */
+static int
+mpi_pre_fw_upload(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_FW_UPLOAD_REQUEST *req = (void *)cm->cm_req;
+	MPI2_FW_UPLOAD_REPLY *rpl;
+	MPI2_FW_UPLOAD_TCSGE *tc;
+
+	/*
+	 * This code assumes there is room in the request's SGL for
+	 * the TransactionContext plus at least a SGL chain element.
+	 */
+	CTASSERT(sizeof req->SGL >= sizeof *tc + MPS_SGC_SIZE);
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	cm->cm_sglsize = sizeof req->SGL;
+	if (cmd->len == 0) {
+		/* Perhaps just asking what the size of the fw is? */
+		cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->SGL;
+		return (0);
+	}
+
+	tc = (void *)&req->SGL;
+	bzero(tc, sizeof *tc);
+
+	/*
+	 * The value of the first two elements is specified in the
+	 * Fusion-MPT Message Passing Interface document.
+	 */
+	tc->ContextSize = 0;
+	tc->DetailsLength = 12;
+	/*
+	 * XXX Is there any reason to fetch a partial image?  I.e. to
+	 * set ImageOffset to something other than 0?
+	 */
+	tc->ImageOffset = 0;
+	tc->ImageSize = cmd->len;
+	cm->cm_sge = (MPI2_SGE_IO_UNION *)(tc + 1);
+	cm->cm_sglsize -= sizeof *tc;
+
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a SATA_PASSTHROUGH request.
+ */
+static int
+mpi_pre_sata_passthrough(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_SATA_PASSTHROUGH_REQUEST *req = (void *)cm->cm_req;
+	MPI2_SATA_PASSTHROUGH_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->SGL;
+	cm->cm_sglsize = sizeof req->SGL;
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a SMP_PASSTHROUGH request.
+ */
+static int
+mpi_pre_smp_passthrough(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_SMP_PASSTHROUGH_REQUEST *req = (void *)cm->cm_req;
+	MPI2_SMP_PASSTHROUGH_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->SGL;
+	cm->cm_sglsize = sizeof req->SGL;
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a CONFIG request.
+ */
+static int
+mpi_pre_config(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_CONFIG_REQUEST *req = (void *)cm->cm_req;
+	MPI2_CONFIG_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->PageBufferSGE;
+	cm->cm_sglsize = sizeof req->PageBufferSGE;
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a SAS_IO_UNIT_CONTROL request.
+ */
+static int
+mpi_pre_sas_io_unit_control(struct mps_command *cm,
+			     struct mps_usr_command *cmd)
+{
+
+	cm->cm_sge = NULL;
+	cm->cm_sglsize = 0;
+	return (0);
+}
+
+/*
+ * A set of functions to prepare an mps_command for the various
+ * supported requests.
+ */
 struct mps_user_func {
-	U8 Func;
-	U8 SgOff;
+	U8		Function;
+	mps_user_f	*f_pre;
 } mps_user_func_list[] = {
-	{ MPI2_FUNCTION_IOC_FACTS,	0 },
-	{ MPI2_FUNCTION_PORT_FACTS,	0 },
-	{ MPI2_FUNCTION_FW_DOWNLOAD, 	offsetof(Mpi2FWDownloadRequest,SGL)},
-	{ MPI2_FUNCTION_FW_UPLOAD,	offsetof(Mpi2FWUploadRequest_t,SGL)},
-	{ MPI2_FUNCTION_SATA_PASSTHROUGH,offsetof(Mpi2SataPassthroughRequest_t,SGL)},
-	{ MPI2_FUNCTION_SMP_PASSTHROUGH, offsetof(Mpi2SmpPassthroughRequest_t,SGL)},
-	{ MPI2_FUNCTION_CONFIG,		offsetof(Mpi2ConfigRequest_t,PageBufferSGE)},
-	{ MPI2_FUNCTION_SAS_IO_UNIT_CONTROL,	0 },
-};	
+	{ MPI2_FUNCTION_IOC_FACTS,		mpi_pre_ioc_facts },
+	{ MPI2_FUNCTION_PORT_FACTS,		mpi_pre_port_facts },
+	{ MPI2_FUNCTION_FW_DOWNLOAD, 		mpi_pre_fw_download },
+	{ MPI2_FUNCTION_FW_UPLOAD,		mpi_pre_fw_upload },
+	{ MPI2_FUNCTION_SATA_PASSTHROUGH,	mpi_pre_sata_passthrough },
+	{ MPI2_FUNCTION_SMP_PASSTHROUGH,	mpi_pre_smp_passthrough},
+	{ MPI2_FUNCTION_CONFIG,			mpi_pre_config},
+	{ MPI2_FUNCTION_SAS_IO_UNIT_CONTROL,	mpi_pre_sas_io_unit_control },
+	{ 0xFF,					NULL } /* list end */
+};
 
 static int
-mps_user_verify_request(MPI2_REQUEST_HEADER *hdr, MPI2_SGE_IO_UNION **psgl)
+mps_user_setup_request(struct mps_command *cm, struct mps_usr_command *cmd)
 {
-	int i, err = EINVAL;
+	MPI2_REQUEST_HEADER *hdr = (MPI2_REQUEST_HEADER *)cm->cm_req;	
+	struct mps_user_func *f;
 
-	for (i = 0; i < sizeof(mps_user_func_list) /
-	    sizeof(mps_user_func_list[0]); i++ ) {
-		struct mps_user_func *func = &mps_user_func_list[i];
-		
-		if (hdr->Function == func->Func) {
-			if (psgl != NULL) {
-				if (func->SgOff != 0)
-					*psgl = (PTR_MPI2_SGE_IO_UNION)
-					    ((char*)hdr + func->SgOff);
-				else
-					*psgl = NULL;
-				err = 0;
-				break;
-			}
-		}
-	}	
-
-	return err;
+	for (f = mps_user_func_list; f->f_pre != NULL; f++) {
+		if (hdr->Function == f->Function)
+			return (f->f_pre(cm, cmd));
+	}
+	return (EINVAL);
 }	
 
 static int
@@ -355,7 +535,6 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 {
 	MPI2_REQUEST_HEADER *hdr;	
 	MPI2_DEFAULT_REPLY *rpl;
-	MPI2_SGE_IO_UNION *sgl;	
 	void *buf = NULL;
 	struct mps_command *cm;
 	int err = 0;
@@ -387,7 +566,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	mps_dprint(sc, MPS_INFO, "mps_user_command: Function %02X  "
 	    "MsgFlags %02X\n", hdr->Function, hdr->MsgFlags );
 
-	err = mps_user_verify_request(hdr, &sgl);
+	err = mps_user_setup_request(cm, cmd);
 	if (err != 0) {
 		mps_printf(sc, "mps_user_command: unsupported function 0x%X\n",
 		    hdr->Function );
@@ -403,8 +582,6 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 		cm->cm_length = 0;
 	}
 
-	cm->cm_sge = sgl;
-	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPS_CM_FLAGS_SGE_SIMPLE | MPS_CM_FLAGS_WAKEUP;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
