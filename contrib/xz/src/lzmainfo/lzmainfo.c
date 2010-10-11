@@ -20,6 +20,11 @@
 #include "tuklib_progname.h"
 #include "tuklib_exit.h"
 
+#ifdef TUKLIB_DOSLIKE
+#	include <fcntl.h>
+#	include <io.h>
+#endif
+
 
 static void lzma_attribute((noreturn))
 help(void)
@@ -43,7 +48,7 @@ _("Usage: %s [--help] [--version] [FILE]...\n"
 static void lzma_attribute((noreturn))
 version(void)
 {
-	puts("lzmainfo (" PACKAGE_NAME ") " PACKAGE_VERSION);
+	puts("lzmainfo (" PACKAGE_NAME ") " LZMA_VERSION_STRING);
 	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, true);
 }
 
@@ -150,7 +155,7 @@ lzmainfo(const char *name, FILE *f)
 	lzma_options_lzma *opt = filter.options;
 
 	printf("\nDictionary size:               "
-			"%u MB (2^%u bytes)\n"
+			"%" PRIu32 " MB (2^%" PRIu32 " bytes)\n"
 			"Literal context bits (lc):     %" PRIu32 "\n"
 			"Literal pos bits (lp):         %" PRIu32 "\n"
 			"Number of pos bits (pb):       %" PRIu32 "\n",
@@ -170,6 +175,10 @@ main(int argc, char **argv)
 	tuklib_gettext_init(PACKAGE, LOCALEDIR);
 
 	parse_args(argc, argv);
+
+#ifdef TUKLIB_DOSLIKE
+	setmode(fileno(stdin), O_BINARY);
+#endif
 
 	int ret = EXIT_SUCCESS;
 

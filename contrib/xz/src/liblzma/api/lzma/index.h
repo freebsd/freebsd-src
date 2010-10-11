@@ -368,7 +368,7 @@ extern LZMA_API(lzma_ret) lzma_index_stream_flags(
 /**
  * \brief       Get the types of integrity Checks
  *
- * If lzma_index_stream_padding() is used to set the Stream Flags for
+ * If lzma_index_stream_flags() is used to set the Stream Flags for
  * every Stream, lzma_index_checks() can be used to get a bitmask to
  * indicate which Check types have been used. It can be useful e.g. if
  * showing the Check types to the user.
@@ -562,9 +562,8 @@ extern LZMA_API(lzma_bool) lzma_index_iter_locate(
  *              - LZMA_MEM_ERROR
  *              - LZMA_PROG_ERROR
  */
-extern LZMA_API(lzma_ret) lzma_index_cat(lzma_index *lzma_restrict dest,
-		lzma_index *lzma_restrict src,
-		lzma_allocator *allocator)
+extern LZMA_API(lzma_ret) lzma_index_cat(
+		lzma_index *dest, lzma_index *src, lzma_allocator *allocator)
 		lzma_nothrow lzma_attr_warn_unused_result;
 
 

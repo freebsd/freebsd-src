@@ -23,13 +23,16 @@ extern void hardware_threadlimit_set(uint32_t threadlimit);
 extern uint32_t hardware_threadlimit_get(void);
 
 
-/// Set custom memory usage limit. This is used for both encoding and
-/// decoding. Zero indicates resetting the limit back to defaults.
-extern void hardware_memlimit_set(uint64_t memlimit);
+/// Set the memory usage limit. There are separate limits for compression
+/// and decompression (the latter includes also --list), one or both can
+/// be set with a single call to this function. Zero indicates resetting
+/// the limit back to the defaults. The limit can also be set as a percentage
+/// of installed RAM; the percentage must be in the range [1, 100].
+extern void hardware_memlimit_set(uint64_t new_memlimit,
+		bool set_compress, bool set_decompress, bool is_percentage);
 
-/// Set custom memory usage limit as a percentage of installed RAM.
-/// The percentage must be in the range [1, 100].
-extern void hardware_memlimit_set_percentage(uint32_t percentage);
+/// Get the current memory usage limit for compression or decompression.
+extern uint64_t hardware_memlimit_get(enum operation_mode mode);
 
-/// Get the current memory usage limit.
-extern uint64_t hardware_memlimit_get(void);
+/// Display the amount of RAM and memory usage limits and exit.
+extern void hardware_memlimit_show(void) lzma_attribute((noreturn));
