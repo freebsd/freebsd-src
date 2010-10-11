@@ -79,6 +79,19 @@ static struct cdevsw mps_cdevsw = {
 	.d_name =	"mps",
 };
 
+static int mps_user_read_cfg_header(struct mps_softc *,
+				    struct mps_cfg_page_req *);
+static int mps_user_read_cfg_page(struct mps_softc *,
+				  struct mps_cfg_page_req *, void *);
+static int mps_user_read_extcfg_header(struct mps_softc *,
+				     struct mps_ext_cfg_page_req *);
+static int mps_user_read_extcfg_page(struct mps_softc *,
+				     struct mps_ext_cfg_page_req *, void *);
+static int mps_user_write_cfg_page(struct mps_softc *,
+				   struct mps_cfg_page_req *, void *);
+static int mps_user_verify_request(MPI2_REQUEST_HEADER *, MPI2_SGE_IO_UNION **);
+static int mps_user_command(struct mps_softc *, struct mps_usr_command *);
+
 static MALLOC_DEFINE(M_MPSUSER, "mps_user", "Buffers for mps(4) ioctls");
 
 int
