@@ -721,23 +721,18 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 Width,
 	       UINT64 *Value, void *Context, void *RegionContext)
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
-    ACPI_STATUS			Status;
+    ACPI_PHYSICAL_ADDRESS	EcAddr;
     UINT8			*EcData;
-    UINT8			EcAddr;
-    int				bytes, i;
+    ACPI_STATUS			Status;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Address);
 
+    if (Function != ACPI_READ && Function != ACPI_WRITE)
+	return_ACPI_STATUS (AE_BAD_PARAMETER);
     if (Width % 8 != 0 || Value == NULL || Context == NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
-    bytes = Width / 8;
-    if (Address + bytes - 1 > 0xFF)
+    if (Address + Width / 8 > 256)
 	return_ACPI_STATUS (AE_BAD_ADDRESS);
-
-    if (Function == ACPI_READ)
-	*Value = 0;
-    EcAddr = Address;
-    EcData = (UINT8 *)Value;
 
     /*
      * If booting, check if we need to run the query handler.  If so, we
@@ -755,8 +750,21 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 Width,
     if (ACPI_FAILURE(Status))
 	return_ACPI_STATUS (Status);
 
+    /* If we can't start burst mode, continue anyway. */
+    Status = EcCommand(sc, EC_COMMAND_BURST_ENABLE);
+    if (ACPI_SUCCESS(Status)) {
+	if (EC_GET_DATA(sc) == EC_BURST_ACK) {
+	    CTR0(KTR_ACPI, "ec burst enabled");
+	    sc->ec_burstactive = TRUE;
+	}
+    }
+
     /* Perform the transaction(s), based on Width. */
-    for (i = 0; i < bytes; i++, EcAddr++, EcData++) {
+    EcAddr = Address;
+    EcData = (UINT8 *)Value;
+    if (Function == ACPI_READ)
+	*Value = 0;
+    do {
 	switch (Function) {
 	case ACPI_READ:
 	    Status = EcRead(sc, EcAddr, EcData);
@@ -764,14 +772,17 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 Width,
 	case ACPI_WRITE:
 	    Status = EcWrite(sc, EcAddr, *EcData);
 	    break;
-	default:
-	    device_printf(sc->ec_dev, "invalid EcSpaceHandler function %d\n",
-			  Function);
-	    Status = AE_BAD_PARAMETER;
-	    break;
 	}
 	if (ACPI_FAILURE(Status))
 	    break;
+	EcAddr++;
+	EcData++;
+    } while (EcAddr < Address + Width / 8);
+
+    if (sc->ec_burstactive) {
+	sc->ec_burstactive = FALSE;
+	if (ACPI_SUCCESS(EcCommand(sc, EC_COMMAND_BURST_DISABLE)))
+	    CTR0(KTR_ACPI, "ec disabled burst ok");
     }
 
     EcUnlock(sc);
@@ -944,21 +955,10 @@ static ACPI_STATUS
 EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 {
     ACPI_STATUS	status;
-    UINT8 data;
     u_int gen_count;
 
     ACPI_SERIAL_ASSERT(ec);
     CTR1(KTR_ACPI, "ec read from %#x", Address);
-
-    /* If we can't start burst mode, continue anyway. */
-    status = EcCommand(sc, EC_COMMAND_BURST_ENABLE);
-    if (status == AE_OK) {
-    	data = EC_GET_DATA(sc);
-	if (data == EC_BURST_ACK) {
-	    CTR0(KTR_ACPI, "ec burst enabled");
-	    sc->ec_burstactive = TRUE;
-	}
-    }
 
     status = EcCommand(sc, EC_COMMAND_READ);
     if (ACPI_FAILURE(status))
@@ -973,14 +973,6 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     }
     *Data = EC_GET_DATA(sc);
 
-    if (sc->ec_burstactive) {
-	sc->ec_burstactive = FALSE;
-	status = EcCommand(sc, EC_COMMAND_BURST_DISABLE);
-	if (ACPI_FAILURE(status))
-	    return (status);
-	CTR0(KTR_ACPI, "ec disabled burst ok");
-    }
-
     return (AE_OK);
 }
 
@@ -988,21 +980,10 @@ static ACPI_STATUS
 EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 Data)
 {
     ACPI_STATUS	status;
-    UINT8 data;
     u_int gen_count;
 
     ACPI_SERIAL_ASSERT(ec);
     CTR2(KTR_ACPI, "ec write to %#x, data %#x", Address, Data);
-
-    /* If we can't start burst mode, continue anyway. */
-    status = EcCommand(sc, EC_COMMAND_BURST_ENABLE);
-    if (status == AE_OK) {
-    	data = EC_GET_DATA(sc);
-	if (data == EC_BURST_ACK) {
-	    CTR0(KTR_ACPI, "ec burst enabled");
-	    sc->ec_burstactive = TRUE;
-	}
-    }
 
     status = EcCommand(sc, EC_COMMAND_WRITE);
     if (ACPI_FAILURE(status))
@@ -1022,14 +1003,6 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 Data)
     if (ACPI_FAILURE(status)) {
 	device_printf(sc->ec_dev, "EcWrite: failed waiting for sent data\n");
 	return (status);
-    }
-
-    if (sc->ec_burstactive) {
-	sc->ec_burstactive = FALSE;
-	status = EcCommand(sc, EC_COMMAND_BURST_DISABLE);
-	if (ACPI_FAILURE(status))
-	    return (status);
-	CTR0(KTR_ACPI, "ec disabled burst ok");
     }
 
     return (AE_OK);
