@@ -165,9 +165,9 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	}
 
 	/*
-	 * After we nuke off the slice, we should have just a device name
-	 * and unit number.  That means there must be at least 2
-	 * characters.  If we only have 1, we don't have a valid device name.
+	 * We should now have just a device name and unit number.
+	 * That means that there must be at least 2 characters.
+	 * If we only have 1, we don't have a valid device name.
 	 */
 	if (strlen(tmpstr) < 2) {
 		sprintf(cam_errbuf,
