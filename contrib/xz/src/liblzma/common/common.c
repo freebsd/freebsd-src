@@ -76,7 +76,7 @@ lzma_bufcpy(const uint8_t *restrict in, size_t *restrict in_pos,
 {
 	const size_t in_avail = in_size - *in_pos;
 	const size_t out_avail = out_size - *out_pos;
-	const size_t copy_size = MIN(in_avail, out_avail);
+	const size_t copy_size = my_min(in_avail, out_avail);
 
 	memcpy(out + *out_pos, in + *in_pos, copy_size);
 

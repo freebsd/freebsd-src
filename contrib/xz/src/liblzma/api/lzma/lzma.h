@@ -49,7 +49,7 @@
  * The memory usage formulas are only rough estimates, which are closest to
  * reality when dict_size is a power of two. The formulas are  more complex
  * in reality, and can also change a little between liblzma versions. Use
- * lzma_memusage_encoder() to get more accurate estimate of memory usage.
+ * lzma_raw_encoder_memusage() to get more accurate estimate of memory usage.
  */
 typedef enum {
 	LZMA_MF_HC3     = 0x03,
@@ -69,7 +69,9 @@ typedef enum {
 		 *
 		 * Minimum nice_len: 4
 		 *
-		 * Memory usage: dict_size * 7.5
+		 * Memory usage:
+		 *  - dict_size <= 32 MiB: dict_size * 7.5
+		 *  - dict_size > 32 MiB: dict_size * 6.5
 		 */
 
 	LZMA_MF_BT2     = 0x12,
@@ -98,7 +100,9 @@ typedef enum {
 		 *
 		 * Minimum nice_len: 4
 		 *
-		 * Memory usage: dict_size * 11.5
+		 * Memory usage:
+		 *  - dict_size <= 32 MiB: dict_size * 11.5
+		 *  - dict_size > 32 MiB: dict_size * 10.5
 		 */
 } lzma_match_finder;
 

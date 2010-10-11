@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20101011: removed subblock.h from liblzma
+OLD_FILES+=usr/include/lzma/subblock.h
 # 20101002: removed manpath.config
 OLD_FILES+=etc/manpath.config
 OLD_FILES+=usr/share/examples/etc/manpath.config
