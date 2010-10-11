@@ -1974,11 +1974,13 @@ bge_blockinit(struct bge_softc *sc)
 	    BGE_MACSTAT_LINK_CHANGED);
 	CSR_WRITE_4(sc, BGE_MI_STS, 0);
 
-	/* Enable PHY auto polling (for MII/GMII only) */
+	/*
+	 * Enable attention when the link has changed state for
+	 * devices that use auto polling.
+	 */
 	if (sc->bge_flags & BGE_FLAG_TBI) {
 		CSR_WRITE_4(sc, BGE_MI_STS, BGE_MISTS_LINK);
 	} else {
-		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL | (10 << 16));
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
 		    sc->bge_chipid != BGE_CHIPID_BCM5700_B2)
 			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
@@ -5018,7 +5020,7 @@ bge_link_upd(struct bge_softc *sc)
 				if_printf(sc->bge_ifp, "link DOWN\n");
 			if_link_state_change(sc->bge_ifp, LINK_STATE_DOWN);
 		}
-	} else if (CSR_READ_4(sc, BGE_MI_MODE) & BGE_MIMODE_AUTOPOLL) {
+	} else if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
 		/*
 		 * Some broken BCM chips have BGE_STATFLAG_LINKSTATE_CHANGED bit
 		 * in status word always set. Workaround this bug by reading
@@ -5046,9 +5048,17 @@ bge_link_upd(struct bge_softc *sc)
 		}
 	} else {
 		/*
-		 * Discard link events for MII/GMII controllers
-		 * if MI auto-polling is disabled.
+		 * For controllers that call mii_tick, we have to poll
+		 * link status.
 		 */
+		mii = device_get_softc(sc->bge_miibus);
+		mii_pollstat(mii);
+		if (!sc->bge_link && mii->mii_media_status & IFM_ACTIVE &&
+		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+			bge_miibus_statchg(sc->bge_dev);
+			sc->bge_link = 1;
+		} else
+			sc->bge_link = 0;
 	}
 
 	/* Clear the attention. */
