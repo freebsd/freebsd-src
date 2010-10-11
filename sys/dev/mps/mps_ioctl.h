@@ -103,44 +103,4 @@ struct mps_usr_command {
 #define	MPSIO_RAID_ACTION	_IOWR('M', 205, struct mps_raid_action)
 #define	MPSIO_MPS_COMMAND	_IOWR('M', 210, struct mps_usr_command)
 
-#if defined(__amd64__)
-struct mps_cfg_page_req32 {
-	MPI2_CONFIG_PAGE_HEADER header;
-	uint32_t page_address;
-	uint32_t buf;
-	int	len;	
-	uint16_t ioc_status;
-};
-
-struct mps_ext_cfg_page_req32 {
-	MPI2_CONFIG_EXTENDED_PAGE_HEADER header;
-	uint32_t page_address;
-	uint32_t buf;
-	int	len;
-	uint16_t ioc_status;
-};
-
-struct mps_raid_action32 {
-	uint8_t action;
-	uint8_t volume_bus;
-	uint8_t volume_id;
-	uint8_t phys_disk_num;
-	uint32_t action_data_word;
-	uint32_t buf;
-	int len;
-	uint32_t volume_status;
-	uint32_t action_data[4];
-	uint16_t action_status;
-	uint16_t ioc_status;
-	uint8_t write;
-};
-
-#define	MPSIO_READ_CFG_HEADER32	_IOWR('M', 100, struct mps_cfg_page_req32)
-#define	MPSIO_READ_CFG_PAGE32	_IOWR('M', 101, struct mps_cfg_page_req32)
-#define	MPSIO_READ_EXT_CFG_HEADER32 _IOWR('M', 102, struct mps_ext_cfg_page_req32)
-#define	MPSIO_READ_EXT_CFG_PAGE32 _IOWR('M', 103, struct mps_ext_cfg_page_req32)
-#define	MPSIO_WRITE_CFG_PAGE32	_IOWR('M', 104, struct mps_cfg_page_req32)
-#define	MPSIO_RAID_ACTION32	_IOWR('M', 105, struct mps_raid_action32)
-#endif
-
 #endif /* !_MPS_IOCTL_H_ */

@@ -33,6 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -47,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/ioccom.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
+#include <sys/sysent.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -64,14 +68,14 @@ __FBSDID("$FreeBSD$");
 
 static d_open_t		mps_open;
 static d_close_t	mps_close;
-static d_ioctl_t	mps_ioctl;
+static d_ioctl_t	mps_ioctl_devsw;
 
 static struct cdevsw mps_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	0,
 	.d_open =	mps_open,
 	.d_close =	mps_close,
-	.d_ioctl =	mps_ioctl,
+	.d_ioctl =	mps_ioctl_devsw,
 	.d_name =	"mps",
 };
 
@@ -424,25 +428,14 @@ Ret:
 	return err;
 }	
 
-#ifdef __amd64__
-#define	PTRIN(p)		((void *)(uintptr_t)(p))
-#define PTROUT(v)		((u_int32_t)(uintptr_t)(v))
-#endif
-
 static int
-mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
+mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
     struct thread *td)
 {
 	struct mps_softc *sc;
 	struct mps_cfg_page_req *page_req;
 	struct mps_ext_cfg_page_req *ext_page_req;
 	void *mps_page;
-#ifdef __amd64__
-	struct mps_cfg_page_req32 *page_req32;
-	struct mps_cfg_page_req page_req_swab;
-	struct mps_ext_cfg_page_req32 *ext_page_req32;
-	struct mps_ext_cfg_page_req ext_page_req_swab;
-#endif
 	int error;
 
 	mps_page = NULL;
@@ -450,47 +443,12 @@ mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 	page_req = (void *)arg;
 	ext_page_req = (void *)arg;
 
-#ifdef __amd64__
-	/* Convert 32-bit structs to native ones. */
-	page_req32 = (void *)arg;
-	ext_page_req32 = (void *)arg;
 	switch (cmd) {
-	case MPSIO_READ_CFG_HEADER32:
-	case MPSIO_READ_CFG_PAGE32:
-	case MPSIO_WRITE_CFG_PAGE32:
-		page_req = &page_req_swab;
-		page_req->header = page_req32->header;
-		page_req->page_address = page_req32->page_address;
-		page_req->buf = PTRIN(page_req32->buf);
-		page_req->len = page_req32->len;
-		page_req->ioc_status = page_req32->ioc_status;
-		break;
-	case MPSIO_READ_EXT_CFG_HEADER32:
-	case MPSIO_READ_EXT_CFG_PAGE32:
-		ext_page_req = &ext_page_req_swab;
-		ext_page_req->header = ext_page_req32->header;
-		ext_page_req->page_address = ext_page_req32->page_address;
-		ext_page_req->buf = PTRIN(ext_page_req32->buf);
-		ext_page_req->len = ext_page_req32->len;
-		ext_page_req->ioc_status = ext_page_req32->ioc_status;
-		break;
-	default:
-		return (ENOIOCTL);
-	}
-#endif
-
-	switch (cmd) {
-#ifdef __amd64__
-	case MPSIO_READ_CFG_HEADER32:
-#endif
 	case MPSIO_READ_CFG_HEADER:
 		mps_lock(sc);
 		error = mps_user_read_cfg_header(sc, page_req);
 		mps_unlock(sc);
 		break;
-#ifdef __amd64__
-	case MPSIO_READ_CFG_PAGE32:
-#endif
 	case MPSIO_READ_CFG_PAGE:
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK | M_ZERO);
 		error = copyin(page_req->buf, mps_page,
@@ -504,17 +462,11 @@ mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 			break;
 		error = copyout(mps_page, page_req->buf, page_req->len);
 		break;
-#ifdef __amd64__
-	case MPSIO_READ_EXT_CFG_HEADER32:
-#endif
 	case MPSIO_READ_EXT_CFG_HEADER:
 		mps_lock(sc);
 		error = mps_user_read_extcfg_header(sc, ext_page_req);
 		mps_unlock(sc);
 		break;
-#ifdef __amd64__
-	case MPSIO_READ_EXT_CFG_PAGE32:
-#endif
 	case MPSIO_READ_EXT_CFG_PAGE:
 		mps_page = malloc(ext_page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
 		error = copyin(ext_page_req->buf, mps_page,
@@ -528,9 +480,6 @@ mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 			break;
 		error = copyout(mps_page, ext_page_req->buf, ext_page_req->len);
 		break;
-#ifdef __amd64__
-	case MPSIO_WRITE_CFG_PAGE32:
-#endif
 	case MPSIO_WRITE_CFG_PAGE:
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
 		error = copyin(page_req->buf, mps_page, page_req->len);
@@ -551,33 +500,207 @@ mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 	if (mps_page != NULL)
 		free(mps_page, M_MPSUSER);
 
-	if (error)
-		return (error);
+	return (error);
+}
 
-#ifdef __amd64__
-	/* Convert native structs to 32-bit ones. */
-	switch (cmd) {
+#ifdef COMPAT_FREEBSD32
+
+/* Macros from compat/freebsd32/freebsd32.h */
+#define	PTRIN(v)	(void *)(uintptr_t)(v)
+#define	PTROUT(v)	(uint32_t)(uintptr_t)(v)
+
+#define	CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
+#define	PTRIN_CP(src,dst,fld)				\
+	do { (dst).fld = PTRIN((src).fld); } while (0)
+#define	PTROUT_CP(src,dst,fld) \
+	do { (dst).fld = PTROUT((src).fld); } while (0)
+
+struct mps_cfg_page_req32 {
+	MPI2_CONFIG_PAGE_HEADER header;
+	uint32_t page_address;
+	uint32_t buf;
+	int	len;	
+	uint16_t ioc_status;
+};
+
+struct mps_ext_cfg_page_req32 {
+	MPI2_CONFIG_EXTENDED_PAGE_HEADER header;
+	uint32_t page_address;
+	uint32_t buf;
+	int	len;
+	uint16_t ioc_status;
+};
+
+struct mps_raid_action32 {
+	uint8_t action;
+	uint8_t volume_bus;
+	uint8_t volume_id;
+	uint8_t phys_disk_num;
+	uint32_t action_data_word;
+	uint32_t buf;
+	int len;
+	uint32_t volume_status;
+	uint32_t action_data[4];
+	uint16_t action_status;
+	uint16_t ioc_status;
+	uint8_t write;
+};
+
+struct mps_usr_command32 {
+	uint32_t req;
+	uint32_t req_len;
+	uint32_t rpl;
+	uint32_t rpl_len;
+	uint32_t buf;
+	int len;
+	uint32_t flags;
+};
+
+#define	MPSIO_READ_CFG_HEADER32	_IOWR('M', 200, struct mps_cfg_page_req32)
+#define	MPSIO_READ_CFG_PAGE32	_IOWR('M', 201, struct mps_cfg_page_req32)
+#define	MPSIO_READ_EXT_CFG_HEADER32 _IOWR('M', 202, struct mps_ext_cfg_page_req32)
+#define	MPSIO_READ_EXT_CFG_PAGE32 _IOWR('M', 203, struct mps_ext_cfg_page_req32)
+#define	MPSIO_WRITE_CFG_PAGE32	_IOWR('M', 204, struct mps_cfg_page_req32)
+#define	MPSIO_RAID_ACTION32	_IOWR('M', 205, struct mps_raid_action32)
+#define	MPSIO_MPS_COMMAND32	_IOWR('M', 210, struct mps_usr_command32)
+
+static int
+mps_ioctl32(struct cdev *dev, u_long cmd32, void *_arg, int flag,
+    struct thread *td)
+{
+	struct mps_cfg_page_req32 *page32 = _arg;
+	struct mps_ext_cfg_page_req32 *ext32 = _arg;
+	struct mps_raid_action32 *raid32 = _arg;
+	struct mps_usr_command32 *user32 = _arg;
+	union {
+		struct mps_cfg_page_req page;
+		struct mps_ext_cfg_page_req ext;
+		struct mps_raid_action raid;
+		struct mps_usr_command user;
+	} arg;
+	u_long cmd;
+	int error;
+
+	switch (cmd32) {
 	case MPSIO_READ_CFG_HEADER32:
 	case MPSIO_READ_CFG_PAGE32:
 	case MPSIO_WRITE_CFG_PAGE32:
-		page_req32->header = page_req->header;
-		page_req32->page_address = page_req->page_address;
-		page_req32->buf = PTROUT(page_req->buf);
-		page_req32->len = page_req->len;
-		page_req32->ioc_status = page_req->ioc_status;
+		if (cmd32 == MPSIO_READ_CFG_HEADER32)
+			cmd = MPSIO_READ_CFG_HEADER;
+		else if (cmd32 == MPSIO_READ_CFG_PAGE32)
+			cmd = MPSIO_READ_CFG_PAGE;
+		else
+			cmd = MPSIO_WRITE_CFG_PAGE;
+		CP(*page32, arg.page, header);
+		CP(*page32, arg.page, page_address);
+		PTRIN_CP(*page32, arg.page, buf);
+		CP(*page32, arg.page, len);
+		CP(*page32, arg.page, ioc_status);
 		break;
+
 	case MPSIO_READ_EXT_CFG_HEADER32:
-	case MPSIO_READ_EXT_CFG_PAGE32:		
-		ext_page_req32->header = ext_page_req->header;
-		ext_page_req32->page_address = ext_page_req->page_address;
-		ext_page_req32->buf = PTROUT(ext_page_req->buf);
-		ext_page_req32->len = ext_page_req->len;
-		ext_page_req32->ioc_status = ext_page_req->ioc_status;
+	case MPSIO_READ_EXT_CFG_PAGE32:
+		if (cmd32 == MPSIO_READ_EXT_CFG_HEADER32)
+			cmd = MPSIO_READ_EXT_CFG_HEADER;
+		else
+			cmd = MPSIO_READ_EXT_CFG_PAGE;
+		CP(*ext32, arg.ext, header);
+		CP(*ext32, arg.ext, page_address);
+		PTRIN_CP(*ext32, arg.ext, buf);
+		CP(*ext32, arg.ext, len);
+		CP(*ext32, arg.ext, ioc_status);
+		break;
+
+	case MPSIO_RAID_ACTION32:
+		cmd = MPSIO_RAID_ACTION;
+		CP(*raid32, arg.raid, action);
+		CP(*raid32, arg.raid, volume_bus);
+		CP(*raid32, arg.raid, volume_id);
+		CP(*raid32, arg.raid, phys_disk_num);
+		CP(*raid32, arg.raid, action_data_word);
+		PTRIN_CP(*raid32, arg.raid, buf);
+		CP(*raid32, arg.raid, len);
+		CP(*raid32, arg.raid, volume_status);
+		bcopy(raid32->action_data, arg.raid.action_data,
+		    sizeof arg.raid.action_data);
+		CP(*raid32, arg.raid, ioc_status);
+		CP(*raid32, arg.raid, write);
+		break;
+
+	case MPSIO_MPS_COMMAND32:
+		cmd = MPSIO_MPS_COMMAND;
+		PTRIN_CP(*user32, arg.user, req);
+		CP(*user32, arg.user, req_len);
+		PTRIN_CP(*user32, arg.user, rpl);
+		CP(*user32, arg.user, rpl_len);
+		PTRIN_CP(*user32, arg.user, buf);
+		CP(*user32, arg.user, len);
+		CP(*user32, arg.user, flags);
 		break;
 	default:
 		return (ENOIOCTL);
 	}
-#endif
 
-	return (0);
+	error = mps_ioctl(dev, cmd, &arg, flag, td);
+	if (error == 0 && (cmd32 & IOC_OUT) != 0) {
+		switch (cmd32) {
+		case MPSIO_READ_CFG_HEADER32:
+		case MPSIO_READ_CFG_PAGE32:
+		case MPSIO_WRITE_CFG_PAGE32:
+			CP(arg.page, *page32, header);
+			CP(arg.page, *page32, page_address);
+			PTROUT_CP(arg.page, *page32, buf);
+			CP(arg.page, *page32, len);
+			CP(arg.page, *page32, ioc_status);
+			break;
+
+		case MPSIO_READ_EXT_CFG_HEADER32:
+		case MPSIO_READ_EXT_CFG_PAGE32:
+			CP(arg.ext, *ext32, header);
+			CP(arg.ext, *ext32, page_address);
+			PTROUT_CP(arg.ext, *ext32, buf);
+			CP(arg.ext, *ext32, len);
+			CP(arg.ext, *ext32, ioc_status);
+			break;
+
+		case MPSIO_RAID_ACTION32:
+			CP(arg.raid, *raid32, action);
+			CP(arg.raid, *raid32, volume_bus);
+			CP(arg.raid, *raid32, volume_id);
+			CP(arg.raid, *raid32, phys_disk_num);
+			CP(arg.raid, *raid32, action_data_word);
+			PTROUT_CP(arg.raid, *raid32, buf);
+			CP(arg.raid, *raid32, len);
+			CP(arg.raid, *raid32, volume_status);
+			bcopy(arg.raid.action_data, raid32->action_data,
+			    sizeof arg.raid.action_data);
+			CP(arg.raid, *raid32, ioc_status);
+			CP(arg.raid, *raid32, write);
+			break;
+
+		case MPSIO_MPS_COMMAND32:
+			PTROUT_CP(arg.user, *user32, req);
+			CP(arg.user, *user32, req_len);
+			PTROUT_CP(arg.user, *user32, rpl);
+			CP(arg.user, *user32, rpl_len);
+			PTROUT_CP(arg.user, *user32, buf);
+			CP(arg.user, *user32, len);
+			CP(arg.user, *user32, flags);
+			break;
+		}
+	}
+
+	return (error);
+}
+#endif /* COMPAT_FREEBSD32 */
+
+static int
+mps_ioctl_devsw(struct cdev *dev, u_long com, caddr_t arg, int flag,
+    struct thread *td)
+{
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return (mps_ioctl32(dev, com, arg, flag, td));
+#endif
+	return (mps_ioctl(dev, com, arg, flag, td));
 }
