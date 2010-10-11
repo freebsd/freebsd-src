@@ -343,7 +343,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	MPI2_REQUEST_HEADER *hdr;	
 	MPI2_DEFAULT_REPLY *rpl;
 	MPI2_SGE_IO_UNION *sgl;	
-	void *buf;
+	void *buf = NULL;
 	struct mps_command *cm;
 	int err = 0;
 	int sz;
@@ -363,7 +363,13 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	mps_dprint(sc, MPS_INFO, "mps_user_command: req %p %d  rpl %p %d\n",
 		    cmd->req, cmd->req_len, cmd->rpl, cmd->rpl_len );
 
-	copyin(cmd->req, hdr, cmd->req_len);
+	if (cmd->req_len > (int)sc->facts->IOCRequestFrameSize * 4) {
+		err = EINVAL;
+		goto RetFreeUnlocked;
+	}
+	err = copyin(cmd->req, hdr, cmd->req_len);
+	if (err != 0)
+		goto RetFreeUnlocked;
 
 	mps_dprint(sc, MPS_INFO, "mps_user_command: Function %02X  "
 	    "MsgFlags %02X\n", hdr->Function, hdr->MsgFlags );
@@ -372,7 +378,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	if (err != 0) {
 		mps_printf(sc, "mps_user_command: unsupported function 0x%X\n",
 		    hdr->Function );
-		goto RetFree;
+		goto RetFreeUnlocked;
 	}
 
 	if (cmd->len > 0) {
@@ -380,7 +386,6 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 		cm->cm_data = buf;
 		cm->cm_length = cmd->len;
 	} else {
-		buf = NULL;
 		cm->cm_data = NULL;
 		cm->cm_length = 0;
 	}
@@ -412,20 +417,27 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 
 	mps_unlock(sc);
 	copyout(rpl, cmd->rpl, sz);
-	if (buf != NULL) {
+	if (buf != NULL)
 		copyout(buf, cmd->buf, cmd->len);
-		free(buf, M_MPSUSER);
-	}
 	mps_lock(sc);
 
 	mps_dprint(sc, MPS_INFO, "mps_user_command: reply size %d\n", sz );
 
-RetFree:	   
 	mps_free_command(sc, cm);
-
 Ret:
 	mps_unlock(sc);
-	return err;
+	if (buf != NULL)
+		free(buf, M_MPSUSER);
+	return (err);
+
+RetFreeUnlocked:
+	mps_lock(sc);
+	mps_free_command(sc, cm);
+	mps_unlock(sc);
+
+	if (buf != NULL)
+		free(buf, M_MPSUSER);
+	return (err);
 }	
 
 static int
