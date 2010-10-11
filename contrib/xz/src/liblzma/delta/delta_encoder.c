@@ -59,7 +59,7 @@ delta_encode(lzma_coder *coder, lzma_allocator *allocator,
 	if (coder->next.code == NULL) {
 		const size_t in_avail = in_size - *in_pos;
 		const size_t out_avail = out_size - *out_pos;
-		const size_t size = MIN(in_avail, out_avail);
+		const size_t size = my_min(in_avail, out_avail);
 
 		copy_and_encode(coder, in + *in_pos, out + *out_pos, size);
 

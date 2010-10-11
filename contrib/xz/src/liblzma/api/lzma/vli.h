@@ -113,9 +113,8 @@ typedef uint64_t lzma_vli;
  *              - LZMA_BUF_ERROR: No output space was provided.
  *              - LZMA_PROG_ERROR: Arguments are not sane.
  */
-extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli,
-		size_t *vli_pos, uint8_t *lzma_restrict out,
-		size_t *lzma_restrict out_pos, size_t out_size) lzma_nothrow;
+extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli, size_t *vli_pos,
+		uint8_t *out, size_t *out_pos, size_t out_size) lzma_nothrow;
 
 
 /**
@@ -153,9 +152,9 @@ extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli,
  *              - LZMA_BUF_ERROR: No input was provided.
  *              - LZMA_PROG_ERROR: Arguments are not sane.
  */
-extern LZMA_API(lzma_ret) lzma_vli_decode(lzma_vli *lzma_restrict vli,
-		size_t *vli_pos, const uint8_t *lzma_restrict in,
-		size_t *lzma_restrict in_pos, size_t in_size) lzma_nothrow;
+extern LZMA_API(lzma_ret) lzma_vli_decode(lzma_vli *vli, size_t *vli_pos,
+		const uint8_t *in, size_t *in_pos, size_t in_size)
+		lzma_nothrow;
 
 
 /**

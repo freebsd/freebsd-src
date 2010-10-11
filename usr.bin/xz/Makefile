@@ -32,7 +32,9 @@ SRCS=	args.c \
 SRCS+=	tuklib_open_stdxxx.c \
 	tuklib_progname.c \
 	tuklib_exit.c \
-	tuklib_cpucores.c
+	tuklib_cpucores.c \
+	tuklib_mbstr_width.c \
+	tuklib_mbstr_fw.c
 
 WARNS?=	3
 
