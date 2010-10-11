@@ -3629,8 +3629,11 @@ bge_intr_task(void *arg, int pending)
 	sc = (struct bge_softc *)arg;
 	ifp = sc->bge_ifp;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	BGE_LOCK(sc);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		BGE_UNLOCK(sc);
 		return;
+	}
 
 	/* Get updated status block. */
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
@@ -3645,26 +3648,27 @@ bge_intr_task(void *arg, int pending)
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	if ((status & BGE_STATFLAG_LINKSTATE_CHANGED) != 0)
+		bge_link_upd(sc);
+
 	/* Let controller work. */
 	bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
 
-	if ((status & BGE_STATFLAG_LINKSTATE_CHANGED) != 0) {
-		BGE_LOCK(sc);
-		bge_link_upd(sc);
-		BGE_UNLOCK(sc);
-	}
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    sc->bge_rx_saved_considx != rx_prod) {
 		/* Check RX return ring producer/consumer. */
+		BGE_UNLOCK(sc);
 		bge_rxeof(sc, rx_prod, 0);
+		BGE_LOCK(sc);
 	}
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		BGE_LOCK(sc);
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc, tx_cons);
 	    	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			bge_start_locked(ifp);
-		BGE_UNLOCK(sc);
 	}
+	BGE_UNLOCK(sc);
 }
 
 static void
