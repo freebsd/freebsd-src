@@ -200,18 +200,18 @@ zfs_close(vnode_t *vp, int flag, int count, offset_t offset, cred_t *cr,
 	znode_t	*zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 
+	/*
+	 * Clean up any locks held by this process on the vp.
+	 */
+	cleanlocks(vp, ddi_get_pid(), 0);
+	cleanshares(vp, ddi_get_pid());
+
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
 
 	/* Decrement the synchronous opens in the znode */
 	if ((flag & (FSYNC | FDSYNC)) && (count == 1))
 		atomic_dec_32(&zp->z_sync_cnt);
-
-	/*
-	 * Clean up any locks held by this process on the vp.
-	 */
-	cleanlocks(vp, ddi_get_pid(), 0);
-	cleanshares(vp, ddi_get_pid());
 
 	if (!zfs_has_ctldir(zp) && zp->z_zfsvfs->z_vscan &&
 	    ZTOV(zp)->v_type == VREG &&

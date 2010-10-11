@@ -87,6 +87,12 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, znode, CTLFLAG_RD, 0, sizeof(znode_t),
  * (such as VFS logic) that will not compile easily in userland.
  */
 #ifdef _KERNEL
+/*
+ * Needed to close a small window in zfs_znode_move() that allows the zfsvfs to
+ * be freed before it can be safely accessed.
+ */
+krwlock_t zfsvfs_lock;
+
 static kmem_cache_t *znode_cache = NULL;
 
 /*ARGSUSED*/
@@ -200,8 +206,9 @@ zfs_znode_cache_destructor(void *buf, void *arg)
 #ifdef	ZNODE_STATS
 static struct {
 	uint64_t zms_zfsvfs_invalid;
+	uint64_t zms_zfsvfs_recheck1;
 	uint64_t zms_zfsvfs_unmounted;
-	uint64_t zms_zfsvfs_recheck_invalid;
+	uint64_t zms_zfsvfs_recheck2;
 	uint64_t zms_obj_held;
 	uint64_t zms_vnode_locked;
 	uint64_t zms_not_only_dnlc;
@@ -285,15 +292,32 @@ zfs_znode_move(void *buf, void *newbuf, size_t size, void *arg)
 	}
 
 	/*
-	 * Ensure that the filesystem is not unmounted during the move.
-	 * This is the equivalent to ZFS_ENTER().
+	 * Close a small window in which it's possible that the filesystem could
+	 * be unmounted and freed, and zfsvfs, though valid in the previous
+	 * statement, could point to unrelated memory by the time we try to
+	 * prevent the filesystem from being unmounted.
+	 */
+	rw_enter(&zfsvfs_lock, RW_WRITER);
+	if (zfsvfs != ozp->z_zfsvfs) {
+		rw_exit(&zfsvfs_lock);
+		ZNODE_STAT_ADD(znode_move_stats.zms_zfsvfs_recheck1);
+		return (KMEM_CBRC_DONT_KNOW);
+	}
+
+	/*
+	 * If the znode is still valid, then so is the file system. We know that
+	 * no valid file system can be freed while we hold zfsvfs_lock, so we
+	 * can safely ensure that the filesystem is not and will not be
+	 * unmounted. The next statement is equivalent to ZFS_ENTER().
 	 */
 	rrw_enter(&zfsvfs->z_teardown_lock, RW_READER, FTAG);
 	if (zfsvfs->z_unmounted) {
 		ZFS_EXIT(zfsvfs);
+		rw_exit(&zfsvfs_lock);
 		ZNODE_STAT_ADD(znode_move_stats.zms_zfsvfs_unmounted);
 		return (KMEM_CBRC_DONT_KNOW);
 	}
+	rw_exit(&zfsvfs_lock);
 
 	mutex_enter(&zfsvfs->z_znodes_lock);
 	/*
@@ -303,7 +327,7 @@ zfs_znode_move(void *buf, void *newbuf, size_t size, void *arg)
 	if (zfsvfs != ozp->z_zfsvfs) {
 		mutex_exit(&zfsvfs->z_znodes_lock);
 		ZFS_EXIT(zfsvfs);
-		ZNODE_STAT_ADD(znode_move_stats.zms_zfsvfs_recheck_invalid);
+		ZNODE_STAT_ADD(znode_move_stats.zms_zfsvfs_recheck2);
 		return (KMEM_CBRC_DONT_KNOW);
 	}
 
@@ -360,6 +384,7 @@ zfs_znode_init(void)
 	/*
 	 * Initialize zcache
 	 */
+	rw_init(&zfsvfs_lock, NULL, RW_DEFAULT, NULL);
 	ASSERT(znode_cache == NULL);
 	znode_cache = kmem_cache_create("zfs_znode_cache",
 	    sizeof (znode_t), 0, /* zfs_znode_cache_constructor */ NULL,
@@ -378,6 +403,7 @@ zfs_znode_fini(void)
 	if (znode_cache)
 		kmem_cache_destroy(znode_cache);
 	znode_cache = NULL;
+	rw_destroy(&zfsvfs_lock);
 }
 
 int
