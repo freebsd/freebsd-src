@@ -195,6 +195,8 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
     case 'm': k = ConversionSpecifier::PrintErrno; break;
     // FreeBSD format extensions
     case 'b': if (FormatExtensions) k = ConversionSpecifier::bArg; break; /* check for int and then char * */
+    case 'r': if (FormatExtensions) k = ConversionSpecifier::xArg; break;
+    case 'y': if (FormatExtensions) k = ConversionSpecifier::iArg; break;
     case 'D': if (FormatExtensions) k = ConversionSpecifier::DArg; break; /* check for u_char * pointer and a char * string */
   }
   PrintfConversionSpecifier CS(conversionPosition, k);
