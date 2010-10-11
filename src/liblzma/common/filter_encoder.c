@@ -14,7 +14,6 @@
 #include "filter_common.h"
 #include "lzma_encoder.h"
 #include "lzma2_encoder.h"
-#include "subblock_encoder.h"
 #include "simple_encoder.h"
 #include "delta_encoder.h"
 
@@ -75,17 +74,6 @@ static const lzma_filter_encoder encoders[] = {
 		.props_size_get = NULL,
 		.props_size_fixed = 1,
 		.props_encode = &lzma_lzma2_props_encode,
-	},
-#endif
-#ifdef HAVE_ENCODER_SUBBLOCK
-	{
-		.id = LZMA_FILTER_SUBBLOCK,
-		.init = &lzma_subblock_encoder_init,
-// 		.memusage = &lzma_subblock_encoder_memusage,
-		.chunk_size = NULL,
-		.props_size_get = NULL,
-		.props_size_fixed = 0,
-		.props_encode = NULL,
 	},
 #endif
 #ifdef HAVE_ENCODER_X86
