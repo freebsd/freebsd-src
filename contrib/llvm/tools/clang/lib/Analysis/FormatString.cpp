@@ -423,6 +423,7 @@ bool FormatSpecifier::hasValidLengthModifier() const {
         case ConversionSpecifier::xArg:
         case ConversionSpecifier::XArg:
         case ConversionSpecifier::nArg:
+	case ConversionSpecifier::rArg:
           return true;
         default:
           return false;
@@ -448,6 +449,7 @@ bool FormatSpecifier::hasValidLengthModifier() const {
         case ConversionSpecifier::nArg:
         case ConversionSpecifier::cArg:
         case ConversionSpecifier::sArg:
+	case ConversionSpecifier::rArg:
           return true;
         default:
           return false;
