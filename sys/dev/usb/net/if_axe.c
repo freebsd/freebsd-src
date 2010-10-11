@@ -171,7 +171,6 @@ static device_probe_t axe_probe;
 static device_attach_t axe_attach;
 static device_detach_t axe_detach;
 
-static usb_callback_t axe_intr_callback;
 static usb_callback_t axe_bulk_read_callback;
 static usb_callback_t axe_bulk_write_callback;
 
@@ -214,15 +213,6 @@ static const struct usb_config axe_config[AXE_N_TRANSFER] = {
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = axe_bulk_read_callback,
 		.timeout = 0,	/* no timeout */
-	},
-
-	[AXE_INTR_DT_RD] = {
-		.type = UE_INTERRUPT,
-		.endpoint = UE_ADDR_ANY,
-		.direction = UE_DIR_IN,
-		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.bufsize = 0,	/* use wMaxPacketSize */
-		.callback = axe_intr_callback,
 	},
 };
 
@@ -796,27 +786,6 @@ axe_detach(device_t dev)
 	return (0);
 }
 
-static void
-axe_intr_callback(struct usb_xfer *xfer, usb_error_t error)
-{
-	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_TRANSFERRED:
-	case USB_ST_SETUP:
-tr_setup:
-		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
-		usbd_transfer_submit(xfer);
-		return;
-
-	default:			/* Error */
-		if (error != USB_ERR_CANCELLED) {
-			/* try to clear stall first */
-			usbd_xfer_set_stall(xfer);
-			goto tr_setup;
-		}
-		return;
-	}
-}
-
 #if (AXE_BULK_BUF_SIZE >= 0x10000)
 #error "Please update axe_bulk_read_callback()!"
 #endif
@@ -1034,7 +1003,6 @@ axe_start(struct usb_ether *ue)
 	/*
 	 * start the USB transfers, if not already started:
 	 */
-	usbd_transfer_start(sc->sc_xfer[AXE_INTR_DT_RD]);
 	usbd_transfer_start(sc->sc_xfer[AXE_BULK_DT_RD]);
 	usbd_transfer_start(sc->sc_xfer[AXE_BULK_DT_WR]);
 }
@@ -1139,7 +1107,6 @@ axe_stop(struct usb_ether *ue)
 	 */
 	usbd_transfer_stop(sc->sc_xfer[AXE_BULK_DT_WR]);
 	usbd_transfer_stop(sc->sc_xfer[AXE_BULK_DT_RD]);
-	usbd_transfer_stop(sc->sc_xfer[AXE_INTR_DT_RD]);
 
 	axe_reset(sc);
 }
