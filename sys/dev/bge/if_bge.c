@@ -1655,7 +1655,7 @@ bge_blockinit(struct bge_softc *sc)
 	}
 
 	/* Disable the mini receive producer ring RCB. */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
+	if (BGE_IS_5700_FAMILY(sc)) {
 		rcb = &sc->bge_ldata.bge_info.bge_mini_rx_rcb;
 		rcb->bge_maxlen_flags =
 		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
