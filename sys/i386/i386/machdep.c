@@ -1432,7 +1432,8 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
 		    cpu_idle_hook == NULL)
 			continue;
-		p += sprintf(p, "%s, ", idle_tbl[i].id_name);
+		p += sprintf(p, "%s%s", p != avail ? ", " : "",
+		    idle_tbl[i].id_name);
 	}
 	error = sysctl_handle_string(oidp, avail, 0, req);
 	free(avail, M_TEMP);
