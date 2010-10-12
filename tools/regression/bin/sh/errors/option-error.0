@@ -35,12 +35,12 @@ UTILS="alias -y,\
 set -- ${SPECIAL}
 for cmd in "$@"
 do
-	sh -c "${cmd}; exit 0" 2>/dev/null && exit 1
+	${SH} -c "${cmd}; exit 0" 2>/dev/null && exit 1
 done
 
 # Other utilities must not abort.
 set -- ${UTILS}
 for cmd in "$@"
 do
-	sh -c "${cmd}; exit 0" 2>/dev/null || exit 1
+	${SH} -c "${cmd}; exit 0" 2>/dev/null || exit 1
 done
