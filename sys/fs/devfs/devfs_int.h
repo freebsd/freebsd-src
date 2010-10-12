@@ -71,12 +71,12 @@ struct cdev_priv {
 
 #define	cdev2priv(c)	member2struct(cdev_priv, cdp_c, c)
 
-struct cdev *devfs_alloc(int);
-int devfs_dev_exists(const char *);
-void devfs_free(struct cdev *);
-void devfs_create(struct cdev *dev);
-void devfs_destroy(struct cdev *dev);
-void devfs_destroy_cdevpriv(struct cdev_privdata *p);
+struct cdev	*devfs_alloc(int);
+int	devfs_dev_exists(const char *);
+void	devfs_free(struct cdev *);
+void	devfs_create(struct cdev *);
+void	devfs_destroy(struct cdev *);
+void	devfs_destroy_cdevpriv(struct cdev_privdata *);
 
 int	devfs_dir_find(const char *);
 void	devfs_dir_ref_de(struct devfs_mount *, struct devfs_dirent *);
