@@ -743,7 +743,7 @@ printcpuinfo(void)
 				"\017xTPR"	/* Send Task Priority Messages*/
 				"\020PDCM"	/* Perf/Debug Capability MSR */
 				"\021<b16>"
-				"\022<b17>"
+				"\022PCID"	/* Process-context Identifiers */
 				"\023DCA"	/* Direct Cache Access */
 				"\024SSE4.1"
 				"\025SSE4.2"
