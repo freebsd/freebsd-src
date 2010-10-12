@@ -63,8 +63,6 @@ struct taskqueue {
 #define	TQ_FLAGS_BLOCKED	(1 << 1)
 #define	TQ_FLAGS_PENDING	(1 << 2)
 
-static void taskqueue_run(struct taskqueue *, struct task **);
-
 static __inline void
 TQ_LOCK(struct taskqueue *tq)
 {
@@ -216,7 +214,7 @@ taskqueue_unblock(struct taskqueue *queue)
 	TQ_UNLOCK(queue);
 }
 
-static void
+void
 taskqueue_run(struct taskqueue *queue, struct task **tpp)
 {
 	struct task *task;
