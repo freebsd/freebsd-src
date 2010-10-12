@@ -43,8 +43,9 @@
  *	JOBS -> 1 if you have Berkeley job control, 0 otherwise.
  *	define DEBUG=1 to compile in debugging (set global "debug" to turn on)
  *	define DEBUG=2 to compile in and turn on debugging.
+ *	define DEBUG=3 to also build all functions as public
  *
- * When debugging is on, debugging info will be written to $HOME/trace and
+ * When debugging is on, debugging info will be written to ./trace and
  * a quit signal will generate a core dump.
  */
 
@@ -61,7 +62,11 @@ typedef intmax_t arith_t;
 #define	strtoarith_t(nptr, endptr, base)  strtoimax(nptr, endptr, base)
 
 typedef void *pointer;
+#if DEBUG >= 3
+#define STATIC
+#else
 #define STATIC  static
+#endif
 #define MKINIT  /* empty */
 
 #include <sys/cdefs.h>
