@@ -2409,12 +2409,12 @@ sched_affinity(struct thread *td)
 	}
 	if (!TD_IS_RUNNING(td))
 		return;
-	td->td_flags |= TDF_NEEDRESCHED;
 	/*
 	 * Force a switch before returning to userspace.  If the
 	 * target thread is not running locally send an ipi to force
 	 * the issue.
 	 */
+	td->td_flags |= TDF_NEEDRESCHED;
 	if (td != curthread)
 		ipi_selected(1 << ts->ts_cpu, IPI_PREEMPT);
 #endif
