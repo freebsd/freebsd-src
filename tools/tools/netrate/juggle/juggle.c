@@ -301,15 +301,15 @@ juggling_thread(void *arg)
 
 	fd2 = *(int *)arg;
 
-	if (pthread_mutex_lock(&threaded_mtx) < 0)
+	if (pthread_mutex_lock(&threaded_mtx) != 0)
 		err(-1, "juggling_thread: pthread_mutex_lock");
 
 	threaded_child_ready = 1;
 
-	if (pthread_cond_signal(&threaded_cond) < 0)
+	if (pthread_cond_signal(&threaded_cond) != 0)
 		err(-1, "juggling_thread: pthread_cond_signal");
 
-	if (pthread_mutex_unlock(&threaded_mtx) < 0)
+	if (pthread_mutex_unlock(&threaded_mtx) != 0)
 		err(-1, "juggling_thread: pthread_mutex_unlock");
 
 	for (i = 0; i < NUMCYCLES; i++) {
@@ -334,21 +334,21 @@ thread_juggle(int fd1, int fd2, int pipeline)
 
 	threaded_pipeline = pipeline;
 
-	if (pthread_mutex_init(&threaded_mtx, NULL) < 0)
+	if (pthread_mutex_init(&threaded_mtx, NULL) != 0)
 		err(-1, "thread_juggle: pthread_mutex_init");
 
-	if (pthread_create(&thread, NULL, juggling_thread, &fd2) < 0)
+	if (pthread_create(&thread, NULL, juggling_thread, &fd2) != 0)
 		err(-1, "thread_juggle: pthread_create");
 
-	if (pthread_mutex_lock(&threaded_mtx) < 0)
+	if (pthread_mutex_lock(&threaded_mtx) != 0)
 		err(-1, "thread_juggle: pthread_mutex_lock");
 
 	while (!threaded_child_ready) {
-		if (pthread_cond_wait(&threaded_cond, &threaded_mtx) < 0)
+		if (pthread_cond_wait(&threaded_cond, &threaded_mtx) != 0)
 			err(-1, "thread_juggle: pthread_cond_wait");
 	}
 
-	if (pthread_mutex_unlock(&threaded_mtx) < 0)
+	if (pthread_mutex_unlock(&threaded_mtx) != 0)
 		err(-1, "thread_juggle: pthread_mutex_unlock");
 
 	if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
@@ -369,7 +369,7 @@ thread_juggle(int fd1, int fd2, int pipeline)
 	if (clock_gettime(CLOCK_REALTIME, &tfinish) < 0)
 		err(-1, "thread_juggle: clock_gettime");
 
-	if (pthread_join(thread, NULL) < 0)
+	if (pthread_join(thread, NULL) != 0)
 		err(-1, "thread_juggle: pthread_join");
 
 	timespecsub(&tfinish, &tstart);
