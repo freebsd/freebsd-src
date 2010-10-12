@@ -3267,6 +3267,7 @@ iwi_stop(void *priv)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	memset(sc->sc_cmd, 0, sizeof(sc->sc_cmd));
+	sc->sc_cmd_cur = sc->sc_cmd_next = 0;
 	sc->sc_tx_timer = 0;
 	sc->sc_rfkill_timer = 0;
 	sc->sc_state_timer = 0;
