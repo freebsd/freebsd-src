@@ -538,6 +538,8 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		return	(error);
 	} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+		KASSERT(offset == 0,
+		    ("unexpected offset in tmpfs_mappedread for sendfile"));
 		if ((m->oflags & VPO_BUSY) != 0) {
 			/*
 			 * Reference the page before unlocking and sleeping so
@@ -553,9 +555,10 @@ lookupvpg:
 		sched_pin();
 		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
 		ma = (char *)sf_buf_kva(sf);
-		error = tmpfs_nocacheread_buf(tobj, idx, offset, tlen,
-		    ma + offset);
+		error = tmpfs_nocacheread_buf(tobj, idx, 0, tlen, ma);
 		if (error == 0) {
+			if (tlen != PAGE_SIZE)
+				bzero(ma + tlen, PAGE_SIZE - tlen);
 			uio->uio_offset += tlen;
 			uio->uio_resid -= tlen;
 		}
@@ -563,7 +566,7 @@ lookupvpg:
 		sched_unpin();
 		VM_OBJECT_LOCK(vobj);
 		if (error == 0)
-			vm_page_set_valid(m, offset, tlen);
+			m->valid = VM_PAGE_BITS_ALL;
 		vm_page_wakeup(m);
 		VM_OBJECT_UNLOCK(vobj);
 		return	(error);
