@@ -353,7 +353,7 @@ do {									\
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x00020000 /* Thread may need signal delivery. */
 #define	TDF_NOLOAD	0x00040000 /* Ignore during load avg calculations. */
-#define	TDF_UNUSED19	0x00080000 /* Thread is sleeping on a umtx. */
+#define	TDF_TIDHASH	0x00080000 /* Thread is on hash table. */
 #define	TDF_THRWAKEUP	0x00100000 /* Libthr thread must not suspend itself. */
 #define	TDF_UNUSED21	0x00200000 /* --available-- */
 #define	TDF_SWAPINREQ	0x00400000 /* Swapin request due to wakeup. */
