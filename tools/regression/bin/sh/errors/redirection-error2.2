@@ -1,4 +1,4 @@
 # $FreeBSD$
 
 # sh should fail gracefully on this bad redirect
-sh -c 'echo 1 >&$a' 2>/dev/null
+${SH} -c 'echo 1 >&$a' 2>/dev/null

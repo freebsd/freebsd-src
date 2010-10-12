@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-result=$(sh -c 'ps -p $$ -o comm=')
+result=$(${SH} -c 'ps -p $$ -o comm=')
 test "$result" = "ps" || exit 1
 
-result=$(sh -c 'ps -p $$ -o comm=; :')
+result=$(${SH} -c 'ps -p $$ -o comm=; :')
 test "$result" = "sh" || exit 1

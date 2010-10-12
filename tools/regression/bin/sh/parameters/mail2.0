@@ -4,7 +4,7 @@
 goodfile=/var/empty/sh-test-goodfile
 mailfile=/var/empty/sh-test-mailfile
 T=$(mktemp sh-test.XXXXXX) || exit
-ENV=$goodfile MAIL=$mailfile ktrace -i -f "$T" sh +m -i </dev/null >/dev/null 2>&1
+ENV=$goodfile MAIL=$mailfile ktrace -i -f "$T" ${SH} +m -i </dev/null >/dev/null 2>&1
 if ! grep -q $goodfile "$T"; then
 	# ktrace problem
 	rc=0
