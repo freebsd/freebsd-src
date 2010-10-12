@@ -981,7 +981,12 @@ void
 tidhash_add(struct thread *td)
 {
 	rw_wlock(&tidhash_lock);
-	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
+	thread_lock(td);
+	if ((td->td_flags & TDF_TIDHASH) == 0) {
+		LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
+		td->td_flags |= TDF_TIDHASH;
+	}
+	thread_unlock(td);
 	rw_wunlock(&tidhash_lock);
 }
 
@@ -989,6 +994,11 @@ void
 tidhash_remove(struct thread *td)
 {
 	rw_wlock(&tidhash_lock);
-	LIST_REMOVE(td, td_hash);
+	thread_lock(td);
+	if ((td->td_flags & TDF_TIDHASH) != 0) {
+		LIST_REMOVE(td, td_hash);
+		td->td_flags &= ~TDF_TIDHASH;
+	}
+	thread_unlock(td);
 	rw_wunlock(&tidhash_lock);
 }
