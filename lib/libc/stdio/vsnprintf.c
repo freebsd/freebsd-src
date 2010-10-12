@@ -47,7 +47,7 @@ vsnprintf(char * __restrict str, size_t n, const char * __restrict fmt,
 	size_t on;
 	int ret;
 	char dummy[2];
-	FILE f;
+	FILE f = FAKE_FILE;
 
 	on = n;
 	if (n != 0)
@@ -61,12 +61,9 @@ vsnprintf(char * __restrict str, size_t n, const char * __restrict fmt,
 		str = dummy;
 		n = 1;
 	}
-	f._file = -1;
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = n;
-	f._orientation = 0;
-	memset(&f._mbstate, 0, sizeof(mbstate_t));
 	ret = __vfprintf(&f, fmt, ap);
 	if (on > 0)
 		*f._p = '\0';
