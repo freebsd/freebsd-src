@@ -169,7 +169,7 @@ static int
 __sbprintf(FILE *fp, const char *fmt, va_list ap)
 {
 	int ret;
-	FILE fake;
+	FILE fake = FAKE_FILE;
 	unsigned char buf[BUFSIZ];
 
 	/* XXX This is probably not needed. */
