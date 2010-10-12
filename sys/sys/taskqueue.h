@@ -56,6 +56,7 @@ int	taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 int	taskqueue_enqueue(struct taskqueue *queue, struct task *task);
 void	taskqueue_drain(struct taskqueue *queue, struct task *task);
 void	taskqueue_free(struct taskqueue *queue);
+void	taskqueue_run(struct taskqueue *queue, struct task **tpp);
 void	taskqueue_block(struct taskqueue *queue);
 void	taskqueue_unblock(struct taskqueue *queue);
 int	taskqueue_member(struct taskqueue *queue, struct thread *td);
