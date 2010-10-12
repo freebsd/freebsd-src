@@ -1562,9 +1562,9 @@ mps_read_config_page(struct mps_softc *sc, struct mps_config_params *params)
 	cm->cm_flags = MPS_CM_FLAGS_SGE_SIMPLE | MPS_CM_FLAGS_DATAIN;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
+	cm->cm_complete_data = params;
 	if (params->callback != NULL) {
 		cm->cm_complete = mps_config_complete;
-		cm->cm_complete_data = params;
 		return (mps_map_command(sc, cm));
 	} else {
 		cm->cm_complete = NULL;
