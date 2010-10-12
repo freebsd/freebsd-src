@@ -489,6 +489,8 @@ again:
 			 * but it pessimize performance of sendfile/UFS, that's
 			 * why I handle this special case in ZFS code.
 			 */
+			KASSERT(off == 0,
+			    ("unexpected offset in mappedread for sendfile"));
 			if ((m->oflags & VPO_BUSY) != 0) {
 				/*
 				 * Reference the page before unlocking and
@@ -509,14 +511,15 @@ again:
 			}
 			if (error == 0) {
 				va = zfs_map_page(m, &sf);
-				error = dmu_read(os, zp->z_id, start + off,
-				    bytes, (void *)(va + off),
+				error = dmu_read(os, zp->z_id, start, bytes, va,
 				    DMU_READ_PREFETCH);
+				if (bytes != PAGE_SIZE)
+					bzero(va + bytes, PAGE_SIZE - bytes);
 				zfs_unmap_page(sf);
 			}
 			VM_OBJECT_LOCK(obj);
 			if (error == 0)
-				vm_page_set_valid(m, off, bytes);
+				m->valid = VM_PAGE_BITS_ALL;
 			vm_page_wakeup(m);
 			if (error == 0) {
 				uio->uio_resid -= bytes;
