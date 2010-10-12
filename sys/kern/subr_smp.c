@@ -198,21 +198,31 @@ forward_signal(struct thread *td)
  *   0: NA
  *   1: ok
  *
- * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
- *            from executing at same time.
  */
 static int
 generic_stop_cpus(cpumask_t map, u_int type)
 {
+	static volatile u_int stopping_cpu = NOCPU;
 	int i;
 
-	KASSERT(type == IPI_STOP || type == IPI_STOP_HARD,
+	KASSERT(
+#if defined(__amd64__)
+	    type == IPI_STOP || type == IPI_STOP_HARD || type == IPI_SUSPEND,
+#else
+	    type == IPI_STOP || type == IPI_STOP_HARD,
+#endif
 	    ("%s: invalid stop type", __func__));
 
 	if (!smp_started)
-		return 0;
+		return (0);
 
 	CTR2(KTR_SMP, "stop_cpus(%x) with %u type", map, type);
+
+	if (stopping_cpu != PCPU_GET(cpuid))
+		while (atomic_cmpset_int(&stopping_cpu, NOCPU,
+		    PCPU_GET(cpuid)) == 0)
+			while (stopping_cpu != NOCPU)
+				cpu_spinwait(); /* spin */
 
 	/* send the stop IPI to all CPUs in map */
 	ipi_selected(map, type);
@@ -230,7 +240,8 @@ generic_stop_cpus(cpumask_t map, u_int type)
 #endif
 	}
 
-	return 1;
+	stopping_cpu = NOCPU;
+	return (1);
 }
 
 int
@@ -248,50 +259,11 @@ stop_cpus_hard(cpumask_t map)
 }
 
 #if defined(__amd64__)
-/*
- * When called the executing CPU will send an IPI to all other CPUs
- *  requesting that they halt execution.
- *
- * Usually (but not necessarily) called with 'other_cpus' as its arg.
- *
- *  - Signals all CPUs in map to suspend.
- *  - Waits for each to suspend.
- *
- * Returns:
- *  -1: error
- *   0: NA
- *   1: ok
- *
- * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
- *            from executing at same time.
- */
 int
 suspend_cpus(cpumask_t map)
 {
-	int i;
 
-	if (!smp_started)
-		return (0);
-
-	CTR1(KTR_SMP, "suspend_cpus(%x)", map);
-
-	/* send the suspend IPI to all CPUs in map */
-	ipi_selected(map, IPI_SUSPEND);
-
-	i = 0;
-	while ((stopped_cpus & map) != map) {
-		/* spin */
-		cpu_spinwait();
-		i++;
-#ifdef DIAGNOSTIC
-		if (i == 100000) {
-			printf("timeout suspending cpus\n");
-			break;
-		}
-#endif
-	}
-
-	return (1);
+	return (generic_stop_cpus(map, IPI_SUSPEND));
 }
 #endif
 
