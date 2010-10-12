@@ -12,7 +12,7 @@ failure() {
 )
 [ $? = 0 ] || failure $LINENO
 (
-	exec sh -c 'exit 42'
+	exec ${SH} -c 'exit 42'
 	echo bad
 )
 [ $? = 42 ] || failure $LINENO
