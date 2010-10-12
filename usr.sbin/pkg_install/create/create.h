@@ -48,7 +48,7 @@ extern int	PlistOnly;
 extern int	Recursive;
 extern int	Regenerate;
 
-enum zipper {NONE, GZIP, BZIP, BZIP2 };
+enum zipper {NONE, GZIP, BZIP, BZIP2, XZ };
 extern enum zipper	Zipper;
 
 void		add_cksum(Package *, PackingList, const char *);
