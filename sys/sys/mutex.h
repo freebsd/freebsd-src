@@ -247,8 +247,10 @@ void	_thread_lock_flags(struct thread *, int, const char *, int);
 #define _rel_spin_lock(mp) do {						\
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
-	else								\
+	else {								\
+		lock_profile_release_lock(&(mp)->lock_object);          \
 		(mp)->mtx_lock = MTX_UNOWNED;				\
+	}                                                               \
 	spinlock_exit();						\
 } while (0)
 #endif /* SMP */
