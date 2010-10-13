@@ -44,7 +44,6 @@
 typedef void task_fn_t(void *context, int pending);
 
 struct task {
-	struct task **ta_running;	/* (q) queue's running task pointer */
 	STAILQ_ENTRY(task) ta_link;	/* (q) link for queue */
 	u_short	ta_pending;		/* (q) count times queued */
 	u_short	ta_priority;		/* (c) Priority */
