@@ -73,7 +73,7 @@ taskq_create(const char *name, int nthreads, pri_t pri, int minalloc __unused,
 	tq = kmem_alloc(sizeof(*tq), KM_SLEEP);
 	tq->tq_queue = taskqueue_create(name, M_WAITOK, taskqueue_thread_enqueue,
 	    &tq->tq_queue);
-	(void) taskqueue_start_threads(&tq->tq_queue, nthreads, pri, name);
+	(void) taskqueue_start_threads(&tq->tq_queue, nthreads, pri, "%s", name);
 
 	return ((taskq_t *)tq);
 }
