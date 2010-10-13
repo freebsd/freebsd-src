@@ -1519,14 +1519,10 @@ CheckPrintfHandler::HandlePrintfSpecifier(const analyze_printf::PrintfSpecifier
     // Now type check the data expression that matches the
     // format specifier.
     const Expr *Ex = getDataArg(argIndex);
-    QualType Pointee = S.Context.UnsignedCharTy;
-    Pointee.addConst();
-    QualType constType = (CS.getKind() == ConversionSpecifier::bArg) ? S.Context.IntTy : S.Context.getPointerType(Pointee);
-    QualType type = (CS.getKind() == ConversionSpecifier::bArg) ? S.Context.IntTy : S.Context.getPointerType(S.Context.UnsignedCharTy);
-    const analyze_printf::ArgTypeResult &ConstATR = constType;
-    const analyze_printf::ArgTypeResult &ATR = type;
-    if (ATR.isValid() && !ATR.matchesType(S.Context, Ex->getType()) &&
-        !ConstATR.matchesType(S.Context, Ex->getType()))
+    const analyze_printf::ArgTypeResult &ATR = 
+      (CS.getKind() == ConversionSpecifier::bArg) ?
+        ArgTypeResult(S.Context.IntTy) : ArgTypeResult::CStrTy;
+    if (ATR.isValid() && !ATR.matchesType(S.Context, Ex->getType()))
       S.Diag(getLocationOfByte(CS.getStart()),
              diag::warn_printf_conversion_argument_type_mismatch)
         << ATR.getRepresentativeType(S.Context) << Ex->getType()
