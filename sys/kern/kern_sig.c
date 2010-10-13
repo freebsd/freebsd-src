@@ -431,36 +431,19 @@ sigqueue_flush(sigqueue_t *sq)
 }
 
 static void
-sigqueue_collect_set(sigqueue_t *sq, sigset_t *set)
+sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, const sigset_t *set)
 {
-	ksiginfo_t *ksi;
-
-	KASSERT(sq->sq_flags & SQ_INIT, ("sigqueue not inited"));
-
-	TAILQ_FOREACH(ksi, &sq->sq_list, ksi_link)
-		SIGADDSET(*set, ksi->ksi_signo);
-	SIGSETOR(*set, sq->sq_kill);
-}
-
-static void
-sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
-{
-	sigset_t tmp, set;
+	sigset_t tmp;
 	struct proc *p1, *p2;
 	ksiginfo_t *ksi, *next;
 
 	KASSERT(src->sq_flags & SQ_INIT, ("src sigqueue not inited"));
 	KASSERT(dst->sq_flags & SQ_INIT, ("dst sigqueue not inited"));
-	/*
-	 * make a copy, this allows setp to point to src or dst
-	 * sq_signals without trouble.
-	 */
-	set = *setp;
 	p1 = src->sq_proc;
 	p2 = dst->sq_proc;
 	/* Move siginfo to target list */
 	TAILQ_FOREACH_SAFE(ksi, &src->sq_list, ksi_link, next) {
-		if (SIGISMEMBER(set, ksi->ksi_signo)) {
+		if (SIGISMEMBER(*set, ksi->ksi_signo)) {
 			TAILQ_REMOVE(&src->sq_list, ksi, ksi_link);
 			if (p1 != NULL)
 				p1->p_pendingcnt--;
@@ -473,17 +456,14 @@ sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 
 	/* Move pending bits to target list */
 	tmp = src->sq_kill;
-	SIGSETAND(tmp, set);
+	SIGSETAND(tmp, *set);
 	SIGSETOR(dst->sq_kill, tmp);
 	SIGSETNAND(src->sq_kill, tmp);
 
 	tmp = src->sq_signals;
-	SIGSETAND(tmp, set);
+	SIGSETAND(tmp, *set);
 	SIGSETOR(dst->sq_signals, tmp);
 	SIGSETNAND(src->sq_signals, tmp);
-
-	/* Finally, rescan src queue and set pending bits for it */
-	sigqueue_collect_set(src, &src->sq_signals);
 }
 
 static void
@@ -497,7 +477,7 @@ sigqueue_move(sigqueue_t *src, sigqueue_t *dst, int signo)
 }
 
 static void
-sigqueue_delete_set(sigqueue_t *sq, sigset_t *set)
+sigqueue_delete_set(sigqueue_t *sq, const sigset_t *set)
 {
 	struct proc *p = sq->sq_proc;
 	ksiginfo_t *ksi, *next;
@@ -515,8 +495,6 @@ sigqueue_delete_set(sigqueue_t *sq, sigset_t *set)
 	}
 	SIGSETNAND(sq->sq_kill, *set);
 	SIGSETNAND(sq->sq_signals, *set);
-	/* Finally, rescan queue and set pending bits for it */
-	sigqueue_collect_set(sq, &sq->sq_signals);
 }
 
 void
@@ -531,7 +509,7 @@ sigqueue_delete(sigqueue_t *sq, int signo)
 
 /* Remove a set of signals for a process */
 static void
-sigqueue_delete_set_proc(struct proc *p, sigset_t *set)
+sigqueue_delete_set_proc(struct proc *p, const sigset_t *set)
 {
 	sigqueue_t worklist;
 	struct thread *td0;
