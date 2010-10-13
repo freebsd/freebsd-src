@@ -61,6 +61,7 @@
 #include "aicasm_symbol.h"
 #include "aicasm_gram.h"
 
+#define YY_NO_INPUT
 /* This is used for macro body capture too, so err on the large size. */
 #define MAX_STR_CONST 4096
 static char string_buf[MAX_STR_CONST];
