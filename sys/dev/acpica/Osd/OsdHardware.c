@@ -34,12 +34,8 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/dev/acpica/include/acpi.h>
 
-#include <sys/bus.h>
-#include <sys/kernel.h>
 #include <machine/iodev.h>
 #include <machine/pci_cfgreg.h>
-#include <dev/acpica/acpivar.h>
-#include <dev/pci/pcireg.h>
 
 /*
  * ACPICA's rather gung-ho approach to hardware resource ownership is a little
