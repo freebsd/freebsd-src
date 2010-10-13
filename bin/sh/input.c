@@ -98,14 +98,14 @@ MKINIT int parselleft;		/* copy of parsefile->lleft */
 char *parsenextc;		/* copy of parsefile->nextc */
 MKINIT struct parsefile basepf;	/* top level input file */
 char basebuf[BUFSIZ];		/* buffer for top level input file */
-STATIC struct parsefile *parsefile = &basepf;	/* current input file */
+static struct parsefile *parsefile = &basepf;	/* current input file */
 int init_editline = 0;		/* editline library initialized? */
 int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 EditLine *el;			/* cookie for editline package */
 
 STATIC void pushfile(void);
-static int preadfd(void);
+STATIC int preadfd(void);
 
 #ifdef mkinit
 INCLUDE "input.h"
@@ -169,7 +169,7 @@ pgetc(void)
 }
 
 
-static int
+STATIC int
 preadfd(void)
 {
 	int nr;
