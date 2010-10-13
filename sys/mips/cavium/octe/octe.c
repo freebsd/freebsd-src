@@ -146,6 +146,7 @@ octe_attach(device_t dev)
 {
 	struct ifnet *ifp;
 	cvm_oct_private_t *priv;
+	device_t child;
 	unsigned qos;
 	int error;
 
@@ -155,10 +156,15 @@ octe_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	if (priv->phy_id != -1) {
-		error = mii_phy_probe(dev, &priv->miibus, octe_mii_medchange,
-				      octe_mii_medstat);
-		if (error != 0) {
-			device_printf(dev, "missing phy %u\n", priv->phy_id);
+		if (priv->phy_device == NULL) {
+			error = mii_phy_probe(dev, &priv->miibus, octe_mii_medchange,
+					      octe_mii_medstat);
+			if (error != 0)
+				device_printf(dev, "missing phy %u\n", priv->phy_id);
+		} else {
+			child = device_add_child(dev, priv->phy_device, -1);
+			if (child == NULL)
+				device_printf(dev, "missing phy %u device %s\n", priv->phy_id, priv->phy_device);
 		}
 	}
 
@@ -202,7 +208,7 @@ octe_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	OCTE_TX_UNLOCK(priv);
 
-	return (0);
+	return (bus_generic_attach(dev));
 }
 
 static int
