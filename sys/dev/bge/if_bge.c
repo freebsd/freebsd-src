@@ -878,6 +878,29 @@ bge_miibus_statchg(device_t dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->bge_miibus);
 
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->bge_link = 1;
+			break;
+		case IFM_1000_T:
+		case IFM_1000_SX:
+		case IFM_2500_SX:
+			if (sc->bge_asicrev != BGE_ASICREV_BCM5906)
+				sc->bge_link = 1;
+			else
+				sc->bge_link = 0;
+			break;
+		default:
+			sc->bge_link = 0;
+			break;
+		}
+	} else
+		sc->bge_link = 0;
+	if (sc->bge_link == 0)
+		return;
 	BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_PORTMODE);
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
 	    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)
@@ -5065,12 +5088,7 @@ bge_link_upd(struct bge_softc *sc)
 		 */
 		mii = device_get_softc(sc->bge_miibus);
 		mii_pollstat(mii);
-		if (!sc->bge_link && mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			bge_miibus_statchg(sc->bge_dev);
-			sc->bge_link = 1;
-		} else
-			sc->bge_link = 0;
+		bge_miibus_statchg(sc->bge_dev);
 	}
 
 	/* Clear the attention. */
