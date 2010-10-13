@@ -314,7 +314,7 @@ DtInsertCompilerIds (
         Next = Next->Next;
     }
 
-    Next->Value = CompilerCreatorId;
+    Next->Value = ASL_CREATOR_ID;
     Next->Flags = DT_FIELD_NOT_ALLOCATED;
 
     Next = Next->Next;

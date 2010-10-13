@@ -658,6 +658,95 @@ AnMapObjTypeToBtype (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AnCheckId
+ *
+ * PARAMETERS:  Op                  - Current parse op
+ *              Type                - HID or CID
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Perform various checks on _HID and _CID strings. Only limited
+ *              checks can be performed on _CID strings.
+ *
+ ******************************************************************************/
+
+#define ASL_TYPE_HID        0
+#define ASL_TYPE_CID        1
+#include <string.h>
+
+static void
+AnCheckId (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_NAME               Type)
+{
+    UINT32                  i;
+    ACPI_SIZE               Length;
+    UINT32                  AlphaPrefixLength;
+
+
+    if (Op->Asl.ParseOpcode != PARSEOP_STRING_LITERAL)
+    {
+        return;
+    }
+
+    Length = strlen (Op->Asl.Value.String);
+
+    /*
+     * If _HID/_CID is a string, all characters must be alphanumeric.
+     * One of the things we want to catch here is the use of
+     * a leading asterisk in the string -- an odd construct
+     * that certain platform manufacturers are fond of.
+     */
+    for (i = 0; Op->Asl.Value.String[i]; i++)
+    {
+        if (!isalnum ((int) Op->Asl.Value.String[i]))
+        {
+            AslError (ASL_ERROR, ASL_MSG_ALPHANUMERIC_STRING,
+                Op, Op->Asl.Value.String);
+            break;
+        }
+    }
+
+    if (Type == ASL_TYPE_CID)
+    {
+        /* _CID strings are bus-specific, no more checks can be performed */
+
+        return;
+    }
+
+    /* _HID String must be of the form "XXX####" or "ACPI####" */
+
+    if ((Length < 7) || (Length > 8))
+    {
+        AslError (ASL_ERROR, ASL_MSG_HID_LENGTH,
+            Op, Op->Asl.Value.String);
+        return;
+    }
+
+    /* _HID Length is valid, now check for uppercase (first 3 or 4 chars) */
+
+    AlphaPrefixLength = 3;
+    if (Length >= 8)
+    {
+        AlphaPrefixLength = 4;
+    }
+
+    /* Ensure the alphabetic prefix is all uppercase */
+
+    for (i = 0; (i < AlphaPrefixLength) && Op->Asl.Value.String[i]; i++)
+    {
+        if (!isupper ((int) Op->Asl.Value.String[i]))
+        {
+            AslError (ASL_ERROR, ASL_MSG_UPPER_CASE,
+                Op, &Op->Asl.Value.String[i]);
+            break;
+        }
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AnMethodAnalysisWalkBegin
  *
  * PARAMETERS:  ASL_WALK_CALLBACK
@@ -983,22 +1072,28 @@ AnMethodAnalysisWalkBegin (
         if (!ACPI_STRCMP (METHOD_NAME__HID, Op->Asl.NameSeg))
         {
             Next = Op->Asl.Child->Asl.Next;
-            if (Next->Asl.ParseOpcode == PARSEOP_STRING_LITERAL)
+            AnCheckId (Next, ASL_TYPE_HID);
+        }
+
+        /* Special typechecking for _CID */
+
+        else if (!ACPI_STRCMP (METHOD_NAME__CID, Op->Asl.NameSeg))
+        {
+            Next = Op->Asl.Child->Asl.Next;
+
+            if ((Next->Asl.ParseOpcode == PARSEOP_PACKAGE) ||
+                (Next->Asl.ParseOpcode == PARSEOP_VAR_PACKAGE))
             {
-                /*
-                 * _HID is a string, all characters must be alphanumeric.
-                 * One of the things we want to catch here is the use of
-                 * a leading asterisk in the string.
-                 */
-                for (i = 0; Next->Asl.Value.String[i]; i++)
+                Next = Next->Asl.Child;
+                while (Next)
                 {
-                    if (!isalnum ((int) Next->Asl.Value.String[i]))
-                    {
-                        AslError (ASL_ERROR, ASL_MSG_ALPHANUMERIC_STRING,
-                            Next, Next->Asl.Value.String);
-                        break;
-                    }
+                    AnCheckId (Next, ASL_TYPE_CID);
+                    Next = Next->Asl.Next;
                 }
+            }
+            else
+            {
+                AnCheckId (Next, ASL_TYPE_CID);
             }
         }
         break;

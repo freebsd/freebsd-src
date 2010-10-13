@@ -1080,6 +1080,7 @@ typedef struct acpi_bit_register_info
     ACPI_BITMASK_POWER_BUTTON_STATUS   | \
     ACPI_BITMASK_SLEEP_BUTTON_STATUS   | \
     ACPI_BITMASK_RT_CLOCK_STATUS       | \
+    ACPI_BITMASK_PCIEXP_WAKE_STATUS    | \
     ACPI_BITMASK_WAKE_STATUS)
 
 #define ACPI_BITMASK_TIMER_ENABLE               0x0001
@@ -1136,7 +1137,8 @@ typedef struct acpi_bit_register_info
 #define ACPI_OSI_WIN_VISTA              0x07
 #define ACPI_OSI_WINSRV_2008            0x08
 #define ACPI_OSI_WIN_VISTA_SP1          0x09
-#define ACPI_OSI_WIN_7                  0x0A
+#define ACPI_OSI_WIN_VISTA_SP2          0x0A
+#define ACPI_OSI_WIN_7                  0x0B
 
 #define ACPI_ALWAYS_ILLEGAL             0x00
 
