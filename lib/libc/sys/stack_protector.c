@@ -92,7 +92,7 @@ __fail(const char *msg)
 	(void)sigprocmask(SIG_BLOCK, &mask, NULL);
 
 	/* This may fail on a chroot jail... */
-	syslog(LOG_CRIT, msg);
+	syslog(LOG_CRIT, "%s", msg);
 
 	(void)memset(&sa, 0, sizeof(sa));
 	(void)sigemptyset(&sa.sa_mask);
