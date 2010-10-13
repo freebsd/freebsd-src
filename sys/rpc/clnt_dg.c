@@ -193,6 +193,7 @@ clnt_dg_create(
 	struct rpc_msg call_msg;
 	struct __rpc_sockinfo si;
 	XDR xdrs;
+	int error;
 
 	if (svcaddr == NULL) {
 		rpc_createerr.cf_stat = RPC_UNKNOWNADDR;
@@ -267,7 +268,12 @@ clnt_dg_create(
 	 */
 	cu->cu_closeit = FALSE;
 	cu->cu_socket = so;
-	soreserve(so, 256*1024, 256*1024);
+	error = soreserve(so, (u_long)sendsz, (u_long)recvsz);
+	if (error != 0) {
+		rpc_createerr.cf_stat = RPC_FAILED;
+		rpc_createerr.cf_error.re_errno = error;
+		goto err2;
+	}
 
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(&so->so_rcv);

@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc_com.h>
 
+extern	u_long sb_max_adj;	/* not defined in socketvar.h */
+
 #if __FreeBSD_version < 700000
 #define strrchr rindex
 #endif
@@ -113,9 +115,8 @@ u_int
 /*ARGSUSED*/
 __rpc_get_t_size(int af, int proto, int size)
 {
-	int maxsize, defsize;
+	int defsize;
 
-	maxsize = 256 * 1024;	/* XXX */
 	switch (proto) {
 	case IPPROTO_TCP:
 		defsize = 64 * 1024;	/* XXX */
@@ -131,7 +132,7 @@ __rpc_get_t_size(int af, int proto, int size)
 		return defsize;
 
 	/* Check whether the value is within the upper max limit */
-	return (size > maxsize ? (u_int)maxsize : (u_int)size);
+	return (size > sb_max_adj ? (u_int)sb_max_adj : (u_int)size);
 }
 
 /*
