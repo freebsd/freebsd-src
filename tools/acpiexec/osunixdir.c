@@ -125,6 +125,9 @@
 
 #include "acpisrc.h"
 
+/*
+ * Allocated structure returned from OsOpenDirectory
+ */
 typedef struct ExternalFindInfo
 {
     char                        *DirPathname;
@@ -193,7 +196,7 @@ AcpiOsOpenDirectory (
  *
  * PARAMETERS:  DirHandle           - Created via AcpiOsOpenDirectory
  *
- * RETURN:      Next filename matched.  NULL if no more matches.
+ * RETURN:      Next filename matched. NULL if no more matches.
  *
  * DESCRIPTION: Get the next file in the directory that matches the wildcard
  *              specification.
@@ -217,7 +220,9 @@ AcpiOsGetNextFilename (
         if (!fnmatch (ExternalInfo->WildcardSpec, dir_entry->d_name, 0))
         {
             if (dir_entry->d_name[0] == '.')
+            {
                 continue;
+            }
 
             str_len = strlen (dir_entry->d_name) +
                         strlen (ExternalInfo->DirPathname) + 2;
@@ -226,7 +231,7 @@ AcpiOsGetNextFilename (
             if (!temp_str)
             {
                 printf ("Could not allocate buffer for temporary string\n");
-                return NULL;
+                return (NULL);
             }
 
             strcpy (temp_str, ExternalInfo->DirPathname);
@@ -238,7 +243,7 @@ AcpiOsGetNextFilename (
             if (err == -1)
             {
                 printf ("stat() error - should not happen\n");
-                return NULL;
+                return (NULL);
             }
 
             if ((S_ISDIR (temp_stat.st_mode)
@@ -255,7 +260,7 @@ AcpiOsGetNextFilename (
         }
     }
 
-    return NULL;
+    return (NULL);
 }
 
 
@@ -284,10 +289,22 @@ AcpiOsCloseDirectory (
     free (DirHandle);
 }
 
+
 /* Other functions acpisrc uses but that aren't standard on Unix */
 
-/* lowercase a string */
-char*
+/*******************************************************************************
+ *
+ * FUNCTION:    strlwr
+ *
+ * PARAMETERS:  str                 - String to be lowercased.
+ *
+ * RETURN:      str.
+ *
+ * DESCRIPTION: Lowercase a string in-place.
+ *
+ ******************************************************************************/
+
+char *
 strlwr  (
    char         *str)
 {

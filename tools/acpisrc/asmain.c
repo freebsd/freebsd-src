@@ -372,9 +372,7 @@ main (
     UINT32                  FileType;
 
 
-    printf ("ACPI Source Code Conversion Utility");
-    printf (" version %8.8X", ((UINT32) ACPI_CA_VERSION));
-    printf (" [%s]\n\n",  __DATE__);
+    printf (ACPI_COMMON_SIGNON ("ACPI Source Code Conversion Utility"));
 
     if (argc < 2)
     {

@@ -455,9 +455,7 @@ main (
                     _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG));
 #endif
 
-    printf ("\nIntel ACPI Component Architecture\nAML Execution/Debug Utility");
-    printf (" version %8.8X", ((UINT32) ACPI_CA_VERSION));
-    printf (" [%s]\n\n",  __DATE__);
+    printf (ACPI_COMMON_SIGNON ("AML Execution/Debug Utility"));
 
     if (argc < 2)
     {

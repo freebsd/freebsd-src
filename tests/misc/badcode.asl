@@ -35,7 +35,7 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
     // Invalid hex escape sequence
 
     Name (ESC1, "abcdefg\x00hijklmn")
-    
+
     // Field access beyond region bounds
 
     OperationRegion (OPR1, SystemMemory, 0x2000, 6)
@@ -116,9 +116,24 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
         Store (MTH2 (), Local0)
     }
 
-    // Invalid _HID value
+    // Invalid _HID values
 
-    Name (_HID, "*PNP0C0A")
+    Device (H1)
+    {
+        Name (_HID, "*PNP0C0A")     // Illegal leading asterisk
+    }
+    Device (H2)
+    {
+        Name (_HID, "PNP")          // Too short, must be 7 or 8 chars
+    }
+    Device (H3)
+    {
+        Name (_HID, "MYDEVICE01")   // Too long, must be 7 or 8 chars
+    }
+    Device (H4)
+    {
+        Name (_HID, "acpi0001")      // non-hex chars must be uppercase
+    }
 
     // Predefined Name typechecking
 
@@ -155,7 +170,7 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
             }
         }
 
-        // Missing EndDependentFn macro 
+        // Missing EndDependentFn macro
     })
 
     Name (RSC2, ResourceTemplate ()
@@ -191,7 +206,7 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
             )
 
         // Invalid AccessSize parameter
-        Register (SystemIO, 
+        Register (SystemIO,
             0x08,               // Bit Width
             0x00,               // Bit Offset
             0x0000000000000100, // Address
@@ -285,6 +300,16 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
             0x000C8FFF,         // Range Maximum
             0x00000000,         // Translation Offset
             0x00001000,         // Length
+            ,, )
+
+        // Null descriptor (intended to be modified at runtime) must
+        // have a resource tag (to allow it to be modified at runtime)
+        DWordIO (ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
+            0x00000000,         // Granularity
+            0x00000000,         // Range Minimum
+            0x00000000,         // Range Maximum
+            0x00000000,         // Translation Offset
+            0x00000000,         // Length
             ,, )
 
         // Missing StartDependentFn macro

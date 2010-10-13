@@ -11,7 +11,7 @@ ACPICA_TOOLS =  $(ACPICA_SRC)/tools
 ACPICA_OSL =    $(ACPICA_SRC)/os_specific/service_layers
 
 NOMAN=	YES
-CFLAGS+= -Wall -g -D_LINUX -DNDEBUG -D_CONSOLE -DACPI_EXEC_APP -D_MULTI_THREADED -Wstrict-prototypes -I$(ACPICA_SRC)/include 
+CFLAGS+= -Wall -g -D_LINUX -DNDEBUG -D_CONSOLE -DACPI_EXEC_APP -Wstrict-prototypes -I$(ACPICA_SRC)/include 
 
 COMPILE = $(CC) -c $(CFLAGS) -o$@ $?
 LDFLAGS += -lpthread -lrt

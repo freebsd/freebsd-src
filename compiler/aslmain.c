@@ -296,7 +296,8 @@ Usage (
     void)
 {
 
-    printf ("Usage:    %s [Options] [Files]\n\n", CompilerName);
+    printf ("%s\n", ASL_COMPLIANCE);
+    printf ("Usage:    %s [Options] [Files]\n\n", ASL_INVOCATION_NAME);
     Options ();
 }
 
@@ -903,7 +904,7 @@ AslCommandLine (
 
     if (argc < 2)
     {
-        AslCompilerSignon (ASL_FILE_STDOUT);
+        printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
         Usage ();
         exit (1);
     }
@@ -934,7 +935,7 @@ AslCommandLine (
 
     if (Gbl_DoSignon)
     {
-        AslCompilerSignon (ASL_FILE_STDOUT);
+        printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
     }
 
     /* Abort if anything went wrong on the command line */

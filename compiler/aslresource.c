@@ -139,6 +139,7 @@
  *                                    NULL, means "zero value for alignment is
  *                                    OK, and means 64K alignment" (for
  *                                    Memory24 descriptor)
+ *              Op                  - Parent Op for entire construct
  *
  * RETURN:      None. Adds error messages to error log if necessary
  *
@@ -158,11 +159,40 @@ RsSmallAddressCheck (
     ACPI_PARSE_OBJECT       *MinOp,
     ACPI_PARSE_OBJECT       *MaxOp,
     ACPI_PARSE_OBJECT       *LengthOp,
-    ACPI_PARSE_OBJECT       *AlignOp)
+    ACPI_PARSE_OBJECT       *AlignOp,
+    ACPI_PARSE_OBJECT       *Op)
 {
 
     if (Gbl_NoResourceChecking)
     {
+        return;
+    }
+
+    /*
+     * Check for a so-called "null descriptor". These are descriptors that are
+     * created with most fields set to zero. The intent is that the descriptor
+     * will be updated/completed at runtime via a BufferField.
+     *
+     * If the descriptor does NOT have a resource tag, it cannot be referenced
+     * by a BufferField and we will flag this as an error. Conversely, if
+     * the descriptor has a resource tag, we will assume that a BufferField
+     * will be used to dynamically update it, so no error.
+     *
+     * A possible enhancement to this check would be to verify that in fact
+     * a BufferField is created using the resource tag, and perhaps even
+     * verify that a Store is performed to the BufferField.
+     *
+     * Note: for these descriptors, Alignment is allowed to be zero
+     */
+    if (!Minimum && !Maximum && !Length)
+    {
+        if (!Op->Asl.ExternalName)
+        {
+            /* No resource tag. Descriptor is fixed and is also illegal */
+
+            AslError (ASL_ERROR, ASL_MSG_NULL_DESCRIPTOR, Op, NULL);
+        }
+
         return;
     }
 
@@ -230,6 +260,7 @@ RsSmallAddressCheck (
  *              MaxOp               - Original Op for Address Max
  *              LengthOp            - Original Op for address range
  *              GranOp              - Original Op for address granularity
+ *              Op                  - Parent Op for entire construct
  *
  * RETURN:      None. Adds error messages to error log if necessary
  *
@@ -259,11 +290,38 @@ RsLargeAddressCheck (
     ACPI_PARSE_OBJECT       *MinOp,
     ACPI_PARSE_OBJECT       *MaxOp,
     ACPI_PARSE_OBJECT       *LengthOp,
-    ACPI_PARSE_OBJECT       *GranOp)
+    ACPI_PARSE_OBJECT       *GranOp,
+    ACPI_PARSE_OBJECT       *Op)
 {
 
     if (Gbl_NoResourceChecking)
     {
+        return;
+    }
+
+    /*
+     * Check for a so-called "null descriptor". These are descriptors that are
+     * created with most fields set to zero. The intent is that the descriptor
+     * will be updated/completed at runtime via a BufferField.
+     *
+     * If the descriptor does NOT have a resource tag, it cannot be referenced
+     * by a BufferField and we will flag this as an error. Conversely, if
+     * the descriptor has a resource tag, we will assume that a BufferField
+     * will be used to dynamically update it, so no error.
+     *
+     * A possible enhancement to this check would be to verify that in fact
+     * a BufferField is created using the resource tag, and perhaps even
+     * verify that a Store is performed to the BufferField.
+     */
+    if (!Minimum && !Maximum && !Length && !Granularity)
+    {
+        if (!Op->Asl.ExternalName)
+        {
+            /* No resource tag. Descriptor is fixed and is also illegal */
+
+            AslError (ASL_ERROR, ASL_MSG_NULL_DESCRIPTOR, Op, NULL);
+        }
+
         return;
     }
 
