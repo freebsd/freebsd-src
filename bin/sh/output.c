@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #define MEM_OUT -3		/* output to dynamically allocated memory */
 #define OUTPUT_ERR 01		/* error occurred on output */
 
-static int doformat_wr(void *, const char *, int);
+STATIC int doformat_wr(void *, const char *, int);
 
 struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
 struct output errout = {NULL, 0, NULL, 256, 2, 0};
@@ -165,7 +165,7 @@ outqstr(const char *p, struct output *file)
 		outc('\'', file);
 }
 
-STATIC char out_junk[16];
+static char out_junk[16];
 
 void
 emptyoutbuf(struct output *dest)
@@ -281,7 +281,7 @@ fmtstr(char *outbuf, int length, const char *fmt, ...)
 		outbuf[length - 1] = '\0';
 }
 
-static int
+STATIC int
 doformat_wr(void *cookie, const char *buf, int len)
 {
 	struct output *o;

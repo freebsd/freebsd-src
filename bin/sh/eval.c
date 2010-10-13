@@ -75,10 +75,10 @@ __FBSDID("$FreeBSD$");
 
 
 int evalskip;			/* set if we are skipping commands */
-STATIC int skipcount;		/* number of levels to skip */
+static int skipcount;		/* number of levels to skip */
 MKINIT int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
-STATIC int builtin_flags;	/* evalcommand flags for builtins */
+static int builtin_flags;	/* evalcommand flags for builtins */
 
 
 char *commandname;

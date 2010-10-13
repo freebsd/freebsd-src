@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #define ATABSIZE 39
 
-STATIC struct alias *atab[ATABSIZE];
-STATIC int aliases;
+static struct alias *atab[ATABSIZE];
+static int aliases;
 
 STATIC void setalias(const char *, const char *);
 STATIC int unalias(const char *);
@@ -191,7 +191,7 @@ lookupalias(const char *name, int check)
 	return (NULL);
 }
 
-static int
+STATIC int
 comparealiases(const void *p1, const void *p2)
 {
 	const struct alias *const *a1 = p1;
@@ -200,7 +200,7 @@ comparealiases(const void *p1, const void *p2)
 	return strcmp((*a1)->name, (*a2)->name);
 }
 
-static void
+STATIC void
 printalias(const struct alias *a)
 {
 	char *p;
@@ -214,7 +214,7 @@ printalias(const struct alias *a)
 	out1c('\n');
 }
 
-static void
+STATIC void
 printaliases(void)
 {
 	int i, j;
