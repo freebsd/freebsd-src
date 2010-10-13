@@ -132,6 +132,7 @@ int cvm_oct_mdio_setup_device(struct ifnet *ifp)
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 
 	priv->phy_id = cvmx_helper_board_get_mii_address(priv->port);
+	priv->phy_device = NULL;
 	priv->mdio_read = NULL;
 	priv->mdio_write = NULL;
 
