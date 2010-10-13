@@ -61,6 +61,7 @@
 #include "aicasm_symbol.h"
 #include "aicasm_macro_gram.h"
 
+#define YY_NO_INPUT
 #define MAX_STR_CONST 4096
 static char string_buf[MAX_STR_CONST];
 static char *string_buf_ptr;
