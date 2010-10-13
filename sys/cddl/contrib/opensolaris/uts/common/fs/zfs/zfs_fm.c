@@ -350,7 +350,7 @@ zfs_post_common(spa_t *spa, vdev_t *vd, const char *name)
 
 	snprintf(class, sizeof(class), "%s.%s.%s", FM_RSRC_RESOURCE,
 	    ZFS_ERROR_CLASS, name);
-	sbuf_printf(&sb, " %s=%hhu", FM_VERSION, FM_RSRC_VERSION);
+	sbuf_printf(&sb, " %s=%d", FM_VERSION, FM_RSRC_VERSION);
 	sbuf_printf(&sb, " %s=%s", FM_CLASS, class);
 	sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_POOL_GUID,
 	    spa_guid(spa));
