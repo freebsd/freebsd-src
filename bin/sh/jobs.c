@@ -72,13 +72,13 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 
 
-STATIC struct job *jobtab;	/* array of jobs */
-STATIC int njobs;		/* size of array */
+static struct job *jobtab;	/* array of jobs */
+static int njobs;		/* size of array */
 MKINIT pid_t backgndpid = -1;	/* pid of last background process */
 MKINIT struct job *bgjob = NULL; /* last background process */
 #if JOBS
-STATIC struct job *jobmru;	/* most recently used job list */
-STATIC pid_t initialpgrp;	/* pgrp of shell on invocation */
+static struct job *jobmru;	/* most recently used job list */
+static pid_t initialpgrp;	/* pgrp of shell on invocation */
 #endif
 int in_waitcmd = 0;		/* are we in waitcmd()? */
 int in_dowait = 0;		/* are we in dowait()? */
@@ -1130,8 +1130,8 @@ backgndpidval(void)
  * jobs command.
  */
 
-STATIC char *cmdnextc;
-STATIC int cmdnleft;
+static char *cmdnextc;
+static int cmdnleft;
 #define MAXCMDTEXT	200
 
 char *

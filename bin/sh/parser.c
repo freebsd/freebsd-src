@@ -86,20 +86,20 @@ struct parser_temp {
 };
 
 
-STATIC struct heredoc *heredoclist;	/* list of here documents to read */
-STATIC int doprompt;		/* if set, prompt the user */
-STATIC int needprompt;		/* true if interactive and at start of line */
-STATIC int lasttoken;		/* last token read */
+static struct heredoc *heredoclist;	/* list of here documents to read */
+static int doprompt;		/* if set, prompt the user */
+static int needprompt;		/* true if interactive and at start of line */
+static int lasttoken;		/* last token read */
 MKINIT int tokpushback;		/* last token pushed back */
-STATIC char *wordtext;		/* text of last word returned by readtoken */
+static char *wordtext;		/* text of last word returned by readtoken */
 MKINIT int checkkwd;            /* 1 == check for kwds, 2 == also eat newlines */
-STATIC struct nodelist *backquotelist;
-STATIC union node *redirnode;
-STATIC struct heredoc *heredoc;
-STATIC int quoteflag;		/* set if (part of) last token was quoted */
-STATIC int startlinno;		/* line # where last token started */
-STATIC int funclinno;		/* line # where the current function started */
-STATIC struct parser_temp *parser_temp;
+static struct nodelist *backquotelist;
+static union node *redirnode;
+static struct heredoc *heredoc;
+static int quoteflag;		/* set if (part of) last token was quoted */
+static int startlinno;		/* line # where last token started */
+static int funclinno;		/* line # where the current function started */
+static struct parser_temp *parser_temp;
 
 /* XXX When 'noaliases' is set to one, no alias expansion takes place. */
 static int noaliases = 0;
@@ -683,7 +683,8 @@ makename(void)
 	return n;
 }
 
-void fixredir(union node *n, const char *text, int err)
+void
+fixredir(union node *n, const char *text, int err)
 {
 	TRACE(("Fix redir %s %d\n", text, err));
 	if (!err)
