@@ -126,7 +126,7 @@ AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
 /*
  * Depth-first recursive case for finding the bus, given the slot/function.
  */
-static int
+static int __unused
 acpi_bus_number(ACPI_HANDLE root, ACPI_HANDLE curr, ACPI_PCI_ID *PciId)
 {
     ACPI_HANDLE parent;
