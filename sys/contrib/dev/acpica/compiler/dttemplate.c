@@ -377,9 +377,9 @@ DtCreateOneTemplate (
 
     AcpiOsRedirectOutput (File);
 
-    AcpiOsPrintf ("/*\n * %s\n", IntelAcpiCA);
-    AcpiOsPrintf (" * iASL Compiler/Disassembler version %8.8X\n *\n",
-        ACPI_CA_VERSION);
+    AcpiOsPrintf ("/*\n");
+    AcpiOsPrintf (ACPI_COMMON_HEADER ("iASL Compiler/Disassembler", " * "));
+
     AcpiOsPrintf (" * Template for [%4.4s] ACPI Table\n",
         Signature);
 
