@@ -131,7 +131,7 @@ int sstrnleft;
 int herefd = -1;
 
 
-STATIC void
+static void
 stnewblock(int nbytes)
 {
 	struct stack_block *sp;

@@ -80,7 +80,7 @@ static volatile sig_atomic_t gotsig[NSIG];
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
 volatile sig_atomic_t gotwinch;
 
-STATIC int getsigaction(int, sig_t *);
+static int getsigaction(int, sig_t *);
 
 
 /*
@@ -88,7 +88,7 @@ STATIC int getsigaction(int, sig_t *);
  *
  * Note: the signal number may exceed NSIG.
  */
-STATIC int
+static int
 sigstring_to_signum(char *sig)
 {
 
@@ -116,7 +116,7 @@ sigstring_to_signum(char *sig)
 /*
  * Print a list of valid signal names.
  */
-STATIC void
+static void
 printsignals(void)
 {
 	int n, outlen;
@@ -334,7 +334,7 @@ setsignal(int signo)
 /*
  * Return the current setting for sig w/o changing it.
  */
-STATIC int
+static int
 getsigaction(int signo, sig_t *sigact)
 {
 	struct sigaction sa;

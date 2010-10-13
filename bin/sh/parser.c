@@ -105,25 +105,25 @@ static struct parser_temp *parser_temp;
 static int noaliases = 0;
 
 
-STATIC union node *list(int);
-STATIC union node *andor(void);
-STATIC union node *pipeline(void);
-STATIC union node *command(void);
-STATIC union node *simplecmd(union node **, union node *);
-STATIC union node *makename(void);
-STATIC void parsefname(void);
-STATIC void parseheredoc(void);
-STATIC int peektoken(void);
-STATIC int readtoken(void);
-STATIC int xxreadtoken(void);
-STATIC int readtoken1(int, char const *, char *, int);
-STATIC int noexpand(char *);
-STATIC void synexpect(int) __dead2;
-STATIC void synerror(const char *) __dead2;
-STATIC void setprompt(int);
+static union node *list(int);
+static union node *andor(void);
+static union node *pipeline(void);
+static union node *command(void);
+static union node *simplecmd(union node **, union node *);
+static union node *makename(void);
+static void parsefname(void);
+static void parseheredoc(void);
+static int peektoken(void);
+static int readtoken(void);
+static int xxreadtoken(void);
+static int readtoken1(int, char const *, char *, int);
+static int noexpand(char *);
+static void synexpect(int) __dead2;
+static void synerror(const char *) __dead2;
+static void setprompt(int);
 
 
-STATIC void *
+static void *
 parser_temp_alloc(size_t len)
 {
 	struct parser_temp *t;
@@ -139,7 +139,7 @@ parser_temp_alloc(size_t len)
 }
 
 
-STATIC void *
+static void *
 parser_temp_realloc(void *ptr, size_t len)
 {
 	struct parser_temp *t;
@@ -154,7 +154,7 @@ parser_temp_realloc(void *ptr, size_t len)
 }
 
 
-STATIC void
+static void
 parser_temp_free_upto(void *ptr)
 {
 	struct parser_temp *t;
@@ -174,7 +174,7 @@ parser_temp_free_upto(void *ptr)
 }
 
 
-STATIC void
+static void
 parser_temp_free_all(void)
 {
 	struct parser_temp *t;
@@ -223,7 +223,7 @@ parsecmd(int interact)
 }
 
 
-STATIC union node *
+static union node *
 list(int nlflag)
 {
 	union node *n1, *n2, *n3;
@@ -296,7 +296,7 @@ list(int nlflag)
 
 
 
-STATIC union node *
+static union node *
 andor(void)
 {
 	union node *n1, *n2, *n3;
@@ -323,7 +323,7 @@ andor(void)
 
 
 
-STATIC union node *
+static union node *
 pipeline(void)
 {
 	union node *n1, *n2, *pipenode;
@@ -365,7 +365,7 @@ pipeline(void)
 
 
 
-STATIC union node *
+static union node *
 command(void)
 {
 	union node *n1, *n2;
@@ -608,7 +608,7 @@ checkneg:
 }
 
 
-STATIC union node *
+static union node *
 simplecmd(union node **rpp, union node *redir)
 {
 	union node *args, **app;
@@ -670,7 +670,7 @@ simplecmd(union node **rpp, union node *redir)
 	return n;
 }
 
-STATIC union node *
+static union node *
 makename(void)
 {
 	union node *n;
@@ -704,7 +704,7 @@ fixredir(union node *n, const char *text, int err)
 }
 
 
-STATIC void
+static void
 parsefname(void)
 {
 	union node *n = redirnode;
@@ -746,7 +746,7 @@ parsefname(void)
  * Input any here documents.
  */
 
-STATIC void
+static void
 parseheredoc(void)
 {
 	struct heredoc *here;
@@ -770,7 +770,7 @@ parseheredoc(void)
 	}
 }
 
-STATIC int
+static int
 peektoken(void)
 {
 	int t;
@@ -780,7 +780,7 @@ peektoken(void)
 	return (t);
 }
 
-STATIC int
+static int
 readtoken(void)
 {
 	int t;
@@ -860,7 +860,7 @@ out:
 
 #define RETURN(token)	return lasttoken = token
 
-STATIC int
+static int
 xxreadtoken(void)
 {
 	int c;
@@ -931,7 +931,7 @@ breakloop:
 }
 
 
-#define MAXNEST_STATIC 8
+#define MAXNEST_static 8
 struct tokenstate
 {
 	const char *syntax; /* *SYNTAX */
@@ -950,7 +950,7 @@ struct tokenstate
  * Called to parse command substitutions.
  */
 
-STATIC char *
+static char *
 parsebackq(char *out, struct nodelist **pbqlist,
 		int oldstyle, int dblquote, int quoted)
 {
@@ -1131,7 +1131,7 @@ done:
 #define PARSESUB()	{goto parsesub; parsesub_return:;}
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
-STATIC int
+static int
 readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 {
 	int c = firstc;
@@ -1143,8 +1143,8 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 	int newvarnest;
 	int level;
 	int synentry;
-	struct tokenstate state_static[MAXNEST_STATIC];
-	int maxnest = MAXNEST_STATIC;
+	struct tokenstate state_static[MAXNEST_static];
+	int maxnest = MAXNEST_static;
 	struct tokenstate *state = state_static;
 
 	startlinno = plinno;
@@ -1554,7 +1554,7 @@ parsesub: {
 					state = parser_temp_alloc(
 					    maxnest * sizeof(*state));
 					memcpy(state, state_static,
-					    MAXNEST_STATIC * sizeof(*state));
+					    MAXNEST_static * sizeof(*state));
 				} else
 					state = parser_temp_realloc(state,
 					    maxnest * sizeof(*state));
@@ -1597,7 +1597,7 @@ parsearith: {
 			state = parser_temp_alloc(
 			    maxnest * sizeof(*state));
 			memcpy(state, state_static,
-			    MAXNEST_STATIC * sizeof(*state));
+			    MAXNEST_static * sizeof(*state));
 		} else
 			state = parser_temp_realloc(state,
 			    maxnest * sizeof(*state));
@@ -1630,7 +1630,7 @@ RESET {
  * or backquotes).
  */
 
-STATIC int
+static int
 noexpand(char *text)
 {
 	char *p;
@@ -1676,7 +1676,7 @@ goodname(const char *name)
  * occur at this point.
  */
 
-STATIC void
+static void
 synexpect(int token)
 {
 	char msg[64];
@@ -1691,7 +1691,7 @@ synexpect(int token)
 }
 
 
-STATIC void
+static void
 synerror(const char *msg)
 {
 	if (commandname)
@@ -1700,7 +1700,7 @@ synerror(const char *msg)
 	error((char *)NULL);
 }
 
-STATIC void
+static void
 setprompt(int which)
 {
 	whichprompt = which;
