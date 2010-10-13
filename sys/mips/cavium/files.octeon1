@@ -31,6 +31,7 @@ mips/cavium/octe/ethernet-sgmii.c		optional octe
 mips/cavium/octe/ethernet-spi.c			optional octe
 mips/cavium/octe/ethernet-tx.c			optional octe
 mips/cavium/octe/ethernet-xaui.c		optional octe
+mips/cavium/octe/mv88e61xxphy.c			optional octe mv88e61xxphy
 mips/cavium/octe/octe.c				optional octe
 mips/cavium/octe/octebus.c			optional octe
 

@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "wrapper-cvmx-includes.h"
 #include "ethernet-headers.h"
 
-#define	MV88E61XX_SMI_PHY_SW	0x10	/* Switch PHY.  */
-
 #define	MV88E61XX_SMI_REG_CMD	0x00	/* Indirect command register.  */
 #define	 MV88E61XX_SMI_CMD_BUSY		0x8000	/* Busy bit.  */
 #define	 MV88E61XX_SMI_CMD_22		0x1000	/* Clause 22 (default 45.)  */
@@ -61,89 +59,67 @@ __FBSDID("$FreeBSD$");
 
 #define	MV88E61XX_SMI_REG_DAT	0x01	/* Indirect data register.  */
 
-static int cvm_oct_mv88e61xx_mdio_read(struct ifnet *, int, int);
-static void cvm_oct_mv88e61xx_mdio_write(struct ifnet *, int, int, int);
 static int cvm_oct_mv88e61xx_smi_read(struct ifnet *, int, int);
 static void cvm_oct_mv88e61xx_smi_write(struct ifnet *, int, int, int);
-static int cvm_oct_mv88e61xx_smi_wait(struct ifnet *, int);
+static int cvm_oct_mv88e61xx_smi_wait(struct ifnet *);
 
 int
 cvm_oct_mv88e61xx_setup_device(struct ifnet *ifp)
 {
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 
-	priv->mdio_read = cvm_oct_mv88e61xx_mdio_read;
-	priv->mdio_write = cvm_oct_mv88e61xx_mdio_write;
+	priv->mdio_read = cvm_oct_mv88e61xx_smi_read;
+	priv->mdio_write = cvm_oct_mv88e61xx_smi_write;
+	priv->phy_device = "mv88e61xxphy";
 
 	return (0);
 }
 
 static int
-cvm_oct_mv88e61xx_mdio_read(struct ifnet *ifp, int phy_id, int location)
-{
-	/*
-	 * Intercept reads of MII_BMSR.  The miibus uses this to determine
-	 * PHY presence and we only want it to look for a PHY attachment
-	 * for the switch PHY itself.  The PHY driver will talk to all of
-	 * the other ports as need be.
-	 */
-	switch (location) {
-	case MII_BMSR:
-		if (phy_id != MV88E61XX_SMI_PHY_SW)
-			return (0);
-		return (BMSR_EXTSTAT | BMSR_ACOMP | BMSR_LINK);
-	default:
-		return (cvm_oct_mv88e61xx_smi_read(ifp, phy_id, location));
-	}
-}
-
-static void
-cvm_oct_mv88e61xx_mdio_write(struct ifnet *ifp, int phy_id, int location, int val)
-{
-	return (cvm_oct_mv88e61xx_smi_write(ifp, phy_id, location, val));
-}
-
-static int
 cvm_oct_mv88e61xx_smi_read(struct ifnet *ifp, int phy_id, int location)
 {
+	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 	int error;
 
-	error = cvm_oct_mv88e61xx_smi_wait(ifp, phy_id);
+	error = cvm_oct_mv88e61xx_smi_wait(ifp);
 	if (error != 0)
 		return (0);
 
-	cvm_oct_mdio_write(ifp, phy_id, MV88E61XX_SMI_REG_CMD,
+	cvm_oct_mdio_write(ifp, priv->phy_id, MV88E61XX_SMI_REG_CMD,
 	    MV88E61XX_SMI_CMD_BUSY | MV88E61XX_SMI_CMD_22 |
 	    MV88E61XX_SMI_CMD_READ | MV88E61XX_SMI_CMD_PHY(phy_id) |
 	    MV88E61XX_SMI_CMD_REG(location));
 
-	error = cvm_oct_mv88e61xx_smi_wait(ifp, phy_id);
+	error = cvm_oct_mv88e61xx_smi_wait(ifp);
 	if (error != 0)
 		return (0);
 
-	return (cvm_oct_mdio_read(ifp, phy_id, MV88E61XX_SMI_REG_DAT));
+	return (cvm_oct_mdio_read(ifp, priv->phy_id, MV88E61XX_SMI_REG_DAT));
 }
 
 static void
 cvm_oct_mv88e61xx_smi_write(struct ifnet *ifp, int phy_id, int location, int val)
 {
-	cvm_oct_mv88e61xx_smi_wait(ifp, phy_id);
-	cvm_oct_mdio_write(ifp, phy_id, MV88E61XX_SMI_REG_DAT, val);
-	cvm_oct_mdio_write(ifp, phy_id, MV88E61XX_SMI_REG_CMD,
+	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
+
+	cvm_oct_mv88e61xx_smi_wait(ifp);
+	cvm_oct_mdio_write(ifp, priv->phy_id, MV88E61XX_SMI_REG_DAT, val);
+	cvm_oct_mdio_write(ifp, priv->phy_id, MV88E61XX_SMI_REG_CMD,
 	    MV88E61XX_SMI_CMD_BUSY | MV88E61XX_SMI_CMD_22 |
 	    MV88E61XX_SMI_CMD_WRITE | MV88E61XX_SMI_CMD_PHY(phy_id) |
 	    MV88E61XX_SMI_CMD_REG(location));
-	cvm_oct_mv88e61xx_smi_wait(ifp, phy_id);
+	cvm_oct_mv88e61xx_smi_wait(ifp);
 }
 
 static int
-cvm_oct_mv88e61xx_smi_wait(struct ifnet *ifp, int phy_id)
+cvm_oct_mv88e61xx_smi_wait(struct ifnet *ifp)
 {
+	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 	uint16_t cmd;
 	unsigned i;
 
 	for (i = 0; i < 10000; i++) {
-		cmd = cvm_oct_mdio_read(ifp, phy_id, MV88E61XX_SMI_REG_CMD);
+		cmd = cvm_oct_mdio_read(ifp, priv->phy_id, MV88E61XX_SMI_REG_CMD);
 		if ((cmd & MV88E61XX_SMI_CMD_BUSY) == 0)
 			return (0);
 	}
