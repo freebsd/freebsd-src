@@ -1597,7 +1597,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		    (gpp.gpp_parms & G_PART_PARM_FLAGS) &&
 		    strchr(gpp.gpp_flags, 'C') != NULL) ? 1 : 0;
 		if (auto_commit) {
-			KASSERT(gpp.gpp_parms & G_PART_PARM_GEOM, (__func__));
+			KASSERT(gpp.gpp_parms & G_PART_PARM_GEOM, ("%s",
+			    __func__));
 			error = g_part_ctl_commit(req, &gpp);
 		}
 	}
@@ -1737,11 +1738,11 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	struct g_part_entry *entry;
 	struct g_part_table *table;
 
-	KASSERT(sb != NULL && gp != NULL, (__func__));
+	KASSERT(sb != NULL && gp != NULL, ("%s", __func__));
 	table = gp->softc;
 
 	if (indent == NULL) {
-		KASSERT(cp == NULL && pp != NULL, (__func__));
+		KASSERT(cp == NULL && pp != NULL, ("%s", __func__));
 		entry = pp->private;
 		if (entry == NULL)
 			return;
@@ -1756,7 +1757,7 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		 */
 		G_PART_DUMPCONF(table, entry, sb, indent);
 	} else if (cp != NULL) {	/* Consumer configuration. */
-		KASSERT(pp == NULL, (__func__));
+		KASSERT(pp == NULL, ("%s", __func__));
 		/* none */
 	} else if (pp != NULL) {	/* Provider configuration. */
 		entry = pp->private;
@@ -1799,11 +1800,11 @@ g_part_orphan(struct g_consumer *cp)
 	struct g_part_table *table;
 
 	pp = cp->provider;
-	KASSERT(pp != NULL, (__func__));
+	KASSERT(pp != NULL, ("%s", __func__));
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, pp->name));
 	g_topology_assert();
 
-	KASSERT(pp->error != 0, (__func__));
+	KASSERT(pp->error != 0, ("%s", __func__));
 	table = cp->geom->softc;
 	if (table != NULL && table->gpt_opened)
 		g_access(cp, -1, -1, -1);
