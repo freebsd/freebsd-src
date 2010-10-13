@@ -62,11 +62,14 @@ typedef intmax_t arith_t;
 #define	strtoarith_t(nptr, endptr, base)  strtoimax(nptr, endptr, base)
 
 typedef void *pointer;
+
+/* STATIC is only for use with functions, not variables.  */
 #if DEBUG >= 3
 #define STATIC
 #else
 #define STATIC  static
 #endif
+
 #define MKINIT  /* empty */
 
 #include <sys/cdefs.h>

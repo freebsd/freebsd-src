@@ -73,9 +73,9 @@ STATIC void updatepwd(char *);
 STATIC char *getpwd(void);
 STATIC char *getpwd2(void);
 
-STATIC char *curdir = NULL;	/* current working directory */
-STATIC char *prevdir;		/* previous working directory */
-STATIC char *cdcomppath;
+static char *curdir = NULL;	/* current working directory */
+static char *prevdir;		/* previous working directory */
+static char *cdcomppath;
 
 int
 cdcmd(int argc, char **argv)

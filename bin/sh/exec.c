@@ -91,8 +91,8 @@ struct tblentry {
 };
 
 
-STATIC struct tblentry *cmdtable[CMDTABLESIZE];
-STATIC int builtinloc = -1;		/* index in path of %builtin, or -1 */
+static struct tblentry *cmdtable[CMDTABLESIZE];
+static int builtinloc = -1;		/* index in path of %builtin, or -1 */
 int exerrno = 0;			/* Last exec error */
 
 
@@ -615,7 +615,7 @@ deletefuncs(void)
  * entry.
  */
 
-STATIC struct tblentry **lastcmdentry;
+static struct tblentry **lastcmdentry;
 
 
 STATIC struct tblentry *

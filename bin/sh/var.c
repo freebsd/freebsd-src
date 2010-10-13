@@ -91,9 +91,9 @@ struct var vps1;
 struct var vps2;
 struct var vps4;
 struct var vvers;
-STATIC struct var voptind;
+static struct var voptind;
 
-STATIC const struct varinit varinit[] = {
+static const struct varinit varinit[] = {
 #ifndef NO_HISTORY
 	{ &vhistsize,	VUNSET,				"HISTSIZE=",
 	  sethistsize },
@@ -125,13 +125,13 @@ STATIC const struct varinit varinit[] = {
 	  NULL }
 };
 
-STATIC struct var *vartab[VTABSIZE];
+static struct var *vartab[VTABSIZE];
 
-STATIC const char *const locale_names[7] = {
+static const char *const locale_names[7] = {
 	"LC_COLLATE", "LC_CTYPE", "LC_MONETARY",
 	"LC_NUMERIC", "LC_TIME", "LC_MESSAGES", NULL
 };
-STATIC const int locale_categories[7] = {
+static const int locale_categories[7] = {
 	LC_COLLATE, LC_CTYPE, LC_MONETARY, LC_NUMERIC, LC_TIME, LC_MESSAGES, 0
 };
 
@@ -292,7 +292,7 @@ localevar(const char *s)
  * Sets/unsets an environment variable from a pointer that may actually be a
  * pointer into environ where the string should not be manipulated.
  */
-static void
+STATIC void
 change_env(const char *s, int set)
 {
 	char *eqp;
@@ -579,7 +579,7 @@ shprocvar(void)
 }
 
 
-static int
+STATIC int
 var_compare(const void *a, const void *b)
 {
 	const char *const *sa, *const *sb;
