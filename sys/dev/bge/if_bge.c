@@ -2012,6 +2012,10 @@ bge_blockinit(struct bge_softc *sc)
 	if (sc->bge_flags & BGE_FLAG_TBI) {
 		CSR_WRITE_4(sc, BGE_MI_STS, BGE_MISTS_LINK);
 	} else {
+		if (sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) {
+			CSR_WRITE_4(sc, BGE_MI_MODE, sc->bge_mi_mode);
+			DELAY(80);
+		}
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
 		    sc->bge_chipid != BGE_CHIPID_BCM5700_B2)
 			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
@@ -2677,6 +2681,9 @@ bge_attach(device_t dev)
 		sc->bge_mi_mode = BGE_MIMODE_500KHZ_CONST;
 	else
 		sc->bge_mi_mode = BGE_MIMODE_BASE;
+	/* Enable auto polling for BCM570[0-5]. */
+	if (BGE_IS_5700_FAMILY(sc) || sc->bge_asicrev == BGE_ASICREV_BCM5705)
+		sc->bge_mi_mode |= BGE_MIMODE_AUTOPOLL;
 
 	/*
 	 * All controllers that are not 5755 or higher have 4GB
