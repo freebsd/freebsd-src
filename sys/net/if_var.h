@@ -197,6 +197,7 @@ struct ifnet {
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
 	u_char	 if_alloctype;		/* if_type at time of allocation */
+	struct	netdump_methods *if_ndumpfuncs; /* netdump virtual methods */
 
 	/*
 	 * Spare fields are added so that we can modify sensitive data
@@ -205,8 +206,7 @@ struct ifnet {
 	 */
 	char	 if_cspare[3];
 	char	*if_description;	/* interface description */
-	struct	netdump_methods *if_ndumpfuncs; /* netdump virtual methods */
-	void	*if_pspare[6];
+	void	*if_pspare[7];
 	int	if_ispare[4];
 };
 
