@@ -26,7 +26,7 @@ WARNS?=	2
 WFORMAT=0
 
 .PATH:	${.CURDIR}/bltin \
-	${.CURDIR}/../../bin/test
+	${.CURDIR}/../test
 
 CLEANFILES+= mkinit mkinit.o mknodes mknodes.o \
 	mksyntax mksyntax.o
