@@ -64,14 +64,14 @@ __FBSDID("$FreeBSD$");
 #include "show.h"
 #include "cd.h"
 
-STATIC int cdlogical(char *);
-STATIC int cdphysical(char *);
-STATIC int docd(char *, int, int);
-STATIC char *getcomponent(void);
-STATIC char *findcwd(char *);
-STATIC void updatepwd(char *);
-STATIC char *getpwd(void);
-STATIC char *getpwd2(void);
+static int cdlogical(char *);
+static int cdphysical(char *);
+static int docd(char *, int, int);
+static char *getcomponent(void);
+static char *findcwd(char *);
+static void updatepwd(char *);
+static char *getpwd(void);
+static char *getpwd2(void);
 
 static char *curdir = NULL;	/* current working directory */
 static char *prevdir;		/* previous working directory */
@@ -145,7 +145,7 @@ cdcmd(int argc, char **argv)
  * Actually change the directory.  In an interactive shell, print the
  * directory name if "print" is nonzero.
  */
-STATIC int
+static int
 docd(char *dest, int print, int phys)
 {
 
@@ -161,7 +161,7 @@ docd(char *dest, int print, int phys)
 	return 0;
 }
 
-STATIC int
+static int
 cdlogical(char *dest)
 {
 	char *p;
@@ -213,7 +213,7 @@ cdlogical(char *dest)
 	return (0);
 }
 
-STATIC int
+static int
 cdphysical(char *dest)
 {
 	char *p;
@@ -232,7 +232,7 @@ cdphysical(char *dest)
  * Get the next component of the path name pointed to by cdcomppath.
  * This routine overwrites the string pointed to by cdcomppath.
  */
-STATIC char *
+static char *
 getcomponent(void)
 {
 	char *p;
@@ -253,7 +253,7 @@ getcomponent(void)
 }
 
 
-STATIC char *
+static char *
 findcwd(char *dir)
 {
 	char *new;
@@ -296,7 +296,7 @@ findcwd(char *dir)
  * cd command.  We also call hashcd to let the routines in exec.c know
  * that the current directory has changed.
  */
-STATIC void
+static void
 updatepwd(char *dir)
 {
 	hashcd();				/* update command hash table */
@@ -352,7 +352,7 @@ pwdcmd(int argc, char **argv)
 /*
  * Get the current directory and cache the result in curdir.
  */
-STATIC char *
+static char *
 getpwd(void)
 {
 	char *p;
@@ -372,7 +372,7 @@ getpwd(void)
 /*
  * Return the current directory.
  */
-STATIC char *
+static char *
 getpwd2(void)
 {
 	char *pwd;
