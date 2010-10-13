@@ -67,7 +67,7 @@ volatile sig_atomic_t intpending;
 char *commandname;
 
 
-STATIC void exverror(int, const char *, va_list) __printf0like(2, 0) __dead2;
+static void exverror(int, const char *, va_list) __printf0like(2, 0) __dead2;
 
 /*
  * Called to raise an exception.  Since C doesn't include exceptions, we
@@ -139,7 +139,7 @@ onint(void)
  * is not NULL then error prints an error message using printf style
  * formatting.  It then raises the error exception.
  */
-STATIC void
+static void
 exverror(int cond, const char *msg, va_list ap)
 {
 	/*

@@ -52,11 +52,11 @@ __FBSDID("$FreeBSD$");
 
 
 #ifdef DEBUG
-STATIC void shtree(union node *, int, char *, FILE*);
-STATIC void shcmd(union node *, FILE *);
-STATIC void sharg(union node *, FILE *);
-STATIC void indent(int, char *, FILE *);
-STATIC void trstring(char *);
+static void shtree(union node *, int, char *, FILE*);
+static void shcmd(union node *, FILE *);
+static void sharg(union node *, FILE *);
+static void indent(int, char *, FILE *);
+static void trstring(char *);
 
 
 void
@@ -67,7 +67,7 @@ showtree(union node *n)
 }
 
 
-STATIC void
+static void
 shtree(union node *n, int ind, char *pfx, FILE *fp)
 {
 	struct nodelist *lp;
@@ -118,7 +118,7 @@ binop:
 
 
 
-STATIC void
+static void
 shcmd(union node *cmd, FILE *fp)
 {
 	union node *np;
@@ -169,7 +169,7 @@ shcmd(union node *cmd, FILE *fp)
 
 
 
-STATIC void
+static void
 sharg(union node *arg, FILE *fp)
 {
 	char *p;
@@ -254,7 +254,7 @@ sharg(union node *arg, FILE *fp)
 }
 
 
-STATIC void
+static void
 indent(int amount, char *pfx, FILE *fp)
 {
 	int i;
@@ -317,7 +317,7 @@ trputs(const char *s)
 }
 
 
-STATIC void
+static void
 trstring(char *s)
 {
 	char *p;

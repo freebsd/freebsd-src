@@ -135,9 +135,9 @@ static const int locale_categories[7] = {
 	LC_COLLATE, LC_CTYPE, LC_MONETARY, LC_NUMERIC, LC_TIME, LC_MESSAGES, 0
 };
 
-STATIC struct var **hashvar(const char *);
-STATIC int varequal(const char *, const char *);
-STATIC int localevar(const char *);
+static struct var **hashvar(const char *);
+static int varequal(const char *, const char *);
+static int localevar(const char *);
 
 /*
  * Initialize the variable symbol tables and import the environment.
@@ -268,7 +268,7 @@ setvar(const char *name, const char *val, int flags)
 	setvareq(nameeq, flags);
 }
 
-STATIC int
+static int
 localevar(const char *s)
 {
 	const char *const *ss;
@@ -292,7 +292,7 @@ localevar(const char *s)
  * Sets/unsets an environment variable from a pointer that may actually be a
  * pointer into environ where the string should not be manipulated.
  */
-STATIC void
+static void
 change_env(const char *s, int set)
 {
 	char *eqp;
@@ -579,7 +579,7 @@ shprocvar(void)
 }
 
 
-STATIC int
+static int
 var_compare(const void *a, const void *b)
 {
 	const char *const *sa, *const *sb;
@@ -909,7 +909,7 @@ unsetvar(const char *s)
  * Find the appropriate entry in the hash table from the name.
  */
 
-STATIC struct var **
+static struct var **
 hashvar(const char *p)
 {
 	unsigned int hashval;
@@ -928,7 +928,7 @@ hashvar(const char *p)
  * either '=' or '\0'.
  */
 
-STATIC int
+static int
 varequal(const char *p, const char *q)
 {
 	while (*p == *q++) {
