@@ -117,6 +117,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "aslcompiler.h"
+#include <acapps.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslcompile")
@@ -155,6 +156,7 @@ AslCompilerSignon (
     UINT32                  FileId)
 {
     char                    *Prefix = "";
+    char                    *UtilityName;
 
 
     /* Set line prefix depending on the destination file type */
@@ -192,36 +194,21 @@ AslCompilerSignon (
         break;
     }
 
-    /*
-     * Compiler signon with copyright
-     */
-    FlPrintFile (FileId,
-        "%s\n%s%s\n%s",
-        Prefix,
-        Prefix, IntelAcpiCA,
-        Prefix);
-
     /* Running compiler or disassembler? */
 
     if (Gbl_DisasmFlag)
     {
-        FlPrintFile (FileId,
-            "%s", DisassemblerId);
+        UtilityName = AML_DISASSEMBLER_NAME;
     }
     else
     {
-        FlPrintFile (FileId,
-            "%s", CompilerId);
+        UtilityName = ASL_COMPILER_NAME;
     }
 
-    /* Version, build date, copyright, compliance */
+    /* Compiler signon with copyright */
 
-    FlPrintFile (FileId,
-        " version %X [%s]\n%s%s\n%s%s\n%s\n",
-        (UINT32) ACPI_CA_VERSION, __DATE__,
-        Prefix, CompilerCopyright,
-        Prefix, CompilerCompliance,
-        Prefix);
+    FlPrintFile (FileId, "%s\n", Prefix);
+    FlPrintFile (FileId, ACPI_COMMON_HEADER (UtilityName, Prefix));
 }
 
 

@@ -439,7 +439,7 @@ RsDoIoDescriptor (
         Descriptor->Io.Maximum,
         Descriptor->Io.AddressLength,
         Descriptor->Io.Alignment,
-        MinOp, MaxOp, LengthOp, AlignOp);
+        MinOp, MaxOp, LengthOp, AlignOp, Op);
 
     return (Rnode);
 }

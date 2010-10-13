@@ -300,7 +300,7 @@ RsDoMemory24Descriptor (
         Descriptor->Memory24.Maximum,
         Descriptor->Memory24.AddressLength,
         Descriptor->Memory24.Alignment,
-        MinOp, MaxOp, LengthOp, NULL);
+        MinOp, MaxOp, LengthOp, NULL, Op);
 
     return (Rnode);
 }
@@ -408,7 +408,7 @@ RsDoMemory32Descriptor (
         Descriptor->Memory32.Maximum,
         Descriptor->Memory32.AddressLength,
         Descriptor->Memory32.Alignment,
-        MinOp, MaxOp, LengthOp, AlignOp);
+        MinOp, MaxOp, LengthOp, AlignOp, Op);
 
     return (Rnode);
 }

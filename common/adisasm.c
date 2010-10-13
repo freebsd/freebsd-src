@@ -612,10 +612,10 @@ AdDisassemblerHeader (
 
     /* Header and input table info */
 
-    AcpiOsPrintf ("/*\n * Intel ACPI Component Architecture\n");
-    AcpiOsPrintf (" * AML Disassembler version %8.8X\n", ACPI_CA_VERSION);
+    AcpiOsPrintf ("/*\n");
+    AcpiOsPrintf (ACPI_COMMON_HEADER ("AML Disassembler", " * "));
 
-    AcpiOsPrintf (" *\n * Disassembly of %s, %s", Filename, ctime (&Timer));
+    AcpiOsPrintf (" * Disassembly of %s, %s", Filename, ctime (&Timer));
     AcpiOsPrintf (" *\n");
 }
 

@@ -120,6 +120,7 @@
 #include "acdisasm.h"
 #include "acnamesp.h"
 #include "amlcode.h"
+#include <acapps.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslutils")
@@ -566,8 +567,8 @@ UtDisplaySummary (
     {
         /* Compiler name and version number */
 
-        FlPrintFile (FileId, "%s version %X [%s]\n",
-            CompilerId, (UINT32) ACPI_CA_VERSION, __DATE__);
+        FlPrintFile (FileId, "%s version %X%s [%s]\n",
+            ASL_COMPILER_NAME, (UINT32) ACPI_CA_VERSION, ACPI_WIDTH, __DATE__);
     }
 
     if (Gbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)

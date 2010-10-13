@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: aetables - Miscellaneous ACPI tables for acpiexec utility
+ * Module Name: aetables - ACPI table setup/install for acpiexec utility
  *
  *****************************************************************************/
 
@@ -114,6 +114,7 @@
  *****************************************************************************/
 
 #include "aecommon.h"
+#include "aetables.h"
 
 #define _COMPONENT          ACPI_TOOLS
         ACPI_MODULE_NAME    ("aetables")
@@ -129,149 +130,32 @@ ACPI_PHYSICAL_ADDRESS
 AeLocalGetRootPointer (
     void);
 
-/*
- * Misc ACPI tables to be installed
- */
+/* User table (DSDT) */
 
-/* Default DSDT. This will be replaced with the input DSDT */
-
-static unsigned char DsdtCode[] =
-{
-    0x44,0x53,0x44,0x54,0x24,0x00,0x00,0x00,  /* 00000000    "DSDT$..." */
-    0x02,0x6F,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    ".oIntel." */
-    0x4E,0x75,0x6C,0x6C,0x44,0x53,0x44,0x54,  /* 00000010    "NullDSDT" */
-    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
-    0x04,0x12,0x08,0x20,
-};
-
-static unsigned char LocalDsdtCode[] =
-{
-    0x44,0x53,0x44,0x54,0x24,0x00,0x00,0x00,  /* 00000000    "DSDT$..." */
-    0x02,0x2C,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    ".,Intel." */
-    0x4C,0x6F,0x63,0x61,0x6C,0x00,0x00,0x00,  /* 00000010    "Local..." */
-    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
-    0x30,0x07,0x09,0x20,
-};
-
-/* Several example SSDTs */
-
-static unsigned char Ssdt1Code[] = /* Has method _T98 */
-{
-    0x53,0x53,0x44,0x54,0x30,0x00,0x00,0x00,  /* 00000000    "SSDT0..." */
-    0x01,0xB8,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    "..Intel." */
-    0x4D,0x61,0x6E,0x79,0x00,0x00,0x00,0x00,  /* 00000010    "Many...." */
-    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
-    0x24,0x04,0x03,0x20,0x14,0x0B,0x5F,0x54,  /* 00000020    "$.. .._T" */
-    0x39,0x38,0x00,0x70,0x0A,0x04,0x60,0xA4,  /* 00000028    "98.p..`." */
-};
-
-static unsigned char Ssdt2Code[] = /* Has method _T99 */
-{
-    0x53,0x53,0x44,0x54,0x30,0x00,0x00,0x00,  /* 00000000    "SSDT0..." */
-    0x01,0xB7,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    "..Intel." */
-    0x4D,0x61,0x6E,0x79,0x00,0x00,0x00,0x00,  /* 00000010    "Many...." */
-    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
-    0x24,0x04,0x03,0x20,0x14,0x0B,0x5F,0x54,  /* 00000020    "$.. .._T" */
-    0x39,0x39,0x00,0x70,0x0A,0x04,0x60,0xA4,  /* 00000028    "99.p..`." */
-};
-
-unsigned char Ssdt3Code[] =     /* Has method _T97 */
-{
-    0x54,0x53,0x44,0x54,0x30,0x00,0x00,0x00,  /* 00000000    "TSDT0..." */
-    0x01,0xB8,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    "..Intel." */
-    0x4D,0x61,0x6E,0x79,0x00,0x00,0x00,0x00,  /* 00000010    "Many...." */
-    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
-    0x24,0x04,0x03,0x20,0x14,0x0B,0x5F,0x54,  /* 00000020    "$.. .._T" */
-    0x39,0x37,0x00,0x70,0x0A,0x04,0x60,0xA4,  /* 00000028    "97.p..`." */
-};
-
-/* Example OEM table */
-
-static unsigned char Oem1Code[] =
-{
-    0x4F,0x45,0x4D,0x31,0x38,0x00,0x00,0x00,  /* 00000000    "OEM18..." */
-    0x01,0x4B,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    ".KIntel." */
-    0x4D,0x61,0x6E,0x79,0x00,0x00,0x00,0x00,  /* 00000010    "Many...." */
-    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
-    0x18,0x09,0x03,0x20,0x08,0x5F,0x58,0x54,  /* 00000020    "... ._XT" */
-    0x32,0x0A,0x04,0x14,0x0C,0x5F,0x58,0x54,  /* 00000028    "2...._XT" */
-    0x31,0x00,0x70,0x01,0x5F,0x58,0x54,0x32,  /* 00000030    "1.p._XT2" */
-};
-
-/* ASL source for this table is at the end of this file */
-
-static unsigned char OemxCode[] =
-{
-    0x4F,0x45,0x4D,0x58,0xB0,0x00,0x00,0x00,  /* 00000000    "OEMX...." */
-    0x02,0x54,0x4D,0x79,0x4F,0x45,0x4D,0x00,  /* 00000008    ".TMyOEM." */
-    0x54,0x65,0x73,0x74,0x00,0x00,0x00,0x00,  /* 00000010    "Test...." */
-    0x32,0x04,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "2...INTL" */
-    0x31,0x03,0x10,0x20,0x14,0x1D,0x5F,0x49,  /* 00000020    "1.. .._I" */
-    0x4E,0x49,0x00,0x70,0x0D,0x54,0x61,0x62,  /* 00000028    "NI.p.Tab" */
-    0x6C,0x65,0x20,0x4F,0x45,0x4D,0x58,0x20,  /* 00000030    "le OEMX " */
-    0x72,0x75,0x6E,0x6E,0x69,0x6E,0x67,0x00,  /* 00000038    "running." */
-    0x5B,0x31,0x10,0x22,0x5C,0x5F,0x47,0x50,  /* 00000040    "[1."\_GP" */
-    0x45,0x14,0x06,0x5F,0x45,0x30,0x37,0x00,  /* 00000048    "E.._E07." */
-    0x14,0x06,0x5F,0x45,0x32,0x32,0x00,0x14,  /* 00000050    ".._E22.." */
-    0x06,0x5F,0x4C,0x33,0x31,0x00,0x14,0x06,  /* 00000058    "._L31..." */
-    0x5F,0x4C,0x36,0x36,0x00,0x5B,0x82,0x10,  /* 00000060    "_L66.[.." */
-    0x4F,0x45,0x4D,0x31,0x08,0x5F,0x50,0x52,  /* 00000068    "OEM1._PR" */
-    0x57,0x12,0x05,0x02,0x0A,0x07,0x00,0x5B,  /* 00000070    "W......[" */
-    0x82,0x10,0x4F,0x45,0x4D,0x32,0x08,0x5F,  /* 00000078    "..OEM2._" */
-    0x50,0x52,0x57,0x12,0x05,0x02,0x0A,0x66,  /* 00000080    "PRW....f" */
-    0x00,0x10,0x26,0x5C,0x47,0x50,0x45,0x32,  /* 00000088    "..&\GPE2" */
-    0x14,0x06,0x5F,0x4C,0x30,0x31,0x00,0x14,  /* 00000090    ".._L01.." */
-    0x06,0x5F,0x45,0x30,0x37,0x00,0x08,0x5F,  /* 00000098    "._E07.._" */
-    0x50,0x52,0x57,0x12,0x0C,0x02,0x12,0x08,  /* 000000A0    "PRW....." */
-    0x02,0x5C,0x47,0x50,0x45,0x32,0x01,0x00   /* 000000A8    ".\GPE2.." */
-};
-
-/*
- * Example installable control method
- *
- * DefinitionBlock ("", "DSDT", 2, "Intel", "MTHDTEST", 0x20090512)
- * {
- *     Method (\_SI_._T97, 1, Serialized)
- *     {
- *         Store ("Example installed method", Debug)
- *         Store (Arg0, Debug)
- *         Return ()
- *     }
- * }
- *
- * Compiled byte code below.
- */
-static unsigned char MethodCode[] =
-{
-    0x44,0x53,0x44,0x54,0x53,0x00,0x00,0x00,  /* 00000000    "DSDTS..." */
-    0x02,0xF9,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    "..Intel." */
-    0x4D,0x54,0x48,0x44,0x54,0x45,0x53,0x54,  /* 00000010    "MTHDTEST" */
-    0x12,0x05,0x09,0x20,0x49,0x4E,0x54,0x4C,  /* 00000018    "... INTL" */
-    0x22,0x04,0x09,0x20,0x14,0x2E,0x2E,0x5F,  /* 00000020    "".. ..._" */
-    0x54,0x49,0x5F,0x5F,0x54,0x39,0x37,0x09,  /* 00000028    "SI__T97." */
-    0x70,0x0D,0x45,0x78,0x61,0x6D,0x70,0x6C,  /* 00000030    "p.Exampl" */
-    0x65,0x20,0x69,0x6E,0x73,0x74,0x61,0x6C,  /* 00000038    "e instal" */
-    0x6C,0x65,0x64,0x20,0x6D,0x65,0x74,0x68,  /* 00000040    "led meth" */
-    0x6F,0x64,0x00,0x5B,0x31,0x70,0x68,0x5B,  /* 00000048    "od.[1ph[" */
-    0x31,0xA4,0x00,
-};
-
-
-/*
- * We need a local FADT so that the hardware subcomponent will function,
- * even though the underlying OSD HW access functions don't do
- * anything.
- */
 static ACPI_TABLE_HEADER        *DsdtToInstallOverride;
+
+/* Non-AML tables that are constructed locally and installed */
+
 static ACPI_TABLE_RSDP          LocalRSDP;
-static ACPI_TABLE_FADT          LocalFADT;
 static ACPI_TABLE_FACS          LocalFACS;
 static ACPI_TABLE_HEADER        LocalTEST;
 static ACPI_TABLE_HEADER        LocalBADTABLE;
-static ACPI_TABLE_RSDT          *LocalRSDT;
 
-#define BASE_RSDT_TABLES        7
-#define BASE_RSDT_SIZE          (sizeof (ACPI_TABLE_RSDT) + ((BASE_RSDT_TABLES -1) * sizeof (UINT32)))
+/*
+ * We need a local FADT so that the hardware subcomponent will function,
+ * even though the underlying OSD HW access functions don't do anything.
+ */
+static ACPI_TABLE_FADT          LocalFADT;
+
+/*
+ * Use XSDT so that both 32- and 64-bit versions of this utility will
+ * function automatically.
+ */
+static ACPI_TABLE_XSDT          *LocalXSDT;
+
+#define BASE_XSDT_TABLES        7
+#define BASE_XSDT_SIZE          (sizeof (ACPI_TABLE_XSDT) + \
+                                    ((BASE_XSDT_TABLES -1) * sizeof (UINT64)))
 
 #define ACPI_MAX_INIT_TABLES    (32)
 static ACPI_TABLE_DESC          Tables[ACPI_MAX_INIT_TABLES];
@@ -317,7 +201,7 @@ AeTableOverride (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Build a complete ACPI table chain, with a local RSDP, RSDT,
+ * DESCRIPTION: Build a complete ACPI table chain, with a local RSDP, XSDT,
  *              FADT, and several other test tables.
  *
  *****************************************************************************/
@@ -328,14 +212,14 @@ AeBuildLocalTables (
     AE_TABLE_DESC           *TableList)
 {
     ACPI_PHYSICAL_ADDRESS   DsdtAddress = 0;
-    UINT32                  RsdtSize;
+    UINT32                  XsdtSize;
     AE_TABLE_DESC           *NextTable;
     UINT32                  NextIndex;
     ACPI_TABLE_FADT         *ExternalFadt = NULL;
 
 
     /*
-     * Update the table count. For DSDT, it is not put into the RSDT. For
+     * Update the table count. For DSDT, it is not put into the XSDT. For
      * FADT, this is already accounted for since we usually install a
      * local FADT.
      */
@@ -350,48 +234,49 @@ AeBuildLocalTables (
         NextTable = NextTable->Next;
     }
 
-    RsdtSize = BASE_RSDT_SIZE + (TableCount * sizeof (UINT32));
+    XsdtSize = BASE_XSDT_SIZE + (TableCount * sizeof (UINT64));
 
-    /* Build an RSDT */
+    /* Build an XSDT */
 
-    LocalRSDT = AcpiOsAllocate (RsdtSize);
-    if (!LocalRSDT)
+    LocalXSDT = AcpiOsAllocate (XsdtSize);
+    if (!LocalXSDT)
     {
         return (AE_NO_MEMORY);
     }
 
-    ACPI_MEMSET (LocalRSDT, 0, RsdtSize);
-    ACPI_STRNCPY (LocalRSDT->Header.Signature, ACPI_SIG_RSDT, 4);
-    LocalRSDT->Header.Length = RsdtSize;
+    ACPI_MEMSET (LocalXSDT, 0, XsdtSize);
+    ACPI_STRNCPY (LocalXSDT->Header.Signature, ACPI_SIG_XSDT, 4);
+    LocalXSDT->Header.Length = XsdtSize;
+    LocalXSDT->Header.Revision = 1;
 
-    LocalRSDT->TableOffsetEntry[0] = ACPI_PTR_TO_PHYSADDR (&LocalTEST);
-    LocalRSDT->TableOffsetEntry[1] = ACPI_PTR_TO_PHYSADDR (&LocalBADTABLE);
-    LocalRSDT->TableOffsetEntry[2] = ACPI_PTR_TO_PHYSADDR (&LocalFADT);
+    LocalXSDT->TableOffsetEntry[0] = ACPI_PTR_TO_PHYSADDR (&LocalTEST);
+    LocalXSDT->TableOffsetEntry[1] = ACPI_PTR_TO_PHYSADDR (&LocalBADTABLE);
+    LocalXSDT->TableOffsetEntry[2] = ACPI_PTR_TO_PHYSADDR (&LocalFADT);
 
     /* Install two SSDTs to test multiple table support */
 
-    LocalRSDT->TableOffsetEntry[3] = ACPI_PTR_TO_PHYSADDR (&Ssdt1Code);
-    LocalRSDT->TableOffsetEntry[4] = ACPI_PTR_TO_PHYSADDR (&Ssdt2Code);
+    LocalXSDT->TableOffsetEntry[3] = ACPI_PTR_TO_PHYSADDR (&Ssdt1Code);
+    LocalXSDT->TableOffsetEntry[4] = ACPI_PTR_TO_PHYSADDR (&Ssdt2Code);
 
     /* Install the OEM1 table to test LoadTable */
 
-    LocalRSDT->TableOffsetEntry[5] = ACPI_PTR_TO_PHYSADDR (&Oem1Code);
+    LocalXSDT->TableOffsetEntry[5] = ACPI_PTR_TO_PHYSADDR (&Oem1Code);
 
     /* Install the OEMx table to test LoadTable */
 
-    LocalRSDT->TableOffsetEntry[6] = ACPI_PTR_TO_PHYSADDR (&OemxCode);
+    LocalXSDT->TableOffsetEntry[6] = ACPI_PTR_TO_PHYSADDR (&OemxCode);
 
     /*
      * Install the user tables. The DSDT must be installed in the FADT.
-     * All other tables are installed directly into the RSDT.
+     * All other tables are installed directly into the XSDT.
      */
-    NextIndex = BASE_RSDT_TABLES;
+    NextIndex = BASE_XSDT_TABLES;
     NextTable = TableList;
     while (NextTable)
     {
         /*
          * Incoming DSDT or FADT are special cases. All other tables are
-         * just immediately installed into the RSDT.
+         * just immediately installed into the XSDT.
          */
         if (ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_DSDT))
         {
@@ -409,13 +294,13 @@ AeBuildLocalTables (
         else if (ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_FADT))
         {
             ExternalFadt = ACPI_CAST_PTR (ACPI_TABLE_FADT, NextTable->Table);
-            LocalRSDT->TableOffsetEntry[2] = ACPI_PTR_TO_PHYSADDR (NextTable->Table);
+            LocalXSDT->TableOffsetEntry[2] = ACPI_PTR_TO_PHYSADDR (NextTable->Table);
         }
         else
         {
-            /* Install the table in the RSDT */
+            /* Install the table in the XSDT */
 
-            LocalRSDT->TableOffsetEntry[NextIndex] = ACPI_PTR_TO_PHYSADDR (NextTable->Table);
+            LocalXSDT->TableOffsetEntry[NextIndex] = ACPI_PTR_TO_PHYSADDR (NextTable->Table);
             NextIndex++;
         }
 
@@ -427,14 +312,14 @@ AeBuildLocalTables (
     ACPI_MEMSET (&LocalRSDP, 0, sizeof (ACPI_TABLE_RSDP));
     ACPI_MEMCPY (LocalRSDP.Signature, ACPI_SIG_RSDP, 8);
     ACPI_MEMCPY (LocalRSDP.OemId, "I_TEST", 6);
-    LocalRSDP.Revision = 1;
-    LocalRSDP.RsdtPhysicalAddress = ACPI_PTR_TO_PHYSADDR (LocalRSDT);
-    LocalRSDP.Length = sizeof (ACPI_TABLE_RSDT);
+    LocalRSDP.Revision = 2;
+    LocalRSDP.XsdtPhysicalAddress = ACPI_PTR_TO_PHYSADDR (LocalXSDT);
+    LocalRSDP.Length = sizeof (ACPI_TABLE_XSDT);
 
-    /* Set checksums for both RSDT and RSDP */
+    /* Set checksums for both XSDT and RSDP */
 
-    LocalRSDT->Header.Checksum = (UINT8) -AcpiTbChecksum (
-        (void *) LocalRSDT, LocalRSDT->Header.Length);
+    LocalXSDT->Header.Checksum = (UINT8) -AcpiTbChecksum (
+        (void *) LocalXSDT, LocalXSDT->Header.Length);
     LocalRSDP.Checksum = (UINT8) -AcpiTbChecksum (
         (void *) &LocalRSDP, ACPI_RSDP_CHECKSUM_LENGTH);
 
@@ -476,8 +361,8 @@ AeBuildLocalTables (
 
         /* Setup FADT header and DSDT/FACS addresses */
 
-        LocalFADT.Dsdt = DsdtAddress;
-        LocalFADT.Facs = ACPI_PTR_TO_PHYSADDR (&LocalFACS);
+        LocalFADT.Dsdt = 0;
+        LocalFADT.Facs = 0;
 
         LocalFADT.XDsdt = DsdtAddress;
         LocalFADT.XFacs = ACPI_PTR_TO_PHYSADDR (&LocalFACS);
@@ -528,8 +413,10 @@ AeBuildLocalTables (
     LocalFACS.Length = sizeof (ACPI_TABLE_FACS);
     LocalFACS.GlobalLock = 0x11AA0011;
 
-    /* Build a fake table [TEST] so that we make sure that the CA core ignores it */
-
+    /*
+     * Build a fake table [TEST] so that we make sure that the
+     * ACPICA core ignores it
+     */
     ACPI_MEMSET (&LocalTEST, 0, sizeof (ACPI_TABLE_HEADER));
     ACPI_STRNCPY (LocalTEST.Signature, "TEST", 4);
 
@@ -538,8 +425,10 @@ AeBuildLocalTables (
     LocalTEST.Checksum = (UINT8) -AcpiTbChecksum (
         (void *) &LocalTEST, LocalTEST.Length);
 
-    /* Build a fake table with a bad signature [BAD!] so that we make sure that the CA core ignores it */
-
+    /*
+     * Build a fake table with a bad signature [BAD!] so that we make
+     * sure that the ACPICA core ignores it
+     */
     ACPI_MEMSET (&LocalBADTABLE, 0, sizeof (ACPI_TABLE_HEADER));
     ACPI_STRNCPY (LocalBADTABLE.Signature, "BAD!", 4);
 
@@ -623,112 +512,3 @@ AeLocalGetRootPointer (
 
     return ((ACPI_PHYSICAL_ADDRESS) &LocalRSDP);
 }
-
-
-#if 0
-/******************************************************************************
- *
- * DESCRIPTION: ASL tables that are used in RSDT/XSDT, also used to test
- *              Load/LoadTable operators.
- *
- *****************************************************************************/
-
-DefinitionBlock ("", "OEMX", 2, "MyOEM", "Test", 0x00000432)
-{
-    External (GPE2, DeviceObj)
-
-    Method (_INI)
-    {
-        Store ("Table OEMX running", Debug)
-    }
-
-    Scope (\_GPE)
-    {
-        Method (_E07) {}
-        Method (_E22) {}
-        Method (_L31) {}
-        Method (_L66) {}
-    }
-
-    Device (OEM1)
-    {
-        Name (_PRW, Package(){7,0})
-    }
-    Device (OEM2)
-    {
-        Name (_PRW, Package(){0x66,0})
-    }
-
-    Scope (\GPE2)
-    {
-        Method (_L01) {}
-        Method (_E07) {}
-
-        Name (_PRW, Package() {Package() {\GPE2, 1}, 0})
-    }
-}
-
-/* Parent gr.asl file */
-
-DefinitionBlock ("", "DSDT", 2, "Intel", "Many", 0x00000001)
-{
-    Name (BUF1, Buffer()
-    {
-        0x4F,0x45,0x4D,0x58,0xB0,0x00,0x00,0x00,  /* 00000000    "OEMX...." */
-        0x02,0x54,0x4D,0x79,0x4F,0x45,0x4D,0x00,  /* 00000008    ".TMyOEM." */
-        0x54,0x65,0x73,0x74,0x00,0x00,0x00,0x00,  /* 00000010    "Test...." */
-        0x32,0x04,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "2...INTL" */
-        0x31,0x03,0x10,0x20,0x14,0x1D,0x5F,0x49,  /* 00000020    "1.. .._I" */
-        0x4E,0x49,0x00,0x70,0x0D,0x54,0x61,0x62,  /* 00000028    "NI.p.Tab" */
-        0x6C,0x65,0x20,0x4F,0x45,0x4D,0x58,0x20,  /* 00000030    "le OEMX " */
-        0x72,0x75,0x6E,0x6E,0x69,0x6E,0x67,0x00,  /* 00000038    "running." */
-        0x5B,0x31,0x10,0x22,0x5C,0x5F,0x47,0x50,  /* 00000040    "[1."\_GP" */
-        0x45,0x14,0x06,0x5F,0x45,0x30,0x37,0x00,  /* 00000048    "E.._E07." */
-        0x14,0x06,0x5F,0x45,0x32,0x32,0x00,0x14,  /* 00000050    ".._E22.." */
-        0x06,0x5F,0x4C,0x33,0x31,0x00,0x14,0x06,  /* 00000058    "._L31..." */
-        0x5F,0x4C,0x36,0x36,0x00,0x5B,0x82,0x10,  /* 00000060    "_L66.[.." */
-        0x4F,0x45,0x4D,0x31,0x08,0x5F,0x50,0x52,  /* 00000068    "OEM1._PR" */
-        0x57,0x12,0x05,0x02,0x0A,0x07,0x00,0x5B,  /* 00000070    "W......[" */
-        0x82,0x10,0x4F,0x45,0x4D,0x32,0x08,0x5F,  /* 00000078    "..OEM2._" */
-        0x50,0x52,0x57,0x12,0x05,0x02,0x0A,0x66,  /* 00000080    "PRW....f" */
-        0x00,0x10,0x26,0x5C,0x47,0x50,0x45,0x32,  /* 00000088    "..&\GPE2" */
-        0x14,0x06,0x5F,0x4C,0x30,0x31,0x00,0x14,  /* 00000090    ".._L01.." */
-        0x06,0x5F,0x45,0x30,0x37,0x00,0x08,0x5F,  /* 00000098    "._E07.._" */
-        0x50,0x52,0x57,0x12,0x0C,0x02,0x12,0x08,  /* 000000A0    "PRW....." */
-        0x02,0x5C,0x47,0x50,0x45,0x32,0x01,0x00   /* 000000A8    ".\GPE2.." */
-    })
-
-    Name (HNDL, 0)
-    Method (LD)
-    {
-        Load (BUF1, HNDL)
-        Store ("Load operator, handle:", Debug)
-        Store (HNDL, Debug)
-    }
-
-    Method (MAIN, 0, NotSerialized)
-    {
-        Store ("Loading OEMX table", Debug)
-        Store (LoadTable ("OEMX", "MyOEM", "Test"), Debug)
-    }
-
-    Scope (\_GPE)
-    {
-        Method (_L08) {}
-        Method (_E08) {}
-        Method (_L0B) {}
-    }
-
-    Device (DEV0)
-    {
-        Name (_PRW, Package() {0x11, 0})
-    }
-
-    Device (\GPE2)
-    {
-        Method (_L00) {}
-    }
-}
-
-#endif
-

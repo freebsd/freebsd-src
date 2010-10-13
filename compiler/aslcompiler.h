@@ -147,6 +147,7 @@
 
 #include "asldefine.h"
 #include "asltypes.h"
+#include "aslmessages.h"
 #include "aslglobal.h"
 
 
@@ -795,7 +796,8 @@ RsSmallAddressCheck (
     ACPI_PARSE_OBJECT       *MinOp,
     ACPI_PARSE_OBJECT       *MaxOp,
     ACPI_PARSE_OBJECT       *LengthOp,
-    ACPI_PARSE_OBJECT       *AlignOp);
+    ACPI_PARSE_OBJECT       *AlignOp,
+    ACPI_PARSE_OBJECT       *Op);
 
 void
 RsLargeAddressCheck (
@@ -807,7 +809,8 @@ RsLargeAddressCheck (
     ACPI_PARSE_OBJECT       *MinOp,
     ACPI_PARSE_OBJECT       *MaxOp,
     ACPI_PARSE_OBJECT       *LengthOp,
-    ACPI_PARSE_OBJECT       *GranOp);
+    ACPI_PARSE_OBJECT       *GranOp,
+    ACPI_PARSE_OBJECT       *Op);
 
 UINT16
 RsGetStringDataLength (
