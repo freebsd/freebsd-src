@@ -104,8 +104,8 @@ int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 EditLine *el;			/* cookie for editline package */
 
-STATIC void pushfile(void);
-STATIC int preadfd(void);
+static void pushfile(void);
+static int preadfd(void);
 
 #ifdef mkinit
 INCLUDE "input.h"
@@ -169,7 +169,7 @@ pgetc(void)
 }
 
 
-STATIC int
+static int
 preadfd(void)
 {
 	int nr;
@@ -468,7 +468,7 @@ setinputstring(char *string, int push)
  * adds a new entry to the stack and popfile restores the previous level.
  */
 
-STATIC void
+static void
 pushfile(void)
 {
 	struct parsefile *pf;
