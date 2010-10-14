@@ -66,11 +66,12 @@ do {									\
 } while (0)
 
 #define	mod_timer(timer, expire)					\
-	callout_reset(&(timer)->timer_callout, (expire), _timer_fn, (timer))
+	callout_reset(&(timer)->timer_callout, (expire) - jiffies,	\
+	    _timer_fn, (timer))
 
 #define	add_timer(timer)						\
 	callout_reset(&(timer)->timer_callout,				\
-	    (timer)->timer_callout.c_time, _timer_fn, (timer))
+	    (timer)->timer_callout.c_time - jiffies, _timer_fn, (timer))
 
 #define	del_timer(timer)	callout_stop(&(timer)->timer_callout)
 #define	del_timer_sync(timer)	callout_drain(&(timer)->timer_callout)
