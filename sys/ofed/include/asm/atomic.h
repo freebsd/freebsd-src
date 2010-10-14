@@ -46,13 +46,13 @@ typedef struct {
 #define	atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)
 #define	atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
 
-static inline u_int
+static inline int
 atomic_add_return(int i, atomic_t *v)
 {
 	return i + atomic_fetchadd_int(&v->counter, i);
 }
 
-static inline u_int
+static inline int
 atomic_sub_return(int i, atomic_t *v)
 {
 	return atomic_fetchadd_int(&v->counter, -i) - i;
