@@ -2019,7 +2019,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	struct tcphdr *tcp;
 	bus_dma_segment_t txsegs[ALC_MAXTXSEGS];
 	bus_dmamap_t map;
-	uint32_t cflags, hdrlen, poff, vtag;
+	uint32_t cflags, hdrlen, ip_off, poff, vtag;
 	int error, idx, nsegs, prod;
 
 	ALC_LOCK_ASSERT(sc);
@@ -2029,7 +2029,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	m = *m_head;
 	ip = NULL;
 	tcp = NULL;
-	poff = 0;
+	ip_off = poff = 0;
 	if ((m->m_pkthdr.csum_flags & (ALC_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
 		 * AR813x/AR815x requires offset of TCP/UDP header in its
@@ -2039,6 +2039,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 		 * cycles on FreeBSD so fast host CPU is required to get
 		 * smooth TSO performance.
 		 */
+		struct ether_header *eh;
 
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
@@ -2052,15 +2053,32 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 			*m_head = m;
 		}
 
-		m = m_pullup(m, sizeof(struct ether_header) +
-		    sizeof(struct ip));
+		ip_off = sizeof(struct ether_header);
+		m = m_pullup(m, ip_off);
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
-		ip = (struct ip *)(mtod(m, char *) +
-		    sizeof(struct ether_header));
-		poff = sizeof(struct ether_header) + (ip->ip_hl << 2);
+		eh = mtod(m, struct ether_header *);
+		/*
+		 * Check if hardware VLAN insertion is off.
+		 * Additional check for LLC/SNAP frame?
+		 */
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			ip_off = sizeof(struct ether_vlan_header);
+			m = m_pullup(m, ip_off);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+		}
+		m = m_pullup(m, ip_off + sizeof(struct ip));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
+		poff = ip_off + (ip->ip_hl << 2);
 		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 			m = m_pullup(m, poff + sizeof(struct tcphdr));
 			if (m == NULL) {
