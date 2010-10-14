@@ -466,6 +466,7 @@ sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, const sigset_t *set)
 	SIGSETNAND(src->sq_signals, tmp);
 }
 
+#if 0
 static void
 sigqueue_move(sigqueue_t *src, sigqueue_t *dst, int signo)
 {
@@ -475,6 +476,7 @@ sigqueue_move(sigqueue_t *src, sigqueue_t *dst, int signo)
 	SIGADDSET(set, signo);
 	sigqueue_move_set(src, dst, &set);
 }
+#endif
 
 static void
 sigqueue_delete_set(sigqueue_t *sq, const sigset_t *set)
@@ -973,7 +975,6 @@ kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
 		*oset = td->td_sigmask;
 
 	error = 0;
-	SIGEMPTYSET(new_block);
 	if (set != NULL) {
 		switch (how) {
 		case SIG_BLOCK:
@@ -986,7 +987,7 @@ kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
 		case SIG_UNBLOCK:
 			SIGSETNAND(td->td_sigmask, *set);
 			signotify(td);
-			break;
+			goto out;
 		case SIG_SETMASK:
 			SIG_CANTMASK(*set);
 			oset1 = td->td_sigmask;
@@ -1000,22 +1001,23 @@ kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
 			break;
 		default:
 			error = EINVAL;
-			break;
+			goto out;
 		}
+
+		/*
+		 * The new_block set contains signals that were not previously
+		 * blocked, but are blocked now.
+		 *
+		 * In case we block any signal that was not previously blocked
+		 * for td, and process has the signal pending, try to schedule
+		 * signal delivery to some thread that does not block the
+		 * signal, possibly waking it up.
+		 */
+		if (p->p_numthreads != 1)
+			reschedule_signals(p, new_block, flags);
 	}
 
-	/*
-	 * The new_block set contains signals that were not previously
-	 * blocked, but are blocked now.
-	 *
-	 * In case we block any signal that was not previously blocked
-	 * for td, and process has the signal pending, try to schedule
-	 * signal delivery to some thread that does not block the signal,
-	 * possibly waking it up.
-	 */
-	if (p->p_numthreads != 1)
-		reschedule_signals(p, new_block, flags);
-
+out:
 	if (!(flags & SIGPROCMASK_PROC_LOCKED))
 		PROC_UNLOCK(p);
 	return (error);
@@ -1161,23 +1163,18 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 	struct timespec *timeout)
 {
 	struct sigacts *ps;
-	sigset_t savedmask;
+	sigset_t saved_mask, new_block;
 	struct proc *p;
-	int error, sig, hz, i, timevalid = 0;
+	int error, sig, timo, timevalid = 0;
 	struct timespec rts, ets, ts;
 	struct timeval tv;
 
 	p = td->td_proc;
 	error = 0;
-	sig = 0;
 	ets.tv_sec = 0;
 	ets.tv_nsec = 0;
-	SIG_CANTMASK(waitset);
 
-	PROC_LOCK(p);
-	ps = p->p_sigacts;
-	savedmask = td->td_sigmask;
-	if (timeout) {
+	if (timeout != NULL) {
 		if (timeout->tv_nsec >= 0 && timeout->tv_nsec < 1000000000) {
 			timevalid = 1;
 			getnanouptime(&rts);
@@ -1185,89 +1182,78 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 			timespecadd(&ets, timeout);
 		}
 	}
-
-restart:
-	for (i = 1; i <= _SIG_MAXSIG; ++i) {
-		if (!SIGISMEMBER(waitset, i))
-			continue;
-		if (!SIGISMEMBER(td->td_sigqueue.sq_signals, i)) {
-			if (SIGISMEMBER(p->p_sigqueue.sq_signals, i)) {
-				sigqueue_move(&p->p_sigqueue,
-					&td->td_sigqueue, i);
-			} else
-				continue;
-		}
-
-		SIGFILLSET(td->td_sigmask);
-		SIG_CANTMASK(td->td_sigmask);
-		SIGDELSET(td->td_sigmask, i);
+	ksiginfo_init(ksi);
+	/* Some signals can not be waited for. */
+	SIG_CANTMASK(waitset);
+	ps = p->p_sigacts;
+	PROC_LOCK(p);
+	saved_mask = td->td_sigmask;
+	SIGSETNAND(td->td_sigmask, waitset);
+	for (;;) {
 		mtx_lock(&ps->ps_mtx);
 		sig = cursig(td, SIG_STOP_ALLOWED);
 		mtx_unlock(&ps->ps_mtx);
-		if (sig)
-			goto out;
-		else {
-			/*
-			 * Because cursig() may have stopped current thread,
-			 * after it is resumed, things may have already been 
-			 * changed, it should rescan any pending signals.
-			 */
-			goto restart;
+		if (sig != 0 && SIGISMEMBER(waitset, sig)) {
+			if (sigqueue_get(&td->td_sigqueue, sig, ksi) != 0 ||
+		    	    sigqueue_get(&p->p_sigqueue, sig, ksi) != 0) {
+				error = 0;
+				break;
+			}
+		}
+
+		if (error != 0)
+			break;
+
+		/*
+		 * POSIX says this must be checked after looking for pending
+		 * signals.
+		 */
+		if (timeout != NULL) {
+			if (!timevalid) {
+				error = EINVAL;
+				break;
+			}
+			getnanouptime(&rts);
+			if (timespeccmp(&rts, &ets, >=)) {
+				error = EAGAIN;
+				break;
+			}
+			ts = ets;
+			timespecsub(&ts, &rts);
+			TIMESPEC_TO_TIMEVAL(&tv, &ts);
+			timo = tvtohz(&tv);
+		} else {
+			timo = 0;
+		}
+
+		error = msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", timo);
+
+		if (timeout != NULL) {
+			if (error == ERESTART) {
+				/* Timeout can not be restarted. */
+				error = EINTR;
+			} else if (error == EAGAIN) {
+				/* We will calculate timeout by ourself. */
+				error = 0;
+			}
 		}
 	}
 
-	if (error)
-		goto out;
-
+	new_block = saved_mask;
+	SIGSETNAND(new_block, td->td_sigmask);
+	td->td_sigmask = saved_mask;
 	/*
-	 * POSIX says this must be checked after looking for pending
-	 * signals.
+	 * Fewer signals can be delivered to us, reschedule signal
+	 * notification.
 	 */
-	if (timeout) {
-		if (!timevalid) {
-			error = EINVAL;
-			goto out;
-		}
-		getnanouptime(&rts);
-		if (timespeccmp(&rts, &ets, >=)) {
-			error = EAGAIN;
-			goto out;
-		}
-		ts = ets;
-		timespecsub(&ts, &rts);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts);
-		hz = tvtohz(&tv);
-	} else
-		hz = 0;
+	if (p->p_numthreads != 1)
+		reschedule_signals(p, new_block, 0);
 
-	td->td_sigmask = savedmask;
-	SIGSETNAND(td->td_sigmask, waitset);
-	signotify(td);
-	error = msleep(&ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", hz);
-	if (timeout) {
-		if (error == ERESTART) {
-			/* timeout can not be restarted. */
-			error = EINTR;
-		} else if (error == EAGAIN) {
-			/* will calculate timeout by ourself. */
-			error = 0;
-		}
-	}
-	goto restart;
-
-out:
-	td->td_sigmask = savedmask;
-	signotify(td);
-	if (sig) {
-		ksiginfo_init(ksi);
-		sigqueue_get(&td->td_sigqueue, sig, ksi);
-		ksi->ksi_signo = sig;
-
+	if (error == 0) {
 		SDT_PROBE(proc, kernel, , signal_clear, sig, ksi, 0, 0, 0);
 		
 		if (ksi->ksi_code == SI_TIMER)
 			itimer_accept(p, ksi->ksi_timerid, ksi);
-		error = 0;
 
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_PSIG)) {
@@ -2427,25 +2413,22 @@ reschedule_signals(struct proc *p, sigset_t block, int flags)
 {
 	struct sigacts *ps;
 	struct thread *td;
-	int i;
+	int sig;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-
+	if (SIGISEMPTY(p->p_siglist))
+		return;
 	ps = p->p_sigacts;
-	for (i = 1; !SIGISEMPTY(block); i++) {
-		if (!SIGISMEMBER(block, i))
-			continue;
-		SIGDELSET(block, i);
-		if (!SIGISMEMBER(p->p_siglist, i))
-			continue;
-
-		td = sigtd(p, i, 0);
+	SIGSETAND(block, p->p_siglist);
+	while ((sig = sig_ffs(&block)) != 0) {
+		SIGDELSET(block, sig);
+		td = sigtd(p, sig, 0);
 		signotify(td);
 		if (!(flags & SIGPROCMASK_PS_LOCKED))
 			mtx_lock(&ps->ps_mtx);
-		if (p->p_flag & P_TRACED || SIGISMEMBER(ps->ps_sigcatch, i))
-			tdsigwakeup(td, i, SIG_CATCH,
-			    (SIGISMEMBER(ps->ps_sigintr, i) ? EINTR :
+		if (p->p_flag & P_TRACED || SIGISMEMBER(ps->ps_sigcatch, sig))
+			tdsigwakeup(td, sig, SIG_CATCH,
+			    (SIGISMEMBER(ps->ps_sigintr, sig) ? EINTR :
 			     ERESTART));
 		if (!(flags & SIGPROCMASK_PS_LOCKED))
 			mtx_unlock(&ps->ps_mtx);
