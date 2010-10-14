@@ -93,8 +93,6 @@ __FBSDID("$FreeBSD$");
 #define	PCI_EHCI_VENDORID_NVIDIA2	0x10DE
 #define	PCI_EHCI_VENDORID_VIA		0x1106
 
-#define	PCI_EHCI_BASE_REG	0x10
-
 static void ehci_pci_takecontroller(device_t self);
 
 static device_probe_t ehci_pci_probe;
