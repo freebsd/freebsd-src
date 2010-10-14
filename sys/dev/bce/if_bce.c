@@ -6736,6 +6736,7 @@ bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
 		}
 
 		/* Get the TCP header length in bytes (min 20) */
+		ip = (struct ip *)(m->m_data + sizeof(struct ether_header));
 		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
 		tcp_hlen = (th->th_off << 2);
 
@@ -6748,6 +6749,7 @@ bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
 		}
 
 		/* IP header length and checksum will be calc'd by hardware */
+		ip = (struct ip *)(m->m_data + sizeof(struct ether_header));
 		ip_len = ip->ip_len;
 		ip->ip_len = 0;
 		ip->ip_sum = 0;
