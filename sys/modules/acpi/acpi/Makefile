@@ -108,18 +108,22 @@ CFLAGS+=-DSMP
 SRCS+=	acpi_switch.S acpi_wakedata.h
 CLEANFILES+=	acpi_wakedata.h
 ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
+NORMAL_S=	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+NM?=		nm
 acpi_switch.o:	acpi_switch.S
-	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+	${NORMAL_S}
 acpi_wakecode.o: acpi_wakecode.S assym.s
-	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+	${NORMAL_S}
 acpi_wakecode.bin: acpi_wakecode.o
 	objcopy -S -O binary acpi_wakecode.o ${.TARGET}
 acpi_wakecode.h: acpi_wakecode.bin
 	file2c -sx 'static char wakecode[] = {' '};' < acpi_wakecode.bin > \
 	    ${.TARGET}
 acpi_wakedata.h: acpi_wakecode.o
-	nm -n --defined-only ${.ALLSRC} | while read offset dummy what; do \
-	    echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}
+	${NM} -n --defined-only acpi_wakecode.o | \
+	    while read offset dummy what; do \
+	    echo "#define	$${what}	0x$${offset}"; \
+	    done > ${.TARGET}
 .else
 acpi_wakecode.h: acpi_wakecode.S assym.s
 	${MAKE} -f ${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica/Makefile \

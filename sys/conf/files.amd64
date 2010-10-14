@@ -87,7 +87,7 @@ acpi_wakecode.h			optional	acpi			\
 	clean		"acpi_wakecode.h"
 acpi_wakedata.h			optional	acpi			\
 	dependency	"acpi_wakecode.o"				\
-	compile-with	'nm -n --defined-only acpi_wakecode.o | while read offset dummy what; do echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}' \
+	compile-with	'${NM} -n --defined-only acpi_wakecode.o | while read offset dummy what; do echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}' \
 	no-obj no-implicit-rule	before-depend				\
 	clean		"acpi_wakedata.h"
 #
