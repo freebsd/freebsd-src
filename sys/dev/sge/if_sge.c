@@ -1457,7 +1457,9 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 		 * Reset IP checksum and recompute TCP pseudo
 		 * checksum that NDIS specification requires.
 		 */
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
 		ip->ip_sum = 0;
+		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 		tcp->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons(IPPROTO_TCP));
 		*m_head = m;

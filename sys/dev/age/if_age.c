@@ -1565,6 +1565,7 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
 			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 			/*
 			 * L1 requires IP/TCP header size and offset as
