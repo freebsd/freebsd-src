@@ -3318,7 +3318,7 @@ ehci_roothub_exec(struct usb_device *udev,
 			err = USB_ERR_IOERROR;
 			goto done;
 		}
-		v = EOREAD4(sc, EHCI_HCSPARAMS);
+		v = EREAD4(sc, EHCI_HCSPARAMS);
 
 		sc->sc_hub_desc.hubd = ehci_hubd;
 		sc->sc_hub_desc.hubd.bNbrPorts = sc->sc_noport;
