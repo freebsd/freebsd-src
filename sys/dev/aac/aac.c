@@ -1129,6 +1129,11 @@ aac_complete(void *context, int pending)
 			AAC_PRINT_FIB(sc, fib);
 			break;
 		}
+		if ((cm->cm_flags & AAC_CMD_TIMEDOUT) != 0)
+			device_printf(sc->aac_dev,
+			    "COMMAND %p COMPLETED AFTER %d SECONDS\n",
+			    cm, (int)(time_uptime-cm->cm_timestamp));
+
 		aac_remove_busy(cm);
 
  		aac_unmap_command(cm);
@@ -2348,7 +2353,7 @@ aac_timeout(struct aac_softc *sc)
 	deadline = time_uptime - AAC_CMD_TIMEOUT;
 	TAILQ_FOREACH(cm, &sc->aac_busy, cm_link) {
 		if ((cm->cm_timestamp  < deadline)
-			/* && !(cm->cm_flags & AAC_CMD_TIMEDOUT) */) {
+		    && !(cm->cm_flags & AAC_CMD_TIMEDOUT)) {
 			cm->cm_flags |= AAC_CMD_TIMEDOUT;
 			device_printf(sc->aac_dev,
 			    "COMMAND %p (TYPE %d) TIMEOUT AFTER %d SECONDS\n",
