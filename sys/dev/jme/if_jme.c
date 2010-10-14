@@ -1657,11 +1657,12 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
-		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 		/*
 		 * Reset IP checksum and recompute TCP pseudo
 		 * checksum that NDIS specification requires.
 		 */
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
+		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 		ip->ip_sum = 0;
 		if (poff + (tcp->th_off << 2) == m->m_pkthdr.len) {
 			tcp->th_sum = in_pseudo(ip->ip_src.s_addr,
