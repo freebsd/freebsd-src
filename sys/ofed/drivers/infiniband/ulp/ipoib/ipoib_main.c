@@ -46,6 +46,8 @@ static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
 #include <linux/vmalloc.h>
 
 #include <linux/if_arp.h>	/* For ARPHRD_xxx */
+#include <net/ip.h>
+#include <net/ipv6.h>
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
@@ -95,7 +97,8 @@ static struct ib_client ipoib_client = {
 	.remove = ipoib_remove_one
 };
 
-int ipoib_open(struct ifnet *dev)
+int
+ipoib_open(struct ifnet *dev)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 
@@ -154,10 +157,12 @@ ipoib_init(void *arg)
 	dev = priv->dev;
 	if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		ipoib_open(dev);
+	queue_work(ipoib_workqueue, &priv->flush_light);
 }
 
 
-static int ipoib_stop(struct ifnet *dev)
+static int
+ipoib_stop(struct ifnet *dev)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 
@@ -192,7 +197,8 @@ static int ipoib_stop(struct ifnet *dev)
 	return 0;
 }
 
-static int ipoib_change_mtu(struct ifnet *dev, int new_mtu)
+static int
+ipoib_change_mtu(struct ifnet *dev, int new_mtu)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 
@@ -224,6 +230,7 @@ static int ipoib_change_mtu(struct ifnet *dev, int new_mtu)
 static int
 ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
+	struct ipoib_dev_priv *priv = ifp->if_softc;
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0;
@@ -239,9 +246,8 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			/* XXX Update multicast info. */
-		}
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			queue_work(ipoib_workqueue, &priv->restart_task);
 		break;
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
@@ -283,7 +289,8 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 
-static struct ipoib_path *__path_find(struct ifnet *dev, void *gid)
+static struct ipoib_path *
+__path_find(struct ifnet *dev, void *gid)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct rb_node *n = priv->path_tree.rb_node;
@@ -307,7 +314,8 @@ static struct ipoib_path *__path_find(struct ifnet *dev, void *gid)
 	return NULL;
 }
 
-static int __path_add(struct ifnet *dev, struct ipoib_path *path)
+static int
+__path_add(struct ifnet *dev, struct ipoib_path *path)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct rb_node **n = &priv->path_tree.rb_node;
@@ -337,7 +345,8 @@ static int __path_add(struct ifnet *dev, struct ipoib_path *path)
 	return 0;
 }
 
-static void path_free(struct ifnet *dev, struct ipoib_path *path)
+void
+ipoib_path_free(struct ifnet *dev, struct ipoib_path *path)
 {
 
 	_IF_DRAIN(&path->queue);
@@ -352,7 +361,8 @@ static void path_free(struct ifnet *dev, struct ipoib_path *path)
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 
-struct ipoib_path_iter *ipoib_path_iter_init(struct ifnet *dev)
+struct ipoib_path_iter *
+ipoib_path_iter_init(struct ifnet *dev)
 {
 	struct ipoib_path_iter *iter;
 
@@ -371,7 +381,8 @@ struct ipoib_path_iter *ipoib_path_iter_init(struct ifnet *dev)
 	return iter;
 }
 
-int ipoib_path_iter_next(struct ipoib_path_iter *iter)
+int
+ipoib_path_iter_next(struct ipoib_path_iter *iter)
 {
 	struct ipoib_dev_priv *priv = iter->dev->if_softc;
 	struct rb_node *n;
@@ -400,15 +411,16 @@ int ipoib_path_iter_next(struct ipoib_path_iter *iter)
 	return ret;
 }
 
-void ipoib_path_iter_read(struct ipoib_path_iter *iter,
-			  struct ipoib_path *path)
+void
+ipoib_path_iter_read(struct ipoib_path_iter *iter, struct ipoib_path *path)
 {
 	*path = iter->path;
 }
 
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */
 
-void ipoib_mark_paths_invalid(struct ifnet *dev)
+void
+ipoib_mark_paths_invalid(struct ifnet *dev)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path, *tp;
@@ -425,7 +437,8 @@ void ipoib_mark_paths_invalid(struct ifnet *dev)
 	spin_unlock_irq(&priv->lock);
 }
 
-void ipoib_flush_paths(struct ifnet *dev)
+void
+ipoib_flush_paths(struct ifnet *dev)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path, *tp;
@@ -444,16 +457,15 @@ void ipoib_flush_paths(struct ifnet *dev)
 			ib_sa_cancel_query(path->query_id, path->query);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		wait_for_completion(&path->done);
-		path_free(dev, path);
+		ipoib_path_free(dev, path);
 		spin_lock_irqsave(&priv->lock, flags);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static void path_rec_completion(int status,
-				struct ib_sa_path_rec *pathrec,
-				void *path_ptr)
+static void
+path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 {
 	struct ipoib_path *path = path_ptr;
 	struct ifnet *dev = path->dev;
@@ -498,7 +510,7 @@ static void path_rec_completion(int status,
 			_IF_ENQUEUE(&mbqueue, mb);
 		}
 
-#if 0 /* XXX */
+#ifdef CONFIG_INFINIBAND_IPOIB_CM
 		if (ipoib_cm_enabled(dev, path->hwaddr) && !ipoib_cm_get(path))
 			ipoib_cm_set(path, ipoib_cm_create_tx(dev, path));
 #endif
@@ -525,7 +537,8 @@ static void path_rec_completion(int status,
 	}
 }
 
-static struct ipoib_path *path_rec_create(struct ifnet *dev, void *gid)
+static struct ipoib_path *
+path_rec_create(struct ifnet *dev, uint8_t *hwaddr)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path;
@@ -541,7 +554,10 @@ static struct ipoib_path *path_rec_create(struct ifnet *dev, void *gid)
 
 	bzero(&path->queue, sizeof(path->queue));
 
-	memcpy(path->pathrec.dgid.raw, gid, sizeof (union ib_gid));
+#ifdef CONFIG_INFINIBAND_IPOIB_CM
+	memcpy(&path->hwaddr, hwaddr, INFINIBAND_ALEN);
+#endif
+	memcpy(path->pathrec.dgid.raw, &hwaddr[4], sizeof (union ib_gid));
 	path->pathrec.sgid	    = priv->local_gid;
 	path->pathrec.pkey	    = cpu_to_be16(priv->pkey);
 	path->pathrec.numb_path     = 1;
@@ -550,8 +566,8 @@ static struct ipoib_path *path_rec_create(struct ifnet *dev, void *gid)
 	return path;
 }
 
-static int path_rec_start(struct ifnet *dev,
-			  struct ipoib_path *path)
+static int
+path_rec_start(struct ifnet *dev, struct ipoib_path *path)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	ib_sa_comp_mask comp_mask = IB_SA_PATH_REC_MTU_SELECTOR | IB_SA_PATH_REC_MTU;
@@ -608,20 +624,17 @@ static int path_rec_start(struct ifnet *dev,
 }
 
 static void
-unicast_send(struct mbuf *mb, struct ifnet *dev, struct ipoib_header *eh)
+ipoib_unicast_send(struct mbuf *mb, struct ifnet *dev, struct ipoib_header *eh)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_path *path;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
 
 	path = __path_find(dev, eh->hwaddr + 4);
 	if (!path || !path->valid) {
 		int new_path = 0;
 
 		if (!path) {
-			path = path_rec_create(dev, eh->hwaddr + 4);
+			path = path_rec_create(dev, eh->hwaddr);
 			new_path = 1;
 		}
 		if (path) {
@@ -629,16 +642,15 @@ unicast_send(struct mbuf *mb, struct ifnet *dev, struct ipoib_header *eh)
 			if (!path->query && path_rec_start(dev, path)) {
 				spin_unlock_irqrestore(&priv->lock, flags);
 				if (new_path)
-					path_free(dev, path);
+					ipoib_path_free(dev, path);
 				return;
 			} else
 				__path_add(dev, path);
 		} else {
 			++dev->if_oerrors;
-			m_free(mb);
+			m_freem(mb);
 		}
 
-		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
 	}
 
@@ -651,10 +663,8 @@ unicast_send(struct mbuf *mb, struct ifnet *dev, struct ipoib_header *eh)
 		_IF_ENQUEUE(&path->queue, mb);
 	} else {
 		++dev->if_oerrors;
-		m_free(mb);
+		m_freem(mb);
 	}
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int
@@ -665,14 +675,14 @@ ipoib_send_one(struct ifnet *dev, struct mbuf *mb)
 
 	eh = mtod(mb, struct ipoib_header *);
 	if (IPOIB_IS_MULTICAST(eh->hwaddr)) {
-		/* Add in the P_Key for multicast*/
 		priv = dev->if_softc;
+		/* Add in the P_Key for multicast*/
 		eh->hwaddr[8] = (priv->pkey >> 8) & 0xff;
 		eh->hwaddr[9] = priv->pkey & 0xff;
 
 		ipoib_mcast_send(dev, eh->hwaddr + 4, mb);
 	} else
-		unicast_send(mb, dev, eh);
+		ipoib_unicast_send(mb, dev, eh);
 
 	return 0;
 }
@@ -680,55 +690,29 @@ ipoib_send_one(struct ifnet *dev, struct mbuf *mb)
 static void
 ipoib_start(struct ifnet *dev)
 {
+	struct ipoib_dev_priv *priv;
 	struct mbuf *mb;
 
 	if ((dev->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
-	while (!IFQ_DRV_IS_EMPTY(&dev->if_snd)) {
+	priv = dev->if_softc;
+	spin_lock(&priv->lock);
+	while (!IFQ_DRV_IS_EMPTY(&dev->if_snd) &&
+	    (dev->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 		IFQ_DRV_DEQUEUE(&dev->if_snd, mb);
 		if (mb == NULL)
 			break;
 
-		ipoib_send_one(dev, mb);
-#if 0 /* XXX */
-			dev->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_DRV_PREPEND(&dev->if_snd, m_head);
-			break;
-#endif
 		BPF_MTAP(dev, mb);
+		ipoib_send_one(dev, mb);
 	}
+	spin_unlock(&priv->lock);
 }
 
-
-#if 0 /* XXX */
-static void ipoib_timeout(struct ifnet *dev)
-{
-	struct ipoib_dev_priv *priv = dev->if_softc;
-
-	ipoib_warn(priv, "transmit timeout: latency %d msecs\n",
-		   jiffies_to_msecs(jiffies - dev->trans_start));
-	ipoib_warn(priv, "queue stopped %d, tx_head %u, tx_tail %u\n",
-		   netif_queue_stopped(dev),
-		   priv->tx_head, priv->tx_tail);
-	/* XXX reset QP, etc. */
-}
-
-static void ipoib_set_mcast_list(struct ifnet *dev)
-{
-	struct ipoib_dev_priv *priv = dev->if_softc;
-
-	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags)) {
-		ipoib_dbg(priv, "IPOIB_FLAG_OPER_UP not set");
-		return;
-	}
-
-	queue_work(ipoib_workqueue, &priv->restart_task);
-}
-#endif
-
-int ipoib_dev_init(struct ifnet *dev, struct ib_device *ca, int port)
+int
+ipoib_dev_init(struct ifnet *dev, struct ib_device *ca, int port)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 
@@ -777,7 +761,8 @@ ipoib_detach(struct ifnet *dev)
 	free(priv, M_TEMP);
 }
 
-void ipoib_dev_cleanup(struct ifnet *dev)
+void
+ipoib_dev_cleanup(struct ifnet *dev)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc, *cpriv, *tcpriv;
 
@@ -835,6 +820,8 @@ static int get_mb_hdr(struct mbuf *mb, void **iphdr,
 }
 #endif
 
+static volatile int ipoib_unit;
+
 struct ipoib_dev_priv *
 ipoib_intf_alloc(const char *name)
 {
@@ -849,7 +836,7 @@ ipoib_intf_alloc(const char *name)
 		return NULL;
 	}
 	dev->if_softc = priv;
-	if_initname(dev, name, dev->if_index);
+	if_initname(dev, name, atomic_fetchadd_int(&ipoib_unit, 1));
 	dev->if_flags = IFF_BROADCAST | IFF_MULTICAST;
 	dev->if_addrlen = INFINIBAND_ALEN;
 	dev->if_hdrlen = IPOIB_HEADER_LEN;
@@ -893,54 +880,8 @@ ipoib_intf_alloc(const char *name)
 	return dev->if_softc;
 }
 
-#if 0
-static ssize_t create_child(struct device *dev,
-			    struct device_attribute *attr,
-			    const char *buf, size_t count)
-{
-	int pkey;
-	int ret;
-
-	if (sscanf(buf, "%i", &pkey) != 1)
-		return -EINVAL;
-
-	if (pkey < 0 || pkey > 0xffff)
-		return -EINVAL;
-
-	/*
-	 * Set the full membership bit, so that we join the right
-	 * broadcast group, etc.
-	 */
-	pkey |= 0x8000;
-
-	ret = ipoib_vlan_add(to_net_dev(dev), pkey);
-
-	return ret ? ret : count;
-}
-static DEVICE_ATTR(create_child, S_IWUGO, NULL, create_child);
-
-static ssize_t delete_child(struct device *dev,
-			    struct device_attribute *attr,
-			    const char *buf, size_t count)
-{
-	int pkey;
-	int ret;
-
-	if (sscanf(buf, "%i", &pkey) != 1)
-		return -EINVAL;
-
-	if (pkey < 0 || pkey > 0xffff)
-		return -EINVAL;
-
-	ret = ipoib_vlan_delete(to_net_dev(dev), pkey);
-
-	return ret ? ret : count;
-
-}
-static DEVICE_ATTR(delete_child, S_IWUGO, NULL, delete_child);
-#endif
-
-int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
+int
+ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 {
 	struct ib_device_attr *device_attr;
 	int result = -ENOMEM;
@@ -977,8 +918,8 @@ int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 }
 
 
-static struct ifnet *ipoib_add_port(const char *format,
-					 struct ib_device *hca, u8 port)
+static struct ifnet *
+ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 {
 	struct ipoib_dev_priv *priv;
 	struct ib_port_attr attr;
@@ -1024,8 +965,8 @@ static struct ifnet *ipoib_add_port(const char *format,
 		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
 		       hca->name, port, result);
 		goto device_init_failed;
-	} else
-		memcpy(IF_LLADDR(priv->dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));
+	}
+	memcpy(IF_LLADDR(priv->dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));
 
 	result = ipoib_dev_init(priv->dev, hca, port);
 	if (result < 0) {
@@ -1057,7 +998,8 @@ alloc_mem_failed:
 	return ERR_PTR(result);
 }
 
-static void ipoib_add_one(struct ib_device *device)
+static void
+ipoib_add_one(struct ib_device *device)
 {
 	struct list_head *dev_list;
 	struct ifnet *dev;
@@ -1094,7 +1036,8 @@ static void ipoib_add_one(struct ib_device *device)
 	ib_set_client_data(device, &ipoib_client, dev_list);
 }
 
-static void ipoib_remove_one(struct ib_device *device)
+static void
+ipoib_remove_one(struct ib_device *device)
 {
 	struct ipoib_dev_priv *priv, *tmp;
 	struct list_head *dev_list;
@@ -1121,7 +1064,8 @@ static void ipoib_remove_one(struct ib_device *device)
 	kfree(dev_list);
 }
 
-static int __init ipoib_init_module(void)
+static int __init
+ipoib_init_module(void)
 {
 	int ret;
 
@@ -1167,7 +1111,8 @@ err_fs:
 	return ret;
 }
 
-static void __exit ipoib_cleanup_module(void)
+static void __exit
+ipoib_cleanup_module(void)
 {
 	ib_unregister_client(&ipoib_client);
 	ib_sa_unregister_client(&ipoib_sa_client);
@@ -1265,21 +1210,6 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 		goto bad;
 	}
 
-#if 0 /* XXX */
-	if (lle != NULL && (lle->la_flags & LLE_IFADDR)) {
-		int csum_flags = 0;
-		if (m->m_pkthdr.csum_flags & CSUM_IP)
-			csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
-			csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
-			csum_flags |= CSUM_SCTP_VALID;
-		m->m_pkthdr.csum_flags |= csum_flags;
-		m->m_pkthdr.csum_data = 0xffff;
-		return (if_simloop(ifp, m, dst->sa_family, 0));
-	}
-#endif
-
 	/*
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
@@ -1307,11 +1237,31 @@ bad:
 /*
  * Upper layer processing for a received Infiniband packet.
  */
-static void
+void
 ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
 {
+	struct ipoib_dev_priv *priv = ifp->if_softc;
 	int isr;
 
+#ifdef MAC
+	/*
+	 * Tag the mbuf with an appropriate MAC label before any other
+	 * consumers can get to it.
+	 */
+	mac_ifnet_create_mbuf(ifp, m);
+#endif
+
+	/*
+	 * Give bpf a chance at the packet.
+	 */
+	BPF_MTAP(ifp, m);
+
+	/* Allow monitor mode to claim this frame, after stats are updated. */
+	if (ifp->if_flags & IFF_MONITOR) {
+		if_printf(ifp, "discard frame at IFF_MONITOR\n");
+		m_freem(m);
+		return;
+	}
 	/*
 	 * Dispatch frame to upper layer.
 	 */
@@ -1338,7 +1288,9 @@ ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
 	default:
 		goto discard;
 	}
+	spin_unlock(&priv->lock);
 	netisr_dispatch(isr, m);
+	spin_lock(&priv->lock);
 	return;
 
 discard:
@@ -1377,26 +1329,6 @@ ipoib_input(struct ifnet *ifp, struct mbuf *m)
 		ifp->if_imcasts++;
 	}
 
-#ifdef MAC
-	/*
-	 * Tag the mbuf with an appropriate MAC label before any other
-	 * consumers can get to it.
-	 */
-	mac_ifnet_create_mbuf(ifp, m);
-#endif
-
-	/*
-	 * Give bpf a chance at the packet.
-	 */
-	BPF_MTAP(ifp, m);
-
-	/* Allow monitor mode to claim this frame, after stats are updated. */
-	if (ifp->if_flags & IFF_MONITOR) {
-		if_printf(ifp, "discard frame at IFF_MONITOR\n");
-		m_freem(m);
-		CURVNET_RESTORE();
-		return;
-	}
 	ipoib_demux(ifp, m, ntohs(eh->proto));
 	CURVNET_RESTORE();
 }
@@ -1441,23 +1373,21 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sdl->sdl_type = IFT_INFINIBAND;
 		sdl->sdl_alen = INFINIBAND_ALEN;
 		e_addr = LLADDR(sdl);
-		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
+		ip_ib_mc_map(sin->sin_addr.s_addr, ifp->if_broadcastaddr,
+		    e_addr);
 		*llsa = (struct sockaddr *)sdl;
 		return 0;
 #endif
 #ifdef INET6
 	case AF_INET6:
 		sin6 = (struct sockaddr_in6 *)sa;
-		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-			/*
-			 * An IP6 address of 0 means listen to all
-			 * of the Infiniband multicast address used for IP6.
-			 * (This is used for multicast routers.)
-			 */
-			ifp->if_flags |= IFF_ALLMULTI;
-			*llsa = 0;
-			return 0;
-		}
+		/*
+		 * An IP6 address of 0 means listen to all
+		 * of the multicast address used for IP6.  
+		 * This has no meaning in ipoib.
+		 */
+		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
+			return EADDRNOTAVAIL;
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
 		sdl = malloc(sizeof *sdl, M_IFMADDR,
@@ -1470,16 +1400,12 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sdl->sdl_type = IFT_INFINIBAND;
 		sdl->sdl_alen = INFINIBAND_ALEN;
 		e_addr = LLADDR(sdl);
-		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);
+		ipv6_ib_mc_map(&sin6->sin6_addr, ifp->if_broadcastaddr, e_addr);
 		*llsa = (struct sockaddr *)sdl;
 		return 0;
 #endif
 
 	default:
-		/*
-		 * Well, the text isn't quite right, but it's the name
-		 * that counts...
-		 */
 		return EAFNOSUPPORT;
 	}
 }

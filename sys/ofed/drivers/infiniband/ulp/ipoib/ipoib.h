@@ -92,7 +92,7 @@
 #define	INFINIBAND_ALEN		20	/* Octets in IPoIB HW addr */
 #define	MAX_MB_FRAGS		(8192 / MCLBYTES)
 
-#define	CONFIG_INFINIBAND_IPOIB_DEBUG
+#define	CONFIG_INFINIBAND_IPOIB_CM
 
 enum ipoib_flush_level {
 	IPOIB_FLUSH_LIGHT,
@@ -104,12 +104,12 @@ enum {
 	IPOIB_ENCAP_LEN		  = 4,
 	IPOIB_HEADER_LEN	  = IPOIB_ENCAP_LEN + INFINIBAND_ALEN,
 	IPOIB_UD_HEAD_SIZE	  = IB_GRH_BYTES + IPOIB_ENCAP_LEN,
-	IPOIB_UD_RX_SG		  = 2, /* max buffer needed for 4K mtu */
+	IPOIB_UD_RX_SG		  = 1, /* max buffer needed for 4K mtu */
 
-	IPOIB_CM_MTU		  = 0x10000 - 0x10, /* padding to align header to 16 */
-	IPOIB_CM_BUF_SIZE	  = IPOIB_CM_MTU  + IPOIB_ENCAP_LEN,
+	IPOIB_CM_MTU		  = (16 * 1024) - 0x14,
+	IPOIB_CM_BUF_SIZE	  = IPOIB_CM_MTU + IPOIB_ENCAP_LEN,
 	IPOIB_CM_HEAD_SIZE	  = IPOIB_CM_BUF_SIZE % PAGE_SIZE,
-	IPOIB_CM_RX_SG		  = ALIGN(IPOIB_CM_BUF_SIZE, PAGE_SIZE) / PAGE_SIZE,
+	IPOIB_CM_RX_SG		  = 1,	/* We only allocate a single mbuf. */
 	IPOIB_RX_RING_SIZE	  = 256,
 	IPOIB_TX_RING_SIZE	  = 128,
 	IPOIB_MAX_QUEUE_SIZE	  = 8192,
@@ -400,6 +400,7 @@ struct ipoib_path {
 	struct rb_node	      rb_node;
 	struct list_head      list;
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
+	uint8_t		      hwaddr[INFINIBAND_ALEN];
 	struct ipoib_cm_tx   *cm;
 #endif
 	struct ipoib_ah      *ah;
@@ -437,6 +438,8 @@ int ipoib_open(struct ifnet *dev);
 int ipoib_add_pkey_attr(struct ifnet *dev);
 int ipoib_add_umcast_attr(struct ifnet *dev);
 
+void ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto);
+
 void ipoib_send(struct ifnet *dev, struct mbuf *mb,
 		struct ipoib_ah *address, u32 qpn);
 void ipoib_reap_ah(struct work_struct *work);
@@ -471,6 +474,7 @@ int ipoib_mcast_stop_thread(struct ifnet *dev, int flush);
 void ipoib_mcast_dev_down(struct ifnet *dev);
 void ipoib_mcast_dev_flush(struct ifnet *dev);
 
+void ipoib_path_free(struct ifnet *dev, struct ipoib_path *path);
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct ifnet *dev);
 int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter);
@@ -524,10 +528,10 @@ static inline int ipoib_cm_admin_enabled(struct ifnet *dev)
 		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
 
-static inline int ipoib_cm_enabled(struct ifnet *dev, struct llentry *n)
+static inline int ipoib_cm_enabled(struct ifnet *dev, uint8_t *hwaddr)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
-	return IPOIB_CM_SUPPORTED(rt_key(n)->sa_data) &&
+	return IPOIB_CM_SUPPORTED(hwaddr) &&
 		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
 
@@ -581,7 +585,7 @@ static inline int ipoib_cm_admin_enabled(struct ifnet *dev)
 {
 	return 0;
 }
-static inline int ipoib_cm_enabled(struct ifnet *dev, struct llentry *n)
+static inline int ipoib_cm_enabled(struct ifnet *dev, uint8_t *hwaddr)
 
 {
 	return 0;
@@ -663,7 +667,7 @@ int ipoib_cm_add_mode_attr(struct ifnet *dev)
 static inline void ipoib_cm_mb_too_long(struct ifnet *dev, struct mbuf *mb,
 					 unsigned int mtu)
 {
-	m_free(mb);
+	m_freem(mb);
 }
 
 static inline void ipoib_cm_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc)
@@ -729,31 +733,5 @@ extern int ipoib_debug_level;
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG_DATA */
 
 #define IPOIB_QPN(ha) (be32_to_cpup((__be32 *) ha) & 0xffffff)
-
-static inline long
-test_and_clear_bit(long bit, long *var)
-{
-	long val;
-
-	bit = 1 << bit;
-	do {
-		val = *(volatile long *)var;
-	} while (atomic_cmpset_long(var, val, val & ~bit) == 0);
-
-	return !!(val & bit);
-}
-
-static inline long
-test_and_set_bit(long bit, long *var)
-{
-	long val;
-
-	bit = 1 << bit;
-	do {
-		val = *(volatile long *)var;
-	} while (atomic_cmpset_long(var, val, val | bit) == 0);
-
-	return !!(val & bit);
-}
 
 #endif /* _IPOIB_H */

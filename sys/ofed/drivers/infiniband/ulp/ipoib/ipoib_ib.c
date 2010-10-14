@@ -112,14 +112,12 @@ static int ipoib_ib_post_receive(struct ifnet *dev, int id)
 
 	priv->rx_wr.wr_id   = id | IPOIB_OP_RECV;
 	priv->rx_sge[0].addr = priv->rx_ring[id].mapping[0];
-	priv->rx_sge[1].addr = priv->rx_ring[id].mapping[1];
-
 
 	ret = ib_post_recv(priv->qp, &priv->rx_wr, &bad_wr);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "receive failed for buf %d (%d)\n", id, ret);
 		ipoib_ud_dma_unmap_rx(priv, priv->rx_ring[id].mapping);
-		m_free(priv->rx_ring[id].mb);
+		m_freem(priv->rx_ring[id].mb);
 		priv->rx_ring[id].mb = NULL;
 	}
 
@@ -134,11 +132,7 @@ static struct mbuf *ipoib_alloc_rx_mb(struct ifnet *dev, int id)
 	u64 *mapping;
 
 	/*
-	 * XXX This could be done more efficiently.  ipoib adds 44 bytes of
-	 * headers on to the mtu.  We could do the ib header seperate from
-	 * the data and use more efficient allocations.
-	 *
-	 * XXX Should be calculated once and stashed.
+	 * XXX Should be calculated once and cached.
 	 */
 	buf_size = IPOIB_UD_BUF_SIZE(priv->max_ib_mtu);
 	if (buf_size <= MCLBYTES)
@@ -164,7 +158,7 @@ static struct mbuf *ipoib_alloc_rx_mb(struct ifnet *dev, int id)
 	return mb;
 
 error:
-	m_free(mb);
+	m_freem(mb);
 	return NULL;
 }
 
@@ -212,7 +206,7 @@ static void ipoib_ib_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc)
 				   "(status=%d, wrid=%d vend_err %x)\n",
 				   wc->status, wr_id, wc->vendor_err);
 		ipoib_ud_dma_unmap_rx(priv, priv->rx_ring[wr_id].mapping);
-		m_free(mb);
+		m_freem(mb);
 		priv->rx_ring[wr_id].mb = NULL;
 		return;
 	}
@@ -393,8 +387,11 @@ poll_more:
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 {
 	struct ifnet *dev = dev_ptr;
+	struct ipoib_dev_priv *priv = dev->if_softc;
 
+	spin_lock(&priv->lock);
 	ipoib_poll(dev);
+	spin_unlock(&priv->lock);
 }
 
 static void drain_tx_cq(struct ifnet *dev)
@@ -405,11 +402,8 @@ static void drain_tx_cq(struct ifnet *dev)
 	while (poll_tx(priv))
 		; /* nothing */
 
-#if 0
-	/* XXX */
-	if (netif_queue_stopped(dev))
+	if (dev->if_drv_flags & IFF_DRV_OACTIVE)
 		mod_timer(&priv->poll_timer, jiffies + 1);
-#endif
 
 	spin_unlock(&priv->lock);
 }
@@ -469,7 +463,7 @@ ipoib_send(struct ifnet *dev, struct mbuf *mb,
 		if (mb->m_len < hlen) {
 			ipoib_warn(priv, "linear data too small\n");
 			++dev->if_oerrors;
-			m_free(mb);
+			m_freem(mb);
 			return;
 		}
 		m_adj(mb, hlen);
@@ -500,7 +494,7 @@ ipoib_send(struct ifnet *dev, struct mbuf *mb,
 	if (unlikely(ipoib_dma_map_tx(priv->ca, tx_req))) {
 		++dev->if_oerrors;
 		if (tx_req->mb)
-			m_free(tx_req->mb);
+			m_freem(tx_req->mb);
 		return;
 	}
 
@@ -524,11 +518,9 @@ ipoib_send(struct ifnet *dev, struct mbuf *mb,
 		++dev->if_oerrors;
 		--priv->tx_outstanding;
 		ipoib_dma_unmap_tx(priv->ca, tx_req);
-		m_free(mb);
-#if 0 /* XXX */
-		if (netif_queue_stopped(dev))
-			netif_wake_queue(dev);
-#endif
+		m_freem(mb);
+		if (dev->if_drv_flags & IFF_DRV_OACTIVE)
+			dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	} else {
 		/* dev->trans_start = jiffies; */
 
@@ -630,13 +622,7 @@ int ipoib_ib_dev_open(struct ifnet *dev)
 	}
 
 	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
-	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
-			   HZ /* XXX round_jiffies_relative(HZ) */);
-
-#ifdef __linux__
-	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
-		napi_enable(&priv->napi);
-#endif
+	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task, HZ);
 
 	return 0;
 }
@@ -712,13 +698,6 @@ void ipoib_drain_cq(struct ifnet *dev)
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	int i, n;
 
-	/*
-	 * We call completion handling routines that expect to be
-	 * called from the BH-disabled NAPI poll context, so disable
-	 * BHs here too.
-	 */
-	/* XXX local_bh_disable(); */
-
 	spin_lock(&priv->lock);
 	do {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
@@ -745,7 +724,6 @@ void ipoib_drain_cq(struct ifnet *dev)
 		; /* nothing */
 
 	spin_unlock(&priv->lock);
-	/* XXX local_bh_enable(); */
 }
 
 int ipoib_ib_dev_stop(struct ifnet *dev, int flush)
@@ -755,11 +733,6 @@ int ipoib_ib_dev_stop(struct ifnet *dev, int flush)
 	unsigned long begin;
 	struct ipoib_tx_buf *tx_req;
 	int i;
-
-#ifdef __linux__
-	if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
-		napi_disable(&priv->napi);
-#endif
 
 	ipoib_cm_dev_stop(dev);
 
@@ -787,7 +760,7 @@ int ipoib_ib_dev_stop(struct ifnet *dev, int flush)
 				tx_req = &priv->tx_ring[priv->tx_tail &
 							(ipoib_sendq_size - 1)];
 				ipoib_dma_unmap_tx(priv->ca, tx_req);
-				m_free(tx_req->mb);
+				m_freem(tx_req->mb);
 				++priv->tx_tail;
 				--priv->tx_outstanding;
 			}
@@ -800,7 +773,7 @@ int ipoib_ib_dev_stop(struct ifnet *dev, int flush)
 					continue;
 				ipoib_ud_dma_unmap_rx(priv,
 						      priv->rx_ring[i].mapping);
-				m_free(rx_req->mb);
+				m_freem(rx_req->mb);
 				rx_req->mb = NULL;
 			}
 

@@ -469,7 +469,8 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		container_of(work, struct ipoib_dev_priv, mcast_task.work);
 	struct ifnet *dev = priv->dev;
 
-	if_printf(dev, "%s: flags 0x%lX\n", __FUNCTION__, priv->flags);
+	ipoib_dbg_mcast(priv, "Running join task. flags 0x%lX\n", priv->flags);
+
 	if (!test_bit(IPOIB_MCAST_RUN, &priv->flags))
 		return;
 
@@ -567,10 +568,10 @@ int ipoib_mcast_start_thread(struct ifnet *dev)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 
-	ipoib_dbg_mcast(priv, "starting multicast thread\n");
+	ipoib_dbg_mcast(priv, "starting multicast thread flags 0x%lX\n",
+	    priv->flags);
 
 	mutex_lock(&mcast_mutex);
-	if_printf(dev, "%s: flags 0x%lX\n", __FUNCTION__, priv->flags);
 	if (!test_and_set_bit(IPOIB_MCAST_RUN, &priv->flags))
 		queue_delayed_work(ipoib_workqueue, &priv->mcast_task, 0);
 	mutex_unlock(&mcast_mutex);
@@ -617,21 +618,18 @@ static int ipoib_mcast_leave(struct ifnet *dev, struct ipoib_mcast *mcast)
 	return 0;
 }
 
-void ipoib_mcast_send(struct ifnet *dev, void *mgid, struct mbuf *mb)
+void
+ipoib_mcast_send(struct ifnet *dev, void *mgid, struct mbuf *mb)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	struct ipoib_mcast *mcast;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
-
-	if_printf(dev, "%s: flags 0x%lX\n", __FUNCTION__, priv->flags);
 	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags)		||
 	    !priv->broadcast					||
 	    !test_bit(IPOIB_MCAST_FLAG_ATTACHED, &priv->broadcast->flags)) {
 		++dev->if_oerrors;
-		m_free(mb);
-		goto unlock;
+		m_freem(mb);
+		return;
 	}
 
 	mcast = __ipoib_mcast_find(dev, mgid);
@@ -645,7 +643,7 @@ void ipoib_mcast_send(struct ifnet *dev, void *mgid, struct mbuf *mb)
 			ipoib_warn(priv, "unable to allocate memory for "
 				   "multicast structure\n");
 			++dev->if_oerrors;
-			m_free(mb);
+			m_freem(mb);
 			goto out;
 		}
 
@@ -656,11 +654,11 @@ void ipoib_mcast_send(struct ifnet *dev, void *mgid, struct mbuf *mb)
 	}
 
 	if (!mcast->ah) {
-		if (mcast->pkt_queue.ifq_len < IPOIB_MAX_MCAST_QUEUE)
+		if (mcast->pkt_queue.ifq_len < IPOIB_MAX_MCAST_QUEUE) {
 			_IF_ENQUEUE(&mcast->pkt_queue, mb);
-		else {
+		} else {
 			++dev->if_oerrors;
-			m_free(mb);
+			m_freem(mb);
 		}
 
 		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
@@ -679,9 +677,6 @@ void ipoib_mcast_send(struct ifnet *dev, void *mgid, struct mbuf *mb)
 out:
 	if (mcast && mcast->ah)
 		ipoib_send(dev, mb, mcast->ah, IB_MULTICAST_QPN);
-
-unlock:
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 void ipoib_mcast_dev_flush(struct ifnet *dev)
@@ -715,7 +710,6 @@ void ipoib_mcast_dev_flush(struct ifnet *dev)
 	}
 }
 
-#if 0
 static int ipoib_mcast_addr_is_valid(const u8 *addr, unsigned int addrlen,
 				     const u8 *broadcast)
 {
@@ -729,26 +723,23 @@ static int ipoib_mcast_addr_is_valid(const u8 *addr, unsigned int addrlen,
 		return 0;
 	return 1;
 }
-#endif
 
 void ipoib_mcast_restart_task(struct work_struct *work)
 {
-#if 0
 	struct ipoib_dev_priv *priv =
 		container_of(work, struct ipoib_dev_priv, restart_task);
 	struct ifnet *dev = priv->dev;
-	struct dev_mc_list *mclist;
+	struct  ifmultiaddr *ifma;;
 	struct ipoib_mcast *mcast, *tmcast;
 	LIST_HEAD(remove_list);
-	unsigned long flags;
 	struct ib_sa_mcmember_rec rec;
 
-	ipoib_dbg_mcast(priv, "restarting multicast task\n");
+	ipoib_dbg_mcast(priv, "restarting multicast task flags 0x%lX\n",
+	    priv->flags);
 
 	ipoib_mcast_stop_thread(dev, 0);
 
-	local_irq_save(flags);
-	netif_addr_lock(dev);
+	if_maddr_rlock(dev);
 	spin_lock(&priv->lock);
 
 	/*
@@ -762,15 +753,21 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		clear_bit(IPOIB_MCAST_FLAG_FOUND, &mcast->flags);
 
 	/* Mark all of the entries that are found or don't exist */
-	for (mclist = dev->mc_list; mclist; mclist = mclist->next) {
-		union ib_gid mgid;
 
-		if (!ipoib_mcast_addr_is_valid(mclist->dmi_addr,
-					       mclist->dmi_addrlen,
+
+	TAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
+		union ib_gid mgid;
+		uint8_t *addr;
+
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		addr = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+		if (!ipoib_mcast_addr_is_valid(addr,
+					       ifma->ifma_addr->sa_len,
 					       dev->if_broadcastaddr))
 			continue;
 
-		memcpy(mgid.raw, mclist->dmi_addr + 4, sizeof mgid);
+		memcpy(mgid.raw, addr + 4, sizeof mgid);
 
 		mcast = __ipoib_mcast_find(dev, &mgid);
 		if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
@@ -830,8 +827,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	}
 
 	spin_unlock(&priv->lock);
-	netif_addr_unlock(dev);
-	local_irq_restore(flags);
+	if_maddr_runlock(dev);
 
 	/* We have to cancel outside of the spinlock */
 	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
@@ -841,7 +837,6 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 
 	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
 		ipoib_mcast_start_thread(dev);
-#endif
 }
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
