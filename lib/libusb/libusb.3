@@ -231,6 +231,14 @@ been disconnected and a LIBUSB_ERROR code on failure.
 .Pp
 .
 .Ft int
+.Fn libusb_check_connected "libusb_device_handle *devh"
+Test if USB device is still connected. Returns 0 on success,
+LIBUSB_ERROR_NO_DEVICE if has been disconnected and a LIBUSB_ERROR
+code on failure.
+.
+.Pp
+.
+.Ft int
 .Fn libusb_kernel_driver_active "libusb_device_handle *devh" "int interface"
 Determine if a driver is active on a interface. Returns 0 if no kernel driver
 is active, returns 1 if a kernel driver is active, returns LIBUSB_ERROR_NO_DEVICE
@@ -488,6 +496,7 @@ The library is also compliant with LibUSB version 0.1.12.
 .Fn usb_find_devices
 .Fn usb_device
 .Fn usb_get_busses
+.Fn usb_check_connected
 .
 .Sh SEE ALSO
 .Xr libusb20 3 ,
