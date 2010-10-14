@@ -55,7 +55,7 @@
 
 /* EHCI capability registers */
 #define	EHCI_CAPLENGTH		0x00	/* RO Capability register length field */
-/* reserved			0x01 */
+#define	EHCI_RESERVED		0x01	/* Reserved register */
 #define	EHCI_HCIVERSION		0x02	/* RO Interface version number */
 #define	EHCI_HCSPARAMS		0x04	/* RO Structural parameters */
 #define	EHCI_HCS_DEBUGPORT(x)	(((x) >> 20) & 0xf)
