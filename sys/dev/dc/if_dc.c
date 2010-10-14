@@ -293,6 +293,7 @@ static void dc_decode_leaf_sia(struct dc_softc *, struct dc_eblock_sia *);
 static void dc_decode_leaf_mii(struct dc_softc *, struct dc_eblock_mii *);
 static void dc_decode_leaf_sym(struct dc_softc *, struct dc_eblock_sym *);
 static void dc_apply_fixup(struct dc_softc *, int);
+static int dc_check_multiport(struct dc_softc *);
 
 #ifdef DC_USEIOSPACE
 #define DC_RES			SYS_RES_IOPORT
@@ -2088,6 +2089,20 @@ dc_attach(device_t dev)
 		break;
 	}
 
+	bcopy(eaddr, sc->dc_eaddr, sizeof(eaddr));
+	/*
+	 * If we still have invalid station address, see whether we can
+	 * find station address for chip 0.  Some multi-port controllers
+	 * just store station address for chip 0 if they have a shared
+	 * SROM.
+	 */
+	if ((sc->dc_eaddr[0] == 0 && (sc->dc_eaddr[1] & ~0xffff) == 0) ||
+	    (sc->dc_eaddr[0] == 0xffffffff &&
+	    (sc->dc_eaddr[1] & 0xffff) == 0xffff)) {
+		if (dc_check_multiport(sc) == 0)
+			bcopy(sc->dc_eaddr, eaddr, sizeof(eaddr));
+	}
+
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
@@ -3807,4 +3822,35 @@ dc_shutdown(device_t dev)
 	DC_UNLOCK(sc);
 
 	return (0);
+}
+
+static int
+dc_check_multiport(struct dc_softc *sc)
+{
+	struct dc_softc *dsc;
+	devclass_t dc;
+	device_t child;
+	uint8_t *eaddr;
+	int unit;
+
+	dc = devclass_find("dc");
+	for (unit = 0; unit < devclass_get_maxunit(dc); unit++) {
+		child = devclass_get_device(dc, unit);
+		if (child == NULL)
+			continue;
+		if (child == sc->dc_dev)
+			continue;
+		if (device_get_parent(child) != device_get_parent(sc->dc_dev))
+			continue;
+		if (unit > device_get_unit(sc->dc_dev))
+			continue;
+		dsc = device_get_softc(child);
+		device_printf(sc->dc_dev, "Using station address of %s as base",
+		    device_get_nameunit(child));
+		bcopy(dsc->dc_eaddr, sc->dc_eaddr, ETHER_ADDR_LEN);
+		eaddr = (uint8_t *)sc->dc_eaddr;
+		eaddr[5]++;
+		return (0);
+	}
+	return (ENOENT);
 }
