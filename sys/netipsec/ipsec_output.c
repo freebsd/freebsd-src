@@ -853,10 +853,8 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		}
 
 		/* adjust state->dst if tunnel endpoint is offlink */
-		if (state->ro->ro_rt->rt_flags & RTF_GATEWAY) {
+		if (state->ro->ro_rt->rt_flags & RTF_GATEWAY)
 			state->dst = (struct sockaddr *)state->ro->ro_rt->rt_gateway;
-			dst6 = (struct sockaddr_in6 *)state->dst;
-		}
 	}
 
 	m = ipsec6_splithdr(m);
