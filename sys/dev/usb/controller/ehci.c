@@ -1860,7 +1860,8 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 		temp.auto_data_toggle = 1;
 	}
 
-	if (usbd_get_speed(xfer->xroot->udev) != USB_SPEED_HIGH) {
+	if (xfer->xroot->udev->parent_hs_hub != NULL ||
+	    xfer->xroot->udev->address != 0) {
 		/* max 3 retries */
 		temp.qtd_status |=
 		    htohc32(temp.sc, EHCI_QTD_SET_CERR(3));
