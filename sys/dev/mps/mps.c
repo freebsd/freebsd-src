@@ -380,7 +380,7 @@ mps_request_sync(struct mps_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 	return (0);
 }
 
-static void
+void
 mps_enqueue_request(struct mps_softc *sc, struct mps_command *cm)
 {
 
@@ -1374,33 +1374,88 @@ mps_deregister_events(struct mps_softc *sc, struct mps_event_handle *handle)
 	return (mps_update_events(sc, NULL, NULL));
 }
 
-static void
-mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+/*
+ * Add a chain element as the next SGE for the specified command.
+ * Reset cm_sge and cm_sgesize to indicate all the available space.
+ */
+static int
+mps_add_chain(struct mps_command *cm)
 {
-	MPI2_SGE_SIMPLE64 *sge;
 	MPI2_SGE_CHAIN32 *sgc;
-	struct mps_softc *sc;
-	struct mps_command *cm;
 	struct mps_chain *chain;
-	u_int i, segsleft, sglspace, dir, flags, sflags;
+	int space;
 
-	cm = (struct mps_command *)arg;
-	sc = cm->cm_sc;
+	if (cm->cm_sglsize < MPS_SGC_SIZE)
+		panic("MPS: Need SGE Error Code\n");
 
-        segsleft = nsegs;
-        sglspace = cm->cm_sglsize;
-        sge = (MPI2_SGE_SIMPLE64 *)&cm->cm_sge->MpiSimple;
+	chain = mps_alloc_chain(cm->cm_sc);
+	if (chain == NULL)
+		return (ENOBUFS);
+
+	space = (int)cm->cm_sc->facts->IOCRequestFrameSize * 4;
 
 	/*
-	 * Set up DMA direction flags.  Note no support for
-	 * bi-directional transactions.
+	 * Note: a double-linked list is used to make it easier to
+	 * walk for debugging.
 	 */
-        sflags = MPI2_SGE_FLAGS_ADDRESS_SIZE;
-        if (cm->cm_flags & MPS_CM_FLAGS_DATAOUT) {
-                sflags |= MPI2_SGE_FLAGS_DIRECTION;
-		dir = BUS_DMASYNC_PREWRITE;
-	} else
-		dir = BUS_DMASYNC_PREREAD;
+	TAILQ_INSERT_TAIL(&cm->cm_chain_list, chain, chain_link);
+
+	sgc = (MPI2_SGE_CHAIN32 *)&cm->cm_sge->MpiChain;
+	sgc->Length = space;
+	sgc->NextChainOffset = 0;
+	sgc->Flags = MPI2_SGE_FLAGS_CHAIN_ELEMENT;
+	sgc->Address = chain->chain_busaddr;
+
+	cm->cm_sge = (MPI2_SGE_IO_UNION *)&chain->chain->MpiSimple;
+	cm->cm_sglsize = space;
+	return (0);
+}
+
+/*
+ * Add one scatter-gather element (chain, simple, transaction context)
+ * to the scatter-gather list for a command.  Maintain cm_sglsize and
+ * cm_sge as the remaining size and pointer to the next SGE to fill
+ * in, respectively.
+ */
+int
+mps_push_sge(struct mps_command *cm, void *sgep, size_t len, int segsleft)
+{
+	MPI2_SGE_TRANSACTION_UNION *tc = sgep;
+	MPI2_SGE_SIMPLE64 *sge = sgep;
+	int error, type;
+
+	type = (tc->Flags & MPI2_SGE_FLAGS_ELEMENT_MASK);
+
+#ifdef INVARIANTS
+	switch (type) {
+	case MPI2_SGE_FLAGS_TRANSACTION_ELEMENT: {
+		if (len != tc->DetailsLength + 4)
+			panic("TC %p length %u or %zu?", tc,
+			    tc->DetailsLength + 4, len);
+		}
+		break;
+	case MPI2_SGE_FLAGS_CHAIN_ELEMENT:
+		/* Driver only uses 32-bit chain elements */
+		if (len != MPS_SGC_SIZE)
+			panic("CHAIN %p length %u or %zu?", sgep,
+			    MPS_SGC_SIZE, len);
+		break;
+	case MPI2_SGE_FLAGS_SIMPLE_ELEMENT:
+		/* Driver only uses 64-bit SGE simple elements */
+		sge = sgep;
+		if (len != MPS_SGE64_SIZE)
+			panic("SGE simple %p length %u or %zu?", sge,
+			    MPS_SGE64_SIZE, len);
+		if (((sge->FlagsLength >> MPI2_SGE_FLAGS_SHIFT) &
+		    MPI2_SGE_FLAGS_ADDRESS_SIZE) == 0)
+			panic("SGE simple %p flags %02x not marked 64-bit?",
+			    sge, sge->FlagsLength >> MPI2_SGE_FLAGS_SHIFT);
+
+		break;
+	default:
+		panic("Unexpected SGE %p, flags %02x", tc, tc->Flags);
+	}
+#endif
 
 	/*
 	 * case 1: 1 more segment, enough room for it
@@ -1408,70 +1463,128 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	 * case 3: >=2 more segments, only enough room for 1 and a chain
 	 * case 4: >=1 more segment, enough room for only a chain
 	 * case 5: >=1 more segment, no room for anything (error)
+         */
+
+	/*
+	 * There should be room for at least a chain element, or this
+	 * code is buggy.  Case (5).
 	 */
+	if (cm->cm_sglsize < MPS_SGC_SIZE)
+		panic("MPS: Need SGE Error Code\n");
 
-	for (i = 0; i < nsegs; i++) {
-
-		/* Case 5 Error.  This should never happen. */
-		if (sglspace < MPS_SGC_SIZE) {
-			panic("MPS: Need SGE Error Code\n");
+	if (segsleft >= 2 &&
+	    cm->cm_sglsize < len + MPS_SGC_SIZE + MPS_SGE64_SIZE) {
+		/*
+		 * There are 2 or more segments left to add, and only
+		 * enough room for 1 and a chain.  Case (3).
+		 *
+		 * Mark as last element in this chain if necessary.
+		 */
+		if (type == MPI2_SGE_FLAGS_SIMPLE_ELEMENT) {
+			sge->FlagsLength |=
+				(MPI2_SGE_FLAGS_LAST_ELEMENT << MPI2_SGE_FLAGS_SHIFT);
 		}
 
 		/*
-		 * Case 4, Fill in a chain element, allocate a chain,
-		 * fill in one SGE element, continue.
+		 * Add the item then a chain.  Do the chain now,
+		 * rather than on the next iteration, to simplify
+		 * understanding the code.
 		 */
-		if ((sglspace >= MPS_SGC_SIZE) && (sglspace < MPS_SGE64_SIZE)) {
-			chain = mps_alloc_chain(sc);
-			if (chain == NULL) {
-				/* Resource shortage, roll back! */
-				mps_printf(sc, "out of chain frames\n");
-				return;
-			}
-
-			/*
-			 * Note: a double-linked list is used to make it
-			 * easier to walk for debugging.
-			 */
-			TAILQ_INSERT_TAIL(&cm->cm_chain_list, chain,chain_link);
-
-			sgc = (MPI2_SGE_CHAIN32 *)sge;
-			sgc->Length = 128;
-			sgc->NextChainOffset = 0;
-			sgc->Flags = MPI2_SGE_FLAGS_CHAIN_ELEMENT;
-			sgc->Address = chain->chain_busaddr;
-
-			sge = (MPI2_SGE_SIMPLE64 *)&chain->chain->MpiSimple;
-			sglspace = 128;
-		}
-
-		flags = MPI2_SGE_FLAGS_SIMPLE_ELEMENT;
-		sge->FlagsLength = segs[i].ds_len |
-		   ((sflags | flags) << MPI2_SGE_FLAGS_SHIFT);
-		mps_from_u64(segs[i].ds_addr, &sge->Address);
-
-		/* Case 1, Fill in one SGE element and break */
-		if (segsleft == 1)
-			break;
-
-		sglspace -= MPS_SGE64_SIZE;
-		segsleft--;
-
-		/* Case 3, prepare for a chain on the next loop */
-		if ((segsleft > 0) && (sglspace < MPS_SGE64_SIZE))
-			sge->FlagsLength |= 
-			    (MPI2_SGE_FLAGS_LAST_ELEMENT <<
-			    MPI2_SGE_FLAGS_SHIFT);
-
-		/* Advance to the next element to be filled in. */
-		sge++;
+		cm->cm_sglsize -= len;
+		bcopy(sgep, cm->cm_sge, len);
+		cm->cm_sge = (MPI2_SGE_IO_UNION *)((uintptr_t)cm->cm_sge + len);
+		return (mps_add_chain(cm));
 	}
 
-	/* Last element of the last segment of the entire buffer */
-	flags = MPI2_SGE_FLAGS_LAST_ELEMENT |
-	    MPI2_SGE_FLAGS_END_OF_BUFFER |
-	    MPI2_SGE_FLAGS_END_OF_LIST;
-	sge->FlagsLength |= (flags << MPI2_SGE_FLAGS_SHIFT);
+	if (segsleft >= 1 && cm->cm_sglsize < len + MPS_SGC_SIZE) {
+		/*
+		 * 1 or more segment, enough room for only a chain.
+		 * Hope the previous element wasn't a Simple entry
+		 * that needed to be marked with
+		 * MPI2_SGE_FLAGS_LAST_ELEMENT.  Case (4).
+		 */
+		if ((error = mps_add_chain(cm)) != 0)
+			return (error);
+	}
+
+#ifdef INVARIANTS
+	/* Case 1: 1 more segment, enough room for it. */
+	if (segsleft == 1 && cm->cm_sglsize < len)
+		panic("1 seg left and no room? %u versus %zu",
+		    cm->cm_sglsize, len);
+
+	/* Case 2: 2 more segments, enough room for both */
+	if (segsleft == 2 && cm->cm_sglsize < len + MPS_SGE64_SIZE)
+		panic("2 segs left and no room? %u versus %zu",
+		    cm->cm_sglsize, len);
+#endif
+
+	if (segsleft == 1 && type == MPI2_SGE_FLAGS_SIMPLE_ELEMENT) {
+		/*
+		 * Last element of the last segment of the entire
+		 * buffer.
+		 */
+		sge->FlagsLength |= ((MPI2_SGE_FLAGS_LAST_ELEMENT |
+		    MPI2_SGE_FLAGS_END_OF_BUFFER |
+		    MPI2_SGE_FLAGS_END_OF_LIST) << MPI2_SGE_FLAGS_SHIFT);
+	}
+
+	cm->cm_sglsize -= len;
+	bcopy(sgep, cm->cm_sge, len);
+	cm->cm_sge = (MPI2_SGE_IO_UNION *)((uintptr_t)cm->cm_sge + len);
+	return (0);
+}
+
+/*
+ * Add one dma segment to the scatter-gather list for a command.
+ */
+int
+mps_add_dmaseg(struct mps_command *cm, vm_paddr_t pa, size_t len, u_int flags,
+    int segsleft)
+{
+	MPI2_SGE_SIMPLE64 sge;
+
+	/*
+	 * This driver always uses 64-bit address elements for
+	 * simplicity.
+	 */
+	flags |= MPI2_SGE_FLAGS_SIMPLE_ELEMENT | MPI2_SGE_FLAGS_ADDRESS_SIZE;
+	sge.FlagsLength = len | (flags << MPI2_SGE_FLAGS_SHIFT);
+	mps_from_u64(pa, &sge.Address);
+
+	return (mps_push_sge(cm, &sge, sizeof sge, segsleft));
+}
+
+static void
+mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct mps_softc *sc;
+	struct mps_command *cm;
+	u_int i, dir, sflags;
+
+	cm = (struct mps_command *)arg;
+	sc = cm->cm_sc;
+
+	/*
+	 * Set up DMA direction flags.  Note no support for
+	 * bi-directional transactions.
+	 */
+	sflags = 0;
+	if (cm->cm_flags & MPS_CM_FLAGS_DATAOUT) {
+		sflags |= MPI2_SGE_FLAGS_DIRECTION;
+		dir = BUS_DMASYNC_PREWRITE;
+	} else
+		dir = BUS_DMASYNC_PREREAD;
+
+	for (i = 0; i < nsegs; i++) {
+		error = mps_add_dmaseg(cm, segs[i].ds_addr, segs[i].ds_len,
+		    sflags, nsegs - i);
+		if (error != 0) {
+			/* Resource shortage, roll back! */
+			mps_printf(sc, "out of chain frames\n");
+			return;
+		}
+	}
 
 	bus_dmamap_sync(sc->buffer_dmat, cm->cm_dmamap, dir);
 	mps_enqueue_request(sc, cm);

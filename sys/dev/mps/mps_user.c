@@ -322,6 +322,21 @@ mps_user_write_cfg_page(struct mps_softc *sc,
 	return (0);
 }
 
+static void
+mpi_init_sge(struct mps_command *cm, void *req, void *sge)
+{
+	int off, space;
+
+	space = (int)cm->cm_sc->facts->IOCRequestFrameSize * 4;
+	off = (uintptr_t)sge - (uintptr_t)req;
+
+	KASSERT(off < space, ("bad pointers %p %p, off %d, space %d",
+            req, sge, off, space));
+
+	cm->cm_sge = sge;
+	cm->cm_sglsize = space - off;
+}
+
 /*
  * Prepare the mps_command for an IOC_FACTS request.
  */
@@ -374,8 +389,7 @@ mpi_pre_fw_download(struct mps_command *cm, struct mps_usr_command *cmd)
 	if (cmd->rpl_len != sizeof *rpl)
 		return (EINVAL);
 
-	cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->SGL;
-	cm->cm_sglsize = sizeof req->SGL;
+	mpi_init_sge(cm, req, &req->SGL);
 	return (0);
 }
 
@@ -387,45 +401,41 @@ mpi_pre_fw_upload(struct mps_command *cm, struct mps_usr_command *cmd)
 {
 	MPI2_FW_UPLOAD_REQUEST *req = (void *)cm->cm_req;
 	MPI2_FW_UPLOAD_REPLY *rpl;
-	MPI2_FW_UPLOAD_TCSGE *tc;
+	MPI2_FW_UPLOAD_TCSGE tc;
 
 	/*
 	 * This code assumes there is room in the request's SGL for
 	 * the TransactionContext plus at least a SGL chain element.
 	 */
-	CTASSERT(sizeof req->SGL >= sizeof *tc + MPS_SGC_SIZE);
+	CTASSERT(sizeof req->SGL >= sizeof tc + MPS_SGC_SIZE);
 
 	if (cmd->req_len != sizeof *req)
 		return (EINVAL);
 	if (cmd->rpl_len != sizeof *rpl)
 		return (EINVAL);
 
-	cm->cm_sglsize = sizeof req->SGL;
+	mpi_init_sge(cm, req, &req->SGL);
 	if (cmd->len == 0) {
 		/* Perhaps just asking what the size of the fw is? */
-		cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->SGL;
 		return (0);
 	}
 
-	tc = (void *)&req->SGL;
-	bzero(tc, sizeof *tc);
+	bzero(&tc, sizeof tc);
 
 	/*
 	 * The value of the first two elements is specified in the
 	 * Fusion-MPT Message Passing Interface document.
 	 */
-	tc->ContextSize = 0;
-	tc->DetailsLength = 12;
+	tc.ContextSize = 0;
+	tc.DetailsLength = 12;
 	/*
 	 * XXX Is there any reason to fetch a partial image?  I.e. to
 	 * set ImageOffset to something other than 0?
 	 */
-	tc->ImageOffset = 0;
-	tc->ImageSize = cmd->len;
-	cm->cm_sge = (MPI2_SGE_IO_UNION *)(tc + 1);
-	cm->cm_sglsize -= sizeof *tc;
+	tc.ImageOffset = 0;
+	tc.ImageSize = cmd->len;
 
-	return (0);
+	return (mps_push_sge(cm, &tc, sizeof tc, 0));
 }
 
 /*
@@ -442,8 +452,7 @@ mpi_pre_sata_passthrough(struct mps_command *cm, struct mps_usr_command *cmd)
 	if (cmd->rpl_len != sizeof *rpl)
 		return (EINVAL);
 
-	cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->SGL;
-	cm->cm_sglsize = sizeof req->SGL;
+	mpi_init_sge(cm, req, &req->SGL);
 	return (0);
 }
 
@@ -461,8 +470,7 @@ mpi_pre_smp_passthrough(struct mps_command *cm, struct mps_usr_command *cmd)
 	if (cmd->rpl_len != sizeof *rpl)
 		return (EINVAL);
 
-	cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->SGL;
-	cm->cm_sglsize = sizeof req->SGL;
+	mpi_init_sge(cm, req, &req->SGL);
 	return (0);
 }
 
@@ -480,8 +488,7 @@ mpi_pre_config(struct mps_command *cm, struct mps_usr_command *cmd)
 	if (cmd->rpl_len != sizeof *rpl)
 		return (EINVAL);
 
-	cm->cm_sge = (MPI2_SGE_IO_UNION *)&req->PageBufferSGE;
-	cm->cm_sglsize = sizeof req->PageBufferSGE;
+	mpi_init_sge(cm, req, &req->PageBufferSGE);
 	return (0);
 }
 
