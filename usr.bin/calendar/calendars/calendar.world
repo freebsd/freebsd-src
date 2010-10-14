@@ -13,7 +13,6 @@
 #include <calendar.history>
 #include <calendar.lotr>
 #include <calendar.holiday>
-#include <calendar.judaic>
 #include <calendar.music>
 
 #endif /* !_calendar_world_ */
