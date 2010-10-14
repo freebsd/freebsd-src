@@ -383,14 +383,50 @@ mpi_pre_fw_download(struct mps_command *cm, struct mps_usr_command *cmd)
 {
 	MPI2_FW_DOWNLOAD_REQUEST *req = (void *)cm->cm_req;
 	MPI2_FW_DOWNLOAD_REPLY *rpl;
+	MPI2_FW_DOWNLOAD_TCSGE tc;
+	int error;
+
+	/*
+	 * This code assumes there is room in the request's SGL for
+	 * the TransactionContext plus at least a SGL chain element.
+	 */
+	CTASSERT(sizeof req->SGL >= sizeof tc + MPS_SGC_SIZE);
 
 	if (cmd->req_len != sizeof *req)
 		return (EINVAL);
 	if (cmd->rpl_len != sizeof *rpl)
 		return (EINVAL);
 
+	if (cmd->len == 0)
+		return (EINVAL);
+
+	error = copyin(cmd->buf, cm->cm_data, cmd->len);
+	if (error != 0)
+		return (error);
+
 	mpi_init_sge(cm, req, &req->SGL);
-	return (0);
+	bzero(&tc, sizeof tc);
+
+	/*
+	 * For now, the F/W image must be provided in a single request.
+	 */
+	if ((req->MsgFlags & MPI2_FW_DOWNLOAD_MSGFLGS_LAST_SEGMENT) == 0)
+		return (EINVAL);
+	if (req->TotalImageSize != cmd->len)
+		return (EINVAL);
+
+	/*
+	 * The value of the first two elements is specified in the
+	 * Fusion-MPT Message Passing Interface document.
+	 */
+	tc.ContextSize = 0;
+	tc.DetailsLength = 12;
+	tc.ImageOffset = 0;
+	tc.ImageSize = cmd->len;
+
+	cm->cm_flags |= MPS_CM_FLAGS_DATAOUT;
+
+	return (mps_push_sge(cm, &tc, sizeof tc, 0));
 }
 
 /*
