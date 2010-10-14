@@ -84,6 +84,27 @@ rb_link_node(struct rb_node *node, struct rb_node *parent,
 	*rb_link = node;
 }
 
+static inline void
+rb_replace_node(struct rb_node *victim, struct rb_node *new,
+    struct rb_root *root)
+{
+	struct rb_node *p;
+
+	p = rb_parent(victim);
+	if (p) {
+		if (p->rb_left == victim)
+			p->rb_left = new;
+		else
+			p->rb_right = new;
+	} else
+		root->rb_node = new;
+	if (victim->rb_left)
+		rb_set_parent(victim->rb_left, new);
+	if (victim->rb_right)
+		rb_set_parent(victim->rb_right, new);
+	*new = *victim;
+}
+
 #undef RB_ROOT
 #define RB_ROOT		(struct rb_root) { NULL }
 
