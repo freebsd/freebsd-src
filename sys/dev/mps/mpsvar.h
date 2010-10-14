@@ -359,6 +359,9 @@ int mps_register_events(struct mps_softc *, uint8_t *, mps_evt_callback_t *,
 int mps_update_events(struct mps_softc *, struct mps_event_handle *, uint8_t *);
 int mps_deregister_events(struct mps_softc *, struct mps_event_handle *);
 int mps_request_polled(struct mps_softc *sc, struct mps_command *cm);
+void mps_enqueue_request(struct mps_softc *, struct mps_command *);
+int mps_push_sge(struct mps_command *, void *, size_t, int);
+int mps_add_dmaseg(struct mps_command *, vm_paddr_t, size_t, u_int, int);
 int mps_attach_sas(struct mps_softc *sc);
 int mps_detach_sas(struct mps_softc *sc);
 int mps_map_command(struct mps_softc *sc, struct mps_command *cm);
