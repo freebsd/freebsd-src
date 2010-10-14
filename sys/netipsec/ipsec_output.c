@@ -758,7 +758,7 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 	struct ipsecrequest *isr;
 	struct secasindex saidx;
 	int error;
-	struct sockaddr_in6* dst6;
+	struct sockaddr_in6 *dst6;
 	struct mbuf *m;
 
 	IPSEC_ASSERT(state != NULL, ("null state"));
