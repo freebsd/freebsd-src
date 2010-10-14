@@ -579,7 +579,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	MPI2_REQUEST_HEADER *hdr;	
 	MPI2_DEFAULT_REPLY *rpl;
 	void *buf = NULL;
-	struct mps_command *cm;
+	struct mps_command *cm = NULL;
 	int err = 0;
 	int sz;
 
@@ -631,11 +631,12 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	mps_lock(sc);
 	err = mps_map_command(sc, cm);
 
-	if (err != 0) {
-		mps_printf(sc, "mps_user_command: request timed out\n");
+	if (err != 0 && err != EINPROGRESS) {
+		mps_printf(sc, "%s: invalid request: error %d\n",
+		    __func__, err);
 		goto Ret;
 	}
-	msleep(cm, &sc->mps_mtx, 0, "mpsuser", 0); /* 30 seconds */
+	msleep(cm, &sc->mps_mtx, 0, "mpsuser", 0);
 
 	rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 	sz = rpl->MsgLength * 4;
@@ -652,22 +653,14 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	copyout(rpl, cmd->rpl, sz);
 	if (buf != NULL)
 		copyout(buf, cmd->buf, cmd->len);
-	mps_lock(sc);
-
 	mps_dprint(sc, MPS_INFO, "mps_user_command: reply size %d\n", sz );
-
-	mps_free_command(sc, cm);
-Ret:
-	mps_unlock(sc);
-	if (buf != NULL)
-		free(buf, M_MPSUSER);
-	return (err);
 
 RetFreeUnlocked:
 	mps_lock(sc);
-	mps_free_command(sc, cm);
+	if (cm != NULL)
+		mps_free_command(sc, cm);
+Ret:
 	mps_unlock(sc);
-
 	if (buf != NULL)
 		free(buf, M_MPSUSER);
 	return (err);
