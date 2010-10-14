@@ -425,8 +425,10 @@ pci_register_driver(struct pci_driver *pdrv)
 	pdrv->driver.name = pdrv->name;
 	pdrv->driver.methods = pci_methods;
 	pdrv->driver.size = sizeof(struct pci_dev);
+	mtx_lock(&Giant);
 	error = devclass_add_driver(bus, &pdrv->driver, BUS_PASS_DEFAULT,
 	    &pdrv->bsdclass);
+	mtx_unlock(&Giant);
 	if (error)
 		return (-error);
 	return (0);
