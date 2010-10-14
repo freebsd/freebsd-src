@@ -280,4 +280,30 @@ bitmap_empty(unsigned long *addr, int size)
 #define	test_bit(i, a)							\
     !!(atomic_load_acq_int(&((volatile int *)(a))[(i)/NBINT]) & 1 << ((i) % NBINT))
 
+static inline long
+test_and_clear_bit(long bit, long *var)
+{
+	long val;
+
+	bit = 1 << bit;
+	do {
+		val = *(volatile long *)var;
+	} while (atomic_cmpset_long(var, val, val & ~bit) == 0);
+
+	return !!(val & bit);
+}
+
+static inline long
+test_and_set_bit(long bit, long *var)
+{
+	long val;
+
+	bit = 1 << bit;
+	do {
+		val = *(volatile long *)var;
+	} while (atomic_cmpset_long(var, val, val | bit) == 0);
+
+	return !!(val & bit);
+}
+
 #endif	/* _LINUX_BITOPS_H_ */
