@@ -244,12 +244,12 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 	for (i = 0; i < (int)nhosts; i++) {
 		hsp = &hs[i];
 		if (ISDOWN(hsp)) {
-			(void)printf("%-12.12s%s\n", hsp->hs_wd->wd_hostname,
+			(void)printf("%-25.25s%s\n", hsp->hs_wd->wd_hostname,
 			    interval(now - hsp->hs_wd->wd_recvtime, "down"));
 			continue;
 		}
 		(void)printf(
-		    "%-12.12s%s,  %4d user%s  load %*.2f, %*.2f, %*.2f\n",
+		    "%-25.25s%s,  %4d user%s  load %*.2f, %*.2f, %*.2f\n",
 		    hsp->hs_wd->wd_hostname,
 		    interval((time_t)hsp->hs_wd->wd_sendtime -
 			(time_t)hsp->hs_wd->wd_boottime, "  up"),
