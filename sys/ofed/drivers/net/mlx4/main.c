@@ -1654,5 +1654,5 @@ static void __exit mlx4_cleanup(void)
 	destroy_workqueue(mlx4_wq);
 }
 
-module_init_order(mlx4_init, SI_ORDER_ANY);
+module_init_order(mlx4_init, SI_ORDER_MIDDLE);
 module_exit(mlx4_cleanup);
