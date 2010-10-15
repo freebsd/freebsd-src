@@ -379,10 +379,10 @@ epic_attach(device_t dev)
 		device_printf(dev, "unknown card vendor %04xh\n", sc->cardvend);
 
 	/* Do ifmedia setup. */
-	if (mii_phy_probe(dev, &sc->miibus,
-	    epic_ifmedia_upd, epic_ifmedia_sts)) {
-		device_printf(dev, "ERROR! MII without any PHY!?\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->miibus, ifp, epic_ifmedia_upd,
+	    epic_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
