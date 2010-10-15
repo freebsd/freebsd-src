@@ -116,6 +116,7 @@ tdkphy_attach(device_t dev)
 		    MII_OUI(ma->mii_id1, ma->mii_id2),
 		    MII_MODEL(ma->mii_id2), MII_REV(ma->mii_id2));
 
+	sc->mii_flags = miibus_get_flags(dev);
 	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = tdkphy_service;

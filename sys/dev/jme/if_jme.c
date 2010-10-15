@@ -224,13 +224,8 @@ jme_miibus_readreg(device_t dev, int phy, int reg)
 	sc = device_get_softc(dev);
 
 	/* For FPGA version, PHY address 0 should be ignored. */
-	if ((sc->jme_flags & JME_FLAG_FPGA) != 0) {
-		if (phy == 0)
-			return (0);
-	} else {
-		if (sc->jme_phyaddr != phy)
-			return (0);
-	}
+	if ((sc->jme_flags & JME_FLAG_FPGA) != 0 && phy == 0)
+		return (0);
 
 	CSR_WRITE_4(sc, JME_SMI, SMI_OP_READ | SMI_OP_EXECUTE |
 	    SMI_PHY_ADDR(phy) | SMI_REG_ADDR(reg));
@@ -260,13 +255,8 @@ jme_miibus_writereg(device_t dev, int phy, int reg, int val)
 	sc = device_get_softc(dev);
 
 	/* For FPGA version, PHY address 0 should be ignored. */
-	if ((sc->jme_flags & JME_FLAG_FPGA) != 0) {
-		if (phy == 0)
-			return (0);
-	} else {
-		if (sc->jme_phyaddr != phy)
-			return (0);
-	}
+	if ((sc->jme_flags & JME_FLAG_FPGA) != 0 && phy == 0)
+		return (0);
 
 	CSR_WRITE_4(sc, JME_SMI, SMI_OP_WRITE | SMI_OP_EXECUTE |
 	    ((val << SMI_DATA_SHIFT) & SMI_DATA_MASK) |
@@ -743,9 +733,11 @@ jme_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(dev, &sc->jme_miibus, jme_mediachange,
-	    jme_mediastatus)) != 0) {
-		device_printf(dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc->jme_miibus, ifp, jme_mediachange,
+	    jme_mediastatus, BMSR_DEFCAPMASK, sc->jme_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
