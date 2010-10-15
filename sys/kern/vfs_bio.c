@@ -95,8 +95,7 @@ struct buf *buf;		/* buffer header pool */
 static struct proc *bufdaemonproc;
 
 static int inmem(struct vnode *vp, daddr_t blkno);
-static void vm_hold_free_pages(struct buf *bp, vm_offset_t from,
-		vm_offset_t to);
+static void vm_hold_free_pages(struct buf *bp, int newbsize);
 static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
 		vm_offset_t to);
 static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m);
@@ -2919,10 +2918,7 @@ allocbuf(struct buf *bp, int size)
 				}
 				return 1;
 			}		
-			vm_hold_free_pages(
-			    bp,
-			    (vm_offset_t) bp->b_data + newbsize,
-			    (vm_offset_t) bp->b_data + bp->b_bufsize);
+			vm_hold_free_pages(bp, newbsize);
 		} else if (newbsize > bp->b_bufsize) {
 			/*
 			 * We only use malloced memory on the first allocation.
@@ -3358,7 +3354,7 @@ bufdone_finish(struct buf *bp)
 		vm_ooffset_t foff;
 		vm_page_t m;
 		vm_object_t obj;
-		int iosize;
+		int bogus, iosize;
 		struct vnode *vp = bp->b_vp;
 
 		obj = bp->b_bufobj->bo_object;
@@ -3396,6 +3392,7 @@ bufdone_finish(struct buf *bp)
 		    !(bp->b_ioflags & BIO_ERROR)) {
 			bp->b_flags |= B_CACHE;
 		}
+		bogus = 0;
 		for (i = 0; i < bp->b_npages; i++) {
 			int bogusflag = 0;
 			int resid;
@@ -3409,13 +3406,11 @@ bufdone_finish(struct buf *bp)
 			 */
 			m = bp->b_pages[i];
 			if (m == bogus_page) {
-				bogusflag = 1;
+				bogus = bogusflag = 1;
 				m = vm_page_lookup(obj, OFF_TO_IDX(foff));
 				if (m == NULL)
 					panic("biodone: page disappeared!");
 				bp->b_pages[i] = m;
-				pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
-				    bp->b_pages, bp->b_npages);
 			}
 #if defined(VFS_BIO_DEBUG)
 			if (OFF_TO_IDX(foff) != m->pindex) {
@@ -3469,6 +3464,9 @@ bufdone_finish(struct buf *bp)
 		}
 		vm_object_pip_wakeupn(obj, 0);
 		VM_OBJECT_UNLOCK(obj);
+		if (bogus)
+			pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
+			    bp->b_pages, bp->b_npages);
 	}
 
 	/*
@@ -3831,31 +3829,25 @@ tryagain:
 
 /* Return pages associated with this buf to the vm system */
 static void
-vm_hold_free_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
+vm_hold_free_pages(struct buf *bp, int newbsize)
 {
-	vm_offset_t pg;
+	vm_offset_t from;
 	vm_page_t p;
 	int index, newnpages;
 
-	from = round_page(from);
-	to = round_page(to);
-	newnpages = index = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
-
-	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
+	from = round_page((vm_offset_t)bp->b_data + newbsize);
+	newnpages = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
+	if (bp->b_npages > newnpages)
+		pmap_qremove(from, bp->b_npages - newnpages);
+	for (index = newnpages; index < bp->b_npages; index++) {
 		p = bp->b_pages[index];
-		if (p && (index < bp->b_npages)) {
-			if (p->busy) {
-				printf(
-			    "vm_hold_free_pages: blkno: %jd, lblkno: %jd\n",
-				    (intmax_t)bp->b_blkno,
-				    (intmax_t)bp->b_lblkno);
-			}
-			bp->b_pages[index] = NULL;
-			pmap_qremove(pg, 1);
-			p->wire_count--;
-			vm_page_free(p);
-			atomic_subtract_int(&cnt.v_wire_count, 1);
-		}
+		bp->b_pages[index] = NULL;
+		if (p->busy != 0)
+			printf("vm_hold_free_pages: blkno: %jd, lblkno: %jd\n",
+			    (intmax_t)bp->b_blkno, (intmax_t)bp->b_lblkno);
+		p->wire_count--;
+		vm_page_free(p);
+		atomic_subtract_int(&cnt.v_wire_count, 1);
 	}
 	bp->b_npages = newnpages;
 }
