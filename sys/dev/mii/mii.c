@@ -454,21 +454,6 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 	return (rv);
 }
 
-int
-mii_phy_probe(device_t dev, device_t *child, ifm_change_cb_t ifmedia_upd,
-    ifm_stat_cb_t ifmedia_sts)
-{
-	struct ifnet *ifp;
-
-	/*
-	 * Note that each NIC's softc must start with an ifnet pointer.
-	 * XXX: EVIL HACK!
-	 */
-	ifp = *(struct ifnet **)device_get_softc(dev);
-	return (mii_attach(dev, child, ifp, ifmedia_upd, ifmedia_sts,
-	    BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0));
-}
-
 /*
  * Media changed; notify all PHYs.
  */
