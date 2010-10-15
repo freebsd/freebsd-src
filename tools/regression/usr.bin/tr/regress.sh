@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-echo 1..12
+echo 1..14
 
 REGRESSION_START($1)
 
@@ -16,5 +16,7 @@ REGRESSION_TEST(`08', `tr "[[:upper:]]" "[[:lower:]]" < regress2.in | tr -d "[^[
 REGRESSION_TEST(`09', `printf "\\f\\r\\n" | tr "\\014\\r" "?#"')
 REGRESSION_TEST(`0a', `printf "0xdeadbeef\\n" | tr "x[[:xdigit:]]" "?\$"')
 REGRESSION_TEST(`0b', `(tr -cd "[[:xdigit:]]" < regress2.in ; echo)')
+REGRESSION_TEST(`0c', `echo "[[[[]]]]" | tr -d "[=]=]"')
+REGRESSION_TEST(`0d', `echo "]=[" | tr -d "[=]"')
 
 REGRESSION_END()
