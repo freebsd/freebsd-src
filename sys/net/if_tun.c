@@ -413,6 +413,7 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 
 	tp->tun_flags |= TUN_OPEN;
 	ifp = TUN2IFP(tp);
+	if_link_state_change(ifp, LINK_STATE_UP);
 	TUNDEBUG(ifp, "open\n");
 	mtx_unlock(&tp->tun_mtx);
 
@@ -465,6 +466,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 		if_purgeaddrs(ifp);
 		mtx_lock(&tp->tun_mtx);
 	}
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 
 	funsetown(&tp->tun_sigio);
 	selwakeuppri(&tp->tun_rsel, PZERO + 1);
