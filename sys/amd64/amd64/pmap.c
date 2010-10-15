@@ -3948,7 +3948,7 @@ pmap_remove_pages(pmap_t pmap)
 	uint64_t inuse, bitmask;
 	int allfree;
 
-	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
+	if (pmap != PCPU_GET(curpmap)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
@@ -4867,11 +4867,9 @@ pmap_activate(struct thread *td)
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	oldpmap = PCPU_GET(curpmap);
 #ifdef SMP
-if (oldpmap)	/* XXX FIXME */
 	atomic_clear_int(&oldpmap->pm_active, PCPU_GET(cpumask));
 	atomic_set_int(&pmap->pm_active, PCPU_GET(cpumask));
 #else
-if (oldpmap)	/* XXX FIXME */
 	oldpmap->pm_active &= ~PCPU_GET(cpumask);
 	pmap->pm_active |= PCPU_GET(cpumask);
 #endif
