@@ -360,9 +360,6 @@ ae_attach(device_t dev)
 	if (error != 0)
 		goto fail;
 
-	/* Set default PHY address. */
-	sc->phyaddr = AE_PHYADDR_DEFAULT;
-
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "could not allocate ifnet structure.\n");
@@ -390,10 +387,11 @@ ae_attach(device_t dev)
 	/*
 	 * Configure and attach MII bus.
 	 */
-	error = mii_phy_probe(dev, &sc->miibus, ae_mediachange,
-	    ae_mediastatus);
+	error = mii_attach(dev, &sc->miibus, ifp, ae_mediachange,
+	    ae_mediastatus, BMSR_DEFCAPMASK, AE_PHYADDR_DEFAULT,
+	    MII_OFFSET_ANY, 0);
 	if (error != 0) {
-		device_printf(dev, "no PHY found.\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -813,9 +811,6 @@ ae_miibus_readreg(device_t dev, int phy, int reg)
 	 * Locking is done in upper layers.
 	 */
 
-	if (phy != sc->phyaddr)
-		return (0);
-
 	val = ((reg << AE_MDIO_REGADDR_SHIFT) & AE_MDIO_REGADDR_MASK) |
 	    AE_MDIO_START | AE_MDIO_READ | AE_MDIO_SUP_PREAMBLE |
 	    ((AE_MDIO_CLK_25_4 << AE_MDIO_CLK_SHIFT) & AE_MDIO_CLK_MASK);
@@ -850,9 +845,6 @@ ae_miibus_writereg(device_t dev, int phy, int reg, int val)
 	/*
 	 * Locking is done in upper layers.
 	 */
-
-	if (phy != sc->phyaddr)
-		return (0);
 
 	aereg = ((reg << AE_MDIO_REGADDR_SHIFT) & AE_MDIO_REGADDR_MASK) |
 	    AE_MDIO_START | AE_MDIO_SUP_PREAMBLE |

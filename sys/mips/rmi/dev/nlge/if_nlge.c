@@ -848,7 +848,7 @@ nlge_mii_write(struct device *dev, int phyaddr, int regidx, int regval)
 	struct nlge_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (sc->phy_addr == phyaddr && sc->port_type != XLR_XGMII)
+	if (sc->port_type != XLR_XGMII)
 		nlge_mii_write_internal(sc->mii_base, phyaddr, regidx, regval);
 
 	return (0);
@@ -861,7 +861,7 @@ nlge_mii_read(struct device *dev, int phyaddr, int regidx)
 	int val;
 
 	sc = device_get_softc(dev);
-	val = (sc->phy_addr != phyaddr && sc->port_type != XLR_XGMII) ? (0xffff) :
+	val = (sc->port_type != XLR_XGMII) ? (0xffff) :
 	    nlge_mii_read_internal(sc->mii_base, phyaddr, regidx);
 
 	return (val);
@@ -1907,9 +1907,11 @@ nlge_mii_init(device_t dev, struct nlge_softc *sc)
 	if (sc->port_type != XLR_XAUI && sc->port_type != XLR_XGMII) {
 		NLGE_WRITE(sc->mii_base, R_MII_MGMT_CONFIG, 0x07);
 	}
-	error = mii_phy_probe(dev, &sc->mii_bus, nlge_mediachange, nlge_mediastatus);
+	error = mii_attach(dev, &sc->mii_bus, sc->nlge_if, nlge_mediachange,
+	    nlge_mediastatus, BMSR_DEFCAPMASK, sc->phy_addr, MII_OFFSET_ANY,
+	    0);
 	if (error) {
-		device_printf(dev, "no PHY device found\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		sc->mii_bus = NULL;
 	}
 	if (sc->mii_bus != NULL) {

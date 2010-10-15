@@ -149,7 +149,7 @@ gem_attach(struct gem_softc *sc)
 {
 	struct gem_txsoft *txs;
 	struct ifnet *ifp;
-	int error, i;
+	int error, i, phy;
 	uint32_t v;
 
 	if (bootverbose)
@@ -294,14 +294,15 @@ gem_attach(struct gem_softc *sc)
 		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 		switch (sc->sc_variant) {
 		case GEM_SUN_ERI:
-			sc->sc_phyad = GEM_PHYAD_EXTERNAL;
+			phy = GEM_PHYAD_EXTERNAL;
 			break;
 		default:
-			sc->sc_phyad = -1;
+			phy = MII_PHY_ANY;
 			break;
 		}
-		error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-		    gem_mediachange, gem_mediastatus);
+		error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
+		    gem_mediachange, gem_mediastatus, BMSR_DEFCAPMASK, phy,
+		    MII_OFFSET_ANY, 0);
 	}
 
 	/*
@@ -318,17 +319,18 @@ gem_attach(struct gem_softc *sc)
 		switch (sc->sc_variant) {
 		case GEM_SUN_ERI:
 		case GEM_APPLE_K2_GMAC:
-			sc->sc_phyad = GEM_PHYAD_INTERNAL;
+			phy = GEM_PHYAD_INTERNAL;
 			break;
 		case GEM_APPLE_GMAC:
-			sc->sc_phyad = GEM_PHYAD_EXTERNAL;
+			phy = GEM_PHYAD_EXTERNAL;
 			break;
 		default:
-			sc->sc_phyad = -1;
+			phy = MII_PHY_ANY;
 			break;
 		}
-		error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-		    gem_mediachange, gem_mediastatus);
+		error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
+		    gem_mediachange, gem_mediastatus, BMSR_DEFCAPMASK, phy,
+		    MII_OFFSET_ANY, 0);
 	}
 
 	/*
@@ -348,12 +350,12 @@ gem_attach(struct gem_softc *sc)
 		GEM_BANK1_BARRIER(sc, GEM_MII_CONFIG, 4,
 		    BUS_SPACE_BARRIER_WRITE);
 		sc->sc_flags |= GEM_SERDES;
-		sc->sc_phyad = GEM_PHYAD_EXTERNAL;
-		error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-		    gem_mediachange, gem_mediastatus);
+		error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
+		    gem_mediachange, gem_mediastatus, BMSR_DEFCAPMASK,
+		    GEM_PHYAD_EXTERNAL, MII_OFFSET_ANY, 0);
 	}
 	if (error != 0) {
-		device_printf(sc->sc_dev, "PHY probe failed: %d\n", error);
+		device_printf(sc->sc_dev, "attaching PHYs failed\n");
 		goto fail_rxd;
 	}
 	sc->sc_mii = device_get_softc(sc->sc_miibus);
@@ -1848,9 +1850,6 @@ gem_mii_readreg(device_t dev, int phy, int reg)
 #endif
 
 	sc = device_get_softc(dev);
-	if (sc->sc_phyad != -1 && phy != sc->sc_phyad)
-		return (0);
-
 	if ((sc->sc_flags & GEM_SERDES) != 0) {
 		switch (reg) {
 		case MII_BMCR:
@@ -1909,9 +1908,6 @@ gem_mii_writereg(device_t dev, int phy, int reg, int val)
 #endif
 
 	sc = device_get_softc(dev);
-	if (sc->sc_phyad != -1 && phy != sc->sc_phyad)
-		return (0);
-
 	if ((sc->sc_flags & GEM_SERDES) != 0) {
 		switch (reg) {
 		case MII_BMSR:
@@ -1992,8 +1988,7 @@ gem_mii_statchg(device_t dev)
 
 #ifdef GEM_DEBUG
 	if ((sc->sc_ifp->if_flags & IFF_DEBUG) != 0)
-		device_printf(sc->sc_dev, "%s: status change: PHY = %d\n",
-		    __func__, sc->sc_phyad);
+		device_printf(sc->sc_dev, "%s: status change\n", __func__);
 #endif
 
 	if ((sc->sc_mii->mii_media_status & IFM_ACTIVE) != 0 &&
