@@ -36,6 +36,9 @@ device		kiic		# Apple Keywest I2C Controller
 device		ofwd		# Open Firmware disks
 device		adb		# Apple Desktop Bus
 device		cuda		# VIA-CUDA ADB interface
+device		ds1775		# PowerMac7,2 temperature sensor
+device		fcu		# Apple Fan Control Unit
+device		max6690		# PowerMac7,2 temperature sensor
 device		pmu		# Apple Power Management Unit
 device		smu		# Apple System Management Unit
 device		snd_ai2s	# Apple I2S Audio
