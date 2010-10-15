@@ -320,7 +320,6 @@ ate_attach(device_t dev)
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
 	err = mii_attach(dev, &sc->miibus, ifp, ate_ifmedia_upd,
 	    ate_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
-		device_printf(dev, "Cannot find my PHY.\n");
 	if (err != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto out;
