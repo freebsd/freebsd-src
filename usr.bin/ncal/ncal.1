@@ -33,25 +33,37 @@
 .Nd displays a calendar and the date of Easter
 .Sh SYNOPSIS
 .Nm
-.Op Fl hjy
+.Op Fl 3hjy
+.Op Fl A Ar number
+.Op Fl B Ar number
 .Oo
 .Op Ar month
 .Ar year
 .Oc
 .Nm
-.Op Fl hj
+.Op Fl 3hj
+.Op Fl A Ar number
+.Op Fl B Ar number
 .Fl m Ar month
 .Op Ar year
 .Nm ncal
-.Op Fl hjJpwy
+.Op Fl 3hjJpwy
+.Op Fl A Ar number
+.Op Fl B Ar number
 .Op Fl s Ar country_code
 .Oo
 .Op Ar month
 .Ar year
 .Oc
 .Nm ncal
-.Op Fl hJeo
+.Op Fl 3hJeo
+.Op Fl A Ar number
+.Op Fl B Ar number
 .Op Ar year
+.Nm ncal
+.Op Fl CN
+.Op Fl H Ar yyyy-mm-dd
+.Op Fl d Ar yyyy-mm
 .Sh DESCRIPTION
 The
 .Nm
@@ -109,6 +121,32 @@ Britain and her colonies switched to the Gregorian Calendar.
 Print the number of the week below each week column.
 .It Fl y
 Display a calendar for the specified year.
+.It Fl 3
+Display the previous, current and next month surrounding today.
+.It Fl A Ar number
+Display the
+.Ar number
+of months after the current month.
+.It Fl B Ar number
+Display the
+.Ar number
+of months before the current month.
+.It Fl C
+Switch to
+.Nm cal
+mode.
+.It Fl N
+Switch to
+.Nm ncal
+mode.
+.It Fl d Ar yyyy-mm
+Use
+.Ar yyyy-mm
+as the current date (for debugging of date selection).
+.It Fl H Ar yyyy-mm-dd
+Use
+.Ar yyyy-mm-dd
+as the current date (for debugging of highlighting).
 .El
 .Pp
 A single parameter specifies the year (1\(en9999) to be displayed;
@@ -116,12 +154,21 @@ note the year must be fully specified:
 .Dq Li cal 89
 will
 .Em not
-display a calendar for 1989.
-Two parameters denote the month and year; the month is either a number between
-1 and 12, or a full or abbreviated name as specified by the current locale.
-Month and year default to those of the current system clock and time zone (so
+display a calendar for 1989.  Two parameters denote the month and
+year; the month is either a number between 1 and 12, or a full or
+abbreviated name as specified by the current locale.  Month and
+year default to those of the current system clock and time zone (so
 .Dq Li cal -m 8
-will display a calendar for the month of August in the current year).
+will display a calendar for the month of August in the current
+year).
+.Pp
+Not all options can be used together. For example
+.Dq Li -3 -A 2 -B 3 -y -m 7
+would mean:
+show me the three months around the seventh month, three before
+that, two after that and the whole year.
+.Nm ncal
+will warn about these combinations.
 .Pp
 A year starts on January 1.
 .Sh SEE ALSO
@@ -142,5 +189,8 @@ The
 command and manual were written by
 .An Wolfgang Helbig Aq helbig@FreeBSD.org .
 .Sh BUGS
-The assignment of Julian\(enGregorian switching dates to
-country codes is historically naive for many countries.
+The assignment of Julian\(enGregorian switching dates to country
+codes is historically naive for many countries.
+.Pp
+Not all options are compatible and using them in different orders
+will give varying results.
