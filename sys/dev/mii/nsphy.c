@@ -133,6 +133,7 @@ nsphy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
+	sc->mii_flags = miibus_get_flags(dev);
 	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = nsphy_service;
@@ -140,34 +141,23 @@ nsphy_attach(device_t dev)
 
 	nic = device_get_name(device_get_parent(sc->mii_dev));
 	/*
-	 * Am79C971 and i82557 wedge when isolating all of their
-	 * (external) PHYs.
+	 * Am79C971 wedge when isolating all of their external PHYs.
 	 */
-	if (strcmp(nic, "fxp") == 0 || strcmp(nic, "pcn") == 0)
+	if (strcmp(nic, "pcn") == 0)
 		sc->mii_flags |= MIIF_NOISOLATE;
 
-	/*
-	 * DP83840A used with HME chips don't advertise their media
-	 * capabilities themselves properly so force writing the ANAR
-	 * according to the BMSR in mii_phy_setmedia().
-	 */
-	if (strcmp(nic, "hme") == 0)
-		sc->mii_flags |= MIIF_FORCEANEG;
+#if 1
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
 	/*
-	 * In order for MII loopback to work Am79C971 and greater PCnet
-	 * chips additionally need to be placed into external loopback
-	 * mode which pcn(4) doesn't do so far.
+	 * XXX IFM_LOOP should be handled by mii_phy_add_media() based
+	 * on MIIF_NOLOOP.
 	 */
-	if (strcmp(nic, "pcn") != 0)
-#if 1
+	if ((sc->mii_flags & MIIF_NOLOOP) == 0)
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
 		    sc->mii_inst), MII_MEDIA_100_TX);
-#else
-	if (strcmp(nic, "pcn") == 0)
-		sc->mii_flags |= MIIF_NOLOOP;
+
 #endif
 
 	nsphy_reset(sc);
@@ -176,7 +166,6 @@ nsphy_attach(device_t dev)
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
-#undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
