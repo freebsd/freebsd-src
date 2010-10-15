@@ -149,6 +149,7 @@ dcphy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
+	sc->mii_flags = miibus_get_flags(dev);
 	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = dcphy_service;
@@ -211,7 +212,6 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
-		sc->mii_flags = 0;
 		mii->mii_media_active = IFM_NONE;
 		mode = CSR_READ_4(dc_sc, DC_NETCFG);
 		mode &= ~(DC_NETCFG_FULLDUPLEX | DC_NETCFG_PORTSEL |
