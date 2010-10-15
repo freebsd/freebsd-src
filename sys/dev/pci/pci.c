@@ -2949,7 +2949,7 @@ pci_suspend(device_t dev)
 		return (error);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
-		dinfo = (struct pci_devinfo *) device_get_ivars(child);
+		dinfo = device_get_ivars(child);
 		pci_cfg_save(child, dinfo, 0);
 	}
 
@@ -3340,7 +3340,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 	}
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
-	pci_cfg_save(child, (struct pci_devinfo *)device_get_ivars(child), 1);
+	pci_cfg_save(child, device_get_ivars(child), 1);
 	return;
 }
 
@@ -4021,9 +4021,8 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	 * the noise on boot by doing nothing if we are already in
 	 * state D0.
 	 */
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-	}
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
 		pci_write_config(dev, PCIR_BAR(i), dinfo->cfg.bar[i], 4);
 	pci_write_config(dev, PCIR_BIOS, dinfo->cfg.bios, 4);
