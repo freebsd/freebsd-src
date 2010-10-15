@@ -924,7 +924,10 @@ mps_attach(struct mps_softc *sc)
 	/* Attach the subsystems so they can prepare their event masks. */
 	/* XXX Should be dynamic so that IM/IR and user modules can attach */
 	if (((error = mps_attach_log(sc)) != 0) ||
-	    ((error = mps_attach_sas(sc)) != 0)) {
+	    ((error = mps_attach_sas(sc)) != 0) ||
+	    ((error = mps_attach_user(sc)) != 0)) {
+		mps_printf(sc, "%s failed to attach all subsystems: error %d\n",
+		    __func__, error);
 		mps_free(sc);
 		return (error);
 	}
