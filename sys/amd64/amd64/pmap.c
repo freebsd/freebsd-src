@@ -1163,26 +1163,33 @@ pmap_is_current(pmap_t pmap)
 vm_paddr_t 
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
-	vm_paddr_t rtval;
+	pdp_entry_t *pdpe;
+	pd_entry_t *pde;
 	pt_entry_t *pte;
-	pd_entry_t pde, *pdep;
+	vm_paddr_t pa;
 
-	rtval = 0;
+	pa = 0;
 	PMAP_LOCK(pmap);
-	pdep = pmap_pde(pmap, va);
-	if (pdep != NULL) {
-		pde = *pdep;
-		if (pde) {
-			if ((pde & PG_PS) != 0)
-				rtval = (pde & PG_PS_FRAME) | (va & PDRMASK);
-			else {
-				pte = pmap_pde_to_pte(pdep, va);
-				rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
+	pdpe = pmap_pdpe(pmap, va);
+	if (pdpe != NULL && (*pdpe & PG_V) != 0) {
+		if ((*pdpe & PG_PS) != 0)
+			pa = (*pdpe & PG_PS_FRAME) | (va & PDPMASK);
+		else {
+			pde = pmap_pdpe_to_pde(pdpe, va);
+			if ((*pde & PG_V) != 0) {
+				if ((*pde & PG_PS) != 0) {
+					pa = (*pde & PG_PS_FRAME) |
+					    (va & PDRMASK);
+				} else {
+					pte = pmap_pde_to_pte(pde, va);
+					pa = (*pte & PG_FRAME) |
+					    (va & PAGE_MASK);
+				}
 			}
 		}
 	}
 	PMAP_UNLOCK(pmap);
-	return (rtval);
+	return (pa);
 }
 
 /*
