@@ -56,6 +56,7 @@
 #include <net/if_tun.h>
 
 #include <sys/queue.h>
+#include <sys/condvar.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -92,6 +93,7 @@ struct tun_softc {
 	struct  sigio *tun_sigio;	/* information for async I/O */
 	struct	selinfo	tun_rsel;	/* read select */
 	struct mtx	tun_mtx;	/* protect mutable softc fields */
+	struct cv	tun_cv;		/* protect against ref'd dev destroy */
 };
 #define TUN2IFP(sc)	((sc)->tun_ifp)
 
@@ -242,8 +244,11 @@ tun_destroy(struct tun_softc *tp)
 	struct cdev *dev;
 
 	/* Unlocked read. */
-	KASSERT((tp->tun_flags & TUN_OPEN) == 0,
-	    ("tununits is out of sync - unit %d", TUN2IFP(tp)->if_dunit));
+	mtx_lock(&tp->tun_mtx);
+	if ((tp->tun_flags & TUN_OPEN) != 0)
+		cv_wait_unlock(&tp->tun_cv, &tp->tun_mtx);
+	else
+		mtx_unlock(&tp->tun_mtx);
 
 	dev = tp->tun_dev;
 	bpfdetach(TUN2IFP(tp));
@@ -252,6 +257,7 @@ tun_destroy(struct tun_softc *tp)
 	destroy_dev(dev);
 	knlist_destroy(&tp->tun_rsel.si_note);
 	mtx_destroy(&tp->tun_mtx);
+	cv_destroy(&tp->tun_cv);
 	free(tp, M_TUN);
 }
 
@@ -353,6 +359,7 @@ tuncreate(const char *name, struct cdev *dev)
 
 	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	mtx_init(&sc->tun_mtx, "tun_mtx", NULL, MTX_DEF);
+	cv_init(&sc->tun_cv, "tun_condvar");
 	sc->tun_flags = TUN_INITED;
 	sc->tun_dev = dev;
 	mtx_lock(&tunmtx);
@@ -472,6 +479,8 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	selwakeuppri(&tp->tun_rsel, PZERO + 1);
 	KNOTE_LOCKED(&tp->tun_rsel.si_note, 0);
 	TUNDEBUG (ifp, "closed\n");
+
+	cv_broadcast(&tp->tun_cv);
 	mtx_unlock(&tp->tun_mtx);
 	return (0);
 }
