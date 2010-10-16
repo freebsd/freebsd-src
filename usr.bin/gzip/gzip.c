@@ -1162,7 +1162,7 @@ unlink_input(const char *file, const struct stat *sb)
 	if (kflag)
 		return;
 	if (stat(file, &nsb) != 0)
-		/* Must be gone alrady */
+		/* Must be gone already */
 		return;
 	if (nsb.st_dev != sb->st_dev || nsb.st_ino != sb->st_ino)
 		/* Definitely a different file */
