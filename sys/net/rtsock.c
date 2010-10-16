@@ -1473,6 +1473,7 @@ sysctl_iflist(int af, struct walkarg *w)
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
+		IF_ADDR_LOCK(ifp);
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
 		len = rt_msg2(RTM_IFINFO, &info, NULL, w);
@@ -1530,10 +1531,13 @@ sysctl_iflist(int af, struct walkarg *w)
 					goto done;
 			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 		info.rti_info[RTAX_IFA] = info.rti_info[RTAX_NETMASK] =
 			info.rti_info[RTAX_BRD] = NULL;
 	}
 done:
+	if (ifp != NULL)
+		IF_ADDR_UNLOCK(ifp);
 	IFNET_RUNLOCK();
 	return (error);
 }
