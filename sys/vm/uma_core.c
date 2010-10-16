@@ -2782,7 +2782,7 @@ zone_free_item(uma_zone_t zone, void *item, void *udata,
 }
 
 /* See uma.h */
-void
+int
 uma_zone_set_max(uma_zone_t zone, int nitems)
 {
 	uma_keg_t keg;
@@ -2792,8 +2792,10 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	keg->uk_maxpages = (nitems / keg->uk_ipers) * keg->uk_ppera;
 	if (keg->uk_maxpages * keg->uk_ipers < nitems)
 		keg->uk_maxpages += keg->uk_ppera;
-
+	nitems = keg->uk_maxpages * keg->uk_ipers;
 	ZONE_UNLOCK(zone);
+
+	return (nitems);
 }
 
 /* See uma.h */
