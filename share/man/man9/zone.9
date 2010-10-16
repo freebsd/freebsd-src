@@ -59,7 +59,7 @@
 .Fn uma_zfree_arg "uma_zone_t zone" "void *item" "void *arg"
 .Ft void
 .Fn uma_zdestroy "uma_zone_t zone"
-.Ft void
+.Ft int
 .Fn uma_zone_set_max "uma_zone_t zone" "int nitems"
 .Ft int
 .Fn uma_zone_get_max "uma_zone_t zone"
@@ -185,9 +185,9 @@ that can be allocated to
 The
 .Fa nitems
 argument specifies the requested upper limit number of items.
-The effective limit may end up being higher than requested, as the
-implementation will round up to ensure all memory pages allocated to the zone
-are utilised to capacity.
+The effective limit is returned to the caller, as it may end up being higher
+than requested due to the implementation rounding up to ensure all memory pages
+allocated to the zone are utilised to capacity.
 The limit applies to the total number of items in the zone, which includes
 allocated items, free items and free items in the per-cpu caches.
 On systems with more than one CPU it may not be possible to allocate
