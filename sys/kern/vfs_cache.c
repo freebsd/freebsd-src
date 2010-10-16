@@ -126,20 +126,27 @@ struct	namecache {
 static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
 static TAILQ_HEAD(, namecache) ncneg;	/* Hash Table */
 static u_long	nchash;			/* size of hash table */
-SYSCTL_ULONG(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0, "");
+SYSCTL_ULONG(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0,
+    "Size of namecache hash table");
 static u_long	ncnegfactor = 16;	/* ratio of negative entries */
+/* _debug sysctl left for backward compatibility */
 SYSCTL_ULONG(_debug, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0, "");
-static u_long	numneg;			/* number of cache entries allocated */
-SYSCTL_ULONG(_debug, OID_AUTO, numneg, CTLFLAG_RD, &numneg, 0, "");
+SYSCTL_ULONG(_vfs, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0,
+    "Ratio of negative namecache entries");
+static u_long	numneg;			/* number of negative entries allocated */
+SYSCTL_ULONG(_debug, OID_AUTO, numneg, CTLFLAG_RD, &numneg, 0,
+    "Number of negative entries in namecache");
 static u_long	numcache;		/* number of cache entries allocated */
-SYSCTL_ULONG(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0, "");
+SYSCTL_ULONG(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0,
+    "Number of namecache entries");
 static u_long	numcachehv;		/* number of cache entries with vnodes held */
-SYSCTL_ULONG(_debug, OID_AUTO, numcachehv, CTLFLAG_RD, &numcachehv, 0, "");
-#if 0
-static u_long	numcachepl;		/* number of cache purge for leaf entries */
-SYSCTL_ULONG(_debug, OID_AUTO, numcachepl, CTLFLAG_RD, &numcachepl, 0, "");
-#endif
-struct	nchstats nchstats;		/* cache effectiveness statistics */
+SYSCTL_ULONG(_debug, OID_AUTO, numcachehv, CTLFLAG_RD, &numcachehv, 0,
+    "Number of namecache entries with vnodes held");
+static u_int	ncsizefactor = 2;
+SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
+    "Size factor for namecache");
+
+struct nchstats	nchstats;		/* cache effectiveness statistics */
 
 static struct rwlock cache_lock;
 RW_SYSINIT(vfscache, &cache_lock, "Name Cache");
@@ -174,7 +181,8 @@ static uma_zone_t cache_zone_large;
 } while (0)
 
 static int	doingcache = 1;		/* 1 => enable the cache */
-SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0,
+    "VFS namecache enabled");
 
 /* Export size information to userland */
 SYSCTL_INT(_debug_sizeof, OID_AUTO, namecache, CTLFLAG_RD, 0,
@@ -620,7 +628,7 @@ cache_enter(dvp, vp, cnp)
 	/*
 	 * Avoid blowout in namecache entries.
 	 */
-	if (numcache >= desiredvnodes * 2)
+	if (numcache >= desiredvnodes * ncsizefactor)
 		return;
 
 	flag = 0;
