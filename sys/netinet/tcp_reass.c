@@ -74,19 +74,22 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
 
+static int tcp_reass_sysctl_maxseg(SYSCTL_HANDLER_ARGS);
+static int tcp_reass_sysctl_qsize(SYSCTL_HANDLER_ARGS);
+
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
 static VNET_DEFINE(int, tcp_reass_maxseg) = 0;
 #define	V_tcp_reass_maxseg		VNET(tcp_reass_maxseg)
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
-    &VNET_NAME(tcp_reass_maxseg), 0,
+SYSCTL_VNET_PROC(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
+    &VNET_NAME(tcp_reass_maxseg), 0, &tcp_reass_sysctl_maxseg, "I",
     "Global maximum number of TCP Segments in Reassembly Queue");
 
 static VNET_DEFINE(int, tcp_reass_qsize) = 0;
 #define	V_tcp_reass_qsize		VNET(tcp_reass_qsize)
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
-    &VNET_NAME(tcp_reass_qsize), 0,
+SYSCTL_VNET_PROC(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
+    &VNET_NAME(tcp_reass_qsize), 0, &tcp_reass_sysctl_qsize, "I",
     "Global number of TCP Segments currently in Reassembly Queue");
 
 static VNET_DEFINE(int, tcp_reass_maxqlen) = 48;
@@ -148,12 +151,25 @@ tcp_reass_flush(struct tcpcb *tp)
 		m_freem(qe->tqe_m);
 		uma_zfree(V_tcp_reass_zone, qe);
 		tp->t_segqlen--;
-		V_tcp_reass_qsize--;
 	}
 
 	KASSERT((tp->t_segqlen == 0),
 	    ("TCP reass queue %p segment count is %d instead of 0 after flush.",
 	    tp, tp->t_segqlen));
+}
+
+static int
+tcp_reass_sysctl_maxseg(SYSCTL_HANDLER_ARGS)
+{
+	V_tcp_reass_maxseg = uma_zone_get_max(V_tcp_reass_zone);
+	return (sysctl_handle_int(oidp, arg1, arg2, req));
+}
+
+static int
+tcp_reass_sysctl_qsize(SYSCTL_HANDLER_ARGS)
+{
+	V_tcp_reass_qsize = uma_zone_get_cur(V_tcp_reass_zone);
+	return (sysctl_handle_int(oidp, arg1, arg2, req));
 }
 
 int
@@ -184,12 +200,10 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * Limit the number of segments in the reassembly queue to prevent
 	 * holding on to too many segments (and thus running out of mbufs).
 	 * Make sure to let the missing segment through which caused this
-	 * queue.  Always keep one global queue entry spare to be able to
-	 * process the missing segment.
+	 * queue.
 	 */
 	if (th->th_seq != tp->rcv_nxt &&
-	    (V_tcp_reass_qsize + 1 >= V_tcp_reass_maxseg ||
-	     tp->t_segqlen >= V_tcp_reass_maxqlen)) {
+	    tp->t_segqlen >= V_tcp_reass_maxqlen) {
 		V_tcp_reass_overflows++;
 		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
@@ -209,7 +223,6 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		return (0);
 	}
 	tp->t_segqlen++;
-	V_tcp_reass_qsize++;
 
 	/*
 	 * Find a segment which begins after this one does.
@@ -236,7 +249,6 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 				m_freem(m);
 				uma_zfree(V_tcp_reass_zone, te);
 				tp->t_segqlen--;
-				V_tcp_reass_qsize--;
 				/*
 				 * Try to present any queued data
 				 * at the left window edge to the user.
@@ -273,7 +285,6 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		m_freem(q->tqe_m);
 		uma_zfree(V_tcp_reass_zone, q);
 		tp->t_segqlen--;
-		V_tcp_reass_qsize--;
 		q = nq;
 	}
 
@@ -310,7 +321,6 @@ present:
 			sbappendstream_locked(&so->so_rcv, q->tqe_m);
 		uma_zfree(V_tcp_reass_zone, q);
 		tp->t_segqlen--;
-		V_tcp_reass_qsize--;
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
 	ND6_HINT(tp);
