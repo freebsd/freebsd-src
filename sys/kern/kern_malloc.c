@@ -202,6 +202,11 @@ SYSCTL_PROC(_vm, OID_AUTO, kmem_map_size,
     CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_kmem_map_size, "LU", "Current kmem_map allocation size");
 
+static int sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm, OID_AUTO, kmem_map_free,
+    CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kmem_map_free, "LU", "Largest contiguous free range in kmem_map");
+
 /*
  * The malloc_mtx protects the kmemstatistics linked list.
  */
@@ -244,6 +249,18 @@ sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS)
 	u_long size;
 
 	size = kmem_map->size;
+	return (sysctl_handle_long(oidp, &size, 0, req));
+}
+
+static int
+sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS)
+{
+	u_long size;
+
+	vm_map_lock_read(kmem_map);
+	size = kmem_map->root != NULL ?
+	    kmem_map->root->max_free : kmem_map->size;
+	vm_map_unlock_read(kmem_map);
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
 
