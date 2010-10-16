@@ -354,6 +354,7 @@ hook_execv(const char *path, va_list ap)
 	struct hookproc *hp;
 	char *args[64];
 	unsigned int ii;
+	sigset_t mask;
 	pid_t pid;
 
 	assert(hooks_initialized);
@@ -382,6 +383,8 @@ hook_execv(const char *path, va_list ap)
 		return;
 	case 0:		/* Child. */
 		descriptors();
+		PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+		PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 		execv(path, args);
 		pjdlog_errno(LOG_ERR, "Unable to execute %s", path);
 		exit(EX_SOFTWARE);
