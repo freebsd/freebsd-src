@@ -186,7 +186,9 @@ struct lltable *lltable_init(struct ifnet *, int);
 void		lltable_free(struct lltable *);
 void		lltable_prefix_free(int, struct sockaddr *, 
                        struct sockaddr *);
+#if 0
 void		lltable_drain(int);
+#endif
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
 void		llentry_free(struct llentry *);
