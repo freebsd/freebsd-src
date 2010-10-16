@@ -115,7 +115,7 @@ struct s_zstate {
 			code_int zs_ent;
 			code_int zs_hsize_reg;
 			int zs_hshift;
-		} w;			/* Write paramenters */
+		} w;			/* Write parameters */
 		struct {
 			char_type *zs_stackp;
 			int zs_finchar;
