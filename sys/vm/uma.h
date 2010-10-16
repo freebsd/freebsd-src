@@ -452,11 +452,12 @@ int uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int size);
  *
  * Arguments:
  *	zone  The zone to limit
+ *	nitems  The requested upper limit on the number of items allowed
  *
  * Returns:
- *	Nothing
+ *	int  The effective value of nitems after rounding up based on page size
  */
-void uma_zone_set_max(uma_zone_t zone, int nitems);
+int uma_zone_set_max(uma_zone_t zone, int nitems);
 
 /*
  * Obtains the effective limit on the number of items in a zone
