@@ -497,10 +497,6 @@ shutdown_reset(void *junk, int howto)
 	/* NOTREACHED */ /* assuming reset worked */
 }
 
-#ifdef SMP
-static u_int panic_cpu = NOCPU;
-#endif
-
 /*
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
  * and then reboots.  If we are called twice, then we avoid trying to sync
@@ -509,6 +505,9 @@ static u_int panic_cpu = NOCPU;
 void
 panic(const char *fmt, ...)
 {
+#ifdef SMP
+	static volatile u_int panic_cpu = NOCPU;
+#endif
 	struct thread *td = curthread;
 	int bootopt, newpanic;
 	va_list ap;
