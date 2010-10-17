@@ -96,8 +96,8 @@ static int tick_et_start(struct eventtimer *et,
 static int tick_et_stop(struct eventtimer *et);
 static void tick_intr(struct trapframe *tf);
 static void tick_intr_bbwar(struct trapframe *tf);
-static inline void tick_hardclock_common(struct trapframe *tf, u_long tick,
-    u_long adj);
+static inline void tick_hardclock_periodic(struct trapframe *tf, u_long tick,
+    u_long tick_increment, u_long adj);
 static inline void tick_process(struct trapframe *tf);
 static void stick_intr(struct trapframe *tf);
 
@@ -225,18 +225,18 @@ tick_intr(struct trapframe *tf)
 	u_long adj, tick, tick_increment;
 	register_t s;
 
-	critical_enter();
-	adj = PCPU_GET(tickadj);
-	tick_increment = PCPU_GET(tickincrement);
 	s = intr_disable();
-	tick = rd(tick);
-	if (tick_increment != 0)
+	tick_increment = PCPU_GET(tickincrement);
+	if (tick_increment != 0) {
+		adj = PCPU_GET(tickadj);
+		tick = rd(tick);
 		wr(tick_cmpr, tick + tick_increment - adj, 0);
-	else
-		wr(tick_cmpr, 1L << 63, 0);
-	intr_restore(s);
-	tick_hardclock_common(tf, tick, adj);
-	critical_exit();
+		intr_restore(s);
+		tick_hardclock_periodic(tf, tick, tick_increment, adj);
+	} else {
+		intr_restore(s);
+		tick_process(tf);
+	}
 }
 
 static void
@@ -245,18 +245,18 @@ tick_intr_bbwar(struct trapframe *tf)
 	u_long adj, tick, tick_increment;
 	register_t s;
 
-	critical_enter();
-	adj = PCPU_GET(tickadj);
-	tick_increment = PCPU_GET(tickincrement);
 	s = intr_disable();
-	tick = rd(tick);
-	if (tick_increment != 0)
+	tick_increment = PCPU_GET(tickincrement);
+	if (tick_increment != 0) {
+		adj = PCPU_GET(tickadj);
+		tick = rd(tick);
 		wrtickcmpr(tick + tick_increment - adj, 0);
-	else
-		wrtickcmpr(1L << 63, 0);
-	intr_restore(s);
-	tick_hardclock_common(tf, tick, adj);
-	critical_exit();
+		intr_restore(s);
+		tick_hardclock_periodic(tf, tick, tick_increment, adj);
+	} else {
+		intr_restore(s);
+		tick_process(tf);
+	}
 }
 
 static void
@@ -265,28 +265,28 @@ stick_intr(struct trapframe *tf)
 	u_long adj, stick, tick_increment;
 	register_t s;
 
-	critical_enter();
-	adj = PCPU_GET(tickadj);
-	tick_increment = PCPU_GET(tickincrement);
 	s = intr_disable();
-	stick = rdstick();
-	if (tick_increment != 0)
+	tick_increment = PCPU_GET(tickincrement);
+	if (tick_increment != 0) {
+		adj = PCPU_GET(tickadj);
+		stick = rdstick();
 		wrstickcmpr(stick + tick_increment - adj, 0);
-	else
-		wrstickcmpr(1L << 63, 0);
-	intr_restore(s);
-	tick_hardclock_common(tf, stick, adj);
-	critical_exit();
+		intr_restore(s);
+		tick_hardclock_periodic(tf, stick, tick_increment, adj);
+	} else {
+		intr_restore(s);
+		tick_process(tf);
+	}
 }
 
 static inline void
-tick_hardclock_common(struct trapframe *tf, u_long tick, u_long adj)
+tick_hardclock_periodic(struct trapframe *tf, u_long tick,
+    u_long tick_increment, u_long adj)
 {
-	u_long ref, tick_increment;
+	u_long ref;
 	long delta;
 	int count;
 
-	tick_increment = PCPU_GET(tickincrement);
 	ref = PCPU_GET(tickref);
 	delta = tick - ref;
 	count = 0;
@@ -297,8 +297,6 @@ tick_hardclock_common(struct trapframe *tf, u_long tick, u_long adj)
 		if (adj != 0)
 			adjust_ticks++;
 		count++;
-		if (tick_increment == 0)
-			break;
 	}
 	if (count > 0) {
 		adjust_missed += count - 1;
@@ -361,11 +359,10 @@ tick_get_timecount_mp(struct timecounter *tc)
 #endif
 
 static int
-tick_et_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+tick_et_start(struct eventtimer *et, struct bintime *first,
+    struct bintime *period)
 {
-	u_long fdiv, div;
-	u_long base;
+	u_long base, div, fdiv;
 	register_t s;
 
 	if (period != NULL) {
@@ -387,22 +384,21 @@ tick_et_start(struct eventtimer *et,
 	 * on all CPUs to avoid inaccuracies for migrating processes.  Leave
 	 * out one tick to make sure that it is not missed.
 	 */
-	critical_enter();
-	PCPU_SET(tickadj, 0);
 	s = intr_disable();
 	if (hardclock_use_stick != 0)
 		base = rdstick();
 	else
 		base = rd(tick);
-	if (div != 0)
+	if (div != 0) {
+		PCPU_SET(tickadj, 0);
 		base = roundup(base, div);
+	}
 	PCPU_SET(tickref, base);
 	if (hardclock_use_stick != 0)
 		wrstickcmpr(base + fdiv, 0);
 	else
 		wrtickcmpr(base + fdiv, 0);
 	intr_restore(s);
-	critical_exit();
 	return (0);
 }
 
