@@ -234,21 +234,17 @@ cleanup(struct hast_resource *res)
 	/* Remember errno. */
 	rerrno = errno;
 
-	/*
-	 * Close descriptor to /dev/hast/<name>
-	 * to work-around race in the kernel.
-	 */
-	close(res->hr_localfd);
-
 	/* Destroy ggate provider if we created one. */
 	if (res->hr_ggateunit >= 0) {
 		struct g_gate_ctl_destroy ggiod;
 
+		bzero(&ggiod, sizeof(ggiod));
 		ggiod.gctl_version = G_GATE_VERSION;
 		ggiod.gctl_unit = res->hr_ggateunit;
 		ggiod.gctl_force = 1;
 		if (ioctl(res->hr_ggatefd, G_GATE_CMD_DESTROY, &ggiod) < 0) {
-			pjdlog_warning("Unable to destroy hast/%s device",
+			pjdlog_errno(LOG_WARNING,
+			    "Unable to destroy hast/%s device",
 			    res->hr_provname);
 		}
 		res->hr_ggateunit = -1;
@@ -705,6 +701,7 @@ init_ggate(struct hast_resource *res)
 	 * Create provider before trying to connect, as connection failure
 	 * is not critical, but may take some time.
 	 */
+	bzero(&ggiocreate, sizeof(ggiocreate));
 	ggiocreate.gctl_version = G_GATE_VERSION;
 	ggiocreate.gctl_mediasize = res->hr_datasize;
 	ggiocreate.gctl_sectorsize = res->hr_local_sectorsize;
@@ -714,7 +711,6 @@ init_ggate(struct hast_resource *res)
 	ggiocreate.gctl_unit = G_GATE_NAME_GIVEN;
 	snprintf(ggiocreate.gctl_name, sizeof(ggiocreate.gctl_name), "hast/%s",
 	    res->hr_provname);
-	bzero(ggiocreate.gctl_info, sizeof(ggiocreate.gctl_info));
 	if (ioctl(res->hr_ggatefd, G_GATE_CMD_CREATE, &ggiocreate) == 0) {
 		pjdlog_info("Device hast/%s created.", res->hr_provname);
 		res->hr_ggateunit = ggiocreate.gctl_unit;
@@ -732,6 +728,7 @@ init_ggate(struct hast_resource *res)
 	 * provider died and didn't clean up. In that case we will start from
 	 * where he left of.
 	 */
+	bzero(&ggiocancel, sizeof(ggiocancel));
 	ggiocancel.gctl_version = G_GATE_VERSION;
 	ggiocancel.gctl_unit = G_GATE_NAME_GIVEN;
 	snprintf(ggiocancel.gctl_name, sizeof(ggiocancel.gctl_name), "hast/%s",
@@ -797,6 +794,12 @@ hastd_primary(struct hast_resource *res)
 	init_ggate(res);
 	init_environment(res);
 	/*
+	 * Create the guard thread first, so we can handle signals from the
+	 * very begining.
+	 */
+	error = pthread_create(&td, NULL, guard_thread, res);
+	assert(error == 0);
+	/*
 	 * Create the control thread before sending any event to the parent,
 	 * as we can deadlock when parent sends control request to worker,
 	 * but worker has no control thread started yet, so parent waits.
@@ -818,9 +821,7 @@ hastd_primary(struct hast_resource *res)
 	assert(error == 0);
 	error = pthread_create(&td, NULL, ggate_send_thread, res);
 	assert(error == 0);
-	error = pthread_create(&td, NULL, sync_thread, res);
-	assert(error == 0);
-	(void)guard_thread(res);
+	(void)sync_thread(res);
 }
 
 static void

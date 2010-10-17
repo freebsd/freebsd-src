@@ -293,22 +293,12 @@ hook_check_one(pid_t pid, int status)
 }
 
 void
-hook_check(bool sigchld)
+hook_check(void)
 {
 	struct hookproc *hp, *hp2;
-	int status;
 	time_t now;
-	pid_t pid;
 
 	assert(hooks_initialized);
-
-	/*
-	 * If SIGCHLD was received, garbage collect finished processes.
-	 */
-	if (sigchld) {
-		while ((pid = wait3(&status, WNOHANG, NULL)) > 0)
-			hook_check_one(pid, status);
-	}
 
 	/*
 	 * Report about processes that are running for a long time.
@@ -364,6 +354,7 @@ hook_execv(const char *path, va_list ap)
 	struct hookproc *hp;
 	char *args[64];
 	unsigned int ii;
+	sigset_t mask;
 	pid_t pid;
 
 	assert(hooks_initialized);
@@ -388,9 +379,12 @@ hook_execv(const char *path, va_list ap)
 	switch (pid) {
 	case -1:	/* Error. */
 		pjdlog_errno(LOG_ERR, "Unable to fork to execute %s", path);
+		hook_free(hp);
 		return;
 	case 0:		/* Child. */
 		descriptors();
+		PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+		PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 		execv(path, args);
 		pjdlog_errno(LOG_ERR, "Unable to execute %s", path);
 		exit(EX_SOFTWARE);
