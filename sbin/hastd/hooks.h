@@ -41,7 +41,7 @@
 void hook_init(void);
 void hook_fini(void);
 void hook_check_one(pid_t pid, int status);
-void hook_check(bool sigchld);
+void hook_check(void);
 void hook_exec(const char *path, ...);
 void hook_execv(const char *path, va_list ap);
 

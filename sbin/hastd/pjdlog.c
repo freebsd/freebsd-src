@@ -214,8 +214,7 @@ pjdlogv_common(int loglevel, int debuglevel, int error, const char *fmt,
 		/* Attach debuglevel if this is debug log. */
 		if (loglevel == LOG_DEBUG)
 			fprintf(out, "[%d]", debuglevel);
-		fprintf(out, " ");
-		fprintf(out, "%s", pjdlog_prefix);
+		fprintf(out, " %s", pjdlog_prefix);
 		vfprintf(out, fmt, ap);
 		if (error != -1)
 			fprintf(out, ": %s.", strerror(error));
