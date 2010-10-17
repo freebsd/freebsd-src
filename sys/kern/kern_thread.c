@@ -746,25 +746,23 @@ thread_suspend_check(int return_instead)
 		    (p->p_flag & P_SINGLE_BOUNDARY) && return_instead)
 			return (ERESTART);
 
-		/* If thread will exit, flush its pending signals */
-		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td))
-			sigqueue_flush(&td->td_sigqueue);
-
-		PROC_SLOCK(p);
-		thread_stopped(p);
 		/*
 		 * If the process is waiting for us to exit,
 		 * this thread should just suicide.
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
 		 */
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
-			PROC_SUNLOCK(p);
 			PROC_UNLOCK(p);
 			tidhash_remove(td);
 			PROC_LOCK(p);
+			tdsigcleanup(td);
 			PROC_SLOCK(p);
+			thread_stopped(p);
 			thread_exit();
 		}
+
+		PROC_SLOCK(p);
+		thread_stopped(p);
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount + 1) {
 				thread_lock(p->p_singlethread);
@@ -981,12 +979,7 @@ void
 tidhash_add(struct thread *td)
 {
 	rw_wlock(&tidhash_lock);
-	thread_lock(td);
-	if ((td->td_flags & TDF_TIDHASH) == 0) {
-		LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
-		td->td_flags |= TDF_TIDHASH;
-	}
-	thread_unlock(td);
+	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
 	rw_wunlock(&tidhash_lock);
 }
 
@@ -994,11 +987,6 @@ void
 tidhash_remove(struct thread *td)
 {
 	rw_wlock(&tidhash_lock);
-	thread_lock(td);
-	if ((td->td_flags & TDF_TIDHASH) != 0) {
-		LIST_REMOVE(td, td_hash);
-		td->td_flags &= ~TDF_TIDHASH;
-	}
-	thread_unlock(td);
+	LIST_REMOVE(td, td_hash);
 	rw_wunlock(&tidhash_lock);
 }
