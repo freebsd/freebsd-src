@@ -1,5 +1,5 @@
 .include <bsd.own.mk>
 
-SUBDIR	= infiniband
+SUBDIR	= infiniband rdma
 
 .include <bsd.subdir.mk>

@@ -1,6 +1,9 @@
 .include <bsd.own.mk>
 
 INCS=
+IBINCS=		types.h byteorder.h
+IBINCSDIR=	${INCLUDEDIR}/infiniband
+
 IBVERBS=	../../libibverbs/include/infiniband
 VERBINCS=	${IBVERBS}/arch.h ${IBVERBS}/driver.h ${IBVERBS}/kern-abi.h
 VERBINCS+=	${IBVERBS}/marshall.h ${IBVERBS}/opcode.h
@@ -94,7 +97,11 @@ VENDORINCS+=	${VENDOR}/osm_vendor_test.h ${VENDOR}/osm_vendor_ts.h
 VENDORINCS+=	${VENDOR}/osm_vendor_umadt.h
 VENDORINCSDIR=	${INCLUDEDIR}/infiniband/vendor
 
+IBCM=		../../libibcm/include/infiniband
+IBCMINCS=	${IBCM}/cm.h ${IBCM}/cm_abi.h
+IBCMINCSDIR=	${INCLUDEDIR}/infiniband
+
 INCSGROUPS=	INCS VERBINCS COMMONINCS MADINCS UMADINCS COMPLIBINCS IBAINCS
-INCSGROUPS+=	OPENSMINCS VENDORINCS
+INCSGROUPS+=	OPENSMINCS VENDORINCS IBCMINCS
 
 .include <bsd.prog.mk>

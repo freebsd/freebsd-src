@@ -38,7 +38,7 @@
 
 #include <infiniband/verbs.h>
 #include <infiniband/sa.h>
-#include <asm/byteorder.h>
+#include <infiniband/byteorder.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -432,7 +432,7 @@ static int ucma_destroy_kern_id(int fd, uint32_t handle)
 
 	ret = write(fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	VALGRIND_MAKE_MEM_DEFINED(resp, sizeof *resp);
 
@@ -487,7 +487,7 @@ static int ucma_query_route(struct rdma_cm_id *id)
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	VALGRIND_MAKE_MEM_DEFINED(resp, sizeof *resp);
 
@@ -541,7 +541,7 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return ucma_query_route(id);
 }
@@ -568,7 +568,7 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	memcpy(&id->route.addr.dst_addr, dst_addr, daddrlen);
 	return 0;
@@ -588,7 +588,7 @@ int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms)
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -614,7 +614,7 @@ static int rdma_init_qp_attr(struct rdma_cm_id *id, struct ibv_qp_attr *qp_attr,
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	VALGRIND_MAKE_MEM_DEFINED(resp, sizeof *resp);
 
@@ -889,7 +889,7 @@ int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -908,7 +908,7 @@ int rdma_listen(struct rdma_cm_id *id, int backlog)
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return ucma_query_route(id);
 }
@@ -946,7 +946,7 @@ int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size) {
 		ucma_modify_qp_err(id);
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 	}
 
 	return 0;
@@ -972,7 +972,7 @@ int rdma_reject(struct rdma_cm_id *id, const void *private_data,
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -991,7 +991,7 @@ int rdma_notify(struct rdma_cm_id *id, enum ibv_event_type event)
 	cmd->event = event;
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -1022,7 +1022,7 @@ int rdma_disconnect(struct rdma_cm_id *id)
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -1067,7 +1067,7 @@ int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size) {
-		ret = (ret >= 0) ? ERR(ENODATA) : -1;
+		ret = (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 		goto err2;
 	}
 
@@ -1120,7 +1120,7 @@ int rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size) {
-		ret = (ret >= 0) ? ERR(ENODATA) : -1;
+		ret = (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 		goto free;
 	}
 
@@ -1221,7 +1221,7 @@ static int ucma_process_conn_resp(struct cma_id_private *id_priv)
 
 	ret = write(id_priv->id.channel->fd, msg, size);
 	if (ret != size) {
-		ret = (ret >= 0) ? ERR(ENODATA) : -1;
+		ret = (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 		goto err;
 	}
 
@@ -1318,7 +1318,7 @@ retry:
 	ret = write(channel->fd, msg, size);
 	if (ret != size) {
 		free(evt);
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 	}
 	
 	VALGRIND_MAKE_MEM_DEFINED(resp, sizeof *resp);
@@ -1477,7 +1477,7 @@ int rdma_set_option(struct rdma_cm_id *id, int level, int optname,
 
 	ret = write(id->channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -1497,7 +1497,7 @@ int rdma_migrate_id(struct rdma_cm_id *id, struct rdma_event_channel *channel)
 
 	ret = write(channel->fd, msg, size);
 	if (ret != size)
-		return (ret >= 0) ? ERR(ENODATA) : -1;
+		return (ret >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	VALGRIND_MAKE_MEM_DEFINED(resp, sizeof *resp);
 

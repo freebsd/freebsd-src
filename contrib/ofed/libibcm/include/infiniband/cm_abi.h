@@ -36,7 +36,7 @@
 #ifndef CM_ABI_H
 #define CM_ABI_H
 
-#include <linux/types.h>
+#include <infiniband/types.h>
 #include <infiniband/sa.h>
 #include <infiniband/marshall.h>
 

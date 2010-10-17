@@ -35,7 +35,7 @@
 #ifndef KERN_ABI_H
 #define KERN_ABI_H
 
-#include <linux/types.h>
+#include <infiniband/types.h>
 
 /*
  * This file must be kept in sync with the kernel's version of

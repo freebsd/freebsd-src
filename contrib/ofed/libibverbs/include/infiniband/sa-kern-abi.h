@@ -33,7 +33,7 @@
 #ifndef INFINIBAND_SA_KERN_ABI_H
 #define INFINIBAND_SA_KERN_ABI_H
 
-#include <linux/types.h>
+#include <infiniband/types.h>
 
 /*
  * Obsolete, deprecated names.  Will be removed in libibverbs 1.1.

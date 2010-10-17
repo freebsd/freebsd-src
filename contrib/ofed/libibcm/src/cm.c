@@ -300,7 +300,7 @@ int ib_cm_destroy_id(struct ib_cm_id *cm_id)
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	VALGRIND_MAKE_MEM_DEFINED(resp, sizeof *resp);
 
@@ -331,7 +331,7 @@ int ib_cm_attr_id(struct ib_cm_id *cm_id, struct ib_cm_attr_param *param)
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	VALGRIND_MAKE_MEM_DEFINED(resp, sizeof *resp);
 
@@ -361,7 +361,7 @@ int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : result;
+		return (result >= 0) ? ERR(ECONNREFUSED) : result;
 
 	VALGRIND_MAKE_MEM_DEFINED(resp, sizeof *resp);
 
@@ -387,7 +387,7 @@ int ib_cm_listen(struct ib_cm_id *cm_id,
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -446,7 +446,7 @@ int ib_cm_send_req(struct ib_cm_id *cm_id, struct ib_cm_req_param *param)
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -481,7 +481,7 @@ int ib_cm_send_rep(struct ib_cm_id *cm_id, struct ib_cm_rep_param *param)
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -506,7 +506,7 @@ static inline int cm_send_private_data(struct ib_cm_id *cm_id,
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -547,7 +547,7 @@ static int cm_establish(struct ib_cm_id *cm_id)
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -572,7 +572,7 @@ int ib_cm_notify(struct ib_cm_id *cm_id, enum ibv_event_type event)
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -606,7 +606,7 @@ static inline int cm_send_status(struct ib_cm_id *cm_id,
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -656,7 +656,7 @@ int ib_cm_send_mra(struct ib_cm_id *cm_id,
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : result;
+		return (result >= 0) ? ERR(ECONNREFUSED) : result;
 
 	return 0;
 }
@@ -691,7 +691,7 @@ int ib_cm_send_lap(struct ib_cm_id *cm_id,
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -731,7 +731,7 @@ int ib_cm_send_sidr_req(struct ib_cm_id *cm_id,
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : result;
+		return (result >= 0) ? ERR(ECONNREFUSED) : result;
 
 	return 0;
 }
@@ -765,7 +765,7 @@ int ib_cm_send_sidr_rep(struct ib_cm_id *cm_id,
 
 	result = write(cm_id->device->fd, msg, size);
 	if (result != size)
-		return (result >= 0) ? ERR(ENODATA) : -1;
+		return (result >= 0) ? ERR(ECONNREFUSED) : -1;
 
 	return 0;
 }
@@ -875,7 +875,7 @@ int ib_cm_get_event(struct ib_cm_device *device, struct ib_cm_event **event)
 
 	result = write(device->fd, msg, size);
 	if (result != size) {
-		result = (result >= 0) ? ERR(ENODATA) : -1;
+		result = (result >= 0) ? ERR(ECONNREFUSED) : -1;
 		goto done;
 	}
 
