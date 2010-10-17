@@ -164,10 +164,6 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	  	days += days_in_month(year, i);
 	days += (ct->day - 1);
 
-	/* XXX Dow sanity check. Dow is not used, so should we check it? */
-	if (ct->dow != -1 && ct->dow != day_of_week(days))
-		return (EINVAL);
-
 	/* Add hours, minutes, seconds. */
 	secs = ((days * 24 + ct->hour) * 60 + ct->min) * 60 + ct->sec;
 
